@@ -1,0 +1,95 @@
+import { useEffect, useMemo, useState } from 'react'
+import { modules } from './data'
+import type { Exercise, Lesson } from './engine/types'
+import { addXp, completeLesson, load, loseHeart, nextHeartIn, recordWord, refillHearts, regenHearts, save, touchStreak, type Progress } from './engine/progress'
+import { buildLesson, buildPractice, lessonsForUnit } from './engine/generator'
+import Home, { unlockedState } from './screens/Home'
+import Words from './screens/Words'
+import Book from './screens/Book'
+import Profile from './screens/Profile'
+import LessonScreen, { type LessonOutcome } from './screens/Lesson'
+import { setMuted } from './engine/audio'
+
+type Tab = 'home' | 'words' | 'book' | 'profile'
+
+export default function App() {
+  const [progress, setProgress] = useState<Progress>(() => touchStreak(load()))
+  const [tab, setTab] = useState<Tab>('home')
+  const [active, setActive] = useState<{ lesson: Lesson | null; exercises: Exercise[] } | null>(null)
+  const [, tick] = useState(0)
+
+  useEffect(() => save(progress), [progress])
+  useEffect(() => { const t = setInterval(() => { setProgress(p => regenHearts(p)); tick(x => x + 1) }, 30000); return () => clearInterval(t) }, [])
+  useEffect(() => { setMuted(!progress.sound) }, [progress.sound])
+
+  const { unlockedUnits } = useMemo(() => unlockedState(modules, progress), [progress])
+  const totalLessons = modules.reduce((a, m) => a + m.units.length * lessonsForUnit(m.units[0]).length + 1, 0)
+
+  const startLesson = (lesson: Lesson) => {
+    if (progress.hearts <= 0) { alert(`لا توجد قلوب! القلب التالي بعد ${Math.ceil(nextHeartIn(progress) / 60000)} دقيقة. تدرّب على الكلمات لاستعادة القلوب.`); setTab('words'); return }
+    const unit = modules.flatMap(m => m.units).find(u => u.id === lesson.unitId)!
+    const mod = modules.find(m => m.units.includes(unit))!
+    setActive({ lesson, exercises: buildLesson(lesson, unit, mod, progress) })
+  }
+  const startPractice = () => {
+    const ex = buildPractice(modules, progress, unlockedUnits)
+    if (ex.length === 0) return
+    setActive({ lesson: null, exercises: ex })
+  }
+
+  const finish = (o: LessonOutcome) => {
+    setProgress(p => {
+      let n = addXp(p, o.xp)
+      for (const r of o.wordResults) n = recordWord(n, r.en, r.correct)
+      if (active?.lesson) {
+        const answered = o.correct + o.wrong
+        const acc = answered ? o.correct / answered : 1
+        const stars = acc >= 0.9 ? 3 : acc >= 0.7 ? 2 : 1
+        n = completeLesson(n, active.lesson.id, stars, Math.round(acc * 100))
+      } else {
+        n = refillHearts(n) // practice restores hearts
+      }
+      return n
+    })
+    setActive(null)
+    setTab(active?.lesson ? 'home' : 'words')
+  }
+
+  if (active) {
+    return (
+      <div className="app" style={{ paddingBottom: 0 }}>
+        <LessonScreen
+          key={active.lesson?.id || 'practice'}
+          lesson={active.lesson}
+          exercises={active.exercises}
+          hearts={progress.hearts}
+          autoSpeak={progress.autoSpeak}
+          onLoseHeart={() => { if (active.lesson) setProgress(p => loseHeart(p)) }}
+          onFinish={finish}
+          onQuit={() => setActive(null)}
+          onRefill={() => { setActive(null); startPractice() }}
+        />
+      </div>
+    )
+  }
+
+  return (
+    <div className="app">
+      <div className="topbar">
+        <div className="stat fire">🔥 {progress.streak}</div>
+        <div className="stat gem">💎 {progress.xp}</div>
+        <div className="stat heart">❤️ {progress.hearts}</div>
+        <div className="muted" style={{ fontWeight: 800 }}>{progress.name ? `مرحباً ${progress.name}` : 'Emar 8'}</div>
+      </div>
+      {tab === 'home' && <Home modules={modules} progress={progress} onStart={startLesson} />}
+      {tab === 'words' && <Words modules={modules} progress={progress} unlocked={unlockedUnits} onPractice={startPractice} />}
+      {tab === 'book' && <Book modules={modules} />}
+      {tab === 'profile' && <Profile progress={progress} totalLessons={totalLessons} onChange={setProgress} onReset={() => { localStorage.clear(); location.reload() }} />}
+      <nav className="tabbar">
+        {([['home', '🏠', 'تعلّم'], ['words', '📚', 'الكلمات'], ['book', '📖', 'الكتاب'], ['profile', '👤', 'ملفّي']] as [Tab, string, string][]).map(([t, ic, l]) => (
+          <button key={t} className={`tab ${tab === t ? 'active' : ''}`} onClick={() => setTab(t)}><span className="ic">{ic}</span>{l}</button>
+        ))}
+      </nav>
+    </div>
+  )
+}
