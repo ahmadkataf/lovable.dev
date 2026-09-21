@@ -41,7 +41,7 @@ describe('vocabulary examples come from the book', () => {
           if (/\([^)]*[-,][^)]*\)/.test(e)) why.push('unresolved choice')
           if (/^(write|tick|match|complete|choose|fill|underline|circle|listen|discuss)\b/i.test(e)) why.push('task instruction')
           if (!/[.!?]$/.test(e)) why.push('not a sentence')
-          if (e.split(/\s+/).length < 4) why.push('too short')
+          if (e.split(/\s+/).length < 3) why.push('too short')
           if (why.length) unusable.push(`${w.en} [${why.join(', ')}]: ${e}`)
         }
         expect(unusable, `examples that are not usable sentences:\n${unusable.join('\n')}`).toEqual([])

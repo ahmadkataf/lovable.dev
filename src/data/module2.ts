@@ -51,7 +51,7 @@ export const module2: Module = {
         { en: 'helicopter', ar: 'طائرة مروحيّة (هليكوبتر)', pos: 'noun', def: 'an aircraft with rotating blades on top', defAr: 'طائرة لها شفرات دوّارة في الأعلى' },
         { en: 'means of transportation', ar: 'وسائل النقل', pos: 'noun', def: 'ways of carrying people or goods from one place to another', defAr: 'طرق نقل الناس أو البضائع من مكان إلى آخر', example: 'How many means of transportation can you see?', exampleAr: 'كم وسيلة نقل تستطيع أن ترى؟' },
         { en: 'pack', ar: 'يحزم (الأمتعة)', pos: 'verb', def: 'to put things into a bag or suitcase for a trip', defAr: 'أن تضع الأشياء في حقيبة استعداداً للرحلة', example: 'What do you usually pack when you go away for a short trip?', exampleAr: 'ماذا تحزم عادةً عندما تذهب في رحلة قصيرة؟' },
-        { en: 'innovation', ar: 'ابتكار', pos: 'noun', def: 'a new idea, method or invention', defAr: 'فكرة أو طريقة أو اختراع جديد', example: 'Listen to a man talking about an innovation.', exampleAr: 'استمع إلى رجل يتحدث عن ابتكار.' },
+        { en: 'innovation', ar: 'ابتكار', pos: 'noun', def: 'a new idea, method or invention', defAr: 'فكرة أو طريقة أو اختراع جديد' },
         { en: 'suitcase', ar: 'حقيبة سفر', pos: 'noun', def: 'a case with a handle used for carrying clothes when travelling', defAr: 'حقيبة لها مقبض تُستخدم لحمل الملابس أثناء السفر', example: 'Hie Liang has invented a suitcase.', exampleAr: 'اخترع هي ليانغ حقيبة سفر.' },
         { en: 'passport', ar: 'جواز سفر', pos: 'noun', def: 'an official document that identifies you when travelling abroad', defAr: 'وثيقة رسمية تثبت هويتك عند السفر إلى الخارج', example: 'I got sad because I lost my passport.', exampleAr: 'حزنت لأنني فقدت جواز سفري.' },
       ],
