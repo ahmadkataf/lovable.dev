@@ -29,6 +29,23 @@ describe('vocabulary examples come from the book', () => {
         }
         expect(strays, `examples not found in the book text:\n${strays.join('\n')}`).toEqual([])
       })
+
+      it(`unit ${u.id} (${u.title}) shows examples as complete sentences`, () => {
+        // A label, a heading, a task instruction or an exercise with an unresolved
+        // choice teaches nothing; such words keep their definition without an example.
+        const unusable: string[] = []
+        for (const w of u.vocab) {
+          const e = w.example?.trim()
+          if (!e) continue
+          const why: string[] = []
+          if (/\([^)]*[-,][^)]*\)/.test(e)) why.push('unresolved choice')
+          if (/^(write|tick|match|complete|choose|fill|underline|circle|listen|discuss)\b/i.test(e)) why.push('task instruction')
+          if (!/[.!?]$/.test(e)) why.push('not a sentence')
+          if (e.split(/\s+/).length < 4) why.push('too short')
+          if (why.length) unusable.push(`${w.en} [${why.join(', ')}]: ${e}`)
+        }
+        expect(unusable, `examples that are not usable sentences:\n${unusable.join('\n')}`).toEqual([])
+      })
     }
   }
 })
