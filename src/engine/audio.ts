@@ -1,23 +1,105 @@
-// Text-to-speech + sound effects (no network, no keys)
+// Audio: pre-recorded sprites (public/audio/*.mp3 + index.json) with Web Speech fallback,
+// plus WebAudio sound effects. No network services, no keys.
 
+// ---------------- WebAudio context + unlock ----------------
+let ctx: AudioContext | null = null
+function ac(): AudioContext | null {
+  try {
+    if (!ctx) ctx = new (window.AudioContext || (window as any).webkitAudioContext)()
+    if (ctx.state === 'suspended') ctx.resume().catch(() => {})
+    return ctx
+  } catch { return null }
+}
+
+let unlocked = false
+function unlock() {
+  if (unlocked) return
+  unlocked = true
+  const c = ac()
+  if (c) {
+    try { const b = c.createBuffer(1, 1, 22050); const s = c.createBufferSource(); s.buffer = b; s.connect(c.destination); s.start(0) } catch { /* ignore */ }
+  }
+  if (ttsSupported()) {
+    try { const u = new SpeechSynthesisUtterance(' '); u.volume = 0; speechSynthesis.speak(u) } catch { /* ignore */ }
+  }
+}
+if (typeof window !== 'undefined') {
+  for (const ev of ['pointerdown', 'touchend', 'keydown', 'click']) window.addEventListener(ev, unlock, { capture: true, passive: true })
+}
+
+// ---------------- pre-recorded sprites ----------------
+type Clip = { group: string; start: number; dur: number }
+type Index = { sr: number; groups: Record<string, Record<string, [number, number]>> }
+const BASE = ((import.meta as any).env?.BASE_URL || './') as string
+const audioUrl = (f: string) => `${BASE.replace(/\/?$/, '/')}audio/${f}`
+
+let indexPromise: Promise<Map<string, Clip> | null> | null = null
+let indexStatus: 'idle' | 'loading' | 'ready' | 'failed' = 'idle'
+const buffers = new Map<string, Promise<AudioBuffer | null>>()
+
+export function norm(s: string): string { return s.replace(/\s+/g, ' ').trim().toLowerCase() }
+
+function loadIndex(): Promise<Map<string, Clip> | null> {
+  if (!indexPromise) {
+    indexStatus = 'loading'
+    indexPromise = fetch(audioUrl('index.json')).then(r => { if (!r.ok) throw new Error(String(r.status)); return r.json() as Promise<Index> })
+      .then(idx => {
+        const map = new Map<string, Clip>()
+        for (const [group, entries] of Object.entries(idx.groups)) for (const [k, [start, dur]] of Object.entries(entries)) if (!map.has(k)) map.set(k, { group, start, dur })
+        indexStatus = 'ready'
+        return map
+      })
+      .catch(() => { indexStatus = 'failed'; return null })
+  }
+  return indexPromise
+}
+
+function loadBuffer(group: string): Promise<AudioBuffer | null> {
+  let p = buffers.get(group)
+  if (!p) {
+    p = fetch(audioUrl(`${group}.mp3`)).then(r => { if (!r.ok) throw new Error(String(r.status)); return r.arrayBuffer() })
+      .then(data => new Promise<AudioBuffer | null>((resolve) => {
+        const c = ac(); if (!c) return resolve(null)
+        try { c.decodeAudioData(data, b => resolve(b), () => resolve(null)) } catch { resolve(null) }
+      }))
+      .catch(() => null)
+    buffers.set(group, p)
+  }
+  return p
+}
+
+/** Warm up the sprite for a unit / module so the first playback is instant. */
+export function preload(group: string) { loadIndex().then(m => { if (m) loadBuffer(group) }) }
+export function preloadIndex() { loadIndex() }
+
+let current: AudioBufferSourceNode | null = null
+let playToken = 0
+function stopClip() { if (current) { try { current.onended = null; current.stop() } catch { /* ignore */ } current = null } }
+
+async function playClip(clip: Clip, rate: number, onEnd?: () => void): Promise<boolean> {
+  const token = ++playToken
+  const buf = await loadBuffer(clip.group)
+  const c = ac()
+  if (!buf || !c || token !== playToken) return !!buf && token !== playToken
+  stopClip()
+  const src = c.createBufferSource()
+  src.buffer = buf
+  src.playbackRate.value = rate
+  src.connect(c.destination)
+  src.onended = () => { if (current === src) current = null; onEnd?.() }
+  try { src.start(0, clip.start, clip.dur) } catch { onEnd?.(); return false }
+  current = src
+  return true
+}
+
+// ---------------- Web Speech fallback ----------------
 let voices: SpeechSynthesisVoice[] = []
-let voicesLoaded = false
-
-function loadVoices() {
-  if (typeof speechSynthesis === 'undefined') return
-  voices = speechSynthesis.getVoices()
-  voicesLoaded = voices.length > 0
-}
-if (typeof speechSynthesis !== 'undefined') {
-  loadVoices()
-  speechSynthesis.onvoiceschanged = loadVoices
-}
+function loadVoices() { if (typeof speechSynthesis === 'undefined') return; voices = speechSynthesis.getVoices() }
+if (typeof speechSynthesis !== 'undefined') { loadVoices(); speechSynthesis.onvoiceschanged = loadVoices }
 
 function pickVoice(lang: 'en' | 'ar'): SpeechSynthesisVoice | undefined {
-  if (!voicesLoaded) loadVoices()
-  const pref = lang === 'en'
-    ? [/en[-_]US/i, /en[-_]GB/i, /^en/i]
-    : [/ar[-_]SA/i, /ar[-_]EG/i, /^ar/i]
+  if (!voices.length) loadVoices()
+  const pref = lang === 'en' ? [/en[-_]US/i, /en[-_]GB/i, /^en/i] : [/ar[-_]SA/i, /ar[-_]EG/i, /^ar/i]
   const good = /google|natural|premium|enhanced|samantha|daniel|karen|moira|zira|david|hazel/i
   for (const re of pref) {
     const list = voices.filter(v => re.test(v.lang))
@@ -31,36 +113,57 @@ export function ttsSupported() {
   return typeof speechSynthesis !== 'undefined' && typeof SpeechSynthesisUtterance !== 'undefined'
 }
 
-export function speak(text: string, opts: { lang?: 'en' | 'ar'; rate?: number; onEnd?: () => void } = {}) {
-  if (!ttsSupported()) { opts.onEnd?.(); return }
-  const lang = opts.lang ?? 'en'
+function ttsSpeak(text: string, lang: 'en' | 'ar', rate: number, onEnd?: () => void) {
+  if (!ttsSupported()) { onEnd?.(); return }
+  const go = () => {
+    try {
+      const u = new SpeechSynthesisUtterance(text)
+      const v = pickVoice(lang)
+      if (v) u.voice = v
+      u.lang = lang === 'en' ? 'en-US' : 'ar-SA'
+      u.rate = rate
+      u.pitch = 1
+      let ended = false
+      const done = () => { if (!ended) { ended = true; onEnd?.() } }
+      u.onend = done; u.onerror = done
+      speechSynthesis.speak(u)
+      // Chrome sometimes never fires onend; make sure the UI is released
+      setTimeout(done, 1500 + text.length * 90)
+    } catch { onEnd?.() }
+  }
   try {
-    speechSynthesis.cancel()
-    const u = new SpeechSynthesisUtterance(text)
-    const v = pickVoice(lang)
-    if (v) u.voice = v
-    u.lang = lang === 'en' ? 'en-US' : 'ar-SA'
-    u.rate = opts.rate ?? (lang === 'en' ? 0.9 : 1)
-    u.pitch = 1
-    if (opts.onEnd) u.onend = opts.onEnd
-    speechSynthesis.speak(u)
-  } catch { opts.onEnd?.() }
+    if (speechSynthesis.speaking || speechSynthesis.pending) { speechSynthesis.cancel(); setTimeout(go, 80) } else go()
+  } catch { go() }
+}
+
+// ---------------- public API ----------------
+export function speak(text: string, opts: { lang?: 'en' | 'ar'; rate?: number; onEnd?: () => void } = {}) {
+  const lang = opts.lang ?? 'en'
+  const rate = opts.rate ?? (lang === 'en' ? 0.9 : 1)
+  stopSpeaking()
+  if (lang === 'en') {
+    loadIndex().then(async map => {
+      const clip = map?.get(norm(text))
+      if (clip) {
+        const ok = await playClip(clip, rate < 0.8 ? 0.72 : 1, opts.onEnd)
+        if (ok) return
+      }
+      ttsSpeak(text, lang, rate, opts.onEnd)
+    })
+  } else ttsSpeak(text, lang, rate, opts.onEnd)
 }
 
 export function stopSpeaking() {
-  if (ttsSupported()) speechSynthesis.cancel()
+  playToken++
+  stopClip()
+  if (ttsSupported()) { try { speechSynthesis.cancel() } catch { /* ignore */ } }
 }
 
-// ---- Sound effects via WebAudio ----
-let ctx: AudioContext | null = null
-function ac(): AudioContext | null {
-  try {
-    if (!ctx) ctx = new (window.AudioContext || (window as any).webkitAudioContext)()
-    if (ctx.state === 'suspended') ctx.resume()
-    return ctx
-  } catch { return null }
+export function audioStatus() {
+  return { sprites: indexStatus, tts: ttsSupported(), voices: voices.length, unlocked, ctx: ctx?.state ?? 'none' }
 }
 
+// ---------------- sound effects ----------------
 let muted = false
 export function setMuted(m: boolean) { muted = m }
 
@@ -84,7 +187,7 @@ export const sfx = {
   levelUp() { [392, 523, 659, 784, 1047].forEach((f, i) => tone(f, i * 0.09, 0.35, 'triangle')) },
 }
 
-// ---- Speech recognition (optional, for "listen & repeat") ----
+// ---------------- speech recognition (optional) ----------------
 export function recognitionSupported() {
   return typeof window !== 'undefined' && !!((window as any).SpeechRecognition || (window as any).webkitSpeechRecognition)
 }

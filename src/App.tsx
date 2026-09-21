@@ -8,7 +8,7 @@ import Words from './screens/Words'
 import Book from './screens/Book'
 import Profile from './screens/Profile'
 import LessonScreen, { type LessonOutcome } from './screens/Lesson'
-import { setMuted } from './engine/audio'
+import { preload, preloadIndex, setMuted } from './engine/audio'
 
 type Tab = 'home' | 'words' | 'book' | 'profile'
 
@@ -21,6 +21,7 @@ export default function App() {
   useEffect(() => save(progress), [progress])
   useEffect(() => { const t = setInterval(() => { setProgress(p => regenHearts(p)); tick(x => x + 1) }, 30000); return () => clearInterval(t) }, [])
   useEffect(() => { setMuted(!progress.sound) }, [progress.sound])
+  useEffect(() => { preloadIndex() }, [])
 
   const { unlockedUnits } = useMemo(() => unlockedState(modules, progress), [progress])
   const totalLessons = modules.reduce((a, m) => a + m.units.length * lessonsForUnit(m.units[0]).length + 1, 0)
@@ -29,11 +30,13 @@ export default function App() {
     if (progress.hearts <= 0) { alert(`لا توجد قلوب! القلب التالي بعد ${Math.ceil(nextHeartIn(progress) / 60000)} دقيقة. تدرّب على الكلمات لاستعادة القلوب.`); setTab('words'); return }
     const unit = modules.flatMap(m => m.units).find(u => u.id === lesson.unitId)!
     const mod = modules.find(m => m.units.includes(unit))!
+    preload(unit.id)
     setActive({ lesson, exercises: buildLesson(lesson, unit, mod, progress) })
   }
   const startPractice = () => {
     const ex = buildPractice(modules, progress, unlockedUnits)
     if (ex.length === 0) return
+    unlockedUnits.forEach(id => preload(id))
     setActive({ lesson: null, exercises: ex })
   }
 

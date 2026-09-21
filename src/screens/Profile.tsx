@@ -1,10 +1,13 @@
 import type { Progress } from '../engine/progress'
 import { levelFromXp, today } from '../engine/progress'
+import { audioStatus, speak } from '../engine/audio'
+import { useState } from 'react'
 
 interface Props { progress: Progress; totalLessons: number; onChange: (p: Progress) => void; onReset: () => void }
 
 export default function Profile({ progress, totalLessons, onChange, onReset }: Props) {
   const lv = levelFromXp(progress.xp)
+  const [audioMsg, setAudioMsg] = useState('')
   const done = Object.keys(progress.lessons).length
   const todayXp = progress.dailyXp[today()] || 0
   const goalPct = Math.min(1, todayXp / progress.dailyGoal)
@@ -70,7 +73,16 @@ export default function Profile({ progress, totalLessons, onChange, onReset }: P
         <div className="h2">الإعدادات</div>
         <label className="row spread" style={{ padding: '8px 0' }}><span>🔔 المؤثرات الصوتية</span><input type="checkbox" checked={progress.sound} onChange={e => onChange({ ...progress, sound: e.target.checked })} /></label>
         <label className="row spread" style={{ padding: '8px 0' }}><span>🔊 نطق الكلمة تلقائياً</span><input type="checkbox" checked={progress.autoSpeak} onChange={e => onChange({ ...progress, autoSpeak: e.target.checked })} /></label>
-        <button className="btn btn-red btn-sm mt" onClick={() => { if (confirm('هل تريد حذف كل التقدّم؟')) onReset() }}>إعادة ضبط التقدّم</button>
+        <div className="row mt" style={{ flexWrap: 'wrap' }}>
+          <button className="btn btn-blue btn-sm" onClick={() => {
+            setAudioMsg('جارٍ التشغيل...')
+            speak('Education is the most powerful weapon you can use to change the world.', { onEnd: () => { const s = audioStatus(); setAudioMsg(`انتهى التشغيل ✅ · ملفات الصوت: ${s.sprites === 'ready' ? 'جاهزة' : s.sprites === 'failed' ? 'غير متاحة' : s.sprites} · نطق المتصفح: ${s.tts ? `متاح (${s.voices} صوت)` : 'غير متاح'}`) } })
+            setTimeout(() => { const s = audioStatus(); setAudioMsg(m => m === 'جارٍ التشغيل...' ? `ملفات الصوت: ${s.sprites} · نطق المتصفح: ${s.tts ? `متاح (${s.voices} صوت)` : 'غير متاح'} · حالة الصوت: ${s.ctx}` : m) }, 6000)
+          }}>🔊 اختبار الصوت</button>
+          <button className="btn btn-red btn-sm" onClick={() => { if (confirm('هل تريد حذف كل التقدّم؟')) onReset() }}>إعادة ضبط التقدّم</button>
+        </div>
+        {audioMsg && <p className="muted" style={{ fontSize: 13 }}>{audioMsg}</p>}
+        <p className="muted" style={{ fontSize: 12 }}>إن لم تسمع شيئاً: ارفع صوت الوسائط، وأغلق الوضع الصامت على iPhone.</p>
       </div>
       <p className="muted center">Emar English Series — Grade 8 · Student's Book · تطبيق تعليمي تفاعلي</p>
     </div>

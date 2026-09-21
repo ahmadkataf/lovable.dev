@@ -25,3 +25,13 @@ npm test         # فحص سلامة بيانات المنهاج
 - `src/engine/` — الأنواع، مولّد التمارين، التقدّم (localStorage)، الصوت.
 - `src/screens/` — الرئيسية (المسار)، الدرس، الكلمات، الكتاب، الملف الشخصي.
 - `src/components/` — مكوّنات التمارين والعناصر المشتركة.
+
+## الصوت المسجَّل
+الكلمات والجمل والنصوص كلها لها تسجيلات صوتية جاهزة في `public/audio/` (ملف mp3 لكل وحدة + `index.json` بمواقع المقاطع)، ونطق المتصفح يُستخدم فقط كبديل لما ليس له تسجيل.
+لإعادة توليدها بعد تعديل المحتوى:
+```bash
+pip install piper-tts imageio-ffmpeg numpy
+# نزّل صوت Piper (مثلاً en_US-lessac-medium.onnx + .json) من rhasspy/piper-voices
+node scripts/export-audio-texts.mjs          # يجمع كل النصوص في audio-src/texts.json
+python3 scripts/gen-audio.py path/to/en_US-lessac-medium.onnx public/audio
+```
