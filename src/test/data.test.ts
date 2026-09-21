@@ -37,7 +37,12 @@ describe('curriculum data', () => {
           // a learner who cannot read the English sentence still needs to know what it says
           if (e.type !== 'build' && e.type !== 'order') {
             expect(e.promptAr?.trim().length, `${e.prompt} needs promptAr`).toBeGreaterThan(0)
-            if (e.type === 'fill') expect(e.promptAr, `${e.prompt}: the Arabic must keep the blank`).toContain('___')
+            if (e.type === 'fill') {
+              expect(e.promptAr, `${e.prompt}: the Arabic must keep the blank`).toContain('___')
+              // after answering the learner sees the completed Arabic sentence
+              expect(e.promptArFull?.trim().length, `${e.prompt} needs promptArFull`).toBeGreaterThan(0)
+              expect(e.promptArFull, `${e.prompt}: the completed Arabic must not keep a blank`).not.toContain('___')
+            }
           }
           if (e.type === 'mcq' || e.type === 'fill') {
             expect(e.options && e.options.length >= 3).toBe(true)
