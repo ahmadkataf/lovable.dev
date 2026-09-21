@@ -25,6 +25,7 @@ describe('curriculum data', () => {
         expect(u.reading.questions.length).toBeGreaterThanOrEqual(4)
         expect(u.reading.paragraphsAr?.length, 'reading needs Arabic translation').toBe(u.reading.paragraphs.length)
         for (const q of u.reading.questions) {
+          expect(q.qAr?.trim().length, `${q.q} needs qAr`).toBeGreaterThan(0)
           expect(q.options.length).toBeGreaterThanOrEqual(3)
           expect(q.answer).toBeGreaterThanOrEqual(0)
           expect(q.answer).toBeLessThan(q.options.length)
@@ -33,6 +34,11 @@ describe('curriculum data', () => {
       it('has valid grammar exercises', () => {
         expect(u.grammar.exercises.length).toBeGreaterThanOrEqual(10)
         for (const e of u.grammar.exercises) {
+          // a learner who cannot read the English sentence still needs to know what it says
+          if (e.type !== 'build' && e.type !== 'order') {
+            expect(e.promptAr?.trim().length, `${e.prompt} needs promptAr`).toBeGreaterThan(0)
+            if (e.type === 'fill') expect(e.promptAr, `${e.prompt}: the Arabic must keep the blank`).toContain('___')
+          }
           if (e.type === 'mcq' || e.type === 'fill') {
             expect(e.options && e.options.length >= 3).toBe(true)
             expect(typeof e.answer).toBe('number')
