@@ -68,6 +68,15 @@ export interface Unit {
   sentences: string[]    // key sentences for "build the sentence" exercises
 }
 
+/** The book's own Review section at the end of some modules. */
+export interface ModuleReview {
+  title: string
+  titleAr: string
+  pages: string
+  reading?: Reading
+  exercises: GrammarExercise[]
+}
+
 export interface Module {
   number: number
   title: string
@@ -76,6 +85,7 @@ export interface Module {
   units: Unit[]
   focus?: { title: string; paragraphs: string[]; glossary?: Word[] }
   project?: { title: string; steps: string[] }
+  review?: ModuleReview
 }
 
 // ===== Exercise model (what the app shows) =====
@@ -96,7 +106,7 @@ export type Exercise =
   | { kind: 'grammar_card'; grammar: Grammar }                              // explanation screen
   | { kind: 'speak'; text: string; ar?: string }                            // listen & repeat
 
-export type LessonKind = 'vocab' | 'reading' | 'grammar' | 'listening' | 'writing' | 'review' | 'boss'
+export type LessonKind = 'vocab' | 'reading' | 'grammar' | 'listening' | 'writing' | 'review' | 'boss' | 'bookReview'
 
 export interface Lesson {
   id: string          // 'u1-l1'

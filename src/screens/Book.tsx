@@ -3,7 +3,7 @@ import { Speaker } from '../components/common'
 import { speak } from '../engine/audio'
 import ReadingText from '../components/ReadingText'
 
-export default function Book({ modules }: { modules: Module[] }) {
+export default function Book({ modules, onGrammarPractice }: { modules: Module[]; onGrammarPractice: (unitId: string) => void }) {
   return (
     <div className="page">
       <div className="h1">📖 الكتاب</div>
@@ -21,7 +21,10 @@ export default function Book({ modules }: { modules: Module[] }) {
               {u.quotes?.map((q, i) => <div key={i} className="quote">"{q.text}" — {q.by}</div>)}
               <div className="h2 mt">📰 القراءة: <span className="en">{u.reading.title}</span></div>
               <ReadingText paragraphs={u.reading.paragraphs} paragraphsAr={u.reading.paragraphsAr} showAr maxHeight="none" />
-              <div className="h2 mt">🧩 القواعد: {u.grammar.nameAr} <span className="en muted" style={{ fontSize: 13 }}>{u.grammar.name}</span></div>
+              <div className="row spread mt">
+                <div className="h2" style={{ margin: 0 }}>🧩 القواعد: {u.grammar.nameAr} <span className="en muted" style={{ fontSize: 13 }}>{u.grammar.name}</span></div>
+                <button className="btn btn-blue btn-sm" onClick={() => onGrammarPractice(u.id)}>✏️ تدرّب ({u.grammar.exercises.length})</button>
+              </div>
               <div className="grammar-card">
                 <div className="ar-rule"><ul>{u.grammar.ruleAr.map((r, i) => <li key={i}>{r}</li>)}</ul></div>
                 <div className="en-rule"><ul>{u.grammar.ruleEn.map((r, i) => <li key={i}>{r}</li>)}</ul></div>
@@ -55,6 +58,18 @@ export default function Book({ modules }: { modules: Module[] }) {
               <summary>🔬 {m.focus.title}</summary>
               <div className="reading-box mt" style={{ maxHeight: 'none' }}>{m.focus.paragraphs.map((p, i) => <p key={i}>{p}</p>)}</div>
               {m.focus.glossary?.map(w => <div key={w.en} className="word-row"><Speaker text={w.en} size="sm" /><div className="grow"><div className="w">{w.en}</div><div className="a">{w.ar}</div></div></div>)}
+            </details>
+          )}
+          {m.review && (
+            <details className="unit-ref">
+              <summary>📋 {m.review.title} <span className="muted">· {m.review.titleAr} · ص {m.review.pages}</span></summary>
+              {m.review.reading && (
+                <>
+                  <div className="h2 mt">📰 <span className="en">{m.review.reading.title}</span></div>
+                  <ReadingText paragraphs={m.review.reading.paragraphs} paragraphsAr={m.review.reading.paragraphsAr} showAr maxHeight="none" />
+                </>
+              )}
+              <p className="muted mt">تمارين المراجعة: {m.review.exercises.length} — تظهر في درس «{m.review.titleAr}» على المسار.</p>
             </details>
           )}
           {m.project && (

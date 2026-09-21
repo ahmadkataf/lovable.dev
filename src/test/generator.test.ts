@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { modules } from '../data'
-import { bossLesson, buildLesson, buildPractice, checkBuild, lessonsForUnit, normalize } from '../engine/generator'
+import { bossLesson, buildGrammarPractice, buildLesson, buildPractice, checkBuild, lessonsForUnit, normalize, reviewLesson } from '../engine/generator'
 import { judge } from '../components/Exercises'
 import type { Exercise } from '../engine/types'
 
@@ -27,7 +27,8 @@ describe('exercise generator', () => {
     for (const u of m.units) {
       it(`generates valid lessons for ${u.id} (${u.title})`, () => {
         for (let round = 0; round < 5; round++) {
-          for (const lesson of [...lessonsForUnit(u), bossLesson(m)]) {
+          const extra = reviewLesson(m)
+          for (const lesson of [...lessonsForUnit(u), bossLesson(m), ...(extra ? [extra] : [])]) {
             const exs = buildLesson(lesson, u, m, empty)
             expect(exs.length, `${lesson.id} has exercises`).toBeGreaterThanOrEqual(5)
             for (const ex of exs) {
@@ -46,6 +47,17 @@ describe('exercise generator', () => {
       })
     }
   }
+  for (const m of modules) for (const u of m.units) {
+    it(`builds grammar practice for ${u.id} with every authored exercise usable`, () => {
+      expect(u.grammar.exercises.length, 'enough grammar practice per unit').toBeGreaterThanOrEqual(14)
+      for (let round = 0; round < 3; round++) {
+        const ex = buildGrammarPractice(u)
+        expect(ex.length).toBeGreaterThanOrEqual(6)
+        for (const e of ex) expect(judge(e, correctValue(e)), `${e.kind} in ${u.id} grammar practice`).toBe(true)
+      }
+    })
+  }
+
   it('builds a practice session from unlocked units', () => {
     const ex = buildPractice(modules, empty, new Set(['u1', 'u2']))
     expect(ex.length).toBeGreaterThanOrEqual(8)

@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { modules } from './data'
 import type { Exercise, Lesson } from './engine/types'
 import { addXp, completeLesson, load, loseHeart, nextHeartIn, recordWord, refillHearts, regenHearts, save, touchStreak, type Progress } from './engine/progress'
-import { buildLesson, buildPractice, lessonsForUnit } from './engine/generator'
+import { buildGrammarPractice, buildLesson, buildPractice, lessonsForUnit, reviewLesson } from './engine/generator'
 import Home, { unlockedState } from './screens/Home'
 import Words from './screens/Words'
 import Book from './screens/Book'
@@ -24,7 +24,7 @@ export default function App() {
   useEffect(() => { preloadIndex() }, [])
 
   const { unlockedUnits } = useMemo(() => unlockedState(modules, progress), [progress])
-  const totalLessons = modules.reduce((a, m) => a + m.units.length * lessonsForUnit(m.units[0]).length + 1, 0)
+  const totalLessons = modules.reduce((a, m) => a + m.units.length * lessonsForUnit(m.units[0]).length + 1 + (reviewLesson(m) ? 1 : 0), 0)
 
   const startLesson = (lesson: Lesson) => {
     if (progress.hearts <= 0) { alert(`لا توجد قلوب! القلب التالي بعد ${Math.ceil(nextHeartIn(progress) / 60000)} دقيقة. تدرّب على الكلمات لاستعادة القلوب.`); setTab('words'); return }
@@ -32,6 +32,12 @@ export default function App() {
     const mod = modules.find(m => m.units.includes(unit))!
     preload(unit.id)
     setActive({ lesson, exercises: buildLesson(lesson, unit, mod, progress) })
+  }
+  const startGrammar = (unitId: string) => {
+    const unit = modules.flatMap(m => m.units).find(u => u.id === unitId)
+    if (!unit) return
+    preload(unit.id)
+    setActive({ lesson: null, exercises: buildGrammarPractice(unit) })
   }
   const startPractice = () => {
     const ex = buildPractice(modules, progress, unlockedUnits)
@@ -86,7 +92,7 @@ export default function App() {
       </div>
       {tab === 'home' && <Home modules={modules} progress={progress} onStart={startLesson} />}
       {tab === 'words' && <Words modules={modules} progress={progress} unlocked={unlockedUnits} onPractice={startPractice} />}
-      {tab === 'book' && <Book modules={modules} />}
+      {tab === 'book' && <Book modules={modules} onGrammarPractice={startGrammar} />}
       {tab === 'profile' && <Profile progress={progress} totalLessons={totalLessons} onChange={setProgress} onReset={() => { localStorage.clear(); location.reload() }} />}
       <nav className="tabbar">
         {([['home', '🏠', 'تعلّم'], ['words', '📚', 'الكلمات'], ['book', '📖', 'الكتاب'], ['profile', '👤', 'ملفّي']] as [Tab, string, string][]).map(([t, ic, l]) => (

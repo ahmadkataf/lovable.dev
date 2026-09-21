@@ -24,10 +24,14 @@ export const LESSON_TEMPLATE: { kind: LessonKind; title: string; icon: string; x
   { kind: 'vocab', title: 'كلمات ٢', icon: '📖', xp: 15 },
   { kind: 'reading', title: 'القراءة', icon: '📰', xp: 20 },
   { kind: 'grammar', title: 'القواعد', icon: '🧩', xp: 20 },
+  { kind: 'grammar', title: 'تدريب القواعد', icon: '🧠', xp: 20 },
   { kind: 'listening', title: 'استماع ونطق', icon: '🎧', xp: 15 },
   { kind: 'writing', title: 'تركيب الجمل', icon: '✍️', xp: 15 },
   { kind: 'review', title: 'مراجعة الوحدة', icon: '🏆', xp: 30 },
 ]
+
+/** position of the first grammar lesson in LESSON_TEMPLATE */
+export const GRAMMAR_INDEX = LESSON_TEMPLATE.findIndex(l => l.kind === 'grammar')
 
 export function lessonsForUnit(u: Unit): Lesson[] {
   return LESSON_TEMPLATE.map((t, i) => ({ id: `${u.id}-l${i + 1}`, unitId: u.id, index: i, ...t }))
@@ -35,6 +39,12 @@ export function lessonsForUnit(u: Unit): Lesson[] {
 
 export function bossLesson(m: Module): Lesson {
   return { id: `m${m.number}-boss`, unitId: m.units[m.units.length - 1].id, index: 99, kind: 'boss', title: `اختبار الوحدة ${m.number}`, icon: '👑', xp: 50 }
+}
+
+/** The book's own Review section, where the book prints one. */
+export function reviewLesson(m: Module): Lesson | null {
+  if (!m.review) return null
+  return { id: `m${m.number}-review`, unitId: m.units[m.units.length - 1].id, index: 100, kind: 'bookReview', title: m.review.titleAr, icon: '📋', xp: 60 }
 }
 
 // ---------- exercise builders ----------
@@ -122,8 +132,25 @@ export function buildLesson(lesson: Lesson, unit: Unit, module: Module, progress
       return ex
     }
     case 'grammar': {
+      const all = grammarExercises(unit.grammar, pool)
+      const half = Math.ceil(all.length / 2)
+      // the first grammar lesson explains the rule and drills the easier half,
+      // the second drills the rest so no authored exercise goes unused
+      const mine = lesson.index === GRAMMAR_INDEX ? all.slice(0, half) : all.slice(half)
       const ex: Exercise[] = [{ kind: 'grammar_card', grammar: unit.grammar }]
-      ex.push(...shuffle(grammarExercises(unit.grammar, pool)).slice(0, 12))
+      ex.push(...shuffle(mine).slice(0, 14))
+      return ex
+    }
+    case 'bookReview': {
+      const r = module.review
+      if (!r) return []
+      const ex: Exercise[] = []
+      if (r.reading) {
+        r.reading.questions.forEach(q => ex.push({ kind: 'read', title: r.reading!.title, paragraphs: r.reading!.paragraphs, paragraphsAr: r.reading!.paragraphsAr, question: q }))
+        ;(r.reading.trueFalse || []).forEach(t => ex.push({ kind: 'truefalse', statement: t.statement, answer: t.answer }))
+      }
+      const all = module.units.flatMap(u => u.vocab)
+      ex.push(...shuffle(grammarExercises({ ...module.units[0].grammar, exercises: r.exercises }, all)).slice(0, 20))
       return ex
     }
     case 'listening': {
@@ -202,6 +229,12 @@ export function buildPractice(modules: Module[], progress: Progress, unlockedUni
   })
   ex.push(exMatch(shuffle(set)))
   return ex
+}
+
+/** Practice for one unit's grammar rule only, started from the book screen. */
+export function buildGrammarPractice(unit: Unit): Exercise[] {
+  const ex = grammarExercises(unit.grammar, unit.vocab)
+  return [{ kind: 'grammar_card', grammar: unit.grammar } as Exercise, ...shuffle(ex).slice(0, 15)]
 }
 
 export function checkBuild(target: string, tiles: string[]): boolean {
