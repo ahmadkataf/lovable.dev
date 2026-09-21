@@ -35,3 +35,11 @@ pip install piper-tts imageio-ffmpeg numpy
 node scripts/export-audio-texts.mjs          # يجمع كل النصوص في audio-src/texts.json
 python3 scripts/gen-audio.py path/to/en_US-lessac-medium.onnx public/audio
 ```
+
+## بناء تطبيق أندرويد (APK)
+غلاف WebView بسيط في `android/` يقدّم التطبيق من `assets/www` على العنوان `https://emar8.app/` (بدون Gradle):
+```bash
+npm run build
+ANDROID_HOME=/path/to/sdk ./scripts/build-apk.sh   # يحتاج build-tools 34.0.0 + platforms/android-34 + JDK 17+
+# الناتج: android/build/Emar8.apk
+```

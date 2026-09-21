@@ -8,6 +8,7 @@
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
     "build:artifact": "npm run build && node scripts/build-artifact.mjs",
+    "build:apk": "npm run build && ./scripts/build-apk.sh",
     "test": "vitest run"
   },
   "dependencies": {
