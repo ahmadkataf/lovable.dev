@@ -105,7 +105,7 @@ function grammarExercises(g: Grammar, pool: Word[]): Exercise[] {
   return g.exercises.map((e): Exercise => {
     switch (e.type) {
       case 'mcq': return { kind: 'mcq', prompt: e.prompt || '', promptAr: e.promptAr, options: e.options || [], answer: e.answer as number, explainAr: e.explainAr }
-      case 'fill': return { kind: 'fill', prompt: e.prompt || '', promptAr: e.promptAr, options: e.options || [], answer: e.answer as number, explainAr: e.explainAr }
+      case 'fill': return { kind: 'fill', prompt: e.prompt || '', promptAr: e.promptAr, promptArFull: e.promptArFull, options: e.options || [], answer: e.answer as number, explainAr: e.explainAr }
       case 'truefalse': return { kind: 'truefalse', statement: e.prompt || '', statementAr: e.promptAr, answer: e.answer as boolean, explainAr: e.explainAr }
       case 'build':
       case 'order': return exBuild(e.answer as string, pool, e.prompt)

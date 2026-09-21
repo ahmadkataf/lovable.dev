@@ -55,7 +55,7 @@ export function ExerciseView(props: ExProps) {
     case 'listen': return <Options {...props} title="استمع واختر ما سمعته" head={<div className="row" style={{ justifyContent: 'center', gap: 16 }}><Speaker text={ex.word.en} size="big" autoplay /><Speaker text={ex.word.en} slow /></div>} options={ex.options} answer={ex.answer} />
     case 'listen_sentence': return <Options {...props} title="استمع واختر الجملة التي سمعتها" head={<div className="row" style={{ justifyContent: 'center', gap: 16 }}><Speaker text={ex.text} size="big" autoplay /><Speaker text={ex.text} slow /></div>} options={ex.options} answer={ex.answer} />
     case 'mcq': return <Options {...props} title="اختر الإجابة الصحيحة" translation={ex.promptAr} head={<div className="row">{ex.audio && <Speaker text={ex.audio} autoplay />}<div className="prompt en" style={{ fontSize: 19 }}>{ex.prompt}</div></div>} options={ex.options} answer={ex.answer} />
-    case 'fill': return <Options {...props} title="أكمل الفراغ" ar={false} translation={ex.promptAr} head={<div className="row">
+    case 'fill': return <Options {...props} title="أكمل الفراغ" ar={false} translation={ex.promptAr} translationDone={ex.promptArFull} head={<div className="row">
       {/* the sentence is only read aloud once the answer is in, so the voice cannot give it away */}
       {props.result ? <Speaker text={ex.prompt.replace('___', ex.options[ex.answer])} size="sm" /> : <span className="speaker sm muted-speaker" title="يظهر الصوت بعد الإجابة">🔇</span>}
       <div className="prompt en" style={{ fontSize: 19 }}>{ex.prompt.split('___').map((p, i, a) => <span key={i}>{p}{i < a.length - 1 && <span style={{ borderBottom: '3px solid var(--blue)', minWidth: 60, display: 'inline-block' }}>&nbsp;{props.value !== undefined && props.value !== null ? ex.options[props.value as number] : ''}&nbsp;</span>}</span>)}</div></div>} options={ex.options} answer={ex.answer} grid />
@@ -92,18 +92,14 @@ function Intro({ ex, autoSpeak }: { ex: Extract<Exercise, { kind: 'intro' }>; au
 }
 
 // ---------------- generic options ----------------
-function Options({ value, onChange, result, title, head, options, answer, ar, speakOptions, grid, boolMode, translation }: ExProps & { title: string; head: React.ReactNode; options: string[]; answer: number; ar?: boolean; speakOptions?: boolean; grid?: boolean; boolMode?: boolean; translation?: string }) {
+function Options({ value, onChange, result, title, head, options, answer, ar, speakOptions, grid, boolMode, translation, translationDone }: ExProps & { title: string; head: React.ReactNode; options: string[]; answer: number; ar?: boolean; speakOptions?: boolean; grid?: boolean; boolMode?: boolean; translation?: string; translationDone?: string }) {
   const sel = value as number | undefined
-  const [showAr, setShowAr] = useState(false)
-  const revealed = showAr || !!result
+  const shown = result && translationDone ? translationDone : translation
   return (
     <div className="fade">
-      <div className="row spread">
-        <div className="prompt-sub">{title}</div>
-        {translation && !result && <button className={`pill ${showAr ? 'active' : ''}`} onClick={() => setShowAr(v => !v)}>{showAr ? 'إخفاء الترجمة' : 'الترجمة بالعربية'}</button>}
-      </div>
+      <div className="prompt-sub">{title}</div>
       {head}
-      {translation && revealed && <div className="sentence-ar">{translation}</div>}
+      {shown && <div className="sentence-ar">{shown}</div>}
       <div className={grid || boolMode ? 'grid2' : 'opt-list'} style={{ marginTop: 12 }}>
         {options.map((o, i) => {
           let cls = 'opt'
