@@ -50,7 +50,9 @@ export default function Words({ modules, progress, unlocked, onPractice }: Props
             </summary>
             <div style={{ padding: '6px 50px 4px 0' }}>
               {w.def && <div className="muted en">{w.def}</div>}
+              {w.defAr && <div className="muted">{w.defAr}</div>}
               {w.example && <div className="row mt" style={{ gap: 6 }}><Speaker text={w.example} size="sm" /><span className="en" style={{ fontSize: 14 }}>{w.example}</span></div>}
+              {w.exampleAr && <div className="muted" style={{ fontSize: 13 }}>{w.exampleAr}</div>}
               <div className="muted" style={{ fontSize: 12, marginTop: 4 }}>Unit {u.number} · {u.title}</div>
             </div>
           </details>

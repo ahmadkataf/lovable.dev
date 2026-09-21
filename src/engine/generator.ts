@@ -116,7 +116,7 @@ export function buildLesson(lesson: Lesson, unit: Unit, module: Module, progress
       const ex: Exercise[] = []
       const readWords = pool.filter(w => r.paragraphs.join(' ').toLowerCase().includes(w.en.toLowerCase().split(' ')[0]))
       shuffle(readWords).slice(0, 3).forEach(w => ex.push({ kind: 'intro', word: w }))
-      r.questions.forEach(q => ex.push({ kind: 'read', title: r.title, paragraphs: r.paragraphs, question: q }))
+      r.questions.forEach(q => ex.push({ kind: 'read', title: r.title, paragraphs: r.paragraphs, paragraphsAr: r.paragraphsAr, question: q }))
       ;(r.trueFalse || []).forEach(t => ex.push({ kind: 'truefalse', statement: t.statement, answer: t.answer }))
       shuffle(readWords).slice(0, 3).forEach(w => ex.push(exChooseAr(w, pool)))
       return ex
@@ -158,7 +158,7 @@ export function buildLesson(lesson: Lesson, unit: Unit, module: Module, progress
       weak.slice(4, 7).forEach(w => ex.push(exChooseEn(w, pool)))
       ex.push(exMatch(shuffle(pool)))
       ex.push(...shuffle(grammarExercises(unit.grammar, pool)).slice(0, 4))
-      shuffle(unit.reading.questions).slice(0, 2).forEach(q => ex.push({ kind: 'read', title: unit.reading.title, paragraphs: unit.reading.paragraphs, question: q }))
+      shuffle(unit.reading.questions).slice(0, 2).forEach(q => ex.push({ kind: 'read', title: unit.reading.title, paragraphs: unit.reading.paragraphs, paragraphsAr: unit.reading.paragraphsAr, question: q }))
       shuffle(unit.sentences).slice(0, 2).forEach(s => ex.push(exBuild(s, pool)))
       shuffle(pool).slice(0, 2).forEach(w => ex.push(exListen(w, pool)))
       weak.slice(0, 2).forEach(w => ex.push(exType(w)))
@@ -171,7 +171,7 @@ export function buildLesson(lesson: Lesson, unit: Unit, module: Module, progress
         shuffle(u.vocab).slice(0, 3).forEach(w => ex.push(exChooseAr(w, all)))
         shuffle(u.vocab).slice(0, 2).forEach(w => ex.push(exChooseEn(w, all)))
         ex.push(...shuffle(grammarExercises(u.grammar, all)).slice(0, 3))
-        shuffle(u.reading.questions).slice(0, 1).forEach(q => ex.push({ kind: 'read', title: u.reading.title, paragraphs: u.reading.paragraphs, question: q }))
+        shuffle(u.reading.questions).slice(0, 1).forEach(q => ex.push({ kind: 'read', title: u.reading.title, paragraphs: u.reading.paragraphs, paragraphsAr: u.reading.paragraphsAr, question: q }))
         shuffle(u.sentences).slice(0, 2).forEach(s => ex.push(exBuild(s, all)))
         shuffle(u.vocab).slice(0, 2).forEach(w => ex.push(exListen(w, all)))
       })

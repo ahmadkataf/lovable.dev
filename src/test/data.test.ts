@@ -16,11 +16,14 @@ describe('curriculum data', () => {
           expect(w.ar.trim().length).toBeGreaterThan(0)
           expect(seen.has(w.en.toLowerCase())).toBe(false)
           seen.add(w.en.toLowerCase())
+          if (w.def) expect(w.defAr?.trim().length, `${w.en} needs defAr`).toBeGreaterThan(0)
+          if (w.example) expect(w.exampleAr?.trim().length, `${w.en} needs exampleAr`).toBeGreaterThan(0)
         }
       })
       it('has a reading text with valid questions', () => {
         expect(u.reading.paragraphs.join(' ').split(' ').length).toBeGreaterThan(60)
         expect(u.reading.questions.length).toBeGreaterThanOrEqual(4)
+        expect(u.reading.paragraphsAr?.length, 'reading needs Arabic translation').toBe(u.reading.paragraphs.length)
         for (const q of u.reading.questions) {
           expect(q.options.length).toBeGreaterThanOrEqual(3)
           expect(q.answer).toBeGreaterThanOrEqual(0)

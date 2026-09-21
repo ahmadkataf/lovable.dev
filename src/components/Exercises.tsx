@@ -79,7 +79,8 @@ function Intro({ ex, autoSpeak }: { ex: Extract<Exercise, { kind: 'intro' }>; au
         {w.pos && <div className="pos en">{w.pos}</div>}
         <div className="ar">{w.ar}</div>
         {w.def && <div className="def en">{w.def}</div>}
-        {w.example && <div className="ex"><div className="row" style={{ justifyContent: 'center' }}><Speaker text={w.example} size="sm" /><span className="en">{w.example}</span></div></div>}
+        {w.defAr && <div className="def-ar">{w.defAr}</div>}
+        {w.example && <div className="ex"><div className="row" style={{ justifyContent: 'center' }}><Speaker text={w.example} size="sm" /><span className="en">{w.example}</span></div>{w.exampleAr && <div className="ex-ar">{w.exampleAr}</div>}</div>}
       </div>
       <p className="muted center mt">اضغط على 🔊 لسماع النطق، ثم تابع.</p>
     </div>
@@ -115,12 +116,19 @@ function ReadView({ ex, value, onChange, result }: ExProps) {
   if (ex.kind !== 'read') return null
   const q = ex.question
   const sel = value as number | undefined
+  const [showAr, setShowAr] = useState(false)
   return (
     <div className="fade">
-      <div className="row spread"><div className="prompt-sub">اقرأ النص ثم أجب</div><Speaker text={ex.paragraphs.join(' ')} size="sm" /></div>
+      <div className="row spread">
+        <div className="prompt-sub">اقرأ النص ثم أجب</div>
+        <div className="row">
+          {ex.paragraphsAr && <button className={`pill ${showAr ? 'active' : ''}`} onClick={() => setShowAr(v => !v)}>{showAr ? 'إخفاء الترجمة' : '🇸🇾 الترجمة'}</button>}
+          <Speaker text={ex.paragraphs.join(' ')} size="sm" />
+        </div>
+      </div>
       <div className="reading-box">
         <h3>{ex.title}</h3>
-        {ex.paragraphs.map((p, i) => <p key={i}>{p}</p>)}
+        {ex.paragraphs.map((p, i) => <div key={i}><p>{p}</p>{showAr && ex.paragraphsAr?.[i] && <p className="p-ar">{ex.paragraphsAr[i]}</p>}</div>)}
       </div>
       <div className="prompt en" style={{ fontSize: 18 }}>{q.q}</div>
       <div className="opt-list">

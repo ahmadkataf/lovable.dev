@@ -5,7 +5,9 @@ export interface Word {
   ar: string
   pos?: string      // noun / verb / adj ...
   def?: string      // English definition
+  defAr?: string    // Arabic translation of the definition
   example?: string  // example sentence (English)
+  exampleAr?: string // Arabic translation of the example
 }
 
 export interface ReadingQuestion {
@@ -18,6 +20,7 @@ export interface ReadingQuestion {
 export interface Reading {
   title: string
   paragraphs: string[]
+  paragraphsAr?: string[]   // Arabic translation, one per paragraph
   questions: ReadingQuestion[]
   trueFalse?: { statement: string; answer: boolean }[]
 }
@@ -89,7 +92,7 @@ export type Exercise =
   | { kind: 'mcq'; prompt: string; options: string[]; answer: number; explainAr?: string; audio?: string }
   | { kind: 'fill'; prompt: string; options: string[]; answer: number; explainAr?: string }
   | { kind: 'truefalse'; statement: string; answer: boolean; explainAr?: string }
-  | { kind: 'read'; title: string; paragraphs: string[]; question: ReadingQuestion }
+  | { kind: 'read'; title: string; paragraphs: string[]; paragraphsAr?: string[]; question: ReadingQuestion }
   | { kind: 'grammar_card'; grammar: Grammar }                              // explanation screen
   | { kind: 'speak'; text: string; ar?: string }                            // listen & repeat
 

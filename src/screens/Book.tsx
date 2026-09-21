@@ -20,7 +20,7 @@ export default function Book({ modules }: { modules: Module[] }) {
               {u.quotes?.map((q, i) => <div key={i} className="quote">"{q.text}" — {q.by}</div>)}
               <div className="h2 mt">📰 القراءة: <span className="en">{u.reading.title}</span> <Speaker text={u.reading.paragraphs.join(' ')} size="sm" /></div>
               <div className="reading-box" style={{ maxHeight: 'none' }}>
-                {u.reading.paragraphs.map((p, i) => <p key={i}>{p}</p>)}
+                {u.reading.paragraphs.map((p, i) => <div key={i}><p>{p}</p>{u.reading.paragraphsAr?.[i] && <p className="p-ar">{u.reading.paragraphsAr[i]}</p>}</div>)}
               </div>
               <div className="h2 mt">🧩 القواعد: {u.grammar.nameAr} <span className="en muted" style={{ fontSize: 13 }}>{u.grammar.name}</span></div>
               <div className="grammar-card">
@@ -46,7 +46,7 @@ export default function Book({ modules }: { modules: Module[] }) {
               {u.vocab.map(w => (
                 <div key={w.en} className="word-row">
                   <Speaker text={w.en} size="sm" />
-                  <div className="grow"><div className="w">{w.en}</div><div className="a">{w.ar}{w.def ? ` — ${w.def}` : ''}</div></div>
+                  <div className="grow"><div className="w">{w.en}</div><div className="a">{w.ar}{w.defAr ? ` — ${w.defAr}` : ''}</div>{w.def && <div className="muted en" style={{ fontSize: 12 }}>{w.def}</div>}</div>
                 </div>
               ))}
             </details>
