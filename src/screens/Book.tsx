@@ -1,6 +1,7 @@
 import type { Module } from '../engine/types'
 import { Speaker } from '../components/common'
 import { speak } from '../engine/audio'
+import ReadingText from '../components/ReadingText'
 
 export default function Book({ modules }: { modules: Module[] }) {
   return (
@@ -18,10 +19,8 @@ export default function Book({ modules }: { modules: Module[] }) {
               <summary>{u.emoji} Unit {u.number}: {u.title} <span className="muted">· {u.titleAr} · ص {u.pages}</span></summary>
               <p className="muted">{u.planAr}</p>
               {u.quotes?.map((q, i) => <div key={i} className="quote">"{q.text}" — {q.by}</div>)}
-              <div className="h2 mt">📰 القراءة: <span className="en">{u.reading.title}</span> <Speaker text={u.reading.paragraphs.join(' ')} size="sm" /></div>
-              <div className="reading-box" style={{ maxHeight: 'none' }}>
-                {u.reading.paragraphs.map((p, i) => <div key={i}><p>{p}</p>{u.reading.paragraphsAr?.[i] && <p className="p-ar">{u.reading.paragraphsAr[i]}</p>}</div>)}
-              </div>
+              <div className="h2 mt">📰 القراءة: <span className="en">{u.reading.title}</span></div>
+              <ReadingText paragraphs={u.reading.paragraphs} paragraphsAr={u.reading.paragraphsAr} showAr maxHeight="none" />
               <div className="h2 mt">🧩 القواعد: {u.grammar.nameAr} <span className="en muted" style={{ fontSize: 13 }}>{u.grammar.name}</span></div>
               <div className="grammar-card">
                 <div className="ar-rule"><ul>{u.grammar.ruleAr.map((r, i) => <li key={i}>{r}</li>)}</ul></div>

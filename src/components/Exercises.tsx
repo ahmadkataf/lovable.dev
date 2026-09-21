@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import type { Exercise, Word } from '../engine/types'
 import { Speaker } from './common'
+import ReadingText from './ReadingText'
 import { checkBuild, checkTyped, shuffle } from '../engine/generator'
 import { listenOnce, recognitionSupported, sfx, speak } from '../engine/audio'
 
@@ -121,15 +122,9 @@ function ReadView({ ex, value, onChange, result }: ExProps) {
     <div className="fade">
       <div className="row spread">
         <div className="prompt-sub">اقرأ النص ثم أجب</div>
-        <div className="row">
-          {ex.paragraphsAr && <button className={`pill ${showAr ? 'active' : ''}`} onClick={() => setShowAr(v => !v)}>{showAr ? 'إخفاء الترجمة' : '🇸🇾 الترجمة'}</button>}
-          <Speaker text={ex.paragraphs.join(' ')} size="sm" />
-        </div>
+        {ex.paragraphsAr && <button className={`pill ${showAr ? 'active' : ''}`} onClick={() => setShowAr(v => !v)}>{showAr ? 'إخفاء الترجمة' : '🇸🇾 الترجمة'}</button>}
       </div>
-      <div className="reading-box">
-        <h3>{ex.title}</h3>
-        {ex.paragraphs.map((p, i) => <div key={i}><p>{p}</p>{showAr && ex.paragraphsAr?.[i] && <p className="p-ar">{ex.paragraphsAr[i]}</p>}</div>)}
-      </div>
+      <ReadingText title={ex.title} paragraphs={ex.paragraphs} paragraphsAr={ex.paragraphsAr} showAr={showAr} maxHeight="42vh" />
       <div className="prompt en" style={{ fontSize: 18 }}>{q.q}</div>
       <div className="opt-list">
         {q.options.map((o, i) => {

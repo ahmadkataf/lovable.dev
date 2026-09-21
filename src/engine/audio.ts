@@ -138,6 +138,7 @@ function ttsSpeak(text: string, lang: 'en' | 'ar', rate: number, onEnd?: () => v
 
 // ---------------- public API ----------------
 export function speak(text: string, opts: { lang?: 'en' | 'ar'; rate?: number; onEnd?: () => void } = {}) {
+  stopReading()
   const lang = opts.lang ?? 'en'
   const rate = opts.rate ?? (lang === 'en' ? 0.9 : 1)
   stopSpeaking()
@@ -151,6 +152,114 @@ export function speak(text: string, opts: { lang?: 'en' | 'ar'; rate?: number; o
       ttsSpeak(text, lang, rate, opts.onEnd)
     })
   } else ttsSpeak(text, lang, rate, opts.onEnd)
+}
+
+// ---------------- read aloud with a moving highlight ----------------
+export interface ReadHandle { stop(): void }
+
+let reader: ReadHandle | null = null
+export function stopReading() { reader?.stop(); reader = null }
+
+/** Plays the sentences in order and reports which word is being said. */
+export function readAloud(sentences: string[], opts: {
+  rate?: number
+  onSentence?: (index: number) => void
+  onWord?: (sentence: number, word: number) => void
+  onEnd?: () => void
+} = {}): ReadHandle {
+  stopReading()
+  stopSpeaking()
+  const rate = opts.rate ?? 1
+  let cancelled = false
+  let raf = 0
+  let node: AudioBufferSourceNode | null = null
+
+  // Words are weighted by their length so the highlight tracks the voice closely
+  // inside a sentence; sentence boundaries themselves come from the recording.
+  const wordBounds = (text: string) => {
+    const words = text.split(/\s+/).filter(Boolean)
+    const weights = words.map(w => w.length + 1)
+    const total = weights.reduce((a, b) => a + b, 0) || 1
+    const bounds: number[] = []
+    let acc = 0
+    for (const w of weights) { bounds.push(acc / total); acc += w }
+    return { words, bounds }
+  }
+
+  const play = async (i: number) => {
+    if (cancelled) return
+    if (i >= sentences.length) { opts.onEnd?.(); return }
+    const text = sentences[i]
+    opts.onSentence?.(i)
+    const map = await loadIndex()
+    const clip = map?.get(norm(text))
+    if (clip) {
+      const buf = await loadBuffer(clip.group)
+      const c = ac()
+      if (buf && c && !cancelled) {
+        const { words, bounds } = wordBounds(text)
+        const src = c.createBufferSource()
+        src.buffer = buf
+        src.playbackRate.value = rate
+        src.connect(c.destination)
+        const startAt = c.currentTime + 0.02
+        const span = clip.dur / rate
+        src.onended = () => { if (!cancelled && node === src) play(i + 1) }
+        try { src.start(startAt, clip.start, clip.dur) } catch { play(i + 1); return }
+        node = src
+        let last = -1
+        const tick = () => {
+          if (cancelled) return
+          const p = (c.currentTime - startAt) / span
+          if (p >= 0) {
+            let idx = 0
+            while (idx + 1 < bounds.length && bounds[idx + 1] <= p) idx++
+            idx = Math.min(idx, words.length - 1)
+            if (idx !== last) { last = idx; opts.onWord?.(i, idx) }
+          }
+          if (p < 1.05) raf = requestAnimationFrame(tick)
+        }
+        raf = requestAnimationFrame(tick)
+        return
+      }
+    }
+    // no recording for this sentence: speak it and follow the browser's word boundaries
+    if (!ttsSupported()) { play(i + 1); return }
+    try {
+      const u = new SpeechSynthesisUtterance(text)
+      const v = pickVoice('en')
+      if (v) u.voice = v
+      u.lang = 'en-US'
+      u.rate = rate * 0.9
+      const { words } = wordBounds(text)
+      const starts: number[] = []
+      let pos = 0
+      for (const w of words) { const at = text.indexOf(w, pos); starts.push(at); pos = at + w.length }
+      u.onboundary = (e: SpeechSynthesisEvent) => {
+        if (cancelled || e.name === 'sentence') return
+        let idx = 0
+        while (idx + 1 < starts.length && starts[idx + 1] <= e.charIndex) idx++
+        opts.onWord?.(i, idx)
+      }
+      let advanced = false
+      const nextOne = () => { if (!advanced && !cancelled) { advanced = true; play(i + 1) } }
+      u.onend = nextOne
+      u.onerror = nextOne
+      speechSynthesis.speak(u)
+    } catch { play(i + 1) }
+  }
+
+  play(0)
+  const handle: ReadHandle = {
+    stop() {
+      cancelled = true
+      cancelAnimationFrame(raf)
+      if (node) { try { node.onended = null; node.stop() } catch { /* ignore */ } node = null }
+      if (ttsSupported()) { try { speechSynthesis.cancel() } catch { /* ignore */ } }
+    },
+  }
+  reader = handle
+  return handle
 }
 
 export function stopSpeaking() {

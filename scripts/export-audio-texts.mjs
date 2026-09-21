@@ -5,9 +5,12 @@ import path from 'path'
 import { pathToFileURL } from 'url'
 
 const tmp = path.resolve('node_modules/.cache/emar-data.mjs')
+const tmpText = path.resolve('node_modules/.cache/emar-text.mjs')
 fs.mkdirSync(path.dirname(tmp), { recursive: true })
 await build({ entryPoints: ['src/data/index.ts'], bundle: true, format: 'esm', platform: 'node', outfile: tmp, logLevel: 'error' })
+await build({ entryPoints: ['src/engine/text.ts'], bundle: true, format: 'esm', platform: 'node', outfile: tmpText, logLevel: 'error' })
 const { modules } = await import(pathToFileURL(tmp).href)
+const { splitSentences } = await import(pathToFileURL(tmpText).href)
 
 export const norm = s => s.replace(/\s+/g, ' ').trim().toLowerCase()
 const groups = {}
@@ -26,7 +29,8 @@ for (const m of modules) {
       else if (e.type === 'mcq') { add(g, e.prompt); e.options.forEach(o => add(g, o)) }
     }
     if (e => e) for (const e of u.grammar.exercises) if ((e.type === 'fill' || e.type === 'mcq') && e.options) e.options.forEach(o => { if (o.split(' ').length <= 3) add(g, o) })
-    add(g, u.reading.paragraphs.join(' '))
+    // one clip per sentence so the reader can highlight where it is
+    for (const p of u.reading.paragraphs) for (const sen of splitSentences(p)) add(g, sen)
     ;(u.reading.trueFalse || []).forEach(t => add(g, t.statement))
     u.reading.questions.forEach(q => { add(g, q.q); q.options.forEach(o => add(g, o)) })
     u.pronunciation?.groups.forEach(gr => gr.words.forEach(w => add(g, w)))
@@ -34,7 +38,7 @@ for (const m of modules) {
   }
   const g = `m${m.number}`
   m.focus?.glossary?.forEach(w => add(g, w.en))
-  m.focus?.paragraphs && add(g, m.focus.paragraphs.join(' '))
+  for (const p of m.focus?.paragraphs || []) for (const sen of splitSentences(p)) add(g, sen)
 }
 const out = {}
 let n = 0, chars = 0
