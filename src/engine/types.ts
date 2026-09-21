@@ -12,6 +12,7 @@ export interface Word {
 
 export interface ReadingQuestion {
   q: string
+  qAr?: string        // Arabic translation of the question
   options: string[]
   answer: number      // index into options
   explainAr?: string
@@ -28,6 +29,7 @@ export interface Reading {
 export interface GrammarExercise {
   type: 'mcq' | 'fill' | 'build' | 'truefalse' | 'order'
   prompt?: string        // question / sentence with ___ / instruction
+  promptAr?: string      // Arabic translation of that sentence
   options?: string[]     // for mcq / fill
   answer: string | number | boolean  // index for mcq, text for fill/build
   extraWords?: string[]  // distractor tiles for build
@@ -99,9 +101,9 @@ export type Exercise =
   | { kind: 'type_en'; word: Word }                                         // type the English word
   | { kind: 'match'; pairs: { en: string; ar: string }[] }                  // match 5 pairs
   | { kind: 'build'; target: string; tiles: string[]; promptAr?: string }   // arrange tiles
-  | { kind: 'mcq'; prompt: string; options: string[]; answer: number; explainAr?: string; audio?: string }
-  | { kind: 'fill'; prompt: string; options: string[]; answer: number; explainAr?: string }
-  | { kind: 'truefalse'; statement: string; answer: boolean; explainAr?: string }
+  | { kind: 'mcq'; prompt: string; promptAr?: string; options: string[]; answer: number; explainAr?: string; audio?: string }
+  | { kind: 'fill'; prompt: string; promptAr?: string; options: string[]; answer: number; explainAr?: string }
+  | { kind: 'truefalse'; statement: string; statementAr?: string; answer: boolean; explainAr?: string }
   | { kind: 'read'; title: string; paragraphs: string[]; paragraphsAr?: string[]; question: ReadingQuestion }
   | { kind: 'grammar_card'; grammar: Grammar }                              // explanation screen
   | { kind: 'speak'; text: string; ar?: string }                            // listen & repeat

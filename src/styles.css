@@ -118,6 +118,8 @@ input { font-family: inherit; }
 .flash .def { margin-top: 10px; color: var(--text-2); font-size: 15px; }
 .flash .def-ar { margin-top: 4px; color: var(--text); font-size: 15px; font-weight: 600; }
 .flash .ex-ar { margin-top: 8px; padding-top: 8px; border-top: 1px dashed var(--border); color: var(--text); font-size: 15px; font-weight: 600; direction: rtl; }
+.sentence-ar { background: var(--green-light); border-radius: 10px; padding: 8px 12px; margin: 6px 0 2px; font-size: 15px; font-weight: 600; color: var(--text); }
+.speaker.muted-speaker { background: var(--gray-2); color: var(--gray-4); box-shadow: none; cursor: default; }
 .reading-box .sen { cursor: pointer; border-radius: 6px; transition: background .15s; }
 .reading-box .sen:hover { background: var(--gray-1); }
 .reading-box .sen-active { background: var(--blue-light); box-shadow: 0 0 0 2px var(--blue-light); }
