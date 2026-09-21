@@ -5,11 +5,12 @@ import { modules } from '../data'
 
 // Every example sentence a student sees must be printed in that unit's own pages
 // of the book. book-source/moduleN.md holds the verbatim text of those pages.
-const norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9 ]+/g, ' ').replace(/\s+/g, ' ').trim()
+// @ts-expect-error - plain JS helper shared with scripts/audit-examples.mjs
+import { bookCorpus, norm } from '../../scripts/book-corpus.mjs'
 
 describe('vocabulary examples come from the book', () => {
   for (const m of modules) {
-    const md = norm(fs.readFileSync(path.join('book-source', `module${m.number}.md`), 'utf8'))
+    const md = bookCorpus(fs.readFileSync(path.join('book-source', `module${m.number}.md`), 'utf8'))
     for (const u of m.units) {
       const unitText = norm([
         ...u.reading.paragraphs,

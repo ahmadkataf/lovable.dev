@@ -10,13 +10,13 @@ fs.mkdirSync(path.dirname(tmp), { recursive: true })
 await build({ entryPoints: ['src/data/index.ts'], bundle: true, format: 'esm', platform: 'node', outfile: tmp, logLevel: 'error' })
 const { modules } = await import(pathToFileURL(tmp).href)
 
-const norm = s => s.toLowerCase().replace(/[^a-z0-9 ]+/g, ' ').replace(/\s+/g, ' ').trim()
+import { bookCorpus, norm } from './book-corpus.mjs'
 const report = []
 let total = 0, inBook = 0
 
 for (const m of modules) {
   const md = fs.readFileSync(path.join(EXTRACT, `module${m.number}.md`), 'utf8')
-  const bookCorpus = norm(md)
+  const corpus = bookCorpus(md)
   for (const u of m.units) {
     const unitCorpus = norm([
       ...u.reading.paragraphs,
@@ -31,7 +31,7 @@ for (const m of modules) {
       if (!w.example) continue
       total++
       const ex = norm(w.example)
-      const hit = bookCorpus.includes(ex) || unitCorpus.includes(ex)
+      const hit = corpus.includes(ex) || unitCorpus.includes(ex)
       if (hit) inBook++
       else report.push({ unit: u.id, word: w.en, example: w.example })
     }
