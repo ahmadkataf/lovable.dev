@@ -100,7 +100,7 @@ function Options({ value, onChange, result, title, head, options, answer, ar, sp
     <div className="fade">
       <div className="row spread">
         <div className="prompt-sub">{title}</div>
-        {translation && !result && <button className={`pill ${showAr ? 'active' : ''}`} onClick={() => setShowAr(v => !v)}>{showAr ? 'إخفاء الترجمة' : '🇸🇾 الترجمة'}</button>}
+        {translation && !result && <button className={`pill ${showAr ? 'active' : ''}`} onClick={() => setShowAr(v => !v)}>{showAr ? 'إخفاء الترجمة' : 'الترجمة بالعربية'}</button>}
       </div>
       {head}
       {translation && revealed && <div className="sentence-ar">{translation}</div>}
@@ -131,7 +131,7 @@ function ReadView({ ex, value, onChange, result }: ExProps) {
     <div className="fade">
       <div className="row spread">
         <div className="prompt-sub">اقرأ النص ثم أجب</div>
-        {ex.paragraphsAr && <button className={`pill ${showAr ? 'active' : ''}`} onClick={() => setShowAr(v => !v)}>{showAr ? 'إخفاء الترجمة' : '🇸🇾 الترجمة'}</button>}
+        {ex.paragraphsAr && <button className={`pill ${showAr ? 'active' : ''}`} onClick={() => setShowAr(v => !v)}>{showAr ? 'إخفاء الترجمة' : 'الترجمة بالعربية'}</button>}
       </div>
       <ReadingText title={ex.title} paragraphs={ex.paragraphs} paragraphsAr={ex.paragraphsAr} showAr={showAr} maxHeight="42vh" />
       <div className="prompt en" style={{ fontSize: 18 }}>{q.q}</div>

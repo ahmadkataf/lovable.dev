@@ -48,16 +48,30 @@ export function reviewLesson(m: Module): Lesson | null {
 }
 
 // ---------- exercise builders ----------
+// Two words can share an Arabic translation, so pick by the text shown, not by the word.
+function distinctBy<T>(items: T[], key: (x: T) => string, taken: Set<string>, n: number): T[] {
+  const out: T[] = []
+  for (const item of items) {
+    const k = key(item)
+    if (taken.has(k)) continue
+    taken.add(k)
+    out.push(item)
+    if (out.length === n) break
+  }
+  return out
+}
+
 function distractorsAr(word: Word, pool: Word[], n = 3): string[] {
-  const others = pool.filter(w => w.en !== word.en && w.ar !== word.ar)
-  return pick(others, n).map(w => w.ar)
+  const others = shuffle(pool.filter(w => w.en !== word.en))
+  return distinctBy(others, w => w.ar, new Set([word.ar]), n).map(w => w.ar)
 }
 function distractorsEn(word: Word, pool: Word[], n = 3): string[] {
   const others = pool.filter(w => w.en !== word.en)
-  // prefer words with similar length / same starting letter for difficulty
-  const similar = others.filter(w => w.en[0]?.toLowerCase() === word.en[0]?.toLowerCase())
-  const chosen = [...pick(similar, 1), ...pick(others, n)].filter((w, i, a) => a.findIndex(x => x.en === w.en) === i).slice(0, n)
-  return chosen.map(w => w.en)
+  // one word starting with the same letter makes the choice a real one
+  const similar = shuffle(others.filter(w => w.en[0]?.toLowerCase() === word.en[0]?.toLowerCase()))
+  const taken = new Set([word.en.toLowerCase()])
+  const chosen = [...distinctBy(similar, w => w.en.toLowerCase(), taken, 1), ...distinctBy(shuffle(others), w => w.en.toLowerCase(), taken, n)]
+  return chosen.slice(0, n).map(w => w.en)
 }
 function withAnswer(correct: string, wrongs: string[]): { options: string[]; answer: number } {
   const options = shuffle([correct, ...wrongs])
@@ -83,7 +97,7 @@ export function exBuild(target: string, pool: Word[], promptAr?: string): Exerci
   return { kind: 'build', target, tiles: shuffle([...tokens, ...extra.slice(0, 2)]), promptAr }
 }
 export function exListenSentence(text: string, all: string[]): Exercise {
-  const wrongs = pick(all.filter(s => s !== text), 2)
+  const wrongs = distinctBy(shuffle(all.filter(s => s !== text)), s => s, new Set([text]), 2)
   return { kind: 'listen_sentence', text, ...withAnswer(text, wrongs) }
 }
 
