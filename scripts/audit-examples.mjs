@@ -4,10 +4,11 @@ import fs from 'fs'
 import path from 'path'
 import { pathToFileURL } from 'url'
 
-const EXTRACT = process.argv[2] || 'book-source'
+const BOOK = process.argv[2] || 'g8'
+const EXTRACT = `book-source/${BOOK}`
 const tmp = path.resolve('node_modules/.cache/emar-data-audit.mjs')
 fs.mkdirSync(path.dirname(tmp), { recursive: true })
-await build({ entryPoints: ['src/data/index.ts'], bundle: true, format: 'esm', platform: 'node', outfile: tmp, logLevel: 'error' })
+await build({ entryPoints: [`src/books/${BOOK}/index.ts`], bundle: true, format: 'esm', platform: 'node', outfile: tmp, logLevel: 'error' })
 const { modules } = await import(pathToFileURL(tmp).href)
 
 import { bookCorpus, norm } from './book-corpus.mjs'

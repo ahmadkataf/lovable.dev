@@ -52,6 +52,18 @@ export interface Pronunciation {
   groups: { label: string; words: string[] }[]
 }
 
+/** "Everyday English": functional expressions and the dialogue that uses them. */
+export interface Expression { en: string; ar: string; note?: string }
+export interface DialogueLine { speaker: string; en: string; ar: string }
+export interface Everyday {
+  title: string          // e.g. "Starting and finishing conversations"
+  titleAr: string
+  explainAr: string      // when and how these expressions are used
+  expressions: Expression[]
+  dialogue?: DialogueLine[]
+  exercises: GrammarExercise[]
+}
+
 export interface Unit {
   id: string             // 'u1'
   number: number
@@ -69,6 +81,9 @@ export interface Unit {
   listening?: { taskAr: string; items?: string[] }
   writing?: { taskAr: string; model?: string[]; linkers?: string[] }
   sentences: string[]    // key sentences for "build the sentence" exercises
+  vocabFocus?: Grammar   // a taught vocabulary point with its own rule and exercises (e.g. verb + preposition)
+  everyday?: Everyday    // "Everyday English" section
+  extraReadings?: Reading[]  // other texts the unit asks students to read (speaking/writing extracts)
 }
 
 /** The book's own Review section at the end of some modules. */
@@ -108,8 +123,9 @@ export type Exercise =
   | { kind: 'read'; title: string; paragraphs: string[]; paragraphsAr?: string[]; question: ReadingQuestion }
   | { kind: 'grammar_card'; grammar: Grammar }                              // explanation screen
   | { kind: 'speak'; text: string; ar?: string }                            // listen & repeat
+  | { kind: 'phrase_card'; everyday: Everyday }                             // everyday-English expressions and dialogue
 
-export type LessonKind = 'vocab' | 'reading' | 'grammar' | 'listening' | 'writing' | 'review' | 'boss' | 'bookReview'
+export type LessonKind = 'vocab' | 'reading' | 'vocabFocus' | 'grammar' | 'listening' | 'everyday' | 'writing' | 'review' | 'boss' | 'bookReview'
 
 export interface Lesson {
   id: string          // 'u1-l1'
@@ -119,4 +135,18 @@ export interface Lesson {
   title: string       // Arabic
   icon: string
   xp: number
+  part?: number       // 1 or 2 for lessons that split one section in two
+}
+
+/** A textbook the app is built for. One build of the app carries one book. */
+export interface BookMeta {
+  id: string            // 'g8', 'bac'
+  title: string         // shown in the header, e.g. "Emar 8"
+  titleAr: string
+  subtitle: string      // e.g. "Grade 8 · Student's Book"
+  storageKey: string    // localStorage key for progress
+  appName: string       // Android app name
+  packageId: string     // Android package id
+  iconText: string      // text drawn on the launcher icon
+  color: string         // theme colour
 }

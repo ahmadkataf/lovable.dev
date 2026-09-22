@@ -1,4 +1,4 @@
-import type { Module } from '../engine/types'
+import type { Module } from '../../engine/types'
 
 export const module3: Module = {
   number: 3,

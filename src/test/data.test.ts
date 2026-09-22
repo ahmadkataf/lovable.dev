@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
-import { modules } from '../data'
+import { books } from './books'
 
-describe('curriculum data', () => {
+for (const { book, modules } of books) describe(`curriculum data — ${book.id}`, () => {
   it('has 6 modules with 2 units each', () => {
     expect(modules.length).toBe(6)
     for (const m of modules) expect(m.units.length).toBe(2)

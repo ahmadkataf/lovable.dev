@@ -45,7 +45,10 @@ function optionsFrom(lines, i) {
 }
 
 export function bookCorpus(md) {
-  const lines = md.split('\n').filter(l => (l.match(/\|/g) || []).length < 3)
+  // page markers and bare page numbers sit in the middle of sentences that run across pages
+  const lines = md.split('\n')
+    .filter(l => (l.match(/\|/g) || []).length < 3)
+    .filter(l => !/^## Page \d+\s*$/.test(l) && !/^\s*\d{1,3}\s*$/.test(l))
   const parts = []
   for (let i = 0; i < lines.length; i++) {
     parts.push(...variants(lines[i]))

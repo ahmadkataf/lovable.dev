@@ -19,22 +19,30 @@ export function normalize(s: string): string {
 }
 
 // ---------- lesson plan per unit ----------
-export const LESSON_TEMPLATE: { kind: LessonKind; title: string; icon: string; xp: number }[] = [
-  { kind: 'vocab', title: 'كلمات ١', icon: '📚', xp: 15 },
-  { kind: 'vocab', title: 'كلمات ٢', icon: '📖', xp: 15 },
-  { kind: 'reading', title: 'القراءة', icon: '📰', xp: 20 },
-  { kind: 'grammar', title: 'القواعد', icon: '🧩', xp: 20 },
-  { kind: 'grammar', title: 'تدريب القواعد', icon: '🧠', xp: 20 },
-  { kind: 'listening', title: 'استماع ونطق', icon: '🎧', xp: 15 },
-  { kind: 'writing', title: 'تركيب الجمل', icon: '✍️', xp: 15 },
-  { kind: 'review', title: 'مراجعة الوحدة', icon: '🏆', xp: 30 },
-]
+type Step = { kind: LessonKind; title: string; icon: string; xp: number; part?: number }
 
-/** position of the first grammar lesson in LESSON_TEMPLATE */
-export const GRAMMAR_INDEX = LESSON_TEMPLATE.findIndex(l => l.kind === 'grammar')
+const STEP = {
+  vocab1: { kind: 'vocab', title: 'كلمات ١', icon: '📚', xp: 15, part: 1 },
+  vocab2: { kind: 'vocab', title: 'كلمات ٢', icon: '📖', xp: 15, part: 2 },
+  reading: { kind: 'reading', title: 'القراءة', icon: '📰', xp: 20 },
+  vocabFocus: { kind: 'vocabFocus', title: 'المفردات', icon: '🔤', xp: 20 },
+  grammar1: { kind: 'grammar', title: 'القواعد', icon: '🧩', xp: 20, part: 1 },
+  grammar2: { kind: 'grammar', title: 'تدريب القواعد', icon: '🧠', xp: 20, part: 2 },
+  listening: { kind: 'listening', title: 'استماع ونطق', icon: '🎧', xp: 15 },
+  everyday: { kind: 'everyday', title: 'Everyday English', icon: '💬', xp: 20 },
+  writing: { kind: 'writing', title: 'تركيب الجمل', icon: '✍️', xp: 15 },
+  review: { kind: 'review', title: 'مراجعة الوحدة', icon: '🏆', xp: 30 },
+} satisfies Record<string, Step>
 
+/** The lessons of a unit follow the book's sections. Units without a taught vocabulary
+ *  point or an Everyday English section (Grade 8) keep exactly their previous lessons and ids. */
 export function lessonsForUnit(u: Unit): Lesson[] {
-  return LESSON_TEMPLATE.map((t, i) => ({ id: `${u.id}-l${i + 1}`, unitId: u.id, index: i, ...t }))
+  const steps: Step[] = [STEP.vocab1, STEP.vocab2, STEP.reading]
+  if (u.vocabFocus) steps.push(STEP.vocabFocus)
+  steps.push(STEP.grammar1, STEP.grammar2, STEP.listening)
+  if (u.everyday) steps.push(STEP.everyday)
+  steps.push(STEP.writing, STEP.review)
+  return steps.map((t, i) => ({ id: `${u.id}-l${i + 1}`, unitId: u.id, index: i, ...t }))
 }
 
 export function bossLesson(m: Module): Lesson {
@@ -121,7 +129,7 @@ export function buildLesson(lesson: Lesson, unit: Unit, module: Module, progress
 
   switch (lesson.kind) {
     case 'vocab': {
-      const words = lesson.index === 0 ? pool.slice(0, half) : pool.slice(half)
+      const words = lesson.part === 2 ? pool.slice(half) : pool.slice(0, half)
       const set = shuffle(words).slice(0, 8)
       const ex: Exercise[] = []
       // teach in pairs: intro card, then immediate checks
@@ -141,6 +149,7 @@ export function buildLesson(lesson: Lesson, unit: Unit, module: Module, progress
       const readWords = pool.filter(w => r.paragraphs.join(' ').toLowerCase().includes(w.en.toLowerCase().split(' ')[0]))
       shuffle(readWords).slice(0, 3).forEach(w => ex.push({ kind: 'intro', word: w }))
       r.questions.forEach(q => ex.push({ kind: 'read', title: r.title, paragraphs: r.paragraphs, paragraphsAr: r.paragraphsAr, question: q }))
+      for (const x of unit.extraReadings || []) x.questions.forEach(q => ex.push({ kind: 'read', title: x.title, paragraphs: x.paragraphs, paragraphsAr: x.paragraphsAr, question: q }))
       ;(r.trueFalse || []).forEach(t => ex.push({ kind: 'truefalse', statement: t.statement, answer: t.answer }))
       shuffle(readWords).slice(0, 3).forEach(w => ex.push(exChooseAr(w, pool)))
       return ex
@@ -150,9 +159,24 @@ export function buildLesson(lesson: Lesson, unit: Unit, module: Module, progress
       const half = Math.ceil(all.length / 2)
       // the first grammar lesson explains the rule and drills the easier half,
       // the second drills the rest so no authored exercise goes unused
-      const mine = lesson.index === GRAMMAR_INDEX ? all.slice(0, half) : all.slice(half)
+      const mine = lesson.part === 2 ? all.slice(half) : all.slice(0, half)
       const ex: Exercise[] = [{ kind: 'grammar_card', grammar: unit.grammar }]
       ex.push(...shuffle(mine).slice(0, 14))
+      return ex
+    }
+    case 'vocabFocus': {
+      const v = unit.vocabFocus
+      if (!v) return []
+      return [{ kind: 'grammar_card', grammar: v } as Exercise, ...shuffle(grammarExercises(v, pool)).slice(0, 16)]
+    }
+    case 'everyday': {
+      const e = unit.everyday
+      if (!e) return []
+      const drills = grammarExercises({ ...unit.grammar, exercises: e.exercises }, pool)
+      const ex: Exercise[] = [{ kind: 'phrase_card', everyday: e }]
+      ex.push(...shuffle(drills).slice(0, 12))
+      // hear and repeat the expressions themselves
+      shuffle(e.expressions).slice(0, 2).forEach(x => ex.push({ kind: 'speak', text: x.en, ar: x.ar }))
       return ex
     }
     case 'bookReview': {
@@ -199,6 +223,8 @@ export function buildLesson(lesson: Lesson, unit: Unit, module: Module, progress
       weak.slice(4, 7).forEach(w => ex.push(exChooseEn(w, pool)))
       ex.push(exMatch(shuffle(pool)))
       ex.push(...shuffle(grammarExercises(unit.grammar, pool)).slice(0, 4))
+      if (unit.vocabFocus) ex.push(...shuffle(grammarExercises(unit.vocabFocus, pool)).slice(0, 3))
+      if (unit.everyday) ex.push(...shuffle(grammarExercises({ ...unit.grammar, exercises: unit.everyday.exercises }, pool)).slice(0, 2))
       shuffle(unit.reading.questions).slice(0, 2).forEach(q => ex.push({ kind: 'read', title: unit.reading.title, paragraphs: unit.reading.paragraphs, paragraphsAr: unit.reading.paragraphsAr, question: q }))
       shuffle(unit.sentences).slice(0, 2).forEach(s => ex.push(exBuild(s, pool)))
       shuffle(pool).slice(0, 2).forEach(w => ex.push(exListen(w, pool)))
@@ -212,6 +238,7 @@ export function buildLesson(lesson: Lesson, unit: Unit, module: Module, progress
         shuffle(u.vocab).slice(0, 3).forEach(w => ex.push(exChooseAr(w, all)))
         shuffle(u.vocab).slice(0, 2).forEach(w => ex.push(exChooseEn(w, all)))
         ex.push(...shuffle(grammarExercises(u.grammar, all)).slice(0, 3))
+        if (u.vocabFocus) ex.push(...shuffle(grammarExercises(u.vocabFocus, all)).slice(0, 2))
         shuffle(u.reading.questions).slice(0, 1).forEach(q => ex.push({ kind: 'read', title: u.reading.title, paragraphs: u.reading.paragraphs, paragraphsAr: u.reading.paragraphsAr, question: q }))
         shuffle(u.sentences).slice(0, 2).forEach(s => ex.push(exBuild(s, all)))
         shuffle(u.vocab).slice(0, 2).forEach(w => ex.push(exListen(w, all)))
@@ -245,10 +272,15 @@ export function buildPractice(modules: Module[], progress: Progress, unlockedUni
   return ex
 }
 
-/** Practice for one unit's grammar rule only, started from the book screen. */
-export function buildGrammarPractice(unit: Unit): Exercise[] {
-  const ex = grammarExercises(unit.grammar, unit.vocab)
-  return [{ kind: 'grammar_card', grammar: unit.grammar } as Exercise, ...shuffle(ex).slice(0, 15)]
+/** Practice for one rule only (the unit's grammar, or its taught vocabulary point), started from the book screen. */
+export function buildGrammarPractice(unit: Unit, which: 'grammar' | 'vocabFocus' | 'everyday' = 'grammar'): Exercise[] {
+  if (which === 'everyday' && unit.everyday) {
+    const drills = grammarExercises({ ...unit.grammar, exercises: unit.everyday.exercises }, unit.vocab)
+    return [{ kind: 'phrase_card', everyday: unit.everyday }, ...shuffle(drills).slice(0, 15)]
+  }
+  const g = which === 'vocabFocus' && unit.vocabFocus ? unit.vocabFocus : unit.grammar
+  const ex = grammarExercises(g, unit.vocab)
+  return [{ kind: 'grammar_card', grammar: g } as Exercise, ...shuffle(ex).slice(0, 15)]
 }
 
 export function checkBuild(target: string, tiles: string[]): boolean {

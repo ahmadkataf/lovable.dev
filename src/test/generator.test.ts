@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { modules } from '../data'
+import { books } from './books'
 import { bossLesson, buildGrammarPractice, buildLesson, buildPractice, checkBuild, lessonsForUnit, normalize, reviewLesson } from '../engine/generator'
 import { judge } from '../components/Exercises'
 import type { Exercise } from '../engine/types'
@@ -22,7 +22,7 @@ function correctValue(ex: Exercise): unknown {
 
 const empty = { xp: 0, hearts: 5, heartsAt: 0, streak: 0, lastActive: '', dailyXp: {}, dailyGoal: 30, lessons: {}, words: {}, name: '', sound: true, autoSpeak: true }
 
-describe('exercise generator', () => {
+for (const { book, modules } of books) describe(`exercise generator — ${book.id}`, () => {
   for (const m of modules) {
     for (const u of m.units) {
       it(`generates valid lessons for ${u.id} (${u.title})`, () => {
@@ -51,7 +51,7 @@ describe('exercise generator', () => {
     it(`builds grammar practice for ${u.id} with every authored exercise usable`, () => {
       expect(u.grammar.exercises.length, 'enough grammar practice per unit').toBeGreaterThanOrEqual(14)
       for (let round = 0; round < 3; round++) {
-        const ex = buildGrammarPractice(u)
+        const ex = [...buildGrammarPractice(u), ...buildGrammarPractice(u, 'vocabFocus'), ...buildGrammarPractice(u, 'everyday')]
         expect(ex.length).toBeGreaterThanOrEqual(6)
         for (const e of ex) expect(judge(e, correctValue(e)), `${e.kind} in ${u.id} grammar practice`).toBe(true)
       }

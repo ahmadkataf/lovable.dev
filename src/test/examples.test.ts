@@ -1,16 +1,16 @@
 import { describe, it, expect } from 'vitest'
 import fs from 'fs'
 import path from 'path'
-import { modules } from '../data'
+import { books } from './books'
 
 // Every example sentence a student sees must be printed in that unit's own pages
 // of the book. book-source/moduleN.md holds the verbatim text of those pages.
 // @ts-expect-error - plain JS helper shared with scripts/audit-examples.mjs
 import { bookCorpus, norm } from '../../scripts/book-corpus.mjs'
 
-describe('vocabulary examples come from the book', () => {
+for (const { book, modules } of books) describe(`vocabulary examples come from the book — ${book.id}`, () => {
   for (const m of modules) {
-    const md = bookCorpus(fs.readFileSync(path.join('book-source', `module${m.number}.md`), 'utf8'))
+    const md = bookCorpus(fs.readFileSync(path.join('book-source', book.id, `module${m.number}.md`), 'utf8'))
     for (const u of m.units) {
       const unitText = norm([
         ...u.reading.paragraphs,

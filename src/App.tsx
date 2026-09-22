@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { modules } from './data'
+import { book, modules } from './data'
 import type { Exercise, Lesson } from './engine/types'
 import { addXp, completeLesson, load, loseHeart, nextHeartIn, recordWord, refillHearts, regenHearts, save, touchStreak, type Progress } from './engine/progress'
 import { buildGrammarPractice, buildLesson, buildPractice, lessonsForUnit, reviewLesson } from './engine/generator'
@@ -24,7 +24,7 @@ export default function App() {
   useEffect(() => { preloadIndex() }, [])
 
   const { unlockedUnits } = useMemo(() => unlockedState(modules, progress), [progress])
-  const totalLessons = modules.reduce((a, m) => a + m.units.length * lessonsForUnit(m.units[0]).length + 1 + (reviewLesson(m) ? 1 : 0), 0)
+  const totalLessons = modules.reduce((a, m) => a + m.units.reduce((n, u) => n + lessonsForUnit(u).length, 0) + 1 + (reviewLesson(m) ? 1 : 0), 0)
 
   const startLesson = (lesson: Lesson) => {
     if (progress.hearts <= 0) { alert(`لا توجد قلوب! القلب التالي بعد ${Math.ceil(nextHeartIn(progress) / 60000)} دقيقة. تدرّب على الكلمات لاستعادة القلوب.`); setTab('words'); return }
@@ -33,11 +33,11 @@ export default function App() {
     preload(unit.id)
     setActive({ lesson, exercises: buildLesson(lesson, unit, mod, progress) })
   }
-  const startGrammar = (unitId: string) => {
+  const startGrammar = (unitId: string, which: 'grammar' | 'vocabFocus' | 'everyday' = 'grammar') => {
     const unit = modules.flatMap(m => m.units).find(u => u.id === unitId)
     if (!unit) return
     preload(unit.id)
-    setActive({ lesson: null, exercises: buildGrammarPractice(unit) })
+    setActive({ lesson: null, exercises: buildGrammarPractice(unit, which) })
   }
   const startPractice = () => {
     const ex = buildPractice(modules, progress, unlockedUnits)
@@ -88,12 +88,12 @@ export default function App() {
         <div className="stat fire">🔥 {progress.streak}</div>
         <div className="stat gem">💎 {progress.xp}</div>
         <div className="stat heart">❤️ {progress.hearts}</div>
-        <div className="muted" style={{ fontWeight: 800 }}>{progress.name ? `مرحباً ${progress.name}` : 'Emar 8'}</div>
+        <div className="muted" style={{ fontWeight: 800 }}>{progress.name ? `مرحباً ${progress.name}` : book.title}</div>
       </div>
       {tab === 'home' && <Home modules={modules} progress={progress} onStart={startLesson} />}
       {tab === 'words' && <Words modules={modules} progress={progress} unlocked={unlockedUnits} onPractice={startPractice} />}
       {tab === 'book' && <Book modules={modules} onGrammarPractice={startGrammar} />}
-      {tab === 'profile' && <Profile progress={progress} totalLessons={totalLessons} onChange={setProgress} onReset={() => { localStorage.clear(); location.reload() }} />}
+      {tab === 'profile' && <Profile progress={progress} totalLessons={totalLessons} subtitle={book.subtitle} onChange={setProgress} onReset={() => { localStorage.clear(); location.reload() }} />}
       <nav className="tabbar">
         {([['home', '🏠', 'تعلّم'], ['words', '📚', 'الكلمات'], ['book', '📖', 'الكتاب'], ['profile', '👤', 'ملفّي']] as [Tab, string, string][]).map(([t, ic, l]) => (
           <button key={t} className={`tab ${tab === t ? 'active' : ''}`} onClick={() => setTab(t)}><span className="ic">{ic}</span>{l}</button>

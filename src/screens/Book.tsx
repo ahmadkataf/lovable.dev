@@ -2,8 +2,9 @@ import type { Module } from '../engine/types'
 import { Speaker } from '../components/common'
 import { speak } from '../engine/audio'
 import ReadingText from '../components/ReadingText'
+import PhraseCard from '../components/PhraseCard'
 
-export default function Book({ modules, onGrammarPractice }: { modules: Module[]; onGrammarPractice: (unitId: string) => void }) {
+export default function Book({ modules, onGrammarPractice }: { modules: Module[]; onGrammarPractice: (unitId: string, which?: 'grammar' | 'vocabFocus' | 'everyday') => void }) {
   return (
     <div className="page">
       <div className="h1">📖 الكتاب</div>
@@ -21,6 +22,25 @@ export default function Book({ modules, onGrammarPractice }: { modules: Module[]
               {u.quotes?.map((q, i) => <div key={i} className="quote">"{q.text}" — {q.by}</div>)}
               <div className="h2 mt">📰 القراءة: <span className="en">{u.reading.title}</span></div>
               <ReadingText paragraphs={u.reading.paragraphs} paragraphsAr={u.reading.paragraphsAr} showAr maxHeight="none" />
+              {u.extraReadings?.map((r, i) => (
+                <div key={i} className="mt">
+                  <div className="h2">📄 <span className="en">{r.title}</span></div>
+                  <ReadingText paragraphs={r.paragraphs} paragraphsAr={r.paragraphsAr} showAr maxHeight="none" />
+                </div>
+              ))}
+              {u.vocabFocus && (
+                <>
+                  <div className="row spread mt">
+                    <div className="h2" style={{ margin: 0 }}>🔤 المفردات: {u.vocabFocus.nameAr} <span className="en muted" style={{ fontSize: 13 }}>{u.vocabFocus.name}</span></div>
+                    <button className="btn btn-blue btn-sm" onClick={() => onGrammarPractice(u.id, 'vocabFocus')}>✏️ تدرّب ({u.vocabFocus.exercises.length})</button>
+                  </div>
+                  <div className="grammar-card">
+                    <div className="ar-rule"><ul>{u.vocabFocus.ruleAr.map((r, i) => <li key={i}>{r}</li>)}</ul></div>
+                    <div className="en-rule"><ul>{u.vocabFocus.ruleEn.map((r, i) => <li key={i}>{r}</li>)}</ul></div>
+                    {u.vocabFocus.examples.map((e, i) => <div key={i} className="ex"><span>{e}</span><Speaker text={e} size="sm" /></div>)}
+                  </div>
+                </>
+              )}
               <div className="row spread mt">
                 <div className="h2" style={{ margin: 0 }}>🧩 القواعد: {u.grammar.nameAr} <span className="en muted" style={{ fontSize: 13 }}>{u.grammar.name}</span></div>
                 <button className="btn btn-blue btn-sm" onClick={() => onGrammarPractice(u.id)}>✏️ تدرّب ({u.grammar.exercises.length})</button>
@@ -40,6 +60,15 @@ export default function Book({ modules, onGrammarPractice }: { modules: Module[]
                       {g.words.map(w => <button key={w} className="pill en" onClick={() => speak(w)}>🔊 {w}</button>)}
                     </div>
                   ))}
+                </div>
+              )}
+              {u.everyday && (
+                <div className="mt">
+                  <div className="row spread">
+                    <div className="h2" style={{ margin: 0 }}>💬 Everyday English</div>
+                    <button className="btn btn-blue btn-sm" onClick={() => onGrammarPractice(u.id, 'everyday')}>✏️ تدرّب ({u.everyday.exercises.length})</button>
+                  </div>
+                  <PhraseCard everyday={u.everyday} />
                 </div>
               )}
               {u.listening && <div className="mt"><div className="h2">🎧 الاستماع</div><p className="muted">{u.listening.taskAr}</p>{u.listening.items && <ul className="en" style={{ paddingInlineStart: 20 }}>{u.listening.items.map((it, i) => <li key={i}>{it}</li>)}</ul>}</div>}

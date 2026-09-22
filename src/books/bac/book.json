@@ -1,0 +1,11 @@
+{
+  "id": "bac",
+  "title": "Emar Bac",
+  "titleAr": "إمار — البكالوريا العلمي",
+  "subtitle": "Emar English Series — Scientific Section · Student's Book",
+  "storageKey": "emarbac.progress.v1",
+  "appName": "Emar Bac",
+  "packageId": "com.emarbac.app",
+  "iconText": "Bac",
+  "color": "#1cb0f6"
+}

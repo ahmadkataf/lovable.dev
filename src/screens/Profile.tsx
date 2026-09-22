@@ -3,9 +3,9 @@ import { levelFromXp, today } from '../engine/progress'
 import { audioStatus, speak } from '../engine/audio'
 import { useState } from 'react'
 
-interface Props { progress: Progress; totalLessons: number; onChange: (p: Progress) => void; onReset: () => void }
+interface Props { progress: Progress; totalLessons: number; subtitle: string; onChange: (p: Progress) => void; onReset: () => void }
 
-export default function Profile({ progress, totalLessons, onChange, onReset }: Props) {
+export default function Profile({ progress, totalLessons, subtitle, onChange, onReset }: Props) {
   const lv = levelFromXp(progress.xp)
   const [audioMsg, setAudioMsg] = useState('')
   const done = Object.keys(progress.lessons).length
@@ -84,7 +84,7 @@ export default function Profile({ progress, totalLessons, onChange, onReset }: P
         {audioMsg && <p className="muted" style={{ fontSize: 13 }}>{audioMsg}</p>}
         <p className="muted" style={{ fontSize: 12 }}>إن لم تسمع شيئاً: ارفع صوت الوسائط، وأغلق الوضع الصامت على iPhone.</p>
       </div>
-      <p className="muted center">Emar English Series — Grade 8 · Student's Book · تطبيق تعليمي تفاعلي</p>
+      <p className="muted center">{subtitle} · تطبيق تعليمي تفاعلي</p>
     </div>
   )
 }

@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import type { Exercise, Word } from '../engine/types'
 import { Speaker } from './common'
 import ReadingText from './ReadingText'
+import PhraseCard from './PhraseCard'
 import { checkBuild, checkTyped, shuffle } from '../engine/generator'
 import { listenOnce, recognitionSupported, sfx, speak } from '../engine/audio'
 
@@ -17,7 +18,7 @@ export interface ExProps {
 
 export function judge(ex: Exercise, value: unknown): boolean {
   switch (ex.kind) {
-    case 'intro': case 'grammar_card': case 'speak': return true
+    case 'intro': case 'grammar_card': case 'speak': case 'phrase_card': return true
     case 'choose_ar': case 'choose_en': case 'listen': case 'listen_sentence': case 'mcq': case 'fill': return value === ex.answer
     case 'read': return value === ex.question.answer
     case 'truefalse': return (value === 0 || value === true) === ex.answer
@@ -39,7 +40,7 @@ export function correctAnswerText(ex: Exercise): string {
 }
 
 export function needsHearts(ex: Exercise): boolean {
-  return !['intro', 'grammar_card', 'speak', 'match'].includes(ex.kind)
+  return !['intro', 'grammar_card', 'speak', 'match', 'phrase_card'].includes(ex.kind)
 }
 
 export function wordOf(ex: Exercise): Word | null {
@@ -66,6 +67,7 @@ export function ExerciseView(props: ExProps) {
     case 'build': return <BuildView {...props} />
     case 'grammar_card': return <GrammarCard ex={ex} />
     case 'speak': return <SpeakView {...props} />
+    case 'phrase_card': return <PhraseCard everyday={ex.everyday} />
   }
 }
 

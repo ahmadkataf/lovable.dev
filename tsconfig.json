@@ -22,7 +22,16 @@
     "types": [
       "node",
       "vitest/globals"
-    ]
+    ],
+    "baseUrl": ".",
+    "paths": {
+      "@book": [
+        "src/books/g8/index.ts"
+      ],
+      "@book-meta": [
+        "src/books/g8/book.json"
+      ]
+    }
   },
   "include": [
     "src"

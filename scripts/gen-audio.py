@@ -1,14 +1,15 @@
-"""Generate per-unit audio sprites (mp3) + index.json from audio-src/texts.json using Piper TTS.
-Usage: python3 scripts/gen-audio.py <voice.onnx> [out_dir]
+"""Generate per-unit audio sprites (mp3) + index.json from audio-src/<book>/texts.json using Piper TTS.
+Usage: python3 scripts/gen-audio.py <voice.onnx> [book]      (default book: g8 -> public/g8/audio)
 """
 import json, sys, os, struct, subprocess, wave, io, time
 from piper import PiperVoice
 import numpy as np
 
 voice_path = sys.argv[1]
-out_dir = sys.argv[2] if len(sys.argv) > 2 else 'public/audio'
+book = sys.argv[2] if len(sys.argv) > 2 else 'g8'
+out_dir = f'public/{book}/audio'
 os.makedirs(out_dir, exist_ok=True)
-texts = json.load(open('audio-src/texts.json'))
+texts = json.load(open(f'audio-src/{book}/texts.json'))
 voice = PiperVoice.load(voice_path)
 SR = voice.config.sample_rate
 GAP = int(0.25 * SR)

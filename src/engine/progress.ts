@@ -17,7 +17,10 @@ export interface Progress {
   autoSpeak: boolean
 }
 
-const KEY = 'emar8.progress.v1'
+import meta from '@book-meta'
+
+// each book keeps its own progress
+const KEY = meta.storageKey
 export const MAX_HEARTS = 5
 export const HEART_REGEN_MS = 10 * 60 * 1000 // one heart every 10 minutes
 

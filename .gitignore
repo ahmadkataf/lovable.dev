@@ -1,7 +1,7 @@
-node_modules
-dist
-.DS_Store
 *.log
-android/build
+.DS_Store
 android/assets
+android/build
 android/release.keystore
+dist
+node_modules

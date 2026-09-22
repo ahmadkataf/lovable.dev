@@ -1,13 +1,15 @@
-// Collects every English string the app can speak, grouped per unit, into audio-src/texts.json
+// Collects every English string the app can speak, grouped per unit, into audio-src/<book>/texts.json
+//   node scripts/export-audio-texts.mjs [book]   (default g8)
 import { build } from 'esbuild'
 import fs from 'fs'
 import path from 'path'
 import { pathToFileURL } from 'url'
 
-const tmp = path.resolve('node_modules/.cache/emar-data.mjs')
+const BOOK = process.argv[2] || 'g8'
+const tmp = path.resolve(`node_modules/.cache/emar-data-${BOOK}.mjs`)
 const tmpText = path.resolve('node_modules/.cache/emar-text.mjs')
 fs.mkdirSync(path.dirname(tmp), { recursive: true })
-await build({ entryPoints: ['src/data/index.ts'], bundle: true, format: 'esm', platform: 'node', outfile: tmp, logLevel: 'error' })
+await build({ entryPoints: [`src/books/${BOOK}/index.ts`], bundle: true, format: 'esm', platform: 'node', outfile: tmp, logLevel: 'error' })
 await build({ entryPoints: ['src/engine/text.ts'], bundle: true, format: 'esm', platform: 'node', outfile: tmpText, logLevel: 'error' })
 const { modules } = await import(pathToFileURL(tmp).href)
 const { splitSentences } = await import(pathToFileURL(tmpText).href)
@@ -34,16 +36,40 @@ for (const m of modules) {
     ;(u.reading.trueFalse || []).forEach(t => add(g, t.statement))
     u.reading.questions.forEach(q => { add(g, q.q); q.options.forEach(o => add(g, o)) })
     u.pronunciation?.groups.forEach(gr => gr.words.forEach(w => add(g, w)))
+    const drills = [...(u.vocabFocus?.exercises || []), ...(u.everyday?.exercises || [])]
+    ;(u.vocabFocus?.examples || []).forEach(s => add(g, s))
+    for (const e of drills) {
+      if (e.type === 'fill') add(g, e.prompt.replace('___', e.options[e.answer]))
+      else if (e.type === 'build' || e.type === 'order') add(g, e.answer)
+      else if (e.type === 'truefalse') add(g, e.prompt)
+      else if (e.type === 'mcq') { add(g, e.prompt); e.options.forEach(o => add(g, o)) }
+    }
+    for (const x of u.everyday?.expressions || []) add(g, x.en)
+    for (const d of u.everyday?.dialogue || []) add(g, d.en)
+    for (const r of u.extraReadings || []) {
+      for (const p of r.paragraphs) for (const sen of splitSentences(p)) add(g, sen)
+      r.questions.forEach(q => { add(g, q.q); q.options.forEach(o => add(g, o)) })
+    }
     ;(u.writing?.model || []).forEach(p => add(g, p))
   }
   const g = `m${m.number}`
+  if (m.review) {
+    for (const e of m.review.exercises) {
+      if (e.type === 'fill') add(g, e.prompt.replace('___', e.options[e.answer]))
+      else if (e.type === 'build' || e.type === 'order') add(g, e.answer)
+      else if (e.type === 'truefalse') add(g, e.prompt)
+      else if (e.type === 'mcq') { add(g, e.prompt); e.options.forEach(o => add(g, o)) }
+    }
+    for (const p of m.review.reading?.paragraphs || []) for (const sen of splitSentences(p)) add(g, sen)
+    m.review.reading?.questions.forEach(q => { add(g, q.q); q.options.forEach(o => add(g, o)) })
+  }
   m.focus?.glossary?.forEach(w => add(g, w.en))
   for (const p of m.focus?.paragraphs || []) for (const sen of splitSentences(p)) add(g, sen)
 }
 const out = {}
 let n = 0, chars = 0
 for (const [g, map] of Object.entries(groups)) { out[g] = [...map.values()]; n += map.size; chars += [...map.values()].join('').length }
-fs.mkdirSync('audio-src', { recursive: true })
-fs.writeFileSync('audio-src/texts.json', JSON.stringify(out, null, 1))
+fs.mkdirSync(`audio-src/${BOOK}`, { recursive: true })
+fs.writeFileSync(`audio-src/${BOOK}/texts.json`, JSON.stringify(out, null, 1))
 console.log('groups', Object.keys(out).length, 'texts', n, 'chars', chars)
 for (const [g, l] of Object.entries(out)) console.log(g, l.length, l.join('').length)
