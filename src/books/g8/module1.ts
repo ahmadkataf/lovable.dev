@@ -386,12 +386,10 @@ export const module1: Module = {
       },
       pronunciation: {
         title: 'Silent letters (h, gh)',
-        ruleAr: 'بعض الحروف تُكتب ولا تُلفظ. الحرف h صامت في كلمات مثل hour و honest و ghost، وفي كلمات wh- مثل what و when. والحرفان gh صامتان في كلمات مثل thought و neighbour و straight.',
+        ruleAr: 'بعض الحروف تُكتب ولا تُلفظ. الحرف h صامت في كلمات مثل hour و honest و ghost، وفي كلمات wh- مثل what و when. والحرفان gh صامتان في كلمات مثل thought و neighbour و straight. انتبه: في tough تُلفظ gh مثل f، وفي how يُلفظ h، فليستا من الحروف الصامتة.',
         groups: [
-          { label: 'silent h', words: ['hour', 'when', 'where', 'ghost', 'chaos', 'rhyme', 'honest', 'honour'] },
-          { label: 'silent h (wh- words)', words: ['what', 'how', 'which', 'while', 'why', 'school'] },
-          { label: 'silent gh', words: ['thought', 'neighbour', 'straight', 'might', 'weigh', 'daughter', 'right', 'bright'] },
-          { label: 'silent gh (more words)', words: ['tough', 'though', 'brought', 'thought'] },
+          { label: 'silent h', words: ['hour', 'when', 'where', 'ghost', 'chaos', 'rhyme', 'honest', 'honour', 'what', 'which', 'while', 'why', 'school'] },
+          { label: 'silent gh', words: ['thought', 'neighbour', 'straight', 'might', 'weigh', 'daughter', 'right', 'bright', 'though', 'brought'] },
         ],
       },
       listening: {

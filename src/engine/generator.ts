@@ -197,11 +197,21 @@ export function buildLesson(lesson: Lesson, unit: Unit, module: Module, progress
       words.forEach(w => ex.push(exListen(w, pool)))
       shuffle(unit.sentences).slice(0, 3).forEach(s => ex.push(exListenSentence(s, allSentences)))
       if (unit.pronunciation) {
-        unit.pronunciation.groups.forEach(g => {
-          const w = shuffle(g.words)[0]
-          const others = unit.pronunciation!.groups.filter(x => x !== g).map(x => x.label)
-          if (w && others.length) ex.push({ kind: 'mcq', prompt: `🔊 "${w}" — أي صوت تسمع؟`, audio: w, ...withAnswer(g.label, others.slice(0, 3)), explainAr: unit.pronunciation!.ruleAr })
-        })
+        // groups that continue one sound ("short /u/ (more)") are the same answer as the sound itself
+        const sounds = new Map<string, string[]>()
+        for (const g of unit.pronunciation.groups) {
+          const base = g.label.replace(/\s*\([^)]*\)\s*$/, '').trim()
+          sounds.set(base, [...(sounds.get(base) || []), ...g.words])
+        }
+        const labels = [...sounds.keys()]
+        // a word listed under two sounds cannot be asked about
+        const count = new Map<string, number>()
+        for (const ws of sounds.values()) for (const w of new Set(ws)) count.set(w, (count.get(w) || 0) + 1)
+        for (const [label, ws] of sounds) {
+          const w = shuffle(ws.filter(x => count.get(x) === 1))[0]
+          const others = labels.filter(x => x !== label)
+          if (w && others.length) ex.push({ kind: 'mcq', prompt: `🔊 "${w}" — أي صوت تسمع؟`, audio: w, ...withAnswer(label, others.slice(0, 3)), explainAr: unit.pronunciation.ruleAr })
+        }
       }
       shuffle(unit.sentences).slice(0, 2).forEach(s => ex.push({ kind: 'speak', text: s }))
       return shuffle(ex)
