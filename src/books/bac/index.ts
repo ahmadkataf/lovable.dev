@@ -1,4 +1,4 @@
-import type { BookMeta, Module } from '../../engine/types'
+import type { BookMeta, Exam, Module } from '../../engine/types'
 import meta from './book.json'
 import { module1 } from './module1'
 import { module2 } from './module2'
@@ -9,3 +9,5 @@ import { module6 } from './module6'
 
 export const book: BookMeta = meta
 export const modules: Module[] = [module1, module2, module3, module4, module5, module6]
+// final-exam papers are added once a real past paper for this book gives their format
+export const exams: Exam[] = []

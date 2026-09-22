@@ -138,6 +138,52 @@ export interface Lesson {
   part?: number       // 1 or 2 for lessons that split one section in two
 }
 
+// ===== Final-exam papers =====
+
+/** One question of an exam paper, numbered as printed.
+ *  `ask` and `wrongpart` mark the underlined parts of `prompt` with {braces}:
+ *  - ask:       "{Kindergarten} is a school for little children."  → options are candidate questions
+ *  - wrongpart: "Huda {told} {hers} mother that {she} {felt} ill." → the parts are a, b, c, d in order */
+export interface ExamQuestion {
+  n: number
+  kind: 'mcq' | 'truefalse' | 'ask' | 'wrongpart'
+  prompt: string
+  promptAr?: string
+  options?: string[]          // mcq and ask
+  answer: number | boolean    // option / part index, or true/false
+  explainAr: string           // why that answer is right, shown after the paper is handed in
+  topic?: 'tense' | 'reported' | 'conditional' | 'grammar' | 'pronunciation' | 'vocab' | 'wordform'  // section C: what the item tests
+}
+
+export interface ExamSection {
+  letter: 'A' | 'B' | 'C' | 'D' | 'E' | 'F'
+  title: string               // the instruction as printed
+  titleAr: string
+  marks: number
+  passage?: { paragraphs: string[]; paragraphsAr: string[] }   // {braces} mark words the paper underlines
+  questions?: ExamQuestion[]
+  writing?: {
+    topic: string
+    topicAr: string
+    words: number             // e.g. 50
+    model: string             // a model answer the learner compares with
+    modelAr: string
+    checklistAr: string[]     // what a full-mark paragraph does, for self-assessment
+  }
+}
+
+export interface Exam {
+  id: string                  // 't1-a'
+  term: 1 | 2
+  title: string               // "Term 1 — Test A"
+  titleAr: string
+  minutes: number
+  totalMarks: number
+  real?: boolean              // a past paper typed in as printed
+  sourceAr?: string           // where it comes from / what it covers
+  sections: ExamSection[]
+}
+
 /** A textbook the app is built for. One build of the app carries one book. */
 export interface BookMeta {
   id: string            // 'g8', 'bac'

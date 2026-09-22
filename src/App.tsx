@@ -1,21 +1,24 @@
 import { useEffect, useMemo, useState } from 'react'
-import { book, modules } from './data'
-import type { Exercise, Lesson } from './engine/types'
-import { addXp, completeLesson, load, loseHeart, nextHeartIn, recordWord, refillHearts, regenHearts, save, touchStreak, type Progress } from './engine/progress'
+import { book, exams, modules } from './data'
+import type { Exam, Exercise, Lesson } from './engine/types'
+import { addXp, completeLesson, recordExam, load, loseHeart, nextHeartIn, recordWord, refillHearts, regenHearts, save, touchStreak, type Progress } from './engine/progress'
 import { buildGrammarPractice, buildLesson, buildMockExam, buildPractice, lessonsForUnit, reviewLesson } from './engine/generator'
 import Home, { unlockedState } from './screens/Home'
 import Words from './screens/Words'
 import Book from './screens/Book'
 import Profile from './screens/Profile'
 import LessonScreen, { type LessonOutcome } from './screens/Lesson'
+import Exams from './screens/Exams'
+import ExamPaper from './screens/ExamPaper'
 import { preload, preloadIndex, setMuted } from './engine/audio'
 
-type Tab = 'home' | 'words' | 'book' | 'profile'
+type Tab = 'home' | 'words' | 'exams' | 'book' | 'profile'
 
 export default function App() {
   const [progress, setProgress] = useState<Progress>(() => touchStreak(load()))
   const [tab, setTab] = useState<Tab>('home')
   const [active, setActive] = useState<{ lesson: Lesson | null; exercises: Exercise[] } | null>(null)
+  const [exam, setExam] = useState<Exam | null>(null)
   const [, tick] = useState(0)
 
   useEffect(() => save(progress), [progress])
@@ -70,6 +73,24 @@ export default function App() {
     setTab(active?.lesson ? 'home' : 'words')
   }
 
+  if (exam) {
+    return (
+      <div className="app" style={{ paddingBottom: 0 }}>
+        <ExamPaper
+          key={exam.id}
+          exam={exam}
+          onClose={() => setExam(null)}
+          onScore={(score, first) => setProgress(p => {
+            let n = recordExam(p, exam.id, score, first)
+            // a finished paper counts as a day of study, once
+            if (first) n = addXp(n, Math.round(score / 20))
+            return n
+          })}
+        />
+      </div>
+    )
+  }
+
   if (active) {
     return (
       <div className="app" style={{ paddingBottom: 0 }}>
@@ -97,11 +118,12 @@ export default function App() {
         <div className="muted" style={{ fontWeight: 800 }}>{progress.name ? `مرحباً ${progress.name}` : book.title}</div>
       </div>
       {tab === 'home' && <Home modules={modules} progress={progress} onStart={startLesson} />}
-      {tab === 'words' && <Words modules={modules} progress={progress} unlocked={unlockedUnits} onPractice={startPractice} onMockExam={startMockExam} />}
+      {tab === 'words' && <Words modules={modules} progress={progress} unlocked={unlockedUnits} onPractice={startPractice} onMockExam={exams.length ? undefined : startMockExam} />}
+      {tab === 'exams' && <Exams exams={exams} progress={progress} onStart={e => { window.scrollTo(0, 0); setExam(e) }} onMockExam={startMockExam} canMock={unlockedUnits.size > 0} />}
       {tab === 'book' && <Book modules={modules} onGrammarPractice={startGrammar} />}
       {tab === 'profile' && <Profile progress={progress} totalLessons={totalLessons} subtitle={book.subtitle} onChange={setProgress} onReset={() => { localStorage.clear(); location.reload() }} />}
       <nav className="tabbar">
-        {([['home', '🏠', 'تعلّم'], ['words', '📚', 'الكلمات'], ['book', '📖', 'الكتاب'], ['profile', '👤', 'ملفّي']] as [Tab, string, string][]).map(([t, ic, l]) => (
+        {([['home', '🏠', 'تعلّم'], ['words', '📚', 'الكلمات'], ...(exams.length ? [['exams', '📝', 'امتحانات']] : []), ['book', '📖', 'الكتاب'], ['profile', '👤', 'ملفّي']] as [Tab, string, string][]).map(([t, ic, l]) => (
           <button key={t} className={`tab ${tab === t ? 'active' : ''}`} onClick={() => setTab(t)}><span className="ic">{ic}</span>{l}</button>
         ))}
       </nav>

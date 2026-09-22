@@ -199,3 +199,43 @@ details.unit-ref summary { cursor: pointer; font-weight: 800; font-size: 16px; }
 .fade { animation: fadein .25s; }
 @keyframes fadein { from { opacity: 0; transform: translateY(6px);} to { opacity: 1; transform: none;} }
 .hint { background: var(--yellow); color: #3c3c3c; border-radius: 10px; padding: 8px 12px; font-size: 14px; font-weight: 700; }
+
+/* ---- exam paper ---- */
+.exam { flex: 1; display: flex; flex-direction: column; min-height: 100vh; }
+.exam-bar { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 15; background: var(--bg); border-bottom: 2px solid var(--border); display: flex; align-items: center; gap: 10px; padding: 10px 16px; }
+.timer { font-weight: 900; font-family: var(--font-en); font-variant-numeric: tabular-nums; color: var(--blue-dark); background: var(--blue-light); padding: 4px 10px; border-radius: 10px; }
+.timer.low { color: var(--red-dark); background: var(--red-light); }
+.exam-body { flex: 1; padding: 12px 16px 24px; display: flex; flex-direction: column; gap: 12px; }
+.paper { background: var(--card); border: 2px solid var(--border); border-radius: 14px; padding: 14px; display: flex; flex-direction: column; gap: 14px; }
+.paper-head { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; font-size: 13px; border-bottom: 2px solid var(--text); padding-bottom: 10px; direction: ltr; }
+.real-badge { align-self: flex-start; background: var(--yellow); color: #3c3c3c; font-weight: 800; font-size: 13px; padding: 4px 10px; border-radius: 8px; }
+.psec { display: flex; flex-direction: column; gap: 10px; border-top: 1px solid var(--border); padding-top: 12px; }
+.psec-title { direction: ltr; text-align: left; display: flex; justify-content: space-between; gap: 8px; font-size: 15px; flex-wrap: wrap; }
+.psec-marks { font-weight: 800; white-space: nowrap; }
+.psec-ar { font-size: 13px; color: var(--gray-4); }
+.ppassage { direction: ltr; text-align: left; font-size: 15px; line-height: 1.7; background: var(--gray-1); border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px; }
+.ppassage p { margin: 0 0 8px; }
+.ppassage .p-ar { direction: rtl; text-align: right; font-family: var(--font-ar); background: var(--green-light); border-radius: 8px; padding: 8px 10px; }
+.pq { display: flex; flex-direction: column; gap: 8px; padding: 8px 0; border-bottom: 1px dashed var(--border); }
+.pq-prompt { direction: ltr; text-align: left; font-size: 16px; line-height: 1.8; }
+.popts { display: flex; flex-direction: column; gap: 6px; direction: ltr; }
+.popt { text-align: left; direction: ltr; font-family: var(--font-en); font-size: 15px; padding: 9px 12px; border: 2px solid var(--border); border-radius: 10px; background: var(--card); }
+.popt.sel { border-color: var(--blue); background: var(--blue-light); }
+.popt.ok { border-color: var(--green); background: var(--green-light); }
+.popt.bad { border-color: var(--red); background: var(--red-light); }
+.wp { font-family: var(--font-en); font-size: 16px; padding: 1px 4px; margin: 0 1px; border-radius: 6px; border: 2px solid transparent; background: var(--gray-1); }
+.wp-sel { border-color: var(--blue); background: var(--blue-light); }
+.wp.ok { border-color: var(--green); background: var(--green-light); }
+.wp.bad { border-color: var(--red); background: var(--red-light); }
+.pq-fb { background: var(--gray-1); border-radius: 10px; padding: 8px 12px; font-size: 14px; line-height: 1.7; }
+.pq-ok .pq-fb { border-inline-start: 4px solid var(--green); }
+.pq-bad .pq-fb { border-inline-start: 4px solid var(--red); }
+.result .score { font-size: 34px; font-family: var(--font-en); }
+.result .score b { color: var(--green-dark); }
+.marks { width: 100%; border-collapse: collapse; margin: 10px 0; font-size: 14px; }
+.marks td { padding: 6px 4px; border-bottom: 1px solid var(--border); }
+.marks td:last-child { text-align: left; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.exam-card { display: flex; align-items: center; gap: 12px; margin-bottom: 10px; }
+.check-row { align-items: flex-start; padding: 6px 0; font-size: 14px; }
+.check-row input { margin-top: 4px; width: 18px; height: 18px; flex-shrink: 0; }
+.ok-text { color: var(--green-dark); font-weight: 700; }

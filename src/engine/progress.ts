@@ -15,7 +15,10 @@ export interface Progress {
   name: string
   sound: boolean
   autoSpeak: boolean
+  exams?: Record<string, ExamResult>
 }
+
+export interface ExamResult { best: number; last: number; times: number; date: string }
 
 import meta from '@book-meta'
 
@@ -120,6 +123,12 @@ export function completeLesson(p: Progress, lessonId: string, stars: number, sco
     ...p,
     lessons: { ...p.lessons, [lessonId]: { stars: Math.max(prev.stars, stars), best: Math.max(prev.best, score), times: prev.times + 1 } },
   }
+}
+
+export function recordExam(p: Progress, examId: string, score: number, firstSubmit: boolean): Progress {
+  const prev = p.exams?.[examId] || { best: 0, last: 0, times: 0, date: '' }
+  const r: ExamResult = { best: Math.max(prev.best, score), last: score, times: prev.times + (firstSubmit ? 1 : 0), date: today() }
+  return { ...p, exams: { ...(p.exams || {}), [examId]: r } }
 }
 
 export function levelFromXp(xp: number): { level: number; into: number; need: number } {

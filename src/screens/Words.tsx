@@ -4,7 +4,7 @@ import type { Progress } from '../engine/progress'
 import { wordStrength } from '../engine/progress'
 import { Speaker } from '../components/common'
 
-interface Props { modules: Module[]; progress: Progress; unlocked: Set<string>; onPractice: () => void; onMockExam: () => void }
+interface Props { modules: Module[]; progress: Progress; unlocked: Set<string>; onPractice: () => void; onMockExam?: () => void }
 
 export default function Words({ modules, progress, unlocked, onPractice, onMockExam }: Props) {
   const [q, setQ] = useState('')
@@ -30,7 +30,7 @@ export default function Words({ modules, progress, unlocked, onPractice, onMockE
           <button className="btn btn-blue" onClick={onPractice} disabled={unlocked.size === 0}>💪 تدريب</button>
         </div>
       </div>
-      <div className="card mb">
+      {onMockExam && <div className="card mb">
         <div className="row spread">
           <div>
             <div className="h2">📝 اختبار تجريبي</div>
@@ -38,7 +38,7 @@ export default function Words({ modules, progress, unlocked, onPractice, onMockE
           </div>
           <button className="btn btn-purple" onClick={onMockExam} disabled={unlocked.size === 0}>ابدأ</button>
         </div>
-      </div>
+      </div>}
       <input className="search mb" placeholder="ابحث عن كلمة بالإنجليزية أو العربية..." value={q} onChange={e => setQ(e.target.value)} />
       <div className="pills mb">
         <button className={`pill ${unit === 'all' ? 'active' : ''}`} onClick={() => setUnit('all')}>الكل</button>
