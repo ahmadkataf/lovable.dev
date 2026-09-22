@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Builds an APK for one book from its Vite build, with the Android build-tools only (no Gradle).
-#   BOOK=bac npm run build && ./scripts/build-apk.sh bac      -> android/build/EmarBac.apk
+#   BOOK=g11 npm run build && ./scripts/build-apk.sh g11      -> android/build/Emar11.apk
 # Requires: ANDROID_HOME with build-tools 34.0.0 + platforms/android-34, and JDK 17+.
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"

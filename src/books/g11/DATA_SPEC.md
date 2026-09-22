@@ -1,10 +1,10 @@
-# Authoring spec — Emar English Series, Scientific Section (Syrian Bac)
+# Authoring spec — Emar English Series, Grade 11, Scientific Section
 
-The app turns this textbook into a Duolingo-style course for Syrian students preparing for the Bac exam.
+The app turns this textbook into a Duolingo-style course for Syrian students in Grade 11 (Scientific Section).
 They are native Arabic speakers and often weak in English. The teacher's hard rules:
 
 1. **Never leave the curriculum.** Every word, text, rule, dialogue and sentence comes from the book's own pages.
-   The verbatim text of the pages is in `book-source/bac/moduleN.md`; the page images are listed in your task.
+   The verbatim text of the pages is in `book-source/g11/moduleN.md`; the page images are listed in your task.
 2. **The student must understand everything in Arabic**: every definition, example, paragraph, question,
    exercise sentence and dialogue line carries an Arabic translation.
 3. **Exam readiness**: every exercise the book prints is in the app, solved; extra practice drills the same
@@ -63,5 +63,5 @@ Export one object per file: `export const moduleN: Module = { ... }`, import typ
 - `project` (modules 2, 4, 6): `title` and `steps` — the book's project text, verbatim.
 
 ## Checking
-`node scripts/check-book.mjs bac N` must print `OK`. It verifies counts, answer indexes, distinct options, every Arabic
-field, and that every example, reading paragraph, dialogue line and sentence exists in `book-source/bac/moduleN.md`.
+`node scripts/check-book.mjs g11 N` must print `OK`. It verifies counts, answer indexes, distinct options, every Arabic
+field, and that every example, reading paragraph, dialogue line and sentence exists in `book-source/g11/moduleN.md`.

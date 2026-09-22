@@ -5,7 +5,7 @@
 | الكتاب | المعرّف | التطبيق |
 |---|---|---|
 | Emar English Series – Grade 8 – Student's Book | `g8` | Emar 8 (`com.emar8.app`) |
-| Emar English Series – Scientific Section (البكالوريا العلمي) | `bac` | Emar Bac (`com.emarbac.app`) |
+| Emar English Series – Grade 11 – Scientific Section (الحادي عشر العلمي) | `g11` | Emar 11 (`com.emarbac.app`) |
 
 كتاب الثامن يغطّي المنهاج من أوّله إلى آخره:
 6 وحدات (Modules) × 12 درساً (Units) × 7 دروس تفاعلية لكل درس + اختبار نهائي لكل وحدة.
@@ -23,11 +23,11 @@
 ## التشغيل
 ```bash
 npm install
-BOOK=bac npm run dev          # تطوير (الافتراضي g8)
-BOOK=bac npm run build        # إنتاج → dist/bac/
-BOOK=bac npm run build:apk    # تطبيق أندرويد → android/build/EmarBac.apk
+BOOK=g11 npm run dev          # تطوير (الافتراضي g8)
+BOOK=g11 npm run build        # إنتاج → dist/g11/
+BOOK=g11 npm run build:apk    # تطبيق أندرويد → android/build/Emar11.apk
 npm test                      # فحص سلامة بيانات الكتابين
-node scripts/check-book.mjs bac   # فحص صارم: كل محتوى من صفحات الكتاب، وكل ترجمة موجودة
+node scripts/check-book.mjs g11   # فحص صارم: كل محتوى من صفحات الكتاب، وكل ترجمة موجودة
 ```
 
 ## البنية

@@ -1,6 +1,6 @@
 // Strict content check for one book (and optionally one module):
-//   node scripts/check-book.mjs bac        -> all modules
-//   node scripts/check-book.mjs bac 3      -> module 3 only
+//   node scripts/check-book.mjs g11        -> all modules
+//   node scripts/check-book.mjs g11 3      -> module 3 only
 // Exits non-zero and lists every problem found.
 import { build } from 'esbuild'
 import fs from 'fs'
@@ -8,7 +8,7 @@ import path from 'path'
 import { pathToFileURL } from 'url'
 import { bookCorpus, norm } from './book-corpus.mjs'
 
-const [bookId = 'bac', only] = process.argv.slice(2)
+const [bookId = 'g11', only] = process.argv.slice(2)
 const problems = []
 const bad = (where, msg) => problems.push(`${where}: ${msg}`)
 

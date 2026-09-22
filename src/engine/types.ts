@@ -186,7 +186,7 @@ export interface Exam {
 
 /** A textbook the app is built for. One build of the app carries one book. */
 export interface BookMeta {
-  id: string            // 'g8', 'bac'
+  id: string            // 'g8', 'g11'
   title: string         // shown in the header, e.g. "Emar 8"
   titleAr: string
   subtitle: string      // e.g. "Grade 8 · Student's Book"
