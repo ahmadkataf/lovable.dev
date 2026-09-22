@@ -90,6 +90,8 @@ for (const n of mods) {
       if (w.example) {
         if (!w.exampleAr?.trim()) bad(W, `word ${w.en} needs exampleAr`)
         if (!isSentence(w.example)) bad(W, `example of ${w.en} is not a complete sentence: ${w.example}`)
+        if (/\([^)]*(\s[-–/]\s|,\s)[^)]*\)/.test(w.example)) bad(W, `example of ${w.en} has an unresolved choice: ${w.example}`)
+        if (/^(write|tick|match|complete|choose|fill|underline|circle|listen|discuss)\b/i.test(w.example)) bad(W, `example of ${w.en} is a task instruction: ${w.example}`)
         if (!corpus.includes(norm(w.example))) bad(W, `example of ${w.en} is not in the book: ${w.example}`)
       }
     }

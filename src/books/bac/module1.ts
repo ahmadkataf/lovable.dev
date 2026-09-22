@@ -381,7 +381,7 @@ export const module1: Module = {
         { en: "determiner", ar: "محدِّد (أداة تسبق الاسم)", pos: "noun", def: "a word like “the, a, an, this or some” that comes at the beginning of a noun phrase", defAr: "كلمة مثل the, a, an, this, some تأتي في بداية العبارة الاسمية" },
         { en: "genre", ar: "نوع / صنف (فني)", pos: "noun", def: "a type of music, art or writing", defAr: "نوع من الموسيقى أو الفن أو الكتابة", example: "Look at the list of music genres.", exampleAr: "انظر إلى قائمة الأنواع الموسيقية." },
         { en: "vocalist", ar: "مطرب / مغنٍّ", pos: "noun", def: "a singer", defAr: "مغنٍّ" },
-        { en: "profile", ar: "نبذة تعريفية / لمحة", pos: "noun", def: "a short description of someone’s life and work", defAr: "وصف قصير لحياة شخص وأعماله", example: "Write a profile of an artist mentioning his/her works that you enjoy most.", exampleAr: "اكتب نبذة عن فنان تذكر فيها أعماله التي تستمتع بها أكثر." },
+        { en: "profile", ar: "نبذة تعريفية / لمحة", pos: "noun", def: "a short description of someone’s life and work", defAr: "وصف قصير لحياة شخص وأعماله" },
       ],
       reading: {
         title: "Things You Can’t Live without",

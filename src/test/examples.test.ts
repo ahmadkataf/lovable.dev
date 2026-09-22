@@ -39,7 +39,7 @@ for (const { book, modules } of books) describe(`vocabulary examples come from t
           const e = w.example?.trim()
           if (!e) continue
           const why: string[] = []
-          if (/\([^)]*[-,][^)]*\)/.test(e)) why.push('unresolved choice')
+          if (/\([^)]*(\s[-–/]\s|,\s)[^)]*\)/.test(e)) why.push('unresolved choice')
           if (/^(write|tick|match|complete|choose|fill|underline|circle|listen|discuss)\b/i.test(e)) why.push('task instruction')
           if (!/[.!?]$/.test(e)) why.push('not a sentence')
           if (e.split(/\s+/).length < 3) why.push('too short')
