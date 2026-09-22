@@ -14,4 +14,5 @@ import { term2F } from './term2-f'
 
 // Term 1 covers Modules 1–3 (Units 1–6); Term 2 covers Modules 4–6 (Units 7–12).
 // Test A of Term 1 is a real past paper; the others follow its layout exactly.
-export const exams: Exam[] = [term1A, term1B, term1C, term1D, term1E, term1F, term2A, term2B, term2C, term2D, term2E, term2F]
+const papers: Exam[] = [term1A, term1B, term1C, term1D, term1E, term1F, term2A, term2B, term2C, term2D, term2E, term2F]
+export const exams: Exam[] = papers.map(e => ({ grade: '8', ...e }))

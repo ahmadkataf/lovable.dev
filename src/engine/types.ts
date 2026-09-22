@@ -143,29 +143,48 @@ export interface Lesson {
 /** One question of an exam paper, numbered as printed.
  *  `ask` and `wrongpart` mark the underlined parts of `prompt` with {braces}:
  *  - ask:       "{Kindergarten} is a school for little children."  → options are candidate questions
- *  - wrongpart: "Huda {told} {hers} mother that {she} {felt} ill." → the parts are a, b, c, d in order */
+ *  - wrongpart: "Huda {told} {hers} mother that {she} {felt} ill." → the parts are a, b, c, d in order
+ *  `write` is answered in the learner's own words (Bac papers): answers that match `accept`
+ *  (loosely: case, punctuation and contractions ignored) count automatically; otherwise the learner
+ *  compares with `model` and may credit an answer that says the same thing. */
 export interface ExamQuestion {
   n: number
-  kind: 'mcq' | 'truefalse' | 'ask' | 'wrongpart'
+  kind: 'mcq' | 'truefalse' | 'ask' | 'wrongpart' | 'write'
   prompt: string
   promptAr?: string
   options?: string[]          // mcq and ask
-  answer: number | boolean    // option / part index, or true/false
+  answer?: number | boolean   // option / part index, or true/false (not used by write)
+  accept?: string[]           // write: answers that count as right automatically
+  model?: string              // write: the model answer shown after hand-in (defaults to accept[0])
+  modelAr?: string
+  lines?: number              // write: height of the answer box
+  marks?: number              // overrides the even split of its group or section
   explainAr: string           // why that answer is right, shown after the paper is handed in
-  topic?: 'tense' | 'reported' | 'conditional' | 'grammar' | 'pronunciation' | 'vocab' | 'wordform'  // section C: what the item tests
+  topic?: 'tense' | 'reported' | 'conditional' | 'grammar' | 'pronunciation' | 'vocab' | 'wordform'  // what the item tests
+}
+
+/** A task inside a section with its own printed instruction and marks
+ *  (a Bac reading passage is followed by several such tasks). */
+export interface ExamGroup {
+  title: string
+  titleAr: string
+  marks: number
+  questions: ExamQuestion[]
 }
 
 export interface ExamSection {
-  letter: 'A' | 'B' | 'C' | 'D' | 'E' | 'F'
+  letter: string              // 'A'…'F' on Grade 8 papers, 'A', 'B', 'III'…'X' on Bac papers
   title: string               // the instruction as printed
   titleAr: string
   marks: number
   passage?: { paragraphs: string[]; paragraphsAr: string[] }   // {braces} mark words the paper underlines
   questions?: ExamQuestion[]
+  groups?: ExamGroup[]
   writing?: {
     topic: string
     topicAr: string
-    words: number             // e.g. 50
+    words: number             // e.g. 50, or 80 on Bac papers
+    points?: string[]         // what the composition must include, as printed
     model: string             // a model answer the learner compares with
     modelAr: string
     checklistAr: string[]     // what a full-mark paragraph does, for self-assessment
@@ -177,6 +196,7 @@ export interface Exam {
   term: 1 | 2
   title: string               // "Term 1 — Test A"
   titleAr: string
+  grade?: string              // printed in the paper's header, e.g. '8'
   minutes: number
   totalMarks: number
   real?: boolean              // a past paper typed in as printed

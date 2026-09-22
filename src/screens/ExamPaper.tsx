@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import type { Exam, ExamQuestion, ExamSection } from '../engine/types'
 import { sfx } from '../engine/audio'
+import { examItems, isRight as markRight, type ExamAnswer } from '../engine/examGrade'
 
-type Answer = number | boolean
+type Answer = ExamAnswer
 interface Props {
   exam: Exam
   onClose: () => void
@@ -37,12 +38,14 @@ function Marked({ text, onPart, part, state }: { text: string; onPart?: (i: numb
 
 function words(s: string) { return s.trim() ? s.trim().split(/\s+/).length : 0 }
 
-function isRight(q: ExamQuestion, a: Answer | undefined) { return a !== undefined && a === q.answer }
-
 export default function ExamPaper({ exam, onClose, onScore }: Props) {
-  const questions = useMemo(() => exam.sections.flatMap(s => s.questions || []), [exam])
+  const items = useMemo(() => examItems(exam), [exam])
+  const questions = useMemo(() => items.map(i => i.q), [items])
   const writing = exam.sections.find(s => s.writing)
   const [answers, setAnswers] = useState<Record<number, Answer>>({})
+  // written answers the learner credits after comparing with the model answer
+  const [credited, setCredited] = useState<Record<number, boolean>>({})
+  const right = (q: ExamQuestion) => markRight(q, answers[q.n]) || !!credited[q.n]
   const [text, setText] = useState('')
   const [submitted, setSubmitted] = useState(false)
   const [checks, setChecks] = useState<boolean[]>(() => (writing?.writing?.checklistAr || []).map(() => false))
@@ -59,7 +62,6 @@ export default function ExamPaper({ exam, onClose, onScore }: Props) {
   }, [submitted])
   useEffect(() => { if (left === 0 && !submitted) { setTimeUp(true); submit() } }, [left]) // eslint-disable-line
 
-  const perQuestion = (s: ExamSection) => s.marks / Math.max(1, s.questions?.length || 1)
   const sectionScore = (s: ExamSection) => {
     if (s.writing) {
       const w = s.writing
@@ -67,13 +69,13 @@ export default function ExamPaper({ exam, onClose, onScore }: Props) {
       const perCheck = (s.marks - WRITING_LENGTH_MARKS) / Math.max(1, w.checklistAr.length)
       return len + Math.round(checks.filter(Boolean).length * perCheck)
     }
-    return (s.questions || []).reduce((a, q) => a + (isRight(q, answers[q.n]) ? perQuestion(s) : 0), 0)
+    return items.filter(i => i.section === s).reduce((a, i) => a + (right(i.q) ? i.marks : 0), 0)
   }
   const total = Math.round(exam.sections.reduce((a, s) => a + sectionScore(s), 0))
-  const answered = questions.filter(q => answers[q.n] !== undefined).length
+  const answered = questions.filter(q => answers[q.n] !== undefined && answers[q.n] !== '').length
 
   // the score counts the self-assessed paragraph too, so it is saved again when the checklist changes
-  useEffect(() => { if (submitted) onScore(total, false) }, [checks]) // eslint-disable-line
+  useEffect(() => { if (submitted) onScore(total, false) }, [checks, credited]) // eslint-disable-line
 
   function submit() {
     setConfirm(null)
@@ -83,7 +85,7 @@ export default function ExamPaper({ exam, onClose, onScore }: Props) {
     setTimeout(() => top.current?.scrollIntoView({ behavior: 'smooth' }), 50)
   }
 
-  const set = (n: number, a: Answer) => { if (!submitted) { sfx.tap(); setAnswers(x => ({ ...x, [n]: a })) } }
+  const set = (n: number, a: Answer) => { if (!submitted) { if (typeof a !== 'string') sfx.tap(); setAnswers(x => ({ ...x, [n]: a })) } }
   const mm = String(Math.floor(left / 60)).padStart(2, '0'), ss = String(left % 60).padStart(2, '0')
   const pct = Math.round((total / exam.totalMarks) * 100)
 
@@ -125,7 +127,7 @@ export default function ExamPaper({ exam, onClose, onScore }: Props) {
           <div className="paper-head en">
             <div><b>Time:</b> {exam.minutes} minutes<br /><b>Marks:</b> {exam.totalMarks}<br /><b>English</b></div>
             <div className="center"><b>TEST</b><br /><b>TERM {exam.term}</b><br /><b>({exam.id.split('-')[1]?.toUpperCase()})</b></div>
-            <div style={{ textAlign: 'right' }}><b>Grade: 8</b></div>
+            <div style={{ textAlign: 'right' }}>{exam.grade && <b>Grade: {exam.grade}</b>}</div>
           </div>
           {exam.real && <div className="real-badge">📄 نموذج امتحان حقيقي سابق</div>}
 
@@ -149,14 +151,24 @@ export default function ExamPaper({ exam, onClose, onScore }: Props) {
               )}
 
               {(s.questions || []).map(q => (
-                <Question key={q.n} q={q} a={answers[q.n]} submitted={submitted} onAnswer={a => set(q.n, a)} />
+                <Question key={q.n} q={q} a={answers[q.n]} submitted={submitted} right={right(q)} credited={!!credited[q.n]} onCredit={v => setCredited(c => ({ ...c, [q.n]: v }))} onAnswer={a => set(q.n, a)} />
+              ))}
+              {(s.groups || []).map((g, gi) => (
+                <div key={gi} className="pgroup">
+                  <div className="psec-title en"><u><b>{g.title}</b></u><span className="psec-marks">({g.marks} marks)</span></div>
+                  <div className="psec-ar">{g.titleAr}</div>
+                  {g.questions.map(q => (
+                    <Question key={q.n} q={q} a={answers[q.n]} submitted={submitted} right={right(q)} credited={!!credited[q.n]} onCredit={v => setCredited(c => ({ ...c, [q.n]: v }))} onAnswer={a => set(q.n, a)} />
+                  ))}
+                </div>
               ))}
 
               {s.writing && (
                 <div className="pq">
                   <div className="center en" style={{ fontWeight: 800, fontSize: 18, margin: '6px 0' }}>“{s.writing.topic}”</div>
                   <div className="center muted">{s.writing.topicAr}</div>
-                  <textarea className="type-input en" dir="ltr" rows={7} value={text} disabled={submitted} placeholder="Write your paragraph here..." onChange={e => setText(e.target.value)} style={{ fontSize: 16, marginTop: 8 }} />
+                  {s.writing.points && <ul className="en" style={{ direction: 'ltr', textAlign: 'left', margin: '6px 0', paddingInlineStart: 20 }}>{s.writing.points.map((p, i) => <li key={i}>{p}</li>)}</ul>}
+                  <textarea className="type-input en" dir="ltr" rows={s.writing.words > 60 ? 10 : 7} value={text} disabled={submitted} placeholder="Write your paragraph here..." onChange={e => setText(e.target.value)} style={{ fontSize: 16, marginTop: 8 }} />
                   <div className={`muted ${words(text) >= s.writing.words ? 'ok-text' : ''}`} style={{ fontSize: 13 }}>{words(text)} / {s.writing.words} كلمة</div>
                   {submitted && (
                     <div className="fade">
@@ -212,8 +224,9 @@ export default function ExamPaper({ exam, onClose, onScore }: Props) {
   )
 }
 
-function Question({ q, a, submitted, onAnswer }: { q: ExamQuestion; a: Answer | undefined; submitted: boolean; onAnswer: (a: Answer) => void }) {
-  const right = isRight(q, a)
+function Question({ q, a, submitted, right, credited, onCredit, onAnswer }: { q: ExamQuestion; a: Answer | undefined; submitted: boolean; right: boolean; credited: boolean; onCredit: (v: boolean) => void; onAnswer: (a: Answer) => void }) {
+  const autoRight = right && !credited
+  const model = q.model || q.accept?.[0] || ''
   const optClass = (i: number | boolean) => {
     if (!submitted) return a === i ? 'popt sel' : 'popt'
     if (i === q.answer) return 'popt ok'
@@ -242,7 +255,24 @@ function Question({ q, a, submitted, onAnswer }: { q: ExamQuestion; a: Answer | 
         </div>
       )}
       {q.kind === 'ask' && !submitted && <div className="muted" style={{ fontSize: 12 }}>اختر السؤال الصحيح عن الجزء المسطَّر.</div>}
-      {submitted && (
+      {q.kind === 'write' && (
+        <textarea className="type-input" dir="auto" rows={q.lines || 2} value={typeof a === 'string' ? a : ''} disabled={submitted}
+          placeholder="اكتب إجابتك هنا…" onChange={e => onAnswer(e.target.value)} style={{ fontSize: 16 }} />
+      )}
+      {submitted && q.kind === 'write' && (
+        <div className="pq-fb fade">
+          <div><b>{autoRight ? '✅ صحيح' : credited ? '✅ صحّحتها بنفسك' : !a ? '⚪ لم تُجب' : '✍️ قارن إجابتك بالنموذج'}</b></div>
+          <div className="mt"><span className="muted">الإجابة النموذجية:</span> <b dir="auto">{model}</b></div>
+          {q.accept && q.accept.length > 1 && <div className="muted" style={{ fontSize: 13 }}>تُقبل أيضاً: <span dir="auto">{q.accept.filter(x => x !== model).join(' / ')}</span></div>}
+          {q.modelAr && <div className="sentence-ar" style={{ margin: '6px 0' }}>{q.modelAr}</div>}
+          {q.promptAr && <div className="sentence-ar" style={{ margin: '6px 0' }}>{q.promptAr}</div>}
+          <div>💡 {q.explainAr}</div>
+          {!autoRight && !!a && (
+            <label className="row check-row"><input type="checkbox" checked={credited} onChange={e => onCredit(e.target.checked)} /><span>إجابتي صحيحة وتعطي المعنى نفسه (تقييم ذاتي)</span></label>
+          )}
+        </div>
+      )}
+      {submitted && q.kind !== 'write' && (
         <div className="pq-fb fade">
           <div><b>{right ? '✅ صحيح' : a === undefined ? '⚪ لم تُجب' : '❌ خطأ'}</b>{!right && <> — الإجابة الصحيحة: <b className="en">{answerText(q)}</b></>}</div>
           {q.promptAr && <div className="sentence-ar" style={{ margin: '6px 0' }}>{q.promptAr}</div>}
