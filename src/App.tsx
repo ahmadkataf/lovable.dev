@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { book, modules } from './data'
 import type { Exercise, Lesson } from './engine/types'
 import { addXp, completeLesson, load, loseHeart, nextHeartIn, recordWord, refillHearts, regenHearts, save, touchStreak, type Progress } from './engine/progress'
-import { buildGrammarPractice, buildLesson, buildPractice, lessonsForUnit, reviewLesson } from './engine/generator'
+import { buildGrammarPractice, buildLesson, buildMockExam, buildPractice, lessonsForUnit, reviewLesson } from './engine/generator'
 import Home, { unlockedState } from './screens/Home'
 import Words from './screens/Words'
 import Book from './screens/Book'
@@ -38,6 +38,12 @@ export default function App() {
     if (!unit) return
     preload(unit.id)
     setActive({ lesson: null, exercises: buildGrammarPractice(unit, which) })
+  }
+  const startMockExam = () => {
+    const ex = buildMockExam(modules, unlockedUnits)
+    if (ex.length === 0) return
+    unlockedUnits.forEach(id => preload(id))
+    setActive({ lesson: null, exercises: ex })
   }
   const startPractice = () => {
     const ex = buildPractice(modules, progress, unlockedUnits)
@@ -91,7 +97,7 @@ export default function App() {
         <div className="muted" style={{ fontWeight: 800 }}>{progress.name ? `مرحباً ${progress.name}` : book.title}</div>
       </div>
       {tab === 'home' && <Home modules={modules} progress={progress} onStart={startLesson} />}
-      {tab === 'words' && <Words modules={modules} progress={progress} unlocked={unlockedUnits} onPractice={startPractice} />}
+      {tab === 'words' && <Words modules={modules} progress={progress} unlocked={unlockedUnits} onPractice={startPractice} onMockExam={startMockExam} />}
       {tab === 'book' && <Book modules={modules} onGrammarPractice={startGrammar} />}
       {tab === 'profile' && <Profile progress={progress} totalLessons={totalLessons} subtitle={book.subtitle} onChange={setProgress} onReset={() => { localStorage.clear(); location.reload() }} />}
       <nav className="tabbar">

@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { books } from './books'
-import { bossLesson, buildGrammarPractice, buildLesson, buildPractice, checkBuild, lessonsForUnit, normalize, reviewLesson } from '../engine/generator'
+import { bossLesson, buildGrammarPractice, buildLesson, buildMockExam, buildPractice, checkBuild, lessonsForUnit, normalize, reviewLesson } from '../engine/generator'
 import { judge } from '../components/Exercises'
 import type { Exercise } from '../engine/types'
 
@@ -57,6 +57,13 @@ for (const { book, modules } of books) describe(`exercise generator — ${book.i
       }
     })
   }
+
+  it('builds a 30-question mock exam that accepts every correct answer', () => {
+    const all = new Set(modules.flatMap(m => m.units.map(u => u.id)))
+    const ex = buildMockExam(modules, all)
+    expect(ex.length).toBe(30)
+    for (const e of ex) expect(judge(e, correctValue(e)), `${e.kind} in mock exam`).toBe(true)
+  })
 
   it('builds a practice session from unlocked units', () => {
     const ex = buildPractice(modules, empty, new Set(['u1', 'u2']))

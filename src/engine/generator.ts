@@ -272,6 +272,28 @@ export function buildPractice(modules: Module[], progress: Progress, unlockedUni
   return ex
 }
 
+/** A mock exam across every unit the learner has opened: reading, vocabulary, the taught
+ *  vocabulary points, grammar and Everyday English — all drawn from the book's own content. */
+export function buildMockExam(modules: Module[], unlockedUnitIds: Set<string>, size = 30): Exercise[] {
+  const units = modules.flatMap(m => m.units).filter(u => unlockedUnitIds.has(u.id))
+  if (units.length === 0) return []
+  const words = units.flatMap(u => u.vocab)
+  const pools: Exercise[][] = [[], [], [], [], []]
+  for (const u of units) {
+    u.reading.questions.forEach(q => pools[0].push({ kind: 'read', title: u.reading.title, paragraphs: u.reading.paragraphs, paragraphsAr: u.reading.paragraphsAr, question: q }))
+    shuffle(u.vocab).slice(0, 4).forEach(w => pools[1].push(Math.random() < 0.5 ? exChooseAr(w, words) : exChooseEn(w, words)))
+    if (u.vocabFocus) pools[2].push(...grammarExercises(u.vocabFocus, words).filter(e => e.kind !== 'build'))
+    pools[3].push(...grammarExercises(u.grammar, words).filter(e => e.kind !== 'build'))
+    if (u.everyday) pools[4].push(...grammarExercises({ ...u.grammar, exercises: u.everyday.exercises }, words).filter(e => e.kind !== 'build'))
+  }
+  // an exam weighs grammar and reading most; sections a book lacks give their share to grammar
+  const share = [0.25, 0.2, 0.15, 0.3, 0.1]
+  const out: Exercise[] = []
+  share.forEach((f, i) => out.push(...shuffle(pools[i]).slice(0, Math.round(size * f))))
+  if (out.length < size) out.push(...shuffle(pools[3].filter(e => !out.includes(e))).slice(0, size - out.length))
+  return shuffle(out).slice(0, size)
+}
+
 /** Practice for one rule only (the unit's grammar, or its taught vocabulary point), started from the book screen. */
 export function buildGrammarPractice(unit: Unit, which: 'grammar' | 'vocabFocus' | 'everyday' = 'grammar'): Exercise[] {
   if (which === 'everyday' && unit.everyday) {

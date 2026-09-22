@@ -4,9 +4,9 @@ import type { Progress } from '../engine/progress'
 import { wordStrength } from '../engine/progress'
 import { Speaker } from '../components/common'
 
-interface Props { modules: Module[]; progress: Progress; unlocked: Set<string>; onPractice: () => void }
+interface Props { modules: Module[]; progress: Progress; unlocked: Set<string>; onPractice: () => void; onMockExam: () => void }
 
-export default function Words({ modules, progress, unlocked, onPractice }: Props) {
+export default function Words({ modules, progress, unlocked, onPractice, onMockExam }: Props) {
   const [q, setQ] = useState('')
   const [unit, setUnit] = useState<string>('all')
   const [weakOnly, setWeakOnly] = useState(false)
@@ -28,6 +28,15 @@ export default function Words({ modules, progress, unlocked, onPractice }: Props
         <div className="row spread">
           <div><div className="h2">{learned} / {total} كلمة</div><div className="muted">تعلّمتها حتى الآن · {due} كلمة تحتاج مراجعة</div></div>
           <button className="btn btn-blue" onClick={onPractice} disabled={unlocked.size === 0}>💪 تدريب</button>
+        </div>
+      </div>
+      <div className="card mb">
+        <div className="row spread">
+          <div>
+            <div className="h2">📝 اختبار تجريبي</div>
+            <div className="muted">30 سؤالاً من كل الدروس التي فتحتها: قراءة، مفردات، قواعد{modules.some(m => m.units.some(u => u.everyday)) ? '، Everyday English' : ''}. بلا خسارة قلوب.</div>
+          </div>
+          <button className="btn btn-purple" onClick={onMockExam} disabled={unlocked.size === 0}>ابدأ</button>
         </div>
       </div>
       <input className="search mb" placeholder="ابحث عن كلمة بالإنجليزية أو العربية..." value={q} onChange={e => setQ(e.target.value)} />
