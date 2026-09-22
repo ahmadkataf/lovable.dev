@@ -1,6 +1,13 @@
-# Emar 8 — تطبيق تفاعلي لتعلّم كتاب اللغة الإنجليزية (الصف الثامن)
+# Emar — تطبيقات تفاعلية لتعلّم كتب اللغة الإنجليزية السورية
 
-تطبيق ويب بأسلوب **Duolingo** يغطّي كتاب *Emar English Series – Grade 8 – Student's Book* (وزارة التربية السورية 2025-2026) من أوّله إلى آخره:
+تطبيق ويب بأسلوب **Duolingo** يُبنى لكل كتاب على حدة (كل كتاب تطبيق مستقل باسمه وأيقونته):
+
+| الكتاب | المعرّف | التطبيق |
+|---|---|---|
+| Emar English Series – Grade 8 – Student's Book | `g8` | Emar 8 (`com.emar8.app`) |
+| Emar English Series – Scientific Section (البكالوريا العلمي) | `bac` | Emar Bac (`com.emarbac.app`) |
+
+كتاب الثامن يغطّي المنهاج من أوّله إلى آخره:
 6 وحدات (Modules) × 12 درساً (Units) × 7 دروس تفاعلية لكل درس + اختبار نهائي لكل وحدة.
 
 ## المزايا
@@ -16,13 +23,16 @@
 ## التشغيل
 ```bash
 npm install
-npm run dev      # تطوير
-npm run build    # إنتاج → dist/
-npm test         # فحص سلامة بيانات المنهاج
+BOOK=bac npm run dev          # تطوير (الافتراضي g8)
+BOOK=bac npm run build        # إنتاج → dist/bac/
+BOOK=bac npm run build:apk    # تطبيق أندرويد → android/build/EmarBac.apk
+npm test                      # فحص سلامة بيانات الكتابين
+node scripts/check-book.mjs bac   # فحص صارم: كل محتوى من صفحات الكتاب، وكل ترجمة موجودة
 ```
 
 ## البنية
-- `src/data/module1..6.ts` — محتوى الكتاب المنظّم (كلمات، نصوص، قواعد، تمارين) — انظر `src/data/DATA_SPEC.md`.
+- `src/books/<book>/` — محتوى كل كتاب (`module1..6.ts`) وبياناته (`book.json`) ومواصفات التأليف (`DATA_SPEC.md`).
+- `book-source/<book>/` — نص صفحات الكتاب الحرفي، المرجع الذي تتحقق منه الاختبارات.
 - `src/engine/` — الأنواع، مولّد التمارين، التقدّم (localStorage)، الصوت.
 - `src/screens/` — الرئيسية (المسار)، الدرس، الكلمات، الكتاب، الملف الشخصي.
 - `src/components/` — مكوّنات التمارين والعناصر المشتركة.

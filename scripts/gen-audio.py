@@ -20,6 +20,19 @@ except Exception:
 
 def norm(s): return ' '.join(s.split()).strip().lower()
 
+import re
+def speakable(text):
+    """What the voice should say for a text. Maths is read the way the Maths unit teaches it
+    (plus, minus, times, divided by, equals); strings with nothing to say return None."""
+    t = text
+    t = re.sub(r'\s*×\s*', ' times ', t)
+    t = re.sub(r'\s*÷\s*', ' divided by ', t)
+    t = re.sub(r'\s*=\s*', ' equals ', t)
+    t = re.sub(r'(?<=\d)\s*\+\s*(?=\d)', ' plus ', t)
+    t = re.sub(r'(?<=\d)\s*[−–-]\s*(?=\d)', ' minus ', t)
+    t = re.sub(r'[…]+|\.{2,}|_{2,}', ' ', t)
+    return t if re.search(r'[A-Za-z0-9]', t) else None
+
 def synth(text):
     buf = io.BytesIO()
     with wave.open(buf, 'wb') as w:
@@ -40,7 +53,12 @@ t0 = time.time()
 for group, items in texts.items():
     parts, pos, entries = [], 0, {}
     for text in items:
-        pcm = synth(text)
+        spoken = speakable(text)
+        if spoken is None:
+            continue
+        pcm = synth(spoken)
+        if len(pcm) == 0:
+            continue
         entries[norm(text)] = [round(pos / SR, 3), round(len(pcm) / SR, 3)]
         parts.append(pcm); parts.append(np.zeros(GAP, dtype=np.int16))
         pos += len(pcm) + GAP

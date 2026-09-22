@@ -30,7 +30,9 @@ export default function PhraseCard({ everyday: e }: { everyday: Everyday }) {
       {e.expressions.map((x, i) => (
         <div key={i} className="ex" style={{ flexDirection: 'column', alignItems: 'stretch' }}>
           <div className="row spread"><span>{x.en}</span><Speaker text={x.en} size="sm" /></div>
-          <div className="sentence-ar" style={{ margin: 0 }}>{x.ar}{x.note ? ` — ${x.note}` : ''}</div>
+          {/* the book names what each expression does; keep that label in English, apart from the Arabic */}
+          {x.note && <div><span className="pill en">{x.note}</span></div>}
+          <div className="sentence-ar" style={{ margin: 0 }}>{x.ar}</div>
         </div>
       ))}
       {e.dialogue && e.dialogue.length > 0 && (
