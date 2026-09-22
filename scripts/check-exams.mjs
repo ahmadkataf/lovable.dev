@@ -89,6 +89,9 @@ for (const f of files) {
         if (!(Number.isInteger(q.answer) && q.answer >= 0 && q.answer < 4)) bad(Q, 'answer must be 0–3')
       }
     })
+    // an explanation that names a letter goes wrong as soon as options are reordered
+    for (const q of qs) if (/(الخيار|الخياران|خيار|الإجابة)[^a-z]{0,6}\b[a-d]\b|\([a-d]\)(?!\s*\S*\})/.test(q.explainAr || '') && q.kind !== 'wrongpart')
+      bad(`${S} Q${q.n}`, 'explainAr names an option letter; quote the option text instead')
     if (L.letter === 'C' && !exam.real) {
       const count = t => qs.filter(q => q.topic === t).length
       if (qs.some(q => !q.topic)) bad(S, 'every generated section-C item needs a topic')
@@ -104,6 +107,15 @@ for (const f of files) {
       }
     }
   })
+}
+
+// a paper whose right answers cluster on one letter can be passed by guessing that letter
+for (const f of files) {
+  const src = fs.readFileSync(path.join(dir, f), 'utf8')
+  if (/\breal:\s*true/.test(src)) continue
+  const pos = [...src.matchAll(/kind: '(?:mcq|ask)'[^\n]*?answer: (\d)/g)].map(m => +m[1])
+  const most = Math.max(...[0, 1, 2, 3].map(i => pos.filter(p => p === i).length))
+  if (pos.length && most / pos.length > 0.4) bad(f, `one letter holds ${most} of ${pos.length} right answers — run scripts/balance-exam-answers.py`)
 }
 
 if (!files.length) problems.push('no exam files found')
