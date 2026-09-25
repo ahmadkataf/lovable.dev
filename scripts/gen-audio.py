@@ -6,6 +6,9 @@ from piper import PiperVoice
 import numpy as np
 
 voice_path = sys.argv[1]
+# A bigger book can be recorded at a lower rate to keep the Android app small (speech stays clear at 16 kHz / 16 kbps).
+AUDIO_RATE = os.environ.get('AUDIO_RATE', '22050')
+AUDIO_KBPS = os.environ.get('AUDIO_KBPS', '24k')
 book = sys.argv[2] if len(sys.argv) > 2 else 'g8'
 out_dir = f'public/{book}/audio'
 os.makedirs(out_dir, exist_ok=True)
@@ -67,7 +70,7 @@ for group, items in texts.items():
     with wave.open(wav_path, 'wb') as w:
         w.setnchannels(1); w.setsampwidth(2); w.setframerate(SR); w.writeframes(audio.tobytes())
     mp3_path = os.path.join(out_dir, f'{group}.mp3')
-    subprocess.run([FFMPEG, '-y', '-loglevel', 'error', '-i', wav_path, '-ac', '1', '-ar', '22050', '-codec:a', 'libmp3lame', '-b:a', '24k', mp3_path], check=True)
+    subprocess.run([FFMPEG, '-y', '-loglevel', 'error', '-i', wav_path, '-ac', '1', '-ar', AUDIO_RATE, '-codec:a', 'libmp3lame', '-b:a', AUDIO_KBPS, mp3_path], check=True)
     os.remove(wav_path)
     index[group] = entries
     sec = pos / SR; total_sec += sec
