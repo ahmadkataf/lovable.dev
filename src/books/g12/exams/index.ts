@@ -5,11 +5,17 @@ import { term1C } from './term1-c'
 import { term1D } from './term1-d'
 import { term1E } from './term1-e'
 import { term1F } from './term1-f'
+import { term2A } from './term2-a'
+import { term2B } from './term2-b'
+import { term2C } from './term2-c'
+import { term2D } from './term2-d'
+import { term2E } from './term2-e'
+import { term2F } from './term2-f'
 
 // Term 1 papers cover Modules 1–3 (Units 1–6), as the school's Term 1 exam does.
 // "Term 2" here is the national Baccalaureate exam, which covers the whole book (Units 1–12).
 // Test A of Term 1 is a real past paper; the others follow its layout exactly.
-const papers: Exam[] = [term1A, term1B, term1C, term1D, term1E, term1F]
+const papers: Exam[] = [term1A, term1B, term1C, term1D, term1E, term1F, term2A, term2B, term2C, term2D, term2E, term2F]
 const scope: Record<1 | 2, Pick<Exam, 'termAr' | 'scopeAr' | 'label'>> = {
   1: { termAr: 'الفصل الأول', scopeAr: 'الوحدات 1–6' },
   2: { termAr: 'نماذج البكالوريا النهائية', scopeAr: 'الكتاب كاملاً: الوحدات 1–12', label: 'BACCALAUREATE' },
