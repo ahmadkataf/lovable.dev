@@ -8,13 +8,13 @@ export default function Exams({ exams, progress, onStart, onMockExam, canMock }:
   return (
     <div className="page">
       <div className="h1">📝 الامتحانات</div>
-      <p className="muted mb">أوراق بنفس شكل الامتحان النهائي تماماً: الأقسام A إلى F، 60 دقيقة، العلامة من 400. أجب عن الورقة كلها ثم سلّمها لترى علامتك والتصحيح مع شرح كل سؤال.</p>
+      <p className="muted mb">أوراق بنفس شكل الامتحان النهائي تماماً: الأقسام {exams[0]?.sections.map(s => s.letter).join('، ')}، {exams[0]?.minutes} دقيقة، العلامة من {exams[0]?.totalMarks}. أجب عن الورقة كلها ثم سلّمها لترى علامتك والتصحيح مع شرح كل سؤال.</p>
       {terms.map(t => {
         const list = exams.filter(e => e.term === t)
         if (!list.length) return null
         return (
           <div key={t} className="mb">
-            <div className="h2">{t === 1 ? 'الفصل الأول' : 'الفصل الثاني'} <span className="muted" style={{ fontSize: 13 }}>· {t === 1 ? 'الوحدات 1–3' : 'الوحدات 4–6'}</span></div>
+            <div className="h2">{list[0].termAr ?? (t === 1 ? 'الفصل الأول' : 'الفصل الثاني')} <span className="muted" style={{ fontSize: 13 }}>· {list[0].scopeAr ?? (t === 1 ? 'الوحدات 1–3' : 'الوحدات 4–6')}</span></div>
             {list.map(e => {
               const r = progress.exams?.[e.id]
               return (
