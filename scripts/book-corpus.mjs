@@ -44,7 +44,14 @@ function optionsFrom(lines, i) {
   return opts
 }
 
+// Some texts number their glossed words in the running text ("the child's 3aptitude", "to 1 accomplish").
+// Those digits are exercise references, not words of the sentence.
+export const stripGlossNumbers = md => md
+  .replace(/(^|[\s(“"'‘])\d(?=[a-z])(?!(?:st|nd|rd|th)\b)/gm, '$1')
+  .replace(/([a-z,]) \d (?=[a-z])/g, '$1 ')
+
 export function bookCorpus(md) {
+  md = stripGlossNumbers(md)
   // page markers and bare page numbers sit in the middle of sentences that run across pages
   const lines = md.split('\n')
     .filter(l => (l.match(/\|/g) || []).length < 3)

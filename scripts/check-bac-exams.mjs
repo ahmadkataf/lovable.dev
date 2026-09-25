@@ -12,7 +12,7 @@ import { build } from 'esbuild'
 import fs from 'fs'
 import path from 'path'
 import { pathToFileURL } from 'url'
-import { norm } from './book-corpus.mjs'
+import { norm, stripGlossNumbers } from './book-corpus.mjs'
 
 const [bookId = 'g12', filter = ''] = process.argv.slice(2)
 const dir = `src/books/${bookId}/exams`
@@ -22,7 +22,7 @@ const bad = (w, m) => problems.push(`${w}: ${m}`)
 const cache = path.resolve('node_modules/.cache')
 fs.mkdirSync(cache, { recursive: true })
 const corpus = [1, 2, 3, 4, 5, 6].map(n => `book-source/${bookId}/module${n}.md`).filter(f => fs.existsSync(f))
-  .map(f => norm(fs.readFileSync(f, 'utf8').replace(/^## Page \d+\s*$/gm, ' ').replace(/^\s*\d{1,3}\s*$/gm, ' '))).join(' ')
+  .map(f => norm(stripGlossNumbers(fs.readFileSync(f, 'utf8')).replace(/^## Page \d+\s*$/gm, ' ').replace(/^\s*\d{1,3}\s*$/gm, ' '))).join(' ')
 
 const words = s => s.trim().split(/\s+/).filter(Boolean).length
 const W = 'write'
