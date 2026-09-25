@@ -14,4 +14,4 @@ const scope: Record<1 | 2, Pick<Exam, 'termAr' | 'scopeAr' | 'label'>> = {
   1: { termAr: 'الفصل الأول', scopeAr: 'الوحدات 1–6' },
   2: { termAr: 'نماذج البكالوريا النهائية', scopeAr: 'الكتاب كاملاً: الوحدات 1–12', label: 'BACCALAUREATE' },
 }
-export const exams: Exam[] = papers.map(e => ({ grade: '12 · Scientific', ...scope[e.term], ...e }))
+export const exams: Exam[] = papers.map(e => ({ grade: '12', ...scope[e.term], ...e }))

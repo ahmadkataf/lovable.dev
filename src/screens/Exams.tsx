@@ -8,7 +8,7 @@ export default function Exams({ exams, progress, onStart, onMockExam, canMock }:
   return (
     <div className="page">
       <div className="h1">📝 الامتحانات</div>
-      <p className="muted mb">أوراق بنفس شكل الامتحان النهائي تماماً: الأقسام {exams[0]?.sections.map(s => s.letter).join('، ')}، {exams[0]?.minutes} دقيقة، العلامة من {exams[0]?.totalMarks}. أجب عن الورقة كلها ثم سلّمها لترى علامتك والتصحيح مع شرح كل سؤال.</p>
+      <p className="muted mb">أوراق بنفس شكل الامتحان النهائي تماماً: الأقسام من <span className="en">{exams[0]?.sections[0]?.letter}</span> إلى <span className="en">{exams[0]?.sections[exams[0].sections.length - 1]?.letter}</span>، {exams[0]?.minutes} دقيقة، العلامة من {exams[0]?.totalMarks}. أجب عن الورقة كلها ثم سلّمها لترى علامتك والتصحيح مع شرح كل سؤال.</p>
       {terms.map(t => {
         const list = exams.filter(e => e.term === t)
         if (!list.length) return null
