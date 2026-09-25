@@ -2,10 +2,11 @@ import type { Progress } from '../engine/progress'
 import { levelFromXp, today } from '../engine/progress'
 import { audioStatus, speak } from '../engine/audio'
 import { useState } from 'react'
+import type { Access } from '../engine/access'
 
-interface Props { progress: Progress; totalLessons: number; subtitle: string; onChange: (p: Progress) => void; onReset: () => void }
+interface Props { progress: Progress; totalLessons: number; subtitle: string; onChange: (p: Progress) => void; onReset: () => void; access?: Access; onActivate?: () => void }
 
-export default function Profile({ progress, totalLessons, subtitle, onChange, onReset }: Props) {
+export default function Profile({ progress, totalLessons, subtitle, onChange, onReset, access, onActivate }: Props) {
   const lv = levelFromXp(progress.xp)
   const [audioMsg, setAudioMsg] = useState('')
   const done = Object.keys(progress.lessons).length
@@ -17,6 +18,16 @@ export default function Profile({ progress, totalLessons, subtitle, onChange, on
   return (
     <div className="page">
       <div className="h1">👤 ملفّي</div>
+      {access && (
+        <div className="card mb row spread">
+          <div>
+            <div className="h2">{access.pro ? '✅ التطبيق مفعّل' : '🔑 النسخة المجانية'}</div>
+            <div className="muted" style={{ fontSize: 13 }}>{access.pro ? (access.until ? `حتى ${access.until.toLocaleDateString('ar-SY', { year: 'numeric', month: 'long', day: 'numeric' })}` : 'اشتراك دائم') : 'الوحدة الأولى والنموذج الأول مجاناً'}</div>
+            <div className="muted en" style={{ fontSize: 12 }}>رقم الجهاز: {access.device}</div>
+          </div>
+          <button className="btn btn-sm btn-blue" onClick={onActivate}>{access.pro ? 'التفاصيل' : 'فعّل'}</button>
+        </div>
+      )}
       <div className="card mb">
         <div className="row">
           <div style={{ fontSize: 48 }}>🦉</div>

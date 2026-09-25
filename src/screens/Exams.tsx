@@ -1,9 +1,9 @@
 import type { Exam } from '../engine/types'
 import type { Progress } from '../engine/progress'
 
-interface Props { exams: Exam[]; progress: Progress; onStart: (exam: Exam) => void; onMockExam: () => void; canMock: boolean }
+interface Props { exams: Exam[]; progress: Progress; onStart: (exam: Exam) => void; onMockExam: () => void; canMock: boolean; locked?: (e: Exam) => boolean }
 
-export default function Exams({ exams, progress, onStart, onMockExam, canMock }: Props) {
+export default function Exams({ exams, progress, onStart, onMockExam, canMock, locked = () => false }: Props) {
   const terms = [1, 2] as const
   return (
     <div className="page">
@@ -23,11 +23,14 @@ export default function Exams({ exams, progress, onStart, onMockExam, canMock }:
                     <div className="row" style={{ gap: 6, flexWrap: 'wrap' }}>
                       <b>{e.titleAr}</b>
                       {e.real && <span className="pill active">نموذج حقيقي</span>}
+                      {!locked(e) && exams[0]?.id === e.id && <span className="pill">مجاني</span>}
                     </div>
                     <div className="muted" style={{ fontSize: 13 }}>{e.sourceAr}</div>
                     {r && <div style={{ fontSize: 13, marginTop: 4 }}>أفضل علامة: <b>{r.best}</b> / {e.totalMarks} · آخر محاولة: {r.last}</div>}
                   </div>
-                  <button className="btn btn-primary btn-sm" onClick={() => onStart(e)}>{r ? 'أعد' : 'ابدأ'}</button>
+                  {locked(e)
+                    ? <button className="btn btn-outline btn-sm" onClick={() => onStart(e)}>🔑 فعّل</button>
+                    : <button className="btn btn-primary btn-sm" onClick={() => onStart(e)}>{r ? 'أعد' : 'ابدأ'}</button>}
                 </div>
               )
             })}

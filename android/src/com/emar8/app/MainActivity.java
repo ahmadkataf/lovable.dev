@@ -1,7 +1,10 @@
 package com.emar8.app;
 
 import android.app.Activity;
+import android.content.Intent;
 import android.content.res.AssetManager;
+import android.provider.Settings;
+import android.webkit.JavascriptInterface;
 import android.graphics.Color;
 import android.os.Build;
 import android.os.Bundle;
@@ -48,6 +51,7 @@ public class MainActivity extends Activity {
         s.setCacheMode(WebSettings.LOAD_DEFAULT);
         web.setBackgroundColor(Color.WHITE);
         web.setWebViewClient(new AppClient(this));
+        web.addJavascriptInterface(new Bridge(this), "EmarAndroid");
         setContentView(web);
         if (savedInstanceState == null) web.loadUrl("https://" + HOST + "/index.html");
         else web.restoreState(savedInstanceState);
@@ -67,7 +71,23 @@ public class MainActivity extends Activity {
 
         @Override
         public boolean shouldOverrideUrlLoading(WebView view, WebResourceRequest request) {
-            return !HOST.equals(request.getUrl().getHost());
+            Uri u = request.getUrl();
+            if (HOST.equals(u.getHost())) return false;
+            // WhatsApp and other outside links open in their own app
+            try { host.startActivity(new Intent(Intent.ACTION_VIEW, u)); } catch (Exception ignored) { }
+            return true;
+        }
+    }
+
+    /** What the web app may ask the phone: only its id, which stays the same when the app is reinstalled. */
+    static final class Bridge {
+        private final MainActivity host;
+        Bridge(MainActivity host) { this.host = host; }
+
+        @JavascriptInterface
+        public String deviceId() {
+            String id = Settings.Secure.getString(host.getContentResolver(), Settings.Secure.ANDROID_ID);
+            return id == null ? "" : id;
         }
     }
 

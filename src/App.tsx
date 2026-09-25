@@ -11,6 +11,8 @@ import LessonScreen, { type LessonOutcome } from './screens/Lesson'
 import Exams from './screens/Exams'
 import ExamPaper from './screens/ExamPaper'
 import { preload, preloadIndex, setMuted } from './engine/audio'
+import { freeExam, freeLesson, keepLicense, useAccess } from './engine/access'
+import Activate from './screens/Activate'
 
 type Tab = 'home' | 'words' | 'exams' | 'book' | 'profile'
 
@@ -20,6 +22,9 @@ export default function App() {
   const [active, setActive] = useState<{ lesson: Lesson | null; exercises: Exercise[]; source?: string } | null>(null)
   const [exam, setExam] = useState<Exam | null>(null)
   const [, tick] = useState(0)
+  const access = useAccess()
+  const [paywall, setPaywall] = useState(false)
+  const openPaywall = () => { window.scrollTo(0, 0); setPaywall(true) }
 
   useEffect(() => save(progress), [progress])
   useEffect(() => { const t = setInterval(() => { setProgress(p => regenHearts(p)); tick(x => x + 1) }, 30000); return () => clearInterval(t) }, [])
@@ -30,6 +35,7 @@ export default function App() {
   const totalLessons = modules.reduce((a, m) => a + m.units.reduce((n, u) => n + lessonsForUnit(u).length, 0) + 1 + (reviewLesson(m) ? 1 : 0) + (progressTestLesson(m) ? 1 : 0), 0)
 
   const startLesson = (lesson: Lesson) => {
+    if (!access.pro && !freeLesson(lesson, modules)) { openPaywall(); return }
     if (progress.hearts <= 0) { alert(`لا توجد قلوب! القلب التالي بعد ${Math.ceil(nextHeartIn(progress) / 60000)} دقيقة. تدرّب على الكلمات لاستعادة القلوب.`); setTab('words'); return }
     const unit = modules.flatMap(m => m.units).find(u => u.id === lesson.unitId)!
     const mod = modules.find(m => m.units.includes(unit))!
@@ -91,6 +97,8 @@ export default function App() {
     )
   }
 
+  if (paywall) return <div className="app" style={{ paddingBottom: 0 }}><Activate access={access} onClose={() => setPaywall(false)} /></div>
+
   if (active) {
     return (
       <div className="app" style={{ paddingBottom: 0 }}>
@@ -116,13 +124,15 @@ export default function App() {
         <div className="stat fire">🔥 {progress.streak}</div>
         <div className="stat gem">💎 {progress.xp}</div>
         <div className="stat heart">❤️ {progress.hearts}</div>
-        <div className="muted" style={{ fontWeight: 800 }}>{progress.name ? `مرحباً ${progress.name}` : book.title}</div>
+        {access.pro
+          ? <div className="muted" style={{ fontWeight: 800 }}>{progress.name ? `مرحباً ${progress.name}` : book.title}</div>
+          : <button className="unlock-btn" onClick={openPaywall}>🔑 فعّل</button>}
       </div>
-      {tab === 'home' && <Home modules={modules} progress={progress} onStart={startLesson} hasExams={exams.length > 0} />}
+      {tab === 'home' && <Home modules={modules} progress={progress} onStart={startLesson} hasExams={exams.length > 0} pro={access.pro} />}
       {tab === 'words' && <Words modules={modules} progress={progress} unlocked={unlockedUnits} onPractice={startPractice} onMockExam={exams.length ? undefined : startMockExam} />}
-      {tab === 'exams' && <Exams exams={exams} progress={progress} onStart={e => { window.scrollTo(0, 0); setExam(e) }} onMockExam={startMockExam} canMock={unlockedUnits.size > 0} />}
-      {tab === 'book' && <Book modules={modules} onGrammarPractice={startGrammar} />}
-      {tab === 'profile' && <Profile progress={progress} totalLessons={totalLessons} subtitle={book.subtitle} onChange={setProgress} onReset={() => { localStorage.clear(); location.reload() }} />}
+      {tab === 'exams' && <Exams exams={exams} progress={progress} onStart={e => { if (!access.pro && !freeExam(e, exams)) { openPaywall(); return } window.scrollTo(0, 0); setExam(e) }} onMockExam={startMockExam} canMock={unlockedUnits.size > 0} locked={e => !access.pro && !freeExam(e, exams)} />}
+      {tab === 'book' && <Book modules={modules} onGrammarPractice={startGrammar} pro={access.pro} onLocked={openPaywall} />}
+      {tab === 'profile' && <Profile progress={progress} totalLessons={totalLessons} subtitle={book.subtitle} onChange={setProgress} onReset={() => { keepLicense(() => localStorage.clear()); location.reload() }} access={access} onActivate={openPaywall} />}
       <nav className="tabbar">
         {([['home', '🏠', 'تعلّم'], ['words', '📚', 'الكلمات'], ...(exams.length ? [['exams', '📝', 'امتحانات']] : []), ['book', '📖', 'الكتاب'], ['profile', '👤', 'ملفّي']] as [Tab, string, string][]).map(([t, ic, l]) => (
           <button key={t} className={`tab ${tab === t ? 'active' : ''}`} onClick={() => setTab(t)}><span className="ic">{ic}</span>{l}</button>

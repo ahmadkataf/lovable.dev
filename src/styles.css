@@ -278,3 +278,15 @@ details.unit-ref summary { cursor: pointer; font-weight: 800; font-size: 16px; }
 .track-title.track-skills{background:var(--purple-light)}
 .node.open.node-book:not(.boss){background:var(--blue);box-shadow:0 6px 0 var(--blue-dark)}
 .node-block{display:flex;flex-direction:column;align-items:center;gap:4px}
+
+/* activation */
+.unlock-btn{font-weight:800;font-size:14px;color:#fff;background:var(--yellow-dark);padding:6px 12px;border-radius:10px;box-shadow:0 3px 0 #b88400}
+.node.paid{background:var(--yellow);box-shadow:0 6px 0 var(--yellow-dark);opacity:.85}
+.paid-bubble{color:var(--yellow-dark)}
+.locked-ref{display:flex;justify-content:space-between;align-items:center;gap:8px;width:100%;text-align:right;font-weight:800;font-size:15px;color:var(--text)}
+.activate .device-no{font-size:30px;font-weight:900;letter-spacing:3px;text-align:center;margin:8px 0;padding:10px;border:2px dashed var(--blue);border-radius:12px;background:var(--blue-light)}
+.pay-list{display:flex;flex-direction:column;gap:6px;margin:8px 0}
+.pay-row{display:flex;justify-content:space-between;gap:8px;padding:8px 10px;border-radius:10px;background:var(--gray-1)}
+.code-input{text-align:center;letter-spacing:2px;font-size:20px}
+.ok-hint{background:var(--green-light)}
+.bad-hint{background:var(--red-light)}

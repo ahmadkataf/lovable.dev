@@ -2,9 +2,10 @@ import type { Module } from '../engine/types'
 import { Speaker } from '../components/common'
 import { speak } from '../engine/audio'
 import ReadingText from '../components/ReadingText'
+import { freeUnit } from '../engine/access'
 import PhraseCard from '../components/PhraseCard'
 
-export default function Book({ modules, onGrammarPractice }: { modules: Module[]; onGrammarPractice: (unitId: string, which?: 'grammar' | 'vocabFocus' | 'everyday') => void }) {
+export default function Book({ modules, onGrammarPractice, pro = true, onLocked }: { modules: Module[]; onGrammarPractice: (unitId: string, which?: 'grammar' | 'vocabFocus' | 'everyday') => void; pro?: boolean; onLocked?: () => void }) {
   return (
     <div className="page">
       <div className="h1">📖 الكتاب</div>
@@ -15,7 +16,12 @@ export default function Book({ modules, onGrammarPractice }: { modules: Module[]
             <div className="sub">الوحدة {m.number} · {m.titleAr}</div>
             <div className="title">Module {m.number}: {m.title}</div>
           </div>
-          {m.units.map(u => (
+          {m.units.map(u => !pro && !freeUnit(u.id, modules) ? (
+            <button key={u.id} className="unit-ref locked-ref" onClick={onLocked}>
+              <span>{u.emoji} Unit {u.number}: {u.title} <span className="muted">· {u.titleAr}</span></span>
+              <span className="pill">🔑 بعد التفعيل</span>
+            </button>
+          ) : (
             <details key={u.id} className="unit-ref">
               <summary>{u.emoji} Unit {u.number}: {u.title} <span className="muted">· {u.titleAr} · ص {u.pages}</span></summary>
               <p className="muted">{u.planAr}</p>

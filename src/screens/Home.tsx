@@ -3,8 +3,9 @@ import type { Lesson, Module, Unit } from '../engine/types'
 import type { Progress } from '../engine/progress'
 import { SOURCE_NAME, bossLesson, lessonSource, lessonsForUnit, progressTestLesson, reviewLesson } from '../engine/generator'
 import meta from '@book-meta'
+import { freeLesson } from '../engine/access'
 
-interface Props { modules: Module[]; progress: Progress; onStart: (lesson: Lesson) => void; hasExams?: boolean }
+interface Props { modules: Module[]; progress: Progress; onStart: (lesson: Lesson) => void; hasExams?: boolean; pro?: boolean }
 
 /** A book with an Activity Book is studied as separate tracks, each with its own path. */
 type Track = 'book' | 'workbook' | 'skills'
@@ -74,7 +75,7 @@ function unitPages(u: Unit, track: Track | null): string {
   return `صفحات ${u.pages}`
 }
 
-export default function Home({ modules, progress, onStart, hasExams }: Props) {
+export default function Home({ modules, progress, onStart, hasExams, pro = true }: Props) {
   const { status } = useMemo(() => unlockedState(modules, progress), [modules, progress])
   const offsets = [0, 40, 70, 40, 0, -40, -70, -40]
   const split = hasTracks(modules)
@@ -84,6 +85,7 @@ export default function Home({ modules, progress, onStart, hasExams }: Props) {
   const closeGuide = () => { setGuide(false); save(GUIDE_KEY, '1') }
   const shown: Track | null = split ? track : null
   const inTrack = (l: Lesson) => shown === null || trackOf(l) === shown
+  const paid = (l: Lesson) => !pro && !freeLesson(l, modules)
 
   const trackCount = (t: Track) => {
     const all = modules.flatMap(m => [...m.units.flatMap(u => lessonsForUnit(u)), ...moduleLessons(m, t)]).filter(l => trackOf(l) === t)
@@ -148,7 +150,7 @@ export default function Home({ modules, progress, onStart, hasExams }: Props) {
                     </div>
                   </div>
                   <div className="path">
-                    {lessons.map((l, i) => <Node key={l.id} lesson={l} st={status.get(l.id)!} stars={progress.lessons[l.id]?.stars} onStart={onStart} offset={offsets[i % offsets.length]} track={shown} />)}
+                    {lessons.map((l, i) => <Node key={l.id} lesson={l} st={status.get(l.id)!} stars={progress.lessons[l.id]?.stars} onStart={onStart} offset={offsets[i % offsets.length]} track={shown} paid={paid(l)} />)}
                   </div>
                 </div>
               )
@@ -158,7 +160,7 @@ export default function Home({ modules, progress, onStart, hasExams }: Props) {
                 {closing.map(l => (
                   <div key={l.id} className="node-block">
                     {l.kind === 'progressTest' && m.progressTest && <div className="muted center" style={{ fontSize: 12 }}>{m.progressTest.title} · صفحات {m.progressTest.pages}</div>}
-                    <Node lesson={l} st={status.get(l.id)!} stars={progress.lessons[l.id]?.stars} onStart={onStart} offset={0} boss track={shown} />
+                    <Node lesson={l} st={status.get(l.id)!} stars={progress.lessons[l.id]?.stars} onStart={onStart} offset={0} boss track={shown} paid={paid(l)} />
                   </div>
                 ))}
               </div>
@@ -175,12 +177,15 @@ export default function Home({ modules, progress, onStart, hasExams }: Props) {
   )
 }
 
-function Node({ lesson, st, stars, onStart, offset, boss, track }: { lesson: Lesson; st: 'done' | 'open' | 'locked'; stars?: number; onStart: (l: Lesson) => void; offset: number; boss?: boolean; track?: Track | null }) {
+function Node({ lesson, st, stars, onStart, offset, boss, track, paid }: { lesson: Lesson; st: 'done' | 'open' | 'locked'; stars?: number; onStart: (l: Lesson) => void; offset: number; boss?: boolean; track?: Track | null; paid?: boolean }) {
+  // a lesson behind the paywall opens the activation screen instead of the lesson
+  const key = paid && st !== 'done'
   return (
     <div className="node-wrap" style={{ transform: `translateX(${offset}px)` }}>
-      {st === 'open' && <div className="start-bubble">ابدأ</div>}
-      <button className={`node ${st} ${boss ? 'boss' : ''} ${track ? `node-${track}` : ''}`} disabled={st === 'locked'} onClick={() => onStart(lesson)} aria-label={lesson.title}>
-        {st === 'locked' ? '🔒' : st === 'done' ? (boss ? '👑' : '⭐') : lesson.icon}
+      {st === 'open' && !key && <div className="start-bubble">ابدأ</div>}
+      {st === 'open' && key && <div className="start-bubble paid-bubble">فعّل للمتابعة</div>}
+      <button className={`node ${key ? 'paid' : st} ${boss ? 'boss' : ''} ${track && !key ? `node-${track}` : ''}`} disabled={st === 'locked' && !key} onClick={() => onStart(lesson)} aria-label={lesson.title}>
+        {key ? '🔑' : st === 'locked' ? '🔒' : st === 'done' ? (boss ? '👑' : '⭐') : lesson.icon}
       </button>
       <div className="node-label">{lesson.title}</div>
       {st === 'done' && <div className="stars">{'★'.repeat(stars || 1)}{'☆'.repeat(3 - (stars || 1))}</div>}
