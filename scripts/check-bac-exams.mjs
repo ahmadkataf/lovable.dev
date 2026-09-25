@@ -21,8 +21,28 @@ const problems = []
 const bad = (w, m) => problems.push(`${w}: ${m}`)
 const cache = path.resolve('node_modules/.cache')
 fs.mkdirSync(cache, { recursive: true })
-const corpus = [1, 2, 3, 4, 5, 6].map(n => `book-source/${bookId}/module${n}.md`).filter(f => fs.existsSync(f))
-  .map(f => norm(stripGlossNumbers(fs.readFileSync(f, 'utf8')).replace(/^## Page \d+\s*$/gm, ' ').replace(/^\s*\d{1,3}\s*$/gm, ' '))).join(' ')
+const sources = [1, 2, 3, 4, 5, 6].map(n => `book-source/${bookId}/module${n}.md`).filter(f => fs.existsSync(f))
+  .map(f => stripGlossNumbers(fs.readFileSync(f, 'utf8')).replace(/^## Page \d+\s*$/gm, ' ').replace(/^\s*\d{1,3}\s*$/gm, ' '))
+const corpus = sources.map(norm).join(' ')
+// Some reading texts are printed with numbered gaps that students fill with the phrases listed above them
+// ("Read the text and put the phrases A-H in the correct place"). A passage may show such a text completed,
+// as long as every filled gap holds one of the book's listed phrases.
+const GAP_TOKEN = 'qqgapqq'
+const gapCorpus = sources.map(t => norm(t.replace(/\d?\s*_{3,}/g, ` ${GAP_TOKEN} `))).join(' ')
+const fillPhrases = [...new Set(sources.flatMap(t => [...t.matchAll(/^\s*[A-H]\s+(\S.*?)\s*$/gm)].map(m => norm(m[1]))))]
+  .filter(p => p.split(' ').length >= 2).sort((a, b) => b.length - a.length)
+function inBook(sentence) {
+  const s = norm(sentence)
+  if (corpus.includes(s)) return true
+  const hits = fillPhrases.filter(p => s.includes(p))
+  if (!hits.length || hits.length > 6) return false
+  for (let mask = 1; mask < 1 << hits.length; mask++) {
+    let t = s
+    hits.forEach((p, i) => { if (mask & (1 << i)) t = t.split(p).join(GAP_TOKEN) })
+    if (gapCorpus.includes(norm(t))) return true
+  }
+  return false
+}
 
 const words = s => s.trim().split(/\s+/).filter(Boolean).length
 const W = 'write'
@@ -85,7 +105,7 @@ for (const f of files) {
       if (p.paragraphsAr?.length !== p.paragraphs.length) bad(S, 'one Arabic translation per paragraph')
       if (!exam.real) {
         // every sentence of a generated passage is the book's own
-        for (const sent of text.split(/(?<=[.!?])\s+/)) if (words(sent) >= 4 && !corpus.includes(norm(sent))) bad(S, `passage sentence not in the book: "${sent.slice(0, 70)}"`)
+        for (const sent of text.split(/(?<=[.!?])\s+/)) if (words(sent) >= 4 && !inBook(sent)) bad(S, `passage sentence not in the book: "${sent.slice(0, 70)}"`)
       }
       const gs = s.groups || []
       if (gs.length !== L.groups.length) { bad(S, `needs ${L.groups.length} tasks`); return }
