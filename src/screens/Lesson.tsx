@@ -8,6 +8,7 @@ export interface LessonOutcome { correct: number; wrong: number; xp: number; wor
 
 interface Props {
   lesson: Lesson | null           // null => practice session
+  source?: string                 // which book and pages the lesson comes from
   exercises: Exercise[]
   hearts: number
   autoSpeak: boolean
@@ -17,7 +18,7 @@ interface Props {
   onRefill: () => void
 }
 
-export default function LessonScreen({ lesson, exercises, hearts, autoSpeak, onLoseHeart, onFinish, onQuit, onRefill }: Props) {
+export default function LessonScreen({ lesson, source, exercises, hearts, autoSpeak, onLoseHeart, onFinish, onQuit, onRefill }: Props) {
   const [queue, setQueue] = useState<Exercise[]>(exercises)
   const [pos, setPos] = useState(0)
   const [value, setValue] = useState<unknown>(undefined)
@@ -98,6 +99,7 @@ export default function LessonScreen({ lesson, exercises, hearts, autoSpeak, onL
         <ProgressBar value={progress} />
         {lesson && <Hearts n={hearts} />}
       </div>
+      {source && <div className="lesson-source">{source} · {lesson?.title}</div>}
       <div className="lesson-body" key={key}>
         <ExerciseView ex={ex} value={value} onChange={(v, r) => { setValue(v); setReady(r) }} result={result} autoSpeak={autoSpeak} />
       </div>

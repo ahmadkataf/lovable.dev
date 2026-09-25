@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { book, exams, modules } from './data'
 import type { Exam, Exercise, Lesson } from './engine/types'
 import { addXp, completeLesson, recordExam, load, loseHeart, nextHeartIn, recordWord, refillHearts, regenHearts, save, touchStreak, type Progress } from './engine/progress'
-import { buildGrammarPractice, buildLesson, buildMockExam, buildPractice, lessonsForUnit, progressTestLesson, reviewLesson } from './engine/generator'
+import { buildGrammarPractice, buildLesson, buildMockExam, buildPractice, lessonsForUnit, progressTestLesson, reviewLesson, sourceLabel } from './engine/generator'
 import Home, { unlockedState } from './screens/Home'
 import Words from './screens/Words'
 import Book from './screens/Book'
@@ -17,7 +17,7 @@ type Tab = 'home' | 'words' | 'exams' | 'book' | 'profile'
 export default function App() {
   const [progress, setProgress] = useState<Progress>(() => touchStreak(load()))
   const [tab, setTab] = useState<Tab>('home')
-  const [active, setActive] = useState<{ lesson: Lesson | null; exercises: Exercise[] } | null>(null)
+  const [active, setActive] = useState<{ lesson: Lesson | null; exercises: Exercise[]; source?: string } | null>(null)
   const [exam, setExam] = useState<Exam | null>(null)
   const [, tick] = useState(0)
 
@@ -34,7 +34,7 @@ export default function App() {
     const unit = modules.flatMap(m => m.units).find(u => u.id === lesson.unitId)!
     const mod = modules.find(m => m.units.includes(unit))!
     preload(unit.id)
-    setActive({ lesson, exercises: buildLesson(lesson, unit, mod, progress) })
+    setActive({ lesson, exercises: buildLesson(lesson, unit, mod, progress), source: sourceLabel(lesson, unit, mod) })
   }
   const startGrammar = (unitId: string, which: 'grammar' | 'vocabFocus' | 'everyday' = 'grammar') => {
     const unit = modules.flatMap(m => m.units).find(u => u.id === unitId)
@@ -97,6 +97,7 @@ export default function App() {
         <LessonScreen
           key={active.lesson?.id || 'practice'}
           lesson={active.lesson}
+          source={active.source}
           exercises={active.exercises}
           hearts={progress.hearts}
           autoSpeak={progress.autoSpeak}
@@ -117,7 +118,7 @@ export default function App() {
         <div className="stat heart">❤️ {progress.hearts}</div>
         <div className="muted" style={{ fontWeight: 800 }}>{progress.name ? `مرحباً ${progress.name}` : book.title}</div>
       </div>
-      {tab === 'home' && <Home modules={modules} progress={progress} onStart={startLesson} />}
+      {tab === 'home' && <Home modules={modules} progress={progress} onStart={startLesson} hasExams={exams.length > 0} />}
       {tab === 'words' && <Words modules={modules} progress={progress} unlocked={unlockedUnits} onPractice={startPractice} onMockExam={exams.length ? undefined : startMockExam} />}
       {tab === 'exams' && <Exams exams={exams} progress={progress} onStart={e => { window.scrollTo(0, 0); setExam(e) }} onMockExam={startMockExam} canMock={unlockedUnits.size > 0} />}
       {tab === 'book' && <Book modules={modules} onGrammarPractice={startGrammar} />}

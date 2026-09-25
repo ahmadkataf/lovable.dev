@@ -60,6 +60,32 @@ export function bossLesson(m: Module): Lesson {
   return { id: `m${m.number}-boss`, unitId: m.units[m.units.length - 1].id, index: 99, kind: 'boss', title: `اختبار الوحدة ${m.number}`, icon: '👑', xp: 50 }
 }
 
+/** Which book a lesson comes from, so the learner always knows where they are. */
+export type LessonSource = 'book' | 'workbook' | 'skills' | 'test'
+export function lessonSource(l: Lesson): LessonSource {
+  switch (l.kind) {
+    case 'workbook': case 'progressTest': return 'workbook'
+    case 'translation': case 'composition': case 'writing': case 'review': return 'skills'
+    case 'boss': return 'test'
+    default: return 'book'
+  }
+}
+export const SOURCE_NAME: Record<LessonSource, string> = {
+  book: '📘 كتاب الطالب',
+  workbook: '📒 كتاب الأنشطة',
+  skills: '🎯 مهارات الامتحان',
+  test: '👑 اختبار',
+}
+/** "📒 كتاب الأنشطة · Unit 1 · ص 2–8" */
+export function sourceLabel(l: Lesson, unit: Unit, module: Module): string {
+  const src = lessonSource(l)
+  if (l.kind === 'bookReview' && module.review) return `${SOURCE_NAME.book} · ${module.review.title} · ص ${module.review.pages}`
+  if (l.kind === 'progressTest' && module.progressTest) return `${SOURCE_NAME.workbook} · ${module.progressTest.title} · ص ${module.progressTest.pages}`
+  if (l.kind === 'boss') return `${SOURCE_NAME.test} · Module ${module.number}`
+  const pages = src === 'book' ? unit.pages : src === 'workbook' ? unit.workbook?.pages : ''
+  return `${SOURCE_NAME[src]} · Unit ${unit.number}${pages ? ` · ص ${pages}` : ''}`
+}
+
 const WORKBOOK_LESSON = 22
 function workbookParts(u: Unit): number { return (u.workbook?.exercises.length || 0) > WORKBOOK_LESSON ? 2 : 1 }
 
