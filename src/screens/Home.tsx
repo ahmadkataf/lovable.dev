@@ -1,7 +1,7 @@
 import { useMemo } from 'react'
 import type { Lesson, Module } from '../engine/types'
 import type { Progress } from '../engine/progress'
-import { bossLesson, lessonsForUnit, reviewLesson } from '../engine/generator'
+import { bossLesson, lessonsForUnit, progressTestLesson, reviewLesson } from '../engine/generator'
 
 interface Props { modules: Module[]; progress: Progress; onStart: (lesson: Lesson) => void }
 
@@ -13,6 +13,8 @@ export function unlockedState(modules: Module[], progress: Progress) {
     order.push(bossLesson(m))
     const r = reviewLesson(m)
     if (r) order.push(r)
+    const t = progressTestLesson(m)
+    if (t) order.push(t)
   }
   const status = new Map<string, 'done' | 'open' | 'locked'>()
   let openGiven = false
@@ -59,6 +61,7 @@ export default function Home({ modules, progress, onStart }: Props) {
           <div className="path" style={{ marginBottom: 24 }}>
             <Node lesson={bossLesson(m)} st={status.get(bossLesson(m).id)!} stars={progress.lessons[bossLesson(m).id]?.stars} onStart={onStart} offset={0} boss />
             {(() => { const r = reviewLesson(m); return r ? <Node lesson={r} st={status.get(r.id)!} stars={progress.lessons[r.id]?.stars} onStart={onStart} offset={0} boss /> : null })()}
+            {(() => { const t = progressTestLesson(m); return t ? <Node lesson={t} st={status.get(t.id)!} stars={progress.lessons[t.id]?.stars} onStart={onStart} offset={0} boss /> : null })()}
           </div>
         </div>
       ))}

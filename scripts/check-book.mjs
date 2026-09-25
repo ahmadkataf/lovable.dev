@@ -75,6 +75,9 @@ for (const n of mods) {
   const m = await loadModule(n)
   if (!m) continue
   const corpus = bookCorpus(fs.readFileSync(`book-source/${bookId}/module${n}.md`, 'utf8'))
+  const wbFile = `book-source/${bookId}/workbook-module${n}.md`
+  const wbCorpus = fs.existsSync(wbFile) ? bookCorpus(fs.readFileSync(wbFile, 'utf8')) : ''
+  const anyCorpus = corpus + ' ' + wbCorpus
   if (m.number !== n) bad(`module${n}`, 'number mismatch')
   if (m.units?.length !== 2) bad(`module${n}`, 'needs exactly 2 units')
   for (const u of m.units || []) {
@@ -116,9 +119,42 @@ for (const n of mods) {
       }
       checkExercises(`${W} everyday`, e.exercises, 8)
     }
+    // the Activity Book pages of the unit: its texts verbatim, every exercise solved
+    if (u.workbook) {
+      if (!wbCorpus) bad(W, 'workbook data but no book-source workbook text')
+      if (!u.workbook.pages) bad(W, 'workbook needs its pages')
+      for (const [i, r] of (u.workbook.readings || []).entries()) checkReading(`${W} workbook.readings[${i}]`, r, wbCorpus, 3)
+      checkExercises(`${W} workbook`, u.workbook.exercises, 20)
+    }
+    for (const [i, c] of (u.compositions || []).entries()) {
+      const C = `${W} compositions[${i}]`
+      if (!c.topic || !c.topicAr) bad(C, 'needs topic and topicAr')
+      else if (!anyCorpus.includes(norm(c.topic).split(' ').slice(0, 6).join(' '))) bad(C, `topic is not the book's task: ${c.topic}`)
+      if (c.points && c.pointsAr && c.pointsAr.length !== c.points.length) bad(C, 'one pointsAr per point')
+      if ((c.plan?.length || 0) < 3) bad(C, 'plan needs at least 3 steps')
+      for (const p of c.plan || []) if (!p.en?.trim() || !p.ar?.trim()) bad(C, 'every plan step needs en and ar')
+      if ((c.phrases?.length || 0) < 8) bad(C, 'needs at least 8 phrases from the unit')
+      for (const p of c.phrases || []) if (!p.ar?.trim()) bad(C, `phrase without Arabic: ${p.en}`)
+      const mw = (c.model || '').split(/\s+/).filter(Boolean).length
+      if (mw < Math.min(c.words, 80) || mw > Math.max(c.words, 80) + 60) bad(C, `model should be about ${c.words} words (has ${mw})`)
+      if (!c.modelAr?.trim()) bad(C, 'needs modelAr')
+      if ((c.checklistAr?.length || 0) < 4) bad(C, 'needs at least 4 checklist points')
+    }
+    if (u.translations) {
+      if (u.translations.length < 12) bad(W, `translations needs at least 12 sentences, has ${u.translations.length}`)
+      for (const t of u.translations) {
+        if (!t.ar?.trim()) bad(W, `translation without Arabic: ${t.en}`)
+        if (!isSentence(t.en)) bad(W, `translation is not a complete sentence: ${t.en}`)
+        else if (!anyCorpus.includes(norm(t.en))) bad(W, `translation sentence not in the book: ${t.en}`)
+      }
+    }
     // sentences used for "build the sentence" and listening must be the book's own
     if ((u.sentences?.length || 0) < 10) bad(W, 'needs at least 10 sentences')
     for (const s of u.sentences || []) if (!corpus.includes(norm(s))) bad(W, `sentence not in the book: ${s}`)
+  }
+  if (m.progressTest) {
+    checkExercises(`module${n} progressTest`, m.progressTest.exercises, 20)
+    if (m.progressTest.reading) checkReading(`module${n} progressTest reading`, m.progressTest.reading, wbCorpus, 3)
   }
   if (m.review) {
     checkExercises(`module${n} review`, m.review.exercises, 24)

@@ -84,7 +84,34 @@ export interface Unit {
   vocabFocus?: Grammar   // a taught vocabulary point with its own rule and exercises (e.g. verb + preposition)
   everyday?: Everyday    // "Everyday English" section
   extraReadings?: Reading[]  // other texts the unit asks students to read (speaking/writing extracts)
+  workbook?: Workbook        // the Activity Book pages for this unit
+  compositions?: Composition[]   // the unit's writing tasks, taught step by step with a model answer
+  translations?: TranslationItem[]  // book sentences to translate both ways, as the exam's translation task does
 }
+
+/** The Activity Book (Workbook) pages of a unit: its texts and every exercise it prints, solved. */
+export interface Workbook {
+  pages: string
+  readings: Reading[]
+  exercises: GrammarExercise[]
+}
+
+/** A writing task taught step by step: what to say, useful language from the unit, a model, a checklist. */
+export interface Composition {
+  source: 'book' | 'workbook'
+  topic: string              // the task as printed
+  topicAr: string
+  words: number              // the length the task asks for
+  points?: string[]          // what the task says to include, as printed
+  pointsAr?: string[]
+  plan: { en: string; ar: string }[]      // what each part of the answer says, in order
+  phrases: { en: string; ar: string }[]   // words and sentences from the unit to use
+  model: string
+  modelAr: string
+  checklistAr: string[]
+}
+
+export interface TranslationItem { en: string; ar: string }
 
 /** The book's own Review section at the end of some modules. */
 export interface ModuleReview {
@@ -104,6 +131,7 @@ export interface Module {
   focus?: { title: string; paragraphs: string[]; glossary?: Word[] }
   project?: { title: string; steps: string[] }
   review?: ModuleReview
+  progressTest?: ModuleReview   // the Activity Book's Progress Test
 }
 
 // ===== Exercise model (what the app shows) =====
@@ -124,8 +152,11 @@ export type Exercise =
   | { kind: 'grammar_card'; grammar: Grammar }                              // explanation screen
   | { kind: 'speak'; text: string; ar?: string }                            // listen & repeat
   | { kind: 'phrase_card'; everyday: Everyday }                             // everyday-English expressions and dialogue
+  | { kind: 'dictation'; text: string; word?: Word }                        // hear it, spell it
+  | { kind: 'translate'; dir: 'ar2en' | 'en2ar'; source: string; model: string }  // write a translation, then compare with the model
+  | { kind: 'compose'; composition: Composition }                           // write a composition, then compare and self-assess
 
-export type LessonKind = 'vocab' | 'reading' | 'vocabFocus' | 'grammar' | 'listening' | 'everyday' | 'writing' | 'review' | 'boss' | 'bookReview'
+export type LessonKind = 'vocab' | 'reading' | 'vocabFocus' | 'grammar' | 'listening' | 'everyday' | 'writing' | 'review' | 'boss' | 'bookReview' | 'workbook' | 'translation' | 'composition' | 'progressTest'
 
 export interface Lesson {
   id: string          // 'u1-l1'

@@ -76,3 +76,28 @@ So: make the grammar and vocabFocus drills cover every form the book teaches, in
 correct form" style items, and give every exercise a clear Arabic explanation a weak student can learn from.
 Some units print a section in an unusual place (e.g. Vocabulary inside the reading pages); follow the book.
 If a unit genuinely has no Everyday English or Pronunciation section, leave that field out instead of inventing one.
+
+## The Activity Book (Workbook) and exam skills — per unit
+The Activity Book's verbatim text is in `book-source/g12/workbook-moduleN.md` (page images `wbpages/wNNN.png`).
+Add to each unit:
+- `workbook: { pages, readings, exercises }`
+  - `pages`: the Activity Book pages of the unit, e.g. "2–8".
+  - `readings`: every text the unit's Activity Book pages print (verbatim, complete, one string per paragraph),
+    each with `paragraphsAr`, 3–6 questions (`q`, `qAr`, four `options`, `answer`, `explainAr`; the book's own
+    comprehension items first, converted to MCQ) and `trueFalse` where the book asks for it.
+  - `exercises`: EVERY item the unit's Activity Book pages print (vocabulary, grammar, pronunciation, everyday
+    English, "rewrite", "correct the mistakes", "put the verbs in the right form"…), solved, in the book's order,
+    as `fill`/`mcq`/`truefalse`/`build` GrammarExercises with full Arabic (`promptAr`, `promptArFull`, `explainAr`).
+    At least 20. Items that need a recording are left out; open speaking/discussion items are left out.
+- `compositions`: the unit's writing tasks — first the Student's Book writing task (`source: 'book'`), then the
+  Activity Book writing task (`source: 'workbook'`) — each:
+  `topic` (the task as printed), `topicAr`, `words` (the length it asks for; 100 if none), `points`/`pointsAr`
+  (the printed prompts/questions to include, if any), `plan` (3–5 steps: what each part of the answer says, en + ar),
+  `phrases` (8–14 useful words, phrases and linkers FROM THE UNIT with Arabic — the unit's vocabulary, idioms,
+  grammar structures), `model` (a model answer at the required length, simple correct English a strong Grade 12
+  student could write, using the phrases), `modelAr`, `checklistAr` (5–6 points a marker checks).
+- `translations`: 14–18 sentences copied from the unit's pages (Student's Book or Activity Book), 6–16 words,
+  complete and grammatical, each with a natural Arabic translation `ar` — like the exam's translation task.
+Module level (modules 2, 4, 6): `progressTest` = the Activity Book's Progress Test (`title`, `titleAr`, `pages`,
+`reading` if it has a text, `exercises`: every item solved, at least 20).
+Checker: `node scripts/check-book.mjs g12 N` verifies all of this against both books' text.

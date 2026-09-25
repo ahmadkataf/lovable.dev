@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState } from 'react'
-import type { Exercise, Word } from '../engine/types'
+import type { Composition, Exercise, Word } from '../engine/types'
 import { Speaker } from './common'
 import ReadingText from './ReadingText'
 import PhraseCard from './PhraseCard'
-import { checkBuild, checkTyped, shuffle } from '../engine/generator'
+import { checkBuild, checkDictation, checkTyped, shuffle } from '../engine/generator'
+import { splitSentences } from '../engine/text'
 import { listenOnce, recognitionSupported, sfx, speak } from '../engine/audio'
 
 export type Result = null | 'correct' | 'wrong'
@@ -18,7 +19,8 @@ export interface ExProps {
 
 export function judge(ex: Exercise, value: unknown): boolean {
   switch (ex.kind) {
-    case 'intro': case 'grammar_card': case 'speak': case 'phrase_card': return true
+    case 'intro': case 'grammar_card': case 'speak': case 'phrase_card': case 'translate': case 'compose': return true
+    case 'dictation': return checkDictation(ex.text, String(value ?? ''))
     case 'choose_ar': case 'choose_en': case 'listen': case 'listen_sentence': case 'mcq': case 'fill': return value === ex.answer
     case 'read': return value === ex.question.answer
     case 'truefalse': return (value === 0 || value === true) === ex.answer
@@ -35,16 +37,17 @@ export function correctAnswerText(ex: Exercise): string {
     case 'truefalse': return ex.answer ? 'True ✔' : 'False ✘'
     case 'type_en': return ex.word.en
     case 'build': return ex.target
+    case 'dictation': return ex.text
     default: return ''
   }
 }
 
 export function needsHearts(ex: Exercise): boolean {
-  return !['intro', 'grammar_card', 'speak', 'match', 'phrase_card'].includes(ex.kind)
+  return !['intro', 'grammar_card', 'speak', 'match', 'phrase_card', 'translate', 'compose'].includes(ex.kind)
 }
 
 export function wordOf(ex: Exercise): Word | null {
-  return 'word' in ex ? ex.word : null
+  return 'word' in ex ? ex.word ?? null : null
 }
 
 export function ExerciseView(props: ExProps) {
@@ -55,7 +58,7 @@ export function ExerciseView(props: ExProps) {
     case 'choose_en': return <Options {...props} title="أي كلمة تعني:" head={<div className="prompt">{ex.word.ar}</div>} options={ex.options} answer={ex.answer} speakOptions />
     case 'listen': return <Options {...props} title="استمع واختر ما سمعته" head={<div className="row" style={{ justifyContent: 'center', gap: 16 }}><Speaker text={ex.word.en} size="big" autoplay /><Speaker text={ex.word.en} slow /></div>} options={ex.options} answer={ex.answer} />
     case 'listen_sentence': return <Options {...props} title="استمع واختر الجملة التي سمعتها" head={<div className="row" style={{ justifyContent: 'center', gap: 16 }}><Speaker text={ex.text} size="big" autoplay /><Speaker text={ex.text} slow /></div>} options={ex.options} answer={ex.answer} />
-    case 'mcq': return <Options {...props} title="اختر الإجابة الصحيحة" translation={ex.promptAr} head={<div className="row">{ex.audio && <Speaker text={ex.audio} autoplay />}<div className="prompt en" style={{ fontSize: 19 }}>{ex.prompt}</div></div>} options={ex.options} answer={ex.answer} />
+    case 'mcq': return <Options {...props} ar={ex.options.every(o => /[\u0600-\u06ff]/.test(o))} title="اختر الإجابة الصحيحة" translation={ex.promptAr} head={<div className="row">{ex.audio && <Speaker text={ex.audio} autoplay />}<div className="prompt en" style={{ fontSize: 19 }}>{ex.prompt}</div></div>} options={ex.options} answer={ex.answer} />
     case 'fill': return <Options {...props} title="أكمل الفراغ" ar={false} translation={ex.promptAr} translationDone={ex.promptArFull} head={<div className="row">
       {/* the sentence is only read aloud once the answer is in, so the voice cannot give it away */}
       {props.result ? <Speaker text={ex.prompt.replace('___', ex.options[ex.answer])} size="sm" /> : <span className="speaker sm muted-speaker" title="يظهر الصوت بعد الإجابة">🔇</span>}
@@ -68,6 +71,9 @@ export function ExerciseView(props: ExProps) {
     case 'grammar_card': return <GrammarCard ex={ex} />
     case 'speak': return <SpeakView {...props} />
     case 'phrase_card': return <PhraseCard everyday={ex.everyday} />
+    case 'dictation': return <DictationView {...props} />
+    case 'translate': return <TranslateView {...props} />
+    case 'compose': return <ComposeView {...props} />
   }
 }
 
@@ -267,6 +273,109 @@ function SpeakView({ ex, onChange }: ExProps) {
         </>
       ) : (
         <p className="muted">متصفحك لا يدعم التعرّف على الصوت. استمع وكرّر بصوت عالٍ ثم تابع.</p>
+      )}
+    </div>
+  )
+}
+
+// ---------------- dictation: hear it, spell it ----------------
+function DictationView({ ex, value, onChange, result }: ExProps) {
+  if (ex.kind !== 'dictation') return null
+  const ref = useRef<HTMLInputElement>(null)
+  useEffect(() => { ref.current?.focus() }, [])
+  const sentence = ex.text.includes(' ')
+  return (
+    <div className="fade">
+      <div className="prompt-sub">إملاء: استمع واكتب {sentence ? 'الجملة' : 'الكلمة'} كما تسمعها</div>
+      <div className="row" style={{ justifyContent: 'center', gap: 16, margin: '12px 0' }}><Speaker text={ex.text} size="big" autoplay /><Speaker text={ex.text} slow /></div>
+      {ex.word && <div className="center muted mb">{ex.word.ar}</div>}
+      <input ref={ref} className="type-input en" dir="ltr" value={(value as string) || ''} disabled={!!result} placeholder={sentence ? 'Write the sentence...' : 'Write the word...'} autoCapitalize="off" autoCorrect="off" spellCheck={false}
+        onChange={e => onChange(e.target.value, e.target.value.trim().length > 0)} />
+      <div className="muted mt" style={{ fontSize: 13 }}>انتبه للتهجئة: الحروف الكبيرة والنقاط لا تُحسب.</div>
+    </div>
+  )
+}
+
+// ---------------- written translation, compared with the model ----------------
+function TranslateView({ ex, value, onChange }: ExProps) {
+  if (ex.kind !== 'translate') return null
+  const [shown, setShown] = useState(false)
+  useEffect(() => { onChange(value, false) }, []) // eslint-disable-line
+  const toEn = ex.dir === 'ar2en'
+  return (
+    <div className="fade">
+      <div className="prompt-sub">{toEn ? 'ترجم إلى الإنجليزية' : 'ترجم إلى العربية'} — اكتب ترجمتك ثم قارنها بالنموذج</div>
+      <div className={`prompt ${toEn ? '' : 'en'}`} style={{ fontSize: 19 }}>{!toEn && <Speaker text={ex.source} size="sm" />} {ex.source}</div>
+      <textarea className={`type-input ${toEn ? 'en' : ''}`} dir={toEn ? 'ltr' : 'rtl'} rows={3} value={(value as string) || ''} disabled={shown}
+        placeholder={toEn ? 'Write your translation...' : 'اكتب ترجمتك...'} onChange={e => onChange(e.target.value, false)} style={{ fontSize: 16 }} />
+      {!shown
+        ? <button className="btn btn-blue btn-block mt" disabled={!String(value || '').trim()} onClick={() => { setShown(true); onChange(value, true) }}>قارن بالترجمة النموذجية</button>
+        : (
+          <div className="hint mt fade">
+            <div className="muted" style={{ fontSize: 13 }}>الترجمة النموذجية:</div>
+            <div className={toEn ? 'en' : ''} dir={toEn ? 'ltr' : 'rtl'} style={{ fontWeight: 700, fontSize: 17 }}>{toEn && <Speaker text={ex.model} size="sm" />} {ex.model}</div>
+            <div className="muted mt" style={{ fontSize: 13 }}>ترجمتك صحيحة إذا أعطت المعنى نفسه بقواعد سليمة، حتى لو اختلفت الكلمات.</div>
+          </div>
+        )}
+    </div>
+  )
+}
+
+// ---------------- composition: plan, useful language, write, compare, self-assess ----------------
+function words(s: string) { return s.trim() ? s.trim().split(/\s+/).length : 0 }
+function ComposeView({ ex, value, onChange }: ExProps) {
+  if (ex.kind !== 'compose') return null
+  const c: Composition = ex.composition
+  const [text, setText] = useState(typeof value === 'string' ? value : '')
+  const [done, setDone] = useState(false)
+  const [checks, setChecks] = useState<boolean[]>(() => c.checklistAr.map(() => false))
+  const [step, setStep] = useState(0)
+  useEffect(() => { onChange(text, false) }, []) // eslint-disable-line
+  const n = words(text)
+  return (
+    <div className="fade compose">
+      <div className="prompt-sub">موضوع إنشائي {c.source === 'workbook' ? '(من كتاب الأنشطة)' : '(من كتاب الطالب)'}</div>
+      <div className="card" style={{ padding: 12 }}>
+        <div className="en" style={{ fontWeight: 800 }}>{c.topic}</div>
+        <div className="muted">{c.topicAr}</div>
+        {c.points && <ul className="en" dir="ltr" style={{ textAlign: 'left', margin: '6px 0', paddingInlineStart: 20 }}>{c.points.map((p, i) => <li key={i}>{p}{c.pointsAr?.[i] && <div className="muted" dir="rtl" style={{ textAlign: 'right' }}>{c.pointsAr[i]}</div>}</li>)}</ul>}
+        <div className="muted" style={{ fontSize: 13 }}>الطول المطلوب: {c.words} كلمة تقريباً</div>
+      </div>
+      <div className="row mt" style={{ gap: 6, flexWrap: 'wrap' }}>
+        {['١ الخطة', '٢ عبارات مفيدة', '٣ اكتب'].map((t, i) => <button key={i} className={`pill ${step === i ? 'active' : ''}`} onClick={() => setStep(i)}>{t}</button>)}
+      </div>
+      {step === 0 && (
+        <div className="mt">
+          <div className="muted mb" style={{ fontSize: 13 }}>رتّب أفكارك هكذا، فقرة بعد فقرة:</div>
+          <ol style={{ paddingInlineStart: 20 }}>{c.plan.map((p, i) => <li key={i} className="mb"><div>{p.ar}</div><div className="en muted" dir="ltr" style={{ textAlign: 'left' }}>{p.en}</div></li>)}</ol>
+          <button className="btn btn-outline btn-block" onClick={() => setStep(1)}>التالي: عبارات مفيدة</button>
+        </div>
+      )}
+      {step === 1 && (
+        <div className="mt">
+          <div className="muted mb" style={{ fontSize: 13 }}>كلمات وجمل من الدرس تستعملها في موضوعك:</div>
+          {c.phrases.map((p, i) => <div key={i} className="row mb" style={{ alignItems: 'flex-start' }}><Speaker text={p.en} size="sm" /><div className="grow"><div className="en" dir="ltr" style={{ textAlign: 'left' }}>{p.en}</div><div className="muted">{p.ar}</div></div></div>)}
+          <button className="btn btn-outline btn-block" onClick={() => setStep(2)}>التالي: اكتب موضوعك</button>
+        </div>
+      )}
+      {step === 2 && (
+        <div className="mt">
+          <textarea className="type-input en" dir="ltr" rows={9} value={text} disabled={done} placeholder="Write your composition here..." onChange={e => { setText(e.target.value); onChange(e.target.value, false) }} style={{ fontSize: 16 }} />
+          <div className={`muted ${n >= c.words ? 'ok-text' : ''}`} style={{ fontSize: 13 }}>{n} / {c.words} كلمة</div>
+          {!done && <button className="btn btn-blue btn-block mt" disabled={n < 20} onClick={() => { setDone(true); onChange(text, true) }}>انتهيت: أرني الموضوع النموذجي</button>}
+          {done && (
+            <div className="fade mt">
+              <div className="h2">الموضوع النموذجي</div>
+              <div className="ppassage en" dir="ltr">{splitSentences(c.model).map((x, i) => <span key={i}>{x} </span>)}</div>
+              <div className="sentence-ar">{c.modelAr}</div>
+              <div className="h2 mt">قيّم موضوعك</div>
+              {c.checklistAr.map((t, i) => (
+                <label key={i} className="row check-row"><input type="checkbox" checked={checks[i]} onChange={e => setChecks(v => v.map((x, j) => (j === i ? e.target.checked : x)))} /><span>{t}</span></label>
+              ))}
+              <div className="muted" style={{ fontSize: 13 }}>حققتَ {checks.filter(Boolean).length} من {checks.length}. {n < c.words ? `أضف ${c.words - n} كلمة على الأقل لتصل إلى الطول المطلوب.` : 'الطول مناسب.'}</div>
+            </div>
+          )}
+        </div>
       )}
     </div>
   )

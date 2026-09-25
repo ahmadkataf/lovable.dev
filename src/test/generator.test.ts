@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { books } from './books'
-import { bossLesson, buildGrammarPractice, buildLesson, buildMockExam, buildPractice, checkBuild, lessonsForUnit, normalize, reviewLesson } from '../engine/generator'
+import { bossLesson, buildGrammarPractice, buildLesson, buildMockExam, buildPractice, checkBuild, lessonsForUnit, normalize, progressTestLesson, reviewLesson } from '../engine/generator'
 import { judge } from '../components/Exercises'
 import type { Exercise } from '../engine/types'
 
@@ -10,6 +10,7 @@ function correctValue(ex: Exercise): unknown {
     case 'read': return ex.question.answer
     case 'truefalse': return ex.answer ? 0 : 1
     case 'type_en': return ex.word.en
+    case 'dictation': return ex.text
     case 'match': return true
     case 'build': {
       const want = normalize(ex.target).split(' '); const used = new Set<number>(); const idx: number[] = []
@@ -27,8 +28,8 @@ for (const { book, modules } of books) describe(`exercise generator — ${book.i
     for (const u of m.units) {
       it(`generates valid lessons for ${u.id} (${u.title})`, () => {
         for (let round = 0; round < 5; round++) {
-          const extra = reviewLesson(m)
-          for (const lesson of [...lessonsForUnit(u), bossLesson(m), ...(extra ? [extra] : [])]) {
+          const extra = [reviewLesson(m), progressTestLesson(m)].filter(Boolean) as ReturnType<typeof bossLesson>[]
+          for (const lesson of [...lessonsForUnit(u), bossLesson(m), ...extra]) {
             const exs = buildLesson(lesson, u, m, empty)
             expect(exs.length, `${lesson.id} has exercises`).toBeGreaterThanOrEqual(5)
             for (const ex of exs) {

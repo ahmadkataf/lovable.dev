@@ -105,7 +105,7 @@ export default function LessonScreen({ lesson, exercises, hearts, autoSpeak, onL
         {result === null ? (
           needsHearts(ex) || ex.kind === 'match'
             ? <div className="row"><button className="btn btn-outline" onClick={() => { if (needsHearts(ex)) { setValue(-1); setResult('wrong'); sfx.wrong(); onLoseHeart(); setQueue(q => [...q, ex]); setStats(s => ({ ...s, wrong: s.wrong + 1 })) } }} style={{ visibility: ex.kind === 'match' ? 'hidden' : 'visible' }}>تخطّي</button><button className="btn btn-primary grow" disabled={!ready} onClick={check}>تحقّق</button></div>
-            : <button className="btn btn-primary btn-block" onClick={next}>متابعة</button>
+            : <button className="btn btn-primary btn-block" disabled={ex.kind === 'translate' && !ready} onClick={next}>{ex.kind === 'compose' && !ready ? 'تخطّي الكتابة الآن' : 'متابعة'}</button>
         ) : (
           <div>
             <div className="fb-title">{result === 'correct' ? '✅ صحيح! أحسنت' : '❌ إجابة خاطئة'}</div>

@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { book, exams, modules } from './data'
 import type { Exam, Exercise, Lesson } from './engine/types'
 import { addXp, completeLesson, recordExam, load, loseHeart, nextHeartIn, recordWord, refillHearts, regenHearts, save, touchStreak, type Progress } from './engine/progress'
-import { buildGrammarPractice, buildLesson, buildMockExam, buildPractice, lessonsForUnit, reviewLesson } from './engine/generator'
+import { buildGrammarPractice, buildLesson, buildMockExam, buildPractice, lessonsForUnit, progressTestLesson, reviewLesson } from './engine/generator'
 import Home, { unlockedState } from './screens/Home'
 import Words from './screens/Words'
 import Book from './screens/Book'
@@ -27,7 +27,7 @@ export default function App() {
   useEffect(() => { preloadIndex() }, [])
 
   const { unlockedUnits } = useMemo(() => unlockedState(modules, progress), [progress])
-  const totalLessons = modules.reduce((a, m) => a + m.units.reduce((n, u) => n + lessonsForUnit(u).length, 0) + 1 + (reviewLesson(m) ? 1 : 0), 0)
+  const totalLessons = modules.reduce((a, m) => a + m.units.reduce((n, u) => n + lessonsForUnit(u).length, 0) + 1 + (reviewLesson(m) ? 1 : 0) + (progressTestLesson(m) ? 1 : 0), 0)
 
   const startLesson = (lesson: Lesson) => {
     if (progress.hearts <= 0) { alert(`لا توجد قلوب! القلب التالي بعد ${Math.ceil(nextHeartIn(progress) / 60000)} دقيقة. تدرّب على الكلمات لاستعادة القلوب.`); setTab('words'); return }

@@ -21,7 +21,8 @@ const problems = []
 const bad = (w, m) => problems.push(`${w}: ${m}`)
 const cache = path.resolve('node_modules/.cache')
 fs.mkdirSync(cache, { recursive: true })
-const sources = [1, 2, 3, 4, 5, 6].map(n => `book-source/${bookId}/module${n}.md`).filter(f => fs.existsSync(f))
+// the Student's Book and the Activity Book: the real exam takes its passages from both
+const sources = [1, 2, 3, 4, 5, 6].flatMap(n => [`book-source/${bookId}/module${n}.md`, `book-source/${bookId}/workbook-module${n}.md`]).filter(f => fs.existsSync(f))
   .map(f => stripGlossNumbers(fs.readFileSync(f, 'utf8')).replace(/^## Page \d+\s*$/gm, ' ').replace(/^\s*\d{1,3}\s*$/gm, ' '))
 const corpus = sources.map(norm).join(' ')
 // Some reading texts are printed with numbered gaps that students fill with the phrases listed above them

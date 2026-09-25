@@ -1,6 +1,7 @@
 import type { Exercise, Grammar, Lesson, LessonKind, Module, Unit, Word } from './types'
 import type { Progress } from './progress'
 import { wordStrength } from './progress'
+import { splitSentences } from './text'
 
 // ---------- utils ----------
 export function shuffle<T>(arr: T[], rnd = Math.random): T[] {
@@ -31,6 +32,11 @@ const STEP = {
   listening: { kind: 'listening', title: 'استماع ونطق', icon: '🎧', xp: 15 },
   everyday: { kind: 'everyday', title: 'Everyday English', icon: '💬', xp: 20 },
   writing: { kind: 'writing', title: 'تركيب الجمل', icon: '✍️', xp: 15 },
+  workbook1: { kind: 'workbook', title: 'كتاب الأنشطة', icon: '📒', xp: 25, part: 1 },
+  workbook2: { kind: 'workbook', title: 'كتاب الأنشطة ٢', icon: '📗', xp: 25, part: 2 },
+  translation: { kind: 'translation', title: 'الترجمة', icon: '🔁', xp: 20 },
+  composition1: { kind: 'composition', title: 'الإنشاء', icon: '📝', xp: 30, part: 1 },
+  composition2: { kind: 'composition', title: 'الإنشاء ٢', icon: '🖋️', xp: 30, part: 2 },
   review: { kind: 'review', title: 'مراجعة الوحدة', icon: '🏆', xp: 30 },
 } satisfies Record<string, Step>
 
@@ -41,12 +47,26 @@ export function lessonsForUnit(u: Unit): Lesson[] {
   if (u.vocabFocus) steps.push(STEP.vocabFocus)
   steps.push(STEP.grammar1, STEP.grammar2, STEP.listening)
   if (u.everyday) steps.push(STEP.everyday)
+  // the Activity Book, translation and composition lessons exist only where the book data has them
+  if (u.workbook) steps.push(...(workbookParts(u) > 1 ? [STEP.workbook1, STEP.workbook2] : [STEP.workbook1]))
+  if (u.translations?.length) steps.push(STEP.translation)
+  if (u.compositions?.length) steps.push(STEP.composition1)
+  if ((u.compositions?.length || 0) > 1) steps.push(STEP.composition2)
   steps.push(STEP.writing, STEP.review)
   return steps.map((t, i) => ({ id: `${u.id}-l${i + 1}`, unitId: u.id, index: i, ...t }))
 }
 
 export function bossLesson(m: Module): Lesson {
   return { id: `m${m.number}-boss`, unitId: m.units[m.units.length - 1].id, index: 99, kind: 'boss', title: `اختبار الوحدة ${m.number}`, icon: '👑', xp: 50 }
+}
+
+const WORKBOOK_LESSON = 22
+function workbookParts(u: Unit): number { return (u.workbook?.exercises.length || 0) > WORKBOOK_LESSON ? 2 : 1 }
+
+/** The Activity Book's Progress Test, where the module has one. */
+export function progressTestLesson(m: Module): Lesson | null {
+  if (!m.progressTest) return null
+  return { id: `m${m.number}-ptest`, unitId: m.units[m.units.length - 1].id, index: 101, kind: 'progressTest', title: m.progressTest.titleAr, icon: '🧪', xp: 60 }
 }
 
 /** The book's own Review section, where the book prints one. */
@@ -104,6 +124,10 @@ export function exBuild(target: string, pool: Word[], promptAr?: string): Exerci
   const extra = pick(pool, 3).map(w => w.en.split(' ')[0]).filter(t => !tokens.map(normalize).includes(normalize(t)))
   return { kind: 'build', target, tiles: shuffle([...tokens, ...extra.slice(0, 2)]), promptAr }
 }
+/** Spelling from dictation: a word, or a short sentence of the book. */
+export function exDictation(text: string, word?: Word): Exercise { return { kind: 'dictation', text, word } }
+function shortSentences(u: Unit): string[] { return u.sentences.filter(x => x.split(' ').length <= 10) }
+
 export function exListenSentence(text: string, all: string[]): Exercise {
   const wrongs = distinctBy(shuffle(all.filter(s => s !== text)), s => s, new Set([text]), 2)
   return { kind: 'listen_sentence', text, ...withAnswer(text, wrongs) }
@@ -191,10 +215,62 @@ export function buildLesson(lesson: Lesson, unit: Unit, module: Module, progress
       ex.push(...shuffle(grammarExercises({ ...module.units[0].grammar, exercises: r.exercises }, all)).slice(0, 20))
       return ex
     }
+    case 'workbook': {
+      const wb = unit.workbook
+      if (!wb) return []
+      const all = grammarExercises({ ...unit.grammar, exercises: wb.exercises }, pool)
+      const parts = workbookParts(unit)
+      const cut = Math.ceil(all.length / parts)
+      const ex: Exercise[] = []
+      // the texts come first, in the book's order, then the exercises as the Activity Book prints them
+      if (lesson.part !== 2) for (const r of wb.readings) {
+        r.questions.forEach(q => ex.push({ kind: 'read', title: r.title, paragraphs: r.paragraphs, paragraphsAr: r.paragraphsAr, question: q }))
+        ;(r.trueFalse || []).forEach(t => ex.push({ kind: 'truefalse', statement: t.statement, answer: t.answer }))
+      }
+      ex.push(...(lesson.part === 2 ? all.slice(cut) : all.slice(0, cut)))
+      return ex
+    }
+    case 'translation': {
+      const items = shuffle(unit.translations || [])
+      const ex: Exercise[] = []
+      const arPool = (unit.translations || []).map(t => t.ar)
+      // Arabic to English with word tiles, English to Arabic by choosing, then both ways written out
+      items.slice(0, 4).forEach(t => ex.push(exBuild(t.en, pool, t.ar)))
+      items.slice(4, 7).forEach(t => ex.push({ kind: 'mcq', prompt: t.en, promptAr: 'اختر الترجمة الصحيحة', ...withAnswer(t.ar, shuffle(arPool.filter(a => a !== t.ar)).slice(0, 3)), explainAr: `الترجمة: ${t.ar}` }))
+      items.slice(7, 9).forEach(t => ex.push({ kind: 'translate', dir: 'en2ar', source: t.en, model: t.ar }))
+      items.slice(9, 11).forEach(t => ex.push({ kind: 'translate', dir: 'ar2en', source: t.ar, model: t.en }))
+      return ex
+    }
+    case 'composition': {
+      const c = unit.compositions?.[lesson.part === 2 ? 1 : 0]
+      if (!c) return []
+      const ex: Exercise[] = []
+      // learn the language first, then rebuild sentences of the model, then write
+      ex.push({ kind: 'match', pairs: shuffle(c.phrases.filter(x => x.en.split(' ').length <= 4)).slice(0, 5).map(x => ({ en: x.en, ar: x.ar })) })
+      const modelSentences = splitSentences(c.model).filter(x => { const n = x.split(' ').length; return n >= 5 && n <= 14 })
+      shuffle(modelSentences).slice(0, 3).forEach(x => ex.push(exBuild(x, pool)))
+      ex.push({ kind: 'compose', composition: c })
+      return ex.filter(e => e.kind !== 'match' || e.pairs.length >= 3)
+    }
+    case 'progressTest': {
+      const t = module.progressTest
+      if (!t) return []
+      const ex: Exercise[] = []
+      if (t.reading) {
+        t.reading.questions.forEach(q => ex.push({ kind: 'read', title: t.reading!.title, paragraphs: t.reading!.paragraphs, paragraphsAr: t.reading!.paragraphsAr, question: q }))
+        ;(t.reading.trueFalse || []).forEach(x => ex.push({ kind: 'truefalse', statement: x.statement, answer: x.answer }))
+      }
+      const all = module.units.flatMap(u => u.vocab)
+      ex.push(...grammarExercises({ ...module.units[0].grammar, exercises: t.exercises }, all))
+      return ex
+    }
     case 'listening': {
       const ex: Exercise[] = []
       const words = shuffle(pool).slice(0, 6)
       words.forEach(w => ex.push(exListen(w, pool)))
+      // spelling what you hear, as the exam's written answers need
+      shuffle(pool.filter(w => !w.en.includes(' ') && !w.en.includes('('))).slice(0, 2).forEach(w => ex.push(exDictation(w.en, w)))
+      shuffle(shortSentences(unit)).slice(0, 1).forEach(x => ex.push(exDictation(x)))
       shuffle(unit.sentences).slice(0, 3).forEach(s => ex.push(exListenSentence(s, allSentences)))
       if (unit.pronunciation) {
         // groups that continue one sound ("short /u/ (more)") are the same answer as the sound itself
@@ -239,6 +315,7 @@ export function buildLesson(lesson: Lesson, unit: Unit, module: Module, progress
       shuffle(unit.sentences).slice(0, 2).forEach(s => ex.push(exBuild(s, pool)))
       shuffle(pool).slice(0, 2).forEach(w => ex.push(exListen(w, pool)))
       weak.slice(0, 2).forEach(w => ex.push(exType(w)))
+      weak.filter(w => !w.en.includes(' ') && !w.en.includes('(')).slice(0, 1).forEach(w => ex.push(exDictation(w.en, w)))
       return shuffle(ex)
     }
     case 'boss': {
@@ -317,6 +394,11 @@ export function buildGrammarPractice(unit: Unit, which: 'grammar' | 'vocabFocus'
 
 export function checkBuild(target: string, tiles: string[]): boolean {
   return normalize(tiles.join(' ')) === normalize(target)
+}
+/** Dictation is spelling practice, so the words must be exact; case and punctuation do not count. */
+export function checkDictation(text: string, typed: string): boolean {
+  const t = normalize(typed)
+  return !!t && t === normalize(text)
 }
 export function checkTyped(word: Word, typed: string): boolean {
   const t = normalize(typed)
