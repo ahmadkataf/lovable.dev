@@ -35,8 +35,11 @@ jobs:
             node scripts/split-online.mjs "$BOOK"
           fi
           npx vite build
-      - name: Get bundletool
-        run: curl -sSL -o "$RUNNER_TEMP/bundletool.jar" https://github.com/google/bundletool/releases/download/1.18.3/bundletool-all-1.18.3.jar
+      - name: Get the icon tools and bundletool
+        run: |
+          pip install --quiet pillow
+          sudo apt-get install -y -qq fonts-dejavu-core >/dev/null
+          curl -sSL -o "$RUNNER_TEMP/bundletool.jar" https://github.com/google/bundletool/releases/download/1.18.3/bundletool-all-1.18.3.jar
       - name: Get the signing key
         env:
           KS_B64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
