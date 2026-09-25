@@ -1,6 +1,8 @@
+import { extras } from './extras/module5'
+import { withExtras } from './extras/merge'
 import type { Module } from '../../engine/types'
 
-export const module5: Module = {
+const base: Module = {
   number: 5,
   title: "Culture",
   titleAr: "الثقافة",
@@ -828,3 +830,5 @@ export const module5: Module = {
     },
   ],
 }
+
+export const module5: Module = withExtras(base, extras)
