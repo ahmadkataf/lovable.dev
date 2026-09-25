@@ -1,0 +1,63 @@
+# Builds the Android app: the App Bundle (.aab) to upload to Google Play, and an APK for direct sharing.
+# Start it from the Actions tab (Build Android app → Run workflow); the files appear under "Artifacts".
+# Signing uses the upload key from the repository secrets:
+#   ANDROID_KEYSTORE_BASE64    the release.keystore file, base64-encoded
+#   ANDROID_KEYSTORE_PASSWORD  its password
+#   ANDROID_KEY_ALIAS          the key alias inside it (emar8 for the key made by scripts/build-apk.sh)
+# The server address comes from the repository variable EMAR_API (e.g. https://emar-api.<name>.workers.dev).
+# Without the key the run still builds, signed with a throwaway key: fine for testing, not for Google Play.
+name: Build Android app
+on:
+  workflow_dispatch:
+    inputs:
+      book: { description: 'Book (g12, g11, g8)', default: 'g12', required: true }
+      store: { description: 'play = Google Play version (no outside payment links), direct = shared APK', default: 'play', required: true }
+      version_code: { description: 'Version code (must grow with every Play upload); empty = the run number + 100', required: false }
+      version_name: { description: 'Version name shown to users', default: '2.0', required: true }
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22 }
+      - uses: actions/setup-java@v4
+        with: { distribution: temurin, java-version: 17 }
+      - name: Build the web app
+        env:
+          BOOK: ${{ inputs.book }}
+          EMAR_API: ${{ vars.EMAR_API }}
+          EMAR_STORE: ${{ inputs.store }}
+        run: |
+          npm ci
+          if node -e "process.exit('api' in require('./src/books/$BOOK/book.json') ? 0 : 1)"; then
+            [ -n "$EMAR_API" ] || { echo "::error::Set the repository variable EMAR_API to the server address first."; exit 1; }
+            node scripts/split-online.mjs "$BOOK"
+          fi
+          npx vite build
+      - name: Get bundletool
+        run: curl -sSL -o "$RUNNER_TEMP/bundletool.jar" https://github.com/google/bundletool/releases/download/1.18.3/bundletool-all-1.18.3.jar
+      - name: Get the signing key
+        env:
+          KS_B64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+        run: |
+          if [ -n "$KS_B64" ]; then echo "$KS_B64" | base64 -d > "$RUNNER_TEMP/upload.keystore"
+          else echo "::warning::No ANDROID_KEYSTORE_BASE64 secret: signing with a throwaway key (not for Google Play)."; fi
+      - name: Build the APK and the App Bundle
+        env:
+          BUNDLETOOL: ${{ runner.temp }}/bundletool.jar
+          ANDROID_KEYSTORE: ${{ runner.temp }}/upload.keystore
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD || 'emar8pass' }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS || 'emar8' }}
+          VERSION_CODE_INPUT: ${{ inputs.version_code }}
+          VERSION_NAME: ${{ inputs.version_name }}
+        run: |
+          export VERSION_CODE="${VERSION_CODE_INPUT:-$((GITHUB_RUN_NUMBER + 100))}"
+          ./scripts/build-apk.sh "${{ inputs.book }}"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: emar-${{ inputs.book }}-${{ inputs.store }}
+          path: |
+            android/build/*.aab
+            android/build/*.apk
+          if-no-files-found: error

@@ -9,7 +9,12 @@ import { setAudioSource } from './audio'
 import { rawDeviceId, type Access } from './access'
 
 declare const __EMAR_API__: string
+declare const __EMAR_STORE__: string
 const API = __EMAR_API__
+/** The Google Play build: it may unlock with a code, but must not lead students to pay outside Google Play. */
+export const playStore = __EMAR_STORE__ === 'play'
+/** The page describing what the app keeps and sends, required by Google Play. */
+export const privacyUrl = API ? `${API}/privacy` : ''
 const SESSION_KEY = `${meta.storageKey}.session`
 const CACHE = `emar-${meta.id}-content`
 

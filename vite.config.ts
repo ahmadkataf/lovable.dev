@@ -17,7 +17,8 @@ if (online && !fs.existsSync(path.join(genDir, 'index.ts'))) throw new Error(`Ru
 const api = (process.env.EMAR_API ?? meta.api ?? '').replace(/\/$/, '')
 
 export default defineConfig({
-  define: { __EMAR_API__: JSON.stringify(online ? api : '') },
+  // EMAR_STORE=play builds the Google Play version, which may not point students to outside payment
+  define: { __EMAR_API__: JSON.stringify(online ? api : ''), __EMAR_STORE__: JSON.stringify(process.env.EMAR_STORE || 'direct') },
   plugins: [
     react(),
     { name: 'book-html', transformIndexHtml: html => html.replaceAll('%BOOK_TITLE%', `${meta.title} — تعلّم الإنجليزية`).replaceAll('%BOOK_COLOR%', meta.color) },

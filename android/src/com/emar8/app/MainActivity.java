@@ -9,6 +9,9 @@ import android.graphics.Color;
 import android.os.Build;
 import android.os.Bundle;
 import android.view.View;
+import android.view.WindowInsets;
+import android.view.WindowInsetsController;
+import android.widget.FrameLayout;
 import android.view.Window;
 import android.webkit.WebResourceRequest;
 import android.webkit.WebResourceResponse;
@@ -31,10 +34,17 @@ public class MainActivity extends Activity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         Window w = getWindow();
-        w.setStatusBarColor(Color.parseColor("#58cc02"));
+        // white system bars with dark icons; from Android 15 the app draws behind them, so the
+        // container below is padded by their size (and by the keyboard's)
+        w.setStatusBarColor(Color.WHITE);
         w.setNavigationBarColor(Color.WHITE);
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            w.getDecorView().setSystemUiVisibility(View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR);
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            WindowInsetsController c = w.getInsetsController();
+            if (c != null) c.setSystemBarsAppearance(
+                WindowInsetsController.APPEARANCE_LIGHT_STATUS_BARS | WindowInsetsController.APPEARANCE_LIGHT_NAVIGATION_BARS,
+                WindowInsetsController.APPEARANCE_LIGHT_STATUS_BARS | WindowInsetsController.APPEARANCE_LIGHT_NAVIGATION_BARS);
+        } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            w.getDecorView().setSystemUiVisibility(View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR | View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR);
         }
 
         web = new WebView(this);
@@ -52,7 +62,11 @@ public class MainActivity extends Activity {
         web.setBackgroundColor(Color.WHITE);
         web.setWebViewClient(new AppClient(this));
         web.addJavascriptInterface(new Bridge(this), "EmarAndroid");
-        setContentView(web);
+        FrameLayout root = new FrameLayout(this);
+        root.setBackgroundColor(Color.WHITE);
+        root.addView(web, new FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT));
+        root.setOnApplyWindowInsetsListener(new BarPadding());
+        setContentView(root);
         if (savedInstanceState == null) web.loadUrl("https://" + HOST + "/index.html");
         else web.restoreState(savedInstanceState);
     }
@@ -76,6 +90,20 @@ public class MainActivity extends Activity {
             // WhatsApp and other outside links open in their own app
             try { host.startActivity(new Intent(Intent.ACTION_VIEW, u)); } catch (Exception ignored) { }
             return true;
+        }
+    }
+
+    /** Keeps the page clear of the status bar, the navigation bar and the keyboard. */
+    static final class BarPadding implements View.OnApplyWindowInsetsListener {
+        @Override
+        public WindowInsets onApplyWindowInsets(View v, WindowInsets in) {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                android.graphics.Insets bars = in.getInsets(WindowInsets.Type.systemBars() | WindowInsets.Type.ime() | WindowInsets.Type.displayCutout());
+                v.setPadding(bars.left, bars.top, bars.right, bars.bottom);
+                return WindowInsets.CONSUMED;
+            }
+            v.setPadding(in.getSystemWindowInsetLeft(), in.getSystemWindowInsetTop(), in.getSystemWindowInsetRight(), in.getSystemWindowInsetBottom());
+            return in.consumeSystemWindowInsets();
         }
     }
 

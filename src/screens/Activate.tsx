@@ -2,7 +2,7 @@ import { useState } from 'react'
 import meta from '@book-meta'
 import sales from '../sales.json'
 import type { Access } from '../engine/access'
-import { onlineBook, type OnlineAccess } from '../engine/online'
+import { onlineBook, playStore, type OnlineAccess } from '../engine/online'
 
 const ERR: Record<string, string> = {
   format: onlineBook ? 'الكود 12 حرفاً ورقماً، مثل 7KQ2-M9XD-4FTR. انسخه كما وصلك.' : 'الكود غير مكتمل أو فيه حرف خاطئ. انسخه كما وصلك (16 حرفاً ورقماً).',
@@ -55,9 +55,9 @@ export default function Activate({ access, onClose }: { access: Access; onClose:
         </div>
       ) : onlineBook ? (
         <>
-          <p className="muted">الوحدة الأولى والنموذج الأول من الامتحانات مجانية. فعّل التطبيق لتفتح كل الوحدات، وكتاب الأنشطة، والإنشاء والترجمة، وكل نماذج الامتحانات.</p>
+          <p className="muted">الوحدة الأولى والنموذج الأول من الامتحانات مجانية. {playStore ? 'إذا كان لديك كود تفعيل فأدخله هنا لتفتح' : 'فعّل التطبيق لتفتح'} كل الوحدات، وكتاب الأنشطة، والإنشاء والترجمة، وكل نماذج الامتحانات.</p>
           {(access as OnlineAccess).notice && <div className="hint mb bad-hint">{(access as OnlineAccess).notice}</div>}
-          <div className="card mb">
+          {!playStore && <div className="card mb">
             <div className="h2">١. اشترِ كود التفعيل</div>
             {price && <p><b>السعر:</b> {price}{sales.validity ? ` · ${sales.validity}` : ''}</p>}
             <div className="pay-list">
@@ -67,9 +67,9 @@ export default function Activate({ access, onClose }: { access: Access; onClose:
             </div>
             <p className="muted" style={{ fontSize: 13 }}>إذا دفعت بشام كاش أو سيريتل كاش أرسل صورة الإيصال، فيصلك الكود برسالة.</p>
             {wa && <a className="btn btn-primary btn-block" href={wa} target="_blank" rel="noreferrer">💬 اطلب الكود على واتساب</a>}
-          </div>
+          </div>}
           <div className="card">
-            <div className="h2">٢. أدخل الكود</div>
+            <div className="h2">{playStore ? 'لديك كود تفعيل؟' : '٢. أدخل الكود'}</div>
             <p className="muted" style={{ fontSize: 13 }}>يحتاج التفعيل اتصالاً بالإنترنت، والكود يعمل على هذا الجهاز فقط.</p>
             <input className="type-input en code-input" dir="ltr" value={code} onChange={e => { setCode(e.target.value); setMsg(null) }} placeholder="XXXX-XXXX-XXXX" autoCapitalize="characters" autoCorrect="off" spellCheck={false} />
             <button className="btn btn-blue btn-block mt" disabled={busy || code.replace(/[^0-9a-z]/gi, '').length < 12} onClick={submit}>{busy ? '⏳ جارٍ التحقق…' : 'تفعيل'}</button>

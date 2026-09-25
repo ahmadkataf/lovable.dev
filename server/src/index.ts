@@ -9,12 +9,14 @@
 //   GET  /v1/content/<book>/<file>   Bearer token + X-Device                   the book and its audio
 //   /admin and /v1/admin/*          Bearer ADMIN_KEY                          the seller's control panel
 import { ADMIN_PAGE } from './admin'
+import { privacyPage } from './privacy'
 
 export interface Env {
   DB: D1Database
   ASSETS: Fetcher
   TOKEN_SECRET: string
   ADMIN_KEY: string
+  CONTACT?: string
 }
 
 const BOOKS = ['g12', 'g11', 'g8']
@@ -227,6 +229,7 @@ export default {
     if (req.method === 'OPTIONS') return new Response(null, { headers: CORS })
     try {
       if (p === '/' || p === '/v1/ping') return json({ ok: true, service: 'emar' })
+      if (p === '/privacy') return new Response(privacyPage(env.CONTACT || ''), { headers: { 'content-type': 'text/html; charset=utf-8' } })
       if (p === '/admin') return new Response(ADMIN_PAGE, { headers: { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store' } })
       if (p === '/v1/activate' && req.method === 'POST') return await activate(req, env)
       if (p === '/v1/session' && req.method === 'POST') return await session(req, env)

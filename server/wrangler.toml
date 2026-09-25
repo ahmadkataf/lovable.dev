@@ -17,3 +17,7 @@ database_name = "emar"
 database_id = "00000000-0000-0000-0000-000000000000"   # replaced on deploy with the real id
 
 # Secrets (never in this file): TOKEN_SECRET signs student sessions, ADMIN_KEY opens the control panel.
+
+[vars]
+# shown on the privacy policy page (/privacy) as the way to reach you, e.g. an email address
+CONTACT = ""

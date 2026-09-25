@@ -3,6 +3,7 @@ import { levelFromXp, today } from '../engine/progress'
 import { audioStatus, speak } from '../engine/audio'
 import { useState } from 'react'
 import type { Access } from '../engine/access'
+import { privacyUrl } from '../engine/online'
 
 interface Props { progress: Progress; totalLessons: number; subtitle: string; onChange: (p: Progress) => void; onReset: () => void; access?: Access; onActivate?: () => void }
 
@@ -28,6 +29,7 @@ export default function Profile({ progress, totalLessons, subtitle, onChange, on
           <button className="btn btn-sm btn-blue" onClick={onActivate}>{access.pro ? 'التفاصيل' : 'فعّل'}</button>
         </div>
       )}
+      {privacyUrl && <p className="center"><a className="muted" href={privacyUrl} target="_blank" rel="noreferrer">سياسة الخصوصية</a></p>}
       <div className="card mb">
         <div className="row">
           <div style={{ fontSize: 48 }}>🦉</div>
