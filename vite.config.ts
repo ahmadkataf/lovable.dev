@@ -9,13 +9,21 @@ const bookDir = path.resolve(__dirname, 'src/books', BOOK)
 if (!fs.existsSync(bookDir)) throw new Error(`Unknown book "${BOOK}"`)
 const meta = JSON.parse(fs.readFileSync(path.join(bookDir, 'book.json'), 'utf8'))
 
+// A book sold online ships only its free part: scripts/split-online.mjs writes it to generated/<book>/.
+const online = meta.api !== undefined
+const genDir = path.resolve(__dirname, 'generated', BOOK)
+if (online && !fs.existsSync(path.join(genDir, 'index.ts'))) throw new Error(`Run "node scripts/split-online.mjs ${BOOK}" first`)
+// the server address can be given at build time (EMAR_API=https://…) instead of in book.json
+const api = (process.env.EMAR_API ?? meta.api ?? '').replace(/\/$/, '')
+
 export default defineConfig({
+  define: { __EMAR_API__: JSON.stringify(online ? api : '') },
   plugins: [
     react(),
     { name: 'book-html', transformIndexHtml: html => html.replaceAll('%BOOK_TITLE%', `${meta.title} — تعلّم الإنجليزية`).replaceAll('%BOOK_COLOR%', meta.color) },
   ],
   base: './',
-  publicDir: path.resolve(__dirname, 'public', BOOK),
-  resolve: { alias: { '@book-meta': path.join(bookDir, 'book.json'), '@book': path.join(bookDir, 'index.ts') } },
+  publicDir: online ? path.join(genDir, 'public') : path.resolve(__dirname, 'public', BOOK),
+  resolve: { alias: { '@book-meta': path.join(bookDir, 'book.json'), '@book': online ? path.join(genDir, 'index.ts') : path.join(bookDir, 'index.ts') } },
   build: { outDir: `dist/${BOOK}`, emptyOutDir: true },
 })

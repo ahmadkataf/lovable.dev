@@ -20,8 +20,10 @@ export interface Env {
 const BOOKS = ['g12', 'g11', 'g8']
 const ALPHABET = '23456789ABCDEFGHJKLMNPQRSTUVWXYZ'
 const TOKEN_TTL = 3 * 86400000       // a session lasts three days; the app renews it every time it opens
-const FAIL_WINDOW = 15 * 60000        // wrong codes from one address inside this window...
-const FAIL_LIMIT = 10                 // ...beyond this many are refused, so codes cannot be guessed
+const FAIL_WINDOW = 15 * 60000        // wrong codes inside this window beyond these limits are refused:
+const FAIL_LIMIT_DEVICE = 8           // from one phone
+const FAIL_LIMIT_IP = 150             // from one address (loose: many Syrian subscribers share one address)
+// A code is 12 random characters (60 bits), so guessing one is hopeless even without these limits.
 const CORS = {
   'access-control-allow-origin': '*',
   'access-control-allow-headers': 'authorization, content-type, x-device',
@@ -103,12 +105,13 @@ function refuse(row: CodeRow | null, book: string, device: string): string | nul
 
 // ---------- student endpoints ----------
 async function activate(req: Request, env: Env): Promise<Response> {
-  const since = Date.now() - FAIL_WINDOW
-  const fails = await env.DB.prepare("SELECT COUNT(*) AS n FROM events WHERE ip = ? AND kind = 'activate-fail' AND at > ?").bind(ip(req), since).first<{ n: number }>()
-  if ((fails?.n ?? 0) >= FAIL_LIMIT) return fail('wait', 429)
   const b = await body(req)
   const code = cleanCode(b.code)
   if (!validBook(b.book) || !validDevice(b.device)) return fail('bad-request')
+  const since = Date.now() - FAIL_WINDOW
+  const fails = await env.DB.prepare(`SELECT SUM(device = ?) AS dev, COUNT(*) AS addr FROM events
+    WHERE kind = 'activate-fail' AND at > ? AND (ip = ? OR device = ?)`).bind(b.device, since, ip(req), b.device).first<{ dev: number | null; addr: number }>()
+  if ((fails?.dev ?? 0) >= FAIL_LIMIT_DEVICE || (fails?.addr ?? 0) >= FAIL_LIMIT_IP) return fail('wait', 429)
   const row = code ? await getCode(env, code) : null
   const why = refuse(row, b.book, b.device)
   if (why) { await log(env, 'activate-fail', req, code, b.device, why); return fail(why, why === 'invalid' ? 404 : 403) }

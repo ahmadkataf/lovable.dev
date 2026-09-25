@@ -290,3 +290,6 @@ details.unit-ref summary { cursor: pointer; font-weight: 800; font-size: 16px; }
 .code-input{text-align:center;letter-spacing:2px;font-size:20px}
 .ok-hint{background:var(--green-light)}
 .bad-hint{background:var(--red-light)}
+
+.net-banner{margin:8px 16px 0;padding:8px 12px;border-radius:12px;background:var(--blue-light);font-size:13px;font-weight:700;display:flex;gap:8px;align-items:center;justify-content:space-between;flex-wrap:wrap}
+.net-banner.warn{background:var(--wb-light)}

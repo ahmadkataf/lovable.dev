@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { book, exams, modules } from './data'
+import { book, exams as freeExams, modules as freeModules } from './data'
 import type { Exam, Exercise, Lesson } from './engine/types'
 import { addXp, completeLesson, recordExam, load, loseHeart, nextHeartIn, recordWord, refillHearts, regenHearts, save, touchStreak, type Progress } from './engine/progress'
 import { buildGrammarPractice, buildLesson, buildMockExam, buildPractice, lessonsForUnit, progressTestLesson, reviewLesson, sourceLabel } from './engine/generator'
@@ -13,6 +13,7 @@ import ExamPaper from './screens/ExamPaper'
 import { preload, preloadIndex, setMuted } from './engine/audio'
 import { freeExam, freeLesson, keepLicense, useAccess } from './engine/access'
 import Activate from './screens/Activate'
+import { onlineBook, useOnlineAccess, type OnlineAccess } from './engine/online'
 
 type Tab = 'home' | 'words' | 'exams' | 'book' | 'profile'
 
@@ -22,7 +23,10 @@ export default function App() {
   const [active, setActive] = useState<{ lesson: Lesson | null; exercises: Exercise[]; source?: string } | null>(null)
   const [exam, setExam] = useState<Exam | null>(null)
   const [, tick] = useState(0)
-  const access = useAccess()
+  // a book sold online gets its paid part from the server; the others check an offline code
+  const access = (onlineBook ? useOnlineAccess() : useAccess()) as OnlineAccess  // eslint-disable-line react-hooks/rules-of-hooks
+  const modules = access.modules ?? freeModules
+  const exams = access.exams ?? freeExams
   const [paywall, setPaywall] = useState(false)
   const openPaywall = () => { window.scrollTo(0, 0); setPaywall(true) }
 
@@ -31,7 +35,7 @@ export default function App() {
   useEffect(() => { setMuted(!progress.sound) }, [progress.sound])
   useEffect(() => { preloadIndex() }, [])
 
-  const { unlockedUnits } = useMemo(() => unlockedState(modules, progress), [progress])
+  const { unlockedUnits } = useMemo(() => unlockedState(modules, progress), [progress, modules])
   const totalLessons = modules.reduce((a, m) => a + m.units.reduce((n, u) => n + lessonsForUnit(u).length, 0) + 1 + (reviewLesson(m) ? 1 : 0) + (progressTestLesson(m) ? 1 : 0), 0)
 
   const startLesson = (lesson: Lesson) => {
@@ -128,6 +132,10 @@ export default function App() {
           ? <div className="muted" style={{ fontWeight: 800 }}>{progress.name ? `مرحباً ${progress.name}` : book.title}</div>
           : <button className="unlock-btn" onClick={openPaywall}>🔑 فعّل</button>}
       </div>
+      {onlineBook && (access.status === 'checking' || access.status === 'loading') && <div className="net-banner">⏳ {access.status === 'checking' ? 'جارٍ التحقق من اشتراكك…' : 'جارٍ تنزيل الكتاب…'}</div>}
+      {onlineBook && access.notice && access.status !== 'checking' && access.status !== 'loading' && (
+        <div className="net-banner warn">{access.notice}{access.status === 'offline' && <button className="btn btn-sm btn-outline" onClick={access.retry}>إعادة المحاولة</button>}</div>
+      )}
       {tab === 'home' && <Home modules={modules} progress={progress} onStart={startLesson} hasExams={exams.length > 0} pro={access.pro} />}
       {tab === 'words' && <Words modules={modules} progress={progress} unlocked={unlockedUnits} onPractice={startPractice} onMockExam={exams.length ? undefined : startMockExam} />}
       {tab === 'exams' && <Exams exams={exams} progress={progress} onStart={e => { if (!access.pro && !freeExam(e, exams)) { openPaywall(); return } window.scrollTo(0, 0); setExam(e) }} onMockExam={startMockExam} canMock={unlockedUnits.size > 0} locked={e => !access.pro && !freeExam(e, exams)} />}

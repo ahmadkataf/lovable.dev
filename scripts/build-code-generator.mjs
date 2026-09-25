@@ -5,7 +5,9 @@ import { build } from 'esbuild'
 import fs from 'fs'
 
 const books = ['g8', 'g11', 'g12'].filter(b => fs.existsSync(`src/books/${b}/book.json`))
-  .map(b => { const m = JSON.parse(fs.readFileSync(`src/books/${b}/book.json`, 'utf8')); return { id: m.id, name: `${m.appName} — ${m.titleAr}` } })
+  .map(b => JSON.parse(fs.readFileSync(`src/books/${b}/book.json`, 'utf8')))
+  .filter(m => m.api === undefined)   // a book sold online gets its codes from the server's control panel
+  .map(m => ({ id: m.id, name: `${m.appName} — ${m.titleAr}` }))
 const js = (await build({ entryPoints: ['src/engine/license.ts'], bundle: true, format: 'iife', globalName: 'License', write: false, minify: true })).outputFiles[0].text
 
 const html = `<!doctype html>

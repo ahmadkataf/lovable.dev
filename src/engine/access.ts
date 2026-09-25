@@ -11,7 +11,7 @@ function read(k: string): string | null { try { return localStorage.getItem(k) }
 function write(k: string, v: string) { try { localStorage.setItem(k, v) } catch { /* ignore */ } }
 
 /** The phone's own id from the Android app (the same after reinstalling); in a browser, a random id kept locally. */
-function rawDeviceId(): string {
+export function rawDeviceId(): string {
   try {
     const id = (window as unknown as { EmarAndroid?: { deviceId?: () => string } }).EmarAndroid?.deviceId?.()
     if (id) return `a:${id}`
@@ -33,7 +33,7 @@ export interface Access {
   until: Date | null
   device: string
   code: string
-  activate: (code: string) => Promise<'ok' | 'format' | 'device' | 'expired'>
+  activate: (code: string) => Promise<string>   // 'ok' or why the code was refused
 }
 
 export function useAccess(): Access {
@@ -65,9 +65,14 @@ export function useAccess(): Access {
 
 /** Keep the activation when the student resets their progress. */
 export function keepLicense<T>(fn: () => T): T {
-  const lic = read(LICENSE_KEY), raw = read(RAW_KEY)
+  const keep: [string, string][] = []
+  try {
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i)!
+      if (k === RAW_KEY || k.endsWith('.license') || k.endsWith('.session')) keep.push([k, localStorage.getItem(k)!])
+    }
+  } catch { /* ignore */ }
   const out = fn()
-  if (lic) write(LICENSE_KEY, lic)
-  if (raw) write(RAW_KEY, raw)
+  for (const [k, v] of keep) write(k, v)
   return out
 }

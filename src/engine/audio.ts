@@ -33,6 +33,13 @@ type Index = { sr: number; groups: Record<string, Record<string, [number, number
 const BASE = ((import.meta as any).env?.BASE_URL || './') as string
 const audioUrl = (f: string) => `${BASE.replace(/\/?$/, '/')}audio/${f}`
 
+// A book sold online keeps the paid audio on the server: once the app is activated, index.json and the
+// sprites come from there instead of from the app's own files.
+export type AudioSource = (file: string) => Promise<Response>
+let remote: AudioSource | null = null
+export function setAudioSource(src: AudioSource | null) { remote = src; indexPromise = null; indexStatus = 'idle'; buffers.clear() }
+const getAudio = (file: string) => (remote ? remote(file) : fetch(audioUrl(file)))
+
 let indexPromise: Promise<Map<string, Clip> | null> | null = null
 let indexStatus: 'idle' | 'loading' | 'ready' | 'failed' = 'idle'
 const buffers = new Map<string, Promise<AudioBuffer | null>>()
@@ -42,7 +49,7 @@ export function norm(s: string): string { return s.replace(/\s+/g, ' ').trim().t
 function loadIndex(): Promise<Map<string, Clip> | null> {
   if (!indexPromise) {
     indexStatus = 'loading'
-    indexPromise = fetch(audioUrl('index.json')).then(r => { if (!r.ok) throw new Error(String(r.status)); return r.json() as Promise<Index> })
+    indexPromise = getAudio('index.json').then(r => { if (!r.ok) throw new Error(String(r.status)); return r.json() as Promise<Index> })
       .then(idx => {
         const map = new Map<string, Clip>()
         for (const [group, entries] of Object.entries(idx.groups)) for (const [k, [start, dur]] of Object.entries(entries)) if (!map.has(k)) map.set(k, { group, start, dur })
@@ -57,7 +64,7 @@ function loadIndex(): Promise<Map<string, Clip> | null> {
 function loadBuffer(group: string): Promise<AudioBuffer | null> {
   let p = buffers.get(group)
   if (!p) {
-    p = fetch(audioUrl(`${group}.mp3`)).then(r => { if (!r.ok) throw new Error(String(r.status)); return r.arrayBuffer() })
+    p = getAudio(`${group}.mp3`).then(r => { if (!r.ok) throw new Error(String(r.status)); return r.arrayBuffer() })
       .then(data => new Promise<AudioBuffer | null>((resolve) => {
         const c = ac(); if (!c) return resolve(null)
         try { c.decodeAudioData(data, b => resolve(b), () => resolve(null)) } catch { resolve(null) }

@@ -1,0 +1,53 @@
+# Puts the Emar server (server/) online on Cloudflare, with the Baccalaureate book it serves.
+# Runs when started by hand from the Actions tab, and whenever the server or the book changes.
+# Needs four repository secrets (Settings → Secrets and variables → Actions):
+#   CLOUDFLARE_API_TOKEN   a Cloudflare API token with "Edit Cloudflare Workers" and "D1 Edit"
+#   CLOUDFLARE_ACCOUNT_ID  your Cloudflare account id
+#   EMAR_ADMIN_KEY         the password of the control panel (/admin) — long and secret
+#   EMAR_TOKEN_SECRET      a long random text that signs student sessions — never change it afterwards
+name: Deploy server
+on:
+  workflow_dispatch:
+  push:
+    paths: ['server/**', 'src/books/g12/**', 'public/g12/**', 'scripts/split-online.mjs', '.github/workflows/deploy-server.yml']
+concurrency: deploy-server
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+    steps:
+      - name: Wait for the Cloudflare secrets
+        if: env.CLOUDFLARE_API_TOKEN == ''
+        run: echo "::notice::Add the CLOUDFLARE_API_TOKEN, CLOUDFLARE_ACCOUNT_ID, EMAR_ADMIN_KEY and EMAR_TOKEN_SECRET secrets, then run this workflow again."
+      - uses: actions/checkout@v4
+        if: env.CLOUDFLARE_API_TOKEN != ''
+      - uses: actions/setup-node@v4
+        if: env.CLOUDFLARE_API_TOKEN != ''
+        with: { node-version: 22 }
+      - name: Split the book into the free app part and the server part
+        if: env.CLOUDFLARE_API_TOKEN != ''
+        run: npm ci && node scripts/split-online.mjs g12
+      - name: Install the server tools
+        if: env.CLOUDFLARE_API_TOKEN != ''
+        working-directory: server
+        run: npm ci
+      - name: Create the database the first time, and use its id
+        if: env.CLOUDFLARE_API_TOKEN != ''
+        working-directory: server
+        run: |
+          ID=$(npx wrangler d1 list --json | node -e "let s='';process.stdin.on('data',d=>s+=d).on('end',()=>{const d=JSON.parse(s).find(x=>x.name==='emar');console.log(d?d.uuid:'')})")
+          if [ -z "$ID" ]; then npx wrangler d1 create emar; ID=$(npx wrangler d1 list --json | node -e "let s='';process.stdin.on('data',d=>s+=d).on('end',()=>{console.log(JSON.parse(s).find(x=>x.name==='emar').uuid)})"); fi
+          sed -i "s/^database_id = .*/database_id = \"$ID\"/" wrangler.toml
+          npx wrangler d1 execute emar --remote --file=schema.sql
+      - name: Deploy
+        if: env.CLOUDFLARE_API_TOKEN != ''
+        working-directory: server
+        run: npx wrangler deploy
+      - name: Set the secrets
+        if: env.CLOUDFLARE_API_TOKEN != ''
+        working-directory: server
+        run: |
+          echo "${{ secrets.EMAR_ADMIN_KEY }}" | npx wrangler secret put ADMIN_KEY
+          echo "${{ secrets.EMAR_TOKEN_SECRET }}" | npx wrangler secret put TOKEN_SECRET

@@ -251,4 +251,5 @@ export interface BookMeta {
   packageId: string     // Android package id
   iconText: string      // text drawn on the launcher icon
   color: string         // theme colour
+  api?: string          // set for a book sold online: the address of the Emar server (see server/)
 }
