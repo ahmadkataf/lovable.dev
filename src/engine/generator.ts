@@ -247,8 +247,22 @@ export function buildLesson(lesson: Lesson, unit: Unit, module: Module, progress
       const ex: Exercise[] = []
       // learn the language first, then rebuild sentences of the model, then write
       ex.push({ kind: 'match', pairs: shuffle(c.phrases.filter(x => x.en.split(' ').length <= 4)).slice(0, 5).map(x => ({ en: x.en, ar: x.ar })) })
-      const modelSentences = splitSentences(c.model).filter(x => { const n = x.split(' ').length; return n >= 5 && n <= 14 })
-      shuffle(modelSentences).slice(0, 3).forEach(x => ex.push(exBuild(x, pool)))
+      const sentences = splitSentences(c.model)
+      // put the unit's phrases back into the model: the language they will need, used in context
+      const short = c.phrases.filter(x => x.en.split(' ').length <= 5)
+      const gaps: Exercise[] = []
+      for (const ph of shuffle(short)) {
+        const at = sentences.find(x => x.toLowerCase().includes(ph.en.toLowerCase()))
+        if (!at) continue
+        const i = at.toLowerCase().indexOf(ph.en.toLowerCase())
+        const others = short.filter(o => o.en.toLowerCase() !== ph.en.toLowerCase() && !at.toLowerCase().includes(o.en.toLowerCase()))
+        if (others.length < 2) continue
+        gaps.push({ kind: 'fill', prompt: at.slice(0, i) + '___' + at.slice(i + ph.en.length), promptAr: `العبارة المطلوبة تعني: ${ph.ar}`, ...withAnswer(at.slice(i, i + ph.en.length), shuffle(others).slice(0, 3).map(o => o.en)), explainAr: `«${ph.en}» = ${ph.ar}. استعملها في موضوعك كما في النموذج.` })
+        if (gaps.length === 3) break
+      }
+      ex.push(...gaps)
+      const modelSentences = sentences.filter(x => { const n = x.split(' ').length; return n >= 4 && n <= 16 })
+      shuffle(modelSentences).slice(0, Math.max(2, 5 - gaps.length)).forEach(x => ex.push(exBuild(x, pool)))
       ex.push({ kind: 'compose', composition: c })
       return ex.filter(e => e.kind !== 'match' || e.pairs.length >= 3)
     }
