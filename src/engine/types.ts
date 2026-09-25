@@ -199,6 +199,7 @@ export interface Exam {
   grade?: string              // printed in the paper's header, e.g. '8'
   termAr?: string             // heading of this paper's group on the exams screen, e.g. 'الفصل الأول'
   scopeAr?: string            // what the paper covers, e.g. 'الوحدات 1–6'
+  label?: string              // printed in the header instead of 'TERM n', e.g. 'BACCALAUREATE'
   minutes: number
   totalMarks: number
   real?: boolean              // a past paper typed in as printed

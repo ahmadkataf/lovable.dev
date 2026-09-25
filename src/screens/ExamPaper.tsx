@@ -126,7 +126,7 @@ export default function ExamPaper({ exam, onClose, onScore }: Props) {
         <div className="paper">
           <div className="paper-head en">
             <div><b>Time:</b> {exam.minutes} minutes<br /><b>Marks:</b> {exam.totalMarks}<br /><b>English</b></div>
-            <div className="center"><b>TEST</b><br /><b>TERM {exam.term}</b><br /><b>({exam.id.split('-')[1]?.toUpperCase()})</b></div>
+            <div className="center"><b>TEST</b><br /><b>{exam.label ?? `TERM ${exam.term}`}</b><br /><b>({exam.id.split('-')[1]?.toUpperCase()})</b></div>
             <div style={{ textAlign: 'right' }}>{exam.grade && <b>Grade: {exam.grade}</b>}</div>
           </div>
           {exam.real && <div className="real-badge">📄 نموذج امتحان حقيقي سابق</div>}
