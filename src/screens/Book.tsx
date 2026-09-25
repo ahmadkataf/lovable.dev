@@ -73,6 +73,27 @@ export default function Book({ modules, onGrammarPractice }: { modules: Module[]
               )}
               {u.listening && <div className="mt"><div className="h2">🎧 الاستماع</div><p className="muted">{u.listening.taskAr}</p>{u.listening.items && <ul className="en" style={{ paddingInlineStart: 20 }}>{u.listening.items.map((it, i) => <li key={i}>{it}</li>)}</ul>}</div>}
               {u.writing && <div className="mt"><div className="h2">✍️ الكتابة</div><p className="muted">{u.writing.taskAr}</p>{u.writing.linkers && <div className="pills">{u.writing.linkers.map(l => <span key={l} className="pill en">{l}</span>)}</div>}{u.writing.model && <div className="reading-box mt" style={{ maxHeight: 'none' }}>{u.writing.model.map((p, i) => <p key={i}>{p}</p>)}</div>}</div>}
+              {u.workbook && (
+                <div className="mt">
+                  <div className="h2">📒 كتاب الأنشطة <span className="muted" style={{ fontSize: 13 }}>· ص {u.workbook.pages}</span></div>
+                  {u.workbook.readings.map((r, i) => (
+                    <div key={i} className="mt">
+                      <div className="en" style={{ fontWeight: 800 }}>{r.title}</div>
+                      <ReadingText paragraphs={r.paragraphs} paragraphsAr={r.paragraphsAr} showAr maxHeight="none" />
+                    </div>
+                  ))}
+                  <p className="muted mt">تمارين كتاب الأنشطة: {u.workbook.exercises.length} تمريناً محلولاً — تظهر في درس «كتاب الأنشطة» على المسار.</p>
+                </div>
+              )}
+              {u.compositions?.map((c, i) => (
+                <details key={i} className="mt">
+                  <summary>📝 موضوع إنشائي {c.source === 'workbook' ? '(كتاب الأنشطة)' : '(كتاب الطالب)'}: <span className="en">{c.topic}</span></summary>
+                  <div className="muted">{c.topicAr}</div>
+                  <ol style={{ paddingInlineStart: 20 }}>{c.plan.map((p, j) => <li key={j}>{p.ar}</li>)}</ol>
+                  <div className="reading-box mt en" dir="ltr" style={{ maxHeight: 'none' }}><p>{c.model}</p></div>
+                  <div className="sentence-ar">{c.modelAr}</div>
+                </details>
+              ))}
               <div className="h2 mt">📚 الكلمات ({u.vocab.length})</div>
               {u.vocab.map(w => (
                 <div key={w.en} className="word-row">
