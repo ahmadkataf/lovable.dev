@@ -116,7 +116,7 @@ export default function ExamPaper({ exam, onClose, onScore }: Props) {
                 ))}
               </tbody>
             </table>
-            <p className="muted" style={{ fontSize: 13 }}>راجع الأسئلة في الأسفل: الإجابة الصحيحة وسببها بالعربية تحت كل سؤال. علامة الفقرة (F) تقييم ذاتي: قارن فقرتك بالنموذج وضع إشارة على ما حققته.</p>
+            <p className="muted" style={{ fontSize: 13 }}>راجع الأسئلة في الأسفل: الإجابة الصحيحة وسببها بالعربية تحت كل سؤال. علامة الموضوع الكتابي والإجابات المكتوبة تقييم ذاتي: قارن ما كتبته بالنموذج وضع إشارة على ما حققته.</p>
             <div className="row" style={{ flexWrap: 'wrap' }}>
               <button className="btn btn-blue btn-sm" onClick={() => setShowAr(v => !v)}>{showAr ? 'إخفاء ترجمة النصوص' : 'ترجمة النصوص بالعربية'}</button>
             </div>
@@ -235,7 +235,7 @@ function Question({ q, a, submitted, right, credited, onCredit, onAnswer }: { q:
   }
   return (
     <div className={`pq ${submitted ? (right ? 'pq-ok' : 'pq-bad') : ''}`}>
-      <div className="pq-prompt en">
+      <div className={`pq-prompt ${/[\u0600-\u06ff]/.test(q.prompt) ? 'ar-prompt' : 'en'}`} dir="auto">
         <b>{q.n}. </b>
         {q.kind === 'wrongpart'
           ? <Marked text={q.prompt} onPart={i => onAnswer(i)} part={typeof a === 'number' ? a : undefined} state={i => (!submitted ? '' : i === q.answer ? 'ok' : a === i ? 'bad' : '')} />

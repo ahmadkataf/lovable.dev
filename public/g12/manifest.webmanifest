@@ -1,0 +1,17 @@
+{
+  "name": "Emar 12 — تعلّم الإنجليزية",
+  "short_name": "Emar 12",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#ce82ff",
+  "lang": "ar",
+  "dir": "rtl",
+  "icons": [
+    {
+      "src": "icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml"
+    }
+  ]
+}
