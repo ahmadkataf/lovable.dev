@@ -18,6 +18,15 @@ export const norm = s => s.replace(/\s+/g, ' ').trim().toLowerCase()
 const groups = {}
 const add = (g, t) => { if (!t || !t.trim()) return; (groups[g] ||= new Map()).set(norm(t), t.trim()) }
 
+function addDrills(g, list) {
+  for (const e of list) {
+    if (e.type === 'fill') add(g, e.prompt.replace('___', e.options[e.answer]))
+    else if (e.type === 'build' || e.type === 'order') add(g, e.answer)
+    else if (e.type === 'truefalse') add(g, e.prompt)
+    else if (e.type === 'mcq') { add(g, e.prompt); e.options.forEach(o => add(g, o)) }
+  }
+}
+
 for (const m of modules) {
   for (const u of m.units) {
     const g = u.id
@@ -51,8 +60,25 @@ for (const m of modules) {
       r.questions.forEach(q => { add(g, q.q); q.options.forEach(o => add(g, o)) })
     }
     ;(u.writing?.model || []).forEach(p => add(g, p))
+    // Activity Book texts and exercises, translation sentences, composition language and models
+    for (const r of u.workbook?.readings || []) {
+      for (const p of r.paragraphs) for (const sen of splitSentences(p)) add(g, sen)
+      r.questions.forEach(q => { add(g, q.q); q.options.forEach(o => add(g, o)) })
+      ;(r.trueFalse || []).forEach(t => add(g, t.statement))
+    }
+    addDrills(g, u.workbook?.exercises || [])
+    for (const t of u.translations || []) add(g, t.en)
+    for (const c of u.compositions || []) {
+      c.phrases.forEach(p => add(g, p.en))
+      for (const sen of splitSentences(c.model)) add(g, sen)
+    }
   }
   const g = `m${m.number}`
+  if (m.progressTest) {
+    addDrills(g, m.progressTest.exercises)
+    for (const p of m.progressTest.reading?.paragraphs || []) for (const sen of splitSentences(p)) add(g, sen)
+    m.progressTest.reading?.questions.forEach(q => { add(g, q.q); q.options.forEach(o => add(g, o)) })
+  }
   if (m.review) {
     for (const e of m.review.exercises) {
       if (e.type === 'fill') add(g, e.prompt.replace('___', e.options[e.answer]))
