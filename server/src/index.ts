@@ -154,10 +154,22 @@ async function content(req: Request, env: Env, book: string, file: string): Prom
   const res = await env.ASSETS.fetch(new Request(new URL(`/${book}/${file}`, req.url)))
   if (!res.ok) return fail('not-found', 404)
   const headers = { ...CORS, 'content-type': res.headers.get('content-type') || 'application/octet-stream', 'cache-control': 'private, no-store' }
-  if (file === 'full.json') {
-    // every copy carries the code it was sent to, so a leaked copy leads back to its buyer
-    const text = await res.text()
-    return new Response(`{"licensedTo":"${formatCode(s.c)}",${text.slice(1)}`, { headers: { ...headers, 'content-type': 'application/json; charset=utf-8' } })
+  if (file === 'full.json' && res.body) {
+    // every copy carries the code it was sent to, so a leaked copy leads back to its buyer; the file is
+    // streamed through (its opening "{" replaced), never read into memory, to stay within the CPU limit
+    const { readable, writable } = new TransformStream<Uint8Array, Uint8Array>()
+    const stamp = async () => {
+      const w = writable.getWriter(), r = res.body!.getReader()
+      await w.write(enc.encode(`{"licensedTo":"${formatCode(s.c)}",`))
+      for (let first = true; ; first = false) {
+        const { done, value } = await r.read()
+        if (done) break
+        await w.write(first ? value.subarray(1) : value)
+      }
+      await w.close()
+    }
+    stamp()
+    return new Response(readable, { headers: { ...headers, 'content-type': 'application/json; charset=utf-8' } })
   }
   return new Response(res.body, { headers })
 }
