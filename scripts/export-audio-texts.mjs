@@ -18,14 +18,17 @@ export const norm = s => s.replace(/\s+/g, ' ').trim().toLowerCase()
 const groups = {}
 const add = (g, t) => { if (!t || !t.trim()) return; (groups[g] ||= new Map()).set(norm(t), t.trim()) }
 
+// The app reads out a completed gap sentence, a true/false statement and a built sentence, and after a
+// wrong answer it says the right option. Multiple-choice prompts and wrong options are never spoken.
 function addDrills(g, list) {
   for (const e of list) {
-    if (e.type === 'fill') add(g, e.prompt.replace('___', e.options[e.answer]))
+    if (e.type === 'fill') { add(g, e.prompt.replace('___', e.options[e.answer])); add(g, e.options[e.answer]) }
     else if (e.type === 'build' || e.type === 'order') add(g, e.answer)
     else if (e.type === 'truefalse') add(g, e.prompt)
-    else if (e.type === 'mcq') { add(g, e.prompt); e.options.forEach(o => add(g, o)) }
+    else if (e.type === 'mcq') add(g, e.options[e.answer])
   }
 }
+const addQuestions = (g, r) => { r.questions.forEach(q => add(g, q.options[q.answer])); (r.trueFalse || []).forEach(t => add(g, t.statement)) }
 
 for (const m of modules) {
   for (const u of m.units) {
@@ -33,38 +36,24 @@ for (const m of modules) {
     for (const w of u.vocab) { add(g, w.en); add(g, w.example) }
     u.sentences.forEach(s => add(g, s))
     u.grammar.examples.forEach(s => add(g, s))
-    for (const e of u.grammar.exercises) {
-      if (e.type === 'fill') add(g, e.prompt.replace('___', e.options[e.answer]))
-      else if (e.type === 'build' || e.type === 'order') add(g, e.answer)
-      else if (e.type === 'truefalse') add(g, e.prompt)
-      else if (e.type === 'mcq') { add(g, e.prompt); e.options.forEach(o => add(g, o)) }
-    }
-    if (e => e) for (const e of u.grammar.exercises) if ((e.type === 'fill' || e.type === 'mcq') && e.options) e.options.forEach(o => { if (o.split(' ').length <= 3) add(g, o) })
+    addDrills(g, u.grammar.exercises)
     // one clip per sentence so the reader can highlight where it is
     for (const p of u.reading.paragraphs) for (const sen of splitSentences(p)) add(g, sen)
-    ;(u.reading.trueFalse || []).forEach(t => add(g, t.statement))
-    u.reading.questions.forEach(q => { add(g, q.q); q.options.forEach(o => add(g, o)) })
+    addQuestions(g, u.reading)
     u.pronunciation?.groups.forEach(gr => gr.words.forEach(w => add(g, w)))
-    const drills = [...(u.vocabFocus?.exercises || []), ...(u.everyday?.exercises || [])]
     ;(u.vocabFocus?.examples || []).forEach(s => add(g, s))
-    for (const e of drills) {
-      if (e.type === 'fill') add(g, e.prompt.replace('___', e.options[e.answer]))
-      else if (e.type === 'build' || e.type === 'order') add(g, e.answer)
-      else if (e.type === 'truefalse') add(g, e.prompt)
-      else if (e.type === 'mcq') { add(g, e.prompt); e.options.forEach(o => add(g, o)) }
-    }
+    addDrills(g, [...(u.vocabFocus?.exercises || []), ...(u.everyday?.exercises || [])])
     for (const x of u.everyday?.expressions || []) add(g, x.en)
     for (const d of u.everyday?.dialogue || []) add(g, d.en)
     for (const r of u.extraReadings || []) {
       for (const p of r.paragraphs) for (const sen of splitSentences(p)) add(g, sen)
-      r.questions.forEach(q => { add(g, q.q); q.options.forEach(o => add(g, o)) })
+      addQuestions(g, r)
     }
     ;(u.writing?.model || []).forEach(p => add(g, p))
     // Activity Book texts and exercises, translation sentences, composition language and models
     for (const r of u.workbook?.readings || []) {
       for (const p of r.paragraphs) for (const sen of splitSentences(p)) add(g, sen)
-      r.questions.forEach(q => { add(g, q.q); q.options.forEach(o => add(g, o)) })
-      ;(r.trueFalse || []).forEach(t => add(g, t.statement))
+      addQuestions(g, r)
     }
     addDrills(g, u.workbook?.exercises || [])
     for (const t of u.translations || []) add(g, t.en)
@@ -77,17 +66,12 @@ for (const m of modules) {
   if (m.progressTest) {
     addDrills(g, m.progressTest.exercises)
     for (const p of m.progressTest.reading?.paragraphs || []) for (const sen of splitSentences(p)) add(g, sen)
-    m.progressTest.reading?.questions.forEach(q => { add(g, q.q); q.options.forEach(o => add(g, o)) })
+    if (m.progressTest.reading) addQuestions(g, m.progressTest.reading)
   }
   if (m.review) {
-    for (const e of m.review.exercises) {
-      if (e.type === 'fill') add(g, e.prompt.replace('___', e.options[e.answer]))
-      else if (e.type === 'build' || e.type === 'order') add(g, e.answer)
-      else if (e.type === 'truefalse') add(g, e.prompt)
-      else if (e.type === 'mcq') { add(g, e.prompt); e.options.forEach(o => add(g, o)) }
-    }
+    addDrills(g, m.review.exercises)
     for (const p of m.review.reading?.paragraphs || []) for (const sen of splitSentences(p)) add(g, sen)
-    m.review.reading?.questions.forEach(q => { add(g, q.q); q.options.forEach(o => add(g, o)) })
+    if (m.review.reading) addQuestions(g, m.review.reading)
   }
   m.focus?.glossary?.forEach(w => add(g, w.en))
   for (const p of m.focus?.paragraphs || []) for (const sen of splitSentences(p)) add(g, sen)
