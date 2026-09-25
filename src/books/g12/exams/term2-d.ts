@@ -107,8 +107,8 @@ export const term2D: Exam = {
               explainAr: 'النص: "Bacterial infections include pneumonia, strep throat, ear infection and food poisoning". أما influenza و AIDS و common cold فهي أمراض فيروسية مذكورة في الجملة الخاصة بالعدوى الفيروسية.' },
             { n: 10, kind: 'mcq', prompt: 'It can be very difficult to know what causes an infection because ……..', promptAr: 'قد يكون من الصعب جداً معرفة سبب العدوى لأن ……..', options: ['viral and bacterial infections can cause similar symptoms', 'viruses and bacteria are the same thing', 'doctors never take samples', 'the treatments are always the same'], answer: 0,
               explainAr: 'النص: "It can be very difficult to know what causes an infection because viral and bacterial infections can cause similar symptoms". وانتبه: النص يقول إن العلاجات تختلف (the treatments differ) لا أنها متشابهة.' },
-            { n: 11, kind: 'mcq', prompt: 'A small amount of a substance that is taken from someone’s body in order to test it is ……..', promptAr: 'كمية صغيرة من مادة تؤخذ من جسم شخص ما لفحصها هي ……..', options: ['symptom', 'gut', 'swab', 'urine'], answer: 2, topic: 'vocab',
-              explainAr: 'swab = مسحة (عيّنة تؤخذ من الأنف أو الحلق)، وهذا تعريفها في تمرين الكلمات في الوحدة 7، وهي في النص "swab from your nose or throat". symptom = عَرَض، gut = الأمعاء، urine = البول.' },
+            { n: 11, kind: 'mcq', prompt: 'A sign that something exists, especially something bad, is ……..', promptAr: 'علامة على وجود شيء ما، وخاصةً شيء سيّئ، هي ……..', options: ['swab', 'symptom', 'gut', 'host'], answer: 1, topic: 'vocab',
+              explainAr: 'symptom = عَرَض (علامة المرض)، وهذا تعريفها في تمرين الكلمات في الوحدة 7، وهي في النص "can cause similar symptoms". swab = مسحة، gut = الأمعاء، host = المضيف.' },
           ],
         },
         {
@@ -134,8 +134,8 @@ export const term2D: Exam = {
       questions: [
         { n: 14, kind: 'mcq', topic: 'vocab', prompt: 'This harsh environment is going to ……… at this concrete over time.', promptAr: 'ستعمل هذه البيئة القاسية على ___ هذا الإسمنت مع مرور الوقت.', options: ['check over', 'jack up', 'pull down', 'eat away'], answer: 3,
           explainAr: 'eat away at = يتآكل تدريجياً (to erode or corrode)، من الأفعال المركّبة في الوحدة 4، والجملة من كتابك. check over = يفحص بحثاً عن العيوب، jack up = يرفع بالرافعة، pull down = يهدم.' },
-        { n: 15, kind: 'mcq', topic: 'grammar', prompt: 'February 7 is the day ……… I met my best friend.', promptAr: '7 شباط هو اليوم ___ قابلتُ فيه أعزّ أصدقائي.', options: ['which', 'when', 'who', 'whose'], answer: 1,
-          explainAr: 'بعد اسم يدل على زمن (the day) تليه جملة كاملة (I met my best friend) نستخدم when، كما في المراجعة الثانية. which تحتاج جملة ينقصها مفعول أو فاعل، who للأشخاص، whose للملكية.' },
+        { n: 15, kind: 'mcq', topic: 'grammar', prompt: 'A plumber is a person ……… job is to mend central heating, taps, etc.', promptAr: 'السبّاك شخص ___ عمله إصلاح التدفئة المركزية والصنابير وغيرها.', options: ['which', 'whose', 'who', 'where'], answer: 1,
+          explainAr: 'بعد الفراغ اسم (job) يعود إلى الشخص (a person)، فنستخدم whose للملكية (الوحدة 5)، والجملة من كتابك. who يليها فعل مباشرة، which لغير العاقل، where للمكان.' },
         { n: 16, kind: 'mcq', topic: 'vocab', prompt: 'Writing long essays on uninteresting topics is ……….', promptAr: 'كتابة مقالات طويلة عن مواضيع غير ممتعة ___.', options: ['a pain in the neck', 'on the mend', 'by the book', 'on a roll'], answer: 0,
           explainAr: 'a pain in the neck = شيء مزعج جداً (تعابير الجسم، الوحدة 8)، والجملة من كتابك. on the mend = يتماثل للشفاء (الوحدة 3)، by the book = حسب القواعد (الوحدة 5)، on a roll = في سلسلة نجاحات (الوحدة 2).' },
         { n: 17, kind: 'mcq', topic: 'vocab', prompt: 'A new plan for achieving a particular purpose is ……….', promptAr: 'الخطة الجديدة لتحقيق غرض معيّن هي ___.', options: ['consultation', 'liability', 'initiative', 'novelty'], answer: 2,
