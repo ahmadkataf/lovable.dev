@@ -1,0 +1,19 @@
+# The Emar activation and content server (Cloudflare Worker + D1 database).
+# Deploy: see server/README.md
+name = "emar-api"
+main = "src/index.ts"
+compatibility_date = "2025-06-01"
+
+# The paid book content (made by scripts/split-online.mjs). Nothing here is public:
+# every request goes through the worker, which checks the student's session first.
+[assets]
+directory = "./content"
+binding = "ASSETS"
+run_worker_first = true
+
+[[d1_databases]]
+binding = "DB"
+database_name = "emar"
+database_id = "00000000-0000-0000-0000-000000000000"   # replaced on deploy with the real id
+
+# Secrets (never in this file): TOKEN_SECRET signs student sessions, ADMIN_KEY opens the control panel.

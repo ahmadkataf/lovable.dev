@@ -146,7 +146,7 @@ export default function Home({ modules, progress, onStart, hasExams, pro = true 
                     <span className="em">{u.emoji}</span>
                     <div>
                       <div className="t">Unit {u.number}: {u.title} <span className="muted">· {u.titleAr}</span></div>
-                      <div className="s">{pages ? `${pages} · ` : ''}{doneCount}/{lessons.length} دروس{shown !== 'workbook' && shown !== 'skills' ? ` · ${u.vocab.length} كلمة` : ''}</div>
+                      <div className="s">{pages ? `${pages} · ` : ''}{doneCount}/{lessons.length} دروس{shown !== 'workbook' && shown !== 'skills' ? ` · ${u.outline?.vocab ?? u.vocab.length} كلمة` : ''}</div>
                     </div>
                   </div>
                   <div className="path">

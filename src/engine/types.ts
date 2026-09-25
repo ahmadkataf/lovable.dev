@@ -87,6 +87,8 @@ export interface Unit {
   workbook?: Workbook        // the Activity Book pages for this unit
   compositions?: Composition[]   // the unit's writing tasks, taught step by step with a model answer
   translations?: TranslationItem[]  // book sentences to translate both ways, as the exam's translation task does
+  /** A unit whose content stays on the server until the app is activated: only its lesson list is known. */
+  outline?: { lessons: Omit<Lesson, 'unitId'>[]; vocab: number }
 }
 
 /** The Activity Book (Workbook) pages of a unit: its texts and every exercise it prints, solved. */

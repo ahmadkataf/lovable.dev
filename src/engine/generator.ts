@@ -43,6 +43,7 @@ const STEP = {
 /** The lessons of a unit follow the book's sections. Units without a taught vocabulary
  *  point or an Everyday English section (Grade 8) keep exactly their previous lessons and ids. */
 export function lessonsForUnit(u: Unit): Lesson[] {
+  if (u.outline) return u.outline.lessons.map(l => ({ ...l, unitId: u.id }))
   const steps: Step[] = [STEP.vocab1, STEP.vocab2, STEP.reading]
   if (u.vocabFocus) steps.push(STEP.vocabFocus)
   steps.push(STEP.grammar1, STEP.grammar2, STEP.listening)
