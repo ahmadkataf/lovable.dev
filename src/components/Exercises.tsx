@@ -25,7 +25,7 @@ export function judge(ex: Exercise, value: unknown): boolean {
     case 'read': return value === ex.question.answer
     case 'truefalse': return (value === 0 || value === true) === ex.answer
     case 'type_en': return checkTyped(ex.word, String(value ?? ''))
-    case 'build': return checkBuild(ex.target, ((value as number[]) || []).map(i => ex.tiles[i]))
+    case 'build': return Array.isArray(value) && checkBuild(ex.target, value.map(i => ex.tiles[i as number]))
     case 'match': return value === true
   }
 }
@@ -162,7 +162,7 @@ function TypeView({ ex, value, onChange, result }: ExProps) {
       <div className="prompt-sub">اكتب الكلمة بالإنجليزية</div>
       <div className="prompt">{ex.word.ar}</div>
       {ex.word.def && <div className="muted en mb">{ex.word.def}</div>}
-      <input ref={ref} className="type-input" value={(value as string) || ''} disabled={!!result} placeholder="Type in English..." autoCapitalize="off" autoCorrect="off" spellCheck={false}
+      <input ref={ref} className="type-input" value={typeof value === 'string' ? value : ''} disabled={!!result} placeholder="Type in English..." autoCapitalize="off" autoCorrect="off" spellCheck={false}
         onChange={e => onChange(e.target.value, e.target.value.trim().length > 0)} />
       <div className="row mt"><Speaker text={ex.word.en} size="sm" /><span className="muted">تلميح: اسمع الكلمة</span></div>
     </div>
@@ -210,7 +210,8 @@ function MatchView({ ex, onChange, autoSpeak }: ExProps) {
 // ---------------- build sentence ----------------
 function BuildView({ ex, value, onChange, result }: ExProps) {
   if (ex.kind !== 'build') return null
-  const chosen = (value as number[] | undefined) || []   // indexes into ex.tiles
+  // indexes into ex.tiles (a skipped exercise has no selection)
+  const chosen: number[] = Array.isArray(value) ? value : []
   const set = (idx: number[]) => onChange(idx, idx.length > 0)
   return (
     <div className="fade">
@@ -289,7 +290,7 @@ function DictationView({ ex, value, onChange, result }: ExProps) {
       <div className="prompt-sub">إملاء: استمع واكتب {sentence ? 'الجملة' : 'الكلمة'} كما تسمعها</div>
       <div className="row" style={{ justifyContent: 'center', gap: 16, margin: '12px 0' }}><Speaker text={ex.text} size="big" autoplay /><Speaker text={ex.text} slow /></div>
       {ex.word && <div className="center muted mb">{ex.word.ar}</div>}
-      <input ref={ref} className="type-input en" dir="ltr" value={(value as string) || ''} disabled={!!result} placeholder={sentence ? 'Write the sentence...' : 'Write the word...'} autoCapitalize="off" autoCorrect="off" spellCheck={false}
+      <input ref={ref} className="type-input en" dir="ltr" value={typeof value === 'string' ? value : ''} disabled={!!result} placeholder={sentence ? 'Write the sentence...' : 'Write the word...'} autoCapitalize="off" autoCorrect="off" spellCheck={false}
         onChange={e => onChange(e.target.value, e.target.value.trim().length > 0)} />
       <div className="muted mt" style={{ fontSize: 13 }}>انتبه للتهجئة: الحروف الكبيرة والنقاط لا تُحسب.</div>
     </div>
@@ -306,7 +307,7 @@ function TranslateView({ ex, value, onChange }: ExProps) {
     <div className="fade">
       <div className="prompt-sub">{toEn ? 'ترجم إلى الإنجليزية' : 'ترجم إلى العربية'} — اكتب ترجمتك ثم قارنها بالنموذج</div>
       <div className={`prompt ${toEn ? '' : 'en'}`} style={{ fontSize: 19 }}>{!toEn && <Speaker text={ex.source} size="sm" />} {ex.source}</div>
-      <textarea className={`type-input ${toEn ? 'en' : ''}`} dir={toEn ? 'ltr' : 'rtl'} rows={3} value={(value as string) || ''} disabled={shown}
+      <textarea className={`type-input ${toEn ? 'en' : ''}`} dir={toEn ? 'ltr' : 'rtl'} rows={3} value={typeof value === 'string' ? value : ''} disabled={shown}
         placeholder={toEn ? 'Write your translation...' : 'اكتب ترجمتك...'} onChange={e => onChange(e.target.value, false)} style={{ fontSize: 16 }} />
       {!shown
         ? <button className="btn btn-blue btn-block mt" disabled={!String(value || '').trim()} onClick={() => { setShown(true); onChange(value, true) }}>قارن بالترجمة النموذجية</button>

@@ -15,7 +15,7 @@ os.makedirs(out_dir, exist_ok=True)
 texts = json.load(open(f'audio-src/{book}/texts.json'))
 voice = PiperVoice.load(voice_path)
 SR = voice.config.sample_rate
-GAP = int(0.25 * SR)
+GAP = int(float(os.environ.get('AUDIO_GAP', '0.25')) * SR)  # silence between clips
 try:
     import imageio_ffmpeg; FFMPEG = imageio_ffmpeg.get_ffmpeg_exe()
 except Exception:
