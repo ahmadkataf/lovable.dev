@@ -1,130 +1,185 @@
 import { useMemo, useState } from 'react'
 import type { Lesson, Module, Unit } from '../engine/types'
 import type { Progress } from '../engine/progress'
-import { SOURCE_NAME, bossLesson, lessonSource, lessonsForUnit, progressTestLesson, reviewLesson, type LessonSource } from '../engine/generator'
+import { SOURCE_NAME, bossLesson, lessonSource, lessonsForUnit, progressTestLesson, reviewLesson } from '../engine/generator'
 import meta from '@book-meta'
 
 interface Props { modules: Module[]; progress: Progress; onStart: (lesson: Lesson) => void; hasExams?: boolean }
 
-export function unlockedState(modules: Module[], progress: Progress) {
-  // sequential unlock: a lesson is open if the previous lesson (in global order) is completed
-  const order: Lesson[] = []
-  for (const m of modules) {
-    for (const u of m.units) order.push(...lessonsForUnit(u))
-    order.push(bossLesson(m))
+/** A book with an Activity Book is studied as separate tracks, each with its own path. */
+type Track = 'book' | 'workbook' | 'skills'
+const TRACKS: Track[] = ['book', 'workbook', 'skills']
+function trackOf(l: Lesson): Track {
+  const s = lessonSource(l)
+  return s === 'workbook' ? 'workbook' : s === 'skills' ? 'skills' : 'book'
+}
+function hasTracks(modules: Module[]): boolean {
+  return modules.some(m => m.units.some(u => u.workbook || u.compositions?.length || u.translations?.length))
+}
+/** The module-level lessons that close a module: the unit test and the book's Review, or the Activity Book's Progress Test. */
+function moduleLessons(m: Module, track: Track | null): Lesson[] {
+  const out: Lesson[] = []
+  if (track === null || track === 'book') {
+    out.push(bossLesson(m))
     const r = reviewLesson(m)
-    if (r) order.push(r)
+    if (r) out.push(r)
+  }
+  if (track === null || track === 'workbook') {
     const t = progressTestLesson(m)
-    if (t) order.push(t)
+    if (t) out.push(t)
   }
+  return out
+}
+
+export function unlockedState(modules: Module[], progress: Progress) {
+  // sequential unlock inside each path: a lesson is open when the one before it is completed
+  const split = hasTracks(modules)
+  const chains: Lesson[][] = (split ? TRACKS : [null]).map(track => {
+    const chain: Lesson[] = []
+    for (const m of modules) {
+      for (const u of m.units) chain.push(...lessonsForUnit(u).filter(l => track === null || trackOf(l) === track))
+      chain.push(...moduleLessons(m, track))
+    }
+    return chain
+  })
   const status = new Map<string, 'done' | 'open' | 'locked'>()
-  let openGiven = false
-  for (const l of order) {
-    const done = !!progress.lessons[l.id]
-    if (done) status.set(l.id, 'done')
-    else if (!openGiven) { status.set(l.id, 'open'); openGiven = true }
-    else status.set(l.id, 'locked')
+  for (const chain of chains) {
+    let openGiven = false
+    for (const l of chain) {
+      if (progress.lessons[l.id]) status.set(l.id, 'done')
+      else if (!openGiven) { status.set(l.id, 'open'); openGiven = true }
+      else status.set(l.id, 'locked')
+    }
   }
+  const order = chains.flat()
   const unlockedUnits = new Set<string>()
   for (const l of order) if (status.get(l.id) !== 'locked') unlockedUnits.add(l.unitId)
   return { order, status, unlockedUnits }
 }
 
 const GUIDE_KEY = `${meta.storageKey}.guideSeen`
-function guideSeen(): boolean { try { return !!localStorage.getItem(GUIDE_KEY) } catch { return true } }
+const TRACK_KEY = `${meta.storageKey}.track`
+function load(key: string): string | null { try { return localStorage.getItem(key) } catch { return null } }
+function save(key: string, v: string) { try { localStorage.setItem(key, v) } catch { /* ignore */ } }
 
-/** A unit that has Activity Book or exam-skill lessons shows its lessons grouped by where they come from. */
-function hasSources(u: Unit): boolean { return !!(u.workbook || u.compositions?.length || u.translations?.length) }
+const TRACK_INFO: Record<Track, { title: string; en: string; note: string }> = {
+  book: { title: SOURCE_NAME.book, en: "Student's Book", note: 'الكلمات، القراءة، القواعد، المفردات، اللفظ والحوار' },
+  workbook: { title: SOURCE_NAME.workbook, en: 'Activity Book', note: 'نصوص كتاب الأنشطة وكل تمارينه محلولة، واختبارات التقدّم' },
+  skills: { title: SOURCE_NAME.skills, en: 'Exam skills', note: 'الترجمة، الإنشاء خطوة بخطوة، تركيب الجمل ومراجعة كل وحدة' },
+}
 
-const GROUP_NOTE: Record<LessonSource, (u: Unit) => string> = {
-  book: u => `دروس كتاب الطالب${u.pages ? ` · صفحات ${u.pages}` : ''}`,
-  workbook: u => `تمارين كتاب الأنشطة محلولة${u.workbook?.pages ? ` · صفحات ${u.workbook.pages}` : ''}`,
-  skills: () => 'الترجمة والإنشاء وتركيب الجمل ومراجعة الوحدة',
-  test: () => '',
+function unitPages(u: Unit, track: Track | null): string {
+  if (track === 'workbook') return u.workbook?.pages ? `كتاب الأنشطة صفحات ${u.workbook.pages}` : ''
+  if (track === 'skills') return ''
+  return `صفحات ${u.pages}`
 }
 
 export default function Home({ modules, progress, onStart, hasExams }: Props) {
   const { status } = useMemo(() => unlockedState(modules, progress), [modules, progress])
   const offsets = [0, 40, 70, 40, 0, -40, -70, -40]
-  const withWorkbook = modules.some(m => m.units.some(u => u.workbook))
-  const [guide, setGuide] = useState(() => withWorkbook && !guideSeen())
-  const closeGuide = () => { setGuide(false); try { localStorage.setItem(GUIDE_KEY, '1') } catch { /* ignore */ } }
+  const split = hasTracks(modules)
+  const [guide, setGuide] = useState(() => split && !load(GUIDE_KEY))
+  const [track, setTrackState] = useState<Track>(() => (TRACKS as string[]).includes(load(TRACK_KEY) || '') ? load(TRACK_KEY) as Track : 'book')
+  const setTrack = (t: Track) => { setTrackState(t); save(TRACK_KEY, t); window.scrollTo(0, 0) }
+  const closeGuide = () => { setGuide(false); save(GUIDE_KEY, '1') }
+  const shown: Track | null = split ? track : null
+  const inTrack = (l: Lesson) => shown === null || trackOf(l) === shown
+
+  const trackCount = (t: Track) => {
+    const all = modules.flatMap(m => [...m.units.flatMap(u => lessonsForUnit(u)), ...moduleLessons(m, t)]).filter(l => trackOf(l) === t)
+    return { done: all.filter(l => status.get(l.id) === 'done').length, total: all.length }
+  }
+
   return (
     <div className="page">
-      {withWorkbook && !guide && <button className="guide-link" onClick={() => setGuide(true)}>❓ كيف أستخدم التطبيق؟</button>}
+      {split && (
+        <>
+          <div className="track-cards">
+            {TRACKS.map(t => {
+              const c = trackCount(t)
+              return (
+                <button key={t} className={`track-card track-${t} ${track === t ? 'active' : ''}`} onClick={() => setTrack(t)}>
+                  <b>{TRACK_INFO[t].title}</b>
+                  <span className="en">{TRACK_INFO[t].en}</span>
+                  <span className="track-note">{TRACK_INFO[t].note}</span>
+                  <div className="track-bar"><div style={{ width: `${c.total ? (c.done / c.total) * 100 : 0}%` }} /></div>
+                  <span className="track-count">{c.done} / {c.total} درساً</span>
+                </button>
+              )
+            })}
+          </div>
+          {!guide && <button className="guide-link" onClick={() => setGuide(true)}>❓ كيف أستخدم التطبيق؟</button>}
+        </>
+      )}
       {guide && (
         <div className="card guide fade">
           <div className="h2">👋 أهلاً! هكذا يعمل التطبيق</div>
-          <p className="muted">كل وحدة في المسار مقسومة إلى ثلاثة أقسام بألوان مختلفة، ادرسها بالترتيب:</p>
-          <div className="guide-row src-book"><b>{SOURCE_NAME.book}</b><span>الكتاب المدرسي نفسه: الكلمات، نص القراءة، القواعد، المفردات، اللفظ والحوار. رقم الصفحة مكتوب فوق كل قسم.</span></div>
+          <p className="muted">في أعلى الصفحة ثلاث بطاقات. اضغط على بطاقة لترى دروسها وحدها، ولكلٍّ منها مسار وتقدّم مستقل:</p>
+          <div className="guide-row src-book"><b>{SOURCE_NAME.book}</b><span>الكتاب المدرسي نفسه، وحدة وحدة: الكلمات، نص القراءة، القواعد، المفردات، اللفظ والحوار، مع أرقام الصفحات.</span></div>
           <div className="guide-row src-workbook"><b>{SOURCE_NAME.workbook}</b><span>كتاب التمارين (Activity Book): نصوصه وكل تمارينه محلولة مع الشرح، واختبارات التقدّم.</span></div>
           <div className="guide-row src-skills"><b>{SOURCE_NAME.skills}</b><span>الترجمة، والإنشاء خطوة بخطوة، وتركيب الجمل، ومراجعة الوحدة.</span></div>
+          <p className="muted" style={{ fontSize: 13 }}>الأفضل: ادرس الوحدة في كتاب الطالب أولاً، ثم حلّ تمارينها في كتاب الأنشطة، ثم تدرّب على مهاراتها.</p>
           {hasExams && <div className="guide-row"><b>📝 امتحانات</b><span>من الشريط في الأسفل: نماذج بشكل الامتحان النهائي تماماً، مع التصحيح.</span></div>}
           <div className="guide-row"><b>📖 الكتاب</b><span>من الشريط في الأسفل: نصوص الكتابين كاملة مع الصوت والترجمة، للمراجعة في أي وقت.</span></div>
-          <p className="muted" style={{ fontSize: 13 }}>في أعلى كل درس ستجد سطراً يقول من أي كتاب هو ومن أي صفحات.</p>
           <button className="btn btn-primary btn-block" onClick={closeGuide}>فهمت، لنبدأ</button>
         </div>
       )}
-      {modules.map(m => (
-        <div key={m.number}>
-          <div className="module-head" style={{ background: m.color }}>
-            <div className="sub">الوحدة {m.number} · {m.titleAr}</div>
-            <div className="title">Module {m.number}: {m.title}</div>
-          </div>
-          {m.units.map(u => {
-            const lessons = lessonsForUnit(u)
-            const doneCount = lessons.filter(l => status.get(l.id) === 'done').length
-            return (
-              <div className="unit-block" key={u.id}>
-                <div className="unit-title">
-                  <span className="em">{u.emoji}</span>
-                  <div>
-                    <div className="t">Unit {u.number}: {u.title} <span className="muted">· {u.titleAr}</span></div>
-                    <div className="s">صفحات {u.pages} · {doneCount}/{lessons.length} دروس · {u.vocab.length} كلمة</div>
+      {split && <div className={`track-title track-${track}`}>{TRACK_INFO[track].title} — <span className="en">{TRACK_INFO[track].en}</span></div>}
+      {modules.map(m => {
+        const closing = moduleLessons(m, shown)
+        return (
+          <div key={m.number}>
+            <div className="module-head" style={{ background: m.color }}>
+              <div className="sub">الوحدة {m.number} · {m.titleAr}</div>
+              <div className="title">Module {m.number}: {m.title}</div>
+            </div>
+            {m.units.map(u => {
+              const lessons = lessonsForUnit(u).filter(inTrack)
+              if (!lessons.length) return null
+              const doneCount = lessons.filter(l => status.get(l.id) === 'done').length
+              const pages = unitPages(u, shown)
+              return (
+                <div className="unit-block" key={u.id}>
+                  <div className="unit-title">
+                    <span className="em">{u.emoji}</span>
+                    <div>
+                      <div className="t">Unit {u.number}: {u.title} <span className="muted">· {u.titleAr}</span></div>
+                      <div className="s">{pages ? `${pages} · ` : ''}{doneCount}/{lessons.length} دروس{shown !== 'workbook' && shown !== 'skills' ? ` · ${u.vocab.length} كلمة` : ''}</div>
+                    </div>
+                  </div>
+                  <div className="path">
+                    {lessons.map((l, i) => <Node key={l.id} lesson={l} st={status.get(l.id)!} stars={progress.lessons[l.id]?.stars} onStart={onStart} offset={offsets[i % offsets.length]} track={shown} />)}
                   </div>
                 </div>
-                {!hasSources(u) ? (
-                  <div className="path">
-                    {lessons.map((l, i) => <Node key={l.id} lesson={l} st={status.get(l.id)!} stars={progress.lessons[l.id]?.stars} onStart={onStart} offset={offsets[i % offsets.length]} />)}
+              )
+            })}
+            {closing.length > 0 && (
+              <div className="path" style={{ marginBottom: 24 }}>
+                {closing.map(l => (
+                  <div key={l.id} className="node-block">
+                    {l.kind === 'progressTest' && m.progressTest && <div className="muted center" style={{ fontSize: 12 }}>{m.progressTest.title} · صفحات {m.progressTest.pages}</div>}
+                    <Node lesson={l} st={status.get(l.id)!} stars={progress.lessons[l.id]?.stars} onStart={onStart} offset={0} boss track={shown} />
                   </div>
-                ) : (
-                  (['book', 'workbook', 'skills'] as LessonSource[]).map(src => {
-                    const group = lessons.filter(l => lessonSource(l) === src)
-                    if (!group.length) return null
-                    return (
-                      <div key={src} className={`src-group src-${src}`}>
-                        <div className="src-head"><b>{SOURCE_NAME[src]}</b><span>{GROUP_NOTE[src](u)}</span></div>
-                        <div className="path">
-                          {group.map(l => <Node key={l.id} lesson={l} st={status.get(l.id)!} stars={progress.lessons[l.id]?.stars} onStart={onStart} offset={offsets[l.index % offsets.length]} src={src} />)}
-                        </div>
-                      </div>
-                    )
-                  })
-                )}
+                ))}
               </div>
-            )
-          })}
-          <div className="path" style={{ marginBottom: 24 }}>
-            <Node lesson={bossLesson(m)} st={status.get(bossLesson(m).id)!} stars={progress.lessons[bossLesson(m).id]?.stars} onStart={onStart} offset={0} boss />
-            {(() => { const r = reviewLesson(m); return r ? <Node lesson={r} st={status.get(r.id)!} stars={progress.lessons[r.id]?.stars} onStart={onStart} offset={0} boss /> : null })()}
-            {(() => { const t = progressTestLesson(m); return t ? <div className="src-group src-workbook" style={{ width: '100%' }}><div className="src-head"><b>{SOURCE_NAME.workbook}</b><span>{m.progressTest!.title} · صفحات {m.progressTest!.pages}</span></div><div className="path"><Node lesson={t} st={status.get(t.id)!} stars={progress.lessons[t.id]?.stars} onStart={onStart} offset={0} boss src="workbook" /></div></div> : null })()}
+            )}
           </div>
-        </div>
-      ))}
+        )
+      })}
       <div className="card center mt">
         <div style={{ fontSize: 40 }}>🎓</div>
-        <div className="h2">أنهيت الكتاب كاملاً؟</div>
-        <p className="muted">تابع التدريب اليومي من تبويب «الكلمات» لتثبيت ما حفظته.</p>
+        <div className="h2">{split ? `أنهيت ${TRACK_INFO[track].title.replace(/^\S+\s/, '')}؟` : 'أنهيت الكتاب كاملاً؟'}</div>
+        <p className="muted">{split ? 'انتقل إلى البطاقة التالية في أعلى الصفحة، وتابع التدريب اليومي من تبويب «الكلمات».' : 'تابع التدريب اليومي من تبويب «الكلمات» لتثبيت ما حفظته.'}</p>
       </div>
     </div>
   )
 }
 
-function Node({ lesson, st, stars, onStart, offset, boss, src }: { lesson: Lesson; st: 'done' | 'open' | 'locked'; stars?: number; onStart: (l: Lesson) => void; offset: number; boss?: boolean; src?: LessonSource }) {
+function Node({ lesson, st, stars, onStart, offset, boss, track }: { lesson: Lesson; st: 'done' | 'open' | 'locked'; stars?: number; onStart: (l: Lesson) => void; offset: number; boss?: boolean; track?: Track | null }) {
   return (
     <div className="node-wrap" style={{ transform: `translateX(${offset}px)` }}>
       {st === 'open' && <div className="start-bubble">ابدأ</div>}
-      <button className={`node ${st} ${boss ? 'boss' : ''} ${src ? `node-${src}` : ''}`} disabled={st === 'locked'} onClick={() => onStart(lesson)} aria-label={lesson.title}>
+      <button className={`node ${st} ${boss ? 'boss' : ''} ${track ? `node-${track}` : ''}`} disabled={st === 'locked'} onClick={() => onStart(lesson)} aria-label={lesson.title}>
         {st === 'locked' ? '🔒' : st === 'done' ? (boss ? '👑' : '⭐') : lesson.icon}
       </button>
       <div className="node-label">{lesson.title}</div>
