@@ -1,6 +1,11 @@
 package com.emar8.app;
 
 import android.app.Activity;
+import android.app.AlertDialog;
+import android.content.ClipData;
+import android.content.ClipboardManager;
+import android.content.DialogInterface;
+import android.content.SharedPreferences;
 import android.content.Intent;
 import android.content.res.AssetManager;
 import android.provider.Settings;
@@ -23,6 +28,8 @@ import android.net.Uri;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.PrintWriter;
+import java.io.StringWriter;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -35,26 +42,87 @@ public class MainActivity extends Activity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        Window w = getWindow();
-        // white system bars with dark icons; from Android 15 the app draws behind them, so the
-        // container below is padded by their size (and by the keyboard's)
-        w.setStatusBarColor(Color.WHITE);
-        w.setNavigationBarColor(Color.WHITE);
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-            WindowInsetsController c = w.getInsetsController();
-            if (c != null) c.setSystemBarsAppearance(
-                WindowInsetsController.APPEARANCE_LIGHT_STATUS_BARS | WindowInsetsController.APPEARANCE_LIGHT_NAVIGATION_BARS,
-                WindowInsetsController.APPEARANCE_LIGHT_STATUS_BARS | WindowInsetsController.APPEARANCE_LIGHT_NAVIGATION_BARS);
-        } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            w.getDecorView().setSystemUiVisibility(View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR | View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR);
-        }
-
+        keepCrashReports();
         root = new FrameLayout(this);
         root.setBackgroundColor(Color.WHITE);
         root.setOnApplyWindowInsetsListener(new BarPadding());
         setContentView(root);
+        styleBars();
         web = newWebView();
         if (savedInstanceState == null || web.restoreState(savedInstanceState) == null) web.loadUrl("https://" + HOST + "/index.html");
+        showLastCrash();
+    }
+
+    private static final String CRASHES = "crashes";
+
+    /** If the app ever stops on an error, the error is kept so that the next launch can show it. */
+    private void keepCrashReports() {
+        final SharedPreferences prefs = getSharedPreferences(CRASHES, MODE_PRIVATE);
+        final Thread.UncaughtExceptionHandler previous = Thread.getDefaultUncaughtExceptionHandler();
+        Thread.setDefaultUncaughtExceptionHandler(new CrashKeeper(prefs, previous));
+    }
+
+    static final class CrashKeeper implements Thread.UncaughtExceptionHandler {
+        private final SharedPreferences prefs;
+        private final Thread.UncaughtExceptionHandler previous;
+        CrashKeeper(SharedPreferences prefs, Thread.UncaughtExceptionHandler previous) { this.prefs = prefs; this.previous = previous; }
+
+        @Override
+        public void uncaughtException(Thread t, Throwable e) {
+            StringWriter trace = new StringWriter();
+            e.printStackTrace(new PrintWriter(trace));
+            String text = "Android " + Build.VERSION.RELEASE + " (SDK " + Build.VERSION.SDK_INT + ") · " + Build.MANUFACTURER + " " + Build.MODEL + "\n" + trace;
+            prefs.edit().putString("last", text.length() > 4000 ? text.substring(0, 4000) : text).commit();
+            if (previous != null) previous.uncaughtException(t, e);
+        }
+    }
+
+    /** Shows the error that closed the app last time, once, with a button to copy it for support. */
+    private void showLastCrash() {
+        final SharedPreferences prefs = getSharedPreferences(CRASHES, MODE_PRIVATE);
+        final String last = prefs.getString("last", null);
+        if (last == null) return;
+        prefs.edit().remove("last").apply();
+        new AlertDialog.Builder(this)
+            .setTitle("أُغلق التطبيق في المرة السابقة بسبب خطأ")
+            .setMessage("أرسل صورة لهذه الرسالة إلى الدعم الفني ليُصلَح الخطأ:\n\n" + last)
+            .setPositiveButton("نسخ", new CopyText(this, last))
+            .setNegativeButton("إغلاق", null)
+            .show();
+    }
+
+    static final class CopyText implements DialogInterface.OnClickListener {
+        private final Activity host;
+        private final String text;
+        CopyText(Activity host, String text) { this.host = host; this.text = text; }
+
+        @Override
+        public void onClick(DialogInterface d, int which) {
+            ClipboardManager cm = (ClipboardManager) host.getSystemService(CLIPBOARD_SERVICE);
+            if (cm != null) cm.setPrimaryClip(ClipData.newPlainText("Emar error", text));
+        }
+    }
+
+    /** White system bars with dark icons; from Android 15 the app draws behind them, so the container is
+     *  padded by their size (and by the keyboard's). Called after setContentView: before it the window has
+     *  no decor view, and on Android 11–14 getInsetsController() then throws and the app closes at launch. */
+    private void styleBars() {
+        try {
+            Window w = getWindow();
+            w.setStatusBarColor(Color.WHITE);
+            w.setNavigationBarColor(Color.WHITE);
+            View decor = w.getDecorView();
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                WindowInsetsController c = decor.getWindowInsetsController();
+                if (c != null) c.setSystemBarsAppearance(
+                    WindowInsetsController.APPEARANCE_LIGHT_STATUS_BARS | WindowInsetsController.APPEARANCE_LIGHT_NAVIGATION_BARS,
+                    WindowInsetsController.APPEARANCE_LIGHT_STATUS_BARS | WindowInsetsController.APPEARANCE_LIGHT_NAVIGATION_BARS);
+            } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                decor.setSystemUiVisibility(View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR | View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR);
+            }
+        } catch (RuntimeException ignored) {
+            // only the colour of the bars: never a reason to stop the app
+        }
     }
 
     private WebView newWebView() {

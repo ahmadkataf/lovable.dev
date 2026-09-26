@@ -41,7 +41,7 @@ rm -f "$B/assets/www/artifact.html"
 LINK=(-I "$AJ" --manifest "$A/AndroidManifest.xml" -R "$B/res.zip" --auto-add-overlay -A "$B/assets"
   --min-sdk-version 24 --target-sdk-version "$TARGET" --rename-manifest-package "$PKG" "${VERSION[@]}")
 "$BT/aapt2" link -o "$B/unsigned.apk" --java "$B/gen" "${LINK[@]}"
-javac --release 17 -cp "$AJ" -d "$B/obj" $(find "$B/gen" "$A/src" -name '*.java')
+javac --release 17 -encoding UTF-8 -cp "$AJ" -d "$B/obj" $(find "$B/gen" "$A/src" -name '*.java')
 (cd "$B/obj" && jar cf ../classes.jar .)
 "$BT/d8" --release --lib "$AJ" --min-api 24 --output "$B/dex" "$B/classes.jar"
 (cd "$B/dex" && zip -q -u "$B/unsigned.apk" classes.dex)
