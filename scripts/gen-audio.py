@@ -1,8 +1,11 @@
-"""Generate per-unit audio sprites (mp3) + index.json from audio-src/<book>/texts.json using Piper TTS.
-Usage: python3 scripts/gen-audio.py <voice.onnx> [book]      (default book: g8 -> public/g8/audio)
+"""Generate per-unit audio sprites (mp3) + index.json from audio-src/<book>/texts.json.
+Usage: python3 scripts/gen-audio.py <voice> [book]      (default book: g8 -> public/g8/audio)
+  <voice> is a Piper voice (.onnx), or, for the more natural Kokoro voices, the folder holding Kokoro's
+  model.onnx and voices.npz followed by the voice name:  path/to/kokoro:af_heart
+Optional environment: AUDIO_RATE, AUDIO_KBPS, AUDIO_GAP, AUDIO_CHUNK (below), and AUDIO_GROUPS=u1,m2 to
+record only those units again, keeping the rest of the index.
 """
 import json, sys, os, struct, subprocess, wave, io, time
-from piper import PiperVoice
 import numpy as np
 
 voice_path = sys.argv[1]
@@ -13,8 +16,28 @@ book = sys.argv[2] if len(sys.argv) > 2 else 'g8'
 out_dir = f'public/{book}/audio'
 os.makedirs(out_dir, exist_ok=True)
 texts = json.load(open(f'audio-src/{book}/texts.json'))
-voice = PiperVoice.load(voice_path)
-SR = voice.config.sample_rate
+
+if ':' in voice_path and os.path.isdir(voice_path.rsplit(':', 1)[0]):
+    from kokoro_onnx import Kokoro
+    kdir, kvoice = voice_path.rsplit(':', 1)
+    kokoro = Kokoro(os.path.join(kdir, 'model.onnx'), os.path.join(kdir, 'voices.npz'))
+    SR = 24000
+    def raw_synth(text):
+        s, sr = kokoro.create(text, voice=kvoice, speed=1.0, lang='en-gb' if kvoice[0] == 'b' else 'en-us')
+        assert sr == SR
+        return (np.clip(s, -1, 1) * 32767).astype(np.int16)
+else:
+    from piper import PiperVoice
+    voice = PiperVoice.load(voice_path)
+    SR = voice.config.sample_rate
+    def raw_synth(text):
+        buf = io.BytesIO()
+        with wave.open(buf, 'wb') as w:
+            voice.synthesize_wav(text, w)
+        buf.seek(0)
+        with wave.open(buf, 'rb') as w:
+            assert w.getframerate() == SR and w.getnchannels() == 1
+            return np.frombuffer(w.readframes(w.getnframes()), dtype=np.int16)
 GAP = int(float(os.environ.get('AUDIO_GAP', '0.25')) * SR)  # silence between clips
 # Each group is cut into files of at most this many seconds (u1c0.mp3, u1c1.mp3, …): a phone decodes a
 # file whole into memory before playing it, and one long file per unit took hundreds of MB and crashed
@@ -41,20 +64,21 @@ def speakable(text):
     return t if re.search(r'[A-Za-z0-9]', t) else None
 
 def synth(text):
-    buf = io.BytesIO()
-    with wave.open(buf, 'wb') as w:
-        voice.synthesize_wav(text, w)
-    buf.seek(0)
-    with wave.open(buf, 'rb') as w:
-        assert w.getframerate() == SR and w.getnchannels() == 1
-        data = np.frombuffer(w.readframes(w.getnframes()), dtype=np.int16)
+    data = raw_synth(text)
     # trim leading/trailing near-silence
     thr = 300
     idx = np.where(np.abs(data) > thr)[0]
     if len(idx): data = data[max(0, idx[0] - int(0.05*SR)): min(len(data), idx[-1] + int(0.12*SR))]
     return data
 
+ONLY = [g for g in os.environ.get('AUDIO_GROUPS', '').split(',') if g]
 index = {}
+if ONLY:
+    import re as _re
+    index = {k: v for k, v in json.load(open(os.path.join(out_dir, 'index.json')))['groups'].items() if _re.sub(r'c\d+$', '', k) not in ONLY}
+    for f in os.listdir(out_dir):
+        if f.endswith('.mp3') and _re.sub(r'c\d+$', '', f[:-4]) in ONLY: os.remove(os.path.join(out_dir, f))
+    texts = {g: t for g, t in texts.items() if g in ONLY}
 total_sec = 0
 t0 = time.time()
 def write(name, parts):

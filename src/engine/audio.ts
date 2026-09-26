@@ -37,7 +37,7 @@ const audioUrl = (f: string) => `${BASE.replace(/\/?$/, '/')}audio/${f}`
 // sprites come from there instead of from the app's own files.
 export type AudioSource = (file: string) => Promise<Response>
 let remote: AudioSource | null = null
-export function setAudioSource(src: AudioSource | null) { remote = src; indexPromise = null; indexStatus = 'idle'; buffers.clear(); seconds.clear() }
+export function setAudioSource(src: AudioSource | null) { remote = src; indexPromise = null; indexStatus = 'idle'; buffers.clear(); seconds.clear(); clips.clear() }
 const getAudio = (file: string) => (remote ? remote(file) : fetch(audioUrl(file)))
 
 let indexPromise: Promise<Map<string, Clip> | null> | null = null
@@ -70,7 +70,7 @@ function loadIndex(): Promise<Map<string, Clip> | null> {
 // A file is decoded whole before it plays, and decoded audio is large (a minute is about 5 MB), so only
 // the files played last are kept, and they are decoded at a speech sample rate rather than the phone's.
 const KEEP_SECONDS = 360
-const DECODE_RATE = 22050
+const DECODE_RATE = 24000
 const buffers = new Map<string, Promise<AudioBuffer | null>>()
 const seconds = new Map<string, number>()
 
@@ -122,22 +122,81 @@ export function preload(group: string) {
 }
 export function preloadIndex() { loadIndex() }
 
+// ---------------- speed ----------------
+// Slower speech keeps the voice's pitch: the clip is stretched in time (WSOLA), rather than played slower,
+// which would make it sound low and drawn out.
+let speechRate = 1
+/** The speed chosen in the settings: 1 normal, less than 1 slower. */
+export function setSpeechRate(r: number) { speechRate = r }
+export function getSpeechRate() { return speechRate }
+
+function stretch(x: Float32Array, sr: number, rate: number): Float32Array {
+  const win = Math.round(sr * 0.03), hop = win >> 1, tol = Math.round(sr * 0.008)
+  const inHop = hop * rate
+  const outLen = Math.round(x.length / rate)
+  const y = new Float32Array(outLen + win), wsum = new Float32Array(outLen + win)
+  const w = new Float32Array(win)
+  for (let i = 0; i < win; i++) w[i] = 0.5 - 0.5 * Math.cos((2 * Math.PI * i) / (win - 1))
+  let prev = -1
+  for (let k = 0, out = 0; out < outLen; k++, out += hop) {
+    const nominal = Math.round(k * inHop)
+    if (nominal + win >= x.length) break
+    let best = nominal
+    if (prev >= 0 && prev + hop + win < x.length) {
+      // the window that best continues where the previous one would have gone on
+      const target = prev + hop
+      let bestScore = -Infinity
+      for (let d = -tol; d <= tol; d++) {
+        const q = nominal + d
+        if (q < 0 || q + win >= x.length) continue
+        let sc = 0
+        for (let i = 0; i < hop; i += 2) sc += x[q + i] * x[target + i]
+        if (sc > bestScore) { bestScore = sc; best = q }
+      }
+    }
+    for (let i = 0; i < win; i++) { y[out + i] += x[best + i] * w[i]; wsum[out + i] += w[i] }
+    prev = best
+  }
+  for (let i = 0; i < outLen; i++) if (wsum[i] > 1e-3) y[i] /= wsum[i]
+  return y.subarray(0, outLen)
+}
+
+const clips = new Map<string, AudioBuffer>()
+/** One clip in a buffer of its own, at the given speed. */
+async function clipBuffer(clip: Clip, rate: number): Promise<AudioBuffer | null> {
+  const r = rate >= 0.97 ? 1 : Math.max(0.5, rate)
+  const key = `${clip.group}|${clip.start}|${r}`
+  const hit = clips.get(key)
+  if (hit) return hit
+  const buf = await loadBuffer(clip.group)
+  const c = ac()
+  if (!buf || !c) return null
+  const sr = buf.sampleRate
+  const from = Math.floor(clip.start * sr), to = Math.min(buf.length, Math.ceil((clip.start + clip.dur) * sr))
+  const part = buf.getChannelData(0).slice(from, to)
+  const data = r === 1 ? part : stretch(part, sr, r)
+  const out = c.createBuffer(1, Math.max(1, data.length), sr)
+  out.getChannelData(0).set(data)
+  clips.set(key, out)
+  if (clips.size > 24) clips.delete(clips.keys().next().value as string)
+  return out
+}
+
 let current: AudioBufferSourceNode | null = null
 let playToken = 0
 function stopClip() { if (current) { try { current.onended = null; current.stop() } catch { /* ignore */ } current = null } }
 
 async function playClip(clip: Clip, rate: number, onEnd?: () => void): Promise<boolean> {
   const token = ++playToken
-  const buf = await loadBuffer(clip.group)
+  const buf = await clipBuffer(clip, rate)
   const c = ac()
   if (!buf || !c || token !== playToken) return !!buf && token !== playToken
   stopClip()
   const src = c.createBufferSource()
   src.buffer = buf
-  src.playbackRate.value = rate
   src.connect(c.destination)
   src.onended = () => { if (current === src) current = null; onEnd?.() }
-  try { src.start(0, clip.start, clip.dur) } catch { onEnd?.(); return false }
+  try { src.start(0) } catch { onEnd?.(); return false }
   current = src
   return true
 }
@@ -190,16 +249,16 @@ function ttsSpeak(text: string, lang: 'en' | 'ar', rate: number, onEnd?: () => v
 export function speak(text: string, opts: { lang?: 'en' | 'ar'; rate?: number; onEnd?: () => void } = {}) {
   stopReading()
   const lang = opts.lang ?? 'en'
-  const rate = opts.rate ?? (lang === 'en' ? 0.9 : 1)
+  const rate = opts.rate ?? speechRate
   stopSpeaking()
   if (lang === 'en') {
     loadIndex().then(async map => {
       const clip = map?.get(norm(text))
       if (clip) {
-        const ok = await playClip(clip, rate < 0.8 ? 0.72 : 1, opts.onEnd)
+        const ok = await playClip(clip, rate, opts.onEnd)
         if (ok) return
       }
-      ttsSpeak(text, lang, rate, opts.onEnd)
+      ttsSpeak(text, lang, rate * 0.9, opts.onEnd)
     })
   } else ttsSpeak(text, lang, rate, opts.onEnd)
 }
@@ -219,7 +278,7 @@ export function readAloud(sentences: string[], opts: {
 } = {}): ReadHandle {
   stopReading()
   stopSpeaking()
-  const rate = opts.rate ?? 1
+  const rate = opts.rate ?? speechRate
   let cancelled = false
   let raf = 0
   let node: AudioBufferSourceNode | null = null
@@ -244,18 +303,17 @@ export function readAloud(sentences: string[], opts: {
     const map = await loadIndex()
     const clip = map?.get(norm(text))
     if (clip) {
-      const buf = await loadBuffer(clip.group)
+      const buf = await clipBuffer(clip, rate)
       const c = ac()
       if (buf && c && !cancelled) {
         const { words, bounds } = wordBounds(text)
         const src = c.createBufferSource()
         src.buffer = buf
-        src.playbackRate.value = rate
         src.connect(c.destination)
         const startAt = c.currentTime + 0.02
-        const span = clip.dur / rate
+        const span = buf.duration
         src.onended = () => { if (!cancelled && node === src) play(i + 1) }
-        try { src.start(startAt, clip.start, clip.dur) } catch { play(i + 1); return }
+        try { src.start(startAt) } catch { play(i + 1); return }
         node = src
         // the next sentence may be in another file: have it ready when this one ends
         const next = i + 1 < sentences.length ? map?.get(norm(sentences[i + 1])) : undefined

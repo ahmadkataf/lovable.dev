@@ -11,7 +11,7 @@ import Profile from './screens/Profile'
 import LessonScreen, { type LessonOutcome } from './screens/Lesson'
 import Exams from './screens/Exams'
 import ExamPaper from './screens/ExamPaper'
-import { preload, preloadIndex, setMuted } from './engine/audio'
+import { preload, preloadIndex, setMuted, setSpeechRate } from './engine/audio'
 import { freeExam, freeLesson, freeUnit, keepLicense, useAccess } from './engine/access'
 import Activate from './screens/Activate'
 import { onlineBook, useOnlineAccess, type OnlineAccess } from './engine/online'
@@ -34,6 +34,7 @@ export default function App() {
   useEffect(() => save(progress), [progress])
   useEffect(() => { const t = setInterval(() => { setProgress(p => regenHearts(p)); tick(x => x + 1) }, 30000); return () => clearInterval(t) }, [])
   useEffect(() => { setMuted(!progress.sound) }, [progress.sound])
+  useEffect(() => { setSpeechRate(progress.speechRate ?? 1) }, [progress.speechRate])
   useEffect(() => { preloadIndex() }, [])
 
   const { unlockedUnits } = useMemo(() => unlockedState(modules, progress), [progress, modules])
@@ -117,6 +118,8 @@ export default function App() {
           exercises={active.exercises}
           hearts={progress.hearts}
           autoSpeak={progress.autoSpeak}
+          speechRate={progress.speechRate ?? 1}
+          onSpeechRate={r => { setSpeechRate(r); setProgress(p => ({ ...p, speechRate: r })) }}
           onLoseHeart={() => { if (active.lesson) setProgress(p => loseHeart(p)) }}
           onFinish={finish}
           onQuit={() => setActive(null)}

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { readAloud, stopReading, type ReadHandle } from '../engine/audio'
+import { readAloud, stopReading, type ReadHandle, getSpeechRate } from '../engine/audio'
 import { splitSentences } from '../engine/text'
 
 interface Props {
@@ -35,7 +35,7 @@ export default function ReadingText({ paragraphs, paragraphsAr, title, showAr, m
 
   const stop = () => { handle.current?.stop(); handle.current = null; setPlaying(false); setAt(null) }
 
-  const start = (from = 0, rate = slow ? 0.75 : 1) => {
+  const start = (from = 0, rate = slow ? 0.7 : getSpeechRate()) => {
     handle.current?.stop()
     setPlaying(true)
     setAt({ s: from, w: 0 })
@@ -64,7 +64,7 @@ export default function ReadingText({ paragraphs, paragraphsAr, title, showAr, m
         <button className={`btn btn-sm ${playing ? 'btn-red' : 'btn-blue'}`} onClick={() => (playing ? stop() : start(0))}>
           {playing ? '⏹ إيقاف' : '▶️ استمع للنص'}
         </button>
-        <button className={`pill ${slow ? 'active' : ''}`} onClick={() => { const v = !slow; setSlow(v); if (playing) start(at?.s ?? 0, v ? 0.75 : 1) }}>🐢 بطيء</button>
+        <button className={`pill ${slow ? 'active' : ''}`} onClick={() => { const v = !slow; setSlow(v); if (playing) start(at?.s ?? 0, v ? 0.7 : getSpeechRate()) }}>🐢 بطيء</button>
         <span className="muted" style={{ fontSize: 12 }}>اضغط أي جملة لتسمعها من عندها</span>
       </div>
       <div className="reading-box" ref={box} style={maxHeight ? { maxHeight } : undefined}>

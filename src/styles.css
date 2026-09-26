@@ -298,3 +298,8 @@ details.unit-ref summary { cursor: pointer; font-weight: 800; font-size: 16px; }
 .rule-card{margin-bottom:10px;border-inline-start:6px solid var(--blue)}
 .rule-card.rule-vocab{border-inline-start-color:var(--purple)}
 .rule-toggle{display:block;width:100%;margin-top:8px;padding:6px;font-weight:800;color:var(--blue-dark);font-size:14px}
+
+/* speech speed during a lesson */
+.speed-btn { display: flex; align-items: center; gap: 3px; flex-shrink: 0; padding: 4px 8px; border-radius: 12px; border: 2px solid var(--gray-2); font-size: 16px; font-weight: 700; color: var(--gray-4); background: transparent; }
+.speed-btn span { font-size: 11px; }
+.speed-btn.on { border-color: var(--blue); color: var(--blue); background: var(--blue-light); }

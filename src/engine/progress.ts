@@ -15,6 +15,7 @@ export interface Progress {
   name: string
   sound: boolean
   autoSpeak: boolean
+  speechRate?: number          // speed of the recorded voice: 1 normal, 0.8 slow, 0.65 very slow
   exams?: Record<string, ExamResult>
   practice?: Record<string, { best: number; last: number; times: number }>   // practice of one rule, by 'u3:grammar'
 }

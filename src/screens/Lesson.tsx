@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { Exercise, Lesson } from '../engine/types'
 import { ExerciseView, correctAnswerText, judge, needsHearts, wordOf, type Result } from '../components/Exercises'
-import { Confetti, Hearts, ProgressBar, Speaker } from '../components/common'
+import { Confetti, Hearts, ProgressBar, Speaker, SpeedButton } from '../components/common'
 import { sfx, stopSpeaking } from '../engine/audio'
 
 export interface LessonOutcome { correct: number; wrong: number; xp: number; wordResults: { en: string; correct: boolean }[] }
@@ -12,13 +12,15 @@ interface Props {
   exercises: Exercise[]
   hearts: number
   autoSpeak: boolean
+  speechRate: number
+  onSpeechRate: (rate: number) => void
   onLoseHeart: () => void
   onFinish: (o: LessonOutcome) => void
   onQuit: () => void
   onRefill: () => void
 }
 
-export default function LessonScreen({ lesson, source, exercises, hearts, autoSpeak, onLoseHeart, onFinish, onQuit, onRefill }: Props) {
+export default function LessonScreen({ lesson, source, exercises, hearts, autoSpeak, speechRate, onSpeechRate, onLoseHeart, onFinish, onQuit, onRefill }: Props) {
   const [queue, setQueue] = useState<Exercise[]>(exercises)
   const [pos, setPos] = useState(0)
   const [value, setValue] = useState<unknown>(undefined)
@@ -97,6 +99,7 @@ export default function LessonScreen({ lesson, source, exercises, hearts, autoSp
       <div className="lesson-top">
         <button onClick={() => setConfirmQuit(true)} style={{ fontSize: 22, color: 'var(--gray-4)' }} aria-label="خروج">✕</button>
         <ProgressBar value={progress} />
+        <SpeedButton rate={speechRate} onChange={onSpeechRate} />
         {lesson && <Hearts n={hearts} />}
       </div>
       {source && <div className="lesson-source">{source} · {lesson?.title}</div>}
@@ -146,3 +149,4 @@ export default function LessonScreen({ lesson, source, exercises, hearts, autoSp
     </div>
   )
 }
+

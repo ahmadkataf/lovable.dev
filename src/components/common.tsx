@@ -33,3 +33,16 @@ export function ProgressBar({ value }: { value: number }) {
 export function Hearts({ n }: { n: number }) {
   return <div className="stat heart" aria-label={`${n} قلوب`}>❤️ <span>{n}</span></div>
 }
+
+/** Normal, slow, very slow: the speed of every recording in the app, one tap away during a lesson. */
+export const SPEEDS = [{ rate: 1, label: 'عادي' }, { rate: 0.8, label: 'بطيء' }, { rate: 0.65, label: 'بطيء جداً' }]
+export function SpeedButton({ rate, onChange }: { rate: number; onChange: (rate: number) => void }) {
+  const i = Math.max(0, SPEEDS.findIndex(s => s.rate === rate))
+  const nextSpeed = SPEEDS[(i + 1) % SPEEDS.length]
+  return (
+    <button className={`speed-btn ${i ? 'on' : ''}`} onClick={() => onChange(nextSpeed.rate)}
+      aria-label={`سرعة النطق: ${SPEEDS[i].label}`} title="سرعة النطق">
+      {i === 0 ? '🐇' : '🐢'}<span>{SPEEDS[i].label}</span>
+    </button>
+  )
+}

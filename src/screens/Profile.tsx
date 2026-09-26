@@ -1,6 +1,7 @@
 import type { Progress } from '../engine/progress'
 import { levelFromXp, today } from '../engine/progress'
-import { audioStatus, speak } from '../engine/audio'
+import { audioStatus, setSpeechRate, speak } from '../engine/audio'
+import { SPEEDS } from '../components/common'
 import { useState } from 'react'
 import type { Access } from '../engine/access'
 import { privacyUrl } from '../engine/online'
@@ -86,6 +87,16 @@ export default function Profile({ progress, totalLessons, subtitle, onChange, on
         <div className="h2">الإعدادات</div>
         <label className="row spread" style={{ padding: '8px 0' }}><span>🔔 المؤثرات الصوتية</span><input type="checkbox" checked={progress.sound} onChange={e => onChange({ ...progress, sound: e.target.checked })} /></label>
         <label className="row spread" style={{ padding: '8px 0' }}><span>🔊 نطق الكلمة تلقائياً</span><input type="checkbox" checked={progress.autoSpeak} onChange={e => onChange({ ...progress, autoSpeak: e.target.checked })} /></label>
+        <div style={{ padding: '8px 0' }}>
+          <div>🐢 سرعة النطق</div>
+          <div className="row mt" style={{ gap: 6 }}>
+            {SPEEDS.map(s => (
+              <button key={s.rate} className={`btn btn-sm grow ${(progress.speechRate ?? 1) === s.rate ? 'btn-primary' : 'btn-outline'}`}
+                onClick={() => { onChange({ ...progress, speechRate: s.rate }); setSpeechRate(s.rate); speak('What do you hope to accomplish through your future job?', { rate: s.rate }) }}>{s.label}</button>
+            ))}
+          </div>
+          <div className="muted" style={{ fontSize: 12, marginTop: 4 }}>تتغيّر سرعة كل الأصوات في التطبيق، ويمكنك تغييرها أثناء الدرس بزر 🐇/🐢 في الأعلى.</div>
+        </div>
         <div className="row mt" style={{ flexWrap: 'wrap' }}>
           <button className="btn btn-blue btn-sm" onClick={() => {
             setAudioMsg('جارٍ التشغيل...')
