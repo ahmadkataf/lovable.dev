@@ -14,7 +14,7 @@ run_worker_first = true
 [[d1_databases]]
 binding = "DB"
 database_name = "emar"
-database_id = "00000000-0000-0000-0000-000000000000"   # replaced on deploy with the real id
+database_id = "731e21de-a8fa-41c8-9e74-9c995067ba59"
 
 # Secrets (never in this file): TOKEN_SECRET signs student sessions, ADMIN_KEY opens the control panel.
 

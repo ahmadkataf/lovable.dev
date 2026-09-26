@@ -6,7 +6,7 @@
 # Optional environment:
 #   ANDROID_KEYSTORE, ANDROID_KEYSTORE_PASSWORD, ANDROID_KEY_ALIAS   the signing (upload) key
 #   VERSION_CODE, VERSION_NAME                                       override the manifest's version
-#   BUNDLETOOL                                                       path to bundletool-all.jar, to build the AAB
+#   BUNDLETOOL                                                       bundletool-all.jar, or a bundletool launcher script, to build the AAB
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 BOOK="${1:-${BOOK:-g8}}"
@@ -56,6 +56,7 @@ ls -la "$OUT"
 
 # ---- App Bundle for Google Play: the same app, with resources in protobuf form, packed by bundletool
 if [ -n "${BUNDLETOOL:-}" ] && [ -f "$BUNDLETOOL" ]; then
+  bt() { if [[ "$BUNDLETOOL" == *.jar ]]; then java -jar "$BUNDLETOOL" "$@"; else "$BUNDLETOOL" "$@"; fi; }
   "$BT/aapt2" link --proto-format -o "$B/proto.zip" "${LINK[@]}"
   M="$B/base"; rm -rf "$M"; mkdir -p "$M/manifest" "$M/dex"
   (cd "$M" && unzip -q "$B/proto.zip")
@@ -63,9 +64,9 @@ if [ -n "${BUNDLETOOL:-}" ] && [ -f "$BUNDLETOOL" ]; then
   cp "$B/dex/classes.dex" "$M/dex/classes.dex"
   rm -f "$B/base.zip"; (cd "$M" && zip -q -r "$B/base.zip" .)
   AAB="$A/build/$APPNAME.aab"; rm -f "$AAB"
-  java -jar "$BUNDLETOOL" build-bundle --modules="$B/base.zip" --output="$AAB"
+  bt build-bundle --modules="$B/base.zip" --output="$AAB"
   jarsigner -keystore "$KS" -storepass "$KS_PASS" -keypass "$KS_PASS" -sigalg SHA256withRSA -digestalg SHA-256 "$AAB" "$KS_ALIAS" >/dev/null
-  java -jar "$BUNDLETOOL" validate --bundle="$AAB" >/dev/null
+  bt validate --bundle="$AAB" >/dev/null
   ls -la "$AAB"
 else
   echo "(no BUNDLETOOL: skipped the App Bundle)"

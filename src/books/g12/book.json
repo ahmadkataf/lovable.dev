@@ -8,5 +8,5 @@
   "packageId": "com.emar12.app",
   "iconText": "12",
   "color": "#ce82ff",
-  "api": ""
+  "api": "https://emar-api.almutafawiqin.workers.dev"
 }

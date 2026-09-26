@@ -48,6 +48,10 @@ jobs:
       - name: Set the secrets
         if: env.CLOUDFLARE_API_TOKEN != ''
         working-directory: server
+        env:
+          ADMIN_KEY: ${{ secrets.EMAR_ADMIN_KEY }}
+          TOKEN_SECRET: ${{ secrets.EMAR_TOKEN_SECRET }}
+        # only when given: an empty secret would lock out the panel or end every student's session
         run: |
-          echo "${{ secrets.EMAR_ADMIN_KEY }}" | npx wrangler secret put ADMIN_KEY
-          echo "${{ secrets.EMAR_TOKEN_SECRET }}" | npx wrangler secret put TOKEN_SECRET
+          if [ -n "$ADMIN_KEY" ]; then printf %s "$ADMIN_KEY" | npx wrangler secret put ADMIN_KEY; fi
+          if [ -n "$TOKEN_SECRET" ]; then printf %s "$TOKEN_SECRET" | npx wrangler secret put TOKEN_SECRET; fi
