@@ -248,7 +248,8 @@ function ttsSpeak(text: string, lang: 'en' | 'ar', rate: number, onEnd?: () => v
 // ---------------- public API ----------------
 export function speak(text: string, opts: { lang?: 'en' | 'ar'; rate?: number; onEnd?: () => void } = {}) {
   stopReading()
-  const lang = opts.lang ?? 'en'
+  // a text with no Latin letters is Arabic (some answers describe a picture in Arabic): never read it in English
+  const lang = opts.lang ?? (/[\u0600-\u06FF]/.test(text) && !/[A-Za-z]/.test(text) ? 'ar' : 'en')
   const rate = opts.rate ?? speechRate
   stopSpeaking()
   if (lang === 'en') {
