@@ -16,6 +16,10 @@ texts = json.load(open(f'audio-src/{book}/texts.json'))
 voice = PiperVoice.load(voice_path)
 SR = voice.config.sample_rate
 GAP = int(float(os.environ.get('AUDIO_GAP', '0.25')) * SR)  # silence between clips
+# Each group is cut into files of at most this many seconds (u1c0.mp3, u1c1.mp3, …): a phone decodes a
+# file whole into memory before playing it, and one long file per unit took hundreds of MB and crashed
+# the app. 0 keeps one file per group.
+CHUNK = int(float(os.environ.get('AUDIO_CHUNK', '45')) * SR)
 try:
     import imageio_ffmpeg; FFMPEG = imageio_ffmpeg.get_ffmpeg_exe()
 except Exception:
@@ -53,8 +57,23 @@ def synth(text):
 index = {}
 total_sec = 0
 t0 = time.time()
+def write(name, parts):
+    wav_path = os.path.join(out_dir, f'{name}.wav')
+    with wave.open(wav_path, 'wb') as w:
+        w.setnchannels(1); w.setsampwidth(2); w.setframerate(SR); w.writeframes(np.concatenate(parts).tobytes())
+    mp3_path = os.path.join(out_dir, f'{name}.mp3')
+    subprocess.run([FFMPEG, '-y', '-loglevel', 'error', '-i', wav_path, '-ac', '1', '-ar', AUDIO_RATE, '-codec:a', 'libmp3lame', '-b:a', AUDIO_KBPS, mp3_path], check=True)
+    os.remove(wav_path)
+    return os.path.getsize(mp3_path)
+
 for group, items in texts.items():
-    parts, pos, entries = [], 0, {}
+    files, parts, pos, entries, size, sec = [], [], 0, {}, 0, 0
+    def flush():
+        global size, sec
+        if not parts: return
+        name = f'{group}c{len(files)}' if CHUNK else group
+        size += write(name, parts); sec += pos / SR
+        index[name] = dict(entries); files.append(name)
     for text in items:
         spoken = speakable(text)
         if spoken is None:
@@ -62,19 +81,14 @@ for group, items in texts.items():
         pcm = synth(spoken)
         if len(pcm) == 0:
             continue
+        if CHUNK and parts and pos + len(pcm) > CHUNK:
+            flush(); parts, pos, entries = [], 0, {}
         entries[norm(text)] = [round(pos / SR, 3), round(len(pcm) / SR, 3)]
         parts.append(pcm); parts.append(np.zeros(GAP, dtype=np.int16))
         pos += len(pcm) + GAP
-    audio = np.concatenate(parts)
-    wav_path = os.path.join(out_dir, f'{group}.wav')
-    with wave.open(wav_path, 'wb') as w:
-        w.setnchannels(1); w.setsampwidth(2); w.setframerate(SR); w.writeframes(audio.tobytes())
-    mp3_path = os.path.join(out_dir, f'{group}.mp3')
-    subprocess.run([FFMPEG, '-y', '-loglevel', 'error', '-i', wav_path, '-ac', '1', '-ar', AUDIO_RATE, '-codec:a', 'libmp3lame', '-b:a', AUDIO_KBPS, mp3_path], check=True)
-    os.remove(wav_path)
-    index[group] = entries
-    sec = pos / SR; total_sec += sec
-    print(f'{group}: {len(items)} clips, {sec/60:.1f} min, {os.path.getsize(mp3_path)/1e6:.2f} MB, elapsed {time.time()-t0:.0f}s', flush=True)
+    flush()
+    total_sec += sec
+    print(f'{group}: {len(items)} clips in {len(files)} files, {sec/60:.1f} min, {size/1e6:.2f} MB, elapsed {time.time()-t0:.0f}s', flush=True)
 
 json.dump({'sr': SR, 'groups': index}, open(os.path.join(out_dir, 'index.json'), 'w'), ensure_ascii=False, separators=(',', ':'))
 print('total minutes', round(total_sec / 60, 1))

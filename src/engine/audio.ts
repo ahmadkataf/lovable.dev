@@ -37,12 +37,13 @@ const audioUrl = (f: string) => `${BASE.replace(/\/?$/, '/')}audio/${f}`
 // sprites come from there instead of from the app's own files.
 export type AudioSource = (file: string) => Promise<Response>
 let remote: AudioSource | null = null
-export function setAudioSource(src: AudioSource | null) { remote = src; indexPromise = null; indexStatus = 'idle'; buffers.clear() }
+export function setAudioSource(src: AudioSource | null) { remote = src; indexPromise = null; indexStatus = 'idle'; buffers.clear(); seconds.clear() }
 const getAudio = (file: string) => (remote ? remote(file) : fetch(audioUrl(file)))
 
 let indexPromise: Promise<Map<string, Clip> | null> | null = null
 let indexStatus: 'idle' | 'loading' | 'ready' | 'failed' = 'idle'
-const buffers = new Map<string, Promise<AudioBuffer | null>>()
+/** The files of each unit or module: one (u1) or, cut into short pieces, several (u1c0, u1c1, …). */
+let files = new Map<string, string[]>()
 
 export function norm(s: string): string { return s.replace(/\s+/g, ' ').trim().toLowerCase() }
 
@@ -52,7 +53,12 @@ function loadIndex(): Promise<Map<string, Clip> | null> {
     indexPromise = getAudio('index.json').then(r => { if (!r.ok) throw new Error(String(r.status)); return r.json() as Promise<Index> })
       .then(idx => {
         const map = new Map<string, Clip>()
-        for (const [group, entries] of Object.entries(idx.groups)) for (const [k, [start, dur]] of Object.entries(entries)) if (!map.has(k)) map.set(k, { group, start, dur })
+        files = new Map()
+        for (const [group, entries] of Object.entries(idx.groups)) {
+          for (const [k, [start, dur]] of Object.entries(entries)) if (!map.has(k)) map.set(k, { group, start, dur })
+          const unit = group.replace(/c\d+$/, '')
+          files.set(unit, [...(files.get(unit) || []), group])
+        }
         indexStatus = 'ready'
         return map
       })
@@ -61,22 +67,59 @@ function loadIndex(): Promise<Map<string, Clip> | null> {
   return indexPromise
 }
 
+// A file is decoded whole before it plays, and decoded audio is large (a minute is about 5 MB), so only
+// the files played last are kept, and they are decoded at a speech sample rate rather than the phone's.
+const KEEP_SECONDS = 360
+const DECODE_RATE = 22050
+const buffers = new Map<string, Promise<AudioBuffer | null>>()
+const seconds = new Map<string, number>()
+
+function decode(data: ArrayBuffer): Promise<AudioBuffer | null> {
+  return new Promise(resolve => {
+    const viaPlayer = () => {
+      const c = ac(); if (!c) return resolve(null)
+      try { c.decodeAudioData(data, b => resolve(b), () => resolve(null)) } catch { resolve(null) }
+    }
+    try {
+      const Offline = window.OfflineAudioContext || (window as any).webkitOfflineAudioContext
+      const oc: OfflineAudioContext = new Offline(1, 1, DECODE_RATE)
+      // the copy keeps the data for the fallback: a failed decode may have detached the original
+      const copy = data.slice(0)
+      oc.decodeAudioData(data, b => resolve(b), () => { data = copy; viaPlayer() })
+    } catch { viaPlayer() }
+  })
+}
+
+function keepRecent(except: string) {
+  let total = 0
+  for (const v of seconds.values()) total += v
+  for (const g of [...buffers.keys()]) {
+    if (total <= KEEP_SECONDS) break
+    if (g === except) continue
+    total -= seconds.get(g) || 0
+    buffers.delete(g); seconds.delete(g)
+  }
+}
+
 function loadBuffer(group: string): Promise<AudioBuffer | null> {
   let p = buffers.get(group)
-  if (!p) {
-    p = getAudio(`${group}.mp3`).then(r => { if (!r.ok) throw new Error(String(r.status)); return r.arrayBuffer() })
-      .then(data => new Promise<AudioBuffer | null>((resolve) => {
-        const c = ac(); if (!c) return resolve(null)
-        try { c.decodeAudioData(data, b => resolve(b), () => resolve(null)) } catch { resolve(null) }
-      }))
-      .catch(() => null)
-    buffers.set(group, p)
-  }
+  if (p) { buffers.delete(group); buffers.set(group, p); return p }
+  p = getAudio(`${group}.mp3`).then(r => { if (!r.ok) throw new Error(String(r.status)); return r.arrayBuffer() })
+    .then(decode)
+    .then(b => { if (b) { seconds.set(group, b.duration); keepRecent(group) } else buffers.delete(group); return b })
+    .catch(() => { buffers.delete(group); return null })
+  buffers.set(group, p)
   return p
 }
 
-/** Warm up the sprite for a unit / module so the first playback is instant. */
-export function preload(group: string) { loadIndex().then(m => { if (m) loadBuffer(group) }) }
+/** Gets a unit's or module's recordings ready without decoding them: bought audio is downloaded and
+ *  kept on the phone, so the first sentence plays without waiting for the network. */
+export function preload(group: string) {
+  loadIndex().then(async m => {
+    if (!m || !remote) return
+    for (const f of files.get(group) || []) { try { await remote(`${f}.mp3`) } catch { return } }
+  })
+}
 export function preloadIndex() { loadIndex() }
 
 let current: AudioBufferSourceNode | null = null
@@ -214,6 +257,9 @@ export function readAloud(sentences: string[], opts: {
         src.onended = () => { if (!cancelled && node === src) play(i + 1) }
         try { src.start(startAt, clip.start, clip.dur) } catch { play(i + 1); return }
         node = src
+        // the next sentence may be in another file: have it ready when this one ends
+        const next = i + 1 < sentences.length ? map?.get(norm(sentences[i + 1])) : undefined
+        if (next && next.group !== clip.group) loadBuffer(next.group)
         let last = -1
         const tick = () => {
           if (cancelled) return

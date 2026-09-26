@@ -43,7 +43,10 @@ const free = {
 }
 const full = { modules, exams }
 const fullJson = JSON.stringify(full)
-const version = crypto.createHash('sha256').update(fullJson).digest('hex').slice(0, 12)
+const pub = `public/${BOOK}`
+const indexJson = fs.readFileSync(`${pub}/audio/index.json`, 'utf8')
+// the audio is part of the version too, so that phones drop the recordings they cached when they change
+const version = crypto.createHash('sha256').update(fullJson).update(indexJson).digest('hex').slice(0, 12)
 
 // the app
 const gen = `generated/${BOOK}`
@@ -59,11 +62,12 @@ export const modules = data.modules as unknown as Module[]
 export const exams = data.exams as unknown as Exam[]
 export const contentVersion: string = data.version
 `)
-const pub = `public/${BOOK}`
 for (const f of fs.readdirSync(pub)) if (f !== 'audio') fs.cpSync(`${pub}/${f}`, `${gen}/public/${f}`, { recursive: true })
-const index = JSON.parse(fs.readFileSync(`${pub}/audio/index.json`, 'utf8'))
-fs.writeFileSync(`${gen}/public/audio/index.json`, JSON.stringify({ ...index, groups: Object.fromEntries(FREE_AUDIO.map(g => [g, index.groups[g]])) }))
-for (const g of FREE_AUDIO) fs.copyFileSync(`${pub}/audio/${g}.mp3`, `${gen}/public/audio/${g}.mp3`)
+const index = JSON.parse(indexJson)
+// a unit's recordings are one file (u1) or, cut into short pieces, several (u1c0, u1c1, …)
+const freeFiles = Object.keys(index.groups).filter(g => FREE_AUDIO.some(u => g === u || new RegExp(`^${u}c\\d+$`).test(g)))
+fs.writeFileSync(`${gen}/public/audio/index.json`, JSON.stringify({ ...index, groups: Object.fromEntries(freeFiles.map(g => [g, index.groups[g]])) }))
+for (const g of freeFiles) fs.copyFileSync(`${pub}/audio/${g}.mp3`, `${gen}/public/audio/${g}.mp3`)
 
 // the server
 const srv = `server/content/${BOOK}`
@@ -74,4 +78,4 @@ fs.writeFileSync(`${srv}/version.json`, JSON.stringify({ version }))
 for (const f of fs.readdirSync(`${pub}/audio`)) fs.copyFileSync(`${pub}/audio/${f}`, `${srv}/audio/${f}`)
 
 const size = f => (fs.statSync(f).size / 1024).toFixed(0) + ' KB'
-console.log(`${BOOK}: version ${version}; app data ${size(`${gen}/free.json`)} (full book ${size(`${srv}/full.json`)}); free audio ${FREE_AUDIO.join(',')}`)
+console.log(`${BOOK}: version ${version}; app data ${size(`${gen}/free.json`)} (full book ${size(`${srv}/full.json`)}); free audio ${FREE_AUDIO.join(',')} (${freeFiles.length} files)`)

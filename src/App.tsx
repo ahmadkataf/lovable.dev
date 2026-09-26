@@ -57,13 +57,11 @@ export default function App() {
   const startMockExam = () => {
     const ex = buildMockExam(modules, unlockedUnits)
     if (ex.length === 0) return
-    unlockedUnits.forEach(id => preload(id))
     setActive({ lesson: null, exercises: ex })
   }
   const startPractice = () => {
     const ex = buildPractice(modules, progress, unlockedUnits)
     if (ex.length === 0) return
-    unlockedUnits.forEach(id => preload(id))
     setActive({ lesson: null, exercises: ex })
   }
 

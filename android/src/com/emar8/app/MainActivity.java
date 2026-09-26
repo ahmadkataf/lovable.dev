@@ -5,6 +5,7 @@ import android.content.Intent;
 import android.content.res.AssetManager;
 import android.provider.Settings;
 import android.webkit.JavascriptInterface;
+import android.webkit.RenderProcessGoneDetail;
 import android.graphics.Color;
 import android.os.Build;
 import android.os.Bundle;
@@ -29,6 +30,7 @@ import java.util.Map;
 public class MainActivity extends Activity {
     private static final String HOST = "emar8.app";
     private WebView web;
+    private FrameLayout root;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -47,8 +49,17 @@ public class MainActivity extends Activity {
             w.getDecorView().setSystemUiVisibility(View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR | View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR);
         }
 
-        web = new WebView(this);
-        WebSettings s = web.getSettings();
+        root = new FrameLayout(this);
+        root.setBackgroundColor(Color.WHITE);
+        root.setOnApplyWindowInsetsListener(new BarPadding());
+        setContentView(root);
+        web = newWebView();
+        if (savedInstanceState == null || web.restoreState(savedInstanceState) == null) web.loadUrl("https://" + HOST + "/index.html");
+    }
+
+    private WebView newWebView() {
+        WebView v = new WebView(this);
+        WebSettings s = v.getSettings();
         s.setJavaScriptEnabled(true);
         s.setDomStorageEnabled(true);
         s.setDatabaseEnabled(true);
@@ -59,16 +70,21 @@ public class MainActivity extends Activity {
         s.setUseWideViewPort(true);
         s.setTextZoom(100);
         s.setCacheMode(WebSettings.LOAD_DEFAULT);
-        web.setBackgroundColor(Color.WHITE);
-        web.setWebViewClient(new AppClient(this));
-        web.addJavascriptInterface(new Bridge(this), "EmarAndroid");
-        FrameLayout root = new FrameLayout(this);
-        root.setBackgroundColor(Color.WHITE);
-        root.addView(web, new FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT));
-        root.setOnApplyWindowInsetsListener(new BarPadding());
-        setContentView(root);
-        if (savedInstanceState == null) web.loadUrl("https://" + HOST + "/index.html");
-        else web.restoreState(savedInstanceState);
+        v.setBackgroundColor(Color.WHITE);
+        v.setWebViewClient(new AppClient(this));
+        v.addJavascriptInterface(new Bridge(this), "EmarAndroid");
+        root.addView(v, new FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT));
+        return v;
+    }
+
+    /** The page's process was stopped (usually the phone ran short of memory): open the app's page again
+     *  in a new WebView. Without this Android closes the whole app. */
+    void restartPage(WebView dead) {
+        if (dead != web) return;
+        root.removeView(dead);
+        dead.destroy();
+        web = newWebView();
+        web.loadUrl("https://" + HOST + "/index.html");
     }
 
     /** Named (not anonymous) so that d8 handles it on every JDK. */
@@ -81,6 +97,12 @@ public class MainActivity extends Activity {
             Uri u = request.getUrl();
             if (HOST.equals(u.getHost())) return host.serve(u.getPath());
             return null;
+        }
+
+        @Override
+        public boolean onRenderProcessGone(WebView view, RenderProcessGoneDetail detail) {
+            host.restartPage(view);
+            return true;
         }
 
         @Override
