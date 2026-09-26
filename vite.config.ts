@@ -26,5 +26,6 @@ export default defineConfig({
   base: './',
   publicDir: online ? path.join(genDir, 'public') : path.resolve(__dirname, 'public', BOOK),
   resolve: { alias: { '@book-meta': path.join(bookDir, 'book.json'), '@book': online ? path.join(genDir, 'index.ts') : path.join(bookDir, 'index.ts') } },
-  build: { outDir: `dist/${BOOK}`, emptyOutDir: true },
+  // the fonts go inside the stylesheet, so the single-file web version and the offline app both have them
+  build: { outDir: `dist/${BOOK}`, emptyOutDir: true, assetsInlineLimit: (file: string) => (file.endsWith('.woff2') ? true : undefined) },
 })

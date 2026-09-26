@@ -6,7 +6,7 @@
   --gray-1: #f7f7f7; --gray-2: #e5e5e5; --gray-3: #afafaf; --gray-4: #777; --text: #3c3c3c; --text-2: #4b4b4b;
   --bg: #ffffff; --card: #ffffff; --border: #e5e5e5;
   --radius: 16px; --shadow: 0 4px 0 var(--gray-2);
-  --font-ar: 'Cairo', system-ui, sans-serif; --font-en: 'Nunito', 'Cairo', system-ui, sans-serif;
+  --font-ar: 'Alexandria Variable', 'Alexandria', system-ui, sans-serif; --font-en: 'Nunito', 'Alexandria Variable', system-ui, sans-serif;
 }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
