@@ -21,7 +21,7 @@ export default defineConfig({
   define: { __EMAR_API__: JSON.stringify(online ? api : ''), __EMAR_STORE__: JSON.stringify(process.env.EMAR_STORE || 'direct') },
   plugins: [
     react(),
-    { name: 'book-html', transformIndexHtml: html => html.replaceAll('%BOOK_TITLE%', `${meta.title} — تعلّم الإنجليزية`).replaceAll('%BOOK_COLOR%', meta.color) },
+    { name: 'book-html', transformIndexHtml: html => html.replaceAll('%BOOK_TITLE%', `${meta.title} — تعلّم الإنجليزية`).replaceAll('%BOOK_COLOR%', meta.color).replaceAll('%APP_NAME%', meta.appName) },
   ],
   base: './',
   publicDir: online ? path.join(genDir, 'public') : path.resolve(__dirname, 'public', BOOK),

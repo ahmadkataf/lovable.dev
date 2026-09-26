@@ -240,7 +240,17 @@ export default {
     const p = url.pathname
     if (req.method === 'OPTIONS') return new Response(null, { headers: CORS })
     try {
-      if (p === '/' || p === '/v1/ping') return json({ ok: true, service: 'emar' })
+      if (p === '/v1/ping') return json({ ok: true, service: 'emar' })
+      // the web version of the app (for iPhone and computers): public, it holds the free unit only
+      if (p === '/' || p === '/app') return Response.redirect(new URL('/app/', req.url).toString(), 302)
+      if (p.startsWith('/app/') && req.method === 'GET') {
+        const res = await env.ASSETS.fetch(new Request(new URL(p.endsWith('/') ? `${p}index.html` : p, req.url)))
+        if (res.status === 404) return fail('not-found', 404)
+        const h = new Headers(res.headers)
+        // the page itself always fresh, so an update reaches everyone; its hashed files cached for long
+        h.set('cache-control', p.includes('/assets/') ? 'public, max-age=31536000, immutable' : 'no-cache')
+        return new Response(res.body, { status: res.status, headers: h })
+      }
       if (p === '/privacy') return new Response(privacyPage(env.CONTACT || ''), { headers: { 'content-type': 'text/html; charset=utf-8' } })
       if (p === '/admin') return new Response(ADMIN_PAGE, { headers: { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store' } })
       if (p === '/v1/activate' && req.method === 'POST') return await activate(req, env)
