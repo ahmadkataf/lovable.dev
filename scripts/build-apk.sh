@@ -26,6 +26,8 @@ KS_ALIAS="${ANDROID_KEY_ALIAS:-emar8}"
 VERSION=()
 [ -n "${VERSION_CODE:-}" ] && VERSION+=(--version-code "$VERSION_CODE")
 [ -n "${VERSION_NAME:-}" ] && VERSION+=(--version-name "$VERSION_NAME")
+# aapt2 only fills in a version the manifest lacks unless told to replace it
+[ ${#VERSION[@]} -gt 0 ] && VERSION+=(--replace-version)
 echo "build-tools $(basename "$BT"), target SDK $TARGET"
 
 rm -rf "$B"
