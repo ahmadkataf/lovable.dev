@@ -10,3 +10,4 @@ server/content
 server/.wrangler
 server/node_modules
 server/.dev.vars
+secrets-for-user
