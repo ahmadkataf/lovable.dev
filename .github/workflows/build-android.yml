@@ -10,7 +10,7 @@ name: Build Android app
 on:
   workflow_dispatch:
     inputs:
-      book: { description: 'Book (g12, g11, g8)', default: 'g12', required: true }
+      book: { description: 'Book (g12, g11, g8, g5)', default: 'g12', required: true }
       store: { description: 'play = Google Play version (no outside payment links), direct = shared APK', default: 'play', required: true }
       version_code: { description: 'Version code (must grow with every Play upload); empty = the run number + 100', required: false }
       version_name: { description: 'Version name shown to users', default: '2.0', required: true }
