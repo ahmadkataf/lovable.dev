@@ -19,7 +19,7 @@ export interface Env {
   CONTACT?: string
 }
 
-const BOOKS = ['g12', 'g11', 'g8']
+const BOOKS = ['g12', 'g11', 'g8', 'g5']
 const ALPHABET = '23456789ABCDEFGHJKLMNPQRSTUVWXYZ'
 const TOKEN_TTL = 3 * 86400000       // a session lasts three days; the app renews it every time it opens
 const FAIL_WINDOW = 15 * 60000        // wrong codes inside this window beyond these limits are refused:
@@ -241,9 +241,11 @@ export default {
     if (req.method === 'OPTIONS') return new Response(null, { headers: CORS })
     try {
       if (p === '/v1/ping') return json({ ok: true, service: 'emar' })
-      // the web version of the app (for iPhone and computers): public, it holds the free unit only
+      // the web versions of the apps (for iPhone and computers): public, they hold the free unit only.
+      // /app/ is the Baccalaureate app, /app5/ the Grade 5 one.
       if (p === '/' || p === '/app') return Response.redirect(new URL('/app/', req.url).toString(), 302)
-      if (p.startsWith('/app/') && req.method === 'GET') {
+      if (p === '/app5') return Response.redirect(new URL('/app5/', req.url).toString(), 302)
+      if ((p.startsWith('/app/') || p.startsWith('/app5/')) && req.method === 'GET') {
         const res = await env.ASSETS.fetch(new Request(new URL(p.endsWith('/') ? `${p}index.html` : p, req.url)))
         if (res.status === 404) return fail('not-found', 404)
         const h = new Headers(res.headers)

@@ -41,7 +41,7 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{padding:7px 5px;b
   <section id="t-make">
     <div class="card noprint">
       <div class="grid">
-        <div><label>التطبيق</label><select id="book"><option value="g12">البكالوريا العلمي (Emar 12)</option><option value="g11">الحادي عشر (Emar 11)</option><option value="g8">الثامن (Emar 8)</option></select></div>
+        <div><label>التطبيق</label><select id="book"><option value="g12">البكالوريا العلمي (Emar 12)</option><option value="g11">الحادي عشر (Emar 11)</option><option value="g8">الثامن (Emar 8)</option><option value="g5">الخامس (Emar 5)</option></select></div>
         <div><label>عدد الأكواد</label><input id="count" type="number" min="1" max="500" value="1"></div>
         <div><label>المدة</label><select id="valid"><option value="year">حتى نهاية العام الدراسي</option><option value="life">دائم</option><option value="date">حتى تاريخ…</option></select><input id="date" type="date" class="hidden" style="margin-top:6px"></div>
         <div><label>البائع (أستاذ / مكتبة / مباشر)</label><input id="seller" placeholder="مباشر"></div>
@@ -59,7 +59,7 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{padding:7px 5px;b
     <div class="card">
       <div class="grid">
         <div><label>بحث (كود، ملاحظة، بائع)</label><input id="q" placeholder="مثلاً: أحمد أو 7KQ2"></div>
-        <div><label>التطبيق</label><select id="fbook"><option value="">الكل</option><option value="g12">البكالوريا</option><option value="g11">الحادي عشر</option><option value="g8">الثامن</option></select></div>
+        <div><label>التطبيق</label><select id="fbook"><option value="">الكل</option><option value="g12">البكالوريا</option><option value="g11">الحادي عشر</option><option value="g8">الثامن</option><option value="g5">الخامس</option></select></div>
         <div><label>الحالة</label><select id="fstatus"><option value="">الكل</option><option value="new">غير مستخدم</option><option value="used">مفعّل</option><option value="revoked">ملغى</option></select></div>
       </div>
       <div class="row" style="margin-top:10px"><button id="find">بحث</button></div>
@@ -75,7 +75,7 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{padding:7px 5px;b
 </main>
 <script>
 const $ = id => document.getElementById(id)
-const NAMES = { g12: 'البكالوريا العلمي — Emar 12', g11: 'الحادي عشر — Emar 11', g8: 'الثامن — Emar 8' }
+const NAMES = { g12: 'البكالوريا العلمي — Emar 12', g11: 'الحادي عشر — Emar 11', g8: 'الثامن — Emar 8', g5: 'الخامس — Emar 5' }
 let KEY = localStorage.getItem('emar.admin') || ''
 const api = async (path, opts = {}) => {
   const r = await fetch('/v1/admin/' + path, { ...opts, headers: { 'content-type': 'application/json', authorization: 'Bearer ' + KEY } })

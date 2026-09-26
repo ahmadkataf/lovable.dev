@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Builds the web version of an online book (for iPhone and computers) into the server's public app folder,
-# served at <server>/app/.   ./scripts/build-web.sh g12
+# served at <server>/app/ (g12) or <server>/app<grade>/ (others).   ./scripts/build-web.sh g12
 # It is the same app as the Android one, with the free unit only; the rest comes from the server after activation.
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
@@ -24,6 +24,8 @@ bb = d.textbbox((0, 0), m['iconText'], font=font)
 d.text(((size - (bb[2] - bb[0])) / 2 - bb[0], (size - (bb[3] - bb[1])) / 2 - bb[1]), m['iconText'], font=font, fill='white')
 img.save(out)
 PY
-rm -rf "server/content/app"
-cp -r "dist/web-$BOOK" "server/content/app"
-echo "web app for $BOOK -> server/content/app ($(du -sh server/content/app | cut -f1))"
+# the Baccalaureate app is served at /app/, the others at /app<grade>/ (e.g. /app5/ for g5)
+DIR=app; [ "$BOOK" = g12 ] || DIR="app${BOOK#g}"
+rm -rf "server/content/$DIR"
+cp -r "dist/web-$BOOK" "server/content/$DIR"
+echo "web app for $BOOK -> server/content/$DIR ($(du -sh "server/content/$DIR" | cut -f1))"
