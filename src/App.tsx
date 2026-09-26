@@ -1,26 +1,27 @@
 import { useEffect, useMemo, useState } from 'react'
 import { book, exams as freeExams, modules as freeModules } from './data'
 import type { Exam, Exercise, Lesson } from './engine/types'
-import { addXp, completeLesson, recordExam, load, loseHeart, nextHeartIn, recordWord, refillHearts, regenHearts, save, touchStreak, type Progress } from './engine/progress'
+import { addXp, completeLesson, recordPractice, recordExam, load, loseHeart, nextHeartIn, recordWord, refillHearts, regenHearts, save, touchStreak, type Progress } from './engine/progress'
 import { buildGrammarPractice, buildLesson, buildMockExam, buildPractice, lessonsForUnit, progressTestLesson, reviewLesson, sourceLabel } from './engine/generator'
 import Home, { unlockedState } from './screens/Home'
 import Words from './screens/Words'
+import Grammar from './screens/Grammar'
 import Book from './screens/Book'
 import Profile from './screens/Profile'
 import LessonScreen, { type LessonOutcome } from './screens/Lesson'
 import Exams from './screens/Exams'
 import ExamPaper from './screens/ExamPaper'
 import { preload, preloadIndex, setMuted } from './engine/audio'
-import { freeExam, freeLesson, keepLicense, useAccess } from './engine/access'
+import { freeExam, freeLesson, freeUnit, keepLicense, useAccess } from './engine/access'
 import Activate from './screens/Activate'
 import { onlineBook, useOnlineAccess, type OnlineAccess } from './engine/online'
 
-type Tab = 'home' | 'words' | 'exams' | 'book' | 'profile'
+type Tab = 'home' | 'grammar' | 'words' | 'exams' | 'book' | 'profile'
 
 export default function App() {
   const [progress, setProgress] = useState<Progress>(() => touchStreak(load()))
   const [tab, setTab] = useState<Tab>('home')
-  const [active, setActive] = useState<{ lesson: Lesson | null; exercises: Exercise[]; source?: string } | null>(null)
+  const [active, setActive] = useState<{ lesson: Lesson | null; exercises: Exercise[]; source?: string; practiceKey?: string } | null>(null)
   const [exam, setExam] = useState<Exam | null>(null)
   const [, tick] = useState(0)
   // a book sold online gets its paid part from the server; the others check an offline code
@@ -49,8 +50,9 @@ export default function App() {
   const startGrammar = (unitId: string, which: 'grammar' | 'vocabFocus' | 'everyday' = 'grammar') => {
     const unit = modules.flatMap(m => m.units).find(u => u.id === unitId)
     if (!unit) return
+    if (!access.pro && !freeUnit(unitId, modules)) { openPaywall(); return }
     preload(unit.id)
-    setActive({ lesson: null, exercises: buildGrammarPractice(unit, which) })
+    setActive({ lesson: null, exercises: buildGrammarPractice(unit, which), practiceKey: which === 'everyday' ? undefined : `${unitId}:${which}` })
   }
   const startMockExam = () => {
     const ex = buildMockExam(modules, unlockedUnits)
@@ -76,11 +78,15 @@ export default function App() {
         n = completeLesson(n, active.lesson.id, stars, Math.round(acc * 100))
       } else {
         n = refillHearts(n) // practice restores hearts
+        if (active?.practiceKey) {
+          const answered = o.correct + o.wrong
+          n = recordPractice(n, active.practiceKey, answered ? Math.round((o.correct / answered) * 100) : 100)
+        }
       }
       return n
     })
     setActive(null)
-    setTab(active?.lesson ? 'home' : 'words')
+    setTab(active?.lesson ? 'home' : active?.practiceKey ? 'grammar' : 'words')
   }
 
   if (exam) {
@@ -137,12 +143,13 @@ export default function App() {
         <div className="net-banner warn">{access.notice}{access.status === 'offline' && <button className="btn btn-sm btn-outline" onClick={access.retry}>إعادة المحاولة</button>}</div>
       )}
       {tab === 'home' && <Home modules={modules} progress={progress} onStart={startLesson} hasExams={exams.length > 0} pro={access.pro} />}
+      {tab === 'grammar' && <Grammar modules={modules} progress={progress} pro={access.pro} onPractice={startGrammar} onLocked={openPaywall} />}
       {tab === 'words' && <Words modules={modules} progress={progress} unlocked={unlockedUnits} onPractice={startPractice} onMockExam={exams.length ? undefined : startMockExam} />}
       {tab === 'exams' && <Exams exams={exams} progress={progress} onStart={e => { if (!access.pro && !freeExam(e, exams)) { openPaywall(); return } window.scrollTo(0, 0); setExam(e) }} onMockExam={startMockExam} canMock={unlockedUnits.size > 0} locked={e => !access.pro && !freeExam(e, exams)} />}
       {tab === 'book' && <Book modules={modules} onGrammarPractice={startGrammar} pro={access.pro} onLocked={openPaywall} />}
       {tab === 'profile' && <Profile progress={progress} totalLessons={totalLessons} subtitle={book.subtitle} onChange={setProgress} onReset={() => { keepLicense(() => localStorage.clear()); location.reload() }} access={access} onActivate={openPaywall} />}
       <nav className="tabbar">
-        {([['home', '🏠', 'تعلّم'], ['words', '📚', 'الكلمات'], ...(exams.length ? [['exams', '📝', 'امتحانات']] : []), ['book', '📖', 'الكتاب'], ['profile', '👤', 'ملفّي']] as [Tab, string, string][]).map(([t, ic, l]) => (
+        {([['home', '🏠', 'تعلّم'], ['grammar', '🧩', 'القواعد'], ['words', '📚', 'الكلمات'], ...(exams.length ? [['exams', '📝', 'امتحانات']] : []), ['book', '📖', 'الكتاب'], ['profile', '👤', 'ملفّي']] as [Tab, string, string][]).map(([t, ic, l]) => (
           <button key={t} className={`tab ${tab === t ? 'active' : ''}`} onClick={() => setTab(t)}><span className="ic">{ic}</span>{l}</button>
         ))}
       </nav>

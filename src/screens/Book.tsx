@@ -36,25 +36,21 @@ export default function Book({ modules, onGrammarPractice, pro = true, onLocked 
               ))}
               {u.vocabFocus && (
                 <>
-                  <div className="row spread mt">
-                    <div className="h2" style={{ margin: 0 }}>🔤 المفردات: {u.vocabFocus.nameAr} <span className="en muted" style={{ fontSize: 13 }}>{u.vocabFocus.name}</span></div>
-                    <button className="btn btn-blue btn-sm" onClick={() => onGrammarPractice(u.id, 'vocabFocus')}>✏️ تدرّب ({u.vocabFocus.exercises.length})</button>
-                  </div>
+                  <div className="h2 mt">🔤 المفردات: {u.vocabFocus.nameAr} <span className="en muted" style={{ fontSize: 13 }}>{u.vocabFocus.name}</span></div>
                   <div className="grammar-card">
                     <div className="ar-rule"><ul>{u.vocabFocus.ruleAr.map((r, i) => <li key={i}>{r}</li>)}</ul></div>
                     <div className="en-rule"><ul>{u.vocabFocus.ruleEn.map((r, i) => <li key={i}>{r}</li>)}</ul></div>
                     {u.vocabFocus.examples.map((e, i) => <div key={i} className="ex"><span>{e}</span><Speaker text={e} size="sm" /></div>)}
+                    <button className="btn btn-primary btn-block" onClick={() => onGrammarPractice(u.id, 'vocabFocus')}>✏️ تدرّب على هذه المفردات · {u.vocabFocus.exercises.length} تمريناً</button>
                   </div>
                 </>
               )}
-              <div className="row spread mt">
-                <div className="h2" style={{ margin: 0 }}>🧩 القواعد: {u.grammar.nameAr} <span className="en muted" style={{ fontSize: 13 }}>{u.grammar.name}</span></div>
-                <button className="btn btn-blue btn-sm" onClick={() => onGrammarPractice(u.id)}>✏️ تدرّب ({u.grammar.exercises.length})</button>
-              </div>
+              <div className="h2 mt">🧩 القواعد: {u.grammar.nameAr} <span className="en muted" style={{ fontSize: 13 }}>{u.grammar.name}</span></div>
               <div className="grammar-card">
                 <div className="ar-rule"><ul>{u.grammar.ruleAr.map((r, i) => <li key={i}>{r}</li>)}</ul></div>
                 <div className="en-rule"><ul>{u.grammar.ruleEn.map((r, i) => <li key={i}>{r}</li>)}</ul></div>
                 {u.grammar.examples.map((e, i) => <div key={i} className="ex"><span>{e}</span><Speaker text={e} size="sm" /></div>)}
+                <button className="btn btn-primary btn-block" onClick={() => onGrammarPractice(u.id)}>✏️ تدرّب على هذه القاعدة · {u.grammar.exercises.length} تمريناً</button>
               </div>
               {u.pronunciation && (
                 <div className="mt">

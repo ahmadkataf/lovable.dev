@@ -16,6 +16,7 @@ export interface Progress {
   sound: boolean
   autoSpeak: boolean
   exams?: Record<string, ExamResult>
+  practice?: Record<string, { best: number; last: number; times: number }>   // practice of one rule, by 'u3:grammar'
 }
 
 export interface ExamResult { best: number; last: number; times: number; date: string }
@@ -135,4 +136,10 @@ export function levelFromXp(xp: number): { level: number; into: number; need: nu
   let level = 1, need = 100, xpLeft = xp
   while (xpLeft >= need) { xpLeft -= need; level++; need = Math.round(need * 1.25) }
   return { level, into: xpLeft, need }
+}
+
+/** Keep the best and the last score of a practice session on one rule. */
+export function recordPractice(p: Progress, key: string, pct: number): Progress {
+  const prev = p.practice?.[key]
+  return { ...p, practice: { ...p.practice, [key]: { best: Math.max(prev?.best ?? 0, pct), last: pct, times: (prev?.times ?? 0) + 1 } } }
 }
