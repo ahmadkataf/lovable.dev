@@ -1,0 +1,12 @@
+{
+  "id": "g5",
+  "title": "Emar 5",
+  "titleAr": "الإنجليزي — الصف الخامس",
+  "subtitle": "English · Grade Five · Pupil's Book and Activity Book",
+  "storageKey": "emar5.progress.v1",
+  "appName": "Emar 5",
+  "packageId": "com.emar5.app",
+  "iconText": "5",
+  "color": "#ff9600",
+  "api": "https://emar-api.almutafawiqin.workers.dev"
+}
