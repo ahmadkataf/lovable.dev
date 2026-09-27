@@ -348,7 +348,7 @@ export const extras: ModuleExtras = {
       translations: [
         { en: 'One day, an unemployed man went to apply for a job with Microsoft as a cleaner.', ar: 'في أحد الأيام، ذهب رجل عاطل عن العمل ليتقدّم لوظيفة عامل تنظيف في شركة مايكروسوفت.' },
         { en: 'The man said that he had no computer or email address.', ar: 'قال الرجل إنه لا يملك حاسوباً ولا عنوان بريد إلكتروني.' },
-        { en: 'Within less than 2 hours, he sold all the tomatoes at 100% profit.', ar: 'في أقلّ من ساعتين، باع كل الطماطم بربح مئة في المئة.' },
+        { en: 'Getting up early every day and going to bed late, he multiplied his profits quickly.', ar: 'كان يستيقظ باكراً كل يوم وينام متأخراً، فضاعف أرباحه بسرعة.' },
         { en: 'After a short time he bought a cart to transport several dozen boxes of tomatoes.', ar: 'بعد وقت قصير اشترى عربة لينقل عليها عشرات الصناديق من الطماطم.' },
         { en: 'Planning for the future of his wife and children, he decided to buy life insurance.', ar: 'تخطيطاً لمستقبل زوجته وأولاده، قرّر أن يشتري تأميناً على الحياة.' },
         { en: 'I would be a floor cleaner at Microsoft!', ar: 'كنت سأكون عامل تنظيف أرضيات في مايكروسوفت!' },
