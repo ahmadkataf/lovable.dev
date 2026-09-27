@@ -1,0 +1,12 @@
+{
+  "id": "g9",
+  "title": "Emar 9",
+  "titleAr": "الإنجليزي — الصف التاسع",
+  "subtitle": "English · Grade 9 · Student's Book and Activity Book",
+  "storageKey": "emar9.progress.v1",
+  "appName": "Emar 9",
+  "packageId": "com.emar9.app",
+  "iconText": "9",
+  "color": "#ff4b4b",
+  "api": "https://emar-api.almutafawiqin.workers.dev"
+}
