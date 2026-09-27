@@ -50,8 +50,13 @@ export const stripGlossNumbers = md => md
   .replace(/(^|[\s(“"'‘])\d(?=[a-z])(?!(?:st|nd|rd|th)\b)/gm, '$1')
   .replace(/([a-z,]) \d (?=[a-z])/g, '$1 ')
 
+// A digit between two words is either a gloss number the extraction glued into the text ("word 3 next") or
+// part of the sentence ("less than 2 hours"): the corpus holds the text both with and without such digits.
 export function bookCorpus(md) {
-  md = stripGlossNumbers(md)
+  return corpusOf(stripGlossNumbers(md)) + ' ' + corpusOf(md)
+}
+
+function corpusOf(md) {
   // page markers and bare page numbers sit in the middle of sentences that run across pages
   const lines = md.split('\n')
     .filter(l => (l.match(/\|/g) || []).length < 3)
