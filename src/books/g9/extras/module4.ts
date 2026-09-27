@@ -1,4 +1,494 @@
-// Placeholder until the Activity Book content of units 7–8 is written (see ../DATA_SPEC.md).
+import type { GrammarExercise } from '../../../engine/types'
 import type { ModuleExtras } from './merge'
 
-export const extras: ModuleExtras = { units: {} }
+// Module 4 "On the Edge" — Activity Book pages 32–41 (Unit 7 Critical Moments: 32–36, Unit 8 At Risk: 37–41).
+// The listening tasks (pp. 35 and 40) depend on the recording and the speaking tasks are open, so they are left out.
+
+const fill = (prompt: string, promptAr: string, promptArFull: string, options: string[], answer: number, explainAr: string): GrammarExercise =>
+  ({ type: 'fill', prompt, promptAr, promptArFull, options, answer, explainAr })
+const mcq = (prompt: string, promptAr: string, options: string[], answer: number, explainAr: string): GrammarExercise =>
+  ({ type: 'mcq', prompt, promptAr, options, answer, explainAr })
+
+// ---------- Unit 7, page 33 (Vocabulary): the word search — opposites of the words in the box ----------
+/** One word of the box: its opposite hidden in the table, three other words of the table as distractors. */
+function opposite(word: string, wordAr: string, options: string[], answer: number, explainAr: string): GrammarExercise {
+  return mcq(`Find in the table the opposite of "${word}".`, `ابحث في الجدول عن عكس كلمة "${word}" (${wordAr}).`, options, answer, explainAr)
+}
+
+// ---------- Unit 8, page 38 A: the bold words of the story and their meanings ----------
+function boldWord(meaning: string, meaningAr: string, options: string[], answer: number, explainAr: string): GrammarExercise {
+  return mcq(`Find the bold word in the text which means: "${meaning}"`, `أيّ كلمة من الكلمات الغامقة في النص تعني: «${meaningAr}»؟`, options, answer, explainAr)
+}
+
+// ---------- Unit 8, page 38 (Vocabulary): complete with words from the box ----------
+const u8Box = ['despair', 'operation', 'miracle', 'pharmacist']
+
+export const extras: ModuleExtras = {
+  units: {
+    // ===================== UNIT 7 — Critical Moments (Activity Book pages 32–36) =====================
+    u7: {
+      workbook: {
+        pages: '32–36',
+        readings: [
+          {
+            title: 'Back to Life',
+            paragraphs: [
+              'Frane Selak was born in Croatia in 1929. He led a relatively unremarkable life as a music teacher. Selak\'s near-death experiences began in January 1962 when he was travelling by a train from Sarajevo to Dubrovnik. The train left its railway tracks and ended up in a river. Fortunately, an unknown person pulled him to be safe, while 17 other passengers drowned. The next year, Selak boarded a plane from Zagreb to Rijeka. Unfortunately, he was blown out of its door and luckily landed in a haystack; the plane crashed, killing 19 people but Selak survived. Three years after that, in 1966, he got on a bus. The bus skidded on the road and fell into a river, drowning four passengers, and by sheer luck Selak swam to the shore with only a few cuts and bruises.',
+              'In 1970, the fuel in his car’s tank exploded on the motorway. But Selak just escaped with his life. The final famous disaster was in 1996 when a truck came barreling towards his car as he was driving around a mountain road. Selak was ejected from the car but he managed to hold onto a tree, and watched his car in horror plummet down.',
+              'In 2003, two days after his 73rd birthday, Selak won the lottery in Croatia. With this, he bought a luxurious home. Then he changed his mind, sold it in 2010 and lived a humble life with his fifth wife.',
+              'What happened to Selak seems to be far more dramatic than anything Hollywood could cook up. But was it true what happened to Selak?',
+              'Suppose it is true, still we can\'t tell whether he is the luckiest or the unluckiest man in the world. Whatever happened along the way, Frane’s story has a happy ending – or at least he thought it has.',
+            ],
+            paragraphsAr: [
+              'وُلد فراني سيلاك في كرواتيا عام 1929. عاش حياة عادية نسبياً لا شيء مميّزاً فيها، وكان يعمل مدرّساً للموسيقى. بدأت تجارب سيلاك التي كاد يموت فيها في كانون الثاني عام 1962، عندما كان مسافراً بالقطار من سراييفو إلى دوبروفنيك. خرج القطار عن سكّته وانتهى به الأمر في نهر. ولحسن الحظ، سحبه شخص مجهول إلى برّ الأمان، بينما غرق 17 راكباً آخرون. وفي العام التالي، صعد سيلاك إلى طائرة متّجهة من زغرب إلى رييكا. ولسوء الحظ، قُذف من بابها، ولحسن حظه سقط على كومة من القشّ؛ تحطّمت الطائرة وقُتل 19 شخصاً، لكن سيلاك نجا. وبعد ذلك بثلاث سنوات، عام 1966، ركب حافلة. انزلقت الحافلة على الطريق وسقطت في نهر، فغرق أربعة ركّاب، وبمحض الحظ سبح سيلاك إلى الشاطئ ولم يُصب إلا ببعض الجروح والكدمات.',
+              'في عام 1970، انفجر الوقود في خزّان سيارته على الطريق السريع، لكن سيلاك نجا بحياته بصعوبة. وكانت الكارثة الشهيرة الأخيرة عام 1996، عندما اندفعت شاحنة بسرعة لا يمكن السيطرة عليها نحو سيارته بينما كان يقود على طريق جبلي. قُذف سيلاك من السيارة، لكنه تمكّن من التمسّك بشجرة، وراح يشاهد برعب سيارته وهي تهوي إلى الأسفل.',
+              'في عام 2003، بعد يومين من عيد ميلاده الثالث والسبعين، ربح سيلاك اليانصيب في كرواتيا، واشترى بهذا المال منزلاً فاخراً. ثم غيّر رأيه، فباعه عام 2010 وعاش حياة متواضعة مع زوجته الخامسة.',
+              'يبدو ما حدث لسيلاك أكثر إثارة بكثير من أي شيء يمكن أن تختلقه هوليوود. ولكن هل كان ما حدث لسيلاك حقيقياً؟',
+              'لنفترض أنه حقيقي، فما زلنا لا نستطيع أن نحكم إن كان أكثر رجل حظاً في العالم أم أتعسهم حظاً. ومهما حدث له في طريقه، فإن لقصة فراني نهاية سعيدة، أو على الأقل هذا ما كان يظنّه.',
+            ],
+            questions: [
+              {
+                q: 'Order the events that happened to Selak. When did this happen: "The fuel in Selak\'s car exploded on the motorway."?',
+                qAr: 'رتّب الأحداث التي وقعت لسيلاك. متى حدث هذا: «انفجر الوقود في سيارة سيلاك على الطريق السريع»؟',
+                options: ['second', 'third', 'fourth', 'fifth'],
+                answer: 2,
+                explainAr: 'الترتيب حسب السنوات: القطار (1962)، ثم الطائرة (1963)، ثم الحافلة (1966)، ثم انفجار الوقود في السيارة (1970)، ثم الشاحنة (1996). إذن انفجار الوقود هو الحدث الرابع.',
+              },
+              {
+                q: 'Order the events that happened to Selak. When did this happen: "The bus fell into a river and four passengers drowned."?',
+                qAr: 'رتّب الأحداث التي وقعت لسيلاك. متى حدث هذا: «سقطت الحافلة في نهر وغرق أربعة ركّاب»؟',
+                options: ['second', 'third', 'fourth', 'fifth'],
+                answer: 1,
+                explainAr: 'حادثة الحافلة كانت عام 1966 ("Three years after that, in 1966, he got on a bus")، أي بعد القطار (1962) والطائرة (1963)، فهي الحدث الثالث.',
+              },
+              {
+                q: 'Order the events that happened to Selak. When did this happen: "Selak\'s car was hit by a truck."?',
+                qAr: 'رتّب الأحداث التي وقعت لسيلاك. متى حدث هذا: «صدمت شاحنة سيارة سيلاك»؟',
+                options: ['second', 'third', 'fourth', 'fifth'],
+                answer: 3,
+                explainAr: 'يقول النص: "The final famous disaster was in 1996 when a truck came barreling towards his car" — كلمة final تعني الأخيرة، فحادثة الشاحنة هي الحدث الخامس والأخير.',
+              },
+              {
+                q: 'Order the events that happened to Selak. When did this happen: "The train crashed in a river after it left the tracks."?',
+                qAr: 'رتّب الأحداث التي وقعت لسيلاك. متى حدث هذا: «تحطّم القطار في نهر بعد أن خرج عن سكّته»؟',
+                options: ['first', 'second', 'third', 'fourth'],
+                answer: 0,
+                explainAr: 'يقول النص إن تجارب سيلاك مع الموت "began in January 1962 when he was travelling by a train" — كلمة began تعني بدأت، فحادثة القطار هي الحدث الأول.',
+              },
+              {
+                q: 'Order the events that happened to Selak. When did this happen: "Selak survived although the plane crashed, killing 19 people."?',
+                qAr: 'رتّب الأحداث التي وقعت لسيلاك. متى حدث هذا: «نجا سيلاك مع أن الطائرة تحطّمت وقُتل 19 شخصاً»؟',
+                options: ['first', 'second', 'third', 'fourth'],
+                answer: 1,
+                explainAr: 'يقول النص: "The next year, Selak boarded a plane" أي في السنة التالية لحادثة القطار (1963)، فهي الحدث الثاني.',
+              },
+              {
+                q: 'What did Selak do after he had won the lottery?',
+                qAr: 'ماذا فعل سيلاك بعد أن ربح اليانصيب؟',
+                options: [
+                  'He bought a luxurious home, but later he sold it and lived a humble life.',
+                  'He bought a new car and a plane.',
+                  'He gave all the money to the passengers who survived.',
+                  'He became a famous music teacher in Hollywood.',
+                ],
+                answer: 0,
+                explainAr: 'يقول النص: "he bought a luxurious home. Then he changed his mind, sold it in 2010 and lived a humble life with his fifth wife" أي اشترى منزلاً فاخراً ثم باعه وعاش حياة متواضعة.',
+              },
+            ],
+          },
+        ],
+        exercises: [
+          // ---- page 33 B: the adjectives and the adverbs of the words (from the reading text) ----
+          fill('Adjective: relative → Adverb: ___', 'الصفة: relative (نسبي) ← الظرف: ___', 'الصفة: relative (نسبي) ← الظرف: relatively (نسبياً)',
+            ['relatively', 'relativity', 'relation', 'relate'], 0,
+            'نصنع الظرف (adverb) غالباً بإضافة ly إلى الصفة: relative + ly = relatively. وقد وردت في النص: "He led a relatively unremarkable life" أي عاش حياة عادية نسبياً.'),
+          fill('Adverb: remarkably → Adjective: ___', 'الظرف: remarkably (بشكل لافت) ← الصفة: ___', 'الظرف: remarkably (بشكل لافت) ← الصفة: remarkable (لافت، مميّز)',
+            ['remark', 'remarkable', 'remarked', 'remarking'], 1,
+            'نحذف ly من الظرف فنحصل على الصفة: remarkably ← remarkable. وقد وردت في النص بصيغة النفي: "a relatively unremarkable life" (un + remarkable = غير مميّزة).'),
+          fill('Adjective: fortunate → Adverb: ___', 'الصفة: fortunate (محظوظ) ← الظرف: ___', 'الصفة: fortunate (محظوظ) ← الظرف: fortunately (لحسن الحظ)',
+            ['fortune', 'unfortunate', 'fortunately', 'luckily'], 2,
+            'fortunate + ly = fortunately (لحسن الحظ). وقد وردت في النص: "Fortunately, an unknown person pulled him to be safe". انتبه: luckily ظرف أيضاً لكنه ظرف الصفة lucky وليس fortunate.'),
+          fill('Adverb: safely → Adjective: ___', 'الظرف: safely (بأمان) ← الصفة: ___', 'الظرف: safely (بأمان) ← الصفة: safe (آمن)',
+            ['safety', 'save', 'saved', 'safe'], 3,
+            'نحذف ly من safely فنحصل على الصفة safe (آمن). وقد وردت في النص: "an unknown person pulled him to be safe". أمّا safety فهي اسم (الأمان) وsave فعل (يُنقذ).'),
+          fill('Adverb: luxuriously → Adjective: ___', 'الظرف: luxuriously (بترف) ← الصفة: ___', 'الظرف: luxuriously (بترف) ← الصفة: luxurious (فاخر)',
+            ['luxurious', 'luxury', 'luxuries', 'luxuriousness'], 0,
+            'نحذف ly فنحصل على الصفة luxurious (فاخر). وقد وردت في النص: "he bought a luxurious home". أمّا luxury فهي اسم (الرفاهية).'),
+          fill('Adverb: humbly → Adjective: ___', 'الظرف: humbly (بتواضع) ← الصفة: ___', 'الظرف: humbly (بتواضع) ← الصفة: humble (متواضع)',
+            ['humility', 'humble', 'humbled', 'humbling'], 1,
+            'الصفات التي تنتهي بـ le مثل humble تصبح ظرفاً بحذف e وإضافة y: humble ← humbly. والصفة في النص: "lived a humble life" أي حياة متواضعة. أمّا humility فهي اسم (التواضع).'),
+          fill('Adverb: incredibly → Adjective: ___', 'الظرف: incredibly (بشكل لا يُصدَّق) ← الصفة: ___', 'الظرف: incredibly (بشكل لا يُصدَّق) ← الصفة: incredible (لا يُصدَّق)',
+            ['credible', 'credit', 'incredible', 'incredibility'], 2,
+            'مثل humble: الصفة التي تنتهي بـ le تصبح ظرفاً بـ ly بعد حذف e: incredible ← incredibly. انتبه: credible تعني «قابل للتصديق» وهي عكس incredible.'),
+          fill('Adverb: dramatically → Adjective: ___', 'الظرف: dramatically (بشكل مثير) ← الصفة: ___', 'الظرف: dramatically (بشكل مثير) ← الصفة: dramatic (مثير)',
+            ['drama', 'dramatize', 'dramas', 'dramatic'], 3,
+            'الصفات التي تنتهي بـ ic تأخذ ally في الظرف: dramatic ← dramatically. وقد وردت الصفة في النص: "far more dramatic than anything Hollywood could cook up". أمّا drama فهي اسم.'),
+
+          // ---- page 33 Vocabulary: the word search — opposites of the words in the box ----
+          opposite('proud', 'متكبّر، فخور', ['lucky', 'humble', 'safe', 'known'], 1,
+            'عكس proud (متكبّر) هو humble (متواضع). تجدها في السطر الثاني أفقياً، ووردت في النص: "lived a humble life".'),
+          opposite('unlucky', 'سيّئ الحظ', ['lucky', 'incredible', 'humble', 'fortunately'], 0,
+            'نحذف البادئة un فنحصل على العكس: unlucky ← lucky (محظوظ). تجدها في العمود الأخير تُقرأ من الأسفل إلى الأعلى. وفي النص: "the luckiest or the unluckiest man in the world".'),
+          opposite('unfortunately', 'لسوء الحظ', ['luxurious', 'safe', 'fortunately', 'unremarkable'], 2,
+            'نحذف un: unfortunately ← fortunately (لحسن الحظ). تجدها في السطر الثالث أفقياً، ووردت الكلمتان في النص: "Fortunately, an unknown person…" و"Unfortunately, he was blown out…".'),
+          opposite('unknown', 'مجهول', ['humble', 'lucky', 'incredible', 'known'], 3,
+            'نحذف un: unknown ← known (معروف). تجدها في العمود السابع تُقرأ من الأسفل إلى الأعلى. وفي النص: "an unknown person pulled him to be safe".'),
+          opposite('unsafe', 'غير آمن', ['safe', 'known', 'fortunately', 'lucky'], 0,
+            'نحذف un: unsafe ← safe (آمن). تجدها في العمود الثاني تُقرأ من الأسفل إلى الأعلى. وفي النص: "pulled him to be safe".'),
+          opposite('credible', 'قابل للتصديق', ['unremarkable', 'incredible', 'luxurious', 'humble'], 1,
+            'نضيف البادئة in فنحصل على العكس: credible ← incredible (لا يُصدَّق). تجدها في السطر الأول أفقياً.'),
+          opposite('remarkable', 'مميّز، لافت', ['incredible', 'fortunately', 'unremarkable', 'safe'], 2,
+            'نضيف البادئة un: remarkable ← unremarkable (عادي، غير مميّز). تجدها في السطر الأخير أفقياً، ووردت في النص: "a relatively unremarkable life".'),
+
+          // ---- page 34 Grammar A: choose the correct verb (past perfect) ----
+          fill('I ___ the matter with my teacher before I told my father.', '___ الموضوع مع معلّمي قبل أن أخبر أبي.', 'كنت قد ناقشت الموضوع مع معلّمي قبل أن أخبر أبي.',
+            ['discuss', 'had discussed', 'have discussed'], 1,
+            'حدثان في الماضي: النقاش مع المعلّم حدث أولاً، ثم إخبار الأب. الحدث الأول نضعه في الماضي التام (had + التصريف الثالث): had discussed، والحدث الثاني في الماضي البسيط: told.'),
+          fill('The lesson ___ when we arrived.', '___ الدرس عندما وصلنا.', 'كان الدرس قد بدأ فعلاً عندما وصلنا.',
+            ['has already begun', 'had already begun', 'already begins'], 1,
+            'الدرس بدأ أولاً ثم وصلنا (arrived ماضٍ بسيط). الحدث الأسبق في الماضي التام: had already begun. لا نستخدم has begun (المضارع التام) مع قصة في الماضي.'),
+          fill('I ___ snow until I went to Canada.', '___ الثلج حتى ذهبت إلى كندا.', 'لم أكن قد رأيت الثلج قطّ حتى ذهبت إلى كندا.',
+            ['had never seen', 'have never seen', 'never see'], 0,
+            'قبل الذهاب إلى كندا (حدث في الماضي: went) لم يكن قد رأى الثلج. ما حدث (أو لم يحدث) قبل حدث ماضٍ آخر نعبّر عنه بالماضي التام: had never seen.'),
+          fill('By the time mom ___, I had prepared dinner.', 'عندما ___ أمي، كنت قد حضّرت العشاء.', 'عندما جاءت أمي، كنت قد حضّرت العشاء.',
+            ['comes', 'had come', 'came'], 2,
+            'تحضير العشاء حدث أولاً (had prepared)، ثم جاءت الأم. بعد by the time نضع الحدث الثاني في الماضي البسيط: came. لا نستخدم comes لأن الجملة كلها في الماضي.'),
+
+          // ---- page 34 Grammar B: write the correct form of the verbs ----
+          fill('I (feel) ___ a little better after I (take) ___ the medicine.', '___ بتحسّن بسيط بعد أن ___ الدواء.', 'شعرت بتحسّن بسيط بعد أن كنت قد تناولت الدواء.',
+            ['had felt / took', 'felt / had taken', 'feel / took'], 1,
+            'تناول الدواء حدث أولاً، ثم الشعور بالتحسّن. الحدث الأول بعد after في الماضي التام: had taken، والحدث الثاني في الماضي البسيط: felt.'),
+          fill('She was late. The teacher (give already) ___ a test when she (get) ___ to class last Monday.', 'تأخّرت. ___ المعلّم اختباراً عندما ___ إلى الصف يوم الإثنين الماضي.', 'تأخّرت. كان المعلّم قد أعطى اختباراً فعلاً عندما وصلت إلى الصف يوم الإثنين الماضي.',
+            ['had already given / got', 'already gave / had got', 'has already given / got', 'had already give / gets'], 0,
+            'المعلّم أعطى الاختبار أولاً، ثم وصلت الطالبة متأخّرة. الأسبق: had already given (had + already + التصريف الثالث)، والثاني بعد when: got. انتبه: التصريف الثالث لـ give هو given وليس give.'),
+          fill('Maram (be) ___ a newspaper reporter before she (become) ___ an ambassador.', '___ مرام مراسلة صحفية قبل أن ___ سفيرة.', 'كانت مرام قد عملت مراسلة صحفية قبل أن تصبح سفيرة.',
+            ['had been / became', 'has been / becomes', 'had be / became', 'became / had been'], 0,
+            'عملها مراسلةً حدث أولاً، ثم أصبحت سفيرة. الحدث الأسبق في الماضي التام: had been (التصريف الثالث لـ be هو been)، والحدث بعد before في الماضي البسيط: became.'),
+          fill('It was raining heavily, but by the time class (be) ___ over, the rain (stop) ___.', 'كانت تمطر بغزارة، لكن عندما ___ الدرس، ___ المطر.', 'كانت تمطر بغزارة، لكن عندما انتهى الدرس، كان المطر قد توقّف.',
+            ['had been / stopped', 'is / has stopped', 'was / had stopped', 'was / has stopped'], 2,
+            'توقّف المطر حدث أولاً، وانتهاء الدرس بعده. بعد by the time نستخدم الماضي البسيط: was over، والحدث الأسبق في الماضي التام: had stopped.'),
+          fill('Dinosaurs (become) ___ extinct by the time humankind first (appear) ___.', '___ الديناصورات عندما ___ الإنسان لأول مرة.', 'كانت الديناصورات قد انقرضت عندما ظهر الإنسان لأول مرة.',
+            ['became / had appeared', 'had become / appeared', 'have become / appears', 'had become / had appeared'], 1,
+            'انقرضت الديناصورات أولاً، ثم ظهر الإنسان. الأسبق في الماضي التام: had become، وبعد by the time الماضي البسيط: appeared. لا نضع الفعلين معاً في الماضي التام.'),
+          fill('They (never see) ___ any of his paintings before they (visit) ___ the Art Museum yesterday.', '___ أيّاً من لوحاته قبل أن ___ متحف الفن أمس.', 'لم يكونوا قد رأوا أيّاً من لوحاته قبل أن يزوروا متحف الفن أمس.',
+            ['had never seen / visited', 'never saw / had visited', 'have never seen / visited', 'had never saw / visit'], 0,
+            'قبل زيارة المتحف أمس لم يكونوا قد رأوا لوحاته. الأسبق في الماضي التام: had never seen (التصريف الثالث لـ see هو seen وليس saw)، والحدث بعد before مع yesterday في الماضي البسيط: visited.'),
+        ],
+      },
+      compositions: [
+        {
+          source: 'workbook',
+          topic: 'Many species of animals are in danger. In your opinion, what are the ways we can adopt to protect animals on the edge of extinction? Write a paragraph of no more than 80 words.',
+          topicAr: 'أنواع كثيرة من الحيوانات في خطر. برأيك، ما الطرق التي يمكن أن نتّبعها لحماية الحيوانات المهدّدة بالانقراض؟ اكتب فقرة لا تزيد على 80 كلمة.',
+          words: 80,
+          plan: [
+            { en: 'Topic sentence: many species of animals are in danger and on the edge of extinction.', ar: 'الجملة الرئيسية: أنواع كثيرة من الحيوانات في خطر وعلى حافة الانقراض.' },
+            { en: 'Give your opinion and the first way to protect them (First, …).', ar: 'اذكر رأيك وأول طريقة لحمايتها (First, …).' },
+            { en: 'Add two more ways (Also, … In addition, …).', ar: 'أضف طريقتين أخريين (Also, … In addition, …).' },
+            { en: 'Conclusion: a past-perfect example (dinosaurs had become extinct…) and a final sentence.', ar: 'الخاتمة: مثال بالماضي التام (كانت الديناصورات قد انقرضت…) وجملة ختامية.' },
+          ],
+          phrases: [
+            { en: 'on the edge of extinction', ar: 'على حافة الانقراض' },
+            { en: 'Many species of animals are in danger.', ar: 'أنواع كثيرة من الحيوانات في خطر.' },
+            { en: 'In my opinion, …', ar: 'برأيي، …' },
+            { en: 'protect animals', ar: 'يحمي الحيوانات' },
+            { en: 'live and survive', ar: 'تعيش وتبقى على قيد الحياة' },
+            { en: 'safe natural reserves', ar: 'محميّات طبيعية آمنة' },
+            { en: 'Dinosaurs had become extinct by the time humankind first appeared.', ar: 'كانت الديناصورات قد انقرضت عندما ظهر الإنسان لأول مرة.' },
+            { en: 'a tragedy', ar: 'مأساة' },
+            { en: 'should never happen again', ar: 'يجب ألّا يتكرّر أبداً' },
+            { en: 'First, … Also, … In addition, …', ar: 'أولاً… كذلك… بالإضافة إلى ذلك…' },
+            { en: 'Subject / Verb / Object / the rest of the sentence', ar: 'الفاعل / الفعل / المفعول به / بقية الجملة (ترتيب الكلمات)' },
+          ],
+          model: 'Many species of animals are in danger, and some of them are on the edge of extinction. In my opinion, we can adopt several ways to protect them. First, governments should build safe natural reserves where animals can live and survive. Also, people should stop hunting rare animals and cutting down forests. In addition, schools can teach children to respect wildlife. Dinosaurs had become extinct before humans appeared, but today animals are disappearing because of us. This tragedy should stop.',
+          modelAr: 'أنواع كثيرة من الحيوانات في خطر، وبعضها على حافة الانقراض. برأيي، يمكننا أن نتّبع عدّة طرق لحمايتها. أولاً، يجب على الحكومات أن تبني محميّات طبيعية آمنة تستطيع الحيوانات أن تعيش فيها وتبقى على قيد الحياة. كذلك يجب على الناس أن يتوقّفوا عن صيد الحيوانات النادرة وقطع الغابات. وبالإضافة إلى ذلك، تستطيع المدارس أن تعلّم الأطفال احترام الحياة البرية. كانت الديناصورات قد انقرضت قبل أن يظهر البشر، أمّا اليوم فالحيوانات تختفي بسببنا. يجب أن تتوقّف هذه المأساة.',
+          checklistAr: [
+            'هل بدأت بجملة رئيسية واضحة عن الحيوانات المهدّدة بالانقراض؟',
+            'هل ذكرت رأيك (In my opinion) وطريقتين أو ثلاث طرق لحماية الحيوانات؟',
+            'هل رتّبت كلمات كل جملة: الفاعل ثم الفعل ثم المفعول به ثم بقية الجملة؟',
+            'هل استخدمت أدوات ربط مثل First, Also, In addition؟',
+            'هل استخدمت الماضي التام بشكل صحيح إن تحدّثت عن حدثين في الماضي (had + التصريف الثالث)؟',
+            'هل الفقرة لا تزيد على 80 كلمة، وراجعت التهجئة وعلامات الترقيم؟',
+          ],
+        },
+      ],
+      translations: [
+        { en: 'Frane Selak was born in Croatia in 1929.', ar: 'وُلد فراني سيلاك في كرواتيا عام 1929.' },
+        { en: 'He led a relatively unremarkable life as a music teacher.', ar: 'عاش حياة عادية نسبياً بصفته مدرّساً للموسيقى.' },
+        { en: 'The train left its railway tracks and ended up in a river.', ar: 'خرج القطار عن سكّته وانتهى به الأمر في نهر.' },
+        { en: 'Fortunately, an unknown person pulled him to be safe, while 17 other passengers drowned.', ar: 'لحسن الحظ، سحبه شخص مجهول إلى برّ الأمان، بينما غرق 17 راكباً آخرون.' },
+        { en: 'In 1970, the fuel in his car’s tank exploded on the motorway.', ar: 'في عام 1970، انفجر الوقود في خزّان سيارته على الطريق السريع.' },
+        { en: 'But Selak just escaped with his life.', ar: 'لكن سيلاك نجا بحياته بصعوبة.' },
+        { en: 'In 2003, two days after his 73rd birthday, Selak won the lottery in Croatia.', ar: 'في عام 2003، بعد يومين من عيد ميلاده الثالث والسبعين، ربح سيلاك اليانصيب في كرواتيا.' },
+        { en: 'With this, he bought a luxurious home.', ar: 'وبهذا المال اشترى منزلاً فاخراً.' },
+        { en: 'When I arrived home, my son had already made an enormous carrot cake.', ar: 'عندما وصلت إلى البيت، كان ابني قد صنع كعكة جزر ضخمة.' },
+        { en: 'Karen had already left by the time Sally got there.', ar: 'كانت كارين قد غادرت عندما وصلت سالي إلى هناك.' },
+        { en: 'After the guests had left, I went to bed.', ar: 'بعد أن غادر الضيوف، ذهبت إلى النوم.' },
+        { en: 'I had arrived at the station before the train left.', ar: 'كنت قد وصلت إلى المحطة قبل أن يغادر القطار.' },
+        { en: 'I had discussed the matter with my teacher before I told my father.', ar: 'كنت قد ناقشت الموضوع مع معلّمي قبل أن أخبر أبي.' },
+        { en: 'The Titanic was the largest ship that had ever travelled on the sea.', ar: 'كانت تايتانيك أكبر سفينة أبحرت في البحر على الإطلاق.' },
+        { en: 'Nobody had believed that the Titanic could sink.', ar: 'لم يكن أحد قد صدّق أن تايتانيك يمكن أن تغرق.' },
+        { en: 'A tragedy like the sinking of the Titanic should never happen again.', ar: 'يجب ألّا تتكرّر أبداً مأساة مثل غرق تايتانيك.' },
+        { en: 'Some of the survivors had been in the icy water for hours when they were saved.', ar: 'كان بعض الناجين قد بقوا في الماء المتجمّد ساعات عندما أُنقذوا.' },
+      ],
+    },
+
+    // ===================== UNIT 8 — At Risk (Activity Book pages 37–41) =====================
+    u8: {
+      workbook: {
+        pages: '37–41',
+        readings: [
+          {
+            title: 'On the Edge of Innocence',
+            paragraphs: [
+              'A poor family was living happily until the son felt severely ill. It was clear from the medical analysis and laboratory tests that he had got a tumour in his head.',
+              '"Your son’s condition is critical. He needs a miracle to survive.", the doctor said. After she had heard the doctor’s words the little daughter rushed to the nearest pharmacy with the only pound she had in her money box. "Give me a miracle, please," she said putting the pound on the table. The pharmacist was busy talking to his brother. After a while he replied, "who told you I sell miracles?" She looked helplessly watching in despair. Suddenly the pharmacist’s brother kneeled asking her, "tell me, sweetie, why do you need a miracle?" Without thinking, "I don’t know, the doctor says my brother needs a miracle for an operation not to die."Is this pound enough?" "One pound is exactly enough", he answered with a big smile and a tender voice. "Could I see your brother?" This man was Carlton Armstrong, the famous nerve surgeon who performed the operation successfully and took one pound for it.',
+              'Later, he framed the pound with a sentence below, "This pound is the price of a miracle taken from a girl, on the edge of innocence."',
+            ],
+            paragraphsAr: [
+              'كانت أسرة فقيرة تعيش بسعادة إلى أن مرض الابن مرضاً شديداً. واتّضح من التحاليل الطبية والفحوص المخبرية أنه مصاب بورم في رأسه.',
+              'قال الطبيب: «حالة ابنكم حرجة. إنه يحتاج إلى معجزة لكي ينجو». وبعد أن سمعت الابنة الصغيرة كلام الطبيب، أسرعت إلى أقرب صيدلية ومعها الليرة الوحيدة التي كانت في حصّالتها. وقالت وهي تضع الليرة على الطاولة: «أعطني معجزة، من فضلك». كان الصيدلاني مشغولاً بالحديث مع أخيه، وبعد قليل أجاب: «من قال لكِ إنني أبيع المعجزات؟» فنظرت بعجز وهي تراقب في يأس. وفجأة جثا أخو الصيدلاني على ركبتيه وسألها: «أخبريني يا حلوتي، لماذا تحتاجين إلى معجزة؟» فأجابت دون تفكير: «لا أعرف، الطبيب يقول إن أخي يحتاج إلى معجزة لكي تُجرى له عملية فلا يموت. هل هذه الليرة تكفي؟» فأجاب بابتسامة عريضة وصوت حنون: «ليرة واحدة تكفي تماماً. هل يمكنني أن أرى أخاكِ؟» كان هذا الرجل كارلتون أرمسترونغ، جرّاح الأعصاب الشهير، الذي أجرى العملية بنجاح وأخذ مقابلها ليرة واحدة.',
+              'وفي ما بعد، وضع الليرة في إطار وكتب تحتها جملة: «هذه الليرة ثمن معجزة أُخذت من فتاة، على حافة البراءة».',
+            ],
+            questions: [
+              {
+                q: 'Who was ill? What was his illness?',
+                qAr: 'من كان مريضاً؟ وما كان مرضه؟',
+                options: [
+                  'The son; he had a tumour in his head.',
+                  'The little daughter; she had a tumour in her head.',
+                  'The father; he had a problem with his heart.',
+                  'The pharmacist’s brother; he had a nerve problem.',
+                ],
+                answer: 0,
+                explainAr: 'يقول النص: "the son felt severely ill… he had got a tumour in his head" أي الابن هو المريض، وكان مصاباً بورم في رأسه.',
+              },
+              {
+                q: 'Why did Armstrong perform the operation?',
+                qAr: 'لماذا أجرى أرمسترونغ العملية؟',
+                options: [
+                  'Because the family paid him a lot of money.',
+                  'Because the little girl asked for a miracle to save her brother, and her innocence touched him.',
+                  'Because the pharmacist ordered him to do it.',
+                  'Because the doctor was his brother.',
+                ],
+                answer: 1,
+                explainAr: 'سمع أرمسترونغ الطفلة تطلب «معجزة» بليرتها الوحيدة لكي لا يموت أخوها، فتأثّر ببراءتها وقال لها بابتسامة: "One pound is exactly enough. Could I see your brother?"',
+              },
+              {
+                q: 'How much did the operation cost?',
+                qAr: 'كم كلّفت العملية؟',
+                options: ['Nothing at all.', 'One pound.', 'A lot of money.', 'Two pounds.'],
+                answer: 1,
+                explainAr: 'يقول النص: "performed the operation successfully and took one pound for it" أي أخذ ليرة واحدة فقط.',
+              },
+              {
+                q: 'Where did the little daughter go after she had heard the doctor’s words?',
+                qAr: 'إلى أين ذهبت الابنة الصغيرة بعد أن سمعت كلام الطبيب؟',
+                options: ['To the hospital.', 'To her school.', 'To the nearest pharmacy.', 'To the doctor’s house.'],
+                answer: 2,
+                explainAr: 'يقول النص: "the little daughter rushed to the nearest pharmacy with the only pound she had" أي أسرعت إلى أقرب صيدلية.',
+              },
+              {
+                q: 'Who was Carlton Armstrong?',
+                qAr: 'من كان كارلتون أرمسترونغ؟',
+                options: [
+                  'The pharmacist who sold miracles.',
+                  'The doctor who examined the son.',
+                  'The father of the little girl.',
+                  'The pharmacist’s brother, a famous nerve surgeon.',
+                ],
+                answer: 3,
+                explainAr: 'الرجل الذي جثا وسأل الطفلة هو أخو الصيدلاني، ويقول النص: "This man was Carlton Armstrong, the famous nerve surgeon".',
+              },
+              {
+                q: 'What did Armstrong do with the pound later?',
+                qAr: 'ماذا فعل أرمسترونغ بالليرة في ما بعد؟',
+                options: [
+                  'He gave it back to the girl.',
+                  'He framed it with a sentence below.',
+                  'He gave it to his brother, the pharmacist.',
+                  'He bought medicine with it.',
+                ],
+                answer: 1,
+                explainAr: 'يقول النص: "Later, he framed the pound with a sentence below" أي وضعها في إطار وكتب تحتها جملة.',
+              },
+            ],
+          },
+        ],
+        exercises: [
+          // ---- page 38 A: the bold words of the story ----
+          boldWord('an act or event that doesn’t follow the law of nature, but caused by God', 'فعل أو حدث لا يخضع لقوانين الطبيعة، بل يكون من الله',
+            ['innocence', 'miracle', 'tumour', 'surgeon'], 1,
+            'miracle تعني «معجزة». وفي النص: "He needs a miracle to survive" أي يحتاج إلى معجزة لكي ينجو.'),
+          boldWord('serious and dangerous', 'خطير وجدّي', ['tender', 'critical', 'innocence', 'survive'], 1,
+            'critical تعني «حرج، خطير». وفي النص: "Your son’s condition is critical" أي حالة ابنكم حرجة.'),
+          boldWord('a mass of cells growing in or on a part of the body causing medical problems', 'كتلة من الخلايا تنمو داخل جزء من الجسم أو عليه وتسبّب مشكلات صحية',
+            ['surgeon', 'miracle', 'tumour', 'critical'], 2,
+            'tumour تعني «ورم». وفي النص: "he had got a tumour in his head" أي كان مصاباً بورم في رأسه.'),
+          boldWord('to continue to live', 'أن يستمرّ في الحياة', ['survive', 'tender', 'surgeon', 'innocence'], 0,
+            'survive تعني «ينجو، يبقى على قيد الحياة». وفي النص: "He needs a miracle to survive".'),
+          boldWord('kind, gentle and loving', 'لطيف ورقيق ومحبّ', ['critical', 'survive', 'miracle', 'tender'], 3,
+            'tender تعني «حنون، رقيق». وفي النص: "he answered with a big smile and a tender voice" أي بصوت حنون.'),
+          boldWord('a doctor who performs operations in a hospital', 'طبيب يُجري العمليات الجراحية في المستشفى', ['surgeon', 'tumour', 'tender', 'miracle'], 0,
+            'surgeon تعني «جرّاح». وفي النص: "the famous nerve surgeon who performed the operation" أي جرّاح الأعصاب الشهير.'),
+          boldWord('the state of being not guilty', 'حالة عدم الذنب (البراءة)', ['critical', 'tumour', 'innocence', 'survive'], 2,
+            'innocence تعني «البراءة». وفي النص: "a miracle taken from a girl, on the edge of innocence".'),
+
+          // ---- page 38 Vocabulary: complete the sentences with words from the box ----
+          fill('This team needs a ___ to win the match.', 'هذا الفريق يحتاج إلى ___ ليفوز بالمباراة.', 'هذا الفريق يحتاج إلى معجزة ليفوز بالمباراة.',
+            u8Box, 2, 'miracle = معجزة: الفوز صعب جداً على هذا الفريق فهو يحتاج إلى معجزة. وبعد a نحتاج اسماً مفرداً يبدأ بصوت ساكن، وmiracle مناسبة.'),
+          fill('She asked the ___ to prepare the medicine.', 'طلبت من ___ أن يحضّر الدواء.', 'طلبت من الصيدلاني أن يحضّر الدواء.',
+            u8Box, 3, 'pharmacist = الصيدلاني: هو الشخص الذي يحضّر الدواء ويبيعه في الصيدلية (pharmacy)، كما في قصة الوحدة.'),
+          fill('My friend was filled with ___ when he lost his job.', 'امتلأ صديقي بـ ___ عندما فقد عمله.', 'امتلأ صديقي باليأس عندما فقد عمله.',
+            u8Box, 0, 'despair = اليأس: الشعور الذي يملأ الإنسان عندما يفقد عمله ويفقد الأمل. وفي القصة: "She looked helplessly watching in despair".'),
+          fill('The patient felt better after the ___.', 'شعر المريض بتحسّن بعد ___.', 'شعر المريض بتحسّن بعد العملية.',
+            u8Box, 1, 'operation = العملية الجراحية: بعد أن يُجري الجرّاح العملية يشعر المريض بتحسّن، كما في القصة: "performed the operation successfully".'),
+
+          // ---- page 39 Grammar A: select the correct answer (wish) ----
+          fill('I wish I ___ to my father.', 'ليتني ___ إلى أبي.', 'ليتني استمعت إلى أبي (في الماضي).',
+            ['had listened', 'have listened', 'will listen'], 0,
+            'التمنّي عن الماضي (ندم على شيء لم نفعله) يكون بـ wish + الماضي التام: I wish I had listened. لا نستخدم المضارع التام have listened ولا will بعد wish.'),
+          fill('I wish it ___ snowing.', 'ليت الثلج ___ عن التساقط.', 'ليت الثلج يتوقّف عن التساقط.',
+            ['will stop', 'would stop', 'stops'], 1,
+            'عندما نتمنّى أن يتغيّر شيء مزعج في الحاضر أو المستقبل نستخدم wish + would + المصدر: I wish it would stop snowing. لا نستخدم will بعد wish.'),
+          fill('He wishes he ___ so old.', 'يتمنّى لو أنه ___ كبيراً في السنّ إلى هذا الحدّ.', 'يتمنّى لو أنه لم يكن كبيراً في السنّ إلى هذا الحدّ.',
+            ['isn\'t', 'aren\'t', 'weren\'t'], 2,
+            'التمنّي عن الحاضر يكون بـ wish + الماضي البسيط، ومع فعل be نستخدم were مع كل الضمائر: He wishes he weren\'t so old.'),
+          fill('She wishes she ___ the train.', 'تتمنّى لو أنها ___ القطار.', 'تتمنّى لو أنها أخذت القطار (في الماضي).',
+            ['had taken', 'has taken', 'will take'], 0,
+            'التمنّي عن الماضي يكون بـ wish + الماضي التام (had + التصريف الثالث): She wishes she had taken the train.'),
+          fill('I wish the prices ___ so high.', 'ليت الأسعار ___ مرتفعة إلى هذا الحدّ.', 'ليت الأسعار لم تكن مرتفعة إلى هذا الحدّ.',
+            ['aren\'t', 'weren\'t', 'won\'t be'], 1,
+            'الأسعار مرتفعة الآن، ونتمنّى عكس ذلك في الحاضر: wish + الماضي البسيط، فنقول weren\'t وليس aren\'t.'),
+
+          // ---- page 39 Grammar B: rewrite the sentences using "wish" ----
+          mcq('Rewrite using "wish": "She did not study hard at school." → She wishes …', 'أعد كتابة الجملة باستخدام wish: «لم تدرس بجدّ في المدرسة».',
+            ['She wishes she studied hard at school.', 'She wishes she had studied hard at school.', 'She wishes she has studied hard at school.', 'She wishes she didn\'t study hard at school.'], 1,
+            'الجملة الأصلية عن الماضي (did not study)، فالتمنّي يكون بالماضي التام، ونقلب النفي إلى إثبات: She wishes she had studied hard at school.'),
+          mcq('Rewrite using "wish": "Noel didn’t visit the Sorbonne when he was in Paris." → He wishes …', 'أعد كتابة الجملة باستخدام wish: «لم يزر نويل جامعة السوربون عندما كان في باريس».',
+            ['He wishes he visited the Sorbonne when he was in Paris.', 'He wishes he hadn\'t visited the Sorbonne when he was in Paris.', 'He wishes he had visited the Sorbonne when he was in Paris.', 'He wishes he has visited the Sorbonne when he was in Paris.'], 2,
+            'ندم على شيء لم يحدث في الماضي ← wish + had + التصريف الثالث، ونقلب النفي إلى إثبات: He wishes he had visited the Sorbonne.'),
+          mcq('Rewrite using "wish": "I am not tall enough to reach the books on the top shelf." → I wish …', 'أعد كتابة الجملة باستخدام wish: «لست طويلاً بما يكفي لأصل إلى الكتب على الرف العلوي».',
+            ['I wish I were tall enough to reach the books on the top shelf.', 'I wish I am tall enough to reach the books on the top shelf.', 'I wish I had been tall enough to reach the books on the top shelf.', 'I wish I weren\'t tall enough to reach the books on the top shelf.'], 0,
+            'الجملة عن الحاضر (am not)، فالتمنّي يكون بالماضي البسيط، ومع be نستخدم were مع كل الضمائر، ونقلب النفي إلى إثبات: I wish I were tall enough.'),
+          mcq('Rewrite using "wish": "They spent so much money on their shopping trip." → They wish …', 'أعد كتابة الجملة باستخدام wish: «أنفقوا مالاً كثيراً في رحلة التسوّق».',
+            ['They wish they didn\'t spend so much money on their shopping trip.', 'They wish they had spent so much money on their shopping trip.', 'They wish they haven\'t spent so much money on their shopping trip.', 'They wish they hadn\'t spent so much money on their shopping trip.'], 3,
+            'ندم على شيء حدث في الماضي (spent) ← wish + الماضي التام، ونقلب الإثبات إلى نفي: They wish they hadn\'t spent so much money.'),
+          mcq('Rewrite using "wish": "They are too old to play football." → I wish …', 'أعد كتابة الجملة باستخدام wish: «إنهم كبار في السنّ جداً على لعب كرة القدم».',
+            ['I wish they aren\'t too old to play football.', 'I wish they weren\'t too old to play football.', 'I wish they hadn\'t been too old to play football.', 'I wish they were too old to play football.'], 1,
+            'الجملة عن الحاضر (are)، فالتمنّي يكون بالماضي البسيط were، ونقلب الإثبات إلى نفي: I wish they weren\'t too old to play football.'),
+          mcq('Rewrite using "wish": "We weren’t kind to her before she got sick." → We wish …', 'أعد كتابة الجملة باستخدام wish: «لم نكن لطفاء معها قبل أن تمرض».',
+            ['We wish we were kind to her before she got sick.', 'We wish we hadn\'t been kind to her before she got sick.', 'We wish we had been kind to her before she got sick.', 'We wish we have been kind to her before she got sick.'], 2,
+            'الحدث في الماضي (weren\'t … before she got sick) ← wish + الماضي التام، والتصريف الثالث لـ be هو been، ونقلب النفي إلى إثبات: We wish we had been kind to her.'),
+        ],
+      },
+      compositions: [
+        {
+          source: 'book',
+          topic: 'Write as many sentences as you can in each circle; then organise your ideas in a paragraph.',
+          topicAr: 'اكتب أكبر عدد ممكن من الجمل في كل دائرة، ثم نظّم أفكارك في فقرة.',
+          words: 100,
+          points: ['Something happy you passed by.', 'Something sad happened to you.', 'Moments you felt you lived on the edge.'],
+          pointsAr: ['شيء سعيد مررت به.', 'شيء حزين حدث لك.', 'لحظات شعرت فيها أنك تعيش على حافة الخطر.'],
+          plan: [
+            { en: 'Topic sentence: life is full of happy, sad and critical moments.', ar: 'الجملة الرئيسية: الحياة مليئة باللحظات السعيدة والحزينة والحرجة.' },
+            { en: 'Something happy you passed by: what happened and how you felt.', ar: 'شيء سعيد مررت به: ماذا حدث وبماذا شعرت.' },
+            { en: 'Something sad that happened to you (However, …).', ar: 'شيء حزين حدث لك (However, …).' },
+            { en: 'A moment you felt you lived on the edge.', ar: 'لحظة شعرت فيها أنك تعيش على حافة الخطر.' },
+            { en: 'Conclusion: a wish about the past (I wish I hadn\'t …) and a lesson.', ar: 'الخاتمة: أمنية عن الماضي (I wish I hadn\'t …) ودرس تعلّمته.' },
+          ],
+          phrases: [
+            { en: 'critical moments', ar: 'لحظات حرجة' },
+            { en: 'on the edge', ar: 'على حافة الخطر' },
+            { en: 'at risk', ar: 'في خطر' },
+            { en: 'felt severely ill', ar: 'مرض مرضاً شديداً' },
+            { en: 'His condition was critical.', ar: 'كانت حالته حرجة.' },
+            { en: 'survive', ar: 'ينجو' },
+            { en: 'filled with despair', ar: 'ممتلئ باليأس' },
+            { en: 'take a selfie', ar: 'يلتقط صورة سيلفي' },
+            { en: 'I wish I hadn\'t …', ar: 'ليتني لم …' },
+            { en: 'Putting yourselves at risk is useless.', ar: 'تعريض أنفسكم للخطر لا فائدة منه.' },
+            { en: 'Our lives are very precious and valuable.', ar: 'حياتنا ثمينة وغالية جداً.' },
+            { en: 'However, …', ar: 'لكن، …' },
+          ],
+          model: 'Life is full of happy, sad and critical moments. Last summer, I passed by a happy moment when my brother graduated from university, and our whole family celebrated with him. However, something sad happened to me two years ago: my grandfather felt severely ill, and we were all filled with despair. The doctors said his condition was critical, but he survived. I felt I lived on the edge when I climbed a high cliff to take a selfie. I nearly fell! I wish I hadn\'t put myself at risk, because our lives are very precious and valuable.',
+          modelAr: 'الحياة مليئة باللحظات السعيدة والحزينة والحرجة. في الصيف الماضي مررت بلحظة سعيدة عندما تخرّج أخي من الجامعة واحتفلت أسرتنا كلها معه. لكن شيئاً حزيناً حدث لي قبل سنتين: فقد مرض جدّي مرضاً شديداً، وامتلأنا جميعاً باليأس. قال الأطباء إن حالته حرجة، لكنه نجا. وشعرت أنني أعيش على حافة الخطر عندما تسلّقت جرفاً عالياً لألتقط صورة سيلفي. كدت أسقط! ليتني لم أعرّض نفسي للخطر، لأن حياتنا ثمينة وغالية جداً.',
+          checklistAr: [
+            'هل كتبت عن الدوائر الثلاث: شيء سعيد، وشيء حزين، ولحظة على حافة الخطر؟',
+            'هل نظّمت أفكارك في فقرة واحدة تبدأ بجملة رئيسية وتنتهي بخاتمة؟',
+            'هل استخدمت الماضي البسيط للأحداث بشكل صحيح؟',
+            'هل استخدمت wish بشكل صحيح (wish + الماضي التام للندم على الماضي)؟',
+            'هل استخدمت مفردات الوحدة (critical, survive, despair, at risk, on the edge)؟',
+            'هل راجعت ترتيب الكلمات والتهجئة وعلامات الترقيم؟',
+          ],
+        },
+        {
+          source: 'workbook',
+          topic: 'Write a paragraph about why some people like to try adventures.',
+          topicAr: 'اكتب فقرة عن سبب حبّ بعض الناس خوض المغامرات.',
+          words: 100,
+          points: [
+            'Introduction: Describe the event or situation',
+            'Body Paragraph1 (Causes): Start with what you feel the main cause of the event is providing evidence to back up your argument.',
+            'Body Paragraph2 (Effects): start with the most important effect of the situation. Again, provide evidence to back up your argument.',
+          ],
+          pointsAr: [
+            'المقدّمة: صِف الحدث أو الموقف.',
+            'العرض 1 (الأسباب): ابدأ بما تراه السبب الرئيسي، مع أدلّة تدعم رأيك.',
+            'العرض 2 (النتائج): ابدأ بأهمّ نتيجة للموقف، ومرة أخرى قدّم أدلّة تدعم رأيك.',
+          ],
+          plan: [
+            { en: 'Introduction: many people like to try adventures (give examples).', ar: 'المقدّمة: كثير من الناس يحبّون خوض المغامرات (اذكر أمثلة).' },
+            { en: 'Causes: the main cause first (they want to spice up their lives), then other causes (also, in addition to that).', ar: 'الأسباب: السبب الرئيسي أولاً (يريدون إضافة الإثارة إلى حياتهم)، ثم أسباب أخرى (also, in addition to that).' },
+            { en: 'Effects: the most important effect first (consequently…), then the risks.', ar: 'النتائج: أهمّ نتيجة أولاً (consequently…)، ثم المخاطر.' },
+            { en: 'Conclusion: advice (Therefore, …).', ar: 'الخاتمة: نصيحة (Therefore, …).' },
+          ],
+          phrases: [
+            { en: 'try adventures', ar: 'يخوض المغامرات' },
+            { en: 'spice up their lives', ar: 'يضيفون الإثارة إلى حياتهم' },
+            { en: 'scale skyscrapers, cliffs and bridges', ar: 'يتسلّقون ناطحات السحاب والجروف والجسور' },
+            { en: 'the most incredible views', ar: 'أروع المناظر التي لا تُصدَّق' },
+            { en: 'using no safety equipment at all', ar: 'دون استخدام أيّ معدّات أمان على الإطلاق' },
+            { en: 'put themselves at risk', ar: 'يعرّضون أنفسهم للخطر' },
+            { en: 'irresponsible behaviours', ar: 'تصرّفات غير مسؤولة' },
+            { en: 'Take care of yourselves and other people around you.', ar: 'اعتنوا بأنفسكم وبالناس من حولكم.' },
+            { en: 'The main cause is that …', ar: 'السبب الرئيسي هو أنّ …' },
+            { en: 'also / too / in addition to', ar: 'أيضاً / كذلك / بالإضافة إلى' },
+            { en: 'Therefore / consequently', ar: 'لذلك / ونتيجة لذلك' },
+          ],
+          model: 'Many people today like to try adventures, such as climbing mountains, skiing or scaling high cliffs. The main cause is that they want to spice up their lives. Their daily routine is often boring, so they look for excitement. They also want to see the most incredible views and feel proud of themselves. In addition to that, some of them want to become famous on social media. Consequently, adventures can make people more confident and stronger. However, some adventurers put themselves at risk. Therefore, they should use safety equipment and take care of themselves, too, because our lives are very precious.',
+          modelAr: 'يحبّ كثير من الناس اليوم خوض المغامرات، مثل تسلّق الجبال والتزلّج وتسلّق الجروف العالية. والسبب الرئيسي أنهم يريدون إضافة الإثارة إلى حياتهم؛ فروتينهم اليومي غالباً ما يكون مملاً، لذلك يبحثون عن الإثارة. كما أنهم يريدون رؤية أروع المناظر والشعور بالفخر بأنفسهم. وبالإضافة إلى ذلك، يريد بعضهم أن يصبحوا مشهورين على مواقع التواصل الاجتماعي. ونتيجة لذلك، يمكن للمغامرات أن تجعل الناس أكثر ثقة بأنفسهم وأقوى. لكن بعض المغامرين يعرّضون أنفسهم للخطر؛ لذلك يجب أن يستخدموا معدّات الأمان وأن يعتنوا بأنفسهم أيضاً، لأن حياتنا ثمينة جداً.',
+          checklistAr: [
+            'هل بدأت بمقدّمة تصف الموقف (الناس يحبّون المغامرات) مع أمثلة؟',
+            'هل ذكرت السبب الرئيسي أولاً ثم أسباباً أخرى مع أدلّة؟',
+            'هل ذكرت أهمّ نتيجة للمغامرات ثم المخاطر؟',
+            'هل استخدمت أدوات الربط التي يعلّمها الكتاب: also, too, in addition to, Therefore, consequently؟',
+            'هل استخدمت مفردات الوحدة (spice up, incredible, scaling, at risk, irresponsible)؟',
+            'هل الفقرة في حدود 100 كلمة، وراجعت ترتيب الكلمات والتهجئة وعلامات الترقيم؟',
+          ],
+        },
+      ],
+      translations: [
+        { en: 'A poor family was living happily until the son felt severely ill.', ar: 'كانت أسرة فقيرة تعيش بسعادة إلى أن مرض الابن مرضاً شديداً.' },
+        { en: 'He needs a miracle to survive.', ar: 'إنه يحتاج إلى معجزة لكي ينجو.' },
+        { en: 'The pharmacist was busy talking to his brother.', ar: 'كان الصيدلاني مشغولاً بالحديث مع أخيه.' },
+        { en: 'She looked helplessly watching in despair.', ar: 'نظرت بعجز وهي تراقب في يأس.' },
+        { en: 'I wish our classroom weren\'t crowded.', ar: 'ليت صفّنا لم يكن مزدحماً.' },
+        { en: 'I want to go home, but I don’t know the way.', ar: 'أريد أن أذهب إلى البيت، لكنني لا أعرف الطريق.' },
+        { en: 'I wish I knew the way home.', ar: 'ليتني أعرف طريق البيت.' },
+        { en: 'I wish I had listened to my father.', ar: 'ليتني استمعت إلى كلام أبي.' },
+        { en: 'She wishes she had taken the train.', ar: 'تتمنّى لو أنها أخذت القطار.' },
+        { en: 'I wish the prices weren\'t so high.', ar: 'ليت الأسعار لم تكن مرتفعة إلى هذا الحدّ.' },
+        { en: 'Noel didn’t visit the Sorbonne when he was in Paris.', ar: 'لم يزر نويل جامعة السوربون عندما كان في باريس.' },
+        { en: 'I am not tall enough to reach the books on the top shelf.', ar: 'لست طويلاً بما يكفي لأصل إلى الكتب على الرف العلوي.' },
+        { en: 'We weren’t kind to her before she got sick.', ar: 'لم نكن لطفاء معها قبل أن تمرض.' },
+        { en: 'Selfies are often shared on social media services such as Facebook, Twitter, Snapchat, and Instagram.', ar: 'غالباً ما تُنشر صور السيلفي على مواقع التواصل الاجتماعي مثل فيسبوك وتويتر وسناب شات وإنستغرام.' },
+        { en: 'Our lives are very precious and valuable.', ar: 'حياتنا ثمينة وغالية جداً.' },
+        { en: 'We shouldn\'t lose them by irresponsible behaviours.', ar: 'لا ينبغي أن نخسرها بتصرّفات غير مسؤولة.' },
+        { en: 'I wish I had visited Australia when I was younger.', ar: 'ليتني زرت أستراليا عندما كنت أصغر سناً.' },
+        { en: 'I wish I hadn\'t wasted too much time watching TV.', ar: 'ليتني لم أضيّع وقتاً كثيراً في مشاهدة التلفاز.' },
+      ],
+    },
+  },
+}
