@@ -90,6 +90,14 @@ def write(name, parts):
     os.remove(wav_path)
     return os.path.getsize(mp3_path)
 
+# AUDIO_RESUME=1 keeps the units an earlier run already recorded
+if os.environ.get('AUDIO_RESUME') and os.path.exists(os.path.join(out_dir, 'index.json')):
+    import re as _re
+    index = json.load(open(os.path.join(out_dir, 'index.json')))['groups']
+    done = {_re.sub(r'c\d+$', '', k) for k in index}
+    texts = {g: t for g, t in texts.items() if g not in done}
+    print('resuming; already recorded:', ', '.join(sorted(done)) or 'nothing', flush=True)
+
 for group, items in texts.items():
     files, parts, pos, entries, size, sec = [], [], 0, {}, 0, 0
     def flush():
@@ -112,6 +120,8 @@ for group, items in texts.items():
         pos += len(pcm) + GAP
     flush()
     total_sec += sec
+    # the index is saved after every unit, so a recording that stops half-way can go on from there
+    json.dump({'sr': SR, 'groups': index}, open(os.path.join(out_dir, 'index.json'), 'w'), ensure_ascii=False, separators=(',', ':'))
     print(f'{group}: {len(items)} clips in {len(files)} files, {sec/60:.1f} min, {size/1e6:.2f} MB, elapsed {time.time()-t0:.0f}s', flush=True)
 
 json.dump({'sr': SR, 'groups': index}, open(os.path.join(out_dir, 'index.json'), 'w'), ensure_ascii=False, separators=(',', ':'))
