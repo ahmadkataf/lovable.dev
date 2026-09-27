@@ -7,5 +7,6 @@
   "appName": "Emar 8",
   "packageId": "com.emar8.app",
   "iconText": "E8",
-  "color": "#58cc02"
+  "color": "#58cc02",
+  "api": "https://emar-api.almutafawiqin.workers.dev"
 }

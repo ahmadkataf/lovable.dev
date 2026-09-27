@@ -242,10 +242,10 @@ export default {
     try {
       if (p === '/v1/ping') return json({ ok: true, service: 'emar' })
       // the web versions of the apps (for iPhone and computers): public, they hold the free unit only.
-      // /app/ is the Baccalaureate app, /app5/ the Grade 5 one.
-      if (p === '/' || p === '/app') return Response.redirect(new URL('/app/', req.url).toString(), 302)
-      if (p === '/app5') return Response.redirect(new URL('/app5/', req.url).toString(), 302)
-      if ((p.startsWith('/app/') || p.startsWith('/app5/')) && req.method === 'GET') {
+      // /app/ is the Baccalaureate app, /app<grade>/ the others (/app5/, /app8/, /app11/).
+      if (p === '/') return Response.redirect(new URL('/app/', req.url).toString(), 302)
+      if (/^\/app\d*$/.test(p)) return Response.redirect(new URL(`${p}/`, req.url).toString(), 302)
+      if (/^\/app\d*\//.test(p) && req.method === 'GET') {
         const res = await env.ASSETS.fetch(new Request(new URL(p.endsWith('/') ? `${p}index.html` : p, req.url)))
         if (res.status === 404) return fail('not-found', 404)
         const h = new Headers(res.headers)

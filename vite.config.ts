@@ -10,7 +10,8 @@ if (!fs.existsSync(bookDir)) throw new Error(`Unknown book "${BOOK}"`)
 const meta = JSON.parse(fs.readFileSync(path.join(bookDir, 'book.json'), 'utf8'))
 
 // A book sold online ships only its free part: scripts/split-online.mjs writes it to generated/<book>/.
-const online = meta.api !== undefined
+// the tests check the whole book, never the free part the app ships
+const online = meta.api !== undefined && !process.env.VITEST
 const genDir = path.resolve(__dirname, 'generated', BOOK)
 if (online && !fs.existsSync(path.join(genDir, 'index.ts'))) throw new Error(`Run "node scripts/split-online.mjs ${BOOK}" first`)
 // the server address can be given at build time (EMAR_API=https://…) instead of in book.json

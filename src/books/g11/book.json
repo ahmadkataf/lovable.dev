@@ -7,5 +7,6 @@
   "appName": "Emar 11",
   "packageId": "com.emarbac.app",
   "iconText": "11",
-  "color": "#1cb0f6"
+  "color": "#1cb0f6",
+  "api": "https://emar-api.almutafawiqin.workers.dev"
 }
