@@ -6,7 +6,7 @@
 export const norm = s => s.toLowerCase().replace(/[^a-z0-9 ]+/g, ' ').replace(/\s+/g, ' ').trim()
 
 const GAP = /(?:…|\.{3,}|_{3,}|-{3,})+/g
-const CHOICE = /\(([^()]*?[-,][^()]*?)\)/g
+const CHOICE = /\(([^()]*?[-–,][^()]*?)\)/g // "(was – were)" uses a hyphen or an en dash
 
 function variants(line) {
   // "3- The company apologized for the late ......... of the train. → **arrival**"
@@ -20,7 +20,7 @@ function variants(line) {
   }
   const choices = [...body.matchAll(CHOICE)]
   if (choices.length === 1) {
-    for (const opt of choices[0][1].split(/[-,]/)) {
+    for (const opt of choices[0][1].split(/[-–,]/)) {
       const o = opt.trim()
       if (o) out.push(body.replace(choices[0][0], o))
     }
