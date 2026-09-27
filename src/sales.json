@@ -1,8 +1,13 @@
 {
-  "_comment": "Where students pay and ask for their code. Leave a field empty to hide it.",
+  "_comment": "Where students pay and ask for their code. Leave a field empty to hide it. The QR picture shown for Sham Cash is src/assets/shamcash-qr.svg: make it again if the Sham Cash address changes.",
   "whatsapp": "",
-  "shamCash": "",
+  "shamCash": "f53bc827a59d1882b7fed3bea6408abe",
   "syriatelCash": "",
-  "price": { "g8": "", "g11": "", "g12": "" },
+  "price": {
+    "g5": "",
+    "g8": "",
+    "g11": "",
+    "g12": ""
+  },
   "validity": "حتى نهاية العام الدراسي (31 آب)"
 }

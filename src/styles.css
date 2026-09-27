@@ -303,3 +303,10 @@ details.unit-ref summary { cursor: pointer; font-weight: 800; font-size: 16px; }
 .speed-btn { display: flex; align-items: center; gap: 3px; flex-shrink: 0; padding: 4px 8px; border-radius: 12px; border: 2px solid var(--gray-2); font-size: 16px; font-weight: 700; color: var(--gray-4); background: transparent; }
 .speed-btn span { font-size: 11px; }
 .speed-btn.on { border-color: var(--blue); color: var(--blue); background: var(--blue-light); }
+
+/* paying with Sham Cash: its QR code and address */
+.pay-qr { display: block; width: 180px; height: 180px; margin: 10px auto; padding: 8px; background: #fff; border-radius: 12px; border: 2px solid var(--gray-2); }
+.pay-address { text-align: center; font-size: 13px; word-break: break-all; padding: 8px; margin-bottom: 8px; border-radius: 10px; background: var(--gray-1); user-select: all; }
+
+/* a link styled as a button (WhatsApp) */
+a.btn { text-decoration: none; text-align: center; }

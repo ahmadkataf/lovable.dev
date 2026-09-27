@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import meta from '@book-meta'
 import sales from '../sales.json'
+import shamCashQr from '../assets/shamcash-qr.svg'
 import type { Access } from '../engine/access'
 import { onlineBook, playStore, type OnlineAccess } from '../engine/online'
 
@@ -26,9 +27,10 @@ export default function Activate({ access, onClose }: { access: Access; onClose:
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null)
   const [busy, setBusy] = useState(false)
   const [copied, setCopied] = useState(false)
+  const [paid, setPaid] = useState(false)
   const price = (sales.price as Record<string, string>)[meta.id]
   const request = onlineBook
-    ? `مرحباً، أريد شراء كود تفعيل لتطبيق ${meta.appName} (${meta.titleAr}).`
+    ? `مرحباً، دفعت اشتراك تطبيق ${meta.appName} (${meta.titleAr}) عبر شام كاش، وهذه صورة الإيصال. أرجو إرسال كود التفعيل.`
     : `مرحباً، أريد تفعيل تطبيق ${meta.appName} (${meta.titleAr}).\nرقم الجهاز: ${access.device}`
   const wa = sales.whatsapp ? `https://wa.me/${sales.whatsapp.replace(/[^\d]/g, '')}?text=${encodeURIComponent(request)}` : ''
 
@@ -58,18 +60,26 @@ export default function Activate({ access, onClose }: { access: Access; onClose:
           <p className="muted">الوحدة الأولى والنموذج الأول من الامتحانات مجانية. {playStore ? 'إذا كان لديك كود تفعيل فأدخله هنا لتفتح' : 'فعّل التطبيق لتفتح'} كل الوحدات، وكتاب الأنشطة، والإنشاء والترجمة، وكل نماذج الامتحانات.</p>
           {(access as OnlineAccess).notice && <div className="hint mb bad-hint">{(access as OnlineAccess).notice}</div>}
           {!playStore && <div className="card mb">
-            <div className="h2">١. اشترِ كود التفعيل</div>
+            <div className="h2">١. ادفع الاشتراك عبر شام كاش</div>
             {price && <p><b>السعر:</b> {price}{sales.validity ? ` · ${sales.validity}` : ''}</p>}
-            <div className="pay-list">
-              {sales.shamCash && <div className="pay-row"><b>شام كاش</b><span className="en" dir="ltr">{sales.shamCash}</span></div>}
-              {sales.syriatelCash && <div className="pay-row"><b>سيريتل كاش</b><span className="en" dir="ltr">{sales.syriatelCash}</span></div>}
-              <div className="pay-row"><b>نقداً</b><span>من أستاذك أو المكتبة المعتمدة (بطاقة فيها الكود)</span></div>
-            </div>
-            <p className="muted" style={{ fontSize: 13 }}>إذا دفعت بشام كاش أو سيريتل كاش أرسل صورة الإيصال، فيصلك الكود برسالة.</p>
-            {wa && <a className="btn btn-primary btn-block" href={wa} target="_blank" rel="noreferrer">💬 اطلب الكود على واتساب</a>}
+            {sales.shamCash && <>
+              <p className="muted" style={{ fontSize: 13 }}>افتح تطبيق شام كاش، ثم امسح هذا الرمز أو انسخ العنوان تحته، وادفع قيمة الاشتراك.</p>
+              <img className="pay-qr" src={shamCashQr} alt="رمز شام كاش" />
+              <div className="pay-address en" dir="ltr">{sales.shamCash}</div>
+              <button className="btn btn-outline btn-block btn-sm" onClick={() => { copy(sales.shamCash); setCopied(true) }}>{copied ? '✓ نُسخ العنوان' : 'انسخ عنوان شام كاش'}</button>
+            </>}
+            {sales.syriatelCash && <div className="pay-row mt"><b>سيريتل كاش</b><span className="en" dir="ltr">{sales.syriatelCash}</span></div>}
+            {!paid && wa && <button className="btn btn-primary btn-block mt" onClick={() => setPaid(true)}>✅ دفعت، أريد كود التفعيل</button>}
+            <p className="muted" style={{ fontSize: 12, marginTop: 8 }}>أو ادفع نقداً لأستاذك أو للمكتبة المعتمدة، واطلب منهم الكود.</p>
+          </div>}
+          {!playStore && paid && wa && <div className="card mb fade">
+            <div className="h2">٢. أرسل إيصال الدفع على واتساب</div>
+            <p className="muted" style={{ fontSize: 13 }}>أرسل صورة إيصال شام كاش، فيصلك كود التفعيل برسالة على واتساب.</p>
+            <a className="btn btn-primary btn-block" href={wa} target="_blank" rel="noreferrer">💬 أرسل الإيصال على واتساب</a>
+            <div className="pay-address en" dir="ltr" style={{ marginTop: 8 }}>{sales.whatsapp}</div>
           </div>}
           <div className="card">
-            <div className="h2">{playStore ? 'لديك كود تفعيل؟' : '٢. أدخل الكود'}</div>
+            <div className="h2">{playStore ? 'لديك كود تفعيل؟' : paid && wa ? '٣. أدخل الكود' : '٢. أدخل الكود'}</div>
             <p className="muted" style={{ fontSize: 13 }}>يحتاج التفعيل اتصالاً بالإنترنت، والكود يعمل على هذا الجهاز فقط.</p>
             <input className="type-input en code-input" dir="ltr" value={code} onChange={e => { setCode(e.target.value); setMsg(null) }} placeholder="XXXX-XXXX-XXXX" autoCapitalize="characters" autoCorrect="off" spellCheck={false} />
             <button className="btn btn-blue btn-block mt" disabled={busy || code.replace(/[^0-9a-z]/gi, '').length < 12} onClick={submit}>{busy ? '⏳ جارٍ التحقق…' : 'تفعيل'}</button>
