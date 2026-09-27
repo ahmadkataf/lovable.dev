@@ -245,8 +245,9 @@ export default {
       // /app/ is the Baccalaureate app, /app<grade>/ the others (/app5/, /app8/, /app9/, /app11/).
       if (p === '/') return Response.redirect(new URL('/app/', req.url).toString(), 302)
       if (/^\/app\d*$/.test(p)) return Response.redirect(new URL(`${p}/`, req.url).toString(), 302)
-      if (/^\/app\d*\//.test(p) && req.method === 'GET') {
-        const res = await env.ASSETS.fetch(new Request(new URL(p.endsWith('/') ? `${p}index.html` : p, req.url)))
+      // HEAD too: link previews (WhatsApp, Telegram) check a link with HEAD before opening it
+      if (/^\/app\d*\//.test(p) && (req.method === 'GET' || req.method === 'HEAD')) {
+        const res = await env.ASSETS.fetch(new Request(new URL(p.endsWith('/') ? `${p}index.html` : p, req.url), { method: req.method }))
         if (res.status === 404) return fail('not-found', 404)
         const h = new Headers(res.headers)
         // the page itself always fresh, so an update reaches everyone; its hashed files cached for long
