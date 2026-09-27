@@ -10,7 +10,7 @@ interface Props {
   onScore: (score: number, firstSubmit: boolean) => void
 }
 
-const LETTERS = ['a', 'b', 'c', 'd']
+const LETTERS = ['a', 'b', 'c', 'd', 'e']  // matching tasks list five choices
 const WRITING_LENGTH_MARKS = 8
 
 /** Text with {underlined} parts, as the paper prints them. */

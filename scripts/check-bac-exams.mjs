@@ -6,6 +6,11 @@
 //   VI 32: 4 rewrites as required in brackets        VII 18: 3 verbs in brackets
 //   VIII 12: 2 sentences completed with clauses      IX 14: translation, one each way
 //   X  50: a composition of no less than 80 words with the points to include        = 300 marks
+// Grade 9 papers follow the real 2026 Basic Education Certificate paper (400 marks, 90 minutes):
+//   A 50: passage + 5 MCQ          B 50: passage + 3 true/false (30) + 2 questions to answer (20)
+//   C 150: 15 MCQ (vocabulary, prepositions, grammar, pronunciation)   D 50: match 5 items with a–e
+//   E 30: 3 questions about the underlined words     F 20: 2 personal questions to answer
+//   G 50: a 50-word paragraph about ONE of two topics                                     = 400 marks
 // Generated papers must keep their passages in the book (the real paper may quote other texts).
 //   node scripts/check-bac-exams.mjs [book] [file-substring]
 import { build } from 'esbuild'
@@ -47,7 +52,7 @@ function inBook(sentence) {
 
 const words = s => s.trim().split(/\s+/).filter(Boolean).length
 const W = 'write'
-const LAYOUT = [
+const BAC = [
   { letter: 'A', marks: 42, passage: true, groups: [{ marks: 18, kind: W, count: 3 }, { marks: 12, kind: W, count: 2 }, { marks: 12, kind: W, count: 2 }] },
   { letter: 'B', marks: 36, passage: true, groups: [{ marks: 24, kind: 'mcq', count: 4 }, { marks: 12, kind: W, count: 2 }] },
   { letter: 'III', marks: 54, kind: 'mcq', count: 9 },
@@ -59,6 +64,22 @@ const LAYOUT = [
   { letter: 'IX', marks: 14, kind: W, count: 2 },
   { letter: 'X', marks: 50, writing: true },
 ]
+const G9 = [
+  { letter: 'A', marks: 50, passage: true, groups: [{ marks: 50, kind: 'mcq', count: 5 }] },
+  { letter: 'B', marks: 50, passage: true, groups: [{ marks: 30, kind: 'truefalse', count: 3 }, { marks: 20, kind: W, count: 2 }] },
+  { letter: 'C', marks: 150, kind: 'mcq', count: 15 },
+  { letter: 'D', marks: 50, kind: 'mcq', count: 5, options: 5 },
+  { letter: 'E', marks: 30, kind: W, count: 3, underline: true },
+  { letter: 'F', marks: 20, kind: W, count: 2 },
+  { letter: 'G', marks: 50, writing: true },
+]
+// what each book's final paper looks like
+const PAPER = {
+  g12: { layout: BAC, total: 300, words: 80, model: [80, 140], passage: [140, 260], name: 'Baccalaureate' },
+  g9: { layout: G9, total: 400, words: 50, model: [45, 140], passage: [90, 220], name: 'Basic Education Certificate' },
+}[bookId] || null
+if (!PAPER) { console.log(`no exam layout for ${bookId}`); process.exit(1) }
+const LAYOUT = PAPER.layout
 
 const answerCounts = {}
 for (const f of files) {
@@ -69,9 +90,9 @@ for (const f of files) {
   const exam = Object.values(mod)[0]
   const X = `${f} (${exam?.id})`
   if (!exam?.sections) { bad(X, 'no exam exported'); continue }
-  if (exam.totalMarks !== 300) bad(X, 'must be marked out of 300')
+  if (exam.totalMarks !== PAPER.total) bad(X, `must be marked out of ${PAPER.total}`)
   if (!exam.titleAr || !exam.sourceAr) bad(X, 'needs titleAr and sourceAr')
-  if (exam.sections.reduce((a, s) => a + s.marks, 0) !== 300) bad(X, 'section marks must add up to 300')
+  if (exam.sections.reduce((a, s) => a + s.marks, 0) !== PAPER.total) bad(X, `section marks must add up to ${PAPER.total}`)
   const counts = answerCounts[f] = [0, 0, 0, 0]
   let n = 1
   const checkQ = (Q, q, kind, L) => {
@@ -81,13 +102,15 @@ for (const f of files) {
     if (!q.explainAr?.trim()) bad(Q, 'missing explainAr')
     if (!q.promptAr?.trim()) bad(Q, 'missing promptAr')
     if (q.kind === 'mcq') {
-      if (q.options?.length !== 4) bad(Q, 'needs 4 options a–d')
-      else if (new Set(q.options.map(o => o.trim().toLowerCase())).size !== 4) bad(Q, 'options repeat')
-      if (!(Number.isInteger(q.answer) && q.answer >= 0 && q.answer < 4)) bad(Q, 'answer must be 0–3')
-      else counts[q.answer]++
+      const k = L?.options || 4
+      if (q.options?.length !== k) bad(Q, `needs ${k} options`)
+      else if (new Set(q.options.map(o => o.trim().toLowerCase())).size !== k) bad(Q, 'options repeat')
+      if (!(Number.isInteger(q.answer) && q.answer >= 0 && q.answer < k)) bad(Q, `answer must be 0–${k - 1}`)
+      else if (k === 4) counts[q.answer]++
       if (/\b(option|answer)\s*\(?[a-d]\)?\b|\([a-d]\)/i.test(q.explainAr)) bad(Q, 'explainAr must quote the option, not its letter')
     }
     if (q.kind === 'write' && !(q.accept?.length)) bad(Q, 'a written question needs its accepted answers')
+    if (q.kind === 'truefalse' && typeof q.answer !== 'boolean') bad(Q, 'a true/false answer must be true or false')
     if (L?.underline && !/\{[^}]+\}/.test(q.prompt)) bad(Q, 'needs the {underlined} words')
     if (L?.bracket && !/\([^)]+\)/.test(q.prompt)) bad(Q, 'needs what is required in (brackets)')
   }
@@ -102,7 +125,7 @@ for (const f of files) {
       if (!p) { bad(S, 'needs a passage'); return }
       const text = p.paragraphs.join(' ').replace(/[{}]/g, '')
       const nw = words(text)
-      if (!exam.real && (nw < 140 || nw > 260)) bad(S, `passage should be 140–260 words like the real paper (has ${nw})`)
+      if (!exam.real && (nw < PAPER.passage[0] || nw > PAPER.passage[1])) bad(S, `passage should be ${PAPER.passage[0]}–${PAPER.passage[1]} words like the real paper (has ${nw})`)
       if (p.paragraphsAr?.length !== p.paragraphs.length) bad(S, 'one Arabic translation per paragraph')
       if (!exam.real) {
         // every sentence of a generated passage is the book's own
@@ -122,10 +145,10 @@ for (const f of files) {
     if (L.writing) {
       const w = s.writing
       if (!w) { bad(S, 'needs a writing task'); return }
-      if (w.words !== 80) bad(S, 'the task is a composition of no less than 80 words')
+      if (w.words !== PAPER.words) bad(S, `the task is a paragraph of ${PAPER.words} words`)
       if (!w.topic || !w.topicAr || !w.modelAr) bad(S, 'needs topic, topicAr and modelAr')
       if ((w.points?.length || 0) < 2) bad(S, 'needs the points to include')
-      if (words(w.model) < 80 || words(w.model) > 140) bad(S, `model composition should be 80–140 words (has ${words(w.model)})`)
+      if (words(w.model) < PAPER.model[0] || words(w.model) > PAPER.model[1]) bad(S, `model should be ${PAPER.model[0]}–${PAPER.model[1]} words (has ${words(w.model)})`)
       if ((w.checklistAr?.length || 0) < 4) bad(S, 'needs at least 4 checklist points')
       return
     }
@@ -148,5 +171,5 @@ if (problems.length) {
   for (const p of problems.slice(0, 200)) console.log(' - ' + p)
   process.exit(1)
 }
-console.log(`OK — ${files.length} ${bookId} paper(s) follow the Baccalaureate layout`)
+console.log(`OK — ${files.length} ${bookId} paper(s) follow the ${PAPER.name} layout`)
 for (const [f, c] of Object.entries(answerCounts)) console.log(`   ${f}: MCQ answers a/b/c/d = ${c.join('/')}`)
