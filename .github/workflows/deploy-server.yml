@@ -9,7 +9,7 @@ name: Deploy server
 on:
   workflow_dispatch:
   push:
-    paths: ['server/**', 'src/**', 'public/g12/**', 'public/g5/**', 'public/g8/**', 'public/g11/**', 'index.html', 'scripts/split-online.mjs', 'scripts/build-web.sh', '.github/workflows/deploy-server.yml']
+    paths: ['server/**', 'src/**', 'public/g12/**', 'public/g5/**', 'public/g8/**', 'public/g11/**', 'public/g9/**', 'index.html', 'scripts/split-online.mjs', 'scripts/build-web.sh', '.github/workflows/deploy-server.yml']
 concurrency: deploy-server
 jobs:
   deploy:
@@ -29,8 +29,8 @@ jobs:
       - name: Split the book, and build the web version served at /app
         if: env.CLOUDFLARE_API_TOKEN != ''
         run: |
-          npm ci && for b in g12 g5 g8 g11; do node scripts/split-online.mjs $b; done
-          pip install --quiet pillow && for b in g12 g5 g8 g11; do ./scripts/build-web.sh $b; done
+          npm ci && for b in g12 g5 g8 g9 g11; do node scripts/split-online.mjs $b; done
+          pip install --quiet pillow && for b in g12 g5 g8 g9 g11; do ./scripts/build-web.sh $b; done
       - name: Install the server tools
         if: env.CLOUDFLARE_API_TOKEN != ''
         working-directory: server

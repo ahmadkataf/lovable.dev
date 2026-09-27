@@ -19,7 +19,7 @@ export interface Env {
   CONTACT?: string
 }
 
-const BOOKS = ['g12', 'g11', 'g8', 'g5']
+const BOOKS = ['g12', 'g11', 'g9', 'g8', 'g5']
 const ALPHABET = '23456789ABCDEFGHJKLMNPQRSTUVWXYZ'
 const TOKEN_TTL = 3 * 86400000       // a session lasts three days; the app renews it every time it opens
 const FAIL_WINDOW = 15 * 60000        // wrong codes inside this window beyond these limits are refused:
@@ -242,7 +242,7 @@ export default {
     try {
       if (p === '/v1/ping') return json({ ok: true, service: 'emar' })
       // the web versions of the apps (for iPhone and computers): public, they hold the free unit only.
-      // /app/ is the Baccalaureate app, /app<grade>/ the others (/app5/, /app8/, /app11/).
+      // /app/ is the Baccalaureate app, /app<grade>/ the others (/app5/, /app8/, /app9/, /app11/).
       if (p === '/') return Response.redirect(new URL('/app/', req.url).toString(), 302)
       if (/^\/app\d*$/.test(p)) return Response.redirect(new URL(`${p}/`, req.url).toString(), 302)
       if (/^\/app\d*\//.test(p) && req.method === 'GET') {
