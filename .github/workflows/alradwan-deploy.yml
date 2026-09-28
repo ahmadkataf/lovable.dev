@@ -1,13 +1,12 @@
 # كراج الرضوان — puts the website and the sync server online on Cloudflare (Workers + D1).
-# Runs when started by hand from the Actions tab, and whenever the app changes on the main branch.
+# Runs when started by hand from the Actions tab, and whenever the app or the server changes (like deploy-server.yml).
 # Needs only the repository secrets CLOUDFLARE_API_TOKEN (Edit Cloudflare Workers + D1 Edit) and
 # CLOUDFLARE_ACCOUNT_ID: the D1 database is created on the first run when wrangler.toml has no id yet.
 name: Deploy AlRadwan Garage website
 on:
   workflow_dispatch:
   push:
-    branches: [main, master]
-    paths: ['alradwan/**', '.github/workflows/alradwan-deploy.yml']
+    paths: ['alradwan/src/**', 'alradwan/public/**', 'alradwan/index.html', 'alradwan/package*.json', 'alradwan/server/**', '.github/workflows/alradwan-deploy.yml']
 concurrency: alradwan-deploy
 defaults:
   run:
