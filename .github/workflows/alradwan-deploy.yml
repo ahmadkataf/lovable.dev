@@ -20,6 +20,7 @@ jobs:
     steps:
       - name: Wait for the Cloudflare secrets
         if: env.CLOUDFLARE_API_TOKEN == '' || env.CLOUDFLARE_ACCOUNT_ID == ''
+        working-directory: .
         run: echo "::warning::الموقع لم يُنشر بعد. أضف السرّين CLOUDFLARE_API_TOKEN وCLOUDFLARE_ACCOUNT_ID في Settings → Secrets and variables → Actions ثم شغّل هذا السير مرة أخرى. (Add the CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID secrets, then run this workflow again.)"
       - uses: actions/checkout@v4
         if: env.CLOUDFLARE_API_TOKEN != ''
