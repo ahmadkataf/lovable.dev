@@ -19,6 +19,7 @@ on:
         description: 'Version shown to users (empty = the version in package.json)'
         required: false
   push:
+    branches: ['**']
     tags: ['alradwan-v*']
     paths: ['.github/workflows/alradwan-build.yml', 'alradwan/package.json']
 defaults:
