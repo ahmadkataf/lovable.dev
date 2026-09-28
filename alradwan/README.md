@@ -42,6 +42,9 @@
 
 الموقع والمزامنة يعملان معاً على Cloudflare Workers + D1 (الخطة المجانية تكفي محلاً كاملاً).
 
+**الطريقة السهلة**: مع وجود `CLOUDFLARE_API_TOKEN` و`CLOUDFLARE_ACCOUNT_ID` في أسرار المستودع، شغّل `Deploy AlRadwan Garage website` من تبويب Actions. أول تشغيل يُنشئ قاعدة البيانات بنفسه، وعنوان الموقع يظهر في ملخص التشغيل (مثل `https://alradwan.<اسمك>.workers.dev`).
+
+**يدوياً**:
 ```bash
 cd alradwan/server
 npm install
@@ -49,10 +52,8 @@ npx wrangler login
 npx wrangler d1 create alradwan        # انسخ database_id الناتج إلى wrangler.toml
 npx wrangler d1 execute alradwan --remote --file=schema.sql
 cd .. && npm install && npm run build
-cd server && npx wrangler deploy       # الناتج: https://alradwan.<اسمك>.workers.dev
+cd server && npx wrangler deploy
 ```
-
-أو من GitHub: ضع `CLOUDFLARE_API_TOKEN` و`CLOUDFLARE_ACCOUNT_ID` في أسرار المستودع، واكتب `database_id` في `server/wrangler.toml`، ثم شغّل `Deploy AlRadwan Garage website` من Actions.
 
 بعد النشر: على كل جهاز افتح الإعدادات → **المزامنة بين الأجهزة**، ضع عنوان الموقع، ولّد **مفتاح المحل** على الجهاز الأول وانسخه إلى بقية الأجهزة. المفتاح هو كلمة سر بياناتك؛ لا تعطه لأحد.
 
