@@ -3,8 +3,10 @@
 #   • Windows: AlRadwan-Garage-<version>-setup.exe (installer) and AlRadwan-Garage-<version>-portable.exe (no install)
 #   • Android: AlRadwan-Garage.apk
 #   • Web: alradwan-web.zip (the static website; the same files the Cloudflare deploy publishes)
-# Start it from the Actions tab (Build AlRadwan Garage apps → Run workflow). Optional repository secrets for a
-# permanent Android signing key: ALRADWAN_KEYSTORE_BASE64, ALRADWAN_KEYSTORE_PASSWORD, ALRADWAN_KEY_ALIAS.
+# Start it from the Actions tab (Build AlRadwan Garage apps → Run workflow); it also runs when this file or the
+# app's version changes. The version comes from alradwan/package.json unless given when starting it by hand.
+# Optional repository secrets for a permanent Android signing key: ALRADWAN_KEYSTORE_BASE64,
+# ALRADWAN_KEYSTORE_PASSWORD, ALRADWAN_KEY_ALIAS.
 name: Build AlRadwan Garage apps
 on:
   workflow_dispatch:
@@ -14,15 +16,24 @@ on:
         type: boolean
         default: true
       version:
-        description: 'Version shown to users'
-        default: '1.0.0'
-        required: true
+        description: 'Version shown to users (empty = the version in package.json)'
+        required: false
   push:
     tags: ['alradwan-v*']
+    paths: ['.github/workflows/alradwan-build.yml', 'alradwan/package.json']
 defaults:
   run:
     working-directory: alradwan
 jobs:
+  version:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.v.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: v
+        run: echo "version=${{ inputs.version }}" | grep -q 'version=.' && echo "version=${{ inputs.version }}" >> "$GITHUB_OUTPUT" || echo "version=$(node -p "require('./package.json').version")" >> "$GITHUB_OUTPUT"
+
   web:
     runs-on: ubuntu-latest
     steps:
@@ -37,6 +48,7 @@ jobs:
         with: { name: alradwan-web, path: alradwan/alradwan-web.zip, if-no-files-found: error }
 
   windows:
+    needs: version
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
@@ -45,7 +57,7 @@ jobs:
       - run: npm ci
       - name: Set the version
         shell: bash
-        run: npm version "${{ inputs.version || github.ref_name }}" --no-git-tag-version --allow-same-version || true
+        run: npm version "${{ needs.version.outputs.version }}" --no-git-tag-version --allow-same-version || true
       - run: npm run build:win
       - uses: actions/upload-artifact@v4
         with:
@@ -55,6 +67,7 @@ jobs:
           if-no-files-found: error
 
   android:
+    needs: version
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -75,7 +88,7 @@ jobs:
           ANDROID_KEYSTORE: ${{ runner.temp }}/upload.keystore
           ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ALRADWAN_KEYSTORE_PASSWORD || 'alradwan-pass' }}
           ANDROID_KEY_ALIAS: ${{ secrets.ALRADWAN_KEY_ALIAS || 'alradwan' }}
-          VERSION_NAME: ${{ inputs.version || github.ref_name }}
+          VERSION_NAME: ${{ needs.version.outputs.version }}
         run: |
           export VERSION_CODE=$((GITHUB_RUN_NUMBER + 1))
           ./android/build-apk.sh
@@ -83,8 +96,8 @@ jobs:
         with: { name: alradwan-android, path: alradwan/android/build/AlRadwan-Garage.apk, if-no-files-found: error }
 
   release:
-    needs: [web, windows, android]
-    if: ${{ inputs.release || startsWith(github.ref, 'refs/tags/alradwan-v') }}
+    needs: [version, web, windows, android]
+    if: ${{ github.event_name != 'workflow_dispatch' || inputs.release }}
     runs-on: ubuntu-latest
     permissions: { contents: write }
     steps:
@@ -94,8 +107,8 @@ jobs:
         working-directory: .
       - uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ startsWith(github.ref, 'refs/tags/') && github.ref_name || format('alradwan-v{0}', inputs.version) }}
-          name: كراج الرضوان ${{ inputs.version || github.ref_name }}
+          tag_name: ${{ startsWith(github.ref, 'refs/tags/') && github.ref_name || format('alradwan-v{0}', needs.version.outputs.version) }}
+          name: كراج الرضوان ${{ needs.version.outputs.version }}
           body: |
             ## كراج الرضوان — نظام إدارة قطع الغيار
             - **ويندوز**: `AlRadwan-Garage-…-setup.exe` (تثبيت) أو `AlRadwan-Garage-…-portable.exe` (يعمل مباشرة بلا تثبيت)
