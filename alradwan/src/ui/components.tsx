@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { Search, PackageOpen } from 'lucide-react'
-import { toNumber } from '../lib/format'
+import { equiv, money, toNumber } from '../lib/format'
+import { useSettings } from '../db/store'
 
 export function Field({ label, children, required, help, className }: { label?: ReactNode; children: ReactNode; required?: boolean; help?: ReactNode; className?: string }) {
   return (
@@ -41,6 +42,13 @@ export function SearchInput({ value, onChange, placeholder, autoFocus, onEnter, 
         onKeyDown={e => { if (e.key === 'Enter' && onEnter) onEnter(value) }} />
     </div>
   )
+}
+
+/** An amount the way the settings say; in "both" mode the other currency sits on a small second line. */
+export function Price({ value, rate }: { value: number; rate?: number }) {
+  const s = useSettings()
+  if (s.display === 'both' && (rate ?? s.rate)) return <span className="price">{money(value, { display: 'base' })}<small>{equiv(value, rate)}</small></span>
+  return <>{money(value, { rate })}</>
 }
 
 export function Empty({ title, text, icon, action }: { title: string; text?: ReactNode; icon?: ReactNode; action?: ReactNode }) {

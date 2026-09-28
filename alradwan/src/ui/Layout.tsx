@@ -1,10 +1,11 @@
 import { useEffect, useState, type ReactNode } from 'react'
 import { NavLink, useLocation } from 'react-router-dom'
-import { LayoutDashboard, ShoppingCart, Receipt, Package, Boxes, Truck, Users, Factory, Wallet, BarChart3, Settings, Menu, LogOut, RefreshCw, CloudOff, Cloud, AlertTriangle, User } from 'lucide-react'
+import { LayoutDashboard, ShoppingCart, Receipt, Package, Boxes, Truck, Users, Factory, Wallet, BarChart3, Settings, Menu, LogOut, RefreshCw, CloudOff, Cloud, AlertTriangle, User, DollarSign } from 'lucide-react'
 import { setCurrentUser, useCurrentUser, useIsAdmin, useSettings, useStore } from '../db/store'
 import { onSyncStatus, syncNow, type SyncStatus } from '../lib/sync'
 import { fmtTime } from '../lib/format'
 import { useToast } from './toast'
+import { RateModal } from './RateModal'
 
 const NAV = [
   { to: '/', label: 'الرئيسية', icon: LayoutDashboard, end: true },
@@ -27,6 +28,7 @@ const TITLES: Record<string, string> = {
 
 export function Layout({ children }: { children: ReactNode }) {
   const [open, setOpen] = useState(false)
+  const [rate, setRate] = useState(false)
   const loc = useLocation()
   const settings = useSettings()
   const user = useCurrentUser()
@@ -56,8 +58,13 @@ export function Layout({ children }: { children: ReactNode }) {
         <header className="header">
           <button className="btn ghost icon menu-btn" onClick={() => setOpen(true)} aria-label="القائمة"><Menu /></button>
           <h1>{title}</h1>
+          <button className="rate-pill" onClick={() => setRate(true)} title="تغيير سعر الدولار وطريقة عرض الأسعار">
+            <DollarSign />
+            <span dir="ltr">{settings.rate ? <>1 $ = <b>{settings.rate.toLocaleString('en-US')}</b> <span className="hide-mobile">ل.س</span></> : 'سعر الدولار'}</span>
+          </button>
           <SyncPill />
         </header>
+        {rate && <RateModal onClose={() => setRate(false)} />}
         <main className="content">{children}</main>
       </div>
       <nav className="bottom-nav">

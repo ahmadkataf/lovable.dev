@@ -5,8 +5,8 @@ import { useCollection, useCanSeeCost, useSettings, useStore } from '../db/store
 import type { InvoiceItem, Product, Sale } from '../db/types'
 import { saveSale } from '../db/actions'
 import { saleTotals } from '../lib/calc'
-import { fmtDate, fromInputDate, invoiceNo, matches, money, num, toInputDate } from '../lib/format'
-import { Field, NumberInput, Chips } from '../ui/components'
+import { CURRENCY_SYMBOL, convert, equiv, fmtDate, fromInputDate, invoiceNo, matches, money, num, otherCurrency, toInputDate } from '../lib/format'
+import { Field, NumberInput, Chips, Price } from '../ui/components'
 import { Modal, useConfirm } from '../ui/modal'
 import { useToast } from '../ui/toast'
 import { ProductSearch, PartyPicker, useProductStock } from '../ui/pickers'
@@ -111,7 +111,7 @@ export function POS() {
                 <div className="n">{p.name}</div>
                 <div className="c">{p.code}{p.cars ? ` · ${p.cars}` : ''}</div>
                 <div className="between" style={{ marginTop: 'auto' }}>
-                  <span className="p">{money(wholesale && p.wholesalePrice ? p.wholesalePrice : p.price)}</span>
+                  <span className="p"><Price value={wholesale && p.wholesalePrice ? p.wholesalePrice : p.price} /></span>
                   {p.kind === 'product' && <span className={`small ${st <= p.minStock ? 'neg-txt' : 'muted'}`}>{st} {p.unit}</span>}
                 </div>
               </button>
@@ -152,17 +152,19 @@ export function POS() {
                 <div className="row">
                   <span className="muted small">×</span>
                   <NumberInput value={it.price} onChange={v => update(i, { price: v })} className="sm" />
-                  <span className="bold mono" style={{ minWidth: 70, textAlign: 'left' }}>{money(it.qty * it.price - it.discount, { currency: false })}</span>
+                  <span className="bold mono" style={{ minWidth: 70, textAlign: 'left' }}>{money(it.qty * it.price - it.discount, { currency: false, display: 'base' })}</span>
                 </div>
               </div>
             </div>
           ))}
         </div>
         <div className="totals">
-          <div className="line"><span className="muted">المجموع ({num(cartCount, 2)} قطعة)</span><b>{money(subtotal)}</b></div>
+          <div className="line"><span className="muted">المجموع ({num(cartCount, 2)} قطعة)</span><b>{money(subtotal, { display: 'base' })}</b></div>
           <div className="line"><span className="muted"><Percent size={14} style={{ verticalAlign: -2 }} /> خصم</span><div style={{ width: 130 }}><NumberInput value={discount} onChange={setDiscount} suffix={settings.currency} /></div></div>
-          <div className="line grand"><span>الإجمالي</span><span>{money(total)}</span></div>
+          <div className="line grand"><span>الإجمالي</span><span>{money(total, { display: 'base' })}</span></div>
+          {settings.rate > 0 && <div className="line" style={{ marginTop: -6 }}><span className="muted small">بسعر {settings.rate.toLocaleString('en-US')}</span><span className="muted">{equiv(total)}</span></div>}
           <div className="line"><span className="muted">المدفوع الآن</span><div style={{ width: 150 }}><NumberInput value={paidValue} onChange={v => setPaid(v)} suffix={settings.currency} /></div></div>
+          {settings.rate > 0 && <div className="line"><span className="muted small">أو دفع بـ{CURRENCY_SYMBOL[otherCurrency(settings.baseCurrency)]}</span><div style={{ width: 150 }}><NumberInput value={Math.round(convert(paidValue, settings.baseCurrency, otherCurrency(settings.baseCurrency), settings.rate) * 100) / 100} onChange={v => setPaid(Math.round(convert(v, otherCurrency(settings.baseCurrency), settings.baseCurrency, settings.rate) * 100) / 100)} suffix={CURRENCY_SYMBOL[otherCurrency(settings.baseCurrency)]} /></div></div>}
           <div className="btn-row">
             <button className={`btn sm ${paidValue >= total && total > 0 ? 'success' : ''}`} onClick={() => setPaid(null)}><Check /> دفع كامل</button>
             <button className={`btn sm ${paidValue === 0 && total > 0 ? 'danger' : ''}`} onClick={() => setPaid(0)}>آجل (دين)</button>

@@ -3,6 +3,7 @@ import { Save, Trash2, ImagePlus } from 'lucide-react'
 import { put, useCollection, useSettings, useCanSeeCost } from '../db/store'
 import type { Category, Customer, Product, Supplier } from '../db/types'
 import { Field, NumberInput } from './components'
+import { equiv } from '../lib/format'
 import { Modal, useConfirm } from './modal'
 import { useToast } from './toast'
 import { deleteProduct, remove } from '../db/actions'
@@ -136,8 +137,8 @@ export function ProductForm({ initial, currentStock, onClose, onSaved }: { initi
         </Field>
         <Field label="الماركة / الشركة"><input className="input" value={f.brand} onChange={e => set('brand', e.target.value)} placeholder="Bosch, TRW…" /></Field>
         <Field label="تناسب السيارات" className="full"><input className="input" value={f.cars} onChange={e => set('cars', e.target.value)} placeholder="مثال: كيا ريو 2012–2017، هيونداي أكسنت" /></Field>
-        {seeCost && <Field label="سعر الشراء (الكلفة)"><NumberInput value={f.cost ?? 0} onChange={v => set('cost', v)} suffix={settings.currency} /></Field>}
-        <Field label="سعر البيع" required><NumberInput value={f.price ?? 0} onChange={v => set('price', v)} suffix={settings.currency} /></Field>
+        {seeCost && <Field label="سعر الشراء (الكلفة)" help={equiv(f.cost ?? 0) || undefined}><NumberInput value={f.cost ?? 0} onChange={v => set('cost', v)} suffix={settings.currency} /></Field>}
+        <Field label="سعر البيع" required help={equiv(f.price ?? 0) || undefined}><NumberInput value={f.price ?? 0} onChange={v => set('price', v)} suffix={settings.currency} /></Field>
         <Field label="سعر الجملة" help="يظهر كخيار عند البيع"><NumberInput value={f.wholesalePrice ?? 0} onChange={v => set('wholesalePrice', v)} suffix={settings.currency} /></Field>
         <Field label="الوحدة">
           <select className="select" value={f.unit} onChange={e => set('unit', e.target.value)}>{Array.from(new Set([...(settings.units ?? []), f.unit ?? 'قطعة'])).map(u => <option key={u} value={u}>{u}</option>)}</select>

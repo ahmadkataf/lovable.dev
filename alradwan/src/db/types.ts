@@ -80,6 +80,8 @@ export interface Sale extends Base {
   notes?: string
   userId?: string
   returnOf?: string       // للمرتجع: الفاتورة الأصلية
+  rate?: number           // سعر الدولار يوم الفاتورة (ليرة لكل دولار)
+  currency?: string       // رمز العملة التي كُتبت بها المبالغ
 }
 
 export interface PurchaseItem {
@@ -102,6 +104,8 @@ export interface Purchase extends Base {
   paid: number
   notes?: string
   userId?: string
+  rate?: number
+  currency?: string
 }
 
 export type PartyType = 'customer' | 'supplier'
@@ -155,12 +159,18 @@ export interface User extends Base {
   createdAt: number
 }
 
+export type CurrencyCode = 'SYP' | 'USD'
+export type CurrencyDisplay = 'base' | 'other' | 'both'
+
 export interface Settings extends Base {
   shopName: string
   phone?: string
   address?: string
-  currency: string        // الاسم المختصر الذي يظهر بجانب الأرقام
+  currency: string        // الاسم المختصر الذي يظهر بجانب الأرقام (رمز العملة الأساسية)
   decimals: number
+  baseCurrency: CurrencyCode   // العملة التي تُحفظ بها كل الأسعار والمبالغ
+  rate: number                 // كم ليرة سورية يساوي الدولار الواحد
+  display: CurrencyDisplay     // ما يظهر على الشاشة: الأساسية، الأخرى، أو كلتاهما
   invoiceFooter?: string
   logo?: string           // data URL
   printSize: 'a4' | '80mm'
@@ -201,6 +211,9 @@ export const DEFAULT_SETTINGS: Settings = {
   address: '',
   currency: 'ل.س',
   decimals: 0,
+  baseCurrency: 'SYP',
+  rate: 0,
+  display: 'base',
   invoiceFooter: 'شكراً لتعاملكم معنا',
   printSize: 'a4',
   lowStockDefault: 2,

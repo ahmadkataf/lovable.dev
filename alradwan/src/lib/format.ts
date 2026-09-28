@@ -1,13 +1,47 @@
 import { useStore } from '../db/store'
+import type { CurrencyCode, CurrencyDisplay } from '../db/types'
 
 const AR_DIGITS = false // keep western digits: they are what invoices and calculators use in the shops
 
-export function money(n: number, opts?: { decimals?: number; currency?: boolean }): string {
+export const CURRENCY_SYMBOL: Record<CurrencyCode, string> = { SYP: 'ل.س', USD: '$' }
+export const CURRENCY_NAME: Record<CurrencyCode, string> = { SYP: 'الليرة السورية', USD: 'الدولار الأمريكي' }
+export const CURRENCY_DECIMALS: Record<CurrencyCode, number> = { SYP: 0, USD: 2 }
+export const otherCurrency = (c: CurrencyCode): CurrencyCode => (c === 'SYP' ? 'USD' : 'SYP')
+
+/** Converts between the pound and the dollar at the given rate (pounds per dollar). */
+export function convert(n: number, from: CurrencyCode, to: CurrencyCode, rate: number): number {
+  if (from === to || !rate) return n
+  return from === 'USD' ? n * rate : n / rate
+}
+
+function fmt(v: number, d: number): string {
+  return (Number.isFinite(v) ? v : 0).toLocaleString(AR_DIGITS ? 'ar-EG' : 'en-US', { minimumFractionDigits: d, maximumFractionDigits: d })
+}
+
+/** Formats an amount that is stored in the shop's base currency, shown the way the settings say
+ *  (base, the other currency at today's rate, or both). `rate` overrides today's rate (an old invoice). */
+export function money(n: number, opts?: { decimals?: number; currency?: boolean; display?: CurrencyDisplay; rate?: number }): string {
   const s = useStore.getState().cfg
-  const d = opts?.decimals ?? s.decimals
+  const base = s.baseCurrency ?? 'SYP'
+  const other = otherCurrency(base)
+  const rate = opts?.rate ?? s.rate
+  const display: CurrencyDisplay = rate ? (opts?.display ?? s.display ?? 'base') : 'base'
   const v = Number.isFinite(n) ? n : 0
-  const text = v.toLocaleString(AR_DIGITS ? 'ar-EG' : 'en-US', { minimumFractionDigits: d, maximumFractionDigits: d })
-  return opts?.currency === false ? text : `${text} ${s.currency}`
+  const baseText = fmt(v, opts?.decimals ?? s.decimals)
+  const withSym = opts?.currency !== false
+  if (display === 'base') return withSym ? `${baseText} ${s.currency}` : baseText
+  const otherText = fmt(convert(v, base, other, rate), CURRENCY_DECIMALS[other])
+  if (display === 'other') return withSym ? `${otherText} ${CURRENCY_SYMBOL[other]}` : otherText
+  return withSym ? `${baseText} ${s.currency} (${otherText} ${CURRENCY_SYMBOL[other]})` : `${baseText} (${otherText} ${CURRENCY_SYMBOL[other]})`
+}
+
+/** The same amount in the other currency, e.g. "≈ 100 $" — empty when no rate is set. */
+export function equiv(n: number, rate?: number): string {
+  const s = useStore.getState().cfg
+  const r = rate ?? s.rate
+  if (!r) return ''
+  const other = otherCurrency(s.baseCurrency ?? 'SYP')
+  return `≈ ${fmt(convert(n, s.baseCurrency ?? 'SYP', other, r), CURRENCY_DECIMALS[other])} ${CURRENCY_SYMBOL[other]}`
 }
 
 export function num(n: number, decimals = 0): string {

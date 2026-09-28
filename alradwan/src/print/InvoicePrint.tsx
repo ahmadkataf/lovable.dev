@@ -1,6 +1,6 @@
 import { useSettings } from '../db/store'
 import type { Sale } from '../db/types'
-import { fmtDateTime, invoiceNo, money, num } from '../lib/format'
+import { equiv, fmtDateTime, invoiceNo, money, num } from '../lib/format'
 import { saleDue } from '../lib/calc'
 
 // The invoice as printed: A4 or an 80mm receipt, chosen in the settings.
@@ -31,19 +31,20 @@ export function InvoicePrint({ sale }: { sale: Sale }) {
               <td>{i + 1}</td>
               <td>{it.name}{it.code && !receipt ? <div style={{ fontSize: 11, color: '#555' }}>{it.code}</div> : null}</td>
               <td className="n">{num(it.qty, 2)}</td>
-              <td className="n">{money(it.price, { currency: false })}</td>
-              <td className="n">{money(it.qty * it.price - (it.discount || 0), { currency: false })}</td>
+              <td className="n">{money(it.price, { currency: false, display: 'base' })}</td>
+              <td className="n">{money(it.qty * it.price - (it.discount || 0), { currency: false, display: 'base' })}</td>
             </tr>
           ))}
         </tbody>
       </table>
       <div style={{ marginTop: 8, marginInlineStart: receipt ? 0 : '50%' }}>
-        {(sale.discount > 0 || sale.subtotal !== sale.total) && <div className="tot"><span>المجموع</span><b>{money(sale.subtotal)}</b></div>}
-        {sale.discount > 0 && <div className="tot"><span>الخصم</span><b>- {money(sale.discount)}</b></div>}
-        <div className="tot" style={{ fontSize: receipt ? 15 : 18, borderTop: '1px solid #000', marginTop: 2 }}><span>الإجمالي</span><b>{money(sale.total)}</b></div>
+        {(sale.discount > 0 || sale.subtotal !== sale.total) && <div className="tot"><span>المجموع</span><b>{money(sale.subtotal, { display: 'base' })}</b></div>}
+        {sale.discount > 0 && <div className="tot"><span>الخصم</span><b>- {money(sale.discount, { display: 'base' })}</b></div>}
+        <div className="tot" style={{ fontSize: receipt ? 15 : 18, borderTop: '1px solid #000', marginTop: 2 }}><span>الإجمالي</span><b>{money(sale.total, { display: 'base' })}</b></div>
+        {(sale.rate ?? s.rate) > 0 && <div className="tot" style={{ fontSize: receipt ? 11 : 12, color: '#444' }}><span>ما يعادل (1 $ = {(sale.rate ?? s.rate).toLocaleString('en-US')} ل.س)</span><b>{equiv(sale.total, sale.rate ?? s.rate).replace('≈ ', '')}</b></div>}
         {sale.paid !== sale.total && <>
-          <div className="tot"><span>المدفوع</span><b>{money(sale.paid)}</b></div>
-          <div className="tot"><span>{sale.type === 'return' ? 'المتبقي للعميل' : 'المتبقي'}</span><b>{money(due)}</b></div>
+          <div className="tot"><span>المدفوع</span><b>{money(sale.paid, { display: 'base' })}</b></div>
+          <div className="tot"><span>{sale.type === 'return' ? 'المتبقي للعميل' : 'المتبقي'}</span><b>{money(due, { display: 'base' })}</b></div>
         </>}
       </div>
       {sale.notes && <div style={{ marginTop: 8, fontSize: 12 }}>ملاحظات: {sale.notes}</div>}

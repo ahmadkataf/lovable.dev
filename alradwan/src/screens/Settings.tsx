@@ -9,7 +9,8 @@ import { countBackup, downloadBackup, mergeBackup, parseBackup, restoreBackup } 
 import { pickFile, platformName } from '../lib/platform'
 import { onSyncStatus, resetSyncCursor, schedule, syncNow, testConnection, type SyncStatus } from '../lib/sync'
 import { randomKey, sha256 } from '../lib/id'
-import { fmtDateTime } from '../lib/format'
+import { CURRENCY_DECIMALS, CURRENCY_NAME, CURRENCY_SYMBOL, fmtDateTime, otherCurrency } from '../lib/format'
+import type { CurrencyCode, CurrencyDisplay } from '../db/types'
 import { loadDemoData } from '../db/demo'
 import { previewDocument } from '../print/PrintHost'
 import { db } from '../db/db'
@@ -46,7 +47,8 @@ function useDraft<K extends keyof Settings>(keys: K[]) {
 }
 
 function ShopTab() {
-  const { d, set, save } = useDraft(['shopName', 'phone', 'address', 'currency', 'decimals', 'lowStockDefault', 'expenseCategories', 'units', 'staffSeesCost'])
+  const { d, set, save } = useDraft(['shopName', 'phone', 'address', 'currency', 'decimals', 'lowStockDefault', 'expenseCategories', 'units', 'staffSeesCost', 'baseCurrency', 'rate', 'display'])
+  const setBase = (c: CurrencyCode) => { set('baseCurrency', c); set('currency', CURRENCY_SYMBOL[c]); set('decimals', CURRENCY_DECIMALS[c]) }
   const [cat, setCat] = useState(''); const [unit, setUnit] = useState('')
   return (
     <div className="card pad">
@@ -55,8 +57,19 @@ function ShopTab() {
         <Field label="اسم المحل" required><input className="input" value={d.shopName} onChange={e => set('shopName', e.target.value)} /></Field>
         <Field label="الهاتف"><input className="input" value={d.phone ?? ''} onChange={e => set('phone', e.target.value)} dir="ltr" style={{ textAlign: 'right' }} /></Field>
         <Field label="العنوان" className="full"><input className="input" value={d.address ?? ''} onChange={e => set('address', e.target.value)} /></Field>
-        <Field label="العملة" help="تظهر بجانب كل الأسعار"><input className="input" value={d.currency} onChange={e => set('currency', e.target.value)} /></Field>
-        <Field label="الخانات العشرية" help="0 لليرة السورية، 2 للدولار"><select className="select" value={d.decimals} onChange={e => set('decimals', Number(e.target.value))}><option value={0}>0</option><option value={1}>1</option><option value={2}>2</option></select></Field>
+        <Field label="العملة الأساسية (التي تُكتب بها الأسعار)" className="full" help="تغييرها لا يحوّل الأرقام المحفوظة؛ اخترها مرة واحدة في البداية.">
+          <div className="tabs" style={{ maxWidth: 480 }}>{(['SYP', 'USD'] as CurrencyCode[]).map(c => <button key={c} className={d.baseCurrency === c ? 'active' : ''} onClick={() => setBase(c)}>{CURRENCY_NAME[c]} ({CURRENCY_SYMBOL[c]})</button>)}</div>
+        </Field>
+        <Field label="سعر الدولار بالليرة السورية" help="يمكن تغييره في أي وقت من الشريط العلوي"><NumberInput value={d.rate} onChange={v => set('rate', v)} suffix="ل.س لكل 1 $" /></Field>
+        <Field label="عرض الأسعار">
+          <select className="select" value={d.display} onChange={e => set('display', e.target.value as CurrencyDisplay)}>
+            <option value="base">{CURRENCY_SYMBOL[d.baseCurrency]} فقط</option>
+            <option value="other">{CURRENCY_SYMBOL[otherCurrency(d.baseCurrency)]} فقط (محوّلة بسعر اليوم)</option>
+            <option value="both">كلاهما</option>
+          </select>
+        </Field>
+        <Field label="رمز العملة الأساسية" help="ما يظهر بجانب الأرقام"><input className="input" value={d.currency} onChange={e => set('currency', e.target.value)} /></Field>
+        <Field label="الخانات العشرية"><select className="select" value={d.decimals} onChange={e => set('decimals', Number(e.target.value))}><option value={0}>0</option><option value={1}>1</option><option value={2}>2</option></select></Field>
         <Field label="حد التنبيه الافتراضي للقطع الجديدة"><NumberInput value={d.lowStockDefault} onChange={v => set('lowStockDefault', v)} /></Field>
         <Field label="صلاحيات الموظفين"><label className="checkbox"><input type="checkbox" checked={d.staffSeesCost} onChange={e => set('staffSeesCost', e.target.checked)} /> الموظف يرى سعر الشراء والأرباح</label></Field>
         <Field label="أنواع المصاريف" className="full">

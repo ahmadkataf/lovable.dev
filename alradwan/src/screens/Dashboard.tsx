@@ -4,7 +4,7 @@ import { ShoppingCart, TrendingUp, Wallet, AlertTriangle, Users, Package, Receip
 import { useCanSeeCost, useStore } from '../db/store'
 import { cashLines, customerBalance, saleProfit, stockMap, sumBetween } from '../lib/calc'
 import { addDays, fmtTime, invoiceNo, money, startOfDay, startOfMonth, WEEKDAYS } from '../lib/format'
-import { Bars, Empty, Stat } from '../ui/components'
+import { Bars, Empty, Price, Stat } from '../ui/components'
 
 export function Dashboard() {
   const nav = useNavigate()
@@ -41,11 +41,11 @@ export function Dashboard() {
         <button className="btn lg" onClick={() => nav('/products?new=1')}><PlusCircle /> إضافة قطعة</button>
       </div>
       <div className="grid cols-4 keep2">
-        <Stat label="مبيعات اليوم" value={money(d.todaySales)} sub={`${d.todayCount} فاتورة`} icon={<ShoppingCart />} tone="accent" onClick={() => nav('/sales')} />
-        {seeCost ? <Stat label="ربح اليوم" value={money(d.todayProfit)} sub={`ربح الشهر ${money(d.monthProfit)}`} icon={<TrendingUp />} tone="success" onClick={() => nav('/reports')} />
+        <Stat label="مبيعات اليوم" value={<Price value={d.todaySales} />} sub={`${d.todayCount} فاتورة`} icon={<ShoppingCart />} tone="accent" onClick={() => nav('/sales')} />
+        {seeCost ? <Stat label="ربح اليوم" value={<Price value={d.todayProfit} />} sub={`ربح الشهر ${money(d.monthProfit, { display: 'base' })}`} icon={<TrendingUp />} tone="success" onClick={() => nav('/reports')} />
           : <Stat label="مبيعات الشهر" value={money(d.monthSales)} icon={<TrendingUp />} tone="success" />}
-        <Stat label="رصيد الصندوق" value={money(d.cashBalance)} sub={`حركة اليوم ${d.todayCash >= 0 ? '+' : ''}${money(d.todayCash)}`} icon={<Wallet />} tone="info" onClick={() => nav('/cash')} />
-        <Stat label="ديون العملاء" value={money(d.receivables)} sub="مستحقة للمحل" icon={<Users />} tone="warning" onClick={() => nav('/customers')} />
+        <Stat label="رصيد الصندوق" value={<Price value={d.cashBalance} />} sub={`حركة اليوم ${d.todayCash >= 0 ? '+' : ''}${money(d.todayCash, { display: 'base' })}`} icon={<Wallet />} tone="info" onClick={() => nav('/cash')} />
+        <Stat label="ديون العملاء" value={<Price value={d.receivables} />} sub="مستحقة للمحل" icon={<Users />} tone="warning" onClick={() => nav('/customers')} />
       </div>
       <div className="grid cols-2">
         <div className="card pad">

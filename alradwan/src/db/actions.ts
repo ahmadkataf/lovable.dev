@@ -25,7 +25,8 @@ export type SaleInput = Omit<Sale, 'id' | 'updatedAt' | 'subtotal' | 'total' | '
 export async function saveSale(input: SaleInput): Promise<Sale> {
   const id = input.id ?? newId()
   const { subtotal, total } = saleTotals(input.items, input.discount)
-  const sale: Sale = { ...input, id, number: input.number ?? nextNumber('sales'), subtotal, total, paid: Math.min(Math.max(0, input.paid), total), userId: userId(), updatedAt: 0 }
+  const cfg = useStore.getState().cfg
+  const sale: Sale = { ...input, id, number: input.number ?? nextNumber('sales'), subtotal, total, paid: Math.min(Math.max(0, input.paid), total), userId: userId(), rate: input.rate ?? (cfg.rate || undefined), currency: input.currency ?? cfg.currency, updatedAt: 0 }
   const entries: { collection: 'sales' | 'movements'; record: Base }[] = [{ collection: 'sales', record: sale }]
   for (const old of movementsOf(id)) entries.push({ collection: 'movements', record: { ...old, deleted: true } })
   const sign = sale.type === 'return' ? 1 : -1
@@ -50,7 +51,8 @@ export type PurchaseInput = Omit<Purchase, 'id' | 'updatedAt' | 'total' | 'numbe
 export async function savePurchase(input: PurchaseInput): Promise<Purchase> {
   const id = input.id ?? newId()
   const total = input.items.reduce((s, i) => s + i.qty * i.cost, 0)
-  const purchase: Purchase = { ...input, id, number: input.number ?? nextNumber('purchases'), total, paid: Math.min(Math.max(0, input.paid), total), userId: userId(), updatedAt: 0 }
+  const cfg = useStore.getState().cfg
+  const purchase: Purchase = { ...input, id, number: input.number ?? nextNumber('purchases'), total, paid: Math.min(Math.max(0, input.paid), total), userId: userId(), rate: input.rate ?? (cfg.rate || undefined), currency: input.currency ?? cfg.currency, updatedAt: 0 }
   const entries: { collection: 'purchases' | 'movements' | 'products'; record: Base }[] = [{ collection: 'purchases', record: purchase }]
   for (const old of movementsOf(id)) entries.push({ collection: 'movements', record: { ...old, deleted: true } })
   const sign = purchase.type === 'return' ? -1 : 1

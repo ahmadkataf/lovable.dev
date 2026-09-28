@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest'
 import { cashLines, customerBalance, payStatus, saleProfit, saleTotals, stockMap, supplierBalance } from '../lib/calc'
 import type { Customer, Payment, Product, Purchase, Sale, StockMovement, Supplier } from '../db/types'
-import { matches, norm, toNumber } from '../lib/format'
+import { convert, matches, money, norm, toNumber } from '../lib/format'
+import { useStore } from '../db/store'
+import { DEFAULT_SETTINGS } from '../db/types'
 
 const product = (id: string, opening: number, kind: 'product' | 'service' = 'product'): Product => ({ id, updatedAt: 0, code: id, name: id, unit: 'قطعة', cost: 10, price: 15, minStock: 1, openingStock: opening, kind, createdAt: 0 })
 const sale = (p: Partial<Sale>): Sale => ({ id: 's', updatedAt: 0, number: 1, type: 'sale', date: 0, customerName: 'x', items: [], subtotal: 0, discount: 0, total: 0, paid: 0, ...p })
@@ -48,6 +50,25 @@ describe('balances', () => {
   it('cash box: money in minus money out', () => {
     const lines = cashLines(sales, [], payments, [{ id: 'e', updatedAt: 0, date: 0, category: 'x', amount: 30 }], [{ id: 'k', updatedAt: 0, date: 0, direction: 'out', amount: 20 }])
     expect(lines.reduce((t, l) => t + l.amount, 0)).toBe(200 + 150 - 999 - 30 - 20)
+  })
+})
+
+describe('currencies', () => {
+  it('converts pounds and dollars at the rate', () => {
+    expect(convert(11000, 'SYP', 'USD', 11000)).toBe(1)
+    expect(convert(2, 'USD', 'SYP', 11000)).toBe(22000)
+    expect(convert(5, 'USD', 'USD', 11000)).toBe(5)
+    expect(convert(5, 'SYP', 'USD', 0)).toBe(5)
+  })
+  it('shows the base, the other, or both', () => {
+    useStore.setState({ cfg: { ...DEFAULT_SETTINGS, baseCurrency: 'SYP', currency: 'ل.س', decimals: 0, rate: 10000, display: 'both' } })
+    expect(money(25000)).toBe('25,000 ل.س (2.50 $)')
+    expect(money(25000, { display: 'other' })).toBe('2.50 $')
+    expect(money(25000, { display: 'base' })).toBe('25,000 ل.س')
+    useStore.setState({ cfg: { ...DEFAULT_SETTINGS, baseCurrency: 'USD', currency: '$', decimals: 2, rate: 10000, display: 'other' } })
+    expect(money(3)).toBe('30,000 ل.س')
+    useStore.setState({ cfg: { ...DEFAULT_SETTINGS, rate: 0, display: 'both' } })
+    expect(money(100)).toBe('100 ل.س') // no rate yet: only the base currency
   })
 })
 

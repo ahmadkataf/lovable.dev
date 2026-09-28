@@ -4,6 +4,9 @@ import { put, saveSettings, setCurrentUser } from '../db/store'
 import { Field } from '../ui/components'
 import { sha256 } from '../lib/id'
 import { loadDemoData } from '../db/demo'
+import { CURRENCY_DECIMALS, CURRENCY_SYMBOL } from '../lib/format'
+import type { CurrencyCode } from '../db/types'
+import { NumberInput } from '../ui/components'
 
 // First run: the shop's name and currency, an optional owner PIN, and optionally some sample data to try.
 export function Setup() {
@@ -11,7 +14,8 @@ export function Setup() {
   const [shopName, setShopName] = useState('كراج الرضوان')
   const [phone, setPhone] = useState('')
   const [address, setAddress] = useState('')
-  const [currency, setCurrency] = useState('ل.س')
+  const [base, setBase] = useState<CurrencyCode>('SYP')
+  const [rate, setRate] = useState(0)
   const [ownerName, setOwnerName] = useState('المدير')
   const [pin, setPin] = useState('')
   const [pin2, setPin2] = useState('')
@@ -26,7 +30,7 @@ export function Setup() {
     try {
       if (pin) { const u = await put('users', { name: ownerName || 'المدير', pinHash: await sha256(pin), role: 'admin', createdAt: Date.now() }); setCurrentUser(u.id) }
       if (demo) await loadDemoData()
-      await saveSettings({ shopName: shopName.trim() || 'كراج الرضوان', phone, address, currency: currency.trim() || 'ل.س', setupDone: true })
+      await saveSettings({ shopName: shopName.trim() || 'كراج الرضوان', phone, address, baseCurrency: base, currency: CURRENCY_SYMBOL[base], decimals: CURRENCY_DECIMALS[base], rate, display: 'base', setupDone: true })
     } finally { setBusy(false) }
   }
 
@@ -42,7 +46,10 @@ export function Setup() {
             <Field label="اسم المحل" required><input className="input lg" value={shopName} onChange={e => setShopName(e.target.value)} autoFocus /></Field>
             <Field label="رقم الهاتف" help="يظهر على الفواتير"><input className="input" value={phone} onChange={e => setPhone(e.target.value)} inputMode="tel" dir="ltr" style={{ textAlign: 'right' }} /></Field>
             <Field label="العنوان"><input className="input" value={address} onChange={e => setAddress(e.target.value)} /></Field>
-            <Field label="العملة" help="الاسم الذي يظهر بجانب الأسعار، مثل: ل.س أو $ أو د.أ"><input className="input" value={currency} onChange={e => setCurrency(e.target.value)} /></Field>
+            <Field label="بأي عملة تكتب أسعارك؟" help="يمكنك عرض الأسعار بالعملة الأخرى في أي وقت حسب سعر الدولار">
+              <div className="tabs"><button className={base === 'SYP' ? 'active' : ''} onClick={() => setBase('SYP')}>الليرة السورية (ل.س)</button><button className={base === 'USD' ? 'active' : ''} onClick={() => setBase('USD')}>الدولار ($)</button></div>
+            </Field>
+            <Field label="سعر الدولار اليوم بالليرة (اختياري)"><NumberInput value={rate} onChange={setRate} suffix="ل.س لكل 1 $" /></Field>
             <button className="btn primary lg block" onClick={() => setStep(1)}>التالي <ArrowLeft /></button>
           </div>
         )}
