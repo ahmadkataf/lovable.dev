@@ -31,10 +31,10 @@ export function Products() {
   const toast = useToast()
   useEffect(() => { if (params.get('new')) { setEdit('new'); setParams({}) } }, [params])
 
-  const list = useMemo(() => Array.from(products.values()).filter(p => (cat === 'all' || (cat === 'none' ? !p.categoryId : p.categoryId === cat)) && matches(q, p.name, p.code, p.barcode, p.brand, p.cars, p.location)).sort((a, b) => a.name.localeCompare(b.name, 'ar')), [products, q, cat])
+  const list = useMemo(() => Array.from(products.values()).filter(p => (cat === 'all' || (cat === 'none' ? !p.categoryId : p.categoryId === cat)) && matches(q, p.name, p.code, p.barcode, p.brand, p.cars, p.location, p.oemNumbers)).sort((a, b) => a.name.localeCompare(b.name, 'ar')), [products, q, cat])
   const catList = useMemo(() => Array.from(categories.values()).sort((a, b) => a.name.localeCompare(b.name, 'ar')), [categories])
 
-  const exportExcel = () => exportSheet('المنتجات', list.map(p => ({ 'الكود': p.code, 'الاسم': p.name, 'التصنيف': p.categoryId ? categories.get(p.categoryId)?.name ?? '' : '', 'الماركة': p.brand ?? '', 'السيارات': p.cars ?? '', 'الوحدة': p.unit, ...(seeCost ? { 'سعر الشراء': p.cost } : {}), 'سعر البيع': p.price, 'سعر الجملة': p.wholesalePrice ?? 0, 'الكمية': p.kind === 'service' ? '' : stock.get(p.id) ?? 0, 'حد التنبيه': p.minStock, 'المكان': p.location ?? '', 'باركود': p.barcode ?? '', 'ملاحظات': p.notes ?? '' })), 'المنتجات')
+  const exportExcel = () => exportSheet('المنتجات', list.map(p => ({ 'الكود': p.code, 'الاسم': p.name, 'التصنيف': p.categoryId ? categories.get(p.categoryId)?.name ?? '' : '', 'الماركة': p.brand ?? '', 'السيارات': p.cars ?? '', 'الوحدة': p.unit, ...(seeCost ? { 'سعر الشراء': p.cost } : {}), 'سعر البيع': p.price, 'سعر الجملة': p.wholesalePrice ?? 0, 'الكمية': p.kind === 'service' ? '' : stock.get(p.id) ?? 0, 'حد التنبيه': p.minStock, 'المكان': p.location ?? '', 'باركود': p.barcode ?? '', 'OEM': p.oemNumbers ?? '', 'ملاحظات': p.notes ?? '' })), 'المنتجات')
   const importExcel = async () => {
     const f = await pickFile('.xlsx,.xls,.csv')
     if (!f) return
@@ -157,10 +157,10 @@ function ImportModal({ rows, onClose }: { rows: ImportedProduct[]; onClose: () =
         const old = byCode.get(code.toLowerCase())
         if (old) {
           if (mode === 'skip') continue
-          const rec: Product = { ...old, name: r.name || old.name, barcode: r.barcode ?? old.barcode, categoryId: categoryId ?? old.categoryId, brand: r.brand ?? old.brand, cars: r.cars ?? old.cars, unit: r.unit || old.unit, cost: r.cost || old.cost, price: r.price || old.price, wholesalePrice: r.wholesalePrice ?? old.wholesalePrice, minStock: r.minStock ?? old.minStock, location: r.location ?? old.location, notes: r.notes ?? old.notes }
+          const rec: Product = { ...old, name: r.name || old.name, barcode: r.barcode ?? old.barcode, oemNumbers: r.oemNumbers ?? old.oemNumbers, categoryId: categoryId ?? old.categoryId, brand: r.brand ?? old.brand, cars: r.cars ?? old.cars, unit: r.unit || old.unit, cost: r.cost || old.cost, price: r.price || old.price, wholesalePrice: r.wholesalePrice ?? old.wholesalePrice, minStock: r.minStock ?? old.minStock, location: r.location ?? old.location, notes: r.notes ?? old.notes }
           entries.push({ collection: 'products', record: rec }); updated++
         } else {
-          const rec: Product = { id: newId(), updatedAt: 0, code, name: r.name, barcode: r.barcode, categoryId, brand: r.brand, cars: r.cars, unit: r.unit || settings.units[0] || 'قطعة', cost: r.cost, price: r.price, wholesalePrice: r.wholesalePrice, minStock: r.minStock ?? settings.lowStockDefault, openingStock: r.stock ?? 0, location: r.location, notes: r.notes, kind: 'product', createdAt: Date.now() }
+          const rec: Product = { id: newId(), updatedAt: 0, code, name: r.name, barcode: r.barcode, oemNumbers: r.oemNumbers, categoryId, brand: r.brand, cars: r.cars, unit: r.unit || settings.units[0] || 'قطعة', cost: r.cost, price: r.price, wholesalePrice: r.wholesalePrice, minStock: r.minStock ?? settings.lowStockDefault, openingStock: r.stock ?? 0, location: r.location, notes: r.notes, kind: 'product', createdAt: Date.now() }
           byCode.set(code.toLowerCase(), rec)
           entries.push({ collection: 'products', record: rec }); added++
         }

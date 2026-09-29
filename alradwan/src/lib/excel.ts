@@ -17,12 +17,13 @@ export async function exportSheet(name: string, rows: Record<string, unknown>[],
   await saveFile(`${name}.xlsx`, new Blob([out], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }))
 }
 
-export interface ImportedProduct { code: string; barcode?: string; name: string; category?: string; brand?: string; cars?: string; unit?: string; cost: number; price: number; wholesalePrice?: number; minStock?: number; stock?: number; location?: string; notes?: string }
+export interface ImportedProduct { code: string; barcode?: string; oemNumbers?: string; name: string; category?: string; brand?: string; cars?: string; unit?: string; cost: number; price: number; wholesalePrice?: number; minStock?: number; stock?: number; location?: string; notes?: string }
 
 // column names accepted in the imported file (Arabic or English, any of the spellings)
 const COLS: Record<keyof ImportedProduct, string[]> = {
   code: ['الكود', 'كود', 'رقم القطعة', 'رقم', 'code', 'sku', 'part', 'part number'],
   barcode: ['باركود', 'الباركود', 'barcode'],
+  oemNumbers: ['oem', 'رقم الأصلي', 'الرقم الأصلي', 'رقم القطعة الأصلي', 'أرقام أصلية', 'oem numbers', 'original'],
   name: ['الاسم', 'اسم', 'اسم القطعة', 'القطعة', 'الصنف', 'المنتج', 'name', 'product'],
   category: ['التصنيف', 'تصنيف', 'الفئة', 'النوع', 'category'],
   brand: ['الماركة', 'ماركة', 'الشركة', 'brand', 'make'],
@@ -59,7 +60,7 @@ export async function readProductsFile(file: File): Promise<{ rows: ImportedProd
     const name = get(r, 'name'); const code = get(r, 'code')
     if (!name && !code) continue
     rows.push({
-      code, name: name || code, barcode: get(r, 'barcode') || undefined, category: get(r, 'category') || undefined,
+      code, name: name || code, barcode: get(r, 'barcode') || undefined, oemNumbers: get(r, 'oemNumbers') || undefined, category: get(r, 'category') || undefined,
       brand: get(r, 'brand') || undefined, cars: get(r, 'cars') || undefined, unit: get(r, 'unit') || undefined,
       cost: toNumber(get(r, 'cost')), price: toNumber(get(r, 'price')), wholesalePrice: map.has('wholesalePrice') ? toNumber(get(r, 'wholesalePrice')) : undefined,
       minStock: map.has('minStock') ? toNumber(get(r, 'minStock')) : undefined, stock: map.has('stock') ? toNumber(get(r, 'stock')) : undefined,
@@ -71,7 +72,7 @@ export async function readProductsFile(file: File): Promise<{ rows: ImportedProd
 
 export async function downloadProductsTemplate(): Promise<void> {
   await exportSheet('نموذج-استيراد-المنتجات', [
-    { 'الكود': 'FLT-001', 'الاسم': 'فلتر زيت', 'التصنيف': 'فلاتر', 'الماركة': 'Bosch', 'السيارات': 'كيا ريو 2012-2017', 'الوحدة': 'قطعة', 'سعر الشراء': 25000, 'سعر البيع': 35000, 'الكمية': 10, 'حد التنبيه': 3, 'المكان': 'رف A1', 'باركود': '', 'ملاحظات': '' },
-    { 'الكود': 'BRK-014', 'الاسم': 'فحمات فرام أمامي', 'التصنيف': 'فرامل', 'الماركة': 'TRW', 'السيارات': 'هيونداي إلنترا 2011-2016', 'الوحدة': 'طقم', 'سعر الشراء': 120000, 'سعر البيع': 160000, 'الكمية': 4, 'حد التنبيه': 2, 'المكان': 'رف B3', 'باركود': '', 'ملاحظات': '' },
+    { 'الكود': 'FLT-001', 'الاسم': 'فلتر زيت', 'التصنيف': 'فلاتر', 'الماركة': 'Bosch', 'السيارات': 'كيا ريو 2012-2017', 'الوحدة': 'قطعة', 'سعر الشراء': 25000, 'سعر البيع': 35000, 'الكمية': 10, 'حد التنبيه': 3, 'المكان': 'رف A1', 'باركود': '', 'OEM': '26300-35503', 'ملاحظات': '' },
+    { 'الكود': 'BRK-014', 'الاسم': 'فحمات فرام أمامي', 'التصنيف': 'فرامل', 'الماركة': 'TRW', 'السيارات': 'هيونداي إلنترا 2011-2016', 'الوحدة': 'طقم', 'سعر الشراء': 120000, 'سعر البيع': 160000, 'الكمية': 4, 'حد التنبيه': 2, 'المكان': 'رف B3', 'باركود': '', 'OEM': '58101-3XA20', 'ملاحظات': '' },
   ], 'المنتجات')
 }

@@ -5,6 +5,7 @@ import type { Customer, Product, Supplier } from '../db/types'
 import { matches, money, norm } from '../lib/format'
 import { stockMap } from '../lib/calc'
 import { Modal } from './modal'
+import { splitOem } from '../lib/vin'
 
 /** Search box with a dropdown of products; a scanned/typed exact code adds at once on Enter. */
 export function ProductSearch({ onPick, placeholder, autoFocus, showStock = true, allowServices = true }: { onPick: (p: Product) => void; placeholder?: string; autoFocus?: boolean; showStock?: boolean; allowServices?: boolean }) {
@@ -18,7 +19,7 @@ export function ProductSearch({ onPick, placeholder, autoFocus, showStock = true
   const stock = useMemo(() => (showStock ? stockMap(products, movements) : new Map<string, number>()), [products, movements, showStock])
   const list = useMemo(() => {
     const all = Array.from(products.values()).filter(p => allowServices || p.kind === 'product')
-    const r = q.trim() ? all.filter(p => matches(q, p.name, p.code, p.barcode, p.brand, p.cars, p.location)) : all
+    const r = q.trim() ? all.filter(p => matches(q, p.name, p.code, p.barcode, p.brand, p.cars, p.location, p.oemNumbers)) : all
     return r.sort((a, b) => a.name.localeCompare(b.name, 'ar')).slice(0, 30)
   }, [q, products, allowServices])
   useEffect(() => setIdx(0), [q])
@@ -26,7 +27,7 @@ export function ProductSearch({ onPick, placeholder, autoFocus, showStock = true
   const enter = () => {
     const nq = norm(q)
     if (!nq) return
-    const exact = Array.from(products.values()).find(p => norm(p.barcode) === nq || norm(p.code) === nq)
+    const exact = Array.from(products.values()).find(p => norm(p.barcode) === nq || norm(p.code) === nq || splitOem(p.oemNumbers).some(o => norm(o) === nq))
     if (exact) { pick(exact); return }
     if (list[idx]) pick(list[idx])
   }
@@ -45,7 +46,7 @@ export function ProductSearch({ onPick, placeholder, autoFocus, showStock = true
             const st = stock.get(p.id) ?? 0
             return (
               <div key={p.id} className="list-item" style={{ padding: '9px 12px', cursor: 'pointer', background: i === idx ? 'var(--surface-2)' : undefined }} onMouseDown={e => { e.preventDefault(); pick(p) }} onMouseEnter={() => setIdx(i)}>
-                <div className="grow"><div className="title">{p.name}</div><div className="sub">{p.code}{p.brand ? ` — ${p.brand}` : ''}{p.cars ? ` — ${p.cars}` : ''}</div></div>
+                <div className="grow"><div className="title">{p.name}</div><div className="sub">{p.code}{p.brand ? ` — ${p.brand}` : ''}{p.cars ? ` — ${p.cars}` : ''}{p.oemNumbers ? <span className="mono"> — {p.oemNumbers}</span> : ''}</div></div>
                 <div style={{ textAlign: 'left' }}><div className="bold">{money(p.price)}</div>{showStock && p.kind === 'product' && <div className={`small ${st <= 0 ? 'neg-txt' : 'muted'}`}>{st} {p.unit}</div>}</div>
               </div>
             )

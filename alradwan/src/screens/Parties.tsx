@@ -1,5 +1,5 @@
-import { useMemo, useState } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
+import { useEffect, useMemo, useState } from 'react'
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { Plus, Pencil, Phone, Printer, HandCoins, FileSpreadsheet, MessageCircle, Trash2 } from 'lucide-react'
 import { useCollection, useIsAdmin, useSettings } from '../db/store'
 import type { Customer, Supplier, Payment } from '../db/types'
@@ -26,7 +26,10 @@ export function Parties({ type }: { type: 'customer' | 'supplier' }) {
   const isAdmin = useIsAdmin()
   const [q, setQ] = useState('')
   const [tab, setTab] = useState<'all' | 'debt' | 'overdue'>('all')
+  const [params, setParams] = useSearchParams()
   const [form, setForm] = useState<Customer | Supplier | 'new' | null>(null)
+  const [vinNew, setVinNew] = useState<string | null>(null)
+  useEffect(() => { const v = params.get('vin'); if (v) { setVinNew(v); setForm('new'); setParams({}) } }, [params])
   const [pay, setPay] = useState<Customer | Supplier | null>(null)
   const toast = useToast(); const confirm = useConfirm()
   const isC = type === 'customer'
@@ -87,7 +90,7 @@ export function Parties({ type }: { type: 'customer' | 'supplier' }) {
         )}
       </div>
 
-      {form && (isC ? <CustomerForm initial={form === 'new' ? undefined : (form as Customer)} onClose={() => setForm(null)} /> : <SupplierForm initial={form === 'new' ? undefined : (form as Supplier)} onClose={() => setForm(null)} />)}
+      {form && (isC ? <CustomerForm initial={form === 'new' ? (vinNew ? { vin: vinNew } : undefined) : (form as Customer)} onClose={() => { setForm(null); setVinNew(null) }} /> : <SupplierForm initial={form === 'new' ? undefined : (form as Supplier)} onClose={() => setForm(null)} />)}
       {pay && <PaymentModal type={type} party={pay} balance={rows.find(r => r.p.id === pay.id)?.balance ?? 0} onClose={() => setPay(null)} />}
 
       {selected && (() => {
@@ -104,6 +107,7 @@ export function Parties({ type }: { type: 'customer' | 'supplier' }) {
             <div className="kv mb">
               {selected.phone && <><dt>الهاتف</dt><dd dir="ltr" style={{ textAlign: 'right' }}>{selected.phone}</dd></>}
               {(selected as Customer).car && <><dt>السيارة</dt><dd>{(selected as Customer).car}{(selected as Customer).plate ? ` — ${(selected as Customer).plate}` : ''}</dd></>}
+              {(selected as Customer).vin && <><dt>الشاصي</dt><dd className="mono">{(selected as Customer).vin}</dd></>}
               {!!(selected as Customer).discountPct && <><dt>خصم دائم</dt><dd>{(selected as Customer).discountPct}%</dd></>}
               {selected.address && <><dt>العنوان</dt><dd>{selected.address}</dd></>}
               <dt>{isC ? 'الرصيد عليه' : 'الرصيد له'}</dt><dd className={balance > 0 ? 'neg-txt bold' : 'pos-txt bold'} style={{ fontSize: 18 }}>{money(balance)}</dd>

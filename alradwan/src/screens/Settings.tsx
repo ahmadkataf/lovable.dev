@@ -327,7 +327,7 @@ function AboutTab() {
     <div className="card pad" style={{ textAlign: 'center' }}>
       <img className="about-logo" src="./icon.svg" alt="" />
       <h2 style={{ marginTop: 8 }}>كراج الرضوان</h2>
-      <p className="muted">نظام إدارة محل قطع غيار السيارات — الإصدار 1.1</p>
+      <p className="muted">نظام إدارة محل قطع غيار السيارات — الإصدار 1.2</p>
       <p className="muted small mt">المبيعات · المخزون · المشتريات · العملاء والموردون · الصندوق والمصاريف · التقارير · الطباعة · المزامنة بين الأجهزة</p>
       <p className="help mt"><Info size={14} style={{ verticalAlign: -2 }} /> تعمل الآن على: {p === 'android' ? 'تطبيق أندرويد' : p === 'windows' ? 'تطبيق ويندوز' : 'المتصفح'} · البيانات محفوظة على هذا الجهاز</p>
       {installable && <button className="btn primary mt" onClick={install}><MonitorDown /> تثبيت البرنامج على هذا الجهاز</button>}

@@ -10,6 +10,8 @@ import { Field, NumberInput, Chips, Price } from '../ui/components'
 import { Modal, useConfirm } from '../ui/modal'
 import { useToast } from '../ui/toast'
 import { ProductSearch, PartyPicker, useProductStock } from '../ui/pickers'
+import { carLabel, productsForCar } from '../ui/cars'
+import { Car, X } from 'lucide-react'
 import { CustomerForm, ProductForm } from '../ui/forms'
 import { printDocument } from '../print/PrintHost'
 
@@ -21,6 +23,7 @@ export function POS() {
   const products = useCollection('products')
   const categories = useCollection('categories')
   const customers = useCollection('customers')
+  const carModels = useCollection('carModels')
   const settings = useSettings()
   const seeCost = useCanSeeCost()
   const stock = useProductStock()
@@ -41,6 +44,15 @@ export function POS() {
   const [done, setDone] = useState<Sale | null>(null)
   const [busy, setBusy] = useState(false)
   const [showCart, setShowCart] = useState(false)
+  const [carId, setCarId] = useState<string | null>(params.get('car'))
+  const [carQ, setCarQ] = useState('')
+  const [carOpen, setCarOpen] = useState(false)
+
+  // opened from the car guide with a part to add
+  useEffect(() => {
+    const addId = params.get('add')
+    if (addId) { const p = products.get(addId); if (p) add(p); setParams(carId ? { car: carId } : {}) }
+  }, [params])
 
   // keyboard: F2 search, F4 customer, F9 save and print, F8 save, Escape empties the search
   useEffect(() => {
@@ -102,10 +114,12 @@ export function POS() {
 
   const catList = useMemo(() => Array.from(categories.values()).sort((a, b) => a.name.localeCompare(b.name, 'ar')), [categories])
   const grid = useMemo(() => {
-    const all = Array.from(products.values())
-    const list = all.filter(p => (cat === 'all' || p.categoryId === cat) && matches(q, p.name, p.code, p.barcode, p.brand, p.cars))
+    const car = carId ? carModels.get(carId) : undefined
+    const all = car ? productsForCar(products.values(), car) : Array.from(products.values())
+    const list = all.filter(p => (cat === 'all' || p.categoryId === cat) && matches(q, p.name, p.code, p.barcode, p.brand, p.cars, p.oemNumbers))
     return list.sort((a, b) => a.name.localeCompare(b.name, 'ar')).slice(0, 60)
-  }, [products, cat, q])
+  }, [products, cat, q, carId, carModels])
+  const carList = useMemo(() => Array.from(carModels.values()).filter(m => matches(carQ, m.make, m.model, m.engine)).sort((a, b) => carLabel(a).localeCompare(carLabel(b), 'ar')).slice(0, 10), [carModels, carQ])
 
   const cartCount = items.reduce((n, i) => n + i.qty, 0)
   const customer = customerId ? customers.get(customerId) : undefined
@@ -117,7 +131,10 @@ export function POS() {
         <ProductSearch onPick={add} autoFocus />
         <div className="between" style={{ flexWrap: 'wrap' }}>
           <Chips value={cat} onChange={setCat} items={[{ id: 'all', label: 'الكل' }, ...catList.map(c => ({ id: c.id, label: c.name }))]} />
-          <div className="row">
+          <div className="row" style={{ position: 'relative' }}>
+            {carId ? <span className="badge tone-info" style={{ fontSize: 13, padding: '6px 10px' }}><Car /> {carLabel(carModels.get(carId))} <button className="btn ghost icon sm" style={{ minHeight: 0, width: 20, height: 20, padding: 0 }} onClick={() => setCarId(null)}><X size={14} /></button></span>
+              : <button className="btn sm ghost" onClick={() => setCarOpen(o => !o)}><Car /> حسب السيارة</button>}
+            {carOpen && !carId && <div className="card pad" style={{ position: 'absolute', top: '100%', insetInlineEnd: 0, zIndex: 40, width: 300, marginTop: 4 }}><input className="input" autoFocus placeholder="ابحث عن الموديل…" value={carQ} onChange={e => setCarQ(e.target.value)} /><div className="chips mt">{carList.map(m => <button key={m.id} className="chip" onClick={() => { setCarId(m.id); setCarOpen(false); setCarQ('') }}>{carLabel(m)}</button>)}{carList.length === 0 && <span className="muted small">لا موديلات — أضفها من «دليل السيارات»</span>}</div></div>}
             <button className="btn sm ghost" onClick={() => setAddProduct(true)}><PlusCircle /> قطعة جديدة</button>
           </div>
         </div>
@@ -137,7 +154,7 @@ export function POS() {
               </button>
             )
           })}
-          {grid.length === 0 && <div className="muted" style={{ gridColumn: '1/-1', padding: 20, textAlign: 'center' }}>{products.size === 0 ? 'لا توجد قطع بعد. أضف قطعك من شاشة المنتجات أو بزر «قطعة جديدة».' : 'لا نتائج'}</div>}
+          {grid.length === 0 && <div className="muted" style={{ gridColumn: '1/-1', padding: 20, textAlign: 'center' }}>{products.size === 0 ? 'لا توجد قطع بعد. أضف قطعك من شاشة المنتجات أو بزر «قطعة جديدة».' : carId ? 'لا قطع مربوطة بهذه السيارة بعد' : 'لا نتائج'}</div>}
         </div>
       </div>
 

@@ -10,7 +10,7 @@
 
 export interface Env { DB: D1Database; ASSETS: Fetcher }
 
-const COLLECTIONS = new Set(['products', 'categories', 'customers', 'suppliers', 'sales', 'purchases', 'payments', 'expenses', 'cash', 'movements', 'users', 'settings', 'audit'])
+const COLLECTIONS = new Set(['products', 'categories', 'customers', 'suppliers', 'sales', 'purchases', 'payments', 'expenses', 'cash', 'movements', 'users', 'settings', 'audit', 'carModels'])
 const MAX_CHANGES = 2000
 const MAX_BODY = 8 * 1024 * 1024        // one sync request
 const MAX_RECORD = 400 * 1024           // one record (a product with a photo is well under this)

@@ -22,6 +22,7 @@ import { Login } from './screens/Login'
 import { PrintHost } from './print/PrintHost'
 import { Trash } from './screens/Trash'
 import { Activity } from './screens/Activity'
+import { Cars } from './screens/Cars'
 import { autoBackupIfDue } from './lib/backup'
 
 function applyTheme(theme: 'light' | 'dark' | 'auto') {
@@ -114,6 +115,7 @@ function Gate() {
           <Route path="/products" element={<Products />} />
           <Route path="/inventory" element={<Inventory />} />
           <Route path="/purchases" element={<Purchases />} />
+          <Route path="/cars" element={<Cars />} />
           <Route path="/customers" element={<Customers />} />
           <Route path="/customers/:id" element={<Customers />} />
           <Route path="/suppliers" element={<Suppliers />} />

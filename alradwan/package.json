@@ -3,7 +3,7 @@
   "productName": "كراج الرضوان",
   "description": "نظام إدارة محل قطع غيار السيارات — كراج الرضوان",
   "private": true,
-  "version": "1.1.0",
+  "version": "1.2.0",
   "type": "module",
   "main": "electron/main.cjs",
   "scripts": {

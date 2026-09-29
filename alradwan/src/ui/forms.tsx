@@ -4,6 +4,9 @@ import { audit, put, useCollection, useSettings, useCanSeeCost, useIsAdmin } fro
 import type { Category, Customer, Product, Supplier } from '../db/types'
 import { Field, NumberInput } from './components'
 import { equiv } from '../lib/format'
+import { CarModelPick, CarModelSelect } from './cars'
+import { decodeVin, normalizeVin } from '../lib/vin'
+import { Search } from 'lucide-react'
 import { Modal, useConfirm } from './modal'
 import { useToast } from './toast'
 import { deleteProduct, remove } from '../db/actions'
@@ -12,11 +15,12 @@ import { deleteProduct, remove } from '../db/actions'
 
 export function CustomerForm({ initial, onClose, onSaved }: { initial?: Partial<Customer>; onClose: () => void; onSaved?: (c: Customer) => void }) {
   const [f, setF] = useState<Partial<Customer>>({ name: '', phone: '', car: '', address: '', notes: '', openingBalance: 0, ...initial })
+  const [vinBusy, setVinBusy] = useState(false)
   const toast = useToast(); const confirm = useConfirm(); const isAdmin = useIsAdmin()
   const set = (k: keyof Customer, v: unknown) => setF(x => ({ ...x, [k]: v }))
   const save = async () => {
     if (!f.name?.trim()) { toast.error('اكتب اسم العميل'); return }
-    const c = await put('customers', { ...(f as Customer), name: f.name.trim(), createdAt: f.createdAt ?? Date.now() })
+    const c = await put('customers', { ...(f as Customer), name: f.name.trim(), vin: f.vin ? normalizeVin(f.vin) : undefined, createdAt: f.createdAt ?? Date.now() })
     toast.success('تم حفظ العميل'); onSaved?.(c); onClose()
   }
   const del = async () => {
@@ -33,6 +37,8 @@ export function CustomerForm({ initial, onClose, onSaved }: { initial?: Partial<
         <Field label="الاسم" required className="full"><input className="input" value={f.name} onChange={e => set('name', e.target.value)} autoFocus /></Field>
         <Field label="الهاتف"><input className="input" value={f.phone} onChange={e => set('phone', e.target.value)} inputMode="tel" dir="ltr" style={{ textAlign: 'right' }} /></Field>
         <Field label="السيارة"><input className="input" value={f.car} onChange={e => set('car', e.target.value)} placeholder="مثال: كيا ريو 2015" /></Field>
+        <Field label="رقم الشاصي (VIN)" className="full" help="زر القراءة يملأ بيانات السيارة تلقائياً"><div className="row"><input className="input" dir="ltr" style={{ fontFamily: 'monospace', textAlign: 'right' }} value={f.vin ?? ''} onChange={e => set('vin', e.target.value.toUpperCase())} maxLength={20} /><button type="button" className="btn" disabled={vinBusy} onClick={async () => { setVinBusy(true); try { const r = await decodeVin(f.vin ?? ''); if (r.error && !r.make) toast.error(r.error); else { set('vin', r.vin); set('car', [r.make, r.model, r.year].filter(Boolean).join(' ')); if (r.error) toast.error(r.error); else toast.success('تمت قراءة الشاصي') } } finally { setVinBusy(false) } }}><Search /> قراءة</button></div></Field>
+        <Field label="الموديل من دليل السيارات" className="full"><CarModelPick value={f.carModelId} onChange={id => set('carModelId', id)} /></Field>
         <Field label="رقم اللوحة"><input className="input" value={f.plate ?? ''} onChange={e => set('plate', e.target.value)} dir="ltr" style={{ textAlign: 'right' }} /></Field>
         <Field label="خصم دائم (%)" help="يُطبَّق تلقائياً على فواتيره"><NumberInput value={f.discountPct ?? 0} onChange={v => set('discountPct', Math.min(100, v))} min={0} suffix="%" /></Field>
         <Field label="العنوان" className="full"><input className="input" value={f.address} onChange={e => set('address', e.target.value)} /></Field>
@@ -145,7 +151,9 @@ export function ProductForm({ initial, currentStock, onClose, onSaved }: { initi
           {f.categoryId === '__new' && <input className="input" style={{ marginTop: 6 }} placeholder="اسم التصنيف الجديد" value={newCat} onChange={e => setNewCat(e.target.value)} autoFocus />}
         </Field>
         <Field label="الماركة / الشركة"><input className="input" value={f.brand} onChange={e => set('brand', e.target.value)} placeholder="Bosch, TRW…" /></Field>
-        <Field label="تناسب السيارات" className="full"><input className="input" value={f.cars} onChange={e => set('cars', e.target.value)} placeholder="مثال: كيا ريو 2012–2017، هيونداي أكسنت" /></Field>
+        <Field label="تناسب الموديلات (من دليل السيارات)" className="full" help="اربط القطعة بالموديلات فتظهر عند البحث بالشاصي أو اختيار السيارة"><CarModelSelect value={f.carModelIds ?? []} onChange={ids => set('carModelIds', ids)} /></Field>
+        <Field label="تناسب السيارات (نص حر)" className="full"><input className="input" value={f.cars} onChange={e => set('cars', e.target.value)} placeholder="مثال: كيا ريو 2012–2017، هيونداي أكسنت" /></Field>
+        <Field label="أرقام القطعة الأصلية (OEM) والبديلة" className="full" help="افصل بين الأرقام بفاصلة؛ يبحث البرنامج بها في شاشة البيع"><input className="input" dir="ltr" style={{ textAlign: 'right', fontFamily: 'monospace' }} value={f.oemNumbers ?? ''} onChange={e => set('oemNumbers', e.target.value)} placeholder="26300-35503, 26300-35504" /></Field>
         {seeCost && <Field label="سعر الشراء (الكلفة)" help={equiv(f.cost ?? 0) || undefined}><NumberInput value={f.cost ?? 0} onChange={v => set('cost', v)} min={0} suffix={settings.currency} disabled={!canEdit} /></Field>}
         <Field label="سعر البيع" required help={equiv(f.price ?? 0) || undefined}><NumberInput value={f.price ?? 0} onChange={v => set('price', v)} min={0} suffix={settings.currency} disabled={!canEdit} /></Field>
         <Field label="سعر الجملة" help="يظهر كخيار عند البيع"><NumberInput value={f.wholesalePrice ?? 0} onChange={v => set('wholesalePrice', v)} min={0} suffix={settings.currency} disabled={!canEdit} /></Field>

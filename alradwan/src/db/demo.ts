@@ -1,6 +1,6 @@
 import { putMany, useStore } from './store'
 import { saveSale, savePurchase } from './actions'
-import type { Base, Category, Customer, Product, Supplier } from './types'
+import type { Base, CarModel, Category, Customer, Product, Supplier } from './types'
 import { newId } from '../lib/id'
 import { addDays } from '../lib/format'
 
@@ -9,14 +9,22 @@ export async function loadDemoData(): Promise<void> {
   const now = Date.now()
   const cats: Category[] = ['فلاتر', 'فرامل', 'زيوت', 'كهرباء', 'تعليق', 'محرك', 'خدمات'].map(name => ({ id: newId(), updatedAt: 0, name }))
   const cat = (n: string) => cats.find(c => c.name === n)!.id
+  const cars: CarModel[] = [
+    { id: newId(), updatedAt: 0, make: 'كيا', model: 'ريو', yearFrom: 2012, yearTo: 2017, engine: '1.4 بنزين' },
+    { id: newId(), updatedAt: 0, make: 'هيونداي', model: 'إلنترا', yearFrom: 2011, yearTo: 2016, engine: '1.6 بنزين' },
+    { id: newId(), updatedAt: 0, make: 'هيونداي', model: 'أكسنت', yearFrom: 2012, yearTo: 2017 },
+    { id: newId(), updatedAt: 0, make: 'تويوتا', model: 'كورولا', yearFrom: 2008, yearTo: 2013 },
+    { id: newId(), updatedAt: 0, make: 'كيا', model: 'سبورتاج', yearFrom: 2016, yearTo: 2021 },
+  ]
+  const car = (make: string, model: string) => cars.find(c => c.make === make && c.model === model)!.id
   const P = (code: string, name: string, category: string, brand: string, cars: string, cost: number, price: number, stock: number, minStock: number, location: string, kind: 'product' | 'service' = 'product', unit = 'قطعة'): Product => ({
     id: newId(), updatedAt: 0, code, name, categoryId: cat(category), brand, cars, unit, cost, price, minStock, openingStock: stock, location, kind, createdAt: now - 86400000 * 30,
   })
   const products: Product[] = [
-    P('FLT-001', 'فلتر زيت', 'فلاتر', 'Bosch', 'كيا ريو 2012–2017', 25000, 35000, 14, 4, 'رف A1'),
+    { ...P('FLT-001', 'فلتر زيت', 'فلاتر', 'Bosch', 'كيا ريو 2012–2017', 25000, 35000, 14, 4, 'رف A1'), oemNumbers: '26300-35503, 26300-35504', carModelIds: [car('كيا', 'ريو'), car('هيونداي', 'أكسنت')] },
     P('FLT-002', 'فلتر هواء', 'فلاتر', 'Mann', 'هيونداي إلنترا 2011–2016', 30000, 45000, 7, 3, 'رف A1'),
     P('FLT-003', 'فلتر مكيف', 'فلاتر', 'Mann', 'كيا سيراتو 2014–2018', 28000, 42000, 2, 3, 'رف A2'),
-    P('BRK-014', 'فحمات فرام أمامي', 'فرامل', 'TRW', 'هيونداي إلنترا 2011–2016', 120000, 165000, 5, 2, 'رف B3', 'product', 'طقم'),
+    { ...P('BRK-014', 'فحمات فرام أمامي', 'فرامل', 'TRW', 'هيونداي إلنترا 2011–2016', 120000, 165000, 5, 2, 'رف B3', 'product', 'طقم'), oemNumbers: '58101-3XA20', carModelIds: [car('هيونداي', 'إلنترا')] },
     P('BRK-015', 'فحمات فرام خلفي', 'فرامل', 'TRW', 'هيونداي إلنترا 2011–2016', 95000, 130000, 1, 2, 'رف B3', 'product', 'طقم'),
     P('BRK-020', 'ديسك فرام أمامي', 'فرامل', 'Brembo', 'كيا سبورتاج 2016–2021', 260000, 340000, 4, 2, 'رف B4'),
     P('OIL-5W30', 'زيت محرك 5W-30 (4 لتر)', 'زيوت', 'Shell', 'جميع السيارات', 180000, 230000, 12, 4, 'رف C1', 'product', 'علبة'),
@@ -31,7 +39,7 @@ export async function loadDemoData(): Promise<void> {
     P('SRV-002', 'أجرة تبديل فحمات', 'خدمات', '', '', 0, 40000, 0, 0, '', 'service'),
   ]
   const customers: Customer[] = [
-    { id: newId(), updatedAt: 0, name: 'أبو محمد', phone: '0944 123 456', car: 'كيا ريو 2015', openingBalance: 0, createdAt: now },
+    { id: newId(), updatedAt: 0, name: 'أبو محمد', phone: '0944 123 456', car: 'كيا ريو 2015', carModelId: car('كيا', 'ريو'), vin: 'KNADM4A3XF6412345', openingBalance: 0, createdAt: now },
     { id: newId(), updatedAt: 0, name: 'ورشة الأمانة', phone: '0933 555 111', car: '', openingBalance: 150000, createdAt: now, notes: 'يشتري بالجملة' },
     { id: newId(), updatedAt: 0, name: 'خالد الحسن', phone: '0955 777 888', car: 'هيونداي إلنترا 2014', openingBalance: 0, createdAt: now },
   ]
@@ -39,8 +47,9 @@ export async function loadDemoData(): Promise<void> {
     { id: newId(), updatedAt: 0, name: 'شركة النور لقطع الغيار', phone: '011 223 3444', openingBalance: 0, createdAt: now },
     { id: newId(), updatedAt: 0, name: 'مستودع الشرق', phone: '0999 000 111', openingBalance: 500000, createdAt: now },
   ]
-  const entries: { collection: 'categories' | 'products' | 'customers' | 'suppliers'; record: Base }[] = [
+  const entries: { collection: 'categories' | 'products' | 'customers' | 'suppliers' | 'carModels'; record: Base }[] = [
     ...cats.map(record => ({ collection: 'categories' as const, record })),
+    ...cars.map(record => ({ collection: 'carModels' as const, record })),
     ...products.map(record => ({ collection: 'products' as const, record })),
     ...customers.map(record => ({ collection: 'customers' as const, record })),
     ...suppliers.map(record => ({ collection: 'suppliers' as const, record })),

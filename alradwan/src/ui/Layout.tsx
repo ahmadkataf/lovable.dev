@@ -1,6 +1,6 @@
 import { useEffect, useState, type ReactNode } from 'react'
 import { NavLink, useLocation } from 'react-router-dom'
-import { LayoutDashboard, ShoppingCart, Receipt, Package, Boxes, Truck, Users, Factory, Wallet, BarChart3, Settings, Menu, LogOut, RefreshCw, CloudOff, Cloud, AlertTriangle, User, DollarSign, History, Trash2 } from 'lucide-react'
+import { LayoutDashboard, ShoppingCart, Receipt, Package, Boxes, Truck, Users, Factory, Wallet, BarChart3, Settings, Menu, LogOut, RefreshCw, CloudOff, Cloud, AlertTriangle, User, DollarSign, History, Trash2, Car } from 'lucide-react'
 import { setCurrentUser, useCurrentUser, useIsAdmin, useSettings, useStore } from '../db/store'
 import { onSyncStatus, syncNow, type SyncStatus } from '../lib/sync'
 import { fmtTime } from '../lib/format'
@@ -14,6 +14,7 @@ const NAV = [
   { to: '/products', label: 'المنتجات', icon: Package },
   { to: '/inventory', label: 'المخزون', icon: Boxes },
   { to: '/purchases', label: 'المشتريات', icon: Truck },
+  { to: '/cars', label: 'دليل السيارات', icon: Car },
   { to: '/customers', label: 'العملاء', icon: Users },
   { to: '/suppliers', label: 'الموردون', icon: Factory },
   { to: '/cash', label: 'الصندوق والمصاريف', icon: Wallet },
@@ -25,7 +26,7 @@ const NAV = [
 
 const TITLES: Record<string, string> = {
   '/': 'الرئيسية', '/pos': 'بيع جديد', '/sales': 'فواتير المبيعات', '/products': 'المنتجات', '/inventory': 'المخزون', '/purchases': 'المشتريات',
-  '/customers': 'العملاء', '/suppliers': 'الموردون', '/cash': 'الصندوق والمصاريف', '/reports': 'التقارير', '/settings': 'الإعدادات', '/activity': 'سجل النشاط', '/trash': 'المحذوفات',
+  '/customers': 'العملاء', '/suppliers': 'الموردون', '/cash': 'الصندوق والمصاريف', '/reports': 'التقارير', '/settings': 'الإعدادات', '/activity': 'سجل النشاط', '/trash': 'المحذوفات', '/cars': 'دليل السيارات',
 }
 
 export function Layout({ children }: { children: ReactNode }) {
