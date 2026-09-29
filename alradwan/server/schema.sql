@@ -11,6 +11,11 @@ CREATE TABLE IF NOT EXISTS records (
   PRIMARY KEY (shop, col, id)
 );
 CREATE INDEX IF NOT EXISTS records_shop_seq ON records (shop, seq);
+CREATE TABLE IF NOT EXISTS auth_failures (
+  ip TEXT NOT NULL,
+  at INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS auth_failures_ip_at ON auth_failures (ip, at);
 CREATE TABLE IF NOT EXISTS shops (
   shop TEXT PRIMARY KEY,
   seq INTEGER NOT NULL DEFAULT 0,

@@ -3,7 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom'
 import { Plus, Pencil, Phone, Printer, HandCoins, FileSpreadsheet, MessageCircle, Trash2 } from 'lucide-react'
 import { useCollection, useIsAdmin, useSettings } from '../db/store'
 import type { Customer, Supplier, Payment } from '../db/types'
-import { addPayment, remove } from '../db/actions'
+import { addPayment, deleteMoneyEntry } from '../db/actions'
 import { customerBalance, supplierBalance } from '../lib/calc'
 import { fmtDate, invoiceNo, matches, money } from '../lib/format'
 import { Empty, Field, NumberInput, SearchInput, Stat, Tabs } from '../ui/components'
@@ -25,19 +25,28 @@ export function Parties({ type }: { type: 'customer' | 'supplier' }) {
   const settings = useSettings()
   const isAdmin = useIsAdmin()
   const [q, setQ] = useState('')
-  const [tab, setTab] = useState<'all' | 'debt'>('all')
+  const [tab, setTab] = useState<'all' | 'debt' | 'overdue'>('all')
   const [form, setForm] = useState<Customer | Supplier | 'new' | null>(null)
   const [pay, setPay] = useState<Customer | Supplier | null>(null)
   const toast = useToast(); const confirm = useConfirm()
   const isC = type === 'customer'
   const base = `/${isC ? 'customers' : 'suppliers'}`
 
+  // the oldest unpaid invoice of each party: a debt older than 30 days is overdue
+  const oldestDue = useMemo(() => {
+    const m = new Map<string, number>()
+    const note = (id: string | undefined, date: number) => { if (id && !(m.has(id) && m.get(id)! < date)) m.set(id, date) }
+    if (isC) for (const s of sales.values()) { if (s.type === 'sale' && s.total - s.paid > 0.001) note(s.customerId, s.date) }
+    else for (const p of purchases.values()) { if (p.type === 'purchase' && p.total - p.paid > 0.001) note(p.supplierId, p.date) }
+    return m
+  }, [sales, purchases, isC])
+  const overdueDays = (id: string) => { const d = oldestDue.get(id); return d ? Math.floor((Date.now() - d) / 86400000) : 0 }
   const rows = useMemo(() => {
     const src = isC ? Array.from(customers.values()) : Array.from(suppliers.values())
     return src.map(p => ({ p, balance: isC ? customerBalance(p as Customer, sales.values(), payments.values()) : supplierBalance(p as Supplier, purchases.values(), payments.values()) }))
-      .filter(r => matches(q, r.p.name, r.p.phone, (r.p as Customer).car, r.p.notes)).filter(r => tab === 'all' || r.balance > 0.001)
-      .sort((a, b) => b.balance - a.balance || a.p.name.localeCompare(b.p.name, 'ar'))
-  }, [customers, suppliers, sales, purchases, payments, q, tab, isC])
+      .filter(r => matches(q, r.p.name, r.p.phone, (r.p as Customer).car, (r.p as Customer).plate, r.p.notes)).filter(r => tab === 'all' || (r.balance > 0.001 && (tab === 'debt' || overdueDays(r.p.id) >= 30)))
+      .sort((a, b) => (tab === 'overdue' ? overdueDays(b.p.id) - overdueDays(a.p.id) : b.balance - a.balance) || a.p.name.localeCompare(b.p.name, 'ar'))
+  }, [customers, suppliers, sales, purchases, payments, q, tab, isC, oldestDue])
   const totalDebt = rows.reduce((s, r) => s + Math.max(0, r.balance), 0)
   const selected = id ? (isC ? customers.get(id) : suppliers.get(id)) : undefined
 
@@ -60,7 +69,7 @@ export function Parties({ type }: { type: 'customer' | 'supplier' }) {
         <button className="btn primary" onClick={() => setForm('new')}><Plus /> {isC ? 'عميل جديد' : 'مورد جديد'}</button>
         <button className="btn" onClick={() => exportSheet(isC ? 'العملاء' : 'الموردون', rows.map(r => ({ 'الاسم': r.p.name, 'الهاتف': r.p.phone ?? '', ...(isC ? { 'السيارة': (r.p as Customer).car ?? '' } : {}), 'العنوان': r.p.address ?? '', 'الرصيد': r.balance, 'ملاحظات': r.p.notes ?? '' })))}><FileSpreadsheet /></button>
       </div>
-      <Tabs value={tab} onChange={setTab} items={[{ id: 'all', label: 'الكل' }, { id: 'debt', label: isC ? 'عليهم دين' : 'لهم رصيد علينا' }]} />
+      <Tabs value={tab} onChange={setTab} items={[{ id: 'all', label: 'الكل' }, { id: 'debt', label: isC ? 'عليهم دين' : 'لهم رصيد علينا' }, { id: 'overdue', label: 'ديون متأخرة (+30 يوم)' }]} />
       <div className="card">
         {rows.length === 0 ? <Empty title={isC ? 'لا عملاء بعد' : 'لا موردين بعد'} text={isC ? 'يمكنك إضافة العميل من هنا أو أثناء البيع' : 'أضف الموردين الذين تشتري منهم البضاعة'} /> : (
           <div className="table-wrap"><table className="table">
@@ -70,7 +79,7 @@ export function Parties({ type }: { type: 'customer' | 'supplier' }) {
                 <td><div className="bold">{p.name}</div>{p.notes && <div className="small muted">{p.notes}</div>}</td>
                 <td className="hide-mobile mono small">{p.phone}</td>
                 {isC && <td className="hide-mobile small">{(p as Customer).car}</td>}
-                <td className="num">{balance > 0.001 ? <span className="badge tone-danger">{money(balance)}</span> : balance < -0.001 ? <span className="badge tone-success">رصيد له {money(-balance)}</span> : <span className="muted">—</span>}</td>
+                <td className="num">{balance > 0.001 ? <span className="badge tone-danger">{money(balance)}</span> : balance < -0.001 ? <span className="badge tone-success">رصيد له {money(-balance)}</span> : <span className="muted">—</span>}{balance > 0.001 && overdueDays(p.id) >= 30 && <div className="small neg-txt">متأخر {overdueDays(p.id)} يوم</div>}</td>
                 <td className="actions" onClick={e => e.stopPropagation()}>{balance > 0.001 && <button className="btn sm" onClick={() => setPay(p)}><HandCoins /> {isC ? 'تحصيل' : 'دفع'}</button>}<button className="btn sm ghost icon" onClick={() => setForm(p)}><Pencil /></button></td>
               </tr>
             ))}</tbody>
@@ -94,7 +103,8 @@ export function Parties({ type }: { type: 'customer' | 'supplier' }) {
           </>}>
             <div className="kv mb">
               {selected.phone && <><dt>الهاتف</dt><dd dir="ltr" style={{ textAlign: 'right' }}>{selected.phone}</dd></>}
-              {(selected as Customer).car && <><dt>السيارة</dt><dd>{(selected as Customer).car}</dd></>}
+              {(selected as Customer).car && <><dt>السيارة</dt><dd>{(selected as Customer).car}{(selected as Customer).plate ? ` — ${(selected as Customer).plate}` : ''}</dd></>}
+              {!!(selected as Customer).discountPct && <><dt>خصم دائم</dt><dd>{(selected as Customer).discountPct}%</dd></>}
               {selected.address && <><dt>العنوان</dt><dd>{selected.address}</dd></>}
               <dt>{isC ? 'الرصيد عليه' : 'الرصيد له'}</dt><dd className={balance > 0 ? 'neg-txt bold' : 'pos-txt bold'} style={{ fontSize: 18 }}>{money(balance)}</dd>
             </div>
@@ -105,7 +115,7 @@ export function Parties({ type }: { type: 'customer' | 'supplier' }) {
                   <tr key={l.id} className={l.refType !== 'payment' ? 'click' : ''} onClick={() => { if (l.refType === 'sale') nav(`/sales?open=${l.id}`) }}>
                     <td className="small muted">{fmtDate(l.date)}</td><td>{l.label}</td>
                     <td className="num neg-txt">{l.debit ? money(l.debit, { currency: false }) : ''}</td><td className="num pos-txt">{l.credit ? money(l.credit, { currency: false }) : ''}</td>
-                    <td className="actions" onClick={e => e.stopPropagation()}>{l.refType === 'payment' && isAdmin && <button className="btn sm ghost icon" title="حذف الدفعة" onClick={async () => { if (await confirm({ title: 'حذف هذه الدفعة؟', danger: true, okText: 'حذف' })) { await remove('payments', l.id); toast.success('تم الحذف') } }}><Trash2 /></button>}</td>
+                    <td className="actions" onClick={e => e.stopPropagation()}>{l.refType === 'payment' && isAdmin && <button className="btn sm ghost icon" title="حذف الدفعة" onClick={async () => { if (await confirm({ title: 'حذف هذه الدفعة؟', danger: true, okText: 'حذف' })) { await deleteMoneyEntry('payments', l.id); toast.success('تم الحذف') } }}><Trash2 /></button>}</td>
                   </tr>
                 ))}</tbody>
               </table></div>

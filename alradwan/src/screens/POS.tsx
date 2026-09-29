@@ -42,6 +42,17 @@ export function POS() {
   const [busy, setBusy] = useState(false)
   const [showCart, setShowCart] = useState(false)
 
+  // keyboard: F2 search, F4 customer, F9 save and print, F8 save, Escape empties the search
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'F2') { e.preventDefault(); (document.querySelector('.catalog input.input') as HTMLInputElement | null)?.focus() }
+      else if (e.key === 'F9') { e.preventDefault(); save(true) }
+      else if (e.key === 'F8') { e.preventDefault(); save(false) }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  })
+
   // editing an existing invoice
   useEffect(() => {
     if (!editId) return
@@ -52,6 +63,14 @@ export function POS() {
 
   const { subtotal, total } = saleTotals(items, discount)
   const paidValue = paid === null ? total : Math.min(paid, total)
+
+  // the customer's standing discount is applied as the invoice discount (the cashier can still change it)
+  useEffect(() => {
+    if (editId) return
+    const c = customerId ? customers.get(customerId) : undefined
+    if (c?.discountPct) setDiscount(Math.round(subtotal * c.discountPct) / 100)
+  }, [customerId, subtotal, editId])
+
 
   const add = (p: Product) => {
     const price = wholesale && p.wholesalePrice ? p.wholesalePrice : p.price
@@ -108,6 +127,7 @@ export function POS() {
             const st = stock.get(p.id) ?? 0
             return (
               <button key={p.id} className={`pcard ${p.kind === 'product' && st <= 0 ? 'out' : ''}`} onClick={() => add(p)}>
+                {p.image && <img src={p.image} alt="" style={{ width: '100%', height: 64, objectFit: 'cover', borderRadius: 8, marginBottom: 4 }} />}
                 <div className="n">{p.name}</div>
                 <div className="c">{p.code}{p.cars ? ` · ${p.cars}` : ''}</div>
                 <div className="between" style={{ marginTop: 'auto' }}>
@@ -179,8 +199,8 @@ export function POS() {
             </div>
           </details>
           <div className="btn-row" style={{ marginTop: 6 }}>
-            <button className="btn primary lg" style={{ flex: 1 }} disabled={busy || items.length === 0} onClick={() => save(true)}><Printer /> حفظ وطباعة</button>
-            <button className="btn lg" disabled={busy || items.length === 0} onClick={() => save(false)}><Save /> حفظ</button>
+            <button className="btn primary lg" style={{ flex: 1 }} disabled={busy || items.length === 0} onClick={() => save(true)} title="F9"><Printer /> حفظ وطباعة</button>
+            <button className="btn lg" disabled={busy || items.length === 0} onClick={() => save(false)} title="F8"><Save /> حفظ</button>
           </div>
         </div>
       </div>

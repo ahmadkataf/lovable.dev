@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Save, Trash2, ImagePlus } from 'lucide-react'
-import { put, useCollection, useSettings, useCanSeeCost } from '../db/store'
+import { audit, put, useCollection, useSettings, useCanSeeCost, useIsAdmin } from '../db/store'
 import type { Category, Customer, Product, Supplier } from '../db/types'
 import { Field, NumberInput } from './components'
 import { equiv } from '../lib/format'
@@ -12,7 +12,7 @@ import { deleteProduct, remove } from '../db/actions'
 
 export function CustomerForm({ initial, onClose, onSaved }: { initial?: Partial<Customer>; onClose: () => void; onSaved?: (c: Customer) => void }) {
   const [f, setF] = useState<Partial<Customer>>({ name: '', phone: '', car: '', address: '', notes: '', openingBalance: 0, ...initial })
-  const toast = useToast(); const confirm = useConfirm()
+  const toast = useToast(); const confirm = useConfirm(); const isAdmin = useIsAdmin()
   const set = (k: keyof Customer, v: unknown) => setF(x => ({ ...x, [k]: v }))
   const save = async () => {
     if (!f.name?.trim()) { toast.error('اكتب اسم العميل'); return }
@@ -27,12 +27,14 @@ export function CustomerForm({ initial, onClose, onSaved }: { initial?: Partial<
     <Modal title={f.id ? 'تعديل عميل' : 'عميل جديد'} onClose={onClose} footer={<>
       <button className="btn primary" onClick={save}><Save /> حفظ</button>
       <button className="btn" onClick={onClose}>إلغاء</button>
-      {f.id && <><span className="grow" /><button className="btn danger" onClick={del}><Trash2 /> حذف</button></>}
+      {f.id && isAdmin && <><span className="grow" /><button className="btn danger" onClick={del}><Trash2 /> حذف</button></>}
     </>}>
       <div className="form-grid">
         <Field label="الاسم" required className="full"><input className="input" value={f.name} onChange={e => set('name', e.target.value)} autoFocus /></Field>
         <Field label="الهاتف"><input className="input" value={f.phone} onChange={e => set('phone', e.target.value)} inputMode="tel" dir="ltr" style={{ textAlign: 'right' }} /></Field>
         <Field label="السيارة"><input className="input" value={f.car} onChange={e => set('car', e.target.value)} placeholder="مثال: كيا ريو 2015" /></Field>
+        <Field label="رقم اللوحة"><input className="input" value={f.plate ?? ''} onChange={e => set('plate', e.target.value)} dir="ltr" style={{ textAlign: 'right' }} /></Field>
+        <Field label="خصم دائم (%)" help="يُطبَّق تلقائياً على فواتيره"><NumberInput value={f.discountPct ?? 0} onChange={v => set('discountPct', Math.min(100, v))} min={0} suffix="%" /></Field>
         <Field label="العنوان" className="full"><input className="input" value={f.address} onChange={e => set('address', e.target.value)} /></Field>
         <Field label="دين سابق (عليه)" help="مبلغ كان مديناً به قبل استخدام البرنامج"><NumberInput value={f.openingBalance ?? 0} onChange={v => set('openingBalance', v)} /></Field>
         <Field label="ملاحظات"><input className="input" value={f.notes} onChange={e => set('notes', e.target.value)} /></Field>
@@ -43,7 +45,7 @@ export function CustomerForm({ initial, onClose, onSaved }: { initial?: Partial<
 
 export function SupplierForm({ initial, onClose, onSaved }: { initial?: Partial<Supplier>; onClose: () => void; onSaved?: (s: Supplier) => void }) {
   const [f, setF] = useState<Partial<Supplier>>({ name: '', phone: '', address: '', notes: '', openingBalance: 0, ...initial })
-  const toast = useToast(); const confirm = useConfirm()
+  const toast = useToast(); const confirm = useConfirm(); const isAdmin = useIsAdmin()
   const set = (k: keyof Supplier, v: unknown) => setF(x => ({ ...x, [k]: v }))
   const save = async () => {
     if (!f.name?.trim()) { toast.error('اكتب اسم المورد'); return }
@@ -58,7 +60,7 @@ export function SupplierForm({ initial, onClose, onSaved }: { initial?: Partial<
     <Modal title={f.id ? 'تعديل مورد' : 'مورد جديد'} onClose={onClose} footer={<>
       <button className="btn primary" onClick={save}><Save /> حفظ</button>
       <button className="btn" onClick={onClose}>إلغاء</button>
-      {f.id && <><span className="grow" /><button className="btn danger" onClick={del}><Trash2 /> حذف</button></>}
+      {f.id && isAdmin && <><span className="grow" /><button className="btn danger" onClick={del}><Trash2 /> حذف</button></>}
     </>}>
       <div className="form-grid">
         <Field label="الاسم" required className="full"><input className="input" value={f.name} onChange={e => set('name', e.target.value)} autoFocus /></Field>
@@ -94,6 +96,8 @@ export function ProductForm({ initial, currentStock, onClose, onSaved }: { initi
   const categories = useCollection('categories')
   const settings = useSettings()
   const seeCost = useCanSeeCost()
+  const isAdmin = useIsAdmin()
+  const canEdit = isAdmin || settings.staffEditsPrices
   const [f, setF] = useState<Partial<Product>>({ code: nextCode(products), barcode: '', name: '', brand: '', cars: '', unit: settings.units[0] ?? 'قطعة', cost: 0, price: 0, wholesalePrice: 0, minStock: settings.lowStockDefault, openingStock: 0, location: '', notes: '', kind: 'product', ...initial })
   const [newCat, setNewCat] = useState('')
   const toast = useToast(); const confirm = useConfirm()
@@ -106,7 +110,11 @@ export function ProductForm({ initial, currentStock, onClose, onSaved }: { initi
     if (dup) { toast.error(`الكود ${code} مستخدم للقطعة «${dup.name}»`); return }
     let categoryId = f.categoryId
     if (newCat.trim()) { const c = await put('categories', { name: newCat.trim() } as Category); categoryId = c.id }
+    if (!canEdit) { toast.error('ليس لديك صلاحية تعديل القطع'); return }
+    const before = initial?.id ? products.get(initial.id) : undefined
     const p = await put('products', { ...(f as Product), code, name: f.name.trim(), categoryId, createdAt: f.createdAt ?? Date.now() })
+    const changes = before ? [before.price !== p.price ? `سعر البيع ${before.price} ← ${p.price}` : '', before.cost !== p.cost ? `الكلفة ${before.cost} ← ${p.cost}` : '', before.name !== p.name ? `الاسم ${before.name} ← ${p.name}` : ''].filter(Boolean).join('، ') : ''
+    await audit(isNew ? 'create' : 'update', isNew ? `إضافة قطعة ${p.name} (${p.code}) بسعر ${p.price}` : `تعديل قطعة ${p.name}${changes ? ': ' + changes : ''}`, 'products', p.id)
     toast.success(isNew ? 'تمت إضافة القطعة' : 'تم حفظ التعديلات'); onSaved?.(p); onClose()
   }
   const del = async () => {
@@ -118,8 +126,9 @@ export function ProductForm({ initial, currentStock, onClose, onSaved }: { initi
     <Modal title={isNew ? 'قطعة جديدة' : 'تعديل قطعة'} onClose={onClose} size="wide" footer={<>
       <button className="btn primary" onClick={save}><Save /> حفظ</button>
       <button className="btn" onClick={onClose}>إلغاء</button>
-      {!isNew && <><span className="grow" /><button className="btn danger" onClick={del}><Trash2 /> حذف</button></>}
+      {!isNew && isAdmin && <><span className="grow" /><button className="btn danger" onClick={del}><Trash2 /> حذف</button></>}
     </>}>
+      {!canEdit && <div className="badge tone-warning mb">ليس لديك صلاحية تعديل القطع والأسعار — للعرض فقط</div>}
       <div className="form-grid">
         <Field label="النوع" className="full">
           <div className="tabs small"><button className={f.kind === 'product' ? 'active' : ''} onClick={() => set('kind', 'product')}>قطعة (لها مخزون)</button><button className={f.kind === 'service' ? 'active' : ''} onClick={() => set('kind', 'service')}>خدمة / أجرة عمل</button></div>
@@ -137,16 +146,16 @@ export function ProductForm({ initial, currentStock, onClose, onSaved }: { initi
         </Field>
         <Field label="الماركة / الشركة"><input className="input" value={f.brand} onChange={e => set('brand', e.target.value)} placeholder="Bosch, TRW…" /></Field>
         <Field label="تناسب السيارات" className="full"><input className="input" value={f.cars} onChange={e => set('cars', e.target.value)} placeholder="مثال: كيا ريو 2012–2017، هيونداي أكسنت" /></Field>
-        {seeCost && <Field label="سعر الشراء (الكلفة)" help={equiv(f.cost ?? 0) || undefined}><NumberInput value={f.cost ?? 0} onChange={v => set('cost', v)} suffix={settings.currency} /></Field>}
-        <Field label="سعر البيع" required help={equiv(f.price ?? 0) || undefined}><NumberInput value={f.price ?? 0} onChange={v => set('price', v)} suffix={settings.currency} /></Field>
-        <Field label="سعر الجملة" help="يظهر كخيار عند البيع"><NumberInput value={f.wholesalePrice ?? 0} onChange={v => set('wholesalePrice', v)} suffix={settings.currency} /></Field>
+        {seeCost && <Field label="سعر الشراء (الكلفة)" help={equiv(f.cost ?? 0) || undefined}><NumberInput value={f.cost ?? 0} onChange={v => set('cost', v)} min={0} suffix={settings.currency} disabled={!canEdit} /></Field>}
+        <Field label="سعر البيع" required help={equiv(f.price ?? 0) || undefined}><NumberInput value={f.price ?? 0} onChange={v => set('price', v)} min={0} suffix={settings.currency} disabled={!canEdit} /></Field>
+        <Field label="سعر الجملة" help="يظهر كخيار عند البيع"><NumberInput value={f.wholesalePrice ?? 0} onChange={v => set('wholesalePrice', v)} min={0} suffix={settings.currency} disabled={!canEdit} /></Field>
         <Field label="الوحدة">
           <select className="select" value={f.unit} onChange={e => set('unit', e.target.value)}>{Array.from(new Set([...(settings.units ?? []), f.unit ?? 'قطعة'])).map(u => <option key={u} value={u}>{u}</option>)}</select>
         </Field>
         {f.kind === 'product' && <>
-          {isNew ? <Field label="الكمية الحالية في المحل"><NumberInput value={f.openingStock ?? 0} onChange={v => set('openingStock', v)} /></Field>
+          {isNew ? <Field label="الكمية الحالية في المحل"><NumberInput value={f.openingStock ?? 0} onChange={v => set('openingStock', v)} min={0} /></Field>
             : <Field label="الكمية الحالية" help="تُعدَّل من شاشة المخزون (جرد)"><input className="input" value={currentStock ?? 0} disabled /></Field>}
-          <Field label="حد التنبيه" help="ينبّهك عندما تنزل الكمية إليه"><NumberInput value={f.minStock ?? 0} onChange={v => set('minStock', v)} /></Field>
+          <Field label="حد التنبيه" help="ينبّهك عندما تنزل الكمية إليه"><NumberInput value={f.minStock ?? 0} onChange={v => set('minStock', v)} min={0} /></Field>
           <Field label="مكان القطعة في المحل"><input className="input" value={f.location} onChange={e => set('location', e.target.value)} placeholder="رف A3" /></Field>
         </>}
         <Field label="ملاحظات" className="full"><input className="input" value={f.notes} onChange={e => set('notes', e.target.value)} /></Field>

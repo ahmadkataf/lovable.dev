@@ -10,8 +10,13 @@
 
 export interface Env { DB: D1Database; ASSETS: Fetcher }
 
-const COLLECTIONS = new Set(['products', 'categories', 'customers', 'suppliers', 'sales', 'purchases', 'payments', 'expenses', 'cash', 'movements', 'users', 'settings'])
+const COLLECTIONS = new Set(['products', 'categories', 'customers', 'suppliers', 'sales', 'purchases', 'payments', 'expenses', 'cash', 'movements', 'users', 'settings', 'audit'])
 const MAX_CHANGES = 2000
+const MAX_BODY = 8 * 1024 * 1024        // one sync request
+const MAX_RECORD = 400 * 1024           // one record (a product with a photo is well under this)
+const MIN_KEY = 12
+const FAIL_WINDOW = 15 * 60000          // wrong keys from one address inside this window…
+const FAIL_LIMIT = 20                   // …beyond this many are refused for the rest of the window
 const CORS = { 'access-control-allow-origin': '*', 'access-control-allow-headers': 'authorization, content-type', 'access-control-allow-methods': 'GET, POST, OPTIONS', 'access-control-max-age': '86400' }
 
 interface Change { collection: string; id: string; updatedAt: number; deleted: boolean; data: unknown }
@@ -27,7 +32,22 @@ function keyOf(req: Request): string | null {
   const auth = req.headers.get('authorization') ?? ''
   const m = /^Bearer\s+(.+)$/i.exec(auth)
   const k = m?.[1]?.trim() ?? ''
-  return k.length >= 8 ? k : null
+  return k.length >= MIN_KEY && k.length <= 200 ? k : null
+}
+
+function ipOf(req: Request): string { return req.headers.get('cf-connecting-ip') ?? 'unknown' }
+
+/** Guessing keys: an address that keeps sending unknown keys is refused for a while. A wrong key is only
+ *  detectable as "a shop with no records", so the check counts requests for shops that do not exist yet. */
+async function tooManyFailures(env: Env, ip: string, now: number): Promise<boolean> {
+  const row = await env.DB.prepare('SELECT COUNT(*) AS n FROM auth_failures WHERE ip = ? AND at > ?').bind(ip, now - FAIL_WINDOW).first<{ n: number }>()
+  return (row?.n ?? 0) >= FAIL_LIMIT
+}
+async function noteFailure(env: Env, ip: string, now: number): Promise<void> {
+  await env.DB.batch([
+    env.DB.prepare('INSERT INTO auth_failures (ip, at) VALUES (?, ?)').bind(ip, now),
+    env.DB.prepare('DELETE FROM auth_failures WHERE at < ?').bind(now - FAIL_WINDOW),
+  ])
 }
 
 export default {
@@ -39,17 +59,25 @@ export default {
     if (!key) return json({ error: 'missing or short key' }, 401)
     const shop = await shopId(key)
     const now = Date.now()
+    const ip = ipOf(req)
+    if (await tooManyFailures(env, ip, now)) return json({ error: 'too many attempts' }, 429)
+    const known = !!(await env.DB.prepare('SELECT 1 FROM shops WHERE shop = ?').bind(shop).first())
 
     if (url.pathname === '/api/ping') {
+      if (!known) await noteFailure(env, ip, now)
       const row = await env.DB.prepare('SELECT COUNT(*) AS n FROM records WHERE shop = ? AND deleted = 0').bind(shop).first<{ n: number }>()
-      return json({ ok: true, records: row?.n ?? 0 })
+      return json({ ok: true, records: row?.n ?? 0, known, serverTime: now })
     }
 
     if (url.pathname === '/api/sync' && req.method === 'POST') {
+      const len = Number(req.headers.get('content-length') ?? 0)
+      if (len > MAX_BODY) return json({ error: 'too large' }, 413)
       let body: { since?: number; changes?: Change[] }
       try { body = await req.json() } catch { return json({ error: 'bad json' }, 400) }
       const since = Number(body.since) || 0
-      const changes = (body.changes ?? []).filter(c => c && COLLECTIONS.has(c.collection) && typeof c.id === 'string' && c.id.length <= 64 && Number.isFinite(c.updatedAt)).slice(0, MAX_CHANGES)
+      const changes = (body.changes ?? []).filter(c => c && COLLECTIONS.has(c.collection) && typeof c.id === 'string' && c.id.length <= 64 && Number.isFinite(c.updatedAt) && JSON.stringify(c.data ?? {}).length <= MAX_RECORD).slice(0, MAX_CHANGES)
+      // a new shop is created only by a device that brings data with it; an empty request with an unknown key is a guess
+      if (!known && changes.length === 0) { await noteFailure(env, ip, now); return json({ seq: 0, more: false, changes: [], serverTime: now }) }
 
       // the shop's row (created on first contact) and its current seq
       await env.DB.prepare('INSERT INTO shops (shop, seq, created_at, last_seen) VALUES (?, 0, ?, ?) ON CONFLICT(shop) DO UPDATE SET last_seen = excluded.last_seen').bind(shop, now, now).run()
@@ -85,7 +113,7 @@ export default {
       const more = rows.results.length > MAX_CHANGES
       const out = page.map(r => ({ collection: r.col, id: r.id, updatedAt: r.updated_at, deleted: !!r.deleted, data: JSON.parse(r.data) }))
       const lastSeq = more ? page[page.length - 1].seq : seq
-      return json({ seq: lastSeq, more, changes: out })
+      return json({ seq: lastSeq, more, changes: out, serverTime: now })
     }
 
     return json({ error: 'not found' }, 404)

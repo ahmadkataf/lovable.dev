@@ -1,5 +1,5 @@
 import { db } from '../db/db'
-import { applyRemote, bump, setChangeListener, useStore } from '../db/store'
+import { applyRemoteMany, setChangeListener, useStore } from '../db/store'
 import type { Base, CollectionName } from '../db/types'
 import { COLLECTIONS } from '../db/types'
 
@@ -8,7 +8,7 @@ import { COLLECTIONS } from '../db/types'
 // the newer change wins — on the server and on every device alike, so they all end up identical.
 
 export interface SyncChange { collection: CollectionName; id: string; updatedAt: number; deleted: boolean; data: Base }
-export interface SyncStatus { state: 'off' | 'idle' | 'syncing' | 'error' | 'offline'; lastSync: number | null; pending: number; error?: string }
+export interface SyncStatus { state: 'off' | 'idle' | 'syncing' | 'error' | 'offline'; lastSync: number | null; pending: number; error?: string; clockSkew?: number }
 
 const listeners = new Set<(s: SyncStatus) => void>()
 let status: SyncStatus = { state: 'off', lastSync: null, pending: 0 }
@@ -63,28 +63,38 @@ export async function syncNow(): Promise<{ sent: number; received: number }> {
       headers: { 'content-type': 'application/json', authorization: 'Bearer ' + key },
       body: JSON.stringify({ since, changes }),
     })
-    if (!res.ok) throw new Error(res.status === 401 ? 'مفتاح المزامنة غير صحيح' : `الخادم رفض الطلب (${res.status})`)
-    const body = (await res.json()) as { seq: number; more?: boolean; changes: SyncChange[] }
-    // what we sent is now on the server
-    await db.outbox.bulkDelete(outbox.map(o => o.key))
+    if (!res.ok) throw new Error(res.status === 401 ? 'مفتاح المزامنة غير صحيح' : res.status === 429 ? 'محاولات كثيرة: سيُعاد الاتصال لاحقاً' : `الخادم رفض الطلب (${res.status})`)
+    const body = (await res.json()) as { seq: number; more?: boolean; changes: SyncChange[]; serverTime?: number }
+    // what we sent is now on the server — unless the record changed again here while the request was in flight
+    const sentAt = new Map(changes.map(c => [`${c.collection}:${c.id}`, c.updatedAt]))
+    const doneKeys: string[] = []
+    await db.transaction('rw', [...outbox.map(o => db.table(o.collection)), db.outbox], async () => {
+      for (const o of outbox) {
+        const now = await db.table<Base>(o.collection).get(o.id)
+        if (!now || now.updatedAt <= (sentAt.get(o.key) ?? 0)) doneKeys.push(o.key)
+      }
+      await db.outbox.bulkDelete(doneKeys)
+    })
     let received = 0
     const incoming = body.changes.filter(c => COLLECTIONS.includes(c.collection))
     if (incoming.length) {
       const tables = Array.from(new Set(incoming.map(c => c.collection))).map(c => db.table(c))
-      const applied: SyncChange[] = []
+      const applied: { collection: CollectionName; record: Base }[] = []
       await db.transaction('rw', tables, async () => {
         for (const c of incoming) {
           const local = await db.table<Base>(c.collection).get(c.id)
           if (local && local.updatedAt >= c.updatedAt) continue
           const rec = { ...c.data, id: c.id, updatedAt: c.updatedAt, deleted: c.deleted || undefined }
           await db.table(c.collection).put(rec)
-          applied.push({ ...c, data: rec })
+          applied.push({ collection: c.collection, record: rec })
         }
       })
-      for (const c of applied) applyRemote(c.collection, c.data)
+      if (applied.length) applyRemoteMany(applied)
       received = applied.length
-      if (applied.length) bump()
     }
+    // the newest change wins by its clock, so a device whose clock is wrong would always win or always lose
+    const skew = body.serverTime ? Date.now() - body.serverTime : 0
+    set({ clockSkew: Math.abs(skew) > 5 * 60000 ? skew : undefined })
     const now = Date.now()
     await db.meta.bulkPut([{ key: 'seq', value: body.seq }, { key: 'lastSync', value: now }])
     set({ state: 'idle', lastSync: now, pending: await pendingCount() })
@@ -114,9 +124,23 @@ export async function resetSyncCursor() {
   set({ pending: entries.length, state: configured() ? 'idle' : 'off' })
 }
 
+export function validateSyncUrl(url: string): string | null {
+  const u = url.trim()
+  if (!u) return 'أدخل عنوان الخادم'
+  try {
+    const p = new URL(u)
+    if (p.protocol !== 'https:' && !['localhost', '127.0.0.1'].includes(p.hostname)) return 'العنوان يجب أن يبدأ بـ https:// حتى تبقى بياناتك مشفّرة على الطريق'
+  } catch { return 'العنوان غير صحيح' }
+  return null
+}
+
 export async function testConnection(url: string, key: string): Promise<string> {
+  const bad = validateSyncUrl(url)
+  if (bad) throw new Error(bad)
+  if (key.trim().length < 12) throw new Error('مفتاح المحل قصير: استخدم 12 حرفاً على الأقل (زر «توليد مفتاح» يعطيك مفتاحاً قوياً)')
   const res = await fetch(url.replace(/\/$/, '') + '/api/ping', { headers: { authorization: 'Bearer ' + key } })
   if (res.status === 401) throw new Error('مفتاح المحل غير صحيح')
+  if (res.status === 429) throw new Error('محاولات كثيرة: انتظر قليلاً ثم أعد المحاولة')
   if (!res.ok) throw new Error(`الخادم أجاب بخطأ (${res.status})`)
   const b = await res.json() as { ok: boolean; records: number }
   return `الاتصال ناجح — على الخادم ${b.records} سجل`

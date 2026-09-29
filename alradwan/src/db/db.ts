@@ -16,6 +16,7 @@ export class GarageDB extends Dexie {
   movements!: Table<Collections['movements'], string>
   users!: Table<Collections['users'], string>
   settings!: Table<Collections['settings'], string>
+  audit!: Table<Collections['audit'], string>
   outbox!: Table<{ key: string; collection: CollectionName; id: string }, string>
   meta!: Table<{ key: string; value: unknown }, string>
 
@@ -37,6 +38,7 @@ export class GarageDB extends Dexie {
       outbox: 'key',
       meta: 'key',
     })
+    this.version(2).stores({ audit: 'id, date, userId, collection' })
   }
 }
 

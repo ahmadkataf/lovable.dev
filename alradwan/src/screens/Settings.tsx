@@ -1,14 +1,17 @@
 import { useEffect, useState } from 'react'
-import { Store, Printer, Users, Database, Cloud, Palette, Info, Plus, Trash2, Download, Upload, RefreshCw, Check, ShieldAlert, Copy, Eye, EyeOff } from 'lucide-react'
-import { clearAll, put, remove, saveSettings, useCollection, useIsAdmin, useSettings, useStore, setCurrentUser } from '../db/store'
+import { Store, Printer, Users, Database, Cloud, Palette, Info, Plus, Trash2, Download, Upload, RefreshCw, Check, ShieldAlert, Copy, Eye, EyeOff, Lock, FolderOpen, MonitorDown } from 'lucide-react'
+import { useSearchParams } from 'react-router-dom'
+import { audit, clearAll, put, remove, saveSettings, useCollection, useIsAdmin, useSettings, useStore, setCurrentUser } from '../db/store'
 import type { Role, Settings, User } from '../db/types'
 import { Field, Tabs, NumberInput } from '../ui/components'
 import { Modal, useConfirm } from '../ui/modal'
 import { useToast } from '../ui/toast'
-import { countBackup, downloadBackup, mergeBackup, parseBackup, restoreBackup } from '../lib/backup'
-import { pickFile, platformName } from '../lib/platform'
+import { backupIsEncrypted, countBackup, downloadBackup, mergeBackup, parseBackup, restoreBackup } from '../lib/backup'
+import { isDesktop, pickFile, platformName } from '../lib/platform'
 import { onSyncStatus, resetSyncCursor, schedule, syncNow, testConnection, type SyncStatus } from '../lib/sync'
-import { randomKey, sha256 } from '../lib/id'
+import { randomKey } from '../lib/id'
+import { hashPin } from '../lib/crypto'
+import { validateSyncUrl } from '../lib/sync'
 import { CURRENCY_DECIMALS, CURRENCY_NAME, CURRENCY_SYMBOL, fmtDateTime, otherCurrency } from '../lib/format'
 import type { CurrencyCode, CurrencyDisplay } from '../db/types'
 import { loadDemoData } from '../db/demo'
@@ -19,7 +22,8 @@ type Tab = 'shop' | 'print' | 'users' | 'backup' | 'sync' | 'look' | 'about'
 
 export function SettingsScreen() {
   const isAdmin = useIsAdmin()
-  const [tab, setTab] = useState<Tab>('shop')
+  const [params] = useSearchParams()
+  const [tab, setTab] = useState<Tab>((params.get('tab') as Tab) || 'shop')
   const items: { id: Tab; label: string }[] = isAdmin
     ? [{ id: 'shop', label: 'المحل' }, { id: 'print', label: 'الفواتير والطباعة' }, { id: 'users', label: 'المستخدمون' }, { id: 'backup', label: 'النسخ الاحتياطي' }, { id: 'sync', label: 'المزامنة بين الأجهزة' }, { id: 'look', label: 'المظهر' }, { id: 'about', label: 'حول' }]
     : [{ id: 'look', label: 'المظهر' }, { id: 'about', label: 'حول' }]
@@ -47,7 +51,7 @@ function useDraft<K extends keyof Settings>(keys: K[]) {
 }
 
 function ShopTab() {
-  const { d, set, save } = useDraft(['shopName', 'phone', 'address', 'currency', 'decimals', 'lowStockDefault', 'expenseCategories', 'units', 'staffSeesCost', 'baseCurrency', 'rate', 'display'])
+  const { d, set, save } = useDraft(['shopName', 'phone', 'address', 'currency', 'decimals', 'lowStockDefault', 'expenseCategories', 'units', 'staffSeesCost', 'staffEditsPrices', 'autoLockMinutes', 'baseCurrency', 'rate', 'display'])
   const setBase = (c: CurrencyCode) => { set('baseCurrency', c); set('currency', CURRENCY_SYMBOL[c]); set('decimals', CURRENCY_DECIMALS[c]) }
   const [cat, setCat] = useState(''); const [unit, setUnit] = useState('')
   return (
@@ -71,7 +75,8 @@ function ShopTab() {
         <Field label="رمز العملة الأساسية" help="ما يظهر بجانب الأرقام"><input className="input" value={d.currency} onChange={e => set('currency', e.target.value)} /></Field>
         <Field label="الخانات العشرية"><select className="select" value={d.decimals} onChange={e => set('decimals', Number(e.target.value))}><option value={0}>0</option><option value={1}>1</option><option value={2}>2</option></select></Field>
         <Field label="حد التنبيه الافتراضي للقطع الجديدة"><NumberInput value={d.lowStockDefault} onChange={v => set('lowStockDefault', v)} /></Field>
-        <Field label="صلاحيات الموظفين"><label className="checkbox"><input type="checkbox" checked={d.staffSeesCost} onChange={e => set('staffSeesCost', e.target.checked)} /> الموظف يرى سعر الشراء والأرباح</label></Field>
+        <Field label="صلاحيات الموظفين" className="full"><div className="stack" style={{ gap: 6 }}><label className="checkbox"><input type="checkbox" checked={d.staffSeesCost} onChange={e => set('staffSeesCost', e.target.checked)} /> الموظف يرى سعر الشراء والأرباح</label><label className="checkbox"><input type="checkbox" checked={d.staffEditsPrices} onChange={e => set('staffEditsPrices', e.target.checked)} /> الموظف يضيف القطع ويعدّل أسعارها</label></div><div className="help">الحذف (فواتير، قطع، عملاء، دفعات) للمدير فقط دائماً.</div></Field>
+        <Field label="قفل البرنامج تلقائياً" help="عند ترك الجهاز بلا استخدام يعود إلى شاشة الرقم السري (يعمل عندما يوجد مستخدمون)"><select className="select" value={d.autoLockMinutes} onChange={e => set('autoLockMinutes', Number(e.target.value))}><option value={0}>لا يقفل</option><option value={2}>بعد دقيقتين</option><option value={5}>بعد 5 دقائق</option><option value={15}>بعد 15 دقيقة</option><option value={30}>بعد 30 دقيقة</option><option value={60}>بعد ساعة</option></select></Field>
         <Field label="أنواع المصاريف" className="full">
           <div className="chips">{d.expenseCategories.map(c => <span key={c} className="chip">{c} <button className="btn ghost sm icon" style={{ minHeight: 0, width: 20, height: 20, padding: 0 }} onClick={() => set('expenseCategories', d.expenseCategories.filter(x => x !== c))}>×</button></span>)}</div>
           <div className="row mt"><input className="input" placeholder="نوع جديد" value={cat} onChange={e => setCat(e.target.value)} onKeyDown={e => { if (e.key === 'Enter' && cat.trim()) { set('expenseCategories', [...d.expenseCategories, cat.trim()]); setCat('') } }} /><button className="btn" onClick={() => { if (cat.trim()) { set('expenseCategories', [...d.expenseCategories, cat.trim()]); setCat('') } }}><Plus /></button></div>
@@ -127,14 +132,15 @@ function UsersTab() {
     if (!form?.name?.trim()) { toast.error('اكتب الاسم'); return }
     if (!form.id && (!form.pin || form.pin.length < 4)) { toast.error('الرقم السري 4 أرقام على الأقل'); return }
     if (form.pin && form.pin.length < 4) { toast.error('الرقم السري 4 أرقام على الأقل'); return }
-    const pinHash = form.pin ? await sha256(form.pin) : form.pinHash!
-    await put('users', { id: form.id, name: form.name.trim(), role: form.role ?? 'staff', pinHash, createdAt: form.createdAt ?? Date.now() })
+    const h = form.pin ? await hashPin(form.pin) : null
+    await put('users', { id: form.id, name: form.name.trim(), role: form.role ?? 'staff', pinHash: h ? h.hash : form.pinHash!, pinSalt: h ? h.salt : form.pinSalt, pinIterations: h ? h.iterations : form.pinIterations, createdAt: form.createdAt ?? Date.now() })
+    await audit(form.id ? 'update' : 'create', `${form.id ? 'تعديل' : 'إضافة'} مستخدم ${form.name.trim()} (${form.role === 'admin' ? 'مدير' : 'موظف'})${form.pin ? ' مع رقم سري جديد' : ''}`, 'users', form.id)
     toast.success('تم الحفظ'); setForm(null)
   }
   const del = async (u: User) => {
     const admins = list.filter(x => x.role === 'admin')
     if (u.role === 'admin' && admins.length === 1) { toast.error('لا يمكن حذف المدير الوحيد'); return }
-    if (await confirm({ title: `حذف ${u.name}؟`, danger: true, okText: 'حذف' })) { await remove('users', u.id); if (u.id === currentId) setCurrentUser(null) }
+    if (await confirm({ title: `حذف ${u.name}؟`, danger: true, okText: 'حذف' })) { await remove('users', u.id); await audit('delete', `حذف مستخدم ${u.name}`, 'users', u.id); if (u.id === currentId) setCurrentUser(null) }
   }
   return (
     <div className="card pad">
@@ -167,20 +173,43 @@ function BackupTab() {
   const toast = useToast(); const confirm = useConfirm()
   const [busy, setBusy] = useState(false)
   const [lastBackup, setLastBackup] = useState<number | null>(() => Number(localStorage.getItem('alradwan.lastBackup')) || null)
-  const counts = useStore(s => ({ products: s.products.size, sales: s.sales.size, customers: s.customers.size }))
-  const doBackup = async () => { setBusy(true); try { await downloadBackup(); localStorage.setItem('alradwan.lastBackup', String(Date.now())); setLastBackup(Date.now()); toast.success('تم إنشاء النسخة الاحتياطية') } catch (e) { toast.error((e as Error).message) } finally { setBusy(false) } }
-  const doRestore = async (mode: 'replace' | 'merge') => {
-    const f = await pickFile('.json,application/json'); if (!f) return
+  // three plain numbers, not one fresh object: a selector that returns a new object every time re-renders forever
+  const nProducts = useStore(s => s.products.size), nSales = useStore(s => s.sales.size), nCustomers = useStore(s => s.customers.size)
+  const counts = { products: nProducts, sales: nSales, customers: nCustomers }
+  const [askPassword, setAskPassword] = useState<{ title: string; text?: string; resolve: (p: string | null) => void } | null>(null)
+  const askPw = (title: string, text?: string) => new Promise<string | null>(resolve => setAskPassword({ title, text, resolve }))
+  const [autoList, setAutoList] = useState<{ name: string; size: number; mtime: number }[] | null>(null)
+  const [folder, setFolder] = useState('')
+  useEffect(() => { if (isDesktop()) { window.garageDesktop!.listBackups().then(setAutoList); window.garageDesktop!.backupsFolder().then(setFolder) } }, [busy])
+  const doBackup = async (encrypted: boolean) => {
+    let pw: string | undefined
+    if (encrypted) { const p = await askPw('كلمة سر النسخة', 'ستُحتاج لاستعادة النسخة. لا يمكن استرجاعها إن نُسيت.'); if (!p) return; if (p.length < 6) { toast.error('كلمة السر 6 أحرف على الأقل'); return } pw = p }
+    setBusy(true)
+    try { await downloadBackup(pw); setLastBackup(Date.now()); await audit('backup', encrypted ? 'نسخة احتياطية مشفّرة' : 'نسخة احتياطية'); toast.success('تم إنشاء النسخة الاحتياطية') } catch (e) { toast.error((e as Error).message) } finally { setBusy(false) }
+  }
+  const restoreText = async (text: string, mode: 'replace' | 'merge') => {
+    let pw: string | undefined
+    if (backupIsEncrypted(text)) { const p = await askPw('النسخة مشفّرة', 'أدخل كلمة السر التي وُضعت عند إنشائها'); if (!p) return; pw = p }
     try {
-      const b = parseBackup(await f.text()); const n = countBackup(b)
+      const b = await parseBackup(text, pw); const n = countBackup(b)
       if (mode === 'replace') {
         if (!(await confirm({ title: 'استبدال كل البيانات؟', text: `النسخة من تاريخ ${fmtDateTime(b.exportedAt)} وفيها ${n} سجل. ستُحذف بيانات هذا الجهاز الحالية وتحل محلها بيانات النسخة.`, danger: true, okText: 'استبدال' }))) return
         setBusy(true); await restoreBackup(b); toast.success('تمت الاستعادة')
       } else {
         setBusy(true); const k = await mergeBackup(b); toast.success(`تم الدمج: ${k} سجل أُضيف أو حُدِّث`)
       }
+      await audit('backup', mode === 'replace' ? `استعادة نسخة احتياطية (${n} سجل)` : `دمج نسخة احتياطية (${n} سجل)`)
       schedule(500)
     } catch (e) { toast.error((e as Error).message) } finally { setBusy(false) }
+  }
+  const doRestore = async (mode: 'replace' | 'merge') => {
+    const f = await pickFile('.json,application/json'); if (!f) return
+    await restoreText(await f.text(), mode)
+  }
+  const restoreAuto = async (name: string) => {
+    const text = await window.garageDesktop!.readBackup(name)
+    if (!text) { toast.error('تعذّرت قراءة الملف'); return }
+    await restoreText(text, 'replace')
   }
   const wipe = async () => {
     if (!(await confirm({ title: 'حذف كل البيانات من هذا الجهاز؟', text: 'المنتجات والفواتير والعملاء وكل شيء. خذ نسخة احتياطية أولاً. إن كانت المزامنة مفعّلة فستعود البيانات من الخادم عند المزامنة التالية.', danger: true, okText: 'حذف كل شيء' }))) return
@@ -193,11 +222,27 @@ function BackupTab() {
         <p className="mb">النسخة الاحتياطية ملف واحد فيه كل بيانات المحل ({counts.products} قطعة، {counts.sales} فاتورة، {counts.customers} عميل). احفظه في مكان آمن (Google Drive، واتساب لنفسك، فلاشة) بشكل دوري.</p>
         {lastBackup && <p className="help mb">آخر نسخة أُخذت من هذا الجهاز: {fmtDateTime(lastBackup)}</p>}
         <div className="btn-row">
-          <button className="btn primary" onClick={doBackup} disabled={busy}><Download /> إنشاء نسخة احتياطية</button>
+          <button className="btn primary" onClick={() => doBackup(false)} disabled={busy}><Download /> إنشاء نسخة احتياطية</button>
+          <button className="btn" onClick={() => doBackup(true)} disabled={busy} title="نسخة لا تُفتح إلا بكلمة سر: مناسبة للإرسال عبر واتساب أو حفظها عند غيرك"><Lock /> نسخة مشفّرة بكلمة سر</button>
           <button className="btn" onClick={() => doRestore('merge')} disabled={busy}><Upload /> دمج نسخة مع البيانات الحالية</button>
           <button className="btn" onClick={() => doRestore('replace')} disabled={busy}><RefreshCw /> استعادة نسخة (استبدال)</button>
         </div>
       </div>
+      {isDesktop() && (
+        <div className="card pad">
+          <div className="card-title"><h2><FolderOpen size={18} style={{ verticalAlign: -3 }} /> النسخ التلقائية اليومية</h2></div>
+          <p className="help mb">على ويندوز يحفظ البرنامج نسخة كاملة كل يوم تلقائياً (آخر 14 يوماً) في: <span dir="ltr" className="mono">{folder}</span></p>
+          {!autoList?.length ? <p className="muted">لا نسخ تلقائية بعد؛ تُنشأ أول نسخة عند فتح البرنامج.</p> : (
+            <div className="list">{autoList.map(b => <div key={b.name} className="list-item"><div className="grow"><div className="title" dir="ltr" style={{ textAlign: 'right' }}>{b.name}</div><div className="sub">{fmtDateTime(b.mtime)} · {Math.round(b.size / 1024)} كيلوبايت</div></div><button className="btn sm" onClick={() => restoreAuto(b.name)} disabled={busy}><RefreshCw /> استعادة</button></div>)}</div>
+          )}
+        </div>
+      )}
+      {askPassword && (
+        <Modal title={askPassword.title} onClose={() => { askPassword.resolve(null); setAskPassword(null) }} size="narrow" icon={<Lock />} footer={<><button className="btn primary" onClick={() => { const v = (document.getElementById('backup-pw') as HTMLInputElement).value; askPassword.resolve(v); setAskPassword(null) }}>متابعة</button><button className="btn" onClick={() => { askPassword.resolve(null); setAskPassword(null) }}>إلغاء</button></>}>
+          {askPassword.text && <p className="mb">{askPassword.text}</p>}
+          <input id="backup-pw" type="password" className="input lg" dir="ltr" autoFocus onKeyDown={e => { if (e.key === 'Enter') { askPassword.resolve((e.target as HTMLInputElement).value); setAskPassword(null) } }} />
+        </Modal>
+      )}
       <div className="card pad danger-zone">
         <div className="card-title"><h2><ShieldAlert size={18} style={{ verticalAlign: -3, color: 'var(--danger)' }} /> منطقة الخطر</h2></div>
         <div className="btn-row">
@@ -222,6 +267,7 @@ function SyncTab() {
   const save = async () => {
     const u = url.trim().replace(/\/$/, ''), k = key.trim()
     if (enabled && (!u || !k)) { toast.error('أدخل عنوان الخادم ومفتاح المحل'); return }
+    if (enabled) { const bad = validateSyncUrl(u); if (bad) { toast.error(bad); return } if (k.length < 12) { toast.error('مفتاح المحل قصير: 12 حرفاً على الأقل'); return } }
     const changed = u !== s.sync.url || k !== s.sync.key
     await saveSettings({ sync: { url: u, key: k, enabled } })
     if (changed) await resetSyncCursor()
@@ -269,13 +315,24 @@ function LookTab() {
 
 function AboutTab() {
   const p = platformName()
+  const [installable, setInstallable] = useState(() => !!(window as any).alradwanInstall)
+  const [update, setUpdate] = useState(false)
+  useEffect(() => {
+    const a = () => setInstallable(true), b = () => setUpdate(true)
+    window.addEventListener('alradwan:installable', a); window.addEventListener('alradwan:update', b)
+    return () => { window.removeEventListener('alradwan:installable', a); window.removeEventListener('alradwan:update', b) }
+  }, [])
+  const install = async () => { const e = (window as any).alradwanInstall; if (!e) return; e.prompt(); const r = await e.userChoice; if (r?.outcome === 'accepted') setInstallable(false) }
   return (
     <div className="card pad" style={{ textAlign: 'center' }}>
       <img className="about-logo" src="./icon.svg" alt="" />
       <h2 style={{ marginTop: 8 }}>كراج الرضوان</h2>
-      <p className="muted">نظام إدارة محل قطع غيار السيارات — الإصدار 1.0</p>
+      <p className="muted">نظام إدارة محل قطع غيار السيارات — الإصدار 1.1</p>
       <p className="muted small mt">المبيعات · المخزون · المشتريات · العملاء والموردون · الصندوق والمصاريف · التقارير · الطباعة · المزامنة بين الأجهزة</p>
       <p className="help mt"><Info size={14} style={{ verticalAlign: -2 }} /> تعمل الآن على: {p === 'android' ? 'تطبيق أندرويد' : p === 'windows' ? 'تطبيق ويندوز' : 'المتصفح'} · البيانات محفوظة على هذا الجهاز</p>
+      {installable && <button className="btn primary mt" onClick={install}><MonitorDown /> تثبيت البرنامج على هذا الجهاز</button>}
+      {update && <button className="btn mt" onClick={() => location.reload()}><RefreshCw /> نسخة جديدة جاهزة — أعد التشغيل</button>}
+      <p className="help mt">اختصارات لوحة المفاتيح في شاشة البيع: F2 بحث · F8 حفظ · F9 حفظ وطباعة</p>
     </div>
   )
 }

@@ -11,5 +11,15 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
 
 // the website works offline too: the service worker keeps a copy of the app
 if ('serviceWorker' in navigator && location.protocol.startsWith('http') && !location.hostname.endsWith('.app')) {
-  window.addEventListener('load', () => { navigator.serviceWorker.register('./sw.js').catch(() => {}) })
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('./sw.js').then(reg => {
+      // a new version was downloaded in the background: one reload brings it in
+      reg.addEventListener('updatefound', () => {
+        const w = reg.installing
+        w?.addEventListener('statechange', () => { if (w.state === 'installed' && navigator.serviceWorker.controller) window.dispatchEvent(new CustomEvent('alradwan:update')) })
+      })
+    }).catch(() => {})
+  })
 }
+// the browser offers to install the website as an app; the settings screen shows the button when it is possible
+window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); (window as any).alradwanInstall = e; window.dispatchEvent(new CustomEvent('alradwan:installable')) })

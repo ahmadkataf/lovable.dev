@@ -35,6 +35,29 @@ ipcMain.handle('save-file', async (_e, name, base64) => {
   return true
 })
 
+// ---- silent daily backups in the app's own folder (the last 14 are kept)
+const backupsDir = () => path.join(app.getPath('userData'), 'backups')
+const safeName = name => path.basename(String(name)).replace(/[^\w.\-\u0600-\u06FF]/g, '_')
+ipcMain.handle('auto-backup', async (_e, name, text) => {
+  try {
+    fs.mkdirSync(backupsDir(), { recursive: true })
+    fs.writeFileSync(path.join(backupsDir(), safeName(name)), String(text))
+    const files = fs.readdirSync(backupsDir()).filter(f => f.startsWith('auto-')).sort()
+    for (const f of files.slice(0, Math.max(0, files.length - 14))) fs.unlinkSync(path.join(backupsDir(), f))
+    return true
+  } catch { return false }
+})
+ipcMain.handle('list-backups', async () => {
+  try {
+    fs.mkdirSync(backupsDir(), { recursive: true })
+    return fs.readdirSync(backupsDir()).filter(f => f.endsWith('.json')).map(f => { const st = fs.statSync(path.join(backupsDir(), f)); return { name: f, size: st.size, mtime: st.mtimeMs } }).sort((a, b) => b.mtime - a.mtime)
+  } catch { return [] }
+})
+ipcMain.handle('read-backup', async (_e, name) => {
+  try { return fs.readFileSync(path.join(backupsDir(), safeName(name)), 'utf8') } catch { return null }
+})
+ipcMain.handle('backups-folder', async () => backupsDir())
+
 // one copy of the app at a time (a second click on the icon brings the first window forward)
 if (!app.requestSingleInstanceLock()) app.quit()
 else {

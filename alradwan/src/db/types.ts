@@ -37,6 +37,8 @@ export interface Customer extends Base {
   name: string
   phone?: string
   car?: string            // سيارة العميل
+  plate?: string          // رقم اللوحة
+  discountPct?: number    // خصم دائم للعميل (%) يُطبَّق على فواتيره
   address?: string
   notes?: string
   openingBalance: number  // دين سابق عليه (موجب = علينا تحصيله)
@@ -155,8 +157,24 @@ export type Role = 'admin' | 'staff'
 export interface User extends Base {
   name: string
   pinHash: string
+  pinSalt?: string        // موجود = الرقم السري مخزّن بـ PBKDF2 مع ملح؛ غائب = سجل قديم (SHA-256)
+  pinIterations?: number
   role: Role
   createdAt: number
+}
+
+export type AuditAction = 'create' | 'update' | 'delete' | 'restore' | 'login' | 'settings' | 'stock' | 'backup'
+
+// من فعل ماذا ومتى: كل عملية مهمة تترك أثراً يراه المدير
+export interface AuditEntry extends Base {
+  date: number
+  userId?: string
+  userName: string
+  action: AuditAction
+  collection?: CollectionName
+  refId?: string
+  summary: string
+  device: string
 }
 
 export type CurrencyCode = 'SYP' | 'USD'
@@ -178,6 +196,8 @@ export interface Settings extends Base {
   theme: 'light' | 'dark' | 'auto'
   setupDone: boolean
   staffSeesCost: boolean  // هل يرى الموظف سعر الشراء والأرباح
+  staffEditsPrices: boolean // هل يعدّل الموظف الأسعار والقطع
+  autoLockMinutes: number   // قفل البرنامج بعد دقائق من الخمول (0 = لا)
   expenseCategories: string[]
   units: string[]
   sync: { url: string; key: string; enabled: boolean }
@@ -196,10 +216,12 @@ export interface Collections {
   movements: StockMovement
   users: User
   settings: Settings
+  audit: AuditEntry
 }
 
 export type CollectionName = keyof Collections
-export const COLLECTIONS: CollectionName[] = ['products', 'categories', 'customers', 'suppliers', 'sales', 'purchases', 'payments', 'expenses', 'cash', 'movements', 'users', 'settings']
+export const COLLECTIONS: CollectionName[] = ['products', 'categories', 'customers', 'suppliers', 'sales', 'purchases', 'payments', 'expenses', 'cash', 'movements', 'users', 'settings', 'audit']
+export const COLLECTION_LABELS: Record<CollectionName, string> = { products: 'قطعة', categories: 'تصنيف', customers: 'عميل', suppliers: 'مورد', sales: 'فاتورة بيع', purchases: 'فاتورة شراء', payments: 'دفعة', expenses: 'مصروف', cash: 'حركة صندوق', movements: 'حركة مخزون', users: 'مستخدم', settings: 'الإعدادات', audit: 'سجل' }
 
 export const SETTINGS_ID = 'main'
 
@@ -220,6 +242,8 @@ export const DEFAULT_SETTINGS: Settings = {
   theme: 'auto',
   setupDone: false,
   staffSeesCost: false,
+  staffEditsPrices: true,
+  autoLockMinutes: 0,
   expenseCategories: ['إيجار', 'كهرباء', 'رواتب', 'مواصلات', 'ضيافة', 'صيانة', 'أخرى'],
   units: ['قطعة', 'علبة', 'طقم', 'لتر', 'متر', 'كرتونة'],
   sync: { url: '', key: '', enabled: false },

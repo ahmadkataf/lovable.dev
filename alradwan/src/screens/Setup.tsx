@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { ArrowLeft, Check } from 'lucide-react'
 import { put, saveSettings, setCurrentUser } from '../db/store'
 import { Field } from '../ui/components'
-import { sha256 } from '../lib/id'
+import { hashPin } from '../lib/crypto'
 import { loadDemoData } from '../db/demo'
 import { CURRENCY_DECIMALS, CURRENCY_SYMBOL } from '../lib/format'
 import type { CurrencyCode } from '../db/types'
@@ -28,7 +28,7 @@ export function Setup() {
     if (pin && (pin.length < 4 || pin !== pin2)) { setErr('الرقم السري يجب أن يكون 4 أرقام على الأقل ومطابقاً في الحقلين'); return }
     setBusy(true)
     try {
-      if (pin) { const u = await put('users', { name: ownerName || 'المدير', pinHash: await sha256(pin), role: 'admin', createdAt: Date.now() }); setCurrentUser(u.id) }
+      if (pin) { const h = await hashPin(pin); const u = await put('users', { name: ownerName || 'المدير', pinHash: h.hash, pinSalt: h.salt, pinIterations: h.iterations, role: 'admin', createdAt: Date.now() }); setCurrentUser(u.id) }
       if (demo) await loadDemoData()
       await saveSettings({ shopName: shopName.trim() || 'كراج الرضوان', phone, address, baseCurrency: base, currency: CURRENCY_SYMBOL[base], decimals: CURRENCY_DECIMALS[base], rate, display: 'base', setupDone: true })
     } finally { setBusy(false) }

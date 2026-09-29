@@ -1,7 +1,8 @@
 import { create } from 'zustand'
 import { db } from './db'
-import { COLLECTIONS, DEFAULT_SETTINGS, SETTINGS_ID, type Base, type CollectionName, type Collections, type Settings } from './types'
+import { COLLECTIONS, DEFAULT_SETTINGS, SETTINGS_ID, type AuditAction, type AuditEntry, type Base, type CollectionName, type Collections, type Settings } from './types'
 import { newId } from '../lib/id'
+import { platformName } from '../lib/platform'
 
 // The whole shop lives in memory while the app is open (a shop has thousands of records, not millions),
 // so searching and reports are instant. Every change is written to the local database at once and
@@ -92,6 +93,41 @@ export async function remove(collection: CollectionName, id: string): Promise<vo
 /** Applies a record that came from the sync server (already stored in the database by the sync module). */
 export function applyRemote(collection: CollectionName, record: Base) {
   applyLocal(collection, record, false)
+}
+
+/** Applies many remote records at once: one new Map per collection instead of one per record. */
+export function applyRemoteMany(entries: { collection: CollectionName; record: Base }[]) {
+  const state = useStore.getState()
+  const maps = new Map<CollectionName, Map<string, Base>>()
+  const patch: Partial<StoreState> = {}
+  for (const e of entries) {
+    let m = maps.get(e.collection)
+    if (!m) { m = new Map(state[e.collection] as Map<string, Base>); maps.set(e.collection, m) }
+    if (e.record.deleted) m.delete(e.record.id); else m.set(e.record.id, e.record)
+    if (e.collection === 'settings' && e.record.id === SETTINGS_ID && !e.record.deleted) patch.cfg = { ...DEFAULT_SETTINGS, ...(e.record as Settings) }
+    if (e.collection === 'users' && e.record.deleted && state.currentUserId === e.record.id) patch.currentUserId = null
+  }
+  for (const [c, m] of maps) (patch as any)[c] = m
+  patch.version = state.version + 1
+  useStore.setState(patch)
+}
+
+/** The name of this device as it appears in the activity log. */
+export function deviceName(): string {
+  let d = localStorage.getItem('alradwan.device')
+  if (!d) { d = { android: 'هاتف', windows: 'حاسوب', web: 'متصفح' }[platformName()] + '-' + Math.random().toString(36).slice(2, 6); localStorage.setItem('alradwan.device', d) }
+  return d
+}
+
+/** An activity-log record, ready to be written with the operation it describes. */
+export function auditEntry(action: AuditAction, summary: string, collection?: CollectionName, refId?: string): AuditEntry {
+  const s = useStore.getState()
+  const u = s.currentUserId ? s.users.get(s.currentUserId) : undefined
+  return { id: newId(), updatedAt: 0, date: Date.now(), userId: u?.id, userName: u?.name ?? 'بدون مستخدم', action, collection, refId, summary, device: deviceName() }
+}
+
+export async function audit(action: AuditAction, summary: string, collection?: CollectionName, refId?: string): Promise<void> {
+  await put('audit', auditEntry(action, summary, collection, refId))
 }
 
 function applyLocal(collection: CollectionName, record: Base, notify = true) {

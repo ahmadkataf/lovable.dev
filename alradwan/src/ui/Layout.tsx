@@ -1,6 +1,6 @@
 import { useEffect, useState, type ReactNode } from 'react'
 import { NavLink, useLocation } from 'react-router-dom'
-import { LayoutDashboard, ShoppingCart, Receipt, Package, Boxes, Truck, Users, Factory, Wallet, BarChart3, Settings, Menu, LogOut, RefreshCw, CloudOff, Cloud, AlertTriangle, User, DollarSign } from 'lucide-react'
+import { LayoutDashboard, ShoppingCart, Receipt, Package, Boxes, Truck, Users, Factory, Wallet, BarChart3, Settings, Menu, LogOut, RefreshCw, CloudOff, Cloud, AlertTriangle, User, DollarSign, History, Trash2 } from 'lucide-react'
 import { setCurrentUser, useCurrentUser, useIsAdmin, useSettings, useStore } from '../db/store'
 import { onSyncStatus, syncNow, type SyncStatus } from '../lib/sync'
 import { fmtTime } from '../lib/format'
@@ -18,12 +18,14 @@ const NAV = [
   { to: '/suppliers', label: 'الموردون', icon: Factory },
   { to: '/cash', label: 'الصندوق والمصاريف', icon: Wallet },
   { to: '/reports', label: 'التقارير', icon: BarChart3, admin: true },
+  { to: '/activity', label: 'سجل النشاط', icon: History, admin: true },
+  { to: '/trash', label: 'المحذوفات', icon: Trash2, admin: true },
   { to: '/settings', label: 'الإعدادات', icon: Settings },
 ]
 
 const TITLES: Record<string, string> = {
   '/': 'الرئيسية', '/pos': 'بيع جديد', '/sales': 'فواتير المبيعات', '/products': 'المنتجات', '/inventory': 'المخزون', '/purchases': 'المشتريات',
-  '/customers': 'العملاء', '/suppliers': 'الموردون', '/cash': 'الصندوق والمصاريف', '/reports': 'التقارير', '/settings': 'الإعدادات',
+  '/customers': 'العملاء', '/suppliers': 'الموردون', '/cash': 'الصندوق والمصاريف', '/reports': 'التقارير', '/settings': 'الإعدادات', '/activity': 'سجل النشاط', '/trash': 'المحذوفات',
 }
 
 export function Layout({ children }: { children: ReactNode }) {
@@ -65,7 +67,7 @@ export function Layout({ children }: { children: ReactNode }) {
           <SyncPill />
         </header>
         {rate && <RateModal onClose={() => setRate(false)} />}
-        <main className="content">{children}</main>
+        <main className="content" key={`${settings.baseCurrency}|${settings.rate}|${settings.display}|${settings.currency}|${settings.decimals}`}>{children}</main>
       </div>
       <nav className="bottom-nav">
         <NavLink to="/" end><LayoutDashboard /><span>الرئيسية</span></NavLink>
@@ -84,11 +86,12 @@ function SyncPill() {
   useEffect(() => onSyncStatus(setS), [])
   if (s.state === 'off') return null
   const click = () => syncNow().then(r => toast.success(r.received ? `تمت المزامنة — وصل ${r.received} تغيير` : 'تمت المزامنة')).catch(e => toast.error((e as Error).message))
-  const cls = s.state === 'error' ? 'err' : s.state === 'idle' && s.pending === 0 ? 'ok' : ''
+  const cls = s.state === 'error' || s.clockSkew ? 'err' : s.state === 'idle' && s.pending === 0 ? 'ok' : ''
+  const title = s.clockSkew ? `ساعة هذا الجهاز تختلف عن الخادم بنحو ${Math.round(Math.abs(s.clockSkew) / 60000)} دقيقة — اضبط التاريخ والوقت حتى لا تُحفظ التعديلات بترتيب خاطئ` : s.error ?? (s.lastSync ? `آخر مزامنة ${fmtTime(s.lastSync)}` : '')
   return (
-    <button className={`sync-pill ${cls}`} onClick={click} title={s.error ?? (s.lastSync ? `آخر مزامنة ${fmtTime(s.lastSync)}` : '')}>
-      {s.state === 'syncing' ? <RefreshCw className="spin" /> : s.state === 'error' ? <AlertTriangle /> : s.state === 'offline' ? <CloudOff /> : <Cloud />}
-      <span className="hide-mobile">{s.state === 'syncing' ? 'جارٍ المزامنة…' : s.state === 'error' ? 'خطأ في المزامنة' : s.state === 'offline' ? 'بلا إنترنت' : s.pending ? `${s.pending} بانتظار الإرسال` : 'متزامن'}</span>
+    <button className={`sync-pill ${cls}`} onClick={click} title={title}>
+      {s.state === 'syncing' ? <RefreshCw className="spin" /> : s.state === 'error' || s.clockSkew ? <AlertTriangle /> : s.state === 'offline' ? <CloudOff /> : <Cloud />}
+      <span className="hide-mobile">{s.state === 'syncing' ? 'جارٍ المزامنة…' : s.state === 'error' ? 'خطأ في المزامنة' : s.clockSkew ? 'ساعة الجهاز غير مضبوطة' : s.state === 'offline' ? 'بلا إنترنت' : s.pending ? `${s.pending} بانتظار الإرسال` : 'متزامن'}</span>
     </button>
   )
 }

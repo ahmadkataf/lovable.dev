@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Check, DollarSign } from 'lucide-react'
-import { saveSettings, useSettings } from '../db/store'
+import { audit, saveSettings, useSettings } from '../db/store'
 import type { CurrencyDisplay } from '../db/types'
 import { CURRENCY_SYMBOL, fmtDateTime, otherCurrency } from '../lib/format'
 import { Field, NumberInput } from './components'
@@ -18,6 +18,7 @@ export function RateModal({ onClose }: { onClose: () => void }) {
   const other = otherCurrency(base)
   const save = async () => {
     if (display !== 'base' && rate <= 0) { toast.error('أدخل سعر الدولار أولاً'); return }
+    if (rate !== s.rate) await audit('settings', `تغيير سعر الدولار: ${s.rate.toLocaleString('en-US')} ← ${rate.toLocaleString('en-US')} ل.س`)
     await saveSettings({ rate, display })
     toast.success(rate ? `تم الحفظ: 1 $ = ${rate.toLocaleString('en-US')} ل.س` : 'تم الحفظ')
     onClose()

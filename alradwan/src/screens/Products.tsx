@@ -1,9 +1,11 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { Plus, FileSpreadsheet, Upload, Pencil, Tag, Download } from 'lucide-react'
+import { Plus, FileSpreadsheet, Upload, Pencil, Tag, Download, Barcode, Printer } from 'lucide-react'
+import { printDocument } from '../print/PrintHost'
 import { put, putMany, remove, useCollection, useCanSeeCost, useSettings } from '../db/store'
 import type { Base, Category, Product } from '../db/types'
 import { matches, money } from '../lib/format'
+import { NumberInput } from '../ui/components'
 import { Chips, Empty, SearchInput } from '../ui/components'
 import { Modal, useConfirm } from '../ui/modal'
 import { useToast } from '../ui/toast'
@@ -25,6 +27,7 @@ export function Products() {
   const [edit, setEdit] = useState<Product | null | 'new'>(null)
   const [cats, setCats] = useState(false)
   const [imp, setImp] = useState<ImportedProduct[] | null>(null)
+  const [labels, setLabels] = useState(false)
   const toast = useToast()
   useEffect(() => { if (params.get('new')) { setEdit('new'); setParams({}) } }, [params])
 
@@ -46,6 +49,7 @@ export function Products() {
         <button className="btn" onClick={() => setCats(true)} title="التصنيفات"><Tag /> <span className="hide-mobile">التصنيفات</span></button>
         <button className="btn" onClick={importExcel} title="استيراد من إكسل"><Upload /> <span className="hide-mobile">استيراد</span></button>
         <button className="btn" onClick={exportExcel} title="تصدير إلى إكسل"><FileSpreadsheet /> <span className="hide-mobile">إكسل</span></button>
+        <button className="btn" onClick={() => setLabels(true)} title="طباعة ملصقات باركود"><Barcode /> <span className="hide-mobile">ملصقات</span></button>
       </div>
       <Chips value={cat} onChange={setCat} items={[{ id: 'all', label: `الكل (${products.size})` }, ...catList.map(c => ({ id: c.id, label: c.name })), { id: 'none', label: 'بدون تصنيف' }]} />
       <div className="card">
@@ -71,7 +75,35 @@ export function Products() {
       {edit && <ProductForm initial={edit === 'new' ? undefined : edit} currentStock={edit === 'new' ? 0 : stock.get(edit.id)} onClose={() => setEdit(null)} />}
       {cats && <CategoriesModal onClose={() => setCats(false)} />}
       {imp && <ImportModal rows={imp} onClose={() => setImp(null)} />}
+      {labels && <LabelsModal products={list.filter(p => p.kind === 'product')} onClose={() => setLabels(false)} />}
     </div>
+  )
+}
+
+/** Shelf labels with a barcode: pick which parts and how many copies, then print on label sheets or a label printer. */
+function LabelsModal({ products, onClose }: { products: Product[]; onClose: () => void }) {
+  const [copies, setCopies] = useState<Record<string, number>>({})
+  const [size, setSize] = useState<'small' | 'medium'>('medium')
+  const [showPrice, setShowPrice] = useState(true)
+  const [q, setQ] = useState('')
+  const chosen = products.filter(p => (copies[p.id] ?? 0) > 0)
+  const shown = products.filter(p => matches(q, p.name, p.code, p.barcode)).slice(0, 200)
+  const print = () => { if (chosen.length === 0) return; printDocument({ type: 'labels', products: chosen.map(p => ({ product: p, copies: copies[p.id] })), size, showPrice }); onClose() }
+  return (
+    <Modal title="ملصقات الباركود" onClose={onClose} size="wide" footer={<><button className="btn primary" onClick={print} disabled={chosen.length === 0}><Printer /> طباعة {chosen.reduce((n, p) => n + copies[p.id], 0) || ''} ملصق</button><button className="btn" onClick={onClose}>إلغاء</button></>}>
+      <div className="stack">
+        <div className="row" style={{ flexWrap: 'wrap' }}>
+          <div className="tabs small" style={{ flex: 1, minWidth: 220 }}><button className={size === 'medium' ? 'active' : ''} onClick={() => setSize('medium')}>50×30 مم</button><button className={size === 'small' ? 'active' : ''} onClick={() => setSize('small')}>38×21 مم</button></div>
+          <label className="checkbox"><input type="checkbox" checked={showPrice} onChange={e => setShowPrice(e.target.checked)} /> مع السعر</label>
+          <button className="btn sm" onClick={() => setCopies(Object.fromEntries(shown.map(p => [p.id, 1])))}>واحد لكل قطعة معروضة</button>
+          <button className="btn sm ghost" onClick={() => setCopies({})}>مسح</button>
+        </div>
+        <SearchInput value={q} onChange={setQ} placeholder="ابحث عن القطعة…" />
+        <div className="table-wrap" style={{ maxHeight: 340 }}><table className="table"><thead><tr><th>القطعة</th><th>الباركود / الكود</th><th className="num">عدد الملصقات</th></tr></thead>
+          <tbody>{shown.map(p => <tr key={p.id}><td><div className="bold">{p.name}</div></td><td className="mono small">{p.barcode || p.code}</td><td className="num" style={{ width: 120 }}><NumberInput value={copies[p.id] ?? 0} onChange={v => setCopies(c => ({ ...c, [p.id]: Math.max(0, Math.round(v)) }))} min={0} /></td></tr>)}</tbody></table></div>
+        <p className="help">يُطبع باركود Code 128 من حقل «الباركود» إن وُجد وإلا من الكود. للطابعات الحرارية اختر حجم الورق المناسب من نافذة الطباعة.</p>
+      </div>
+    </Modal>
   )
 }
 

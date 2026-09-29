@@ -9,6 +9,10 @@ declare global {
     garageDesktop?: {
       saveFile(name: string, base64: string): Promise<boolean>
       print(): void
+      autoBackup(name: string, text: string): Promise<boolean>
+      listBackups(): Promise<{ name: string; size: number; mtime: number }[]>
+      readBackup(name: string): Promise<string | null>
+      backupsFolder(): Promise<string>
     }
   }
 }
