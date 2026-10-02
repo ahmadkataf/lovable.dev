@@ -229,7 +229,13 @@ async function admin(req: Request, env: Env, path: string): Promise<Response> {
     const rows = await env.DB.prepare(`SELECT book, COUNT(*) AS total, SUM(device IS NOT NULL) AS activated, SUM(revoked) AS revoked,
       SUM(last_seen > ?) AS active7 FROM codes GROUP BY book`).bind(week).all()
     const recent = await env.DB.prepare('SELECT at, kind, code, detail FROM events ORDER BY id DESC LIMIT 40').all()
-    return json({ books: rows.results, recent: recent.results })
+    // for the panel's dashboard: who sold what, activations per day over two weeks, and today's count
+    const sellers = await env.DB.prepare('SELECT seller, COUNT(*) AS total, SUM(device IS NOT NULL) AS activated FROM codes GROUP BY seller ORDER BY total DESC LIMIT 50').all()
+    const day = 86400000, today = Math.floor(Date.now() / day) * day, from = today - 13 * day
+    // the day length is written into the SQL: a bound number arrives as a decimal, and the division would then not round down
+    const byDay = await env.DB.prepare(`SELECT (bound_at / ${day}) * ${day} AS day, COUNT(*) AS n FROM codes WHERE bound_at >= ? GROUP BY day`).bind(from).all<{ day: number; n: number }>()
+    const days = Array.from({ length: 14 }, (_, i) => ({ day: from + i * day, n: byDay.results.find(r => r.day === from + i * day)?.n ?? 0 }))
+    return json({ books: rows.results, recent: recent.results, sellers: sellers.results, days, today: days[13].n })
   }
   return fail('not-found', 404)
 }
