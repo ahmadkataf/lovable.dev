@@ -17,7 +17,7 @@ export function Dashboard() {
   const d = useMemo(() => {
     const today = startOfDay(Date.now())
     const monthStart = startOfMonth(Date.now())
-    const sales = Array.from(s.sales.values())
+    const sales = Array.from(s.sales.values()).filter(x => x.type !== 'quote')
     let todaySales = 0, todayProfit = 0, todayCount = 0, monthSales = 0, monthProfit = 0
     for (const x of sales) {
       const sign = x.type === 'return' ? -1 : 1

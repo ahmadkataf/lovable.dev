@@ -1,13 +1,25 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react'
 import { X } from 'lucide-react'
 
+// Open dialogs register here so the phone's back button closes the top one instead of leaving the screen.
+const openDialogs: (() => void)[] = []
+if (typeof window !== 'undefined') {
+  ;(window as any).alradwanBack = () => {
+    const top = openDialogs[openDialogs.length - 1]
+    if (top) { top(); return true }
+    if (location.hash && location.hash !== '#/' && location.hash !== '#') { location.hash = '#/'; return true }
+    return false
+  }
+}
+
 export function Modal({ title, onClose, children, footer, size, icon }: { title: ReactNode; onClose: () => void; children: ReactNode; footer?: ReactNode; size?: 'wide' | 'narrow'; icon?: ReactNode }) {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
     window.addEventListener('keydown', onKey)
     const prev = document.body.style.overflow
     document.body.style.overflow = 'hidden'
-    return () => { window.removeEventListener('keydown', onKey); document.body.style.overflow = prev }
+    openDialogs.push(onClose)
+    return () => { window.removeEventListener('keydown', onKey); document.body.style.overflow = prev; const i = openDialogs.lastIndexOf(onClose); if (i >= 0) openDialogs.splice(i, 1) }
   }, [onClose])
   return (
     <div className="modal-backdrop" onMouseDown={e => { if (e.target === e.currentTarget) onClose() }}>

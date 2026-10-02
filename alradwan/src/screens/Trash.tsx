@@ -30,7 +30,7 @@ export function Trash() {
 
   const describe = (r: Base): { title: string; sub: string } => {
     switch (kind) {
-      case 'sales': { const s = r as Sale; return { title: `${s.type === 'return' ? 'مرتجع' : 'فاتورة'} ${invoiceNo(s.number)} — ${s.customerName}`, sub: `${money(s.total)} · ${s.items.length} صنف · ${fmtDateTime(s.date)}` } }
+      case 'sales': { const s = r as Sale; return { title: `${s.type === 'return' ? 'مرتجع' : s.type === 'quote' ? 'عرض سعر' : 'فاتورة'} ${invoiceNo(s.number)} — ${s.customerName}`, sub: `${money(s.total)} · ${s.items.length} صنف · ${fmtDateTime(s.date)}` } }
       case 'purchases': { const p = r as Purchase; return { title: `شراء ${invoiceNo(p.number)} — ${p.supplierName}`, sub: `${money(p.total)} · ${fmtDateTime(p.date)}` } }
       case 'products': { const p = r as Product; return { title: p.name, sub: `${p.code} · بيع ${money(p.price)}` } }
       case 'customers': { const c = r as Customer; return { title: c.name, sub: c.phone ?? '' } }

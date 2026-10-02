@@ -74,7 +74,8 @@ export type PayStatus = 'paid' | 'partial' | 'unpaid'
 
 export interface Sale extends Base {
   number: number
-  type: 'sale' | 'return'
+  type: 'sale' | 'return' | 'quote'   // عرض سعر: لا يمس المخزون ولا الصندوق ولا حساب العميل
+  discountPct?: number                // إن كان الخصم نسبة مئوية، تُحفظ هنا للعرض
   date: number
   customerId?: string
   customerName: string
@@ -88,6 +89,17 @@ export interface Sale extends Base {
   returnOf?: string       // للمرتجع: الفاتورة الأصلية
   rate?: number           // سعر الدولار يوم الفاتورة (ليرة لكل دولار)
   currency?: string       // رمز العملة التي كُتبت بها المبالغ
+  validUntil?: number     // لعرض السعر: صالح حتى
+  convertedTo?: string    // لعرض السعر: الفاتورة التي تحوّل إليها
+}
+
+// قيد محاسبي يدوي: ما لا تولّده الفواتير تلقائياً (رأس مال، قرض، إيراد آخر، تسوية)
+export interface JournalLine { account: string; debit: number; credit: number; note?: string }
+export interface JournalEntry extends Base {
+  date: number
+  memo: string
+  lines: JournalLine[]
+  userId?: string
 }
 
 export interface PurchaseItem {
@@ -206,6 +218,7 @@ export interface Settings extends Base {
   invoiceFooter?: string
   logo?: string           // data URL
   printSize: 'a4' | '80mm'
+  printMode: 'preview' | 'direct'   // على ويندوز: معاينة PDF (آمنة) أو نافذة الطابعة مباشرة
   lowStockDefault: number
   theme: 'light' | 'dark' | 'auto'
   setupDone: boolean
@@ -232,11 +245,12 @@ export interface Collections {
   settings: Settings
   audit: AuditEntry
   carModels: CarModel
+  journal: JournalEntry
 }
 
 export type CollectionName = keyof Collections
-export const COLLECTIONS: CollectionName[] = ['products', 'categories', 'customers', 'suppliers', 'sales', 'purchases', 'payments', 'expenses', 'cash', 'movements', 'users', 'settings', 'audit', 'carModels']
-export const COLLECTION_LABELS: Record<CollectionName, string> = { products: 'قطعة', categories: 'تصنيف', customers: 'عميل', suppliers: 'مورد', sales: 'فاتورة بيع', purchases: 'فاتورة شراء', payments: 'دفعة', expenses: 'مصروف', cash: 'حركة صندوق', movements: 'حركة مخزون', users: 'مستخدم', settings: 'الإعدادات', audit: 'سجل', carModels: 'موديل سيارة' }
+export const COLLECTIONS: CollectionName[] = ['products', 'categories', 'customers', 'suppliers', 'sales', 'purchases', 'payments', 'expenses', 'cash', 'movements', 'users', 'settings', 'audit', 'carModels', 'journal']
+export const COLLECTION_LABELS: Record<CollectionName, string> = { products: 'قطعة', categories: 'تصنيف', customers: 'عميل', suppliers: 'مورد', sales: 'فاتورة بيع', purchases: 'فاتورة شراء', payments: 'دفعة', expenses: 'مصروف', cash: 'حركة صندوق', movements: 'حركة مخزون', users: 'مستخدم', settings: 'الإعدادات', audit: 'سجل', carModels: 'موديل سيارة', journal: 'قيد محاسبي' }
 
 export const SETTINGS_ID = 'main'
 
@@ -253,6 +267,7 @@ export const DEFAULT_SETTINGS: Settings = {
   display: 'base',
   invoiceFooter: 'شكراً لتعاملكم معنا',
   printSize: 'a4',
+  printMode: 'preview',
   lowStockDefault: 2,
   theme: 'auto',
   setupDone: false,

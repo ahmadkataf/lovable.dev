@@ -1,6 +1,7 @@
 import { Component, useEffect, useState, type ErrorInfo, type ReactNode } from 'react'
 import { HashRouter, Navigate, Route, Routes } from 'react-router-dom'
 import { loadAll, setCurrentUser, useStore } from './db/store'
+import { dbBlocked } from './db/db'
 import { downloadBackup } from './lib/backup'
 import { initSync } from './lib/sync'
 import { ToastProvider } from './ui/toast'
@@ -23,6 +24,7 @@ import { PrintHost } from './print/PrintHost'
 import { Trash } from './screens/Trash'
 import { Activity } from './screens/Activity'
 import { Cars } from './screens/Cars'
+import { Accounting } from './screens/Accounting'
 import { autoBackupIfDue } from './lib/backup'
 
 function applyTheme(theme: 'light' | 'dark' | 'auto') {
@@ -71,8 +73,11 @@ function useAutoLock() {
 export function App() {
   const loaded = useStore(s => s.loaded)
   const [error, setError] = useState<string | null>(null)
+  const [slow, setSlow] = useState(false)
   useEffect(() => {
     loadAll().then(initSync).then(() => autoBackupIfDue().catch(() => {})).catch(e => setError(String(e?.message ?? e)))
+    const t = setTimeout(() => setSlow(true), 6000)
+    return () => clearTimeout(t)
   }, [])
   const theme = useStore(s => s.cfg.theme)
   useEffect(() => {
@@ -84,7 +89,11 @@ export function App() {
   }, [theme])
 
   if (error) return <div className="splash"><img src="./icon.svg" alt="" /><h2>تعذّر فتح قاعدة البيانات</h2><p>{error}</p></div>
-  if (!loaded) return <div className="splash"><img src="./icon.svg" alt="" /><p>جارٍ التحميل…</p></div>
+  if (!loaded) return (
+    <div className="splash"><img src="./icon.svg" alt="" /><p>جارٍ التحميل…</p>
+      {slow && <div className="card pad" style={{ maxWidth: 420, textAlign: 'center' }}><p>{dbBlocked ? 'نافذة أخرى من البرنامج ما زالت مفتوحة بنسخة أقدم. أغلقها ثم أعد المحاولة.' : 'التحميل يأخذ وقتاً أطول من المعتاد.'}</p><button className="btn primary mt" onClick={() => location.reload()}>إعادة المحاولة</button></div>}
+    </div>
+  )
   return (
     <ErrorBoundary>
       <ToastProvider>
@@ -122,6 +131,7 @@ function Gate() {
           <Route path="/suppliers/:id" element={<Suppliers />} />
           <Route path="/cash" element={<Cash />} />
           <Route path="/reports" element={isAdmin ? <Reports /> : <Navigate to="/" replace />} />
+          <Route path="/accounting" element={isAdmin ? <Accounting /> : <Navigate to="/" replace />} />
           <Route path="/settings" element={<SettingsScreen />} />
           <Route path="/activity" element={isAdmin ? <Activity /> : <Navigate to="/" replace />} />
           <Route path="/trash" element={isAdmin ? <Trash /> : <Navigate to="/" replace />} />

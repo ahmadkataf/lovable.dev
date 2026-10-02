@@ -41,7 +41,7 @@ export function Cash() {
 
   /** The closing sheet of the chosen period, printed. */
   const printDaily = () => {
-    const S = Array.from(sales.values()).filter(s => s.date >= f && s.date <= t)
+    const S = Array.from(sales.values()).filter(s => s.date >= f && s.date <= t && s.type !== 'quote')
     const P = Array.from(purchases.values()).filter(p => p.date >= f && p.date <= t)
     const pay = Array.from(payments.values()).filter(p => p.date >= f && p.date <= t)
     const ex = Array.from(expenses.values()).filter(e => e.date >= f && e.date <= t)

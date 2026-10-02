@@ -261,10 +261,23 @@ public class MainActivity extends Activity {
         return "application/octet-stream";
     }
 
+    private long lastBack = 0;
+
+    /** Back: the page closes its dialog or returns to the home screen; at the home screen the app only
+     *  leaves after a second press within two seconds, so a stray tap never throws the cashier out. */
     @Override
     public void onBackPressed() {
-        if (web != null && web.canGoBack()) web.goBack();
-        else super.onBackPressed();
+        if (web == null) { super.onBackPressed(); return; }
+        web.evaluateJavascript("(function(){try{return window.alradwanBack?String(window.alradwanBack()):'false'}catch(e){return 'false'}})()", new ValueCallback<String>() {
+            @Override
+            public void onReceiveValue(String value) {
+                if (value != null && value.contains("true")) return;
+                long now = System.currentTimeMillis();
+                if (now - lastBack < 2000) { finish(); return; }
+                lastBack = now;
+                android.widget.Toast.makeText(MainActivity.this, "اضغط رجوع مرة أخرى للخروج", android.widget.Toast.LENGTH_SHORT).show();
+            }
+        });
     }
 
     @Override

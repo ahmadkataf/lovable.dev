@@ -21,6 +21,7 @@ export function saleTotals(items: { qty: number; price: number; discount: number
 }
 
 export function saleProfit(sale: Sale): number {
+  if (sale.type === 'quote') return 0
   const sign = sale.type === 'return' ? -1 : 1
   const gross = sale.items.reduce((s, i) => s + (i.price - i.cost) * i.qty - (i.discount || 0), 0)
   return sign * (gross - (sale.discount || 0))
@@ -38,7 +39,7 @@ export function payStatus(total: number, paid: number): 'paid' | 'partial' | 'un
 export function customerBalance(c: Customer, sales: Iterable<Sale>, payments: Iterable<Payment>): number {
   let b = c.openingBalance || 0
   for (const s of sales) {
-    if (s.customerId !== c.id) continue
+    if (s.customerId !== c.id || s.type === 'quote') continue
     const due = s.total - s.paid
     b += s.type === 'return' ? -due : due
   }
@@ -63,7 +64,7 @@ export interface CashLine { date: number; kind: string; label: string; amount: n
 /** Every movement of money, newest first. Positive = came in, negative = went out. */
 export function cashLines(sales: Iterable<Sale>, purchases: Iterable<Purchase>, payments: Iterable<Payment>, expenses: Iterable<Expense>, cash: Iterable<CashEntry>): CashLine[] {
   const lines: CashLine[] = []
-  for (const s of sales) if (s.paid) lines.push({ date: s.date, kind: s.type === 'return' ? 'مرتجع مبيعات' : 'مبيعات', label: `فاتورة ${s.number} — ${s.customerName}`, amount: s.type === 'return' ? -s.paid : s.paid, ref: { type: 'sale', id: s.id } })
+  for (const s of sales) if (s.paid && s.type !== 'quote') lines.push({ date: s.date, kind: s.type === 'return' ? 'مرتجع مبيعات' : 'مبيعات', label: `فاتورة ${s.number} — ${s.customerName}`, amount: s.type === 'return' ? -s.paid : s.paid, ref: { type: 'sale', id: s.id } })
   for (const p of purchases) if (p.paid) lines.push({ date: p.date, kind: p.type === 'return' ? 'مرتجع مشتريات' : 'مشتريات', label: `شراء ${p.number} — ${p.supplierName}`, amount: p.type === 'return' ? p.paid : -p.paid, ref: { type: 'purchase', id: p.id } })
   for (const p of payments) lines.push({ date: p.date, kind: p.partyType === 'customer' ? 'تحصيل من عميل' : 'دفع لمورد', label: p.partyName + (p.note ? ` — ${p.note}` : ''), amount: p.partyType === 'customer' ? p.amount : -p.amount, ref: { type: 'payment', id: p.id } })
   for (const e of expenses) lines.push({ date: e.date, kind: 'مصروف', label: e.category + (e.note ? ` — ${e.note}` : ''), amount: -e.amount, ref: { type: 'expense', id: e.id } })

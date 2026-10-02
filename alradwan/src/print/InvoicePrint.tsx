@@ -1,13 +1,14 @@
 import { useSettings } from '../db/store'
 import type { Sale } from '../db/types'
-import { equiv, fmtDateTime, invoiceNo, money, num } from '../lib/format'
+import { equiv, fmtDate, fmtDateTime, invoiceNo, money, num } from '../lib/format'
 import { saleDue } from '../lib/calc'
 
 // The invoice as printed: A4 or an 80mm receipt, chosen in the settings.
 export function InvoicePrint({ sale }: { sale: Sale }) {
   const s = useSettings()
   const receipt = s.printSize === '80mm'
-  const title = sale.type === 'return' ? 'فاتورة مرتجع' : 'فاتورة مبيعات'
+  const quote = sale.type === 'quote'
+  const title = sale.type === 'return' ? 'فاتورة مرتجع' : quote ? 'عرض سعر' : 'فاتورة مبيعات'
   const due = saleDue(sale)
   return (
     <div dir="rtl" style={{ fontFamily: 'var(--font)', color: '#000', background: '#fff', width: receipt ? '72mm' : '100%', maxWidth: receipt ? '72mm' : '190mm', margin: '0 auto', fontSize: receipt ? 12 : 14, padding: receipt ? '2mm' : '4mm' }}>
@@ -22,7 +23,7 @@ export function InvoicePrint({ sale }: { sale: Sale }) {
         <div><b>{title}</b> رقم <b>{invoiceNo(sale.number)}</b></div>
         <div>{fmtDateTime(sale.date)}</div>
       </div>
-      <div style={{ marginBottom: 8 }}><b>العميل:</b> {sale.customerName}</div>
+      <div style={{ marginBottom: 8 }}><b>العميل:</b> {sale.customerName}{quote && sale.validUntil && <span style={{ float: 'left' }}>صالح حتى {fmtDate(sale.validUntil)}</span>}</div>
       <table className="pt">
         <thead><tr><th>#</th><th>الصنف</th><th className="n">الكمية</th><th className="n">السعر</th><th className="n">المجموع</th></tr></thead>
         <tbody>
@@ -39,15 +40,16 @@ export function InvoicePrint({ sale }: { sale: Sale }) {
       </table>
       <div style={{ marginTop: 8, marginInlineStart: receipt ? 0 : '50%' }}>
         {(sale.discount > 0 || sale.subtotal !== sale.total) && <div className="tot"><span>المجموع</span><b>{money(sale.subtotal, { display: 'base' })}</b></div>}
-        {sale.discount > 0 && <div className="tot"><span>الخصم</span><b>- {money(sale.discount, { display: 'base' })}</b></div>}
+        {sale.discount > 0 && <div className="tot"><span>الخصم{sale.discountPct ? ` (${num(sale.discountPct, 2)}%)` : ''}</span><b>- {money(sale.discount, { display: 'base' })}</b></div>}
         <div className="tot" style={{ fontSize: receipt ? 15 : 18, borderTop: '1px solid #000', marginTop: 2 }}><span>الإجمالي</span><b>{money(sale.total, { display: 'base' })}</b></div>
         {(sale.rate ?? s.rate) > 0 && <div className="tot" style={{ fontSize: receipt ? 11 : 12, color: '#444' }}><span>ما يعادل (1 $ = {(sale.rate ?? s.rate).toLocaleString('en-US')} ل.س)</span><b>{equiv(sale.total, sale.rate ?? s.rate).replace('≈ ', '')}</b></div>}
-        {sale.paid !== sale.total && <>
+        {!quote && sale.paid !== sale.total && <>
           <div className="tot"><span>المدفوع</span><b>{money(sale.paid, { display: 'base' })}</b></div>
           <div className="tot"><span>{sale.type === 'return' ? 'المتبقي للعميل' : 'المتبقي'}</span><b>{money(due, { display: 'base' })}</b></div>
         </>}
       </div>
       {sale.notes && <div style={{ marginTop: 8, fontSize: 12 }}>ملاحظات: {sale.notes}</div>}
+      {quote && <div style={{ marginTop: 8, fontSize: 11, color: '#444' }}>هذا عرض سعر وليس فاتورة؛ الأسعار قابلة للتغيير بعد انتهاء مدة العرض.</div>}
       {s.invoiceFooter && <div style={{ textAlign: 'center', marginTop: 12, borderTop: '1px dashed #999', paddingTop: 6 }}>{s.invoiceFooter}</div>}
     </div>
   )

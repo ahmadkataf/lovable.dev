@@ -1,6 +1,6 @@
 import { useEffect, useState, type ReactNode } from 'react'
 import { NavLink, useLocation } from 'react-router-dom'
-import { LayoutDashboard, ShoppingCart, Receipt, Package, Boxes, Truck, Users, Factory, Wallet, BarChart3, Settings, Menu, LogOut, RefreshCw, CloudOff, Cloud, AlertTriangle, User, DollarSign, History, Trash2, Car } from 'lucide-react'
+import { LayoutDashboard, ShoppingCart, Receipt, Package, Boxes, Truck, Users, Factory, Wallet, BarChart3, Settings, Menu, LogOut, RefreshCw, CloudOff, Cloud, AlertTriangle, User, DollarSign, History, Trash2, Car, BookOpen } from 'lucide-react'
 import { setCurrentUser, useCurrentUser, useIsAdmin, useSettings, useStore } from '../db/store'
 import { onSyncStatus, syncNow, type SyncStatus } from '../lib/sync'
 import { fmtTime } from '../lib/format'
@@ -19,6 +19,7 @@ const NAV = [
   { to: '/suppliers', label: 'الموردون', icon: Factory },
   { to: '/cash', label: 'الصندوق والمصاريف', icon: Wallet },
   { to: '/reports', label: 'التقارير', icon: BarChart3, admin: true },
+  { to: '/accounting', label: 'المحاسبة', icon: BookOpen, admin: true },
   { to: '/activity', label: 'سجل النشاط', icon: History, admin: true },
   { to: '/trash', label: 'المحذوفات', icon: Trash2, admin: true },
   { to: '/settings', label: 'الإعدادات', icon: Settings },
@@ -26,7 +27,7 @@ const NAV = [
 
 const TITLES: Record<string, string> = {
   '/': 'الرئيسية', '/pos': 'بيع جديد', '/sales': 'فواتير المبيعات', '/products': 'المنتجات', '/inventory': 'المخزون', '/purchases': 'المشتريات',
-  '/customers': 'العملاء', '/suppliers': 'الموردون', '/cash': 'الصندوق والمصاريف', '/reports': 'التقارير', '/settings': 'الإعدادات', '/activity': 'سجل النشاط', '/trash': 'المحذوفات', '/cars': 'دليل السيارات',
+  '/customers': 'العملاء', '/suppliers': 'الموردون', '/cash': 'الصندوق والمصاريف', '/reports': 'التقارير', '/accounting': 'المحاسبة', '/settings': 'الإعدادات', '/activity': 'سجل النشاط', '/trash': 'المحذوفات', '/cars': 'دليل السيارات',
 }
 
 export function Layout({ children }: { children: ReactNode }) {

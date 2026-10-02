@@ -92,7 +92,7 @@ function ShopTab() {
 }
 
 function PrintTab() {
-  const { d, set, save } = useDraft(['printSize', 'invoiceFooter', 'logo'])
+  const { d, set, save } = useDraft(['printSize', 'printMode', 'invoiceFooter', 'logo'])
   const sales = useCollection('sales')
   const last = Array.from(sales.values()).sort((a, b) => b.date - a.date)[0]
   const toast = useToast()
@@ -103,6 +103,9 @@ function PrintTab() {
         <Field label="حجم الورق" className="full">
           <div className="tabs small"><button className={d.printSize === 'a4' ? 'active' : ''} onClick={() => set('printSize', 'a4')}>A4 (طابعة عادية)</button><button className={d.printSize === '80mm' ? 'active' : ''} onClick={() => set('printSize', '80mm')}>إيصال 80mm (طابعة حرارية)</button></div>
         </Field>
+        {isDesktop() && <Field label="طريقة الطباعة على ويندوز" className="full" help="المعاينة تفتح الفاتورة في نافذة PDF فيها زر طباعة وحفظ؛ المباشرة تفتح نافذة الطابعة فوراً (قد تظهر خلف البرنامج على بعض الأجهزة)">
+          <div className="tabs small"><button className={d.printMode !== 'direct' ? 'active' : ''} onClick={() => set('printMode', 'preview')}>معاينة ثم طباعة (موصى به)</button><button className={d.printMode === 'direct' ? 'active' : ''} onClick={() => set('printMode', 'direct')}>مباشرة إلى الطابعة</button></div>
+        </Field>}
         <Field label="عبارة أسفل الفاتورة" className="full"><input className="input" value={d.invoiceFooter ?? ''} onChange={e => set('invoiceFooter', e.target.value)} /></Field>
         <Field label="شعار المحل (يظهر أعلى الفاتورة)" className="full">
           <div className="row">

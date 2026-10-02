@@ -22,8 +22,29 @@ function createWindow() {
   win.on('closed', () => { win = null })
 }
 
-// the invoice: the normal Windows print dialog, so the thermal or the A4 printer can be chosen
-ipcMain.on('print', () => { if (win) win.webContents.print({ silent: false, printBackground: true }, () => {}) })
+// Printing. The system print dialog is modal and on Windows it can open behind a maximized window, which
+// looks like the app froze. So the default is a preview: the page is rendered to a PDF (with the print
+// stylesheet, exactly as it would print) and shown in its own window, whose toolbar prints or saves it.
+// 'direct' keeps the old behaviour for shops with a thermal printer that want one click.
+const os = require('os')
+ipcMain.handle('print', async (_e, mode, size) => {
+  if (!win) return false
+  if (mode === 'direct') {
+    return new Promise(resolve => win.webContents.print({ silent: false, printBackground: true }, (ok, reason) => resolve(ok ? true : reason || false)))
+  }
+  try {
+    const receipt = size === '80mm'
+    const pdf = await win.webContents.printToPDF({ printBackground: true, pageSize: receipt ? { width: 3.15, height: 11.7 } : 'A4', margins: receipt ? { top: 0.1, bottom: 0.1, left: 0.1, right: 0.1 } : undefined, preferCSSPageSize: false })
+    const dir = path.join(os.tmpdir(), 'alradwan-print'); fs.mkdirSync(dir, { recursive: true })
+    const file = path.join(dir, `print-${Date.now()}.pdf`)
+    fs.writeFileSync(file, pdf)
+    const viewer = new BrowserWindow({ width: receipt ? 520 : 900, height: 900, parent: win, title: 'معاينة الطباعة — كراج الرضوان', autoHideMenuBar: true, webPreferences: { plugins: true, contextIsolation: true, nodeIntegration: false } })
+    viewer.setMenuBarVisibility(false)
+    await viewer.loadURL('file://' + file.replace(/\\/g, '/'))
+    viewer.on('closed', () => { try { fs.unlinkSync(file) } catch {} })
+    return true
+  } catch (e) { return String(e && e.message || e) }
+})
 
 ipcMain.handle('save-file', async (_e, name, base64) => {
   if (!win) return false

@@ -1,11 +1,12 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { nextNumber } from '../db/actions'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { Trash2, Printer, Save, MessageCircle, PlusCircle, Minus, Plus, Check, ShoppingCart, Percent } from 'lucide-react'
-import { useCollection, useCanSeeCost, useSettings, useStore } from '../db/store'
+import { useCollection, useCanSeeCost, useSettings } from '../db/store'
 import type { InvoiceItem, Product, Sale } from '../db/types'
 import { saveSale } from '../db/actions'
 import { saleTotals } from '../lib/calc'
-import { CURRENCY_SYMBOL, convert, equiv, fmtDate, fromInputDate, invoiceNo, matches, money, num, otherCurrency, toInputDate } from '../lib/format'
+import { CURRENCY_SYMBOL, convert, equiv, fmtDate, fromInputDate, invoiceNo, matches, money, num, otherCurrency, toInputDate, toNumber } from '../lib/format'
 import { Field, NumberInput, Chips, Price } from '../ui/components'
 import { Modal, useConfirm } from '../ui/modal'
 import { useToast } from '../ui/toast'
@@ -33,6 +34,9 @@ export function POS() {
   const [customerId, setCustomerId] = useState<string | undefined>()
   const [customerName, setCustomerName] = useState('زبون نقدي')
   const [discount, setDiscount] = useState(0)
+  const [discMode, setDiscMode] = useState<'amount' | 'pct'>('amount')
+  const [discPct, setDiscPct] = useState(0)
+  const [quote, setQuote] = useState(false)   // عرض سعر: يُحفظ ويُطبع لكن لا يمس المخزون ولا الصندوق
   const [paid, setPaid] = useState<number | null>(null) // null = the whole amount
   const [date, setDate] = useState(toInputDate(Date.now()))
   const [notes, setNotes] = useState('')
@@ -54,34 +58,38 @@ export function POS() {
     if (addId) { const p = products.get(addId); if (p) add(p); setParams(carId ? { car: carId } : {}) }
   }, [params])
 
-  // keyboard: F2 search, F4 customer, F9 save and print, F8 save, Escape empties the search
+  // keyboard: F2 search, F9 save and print, F8 save (the handler reads the latest save through a ref)
+  const saveRef = useRef<(p: boolean) => void>(() => {})
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'F2') { e.preventDefault(); (document.querySelector('.catalog input.input') as HTMLInputElement | null)?.focus() }
-      else if (e.key === 'F9') { e.preventDefault(); save(true) }
-      else if (e.key === 'F8') { e.preventDefault(); save(false) }
+      else if (e.key === 'F9') { e.preventDefault(); saveRef.current(true) }
+      else if (e.key === 'F8') { e.preventDefault(); saveRef.current(false) }
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  })
+  }, [])
 
   // editing an existing invoice
   useEffect(() => {
     if (!editId) return
     const s = sales.get(editId)
     if (!s) return
-    setItems(s.items.map(i => ({ ...i }))); setCustomerId(s.customerId); setCustomerName(s.customerName); setDiscount(s.discount); setPaid(s.paid); setDate(toInputDate(s.date)); setNotes(s.notes ?? '')
+    setItems(s.items.map(i => ({ ...i }))); setCustomerId(s.customerId); setCustomerName(s.customerName); setDiscount(s.discount); setPaid(s.paid); setDate(toInputDate(s.date)); setNotes(s.notes ?? ''); setQuote(s.type === 'quote')
+    if (s.discountPct) { setDiscMode('pct'); setDiscPct(s.discountPct) } else setDiscMode('amount')
   }, [editId])
 
   const { subtotal, total } = saleTotals(items, discount)
   const paidValue = paid === null ? total : Math.min(paid, total)
 
-  // the customer's standing discount is applied as the invoice discount (the cashier can still change it)
+  // the customer's standing discount becomes a percentage discount (the cashier can still change it)
   useEffect(() => {
     if (editId) return
     const c = customerId ? customers.get(customerId) : undefined
-    if (c?.discountPct) setDiscount(Math.round(subtotal * c.discountPct) / 100)
-  }, [customerId, subtotal, editId])
+    if (c?.discountPct) { setDiscMode('pct'); setDiscPct(c.discountPct) }
+  }, [customerId, editId])
+  // a percentage discount follows the subtotal as lines change
+  useEffect(() => { if (discMode === 'pct') setDiscount(Math.round(subtotal * discPct) / 100) }, [discMode, discPct, subtotal])
 
 
   const add = (p: Product) => {
@@ -95,22 +103,23 @@ export function POS() {
   const update = (i: number, patch: Partial<InvoiceItem>) => setItems(list => list.map((x, k) => (k === i ? { ...x, ...patch } : x)))
   const removeAt = (i: number) => setItems(list => list.filter((_, k) => k !== i))
 
-  const reset = () => { setItems([]); setCustomerId(undefined); setCustomerName('زبون نقدي'); setDiscount(0); setPaid(null); setDate(toInputDate(Date.now())); setNotes(''); setDone(null); if (editId) setParams({}) }
+  const reset = () => { setItems([]); setCustomerId(undefined); setCustomerName('زبون نقدي'); setDiscount(0); setDiscMode('amount'); setDiscPct(0); setQuote(false); setPaid(null); setDate(toInputDate(Date.now())); setNotes(''); setDone(null); if (editId) setParams({}) }
 
   const save = async (andPrint: boolean) => {
     if (items.length === 0) { toast.error('أضف قطعة واحدة على الأقل'); return }
     if (items.some(i => i.qty <= 0)) { toast.error('هناك سطر كميته صفر'); return }
     const short = items.filter(i => i.kind === 'product' && i.productId && (stock.get(i.productId) ?? 0) + (editId ? (sales.get(editId)?.items.find(x => x.productId === i.productId)?.qty ?? 0) : 0) < i.qty)
-    if (short.length && !(await confirm({ title: 'الكمية غير متوفرة في المخزون', text: <div>{short.map(i => <div key={i.name}>• {i.name}: المتوفر {stock.get(i.productId!) ?? 0}، المطلوب {i.qty}</div>)}<p className="mt">هل تريد البيع على أي حال؟ (سيصبح المخزون بالسالب حتى تسجّل الشراء)</p></div>, okText: 'نعم، بيع' }))) return
-    if (paidValue < total && !customerId && !(await confirm({ title: 'فاتورة آجلة بدون عميل', text: 'لم تختر عميلاً، فلن يُسجَّل الدين على أحد. هل تريد المتابعة؟', okText: 'متابعة' }))) return
+    if (short.length && !quote && !(await confirm({ title: 'الكمية غير متوفرة في المخزون', text: <div>{short.map(i => <div key={i.name}>• {i.name}: المتوفر {stock.get(i.productId!) ?? 0}، المطلوب {i.qty}</div>)}<p className="mt">هل تريد البيع على أي حال؟ (سيصبح المخزون بالسالب حتى تسجّل الشراء)</p></div>, okText: 'نعم، بيع' }))) return
+    if (paidValue < total && !quote && !customerId && !(await confirm({ title: 'فاتورة آجلة بدون عميل', text: 'لم تختر عميلاً، فلن يُسجَّل الدين على أحد. هل تريد المتابعة؟', okText: 'متابعة' }))) return
     setBusy(true)
     try {
       const old = editId ? sales.get(editId) : undefined
-      const sale = await saveSale({ id: old?.id, number: old?.number, type: 'sale', date: old && toInputDate(old.date) === date ? old.date : fromInputDate(date), customerId, customerName, items, discount, paid: paidValue, notes, returnOf: old?.returnOf })
+      const sale = await saveSale({ id: old?.id, number: old?.number, type: quote ? 'quote' : 'sale', date: old && toInputDate(old.date) === date ? old.date : fromInputDate(date), customerId, customerName, items, discount, discountPct: discMode === 'pct' ? discPct : undefined, paid: quote ? 0 : paidValue, notes, returnOf: old?.returnOf, validUntil: quote ? fromInputDate(date) + 7 * 86400000 : undefined })
       if (andPrint) printDocument({ type: 'invoice', sale })
       setDone(sale)
     } catch (e) { toast.error('تعذّر الحفظ: ' + (e as Error).message) } finally { setBusy(false) }
   }
+  saveRef.current = save
 
   const catList = useMemo(() => Array.from(categories.values()).sort((a, b) => a.name.localeCompare(b.name, 'ar')), [categories])
   const grid = useMemo(() => {
@@ -122,13 +131,14 @@ export function POS() {
   const carList = useMemo(() => Array.from(carModels.values()).filter(m => matches(carQ, m.make, m.model, m.engine)).sort((a, b) => carLabel(a).localeCompare(carLabel(b), 'ar')).slice(0, 10), [carModels, carQ])
 
   const cartCount = items.reduce((n, i) => n + i.qty, 0)
+  const nextNo = useMemo(() => nextNumber('sales'), [sales])
   const customer = customerId ? customers.get(customerId) : undefined
 
   return (
     <div className="pos">
       <div className="catalog stack">
         {editId && <div className="card pad tone-info" style={{ padding: '10px 14px' }}>تعديل الفاتورة رقم {invoiceNo(sales.get(editId)?.number ?? 0)} — <a href="#" onClick={e => { e.preventDefault(); reset(); nav('/sales') }} style={{ textDecoration: 'underline' }}>إلغاء التعديل</a></div>}
-        <ProductSearch onPick={add} autoFocus />
+        <ProductSearch onPick={add} autoFocus={!isTouch} />
         <div className="between" style={{ flexWrap: 'wrap' }}>
           <Chips value={cat} onChange={setCat} items={[{ id: 'all', label: 'الكل' }, ...catList.map(c => ({ id: c.id, label: c.name }))]} />
           <div className="row" style={{ position: 'relative' }}>
@@ -160,9 +170,10 @@ export function POS() {
 
       <div className={`cart card pad ${showCart ? '' : 'hide-mobile'}`} style={showCart ? { position: 'fixed', inset: 0, zIndex: 45, overflowY: 'auto', borderRadius: 0 } : undefined}>
         <div className="card-title">
-          <h2><ShoppingCart size={18} style={{ verticalAlign: -3 }} /> الفاتورة {editId ? '' : `رقم ${invoiceNo(useStore.getState().sales.size ? Math.max(...Array.from(sales.values()).map(s => s.number)) + 1 : 1)}`}</h2>
+          <h2><ShoppingCart size={18} style={{ verticalAlign: -3 }} /> {quote ? 'عرض سعر' : 'الفاتورة'} {editId ? '' : `رقم ${invoiceNo(nextNo)}`}</h2>
           <div className="row">
             <label className="checkbox small" title="استخدام سعر الجملة"><input type="checkbox" checked={wholesale} onChange={e => setWholesale(e.target.checked)} /> جملة</label>
+            <label className="checkbox small" title="عرض سعر يُطبع للزبون ولا يُنقص المخزون ولا يُسجَّل في الصندوق"><input type="checkbox" checked={quote} onChange={e => setQuote(e.target.checked)} /> عرض سعر</label>
             {items.length > 0 && <button className="btn sm ghost" onClick={() => setItems([])} title="إفراغ"><Trash2 /></button>}
             {showCart && <button className="btn sm" onClick={() => setShowCart(false)}>رجوع</button>}
           </div>
@@ -183,7 +194,7 @@ export function POS() {
               <div className="row" style={{ gridColumn: '1 / -1', justifyContent: 'space-between', flexWrap: 'wrap' }}>
                 <div className="qty">
                   <button onClick={() => update(i, { qty: Math.max(0, it.qty - 1) })} aria-label="أقل"><Minus size={16} /></button>
-                  <input inputMode="decimal" value={it.qty} onChange={e => update(i, { qty: Math.max(0, parseFloat(e.target.value.replace(/[٠-٩]/g, d => String('٠١٢٣٤٥٦٧٨٩'.indexOf(d)))) || 0) })} onFocus={e => e.target.select()} />
+                  <QtyInput value={it.qty} onChange={v => update(i, { qty: v })} />
                   <button onClick={() => update(i, { qty: it.qty + 1 })} aria-label="أكثر"><Plus size={16} /></button>
                 </div>
                 <div className="row">
@@ -197,16 +208,18 @@ export function POS() {
         </div>
         <div className="totals">
           <div className="line"><span className="muted">المجموع ({num(cartCount, 2)} قطعة)</span><b>{money(subtotal, { display: 'base' })}</b></div>
-          <div className="line"><span className="muted"><Percent size={14} style={{ verticalAlign: -2 }} /> خصم</span><div style={{ width: 130 }}><NumberInput value={discount} onChange={setDiscount} suffix={settings.currency} /></div></div>
+          <div className="line"><span className="muted"><Percent size={14} style={{ verticalAlign: -2 }} /> خصم <button className="btn sm ghost" style={{ minHeight: 0, padding: '2px 8px' }} title="التبديل بين خصم بالمبلغ وخصم بالنسبة" onClick={() => { if (discMode === 'pct') { setDiscMode('amount') } else { setDiscPct(subtotal ? Math.round((discount / subtotal) * 10000) / 100 : 0); setDiscMode('pct') } }}>{discMode === 'pct' ? `${num(discPct, 2)}% ← ${settings.currency}` : `${settings.currency} ← %`}</button></span>
+            <div style={{ width: 130 }}>{discMode === 'pct' ? <NumberInput value={discPct} onChange={v => setDiscPct(Math.min(100, Math.max(0, v)))} suffix="%" /> : <NumberInput value={discount} onChange={setDiscount} suffix={settings.currency} />}</div></div>
           <div className="line grand"><span>الإجمالي</span><span>{money(total, { display: 'base' })}</span></div>
           {settings.rate > 0 && <div className="line" style={{ marginTop: -6 }}><span className="muted small">بسعر {settings.rate.toLocaleString('en-US')}</span><span className="muted">{equiv(total)}</span></div>}
-          <div className="line"><span className="muted">المدفوع الآن</span><div style={{ width: 150 }}><NumberInput value={paidValue} onChange={v => setPaid(v)} suffix={settings.currency} /></div></div>
-          {settings.rate > 0 && <div className="line"><span className="muted small">أو دفع بـ{CURRENCY_SYMBOL[otherCurrency(settings.baseCurrency)]}</span><div style={{ width: 150 }}><NumberInput value={Math.round(convert(paidValue, settings.baseCurrency, otherCurrency(settings.baseCurrency), settings.rate) * 100) / 100} onChange={v => setPaid(Math.round(convert(v, otherCurrency(settings.baseCurrency), settings.baseCurrency, settings.rate) * 100) / 100)} suffix={CURRENCY_SYMBOL[otherCurrency(settings.baseCurrency)]} /></div></div>}
-          <div className="btn-row">
+          {quote && <div className="card pad tone-info small" style={{ padding: '8px 12px' }}>عرض سعر: يُحفظ ويُطبع ويُرسل للزبون، ولا يؤثر على المخزون أو الصندوق أو حساب العميل. يمكن تحويله إلى فاتورة لاحقاً من «فواتير المبيعات».</div>}
+          {!quote && <div className="line"><span className="muted">المدفوع الآن</span><div style={{ width: 150 }}><NumberInput value={paidValue} onChange={v => setPaid(v)} suffix={settings.currency} /></div></div>}
+          {!quote && settings.rate > 0 && <div className="line"><span className="muted small">أو دفع بـ{CURRENCY_SYMBOL[otherCurrency(settings.baseCurrency)]}</span><div style={{ width: 150 }}><NumberInput value={Math.round(convert(paidValue, settings.baseCurrency, otherCurrency(settings.baseCurrency), settings.rate) * 100) / 100} onChange={v => setPaid(Math.round(convert(v, otherCurrency(settings.baseCurrency), settings.baseCurrency, settings.rate) * 100) / 100)} suffix={CURRENCY_SYMBOL[otherCurrency(settings.baseCurrency)]} /></div></div>}
+          {!quote && <div className="btn-row">
             <button className={`btn sm ${paidValue >= total && total > 0 ? 'success' : ''}`} onClick={() => setPaid(null)}><Check /> دفع كامل</button>
             <button className={`btn sm ${paidValue === 0 && total > 0 ? 'danger' : ''}`} onClick={() => setPaid(0)}>آجل (دين)</button>
             {paidValue < total && <span className="badge tone-warning">المتبقي {money(total - paidValue)}</span>}
-          </div>
+          </div>}
           {seeCost && items.length > 0 && <div className="small muted">الربح المتوقع: {money(items.reduce((s, i) => s + (i.price - i.cost) * i.qty - i.discount, 0) - discount)}</div>}
           <details>
             <summary className="muted small" style={{ cursor: 'pointer' }}>التاريخ والملاحظات</summary>
@@ -216,7 +229,7 @@ export function POS() {
             </div>
           </details>
           <div className="btn-row" style={{ marginTop: 6 }}>
-            <button className="btn primary lg" style={{ flex: 1 }} disabled={busy || items.length === 0} onClick={() => save(true)} title="F9"><Printer /> حفظ وطباعة</button>
+            <button className="btn primary lg" style={{ flex: 1 }} disabled={busy || items.length === 0} onClick={() => save(true)} title="F9"><Printer /> {quote ? 'حفظ عرض السعر وطباعته' : 'حفظ وطباعة'}</button>
             <button className="btn lg" disabled={busy || items.length === 0} onClick={() => save(false)} title="F8"><Save /> حفظ</button>
           </div>
         </div>
@@ -233,11 +246,24 @@ export function POS() {
   )
 }
 
+/** The quantity box in the cart: accepts what is typed (including a decimal point and Arabic digits) and only
+ *  applies a clean number; an emptied box stays empty until the user types, instead of snapping to 0. */
+function QtyInput({ value, onChange }: { value: number; onChange: (v: number) => void }) {
+  const [text, setText] = useState(String(value))
+  const focused = useRef(false)
+  useEffect(() => { if (!focused.current) setText(String(value)) }, [value])
+  return <input inputMode="decimal" value={text} onFocus={e => { focused.current = true; e.target.select() }}
+    onChange={e => { const t = e.target.value; setText(t); const n = toNumber(t); if (t.trim() !== '' && Number.isFinite(n)) onChange(Math.max(0, n)) }}
+    onBlur={() => { focused.current = false; const n = Math.max(0, toNumber(text)); onChange(n); setText(String(n)) }} />
+}
+
+const isTouch = typeof window !== 'undefined' && ('ontouchstart' in window || navigator.maxTouchPoints > 0)
+
 export function whatsappLink(sale: Sale, phone: string | undefined, shopName: string, currency: string): string {
-  const lines = [`*${shopName}*`, `فاتورة رقم ${invoiceNo(sale.number)} — ${fmtDate(sale.date)}`, `العميل: ${sale.customerName}`, '',
+  const lines = [`*${shopName}*`, `${sale.type === 'quote' ? 'عرض سعر' : sale.type === 'return' ? 'مرتجع' : 'فاتورة'} رقم ${invoiceNo(sale.number)} — ${fmtDate(sale.date)}`, `العميل: ${sale.customerName}`, '',
     ...sale.items.map(i => `• ${i.name} × ${num(i.qty, 2)} = ${money(i.qty * i.price - i.discount, { currency: false })}`), '',
     sale.discount ? `الخصم: ${money(sale.discount, { currency: false })}` : '', `*الإجمالي: ${money(sale.total, { currency: false })} ${currency}*`,
-    sale.paid < sale.total ? `المدفوع: ${money(sale.paid, { currency: false })} — المتبقي: ${money(sale.total - sale.paid, { currency: false })}` : 'مدفوعة بالكامل'].filter(l => l !== '' || true)
+    sale.type === 'quote' ? (sale.validUntil ? `العرض صالح حتى ${fmtDate(sale.validUntil)}` : '') : sale.paid < sale.total ? `المدفوع: ${money(sale.paid, { currency: false })} — المتبقي: ${money(sale.total - sale.paid, { currency: false })}` : 'مدفوعة بالكامل'].filter(l => l !== '' || true)
   const text = encodeURIComponent(lines.join('\n'))
   const p = (phone ?? '').replace(/\D/g, '')
   return p ? `https://wa.me/${p.startsWith('0') ? '963' + p.slice(1) : p}?text=${text}` : `https://wa.me/?text=${text}`
@@ -248,14 +274,14 @@ function DoneModal({ sale, onNew, onClose }: { sale: Sale; onNew: () => void; on
   const customers = useCollection('customers')
   const phone = sale.customerId ? customers.get(sale.customerId)?.phone : undefined
   return (
-    <Modal title="تم حفظ الفاتورة" onClose={onClose} size="narrow" icon={<Check style={{ color: 'var(--success)' }} />} footer={<>
+    <Modal title={sale.type === 'quote' ? 'تم حفظ عرض السعر' : 'تم حفظ الفاتورة'} onClose={onClose} size="narrow" icon={<Check style={{ color: 'var(--success)' }} />} footer={<>
       <button className="btn primary" onClick={onNew}><PlusCircle /> بيع جديد</button>
       <button className="btn" onClick={onClose}>إغلاق</button>
     </>}>
       <div className="stack">
-        <div className="between"><span className="muted">رقم الفاتورة</span><b>{invoiceNo(sale.number)}</b></div>
+        <div className="between"><span className="muted">{sale.type === 'quote' ? 'رقم عرض السعر' : 'رقم الفاتورة'}</span><b>{invoiceNo(sale.number)}</b></div>
         <div className="between"><span className="muted">الإجمالي</span><b style={{ fontSize: 20 }}>{money(sale.total)}</b></div>
-        {sale.paid < sale.total && <div className="between"><span className="muted">المتبقي على العميل</span><b className="neg-txt">{money(sale.total - sale.paid)}</b></div>}
+        {sale.type !== 'quote' && sale.paid < sale.total && <div className="between"><span className="muted">المتبقي على العميل</span><b className="neg-txt">{money(sale.total - sale.paid)}</b></div>}
         <div className="btn-row" style={{ marginTop: 6 }}>
           <button className="btn" onClick={() => printDocument({ type: 'invoice', sale })}><Printer /> طباعة</button>
           <a className="btn" href={whatsappLink(sale, phone, settings.shopName, settings.currency)} target="_blank" rel="noreferrer"><MessageCircle /> إرسال واتساب</a>

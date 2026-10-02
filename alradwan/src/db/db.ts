@@ -18,6 +18,7 @@ export class GarageDB extends Dexie {
   settings!: Table<Collections['settings'], string>
   audit!: Table<Collections['audit'], string>
   carModels!: Table<Collections['carModels'], string>
+  journal!: Table<Collections['journal'], string>
   outbox!: Table<{ key: string; collection: CollectionName; id: string }, string>
   meta!: Table<{ key: string; value: unknown }, string>
 
@@ -41,7 +42,14 @@ export class GarageDB extends Dexie {
     })
     this.version(2).stores({ audit: 'id, date, userId, collection' })
     this.version(3).stores({ carModels: 'id, make, model' })
+    this.version(4).stores({ journal: 'id, date' })
   }
 }
 
 export const db = new GarageDB()
+
+// Two windows of the app with different versions: the newer one needs the older one to let go of the
+// database. The old window closes its connection and reloads; the new one tells the user if it is still blocked.
+db.on('versionchange', () => { db.close(); setTimeout(() => location.reload(), 300) })
+export let dbBlocked = false
+db.on('blocked', () => { dbBlocked = true })

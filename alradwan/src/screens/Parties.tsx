@@ -55,7 +55,7 @@ export function Parties({ type }: { type: 'customer' | 'supplier' }) {
 
   const statement = (p: Customer | Supplier) => {
     const lines: { date: number; label: string; debit: number; credit: number; ref?: string; refType?: 'sale' | 'purchase' | 'payment'; id: string }[] = []
-    if (isC) for (const s of sales.values()) { if (s.customerId !== p.id) continue; lines.push({ date: s.date, label: `${s.type === 'return' ? 'مرتجع' : 'فاتورة'} ${invoiceNo(s.number)}${s.paid ? ` (مدفوع ${money(s.paid, { currency: false })})` : ''}`, debit: s.type === 'return' ? 0 : s.total - s.paid, credit: s.type === 'return' ? s.total - s.paid : 0, refType: 'sale', id: s.id }) }
+    if (isC) for (const s of sales.values()) { if (s.customerId !== p.id || s.type === 'quote') continue; lines.push({ date: s.date, label: `${s.type === 'return' ? 'مرتجع' : 'فاتورة'} ${invoiceNo(s.number)}${s.paid ? ` (مدفوع ${money(s.paid, { currency: false })})` : ''}`, debit: s.type === 'return' ? 0 : s.total - s.paid, credit: s.type === 'return' ? s.total - s.paid : 0, refType: 'sale', id: s.id }) }
     else for (const s of purchases.values()) { if (s.supplierId !== p.id) continue; lines.push({ date: s.date, label: `${s.type === 'return' ? 'مرتجع' : 'شراء'} ${invoiceNo(s.number)}${s.paid ? ` (مدفوع ${money(s.paid, { currency: false })})` : ''}`, debit: s.type === 'return' ? 0 : s.total - s.paid, credit: s.type === 'return' ? s.total - s.paid : 0, refType: 'purchase', id: s.id }) }
     for (const pm of payments.values()) if (pm.partyType === type && pm.partyId === p.id) lines.push({ date: pm.date, label: `${isC ? 'دفعة مستلمة' : 'دفعة مسددة'}${pm.note ? ` — ${pm.note}` : ''}`, debit: 0, credit: pm.amount, refType: 'payment', id: pm.id })
     return lines.sort((a, b) => b.date - a.date)

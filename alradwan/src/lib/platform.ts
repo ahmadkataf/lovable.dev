@@ -8,7 +8,8 @@ declare global {
     }
     garageDesktop?: {
       saveFile(name: string, base64: string): Promise<boolean>
-      print(): void
+      /** preview = a PDF window with its own print button; direct = the system dialog. Resolves true, or an error text. */
+      print(mode: 'preview' | 'direct', size: 'a4' | '80mm'): Promise<boolean | string>
       autoBackup(name: string, text: string): Promise<boolean>
       listBackups(): Promise<{ name: string; size: number; mtime: number }[]>
       readBackup(name: string): Promise<string | null>
@@ -47,10 +48,13 @@ export async function saveFile(name: string, data: Blob | string, mime = 'applic
   setTimeout(() => URL.revokeObjectURL(url), 10000)
 }
 
-export function printPage(): void {
-  if (window.GarageAndroid) { window.GarageAndroid.print(); return }
-  if (window.garageDesktop) { window.garageDesktop.print(); return }
-  window.print()
+export function printPage(opts?: { mode?: 'preview' | 'direct'; size?: 'a4' | '80mm'; onError?: (msg: string) => void }): void {
+  if (window.GarageAndroid) { try { window.GarageAndroid.print() } catch (e) { opts?.onError?.(String(e)) } return }
+  if (window.garageDesktop) {
+    window.garageDesktop.print(opts?.mode ?? 'preview', opts?.size ?? 'a4').then(r => { if (r !== true) opts?.onError?.(typeof r === 'string' ? r : 'تعذّرت الطباعة') }).catch(e => opts?.onError?.(String(e)))
+    return
+  }
+  try { window.print() } catch (e) { opts?.onError?.(String(e)) }
 }
 
 export function pickFile(accept: string): Promise<File | null> {

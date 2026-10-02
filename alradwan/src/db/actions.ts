@@ -1,5 +1,5 @@
 import { auditEntry, putMany, remove, useStore } from './store'
-import type { Base, CashEntry, Expense, Payment, Product, Purchase, Sale, StockMovement } from './types'
+import type { Base, CashEntry, Expense, JournalEntry, Payment, Product, Purchase, Sale, StockMovement } from './types'
 import { newId } from '../lib/id'
 import { saleTotals } from '../lib/calc'
 import { invoiceNo, money } from '../lib/format'
@@ -27,18 +27,37 @@ export async function saveSale(input: SaleInput): Promise<Sale> {
   const id = input.id ?? newId()
   const { subtotal, total } = saleTotals(input.items, input.discount)
   const cfg = useStore.getState().cfg
-  const sale: Sale = { ...input, id, number: input.number ?? nextNumber('sales'), subtotal, total, paid: Math.min(Math.max(0, input.paid), total), userId: userId(), rate: input.rate ?? (cfg.rate || undefined), currency: input.currency ?? cfg.currency, updatedAt: 0 }
+  const sale: Sale = { ...input, id, number: input.number ?? nextNumber('sales'), subtotal, total, paid: input.type === 'quote' ? 0 : Math.min(Math.max(0, input.paid), total), userId: userId(), rate: input.rate ?? (cfg.rate || undefined), currency: input.currency ?? cfg.currency, updatedAt: 0 }
   const entries: { collection: 'sales' | 'movements' | 'audit'; record: Base }[] = [{ collection: 'sales', record: sale }]
   const existed = useStore.getState().sales.has(id)
-  entries.push({ collection: 'audit', record: auditEntry(existed ? 'update' : 'create', `${sale.type === 'return' ? 'مرتجع' : 'فاتورة'} ${invoiceNo(sale.number)} — ${sale.customerName} — ${money(sale.total, { display: 'base' })}`, 'sales', id) })
+  entries.push({ collection: 'audit', record: auditEntry(existed ? 'update' : 'create', `${sale.type === 'return' ? 'مرتجع' : sale.type === 'quote' ? 'عرض سعر' : 'فاتورة'} ${invoiceNo(sale.number)} — ${sale.customerName} — ${money(sale.total, { display: 'base' })}`, 'sales', id) })
   for (const old of movementsOf(id)) entries.push({ collection: 'movements', record: { ...old, deleted: true } })
   const sign = sale.type === 'return' ? 1 : -1
   for (const it of sale.items) {
-    if (!it.productId || it.kind === 'service') continue
+    if (sale.type === 'quote' || !it.productId || it.kind === 'service') continue
     entries.push({ collection: 'movements', record: { id: newId(), updatedAt: 0, productId: it.productId, date: sale.date, qty: sign * it.qty, reason: sale.type === 'return' ? 'sale_return' : 'sale', refId: id, note: `فاتورة ${sale.number}`, userId: sale.userId } as StockMovement })
   }
   await putMany(entries)
   return sale
+}
+
+/** Turns a quotation into a real invoice (stock and cash move now); the quotation is kept and marked. */
+export async function convertQuote(quote: Sale, paid: number): Promise<Sale> {
+  const sale = await saveSale({ type: 'sale', date: Date.now(), customerId: quote.customerId, customerName: quote.customerName, items: quote.items.map(i => ({ ...i })), discount: quote.discount, discountPct: quote.discountPct, paid, notes: quote.notes ? `${quote.notes} (من عرض السعر ${invoiceNo(quote.number)})` : `من عرض السعر ${invoiceNo(quote.number)}` })
+  const marked: Sale = { ...quote, convertedTo: sale.id }
+  await putMany([{ collection: 'sales', record: marked }])
+  return sale
+}
+
+export async function saveJournal(entry: Omit<JournalEntry, 'id' | 'updatedAt' | 'userId'> & { id?: string }): Promise<JournalEntry> {
+  const rec = { ...entry, id: entry.id ?? newId(), updatedAt: 0, userId: userId() } as JournalEntry
+  const total = rec.lines.reduce((t, l) => t + l.debit, 0)
+  await putMany([{ collection: 'journal', record: rec }, { collection: 'audit', record: auditEntry(entry.id ? 'update' : 'create', `قيد محاسبي: ${rec.memo} — ${money(total, { display: 'base' })}`, 'journal', rec.id) }])
+  return rec
+}
+export async function deleteJournal(id: string): Promise<void> {
+  const j = useStore.getState().journal.get(id); if (!j) return
+  await putMany([{ collection: 'journal', record: { ...j, deleted: true } }, { collection: 'audit', record: auditEntry('delete', `حذف قيد: ${j.memo}`, 'journal', id) }])
 }
 
 export async function deleteSale(id: string): Promise<void> {

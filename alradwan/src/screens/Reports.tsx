@@ -27,7 +27,7 @@ export function Reports() {
 
   const r = useMemo(() => {
     const inRange = (d: number) => d >= f && d <= t
-    const S = Array.from(sales.values()).filter(s => inRange(s.date))
+    const S = Array.from(sales.values()).filter(s => inRange(s.date) && s.type !== 'quote')
     let revenue = 0, profit = 0, returns = 0, count = 0, discount = 0
     const byProduct = new Map<string, { name: string; code?: string; qty: number; revenue: number; profit: number }>()
     const byCustomer = new Map<string, { name: string; count: number; revenue: number }>()
@@ -67,7 +67,7 @@ export function Reports() {
     else { const m = new Map<string, number>(); for (const s of S) { const d = new Date(s.date); const k = `${d.getFullYear()}-${d.getMonth()}`; m.set(k, (m.get(k) ?? 0) + (s.type === 'return' ? -s.total : s.total)) } for (const [k, v] of Array.from(m.entries()).sort()) series.push({ label: MONTHS[Number(k.split('-')[1])].split(' ')[0], value: v }) }
     // last 12 months table
     const months: { label: string; sales: number; profit: number; expenses: number; purchases: number }[] = []
-    for (let i = 11; i >= 0; i--) { const d = new Date(); d.setDate(1); d.setMonth(d.getMonth() - i); const a = new Date(d.getFullYear(), d.getMonth(), 1).getTime(); const b = new Date(d.getFullYear(), d.getMonth() + 1, 1).getTime(); const ms = Array.from(sales.values()).filter(s => s.date >= a && s.date < b); months.push({ label: `${MONTHS[d.getMonth()]} ${d.getFullYear()}`, sales: ms.reduce((x, s) => x + (s.type === 'return' ? -s.total : s.total), 0), profit: ms.reduce((x, s) => x + saleProfit(s), 0), expenses: Array.from(expenses.values()).filter(e => e.date >= a && e.date < b).reduce((x, e) => x + e.amount, 0), purchases: Array.from(purchases.values()).filter(p => p.date >= a && p.date < b).reduce((x, p) => x + (p.type === 'return' ? -p.total : p.total), 0) }) }
+    for (let i = 11; i >= 0; i--) { const d = new Date(); d.setDate(1); d.setMonth(d.getMonth() - i); const a = new Date(d.getFullYear(), d.getMonth(), 1).getTime(); const b = new Date(d.getFullYear(), d.getMonth() + 1, 1).getTime(); const ms = Array.from(sales.values()).filter(s => s.date >= a && s.date < b && s.type !== 'quote'); months.push({ label: `${MONTHS[d.getMonth()]} ${d.getFullYear()}`, sales: ms.reduce((x, s) => x + (s.type === 'return' ? -s.total : s.total), 0), profit: ms.reduce((x, s) => x + saleProfit(s), 0), expenses: Array.from(expenses.values()).filter(e => e.date >= a && e.date < b).reduce((x, e) => x + e.amount, 0), purchases: Array.from(purchases.values()).filter(p => p.date >= a && p.date < b).reduce((x, p) => x + (p.type === 'return' ? -p.total : p.total), 0) }) }
     return { revenue, profit, returns, count, discount, purchaseTotal, expenseTotal, net: profit - expenseTotal, byProduct: Array.from(byProduct.values()).sort((a, b) => b.revenue - a.revenue), byCustomer: Array.from(byCustomer.values()).sort((a, b) => b.revenue - a.revenue), byExpense: Array.from(byExpense.entries()).sort((a, b) => b[1] - a[1]), byUser, stockValue, stockRetail, receivables, payables, series, months }
   }, [sales, purchases, expenses, products, movements, customers, suppliers, payments, f, t, from])
 
