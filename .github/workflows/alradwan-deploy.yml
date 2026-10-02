@@ -1,7 +1,9 @@
 # كراج الرضوان — puts the website and the sync server online on Cloudflare (Workers + D1).
 # Runs when started by hand from the Actions tab, and whenever the app or the server changes (like deploy-server.yml).
-# Needs only the repository secrets CLOUDFLARE_API_TOKEN (Edit Cloudflare Workers + D1 Edit) and
-# CLOUDFLARE_ACCOUNT_ID: the D1 database is created on the first run when wrangler.toml has no id yet.
+# Needs the same repository secrets as the Emar server: CLOUDFLARE_API_TOKEN (Edit Cloudflare Workers + D1 Edit),
+# CLOUDFLARE_ACCOUNT_ID, EMAR_ADMIN_KEY (the control-panel password, shared with Emar's panel) and EMAR_TOKEN_SECRET
+# (the licence signing secret; AlRadwan derives its own from it, so the two servers never share a key).
+# ALRADWAN_ADMIN_KEY / ALRADWAN_TOKEN_SECRET, when present, override those. The D1 database is created on the first run.
 name: Deploy AlRadwan Garage website
 permissions:
   contents: read
@@ -20,10 +22,11 @@ jobs:
       CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
       CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
       # licensing (optional): the control panel key and the secret that signs activations
-      ALRADWAN_ADMIN_KEY: ${{ secrets.ALRADWAN_ADMIN_KEY }}
+      ALRADWAN_ADMIN_KEY: ${{ secrets.ALRADWAN_ADMIN_KEY || secrets.EMAR_ADMIN_KEY }}
+      EMAR_TOKEN_SECRET: ${{ secrets.EMAR_TOKEN_SECRET }}
       ALRADWAN_TOKEN_SECRET: ${{ secrets.ALRADWAN_TOKEN_SECRET }}
-      # the server address the apps activate against (repository variable), e.g. https://alradwan.<name>.workers.dev
-      ALRADWAN_API: ${{ vars.ALRADWAN_API }}
+      # the address the website activates against: the repository variable, else this account's own worker address
+      ALRADWAN_API: ${{ vars.ALRADWAN_API || 'https://alradwan.almutafawiqin.workers.dev' }}
     steps:
       - name: Wait for the Cloudflare secrets
         if: env.CLOUDFLARE_API_TOKEN == '' || env.CLOUDFLARE_ACCOUNT_ID == ''
@@ -59,7 +62,9 @@ jobs:
         working-directory: alradwan/server
         run: |
           npx wrangler d1 execute alradwan --remote --file=schema.sql
-          if [ -n "$ALRADWAN_API" ] && { [ -z "$ALRADWAN_TOKEN_SECRET" ] || [ -z "$ALRADWAN_ADMIN_KEY" ]; }; then echo "::error::ALRADWAN_API مضبوط لكن السرّين ALRADWAN_TOKEN_SECRET و/أو ALRADWAN_ADMIN_KEY ناقصان: التفعيل لن يعمل عند الزبائن. أضفهما ثم أعد التشغيل."; exit 1; fi
+          # no own signing secret: derive one from Emar's (stable, never the same bytes as Emar's own)
+          if [ -z "$ALRADWAN_TOKEN_SECRET" ] && [ -n "$EMAR_TOKEN_SECRET" ]; then ALRADWAN_TOKEN_SECRET=$(printf 'alradwan:%s' "$EMAR_TOKEN_SECRET" | sha256sum | cut -c1-64); fi
+          if [ -z "$ALRADWAN_TOKEN_SECRET" ] || [ -z "$ALRADWAN_ADMIN_KEY" ]; then echo "::error::سرّا الترخيص ناقصان: أضف EMAR_ADMIN_KEY وEMAR_TOKEN_SECRET (نفس أسرار خادم Emar) أو ALRADWAN_ADMIN_KEY وALRADWAN_TOKEN_SECRET في Settings → Secrets and variables → Actions ثم أعد التشغيل. بدونهما لا تعمل لوحة التحكم ولا التفعيل."; exit 1; fi
           if [ -n "$ALRADWAN_TOKEN_SECRET" ]; then printf '%s' "$ALRADWAN_TOKEN_SECRET" | npx wrangler secret put TOKEN_SECRET; fi
           if [ -n "$ALRADWAN_ADMIN_KEY" ]; then printf '%s' "$ALRADWAN_ADMIN_KEY" | npx wrangler secret put ADMIN_KEY; fi
           npx wrangler deploy 2>&1 | tee deploy.log

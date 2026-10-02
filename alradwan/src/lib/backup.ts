@@ -22,7 +22,7 @@ export async function downloadBackup(password?: string): Promise<void> {
   const date = toInputDate(Date.now())
   let text = JSON.stringify(b)
   if (password) text = await encryptText(text, password)
-  await saveFile(`نسخة-احتياطية-كراج-الرضوان-${date}${password ? '-مشفرة' : ''}.json`, text, 'application/json')
+  await saveFile(`alradwan-backup-${date}${password ? '-encrypted' : ''}.json`, text, 'application/json')
   localStorage.setItem('alradwan.lastBackup', String(Date.now()))
 }
 

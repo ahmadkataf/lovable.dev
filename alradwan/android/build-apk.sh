@@ -14,9 +14,10 @@ B="$A/build/work"
 KS="${ANDROID_KEYSTORE:-$A/release.keystore}"
 KS_PASS="${ANDROID_KEYSTORE_PASSWORD:-alradwan-pass}"
 KS_ALIAS="${ANDROID_KEY_ALIAS:-alradwan}"
-VERSION=()
-[ -n "${VERSION_CODE:-}" ] && VERSION+=(--version-code "$VERSION_CODE")
-[ -n "${VERSION_NAME:-}" ] && VERSION+=(--version-name "$VERSION_NAME")
+# version: from the environment (CI), else the package version and the minute of the build (a local build still updates over an older one)
+VERSION_NAME="${VERSION_NAME:-$(node -p "require('$ROOT/package.json').version")}"
+VERSION_CODE="${VERSION_CODE:-$(( ($(date +%s) - 1700000000) / 60 ))}"
+VERSION=(--version-code "$VERSION_CODE" --version-name "$VERSION_NAME")
 [ ${#VERSION[@]} -gt 0 ] && VERSION+=(--replace-version)
 echo "build-tools $(basename "$BT"), platform $PLATFORM"
 [ -f "$ROOT/dist/index.html" ] || { echo "Run 'npm run build' first (dist/ is missing)"; exit 1; }

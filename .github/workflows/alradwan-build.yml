@@ -5,8 +5,11 @@
 #   • Web: alradwan-web.zip (the static website; the same files the Cloudflare deploy publishes)
 # Start it from the Actions tab (Build AlRadwan Garage apps → Run workflow); it also runs when this file or the
 # app's version changes. The version comes from alradwan/package.json unless given when starting it by hand.
-# Optional repository secrets for a permanent Android signing key: ALRADWAN_KEYSTORE_BASE64,
-# ALRADWAN_KEYSTORE_PASSWORD, ALRADWAN_KEY_ALIAS.
+# Android signing key (repository secrets): ALRADWAN_KEYSTORE_BASE64 / ALRADWAN_KEYSTORE_PASSWORD / ALRADWAN_KEY_ALIAS,
+# or Emar's ANDROID_KEYSTORE_BASE64 / ANDROID_KEYSTORE_PASSWORD / ANDROID_KEY_ALIAS; without one every build is signed
+# with a throwaway key and the APK cannot update over an older install.
+# Licensing server: the repository variable ALRADWAN_API, else the account's own address (ALRADWAN_API_DEFAULT below)
+# when that server answers; otherwise the apps are built free, without activation.
 name: Build AlRadwan Garage apps
 # the workflow only reads the repository; the release job alone gets write access to publish the files
 permissions:
@@ -30,8 +33,9 @@ on:
     tags: ['alradwan-v*']
     paths: ['.github/workflows/alradwan-build.yml', 'alradwan/package.json']
 env:
-  # the licensing/sync server the apps are built against (repository variable); empty = the apps run without activation
+  # the licensing/sync server the apps are built against (repository variable); empty = the default below, if it is live
   ALRADWAN_API: ${{ vars.ALRADWAN_API }}
+  ALRADWAN_API_DEFAULT: https://alradwan.almutafawiqin.workers.dev
 defaults:
   run:
     working-directory: alradwan
@@ -48,14 +52,30 @@ jobs:
         run: |
           if [ -n "$INPUT_VERSION" ]; then echo "version=$INPUT_VERSION" >> "$GITHUB_OUTPUT"; else echo "version=$(node -p "require('./package.json').version")" >> "$GITHUB_OUTPUT"; fi
 
-  web:
+  api:
+    # decides once which server the three builds activate against
     runs-on: ubuntu-latest
+    outputs:
+      url: ${{ steps.pick.outputs.url }}
     steps:
-      - uses: actions/checkout@v4
-      - name: Which flavour is this build?
+      - id: pick
         working-directory: .
         run: |
-          if [ -z "$ALRADWAN_API" ]; then echo "::warning::ALRADWAN_API غير مضبوط: هذه نسخة مجانية بلا تفعيل. لبيع البرنامج بأكواد أضف المتغير ALRADWAN_API (عنوان الخادم) في Settings → Secrets and variables → Actions → Variables."; else echo "Licensed build against $ALRADWAN_API"; fi
+          URL="$ALRADWAN_API"
+          if [ -z "$URL" ]; then
+            CODE=$(curl -s -o /dev/null -w '%{http_code}' --max-time 20 "$ALRADWAN_API_DEFAULT/admin" || true)
+            if [ "$CODE" = "200" ]; then URL="$ALRADWAN_API_DEFAULT"; echo "Licensing server found at $URL"; fi
+          fi
+          if [ -z "$URL" ]; then echo "::warning::لا خادم ترخيص: هذه نسخة مجانية بلا تفعيل. لبيع البرنامج بأكواد أضف أسرار Cloudflare وشغّل Deploy AlRadwan Garage website أولاً (أو اضبط المتغير ALRADWAN_API)."; else echo "Licensed build against $URL"; fi
+          echo "url=$URL" >> "$GITHUB_OUTPUT"
+
+  web:
+    runs-on: ubuntu-latest
+    needs: api
+    env:
+      ALRADWAN_API: ${{ needs.api.outputs.url }}
+    steps:
+      - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with: { node-version: 22, cache: npm, cache-dependency-path: alradwan/package-lock.json }
       - run: npm ci
@@ -66,7 +86,9 @@ jobs:
         with: { name: alradwan-web, path: alradwan/alradwan-web.zip, if-no-files-found: error }
 
   windows:
-    needs: [version, web]
+    needs: [version, web, api]
+    env:
+      ALRADWAN_API: ${{ needs.api.outputs.url }}
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
@@ -85,7 +107,9 @@ jobs:
           if-no-files-found: error
 
   android:
-    needs: [version, web]
+    needs: [version, web, api]
+    env:
+      ALRADWAN_API: ${{ needs.api.outputs.url }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -97,18 +121,18 @@ jobs:
       - run: npm run build
       - name: Get the signing key
         env:
-          KS_B64: ${{ secrets.ALRADWAN_KEYSTORE_BASE64 }}
+          KS_B64: ${{ secrets.ALRADWAN_KEYSTORE_BASE64 || secrets.ANDROID_KEYSTORE_BASE64 }}
         run: |
           if [ -n "$KS_B64" ]; then echo "$KS_B64" | base64 -d > "$RUNNER_TEMP/upload.keystore"
-          else echo "::warning::No ALRADWAN_KEYSTORE_BASE64 secret: signing with a throwaway key. Updates over an APK signed with a different key need uninstalling first."; fi
+          else echo "::warning::لا مفتاح توقيع دائم (ALRADWAN_KEYSTORE_BASE64): هذا الـ APK موقّع بمفتاح مؤقت ولا يُحدَّث فوق نسخة أقدم إلا بحذفها أولاً (تضيع بياناتها). أضف المفتاح في الأسرار قبل البيع."; fi
       - name: Build the APK
         env:
           ANDROID_KEYSTORE: ${{ runner.temp }}/upload.keystore
-          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ALRADWAN_KEYSTORE_PASSWORD || 'alradwan-pass' }}
-          ANDROID_KEY_ALIAS: ${{ secrets.ALRADWAN_KEY_ALIAS || 'alradwan' }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ALRADWAN_KEYSTORE_PASSWORD || secrets.ANDROID_KEYSTORE_PASSWORD || 'alradwan-pass' }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ALRADWAN_KEY_ALIAS || secrets.ANDROID_KEY_ALIAS || 'alradwan' }}
           VERSION_NAME: ${{ needs.version.outputs.version }}
         run: |
-          export VERSION_CODE=$((GITHUB_RUN_NUMBER + 1))
+          export VERSION_CODE=$(( ($(date +%s) - 1700000000) / 60 ))   # grows with time, same formula as a local build
           ./android/build-apk.sh
       - uses: actions/upload-artifact@v4
         with: { name: alradwan-android, path: alradwan/android/build/AlRadwan-Garage.apk, if-no-files-found: error }

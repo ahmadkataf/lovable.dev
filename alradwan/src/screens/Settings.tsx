@@ -30,6 +30,8 @@ export function SettingsScreen() {
     ? [{ id: 'shop', label: 'المحل' }, { id: 'print', label: 'الفواتير والطباعة' }, { id: 'users', label: 'المستخدمون' }, { id: 'backup', label: 'النسخ الاحتياطي' }, { id: 'sync', label: 'المزامنة بين الأجهزة' }, { id: 'look', label: 'المظهر' }, { id: 'about', label: 'حول' }]
     : [{ id: 'look', label: 'المظهر' }, { id: 'about', label: 'حول' }]
   const [tab, setTab] = useState<Tab>(() => { const t = params.get('tab') as Tab; return items.some(i => i.id === t) ? t : items[0].id })
+  const wanted = params.get('tab')
+  useEffect(() => { if (wanted && items.some(i => i.id === wanted)) setTab(wanted as Tab) }, [wanted]) // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { if (!items.some(i => i.id === tab)) setTab(items[0].id) }, [isAdmin])
   return (
     <div className="stack">

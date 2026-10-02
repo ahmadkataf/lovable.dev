@@ -25,7 +25,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
       {children}
       <div className="toasts" aria-live="polite">
         {items.map(t => (
-          <div key={t.id} className={`toast ${t.kind}`}>
+          <div key={t.id} className={`toast ${t.kind}`} onClick={() => setItems(l => l.filter(x => x.id !== t.id))}>
             {t.kind === 'success' ? <CheckCircle2 /> : t.kind === 'error' ? <AlertCircle /> : <Info />}
             {t.text}
           </div>

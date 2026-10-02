@@ -22,7 +22,7 @@ export function Dashboard() {
     let todaySales = 0, todayProfit = 0, todayCount = 0, monthSales = 0, monthProfit = 0
     for (const x of sales) {
       const sign = x.type === 'return' ? -1 : 1
-      if (x.date >= today) { todaySales += sign * x.total; todayProfit += saleProfit(x); todayCount++ }
+      if (x.date >= today) { todaySales += sign * x.total; todayProfit += saleProfit(x); if (x.type === 'sale') todayCount++ }
       if (x.date >= monthStart) { monthSales += sign * x.total; monthProfit += saleProfit(x) }
     }
     const lines = cashLines(s.sales.values(), s.purchases.values(), s.payments.values(), s.expenses.values(), s.cash.values())
