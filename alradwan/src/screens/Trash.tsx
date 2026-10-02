@@ -10,8 +10,8 @@ import { Empty, Tabs } from '../ui/components'
 import { useConfirm } from '../ui/modal'
 import { useToast } from '../ui/toast'
 
-type TrashKind = 'sales' | 'purchases' | 'products' | 'customers' | 'suppliers' | 'payments' | 'expenses' | 'cash'
-const KINDS: { id: TrashKind; label: string }[] = [{ id: 'sales', label: 'فواتير' }, { id: 'purchases', label: 'مشتريات' }, { id: 'products', label: 'قطع' }, { id: 'customers', label: 'عملاء' }, { id: 'suppliers', label: 'موردون' }, { id: 'payments', label: 'دفعات' }, { id: 'expenses', label: 'مصاريف' }, { id: 'cash', label: 'صندوق' }]
+type TrashKind = 'sales' | 'purchases' | 'products' | 'customers' | 'suppliers' | 'payments' | 'expenses' | 'cash' | 'vehicles'
+const KINDS: { id: TrashKind; label: string }[] = [{ id: 'sales', label: 'فواتير' }, { id: 'purchases', label: 'مشتريات' }, { id: 'products', label: 'قطع' }, { id: 'customers', label: 'عملاء' }, { id: 'suppliers', label: 'موردون' }, { id: 'payments', label: 'دفعات' }, { id: 'expenses', label: 'مصاريف' }, { id: 'cash', label: 'صندوق' }, { id: 'vehicles', label: 'سيارات' }]
 
 /** Nothing deleted is really gone: every record is kept and can be brought back by the owner. */
 export function Trash() {
@@ -31,6 +31,7 @@ export function Trash() {
   const describe = (r: Base): { title: string; sub: string } => {
     switch (kind) {
       case 'sales': { const s = r as Sale; return { title: `${s.type === 'return' ? 'مرتجع' : s.type === 'quote' ? 'عرض سعر' : 'فاتورة'} ${invoiceNo(s.number)} — ${s.customerName}`, sub: `${money(s.total)} · ${s.items.length} صنف · ${fmtDateTime(s.date)}` } }
+      case 'vehicles': { const v = r as { make?: string; model?: string; plate?: string }; return { title: `سيارة ${[v.make, v.model, v.plate].filter(Boolean).join(' ')}`, sub: '' } }
       case 'purchases': { const p = r as Purchase; return { title: `شراء ${invoiceNo(p.number)} — ${p.supplierName}`, sub: `${money(p.total)} · ${fmtDateTime(p.date)}` } }
       case 'products': { const p = r as Product; return { title: p.name, sub: `${p.code} · بيع ${money(p.price)}` } }
       case 'customers': { const c = r as Customer; return { title: c.name, sub: c.phone ?? '' } }

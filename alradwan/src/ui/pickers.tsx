@@ -27,7 +27,7 @@ export function ProductSearch({ onPick, placeholder, autoFocus, showStock = true
   const enter = () => {
     const nq = norm(q)
     if (!nq) return
-    const exact = Array.from(products.values()).find(p => norm(p.barcode) === nq || norm(p.code) === nq || splitOem(p.oemNumbers).some(o => norm(o) === nq))
+    const exact = Array.from(products.values()).find(p => splitOem(p.barcode).some(b => norm(b) === nq) || norm(p.code) === nq || splitOem(p.oemNumbers).some(o => norm(o) === nq))
     if (exact) { pick(exact); return }
     if (list[idx]) pick(list[idx])
   }
@@ -53,7 +53,7 @@ export function ProductSearch({ onPick, placeholder, autoFocus, showStock = true
           })}
         </div>
       )}
-      {scan && <BarcodeScanner onClose={() => setScan(false)} onCode={code => { setScan(false); const nq = norm(code); const p = Array.from(products.values()).find(x => norm(x.barcode) === nq || norm(x.code) === nq); if (p) pick(p); else { setQ(code); setOpen(true) } }} />}
+      {scan && <BarcodeScanner onClose={() => setScan(false)} onCode={code => { setScan(false); const nq = norm(code); const p = Array.from(products.values()).find(x => splitOem(x.barcode).some(b => norm(b) === nq) || norm(x.code) === nq); if (p) pick(p); else { setQ(code); setOpen(true) } }} />}
     </div>
   )
 }

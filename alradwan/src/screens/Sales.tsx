@@ -3,7 +3,8 @@ import { useNavigate, useSearchParams } from 'react-router-dom'
 import { Printer, Pencil, Trash2, Undo2, MessageCircle, FileSpreadsheet, Eye, ArrowRightLeft } from 'lucide-react'
 import { useCollection, useSettings, useIsAdmin, usePerm } from '../db/store'
 import type { Sale } from '../db/types'
-import { convertQuote, deleteSale, saveSale } from '../db/actions'
+import { convertQuote, deleteSale, saveSale, setJobStatus, JOB_STATUS_LABEL } from '../db/actions'
+import { vehicleLabel } from '../ui/vehicles'
 import { payStatus, saleDue } from '../lib/calc'
 import { addDays, fmtDate, fmtDateTime, invoiceNo, matches, money, num, toInputDate, rangeStart, rangeEnd } from '../lib/format'
 import { DateRange, Empty, Field, NumberInput, PayBadge, SearchInput, Tabs } from '../ui/components'
@@ -23,7 +24,7 @@ export function Sales() {
   const [params, setParams] = useSearchParams()
   const openId = params.get('open')
   const [q, setQ] = useState('')
-  const [tab, setTab] = useState<'all' | 'unpaid' | 'returns' | 'quotes'>('all')
+  const [tab, setTab] = useState<'all' | 'unpaid' | 'returns' | 'quotes' | 'jobs'>('all')
   const [conv, setConv] = useState<Sale | null>(null)
   const [from, setFrom] = useState(toInputDate(addDays(Date.now(), -30)))
   const [to, setTo] = useState(toInputDate(Date.now()))
@@ -33,12 +34,13 @@ export function Sales() {
   const list = useMemo(() => {
     const f = rangeStart(from); const t = rangeEnd(to)
     return Array.from(sales.values()).filter(s => s.date >= f && s.date <= t)
-      .filter(s => tab === 'quotes' ? s.type === 'quote' : s.type === 'quote' ? false : tab === 'all' ? true : tab === 'returns' ? s.type === 'return' : s.type === 'sale' && saleDue(s) > 0)
+      .filter(s => tab === 'jobs' ? s.type === 'quote' && !!s.job : tab === 'quotes' ? s.type === 'quote' && !s.job : s.type === 'quote' ? false : tab === 'all' ? true : tab === 'returns' ? s.type === 'return' : s.type === 'sale' && saleDue(s) > 0)
       .filter(s => matches(q, s.customerName, String(s.number), s.notes, ...s.items.map(i => i.name)))
       .sort((a, b) => b.date - a.date)
   }, [sales, q, tab, from, to])
   const totals = useMemo(() => list.reduce((t, s) => { const k = s.type === 'return' ? -1 : 1; t.total += k * s.total; t.paid += k * s.paid; return t }, { total: 0, paid: 0 }), [list])
   const open = openId ? sales.get(openId) : undefined
+  const openJobs = useMemo(() => Array.from(sales.values()).filter(s => s.type === 'quote' && s.job && !s.convertedTo).length, [sales])
 
   const del = async (s: Sale) => {
     if (await confirm({ title: `حذف الفاتورة ${invoiceNo(s.number)}؟`, text: 'ستعود كميات القطع إلى المخزون ويُلغى أثرها على الصندوق وحساب العميل.', danger: true, okText: 'حذف' })) { try { await deleteSale(s.id); toast.success('تم حذف الفاتورة'); setParams({}) } catch (e) { toast.error((e as Error).message) } }
@@ -52,14 +54,14 @@ export function Sales() {
         <DateRange from={from} to={to} onChange={(a, b) => { setFrom(a); setTo(b) }} />
         <button className="btn" onClick={exportExcel} title="تصدير إلى إكسل"><FileSpreadsheet /> <span className="hide-mobile">إكسل</span></button>
       </div>
-      <Tabs value={tab} onChange={setTab} items={[{ id: 'all', label: 'كل الفواتير' }, { id: 'unpaid', label: 'غير المسددة' }, { id: 'returns', label: 'المرتجعات' }, { id: 'quotes', label: 'عروض الأسعار' }]} />
+      <Tabs value={tab} onChange={setTab} items={[{ id: 'all', label: 'كل الفواتير' }, { id: 'unpaid', label: 'غير المسددة' }, { id: 'returns', label: 'المرتجعات' }, { id: 'quotes', label: 'عروض الأسعار' }, { id: 'jobs', label: `أوامر العمل${openJobs ? ` (${openJobs})` : ''}` }]} />
       <div className="card">
         {list.length === 0 ? <Empty title={tab === 'quotes' ? 'لا عروض أسعار في هذه الفترة' : 'لا فواتير في هذه الفترة'} text={tab === 'quotes' ? 'من شاشة البيع، فعّل «عرض سعر» لتحفظ عرضاً يُطبع للزبون دون أن يمس المخزون' : undefined} /> : (
           <div className="table-wrap"><table className="table">
             <thead><tr><th>الرقم</th><th>التاريخ</th><th>العميل</th><th className="hide-mobile">الأصناف</th><th className="num">الإجمالي</th><th className="num hide-mobile">المتبقي</th><th>الحالة</th><th className="actions"></th></tr></thead>
             <tbody>{list.map(s => (
               <tr key={s.id} className="click" onClick={() => setParams({ open: s.id })}>
-                <td className="bold">{invoiceNo(s.number)}{s.type === 'return' && <span className="badge tone-danger" style={{ marginInlineStart: 6 }}>مرتجع</span>}{s.type === 'quote' && <span className={`badge ${s.convertedTo ? 'tone-success' : 'tone-info'}`} style={{ marginInlineStart: 6 }}>{s.convertedTo ? 'تحوّل لفاتورة' : 'عرض سعر'}</span>}</td>
+                <td className="bold">{invoiceNo(s.number)}{s.type === 'return' && <span className="badge tone-danger" style={{ marginInlineStart: 6 }}>مرتجع</span>}{s.type === 'quote' && <span className={`badge ${s.convertedTo ? 'tone-success' : s.job ? (s.jobStatus === 'ready' ? 'tone-warning' : 'tone-accent') : 'tone-info'}`} style={{ marginInlineStart: 6 }}>{s.convertedTo ? (s.job ? 'أمر عمل مغلق' : 'تحوّل لفاتورة') : s.job ? `أمر عمل · ${JOB_STATUS_LABEL[s.jobStatus ?? 'open']}` : 'عرض سعر'}</span>}</td>
                 <td className="muted small">{fmtDate(s.date)}</td>
                 <td>{s.customerName}</td>
                 <td className="hide-mobile muted small" style={{ maxWidth: 260, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{s.items.map(i => `${i.name} ×${num(i.qty, 2)}`).join('، ')}</td>
@@ -78,12 +80,13 @@ export function Sales() {
       </div>
 
       {open && (
-        <Modal title={`${open.type === 'return' ? 'مرتجع' : open.type === 'quote' ? 'عرض سعر' : 'فاتورة'} ${invoiceNo(open.number)}`} onClose={() => setParams({})} size="wide" footer={<>
+        <Modal title={`${open.type === 'return' ? 'مرتجع' : open.type === 'quote' ? (open.job ? 'أمر عمل' : 'عرض سعر') : 'فاتورة'} ${invoiceNo(open.number)}`} onClose={() => setParams({})} size="wide" footer={<>
           <button className="btn primary" onClick={() => printDocument({ type: 'invoice', sale: open })}><Printer /> طباعة</button>
           <a className="btn" href={whatsappLink(open, open.customerId ? customers.get(open.customerId)?.phone : undefined, settings.shopName, settings.currency)} target="_blank" rel="noreferrer"><MessageCircle /> واتساب</a>
           {open.type === 'sale' && canReturn && <button className="btn" onClick={() => setRet(open)}><Undo2 /> مرتجع</button>}
           {(open.type === 'sale' || (open.type === 'quote' && !open.convertedTo)) && canEdit && <button className="btn" onClick={() => nav(`/pos?edit=${open.id}`)}><Pencil /> تعديل</button>}
-          {open.type === 'quote' && !open.convertedTo && canSell && <button className="btn success" onClick={() => setConv(open)}><ArrowRightLeft /> تحويل إلى فاتورة</button>}
+          {open.type === 'quote' && !open.convertedTo && canSell && <button className="btn success" onClick={() => setConv(open)}><ArrowRightLeft /> {open.job ? 'إغلاق كفاتورة' : 'تحويل إلى فاتورة'}</button>}
+          {open.type === 'quote' && open.job && !open.convertedTo && <select className="select" style={{ width: 'auto' }} value={open.jobStatus ?? 'open'} onChange={e => setJobStatus(open, e.target.value as 'open')}>{(['open', 'working', 'ready'] as const).map(st => <option key={st} value={st}>{JOB_STATUS_LABEL[st]}</option>)}</select>}
           {open.type === 'quote' && open.convertedTo && <button className="btn" onClick={() => setParams({ open: open.convertedTo! })}>عرض الفاتورة</button>}
           {isAdmin && <><span className="grow" /><button className="btn danger" onClick={() => del(open)}><Trash2 /> حذف</button></>}
         </>}>
@@ -98,6 +101,8 @@ export function Sales() {
 
 export function SaleDetails({ sale }: { sale: Sale }) {
   const sales = useCollection('sales')
+  const vehicles = useCollection('vehicles')
+  const vehicle = sale.vehicleId ? vehicles.get(sale.vehicleId) : undefined
   const orig = sale.returnOf ? sales.get(sale.returnOf) : undefined
   return (
     <div className="stack">
@@ -105,6 +110,8 @@ export function SaleDetails({ sale }: { sale: Sale }) {
         <dt>التاريخ</dt><dd>{fmtDateTime(sale.date)}</dd>
         <dt>العميل</dt><dd>{sale.customerName}</dd>
         {orig && <><dt>مرتجع من</dt><dd>فاتورة {invoiceNo(orig.number)}</dd></>}
+        {vehicle && <><dt>السيارة</dt><dd>{vehicleLabel(vehicle)}{sale.odometer ? ` · العداد ${num(sale.odometer)} كم` : ''}</dd></>}
+        {(sale.nextServiceKm || sale.nextServiceDate) && <><dt>الصيانة القادمة</dt><dd>{sale.nextServiceKm ? `عند ${num(sale.nextServiceKm)} كم` : ''}{sale.nextServiceKm && sale.nextServiceDate ? ' أو ' : ''}{sale.nextServiceDate ? fmtDate(sale.nextServiceDate) : ''}</dd></>}
         {sale.type === 'quote' && sale.validUntil && <><dt>صالح حتى</dt><dd>{fmtDate(sale.validUntil)}</dd></>}
         {sale.discountPct ? <><dt>نسبة الخصم</dt><dd>{num(sale.discountPct, 2)}%</dd></> : null}
         {sale.notes && <><dt>ملاحظات</dt><dd>{sale.notes}</dd></>}

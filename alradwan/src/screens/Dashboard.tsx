@@ -1,11 +1,12 @@
 import { useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { ShoppingCart, TrendingUp, Wallet, AlertTriangle, Users, Package, Receipt, ArrowLeft, Truck, PlusCircle, Database, Clock } from 'lucide-react'
+import { ShoppingCart, TrendingUp, Wallet, AlertTriangle, Users, Package, Receipt, ArrowLeft, Truck, PlusCircle, Database, Clock, Car, MessageCircle } from 'lucide-react'
+import { serviceDue, vehicleLabel } from '../ui/vehicles'
 import { daysSinceBackup } from '../lib/backup'
 import { isDesktop } from '../lib/platform'
 import { useCanSeeCost, useIsAdmin, useStore } from '../db/store'
 import { cashLines, customerBalance, saleProfit, stockMap, sumBetween } from '../lib/calc'
-import { addDays, fmtTime, invoiceNo, money, startOfDay, startOfMonth, WEEKDAYS } from '../lib/format'
+import { addDays, fmtDate, fmtTime, invoiceNo, money, startOfDay, startOfMonth, WEEKDAYS } from '../lib/format'
 import { Bars, Empty, Price, Stat } from '../ui/components'
 
 export function Dashboard() {
@@ -36,7 +37,9 @@ export function Dashboard() {
     const week = Array.from({ length: 7 }, (_, i) => { const day = startOfDay(addDays(Date.now(), i - 6)); return { day, label: WEEKDAYS[new Date(day).getDay()], value: 0 } })
     for (const x of sales) { const idx = week.findIndex(w => x.date >= w.day && x.date < w.day + 86400000); if (idx >= 0) week[idx].value += (x.type === 'return' ? -1 : 1) * x.total }
     const recent = sales.sort((a, b) => b.date - a.date).slice(0, 6)
-    return { todaySales, todayProfit, todayCount, monthSales, monthProfit, cashBalance, todayCash, low, receivables, overdue, week, recent, stockValue: Array.from(s.products.values()).reduce((t, p) => t + (stock.get(p.id) ?? 0) * p.cost, 0), stock }
+    // cars whose service is due: a reminder the shop can send with one tap
+    const reminders = Array.from(s.vehicles.values()).map(v => ({ v, c: s.customers.get(v.customerId), ...serviceDue(v) })).filter(r => r.due && r.c).sort((a, b) => (a.v.nextServiceDate ?? Infinity) - (b.v.nextServiceDate ?? Infinity)).slice(0, 8)
+    return { reminders, todaySales, todayProfit, todayCount, monthSales, monthProfit, cashBalance, todayCash, low, receivables, overdue, week, recent, stockValue: Array.from(s.products.values()).reduce((t, p) => t + (stock.get(p.id) ?? 0) * p.cost, 0), stock }
   }, [s.version])
 
   return (
@@ -79,6 +82,20 @@ export function Dashboard() {
           )}
         </div>
       </div>
+      {d.reminders.length > 0 && (
+        <div className="card pad">
+          <div className="card-title"><h2><Car size={18} style={{ verticalAlign: -3, color: 'var(--info)' }} /> سيارات حان موعد صيانتها</h2><span className="muted small">{d.reminders.length} سيارة</span></div>
+          <div className="list">
+            {d.reminders.map(r => (
+              <div key={r.v.id} className="list-item" style={{ padding: '8px 4px' }}>
+                <div className="grow"><div className="title">{r.c!.name} — {vehicleLabel(r.v)}</div><div className="sub">{r.why}</div></div>
+                {r.c!.phone && <a className="btn sm success" href={`https://wa.me/${r.c!.phone.replace(/\D/g, '').replace(/^0/, '963')}?text=${encodeURIComponent(`مرحباً ${r.c!.name}، نذكّركم بأن موعد صيانة سيارتكم ${vehicleLabel(r.v)} قد حان${r.v.nextServiceDate ? ` (${fmtDate(r.v.nextServiceDate)})` : ''}${r.v.nextServiceKm ? ` عند ${r.v.nextServiceKm} كم` : ''}. نسعد بخدمتكم في ${s.cfg.shopName}.`)}`} target="_blank" rel="noreferrer"><MessageCircle /> تذكير</a>}
+                <button className="btn sm ghost" onClick={() => nav(`/customers/${r.c!.id}`)}>فتح</button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
       <div className="card pad">
         <div className="card-title"><h2><Receipt size={18} style={{ verticalAlign: -3 }} /> آخر الفواتير</h2><button className="btn sm ghost" onClick={() => nav('/sales')}>الكل <ArrowLeft size={14} /></button></div>
         {d.recent.length === 0 ? <Empty title="لا فواتير بعد" text="ابدأ أول عملية بيع من زر «بيع جديد»" /> : (

@@ -151,7 +151,7 @@ export function ProductForm({ initial, currentStock, onClose, onSaved }: { initi
         </Field>
         <Field label="الاسم" required className="full"><input className="input lg" value={f.name} onChange={e => set('name', e.target.value)} autoFocus placeholder="مثال: فلتر زيت" /></Field>
         <Field label="الكود / رقم القطعة" help="يُولَّد تلقائياً إن تركته"><input className="input" value={f.code} onChange={e => set('code', e.target.value)} dir="ltr" style={{ textAlign: 'right' }} /></Field>
-        <Field label="الباركود" help="امسحه بالقارئ وهو في هذا الحقل"><input className="input" value={f.barcode} onChange={e => set('barcode', e.target.value)} dir="ltr" style={{ textAlign: 'right' }} inputMode="numeric" /></Field>
+        <Field label="الباركود" help="امسحه بالقارئ وهو في هذا الحقل؛ عدة باركودات تُفصل بفاصلة"><input className="input" value={f.barcode} onChange={e => set('barcode', e.target.value)} dir="ltr" style={{ textAlign: 'right' }} inputMode="numeric" /></Field>
         <Field label="التصنيف">
           <select className="select" value={f.categoryId ?? ''} onChange={e => { set('categoryId', e.target.value || undefined); setNewCat('') }}>
             <option value="">بدون تصنيف</option>

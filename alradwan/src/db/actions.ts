@@ -1,5 +1,5 @@
 import { auditEntry, putMany, remove, useStore } from './store'
-import type { Base, CashEntry, Expense, JournalEntry, Payment, Product, Purchase, Sale, StockMovement } from './types'
+import type { Base, CashEntry, Expense, JournalEntry, Payment, Product, Purchase, Sale, StockMovement, Vehicle } from './types'
 import { newId } from '../lib/id'
 import { saleTotals, stockMap } from '../lib/calc'
 import { invoiceNo, money } from '../lib/format'
@@ -42,8 +42,13 @@ export async function saveSale(input: SaleInput): Promise<Sale> {
   if (input.type !== 'quote' && input.paid < total - 0.004 && !input.customerId) throw new Error('فاتورة آجلة بلا عميل: اختر العميل حتى يُسجَّل الدين عليه')
   // an edit keeps the day's exchange rate and the cashier who issued the invoice; the activity log records the editor
   const sale: Sale = { ...input, id, number: input.number ?? nextNumber('sales'), subtotal, total, paid: input.type === 'quote' ? 0 : r2(Math.min(Math.max(0, input.paid), total)), userId: existing?.userId ?? userId(), rate: input.rate ?? existing?.rate ?? (cfg.rate || undefined), currency: input.currency ?? existing?.currency ?? cfg.currency, updatedAt: 0 }
-  const entries: { collection: 'sales' | 'movements' | 'audit'; record: Base }[] = [{ collection: 'sales', record: sale }]
+  const entries: { collection: 'sales' | 'movements' | 'audit' | 'vehicles'; record: Base }[] = [{ collection: 'sales', record: sale }]
   const existed = !!existing
+  // a real invoice on a car writes the odometer and the next-service reminder onto the car's record
+  if (sale.type === 'sale' && sale.vehicleId) {
+    const v = useStore.getState().vehicles.get(sale.vehicleId)
+    if (v) entries.push({ collection: 'vehicles', record: { ...v, odometer: sale.odometer ?? v.odometer, nextServiceKm: sale.nextServiceKm ?? v.nextServiceKm, nextServiceDate: sale.nextServiceDate ?? v.nextServiceDate } as Vehicle })
+  }
   entries.push({ collection: 'audit', record: auditEntry(existed ? 'update' : 'create', `${sale.type === 'return' ? 'مرتجع' : sale.type === 'quote' ? 'عرض سعر' : 'فاتورة'} ${invoiceNo(sale.number)} — ${sale.customerName} — ${money(sale.total, { display: 'base' })}`, 'sales', id) })
   // movements carry ids derived from the invoice line, so two devices editing the same invoice replace, never duplicate
   const keep = new Set<string>()
@@ -61,11 +66,22 @@ export async function saveSale(input: SaleInput): Promise<Sale> {
 
 /** Turns a quotation into a real invoice (stock and cash move now); the quotation is kept and marked. */
 export async function convertQuote(quote: Sale, paid: number): Promise<Sale> {
-  const sale = await saveSale({ type: 'sale', date: Date.now(), customerId: quote.customerId, customerName: quote.customerName, items: quote.items.map(i => ({ ...i })), discount: quote.discount, discountPct: quote.discountPct, paid, notes: quote.notes ? `${quote.notes} (من عرض السعر ${invoiceNo(quote.number)})` : `من عرض السعر ${invoiceNo(quote.number)}` })
-  const marked: Sale = { ...quote, convertedTo: sale.id }
+  const sale = await saveSale({ type: 'sale', date: Date.now(), customerId: quote.customerId, customerName: quote.customerName, items: quote.items.map(i => ({ ...i })), discount: quote.discount, discountPct: quote.discountPct, paid, vehicleId: quote.vehicleId, odometer: quote.odometer, nextServiceKm: quote.nextServiceKm, nextServiceDate: quote.nextServiceDate, notes: quote.notes ? `${quote.notes} (من عرض السعر ${invoiceNo(quote.number)})` : `من عرض السعر ${invoiceNo(quote.number)}` })
+  const marked: Sale = { ...quote, convertedTo: sale.id, jobStatus: quote.job ? 'done' : quote.jobStatus }
   await putMany([{ collection: 'sales', record: marked }, { collection: 'audit', record: auditEntry('update', `تحويل عرض السعر ${invoiceNo(quote.number)} إلى الفاتورة ${invoiceNo(sale.number)}`, 'sales', quote.id) }])
   return sale
 }
+
+export async function saveVehicle(input: Omit<Vehicle, 'id' | 'updatedAt' | 'createdAt'> & { id?: string; createdAt?: number }): Promise<Vehicle> {
+  const rec = { ...input, id: input.id ?? newId(), updatedAt: 0, createdAt: input.createdAt ?? Date.now() } as Vehicle
+  const label = [rec.make, rec.model, rec.plate].filter(Boolean).join(' ')
+  await putMany([{ collection: 'vehicles', record: rec }, { collection: 'audit', record: auditEntry(input.id ? 'update' : 'create', `${input.id ? 'تعديل' : 'إضافة'} سيارة ${label}`, 'vehicles', rec.id) }])
+  return rec
+}
+export async function setJobStatus(sale: Sale, status: NonNullable<Sale['jobStatus']>): Promise<void> {
+  await putMany([{ collection: 'sales', record: { ...sale, jobStatus: status } as Sale }, { collection: 'audit', record: auditEntry('update', `أمر العمل ${invoiceNo(sale.number)}: ${JOB_STATUS_LABEL[status]}`, 'sales', sale.id) }])
+}
+export const JOB_STATUS_LABEL: Record<NonNullable<Sale['jobStatus']>, string> = { open: 'مفتوح', working: 'قيد العمل', ready: 'جاهز للتسليم', done: 'مغلق' }
 
 export async function saveJournal(entry: Omit<JournalEntry, 'id' | 'updatedAt' | 'userId'> & { id?: string }): Promise<JournalEntry> {
   const rec = { ...entry, id: entry.id ?? newId(), updatedAt: 0, userId: userId() } as JournalEntry

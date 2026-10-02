@@ -15,11 +15,13 @@ import { ProductSearch, PartyPicker, useProductStock } from '../ui/pickers'
 import { carLabel, productsForCar } from '../ui/cars'
 import { Car, X } from 'lucide-react'
 import { CustomerForm, ProductForm } from '../ui/forms'
+import { VehiclePicker } from '../ui/vehicles'
+import type { Vehicle } from '../db/types'
 import { printDocument } from '../print/PrintHost'
 
 // The invoice being typed lives outside the screen: the screen is remounted when the dollar rate changes
 // (so every price refreshes) and unmounted when the cashier glances at another screen, and the cart must survive both.
-interface Draft { items: InvoiceItem[]; customerId?: string; customerName: string; discount: number; discMode: 'amount' | 'pct'; discPct: number; quote: boolean; paid: number | null; notes: string; wholesale: boolean }
+interface Draft { items: InvoiceItem[]; customerId?: string; customerName: string; discount: number; discMode: 'amount' | 'pct'; discPct: number; quote: boolean; job: boolean; paid: number | null; notes: string; wholesale: boolean; vehicleId?: string; odometer: number; nextKm: number; nextDays: number }
 const draftStore = create<{ d: Draft | null }>(() => ({ d: null }))
 
 export function POS() {
@@ -45,11 +47,16 @@ export function POS() {
   const [discMode, setDiscMode] = useState<'amount' | 'pct'>(draft?.discMode ?? 'amount')
   const [discPct, setDiscPct] = useState(draft?.discPct ?? 0)
   const [quote, setQuote] = useState(draft?.quote ?? false)   // عرض سعر: يُحفظ ويُطبع لكن لا يمس المخزون ولا الصندوق
+  const [job, setJob] = useState(draft?.job ?? false)         // أمر عمل: عرض سعر مفتوح يُغلق لاحقاً كفاتورة
+  const [vehicleId, setVehicleId] = useState<string | undefined>(draft?.vehicleId)
+  const [odometer, setOdometer] = useState(draft?.odometer ?? 0)
+  const [nextKm, setNextKm] = useState(draft?.nextKm ?? 0)
+  const [nextDays, setNextDays] = useState(draft?.nextDays ?? 0)
   const [paid, setPaid] = useState<number | null>(draft?.paid ?? null) // null = the whole amount
   const [date, setDate] = useState(toInputDate(Date.now()))
   const [notes, setNotes] = useState(draft?.notes ?? '')
   const [wholesale, setWholesale] = useState(draft?.wholesale ?? false)
-  useEffect(() => { if (!editId) draftStore.setState({ d: items.length || customerId ? { items, customerId, customerName, discount, discMode, discPct, quote, paid, notes, wholesale } : null }) }, [items, customerId, customerName, discount, discMode, discPct, quote, paid, notes, wholesale, editId])
+  useEffect(() => { if (!editId) draftStore.setState({ d: items.length || customerId ? { items, customerId, customerName, discount, discMode, discPct, quote, job, paid, notes, wholesale, vehicleId, odometer, nextKm, nextDays } : null }) }, [items, customerId, customerName, discount, discMode, discPct, quote, job, paid, notes, wholesale, vehicleId, odometer, nextKm, nextDays, editId])
   const [cat, setCat] = useState('all')
   const [q, setQ] = useState('')
   const [addCustomer, setAddCustomer] = useState(false)
@@ -85,7 +92,7 @@ export function POS() {
     const s = sales.get(editId)
     if (!s) return
     if (!canEditInv) { toast.error('ليس لديك صلاحية تعديل الفواتير'); setParams({}); return }
-    setItems(s.items.map(i => ({ ...i }))); setCustomerId(s.customerId); setCustomerName(s.customerName); setDiscount(s.discount); setPaid(s.paid); setDate(toInputDate(s.date)); setNotes(s.notes ?? ''); setQuote(s.type === 'quote')
+    setItems(s.items.map(i => ({ ...i }))); setCustomerId(s.customerId); setCustomerName(s.customerName); setDiscount(s.discount); setPaid(s.paid); setDate(toInputDate(s.date)); setNotes(s.notes ?? ''); setQuote(s.type === 'quote'); setJob(!!s.job); setVehicleId(s.vehicleId); setOdometer(s.odometer ?? 0); setNextKm(s.nextServiceKm && s.odometer ? s.nextServiceKm - s.odometer : 0); setNextDays(0)
     if (s.discountPct) { setDiscMode('pct'); setDiscPct(s.discountPct) } else setDiscMode('amount')
   }, [editId])
 
@@ -113,7 +120,7 @@ export function POS() {
   const update = (i: number, patch: Partial<InvoiceItem>) => setItems(list => list.map((x, k) => (k === i ? { ...x, ...patch } : x)))
   const removeAt = (i: number) => setItems(list => list.filter((_, k) => k !== i))
 
-  const reset = () => { draftStore.setState({ d: null }); setItems([]); setCustomerId(undefined); setCustomerName('زبون نقدي'); setDiscount(0); setDiscMode('amount'); setDiscPct(0); setQuote(false); setPaid(null); setDate(toInputDate(Date.now())); setNotes(''); setDone(null); if (editId) setParams({}) }
+  const reset = () => { draftStore.setState({ d: null }); setItems([]); setCustomerId(undefined); setCustomerName('زبون نقدي'); setDiscount(0); setDiscMode('amount'); setDiscPct(0); setQuote(false); setJob(false); setVehicleId(undefined); setOdometer(0); setNextKm(0); setNextDays(0); setPaid(null); setDate(toInputDate(Date.now())); setNotes(''); setDone(null); if (editId) setParams({}) }
 
   const save = async (andPrint: boolean) => {
     if (items.length === 0) { toast.error('أضف قطعة واحدة على الأقل'); return }
@@ -124,7 +131,8 @@ export function POS() {
     setBusy(true)
     try {
       const old = editId ? sales.get(editId) : undefined
-      const sale = await saveSale({ id: old?.id, number: old?.number, type: quote ? 'quote' : 'sale', date: old && toInputDate(old.date) === date ? old.date : fromInputDate(date), customerId, customerName, items, discount, discountPct: discMode === 'pct' ? discPct : undefined, paid: quote ? 0 : paidValue, notes, returnOf: old?.returnOf, validUntil: quote ? fromInputDate(date) + 7 * 86400000 : undefined })
+      const when = old && toInputDate(old.date) === date ? old.date : fromInputDate(date)
+      const sale = await saveSale({ id: old?.id, number: old?.number, type: quote ? 'quote' : 'sale', date: when, customerId, customerName, items, discount, discountPct: discMode === 'pct' ? discPct : undefined, paid: quote ? 0 : paidValue, notes, returnOf: old?.returnOf, validUntil: quote && !job ? when + 7 * 86400000 : undefined, job: quote && job ? true : undefined, jobStatus: quote && job ? (old?.jobStatus ?? 'open') : undefined, vehicleId, odometer: odometer || undefined, nextServiceKm: nextKm && odometer ? odometer + nextKm : undefined, nextServiceDate: nextDays ? when + nextDays * 86400000 : undefined })
       if (andPrint) printDocument({ type: 'invoice', sale })
       setDone(sale)
     } catch (e) { toast.error('تعذّر الحفظ: ' + (e as Error).message) } finally { setBusy(false) }
@@ -180,10 +188,11 @@ export function POS() {
 
       <div className={`cart card pad ${showCart ? '' : 'hide-mobile'}`} style={showCart ? { position: 'fixed', inset: 0, zIndex: 45, overflowY: 'auto', borderRadius: 0 } : undefined}>
         <div className="card-title">
-          <h2><ShoppingCart size={18} style={{ verticalAlign: -3 }} /> {quote ? 'عرض سعر' : 'الفاتورة'} {editId ? '' : `رقم ${invoiceNo(nextNo)}`}</h2>
+          <h2><ShoppingCart size={18} style={{ verticalAlign: -3 }} /> {quote ? (job ? 'أمر عمل' : 'عرض سعر') : 'الفاتورة'} {editId ? '' : `رقم ${invoiceNo(nextNo)}`}</h2>
           <div className="row">
             <label className="checkbox small" title="استخدام سعر الجملة"><input type="checkbox" checked={wholesale} onChange={e => setWholesale(e.target.checked)} /> جملة</label>
-            {canQuote && <label className="checkbox small" title="عرض سعر يُطبع للزبون ولا يُنقص المخزون ولا يُسجَّل في الصندوق"><input type="checkbox" checked={quote} onChange={e => setQuote(e.target.checked)} /> عرض سعر</label>}
+            {canQuote && <label className="checkbox small" title="عرض سعر يُطبع للزبون ولا يُنقص المخزون ولا يُسجَّل في الصندوق"><input type="checkbox" checked={quote && !job} onChange={e => { setQuote(e.target.checked); setJob(false) }} /> عرض سعر</label>}
+            {canQuote && <label className="checkbox small" title="أمر عمل للسيارة: يبقى مفتوحاً تُضاف إليه القطع والأجور، ثم يُغلق كفاتورة"><input type="checkbox" checked={quote && job} onChange={e => { setQuote(e.target.checked); setJob(e.target.checked) }} /> أمر عمل</label>}
             {items.length > 0 && <button className="btn sm ghost" onClick={async () => { if (await confirm({ title: 'إفراغ الفاتورة؟', text: 'ستُحذف كل الأسطر من السلة.', danger: true, okText: 'إفراغ' })) setItems([]) }} title="إفراغ" aria-label="إفراغ السلة"><Trash2 /></button>}
             {showCart && <button className="btn sm" onClick={() => setShowCart(false)}>رجوع</button>}
           </div>
@@ -192,6 +201,8 @@ export function POS() {
           <PartyPicker type="customer" value={customerId} onChange={(id, name) => { setCustomerId(id); setCustomerName(name) }} onAddNew={canAddCustomer ? () => setAddCustomer(true) : undefined} />
           {customer?.car && <div className="help">السيارة: {customer.car}</div>}
         </Field>
+        {customerId && <Field label="السيارة"><VehiclePicker customerId={customerId} value={vehicleId} onChange={(v?: Vehicle) => { setVehicleId(v?.id); if (v?.odometer && !odometer) setOdometer(v.odometer) }} /></Field>}
+        {vehicleId && <div className="stack" style={{ gap: 6 }}><Field label="العداد الحالي (كم)"><NumberInput value={odometer} onChange={setOdometer} suffix="كم" /></Field><Field label="تذكير الصيانة القادمة بعد" help="بالكيلومترات أو بالأيام؛ اتركه فارغاً بلا تذكير"><div className="grid cols-2 keep2" style={{ gap: 8 }}><NumberInput value={nextKm} onChange={setNextKm} suffix="كم" /><NumberInput value={nextDays} onChange={setNextDays} suffix="يوم" /></div></Field></div>}
         <div className="items mt">
           {items.length === 0 && <div className="muted" style={{ textAlign: 'center', padding: 20 }}>اختر القطع من القائمة أو امسح الباركود</div>}
           {items.map((it, i) => (
@@ -222,7 +233,7 @@ export function POS() {
             <div style={{ width: 130 }}>{discMode === 'pct' ? <NumberInput value={discPct} onChange={v => setDiscPct(Math.min(100, Math.max(0, v)))} suffix="%" /> : <NumberInput value={discount} onChange={setDiscount} suffix={settings.currency} />}</div></div>
           <div className="line grand"><span>الإجمالي</span><span>{money(total, { display: 'base' })}</span></div>
           {settings.rate > 0 && <div className="line" style={{ marginTop: -6 }}><span className="muted small">بسعر {settings.rate.toLocaleString('en-US')}</span><span className="muted">{equiv(total)}</span></div>}
-          {quote && <div className="card pad tone-info small" style={{ padding: '8px 12px' }}>عرض سعر: يُحفظ ويُطبع ويُرسل للزبون، ولا يؤثر على المخزون أو الصندوق أو حساب العميل. يمكن تحويله إلى فاتورة لاحقاً من «فواتير المبيعات».</div>}
+          {quote && <div className="card pad tone-info small" style={{ padding: '8px 12px' }}>{job ? 'أمر عمل: يُحفظ مفتوحاً ويمكن تعديله مع تقدم العمل، ولا يمس المخزون أو الصندوق حتى يُغلق كفاتورة من «فواتير المبيعات» ← «أوامر العمل».' : 'عرض سعر: يُحفظ ويُطبع ويُرسل للزبون، ولا يؤثر على المخزون أو الصندوق أو حساب العميل. يمكن تحويله إلى فاتورة لاحقاً من «فواتير المبيعات».'}</div>}
           {!quote && <div className="line"><span className="muted">المدفوع الآن</span><div style={{ width: 150 }}><NumberInput value={paidValue} onChange={v => setPaid(v)} suffix={settings.currency} /></div></div>}
           {!quote && settings.rate > 0 && <div className="line"><span className="muted small">أو دفع بـ{CURRENCY_SYMBOL[otherCurrency(settings.baseCurrency)]}</span><div style={{ width: 150 }}><NumberInput value={Math.round(convert(paidValue, settings.baseCurrency, otherCurrency(settings.baseCurrency), settings.rate) * 100) / 100} onChange={v => setPaid(Math.round(convert(v, otherCurrency(settings.baseCurrency), settings.baseCurrency, settings.rate) * 100) / 100)} suffix={CURRENCY_SYMBOL[otherCurrency(settings.baseCurrency)]} /></div></div>}
           {!quote && <div className="btn-row">
@@ -239,7 +250,7 @@ export function POS() {
             </div>
           </details>
           <div className="btn-row" style={{ marginTop: 6 }}>
-            <button className="btn primary lg" style={{ flex: 1 }} disabled={busy || items.length === 0} onClick={() => save(true)} title="F9"><Printer /> {quote ? 'حفظ عرض السعر وطباعته' : 'حفظ وطباعة'}</button>
+            <button className="btn primary lg" style={{ flex: 1 }} disabled={busy || items.length === 0} onClick={() => save(true)} title="F9"><Printer /> {quote ? (job ? 'حفظ أمر العمل وطباعته' : 'حفظ عرض السعر وطباعته') : 'حفظ وطباعة'}</button>
             <button className="btn lg" disabled={busy || items.length === 0} onClick={() => save(false)} title="F8"><Save /> حفظ</button>
           </div>
         </div>
@@ -284,7 +295,7 @@ function DoneModal({ sale, onNew, onClose }: { sale: Sale; onNew: () => void; on
   const customers = useCollection('customers')
   const phone = sale.customerId ? customers.get(sale.customerId)?.phone : undefined
   return (
-    <Modal title={sale.type === 'quote' ? 'تم حفظ عرض السعر' : 'تم حفظ الفاتورة'} onClose={onClose} size="narrow" icon={<Check style={{ color: 'var(--success)' }} />} footer={<>
+    <Modal title={sale.type === 'quote' ? (sale.job ? 'تم حفظ أمر العمل' : 'تم حفظ عرض السعر') : 'تم حفظ الفاتورة'} onClose={onClose} size="narrow" icon={<Check style={{ color: 'var(--success)' }} />} footer={<>
       <button className="btn primary" onClick={onNew}><PlusCircle /> بيع جديد</button>
       <button className="btn" onClick={onClose}>إغلاق</button>
     </>}>

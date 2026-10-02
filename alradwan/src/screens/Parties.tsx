@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { Plus, Pencil, Phone, Printer, HandCoins, FileSpreadsheet, MessageCircle, Trash2 } from 'lucide-react'
 import { useCollection, useIsAdmin, useSettings, usePerm } from '../db/store'
+import { CustomerVehicles } from '../ui/vehicles'
 import type { Customer, Supplier, Payment } from '../db/types'
 import { addPayment, deleteMoneyEntry } from '../db/actions'
 import { customerBalance, supplierBalance } from '../lib/calc'
@@ -127,6 +128,7 @@ export function Parties({ type }: { type: 'customer' | 'supplier' }) {
               </table></div>
             )}
             {selected.openingBalance !== 0 && <div className="small muted mt">رصيد سابق قبل البرنامج: {money(selected.openingBalance)}</div>}
+            {isC && <div className="mt"><CustomerVehicles customerId={selected.id} onOpenSale={id => nav(`/sales?open=${id}`)} /></div>}
           </Modal>
         )
       })()}

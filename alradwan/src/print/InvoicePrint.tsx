@@ -1,4 +1,5 @@
-import { useSettings } from '../db/store'
+import { useCollection, useSettings } from '../db/store'
+import { vehicleLabel } from '../ui/vehicles'
 import type { Sale } from '../db/types'
 import { equiv, fmtDate, fmtDateTime, invoiceNo, money, num } from '../lib/format'
 import { saleDue } from '../lib/calc'
@@ -6,9 +7,12 @@ import { saleDue } from '../lib/calc'
 // The invoice as printed: A4 or an 80mm receipt, chosen in the settings.
 export function InvoicePrint({ sale }: { sale: Sale }) {
   const s = useSettings()
+  const customers = useCollection('customers'); const vehicles = useCollection('vehicles')
+  const phone = sale.customerId ? customers.get(sale.customerId)?.phone : undefined
+  const vehicle = sale.vehicleId ? vehicles.get(sale.vehicleId) : undefined
   const receipt = s.printSize === '80mm'
   const quote = sale.type === 'quote'
-  const title = sale.type === 'return' ? 'فاتورة مرتجع' : quote ? 'عرض سعر' : 'فاتورة مبيعات'
+  const title = sale.type === 'return' ? 'فاتورة مرتجع' : quote ? (sale.job ? 'أمر عمل' : 'عرض سعر') : 'فاتورة مبيعات'
   const due = saleDue(sale)
   return (
     <div dir="rtl" style={{ fontFamily: 'var(--font)', color: '#000', background: '#fff', width: receipt ? '72mm' : '100%', maxWidth: receipt ? '72mm' : '190mm', margin: '0 auto', fontSize: receipt ? 12 : 14, padding: receipt ? '2mm' : '4mm' }}>
@@ -23,7 +27,8 @@ export function InvoicePrint({ sale }: { sale: Sale }) {
         <div><b>{title}</b> رقم <b>{invoiceNo(sale.number)}</b></div>
         <div>{fmtDateTime(sale.date)}</div>
       </div>
-      <div style={{ marginBottom: 8 }}><b>العميل:</b> {sale.customerName}{quote && sale.validUntil && <span style={{ float: 'left' }}>صالح حتى {fmtDate(sale.validUntil)}</span>}</div>
+      <div style={{ marginBottom: 8 }}><b>العميل:</b> {sale.customerName}{phone && <span dir="ltr" style={{ marginInlineStart: 8, fontSize: 12 }}>{phone}</span>}{quote && sale.validUntil && <span style={{ float: 'left' }}>صالح حتى {fmtDate(sale.validUntil)}</span>}</div>
+      {vehicle && <div style={{ marginBottom: 8, fontSize: receipt ? 11 : 13 }}><b>السيارة:</b> {vehicleLabel(vehicle)}{sale.odometer ? ` · العداد ${num(sale.odometer)} كم` : ''}{sale.nextServiceKm || sale.nextServiceDate ? ` · الصيانة القادمة: ${sale.nextServiceKm ? `${num(sale.nextServiceKm)} كم` : ''}${sale.nextServiceKm && sale.nextServiceDate ? ' أو ' : ''}${sale.nextServiceDate ? fmtDate(sale.nextServiceDate) : ''}` : ''}</div>}
       <table className="pt">
         <thead><tr><th>#</th><th>الصنف</th><th className="n">الكمية</th><th className="n">السعر</th><th className="n">المجموع</th></tr></thead>
         <tbody>

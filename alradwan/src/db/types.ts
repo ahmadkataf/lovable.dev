@@ -50,6 +50,22 @@ export interface Customer extends Base {
   createdAt: number
 }
 
+// سيارة عميل: لكل عميل سيارة أو أكثر، ولكل سيارة سجل صيانة (فواتيرها) وتذكير بالصيانة القادمة
+export interface Vehicle extends Base {
+  customerId: string
+  make?: string
+  model?: string
+  year?: number
+  plate?: string
+  vin?: string
+  carModelId?: string
+  odometer?: number        // آخر عداد مسجَّل (كم)
+  nextServiceKm?: number   // تذكير: عند هذا العداد
+  nextServiceDate?: number // تذكير: في هذا التاريخ
+  notes?: string
+  createdAt: number
+}
+
 export interface Supplier extends Base {
   name: string
   phone?: string
@@ -92,6 +108,12 @@ export interface Sale extends Base {
   currency?: string       // رمز العملة التي كُتبت بها المبالغ
   validUntil?: number     // لعرض السعر: صالح حتى
   convertedTo?: string    // لعرض السعر: الفاتورة التي تحوّل إليها
+  job?: boolean           // أمر عمل (عرض سعر مفتوح تُضاف إليه القطع والأجور حتى يُغلق كفاتورة)
+  jobStatus?: 'open' | 'working' | 'ready' | 'done'
+  vehicleId?: string      // السيارة التي خُدمت
+  odometer?: number       // عداد السيارة يوم الفاتورة
+  nextServiceKm?: number  // تذكير الصيانة القادمة (كم)
+  nextServiceDate?: number
 }
 
 // قيد محاسبي يدوي: ما لا تولّده الفواتير تلقائياً (رأس مال، قرض، إيراد آخر، تسوية)
@@ -281,11 +303,12 @@ export interface Collections {
   audit: AuditEntry
   carModels: CarModel
   journal: JournalEntry
+  vehicles: Vehicle
 }
 
 export type CollectionName = keyof Collections
-export const COLLECTIONS: CollectionName[] = ['products', 'categories', 'customers', 'suppliers', 'sales', 'purchases', 'payments', 'expenses', 'cash', 'movements', 'users', 'settings', 'audit', 'carModels', 'journal']
-export const COLLECTION_LABELS: Record<CollectionName, string> = { products: 'قطعة', categories: 'تصنيف', customers: 'عميل', suppliers: 'مورد', sales: 'فاتورة بيع', purchases: 'فاتورة شراء', payments: 'دفعة', expenses: 'مصروف', cash: 'حركة صندوق', movements: 'حركة مخزون', users: 'مستخدم', settings: 'الإعدادات', audit: 'سجل', carModels: 'موديل سيارة', journal: 'قيد محاسبي' }
+export const COLLECTIONS: CollectionName[] = ['products', 'categories', 'customers', 'suppliers', 'sales', 'purchases', 'payments', 'expenses', 'cash', 'movements', 'users', 'settings', 'audit', 'carModels', 'journal', 'vehicles']
+export const COLLECTION_LABELS: Record<CollectionName, string> = { products: 'قطعة', categories: 'تصنيف', customers: 'عميل', suppliers: 'مورد', sales: 'فاتورة بيع', purchases: 'فاتورة شراء', payments: 'دفعة', expenses: 'مصروف', cash: 'حركة صندوق', movements: 'حركة مخزون', users: 'مستخدم', settings: 'الإعدادات', audit: 'سجل', carModels: 'موديل سيارة', journal: 'قيد محاسبي', vehicles: 'سيارة عميل' }
 
 export const SETTINGS_ID = 'main'
 
