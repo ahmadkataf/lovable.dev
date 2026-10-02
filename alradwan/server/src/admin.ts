@@ -27,10 +27,11 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{padding:7px 5px;b
 .cardcode{border:2px dashed var(--line);border-radius:12px;padding:10px;text-align:center}.cardcode b{font-size:19px;letter-spacing:1px}
 @media print{body{background:#fff}.noprint{display:none!important}.card{border:0}.cardcode{break-inside:avoid;border-color:#999}}
 </style></head><body><main>
-<h1>🔑 لوحة تحكم أكواد كراج الرضوان</h1>
+<h1>🔑 لوحة تحكم أكواد كراج الرضوان <small class="muted" style="font-size:12px;font-weight:400">نسخة 2</small></h1>
 <div id="login" class="card">
   <h2>الدخول</h2>
   <p class="muted">أدخل مفتاح الإدارة (ADMIN_KEY). يُحفظ في هذا المتصفح فقط.</p>
+  <p id="loginState" class="muted"></p>
   <input id="key" type="password" class="mono" placeholder="ADMIN_KEY">
   <div class="row" style="margin-top:10px"><button id="enter">دخول</button></div>
   <p id="loginErr" class="muted" style="color:var(--red)"></p>
@@ -90,12 +91,16 @@ function expiry() { const v = $('plan').value; if (v === 'life') return null; if
 
 async function enter() {
   KEY = $('key').value.trim() || KEY
-  try { await api('stats'); localStorage.setItem('alradwan.admin', KEY); $('login').classList.add('hidden'); $('app').classList.remove('hidden') }
-  catch (e) { $('loginErr').textContent = e.message === 'not-configured' ? 'لم يُضبط ADMIN_KEY على الخادم بعد.' : e.message === 'wait' ? 'محاولات كثيرة: انتظر ربع ساعة.' : /fetch|network/i.test(e.message) ? 'تعذّر الوصول إلى الخادم.' : 'المفتاح غير صحيح.' }
+  $('loginErr').textContent = ''; $('loginState').textContent = 'جارٍ التحقق من المفتاح…'
+  try { await api('stats'); $('loginState').textContent = ''; localStorage.setItem('alradwan.admin', KEY); $('login').classList.add('hidden'); $('app').classList.remove('hidden') }
+  catch (e) { $('loginState').textContent = ''; $('loginErr').textContent = e.message === 'not-configured' ? 'لم يُضبط ADMIN_KEY على الخادم بعد.' : e.message === 'wait' ? 'محاولات كثيرة: انتظر ربع ساعة.' : /fetch|network/i.test(e.message) ? 'تعذّر الوصول إلى الخادم.' : 'المفتاح غير صحيح.' }
 }
 $('enter').onclick = enter
 $('key').onkeydown = e => { if (e.key === 'Enter') enter() }
 $('logout').onclick = () => { localStorage.removeItem('alradwan.admin'); location.reload() }
+// a link of the form /admin#k=THE-KEY signs in without typing (the part after # never leaves the browser)
+const fromLink = (location.hash.match(/[#&]k=([^&]+)/) || [])[1]
+if (fromLink) { KEY = decodeURIComponent(fromLink).trim(); history.replaceState(null, '', location.pathname) }
 if (KEY) enter()
 
 document.querySelectorAll('.tabs button[data-t]').forEach(b => b.onclick = () => {
