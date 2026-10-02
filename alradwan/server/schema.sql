@@ -16,6 +16,13 @@ CREATE TABLE IF NOT EXISTS auth_failures (
   at INTEGER NOT NULL
 );
 CREATE INDEX IF NOT EXISTS auth_failures_ip_at ON auth_failures (ip, at);
+-- a request that reserved sequence numbers and is still writing them (deleted when done; stale after 2 minutes)
+CREATE TABLE IF NOT EXISTS reservations (
+  shop TEXT NOT NULL,
+  start INTEGER NOT NULL,
+  at INTEGER NOT NULL,
+  PRIMARY KEY (shop, start)
+);
 CREATE TABLE IF NOT EXISTS shops (
   shop TEXT PRIMARY KEY,
   seq INTEGER NOT NULL DEFAULT 0,

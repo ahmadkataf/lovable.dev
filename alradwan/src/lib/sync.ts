@@ -11,6 +11,7 @@ export interface SyncChange { collection: CollectionName; id: string; updatedAt:
 export interface SyncStatus { state: 'off' | 'idle' | 'syncing' | 'error' | 'offline'; lastSync: number | null; pending: number; error?: string; clockSkew?: number }
 
 const PAGE = 400
+let pageBytes = 2 * 1024 * 1024    // a page of the outbox is at most this big; halved when the server says 413
 const listeners = new Set<(s: SyncStatus) => void>()
 let status: SyncStatus = { state: 'off', lastSync: null, pending: 0 }
 let timer: ReturnType<typeof setTimeout> | null = null
@@ -54,18 +55,25 @@ export async function syncNow(): Promise<{ sent: number; received: number }> {
     const { url, key } = useStore.getState().cfg.sync
     const since = ((await db.meta.get('seq'))?.value as number | undefined) ?? 0
     // one page of the outbox per request (the server caps a request), the rest follows in the next round
-    const outbox = (await db.outbox.toArray()).slice(0, PAGE)
+    const all = await db.outbox.toArray()
+    const outbox: typeof all = []
     const changes: SyncChange[] = []
-    for (const o of outbox) {
+    let bytes = 0
+    for (const o of all) {
+      if (outbox.length >= PAGE) break
       const rec = await db.table<Base>(o.collection).get(o.id)
-      if (rec) changes.push({ collection: o.collection, id: o.id, updatedAt: rec.updatedAt, deleted: !!rec.deleted, data: o.collection === 'settings' ? (stripSync(rec as Settings) as Base) : rec })
-      else await db.outbox.delete(o.key)
+      if (!rec) { await db.outbox.delete(o.key); continue }
+      const change: SyncChange = { collection: o.collection, id: o.id, updatedAt: rec.updatedAt, deleted: !!rec.deleted, data: o.collection === 'settings' ? (stripSync(rec as Settings) as Base) : rec }
+      const size = JSON.stringify(change).length
+      if (outbox.length && bytes + size > pageBytes) break   // a page is cut by size (photos), never below one record
+      outbox.push(o); changes.push(change); bytes += size
     }
     const res = await fetch(url.replace(/\/$/, '') + '/api/sync', {
       method: 'POST',
       headers: { 'content-type': 'application/json', authorization: 'Bearer ' + key },
       body: JSON.stringify({ since, changes }),
     })
+    if (res.status === 413 && changes.length > 1) { pageBytes = Math.max(64 * 1024, Math.floor(pageBytes / 2)); again = true; throw new Error('الدفعة كبيرة: ستُرسل على دفعات أصغر') }
     if (!res.ok) throw new Error(res.status === 401 ? 'مفتاح المزامنة غير صحيح' : res.status === 429 ? 'محاولات كثيرة: سيُعاد الاتصال لاحقاً' : `الخادم رفض الطلب (${res.status})`)
     const body = (await res.json()) as { seq: number; more?: boolean; changes: SyncChange[]; serverTime?: number }
     // what we sent is now on the server — unless the record changed again here while the request was in flight

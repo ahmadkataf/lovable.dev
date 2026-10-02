@@ -5,7 +5,7 @@ import { useCollection, useSettings, useIsAdmin } from '../db/store'
 import type { Purchase, PurchaseItem } from '../db/types'
 import { deletePurchase, savePurchase } from '../db/actions'
 import { payStatus } from '../lib/calc'
-import { addDays, fmtDate, fmtDateTime, fromInputDate, invoiceNo, matches, money, num, toInputDate, rangeStart, rangeEnd } from '../lib/format'
+import { addDays, fmtDate, fmtDateTime, fromInputDate, invoiceNo, matches, money, num, toInputDate, rangeStart, rangeEnd, fmtDateExcel } from '../lib/format'
 import { DateRange, Empty, Field, NumberInput, PayBadge, SearchInput } from '../ui/components'
 import { Modal, useConfirm } from '../ui/modal'
 import { useToast } from '../ui/toast'
@@ -33,7 +33,7 @@ export function Purchases() {
         <div className="search"><SearchInput value={q} onChange={setQ} placeholder="بحث بالمورد أو رقم الفاتورة أو القطعة…" /></div>
         <DateRange from={from} to={to} onChange={(a, b) => { setFrom(a); setTo(b) }} />
         <button className="btn primary" onClick={() => setForm('new')}><Plus /> فاتورة شراء</button>
-        <button className="btn" onClick={() => exportSheet(`المشتريات-${from}-${to}`, list.map(p => ({ 'الرقم': invoiceNo(p.number), 'النوع': p.type === 'return' ? 'مرتجع' : 'شراء', 'التاريخ': fmtDateTime(p.date), 'المورد': p.supplierName, 'رقم فاتورة المورد': p.reference ?? '', 'الأصناف': p.items.map(i => `${i.name} ×${i.qty}`).join('، '), 'الإجمالي': p.total, 'المدفوع': p.paid, 'المتبقي': p.total - p.paid })), 'المشتريات')}><FileSpreadsheet /></button>
+        <button className="btn" onClick={() => exportSheet(`المشتريات-${from}-${to}`, list.map(p => ({ 'الرقم': invoiceNo(p.number), 'النوع': p.type === 'return' ? 'مرتجع' : 'شراء', 'التاريخ': fmtDateExcel(p.date), 'المورد': p.supplierName, 'رقم فاتورة المورد': p.reference ?? '', 'الأصناف': p.items.map(i => `${i.name} ×${i.qty}`).join('، '), 'الإجمالي': p.total, 'المدفوع': p.paid, 'المتبقي': p.total - p.paid })), 'المشتريات')}><FileSpreadsheet /></button>
       </div>
       <div className="card">
         {list.length === 0 ? <Empty title="لا فواتير شراء في هذه الفترة" text="سجّل البضاعة التي تشتريها من الموردين لتدخل إلى المخزون تلقائياً" action={<button className="btn primary" onClick={() => setForm('new')}><Plus /> فاتورة شراء</button>} /> : (

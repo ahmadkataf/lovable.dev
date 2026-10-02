@@ -32,8 +32,9 @@ export function Activate({ shopName, onClose }: { shopName: string; onClose?: ()
   const wa = SALES.whatsapp ? `https://wa.me/${SALES.whatsapp.replace(/\D/g, '')}?text=${encodeURIComponent(`مرحباً، أريد كود تفعيل لبرنامج كراج الرضوان.\nاسم المحل: ${shopName}\nرقم الجهاز: ${dev}`)}` : ''
   const submit = async () => {
     setBusy(true)
-    const r = await activate(code, `${platformName() === 'android' ? 'هاتف' : platformName() === 'windows' ? 'حاسوب' : 'متصفح'} · ${shopName}`)
-    setBusy(false)
+    let r = 'server'
+    try { r = await activate(code, `${platformName() === 'android' ? 'هاتف' : platformName() === 'windows' ? 'حاسوب' : 'متصفح'} · ${shopName}`)
+    } catch { r = 'server' } finally { setBusy(false) }
     setMsg(r === 'ok' ? { ok: true, text: 'تم التفعيل. البرنامج جاهز للعمل.' } : { ok: false, text: ERR[r] || ERR.server })
     if (r === 'ok') setTimeout(() => onClose?.(), 900)
   }

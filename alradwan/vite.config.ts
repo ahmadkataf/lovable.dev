@@ -15,7 +15,7 @@ function serviceWorker(): Plugin {
       const sw = path.join(dist, 'sw.js')
       if (!fs.existsSync(sw)) return
       const html = fs.readFileSync(path.join(dist, 'index.html'), 'utf8')
-      const assets = Array.from(html.matchAll(/(?:src|href)="\.\/(assets\/[^"]+)"/g), m => './' + m[1])
+      const assets = fs.readdirSync(path.join(dist, 'assets')).filter(f => /\.(js|css|woff2?)$/.test(f)).map(f => './assets/' + f)
       const list = ['./index.html', './manifest.webmanifest', './icon.svg', ...assets]
       const build = `${pkg.version}-${Date.now().toString(36)}`
       fs.writeFileSync(sw, fs.readFileSync(sw, 'utf8').replace('__BUILD__', build).replace('__PRECACHE__', JSON.stringify(list)))

@@ -101,6 +101,8 @@ export async function restoreBackup(b: Backup): Promise<void> {
 
 /** Merges a backup into the existing data (newest record wins) instead of replacing it. */
 export async function mergeBackup(b: Backup): Promise<number> {
+  const { problems } = validateBackup(b)
+  if (problems.length) throw new Error('الملف تالف ولم يُلمس شيء: ' + problems.join('، '))
   let n = 0
   const tables = COLLECTIONS.map(c => db.table(c))
   await db.transaction('rw', [...tables, db.outbox], async () => {

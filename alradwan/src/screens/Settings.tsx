@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Store, Printer, Users, Database, Cloud, Palette, Info, Plus, Trash2, Download, Upload, RefreshCw, Check, ShieldAlert, Copy, Eye, EyeOff, Lock, FolderOpen, MonitorDown, KeyRound } from 'lucide-react'
 import { useSearchParams } from 'react-router-dom'
-import { audit, clearAll, put, remove, saveSettings, useCollection, useIsAdmin, useSettings, useStore, setCurrentUser } from '../db/store'
+import { audit, clearAll, put, remove, saveSettings, useCollection, useIsAdmin, useSettings, useStore, setCurrentUser, readLocalSync } from '../db/store'
 import type { Role, Settings, User } from '../db/types'
 import { Field, Tabs, NumberInput } from '../ui/components'
 import { Modal, useConfirm } from '../ui/modal'
@@ -26,10 +26,10 @@ type Tab = 'shop' | 'print' | 'users' | 'backup' | 'sync' | 'look' | 'about'
 export function SettingsScreen() {
   const isAdmin = useIsAdmin()
   const [params] = useSearchParams()
-  const [tab, setTab] = useState<Tab>((params.get('tab') as Tab) || 'shop')
   const items: { id: Tab; label: string }[] = isAdmin
     ? [{ id: 'shop', label: 'المحل' }, { id: 'print', label: 'الفواتير والطباعة' }, { id: 'users', label: 'المستخدمون' }, { id: 'backup', label: 'النسخ الاحتياطي' }, { id: 'sync', label: 'المزامنة بين الأجهزة' }, { id: 'look', label: 'المظهر' }, { id: 'about', label: 'حول' }]
     : [{ id: 'look', label: 'المظهر' }, { id: 'about', label: 'حول' }]
+  const [tab, setTab] = useState<Tab>(() => { const t = params.get('tab') as Tab; return items.some(i => i.id === t) ? t : items[0].id })
   useEffect(() => { if (!items.some(i => i.id === tab)) setTab(items[0].id) }, [isAdmin])
   return (
     <div className="stack">
@@ -227,7 +227,7 @@ function BackupTab() {
     try {
       const b = await parseBackup(text, pw); const n = countBackup(b)
       if (mode === 'replace') {
-        if (!(await confirm({ title: 'استبدال كل البيانات؟', text: `النسخة من تاريخ ${fmtDateTime(b.exportedAt)} وفيها ${n} سجل. ستُحذف بيانات هذا الجهاز الحالية وتحل محلها بيانات النسخة.`, danger: true, okText: 'استبدال' }))) return
+        if (!(await confirm({ title: 'استبدال كل البيانات؟', text: `النسخة من تاريخ ${fmtDateTime(b.exportedAt)} وفيها ${n} سجل. ستُحذف بيانات هذا الجهاز الحالية وتحل محلها بيانات النسخة.${readLocalSync().enabled ? ' المزامنة مفعّلة: ما هو أحدث على الخادم سيعود مع أول مزامنة.' : ''}`, danger: true, okText: 'استبدال' }))) return
         setBusy(true); await restoreBackup(b); toast.success('تمت الاستعادة')
       } else {
         setBusy(true); const k = await mergeBackup(b); toast.success(`تم الدمج: ${k} سجل أُضيف أو حُدِّث`)

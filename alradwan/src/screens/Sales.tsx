@@ -6,7 +6,7 @@ import type { Sale } from '../db/types'
 import { convertQuote, deleteSale, saveSale, setJobStatus, JOB_STATUS_LABEL } from '../db/actions'
 import { vehicleLabel } from '../ui/vehicles'
 import { payStatus, saleDue } from '../lib/calc'
-import { addDays, fmtDate, fmtDateTime, invoiceNo, matches, money, num, toInputDate, rangeStart, rangeEnd } from '../lib/format'
+import { addDays, fmtDate, fmtDateTime, invoiceNo, matches, money, num, toInputDate, rangeStart, rangeEnd, fmtDateExcel } from '../lib/format'
 import { DateRange, Empty, Field, NumberInput, PayBadge, SearchInput, Tabs } from '../ui/components'
 import { Modal, useConfirm } from '../ui/modal'
 import { useToast } from '../ui/toast'
@@ -45,7 +45,7 @@ export function Sales() {
   const del = async (s: Sale) => {
     if (await confirm({ title: `حذف الفاتورة ${invoiceNo(s.number)}؟`, text: 'ستعود كميات القطع إلى المخزون ويُلغى أثرها على الصندوق وحساب العميل.', danger: true, okText: 'حذف' })) { try { await deleteSale(s.id); toast.success('تم حذف الفاتورة'); setParams({}) } catch (e) { toast.error((e as Error).message) } }
   }
-  const exportExcel = () => exportSheet(`المبيعات-${from}-${to}`, list.map(s => ({ 'الرقم': invoiceNo(s.number), 'النوع': s.type === 'return' ? 'مرتجع' : s.type === 'quote' ? 'عرض سعر' : 'بيع', 'التاريخ': fmtDateTime(s.date), 'العميل': s.customerName, 'الأصناف': s.items.map(i => `${i.name} ×${i.qty}`).join('، '), 'الإجمالي': s.total, 'المدفوع': s.paid, 'المتبقي': saleDue(s), 'ملاحظات': s.notes ?? '' })), 'المبيعات')
+  const exportExcel = () => exportSheet(`المبيعات-${from}-${to}`, list.map(s => ({ 'الرقم': invoiceNo(s.number), 'النوع': s.type === 'return' ? 'مرتجع' : s.type === 'quote' ? 'عرض سعر' : 'بيع', 'التاريخ': fmtDateExcel(s.date), 'العميل': s.customerName, 'الأصناف': s.items.map(i => `${i.name} ×${i.qty}`).join('، '), 'الإجمالي': s.total, 'المدفوع': s.paid, 'المتبقي': saleDue(s), 'ملاحظات': s.notes ?? '' })), 'المبيعات')
 
   return (
     <div className="stack">
@@ -86,7 +86,7 @@ export function Sales() {
           {open.type === 'sale' && canReturn && <button className="btn" onClick={() => setRet(open)}><Undo2 /> مرتجع</button>}
           {(open.type === 'sale' || (open.type === 'quote' && !open.convertedTo)) && canEdit && <button className="btn" onClick={() => nav(`/pos?edit=${open.id}`)}><Pencil /> تعديل</button>}
           {open.type === 'quote' && !open.convertedTo && canSell && <button className="btn success" onClick={() => setConv(open)}><ArrowRightLeft /> {open.job ? 'إغلاق كفاتورة' : 'تحويل إلى فاتورة'}</button>}
-          {open.type === 'quote' && open.job && !open.convertedTo && <select className="select" style={{ width: 'auto' }} value={open.jobStatus ?? 'open'} onChange={e => setJobStatus(open, e.target.value as 'open')}>{(['open', 'working', 'ready'] as const).map(st => <option key={st} value={st}>{JOB_STATUS_LABEL[st]}</option>)}</select>}
+          {open.type === 'quote' && open.job && !open.convertedTo && canEdit && <select className="select" style={{ width: 'auto' }} value={open.jobStatus ?? 'open'} onChange={e => setJobStatus(open, e.target.value as 'open').catch(err => toast.error((err as Error).message))}>{(['open', 'working', 'ready'] as const).map(st => <option key={st} value={st}>{JOB_STATUS_LABEL[st]}</option>)}</select>}
           {open.type === 'quote' && open.convertedTo && <button className="btn" onClick={() => setParams({ open: open.convertedTo! })}>عرض الفاتورة</button>}
           {isAdmin && <><span className="grow" /><button className="btn danger" onClick={() => del(open)}><Trash2 /> حذف</button></>}
         </>}>
@@ -162,7 +162,13 @@ function ReturnModal({ sale, onClose, onDone }: { sale: Sale; onClose: () => voi
   const [busy, setBusy] = useState(false)
   const toast = useToast()
   // what earlier returns already took back from each line
-  const returned = useMemo(() => sale.items.map((it, i) => { let n = 0; for (const r of sales.values()) if (r.returnOf === sale.id && r.type === 'return') for (const x of r.items) if ((x.productId && x.productId === it.productId) || (!x.productId && x.name === it.name && sale.items.findIndex(y => y.name === it.name) === i)) n += x.qty; return n }), [sales, sale])
+  const returned = useMemo(() => {
+    const pool = new Map<string, number>()   // returned so far per (product, price), handed out to the invoice lines in order
+    const key = (x: { productId?: string; name: string; price: number }) => `${x.productId || x.name}|${x.price}`
+    for (const r of sales.values()) if (r.returnOf === sale.id && r.type === 'return') for (const x of r.items) pool.set(key(x), (pool.get(key(x)) ?? 0) + x.qty)
+    return sale.items.map(it => { const k = key(it); const n = Math.min(it.qty, pool.get(k) ?? 0); pool.set(k, (pool.get(k) ?? 0) - n); return n })
+  }, [sales, sale])
+  const refundedBefore = useMemo(() => { let n = 0; for (const r of sales.values()) if (r.returnOf === sale.id && r.type === 'return') n += r.paid; return n }, [sales, sale])
   const left = sale.items.map((it, i) => Math.max(0, it.qty - returned[i]))
   const items = sale.items.map((it, i) => ({ ...it, qty: qty[i], discount: it.qty ? (it.discount * qty[i]) / it.qty : 0 })).filter(it => it.qty > 0)
   const gross = items.reduce((s, i) => s + i.qty * i.price - i.discount, 0)
@@ -172,7 +178,8 @@ function ReturnModal({ sale, onClose, onDone }: { sale: Sale; onClose: () => voi
   const discount = sale.subtotal > 0 ? Math.round((sale.discount * gross) / sale.subtotal * k) / k : 0
   const total = Math.max(0, gross - discount)
   const walkIn = !sale.customerId
-  const refundValue = walkIn || refund === null ? total : Math.min(refund, total)
+  // by default the customer gets back what was paid for the part; the rest comes off the debt
+  const refundValue = walkIn ? total : refund === null ? Math.min(total, Math.max(0, sale.paid - refundedBefore)) : Math.min(refund, total)
   const save = async () => {
     if (items.length === 0) { toast.error('حدد الكمية المرتجعة'); return }
     setBusy(true)

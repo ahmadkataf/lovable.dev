@@ -59,7 +59,7 @@ export function Parties({ type }: { type: 'customer' | 'supplier' }) {
     const lines: { date: number; label: string; debit: number; credit: number; ref?: string; refType?: 'sale' | 'purchase' | 'payment'; id: string }[] = []
     if (isC) for (const s of sales.values()) { if (s.customerId !== p.id || s.type === 'quote') continue; lines.push({ date: s.date, label: `${s.type === 'return' ? 'مرتجع' : 'فاتورة'} ${invoiceNo(s.number)}${s.paid ? ` (مدفوع ${money(s.paid, { currency: false })})` : ''}`, debit: s.type === 'return' ? 0 : s.total - s.paid, credit: s.type === 'return' ? s.total - s.paid : 0, refType: 'sale', id: s.id }) }
     else for (const s of purchases.values()) { if (s.supplierId !== p.id) continue; lines.push({ date: s.date, label: `${s.type === 'return' ? 'مرتجع' : 'شراء'} ${invoiceNo(s.number)}${s.paid ? ` (مدفوع ${money(s.paid, { currency: false })})` : ''}`, debit: s.type === 'return' ? 0 : s.total - s.paid, credit: s.type === 'return' ? s.total - s.paid : 0, refType: 'purchase', id: s.id }) }
-    for (const pm of payments.values()) if (pm.partyType === type && pm.partyId === p.id) lines.push({ date: pm.date, label: `${isC ? 'دفعة مستلمة' : 'دفعة مسددة'}${pm.note ? ` — ${pm.note}` : ''}`, debit: 0, credit: pm.amount, refType: 'payment', id: pm.id })
+    for (const pm of payments.values()) if (pm.partyType === type && pm.partyId === p.id) lines.push({ date: pm.date, label: `${pm.amount < 0 ? (isC ? 'رد مبلغ للعميل' : 'استرداد من المورد') : isC ? 'دفعة مستلمة' : 'دفعة مسددة'}${pm.note ? ` — ${pm.note}` : ''}`, debit: pm.amount < 0 ? -pm.amount : 0, credit: pm.amount < 0 ? 0 : pm.amount, refType: 'payment', id: pm.id })
     return lines.sort((a, b) => b.date - a.date)
   }
 
@@ -71,7 +71,7 @@ export function Parties({ type }: { type: 'customer' | 'supplier' }) {
       </div>
       <div className="toolbar">
         <div className="search"><SearchInput value={q} onChange={setQ} placeholder="بحث بالاسم أو الهاتف أو السيارة…" /></div>
-        <button className="btn primary" onClick={() => setForm('new')}><Plus /> {isC ? 'عميل جديد' : 'مورد جديد'}</button>
+        {canEditParty && <button className="btn primary" onClick={() => setForm('new')}><Plus /> {isC ? 'عميل جديد' : 'مورد جديد'}</button>}
         <button className="btn" onClick={() => exportSheet(isC ? 'العملاء' : 'الموردون', rows.map(r => ({ 'الاسم': r.p.name, 'الهاتف': r.p.phone ?? '', ...(isC ? { 'السيارة': (r.p as Customer).car ?? '' } : {}), 'العنوان': r.p.address ?? '', 'الرصيد': r.balance, 'ملاحظات': r.p.notes ?? '' })))}><FileSpreadsheet /></button>
       </div>
       <Tabs value={tab} onChange={setTab} items={[{ id: 'all', label: 'الكل' }, { id: 'debt', label: isC ? 'عليهم دين' : 'لهم رصيد علينا' }, { id: 'overdue', label: 'ديون متأخرة (+30 يوم)' }]} />
@@ -105,7 +105,7 @@ export function Parties({ type }: { type: 'customer' | 'supplier' }) {
             {balance < -0.001 && canPay && <button className="btn" onClick={() => setPay(selected)}><HandCoins /> {isC ? 'رد الرصيد للعميل' : 'استرداد من المورد'}</button>}
             <button className="btn" onClick={doPrint}><Printer /> كشف حساب</button>
             {selected.phone && <a className="btn" href={`https://wa.me/${selected.phone.replace(/\D/g, '').replace(/^0/, '963')}?text=${encodeURIComponent(`مرحباً ${selected.name}،\n${isC ? 'الرصيد المستحق عليكم' : 'الرصيد المستحق لكم'} لدى ${settings.shopName}: ${money(balance)}`)}`} target="_blank" rel="noreferrer"><MessageCircle /></a>}
-            <button className="btn" onClick={() => setForm(selected)}><Pencil /> تعديل</button>
+            {canEditParty && <button className="btn" onClick={() => setForm(selected)}><Pencil /> تعديل</button>}
           </>}>
             <div className="kv mb">
               {selected.phone && <><dt>الهاتف</dt><dd dir="ltr" style={{ textAlign: 'right' }}>{selected.phone}</dd></>}

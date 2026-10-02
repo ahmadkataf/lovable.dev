@@ -87,12 +87,14 @@ export function POS() {
   }, [])
 
   // editing an existing invoice
+  const wasEditing = useRef(false)
   useEffect(() => {
-    if (!editId) return
+    if (!editId) { if (wasEditing.current) { wasEditing.current = false; reset() } return }
+    wasEditing.current = true
     const s = sales.get(editId)
     if (!s) return
     if (!canEditInv) { toast.error('ليس لديك صلاحية تعديل الفواتير'); setParams({}); return }
-    setItems(s.items.map(i => ({ ...i }))); setCustomerId(s.customerId); setCustomerName(s.customerName); setDiscount(s.discount); setPaid(s.paid); setDate(toInputDate(s.date)); setNotes(s.notes ?? ''); setQuote(s.type === 'quote'); setJob(!!s.job); setVehicleId(s.vehicleId); setOdometer(s.odometer ?? 0); setNextKm(s.nextServiceKm && s.odometer ? s.nextServiceKm - s.odometer : 0); setNextDays(0)
+    setItems(s.items.map(i => ({ ...i }))); setCustomerId(s.customerId); setCustomerName(s.customerName); setDiscount(s.discount); setPaid(s.paid); setDate(toInputDate(canBackdate ? s.date : Date.now())); setNotes(s.notes ?? ''); setQuote(s.type === 'quote'); setJob(!!s.job); setVehicleId(s.vehicleId); setOdometer(s.odometer ?? 0); setNextKm(s.nextServiceKm && s.odometer ? s.nextServiceKm - s.odometer : 0); setNextDays(s.nextServiceDate ? Math.max(0, Math.round((s.nextServiceDate - s.date) / 86400000)) : 0)
     if (s.discountPct) { setDiscMode('pct'); setDiscPct(s.discountPct) } else setDiscMode('amount')
   }, [editId])
 

@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { FileSpreadsheet, History } from 'lucide-react'
 import { useCollection } from '../db/store'
 import type { AuditAction } from '../db/types'
-import { addDays, fmtDateTime, matches, toInputDate, rangeStart, rangeEnd } from '../lib/format'
+import { addDays, fmtDateTime, matches, toInputDate, rangeStart, rangeEnd, fmtDateExcel } from '../lib/format'
 import { DateRange, Empty, SearchInput, Chips } from '../ui/components'
 import { exportSheet } from '../lib/excel'
 
@@ -33,7 +33,7 @@ export function Activity() {
         <div className="search"><SearchInput value={q} onChange={setQ} placeholder="بحث في السجل…" /></div>
         <select className="select" style={{ width: 'auto' }} value={user} onChange={e => setUser(e.target.value)}><option value="all">كل المستخدمين</option>{userList.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}<option value="_">بدون مستخدم</option></select>
         <DateRange from={from} to={to} onChange={(a, b) => { setFrom(a); setTo(b) }} />
-        <button className="btn" onClick={() => exportSheet(`سجل-النشاط-${from}-${to}`, list.map(a => ({ 'التاريخ': fmtDateTime(a.date), 'المستخدم': a.userName, 'العملية': ACTIONS[a.action]?.label ?? a.action, 'البيان': a.summary, 'الجهاز': a.device })), 'السجل')}><FileSpreadsheet /></button>
+        <button className="btn" onClick={() => exportSheet(`سجل-النشاط-${from}-${to}`, list.map(a => ({ 'التاريخ': fmtDateExcel(a.date), 'المستخدم': a.userName, 'العملية': ACTIONS[a.action]?.label ?? a.action, 'البيان': a.summary, 'الجهاز': a.device })), 'السجل')}><FileSpreadsheet /></button>
       </div>
       <Chips value={action} onChange={setAction} items={[{ id: 'all', label: 'الكل' }, ...(Object.keys(ACTIONS) as AuditAction[]).map(k => ({ id: k, label: ACTIONS[k].label }))]} />
       <div className="card">

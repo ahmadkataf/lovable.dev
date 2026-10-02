@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { create } from 'zustand'
 import type { Sale } from '../db/types'
 import { printPage } from '../lib/platform'
-import { useStore } from '../db/store'
+import { can, useStore } from '../db/store'
 import { InvoicePrint } from './InvoicePrint'
 import { StatementPrint, type StatementDoc } from './StatementPrint'
 import { LabelsPrint, type LabelsDoc } from './LabelsPrint'
@@ -19,6 +19,8 @@ let onPrintError: ((msg: string) => void) | null = null
 export function setPrintErrorHandler(fn: ((msg: string) => void) | null) { onPrintError = fn }
 
 export function printDocument(doc: PrintDoc) {
+  // invoices are part of selling; statements, closing sheets and reports are exports
+  if (doc.type !== 'invoice' && !can('exportData')) { onPrintError?.('ليس لديك صلاحية طباعة التقارير'); return }
   usePrint.setState({ doc, preview: false })
   const cfg = useStore.getState().cfg
   // give React a moment to render the document before printing starts

@@ -1,4 +1,5 @@
-import { auditEntry, putMany, remove, useStore } from './store'
+import { auditEntry, can, putMany, remove, useStore } from './store'
+const useIsAdminNow = () => { const s = useStore.getState(); if (s.users.size === 0) return true; const u = s.currentUserId ? s.users.get(s.currentUserId) : null; return u?.role === 'admin' }
 import type { Base, CashEntry, Expense, JournalEntry, Payment, Product, Purchase, Sale, StockMovement, Vehicle } from './types'
 import { newId } from '../lib/id'
 import { saleTotals, stockMap } from '../lib/calc'
@@ -31,7 +32,7 @@ function movementsOf(refId: string): StockMovement[] {
   return out
 }
 
-export type SaleInput = Omit<Sale, 'id' | 'updatedAt' | 'subtotal' | 'total' | 'number' | 'userId'> & { id?: string; number?: number }
+export type SaleInput = Omit<Sale, 'id' | 'updatedAt' | 'subtotal' | 'total' | 'number' | 'userId'> & { id?: string; number?: number; userId?: string }
 
 /** Creates or replaces a sale (or a return) together with its stock movements. */
 export async function saveSale(input: SaleInput): Promise<Sale> {
@@ -41,13 +42,15 @@ export async function saveSale(input: SaleInput): Promise<Sale> {
   const existing = useStore.getState().sales.get(id)
   if (input.type !== 'quote' && input.paid < total - 0.004 && !input.customerId) throw new Error('فاتورة آجلة بلا عميل: اختر العميل حتى يُسجَّل الدين عليه')
   // an edit keeps the day's exchange rate and the cashier who issued the invoice; the activity log records the editor
-  const sale: Sale = { ...input, id, number: input.number ?? nextNumber('sales'), subtotal, total, paid: input.type === 'quote' ? 0 : r2(Math.min(Math.max(0, input.paid), total)), userId: existing?.userId ?? userId(), rate: input.rate ?? existing?.rate ?? (cfg.rate || undefined), currency: input.currency ?? existing?.currency ?? cfg.currency, updatedAt: 0 }
+  const sale: Sale = { ...input, id, number: input.number ?? nextNumber('sales'), subtotal, total, paid: input.type === 'quote' ? 0 : r2(Math.min(Math.max(0, input.paid), total)), userId: existing?.userId ?? input.userId ?? userId(), convertedTo: input.convertedTo ?? existing?.convertedTo, rate: input.rate ?? existing?.rate ?? (cfg.rate || undefined), currency: input.currency ?? existing?.currency ?? cfg.currency, updatedAt: 0 }
   const entries: { collection: 'sales' | 'movements' | 'audit' | 'vehicles'; record: Base }[] = [{ collection: 'sales', record: sale }]
   const existed = !!existing
-  // a real invoice on a car writes the odometer and the next-service reminder onto the car's record
+  // the car's latest visit writes the odometer and the next-service reminder onto its record (an older invoice being edited does not)
   if (sale.type === 'sale' && sale.vehicleId) {
     const v = useStore.getState().vehicles.get(sale.vehicleId)
-    if (v) entries.push({ collection: 'vehicles', record: { ...v, odometer: sale.odometer ?? v.odometer, nextServiceKm: sale.nextServiceKm ?? v.nextServiceKm, nextServiceDate: sale.nextServiceDate ?? v.nextServiceDate } as Vehicle })
+    let latest = true
+    for (const o of useStore.getState().sales.values()) if (o.id !== id && o.type === 'sale' && o.vehicleId === sale.vehicleId && o.date > sale.date) { latest = false; break }
+    if (v && latest) entries.push({ collection: 'vehicles', record: { ...v, odometer: sale.odometer ?? v.odometer, nextServiceKm: sale.nextServiceKm, nextServiceDate: sale.nextServiceDate } as Vehicle })
   }
   entries.push({ collection: 'audit', record: auditEntry(existed ? 'update' : 'create', `${sale.type === 'return' ? 'مرتجع' : sale.type === 'quote' ? 'عرض سعر' : 'فاتورة'} ${invoiceNo(sale.number)} — ${sale.customerName} — ${money(sale.total, { display: 'base' })}`, 'sales', id) })
   // movements carry ids derived from the invoice line, so two devices editing the same invoice replace, never duplicate
@@ -66,6 +69,8 @@ export async function saveSale(input: SaleInput): Promise<Sale> {
 
 /** Turns a quotation into a real invoice (stock and cash move now); the quotation is kept and marked. */
 export async function convertQuote(quote: Sale, paid: number): Promise<Sale> {
+  const fresh = useStore.getState().sales.get(quote.id)
+  if (fresh?.convertedTo) throw new Error(`حُوّل هذا ${quote.job ? 'الأمر' : 'العرض'} إلى فاتورة من قبل`)
   const sale = await saveSale({ type: 'sale', date: Date.now(), customerId: quote.customerId, customerName: quote.customerName, items: quote.items.map(i => ({ ...i })), discount: quote.discount, discountPct: quote.discountPct, paid, vehicleId: quote.vehicleId, odometer: quote.odometer, nextServiceKm: quote.nextServiceKm, nextServiceDate: quote.nextServiceDate, notes: quote.notes ? `${quote.notes} (من عرض السعر ${invoiceNo(quote.number)})` : `من عرض السعر ${invoiceNo(quote.number)}` })
   const marked: Sale = { ...quote, convertedTo: sale.id, jobStatus: quote.job ? 'done' : quote.jobStatus }
   await putMany([{ collection: 'sales', record: marked }, { collection: 'audit', record: auditEntry('update', `تحويل عرض السعر ${invoiceNo(quote.number)} إلى الفاتورة ${invoiceNo(sale.number)}`, 'sales', quote.id) }])
@@ -78,7 +83,13 @@ export async function saveVehicle(input: Omit<Vehicle, 'id' | 'updatedAt' | 'cre
   await putMany([{ collection: 'vehicles', record: rec }, { collection: 'audit', record: auditEntry(input.id ? 'update' : 'create', `${input.id ? 'تعديل' : 'إضافة'} سيارة ${label}`, 'vehicles', rec.id) }])
   return rec
 }
+/** Admin only. A vehicle with invoices is kept (history), it just leaves the customer's card. */
+export async function deleteVehicle(v: Vehicle): Promise<void> {
+  if (!useIsAdminNow()) throw new Error('حذف السيارات للمدير فقط')
+  await putMany([{ collection: 'vehicles', record: { ...v, deleted: true } as Vehicle }, { collection: 'audit', record: auditEntry('delete', `حذف سيارة ${[v.make, v.model, v.plate].filter(Boolean).join(' ')}`, 'vehicles', v.id) }])
+}
 export async function setJobStatus(sale: Sale, status: NonNullable<Sale['jobStatus']>): Promise<void> {
+  if (!can('editInvoices')) throw new Error('تغيير حالة أمر العمل يحتاج صلاحية تعديل الفواتير')
   await putMany([{ collection: 'sales', record: { ...sale, jobStatus: status } as Sale }, { collection: 'audit', record: auditEntry('update', `أمر العمل ${invoiceNo(sale.number)}: ${JOB_STATUS_LABEL[status]}`, 'sales', sale.id) }])
 }
 export const JOB_STATUS_LABEL: Record<NonNullable<Sale['jobStatus']>, string> = { open: 'مفتوح', working: 'قيد العمل', ready: 'جاهز للتسليم', done: 'مغلق' }
@@ -90,6 +101,7 @@ export async function saveJournal(entry: Omit<JournalEntry, 'id' | 'updatedAt' |
   return rec
 }
 export async function deleteJournal(id: string): Promise<void> {
+  if (!useIsAdminNow()) throw new Error('حذف القيود للمدير فقط')
   const j = useStore.getState().journal.get(id); if (!j) return
   await putMany([{ collection: 'journal', record: { ...j, deleted: true } }, { collection: 'audit', record: auditEntry('delete', `حذف قيد: ${j.memo}`, 'journal', id) }])
 }
@@ -116,7 +128,9 @@ export async function savePurchase(input: PurchaseInput): Promise<Purchase> {
   const sign = purchase.type === 'return' ? -1 : 1
   const state = useStore.getState()
   const products = state.products
+  // what is on the shelf before this purchase: its own earlier movements (when editing) do not count
   const stock = stockMap(products, state.movements)
+  for (const m of movementsOf(id)) stock.set(m.productId, (stock.get(m.productId) ?? 0) - m.qty)
   const keep = new Set<string>()
   // the latest purchase of a part sets its cost as a weighted average of what is on the shelf and what came in (IAS 2)
   const newerPurchaseOf = (pid: string) => Array.from(state.purchases.values()).some(x => x.id !== id && x.type === 'purchase' && x.date > purchase.date && x.items.some(i => i.productId === pid))

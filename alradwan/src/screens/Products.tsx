@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { Plus, FileSpreadsheet, Upload, Pencil, Tag, Download, Barcode, Printer } from 'lucide-react'
 import { printDocument } from '../print/PrintHost'
-import { put, putMany, remove, useCollection, useCanSeeCost, useSettings, usePerm } from '../db/store'
+import { can, put, putMany, remove, useCollection, useCanSeeCost, useSettings, usePerm } from '../db/store'
 import type { Base, Category, Product } from '../db/types'
 import { matches, money } from '../lib/format'
 import { NumberInput } from '../ui/components'
@@ -48,8 +48,8 @@ export function Products() {
       <div className="toolbar">
         <div className="search"><SearchInput value={q} onChange={setQ} placeholder="بحث بالاسم أو الكود أو السيارة أو الرف…" /></div>
         {canAdd && <button className="btn primary" onClick={() => setEdit('new')}><Plus /> قطعة جديدة</button>}
-        <button className="btn" onClick={() => setCats(true)} title="التصنيفات"><Tag /> <span className="hide-mobile">التصنيفات</span></button>
-        <button className="btn" onClick={importExcel} title="استيراد من إكسل"><Upload /> <span className="hide-mobile">استيراد</span></button>
+        {canAdd && <button className="btn" onClick={() => setCats(true)} title="التصنيفات"><Tag /> <span className="hide-mobile">التصنيفات</span></button>}
+        {canAdd && <button className="btn" onClick={importExcel} title="استيراد من إكسل"><Upload /> <span className="hide-mobile">استيراد</span></button>}
         <button className="btn" onClick={exportExcel} title="تصدير إلى إكسل"><FileSpreadsheet /> <span className="hide-mobile">إكسل</span></button>
         <button className="btn" onClick={() => setLabels(true)} title="طباعة ملصقات باركود"><Barcode /> <span className="hide-mobile">ملصقات</span></button>
       </div>
@@ -144,6 +144,8 @@ function ImportModal({ rows, onClose }: { rows: ImportedProduct[]; onClose: () =
   const byCode = new Map(Array.from(products.values()).map(p => [p.code.toLowerCase(), p]))
   const existing = rows.filter(r => r.code && byCode.has(r.code.toLowerCase())).length
   const run = async () => {
+    if (!can('products')) { toast.error('ليس لديك صلاحية إضافة القطع'); return }
+    const prices = can('editPrices')
     setBusy(true)
     try {
       const entries: { collection: 'products' | 'categories' | 'movements'; record: Base }[] = []
@@ -160,7 +162,7 @@ function ImportModal({ rows, onClose }: { rows: ImportedProduct[]; onClose: () =
         const old = byCode.get(code.toLowerCase())
         if (old) {
           if (mode === 'skip') continue
-          const rec: Product = { ...old, name: r.name || old.name, barcode: r.barcode ?? old.barcode, oemNumbers: r.oemNumbers ?? old.oemNumbers, categoryId: categoryId ?? old.categoryId, brand: r.brand ?? old.brand, cars: r.cars ?? old.cars, unit: r.unit || old.unit, cost: r.cost || old.cost, price: r.price || old.price, wholesalePrice: r.wholesalePrice ?? old.wholesalePrice, minStock: r.minStock ?? old.minStock, location: r.location ?? old.location, notes: r.notes ?? old.notes }
+          const rec: Product = { ...old, name: r.name || old.name, barcode: r.barcode ?? old.barcode, oemNumbers: r.oemNumbers ?? old.oemNumbers, categoryId: categoryId ?? old.categoryId, brand: r.brand ?? old.brand, cars: r.cars ?? old.cars, unit: r.unit || old.unit, cost: prices ? r.cost || old.cost : old.cost, price: prices ? r.price || old.price : old.price, wholesalePrice: prices ? r.wholesalePrice ?? old.wholesalePrice : old.wholesalePrice, minStock: r.minStock ?? old.minStock, location: r.location ?? old.location, notes: r.notes ?? old.notes }
           entries.push({ collection: 'products', record: rec }); updated++
         } else {
           const rec: Product = { id: newId(), updatedAt: 0, code, name: r.name, barcode: r.barcode, oemNumbers: r.oemNumbers, categoryId, brand: r.brand, cars: r.cars, unit: r.unit || settings.units[0] || 'قطعة', cost: r.cost, price: r.price, wholesalePrice: r.wholesalePrice, minStock: r.minStock ?? settings.lowStockDefault, openingStock: r.stock ?? 0, location: r.location, notes: r.notes, kind: 'product', createdAt: Date.now() }

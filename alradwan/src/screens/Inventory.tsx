@@ -42,7 +42,7 @@ export function Inventory() {
     for (const p of products.values()) {
       if (p.kind !== 'product') continue
       const st = stock.get(p.id) ?? 0
-      if (st > p.minStock) continue
+      if (st > p.minStock || (p.minStock <= 0 && st >= 0)) continue
       const monthly = Math.ceil((sold.get(p.id) ?? 0) / 3)
       const qty = Math.max(p.minStock * 2 - st, monthly, 1)
       const sup = lastSupplier.get(p.id)

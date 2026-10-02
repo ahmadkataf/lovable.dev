@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { BookOpen, FileSpreadsheet, Printer, Plus, Trash2, Scale, TrendingUp, Landmark, Clock, PenLine, CheckCircle2, AlertTriangle } from 'lucide-react'
-import { useSettings, useStore } from '../db/store'
+import { useIsAdmin, useSettings, useStore } from '../db/store'
 import type { JournalEntry, JournalLine } from '../db/types'
 import { deleteJournal, saveJournal } from '../db/actions'
 import { ACC, FIXED_ACCOUNTS, OPERATIONAL_ACCOUNTS, accountName, accountsOf, agingReport, balanceSheet, buildJournal, expenseAccount, incomeStatement, ledger, trialBalance, type Account, type Entry } from '../lib/accounting'
@@ -31,6 +31,7 @@ export function Accounting() {
   const [account, setAccount] = useState<string>(ACC.cash)
   const [q, setQ] = useState('')
   const [newEntry, setNewEntry] = useState(false)
+  const isAdmin = useIsAdmin()
   const toast = useToast(); const confirm = useConfirm()
 
   const setR = (r: Range) => {
@@ -72,7 +73,7 @@ export function Accounting() {
   const exportExcel = () => { const { name, table: tb } = table(); exportSheet(`${name}-${from}-${to}`, tb.rows.map(r => Object.fromEntries(tb.columns.map((c, i) => [c.label, r[i]]))), name.slice(0, 30)) }
   const print = () => { const { name, table: tb, note } = table(); printDocument({ type: 'report', title: name, subtitle: tab === 'balance' ? `كما في ${fmtDate(t)}` : tab === 'aging' ? `كما في ${fmtDate(Date.now())}` : `الفترة ${period}`, tables: [tb], note }) }
 
-  const delManual = async (j: JournalEntry) => { if (await confirm({ title: 'حذف هذا القيد؟', danger: true, okText: 'حذف' })) { await deleteJournal(j.id); toast.success('تم حذف القيد') } }
+  const delManual = async (j: JournalEntry) => { if (await confirm({ title: 'حذف هذا القيد؟', danger: true, okText: 'حذف' })) { try { await deleteJournal(j.id); toast.success('تم حذف القيد') } catch (e) { toast.error((e as Error).message) } } }
   const refOf = (e: Entry) => { if (e.ref?.type === 'sale') nav(`/sales?open=${e.ref.id}`) }
 
   return (
@@ -205,7 +206,7 @@ export function Accounting() {
             {manual.length === 0 ? <Empty title="لا قيود يدوية" icon={<BookOpen />} /> : (
               <div className="table-wrap"><table className="table">
                 <thead><tr><th>التاريخ</th><th>البيان</th><th>الحساب</th><th className="num">مدين</th><th className="num">دائن</th><th className="actions"></th></tr></thead>
-                <tbody>{manual.map(j => j.lines.map((l, i) => <tr key={`${j.id}-${i}`} style={i === 0 ? { borderTop: '2px solid var(--border)' } : undefined}><td className="muted small">{i === 0 ? fmtDate(j.date) : ''}</td><td>{i === 0 ? j.memo : ''}</td><td className={l.debit ? '' : 'muted'} style={l.debit ? undefined : { paddingInlineStart: 28 }}>{accountName(l.account, accounts)}{l.note ? <div className="small muted">{l.note}</div> : null}</td><td className="num">{l.debit ? Mc(l.debit) : ''}</td><td className="num">{l.credit ? Mc(l.credit) : ''}</td><td className="actions">{i === 0 && <button className="btn sm ghost icon" onClick={() => delManual(j)}><Trash2 /></button>}</td></tr>))}</tbody>
+                <tbody>{manual.map(j => j.lines.map((l, i) => <tr key={`${j.id}-${i}`} style={i === 0 ? { borderTop: '2px solid var(--border)' } : undefined}><td className="muted small">{i === 0 ? fmtDate(j.date) : ''}</td><td>{i === 0 ? j.memo : ''}</td><td className={l.debit ? '' : 'muted'} style={l.debit ? undefined : { paddingInlineStart: 28 }}>{accountName(l.account, accounts)}{l.note ? <div className="small muted">{l.note}</div> : null}</td><td className="num">{l.debit ? Mc(l.debit) : ''}</td><td className="num">{l.credit ? Mc(l.credit) : ''}</td><td className="actions">{i === 0 && isAdmin && <button className="btn sm ghost icon" aria-label="حذف القيد" onClick={() => delManual(j)}><Trash2 /></button>}</td></tr>))}</tbody>
               </table></div>
             )}
           </div>

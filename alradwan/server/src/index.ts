@@ -134,14 +134,20 @@ async function handle(req: Request, env: Env): Promise<Response> {
           // the sequence numbers are reserved in one atomic statement, so two devices syncing at once get disjoint ranges
           const end = (await env.DB.prepare('UPDATE shops SET seq = seq + ? WHERE shop = ? RETURNING seq').bind(accepted.length, shop).first<{ seq: number }>())?.seq ?? 0
           let seq = end - accepted.length
+          // while these rows are being written, readers must not run past them (see the pull below)
+          await env.DB.prepare('INSERT INTO reservations (shop, start, at) VALUES (?, ?, ?)').bind(shop, seq + 1, now).run()
           const upsert = env.DB.prepare('INSERT INTO records (shop, col, id, seq, updated_at, deleted, data) VALUES (?, ?, ?, ?, ?, ?, ?) ON CONFLICT(shop, col, id) DO UPDATE SET seq = excluded.seq, updated_at = excluded.updated_at, deleted = excluded.deleted, data = excluded.data')
           const stmts = accepted.map(c => upsert.bind(shop, c.collection, c.id, ++seq, c.updatedAt, c.deleted ? 1 : 0, JSON.stringify(c.data)))
           for (let i = 0; i < stmts.length; i += 100) await env.DB.batch(stmts.slice(i, i + 100))
+          await env.DB.prepare('DELETE FROM reservations WHERE shop = ? AND start = ?').bind(shop, seq - accepted.length + 1).run()
         }
       }
 
       // what changed since the device's last visit (in pages, so a fresh device gets everything over a few calls)
-      const rows = await env.DB.prepare('SELECT col, id, seq, updated_at, deleted, data FROM records WHERE shop = ? AND seq > ? ORDER BY seq LIMIT ?').bind(shop, since, MAX_CHANGES + 1).all<{ col: string; id: string; seq: number; updated_at: number; deleted: number; data: string }>()
+      // another device may hold a reserved range it is still writing: deliver only what lies below it (stale reservations are ignored)
+      const pending = await env.DB.prepare('SELECT MIN(start) AS s FROM reservations WHERE shop = ? AND at > ?').bind(shop, now - 120000).first<{ s: number | null }>()
+      const cap = pending?.s ?? Number.MAX_SAFE_INTEGER
+      const rows = await env.DB.prepare('SELECT col, id, seq, updated_at, deleted, data FROM records WHERE shop = ? AND seq > ? AND seq < ? ORDER BY seq LIMIT ?').bind(shop, since, cap, MAX_CHANGES + 1).all<{ col: string; id: string; seq: number; updated_at: number; deleted: number; data: string }>()
       const page = rows.results.slice(0, MAX_CHANGES)
       const more = rows.results.length > MAX_CHANGES
       const out = page.map(r => ({ collection: r.col, id: r.id, updatedAt: r.updated_at, deleted: !!r.deleted, data: JSON.parse(r.data) }))

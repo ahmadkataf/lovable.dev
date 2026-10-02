@@ -1,5 +1,7 @@
 // the library is big and rarely needed, so it is fetched the first time a sheet is read or written
 const xlsx = () => import('xlsx')
+import { can } from '../db/store'
+import { notifyError } from './notify'
 import { saveFile } from './platform'
 import { toNumber } from './format'
 
@@ -7,6 +9,7 @@ import { toNumber } from './format'
 // table and report out as a sheet he can print or send.
 
 export async function exportSheet(name: string, rows: Record<string, unknown>[], sheetName = 'ورقة1'): Promise<void> {
+  if (!can('exportData')) { notifyError('ليس لديك صلاحية التصدير'); return }
   const XLSX = await xlsx()
   const ws = XLSX.utils.json_to_sheet(rows)
   // right-to-left sheet and readable column widths

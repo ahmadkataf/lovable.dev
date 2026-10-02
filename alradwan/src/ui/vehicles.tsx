@@ -1,8 +1,9 @@
 import { useMemo, useState } from 'react'
 import { Car, Plus, Search, X, Gauge } from 'lucide-react'
-import { useCollection } from '../db/store'
+import { useCollection, useIsAdmin } from '../db/store'
 import type { Vehicle } from '../db/types'
-import { saveVehicle } from '../db/actions'
+import { deleteVehicle, saveVehicle } from '../db/actions'
+import { useConfirm } from './modal'
 import { decodeVin, normalizeVin } from '../lib/vin'
 import { fmtDate, matches, num } from '../lib/format'
 import { Field, NumberInput } from './components'
@@ -89,6 +90,8 @@ export function CustomerVehicles({ customerId, onOpenSale }: { customerId: strin
   const sales = useCollection('sales')
   const [form, setForm] = useState<Partial<Vehicle> | null>(null)
   const [q] = useState('')
+  const isAdmin = useIsAdmin(); const confirm = useConfirm(); const toast = useToast()
+  const del = async (v: Vehicle) => { if (await confirm({ title: 'حذف هذه السيارة؟', text: 'فواتيرها تبقى في السجل.', danger: true, okText: 'حذف' })) { try { await deleteVehicle(v); toast.success('حُذفت السيارة') } catch (e) { toast.error((e as Error).message) } } }
   const list = useMemo(() => Array.from(vehicles.values()).filter(v => v.customerId === customerId && matches(q, v.make, v.model, v.plate, v.vin)), [vehicles, customerId, q])
   const history = (vid: string) => Array.from(sales.values()).filter(s => s.vehicleId === vid && s.type === 'sale').sort((a, b) => b.date - a.date)
   return (
@@ -101,7 +104,7 @@ export function CustomerVehicles({ customerId, onOpenSale }: { customerId: strin
           <div key={v.id} className="card pad" style={{ padding: 10 }}>
             <div className="between" style={{ flexWrap: 'wrap', gap: 6 }}>
               <div><b>{vehicleLabel(v)}</b>{v.vin && <div className="small muted mono">{v.vin}</div>}<div className="small muted">{v.odometer ? `العداد ${num(v.odometer)} كم` : ''}{v.nextServiceKm ? ` · الصيانة القادمة عند ${num(v.nextServiceKm)} كم` : ''}{v.nextServiceDate ? ` · ${fmtDate(v.nextServiceDate)}` : ''}</div>{due.due && <span className="badge tone-warning">{due.why}</span>}</div>
-              <button className="btn sm ghost" onClick={() => setForm(v)}>تعديل</button>
+              <div className="row" style={{ gap: 4 }}><button className="btn sm ghost" onClick={() => setForm(v)}>تعديل</button>{isAdmin && <button className="btn sm ghost" onClick={() => del(v)}>حذف</button>}</div>
             </div>
             {h.length > 0 && <div className="small mt">{h.slice(0, 5).map(s => <div key={s.id} className="between" style={{ padding: '3px 0', borderTop: '1px dotted var(--border)', cursor: 'pointer' }} onClick={() => onOpenSale(s.id)}><span>{fmtDate(s.date)}{s.odometer ? ` · ${num(s.odometer)} كم` : ''} — {s.items.map(i => i.name).join('، ')}</span></div>)}{h.length > 5 && <div className="muted">و{h.length - 5} زيارة أخرى</div>}</div>}
           </div>

@@ -25,7 +25,7 @@ export function makerOf(vin: string): { make: string; country: string } | undefi
 }
 /** The model line, when the maker's own coding is known to the app. */
 export function modelOf(vin: string): { model: string; years?: string } | undefined {
-  for (const r of MODELS) if (vin.startsWith(r.wmi.slice(0, 2)) && r.re.test(vin)) return { model: r.model, years: r.years || undefined }
+  for (const r of MODELS) if (r.re.test(vin)) return { model: r.model, years: r.years || undefined }
   return undefined
 }
 

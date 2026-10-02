@@ -7,7 +7,7 @@ import { useCollection, useIsAdmin, useSettings, useCanSeeCost, usePerm } from '
 import type { CashKind } from '../db/types'
 import { addCashEntry, addExpense, deleteMoneyEntry } from '../db/actions'
 import { cashLines, sumBetween } from '../lib/calc'
-import { addDays, fmtDateTime, fromInputDate, money, startOfDay, startOfMonth, toInputDate, rangeStart, rangeEnd } from '../lib/format'
+import { addDays, fmtDateTime, fromInputDate, money, startOfDay, startOfMonth, toInputDate, rangeStart, rangeEnd, fmtDateExcel } from '../lib/format'
 import { DateRange, Empty, Field, NumberInput, Stat, Tabs } from '../ui/components'
 import { Modal, useConfirm } from '../ui/modal'
 import { useToast } from '../ui/toast'
@@ -80,7 +80,7 @@ export function Cash() {
         <button className="btn" onClick={printDaily} title="طباعة تقرير إغلاق الفترة"><Printer /> <span className="hide-mobile">تقرير الإغلاق</span></button>
         <span className="spacer" />
         <DateRange from={from} to={to} onChange={(a, b) => { setFrom(a); setTo(b) }} />
-        <button className="btn" onClick={() => exportSheet(`حركة-الصندوق-${from}-${to}`, period.map(l => ({ 'التاريخ': fmtDateTime(l.date), 'النوع': l.kind, 'البيان': l.label, 'داخل': l.amount > 0 ? l.amount : '', 'خارج': l.amount < 0 ? -l.amount : '' })), 'الصندوق')}><FileSpreadsheet /></button>
+        <button className="btn" onClick={() => exportSheet(`حركة-الصندوق-${from}-${to}`, period.map(l => ({ 'التاريخ': fmtDateExcel(l.date), 'النوع': l.kind, 'البيان': l.label, 'داخل': l.amount > 0 ? l.amount : '', 'خارج': l.amount < 0 ? -l.amount : '' })), 'الصندوق')}><FileSpreadsheet /></button>
       </div>
       <Tabs value={tab} onChange={setTab} items={[{ id: 'all', label: 'كل الحركات' }, { id: 'expenses', label: 'المصاريف فقط' }]} />
       <div className="card">

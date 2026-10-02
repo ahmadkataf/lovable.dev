@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Save, Trash2, ImagePlus } from 'lucide-react'
-import { audit, put, useCollection, useSettings, useCanSeeCost, useIsAdmin, usePerm } from '../db/store'
+import { audit, can, put, useCollection, useSettings, useCanSeeCost, useIsAdmin, usePerm } from '../db/store'
 import type { Category, Customer, Product, Supplier } from '../db/types'
 import { Field, NumberInput } from './components'
 import { equiv } from '../lib/format'
@@ -21,6 +21,7 @@ export function CustomerForm({ initial, onClose, onSaved }: { initial?: Partial<
   const set = (k: keyof Customer, v: unknown) => setF(x => ({ ...x, [k]: v }))
   const save = async () => {
     if (!f.name?.trim()) { toast.error('اكتب اسم العميل'); return }
+    if (!can('customers')) { toast.error('ليس لديك صلاحية تعديل العملاء'); return }
     setBusy(true)
     try { const c = await put('customers', { ...(f as Customer), name: f.name.trim(), vin: f.vin ? normalizeVin(f.vin) : undefined, createdAt: f.createdAt ?? Date.now() }); toast.success('تم حفظ العميل'); onSaved?.(c); onClose() }
     catch (e) { toast.error('تعذّر الحفظ: ' + (e as Error).message) } finally { setBusy(false) }
@@ -58,6 +59,7 @@ export function SupplierForm({ initial, onClose, onSaved }: { initial?: Partial<
   const set = (k: keyof Supplier, v: unknown) => setF(x => ({ ...x, [k]: v }))
   const save = async () => {
     if (!f.name?.trim()) { toast.error('اكتب اسم المورد'); return }
+    if (!can('customers')) { toast.error('ليس لديك صلاحية تعديل الموردين'); return }
     setBusy(true)
     try { const s = await put('suppliers', { ...(f as Supplier), name: f.name.trim(), createdAt: f.createdAt ?? Date.now() }); toast.success('تم حفظ المورد'); onSaved?.(s); onClose() }
     catch (e) { toast.error('تعذّر الحفظ: ' + (e as Error).message) } finally { setBusy(false) }
@@ -121,9 +123,9 @@ export function ProductForm({ initial, currentStock, onClose, onSaved }: { initi
     const code = (f.code ?? '').trim() || nextCode(products)
     const dup = Array.from(products.values()).find(p => p.id !== f.id && p.code.toLowerCase() === code.toLowerCase())
     if (dup) { toast.error(`الكود ${code} مستخدم للقطعة «${dup.name}»`); return }
+    if (!canEdit) { toast.error('ليس لديك صلاحية تعديل القطع'); return }
     let categoryId = f.categoryId
     if (newCat.trim()) { const c = await put('categories', { name: newCat.trim() } as Category); categoryId = c.id }
-    if (!canEdit) { toast.error('ليس لديك صلاحية تعديل القطع'); return }
     const before = initial?.id ? products.get(initial.id) : undefined
     setBusy(true)
     try {

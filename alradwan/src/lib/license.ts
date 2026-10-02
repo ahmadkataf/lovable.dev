@@ -66,7 +66,7 @@ const NOTICE: Record<string, string> = {
 }
 
 let devicePromise: Promise<string> | null = null
-const device = () => (devicePromise ??= serverDevice())
+const device = () => { devicePromise ??= serverDevice().catch(e => { devicePromise = null; throw e }); return devicePromise }
 
 function trialEnds(): number {
   if (!SALES.trialDays) return 0
@@ -89,10 +89,11 @@ export async function checkLicense(force = false): Promise<void> {
   const te = trialEnds()
   if (!s) { useLicense.setState({ state: te > Date.now() ? 'trial' : 'none', device: dev, trialEnds: te, notice: '' }); return }
   // an emergency code given by hand: permanent on this device, never checked online
-  if (s.offline) { useLicense.setState({ state: 'active', until: null, code: s.code, device: dev, lastCheck: s.lastCheck, trialEnds: te, shopName: '', devices: 1, maxDevices: 1, notice: '' }); return }
+  if (s.offline) { if (!(await isOfflineCode(s.code.replace(/[^0-9A-Z]/g, '')))) { write(KEY, null); useLicense.setState({ state: 'none', device: dev, trialEnds: te, notice: '' }); return } useLicense.setState({ state: 'active', until: null, code: s.code, device: dev, lastCheck: s.lastCheck, trialEnds: te, shopName: '', devices: 1, maxDevices: 1, notice: '' }); return }
   const now = Date.now()
   // a clock moved backwards (or a tampered lastCheck in the future) counts as "long ago": ask the server
-  const stale = s.lastCheck > now + 3600000 ? GRACE_DAYS * DAY + 1 : now - s.lastCheck
+  // a lastCheck in the future (clock moved back, or edited): check with the server, but do not punish an offline shop for it
+  const stale = s.lastCheck > now + 3600000 ? CHECK_EVERY + 1 : now - s.lastCheck
   const offlineState = (): [LicenseState, string] => stale > GRACE_DAYS * DAY ? ['blocked', NOTICE.blocked] : stale > WARN_DAYS * DAY ? ['grace', NOTICE.grace] : ['active', '']
   const fromStore = (state: LicenseState, notice = '') => useLicense.setState({ state, until: s.until, code: s.code, device: dev, lastCheck: s.lastCheck, trialEnds: te, shopName: s.shopName ?? '', devices: s.devices ?? 0, maxDevices: s.maxDevices ?? 0, notice })
   const expired = !!s.until && s.until < now
@@ -118,6 +119,8 @@ export async function checkLicense(force = false): Promise<void> {
     // the token aged out (a long time without internet): the same device re-activates with its own code silently
     const again = await activate(s.code, '', true)
     if (again === 'ok') return
+    if (again !== 'network' && again !== 'server') { write(KEY, null); useLicense.setState({ state: again === 'revoked' ? 'revoked' : 'none', until: null, code: '', device: dev, lastCheck: 0, trialEnds: te, notice: NOTICE[again] ?? NOTICE.session }); return }
+    return
   }
   write(KEY, null)
   useLicense.setState({ state: why === 'revoked' ? 'revoked' : why === 'moved' ? 'moved' : 'none', until: null, code: '', device: dev, lastCheck: 0, trialEnds: te, notice: NOTICE[why] ?? NOTICE.session })

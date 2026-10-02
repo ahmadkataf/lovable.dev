@@ -61,6 +61,8 @@ export function fmtTime(t: number): string {
 }
 
 export function fmtDateTime(t: number): string { return `${fmtDate(t)} ${fmtTime(t)}` }
+/** For spreadsheets: an unambiguous, sortable form (2026-10-02 14:05). */
+export function fmtDateExcel(t: number): string { const d = new Date(t); return `${toInputDate(t)} ${pad(d.getHours())}:${pad(d.getMinutes())}` }
 
 /** yyyy-mm-dd for <input type=date>, in local time */
 export function toInputDate(t: number): string {

@@ -17,10 +17,15 @@ const FOCUSABLE = 'a[href], button:not([disabled]), input:not([disabled]), selec
 export function Modal({ title, onClose, children, footer, size, icon }: { title: ReactNode; onClose: () => void; children: ReactNode; footer?: ReactNode; size?: 'wide' | 'narrow'; icon?: ReactNode }) {
   const box = useRef<HTMLDivElement>(null)
   const titleId = useId()
+  // the latest onClose through a ref: the dialog registers once, however often its parent re-renders
+  const closeRef = useRef(onClose); closeRef.current = onClose
   useEffect(() => {
     const opener = document.activeElement as HTMLElement | null
+    const close = () => closeRef.current()
+    const isTop = () => openDialogs[openDialogs.length - 1] === close
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') { onClose(); return }
+      if (!isTop()) return
+      if (e.key === 'Escape') { close(); return }
       // Tab stays inside the dialog
       if (e.key === 'Tab' && box.current) {
         const items = Array.from(box.current.querySelectorAll<HTMLElement>(FOCUSABLE)).filter(el => el.offsetParent !== null)
@@ -33,11 +38,11 @@ export function Modal({ title, onClose, children, footer, size, icon }: { title:
     window.addEventListener('keydown', onKey)
     const prev = document.body.style.overflow
     document.body.style.overflow = 'hidden'
-    openDialogs.push(onClose)
+    openDialogs.push(close)
     // the first field gets the keyboard, unless something inside asked for it already
     setTimeout(() => { if (box.current && !box.current.contains(document.activeElement)) (box.current.querySelector<HTMLElement>('.modal-body ' + FOCUSABLE) ?? box.current.querySelector<HTMLElement>(FOCUSABLE))?.focus() }, 30)
-    return () => { window.removeEventListener('keydown', onKey); document.body.style.overflow = prev; const i = openDialogs.lastIndexOf(onClose); if (i >= 0) openDialogs.splice(i, 1); opener?.focus?.() }
-  }, [onClose])
+    return () => { window.removeEventListener('keydown', onKey); document.body.style.overflow = prev; const i = openDialogs.lastIndexOf(close); if (i >= 0) openDialogs.splice(i, 1); opener?.focus?.() }
+  }, [])
   return (
     <div className="modal-backdrop" onMouseDown={e => { if (e.target === e.currentTarget) onClose() }}>
       <div className={`modal ${size ?? ''}`} role="dialog" aria-modal="true" aria-labelledby={titleId} ref={box}>
