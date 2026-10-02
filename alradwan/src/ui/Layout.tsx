@@ -1,7 +1,7 @@
 import { useEffect, useState, type ReactNode } from 'react'
 import { NavLink, useLocation } from 'react-router-dom'
-import { LayoutDashboard, ShoppingCart, Receipt, Package, Boxes, Truck, Users, Factory, Wallet, BarChart3, Settings, Menu, LogOut, RefreshCw, CloudOff, Cloud, AlertTriangle, User, DollarSign, History, Trash2, Car, BookOpen } from 'lucide-react'
-import { setCurrentUser, useCurrentUser, useIsAdmin, useSettings, useStore } from '../db/store'
+import { LayoutDashboard, ShoppingCart, Receipt, Package, Boxes, Truck, Users, Factory, Wallet, BarChart3, Settings, Menu, LogOut, RefreshCw, CloudOff, Cloud, AlertTriangle, User, DollarSign, History, Trash2, Car, BookOpen, Sun, Moon } from 'lucide-react'
+import { saveSettings, setCurrentUser, useCurrentUser, useIsAdmin, useSettings, useStore } from '../db/store'
 import { onSyncStatus, syncNow, type SyncStatus } from '../lib/sync'
 import { fmtTime } from '../lib/format'
 import { useToast } from './toast'
@@ -41,6 +41,7 @@ export function Layout({ children }: { children: ReactNode }) {
   useEffect(() => { setOpen(false) }, [loc.pathname])
   const title = TITLES[loc.pathname] ?? Object.entries(TITLES).find(([k]) => k !== '/' && loc.pathname.startsWith(k))?.[1] ?? settings.shopName
   const nav = NAV.filter(n => !n.admin || isAdmin)
+  const dark = settings.theme === 'dark' || (settings.theme === 'auto' && window.matchMedia('(prefers-color-scheme: dark)').matches)
   return (
     <div className="app">
       {open && <div className="sidebar-backdrop" onClick={() => setOpen(false)} />}
@@ -55,7 +56,7 @@ export function Layout({ children }: { children: ReactNode }) {
         <div className="foot">
           <User size={16} />
           <span style={{ flex: 1 }}>{user ? `${user.name}${user.role === 'admin' ? ' (مدير)' : ''}` : 'بدون تسجيل دخول'}</span>
-          {hasUsers && <button className="btn ghost icon" title="تسجيل الخروج" onClick={() => setCurrentUser(null)} style={{ color: '#94a3b8' }}><LogOut size={16} /></button>}
+          {hasUsers && <button className="btn ghost icon" title="تسجيل الخروج" onClick={() => setCurrentUser(null)} style={{ color: 'var(--side-muted)' }}><LogOut size={16} /></button>}
         </div>
       </aside>
       <div className="main">
@@ -66,6 +67,7 @@ export function Layout({ children }: { children: ReactNode }) {
             <DollarSign />
             <span dir="ltr">{settings.rate ? <>1 $ = <b>{settings.rate.toLocaleString('en-US')}</b> <span className="hide-mobile">ل.س</span></> : 'سعر الدولار'}</span>
           </button>
+          <button className="btn ghost icon" title={dark ? 'التبديل إلى المظهر الفاتح' : 'التبديل إلى المظهر الداكن'} aria-label="المظهر" onClick={() => saveSettings({ theme: dark ? 'light' : 'dark' })}>{dark ? <Sun /> : <Moon />}</button>
           <SyncPill />
         </header>
         {rate && <RateModal onClose={() => setRate(false)} />}

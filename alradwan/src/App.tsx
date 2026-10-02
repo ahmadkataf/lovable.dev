@@ -30,7 +30,7 @@ import { autoBackupIfDue } from './lib/backup'
 function applyTheme(theme: 'light' | 'dark' | 'auto') {
   const dark = theme === 'dark' || (theme === 'auto' && window.matchMedia('(prefers-color-scheme: dark)').matches)
   document.documentElement.dataset.theme = dark ? 'dark' : 'light'
-  document.querySelector('meta[name=theme-color]')?.setAttribute('content', dark ? '#0b1220' : '#0f172a')
+  document.querySelector('meta[name=theme-color]')?.setAttribute('content', dark ? '#0b1220' : '#ffffff')
 }
 
 /** If a screen ever throws, the shop sees a message and a backup button, never a blank page. */

@@ -269,7 +269,7 @@ export const DEFAULT_SETTINGS: Settings = {
   printSize: 'a4',
   printMode: 'preview',
   lowStockDefault: 2,
-  theme: 'auto',
+  theme: 'light',
   setupDone: false,
   staffSeesCost: false,
   staffEditsPrices: true,
