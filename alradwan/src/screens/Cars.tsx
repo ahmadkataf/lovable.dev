@@ -67,12 +67,13 @@ export function Cars() {
           {info && (
             <div className="grid cols-2">
               <div className="card pad">
-                <div className="card-title"><h2>بيانات السيارة</h2><span className="badge tone-muted">{info.source === 'nhtsa' ? 'مفكّك NHTSA' : 'قراءة محلية'}</span></div>
+                <div className="card-title"><h2>بيانات السيارة</h2><span className="badge tone-muted">{info.source === 'nhtsa' ? 'مفكّك NHTSA' : 'قراءة محلية (بلا إنترنت)'}</span></div>
                 <dl className="kv">
                   <dt>الشاصي</dt><dd className="mono">{info.vin}</dd>
                   <dt>الشركة</dt><dd>{info.make ?? <span className="muted">غير معروفة</span>}</dd>
                   <dt>الموديل</dt><dd>{info.model ?? <span className="muted">—</span>}</dd>
                   <dt>سنة الصنع</dt><dd>{info.year ?? '—'}</dd>
+                  {info.modelYears && <><dt>سنوات الجيل</dt><dd>{info.modelYears}</dd></>}
                   {info.engine && <><dt>المحرك</dt><dd>{info.engine}</dd></>}
                   {info.body && <><dt>الهيكل</dt><dd>{info.body}</dd></>}
                   {info.country && <><dt>بلد الصنع</dt><dd>{info.country}</dd></>}

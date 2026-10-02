@@ -1,6 +1,6 @@
 // The chassis number (VIN): 17 characters that say who built the car, what it is, and which year.
-// Part of it can be read here without internet (the maker and the year); the rest (model, engine)
-// comes from the free NHTSA decoder when the device is online.
+// The maker, the country, the year and (for the common makes) the model line are read here without
+// internet from the tables in vinData.ts; the engine and the exact trim come from the free NHTSA decoder when online.
 
 export interface VinInfo {
   vin: string
@@ -11,23 +11,23 @@ export interface VinInfo {
   engine?: string
   body?: string
   country?: string
+  modelYears?: string     // the generation's years, when read from the local tables
   source: 'local' | 'nhtsa'
   error?: string
 }
 
-// the first three characters (WMI) → the maker; the common ones in the region
-const WMI: [RegExp, string][] = [
-  [/^KMH|^KMF|^KM8|^KMJ|^KMC|^KMT/, 'هيونداي'], [/^KNA|^KND|^KNC|^KNE|^KNM/, 'كيا'], [/^KL[1-8]|^KLA|^KLY/, 'شيفروليه (دايو)'], [/^KPT|^KPA/, 'سانغ يونغ'],
-  [/^JT|^JTD|^JTE|^JTF|^JTG|^JTH|^JTJ|^JTK|^JTL|^JTM|^JTN|^4T1|^4T3|^5TD|^5TF|^2T1|^SB1/, 'تويوتا'], [/^JTH|^JTJ|^2T2/, 'لكزس'], [/^JN|^1N4|^1N6|^3N1|^5N1|^SJN/, 'نيسان'], [/^JHM|^JHL|^1HG|^2HG|^19X|^SHH/, 'هوندا'],
-  [/^JM|^1YV|^3MZ/, 'مازدا'], [/^JMB|^JA3|^JA4|^MMB|^MMC/, 'ميتسوبيشي'], [/^JS|^JSA|^TSM/, 'سوزوكي'], [/^JF|^4S3|^4S4/, 'سوبارو'],
-  [/^WDB|^WDC|^WDD|^WDF|^W1K|^W1N|^W1V|^4JG/, 'مرسيدس'], [/^WBA|^WBS|^WBX|^WBY|^5UX/, 'بي إم دبليو'], [/^WAU|^WA1|^WUA/, 'أودي'], [/^WVW|^WVG|^WV1|^WV2|^1VW|^3VW|^9BW/, 'فولكس واجن'],
-  [/^WP0|^WP1/, 'بورشه'], [/^VF1|^VF2/, 'رينو'], [/^VF3|^VF7/, 'بيجو'], [/^VF7|^VF8/, 'ستروين'], [/^ZFA|^ZFF/, 'فيات'], [/^SAL|^SAJ/, 'لاند روفر / جاكوار'],
-  [/^1G1|^1GC|^2G1|^3G1|^1GN|^1GB|^KL4/, 'شيفروليه'], [/^1G6|^1GY/, 'كاديلاك'], [/^1GM|^1G2|^1G3|^1G4|^1G5/, 'جنرال موتورز'], [/^1FA|^1FT|^1FM|^1FD|^3FA|^WF0|^NM0/, 'فورد'],
-  [/^1C3|^1C4|^1C6|^2C3|^3C4|^3C6|^1B3|^2B3|^3D4/, 'كرايسلر / دودج / جيب'], [/^LSG|^LSV|^LGB|^LFV|^LVS|^LZW|^LGX|^LJD|^LVV|^LB3|^LDC|^L6T|^LGW|^LNB|^LVG|^LSJ|^LRW|^LJ1|^LZG|^LMG/, 'صيني'],
-  [/^MA1|^MA3|^MAL|^MAT|^MB1|^MBH|^MBJ|^MC2|^MEE|^MAJ|^MAK|^MBK/, 'هندي'], [/^NLE|^NLH|^NM4/, 'تركي'], [/^X|^Z7/, 'روسي'], [/^YV1|^YV4/, 'فولفو'], [/^TMB/, 'سكودا'], [/^VSS/, 'سيات'],
-]
-const YEAR_CODES = 'ABCDEFGHJKLMNPRSTVWXY123456789'
-const REGION: [RegExp, string][] = [[/^[J]/, 'اليابان'], [/^[K]/, 'كوريا'], [/^[L]/, 'الصين'], [/^[M]/, 'الهند / تايلاند'], [/^[S]/, 'بريطانيا'], [/^[T]/, 'تشيكيا / سويسرا'], [/^[V]/, 'فرنسا / إسبانيا'], [/^[W]/, 'ألمانيا'], [/^[X-Z]/, 'أوروبا'], [/^[1-5]/, 'أمريكا الشمالية'], [/^[6-7]/, 'أستراليا'], [/^[8-9]/, 'أمريكا الجنوبية']]
+import { MODELS, REGION, WMI, YEAR_CODES } from './vinData'
+
+/** The maker from the longest known prefix of the VIN ("KMHD" before "KMH" before "KM"). */
+export function makerOf(vin: string): { make: string; country: string } | undefined {
+  for (let n = Math.min(4, vin.length); n >= 1; n--) { const hit = WMI[vin.slice(0, n)]; if (hit) return hit }
+  return undefined
+}
+/** The model line, when the maker's own coding is known to the app. */
+export function modelOf(vin: string): { model: string; years?: string } | undefined {
+  for (const r of MODELS) if (vin.startsWith(r.wmi.slice(0, 2)) && r.re.test(vin)) return { model: r.model, years: r.years || undefined }
+  return undefined
+}
 
 export function normalizeVin(v: string): string { return v.toUpperCase().replace(/[^A-Z0-9]/g, '').replace(/[IOQ]/g, '') }
 
@@ -36,8 +36,10 @@ export function decodeVinLocal(raw: string): VinInfo {
   const vin = normalizeVin(raw)
   const info: VinInfo = { vin, valid: vin.length === 17, source: 'local' }
   if (vin.length < 3) return { ...info, error: 'رقم الشاصي قصير' }
-  info.make = WMI.find(([re]) => re.test(vin))?.[1]
-  info.country = REGION.find(([re]) => re.test(vin))?.[1]
+  const maker = makerOf(vin)
+  info.make = maker?.make
+  info.country = maker?.country ?? REGION.find(([re]) => re.test(vin))?.[1]
+  if (vin.length >= 8) { const m = modelOf(vin); if (m) { info.model = m.model; info.modelYears = m.years } }
   if (vin.length >= 10) {
     // the 10th character is the model year; the same letters repeat every 30 years, so pick the run that makes sense now
     const idx = YEAR_CODES.indexOf(vin[9])
@@ -66,9 +68,9 @@ export async function decodeVin(raw: string): Promise<VinInfo> {
     const make = pick('Make'), model = pick('Model'), year = pick('ModelYear')
     const engine = [pick('DisplacementL') ? `${Number(pick('DisplacementL')).toFixed(1)} لتر` : '', pick('EngineCylinders') ? `${pick('EngineCylinders')} سلندر` : '', pick('FuelTypePrimary') === 'Diesel' ? 'ديزل' : '', pick('EngineModel') ?? ''].filter(Boolean).join(' · ')
     if (!make && !model) return { ...local, source: 'nhtsa', error: local.make ? undefined : 'لم يتعرف المفكّك على هذا الشاصي؛ أدخل بيانات السيارة يدوياً' }
-    return { ...local, source: 'nhtsa', make: make ? titleCase(make) : local.make, model: model ?? undefined, year: year ? Number(year) : local.year, engine: engine || undefined, body: pick('BodyClass') ?? undefined }
+    return { ...local, source: 'nhtsa', make: make ? titleCase(make) : local.make, model: model ?? local.model, year: year ? Number(year) : local.year, engine: engine || undefined, body: pick('BodyClass') ?? undefined }
   } catch {
-    return { ...local, error: local.error ?? 'لا إنترنت: قُرئت الشركة والسنة فقط من الشاصي' }
+    return { ...local, error: local.error ?? (local.model ? undefined : 'لا إنترنت: قُرئت الشركة والسنة من الشاصي، والموديل غير معروف محلياً') }
   }
 }
 

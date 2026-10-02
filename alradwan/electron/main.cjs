@@ -86,6 +86,15 @@ ipcMain.handle('read-backup', async (_e, name) => {
 })
 ipcMain.handle('backups-folder', async () => backupsDir())
 
+// a random id kept in the app's folder: the same after updates, different on another computer
+ipcMain.handle('device-id', async () => {
+  const f = path.join(app.getPath('userData'), 'device.id')
+  try { const v = fs.readFileSync(f, 'utf8').trim(); if (v) return v } catch {}
+  const id = require('crypto').randomBytes(16).toString('hex')
+  try { fs.mkdirSync(app.getPath('userData'), { recursive: true }); fs.writeFileSync(f, id) } catch {}
+  return id
+})
+
 // one copy of the app at a time (a second click on the icon brings the first window forward)
 if (!app.requestSingleInstanceLock()) app.quit()
 else {

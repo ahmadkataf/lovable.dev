@@ -22,3 +22,37 @@ CREATE TABLE IF NOT EXISTS shops (
   created_at INTEGER NOT NULL,
   last_seen INTEGER NOT NULL
 );
+
+-- Activation codes sold to shops. A code belongs to the devices it was activated on (a computer and a phone).
+CREATE TABLE IF NOT EXISTS licenses (
+  code        TEXT PRIMARY KEY,          -- 12 characters, shown as XXXX-XXXX-XXXX
+  plan        TEXT NOT NULL DEFAULT 'year',
+  created_at  INTEGER NOT NULL,
+  expires_at  INTEGER,                   -- ms; NULL = never
+  note        TEXT NOT NULL DEFAULT '',
+  seller      TEXT NOT NULL DEFAULT '',
+  shop_name   TEXT NOT NULL DEFAULT '',
+  max_devices INTEGER NOT NULL DEFAULT 2,
+  revoked     INTEGER NOT NULL DEFAULT 0,
+  moves       INTEGER NOT NULL DEFAULT 0,
+  last_seen   INTEGER
+);
+CREATE TABLE IF NOT EXISTS license_devices (
+  code      TEXT NOT NULL,
+  device    TEXT NOT NULL,
+  name      TEXT NOT NULL DEFAULT '',
+  bound_at  INTEGER NOT NULL,
+  last_seen INTEGER,
+  PRIMARY KEY (code, device)
+);
+CREATE TABLE IF NOT EXISTS license_events (
+  id     INTEGER PRIMARY KEY AUTOINCREMENT,
+  at     INTEGER NOT NULL,
+  kind   TEXT NOT NULL,                  -- activate, activate-fail, admin
+  code   TEXT,
+  device TEXT,
+  ip     TEXT,
+  detail TEXT
+);
+CREATE INDEX IF NOT EXISTS license_events_ip_at ON license_events (ip, at);
+CREATE INDEX IF NOT EXISTS license_events_code ON license_events (code);

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Store, Printer, Users, Database, Cloud, Palette, Info, Plus, Trash2, Download, Upload, RefreshCw, Check, ShieldAlert, Copy, Eye, EyeOff, Lock, FolderOpen, MonitorDown } from 'lucide-react'
+import { Store, Printer, Users, Database, Cloud, Palette, Info, Plus, Trash2, Download, Upload, RefreshCw, Check, ShieldAlert, Copy, Eye, EyeOff, Lock, FolderOpen, MonitorDown, KeyRound } from 'lucide-react'
 import { useSearchParams } from 'react-router-dom'
 import { audit, clearAll, put, remove, saveSettings, useCollection, useIsAdmin, useSettings, useStore, setCurrentUser } from '../db/store'
 import type { Role, Settings, User } from '../db/types'
@@ -7,13 +7,15 @@ import { Field, Tabs, NumberInput } from '../ui/components'
 import { Modal, useConfirm } from '../ui/modal'
 import { useToast } from '../ui/toast'
 import { backupIsEncrypted, countBackup, downloadBackup, mergeBackup, parseBackup, restoreBackup } from '../lib/backup'
-import { isDesktop, pickFile, platformName, APP_VERSION } from '../lib/platform'
+import { isDesktop, pickFile, platformName, APP_VERSION, API_URL } from '../lib/platform'
 import { onSyncStatus, resetSyncCursor, schedule, syncNow, testConnection, type SyncStatus } from '../lib/sync'
 import { randomKey } from '../lib/id'
 import { hashPin } from '../lib/crypto'
 import { DEFAULT_STAFF_PERMISSIONS, PERMISSIONS, type Permission } from '../db/types'
+import { shortDevice, useLicense } from '../lib/license'
+import { Activate } from './Activate'
 import { validateSyncUrl } from '../lib/sync'
-import { CURRENCY_DECIMALS, CURRENCY_NAME, CURRENCY_SYMBOL, fmtDateTime, otherCurrency } from '../lib/format'
+import { CURRENCY_DECIMALS, CURRENCY_NAME, CURRENCY_SYMBOL, fmtDate, fmtDateTime, otherCurrency } from '../lib/format'
 import type { CurrencyCode, CurrencyDisplay } from '../db/types'
 import { loadDemoData } from '../db/demo'
 import { previewDocument } from '../print/PrintHost'
@@ -288,7 +290,7 @@ function BackupTab() {
 
 function SyncTab() {
   const s = useSettings()
-  const [url, setUrl] = useState(s.sync.url)
+  const [url, setUrl] = useState(s.sync.url || API_URL)
   const [key, setKey] = useState(s.sync.key)
   const [enabled, setEnabled] = useState(s.sync.enabled)
   const [showKey, setShowKey] = useState(false)
@@ -345,6 +347,24 @@ function LookTab() {
   )
 }
 
+/** The subscription, as the shop sees it: state, expiry, device id, and the button to enter or change a code. */
+function LicenseCard() {
+  const lic = useLicense()
+  const shopName = useSettings().shopName
+  const [open, setOpen] = useState(false)
+  if (lic.state === 'off') return null
+  const label = lic.state === 'active' ? `مفعّل${lic.until ? ` حتى ${fmtDate(lic.until)}` : ' — اشتراك دائم'}` : lic.state === 'trial' ? `نسخة تجريبية حتى ${fmtDate(lic.trialEnds)}` : lic.state === 'loading' ? 'جارٍ التحقق…' : lic.notice || 'غير مفعّل'
+  return (
+    <div className="card pad mt" style={{ textAlign: 'right' }}>
+      <div className="between"><b><KeyRound size={16} style={{ verticalAlign: -3 }} /> التفعيل</b><span className={`badge ${lic.state === 'active' ? 'tone-success' : lic.state === 'trial' ? 'tone-info' : 'tone-warning'}`}>{label}</span></div>
+      {lic.code && <div className="small muted mt">الكود <span className="mono">{lic.code}</span>{lic.maxDevices ? ` · الأجهزة ${lic.devices} من ${lic.maxDevices}` : ''}{lic.lastCheck ? ` · آخر تحقق ${fmtDateTime(lic.lastCheck)}` : ''}</div>}
+      <div className="small muted">رقم هذا الجهاز: <span className="mono">{shortDevice(lic.device)}</span></div>
+      <button className="btn mt" onClick={() => setOpen(true)}>{lic.state === 'active' ? 'تغيير الكود' : 'إدخال كود التفعيل'}</button>
+      {open && <div className="modal-backdrop" style={{ padding: 0 }}><Activate shopName={shopName} onClose={() => setOpen(false)} /></div>}
+    </div>
+  )
+}
+
 function AboutTab() {
   const p = platformName()
   const [installable, setInstallable] = useState(() => !!(window as any).alradwanInstall)
@@ -365,6 +385,7 @@ function AboutTab() {
       {installable && <button className="btn primary mt" onClick={install}><MonitorDown /> تثبيت البرنامج على هذا الجهاز</button>}
       {update && <button className="btn mt" onClick={() => location.reload()}><RefreshCw /> نسخة جديدة جاهزة — أعد التشغيل</button>}
       <p className="help mt">اختصارات لوحة المفاتيح في شاشة البيع: F2 بحث · F8 حفظ · F9 حفظ وطباعة</p>
+      <LicenseCard />
     </div>
   )
 }

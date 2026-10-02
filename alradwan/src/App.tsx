@@ -25,6 +25,8 @@ import { Trash } from './screens/Trash'
 import { Activity } from './screens/Activity'
 import { Cars } from './screens/Cars'
 import { Accounting } from './screens/Accounting'
+import { Activate } from './screens/Activate'
+import { licenseAllows, startLicenseChecks, useLicense } from './lib/license'
 import { autoBackupIfDue } from './lib/backup'
 
 function applyTheme(theme: 'light' | 'dark' | 'auto') {
@@ -75,7 +77,7 @@ export function App() {
   const [error, setError] = useState<string | null>(null)
   const [slow, setSlow] = useState(false)
   useEffect(() => {
-    loadAll().then(initSync).then(() => autoBackupIfDue().catch(() => {})).catch(e => setError(String(e?.message ?? e)))
+    loadAll().then(initSync).then(() => { startLicenseChecks(); return autoBackupIfDue().catch(() => {}) }).catch(e => setError(String(e?.message ?? e)))
     const t = setTimeout(() => setSlow(true), 6000)
     return () => clearTimeout(t)
   }, [])
@@ -111,12 +113,16 @@ function Gate() {
   useAutoLock()
   const setupDone = useStore(s => s.cfg.setupDone)
   const needsLogin = useStore(s => s.users.size > 0 && !s.currentUserId)
+  const shopName = useStore(s => s.cfg.shopName)
+  const licState = useLicense(l => l.state)
   const isAdmin = useStore(s => { if (s.users.size === 0) return true; const u = s.currentUserId ? s.users.get(s.currentUserId) : null; return u?.role === 'admin' })
   // one string, not an object: a selector returning a fresh object re-renders on every store change
   const permKeys = ['sell', 'purchases', 'cars', 'reports', 'accounting', 'activity'] as const
   const permStr = useStore(s => { const u = s.currentUserId ? s.users.get(s.currentUserId) : null; const none = s.users.size === 0; return permKeys.map(k => userCan(u, k, s.cfg, none)).join(',') })
   const perms = Object.fromEntries(permKeys.map((k, i) => [k, permStr.split(',')[i] === 'true'])) as Record<typeof permKeys[number], boolean>
   if (!setupDone) return <Setup />
+  // a sold build: after the trial (or when the subscription ends) the app waits for a code; the data stays
+  if (!licenseAllows(licState)) return <Activate shopName={shopName} />
   if (needsLogin) return <Login />
   return (
     <>

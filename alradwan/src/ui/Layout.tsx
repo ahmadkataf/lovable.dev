@@ -7,6 +7,8 @@ import { onSyncStatus, syncNow, type SyncStatus } from '../lib/sync'
 import { fmtTime } from '../lib/format'
 import { useToast } from './toast'
 import { RateModal } from './RateModal'
+import { useLicense } from '../lib/license'
+import { Activate } from '../screens/Activate'
 
 const NAV: { to: string; label: string; icon: typeof LayoutDashboard; end?: boolean; admin?: boolean; perm?: Permission }[] = [
   { to: '/', label: 'الرئيسية', icon: LayoutDashboard, end: true },
@@ -34,6 +36,10 @@ const TITLES: Record<string, string> = {
 export function Layout({ children }: { children: ReactNode }) {
   const [open, setOpen] = useState(false)
   const [rate, setRate] = useState(false)
+  const [activateOpen, setActivateOpen] = useState(false)
+  const lic = useLicense()
+  const trialDays = lic.state === 'trial' ? Math.max(0, Math.ceil((lic.trialEnds - Date.now()) / 86400000)) : 0
+  const expiringDays = lic.state === 'active' && lic.until ? Math.ceil((lic.until - Date.now()) / 86400000) : 999
   const loc = useLocation()
   const settings = useSettings()
   const user = useCurrentUser()
@@ -75,6 +81,8 @@ export function Layout({ children }: { children: ReactNode }) {
           <SyncPill />
         </header>
         {rate && <RateModal onClose={() => setRate(false)} />}
+        {activateOpen && <div className="modal-backdrop" style={{ padding: 0 }}><Activate shopName={settings.shopName} onClose={() => setActivateOpen(false)} /></div>}
+        {(lic.state === 'trial' || lic.state === 'grace' || expiringDays <= 7) && <div className="card pad tone-warning" style={{ margin: '10px 20px 0', padding: '8px 14px', display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}><span style={{ flex: 1 }}>{lic.state === 'trial' ? `نسخة تجريبية — متبقٍ ${trialDays} يوم` : lic.state === 'grace' ? lic.notice : `الاشتراك ينتهي خلال ${Math.max(0, expiringDays)} يوم`}</span><button className="btn sm primary" onClick={() => setActivateOpen(true)}>تفعيل / تجديد</button></div>}
         <main className="content" key={`${settings.baseCurrency}|${settings.rate}|${settings.display}|${settings.currency}|${settings.decimals}`}>{children}</main>
       </div>
       <nav className="bottom-nav">

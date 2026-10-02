@@ -19,6 +19,11 @@ jobs:
     env:
       CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
       CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      # licensing (optional): the control panel key and the secret that signs activations
+      ALRADWAN_ADMIN_KEY: ${{ secrets.ALRADWAN_ADMIN_KEY }}
+      ALRADWAN_TOKEN_SECRET: ${{ secrets.ALRADWAN_TOKEN_SECRET }}
+      # the server address the apps activate against (repository variable), e.g. https://alradwan.<name>.workers.dev
+      ALRADWAN_API: ${{ vars.ALRADWAN_API }}
     steps:
       - name: Wait for the Cloudflare secrets
         if: env.CLOUDFLARE_API_TOKEN == '' || env.CLOUDFLARE_ACCOUNT_ID == ''
@@ -54,6 +59,8 @@ jobs:
         working-directory: alradwan/server
         run: |
           npx wrangler d1 execute alradwan --remote --file=schema.sql
+          if [ -n "$ALRADWAN_TOKEN_SECRET" ]; then printf '%s' "$ALRADWAN_TOKEN_SECRET" | npx wrangler secret put TOKEN_SECRET; fi
+          if [ -n "$ALRADWAN_ADMIN_KEY" ]; then printf '%s' "$ALRADWAN_ADMIN_KEY" | npx wrangler secret put ADMIN_KEY; fi
           npx wrangler deploy 2>&1 | tee deploy.log
           URL=$(grep -oE 'https://[a-z0-9.-]+\.workers\.dev' deploy.log | head -1)
           echo "## الموقع" >> "$GITHUB_STEP_SUMMARY"

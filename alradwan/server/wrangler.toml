@@ -7,9 +7,12 @@ compatibility_date = "2025-06-01"
 [assets]
 directory = "../dist"
 binding = "ASSETS"
-run_worker_first = ["/api/*"]
+run_worker_first = ["/api/*", "/admin"]
 
 [[d1_databases]]
 binding = "DB"
 database_name = "alradwan"
 database_id = "REPLACE_WITH_YOUR_D1_DATABASE_ID"
+
+# Secrets (never in this file), set by the deploy workflow from the repository secrets:
+#   TOKEN_SECRET signs the shops' activation sessions, ADMIN_KEY opens the control panel at /admin.

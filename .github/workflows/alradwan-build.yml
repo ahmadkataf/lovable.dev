@@ -29,6 +29,9 @@ on:
     branches: ['**']
     tags: ['alradwan-v*']
     paths: ['.github/workflows/alradwan-build.yml', 'alradwan/package.json']
+env:
+  # the licensing/sync server the apps are built against (repository variable); empty = the apps run without activation
+  ALRADWAN_API: ${{ vars.ALRADWAN_API }}
 defaults:
   run:
     working-directory: alradwan

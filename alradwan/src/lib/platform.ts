@@ -1,5 +1,8 @@
 declare const __APP_VERSION__: string
+declare const __ALRADWAN_API__: string
 export const APP_VERSION = __APP_VERSION__
+/** The licensing (and default sync) server this build was made for; empty when the build is free. */
+export const API_URL = __ALRADWAN_API__
 // Where the app runs: the website, the Windows app (Electron) or the Android app (WebView with a small bridge).
 declare global {
   interface Window {
@@ -12,6 +15,7 @@ declare global {
       saveFile(name: string, base64: string): Promise<boolean>
       /** preview = a PDF window with its own print button; direct = the system dialog. Resolves true, or an error text. */
       print(mode: 'preview' | 'direct', size: 'a4' | '80mm'): Promise<boolean | string>
+      deviceId(): Promise<string>
       autoBackup(name: string, text: string): Promise<boolean>
       listBackups(): Promise<{ name: string; size: number; mtime: number }[]>
       readBackup(name: string): Promise<string | null>
