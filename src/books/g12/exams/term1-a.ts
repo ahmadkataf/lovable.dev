@@ -1,6 +1,6 @@
 import type { Exam } from '../../../engine/types'
 
-// A past Term 1 paper (Grade 12, Scientific Section, 2025/2026), typed in exactly as printed,
+// A past Term 1 paper (Grade 12, 2025/2026), typed in exactly as printed,
 // with the teacher's answer key. The header says 150 but the marks printed on the tasks add up to 300,
 // so the paper is marked out of 300 here, task by task.
 export const term1A: Exam = {
@@ -11,7 +11,7 @@ export const term1A: Exam = {
   minutes: 150,
   totalMarks: 300,
   real: true,
-  sourceAr: 'امتحان حقيقي للفصل الأول 2025/2026 (الفرع العلمي) كما طُبع، مع حلّ الأستاذ وشرح كل إجابة.',
+  sourceAr: 'امتحان حقيقي للفصل الأول 2025/2026 كما طُبع، مع حلّ الأستاذ وشرح كل إجابة.',
   sections: [
     {
       letter: 'A',

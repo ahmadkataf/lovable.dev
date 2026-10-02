@@ -161,7 +161,7 @@ table{width:100%;border-collapse:collapse;font-size:13.5px}th,td{padding:9px 6px
 
 <script>
 const $ = id => document.getElementById(id)
-const BOOKS = { g12: ['البكالوريا العلمي', 'Emar 12', '#8b5cf6'], g11: ['الحادي عشر', 'Emar 11', '#2383e2'], g9: ['التاسع', 'Emar 9', '#e5484d'], g8: ['الثامن', 'Emar 8', '#1ea85a'], g5: ['الخامس', 'Emar 5', '#d98500'] }
+const BOOKS = { g12: ['البكالوريا', 'Emar 12', '#8b5cf6'], g11: ['الحادي عشر', 'Emar 11', '#2383e2'], g9: ['التاسع', 'Emar 9', '#e5484d'], g8: ['الثامن', 'Emar 8', '#1ea85a'], g5: ['الخامس', 'Emar 5', '#d98500'] }
 const bookName = b => BOOKS[b] ? BOOKS[b][0] + ' — ' + BOOKS[b][1] : b
 const appTag = b => '<span class="app" style="background:' + (BOOKS[b] ? BOOKS[b][2] : '#888') + '">' + (BOOKS[b] ? BOOKS[b][0] : b) + '</span>'
 const TITLES = { home: 'الرئيسية', codes: 'الأكواد', make: 'إنشاء أكواد' }
