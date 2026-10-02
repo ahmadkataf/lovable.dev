@@ -154,8 +154,8 @@ $('rows').onclick = async e => {
 async function showDevices(code) {
   try {
     const { devices } = await api('devices?code=' + encodeURIComponent(code))
-    const list = devices.map(d => '• ' + (d.name || 'جهاز') + ' — ' + d.device.slice(0, 8).toUpperCase() + ' — آخر استخدام ' + when(d.last_seen)).join('\n') || 'لا أجهزة'
-    const which = prompt('أجهزة الكود ' + code + ':\n' + list + '\n\nلفك جهاز واحد اكتب أول 8 أحرف من رقمه، أو اكتب "الكل" لفك الجميع، أو ألغِ:', '')
+    const list = devices.map(d => '• ' + (d.name || 'جهاز') + ' — ' + d.device.slice(0, 8).toUpperCase() + ' — آخر استخدام ' + when(d.last_seen)).join('\\n') || 'لا أجهزة'
+    const which = prompt('أجهزة الكود ' + code + ':\\n' + list + '\\n\\nلفك جهاز واحد اكتب أول 8 أحرف من رقمه، أو اكتب "الكل" لفك الجميع، أو ألغِ:', '')
     if (which === null || !which.trim()) return
     if (which.trim() === 'الكل') { if (!confirm('فك كل الأجهزة عن هذا الكود؟')) return; await api('code', { method: 'POST', body: JSON.stringify({ code, action: 'unbind' }) }) }
     else { const d = devices.find(x => x.device.toLowerCase().startsWith(which.trim().toLowerCase())); if (!d) { alert('لا جهاز بهذا الرقم'); return } await api('code', { method: 'POST', body: JSON.stringify({ code, action: 'unbind', device: d.device }) }) }
