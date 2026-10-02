@@ -1,6 +1,6 @@
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { ShoppingCart, TrendingUp, Wallet, AlertTriangle, Users, Package, Receipt, ArrowLeft, Truck, PlusCircle, Database, Clock, Car, MessageCircle } from 'lucide-react'
+import { ShoppingCart, TrendingUp, Wallet, AlertTriangle, Users, Package, Receipt, ArrowLeft, Truck, PlusCircle, Database, Clock, Car, MessageCircle, X } from 'lucide-react'
 import { serviceDue, vehicleLabel } from '../ui/vehicles'
 import { daysSinceBackup } from '../lib/backup'
 import { isDesktop } from '../lib/platform'
@@ -15,6 +15,11 @@ export function Dashboard() {
   const seeCost = useCanSeeCost()
   const isAdmin = useIsAdmin()
   const backupAge = daysSinceBackup()
+  // the reminder can be put off for a week, and never nags an empty shop (nothing to lose yet)
+  const SNOOZE = 'alradwan.backupSnooze'
+  const [snoozed, setSnoozed] = useState(() => { try { return Number(localStorage.getItem(SNOOZE)) > Date.now() } catch { return false } })
+  const snooze = () => { try { localStorage.setItem(SNOOZE, String(Date.now() + 7 * 86400000)) } catch {} setSnoozed(true) }
+  const hasData = s.sales.size > 0 || s.products.size > 0 || s.customers.size > 0
   const d = useMemo(() => {
     const today = startOfDay(Date.now())
     const monthStart = startOfMonth(Date.now())
@@ -44,11 +49,12 @@ export function Dashboard() {
 
   return (
     <div className="stack" style={{ gap: 16 }}>
-      {isAdmin && backupAge >= 7 && !isDesktop() && (
+      {isAdmin && backupAge >= 7 && !isDesktop() && hasData && !snoozed && (
         <div className="card pad tone-warning" style={{ padding: '10px 14px', display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
           <Database size={18} />
           <span style={{ flex: 1 }}>{backupAge === Infinity ? 'لم تُؤخذ نسخة احتياطية من هذا الجهاز بعد.' : `آخر نسخة احتياطية قبل ${backupAge} يوماً.`} احفظ نسخة حتى لا تضيع بياناتك إن تعطّل الجهاز.</span>
           <button className="btn sm" onClick={() => nav('/settings?tab=backup')}>نسخة احتياطية الآن</button>
+          <button className="btn sm ghost icon" aria-label="إخفاء التذكير أسبوعاً" title="ذكّرني بعد أسبوع" onClick={snooze}><X /></button>
         </div>
       )}
       <div className="btn-row">
