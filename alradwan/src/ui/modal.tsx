@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react'
+import { createContext, useCallback, useContext, useEffect, useId, useMemo, useRef, useState, type ReactNode } from 'react'
 import { X } from 'lucide-react'
 
 // Open dialogs register here so the phone's back button closes the top one instead of leaving the screen.
@@ -12,21 +12,38 @@ if (typeof window !== 'undefined') {
   }
 }
 
+const FOCUSABLE = 'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+
 export function Modal({ title, onClose, children, footer, size, icon }: { title: ReactNode; onClose: () => void; children: ReactNode; footer?: ReactNode; size?: 'wide' | 'narrow'; icon?: ReactNode }) {
+  const box = useRef<HTMLDivElement>(null)
+  const titleId = useId()
   useEffect(() => {
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
+    const opener = document.activeElement as HTMLElement | null
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') { onClose(); return }
+      // Tab stays inside the dialog
+      if (e.key === 'Tab' && box.current) {
+        const items = Array.from(box.current.querySelectorAll<HTMLElement>(FOCUSABLE)).filter(el => el.offsetParent !== null)
+        if (!items.length) return
+        const first = items[0], last = items[items.length - 1]
+        if (e.shiftKey && (document.activeElement === first || !box.current.contains(document.activeElement))) { e.preventDefault(); last.focus() }
+        else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus() }
+      }
+    }
     window.addEventListener('keydown', onKey)
     const prev = document.body.style.overflow
     document.body.style.overflow = 'hidden'
     openDialogs.push(onClose)
-    return () => { window.removeEventListener('keydown', onKey); document.body.style.overflow = prev; const i = openDialogs.lastIndexOf(onClose); if (i >= 0) openDialogs.splice(i, 1) }
+    // the first field gets the keyboard, unless something inside asked for it already
+    setTimeout(() => { if (box.current && !box.current.contains(document.activeElement)) (box.current.querySelector<HTMLElement>('.modal-body ' + FOCUSABLE) ?? box.current.querySelector<HTMLElement>(FOCUSABLE))?.focus() }, 30)
+    return () => { window.removeEventListener('keydown', onKey); document.body.style.overflow = prev; const i = openDialogs.lastIndexOf(onClose); if (i >= 0) openDialogs.splice(i, 1); opener?.focus?.() }
   }, [onClose])
   return (
     <div className="modal-backdrop" onMouseDown={e => { if (e.target === e.currentTarget) onClose() }}>
-      <div className={`modal ${size ?? ''}`} role="dialog" aria-modal="true">
+      <div className={`modal ${size ?? ''}`} role="dialog" aria-modal="true" aria-labelledby={titleId} ref={box}>
         <div className="modal-head">
           {icon}
-          <h2>{title}</h2>
+          <h2 id={titleId}>{title}</h2>
           <button className="btn ghost icon" onClick={onClose} aria-label="إغلاق"><X /></button>
         </div>
         <div className="modal-body">{children}</div>

@@ -24,6 +24,7 @@ export interface Product extends Base {
   wholesalePrice?: number // سعر الجملة
   minStock: number        // حد التنبيه
   openingStock: number    // الكمية الافتتاحية عند الإضافة
+  openingCost?: number    // كلفة الوحدة يوم الإضافة (لتقييم الرصيد الافتتاحي ثابتاً مهما تغيّرت الكلفة لاحقاً)
   location?: string       // مكان القطعة في المحل (رف)
   notes?: string
   kind: ProductKind       // خدمة = لا تخضع للمخزون (مثل أجرة تركيب)
@@ -134,7 +135,7 @@ export interface Payment extends Base {
   partyType: PartyType
   partyId: string
   partyName: string
-  amount: number
+  amount: number          // سالب = مبلغ مُعاد (رد رصيد لعميل، أو استرداد من مورد)
   note?: string
   userId?: string
 }
@@ -148,9 +149,11 @@ export interface Expense extends Base {
 }
 
 // حركة يدوية على الصندوق: إيداع (in) أو سحب (out) لا يخص عميلاً أو مورداً
+export type CashKind = 'capital' | 'income' | 'loan' | 'drawings' | 'loanRepay'
 export interface CashEntry extends Base {
   date: number
   direction: 'in' | 'out'
+  kind?: CashKind        // مصدر الإيداع أو سبب السحب (غيابه = رأس مال / مسحوبات كما في الإصدارات القديمة)
   amount: number
   note?: string
   userId?: string
@@ -163,6 +166,7 @@ export interface StockMovement extends Base {
   date: number
   qty: number             // + يدخل المخزون، - يخرج
   reason: MovementReason
+  unitCost?: number       // كلفة الوحدة وقت الحركة (للجرد: لتقييم الفرق في الدفاتر)
   refId?: string          // الفاتورة المسببة
   note?: string
   userId?: string
@@ -170,12 +174,43 @@ export interface StockMovement extends Base {
 
 export type Role = 'admin' | 'staff'
 
+// صلاحيات الموظف، يحددها المدير لكل موظف على حدة. المدير يملكها كلها، والحذف للمدير فقط دائماً.
+export type Permission = 'sell' | 'quotes' | 'returns' | 'editInvoices' | 'backdate' | 'products' | 'editPrices' | 'seeCost' | 'adjustStock' | 'purchases' | 'customers' | 'payments' | 'cash' | 'cars' | 'reports' | 'accounting' | 'activity' | 'exportData'
+export const PERMISSIONS: { id: Permission; label: string; help?: string; group: string }[] = [
+  { id: 'sell', label: 'البيع وإصدار الفواتير', group: 'البيع' },
+  { id: 'quotes', label: 'عروض الأسعار', group: 'البيع' },
+  { id: 'returns', label: 'تسجيل المرتجعات', group: 'البيع' },
+  { id: 'editInvoices', label: 'تعديل الفواتير بعد حفظها', help: 'بدونها يستطيع الموظف فقط إنشاء فواتير جديدة', group: 'البيع' },
+  { id: 'backdate', label: 'تغيير تاريخ الفاتورة', help: 'بدونها تُحفظ الفاتورة بتاريخ اليوم دائماً', group: 'البيع' },
+  { id: 'products', label: 'إضافة القطع وتعديل بياناتها', group: 'المخزون' },
+  { id: 'editPrices', label: 'تعديل الأسعار', group: 'المخزون' },
+  { id: 'seeCost', label: 'رؤية سعر الشراء والأرباح', group: 'المخزون' },
+  { id: 'adjustStock', label: 'الجرد وتعديل الكميات يدوياً', group: 'المخزون' },
+  { id: 'purchases', label: 'فواتير الشراء من الموردين', group: 'المخزون' },
+  { id: 'cars', label: 'دليل السيارات (إضافة موديلات وربط القطع)', group: 'المخزون' },
+  { id: 'customers', label: 'إضافة العملاء والموردين وتعديلهم', group: 'الحسابات' },
+  { id: 'payments', label: 'تحصيل الدفعات وتسديدها', group: 'الحسابات' },
+  { id: 'cash', label: 'تسجيل المصاريف وحركات الصندوق', group: 'الحسابات' },
+  { id: 'exportData', label: 'تصدير إكسل وطباعة التقارير', group: 'الحسابات' },
+  { id: 'reports', label: 'التقارير', group: 'الإدارة' },
+  { id: 'accounting', label: 'المحاسبة (دفاتر وقوائم مالية)', group: 'الإدارة' },
+  { id: 'activity', label: 'سجل النشاط', group: 'الإدارة' },
+]
+/** ما يحصل عليه الموظف الجديد ما لم يغيّر المدير شيئاً: بيع وعملاء ومخزون، بلا أرباح ولا تقارير. */
+export const DEFAULT_STAFF_PERMISSIONS: Record<Permission, boolean> = {
+  sell: true, quotes: true, returns: true, editInvoices: false, backdate: false,
+  products: true, editPrices: false, seeCost: false, adjustStock: false, purchases: true, cars: true,
+  customers: true, payments: true, cash: true, exportData: true,
+  reports: false, accounting: false, activity: false,
+}
+
 export interface User extends Base {
   name: string
   pinHash: string
   pinSalt?: string        // موجود = الرقم السري مخزّن بـ PBKDF2 مع ملح؛ غائب = سجل قديم (SHA-256)
   pinIterations?: number
   role: Role
+  permissions?: Partial<Record<Permission, boolean>>   // للموظف فقط؛ ما لم يُذكر يؤخذ من الافتراضي
   createdAt: number
 }
 
@@ -189,7 +224,7 @@ export interface CarModel extends Base {
   notes?: string
 }
 
-export type AuditAction = 'create' | 'update' | 'delete' | 'restore' | 'login' | 'settings' | 'stock' | 'backup'
+export type AuditAction = 'create' | 'update' | 'delete' | 'restore' | 'login' | 'logout' | 'settings' | 'stock' | 'backup'
 
 // من فعل ماذا ومتى: كل عملية مهمة تترك أثراً يراه المدير
 export interface AuditEntry extends Base {

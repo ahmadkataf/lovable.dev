@@ -1,7 +1,7 @@
 import { db } from '../db/db'
-import { clearAll, loadAll } from '../db/store'
-import { COLLECTIONS, type Base, type CollectionName } from '../db/types'
-import { fmtDate } from './format'
+import { loadAll, put, stripSync, useStore } from '../db/store'
+import { COLLECTIONS, SETTINGS_ID, type Base, type CollectionName, type Settings } from '../db/types'
+import { toInputDate } from './format'
 import { saveFile } from './platform'
 import { decryptText, encryptText, isEncrypted } from './crypto'
 
@@ -12,13 +12,14 @@ export interface Backup { app: 'alradwan-garage'; version: 1; exportedAt: number
 export async function makeBackup(): Promise<Backup> {
   const data = {} as Record<CollectionName, Base[]>
   for (const c of COLLECTIONS) data[c] = await db.table<Base>(c).toArray()
+  data.settings = data.settings.map(r => stripSync(r as Settings) as Base)
   return { app: 'alradwan-garage', version: 1, exportedAt: Date.now(), data }
 }
 
 /** Writes the backup file; with a password it is encrypted (AES-256-GCM) and unreadable without it. */
 export async function downloadBackup(password?: string): Promise<void> {
   const b = await makeBackup()
-  const date = fmtDate(Date.now()).replaceAll('/', '-')
+  const date = toInputDate(Date.now())
   let text = JSON.stringify(b)
   if (password) text = await encryptText(text, password)
   await saveFile(`نسخة-احتياطية-كراج-الرضوان-${date}${password ? '-مشفرة' : ''}.json`, text, 'application/json')
@@ -49,10 +50,10 @@ export function daysSinceBackup(): number {
  *  never costs more than a day even if nobody remembers to back up. */
 export async function autoBackupIfDue(): Promise<void> {
   if (!window.garageDesktop?.autoBackup) return
-  const today = fmtDate(Date.now())
+  const today = toInputDate(Date.now())
   if (localStorage.getItem('alradwan.autoBackupDay') === today) return
   const b = await makeBackup()
-  const ok = await window.garageDesktop.autoBackup(`auto-${today.replaceAll('/', '-')}.json`, JSON.stringify(b))
+  const ok = await window.garageDesktop.autoBackup(`auto-${today}.json`, JSON.stringify(b))
   if (ok) localStorage.setItem('alradwan.autoBackupDay', today)
 }
 
@@ -60,12 +61,33 @@ export function countBackup(b: Backup): number {
   return COLLECTIONS.reduce((n, c) => n + (b.data[c]?.filter(r => !r.deleted).length ?? 0), 0)
 }
 
+/** Every row must look like a record before anything is replaced: a damaged file must not empty the shop. */
+export function validateBackup(b: Backup): { rows: number; problems: string[] } {
+  const problems: string[] = []
+  let rows = 0
+  for (const c of COLLECTIONS) {
+    const list = b.data[c]
+    if (list === undefined) continue
+    if (!Array.isArray(list)) { problems.push(`${c}: ليس قائمة`); continue }
+    list.forEach((r, i) => {
+      if (!r || typeof r !== 'object' || typeof r.id !== 'string' || !r.id || typeof r.updatedAt !== 'number') problems.push(`${c} #${i + 1}: سجل تالف`)
+      else rows++
+    })
+  }
+  if (problems.length > 5) problems.splice(5, problems.length - 5, '…')
+  return { rows, problems }
+}
+
 export async function restoreBackup(b: Backup): Promise<void> {
-  await clearAll()
+  const { problems } = validateBackup(b)
+  if (problems.length) throw new Error('الملف تالف ولم يُلمس شيء: ' + problems.join('، '))
   const tables = COLLECTIONS.map(c => db.table(c))
-  await db.transaction('rw', [...tables, db.outbox], async () => {
+  const localSync = useStore.getState().cfg.sync
+  await db.transaction('rw', [...tables, db.outbox, db.meta], async () => {
+    for (const t of tables) await t.clear()
+    await db.outbox.clear(); await db.meta.clear()
     for (const c of COLLECTIONS) {
-      const rows = b.data[c] ?? []
+      const rows = (b.data[c] ?? []).map(r => (c === 'settings' ? (stripSync(r as Settings) as Base) : r))
       if (rows.length) {
         await db.table(c).bulkPut(rows)
         await db.outbox.bulkPut(rows.map(r => ({ key: `${c}:${r.id}`, collection: c, id: r.id })))
@@ -73,6 +95,8 @@ export async function restoreBackup(b: Backup): Promise<void> {
     }
   })
   await loadAll()
+  // the device keeps its own server connection
+  if (localSync.key) await put('settings', { ...useStore.getState().cfg, sync: localSync, id: SETTINGS_ID })
 }
 
 /** Merges a backup into the existing data (newest record wins) instead of replacing it. */

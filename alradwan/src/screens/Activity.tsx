@@ -3,13 +3,13 @@ import { useNavigate } from 'react-router-dom'
 import { FileSpreadsheet, History } from 'lucide-react'
 import { useCollection } from '../db/store'
 import type { AuditAction } from '../db/types'
-import { addDays, endOfDay, fmtDateTime, fromInputDate, matches, toInputDate } from '../lib/format'
+import { addDays, fmtDateTime, matches, toInputDate, rangeStart, rangeEnd } from '../lib/format'
 import { DateRange, Empty, SearchInput, Chips } from '../ui/components'
 import { exportSheet } from '../lib/excel'
 
 const ACTIONS: Record<AuditAction, { label: string; tone: string }> = {
   create: { label: 'إضافة', tone: 'tone-success' }, update: { label: 'تعديل', tone: 'tone-info' }, delete: { label: 'حذف', tone: 'tone-danger' }, restore: { label: 'استعادة', tone: 'tone-warning' },
-  login: { label: 'دخول', tone: 'tone-muted' }, settings: { label: 'إعدادات', tone: 'tone-accent' }, stock: { label: 'جرد', tone: 'tone-warning' }, backup: { label: 'نسخ احتياطي', tone: 'tone-muted' },
+  login: { label: 'دخول', tone: 'tone-muted' }, logout: { label: 'خروج', tone: 'tone-muted' }, settings: { label: 'إعدادات', tone: 'tone-accent' }, stock: { label: 'جرد', tone: 'tone-warning' }, backup: { label: 'نسخ احتياطي', tone: 'tone-muted' },
 }
 
 /** Who did what and when, on which device: the owner's eye on the shop. */
@@ -23,7 +23,7 @@ export function Activity() {
   const [from, setFrom] = useState(toInputDate(addDays(Date.now(), -7)))
   const [to, setTo] = useState(toInputDate(Date.now()))
   const list = useMemo(() => {
-    const f = fromInputDate(from), t = endOfDay(fromInputDate(to))
+    const f = rangeStart(from), t = rangeEnd(to)
     return Array.from(audit.values()).filter(a => a.date >= f && a.date <= t && (user === 'all' || (a.userId ?? '_') === user) && (action === 'all' || a.action === action) && matches(q, a.summary, a.userName, a.device)).sort((a, b) => b.date - a.date).slice(0, 1000)
   }, [audit, q, user, action, from, to])
   const userList = Array.from(users.values())

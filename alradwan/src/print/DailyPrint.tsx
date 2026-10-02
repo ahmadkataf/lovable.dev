@@ -31,7 +31,7 @@ export function DailyPrint({ from, to, sales, purchases, collected, paidOut, exp
           <Row l="إجمالي المبيعات" v={money(sales.total, { display: 'base' })} bold />
           <Row l="منها نقداً" v={money(sales.cash, { display: 'base' })} />
           <Row l="منها آجل (دين)" v={money(sales.credit, { display: 'base' })} />
-          {sales.returns > 0 && <Row l="مرتجعات" v={money(sales.returns, { display: 'base' })} />}
+          {sales.returns > 0 && <Row l="مرتجعات (نقد مُعاد)" v={money(sales.returns, { display: 'base' })} />}
           {sales.profit !== undefined && <Row l="ربح المبيعات" v={money(sales.profit, { display: 'base' })} bold />}
           <h3 style={{ margin: '12px 0 4px', fontSize: 14 }}>المشتريات</h3>
           <Row l="عدد الفواتير" v={String(purchases.count)} />

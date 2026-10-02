@@ -3,10 +3,11 @@ import { useNavigate } from 'react-router-dom'
 import { Wallet, ArrowDownCircle, ArrowUpCircle, Plus, Trash2, FileSpreadsheet, Receipt, Printer } from 'lucide-react'
 import { printDocument } from '../print/PrintHost'
 import { saleProfit } from '../lib/calc'
-import { useCollection, useIsAdmin, useSettings, useCanSeeCost } from '../db/store'
+import { useCollection, useIsAdmin, useSettings, useCanSeeCost, usePerm } from '../db/store'
+import type { CashKind } from '../db/types'
 import { addCashEntry, addExpense, deleteMoneyEntry } from '../db/actions'
 import { cashLines, sumBetween } from '../lib/calc'
-import { addDays, endOfDay, fmtDateTime, fromInputDate, money, startOfDay, startOfMonth, toInputDate } from '../lib/format'
+import { addDays, fmtDateTime, fromInputDate, money, startOfDay, startOfMonth, toInputDate, rangeStart, rangeEnd } from '../lib/format'
 import { DateRange, Empty, Field, NumberInput, Stat, Tabs } from '../ui/components'
 import { Modal, useConfirm } from '../ui/modal'
 import { useToast } from '../ui/toast'
@@ -16,6 +17,7 @@ export function Cash() {
   const sales = useCollection('sales'); const purchases = useCollection('purchases'); const payments = useCollection('payments'); const expenses = useCollection('expenses'); const cash = useCollection('cash')
   const settings = useSettings()
   const isAdmin = useIsAdmin()
+  const canCash = usePerm('cash')
   const seeCost = useCanSeeCost()
   const users = useCollection('users')
   const nav = useNavigate()
@@ -29,8 +31,8 @@ export function Cash() {
   const balance = lines.reduce((s, l) => s + l.amount, 0)
   const today = sumBetween(lines, startOfDay(Date.now()), Date.now())
   const monthExpenses = Array.from(expenses.values()).filter(e => e.date >= startOfMonth(Date.now())).reduce((s, e) => s + e.amount, 0)
-  const f = fromInputDate(from), t = endOfDay(fromInputDate(to))
-  const period = lines.filter(l => l.date >= f && l.date <= t).filter(l => tab === 'all' || l.kind === 'مصروف')
+  const f = rangeStart(from), t = rangeEnd(to)
+  const period = lines.filter(l => l.date >= f && l.date <= t).filter(l => tab === 'all' || l.ref?.type === 'expense')
   const pin = period.filter(l => l.amount > 0).reduce((s, l) => s + l.amount, 0)
   const pout = period.filter(l => l.amount < 0).reduce((s, l) => s - l.amount, 0)
 
@@ -72,9 +74,9 @@ export function Cash() {
         <Stat label="داخل / خارج (الفترة)" value={<span className="small"><span className="pos-txt">+{money(pin, { currency: false })}</span> / <span className="neg-txt">−{money(pout, { currency: false })}</span></span>} icon={<Wallet />} tone="accent" />
       </div>
       <div className="toolbar">
-        <button className="btn primary" onClick={() => setModal('expense')}><Plus /> مصروف</button>
+        {canCash && <><button className="btn primary" onClick={() => setModal('expense')}><Plus /> مصروف</button>
         <button className="btn" onClick={() => setModal('in')}><ArrowDownCircle /> إيداع في الصندوق</button>
-        <button className="btn" onClick={() => setModal('out')}><ArrowUpCircle /> سحب من الصندوق</button>
+        <button className="btn" onClick={() => setModal('out')}><ArrowUpCircle /> سحب من الصندوق</button></>}
         <button className="btn" onClick={printDaily} title="طباعة تقرير إغلاق الفترة"><Printer /> <span className="hide-mobile">تقرير الإغلاق</span></button>
         <span className="spacer" />
         <DateRange from={from} to={to} onChange={(a, b) => { setFrom(a); setTo(b) }} />
@@ -87,7 +89,7 @@ export function Cash() {
             <thead><tr><th>التاريخ</th><th>النوع</th><th>البيان</th><th className="num">داخل</th><th className="num">خارج</th><th className="actions"></th></tr></thead>
             <tbody>{period.map((l, i) => (
               <tr key={i} className={l.ref?.type === 'sale' ? 'click' : ''} onClick={() => { if (l.ref?.type === 'sale') nav(`/sales?open=${l.ref.id}`) }}>
-                <td className="small muted">{fmtDateTime(l.date)}</td><td><span className={`badge ${l.amount > 0 ? 'tone-success' : l.kind === 'مصروف' ? 'tone-warning' : 'tone-danger'}`}>{l.kind}</span></td><td>{l.label}</td>
+                <td className="small muted">{fmtDateTime(l.date)}</td><td><span className={`badge ${l.amount > 0 ? 'tone-success' : l.ref?.type === 'expense' ? 'tone-warning' : 'tone-danger'}`}>{l.kind}</span></td><td>{l.label}</td>
                 <td className="num pos-txt bold">{l.amount > 0 ? money(l.amount, { currency: false }) : ''}</td><td className="num neg-txt bold">{l.amount < 0 ? money(-l.amount, { currency: false }) : ''}</td>
                 <td className="actions" onClick={e => e.stopPropagation()}>{isAdmin && (l.ref?.type === 'expense' || l.ref?.type === 'cash') && <button className="btn sm ghost icon" onClick={() => del(l)}><Trash2 /></button>}</td>
               </tr>
@@ -103,6 +105,8 @@ export function Cash() {
 
 function CashModal({ kind, categories, onClose }: { kind: 'expense' | 'in' | 'out'; categories: string[]; onClose: () => void }) {
   const [amount, setAmount] = useState(0)
+  const [cashKind, setCashKind] = useState<CashKind>(kind === 'in' ? 'capital' : 'drawings')
+  const [busy, setBusy] = useState(false)
   const [category, setCategory] = useState(categories[0] ?? 'أخرى')
   const [note, setNote] = useState('')
   const [date, setDate] = useState(toInputDate(Date.now()))
@@ -111,12 +115,15 @@ function CashModal({ kind, categories, onClose }: { kind: 'expense' | 'in' | 'ou
   const save = async () => {
     if (amount <= 0) { toast.error('أدخل المبلغ'); return }
     const d = toInputDate(Date.now()) === date ? Date.now() : fromInputDate(date)
-    if (kind === 'expense') await addExpense({ date: d, category, amount, note }); else await addCashEntry({ date: d, direction: kind, amount, note })
-    toast.success('تم التسجيل'); onClose()
+    setBusy(true)
+    try { if (kind === 'expense') await addExpense({ date: d, category, amount, note }); else await addCashEntry({ date: d, direction: kind, kind: cashKind, amount, note }); toast.success('تم التسجيل'); onClose() }
+    catch (e) { toast.error('تعذّر الحفظ: ' + (e as Error).message) } finally { setBusy(false) }
   }
   return (
-    <Modal title={titles[kind]} onClose={onClose} size="narrow" footer={<><button className="btn primary" onClick={save}>حفظ</button><button className="btn" onClick={onClose}>إلغاء</button></>}>
+    <Modal title={titles[kind]} onClose={onClose} size="narrow" footer={<><button className="btn primary" onClick={save} disabled={busy}>حفظ</button><button className="btn" onClick={onClose}>إلغاء</button></>}>
       <div className="stack">
+        {kind === 'in' && <Field label="مصدر المبلغ"><div className="chips">{([['capital', 'رأس مال من صاحب المحل'], ['income', 'إيراد آخر (غير المبيعات)'], ['loan', 'قرض']] as [CashKind, string][]).map(([k, l]) => <button key={k} className={`chip ${k === cashKind ? 'active' : ''}`} onClick={() => setCashKind(k)}>{l}</button>)}</div></Field>}
+        {kind === 'out' && <Field label="سبب السحب"><div className="chips">{([['drawings', 'مسحوبات صاحب المحل'], ['loanRepay', 'سداد قرض']] as [CashKind, string][]).map(([k, l]) => <button key={k} className={`chip ${k === cashKind ? 'active' : ''}`} onClick={() => setCashKind(k)}>{l}</button>)}</div></Field>}
         {kind === 'expense' && <Field label="نوع المصروف"><div className="chips">{categories.map(c => <button key={c} className={`chip ${c === category ? 'active' : ''}`} onClick={() => setCategory(c)}>{c}</button>)}</div></Field>}
         <Field label="المبلغ"><NumberInput value={amount} onChange={setAmount} lg autoFocus onEnter={save} /></Field>
         <Field label={kind === 'expense' ? 'البيان' : 'السبب'}><input className="input" value={note} onChange={e => setNote(e.target.value)} placeholder={kind === 'expense' ? 'مثال: فاتورة الكهرباء لشهر 5' : kind === 'in' ? 'مثال: رأس مال إضافي' : 'مثال: مصروف شخصي لصاحب المحل'} /></Field>

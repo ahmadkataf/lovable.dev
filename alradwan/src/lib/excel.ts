@@ -1,4 +1,5 @@
-import * as XLSX from 'xlsx'
+// the library is big and rarely needed, so it is fetched the first time a sheet is read or written
+const xlsx = () => import('xlsx')
 import { saveFile } from './platform'
 import { toNumber } from './format'
 
@@ -6,6 +7,7 @@ import { toNumber } from './format'
 // table and report out as a sheet he can print or send.
 
 export async function exportSheet(name: string, rows: Record<string, unknown>[], sheetName = 'ورقة1'): Promise<void> {
+  const XLSX = await xlsx()
   const ws = XLSX.utils.json_to_sheet(rows)
   // right-to-left sheet and readable column widths
   ws['!cols'] = Object.keys(rows[0] ?? {}).map(k => ({ wch: Math.max(12, Math.min(40, k.length + 6)) }))
@@ -41,6 +43,7 @@ const COLS: Record<keyof ImportedProduct, string[]> = {
 function normHeader(h: string) { return String(h).trim().toLowerCase().replace(/[أإآ]/g, 'ا').replace(/ة/g, 'ه') }
 
 export async function readProductsFile(file: File): Promise<{ rows: ImportedProduct[]; headers: string[] }> {
+  const XLSX = await xlsx()
   const buf = await file.arrayBuffer()
   const wb = XLSX.read(buf, { type: 'array' })
   const ws = wb.Sheets[wb.SheetNames[0]]

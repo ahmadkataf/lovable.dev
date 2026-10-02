@@ -17,6 +17,7 @@ export function RateModal({ onClose }: { onClose: () => void }) {
   const base = s.baseCurrency
   const other = otherCurrency(base)
   const save = async () => {
+    if (!Number.isFinite(rate) || rate < 0) { toast.error('سعر الدولار يجب أن يكون رقماً موجباً'); return }
     if (display !== 'base' && rate <= 0) { toast.error('أدخل سعر الدولار أولاً'); return }
     if (rate !== s.rate) await audit('settings', `تغيير سعر الدولار: ${s.rate.toLocaleString('en-US')} ← ${rate.toLocaleString('en-US')} ل.س`)
     await saveSettings({ rate, display })

@@ -1,13 +1,18 @@
-import { useEffect, useRef, useState, type ReactNode } from 'react'
+import { Children, cloneElement, isValidElement, useEffect, useId, useRef, useState, type ReactNode } from 'react'
 import { Search, PackageOpen } from 'lucide-react'
 import { equiv, money, toNumber } from '../lib/format'
 import { useSettings } from '../db/store'
 
 export function Field({ label, children, required, help, className }: { label?: ReactNode; children: ReactNode; required?: boolean; help?: ReactNode; className?: string }) {
+  const id = useId()
+  // the label points at the control when the child is a bare input/select/textarea
+  const only = Children.count(children) === 1 ? Children.toArray(children)[0] : null
+  const wired = only && isValidElement(only) && typeof only.type === 'string' && ['input', 'select', 'textarea'].includes(only.type) && !(only.props as { id?: string }).id
+  const body = wired ? cloneElement(only as React.ReactElement<{ id?: string }>, { id }) : children
   return (
     <div className={`field ${className ?? ''}`}>
-      {label && <label>{label}{required && <span className="req"> *</span>}</label>}
-      {children}
+      {label && <label htmlFor={wired ? id : undefined}>{label}{required && <span className="req"> *</span>}</label>}
+      {body}
       {help && <div className="help">{help}</div>}
     </div>
   )
@@ -38,7 +43,7 @@ export function SearchInput({ value, onChange, placeholder, autoFocus, onEnter, 
   return (
     <div className="input-wrap search">
       <Search />
-      <input ref={inputRef} className={`input ${lg ? 'lg' : ''}`} value={value} onChange={e => onChange(e.target.value)} placeholder={placeholder ?? 'بحث…'} autoFocus={autoFocus}
+      <input ref={inputRef} type="search" aria-label={placeholder ?? 'بحث'} className={`input ${lg ? 'lg' : ''}`} value={value} onChange={e => onChange(e.target.value)} placeholder={placeholder ?? 'بحث…'} autoFocus={autoFocus}
         onKeyDown={e => { if (e.key === 'Enter' && onEnter) onEnter(value) }} />
     </div>
   )
@@ -64,7 +69,7 @@ export function Empty({ title, text, icon, action }: { title: string; text?: Rea
 
 export function Stat({ label, value, sub, icon, tone = 'accent', onClick }: { label: string; value: ReactNode; sub?: ReactNode; icon: ReactNode; tone?: 'accent' | 'success' | 'danger' | 'warning' | 'info' | 'muted'; onClick?: () => void }) {
   return (
-    <div className="card stat" onClick={onClick} style={onClick ? { cursor: 'pointer' } : undefined}>
+    <div className="card stat" onClick={onClick} style={onClick ? { cursor: 'pointer' } : undefined} role={onClick ? 'button' : undefined} tabIndex={onClick ? 0 : undefined} onKeyDown={onClick ? e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onClick() } } : undefined}>
       <div className={`ic tone-${tone}`}>{icon}</div>
       <div style={{ minWidth: 0 }}>
         <div className="lbl">{label}</div>
@@ -87,8 +92,8 @@ export function PayBadge({ status }: { status: 'paid' | 'partial' | 'unpaid' }) 
 
 export function Tabs<T extends string>({ value, onChange, items, small }: { value: T; onChange: (v: T) => void; items: { id: T; label: ReactNode }[]; small?: boolean }) {
   return (
-    <div className={`tabs ${small ? 'small' : ''}`}>
-      {items.map(i => <button key={i.id} className={i.id === value ? 'active' : ''} onClick={() => onChange(i.id)}>{i.label}</button>)}
+    <div className={`tabs ${small ? 'small' : ''}`} role="tablist">
+      {items.map(i => <button key={i.id} role="tab" aria-selected={i.id === value} className={i.id === value ? 'active' : ''} onClick={() => onChange(i.id)}>{i.label}</button>)}
     </div>
   )
 }
@@ -96,7 +101,7 @@ export function Tabs<T extends string>({ value, onChange, items, small }: { valu
 export function Chips<T extends string>({ value, onChange, items }: { value: T; onChange: (v: T) => void; items: { id: T; label: ReactNode }[] }) {
   return (
     <div className="chips">
-      {items.map(i => <button key={i.id} className={`chip ${i.id === value ? 'active' : ''}`} onClick={() => onChange(i.id)}>{i.label}</button>)}
+      {items.map(i => <button key={i.id} aria-pressed={i.id === value} className={`chip ${i.id === value ? 'active' : ''}`} onClick={() => onChange(i.id)}>{i.label}</button>)}
     </div>
   )
 }
@@ -119,9 +124,9 @@ export function Bars({ data, format }: { data: { label: string; value: number }[
 export function DateRange({ from, to, onChange }: { from: string; to: string; onChange: (from: string, to: string) => void }) {
   return (
     <div className="row" style={{ flexWrap: 'wrap' }}>
-      <input type="date" className="input" style={{ width: 'auto' }} value={from} onChange={e => onChange(e.target.value, to)} />
+      <input type="date" aria-label="من تاريخ" className="input" style={{ width: 'auto' }} value={from} onChange={e => onChange(e.target.value, to)} />
       <span className="muted">إلى</span>
-      <input type="date" className="input" style={{ width: 'auto' }} value={to} onChange={e => onChange(from, e.target.value)} />
+      <input type="date" aria-label="إلى تاريخ" className="input" style={{ width: 'auto' }} value={to} onChange={e => onChange(from, e.target.value)} />
     </div>
   )
 }

@@ -5,6 +5,9 @@ const fs = require('fs')
 
 let win = null
 
+// only web, mail and phone links leave the app (never ms-msdt:, file: or other handlers)
+function openOutside(url) { if (/^(https?|mailto|tel):/i.test(url)) shell.openExternal(url) }
+
 function createWindow() {
   win = new BrowserWindow({
     width: 1280, height: 800, minWidth: 900, minHeight: 600,
@@ -17,8 +20,9 @@ function createWindow() {
   Menu.setApplicationMenu(null)
   win.loadFile(path.join(__dirname, '..', 'dist', 'index.html'))
   // WhatsApp and other outside links open in the browser, never inside the app
-  win.webContents.setWindowOpenHandler(({ url }) => { if (/^https?:/.test(url)) shell.openExternal(url); return { action: 'deny' } })
-  win.webContents.on('will-navigate', (e, url) => { if (!url.startsWith('file:')) { e.preventDefault(); shell.openExternal(url) } })
+  win.webContents.setWindowOpenHandler(({ url }) => { openOutside(url); return { action: 'deny' } })
+  win.webContents.on('will-navigate', (e, url) => { if (!url.startsWith('file:')) { e.preventDefault(); openOutside(url) } })
+  win.webContents.session.setPermissionRequestHandler((_wc, permission, cb) => cb(permission === 'media' || permission === 'clipboard-read'))
   win.on('closed', () => { win = null })
 }
 
@@ -27,6 +31,7 @@ function createWindow() {
 // stylesheet, exactly as it would print) and shown in its own window, whose toolbar prints or saves it.
 // 'direct' keeps the old behaviour for shops with a thermal printer that want one click.
 const os = require('os')
+app.setAppUserModelId('com.alradwan.garage')
 ipcMain.handle('print', async (_e, mode, size) => {
   if (!win) return false
   if (mode === 'direct') {
@@ -38,8 +43,10 @@ ipcMain.handle('print', async (_e, mode, size) => {
     const dir = path.join(os.tmpdir(), 'alradwan-print'); fs.mkdirSync(dir, { recursive: true })
     const file = path.join(dir, `print-${Date.now()}.pdf`)
     fs.writeFileSync(file, pdf)
-    const viewer = new BrowserWindow({ width: receipt ? 520 : 900, height: 900, parent: win, title: 'معاينة الطباعة — كراج الرضوان', autoHideMenuBar: true, webPreferences: { plugins: true, contextIsolation: true, nodeIntegration: false } })
+    const viewer = new BrowserWindow({ width: receipt ? 520 : 900, height: 900, parent: win, title: 'معاينة الطباعة — كراج الرضوان', autoHideMenuBar: true, webPreferences: { plugins: true, contextIsolation: true, nodeIntegration: false, sandbox: true } })
     viewer.setMenuBarVisibility(false)
+    viewer.webContents.setWindowOpenHandler(() => ({ action: 'deny' }))
+    viewer.webContents.on('will-navigate', e => e.preventDefault())
     await viewer.loadURL('file://' + file.replace(/\\/g, '/'))
     viewer.on('closed', () => { try { fs.unlinkSync(file) } catch {} })
     return true

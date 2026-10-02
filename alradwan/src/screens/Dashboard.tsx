@@ -72,7 +72,7 @@ export function Dashboard() {
               {d.low.slice(0, 6).map(p => (
                 <div key={p.id} className="list-item" style={{ padding: '8px 4px' }}>
                   <div className="grow"><div className="title">{p.name}</div><div className="sub">{p.code}{p.location ? ` — ${p.location}` : ''}</div></div>
-                  <span className={`badge ${(d.stock.get(p.id) ?? 0) <= 0 ? 'tone-danger' : 'tone-warning'}`}>{d.stock.get(p.id) ?? 0} {p.unit}</span>
+                  <span className={`badge ${(d.stock.get(p.id) ?? 0) <= 0 ? 'tone-danger' : 'tone-warning'}`}><span className="mono">{d.stock.get(p.id) ?? 0}</span> {p.unit}</span>
                 </div>
               ))}
             </div>

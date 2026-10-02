@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Save, Trash2, ImagePlus } from 'lucide-react'
-import { audit, put, useCollection, useSettings, useCanSeeCost, useIsAdmin } from '../db/store'
+import { audit, put, useCollection, useSettings, useCanSeeCost, useIsAdmin, usePerm } from '../db/store'
 import type { Category, Customer, Product, Supplier } from '../db/types'
 import { Field, NumberInput } from './components'
 import { equiv } from '../lib/format'
@@ -17,11 +17,13 @@ export function CustomerForm({ initial, onClose, onSaved }: { initial?: Partial<
   const [f, setF] = useState<Partial<Customer>>({ name: '', phone: '', car: '', address: '', notes: '', openingBalance: 0, ...initial })
   const [vinBusy, setVinBusy] = useState(false)
   const toast = useToast(); const confirm = useConfirm(); const isAdmin = useIsAdmin()
+  const [busy, setBusy] = useState(false)
   const set = (k: keyof Customer, v: unknown) => setF(x => ({ ...x, [k]: v }))
   const save = async () => {
     if (!f.name?.trim()) { toast.error('اكتب اسم العميل'); return }
-    const c = await put('customers', { ...(f as Customer), name: f.name.trim(), vin: f.vin ? normalizeVin(f.vin) : undefined, createdAt: f.createdAt ?? Date.now() })
-    toast.success('تم حفظ العميل'); onSaved?.(c); onClose()
+    setBusy(true)
+    try { const c = await put('customers', { ...(f as Customer), name: f.name.trim(), vin: f.vin ? normalizeVin(f.vin) : undefined, createdAt: f.createdAt ?? Date.now() }); toast.success('تم حفظ العميل'); onSaved?.(c); onClose() }
+    catch (e) { toast.error('تعذّر الحفظ: ' + (e as Error).message) } finally { setBusy(false) }
   }
   const del = async () => {
     if (!f.id) return
@@ -29,7 +31,7 @@ export function CustomerForm({ initial, onClose, onSaved }: { initial?: Partial<
   }
   return (
     <Modal title={f.id ? 'تعديل عميل' : 'عميل جديد'} onClose={onClose} footer={<>
-      <button className="btn primary" onClick={save}><Save /> حفظ</button>
+      <button className="btn primary" onClick={save} disabled={busy}><Save /> حفظ</button>
       <button className="btn" onClick={onClose}>إلغاء</button>
       {f.id && isAdmin && <><span className="grow" /><button className="btn danger" onClick={del}><Trash2 /> حذف</button></>}
     </>}>
@@ -52,11 +54,13 @@ export function CustomerForm({ initial, onClose, onSaved }: { initial?: Partial<
 export function SupplierForm({ initial, onClose, onSaved }: { initial?: Partial<Supplier>; onClose: () => void; onSaved?: (s: Supplier) => void }) {
   const [f, setF] = useState<Partial<Supplier>>({ name: '', phone: '', address: '', notes: '', openingBalance: 0, ...initial })
   const toast = useToast(); const confirm = useConfirm(); const isAdmin = useIsAdmin()
+  const [busy, setBusy] = useState(false)
   const set = (k: keyof Supplier, v: unknown) => setF(x => ({ ...x, [k]: v }))
   const save = async () => {
     if (!f.name?.trim()) { toast.error('اكتب اسم المورد'); return }
-    const s = await put('suppliers', { ...(f as Supplier), name: f.name.trim(), createdAt: f.createdAt ?? Date.now() })
-    toast.success('تم حفظ المورد'); onSaved?.(s); onClose()
+    setBusy(true)
+    try { const s = await put('suppliers', { ...(f as Supplier), name: f.name.trim(), createdAt: f.createdAt ?? Date.now() }); toast.success('تم حفظ المورد'); onSaved?.(s); onClose() }
+    catch (e) { toast.error('تعذّر الحفظ: ' + (e as Error).message) } finally { setBusy(false) }
   }
   const del = async () => {
     if (!f.id) return
@@ -64,7 +68,7 @@ export function SupplierForm({ initial, onClose, onSaved }: { initial?: Partial<
   }
   return (
     <Modal title={f.id ? 'تعديل مورد' : 'مورد جديد'} onClose={onClose} footer={<>
-      <button className="btn primary" onClick={save}><Save /> حفظ</button>
+      <button className="btn primary" onClick={save} disabled={busy}><Save /> حفظ</button>
       <button className="btn" onClick={onClose}>إلغاء</button>
       {f.id && isAdmin && <><span className="grow" /><button className="btn danger" onClick={del}><Trash2 /> حذف</button></>}
     </>}>
@@ -103,13 +107,16 @@ export function ProductForm({ initial, currentStock, onClose, onSaved }: { initi
   const settings = useSettings()
   const seeCost = useCanSeeCost()
   const isAdmin = useIsAdmin()
-  const canEdit = isAdmin || settings.staffEditsPrices
+  const canProducts = usePerm('products'), canPrices = usePerm('editPrices')
+  const canEdit = isAdmin || canProducts
   const [f, setF] = useState<Partial<Product>>({ code: nextCode(products), barcode: '', name: '', brand: '', cars: '', unit: settings.units[0] ?? 'قطعة', cost: 0, price: 0, wholesalePrice: 0, minStock: settings.lowStockDefault, openingStock: 0, location: '', notes: '', kind: 'product', ...initial })
   const [newCat, setNewCat] = useState('')
   const toast = useToast(); const confirm = useConfirm()
   const set = (k: keyof Product, v: unknown) => setF(x => ({ ...x, [k]: v }))
   const isNew = !f.id
+  const [busy, setBusy] = useState(false)
   const save = async () => {
+    if (busy) return
     if (!f.name?.trim()) { toast.error('اكتب اسم القطعة'); return }
     const code = (f.code ?? '').trim() || nextCode(products)
     const dup = Array.from(products.values()).find(p => p.id !== f.id && p.code.toLowerCase() === code.toLowerCase())
@@ -118,19 +125,22 @@ export function ProductForm({ initial, currentStock, onClose, onSaved }: { initi
     if (newCat.trim()) { const c = await put('categories', { name: newCat.trim() } as Category); categoryId = c.id }
     if (!canEdit) { toast.error('ليس لديك صلاحية تعديل القطع'); return }
     const before = initial?.id ? products.get(initial.id) : undefined
-    const p = await put('products', { ...(f as Product), code, name: f.name.trim(), categoryId, createdAt: f.createdAt ?? Date.now() })
+    setBusy(true)
+    try {
+    const p = await put('products', { ...(f as Product), code, name: f.name.trim(), categoryId, openingCost: isNew ? (f.cost ?? 0) : f.openingCost, createdAt: f.createdAt ?? Date.now() })
     const changes = before ? [before.price !== p.price ? `سعر البيع ${before.price} ← ${p.price}` : '', before.cost !== p.cost ? `الكلفة ${before.cost} ← ${p.cost}` : '', before.name !== p.name ? `الاسم ${before.name} ← ${p.name}` : ''].filter(Boolean).join('، ') : ''
     await audit(isNew ? 'create' : 'update', isNew ? `إضافة قطعة ${p.name} (${p.code}) بسعر ${p.price}` : `تعديل قطعة ${p.name}${changes ? ': ' + changes : ''}`, 'products', p.id)
     toast.success(isNew ? 'تمت إضافة القطعة' : 'تم حفظ التعديلات'); onSaved?.(p); onClose()
+    } catch (e) { toast.error('تعذّر الحفظ: ' + (e as Error).message) } finally { setBusy(false) }
   }
   const del = async () => {
     if (!f.id) return
-    if (await confirm({ title: 'حذف القطعة؟', text: 'ستُحذف من المخزون. الفواتير القديمة تبقى كما هي.', danger: true, okText: 'حذف' })) { await deleteProduct(f.id); toast.success('تم الحذف'); onClose() }
+    if (await confirm({ title: 'حذف القطعة؟', text: 'ستُحذف من المخزون. الفواتير القديمة تبقى كما هي.', danger: true, okText: 'حذف' })) { try { await deleteProduct(f.id); toast.success('تم الحذف'); onClose() } catch (e) { toast.error((e as Error).message) } }
   }
   const cats = Array.from(categories.values()).sort((a, b) => a.name.localeCompare(b.name, 'ar'))
   return (
     <Modal title={isNew ? 'قطعة جديدة' : 'تعديل قطعة'} onClose={onClose} size="wide" footer={<>
-      <button className="btn primary" onClick={save}><Save /> حفظ</button>
+      <button className="btn primary" onClick={save} disabled={busy}><Save /> حفظ</button>
       <button className="btn" onClick={onClose}>إلغاء</button>
       {!isNew && isAdmin && <><span className="grow" /><button className="btn danger" onClick={del}><Trash2 /> حذف</button></>}
     </>}>
@@ -154,9 +164,9 @@ export function ProductForm({ initial, currentStock, onClose, onSaved }: { initi
         <Field label="تناسب الموديلات (من دليل السيارات)" className="full" help="اربط القطعة بالموديلات فتظهر عند البحث بالشاصي أو اختيار السيارة"><CarModelSelect value={f.carModelIds ?? []} onChange={ids => set('carModelIds', ids)} /></Field>
         <Field label="تناسب السيارات (نص حر)" className="full"><input className="input" value={f.cars} onChange={e => set('cars', e.target.value)} placeholder="مثال: كيا ريو 2012–2017، هيونداي أكسنت" /></Field>
         <Field label="أرقام القطعة الأصلية (OEM) والبديلة" className="full" help="افصل بين الأرقام بفاصلة؛ يبحث البرنامج بها في شاشة البيع"><input className="input" dir="ltr" style={{ textAlign: 'right', fontFamily: 'monospace' }} value={f.oemNumbers ?? ''} onChange={e => set('oemNumbers', e.target.value)} placeholder="26300-35503, 26300-35504" /></Field>
-        {seeCost && <Field label="سعر الشراء (الكلفة)" help={equiv(f.cost ?? 0) || undefined}><NumberInput value={f.cost ?? 0} onChange={v => set('cost', v)} min={0} suffix={settings.currency} disabled={!canEdit} /></Field>}
-        <Field label="سعر البيع" required help={equiv(f.price ?? 0) || undefined}><NumberInput value={f.price ?? 0} onChange={v => set('price', v)} min={0} suffix={settings.currency} disabled={!canEdit} /></Field>
-        <Field label="سعر الجملة" help="يظهر كخيار عند البيع"><NumberInput value={f.wholesalePrice ?? 0} onChange={v => set('wholesalePrice', v)} min={0} suffix={settings.currency} disabled={!canEdit} /></Field>
+        {seeCost && <Field label="سعر الشراء (الكلفة)" help={equiv(f.cost ?? 0) || undefined}><NumberInput value={f.cost ?? 0} onChange={v => set('cost', v)} min={0} suffix={settings.currency} disabled={!canEdit || !(canPrices || isNew)} /></Field>}
+        <Field label="سعر البيع" required help={!canPrices && !isNew ? 'تعديل الأسعار يحتاج صلاحية من المدير' : equiv(f.price ?? 0) || undefined}><NumberInput value={f.price ?? 0} onChange={v => set('price', v)} min={0} suffix={settings.currency} disabled={!canEdit || !(canPrices || isNew)} /></Field>
+        <Field label="سعر الجملة" help="يظهر كخيار عند البيع"><NumberInput value={f.wholesalePrice ?? 0} onChange={v => set('wholesalePrice', v)} min={0} suffix={settings.currency} disabled={!canEdit || !(canPrices || isNew)} /></Field>
         <Field label="الوحدة">
           <select className="select" value={f.unit} onChange={e => set('unit', e.target.value)}>{Array.from(new Set([...(settings.units ?? []), f.unit ?? 'قطعة'])).map(u => <option key={u} value={u}>{u}</option>)}</select>
         </Field>

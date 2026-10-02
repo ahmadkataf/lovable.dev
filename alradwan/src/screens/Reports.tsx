@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react'
 import { TrendingUp, ShoppingCart, Receipt, Package, FileSpreadsheet, Users, Wallet } from 'lucide-react'
 import { useCollection } from '../db/store'
 import { customerBalance, saleProfit, stockMap, supplierBalance } from '../lib/calc'
-import { addDays, endOfDay, fmtDate, fromInputDate, money, num, startOfMonth, toInputDate, MONTHS } from '../lib/format'
+import { addDays, fmtDate, money, num, startOfMonth, toInputDate, MONTHS, rangeStart, rangeEnd } from '../lib/format'
 import { Bars, Chips, DateRange, Empty, Stat, Tabs } from '../ui/components'
 import { exportSheet } from '../lib/excel'
 
@@ -23,7 +23,7 @@ export function Reports() {
     if (r === 'month') { setFrom(toInputDate(startOfMonth(now))); setTo(toInputDate(now)) }
     if (r === 'year') { const d = new Date(now); d.setMonth(0, 1); setFrom(toInputDate(d.getTime())); setTo(toInputDate(now)) }
   }
-  const f = fromInputDate(from), t = endOfDay(fromInputDate(to))
+  const f = rangeStart(from), t = rangeEnd(to)
 
   const r = useMemo(() => {
     const inRange = (d: number) => d >= f && d <= t
@@ -63,7 +63,7 @@ export function Reports() {
     // sales by day inside the range (up to 31 bars) or by month
     const days = Math.round((t - f) / 86400000) + 1
     const series: { label: string; value: number }[] = []
-    if (days <= 31) for (let i = 0; i < days; i++) { const d0 = fromInputDate(from) + i * 86400000; series.push({ label: String(new Date(d0).getDate()), value: S.filter(s => s.date >= d0 && s.date < d0 + 86400000).reduce((x, s) => x + (s.type === 'return' ? -s.total : s.total), 0) }) }
+    if (days <= 31) for (let i = 0; i < days; i++) { const d0 = rangeStart(from) + i * 86400000; series.push({ label: String(new Date(d0).getDate()), value: S.filter(s => s.date >= d0 && s.date < d0 + 86400000).reduce((x, s) => x + (s.type === 'return' ? -s.total : s.total), 0) }) }
     else { const m = new Map<string, number>(); for (const s of S) { const d = new Date(s.date); const k = `${d.getFullYear()}-${d.getMonth()}`; m.set(k, (m.get(k) ?? 0) + (s.type === 'return' ? -s.total : s.total)) } for (const [k, v] of Array.from(m.entries()).sort()) series.push({ label: MONTHS[Number(k.split('-')[1])].split(' ')[0], value: v }) }
     // last 12 months table
     const months: { label: string; sales: number; profit: number; expenses: number; purchases: number }[] = []

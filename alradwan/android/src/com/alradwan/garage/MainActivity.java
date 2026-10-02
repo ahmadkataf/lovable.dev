@@ -119,7 +119,11 @@ public class MainActivity extends Activity {
         public boolean shouldOverrideUrlLoading(WebView view, WebResourceRequest request) {
             Uri u = request.getUrl();
             if (HOST.equals(u.getHost())) return false;
-            try { host.startActivity(new Intent(Intent.ACTION_VIEW, u)); } catch (Exception ignored) { }
+            String scheme = u.getScheme() == null ? "" : u.getScheme();
+            // only web, mail, phone and WhatsApp links leave the app
+            if (scheme.equals("https") || scheme.equals("http") || scheme.equals("mailto") || scheme.equals("tel") || scheme.equals("whatsapp")) {
+                try { host.startActivity(new Intent(Intent.ACTION_VIEW, u)); } catch (Exception e) { android.widget.Toast.makeText(host, "لا يوجد تطبيق يفتح هذا الرابط", android.widget.Toast.LENGTH_SHORT).show(); }
+            }
             return true;
         }
     }
@@ -243,7 +247,7 @@ public class MainActivity extends Activity {
             InputStream in = am.open(rel);
             Map<String, String> headers = new HashMap<>();
             headers.put("Access-Control-Allow-Origin", "*");
-            headers.put("Cache-Control", "max-age=31536000");
+            headers.put("Cache-Control", path.endsWith(".html") || path.equals("/") ? "no-cache" : "max-age=31536000");
             return new WebResourceResponse(mime(rel), "utf-8", 200, "OK", headers, in);
         } catch (IOException e) {
             return new WebResourceResponse("text/plain", "utf-8", 404, "Not Found", new HashMap<String, String>(), new java.io.ByteArrayInputStream(new byte[0]));

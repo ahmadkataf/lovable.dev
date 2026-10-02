@@ -7,16 +7,16 @@
   --surface-2: #f8fafc;
   --border: #e2e8f0;
   --text: #0f172a;
-  --muted: #64748b;
+  --muted: #526174;
   --primary: #0f172a;
   --primary-text: #ffffff;
   /* the sidebar: white in the light theme, navy in the dark one */
   --side-bg: #ffffff; --side-text: #334155; --side-muted: #64748b; --side-line: #e2e8f0; --side-hover: #f1f5f9; --side-title: #0f172a;
-  --accent: #ea580c;
-  --accent-hover: #c2410c;
+  --accent: #cf4a08;
+  --accent-hover: #b4400a;
   --accent-soft: #ffedd5;
   --accent-text: #9a3412;
-  --success: #16a34a; --success-soft: #dcfce7; --success-text: #166534;
+  --success: #15803d; --success-soft: #dcfce7; --success-text: #166534;
   --danger: #dc2626; --danger-soft: #fee2e2; --danger-text: #991b1b;
   --warning: #d97706; --warning-soft: #fef3c7; --warning-text: #92400e;
   --info: #2563eb; --info-soft: #dbeafe; --info-text: #1e40af;
@@ -37,8 +37,8 @@
   --muted: #8ea0bd;
   --primary: #1e293b;
   --side-bg: #0f172a; --side-text: #cbd5e1; --side-muted: #94a3b8; --side-line: rgba(255,255,255,.08); --side-hover: rgba(255,255,255,.06); --side-title: #ffffff;
-  --accent: #f97316;
-  --accent-hover: #fb923c;
+  --accent: #ea580c;
+  --accent-hover: #f97316;
   --accent-soft: #3a2113;
   --accent-text: #fdba74;
   --success-soft: #0f2e1b; --success-text: #86efac;
@@ -120,7 +120,7 @@ input[type=number] { -moz-appearance: textfield; appearance: textfield; }
 .stat .ic { width: 46px; height: 46px; border-radius: 12px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
 .stat .ic svg { width: 22px; height: 22px; }
 .stat .lbl { font-size: 13px; color: var(--muted); }
-.stat .val { font-size: 20px; font-weight: 700; margin-top: 2px; }
+.stat .val { font-size: 20px; font-weight: 700; margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .stat .val small, .price small { display: block; font-size: 12px; font-weight: 500; color: var(--muted); }
 .stat .sub { font-size: 12px; color: var(--muted); }
 .tone-accent { background: var(--accent-soft); color: var(--accent-text); }
@@ -225,7 +225,11 @@ table.table { width: 100%; border-collapse: collapse; font-size: 14px; }
 @keyframes slide { from { transform: translateY(30px); opacity: 0 } }
 
 .toasts { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); z-index: 100; display: flex; flex-direction: column; gap: 8px; align-items: center; pointer-events: none; }
-@media (max-width: 900px) { .toasts { bottom: calc(var(--nav-h) + 16px); } }
+@media (max-width: 900px) { .toasts { bottom: auto; top: calc(var(--header) + 10px); } }
+/* phones: every control at least 44px tall, the size a thumb hits reliably */
+@media (max-width: 900px) { .btn.sm, .chip, .btn.icon, .qty button, .tabs button { min-height: 44px; } .btn.icon { width: 44px; } .qty button { width: 44px; } input[type=checkbox] { width: 22px; height: 22px; } }
+:focus-visible { outline: 3px solid var(--info); outline-offset: 2px; }
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; } }
 .toast { background: var(--primary); color: #fff; padding: 11px 18px; border-radius: 12px; box-shadow: var(--shadow-lg); font-weight: 500; display: flex; gap: 8px; align-items: center; animation: pop .2s; max-width: 90vw; }
 .toast.success { background: var(--success); } .toast.error { background: var(--danger); }
 .toast svg { width: 18px; height: 18px; }
@@ -253,7 +257,7 @@ table.table { width: 100%; border-collapse: collapse; font-size: 14px; }
 .pcard:hover { border-color: var(--accent); } .pcard:active { transform: scale(.98); }
 .pcard .n { font-weight: 600; font-size: 14px; line-height: 1.35; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 .pcard .c { font-size: 12px; color: var(--muted); }
-.pcard .p { font-weight: 700; color: var(--accent-text); margin-top: auto; }
+.pcard .p { font-weight: 700; color: var(--accent-text); margin-top: auto; white-space: nowrap; }
 .pcard .p small { display: block; font-size: 11px; font-weight: 500; color: var(--muted); }
 .pcard.out { opacity: .55; }
 .cart { position: sticky; top: calc(var(--header) + 16px); }

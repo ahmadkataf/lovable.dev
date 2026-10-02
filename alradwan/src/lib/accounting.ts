@@ -2,7 +2,7 @@
 // stock movement becomes a journal entry on a fixed chart of accounts, so the ledger, the trial balance,
 // the income statement and the balance sheet always agree with the invoices — nothing is typed twice.
 
-import type { CashEntry, Customer, Expense, JournalEntry, Payment, Product, Purchase, Sale, StockMovement, Supplier } from '../db/types'
+import type { CashEntry, CashKind, Customer, Expense, JournalEntry, Payment, Product, Purchase, Sale, StockMovement, Supplier } from '../db/types'
 
 export type AccountType = 'asset' | 'liability' | 'equity' | 'revenue' | 'expense'
 export interface Account { code: string; name: string; type: AccountType }
@@ -38,6 +38,8 @@ export function expenseAccount(category: string): Account {
   return { code: `${ACC.expenses}:${category}`, name: `مصاريف: ${category}`, type: 'expense' }
 }
 
+export const CASH_KIND_LABEL: Record<CashKind, string> = { capital: 'إيداع رأس مال', income: 'إيراد آخر', loan: 'قرض مستلم', drawings: 'مسحوبات صاحب المحل', loanRepay: 'سداد قرض' }
+
 export interface Line { account: string; debit: number; credit: number; party?: string }
 export interface Entry { id: string; date: number; memo: string; lines: Line[]; ref?: { type: 'sale' | 'purchase' | 'payment' | 'expense' | 'cash' | 'movement' | 'opening' | 'journal'; id: string } }
 
@@ -53,38 +55,48 @@ export function buildJournal(b: Books): Entry[] {
   // opening balances: what the shop started with
   for (const c of b.customers.values()) if (c.openingBalance) E(`open-c-${c.id}`, c.createdAt, `رصيد افتتاحي للعميل ${c.name}`, c.openingBalance > 0 ? [{ account: ACC.receivable, debit: c.openingBalance, credit: 0, party: c.name }, { account: ACC.equity, debit: 0, credit: c.openingBalance }] : [{ account: ACC.equity, debit: -c.openingBalance, credit: 0 }, { account: ACC.receivable, debit: 0, credit: -c.openingBalance, party: c.name }], { type: 'opening', id: c.id })
   for (const s of b.suppliers.values()) if (s.openingBalance) E(`open-s-${s.id}`, s.createdAt, `رصيد افتتاحي للمورد ${s.name}`, s.openingBalance > 0 ? [{ account: ACC.equity, debit: s.openingBalance, credit: 0 }, { account: ACC.payable, debit: 0, credit: s.openingBalance, party: s.name }] : [{ account: ACC.payable, debit: -s.openingBalance, credit: 0, party: s.name }, { account: ACC.equity, debit: 0, credit: -s.openingBalance }], { type: 'opening', id: s.id })
-  for (const p of b.products.values()) { const v = (p.openingStock || 0) * (p.cost || 0); if (p.kind === 'product' && v) E(`open-p-${p.id}`, p.createdAt, `رصيد افتتاحي للمخزون: ${p.name}`, [{ account: ACC.inventory, debit: v, credit: 0 }, { account: ACC.equity, debit: 0, credit: v }], { type: 'opening', id: p.id }) }
+  for (const p of b.products.values()) { const v = (p.openingStock || 0) * (p.openingCost ?? p.cost ?? 0); if (p.kind === 'product' && v) E(`open-p-${p.id}`, p.createdAt, `رصيد افتتاحي للمخزون: ${p.name}`, [{ account: ACC.inventory, debit: v, credit: 0 }, { account: ACC.equity, debit: 0, credit: v }], { type: 'opening', id: p.id }) }
 
   for (const s of b.sales.values()) {
     if (s.type === 'quote') continue
     const cost = s.items.reduce((t, i) => t + (i.kind === 'service' ? 0 : (i.cost || 0) * i.qty), 0)
-    const due = s.total - s.paid
+    const paid = r2(s.paid), total = r2(s.total), due = r2(total - paid)
     if (s.type === 'sale') {
-      E(`sale-${s.id}`, s.date, `فاتورة بيع ${s.number} — ${s.customerName}`, [{ account: ACC.cash, debit: s.paid, credit: 0 }, { account: ACC.receivable, debit: due, credit: 0, party: s.customerName }, { account: ACC.sales, debit: 0, credit: s.total }], { type: 'sale', id: s.id })
+      E(`sale-${s.id}`, s.date, `فاتورة بيع ${s.number} — ${s.customerName}`, [{ account: ACC.cash, debit: paid, credit: 0 }, { account: ACC.receivable, debit: due, credit: 0, party: s.customerName }, { account: ACC.sales, debit: 0, credit: total }], { type: 'sale', id: s.id })
       if (cost) E(`cogs-${s.id}`, s.date, `تكلفة بضاعة الفاتورة ${s.number}`, [{ account: ACC.cogs, debit: cost, credit: 0 }, { account: ACC.inventory, debit: 0, credit: cost }], { type: 'sale', id: s.id })
     } else {
-      E(`ret-${s.id}`, s.date, `مرتجع مبيعات ${s.number} — ${s.customerName}`, [{ account: ACC.salesReturns, debit: s.total, credit: 0 }, { account: ACC.cash, debit: 0, credit: s.paid }, { account: ACC.receivable, debit: 0, credit: due, party: s.customerName }], { type: 'sale', id: s.id })
+      E(`ret-${s.id}`, s.date, `مرتجع مبيعات ${s.number} — ${s.customerName}`, [{ account: ACC.salesReturns, debit: total, credit: 0 }, { account: ACC.cash, debit: 0, credit: paid }, { account: ACC.receivable, debit: 0, credit: due, party: s.customerName }], { type: 'sale', id: s.id })
       if (cost) E(`cogs-${s.id}`, s.date, `إرجاع بضاعة المرتجع ${s.number} إلى المخزون`, [{ account: ACC.inventory, debit: cost, credit: 0 }, { account: ACC.cogs, debit: 0, credit: cost }], { type: 'sale', id: s.id })
     }
   }
   for (const p of b.purchases.values()) {
-    const due = p.total - p.paid
-    if (p.type === 'purchase') E(`pur-${p.id}`, p.date, `فاتورة شراء ${p.number} — ${p.supplierName}`, [{ account: ACC.inventory, debit: p.total, credit: 0 }, { account: ACC.cash, debit: 0, credit: p.paid }, { account: ACC.payable, debit: 0, credit: due, party: p.supplierName }], { type: 'purchase', id: p.id })
-    else E(`pret-${p.id}`, p.date, `مرتجع شراء ${p.number} — ${p.supplierName}`, [{ account: ACC.cash, debit: p.paid, credit: 0 }, { account: ACC.payable, debit: due, credit: 0, party: p.supplierName }, { account: ACC.inventory, debit: 0, credit: p.total }], { type: 'purchase', id: p.id })
+    const paid = r2(p.paid), total = r2(p.total), due = r2(total - paid)
+    if (p.type === 'purchase') E(`pur-${p.id}`, p.date, `فاتورة شراء ${p.number} — ${p.supplierName}`, [{ account: ACC.inventory, debit: total, credit: 0 }, { account: ACC.cash, debit: 0, credit: paid }, { account: ACC.payable, debit: 0, credit: due, party: p.supplierName }], { type: 'purchase', id: p.id })
+    else E(`pret-${p.id}`, p.date, `مرتجع شراء ${p.number} — ${p.supplierName}`, [{ account: ACC.cash, debit: paid, credit: 0 }, { account: ACC.payable, debit: due, credit: 0, party: p.supplierName }, { account: ACC.inventory, debit: 0, credit: total }], { type: 'purchase', id: p.id })
   }
   for (const pm of b.payments.values()) {
-    if (pm.partyType === 'customer') E(`pay-${pm.id}`, pm.date, `تحصيل من ${pm.partyName}${pm.note ? ` — ${pm.note}` : ''}`, [{ account: ACC.cash, debit: pm.amount, credit: 0 }, { account: ACC.receivable, debit: 0, credit: pm.amount, party: pm.partyName }], { type: 'payment', id: pm.id })
-    else E(`pay-${pm.id}`, pm.date, `دفع إلى ${pm.partyName}${pm.note ? ` — ${pm.note}` : ''}`, [{ account: ACC.payable, debit: pm.amount, credit: 0, party: pm.partyName }, { account: ACC.cash, debit: 0, credit: pm.amount }], { type: 'payment', id: pm.id })
+    const amt = Math.abs(pm.amount), refund = pm.amount < 0
+    const note = pm.note ? ` — ${pm.note}` : ''
+    // a refund runs the same entry the other way round
+    if (pm.partyType === 'customer') E(`pay-${pm.id}`, pm.date, refund ? `رد مبلغ إلى ${pm.partyName}${note}` : `تحصيل من ${pm.partyName}${note}`, refund ? [{ account: ACC.receivable, debit: amt, credit: 0, party: pm.partyName }, { account: ACC.cash, debit: 0, credit: amt }] : [{ account: ACC.cash, debit: amt, credit: 0 }, { account: ACC.receivable, debit: 0, credit: amt, party: pm.partyName }], { type: 'payment', id: pm.id })
+    else E(`pay-${pm.id}`, pm.date, refund ? `استرداد من ${pm.partyName}${note}` : `دفع إلى ${pm.partyName}${note}`, refund ? [{ account: ACC.cash, debit: amt, credit: 0 }, { account: ACC.payable, debit: 0, credit: amt, party: pm.partyName }] : [{ account: ACC.payable, debit: amt, credit: 0, party: pm.partyName }, { account: ACC.cash, debit: 0, credit: amt }], { type: 'payment', id: pm.id })
   }
   for (const e of b.expenses.values()) E(`exp-${e.id}`, e.date, `مصروف ${e.category}${e.note ? ` — ${e.note}` : ''}`, [{ account: expenseAccount(e.category).code, debit: e.amount, credit: 0 }, { account: ACC.cash, debit: 0, credit: e.amount }], { type: 'expense', id: e.id })
   for (const c of b.cash.values()) {
-    if (c.direction === 'in') E(`cash-${c.id}`, c.date, `إيداع في الصندوق${c.note ? ` — ${c.note}` : ''}`, [{ account: ACC.cash, debit: c.amount, credit: 0 }, { account: ACC.equity, debit: 0, credit: c.amount }], { type: 'cash', id: c.id })
-    else E(`cash-${c.id}`, c.date, `سحب من الصندوق${c.note ? ` — ${c.note}` : ''}`, [{ account: ACC.drawings, debit: c.amount, credit: 0 }, { account: ACC.cash, debit: 0, credit: c.amount }], { type: 'cash', id: c.id })
+    // what the money is: capital or a loan or other income coming in; drawings or a loan repayment going out
+    const note = c.note ? ` — ${c.note}` : ''
+    if (c.direction === 'in') {
+      const counter = c.kind === 'income' ? ACC.otherIncome : c.kind === 'loan' ? ACC.accrued : ACC.equity
+      E(`cash-${c.id}`, c.date, `${CASH_KIND_LABEL[c.kind ?? 'capital']}${note}`, [{ account: ACC.cash, debit: c.amount, credit: 0 }, { account: counter, debit: 0, credit: c.amount }], { type: 'cash', id: c.id })
+    } else {
+      const counter = c.kind === 'loanRepay' ? ACC.accrued : ACC.drawings
+      E(`cash-${c.id}`, c.date, `${CASH_KIND_LABEL[c.kind ?? 'drawings']}${note}`, [{ account: counter, debit: c.amount, credit: 0 }, { account: ACC.cash, debit: 0, credit: c.amount }], { type: 'cash', id: c.id })
+    }
   }
   for (const m of b.movements.values()) {
     if (m.reason !== 'adjust') continue
     const p = b.products.get(m.productId); if (!p) continue
-    const v = Math.abs(m.qty) * (p.cost || 0); if (!v) continue
+    const v = Math.abs(m.qty) * (m.unitCost ?? p.cost ?? 0); if (!v) continue
     if (m.qty > 0) E(`adj-${m.id}`, m.date, `زيادة جرد: ${p.name} (+${m.qty})`, [{ account: ACC.inventory, debit: v, credit: 0 }, { account: ACC.stockDiff, debit: 0, credit: v }], { type: 'movement', id: m.id })
     else E(`adj-${m.id}`, m.date, `نقص جرد: ${p.name} (${m.qty})`, [{ account: ACC.stockDiff, debit: v, credit: 0 }, { account: ACC.inventory, debit: 0, credit: v }], { type: 'movement', id: m.id })
   }

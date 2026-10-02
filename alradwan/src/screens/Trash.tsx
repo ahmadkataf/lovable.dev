@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { RotateCcw, Trash2 } from 'lucide-react'
 import { db } from '../db/db'
 import { audit, bump, putMany, useStore } from '../db/store'
-import { saveSale, savePurchase } from '../db/actions'
+import { saveSale, savePurchase, numberTaken } from '../db/actions'
 import type { Base, CollectionName, Customer, Expense, Payment, Product, Purchase, Sale, StockMovement, Supplier, CashEntry } from '../db/types'
 import { COLLECTION_LABELS } from '../db/types'
 import { fmtDateTime, invoiceNo, money } from '../lib/format'
@@ -45,10 +45,12 @@ export function Trash() {
     const d = describe(r)
     if (!(await confirm({ title: `استعادة «${d.title}»؟`, text: kind === 'sales' || kind === 'purchases' ? 'ستعود الفاتورة وأثرها على المخزون والصندوق والحسابات.' : undefined, okText: 'استعادة' }))) return
     try {
-      if (kind === 'sales') { const { deleted: _d, ...s } = r as Sale; await saveSale({ ...s }) }
-      else if (kind === 'purchases') { const { deleted: _d, ...p } = r as Purchase; await savePurchase({ ...p }) }
+      if (kind === 'sales') { const { deleted: _d, ...s } = r as Sale; await saveSale({ ...s, number: numberTaken('sales', s.number, s.id) ? undefined : s.number }) }
+      else if (kind === 'purchases') { const { deleted: _d, ...p } = r as Purchase; await savePurchase({ ...p, number: numberTaken('purchases', p.number, p.id) ? undefined : p.number }) }
       else if (kind === 'products') {
-        const moves = await db.table<StockMovement>('movements').filter(m => m.productId === r.id && !!m.deleted).toArray()
+        // movements of invoices that are themselves still deleted stay deleted
+        const st = useStore.getState()
+        const moves = (await db.table<StockMovement>('movements').filter(m => m.productId === r.id && !!m.deleted).toArray()).filter(m => !m.refId || st.sales.has(m.refId) || st.purchases.has(m.refId))
         await putMany([{ collection: 'products', record: { ...r, deleted: false } }, ...moves.map(m => ({ collection: 'movements' as CollectionName, record: { ...m, deleted: false } as Base }))])
       } else await putMany([{ collection: kind, record: { ...r, deleted: false } }])
       await audit('restore', `استعادة ${COLLECTION_LABELS[kind]}: ${d.title}`, kind, r.id)

@@ -5,7 +5,7 @@ import { useSettings, useStore } from '../db/store'
 import type { JournalEntry, JournalLine } from '../db/types'
 import { deleteJournal, saveJournal } from '../db/actions'
 import { ACC, FIXED_ACCOUNTS, OPERATIONAL_ACCOUNTS, accountName, accountsOf, agingReport, balanceSheet, buildJournal, expenseAccount, incomeStatement, ledger, trialBalance, type Account, type Entry } from '../lib/accounting'
-import { endOfDay, fmtDate, fromInputDate, matches, money, startOfMonth, toInputDate } from '../lib/format'
+import { fmtDate, fromInputDate, matches, money, startOfMonth, toInputDate, rangeStart, rangeEnd } from '../lib/format'
 import { Chips, DateRange, Empty, Field, NumberInput, Stat, Tabs } from '../ui/components'
 import { Modal, useConfirm } from '../ui/modal'
 import { useToast } from '../ui/toast'
@@ -40,7 +40,7 @@ export function Accounting() {
     if (r === 'year') { const d = new Date(now); d.setMonth(0, 1); setFrom(toInputDate(d.getTime())); setTo(toInputDate(now)) }
     if (r === 'all') { setFrom('2000-01-01'); setTo(toInputDate(now)) }
   }
-  const f = fromInputDate(from), t = endOfDay(fromInputDate(to))
+  const f = rangeStart(from), t = rangeEnd(to)
   const period = `${fmtDate(f)} — ${fmtDate(t)}`
 
   const entries = useMemo(() => buildJournal({ products: s.products, customers: s.customers, suppliers: s.suppliers, sales: s.sales, purchases: s.purchases, payments: s.payments, expenses: s.expenses, cash: s.cash, movements: s.movements, journal: s.journal }), [s.version])
@@ -65,7 +65,7 @@ export function Accounting() {
       case 'trial': return { name: 'ميزان المراجعة', table: { columns: [{ label: 'الرمز' }, { label: 'الحساب' }, { label: 'مدين', num: true }, { label: 'دائن', num: true }, { label: 'الرصيد', num: true }], rows: trial.map(r => [r.account.code, r.account.name, Mc(r.debit), Mc(r.credit), Mc(r.balance)]), footer: ['', 'المجموع', Mc(trialTotals.d), Mc(trialTotals.c), ''] }, note: Math.abs(trialTotals.d - trialTotals.c) < 0.05 ? 'الميزان متوازن: مجموع المدين = مجموع الدائن.' : 'تنبيه: الميزان غير متوازن.' }
       case 'income': return { name: 'قائمة الدخل', table: { columns: [{ label: 'البند' }, { label: 'المبلغ', num: true }], rows: [['المبيعات', Mc(inc.sales)], ['(-) مرتجعات المبيعات', Mc(inc.returns)], ['صافي المبيعات', Mc(inc.netSales)], ['(-) تكلفة البضاعة المباعة', Mc(inc.cogs)], ['مجمل الربح', Mc(inc.grossProfit)], ...inc.expenses.map(e => [`(-) مصاريف: ${e.name}`, Mc(e.amount)]), ['(-) فروقات الجرد', Mc(inc.stockDiff)], ['(+) إيرادات أخرى', Mc(inc.otherIncome)]], footer: ['صافي الربح', Mc(inc.netProfit)] } }
       case 'balance': return { name: 'المركز المالي (الميزانية)', table: { columns: [{ label: 'البند' }, { label: 'المبلغ', num: true }], rows: [['— الأصول —', ''], ['الصندوق', Mc(bs.cash)], ['العملاء (ذمم مدينة)', Mc(bs.receivable)], ['المخزون (بالتكلفة)', Mc(bs.inventory)], ['مجموع الأصول', Mc(bs.totalAssets)], ['— الالتزامات —', ''], ['الموردون (ذمم دائنة)', Mc(bs.payable)], ['مصاريف مستحقة وقروض', Mc(bs.accrued)], ['— حقوق الملكية —', ''], ['رأس المال', Mc(bs.capital)], ['(-) المسحوبات', Mc(bs.drawings)], ['الأرباح المحتجزة', Mc(bs.retained)], ['مجموع حقوق الملكية', Mc(bs.totalEquity)]], footer: ['مجموع الالتزامات وحقوق الملكية', Mc(bs.totalLiabilities + bs.totalEquity)] } }
-      case 'aging': return { name: 'أعمار ديون العملاء', table: { columns: [{ label: 'العميل' }, { label: 'الهاتف' }, { label: 'حتى 30 يوم', num: true }, { label: '31–60', num: true }, { label: '61–90', num: true }, { label: 'أكثر من 90', num: true }, { label: 'الإجمالي', num: true }], rows: aging.map(r => [r.name, r.phone ?? '', Mc(r.buckets[0]), Mc(r.buckets[1]), Mc(r.buckets[2]), Mc(r.buckets[3]), Mc(r.total)]), footer: ['المجموع', '', Mc(agingTotals.b[0]), Mc(agingTotals.b[1]), Mc(agingTotals.b[2]), Mc(agingTotals.b[3]), Mc(agingTotals.total)] } }
+      case 'aging': return { name: 'أعمار ديون العملاء', table: { columns: [{ label: 'العميل' }, { label: 'الهاتف', ltr: true }, { label: 'حتى 30 يوم', num: true }, { label: '31–60', num: true }, { label: '61–90', num: true }, { label: 'أكثر من 90', num: true }, { label: 'الإجمالي', num: true }], rows: aging.map(r => [r.name, r.phone ?? '', Mc(r.buckets[0]), Mc(r.buckets[1]), Mc(r.buckets[2]), Mc(r.buckets[3]), Mc(r.total)]), footer: ['المجموع', '', Mc(agingTotals.b[0]), Mc(agingTotals.b[1]), Mc(agingTotals.b[2]), Mc(agingTotals.b[3]), Mc(agingTotals.total)] } }
       case 'manual': return { name: 'القيود اليدوية', table: { columns: [{ label: 'التاريخ' }, { label: 'البيان' }, { label: 'الحساب' }, { label: 'مدين', num: true }, { label: 'دائن', num: true }], rows: manual.flatMap(e => e.lines.map((l, i) => [i === 0 ? fmtDate(e.date) : '', i === 0 ? e.memo : '', accountName(l.account, accounts), l.debit ? Mc(l.debit) : '', l.credit ? Mc(l.credit) : ''])) } }
     }
   }
@@ -199,7 +199,7 @@ export function Accounting() {
 
       {tab === 'manual' && (
         <div className="stack">
-          <div className="card pad tone-info small" style={{ padding: '10px 14px' }}><PenLine size={14} style={{ verticalAlign: -2 }} /> القيود اليدوية لما لا تولّده الفواتير تلقائياً: مصروف دفعه صاحب المحل من جيبه، بضاعة تالفة، قرض، إيراد آخر. حركات الصندوق والعملاء والموردين تُسجَّل من شاشاتها.</div>
+          <div className="card pad tone-info small" style={{ padding: '10px 14px' }}><PenLine size={14} style={{ verticalAlign: -2 }} /> القيود اليدوية لما لا تولّده الفواتير تلقائياً: مصروف دفعه صاحب المحل من جيبه، مصروف أو إيراد مستحق. الصندوق (رأس مال، قرض، إيراد آخر نقدي، مسحوبات) من شاشة «الصندوق»، والبضاعة التالفة من «المخزون» ← جرد، والعملاء والموردون من شاشاتهم.</div>
           <div><button className="btn primary" onClick={() => setNewEntry(true)}><Plus /> قيد جديد</button></div>
           <div className="card">
             {manual.length === 0 ? <Empty title="لا قيود يدوية" icon={<BookOpen />} /> : (
@@ -219,9 +219,8 @@ export function Accounting() {
 
 const TEMPLATES: { label: string; memo: string; lines: (cats: string[]) => { account: string; side: 'debit' | 'credit' }[] }[] = [
   { label: 'مصروف دفعه صاحب المحل من جيبه', memo: 'مصروف مدفوع من جيب صاحب المحل', lines: cats => [{ account: expenseAccount(cats[0] ?? 'أخرى').code, side: 'debit' }, { account: ACC.equity, side: 'credit' }] },
-  { label: 'بضاعة تالفة أو مفقودة', memo: 'شطب بضاعة تالفة', lines: () => [{ account: ACC.stockDiff, side: 'debit' }, { account: ACC.inventory, side: 'credit' }] },
   { label: 'مصروف مستحق لم يُدفع بعد', memo: 'مصروف مستحق', lines: cats => [{ account: expenseAccount(cats[0] ?? 'أخرى').code, side: 'debit' }, { account: ACC.accrued, side: 'credit' }] },
-  { label: 'إيراد آخر (غير المبيعات)', memo: 'إيراد آخر', lines: () => [{ account: ACC.equity, side: 'debit' }, { account: ACC.otherIncome, side: 'credit' }] },
+  { label: 'إيراد مستحق لم يُقبض بعد', memo: 'إيراد مستحق', lines: () => [{ account: ACC.accrued, side: 'debit' }, { account: ACC.otherIncome, side: 'credit' }] },
 ]
 
 /** A manual entry: a date, a memo and balanced lines; the templates fill the common cases. */
@@ -232,7 +231,7 @@ function JournalModal({ accounts, onClose }: { accounts: Account[]; onClose: () 
   const [memo, setMemo] = useState('')
   const [lines, setLines] = useState<JournalLine[]>([{ account: ACC.equity, debit: 0, credit: 0 }, { account: ACC.otherIncome, debit: 0, credit: 0 }])
   const [busy, setBusy] = useState(false)
-  const allowed = accounts.filter(a => !OPERATIONAL_ACCOUNTS.includes(a.code))
+  const allowed = accounts.filter(a => !OPERATIONAL_ACCOUNTS.includes(a.code) && a.code !== ACC.inventory)
   const totalD = lines.reduce((t, l) => t + l.debit, 0), totalC = lines.reduce((t, l) => t + l.credit, 0)
   const balanced = Math.abs(totalD - totalC) < 0.005 && totalD > 0
   const set = (i: number, patch: Partial<JournalLine>) => setLines(ls => ls.map((l, k) => (k === i ? { ...l, ...patch } : l)))
@@ -266,7 +265,7 @@ function JournalModal({ accounts, onClose }: { accounts: Account[]; onClose: () 
           <tfoot><tr><td>المجموع</td><td className="num">{Mc(totalD)}</td><td className="num">{Mc(totalC)}</td><td></td></tr></tfoot>
         </table></div>
         <div><button className="btn sm" onClick={() => setLines(ls => [...ls, { account: allowed[0]?.code ?? ACC.equity, debit: 0, credit: 0 }])}><Plus /> سطر</button></div>
-        <div className="small muted">المدين = ما زاد أو ما صُرف، الدائن = مصدره. لا تُستخدم هنا حسابات الصندوق والعملاء والموردين؛ سجّلها من شاشاتها حتى تبقى الأرصدة متطابقة.</div>
+        <div className="small muted">المدين = ما زاد أو ما صُرف، الدائن = مصدره. لا تُستخدم هنا حسابات الصندوق والمخزون والعملاء والموردين؛ سجّلها من شاشاتها حتى تبقى الأرصدة متطابقة.</div>
       </div>
     </Modal>
   )

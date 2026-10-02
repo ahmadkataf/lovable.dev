@@ -1,11 +1,11 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { Plus, Pencil, Phone, Printer, HandCoins, FileSpreadsheet, MessageCircle, Trash2 } from 'lucide-react'
-import { useCollection, useIsAdmin, useSettings } from '../db/store'
+import { useCollection, useIsAdmin, useSettings, usePerm } from '../db/store'
 import type { Customer, Supplier, Payment } from '../db/types'
 import { addPayment, deleteMoneyEntry } from '../db/actions'
 import { customerBalance, supplierBalance } from '../lib/calc'
-import { fmtDate, invoiceNo, matches, money } from '../lib/format'
+import { fmtDate, invoiceNo, matches, money, toInputDate, fromInputDate } from '../lib/format'
 import { Empty, Field, NumberInput, SearchInput, Stat, Tabs } from '../ui/components'
 import { Modal, useConfirm } from '../ui/modal'
 import { useToast } from '../ui/toast'
@@ -24,6 +24,7 @@ export function Parties({ type }: { type: 'customer' | 'supplier' }) {
   const payments = useCollection('payments')
   const settings = useSettings()
   const isAdmin = useIsAdmin()
+  const canPay = usePerm('payments'), canEditParty = usePerm('customers')
   const [q, setQ] = useState('')
   const [tab, setTab] = useState<'all' | 'debt' | 'overdue'>('all')
   const [params, setParams] = useSearchParams()
@@ -83,7 +84,7 @@ export function Parties({ type }: { type: 'customer' | 'supplier' }) {
                 <td className="hide-mobile mono small">{p.phone}</td>
                 {isC && <td className="hide-mobile small">{(p as Customer).car}</td>}
                 <td className="num">{balance > 0.001 ? <span className="badge tone-danger">{money(balance)}</span> : balance < -0.001 ? <span className="badge tone-success">رصيد له {money(-balance)}</span> : <span className="muted">—</span>}{balance > 0.001 && overdueDays(p.id) >= 30 && <div className="small neg-txt">متأخر {overdueDays(p.id)} يوم</div>}</td>
-                <td className="actions" onClick={e => e.stopPropagation()}>{balance > 0.001 && <button className="btn sm" onClick={() => setPay(p)}><HandCoins /> {isC ? 'تحصيل' : 'دفع'}</button>}<button className="btn sm ghost icon" onClick={() => setForm(p)}><Pencil /></button></td>
+                <td className="actions" onClick={e => e.stopPropagation()}>{balance > 0.001 && canPay && <button className="btn sm" onClick={() => setPay(p)}><HandCoins /> {isC ? 'تحصيل' : 'دفع'}</button>}{balance < -0.001 && canPay && <button className="btn sm ghost" onClick={() => setPay(p)} title={isC ? 'رد الرصيد الزائد للعميل نقداً' : 'استرداد الرصيد الزائد من المورد'}>{isC ? 'رد رصيد' : 'استرداد'}</button>}{canEditParty && <button className="btn sm ghost icon" aria-label="تعديل" onClick={() => setForm(p)}><Pencil /></button>}</td>
               </tr>
             ))}</tbody>
           </table></div>
@@ -99,7 +100,8 @@ export function Parties({ type }: { type: 'customer' | 'supplier' }) {
         const doPrint = () => printDocument({ type: 'statement', title: isC ? 'كشف حساب عميل' : 'كشف حساب مورد', party: { name: selected.name, phone: selected.phone }, opening: selected.openingBalance, lines: lines.map(l => ({ date: l.date, label: l.label, debit: l.debit, credit: l.credit })), closingLabel: isC ? 'الرصيد المستحق على العميل' : 'الرصيد المستحق للمورد' })
         return (
           <Modal title={selected.name} onClose={() => nav(base)} size="wide" footer={<>
-            {balance > 0.001 && <button className="btn primary" onClick={() => setPay(selected)}><HandCoins /> {isC ? 'تحصيل دفعة' : 'تسديد دفعة'}</button>}
+            {balance > 0.001 && canPay && <button className="btn primary" onClick={() => setPay(selected)}><HandCoins /> {isC ? 'تحصيل دفعة' : 'تسديد دفعة'}</button>}
+            {balance < -0.001 && canPay && <button className="btn" onClick={() => setPay(selected)}><HandCoins /> {isC ? 'رد الرصيد للعميل' : 'استرداد من المورد'}</button>}
             <button className="btn" onClick={doPrint}><Printer /> كشف حساب</button>
             {selected.phone && <a className="btn" href={`https://wa.me/${selected.phone.replace(/\D/g, '').replace(/^0/, '963')}?text=${encodeURIComponent(`مرحباً ${selected.name}،\n${isC ? 'الرصيد المستحق عليكم' : 'الرصيد المستحق لكم'} لدى ${settings.shopName}: ${money(balance)}`)}`} target="_blank" rel="noreferrer"><MessageCircle /></a>}
             <button className="btn" onClick={() => setForm(selected)}><Pencil /> تعديل</button>
@@ -133,25 +135,32 @@ export function Parties({ type }: { type: 'customer' | 'supplier' }) {
 }
 
 function PaymentModal({ type, party, balance, onClose }: { type: 'customer' | 'supplier'; party: Customer | Supplier; balance: number; onClose: () => void }) {
-  const [amount, setAmount] = useState(Math.max(0, balance))
+  // a negative balance is money owed back: the same dialog records the refund (stored as a negative payment)
+  const refund = balance < -0.001
+  const [amount, setAmount] = useState(Math.abs(balance))
   const [note, setNote] = useState('')
   const [date, setDate] = useState(Date.now())
+  const [busy, setBusy] = useState(false)
   const toast = useToast()
   const isC = type === 'customer'
   const save = async () => {
     if (amount <= 0) { toast.error('أدخل المبلغ'); return }
-    await addPayment({ date, partyType: type, partyId: party.id, partyName: party.name, amount, note } as Omit<Payment, 'id' | 'updatedAt' | 'userId'>)
-    toast.success(isC ? `تم تسجيل تحصيل ${money(amount)}` : `تم تسجيل دفع ${money(amount)}`); onClose()
+    setBusy(true)
+    try {
+      await addPayment({ date, partyType: type, partyId: party.id, partyName: party.name, amount: refund ? -amount : amount, note } as Omit<Payment, 'id' | 'updatedAt' | 'userId'>)
+      toast.success(refund ? `تم تسجيل رد ${money(amount)}` : isC ? `تم تسجيل تحصيل ${money(amount)}` : `تم تسجيل دفع ${money(amount)}`); onClose()
+    } catch (e) { toast.error('تعذّر التسجيل: ' + (e as Error).message) } finally { setBusy(false) }
   }
+  const title = refund ? (isC ? `رد رصيد إلى ${party.name}` : `استرداد من ${party.name}`) : isC ? `تحصيل دفعة من ${party.name}` : `تسديد دفعة إلى ${party.name}`
   return (
-    <Modal title={isC ? `تحصيل دفعة من ${party.name}` : `تسديد دفعة إلى ${party.name}`} onClose={onClose} size="narrow" footer={<><button className="btn primary" onClick={save}><HandCoins /> تسجيل</button><button className="btn" onClick={onClose}>إلغاء</button></>}>
+    <Modal title={title} onClose={onClose} size="narrow" footer={<><button className="btn primary" onClick={save} disabled={busy}><HandCoins /> تسجيل</button><button className="btn" onClick={onClose}>إلغاء</button></>}>
       <div className="stack">
-        <div className="between"><span className="muted">{isC ? 'الدين الحالي' : 'المستحق له'}</span><b>{money(balance)}</b></div>
+        <div className="between"><span className="muted">{refund ? (isC ? 'رصيد له عندنا' : 'رصيد لنا عنده') : isC ? 'الدين الحالي' : 'المستحق له'}</span><b>{money(Math.abs(balance))}</b></div>
         <Field label="المبلغ"><NumberInput value={amount} onChange={setAmount} lg autoFocus onEnter={save} /></Field>
-        <div className="btn-row"><button className="btn sm" onClick={() => setAmount(Math.max(0, balance))}>المبلغ كاملاً</button><button className="btn sm" onClick={() => setAmount(Math.round(Math.max(0, balance) / 2))}>النصف</button></div>
-        {amount > balance + 0.001 && <div className="badge tone-info" style={{ alignSelf: 'flex-start' }}>سيصبح له رصيد {money(amount - balance)}</div>}
+        <div className="btn-row"><button className="btn sm" onClick={() => setAmount(Math.abs(balance))}>المبلغ كاملاً</button><button className="btn sm" onClick={() => setAmount(Math.round(Math.max(0, balance) / 2))}>النصف</button></div>
+        {!refund && amount > balance + 0.001 && <div className="badge tone-info" style={{ alignSelf: 'flex-start' }}>سيصبح له رصيد {money(amount - balance)}</div>}
         <Field label="ملاحظة"><input className="input" value={note} onChange={e => setNote(e.target.value)} placeholder="نقداً، حوالة…" /></Field>
-        <Field label="التاريخ"><input type="date" className="input" value={new Date(date).toISOString().slice(0, 10)} onChange={e => { const [y, m, d] = e.target.value.split('-').map(Number); setDate(new Date(y, m - 1, d, 12).getTime()) }} /></Field>
+        <Field label="التاريخ"><input type="date" className="input" value={toInputDate(date)} onChange={e => { if (e.target.value) setDate(fromInputDate(e.target.value, date)) }} /></Field>
       </div>
     </Modal>
   )

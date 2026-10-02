@@ -8,6 +8,13 @@
 # Optional repository secrets for a permanent Android signing key: ALRADWAN_KEYSTORE_BASE64,
 # ALRADWAN_KEYSTORE_PASSWORD, ALRADWAN_KEY_ALIAS.
 name: Build AlRadwan Garage apps
+# the workflow only reads the repository; the release job alone gets write access to publish the files
+permissions:
+  contents: read
+# one build per branch at a time: a second push waits instead of racing the release upload
+concurrency:
+  group: alradwan-build-${{ github.ref }}
+  cancel-in-progress: false
 on:
   workflow_dispatch:
     inputs:
@@ -33,7 +40,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - id: v
-        run: echo "version=${{ inputs.version }}" | grep -q 'version=.' && echo "version=${{ inputs.version }}" >> "$GITHUB_OUTPUT" || echo "version=$(node -p "require('./package.json').version")" >> "$GITHUB_OUTPUT"
+        env:
+          INPUT_VERSION: ${{ inputs.version }}
+        run: |
+          if [ -n "$INPUT_VERSION" ]; then echo "version=$INPUT_VERSION" >> "$GITHUB_OUTPUT"; else echo "version=$(node -p "require('./package.json').version")" >> "$GITHUB_OUTPUT"; fi
 
   web:
     runs-on: ubuntu-latest
@@ -49,7 +59,7 @@ jobs:
         with: { name: alradwan-web, path: alradwan/alradwan-web.zip, if-no-files-found: error }
 
   windows:
-    needs: version
+    needs: [version, web]
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
@@ -68,7 +78,7 @@ jobs:
           if-no-files-found: error
 
   android:
-    needs: version
+    needs: [version, web]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4

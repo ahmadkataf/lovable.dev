@@ -1,6 +1,6 @@
 import { Component, useEffect, useState, type ErrorInfo, type ReactNode } from 'react'
 import { HashRouter, Navigate, Route, Routes } from 'react-router-dom'
-import { loadAll, setCurrentUser, useStore } from './db/store'
+import { loadAll, logout, userCan, useStore } from './db/store'
 import { dbBlocked } from './db/db'
 import { downloadBackup } from './lib/backup'
 import { initSync } from './lib/sync'
@@ -65,7 +65,7 @@ function useAutoLock() {
     const touch = () => { last = Date.now() }
     const events = ['pointerdown', 'keydown', 'scroll', 'touchstart']
     events.forEach(e => window.addEventListener(e, touch, { passive: true }))
-    const t = setInterval(() => { if (Date.now() - last > minutes * 60000) setCurrentUser(null) }, 5000)
+    const t = setInterval(() => { if (Date.now() - last > minutes * 60000) logout('auto') }, 5000)
     return () => { events.forEach(e => window.removeEventListener(e, touch)); clearInterval(t) }
   }, [minutes, active])
 }
@@ -112,6 +112,10 @@ function Gate() {
   const setupDone = useStore(s => s.cfg.setupDone)
   const needsLogin = useStore(s => s.users.size > 0 && !s.currentUserId)
   const isAdmin = useStore(s => { if (s.users.size === 0) return true; const u = s.currentUserId ? s.users.get(s.currentUserId) : null; return u?.role === 'admin' })
+  // one string, not an object: a selector returning a fresh object re-renders on every store change
+  const permKeys = ['sell', 'purchases', 'cars', 'reports', 'accounting', 'activity'] as const
+  const permStr = useStore(s => { const u = s.currentUserId ? s.users.get(s.currentUserId) : null; const none = s.users.size === 0; return permKeys.map(k => userCan(u, k, s.cfg, none)).join(',') })
+  const perms = Object.fromEntries(permKeys.map((k, i) => [k, permStr.split(',')[i] === 'true'])) as Record<typeof permKeys[number], boolean>
   if (!setupDone) return <Setup />
   if (needsLogin) return <Login />
   return (
@@ -119,21 +123,21 @@ function Gate() {
       <Layout>
         <Routes>
           <Route path="/" element={<Dashboard />} />
-          <Route path="/pos" element={<POS />} />
+          <Route path="/pos" element={perms.sell ? <POS /> : <Navigate to="/" replace />} />
           <Route path="/sales" element={<Sales />} />
           <Route path="/products" element={<Products />} />
           <Route path="/inventory" element={<Inventory />} />
-          <Route path="/purchases" element={<Purchases />} />
-          <Route path="/cars" element={<Cars />} />
+          <Route path="/purchases" element={perms.purchases ? <Purchases /> : <Navigate to="/" replace />} />
+          <Route path="/cars" element={perms.cars ? <Cars /> : <Navigate to="/" replace />} />
           <Route path="/customers" element={<Customers />} />
           <Route path="/customers/:id" element={<Customers />} />
           <Route path="/suppliers" element={<Suppliers />} />
           <Route path="/suppliers/:id" element={<Suppliers />} />
           <Route path="/cash" element={<Cash />} />
-          <Route path="/reports" element={isAdmin ? <Reports /> : <Navigate to="/" replace />} />
-          <Route path="/accounting" element={isAdmin ? <Accounting /> : <Navigate to="/" replace />} />
+          <Route path="/reports" element={perms.reports ? <Reports /> : <Navigate to="/" replace />} />
+          <Route path="/accounting" element={perms.accounting ? <Accounting /> : <Navigate to="/" replace />} />
           <Route path="/settings" element={<SettingsScreen />} />
-          <Route path="/activity" element={isAdmin ? <Activity /> : <Navigate to="/" replace />} />
+          <Route path="/activity" element={perms.activity ? <Activity /> : <Navigate to="/" replace />} />
           <Route path="/trash" element={isAdmin ? <Trash /> : <Navigate to="/" replace />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>

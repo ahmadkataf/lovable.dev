@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { ClipboardCheck, FileSpreadsheet, History, AlertTriangle } from 'lucide-react'
-import { useCollection, useCanSeeCost } from '../db/store'
+import { useCollection, useCanSeeCost, usePerm } from '../db/store'
 import type { Product, StockMovement } from '../db/types'
 import { adjustStock } from '../db/actions'
 import { fmtDateTime, matches, money, num } from '../lib/format'
@@ -19,9 +19,11 @@ export function Inventory() {
   const movements = useCollection('movements')
   const stock = useProductStock()
   const seeCost = useCanSeeCost()
+  const canAdjust = usePerm('adjustStock')
   const [params] = useSearchParams()
   const [tab, setTab] = useState<'all' | 'low' | 'moves'>(params.get('low') ? 'low' : 'all')
   const [q, setQ] = useState('')
+  const [limit, setLimit] = useState(150)
   const [adjust, setAdjust] = useState<Product | null>(null)
   const [hist, setHist] = useState<Product | null>(null)
 
@@ -45,10 +47,10 @@ export function Inventory() {
       </div>
       <Tabs value={tab} onChange={setTab} items={[{ id: 'all', label: 'كل القطع' }, { id: 'low', label: `تنبيهات النقص (${totals.low + totals.out})` }, { id: 'moves', label: 'حركات المخزون' }]} />
       <div className="card">
-        {tab !== 'moves' ? (list.length === 0 ? <Empty title={tab === 'low' ? 'لا نقص في المخزون' : 'لا قطع'} /> : (
+        {tab !== 'moves' ? (list.length === 0 ? <Empty title={tab === 'low' ? 'لا نقص في المخزون' : 'لا قطع'} /> : (<>
           <div className="table-wrap"><table className="table">
             <thead><tr><th className="hide-mobile">الكود</th><th>الاسم</th><th className="hide-mobile">المكان</th><th className="num">الكمية</th><th className="num hide-mobile">حد التنبيه</th>{seeCost && <th className="num hide-mobile">القيمة</th>}<th className="actions"></th></tr></thead>
-            <tbody>{list.map(p => { const s = stock.get(p.id) ?? 0; return (
+            <tbody>{list.slice(0, limit).map(p => { const s = stock.get(p.id) ?? 0; return (
               <tr key={p.id}>
                 <td className="mono small muted hide-mobile" style={{ whiteSpace: 'nowrap' }}>{p.code}</td>
                 <td><div className="bold">{p.name}</div><div className="small muted hide-desktop"><span className="mono">{p.code}</span>{p.location ? ` · ${p.location}` : ''}</div></td>
@@ -56,10 +58,11 @@ export function Inventory() {
                 <td className="num"><span className={`badge ${s <= 0 ? 'tone-danger' : s <= p.minStock ? 'tone-warning' : 'tone-success'}`}>{num(s, 2)} {p.unit}</span></td>
                 <td className="num hide-mobile muted">{p.minStock}</td>
                 {seeCost && <td className="num hide-mobile">{money(s * p.cost, { currency: false })}</td>}
-                <td className="actions"><button className="btn sm" onClick={() => setAdjust(p)}><ClipboardCheck /> جرد</button><button className="btn sm ghost icon" title="الحركات" onClick={() => setHist(p)}><History /></button></td>
+                <td className="actions">{canAdjust && <button className="btn sm" onClick={() => setAdjust(p)}><ClipboardCheck /> جرد</button>}<button className="btn sm ghost icon" title="الحركات" onClick={() => setHist(p)}><History /></button></td>
               </tr>
             ) })}</tbody>
           </table></div>
+          {list.length > limit && <div style={{ padding: 12, textAlign: 'center' }}><button className="btn" onClick={() => setLimit(l => l + 300)}>عرض المزيد ({list.length - limit} متبقٍ)</button></div>}</>
         )) : (
           moves.length === 0 ? <Empty title="لا حركات بعد" /> : <MovesTable moves={moves} products={products} />
         )}

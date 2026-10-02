@@ -5,7 +5,7 @@ import { useCollection, useSettings, useIsAdmin } from '../db/store'
 import type { Purchase, PurchaseItem } from '../db/types'
 import { deletePurchase, savePurchase } from '../db/actions'
 import { payStatus } from '../lib/calc'
-import { addDays, endOfDay, fmtDate, fmtDateTime, fromInputDate, invoiceNo, matches, money, num, toInputDate } from '../lib/format'
+import { addDays, fmtDate, fmtDateTime, fromInputDate, invoiceNo, matches, money, num, toInputDate, rangeStart, rangeEnd } from '../lib/format'
 import { DateRange, Empty, Field, NumberInput, PayBadge, SearchInput } from '../ui/components'
 import { Modal, useConfirm } from '../ui/modal'
 import { useToast } from '../ui/toast'
@@ -24,7 +24,7 @@ export function Purchases() {
   const [view, setView] = useState<Purchase | null>(null)
   const toast = useToast(); const confirm = useConfirm()
   useEffect(() => { if (params.get('new')) { setForm('new'); setParams({}) } }, [params])
-  const list = useMemo(() => { const f = fromInputDate(from), t = endOfDay(fromInputDate(to)); return Array.from(purchases.values()).filter(p => p.date >= f && p.date <= t && matches(q, p.supplierName, String(p.number), p.reference, ...p.items.map(i => i.name))).sort((a, b) => b.date - a.date) }, [purchases, q, from, to])
+  const list = useMemo(() => { const f = rangeStart(from), t = rangeEnd(to); return Array.from(purchases.values()).filter(p => p.date >= f && p.date <= t && matches(q, p.supplierName, String(p.number), p.reference, ...p.items.map(i => i.name))).sort((a, b) => b.date - a.date) }, [purchases, q, from, to])
   const total = list.reduce((s, p) => s + (p.type === 'return' ? -p.total : p.total), 0)
   const del = async (p: Purchase) => { if (await confirm({ title: `حذف فاتورة الشراء ${invoiceNo(p.number)}؟`, text: 'ستُخصم كمياتها من المخزون.', danger: true, okText: 'حذف' })) { await deletePurchase(p.id); toast.success('تم الحذف'); setView(null) } }
   return (

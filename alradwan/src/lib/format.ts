@@ -50,7 +50,7 @@ export function num(n: number, decimals = 0): string {
 
 export function fmtDate(t: number): string {
   const d = new Date(t)
-  return `${d.getFullYear()}/${String(d.getMonth() + 1).padStart(2, '0')}/${String(d.getDate()).padStart(2, '0')}`
+  return `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`
 }
 
 export function fmtTime(t: number): string {
@@ -73,6 +73,9 @@ export function fromInputDate(s: string, keepTimeOf?: number): number {
   return new Date(y, m - 1, d, base.getHours(), base.getMinutes(), base.getSeconds()).getTime()
 }
 
+/** A report range typed as two dates: from midnight of the first to the last moment of the second. */
+export function rangeStart(s: string): number { return startOfDay(fromInputDate(s)) }
+export function rangeEnd(s: string): number { return endOfDay(fromInputDate(s)) }
 export function startOfDay(t: number): number { const d = new Date(t); d.setHours(0, 0, 0, 0); return d.getTime() }
 export function endOfDay(t: number): number { const d = new Date(t); d.setHours(23, 59, 59, 999); return d.getTime() }
 export function startOfMonth(t: number): number { const d = new Date(t); d.setDate(1); d.setHours(0, 0, 0, 0); return d.getTime() }

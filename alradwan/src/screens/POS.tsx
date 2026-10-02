@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { create } from 'zustand'
 import { nextNumber } from '../db/actions'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { Trash2, Printer, Save, MessageCircle, PlusCircle, Minus, Plus, Check, ShoppingCart, Percent } from 'lucide-react'
-import { useCollection, useCanSeeCost, useSettings } from '../db/store'
+import { useCollection, useCanSeeCost, useSettings, usePerm } from '../db/store'
 import type { InvoiceItem, Product, Sale } from '../db/types'
 import { saveSale } from '../db/actions'
 import { saleTotals } from '../lib/calc'
@@ -16,8 +17,14 @@ import { Car, X } from 'lucide-react'
 import { CustomerForm, ProductForm } from '../ui/forms'
 import { printDocument } from '../print/PrintHost'
 
+// The invoice being typed lives outside the screen: the screen is remounted when the dollar rate changes
+// (so every price refreshes) and unmounted when the cashier glances at another screen, and the cart must survive both.
+interface Draft { items: InvoiceItem[]; customerId?: string; customerName: string; discount: number; discMode: 'amount' | 'pct'; discPct: number; quote: boolean; paid: number | null; notes: string; wholesale: boolean }
+const draftStore = create<{ d: Draft | null }>(() => ({ d: null }))
+
 export function POS() {
   const [params, setParams] = useSearchParams()
+  const draft = draftStore.getState().d
   const nav = useNavigate()
   const editId = params.get('edit')
   const sales = useCollection('sales')
@@ -27,20 +34,22 @@ export function POS() {
   const carModels = useCollection('carModels')
   const settings = useSettings()
   const seeCost = useCanSeeCost()
+  const canBackdate = usePerm('backdate'), canQuote = usePerm('quotes'), canEditInv = usePerm('editInvoices'), canAddProduct = usePerm('products'), canAddCustomer = usePerm('customers')
   const stock = useProductStock()
   const toast = useToast(); const confirm = useConfirm()
 
-  const [items, setItems] = useState<InvoiceItem[]>([])
-  const [customerId, setCustomerId] = useState<string | undefined>()
-  const [customerName, setCustomerName] = useState('زبون نقدي')
-  const [discount, setDiscount] = useState(0)
-  const [discMode, setDiscMode] = useState<'amount' | 'pct'>('amount')
-  const [discPct, setDiscPct] = useState(0)
-  const [quote, setQuote] = useState(false)   // عرض سعر: يُحفظ ويُطبع لكن لا يمس المخزون ولا الصندوق
-  const [paid, setPaid] = useState<number | null>(null) // null = the whole amount
+  const [items, setItems] = useState<InvoiceItem[]>(draft?.items ?? [])
+  const [customerId, setCustomerId] = useState<string | undefined>(draft?.customerId)
+  const [customerName, setCustomerName] = useState(draft?.customerName ?? 'زبون نقدي')
+  const [discount, setDiscount] = useState(draft?.discount ?? 0)
+  const [discMode, setDiscMode] = useState<'amount' | 'pct'>(draft?.discMode ?? 'amount')
+  const [discPct, setDiscPct] = useState(draft?.discPct ?? 0)
+  const [quote, setQuote] = useState(draft?.quote ?? false)   // عرض سعر: يُحفظ ويُطبع لكن لا يمس المخزون ولا الصندوق
+  const [paid, setPaid] = useState<number | null>(draft?.paid ?? null) // null = the whole amount
   const [date, setDate] = useState(toInputDate(Date.now()))
-  const [notes, setNotes] = useState('')
-  const [wholesale, setWholesale] = useState(false)
+  const [notes, setNotes] = useState(draft?.notes ?? '')
+  const [wholesale, setWholesale] = useState(draft?.wholesale ?? false)
+  useEffect(() => { if (!editId) draftStore.setState({ d: items.length || customerId ? { items, customerId, customerName, discount, discMode, discPct, quote, paid, notes, wholesale } : null }) }, [items, customerId, customerName, discount, discMode, discPct, quote, paid, notes, wholesale, editId])
   const [cat, setCat] = useState('all')
   const [q, setQ] = useState('')
   const [addCustomer, setAddCustomer] = useState(false)
@@ -75,6 +84,7 @@ export function POS() {
     if (!editId) return
     const s = sales.get(editId)
     if (!s) return
+    if (!canEditInv) { toast.error('ليس لديك صلاحية تعديل الفواتير'); setParams({}); return }
     setItems(s.items.map(i => ({ ...i }))); setCustomerId(s.customerId); setCustomerName(s.customerName); setDiscount(s.discount); setPaid(s.paid); setDate(toInputDate(s.date)); setNotes(s.notes ?? ''); setQuote(s.type === 'quote')
     if (s.discountPct) { setDiscMode('pct'); setDiscPct(s.discountPct) } else setDiscMode('amount')
   }, [editId])
@@ -103,14 +113,14 @@ export function POS() {
   const update = (i: number, patch: Partial<InvoiceItem>) => setItems(list => list.map((x, k) => (k === i ? { ...x, ...patch } : x)))
   const removeAt = (i: number) => setItems(list => list.filter((_, k) => k !== i))
 
-  const reset = () => { setItems([]); setCustomerId(undefined); setCustomerName('زبون نقدي'); setDiscount(0); setDiscMode('amount'); setDiscPct(0); setQuote(false); setPaid(null); setDate(toInputDate(Date.now())); setNotes(''); setDone(null); if (editId) setParams({}) }
+  const reset = () => { draftStore.setState({ d: null }); setItems([]); setCustomerId(undefined); setCustomerName('زبون نقدي'); setDiscount(0); setDiscMode('amount'); setDiscPct(0); setQuote(false); setPaid(null); setDate(toInputDate(Date.now())); setNotes(''); setDone(null); if (editId) setParams({}) }
 
   const save = async (andPrint: boolean) => {
     if (items.length === 0) { toast.error('أضف قطعة واحدة على الأقل'); return }
     if (items.some(i => i.qty <= 0)) { toast.error('هناك سطر كميته صفر'); return }
     const short = items.filter(i => i.kind === 'product' && i.productId && (stock.get(i.productId) ?? 0) + (editId ? (sales.get(editId)?.items.find(x => x.productId === i.productId)?.qty ?? 0) : 0) < i.qty)
-    if (short.length && !quote && !(await confirm({ title: 'الكمية غير متوفرة في المخزون', text: <div>{short.map(i => <div key={i.name}>• {i.name}: المتوفر {stock.get(i.productId!) ?? 0}، المطلوب {i.qty}</div>)}<p className="mt">هل تريد البيع على أي حال؟ (سيصبح المخزون بالسالب حتى تسجّل الشراء)</p></div>, okText: 'نعم، بيع' }))) return
-    if (paidValue < total && !quote && !customerId && !(await confirm({ title: 'فاتورة آجلة بدون عميل', text: 'لم تختر عميلاً، فلن يُسجَّل الدين على أحد. هل تريد المتابعة؟', okText: 'متابعة' }))) return
+    if (short.length && !quote && !(await confirm({ title: 'الكمية غير متوفرة في المخزون', text: <div>{short.map(i => <div key={i.name}>• {i.name}: المتوفر <span className="mono">{stock.get(i.productId!) ?? 0}</span>، المطلوب <span className="mono">{i.qty}</span></div>)}<p className="mt">هل تريد البيع على أي حال؟ (سيصبح المخزون بالسالب حتى تسجّل الشراء)</p></div>, okText: 'نعم، بيع' }))) return
+    if (paidValue < total - 0.004 && !quote && !customerId) { toast.error('فاتورة آجلة بلا عميل: اختر العميل حتى يُسجَّل الدين عليه، أو سجّل الدفع كاملاً'); return }
     setBusy(true)
     try {
       const old = editId ? sales.get(editId) : undefined
@@ -145,7 +155,7 @@ export function POS() {
             {carId ? <span className="badge tone-info" style={{ fontSize: 13, padding: '6px 10px' }}><Car /> {carLabel(carModels.get(carId))} <button className="btn ghost icon sm" style={{ minHeight: 0, width: 20, height: 20, padding: 0 }} onClick={() => setCarId(null)}><X size={14} /></button></span>
               : <button className="btn sm ghost" onClick={() => setCarOpen(o => !o)}><Car /> حسب السيارة</button>}
             {carOpen && !carId && <div className="card pad" style={{ position: 'absolute', top: '100%', insetInlineEnd: 0, zIndex: 40, width: 300, marginTop: 4 }}><input className="input" autoFocus placeholder="ابحث عن الموديل…" value={carQ} onChange={e => setCarQ(e.target.value)} /><div className="chips mt">{carList.map(m => <button key={m.id} className="chip" onClick={() => { setCarId(m.id); setCarOpen(false); setCarQ('') }}>{carLabel(m)}</button>)}{carList.length === 0 && <span className="muted small">لا موديلات — أضفها من «دليل السيارات»</span>}</div></div>}
-            <button className="btn sm ghost" onClick={() => setAddProduct(true)}><PlusCircle /> قطعة جديدة</button>
+            {canAddProduct && <button className="btn sm ghost" onClick={() => setAddProduct(true)}><PlusCircle /> قطعة جديدة</button>}
           </div>
         </div>
         <div className="input-wrap hide-desktop"><input className="input" placeholder="تصفية القائمة…" value={q} onChange={e => setQ(e.target.value)} /></div>
@@ -159,7 +169,7 @@ export function POS() {
                 <div className="c">{p.code}{p.cars ? ` · ${p.cars}` : ''}</div>
                 <div className="between" style={{ marginTop: 'auto' }}>
                   <span className="p"><Price value={wholesale && p.wholesalePrice ? p.wholesalePrice : p.price} /></span>
-                  {p.kind === 'product' && <span className={`small ${st <= p.minStock ? 'neg-txt' : 'muted'}`}>{st} {p.unit}</span>}
+                  {p.kind === 'product' && <span className={`small ${st <= p.minStock ? 'neg-txt' : 'muted'}`} style={{ whiteSpace: 'nowrap' }}><span className="mono">{st}</span> {p.unit}</span>}
                 </div>
               </button>
             )
@@ -173,13 +183,13 @@ export function POS() {
           <h2><ShoppingCart size={18} style={{ verticalAlign: -3 }} /> {quote ? 'عرض سعر' : 'الفاتورة'} {editId ? '' : `رقم ${invoiceNo(nextNo)}`}</h2>
           <div className="row">
             <label className="checkbox small" title="استخدام سعر الجملة"><input type="checkbox" checked={wholesale} onChange={e => setWholesale(e.target.checked)} /> جملة</label>
-            <label className="checkbox small" title="عرض سعر يُطبع للزبون ولا يُنقص المخزون ولا يُسجَّل في الصندوق"><input type="checkbox" checked={quote} onChange={e => setQuote(e.target.checked)} /> عرض سعر</label>
-            {items.length > 0 && <button className="btn sm ghost" onClick={() => setItems([])} title="إفراغ"><Trash2 /></button>}
+            {canQuote && <label className="checkbox small" title="عرض سعر يُطبع للزبون ولا يُنقص المخزون ولا يُسجَّل في الصندوق"><input type="checkbox" checked={quote} onChange={e => setQuote(e.target.checked)} /> عرض سعر</label>}
+            {items.length > 0 && <button className="btn sm ghost" onClick={async () => { if (await confirm({ title: 'إفراغ الفاتورة؟', text: 'ستُحذف كل الأسطر من السلة.', danger: true, okText: 'إفراغ' })) setItems([]) }} title="إفراغ" aria-label="إفراغ السلة"><Trash2 /></button>}
             {showCart && <button className="btn sm" onClick={() => setShowCart(false)}>رجوع</button>}
           </div>
         </div>
         <Field label="العميل">
-          <PartyPicker type="customer" value={customerId} onChange={(id, name) => { setCustomerId(id); setCustomerName(name) }} onAddNew={() => setAddCustomer(true)} />
+          <PartyPicker type="customer" value={customerId} onChange={(id, name) => { setCustomerId(id); setCustomerName(name) }} onAddNew={canAddCustomer ? () => setAddCustomer(true) : undefined} />
           {customer?.car && <div className="help">السيارة: {customer.car}</div>}
         </Field>
         <div className="items mt">
@@ -188,7 +198,7 @@ export function POS() {
             <div key={i} className="cart-item">
               <div>
                 <div className="n">{it.name}</div>
-                <div className="m">{it.code}{it.kind === 'product' && it.productId ? ` · متوفر ${stock.get(it.productId) ?? 0}` : ''}</div>
+                <div className="m">{it.code}{it.kind === 'product' && it.productId ? <> · متوفر <span className="mono">{stock.get(it.productId) ?? 0}</span></> : null}</div>
               </div>
               <button className="btn ghost icon sm" onClick={() => removeAt(i)} aria-label="حذف"><Trash2 /></button>
               <div className="row" style={{ gridColumn: '1 / -1', justifyContent: 'space-between', flexWrap: 'wrap' }}>
@@ -224,7 +234,7 @@ export function POS() {
           <details>
             <summary className="muted small" style={{ cursor: 'pointer' }}>التاريخ والملاحظات</summary>
             <div className="form-grid mt">
-              <Field label="التاريخ"><input type="date" className="input" value={date} onChange={e => setDate(e.target.value)} /></Field>
+              <Field label="التاريخ" help={canBackdate ? undefined : 'تغيير التاريخ يحتاج صلاحية من المدير'}><input type="date" className="input" value={date} onChange={e => setDate(e.target.value)} disabled={!canBackdate} /></Field>
               <Field label="ملاحظات"><input className="input" value={notes} onChange={e => setNotes(e.target.value)} placeholder="تظهر على الفاتورة" /></Field>
             </div>
           </details>

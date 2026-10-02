@@ -1,3 +1,5 @@
+declare const __APP_VERSION__: string
+export const APP_VERSION = __APP_VERSION__
 // Where the app runs: the website, the Windows app (Electron) or the Android app (WebView with a small bridge).
 declare global {
   interface Window {

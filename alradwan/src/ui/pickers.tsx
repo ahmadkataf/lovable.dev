@@ -46,7 +46,7 @@ export function ProductSearch({ onPick, placeholder, autoFocus, showStock = true
             const st = stock.get(p.id) ?? 0
             return (
               <div key={p.id} className="list-item" style={{ padding: '9px 12px', cursor: 'pointer', background: i === idx ? 'var(--surface-2)' : undefined }} onMouseDown={e => { e.preventDefault(); pick(p) }} onMouseEnter={() => setIdx(i)}>
-                <div className="grow"><div className="title">{p.name}</div><div className="sub">{p.code}{p.brand ? ` — ${p.brand}` : ''}{p.cars ? ` — ${p.cars}` : ''}{p.oemNumbers ? <span className="mono"> — {p.oemNumbers}</span> : ''}</div></div>
+                <div className="grow"><div className="title">{p.name}</div><div className="sub">{p.code}{p.brand ? ` — ${p.brand}` : ''}{p.cars ? ` — ${p.cars}` : ''}</div>{p.oemNumbers && <div className="sub mono" dir="ltr" style={{ textAlign: 'right' }}>{p.oemNumbers}</div>}</div>
                 <div style={{ textAlign: 'left' }}><div className="bold">{money(p.price)}</div>{showStock && p.kind === 'product' && <div className={`small ${st <= 0 ? 'neg-txt' : 'muted'}`}>{st} {p.unit}</div>}</div>
               </div>
             )
@@ -94,6 +94,7 @@ export function PartyPicker({ type, value, onChange, onAddNew }: { type: 'custom
   const map = (type === 'customer' ? customers : suppliers) as Map<string, Customer | Supplier>
   const [q, setQ] = useState('')
   const [open, setOpen] = useState(false)
+  const [idx, setIdx] = useState(0)
   const selected = value ? map.get(value) : undefined
   const list = useMemo(() => Array.from(map.values()).filter(p => matches(q, p.name, p.phone, (p as Customer).car)).sort((a, b) => a.name.localeCompare(b.name, 'ar')).slice(0, 20), [q, map])
   const walkIn = type === 'customer' ? 'زبون نقدي' : 'مورد غير مسجل'
@@ -110,14 +111,15 @@ export function PartyPicker({ type, value, onChange, onAddNew }: { type: 'custom
       <div className="row">
         <div className="input-wrap" style={{ flex: 1 }}>
           <Search />
-          <input className="input" value={q} placeholder={type === 'customer' ? 'اختر العميل (اتركه فارغاً لزبون نقدي)' : 'اختر المورد'} onChange={e => { setQ(e.target.value); setOpen(true) }} onFocus={() => setOpen(true)} onBlur={() => setTimeout(() => setOpen(false), 150)} />
+          <input className="input" role="combobox" aria-expanded={open} aria-autocomplete="list" value={q} placeholder={type === 'customer' ? 'اختر العميل (اتركه فارغاً لزبون نقدي)' : 'اختر المورد'} onChange={e => { setQ(e.target.value); setIdx(0); setOpen(true) }} onFocus={() => setOpen(true)} onBlur={() => setTimeout(() => setOpen(false), 150)}
+            onKeyDown={e => { if (e.key === 'ArrowDown') { e.preventDefault(); setOpen(true); setIdx(i => Math.min(list.length - 1, i + 1)) } else if (e.key === 'ArrowUp') { e.preventDefault(); setIdx(i => Math.max(0, i - 1)) } else if (e.key === 'Enter') { e.preventDefault(); const p = list[idx]; if (p && open) { onChange(p.id, p.name); setQ(''); setOpen(false) } else if (q.trim() && list.length === 0 && onAddNew) onAddNew() } else if (e.key === 'Escape') setOpen(false) }} />
         </div>
         {onAddNew && <button type="button" className="btn icon" title="إضافة جديد" onClick={onAddNew}><Plus /></button>}
       </div>
       {open && (list.length > 0 || q) && (
         <div className="card" style={{ position: 'absolute', insetInline: 0, top: '100%', marginTop: 4, zIndex: 40, maxHeight: 260, overflowY: 'auto' }}>
-          {list.map(p => (
-            <div key={p.id} className="list-item" style={{ padding: '8px 12px', cursor: 'pointer' }} onMouseDown={e => { e.preventDefault(); onChange(p.id, p.name); setQ(''); setOpen(false) }}>
+          {list.map((p, i) => (
+            <div key={p.id} className="list-item" role="option" aria-selected={i === idx} style={{ padding: '8px 12px', cursor: 'pointer', background: i === idx ? 'var(--surface-2)' : undefined }} onMouseEnter={() => setIdx(i)} onMouseDown={e => { e.preventDefault(); onChange(p.id, p.name); setQ(''); setOpen(false) }}>
               <div className="grow"><div className="title">{p.name}</div><div className="sub" dir="ltr" style={{ textAlign: 'right' }}>{p.phone}{(p as Customer).car ? ` — ${(p as Customer).car}` : ''}</div></div>
             </div>
           ))}

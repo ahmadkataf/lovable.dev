@@ -5,7 +5,7 @@
 //   everything else: the website (the built app in ../dist)
 //
 // A shop is identified by its key: a long secret the owner types into every device. The key is never
-// stored; only its hash names the shop's rows. Anyone with the key has the shop's data, so it must
+// stored; only its hash names the shop's rows, and a settings record that still carries one is stripped. Anyone with the key has the shop's data, so it must
 // be kept private — but there is no account to create and nothing else to set up.
 
 export interface Env { DB: D1Database; ASSETS: Fetcher }
@@ -21,7 +21,25 @@ const CORS = { 'access-control-allow-origin': '*', 'access-control-allow-headers
 
 interface Change { collection: string; id: string; updatedAt: number; deleted: boolean; data: unknown }
 
-const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json; charset=utf-8', ...CORS } })
+const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json; charset=utf-8', 'x-content-type-options': 'nosniff', 'cache-control': 'no-store', ...CORS } })
+const LOOKUP = 45                       // D1 binds at most 100 parameters per statement: 1 + 2×45
+const MAX_SKEW = 60 * 60000             // a record dated more than an hour ahead is clamped to now
+
+/** Only plain records whose data agrees with its envelope; a record stamped in the far future would be un-overwritable. */
+function cleanChange(c: Change, now: number): Change | null {
+  if (!c || typeof c !== 'object' || !COLLECTIONS.has(c.collection)) return null
+  if (typeof c.id !== 'string' || !c.id || c.id.length > 64) return null
+  if (!Number.isFinite(c.updatedAt) || c.updatedAt < 0) return null
+  const data = c.data
+  if (!data || typeof data !== 'object' || Array.isArray(data)) return null
+  const d = data as Record<string, unknown>
+  if (d.id !== undefined && d.id !== c.id) return null
+  if (c.collection === 'settings') delete d.sync
+  const updatedAt = Math.min(c.updatedAt, now + MAX_SKEW)
+  d.updatedAt = updatedAt
+  if (JSON.stringify(d).length > MAX_RECORD) return null
+  return { collection: c.collection, id: c.id, updatedAt, deleted: !!c.deleted, data: d }
+}
 
 async function shopId(key: string): Promise<string> {
   const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode('alradwan:' + key))
@@ -52,6 +70,11 @@ async function noteFailure(env: Env, ip: string, now: number): Promise<void> {
 
 export default {
   async fetch(req: Request, env: Env): Promise<Response> {
+    try { return await handle(req, env) } catch (e) { return json({ error: 'server error', detail: String((e as Error)?.message ?? e).slice(0, 200) }, 500) }
+  },
+}
+
+async function handle(req: Request, env: Env): Promise<Response> {
     const url = new URL(req.url)
     if (!url.pathname.startsWith('/api/')) return env.ASSETS.fetch(req)
     if (req.method === 'OPTIONS') return new Response(null, { status: 204, headers: CORS })
@@ -75,34 +98,37 @@ export default {
       let body: { since?: number; changes?: Change[] }
       try { body = await req.json() } catch { return json({ error: 'bad json' }, 400) }
       const since = Number(body.since) || 0
-      const changes = (body.changes ?? []).filter(c => c && COLLECTIONS.has(c.collection) && typeof c.id === 'string' && c.id.length <= 64 && Number.isFinite(c.updatedAt) && JSON.stringify(c.data ?? {}).length <= MAX_RECORD).slice(0, MAX_CHANGES)
+      const rawChanges = Array.isArray(body.changes) ? body.changes : []
+      if (rawChanges.length > MAX_CHANGES) return json({ error: `too many changes: send at most ${MAX_CHANGES} per request` }, 400)
+      const changes = rawChanges.map(c => cleanChange(c, now)).filter((c): c is Change => c !== null)
       // a new shop is created only by a device that brings data with it; an empty request with an unknown key is a guess
       if (!known && changes.length === 0) { await noteFailure(env, ip, now); return json({ seq: 0, more: false, changes: [], serverTime: now }) }
 
       // the shop's row (created on first contact) and its current seq
       await env.DB.prepare('INSERT INTO shops (shop, seq, created_at, last_seen) VALUES (?, 0, ?, ?) ON CONFLICT(shop) DO UPDATE SET last_seen = excluded.last_seen').bind(shop, now, now).run()
-      let seq = (await env.DB.prepare('SELECT seq FROM shops WHERE shop = ?').bind(shop).first<{ seq: number }>())?.seq ?? 0
 
       if (changes.length) {
         // newest change wins: a record is replaced only if the incoming one is newer
         const existing = new Map<string, number>()
-        for (let i = 0; i < changes.length; i += 90) {
-          const part = changes.slice(i, i + 90)
+        for (let i = 0; i < changes.length; i += LOOKUP) {
+          const part = changes.slice(i, i + LOOKUP)
           const q = part.map(() => '(col = ? AND id = ?)').join(' OR ')
           const rows = await env.DB.prepare(`SELECT col, id, updated_at FROM records WHERE shop = ? AND (${q})`).bind(shop, ...part.flatMap(c => [c.collection, c.id])).all<{ col: string; id: string; updated_at: number }>()
           for (const r of rows.results) existing.set(`${r.col}:${r.id}`, r.updated_at)
         }
-        const stmts: D1PreparedStatement[] = []
-        const upsert = env.DB.prepare('INSERT INTO records (shop, col, id, seq, updated_at, deleted, data) VALUES (?, ?, ?, ?, ?, ?, ?) ON CONFLICT(shop, col, id) DO UPDATE SET seq = excluded.seq, updated_at = excluded.updated_at, deleted = excluded.deleted, data = excluded.data')
+        const accepted: Change[] = []
         for (const c of changes) {
           const old = existing.get(`${c.collection}:${c.id}`)
           if (old !== undefined && old >= c.updatedAt) continue
           existing.set(`${c.collection}:${c.id}`, c.updatedAt)
-          seq++
-          stmts.push(upsert.bind(shop, c.collection, c.id, seq, c.updatedAt, c.deleted ? 1 : 0, JSON.stringify(c.data ?? {})))
+          accepted.push(c)
         }
-        if (stmts.length) {
-          stmts.push(env.DB.prepare('UPDATE shops SET seq = ? WHERE shop = ?').bind(seq, shop))
+        if (accepted.length) {
+          // the sequence numbers are reserved in one atomic statement, so two devices syncing at once get disjoint ranges
+          const end = (await env.DB.prepare('UPDATE shops SET seq = seq + ? WHERE shop = ? RETURNING seq').bind(accepted.length, shop).first<{ seq: number }>())?.seq ?? 0
+          let seq = end - accepted.length
+          const upsert = env.DB.prepare('INSERT INTO records (shop, col, id, seq, updated_at, deleted, data) VALUES (?, ?, ?, ?, ?, ?, ?) ON CONFLICT(shop, col, id) DO UPDATE SET seq = excluded.seq, updated_at = excluded.updated_at, deleted = excluded.deleted, data = excluded.data')
+          const stmts = accepted.map(c => upsert.bind(shop, c.collection, c.id, ++seq, c.updatedAt, c.deleted ? 1 : 0, JSON.stringify(c.data)))
           for (let i = 0; i < stmts.length; i += 100) await env.DB.batch(stmts.slice(i, i + 100))
         }
       }
@@ -112,10 +138,10 @@ export default {
       const page = rows.results.slice(0, MAX_CHANGES)
       const more = rows.results.length > MAX_CHANGES
       const out = page.map(r => ({ collection: r.col, id: r.id, updatedAt: r.updated_at, deleted: !!r.deleted, data: JSON.parse(r.data) }))
-      const lastSeq = more ? page[page.length - 1].seq : seq
+      // the cursor is the highest number actually delivered: a range reserved by a request still writing is not skipped
+      const lastSeq = page.length ? page[page.length - 1].seq : since
       return json({ seq: lastSeq, more, changes: out, serverTime: now })
     }
 
     return json({ error: 'not found' }, 404)
-  },
 }

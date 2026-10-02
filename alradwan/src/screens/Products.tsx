@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { Plus, FileSpreadsheet, Upload, Pencil, Tag, Download, Barcode, Printer } from 'lucide-react'
 import { printDocument } from '../print/PrintHost'
-import { put, putMany, remove, useCollection, useCanSeeCost, useSettings } from '../db/store'
+import { put, putMany, remove, useCollection, useCanSeeCost, useSettings, usePerm } from '../db/store'
 import type { Base, Category, Product } from '../db/types'
 import { matches, money } from '../lib/format'
 import { NumberInput } from '../ui/components'
@@ -20,6 +20,7 @@ export function Products() {
   const categories = useCollection('categories')
   const stock = useProductStock()
   const seeCost = useCanSeeCost()
+  const canAdd = usePerm('products')
   const settings = useSettings()
   const [params, setParams] = useSearchParams()
   const [q, setQ] = useState('')
@@ -28,6 +29,7 @@ export function Products() {
   const [cats, setCats] = useState(false)
   const [imp, setImp] = useState<ImportedProduct[] | null>(null)
   const [labels, setLabels] = useState(false)
+  const [limit, setLimit] = useState(150)
   const toast = useToast()
   useEffect(() => { if (params.get('new')) { setEdit('new'); setParams({}) } }, [params])
 
@@ -45,7 +47,7 @@ export function Products() {
     <div className="stack">
       <div className="toolbar">
         <div className="search"><SearchInput value={q} onChange={setQ} placeholder="بحث بالاسم أو الكود أو السيارة أو الرف…" /></div>
-        <button className="btn primary" onClick={() => setEdit('new')}><Plus /> قطعة جديدة</button>
+        {canAdd && <button className="btn primary" onClick={() => setEdit('new')}><Plus /> قطعة جديدة</button>}
         <button className="btn" onClick={() => setCats(true)} title="التصنيفات"><Tag /> <span className="hide-mobile">التصنيفات</span></button>
         <button className="btn" onClick={importExcel} title="استيراد من إكسل"><Upload /> <span className="hide-mobile">استيراد</span></button>
         <button className="btn" onClick={exportExcel} title="تصدير إلى إكسل"><FileSpreadsheet /> <span className="hide-mobile">إكسل</span></button>
@@ -56,7 +58,7 @@ export function Products() {
         {list.length === 0 ? <Empty title={products.size === 0 ? 'لا توجد قطع بعد' : 'لا نتائج'} text={products.size === 0 ? 'أضف قطعك واحدة واحدة، أو استوردها دفعة واحدة من ملف إكسل' : undefined} action={products.size === 0 ? <div className="btn-row" style={{ justifyContent: 'center' }}><button className="btn primary" onClick={() => setEdit('new')}><Plus /> قطعة جديدة</button><button className="btn" onClick={importExcel}><Upload /> استيراد من إكسل</button><button className="btn ghost" onClick={downloadProductsTemplate}><Download /> نموذج إكسل</button></div> : undefined} /> : (
           <div className="table-wrap"><table className="table">
             <thead><tr><th className="hide-mobile">الكود</th><th>الاسم</th><th className="hide-mobile">السيارات</th><th className="hide-mobile">المكان</th>{seeCost && <th className="num hide-mobile">الشراء</th>}<th className="num">البيع</th><th className="num">الكمية</th><th className="actions"></th></tr></thead>
-            <tbody>{list.map(p => { const st = stock.get(p.id) ?? 0; return (
+            <tbody>{list.slice(0, limit).map(p => { const st = stock.get(p.id) ?? 0; return (
               <tr key={p.id} className="click" onClick={() => setEdit(p)}>
                 <td className="mono small muted hide-mobile" style={{ whiteSpace: 'nowrap' }}>{p.code}</td>
                 <td><div className="bold">{p.name}</div><div className="small muted"><span className="hide-desktop"><span className="mono">{p.code}</span>{' · '}</span>{[p.brand, p.categoryId ? categories.get(p.categoryId)?.name : ''].filter(Boolean).join(' · ')}</div></td>
@@ -64,12 +66,13 @@ export function Products() {
                 <td className="hide-mobile small muted">{p.location}</td>
                 {seeCost && <td className="num hide-mobile muted">{money(p.cost, { currency: false })}</td>}
                 <td className="num bold">{money(p.price, { currency: false })}</td>
-                <td className="num">{p.kind === 'service' ? <span className="badge tone-info">خدمة</span> : <span className={`badge ${st <= 0 ? 'tone-danger' : st <= p.minStock ? 'tone-warning' : 'tone-success'}`}>{st} {p.unit}</span>}</td>
+                <td className="num">{p.kind === 'service' ? <span className="badge tone-info">خدمة</span> : <span className={`badge ${st <= 0 ? 'tone-danger' : st <= p.minStock ? 'tone-warning' : 'tone-success'}`}><span className="mono">{st}</span> {p.unit}</span>}</td>
                 <td className="actions"><button className="btn sm ghost icon" onClick={e => { e.stopPropagation(); setEdit(p) }}><Pencil /></button></td>
               </tr>
             ) })}</tbody>
           </table></div>
         )}
+        {list.length > limit && <div style={{ padding: 12, textAlign: 'center' }}><button className="btn" onClick={() => setLimit(l => l + 300)}>عرض المزيد ({list.length - limit} متبقٍ)</button></div>}
       </div>
       <div className="muted small">{list.length} قطعة · العملة {settings.currency}</div>
       {edit && <ProductForm initial={edit === 'new' ? undefined : edit} currentStock={edit === 'new' ? 0 : stock.get(edit.id)} onClose={() => setEdit(null)} />}

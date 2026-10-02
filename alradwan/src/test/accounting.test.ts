@@ -62,3 +62,40 @@ describe('accounting', () => {
     expect(rows[0].buckets[3]).toBe(650)  // everything older than 90 days
   })
 })
+
+describe('accounting — refunds, cash kinds, stable valuation', () => {
+  it('a negative payment refunds the customer and reverses the entry', () => {
+    const b = books()
+    b.payments.set('ref1', { id: 'ref1', updatedAt: 0, date: t0 + 8 * D, partyType: 'customer', partyId: 'c1', partyName: 'أحمد', amount: -20 })
+    const entries = buildJournal(b)
+    const e = entries.find(x => x.id === 'pay-ref1')!
+    expect(e.lines.find(l => l.account === ACC.cash)!.credit).toBe(20)
+    expect(e.lines.find(l => l.account === ACC.receivable)!.debit).toBe(20)
+    const bs = balanceSheet(entries, t0 + 30 * D)
+    expect(bs.balanced).toBe(true)
+    expect(bs.receivable).toBe(500 + 200 - 50 + 20)
+  })
+  it('cash entries post to capital, other income or loans by kind', () => {
+    const b = books()
+    b.cash.set('k2', { id: 'k2', updatedAt: 0, date: t0 + 9 * D, direction: 'in', kind: 'loan', amount: 1000 })
+    b.cash.set('k3', { id: 'k3', updatedAt: 0, date: t0 + 9 * D, direction: 'in', kind: 'income', amount: 70 })
+    const entries = buildJournal(b)
+    const bs = balanceSheet(entries, t0 + 30 * D)
+    expect(bs.accrued).toBe(1000)
+    expect(incomeStatement(entries, 0, t0 + 30 * D).otherIncome).toBe(70)
+    expect(bs.balanced).toBe(true)
+  })
+  it('opening stock is valued at the cost of the day it was entered, not today\'s', () => {
+    const b = books()
+    const p = b.products.get('p1')!
+    b.products.set('p1', { ...p, cost: 130, openingCost: 100 })
+    const bs = balanceSheet(buildJournal(b), t0)
+    expect(bs.inventory).toBe(10 * 100)
+  })
+  it('rounding never unbalances an entry', () => {
+    const b = books()
+    const s = b.sales.get('sale1')!
+    b.sales.set('sale1', { ...s, total: 10.01, subtotal: 10.01, paid: 5.005 })
+    for (const e of buildJournal(b)) { const d = e.lines.reduce((t, l) => t + l.debit, 0), c = e.lines.reduce((t, l) => t + l.credit, 0); expect(Math.abs(d - c)).toBeLessThan(0.005) }
+  })
+})

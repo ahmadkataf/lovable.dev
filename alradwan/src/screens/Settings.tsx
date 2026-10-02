@@ -7,10 +7,11 @@ import { Field, Tabs, NumberInput } from '../ui/components'
 import { Modal, useConfirm } from '../ui/modal'
 import { useToast } from '../ui/toast'
 import { backupIsEncrypted, countBackup, downloadBackup, mergeBackup, parseBackup, restoreBackup } from '../lib/backup'
-import { isDesktop, pickFile, platformName } from '../lib/platform'
+import { isDesktop, pickFile, platformName, APP_VERSION } from '../lib/platform'
 import { onSyncStatus, resetSyncCursor, schedule, syncNow, testConnection, type SyncStatus } from '../lib/sync'
 import { randomKey } from '../lib/id'
 import { hashPin } from '../lib/crypto'
+import { DEFAULT_STAFF_PERMISSIONS, PERMISSIONS, type Permission } from '../db/types'
 import { validateSyncUrl } from '../lib/sync'
 import { CURRENCY_DECIMALS, CURRENCY_NAME, CURRENCY_SYMBOL, fmtDateTime, otherCurrency } from '../lib/format'
 import type { CurrencyCode, CurrencyDisplay } from '../db/types'
@@ -75,7 +76,7 @@ function ShopTab() {
         <Field label="رمز العملة الأساسية" help="ما يظهر بجانب الأرقام"><input className="input" value={d.currency} onChange={e => set('currency', e.target.value)} /></Field>
         <Field label="الخانات العشرية"><select className="select" value={d.decimals} onChange={e => set('decimals', Number(e.target.value))}><option value={0}>0</option><option value={1}>1</option><option value={2}>2</option></select></Field>
         <Field label="حد التنبيه الافتراضي للقطع الجديدة"><NumberInput value={d.lowStockDefault} onChange={v => set('lowStockDefault', v)} /></Field>
-        <Field label="صلاحيات الموظفين" className="full"><div className="stack" style={{ gap: 6 }}><label className="checkbox"><input type="checkbox" checked={d.staffSeesCost} onChange={e => set('staffSeesCost', e.target.checked)} /> الموظف يرى سعر الشراء والأرباح</label><label className="checkbox"><input type="checkbox" checked={d.staffEditsPrices} onChange={e => set('staffEditsPrices', e.target.checked)} /> الموظف يضيف القطع ويعدّل أسعارها</label></div><div className="help">الحذف (فواتير، قطع، عملاء، دفعات) للمدير فقط دائماً.</div></Field>
+        <Field label="الافتراضي للموظفين الجدد" className="full" help="صلاحيات كل موظف على حدة تُضبط من تبويب «المستخدمون» ← تعديل"><div className="stack" style={{ gap: 6 }}><label className="checkbox"><input type="checkbox" checked={d.staffSeesCost} onChange={e => set('staffSeesCost', e.target.checked)} /> الموظف يرى سعر الشراء والأرباح</label><label className="checkbox"><input type="checkbox" checked={d.staffEditsPrices} onChange={e => set('staffEditsPrices', e.target.checked)} /> الموظف يعدّل الأسعار</label></div></Field>
         <Field label="قفل البرنامج تلقائياً" help="عند ترك الجهاز بلا استخدام يعود إلى شاشة الرقم السري (يعمل عندما يوجد مستخدمون)"><select className="select" value={d.autoLockMinutes} onChange={e => set('autoLockMinutes', Number(e.target.value))}><option value={0}>لا يقفل</option><option value={2}>بعد دقيقتين</option><option value={5}>بعد 5 دقائق</option><option value={15}>بعد 15 دقيقة</option><option value={30}>بعد 30 دقيقة</option><option value={60}>بعد ساعة</option></select></Field>
         <Field label="أنواع المصاريف" className="full">
           <div className="chips">{d.expenseCategories.map(c => <span key={c} className="chip">{c} <button className="btn ghost sm icon" style={{ minHeight: 0, width: 20, height: 20, padding: 0 }} onClick={() => set('expenseCategories', d.expenseCategories.filter(x => x !== c))}>×</button></span>)}</div>
@@ -127,6 +128,7 @@ function PrintTab() {
 
 function UsersTab() {
   const users = useCollection('users')
+  const settings = useSettings()
   const currentId = useStore(s => s.currentUserId)
   const [form, setForm] = useState<Partial<User> & { pin?: string } | null>(null)
   const toast = useToast(); const confirm = useConfirm()
@@ -136,7 +138,9 @@ function UsersTab() {
     if (!form.id && (!form.pin || form.pin.length < 4)) { toast.error('الرقم السري 4 أرقام على الأقل'); return }
     if (form.pin && form.pin.length < 4) { toast.error('الرقم السري 4 أرقام على الأقل'); return }
     const h = form.pin ? await hashPin(form.pin) : null
-    await put('users', { id: form.id, name: form.name.trim(), role: form.role ?? 'staff', pinHash: h ? h.hash : form.pinHash!, pinSalt: h ? h.salt : form.pinSalt, pinIterations: h ? h.iterations : form.pinIterations, createdAt: form.createdAt ?? Date.now() })
+    const saved = await put('users', { id: form.id, name: form.name.trim(), role: form.role ?? 'staff', permissions: form.role === 'admin' ? undefined : form.permissions, pinHash: h ? h.hash : form.pinHash!, pinSalt: h ? h.salt : form.pinSalt, pinIterations: h ? h.iterations : form.pinIterations, createdAt: form.createdAt ?? Date.now() })
+    // the first user is the admin who is sitting here: keep them signed in instead of locking the screen
+    if (!currentId && list.length === 0) setCurrentUser(saved.id)
     await audit(form.id ? 'update' : 'create', `${form.id ? 'تعديل' : 'إضافة'} مستخدم ${form.name.trim()} (${form.role === 'admin' ? 'مدير' : 'موظف'})${form.pin ? ' مع رقم سري جديد' : ''}`, 'users', form.id)
     toast.success('تم الحفظ'); setForm(null)
   }
@@ -153,21 +157,46 @@ function UsersTab() {
         {list.map(u => (
           <div key={u.id} className="list-item">
             <span className={`avatar ${u.role === 'admin' ? 'tone-accent' : 'tone-info'}`}>{u.name.slice(0, 1)}</span>
-            <div className="grow"><div className="title">{u.name} {u.id === currentId && <span className="badge tone-success">أنت</span>}</div><div className="sub">{u.role === 'admin' ? 'مدير — كل الصلاحيات' : 'موظف — بيع ومخزون وعملاء'}</div></div>
+            <div className="grow"><div className="title">{u.name} {u.id === currentId && <span className="badge tone-success">أنت</span>}</div><div className="sub">{u.role === 'admin' ? 'مدير — كل الصلاحيات' : `موظف — ${PERMISSIONS.filter(p => (u.permissions?.[p.id] ?? (p.id === 'seeCost' ? settings.staffSeesCost : p.id === 'editPrices' ? settings.staffEditsPrices : DEFAULT_STAFF_PERMISSIONS[p.id]))).length} من ${PERMISSIONS.length} صلاحية`}</div></div>
             <button className="btn sm" onClick={() => setForm({ ...u, pin: '' })}>تعديل</button>
             <button className="btn sm ghost icon" onClick={() => del(u)}><Trash2 /></button>
           </div>
         ))}
       </div>
       {form && (
-        <Modal title={form.id ? 'تعديل مستخدم' : 'مستخدم جديد'} onClose={() => setForm(null)} size="narrow" footer={<><button className="btn primary" onClick={save}>حفظ</button><button className="btn" onClick={() => setForm(null)}>إلغاء</button></>}>
+        <Modal title={form.id ? 'تعديل مستخدم' : 'مستخدم جديد'} onClose={() => setForm(null)} size={form.role === 'admin' ? 'narrow' : undefined} footer={<><button className="btn primary" onClick={save}>حفظ</button><button className="btn" onClick={() => setForm(null)}>إلغاء</button></>}>
           <div className="stack">
             <Field label="الاسم"><input className="input" value={form.name ?? ''} onChange={e => setForm({ ...form, name: e.target.value })} autoFocus /></Field>
             <Field label="الصلاحية"><select className="select" value={form.role} onChange={e => setForm({ ...form, role: e.target.value as Role })}><option value="admin">مدير</option><option value="staff">موظف</option></select></Field>
-            <Field label={form.id ? 'رقم سري جديد (اتركه فارغاً للإبقاء على القديم)' : 'الرقم السري'}><input className="input" type="password" inputMode="numeric" dir="ltr" value={form.pin ?? ''} onChange={e => setForm({ ...form, pin: e.target.value.replace(/\D/g, '') })} /></Field>
+            <Field label={form.id ? 'رقم سري جديد (اتركه فارغاً للإبقاء على القديم)' : 'الرقم السري'} help="4 أرقام على الأقل، ويُفضَّل 6"><input className="input" type="password" inputMode="numeric" dir="ltr" value={form.pin ?? ''} onChange={e => setForm({ ...form, pin: e.target.value.replace(/\D/g, '') })} /></Field>
+            {form.role !== 'admin' && <PermissionsEditor value={form.permissions ?? {}} onChange={permissions => setForm({ ...form, permissions })} />}
           </div>
         </Modal>
       )}
+    </div>
+  )
+}
+
+/** The admin ticks what this employee may do; the defaults suit a cashier. Deleting is never granted. */
+function PermissionsEditor({ value, onChange }: { value: Partial<Record<Permission, boolean>>; onChange: (v: Partial<Record<Permission, boolean>>) => void }) {
+  const settings = useSettings()
+  const effective = (id: Permission) => value[id] ?? (id === 'seeCost' ? settings.staffSeesCost : id === 'editPrices' ? settings.staffEditsPrices : DEFAULT_STAFF_PERMISSIONS[id])
+  const groups = Array.from(new Set(PERMISSIONS.map(p => p.group)))
+  const setAll = (v: boolean) => onChange(Object.fromEntries(PERMISSIONS.map(p => [p.id, v])) as Record<Permission, boolean>)
+  return (
+    <div className="stack" style={{ gap: 8 }}>
+      <div className="between"><b>صلاحيات هذا الموظف</b><div className="row"><button type="button" className="btn sm ghost" onClick={() => setAll(true)}>الكل</button><button type="button" className="btn sm ghost" onClick={() => setAll(false)}>لا شيء</button><button type="button" className="btn sm ghost" onClick={() => onChange({})}>الافتراضي</button></div></div>
+      {groups.map(g => (
+        <div key={g}>
+          <div className="small muted" style={{ marginBottom: 4 }}>{g}</div>
+          <div className="stack" style={{ gap: 4 }}>
+            {PERMISSIONS.filter(p => p.group === g).map(p => (
+              <label key={p.id} className="checkbox" title={p.help}><input type="checkbox" checked={effective(p.id)} onChange={e => onChange({ ...value, [p.id]: e.target.checked })} /> {p.label}{p.help && <span className="muted small"> — {p.help}</span>}</label>
+            ))}
+          </div>
+        </div>
+      ))}
+      <div className="small muted">الحذف (فواتير، قطع، عملاء، دفعات) والإعدادات والنسخ الاحتياطي والمستخدمون للمدير فقط دائماً.</div>
     </div>
   )
 }
@@ -330,7 +359,7 @@ function AboutTab() {
     <div className="card pad" style={{ textAlign: 'center' }}>
       <img className="about-logo" src="./icon.svg" alt="" />
       <h2 style={{ marginTop: 8 }}>كراج الرضوان</h2>
-      <p className="muted">نظام إدارة محل قطع غيار السيارات — الإصدار 1.2</p>
+      <p className="muted">نظام إدارة محل قطع غيار السيارات — الإصدار {APP_VERSION}</p>
       <p className="muted small mt">المبيعات · المخزون · المشتريات · العملاء والموردون · الصندوق والمصاريف · التقارير · الطباعة · المزامنة بين الأجهزة</p>
       <p className="help mt"><Info size={14} style={{ verticalAlign: -2 }} /> تعمل الآن على: {p === 'android' ? 'تطبيق أندرويد' : p === 'windows' ? 'تطبيق ويندوز' : 'المتصفح'} · البيانات محفوظة على هذا الجهاز</p>
       {installable && <button className="btn primary mt" onClick={install}><MonitorDown /> تثبيت البرنامج على هذا الجهاز</button>}

@@ -29,6 +29,7 @@ export function previewDocument(doc: PrintDoc | null) { usePrint.setState({ doc,
 
 export function PrintHost() {
   const { doc, preview } = usePrint()
+  const size = useStore(s => s.cfg.printSize)
   const [, force] = useState(0)
   useEffect(() => {
     const after = () => { if (!usePrint.getState().preview) usePrint.setState({ doc: null }); force(x => x + 1) }
@@ -41,6 +42,7 @@ export function PrintHost() {
   if (!doc) return null
   return (
     <div className={`print-area ${preview ? 'preview' : ''}`} id="print-area">
+      <style>{doc.type === 'invoice' && size === '80mm' ? '@media print { @page { size: 80mm auto; margin: 2mm } }' : '@media print { @page { size: A4; margin: 10mm } }'}</style>
       {doc.type === 'invoice' && <InvoicePrint sale={doc.sale} />}
       {doc.type === 'statement' && <StatementPrint {...doc} />}
       {doc.type === 'labels' && <LabelsPrint {...doc} />}

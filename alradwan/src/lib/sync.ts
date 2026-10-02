@@ -1,6 +1,6 @@
 import { db } from '../db/db'
-import { applyRemoteMany, setChangeListener, useStore } from '../db/store'
-import type { Base, CollectionName } from '../db/types'
+import { applyRemoteMany, setChangeListener, stripSync, useStore } from '../db/store'
+import type { Base, CollectionName, Settings } from '../db/types'
 import { COLLECTIONS } from '../db/types'
 
 // Sync with the shop's server (alradwan/server): the device sends the records it changed, and receives
@@ -10,6 +10,7 @@ import { COLLECTIONS } from '../db/types'
 export interface SyncChange { collection: CollectionName; id: string; updatedAt: number; deleted: boolean; data: Base }
 export interface SyncStatus { state: 'off' | 'idle' | 'syncing' | 'error' | 'offline'; lastSync: number | null; pending: number; error?: string; clockSkew?: number }
 
+const PAGE = 400
 const listeners = new Set<(s: SyncStatus) => void>()
 let status: SyncStatus = { state: 'off', lastSync: null, pending: 0 }
 let timer: ReturnType<typeof setTimeout> | null = null
@@ -52,11 +53,13 @@ export async function syncNow(): Promise<{ sent: number; received: number }> {
   try {
     const { url, key } = useStore.getState().cfg.sync
     const since = ((await db.meta.get('seq'))?.value as number | undefined) ?? 0
-    const outbox = await db.outbox.toArray()
+    // one page of the outbox per request (the server caps a request), the rest follows in the next round
+    const outbox = (await db.outbox.toArray()).slice(0, PAGE)
     const changes: SyncChange[] = []
     for (const o of outbox) {
       const rec = await db.table<Base>(o.collection).get(o.id)
-      if (rec) changes.push({ collection: o.collection, id: o.id, updatedAt: rec.updatedAt, deleted: !!rec.deleted, data: rec })
+      if (rec) changes.push({ collection: o.collection, id: o.id, updatedAt: rec.updatedAt, deleted: !!rec.deleted, data: o.collection === 'settings' ? (stripSync(rec as Settings) as Base) : rec })
+      else await db.outbox.delete(o.key)
     }
     const res = await fetch(url.replace(/\/$/, '') + '/api/sync', {
       method: 'POST',
@@ -84,7 +87,7 @@ export async function syncNow(): Promise<{ sent: number; received: number }> {
         for (const c of incoming) {
           const local = await db.table<Base>(c.collection).get(c.id)
           if (local && local.updatedAt >= c.updatedAt) continue
-          const rec = { ...c.data, id: c.id, updatedAt: c.updatedAt, deleted: c.deleted || undefined }
+          const rec = { ...(c.collection === 'settings' ? stripSync(c.data as Settings) : c.data), id: c.id, updatedAt: c.updatedAt, deleted: c.deleted || undefined } as Base
           await db.table(c.collection).put(rec)
           applied.push({ collection: c.collection, record: rec })
         }
@@ -98,8 +101,8 @@ export async function syncNow(): Promise<{ sent: number; received: number }> {
     const now = Date.now()
     await db.meta.bulkPut([{ key: 'seq', value: body.seq }, { key: 'lastSync', value: now }])
     set({ state: 'idle', lastSync: now, pending: await pendingCount() })
-    // a fresh device gets a large shop in pages: keep going until the server says there is no more
-    if (body.more) again = true
+    // a fresh device gets a large shop in pages, and a long outbox goes up in pages: keep going until both are done
+    if (body.more || (await pendingCount()) > 0) again = true
     return { sent: changes.length, received }
   } catch (e) {
     const msg = e instanceof TypeError ? 'تعذّر الوصول إلى الخادم' : (e as Error).message

@@ -1,26 +1,27 @@
 import { useEffect, useState, type ReactNode } from 'react'
 import { NavLink, useLocation } from 'react-router-dom'
-import { LayoutDashboard, ShoppingCart, Receipt, Package, Boxes, Truck, Users, Factory, Wallet, BarChart3, Settings, Menu, LogOut, RefreshCw, CloudOff, Cloud, AlertTriangle, User, DollarSign, History, Trash2, Car, BookOpen, Sun, Moon } from 'lucide-react'
-import { saveSettings, setCurrentUser, useCurrentUser, useIsAdmin, useSettings, useStore } from '../db/store'
+import { LayoutDashboard, ShoppingCart, Receipt, Package, Boxes, Truck, Users, Factory, Wallet, BarChart3, Settings, Menu, LogOut, RefreshCw, CloudOff, Cloud, AlertTriangle, User, DollarSign, History, Trash2, Car, BookOpen, Sun, Moon, Lock } from 'lucide-react'
+import { logout, saveSettings, useCurrentUser, useIsAdmin, useSettings, useStore, userCan } from '../db/store'
+import type { Permission } from '../db/types'
 import { onSyncStatus, syncNow, type SyncStatus } from '../lib/sync'
 import { fmtTime } from '../lib/format'
 import { useToast } from './toast'
 import { RateModal } from './RateModal'
 
-const NAV = [
+const NAV: { to: string; label: string; icon: typeof LayoutDashboard; end?: boolean; admin?: boolean; perm?: Permission }[] = [
   { to: '/', label: 'الرئيسية', icon: LayoutDashboard, end: true },
-  { to: '/pos', label: 'بيع جديد', icon: ShoppingCart },
+  { to: '/pos', label: 'بيع جديد', icon: ShoppingCart, perm: 'sell' },
   { to: '/sales', label: 'فواتير المبيعات', icon: Receipt },
   { to: '/products', label: 'المنتجات', icon: Package },
   { to: '/inventory', label: 'المخزون', icon: Boxes },
-  { to: '/purchases', label: 'المشتريات', icon: Truck },
-  { to: '/cars', label: 'دليل السيارات', icon: Car },
+  { to: '/purchases', label: 'المشتريات', icon: Truck, perm: 'purchases' },
+  { to: '/cars', label: 'دليل السيارات', icon: Car, perm: 'cars' },
   { to: '/customers', label: 'العملاء', icon: Users },
   { to: '/suppliers', label: 'الموردون', icon: Factory },
   { to: '/cash', label: 'الصندوق والمصاريف', icon: Wallet },
-  { to: '/reports', label: 'التقارير', icon: BarChart3, admin: true },
-  { to: '/accounting', label: 'المحاسبة', icon: BookOpen, admin: true },
-  { to: '/activity', label: 'سجل النشاط', icon: History, admin: true },
+  { to: '/reports', label: 'التقارير', icon: BarChart3, perm: 'reports' },
+  { to: '/accounting', label: 'المحاسبة', icon: BookOpen, perm: 'accounting' },
+  { to: '/activity', label: 'سجل النشاط', icon: History, perm: 'activity' },
   { to: '/trash', label: 'المحذوفات', icon: Trash2, admin: true },
   { to: '/settings', label: 'الإعدادات', icon: Settings },
 ]
@@ -40,7 +41,9 @@ export function Layout({ children }: { children: ReactNode }) {
   const hasUsers = useStore(s => s.users.size > 0)
   useEffect(() => { setOpen(false) }, [loc.pathname])
   const title = TITLES[loc.pathname] ?? Object.entries(TITLES).find(([k]) => k !== '/' && loc.pathname.startsWith(k))?.[1] ?? settings.shopName
-  const nav = NAV.filter(n => !n.admin || isAdmin)
+  const perms = useStore(s => { const u = s.currentUserId ? s.users.get(s.currentUserId) : null; const none = s.users.size === 0; return NAV.map(n => (n.admin ? isAdmin : n.perm ? userCan(u, n.perm, s.cfg, none) : true)).join(',') })
+  const nav = NAV.filter((_, i) => perms.split(',')[i] === 'true')
+  const canSell = nav.some(n => n.to === '/pos')
   const dark = settings.theme === 'dark' || (settings.theme === 'auto' && window.matchMedia('(prefers-color-scheme: dark)').matches)
   return (
     <div className="app">
@@ -56,7 +59,7 @@ export function Layout({ children }: { children: ReactNode }) {
         <div className="foot">
           <User size={16} />
           <span style={{ flex: 1 }}>{user ? `${user.name}${user.role === 'admin' ? ' (مدير)' : ''}` : 'بدون تسجيل دخول'}</span>
-          {hasUsers && <button className="btn ghost icon" title="تسجيل الخروج" onClick={() => setCurrentUser(null)} style={{ color: 'var(--side-muted)' }}><LogOut size={16} /></button>}
+          {hasUsers && <button className="btn ghost icon" title="تسجيل الخروج" aria-label="تسجيل الخروج" onClick={() => logout()} style={{ color: 'var(--side-muted)' }}><LogOut size={16} /></button>}
         </div>
       </aside>
       <div className="main">
@@ -67,6 +70,7 @@ export function Layout({ children }: { children: ReactNode }) {
             <DollarSign />
             <span dir="ltr">{settings.rate ? <>1 $ = <b>{settings.rate.toLocaleString('en-US')}</b> <span className="hide-mobile">ل.س</span></> : 'سعر الدولار'}</span>
           </button>
+          {hasUsers && <button className="btn ghost icon" title="قفل الشاشة (تبديل المستخدم)" aria-label="قفل الشاشة" onClick={() => logout()}><Lock /></button>}
           <button className="btn ghost icon" title={dark ? 'التبديل إلى المظهر الفاتح' : 'التبديل إلى المظهر الداكن'} aria-label="المظهر" onClick={() => saveSettings({ theme: dark ? 'light' : 'dark' })}>{dark ? <Sun /> : <Moon />}</button>
           <SyncPill />
         </header>
@@ -76,7 +80,7 @@ export function Layout({ children }: { children: ReactNode }) {
       <nav className="bottom-nav">
         <NavLink to="/" end><LayoutDashboard /><span>الرئيسية</span></NavLink>
         <NavLink to="/products"><Package /><span>المنتجات</span></NavLink>
-        <NavLink to="/pos" className="pos"><span className="ic"><ShoppingCart /></span><span style={{ color: 'var(--muted)' }}>بيع</span></NavLink>
+        {canSell ? <NavLink to="/pos" className="pos"><span className="ic"><ShoppingCart /></span><span style={{ color: 'var(--muted)' }}>بيع</span></NavLink> : <NavLink to="/inventory"><Boxes /><span>المخزون</span></NavLink>}
         <NavLink to="/sales"><Receipt /><span>الفواتير</span></NavLink>
         <NavLink to="/customers"><Users /><span>العملاء</span></NavLink>
       </nav>

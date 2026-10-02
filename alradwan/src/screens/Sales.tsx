@@ -1,11 +1,11 @@
 import { useMemo, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { Printer, Pencil, Trash2, Undo2, MessageCircle, FileSpreadsheet, Eye, ArrowRightLeft } from 'lucide-react'
-import { useCollection, useSettings, useIsAdmin } from '../db/store'
+import { useCollection, useSettings, useIsAdmin, usePerm } from '../db/store'
 import type { Sale } from '../db/types'
 import { convertQuote, deleteSale, saveSale } from '../db/actions'
 import { payStatus, saleDue } from '../lib/calc'
-import { addDays, fmtDate, fmtDateTime, fromInputDate, invoiceNo, matches, money, num, toInputDate, endOfDay } from '../lib/format'
+import { addDays, fmtDate, fmtDateTime, invoiceNo, matches, money, num, toInputDate, rangeStart, rangeEnd } from '../lib/format'
 import { DateRange, Empty, Field, NumberInput, PayBadge, SearchInput, Tabs } from '../ui/components'
 import { Modal, useConfirm } from '../ui/modal'
 import { useToast } from '../ui/toast'
@@ -18,6 +18,7 @@ export function Sales() {
   const customers = useCollection('customers')
   const settings = useSettings()
   const isAdmin = useIsAdmin()
+  const canEdit = usePerm('editInvoices'), canReturn = usePerm('returns'), canSell = usePerm('sell')
   const nav = useNavigate()
   const [params, setParams] = useSearchParams()
   const openId = params.get('open')
@@ -30,7 +31,7 @@ export function Sales() {
   const toast = useToast(); const confirm = useConfirm()
 
   const list = useMemo(() => {
-    const f = fromInputDate(from); const t = endOfDay(fromInputDate(to))
+    const f = rangeStart(from); const t = rangeEnd(to)
     return Array.from(sales.values()).filter(s => s.date >= f && s.date <= t)
       .filter(s => tab === 'quotes' ? s.type === 'quote' : s.type === 'quote' ? false : tab === 'all' ? true : tab === 'returns' ? s.type === 'return' : s.type === 'sale' && saleDue(s) > 0)
       .filter(s => matches(q, s.customerName, String(s.number), s.notes, ...s.items.map(i => i.name)))
@@ -40,7 +41,7 @@ export function Sales() {
   const open = openId ? sales.get(openId) : undefined
 
   const del = async (s: Sale) => {
-    if (await confirm({ title: `حذف الفاتورة ${invoiceNo(s.number)}؟`, text: 'ستعود كميات القطع إلى المخزون ويُلغى أثرها على الصندوق وحساب العميل.', danger: true, okText: 'حذف' })) { await deleteSale(s.id); toast.success('تم حذف الفاتورة'); setParams({}) }
+    if (await confirm({ title: `حذف الفاتورة ${invoiceNo(s.number)}؟`, text: 'ستعود كميات القطع إلى المخزون ويُلغى أثرها على الصندوق وحساب العميل.', danger: true, okText: 'حذف' })) { try { await deleteSale(s.id); toast.success('تم حذف الفاتورة'); setParams({}) } catch (e) { toast.error((e as Error).message) } }
   }
   const exportExcel = () => exportSheet(`المبيعات-${from}-${to}`, list.map(s => ({ 'الرقم': invoiceNo(s.number), 'النوع': s.type === 'return' ? 'مرتجع' : s.type === 'quote' ? 'عرض سعر' : 'بيع', 'التاريخ': fmtDateTime(s.date), 'العميل': s.customerName, 'الأصناف': s.items.map(i => `${i.name} ×${i.qty}`).join('، '), 'الإجمالي': s.total, 'المدفوع': s.paid, 'المتبقي': saleDue(s), 'ملاحظات': s.notes ?? '' })), 'المبيعات')
 
@@ -80,9 +81,9 @@ export function Sales() {
         <Modal title={`${open.type === 'return' ? 'مرتجع' : open.type === 'quote' ? 'عرض سعر' : 'فاتورة'} ${invoiceNo(open.number)}`} onClose={() => setParams({})} size="wide" footer={<>
           <button className="btn primary" onClick={() => printDocument({ type: 'invoice', sale: open })}><Printer /> طباعة</button>
           <a className="btn" href={whatsappLink(open, open.customerId ? customers.get(open.customerId)?.phone : undefined, settings.shopName, settings.currency)} target="_blank" rel="noreferrer"><MessageCircle /> واتساب</a>
-          {open.type === 'sale' && <button className="btn" onClick={() => setRet(open)}><Undo2 /> مرتجع</button>}
-          {(open.type === 'sale' || (open.type === 'quote' && !open.convertedTo)) && <button className="btn" onClick={() => nav(`/pos?edit=${open.id}`)}><Pencil /> تعديل</button>}
-          {open.type === 'quote' && !open.convertedTo && <button className="btn success" onClick={() => setConv(open)}><ArrowRightLeft /> تحويل إلى فاتورة</button>}
+          {open.type === 'sale' && canReturn && <button className="btn" onClick={() => setRet(open)}><Undo2 /> مرتجع</button>}
+          {(open.type === 'sale' || (open.type === 'quote' && !open.convertedTo)) && canEdit && <button className="btn" onClick={() => nav(`/pos?edit=${open.id}`)}><Pencil /> تعديل</button>}
+          {open.type === 'quote' && !open.convertedTo && canSell && <button className="btn success" onClick={() => setConv(open)}><ArrowRightLeft /> تحويل إلى فاتورة</button>}
           {open.type === 'quote' && open.convertedTo && <button className="btn" onClick={() => setParams({ open: open.convertedTo! })}>عرض الفاتورة</button>}
           {isAdmin && <><span className="grow" /><button className="btn danger" onClick={() => del(open)}><Trash2 /> حذف</button></>}
         </>}>
@@ -148,28 +149,43 @@ function ConvertModal({ quote, onClose, onDone }: { quote: Sale; onClose: () => 
 
 /** Returning parts from an invoice: pick the quantities, the money goes back (cash or off the customer's debt). */
 function ReturnModal({ sale, onClose, onDone }: { sale: Sale; onClose: () => void; onDone: (r: Sale) => void }) {
+  const sales = useCollection('sales')
   const [qty, setQty] = useState<number[]>(sale.items.map(() => 0))
   const [refund, setRefund] = useState<number | null>(null)
+  const [busy, setBusy] = useState(false)
   const toast = useToast()
+  // what earlier returns already took back from each line
+  const returned = useMemo(() => sale.items.map((it, i) => { let n = 0; for (const r of sales.values()) if (r.returnOf === sale.id && r.type === 'return') for (const x of r.items) if ((x.productId && x.productId === it.productId) || (!x.productId && x.name === it.name && sale.items.findIndex(y => y.name === it.name) === i)) n += x.qty; return n }), [sales, sale])
+  const left = sale.items.map((it, i) => Math.max(0, it.qty - returned[i]))
   const items = sale.items.map((it, i) => ({ ...it, qty: qty[i], discount: it.qty ? (it.discount * qty[i]) / it.qty : 0 })).filter(it => it.qty > 0)
-  const total = items.reduce((s, i) => s + i.qty * i.price - i.discount, 0)
-  const refundValue = refund === null ? total : Math.min(refund, total)
+  const gross = items.reduce((s, i) => s + i.qty * i.price - i.discount, 0)
+  // the invoice-level discount is shared out in proportion, so a full return gives back exactly what was paid
+  const settings = useSettings()
+  const k = 10 ** (settings.decimals ?? 0)
+  const discount = sale.subtotal > 0 ? Math.round((sale.discount * gross) / sale.subtotal * k) / k : 0
+  const total = Math.max(0, gross - discount)
+  const walkIn = !sale.customerId
+  const refundValue = walkIn || refund === null ? total : Math.min(refund, total)
   const save = async () => {
     if (items.length === 0) { toast.error('حدد الكمية المرتجعة'); return }
-    const r = await saveSale({ type: 'return', date: Date.now(), customerId: sale.customerId, customerName: sale.customerName, items, discount: 0, paid: refundValue, notes: `مرتجع من فاتورة ${invoiceNo(sale.number)}`, returnOf: sale.id })
-    toast.success('تم تسجيل المرتجع'); onDone(r)
+    setBusy(true)
+    try {
+      const r = await saveSale({ type: 'return', date: Date.now(), customerId: sale.customerId, customerName: sale.customerName, items, discount, discountPct: sale.discountPct, paid: refundValue, notes: `مرتجع من فاتورة ${invoiceNo(sale.number)}`, returnOf: sale.id })
+      toast.success('تم تسجيل المرتجع'); onDone(r)
+    } catch (e) { toast.error('تعذّر التسجيل: ' + (e as Error).message) } finally { setBusy(false) }
   }
   return (
-    <Modal title={`مرتجع من فاتورة ${invoiceNo(sale.number)}`} onClose={onClose} footer={<><button className="btn primary" onClick={save} disabled={items.length === 0}>تسجيل المرتجع</button><button className="btn" onClick={onClose}>إلغاء</button></>}>
+    <Modal title={`مرتجع من فاتورة ${invoiceNo(sale.number)}`} onClose={onClose} footer={<><button className="btn primary" onClick={save} disabled={busy || items.length === 0}>تسجيل المرتجع</button><button className="btn" onClick={onClose}>إلغاء</button></>}>
       <div className="stack">
         {sale.items.map((it, i) => (
           <div key={i} className="between" style={{ gap: 8 }}>
-            <div><div className="bold">{it.name}</div><div className="small muted">بيع {num(it.qty, 2)} × {money(it.price)}</div></div>
-            <div className="row"><span className="small muted">المرتجع</span><div style={{ width: 90 }}><NumberInput value={qty[i]} onChange={v => setQty(a => a.map((x, k) => (k === i ? Math.min(it.qty, v) : x)))} min={0} /></div></div>
+            <div><div className="bold">{it.name}</div><div className="small muted">بيع {num(it.qty, 2)} × {money(it.price)}{returned[i] > 0 && <> · أُرجع سابقاً {num(returned[i], 2)}</>}</div></div>
+            <div className="row"><span className="small muted">المرتجع</span><div style={{ width: 90 }}><NumberInput value={qty[i]} onChange={v => setQty(a => a.map((x, k) => (k === i ? Math.min(left[i], v) : x)))} min={0} disabled={left[i] <= 0} /></div></div>
           </div>
         ))}
+        {discount > 0 && <div className="between small muted"><span>حصة المرتجع من خصم الفاتورة</span><span>- {money(discount)}</span></div>}
         <div className="between" style={{ borderTop: '1px solid var(--border)', paddingTop: 10 }}><b>قيمة المرتجع</b><b style={{ fontSize: 18 }}>{money(total)}</b></div>
-        <Field label="المبلغ المُعاد نقداً للعميل" help={sale.customerId ? 'ما لا يُعاد نقداً يُخصم من دين العميل' : undefined}><NumberInput value={refundValue} onChange={setRefund} /></Field>
+        <Field label="المبلغ المُعاد نقداً للعميل" help={walkIn ? 'زبون غير مسجل: يُعاد المبلغ كاملاً نقداً' : 'ما لا يُعاد نقداً يُخصم من دين العميل'}><NumberInput value={refundValue} onChange={setRefund} disabled={walkIn} /></Field>
       </div>
     </Modal>
   )

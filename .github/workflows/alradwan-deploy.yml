@@ -3,6 +3,8 @@
 # Needs only the repository secrets CLOUDFLARE_API_TOKEN (Edit Cloudflare Workers + D1 Edit) and
 # CLOUDFLARE_ACCOUNT_ID: the D1 database is created on the first run when wrangler.toml has no id yet.
 name: Deploy AlRadwan Garage website
+permissions:
+  contents: read
 on:
   workflow_dispatch:
   push:

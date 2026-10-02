@@ -1,7 +1,7 @@
 import { useSettings } from '../db/store'
 import { fmtDateTime } from '../lib/format'
 
-export interface ReportTable { title?: string; columns: { label: string; num?: boolean }[]; rows: (string | number)[][]; footer?: (string | number)[] }
+export interface ReportTable { title?: string; columns: { label: string; num?: boolean; ltr?: boolean }[]; rows: (string | number)[][]; footer?: (string | number)[] }
 export interface ReportDoc { title: string; subtitle?: string; tables: ReportTable[]; note?: string }
 
 /** Any accounting report as a printed page: the shop's name, a title, one or more tables. */
@@ -21,7 +21,7 @@ export function ReportPrint({ title, subtitle, tables, note }: ReportDoc) {
           {t.title && <h3 style={{ margin: '8px 0 4px', fontSize: 14 }}>{t.title}</h3>}
           <table className="rt">
             <thead><tr>{t.columns.map((c, k) => <th key={k} className={c.num ? 'n' : ''}>{c.label}</th>)}</tr></thead>
-            <tbody>{t.rows.map((r, k) => <tr key={k}>{r.map((v, j) => <td key={j} className={t.columns[j]?.num ? 'n' : ''}>{v}</td>)}</tr>)}</tbody>
+            <tbody>{t.rows.map((r, k) => <tr key={k}>{r.map((v, j) => <td key={j} className={t.columns[j]?.num ? 'n' : ''} dir={t.columns[j]?.ltr ? 'ltr' : undefined} style={t.columns[j]?.ltr ? { textAlign: 'right' } : undefined}>{v}</td>)}</tr>)}</tbody>
             {t.footer && <tfoot><tr>{t.footer.map((v, j) => <td key={j} className={t.columns[j]?.num ? 'n' : ''}>{v}</td>)}</tr></tfoot>}
           </table>
         </div>
