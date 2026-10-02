@@ -352,13 +352,13 @@ function LicenseCard() {
   const lic = useLicense()
   const shopName = useSettings().shopName
   const [open, setOpen] = useState(false)
-  if (lic.state === 'off') return null
+  if (lic.state === 'off') return <div className="help mt">نسخة بلا تفعيل (بُنيت بدون خادم ترخيص)</div>
   const label = lic.state === 'active' ? `مفعّل${lic.until ? ` حتى ${fmtDate(lic.until)}` : ' — اشتراك دائم'}` : lic.state === 'trial' ? `نسخة تجريبية حتى ${fmtDate(lic.trialEnds)}` : lic.state === 'loading' ? 'جارٍ التحقق…' : lic.notice || 'غير مفعّل'
   return (
     <div className="card pad mt" style={{ textAlign: 'right' }}>
       <div className="between"><b><KeyRound size={16} style={{ verticalAlign: -3 }} /> التفعيل</b><span className={`badge ${lic.state === 'active' ? 'tone-success' : lic.state === 'trial' ? 'tone-info' : 'tone-warning'}`}>{label}</span></div>
       {lic.code && <div className="small muted mt">الكود <span className="mono">{lic.code}</span>{lic.maxDevices ? ` · الأجهزة ${lic.devices} من ${lic.maxDevices}` : ''}{lic.lastCheck ? ` · آخر تحقق ${fmtDateTime(lic.lastCheck)}` : ''}</div>}
-      <div className="small muted">رقم هذا الجهاز: <span className="mono">{shortDevice(lic.device)}</span></div>
+      <div className="small muted">رقم هذا الجهاز: <span className="mono">{shortDevice(lic.device)}</span> · الخادم: <span className="mono">{API_URL.replace(/^https?:\/\//, '')}</span></div>
       <button className="btn mt" onClick={() => setOpen(true)}>{lic.state === 'active' ? 'تغيير الكود' : 'إدخال كود التفعيل'}</button>
       {open && <div className="modal-backdrop" style={{ padding: 0 }}><Activate shopName={shopName} onClose={() => setOpen(false)} /></div>}
     </div>

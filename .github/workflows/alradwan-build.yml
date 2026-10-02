@@ -52,6 +52,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - name: Which flavour is this build?
+        working-directory: .
+        run: |
+          if [ -z "$ALRADWAN_API" ]; then echo "::warning::ALRADWAN_API غير مضبوط: هذه نسخة مجانية بلا تفعيل. لبيع البرنامج بأكواد أضف المتغير ALRADWAN_API (عنوان الخادم) في Settings → Secrets and variables → Actions → Variables."; else echo "Licensed build against $ALRADWAN_API"; fi
       - uses: actions/setup-node@v4
         with: { node-version: 22, cache: npm, cache-dependency-path: alradwan/package-lock.json }
       - run: npm ci

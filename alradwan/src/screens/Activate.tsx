@@ -1,6 +1,8 @@
 import { useState } from 'react'
-import { KeyRound, MessageCircle, Copy, Check, Download, LogIn, ShieldCheck, Smartphone, Monitor, Globe, WifiOff } from 'lucide-react'
-import { activate, shortDevice, useLicense } from '../lib/license'
+import { KeyRound, MessageCircle, Copy, Check, Download, LogIn, ShieldCheck, Smartphone, Monitor, Globe, WifiOff, RefreshCw } from 'lucide-react'
+import { activate, checkLicense, lastCode, shortDevice, useLicense } from '../lib/license'
+import { useIsAdmin } from '../db/store'
+import { platformName } from '../lib/platform'
 import { SALES } from '../sales'
 import { downloadBackup } from '../lib/backup'
 import { fmtDate } from '../lib/format'
@@ -20,7 +22,9 @@ const ERR: Record<string, string> = {
 /** Where the shop enters the code it bought; also the wall the app shows when there is no valid subscription. */
 export function Activate({ shopName, onClose }: { shopName: string; onClose?: () => void }) {
   const lic = useLicense()
-  const [code, setCode] = useState('')
+  const [code, setCode] = useState(() => lastCode())
+  const [checking, setChecking] = useState(false)
+  const isAdmin = useIsAdmin()
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null)
   const [busy, setBusy] = useState(false)
   const [copied, setCopied] = useState<'dev' | 'pay' | null>(null)
@@ -28,13 +32,14 @@ export function Activate({ shopName, onClose }: { shopName: string; onClose?: ()
   const wa = SALES.whatsapp ? `https://wa.me/${SALES.whatsapp.replace(/\D/g, '')}?text=${encodeURIComponent(`مرحباً، أريد كود تفعيل لبرنامج كراج الرضوان.\nاسم المحل: ${shopName}\nرقم الجهاز: ${dev}`)}` : ''
   const submit = async () => {
     setBusy(true)
-    const r = await activate(code, shopName)
+    const r = await activate(code, `${platformName() === 'android' ? 'هاتف' : platformName() === 'windows' ? 'حاسوب' : 'متصفح'} · ${shopName}`)
     setBusy(false)
     setMsg(r === 'ok' ? { ok: true, text: 'تم التفعيل. البرنامج جاهز للعمل.' } : { ok: false, text: ERR[r] || ERR.server })
     if (r === 'ok') setTimeout(() => onClose?.(), 900)
   }
   const copy = (what: 'dev' | 'pay', text: string) => { try { navigator.clipboard?.writeText(text); setCopied(what); setTimeout(() => setCopied(null), 1500) } catch { /* ignore */ } }
   const wall = !onClose
+  const recheck = async () => { setChecking(true); try { await checkLicense(true) } finally { setChecking(false) } }
   const active = lic.state === 'active'
   const offline = typeof navigator !== 'undefined' && !navigator.onLine
   return (
@@ -81,7 +86,8 @@ export function Activate({ shopName, onClose }: { shopName: string; onClose?: ()
               {offline && !msg && <div className="badge tone-warning activate-notice"><WifiOff size={14} /> لا يوجد اتصال بالإنترنت الآن. التفعيل يحتاج اتصالاً مرة واحدة فقط.</div>}
               <p className="help">بعد التفعيل يعمل البرنامج بلا إنترنت، ويتحقق من الاشتراك عندما يتوفر الاتصال. كل بياناتك تبقى على جهازك.</p>
               <div className="btn-row" style={{ justifyContent: 'center' }}>
-                {wall && <button className="btn" onClick={() => downloadBackup().catch(() => {})}><Download /> حفظ نسخة احتياطية من بياناتي</button>}
+                {(lic.state === 'expired' || lic.state === 'blocked' || lic.state === 'grace') && <button className="btn" disabled={checking} onClick={recheck}><RefreshCw /> {checking ? 'جارٍ التحقق…' : 'جدّدتُ الاشتراك — تحقق الآن'}</button>}
+                {wall && isAdmin && <button className="btn" onClick={() => downloadBackup().catch(() => {})}><Download /> حفظ نسخة احتياطية من بياناتي</button>}
                 {onClose && <button className="btn" onClick={onClose}>لاحقاً</button>}
               </div>
             </section>

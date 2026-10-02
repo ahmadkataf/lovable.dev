@@ -15,6 +15,7 @@ const KEY = 'alradwan.license'
 const FIRST = 'alradwan.firstRun'
 const RAW = 'alradwan.deviceRaw'
 const GRACE_DAYS = 14
+const WARN_DAYS = 7            // after this many days without a server check the banner asks for internet
 const CHECK_EVERY = 6 * 3600000
 const DAY = 86400000
 
@@ -39,6 +40,11 @@ async function serverDevice(): Promise<string> {
 export const shortDevice = (d: string) => d.slice(0, 8).toUpperCase().replace(/(.{4})/, '$1-')
 
 type Saved = { token: string; until: number | null; code: string; lastCheck: number; shopName?: string; devices?: number; maxDevices?: number; offline?: boolean }
+const LAST_CODE = 'alradwan.lastCode'
+/** The last code this device used: pre-filled when it must be entered again. */
+export const lastCode = () => read(LAST_CODE) ?? ''
+/** A real session answer: a signed token, not a captive portal's HTML turned into {}. */
+const isSessionAnswer = (d: Record<string, unknown>) => typeof d.token === 'string' && d.token.includes('.')
 const saved = (): Saved | null => { try { return JSON.parse(read(KEY) || 'null') } catch { return null } }
 
 async function post(path: string, body: unknown): Promise<{ status: number; data: Record<string, unknown> }> {
@@ -54,7 +60,8 @@ const NOTICE: Record<string, string> = {
   expired: 'انتهى الاشتراك. جدّده لتعود إلى العمل — بياناتك محفوظة ولا تضيع.',
   used: 'هذا الكود مستخدم على العدد الأقصى من الأجهزة.',
   moved: 'فُكّ هذا الجهاز عن الكود. أدخل الكود مرة أخرى أو تواصل مع البائع.',
-  session: 'انتهت جلسة التفعيل. اتصل بالإنترنت ثم أعد فتح البرنامج.',
+  session: 'انتهت جلسة التفعيل. اتصل بالإنترنت واضغط «تحقق الآن» أو أدخل الكود مرة أخرى.',
+  grace: 'لم يتصل البرنامج بالخادم منذ أيام. اتصل بالإنترنت قبل انقضاء 14 يوماً حتى لا يتوقف.',
   blocked: `لم يتصل البرنامج بالخادم منذ أكثر من ${GRACE_DAYS} يوماً. اتصل بالإنترنت لتجديد التفعيل.`,
 }
 
@@ -84,31 +91,40 @@ export async function checkLicense(force = false): Promise<void> {
   // an emergency code given by hand: permanent on this device, never checked online
   if (s.offline) { useLicense.setState({ state: 'active', until: null, code: s.code, device: dev, lastCheck: s.lastCheck, trialEnds: te, shopName: '', devices: 1, maxDevices: 1, notice: '' }); return }
   const now = Date.now()
-  const stale = now - s.lastCheck
+  // a clock moved backwards (or a tampered lastCheck in the future) counts as "long ago": ask the server
+  const stale = s.lastCheck > now + 3600000 ? GRACE_DAYS * DAY + 1 : now - s.lastCheck
+  const offlineState = (): [LicenseState, string] => stale > GRACE_DAYS * DAY ? ['blocked', NOTICE.blocked] : stale > WARN_DAYS * DAY ? ['grace', NOTICE.grace] : ['active', '']
   const fromStore = (state: LicenseState, notice = '') => useLicense.setState({ state, until: s.until, code: s.code, device: dev, lastCheck: s.lastCheck, trialEnds: te, shopName: s.shopName ?? '', devices: s.devices ?? 0, maxDevices: s.maxDevices ?? 0, notice })
-  if (s.until && s.until < now) { fromStore('expired', NOTICE.expired); if (!force && stale < CHECK_EVERY) return }
-  else fromStore(stale > GRACE_DAYS * DAY ? 'blocked' : 'active', stale > GRACE_DAYS * DAY ? NOTICE.blocked : '')
-  if (!force && stale < CHECK_EVERY && !(s.until && s.until < now)) return
-  if (!navigator.onLine) { if (stale > GRACE_DAYS * DAY) fromStore('blocked', NOTICE.blocked); return }
+  const expired = !!s.until && s.until < now
+  if (expired) fromStore('expired', NOTICE.expired); else fromStore(...offlineState())
+  // an expired or blocked state always asks the server (a renewal must reach the shop at once)
+  if (!force && !expired && stale < CHECK_EVERY) return
+  if (!navigator.onLine) return
   let res
   try { res = await post('/api/license/session', { token: s.token, device: dev }) }
-  catch { if (stale > GRACE_DAYS * DAY) fromStore('blocked', NOTICE.blocked); return }
+  catch { return }
   if (res.status === 200) {
+    if (!isSessionAnswer(res.data)) return   // a Wi-Fi login page or a wrong address answered: keep what we have
     const next: Saved = { token: String(res.data.token), until: res.data.until ? Number(res.data.until) : null, code: String(res.data.code || s.code), lastCheck: now, shopName: String(res.data.shopName || ''), devices: Number(res.data.devices || 0), maxDevices: Number(res.data.maxDevices || 0) }
-    write(KEY, JSON.stringify(next))
+    write(KEY, JSON.stringify(next)); write(LAST_CODE, next.code)
     useLicense.setState({ state: 'active', until: next.until, code: next.code, device: dev, lastCheck: now, shopName: next.shopName, devices: next.devices, maxDevices: next.maxDevices, notice: '' })
     return
   }
-  if (res.status >= 500 || res.status === 429) { if (stale > GRACE_DAYS * DAY) fromStore('blocked', NOTICE.blocked); return }   // the server, not the code
+  if (res.status >= 500 || res.status === 429) return   // the server, not the code: keep what we have
   const why = String(res.data.error || 'session')
   // the server said no: the stored session is no longer good
   if (why === 'expired') { write(KEY, JSON.stringify({ ...s, until: s.until ?? now - 1, lastCheck: now })); fromStore('expired', NOTICE.expired); return }
+  if (why === 'session' && s.code) {
+    // the token aged out (a long time without internet): the same device re-activates with its own code silently
+    const again = await activate(s.code, '', true)
+    if (again === 'ok') return
+  }
   write(KEY, null)
   useLicense.setState({ state: why === 'revoked' ? 'revoked' : why === 'moved' ? 'moved' : 'none', until: null, code: '', device: dev, lastCheck: 0, trialEnds: te, notice: NOTICE[why] ?? NOTICE.session })
 }
 
 /** Enters a code bought from the seller; returns 'ok' or the reason it was refused. */
-export async function activate(code: string, name: string): Promise<string> {
+export async function activate(code: string, name: string, silent = false): Promise<string> {
   const clean = code.toUpperCase().replace(/[^0-9A-Z]/g, '')
   if (clean.length !== 12) return 'format'
   if (!API_URL) return 'off'
@@ -120,20 +136,23 @@ export async function activate(code: string, name: string): Promise<string> {
   if (!navigator.onLine) return 'network'
   const dev = await device()
   let res
-  try { res = await post('/api/license/activate', { code: clean, device: dev, name }) }
+  try { res = await post('/api/license/activate', { code: clean, device: dev, name: name || (silent ? 'إعادة تفعيل' : '') }) }
   catch { return 'network' }
   if (res.status !== 200) return String(res.data.error || 'server')
+  if (!isSessionAnswer(res.data)) return 'network'
   const now = Date.now()
+  write(LAST_CODE, String(res.data.code))
   write(KEY, JSON.stringify({ token: String(res.data.token), until: res.data.until ? Number(res.data.until) : null, code: String(res.data.code), lastCheck: now, shopName: String(res.data.shopName || ''), devices: Number(res.data.devices || 0), maxDevices: Number(res.data.maxDevices || 0) } satisfies Saved))
   await checkLicense(false)
   return 'ok'
 }
 
 /** The app may be used: free build, trial, active, or inside the offline grace. */
-export const licenseAllows = (st: LicenseState) => st === 'off' || st === 'trial' || st === 'active' || st === 'loading'
+export const licenseAllows = (st: LicenseState) => st === 'off' || st === 'trial' || st === 'active' || st === 'grace' || st === 'loading'
 
 export function startLicenseChecks() {
-  checkLicense().catch(() => {})
+  // every app open asks the server once (a tiny request), so a renewal or a cancellation reaches the shop at once
+  checkLicense(true).catch(() => {})
   setInterval(() => checkLicense().catch(() => {}), 30 * 60000)
   window.addEventListener('online', () => checkLicense(true).catch(() => {}))
 }

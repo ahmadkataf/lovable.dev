@@ -121,9 +121,9 @@ function Gate() {
   const permStr = useStore(s => { const u = s.currentUserId ? s.users.get(s.currentUserId) : null; const none = s.users.size === 0; return permKeys.map(k => userCan(u, k, s.cfg, none)).join(',') })
   const perms = Object.fromEntries(permKeys.map((k, i) => [k, permStr.split(',')[i] === 'true'])) as Record<typeof permKeys[number], boolean>
   if (!setupDone) return <Setup />
-  // a sold build: after the trial (or when the subscription ends) the app waits for a code; the data stays
-  if (!licenseAllows(licState)) return <Activate shopName={shopName} />
   if (needsLogin) return <Login />
+  // a sold build: without a valid code the app waits for one (after the PIN, so only the owner can export); the data stays
+  if (!licenseAllows(licState)) return <Activate shopName={shopName} />
   return (
     <>
       <Layout>

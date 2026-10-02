@@ -74,13 +74,13 @@ async function noteFailure(env: Env, ip: string, now: number): Promise<void> {
 
 export default {
   async fetch(req: Request, env: Env): Promise<Response> {
-    try { return await handle(req, env) } catch (e) { return json({ error: 'server error', detail: String((e as Error)?.message ?? e).slice(0, 200) }, 500) }
+    try { return await handle(req, env) } catch (e) { console.error('alradwan:', (e as Error)?.message ?? e); return json({ error: 'server error' }, 500) }
   },
 }
 
 async function handle(req: Request, env: Env): Promise<Response> {
     const url = new URL(req.url)
-    if (url.pathname === '/admin') return new Response(ADMIN_PAGE, { headers: { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store' } })
+    if (url.pathname === '/admin' || url.pathname === '/admin/') return new Response(ADMIN_PAGE, { headers: { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store' } })
     if (!url.pathname.startsWith('/api/')) return env.ASSETS.fetch(req)
     if (req.method === 'OPTIONS') return new Response(null, { status: 204, headers: CORS })
     const lic = await handleLicense(req, env, url.pathname)

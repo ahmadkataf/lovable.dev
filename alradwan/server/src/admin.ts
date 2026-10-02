@@ -58,7 +58,7 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{padding:7px 5px;b
   <section id="t-find" class="hidden">
     <div class="card">
       <div class="grid">
-        <div><label>بحث (كود، اسم المحل، ملاحظة، بائع)</label><input id="q" placeholder="مثلاً: الرضوان أو 7KQ2"></div>
+        <div><label>بحث (كود، اسم المحل، ملاحظة، بائع، رقم جهاز)</label><input id="q" placeholder="مثلاً: الرضوان أو 7KQ2 أو رقم الجهاز 0E8D310E"></div>
         <div><label>الحالة</label><select id="fstatus"><option value="">الكل</option><option value="new">غير مستخدم</option><option value="used">مفعّل</option><option value="expired">منتهي</option><option value="revoked">ملغى</option></select></div>
       </div>
       <div class="row" style="margin-top:10px"><button id="find">بحث</button></div>
@@ -86,12 +86,12 @@ const fmt = ms => ms ? new Date(ms).toLocaleDateString('ar-SY', { year: 'numeric
 const when = ms => ms ? new Date(ms).toLocaleString('ar-SY', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : '—'
 const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c])
 const DAY = 86400000
-function expiry() { const v = $('plan').value; if (v === 'life') return null; if (v === 'month') return Date.now() + 31 * DAY; if (v === 'date' && $('date').value) return new Date($('date').value + 'T23:59:00').getTime(); return Date.now() + 366 * DAY }
+function expiry() { const v = $('plan').value; if (v === 'life') return null; if (v === 'month') return Date.now() + 31 * DAY; if (v === 'date') { const t = new Date($('date').value + 'T23:59:00').getTime(); if (!Number.isFinite(t)) throw new Error('اختر التاريخ'); return t } return Date.now() + 366 * DAY }
 
 async function enter() {
   KEY = $('key').value.trim() || KEY
   try { await api('stats'); localStorage.setItem('alradwan.admin', KEY); $('login').classList.add('hidden'); $('app').classList.remove('hidden') }
-  catch (e) { $('loginErr').textContent = e.message === 'not-configured' ? 'لم يُضبط ADMIN_KEY على الخادم بعد.' : 'المفتاح غير صحيح.' }
+  catch (e) { $('loginErr').textContent = e.message === 'not-configured' ? 'لم يُضبط ADMIN_KEY على الخادم بعد.' : e.message === 'wait' ? 'محاولات كثيرة: انتظر ربع ساعة.' : /fetch|network/i.test(e.message) ? 'تعذّر الوصول إلى الخادم.' : 'المفتاح غير صحيح.' }
 }
 $('enter').onclick = enter
 $('key').onkeydown = e => { if (e.key === 'Enter') enter() }
@@ -109,7 +109,8 @@ $('plan').onchange = () => $('date').classList.toggle('hidden', $('plan').value 
 let last = null
 $('make').onclick = async () => {
   try {
-    last = await api('codes', { method: 'POST', body: JSON.stringify({ plan: $('plan').value, count: +$('count').value, expiresAt: expiry(), maxDevices: +$('devices').value, seller: $('seller').value, note: $('note').value, shopName: $('shop').value }) })
+    const expiresAt = expiry()
+    last = await api('codes', { method: 'POST', body: JSON.stringify({ plan: $('plan').value, count: +$('count').value, expiresAt, maxDevices: +$('devices').value, seller: $('seller').value, note: $('note').value, shopName: $('shop').value }) })
     $('made').classList.remove('hidden')
     $('madeTitle').textContent = last.codes.length + ' كود · ' + (last.expiresAt ? 'حتى ' + fmt(last.expiresAt) : 'دائم') + ' · ' + last.maxDevices + ' جهاز'
     $('cards').innerHTML = last.codes.map(c => '<div class="cardcode"><div class="muted">كراج الرضوان — نظام إدارة قطع الغيار</div><b class="mono">' + c + '</b><div class="muted">افتح البرنامج ← تفعيل ← أدخل الكود<br>' + (last.expiresAt ? 'صالح حتى ' + fmt(last.expiresAt) : 'اشتراك دائم') + ' · ' + last.maxDevices + ' جهاز</div></div>').join('')
@@ -130,8 +131,9 @@ async function find() {
     const { codes } = await api('codes?' + qs)
     $('rows').innerHTML = codes.map(r => '<tr><td class="mono">' + r.code + '</td><td>' + esc(r.shop_name) + '</td><td>' + badge(r) + (r.moves ? '<div class="muted">نُقل ' + r.moves + '×</div>' : '') + '</td><td>' + r.devices + ' / ' + r.max_devices + '</td><td>' + fmt(r.expires_at) + '</td><td>' + esc(r.seller) + '<div class="muted">' + esc(r.note) + '</div></td><td>' + when(r.last_seen) + '</td><td class="row">'
       + (r.revoked ? '<button class="small ghost" data-a="restore" data-c="' + r.code + '">استعادة</button>' : '<button class="small red" data-a="revoke" data-c="' + r.code + '">إلغاء</button>')
-      + (r.devices ? '<button class="small ghost" data-a="unbind" data-c="' + r.code + '">فك الأجهزة</button>' : '')
+      + (r.devices ? '<button class="small ghost" data-a="devices" data-c="' + r.code + '">الأجهزة</button>' : '')
       + '<button class="small ghost" data-a="expiry" data-c="' + r.code + '">تمديد</button>'
+      + '<button class="small ghost" data-a="max" data-c="' + r.code + '" data-m="' + r.max_devices + '">عدد الأجهزة</button>'
       + '<button class="small ghost" data-a="note" data-c="' + r.code + '" data-n="' + esc(r.note) + '" data-s="' + esc(r.shop_name) + '">ملاحظة</button></td></tr>').join('') || '<tr><td colspan="8" class="muted">لا نتائج</td></tr>'
   } catch (e) { alert(e.message) }
 }
@@ -144,8 +146,21 @@ $('rows').onclick = async e => {
   if (ask[a] && !confirm(ask[a])) return
   const payload = { code, action: a }
   if (a === 'note') { const s = prompt('اسم المحل:', b.dataset.s || ''); if (s === null) return; const n = prompt('الملاحظة:', b.dataset.n || ''); if (n === null) return; payload.shopName = s; payload.note = n }
-  if (a === 'expiry') { const d = prompt('التاريخ الجديد (YYYY-MM-DD)، أو اتركه فارغاً لاشتراك دائم:', ''); if (d === null) return; payload.expiresAt = d.trim() ? new Date(d.trim() + 'T23:59:00').getTime() : null }
+  if (a === 'expiry') { const d = prompt('التاريخ الجديد بالشكل 2027-12-31، أو اكتب "دائم" لاشتراك بلا نهاية:', ''); if (d === null) return; const t = d.trim(); if (t === 'دائم' || t.toLowerCase() === 'life') payload.expiresAt = null; else { if (!/^\d{4}-\d{2}-\d{2}$/.test(t) || !Number.isFinite(new Date(t + 'T23:59:00').getTime())) { alert('التاريخ غير صحيح. اكتبه هكذا: 2027-12-31'); return } payload.expiresAt = new Date(t + 'T23:59:00').getTime() } }
+  if (a === 'max') { const m = prompt('عدد الأجهزة المسموح لهذا الكود (1–10):', b.dataset.m || '2'); if (m === null) return; payload.action = 'devices'; payload.maxDevices = +m }
+  if (a === 'devices') { showDevices(code); return }
   try { await api('code', { method: 'POST', body: JSON.stringify(payload) }); find() } catch (err) { alert(err.message) }
+}
+async function showDevices(code) {
+  try {
+    const { devices } = await api('devices?code=' + encodeURIComponent(code))
+    const list = devices.map(d => '• ' + (d.name || 'جهاز') + ' — ' + d.device.slice(0, 8).toUpperCase() + ' — آخر استخدام ' + when(d.last_seen)).join('\n') || 'لا أجهزة'
+    const which = prompt('أجهزة الكود ' + code + ':\n' + list + '\n\nلفك جهاز واحد اكتب أول 8 أحرف من رقمه، أو اكتب "الكل" لفك الجميع، أو ألغِ:', '')
+    if (which === null || !which.trim()) return
+    if (which.trim() === 'الكل') { if (!confirm('فك كل الأجهزة عن هذا الكود؟')) return; await api('code', { method: 'POST', body: JSON.stringify({ code, action: 'unbind' }) }) }
+    else { const d = devices.find(x => x.device.toLowerCase().startsWith(which.trim().toLowerCase())); if (!d) { alert('لا جهاز بهذا الرقم'); return } await api('code', { method: 'POST', body: JSON.stringify({ code, action: 'unbind', device: d.device }) }) }
+    find()
+  } catch (e) { alert(e.message) }
 }
 async function stats() {
   try {

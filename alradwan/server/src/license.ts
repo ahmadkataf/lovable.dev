@@ -11,7 +11,7 @@
 export interface LicenseEnv { DB: D1Database; TOKEN_SECRET?: string; ADMIN_KEY?: string }
 
 const ALPHABET = '23456789ABCDEFGHJKLMNPQRSTUVWXYZ'
-const TOKEN_TTL = 30 * 86400000       // a session lasts 30 days; the app renews it every time it opens with internet
+const TOKEN_TTL = 400 * 86400000      // a session is a device/code binding re-checked against the row on every call, so it may live long
 const FAIL_WINDOW = 15 * 60000
 const FAIL_LIMIT_DEVICE = 8
 const FAIL_LIMIT_IP = 150
@@ -93,13 +93,9 @@ async function activate(req: Request, env: LicenseEnv): Promise<Response> {
   const now = Date.now()
   const name = String(b.name ?? '').slice(0, 60)
   if (!devices.some(d => d.device === b.device)) {
-    await env.DB.prepare('INSERT OR IGNORE INTO license_devices (code, device, name, bound_at, last_seen) VALUES (?, ?, ?, ?, ?)').bind(code, b.device, name, now, now).run()
-    // several devices racing for the last seat: only those that got in may continue
-    const after = await getDevices(env, code!)
-    if (after.length > row!.max_devices && !after.slice(0, row!.max_devices).some(d => d.device === b.device)) {
-      await env.DB.prepare('DELETE FROM license_devices WHERE code = ? AND device = ?').bind(code, b.device).run()
-      return fail('used', 403)
-    }
+    // the insert itself counts the seats, so two devices racing for the last one cannot both get it
+    const r = await env.DB.prepare('INSERT INTO license_devices (code, device, name, bound_at, last_seen) SELECT ?, ?, ?, ?, ? WHERE (SELECT COUNT(*) FROM license_devices WHERE code = ?) < ?').bind(code, b.device, name, now, now, code, row!.max_devices).run()
+    if (!r.meta.changes) { await log(env, 'activate-fail', req, code, b.device, 'used'); return fail('used', 403) }
   }
   await env.DB.prepare('UPDATE licenses SET last_seen = ? WHERE code = ?').bind(now, code).run()
   await log(env, 'activate', req, code, b.device, name)
@@ -112,6 +108,8 @@ async function session(req: Request, env: LicenseEnv): Promise<Response> {
   if (!s || s.d !== b.device) return fail('session', 401)
   const row = await getCode(env, s.c)
   const devices = await getDevices(env, s.c)
+  if (row?.revoked) return fail('revoked', 403)
+  if (row?.expires_at && row.expires_at < Date.now()) return fail('expired', 403)
   if (!devices.some(d => d.device === s.d)) return fail('moved', 403)
   const why = refuse(row, devices, s.d)
   if (why) return fail(why, 403)
@@ -135,12 +133,19 @@ function isAdmin(req: Request, env: LicenseEnv): boolean {
 
 async function admin(req: Request, env: LicenseEnv, path: string): Promise<Response> {
   if (!env.ADMIN_KEY) return fail('not-configured', 503)
-  if (!isAdmin(req, env)) return fail('admin', 401)
+  if (!isAdmin(req, env)) {
+    const since = Date.now() - FAIL_WINDOW
+    const n = await env.DB.prepare(`SELECT COUNT(*) AS n FROM license_events WHERE kind = 'admin-fail' AND at > ? AND ip = ?`).bind(since, ip(req)).first<{ n: number }>()
+    if ((n?.n ?? 0) >= 20) return fail('wait', 429)
+    await log(env, 'admin-fail', req)
+    return fail('admin', 401)
+  }
   const url = new URL(req.url)
   if (path === 'codes' && req.method === 'POST') {
     const b = await body(req)
     const count = Math.max(1, Math.min(200, Number(b.count) || 1))
     const expires = b.expiresAt === null || b.expiresAt === undefined ? null : Number(b.expiresAt)
+    if (expires !== null && !(Number.isFinite(expires) && expires > 0)) return fail('expiry')   // a mistyped date must not mean "forever"
     const maxDevices = Math.max(1, Math.min(10, Number(b.maxDevices) || 2))
     const plan = String(b.plan ?? 'year').slice(0, 20)
     const now = Date.now()
@@ -154,8 +159,8 @@ async function admin(req: Request, env: LicenseEnv, path: string): Promise<Respo
   if (path === 'codes' && req.method === 'GET') {
     const q = `%${(url.searchParams.get('q') || '').replace(/-/g, '').trim()}%`
     const status = url.searchParams.get('status') || ''
-    const where = ['(l.code LIKE ? OR l.note LIKE ? OR l.seller LIKE ? OR l.shop_name LIKE ?)']
-    const args: unknown[] = [q.toUpperCase(), q, q, q]
+    const where = ['(l.code LIKE ? OR l.note LIKE ? OR l.seller LIKE ? OR l.shop_name LIKE ? OR EXISTS (SELECT 1 FROM license_devices d WHERE d.code = l.code AND (d.device LIKE ? OR d.name LIKE ?)))']
+    const args: unknown[] = [q.toUpperCase(), q, q, q, q.toLowerCase().replace(/^%/, '').replace(/%$/, '') + '%', q]
     if (status === 'new') where.push('l.revoked = 0 AND (SELECT COUNT(*) FROM license_devices d WHERE d.code = l.code) = 0')
     if (status === 'used') where.push('l.revoked = 0 AND (SELECT COUNT(*) FROM license_devices d WHERE d.code = l.code) > 0')
     if (status === 'revoked') where.push('l.revoked = 1')
@@ -182,7 +187,7 @@ async function admin(req: Request, env: LicenseEnv, path: string): Promise<Respo
       await env.DB.prepare('UPDATE licenses SET moves = moves + 1 WHERE code = ?').bind(code).run()
     }
     else if (act === 'note') await env.DB.prepare('UPDATE licenses SET note = ?, shop_name = ? WHERE code = ?').bind(String(b.note ?? '').slice(0, 200), String(b.shopName ?? '').slice(0, 80), code).run()
-    else if (act === 'expiry') await env.DB.prepare('UPDATE licenses SET expires_at = ? WHERE code = ?').bind(b.expiresAt === null ? null : Number(b.expiresAt), code).run()
+    else if (act === 'expiry') { const e = b.expiresAt === null ? null : Number(b.expiresAt); if (e !== null && !(Number.isFinite(e) && e > 0)) return fail('expiry'); await env.DB.prepare('UPDATE licenses SET expires_at = ? WHERE code = ?').bind(e, code).run() }
     else if (act === 'devices') await env.DB.prepare('UPDATE licenses SET max_devices = ? WHERE code = ?').bind(Math.max(1, Math.min(10, Number(b.maxDevices) || 2)), code).run()
     else return fail('action')
     await log(env, 'admin', req, code, null, act)
@@ -190,6 +195,7 @@ async function admin(req: Request, env: LicenseEnv, path: string): Promise<Respo
   }
   if (path === 'stats') {
     const week = Date.now() - 7 * 86400000, now = Date.now()
+    await env.DB.prepare('DELETE FROM license_events WHERE at < ?').bind(now - 180 * 86400000).run()
     const s = await env.DB.prepare(`SELECT COUNT(*) AS total, SUM(revoked) AS revoked, SUM(expires_at IS NOT NULL AND expires_at < ?) AS expired, SUM(last_seen > ?) AS active7,
       (SELECT COUNT(DISTINCT code) FROM license_devices) AS activated, (SELECT COUNT(*) FROM license_devices) AS devices FROM licenses`).bind(now, week).first()
     const soon = await env.DB.prepare('SELECT code, shop_name, expires_at FROM licenses WHERE revoked = 0 AND expires_at IS NOT NULL AND expires_at BETWEEN ? AND ? ORDER BY expires_at LIMIT 30').bind(now, now + 30 * 86400000).all<{ code: string; shop_name: string; expires_at: number }>()
