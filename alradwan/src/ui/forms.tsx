@@ -150,8 +150,8 @@ export function ProductForm({ initial, currentStock, onClose, onSaved }: { initi
           <div className="tabs small"><button className={f.kind === 'product' ? 'active' : ''} onClick={() => set('kind', 'product')}>قطعة (لها مخزون)</button><button className={f.kind === 'service' ? 'active' : ''} onClick={() => set('kind', 'service')}>خدمة / أجرة عمل</button></div>
         </Field>
         <Field label="الاسم" required className="full"><input className="input lg" value={f.name} onChange={e => set('name', e.target.value)} autoFocus placeholder="مثال: فلتر زيت" /></Field>
-        <Field label="الكود / رقم القطعة" help="يُولَّد تلقائياً إن تركته"><input className="input" value={f.code} onChange={e => set('code', e.target.value)} dir="ltr" style={{ textAlign: 'right' }} /></Field>
-        <Field label="الباركود" help="امسحه بالقارئ وهو في هذا الحقل؛ عدة باركودات تُفصل بفاصلة"><input className="input" value={f.barcode} onChange={e => set('barcode', e.target.value)} dir="ltr" style={{ textAlign: 'right' }} inputMode="numeric" /></Field>
+        <Field label="الكود / رقم القطعة" help="رقمك الداخلي للقطعة (أو رقم المورد) تكتبه بنفسك؛ يُولَّد تلقائياً إن تركته"><input className="input" value={f.code} onChange={e => set('code', e.target.value)} dir="ltr" style={{ textAlign: 'right' }} /></Field>
+        <Field label="الباركود" help="الرقم المطبوع تحت الخطوط على العلبة (EAN-13 بـ13 رقماً، أو الطويل Code 128، أو رمز QR). امسحه بالقارئ وهو في هذا الحقل؛ عدة باركودات تُفصل بفاصلة"><input className="input" value={f.barcode} onChange={e => set('barcode', e.target.value)} dir="ltr" style={{ textAlign: 'right' }} inputMode="numeric" /></Field>
         <Field label="التصنيف">
           <select className="select" value={f.categoryId ?? ''} onChange={e => { set('categoryId', e.target.value || undefined); setNewCat('') }}>
             <option value="">بدون تصنيف</option>

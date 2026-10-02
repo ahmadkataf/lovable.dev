@@ -6,6 +6,7 @@
 import { create } from 'zustand'
 import { API_URL } from './platform'
 import { SALES } from '../sales'
+import { OFFLINE_CODE_HASHES } from '../offlineCodes'
 
 export type LicenseState = 'off' | 'loading' | 'trial' | 'active' | 'grace' | 'expired' | 'revoked' | 'moved' | 'none' | 'blocked'
 export interface License { state: LicenseState; until: number | null; code: string; device: string; lastCheck: number; trialEnds: number; shopName: string; devices: number; maxDevices: number; notice: string }
@@ -37,7 +38,7 @@ async function serverDevice(): Promise<string> {
 /** Shown to the shop for support: 8 characters of the device id. */
 export const shortDevice = (d: string) => d.slice(0, 8).toUpperCase().replace(/(.{4})/, '$1-')
 
-type Saved = { token: string; until: number | null; code: string; lastCheck: number; shopName?: string; devices?: number; maxDevices?: number }
+type Saved = { token: string; until: number | null; code: string; lastCheck: number; shopName?: string; devices?: number; maxDevices?: number; offline?: boolean }
 const saved = (): Saved | null => { try { return JSON.parse(read(KEY) || 'null') } catch { return null } }
 
 async function post(path: string, body: unknown): Promise<{ status: number; data: Record<string, unknown> }> {
@@ -67,6 +68,12 @@ function trialEnds(): number {
   return first + SALES.trialDays * DAY
 }
 
+async function isOfflineCode(clean: string): Promise<boolean> {
+  if (!OFFLINE_CODE_HASHES.length) return false
+  const h = [...new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(`alradwan-offline:${clean}`)))].map(b => b.toString(16).padStart(2, '0')).join('')
+  return OFFLINE_CODE_HASHES.includes(h)
+}
+
 /** Works out the state from what is stored, then asks the server when it is time. */
 export async function checkLicense(force = false): Promise<void> {
   if (!API_URL) { useLicense.setState({ state: 'off' }); return }
@@ -74,6 +81,8 @@ export async function checkLicense(force = false): Promise<void> {
   const s = saved()
   const te = trialEnds()
   if (!s) { useLicense.setState({ state: te > Date.now() ? 'trial' : 'none', device: dev, trialEnds: te, notice: '' }); return }
+  // an emergency code given by hand: permanent on this device, never checked online
+  if (s.offline) { useLicense.setState({ state: 'active', until: null, code: s.code, device: dev, lastCheck: s.lastCheck, trialEnds: te, shopName: '', devices: 1, maxDevices: 1, notice: '' }); return }
   const now = Date.now()
   const stale = now - s.lastCheck
   const fromStore = (state: LicenseState, notice = '') => useLicense.setState({ state, until: s.until, code: s.code, device: dev, lastCheck: s.lastCheck, trialEnds: te, shopName: s.shopName ?? '', devices: s.devices ?? 0, maxDevices: s.maxDevices ?? 0, notice })
@@ -103,6 +112,11 @@ export async function activate(code: string, name: string): Promise<string> {
   const clean = code.toUpperCase().replace(/[^0-9A-Z]/g, '')
   if (clean.length !== 12) return 'format'
   if (!API_URL) return 'off'
+  if (await isOfflineCode(clean)) {
+    write(KEY, JSON.stringify({ token: '', until: null, code: `${clean.slice(0, 4)}-${clean.slice(4, 8)}-${clean.slice(8)}`, lastCheck: Date.now(), offline: true } satisfies Saved))
+    await checkLicense(false)
+    return 'ok'
+  }
   if (!navigator.onLine) return 'network'
   const dev = await device()
   let res

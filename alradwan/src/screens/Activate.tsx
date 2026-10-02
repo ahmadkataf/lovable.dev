@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { KeyRound, MessageCircle, Copy, Check, Download, LogIn } from 'lucide-react'
+import { KeyRound, MessageCircle, Copy, Check, Download, LogIn, ShieldCheck, Smartphone, Monitor, Globe, WifiOff } from 'lucide-react'
 import { activate, shortDevice, useLicense } from '../lib/license'
 import { SALES } from '../sales'
 import { downloadBackup } from '../lib/backup'
@@ -11,19 +11,19 @@ const ERR: Record<string, string> = {
   used: 'هذا الكود مستخدم على العدد الأقصى من الأجهزة. اطلب من البائع فك جهاز قديم.',
   revoked: 'هذا الكود ملغى. تواصل مع البائع.',
   expired: 'انتهت مدة هذا الكود. تواصل مع البائع لتجديد الاشتراك.',
-  network: 'لا يوجد اتصال بالإنترنت. التفعيل يحتاج إنترنت، اتصل ثم أعد المحاولة.',
+  network: 'لا يوجد اتصال بالإنترنت. التفعيل يحتاج إنترنت مرة واحدة: اتصل ثم اضغط «تفعيل» مرة أخرى.',
   wait: 'محاولات كثيرة خاطئة. انتظر ربع ساعة ثم حاول مرة أخرى.',
   'not-configured': 'خادم التفعيل غير جاهز بعد. تواصل مع البائع.',
   server: 'حدث خطأ في الخادم. حاول بعد قليل.',
 }
 
-/** Where the shop enters the code it bought; also the wall the app shows when the trial or the subscription is over. */
+/** Where the shop enters the code it bought; also the wall the app shows when there is no valid subscription. */
 export function Activate({ shopName, onClose }: { shopName: string; onClose?: () => void }) {
   const lic = useLicense()
   const [code, setCode] = useState('')
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null)
   const [busy, setBusy] = useState(false)
-  const [copied, setCopied] = useState(false)
+  const [copied, setCopied] = useState<'dev' | 'pay' | null>(null)
   const dev = shortDevice(lic.device)
   const wa = SALES.whatsapp ? `https://wa.me/${SALES.whatsapp.replace(/\D/g, '')}?text=${encodeURIComponent(`مرحباً، أريد كود تفعيل لبرنامج كراج الرضوان.\nاسم المحل: ${shopName}\nرقم الجهاز: ${dev}`)}` : ''
   const submit = async () => {
@@ -31,49 +31,63 @@ export function Activate({ shopName, onClose }: { shopName: string; onClose?: ()
     const r = await activate(code, shopName)
     setBusy(false)
     setMsg(r === 'ok' ? { ok: true, text: 'تم التفعيل. البرنامج جاهز للعمل.' } : { ok: false, text: ERR[r] || ERR.server })
-    if (r === 'ok') setTimeout(() => onClose?.(), 800)
+    if (r === 'ok') setTimeout(() => onClose?.(), 900)
   }
-  const copy = () => { try { navigator.clipboard?.writeText(dev); setCopied(true) } catch { /* ignore */ } }
+  const copy = (what: 'dev' | 'pay', text: string) => { try { navigator.clipboard?.writeText(text); setCopied(what); setTimeout(() => setCopied(null), 1500) } catch { /* ignore */ } }
   const wall = !onClose
+  const active = lic.state === 'active'
+  const offline = typeof navigator !== 'undefined' && !navigator.onLine
   return (
-    <div className="login">
-      <div className="card pad" style={{ maxWidth: 520 }}>
-        <div style={{ textAlign: 'center', marginBottom: 12 }}>
-          <img src="./icon.svg" alt="" style={{ width: 64, height: 64, borderRadius: 16 }} />
-          <h1 style={{ marginTop: 8 }}><KeyRound size={20} style={{ verticalAlign: -3 }} /> تفعيل البرنامج</h1>
-          {lic.state === 'active' && <p className="muted">البرنامج مفعّل{lic.until ? ` حتى ${fmtDate(lic.until)}` : ' — اشتراك دائم'} · الكود <span className="mono">{lic.code}</span></p>}
-          {lic.state === 'trial' && <p className="muted">النسخة التجريبية تنتهي في {fmtDate(lic.trialEnds)}. أدخل الكود لمتابعة العمل بلا انقطاع.</p>}
-          {lic.state === 'none' && !lic.notice && <p className="muted">انتهت الفترة التجريبية. بياناتك محفوظة؛ أدخل كود التفعيل لمتابعة العمل.</p>}
-          {lic.notice && <div className="badge tone-warning" style={{ whiteSpace: 'normal', textAlign: 'right' }}>{lic.notice}</div>}
+    <div className="activate">
+      <div className="activate-box">
+        <div className="activate-hero">
+          <img src="./icon.svg" alt="" />
+          <div>
+            <h1>كراج الرضوان</h1>
+            <p>نظام إدارة محل قطع غيار السيارات — بيع، مخزون، عملاء، محاسبة كاملة، سيارات وصيانة، على ويندوز وأندرويد والويب</p>
+          </div>
+          <div className="activate-platforms"><span><Monitor size={14} /> ويندوز</span><span><Smartphone size={14} /> أندرويد</span><span><Globe size={14} /> الويب</span></div>
         </div>
-        {lic.state !== 'active' && (
-          <div className="stack">
-            {(SALES.price || SALES.whatsapp || SALES.shamCash || SALES.syriatelCash) && (
-              <div className="card pad" style={{ background: 'var(--surface-2)' }}>
-                <b>١. اشترِ الكود</b>
-                {SALES.price && <div className="mt">السعر: <b>{SALES.price}</b></div>}
-                {SALES.shamCash && <div className="mt" style={{ textAlign: 'center' }}><div className="small">ادفع عبر <b>شام كاش</b>: امسح الرمز أو انسخ العنوان</div><img src="./shamcash-qr.png" alt="رمز شام كاش" style={{ width: 180, height: 180, borderRadius: 12, margin: '6px auto', display: 'block', background: '#fff' }} /><div className="row" style={{ justifyContent: 'center' }}><span className="mono small" style={{ wordBreak: 'break-all' }}>{SALES.shamCash}</span><button className="btn sm ghost" onClick={() => { try { navigator.clipboard?.writeText(SALES.shamCash) } catch { /* ignore */ } }} title="نسخ العنوان"><Copy /></button></div></div>}
-                {SALES.syriatelCash && <div className="small">سيريتل كاش: <span className="mono">{SALES.syriatelCash}</span></div>}
-                <div className="row mt" style={{ flexWrap: 'wrap' }}>
-                  <span className="small muted">رقم جهازك: <b className="mono">{dev || '…'}</b></span>
-                  <button className="btn sm ghost" onClick={copy}>{copied ? <Check /> : <Copy />} {copied ? 'نُسخ' : 'نسخ'}</button>
-                  {wa && <a className="btn sm success" href={wa} target="_blank" rel="noreferrer"><MessageCircle /> اطلب الكود واتساب</a>}
+
+        {active ? (
+          <div className="activate-body">
+            <div className="activate-ok"><ShieldCheck size={40} /><div><b>البرنامج مفعّل</b><div className="muted small">{lic.until ? `الاشتراك صالح حتى ${fmtDate(lic.until)}` : 'اشتراك دائم'} · الكود <span className="mono">{lic.code}</span></div></div></div>
+            {onClose && <button className="btn primary block mt" onClick={onClose}>متابعة العمل</button>}
+          </div>
+        ) : (
+          <div className="activate-body activate-cols">
+            <section className="activate-pay">
+              {lic.notice ? <div className="badge tone-warning activate-notice">{lic.notice}</div> : wall && <div className="activate-notice muted">{lic.state === 'none' ? 'هذه النسخة تحتاج كود تفعيل. بياناتك محفوظة على الجهاز ولا تضيع.' : ''}</div>}
+              <div className="activate-step"><span className="activate-num">١</span><div><b>ادفع قيمة الاشتراك</b>{SALES.price && <div className="activate-price">{SALES.price}</div>}</div></div>
+              {SALES.shamCash && (
+                <div className="activate-qr">
+                  <img src="./shamcash-qr.png" alt="رمز شام كاش" />
+                  <div>
+                    <div className="small"><b>شام كاش</b> — امسح الرمز من التطبيق، أو انسخ العنوان:</div>
+                    <div className="activate-addr"><span className="mono">{SALES.shamCash}</span><button className="btn sm ghost icon" onClick={() => copy('pay', SALES.shamCash)} aria-label="نسخ العنوان">{copied === 'pay' ? <Check /> : <Copy />}</button></div>
+                    {SALES.syriatelCash && <div className="small mt">سيريتل كاش: <span className="mono">{SALES.syriatelCash}</span></div>}
+                  </div>
                 </div>
+              )}
+              <div className="activate-step"><span className="activate-num">٢</span><div><b>أرسل إيصال الدفع ورقم جهازك على واتساب</b><div className="small muted">يصلك كود التفعيل برسالة خلال دقائق</div></div></div>
+              <div className="activate-device"><span className="small muted">رقم جهازك</span><b className="mono">{dev || '…'}</b><button className="btn sm ghost" onClick={() => copy('dev', dev)}>{copied === 'dev' ? <Check /> : <Copy />} {copied === 'dev' ? 'نُسخ' : 'نسخ'}</button></div>
+              {wa && <a className="btn success block" href={wa} target="_blank" rel="noreferrer"><MessageCircle /> اطلب الكود على واتساب {SALES.whatsapp}</a>}
+            </section>
+            <section className="activate-enter">
+              <div className="activate-step"><span className="activate-num">٣</span><div><b>أدخل كود التفعيل</b><div className="small muted">يعمل الكود على جهازين (حاسوب وهاتف) حتى نهاية الاشتراك</div></div></div>
+              <input className="input lg mono activate-input" dir="ltr" value={code} onChange={e => { setCode(e.target.value); setMsg(null) }} placeholder="XXXX-XXXX-XXXX" autoCapitalize="characters" autoCorrect="off" spellCheck={false} autoFocus onKeyDown={e => { if (e.key === 'Enter') submit() }} />
+              <button className="btn primary block lg" disabled={busy || code.replace(/[^0-9a-z]/gi, '').length < 12} onClick={submit}><LogIn /> {busy ? 'جارٍ التحقق…' : 'تفعيل'}</button>
+              {msg && <div className={`badge ${msg.ok ? 'tone-success' : 'tone-danger'} activate-notice`}>{msg.text}</div>}
+              {offline && !msg && <div className="badge tone-warning activate-notice"><WifiOff size={14} /> لا يوجد اتصال بالإنترنت الآن. التفعيل يحتاج اتصالاً مرة واحدة فقط.</div>}
+              <p className="help">بعد التفعيل يعمل البرنامج بلا إنترنت، ويتحقق من الاشتراك عندما يتوفر الاتصال. كل بياناتك تبقى على جهازك.</p>
+              <div className="btn-row" style={{ justifyContent: 'center' }}>
+                {wall && <button className="btn" onClick={() => downloadBackup().catch(() => {})}><Download /> حفظ نسخة احتياطية من بياناتي</button>}
+                {onClose && <button className="btn" onClick={onClose}>لاحقاً</button>}
               </div>
-            )}
-            <div>
-              <b>{SALES.whatsapp ? '٢. ' : ''}أدخل كود التفعيل</b>
-              <input className="input lg mt mono" dir="ltr" value={code} onChange={e => { setCode(e.target.value); setMsg(null) }} placeholder="XXXX-XXXX-XXXX" autoCapitalize="characters" autoCorrect="off" spellCheck={false} autoFocus onKeyDown={e => { if (e.key === 'Enter') submit() }} />
-              <button className="btn primary block lg mt" disabled={busy || code.replace(/[^0-9a-z]/gi, '').length < 12} onClick={submit}><LogIn /> {busy ? 'جارٍ التحقق…' : 'تفعيل'}</button>
-              {msg && <div className={`badge ${msg.ok ? 'tone-success' : 'tone-danger'} mt`} style={{ whiteSpace: 'normal', textAlign: 'right' }}>{msg.text}</div>}
-              <p className="help mt">يحتاج التفعيل اتصالاً بالإنترنت مرة واحدة، ثم يعمل البرنامج بلا إنترنت ويتحقق من الاشتراك عندما يتوفر الاتصال.</p>
-            </div>
+            </section>
           </div>
         )}
-        <div className="btn-row mt" style={{ justifyContent: 'center' }}>
-          {wall && <button className="btn" onClick={() => downloadBackup().catch(() => {})}><Download /> حفظ نسخة احتياطية من بياناتي</button>}
-          {onClose && <button className="btn" onClick={onClose}>{lic.state === 'active' ? 'إغلاق' : 'لاحقاً'}</button>}
-        </div>
+        <div className="activate-foot"><KeyRound size={13} /> الأكواد تُباع من المطوّر حصراً · الدعم الفني على واتساب</div>
       </div>
     </div>
   )
