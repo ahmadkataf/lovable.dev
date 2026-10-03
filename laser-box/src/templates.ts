@@ -144,59 +144,53 @@ export const TEMPLATES: Template[] = [
   {
     id: 'hinged',
     name: 'صندوق بغطاء مفصلي',
-    desc: 'يفتح ويُغلق على محور خشبي (عود) يمرّ في أذنين خلف الصندوق. يدور بحرّية دون أن يصطدم بالخلفية.',
+    desc: 'ستّ قطع: الغطاء لوح واحد له لسانان يدخلان في ثقبي الجانبين ويدور عليهما. بلا محور ولا براغٍ.',
     icon: `<path d="M12 30 32 20 52 30 32 40z"/><path d="M12 30v14l20 10V40M52 30v14L32 54"/><path d="M52 30 40 6l-24 8"/><path d="M52 30 58 20M40 6l18 14"/><circle cx="50" cy="29" r="1.8" fill="currentColor"/>`,
-    params: [...DIMS, mm('lidH', 'ارتفاع الغطاء', 8, 500), mm('pin', 'قطر المحور', 1.5, 10, 'عود خشبي أو سيخ خيزران أو قضيب أكريليك'), mm('gap', 'خلوص الغطاء', 0, 2, 'فراغ بين جانب الغطاء وجانب القاعدة ليدور بسهولة')],
-    defaults: { W: 120, D: 80, H: 50, lidH: 30, pin: 3, gap: 0.3 },
+    params: [
+      ...DIMS,
+      mm('tab', 'عرض اللسان', 1, 20, 'يُضبط تلقائياً = السماكة إن تركته 0؛ مقطعه مربّع ليدور في الثقب'),
+      mm('hc', 'خلوص المفصل', 0, 1.5, 'يُضاف لقطر الثقب فوق قُطر مقطع اللسان'),
+      mm('gap', 'خلوص الغطاء', 0.2, 2, 'فراغ بين الغطاء والجانبين والخلفية'),
+      mm('pull', 'نصف قطر فتحة الإصبع', 0, 30, 'في حافّة الواجهة الأمامية تحت الغطاء'),
+    ],
+    defaults: { W: 120, D: 80, H: 50, tab: 0, hc: 0.4, gap: 0.5, pull: 8 },
     innerAdd: t => ({ W: 2 * t, D: 2 * t, H: t }),
     build(p, c) {
       const warnings: string[] = []
       checkBasics(p, c, warnings)
-      const { W, D, H, lidH, pin, gap } = p, t = c.t
-      // The pivot sits e behind the back face and e below the rim, inside a rounded ear on every side panel.
-      // The ear stays within e·√2 of the pivot, which is the closest the lid's back panel ever comes, so nothing collides.
-      const e = pin / 2 + 2.5, r = 1.25 * e, ear = e + r, neck = 2 * t
-      if (H < ear + 2 * t + 2) warnings.push('ارتفاع القاعدة صغير جداً لأذن المفصل.')
-      if (lidH < neck + 2 * t + 2) warnings.push('ارتفاع الغطاء صغير جداً لأذن المفصل.')
-      const W2 = W + 2 * t + 2 * gap
-      const earRect = (y: number) => rect(D - t, y, e + r + t, ear)
+      const { W, D, H, pull } = p, t = c.t
+      const g = pivotLid(p, t)
+      if (g.earX < 2 * t + 10) warnings.push('العمق صغير جداً لأذن المفصل.')
+      if (H < g.a + 4 * t) warnings.push('الارتفاع صغير جداً بالنسبة لأذن المفصل.')
+      if (g.tab > 2 * t) warnings.push('لسان عريض يعني ثقباً كبيراً وخلخلة في الدوران؛ الأفضل أن يساوي السماكة.')
+      const lidCut = (x: number) => [rect(x, g.earX - g.gap, t + g.gap, g.tabY0 - (g.earX - g.gap)), rect(x, g.tabY1, t + g.gap, g.lidD - g.tabY1)]
       const panels: PanelSpec[] = [
-        { id: 'base-bottom', name: 'القاعدة — القاعدة', w: W, h: D, top: 'male', right: 'male', bottom: 'male', left: 'male' },
-        { id: 'base-front', name: 'القاعدة — الواجهة الأمامية', w: W, h: H, bottom: 'female', left: 'male', right: 'male' },
+        { id: 'bottom', name: N.bottom, w: W, h: D, top: 'male', right: 'male', bottom: 'male', left: 'male' },
         {
-          id: 'base-back', name: 'القاعدة — الواجهة الخلفية', w: W, h: H,
-          bottom: 'female', left: { type: 'male', from: ear, len: H - ear }, right: { type: 'male', from: ear, len: H - ear },
-          cuts: [rect(0, 0, t, ear), rect(W - t, 0, t, ear)], note: 'زاويتاها العلويتان مقطوعتان ليملأهما الجانبان',
+          id: 'front', name: N.front, w: W, h: H, bottom: 'female', left: 'male', right: 'male',
+          post: loops => { if (pull > 0 && W > 2 * pull + 4 * t) edgeNotch(loops, W / 2, 0, pull) },
+          note: 'أقصر من الخلفية بسماكة الغطاء، وفيها فتحة الإصبع',
+        },
+        { id: 'back', name: N.back, w: W, h: H + t, bottom: 'female', left: 'male', right: 'male', note: 'ترتفع إلى مستوى سطح الغطاء' },
+        {
+          id: 'side', name: N.side, w: D, h: H + g.a, count: 2,
+          bottom: 'female', left: { type: 'female', from: g.a, len: H }, right: { type: 'female', from: g.a - t, len: H + t },
+          cuts: [rect(0, 0, g.earX, g.a)],
+          holes: [circle(g.pivotX, g.a - t / 2, g.holeR)],
+          post: loops => { roundCorner(loops, g.earX, 0, g.a); roundCorner(loops, D, 0, Math.min(2, g.a - t)) },
+          note: 'أذن خلفية مستديرة فيها ثقب اللسان',
         },
         {
-          id: 'base-side', name: 'القاعدة — الجانب', w: D, h: H, count: 2,
-          bottom: 'female', left: 'female', right: { type: 'female', from: ear, len: H - ear },
-          adds: [earRect(0)],
-          holes: [circle(D + e, e, (pin + 0.3) / 2)],
-          post: loops => { roundCorner(loops, D + e + r, 0, r); roundCorner(loops, D + e + r, ear, r) },
-          note: 'أذن خلفية مستديرة فيها ثقب المحور',
-        },
-        { id: 'lid-top', name: 'الغطاء — السطح', w: W2, h: D, top: 'male', right: 'male', bottom: 'male', left: 'male' },
-        { id: 'lid-front', name: 'الغطاء — الأمام', w: W2, h: lidH, top: 'female', left: 'male', right: 'male' },
-        {
-          id: 'lid-back', name: 'الغطاء — الخلف', w: W2, h: lidH,
-          top: 'female', left: { type: 'male', from: 0, len: lidH - neck }, right: { type: 'male', from: 0, len: lidH - neck },
-          cuts: [rect(0, lidH - neck, t, neck), rect(W2 - t, lidH - neck, t, neck)],
-        },
-        {
-          id: 'lid-side', name: 'الغطاء — الجانب', w: D, h: lidH, count: 2,
-          top: 'female', left: { type: 'female', from: 0, len: lidH }, right: { type: 'female', from: 0, len: lidH - neck },
-          adds: [earRect(lidH)],
-          holes: [circle(D + e, lidH + e, (pin + 0.1) / 2)],
-          post: loops => { roundCorner(loops, D + e + r, lidH, r); roundCorner(loops, D + e + r, lidH + ear, r); roundCorner(loops, D - t, lidH + ear, r) },
-          note: 'يركب خارج جانب القاعدة، وأذنه تنطبق على أذن القاعدة',
+          id: 'lid', name: N.lid, w: W, h: g.lidD,
+          cuts: [...lidCut(0), ...lidCut(W - t - g.gap)],
+          note: 'الزاويتان الخلفيتان مقصوصتان ليمرّ بين الأذنين، واللسانان يبرزان منهما',
         },
       ]
       const notes = [
-        `جانبا الغطاء يركبان خارج جانبي القاعدة (بخلوص ${gap} مم)، وأذنا الغطاء تنطبقان على أذني القاعدة خلف الصندوق.`,
-        `المحور: عود بقطر ${pin} مم وطول ${W2.toFixed(1)} مم يمرّ خلف الصندوق في الثقوب الأربعة (أو عودان قصيران، واحد لكل جهة).`,
-        'ثقب الغطاء أضيق ليثبت العود فيه، وثقب القاعدة أوسع قليلاً ليدور. الغطاء يدور بحرّية إلى الخلف دون أن يصطدم بالخلفية.',
-        'عرض الغطاء الخارجي = عرض القاعدة + 2 × السماكة + 2 × الخلوص.',
+        `اللسان ${g.tab} × ${t} مم يدور في ثقب قطره ${(2 * g.holeR).toFixed(2)} مم (قُطر مقطع اللسان ${Math.hypot(g.tab, t).toFixed(2)} + خلوص ${p.hc}).`,
+        `الأذن ترتفع ${g.a.toFixed(1)} مم فوق حافّة الجانب عند الزاوية الخلفية، والغطاء يستقرّ على حوافّ الجانبين والواجهة بعرض الصندوق كاملاً.`,
+        'التجميع: ركّب القاعدة والواجهتين على جانب واحد، أدخل لسان الغطاء في ثقبه، ثم أدخل الجانب الثاني بحيث يدخل اللسان في ثقبه مع دخول الأصابع في وقت واحد. لا يحتاج ثنياً ولا غراءً في الغطاء.',
+        'الجزء الخلفي من الغطاء خلف المحور يهبط داخل الصندوق عند الفتح، فالخلفية بارتفاع سطح الغطاء ولا تعيقه. لتخفيف الخلخلة برّد حوافّ اللسان قليلاً ليقترب من الدائرة.',
       ]
       return { panels, notes, warnings }
     },
@@ -330,5 +324,18 @@ export const TEMPLATES: Template[] = [
     },
   },
 ]
+
+/** Geometry of the pivot-tab lid: where the ear, the pivot hole and the lid's tabs sit. Side-panel coords: y = 0 is the ear top, the rim is at y = a. */
+export function pivotLid(p: Record<string, number>, t: number) {
+  const tab = p.tab > 0 ? p.tab : t
+  const holeR = (Math.hypot(tab, t) + p.hc) / 2
+  const a = t / 2 + holeR + 2.5                 // ear rise above the rim: the hole keeps 2.5 mm to the ear top
+  const pivotX = p.D - t - holeR - 2            // 2 mm of wall between the hole and the back joint strip
+  const earX = pivotX - t / 2 - a               // the quarter-round ear foot; its centre sits t/2 ahead of and below the pivot
+  const gap = p.gap
+  const lidD = p.D - t - 1.5                    // the lid stops 1.5 mm short of the back wall: its tail dips inside when opening
+  const tabY0 = pivotX - tab / 2, tabY1 = pivotX + tab / 2
+  return { tab, holeR, a, pivotX, earX, gap, lidD, tabY0, tabY1 }
+}
 
 export const templateById = (id: string) => TEMPLATES.find(t => t.id === id) ?? TEMPLATES[0]

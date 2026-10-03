@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { unionRects, rect, offsetLoop, circle, signedArea, bbox, loopLength, edgeNotch, roundCorner, loopToPath, arcInfo, Loop } from './geom'
 import { buildPanel, fingerCount, edgeCuts } from './joints'
-import { TEMPLATES } from './templates'
+import { TEMPLATES, pivotLid } from './templates'
 import { generate, DEFAULT_SETTINGS } from './generate'
 import { toDXF, toSVG } from './export'
 
@@ -127,18 +127,73 @@ describe('templates', () => {
     const side = d.panels.find(p => p.id === 'side')!
     expect(side.loops.filter(l => signedArea(l) > 0)).toHaveLength(1)
   })
-  it('the hinged lid is wider than the base by two thicknesses', () => {
-    const d = generate(TEMPLATES.find(t => t.id === 'hinged')!, { W: 120, gap: 0.3 }, { ...s, kerf: 0 })
-    expect(d.panels.find(p => p.id === 'lid-top')!.w).toBeCloseTo(120 + 2 * s.t + 0.6)
-    const lidSide = d.panels.find(p => p.id === 'lid-side')!, baseSide = d.panels.find(p => p.id === 'base-side')!
-    expect(lidSide.loops.some(l => l.pts.length === 2)).toBe(true) // the pin hole
-    // both ears reach the same distance behind the back face, and both pivots line up on the rim
-    const e = 3 / 2 + 2.5, r = 1.25 * e
-    expect(lidSide.w).toBeCloseTo(80 + e + r)
-    expect(baseSide.w).toBeCloseTo(80 + e + r)
-    const hole = (p: typeof lidSide) => { const [a, b] = p.loops.find(l => l.pts.length === 2)!.pts; return { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 } }
-    expect(hole(baseSide).y + 30).toBeCloseTo(hole(lidSide).y) // base hole e below the rim, lid hole e below the lid's bottom edge
-    expect(hole(baseSide).x).toBeCloseTo(hole(lidSide).x)
+  it('the pivot lid has six pieces, tabs inside the ear holes, and clears everything through 110° of opening', () => {
+    const tpl = TEMPLATES.find(t => t.id === 'hinged')!
+    const t = 3, W = 120, D = 80, H = 50
+    const p = { ...tpl.defaults, W, D, H }
+    const d = generate(tpl, p, { ...s, t, kerf: 0 })
+    expect(d.pieceCount).toBe(6)
+    const g = pivotLid(p, t)
+    expect(g.tab).toBe(t)
+    expect(2 * g.holeR).toBeCloseTo(Math.hypot(3, 3) + 0.4)
+    // the hole keeps clear of the ear top, the ear's rounded front and the back joint strip
+    expect(g.a - t / 2 - g.holeR).toBeGreaterThanOrEqual(2.5 - 1e-9)
+    expect(Math.hypot(g.pivotX - (g.earX + g.a), (g.a - t / 2) - g.a) + g.holeR).toBeLessThan(g.a - 1.5)
+    expect(g.pivotX + g.holeR).toBeLessThanOrEqual(D - t - 2 + 1e-9)
+    // the lid: full width, two tabs reaching the outer faces, notches between
+    const lid = d.panels.find(x => x.id === 'lid')!
+    expect(lid.w).toBeCloseTo(W)
+    expect(lid.h).toBeCloseTo(g.lidD)
+    const outer = lid.loops.find(l => signedArea(l) > 0)!
+    const xsAtTab = outer.pts.filter(v => Math.abs(v.y - g.tabY0) < 2e-3 || Math.abs(v.y - g.tabY1) < 2e-3).map(v => v.x)
+    expect(xsAtTab).toContain(0)
+    expect(xsAtTab).toContain(W)
+    expect(xsAtTab.some(x => Math.abs(x - (t + g.gap)) < 2e-3)).toBe(true)
+    // side panel: hole centre t/2 above the rim, ear rises a above it
+    const side = d.panels.find(x => x.id === 'side')!
+    expect(side.h).toBeCloseTo(H + g.a)
+    const hole = side.loops.find(l => l.pts.length === 2)!
+    expect((hole.pts[0].y + hole.pts[1].y) / 2).toBeCloseTo(g.a - t / 2)
+
+    // --- sweep: side view, y down, pivot at (pivotX, a - t/2); opening lifts the front (depth 0)
+    const axis = { x: g.pivotX, y: g.a - t / 2 }
+    const rot = (pt: { x: number; y: number }, th: number) => {
+      const u = pt.x - axis.x, v = pt.y - axis.y
+      return { x: axis.x + u * Math.cos(th) - v * Math.sin(th), y: axis.y + u * Math.sin(th) + v * Math.cos(th) }
+    }
+    const rectPoly = (x0: number, y0: number, x1: number, y1: number) => [{ x: x0, y: y0 }, { x: x1, y: y0 }, { x: x1, y: y1 }, { x: x0, y: y1 }]
+    // the ear with its quarter-round front, sampled slightly oversize to stay conservative
+    const ear: { x: number; y: number }[] = [{ x: g.earX, y: g.a }]
+    for (let k = 0; k <= 24; k++) { const ang = Math.PI + (Math.PI / 2) * k / 24; ear.push({ x: g.earX + g.a + (g.a + 0.05) * Math.cos(ang), y: g.a + (g.a + 0.05) * Math.sin(ang) }) }
+    ear.push({ x: D, y: 0 }, { x: D, y: g.a })
+    const sideBody = rectPoly(0, g.a, D, H + g.a)
+    const backWall = rectPoly(D - t, g.a - t, D, H + g.a)
+    const frontWall = rectPoly(0, g.a, t, H + g.a)
+    const lidWide = rectPoly(0, g.a - t, g.earX - g.gap, g.a)         // exists in the ear planes
+    const lidNarrow = rectPoly(g.earX - g.gap, g.a - t, g.lidD, g.a)  // exists between the ears only
+    const overlapDepth = (A: { x: number; y: number }[], B: { x: number; y: number }[]) => {
+      let best = Infinity
+      for (const P of [A, B]) for (let i = 0; i < P.length; i++) {
+        const p0 = P[i], p1 = P[(i + 1) % P.length], nx = p1.y - p0.y, ny = -(p1.x - p0.x), len = Math.hypot(nx, ny)
+        if (len < 1e-12) continue
+        const proj = (Q: { x: number; y: number }[]) => Q.map(q => (q.x * nx + q.y * ny) / len)
+        const a = proj(A), b = proj(B)
+        const ov = Math.min(Math.max(...a), Math.max(...b)) - Math.max(Math.min(...a), Math.min(...b))
+        best = Math.min(best, ov)
+      }
+      return best // ≤ 0 means separated by at least -best
+    }
+    let minClear = Infinity
+    for (let deg = 1; deg <= 110; deg += 0.5) {
+      const th = deg * Math.PI / 180
+      const wide = lidWide.map(q => rot(q, th)), narrow = lidNarrow.map(q => rot(q, th))
+      for (const [piece, obstacle, name] of [[wide, ear, 'ear'], [wide, sideBody, 'side'], [narrow, backWall, 'back'], [narrow, frontWall, 'front'], [wide, frontWall, 'front']] as const) {
+        const ov = overlapDepth(piece, obstacle)
+        expect(ov, `lid hits the ${name} at ${deg}°`).toBeLessThanOrEqual(1e-6)
+        if (deg >= 5) minClear = Math.min(minClear, -ov)
+      }
+    }
+    expect(minClear).toBeGreaterThan(0.3) // at least 0.3 mm of air everywhere past 5°
   })
   it('the flex hinge has score lines in the hinge zone only', () => {
     const d = generate(TEMPLATES.find(t => t.id === 'flex')!, { D: 80, R: 15 }, { ...s, kerf: 0 })
