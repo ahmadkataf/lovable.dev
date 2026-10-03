@@ -1,5 +1,5 @@
 // Ready-made box designs. Every template turns its parameters into panel specs.
-import { Loop, rect, circle, stadium, roundCorner, edgeNotch } from './geom'
+import { Loop, rect, circle, stadium, roundCorner, edgeNotch, round3 } from './geom'
 import { PanelSpec } from './joints'
 
 export interface ParamDef {
@@ -16,7 +16,7 @@ export interface ParamDef {
 
 export interface Common { t: number; kerf: number; finger: number; inner: boolean }
 
-export interface BuildResult { panels: PanelSpec[]; notes: string[]; warnings: string[] }
+export interface BuildResult { panels: PanelSpec[]; notes: string[]; warnings: string[]; errors?: string[] }
 
 export interface Template {
   id: string
@@ -46,11 +46,16 @@ function openBox(W: number, D: number, H: number, prefix = '', ids = ''): PanelS
   ]
 }
 
-function checkBasics(p: Record<string, number>, c: Common, warnings: string[]) {
-  for (const k of ['W', 'D', 'H']) if (k in p && p[k] < 4 * c.t) warnings.push(`القياس ${k} صغير جداً بالنسبة لسماكة الخامة.`)
+const DIM_NAMES: Record<string, string> = { W: 'العرض', D: 'العمق', H: 'الارتفاع' }
+
+function checkBasics(p: Record<string, number>, c: Common, warnings: string[], errors: string[] = []) {
+  for (const k of ['W', 'D', 'H']) if (k in p && p[k] < 4 * c.t) errors.push(`${DIM_NAMES[k]} (${p[k]} مم) أصغر من أربع سماكات (${4 * c.t} مم)؛ لا مكان للتعشيق.`)
   if (c.finger < c.t) warnings.push('عرض الأصبع أصغر من سماكة الخامة؛ الأصابع ستكون ضعيفة.')
   if (c.kerf > c.t / 2) warnings.push('عرض الشق (kerf) كبير بشكل غير معتاد.')
 }
+
+/** A finger-pull radius that fits the piece it is cut into. */
+const fitPull = (pull: number, edgeLen: number, depthAvail: number) => Math.max(0, Math.min(pull, edgeLen / 6, depthAvail / 2.5))
 
 export const TEMPLATES: Template[] = [
   // ------------------------------------------------------------------ 1
@@ -63,8 +68,8 @@ export const TEMPLATES: Template[] = [
     defaults: { W: 100, D: 80, H: 60 },
     innerAdd: t => ({ W: 2 * t, D: 2 * t, H: 2 * t }),
     build(p, c) {
-      const warnings: string[] = []
-      checkBasics(p, c, warnings)
+      const warnings: string[] = [], errors: string[] = []
+      checkBasics(p, c, warnings, errors)
       const { W, D, H } = p
       const panels: PanelSpec[] = [
         { id: 'bottom', name: N.bottom, w: W, h: D, top: 'male', right: 'male', bottom: 'male', left: 'male' },
@@ -72,7 +77,7 @@ export const TEMPLATES: Template[] = [
         { id: 'frontback', name: `${N.front} / ${N.back}`, w: W, h: H, top: 'female', bottom: 'female', left: 'male', right: 'male', count: 2 },
         { id: 'side', name: N.side, w: D, h: H, top: 'female', bottom: 'female', left: 'female', right: 'female', count: 2 },
       ]
-      return { panels, notes: ['كل الأوجه تتعشّق بالأصابع؛ القاعدة والغطاء متطابقان.'], warnings }
+      return { panels, notes: ['كل الأوجه تتعشّق بالأصابع؛ القاعدة والغطاء متطابقان.'], warnings, errors }
     },
   },
   // ------------------------------------------------------------------ 2
@@ -85,9 +90,9 @@ export const TEMPLATES: Template[] = [
     defaults: { W: 120, D: 80, H: 60 },
     innerAdd: t => ({ W: 2 * t, D: 2 * t, H: t }),
     build(p, c) {
-      const warnings: string[] = []
-      checkBasics(p, c, warnings)
-      return { panels: openBox(p.W, p.D, p.H), notes: [], warnings }
+      const warnings: string[] = [], errors: string[] = []
+      checkBasics(p, c, warnings, errors)
+      return { panels: openBox(p.W, p.D, p.H), notes: [], warnings, errors }
     },
   },
   // ------------------------------------------------------------------ 3
@@ -100,11 +105,12 @@ export const TEMPLATES: Template[] = [
     defaults: { W: 120, D: 80, H: 50, slide: 0.3, pull: 8 },
     innerAdd: t => ({ W: 2 * t, D: 2 * t, H: 2 * t }),
     build(p, c) {
-      const warnings: string[] = []
-      checkBasics(p, c, warnings)
-      const { W, D, H, slide, pull } = p, t = c.t
+      const warnings: string[] = [], errors: string[] = []
+      checkBasics(p, c, warnings, errors)
+      const { W, D, H, slide } = p, t = c.t
       const frontH = H - 2 * t - slide
-      if (frontH < 2 * t) warnings.push('الارتفاع صغير جداً لاستيعاب الغطاء المنزلق.')
+      if (frontH < 2 * t) errors.push(`الارتفاع صغير جداً للغطاء المنزلق: يلزم ${(4 * t + slide).toFixed(1)} مم على الأقل.`)
+      const pull = fitPull(p.pull, W, D - t)
       const panels: PanelSpec[] = [
         { id: 'bottom', name: N.bottom, w: W, h: D, top: 'male', right: 'male', bottom: 'male', left: 'male' },
         { id: 'back', name: N.back, w: W, h: H, bottom: 'female', left: 'female', right: 'female' },
@@ -119,7 +125,7 @@ export const TEMPLATES: Template[] = [
           post: loops => { if (pull > 0 && W > 2 * pull + 4) edgeNotch(loops, W / 2, 0, pull) },
         },
       ]
-      return { panels, notes: ['الجانبان: الحافّة الخلفية ذكر (أصابع بارزة) لتبقى الشريحة فوق الشقّ متّصلة بالجسم.', 'الغطاء ينزلق من الأمام؛ حافّته الأمامية مع فتحة الإصبع.'], warnings }
+      return { panels, notes: ['الجانبان: الحافّة الخلفية ذكر (أصابع بارزة) لتبقى الشريحة فوق الشقّ متّصلة بالجسم.', 'الغطاء ينزلق من الأمام؛ حافّته الأمامية مع فتحة الإصبع.'], warnings, errors }
     },
   },
   // ------------------------------------------------------------------ 4
@@ -132,12 +138,13 @@ export const TEMPLATES: Template[] = [
     defaults: { W: 100, D: 70, H: 40, lidH: 20, gap: 0.3 },
     innerAdd: t => ({ W: 2 * t, D: 2 * t, H: t }),
     build(p, c) {
-      const warnings: string[] = []
-      checkBasics(p, c, warnings)
+      const warnings: string[] = [], errors: string[] = []
+      checkBasics(p, c, warnings, errors)
       const { W, D, H, lidH, gap } = p, t = c.t
       if (lidH > H) warnings.push('ارتفاع الغطاء أكبر من ارتفاع القاعدة.')
+      if (lidH < 2 * t + 2) errors.push(`ارتفاع الغطاء صغير جداً: يلزم ${2 * t + 2} مم على الأقل.`)
       const panels = [...openBox(W, D, H, 'القاعدة', 'base-'), ...openBox(W + 2 * t + 2 * gap, D + 2 * t + 2 * gap, lidH, 'الغطاء', 'lid-')]
-      return { panels, notes: ['الغطاء صندوق مفتوح مقلوب أبعاده الداخلية = أبعاد القاعدة الخارجية + الخلوص.'], warnings }
+      return { panels, notes: ['الغطاء صندوق مفتوح مقلوب أبعاده الداخلية = أبعاد القاعدة الخارجية + الخلوص.'], warnings, errors }
     },
   },
   // ------------------------------------------------------------------ 5
@@ -148,27 +155,31 @@ export const TEMPLATES: Template[] = [
     icon: `<path d="M12 30 32 20 52 30 32 40z"/><path d="M12 30v14l20 10V40M52 30v14L32 54"/><path d="M52 30 40 6l-24 8"/><path d="M52 30 58 20M40 6l18 14"/><circle cx="50" cy="29" r="1.8" fill="currentColor"/>`,
     params: [
       ...DIMS,
-      mm('tab', 'عرض اللسان', 1, 20, 'يُضبط تلقائياً = السماكة إن تركته 0؛ مقطعه مربّع ليدور في الثقب'),
-      mm('hc', 'خلوص المفصل', 0, 1.5, 'يُضاف لقطر الثقب فوق قُطر مقطع اللسان'),
+      mm('tab', 'عرض اللسان', 0, 20, '0 = تلقائياً يساوي السماكة؛ مقطعه مربّع ليدور في الثقب'),
+      mm('hc', 'خلوص المفصل', 0.2, 1.5, 'يُضاف لقطر الثقب فوق قُطر مقطع اللسان'),
       mm('gap', 'خلوص الغطاء', 0.2, 2, 'فراغ بين الغطاء والجانبين والخلفية'),
       mm('pull', 'نصف قطر فتحة الإصبع', 0, 30, 'في حافّة الواجهة الأمامية تحت الغطاء'),
     ],
     defaults: { W: 120, D: 80, H: 50, tab: 0, hc: 0.4, gap: 0.5, pull: 8 },
     innerAdd: t => ({ W: 2 * t, D: 2 * t, H: t }),
     build(p, c) {
-      const warnings: string[] = []
-      checkBasics(p, c, warnings)
-      const { W, D, H, pull } = p, t = c.t
+      const warnings: string[] = [], errors: string[] = []
+      checkBasics(p, c, warnings, errors)
+      const { W, D, H } = p, t = c.t
       const g = pivotLid(p, t)
-      if (g.earX < 2 * t + 10) warnings.push('العمق صغير جداً لأذن المفصل.')
-      if (H < g.a + 4 * t) warnings.push('الارتفاع صغير جداً بالنسبة لأذن المفصل.')
+      const minD = Math.ceil((D - g.earX) + 2 * t + 8), minH = Math.ceil(g.a + 3 * t + 2)
+      if (D < minD) errors.push(`العمق (${D} مم) لا يتّسع لأذن المفصل: أقلّ عمق ${minD} مم بهذه السماكة.`)
+      if (H < minH) errors.push(`الارتفاع (${H} مم) لا يتّسع لأذن المفصل وثقبها: أقلّ ارتفاع ${minH} مم بهذه السماكة.`)
       if (g.tab > 2 * t) warnings.push('لسان عريض يعني ثقباً كبيراً وخلخلة في الدوران؛ الأفضل أن يساوي السماكة.')
+      if (p.hc < 0.2) errors.push('خلوص المفصل أقلّ من 0.2 مم: اللسان لن يدور في الثقب.')
+      const pull = fitPull(p.pull, W, H - t)
+      const rootR = Math.min(0.4, 0.8 * g.gap) // fillets at the tab roots stay inside the side clearance
       const lidCut = (x: number) => [rect(x, g.earX - g.gap, t + g.gap, g.tabY0 - (g.earX - g.gap)), rect(x, g.tabY1, t + g.gap, g.lidD - g.tabY1)]
       const panels: PanelSpec[] = [
         { id: 'bottom', name: N.bottom, w: W, h: D, top: 'male', right: 'male', bottom: 'male', left: 'male' },
         {
           id: 'front', name: N.front, w: W, h: H, bottom: 'female', left: 'male', right: 'male',
-          post: loops => { if (pull > 0 && W > 2 * pull + 4 * t) edgeNotch(loops, W / 2, 0, pull) },
+          post: loops => { if (pull >= 2) edgeNotch(loops, W / 2, 0, pull) },
           note: 'أقصر من الخلفية بسماكة الغطاء، وفيها فتحة الإصبع',
         },
         { id: 'back', name: N.back, w: W, h: H + t, bottom: 'female', left: 'male', right: 'male', note: 'ترتفع إلى مستوى سطح الغطاء' },
@@ -183,6 +194,7 @@ export const TEMPLATES: Template[] = [
         {
           id: 'lid', name: N.lid, w: W, h: g.lidD,
           cuts: [...lidCut(0), ...lidCut(W - t - g.gap)],
+          post: loops => { for (const x of [round3(t + g.gap), round3(W - t - g.gap)]) { roundCorner(loops, x, g.tabY0, rootR); roundCorner(loops, x, g.tabY1, rootR) } },
           note: 'الزاويتان الخلفيتان مقصوصتان ليمرّ بين الأذنين، واللسانان يبرزان منهما',
         },
       ]
@@ -191,8 +203,9 @@ export const TEMPLATES: Template[] = [
         `الأذن ترتفع ${g.a.toFixed(1)} مم فوق حافّة الجانب عند الزاوية الخلفية، والغطاء يستقرّ على حوافّ الجانبين والواجهة بعرض الصندوق كاملاً.`,
         'التجميع: ركّب القاعدة والواجهتين على جانب واحد، أدخل لسان الغطاء في ثقبه، ثم أدخل الجانب الثاني بحيث يدخل اللسان في ثقبه مع دخول الأصابع في وقت واحد. لا يحتاج ثنياً ولا غراءً في الغطاء.',
         'الجزء الخلفي من الغطاء خلف المحور يهبط داخل الصندوق عند الفتح، فالخلفية بارتفاع سطح الغطاء ولا تعيقه. لتخفيف الخلخلة برّد حوافّ اللسان قليلاً ليقترب من الدائرة.',
+        'الغطاء يفتح بحرّية حتى نحو 140° ثم يستند بطرفه الخلفي على الحافّة الداخلية للخلفية؛ إن أردت أن يقف عند 100° استعمل شريطاً أو مغناطيساً.',
       ]
-      return { panels, notes, warnings }
+      return { panels, notes, warnings, errors }
     },
   },
   // ------------------------------------------------------------------ 6
@@ -210,16 +223,17 @@ export const TEMPLATES: Template[] = [
     defaults: { W: 100, D: 80, H: 50, R: 15, seg: 20, bridge: 3, pitch: 1.5, pull: 8 },
     innerAdd: t => ({ W: 2 * t, D: 2 * t, H: t }),
     build(p, c) {
-      const warnings: string[] = []
-      checkBasics(p, c, warnings)
-      const { W, D, H, R, seg, bridge, pitch, pull } = p, t = c.t
+      const warnings: string[] = [], errors: string[] = []
+      checkBasics(p, c, warnings, errors)
+      const { W, D, H, R, seg, bridge, pitch } = p, t = c.t
       const Rr = R - t
-      if (Rr < 2) warnings.push('نصف قطر الانحناء يجب أن يكون أكبر من السماكة + 2 مم.')
-      if (R > Math.min(D, H) - 2 * t) warnings.push('نصف قطر الانحناء كبير بالنسبة للعمق أو الارتفاع.')
+      if (Rr < 2) errors.push(`نصف قطر الانحناء يجب أن يكون أكبر من السماكة + 2 مم (${t + 2} مم).`)
+      if (R > Math.min(D, H) - 2 * t) errors.push(`نصف قطر الانحناء كبير بالنسبة للعمق أو الارتفاع: الحدّ ${Math.min(D, H) - 2 * t} مم.`)
+      const pull = fitPull(p.pull, W, D - R)
       const Lh = (R - t / 2) * Math.PI / 2 // arc length of the hinge mid-surface
       const lidLen = D - R, backLen = H - R + t
       const rows = Math.floor(Lh / pitch)
-      if (rows < 3) warnings.push('منطقة المفصل قصيرة: زد نصف قطر الانحناء أو قلّل المسافة بين الصفوف.')
+      if (rows < 3) errors.push('منطقة المفصل قصيرة جداً لتنثني: زد نصف قطر الانحناء أو قلّل المسافة بين الصفوف.')
       const open: Loop[] = []
       const y0 = lidLen + (Lh - (rows - 1) * pitch) / 2
       const P = seg + bridge
@@ -245,7 +259,7 @@ export const TEMPLATES: Template[] = [
           id: 'lidback', name: 'الغطاء + المفصل + الخلفية', w: W, h: lidLen + Lh + backLen,
           bottom: 'female', left: { type: 'male', from: lidLen + Lh, len: backLen }, right: { type: 'male', from: lidLen + Lh, len: backLen },
           open,
-          post: loops => { if (pull > 0 && W > 2 * pull + 4) edgeNotch(loops, W / 2, 0, pull) },
+          post: loops => { if (pull >= 2) edgeNotch(loops, W / 2, 0, pull) },
           note: 'الطرف العلوي هو مقدّمة الغطاء، والسفلي قاعدة الخلفية',
         },
       ]
@@ -254,7 +268,7 @@ export const TEMPLATES: Template[] = [
         'الغطاء يستقرّ فوق حوافّ الجانبين والواجهة؛ الارتفاع الكلّي = الارتفاع + السماكة.',
         'جرّب المفصل على قطعة صغيرة أولاً: خشب الـ MDF ينكسر أسرع من الأبلكاش.',
       ]
-      return { panels, notes, warnings }
+      return { panels, notes, warnings, errors }
     },
   },
   // ------------------------------------------------------------------ 7
@@ -273,12 +287,15 @@ export const TEMPLATES: Template[] = [
     defaults: { W: 180, D: 120, H: 45, N: 2, M: 1, margin: 8, fit: 0.2 },
     innerAdd: t => ({ W: 2 * t, D: 2 * t, H: t }),
     build(p, c) {
-      const warnings: string[] = []
-      checkBasics(p, c, warnings)
-      const { W, D, H, margin, fit } = p, t = c.t
+      const warnings: string[] = [], errors: string[] = []
+      checkBasics(p, c, warnings, errors)
+      const { W, D, H, fit } = p, t = c.t
       const Nn = Math.round(p.N), Mm = Math.round(p.M)
       const sw = t + fit, hd = H - t
-      if (margin >= hd - 2) warnings.push('هامش الشقّ كبير بالنسبة للارتفاع.')
+      const margin = Math.min(p.margin, Math.max(2, hd / 3))
+      if (margin < p.margin) warnings.push(`هامش الشقّ خُفّض إلى ${margin.toFixed(1)} مم ليناسب الارتفاع.`)
+      if (Nn > 0 && (W - 2 * t) / (Nn + 1) < 3 * t) errors.push('الفواصل بالعرض كثيرة جداً لهذا العرض.')
+      if (Mm > 0 && (D - 2 * t) / (Mm + 1) < 3 * t) errors.push('الفواصل بالعمق كثيرة جداً لهذا العمق.')
       const xs = Array.from({ length: Nn }, (_, i) => t + (W - 2 * t) * (i + 1) / (Nn + 1))
       const ds = Array.from({ length: Mm }, (_, j) => t + (D - 2 * t) * (j + 1) / (Mm + 1))
       const slotsAt = (pos: number[]) => pos.map(x => rect(x - sw / 2, margin, sw, hd - margin))
@@ -299,7 +316,7 @@ export const TEMPLATES: Template[] = [
         note: 'يدخل في شقوق الجانبين؛ شقوق التقاطع من الأسفل',
       })
       const notes = [`${(Nn + 1) * (Mm + 1)} خانة. الفواصل تتقاطع بشقوق نصفية (egg-crate) وتُثبّت بأطرافها في الجدران.`]
-      return { panels, notes, warnings }
+      return { panels, notes, warnings, errors }
     },
   },
   // ------------------------------------------------------------------ 8
@@ -312,30 +329,40 @@ export const TEMPLATES: Template[] = [
     defaults: { W: 220, D: 140, H: 50, hl: 60, hh: 18, hm: 8 },
     innerAdd: t => ({ W: 2 * t, D: 2 * t, H: t }),
     build(p, c) {
-      const warnings: string[] = []
-      checkBasics(p, c, warnings)
-      const { W, D, H, hl, hh, hm } = p, t = c.t
-      if (hm + hh > H - t - 4) warnings.push('المقبض لا يتّسع في ارتفاع الجانب.')
-      if (hl > D - 4 * t) warnings.push('المقبض أطول من اللازم بالنسبة للعمق.')
+      const warnings: string[] = [], errors: string[] = []
+      checkBasics(p, c, warnings, errors)
+      const { W, D, H } = p, t = c.t
+      // the handle shrinks to fit the side it is cut into
+      const hl = Math.min(p.hl, D - 4 * t), hm = Math.max(3, Math.min(p.hm, (H - t) / 4)), hh = Math.min(p.hh, H - t - hm - 3)
+      if (hh < 8 || hl < 15) errors.push(`الجانب (${D} × ${H} مم) أصغر من أن يحمل فتحة مقبض؛ زد الارتفاع أو العمق.`)
+      else if (hl < p.hl || hh < p.hh || hm < p.hm) warnings.push(`صُغّر المقبض إلى ${hl.toFixed(0)} × ${hh.toFixed(0)} مم ليناسب الجانب.`)
       const box = openBox(W, D, H)
       const side = box.find(x => x.id === 'side')!
-      side.holes = [stadium(D / 2, hm + hh / 2, hl, hh)]
-      return { panels: box, notes: ['فتحتا المقبض في الجانبين (لوحا العمق).'], warnings }
+      if (hh >= 8 && hl >= 15) side.holes = [stadium(D / 2, hm + hh / 2, hl, hh)]
+      return { panels: box, notes: ['فتحتا المقبض في الجانبين (لوحا العمق).'], warnings, errors }
     },
   },
 ]
 
-/** Geometry of the pivot-tab lid: where the ear, the pivot hole and the lid's tabs sit. Side-panel coords: y = 0 is the ear top, the rim is at y = a. */
+/**
+ * Geometry of the pivot-tab lid: where the ear, the pivot hole and the lid's tabs sit.
+ * Side-panel coords: y = 0 is the ear top, the rim is at y = a. Every value that becomes an outline
+ * vertex is snapped to the 0.001 mm grid the union uses, so later fillets find their corners.
+ */
 export function pivotLid(p: Record<string, number>, t: number) {
   const tab = p.tab > 0 ? p.tab : t
   const holeR = (Math.hypot(tab, t) + p.hc) / 2
-  const a = t / 2 + holeR + 2.5                 // ear rise above the rim: the hole keeps 2.5 mm to the ear top
-  const pivotX = p.D - t - holeR - 2            // 2 mm of wall between the hole and the back joint strip
-  const earX = pivotX - t / 2 - a               // the quarter-round ear foot; its centre sits t/2 ahead of and below the pivot
+  const webTop = Math.max(2.5, 0.8 * t), webBack = Math.max(2, 0.7 * t) // material left around the hole, growing with thickness
+  const a = round3(t / 2 + holeR + webTop)              // ear rise above the rim
+  const pivotX = round3(p.D - t - holeR - webBack)      // hole centre, measured from the front face
+  const earX = round3(pivotX - t / 2 - a)               // foot of the quarter-round ear; its centre sits t/2 ahead of and below the pivot
   const gap = p.gap
-  const lidD = p.D - t - 1.5                    // the lid stops 1.5 mm short of the back wall: its tail dips inside when opening
-  const tabY0 = pivotX - tab / 2, tabY1 = pivotX + tab / 2
-  return { tab, holeR, a, pivotX, earX, gap, lidD, tabY0, tabY1 }
+  // the lid's tail swings inside the box; the setback from the back wall keeps ≥ 1 mm between its swept corner and the wall
+  const reachLimit = holeR + webBack - 1
+  const setback = Math.max(1.5, holeR + webBack - Math.sqrt(Math.max(0, reachLimit * reachLimit - (t / 2) * (t / 2))))
+  const lidD = round3(p.D - t - setback)
+  const tabY0 = round3(pivotX - tab / 2), tabY1 = round3(pivotX + tab / 2)
+  return { tab, holeR, a, pivotX, earX, gap, lidD, tabY0, tabY1, setback, webTop, webBack }
 }
 
 export const templateById = (id: string) => TEMPLATES.find(t => t.id === id) ?? TEMPLATES[0]

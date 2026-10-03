@@ -205,7 +205,8 @@ export function roundedRectHole(x: number, y: number, w: number, h: number, rr: 
   ] }
 }
 
-const near = (p: Pt, x: number, y: number) => Math.abs(p.x - x) < 1e-6 && Math.abs(p.y - y) < 1e-6
+// vertices from unionRects sit on a 0.001 mm grid, so a requested corner may be off by up to half a step
+const near = (p: Pt, x: number, y: number) => Math.abs(p.x - x) < 1e-3 && Math.abs(p.y - y) < 1e-3
 
 /** Replace the right-angle corner vertex at (x, y) with a fillet of radius r. */
 export function roundCorner(loops: Loop[], x: number, y: number, r: number): void {
@@ -225,6 +226,7 @@ export function roundCorner(loops: Loop[], x: number, y: number, r: number): voi
     const p1: Vtx = { x: v.x - u1.x * rr, y: v.y - u1.y * rr, b: cross > 0 ? -k : k }
     const p2: Vtx = { x: v.x + u2.x * rr, y: v.y + u2.y * rr }
     l.pts.splice(i, 1, p1, p2)
+    l.pts = simplify(l.pts)
     return
   }
 }
@@ -244,6 +246,7 @@ export function edgeNotch(loops: Loop[], x: number, y: number, r: number): void 
       if (dist > 1e-6 || t < r - 1e-6 || t > len - r + 1e-6) continue
       const a: Vtx = { x: x - ux * r, y: y - uy * r, b: 1 }, b: Vtx = { x: x + ux * r, y: y + uy * r }
       l.pts.splice(i + 1, 0, a, b)
+      l.pts = simplify(l.pts)
       return
     }
   }
@@ -257,8 +260,9 @@ type Seg = { kind: 'line'; p: Pt; q: Pt } | { kind: 'arc'; c: Pt; r: number; a0:
  * Offset a closed loop by d, moving every edge away from the solid (which lies on the right).
  * d > 0 makes outer contours bigger and holes smaller: exactly what kerf compensation needs.
  */
-export function offsetLoop(loop: Loop, d: number): Loop {
-  if (!loop.closed || Math.abs(d) < 1e-9 || loop.pts.length < 2) return loop
+export function offsetLoop(input: Loop, d: number): Loop {
+  if (!input.closed || Math.abs(d) < 1e-9 || input.pts.length < 2) return input
+  const loop: Loop = { closed: true, pts: simplify(input.pts) }
   const n = loop.pts.length
   const segs: Seg[] = []
   for (let i = 0; i < n; i++) {
@@ -271,7 +275,7 @@ export function offsetLoop(loop: Loop, d: number): Loop {
       segs.push({ kind: 'arc', c: a.c, r: r2, a0: a.a0, a1: a.a1, ccw: a.ccw, p: at(a.a0), q: at(a.a1) })
     } else {
       const len = Math.hypot(q.x - p.x, q.y - p.y)
-      if (len < 1e-9) continue
+      if (len < 1e-9) { segs.push({ kind: 'line', p: { x: p.x, y: p.y }, q: { x: q.x, y: q.y } }); continue } // keeps indices aligned; simplify() has already removed real duplicates
       const nx = (q.y - p.y) / len * d, ny = -(q.x - p.x) / len * d // left of travel (away from solid)
       segs.push({ kind: 'line', p: { x: p.x + nx, y: p.y + ny }, q: { x: q.x + nx, y: q.y + ny } })
     }

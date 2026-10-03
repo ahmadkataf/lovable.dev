@@ -17,7 +17,7 @@ interface State { tpl: string; params: Record<string, Record<string, number>>; s
 const SETTING_DEFS: ParamDef[] = [
   { key: 't', label: 'سماكة الخامة', min: 0.5, max: 30, step: 0.1, unit: 'مم', hint: 'قِس اللوح بالقدمة: 3 مم المكتوبة قد تكون 2.7 فعلياً' },
   { key: 'kerf', label: 'عرض الشقّ (kerf)', min: 0, max: 1, step: 0.01, unit: 'مم', hint: 'ما يأكله شعاع الليزر؛ عادةً 0.1–0.2 مم. يُعوَّض تلقائياً لتعشيق محكم' },
-  { key: 'finger', label: 'عرض الأصبع', min: 1, max: 100, step: 0.5, unit: 'مم', hint: 'عرض أصابع التعشيق تقريباً (يُضبط ليكون العدد فردياً)' },
+  { key: 'finger', label: 'عرض الأصبع', min: 0, max: 100, step: 0.5, unit: 'مم', hint: '0 = تلقائي (بين ضعف السماكة وثلاثة أضعافها بحسب حجم الصندوق). يُضبط ليكون العدد فردياً' },
   { key: 'spacing', label: 'المسافة بين القطع', min: 0, max: 50, step: 0.5, unit: 'مم' },
   { key: 'sheetW', label: 'عرض اللوح', min: 50, max: 3000, step: 10, unit: 'مم', hint: 'القطع تُرصّ في صفوف لا تتجاوز هذا العرض' },
 ]
@@ -28,7 +28,7 @@ const MATERIALS: { id: string; label: string; kerf: number }[] = [
   { id: 'acrylic', label: 'أكريليك', kerf: 0.1 },
 ]
 
-const LS_KEY = 'laser-box-state-v1'
+const LS_KEY = 'laser-box-state-v2'
 
 function loadState(): State {
   const base: State = { tpl: TEMPLATES[0].id, params: {}, settings: { ...DEFAULT_SETTINGS }, labels: true }
@@ -124,9 +124,10 @@ const svgNS = 'http://www.w3.org/2000/svg'
 const svg = document.createElementNS(svgNS, 'svg')
 svg.setAttribute('class', 'canvas')
 const stats = el('div', { class: 'stats' })
+const alerts = el('div', { class: 'alerts' })
 const notesBox = el('div', { class: 'notes' })
 const actions = el('div', { class: 'actions' })
-previewWrap.append(stats, el('div', { class: 'canvas-wrap' }, svg, el('div', { class: 'canvas-tools' }, el('button', { type: 'button', class: 'tool', onclick: () => fitView(), title: 'ملاءمة' }, '⤢'), el('button', { type: 'button', class: 'tool', onclick: () => { state.labels = !state.labels; persist(); render() }, title: 'الأسماء' }, 'Aa'))), actions)
+previewWrap.append(stats, alerts, el('div', { class: 'canvas-wrap' }, svg, el('div', { class: 'canvas-tools' }, el('button', { type: 'button', class: 'tool', onclick: () => fitView(), title: 'ملاءمة' }, '⤢'), el('button', { type: 'button', class: 'tool', onclick: () => { state.labels = !state.labels; persist(); render() }, title: 'الأسماء' }, 'Aa'))), actions)
 app.append(header, gallery, quick, el('div', { class: 'work' }, form, previewWrap), notesBox, el('footer', { class: 'foot' }, 'الملفات بالمليمتر. افتح SVG أو DXF في LightBurn أو RDWorks أو Inkscape، وتأكّد أن القياس 1:1 قبل القص.'))
 
 // ------------------------------------------------------------------ gallery
@@ -204,7 +205,9 @@ function update(refit = false) {
     design = null
     stats.innerHTML = ''
     notesBox.innerHTML = ''
-    notesBox.append(el('div', { class: 'warn' }, 'تعذّر توليد الشكل بهذه القيم: ' + (err as Error).message))
+    alerts.innerHTML = ''
+    alerts.append(el('div', { class: 'error' }, 'تعذّر توليد الشكل بهذه القيم: ' + (err as Error).message))
+    actions.querySelectorAll('button.primary').forEach(b => ((b as HTMLButtonElement).disabled = true))
     return
   }
   render()
@@ -256,8 +259,12 @@ function render() {
     stat('طول القصّ', `${fmt(design.cutLength / 1000)} م`),
     stat('الصندوق', `${fmt(p.W)} × ${fmt(p.D)} × ${fmt(p.H)}${state.settings.inner ? ' (داخلي)' : ''}`),
   )
+  alerts.innerHTML = ''
+  const blocked = design.errors.length > 0
+  if (blocked) alerts.append(el('div', { class: 'error' }, el('b', {}, 'لا تقصّ هذا الملف: '), ...design.errors.map(e => el('div', {}, '✕ ' + e))))
+  for (const w of design.warnings) alerts.append(el('div', { class: 'warn' }, '⚠ ' + w))
+  if (!blocked && state.settings.finger === 0) alerts.append(el('div', { class: 'info' }, `عرض الأصبع التلقائي: ${fmt(design.finger)} مم (السماكة ${state.settings.t} مم)`))
   notesBox.innerHTML = ''
-  for (const w of design.warnings) notesBox.append(el('div', { class: 'warn' }, '⚠ ' + w))
   if (design.notes.length) {
     const ul = el('ul', { class: 'tips' })
     for (const n of design.notes) ul.append(el('li', {}, n))
@@ -268,10 +275,12 @@ function render() {
   notesBox.append(el('h3', {}, 'القطع'), list)
 
   actions.innerHTML = ''
-  actions.append(
-    el('button', { type: 'button', class: 'primary', onclick: () => download('svg') }, '⬇ تنزيل SVG'),
-    el('button', { type: 'button', class: 'primary alt', onclick: () => download('dxf') }, '⬇ تنزيل DXF'),
-  )
+  const dl = (kind: 'svg' | 'dxf', label: string, cls: string) => {
+    const b = el('button', { type: 'button', class: cls, onclick: () => download(kind) }, label) as HTMLButtonElement
+    if (blocked) { b.disabled = true; b.title = 'أصلح الأخطاء الحمراء أولاً' }
+    return b
+  }
+  actions.append(dl('svg', blocked ? 'أصلح الأخطاء أولاً' : '⬇ تنزيل SVG', 'primary'), dl('dxf', '⬇ تنزيل DXF', 'primary alt'))
   if (!inViewer) actions.append(el('button', { type: 'button', class: 'ghost', onclick: () => share() }, '🔗 نسخ الرابط'))
 }
 

@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest'
 import { unionRects, rect, offsetLoop, circle, signedArea, bbox, loopLength, edgeNotch, roundCorner, loopToPath, arcInfo, Loop } from './geom'
 import { buildPanel, fingerCount, edgeCuts } from './joints'
 import { TEMPLATES, pivotLid } from './templates'
-import { generate, DEFAULT_SETTINGS } from './generate'
+import { generate, DEFAULT_SETTINGS, autoFinger } from './generate'
 import { toDXF, toSVG } from './export'
 
 const area = (l: Loop) => Math.abs(signedArea(l))
@@ -104,6 +104,7 @@ describe('templates', () => {
     it(`${tpl.id} builds closed loops with no warnings at its defaults`, () => {
       const d = generate(tpl, {}, s)
       expect(d.warnings).toEqual([])
+      expect(d.errors).toEqual([])
       expect(d.panels.length).toBeGreaterThan(3)
       for (const p of d.panels) {
         expect(p.w).toBeGreaterThan(0)
@@ -115,6 +116,30 @@ describe('templates', () => {
       expect(d.cutLength).toBeGreaterThan(0)
     })
   }
+  it('a box too small for its hinge is refused with the minimum sizes, and tiny boxes get small fingers', () => {
+    const hinged = TEMPLATES.find(t => t.id === 'hinged')!
+    const d = generate(hinged, { W: 30, D: 23, H: 10 }, { ...s, t: 2.5, kerf: 0.1 })
+    expect(d.errors.length).toBeGreaterThanOrEqual(2)
+    expect(d.errors.join(' ')).toMatch(/أقلّ عمق \d+ مم/)
+    expect(d.errors.join(' ')).toMatch(/أقلّ ارتفاع \d+ مم/)
+    expect(d.finger).toBeCloseTo(5) // 2 × 2.5, since 10 / 5 would be thinner than two thicknesses
+    const big = generate(hinged, { W: 300, D: 200, H: 120 }, { ...s, t: 3 })
+    expect(big.errors).toEqual([])
+    expect(big.finger).toBeCloseTo(9)
+    const mid = generate(TEMPLATES.find(t => t.id === 'open')!, { W: 60, D: 40, H: 35 }, { ...s, t: 3 })
+    expect(mid.finger).toBeCloseTo(7) // 35 / 5
+    expect(autoFinger(3, [10, 10, 10])).toBeCloseTo(6)
+    // the finger notch shrinks to fit a low front wall instead of cutting through it
+    const low = generate(hinged, { W: 60, D: 40, H: 18, pull: 8 }, { ...s, t: 2.5, kerf: 0 })
+    const front = low.panels.find(p => p.id === 'front')!
+    const arc = front.loops[0].pts.find(v => v.b)!
+    expect(arc).toBeDefined()
+    const info = arcInfo(arc, front.loops[0].pts[front.loops[0].pts.indexOf(arc) + 1], arc.b!)
+    expect(info.r).toBeLessThanOrEqual((18 - 2.5) / 2.5 + 1e-9)
+    // a sliding-lid box lower than four thicknesses is refused, not silently mangled
+    expect(generate(TEMPLATES.find(t => t.id === 'sliding')!, { W: 60, D: 40, H: 12 }, { ...s, t: 3 }).errors.length).toBe(1)
+  })
+
   it('inner dimensions add the material thickness', () => {
     const open = TEMPLATES.find(t => t.id === 'open')!
     const outer = generate(open, { W: 100, D: 80, H: 50 }, { ...s, inner: false })
@@ -127,74 +152,64 @@ describe('templates', () => {
     const side = d.panels.find(p => p.id === 'side')!
     expect(side.loops.filter(l => signedArea(l) > 0)).toHaveLength(1)
   })
-  it('the pivot lid has six pieces, tabs inside the ear holes, and clears everything through 110° of opening', () => {
+  it('the pivot lid has six pieces, tabs inside the ear holes, and the GENERATED outlines clear each other through 110° of opening', () => {
     const tpl = TEMPLATES.find(t => t.id === 'hinged')!
-    const t = 3, W = 120, D = 80, H = 50
-    const p = { ...tpl.defaults, W, D, H }
-    const d = generate(tpl, p, { ...s, t, kerf: 0 })
-    expect(d.pieceCount).toBe(6)
-    const g = pivotLid(p, t)
-    expect(g.tab).toBe(t)
-    expect(2 * g.holeR).toBeCloseTo(Math.hypot(3, 3) + 0.4)
-    // the hole keeps clear of the ear top, the ear's rounded front and the back joint strip
-    expect(g.a - t / 2 - g.holeR).toBeGreaterThanOrEqual(2.5 - 1e-9)
-    expect(Math.hypot(g.pivotX - (g.earX + g.a), (g.a - t / 2) - g.a) + g.holeR).toBeLessThan(g.a - 1.5)
-    expect(g.pivotX + g.holeR).toBeLessThanOrEqual(D - t - 2 + 1e-9)
-    // the lid: full width, two tabs reaching the outer faces, notches between
-    const lid = d.panels.find(x => x.id === 'lid')!
-    expect(lid.w).toBeCloseTo(W)
-    expect(lid.h).toBeCloseTo(g.lidD)
-    const outer = lid.loops.find(l => signedArea(l) > 0)!
-    const xsAtTab = outer.pts.filter(v => Math.abs(v.y - g.tabY0) < 2e-3 || Math.abs(v.y - g.tabY1) < 2e-3).map(v => v.x)
-    expect(xsAtTab).toContain(0)
-    expect(xsAtTab).toContain(W)
-    expect(xsAtTab.some(x => Math.abs(x - (t + g.gap)) < 2e-3)).toBe(true)
-    // side panel: hole centre t/2 above the rim, ear rises a above it
-    const side = d.panels.find(x => x.id === 'side')!
-    expect(side.h).toBeCloseTo(H + g.a)
-    const hole = side.loops.find(l => l.pts.length === 2)!
-    expect((hole.pts[0].y + hole.pts[1].y) / 2).toBeCloseTo(g.a - t / 2)
+    for (const [t, W, D, H] of [[3, 120, 80, 50], [2.7, 60, 40, 25], [6, 300, 200, 120]] as const) {
+      const p = { ...tpl.defaults, W, D, H }
+      const d = generate(tpl, p, { ...s, t, kerf: 0 })
+      expect(d.errors, `${t}mm ${W}×${D}×${H}`).toEqual([])
+      expect(d.pieceCount).toBe(6)
+      const g = pivotLid(p, t)
+      expect(g.tab).toBe(t)
+      expect(2 * g.holeR).toBeCloseTo(Math.hypot(t, t) + 0.4)
+      // the tab's corners stay inside the hole while it turns
+      expect(Math.hypot(g.tab, t) / 2).toBeLessThan(g.holeR)
+      // webs around the hole: to the ear top, to the ear's rounded front, to the back joint strip
+      expect(g.a - t / 2 - g.holeR).toBeGreaterThanOrEqual(g.webTop - 1e-3)
+      expect(Math.hypot(g.pivotX - (g.earX + g.a), (g.a - t / 2) - g.a) + g.holeR).toBeLessThan(g.a - 1.5)
+      expect(g.pivotX + g.holeR).toBeLessThanOrEqual(D - t - g.webBack + 1e-3)
 
-    // --- sweep: side view, y down, pivot at (pivotX, a - t/2); opening lifts the front (depth 0)
-    const axis = { x: g.pivotX, y: g.a - t / 2 }
-    const rot = (pt: { x: number; y: number }, th: number) => {
-      const u = pt.x - axis.x, v = pt.y - axis.y
-      return { x: axis.x + u * Math.cos(th) - v * Math.sin(th), y: axis.y + u * Math.sin(th) + v * Math.cos(th) }
-    }
-    const rectPoly = (x0: number, y0: number, x1: number, y1: number) => [{ x: x0, y: y0 }, { x: x1, y: y0 }, { x: x1, y: y1 }, { x: x0, y: y1 }]
-    // the ear with its quarter-round front, sampled slightly oversize to stay conservative
-    const ear: { x: number; y: number }[] = [{ x: g.earX, y: g.a }]
-    for (let k = 0; k <= 24; k++) { const ang = Math.PI + (Math.PI / 2) * k / 24; ear.push({ x: g.earX + g.a + (g.a + 0.05) * Math.cos(ang), y: g.a + (g.a + 0.05) * Math.sin(ang) }) }
-    ear.push({ x: D, y: 0 }, { x: D, y: g.a })
-    const sideBody = rectPoly(0, g.a, D, H + g.a)
-    const backWall = rectPoly(D - t, g.a - t, D, H + g.a)
-    const frontWall = rectPoly(0, g.a, t, H + g.a)
-    const lidWide = rectPoly(0, g.a - t, g.earX - g.gap, g.a)         // exists in the ear planes
-    const lidNarrow = rectPoly(g.earX - g.gap, g.a - t, g.lidD, g.a)  // exists between the ears only
-    const overlapDepth = (A: { x: number; y: number }[], B: { x: number; y: number }[]) => {
-      let best = Infinity
-      for (const P of [A, B]) for (let i = 0; i < P.length; i++) {
-        const p0 = P[i], p1 = P[(i + 1) % P.length], nx = p1.y - p0.y, ny = -(p1.x - p0.x), len = Math.hypot(nx, ny)
-        if (len < 1e-12) continue
-        const proj = (Q: { x: number; y: number }[]) => Q.map(q => (q.x * nx + q.y * ny) / len)
-        const a = proj(A), b = proj(B)
-        const ov = Math.min(Math.max(...a), Math.max(...b)) - Math.max(Math.min(...a), Math.min(...b))
-        best = Math.min(best, ov)
+      const side = d.panels.find(x => x.id === 'side')!, lid = d.panels.find(x => x.id === 'lid')!
+      const sideOuter = side.loops.find(l => l.closed && signedArea(l) > 0)!
+      const lidOuter = lid.loops.find(l => l.closed && signedArea(l) > 0)!
+      // the ear fillet really is in the outline: an arc of radius a that ends on the rim at the ear's foot
+      const fillets = sideOuter.pts.map((v, i) => (v.b ? arcInfo(v, sideOuter.pts[(i + 1) % sideOuter.pts.length], v.b) : null)).filter(Boolean) as ReturnType<typeof arcInfo>[]
+      expect(fillets.some(f => Math.abs(f.r - g.a) < 1e-3 && Math.abs(f.c.x - (g.earX + g.a)) < 2e-3 && Math.abs(f.c.y - g.a) < 2e-3), 'ear fillet missing').toBe(true)
+      expect(side.h).toBeCloseTo(H + g.a)
+      const hole = side.loops.find(l => l.pts.length === 2)!
+      expect((hole.pts[0].y + hole.pts[1].y) / 2).toBeCloseTo(g.a - t / 2)
+      expect(lid.w).toBeCloseTo(W)
+      expect(lid.h).toBeCloseTo(g.lidD)
+      for (const l of [sideOuter, lidOuter]) for (let i = 0; i < l.pts.length; i++) { const q = l.pts[(i + 1) % l.pts.length]; expect(Math.hypot(q.x - l.pts[i].x, q.y - l.pts[i].y), 'zero-length segment').toBeGreaterThan(1e-6) }
+
+      // --- sweep on the generated geometry. Side view, y down, pivot at (pivotX, a - t/2); opening lifts the front.
+      const S = samplePoly(sideOuter)
+      const earPlane = materialAt(lidOuter, 1e-3).filter(([y0, y1]) => !(y0 < g.pivotX && g.pivotX < y1)) // the tab lives in the hole, test it separately
+      expect(earPlane.length).toBe(1)
+      expect(earPlane[0][1]).toBeCloseTo(g.earX - g.gap, 2)
+      const centre = materialAt(lidOuter, W / 2)
+      expect(centre).toEqual([[0, g.lidD]])
+      const tabIv = materialAt(lidOuter, 1e-3).find(([y0, y1]) => y0 < g.pivotX && g.pivotX < y1)!
+      expect(tabIv[0]).toBeCloseTo(g.tabY0, 2); expect(tabIv[1]).toBeCloseTo(g.tabY1, 2)
+      const axis = { x: g.pivotX, y: g.a - t / 2 }
+      const rot = (pt: { x: number; y: number }, th: number) => { const u = pt.x - axis.x, v = pt.y - axis.y; return { x: axis.x + u * Math.cos(th) - v * Math.sin(th), y: axis.y + u * Math.sin(th) + v * Math.cos(th) } }
+      const rectPoly = (x0: number, y0: number, x1: number, y1: number) => [{ x: x0, y: y0 }, { x: x1, y: y0 }, { x: x1, y: y1 }, { x: x0, y: y1 }]
+      const lidWide = rectPoly(earPlane[0][0], g.a - t, earPlane[0][1], g.a)
+      const lidCentre = rectPoly(centre[0][0], g.a - t, centre[0][1], g.a)
+      const backWall = rectPoly(D - t, g.a - t, D, H + g.a), frontWall = rectPoly(0, g.a, t, H + g.a)
+      let minClear = Infinity
+      for (let deg = 1; deg <= 110; deg += 0.5) {
+        const th = deg * Math.PI / 180
+        const wide = lidWide.map(q => rot(q, th)), mid = lidCentre.map(q => rot(q, th))
+        for (const [piece, obstacle, name] of [[wide, S, 'side/ear'], [mid, backWall, 'back wall'], [mid, frontWall, 'front wall']] as const) {
+          expect(polysOverlap(piece, obstacle), `lid hits the ${name} at ${deg}° (t=${t})`).toBe(false)
+          if (deg >= 5) minClear = Math.min(minClear, polyDistance(piece, obstacle))
+        }
       }
-      return best // ≤ 0 means separated by at least -best
+      expect(minClear, `clearance t=${t}`).toBeGreaterThan(0.3)
     }
-    let minClear = Infinity
-    for (let deg = 1; deg <= 110; deg += 0.5) {
-      const th = deg * Math.PI / 180
-      const wide = lidWide.map(q => rot(q, th)), narrow = lidNarrow.map(q => rot(q, th))
-      for (const [piece, obstacle, name] of [[wide, ear, 'ear'], [wide, sideBody, 'side'], [narrow, backWall, 'back'], [narrow, frontWall, 'front'], [wide, frontWall, 'front']] as const) {
-        const ov = overlapDepth(piece, obstacle)
-        expect(ov, `lid hits the ${name} at ${deg}°`).toBeLessThanOrEqual(1e-6)
-        if (deg >= 5) minClear = Math.min(minClear, -ov)
-      }
-    }
-    expect(minClear).toBeGreaterThan(0.3) // at least 0.3 mm of air everywhere past 5°
   })
+
   it('the flex hinge has score lines in the hinge zone only', () => {
     const d = generate(TEMPLATES.find(t => t.id === 'flex')!, { D: 80, R: 15 }, { ...s, kerf: 0 })
     const piece = d.panels.find(p => p.id === 'lidback')!
@@ -231,3 +246,61 @@ describe('zip', () => {
     expect(z.length).toBe(30 + 5 + 5 + 46 + 5 + 22)
   })
 })
+
+// ---------------------------------------------------------------- polygon helpers for the sweep tests
+type P = { x: number; y: number }
+
+/** A closed loop with bulges as a dense polygon (arcs sampled every ~3°). */
+function samplePoly(l: Loop): P[] {
+  const out: P[] = []
+  const n = l.pts.length
+  for (let i = 0; i < n; i++) {
+    const p = l.pts[i], q = l.pts[(i + 1) % n]
+    out.push({ x: p.x, y: p.y })
+    if (p.b) {
+      const a = arcInfo(p, q, p.b), m = Math.max(4, Math.ceil(a.theta / (Math.PI / 60)))
+      for (let k = 1; k < m; k++) { const ang = a.a0 + (a.ccw ? -1 : 1) * a.theta * k / m; out.push({ x: a.c.x + a.r * Math.cos(ang), y: a.c.y + a.r * Math.sin(ang) }) }
+    }
+  }
+  return out
+}
+
+/** Material intervals of a panel along the vertical line x = X (ray casting on the outer loop). */
+function materialAt(l: Loop, X: number): [number, number][] {
+  const poly = samplePoly(l), ys: number[] = []
+  for (let i = 0; i < poly.length; i++) {
+    const a = poly[i], b = poly[(i + 1) % poly.length]
+    if ((a.x <= X && b.x > X) || (b.x <= X && a.x > X)) ys.push(a.y + (b.y - a.y) * (X - a.x) / (b.x - a.x))
+  }
+  ys.sort((u, v) => u - v)
+  const iv: [number, number][] = []
+  for (let i = 0; i + 1 < ys.length; i += 2) iv.push([Math.round(ys[i] * 1000) / 1000, Math.round(ys[i + 1] * 1000) / 1000])
+  return iv
+}
+
+const orient = (a: P, b: P, c: P) => (b.x - a.x) * (c.y - a.y) - (b.y - a.y) * (c.x - a.x)
+function segsCross(a: P, b: P, c: P, d: P): boolean {
+  const o1 = orient(a, b, c), o2 = orient(a, b, d), o3 = orient(c, d, a), o4 = orient(c, d, b)
+  return o1 * o2 < -1e-12 && o3 * o4 < -1e-12
+}
+function pointIn(p: P, poly: P[]): boolean {
+  let inside = false
+  for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
+    const a = poly[i], b = poly[j]
+    if ((a.y > p.y) !== (b.y > p.y) && p.x < a.x + (b.x - a.x) * (p.y - a.y) / (b.y - a.y)) inside = !inside
+  }
+  return inside
+}
+function polysOverlap(A: P[], B: P[]): boolean {
+  for (let i = 0; i < A.length; i++) for (let j = 0; j < B.length; j++) if (segsCross(A[i], A[(i + 1) % A.length], B[j], B[(j + 1) % B.length])) return true
+  return pointIn(A[0], B) || pointIn(B[0], A)
+}
+function segDist(a: P, b: P, c: P, d: P): number {
+  const pd = (p: P, u: P, v: P) => { const l2 = (v.x - u.x) ** 2 + (v.y - u.y) ** 2; const tt = l2 ? Math.max(0, Math.min(1, ((p.x - u.x) * (v.x - u.x) + (p.y - u.y) * (v.y - u.y)) / l2)) : 0; return Math.hypot(p.x - (u.x + tt * (v.x - u.x)), p.y - (u.y + tt * (v.y - u.y))) }
+  return Math.min(pd(a, c, d), pd(b, c, d), pd(c, a, b), pd(d, a, b))
+}
+function polyDistance(A: P[], B: P[]): number {
+  let best = Infinity
+  for (let i = 0; i < A.length; i++) for (let j = 0; j < B.length; j++) best = Math.min(best, segDist(A[i], A[(i + 1) % A.length], B[j], B[(j + 1) % B.length]))
+  return best
+}
