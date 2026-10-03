@@ -593,6 +593,47 @@ describe('cat money box', () => {
   })
 })
 
+describe('hexagonal ring box', () => {
+  const tpl = TEMPLATES.find(x => x.id === 'hexringbox')!
+  it('walls meet on the inner corners without overlapping, frames bridge the corners, and the base slots take the wall tabs', () => {
+    const r3 = Math.sqrt(3)
+    for (const t of [2, 3, 4]) for (const S of [50, 62, 100]) {
+      const d = generate(tpl, { S }, { ...DEFAULT_SETTINGS, t, kerf: 0 })
+      expect(d.errors, `t=${t} S=${S}`).toEqual([])
+      const wall = d.panels.find(p => p.id === 'wall')!, frame = d.panels.find(p => p.id === 'frame')!, base = d.panels.find(p => p.id === 'base')!
+      const sIn = (S - 2 * t) / r3, sOut = S / r3, tf = tpl.defaults.tf
+      expect(wall.w).toBeCloseTo(sIn, 2); expect(frame.w).toBeCloseTo(sOut, 2); expect(wall.count).toBe(6); expect(frame.count).toBe(6)
+      // top view: each wall a t-thick strip on its side, each frame a tf-thick strip on the outer face
+      const strip = (k: number, len: number, r0: number, r1: number) => {
+        const ph = (k + 0.5) * Math.PI / 3, n = { x: Math.cos(ph), y: Math.sin(ph) }, u = { x: -n.y, y: n.x }
+        return [[-len / 2, r0], [len / 2, r0], [len / 2, r1], [-len / 2, r1]].map(([a, r]) => ({ x: a * u.x + r * n.x, y: a * u.y + r * n.y }))
+      }
+      for (let k = 0; k < 6; k++) {
+        const A = strip(k, sIn, S / 2 - t, S / 2), B = strip((k + 1) % 6, sIn, S / 2 - t, S / 2)
+        const shrink = (P: P[]) => { const cx = P.reduce((s, q) => s + q.x, 0) / 4, cy = P.reduce((s, q) => s + q.y, 0) / 4; return P.map(q => ({ x: cx + (q.x - cx) * 0.9999, y: cy + (q.y - cy) * 0.9999 })) }
+        expect(polysOverlap(shrink(A), shrink(B)), `walls ${k} overlap`).toBe(false)
+        // the inner corners coincide
+        expect(Math.min(...[A[0], A[1]].flatMap(a => [B[0], B[1]].map(bq => Math.hypot(a.x - bq.x, a.y - bq.y))))).toBeLessThan(1e-3)
+        const FA = strip(k, sOut, S / 2, S / 2 + tf), FB = strip((k + 1) % 6, sOut, S / 2, S / 2 + tf)
+        expect(polysOverlap(shrink(FA), shrink(FB)), `frames ${k} overlap`).toBe(false)
+        expect(Math.min(...[FA[0], FA[1]].flatMap(a => [FB[0], FB[1]].map(bq => Math.hypot(a.x - bq.x, a.y - bq.y))))).toBeLessThan(1e-3)
+      }
+      // the base slots sit on the walls' mid-planes, sized for the tabs plus the fit
+      const AFb = S + 2 * tpl.defaults.ov, c = { x: AFb / r3, y: AFb / 2 }
+      const slots = base.loops.filter(l => l.closed && signedArea(l) < 0)
+      const tabs = (() => { const ys = wall.loops[0].pts; const bottom = Math.max(...ys.map(v => v.y)); return ys.filter(v => Math.abs(v.y - bottom) < 1e-6).length / 2 })()
+      expect(slots.length).toBe(6 * tabs)
+      for (const sl of slots) {
+        const cx = sl.pts.reduce((s, q) => s + q.x, 0) / 4, cy = sl.pts.reduce((s, q) => s + q.y, 0) / 4
+        const ph = Math.round((Math.atan2(cy - c.y, cx - c.x) / (Math.PI / 3)) - 0.5) + 0.5
+        const nrm = (cx - c.x) * Math.cos(ph * Math.PI / 3) + (cy - c.y) * Math.sin(ph * Math.PI / 3)
+        expect(nrm).toBeCloseTo(S / 2 - t / 2, 2)
+      }
+      expect(d.panels.find(p => p.id === 'lip')!.h).toBeCloseTo(S - 2 * t - 2 * tpl.defaults.gap, 2)
+    }
+  })
+})
+
 describe('engagement set', () => {
   const tpl = TEMPLATES.find(x => x.id === 'engagement')!
   const dims = (l: Loop) => { const [a, b, c] = l.pts; return [Math.hypot(b.x - a.x, b.y - a.y), Math.hypot(c.x - b.x, c.y - b.y)].sort((x, y) => x - y) }

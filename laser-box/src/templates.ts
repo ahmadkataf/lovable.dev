@@ -1480,7 +1480,7 @@ export const templateById = (id: string) => TEMPLATES.find(t => t.id === id) ?? 
 /** The picker's groups, in the order they are shown; every template belongs to exactly one. */
 export const CATEGORIES: { id: string; name: string; ids: string[] }[] = [
   { id: 'box', name: 'صناديق', ids: ['closed', 'open', 'sliding', 'liftoff', 'hinged', 'hinged90', 'flex', 'lip', 'window', 'drawer', 'roundbox', 'crate'] },
-  { id: 'gift', name: 'هدايا وديكور', ids: ['engagement', 'chest', 'catbank', 'decobox', 'jewelry', 'moneybox', 'teahouse', 'frame', 'basket', 'fence', 'clock'] },
+  { id: 'gift', name: 'هدايا وديكور', ids: ['engagement', 'hexringbox', 'chest', 'catbank', 'decobox', 'jewelry', 'moneybox', 'teahouse', 'frame', 'basket', 'fence', 'clock'] },
   { id: 'kitchen', name: 'مطبخ وتقديم', ids: ['carrier', 'mugtree', 'spicerack', 'bedtray', 'tray', 'teabox', 'tissue'] },
   { id: 'office', name: 'مكتب وتنظيم', ids: ['organizer', 'phonestand', 'bookstand', 'headphone', 'keyholder', 'wallshelf', 'jewelrytree'] },
   { id: 'home', name: 'بيت وحديقة', ids: ['planter', 'petfeeder', 'birdhouse', 'incense', 'napkin'] },
@@ -1488,7 +1488,7 @@ export const CATEGORIES: { id: string; name: string; ids: string[] }[] = [
   { id: 'bulk', name: 'بالجملة', ids: ['keychains', 'coasters'] },
 ]
 /** the newest designs get a badge in the picker */
-export const NEW_IDS = ['engagement', 'hinged90', 'crate', 'carrier', 'jewelry', 'moneybox', 'planter', 'petfeeder', 'incense', 'bedtray', 'phonestand', 'bookstand', 'headphone', 'keyholder', 'wallshelf', 'spicerack', 'coasters', 'clock', 'keychains', 'ramadanornaments', 'mugtree', 'jewelrytree', 'birdhouse', 'ramadanlantern']
+export const NEW_IDS = ['hexringbox', 'engagement', 'hinged90', 'crate', 'carrier', 'jewelry', 'moneybox', 'planter', 'petfeeder', 'incense', 'bedtray', 'phonestand', 'bookstand', 'headphone', 'keyholder', 'wallshelf', 'spicerack', 'coasters', 'clock', 'keychains', 'ramadanornaments', 'mugtree', 'jewelrytree', 'birdhouse', 'ramadanlantern']
 
 // ====================================================================== more designs, built from the shared parts
 
@@ -2401,6 +2401,85 @@ MORE.push({
       ...(rings > 0 ? [`علبتا المحابس ${rbW} × ${rbD} × ${rbH} مم بغطاء مفصلي يقف مفتوحاً عند 95°، وفي كلّ واحدة حشوة بشقّ ${p.slitW} مم للمحبس فوق حاملين؛ غلّف الحشوة بالمخمل إن أردت.`] : []),
       `الترتيب على القاعدة من اليسار: ${rings > 0 ? 'علبة، ' : ''}${sqF > 0 ? 'مربّع، ' : ''}${hwF > 0 ? 'القلب، ' : ''}${sqF > 0 ? 'مربّع' : ''}${rings > 0 ? '، علبة' : ''}؛ ${Math.round(p.marks) > 0 ? 'العلامات المحفورة تحت كل قطعة تماماً.' : 'ضعها بالترتيب أمام المرآة.'}`,
       'المرآة والقاعدة من أكريليك مرآة (فضّي أو ذهبي)، والعلب والمربّعان من أكريليك أبيض، والإطارات من أسود، كما في الصورة. kerf الأكريليك عادةً 0.1 مم.',
+    ]
+    return { panels, notes, warnings, errors }
+  },
+})
+
+/** A regular hexagon by its width across flats, flats top and bottom, centred at (cx, cy). */
+const hexPts = (cx: number, cy: number, af: number) => { const rc = af / Math.sqrt(3); return Array.from({ length: 6 }, (_, k) => ({ x: round3(cx + rc * Math.cos((k * Math.PI) / 3)), y: round3(cy + rc * Math.sin((k * Math.PI) / 3)) })) }
+
+MORE.push({
+  id: 'hexringbox',
+  name: 'علبة محبس سداسية بإطارات',
+  desc: 'علبة سداسية من أكريليك شفّاف: ستّ جدران على قاعدة بارزة، غطاء يُرفع بشفة داخلية، حشوة بشقّ للمحبس، وإطارات أوفست ذهبية أو فضية تُلصق على كل جهة وعلى الغطاء.',
+  icon: `<path d="M20 14h24l10 9-10 9H20l-10-9z"/><path d="M10 23v22l10 9h24l10-9V23"/><path d="M20 32v22M44 32v22" stroke-width="1.5"/><path d="M23 37h18v13H23z" stroke-width="1.3"/><path d="M24 18h16l6 5-6 5H24l-6-5z" stroke-width="1.3"/>`,
+  params: [
+    mm('S', 'عرض السداسي بين ضلعين متقابلين', 40, 160, 'قياس الجدران من الخارج؛ علبة المحبس العادية 55–65 مم'),
+    mm('H', 'ارتفاع الجدران', 25, 120),
+    mm('ov', 'بروز القاعدة والغطاء', 2, 10, 'تبرز القاعدة والغطاء عن الجدران بهذا القدر، فيقف الإطار عليهما'),
+    mm('b', 'عرض الإطار', 2, 15), mm('tf', 'سماكة لوح الإطار', 0.5, 4, 'أكريليك مرآة ذهبي أو فضي، عادةً 1–2 مم'),
+    { key: 'lipL', label: 'طبقات شفة الغطاء', min: 1, max: 2, step: 1, int: true, hint: 'حلقة سداسية تُلصق تحت الغطاء وتدخل بين الجدران' },
+    mm('gap', 'خلوص الشفة', 0.2, 1),
+    { key: 'insert', label: 'حشوة المحبس', min: 0, max: 1, step: 1, int: true }, mm('slitW', 'عرض شقّ المحبس', 1.5, 4),
+    mm('fit', 'خلوص الشقوق', 0, 0.5),
+  ],
+  defaults: { S: 62, H: 40, ov: 3, b: 5, tf: 2, lipL: 1, gap: 0.3, insert: 1, slitW: 2.5, fit: 0.1 },
+  innerAdd: () => ({ W: 0, D: 0, H: 0 }),
+  build(p, c) {
+    const warnings: string[] = [], errors: string[] = []
+    const t = c.t, { S, H, ov, b, tf, gap, fit } = p, r3 = Math.sqrt(3)
+    // square-cut walls meeting at 120°: each is as wide as the inner hexagon's side, so their inner corners meet on the
+    // inner vertices and nothing overlaps; the outer V left at each corner is bridged by the frames, which are as wide
+    // as the outer side (their back corners meet on the outer vertices)
+    const sOut = S / r3, sIn = round3((S - 2 * t) / r3), AFb = S + 2 * ov
+    if (sIn < 12) errors.push(`السداسي صغير على هذه السماكة: ${Math.ceil(12 * r3 + 2 * t)} مم على الأقل.`)
+    if (tf + 0.5 > ov) warnings.push(`الإطار (${tf} مم) أسمك من بروز القاعدة والغطاء (${ov} مم)؛ سيبرز خارجهما. زد البروز إلى ${Math.ceil(tf + 0.5)} مم.`)
+    const fw = round3(sOut), fh = round3(H - 1)
+    if (fw - 2 * b < 6 || fh - 2 * b < 6) errors.push(`الإطار عريض على هذه الجهة: أقصى عرض ${Math.floor(Math.min(fw, fh) / 2 - 3)} مم.`)
+    // walls: H above the base plus a t-deep strip of tabs into the base
+    const tabs = sIn >= 28 ? [0.27, 0.73] : [0.5], tw = round3(Math.min(12, sIn * (tabs.length > 1 ? 0.24 : 0.4)))
+    const tx = tabs.map(k => round3(sIn * k))
+    const strip: ReturnType<typeof rect>[] = []
+    let x0 = 0
+    for (const x of tx) { strip.push(rect(x0, H, x - tw / 2 - x0, t)); x0 = x + tw / 2 }
+    strip.push(rect(x0, H, sIn - x0, t))
+    // base slots: the walls' mid-planes lie ov + t/2 inside the base's edge, on every side
+    const cb = { x: AFb / r3, y: AFb / 2 }, rm = S / 2 - t / 2
+    const slots: Loop[] = []
+    for (let k = 0; k < 6; k++) {
+      const ph = ((k + 0.5) * Math.PI) / 3, ux = -Math.sin(ph), uy = Math.cos(ph)
+      for (const x of tx) { const off = x - sIn / 2; slots.push(rotatedRectHole(round3(cb.x + rm * Math.cos(ph) + off * ux), round3(cb.y + rm * Math.sin(ph) + off * uy), tw + fit, t + fit, ph + Math.PI / 2)) }
+    }
+    const hexPanel = (id: string, name: string, af: number, holes: Loop[], note: string, count = 1): PanelSpec => ({ id, name, w: round3(2 * af / r3), h: round3(af), count, shape: [polyLoop(hexPts(af / r3, af / 2, af), 'outer')], holes, note })
+    const ring = (af: number, afIn: number) => polyLoop(hexPts(af / r3, af / 2, afIn), 'hole')
+    // the lid's lip: a hexagonal ring that drops inside the walls
+    const AFin = S - 2 * t, lo = round3(AFin - 2 * gap), lw = Math.max(3, 1.2 * t), li = round3(lo - 2 * lw)
+    if (li < 10) errors.push('السداسي صغير على شفة الغطاء.')
+    const lipL = Math.round(p.lipL), lipDepth = lipL * t
+    const panels: PanelSpec[] = [
+      hexPanel('base', 'القاعدة', AFb, slots, 'تبرز عن الجدران من كل جهة؛ الشقوق لألسنة الجدران'),
+      { id: 'wall', name: 'الجدار', w: sIn, h: round3(H + t), count: 6, cuts: strip, note: 'ستّة متماثلة؛ زواياها الداخلية تلتقي' },
+      hexPanel('lid', 'الغطاء', AFb, [], 'بقياس القاعدة نفسه'),
+      hexPanel('lip', 'شفة الغطاء', lo, [ring(lo, li)], 'تُلصق تحت الغطاء في وسطه وتدخل بين الجدران', lipL),
+      { id: 'frame', name: 'إطار الجهة (ذهبي/فضي)', w: fw, h: fh, count: 6, holes: [roundedRectHole(b, b, fw - 2 * b, fh - 2 * b, 0)], note: 'يُلصق على الجدار من الخارج' },
+      hexPanel('lid-frame', 'إطار الغطاء (ذهبي/فضي)', round3(AFb - 2), [ring(round3(AFb - 2), round3(AFb - 2 - 2 * b))], 'يُلصق على الغطاء من الأعلى'),
+    ]
+    if (Math.round(p.insert) > 0) {
+      // a hexagonal plate with a slit on two spacers along opposite walls; the ring's stone keeps 12 mm under the lip
+      const ai = round3(AFin - 1), hs = round3(H - lipDepth - 12 - t), sl = round3(sIn - 1.2 * t - 1), slitL = Math.min(25, round3(ai / r3 + 2))
+      if (hs < 16) errors.push(`الجدران قصيرة على حشوة المحبس: ارتفاع ${Math.ceil(16 + 12 + t + lipDepth)} مم على الأقل، أو ألغِ الحشوة.`)
+      panels.push(
+        { ...hexPanel('insert', 'حشوة المحبس', ai, [stadium(ai / r3, ai / 2, slitL, p.slitW)], 'شقّها يمسك حلقة المحبس واقفاً'), w: round3(2 * ai / r3) },
+        { id: 'spacer', name: 'حامل الحشوة', w: sl, h: Math.max(1, hs), count: 2, note: 'اثنان واقفان على حافّتيهما عند جدارين متقابلين' },
+      )
+    }
+    const notes = [
+      `العلبة ${S} مم بين ضلعين متقابلين (${(2 * S / r3).toFixed(1)} مم بين زاويتين)، والجدران ${H} مم؛ القاعدة والغطاء ${AFb} مم.`,
+      'التجميع: أدخل ألسنة الجدران الستّة في شقوق القاعدة، وتلتقي حوافّها الداخلية عند الزوايا؛ ألصقها بغراء الأكريليك السائل (يتسرّب في الشقّ). يبقى عند كل زاوية من الخارج أخدود صغير يغطّيه الإطاران.',
+      `الإطارات ${fw.toFixed(1)} × ${fh} مم بعرض ${b} مم: ألصق كلّاً منها في وسط جهته، فيلتقي طرفاه بطرفَي الإطارين المجاورين عند الزاوية تماماً، وأسفله على بروز القاعدة. ألصقها بلاصق UV شفّاف أو لاصق أكريليك لا يعكّر المرآة.`,
+      `الغطاء: ألصق الشفة تحته في الوسط، على بُعد ${(ov + t + gap).toFixed(1)} مم من حافّته من كل جهة، ثم إطار الغطاء فوقه. الشفة تدخل بين الجدران بخلوص ${gap} مم فيفتح ويُغلق بنعومة.`,
+      'اقصّ الجدران والقاعدة والغطاء من أكريليك شفّاف (kerf نحو 0.1 مم)، والإطارات من أكريليك مرآة ذهبي أو فضي. انزع ورق الحماية بعد التجميع.',
     ]
     return { panels, notes, warnings, errors }
   },
