@@ -10,6 +10,7 @@ import { backupIsEncrypted, countBackup, downloadBackup, mergeBackup, parseBacku
 import { isDesktop, pickFile, platformName, APP_VERSION, API_URL } from '../lib/platform'
 import { onSyncStatus, resetSyncCursor, schedule, syncNow, testConnection, type SyncStatus } from '../lib/sync'
 import { randomKey } from '../lib/id'
+import { hashRecovery, newRecoveryCode } from '../lib/recovery'
 import { hashPin } from '../lib/crypto'
 import { DEFAULT_STAFF_PERMISSIONS, PERMISSIONS, type Permission } from '../db/types'
 import { shortDevice, useLicense } from '../lib/license'
@@ -137,6 +138,14 @@ function UsersTab() {
   const [form, setForm] = useState<Partial<User> & { pin?: string } | null>(null)
   const toast = useToast(); const confirm = useConfirm()
   const list = Array.from(users.values()).sort((a, b) => a.createdAt - b.createdAt)
+  const [shownCode, setShownCode] = useState('')
+  const makeRecovery = async () => {
+    if (settings.recovery && !(await confirm({ title: 'إنشاء رمز استرجاع جديد؟', text: 'يتوقف الرمز القديم عن العمل، ويحل محله الرمز الجديد.', okText: 'إنشاء' }))) return
+    const code = newRecoveryCode()
+    await saveSettings({ recovery: await hashRecovery(code) })
+    await audit('update', 'إنشاء رمز استرجاع جديد للمدير', 'settings')
+    setShownCode(code)
+  }
   const save = async () => {
     if (!form?.name?.trim()) { toast.error('اكتب الاسم'); return }
     if (!form.id && (!form.pin || form.pin.length < 4)) { toast.error('الرقم السري 4 أرقام على الأقل'); return }
@@ -167,6 +176,20 @@ function UsersTab() {
           </div>
         ))}
       </div>
+      <div className="list-item mt" style={{ borderTop: '1px solid var(--border)', paddingTop: 12 }}>
+        <span className="avatar tone-warning"><KeyRound size={18} /></span>
+        <div className="grow"><div className="title">رمز الاسترجاع</div><div className="sub">{settings.recovery ? 'موجود: يفتح البرنامج إن نسي المدير رقمه السري.' : 'غير موجود بعد: إن نسي المدير رقمه السري لا يمكن فتح البرنامج. أنشئه الآن واحفظه.'}</div></div>
+        <button className={`btn sm ${settings.recovery ? '' : 'primary'}`} onClick={makeRecovery}>{settings.recovery ? 'رمز جديد' : 'إنشاء الرمز'}</button>
+      </div>
+      {shownCode && (
+        <Modal title="رمز الاسترجاع الجديد" onClose={() => setShownCode('')} size="narrow" footer={<button className="btn primary" onClick={() => setShownCode('')}>حفظته</button>}>
+          <div className="stack" style={{ textAlign: 'center' }}>
+            <p>اكتب هذا الرمز أو صوّره، واحفظه بعيداً عن الجهاز. لن يظهر مرة أخرى.</p>
+            <div className="mono" dir="ltr" style={{ fontSize: 26, fontWeight: 800, letterSpacing: 2 }}>{shownCode}</div>
+            <button className="btn sm" onClick={() => { try { navigator.clipboard?.writeText(shownCode); toast.success('نُسخ الرمز') } catch { /* ignore */ } }}><Copy /> نسخ</button>
+          </div>
+        </Modal>
+      )}
       {form && (
         <Modal title={form.id ? 'تعديل مستخدم' : 'مستخدم جديد'} onClose={() => setForm(null)} size={form.role === 'admin' ? 'narrow' : undefined} footer={<><button className="btn primary" onClick={save}>حفظ</button><button className="btn" onClick={() => setForm(null)}>إلغاء</button></>}>
           <div className="stack">

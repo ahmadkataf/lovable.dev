@@ -29,7 +29,7 @@ export async function initSync() {
   set({ lastSync: last ?? null, pending: await pendingCount(), state: configured() ? 'idle' : 'off' })
   setChangeListener(() => { pendingCount().then(n => set({ pending: n })); schedule(3000) })
   window.addEventListener('online', () => schedule(500))
-  setInterval(() => { if (configured() && navigator.onLine) syncNow().catch(() => {}) }, 60000)
+  setInterval(() => { if (configured()) syncNow().catch(() => {}) }, 60000)
   if (configured()) schedule(500)
 }
 
@@ -48,7 +48,6 @@ export function schedule(ms: number) {
 export async function syncNow(): Promise<{ sent: number; received: number }> {
   if (!configured()) { set({ state: 'off' }); return { sent: 0, received: 0 } }
   if (running) { again = true; return { sent: 0, received: 0 } }
-  if (!navigator.onLine) { set({ state: 'offline' }); return { sent: 0, received: 0 } }
   running = true
   set({ state: 'syncing', error: undefined })
   try {
@@ -113,8 +112,9 @@ export async function syncNow(): Promise<{ sent: number; received: number }> {
     if (body.more || (await pendingCount()) > 0) again = true
     return { sent: changes.length, received }
   } catch (e) {
-    const msg = e instanceof TypeError ? 'تعذّر الوصول إلى الخادم' : (e as Error).message
-    set({ state: 'error', error: msg, pending: await pendingCount() })
+    // a request that never reached the server (no connection) is "offline", not an error: it retries by itself
+    if (e instanceof TypeError || (e as Error).name === 'AbortError') set({ state: 'offline', pending: await pendingCount() })
+    else set({ state: 'error', error: (e as Error).message, pending: await pendingCount() })
     throw e
   } finally {
     running = false

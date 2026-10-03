@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { KeyRound, MessageCircle, Copy, Check, Download, LogIn, ShieldCheck, Smartphone, Monitor, Globe, WifiOff, RefreshCw } from 'lucide-react'
-import { activate, checkLicense, lastCode, shortDevice, useLicense } from '../lib/license'
+import { activate, checkLicense, lastCode, shortDevice, useLicense, clockWrong } from '../lib/license'
 import { useIsAdmin } from '../db/store'
 import { platformName } from '../lib/platform'
 import { SALES } from '../sales'
@@ -13,7 +13,9 @@ const ERR: Record<string, string> = {
   used: 'هذا الكود مستخدم على العدد الأقصى من الأجهزة. اطلب من البائع فك جهاز قديم.',
   revoked: 'هذا الكود ملغى. تواصل مع البائع.',
   expired: 'انتهت مدة هذا الكود. تواصل مع البائع لتجديد الاشتراك.',
-  network: 'لا يوجد اتصال بالإنترنت. التفعيل يحتاج إنترنت مرة واحدة: اتصل ثم اضغط «تفعيل» مرة أخرى.',
+  network: 'تعذّر الوصول إلى خادم التفعيل. تأكّد أن الإنترنت يعمل (افتح أي موقع)، أو جرّب شبكة أخرى (بيانات الهاتف بدل الواي فاي)، ثم اضغط «تفعيل» مرة أخرى.',
+  timeout: 'الاتصال بطيء جداً ولم يكتمل. انتظر قليلاً ثم اضغط «تفعيل» مرة أخرى، أو جرّب شبكة أخرى.',
+  clock: 'تاريخ الجهاز أو ساعته غير صحيحة، فيرفض الجهاز الاتصال الآمن بالخادم. اضبط التاريخ والوقت (تلقائياً من الشبكة) ثم اضغط «تفعيل» مرة أخرى.',
   wait: 'محاولات كثيرة خاطئة. انتظر ربع ساعة ثم حاول مرة أخرى.',
   'not-configured': 'خادم التفعيل غير جاهز بعد. تواصل مع البائع.',
   server: 'حدث خطأ في الخادم. حاول بعد قليل.',
@@ -42,7 +44,7 @@ export function Activate({ shopName, onClose }: { shopName: string; onClose?: ()
   const wall = !onClose
   const recheck = async () => { setChecking(true); try { await checkLicense(true) } finally { setChecking(false) } }
   const active = lic.state === 'active'
-  const offline = typeof navigator !== 'undefined' && !navigator.onLine
+  const offline = clockWrong()
   return (
     <div className="activate">
       <div className="activate-box">
@@ -84,7 +86,7 @@ export function Activate({ shopName, onClose }: { shopName: string; onClose?: ()
               <input className="input lg mono activate-input" dir="ltr" value={code} onChange={e => { setCode(e.target.value); setMsg(null) }} placeholder="XXXX-XXXX-XXXX" autoCapitalize="characters" autoCorrect="off" spellCheck={false} autoFocus onKeyDown={e => { if (e.key === 'Enter') submit() }} />
               <button className="btn primary block lg" disabled={busy || code.replace(/[^0-9a-z]/gi, '').length < 12} onClick={submit}><LogIn /> {busy ? 'جارٍ التحقق…' : 'تفعيل'}</button>
               {msg && <div className={`badge ${msg.ok ? 'tone-success' : 'tone-danger'} activate-notice`}>{msg.text}</div>}
-              {offline && !msg && <div className="badge tone-warning activate-notice"><WifiOff size={14} /> لا يوجد اتصال بالإنترنت الآن. التفعيل يحتاج اتصالاً مرة واحدة فقط.</div>}
+              {offline && !msg && <div className="badge tone-warning activate-notice"><WifiOff size={14} /> تاريخ الجهاز غير صحيح ({fmtDate(Date.now())}). اضبطه قبل التفعيل.</div>}
               <p className="help">بعد التفعيل يعمل البرنامج بلا إنترنت، ويتحقق من الاشتراك عندما يتوفر الاتصال. كل بياناتك تبقى على جهازك.</p>
               <div className="btn-row" style={{ justifyContent: 'center' }}>
                 {(lic.state === 'expired' || lic.state === 'blocked' || lic.state === 'grace') && <button className="btn" disabled={checking} onClick={recheck}><RefreshCw /> {checking ? 'جارٍ التحقق…' : 'جدّدتُ الاشتراك — تحقق الآن'}</button>}

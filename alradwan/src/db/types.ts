@@ -285,6 +285,8 @@ export interface Settings extends Base {
   expenseCategories: string[]
   units: string[]
   sync: { url: string; key: string; enabled: boolean }
+  /** the owner's recovery code, as a salted hash: opens the app when the admin PIN is forgotten */
+  recovery?: { hash: string; salt: string; iterations: number }
 }
 
 export interface Collections {

@@ -1,5 +1,8 @@
 declare const __APP_VERSION__: string
 declare const __ALRADWAN_API__: string
+declare const __BUILD_TIME__: number
+/** When this copy of the app was built: a device clock before it is certainly wrong. */
+export const BUILD_TIME: number = __BUILD_TIME__
 export const APP_VERSION = __APP_VERSION__
 /** The licensing (and default sync) server this build was made for; empty when the build is free. */
 export const API_URL = __ALRADWAN_API__

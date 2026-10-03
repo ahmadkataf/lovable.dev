@@ -29,7 +29,7 @@ export default defineConfig({
   plugins: [react(), serviceWorker()],
   base: './',
   // ALRADWAN_API: the licensing/sync server the build activates against; empty = no activation (free build)
-  define: { __APP_VERSION__: JSON.stringify(pkg.version), __ALRADWAN_API__: JSON.stringify((process.env.ALRADWAN_API ?? '').replace(/\/$/, '')) },
+  define: { __APP_VERSION__: JSON.stringify(pkg.version), __BUILD_TIME__: JSON.stringify(Date.now()), __ALRADWAN_API__: JSON.stringify((process.env.ALRADWAN_API ?? '').replace(/\/$/, '')) },
   build: {
     outDir: 'dist',
     emptyOutDir: true,
