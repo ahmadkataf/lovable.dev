@@ -1,5 +1,5 @@
 // Ready-made box designs. Every template turns its parameters into panel specs.
-import { Loop, rect, circle, disc, stadium, stadiumV, roundedRectHole, rotatedRectHole, roundCorner, edgeNotch, engraveRect, hingeLines, heart, ellipse, archHole, keyhole, polyLoop, peakSegments, oriented, round3 } from './geom'
+import { Loop, rect, circle, disc, stadium, stadiumV, roundedRectHole, rotatedRectHole, roundCorner, edgeNotch, engraveRect, hingeLines, heart, ellipse, archHole, keyhole, polyLoop, peakSegments, oriented, signedArea, round3 } from './geom'
 import { PanelSpec, fingerCount } from './joints'
 
 export interface ParamDef {
@@ -1480,7 +1480,7 @@ export const templateById = (id: string) => TEMPLATES.find(t => t.id === id) ?? 
 /** The picker's groups, in the order they are shown; every template belongs to exactly one. */
 export const CATEGORIES: { id: string; name: string; ids: string[] }[] = [
   { id: 'box', name: 'صناديق', ids: ['closed', 'open', 'sliding', 'liftoff', 'hinged', 'hinged90', 'flex', 'lip', 'window', 'drawer', 'roundbox', 'crate'] },
-  { id: 'gift', name: 'هدايا وديكور', ids: ['chest', 'catbank', 'decobox', 'jewelry', 'moneybox', 'teahouse', 'frame', 'basket', 'fence', 'clock'] },
+  { id: 'gift', name: 'هدايا وديكور', ids: ['engagement', 'chest', 'catbank', 'decobox', 'jewelry', 'moneybox', 'teahouse', 'frame', 'basket', 'fence', 'clock'] },
   { id: 'kitchen', name: 'مطبخ وتقديم', ids: ['carrier', 'mugtree', 'spicerack', 'bedtray', 'tray', 'teabox', 'tissue'] },
   { id: 'office', name: 'مكتب وتنظيم', ids: ['organizer', 'phonestand', 'bookstand', 'headphone', 'keyholder', 'wallshelf', 'jewelrytree'] },
   { id: 'home', name: 'بيت وحديقة', ids: ['planter', 'petfeeder', 'birdhouse', 'incense', 'napkin'] },
@@ -1488,7 +1488,7 @@ export const CATEGORIES: { id: string; name: string; ids: string[] }[] = [
   { id: 'bulk', name: 'بالجملة', ids: ['keychains', 'coasters'] },
 ]
 /** the newest designs get a badge in the picker */
-export const NEW_IDS = ['hinged90', 'crate', 'carrier', 'jewelry', 'moneybox', 'planter', 'petfeeder', 'incense', 'bedtray', 'phonestand', 'bookstand', 'headphone', 'keyholder', 'wallshelf', 'spicerack', 'coasters', 'clock', 'keychains', 'ramadanornaments', 'mugtree', 'jewelrytree', 'birdhouse', 'ramadanlantern']
+export const NEW_IDS = ['engagement', 'hinged90', 'crate', 'carrier', 'jewelry', 'moneybox', 'planter', 'petfeeder', 'incense', 'bedtray', 'phonestand', 'bookstand', 'headphone', 'keyholder', 'wallshelf', 'spicerack', 'coasters', 'clock', 'keychains', 'ramadanornaments', 'mugtree', 'jewelrytree', 'birdhouse', 'ramadanlantern']
 
 // ====================================================================== more designs, built from the shared parts
 
@@ -2286,5 +2286,124 @@ MORE.push(
     },
   },
 )
+
+/**
+ * A circle of radius R centred at (cx, cy), cut flat along y = yc below the centre, with tabs hanging L below the flat
+ * at the given centres. The two arcs are real bulges (a mirror edge must not show facets); their sense is picked by area.
+ */
+function flatDisc(cx: number, cy: number, R: number, yc: number, tabs: number[], tw: number, L: number): Loop {
+  const c = Math.sqrt(R * R - (yc - cy) ** 2), xl = round3(cx - c), xr = round3(cx + c)
+  const sweep = Math.atan2(yc - cy, c) + Math.PI / 2, k = Math.tan(sweep / 4)
+  const make = (b: number): Loop => {
+    const pts: { x: number; y: number; b?: number }[] = [{ x: xl, y: round3(yc) }]
+    for (const x of [...tabs].sort((a, b2) => a - b2)) pts.push({ x: round3(x - tw / 2), y: round3(yc) }, { x: round3(x - tw / 2), y: round3(yc + L) }, { x: round3(x + tw / 2), y: round3(yc + L) }, { x: round3(x + tw / 2), y: round3(yc) })
+    pts.push({ x: xr, y: round3(yc), b }, { x: round3(cx), y: round3(cy - R), b })
+    return { closed: true, pts }
+  }
+  const a = make(k), bb = make(-k)
+  return oriented(Math.abs(signedArea(a)) > Math.abs(signedArea(bb)) ? a : bb, 'outer')
+}
+
+MORE.push({
+  id: 'engagement',
+  name: 'طقم خطوبة: مرآة وقاعدة وعلبتا محابس',
+  desc: 'مرآة دائرية تقف على قاعدة بطبقتين، علبتا محابس بغطاء يقف مفتوحاً وحشوة بشقّ للمحبس، قلب ومربّعان للأسماء والتاريخ.',
+  icon: `<circle cx="32" cy="24" r="17"/><path d="M8 46h48v6H8z"/><path d="M12 38h10v8H12zM42 38h10v8H42z"/><path d="M12 38l3-6h7v6M42 38l3-6h7v6" stroke-width="1.5"/><path d="M29 42c0-2 3-2 3 0 0-2 3-2 3 0l-3 3z" fill="currentColor" stroke="none"/><path d="M24 22h16M26 27h12" stroke-width="1.2"/>`,
+  params: [
+    mm('Dd', 'قطر المرآة', 150, 500), mm('W', 'عرض القاعدة', 200, 600), mm('D', 'عمق القاعدة', 100, 300),
+    { key: 'layers', label: 'طبقات القاعدة', min: 1, max: 3, step: 1, int: true, hint: 'ألسنة المرآة والدعامتين تنفذ فيها كلّها' },
+    { key: 'rings', label: 'علب المحابس', min: 0, max: 2, step: 1, int: true },
+    mm('rbW', 'عرض علبة المحبس', 45, 80), mm('rbH', 'ارتفاع علبة المحبس', 38, 70), mm('slitW', 'عرض شقّ المحبس', 1.5, 4, 'سماكة حلقة المحبس مع خلوص بسيط'),
+    mm('hw', 'عرض القلب', 0, 120, '0 = بلا قلب'), mm('sq', 'مقاس المربّع', 0, 80, 'مربّعان للأسماء أو التاريخ؛ 0 = بلا'),
+    { key: 'backing', label: 'طبقة إطار تحت القلب والمربّعين', min: 0, max: 1, step: 1, int: true, hint: 'قطعة أكبر بـ 3–4 مم من كل جهة بلون مختلف، كما في الصورة' },
+    { key: 'marks', label: 'علامات مواضع القطع', min: 0, max: 1, step: 1, int: true, hint: 'خطوط محفورة على القاعدة تحت كل قطعة تماماً، فتختفي بعد اللصق' },
+    { key: 'border', label: 'إطار محفور على المرآة', min: 0, max: 1, step: 1, int: true },
+    mm('fit', 'خلوص الشقوق', 0, 1),
+  ],
+  defaults: { Dd: 300, W: 400, D: 170, layers: 2, rings: 2, rbW: 55, rbH: 45, slitW: 2.5, hw: 60, sq: 42, backing: 1, marks: 1, border: 0, fit: 0.15 },
+  innerAdd: () => ({ W: 0, D: 0, H: 0 }),
+  build(p, c) {
+    const warnings: string[] = [], errors: string[] = []
+    const t = c.t, { W, D, Dd, fit } = p
+    const n = Math.round(p.layers), L = round3(n * t), R = Dd / 2
+    const rings = Math.round(p.rings), back = Math.round(p.backing) > 0
+    if (Dd > W - 10) errors.push(`المرآة أعرض من القاعدة: اجعل عرض القاعدة ${Math.ceil(Dd + 10)} مم على الأقل.`)
+    // the mirror: flat along a chord at the bottom, two tabs through every base layer
+    const ch = round3(0.22 * Dd), cut = R - Math.sqrt(R * R - ch * ch), yc = round3(2 * R - cut)
+    const tw = round3(Math.min(30, Math.max(10, 0.25 * ch))), tabX = [round3(R - 0.6 * ch), round3(R + 0.6 * ch)]
+    const mirror: PanelSpec = {
+      id: 'mirror', name: 'المرآة الدائرية', w: Dd, h: round3(yc + L), shape: [flatDisc(R, R, R, yc, tabX, tw, L)],
+      engrave: Math.round(p.border) > 0 ? [{ ...circle(R, R, R - 10), layer: 'engrave' as const }] : [],
+      note: 'تُكتب عليها الآية والأسماء بالحفر في RDWorks',
+    }
+    // two braces behind it, perpendicular, their front edges glued to its back
+    const db = round3(Math.max(40, 0.18 * Dd)), hb = round3(0.42 * Dd), b0 = round3(0.25 * db), b1 = round3(0.75 * db)
+    const brace: PanelSpec = {
+      id: 'brace', name: 'دعامة المرآة', w: db, h: round3(hb + L), count: 2,
+      shape: [polyLoop([{ x: 0, y: 0 }, { x: 0, y: hb }, { x: b0, y: hb }, { x: b0, y: round3(hb + L) }, { x: b1, y: round3(hb + L) }, { x: b1, y: hb }, { x: db, y: hb }, { x: 6, y: 0 }], 'outer')],
+      note: 'حافّتها العمودية تُلصق على ظهر المرآة، ولسانها في شقّ القاعدة',
+    }
+    // the base: the mirror stands near the back, everything else in a row in front of it
+    const m = 10, mf = 12, yd = round3(D - m - db - t / 2)
+    const slots: Loop[] = [
+      ...tabX.map(x => rotatedRectHole(round3(W / 2 + x - R), yd, tw + fit, t + fit, 0)),
+      ...[-1, 1].map(sd => rotatedRectHole(round3(W / 2 + sd * 0.35 * ch), round3(yd + t / 2 + (b0 + b1) / 2), t + fit, b1 - b0 + fit, 0)),
+    ]
+    const rbW = p.rbW, rbD = round3(rbW - 5), rbH = p.rbH
+    const hwF = p.hw > 0 ? p.hw + (back ? 8 : 0) : 0, hhF = 0.95 * hwF, sqF = p.sq > 0 ? p.sq + (back ? 6 : 0) : 0
+    const front = yd - t / 2 - mf
+    const deepest = Math.max(rings > 0 ? rbD + 8 : 0, hhF, sqF)
+    if (deepest > front) errors.push(`القاعدة غير عميقة بما يكفي للقطع أمام المرآة: اجعل العمق ${Math.ceil(D + deepest - front)} مم على الأقل.`)
+    const xRing = round3(m + 4 + rbW / 2)
+    const sqX = round3(hwF / 2 + (hwF > 0 ? 8 : 0) + sqF / 2)
+    const rowHalf = (sqF > 0 ? sqX + sqF / 2 : hwF / 2) + 6
+    if (rings > 0 && W / 2 - rowHalf < xRing + rbW / 2) errors.push(`القاعدة أضيق من أن تتّسع للعلبتين والقلب والمربّعين في صفّ واحد: اجعل العرض ${Math.ceil(2 * (rowHalf + m + 4 + rbW))} مم على الأقل.`)
+    if (rings === 0 && W / 2 - rowHalf < m) errors.push('القاعدة أضيق من القلب والمربّعين.')
+    const marks: Loop[] = []
+    if (Math.round(p.marks) > 0) {
+      if (rings > 0) for (const x of [xRing, W - xRing]) marks.push(engraveRect(round3(x - rbW / 2 + 1), round3(mf + 1), rbW - 2, rbD - 2))
+      if (hwF > 0) marks.push({ ...heart(W / 2, round3(mf + hhF / 2), hwF - 2), layer: 'engrave' })
+      if (sqF > 0) for (const sd of [-1, 1]) marks.push(engraveRect(round3(W / 2 + sd * sqX - sqF / 2 + 1), round3(mf + 1), sqF - 2, sqF - 2))
+    }
+    const rounded = (w: number, h: number, r: number) => (loops: Loop[]) => { for (const [x, y] of [[0, 0], [w, 0], [w, h], [0, h]]) roundCorner(loops, x, y, r) }
+    const panels: PanelSpec[] = [
+      mirror, brace,
+      { id: 'base-top', name: 'القاعدة — الطبقة العليا', w: W, h: D, holes: slots, engrave: marks, post: rounded(W, D, 14), note: 'شقّا ألسنة المرآة وشقّا الدعامتين' },
+      ...(n > 1 ? [{ id: 'base-under', name: 'القاعدة — الطبقة السفلى', w: W, h: D, count: n - 1, holes: slots.map(l => ({ ...l, pts: l.pts.map(v => ({ ...v })) })), post: rounded(W, D, 14), note: 'الشقوق نفسها لتنفذ فيها الألسنة' }] : []),
+    ]
+    if (p.hw > 0) {
+      panels.push({ id: 'heart', name: 'القلب', w: p.hw, h: round3(0.95 * p.hw), shape: [oriented(heart(p.hw / 2, 0.95 * p.hw / 2, p.hw), 'outer')], note: 'تُحفر عليه الحروف الأولى' })
+      if (back) panels.push({ id: 'heart-back', name: 'إطار القلب', w: hwF, h: round3(hhF), shape: [oriented(heart(hwF / 2, hhF / 2, hwF), 'outer')], note: 'يُلصق تحت القلب بلون مختلف' })
+    }
+    if (p.sq > 0) {
+      panels.push({ id: 'square', name: 'مربّع الاسم', w: p.sq, h: p.sq, count: 2, post: rounded(p.sq, p.sq, 4), note: 'لاسم أو تاريخ' })
+      if (back) panels.push({ id: 'square-back', name: 'إطار المربّع', w: sqF, h: sqF, count: 2, post: rounded(sqF, sqF, 6), note: 'يُلصق تحت المربّع' })
+    }
+    if (rings > 0) {
+      // each ring box is the stay-open hinged box, with an insert: a plate with a slit for the ring, on two spacers
+      const box = TEMPLATES.find(x => x.id === 'hinged90')!
+      const rb = box.build({ W: rbW, D: rbD, H: rbH, ...HINGE_DEFAULTS, pull: 0, stop: 95 }, c)
+      for (const e of rb.errors ?? []) errors.push('علبة المحبس: ' + e)
+      for (const w of rb.warnings) warnings.push('علبة المحبس: ' + w)
+      for (const pn of rb.panels) panels.push({ ...pn, id: 'ring-' + pn.id, name: 'علبة المحبس — ' + pn.name, count: (pn.count ?? 1) * rings })
+      const Wp = round3(rbW - 2 * t - 1), Dp = round3(rbD - 2 * t - 1), hs = round3(rbH - t - 12 - t)
+      if (hs < 16) errors.push(`علبة المحبس قصيرة: يلزم ارتفاع ${Math.ceil(16 + 12 + 2 * t)} مم لتتدلّى حلقة المحبس تحت الحشوة ويبقى فوق الحجر فراغ للغطاء.`)
+      const slitL = Math.min(30, Wp - 14)
+      if (slitL < 12) errors.push('علبة المحبس ضيقة على شقّ المحبس.')
+      panels.push(
+        { id: 'ring-insert', name: 'علبة المحبس — الحشوة', w: Wp, h: Dp, count: rings, holes: slitL >= 12 ? [stadium(Wp / 2, Dp / 2, slitL, p.slitW)] : [], note: 'شقّها يمسك حلقة المحبس واقفاً' },
+        { id: 'ring-spacer', name: 'علبة المحبس — حامل الحشوة', w: Wp, h: Math.max(hs, 1), count: 2 * rings, note: 'اثنان على حافّتيهما عند الأمام والخلف تحت الحشوة' },
+      )
+    }
+    const notes = [
+      `المرآة ${Dd} مم تقف بلسانيها في شقوق القاعدة (${n} ${n > 1 ? 'طبقات' : 'طبقة'})، وتسندها من الخلف دعامتان تُلصق حافّتاهما على ظهرها.`,
+      'الآية والأسماء والتاريخ: صمّمها في RDWorks أو CorelDRAW وضعها فوق المرآة. في أكريليك المرآة احفر على الوجه الخلفي المطليّ والتصميم معكوس (Mirror) فيُقرأ صحيحاً من الأمام.',
+      ...(rings > 0 ? [`علبتا المحابس ${rbW} × ${rbD} × ${rbH} مم بغطاء مفصلي يقف مفتوحاً عند 95°، وفي كلّ واحدة حشوة بشقّ ${p.slitW} مم للمحبس فوق حاملين؛ غلّف الحشوة بالمخمل إن أردت.`] : []),
+      `الترتيب على القاعدة من اليسار: ${rings > 0 ? 'علبة، ' : ''}${sqF > 0 ? 'مربّع، ' : ''}${hwF > 0 ? 'القلب، ' : ''}${sqF > 0 ? 'مربّع' : ''}${rings > 0 ? '، علبة' : ''}؛ ${Math.round(p.marks) > 0 ? 'العلامات المحفورة تحت كل قطعة تماماً.' : 'ضعها بالترتيب أمام المرآة.'}`,
+      'المرآة والقاعدة من أكريليك مرآة (فضّي أو ذهبي)، والعلب والمربّعان من أكريليك أبيض، والإطارات من أسود، كما في الصورة. kerf الأكريليك عادةً 0.1 مم.',
+    ]
+    return { panels, notes, warnings, errors }
+  },
+})
 
 TEMPLATES.push(...MORE)

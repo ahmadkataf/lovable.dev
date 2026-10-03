@@ -593,6 +593,49 @@ describe('cat money box', () => {
   })
 })
 
+describe('engagement set', () => {
+  const tpl = TEMPLATES.find(x => x.id === 'engagement')!
+  const dims = (l: Loop) => { const [a, b, c] = l.pts; return [Math.hypot(b.x - a.x, b.y - a.y), Math.hypot(c.x - b.x, c.y - b.y)].sort((x, y) => x - y) }
+  it('the mirror and its braces plug through every base layer into slots of their own size', () => {
+    for (const t of [2, 3, 4]) for (const layers of [1, 2, 3]) {
+      const d = generate(tpl, { layers }, { ...DEFAULT_SETTINGS, t, kerf: 0 })
+      expect(d.errors, `t=${t} layers=${layers}`).toEqual([])
+      const mirror = d.panels.find(p => p.id === 'mirror')!, brace = d.panels.find(p => p.id === 'brace')!, top = d.panels.find(p => p.id === 'base-top')!
+      const L = layers * t
+      // the mirror's tabs hang L below its flat bottom; the brace's tab L below its foot
+      const my = mirror.loops[0].pts.map(v => v.y), by = brace.loops[0].pts.map(v => v.y)
+      expect(Math.max(...my) - Math.max(...my.filter(y => y < Math.max(...my) - 1e-6))).toBeCloseTo(L, 3)
+      expect(Math.max(...by) - Math.max(...by.filter(y => y < Math.max(...by) - 1e-6))).toBeCloseTo(L, 3)
+      const slots = top.loops.filter(l => l.closed && l.layer !== 'engrave' && signedArea(l) < 0).map(dims)
+      expect(slots.length).toBe(4)
+      // two slots for the mirror's tabs (t thick), two for the braces (t thick), each 0.15 wider than its tab
+      const mirrorTab = (() => { const xs = mirror.loops[0].pts.filter(v => Math.abs(v.y - Math.max(...my)) < 1e-6).map(v => v.x).sort((a, b) => a - b); return xs[1] - xs[0] })()
+      const braceTab = (() => { const xs = brace.loops[0].pts.filter(v => Math.abs(v.y - Math.max(...by)) < 1e-6).map(v => v.x).sort((a, b) => a - b); return xs[1] - xs[0] })()
+      expect(slots.filter(([a, b]) => Math.abs(a - t - 0.15) < 1e-3 && Math.abs(b - mirrorTab - 0.15) < 1e-3).length).toBe(2)
+      expect(slots.filter(([a, b]) => Math.abs(a - t - 0.15) < 1e-3 && Math.abs(b - braceTab - 0.15) < 1e-3).length).toBe(2)
+      expect(d.panels.find(p => p.id === 'base-under')?.count ?? 0).toBe(layers - 1)
+    }
+  })
+  it('each ring box takes its insert with clearance, the ring hangs clear of the floor, and the placement marks do not overlap', () => {
+    const t = 3, d = generate(tpl, {}, { ...DEFAULT_SETTINGS, t, kerf: 0 })
+    const p = tpl.defaults, rbD = p.rbW - 5
+    const insert = d.panels.find(x => x.id === 'ring-insert')!, spacer = d.panels.find(x => x.id === 'ring-spacer')!
+    expect(insert.w).toBeCloseTo(p.rbW - 2 * t - 1); expect(insert.h).toBeCloseTo(rbD - 2 * t - 1)
+    expect(spacer.count).toBe(4); expect(insert.count).toBe(2)
+    expect(spacer.h + t + 12).toBeCloseTo(p.rbH - t) // spacer, insert plate, 12 mm over the stone, up to the rim
+    expect(spacer.h).toBeGreaterThanOrEqual(16)
+    expect(d.panels.filter(x => x.id.startsWith('ring-') && !['ring-insert', 'ring-spacer'].includes(x.id)).every(x => (x.count ?? 1) % 2 === 0)).toBe(true)
+    const top = d.panels.find(x => x.id === 'base-top')!
+    const marks = top.loops.filter(l => l.layer === 'engrave').map(l => samplePoly(l))
+    expect(marks.length).toBe(5)
+    for (let i = 0; i < marks.length; i++) for (let j = i + 1; j < marks.length; j++) expect(polysOverlap(marks[i], marks[j])).toBe(false)
+    // every mark lies in front of the mirror's slots
+    const slotY = Math.min(...top.loops.filter(l => l.layer !== 'engrave' && signedArea(l) < 0).flatMap(l => l.pts.map(v => v.y)))
+    for (const mk of marks) expect(Math.max(...mk.map(v => v.y))).toBeLessThan(slotY - 5)
+    expect(generate(tpl, { W: 260 }, { ...DEFAULT_SETTINGS, kerf: 0 }).errors.join(' ')).toMatch(/أعرض من القاعدة|أضيق/)
+  })
+})
+
 describe('commercial designs: parts that mate', () => {
   const S0 = { ...DEFAULT_SETTINGS, kerf: 0 }
   const T = (id: string) => TEMPLATES.find(x => x.id === id)!
