@@ -1841,7 +1841,10 @@ function shelfBuild(kind: 'shelf' | 'spice') {
     const box = openBox(W, H, D)
     const d = dividerPlan({ W, D: H, H: D, N: 0, M: p.M, margin: p.margin, fit }, t, errors, warnings)
     const back = box.find(x => x.id === 'bottom')!, side = box.find(x => x.id === 'side')!
-    back.name = 'اللوح الخلفي'; back.holes = [keyhole(Math.min(60, W / 4), 22, 4, 4, 7), keyhole(W - Math.min(60, W / 4), 22, 4, 4, 7)]
+    // the hanging keyholes sit under the top board, clear of the joints
+    if (H < 2 * t + 40 || W < 2 * t + 50) errors.push(`الرف صغير على فتحتي التعليق: ارتفاع ${Math.ceil(2 * t + 40)} وعرض ${Math.ceil(2 * t + 50)} مم على الأقل.`)
+    const kx = Math.max(t + 12, Math.min(60, W / 4)), ky = t + 18
+    back.name = 'اللوح الخلفي'; back.holes = [keyhole(kx, ky, 4, 4, 7), keyhole(W - kx, ky, 4, 4, 7)]
     back.note = 'فتحتا التعليق في الأعلى'
     for (const b of box) if (b.id === 'front' || b.id === 'back') { b.name = 'اللوح العلوي / السفلي'; b.id = 'board-' + b.id }
     addSlots(side, d.ds, d.margin, d.hd - FOOT, d.sw, d.vfit)
