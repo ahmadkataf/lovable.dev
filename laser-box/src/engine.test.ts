@@ -128,9 +128,17 @@ describe('templates', () => {
     expect(side.loops.filter(l => signedArea(l) > 0)).toHaveLength(1)
   })
   it('the hinged lid is wider than the base by two thicknesses', () => {
-    const d = generate(TEMPLATES.find(t => t.id === 'hinged')!, { W: 120 }, { ...s, kerf: 0 })
-    expect(d.panels.find(p => p.id === 'lid-top')!.w).toBeCloseTo(120 + 2 * s.t)
-    expect(d.panels.find(p => p.id === 'lid-side')!.loops.some(l => l.pts.length === 2)).toBe(true) // the pin hole
+    const d = generate(TEMPLATES.find(t => t.id === 'hinged')!, { W: 120, gap: 0.3 }, { ...s, kerf: 0 })
+    expect(d.panels.find(p => p.id === 'lid-top')!.w).toBeCloseTo(120 + 2 * s.t + 0.6)
+    const lidSide = d.panels.find(p => p.id === 'lid-side')!, baseSide = d.panels.find(p => p.id === 'base-side')!
+    expect(lidSide.loops.some(l => l.pts.length === 2)).toBe(true) // the pin hole
+    // both ears reach the same distance behind the back face, and both pivots line up on the rim
+    const e = 3 / 2 + 2.5, r = 1.25 * e
+    expect(lidSide.w).toBeCloseTo(80 + e + r)
+    expect(baseSide.w).toBeCloseTo(80 + e + r)
+    const hole = (p: typeof lidSide) => { const [a, b] = p.loops.find(l => l.pts.length === 2)!.pts; return { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 } }
+    expect(hole(baseSide).y + 30).toBeCloseTo(hole(lidSide).y) // base hole e below the rim, lid hole e below the lid's bottom edge
+    expect(hole(baseSide).x).toBeCloseTo(hole(lidSide).x)
   })
   it('the flex hinge has score lines in the hinge zone only', () => {
     const d = generate(TEMPLATES.find(t => t.id === 'flex')!, { D: 80, R: 15 }, { ...s, kerf: 0 })

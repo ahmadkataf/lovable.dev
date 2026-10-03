@@ -22,6 +22,12 @@ const SETTING_DEFS: ParamDef[] = [
   { key: 'sheetW', label: 'عرض اللوح', min: 50, max: 3000, step: 10, unit: 'مم', hint: 'القطع تُرصّ في صفوف لا تتجاوز هذا العرض' },
 ]
 
+const MATERIALS: { id: string; label: string; kerf: number }[] = [
+  { id: 'plywood', label: 'أبلكاش', kerf: 0.15 },
+  { id: 'mdf', label: 'MDF', kerf: 0.2 },
+  { id: 'acrylic', label: 'أكريليك', kerf: 0.1 },
+]
+
 const LS_KEY = 'laser-box-state-v1'
 
 function loadState(): State {
@@ -78,17 +84,19 @@ function toast(msg: string) {
   setTimeout(() => { t.classList.remove('show'); setTimeout(() => t.remove(), 300) }, 2200)
 }
 
-function numberField(def: ParamDef, value: number, onChange: (v: number) => void): HTMLElement {
-  const input = el('input', { type: 'number', inputmode: 'decimal', min: String(def.min), max: String(def.max), step: String(def.step ?? 1), value: String(value) }) as HTMLInputElement
+function numberField(def: ParamDef, value: number, onChange: (v: number) => void, idPrefix = 'f'): HTMLElement {
+  const input = el('input', { id: `${idPrefix}-${def.key}`, type: 'number', inputmode: 'decimal', min: String(def.min), max: String(def.max), step: String(def.step ?? 1), value: String(value) }) as HTMLInputElement
   const commit = () => {
     let v = parseFloat(input.value)
     if (!Number.isFinite(v)) return
     v = Math.min(def.max, Math.max(def.min, v))
     if (def.int) v = Math.round(v)
     if (String(v) !== input.value) input.value = String(v)
-    onChange(v)
+    onChange(v); mirror(v)
   }
-  input.oninput = () => { const v = parseFloat(input.value); if (Number.isFinite(v) && v >= def.min && v <= def.max) onChange(def.int ? Math.round(v) : v) }
+  // the quick strip and the full form show the same number: keep the twin input in step
+  const mirror = (v: number) => { const twin = document.getElementById(`${idPrefix === 'f' ? 'q' : 'f'}-${def.key}`) as HTMLInputElement | null; if (twin && twin !== document.activeElement) twin.value = String(v) }
+  input.oninput = () => { const v = parseFloat(input.value); if (Number.isFinite(v) && v >= def.min && v <= def.max) { onChange(def.int ? Math.round(v) : v); mirror(v) } }
   input.onchange = commit
   const bump = (d: number) => () => { input.value = String(Math.min(def.max, Math.max(def.min, (parseFloat(input.value) || 0) + d))); commit() }
   const step = def.step ?? 1
@@ -109,6 +117,7 @@ const header = el('header', { class: 'top' },
   el('div', { class: 'brand' }, el('span', { class: 'logo', 'aria-hidden': 'true' }, '▣'), el('div', {}, el('h1', {}, 'مولّد صناديق الليزر'), el('p', {}, 'اختر الشكل، اضبط القياسات والسماكة، ونزّل ملفاً جاهزاً للقص'))),
 )
 const gallery = el('nav', { class: 'gallery', 'aria-label': 'الأشكال الجاهزة' })
+const quick = el('section', { class: 'quick', 'aria-label': 'القياسات الأساسية' })
 const form = el('aside', { class: 'form' })
 const previewWrap = el('section', { class: 'preview' })
 const svgNS = 'http://www.w3.org/2000/svg'
@@ -118,7 +127,7 @@ const stats = el('div', { class: 'stats' })
 const notesBox = el('div', { class: 'notes' })
 const actions = el('div', { class: 'actions' })
 previewWrap.append(stats, el('div', { class: 'canvas-wrap' }, svg, el('div', { class: 'canvas-tools' }, el('button', { type: 'button', class: 'tool', onclick: () => fitView(), title: 'ملاءمة' }, '⤢'), el('button', { type: 'button', class: 'tool', onclick: () => { state.labels = !state.labels; persist(); render() }, title: 'الأسماء' }, 'Aa'))), actions)
-app.append(header, gallery, el('div', { class: 'work' }, form, previewWrap), notesBox, el('footer', { class: 'foot' }, 'الملفات بالمليمتر. افتح SVG أو DXF في LightBurn أو RDWorks أو Inkscape، وتأكّد أن القياس 1:1 قبل القص.'))
+app.append(header, gallery, quick, el('div', { class: 'work' }, form, previewWrap), notesBox, el('footer', { class: 'foot' }, 'الملفات بالمليمتر. افتح SVG أو DXF في LightBurn أو RDWorks أو Inkscape، وتأكّد أن القياس 1:1 قبل القص.'))
 
 // ------------------------------------------------------------------ gallery
 
@@ -134,7 +143,32 @@ function renderGallery() {
 
 // ------------------------------------------------------------------ form
 
+function materialPicker(): HTMLElement {
+  const seg = el('div', { class: 'segmented', role: 'group', 'aria-label': 'الخامة' })
+  for (const m of MATERIALS) {
+    const b = el('button', { type: 'button', class: Math.abs(state.settings.kerf - m.kerf) < 1e-9 ? 'on' : '' }, m.label)
+    b.onclick = () => { state.settings.kerf = m.kerf; persist(); renderForm(); update() }
+    seg.append(b)
+  }
+  return seg
+}
+
+function renderQuick() {
+  const t = tpl()
+  const cur = params()
+  quick.innerHTML = ''
+  const row = el('div', { class: 'quick-row' })
+  for (const def of t.params.filter(d => ['W', 'D', 'H'].includes(d.key))) row.append(numberField(def, cur[def.key], v => { (state.params[state.tpl] ??= {})[def.key] = v; persist(); update() }, 'q'))
+  row.append(numberField(SETTING_DEFS[0], state.settings.t, v => { state.settings.t = v; persist(); update() }, 'q'))
+  const foot = el('div', { class: 'quick-foot' },
+    el('div', { class: 'field' }, el('span', { class: 'field-label' }, 'الخامة', el('small', {}, `kerf ${state.settings.kerf} مم`)), materialPicker()),
+    el('button', { type: 'button', class: 'more', onclick: () => form.scrollIntoView({ behavior: 'smooth', block: 'start' }) }, '⚙ كل الإعدادات (الخلوص، المحور، عرض الأصبع…)'),
+  )
+  quick.append(row, foot)
+}
+
 function renderForm() {
+  renderQuick()
   const t = tpl()
   form.innerHTML = ''
   form.append(el('h2', {}, t.name), el('p', { class: 'desc' }, t.desc))
@@ -149,6 +183,7 @@ function renderForm() {
   const cur = params()
   for (const def of t.params) dims.append(numberField(def, cur[def.key], v => { (state.params[state.tpl] ??= {})[def.key] = v; persist(); update() }))
   const mat = el('fieldset', {}, el('legend', {}, 'الخامة والقص'))
+  mat.append(el('div', { class: 'field' }, el('span', { class: 'field-label' }, 'نوع الخامة'), materialPicker(), el('span', { class: 'hint' }, 'يضبط عرض الشقّ المعتاد؛ اكتب السماكة المقاسة بالقدمة في الخانة أدناه')))
   for (const def of SETTING_DEFS) mat.append(numberField(def, (state.settings as unknown as Record<string, number>)[def.key], v => { (state.settings as unknown as Record<string, number>)[def.key] = v; persist(); update() }))
   const reset = el('button', { type: 'button', class: 'link' }, 'إعادة القيم الافتراضية')
   reset.onclick = () => { state.params[state.tpl] = {}; state.settings = { ...DEFAULT_SETTINGS }; persist(); renderForm(); update(true) }

@@ -15,6 +15,8 @@ export interface PanelSpec {
   right?: Edge
   bottom?: Edge
   left?: Edge
+  /** rectangles added to the panel before the cuts (ears, tabs) */
+  adds?: Rect[]
   /** rectangles removed from the panel (slots, steps) */
   cuts?: Rect[]
   /** extra closed loops (holes) and open paths (engrave/score lines) */
@@ -78,7 +80,7 @@ export function buildPanel(s: PanelSpec, o: JointOpts): Panel {
     ...edgeCuts('left', norm(s.left), s.w, s.h, o),
     ...(s.cuts ?? []),
   ]
-  const loops = unionRects([rect(0, 0, s.w, s.h)], cuts)
+  const loops = unionRects([rect(0, 0, s.w, s.h), ...(s.adds ?? [])], cuts)
   if (s.post) s.post(loops)
   for (const hl of s.holes ?? []) loops.push(hl)
   for (const op of s.open ?? []) loops.push(op)
