@@ -721,6 +721,16 @@ describe('engagement set', () => {
       expect(d.panels.find(p => p.id === 'base-under')?.count ?? 0).toBe(layers - 1)
     }
   })
+  it('the engraved mirror border stays 5 mm or more inside the mirror at every size, flat bottom included', () => {
+    for (const Dd of [150, 200, 250, 300, 400, 500]) {
+      const d = generate(tpl, { Dd, W: Dd + 100, border: 1 }, { ...DEFAULT_SETTINGS, kerf: 0 })
+      const mirror = d.panels.find(p => p.id === 'mirror')!
+      const outer = samplePoly(mirror.loops.find(l => l.closed && l.layer !== 'engrave' && signedArea(l) > 0)!)
+      const border = samplePoly(mirror.loops.find(l => l.layer === 'engrave')!)
+      for (const q of border) expect(pointIn(q, outer), `Dd ${Dd}`).toBe(true)
+      expect(polyDistance(border, outer), `Dd ${Dd}`).toBeGreaterThan(5)
+    }
+  })
   it('each ring box takes its insert with clearance, the ring hangs clear of the floor, and the placement marks do not overlap', () => {
     const t = 3, d = generate(tpl, {}, { ...DEFAULT_SETTINGS, t, kerf: 0 })
     const p = tpl.defaults, rbD = p.rbW - 5
