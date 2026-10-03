@@ -16,7 +16,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   const toast = useCallback((text: string, kind: Kind = 'info') => {
     const id = ++n.current
     setItems(l => [...l, { id, text, kind }])
-    setTimeout(() => setItems(l => l.filter(t => t.id !== id)), kind === 'error' ? 4500 : 2500)
+    setTimeout(() => setItems(l => l.filter(t => t.id !== id)), kind === 'error' ? Math.max(4500, text.length * 70) : Math.max(2500, text.length * 50))
   }, [])
   const value = useMemo<Ctx>(() => ({ toast, success: t => toast(t, 'success'), error: t => toast(t, 'error') }), [toast])
   useEffect(() => { setPrintErrorHandler(msg => toast(`تعذّرت الطباعة: ${msg}`, 'error')); setNotify((m, k) => toast(m, k)); return () => { setPrintErrorHandler(null); setNotify(null) } }, [toast])

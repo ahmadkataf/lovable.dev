@@ -333,6 +333,8 @@ function SyncTab() {
     if (enabled) { schedule(300); toast.success('تم الحفظ — تبدأ المزامنة الآن') } else toast.success('تم الحفظ')
   }
   const test = async () => { setBusy(true); try { toast.success(await testConnection(url.trim(), key.trim())) } catch (e) { toast.error((e as Error).message) } finally { setBusy(false) } }
+  // what is on screen differs from what is saved: "sync now" would use the saved key, so it waits for «حفظ»
+  const dirty = url.trim().replace(/\/$/, '') !== (s.sync.url || API_URL) || key.trim() !== (s.sync.key || '') || enabled !== s.sync.enabled
   return (
     <div className="stack">
       <div className="card pad">
@@ -343,19 +345,24 @@ function SyncTab() {
           <Field label="عنوان الخادم" className="full" help="مثال: https://alradwan.<الاسم>.workers.dev"><input className="input" dir="ltr" value={url} onChange={e => setUrl(e.target.value)} placeholder="https://…" /></Field>
           <Field label="مفتاح المحل" className="full" help="كلمة سر طويلة تخص محلك؛ كل من يعرفها يصل إلى بياناتك. انسخها إلى بقية الأجهزة.">
             <div className="row">
-              <div className="input-wrap" style={{ flex: 1 }}><input className="input" dir="ltr" type={showKey ? 'text' : 'password'} value={key} onChange={e => setKey(e.target.value)} /></div>
+              <div className="input-wrap" style={{ flex: 1 }}><input className="input" dir="ltr" type={showKey ? 'text' : 'password'} value={key} onChange={e => setKey(e.target.value.trim())} placeholder="الصق مفتاح المحل هنا" autoComplete="off" spellCheck={false} /></div>
               <button className="btn icon" onClick={() => setShowKey(v => !v)} title={showKey ? 'إخفاء' : 'إظهار'}>{showKey ? <EyeOff /> : <Eye />}</button>
               <button className="btn icon" onClick={() => { navigator.clipboard?.writeText(key); toast.success('نُسخ المفتاح') }} title="نسخ"><Copy /></button>
-              {!key && <button className="btn" onClick={() => { setKey(randomKey()); setShowKey(true) }}>توليد مفتاح</button>}
+              {!key && <button className="btn" onClick={() => { setKey(randomKey()); setShowKey(true); setEnabled(true) }}>توليد مفتاح</button>}
             </div>
           </Field>
         </div>
         <div className="btn-row mt">
           <button className="btn primary" onClick={save}><Check /> حفظ</button>
           <button className="btn" onClick={test} disabled={busy || !url || !key}>اختبار الاتصال</button>
-          {s.sync.enabled && <button className="btn" onClick={() => syncNow().then(r => toast.success(`تمت المزامنة: أُرسل ${r.sent}، وصل ${r.received}`)).catch(e => toast.error((e as Error).message))}><RefreshCw /> مزامنة الآن</button>}
+          {s.sync.enabled && !dirty && <button className="btn" onClick={() => syncNow().then(r => toast.success(`تمت المزامنة: أُرسل ${r.sent}، وصل ${r.received}`)).catch(e => toast.error((e as Error).message))}><RefreshCw /> مزامنة الآن</button>}
         </div>
-        {s.sync.enabled && <p className="help mt">الحالة: {status.state === 'syncing' ? 'جارٍ المزامنة…' : status.state === 'error' ? `خطأ: ${status.error}` : status.state === 'offline' ? 'بلا إنترنت — ستتم المزامنة عند عودة الاتصال' : 'جاهز'} · بانتظار الإرسال: {status.pending} · آخر مزامنة: {status.lastSync ? fmtDateTime(status.lastSync) : 'لم تتم بعد'}</p>}
+        {dirty && <div className="badge tone-warning mt" style={{ display: 'block', whiteSpace: 'normal', padding: '8px 12px' }}>تغييرات غير محفوظة: اضغط «حفظ» حتى يعمل هذا الجهاز بالمفتاح المكتوب.</div>}
+        <div className="help mt">
+          <b>أول جهاز (فيه بياناتك):</b> فعّل «مزامنة تلقائية»، اضغط «توليد مفتاح» ثم «حفظ»، وانتظر حتى تصبح «بانتظار الإرسال: 0». ثم انسخ المفتاح.<br />
+          <b>كل جهاز آخر:</b> فعّل «مزامنة تلقائية»، الصق المفتاح نفسه (لا تولّد مفتاحاً جديداً)، اضغط «اختبار الاتصال» ثم «حفظ».
+        </div>
+        {s.sync.enabled && !dirty && <p className="help mt">الحالة: {status.state === 'syncing' ? 'جارٍ المزامنة…' : status.state === 'error' ? `خطأ: ${status.error}` : status.state === 'offline' ? 'بلا إنترنت — ستتم المزامنة عند عودة الاتصال' : 'جاهز'} · بانتظار الإرسال: {status.pending} · آخر مزامنة: {status.lastSync ? fmtDateTime(status.lastSync) : 'لم تتم بعد'}</p>}
       </div>
     </div>
   )

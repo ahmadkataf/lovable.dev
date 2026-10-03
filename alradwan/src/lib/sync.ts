@@ -153,6 +153,8 @@ export async function testConnection(url: string, key: string): Promise<string> 
   if (res.status === 401) throw new Error('مفتاح المحل غير صحيح')
   if (res.status === 429) throw new Error('محاولات كثيرة: انتظر قليلاً ثم أعد المحاولة')
   if (!res.ok) throw new Error(`الخادم أجاب بخطأ (${res.status})`)
-  const b = await res.json() as { ok: boolean; records: number }
-  return `الاتصال ناجح — على الخادم ${b.records} سجل`
+  const b = await res.json() as { ok: boolean; records: number; known?: boolean }
+  // an unknown key is not a success: no device has saved it yet, so there is nothing to receive
+  if (b.known === false) throw new Error('لا يوجد محل بهذا المفتاح على الخادم بعد. إن كنت تنقل البيانات من جهاز آخر: افتح المزامنة على ذلك الجهاز، تأكد أن «مزامنة تلقائية» مفعّلة واضغط «حفظ» هناك، ثم انسخ مفتاحه من جديد.')
+  return `الاتصال ناجح: محلك موجود على الخادم وفيه ${b.records} سجل`
 }
