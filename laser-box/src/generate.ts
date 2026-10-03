@@ -3,6 +3,7 @@ import { buildPanel, applyKerf, Panel } from './joints'
 import { layout, Layout } from './layout'
 import { Template, Common } from './templates'
 import { loopLength } from './geom'
+import { MATERIAL_INFO, COLOUR_NAME } from './materials'
 
 export interface Settings extends Common { spacing: number; sheetW: number }
 
@@ -50,5 +51,8 @@ export function generate(tpl: Template, params: Record<string, number>, s: Setti
   const lay = layout(panels, s.spacing, s.sheetW)
   let cutLength = 0, pieceCount = 0
   for (const pn of panels) { pieceCount += pn.count; for (const l of pn.loops) cutLength += loopLength(l) * pn.count }
-  return { panels, layout: lay, notes: res.notes, warnings, errors, cutLength, pieceCount, finger }
+  // pieces for other sheets: say which colour (= RDWorks layer) belongs to which material
+  const mats = [...new Set(panels.map(p => p.material).filter((m): m is string => !!m))]
+  const notes = mats.length ? [...res.notes, `الملف مقسوم حسب الخامة، كلّ خامة في كتلة ولون خاصّ: الأحمر للخامة الأساسية، ${mats.map(m => `${COLOUR_NAME[MATERIAL_INFO[m]?.hex] ?? m} لـ${MATERIAL_INFO[m]?.label ?? m}`).join('، ')}. في RDWorks اقصّ كلّ لوح وحده: شغّل طبقة لونه وأوقف الباقي (Output = No).`] : res.notes
+  return { panels, layout: lay, notes, warnings, errors, cutLength, pieceCount, finger }
 }

@@ -30,6 +30,8 @@ export interface PanelSpec {
   note?: string
   /** how many identical copies to cut */
   count?: number
+  /** cut from another sheet than the design's main one (see materials.ts) */
+  material?: string
 }
 
 export interface Panel {
@@ -40,6 +42,7 @@ export interface Panel {
   h: number
   note?: string
   count: number
+  material?: string
   /** narrowest finger actually cut on any jointed edge (Infinity when the panel has no joints) */
   minFinger: number
   /** at corners where two male edges meet: how far the wider of the two corner fingers reaches past the
@@ -128,7 +131,7 @@ export function buildPanel(s: PanelSpec, o: JointOpts): Panel {
   for (const op of s.open ?? []) loops.push(op)
   for (const en of s.engrave ?? []) loops.push({ ...en, layer: 'engrave' })
   const bb = bbox(loops)
-  return { id: s.id, name: s.name, loops, w: bb.maxX - bb.minX, h: bb.maxY - bb.minY, note: s.note, count: s.count ?? 1, ...jointReport(s, o) }
+  return { id: s.id, name: s.name, loops, w: bb.maxX - bb.minX, h: bb.maxY - bb.minY, note: s.note, count: s.count ?? 1, ...(s.material ? { material: s.material } : {}), ...jointReport(s, o) }
 }
 
 /** Kerf compensation: every closed loop moves half a kerf away from the material. */

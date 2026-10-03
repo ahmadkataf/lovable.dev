@@ -629,8 +629,72 @@ describe('hexagonal ring box', () => {
         const nrm = (cx - c.x) * Math.cos(ph * Math.PI / 3) + (cy - c.y) * Math.sin(ph * Math.PI / 3)
         expect(nrm).toBeCloseTo(S / 2 - t / 2, 2)
       }
-      expect(d.panels.find(p => p.id === 'lip')!.h).toBeCloseTo(S - 2 * t - 2 * tpl.defaults.gap, 2)
+      // the collar repeats the base's slots, so the walls are held at both ends; the lip drops into its opening
+      const collar = d.panels.find(p => p.id === 'collar')!
+      expect(collar.loops.filter(l => l.closed && signedArea(l) < 0).length).toBe(6 * tabs + 1)
+      expect(wall.h).toBeCloseTo(tpl.defaults.H + 2 * t, 3)
+      expect(d.panels.find(p => p.id === 'lip')!.h).toBeCloseTo(S - 2 * t - 6 - 2 * tpl.defaults.gap, 2)
+      // the frames are cut from the mirror sheet, in their own block
+      expect(frame.material).toBe('mirror'); expect(d.panels.find(p => p.id === 'lid-frame')!.material).toBe('mirror')
+      const mirrorTop = Math.min(...d.layout.placed.filter(q => q.panel.material === 'mirror').map(q => q.y))
+      const clearBottom = Math.max(...d.layout.placed.filter(q => !q.panel.material).map(q => q.y + q.panel.h))
+      expect(mirrorTop).toBeGreaterThan(clearBottom + 10)
     }
+  })
+})
+
+describe('DXF arcs', () => {
+  it('every DXF bulge, read the standard way (counter-clockwise positive, y up), traces the same arc as the design', () => {
+    for (const id of ['frame', 'hinged', 'hinged90', 'engagement', 'basket', 'chest', 'catbank', 'keyholder']) {
+      const d = generate(TEMPLATES.find(t => t.id === id)!, {}, { ...DEFAULT_SETTINGS, kerf: 0 })
+      const lines = toDXF(d.layout).split('\n'), H = d.layout.h
+      const polys: { x: number; y: number; b: number }[][] = []
+      let entity = ''
+      for (let i = 0; i < lines.length - 1; i += 2) {
+        const code = lines[i].trim(), val = lines[i + 1].trim()
+        if (code === '0') entity = val
+        if (code === '0' && val === 'POLYLINE') polys.push([])
+        else if (code === '0' && val === 'VERTEX') polys[polys.length - 1].push({ x: NaN, y: NaN, b: 0 })
+        const cur = polys[polys.length - 1]?.[polys[polys.length - 1].length - 1]
+        if (!cur || code === '0' || entity !== 'VERTEX') continue
+        if (code === '10') cur.x = +val; else if (code === '20') cur.y = +val; else if (code === '42') cur.b = +val
+      }
+      const mids: P[] = []
+      for (const pl of d.layout.placed) for (const l of pl.panel.loops) l.pts.forEach((p, i) => {
+        if (!p.b) return
+        const a = arcInfo(p, l.pts[(i + 1) % l.pts.length], p.b), m = a.a0 + (a.ccw ? -1 : 1) * a.theta / 2
+        mids.push({ x: a.c.x + a.r * Math.cos(m) + pl.x, y: a.c.y + a.r * Math.sin(m) + pl.y })
+      })
+      let n = 0
+      for (const poly of polys) poly.forEach((p, i) => {
+        if (!p.b) return
+        const q = poly[(i + 1) % poly.length], c = Math.hypot(q.x - p.x, q.y - p.y), s = p.b * c / 2
+        // a counter-clockwise arc bows to the right of its chord
+        const mx = (p.x + q.x) / 2 + ((q.y - p.y) / c) * s, my = (p.y + q.y) / 2 - ((q.x - p.x) / c) * s
+        const best = Math.min(...mids.map(v => Math.hypot(v.x - mx, v.y - (H - my))))
+        expect(best, `${id}: DXF arc ${n} bows the wrong way`).toBeLessThan(0.01)
+        n++
+      })
+      expect(n, id).toBeGreaterThan(0)
+    }
+  })
+})
+
+describe('materials in the cut files', () => {
+  it('a second material gets its own layer and colour in SVG, DXF and AI, and its own block on the sheet', () => {
+    const d = generate(TEMPLATES.find(x => x.id === 'hexringbox')!, {}, { ...DEFAULT_SETTINGS })
+    const svg = toSVG(d.layout), dxf = toDXF(d.layout), ai = toAI(d.layout)
+    expect(svg).toContain('<g id="cut-mirror" fill="none" stroke="#00a000"')
+    expect(dxf).toContain('CUT-MIRROR')
+    expect(ai).toMatch(/0 160 0 0 50 Lb\n\(Cut mirror\) Ln/)
+    expect(ai).toContain('%AI5_NumLayers: 2')
+    expect(d.notes.join(' ')).toMatch(/الأخضر/)
+    expect(d.layout.groups?.length).toBe(2)
+  })
+  it('the frame border must keep glue land on the wall beyond the corner groove', () => {
+    const tpl = TEMPLATES.find(x => x.id === 'hexringbox')!
+    expect(generate(tpl, { b: 2 }, { ...DEFAULT_SETTINGS, t: 4 }).errors.join(' ')).toMatch(/أضيق من أن يُلصق/)
+    expect(generate(tpl, { b: 4 }, { ...DEFAULT_SETTINGS, t: 3 }).errors).toEqual([])
   })
 })
 

@@ -4,6 +4,7 @@ import { generate, Design, Settings, DEFAULT_SETTINGS } from './generate'
 import { toSVG, toDXF, toAI } from './export'
 import { loopToPath } from './geom'
 import { makeZip } from './zip'
+import { MATERIAL_INFO } from './materials'
 
 // Inside the claude.ai viewer the page cannot start downloads itself and the link hash carries no state.
 type ClaudeUse = (name: string) => Promise<{ save(r: { filename: string; data: string | Blob }): Promise<unknown> } | null>
@@ -266,11 +267,14 @@ function render() {
     const fill = document.createElementNS(svgNS, 'path')
     fill.setAttribute('d', pl.panel.loops.filter(l => l.closed && l.layer !== 'engrave').map(l => loopToPath(l)).join(' '))
     fill.setAttribute('class', 'wood')
+    const mat = pl.panel.material ? MATERIAL_INFO[pl.panel.material] : undefined
+    if (mat) fill.style.fill = mat.fill
     g.append(fill)
     for (const l of pl.panel.loops) {
       const p = document.createElementNS(svgNS, 'path')
       p.setAttribute('d', loopToPath(l))
       p.setAttribute('class', l.layer === 'engrave' ? 'cut engrave' : l.closed ? 'cut' : 'cut score')
+      if (mat && l.layer !== 'engrave') p.style.stroke = mat.hex
       g.append(p)
     }
     if (state.labels) {

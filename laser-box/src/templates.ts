@@ -2412,12 +2412,12 @@ const hexPts = (cx: number, cy: number, af: number) => { const rc = af / Math.sq
 MORE.push({
   id: 'hexringbox',
   name: 'علبة محبس سداسية بإطارات',
-  desc: 'علبة سداسية من أكريليك شفّاف: ستّ جدران على قاعدة بارزة، غطاء يُرفع بشفة داخلية، حشوة بشقّ للمحبس، وإطارات أوفست ذهبية أو فضية تُلصق على كل جهة وعلى الغطاء.',
+  desc: 'علبة سداسية من أكريليك شفّاف: ستّ جدران بين قاعدة وطوق علوي بارزين، غطاء يُرفع بشفة داخلية، حشوة بشقّ للمحبس، وإطارات أوفست ذهبية أو فضية على كل جهة وعلى الغطاء.',
   icon: `<path d="M20 14h24l10 9-10 9H20l-10-9z"/><path d="M10 23v22l10 9h24l10-9V23"/><path d="M20 32v22M44 32v22" stroke-width="1.5"/><path d="M23 37h18v13H23z" stroke-width="1.3"/><path d="M24 18h16l6 5-6 5H24l-6-5z" stroke-width="1.3"/>`,
   params: [
     mm('S', 'عرض السداسي بين ضلعين متقابلين', 40, 160, 'قياس الجدران من الخارج؛ علبة المحبس العادية 55–65 مم'),
     mm('H', 'ارتفاع الجدران', 25, 120),
-    mm('ov', 'بروز القاعدة والغطاء', 2, 10, 'تبرز القاعدة والغطاء عن الجدران بهذا القدر، فيقف الإطار عليهما'),
+    mm('ov', 'بروز القاعدة والطوق والغطاء', 2, 10, 'تبرز عن الجدران بهذا القدر، فيقع الإطار بينها'),
     mm('b', 'عرض الإطار', 2, 15), mm('tf', 'سماكة لوح الإطار', 0.5, 4, 'أكريليك مرآة ذهبي أو فضي، عادةً 1–2 مم'),
     { key: 'lipL', label: 'طبقات شفة الغطاء', min: 1, max: 2, step: 1, int: true, hint: 'حلقة سداسية تُلصق تحت الغطاء وتدخل بين الجدران' },
     mm('gap', 'خلوص الشفة', 0.2, 1),
@@ -2430,20 +2430,27 @@ MORE.push({
     const warnings: string[] = [], errors: string[] = []
     const t = c.t, { S, H, ov, b, tf, gap, fit } = p, r3 = Math.sqrt(3)
     // square-cut walls meeting at 120°: each is as wide as the inner hexagon's side, so their inner corners meet on the
-    // inner vertices and nothing overlaps; the outer V left at each corner is bridged by the frames, which are as wide
-    // as the outer side (their back corners meet on the outer vertices)
+    // inner vertices and nothing overlaps. Square ends touch only along that line, so the walls are held by tabs at both
+    // ends instead: into the base and into a collar ring on top, which makes the six walls one closed, aligned tube.
+    // The outer V left at each corner is hidden by the frames, which are as wide as the outer side (their back corners
+    // meet on the outer vertices)
     const sOut = S / r3, sIn = round3((S - 2 * t) / r3), AFb = S + 2 * ov
     if (sIn < 12) errors.push(`السداسي صغير على هذه السماكة: ${Math.ceil(12 * r3 + 2 * t)} مم على الأقل.`)
-    if (tf + 0.5 > ov) warnings.push(`الإطار (${tf} مم) أسمك من بروز القاعدة والغطاء (${ov} مم)؛ سيبرز خارجهما. زد البروز إلى ${Math.ceil(tf + 0.5)} مم.`)
+    if (tf + 0.5 > ov) warnings.push(`الإطار (${tf} مم) أسمك من بروز القاعدة والطوق (${ov} مم)؛ سيبرز خارجهما. زد البروز إلى ${Math.ceil(tf + 0.5)} مم.`)
     const fw = round3(sOut), fh = round3(H - 1)
     if (fw - 2 * b < 6 || fh - 2 * b < 6) errors.push(`الإطار عريض على هذه الجهة: أقصى عرض ${Math.floor(Math.min(fw, fh) / 2 - 3)} مم.`)
-    // walls: H above the base plus a t-deep strip of tabs into the base
+    // each frame's side borders reach t/√3 past its wall, over the corner groove; what is left rests on the wall
+    const land = b - t / r3
+    if (land < 1.5) errors.push(`الإطار أضيق من أن يُلصق: حافّته الجانبية تمتدّ ${(t / r3).toFixed(1)} مم فوق أخدود الزاوية؛ اجعل عرض الإطار ${Math.ceil(t / r3 + 1.5)} مم على الأقل.`)
+    // walls: H between base and collar, plus a t-deep strip of tabs at each end
     const tabs = sIn >= 28 ? [0.27, 0.73] : [0.5], tw = round3(Math.min(12, sIn * (tabs.length > 1 ? 0.24 : 0.4)))
     const tx = tabs.map(k => round3(sIn * k))
     const strip: ReturnType<typeof rect>[] = []
-    let x0 = 0
-    for (const x of tx) { strip.push(rect(x0, H, x - tw / 2 - x0, t)); x0 = x + tw / 2 }
-    strip.push(rect(x0, H, sIn - x0, t))
+    for (const y of [0, H + t]) {
+      let x0 = 0
+      for (const x of tx) { strip.push(rect(x0, y, x - tw / 2 - x0, t)); x0 = x + tw / 2 }
+      strip.push(rect(x0, y, sIn - x0, t))
+    }
     // base slots: the walls' mid-planes lie ov + t/2 inside the base's edge, on every side
     const cb = { x: AFb / r3, y: AFb / 2 }, rm = S / 2 - t / 2
     const slots: Loop[] = []
@@ -2453,33 +2460,37 @@ MORE.push({
     }
     const hexPanel = (id: string, name: string, af: number, holes: Loop[], note: string, count = 1): PanelSpec => ({ id, name, w: round3(2 * af / r3), h: round3(af), count, shape: [polyLoop(hexPts(af / r3, af / 2, af), 'outer')], holes, note })
     const ring = (af: number, afIn: number) => polyLoop(hexPts(af / r3, af / 2, afIn), 'hole')
-    // the lid's lip: a hexagonal ring that drops inside the walls
-    const AFin = S - 2 * t, lo = round3(AFin - 2 * gap), lw = Math.max(3, 1.2 * t), li = round3(lo - 2 * lw)
+    // the collar: the base's outline with the same slots and an opening 3 mm inside the walls; the lid sits on it and
+    // its lip, a hexagonal ring, drops into the opening
+    const AFin = S - 2 * t, AFc = round3(AFin - 6), lo = round3(AFc - 2 * gap), lw = Math.max(3, 1.2 * t), li = round3(lo - 2 * lw)
     if (li < 10) errors.push('السداسي صغير على شفة الغطاء.')
     const lipL = Math.round(p.lipL), lipDepth = lipL * t
     const panels: PanelSpec[] = [
       hexPanel('base', 'القاعدة', AFb, slots, 'تبرز عن الجدران من كل جهة؛ الشقوق لألسنة الجدران'),
-      { id: 'wall', name: 'الجدار', w: sIn, h: round3(H + t), count: 6, cuts: strip, note: 'ستّة متماثلة؛ زواياها الداخلية تلتقي' },
+      { id: 'wall', name: 'الجدار', w: sIn, h: round3(H + 2 * t), count: 6, cuts: strip, note: 'ستّة متماثلة، بألسنة في الأعلى والأسفل؛ زواياها الداخلية تلتقي' },
+      { ...hexPanel('collar', 'الطوق العلوي', AFb, [...slots.map(l => ({ ...l, pts: l.pts.map(v => ({ ...v })) })), ring(AFb, AFc)], 'تدخل فيه ألسنة الجدران العلوية فتثبت أطرافها؛ يجلس عليه الغطاء') },
       hexPanel('lid', 'الغطاء', AFb, [], 'بقياس القاعدة نفسه'),
-      hexPanel('lip', 'شفة الغطاء', lo, [ring(lo, li)], 'تُلصق تحت الغطاء في وسطه وتدخل بين الجدران', lipL),
-      { id: 'frame', name: 'إطار الجهة (ذهبي/فضي)', w: fw, h: fh, count: 6, holes: [roundedRectHole(b, b, fw - 2 * b, fh - 2 * b, 0)], note: 'يُلصق على الجدار من الخارج' },
-      hexPanel('lid-frame', 'إطار الغطاء (ذهبي/فضي)', round3(AFb - 2), [ring(round3(AFb - 2), round3(AFb - 2 - 2 * b))], 'يُلصق على الغطاء من الأعلى'),
+      hexPanel('lip', 'شفة الغطاء', lo, [ring(lo, li)], 'تُلصق تحت الغطاء في وسطه وتدخل في فتحة الطوق', lipL),
+      { id: 'frame', name: 'إطار الجهة (ذهبي/فضي)', w: fw, h: fh, count: 6, material: 'mirror', holes: [roundedRectHole(b, b, fw - 2 * b, fh - 2 * b, 0)], note: 'يُلصق على الجدار من الخارج' },
+      { ...hexPanel('lid-frame', 'إطار الغطاء (ذهبي/فضي)', round3(AFb - 2), [ring(round3(AFb - 2), round3(AFb - 2 - 2 * b))], 'يُلصق على الغطاء من الأعلى'), material: 'mirror' },
     ]
     if (Math.round(p.insert) > 0) {
-      // a hexagonal plate with a slit on two spacers along opposite walls; the ring's stone keeps 12 mm under the lip
-      const ai = round3(AFin - 1), hs = round3(H - lipDepth - 12 - t), sl = round3(sIn - 1.2 * t - 1), slitL = Math.min(25, round3(ai / r3 + 2))
-      if (hs < 16) errors.push(`الجدران قصيرة على حشوة المحبس: ارتفاع ${Math.ceil(16 + 12 + t + lipDepth)} مم على الأقل، أو ألغِ الحشوة.`)
+      // a hexagonal plate with a slit on two spacers along opposite walls (put in before the collar); the ring's stone
+      // keeps 12 mm under the lip, which hangs from the lid resting on the collar's top
+      const ai = round3(AFin - 1), hs = round3(H - lipDepth - 12), sl = round3(sIn - 1.2 * t - 1), slitL = Math.min(25, round3(ai / r3 + 2))
+      if (hs < 16) errors.push(`الجدران قصيرة على حشوة المحبس: ارتفاع ${Math.ceil(16 + 12 + lipDepth)} مم على الأقل، أو ألغِ الحشوة.`)
       panels.push(
         { ...hexPanel('insert', 'حشوة المحبس', ai, [stadium(ai / r3, ai / 2, slitL, p.slitW)], 'شقّها يمسك حلقة المحبس واقفاً'), w: round3(2 * ai / r3) },
         { id: 'spacer', name: 'حامل الحشوة', w: sl, h: Math.max(1, hs), count: 2, note: 'اثنان واقفان على حافّتيهما عند جدارين متقابلين' },
       )
     }
     const notes = [
-      `العلبة ${S} مم بين ضلعين متقابلين (${(2 * S / r3).toFixed(1)} مم بين زاويتين)، والجدران ${H} مم؛ القاعدة والغطاء ${AFb} مم.`,
-      'التجميع: أدخل ألسنة الجدران الستّة في شقوق القاعدة، وتلتقي حوافّها الداخلية عند الزوايا؛ ألصقها بغراء الأكريليك السائل (يتسرّب في الشقّ). يبقى عند كل زاوية من الخارج أخدود صغير يغطّيه الإطاران.',
-      `الإطارات ${fw.toFixed(1)} × ${fh} مم بعرض ${b} مم: ألصق كلّاً منها في وسط جهته، فيلتقي طرفاه بطرفَي الإطارين المجاورين عند الزاوية تماماً، وأسفله على بروز القاعدة. ألصقها بلاصق UV شفّاف أو لاصق أكريليك لا يعكّر المرآة.`,
-      `الغطاء: ألصق الشفة تحته في الوسط، على بُعد ${(ov + t + gap).toFixed(1)} مم من حافّته من كل جهة، ثم إطار الغطاء فوقه. الشفة تدخل بين الجدران بخلوص ${gap} مم فيفتح ويُغلق بنعومة.`,
-      'اقصّ الجدران والقاعدة والغطاء من أكريليك شفّاف (kerf نحو 0.1 مم)، والإطارات من أكريليك مرآة ذهبي أو فضي. انزع ورق الحماية بعد التجميع.',
+      `العلبة ${S} مم بين ضلعين متقابلين (${(2 * S / r3).toFixed(1)} مم بين زاويتين)، والجدران ${H} مم بين القاعدة والطوق؛ القاعدة والطوق والغطاء ${AFb} مم. الارتفاع الكلّي مع الغطاء ${(H + 3 * t).toFixed(1)} مم.`,
+      'ورق الحماية: اتركه أثناء القصّ، ثم انزعه قبل اللصق عن كل وجه سيُلصق: وجه القاعدة العلوي، وجهَي الطوق، أطراف الجدران ووجوهها الخارجية، وجهَي الغطاء، الشفة، وظهر الإطارات. اترك ورق الوجه الأمامي للإطارات حتى النهاية، وامسك القطع الشفّافة بقفّازات.',
+      'التجميع: أدخل ألسنة الجدران الستّة في شقوق القاعدة فتلتقي حوافّها الداخلية عند الزوايا، ضع الحشوة وحامليها في الداخل، ثم أنزل الطوق على الألسنة العلوية فيستقيم كل شيء. ألصق الألسنة والزوايا من الداخل بغراء الأكريليك السائل (يتسرّب في الشقّ).',
+      `الإطارات ${fw.toFixed(1)} × ${fh} مم بعرض ${b} مم: ألصق كلّاً منها في وسط جهته بين القاعدة والطوق، فيلتقي طرفاه بطرفَي الإطارين المجاورين عند الزاوية ويخفيان أخدودها. على المرآة استعمل لاصقاً شفّافاً لا يذيب طلاء ظهرها (UV أو لاصق جِل)، لا غراء الأكريليك السائل.`,
+      `الغطاء: ألصق الشفة تحته في الوسط، على بُعد ${((AFb - lo) / 2).toFixed(1)} مم من حافّته من كل جهة، ثم إطار الغطاء فوقه. الشفة تدخل في فتحة الطوق بخلوص ${gap} مم فيُفتح الغطاء ويُغلق بنعومة.`,
+      'الجدران والقاعدة والطوق والغطاء والشفة والحشوة من أكريليك شفّاف (kerf نحو 0.1 مم)، والإطارات من أكريليك مرآة ذهبي أو فضي.',
     ]
     return { panels, notes, warnings, errors }
   },
