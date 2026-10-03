@@ -80,11 +80,11 @@ const el = <K extends keyof HTMLElementTagNameMap>(tag: K, attrs: Attrs = {}, ..
 }
 const fmt = (v: number) => (Math.round(v * 10) / 10).toLocaleString('en-US')
 
-function toast(msg: string) {
+function toast(msg: string, ms = 2200) {
   const t = el('div', { class: 'toast' }, msg)
   document.body.append(t)
   requestAnimationFrame(() => t.classList.add('show'))
-  setTimeout(() => { t.classList.remove('show'); setTimeout(() => t.remove(), 300) }, 2200)
+  setTimeout(() => { t.classList.remove('show'); setTimeout(() => t.remove(), 300) }, ms)
 }
 
 function numberField(def: ParamDef, value: number, onChange: (v: number) => void, idPrefix = 'f'): HTMLElement {
@@ -364,8 +364,9 @@ async function download(kind: Kind) {
   if (!design) return
   const text = kind === 'svg' ? toSVG(design.layout) : kind === 'dxf' ? toDXF(design.layout) : toAI(design.layout, fileName('ai'))
   if (android) {
-    android.save(fileName(kind), MIME[kind], text)
-    toast('اختر مكان حفظ الملف')
+    // octet-stream keeps the name exactly as given: with a specific type some file pickers swap or add the extension
+    android.save(fileName(kind), kind === 'svg' ? MIME.svg : 'application/octet-stream', text)
+    toast(`اختر مكان حفظ «${fileName(kind)}»`, 4000)
     return
   }
   if (claudeUse) {
@@ -375,8 +376,9 @@ async function download(kind: Kind) {
     try {
       // the viewer accepts .svg but neither .dxf nor .ai, so those travel inside a .zip (with the SVG as a bonus)
       if (kind === 'svg') await dl.save({ filename: fileName('svg'), data: text })
-      else await dl.save({ filename: fileName('zip'), data: new Blob([makeZip([{ name: fileName(kind), data: text }, { name: fileName('svg'), data: toSVG(design.layout) }])]) })
-      toast(kind === 'svg' ? 'حُفظ ملف SVG' : `حُفظ ملف zip يحوي ${KIND_NAME[kind]} وSVG`)
+      else await dl.save({ filename: fileName(`${kind}.zip`), data: new Blob([makeZip([{ name: fileName(kind), data: text }, { name: fileName('svg'), data: toSVG(design.layout) }])]) })
+      if (kind === 'svg') toast('حُفظ ملف SVG')
+      else toast(`حُفظ مضغوطاً باسم «${fileName(`${kind}.zip`)}» لأن هذه النافذة لا تسمح بملفات .${kind} مباشرة. افتحه من الملفات (فكّ الضغط) تجد ملف ${KIND_NAME[kind]} بداخله. تطبيق الـ APK يحفظه مباشرة.`, 9000)
     } catch (e) {
       const code = (e as { code?: string })?.code
       if (code !== 'declined') toast('تعذّر الحفظ: ' + (code ?? 'خطأ'))

@@ -215,12 +215,12 @@ function pattern(kind: number, x0: number, y0: number, x1: number, y1: number, c
 
 const PATTERN_HINT = '1 = دوائر، 2 = شقوق عمودية، 3 = نافذة واحدة، 4 = قلوب، 5 = شبكة معيّنات'
 
-/** The cylinder builder shared by the lamp shade and the round box: two discs with tab slots, and a living-hinge sheet. */
-function cylinderBuild(kind: 'shade' | 'roundbox') {
-  return (p: Record<string, number>, c: Common): BuildResult => {
-    const warnings: string[] = [], errors: string[] = []
+/**
+ * A living-hinge cylinder: two end discs with tab slots, and the sheet that wraps round them. Shared by the lamp
+ * shade, the round box and the cat money box. `solid` keeps a band of the sheet free of hinge cuts (for a coin slot).
+ */
+function cylinderCore(p: Record<string, number>, c: Common, warnings: string[], errors: string[], socket = 0, solid?: { x: number; w: number }) {
     const { H, tabW, fit, seg, bridge, pitch } = p, t = c.t
-    const socket = kind === 'shade' ? p.socket : 0
     // H is already the clear height between the rings; in inner mode Dm is the inside diameter
     const Dm = p.Dm + (c.inner ? 2 * t : 0)
     const n = Math.round(p.tabs)
@@ -256,6 +256,7 @@ function cylinderBuild(kind: 'shade' | 'roundbox') {
     }
     // solid margins at both ends for the glued seam; columns run out through the edges except under the tabs
     const open = hingeLines(seam, t, L - seam, H + t, seg, bridge, pitch, 'y', { through: true, keepEdge: r => xs.some(xk => Math.abs(seam + r - xk) < tabW / 2 + bridge) })
+      .filter(l => !solid || Math.abs(l.pts[0].x - solid.x) >= solid.w / 2)
     // between neighbouring tabs the edge must be cut through by at least two columns (one each side of the seam),
     // otherwise a solid band runs along the edge and the sheet cannot bend into a cylinder
     const reaches = (edge: (l: Loop) => boolean) => new Set(open.filter(edge).map(l => round3(l.pts[0].x)))
@@ -264,6 +265,21 @@ function cylinderBuild(kind: 'shade' | 'roundbox') {
     const inGap = (a: number, b: number) => thru.filter(x => x > a && x < b).length
     const bandOk = xs.every((xk, j) => j + 1 < n ? inGap(xk, xs[j + 1]) >= 2 : inGap(xk, L) >= 1 && inGap(0, xs[0]) >= 1)
     if (!bandOk && seg + bridge <= H - 2 * bridge) errors.push('اللسانات متقاربة فلا تبقى بينها قصّات مفصل نافذة كافية، فيبقى شريط مصمت على الحافّة يمنع اللوح من الالتفاف؛ قلّل عدد اللسانات أو عرضها أو الجسر.')
+    const sheet = (holes: Loop[] = []): PanelSpec => ({
+      id: 'sheet', name: 'اللوح الملتفّ (مفصل مرن)', w: L, h: H + 2 * t,
+      cuts: [...stripCuts(0), ...stripCuts(H + t)], open, holes,
+      note: 'يلتفّ حول الحلقتين؛ اللسانات تدخل في شقوقهما',
+    })
+    return { Dm, Rmid, Rring, L, cx, seam, slots, ring, sheet }
+}
+
+/** The lamp shade and the round box: two discs and a wrapped living-hinge sheet. */
+function cylinderBuild(kind: 'shade' | 'roundbox') {
+  return (p: Record<string, number>, c: Common): BuildResult => {
+    const warnings: string[] = [], errors: string[] = []
+    const { H } = p, t = c.t
+    const socket = kind === 'shade' ? p.socket : 0
+    const { Dm, L, seam, ring, sheet } = cylinderCore(p, c, warnings, errors, socket)
     const panels: PanelSpec[] = [
       ...(kind === 'shade' ? [
         ring('ring-top', 'الحلقة العلوية', socket > 0 ? socket / 2 : 0, 'فتحة الدواية في الوسط وشقوق اللسانات حول المحيط'),
@@ -272,12 +288,7 @@ function cylinderBuild(kind: 'shade' | 'roundbox') {
         ring('rim', 'الحافّة العلوية', Math.max(0, Dm / 2 - 3 * t), 'حلقة تقوّي فم العلبة'),
         ring('base', 'القاع', 0, 'قرص مغلق بشقوق اللسانات حول المحيط'),
       ]),
-      {
-        id: 'sheet', name: 'اللوح الملتفّ (مفصل مرن)', w: L, h: H + 2 * t,
-        cuts: [...stripCuts(0), ...stripCuts(H + t)],
-        open,
-        note: 'يلتفّ حول الحلقتين؛ اللسانات تدخل في شقوقهما',
-      },
+      sheet(),
     ]
     const notes = [
       `اللوح ${L.toFixed(1)} × ${(H + 2 * t).toFixed(1)} مم (منها ${t} مم لسانات في كل حافّة) ينحني بالمفصل المرن حول الحلقتين؛ الارتفاع بين الحلقتين ${H} مم والقطر الخارجي ${Dm} مم.`,
@@ -1162,6 +1173,132 @@ export const TEMPLATES: Template[] = [
     defaults: { Dm: 120, H: 80, tabs: 8, tabW: 10, fit: 0.2, seg: 18, bridge: 3, pitch: 1.5 },
     innerAdd: () => ({ W: 0, D: 0, H: 0 }),
     build: cylinderBuild('roundbox'),
+  },
+  // ------------------------------------------------------------------ 23
+  {
+    id: 'catbank',
+    name: 'حصّالة القطّة بقفل الذيل',
+    desc: 'قطّة أسطوانية مستلقية على أرجلها: شقّ للنقود في ظهرها، وتُفتح من الخلف بلفّ ذيلها ربع دورة (قفل بايونيت).',
+    icon: `<circle cx="22" cy="32" r="14"/><path d="M11 22l2-10 7 6M33 22l-2-10-7 6"/><path d="M22 18h26a14 14 0 0 1 0 28H22"/><path d="M36 18v-5" stroke-width="2.5"/><path d="M18 30h.1M26 30h.1" stroke-width="3"/><path d="M28 50v6M44 50v6" stroke-width="2.5"/><path d="M58 30c5-2 4-9-1-8" stroke-width="2"/>`,
+    params: [
+      mm('Dm', 'قطر الجسم', 80, 300), mm('H', 'طول الجسم', 80, 400),
+      mm('slotL', 'طول شقّ النقود', 20, 80, 'يكفي 34 مم للقطع حتى 30 مم وللورقة المطويّة'),
+      mm('slotW', 'عرض شقّ النقود', 2.5, 8),
+      mm('hole', 'فتحة إخراج النقود', 30, 90, 'في الظهر، يسدّها قفل يُدار بالذيل'),
+      mm('legH', 'طول الأرجل', 10, 60),
+      { key: 'tabs', label: 'عدد اللسانات', min: 3, max: 24, step: 1, int: true, hint: 'في كل حافّة' },
+      mm('tabW', 'عرض اللسان', 4, 40), mm('fit', 'خلوص اللسان والقفل', 0, 1),
+      mm('seg', 'طول قصّة المفصل', 5, 80), mm('bridge', 'الجسر بين القصّات', 1, 10), mm('pitch', 'المسافة بين الصفوف', 0.6, 6),
+    ],
+    defaults: { Dm: 120, H: 150, slotL: 34, slotW: 4, hole: 44, legH: 20, tabs: 6, tabW: 10, fit: 0.2, seg: 18, bridge: 3, pitch: 1.5 },
+    innerAdd: () => ({ W: 0, D: 0, H: 0 }),
+    build(p, c) {
+      const warnings: string[] = [], errors: string[] = []
+      const { H, slotL, slotW, fit, legH } = p, t = c.t
+      const Dm0 = p.Dm + (c.inner ? 2 * t : 0)
+      const r3 = (v: { x: number; y: number }) => ({ x: round3(v.x), y: round3(v.y) })
+      // the coin slot runs along the cat's back, in a band of the sheet left without hinge cuts
+      const L0 = 2 * Math.PI * (Dm0 / 2 - t / 2), zone = { x: round3(L0 / 2), w: slotW + 2 * Math.max(6, 2 * t) }
+      const { Dm, Rmid, Rring, L, cx, seam, slots, sheet } = cylinderCore(p, c, warnings, errors, 0, zone)
+      if (slotL > H - 20) errors.push(`شقّ النقود أطول من الجسم؛ أقصاه ${Math.floor(H - 20)} مم.`)
+      // the lock: a round opening with two notches in the back disc; a plug of three discs (a keyed disc that passes the
+      // notches, a spacer as thick as the wall, a cap) is turned a quarter turn by the tail so the keys sit behind the wall
+      const rh = p.hole / 2, e = Math.max(8, p.hole * 0.22), d = Math.max(4, t + 1)
+      if (rh + d + 3 > Dm / 2 - t) errors.push(`فتحة الإخراج كبيرة على هذا القطر؛ أقصاها ${Math.floor(2 * (Dm / 2 - t - d - 3))} مم.`)
+      const keyed = (r: number, half: number, reach: number, as: 'outer' | 'hole'): Loop => {
+        const dl = Math.asin(Math.min(0.99, half / r)), pts: { x: number; y: number }[] = []
+        for (const E of [0, Math.PI]) {
+          const a0 = E + dl, a1 = E + Math.PI - dl, steps = Math.ceil((a1 - a0) / (Math.PI / 60))
+          for (let i = 0; i <= steps; i++) { const a = a0 + ((a1 - a0) * i) / steps; pts.push({ x: cx + r * Math.cos(a), y: cx + r * Math.sin(a) }) }
+          // the next notch, centred on the angle E + π, its sides parallel
+          const F = E + Math.PI, u = { x: Math.cos(F), y: Math.sin(F) }, v = { x: -Math.sin(F), y: Math.cos(F) }
+          const at = (a: number, b: number) => ({ x: cx + a * u.x + b * v.x, y: cx + a * u.y + b * v.y })
+          pts.push(at(reach, -half), at(reach, half))
+        }
+        return polyLoop(pts.map(r3), as)
+      }
+      // the face: the back disc's outline with two pointed ears; eyes and a heart nose cut, mouth and whiskers engraved
+      const earAt = (32 * Math.PI) / 180, earHalf = (14 * Math.PI) / 180, earLen = 0.2 * Dm
+      const tipAt = (side: number) => { const a = -Math.PI / 2 + side * (earAt - 0.08); return r3({ x: cx + (Rring + earLen) * Math.cos(a), y: cx + (Rring + earLen) * Math.sin(a) }) }
+      const tips = [tipAt(-1), tipAt(1)]
+      const faceOutline = (): Loop => {
+        const pts: { x: number; y: number }[] = [], up = -Math.PI / 2
+        const arc = (a0: number, a1: number) => { const k = Math.ceil((a1 - a0) / (Math.PI / 60)); for (let i = 0; i <= k; i++) { const a = a0 + ((a1 - a0) * i) / k; pts.push({ x: cx + Rring * Math.cos(a), y: cx + Rring * Math.sin(a) }) } }
+        arc(up + earAt + earHalf, up - earAt - earHalf + 2 * Math.PI) // the round of the head, right ear to left ear the long way
+        pts.push(tips[0])
+        arc(up - earAt + earHalf, up + earAt - earHalf)                 // between the ears
+        pts.push(tips[1])
+        return polyLoop(pts.map(r3), 'outer')
+      }
+      const er = Math.max(3, 0.04 * Dm), ey = cx - 0.12 * Dm, ex = 0.19 * Dm, ny = cx + 0.05 * Dm, nw = Math.max(8, 0.1 * Dm)
+      const mouthY = ny + 0.475 * nw, mw = 0.07 * Dm
+      const line = (x0: number, y0: number, x1: number, y1: number): Loop => ({ closed: false, pts: [r3({ x: x0, y: y0 }), r3({ x: x1, y: y1 })] })
+      const whiskers = [-1, 1].flatMap(sd => [-0.04, 0, 0.04].map(k => line(cx + sd * 0.12 * Dm, ny + k * Dm * 0.6, cx + sd * 0.3 * Dm, ny + k * Dm * 1.6)))
+      const mouth: Loop[] = [-1, 1].map(sd => ({ closed: false, pts: [r3({ x: cx, y: mouthY }), { ...r3({ x: cx + sd * mw, y: mouthY }) }].map((v, i) => i === 0 ? { ...v, b: sd * 0.6 } : v) }))
+      // the inside of each ear, engraved: the ear triangle shrunk towards its middle
+      const innerEars: Loop[] = [-1, 1].map((side, i) => {
+        const at = (a: number) => ({ x: cx + Rring * Math.cos(a), y: cx + Rring * Math.sin(a) })
+        const E = -Math.PI / 2 + side * earAt, tri = [at(E - earHalf), tips[i], at(E + earHalf)]
+        const g = { x: (tri[0].x + tri[1].x + tri[2].x) / 3, y: (tri[0].y + tri[1].y + tri[2].y) / 3 }
+        return { closed: true, pts: tri.map(v => r3({ x: g.x + 0.5 * (v.x - g.x), y: g.y + 0.5 * (v.y - g.y) })) }
+      })
+      const face: PanelSpec = {
+        id: 'face', name: 'الوجه (الأمام)', w: 2 * Rring, h: Rring + cx + earLen, shape: [faceOutline()],
+        holes: [circle(cx - ex, ey, er), circle(cx + ex, ey, er), heart(cx, ny, nw), ...slots],
+        engrave: [...whiskers, ...mouth, ...innerEars],
+        note: 'أذنان مدبّبتان، عينان وأنف مقصوصة، وفم وشوارب محفورة',
+      }
+      // shift so the ears sit inside the panel: the outline reaches earLen above the disc
+      const lift = (l: Loop): Loop => ({ ...l, pts: l.pts.map(v => ({ ...v, y: round3(v.y + earLen) })) })
+      const facePanel: PanelSpec = { ...face, shape: face.shape!.map(lift), holes: face.holes!.map(lift), engrave: face.engrave!.map(lift),
+        post: loops => { for (const q of tips) roundCorner(loops, q.x, round3(q.y + earLen), Math.max(2, 0.025 * Dm)) } }
+      const back: PanelSpec = {
+        id: 'back', name: 'الظهر (الخلف)', w: 2 * Rring, h: 2 * Rring, shape: [disc(cx, cx, Rring)],
+        holes: [keyed(rh, e / 2, rh + d, 'hole'), ...slots], note: 'فتحة الإخراج بشقّين يمرّ منهما مفتاح القفل',
+      }
+      const capR = rh + 8, tw = Math.max(6, 2 * t)
+      const plug = (id: string, name: string, shape: Loop, holes: Loop[], note: string): PanelSpec => ({ id, name, w: 2 * Rring, h: 2 * Rring, shape: [shape], holes, note })
+      const bayonet = plug('lock-key', 'القفل — المفتاح', keyed(rh - fit, e / 2 - fit, rh + d - fit, 'outer'), [], 'يدخل من الشقّين ثم يُدار ربع دورة خلف الجدار')
+      const spacer = plug('lock-spacer', 'القفل — الوسط', disc(cx, cx, rh - fit), [], 'بسماكة الجدار، يدور داخل الفتحة')
+      const cap = plug('lock-cap', 'القفل — الغطاء', disc(cx, cx, capR), [rotatedRectHole(cx, cx, tw + fit, t + fit, 0)], 'يبقى خارج الظهر، وفيه شقّ الذيل')
+      // the tail: a curl on a stem, its foot glued on the cap and a tab in the cap's slot; it is the lock's handle
+      const Ro = 2.2 * tw, Ri = Ro - tw, stem = Ro + 3, sh = 4, ft = 3 // the curl stays clear above the foot
+      const tail: { x: number; y: number }[] = []
+      const C = { x: 0, y: 0 }, x0 = C.x + Ri, yF = C.y + stem
+      tail.push({ x: x0, y: yF + ft + t }, { x: x0 + tw, y: yF + ft + t }, { x: x0 + tw, y: yF + ft }, { x: x0 + tw + sh, y: yF + ft }, { x: x0 + tw + sh, y: yF }, { x: x0 + tw, y: yF })
+      const ring = (r: number, a0: number, a1: number) => { const k = Math.ceil(Math.abs(a1 - a0) / (Math.PI / 36)); for (let i = 0; i <= k; i++) { const a = a0 + ((a1 - a0) * i) / k; tail.push({ x: C.x + r * Math.cos(a), y: C.y + r * Math.sin(a) }) } }
+      ring(Ro, 0, -1.5 * Math.PI)
+      const capC = { x: C.x, y: C.y + (Ri + Ro) / 2 }
+      for (let i = 1; i < 12; i++) { const a = Math.PI / 2 - (Math.PI * i) / 12; tail.push({ x: capC.x + (tw / 2) * Math.cos(a), y: capC.y + (tw / 2) * Math.sin(a) }) }
+      ring(Ri, -1.5 * Math.PI, 0)
+      tail.push({ x: x0, y: yF }, { x: x0 - sh, y: yF }, { x: x0 - sh, y: yF + ft }, { x: x0, y: yF + ft })
+      const tx = Math.min(...tail.map(v => v.x)), ty = Math.min(...tail.map(v => v.y)), tailPts = tail.map(v => r3({ x: v.x - tx, y: v.y - ty }))
+      const tailPanel: PanelSpec = { id: 'tail', name: 'الذيل (مقبض القفل)', w: Math.max(...tailPts.map(v => v.x)), h: Math.max(...tailPts.map(v => v.y)), shape: [polyLoop(tailPts, 'outer')], note: 'لسانه في شقّ غطاء القفل؛ لفّه ربع دورة للفتح' }
+      // two cradles hold the body; each has two legs that reach below the discs
+      const R = Dm / 2 + 0.3, dc = Math.min(0.25 * Dm, R), ch = Math.sqrt(R * R - (R - dc) ** 2), m = Math.max(8, 2 * t)
+      const belly = Math.max(8, 2 * t), lw = Math.max(10, 0.14 * Dm), Wc = round3(2 * ch + 2 * m), Hc = round3(dc + legH)
+      if (legH < Rring - Dm / 2 + 5) errors.push(`الأرجل أقصر من حافّة الوجه والظهر: اجعلها ${Math.ceil(Rring - Dm / 2 + 5)} مم على الأقل.`)
+      if (legH - belly < 5) errors.push(`الأرجل قصيرة: ${Math.ceil(belly + 5)} مم على الأقل.`)
+      const cradlePts = [
+        { x: 0, y: 0 }, { x: m, y: 0, b: dc / ch }, { x: Wc - m, y: 0 }, { x: Wc, y: 0 }, { x: Wc, y: Hc },
+        { x: Wc - lw, y: Hc }, { x: Wc - lw, y: dc + belly }, { x: lw, y: dc + belly }, { x: lw, y: Hc }, { x: 0, y: Hc },
+      ].map(v => ({ ...r3(v), ...(v.b ? { b: v.b } : {}) }))
+      const cradle: PanelSpec = {
+        id: 'legs', name: 'الأرجل (مهد الجسم)', w: Wc, h: Hc, count: 2, shape: [polyLoop(cradlePts, 'outer')],
+        post: loops => { roundCorner(loops, 0, Hc, 3); roundCorner(loops, Wc, Hc, 3) },
+        note: 'تُلصق تحت الجسم عند ربعه الأمامي والخلفي',
+      }
+      const panels: PanelSpec[] = [facePanel, back, sheet([stadiumV(zone.x, t + H / 2, slotL, slotW)]), cradle, bayonet, spacer, cap, tailPanel]
+      const notes = [
+        `الجسم أسطوانة قطرها ${Dm} مم وطولها ${H} مم؛ اللوح الملتفّ ${L.toFixed(0)} مم يدخل بلساناته في شقوق الوجه والظهر، وطرفاه يلتقيان تحت البطن (${seam} مم بلا قصّات لكلٍّ منهما).`,
+        `شقّ النقود ${slotL} × ${slotW} مم في وسط شريط بلا قصّات على الظهر: لفّ اللوح بحيث يقع الشقّ في الأعلى والوصلة في الأسفل.`,
+        'القفل: ألصق الغطاء والوسط والمفتاح فوق بعضها والمراكز متطابقة، والذيل في شقّ الغطاء. أدخل المفتاح من الشقّين في فتحة الظهر ثم لفّ الذيل ربع دورة فيقفل؛ لإخراج النقود لفّه ربع دورة وأخرجه.',
+        'ألصق مهدَي الأرجل تحت الجسم عند ربعه الأمامي والخلفي، والأذنان إلى الأعلى.',
+        `فتحة الإخراج ${p.hole} مم تكفي لأكبر قطعة نقود؛ لا تلصق القفل بالظهر.`,
+      ]
+      void Rmid
+      return { panels, notes, warnings, errors }
+    },
   },
 ]
 

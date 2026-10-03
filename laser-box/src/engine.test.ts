@@ -477,6 +477,43 @@ describe('second review fixes', () => {
   })
 })
 
+describe('cat money box', () => {
+  const tpl = TEMPLATES.find(x => x.id === 'catbank')!
+  it('builds nine pieces, and its twist lock passes the notches, then holds behind the wall a quarter turn later', () => {
+    const d = generate(tpl, {}, { ...DEFAULT_SETTINGS, kerf: 0 })
+    expect(d.errors).toEqual([])
+    expect(d.pieceCount).toBe(9)
+    const res = tpl.build({ ...tpl.defaults }, { ...DEFAULT_SETTINGS, finger: 9 })
+    const spec = (id: string) => res.panels.find(p => p.id === id)!
+    const hole = samplePoly(spec('back').holes![0]), key = samplePoly(spec('lock-key').shape![0])
+    const spacer = samplePoly(spec('lock-spacer').shape![0]), cap = spec('lock-cap').shape![0]
+    const c = bbox([spec('back').shape![0]]), cx = (c.minX + c.maxX) / 2, cy = (c.minY + c.maxY) / 2
+    // through the notches with the fit all round
+    for (const q of key) expect(pointIn(q, hole)).toBe(true)
+    expect(polyDistance(key, hole)).toBeGreaterThan(0.2 - 0.01)
+    for (const q of spacer) expect(pointIn(q, hole)).toBe(true)
+    // turned 90° the keys lie over solid wall, so the plug cannot come out
+    const turned = key.map(q => ({ x: cx - (q.y - cy), y: cy + (q.x - cx) }))
+    const out = turned.filter(q => !pointIn(q, hole))
+    expect(out.length).toBeGreaterThanOrEqual(4) // both ears' outer corners
+    for (const q of out) expect(Math.hypot(q.x - cx, q.y - cy)).toBeGreaterThan(44 / 2 + 3) // 3 mm or more over the wall
+    // the cap covers the opening and its notches
+    const capR = (bbox([cap]).maxX - bbox([cap]).minX) / 2
+    expect(Math.max(...hole.map(q => Math.hypot(q.x - cx, q.y - cy)))).toBeLessThan(capR)
+  })
+  it('keeps the coin slot in a band of the sheet free of hinge cuts, and refuses legs too short to clear the face', () => {
+    const d = generate(tpl, {}, { ...DEFAULT_SETTINGS, kerf: 0 })
+    const sheet = d.panels.find(p => p.id === 'sheet')!
+    const slot = bbox([sheet.loops.find(l => l.closed && signedArea(l) < 0)!])
+    expect(slot.maxY - slot.minY).toBeCloseTo(34, 1)
+    const mid = (slot.minX + slot.maxX) / 2
+    expect(Math.abs(mid - sheet.w / 2)).toBeLessThan(0.01)
+    for (const l of sheet.loops.filter(l => !l.closed)) expect(Math.abs(l.pts[0].x - mid)).toBeGreaterThanOrEqual(2 + 6 - 1e-6)
+    expect(generate(tpl, { legH: 10 }, DEFAULT_SETTINGS).errors.join(' ')).toMatch(/الأرجل/)
+    expect(generate(tpl, { hole: 90, Dm: 90 }, DEFAULT_SETTINGS).errors.join(' ')).toMatch(/فتحة الإخراج/)
+  })
+})
+
 describe('robustness grid', () => {
   // every template over thickness, kerf, finger, box size and its own parameter ranges; whenever no error is
   // reported the geometry must be sound: one outer loop per panel, no self-intersection, holes inside with margin
