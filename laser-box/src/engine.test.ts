@@ -4,6 +4,7 @@ import { buildPanel, fingerCount, edgeCuts } from './joints'
 import { TEMPLATES, pivotLid, CATEGORIES } from './templates'
 import { generate, DEFAULT_SETTINGS, autoFinger } from './generate'
 import { toDXF, toSVG, toAI } from './export'
+import { samplePoly, materialAt, pointIn, polysOverlap, polyDistance, P } from './testutil'
 
 const area = (l: Loop) => Math.abs(signedArea(l))
 
@@ -105,7 +106,7 @@ describe('templates', () => {
       const d = generate(tpl, {}, s)
       expect(d.warnings).toEqual([])
       expect(d.errors).toEqual([])
-      expect(d.pieceCount).toBeGreaterThanOrEqual(3)
+      expect(d.pieceCount).toBeGreaterThanOrEqual(1) // a clock face or a cross-lapped tree is one or two pieces
       for (const p of d.panels) {
         expect(p.w).toBeGreaterThan(0)
         const outers = p.loops.filter(l => l.closed && l.layer !== 'engrave' && signedArea(l) > 0)
@@ -545,47 +546,47 @@ describe('cat money box', () => {
   })
 })
 
-describe('robustness grid', () => {
-  // every template over thickness, kerf, finger, box size and its own parameter ranges; whenever no error is
-  // reported the geometry must be sound: one outer loop per panel, no self-intersection, holes inside with margin
-  it('generates sound geometry for every template across a parameter grid, or refuses with an error', () => {
-    const boxes = [[60, 50, 30], [120, 80, 50], [300, 200, 120]]
-    let runs = 0, refused = 0
-    for (const tpl of TEMPLATES) {
-      const extras = tpl.params.filter(d => !['W', 'D', 'H', 'Dm'].includes(d.key))
-      const variants: Record<string, number>[] = [{}]
-      for (const def of extras) variants.push({ [def.key]: def.min }, { [def.key]: def.max })
-      for (const t of [2, 2.7, 3, 4, 6]) for (const kerf of [0, 0.2]) for (const finger of [0, 12]) for (const [W, D, H] of boxes) for (const inner of [false, true]) for (const v of variants) {
-        const params = tpl.params.some(d => d.key === 'Dm') ? { Dm: W, H, ...v } : tpl.id === 'frame' ? { pw: W, ph: D + H, ...v } : { W, D, H, ...v }
-        runs++
-        let d
-        try { d = generate(tpl, params, { ...DEFAULT_SETTINGS, t, kerf, finger, inner }) } catch (e) { throw new Error(`${tpl.id} ${JSON.stringify(params)} t=${t} kerf=${kerf} threw: ${(e as Error).message}`) }
-        for (const pn of d.panels) for (const l of pn.loops) for (const q of l.pts) expect(Number.isFinite(q.x) && Number.isFinite(q.y), `${tpl.id} ${pn.id} non-finite`).toBe(true)
-        if (d.errors.length) { refused++; continue }
-        const label = `${tpl.id} ${JSON.stringify(params)} t=${t} kerf=${kerf} finger=${finger} inner=${inner}`
-        expect(d.layout.w, label).toBeLessThanOrEqual(Math.max(DEFAULT_SETTINGS.sheetW, Math.max(...d.panels.map(p => p.w))) + 1e-6)
-        for (const pn of d.panels) {
-          expect(pn.w, `${label} ${pn.id} width`).toBeGreaterThan(0)
-          const closed = pn.loops.filter(l => l.closed && l.layer !== 'engrave')
-          const outers = closed.filter(l => signedArea(l) > 0)
-          expect(outers.length, `${label} ${pn.id} outer loops`).toBe(1)
-          const outer = samplePoly(outers[0], 15)
-          expect(selfIntersects(outer), `${label} ${pn.id} self-intersects`).toBe(false)
-          for (const h of closed.filter(l => signedArea(l) < 0)) {
-            const hp = samplePoly(h, 20)
-            expect(polysOverlap(hp, outer) && !pointIn(hp[0], outer), `${label} ${pn.id} hole outside`).toBe(false)
-            // every hole vertex inside the outline, and the outline not closer than 0.8 mm (slots that merge into joints become part of the outline, so they never appear here)
-            for (const q of hp) expect(pointIn(q, outer), `${label} ${pn.id} hole vertex outside`).toBe(true)
-            expect(polyDistance(hp, outer), `${label} ${pn.id} hole too close to the edge`).toBeGreaterThan(0.8 - 1e-9)
-          }
-          for (let i = 0; i < outer.length; i++) { const q = outer[(i + 1) % outer.length]; expect(Math.hypot(q.x - outer[i].x, q.y - outer[i].y), `${label} ${pn.id} zero-length`).toBeGreaterThan(1e-6) }
-        }
-        const dxf = toDXF(d.layout)
-        expect(dxf.includes('NaN') || dxf.includes('undefined'), `${label} dxf`).toBe(false)
+describe('commercial designs: parts that mate', () => {
+  const S0 = { ...DEFAULT_SETTINGS, kerf: 0 }
+  const T = (id: string) => TEMPLATES.find(x => x.id === id)!
+  const holes = (pn: { loops: Loop[] }) => pn.loops.filter(l => l.closed && l.layer !== 'engrave' && signedArea(l) < 0)
+  // a rectangular slot's two side lengths, short first
+  const dims = (l: Loop) => { const [a, b, c] = l.pts; return [Math.hypot(b.x - a.x, b.y - a.y), Math.hypot(c.x - b.x, c.y - b.y)].sort((x, y) => x - y) }
+  // a tabbed plate's tab height: the span of its outline at x = 0
+  const tabSpan = (pn: { loops: Loop[] }) => { const ys = pn.loops[0].pts.filter(v => Math.abs(v.x) < 1e-6).map(v => v.y); return Math.max(...ys) - Math.min(...ys) }
+  it('every stand plate fits a slot of its own size in the sides', () => {
+    for (const id of ['phonestand', 'bookstand']) {
+      const d = generate(T(id), {}, S0)
+      expect(d.errors).toEqual([])
+      const slots = holes(d.panels.find(p => p.id === 'side')!).map(dims)
+      for (const pid of ['lip', 'brace', 'foot']) {
+        const span = tabSpan(d.panels.find(p => p.id === pid)!)
+        expect(slots.some(([a, b]) => Math.abs(a - (3 + 0.15)) < 1e-3 && Math.abs(b - (span + 0.15)) < 1e-3), `${id} ${pid}`).toBe(true)
       }
     }
-    expect(runs).toBeGreaterThan(1000)
-    expect(refused).toBeLessThan(runs)
+  })
+  it('the cross-lapped trees and the headphone column meet at half height', () => {
+    for (const id of ['mugtree', 'jewelrytree']) {
+      const d = generate(T(id), {}, S0), H = T(id).defaults.H
+      const a = d.panels.find(p => p.id === 'tree-a')!, b = d.panels.find(p => p.id === 'tree-b')!
+      expect(a.loops[0].pts.some(v => Math.abs(v.y - H / 2) < 1e-6)).toBe(true)
+      expect(b.loops[0].pts.some(v => Math.abs(v.y - H / 2) < 1e-6)).toBe(true)
+    }
+    const res = T('headphone').build({ ...T('headphone').defaults }, { ...S0, finger: 9 })
+    const H = 260, t = 3, A = res.panels.find(p => p.id === 'post-a')!, B = res.panels.find(p => p.id === 'post-b')!
+    const aSlot = A.cuts!.find(r => r.w < 4 && r.y > 0)!, bSlot = B.cuts!.find(r => r.w < 4 && r.y === 0)!
+    expect((H + t) - aSlot.y).toBeCloseTo(H / 2)             // A's slot reaches from the base up to H/2
+    expect((H - 10) - (bSlot.y + bSlot.h)).toBeCloseTo(H / 2) // B's slot reaches from its top down to H/2
+  })
+  it('the spice rack sides are mirror images, and the key board has a slot for every peg and tab', () => {
+    const d = generate(T('spicerack'), {}, S0)
+    const xs = (id: string) => holes(d.panels.find(p => p.id === id)!).map(l => bbox([l])).map(b => Math.round((b.minX + b.maxX) / 2 * 100) / 100).sort((a, b) => a - b)
+    const W = d.panels.find(p => p.id === 'side-l')!.w
+    expect(xs('side-r')).toEqual(xs('side-l').map(x => Math.round((W - x) * 100) / 100).sort((a, b) => a - b))
+    const k = generate(T('keyholder'), {}, S0)
+    const board = holes(k.panels.find(p => p.id === 'board')!)
+    expect(board.length).toBe(2 + 2 + 2 + 5) // keyholes, shelf tabs, brackets, pegs
+    expect(k.panels.find(p => p.id === 'peg')!.count).toBe(5)
   })
 })
 
@@ -636,69 +637,3 @@ describe('zip', () => {
   })
 })
 
-// ---------------------------------------------------------------- polygon helpers for the sweep tests
-type P = { x: number; y: number }
-
-/** A closed loop with bulges as a dense polygon (arcs sampled every ~3°). */
-function samplePoly(l: Loop, stepDeg = 3): P[] {
-  const out: P[] = []
-  const n = l.pts.length
-  for (let i = 0; i < n; i++) {
-    const p = l.pts[i], q = l.pts[(i + 1) % n]
-    out.push({ x: p.x, y: p.y })
-    if (p.b) {
-      const a = arcInfo(p, q, p.b), m = Math.max(4, Math.ceil(a.theta / (stepDeg * Math.PI / 180)))
-      for (let k = 1; k < m; k++) { const ang = a.a0 + (a.ccw ? -1 : 1) * a.theta * k / m; out.push({ x: a.c.x + a.r * Math.cos(ang), y: a.c.y + a.r * Math.sin(ang) }) }
-    }
-  }
-  return out
-}
-
-/** Material intervals of a panel along the vertical line x = X (ray casting on the outer loop). */
-function materialAt(l: Loop, X: number): [number, number][] {
-  const poly = samplePoly(l), ys: number[] = []
-  for (let i = 0; i < poly.length; i++) {
-    const a = poly[i], b = poly[(i + 1) % poly.length]
-    if ((a.x <= X && b.x > X) || (b.x <= X && a.x > X)) ys.push(a.y + (b.y - a.y) * (X - a.x) / (b.x - a.x))
-  }
-  ys.sort((u, v) => u - v)
-  const iv: [number, number][] = []
-  for (let i = 0; i + 1 < ys.length; i += 2) iv.push([Math.round(ys[i] * 1000) / 1000, Math.round(ys[i + 1] * 1000) / 1000])
-  return iv
-}
-
-const orient = (a: P, b: P, c: P) => (b.x - a.x) * (c.y - a.y) - (b.y - a.y) * (c.x - a.x)
-function segsCross(a: P, b: P, c: P, d: P): boolean {
-  const o1 = orient(a, b, c), o2 = orient(a, b, d), o3 = orient(c, d, a), o4 = orient(c, d, b)
-  return o1 * o2 < -1e-12 && o3 * o4 < -1e-12
-}
-function pointIn(p: P, poly: P[]): boolean {
-  let inside = false
-  for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
-    const a = poly[i], b = poly[j]
-    if ((a.y > p.y) !== (b.y > p.y) && p.x < a.x + (b.x - a.x) * (p.y - a.y) / (b.y - a.y)) inside = !inside
-  }
-  return inside
-}
-function polysOverlap(A: P[], B: P[]): boolean {
-  for (let i = 0; i < A.length; i++) for (let j = 0; j < B.length; j++) if (segsCross(A[i], A[(i + 1) % A.length], B[j], B[(j + 1) % B.length])) return true
-  return pointIn(A[0], B) || pointIn(B[0], A)
-}
-function segDist(a: P, b: P, c: P, d: P): number {
-  const pd = (p: P, u: P, v: P) => { const l2 = (v.x - u.x) ** 2 + (v.y - u.y) ** 2; const tt = l2 ? Math.max(0, Math.min(1, ((p.x - u.x) * (v.x - u.x) + (p.y - u.y) * (v.y - u.y)) / l2)) : 0; return Math.hypot(p.x - (u.x + tt * (v.x - u.x)), p.y - (u.y + tt * (v.y - u.y))) }
-  return Math.min(pd(a, c, d), pd(b, c, d), pd(c, a, b), pd(d, a, b))
-}
-function polyDistance(A: P[], B: P[]): number {
-  let best = Infinity
-  for (let i = 0; i < A.length; i++) for (let j = 0; j < B.length; j++) best = Math.min(best, segDist(A[i], A[(i + 1) % A.length], B[j], B[(j + 1) % B.length]))
-  return best
-}
-
-function selfIntersects(poly: P[]): boolean {
-  const n = poly.length
-  for (let i = 0; i < n; i++) for (let j = i + 2; j < n; j++) {
-    if (i === 0 && j === n - 1) continue
-    if (segsCross(poly[i], poly[(i + 1) % n], poly[j], poly[(j + 1) % n])) return true
-  }
-  return false
-}

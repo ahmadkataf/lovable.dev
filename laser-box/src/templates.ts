@@ -1,5 +1,5 @@
 // Ready-made box designs. Every template turns its parameters into panel specs.
-import { Loop, rect, circle, disc, stadium, stadiumV, roundedRectHole, rotatedRectHole, roundCorner, edgeNotch, engraveRect, hingeLines, heart, ellipse, archHole, keyhole, polyLoop, peakSegments, round3 } from './geom'
+import { Loop, rect, circle, disc, stadium, stadiumV, roundedRectHole, rotatedRectHole, roundCorner, edgeNotch, engraveRect, hingeLines, heart, ellipse, archHole, keyhole, polyLoop, peakSegments, oriented, round3 } from './geom'
 import { PanelSpec, fingerCount } from './joints'
 
 export interface ParamDef {
@@ -1441,10 +1441,802 @@ export const templateById = (id: string) => TEMPLATES.find(t => t.id === id) ?? 
 
 /** The picker's groups, in the order they are shown; every template belongs to exactly one. */
 export const CATEGORIES: { id: string; name: string; ids: string[] }[] = [
-  { id: 'box', name: 'صناديق', ids: ['closed', 'open', 'sliding', 'liftoff', 'hinged', 'flex', 'lip', 'window', 'drawer', 'roundbox'] },
-  { id: 'gift', name: 'هدايا وديكور', ids: ['chest', 'catbank', 'decobox', 'teahouse', 'frame', 'basket', 'fence', 'napkin'] },
-  { id: 'org', name: 'تنظيم وتقديم', ids: ['organizer', 'tray', 'teabox', 'tissue'] },
-  { id: 'light', name: 'إضاءة', ids: ['lantern', 'shade'] },
+  { id: 'box', name: 'صناديق', ids: ['closed', 'open', 'sliding', 'liftoff', 'hinged', 'flex', 'lip', 'window', 'drawer', 'roundbox', 'crate'] },
+  { id: 'gift', name: 'هدايا وديكور', ids: ['chest', 'catbank', 'decobox', 'jewelry', 'moneybox', 'teahouse', 'frame', 'basket', 'fence', 'clock'] },
+  { id: 'kitchen', name: 'مطبخ وتقديم', ids: ['carrier', 'mugtree', 'spicerack', 'bedtray', 'tray', 'teabox', 'tissue'] },
+  { id: 'office', name: 'مكتب وتنظيم', ids: ['organizer', 'phonestand', 'bookstand', 'headphone', 'keyholder', 'wallshelf', 'jewelrytree'] },
+  { id: 'home', name: 'بيت وحديقة', ids: ['planter', 'petfeeder', 'birdhouse', 'incense', 'napkin'] },
+  { id: 'light', name: 'إضاءة ورمضان', ids: ['ramadanlantern', 'ramadanornaments', 'lantern', 'shade'] },
+  { id: 'bulk', name: 'بالجملة', ids: ['keychains', 'coasters'] },
 ]
 /** the newest designs get a badge in the picker */
-export const NEW_IDS = ['chest', 'catbank']
+export const NEW_IDS = ['crate', 'carrier', 'jewelry', 'moneybox', 'planter', 'petfeeder', 'incense', 'bedtray', 'phonestand', 'bookstand', 'headphone', 'keyholder', 'wallshelf', 'spicerack', 'coasters', 'clock', 'keychains', 'ramadanornaments', 'mugtree', 'jewelrytree', 'birdhouse', 'ramadanlantern']
+
+// ====================================================================== more designs, built from the shared parts
+
+/**
+ * Walls that run down past the floor into four curved legs (the corner joints continue down the legs), an optional
+ * floor hung on tabs through slots just above the apron, and an optional top plate jointed into the walls.
+ */
+function leggedBody(p: Record<string, number>, c: Common, warnings: string[], errors: string[], o: { floor: boolean; top: boolean; patTop: number; handles?: boolean }) {
+  checkBasics(p, c, warnings, errors)
+  const { W, D, H, legH, cell } = p, t = c.t, fit = p.fit ?? 0.15
+  const kind = Math.round(p.pattern ?? 0)
+  const Ht = round3(H + legH)
+  const web = Math.max(4, 1.5 * t), lw = Math.max(p.legW, 3 * t + 4)
+  if (legH < web + 8) errors.push(`الأرجل قصيرة: ${Math.ceil(web + 8)} مم على الأقل.`)
+  if (2 * lw + 20 > Math.min(W, D)) errors.push(`الأرجل عريضة على هذا الحجم: أقصى عرض ${Math.floor((Math.min(W, D) - 20) / 2)} مم.`)
+  const tabsOn = (len: number) => {
+    const inner = len - 2 * t, tw = round3(Math.min(30, Math.max(8, inner * 0.14)))
+    return { tw, xs: (inner > 220 ? [0.2, 0.5, 0.8] : [0.25, 0.75]).map(k => round3(t + inner * k)) }
+  }
+  const tw = tabsOn(W), td = tabsOn(D)
+  const strip = (len: number, tabs: { tw: number; xs: number[] }, at: (a: number, b: number) => ReturnType<typeof rect>) => {
+    const out: ReturnType<typeof rect>[] = []
+    let a = 0
+    for (const x of tabs.xs) { out.push(at(a, x - tabs.tw / 2)); a = x + tabs.tw / 2 }
+    out.push(at(a, len))
+    return out
+  }
+  const panels: PanelSpec[] = []
+  if (o.floor) panels.push({
+    id: 'floor', name: 'القاع (معلّق باللسانات)', w: W, h: D,
+    cuts: [
+      ...strip(W, tw, (a, b) => rect(a, 0, b - a, t)), ...strip(W, tw, (a, b) => rect(a, D - t, b - a, t)),
+      ...strip(D, td, (a, b) => rect(0, a, t, b - a)), ...strip(D, td, (a, b) => rect(W - t, a, t, b - a)),
+    ],
+    note: 'لساناته تدخل في شقوق الجدران فوق الأرجل',
+  })
+  const slotY = round3(H - t / 2), fm = 2 * t + 2
+  // hand holes in the sides, under the top edge
+  const hh = 25, hwOf = (w: number) => Math.min(90, w - 2 * lw)
+  const handleY = (o.top ? t : 0) + 6 + hh / 2
+  if (o.handles && (H - (o.floor ? t : 0) < handleY + hh / 2 + 6 || hwOf(D) < 50)) errors.push('الجدار أصغر من أن تُفتح فيه فتحة يد (يلزم ارتفاع نحو 45 مم وعرض جانب يتّسع لـ 50 مم).')
+  const wall = (id: string, name: string, w: number, male: boolean, tabs: { tw: number; xs: number[] }, count: number, side: boolean): PanelSpec => {
+    const holes = o.floor ? tabs.xs.map(x => rotatedRectHole(x, slotY, tabs.tw + fit, t + fit, 0)) : []
+    let top = o.patTop
+    if (side && o.handles) { holes.push(stadium(w / 2, handleY, hwOf(w), hh)); top = Math.max(top, handleY + hh / 2 + 6) }
+    if (kind > 0) holes.push(...pattern(kind, fm, top, w - fm, (o.floor ? H - t : H) - fm, cell))
+    const apronTop = round3(H + web)
+    return {
+      id, name, w, h: Ht, count, top: o.top ? 'female' : undefined,
+      left: male ? 'male' : 'female', right: male ? 'male' : 'female',
+      cuts: [rect(lw, apronTop, w - 2 * lw, Ht - apronTop)], holes,
+      // curved brackets: the apron's top corners rounded deep
+      post: loops => { const r = Math.min(Ht - apronTop - 1, (w - 2 * lw) / 3); roundCorner(loops, round3(lw), apronTop, r); roundCorner(loops, round3(w - lw), apronTop, r) },
+    }
+  }
+  panels.push(wall('frontback', `${N.front} / ${N.back}`, W, true, tw, 2, false), wall('side', N.side, D, false, td, 2, true))
+  if (o.top) panels.push({ id: 'top', name: 'السطح العلوي', w: W, h: D, top: 'male', right: 'male', bottom: 'male', left: 'male' })
+  return { panels, Ht, kind }
+}
+const LEG_PARAMS: ParamDef[] = [mm('legH', 'طول الأرجل', 8, 300), mm('legW', 'عرض الرجل', 10, 80)]
+const PATTERN_PARAMS = (): ParamDef[] => [
+  { key: 'pattern', label: 'الزخرفة', min: 0, max: 6, step: 1, int: true, hint: '0 = بلا، ' + PATTERN_HINT },
+  mm('cell', 'حجم الزخرفة', 6, 40),
+]
+
+/** Hand holes and divider slots for a plate that rises above the walls as a carrying handle (as the gift basket). */
+function handlePlate(W: number, handleH: number, hd: number, margin: number, t: number, warnings: string[]): PanelSpec {
+  const cl = t + 0.3, r = Math.min(handleH * 0.8, (W - 2 * cl) / 2 - 5)
+  const hh = Math.min(30, Math.max(25, handleH * 0.4)), yc = Math.max(12, (handleH - hh) * 0.4) + hh / 2
+  const webAt = (hw: number) => {
+    const ex = W / 2 - hw / 2 + hh / 2, ax = cl + r, ay = r
+    return (ex < ax && yc < ay ? r - Math.hypot(ex - ax, yc - ay) : Math.min(yc, ex - cl)) - hh / 2
+  }
+  let hw = Math.min(100, Math.max(80, (W - 2 * cl) * 0.45))
+  while (hw > hh + 2 && webAt(hw) < 8) hw -= 1
+  if (hw < 70) warnings.push(`فتحة اليد في المقبض ضيقة (${hw.toFixed(0)} × ${hh.toFixed(0)} مم)؛ كبّر العرض.`)
+  return {
+    id: 'handle', name: 'المقبض (فاصل أوسط)', w: W, h: handleH + hd,
+    cuts: [rect(0, 0, cl, handleH + margin), rect(W - cl, 0, cl, handleH + margin), rect(0, handleH + hd - FOOT, t, FOOT), rect(W - t, handleH + hd - FOOT, t, FOOT)],
+    holes: [stadium(W / 2, yc, hw, hh)],
+    post: loops => { roundCorner(loops, round3(cl), 0, r); roundCorner(loops, round3(W - cl), 0, r) },
+    note: 'يقف في منتصف الحامل، وطرفاه في شقّي الجانبين',
+  }
+}
+
+const MORE: Template[] = [
+  {
+    id: 'crate',
+    name: 'صندوق تخزين بفتحتَي يد',
+    desc: 'صندوق مفتوح متين بفتحة يد في كل جانب، لترتيب الرفوف والخزائن وللتقديم؛ زخرفة اختيارية في الواجهتين.',
+    icon: `<path d="M10 22h44v32H10z"/><path d="M22 30h20" stroke-width="5" stroke-linecap="round"/><path d="M10 22l4-6h36l4 6"/>`,
+    params: [...DIMS, ...PATTERN_PARAMS()],
+    defaults: { W: 300, D: 200, H: 150, pattern: 0, cell: 14 },
+    innerAdd: t => ({ W: 2 * t, D: 2 * t, H: t }),
+    build(p, c) {
+      const warnings: string[] = [], errors: string[] = []
+      checkBasics(p, c, warnings, errors)
+      const { W, D, H, cell } = p, t = c.t
+      const kind = Math.round(p.pattern)
+      const box = openBox(W, D, H)
+      const hh = 26, hw = Math.min(100, D - 4 * t - 30), yc = Math.max(14, H * 0.18) + hh / 2
+      if (hw < 60 || H - t - (yc + hh / 2) < 10) errors.push('الصندوق أصغر من أن تُفتح فيه فتحة يد (عمق 100 مم وارتفاع 70 مم على الأقل).')
+      const fm = 2 * t + 2
+      for (const sp of box) {
+        if (sp.id === 'side') sp.holes = [stadium(D / 2, yc, hw, hh)]
+        if (kind > 0 && (sp.id === 'front' || sp.id === 'back')) sp.holes = pattern(kind, fm, fm, W - fm, H - t - fm, cell)
+      }
+      return { panels: box, notes: ['فتحتا اليد في الجانبين تحت الحافّة؛ للأحمال الثقيلة استعمل خشباً 4 مم أو أكثر.', 'يُرصّ بعضه فوق بعض إذا تساوت القياسات.'], warnings, errors }
+    },
+  },
+  {
+    id: 'carrier',
+    name: 'حامل عبوات بمقبض',
+    desc: 'حامل لزجاجات العصير أو الحليب أو الشاي: خانات بفواصل متقاطعة ومقبض أوسط يُحمل باليد.',
+    icon: `<path d="M10 32h44v22H10z"/><path d="M18 32c0-16 28-16 28 0"/><path d="M24 26c3-6 13-6 16 0" stroke-width="1.5"/><path d="M24 32v22M40 32v22" stroke-width="1.5"/>`,
+    params: [
+      ...DIMS,
+      { key: 'N', label: 'فواصل بالعرض', min: 0, max: 8, step: 1, int: true, hint: 'عدد الفواصل التي تقطع المقبض' },
+      mm('handleH', 'ارتفاع المقبض فوق الحافّة', 40, 200), mm('margin', 'هامش أعلى الشقّ', 3, 50), mm('fit', 'خلوص الشقّ', 0, 1),
+    ],
+    defaults: { W: 210, D: 140, H: 100, N: 2, handleH: 70, margin: 8, fit: 0.2 },
+    innerAdd: t => ({ W: 2 * t, D: 2 * t, H: t }),
+    build(p, c) {
+      const warnings: string[] = [], errors: string[] = []
+      checkBasics(p, c, warnings, errors)
+      const { W, D, H, handleH, fit } = p, t = c.t
+      const Nn = Math.round(p.N), sw = t + fit, hd = H - t
+      const margin = Math.min(p.margin, Math.max(2, hd / 3))
+      if (hd - FOOT - margin < 3 * t) errors.push('الارتفاع صغير جداً لشقوق الفواصل.')
+      if (Nn > 0 && (W - 2 * t) / (Nn + 1) < 3 * t) errors.push('الفواصل كثيرة جداً لهذا العرض.')
+      const xs = Array.from({ length: Nn }, (_, i) => round3(t + (W - 2 * t) * (i + 1) / (Nn + 1)))
+      const box = openBox(W, D, H)
+      for (const sp of box) {
+        if (sp.id === 'front' || sp.id === 'back') addSlots(sp, xs, margin, hd - FOOT, sw, fit / 2)
+        if (sp.id === 'side') addSlots(sp, [D / 2], margin, hd - FOOT, sw, fit / 2)
+      }
+      const handle = handlePlate(W, handleH, hd, margin, t, warnings)
+      // the handle takes the crossing slots from below, the dividers from above
+      handle.cuts = [...handle.cuts!, ...xs.map(x => rect(x - sw / 2, handleH + hd / 2, sw, hd / 2))]
+      const panels: PanelSpec[] = [...box, handle]
+      if (Nn > 0) panels.push({
+        id: 'divN', name: 'فاصل بالعمق', w: D, h: hd, count: Nn,
+        cuts: [rect(0, 0, t, margin), rect(D - t, 0, t, margin), rect(0, hd - FOOT, t, FOOT), rect(D - t, hd - FOOT, t, FOOT), rect(D / 2 - sw / 2, 0, sw, hd / 2)],
+        note: 'يدخل في شقوق الواجهتين ويتقاطع مع المقبض',
+      })
+      const cw = (W - 2 * t - Nn * t) / (Nn + 1), cd = (D - 3 * t) / 2
+      return { panels, notes: [`${2 * (Nn + 1)} خانة، كلّ خانة نحو ${cw.toFixed(0)} × ${cd.toFixed(0)} مم.`, 'ركّب القاعدة والواجهتين مع الفواصل، أنزل المقبض فوقها، ثم أدخل الجانبين فيدخل طرفا المقبض في شقّيهما، والصق.'], warnings, errors }
+    },
+  },
+  {
+    id: 'jewelry',
+    name: 'صندوق مجوهرات بفواصل',
+    desc: 'صندوق بغطاء ذي شفة وخانات منخفضة للخواتم والأقراط والساعات؛ يُبطَّن بالمخمل.',
+    icon: `<path d="M10 24h44v30H10z"/><path d="M8 18h48v6H8z"/><path d="M10 40h44M28 40v14M44 40v14" stroke-width="1.5"/><circle cx="20" cy="47" r="3" stroke-width="1.5"/>`,
+    params: [...DIMS, ...DIVIDER_PARAMS.filter(d => d.key !== 'margin'), mm('lipH', 'ارتفاع الشفة', 4, 40), mm('gap', 'خلوص الشفة', 0.2, 2), ...PATTERN_PARAMS()],
+    defaults: { W: 220, D: 150, H: 70, N: 2, M: 1, fit: 0.2, lipH: 10, gap: 0.5, pattern: 0, cell: 12 },
+    innerAdd: t => ({ W: 2 * t, D: 2 * t, H: t }),
+    build(p, c) {
+      const warnings: string[] = [], errors: string[] = []
+      checkBasics(p, c, warnings, errors)
+      const { W, D, H, lipH, gap, cell } = p, t = c.t
+      const { panels, notes } = lipLidBox(p, c, errors)
+      // the dividers stop under the lid's lip frame
+      const hd = round3(H - t - lipH - 2), dm = 3
+      const d = dividerPlan({ ...p, H: hd + t, margin: dm }, t, errors, warnings)
+      const y0 = H - t - hd
+      for (const sp of panels) {
+        if (sp.id === 'front' || sp.id === 'back') addSlots(sp, d.xs, y0 + dm, H - t - FOOT, d.sw, d.vfit)
+        if (sp.id === 'side') addSlots(sp, d.ds, y0 + dm, H - t - FOOT, d.sw, d.vfit)
+      }
+      const kind = Math.round(p.pattern), m = 2 * t + gap + 3
+      if (kind > 0) panels.find(x => x.id === 'lid')!.holes = pattern(kind, m, m, W - m, D - m, cell)
+      panels.push(...dividers(W, D, hd, d.xs, d.ds, t, d.sw, dm))
+      return { panels, notes: [`${d.cells} خانة بارتفاع ${hd} مم، تحت شفة الغطاء.`, 'بطّن الخانات بقماش مخمل أو لبّاد لاصق قبل وضع المجوهرات.', ...notes], warnings, errors }
+    },
+  },
+  {
+    id: 'moneybox',
+    name: 'صندوق العيدية والاقتراحات',
+    desc: 'صندوق بغطاء ذي شفة وفي الغطاء شقّ للبطاقات والنقود: للأعراس والعيدية والتبرعات وصندوق اقتراحات المحلّات.',
+    icon: `<path d="M10 24h44v30H10z"/><path d="M8 18h48v6H8z"/><path d="M22 21h20" stroke-width="3"/><path d="M24 36h16v10H24z" stroke-width="1.5"/>`,
+    params: [...DIMS, mm('slotL', 'طول الشقّ', 30, 200, 'بطاقة دعوة 120–160، نقود مطويّة 80'), mm('slotW', 'عرض الشقّ', 3, 15), mm('lipH', 'ارتفاع الشفة', 4, 40), mm('gap', 'خلوص الشفة', 0.2, 2), ...PATTERN_PARAMS()],
+    defaults: { W: 220, D: 160, H: 160, slotL: 130, slotW: 6, lipH: 12, gap: 0.5, pattern: 0, cell: 14 },
+    innerAdd: t => ({ W: 2 * t, D: 2 * t, H: t }),
+    build(p, c) {
+      const warnings: string[] = [], errors: string[] = []
+      checkBasics(p, c, warnings, errors)
+      const { W, D, H, slotL, slotW, lipH, cell } = p, t = c.t
+      const { panels, notes } = lipLidBox(p, c, errors)
+      // the slot lies inside the lip frame
+      const inner = W - 4 * t - 2 * p.gap - 8
+      if (slotL > inner) errors.push(`الشقّ أطول من الغطاء: أقصاه ${Math.floor(inner)} مم.`)
+      if (slotW > D - 4 * t - 10) errors.push('الشقّ أعرض من الغطاء.')
+      const lid = panels.find(x => x.id === 'lid')!
+      lid.holes = [stadium(W / 2, D / 2, slotL, slotW)]
+      lid.engrave = [...(lid.engrave ?? []), engraveRect(W / 2 - slotL / 2 - 5, D / 2 - slotW / 2 - 5, slotL + 10, slotW + 10)]
+      const kind = Math.round(p.pattern), fm = 2 * t + 2
+      if (kind > 0) for (const sp of panels) if (sp.id === 'front') sp.holes = pattern(kind, fm, lipH + 4, W - fm, H - t - fm, cell)
+      return { panels, notes: ['الشقّ في وسط الغطاء داخل إطار الشفة، ويُفتح الغطاء لإخراج المحتوى؛ للقفل ألصق الغطاء أو اربطه بشريطة.', 'اكتب الاسم أو المناسبة على الواجهة بالحفر في RDWorks.', ...notes], warnings, errors }
+    },
+  },
+  {
+    id: 'planter',
+    name: 'حوض نباتات بأرجل',
+    desc: 'حوض مزخرف يقف على أرجل منحنية، بقاع معلّق فيه ثقوب تصريف؛ يُبطّن بكيس أو يوضع فيه أصيص.',
+    icon: `<path d="M12 30h40v16H12z"/><path d="M12 46v8M52 46v8M12 54c4 0 6-4 8-8M52 54c-4 0-6-4-8-8" stroke-width="2"/><path d="M26 30c-2-8 0-14 6-18 6 4 8 10 6 18" stroke-width="1.5"/><path d="M32 12v18" stroke-width="1.5"/>`,
+    params: [...DIMS.map(d => d.key === 'H' ? { ...d, hint: 'ارتفاع الحوض فوق الأرجل' } : d), ...LEG_PARAMS, ...PATTERN_PARAMS(), mm('fit', 'خلوص لسانات القاع', 0, 1)],
+    defaults: { W: 300, D: 140, H: 120, legH: 40, legW: 28, pattern: 2, cell: 10, fit: 0.15 },
+    innerAdd: t => ({ W: 2 * t, D: 2 * t, H: t }),
+    build(p, c) {
+      const warnings: string[] = [], errors: string[] = []
+      const { panels } = leggedBody(p, c, warnings, errors, { floor: true, top: false, patTop: 2 * c.t + 2 })
+      const floor = panels.find(x => x.id === 'floor')!, t = c.t
+      const fx = p.W - 2 * t, fy = p.D - 2 * t
+      const nx = Math.max(1, Math.floor(fx / 50)), ny = Math.max(1, Math.floor(fy / 50))
+      floor.holes = Array.from({ length: nx * ny }, (_, k) => circle(round3(t + fx * ((k % nx) + 0.5) / nx), round3(t + fy * (Math.floor(k / nx) + 0.5) / ny), 3))
+      return { panels, notes: ['بطّن الحوض بكيس بلاستيك أو ضع فيه أصيصاً؛ الخشب لا يتحمّل الماء المباشر. ادهنه بورنيش مائي.', 'ثقوب التصريف في القاع تمنع تجمّع الماء.'], warnings, errors }
+    },
+  },
+  {
+    id: 'petfeeder',
+    name: 'حامل أوعية للقطط والكلاب',
+    desc: 'طاولة صغيرة على أرجل بسطح فيه فتحات لأوعية الأكل والماء، ترفعها لراحة رقبة الحيوان.',
+    icon: `<path d="M8 22h48v8H8z"/><path d="M10 30v24M54 30v24M10 54c4 0 6-6 8-10h28c2 4 4 10 8 10" stroke-width="2"/><ellipse cx="22" cy="22" rx="8" ry="3"/><ellipse cx="42" cy="22" rx="8" ry="3"/>`,
+    params: [
+      ...DIMS.map(d => d.key === 'H' ? { ...d, hint: 'ارتفاع الجسم فوق الأرجل' } : d), ...LEG_PARAMS,
+      { key: 'bowls', label: 'عدد الأوعية', min: 1, max: 3, step: 1, int: true },
+      mm('bowl', 'قطر فتحة الوعاء', 60, 250, 'قطر جسم الوعاء تحت حافّته البارزة'),
+      ...PATTERN_PARAMS(),
+    ],
+    defaults: { W: 320, D: 170, H: 70, legH: 40, legW: 28, bowls: 2, bowl: 125, pattern: 0, cell: 14 },
+    innerAdd: t => ({ W: 2 * t, D: 2 * t, H: t }),
+    build(p, c) {
+      const warnings: string[] = [], errors: string[] = []
+      const t = c.t
+      const { panels } = leggedBody(p, c, warnings, errors, { floor: false, top: true, patTop: 2 * t + 2 })
+      const n = Math.round(p.bowls), b = p.bowl, gapX = (p.W - 2 * t - n * b) / (n + 1)
+      if (gapX < 12) errors.push(`الأوعية لا تتّسع في هذا العرض: يلزم ${Math.ceil(n * b + (n + 1) * 12 + 2 * t)} مم على الأقل.`)
+      if (b + 24 > p.D - 2 * t) errors.push(`العمق أصغر من الوعاء: يلزم ${Math.ceil(b + 24 + 2 * t)} مم على الأقل.`)
+      const top = panels.find(x => x.id === 'top')!
+      if (!errors.length) top.holes = Array.from({ length: n }, (_, k) => circle(round3(t + gapX + b / 2 + k * (b + gapX)), round3(p.D / 2), b / 2))
+      return { panels, notes: [`الأوعية تُعلَّق بحافّتها في الفتحات (قطر ${b} مم)؛ قِس جسم الوعاء تحت الحافّة البارزة.`, 'ارتفاع السطح يُختار بحسب الحيوان: القطط نحو 10 سم، الكلاب الصغيرة 15–20 سم.'], warnings, errors }
+    },
+  },
+  {
+    id: 'incense',
+    name: 'مبخرة مزخرفة',
+    desc: 'مبخرة بجدران مخرّمة بنجوم ثمانية على أرجل، وفي سطحها فتحة لوعاء الفحم المعدني.',
+    icon: `<path d="M16 24h32v24H16z"/><path d="M12 20h40v4H12z"/><path d="M16 48v6M48 48v6" stroke-width="2.5"/><path d="M28 14c0-4 4-4 4-8M34 16c0-4 4-4 4-8" stroke-width="1.5"/><path d="M26 32l3 3-3 3-3-3zM38 32l3 3-3 3-3-3z" stroke-width="1.5"/>`,
+    params: [...DIMS.map(d => d.key === 'H' ? { ...d, hint: 'ارتفاع الجسم فوق الأرجل' } : d), ...LEG_PARAMS, mm('cup', 'قطر فتحة الوعاء المعدني', 30, 150), ...PATTERN_PARAMS(), mm('fit', 'خلوص لسانات القاع', 0, 1)],
+    defaults: { W: 120, D: 120, H: 90, legH: 22, legW: 22, cup: 70, pattern: 6, cell: 12, fit: 0.15 },
+    innerAdd: t => ({ W: 2 * t, D: 2 * t, H: t }),
+    build(p, c) {
+      const warnings: string[] = [], errors: string[] = []
+      const t = c.t
+      const { panels } = leggedBody(p, c, warnings, errors, { floor: true, top: true, patTop: 2 * t + 2 })
+      if (p.cup + 16 > Math.min(p.W, p.D) - 2 * t) errors.push(`فتحة الوعاء أكبر من السطح: أقصاها ${Math.floor(Math.min(p.W, p.D) - 2 * t - 16)} مم.`)
+      else {
+        const top = panels.find(x => x.id === 'top')!
+        top.holes = [circle(p.W / 2, p.D / 2, p.cup / 2)]
+        top.engrave = [{ ...circle(p.W / 2, p.D / 2, p.cup / 2 + 4) }]
+      }
+      return { panels, notes: ['استعمل وعاءً معدنياً بحافّة تستند على السطح، ولا تضع الفحم على الخشب مباشرة؛ اترك فراغاً تحت الوعاء.', 'الزخرفة المخرّمة تُخرج الدخان وتُظهر توهّج الجمر.'], warnings, errors }
+    },
+  },
+  {
+    id: 'bedtray',
+    name: 'صينية فطور بأرجل',
+    desc: 'صينية تقديم بحافّة ومقبضين، تقف على أرجل للفطور في السرير أو كطاولة صغيرة.',
+    icon: `<path d="M6 26h52v10H6z"/><path d="M12 31h8M44 31h8" stroke-width="3" stroke-linecap="round"/><path d="M8 36v18M56 36v18M8 54c4 0 6-8 8-14h32c2 6 4 14 8 14" stroke-width="2"/>`,
+    params: [...DIMS.map(d => d.key === 'H' ? { ...d, hint: 'ارتفاع الحافّة' } : d), ...LEG_PARAMS, ...PATTERN_PARAMS(), mm('fit', 'خلوص لسانات القاع', 0, 1)],
+    defaults: { W: 400, D: 280, H: 55, legH: 170, legW: 40, pattern: 0, cell: 14, fit: 0.15 },
+    innerAdd: t => ({ W: 2 * t, D: 2 * t, H: t }),
+    build(p, c) {
+      const warnings: string[] = [], errors: string[] = []
+      const { panels } = leggedBody(p, c, warnings, errors, { floor: true, top: false, patTop: 2 * c.t + 2, handles: true })
+      return { panels, notes: ['فتحتا اليد في الجانبين؛ استعمل خشباً 4–6 مم لصينية بهذا الحجم.', 'ارتفاع الأرجل 15–20 سم يناسب الجلوس في السرير.'], warnings, errors }
+    },
+  },
+]
+
+/** A plate whose two ends are tabs (t long) between shoulders s high: it spans between two panels through their slots. */
+const tabPlate = (id: string, name: string, len: number, h: number, t: number, s: number, extra: Partial<PanelSpec> = {}): PanelSpec => ({
+  id, name, w: len, h, ...extra,
+  cuts: [rect(0, 0, t, s), rect(0, h - s, t, s), rect(len - t, 0, t, s), rect(len - t, h - s, t, s), ...(extra.cuts ?? [])],
+})
+const shoulder = (h: number) => round3(Math.max(2, Math.min(6, 0.15 * h)))
+
+/** Phone, tablet and book stands: two side profiles joined by three tabbed plates. */
+function standBuild(kind: 'phone' | 'book') {
+  return (p: Record<string, number>, c: Common): BuildResult => {
+    const warnings: string[] = [], errors: string[] = []
+    const { W, H, devT, lip, fit } = p, t = c.t
+    const a = (p.ang * Math.PI) / 180
+    if (W < 8 * t + 20) errors.push(`العرض صغير: ${Math.ceil(8 * t + 20)} مم على الأقل.`)
+    // the profile, y up: a lip at the front, a ledge the device stands on, the slope it leans on, a foot behind
+    const lipT = t + 6, hb = Math.max(10, 3 * t), ledge = devT / Math.sin(a) + 1
+    const S = { x: lipT + ledge, y: hb }, u = { x: Math.cos(a), y: Math.sin(a) }
+    const T = { x: S.x + H * u.x, y: S.y + H * u.y }
+    const Lb = T.x + Math.max(20, 0.3 * T.y)
+    const Hp = Math.max(T.y, hb + lip)
+    const Y = (v: { x: number; y: number }) => ({ x: round3(v.x), y: round3(Hp - v.y) })
+    const profile = polyLoop([{ x: 0, y: 0 }, { x: Lb, y: 0 }, T, S, { x: lipT, y: hb }, { x: lipT, y: hb + lip }, { x: 0, y: hb + lip }].map(Y), 'outer')
+    // the three cross plates and their slots in the profile
+    const hL = hb + lip - 6, h2 = Math.min(0.5 * H, 80), h3 = Math.min(0.5 * (Lb - S.x), 60)
+    if (h2 < 14 || h3 < 14) errors.push('المسند قصير جداً للألواح العرضية؛ زد طوله.')
+    const n = { x: -Math.sin(a), y: Math.cos(a) }, inset = 4 + t / 2
+    const C2 = { x: S.x + (H / 2) * u.x - inset * n.x, y: S.y + (H / 2) * u.y - inset * n.y }
+    const sl = (h: number) => h - 2 * shoulder(h) + fit
+    const holes = [
+      rotatedRectHole(round3(lipT / 2), round3(Hp - (hb + lip) / 2), t + fit, sl(hL), 0),
+      rotatedRectHole(round3(C2.x), round3(Hp - C2.y), sl(h2), t + fit, -a),
+      rotatedRectHole(round3((S.x + Lb) / 2), round3(Hp - 3 - t / 2), sl(h3), t + fit, 0),
+    ]
+    const panels: PanelSpec[] = [
+      { id: 'side', name: 'الجانب', w: round3(Lb), h: round3(Hp), count: 2, shape: [profile], holes, post: loops => { roundCorner(loops, 0, round3(Hp - hb - lip), 2) }, note: 'المسند المائل يحمل الجهاز، والحافّة الأمامية تمنعه من الانزلاق' },
+      tabPlate('lip', 'اللوح الأمامي (الحافّة)', W, hL, t, shoulder(hL), { note: 'يقف في عمود الحافّة الأمامية' }),
+      tabPlate('brace', 'دعامة المسند', W, h2, t, shoulder(h2), { note: 'موازية للمسند تحته بقليل' }),
+      tabPlate('foot', 'دعامة القاعدة', W, h3, t, shoulder(h3), { note: 'أفقية فوق الأرض' }),
+    ]
+    const notes = [
+      `الميل ${p.ang}° عن الأفق، وسماكة الجهاز مع الغطاء حتى ${devT} مم؛ ارتفاع الحافّة الأمامية ${lip} مم.`,
+      'أدخل ألسنة الألواح الثلاثة في شقوق أحد الجانبين، ثم ركّب الجانب الثاني والصق.',
+      kind === 'phone' ? 'الكابل يمرّ بين الجانبين تحت الجهاز.' : 'للمصحف والكتب: اجعل سماكة الجهاز بسماكة الكتاب المفتوح.',
+    ]
+    return { panels, notes, warnings, errors }
+  }
+}
+const STAND_PARAMS: ParamDef[] = [
+  mm('W', 'العرض', 40, 500), mm('H', 'طول المسند المائل', 50, 400),
+  { key: 'ang', label: 'زاوية الميل', min: 45, max: 80, step: 1, unit: '°' },
+  mm('devT', 'سماكة الجهاز أو الكتاب', 5, 60), mm('lip', 'ارتفاع الحافّة الأمامية', 8, 50), mm('fit', 'خلوص الشقوق', 0, 1),
+]
+
+/** Wall shelves and spice racks: an open box on its back with shelves in slots, and optional front rails. */
+function shelfBuild(kind: 'shelf' | 'spice') {
+  return (p: Record<string, number>, c: Common): BuildResult => {
+    const warnings: string[] = [], errors: string[] = []
+    checkBasics(p, c, warnings, errors)
+    const { W, H, D, railH, fit } = p, t = c.t
+    const rails = Math.round(p.rails) > 0
+    // openBox(W, H, D): its bottom is the back board, its front and back walls the top and bottom boards
+    const box = openBox(W, H, D)
+    const d = dividerPlan({ W, D: H, H: D, N: 0, M: p.M, margin: p.margin, fit }, t, errors, warnings)
+    const back = box.find(x => x.id === 'bottom')!, side = box.find(x => x.id === 'side')!
+    back.name = 'اللوح الخلفي'; back.holes = [keyhole(Math.min(60, W / 4), 22, 4, 4, 7), keyhole(W - Math.min(60, W / 4), 22, 4, 4, 7)]
+    back.note = 'فتحتا التعليق في الأعلى'
+    for (const b of box) if (b.id === 'front' || b.id === 'back') { b.name = 'اللوح العلوي / السفلي'; b.id = 'board-' + b.id }
+    addSlots(side, d.ds, d.margin, d.hd - FOOT, d.sw, d.vfit)
+    const panels: PanelSpec[] = [...box.filter(b => b !== side)]
+    const shelves = [...d.ds, H - t / 2] // every shelf plus the bottom board carry a rail
+    const gaps = [d.ds[0] ?? H, ...d.ds.slice(1).map((v, i) => v - d.ds[i]), H - (d.ds[d.ds.length - 1] ?? 0)]
+    if (rails && Math.min(...gaps) < railH + 3 * t + 20) errors.push(`المسافة بين الرفوف أصغر من أن تحمل حاجزاً بارتفاع ${railH} مم؛ قلّل الرفوف أو ارتفاع الحاجز.`)
+    if (rails) {
+      const s = shoulder(railH), rc = (x: number) => x - t / 2 - railH / 2 - 1, rm = 4
+      const railSlots = (mirror: boolean) => shelves.map(x => { const xc = rc(x); return rotatedRectHole(round3(mirror ? H - xc : xc), round3(rm + (t + fit) / 2), railH - 2 * s + fit, t + fit, 0) })
+      panels.push(
+        { ...side, id: 'side-l', name: 'الجانب الأيسر', count: 1, holes: railSlots(false), note: 'الحواجز فوق الرفوف عند الحافّة الأمامية' },
+        { ...side, id: 'side-r', name: 'الجانب الأيمن', count: 1, holes: railSlots(true), note: 'صورة مرآة للأيسر' },
+        tabPlate('rail', 'الحاجز الأمامي', W, railH, t, s, { count: shelves.length, note: 'يمنع العلب من السقوط' }),
+      )
+    } else panels.push(side)
+    panels.push(...dividers(W, H, d.hd, [], d.ds, t, d.sw, d.margin).map(x => ({ ...x, name: 'رف أوسط', note: 'يدخل في شقوق الجانبين' })))
+    const notes = [
+      `${d.ds.length + 1} ${d.ds.length ? 'طوابق' : 'طابق'} بعمق ${D} مم؛ يُعلّق بمسمارين في فتحتَي اللوح الخلفي.`,
+      rails ? 'ثبّت الجانب الأيسر بحيث تكون شقوق الحواجز فوق شقوق الرفوف، والأيمن صورته في المرآة.' : '',
+      kind === 'spice' ? 'برطمانات البهارات القياسية بقطر 45–55 مم: اجعل العمق 60–90 مم.' : 'للأحمال الثقيلة استعمل خشباً 6 مم واربط اللوح الخلفي بأكثر من مسمار.',
+    ].filter(Boolean)
+    return { panels, notes, warnings, errors }
+  }
+}
+
+MORE.push(
+  {
+    id: 'phonestand',
+    name: 'حامل جوال وتابلت',
+    desc: 'حامل مكتبي مائل للجوال أو التابلت، بحافّة أمامية ومسند وجانبين؛ يُجمَّع بالألسنة دون غراء تقريباً.',
+    icon: `<path d="M14 54h36"/><path d="M18 54V44h6l14-30h6L30 54"/><path d="M24 44l14-30" stroke-width="1.5"/><path d="M38 14l8 2-12 32" stroke-width="2.5"/>`,
+    params: STAND_PARAMS,
+    defaults: { W: 80, H: 110, ang: 65, devT: 12, lip: 14, fit: 0.15 },
+    innerAdd: () => ({ W: 0, D: 0, H: 0 }),
+    build: standBuild('phone'),
+  },
+  {
+    id: 'bookstand',
+    name: 'حامل مصحف وكتب',
+    desc: 'حامل كبير مائل للمصحف أو كتب الطبخ أو اللوحات، بحافّة أمامية عريضة تمسك الصفحات.',
+    icon: `<path d="M8 54h48"/><path d="M12 54V46h6l14-32h6L24 54"/><path d="M20 30c6-4 14-4 18 0M22 38c6-4 12-4 16 0" stroke-width="1.5"/><path d="M38 14l8 2-12 32" stroke-width="2.5"/>`,
+    params: STAND_PARAMS,
+    defaults: { W: 260, H: 200, ang: 62, devT: 35, lip: 22, fit: 0.15 },
+    innerAdd: () => ({ W: 0, D: 0, H: 0 }),
+    build: standBuild('book'),
+  },
+  {
+    id: 'headphone',
+    name: 'حامل سماعات',
+    desc: 'عمود متقاطع متين على قاعدة، فوقه سرج مستدير تُعلَّق عليه السماعات.',
+    icon: `<path d="M14 54h36"/><path d="M28 54V16h8v38" /><path d="M18 14h28" stroke-width="5" stroke-linecap="round"/><path d="M22 14c0-10 20-10 20 0" stroke-width="1.5"/>`,
+    params: [mm('H', 'ارتفاع العمود', 120, 450), mm('W', 'عرض العمود', 40, 120), mm('B', 'قياس القاعدة', 90, 300), mm('L', 'طول السرج', 60, 200), mm('fit', 'خلوص الشقوق', 0, 1)],
+    defaults: { H: 260, W: 60, B: 150, L: 110, fit: 0.15 },
+    innerAdd: () => ({ W: 0, D: 0, H: 0 }),
+    build(p, c) {
+      const warnings: string[] = [], errors: string[] = []
+      const { H, W, B, L, fit } = p, t = c.t, sw = t + fit
+      if (B < W + 30) errors.push(`القاعدة أصغر من العمود: ${Math.ceil(W + 30)} مم على الأقل.`)
+      if (W < t + 30) errors.push(`العمود ضيق: ${Math.ceil(t + 30)} مم على الأقل.`)
+      const tb = round3(Math.min(12, W * 0.2)), tx = [round3(W * 0.2), round3(W * 0.8)], Ws = 40, ttop = round3(Math.min(20, W * 0.35, Ws - 12))
+      // two plates cross-lapped into an X column: A runs to the saddle, B stops 10 mm under it
+      const bottomStrip = (w: number, y: number) => [rect(0, y, tx[0] - tb / 2, t), rect(tx[0] + tb / 2, y, tx[1] - tx[0] - tb, t), rect(tx[1] + tb / 2, y, w - tx[1] - tb / 2, t)]
+      const Hb = H - 10
+      const A: PanelSpec = {
+        id: 'post-a', name: 'العمود — اللوح الطويل', w: W, h: H + 2 * t,
+        cuts: [rect(0, 0, W / 2 - ttop / 2, t), rect(W / 2 + ttop / 2, 0, W / 2 - ttop / 2, t), ...bottomStrip(W, H + t), rect(W / 2 - sw / 2, t + H / 2, sw, H / 2 + t)],
+        note: 'شقّه من الأسفل، ولسانه العلوي في السرج',
+      }
+      const Bp: PanelSpec = {
+        id: 'post-b', name: 'العمود — اللوح القصير', w: W, h: Hb + t,
+        cuts: [...bottomStrip(W, Hb), rect(W / 2 - sw / 2, 0, sw, Hb - H / 2)],
+        note: 'شقّه من الأعلى ويتقاطع مع الطويل',
+      }
+      const cx = B / 2, cy = B / 2, off = (x: number) => x - W / 2
+      const base: PanelSpec = {
+        id: 'base', name: 'القاعدة', w: B, h: B,
+        holes: [...tx.map(x => rotatedRectHole(round3(cx + off(x)), cy, tb + fit, t + fit, 0)), ...tx.map(x => rotatedRectHole(cx, round3(cy + off(x)), t + fit, tb + fit, 0))],
+        post: loops => { for (const [x, y] of [[0, 0], [B, 0], [B, B], [0, B]]) roundCorner(loops, x, y, 12) },
+        note: 'شقوق على شكل صليب لألسنة العمود',
+      }
+      const saddle: PanelSpec = {
+        id: 'saddle', name: 'السرج', w: L, h: Ws, holes: [rotatedRectHole(L / 2, Ws / 2, t + fit, ttop + fit, 0)],
+        post: loops => { for (const [x, y] of [[0, 0], [L, 0], [L, Ws], [0, Ws]]) roundCorner(loops, x, y, Ws / 2 - 0.5) },
+        note: 'تستقرّ عليه طوق السماعات',
+      }
+      return { panels: [base, A, Bp, saddle], notes: ['ركّب اللوحين متقاطعين (X)، أدخل ألسنتهما في شقوق القاعدة، ثم ضع السرج على اللسان العلوي والصق.', 'العمود المتقاطع لا يتمايل؛ لسماعات ثقيلة اجعل القاعدة 180 مم أو أكثر.'], warnings, errors }
+    },
+  },
+  {
+    id: 'keyholder',
+    name: 'لوحة مفاتيح جدارية برف',
+    desc: 'لوحة تُعلَّق على الجدار بخطّافات للمفاتيح ورفّ صغير للنظارات والرسائل، تُجمَّع بالألسنة.',
+    icon: `<path d="M8 10h48v44H8z"/><path d="M12 22h40" stroke-width="3"/><path d="M18 34v6c0 2 3 2 3 0M30 34v6c0 2 3 2 3 0M42 34v6c0 2 3 2 3 0" stroke-width="2"/><circle cx="20" cy="15" r="1.5"/><circle cx="44" cy="15" r="1.5"/>`,
+    params: [mm('W', 'العرض', 150, 600), mm('H', 'الارتفاع', 100, 400), { key: 'pegs', label: 'عدد الخطّافات', min: 2, max: 12, step: 1, int: true }, { key: 'shelf', label: 'رف علوي', min: 0, max: 1, step: 1, int: true }, mm('Ds', 'عمق الرف', 30, 120), mm('fit', 'خلوص الشقوق', 0, 1)],
+    defaults: { W: 300, H: 190, pegs: 5, shelf: 1, Ds: 60, fit: 0.15 },
+    innerAdd: () => ({ W: 0, D: 0, H: 0 }),
+    build(p, c) {
+      const warnings: string[] = [], errors: string[] = []
+      const { W, H, Ds, fit } = p, t = c.t
+      const n = Math.round(p.pegs), shelfOn = Math.round(p.shelf) > 0
+      const holes: Loop[] = [keyhole(40, 16, 4, 4, 7), keyhole(W - 40, 16, 4, 4, 7)]
+      const panels: PanelSpec[] = []
+      let yp = 40
+      if (shelfOn) {
+        const ys = 34, Ws = W - 20, tw = round3(Math.min(30, 0.15 * Ws)), sx = [round3(Ws * 0.25), round3(Ws * 0.75)]
+        const a = Ds - 6, b = Math.min(a, 50), a1 = round3(a * 0.3), a2 = round3(a * 0.7), b1 = round3(b * 0.25), b2 = round3(b * 0.65)
+        const bx = [15, Ws - 15]
+        for (const x of sx) holes.push(rotatedRectHole(round3(10 + x), round3(ys + t / 2), tw + fit, t + fit, 0))
+        for (const x of bx) holes.push(rotatedRectHole(round3(10 + x), round3(ys + t + (b1 + b2) / 2), t + fit, b2 - b1 + fit, 0))
+        panels.push({
+          id: 'shelf', name: 'الرف', w: Ws, h: Ds + t,
+          cuts: [rect(0, 0, sx[0] - tw / 2, t), rect(sx[0] + tw / 2, 0, sx[1] - sx[0] - tw, t), rect(sx[1] + tw / 2, 0, Ws - sx[1] - tw / 2, t)],
+          holes: bx.map(x => rotatedRectHole(x, round3(t + (a1 + a2) / 2), t + fit, a2 - a1 + fit, 0)),
+          post: loops => { roundCorner(loops, 0, round3(Ds + t), 6); roundCorner(loops, Ws, round3(Ds + t), 6) },
+          note: 'ألسنته الخلفية في اللوح، وشقّاه للدعامتين',
+        })
+        const bracket = polyLoop([
+          { x: 0, y: 0 }, { x: a1, y: 0 }, { x: a1, y: -t }, { x: a2, y: -t }, { x: a2, y: 0 }, { x: a, y: 0 }, { x: 0, y: b },
+          { x: 0, y: b2 }, { x: -t, y: b2 }, { x: -t, y: b1 }, { x: 0, y: b1 },
+        ].map(v => ({ x: round3(v.x + t), y: round3(v.y + t) })), 'outer')
+        panels.push({ id: 'bracket', name: 'دعامة الرف', w: round3(a + t), h: round3(b + t), count: 2, shape: [bracket], note: 'تحت الرف، لسان في اللوح ولسان في الرف' })
+        yp = ys + t + b + 16
+      }
+      const ph = 10, pL = 40, hk = 8
+      if (yp + hk + ph + 16 > H) errors.push(`اللوحة قصيرة على الرف والخطّافات: ${Math.ceil(yp + hk + ph + 16)} مم على الأقل.`)
+      if ((W - 80) / Math.max(1, n - 1) < 22) errors.push('الخطّافات كثيرة على هذا العرض.')
+      for (let k = 0; k < n; k++) holes.push(rotatedRectHole(round3(n === 1 ? W / 2 : 40 + (W - 80) * k / (n - 1)), round3(yp + hk + ph / 2), t + fit, ph - 3 + fit, 0))
+      panels.unshift({ id: 'board', name: 'اللوحة', w: W, h: H, holes, post: loops => { for (const [x, y] of [[0, 0], [W, 0], [W, H], [0, H]]) roundCorner(loops, x, y, 10) }, note: 'فتحتا التعليق في الأعلى' })
+      panels.push({
+        id: 'peg', name: 'خطّاف', w: t + pL, h: hk + ph, count: n,
+        cuts: [rect(0, 0, t + pL - ph, hk), rect(0, hk, t, 1.5), rect(0, hk + ph - 1.5, t, 1.5)],
+        post: loops => { roundCorner(loops, round3(t + pL - ph), 0, ph / 2 - 0.5); roundCorner(loops, round3(t + pL), 0, ph / 2 - 0.5) },
+        note: 'لسانه في شقّ اللوحة، وطرفه مرفوع يمسك الحلقة',
+      })
+      return { panels, notes: ['ألصق الخطّافات بألسنتها في الشقوق، ثم الرف ودعامتيه؛ علّق اللوحة بمسمارين في فتحتي التعليق.', 'اكتب «مفاتيح» أو اسم العائلة على اللوحة بالحفر في RDWorks.'], warnings, errors }
+    },
+  },
+  {
+    id: 'wallshelf',
+    name: 'رف حائط',
+    desc: 'رف جداري بلوح خلفي وجانبين ورفوف أوسط في شقوق، يُعلّق بفتحتين.',
+    icon: `<path d="M10 10h44v44H10z"/><path d="M10 28h44M10 42h44" stroke-width="3"/><circle cx="22" cy="14" r="1.5"/><circle cx="42" cy="14" r="1.5"/>`,
+    params: [mm('W', 'العرض', 80, 800), mm('H', 'الارتفاع', 80, 800), mm('D', 'العمق', 40, 300), { key: 'M', label: 'رفوف أوسط', min: 0, max: 8, step: 1, int: true }, { key: 'rails', label: 'حاجز أمامي', min: 0, max: 1, step: 1, int: true }, mm('railH', 'ارتفاع الحاجز', 10, 60), mm('margin', 'هامش أعلى الشقّ', 3, 50), mm('fit', 'خلوص الشقوق', 0, 1)],
+    defaults: { W: 400, H: 300, D: 140, M: 1, rails: 0, railH: 25, margin: 8, fit: 0.2 },
+    innerAdd: t => ({ W: 2 * t, D: t, H: 2 * t }),
+    build: shelfBuild('shelf'),
+  },
+  {
+    id: 'spicerack',
+    name: 'رف بهارات',
+    desc: 'رف جداري بطوابق وحاجز أمامي عند كل رف يمنع البرطمانات من السقوط؛ للمطبخ والعطور والطلاء.',
+    icon: `<path d="M12 8h40v48H12z"/><path d="M12 24h40M12 40h40" stroke-width="2.5"/><path d="M12 20h40M12 36h40M12 52h40" stroke-width="1.2"/><path d="M18 14h6v6h-6zM30 14h6v6h-6zM18 30h6v6h-6z" stroke-width="1.2"/>`,
+    params: [mm('W', 'العرض', 80, 800), mm('H', 'الارتفاع', 80, 800), mm('D', 'العمق', 40, 300), { key: 'M', label: 'رفوف أوسط', min: 0, max: 8, step: 1, int: true }, { key: 'rails', label: 'حاجز أمامي', min: 0, max: 1, step: 1, int: true }, mm('railH', 'ارتفاع الحاجز', 10, 60), mm('margin', 'هامش أعلى الشقّ', 3, 50), mm('fit', 'خلوص الشقوق', 0, 1)],
+    defaults: { W: 300, H: 400, D: 80, M: 2, rails: 1, railH: 25, margin: 6, fit: 0.2 },
+    innerAdd: t => ({ W: 2 * t, D: t, H: 2 * t }),
+    build: shelfBuild('spice'),
+  },
+)
+
+/** A closed polygon from sampled points (dense enough that controllers treat it as a curve). */
+const ring = (cx: number, cy: number, r: number, n = 96) => Array.from({ length: n }, (_, k) => ({ x: cx + r * Math.cos((2 * Math.PI * k) / n), y: cy + r * Math.sin((2 * Math.PI * k) / n) }))
+const starPts = (cx: number, cy: number, R: number, Ri: number, points: number, rot = -Math.PI / 2) =>
+  Array.from({ length: 2 * points }, (_, k) => { const a = rot + (k * Math.PI) / points, r = k % 2 ? Ri : R; return { x: round3(cx + r * Math.cos(a)), y: round3(cy + r * Math.sin(a)) } })
+const engraveLoop = (pts: { x: number; y: number }[]): Loop => ({ closed: true, layer: 'engrave', pts: pts.map(v => ({ x: round3(v.x), y: round3(v.y) })) })
+
+/** Two flat pieces cross-lapped into an X: A takes its slot from the top, B from the bottom; arms on both sides. */
+function crossTree(p: Record<string, number>, c: Common, o: { arms: (piece: 0 | 1) => number[]; aL: number; aw: number; hook: number; notches?: number; holes?: boolean }) {
+  const { H, fit } = p, t = c.t, sw = t + fit
+  const tw = Math.max(36, t + 24), fh = Math.max(18, 4 * t), w = round3(Math.max(p.F, tw + 2 * o.aL + 2)), cx = w / 2
+  const piece = (k: 0 | 1): PanelSpec => {
+    const cuts: ReturnType<typeof rect>[] = [], holes: Loop[] = [], tips: [number, number][] = []
+    const ys = o.arms(k)
+    const fx0 = round3(cx - p.F / 2), fx1 = round3(cx + p.F / 2)
+    // everything beside the trunk above the foot goes, except the arms (and their hooks)
+    for (const side of [-1, 1]) {
+      const xin = side < 0 ? cx - tw / 2 : cx + tw / 2, xout = xin + side * o.aL
+      const lo = Math.min(xin, xout), hi = Math.max(xin, xout)
+      const edge0 = side < 0 ? 0 : hi, edge1 = side < 0 ? lo : w // beyond the arm's end
+      const bands: [number, number][] = ys.map((y): [number, number] => [y - o.hook, y + o.aw]).sort((a, b) => a[0] - b[0])
+      let y = 0
+      const sideRect = (y0: number, y1: number) => { if (y1 > y0) cuts.push(side < 0 ? rect(0, y0, cx - tw / 2, y1 - y0) : rect(cx + tw / 2, y0, w - cx - tw / 2, y1 - y0)) }
+      for (const [b0, b1] of bands) {
+        sideRect(y, b0)
+        const ya = b0 + o.hook
+        if (edge1 > edge0) cuts.push(rect(edge0, b0, edge1 - edge0, b1 - b0)) // past the arm's end
+        if (o.hook > 0) {
+          // the hook rises at the arm's outer end
+          const hx0 = side < 0 ? lo : hi - o.aw, hx1 = hx0 + o.aw
+          if (side < 0) cuts.push(rect(hx1, b0, xin - hx1, o.hook)); else cuts.push(rect(xin, b0, hx0 - xin, o.hook))
+          tips.push([round3(hx0), round3(b0)], [round3(hx1), round3(b0)])
+        }
+        for (let j = 0; j < (o.notches ?? 0); j++) { const nx = lo + ((j + 1) * (hi - lo)) / ((o.notches ?? 0) + 1); cuts.push(rect(round3(nx - 1.5), ya, 3, 2.5)) }
+        if (o.holes) { const m = Math.floor((hi - lo - 10) / 6); for (let j = 0; j < m; j++) holes.push(circle(round3(lo + 8 + j * 6 + ((hi - lo - 10) - (m - 1) * 6 - 6) / 2), round3(ya + o.aw / 2 + 1.25), 1.1)) }
+        y = b1
+      }
+      sideRect(y, H - fh)
+      // the foot is narrower than the piece when the arms reach further
+      if (side < 0 && fx0 > 0) cuts.push(rect(0, H - fh, fx0, fh))
+      if (side > 0 && fx1 < w) cuts.push(rect(fx1, H - fh, w - fx1, fh))
+    }
+    cuts.push(k === 0 ? rect(cx - sw / 2, 0, sw, H / 2) : rect(cx - sw / 2, H / 2, sw, H / 2))
+    return {
+      id: k === 0 ? 'tree-a' : 'tree-b', name: k === 0 ? 'الجذع — شقّه من الأعلى' : 'الجذع — شقّه من الأسفل', w, h: H, cuts, holes,
+      post: loops => { for (const [x, y] of tips) roundCorner(loops, x, y, o.aw / 2 - 0.5); roundCorner(loops, fx0, round3(H - fh), fh / 2); roundCorner(loops, fx1, round3(H - fh), fh / 2) },
+      note: k === 0 ? 'يتقاطع مع الثاني على شكل X' : 'يدخل في شقّ الأول من الأسفل',
+    }
+  }
+  return [piece(0), piece(1)]
+}
+
+MORE.push(
+  {
+    id: 'coasters',
+    name: 'طقم كوسترات مع حامل',
+    desc: 'كوسترات مستديرة أو مربّعة بنقش محفور، وحامل صغير يحفظها؛ هدية مطلوبة وسريعة القصّ.',
+    icon: `<circle cx="24" cy="26" r="14"/><path d="M24 16l3 7 7 3-7 3-3 7-3-7-7-3 7-3z" stroke-width="1.5"/><path d="M36 38h20v16H36z"/><path d="M38 38v-6h16v6" stroke-width="1.5"/>`,
+    params: [mm('Dm', 'قطر الكوستر', 70, 150), { key: 'shape', label: 'الشكل', min: 1, max: 2, step: 1, int: true, hint: '1 = دائري، 2 = مربّع بزوايا مستديرة' }, { key: 'n', label: 'العدد', min: 1, max: 12, step: 1, int: true }, { key: 'deco', label: 'نقش محفور', min: 0, max: 1, step: 1, int: true }, { key: 'holder', label: 'حامل', min: 0, max: 1, step: 1, int: true }],
+    defaults: { Dm: 100, shape: 1, n: 6, deco: 1, holder: 1 },
+    innerAdd: () => ({ W: 0, D: 0, H: 0 }),
+    build(p, c) {
+      const warnings: string[] = [], errors: string[] = []
+      const { Dm } = p, t = c.t, n = Math.round(p.n), sq = Math.round(p.shape) === 2, R = Dm / 2
+      const deco: Loop[] = Math.round(p.deco) > 0 ? [engraveLoop(ring(R, R, R - 5)), engraveLoop(starPts(R, R, 0.36 * Dm, 0.36 * Dm * 0.765, 8, 0)), engraveLoop(starPts(R, R, 0.2 * Dm, 0.2 * Dm * 0.765, 8, Math.PI / 8))] : []
+      const coaster: PanelSpec = sq
+        ? { id: 'coaster', name: 'كوستر', w: Dm, h: Dm, count: n, engrave: deco, post: loops => { for (const [x, y] of [[0, 0], [Dm, 0], [Dm, Dm], [0, Dm]]) roundCorner(loops, x, y, 12) } }
+        : { id: 'coaster', name: 'كوستر', w: Dm, h: Dm, count: n, shape: [disc(R, R, R)], engrave: deco }
+      const panels: PanelSpec[] = [coaster]
+      if (Math.round(p.holder) > 0) {
+        const W = round3(Dm + 2 * t + 3), H = round3(Math.max(n * t + 5, 4 * t + 2)), r = round3(Math.min(16, (H - t) * 0.7, W / 4))
+        const box = openBox(W, W, H)
+        for (const sp of box) if (sp.id === 'front') sp.post = loops => edgeNotch(loops, W / 2, 0, r)
+        panels.push(...box.map(b => ({ ...b, name: 'الحامل — ' + b.name })))
+      }
+      return { panels, notes: [`${n} كوستر بقطر ${Dm} مم${Math.round(p.holder) > 0 ? '، وحامل بفتحة إصبع في الأمام لسحبها' : ''}.`, 'ادهنها بورنيش مقاوم للماء أو اقصّها من أكريليك؛ اكتب اسماً أو شعاراً في الوسط بالحفر في RDWorks.'], warnings, errors }
+    },
+  },
+  {
+    id: 'clock',
+    name: 'ساعة حائط',
+    desc: 'وجه ساعة دائري أو مربّع بعلامات الساعات مقصوصة أو محفورة، وثقب لماكينة الكوارتز.',
+    icon: `<circle cx="32" cy="32" r="22"/><path d="M32 14v5M32 45v5M14 32h5M45 32h5" stroke-width="2.5"/><path d="M32 32V22M32 32l7 5" stroke-width="2"/>`,
+    params: [mm('Dm', 'القطر', 150, 600), { key: 'shape', label: 'الشكل', min: 1, max: 2, step: 1, int: true, hint: '1 = دائري، 2 = مربّع' }, mm('hole', 'ثقب الماكينة', 6, 12, 'معظم ماكينات الكوارتز 7.5–8 مم'), { key: 'marks', label: 'العلامات', min: 1, max: 2, step: 1, int: true, hint: '1 = مقصوصة، 2 = محفورة' }, { key: 'deco', label: 'نقش محفور', min: 0, max: 1, step: 1, int: true }],
+    defaults: { Dm: 300, shape: 1, hole: 8, marks: 1, deco: 1 },
+    innerAdd: () => ({ W: 0, D: 0, H: 0 }),
+    build(p) {
+      const warnings: string[] = [], errors: string[] = []
+      const { Dm, hole } = p, R = Dm / 2, sq = Math.round(p.shape) === 2, cut = Math.round(p.marks) === 1
+      const marks: Loop[] = Array.from({ length: 12 }, (_, k) => {
+        const a = (k * Math.PI) / 6 - Math.PI / 2, big = k % 3 === 0, L = (big ? 0.12 : 0.06) * R, wM = Math.max(3, (big ? 0.035 : 0.022) * R), rc = R - 0.06 * R - L / 2
+        return rotatedRectHole(round3(R + rc * Math.cos(a)), round3(R + rc * Math.sin(a)), L, wM, a)
+      })
+      const engrave: Loop[] = [...(cut ? [] : marks.map(m => ({ ...m, layer: 'engrave' as const }))), ...(Math.round(p.deco) > 0 ? [engraveLoop(ring(R, R, R - 0.03 * R, 160)), engraveLoop(starPts(R, R, 0.6 * R, 0.6 * R * 0.765, 8, 0)), engraveLoop(ring(R, R, 0.6 * R * 0.765 * 0.92, 160))] : [])]
+      const face: PanelSpec = {
+        id: 'face', name: 'وجه الساعة', w: Dm, h: Dm, holes: [circle(R, R, hole / 2), ...(cut ? marks : [])], engrave,
+        ...(sq ? { post: (loops: Loop[]) => { for (const [x, y] of [[0, 0], [Dm, 0], [Dm, Dm], [0, Dm]]) roundCorner(loops, x, y, 0.08 * Dm) } } : { shape: [disc(R, R, R)] }),
+      }
+      return { panels: [face], notes: ['ركّب ماكينة كوارتز بعمود طوله أكبر من سماكة الخشب بـ 3 مم على الأقل، وعقاربها بطول نحو 0.4 و0.3 من القطر.', 'الماكينة فيها علّاقة؛ أضف اسماً أو شعاراً بالحفر في RDWorks.'], warnings, errors }
+    },
+  },
+  {
+    id: 'keychains',
+    name: 'ميداليات مفاتيح بالجملة',
+    desc: 'ميداليات بأشكال مختلفة بثقب للحلقة وإطار محفور، تُقصّ بالعشرات لتُكتب عليها الأسماء والشعارات.',
+    icon: `<circle cx="20" cy="24" r="10"/><circle cx="20" cy="18" r="2"/><path d="M38 14h16v20H38z"/><circle cx="46" cy="18" r="2"/><path d="M22 44c0-4 6-4 6 0 0-4 6-4 6 0l-6 8z"/>`,
+    params: [mm('S', 'المقاس', 25, 80), { key: 'shape', label: 'الشكل', min: 1, max: 5, step: 1, int: true, hint: '1 = دائرة، 2 = مستطيل، 3 = قلب، 4 = نجمة، 5 = سداسي' }, { key: 'n', label: 'العدد', min: 1, max: 60, step: 1, int: true }, mm('hole', 'ثقب الحلقة', 3, 6), { key: 'border', label: 'إطار محفور', min: 0, max: 1, step: 1, int: true }],
+    defaults: { S: 45, shape: 1, n: 12, hole: 4.5, border: 1 },
+    innerAdd: () => ({ W: 0, D: 0, H: 0 }),
+    build(p) {
+      const warnings: string[] = [], errors: string[] = []
+      const { S, hole } = p, kind = Math.round(p.shape), n = Math.round(p.n), cx = S / 2, rh = hole / 2, b = Math.round(p.border) > 0
+      let shape: Loop, h = S, hx = cx, hy = rh + 3.5, border: Loop[] = []
+      if (kind === 2) {
+        h = round3(S * 0.62)
+        shape = { closed: true, pts: [] }
+        border = b ? [{ ...roundedRectHole(3, 3, S - 6, h - 6, 4), layer: 'engrave' }] : []
+      } else if (kind === 3) {
+        h = round3(0.95 * S); shape = oriented(heart(cx, h / 2, S), 'outer'); hx = cx - S / 4; hy = h / 2 - 0.225 * S
+        if (S / 4 - rh < 3) errors.push(`القلب صغير على ثقب الحلقة: ${Math.ceil(4 * (rh + 3))} مم على الأقل.`)
+      } else if (kind === 4) {
+        shape = polyLoop(starPts(cx, cx, S / 2, S / 4.2, 5), 'outer'); hy = cx
+        if (S / 4.2 * Math.cos(Math.PI / 5) - rh < 2.5) errors.push(`النجمة صغيرة على ثقب الحلقة: ${Math.ceil(4.2 * (rh + 2.5) / Math.cos(Math.PI / 5))} مم على الأقل.`)
+      } else if (kind === 5) {
+        const R = S / 2; h = round3(S * Math.sqrt(3) / 2)
+        shape = polyLoop(starPts(cx, h / 2, R, R, 3, 0), 'outer'); hy = rh + 3.5
+        border = b ? [engraveLoop(starPts(cx, h / 2, R - 3 / Math.cos(Math.PI / 6), R - 3 / Math.cos(Math.PI / 6), 3, 0))] : []
+      } else {
+        shape = disc(cx, cx, cx)
+        border = b ? [engraveLoop(ring(cx, cx, cx - 3))] : []
+      }
+      if (kind !== 3 && kind !== 4 && b) hy = Math.max(hy, 3 + rh + 3)
+      const panel: PanelSpec = {
+        id: 'keychain', name: 'ميدالية', w: S, h, count: n, holes: [circle(round3(hx), round3(hy), rh)], engrave: border,
+        ...(kind === 2 ? { post: (loops: Loop[]) => { for (const [x, y] of [[0, 0], [S, 0], [S, h], [0, h]]) roundCorner(loops, x, y, 6) } } : { shape: [shape] }),
+      }
+      return { panels: [panel], notes: [`${n} ميدالية؛ الحلقات المعدنية تُشترى بالجملة.`, 'اكتب الأسماء أو الشعار داخل الإطار المحفور في RDWorks، ثم اقصّ دفعة واحدة. الأكريليك الملوّن والخشب كلاهما مناسب.'], warnings, errors }
+    },
+  },
+  {
+    id: 'ramadanornaments',
+    name: 'زينة رمضان: هلال ونجمة',
+    desc: 'أهلّة ونجوم معلّقة بثقوب للخيط، لتزيين البيوت والمحلّات في رمضان والعيد؛ تُقصّ بالجملة.',
+    icon: `<path d="M30 12a20 20 0 1 0 14 34 16 16 0 1 1-14-34z"/><path d="M48 14l2 5 5 .5-4 3.5 1 5-4-3-4 3 1-5-4-3.5 5-.5z" stroke-width="1.5"/>`,
+    params: [mm('S', 'المقاس', 50, 400), { key: 'n', label: 'عدد الأهلّة', min: 0, max: 30, step: 1, int: true }, { key: 'ns', label: 'عدد النجوم', min: 0, max: 30, step: 1, int: true }, mm('hole', 'ثقب الخيط', 2, 6)],
+    defaults: { S: 140, n: 4, ns: 4, hole: 3.5 },
+    innerAdd: () => ({ W: 0, D: 0, H: 0 }),
+    build(p) {
+      const warnings: string[] = [], errors: string[] = []
+      const { S, hole } = p, n = Math.round(p.n), ns = Math.round(p.ns), R = S / 2, rh = hole / 2
+      if (n + ns === 0) errors.push('اختر هلالاً أو نجمة واحدة على الأقل.')
+      const panels: PanelSpec[] = []
+      if (n > 0) {
+        // inside the circle (R, centre C1) and outside a smaller circle shifted towards the opening
+        const c2 = { x: 0.32 * R, y: -0.12 * R }, r2 = 0.78 * R, dd = Math.hypot(c2.x, c2.y)
+        const aC = Math.atan2(c2.y, c2.x), half = Math.acos((R * R + dd * dd - r2 * r2) / (2 * R * dd))
+        const A1 = aC - half, B1 = aC + half // the cusps, seen from C1
+        const pts: { x: number; y: number }[] = []
+        const steps = 120
+        for (let i = 0; i <= steps; i++) { const a = B1 + ((2 * Math.PI - 2 * half) * i) / steps; pts.push({ x: R * Math.cos(a), y: R * Math.sin(a) }) }
+        const pA = { x: R * Math.cos(A1), y: R * Math.sin(A1) }, pB = { x: R * Math.cos(B1), y: R * Math.sin(B1) }
+        const a2A = Math.atan2(pA.y - c2.y, pA.x - c2.x), a2B = Math.atan2(pB.y - c2.y, pB.x - c2.x)
+        let sweep = a2B - a2A; while (sweep <= 0) sweep += 2 * Math.PI
+        // back along the inner circle from A to B, the way that runs inside the outer circle
+        const inner: { x: number; y: number }[] = []
+        for (let i = 1; i < steps; i++) { const a = a2A - ((2 * Math.PI - sweep) * i) / steps; inner.push({ x: c2.x + r2 * Math.cos(a), y: c2.y + r2 * Math.sin(a) }) }
+        const outline = [...pts, ...inner].map(v => ({ x: round3(v.x + R), y: round3(v.y + R) }))
+        // the hanging hole where the crescent is thick enough, as near the top as possible
+        let hp = { x: 0, y: 0 }
+        for (let deg = -100; deg >= -175; deg -= 2) {
+          const a = (deg * Math.PI) / 180, u = { x: Math.cos(a), y: Math.sin(a) }
+          const bq = u.x * c2.x + u.y * c2.y, d2 = bq + Math.sqrt(bq * bq - (dd * dd - r2 * r2))
+          if (R - d2 >= hole + 6) { hp = { x: R + ((R + d2) / 2) * u.x, y: R + ((R + d2) / 2) * u.y }; break }
+        }
+        if (!hp.x) errors.push(`الهلال صغير على ثقب الخيط: ${Math.ceil(2 * (hole + 6) / 0.55)} مم على الأقل.`)
+        else panels.push({ id: 'crescent', name: 'هلال', w: S, h: S, count: n, shape: [polyLoop(outline, 'outer')], holes: [circle(round3(hp.x), round3(hp.y), rh)] })
+      }
+      if (ns > 0) {
+        const Rs = 0.4 * S, Ri = Rs * 0.5
+        if (Ri * Math.cos(Math.PI / 5) * 0.6 - rh < 2) errors.push('النجمة صغيرة على ثقب الخيط.')
+        panels.push({ id: 'star', name: 'نجمة', w: 2 * Rs, h: 2 * Rs, count: ns, shape: [polyLoop(starPts(Rs, Rs, Rs, Ri, 5), 'outer')], holes: [circle(round3(Rs), round3(Rs - Ri * 0.55), rh)] })
+      }
+      return { panels, notes: ['علّقها بخيط ذهبي أو نايلون شفّاف؛ الأكريليك الذهبي والمرآة يعطيان لمعة جميلة.', 'للبيع بالجملة: كبّر العدد ليملأ اللوح كاملاً.'], warnings, errors }
+    },
+  },
+  {
+    id: 'mugtree',
+    name: 'شجرة أكواب',
+    desc: 'حامل أكواب من لوحين متقاطعين (X) بأذرع مرفوعة الأطراف، يقف على المطبخ ويحمل 4 أكواب أو أكثر.',
+    icon: `<path d="M30 8h4v42h-4z"/><path d="M14 54h36" stroke-width="3"/><path d="M30 20H16v-4M34 20h14v-4M30 34H18v-4M34 34h12v-4" stroke-width="2"/>`,
+    params: [mm('H', 'الارتفاع', 200, 600), mm('F', 'عرض القاعدة', 120, 400), mm('arm', 'طول الذراع', 40, 120), { key: 'levels', label: 'الطوابق في كل لوح', min: 1, max: 3, step: 1, int: true, hint: 'كل طابق = 4 أكواب' }, mm('fit', 'خلوص التقاطع', 0, 1)],
+    defaults: { H: 330, F: 220, arm: 75, levels: 1, fit: 0.15 },
+    innerAdd: () => ({ W: 0, D: 0, H: 0 }),
+    build(p, c) {
+      const warnings: string[] = [], errors: string[] = []
+      const t = c.t, aw = Math.max(12, 3 * t), hook = 14, fh = Math.max(18, 4 * t), step = 55, lv = Math.round(p.levels)
+      const yLow = p.H - fh - 125 // a mug about 11 cm tall hangs clear of the foot
+      const top = yLow - (2 * lv - 1) * step - hook
+      if (top < 15) errors.push(`الارتفاع لا يكفي لـ ${lv} ${lv > 1 ? 'طوابق' : 'طابق'}: ${Math.ceil(p.H - top + 15)} مم على الأقل.`)
+      const panels = crossTree(p, c, { arms: k => Array.from({ length: lv }, (_, j) => round3(yLow - (2 * j + k) * step)), aL: p.arm, aw, hook })
+      return { panels, notes: [`${4 * lv * 2} أكواب: ${lv} ${lv > 1 ? 'طوابق' : 'طابق'} في كل لوح، ذراعان في كل طابق، والأذرع متعامدة بين اللوحين.`, 'أدخل اللوح ذا الشقّ السفلي فوق ذي الشقّ العلوي حتى تتساوى قمّتاهما، والصق عند التقاطع.'], warnings, errors }
+    },
+  },
+  {
+    id: 'jewelrytree',
+    name: 'شجرة مجوهرات',
+    desc: 'لوحان متقاطعان بأذرع فيها حزوز للقلائد والأساور وثقوب صغيرة للأقراط؛ تقف على التسريحة.',
+    icon: `<path d="M30 8h4v42h-4z"/><path d="M16 54h32" stroke-width="3"/><path d="M30 18H18M34 18h12M30 30H14M34 30h16" stroke-width="3"/><path d="M20 20v6M44 20v6M18 32v6" stroke-width="1.2"/>`,
+    params: [mm('H', 'الارتفاع', 150, 500), mm('F', 'عرض القاعدة', 100, 300), mm('arm', 'طول الذراع', 30, 100), { key: 'levels', label: 'الطوابق في كل لوح', min: 1, max: 4, step: 1, int: true }, mm('fit', 'خلوص التقاطع', 0, 1)],
+    defaults: { H: 260, F: 160, arm: 55, levels: 2, fit: 0.15 },
+    innerAdd: () => ({ W: 0, D: 0, H: 0 }),
+    build(p, c) {
+      const warnings: string[] = [], errors: string[] = []
+      const t = c.t, aw = 14, fh = Math.max(18, 4 * t), lv = Math.round(p.levels)
+      const span = p.H - fh - 70, step = span / (2 * lv)
+      if (step < aw + 14) errors.push(`الارتفاع لا يكفي لـ ${lv} طوابق: ${Math.ceil((aw + 14) * 2 * lv + fh + 70)} مم على الأقل.`)
+      const panels = crossTree(p, c, { arms: k => Array.from({ length: lv }, (_, j) => round3(20 + (2 * j + k) * step)), aL: p.arm, aw, hook: 0, notches: Math.max(1, Math.floor(p.arm / 18)), holes: true })
+      return { panels, notes: ['الحزوز في أعلى الأذرع للقلائد والأساور، والثقوب الصغيرة للأقراط ذات المشبك.', 'ركّب اللوحين متقاطعين والصق؛ ضع تحتها صحناً صغيراً للخواتم إن شئت.'], warnings, errors }
+    },
+  },
+  {
+    id: 'birdhouse',
+    name: 'بيت عصافير',
+    desc: 'بيت عصافير بسقف جمالوني يُرفع للتنظيف، فتحة دخول ومجثم، ثقوب تهوية وتصريف، ويُعلّق على الجدار.',
+    icon: `<path d="M10 28 32 8l22 20"/><path d="M14 26v28h36V26"/><circle cx="32" cy="36" r="5"/><path d="M32 44v5" stroke-width="2.5"/>`,
+    params: [mm('W', 'العرض', 80, 250), mm('D', 'العمق', 80, 250), mm('H', 'ارتفاع الجدار', 80, 300), mm('g', 'ارتفاع الجملون', 25, 120), mm('ov', 'بروز السقف', 0, 30), mm('entry', 'قطر فتحة الدخول', 25, 50, 'العصافير الصغيرة 28–32، الأكبر 38–45'), { key: 'perch', label: 'ثقب المجثم', min: 0, max: 1, step: 1, int: true }, mm('gap', 'خلوص السقف', 0.2, 2)],
+    defaults: { W: 130, D: 130, H: 150, g: 60, ov: 14, entry: 32, perch: 1, gap: 0.5 },
+    innerAdd: t => ({ W: 2 * t, D: 2 * t, H: t }),
+    build(p, c) {
+      const house = TEMPLATES.find(x => x.id === 'teahouse')!
+      const res = house.build({ W: p.W, D: p.D, H: p.H, g: p.g, ov: p.ov, gap: p.gap, slotH: 10, bag: 30, pattern: 0, cell: 12 }, c)
+      const errors = (res.errors ?? []).filter(e => !/كيس|الأكياس/.test(e)), warnings = res.warnings
+      const t = c.t, { W, D, H, g, entry } = p
+      const ey = g + Math.max(H * 0.3, entry / 2 + 12)
+      if (entry / 2 + 2 * t + 6 > W / 2) errors.push(`فتحة الدخول أعرض من الواجهة: أقصاها ${Math.floor(2 * (W / 2 - 2 * t - 6))} مم.`)
+      if (ey + entry / 2 + (p.perch ? 22 : 0) > g + H - t - 10) errors.push('الجدار قصير على فتحة الدخول والمجثم.')
+      const panels = res.panels
+      const front = panels.find(x => x.id === 'front')!, back = panels.find(x => x.id === 'back')!, bottom = panels.find(x => x.id === 'bottom')!, side = panels.find(x => x.id === 'side')!
+      front.holes = [circle(W / 2, round3(ey), entry / 2), ...(p.perch ? [circle(W / 2, round3(ey + entry / 2 + 14), 3.25)] : [])]
+      front.note = 'فتحة الدخول وتحتها ثقب المجثم (عود 6 مم)'
+      back.holes = [keyhole(W / 2, round3(g + 18), 4, 4, 7)]; back.note = 'فتحة تعليق على الجدار'
+      bottom.holes = [[16, 16], [W - 16, 16], [W - 16, D - 16], [16, D - 16]].map(([x, y]) => circle(x, y, 2.5))
+      side.holes = [circle(D / 2 - 15, 12, 3), circle(D / 2 + 15, 12, 3)]
+      return { panels, notes: ['اترك الخشب بلا دهان من الداخل؛ ادهن الخارج بورنيش مائي آمن.', 'المجثم عود خشبي 6 مم يُلصق في ثقبه. علّق البيت بمسمار في فتحة الظهر بعيداً عن الشمس المباشرة.', 'السقف يُرفع كاملاً لتنظيف البيت بعد كل موسم؛ مثلّثا التثبيت يُلصقان تحته كما في بيت الشاي.', ...res.notes.filter(n => /السقف|مثلّث/.test(n) && !/الأكياس/.test(n))], warnings, errors }
+    },
+  },
+  {
+    id: 'ramadanlantern',
+    name: 'فانوس رمضان',
+    desc: 'فانوس بنوافذ قوسية في جدرانه الأربع، تاج فوق الغطاء وحلقة للتعليق؛ تضيئه شمعة LED أو دواية.',
+    icon: `<path d="M18 24h28v28H18z"/><path d="M14 20h36v4H14zM22 14h20v6H22z"/><circle cx="32" cy="8" r="4"/><path d="M24 50V36a8 8 0 0 1 16 0v14" stroke-width="1.5"/>`,
+    params: [...DIMS, mm('socket', 'قطر فتحة الدواية', 0, 80, '0 = بلا (شمعة LED)'), mm('lipH', 'ارتفاع شفة الغطاء', 4, 60), mm('gap', 'خلوص الشفة', 0.2, 2), mm('foot', 'ارتفاع القاعدة المرتفعة', 0, 40), mm('ringD', 'قطر حلقة التعليق', 25, 80), mm('fit', 'خلوص الشقّ', 0, 1)],
+    defaults: { W: 120, D: 120, H: 200, socket: 0, lipH: 10, gap: 0.5, foot: 0, ringD: 44, fit: 0.15 },
+    innerAdd: t => ({ W: 2 * t, D: 2 * t, H: t }),
+    build(p, c) {
+      const lantern = TEMPLATES.find(x => x.id === 'lantern')!
+      const res = lantern.build({ ...p, vent: 0, pattern: 3, cell: 8 }, c)
+      const errors = [...(res.errors ?? [])], warnings = res.warnings.filter(w => !/الزخرفة/.test(w))
+      const t = c.t, { W, D, H, lipH, ringD, fit } = p
+      const m = 2 * t + 2, top = Math.max(m, lipH + 2) + 4, bot = H - t - m - 4
+      const arch = (w: number): Loop[] => {
+        const x0 = m + 4, ww = w - 2 * x0, hh = bot - top
+        if (ww < 20 || hh < 30) return []
+        return [hh > ww / 2 + 5 ? archHole(x0, top, ww, hh) : roundedRectHole(x0, top, ww, hh, 4)]
+      }
+      for (const sp of res.panels) {
+        if (sp.id === 'front' || sp.id === 'back') sp.holes = arch(W)
+        if (sp.id === 'side') sp.holes = arch(D)
+      }
+      // the crown: a smaller plate glued on the lid, and a ring standing in its slot
+      const Wc = round3(Math.max(40, Math.min(W, D) * 0.6)), tw = round3(Math.min(14, ringD * 0.35)), Rr = ringD / 2, rw = Math.max(6, 2 * t)
+      const phi = Math.asin(tw / 2 / Rr), pts: { x: number; y: number }[] = []
+      for (let i = 0; i <= 80; i++) { const a = Math.PI / 2 + phi + ((2 * Math.PI - 2 * phi) * i) / 80; pts.push({ x: Rr + Rr * Math.cos(a), y: Rr + Rr * Math.sin(a) }) }
+      pts.push({ x: Rr + tw / 2, y: 2 * Rr + t }, { x: Rr - tw / 2, y: 2 * Rr + t })
+      res.panels.push(
+        { id: 'crown', name: 'التاج', w: Wc, h: Wc, holes: [rotatedRectHole(Wc / 2, Wc / 2, tw + fit, t + fit, 0)], post: loops => { for (const [x, y] of [[0, 0], [Wc, 0], [Wc, Wc], [0, Wc]]) roundCorner(loops, x, y, Wc / 6) }, note: 'يُلصق في وسط الغطاء' },
+        { id: 'hang', name: 'حلقة التعليق', w: ringD, h: round3(ringD + t), shape: [polyLoop(pts.map(v => ({ x: round3(v.x), y: round3(v.y) })), 'outer')], holes: [circle(Rr, Rr, Rr - rw)], note: 'لسانها في شقّ التاج' },
+      )
+      return { panels: res.panels, notes: ['النوافذ القوسية تُغطّى من الداخل بورق ملوّن أو أكريليك حليبي أو قماش شفّاف.', 'التاج يُلصق في وسط الغطاء والحلقة في شقّه؛ يُرفع الغطاء لوضع شمعة LED أو تبديل المصباح. لا تستعمل شمعة حقيقية.', ...res.notes.filter(n => !/الزخرفة/.test(n))], warnings, errors }
+    },
+  },
+)
+
+TEMPLATES.push(...MORE)
