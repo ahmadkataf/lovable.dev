@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { unionRects, rect, offsetLoop, circle, signedArea, bbox, loopLength, edgeNotch, roundCorner, loopToPath, arcInfo, hingeLines, Loop } from './geom'
 import { buildPanel, fingerCount, edgeCuts } from './joints'
-import { TEMPLATES, pivotLid } from './templates'
+import { TEMPLATES, pivotLid, CATEGORIES } from './templates'
 import { generate, DEFAULT_SETTINGS, autoFinger } from './generate'
 import { toDXF, toSVG, toAI } from './export'
 
@@ -474,6 +474,37 @@ describe('second review fixes', () => {
     const ai = toAI(generate(T('lip'), {}, S0).layout)
     expect(ai).toMatch(/\n1 1 1 1 0 0 1 0 255 0 0 0 50 Lb\n\(Cut\) Ln\n/)
     expect(ai).toContain('/Lb {13 {pop} repeat} bind def')
+  })
+})
+
+describe('design picker', () => {
+  it('lists every design in exactly one group', () => {
+    const ids = CATEGORIES.flatMap(c => c.ids)
+    expect(new Set(ids).size).toBe(ids.length)
+    expect([...ids].sort()).toEqual(TEMPLATES.map(t => t.id).sort())
+  })
+})
+
+describe('legged chest and star lattice', () => {
+  it('the floor tabs meet the wall slots, the legs reach the floor, and the stars keep 2.5 mm bars', () => {
+    const tpl = TEMPLATES.find(x => x.id === 'chest')!
+    const d = generate(tpl, {}, { ...DEFAULT_SETTINGS, kerf: 0 })
+    expect(d.errors).toEqual([])
+    const fb = d.panels.find(p => p.id === 'frontback')!, floor = d.panels.find(p => p.id === 'floor')!
+    const outer = fb.loops.find(l => l.closed && signedArea(l) > 0)!
+    // two legs touch the floor line, nothing between them does
+    const bottom = outer.pts.filter(v => Math.abs(v.y - fb.h) < 1e-6).map(v => v.x)
+    expect(Math.min(...bottom)).toBeLessThan(1); expect(Math.max(...bottom)).toBeGreaterThan(fb.w - 1)
+    expect(bottom.filter(x => x > 40 && x < fb.w - 40)).toEqual([])
+    // the floor's tabs on its front edge sit exactly under the wall's slots
+    const slots = fb.loops.filter(l => l.closed && signedArea(l) < 0).map(l => bbox([l])).filter(b => Math.abs(b.maxY - b.minY - 3 - 0.15) < 0.01)
+    const tabs = floor.loops[0].pts.filter(v => Math.abs(v.y) < 1e-6).map(v => v.x).sort((a, b) => a - b)
+    expect(slots.length).toBe(tabs.length / 2)
+    slots.sort((a, b) => a.minX - b.minX).forEach((sl, i) => { expect((sl.minX + sl.maxX) / 2).toBeCloseTo((tabs[2 * i] + tabs[2 * i + 1]) / 2, 2); expect(sl.maxX - sl.minX).toBeCloseTo(tabs[2 * i + 1] - tabs[2 * i] + 0.15, 2) })
+    const stars = fb.loops.filter(l => l.closed && signedArea(l) < 0 && l.pts.length >= 4).map(l => samplePoly(l))
+    let min = Infinity
+    for (let i = 0; i < stars.length; i++) for (let j = i + 1; j < stars.length; j++) min = Math.min(min, polyDistance(stars[i], stars[j]))
+    expect(min).toBeGreaterThanOrEqual(2.5 - 1e-6)
   })
 })
 

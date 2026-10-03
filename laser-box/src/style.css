@@ -71,19 +71,41 @@ input { font: inherit; }
 .top h1 { font-size: 20px; }
 .top p { color: var(--muted); font-size: 13px; }
 
-/* template gallery */
-.gallery { display: flex; gap: 10px; overflow-x: auto; padding: 6px 2px 12px; scroll-snap-type: x proximity; -webkit-overflow-scrolling: touch; scrollbar-width: thin; }
-.card {
-  flex: 0 0 auto; width: 118px; scroll-snap-align: start;
-  display: flex; flex-direction: column; align-items: center; gap: 6px;
-  padding: 12px 8px 10px; border: 1.5px solid var(--line); border-radius: var(--radius); background: var(--surface);
-  color: var(--muted); font-size: 12.5px; font-weight: 500; line-height: 1.3; text-align: center;
-  transition: border-color .15s, color .15s, transform .15s;
+/* the chosen design, and the sheet listing every design */
+.picker { padding: 6px 0 12px; }
+.picker-cur {
+  width: 100%; display: flex; align-items: center; gap: 12px; text-align: start;
+  padding: 10px 12px; border: 1.5px solid var(--accent); border-radius: var(--radius); background: var(--accent-soft); color: var(--text);
 }
-.card svg { width: 56px; height: 56px; }
+.picker-cur svg { width: 46px; height: 46px; flex: none; color: var(--accent); }
+.picker-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.picker-text b { font-size: 15px; font-weight: 600; }
+.picker-text small { color: var(--muted); font-size: 12px; line-height: 1.45; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.picker-btn { flex: none; background: var(--accent); color: #fff; border-radius: 10px; padding: 8px 12px; font-size: 13px; font-weight: 600; white-space: nowrap; }
+@media (max-width: 520px) { .picker-cur { flex-wrap: wrap; } .picker-btn { flex: 1 1 100%; text-align: center; } }
+
+.chooser { border: 0; padding: 0; width: min(920px, 100vw); max-width: 100vw; max-height: min(88vh, 100dvh); border-radius: 18px; background: var(--bg); color: var(--text); box-shadow: 0 20px 60px rgba(0,0,0,.35); }
+.chooser::backdrop { background: rgba(0,0,0,.45); }
+@media (max-width: 600px) { .chooser { margin: auto 0 0; width: 100vw; border-radius: 18px 18px 0 0; max-height: 92dvh; } }
+.chooser-head { position: sticky; top: 0; z-index: 1; display: flex; align-items: center; justify-content: space-between; padding: 14px 16px 6px; background: var(--bg); }
+.chooser-head h2 { font-size: 17px; }
+.chips { position: sticky; top: 50px; z-index: 1; display: flex; gap: 8px; overflow-x: auto; padding: 4px 16px 12px; background: var(--bg); scrollbar-width: none; }
+.chip { flex: none; border: 1.5px solid var(--line); background: var(--surface); border-radius: 999px; padding: 6px 14px; font-size: 13.5px; font-weight: 500; }
+.chip small { color: var(--muted); font-size: 11.5px; }
+.chip.on { border-color: var(--accent); background: var(--accent); color: #fff; }
+.chip.on small { color: rgba(255,255,255,.8); }
+.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(104px, 1fr)); gap: 10px; padding: 0 16px 18px; }
+.card {
+  position: relative; display: flex; flex-direction: column; align-items: center; gap: 6px;
+  padding: 12px 6px 10px; border: 1.5px solid var(--line); border-radius: var(--radius); background: var(--surface);
+  color: var(--muted); font-size: 12.5px; font-weight: 500; line-height: 1.3; text-align: center;
+  transition: border-color .15s, color .15s;
+}
+.card svg { width: 52px; height: 52px; }
 .card:hover { border-color: var(--accent); color: var(--text); }
 .card.active { border-color: var(--accent); background: var(--accent-soft); color: var(--text); box-shadow: inset 0 0 0 1px var(--accent); }
 .card.active svg { color: var(--accent); }
+.badge { position: absolute; top: 6px; inset-inline-start: 6px; background: var(--accent); color: #fff; font-style: normal; font-size: 10.5px; font-weight: 600; border-radius: 6px; padding: 1px 6px; }
 
 /* quick strip (phones): the numbers people change most, always above the preview */
 .quick { display: none; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow); padding: 10px 12px 12px; margin-bottom: 12px; }

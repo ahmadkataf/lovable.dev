@@ -184,6 +184,26 @@ function pattern(kind: number, x0: number, y0: number, x1: number, y1: number, c
   if (fw < cell * 2 || fh < cell * 2) return []
   if (kind === 3) return [roundedRectHole(x0, y0, fw, fh, Math.min(4, cell / 2))]
   const out: Loop[] = []
+  if (kind === 6) {
+    // eight-pointed stars (two squares crossed) on a square grid, a small square hole where four stars meet;
+    // the stars' facing points stay a bar apart, the bar at least 2.5 mm
+    const bar = Math.max(2.5, cell * 0.16), P = cell + bar, R = cell / 2, Ri = R * Math.cos(Math.PI / 4) / Math.cos(Math.PI / 8)
+    const nx = Math.floor((fw - cell) / P) + 1, ny = Math.floor((fh - cell) / P) + 1
+    if (nx < 1 || ny < 1) return out
+    const sx = x0 + (fw - (nx - 1) * P) / 2, sy = y0 + (fh - (ny - 1) * P) / 2
+    const star = (cx: number, cy: number): Loop => polyLoop(Array.from({ length: 16 }, (_, k) => {
+      const a = (k * Math.PI) / 8, r = k % 2 ? Ri : R
+      return { x: round3(cx + r * Math.cos(a)), y: round3(cy + r * Math.sin(a)) }
+    }), 'hole')
+    const sq = (Math.SQRT1_2 * P - R - bar) / Math.SQRT2 // half-side of the square between four stars
+    for (let i = 0; i < nx; i++) for (let j = 0; j < ny; j++) {
+      const x = sx + i * P, y = sy + j * P
+      if (skip && skip(x)) continue
+      out.push(star(x, y))
+      if (sq >= 1.2 && i + 1 < nx && j + 1 < ny && !(skip && skip(x + P / 2))) out.push(rotatedRectHole(x + P / 2, y + P / 2, 2 * sq, 2 * sq, 0))
+    }
+    return out
+  }
   if (kind === 5) {
     // a diagonal lattice: diamonds cell wide, separated by bars at least 2.5 mm wide, every other row shifted half a step
     const bar = Math.max(2.5, cell * 0.18), P = cell + bar * Math.SQRT2, side = cell / Math.SQRT2
@@ -213,7 +233,7 @@ function pattern(kind: number, x0: number, y0: number, x1: number, y1: number, c
   return out
 }
 
-const PATTERN_HINT = '1 = دوائر، 2 = شقوق عمودية، 3 = نافذة واحدة، 4 = قلوب، 5 = شبكة معيّنات'
+const PATTERN_HINT = '1 = دوائر، 2 = شقوق عمودية، 3 = نافذة واحدة، 4 = قلوب، 5 = شبكة معيّنات، 6 = نجوم ثمانية'
 
 /**
  * A living-hinge cylinder: two end discs with tab slots, and the sheet that wraps round them. Shared by the lamp
@@ -678,7 +698,7 @@ export const TEMPLATES: Template[] = [
       ...DIMS,
       mm('socket', 'قطر فتحة الدواية', 0, 80, 'E27 ≈ 40 مم، E14 ≈ 28 مم؛ 0 = بلا فتحة'),
       mm('vent', 'قطر فتحة التهوية في الغطاء', 0, 150, '0 = بلا فتحة'),
-      { key: 'pattern', label: 'الزخرفة', min: 1, max: 5, step: 1, int: true, hint: PATTERN_HINT },
+      { key: 'pattern', label: 'الزخرفة', min: 1, max: 6, step: 1, int: true, hint: PATTERN_HINT },
       mm('cell', 'حجم الثقب', 3, 40, 'قطر الدائرة أو عرض الشقّ أو القلب'),
       mm('lipH', 'ارتفاع شفة الغطاء', 4, 60), mm('gap', 'خلوص الشفة', 0.2, 2),
       mm('foot', 'ارتفاع القاعدة المرتفعة', 0, 40, 'إطار تحت القاعدة يرفع الفانوس فوق صامولة الدواية، مع فتحة للكابل؛ 0 = بلا'),
@@ -862,7 +882,7 @@ export const TEMPLATES: Template[] = [
     params: [
       ...DIMS,
       mm('handleH', 'ارتفاع المقبض فوق الحافّة', 0, 200, '0 = بلا مقبض'),
-      { key: 'pattern', label: 'الزخرفة', min: 0, max: 5, step: 1, int: true, hint: '0 = بلا، ' + PATTERN_HINT },
+      { key: 'pattern', label: 'الزخرفة', min: 0, max: 6, step: 1, int: true, hint: '0 = بلا، ' + PATTERN_HINT },
       mm('cell', 'حجم الزخرفة', 5, 40),
       mm('margin', 'هامش أعلى شقّ المقبض', 3, 50), mm('fit', 'خلوص الشقّ', 0, 1),
     ],
@@ -923,7 +943,7 @@ export const TEMPLATES: Template[] = [
     params: [
       mm('W', 'الطول', 60, 400), mm('D', 'عمق القاعدة', 40, 200), mm('H', 'ارتفاع اللوحين', 40, 300),
       mm('sep', 'المسافة بين اللوحين', 10, 100, 'سماكة رزمة المناديل'),
-      { key: 'pattern', label: 'الزخرفة', min: 0, max: 5, step: 1, int: true, hint: '0 = بلا، ' + PATTERN_HINT },
+      { key: 'pattern', label: 'الزخرفة', min: 0, max: 6, step: 1, int: true, hint: '0 = بلا، ' + PATTERN_HINT },
       mm('cell', 'حجم الزخرفة', 5, 40), mm('fit', 'خلوص الشقّ', 0, 1),
     ],
     defaults: { W: 170, D: 80, H: 110, sep: 35, pattern: 4, cell: 14, fit: 0.2 },
@@ -977,7 +997,7 @@ export const TEMPLATES: Template[] = [
       mm('ov', 'بروز السقف', 0, 30), mm('slotH', 'ارتفاع فتحة الأكياس', 10, 40),
       mm('bag', 'عرض كيس الشاي', 30, 150, 'المغلّفات عادةً 65–75 مم؛ الفتحة والداخل يتّسعان له'),
       mm('gap', 'خلوص السقف', 0.2, 2),
-      { key: 'pattern', label: 'زخرفة الجانبين', min: 0, max: 5, step: 1, int: true, hint: '0 = بلا، ' + PATTERN_HINT },
+      { key: 'pattern', label: 'زخرفة الجانبين', min: 0, max: 6, step: 1, int: true, hint: '0 = بلا، ' + PATTERN_HINT },
       mm('cell', 'حجم الزخرفة', 5, 40),
     ],
     defaults: { W: 90, D: 90, H: 120, g: 45, ov: 8, slotH: 18, bag: 72, gap: 0.5, pattern: 4, cell: 12 },
@@ -1108,7 +1128,7 @@ export const TEMPLATES: Template[] = [
     icon: `<path d="M12 30 32 20 52 30 32 40z"/><path d="M12 30v14l20 10V40M52 30v14L32 54"/><path d="M17 36l4 2M17 42l4 2M24 40l4 2M24 46l4 2M43 36l4-2M43 42l4-2M36 40l4-2M36 46l4-2" stroke-width="1.5"/><path d="M26 25c0-6 12-6 12 0" stroke-width="2.5"/>`,
     params: [
       ...DIMS,
-      { key: 'pattern', label: 'الزخرفة', min: 0, max: 5, step: 1, int: true, hint: '0 = بلا، ' + PATTERN_HINT },
+      { key: 'pattern', label: 'الزخرفة', min: 0, max: 6, step: 1, int: true, hint: '0 = بلا، ' + PATTERN_HINT },
       mm('cell', 'حجم الزخرفة', 5, 40),
       { key: 'lidDeco', label: 'زخرفة الغطاء', min: 0, max: 1, step: 1, int: true },
       { key: 'handle', label: 'مقبض فوق الغطاء', min: 0, max: 1, step: 1, int: true },
@@ -1175,6 +1195,97 @@ export const TEMPLATES: Template[] = [
     build: cylinderBuild('roundbox'),
   },
   // ------------------------------------------------------------------ 23
+  {
+    id: 'chest',
+    name: 'صندوق مزخرف بأرجل',
+    desc: 'صندوق بجدران مخرّمة يقف على أربع أرجل منحنية هي امتداد زواياه، بقاع معلّق على لسانات وغطاء مخرّم ذي شفة.',
+    icon: `<path d="M10 20h44v8H10z"/><path d="M12 28v20h40V28"/><path d="M12 48v8c3 0 5-3 6-6h28c1 3 3 6 6 6v-8" stroke-width="2"/><path d="M20 34l3 3-3 3-3-3zM32 34l3 3-3 3-3-3zM44 34l3 3-3 3-3-3z" stroke-width="1.5"/><path d="M18 24h28" stroke-width="1.5"/>`,
+    params: [
+      ...DIMS.map(d => d.key === 'H' ? { ...d, hint: 'ارتفاع الجسم فوق الأرجل' } : d),
+      mm('legH', 'طول الأرجل', 8, 80), mm('legW', 'عرض الرجل', 10, 60),
+      { key: 'pattern', label: 'الزخرفة', min: 0, max: 6, step: 1, int: true, hint: '0 = بلا، ' + PATTERN_HINT },
+      mm('cell', 'حجم الزخرفة', 6, 40),
+      { key: 'lidDeco', label: 'زخرفة الغطاء', min: 0, max: 1, step: 1, int: true },
+      mm('lipH', 'ارتفاع الشفة', 4, 60), mm('gap', 'خلوص الشفة', 0.2, 2), mm('fit', 'خلوص لسانات القاع', 0, 1),
+    ],
+    defaults: { W: 200, D: 130, H: 100, legH: 22, legW: 24, pattern: 6, cell: 16, lidDeco: 1, lipH: 10, gap: 0.5, fit: 0.15 },
+    innerAdd: t => ({ W: 2 * t, D: 2 * t, H: t }),
+    build(p, c) {
+      const warnings: string[] = [], errors: string[] = []
+      checkBasics(p, c, warnings, errors)
+      const { W, D, H, legH, cell, lipH, gap, fit } = p, t = c.t
+      const kind = Math.round(p.pattern)
+      const Ht = round3(H + legH)
+      // the walls run down past the floor to make the legs; the floor hangs on tabs through slots just above them
+      const web = Math.max(4, 1.5 * t), lw = Math.max(p.legW, 3 * t + 4)
+      if (legH < web + 8) errors.push(`الأرجل قصيرة: ${Math.ceil(web + 8)} مم على الأقل.`)
+      if (2 * lw + 20 > Math.min(W, D)) errors.push(`الأرجل عريضة على هذا الصندوق: أقصى عرض ${Math.floor((Math.min(W, D) - 20) / 2)} مم.`)
+      if (lipH < 3 * t) errors.push(`ارتفاع الشفة صغير جداً: يلزم ${3 * t} مم على الأقل لتعشيق زوايا الإطار.`)
+      if (lipH > H - 2 * t - 4) errors.push('ارتفاع الشفة أكبر من عمق الصندوق.')
+      // floor tabs: two per edge (three on long edges), clear of the corner joints
+      const tabsOn = (len: number) => {
+        const inner = len - 2 * t, tw = round3(Math.min(30, Math.max(8, inner * 0.14)))
+        const ks = inner > 220 ? [0.2, 0.5, 0.8] : [0.25, 0.75]
+        return { tw, xs: ks.map(k => round3(t + inner * k)) }
+      }
+      const tw = tabsOn(W), td = tabsOn(D)
+      const strip = (len: number, tabs: { tw: number; xs: number[] }, at: (a: number, b: number) => ReturnType<typeof rect>) => {
+        const out: ReturnType<typeof rect>[] = []
+        let a = 0
+        for (const x of tabs.xs) { out.push(at(a, x - tabs.tw / 2)); a = x + tabs.tw / 2 }
+        out.push(at(a, len))
+        return out
+      }
+      const floor: PanelSpec = {
+        id: 'floor', name: 'القاع (معلّق باللسانات)', w: W, h: D,
+        cuts: [
+          ...strip(W, tw, (a, b) => rect(a, 0, b - a, t)), ...strip(W, tw, (a, b) => rect(a, D - t, b - a, t)),
+          ...strip(D, td, (a, b) => rect(0, a, t, b - a)), ...strip(D, td, (a, b) => rect(W - t, a, t, b - a)),
+        ],
+        note: 'لساناته تدخل في شقوق الجدران فوق الأرجل',
+      }
+      const slotY = round3(H - t / 2)
+      const wall = (id: string, name: string, w: number, male: boolean, tabs: { tw: number; xs: number[] }, count: number): PanelSpec => {
+        const holes = tabs.xs.map(x => rotatedRectHole(x, slotY, tabs.tw + fit, t + fit, 0))
+        if (kind > 0) {
+          const fm = 2 * t + 2
+          holes.push(...pattern(kind, fm, lipH + 3, w - fm, H - t - fm, cell))
+        }
+        const apronTop = round3(H + web)
+        return {
+          id, name, w, h: Ht, count,
+          left: male ? 'male' : 'female', right: male ? 'male' : 'female',
+          cuts: [rect(lw, apronTop, w - 2 * lw, Ht - apronTop)],
+          holes,
+          // curved brackets: the apron's top corners rounded deep, the feet's outer corners softened
+          post: loops => {
+            const r = Math.min(Ht - apronTop - 1, (w - 2 * lw) / 3)
+            roundCorner(loops, round3(lw), apronTop, r); roundCorner(loops, round3(w - lw), apronTop, r)
+          },
+        }
+      }
+      // the lid: a plate with a lip frame glued under it (as the lidded gift box)
+      const Wl = W - 2 * t - 2 * gap, Dl = D - 2 * t - 2 * gap
+      const m = 2 * t + gap + 3
+      const lidHoles = p.lidDeco > 0 && kind > 0 ? pattern(kind, m, m, W - m, D - m, cell) : []
+      const panels: PanelSpec[] = [
+        floor,
+        wall('frontback', `${N.front} / ${N.back}`, W, true, tw, 2),
+        wall('side', N.side, D, false, td, 2),
+        { id: 'lid', name: 'الغطاء — اللوح', w: W, h: D, holes: lidHoles, engrave: [engraveRect(t + gap, t + gap, Wl, Dl)], note: 'الخط المحفور موضع إطار الشفة على وجهه السفلي' },
+        { id: 'lip-fb', name: 'شفة الغطاء — الأمام / الخلف', w: Wl, h: lipH, left: 'male', right: 'male', count: 2 },
+        { id: 'lip-side', name: 'شفة الغطاء — الجانب', w: Dl, h: lipH, left: 'female', right: 'female', count: 2 },
+      ]
+      const notes = [
+        `الصندوق ${W} × ${D} مم، جسمه ${H} مم فوق أرجل ${legH} مم؛ الارتفاع الكلّي مع الغطاء ${Math.round((Ht + t) * 10) / 10} مم.`,
+        'التركيب: ركّب الواجهتين مع جانب واحد، أنزل القاع فتدخل لساناته في الشقوق، ثم أدخل الجانب الثاني؛ تعشيق الزوايا يمتدّ في الأرجل فتصبح أعمدة متينة.',
+        `إطار الشفة ${Wl.toFixed(1)} × ${Dl.toFixed(1)} × ${lipH} مم يُلصق تحت الغطاء داخل الخط المحفور، ويدخل في الصندوق بخلوص ${gap} مم.`,
+        kind > 0 ? 'الزخرفة الهندسية تبتعد عن التعشيق والشقوق؛ في الأكريليك اجعل حجمها 12 مم أو أكثر. الزخارف العربية المرسومة يدوياً تُستورد في RDWorks فوق القطعة.' : 'جدران بلا زخرفة.',
+      ]
+      return { panels, notes, warnings, errors }
+    },
+  },
+  // ------------------------------------------------------------------ 24
   {
     id: 'catbank',
     name: 'حصّالة القطّة بقفل الذيل',
@@ -1327,3 +1438,13 @@ export function pivotLid(p: Record<string, number>, t: number) {
 }
 
 export const templateById = (id: string) => TEMPLATES.find(t => t.id === id) ?? TEMPLATES[0]
+
+/** The picker's groups, in the order they are shown; every template belongs to exactly one. */
+export const CATEGORIES: { id: string; name: string; ids: string[] }[] = [
+  { id: 'box', name: 'صناديق', ids: ['closed', 'open', 'sliding', 'liftoff', 'hinged', 'flex', 'lip', 'window', 'drawer', 'roundbox'] },
+  { id: 'gift', name: 'هدايا وديكور', ids: ['chest', 'catbank', 'decobox', 'teahouse', 'frame', 'basket', 'fence', 'napkin'] },
+  { id: 'org', name: 'تنظيم وتقديم', ids: ['organizer', 'tray', 'teabox', 'tissue'] },
+  { id: 'light', name: 'إضاءة', ids: ['lantern', 'shade'] },
+]
+/** the newest designs get a badge in the picker */
+export const NEW_IDS = ['chest', 'catbank']

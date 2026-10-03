@@ -1,5 +1,5 @@
 import './style.css'
-import { TEMPLATES, templateById, ParamDef } from './templates'
+import { TEMPLATES, templateById, ParamDef, CATEGORIES, NEW_IDS } from './templates'
 import { generate, Design, Settings, DEFAULT_SETTINGS } from './generate'
 import { toSVG, toDXF, toAI } from './export'
 import { loopToPath } from './geom'
@@ -119,7 +119,8 @@ app.innerHTML = ''
 const header = el('header', { class: 'top' },
   el('div', { class: 'brand' }, el('span', { class: 'logo', 'aria-hidden': 'true' }, '▣'), el('div', {}, el('h1', {}, 'مولّد صناديق الليزر'), el('p', {}, 'اختر الشكل، اضبط القياسات والسماكة، ونزّل ملفاً جاهزاً للقص'))),
 )
-const gallery = el('nav', { class: 'gallery', 'aria-label': 'الأشكال الجاهزة' })
+const gallery = el('nav', { class: 'picker', 'aria-label': 'التصميم المختار' })
+const chooser = el('dialog', { class: 'chooser', 'aria-label': 'اختر التصميم' }) as HTMLDialogElement
 const quick = el('section', { class: 'quick', 'aria-label': 'القياسات الأساسية' })
 const form = el('aside', { class: 'form' })
 const previewWrap = el('section', { class: 'preview' })
@@ -131,19 +132,53 @@ const alerts = el('div', { class: 'alerts' })
 const notesBox = el('div', { class: 'notes' })
 const actions = el('div', { class: 'actions' })
 previewWrap.append(stats, alerts, el('div', { class: 'canvas-wrap' }, svg, el('div', { class: 'canvas-tools' }, el('button', { type: 'button', class: 'tool', onclick: () => fitView(), title: 'ملاءمة' }, '⤢'), el('button', { type: 'button', class: 'tool', onclick: () => { state.labels = !state.labels; persist(); render() }, title: 'الأسماء' }, 'Aa'))), actions)
+document.body.append(chooser)
 app.append(header, gallery, quick, el('div', { class: 'work' }, form, previewWrap), notesBox, el('footer', { class: 'foot' }, 'الملفات بالمليمتر. افتح SVG أو DXF في LightBurn أو RDWorks أو Inkscape، وتأكّد أن القياس 1:1 قبل القص.'))
 
 // ------------------------------------------------------------------ gallery
 
+const iconSvg = (icon: string) => `<svg viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" aria-hidden="true">${icon}</svg>`
+let chooserCat = ''
+
+/** The page shows only the chosen design; "change" opens a sheet with every design, grouped. */
 function renderGallery() {
+  const t = tpl()
   gallery.innerHTML = ''
-  for (const t of TEMPLATES) {
-    const card = el('button', { type: 'button', class: 'card' + (t.id === state.tpl ? ' active' : ''), 'aria-pressed': String(t.id === state.tpl) })
-    card.innerHTML = `<svg viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" aria-hidden="true">${t.icon}</svg><span>${t.name}</span>`
-    card.onclick = () => { state.tpl = t.id; persist(); renderGallery(); renderForm(); update(true) }
-    gallery.append(card)
-  }
+  const cur = el('button', { type: 'button', class: 'picker-cur', onclick: () => openChooser() })
+  cur.innerHTML = `${iconSvg(t.icon)}<span class="picker-text"><b></b><small></small></span><span class="picker-btn">كل التصاميم (${TEMPLATES.length}) ▾</span>`
+  cur.querySelector('b')!.textContent = t.name
+  cur.querySelector('small')!.textContent = t.desc
+  gallery.append(cur)
 }
+
+function openChooser() {
+  chooserCat = CATEGORIES.find(c => c.ids.includes(state.tpl))?.id ?? ''
+  renderChooser()
+  chooser.showModal()
+  chooser.querySelector<HTMLElement>('.card.active')?.scrollIntoView({ block: 'nearest' })
+}
+
+function renderChooser() {
+  chooser.innerHTML = ''
+  const head = el('div', { class: 'chooser-head' }, el('h2', {}, 'اختر التصميم'), el('button', { type: 'button', class: 'tool', 'aria-label': 'إغلاق', onclick: () => chooser.close() }, '✕'))
+  const chips = el('div', { class: 'chips', role: 'tablist' })
+  for (const c of [{ id: '', name: 'الكل', ids: TEMPLATES.map(x => x.id) }, ...CATEGORIES]) {
+    const b = el('button', { type: 'button', role: 'tab', class: 'chip' + (c.id === chooserCat ? ' on' : ''), 'aria-selected': String(c.id === chooserCat), onclick: () => { chooserCat = c.id; renderChooser() } }, `${c.name} `, el('small', {}, String(c.ids.length)))
+    chips.append(b)
+  }
+  const ids = chooserCat ? CATEGORIES.find(c => c.id === chooserCat)!.ids : CATEGORIES.flatMap(c => c.ids)
+  const grid = el('div', { class: 'grid' })
+  for (const id of ids) {
+    const t = templateById(id)
+    const card = el('button', { type: 'button', class: 'card' + (t.id === state.tpl ? ' active' : ''), 'aria-pressed': String(t.id === state.tpl), title: t.desc })
+    card.innerHTML = `${iconSvg(t.icon)}<span></span>${NEW_IDS.includes(t.id) ? '<i class="badge">جديد</i>' : ''}`
+    card.querySelector('span')!.textContent = t.name
+    card.onclick = () => { state.tpl = t.id; persist(); chooser.close(); renderGallery(); renderForm(); update(true) }
+    grid.append(card)
+  }
+  chooser.append(head, chips, grid)
+}
+chooser.addEventListener('click', e => { if (e.target === chooser) chooser.close() }) // a tap on the backdrop closes it
 
 // ------------------------------------------------------------------ form
 
