@@ -156,6 +156,7 @@ function openChooser() {
   renderChooser()
   chooser.showModal()
   chooser.querySelector<HTMLElement>('.card.active')?.scrollIntoView({ block: 'nearest' })
+  chooser.querySelector<HTMLElement>('.chip.on')?.scrollIntoView({ block: 'nearest', inline: 'center' })
 }
 
 function renderChooser() {

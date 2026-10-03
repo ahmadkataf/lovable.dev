@@ -1759,7 +1759,14 @@ function standBuild(kind: 'phone' | 'book') {
     const lipT = t + 6, hb = Math.max(10, 3 * t), ledge = devT / Math.sin(a) + 1
     const S = { x: lipT + ledge, y: hb }, u = { x: Math.cos(a), y: Math.sin(a) }
     const T = { x: S.x + H * u.x, y: S.y + H * u.y }
-    const Lb = T.x + Math.max(20, 0.3 * T.y)
+    // the back edge runs from the top down to the foot; it is pushed back until the brace slot under the slope keeps
+    // 2.5 mm of wood on its far side too (steep, short rests leave a thin profile otherwise)
+    const n0 = { x: -Math.sin(a), y: Math.cos(a) }, ins = 4 + t / 2, c2 = { x: S.x + (H / 2) * u.x - ins * n0.x, y: S.y + (H / 2) * u.y - ins * n0.y }
+    const half2 = (Math.min(0.5 * H, 80) - 2 * shoulder(Math.min(0.5 * H, 80)) + fit) / 2, halfT = (t + fit) / 2
+    const corners = [-1, 1].flatMap(i => [-1, 1].map(j => ({ x: c2.x + i * half2 * u.x + j * halfT * n0.x, y: c2.y + i * half2 * u.y + j * halfT * n0.y })))
+    const clear = (lb: number) => Math.min(...corners.map(q => ((lb - T.x) * (T.y - q.y) - (0 - T.y) * (T.x - q.x)) / Math.hypot(lb - T.x, T.y) * -1))
+    let Lb = T.x + Math.max(20, 0.3 * T.y)
+    for (let k = 0; k < 200 && clear(Lb) < 2.5; k++) Lb += 1
     const Hp = Math.max(T.y, hb + lip)
     const Y = (v: { x: number; y: number }) => ({ x: round3(v.x), y: round3(Hp - v.y) })
     const profile = polyLoop([{ x: 0, y: 0 }, { x: Lb, y: 0 }, T, S, { x: lipT, y: hb }, { x: lipT, y: hb + lip }, { x: 0, y: hb + lip }].map(Y), 'outer')
