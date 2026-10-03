@@ -105,10 +105,10 @@ describe('templates', () => {
       const d = generate(tpl, {}, s)
       expect(d.warnings).toEqual([])
       expect(d.errors).toEqual([])
-      expect(d.panels.length).toBeGreaterThan(3)
+      expect(d.panels.length).toBeGreaterThanOrEqual(3)
       for (const p of d.panels) {
         expect(p.w).toBeGreaterThan(0)
-        const outers = p.loops.filter(l => l.closed && signedArea(l) > 0)
+        const outers = p.loops.filter(l => l.closed && l.layer !== 'engrave' && signedArea(l) > 0)
         expect(outers.length, `${tpl.id}/${p.id} should be one piece`).toBe(1)
         for (const l of p.loops) for (const v of l.pts) { expect(Number.isFinite(v.x)).toBe(true); expect(Number.isFinite(v.y)).toBe(true) }
       }
@@ -219,6 +219,50 @@ describe('templates', () => {
   })
 })
 
+describe('robustness grid', () => {
+  // every template over thickness, kerf, finger, box size and its own parameter ranges; whenever no error is
+  // reported the geometry must be sound: one outer loop per panel, no self-intersection, holes inside with margin
+  it('generates sound geometry for every template across a parameter grid, or refuses with an error', () => {
+    const boxes = [[60, 50, 30], [120, 80, 50], [300, 200, 120]]
+    let runs = 0, refused = 0
+    for (const tpl of TEMPLATES) {
+      const extras = tpl.params.filter(d => !['W', 'D', 'H', 'Dm'].includes(d.key))
+      const variants: Record<string, number>[] = [{}]
+      for (const def of extras) variants.push({ [def.key]: def.min }, { [def.key]: def.max })
+      for (const t of [2, 2.7, 3, 4, 6]) for (const kerf of [0, 0.2]) for (const finger of [0, 12]) for (const [W, D, H] of boxes) for (const inner of [false, true]) for (const v of variants) {
+        const params = tpl.id === 'shade' ? { Dm: W, H, ...v } : { W, D, H, ...v }
+        runs++
+        let d
+        try { d = generate(tpl, params, { ...DEFAULT_SETTINGS, t, kerf, finger, inner }) } catch (e) { throw new Error(`${tpl.id} ${JSON.stringify(params)} t=${t} kerf=${kerf} threw: ${(e as Error).message}`) }
+        for (const pn of d.panels) for (const l of pn.loops) for (const q of l.pts) expect(Number.isFinite(q.x) && Number.isFinite(q.y), `${tpl.id} ${pn.id} non-finite`).toBe(true)
+        if (d.errors.length) { refused++; continue }
+        const label = `${tpl.id} ${JSON.stringify(params)} t=${t} kerf=${kerf} finger=${finger} inner=${inner}`
+        expect(d.layout.w, label).toBeLessThanOrEqual(Math.max(DEFAULT_SETTINGS.sheetW, Math.max(...d.panels.map(p => p.w))) + 1e-6)
+        for (const pn of d.panels) {
+          expect(pn.w, `${label} ${pn.id} width`).toBeGreaterThan(0)
+          const closed = pn.loops.filter(l => l.closed && l.layer !== 'engrave')
+          const outers = closed.filter(l => signedArea(l) > 0)
+          expect(outers.length, `${label} ${pn.id} outer loops`).toBe(1)
+          const outer = samplePoly(outers[0], 15)
+          expect(selfIntersects(outer), `${label} ${pn.id} self-intersects`).toBe(false)
+          for (const h of closed.filter(l => signedArea(l) < 0)) {
+            const hp = samplePoly(h, 20)
+            expect(polysOverlap(hp, outer) && !pointIn(hp[0], outer), `${label} ${pn.id} hole outside`).toBe(false)
+            // every hole vertex inside the outline, and the outline not closer than 0.8 mm (slots that merge into joints become part of the outline, so they never appear here)
+            for (const q of hp) expect(pointIn(q, outer), `${label} ${pn.id} hole vertex outside`).toBe(true)
+            expect(polyDistance(hp, outer), `${label} ${pn.id} hole too close to the edge`).toBeGreaterThan(0.8 - 1e-9)
+          }
+          for (let i = 0; i < outer.length; i++) { const q = outer[(i + 1) % outer.length]; expect(Math.hypot(q.x - outer[i].x, q.y - outer[i].y), `${label} ${pn.id} zero-length`).toBeGreaterThan(1e-6) }
+        }
+        const dxf = toDXF(d.layout)
+        expect(dxf.includes('NaN') || dxf.includes('undefined'), `${label} dxf`).toBe(false)
+      }
+    }
+    expect(runs).toBeGreaterThan(1000)
+    expect(refused).toBeLessThan(runs)
+  })
+})
+
 describe('export', () => {
   it('writes SVG in millimetres and a DXF with circles, lines and polylines', () => {
     const d = generate(TEMPLATES.find(t => t.id === 'hinged')!, {}, DEFAULT_SETTINGS)
@@ -251,14 +295,14 @@ describe('zip', () => {
 type P = { x: number; y: number }
 
 /** A closed loop with bulges as a dense polygon (arcs sampled every ~3°). */
-function samplePoly(l: Loop): P[] {
+function samplePoly(l: Loop, stepDeg = 3): P[] {
   const out: P[] = []
   const n = l.pts.length
   for (let i = 0; i < n; i++) {
     const p = l.pts[i], q = l.pts[(i + 1) % n]
     out.push({ x: p.x, y: p.y })
     if (p.b) {
-      const a = arcInfo(p, q, p.b), m = Math.max(4, Math.ceil(a.theta / (Math.PI / 60)))
+      const a = arcInfo(p, q, p.b), m = Math.max(4, Math.ceil(a.theta / (stepDeg * Math.PI / 180)))
       for (let k = 1; k < m; k++) { const ang = a.a0 + (a.ccw ? -1 : 1) * a.theta * k / m; out.push({ x: a.c.x + a.r * Math.cos(ang), y: a.c.y + a.r * Math.sin(ang) }) }
     }
   }
@@ -303,4 +347,13 @@ function polyDistance(A: P[], B: P[]): number {
   let best = Infinity
   for (let i = 0; i < A.length; i++) for (let j = 0; j < B.length; j++) best = Math.min(best, segDist(A[i], A[(i + 1) % A.length], B[j], B[(j + 1) % B.length]))
   return best
+}
+
+function selfIntersects(poly: P[]): boolean {
+  const n = poly.length
+  for (let i = 0; i < n; i++) for (let j = i + 2; j < n; j++) {
+    if (i === 0 && j === n - 1) continue
+    if (segsCross(poly[i], poly[(i + 1) % n], poly[j], poly[(j + 1) % n])) return true
+  }
+  return false
 }

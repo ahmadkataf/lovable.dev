@@ -32,7 +32,7 @@ export function generate(tpl: Template, params: Record<string, number>, s: Setti
   const p = { ...tpl.defaults, ...params }
   if (s.inner) {
     const add = tpl.innerAdd(s.t)
-    p.W += add.W; p.D += add.D; p.H += add.H
+    for (const k of ['W', 'D', 'H'] as const) if (Number.isFinite(p[k])) p[k] += add[k]
   }
   const finger = s.finger > 0 ? s.finger : autoFinger(s.t, [p.W, p.D, p.H])
   const res = tpl.build(p, { ...s, finger })

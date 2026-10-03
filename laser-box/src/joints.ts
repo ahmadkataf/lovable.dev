@@ -15,13 +15,16 @@ export interface PanelSpec {
   right?: Edge
   bottom?: Edge
   left?: Edge
+  /** when set, these closed loops ARE the outline (a disc, a ring…) and the rectangle/edge machinery is skipped */
+  shape?: Loop[]
   /** rectangles added to the panel before the cuts (ears, tabs) */
   adds?: Rect[]
   /** rectangles removed from the panel (slots, steps) */
   cuts?: Rect[]
-  /** extra closed loops (holes) and open paths (engrave/score lines) */
+  /** extra closed loops (holes), open cut paths (living hinges), and surface guide lines */
   holes?: Loop[]
   open?: Loop[]
+  engrave?: Loop[]
   /** runs after the outline exists: fillets, edge notches… */
   post?: (loops: Loop[]) => void
   note?: string
@@ -80,10 +83,11 @@ export function buildPanel(s: PanelSpec, o: JointOpts): Panel {
     ...edgeCuts('left', norm(s.left), s.w, s.h, o),
     ...(s.cuts ?? []),
   ]
-  const loops = unionRects([rect(0, 0, s.w, s.h), ...(s.adds ?? [])], cuts)
+  const loops = s.shape ? s.shape.map(l => ({ ...l, pts: l.pts.map(v => ({ ...v })) })) : unionRects([rect(0, 0, s.w, s.h), ...(s.adds ?? [])], cuts)
   if (s.post) s.post(loops)
   for (const hl of s.holes ?? []) loops.push(hl)
   for (const op of s.open ?? []) loops.push(op)
+  for (const en of s.engrave ?? []) loops.push({ ...en, layer: 'engrave' })
   const bb = bbox(loops)
   return { id: s.id, name: s.name, loops, w: bb.maxX - bb.minX, h: bb.maxY - bb.minY, note: s.note, count: s.count ?? 1 }
 }
@@ -91,9 +95,9 @@ export function buildPanel(s: PanelSpec, o: JointOpts): Panel {
 /** Kerf compensation: every closed loop moves half a kerf away from the material. */
 export function applyKerf(p: Panel, kerf: number): Panel {
   if (!kerf) return p
-  const loops = p.loops.map(l => (l.closed ? offsetLoop(l, kerf / 2) : l))
+  const loops = p.loops.map(l => (l.closed && l.layer !== 'engrave' ? offsetLoop(l, kerf / 2) : l))
   const bb = bbox(loops)
   // keep the panel origin at the original top-left so the layout stays stable
-  const shifted = loops.map(l => ({ closed: l.closed, pts: l.pts.map(v => ({ ...v, x: v.x - bb.minX, y: v.y - bb.minY })) }))
+  const shifted = loops.map(l => ({ ...l, pts: l.pts.map(v => ({ ...v, x: v.x - bb.minX, y: v.y - bb.minY })) }))
   return { ...p, loops: shifted, w: bb.maxX - bb.minX, h: bb.maxY - bb.minY }
 }

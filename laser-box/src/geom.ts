@@ -8,7 +8,7 @@
 
 export interface Pt { x: number; y: number }
 export interface Vtx { x: number; y: number; b?: number }
-export interface Loop { pts: Vtx[]; closed: boolean }
+export interface Loop { pts: Vtx[]; closed: boolean; /** 'engrave' marks a guide line scored on the surface, not a cut */ layer?: 'engrave' }
 export interface Rect { x: number; y: number; w: number; h: number }
 export interface BBox { minX: number; minY: number; maxX: number; maxY: number }
 
@@ -143,10 +143,19 @@ export function loopLength(l: Loop): number {
   return len
 }
 
+/** Signed area including the circular segments of bulged edges; positive for outer contours (clockwise on screen). */
 export function signedArea(l: Loop): number {
   let a = 0
   const n = l.pts.length
-  for (let i = 0; i < n; i++) { const p = l.pts[i], q = l.pts[(i + 1) % n]; a += p.x * q.y - q.x * p.y }
+  for (let i = 0; i < n; i++) {
+    const p = l.pts[i], q = l.pts[(i + 1) % n]
+    a += p.x * q.y - q.x * p.y
+    if (p.b) {
+      const arc = arcInfo(p, q, p.b)
+      const seg = arc.r * arc.r * (arc.theta - Math.sin(arc.theta)) // the area between chord and arc
+      a -= Math.sign(p.b) * seg // a bow to the right of travel takes material away (a notch, or a bigger hole)
+    }
+  }
   return a / 2
 }
 
@@ -179,12 +188,55 @@ function angleOnArc(ang: number, a: ArcInfo): boolean {
 }
 
 export function translate(loops: Loop[], dx: number, dy: number): Loop[] {
-  return loops.map(l => ({ closed: l.closed, pts: l.pts.map(p => ({ ...p, x: p.x + dx, y: p.y + dy })) }))
+  return loops.map(l => ({ ...l, pts: l.pts.map(p => ({ ...p, x: p.x + dx, y: p.y + dy })) }))
+}
+
+/** A closed rectangle to score on the surface (a glue or alignment guide). */
+export function engraveRect(x: number, y: number, w: number, h: number): Loop {
+  return { closed: true, layer: 'engrave', pts: [{ x, y }, { x: x + w, y }, { x: x + w, y: y + h }, { x, y: y + h }] }
 }
 
 /** A circular hole (counter-clockwise on screen, solid on the right). */
 export function circle(cx: number, cy: number, r: number): Loop {
   return { closed: true, pts: [{ x: cx, y: cy - r, b: 1 }, { x: cx, y: cy + r, b: 1 }] }
+}
+
+/** A circular OUTER contour (clockwise on screen, solid inside). */
+export function disc(cx: number, cy: number, r: number): Loop {
+  return { closed: true, pts: [{ x: cx, y: cy - r, b: -1 }, { x: cx, y: cy + r, b: -1 }] }
+}
+
+/** A rectangular hole w × h centred at (cx, cy), rotated by `angle` radians (counter-clockwise on screen, solid on the right). */
+export function rotatedRectHole(cx: number, cy: number, w: number, h: number, angle: number): Loop {
+  const c = Math.cos(angle), sn = Math.sin(angle)
+  const at = (u: number, v: number) => ({ x: cx + u * c - v * sn, y: cy + u * sn + v * c })
+  // counter-clockwise on screen: top edge westward
+  return { closed: true, pts: [at(w / 2, -h / 2), at(-w / 2, -h / 2), at(-w / 2, h / 2), at(w / 2, h / 2)] }
+}
+
+/**
+ * Living-hinge cut lines filling the box [x0,x1]×[y0,y1]. `axis` is the bend axis: 'x' means the sheet
+ * bends around a horizontal axis (lines run along x, rows stacked along y); 'y' the reverse.
+ */
+export function hingeLines(x0: number, y0: number, x1: number, y1: number, seg: number, bridge: number, pitch: number, axis: 'x' | 'y'): Loop[] {
+  const out: Loop[] = []
+  const along = axis === 'x' ? x1 - x0 : y1 - y0, across = axis === 'x' ? y1 - y0 : x1 - x0
+  const rows = Math.floor(across / pitch)
+  if (rows < 1) return out
+  const start = (across - (rows - 1) * pitch) / 2
+  const P = seg + bridge
+  for (let k = 0; k < rows; k++) {
+    const r = start + k * pitch
+    for (let i = -1; i <= Math.ceil(along / P) + 1; i++) {
+      let a = bridge + i * P + (k % 2 ? P / 2 : 0), b = a + seg
+      a = Math.max(a, bridge); b = Math.min(b, along - bridge)
+      if (b - a < 2) continue
+      out.push(axis === 'x'
+        ? { closed: false, pts: [{ x: x0 + a, y: y0 + r }, { x: x0 + b, y: y0 + r }] }
+        : { closed: false, pts: [{ x: x0 + r, y: y0 + a }, { x: x0 + r, y: y0 + b }] })
+    }
+  }
+  return out
 }
 
 /** A stadium-shaped hole (horizontal), length `len` (overall), height `h`. */
@@ -194,9 +246,19 @@ export function stadium(cx: number, cy: number, len: number, h: number): Loop {
   return { closed: true, pts: [{ x: xr, y: cy - r }, { x: xl, y: cy - r, b: 1 }, { x: xl, y: cy + r }, { x: xr, y: cy + r, b: 1 }] }
 }
 
+/** Rotate a loop about (cx, cy) by `angle` radians (orientation and bulges are unchanged). */
+export function rotateLoop(l: Loop, angle: number, cx: number, cy: number): Loop {
+  const c = Math.cos(angle), sn = Math.sin(angle)
+  return { ...l, pts: l.pts.map(p => ({ ...p, x: cx + (p.x - cx) * c - (p.y - cy) * sn, y: cy + (p.x - cx) * sn + (p.y - cy) * c })) }
+}
+
+/** A vertical stadium-shaped hole, length `len` (overall, vertical), width `w`. */
+export const stadiumV = (cx: number, cy: number, len: number, w: number): Loop => rotateLoop(stadium(cx, cy, len, w), Math.PI / 2, cx, cy)
+
 /** Rounded-rectangle hole with corner radius rr. */
 export function roundedRectHole(x: number, y: number, w: number, h: number, rr: number): Loop {
   rr = Math.min(rr, w / 2, h / 2)
+  if (rr < 0.05) return { closed: true, pts: [{ x: x + w, y }, { x, y }, { x, y: y + h }, { x: x + w, y: y + h }] }
   const k = Math.tan(Math.PI / 8)
   // counter-clockwise on screen: top edge westward
   return { closed: true, pts: [

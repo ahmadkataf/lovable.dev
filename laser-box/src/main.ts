@@ -162,7 +162,7 @@ function renderQuick() {
   const cur = params()
   quick.innerHTML = ''
   const row = el('div', { class: 'quick-row' })
-  for (const def of t.params.filter(d => ['W', 'D', 'H'].includes(d.key))) row.append(numberField(def, cur[def.key], v => { (state.params[state.tpl] ??= {})[def.key] = v; persist(); update() }, 'q'))
+  for (const def of t.params.filter(d => ['W', 'D', 'H', 'Dm'].includes(d.key))) row.append(numberField(def, cur[def.key], v => { (state.params[state.tpl] ??= {})[def.key] = v; persist(); update() }, 'q'))
   row.append(numberField(SETTING_DEFS[0], state.settings.t, v => { state.settings.t = v; persist(); update() }, 'q'))
   const foot = el('div', { class: 'quick-foot' },
     el('div', { class: 'field' }, el('span', { class: 'field-label' }, 'الخامة', el('small', {}, `kerf ${state.settings.kerf} مم`)), materialPicker()),
@@ -228,13 +228,13 @@ function render() {
     g.setAttribute('transform', `translate(${pl.x} ${pl.y})`)
     g.setAttribute('class', 'piece')
     const fill = document.createElementNS(svgNS, 'path')
-    fill.setAttribute('d', pl.panel.loops.filter(l => l.closed).map(l => loopToPath(l)).join(' '))
+    fill.setAttribute('d', pl.panel.loops.filter(l => l.closed && l.layer !== 'engrave').map(l => loopToPath(l)).join(' '))
     fill.setAttribute('class', 'wood')
     g.append(fill)
     for (const l of pl.panel.loops) {
       const p = document.createElementNS(svgNS, 'path')
       p.setAttribute('d', loopToPath(l))
-      p.setAttribute('class', l.closed ? 'cut' : 'cut score')
+      p.setAttribute('class', l.layer === 'engrave' ? 'cut engrave' : l.closed ? 'cut' : 'cut score')
       g.append(p)
     }
     if (state.labels) {
@@ -260,7 +260,7 @@ function render() {
     stat('القطع', String(design.pieceCount)),
     stat('اللوح المطلوب', `${fmt(lay.w)} × ${fmt(lay.h)} مم`),
     stat('طول القصّ', `${fmt(design.cutLength / 1000)} م`),
-    stat('الصندوق', `${fmt(p.W)} × ${fmt(p.D)} × ${fmt(p.H)}${state.settings.inner ? ' (داخلي)' : ''}`),
+    stat('القياس', p.Dm !== undefined ? `Ø${fmt(p.Dm)} × ${fmt(p.H)}` : `${fmt(p.W)} × ${fmt(p.D)} × ${fmt(p.H)}${state.settings.inner ? ' (داخلي)' : ''}`),
   )
   alerts.innerHTML = ''
   const blocked = design.errors.length > 0
@@ -346,7 +346,8 @@ function applyView() {
 
 function fileName(ext: string) {
   const p = params()
-  return `laser-box-${state.tpl}-${fmt(p.W)}x${fmt(p.D)}x${fmt(p.H)}-t${state.settings.t}.${ext}`
+  const dims = p.Dm !== undefined ? `d${fmt(p.Dm)}x${fmt(p.H)}` : `${fmt(p.W)}x${fmt(p.D)}x${fmt(p.H)}`
+  return `laser-box-${state.tpl}-${dims}-t${state.settings.t}.${ext}`
 }
 
 async function download(kind: 'svg' | 'dxf') {

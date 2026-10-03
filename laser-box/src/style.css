@@ -141,6 +141,7 @@ legend { font-weight: 600; color: var(--accent); font-size: 13px; padding: 0; ma
 .canvas .wood { fill: var(--wood); fill-rule: evenodd; stroke: none; }
 .canvas .cut { fill: none; stroke: var(--wood-line); stroke-width: calc(var(--px) * 1.2px); stroke-linejoin: round; vector-effect: non-scaling-stroke; }
 .canvas .score { stroke: var(--cut); }
+.canvas .engrave { stroke: #2563eb; stroke-dasharray: calc(var(--px) * 3px) calc(var(--px) * 2px); }
 .canvas .label { fill: var(--text); text-anchor: middle; dominant-baseline: middle; pointer-events: none; opacity: .85; }
 .canvas .label.dim { fill: var(--muted); direction: ltr; }
 .canvas-tools { position: absolute; top: 8px; left: 8px; display: flex; gap: 6px; }
