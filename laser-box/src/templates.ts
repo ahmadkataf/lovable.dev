@@ -67,9 +67,21 @@ const HINGE_PARAMS: ParamDef[] = [
 const HINGE_DEFAULTS = { web: 0, tab: 0, hc: 0.4, gap: 0.5, pull: 8 }
 
 /** The six pieces of the pivot-tab lid box; shared by the plain hinged box and the tea box. */
-function pivotLidBox(p: Record<string, number>, c: Common, warnings: string[], errors: string[]) {
+function pivotLidBox(p: Record<string, number>, c: Common, warnings: string[], errors: string[], stopDeg?: number) {
   const { W, D, H } = p, t = c.t
   const g = pivotLid(p, t)
+  // an optional stop: a post on each side's ear, behind the pivot, whose top front corner the lid's back face meets at
+  // stopDeg; the whole side is drawn o lower so the post fits above the ear
+  let o = 0, xf = D
+  if (stopDeg !== undefined) {
+    const d = ((stopDeg - 90) * Math.PI) / 180, py = g.a - t / 2
+    const s = t / 2 + g.a + g.gap + Math.max(10, Math.min(20, 0.3 * (g.earX - g.gap))) // along the lid, inside its full-width part
+    const yt = py + (t / 2) * Math.sin(d) - s * Math.cos(d)
+    xf = round3(g.pivotX + (t / 2) * Math.cos(d) + s * Math.sin(d))
+    o = round3(-yt)
+    const post = D - xf, need = Math.max(5, 1.5 * t)
+    if (post < need) errors.push(`العمود الخلفي الذي يسند الغطاء رفيع (${post.toFixed(1)} مم) بهذه الزاوية؛ قلّل زاوية التوقّف أو زد «جدار الأذن».`)
+  }
   const minD = Math.ceil((D - g.earX) + 2 * t + 8), minH = Math.ceil(g.a + 3 * t + 2)
   if (D < minD) errors.push(`العمق (${D} مم) لا يتّسع لأذن المفصل: أقلّ عمق ${minD} مم بهذه السماكة.`)
   if (H < minH) errors.push(`الارتفاع (${H} مم) لا يتّسع لأذن المفصل وثقبها: أقلّ ارتفاع ${minH} مم بهذه السماكة.`)
@@ -89,12 +101,12 @@ function pivotLidBox(p: Record<string, number>, c: Common, warnings: string[], e
     },
     { id: 'back', name: N.back, w: W, h: H + t, bottom: 'female', left: 'male', right: 'male', note: 'ترتفع إلى مستوى سطح الغطاء' },
     {
-      id: 'side', name: N.side, w: D, h: H + g.a, count: 2,
-      bottom: 'female', left: { type: 'female', from: g.a, len: H }, right: { type: 'female', from: g.a - t, len: H + t },
-      cuts: [rect(0, 0, g.earX, g.a)],
-      holes: [circle(g.pivotX, g.a - t / 2, g.holeR)],
-      post: loops => { roundCorner(loops, g.earX, 0, g.a); roundCorner(loops, D, 0, Math.min(2, g.a - t)) },
-      note: 'أذن خلفية مستديرة فيها ثقب اللسان',
+      id: 'side', name: N.side, w: D, h: H + g.a + o, count: 2,
+      bottom: 'female', left: { type: 'female', from: g.a + o, len: H }, right: { type: 'female', from: g.a - t + o, len: H + t },
+      cuts: [rect(0, 0, g.earX, g.a + o), ...(o > 0 ? [rect(g.earX, 0, xf - g.earX, o)] : [])],
+      holes: [circle(g.pivotX, g.a - t / 2 + o, g.holeR)],
+      post: loops => { roundCorner(loops, g.earX, o, g.a); roundCorner(loops, D, 0, Math.min(2, g.a - t)) },
+      note: o > 0 ? 'أذن خلفية فيها ثقب اللسان، وفوقها عمود يسند الغطاء المفتوح' : 'أذن خلفية مستديرة فيها ثقب اللسان',
     },
     {
       id: 'lid', name: N.lid, w: W, h: g.lidD,
@@ -109,9 +121,11 @@ function pivotLidBox(p: Record<string, number>, c: Common, warnings: string[], e
     'في الأكريليك: استعمل الأكريليك المصبوب (cast) لا المبثوق، لا تُدخل اللسان بالقوة، وإن ضاق صنفر زواياه قليلاً. يمكنك زيادة «جدار الأذن» إلى 5–6 مم.',
     'التجميع: ركّب القاعدة والواجهتين على جانب واحد، أدخل لسان الغطاء في ثقبه، ثم أدخل الجانب الثاني بحيث يدخل اللسان في ثقبه مع دخول الأصابع في وقت واحد. لا يحتاج ثنياً ولا غراءً في الغطاء.',
     'الجزء الخلفي من الغطاء خلف المحور يهبط داخل الصندوق عند الفتح، فالخلفية بارتفاع سطح الغطاء ولا تعيقه. لتخفيف الخلخلة برّد حوافّ اللسان قليلاً ليقترب من الدائرة.',
-    'الغطاء يفتح بحرّية حتى نحو 140° ثم يستند بطرفه الخلفي على الحافّة الداخلية للخلفية؛ إن أردت أن يقف عند 100° استعمل شريطاً أو مغناطيساً.',
+    stopDeg !== undefined
+      ? `الغطاء يفتح حتى ${stopDeg}° فيستند ظهره على العمودين فوق أذني الجانبين ويبقى مفتوحاً وحده${stopDeg > 90 ? ' (مائلاً قليلاً للخلف فلا يسقط)' : '؛ عند 90° تماماً يتوازن فوق المحور وقد ينغلق بلمسة، فالأفضل 93–95°'}.`
+      : 'الغطاء يفتح بحرّية حتى نحو 140° ثم يستند بطرفه الخلفي على الحافّة الداخلية للخلفية؛ إن أردت أن يقف عند 100° استعمل شريطاً أو مغناطيساً.',
   ]
-  return { panels, notes, g }
+  return { panels, notes, g, o, xf }
 }
 
 /** Vertical through-slots for dividers, cut into a wall between y0 and y1 at the given positions. */
@@ -446,6 +460,21 @@ export const TEMPLATES: Template[] = [
       const warnings: string[] = [], errors: string[] = []
       checkBasics(p, c, warnings, errors)
       const { panels, notes } = pivotLidBox(p, c, warnings, errors)
+      return { panels, notes, warnings, errors }
+    },
+  },
+  {
+    id: 'hinged90',
+    name: 'صندوق بغطاء مفصلي يقف مفتوحاً',
+    desc: 'نفس الصندوق المفصلي بستّ قطع، وفوق أذني الجانبين عمودان يسند عليهما الغطاء عند 90–95° فيبقى مفتوحاً.',
+    icon: `<path d="M12 30 32 20 52 30 32 40z"/><path d="M12 30v14l20 10V40M52 30v14L32 54"/><path d="M48 28V6l-6 3v18" stroke-width="2"/><path d="M54 30V14h-4" stroke-width="3"/><circle cx="50" cy="29" r="1.8" fill="currentColor"/>`,
+    params: [...DIMS, ...HINGE_PARAMS, { key: 'stop', label: 'زاوية توقّف الغطاء', min: 90, max: 100, step: 1, unit: '°', hint: '90 = عمودي تماماً؛ 93–95 يميل قليلاً للخلف فيبقى ثابتاً' }],
+    defaults: { W: 120, D: 80, H: 50, ...HINGE_DEFAULTS, stop: 95 },
+    innerAdd: t => ({ W: 2 * t, D: 2 * t, H: t }),
+    build(p, c) {
+      const warnings: string[] = [], errors: string[] = []
+      checkBasics(p, c, warnings, errors)
+      const { panels, notes } = pivotLidBox(p, c, warnings, errors, p.stop)
       return { panels, notes, warnings, errors }
     },
   },
@@ -1450,7 +1479,7 @@ export const templateById = (id: string) => TEMPLATES.find(t => t.id === id) ?? 
 
 /** The picker's groups, in the order they are shown; every template belongs to exactly one. */
 export const CATEGORIES: { id: string; name: string; ids: string[] }[] = [
-  { id: 'box', name: 'صناديق', ids: ['closed', 'open', 'sliding', 'liftoff', 'hinged', 'flex', 'lip', 'window', 'drawer', 'roundbox', 'crate'] },
+  { id: 'box', name: 'صناديق', ids: ['closed', 'open', 'sliding', 'liftoff', 'hinged', 'hinged90', 'flex', 'lip', 'window', 'drawer', 'roundbox', 'crate'] },
   { id: 'gift', name: 'هدايا وديكور', ids: ['chest', 'catbank', 'decobox', 'jewelry', 'moneybox', 'teahouse', 'frame', 'basket', 'fence', 'clock'] },
   { id: 'kitchen', name: 'مطبخ وتقديم', ids: ['carrier', 'mugtree', 'spicerack', 'bedtray', 'tray', 'teabox', 'tissue'] },
   { id: 'office', name: 'مكتب وتنظيم', ids: ['organizer', 'phonestand', 'bookstand', 'headphone', 'keyholder', 'wallshelf', 'jewelrytree'] },
@@ -1459,7 +1488,7 @@ export const CATEGORIES: { id: string; name: string; ids: string[] }[] = [
   { id: 'bulk', name: 'بالجملة', ids: ['keychains', 'coasters'] },
 ]
 /** the newest designs get a badge in the picker */
-export const NEW_IDS = ['crate', 'carrier', 'jewelry', 'moneybox', 'planter', 'petfeeder', 'incense', 'bedtray', 'phonestand', 'bookstand', 'headphone', 'keyholder', 'wallshelf', 'spicerack', 'coasters', 'clock', 'keychains', 'ramadanornaments', 'mugtree', 'jewelrytree', 'birdhouse', 'ramadanlantern']
+export const NEW_IDS = ['hinged90', 'crate', 'carrier', 'jewelry', 'moneybox', 'planter', 'petfeeder', 'incense', 'bedtray', 'phonestand', 'bookstand', 'headphone', 'keyholder', 'wallshelf', 'spicerack', 'coasters', 'clock', 'keychains', 'ramadanornaments', 'mugtree', 'jewelrytree', 'birdhouse', 'ramadanlantern']
 
 // ====================================================================== more designs, built from the shared parts
 

@@ -211,6 +211,30 @@ describe('templates', () => {
     }
   })
 
+  it('the stay-open hinged lid swings freely up to its stop angle, touches the posts there, and cannot go further', () => {
+    const tpl = TEMPLATES.find(t => t.id === 'hinged90')!
+    for (const [t, W, D, H] of [[3, 120, 80, 50], [2.7, 80, 60, 35], [6, 300, 200, 120]] as const) for (const stop of [90, 93, 95]) {
+      const p = { ...tpl.defaults, W, D, H, stop }
+      const d = generate(tpl, p, { ...s, t, kerf: 0 })
+      expect(d.errors, `${t}mm ${stop}°`).toEqual([])
+      expect(d.pieceCount).toBe(6)
+      const g = pivotLid(p, t)
+      const side = d.panels.find(x => x.id === 'side')!, lid = d.panels.find(x => x.id === 'lid')!
+      const o = side.h - H - g.a // how far the side was moved down to make room for the post
+      expect(o).toBeGreaterThan(t)
+      const S = samplePoly(side.loops.find(l => l.closed && signedArea(l) > 0)!)
+      const lidOuter = lid.loops.find(l => l.closed && signedArea(l) > 0)!
+      const ear = materialAt(lidOuter, 1e-3).filter(([y0, y1]) => !(y0 < g.pivotX && g.pivotX < y1))[0]
+      const axis = { x: g.pivotX, y: g.a - t / 2 + o }
+      const rot = (pt: { x: number; y: number }, th: number) => { const u = pt.x - axis.x, v = pt.y - axis.y; return { x: axis.x + u * Math.cos(th) - v * Math.sin(th), y: axis.y + u * Math.sin(th) + v * Math.cos(th) } }
+      const wide = [{ x: ear[0], y: g.a - t + o }, { x: ear[1], y: g.a - t + o }, { x: ear[1], y: g.a + o }, { x: ear[0], y: g.a + o }]
+      const at = (deg: number) => wide.map(q => rot(q, deg * Math.PI / 180))
+      for (let deg = 1; deg <= stop - 0.5; deg += 0.5) expect(polysOverlap(at(deg), S), `lid hits the side at ${deg}° (t=${t}, stop ${stop})`).toBe(false)
+      expect(polyDistance(at(stop), S), `touches the post at ${stop}°`).toBeLessThan(0.05)
+      expect(polysOverlap(at(stop + 1.5), S), `the post stops it past ${stop}°`).toBe(true)
+    }
+  })
+
   it('the flex hinge has score lines in the hinge zone only', () => {
     const d = generate(TEMPLATES.find(t => t.id === 'flex')!, { D: 80, R: 15 }, { ...s, kerf: 0 })
     const piece = d.panels.find(p => p.id === 'lidback')!
