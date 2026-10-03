@@ -1,0 +1,18 @@
+# كراج الرضوان — the shop's server on Cloudflare: the website (the same app) and the sync API the
+# Windows app, the Android app and the website use to share one set of data.
+name = "alradwan"
+main = "src/index.ts"
+compatibility_date = "2025-06-01"
+
+[assets]
+directory = "../dist"
+binding = "ASSETS"
+run_worker_first = ["/api/*", "/admin", "/admin/"]
+
+[[d1_databases]]
+binding = "DB"
+database_name = "alradwan"
+database_id = "7d11209f-bd67-4fd1-9ff5-0574c032daa0"
+
+# Secrets (never in this file), set by the deploy workflow from the repository secrets:
+#   TOKEN_SECRET signs the shops' activation sessions, ADMIN_KEY opens the control panel at /admin.

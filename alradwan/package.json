@@ -1,0 +1,39 @@
+{
+  "name": "alradwan-garage",
+  "productName": "كراج الرضوان",
+  "description": "نظام إدارة محل قطع غيار السيارات — كراج الرضوان",
+  "private": true,
+  "version": "1.7.7",
+  "type": "module",
+  "main": "electron/main.cjs",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview",
+    "test": "vitest run",
+    "electron": "npm run build && electron .",
+    "build:win": "npm run build && electron-builder --win --config electron/builder.json",
+    "build:apk": "npm run build && ./android/build-apk.sh",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "@fontsource-variable/alexandria": "^5.3.0",
+    "@types/node": "^22.10.2",
+    "@types/react": "^18.3.12",
+    "@types/react-dom": "^18.3.1",
+    "@vitejs/plugin-react": "^4.3.4",
+    "dexie": "^4.0.10",
+    "electron": "^42.11.10",
+    "electron-builder": "^25.1.8",
+    "lucide-react": "^0.468.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "react-router-dom": "^6.28.0",
+    "typescript": "^5.6.3",
+    "vite": "^5.4.11",
+    "vitest": "^2.1.8",
+    "xlsx": "https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz",
+    "zustand": "^5.0.2"
+  }
+}

@@ -1,0 +1,57 @@
+import Dexie, { type Table } from 'dexie'
+import type { Collections, CollectionName } from './types'
+
+// The local database (IndexedDB): every device keeps the whole shop, so the app works without internet.
+// `outbox` remembers which records changed here and still have to reach the sync server.
+export class GarageDB extends Dexie {
+  products!: Table<Collections['products'], string>
+  categories!: Table<Collections['categories'], string>
+  customers!: Table<Collections['customers'], string>
+  suppliers!: Table<Collections['suppliers'], string>
+  sales!: Table<Collections['sales'], string>
+  purchases!: Table<Collections['purchases'], string>
+  payments!: Table<Collections['payments'], string>
+  expenses!: Table<Collections['expenses'], string>
+  cash!: Table<Collections['cash'], string>
+  movements!: Table<Collections['movements'], string>
+  users!: Table<Collections['users'], string>
+  settings!: Table<Collections['settings'], string>
+  audit!: Table<Collections['audit'], string>
+  carModels!: Table<Collections['carModels'], string>
+  journal!: Table<Collections['journal'], string>
+  vehicles!: Table<Collections['vehicles'], string>
+  outbox!: Table<{ key: string; collection: CollectionName; id: string }, string>
+  meta!: Table<{ key: string; value: unknown }, string>
+
+  constructor() {
+    super('alradwan-garage')
+    this.version(1).stores({
+      products: 'id, code, barcode, name, categoryId, updatedAt',
+      categories: 'id, name',
+      customers: 'id, name, phone',
+      suppliers: 'id, name, phone',
+      sales: 'id, number, date, customerId',
+      purchases: 'id, number, date, supplierId',
+      payments: 'id, date, partyId',
+      expenses: 'id, date',
+      cash: 'id, date',
+      movements: 'id, productId, date, refId',
+      users: 'id',
+      settings: 'id',
+      outbox: 'key',
+      meta: 'key',
+    })
+    this.version(2).stores({ audit: 'id, date, userId, collection' })
+    this.version(3).stores({ carModels: 'id, make, model' })
+    this.version(4).stores({ journal: 'id, date' })
+    this.version(5).stores({ vehicles: 'id, customerId, plate, vin' })
+  }
+}
+
+export const db = new GarageDB()
+
+// Two windows of the app with different versions: the newer one needs the older one to let go of the
+// database. The old window closes its connection and reloads; the new one tells the user if it is still blocked.
+db.on('versionchange', () => { db.close(); setTimeout(() => location.reload(), 300) })
+export let dbBlocked = false
+db.on('blocked', () => { dbBlocked = true })
