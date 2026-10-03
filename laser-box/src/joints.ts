@@ -130,15 +130,24 @@ export function buildPanel(s: PanelSpec, o: JointOpts): Panel {
   for (const hl of s.holes ?? []) loops.push(hl)
   for (const op of s.open ?? []) loops.push(op)
   for (const en of s.engrave ?? []) loops.push({ ...en, layer: 'engrave' })
-  const bb = bbox(loops)
+  // the layout puts every panel's top-left corner at its slot, so a shape drawn away from the origin is moved onto it;
+  // the outline decides (hinge cuts run 0.3 mm out past the edges, into the spacing)
+  const bb = outlineBox(loops)
+  if (Math.abs(bb.minX) > 1e-9 || Math.abs(bb.minY) > 1e-9) for (const l of loops) l.pts = l.pts.map(v => ({ ...v, x: v.x - bb.minX, y: v.y - bb.minY }))
   return { id: s.id, name: s.name, loops, w: bb.maxX - bb.minX, h: bb.maxY - bb.minY, note: s.note, count: s.count ?? 1, ...(s.material ? { material: s.material } : {}), ...jointReport(s, o) }
+}
+
+/** The bounding box of the cut outline and holes (engraving and open hinge cuts left out). */
+function outlineBox(loops: Loop[]) {
+  const cut = loops.filter(l => l.closed && l.layer !== 'engrave')
+  return bbox(cut.length ? cut : loops)
 }
 
 /** Kerf compensation: every closed loop moves half a kerf away from the material. */
 export function applyKerf(p: Panel, kerf: number): Panel {
   if (!kerf) return p
   const loops = p.loops.map(l => (l.closed && l.layer !== 'engrave' ? offsetLoop(l, kerf / 2) : l))
-  const bb = bbox(loops)
+  const bb = outlineBox(loops)
   // keep the panel origin at the original top-left so the layout stays stable
   const shifted = loops.map(l => ({ ...l, pts: l.pts.map(v => ({ ...v, x: v.x - bb.minX, y: v.y - bb.minY })) }))
   return { ...p, loops: shifted, w: bb.maxX - bb.minX, h: bb.maxY - bb.minY }

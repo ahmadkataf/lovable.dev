@@ -2288,6 +2288,16 @@ MORE.push(
 )
 
 /**
+ * Room a ring needs in a box whose insert holds it in a slit shorter than the ring: the ring rests on the slit, its
+ * centre sqrt(R² − (slit/2)²) above the insert, so above the insert it needs R + that + the stone; below the insert's
+ * top it sinks R − that. Sized for the largest usual engagement ring: 22 mm across, a 7 mm stone.
+ */
+function ringRoom(slitL: number, t: number) {
+  const R = 11, stone = 7, c = Math.sqrt(Math.max(0, R * R - (slitL / 2) ** 2))
+  return { above: R + c + stone, sink: R - c, minSpacer: Math.max(5, R - c - t + 2) }
+}
+
+/**
  * A circle of radius R centred at (cx, cy), cut flat along y = yc below the centre, with tabs hanging L below the flat
  * at the given centres. The two arcs are real bulges (a mirror edge must not show facets); their sense is picked by area.
  */
@@ -2426,8 +2436,10 @@ MORE.push({
       for (const w of rb.warnings) warnings.push(own(w))
       for (const pn of rb.panels) panels.push({ ...pn, id: 'ring-' + pn.id, name: 'علبة المحبس — ' + pn.name, count: (pn.count ?? 1) * rings, material: 'white' })
       ringNotes.push(...rb.notes.map(nt => 'علبة المحبس: ' + nt))
-      const Wp = round3(rbW - 2 * t - 1), Dp = round3(rbD - 2 * t - 1), hs = round3(rbH - t - 12 - t)
-      if (hs < 16) errors.push(`علبة المحبس قصيرة: يلزم ارتفاع ${Math.ceil(16 + 12 + 2 * t)} مم لتتدلّى حلقة المحبس تحت الحشوة ويبقى فوق الحجر فراغ للغطاء.`)
+      // the insert sits as high as the ring allows: the lid rests on the rim (rbH), the floor's top is t up
+      const room = ringRoom(p.slitL, t)
+      const Wp = round3(rbW - 2 * t - 1), Dp = round3(rbD - 2 * t - 1), hs = round3(rbH - t - t - room.above - 1)
+      if (hs < room.minSpacer) errors.push(`علبة المحبس قصيرة على المحبس: يلزم ارتفاع ${Math.ceil(2 * t + room.minSpacer + room.above + 1)} مم (محبس حتى 22 مم بحجر 7 مم يجلس في الشقّ ويُغلق فوقه الغطاء).`)
       const slitL = p.slitL
       if (slitL > Wp - 10) errors.push(`شقّ المحبس أطول من الحشوة: أقصاه ${Math.floor(Wp - 10)} مم.`)
       panels.push(
@@ -2506,7 +2518,7 @@ MORE.push({
     // its lip, a hexagonal ring, drops into the opening
     const AFin = S - 2 * t, AFc = round3(AFin - 6), lo = round3(AFc - 2 * gap), lw = Math.max(3, 1.2 * t), li = round3(lo - 2 * lw)
     if (li < 10) errors.push('السداسي صغير على شفة الغطاء.')
-    const lipL = Math.round(p.lipL), lipDepth = lipL * t
+    const lipL = Math.round(p.lipL)
     const panels: PanelSpec[] = [
       hexPanel('base', 'القاعدة', AFb, slots, 'تبرز عن الجدران من كل جهة؛ الشقوق لألسنة الجدران'),
       { id: 'wall', name: 'الجدار', w: sIn, h: round3(H + 2 * t), count: 6, cuts: strip, note: 'ستّة متماثلة، بألسنة في الأعلى والأسفل؛ زواياها الداخلية تلتقي' },
@@ -2519,9 +2531,13 @@ MORE.push({
     if (Math.round(p.insert) > 0) {
       // a hexagonal plate with a slit on two spacers along opposite walls (put in before the collar); the ring's stone
       // keeps 12 mm under the lip, which hangs from the lid resting on the collar's top
-      const ai = round3(AFin - 1), hs = round3(H - lipDepth - 12), sl = round3(sIn - 1.2 * t - 1), slitL = p.slitL
+      // the lid rests on the collar's top (H + t); the insert sits as high as the ring allows under it, and the lip ring
+      // is clear of the ring as long as its opening is wider than the ring
+      const room = ringRoom(p.slitL, t)
+      const ai = round3(AFin - 1), hs = round3(H + t - t - room.above - 1), sl = round3(sIn - 1.2 * t - 1), slitL = p.slitL
+      if (li < 16) errors.push('فتحة شفة الغطاء أضيق من رأس المحبس؛ كبّر السداسي أو قلّل السماكة.')
       if (slitL > ai / r3 - 6) errors.push(`شقّ المحبس أطول من الحشوة: أقصاه ${Math.floor(ai / r3 - 6)} مم.`)
-      if (hs < 16) errors.push(`الجدران قصيرة على حشوة المحبس: ارتفاع ${Math.ceil(16 + 12 + lipDepth)} مم على الأقل، أو ألغِ الحشوة.`)
+      if (hs < room.minSpacer) errors.push(`الجدران قصيرة على المحبس والحشوة: ارتفاع ${Math.ceil(room.minSpacer + room.above + 1)} مم على الأقل، أو ألغِ الحشوة.`)
       panels.push(
         { ...hexPanel('insert', 'حشوة المحبس', ai, [stadium(ai / r3, ai / 2, slitL, p.slitW)], 'شقّها يمسك حلقة المحبس واقفاً'), w: round3(2 * ai / r3) },
         { id: 'spacer', name: 'حامل الحشوة', w: sl, h: Math.max(1, hs), count: 2, note: 'اثنان واقفان على حافّتيهما عند جدارين متقابلين' },
@@ -2529,8 +2545,8 @@ MORE.push({
     }
     const notes = [
       `العلبة ${S} مم بين ضلعين متقابلين (${(2 * S / r3).toFixed(1)} مم بين زاويتين)، والجدران ${H} مم بين القاعدة والطوق؛ القاعدة والطوق والغطاء ${AFb} مم. الارتفاع الكلّي مع الغطاء ${(H + 3 * t).toFixed(1)} مم.`,
-      'ورق الحماية: اتركه أثناء القصّ، ثم انزعه قبل اللصق عن كل وجه سيُلصق: وجه القاعدة العلوي، وجهَي الطوق، أطراف الجدران ووجوهها الخارجية، وجهَي الغطاء، الشفة، وظهر الإطارات. اترك ورق الوجه الأمامي للإطارات حتى النهاية، وامسك القطع الشفّافة بقفّازات.',
-      'التجميع: أدخل ألسنة الجدران الستّة في شقوق القاعدة فتلتقي حوافّها الداخلية عند الزوايا، ضع الحشوة وحامليها في الداخل، ثم أنزل الطوق على الألسنة العلوية فيستقيم كل شيء. ألصق الألسنة والزوايا من الداخل بغراء الأكريليك السائل (يتسرّب في الشقّ).',
+      'ورق الحماية: اتركه أثناء القصّ، ثم انزعه قبل اللصق عن كل وجه سيُلصق أو سيُختم داخل العلبة: وجه القاعدة العلوي، وجهَي الطوق، أطراف الجدران ووجهيها، وجهَي الغطاء، الشفة، الحشوة وحامليها، وظهر الإطارات. اترك ورق الوجه الأمامي للإطارات حتى النهاية، وامسك القطع الشفّافة بقفّازات.',
+      'التجميع: أدخل ألسنة الجدران الستّة في شقوق القاعدة وضع الطوق على ألسنتها العلوية بلا غراء ليستقيم كل شيء، ثم ألصق ألسنة القاعدة والزوايا بغراء الأكريليك السائل (يتسرّب في الشقّ) من الداخل عبر فتحة الطوق. بعد الجفاف ارفع الطوق، انزع ورق الحماية عن الوجوه الداخلية للجدران وعن الحشوة وحامليها، ضع الحاملين والحشوة في الداخل، ثم ألصق الطوق أخيراً.',
       `الإطارات ${fw.toFixed(1)} × ${fh} مم بعرض ${b} مم: ألصق كلّاً منها في وسط جهته بين القاعدة والطوق، فيلتقي طرفاه بطرفَي الإطارين المجاورين عند الزاوية ويخفيان أخدودها. على المرآة استعمل لاصقاً شفّافاً لا يذيب طلاء ظهرها (UV أو لاصق جِل)، لا غراء الأكريليك السائل.`,
       `الغطاء: ألصق الشفة تحته في الوسط، على بُعد ${((AFb - lo) / 2).toFixed(1)} مم من حافّته من كل جهة، ثم إطار الغطاء فوقه. الشفة تدخل في فتحة الطوق بخلوص ${gap} مم فيُفتح الغطاء ويُغلق بنعومة.`,
       'الجدران والقاعدة والطوق والغطاء والشفة والحشوة من أكريليك شفّاف (kerf نحو 0.1 مم)، والإطارات من أكريليك مرآة ذهبي أو فضي.',

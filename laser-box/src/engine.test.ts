@@ -643,6 +643,23 @@ describe('hexagonal ring box', () => {
   })
 })
 
+describe('layout', () => {
+  it('at kerf 0 and 0.2 every piece is drawn inside its own slot and on the sheet', () => {
+    for (const tpl of TEMPLATES) for (const kerf of [0, 0.2]) {
+      const d = generate(tpl, {}, { ...DEFAULT_SETTINGS, kerf })
+      for (const pl of d.layout.placed) {
+        const cut = pl.panel.loops.filter(l => l.closed && l.layer !== 'engrave')
+        const b = bbox(cut)
+        expect(b.minX, `${tpl.id} ${pl.panel.id} kerf ${kerf}`).toBeGreaterThan(-1e-6); expect(b.minY).toBeGreaterThan(-1e-6)
+        expect(b.maxX).toBeLessThan(pl.panel.w + 1e-6); expect(b.maxY).toBeLessThan(pl.panel.h + 1e-6)
+        const all = bbox(pl.panel.loops)
+        expect(pl.x + all.maxX, `${tpl.id} ${pl.panel.id} off the sheet`).toBeLessThan(d.layout.w + 0.31)
+        expect(pl.y + all.maxY).toBeLessThan(d.layout.h + 0.31)
+      }
+    }
+  })
+})
+
 describe('DXF arcs', () => {
   it('every DXF bulge, read the standard way (counter-clockwise positive, y up), traces the same arc as the design', () => {
     for (const id of ['frame', 'hinged', 'hinged90', 'engagement', 'basket', 'chest', 'catbank', 'keyholder']) {
@@ -737,8 +754,10 @@ describe('engagement set', () => {
     const insert = d.panels.find(x => x.id === 'ring-insert')!, spacer = d.panels.find(x => x.id === 'ring-spacer')!
     expect(insert.w).toBeCloseTo(p.rbW - 2 * t - 1); expect(insert.h).toBeCloseTo(rbD - 2 * t - 1)
     expect(spacer.count).toBe(4); expect(insert.count).toBe(2)
-    expect(spacer.h + t + 12).toBeCloseTo(p.rbH - t) // spacer, insert plate, 12 mm over the stone, up to the rim
-    expect(spacer.h).toBeGreaterThanOrEqual(16)
+    // a ring up to 22 mm across with a 7 mm stone rests in the 14 mm slit: it needs R + sqrt(R² − 7²) + 7 above the insert
+    const above = 11 + Math.sqrt(121 - 49) + 7
+    expect(t + spacer.h + t + above + 1).toBeCloseTo(p.rbH, 2) // floor, spacer, insert, the ring and its stone, 1 mm, the lid
+    expect(spacer.h).toBeGreaterThanOrEqual(5)
     expect(d.panels.filter(x => x.id.startsWith('ring-') && !['ring-insert', 'ring-spacer'].includes(x.id)).every(x => (x.count ?? 1) % 2 === 0)).toBe(true)
     const top = d.panels.find(x => x.id === 'base-top')!
     const engr = top.loops.filter(l => l.layer === 'engrave')
