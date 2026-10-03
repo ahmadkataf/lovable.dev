@@ -9,6 +9,9 @@ import { makeZip } from './zip'
 type ClaudeUse = (name: string) => Promise<{ save(r: { filename: string; data: string | Blob }): Promise<unknown> } | null>
 const claudeUse: ClaudeUse | null = typeof (window as unknown as { claude?: { use?: ClaudeUse } }).claude?.use === 'function' ? (window as unknown as { claude: { use: ClaudeUse } }).claude.use : null
 const inViewer = claudeUse !== null
+// Inside the Android app the shell saves files through the system file dialog.
+type AndroidBridge = { save(filename: string, mime: string, text: string): void }
+const android: AndroidBridge | null = (window as unknown as { LaserAndroid?: AndroidBridge }).LaserAndroid ?? null
 
 // ------------------------------------------------------------------ state
 
@@ -349,6 +352,11 @@ function fileName(ext: string) {
 async function download(kind: 'svg' | 'dxf') {
   if (!design) return
   const text = kind === 'svg' ? toSVG(design.layout) : toDXF(design.layout)
+  if (android) {
+    android.save(fileName(kind), kind === 'svg' ? 'image/svg+xml' : 'application/dxf', text)
+    toast('اختر مكان حفظ الملف')
+    return
+  }
   if (claudeUse) {
     // the viewer saves files on the page's behalf; it accepts .svg but not .dxf, so the DXF travels inside a .zip
     const dl = await claudeUse('downloads').catch(() => null)

@@ -28,6 +28,7 @@ npm install
 npm run dev              # تطوير
 npm run build            # إنتاج → dist/
 npm run build:artifact   # ملف واحد → dist/artifact.html
+npm run build:apk        # تطبيق أندرويد → android/build/LaserBox.apk (يحتاج ANDROID_HOME وJDK 17+)
 npm test                 # اختبارات محرّك الهندسة
 ```
 
@@ -37,6 +38,7 @@ npm test                 # اختبارات محرّك الهندسة
 - `src/templates.ts` — الأشكال الجاهزة وعوامل كل منها.
 - `src/layout.ts` — رصّ القطع على اللوح. `src/export.ts` — كتابة SVG وDXF (R12).
 - `src/main.ts` — الواجهة (عربية، تعمل على الهاتف، معاينة مع تكبير وسحب).
+- `android/` — غلاف أندرويد (WebView) يحفظ ملفات SVG وDXF عبر نافذة الملفات في النظام؛ `scripts/build-apk.sh` يبنيه بأدوات build-tools فقط بلا Gradle.
 
 ## نصائح للقص
 - قِس سماكة اللوح بالقدمة؛ «3 مم» التجارية غالباً 2.7–2.9 مم.
