@@ -105,7 +105,7 @@ describe('templates', () => {
       const d = generate(tpl, {}, s)
       expect(d.warnings).toEqual([])
       expect(d.errors).toEqual([])
-      expect(d.panels.length).toBeGreaterThanOrEqual(3)
+      expect(d.pieceCount).toBeGreaterThanOrEqual(3)
       for (const p of d.panels) {
         expect(p.w).toBeGreaterThan(0)
         const outers = p.loops.filter(l => l.closed && l.layer !== 'engrave' && signedArea(l) > 0)
@@ -137,7 +137,7 @@ describe('templates', () => {
     const info = arcInfo(arc, front.loops[0].pts[front.loops[0].pts.indexOf(arc) + 1], arc.b!)
     expect(info.r).toBeLessThanOrEqual((18 - 2.5) / 2.5 + 1e-9)
     // a sliding-lid box lower than four thicknesses is refused, not silently mangled
-    expect(generate(TEMPLATES.find(t => t.id === 'sliding')!, { W: 60, D: 40, H: 12 }, { ...s, t: 3 }).errors.length).toBe(1)
+    expect(generate(TEMPLATES.find(t => t.id === 'sliding')!, { W: 60, D: 40, H: 12 }, { ...s, t: 3 }).errors.join(' ')).toMatch(/الارتفاع صغير/)
   })
 
   it('inner dimensions add the material thickness', () => {
@@ -219,6 +219,83 @@ describe('templates', () => {
   })
 })
 
+describe('review fixes', () => {
+  it('fingers: the count is the nearest odd one, and a corner finger on a sliver is refused', async () => {
+    const { fingerCount } = await import('./joints')
+    expect(fingerCount(60, 6)).toBe(11) // 60/6 = 10 → 11 (5.45) is nearer than 9 (6.67)
+    expect(fingerCount(50, 6)).toBe(9)
+    const bad = generate(TEMPLATES.find(t => t.id === 'open')!, { W: 60, D: 50, H: 30 }, { ...DEFAULT_SETTINGS, t: 6, finger: 6 })
+    expect(bad.errors.join(' ')).toMatch(/أصبع الزاوية|أرقّ من السماكة/)
+    for (const b of bad.panels) expect(b.loops.filter(l => l.closed && signedArea(l) > 0).length).toBeGreaterThanOrEqual(1)
+  })
+  it('the ear keeps at least 4 mm (1.5 t) of material around the pivot hole, and more on request', () => {
+    const tpl = TEMPLATES.find(t => t.id === 'hinged')!
+    const g = pivotLid({ ...tpl.defaults }, 3)
+    expect(g.webTop).toBeCloseTo(4.5)
+    expect(g.webBack).toBeCloseTo(4.5)
+    expect(pivotLid({ ...tpl.defaults, web: 6 }, 3).webTop).toBe(6)
+    expect(pivotLid({ ...tpl.defaults }, 2).webTop).toBe(4)
+  })
+  it('living hinges cut every other row out through the edges, so no solid spine remains', () => {
+    const d = generate(TEMPLATES.find(t => t.id === 'flex')!, {}, { ...DEFAULT_SETTINGS, kerf: 0 })
+    const lb = d.panels.find(p => p.id === 'lidback')!
+    const lines = lb.loops.filter(l => !l.closed)
+    expect(lines.some(l => Math.min(l.pts[0].x, l.pts[1].x) < 0)).toBe(true)
+    expect(lines.some(l => Math.max(l.pts[0].x, l.pts[1].x) > 100)).toBe(true) // W = 100
+    // the finger pull moved to the front wall, under the lid's edge
+    expect(d.panels.find(p => p.id === 'front')!.loops[0].pts.some(v => v.b)).toBe(true)
+    const shade = generate(TEMPLATES.find(t => t.id === 'shade')!, {}, { ...DEFAULT_SETTINGS, kerf: 0 })
+    const sheet = shade.panels.find(p => p.id === 'sheet')!
+    const cols = sheet.loops.filter(l => !l.closed)
+    const xs = cols.map(l => l.pts[0].x)
+    expect(Math.min(...xs)).toBeGreaterThanOrEqual(4) // a solid margin at each end for the glued seam
+    expect(cols.some(l => Math.min(l.pts[0].y, l.pts[1].y) < 3 + 1e-6)).toBe(true)
+  })
+  it('handles and slots never grow wider than the panel they are cut in', () => {
+    const tray = generate(TEMPLATES.find(t => t.id === 'tray')!, { W: 100, D: 50, H: 80, hl: 20, hh: 50 }, { ...DEFAULT_SETTINGS, kerf: 0 })
+    if (!tray.errors.length) {
+      const side = tray.panels.find(p => p.id === 'side')!
+      const hole = side.loops.find(l => signedArea(l) < 0)!
+      const bb = bbox([hole])
+      expect(bb.minX).toBeGreaterThan(3)
+      expect(bb.maxX).toBeLessThan(47)
+    }
+    const tissue = generate(TEMPLATES.find(t => t.id === 'tissue')!, { W: 60, D: 125, H: 90, slotL: 20, slotW: 80 }, { ...DEFAULT_SETTINGS, kerf: 0 })
+    const top = tissue.panels.find(p => p.id === 'bottom')!
+    const bb = bbox([top.loops.find(l => signedArea(l) < 0)!])
+    expect(bb.maxX - bb.minX).toBeCloseTo(20)
+    expect(bb.maxY - bb.minY).toBeCloseTo(80)
+  })
+  it('inner dimensions mean the usable space for the drawer and sliding boxes', () => {
+    const t = 3
+    const dr = generate(TEMPLATES.find(x => x.id === 'drawer')!, { W: 120, D: 100, H: 50, gap: 0.6 }, { ...DEFAULT_SETTINGS, t, kerf: 0, inner: true })
+    const front = dr.panels.find(p => p.id === 'drawer-front')!, side = dr.panels.find(p => p.id === 'drawer-side')!
+    expect(front.w - 2 * t).toBeCloseTo(120)
+    expect(side.w - 2 * t).toBeCloseTo(100)
+    expect(front.h - t).toBeCloseTo(50)
+    const sl = generate(TEMPLATES.find(x => x.id === 'sliding')!, { W: 120, D: 80, H: 50, slide: 0.3 }, { ...DEFAULT_SETTINGS, t, kerf: 0, inner: true })
+    expect(sl.panels.find(p => p.id === 'side')!.h - 3 * t - 0.3).toBeCloseTo(50)
+  })
+  it('the picture frame stacks into one outline, holds the photo in an open-topped slot, and its stand plugs into the back', () => {
+    const d = generate(TEMPLATES.find(x => x.id === 'frame')!, {}, { ...DEFAULT_SETTINGS, kerf: 0 })
+    expect(d.errors).toEqual([])
+    const ids = d.panels.map(p => p.id)
+    expect(ids).toEqual(expect.arrayContaining(['front', 'front-top', 'spacer', 'back', 'stand']))
+    const front = d.panels.find(p => p.id === 'front')!, spacer = d.panels.find(p => p.id === 'spacer')!, back = d.panels.find(p => p.id === 'back')!
+    expect(spacer.w).toBeCloseTo(front.w); expect(back.h).toBeCloseTo(front.h)
+    // spacer: a U, one piece, open at the top across the photo width
+    const su = spacer.loops.filter(l => signedArea(l) > 0)
+    expect(su).toHaveLength(1)
+    expect(su[0].pts.filter(v => Math.abs(v.y) < 1e-6).length).toBeGreaterThanOrEqual(4)
+    // the stand's tabs are as long as the back is thick, and the back has two slots for them
+    const stand = d.panels.find(p => p.id === 'stand')!
+    expect(stand.loops).toHaveLength(1)
+    expect(bbox(stand.loops).minX).toBeCloseTo(0)
+    expect(back.loops.filter(l => signedArea(l) < 0).length).toBe(3) // keyhole + two slots
+    expect(d.panels.find(p => p.id === 'front-top')!.loops.some(l => l.layer === 'engrave')).toBe(true)
+  })
+})
+
 describe('robustness grid', () => {
   // every template over thickness, kerf, finger, box size and its own parameter ranges; whenever no error is
   // reported the geometry must be sound: one outer loop per panel, no self-intersection, holes inside with margin
@@ -230,7 +307,7 @@ describe('robustness grid', () => {
       const variants: Record<string, number>[] = [{}]
       for (const def of extras) variants.push({ [def.key]: def.min }, { [def.key]: def.max })
       for (const t of [2, 2.7, 3, 4, 6]) for (const kerf of [0, 0.2]) for (const finger of [0, 12]) for (const [W, D, H] of boxes) for (const inner of [false, true]) for (const v of variants) {
-        const params = tpl.id === 'shade' ? { Dm: W, H, ...v } : { W, D, H, ...v }
+        const params = tpl.id === 'shade' ? { Dm: W, H, ...v } : tpl.id === 'frame' ? { pw: W, ph: D + H, ...v } : { W, D, H, ...v }
         runs++
         let d
         try { d = generate(tpl, params, { ...DEFAULT_SETTINGS, t, kerf, finger, inner }) } catch (e) { throw new Error(`${tpl.id} ${JSON.stringify(params)} t=${t} kerf=${kerf} threw: ${(e as Error).message}`) }

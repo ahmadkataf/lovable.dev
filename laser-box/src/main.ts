@@ -162,7 +162,7 @@ function renderQuick() {
   const cur = params()
   quick.innerHTML = ''
   const row = el('div', { class: 'quick-row' })
-  for (const def of t.params.filter(d => ['W', 'D', 'H', 'Dm'].includes(d.key))) row.append(numberField(def, cur[def.key], v => { (state.params[state.tpl] ??= {})[def.key] = v; persist(); update() }, 'q'))
+  for (const def of t.params.filter(d => ['W', 'D', 'H', 'Dm', 'pw', 'ph', 'border'].includes(d.key))) row.append(numberField(def, cur[def.key], v => { (state.params[state.tpl] ??= {})[def.key] = v; persist(); update() }, 'q'))
   row.append(numberField(SETTING_DEFS[0], state.settings.t, v => { state.settings.t = v; persist(); update() }, 'q'))
   const foot = el('div', { class: 'quick-foot' },
     el('div', { class: 'field' }, el('span', { class: 'field-label' }, 'الخامة', el('small', {}, `kerf ${state.settings.kerf} مم`)), materialPicker()),
@@ -260,7 +260,7 @@ function render() {
     stat('القطع', String(design.pieceCount)),
     stat('اللوح المطلوب', `${fmt(lay.w)} × ${fmt(lay.h)} مم`),
     stat('طول القصّ', `${fmt(design.cutLength / 1000)} م`),
-    stat('القياس', p.Dm !== undefined ? `Ø${fmt(p.Dm)} × ${fmt(p.H)}` : `${fmt(p.W)} × ${fmt(p.D)} × ${fmt(p.H)}${state.settings.inner ? ' (داخلي)' : ''}`),
+    stat('القياس', sizeLabel(p)),
   )
   alerts.innerHTML = ''
   const blocked = design.errors.length > 0
@@ -285,6 +285,12 @@ function render() {
   }
   actions.append(dl('svg', blocked ? 'أصلح الأخطاء أولاً' : '⬇ تنزيل SVG', 'primary'), dl('dxf', '⬇ تنزيل DXF', 'primary alt'))
   if (!inViewer) actions.append(el('button', { type: 'button', class: 'ghost', onclick: () => share() }, '🔗 نسخ الرابط'))
+}
+
+function sizeLabel(p: Record<string, number>) {
+  if (p.pw !== undefined) return `صورة ${fmt(p.pw)} × ${fmt(p.ph)}`
+  if (p.Dm !== undefined) return `Ø${fmt(p.Dm)} × ${fmt(p.H)}`
+  return `${fmt(p.W)} × ${fmt(p.D)} × ${fmt(p.H)}${state.settings.inner ? ' (داخلي)' : ''}`
 }
 
 const stat = (k: string, v: string) => el('div', { class: 'stat' }, el('span', {}, k), el('b', {}, v))
@@ -346,7 +352,7 @@ function applyView() {
 
 function fileName(ext: string) {
   const p = params()
-  const dims = p.Dm !== undefined ? `d${fmt(p.Dm)}x${fmt(p.H)}` : `${fmt(p.W)}x${fmt(p.D)}x${fmt(p.H)}`
+  const dims = p.pw !== undefined ? `photo${fmt(p.pw)}x${fmt(p.ph)}` : p.Dm !== undefined ? `d${fmt(p.Dm)}x${fmt(p.H)}` : `${fmt(p.W)}x${fmt(p.D)}x${fmt(p.H)}`
   return `laser-box-${state.tpl}-${dims}-t${state.settings.t}.${ext}`
 }
 

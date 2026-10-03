@@ -214,22 +214,33 @@ export function rotatedRectHole(cx: number, cy: number, w: number, h: number, an
   return { closed: true, pts: [at(w / 2, -h / 2), at(-w / 2, -h / 2), at(-w / 2, h / 2), at(w / 2, h / 2)] }
 }
 
+export interface HingeOpts {
+  /** let every other row run out through both edges, so no uncut spine remains along the edges (needed to bend) */
+  through?: boolean
+  /** rows (by their across-coordinate, measured from the box's start) that must keep their edge bridges */
+  keepEdge?: (across: number) => boolean
+}
+
 /**
  * Living-hinge cut lines filling the box [x0,x1]×[y0,y1]. `axis` is the bend axis: 'x' means the sheet
  * bends around a horizontal axis (lines run along x, rows stacked along y); 'y' the reverse.
+ * Even rows keep a bridge at each edge; with `through`, odd rows are cut out through the edges.
  */
-export function hingeLines(x0: number, y0: number, x1: number, y1: number, seg: number, bridge: number, pitch: number, axis: 'x' | 'y'): Loop[] {
+export function hingeLines(x0: number, y0: number, x1: number, y1: number, seg: number, bridge: number, pitch: number, axis: 'x' | 'y', opts: HingeOpts = {}): Loop[] {
   const out: Loop[] = []
   const along = axis === 'x' ? x1 - x0 : y1 - y0, across = axis === 'x' ? y1 - y0 : x1 - x0
   const rows = Math.floor(across / pitch)
   if (rows < 1) return out
   const start = (across - (rows - 1) * pitch) / 2
   const P = seg + bridge
+  const over = 0.3 // through-cuts end just past the edge so the beam leaves no hair of material
   for (let k = 0; k < rows; k++) {
     const r = start + k * pitch
+    const thru = !!opts.through && k % 2 === 1 && !(opts.keepEdge && opts.keepEdge(r))
+    const lo = thru ? -over : bridge, hi = thru ? along + over : along - bridge
     for (let i = -1; i <= Math.ceil(along / P) + 1; i++) {
       let a = bridge + i * P + (k % 2 ? P / 2 : 0), b = a + seg
-      a = Math.max(a, bridge); b = Math.min(b, along - bridge)
+      a = Math.max(a, lo); b = Math.min(b, hi)
       if (b - a < 2) continue
       out.push(axis === 'x'
         ? { closed: false, pts: [{ x: x0 + a, y: y0 + r }, { x: x0 + b, y: y0 + r }] }
@@ -237,6 +248,63 @@ export function hingeLines(x0: number, y0: number, x1: number, y1: number, seg: 
     }
   }
   return out
+}
+
+/** Reverse a loop's direction (bulges move to the other end of their segment and change sign). */
+export function reverseLoop(l: Loop): Loop {
+  const n = l.pts.length
+  const pts: Vtx[] = []
+  for (let i = n - 1; i >= 0; i--) {
+    const p = l.pts[i], prev = l.pts[(i - 1 + n) % n]
+    const b = l.closed || i > 0 ? prev.b : undefined
+    pts.push({ x: p.x, y: p.y, ...(b ? { b: -b } : {}) })
+  }
+  return { ...l, pts }
+}
+
+/** Orient a closed loop as an outer contour (positive area) or a hole (negative). */
+export function oriented(l: Loop, as: 'outer' | 'hole'): Loop {
+  const a = signedArea(l)
+  return (as === 'outer') === (a > 0) ? l : reverseLoop(l)
+}
+
+/** A closed polygon from points (optionally with bulges), oriented as asked. */
+export function polyLoop(pts: Vtx[], as: 'outer' | 'hole'): Loop {
+  return oriented({ closed: true, pts: simplify(pts) }, as)
+}
+
+/** A heart-shaped hole of overall width w, centred at (cx, cy): two half-circles over a V. */
+export function heart(cx: number, cy: number, w: number): Loop {
+  // fits a w × 0.95w box centred on (cx, cy): lobes reach 0.475w above the centre, the tip 0.475w below
+  const r = w / 4, top = cy - w * 0.225
+  return polyLoop([
+    { x: cx, y: top + w * 0.7 },
+    { x: cx + 2 * r, y: top, b: 1 }, // the bulge belongs to the segment starting here: right lobe, then left lobe
+    { x: cx, y: top, b: 1 },
+    { x: cx - 2 * r, y: top },
+  ], 'hole')
+}
+
+/** An ellipse as a fine polygon (laser controllers take these as smoothly as arcs). */
+export function ellipse(cx: number, cy: number, rx: number, ry: number, as: 'outer' | 'hole', n = 120): Loop {
+  const pts: Vtx[] = []
+  for (let i = 0; i < n; i++) { const a = (2 * Math.PI * i) / n; pts.push({ x: cx + rx * Math.cos(a), y: cy - ry * Math.sin(a) }) }
+  return polyLoop(pts, as)
+}
+
+/** A window with a round-arched top: width w, total height h (h > w/2), top-left at (x, y). */
+export function archHole(x: number, y: number, w: number, h: number): Loop {
+  const r = w / 2
+  return polyLoop([{ x: x + w, y: y + r, b: 1 }, { x, y: y + r }, { x, y: y + h }, { x: x + w, y: y + h }], 'hole')
+}
+
+/** A keyhole for hanging on a nail: a round entry of radius r with a narrower slot of width sw rising len above it. */
+export function keyhole(cx: number, cy: number, r: number, sw: number, len: number): Loop {
+  const w = sw / 2, yj = cy - Math.sqrt(r * r - w * w)
+  const theta = 2 * Math.PI - 2 * Math.asin(w / r) // the big circle, the long way round
+  return polyLoop([
+    { x: cx + w, y: cy - len, b: 1 }, { x: cx - w, y: cy - len }, { x: cx - w, y: yj, b: Math.tan(theta / 4) }, { x: cx + w, y: yj },
+  ], 'hole')
 }
 
 /** A stadium-shaped hole (horizontal), length `len` (overall), height `h`. */

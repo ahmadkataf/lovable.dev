@@ -40,15 +40,23 @@ export interface Panel {
   h: number
   note?: string
   count: number
+  /** narrowest finger actually cut on any jointed edge (Infinity when the panel has no joints) */
+  minFinger: number
+  /** at corners where two male edges meet: how far the wider of the two corner fingers reaches past the
+   *  thickness. Below about a millimetre the corner finger hangs on a sliver and breaks off. */
+  cornerNeck: number
 }
 
 export interface JointOpts { t: number; finger: number }
 
-/** Odd number of fingers along an edge of length len, each about `target` wide. */
+/** The odd number of fingers (at least 3) whose width comes closest to `target`. */
 export function fingerCount(len: number, target: number): number {
-  let n = Math.max(1, Math.round(len / Math.max(target, 0.1)))
-  if (n % 2 === 0) n += 1
-  return Math.max(3, n)
+  const r = len / Math.max(target, 0.1)
+  let lo = Math.floor(r)
+  if (lo % 2 === 0) lo -= 1
+  lo = Math.max(3, lo)
+  const hi = lo + 2
+  return Math.abs(len / lo - target) <= Math.abs(len / hi - target) ? lo : hi
 }
 
 const norm = (e: Edge | undefined): EdgeSpec => (typeof e === 'string' ? { type: e } : e ?? { type: 'flat' })
@@ -75,6 +83,37 @@ export function edgeCuts(side: 'top' | 'right' | 'bottom' | 'left', e: EdgeSpec,
   return cuts
 }
 
+type Side = 'top' | 'right' | 'bottom' | 'left'
+
+/** Width of the fingers actually cut on one edge, and whether the pattern reaches each end of the edge. */
+function edgeFinger(side: Side, e: EdgeSpec, w: number, h: number, o: JointOpts) {
+  if (e.type === 'flat') return null
+  const along = side === 'top' || side === 'bottom' ? w : h
+  const from = e.from ?? 0, len = e.len ?? along - from
+  if (len <= 0) return null
+  return { f: len / fingerCount(len, o.finger), male: e.type === 'male', atStart: from < 1e-6, atEnd: Math.abs(from + len - along) < 1e-6 }
+}
+
+function jointReport(s: PanelSpec, o: JointOpts) {
+  if (s.shape) return { minFinger: Infinity, cornerNeck: Infinity }
+  const E = {
+    top: edgeFinger('top', norm(s.top), s.w, s.h, o), right: edgeFinger('right', norm(s.right), s.w, s.h, o),
+    bottom: edgeFinger('bottom', norm(s.bottom), s.w, s.h, o), left: edgeFinger('left', norm(s.left), s.w, s.h, o),
+  }
+  let minFinger = Infinity, cornerNeck = Infinity
+  for (const e of Object.values(E)) if (e) minFinger = Math.min(minFinger, e.f)
+  // corners in clockwise order: each pairs the end of one edge with the start (or end) of the next
+  const corners: [ReturnType<typeof edgeFinger>, boolean, ReturnType<typeof edgeFinger>, boolean][] = [
+    [E.top, true, E.left, true], [E.top, false, E.right, true], [E.bottom, false, E.right, false], [E.bottom, true, E.left, false],
+  ]
+  for (const [a, aStart, b, bStart] of corners) {
+    if (!a || !b || !a.male || !b.male) continue
+    if (!(aStart ? a.atStart : a.atEnd) || !(bStart ? b.atStart : b.atEnd)) continue
+    cornerNeck = Math.min(cornerNeck, Math.max(a.f, b.f) - o.t)
+  }
+  return { minFinger, cornerNeck }
+}
+
 export function buildPanel(s: PanelSpec, o: JointOpts): Panel {
   const cuts: Rect[] = [
     ...edgeCuts('top', norm(s.top), s.w, s.h, o),
@@ -89,7 +128,7 @@ export function buildPanel(s: PanelSpec, o: JointOpts): Panel {
   for (const op of s.open ?? []) loops.push(op)
   for (const en of s.engrave ?? []) loops.push({ ...en, layer: 'engrave' })
   const bb = bbox(loops)
-  return { id: s.id, name: s.name, loops, w: bb.maxX - bb.minX, h: bb.maxY - bb.minY, note: s.note, count: s.count ?? 1 }
+  return { id: s.id, name: s.name, loops, w: bb.maxX - bb.minX, h: bb.maxY - bb.minY, note: s.note, count: s.count ?? 1, ...jointReport(s, o) }
 }
 
 /** Kerf compensation: every closed loop moves half a kerf away from the material. */

@@ -31,14 +31,24 @@ export function autoFinger(t: number, dims: number[]): number {
 export function generate(tpl: Template, params: Record<string, number>, s: Settings): Design {
   const p = { ...tpl.defaults, ...params }
   if (s.inner) {
-    const add = tpl.innerAdd(s.t)
+    const add = tpl.innerAdd(s.t, p)
     for (const k of ['W', 'D', 'H'] as const) if (Number.isFinite(p[k])) p[k] += add[k]
   }
   const finger = s.finger > 0 ? s.finger : autoFinger(s.t, [p.W, p.D, p.H])
   const res = tpl.build(p, { ...s, finger })
-  const panels = res.panels.map(spec => applyKerf(buildPanel(spec, { t: s.t, finger }), s.kerf))
+  const built = res.panels.map(spec => buildPanel(spec, { t: s.t, finger }))
+  // judge the fingers actually cut, not the setting: the count is rounded to an odd number, so they come out narrower or wider
+  const errors = [...(res.errors ?? [])], warnings = [...res.warnings]
+  const neckMin = Math.max(1, 0.25 * s.t)
+  const thin = built.filter(b => b.minFinger < 0.8 * s.t), weak = built.filter(b => b.minFinger >= 0.8 * s.t && b.minFinger < s.t)
+  const loose = built.filter(b => b.cornerNeck < neckMin)
+  const f1 = (v: number) => (Math.round(v * 10) / 10).toString()
+  if (thin.length) errors.push(`أصابع التعشيق في «${thin[0].name}» عرضها ${f1(thin[0].minFinger)} مم فقط، أرقّ من السماكة ${s.t} مم؛ كبّر عرض الأصبع أو القياس.`)
+  if (loose.length) errors.push(`أصبع الزاوية في «${loose[0].name}» سيتّصل بشريحة رفيعة وينكسر؛ اجعل عرض الأصبع ${f1(s.t + neckMin + 0.5)} مم أو أكثر (أو اتركه تلقائياً).`)
+  if (!thin.length && weak.length) warnings.push(`أصابع «${weak[0].name}» أرقّ قليلاً من السماكة (${f1(weak[0].minFinger)} مم)؛ ستكون ضعيفة.`)
+  const panels = built.map(b => applyKerf(b, s.kerf))
   const lay = layout(panels, s.spacing, s.sheetW)
   let cutLength = 0, pieceCount = 0
   for (const pn of panels) { pieceCount += pn.count; for (const l of pn.loops) cutLength += loopLength(l) * pn.count }
-  return { panels, layout: lay, notes: res.notes, warnings: res.warnings, errors: res.errors ?? [], cutLength, pieceCount, finger }
+  return { panels, layout: lay, notes: res.notes, warnings, errors, cutLength, pieceCount, finger }
 }
