@@ -159,6 +159,9 @@ function dividerPlan(p: Record<string, number>, t: number, errors: string[], war
   return { xs, ds, sw, hd, margin, vfit: fit / 2, cells: (Nn + 1) * (Mm + 1) }
 }
 
+/** The strip above a sliding lid's slot: at least 5 mm, never thinner than the stock. */
+const slidingRim = (t: number, rim: number) => (rim > 0 ? Math.max(rim, t) : Math.max(t, 5))
+
 /** Base box plus a flat lid with a lip frame glued under it that drops inside the walls. */
 function lipLidBox(p: Record<string, number>, c: Common, errors: string[], above = 0) {
   const { W, D, H, lipH, gap } = p, t = c.t
@@ -369,21 +372,23 @@ export const TEMPLATES: Template[] = [
     name: 'صندوق بغطاء منزلق',
     desc: 'غطاء ينزلق في شقّين جانبيين من الأمام، مع فتحة إصبع لسحبه.',
     icon: `<path d="M12 26 32 16 52 26 32 36z"/><path d="M12 26v18l20 10V36M52 26v18L32 54"/><path d="M4 20 24 10l20 10" stroke-width="2.5"/>`,
-    params: [...DIMS, mm('slide', 'خلوص الانزلاق', 0.2, 2, 'فراغ إضافي في الشق ليتحرك الغطاء بسهولة'), mm('pull', 'حجم فتحة الإبهام', 0, 30, 'فتحة قرب الحافّة الأمامية للغطاء يُسحب بها')],
-    defaults: { W: 120, D: 80, H: 50, slide: 0.3, pull: 8 },
-    innerAdd: (t, p) => ({ W: 2 * t, D: 2 * t, H: 3 * t + (p.slide ?? 0.3) }),
+    params: [...DIMS, mm('slide', 'خلوص الانزلاق', 0.2, 2, 'فراغ إضافي في الشق ليتحرك الغطاء بسهولة'), mm('pull', 'حجم فتحة الإبهام', 0, 30, 'فتحة قرب الحافّة الأمامية للغطاء يُسحب بها'), mm('rim', 'سماكة الشريحة فوق الشقّ', 0, 15, '0 = تلقائي: 5 مم، أو سماكة الخامة إن كانت أكبر')],
+    defaults: { W: 120, D: 80, H: 50, slide: 0.3, pull: 8, rim: 0 },
+    innerAdd: (t, p) => ({ W: 2 * t, D: 2 * t, H: slidingRim(t, p.rim ?? 0) + 2 * t + (p.slide ?? 0.3) }),
     build(p, c) {
       const warnings: string[] = [], errors: string[] = []
       checkBasics(p, c, warnings, errors)
       const { W, D, H, slide } = p, t = c.t
-      const frontH = H - 2 * t - slide
-      if (frontH < 2 * t) errors.push(`الارتفاع صغير جداً للغطاء المنزلق: يلزم ${(4 * t + slide).toFixed(1)} مم على الأقل.`)
+      // the strip above the slot hangs from the back corner only, so it is made thicker than the stock when the stock is thin
+      const rim = slidingRim(t, p.rim)
+      const slotBottom = rim + t + slide, frontH = H - slotBottom
+      if (frontH < 2 * t) errors.push(`الارتفاع صغير جداً للغطاء المنزلق: يلزم ${(slotBottom + 2 * t).toFixed(1)} مم على الأقل.`)
       const pull = Math.max(0, Math.min(p.pull, (W - 4 * t) / 5, (D - t) / 5))
       // the rim above the slot hangs from a solid block at the side's top-back corner; the back joint starts below it,
       // so the rim stays attached whatever the finger size
-      const slotBottom = 2 * t + slide, jointFrom = slotBottom + Math.max(1, t / 2)
+      const jointFrom = slotBottom + Math.max(1, t / 2)
       if (H - jointFrom - t < 2 * t) errors.push(`الارتفاع صغير جداً لتعشيق الخلفية تحت الشقّ: يلزم ${Math.ceil(jointFrom + 3 * t)} مم على الأقل.`)
-      if ((D - t) / t > 40) warnings.push(`الشريحة فوق شقّ الغطاء طويلة جداً بالنسبة لسماكتها (${(D - t).toFixed(0)} × ${t} مم) وقد تنكسر؛ استعمل خامة أسمك أو عمقاً أقلّ.`)
+      if ((D - t) / rim > 25) warnings.push(`الشريحة فوق شقّ الغطاء طويلة بالنسبة لسماكتها (${(D - t).toFixed(0)} × ${rim} مم) وقد تنكسر؛ زد سماكة الشريحة إلى ${Math.ceil((D - t) / 25)} مم أو قلّل العمق.`)
       const panels: PanelSpec[] = [
         { id: 'bottom', name: N.bottom, w: W, h: D, top: 'male', right: 'male', bottom: 'male', left: 'male' },
         {
@@ -394,7 +399,7 @@ export const TEMPLATES: Template[] = [
         {
           id: 'side', name: N.side, w: D, h: H, count: 2,
           bottom: 'female', left: { type: 'female', from: slotBottom, len: frontH }, right: { type: 'female', from: jointFrom, len: H - jointFrom },
-          cuts: [rect(0, t, D - t, t + slide)], note: 'الشقّ العلوي يستقبل الغطاء',
+          cuts: [rect(0, rim, D - t, t + slide)], note: 'الشقّ العلوي يستقبل الغطاء',
         },
         {
           // a thumb hole near the front edge: press the thumb in and pull the lid towards you
@@ -402,7 +407,11 @@ export const TEMPLATES: Template[] = [
           holes: pull >= 4 ? [stadium(W / 2, Math.max(t + 2, 4) + 0.75 * pull, 2.5 * pull, 1.5 * pull)] : [],
         },
       ]
-      return { panels, notes: ['الشريحة فوق الشقّ متّصلة بجسم الجانب عبر كتلة صلبة في الزاوية الخلفية العلوية، وتعشيق الخلفية يبدأ تحتها.', 'الغطاء ينزلق من الأمام؛ ضع إبهامك في الفتحة القريبة من حافّته واسحبه نحوك.'], warnings, errors }
+      return { panels, notes: [
+        `الشقّ ${(t + slide).toFixed(1)} مم لغطاء سماكته ${t} مم؛ قِس سماكة لوحك الحقيقية بالكاليبر قبل القصّ (الأبلكاش 3 مم يأتي أحياناً 2.7 أو 3.2) واكتبها في سماكة الخامة.`,
+        `الشريحة فوق الشقّ ${rim} مم متّصلة بجسم الجانب عبر كتلة صلبة في الزاوية الخلفية العلوية، وتعشيق الخلفية يبدأ تحتها. لا ترفع الصندوق من غطائه.`,
+        'الغطاء ينزلق من الأمام؛ ضع إبهامك في الفتحة القريبة من حافّته واسحبه نحوك. اقصّ الغطاء أولاً وجرّبه في شقّ جانب واحد قبل قصّ الباقي.',
+      ], warnings, errors }
     },
   },
   // ------------------------------------------------------------------ 4
@@ -1806,17 +1815,17 @@ function shelfBuild(kind: 'shelf' | 'spice') {
     if (rails && Math.min(...gaps) < railH + 3 * t + 20) errors.push(`المسافة بين الرفوف أصغر من أن تحمل حاجزاً بارتفاع ${railH} مم؛ قلّل الرفوف أو ارتفاع الحاجز.`)
     if (rails) {
       const s = shoulder(railH), rc = (x: number) => x - t / 2 - railH / 2 - 1, rm = 4
-      const railSlots = (mirror: boolean) => shelves.map(x => { const xc = rc(x); return rotatedRectHole(round3(mirror ? H - xc : xc), round3(rm + (t + fit) / 2), railH - 2 * s + fit, t + fit, 0) })
+      // two identical sides: the second is the same piece moved across (its other face outward), so both match
+      const railSlots = shelves.map(x => rotatedRectHole(round3(rc(x)), round3(rm + (t + fit) / 2), railH - 2 * s + fit, t + fit, 0))
       panels.push(
-        { ...side, id: 'side-l', name: 'الجانب الأيسر', count: 1, holes: railSlots(false), note: 'الحواجز فوق الرفوف عند الحافّة الأمامية' },
-        { ...side, id: 'side-r', name: 'الجانب الأيمن', count: 1, holes: railSlots(true), note: 'صورة مرآة للأيسر' },
+        { ...side, holes: railSlots, note: 'شقوق الحواجز فوق شقوق الرفوف عند الحافّة الأمامية' },
         tabPlate('rail', 'الحاجز الأمامي', W, railH, t, s, { count: shelves.length, note: 'يمنع العلب من السقوط' }),
       )
     } else panels.push(side)
     panels.push(...dividers(W, H, d.hd, [], d.ds, t, d.sw, d.margin).map(x => ({ ...x, name: 'رف أوسط', note: 'يدخل في شقوق الجانبين' })))
     const notes = [
       `${d.ds.length + 1} ${d.ds.length ? 'طوابق' : 'طابق'} بعمق ${D} مم؛ يُعلّق بمسمارين في فتحتَي اللوح الخلفي.`,
-      rails ? 'ثبّت الجانب الأيسر بحيث تكون شقوق الحواجز فوق شقوق الرفوف، والأيمن صورته في المرآة.' : '',
+      rails ? 'ضع الجانبين بالاتجاه نفسه: شقوق الحواجز فوق شقوق الرفوف وعند الحافّة الأمامية في كليهما (الجانب الثاني يُنقل كما هو دون قلبه رأساً على عقب).' : '',
       kind === 'spice' ? 'برطمانات البهارات القياسية بقطر 45–55 مم: اجعل العمق 60–90 مم.' : 'للأحمال الثقيلة استعمل خشباً 6 مم واربط اللوح الخلفي بأكثر من مسمار.',
     ].filter(Boolean)
     return { panels, notes, warnings, errors }

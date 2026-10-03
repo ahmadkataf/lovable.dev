@@ -275,7 +275,30 @@ describe('review fixes', () => {
     expect(side.w - 2 * t).toBeCloseTo(100)
     expect(front.h - t).toBeCloseTo(50)
     const sl = generate(TEMPLATES.find(x => x.id === 'sliding')!, { W: 120, D: 80, H: 50, slide: 0.3 }, { ...DEFAULT_SETTINGS, t, kerf: 0, inner: true })
-    expect(sl.panels.find(p => p.id === 'side')!.h - 3 * t - 0.3).toBeCloseTo(50)
+    expect(sl.panels.find(p => p.id === 'side')!.h - (5 + 2 * t) - 0.3).toBeCloseTo(50) // a 5 mm strip over the slot, the lid, the floor
+  })
+  it('the sliding lid: the slot takes the lid with clearance, the lid clears the front wall, and every joint mates', () => {
+    for (const t of [2, 3, 4, 6]) for (const [W, D, H] of [[120, 80, 50], [200, 150, 80], [60, 50, 30]]) {
+      const d = generate(TEMPLATES.find(x => x.id === 'sliding')!, { W, D, H }, { ...DEFAULT_SETTINGS, t, kerf: 0 })
+      if (d.errors.length) continue
+      const rim = Math.max(t, 5), slide = 0.3
+      const side = d.panels.find(p => p.id === 'side')!, front = d.panels.find(p => p.id === 'front')!, lid = d.panels.find(p => p.id === 'lid')!, back = d.panels.find(p => p.id === 'back')!
+      const o = side.loops[0].pts
+      // the slot: open at the front edge, rim above it, t + slide tall, running back to the back wall's inner face
+      expect(o.some(v => Math.abs(v.x) < 1e-6 && Math.abs(v.y - rim) < 1e-6), `${t} ${W}x${D}x${H} slot top`).toBe(true)
+      // (the slot's floor runs into the front joint's top notch when the edge starts with one, so it may end at x = t)
+      expect(o.some(v => (Math.abs(v.x) < 1e-6 || Math.abs(v.x - t) < 1e-6) && Math.abs(v.y - (rim + t + slide)) < 1e-6), `${t} slot bottom`).toBe(true)
+      expect(o.some(v => Math.abs(v.x - (D - t)) < 1e-6 && Math.abs(v.y - rim) < 1e-6), `${t} slot end`).toBe(true)
+      // the lid fills the slot's length and the box's width; the front wall's top is level with the slot's floor
+      expect(lid.h).toBeCloseTo(D - t); expect(lid.w).toBeCloseTo(W)
+      expect(front.h).toBeCloseTo(H - (rim + t + slide))
+      // the back wall rises to the top, its top corners cut as tall as the side's solid block above the back joint
+      expect(back.h).toBeCloseTo(H)
+      const jointFrom = rim + t + slide + Math.max(1, t / 2)
+      expect(back.loops[0].pts.some(v => Math.abs(v.x - t) < 1e-6 && Math.abs(v.y - jointFrom) < 1e-6), `${t} back corner`).toBe(true)
+      // the rim hangs from one piece of material, and no realized finger is thinner than the stock allows
+      expect(side.loops.filter(l => signedArea(l) > 0)).toHaveLength(1)
+    }
   })
   it('the picture frame stacks into one outline, holds the photo in an open-topped slot, and its stand plugs into the back', () => {
     const d = generate(TEMPLATES.find(x => x.id === 'frame')!, {}, { ...DEFAULT_SETTINGS, kerf: 0 })
@@ -578,11 +601,13 @@ describe('commercial designs: parts that mate', () => {
     expect((H + t) - aSlot.y).toBeCloseTo(H / 2)             // A's slot reaches from the base up to H/2
     expect((H - 10) - (bSlot.y + bSlot.h)).toBeCloseTo(H / 2) // B's slot reaches from its top down to H/2
   })
-  it('the spice rack sides are mirror images, and the key board has a slot for every peg and tab', () => {
+  it('the spice rack sides carry a rail slot just above every shelf, and the key board has a slot for every peg and tab', () => {
     const d = generate(T('spicerack'), {}, S0)
-    const xs = (id: string) => holes(d.panels.find(p => p.id === id)!).map(l => bbox([l])).map(b => Math.round((b.minX + b.maxX) / 2 * 100) / 100).sort((a, b) => a - b)
-    const W = d.panels.find(p => p.id === 'side-l')!.w
-    expect(xs('side-r')).toEqual(xs('side-l').map(x => Math.round((W - x) * 100) / 100).sort((a, b) => a - b))
+    const side = d.panels.find(p => p.id === 'side')!
+    expect(side.count).toBe(2) // one piece twice: the second is moved across, not flipped
+    const rails = holes(side).map(l => bbox([l]))
+    expect(rails.filter(b => b.maxY < 10).length).toBe(3) // near the front edge: two shelves and the bottom board
+    expect(d.panels.find(p => p.id === 'rail')!.count).toBe(3)
     const k = generate(T('keyholder'), {}, S0)
     const board = holes(k.panels.find(p => p.id === 'board')!)
     expect(board.length).toBe(2 + 2 + 2 + 5) // keyholes, shelf tabs, brackets, pegs
