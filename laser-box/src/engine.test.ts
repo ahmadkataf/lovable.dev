@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { unionRects, rect, offsetLoop, circle, signedArea, bbox, loopLength, edgeNotch, roundCorner, loopToPath, arcInfo, Loop } from './geom'
+import { unionRects, rect, offsetLoop, circle, signedArea, bbox, loopLength, edgeNotch, roundCorner, loopToPath, arcInfo, hingeLines, Loop } from './geom'
 import { buildPanel, fingerCount, edgeCuts } from './joints'
 import { TEMPLATES, pivotLid } from './templates'
 import { generate, DEFAULT_SETTINGS, autoFinger } from './generate'
@@ -331,6 +331,149 @@ describe('house, fence and lattice designs', () => {
     let min = Infinity
     for (let i = 0; i < holes.length; i++) for (let j = i + 1; j < holes.length; j++) min = Math.min(min, polyDistance(holes[i], holes[j]))
     expect(min).toBeGreaterThanOrEqual(2.5 - 1e-6)
+  })
+})
+
+describe('second review fixes', () => {
+  const T = (id: string) => TEMPLATES.find(x => x.id === id)!
+  const S0 = { ...DEFAULT_SETTINGS, kerf: 0 }
+  const outerOf = (pn: { loops: Loop[] }) => pn.loops.find(l => l.closed && l.layer !== 'engrave' && signedArea(l) > 0)!
+  const holesOf = (pn: { loops: Loop[] }) => pn.loops.filter(l => l.closed && l.layer !== 'engrave' && signedArea(l) < 0)
+  // x positions of hinge columns that run out through both edges (lo and hi are the edges' coordinates)
+  const throughCols = (lines: Loop[], lo: number, hi: number) => {
+    const a = new Set(lines.filter(l => Math.min(l.pts[0].y, l.pts[1].y) < lo).map(l => Math.round(l.pts[0].x * 1000)))
+    return [...new Set(lines.filter(l => Math.max(l.pts[0].y, l.pts[1].y) > hi).map(l => Math.round(l.pts[0].x * 1000)))].filter(x => a.has(x)).map(x => x / 1000)
+  }
+
+  it('through rows of a living hinge reach both edges whatever the length, and always keep a bridge', () => {
+    for (let along = 30; along <= 160; along += 0.7) {
+      const lines = hingeLines(0, 0, 30, along, 18, 3, 1.5, 'y', { through: true })
+      const cols = [...new Set(lines.map(l => Math.round(l.pts[0].x * 1000)))].sort((a, b) => a - b)
+      const thru = throughCols(lines, 0, along)
+      expect(thru.length, `along ${along}`).toBe(Math.floor(cols.length / 2))
+      for (const x of thru) expect(lines.filter(l => Math.abs(l.pts[0].x - x) < 1e-6).length, `along ${along}`).toBeGreaterThanOrEqual(2)
+    }
+  })
+
+  it('the round box sheet is cut through its edges between every pair of tabs, at every height, or refused', () => {
+    for (let H = 30; H <= 200; H += 1) {
+      const d = generate(T('roundbox'), { H }, S0)
+      if (d.errors.length) continue
+      const sheet = d.panels.find(p => p.id === 'sheet')!
+      const L = sheet.w, n = 8, t = S0.t
+      const thru = throughCols(sheet.loops.filter(l => !l.closed), t, H + t)
+      const xs = Array.from({ length: n }, (_, k) => L * (k + 0.5) / n)
+      for (let k = 0; k + 1 < n; k++) expect(thru.filter(x => x > xs[k] && x < xs[k + 1]).length, `H ${H} gap ${k}`).toBeGreaterThanOrEqual(2)
+    }
+    const crowded = generate(T('roundbox'), { tabs: 16, tabW: 8, bridge: 7 }, S0)
+    expect(crowded.errors.join(' ')).toMatch(/شريط مصمت/)
+  })
+
+  it('the tea house roof plates meet at the ridge without a gap or an overlap, at any slope', () => {
+    for (const [W, g, t] of [[90, 15, 3], [90, 30, 3], [90, 45, 3], [90, 70, 3], [90, 120, 3], [90, 150, 3], [200, 20, 3], [120, 40, 6], [120, 100, 6]]) {
+      const d = generate(T('teahouse'), { W, D: 100, g }, { ...S0, t })
+      expect(d.errors, `${W} ${g} ${t}`).toEqual([])
+      const steep = Math.atan2(g, W / 2) > Math.PI / 4 + 1e-9
+      const La = d.panels.find(p => p.id === 'roof-a')!.w, Lb = d.panels.find(p => p.id === 'roof-b')!.w
+      // cross-section, apex at the origin, y up; each plate's underside lies on its gable slope, eaves overhanging ov
+      const th = Math.atan2(g, W / 2), Ls = Math.hypot(W / 2, g), ov = 8
+      const plate = (sx: number, len: number) => {
+        const u = { x: sx * Math.cos(th), y: -Math.sin(th) }, n = { x: sx * Math.sin(th), y: Math.cos(th) } // u down the slope, n out of the roof
+        const end = Ls + ov - len // the upper end, measured down the slope from the apex (negative = past it)
+        const at = (s: number, v: number) => ({ x: s * u.x + v * n.x, y: s * u.y + v * n.y })
+        const local = (q: P) => ({ s: q.x * u.x + q.y * u.y, v: q.x * n.x + q.y * n.y })
+        return { end, at, local, corners: [at(end, 0), at(end, t), at(Ls + ov, t), at(Ls + ov, 0)], inside: (q: P) => { const l = local(q); return Math.min(l.s - end, Ls + ov - l.s, l.v, t - l.v) > 1e-3 } }
+      }
+      const A = plate(-1, La), B = plate(1, Lb)
+      for (const q of B.corners) expect(A.inside(q), `${W} ${g}: short plate inside the long one`).toBe(false)
+      for (const q of A.corners) expect(B.inside(q), `${W} ${g}: long plate inside the short one`).toBe(false)
+      // the long plate's end comes down onto the short plate's top face: up to 45° the ridge is closed from outside;
+      // steeper, the short plate stops at the apex and the open V-groove is reported
+      const q = B.local(A.at(A.end, 0))
+      expect(q.v, `${W} ${g}: ridge seam`).toBeCloseTo(t, 2)
+      if (!steep) expect(q.s).toBeGreaterThanOrEqual(B.end - 0.01)
+      else {
+        expect(Math.abs(B.end)).toBeLessThan(0.01)
+        const groove = B.end - q.s
+        if (groove >= 0.6) expect(Math.abs(Number(d.warnings.join(" ").match(/عرضه نحو ([\d.]+)/)![1]) - groove)).toBeLessThan(0.1)
+      }
+      // and the short plate is pushed right up against the long one's underside
+      expect(Math.min(...[B.at(B.end, 0), B.at(B.end, t)].map(c => Math.abs(A.local(c).v))), `${W} ${g}: short plate reaches`).toBeLessThan(0.01)
+    }
+  })
+
+  it('the tea house slot lets a whole bag out, and the roof carries no marks on its visible face', () => {
+    const d = generate(T('teahouse'), {}, S0)
+    const slot = holesOf(d.panels.find(p => p.id === 'front')!).map(l => bbox([l])).sort((a, b) => (b.maxX - b.minX) - (a.maxX - a.minX))[0]
+    expect(slot.maxX - slot.minX).toBeGreaterThanOrEqual(72 + 2)
+    expect(d.panels.find(p => p.id === 'roof-a')!.loops.filter(l => l.layer === 'engrave').every(l => !l.closed)).toBe(true)
+    expect(generate(T('teahouse'), { W: 80 }, S0).errors.join(' ')).toMatch(/أضيق من الكيس/)
+  })
+
+  it('the frame stand holds the tilt: refused when the frame would stand upright or tip back', () => {
+    expect(generate(T('frame'), {}, S0).errors).toEqual([])
+    expect(generate(T('frame'), { tilt: 5 }, S0).errors.join(' ')).toMatch(/على الأقل/)
+    const a4 = { pw: 210, ph: 297 }
+    expect(generate(T('frame'), { ...a4, tilt: 20 }, S0).errors).toEqual([])
+    expect(generate(T('frame'), { ...a4, tilt: 30 }, S0).errors.join(' ')).toMatch(/أو أقل/)
+  })
+
+  it('large frame corners shrink to keep 3 mm round every window, and every layer has the same outline', () => {
+    const d = generate(T('frame'), { border: 14, step: 5, ocr: 30, wr: 0 }, S0)
+    expect(d.errors).toEqual([])
+    expect(d.warnings.join(' ')).toMatch(/صُغّرت/)
+    const front = d.panels.find(p => p.id === 'front')!
+    for (const pn of d.panels.filter(p => p.id !== 'stand')) {
+      const o = samplePoly(outerOf(pn))
+      for (const h of holesOf(pn)) expect(polyDistance(samplePoly(h), o), pn.id).toBeGreaterThan(3 - 0.05)
+      // nothing of any layer sticks out past the front's rounded corners
+      const fo = samplePoly(outerOf(front))
+      for (const q of o) expect(pointIn(q, fo) || polyDistance([q], fo) < 1e-3, `${pn.id} ${q.x},${q.y}`).toBe(true)
+    }
+  })
+
+  it('an arch window is arched, or squared, in every layer together, so the outer layer never covers the photo window', () => {
+    const flat = generate(T('frame'), { pw: 180, ph: 98, shape: 2 }, S0)
+    expect(flat.warnings.join(' ')).toMatch(/مستطيلة/)
+    for (const d of [flat, generate(T('frame'), { pw: 120, ph: 160, shape: 2 }, S0)]) {
+      const win = (id: string) => holesOf(d.panels.find(p => p.id === id)!)[0]
+      const inner = samplePoly(win('front')), outer = samplePoly(win('front-top'))
+      for (const q of inner) expect(pointIn(q, outer)).toBe(true)
+      expect(polyDistance(inner, outer)).toBeGreaterThan(5 - 0.05) // step 5 all round
+    }
+  })
+
+  it('the basket handle has a hole a hand fits through, with wood all round it', () => {
+    for (const W of [80, 120, 180, 300]) for (const handleH of [40, 60, 100, 160]) {
+      const d = generate(T('basket'), { W, handleH }, S0)
+      if (d.errors.length) continue
+      const hd = d.panels.find(p => p.id === 'handle')!
+      const hole = holesOf(hd)[0], b = bbox([hole])
+      expect(b.maxY - b.minY, `${W} ${handleH}`).toBeGreaterThanOrEqual(25 - 1e-6)
+      expect(b.minY, `${W} ${handleH}: bar above the hole`).toBeGreaterThanOrEqual(12 - 1e-6)
+      expect(polyDistance(samplePoly(hole), samplePoly(outerOf(hd))), `${W} ${handleH}`).toBeGreaterThan(8 - 0.1)
+      if (b.maxX - b.minX < 70) expect(d.warnings.join(' ')).toMatch(/فتحة اليد/)
+    }
+  })
+
+  it('small fixes: napkin minimum depth, fence belt fingers and slender pickets, lidded box height', () => {
+    const t = 3, sep = 35, fit = 0.2, need = Math.ceil(sep + 2 * t + fit + 12)
+    expect(generate(T('napkin'), { D: need - 1 }, S0).errors.join(' ')).toContain(String(need))
+    expect(generate(T('napkin'), { D: need }, S0).errors).toEqual([])
+    const thick = { ...S0, t: 6 }
+    const low = generate(T('fence'), { H: 32 + 22 }, thick)
+    expect(low.errors.join(' ')).toMatch(/الحزام/)
+    const H = Number(low.errors.join(' ').match(/الارتفاع (\d+)/)![1])
+    expect(generate(T('fence'), { H }, thick).errors).toEqual([])
+    expect(generate(T('fence'), { H: 213, picket: 5, pgap: 3, pickH: 200 }, S0).warnings.join(' ')).toMatch(/نحيلة/)
+    const deco = generate(T('decobox'), {}, S0)
+    expect(deco.notes.join(' ')).toContain('103.8')
+  })
+
+  it('the Illustrator 8 layer header has the 13 operands Illustrator 8 writes', () => {
+    const ai = toAI(generate(T('lip'), {}, S0).layout)
+    expect(ai).toMatch(/\n1 1 1 1 0 0 1 0 255 0 0 0 50 Lb\n\(Cut\) Ln\n/)
+    expect(ai).toContain('/Lb {13 {pop} repeat} bind def')
   })
 })
 

@@ -234,14 +234,28 @@ export function hingeLines(x0: number, y0: number, x1: number, y1: number, seg: 
   const start = (across - (rows - 1) * pitch) / 2
   const P = seg + bridge
   const over = 0.3 // through-cuts end just past the edge so the beam leaves no hair of material
+  // the cut spans of a row that keeps a bridge at each edge; odd rows are shifted half a period
+  const spans = (shift: number): [number, number][] => {
+    const out: [number, number][] = []
+    for (let i = -1; i <= Math.ceil(along / P) + 1; i++) {
+      const a = Math.max(bridge + i * P + shift, bridge), b = Math.min(bridge + i * P + shift + seg, along - bridge)
+      if (b - a >= 2) out.push([a, b])
+    }
+    return out
+  }
+  const even = spans(0), odd = spans(P / 2)
+  // a through row is cut everywhere except a bridge facing the middle of each even-row cut, so whatever the
+  // length it always runs out through both edges (a fixed phase can leave the far end solid)
+  const through: [number, number][] = []
+  if (even.length) {
+    let a = -over
+    for (const [p, q] of even) { const m = (p + q) / 2; through.push([a, m - bridge / 2]); a = m + bridge / 2 }
+    through.push([a, along + over])
+  }
   for (let k = 0; k < rows; k++) {
     const r = start + k * pitch
-    const thru = !!opts.through && k % 2 === 1 && !(opts.keepEdge && opts.keepEdge(r))
-    const lo = thru ? -over : bridge, hi = thru ? along + over : along - bridge
-    for (let i = -1; i <= Math.ceil(along / P) + 1; i++) {
-      let a = bridge + i * P + (k % 2 ? P / 2 : 0), b = a + seg
-      a = Math.max(a, lo); b = Math.min(b, hi)
-      if (b - a < 2) continue
+    const thru = !!opts.through && through.length > 0 && k % 2 === 1 && !(opts.keepEdge && opts.keepEdge(r))
+    for (const [a, b] of k % 2 === 0 ? even : thru ? through : odd) {
       out.push(axis === 'x'
         ? { closed: false, pts: [{ x: x0 + a, y: y0 + r }, { x: x0 + b, y: y0 + r }] }
         : { closed: false, pts: [{ x: x0 + r, y: y0 + a }, { x: x0 + r, y: y0 + b }] })

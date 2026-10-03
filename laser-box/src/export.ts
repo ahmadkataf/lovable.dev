@@ -108,7 +108,8 @@ export function toAI(lay: Layout, title = 'laser-box.ai'): string {
   const layer = (name: string, rgb: string, cmyk: string, pick: (l: Loop) => boolean) => {
     const paths = lay.placed.flatMap(pl => pl.panel.loops.filter(pick).map(l => pathOf(l, pl.x, pl.y))).filter(Boolean)
     if (!paths.length) return ''
-    return ['%AI5_BeginLayer', `1 1 1 1 0 0 0 ${rgb} Lb`, `(${name}) Ln`, `${cmyk} K`, '0 J 0 j 0.283 w 4 M []0 d', ...paths, 'LB', '%AI5_EndLayer--', ''].join('\n')
+    // the 13-operand layer header Illustrator 8 itself writes: visible preview enabled printing dimmed masks, 1 0, colour, 0 50
+    return ['%AI5_BeginLayer', `1 1 1 1 0 0 1 0 ${rgb} 0 50 Lb`, `(${name}) Ln`, `${cmyk} K`, '0 J 0 j 0.283 w 4 M []0 d', ...paths, 'LB', '%AI5_EndLayer--', ''].join('\n')
   }
   const cut = layer('Cut', '255 0 0', '0 1 1 0', l => l.layer !== 'engrave')
   const engrave = layer('Engrave', '0 0 255', '1 1 0 0', l => l.layer === 'engrave')
@@ -116,7 +117,7 @@ export function toAI(lay: Layout, title = 'laser-box.ai'): string {
   return [
     '%!PS-Adobe-3.0',
     '%%Creator: Adobe Illustrator(R) 8.0',
-    '%%AI8_CreatorVersion: 8.0',
+    '%%AI8_CreatorVersion: 8',
     '%%For: (Laser Box) ()',
     `%%Title: (${title.replace(/[()\\]/g, '')})`,
     `%%BoundingBox: ${bb}`,
@@ -140,7 +141,7 @@ export function toAI(lay: Layout, title = 'laser-box.ai'): string {
     '/m {moveto} bind def /L {lineto} bind def /l {lineto} bind def /C {curveto} bind def /c {curveto} bind def',
     '/s {closepath stroke} bind def /S {stroke} bind def /K {setcmykcolor} bind def /w {setlinewidth} bind def',
     '/J {setlinecap} bind def /j {setlinejoin} bind def /M {setmiterlimit} bind def /d {setdash} bind def',
-    '/Lb {10 {pop} repeat} bind def /Ln {pop} bind def /LB {} def /annotatepage {} def',
+    '/Lb {13 {pop} repeat} bind def /Ln {pop} bind def /LB {} def /annotatepage {} def',
     '%%EndResource',
     '%%EndProlog',
     '%%BeginSetup',

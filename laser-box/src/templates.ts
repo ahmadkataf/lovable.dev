@@ -1,6 +1,6 @@
 // Ready-made box designs. Every template turns its parameters into panel specs.
 import { Loop, rect, circle, disc, stadium, stadiumV, roundedRectHole, rotatedRectHole, roundCorner, edgeNotch, engraveRect, hingeLines, heart, ellipse, archHole, keyhole, polyLoop, peakSegments, round3 } from './geom'
-import { PanelSpec } from './joints'
+import { PanelSpec, fingerCount } from './joints'
 
 export interface ParamDef {
   key: string
@@ -160,7 +160,7 @@ function dividerPlan(p: Record<string, number>, t: number, errors: string[], war
 }
 
 /** Base box plus a flat lid with a lip frame glued under it that drops inside the walls. */
-function lipLidBox(p: Record<string, number>, c: Common, errors: string[]) {
+function lipLidBox(p: Record<string, number>, c: Common, errors: string[], above = 0) {
   const { W, D, H, lipH, gap } = p, t = c.t
   const Wl = W - 2 * t - 2 * gap, Dl = D - 2 * t - 2 * gap
   if (lipH < 3 * t) errors.push(`ارتفاع الشفة صغير جداً: يلزم ${3 * t} مم على الأقل لتعشيق زوايا الإطار.`)
@@ -173,7 +173,7 @@ function lipLidBox(p: Record<string, number>, c: Common, errors: string[]) {
   ]
   const notes = [
     `إطار الشفة ${Wl.toFixed(1)} × ${Dl.toFixed(1)} × ${lipH} مم يُلصق تحت اللوح داخل الخط المحفور؛ يدخل في الصندوق بخلوص ${gap} مم من كل جهة.`,
-    'الارتفاع الكلّي مع الغطاء = الارتفاع + السماكة.',
+    `الارتفاع الكلّي مع الغطاء ${Math.round((H + t + above) * 10) / 10} مم${above > 0 ? ' مع المقبض' : ''}.`,
   ]
   return { panels, notes, Wl, Dl }
 }
@@ -254,6 +254,16 @@ function cylinderBuild(kind: 'shade' | 'roundbox') {
       out.push(rect(x, y, L - x, t))
       return out
     }
+    // solid margins at both ends for the glued seam; columns run out through the edges except under the tabs
+    const open = hingeLines(seam, t, L - seam, H + t, seg, bridge, pitch, 'y', { through: true, keepEdge: r => xs.some(xk => Math.abs(seam + r - xk) < tabW / 2 + bridge) })
+    // between neighbouring tabs the edge must be cut through by at least two columns (one each side of the seam),
+    // otherwise a solid band runs along the edge and the sheet cannot bend into a cylinder
+    const reaches = (edge: (l: Loop) => boolean) => new Set(open.filter(edge).map(l => round3(l.pts[0].x)))
+    const lo = reaches(l => Math.min(l.pts[0].y, l.pts[1].y) < t), hi = reaches(l => Math.max(l.pts[0].y, l.pts[1].y) > H + t)
+    const thru = [...lo].filter(x => hi.has(x))
+    const inGap = (a: number, b: number) => thru.filter(x => x > a && x < b).length
+    const bandOk = xs.every((xk, j) => j + 1 < n ? inGap(xk, xs[j + 1]) >= 2 : inGap(xk, L) >= 1 && inGap(0, xs[0]) >= 1)
+    if (!bandOk && seg + bridge <= H - 2 * bridge) errors.push('اللسانات متقاربة فلا تبقى بينها قصّات مفصل نافذة كافية، فيبقى شريط مصمت على الحافّة يمنع اللوح من الالتفاف؛ قلّل عدد اللسانات أو عرضها أو الجسر.')
     const panels: PanelSpec[] = [
       ...(kind === 'shade' ? [
         ring('ring-top', 'الحلقة العلوية', socket > 0 ? socket / 2 : 0, 'فتحة الدواية في الوسط وشقوق اللسانات حول المحيط'),
@@ -265,8 +275,7 @@ function cylinderBuild(kind: 'shade' | 'roundbox') {
       {
         id: 'sheet', name: 'اللوح الملتفّ (مفصل مرن)', w: L, h: H + 2 * t,
         cuts: [...stripCuts(0), ...stripCuts(H + t)],
-        // solid margins at both ends for the glued seam; columns run out through the edges except under the tabs
-        open: hingeLines(seam, t, L - seam, H + t, seg, bridge, pitch, 'y', { through: true, keepEdge: r => xs.some(xk => Math.abs(seam + r - xk) < tabW / 2 + bridge) }),
+        open,
         note: 'يلتفّ حول الحلقتين؛ اللسانات تدخل في شقوقهما',
       },
     ]
@@ -761,19 +770,34 @@ export const TEMPLATES: Template[] = [
       if (ww < 20 || wh < 20) errors.push('النافذة أصغر من 20 مم؛ قلّل التغطية أو كبّر الصورة.')
       const topStep = step > 0 && border - step >= 8
       if (step > 0 && !topStep) warnings.push('الدرجة أعرض من أن تبقى حولها حافّة؛ أُلغيت الطبقة الأمامية الثانية.')
+      // the window shape is decided once, from the photo window, so every layer's window is concentric with it
+      const arch = shape === 2 && wh > ww / 2 + 5
+      if (shape === 2 && !arch) warnings.push('النافذة أعرض من أن تُقوَّس (يلزم أن يزيد ارتفاعها على نصف عرضها بـ 5 مم)؛ صارت مستطيلة.')
       const win = (x: number, y: number, w: number, h: number): Loop => {
         if (shape === 3) return ellipse(x + w / 2, y + h / 2, w / 2, h / 2, 'hole')
-        if (shape === 2 && h > w / 2 + 5) return archHole(x, y, w, h)
+        if (arch) return archHole(x, y, w, h)
         return roundedRectHole(x, y, w, h, Math.min(p.wr, w / 2, h / 2))
       }
-      const rounded = (loops: Loop[]) => { if (p.ocr > 0) for (const [x, y] of [[0, 0], [Wo, 0], [Wo, Ho], [0, Ho]]) roundCorner(loops, x, y, p.ocr) }
-      const deco = (gapIn: number): Loop[] => p.deco ? [
-        { ...win(gapIn - 4, gapIn - 4, Wo - 2 * gapIn + 8, Ho - 2 * gapIn + 8), layer: 'engrave' as const },
-        { ...roundedRectHole(4, 4, Wo - 8, Ho - 8, Math.max(1, p.ocr - 2)), layer: 'engrave' as const },
-      ] : []
       // the spacer holds the photo (and the acrylic cover): open at the top so the photo slides in
       const layers = Math.max(1, Math.ceil((glass + 0.5) / t))
       const ox = round3((Wo - pw - 1) / 2), oy = round3((Ho - ph - 1) / 2)
+      // one outer corner radius for every layer, so the glued stack stays flush: no larger than the spacer's arms,
+      // and small enough to leave 3 mm between the corner arc and each window's corner
+      const cornerOf = (w: number, h: number) => shape === 3 ? Math.min(w, h) / 2 : arch ? 0 : Math.min(p.wr, w / 2, h / 2)
+      const ocrFor = (inset: number, wr: number) => wr + (Math.SQRT2 * inset - 3) / (Math.SQRT2 - 1)
+      const ocrMax = Math.min(ox - 0.5, ocrFor(Math.min(ox, oy), 0), ocrFor(border, cornerOf(ww, wh)),
+        topStep ? ocrFor(border - step, cornerOf(ww + 2 * step, wh + 2 * step)) : Infinity)
+      const ocr = Math.max(0, Math.min(p.ocr, Math.floor(ocrMax * 10) / 10))
+      if (ocr < p.ocr) warnings.push(`زوايا الإطار الخارجية صُغّرت إلى ${ocr} مم لتبقى بينها وبين النافذة حافّة كافية.`)
+      const rounded = (loops: Loop[]) => { if (ocr > 0) for (const [x, y] of [[0, 0], [Wo, 0], [Wo, Ho], [0, Ho]]) roundCorner(loops, x, y, ocr) }
+      const deco = (gapIn: number): Loop[] => {
+        if (!p.deco) return []
+        const d = Math.min(4, (gapIn - 4) / 2)
+        return [
+          { ...win(gapIn - d, gapIn - d, Wo - 2 * gapIn + 2 * d, Ho - 2 * gapIn + 2 * d), layer: 'engrave' as const },
+          { ...roundedRectHole(4, 4, Wo - 8, Ho - 8, Math.max(1, ocr - 2)), layer: 'engrave' as const },
+        ]
+      }
       const panels: PanelSpec[] = [
         { id: 'front', name: topStep ? 'الواجهة — الطبقة الداخلية' : 'الواجهة', w: Wo, h: Ho, post: rounded, holes: [win(border, border, ww, wh)], engrave: topStep ? [] : deco(border), note: 'تمسك أطراف الصورة' },
       ]
@@ -785,8 +809,18 @@ export const TEMPLATES: Template[] = [
         if (oy >= 19) backHoles.push(keyhole(Wo / 2, oy * 0.6, 4, 4, 7))
         else warnings.push('لا مكان لفتحة التعليق فوق الصورة؛ كبّر عرض الإطار أو علّقه بعلّاقة لاصقة.')
       }
-      const hb = round3(Math.min(0.45 * Ho, 120)), tabL = Math.min(8, hb / 5), slots = [0.3, 0.75].map(k => round3(hb * k))
+      const hb = round3(Math.min(0.45 * Ho, 150)), tabL = Math.min(8, hb / 5), slots = [0.3, 0.75].map(k => round3(hb * k))
       const th = (tilt * Math.PI) / 180, b = 0.6 * hb
+      const stack = (topStep ? 2 : 1) * t + layers * t + t
+      if (p.stand) {
+        // leaning back by θ the frame pivots on its rear bottom edge, and its centre of mass (half the height up, half the
+        // stack in front of the back) must fall behind that edge, yet short of the stand's foot, or it stands up or tips over
+        const R = Math.hypot(Ho, stack) / 2, phi = Math.atan2(stack, Ho), deg = (a: number) => (a * 180) / Math.PI
+        const lo = Math.max(3, 0.03 * Ho), hi = 0.85 * b
+        const behind = R * Math.sin(th - phi)
+        if (behind < lo) errors.push(`بهذا الميل لا يستند الإطار إلى حامله بل يقف عمودياً (إطار سميك أو قصير)؛ اجعل الميل ${Math.ceil(deg(phi + Math.asin(Math.min(1, lo / R))))}° على الأقل.`)
+        else if (behind > hi) errors.push(`بهذا الميل ينقلب الإطار إلى الخلف فوق قدم الحامل؛ اجعل الميل ${Math.floor(deg(phi + Math.asin(Math.min(1, hi / R))))}° أو أقل.`)
+      }
       if (p.stand) for (const yc of slots) backHoles.push(rotatedRectHole(Wo / 2, Ho - hb + yc, t + 0.2, tabL + 0.2, 0))
       panels.push({ id: 'back', name: 'الظهر', w: Wo, h: Ho, post: rounded, holes: backHoles, note: p.stand ? 'فتحة التعليق في الأعلى وشقّا الحامل في الأسفل' : 'الظهر' })
       if (p.stand) {
@@ -797,7 +831,6 @@ export const TEMPLATES: Template[] = [
         ].map(v => ({ x: round3(v.x), y: round3(v.y) }))
         panels.push({ id: 'stand', name: 'الحامل', w: t + b * Math.cos(th), h: hb, shape: [polyLoop(pts, 'outer')], note: `لسانا الحامل يدخلان في شقّي الظهر؛ يميل الإطار ${tilt}°` })
       }
-      const stack = (topStep ? 2 : 1) * t + layers * t + t
       const notes = [
         `الإطار ${Wo.toFixed(0)} × ${Ho.toFixed(0)} مم، سماكته ${stack.toFixed(1)} مم. النافذة ${ww.toFixed(0)} × ${wh.toFixed(0)} مم وتغطّي ${ov} مم من كل طرف من الصورة.`,
         `الترتيب من الخلف: الظهر، ثم الفاصل (${layers} ${layers > 1 ? 'طبقات' : 'طبقة'})، ثم الواجهة${topStep ? '، ثم الطبقة الخارجية' : ''}. ألصقها فوق بعض والحواف متطابقة.`,
@@ -844,11 +877,21 @@ export const TEMPLATES: Template[] = [
       }
       const panels: PanelSpec[] = [...box]
       if (handleH > 0) {
-        const cl = t + 0.3, hw = Math.min(100, (W - 2 * cl) * 0.45), hh = Math.min(24, handleH * 0.4), r = Math.min(handleH * 0.8, (W - 2 * cl) / 2 - 5)
+        const cl = t + 0.3, r = Math.min(handleH * 0.8, (W - 2 * cl) / 2 - 5)
+        // a hole a hand goes through: 25–30 mm tall under a bar of at least 12 mm, as near 80 mm wide as the handle
+        // allows while keeping 8 mm of wood between its ends and the rounded shoulders
+        const hh = Math.min(30, Math.max(25, handleH * 0.4)), yc = Math.max(12, (handleH - hh) * 0.4) + hh / 2
+        const webAt = (hw: number) => {
+          const ex = W / 2 - hw / 2 + hh / 2, ax = cl + r, ay = r
+          return (ex < ax && yc < ay ? r - Math.hypot(ex - ax, yc - ay) : Math.min(yc, ex - cl)) - hh / 2
+        }
+        let hw = Math.min(100, Math.max(80, (W - 2 * cl) * 0.45))
+        while (hw > hh + 2 && webAt(hw) < 8) hw -= 1
+        if (hw < 70) warnings.push(`فتحة اليد في المقبض ضيقة (${hw.toFixed(0)} × ${hh.toFixed(0)} مم) لا تتّسع لأربع أصابع؛ كبّر العرض.`)
         panels.push({
           id: 'handle', name: 'المقبض', w: W, h: handleH + hd,
           cuts: [rect(0, 0, cl, handleH + margin), rect(W - cl, 0, cl, handleH + margin), rect(0, handleH + hd - FOOT, t, FOOT), rect(W - t, handleH + hd - FOOT, t, FOOT)],
-          holes: [stadium(W / 2, handleH * 0.45, hw, hh)],
+          holes: [stadium(W / 2, yc, hw, hh)],
           post: loops => { roundCorner(loops, round3(cl), 0, r); roundCorner(loops, round3(W - cl), 0, r) },
           note: 'يقف في منتصف السلة، وطرفاه في شقّي الجانبين',
         })
@@ -882,7 +925,7 @@ export const TEMPLATES: Template[] = [
       const inset = 5, Wu = round3(W - 2 * inset), tabL = round3(Math.min(25, Wu * 0.18))
       const tabX = [0.25, 0.75].map(k => round3(Wu * k))
       const planes = [D / 2 - sep / 2 - t / 2, D / 2 + sep / 2 + t / 2]
-      if (planes[0] - (t + fit) / 2 < 6) errors.push(`القاعدة ضيقة على هذه المسافة: يلزم عمق ${Math.ceil(sep + 2 * t + 2 * (6 + fit))} مم على الأقل.`)
+      if (planes[0] - (t + fit) / 2 < 6) errors.push(`القاعدة ضيقة على هذه المسافة: يلزم عمق ${Math.ceil(sep + 2 * t + fit + 12)} مم على الأقل.`)
       const R = Math.min(Wu / 4, H / 3)
       const holes = kind > 0 ? pattern(kind, Math.max(12, R * 0.7), 12, Wu - Math.max(12, R * 0.7), H - 15, cell) : []
       const panels: PanelSpec[] = [
@@ -920,31 +963,43 @@ export const TEMPLATES: Template[] = [
     params: [
       mm('W', 'العرض', 50, 300), mm('D', 'العمق', 50, 300), mm('H', 'ارتفاع الجدار', 50, 400, 'حتى بداية السقف'),
       mm('g', 'ارتفاع الجملون', 15, 150, 'من حافّة الجدار إلى قمّة السقف'),
-      mm('ov', 'بروز السقف', 0, 30), mm('slotH', 'ارتفاع فتحة الأكياس', 10, 40, 'كيس الشاي المغلّف نحو 7 × 7 سم'),
+      mm('ov', 'بروز السقف', 0, 30), mm('slotH', 'ارتفاع فتحة الأكياس', 10, 40),
+      mm('bag', 'عرض كيس الشاي', 30, 150, 'المغلّفات عادةً 65–75 مم؛ الفتحة والداخل يتّسعان له'),
       mm('gap', 'خلوص السقف', 0.2, 2),
       { key: 'pattern', label: 'زخرفة الجانبين', min: 0, max: 5, step: 1, int: true, hint: '0 = بلا، ' + PATTERN_HINT },
       mm('cell', 'حجم الزخرفة', 5, 40),
     ],
-    defaults: { W: 90, D: 90, H: 120, g: 45, ov: 8, slotH: 18, gap: 0.5, pattern: 4, cell: 12 },
+    defaults: { W: 90, D: 90, H: 120, g: 45, ov: 8, slotH: 18, bag: 72, gap: 0.5, pattern: 4, cell: 12 },
     innerAdd: t => ({ W: 2 * t, D: 2 * t, H: t }),
     build(p, c) {
       const warnings: string[] = [], errors: string[] = []
       checkBasics(p, c, warnings, errors)
       const t = c.t, W = round3(p.W), D = round3(p.D), H = round3(p.H), g = round3(p.g)
-      const { ov, slotH, gap, cell } = p
+      const { ov, slotH, gap, cell, bag } = p
       const kind = Math.round(p.pattern)
       if (H < slotH + 6 * t + 20) errors.push(`الجدار قصير على فتحة الأكياس: يلزم ${Math.ceil(slotH + 6 * t + 20)} مم على الأقل.`)
-      // the roof: two plates resting on the gables' slopes, joined at the ridge; two truncated triangles under it
+      // the bags lie flat inside and the bottom one slides out through the front slot, which must be wider than a bag
+      const web = Math.max(4, t), slotX = t + web, slotW = round3(W - 2 * slotX)
+      if (slotW < bag + 2) errors.push(`فتحة الأكياس (${slotW.toFixed(0)} مم) أضيق من الكيس: يلزم عرض ${Math.ceil(bag + 2 + 2 * slotX)} مم على الأقل.`)
+      if (D - 2 * t < bag + 1) errors.push(`العمق من الداخل أصغر من الكيس: يلزم عمق ${Math.ceil(bag + 1 + 2 * t)} مم على الأقل.`)
+      // the roof: two plates resting on the gables' slopes, joined at the ridge; two triangles under it
       // (just inside the front and back walls) keep it in place, so it lifts off for refilling
-      const Ls = Math.hypot(W / 2, g)
-      const Wi = W - 2 * t - 2 * gap, hi = (g * Wi) / W, Li = Math.hypot(Wi / 2, hi)
+      const Ls = Math.hypot(W / 2, g), th = Math.atan2(g, W / 2)
+      // at the ridge the short plate butts under the long one. Square-cut ends meet exactly when the long plate runs
+      // t/sin 2θ past the apex and, on a slope under 45°, the short one stops t·cot 2θ short of it (at 45° both terms are t and 0)
+      const over = t / Math.sin(2 * th), short = th < Math.PI / 4 ? t / Math.tan(2 * th) : 0
+      // steeper than 45° the short plate cannot pass the apex (its lower corner would run into the long plate), so a
+      // V-groove t·|cot 2θ| wide stays open along the ridge; the locating triangles still hold the two plates together
+      const groove = th > Math.PI / 4 ? -t / Math.tan(2 * th) : 0
+      if (groove >= 0.5) warnings.push(`السقف أشدّ انحداراً من 45°، فيبقى على طول القمّة شقّ على شكل V عرضه نحو ${groove.toFixed(1)} مم (القصّ المستقيم لا يغلقه، ومثلّثا التثبيت يمسكان اللوحين). لقمّة مغلقة اجعل ارتفاع الجملون ${Math.floor(W / 2)} مم أو أقل.`)
+      const Wi = W - 2 * t - 2 * gap, hi = (g * Wi) / W
       if (hi < 8) errors.push('الجملون منخفض جداً ليحمل مثلّثَي تثبيت السقف؛ زد ارتفاعه.')
       const gable = (id: string, name: string, front: boolean): PanelSpec => {
         const holes: Loop[] = []
         const hr = Math.min(g * 0.55, W * 0.3)
         if (hr >= 10) holes.push(heart(W / 2, g * 0.6, hr))
-        const slotTop = g + H - t - 4 - slotH
-        if (front) holes.push(roundedRectHole(2 * t + 4, slotTop, W - 4 * t - 8, slotH, 3))
+        const slotTop = g + H - t - 2 - slotH // 2 mm above the floor, so the bottom bag slides out
+        if (front) holes.push(roundedRectHole(slotX, slotTop, slotW, slotH, 3))
         return {
           id, name, w: W, h: g + H,
           bottom: 'female', left: { type: 'male', from: g, len: H }, right: { type: 'male', from: g, len: H },
@@ -960,24 +1015,24 @@ export const TEMPLATES: Template[] = [
         for (let x = 10; x < len - 4; x += 10) out.push({ closed: false, layer: 'engrave', pts: [{ x, y: 3 }, { x, y: D + 2 * ov - 3 }] })
         return out
       }
-      const triMarks = (ridge: number): Loop[] => [ov + t + gap, D + ov - 2 * t - gap].map(y => engraveRect(ridge - Li, y, Li, t))
-      const La = round3(Ls + ov + t), Lb = round3(Ls + ov)
+      const La = round3(Ls + ov + over), Lb = round3(Ls + ov - short), keyAt = ov + t + gap
       const panels: PanelSpec[] = [
         { id: 'bottom', name: N.bottom, w: W, h: D, top: 'male', right: 'male', bottom: 'male', left: 'male' },
         gable('front', N.front, true), gable('back', N.back, false),
         { id: 'side', name: N.side, w: D, h: H, bottom: 'female', left: 'female', right: 'female', count: 2, holes: sideHoles },
-        { id: 'roof-a', name: 'السقف — اللوح الطويل', w: La, h: D + 2 * ov, engrave: [...shingles(La), ...triMarks(La - t)], note: 'يغطّي القمّة؛ المستطيلان المحفوران موضع مثلّثَي التثبيت تحته' },
-        { id: 'roof-b', name: 'السقف — اللوح القصير', w: Lb, h: D + 2 * ov, engrave: [...shingles(Lb), ...triMarks(Lb)], note: 'يلتقي تحت اللوح الطويل عند القمّة' },
+        { id: 'roof-a', name: 'السقف — اللوح الطويل', w: La, h: D + 2 * ov, engrave: shingles(La), note: 'يتجاوز القمّة ليغطّي طرف اللوح القصير' },
+        { id: 'roof-b', name: 'السقف — اللوح القصير', w: Lb, h: D + 2 * ov, engrave: shingles(Lb), note: 'طرفه العلوي يدخل تحت اللوح الطويل عند القمّة' },
         {
           id: 'roof-key', name: 'مثلّث تثبيت السقف', w: Wi, h: hi, count: 2,
           shape: [polyLoop([{ x: 0, y: round3(hi) }, { x: round3(Wi / 2), y: 0 }, { x: round3(Wi), y: round3(hi) }], 'outer')],
-          note: 'يُلصق تحت السقف داخل الواجهة والخلف تماماً',
+          note: `يُلصق في زاوية السقف من الداخل على بُعد ${keyAt.toFixed(1)} مم من الحافّة`,
         },
       ]
       const notes = [
         `البيت ${W} × ${D} مم، جداره ${H} مم والجملون ${g} مم؛ الارتفاع الكلّي نحو ${Math.round(H + g + t)} مم.`,
         'الأكياس تُرصّ داخل البيت فوق بعضها، ويُسحب الكيس السفلي من الفتحة الأمامية.',
-        'السقف: ألصق اللوح القصير تحت حافّة الطويل عند القمّة، ثم ألصق مثلّثَي التثبيت على المستطيلين المحفورين؛ يُرفع السقف كاملاً للتعبئة.',
+        `السقف: ضع اللوحين على الجملونين، وادفع القصير إلى أعلى حتى يلتقي طرفه باللوح الطويل، واجعل بروز الطويل عند حافّته السفلية مثل بروز القصير (${ov} مم)، ثم ألصقهما عند القمّة.`,
+        `بعد الجفاف اقلب السقف على الطاولة، وأنزل مثلّثَي التثبيت في زاويته من الداخل، كلّ واحد على بُعد ${keyAt.toFixed(1)} مم من حافّة السقف الجانبية، وألصقهما؛ يقعان داخل الواجهة والخلف تماماً، فيُرفع السقف كاملاً للتعبئة.`,
         'الخطوط الزرقاء على السقف حفر يشبه القرميد؛ شغّلها بقدرة منخفضة.',
       ]
       return { panels, notes, warnings, errors }
@@ -1001,13 +1056,17 @@ export const TEMPLATES: Template[] = [
       checkBasics(p, c, warnings, errors)
       const { W, D, H, picket, pgap } = p, t = c.t
       const pickH = round3(p.pickH), point = round3(Math.min(p.point, picket * 0.9, pickH - 4))
-      if (H - pickH < 3 * t + 4) errors.push(`الحزام تحت الأعمدة ضيّق: اجعل الارتفاع ${Math.ceil(pickH + 3 * t + 4)} مم أو أكثر، أو قصّر الأعمدة.`)
+      // the belt's corner fingers: the bottom one also loses the base's notch, so it must reach well past the thickness
+      const neck = Math.max(1.5, 0.3 * t), rail = H - pickH, rf = rail / fingerCount(rail, c.finger)
+      if (rail < 3 * t + 4 || rf - t < neck) errors.push(`الحزام تحت الأعمدة ضيّق على أصابع التعشيق: اجعل الارتفاع ${Math.ceil(pickH + Math.max(3 * t + 4, 3 * (t + neck)))} مم أو أكثر، أو قصّر الأعمدة${rf - t < neck && rail >= 3 * (t + neck) ? '، أو كبّر عرض الأصبع' : ''}.`)
       if (p.point > picket * 0.9) warnings.push('الرأس المدبّب أطول من عرض العمود؛ قُصّر.')
       // pickets spread over [a, b] with one at each end
+      let thinnest = Infinity
       const gaps = (a: number, b: number): ReturnType<typeof rect>[] => {
         const len = b - a, n = Math.max(2, Math.round((len + pgap) / (picket + pgap)))
         const pw = (len - (n - 1) * pgap) / n
         if (pw < 4) return []
+        thinnest = Math.min(thinnest, pw)
         return Array.from({ length: n - 1 }, (_, i) => rect(round3(a + (i + 1) * pw + i * pgap), 0, round3(pgap), pickH))
       }
       const wall = (id: string, name: string, w: number, male: boolean, count: number): PanelSpec => {
@@ -1026,6 +1085,7 @@ export const TEMPLATES: Template[] = [
         wall('frontback', `${N.front} / ${N.back}`, W, true, 2),
         wall('side', N.side, D, false, 2),
       ]
+      if (pickH > 15 * thinnest) warnings.push(`الأعمدة نحيلة (${thinnest.toFixed(1)} × ${pickH} مم) وتنكسر بسهولة؛ عرّضها أو قصّرها (الطول حتى 15 ضعف العرض).`)
       return { panels, notes: ['الواجهتان تحملان عمود الزاوية، والجانبان يبدأان بعده؛ الحزام السفلي يحمل التعشيق.'], warnings, errors }
     },
   },
@@ -1050,7 +1110,9 @@ export const TEMPLATES: Template[] = [
       checkBasics(p, c, warnings, errors)
       const { W, D, H, cell, lipH, gap, fit } = p, t = c.t
       const kind = Math.round(p.pattern)
-      const { panels, notes } = lipLidBox(p, c, errors)
+      const handle = p.handle > 0
+      const hw = round3(Math.min(W * 0.55, 100)), hH = round3(Math.min(36, Math.max(24, hw * 0.35))), tabL = round3(Math.min(18, hw / 5))
+      const { panels, notes } = lipLidBox(p, c, errors, handle ? hH : 0)
       const fm = 2 * t + 2, top = lipH + 2, bot = H - t - fm
       if (kind > 0) for (const sp of panels) {
         if (sp.id === 'front' || sp.id === 'back') sp.holes = pattern(kind, fm, top, W - fm, bot, cell)
@@ -1059,9 +1121,7 @@ export const TEMPLATES: Template[] = [
       const lid = panels.find(x => x.id === 'lid')!
       const lidHoles: Loop[] = []
       const m = 2 * t + gap + 3 // inside the lip frame
-      const hw = round3(Math.min(W * 0.55, 100)), hH = round3(Math.min(36, Math.max(24, hw * 0.35))), tabL = round3(Math.min(18, hw / 5))
       const tabX = [round3(hw * 0.2), round3(hw * 0.8)]
-      const handle = p.handle > 0
       if (handle) for (const x of tabX) lidHoles.push(rotatedRectHole(W / 2 - hw / 2 + x, D / 2, tabL + fit, t + fit, 0))
       if (p.lidDeco > 0 && kind > 0) {
         const band = handle ? (t + fit) / 2 + cell / 2 + 4 : 0
