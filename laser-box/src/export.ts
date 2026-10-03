@@ -1,5 +1,5 @@
 // SVG and DXF writers. Both use millimetres; red hairlines are what laser software expects for cuts.
-import { Loop, loopToPath, round3 } from './geom'
+import { Loop, loopToPath, round3, arcInfo } from './geom'
 import { Layout } from './layout'
 
 export function toSVG(lay: Layout, opts: { labels?: boolean } = {}): string {
@@ -66,4 +66,89 @@ export function toDXF(lay: Layout): string {
     }
     g(0, 'SEQEND'); g(8, L)
   }
+}
+
+/**
+ * Adobe Illustrator 8 (the PostScript-based .ai that RDWorks, older CorelDRAW and LaserCut import; newer .ai files
+ * are PDF inside and RDWorks cannot read them). Points, origin bottom-left, so 1:1 in millimetres after import.
+ * Cuts are red on a "Cut" layer, guide lines blue on an "Engrave" layer; arcs become Bézier curves.
+ * A small prolog defines the operators, so Ghostscript and other PostScript viewers can also open the file.
+ */
+export function toAI(lay: Layout, title = 'laser-box.ai'): string {
+  const PT = 72 / 25.4
+  const Wpt = lay.w * PT, Hpt = lay.h * PT
+  const n = (v: number) => (Math.round(v * 1000) / 1000).toString()
+  const X = (v: number) => v * PT, Y = (v: number) => (lay.h - v) * PT
+  const pathOf = (l: Loop, dx: number, dy: number): string => {
+    const out: string[] = []
+    const P = l.pts, N = P.length
+    if (!N) return ''
+    out.push(`${n(X(P[0].x + dx))} ${n(Y(P[0].y + dy))} m`)
+    const last = l.closed ? N : N - 1
+    for (let i = 0; i < last; i++) {
+      const p = P[i], q = P[(i + 1) % N]
+      if (!p.b) { out.push(`${n(X(q.x + dx))} ${n(Y(q.y + dy))} L`); continue }
+      // a circular arc split into pieces of at most 90°, each one cubic Bézier
+      const a = arcInfo(p, q, p.b)
+      const sweep = a.theta * (a.ccw ? -1 : 1) // screen angles (y down): ccw on screen = decreasing angle
+      const k = Math.max(1, Math.ceil(a.theta / (Math.PI / 2) - 1e-9))
+      const dA = sweep / k, h = (4 / 3) * Math.tan(dA / 4)
+      for (let j = 0; j < k; j++) {
+        const t0 = a.a0 + j * dA, t1 = t0 + dA
+        const x0 = a.c.x + a.r * Math.cos(t0), y0 = a.c.y + a.r * Math.sin(t0)
+        const x3 = j === k - 1 ? q.x : a.c.x + a.r * Math.cos(t1), y3 = j === k - 1 ? q.y : a.c.y + a.r * Math.sin(t1)
+        const x1 = x0 - h * a.r * Math.sin(t0), y1 = y0 + h * a.r * Math.cos(t0)
+        const x2 = x3 + h * a.r * Math.sin(t1), y2 = y3 - h * a.r * Math.cos(t1)
+        out.push(`${n(X(x1 + dx))} ${n(Y(y1 + dy))} ${n(X(x2 + dx))} ${n(Y(y2 + dy))} ${n(X(x3 + dx))} ${n(Y(y3 + dy))} C`)
+      }
+    }
+    out.push(l.closed ? 's' : 'S')
+    return out.join('\n')
+  }
+  const layer = (name: string, rgb: string, cmyk: string, pick: (l: Loop) => boolean) => {
+    const paths = lay.placed.flatMap(pl => pl.panel.loops.filter(pick).map(l => pathOf(l, pl.x, pl.y))).filter(Boolean)
+    if (!paths.length) return ''
+    return ['%AI5_BeginLayer', `1 1 1 1 0 0 0 ${rgb} Lb`, `(${name}) Ln`, `${cmyk} K`, '0 J 0 j 0.283 w 4 M []0 d', ...paths, 'LB', '%AI5_EndLayer--', ''].join('\n')
+  }
+  const cut = layer('Cut', '255 0 0', '0 1 1 0', l => l.layer !== 'engrave')
+  const engrave = layer('Engrave', '0 0 255', '1 1 0 0', l => l.layer === 'engrave')
+  const bb = `0 0 ${Math.ceil(Wpt)} ${Math.ceil(Hpt)}`
+  return [
+    '%!PS-Adobe-3.0',
+    '%%Creator: Adobe Illustrator(R) 8.0',
+    '%%AI8_CreatorVersion: 8.0',
+    '%%For: (Laser Box) ()',
+    `%%Title: (${title.replace(/[()\\]/g, '')})`,
+    `%%BoundingBox: ${bb}`,
+    `%%HiResBoundingBox: 0 0 ${n(Wpt)} ${n(Hpt)}`,
+    '%%DocumentProcessColors: Cyan Magenta Yellow',
+    '%AI5_FileFormat 4.0',
+    '%AI3_ColorUsage: Color',
+    `%AI3_TemplateBox: ${n(Wpt / 2)} ${n(Hpt / 2)} ${n(Wpt / 2)} ${n(Hpt / 2)}`,
+    `%AI3_TileBox: ${bb}`,
+    '%AI3_DocumentPreview: None',
+    `%AI5_ArtSize: ${n(Wpt)} ${n(Hpt)}`,
+    '%AI5_RulerUnits: 1',
+    '%AI5_ArtFlags: 1 0 0 1 0 0 1 0 0',
+    '%AI5_TargetResolution: 800',
+    `%AI5_NumLayers: ${engrave ? 2 : 1}`,
+    '%AI5_OpenViewLayers: 7',
+    '%%PageOrigin:0 0',
+    '%%EndComments',
+    '%%BeginProlog',
+    '%%BeginResource: procset LaserBox_AI8_min 1.0 0',
+    '/m {moveto} bind def /L {lineto} bind def /l {lineto} bind def /C {curveto} bind def /c {curveto} bind def',
+    '/s {closepath stroke} bind def /S {stroke} bind def /K {setcmykcolor} bind def /w {setlinewidth} bind def',
+    '/J {setlinecap} bind def /j {setlinejoin} bind def /M {setmiterlimit} bind def /d {setdash} bind def',
+    '/Lb {10 {pop} repeat} bind def /Ln {pop} bind def /LB {} def /annotatepage {} def',
+    '%%EndResource',
+    '%%EndProlog',
+    '%%BeginSetup',
+    '%%EndSetup',
+    cut + engrave + '%%PageTrailer',
+    'gsave annotatepage grestore showpage',
+    '%%Trailer',
+    '%%EOF',
+    '',
+  ].join('\n')
 }

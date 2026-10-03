@@ -3,7 +3,7 @@ import { unionRects, rect, offsetLoop, circle, signedArea, bbox, loopLength, edg
 import { buildPanel, fingerCount, edgeCuts } from './joints'
 import { TEMPLATES, pivotLid } from './templates'
 import { generate, DEFAULT_SETTINGS, autoFinger } from './generate'
-import { toDXF, toSVG } from './export'
+import { toDXF, toSVG, toAI } from './export'
 
 const area = (l: Loop) => Math.abs(signedArea(l))
 
@@ -341,6 +341,25 @@ describe('robustness grid', () => {
 })
 
 describe('export', () => {
+  it('writes Illustrator 8 (PostScript) with exact point sizes, a red cut layer, a blue engrave layer and arcs as curves', () => {
+    const d = generate(TEMPLATES.find(t => t.id === 'frame')!, {}, { ...DEFAULT_SETTINGS, kerf: 0 })
+    const ai = toAI(d.layout, 'f.ai')
+    expect(ai.startsWith('%!PS-Adobe-3.0\n%%Creator: Adobe Illustrator(R) 8.0')).toBe(true)
+    expect(ai).toContain('%AI5_FileFormat 4.0')
+    const hi = ai.match(/%%HiResBoundingBox: 0 0 ([\d.]+) ([\d.]+)/)!
+    expect(Number(hi[1]) * 25.4 / 72).toBeCloseTo(d.layout.w, 2)
+    expect(Number(hi[2]) * 25.4 / 72).toBeCloseTo(d.layout.h, 2)
+    expect(ai).toContain('(Cut) Ln\n0 1 1 0 K')
+    expect(ai).toContain('(Engrave) Ln\n1 1 0 0 K')
+    expect(ai).not.toMatch(/NaN|undefined/)
+    expect(ai.trim().endsWith('%%EOF')).toBe(true)
+    // a lone circle (the shade's socket hole) becomes exactly four Bézier quarters
+    const sh = generate(TEMPLATES.find(t => t.id === 'shade')!, {}, { ...DEFAULT_SETTINGS, kerf: 0 })
+    const one = { ...sh.layout, placed: [{ ...sh.layout.placed[0], panel: { ...sh.layout.placed[0].panel, loops: [circle(50, 50, 20)] } }] }
+    const body = toAI(one).split('(Cut) Ln')[1]
+    expect((body.match(/ C$/gm) ?? []).length).toBe(4)
+  })
+
   it('writes SVG in millimetres and a DXF with circles, lines and polylines', () => {
     const d = generate(TEMPLATES.find(t => t.id === 'hinged')!, {}, DEFAULT_SETTINGS)
     const svg = toSVG(d.layout, { labels: true })

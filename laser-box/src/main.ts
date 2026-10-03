@@ -1,7 +1,7 @@
 import './style.css'
 import { TEMPLATES, templateById, ParamDef } from './templates'
 import { generate, Design, Settings, DEFAULT_SETTINGS } from './generate'
-import { toSVG, toDXF } from './export'
+import { toSVG, toDXF, toAI } from './export'
 import { loopToPath } from './geom'
 import { makeZip } from './zip'
 
@@ -278,12 +278,12 @@ function render() {
   notesBox.append(el('h3', {}, 'القطع'), list)
 
   actions.innerHTML = ''
-  const dl = (kind: 'svg' | 'dxf', label: string, cls: string) => {
+  const dl = (kind: Kind, label: string, cls: string) => {
     const b = el('button', { type: 'button', class: cls, onclick: () => download(kind) }, label) as HTMLButtonElement
     if (blocked) { b.disabled = true; b.title = 'أصلح الأخطاء الحمراء أولاً' }
     return b
   }
-  actions.append(dl('svg', blocked ? 'أصلح الأخطاء أولاً' : '⬇ تنزيل SVG', 'primary'), dl('dxf', '⬇ تنزيل DXF', 'primary alt'))
+  actions.append(dl('svg', blocked ? 'أصلح الأخطاء' : '⬇ SVG', 'primary'), dl('dxf', '⬇ DXF', 'primary alt'), dl('ai', '⬇ AI 8 (RDWorks)', 'primary ai'))
   if (!inViewer) actions.append(el('button', { type: 'button', class: 'ghost', onclick: () => share() }, '🔗 نسخ الرابط'))
 }
 
@@ -356,11 +356,15 @@ function fileName(ext: string) {
   return `laser-box-${state.tpl}-${dims}-t${state.settings.t}.${ext}`
 }
 
-async function download(kind: 'svg' | 'dxf') {
+type Kind = 'svg' | 'dxf' | 'ai'
+const MIME: Record<Kind, string> = { svg: 'image/svg+xml', dxf: 'application/dxf', ai: 'application/postscript' }
+const KIND_NAME: Record<Kind, string> = { svg: 'SVG', dxf: 'DXF', ai: 'AI 8' }
+
+async function download(kind: Kind) {
   if (!design) return
-  const text = kind === 'svg' ? toSVG(design.layout) : toDXF(design.layout)
+  const text = kind === 'svg' ? toSVG(design.layout) : kind === 'dxf' ? toDXF(design.layout) : toAI(design.layout, fileName('ai'))
   if (android) {
-    android.save(fileName(kind), kind === 'svg' ? 'image/svg+xml' : 'application/dxf', text)
+    android.save(fileName(kind), MIME[kind], text)
     toast('اختر مكان حفظ الملف')
     return
   }
@@ -369,21 +373,22 @@ async function download(kind: 'svg' | 'dxf') {
     const dl = await claudeUse('downloads').catch(() => null)
     if (!dl) { toast('التنزيل غير متاح في هذه النافذة'); return }
     try {
+      // the viewer accepts .svg but neither .dxf nor .ai, so those travel inside a .zip (with the SVG as a bonus)
       if (kind === 'svg') await dl.save({ filename: fileName('svg'), data: text })
-      else await dl.save({ filename: fileName('zip'), data: new Blob([makeZip([{ name: fileName('dxf'), data: text }, { name: fileName('svg'), data: toSVG(design.layout) }])]) })
-      toast(kind === 'svg' ? 'حُفظ ملف SVG' : 'حُفظ ملف zip يحوي DXF وSVG')
+      else await dl.save({ filename: fileName('zip'), data: new Blob([makeZip([{ name: fileName(kind), data: text }, { name: fileName('svg'), data: toSVG(design.layout) }])]) })
+      toast(kind === 'svg' ? 'حُفظ ملف SVG' : `حُفظ ملف zip يحوي ${KIND_NAME[kind]} وSVG`)
     } catch (e) {
       const code = (e as { code?: string })?.code
       if (code !== 'declined') toast('تعذّر الحفظ: ' + (code ?? 'خطأ'))
     }
     return
   }
-  const blob = new Blob([text], { type: kind === 'svg' ? 'image/svg+xml' : 'application/dxf' })
+  const blob = new Blob([text], { type: MIME[kind] })
   const url = URL.createObjectURL(blob)
   const a = el('a', { href: url, download: fileName(kind) })
   document.body.append(a); a.click(); a.remove()
   setTimeout(() => URL.revokeObjectURL(url), 5000)
-  toast(kind === 'svg' ? 'نُزّل ملف SVG' : 'نُزّل ملف DXF')
+  toast(`نُزّل ملف ${KIND_NAME[kind]}`)
 }
 
 async function share() {
