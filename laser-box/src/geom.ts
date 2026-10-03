@@ -250,6 +250,22 @@ export function hingeLines(x0: number, y0: number, x1: number, y1: number, seg: 
   return out
 }
 
+/**
+ * Turn every straight top edge lying on y = yLine (traversed left to right, as an outer contour's top edges are)
+ * into a point: a vertex at its middle raised to apexY. Gables, fence pickets.
+ */
+export function peakSegments(loops: Loop[], yLine: number, apexY: number, minLen = 0): void {
+  for (const l of loops) {
+    if (!l.closed) continue
+    for (let i = 0; i < l.pts.length; i++) {
+      const p = l.pts[i], q = l.pts[(i + 1) % l.pts.length]
+      if (p.b || Math.abs(p.y - yLine) > 1e-3 || Math.abs(q.y - yLine) > 1e-3 || q.x - p.x <= minLen) continue
+      l.pts.splice(i + 1, 0, { x: (p.x + q.x) / 2, y: apexY })
+      i++
+    }
+  }
+}
+
 /** Reverse a loop's direction (bulges move to the other end of their segment and change sign). */
 export function reverseLoop(l: Loop): Loop {
   const n = l.pts.length

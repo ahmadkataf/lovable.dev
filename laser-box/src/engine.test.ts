@@ -296,6 +296,44 @@ describe('review fixes', () => {
   })
 })
 
+describe('house, fence and lattice designs', () => {
+  it('the tea house gables are pentagons whose roof plates and locating triangles fit the slope', () => {
+    const t = 3
+    const d = generate(TEMPLATES.find(x => x.id === 'teahouse')!, {}, { ...DEFAULT_SETTINGS, t, kerf: 0 })
+    expect(d.errors).toEqual([])
+    const front = d.panels.find(p => p.id === 'front')!
+    const outer = front.loops.find(l => signedArea(l) > 0)!
+    const apex = outer.pts.find(v => Math.abs(v.y) < 1e-6)!
+    expect(apex.x).toBeCloseTo(45) // W/2
+    expect(outer.pts.filter(v => Math.abs(v.y) < 1e-6)).toHaveLength(1)
+    const key = d.panels.find(p => p.id === 'roof-key')!
+    // the locating triangle has the gable's slope: its height over half its base equals g / (W/2)
+    expect(key.h / (key.w / 2)).toBeCloseTo(45 / 45, 3)
+    expect(key.w).toBeCloseTo(90 - 2 * t - 1)
+    const ra = d.panels.find(p => p.id === 'roof-a')!, rb = d.panels.find(p => p.id === 'roof-b')!
+    expect(ra.w - rb.w).toBeCloseTo(t)
+    expect(rb.w).toBeCloseTo(Math.hypot(45, 45) + 8)
+  })
+  it('fence pickets come to a point and the side walls leave the corner to the front posts', () => {
+    const d = generate(TEMPLATES.find(x => x.id === 'fence')!, {}, { ...DEFAULT_SETTINGS, kerf: 0 })
+    expect(d.errors).toEqual([])
+    const fb = d.panels.find(p => p.id === 'frontback')!, side = d.panels.find(p => p.id === 'side')!
+    const tips = (pn: typeof fb) => pn.loops[0].pts.filter(v => Math.abs(v.y) < 1e-6)
+    expect(tips(fb).length).toBeGreaterThanOrEqual(8)
+    expect(Math.min(...tips(fb).map(v => v.x))).toBeLessThan(10) // a post right at the corner
+    expect(Math.min(...tips(side).map(v => v.x))).toBeGreaterThan(3) // the side starts after the corner
+  })
+  it('the diamond lattice keeps bars of at least 2.5 mm between its holes', () => {
+    const d = generate(TEMPLATES.find(x => x.id === 'decobox')!, {}, { ...DEFAULT_SETTINGS, kerf: 0 })
+    const front = d.panels.find(p => p.id === 'front')!
+    const holes = front.loops.filter(l => signedArea(l) < 0).map(l => samplePoly(l))
+    expect(holes.length).toBeGreaterThan(10)
+    let min = Infinity
+    for (let i = 0; i < holes.length; i++) for (let j = i + 1; j < holes.length; j++) min = Math.min(min, polyDistance(holes[i], holes[j]))
+    expect(min).toBeGreaterThanOrEqual(2.5 - 1e-6)
+  })
+})
+
 describe('robustness grid', () => {
   // every template over thickness, kerf, finger, box size and its own parameter ranges; whenever no error is
   // reported the geometry must be sound: one outer loop per panel, no self-intersection, holes inside with margin
@@ -307,7 +345,7 @@ describe('robustness grid', () => {
       const variants: Record<string, number>[] = [{}]
       for (const def of extras) variants.push({ [def.key]: def.min }, { [def.key]: def.max })
       for (const t of [2, 2.7, 3, 4, 6]) for (const kerf of [0, 0.2]) for (const finger of [0, 12]) for (const [W, D, H] of boxes) for (const inner of [false, true]) for (const v of variants) {
-        const params = tpl.id === 'shade' ? { Dm: W, H, ...v } : tpl.id === 'frame' ? { pw: W, ph: D + H, ...v } : { W, D, H, ...v }
+        const params = tpl.params.some(d => d.key === 'Dm') ? { Dm: W, H, ...v } : tpl.id === 'frame' ? { pw: W, ph: D + H, ...v } : { W, D, H, ...v }
         runs++
         let d
         try { d = generate(tpl, params, { ...DEFAULT_SETTINGS, t, kerf, finger, inner }) } catch (e) { throw new Error(`${tpl.id} ${JSON.stringify(params)} t=${t} kerf=${kerf} threw: ${(e as Error).message}`) }
