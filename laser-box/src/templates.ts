@@ -97,7 +97,7 @@ function pivotLidBox(p: Record<string, number>, c: Common, warnings: string[], e
     {
       id: 'front', name: N.front, w: W, h: H, bottom: 'female', left: 'male', right: 'male',
       post: loops => { if (pull >= 2) edgeNotch(loops, pullX, 0, pull) },
-      note: 'أقصر من الخلفية بسماكة الغطاء، وفيها فتحة الإصبع',
+      note: pull >= 2 ? 'أقصر من الخلفية بسماكة الغطاء، وفيها فتحة الإصبع' : 'أقصر من الخلفية بسماكة الغطاء',
     },
     { id: 'back', name: N.back, w: W, h: H + t, bottom: 'female', left: 'male', right: 'male', note: 'ترتفع إلى مستوى سطح الغطاء' },
     {
@@ -2304,6 +2304,28 @@ function flatDisc(cx: number, cy: number, R: number, yc: number, tabs: number[],
   return oriented(Math.abs(signedArea(a)) > Math.abs(signedArea(bb)) ? a : bb, 'outer')
 }
 
+/**
+ * The outline of heart(cx, cy, w) grown by d all round: lobes of radius w/4 + d meeting above the notch, the sides moved
+ * out by d with a rounded join at the lobes and a pointed tip. Sampled finely (≤ 2°) so it cuts as smoothly as an arc.
+ */
+function heartOffset(cx: number, cy: number, w: number, d: number): Loop {
+  const r = w / 4, top = cy - w * 0.225, T = { x: cx, y: top + w * 0.7 }, Rp = r + d
+  const len = Math.hypot(2 * r, 0.7 * w), sinA = (2 * r) / len
+  const nR = { x: (0.7 * w) / len, y: (2 * r) / len } // outward normal of the right side (down and to the right)
+  const pts: { x: number; y: number }[] = [{ x: cx, y: T.y + d / sinA }]
+  const arc = (c: { x: number; y: number }, rad: number, a0: number, a1: number) => {
+    const k = Math.max(2, Math.ceil(Math.abs(a1 - a0) / (Math.PI / 90)))
+    for (let i = 0; i <= k; i++) { const a = a0 + ((a1 - a0) * i) / k; pts.push({ x: c.x + rad * Math.cos(a), y: c.y + rad * Math.sin(a) }) }
+  }
+  const h = Math.sqrt(Rp * Rp - r * r)
+  arc({ x: cx + 2 * r, y: top }, d, Math.atan2(nR.y, nR.x), 0)              // round the right corner
+  arc({ x: cx + r, y: top }, Rp, 0, Math.atan2(-h, -r))                       // over the right lobe to the notch
+  arc({ x: cx - r, y: top }, Rp, Math.atan2(-h, r), -Math.PI)                 // over the left lobe
+  arc({ x: cx - 2 * r, y: top }, d, Math.PI, Math.PI - Math.atan2(nR.y, nR.x)) // round the left corner
+  const out = pts.filter((v, i) => i === 0 || Math.hypot(v.x - pts[i - 1].x, v.y - pts[i - 1].y) > 1e-4)
+  return polyLoop(out.map(v => ({ x: round3(v.x), y: round3(v.y) })), 'outer')
+}
+
 MORE.push({
   id: 'engagement',
   name: 'طقم خطوبة: مرآة وقاعدة وعلبتا محابس',
@@ -2314,13 +2336,14 @@ MORE.push({
     { key: 'layers', label: 'طبقات القاعدة', min: 1, max: 3, step: 1, int: true, hint: 'ألسنة المرآة والدعامتين تنفذ فيها كلّها' },
     { key: 'rings', label: 'علب المحابس', min: 0, max: 2, step: 1, int: true },
     mm('rbW', 'عرض علبة المحبس', 45, 80), mm('rbH', 'ارتفاع علبة المحبس', 38, 70), mm('slitW', 'عرض شقّ المحبس', 1.5, 4, 'سماكة حلقة المحبس مع خلوص بسيط'),
+    mm('slitL', 'طول شقّ المحبس', 8, 30, 'أقصر قليلاً من قطر المحبس الخارجي (17–22 مم) فيجلس فيه واقفاً'),
     mm('hw', 'عرض القلب', 0, 120, '0 = بلا قلب'), mm('sq', 'مقاس المربّع', 0, 80, 'مربّعان للأسماء أو التاريخ؛ 0 = بلا'),
     { key: 'backing', label: 'طبقة إطار تحت القلب والمربّعين', min: 0, max: 1, step: 1, int: true, hint: 'قطعة أكبر بـ 3–4 مم من كل جهة بلون مختلف، كما في الصورة' },
     { key: 'marks', label: 'علامات مواضع القطع', min: 0, max: 1, step: 1, int: true, hint: 'خطوط محفورة على القاعدة تحت كل قطعة تماماً، فتختفي بعد اللصق' },
     { key: 'border', label: 'إطار محفور على المرآة', min: 0, max: 1, step: 1, int: true },
     mm('fit', 'خلوص الشقوق', 0, 1),
   ],
-  defaults: { Dd: 300, W: 400, D: 170, layers: 2, rings: 2, rbW: 55, rbH: 45, slitW: 2.5, hw: 60, sq: 42, backing: 1, marks: 1, border: 0, fit: 0.15 },
+  defaults: { Dd: 300, W: 400, D: 170, layers: 2, rings: 2, rbW: 55, rbH: 45, slitW: 2.5, slitL: 14, hw: 60, sq: 42, backing: 1, marks: 1, border: 0, fit: 0.15 },
   innerAdd: () => ({ W: 0, D: 0, H: 0 }),
   build(p, c) {
     const warnings: string[] = [], errors: string[] = []
@@ -2333,7 +2356,8 @@ MORE.push({
     const tw = round3(Math.min(30, Math.max(10, 0.25 * ch))), tabX = [round3(R - 0.6 * ch), round3(R + 0.6 * ch)]
     const mirror: PanelSpec = {
       id: 'mirror', name: 'المرآة الدائرية', w: Dd, h: round3(yc + L), shape: [flatDisc(R, R, R, yc, tabX, tw, L)],
-      engrave: Math.round(p.border) > 0 ? [{ ...circle(R, R, R - 10), layer: 'engrave' as const }] : [],
+      // the border follows the mirror's outline 10 mm in, along the flat bottom too
+      engrave: Math.round(p.border) > 0 ? [{ ...flatDisc(R, R, R - 10, yc - 10, [], 0, 0), layer: 'engrave' as const }] : [],
       note: 'تُكتب عليها الآية والأسماء بالحفر في RDWorks',
     }
     // two braces behind it, perpendicular, their front edges glued to its back
@@ -2350,57 +2374,74 @@ MORE.push({
       ...[-1, 1].map(sd => rotatedRectHole(round3(W / 2 + sd * 0.35 * ch), round3(yd + t / 2 + (b0 + b1) / 2), t + fit, b1 - b0 + fit, 0)),
     ]
     const rbW = p.rbW, rbD = round3(rbW - 5), rbH = p.rbH
-    const hwF = p.hw > 0 ? p.hw + (back ? 8 : 0) : 0, hhF = 0.95 * hwF, sqF = p.sq > 0 ? p.sq + (back ? 6 : 0) : 0
+    // the heart's backing grows it 4 mm all round (its tip a little more, being pointed)
+    const hTip = 4 / (0.5 / Math.hypot(0.5, 0.7))
+    const hwF = p.hw > 0 ? p.hw + (back ? 8 : 0) : 0, hhF = p.hw > 0 ? 0.95 * p.hw + (back ? 4 + hTip : 0) : 0, hcY = mf + (back ? 4 : 0) + 0.475 * p.hw
+    const sqF = p.sq > 0 ? p.sq + (back ? 6 : 0) : 0
     const front = yd - t / 2 - mf
     const deepest = Math.max(rings > 0 ? rbD + 8 : 0, hhF, sqF)
-    if (deepest > front) errors.push(`القاعدة غير عميقة بما يكفي للقطع أمام المرآة: اجعل العمق ${Math.ceil(D + deepest - front)} مم على الأقل.`)
+    if (deepest + 5 > front) errors.push(`القاعدة غير عميقة بما يكفي للقطع أمام المرآة: اجعل العمق ${Math.ceil(D + deepest + 5 - front)} مم على الأقل.`)
     const xRing = round3(m + 4 + rbW / 2)
-    const sqX = round3(hwF / 2 + (hwF > 0 ? 8 : 0) + sqF / 2)
+    const sqX = round3(hwF > 0 ? hwF / 2 + 8 + sqF / 2 : sqF / 2 + 5) // with no heart the squares keep 10 mm between them
     const rowHalf = (sqF > 0 ? sqX + sqF / 2 : hwF / 2) + 6
     if (rings > 0 && W / 2 - rowHalf < xRing + rbW / 2) errors.push(`القاعدة أضيق من أن تتّسع للعلبتين والقلب والمربّعين في صفّ واحد: اجعل العرض ${Math.ceil(2 * (rowHalf + m + 4 + rbW))} مم على الأقل.`)
-    if (rings === 0 && W / 2 - rowHalf < m) errors.push('القاعدة أضيق من القلب والمربّعين.')
+    if (rings === 0 && W / 2 - rowHalf < m) errors.push(`القاعدة أضيق من القلب والمربّعين: اجعل العرض ${Math.ceil(2 * (rowHalf + m))} مم على الأقل.`)
+    // placement marks: a rectangle 3 mm inside each box's footprint, a small cross at the centre of the heart and of each
+    // square; all of them lie well inside the pieces, so they disappear once the pieces are glued
+    const ringXs = rings === 2 ? [xRing, W - xRing] : rings === 1 ? [xRing] : []
+    const cross = (x: number, y: number, a: number): Loop[] => [
+      { closed: false, layer: 'engrave', pts: [{ x: round3(x - a), y: round3(y) }, { x: round3(x + a), y: round3(y) }] },
+      { closed: false, layer: 'engrave', pts: [{ x: round3(x), y: round3(y - a) }, { x: round3(x), y: round3(y + a) }] },
+    ]
     const marks: Loop[] = []
     if (Math.round(p.marks) > 0) {
-      if (rings > 0) for (const x of [xRing, W - xRing]) marks.push(engraveRect(round3(x - rbW / 2 + 1), round3(mf + 1), rbW - 2, rbD - 2))
-      if (hwF > 0) marks.push({ ...heart(W / 2, round3(mf + hhF / 2), hwF - 2), layer: 'engrave' })
-      if (sqF > 0) for (const sd of [-1, 1]) marks.push(engraveRect(round3(W / 2 + sd * sqX - sqF / 2 + 1), round3(mf + 1), sqF - 2, sqF - 2))
+      for (const x of ringXs) marks.push(engraveRect(round3(x - rbW / 2 + 3), round3(mf + 3), rbW - 6, rbD - 6))
+      if (hwF > 0) marks.push(...cross(W / 2, hcY, Math.min(6, hwF / 6)))
+      if (sqF > 0) for (const sd of [-1, 1]) marks.push(...cross(W / 2 + sd * sqX, mf + sqF / 2, Math.min(6, sqF / 5)))
     }
     const rounded = (w: number, h: number, r: number) => (loops: Loop[]) => { for (const [x, y] of [[0, 0], [w, 0], [w, h], [0, h]]) roundCorner(loops, x, y, r) }
     const panels: PanelSpec[] = [
       mirror, brace,
       { id: 'base-top', name: 'القاعدة — الطبقة العليا', w: W, h: D, holes: slots, engrave: marks, post: rounded(W, D, 14), note: 'شقّا ألسنة المرآة وشقّا الدعامتين' },
-      ...(n > 1 ? [{ id: 'base-under', name: 'القاعدة — الطبقة السفلى', w: W, h: D, count: n - 1, holes: slots.map(l => ({ ...l, pts: l.pts.map(v => ({ ...v })) })), post: rounded(W, D, 14), note: 'الشقوق نفسها لتنفذ فيها الألسنة' }] : []),
+      ...(n > 1 ? [{ id: 'base-under', name: 'القاعدة — الطبقة السفلى', w: W, h: D, count: n - 1, material: 'black', holes: slots.map(l => ({ ...l, pts: l.pts.map(v => ({ ...v })) })), post: rounded(W, D, 14), note: 'الشقوق نفسها لتنفذ فيها الألسنة' }] : []),
     ]
     if (p.hw > 0) {
-      panels.push({ id: 'heart', name: 'القلب', w: p.hw, h: round3(0.95 * p.hw), shape: [oriented(heart(p.hw / 2, 0.95 * p.hw / 2, p.hw), 'outer')], note: 'تُحفر عليه الحروف الأولى' })
-      if (back) panels.push({ id: 'heart-back', name: 'إطار القلب', w: hwF, h: round3(hhF), shape: [oriented(heart(hwF / 2, hhF / 2, hwF), 'outer')], note: 'يُلصق تحت القلب بلون مختلف' })
+      const hp = oriented(heart(p.hw / 2, 0.95 * p.hw / 2, p.hw), 'outer')
+      panels.push({ id: 'heart', name: 'القلب', w: p.hw, h: round3(0.95 * p.hw), shape: [hp], note: 'رأسه المدبّب نحو الأمام؛ تُحفر عليه الحروف الأولى' })
+      // the border is a true 4 mm offset of the heart, so it stays 4 mm wide at the notch between the lobes too
+      if (back) panels.push({ id: 'heart-back', name: 'إطار القلب', w: hwF, h: round3(hhF), material: 'black', shape: [heartOffset(p.hw / 2 + 4, 0.95 * p.hw / 2 + 4, p.hw, 4)], note: 'يُلصق تحت القلب بلون مختلف' })
     }
     if (p.sq > 0) {
-      panels.push({ id: 'square', name: 'مربّع الاسم', w: p.sq, h: p.sq, count: 2, post: rounded(p.sq, p.sq, 4), note: 'لاسم أو تاريخ' })
-      if (back) panels.push({ id: 'square-back', name: 'إطار المربّع', w: sqF, h: sqF, count: 2, post: rounded(sqF, sqF, 6), note: 'يُلصق تحت المربّع' })
+      panels.push({ id: 'square', name: 'مربّع الاسم', w: p.sq, h: p.sq, count: 2, material: 'white', post: rounded(p.sq, p.sq, 4), note: 'لاسم أو تاريخ' })
+      if (back) panels.push({ id: 'square-back', name: 'إطار المربّع', w: sqF, h: sqF, count: 2, material: 'black', post: rounded(sqF, sqF, 7), note: 'يُلصق تحت المربّع' })
     }
+    const ringNotes: string[] = []
     if (rings > 0) {
       // each ring box is the stay-open hinged box, with an insert: a plate with a slit for the ring, on two spacers
       const box = TEMPLATES.find(x => x.id === 'hinged90')!
-      const rb = box.build({ W: rbW, D: rbD, H: rbH, ...HINGE_DEFAULTS, pull: 0, stop: 95 }, c)
-      for (const e of rb.errors ?? []) errors.push('علبة المحبس: ' + e)
-      for (const w of rb.warnings) warnings.push('علبة المحبس: ' + w)
-      for (const pn of rb.panels) panels.push({ ...pn, id: 'ring-' + pn.id, name: 'علبة المحبس — ' + pn.name, count: (pn.count ?? 1) * rings })
+      const rb = box.build({ W: rbW, D: rbD, H: rbH, ...HINGE_DEFAULTS, stop: 95 }, c)
+      // the box's own messages name its controls; here they are the ring-box size and the material thickness
+      const own = (msg: string) => 'علبة المحبس: ' + msg.replace(/«[^»]*»/g, 'عرض العلبة أو ارتفاعها').replace(/زاوية التوقّف/g, 'قياس العلبة')
+      for (const e of rb.errors ?? []) errors.push(own(e))
+      for (const w of rb.warnings) warnings.push(own(w))
+      for (const pn of rb.panels) panels.push({ ...pn, id: 'ring-' + pn.id, name: 'علبة المحبس — ' + pn.name, count: (pn.count ?? 1) * rings, material: 'white' })
+      ringNotes.push(...rb.notes.map(nt => 'علبة المحبس: ' + nt))
       const Wp = round3(rbW - 2 * t - 1), Dp = round3(rbD - 2 * t - 1), hs = round3(rbH - t - 12 - t)
       if (hs < 16) errors.push(`علبة المحبس قصيرة: يلزم ارتفاع ${Math.ceil(16 + 12 + 2 * t)} مم لتتدلّى حلقة المحبس تحت الحشوة ويبقى فوق الحجر فراغ للغطاء.`)
-      const slitL = Math.min(30, Wp - 14)
-      if (slitL < 12) errors.push('علبة المحبس ضيقة على شقّ المحبس.')
+      const slitL = p.slitL
+      if (slitL > Wp - 10) errors.push(`شقّ المحبس أطول من الحشوة: أقصاه ${Math.floor(Wp - 10)} مم.`)
       panels.push(
-        { id: 'ring-insert', name: 'علبة المحبس — الحشوة', w: Wp, h: Dp, count: rings, holes: slitL >= 12 ? [stadium(Wp / 2, Dp / 2, slitL, p.slitW)] : [], note: 'شقّها يمسك حلقة المحبس واقفاً' },
-        { id: 'ring-spacer', name: 'علبة المحبس — حامل الحشوة', w: Wp, h: Math.max(hs, 1), count: 2 * rings, note: 'اثنان على حافّتيهما عند الأمام والخلف تحت الحشوة' },
+        { id: 'ring-insert', name: 'علبة المحبس — الحشوة', w: Wp, h: Dp, count: rings, material: 'white', holes: slitL <= Wp - 10 ? [stadium(Wp / 2, Dp / 2, slitL, p.slitW)] : [], note: 'شقّها يمسك حلقة المحبس واقفاً' },
+        { id: 'ring-spacer', name: 'علبة المحبس — حامل الحشوة', w: Wp, h: Math.max(hs, 1), count: 2 * rings, material: 'white', note: 'اثنان على حافّتيهما عند الأمام والخلف تحت الحشوة' },
       )
     }
     const notes = [
       `المرآة ${Dd} مم تقف بلسانيها في شقوق القاعدة (${n} ${n > 1 ? 'طبقات' : 'طبقة'})، وتسندها من الخلف دعامتان تُلصق حافّتاهما على ظهرها.`,
-      'الآية والأسماء والتاريخ: صمّمها في RDWorks أو CorelDRAW وضعها فوق المرآة. في أكريليك المرآة احفر على الوجه الخلفي المطليّ والتصميم معكوس (Mirror) فيُقرأ صحيحاً من الأمام.',
-      ...(rings > 0 ? [`علبتا المحابس ${rbW} × ${rbD} × ${rbH} مم بغطاء مفصلي يقف مفتوحاً عند 95°، وفي كلّ واحدة حشوة بشقّ ${p.slitW} مم للمحبس فوق حاملين؛ غلّف الحشوة بالمخمل إن أردت.`] : []),
-      `الترتيب على القاعدة من اليسار: ${rings > 0 ? 'علبة، ' : ''}${sqF > 0 ? 'مربّع، ' : ''}${hwF > 0 ? 'القلب، ' : ''}${sqF > 0 ? 'مربّع' : ''}${rings > 0 ? '، علبة' : ''}؛ ${Math.round(p.marks) > 0 ? 'العلامات المحفورة تحت كل قطعة تماماً.' : 'ضعها بالترتيب أمام المرآة.'}`,
-      'المرآة والقاعدة من أكريليك مرآة (فضّي أو ذهبي)، والعلب والمربّعان من أكريليك أبيض، والإطارات من أسود، كما في الصورة. kerf الأكريليك عادةً 0.1 مم.',
+      'الآية والأسماء والتاريخ: صمّمها في RDWorks أو CorelDRAW وضعها فوق المرآة. لكتابة بيضاء مطفية كما في الصورة احفر على الوجه الأمامي للمرآة (بعد نزع ورق الحماية عنه) بقدرة منخفضة. الحفر على الظهر المطليّ (والتصميم معكوس) يجعل الحروف شفّافة يُرى ما خلفها، فتظهر الدعامتان خلف الأسطر السفلى.',
+      ...(rings > 0 ? [`${rings === 2 ? 'علبتا المحابس' : 'علبة المحبس'} ${rbW} × ${rbD} × ${rbH} مم بغطاء مفصلي يقف مفتوحاً عند 95°، وفي كلّ علبة حشوة بشقّ ${p.slitW} × ${p.slitL} مم يجلس فيه المحبس واقفاً، فوق حاملين؛ لإمساك أنعم ألصق على الحشوة شريط مخمل واقطع الشقّ فيه.`] : []),
+      `الترتيب على القاعدة من اليسار: ${[...(rings > 0 ? ['علبة'] : []), ...(sqF > 0 ? ['مربّع'] : []), ...(hwF > 0 ? ['القلب'] : []), ...(sqF > 0 ? ['مربّع'] : []), ...(rings > 1 ? ['علبة'] : [])].join('، ')}؛ ${Math.round(p.marks) > 0 ? 'العلامات المحفورة (مستطيل لكل علبة، وإشارة + لمركز القلب وكل مربّع) تختفي تحت القطع.' : 'ضعها بالترتيب أمام المرآة.'}`,
+      'المرآة والطبقة العليا للقاعدة والقلب والدعامتان من أكريليك مرآة (فضّي أو ذهبي)، والعلب والمربّعان من أكريليك أبيض، والإطارات والطبقة السفلى من أسود، كما في الصورة. kerf الأكريليك عادةً 0.1 مم.',
+      ...ringNotes,
     ]
     return { panels, notes, warnings, errors }
   },
@@ -2422,9 +2463,10 @@ MORE.push({
     { key: 'lipL', label: 'طبقات شفة الغطاء', min: 1, max: 2, step: 1, int: true, hint: 'حلقة سداسية تُلصق تحت الغطاء وتدخل بين الجدران' },
     mm('gap', 'خلوص الشفة', 0.2, 1),
     { key: 'insert', label: 'حشوة المحبس', min: 0, max: 1, step: 1, int: true }, mm('slitW', 'عرض شقّ المحبس', 1.5, 4),
+    mm('slitL', 'طول شقّ المحبس', 8, 30, 'أقصر قليلاً من قطر المحبس الخارجي (17–22 مم) فيجلس فيه واقفاً'),
     mm('fit', 'خلوص الشقوق', 0, 0.5),
   ],
-  defaults: { S: 62, H: 40, ov: 3, b: 5, tf: 2, lipL: 1, gap: 0.3, insert: 1, slitW: 2.5, fit: 0.1 },
+  defaults: { S: 62, H: 40, ov: 3, b: 5, tf: 2, lipL: 1, gap: 0.3, insert: 1, slitW: 2.5, slitL: 14, fit: 0.1 },
   innerAdd: () => ({ W: 0, D: 0, H: 0 }),
   build(p, c) {
     const warnings: string[] = [], errors: string[] = []
@@ -2477,7 +2519,8 @@ MORE.push({
     if (Math.round(p.insert) > 0) {
       // a hexagonal plate with a slit on two spacers along opposite walls (put in before the collar); the ring's stone
       // keeps 12 mm under the lip, which hangs from the lid resting on the collar's top
-      const ai = round3(AFin - 1), hs = round3(H - lipDepth - 12), sl = round3(sIn - 1.2 * t - 1), slitL = Math.min(25, round3(ai / r3 + 2))
+      const ai = round3(AFin - 1), hs = round3(H - lipDepth - 12), sl = round3(sIn - 1.2 * t - 1), slitL = p.slitL
+      if (slitL > ai / r3 - 6) errors.push(`شقّ المحبس أطول من الحشوة: أقصاه ${Math.floor(ai / r3 - 6)} مم.`)
       if (hs < 16) errors.push(`الجدران قصيرة على حشوة المحبس: ارتفاع ${Math.ceil(16 + 12 + lipDepth)} مم على الأقل، أو ألغِ الحشوة.`)
       panels.push(
         { ...hexPanel('insert', 'حشوة المحبس', ai, [stadium(ai / r3, ai / 2, slitL, p.slitW)], 'شقّها يمسك حلقة المحبس واقفاً'), w: round3(2 * ai / r3) },

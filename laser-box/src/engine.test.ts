@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { unionRects, rect, offsetLoop, circle, signedArea, bbox, loopLength, edgeNotch, roundCorner, loopToPath, arcInfo, hingeLines, Loop } from './geom'
+import { unionRects, rect, offsetLoop, circle, signedArea, bbox, loopLength, edgeNotch, roundCorner, loopToPath, arcInfo, hingeLines, heart, Loop } from './geom'
 import { buildPanel, fingerCount, edgeCuts } from './joints'
 import { TEMPLATES, pivotLid, CATEGORIES } from './templates'
 import { generate, DEFAULT_SETTINGS, autoFinger } from './generate'
@@ -731,12 +731,21 @@ describe('engagement set', () => {
     expect(spacer.h).toBeGreaterThanOrEqual(16)
     expect(d.panels.filter(x => x.id.startsWith('ring-') && !['ring-insert', 'ring-spacer'].includes(x.id)).every(x => (x.count ?? 1) % 2 === 0)).toBe(true)
     const top = d.panels.find(x => x.id === 'base-top')!
-    const marks = top.loops.filter(l => l.layer === 'engrave').map(l => samplePoly(l))
-    expect(marks.length).toBe(5)
+    const engr = top.loops.filter(l => l.layer === 'engrave')
+    const marks = engr.filter(l => l.closed).map(l => samplePoly(l))
+    expect(marks.length).toBe(2) // one rectangle per ring box
+    expect(engr.filter(l => !l.closed).length).toBe(6) // a cross for the heart and for each square
     for (let i = 0; i < marks.length; i++) for (let j = i + 1; j < marks.length; j++) expect(polysOverlap(marks[i], marks[j])).toBe(false)
+    // the heart's cross lies well inside the heart piece placed on its mark
+    const hw = p.hw, cx = top.w / 2, crossY = engr.filter(l => !l.closed && Math.abs(l.pts[0].x - l.pts[1].x) < 1e-6 && Math.abs(l.pts[0].x - cx) < 1e-3)
+    expect(crossY.length).toBe(1)
+    const hy = (crossY[0].pts[0].y + crossY[0].pts[1].y) / 2
+    const heartPoly = samplePoly(heart(cx, hy, hw))
+    for (const l of engr.filter(l => !l.closed && Math.hypot((l.pts[0].x + l.pts[1].x) / 2 - cx, (l.pts[0].y + l.pts[1].y) / 2 - hy) < 1e-3)) for (const v of l.pts) expect(pointIn(v, heartPoly)).toBe(true)
+    expect(generate(tpl, { rings: 1 }, { ...DEFAULT_SETTINGS, kerf: 0 }).panels.find(x => x.id === 'base-top')!.loops.filter(l => l.layer === 'engrave' && l.closed).length).toBe(1)
     // every mark lies in front of the mirror's slots
     const slotY = Math.min(...top.loops.filter(l => l.layer !== 'engrave' && signedArea(l) < 0).flatMap(l => l.pts.map(v => v.y)))
-    for (const mk of marks) expect(Math.max(...mk.map(v => v.y))).toBeLessThan(slotY - 5)
+    for (const mk of engr) expect(Math.max(...mk.pts.map(v => v.y))).toBeLessThan(slotY - 5)
     expect(generate(tpl, { W: 260 }, { ...DEFAULT_SETTINGS, kerf: 0 }).errors.join(' ')).toMatch(/أعرض من القاعدة|أضيق/)
   })
 })
