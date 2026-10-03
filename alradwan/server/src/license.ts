@@ -165,6 +165,7 @@ async function admin(req: Request, env: LicenseEnv, path: string): Promise<Respo
     if (status === 'used') where.push('l.revoked = 0 AND (SELECT COUNT(*) FROM license_devices d WHERE d.code = l.code) > 0')
     if (status === 'revoked') where.push('l.revoked = 1')
     if (status === 'expired') where.push('l.expires_at IS NOT NULL AND l.expires_at < ?'), args.push(Date.now())
+    if (status === 'soon') where.push('l.revoked = 0 AND l.expires_at IS NOT NULL AND l.expires_at BETWEEN ? AND ?'), args.push(Date.now(), Date.now() + 30 * 86400000)
     const rows = await env.DB.prepare(`SELECT l.*, (SELECT COUNT(*) FROM license_devices d WHERE d.code = l.code) AS devices FROM licenses l WHERE ${where.join(' AND ')} ORDER BY l.created_at DESC LIMIT 300`).bind(...args).all<Row & { devices: number }>()
     return json({ codes: rows.results.map(r => ({ ...r, code: formatCode(r.code) })) })
   }
@@ -199,8 +200,12 @@ async function admin(req: Request, env: LicenseEnv, path: string): Promise<Respo
     const s = await env.DB.prepare(`SELECT COUNT(*) AS total, SUM(revoked) AS revoked, SUM(expires_at IS NOT NULL AND expires_at < ?) AS expired, SUM(last_seen > ?) AS active7,
       (SELECT COUNT(DISTINCT code) FROM license_devices) AS activated, (SELECT COUNT(*) FROM license_devices) AS devices FROM licenses`).bind(now, week).first()
     const soon = await env.DB.prepare('SELECT code, shop_name, expires_at FROM licenses WHERE revoked = 0 AND expires_at IS NOT NULL AND expires_at BETWEEN ? AND ? ORDER BY expires_at LIMIT 30').bind(now, now + 30 * 86400000).all<{ code: string; shop_name: string; expires_at: number }>()
-    const recent = await env.DB.prepare('SELECT at, kind, code, detail FROM license_events ORDER BY id DESC LIMIT 40').all()
-    return json({ stats: s, soon: soon.results.map(r => ({ ...r, code: formatCode(r.code) })), recent: recent.results })
+    const recent = await env.DB.prepare('SELECT at, kind, code, detail FROM license_events ORDER BY at DESC, id DESC LIMIT 40').all()
+    // activations per UTC day over the last two weeks (the day length is written into the SQL: integer division)
+    const days = await env.DB.prepare(`SELECT at / 86400000 AS d, COUNT(*) AS n FROM license_events WHERE kind = 'activate' AND at > ? GROUP BY d`).bind(now - 15 * 86400000).all<{ d: number; n: number }>()
+    const sellers = await env.DB.prepare(`SELECT seller, COUNT(*) AS total, SUM(EXISTS (SELECT 1 FROM license_devices d WHERE d.code = l.code)) AS activated, SUM(revoked) AS revoked
+      FROM licenses l GROUP BY seller ORDER BY total DESC LIMIT 30`).all<{ seller: string; total: number; activated: number; revoked: number }>()
+    return json({ stats: s, soon: soon.results.map(r => ({ ...r, code: formatCode(r.code) })), recent: recent.results.map(r => ({ ...r, code: r.code ? formatCode(String(r.code)) : null })), days: days.results, sellers: sellers.results, now })
   }
   return fail('not-found', 404)
 }
