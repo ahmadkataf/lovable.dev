@@ -1088,8 +1088,8 @@ describe('wedding designs', () => {
   })
 
   it('every door design: no two laser lines burn the same wood, where grooves meet included, and every groove has its n lines', () => {
-    const doors = CATEGORIES.find(c => c.id === 'doors')!.ids
-    expect(doors.length).toBe(8)
+    const doors = [...CATEGORIES.find(c => c.id === 'doorsmodern')!.ids, ...CATEGORIES.find(c => c.id === 'doorsarab')!.ids]
+    expect(doors.length).toBe(17)
     for (const id of doors) for (const [gw, lw] of [[10, 2], [12, 1.5]]) {
       const d = generate(T(id), { gw, lw }, S0)
       expect(d.errors, `${id} gw${gw} lw${lw}`).toEqual([])

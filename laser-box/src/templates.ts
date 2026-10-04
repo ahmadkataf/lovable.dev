@@ -1484,13 +1484,14 @@ export const CATEGORIES: { id: string; name: string; ids: string[] }[] = [
   { id: 'gift', name: 'هدايا وديكور', ids: ['chest', 'catbank', 'decobox', 'jewelry', 'moneybox', 'teahouse', 'frame', 'basket', 'fence', 'clock'] },
   { id: 'kitchen', name: 'مطبخ وتقديم', ids: ['carrier', 'mugtree', 'spicerack', 'bedtray', 'tray', 'teabox', 'tissue'] },
   { id: 'office', name: 'مكتب وتنظيم', ids: ['organizer', 'phonestand', 'bookstand', 'headphone', 'keyholder', 'wallshelf', 'jewelrytree'] },
-  { id: 'doors', name: 'أبواب', ids: ['doorpanel', 'doorclassic', 'doorarch', 'doordiamond', 'doorwaves', 'doorstar', 'doormodern', 'doorframes'] },
+  { id: 'doorsmodern', name: 'أبواب مودرن', ids: ['doorpanel', 'doormodern', 'doorwaves', 'doorframes', 'doordiagonal', 'doorblocks', 'doororbit', 'doorchevron'] },
+  { id: 'doorsarab', name: 'أبواب عربي وكلاسيك', ids: ['doormihrab', 'doorkhatam', 'doormashrabiya', 'doorstars', 'doorandalus', 'doorstar', 'doorarch', 'doorclassic', 'doordiamond'] },
   { id: 'home', name: 'بيت وحديقة', ids: ['planter', 'petfeeder', 'birdhouse', 'incense', 'napkin'] },
   { id: 'light', name: 'إضاءة ورمضان', ids: ['ramadanlantern', 'ramadanornaments', 'lantern', 'shade'] },
   { id: 'bulk', name: 'بالجملة', ids: ['keychains', 'coasters'] },
 ]
 /** the newest designs get a badge in the picker */
-export const NEW_IDS = ['doorpanel', 'doorclassic', 'doorarch', 'doordiamond', 'doorwaves', 'doorstar', 'doormodern', 'doorframes', 'caketopper', 'guestframe', 'sweetstand', 'tablenumbers', 'favorbox', 'hexringbox', 'engagement', 'hinged90', 'crate', 'carrier', 'jewelry', 'moneybox', 'planter', 'petfeeder', 'incense', 'bedtray', 'phonestand', 'bookstand', 'headphone', 'keyholder', 'wallshelf', 'spicerack', 'coasters', 'clock', 'keychains', 'ramadanornaments', 'mugtree', 'jewelrytree', 'birdhouse', 'ramadanlantern']
+export const NEW_IDS = ['doordiagonal', 'doorblocks', 'doororbit', 'doorchevron', 'doormihrab', 'doorkhatam', 'doormashrabiya', 'doorstars', 'doorandalus', 'doorpanel', 'doorclassic', 'doorarch', 'doordiamond', 'doorwaves', 'doorstar', 'doormodern', 'doorframes', 'caketopper', 'guestframe', 'sweetstand', 'tablenumbers', 'favorbox', 'hexringbox', 'engagement', 'hinged90', 'crate', 'carrier', 'jewelry', 'moneybox', 'planter', 'petfeeder', 'incense', 'bedtray', 'phonestand', 'bookstand', 'headphone', 'keyholder', 'wallshelf', 'spicerack', 'coasters', 'clock', 'keychains', 'ramadanornaments', 'mugtree', 'jewelrytree', 'birdhouse', 'ramadanlantern']
 
 // ====================================================================== more designs, built from the shared parts
 
@@ -3171,7 +3172,7 @@ const insetRect = (x0: number, y0: number, x1: number, y1: number, gap: number) 
 
 MORE.push(
   doorTemplate({
-    id: 'doorpanel', name: 'نقشة باب: دوائر وأقواس',
+    id: 'doorpanel', name: 'باب مودرن: دوائر وأقواس',
     desc: 'إطار وثلاث دوائر وقوسان من الزاوية وثلاثة خطوط، كما في صورة الزبون.',
     icon: `<rect x="16" y="4" width="32" height="56" rx="1"/><path d="M19 7h26v50H19z" stroke-width="1.5"/><circle cx="26" cy="14" r="4" stroke-width="1.5"/><circle cx="26" cy="22" r="3" stroke-width="1.5"/><circle cx="26" cy="28" r="2" stroke-width="1.5"/><path d="M19 57C24 38 32 22 45 16M19 57C26 44 34 36 45 30M33 46h12M29 50h16M25 54h20" stroke-width="1.5"/>`,
     extra: [{ key: 'circles', label: 'عدد الدوائر', min: 0, max: 3, step: 1, int: true }, { key: 'curves', label: 'عدد الأقواس', min: 0, max: 2, step: 1, int: true }, { key: 'bars', label: 'عدد الخطوط الأفقية', min: 0, max: 3, step: 1, int: true }],
@@ -3186,7 +3187,7 @@ MORE.push(
     },
   }),
   doorTemplate({
-    id: 'doorclassic', name: 'نقشة باب: ثلاث حشوات كلاسيك',
+    id: 'doorclassic', name: 'باب كلاسيك: ثلاث حشوات',
     desc: 'ثلاث حشوات (طويلة، صغيرة، طويلة) كلٌّ منها بحفرتين متداخلتين كالأبواب الكلاسيكية.',
     icon: `<rect x="16" y="4" width="32" height="56" rx="1"/><path d="M20 8h24v20H20zM20 31h24v6H20zM20 40h24v16H20z" stroke-width="1.5"/><path d="M23 11h18v14H23zM23 43h18v10H23z" stroke-width="1.2"/>`,
     extra: [{ key: 'double', label: 'حفرة ثانية داخل كل حشوة', min: 0, max: 1, step: 1, int: true }],
@@ -3200,7 +3201,7 @@ MORE.push(
     },
   }),
   doorTemplate({
-    id: 'doorarch', name: 'نقشة باب: قوس',
+    id: 'doorarch', name: 'باب كلاسيك: قوس',
     desc: 'حشوة علوية بقوس نصف دائري وداخلها قوس ثانٍ، وتحتها حشوة مستطيلة بإطارين.',
     icon: `<rect x="16" y="4" width="32" height="56" rx="1"/><path d="M21 38V18a11 11 0 0 1 22 0v20z" stroke-width="1.5"/><path d="M24 35V18a8 8 0 0 1 16 0v17z" stroke-width="1.2"/><path d="M21 42h22v14H21z" stroke-width="1.5"/><path d="M24 45h16v8H24z" stroke-width="1.2"/>`,
     design: ({ fw, X, Y }) => {
@@ -3210,7 +3211,7 @@ MORE.push(
     },
   }),
   doorTemplate({
-    id: 'doordiamond', name: 'نقشة باب: معيّنات',
+    id: 'doordiamond', name: 'باب كلاسيك: معيّنات',
     desc: 'معيّن كبير في الوسط وداخله معيّن، تخرج من جانبيه حفرتان إلى الإطار، ومعيّنان صغيران فوقه وتحته.',
     icon: `<rect x="16" y="4" width="32" height="56" rx="1"/><path d="M32 20 43 32 32 44 21 32z" stroke-width="1.5"/><path d="M32 25l7 7-7 7-7-7z" stroke-width="1.2"/><path d="M19 32h2M43 32h2" stroke-width="1.5"/><path d="M32 8l5 5-5 5-5-5zM32 46l5 5-5 5-5-5z" stroke-width="1.2"/>`,
     design: ({ fw, fh, X, Y }) => {
@@ -3224,7 +3225,7 @@ MORE.push(
     },
   }),
   doorTemplate({
-    id: 'doorwaves', name: 'نقشة باب: أمواج',
+    id: 'doorwaves', name: 'باب مودرن: أمواج',
     desc: 'حفر متموّجة متوازية تنساب من أعلى الإطار إلى أسفله.',
     icon: `<rect x="16" y="4" width="32" height="56" rx="1"/><path d="M19 7h26v50H19z" stroke-width="1.5"/><path d="M26 7c-4 8 4 17 0 25s4 17 0 25M32 7c-4 8 4 17 0 25s4 17 0 25M38 7c-4 8 4 17 0 25s4 17 0 25" stroke-width="1.3"/>`,
     extra: [{ key: 'waves', label: 'عدد الأمواج', min: 1, max: 5, step: 1, int: true }, { key: 'turns', label: 'عدد التموّجات', min: 1, max: 4, step: 1, int: true }],
@@ -3235,7 +3236,7 @@ MORE.push(
     },
   }),
   doorTemplate({
-    id: 'doorstar', name: 'نقشة باب: نجمة ثمانية',
+    id: 'doorstar', name: 'باب عربي: نجمة ثمانية وحشوة',
     desc: 'نجمة ثمانية إسلامية في دائرة وفي قلبها دائرة صغيرة، وتحتها حشوة طويلة بإطارين.',
     icon: `<rect x="16" y="4" width="32" height="56" rx="1"/><circle cx="32" cy="18" r="10" stroke-width="1.5"/><path d="M32 10l2.5 5.5L40 18l-5.5 2.5L32 26l-2.5-5.5L24 18l5.5-2.5z" stroke-width="1.2"/><path d="M21 33h22v23H21z" stroke-width="1.5"/><path d="M24 36h16v17H24z" stroke-width="1.2"/>`,
     design: ({ fw, X, Y }) => {
@@ -3246,7 +3247,7 @@ MORE.push(
     },
   }),
   doorTemplate({
-    id: 'doormodern', name: 'نقشة باب: خطوط عصرية',
+    id: 'doormodern', name: 'باب مودرن: خطوط عصرية',
     desc: 'حفرة عمودية قرب الجانب تتفرّع منها حفر أفقية متناوبة إلى الإطار، بأسلوب الأبواب الحديثة.',
     icon: `<rect x="16" y="4" width="32" height="56" rx="1"/><path d="M19 7h26v50H19z" stroke-width="1.5"/><path d="M28 7v50M19 18h9M28 26h17M19 34h9M28 42h17M19 50h9" stroke-width="1.5"/>`,
     extra: [{ key: 'rungs', label: 'عدد الحفر الأفقية', min: 2, max: 12, step: 1, int: true }, { key: 'pos', label: 'موضع الحفرة العمودية', min: 0.2, max: 0.8, step: 0.05, hint: 'نسبة من العرض: 0.33 = الثلث' }],
@@ -3257,7 +3258,7 @@ MORE.push(
     },
   }),
   doorTemplate({
-    id: 'doorframes', name: 'نقشة باب: إطارات متداخلة',
+    id: 'doorframes', name: 'باب مودرن: إطارات متداخلة',
     desc: 'مستطيلات متداخلة متساوية البعد حتى الوسط، وفي قلبها مربّع مائل كالمعيّن.',
     icon: `<rect x="16" y="4" width="32" height="56" rx="1"/><path d="M19 7h26v50H19zM22.5 11h19v42h-19zM26 15h12v34H26z" stroke-width="1.3"/><path d="M32 26l4 6-4 6-4-6z" stroke-width="1.2"/>`,
     extra: [{ key: 'rings', label: 'عدد الإطارات الداخلية', min: 1, max: 6, step: 1, int: true }, mm('step', 'المسافة بين الإطارات', 15, 120)],
@@ -3268,6 +3269,175 @@ MORE.push(
       const last = out.length * p.step, hw = Math.min(0.25 * (fw - 2 * last), 0.18 * fw)
       if (hw > 20) out.push({ closed: true, pts: [{ x: X(0.5), y: Y(0.5) - 1.6 * hw }, { x: X(0.5) + hw, y: Y(0.5) }, { x: X(0.5), y: Y(0.5) + 1.6 * hw }, { x: X(0.5) - hw, y: Y(0.5) }] })
       return out
+    },
+  }),
+)
+
+/** An eight-pointed star (two squares, one turned 45°), tips R from the centre, the first tip at angle a0. */
+const star8G = (c: P2, R: number, a0 = -Math.PI / 2): Groove => ({ closed: true, pts: Array.from({ length: 16 }, (_, k) => { const r = k % 2 ? (R * Math.cos(Math.PI / 4)) / Math.cos(Math.PI / 8) : R, a = a0 + (k * Math.PI) / 8; return { x: c.x + r * Math.cos(a), y: c.y + r * Math.sin(a) } }) })
+/** A pointed (equilateral) arch: each side an arc centred on the opposite springing point; jambs down to y1. */
+const pointedArchG = (x0: number, ys: number, x1: number, y1: number): Groove => {
+  const w = x1 - x0, k = Math.max(16, Math.ceil(w / 4)), arc = (cx: number, a0: number, a1: number) => Array.from({ length: k }, (_, i) => { const a = a0 + ((a1 - a0) * (i + 1)) / k; return { x: cx + w * Math.cos(a), y: ys + w * Math.sin(a) } })
+  return { closed: true, pts: [{ x: x0, y: y1 }, { x: x0, y: ys }, ...arc(x1, Math.PI, (4 * Math.PI) / 3), ...arc(x0, (5 * Math.PI) / 3, 2 * Math.PI).slice(0, -1), { x: x1, y: ys }, { x: x1, y: y1 }] }
+}
+/** A horseshoe arch: a circle cut by a chord narrower than its diameter (the jambs x0, x1), the jambs down to y1. */
+const horseshoeG = (x0: number, ys: number, x1: number, y1: number, phi = Math.PI / 6): Groove => {
+  const R = (x1 - x0) / 2 / Math.cos(phi), cx = (x0 + x1) / 2, cy = ys - R * Math.sin(phi), k = Math.max(32, Math.ceil(R))
+  // from the left springing point (below the centre, at 180° + φ) over the top to the right one (−φ), y up as usual
+  const a0 = Math.PI + phi, sweep = Math.PI + 2 * phi
+  return { closed: true, pts: [{ x: x0, y: y1 }, ...Array.from({ length: k + 1 }, (_, i) => { const a = a0 - (sweep * i) / k; return { x: cx + R * Math.cos(a), y: cy - R * Math.sin(a) } }), { x: x1, y: y1 }] }
+}
+/** The part of segment a–b inside the convex polygon (either orientation), or null. */
+function clipToConvex(a: P2, b: P2, poly: P2[]): [P2, P2] | null {
+  let t0 = 0, t1 = 1
+  const s = Math.sign(poly.reduce((A, p, i) => { const q = poly[(i + 1) % poly.length]; return A + p.x * q.y - q.x * p.y }, 0))
+  for (let i = 0; i < poly.length; i++) {
+    const p = poly[i], q = poly[(i + 1) % poly.length], nx = -(q.y - p.y) * s, ny = (q.x - p.x) * s // inward normal
+    const num = (a.x - p.x) * nx + (a.y - p.y) * ny, den = (b.x - a.x) * nx + (b.y - a.y) * ny
+    if (Math.abs(den) < 1e-12) { if (num < 0) return null; continue }
+    const t = -num / den
+    if (den > 0) t0 = Math.max(t0, t); else t1 = Math.min(t1, t)
+    if (t0 >= t1) return null
+  }
+  return [{ x: a.x + (b.x - a.x) * t0, y: a.y + (b.y - a.y) * t0 }, { x: a.x + (b.x - a.x) * t1, y: a.y + (b.y - a.y) * t1 }]
+}
+/** Parallel lines at angle `deg` (from horizontal), `count` of them evenly across the polygon, each clipped to it. */
+function hatch(poly: P2[], deg: number, count: number, minLen: number): Groove[] {
+  const th = (deg * Math.PI) / 180, d = { x: Math.cos(th), y: -Math.sin(th) }, nrm = { x: -d.y, y: d.x }
+  const cs = poly.map(p => p.x * nrm.x + p.y * nrm.y), c0 = Math.min(...cs), c1 = Math.max(...cs), big = 1e4
+  const out: Groove[] = []
+  for (let i = 1; i <= count; i++) {
+    const c = c0 + ((c1 - c0) * i) / (count + 1), o = { x: nrm.x * c, y: nrm.y * c }
+    const seg = clipToConvex({ x: o.x - d.x * big, y: o.y - d.y * big }, { x: o.x + d.x * big, y: o.y + d.y * big }, poly)
+    if (seg && Math.hypot(seg[1].x - seg[0].x, seg[1].y - seg[0].y) >= minLen) out.push(lineG(seg[0], seg[1]))
+  }
+  return out
+}
+/** Lines at ±45° every `cell` mm across the polygon (a lattice), each clipped to it. */
+function lattice(poly: P2[], cell: number, minLen: number): Groove[] {
+  const out: Groove[] = []
+  for (const sgn of [1, -1]) {
+    const d = { x: Math.SQRT1_2, y: sgn * Math.SQRT1_2 }, nrm = { x: -d.y, y: d.x }
+    const cs = poly.map(p => p.x * nrm.x + p.y * nrm.y), c0 = Math.min(...cs), c1 = Math.max(...cs)
+    const mid = (c0 + c1) / 2, kmax = Math.floor((c1 - c0) / 2 / cell)
+    for (let k = -kmax; k <= kmax; k++) {
+      const c = mid + k * cell, o = { x: nrm.x * c, y: nrm.y * c }
+      const seg = clipToConvex({ x: o.x - d.x * 1e4, y: o.y - d.y * 1e4 }, { x: o.x + d.x * 1e4, y: o.y + d.y * 1e4 }, poly)
+      if (seg && Math.hypot(seg[1].x - seg[0].x, seg[1].y - seg[0].y) >= minLen) out.push(lineG(seg[0], seg[1]))
+    }
+  }
+  return out
+}
+/** Where the ray from c at angle a first meets the rectangle x0..x1 × y0..y1 (c inside it). */
+const rayToRect = (c: P2, a: number, x0: number, y0: number, x1: number, y1: number): P2 => {
+  const dx = Math.cos(a), dy = Math.sin(a), ts = [dx > 1e-9 ? (x1 - c.x) / dx : Infinity, dx < -1e-9 ? (x0 - c.x) / dx : Infinity, dy > 1e-9 ? (y1 - c.y) / dy : Infinity, dy < -1e-9 ? (y0 - c.y) / dy : Infinity]
+  const t = Math.min(...ts); return { x: c.x + t * dx, y: c.y + t * dy }
+}
+
+MORE.push(
+  // ---------------------------------------------------------------- modern doors
+  doorTemplate({
+    id: 'doordiagonal', name: 'باب مودرن: خطوط مائلة',
+    desc: 'حفر متوازية مائلة تقطع اللوح من إطار إلى إطار، بزاوية وعدد تختارهما.',
+    icon: `<rect x="16" y="4" width="32" height="56" rx="1"/><path d="M19 7h26v50H19z" stroke-width="1.5"/><path d="M19 22 33 7M19 36 45 9M19 50 45 23M26 57l19-20M40 57l5-6" stroke-width="1.5"/>`,
+    extra: [{ key: 'lines', label: 'عدد الخطوط', min: 2, max: 12, step: 1, int: true }, { key: 'angle', label: 'الزاوية', min: 20, max: 80, step: 1, unit: '°', hint: 'من الأفق' }],
+    defaults: { lines: 5, angle: 60 },
+    design: ({ X, Y }, p) => hatch(rectG(X(0), Y(0), X(1), Y(1)).pts, p.angle, Math.round(p.lines), 80),
+  }),
+  doorTemplate({
+    id: 'doorblocks', name: 'باب مودرن: مستطيلات غير متناظرة',
+    desc: 'خطّ عمودي يقسم اللوح وخطوط أفقية متبادلة تصنع مستطيلات بأحجام مختلفة.',
+    icon: `<rect x="16" y="4" width="32" height="56" rx="1"/><path d="M19 7h26v50H19z" stroke-width="1.5"/><path d="M35 7v50M19 21h16M19 43h16M35 15h10M35 32h10M35 49h10M27 43v14" stroke-width="1.5"/>`,
+    design: ({ X, Y }) => {
+      const xv = X(0.62)
+      return [lineG({ x: xv, y: Y(0) }, { x: xv, y: Y(1) }),
+        ...[0.28, 0.66].map(v => lineG({ x: X(0), y: Y(v) }, { x: xv, y: Y(v) })),
+        ...[0.16, 0.5, 0.84].map(v => lineG({ x: xv, y: Y(v) }, { x: X(1), y: Y(v) })),
+        lineG({ x: X(0.3), y: Y(0.66) }, { x: X(0.3), y: Y(1) })]
+    },
+  }),
+  doorTemplate({
+    id: 'doororbit', name: 'باب مودرن: دائرة وخط',
+    desc: 'دائرتان متّحدتا المركز في الأعلى يخترقهما خطّ عمودي من أعلى اللوح إلى أسفله، وثلاثة خطوط قصيرة في الأسفل.',
+    icon: `<rect x="16" y="4" width="32" height="56" rx="1"/><path d="M19 7h26v50H19z" stroke-width="1.5"/><circle cx="32" cy="20" r="9" stroke-width="1.5"/><circle cx="32" cy="20" r="5" stroke-width="1.3"/><path d="M32 7v50M19 42h13M19 46h13M19 50h13" stroke-width="1.5"/>`,
+    design: ({ fw, X, Y }) => {
+      const c = { x: X(0.5), y: Y(0.25) }, R = Math.min(0.34 * fw, 0.42 * (c.y - Y(0)))
+      return [circleG(c, R), circleG(c, 0.6 * R), lineG({ x: c.x, y: Y(0) }, { x: c.x, y: Y(1) }), ...[0.7, 0.78, 0.86].map(v => lineG({ x: X(0), y: Y(v) }, { x: c.x, y: Y(v) }))]
+    },
+  }),
+  doorTemplate({
+    id: 'doorchevron', name: 'باب مودرن: شيفرون',
+    desc: 'حفر على شكل حرف V متتالية من أعلى اللوح إلى أسفله.',
+    icon: `<rect x="16" y="4" width="32" height="56" rx="1"/><path d="M19 7h26v50H19z" stroke-width="1.5"/><path d="M19 12l13 8 13-8M19 24l13 8 13-8M19 36l13 8 13-8M19 48l13 8 13-8" stroke-width="1.5"/>`,
+    extra: [{ key: 'count', label: 'عدد الأشكال', min: 2, max: 10, step: 1, int: true }, { key: 'depth', label: 'عمق الشكل', min: 0.1, max: 0.6, step: 0.05, hint: 'نسبة من العرض' }],
+    defaults: { count: 6, depth: 0.35 },
+    design: ({ fw, fh, X, Y }, p) => {
+      const k = Math.round(p.count), h = p.depth * fw, span = fh - h
+      return Array.from({ length: k }, (_, i) => { const y = Y(0) + (span * (i + 1)) / (k + 1); return lineG({ x: X(0), y }, { x: X(0.5), y: y + h }, { x: X(1), y }) })
+    },
+  }),
+  // ---------------------------------------------------------------- Arabic doors
+  doorTemplate({
+    id: 'doormihrab', name: 'باب عربي: محراب',
+    desc: 'قوس مدبّب كقوس المحراب وداخله قوس ثانٍ، وتحته حشوة بإطارين في وسطها نجمة ثمانية.',
+    icon: `<rect x="16" y="4" width="32" height="56" rx="1"/><path d="M21 38V24Q21 13 32 7q11 6 11 17v14z" stroke-width="1.5"/><path d="M24 35V25q0-8 8-13 8 5 8 13v10z" stroke-width="1.2"/><path d="M21 42h22v14H21z" stroke-width="1.5"/><path d="M32 45l1.5 3.5L37 49l-3.5 1.5L32 54l-1.5-3.5L27 49l3.5-.5z" stroke-width="1.1"/>`,
+    design: ({ fw, X, Y }) => {
+      const a = 0.12 * fw, c = 0.07 * fw, x0 = X(0) + a, x1 = X(1) - a, w = x1 - x0
+      const ys = Y(0) + a + 0.87 * w, y1 = Y(0.64), b0 = Y(0.69), b1 = Y(1) - a
+      const inner = y1 - ys > c + 30 ? [pointedArchG(x0 + c, ys + 0.3 * c, x1 - c, y1 - c)] : []
+      const sr = Math.min((b1 - b0) / 2 - c - 12, (x1 - x0) / 2 - c - 12) * 0.8
+      return [pointedArchG(x0, ys, x1, y1), ...inner, rectG(x0, b0, x1, b1), ...insetRect(x0, b0, x1, b1, c), ...(sr > 25 ? [star8G({ x: (x0 + x1) / 2, y: (b0 + b1) / 2 }, sr)] : [])]
+    },
+  }),
+  doorTemplate({
+    id: 'doorkhatam', name: 'باب عربي: نجمة بأشعة',
+    desc: 'نجمة ثمانية كبيرة في دائرة وسط اللوح، تخرج من الدائرة ثمانية أشعة إلى الإطار.',
+    icon: `<rect x="16" y="4" width="32" height="56" rx="1"/><path d="M19 7h26v50H19z" stroke-width="1.5"/><circle cx="32" cy="32" r="8" stroke-width="1.5"/><path d="M32 26l1.8 4.2L38 32l-4.2 1.8L32 38l-1.8-4.2L26 32l4.2-1.8z" stroke-width="1.1"/><path d="M32 7v17M32 40v17M19 32h5M40 32h5M26 26l-7-7M38 26l7-7M26 38l-7 7M38 38l7 7" stroke-width="1.3"/>`,
+    design: ({ fw, X, Y }) => {
+      const c = { x: X(0.5), y: Y(0.5) }, R = 0.28 * fw, Rc = 1.22 * R
+      const rays = Array.from({ length: 8 }, (_, k) => { const a = -Math.PI / 2 + (k * Math.PI) / 4; return lineG({ x: c.x + Rc * Math.cos(a), y: c.y + Rc * Math.sin(a) }, rayToRect(c, a, X(0), Y(0), X(1), Y(1))) })
+      return [circleG(c, Rc), star8G(c, R), circleG(c, 0.3 * R), ...rays]
+    },
+  }),
+  doorTemplate({
+    id: 'doormashrabiya', name: 'باب عربي: مشربية',
+    desc: 'حشوة علوية بقوس تملؤها شبكة معيّنات كالمشربية، وتحتها حشوة بإطارين.',
+    icon: `<rect x="16" y="4" width="32" height="56" rx="1"/><path d="M21 38V18a11 11 0 0 1 22 0v20z" stroke-width="1.5"/><path d="M21 22l16 16M21 30l8 8M24 12l19 19M31 8l12 12M29 38l14-14M21 34l20-20M21 26l13-13" stroke-width="1"/><path d="M21 42h22v14H21z" stroke-width="1.5"/><path d="M24 45h16v8H24z" stroke-width="1.2"/>`,
+    extra: [mm('cell', 'حجم خلية الشبكة', 30, 150)],
+    defaults: { cell: 60 },
+    design: ({ fw, X, Y }, p) => {
+      const a = 0.12 * fw, c = 0.07 * fw, x0 = X(0) + a, x1 = X(1) - a, r = (x1 - x0) / 2
+      const ys = Y(0) + a + r, y1 = Y(0.64), b0 = Y(0.69), b1 = Y(1) - a, arch = archG(x0, ys, x1, y1)
+      return [arch, ...lattice(arch.pts, p.cell, 3 * 10), rectG(x0, b0, x1, b1), ...insetRect(x0, b0, x1, b1, c)]
+    },
+  }),
+  doorTemplate({
+    id: 'doorstars', name: 'باب عربي: نجوم متتالية',
+    desc: 'نجوم ثمانية في دوائر بعضها فوق بعض، يصل بينها خطّ في الوسط من أعلى اللوح إلى أسفله.',
+    icon: `<rect x="16" y="4" width="32" height="56" rx="1"/><path d="M19 7h26v50H19z" stroke-width="1.5"/><circle cx="32" cy="17" r="6" stroke-width="1.4"/><circle cx="32" cy="32" r="6" stroke-width="1.4"/><circle cx="32" cy="47" r="6" stroke-width="1.4"/><path d="M32 7v4M32 23v3M32 38v3M32 53v4" stroke-width="1.4"/><path d="M32 13l1 2.5 3 1-3 1-1 2.5-1-2.5-3-1 3-1zM32 28l1 2.5 3 1-3 1-1 2.5-1-2.5-3-1 3-1zM32 43l1 2.5 3 1-3 1-1 2.5-1-2.5-3-1 3-1z" stroke-width="1"/>`,
+    extra: [{ key: 'count', label: 'عدد النجوم', min: 1, max: 5, step: 1, int: true }],
+    defaults: { count: 3 },
+    design: ({ fw, fh, X, Y }, p) => {
+      const k = Math.round(p.count), Rc = Math.min(0.36 * fw, (fh / k) * 0.36), cx = X(0.5)
+      const cs = Array.from({ length: k }, (_, i) => ({ x: cx, y: Y((i + 0.5) / k) }))
+      const links = [Y(0), ...cs.flatMap(c => [c.y - Rc, c.y + Rc]), Y(1)]
+      const out: Groove[] = []
+      for (const c of cs) out.push(circleG(c, Rc), star8G(c, Rc / 1.22), circleG(c, 0.25 * Rc))
+      for (let i = 0; i + 1 < links.length; i += 2) if (links[i + 1] - links[i] > 20) out.push(lineG({ x: cx, y: links[i] }, { x: cx, y: links[i + 1] }))
+      return out
+    },
+  }),
+  doorTemplate({
+    id: 'doorandalus', name: 'باب عربي: قوس أندلسي',
+    desc: 'قوس حدوة الحصان الأندلسي وداخله قوس ثانٍ، وتحته حشوة بإطارين.',
+    icon: `<rect x="16" y="4" width="32" height="56" rx="1"/><path d="M24 38V27a11 11 0 1 1 16 0v11z" stroke-width="1.5"/><path d="M27 35V27a7.5 7.5 0 1 1 10 0v8z" stroke-width="1.2"/><path d="M21 42h22v14H21z" stroke-width="1.5"/><path d="M24 45h16v8H24z" stroke-width="1.2"/>`,
+    design: ({ fw, X, Y }) => {
+      const a = 0.12 * fw, c = 0.07 * fw, phi = Math.PI / 6
+      // the arch's widest point fills the panel; its jambs are narrower by cos 30°
+      const R = (X(1) - X(0)) / 2 - a, cx = X(0.5), x0 = cx - R * Math.cos(phi), x1 = cx + R * Math.cos(phi)
+      const ys = Y(0) + a + R + R * Math.sin(phi), y1 = Y(0.64), b0 = Y(0.69), b1 = Y(1) - a, Ri = R - c
+      const inner = Ri > 40 ? [horseshoeG(cx - Ri * Math.cos(phi), ys, cx + Ri * Math.cos(phi), y1 - c, phi)] : []
+      return [horseshoeG(x0, ys, x1, y1, phi), ...inner, rectG(X(0) + a, b0, X(1) - a, b1), ...insetRect(X(0) + a, b0, X(1) - a, b1, c)]
     },
   }),
 )
