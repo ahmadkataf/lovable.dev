@@ -68,22 +68,22 @@ TYPED='شو أذكى طريقة تدرس فيها إنجليزي البكالو�
 for k in range(n):
     tt=0.35+(k+0.5)*(1.75/n)
     add(key(0.45 if TYPED[k]==' ' else 0.8),tt,pan=rng.uniform(-.3,.3))
-add(bell(note(88),1.2,2.0,.35),2.16)
+add(knock(300,.5),2.16)
 add(bloop(.56,.4),2.42); add(swish(.5,.25,3000),2.5)
 # ---------- S2 brand
 add(thump(.9),3.08); add(knock(150,.7),3.08)
-for i,m in enumerate([72,76,79,84]): add(marimba(m,.35),3.18+i*.08,pan=(-.5+i*.33))
+for i in range(4): add(knock(170+i*25,.4),3.18+i*.08,pan=(-.5+i*.33))
 for tt in (3.45,3.7,3.95): add(swish(.26,.32),tt)
 add(swish(.42,.45,3500),5.18)
 # ---------- S3 features
 add(swish(.5,.4,3000),5.6); add(thump(.6),5.92)
 for i,(st,m) in enumerate(zip([5.7,7.45,9.2,10.95],[67,71,74,79])):
-    add(marimba(m,.42),st+(.25 if i==0 else 0)); add(marimba(m+12,.18),st+(.25 if i==0 else 0)+.09)
+    add(swish(.3,.38),st+(.25 if i==0 else 0)); add(knock(200,.4),st+(.25 if i==0 else 0)+.12)
     if i>0: add(shutter(.55),st)
 for tt in (7.9,9.7): add(wood(1500,.35),tt); add(key(.5),tt)
-for k in range(4): add(tink(1760+k*0,.12),7.98+k*.33,pan=.3)   # speaker pings
+for k in range(4): add(bubble(.18),7.98+k*.33,pan=.3)   # speaker pops
 add(bubble(.35),8.35)
-add(tink(2637,.25),9.95); add(tink(3520,.25),10.05)
+add(wood(1500,.3),9.95); add(bubble(.4),10.0)
 for k in range(3):                                           # clock
     add(wood(1250,.3),11.2+k*.5); add(wood(950,.3),11.45+k*.5)
 for i in range(6): add(flap(.5),12.47+i*.045+.08,pan=(-.6+i*.24))
@@ -102,14 +102,14 @@ for ci,v in enumerate(vals):
 for i in range(6): add(flap(.5),15.37+i*.045+.08,pan=(.6-i*.24))
 # ---------- S5 CTA
 add(knock(260,.4),15.8); add(swish(.26,.3),15.88)
-add(bubble(.45),16.08); add(bell(note(84),1.0,1.5,.22),16.12)
+add(bubble(.45),16.08); add(thump(.6),16.12)
 add(marker(.42,.22),16.4)
 add(swish(.26,.28),16.85)
-add(bell(note(91),1.0,2.5,.25),17.05); add(bell(note(96),1.0,2.5,.2),17.13); add(coins(.14),17.1)
+add(knock(250,.5),17.05); add(coins(.16),17.1)
 add(marker(.5,.2),17.35)
 add(bubble(.4),18.02); add(wood(1800,.25),18.22)
 add(swish(.25,.3,2500),18.72); add(thump(1.0),18.97); add(knock(120,.8),18.97)
-for k,m in enumerate([72,76,79,84]): add(bell(note(m),2.2,1.2,.14),19.4+k*.06,pan=(-.4+k*.27))
+add(swish(.6,.3,2500),19.3)
 # ---------- room reverb + master
 irn=int(.6*SR); ti=np.arange(irn)/SR; ir1=rng.standard_normal(irn)*np.exp(-ti/.12); ir2=rng.standard_normal(irn)*np.exp(-ti/.12)
 def conv(x,ir):
