@@ -1078,7 +1078,7 @@ describe('wedding designs', () => {
       const pn = d.panels[0], lines = pn.loops.filter(l => l.layer === 'engrave')
       expect(pn.loops.filter(l => l.layer !== 'engrave').length).toBe(1) // the panel's outline, for alignment
       const bb = bbox([outerOf(pn)])
-      expect([bb.maxX - bb.minX, bb.maxY - bb.minY]).toEqual([600, 1600])
+      expect([bb.maxX - bb.minX, bb.maxY - bb.minY]).toEqual([600, 1060])
       const n = Math.round(gw / lw)
       expect(lines.filter(l => l.closed && l.pts.length === 4).length).toBe(n) // the frame's rectangles
       expect(lines.filter(l => l.closed && l.pts.length > 4).length).toBe(3 * n) // three circles

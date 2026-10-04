@@ -3117,6 +3117,7 @@ function engraveGrooves(grooves: Groove[], gw: number, lw: number): { lines: Loo
   return { lines, tight }
 }
 
+/** the panel, its frame's centre line m in (fw × fh), positions as fractions of it, and the scale against a 600 × 1060 door */
 interface DoorFrame { PW: number; PH: number; m: number; fw: number; fh: number; X: (u: number) => number; Y: (v: number) => number; sc: number }
 
 /** A door panel template: the frame groove, then the design's grooves (u across and v down the frame, 0..1). */
@@ -3128,7 +3129,7 @@ function doorTemplate(t: { id: string; name: string; desc: string; icon: string;
       mm('gw', 'عرض الحفرة', 2, 30), { key: 'lw', label: 'المسافة بين خطوط الليزر', min: 0.3, max: 5, step: 0.1, unit: 'مم', hint: 'عرض الخط الذي يحرقه رأس الليزر: 10 مم بخطوط 2 مم = خمسة خطوط' },
       ...(t.extra ?? []),
     ],
-    defaults: { PW: 600, PH: 1600, m: 40, gw: 10, lw: 2, ...(t.defaults ?? {}) },
+    defaults: { PW: 600, PH: 1060, m: 40, gw: 10, lw: 2, ...(t.defaults ?? {}) },
     innerAdd: () => ({ W: 0, D: 0, H: 0 }),
     build(p) {
       const warnings: string[] = [], errors: string[] = []
@@ -3138,7 +3139,7 @@ function doorTemplate(t: { id: string; name: string; desc: string; icon: string;
       if (m - g < 5) errors.push(`الإطار قريب من حافّة اللوح: اجعل بُعده ${Math.ceil(g + 5)} مم على الأقل.`)
       const fw = PW - 2 * m, fh = PH - 2 * m
       if (fw < 150 || fh < 300) errors.push('اللوح صغير على هذه النقشة بعد الإطار.')
-      const f: DoorFrame = { PW, PH, m, fw, fh, X: u => m + u * fw, Y: v => m + v * fh, sc: Math.min(fw / 520, fh / 1520) }
+      const f: DoorFrame = { PW, PH, m, fw, fh, X: u => m + u * fw, Y: v => m + v * fh, sc: Math.min(fw / 520, fh / 980) }
       let engrave: Loop[] = []
       if (!errors.length) {
         const res = engraveGrooves([rectG(m, m, PW - m, PH - m), ...t.design(f, p)], gw, lw)
@@ -3160,11 +3161,14 @@ function doorTemplate(t: { id: string; name: string; desc: string; icon: string;
   }
 }
 
-/** The customer's photo, in fractions of the frame (u across, v down), the radii in fractions of a 520 mm frame. */
+/**
+ * The customer's photo laid out on a 600 × 1060 door (its frame 520 × 980): the circles in mm of that frame (scaled with
+ * the door), the curves and bars as fractions of the frame (u across, v down).
+ */
 const DOOR = {
-  circles: [[0.3192, 0.1204, 0.15], [0.3192, 0.2316, 0.1096], [0.3192, 0.3164, 0.0788]],
-  curves: [[0.374, 0.4355, 0.2033], [0.2644, 0.7398, 0.4789]], // control point (u, v) and the end's height on the right side
-  bars: [[0.5596, 0.8007], [0.3904, 0.8625], [0.2192, 0.9296]],  // start (u) and height (v); they run to the right side
+  circles: [[166, 166, 78], [166, 335, 57], [166, 464, 41]], // centre x, y and radius
+  curves: [[0.5, 0.42, 0.16], [0.34, 0.74, 0.47]],           // control point (u, v) and the end's height on the right side
+  bars: [[0.56, 0.73], [0.4, 0.82], [0.24, 0.91]],            // start (u) and height (v); they run to the right side
 }
 const curveG = (a: P2, c: P2, b: P2): Groove => { const N = Math.max(50, Math.ceil(Math.hypot(b.x - a.x, b.y - a.y))); return lineG(...Array.from({ length: N + 1 }, (_, i) => quad(a, c, b, i / N))) }
 /** Concentric copies of a closed groove, each `gap` further in (as long as it stays at least 40 mm across). */
@@ -3182,7 +3186,7 @@ MORE.push(
       return [
         ...DOOR.curves.slice(0, Math.round(p.curves)).map(([u, v, e]) => curveG(S, { x: X(u), y: Y(v) }, { x: PW - m, y: Y(e) })),
         ...DOOR.bars.slice(0, Math.round(p.bars)).map(([u, v]) => lineG({ x: X(u), y: Y(v) }, { x: PW - m, y: Y(v) })),
-        ...DOOR.circles.slice(0, Math.round(p.circles)).map(([u, v, r]) => circleG({ x: X(u), y: Y(v) }, r * 520 * sc)),
+        ...DOOR.circles.slice(0, Math.round(p.circles)).map(([x, y, r]) => circleG({ x: X(0) + x * sc, y: Y(0) + y * sc }, r * sc)),
       ]
     },
   }),
