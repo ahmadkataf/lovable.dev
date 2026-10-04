@@ -1486,12 +1486,12 @@ export const CATEGORIES: { id: string; name: string; ids: string[] }[] = [
   { id: 'office', name: 'مكتب وتنظيم', ids: ['organizer', 'phonestand', 'bookstand', 'headphone', 'keyholder', 'wallshelf', 'jewelrytree'] },
   { id: 'doorsmodern', name: 'أبواب مودرن', ids: ['doorpanel', 'doormodern', 'doorwaves', 'doorframes', 'doordiagonal', 'doorblocks', 'doororbit', 'doorchevron'] },
   { id: 'doorsarab', name: 'أبواب عربي وكلاسيك', ids: ['doormihrab', 'doorkhatam', 'doormashrabiya', 'doorstars', 'doorandalus', 'doorstar', 'doorarch', 'doorclassic', 'doordiamond'] },
-  { id: 'home', name: 'بيت وحديقة', ids: ['planter', 'petfeeder', 'birdhouse', 'incense', 'napkin'] },
+  { id: 'home', name: 'بيت وحديقة', ids: ['doorhanger', 'planter', 'petfeeder', 'birdhouse', 'incense', 'napkin'] },
   { id: 'light', name: 'إضاءة ورمضان', ids: ['ramadanlantern', 'ramadanornaments', 'lantern', 'shade'] },
   { id: 'bulk', name: 'بالجملة', ids: ['keychains', 'coasters'] },
 ]
 /** the newest designs get a badge in the picker */
-export const NEW_IDS = ['doordiagonal', 'doorblocks', 'doororbit', 'doorchevron', 'doormihrab', 'doorkhatam', 'doormashrabiya', 'doorstars', 'doorandalus', 'doorpanel', 'doorclassic', 'doorarch', 'doordiamond', 'doorwaves', 'doorstar', 'doormodern', 'doorframes', 'caketopper', 'guestframe', 'sweetstand', 'tablenumbers', 'favorbox', 'hexringbox', 'engagement', 'hinged90', 'crate', 'carrier', 'jewelry', 'moneybox', 'planter', 'petfeeder', 'incense', 'bedtray', 'phonestand', 'bookstand', 'headphone', 'keyholder', 'wallshelf', 'spicerack', 'coasters', 'clock', 'keychains', 'ramadanornaments', 'mugtree', 'jewelrytree', 'birdhouse', 'ramadanlantern']
+export const NEW_IDS = ['doorhanger', 'doordiagonal', 'doorblocks', 'doororbit', 'doorchevron', 'doormihrab', 'doorkhatam', 'doormashrabiya', 'doorstars', 'doorandalus', 'doorpanel', 'doorclassic', 'doorarch', 'doordiamond', 'doorwaves', 'doorstar', 'doormodern', 'doorframes', 'caketopper', 'guestframe', 'sweetstand', 'tablenumbers', 'favorbox', 'hexringbox', 'engagement', 'hinged90', 'crate', 'carrier', 'jewelry', 'moneybox', 'planter', 'petfeeder', 'incense', 'bedtray', 'phonestand', 'bookstand', 'headphone', 'keyholder', 'wallshelf', 'spicerack', 'coasters', 'clock', 'keychains', 'ramadanornaments', 'mugtree', 'jewelrytree', 'birdhouse', 'ramadanlantern']
 
 // ====================================================================== more designs, built from the shared parts
 
@@ -3445,5 +3445,68 @@ MORE.push(
     },
   }),
 )
+
+MORE.push({
+  id: 'doorhanger',
+  name: 'تعليقة مسكة باب',
+  desc: 'لوحة تُعلّق على مسكة الباب (كـ«الرجاء عدم الإزعاج» في الفنادق) بثقب للمسكة وشقّ جانبي اختياري للمسكة ذات الذراع، وإطار محفور للكتابة؛ تُقصّ بالجملة.',
+  icon: `<path d="M22 6h20a4 4 0 0 1 4 4v46a4 4 0 0 1-4 4H22a4 4 0 0 1-4-4V10a4 4 0 0 1 4-4z"/><circle cx="32" cy="16" r="6"/><path d="M38 16h8" stroke-width="2"/><rect x="22" y="28" width="20" height="26" rx="2" stroke-width="1.2"/><path d="M25 36h14M25 41h14M25 46h10" stroke-width="1.2"/>`,
+  params: [
+    mm('W', 'العرض', 60, 200), mm('H', 'الطول', 120, 400),
+    { key: 'shape', label: 'الشكل', min: 1, max: 3, step: 1, int: true, hint: '1 = مستطيل بزوايا مدوّرة، 2 = رأس مقوّس، 3 = ذيل مشقوق في الأسفل' },
+    mm('hole', 'قطر ثقب المسكة', 20, 60, '38 مم يدخل في أغلب المسكات؛ قِس المسكة عند أعرض نقطة تمرّ منها'),
+    mm('top', 'بُعد الثقب عن الأعلى', 8, 60),
+    { key: 'slit', label: 'شقّ جانبي للمسكة ذات الذراع', min: 0, max: 1, step: 1, int: true, hint: 'قناة من الثقب إلى الحافّة تدخل منها رقبة المسكة' },
+    mm('sw', 'عرض الشقّ', 8, 30, 'أعرض قليلاً من رقبة المسكة'),
+    { key: 'frame', label: 'إطار محفور للكتابة', min: 0, max: 1, step: 1, int: true },
+    { key: 'n', label: 'العدد', min: 1, max: 60, step: 1, int: true },
+  ],
+  defaults: { W: 100, H: 250, shape: 1, hole: 38, top: 14, slit: 0, sw: 20, frame: 1, n: 10 },
+  innerAdd: () => ({ W: 0, D: 0, H: 0 }),
+  build(p) {
+    const warnings: string[] = [], errors: string[] = []
+    const { W, H } = p, shape = Math.round(p.shape), slit = Math.round(p.slit) > 0, R = p.hole / 2, sw = p.sw, n = Math.round(p.n)
+    const rc = Math.min(12, W / 8), notch = shape === 3 ? round3(0.14 * W) : 0, cx = W / 2
+    if (W - 2 * R < 16) errors.push(`الثقب واسع على هذا العرض: يلزم 8 مم من كل جانب، فاجعل العرض ${Math.ceil(2 * R + 16)} مم على الأقل أو صغّر الثقب.`)
+    // the hole: concentric with an arched top; with a slit, low enough that the slit leaves the edge below the corner or arch
+    let cy = shape === 2 ? Math.max(W / 2, p.top + R) : p.top + R
+    const edgeTop = shape === 2 ? W / 2 : rc
+    if (slit) {
+      if (sw > 2 * R - 6) errors.push(`الشقّ أعرض من أن يمسك الثقبُ المسكة: أقصاه ${Math.floor(2 * R - 6)} مم.`)
+      cy = Math.max(cy, edgeTop + sw / 2 + 3)
+    }
+    if (cy - R < 8) errors.push('الثقب قريب من الحافّة العليا: 8 مم على الأقل.')
+    if (H < cy + R + 40 + notch) errors.push(`التعليقة قصيرة: اجعل طولها ${Math.ceil(cy + R + 40 + notch)} مم على الأقل.`)
+    const v = (x: number, y: number, b?: number) => ({ x: round3(x), y: round3(y), ...(b ? { b } : {}) })
+    /** an arc from `from` to `to` about c, through `via`: its start (carrying the bulge) and its end */
+    const arc = (from: P2, to: P2, c: P2, via: P2) => [v(from.x, from.y, arcBulge(from, to, c, via)), v(to.x, to.y)]
+    const k45 = Math.SQRT1_2
+    // clockwise on screen from the top-left: top, right side (with the slit), bottom, left side
+    const pts: { x: number; y: number; b?: number }[] = []
+    if (shape === 2) pts.push(...arc({ x: 0, y: W / 2 }, { x: W, y: W / 2 }, { x: cx, y: W / 2 }, { x: cx, y: 0 }))
+    else pts.push(...arc({ x: 0, y: rc }, { x: rc, y: 0 }, { x: rc, y: rc }, { x: rc - rc * k45, y: rc - rc * k45 }), ...arc({ x: W - rc, y: 0 }, { x: W, y: rc }, { x: W - rc, y: rc }, { x: W - rc + rc * k45, y: rc - rc * k45 }))
+    let holes: Loop[] = [circle(round3(cx), round3(cy), R)]
+    if (slit && !errors.length) {
+      const xc = cx + Math.sqrt(R * R - (sw / 2) ** 2)
+      pts.push(v(W, cy - sw / 2), ...arc({ x: xc, y: cy - sw / 2 }, { x: xc, y: cy + sw / 2 }, { x: cx, y: cy }, { x: cx - R, y: cy }), v(W, cy + sw / 2))
+      holes = []
+    }
+    if (shape === 3) pts.push(v(W, H), v(cx, H - notch), v(0, H))
+    else pts.push(...arc({ x: W, y: H - rc }, { x: W - rc, y: H }, { x: W - rc, y: H - rc }, { x: W - rc + rc * k45, y: H - rc + rc * k45 }), ...arc({ x: rc, y: H }, { x: 0, y: H - rc }, { x: rc, y: H - rc }, { x: rc - rc * k45, y: H - rc + rc * k45 }))
+    const outline = polyLoop(pts, 'outer')
+    // the writing frame: below the hole, 8 mm in from the sides
+    const fy0 = cy + R + 10, fy1 = H - notch - 12
+    const engrave: Loop[] = Math.round(p.frame) > 0 && fy1 - fy0 >= 25 ? [{ ...roundedRectHole(8, round3(fy0), W - 16, round3(fy1 - fy0), 6), layer: 'engrave' }] : []
+    return {
+      panels: [{ id: 'hanger', name: 'التعليقة', w: W, h: H, count: n, shape: [outline], holes, engrave, note: 'تُكتب العبارة داخل الإطار المحفور' }],
+      notes: [
+        `${arCount(n, ['تعليقة واحدة', 'تعليقتان', 'تعليقات', 'تعليقة'])} ${W} × ${H} مم، ثقب المسكة ${p.hole} مم${slit ? ` وشقّ جانبي بعرض ${sw} مم تدخل منه رقبة المسكة ذات الذراع` : ''}.`,
+        'اكتب العبارة في RDWorks داخل الإطار المحفور: «الرجاء عدم الإزعاج»، «أهلاً وسهلاً»، اسم الغرفة أو المحلّ، أو عبارة على الوجهين. يصلح الخشب 3 مم والأكريليك الملوّن.',
+        'قِس المسكة قبل القصّ: يجب أن يكون الثقب أوسع من أعرض جزء يمرّ منه (رأس المسكة أو ذراعها).',
+      ],
+      warnings, errors,
+    }
+  },
+})
 
 TEMPLATES.push(...MORE)

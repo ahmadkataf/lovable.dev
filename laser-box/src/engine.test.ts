@@ -1100,6 +1100,26 @@ describe('wedding designs', () => {
     }
   })
 
+  it('the door hanger: a round hole for the handle, or with the slit a channel of its width out to the edge, in every shape', () => {
+    for (const shape of [1, 2, 3]) {
+      const plain = generate(T('doorhanger'), { shape }, S0).panels[0]
+      const h = holesOf(plain)
+      expect(h.length, `shape ${shape}`).toBe(1)
+      const hb = bbox(h)
+      expect(hb.maxX - hb.minX).toBeCloseTo(38, 6)
+      const d = generate(T('doorhanger'), { shape, slit: 1, sw: 20 }, S0)
+      expect(d.errors).toEqual([])
+      const pn = d.panels[0]
+      expect(holesOf(pn).length).toBe(0) // the hole opens into the outline through the slit
+      const iv = materialAt(outerOf(pn), 99.5) // just inside the right edge
+      expect(iv.length).toBe(2)
+      expect(iv[1][0] - iv[0][1], `shape ${shape} slit`).toBeCloseTo(20, 2)
+      expect(materialAt(outerOf(pn), 50)[0][0], `shape ${shape} top`).toBeCloseTo(0, 6) // nothing cut away at the top
+    }
+    expect(generate(T('doorhanger'), { W: 60, hole: 50 }, S0).errors.length).toBeGreaterThan(0)
+    expect(generate(T('doorhanger'), { slit: 1, sw: 36 }, S0).errors.length).toBeGreaterThan(0)
+  })
+
   it('the wedding group lists the engagement set, the ring box and the five wedding designs', () => {
     expect(CATEGORIES.find(c => c.id === 'wedding')!.ids).toEqual(['engagement', 'hexringbox', 'caketopper', 'guestframe', 'sweetstand', 'tablenumbers', 'favorbox'])
   })
