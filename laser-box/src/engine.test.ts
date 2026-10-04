@@ -113,7 +113,7 @@ describe('templates', () => {
         expect(outers.length, `${tpl.id}/${p.id} should be one piece`).toBe(1)
         for (const l of p.loops) for (const v of l.pts) { expect(Number.isFinite(v.x)).toBe(true); expect(Number.isFinite(v.y)).toBe(true) }
       }
-      expect(d.layout.w).toBeLessThanOrEqual(s.sheetW + 1)
+      expect(d.layout.w).toBeLessThanOrEqual(Math.max(s.sheetW, ...d.panels.map(p => p.w)) + 1) // a door panel is wider than the default sheet
       expect(d.cutLength).toBeGreaterThan(0)
     })
   }
@@ -1051,6 +1051,37 @@ describe('wedding designs', () => {
     const r = 37.5, cleft = o.pts.filter(v => Math.abs(v.x - (75 + 0.1)) < 0.01 && v.y < 50)
     expect(cleft.length).toBe(1)
     expect(cleft[0].y).toBeCloseTo(0.1 + r - Math.sqrt((r + 0.1) ** 2 - r * r), 3)
+  })
+
+  it('the door panel: every groove is n lines lw apart, and no two lines burn the same wood, where grooves meet included', () => {
+    for (const [gw, lw] of [[10, 2], [10, 1], [6, 2], [16, 2]]) {
+      const d = generate(T('doorpanel'), { gw, lw }, S0)
+      expect(d.errors, `gw${gw} lw${lw}`).toEqual([])
+      const pn = d.panels[0], lines = pn.loops.filter(l => l.layer === 'engrave')
+      expect(pn.loops.filter(l => l.layer !== 'engrave').length).toBe(1) // the panel's outline, for alignment
+      const bb = bbox([outerOf(pn)])
+      expect([bb.maxX - bb.minX, bb.maxY - bb.minY]).toEqual([600, 1600])
+      const n = Math.round(gw / lw)
+      expect(lines.filter(l => l.closed && l.pts.length === 4).length).toBe(n) // the frame's rectangles
+      expect(lines.filter(l => l.closed && l.pts.length > 4).length).toBe(3 * n) // three circles
+      expect(lines.filter(l => !l.closed && l.pts.length === 2).length).toBe(3 * n) // three bars
+      // every line sampled every 0.1 mm; points of two different lines are never closer than half a line width
+      const cell = 1, grid = new Map<string, { x: number; y: number; id: number }[]>()
+      lines.forEach((l, id) => {
+        const pts = l.closed ? [...l.pts, l.pts[0]] : l.pts
+        for (let i = 0; i + 1 < pts.length; i++) {
+          const a = pts[i], b = pts[i + 1], k = Math.max(1, Math.ceil(Math.hypot(b.x - a.x, b.y - a.y) / 0.1))
+          for (let j = 0; j <= k; j++) { const q = { x: a.x + (b.x - a.x) * j / k, y: a.y + (b.y - a.y) * j / k, id }; const key = `${Math.floor(q.x / cell)},${Math.floor(q.y / cell)}`; (grid.get(key) ?? grid.set(key, []).get(key)!).push(q) }
+        }
+      })
+      let closest = Infinity
+      for (const [key, pts] of grid) {
+        const [cx, cy] = key.split(',').map(Number)
+        for (let dx = -1; dx <= 1; dx++) for (let dy = -1; dy <= 1; dy++) for (const q of grid.get(`${cx + dx},${cy + dy}`) ?? []) for (const p of pts) if (p.id !== q.id) closest = Math.min(closest, Math.hypot(p.x - q.x, p.y - q.y))
+      }
+      expect(closest, `gw${gw} lw${lw}`).toBeGreaterThan(lw / 2 - 0.06)
+    }
+    expect(generate(T('doorpanel'), { gw: 30 }, S0).errors.length).toBeGreaterThan(0)
   })
 
   it('the wedding group lists the engagement set, the ring box and the five wedding designs', () => {

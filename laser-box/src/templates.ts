@@ -1484,12 +1484,12 @@ export const CATEGORIES: { id: string; name: string; ids: string[] }[] = [
   { id: 'gift', name: 'هدايا وديكور', ids: ['chest', 'catbank', 'decobox', 'jewelry', 'moneybox', 'teahouse', 'frame', 'basket', 'fence', 'clock'] },
   { id: 'kitchen', name: 'مطبخ وتقديم', ids: ['carrier', 'mugtree', 'spicerack', 'bedtray', 'tray', 'teabox', 'tissue'] },
   { id: 'office', name: 'مكتب وتنظيم', ids: ['organizer', 'phonestand', 'bookstand', 'headphone', 'keyholder', 'wallshelf', 'jewelrytree'] },
-  { id: 'home', name: 'بيت وحديقة', ids: ['planter', 'petfeeder', 'birdhouse', 'incense', 'napkin'] },
+  { id: 'home', name: 'بيت وحديقة', ids: ['doorpanel', 'planter', 'petfeeder', 'birdhouse', 'incense', 'napkin'] },
   { id: 'light', name: 'إضاءة ورمضان', ids: ['ramadanlantern', 'ramadanornaments', 'lantern', 'shade'] },
   { id: 'bulk', name: 'بالجملة', ids: ['keychains', 'coasters'] },
 ]
 /** the newest designs get a badge in the picker */
-export const NEW_IDS = ['caketopper', 'guestframe', 'sweetstand', 'tablenumbers', 'favorbox', 'hexringbox', 'engagement', 'hinged90', 'crate', 'carrier', 'jewelry', 'moneybox', 'planter', 'petfeeder', 'incense', 'bedtray', 'phonestand', 'bookstand', 'headphone', 'keyholder', 'wallshelf', 'spicerack', 'coasters', 'clock', 'keychains', 'ramadanornaments', 'mugtree', 'jewelrytree', 'birdhouse', 'ramadanlantern']
+export const NEW_IDS = ['doorpanel', 'caketopper', 'guestframe', 'sweetstand', 'tablenumbers', 'favorbox', 'hexringbox', 'engagement', 'hinged90', 'crate', 'carrier', 'jewelry', 'moneybox', 'planter', 'petfeeder', 'incense', 'bedtray', 'phonestand', 'bookstand', 'headphone', 'keyholder', 'wallshelf', 'spicerack', 'coasters', 'clock', 'keychains', 'ramadanornaments', 'mugtree', 'jewelrytree', 'birdhouse', 'ramadanlantern']
 
 // ====================================================================== more designs, built from the shared parts
 
@@ -2961,5 +2961,132 @@ MORE.push(
     },
   },
 )
+
+// ------------------------------------------------------------------ door panel
+
+type P2 = { x: number; y: number }
+const quad = (a: P2, c: P2, b: P2, t: number): P2 => ({ x: (1 - t) ** 2 * a.x + 2 * (1 - t) * t * c.x + t * t * b.x, y: (1 - t) ** 2 * a.y + 2 * (1 - t) * t * c.y + t * t * b.y })
+const quadD = (a: P2, c: P2, b: P2, t: number): P2 => ({ x: 2 * (1 - t) * (c.x - a.x) + 2 * t * (b.x - c.x), y: 2 * (1 - t) * (c.y - a.y) + 2 * t * (b.y - c.y) })
+const segDist2 = (p: P2, a: P2, b: P2) => {
+  const dx = b.x - a.x, dy = b.y - a.y, l2 = dx * dx + dy * dy
+  const k = l2 ? Math.max(0, Math.min(1, ((p.x - a.x) * dx + (p.y - a.y) * dy) / l2)) : 0
+  return Math.hypot(p.x - a.x - k * dx, p.y - a.y - k * dy)
+}
+const polyDist = (p: P2, pl: P2[]) => { let d = Infinity; for (let i = 0; i + 1 < pl.length; i++) d = Math.min(d, segDist2(p, pl[i], pl[i + 1])); return d }
+/** polyDist(·, pl) < r, quickly: runs of 16 segments are skipped when their box is further than r */
+function nearPolyline(pl: P2[], r: number) {
+  const boxes: { i: number; x0: number; x1: number; y0: number; y1: number }[] = []
+  for (let i = 0; i + 1 < pl.length; i += 16) {
+    const run = pl.slice(i, Math.min(pl.length, i + 17))
+    boxes.push({ i, x0: Math.min(...run.map(q => q.x)) - r, x1: Math.max(...run.map(q => q.x)) + r, y0: Math.min(...run.map(q => q.y)) - r, y1: Math.max(...run.map(q => q.y)) + r })
+  }
+  return (q: P2) => boxes.some(bx => q.x >= bx.x0 && q.x <= bx.x1 && q.y >= bx.y0 && q.y <= bx.y1 && polyDist(q, pl.slice(bx.i, Math.min(pl.length, bx.i + 17))) < r)
+}
+const minDist = (A: P2[], B: P2[]) => { let d = Infinity; for (const p of A) d = Math.min(d, polyDist(p, B)); return d }
+
+/** Parts of the polyline pts outside the region `blocked`, the boundary found to 0.01 mm by halving. */
+function clipPolyline(pts: P2[], blocked: (p: P2) => boolean): P2[][] {
+  const out: P2[][] = []
+  let cur: P2[] = []
+  const edge = (a: P2, b: P2, aIn: boolean) => { let lo = 0, hi = 1; for (let k = 0; k < 20; k++) { const m = (lo + hi) / 2, q = { x: a.x + (b.x - a.x) * m, y: a.y + (b.y - a.y) * m }; if (blocked(q) === aIn) lo = m; else hi = m } const m = (lo + hi) / 2; return { x: a.x + (b.x - a.x) * m, y: a.y + (b.y - a.y) * m } }
+  for (let i = 0; i < pts.length; i++) {
+    const inside = blocked(pts[i])
+    if (i > 0) {
+      const was = blocked(pts[i - 1])
+      if (was && !inside) cur = [edge(pts[i - 1], pts[i], true)]
+      if (!was && inside) { cur.push(edge(pts[i - 1], pts[i], false)); out.push(cur); cur = [] }
+    }
+    if (!inside) cur.push(pts[i])
+  }
+  if (cur.length) out.push(cur)
+  return out.filter(s => s.length > 1 && s.reduce((L, p, i) => (i ? L + Math.hypot(p.x - s[i - 1].x, p.y - s[i - 1].y) : 0), 0) > 1)
+}
+
+/** The design in the customer's photo, in fractions of the frame (u across, v down) and of its width for the radii. */
+const DOOR = {
+  circles: [[0.3192, 0.1204, 0.15], [0.3192, 0.2316, 0.1096], [0.3192, 0.3164, 0.0788]],
+  curves: [[0.374, 0.4355, 0.2033], [0.2644, 0.7398, 0.4789]], // control point (u, v) and the end's height on the right side
+  bars: [[0.5596, 0.8007], [0.3904, 0.8625], [0.2192, 0.9296]],  // start (u) and height (v); they run to the right side
+}
+
+MORE.push({
+  id: 'doorpanel',
+  name: 'نقشة باب: دوائر وأقواس',
+  desc: 'نقشة حفر على لوح باب: إطار وثلاث دوائر وقوسان من الزاوية وثلاثة خطوط. كل حفرة بعرض محدّد من خطوط ليزر متجاورة، وتتوقّف عند حافّة الحفرة التي تصلها فلا يُحرق شيء مرّتين.',
+  icon: `<rect x="16" y="4" width="32" height="56" rx="1"/><path d="M19 7h26v50H19z" stroke-width="1.5"/><circle cx="26" cy="14" r="4" stroke-width="1.5"/><circle cx="26" cy="22" r="3" stroke-width="1.5"/><circle cx="26" cy="28" r="2" stroke-width="1.5"/><path d="M19 57C24 38 32 22 45 16M19 57C26 44 34 36 45 30M33 46h12M29 50h16M25 54h20" stroke-width="1.5"/>`,
+  params: [
+    mm('PW', 'عرض اللوح', 300, 1200), mm('PH', 'ارتفاع اللوح', 600, 2400), mm('m', 'بُعد الإطار عن الحافّة', 15, 200, 'إلى منتصف حفرة الإطار'),
+    mm('gw', 'عرض الحفرة', 2, 30), { key: 'lw', label: 'المسافة بين خطوط الليزر', min: 0.3, max: 5, step: 0.1, unit: 'مم', hint: 'عرض الخط الذي يحرقه رأس الليزر: 10 مم بخطوط 2 مم = خمسة خطوط' },
+    { key: 'circles', label: 'عدد الدوائر', min: 0, max: 3, step: 1, int: true }, { key: 'curves', label: 'عدد الأقواس', min: 0, max: 2, step: 1, int: true },
+    { key: 'bars', label: 'عدد الخطوط الأفقية', min: 0, max: 3, step: 1, int: true },
+  ],
+  defaults: { PW: 600, PH: 1600, m: 40, gw: 10, lw: 2, circles: 3, curves: 2, bars: 3 },
+  innerAdd: () => ({ W: 0, D: 0, H: 0 }),
+  build(p) {
+    const warnings: string[] = [], errors: string[] = []
+    const { PW, PH, m, lw } = p
+    // n lines lw apart, each burning lw: the groove is n × lw wide, as near the asked width as whole lines allow
+    const n = Math.max(1, Math.round(p.gw / lw)), offs = Array.from({ length: n }, (_, i) => (i - (n - 1) / 2) * lw)
+    const gw = n * lw, g = gw / 2, lines = arCount(n, ['خطّ واحد', 'خطّان', 'خطوط', 'خطّاً'])
+    if (Math.abs(gw - p.gw) > 0.05) warnings.push(`عرض الحفرة ${p.gw} مم لا يقسم على ${lw} مم: ستكون ${lines} بعرض ${gw.toFixed(1)} مم.`)
+    if (m - g < 5) errors.push(`الإطار قريب من حافّة اللوح: اجعل بُعده ${Math.ceil(g + 5)} مم على الأقل.`)
+    const fw = PW - 2 * m, fh = PH - 2 * m
+    if (fw < 150 || fh < 300) errors.push('اللوح صغير على هذه النقشة بعد الإطار.')
+    const X = (u: number) => m + u * fw, Y = (v: number) => m + v * fh, sc = Math.min(fw / 520, fh / 1520)
+    const circles = DOOR.circles.slice(0, Math.round(p.circles)).map(([u, v, r]) => ({ c: { x: X(u), y: Y(v) }, r: r * 520 * sc }))
+    const S = { x: m, y: PH - m }
+    const curves = DOOR.curves.slice(0, Math.round(p.curves)).map(([u, v, e]) => {
+      const C = { x: X(u), y: Y(v) }, E = { x: PW - m, y: Y(e) }, N = Math.max(50, Math.ceil(Math.hypot(E.x - S.x, E.y - S.y)))
+      return Array.from({ length: N + 1 }, (_, i) => i / N).map(t => ({ p: quad(S, C, E, t), d: quadD(S, C, E, t) }))
+    })
+    const bars = DOOR.bars.slice(0, Math.round(p.bars)).map(([u, v]) => ({ x0: X(u), y: Y(v) }))
+    // the grooves keep at least 5 mm of wood between them wherever they are not meant to meet
+    const ringPts = (c: P2, r: number) => Array.from({ length: 180 }, (_, k) => ({ x: c.x + r * Math.cos(k * Math.PI / 90), y: c.y + r * Math.sin(k * Math.PI / 90) }))
+    const curveLines = curves.map(cv => cv.map(q => q.p)), barLines = bars.map(b => [{ x: b.x0, y: b.y }, { x: PW - m, y: b.y }])
+    const frame = [{ x: m, y: m }, { x: PW - m, y: m }, { x: PW - m, y: PH - m }, { x: m, y: PH - m }, { x: m, y: m }]
+    const wood = (a: P2[], b: P2[]) => minDist(a, b) - gw
+    if (!errors.length) {
+      let tight = Infinity
+      circles.forEach((ci, i) => {
+        const ring = ringPts(ci.c, ci.r)
+        for (const other of [frame, ...curveLines, ...barLines, ...circles.slice(i + 1).map(o => ringPts(o.c, o.r))]) tight = Math.min(tight, wood(ring, other))
+        if (ci.r - g < 5) tight = Math.min(tight, ci.r - g)
+      })
+      bars.forEach((b, i) => { for (const other of [...curveLines, ...barLines.slice(i + 1)]) tight = Math.min(tight, wood(barLines[i], other)); if (PW - m - g - b.x0 < 10) tight = Math.min(tight, 0) })
+      if (tight < 5) errors.push(`الحفر متقاربة أو متداخلة بهذه القياسات (يبقى بينها ${Math.max(0, tight).toFixed(1)} مم): صغّر عرض الحفرة أو كبّر اللوح أو قلّل العناصر.`)
+    }
+    const engrave: Loop[] = []
+    const v3 = (q: P2) => ({ x: round3(q.x), y: round3(q.y) })
+    if (!errors.length) {
+      // 1. the frame: n rectangles
+      for (const d of offs) { const a = m + d; engrave.push({ closed: true, layer: 'engrave', pts: [v3({ x: a, y: a }), v3({ x: PW - a, y: a }), v3({ x: PW - a, y: PH - a }), v3({ x: a, y: PH - a })] }) }
+      const inFrame = (q: P2) => q.x > m - g && q.x < PW - m + g && q.y > m - g && q.y < PH - m + g && !(q.x > m + g && q.x < PW - m - g && q.y > m + g && q.y < PH - m - g)
+      // 2. the curves, each stopping at the edge of the frame and of the curves before it
+      const nearCurve = curveLines.map(cl => nearPolyline(cl, g))
+      curves.forEach((cv, k) => {
+        const blocked = (q: P2) => inFrame(q) || nearCurve.slice(0, k).some(f => f(q))
+        for (const d of offs) {
+          const line = cv.map(({ p: q, d: t }) => { const l = Math.hypot(t.x, t.y); return { x: q.x - (t.y / l) * d, y: q.y + (t.x / l) * d } })
+          for (const s of clipPolyline(line, blocked)) engrave.push({ closed: false, layer: 'engrave', pts: s.map(v3) })
+        }
+      })
+      // 3. the bars, flat at the free end, stopping at the frame's edge
+      for (const b of bars) for (const d of offs) engrave.push({ closed: false, layer: 'engrave', pts: [v3({ x: b.x0, y: b.y + d }), v3({ x: PW - m - g, y: b.y + d })] })
+      // 4. the circles: n concentric rings
+      for (const ci of circles) for (const d of offs) engrave.push({ closed: true, layer: 'engrave', pts: ringPts(ci.c, ci.r + d).map(v3) })
+    }
+    const len = engrave.reduce((L, l) => L + l.pts.reduce((s, q, i) => (i ? s + Math.hypot(q.x - l.pts[i - 1].x, q.y - l.pts[i - 1].y) : 0), 0) + (l.closed ? Math.hypot(l.pts[0].x - l.pts[l.pts.length - 1].x, l.pts[0].y - l.pts[l.pts.length - 1].y) : 0), 0)
+    return {
+      panels: [{ id: 'door', name: 'لوح الباب', w: PW, h: PH, engrave, note: 'النقشة على طبقة الحفر الزرقاء؛ الإطار الأحمر حدود اللوح' }],
+      notes: [
+        `اللوح ${PW} × ${PH} مم، كل حفرة بعرض ${gw.toFixed(1)} مم من ${lines} ليزر${n > 1 ? ` بينها ${lw} مم` : ''}. طول خطوط الحفر نحو ${(len / 1000).toFixed(1)} م.`,
+        'في RDWorks: الطبقة الزرقاء هي النقشة، شغّلها بوضع Cut بقدرة وسرعة الحفر عندك. الطبقة الحمراء حدود اللوح للمحاذاة فقط: اجعلها Output = No (إلا إن أردت قصّ اللوح نفسه).',
+        'حيث تصل حفرة إلى أخرى تتوقّف خطوطها عند حافّتها، فلا يُحرق مكان مرّتين ويبقى عمق الحفر متساوياً.',
+        'إذا كان رأس الليزر يحرق خطاً أعرض أو أرفع، اجعل «المسافة بين خطوط الليزر» بعرضه الحقيقي.',
+      ],
+      warnings, errors,
+    }
+  },
+})
 
 TEMPLATES.push(...MORE)

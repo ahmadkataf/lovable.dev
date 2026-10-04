@@ -270,10 +270,12 @@ function render() {
     const mat = pl.panel.material ? MATERIAL_INFO[pl.panel.material] : undefined
     if (mat) fill.style.fill = mat.fill
     g.append(fill)
+    // grooves filled with many side-by-side engrave lines read as one band: drawn solid and thin, not dashed
+    const dense = pl.panel.loops.filter(l => l.layer === 'engrave').length > 20
     for (const l of pl.panel.loops) {
       const p = document.createElementNS(svgNS, 'path')
       p.setAttribute('d', loopToPath(l))
-      p.setAttribute('class', l.layer === 'engrave' ? 'cut engrave' : l.closed ? 'cut' : 'cut score')
+      p.setAttribute('class', l.layer === 'engrave' ? (dense ? 'cut engrave dense' : 'cut engrave') : l.closed ? 'cut' : 'cut score')
       if (mat && l.layer !== 'engrave') p.style.stroke = mat.hex
       g.append(p)
     }
@@ -332,6 +334,7 @@ function sizeLabel(p: Record<string, number>) {
   if (p.Dm !== undefined) return `Ø${fmt(p.Dm)} × ${fmt(p.H)}`
   if (p.Dd !== undefined) return `مرآة Ø${fmt(p.Dd)}، قاعدة ${fmt(p.W)} × ${fmt(p.D)}`
   if (p.S !== undefined) return `سداسي ${fmt(p.S)} × ${fmt(p.H)}`
+  if (p.PW !== undefined) return `لوح ${fmt(p.PW)} × ${fmt(p.PH)}`
   if (p.D1 !== undefined) return `${fmt(p.tiers)} طوابق، قاعدة ${fmt(p.D1)}`
   if (!Number.isFinite(p.W) || !Number.isFinite(p.D) || !Number.isFinite(p.H)) return [p.W, p.D, p.H].filter(Number.isFinite).map(fmt).join(' × ') || '—'
   return `${fmt(p.W)} × ${fmt(p.D)} × ${fmt(p.H)}${state.settings.inner ? ' (داخلي)' : ''}`
@@ -397,7 +400,7 @@ function applyView() {
 function fileName(ext: string) {
   const p = params()
   // the template's own size keys, in order, skipping any it does not have
-  const keys = p.pw !== undefined ? ['pw', 'ph'] : p.Dm !== undefined ? ['Dm', 'H'] : p.Dd !== undefined ? ['Dd', 'W', 'D'] : p.S !== undefined ? ['S', 'H'] : p.D1 !== undefined ? ['tiers', 'D1'] : ['W', 'D', 'H']
+  const keys = p.pw !== undefined ? ['pw', 'ph'] : p.Dm !== undefined ? ['Dm', 'H'] : p.Dd !== undefined ? ['Dd', 'W', 'D'] : p.S !== undefined ? ['S', 'H'] : p.D1 !== undefined ? ['tiers', 'D1'] : p.PW !== undefined ? ['PW', 'PH'] : ['W', 'D', 'H']
   const dims = keys.filter(k => Number.isFinite(p[k])).map(k => fmt(p[k])).join('x') || state.tpl
   return `laser-box-${state.tpl}-${dims}-t${state.settings.t}.${ext}`
 }
