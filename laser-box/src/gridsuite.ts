@@ -16,7 +16,9 @@ describe(`robustness grid ${shard + 1}/${shards}`, () => {
       const extras = tpl.params.filter(d => !['W', 'D', 'H', 'Dm'].includes(d.key))
       const variants: Record<string, number>[] = [{}]
       for (const def of extras) variants.push({ [def.key]: def.min }, { [def.key]: def.max })
-      for (const t of [2, 2.7, 3, 4, 6]) for (const kerf of [0, 0.2]) for (const finger of [0, 12]) for (const [W, D, H] of boxes) for (const inner of [false, true]) for (const v of variants) {
+      // door engravings use none of thickness, fingers, box size or inner sizes: every extreme of their own settings, at both kerfs
+      const engraving = tpl.id.startsWith('door') && tpl.id !== 'doorhanger'
+      for (const t of engraving ? [3] : [2, 2.7, 3, 4, 6]) for (const kerf of [0, 0.2]) for (const finger of engraving ? [0] : [0, 12]) for (const [W, D, H] of engraving ? boxes.slice(0, 1) : boxes) for (const inner of engraving ? [false] : [false, true]) for (const v of variants) {
         const params = tpl.params.some(d => d.key === 'Dm') ? { Dm: W, H, ...v } : tpl.id === 'frame' ? { pw: W, ph: D + H, ...v } : { W, D, H, ...v }
         runs++
         let d
