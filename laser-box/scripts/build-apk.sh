@@ -47,3 +47,5 @@ OUT="$A/build/LaserBox.apk"
 "$BT/apksigner" sign --ks "$KS" --ks-key-alias "$KS_ALIAS" --ks-pass "pass:$KS_PASS" --key-pass "pass:$KS_PASS" --out "$OUT" "$B/aligned.apk"
 "$BT/apksigner" verify "$OUT"
 ls -la "$OUT"
+# the claude.ai viewer page can carry only text beside it: the app as base64, for its «تطبيق أندرويد» button
+base64 -w0 "$OUT" > "$A/build/LaserBox-apk.b64.txt"

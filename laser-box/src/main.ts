@@ -327,6 +327,31 @@ function render() {
   }
   actions.append(dl('svg', blocked ? 'أصلح الأخطاء' : '⬇ SVG', 'primary'), dl('dxf', '⬇ DXF', 'primary alt'), dl('ai', '⬇ AI 8 (RDWorks)', 'primary ai'))
   if (!inViewer) actions.append(el('button', { type: 'button', class: 'ghost', onclick: () => share() }, '🔗 نسخ الرابط'))
+  else actions.append(el('button', { type: 'button', class: 'ghost', onclick: () => saveApk() }, '📱 تطبيق أندرويد'))
+}
+
+/**
+ * In the claude.ai viewer: the Android app. It is published beside the page as base64 text (the only kind of file the
+ * page may carry), and saved as a .zip holding the .apk (the viewer saves .zip, not .apk).
+ */
+async function saveApk() {
+  const dl = claudeUse ? await claudeUse('downloads').catch(() => null) : null
+  if (!dl) { toast('التنزيل غير متاح في هذه النافذة'); return }
+  let blob: Blob
+  try {
+    const r = await fetch('LaserBox-apk.b64.txt')
+    if (!r.ok) throw new Error(String(r.status))
+    const bin = atob((await r.text()).trim()), bytes = new Uint8Array(bin.length)
+    for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i)
+    blob = new Blob([makeZip([{ name: 'LaserBox.apk', data: bytes }])])
+  } catch { toast('تعذّر جلب ملف التطبيق؛ جرّب بعد قليل'); return }
+  try {
+    await dl.save({ filename: 'LaserBox-apk.zip', data: blob })
+    toast('حُفظ التطبيق مضغوطاً: افتح «LaserBox-apk.zip» من الملفات واستخرج منه LaserBox.apk ثم ثبّته', 9000)
+  } catch (e) {
+    const code = (e as { code?: string })?.code
+    if (code !== 'declined') toast('تعذّر الحفظ: ' + (code ?? 'خطأ'))
+  }
 }
 
 function sizeLabel(p: Record<string, number>) {

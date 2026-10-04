@@ -16,7 +16,7 @@ export function crc32(bytes: Uint8Array): number {
   return (c ^ 0xffffffff) >>> 0
 }
 
-export interface ZipEntry { name: string; data: string }
+export interface ZipEntry { name: string; data: string | Uint8Array }
 
 export function makeZip(entries: ZipEntry[]): Uint8Array<ArrayBuffer> {
   const enc = new TextEncoder()
@@ -26,7 +26,7 @@ export function makeZip(entries: ZipEntry[]): Uint8Array<ArrayBuffer> {
   const dosTime = ((now.getHours() << 11) | (now.getMinutes() << 5) | (now.getSeconds() >> 1)) & 0xffff
   const dosDate = (((now.getFullYear() - 1980) << 9) | ((now.getMonth() + 1) << 5) | now.getDate()) & 0xffff
   for (const e of entries) {
-    const name = enc.encode(e.name), data = enc.encode(e.data), crc = crc32(data)
+    const name = enc.encode(e.name), data = typeof e.data === 'string' ? enc.encode(e.data) : e.data, crc = crc32(data)
     const local = new Uint8Array(30 + name.length + data.length)
     const lv = new DataView(local.buffer)
     lv.setUint32(0, 0x04034b50, true); lv.setUint16(4, 20, true); lv.setUint16(6, 0x0800, true); lv.setUint16(8, 0, true)
