@@ -4,7 +4,7 @@ import { buildPanel, fingerCount, edgeCuts } from './joints'
 import { TEMPLATES, pivotLid, CATEGORIES } from './templates'
 import { generate, DEFAULT_SETTINGS, autoFinger } from './generate'
 import { toDXF, toSVG, toAI } from './export'
-import { samplePoly, materialAt, pointIn, polysOverlap, polyDistance, P } from './testutil'
+import { samplePoly, materialAt, pointIn, polysOverlap, polyDistance, segsCross, P } from './testutil'
 
 const area = (l: Loop) => Math.abs(signedArea(l))
 
@@ -1025,6 +1025,24 @@ describe('wedding designs', () => {
       expect(q.x).toBeGreaterThan(lo + 2); expect(q.x).toBeLessThan(60 - lo - 2)
       expect(q.y).toBeGreaterThan(lo + 2); expect(q.y).toBeLessThan(60 - lo - 2)
     }
+  })
+
+  it('kerf on a heart outline closes its cleft where the grown lobes cross, instead of a bevel that crosses itself', () => {
+    const cases: [string, Record<string, number>, string][] = [['caketopper', { W: 150 }, 'topper'], ['caketopper', { W: 300 }, 'topper'], ['engagement', { hw: 120, W: 600, D: 250 }, 'heart'], ['keychains', { shape: 3, S: 80 }, 'keychain']]
+    for (const [id, params, pid] of cases) for (const kerf of [0.2, 0.4]) {
+      const d = generate(T(id), params, { ...DEFAULT_SETTINGS, kerf })
+      expect(d.errors, id).toEqual([])
+      const o = outerOf(d.panels.find(x => x.id === pid)!)
+      const poly = samplePoly(o, 3), n = poly.length
+      let crossed = false
+      for (let i = 0; i < n && !crossed; i++) for (let j = i + 2; j < n; j++) { if (i === 0 && j === n - 1) continue; if (segsCross(poly[i], poly[(i + 1) % n], poly[j], poly[(j + 1) % n])) { crossed = true; break } }
+      expect(crossed, `${id} ${JSON.stringify(params)} kerf ${kerf}`).toBe(false)
+    }
+    // the cleft's new bottom: where two circles of radius r + kerf/2, 2r apart, cross
+    const d = generate(T('caketopper'), { W: 150 }, { ...DEFAULT_SETTINGS, kerf: 0.2 }), o = outerOf(d.panels[0])
+    const r = 37.5, cleft = o.pts.filter(v => Math.abs(v.x - (75 + 0.1)) < 0.01 && v.y < 50)
+    expect(cleft.length).toBe(1)
+    expect(cleft[0].y).toBeCloseTo(0.1 + r - Math.sqrt((r + 0.1) ** 2 - r * r), 3)
   })
 
   it('the wedding group lists the engagement set, the ring box and the five wedding designs', () => {

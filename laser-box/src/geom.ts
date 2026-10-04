@@ -446,10 +446,16 @@ export function offsetLoop(input: Loop, d: number): Loop {
     const s1 = segs[i], s2 = segs[(i + 1) % m]
     const v = loop.pts[(i + 1) % n]
     if (Math.hypot(s1.q.x - s2.p.x, s1.q.y - s2.p.y) > 1e-7) {
-      const cands = intersect(s1, s2)
+      let cands = intersect(s1, s2)
+      // two arcs cross twice, often equally far from the old corner (a heart's cleft): take the crossing that lies on
+      // both arcs as drawn, which trims them, not the one past their ends
+      if (s1.kind === 'arc' && s2.kind === 'arc') { const on = cands.filter(c => onArc(s1, c) && onArc(s2, c)); if (on.length) cands = on }
       let best: Pt | null = null, bd = Infinity
       for (const c of cands) { const dd = Math.hypot(c.x - v.x, c.y - v.y); if (dd < bd) { bd = dd; best = c } }
-      if (best && bd < Math.abs(d) * 20 + 1e-3) { setEnd(s1, best); setStart(s2, best) }
+      // two arcs meeting tangentially in a notch (a heart's cleft): their grown circles cross √(2 r d) away, which for
+      // big arcs is further than the usual corner allowance, and a bevel there would cross itself
+      const reach = s1.kind === 'arc' && s2.kind === 'arc' ? Math.max(Math.abs(d) * 20, 4 * Math.sqrt(Math.max(s1.r, s2.r) * Math.abs(d))) : Math.abs(d) * 20
+      if (best && bd < reach + 1e-3) { setEnd(s1, best); setStart(s2, best) }
     }
   }
   for (const s of segs) {
@@ -466,6 +472,10 @@ export function offsetLoop(input: Loop, d: number): Loop {
   }
   return { closed: true, pts: simplify(pts) }
 
+  function onArc(s: Seg & { kind: 'arc' }, p: Pt) {
+    const norm = (v: number) => ((v % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI), ang = Math.atan2(p.y - s.c.y, p.x - s.c.x)
+    return (s.ccw ? norm(s.a0 - ang) : norm(ang - s.a0)) <= (s.ccw ? norm(s.a0 - s.a1) : norm(s.a1 - s.a0)) + 1e-9
+  }
   function setEnd(s: Seg, p: Pt) { s.q = p; if (s.kind === 'arc') s.a1 = Math.atan2(p.y - s.c.y, p.x - s.c.x) }
   function setStart(s: Seg, p: Pt) { s.p = p; if (s.kind === 'arc') s.a0 = Math.atan2(p.y - s.c.y, p.x - s.c.x) }
 }
