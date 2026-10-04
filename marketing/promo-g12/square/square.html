@@ -1,0 +1,221 @@
+<!doctype html>
+<html lang="ar" dir="rtl"><head><meta charset="utf-8">
+<style>
+@font-face{font-family:A;src:url(alexandria-arabic-wght-normal.woff2) format('woff2');font-weight:100 900;unicode-range:U+0600-06FF,U+0750-077F,U+FB50-FDFF,U+FE70-FEFF,U+0660-0669}
+@font-face{font-family:A;src:url(alexandria-latin-wght-normal.woff2) format('woff2');font-weight:100 900}
+:root{--cream:#F6F1E7;--ink:#15121C;--pur:#8E3BFF;--lil:#ce82ff;--yel:#FFD23F;--grn:#58CC02;--blu:#1CB0F6;--pink:#FF7AB6}
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{width:1080px;height:1080px;overflow:hidden;background:var(--cream)}
+body{font-family:A,'Noto Color Emoji',sans-serif;color:var(--ink);position:relative}
+.abs{position:absolute}
+.scene{position:absolute;inset:0;opacity:0;overflow:hidden}
+.m{display:block;overflow:hidden;padding:.08em 0 .12em}
+.mi{display:block;will-change:transform}
+.lbl{display:inline-block;padding:8px 22px;border-radius:999px;font-weight:800;font-size:28px}
+.corner{position:absolute;font-size:22px;font-weight:700;letter-spacing:.5px;z-index:50}
+#grain{position:absolute;inset:-40px;z-index:60;opacity:.07;pointer-events:none;mix-blend-mode:multiply}
+/* phone */
+#phone{position:absolute;left:105px;top:118px;width:416px;height:858px;border-radius:62px;background:var(--ink);padding:18px;box-shadow:24px 30px 0 rgba(21,18,28,.12)}
+#screen{position:relative;width:380px;height:822px;border-radius:46px;overflow:hidden;background:#fff}
+#screen img{position:absolute;left:0;top:0;width:380px;height:822px}
+.ov{position:absolute;z-index:10}
+#blob{position:absolute;left:60px;top:170px;width:520px;height:760px}
+.num{font-family:A;font-weight:900;font-size:230px;line-height:1;color:transparent;-webkit-text-stroke:4px var(--ink);direction:ltr}
+.ftitle{font-size:64px;font-weight:900;line-height:1.15}
+.fline{font-size:34px;font-weight:600;color:#4a4458;line-height:1.45}
+.blind{position:absolute;top:0;height:1080px;transform-origin:50% 0}
+.cell{position:absolute;width:480px;height:330px;text-align:center;padding-top:48px}
+.odo{font-variant-numeric:tabular-nums;display:inline-flex;direction:ltr;font-weight:900;font-size:136px;line-height:1;height:1.12em;overflow:hidden;color:var(--cream)}
+.col{display:flex;flex-direction:column;will-change:transform;align-self:flex-start;flex:none}
+.col span{height:1.12em;display:block;flex:none}
+.clabel{font-size:32px;font-weight:700;color:#d9d1ea;margin-top:14px}
+</style></head><body>
+<canvas id="grain" width="1160" height="1160"></canvas>
+<div class="corner" id="cTR" style="top:30px;right:38px">إمار ١٢ · إنجليزي البكالوريا</div>
+<div class="corner" id="cTL" style="top:30px;left:38px;direction:ltr;font-weight:900">EMAR — 12</div>
+<div class="corner" id="cBR" style="bottom:28px;right:38px;direction:ltr" ><span id="idx">01</span> / 05</div>
+<div class="corner" id="cBL" style="bottom:40px;left:38px;width:220px;height:4px;background:rgba(0,0,0,.12);border-radius:2px;overflow:hidden"><div id="prog" style="height:100%;width:0;background:currentColor"></div></div>
+
+<!-- S1 typewriter -->
+<div class="scene" id="s1" style="background:var(--cream)">
+  <div class="abs" style="right:100px;top:300px"><span class="lbl" id="q" style="background:var(--yel)">سؤال سريع</span></div>
+  <div class="abs" style="right:100px;left:100px;top:390px;font-size:84px;font-weight:900;line-height:1.3;text-align:right"><span id="typed"></span><span id="caret" style="display:inline-block;width:8px;height:86px;background:var(--pur);vertical-align:-14px;margin-right:6px"></span></div>
+  <div class="abs" id="circ" style="left:540px;top:620px;width:0;height:0;border-radius:50%;background:var(--yel)"></div>
+</div>
+
+<!-- S2 brand -->
+<div class="scene" id="s2" style="background:var(--yel)">
+  <div class="abs" id="sh1" style="left:150px;top:180px;width:110px;height:110px;border-radius:50%;background:var(--grn)"></div>
+  <div class="abs" id="sh2" style="right:150px;top:160px;width:100px;height:100px;border-radius:24px;background:var(--blu)"></div>
+  <div class="abs" id="sh3" style="left:190px;top:520px;width:90px;height:90px;border-radius:50% 50% 0 50%;background:var(--pink)"></div>
+  <div class="abs" id="sh4" style="right:200px;top:500px;width:120px;height:60px;border-radius:120px 120px 0 0;background:var(--ink)"></div>
+  <div class="abs" id="tile" style="left:390px;top:170px;width:300px;height:300px;border-radius:78px;background:var(--pur);display:flex;align-items:center;justify-content:center;box-shadow:18px 22px 0 var(--ink)">
+    <span style="font-size:160px;font-weight:900;color:var(--cream);direction:ltr;letter-spacing:-4px">12</span></div>
+  <div class="abs" style="left:0;right:0;top:560px;text-align:center;font-size:130px;font-weight:900"><span class="m"><span class="mi" id="b1">إمار ١٢</span></span></div>
+  <div class="abs" style="left:0;right:0;top:760px;text-align:center;font-size:52px;font-weight:800"><span class="m"><span class="mi" id="b2">إنجليزي البكالوريا</span></span></div>
+  <div class="abs" style="left:0;right:0;top:860px;text-align:center"><span class="m"><span class="mi" id="b3"><span class="lbl" style="background:var(--ink);color:var(--yel)">كتاب الطالب + كتاب الأنشطة</span></span></span></div>
+  <div class="abs" id="cover2" style="left:0;right:0;top:0;height:1080px;background:var(--cream);transform:translateY(1080px)"></div>
+</div>
+
+<!-- S3 features -->
+<div class="scene" id="s3" style="background:var(--cream)">
+  <svg id="blob" viewBox="0 0 520 760"><path id="blobp" fill="#ce82ff"/></svg>
+  <div id="phone"><div id="screen">
+    <img id="i0" src="s-book.png"><img id="i1" src="s-lesson1.png"><img id="i2" src="s-lesson2.png"><img id="i3" src="s-exam-paper.png">
+    <div class="ov" id="rings" style="left:282px;top:194px"></div>
+    <div class="ov" id="slow" style="left:56px;top:11px;padding:3px 10px;border-radius:999px;background:#fff;border:2px solid var(--pur);color:var(--pur);font-weight:800;font-size:17px">🐢 بطيء</div>
+    <div class="ov" id="pick" style="left:16px;top:183px;width:350px;height:59px;border-radius:16px;border:4px solid var(--grn);background:rgba(88,204,2,.12)"></div>
+    <div class="ov" id="toast" style="left:0;right:0;bottom:0;height:150px;background:#d7ffb8;padding:22px 26px;font-size:30px;font-weight:900;color:#58a700">✅ صح! أحسنت</div>
+    <div class="ov" id="timer" style="left:54px;top:15px;width:93px;height:27px;border-radius:12px;background:#ddf3fd;color:#1899d6;font-weight:900;font-size:19px;display:flex;align-items:center;justify-content:center;direction:ltr;gap:4px">⏱ <span id="tm">149:59</span></div>
+    <div class="ov" id="tap" style="width:70px;height:70px;margin:-35px 0 0 -35px;border-radius:50%;background:rgba(142,59,255,.35);border:4px solid var(--pur)"></div>
+  </div></div>
+  <div class="abs" style="right:70px;width:470px;top:150px;text-align:right">
+    <div class="m"><div class="mi num" id="fn">01</div></div>
+    <div class="m" style="margin-top:20px"><div class="mi ftitle" id="ft"></div></div>
+    <div class="m" style="margin-top:18px"><div class="mi fline" id="fl"></div></div>
+  </div>
+  <div class="abs" style="right:70px;top:930px;display:flex;gap:12px" id="dots"></div>
+</div>
+
+<!-- S4 numbers -->
+<div class="scene" id="s4" style="background:var(--ink);color:var(--cream)">
+  <div class="abs" style="right:70px;top:110px;text-align:right">
+    <div class="m"><div class="mi" id="n0"><span class="lbl" style="background:var(--yel);color:var(--ink)">بالأرقام</span></div></div>
+    <div class="m"><div class="mi" id="n1" style="font-size:66px;font-weight:900">كل شي من كتابك… وبالعربي</div></div>
+  </div>
+  <div class="abs" id="hline" style="left:60px;right:60px;top:640px;height:3px;background:rgba(246,241,231,.35)"></div>
+  <div class="abs" id="vline" style="left:539px;top:330px;width:3px;height:640px;background:rgba(246,241,231,.35);transform-origin:50% 0"></div>
+  <div class="cell" style="right:60px;top:320px"><div class="odo" data-v="+1700"></div><div class="m"><div class="mi clabel">تمرين محلول ومشروح</div></div></div>
+  <div class="cell" style="left:60px;top:320px"><div class="odo" data-v="12"></div><div class="m"><div class="mi clabel">نموذج امتحان بكالوريا</div></div></div>
+  <div class="cell" style="right:60px;top:660px"><div class="odo" data-v="535"></div><div class="m"><div class="mi clabel">كلمة من الكتاب بمعانيها</div></div></div>
+  <div class="cell" style="left:60px;top:660px"><div class="odo" data-v="+4500"></div><div class="m"><div class="mi clabel">جملة بصوت طبيعي</div></div></div>
+</div>
+
+<!-- S5 CTA -->
+<div class="scene" id="s5" style="background:var(--cream)">
+  <div class="abs" style="left:0;right:0;top:110px;text-align:center">
+    <div class="m"><div class="mi" id="e0"><span class="lbl" style="background:var(--ink);color:var(--cream)">ابدأ اليوم</span></div></div>
+    <div class="m"><div class="mi" id="e1" style="font-size:74px;font-weight:900">الوحدة الأولى</div></div>
+  </div>
+  <div class="abs" style="left:0;right:0;top:300px;text-align:center"><div class="m" style="overflow:visible"><div class="mi" id="e2" style="font-size:168px;font-weight:900;color:var(--pur);line-height:1.1">مجاناً</div></div></div>
+  <svg class="abs" style="left:300px;top:475px" width="480" height="60" viewBox="0 0 480 60"><path id="ul" d="M10 40 C 120 10, 260 55, 470 22" fill="none" stroke="#FFD23F" stroke-width="22" stroke-linecap="round"/></svg>
+  <div class="abs" style="left:0;right:0;top:560px;text-align:center"><div class="m"><div class="mi" id="e3" style="font-size:40px;font-weight:700;color:#4a4458">واشتراك العام الدراسي كامل بـ</div></div></div>
+  <div class="abs" style="left:0;right:0;top:615px;text-align:center"><div class="m"><div class="mi" id="e4" style="font-size:130px;font-weight:900;direction:ltr;line-height:1.1">20$</div></div></div>
+  <svg class="abs" style="left:380px;top:600px" width="320" height="190" viewBox="0 0 320 190"><path id="circle" d="M250 30 C 190 0, 40 10, 20 85 C 5 150, 120 185, 210 170 C 300 155, 320 90, 280 45 C 260 25, 220 18, 190 20" fill="none" stroke="#8E3BFF" stroke-width="7" stroke-linecap="round"/></svg>
+  <div class="abs" style="left:0;right:0;top:820px;text-align:center"><div class="m"><div class="mi" id="e5"><span class="lbl" style="background:#25d366;color:#fff;font-size:42px;padding:16px 38px">💬 واتساب <span dir="ltr">+963 996 489 504</span></span></div></div></div>
+  <div class="abs" style="left:0;right:0;top:935px;text-align:center"><div class="m"><div class="mi" id="e6" style="font-size:26px;font-weight:600;color:#4a4458;direction:ltr">emar-api.almutafawiqin.workers.dev/app/</div></div></div>
+  <div class="abs" id="badge" style="right:70px;top:620px;width:200px;height:200px;border-radius:50%;background:var(--yel);display:flex;align-items:center;justify-content:center;text-align:center;font-size:36px;font-weight:900;line-height:1.2;box-shadow:10px 12px 0 var(--ink)">اشترك<br>هلّق 📲</div>
+</div>
+
+<div id="blinds"></div>
+
+<script>
+const $=id=>document.getElementById(id)
+const clamp=(x,a=0,b=1)=>Math.max(a,Math.min(b,x)), P=(t,a,b)=>clamp((t-a)/(b-a)), lerp=(a,b,x)=>a+(b-a)*x
+const eo3=x=>1-Math.pow(1-x,3), eio=x=>x<.5?4*x*x*x:1-Math.pow(-2*x+2,3)/2, eoE=x=>x>=1?1:1-Math.pow(2,-10*x)
+const eB=(x,s=1.7)=>{x=clamp(x);const c=s+1;return 1+c*Math.pow(x-1,3)+s*Math.pow(x-1,2)}
+const eEl=x=>{if(x<=0)return 0;if(x>=1)return 1;return Math.pow(2,-10*x)*Math.sin((x*10-.75)*2*Math.PI/3)+1}
+function hash(i){const s=Math.sin(i*127.1+311.7)*43758.5453;return s-Math.floor(s)}
+function rv(el,t,t0,dur=.5,tOut=null,od=.3){const x=P(t,t0,t0+dur);let y=(1-eoE(x))*115;if(tOut!=null)y-=eio(P(t,tOut,tOut+od))*115;el.style.transform=`translateY(${y}%)`}
+
+// grain
+let seed=7;const gc=$("grain").getContext("2d"),gd=gc.createImageData(1160,1160);for(let i=0;i<gd.data.length;i+=4){seed=(seed*1103515245+12345)%2147483648;const v=seed/2147483648*255;gd.data[i]=gd.data[i+1]=gd.data[i+2]=v;gd.data[i+3]=255}gc.putImageData(gd,0,0)
+// rings
+for(let i=0;i<3;i++){const d=document.createElement('div');d.style.cssText='position:absolute;left:-40px;top:-40px;width:80px;height:80px;border-radius:50%;border:4px solid #1CB0F6';$('rings').appendChild(d)}
+// dots
+for(let i=0;i<4;i++){const d=document.createElement('div');d.style.cssText='width:16px;height:16px;border-radius:8px;background:#15121C;opacity:.18;transition:none';$('dots').appendChild(d)}
+// blinds
+const BL=[];for(let i=0;i<6;i++){const d=document.createElement('div');d.className='blind';d.style.left=(i*180)+'px';d.style.width='181px';$('blinds').appendChild(d);BL.push(d)}
+// odometers
+const ODO=[];document.querySelectorAll('.odo').forEach(o=>{const cols=[];for(const ch of o.dataset.v){if(/\d/.test(ch)){const c=document.createElement('div');c.className='col';for(let k=0;k<20;k++){const s=document.createElement('span');s.textContent=k%10;c.appendChild(s)}o.appendChild(c);cols.push([c,+ch])}else{const s=document.createElement('span');s.textContent=ch;s.style.color='#FFD23F';o.appendChild(s)}}ODO.push(cols)})
+const ulLen=$('ul').getTotalLength(), ciLen=$('circle').getTotalLength()
+$('ul').style.strokeDasharray=ulLen; $('circle').style.strokeDasharray=ciLen
+
+const TYPED='شو أذكى طريقة تدرس فيها إنجليزي البكالوريا؟'
+const T_TYPE0=.35, T_TYPE1=2.1
+const FEAT=[
+  [5.7,'01','الكتاب كامل<br>درس درس','كتاب الطالب وكتاب الأنشطة، بالترتيب ومع أرقام الصفحات','#ce82ff'],
+  [7.45,'02','صوت طبيعي<br>لكل كلمة','واسمعها أبطأ بكبسة وحدة 🐢','#1CB0F6'],
+  [9.2,'03','تمارين محلولة<br>بالعربي','كل إجابة إلها شرح ليش هي الصح','#58CC02'],
+  [10.95,'04','امتحانات بشكل<br>البكالوريا','نفس الأقسام ونفس الوقت، مع التصحيح','#FFD23F'],
+]
+const SC=[['s1',0,3.0],['s2',3.0,5.6],['s3',5.6,12.8],['s4',12.8,15.72],['s5',15.72,99]]
+
+function blob(t,col){ // morphing blob
+  const n=8,pts=[];for(let i=0;i<n;i++){const a=i/n*Math.PI*2, r=1+.08*Math.sin(t*1.7+i*1.9)+.05*Math.cos(t*2.3+i*2.7);pts.push([260+Math.cos(a)*230*r,380+Math.sin(a)*350*r])}
+  let d='';for(let i=0;i<n;i++){const p0=pts[(i-1+n)%n],p1=pts[i],p2=pts[(i+1)%n],p3=pts[(i+2)%n];if(i==0)d+=`M${p1[0]},${p1[1]}`;d+=` C${p1[0]+(p2[0]-p0[0])/6},${p1[1]+(p2[1]-p0[1])/6} ${p2[0]-(p3[0]-p1[0])/6},${p2[1]-(p3[1]-p1[1])/6} ${p2[0]},${p2[1]}`}
+  $('blobp').setAttribute('d',d);$('blobp').setAttribute('fill',col)
+}
+
+function render(t){
+  $('grain').style.transform=`translate(${-Math.floor(hash(Math.floor(t*7.5))*40)}px,${-Math.floor(hash(Math.floor(t*7.5)+5)*40)}px)`
+  let si=0;for(let i=0;i<SC.length;i++){const [id,a,b]=SC[i];const on=t>=a&&t<b;$(id).style.opacity=on?1:0;if(on)si=i}
+  const dark=si==3; for(const id of ['cTR','cTL','cBR','cBL']) $(id).style.color=dark?'#F6F1E7':'#15121C'
+  $('idx').textContent='0'+(si+1); $('prog').style.width=(clamp(t/20.5)*100)+'%'
+  for(const id of ['cTR','cTL','cBR','cBL']) $(id).style.opacity=clamp(P(t,.1,.5))
+
+  // ---- S1
+  if(t<3.05){
+    rv($('q'),t,.1,.4)
+    const n=Math.round(TYPED.length*P(t,T_TYPE0,T_TYPE1)); $('typed').textContent=TYPED.slice(0,n)
+    $('caret').style.opacity=(t<T_TYPE1? 1 : (Math.floor(t*4)%2?0:1))*(t<2.45?1:0)
+    const x=eio(P(t,2.42,2.98)), R=x*1700; const c=$('circ'); c.style.width=c.style.height=R+'px'; c.style.marginLeft=c.style.marginTop=(-R/2)+'px'
+  }
+  // ---- S2
+  if(t>=3&&t<5.65){
+    const x=P(t,3.0,3.45), tile=$('tile'); tile.style.transform=`scale(${eB(x,2.2)}) rotate(${(1-eB(x,1.4))*-90+Math.sin(t*2)*2}deg)`
+    ;['sh1','sh2','sh3','sh4'].forEach((id,i)=>{const y=P(t,3.15+i*.08,3.55+i*.08);const fl=Math.sin(t*2+i)*10;$(id).style.transform=`translateY(${fl}px) scale(${eB(y,2.5)}) rotate(${(1-eo3(y))*(i%2?120:-120)+t*(i%2?20:-20)}deg)`})
+    rv($('b1'),t,3.45,.55); rv($('b2'),t,3.7,.5); rv($('b3'),t,3.95,.5)
+    $('cover2').style.transform=`translateY(${(1-eio(P(t,5.2,5.6)))*1080}px)`
+  }
+  // ---- S3
+  if(t>=5.55&&t<12.85){
+    const ent=eoE(P(t,5.6,6.2)), ex=eio(P(t,12.45,12.8))
+    $('phone').style.transform=`translateY(${(1-ent)*1000 + Math.sin(t*1.4)*8}px) rotate(${-3+(1-ent)*-12+Math.sin(t*.9)*1.2}deg)`
+    let fi=0;for(let i=0;i<4;i++) if(t>=FEAT[i][0]-.05) fi=i
+    const f=FEAT[fi], nextT=FEAT[fi+1]?FEAT[fi+1][0]:12.75
+    // blob colour + scale
+    const bsc=eB(P(t,5.75,6.3),1.6); $('blob').style.transform=`scale(${bsc}) rotate(${Math.sin(t*.5)*4}deg)`; blob(t,f[4])
+    if($('fn').dataset.i!=fi){$('fn').textContent=f[1];$('ft').innerHTML=f[2];$('fl').innerHTML=f[3];$('fn').dataset.i=fi}
+    const s0=f[0]+(fi==0?.25:0)
+    rv($('fn'),t,s0,.5,nextT-.32,.3); rv($('ft'),t,s0+.08,.5,nextT-.3,.28); rv($('fl'),t,s0+.18,.5,nextT-.28,.26)
+    ;[...$('dots').children].forEach((d,i)=>{d.style.opacity=i==fi?1:.18;d.style.width=(i==fi?44:16)+'px'})
+    // screens: clip reveal from bottom
+    for(let i=0;i<4;i++){const im=$('i'+i), a=FEAT[i][0]; if(i==0){im.style.clipPath='none';continue}
+      const x=eio(P(t,a,a+.45)); im.style.clipPath=`inset(${(1-x)*100}% 0 0 0)`; im.style.transform=`scale(${lerp(1.08,1,x)})`; im.style.opacity=t>=a?1:0}
+    // overlays
+    const tap=(tt,x,y)=>{const d=t-tt;if(d>=0&&d<.45){$('tap').style.left=x+'px';$('tap').style.top=y+'px';$('tap').style.opacity=1-d/.45;$('tap').style.transform=`scale(${.4+d*2.6})`;return true}return false}
+    if(!(tap(7.9,282,194)||tap(9.7,190,212))) $('tap').style.opacity=0
+    const rOn=t>7.95&&t<9.2; $('rings').style.opacity=rOn?1:0;[...$('rings').children].forEach((d,i)=>{const ph=((t-7.95)*1.5+i/3)%1;d.style.transform=`scale(${.8+ph*1.6})`;d.style.opacity=1-ph})
+    { const x=P(t,8.35,8.6); $('slow').style.opacity=t<9.2?clamp(x*3):0; $('slow').style.transform=`scale(${eB(x,2.6)})` }
+    { const x=P(t,9.72,9.9); $('pick').style.opacity=t<10.95?x:0; const y=P(t,9.95,10.3); $('toast').style.opacity=(t<10.95&&y>0)?1:0; $('toast').style.transform=`translateY(${(1-eo3(y))*160}px)` }
+    { const on=t>=10.95; $('timer').style.opacity=on?1:0; const el=Math.max(0,Math.floor((t-11.2)*2)); const s=149*60+59-el; $('tm').textContent=Math.floor(s/60)+':'+String(s%60).padStart(2,'0'); const pu=t>11.4?1+.12*Math.max(0,Math.sin((t-11.4)*Math.PI*2)):1; $('timer').style.transform=`scale(${pu})`; $('timer').style.boxShadow=t>11.4?`0 0 0 ${4+4*Math.abs(Math.sin((t-11.4)*Math.PI*2))}px rgba(28,176,246,.35)`:'none' }
+    $('s3').style.transform=`translateY(${-ex*0}px)`
+  }
+  // ---- S4
+  if(t>=12.75&&t<15.8){
+    rv($('n0'),t,12.95,.45); rv($('n1'),t,13.05,.5)
+    $('hline').style.transform=`scaleX(${eio(P(t,13.1,13.6))})`; $('vline').style.transform=`scaleY(${eio(P(t,13.2,13.7))})`
+    ODO.forEach((cols,ci)=>{const t0=13.35+ci*.17; cols.forEach(([c,d],j)=>{const x=eo3(P(t,t0+j*.07,t0+j*.07+1.15)); c.style.transform=`translateY(${-x*(d+10)*1.12}em)`})})
+    document.querySelectorAll('#s4 .clabel').forEach((el,i)=>rv(el,t,13.55+i*.17,.45))
+  }
+  // ---- S5
+  if(t>=15.6){
+    rv($('e0'),t,15.8,.4); rv($('e1'),t,15.88,.45)
+    { const x=P(t,16.05,16.45); const el=$('e2'); el.style.transform=`translateY(${(1-eoE(x))*60}px) scale(${lerp(.4,1,eB(x,2.4))})`; el.style.opacity=clamp(x*4) }
+    $('ul').style.strokeDashoffset=ulLen*(1-eio(P(t,16.4,16.8)))
+    rv($('e3'),t,16.85,.45); rv($('e4'),t,17.0,.5)
+    $('circle').style.strokeDashoffset=ciLen*(1-eio(P(t,17.35,17.85)))
+    rv($('e5'),t,18.0,.45); rv($('e6'),t,18.2,.45)
+    { const x=P(t,18.7,19.0); const b=$('badge'); b.style.opacity=x>0?1:0; b.style.transform=`scale(${lerp(2.2,1,eoE(x))}) rotate(${12+Math.sin(Math.max(0,t-19)*3)*3}deg)` }
+    const sh=t>18.95&&t<19.2?Math.sin(t*140)*7*(1-P(t,18.95,19.2)):0; $('s5').style.transform=`translate(${sh}px,${-sh}px)`
+  }
+  // ---- blinds
+  const blindsSet=[[12.42,'#15121C',12.8],[15.32,'#F6F1E7',15.72]]
+  let shown=false
+  for(const [t0,col,tEnd] of blindsSet){ if(t>=t0&&t<tEnd){ shown=true; BL.forEach((b,i)=>{const x=eio(P(t,t0+i*.045,t0+i*.045+.2)); b.style.background=col; b.style.transform=`scaleY(${x})`}) } }
+  if(!shown) BL.forEach(b=>b.style.transform='scaleY(0)')
+  return true
+}
+window.render=render; render(0)
+</script></body></html>
