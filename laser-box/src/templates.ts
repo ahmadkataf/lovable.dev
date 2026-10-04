@@ -2617,12 +2617,12 @@ function stakedHeart(cx: number, cy: number, w: number, stakes: number, sx: numb
 
 /** Rectangles of the digit d in a gw × gh box at (x0, y0), strokes s wide: seven segments, and a 1 with a flag and a foot. */
 function digitRects(d: number, x0: number, y0: number, gw: number, gh: number, s: number): Rect[] {
-  // corners rounded, not sizes, so strokes that meet edge to edge share the same coordinate and merge into one piece
-  const R = (x: number, y: number, w: number, h: number) => { const xa = round3(x0 + x), ya = round3(y0 + y); return rect(xa, ya, round3(x0 + x + w) - xa, round3(y0 + y + h) - ya) }
-  if (d === 1) { const c = gw / 2; return [R(c - s / 2, 0, s, gh), R(c - s / 2 - 0.28 * gw, 0, 0.28 * gw, s), R(c - 0.36 * gw, gh - s, 0.72 * gw, s)] }
+  // by corners, so strokes that meet edge to edge use the very same coordinate and merge into one piece
+  const R = (xa: number, ya: number, xb: number, yb: number) => { const x = round3(x0 + xa), y = round3(y0 + ya); return rect(x, y, round3(x0 + xb) - x, round3(y0 + yb) - y) }
+  if (d === 1) { const L = gw / 2 - s / 2, Rr = gw / 2 + s / 2; return [R(L, 0, Rr, gh), R(L - 0.28 * gw, 0, L, s), R(gw / 2 - 0.36 * gw, gh - s, gw / 2 + 0.36 * gw, gh)] }
   const m0 = (gh - s) / 2, m1 = (gh + s) / 2
   const seg: Record<string, Rect> = {
-    a: R(0, 0, gw, s), b: R(gw - s, 0, s, m1), c: R(gw - s, m0, s, gh - m0), d: R(0, gh - s, gw, s), e: R(0, m0, s, gh - m0), f: R(0, 0, s, m1), g: R(0, m0, gw, s),
+    a: R(0, 0, gw, s), b: R(gw - s, 0, gw, m1), c: R(gw - s, m0, gw, gh), d: R(0, gh - s, gw, gh), e: R(0, m0, s, gh), f: R(0, 0, s, m1), g: R(0, m0, gw, m1),
   }
   return [...['abcdef', '', 'abdeg', 'abcdg', 'bcfg', 'acdfg', 'acdefg', 'abc', 'abcdefg', 'abcdfg'][d]].map(k => seg[k])
 }
@@ -2637,6 +2637,8 @@ function numberGlyphs(num: number, cx: number, cy: number, gh: number): { digit:
     return { digit: dg, loops }
   })
 }
+/** An Arabic count: one, two (dual), three to ten (plural), eleven and up (singular accusative). */
+const arCount = (n: number, [one, two, few, many]: [string, string, string, string]) => n === 1 ? one : n === 2 ? two : n <= 10 ? `${n} ${few}` : `${n} ${many}`
 const numberWidth = (num: number, gh: number) => { const n = String(num).length; return n * 0.56 * gh + (n - 1) * 0.16 * gh }
 
 MORE.push(
@@ -2648,7 +2650,7 @@ MORE.push(
     params: [
       mm('W', 'عرض القلب', 60, 300), mm('b', 'عرض الإطار', 3, 20, 'ثابت حول القلب كلّه، حتى عند الشقّ بين الفصّين'),
       mm('band', 'ارتفاع شريط الأسماء', 0, 60, '0 = قلب مفرّغ بلا شريط'),
-      { key: 'stakes', label: 'عدد العيدان', min: 1, max: 2, step: 1, int: true }, mm('sw', 'عرض العود', 4, 12), mm('L', 'طول العود تحت القلب', 40, 160, 'الجزء المغروز في الكيك مع ما يظهر فوقه'),
+      { key: 'stakes', label: 'عدد العيدان', min: 1, max: 2, step: 1, int: true }, mm('sw', 'عرض العود', 4, 12), mm('L', 'طول العود تحت القلب', 60, 160, 'الجزء المغروز في الكيك (4–6 سم) مع ما يظهر فوقه'),
       { key: 'n', label: 'العدد', min: 1, max: 20, step: 1, int: true },
     ],
     defaults: { W: 150, b: 7, band: 22, stakes: 2, sw: 6, L: 75, n: 1 },
@@ -2678,7 +2680,7 @@ MORE.push(
       const outline = stakedHeart(cx, cy, W, stakes, sx, sw, L)
       const panels: PanelSpec[] = [{ id: 'topper', name: 'التوبر', w: W, h: round3(W / 4 + 0.7 * W + L), count: n, shape: [outline], holes, note: bandAt ? 'الأسماء تُحفر على الشريط' : 'قلب مفرّغ' }]
       const notes = [
-        `القلب ${W} مم عرضاً و${(0.95 * W).toFixed(0)} مم ارتفاعاً بإطار ${b} مم، و${stakes === 2 ? 'عودان' : 'عود'} بعرض ${sw} مم ينزل ${L} مم تحت رأس القلب؛ اغرز منه 4–6 سم في الكيك.`,
+        `القلب ${W} مم عرضاً و${(0.95 * W).toFixed(0)} مم ارتفاعاً بإطار ${b} مم، و${stakes === 2 ? 'عودان' : 'عود'} بعرض ${sw} مم ينزل ${L} مم تحت رأس القلب؛ اغرز منه 4–6 سم في الكيك فيرتفع القلب ${Math.max(0, Math.round((L - 50) / 10))} سم تقريباً فوق سطحه.`,
         ...(bandAt ? [`شريط الأسماء ${band} مم: اكتب الاسمين أو «Mr & Mrs» في RDWorks ووسّطها على الشريط. على أكريليك المرآة احفر على الوجه الأمامي بقدرة منخفضة فتظهر الحروف بيضاء مطفية.`] : []),
         'أكريليك مرآة ذهبي 3 مم هو الأشيع للتوبر (والخشب 3 مم يصلح أيضاً). اترك ورق الحماية حتى التسليم، ولفّ طرف العود بشريط طعام قبل غرزه.',
       ]
@@ -2711,6 +2713,9 @@ MORE.push(
       if (layers * t - t < 1.5) errors.push(`التجويف (${layers * t} مم) لا يترك للقلب خلوصاً كافياً: زد طبقات التجويف.`)
       if (slot > ww - 20) errors.push(`فتحة الإسقاط (${slot} مم) أعرض من التجويف: صغّر القلب الصغير أو كبّر اللوحة.`)
       if (n > 0 && hw - 4 * t < 8) errors.push(`القلب الصغير صغير على التوقيع وسيضعف: ${Math.ceil(4 * t + 8)} مم على الأقل.`)
+      // roughly how many hearts the cavity holds: its volume over a heart's (0.546 hw² × t), about 60 % packed
+      const fits = Math.floor((0.6 * ww * wh * layers) / (0.546 * hw * hw))
+      if (n > fits && !errors.length) warnings.push(`التجويف يتّسع لنحو ${fits} قلباً فقط من هذا المقاس، لا ${n}: زد طبقات التجويف أو صغّر القلب أو كبّر اللوحة.`)
       const ocr = Math.max(0, Math.min(p.ocr, b - 4))
       const rounded = (loops: Loop[]) => { if (ocr > 0) for (const [x, y] of [[0, 0], [W, 0], [W, H], [0, H]]) roundCorner(loops, x, y, ocr) }
       // the window, and the engraved line 5 mm outside it
@@ -2721,7 +2726,7 @@ MORE.push(
         const hwW = Math.min(ww, wh / 0.95), hcy = bt + wh / 2
         // the heart shrunk by 3 mm: its notch is rounded, so no hair-thin point of wood is left between the lobes
         windowLoop = heartFrame(W / 2, hcy, hwW, 3).holes()[0]
-        if (p.deco) decoLoop = heartOffset(W / 2, hcy, hwW, Math.min(5, b / 3) - 1)
+        if (p.deco) decoLoop = heartOffset(W / 2, hcy, hwW, Math.min(5, b / 3) - 3) // the window is the heart less 3 mm
       } else if (win === 3 && archOk) {
         windowLoop = archHole(b, bt, ww, wh)
         if (p.deco) { const g = Math.min(5, b / 3); decoLoop = archHole(b - g, bt - g, ww + 2 * g, wh + 2 * g) }
@@ -2752,8 +2757,8 @@ MORE.push(
       if (n > 0) panels.push({ id: 'heart', name: 'قلب التوقيع', w: hw, h: round3(0.95 * hw), count: n, shape: [oriented(heart(hw / 2, 0.475 * hw, hw), 'outer')], note: 'يوقّع عليه الضيف ويُسقطه من الفتحة' })
       const notes = [
         `اللوحة ${W} × ${H} مم، سماكة طبقاتها الخشبية ${((layers + 2) * t).toFixed(1)} مم يُضاف إليها لوح الأكريليك. التجويف ${ww} × ${wh} مم بعمق ${(layers * t).toFixed(1)} مم، وفتحة الإسقاط في الحافّة العلوية ${slot} × ${(layers * t).toFixed(1)} مم.`,
-        `الترتيب من الأمام: الإطار الأمامي، لوح الأكريليك، طبقات التجويف (${layers})، الظهر. انزع ورق الحماية عن الأكريليك، ثم ألصق الطبقات والحواف متطابقة؛ الأكريليك بلاصق شفّاف على حافّته فقط، وأبقِ مجرى الفتحة نظيفاً من الغراء.`,
-        ...(n > 0 ? [`${n} قلباً بعرض ${hw} مم بسماكة الخشب نفسها، وفتحة الإسقاط أعرض منها بـ 10 مم. ضع بجانب اللوحة قلماً وصحناً للقلوب.`] : []),
+        `الترتيب من الأمام: الإطار الأمامي، لوح الأكريليك، طبقات التجويف (${arCount(layers, ['طبقة', 'طبقتان', 'طبقات', 'طبقة'])})، الظهر. انزع ورق الحماية عن الأكريليك، ثم ألصق الطبقات والحواف متطابقة؛ الأكريليك بلاصق شفّاف على حافّته فقط، وأبقِ مجرى الفتحة نظيفاً من الغراء.`,
+        ...(n > 0 ? [`${arCount(n, ['قلب واحد', 'قلبان', 'قلوب', 'قلباً'])} بعرض ${hw} مم بسماكة الخشب نفسها، وفتحة الإسقاط أعرض منها بـ 10 مم. ضع بجانب اللوحة قلماً وصحناً للقلوب.`] : []),
         ...(keyGap > 0 ? [`فتحتا التعليق بينهما ${keyGap} مم؛ دقّ مسمارين على هذا البعد، أو ضع اللوحة على حامل لوحات (easel).`] : ['ضع اللوحة على حامل لوحات (easel) في مدخل القاعة.']),
       ]
       return { panels, notes, warnings, errors }
@@ -2826,7 +2831,7 @@ MORE.push(
         })
       }
       const notes = [
-        `${k} طوابق: ${Array.from({ length: k }, (_, i) => Dj(i + 1)).join('، ')} مم، بينها ${gap} مم صافية. الارتفاع الكلّي ${(Hc).toFixed(0)} مم.`,
+        `${arCount(k, ['طابق', 'طابقان', 'طوابق', 'طابقاً'])}: ${Array.from({ length: k }, (_, i) => Dj(i + 1)).join('، ')} مم، بينها ${gap} مم صافية. الارتفاع الكلّي ${(Hc).toFixed(0)} مم.`,
         'التجميع: أدخل اللوحين المتقاطعين في بعضهما (+)، ثم أدخل لسان العمود السفلي في فتحة القاعدة، ثم أنزل الصحون من الأعلى بالترتيب من الأكبر إلى الأصغر؛ كل صحن يمرّ فوق الأجزاء الأضيق ويستقرّ على كتفه. لا يحتاج غراء، وينفكّ للتخزين.',
         `كل صحن يستند على أربعة أكتاف عرضها ${ledge} مم. للحلويات الخفيفة يكفي 3 مم، وللأثقل (كيك حقيقي) استعمل 4–6 مم وكتفاً أعرض. غطِّ الصحون الخشبية بورق حلويات أو اقصّها من أكريليك.`,
       ]
@@ -2900,9 +2905,9 @@ MORE.push(
       panels.push({ id: 'base-top', name: 'القاعدة — الطبقة العليا', w: Wb, h: Db, count: n, holes: slots, post: roundB, note: 'شقّا لساني اللوحة' })
       if (layers > 1) panels.push({ id: 'base-under', name: 'القاعدة — الطبقة السفلى', w: Wb, h: Db, count: n * (layers - 1), holes: slots.map(l => ({ ...l, pts: l.pts.map(q => ({ ...q })) })), post: roundB, note: 'الشقوق نفسها لتنفذ فيها الألسنة' })
       const notes = [
-        `${n} ${n > 10 ? 'لوحة' : 'لوحات'} من ${from} إلى ${last}، كل لوحة ${W} × ${H} مم تقف بلسانيها في قاعدة ${Wb} × ${Db} مم (${layers} ${layers > 1 ? 'طبقات' : 'طبقة'}) والألسنة تصل أسفلها.`,
+        `${arCount(n, ['لوحة واحدة', 'لوحتان', 'لوحات', 'لوحة'])}${n > 1 ? ` من ${from} إلى ${last}` : ` رقمها ${from}`}، كل لوحة ${W} × ${H} مم تقف بلسانيها في قاعدة ${Wb} × ${Db} مم (${arCount(layers, ['طبقة واحدة', 'طبقتان', 'طبقات', 'طبقة'])}) والألسنة تصل أسفلها.`,
         ...(style === 1 ? ['الأرقام على طبقة الحفر الزرقاء: في RDWorks اجعلها Scan (حفر ممتلئ) فتظهر الأرقام مملوءة، أو Cut بقدرة منخفضة لحفر خطّي.'] : []),
-        ...(style === 2 ? [`الأرقام الذهبية (${[...digitCount.values()].reduce((s, e) => s + e.count, 0)} قطعة) في كتلة خاصة لأكريليك المرآة؛ ألصق كل رقم على موضعه المحفور بلاصق جِل أو UV لا يذيب طلاء المرآة.`] : []),
+        ...(style === 2 ? [`الأرقام الذهبية (${arCount([...digitCount.values()].reduce((s, e) => s + e.count, 0), ['قطعة واحدة', 'قطعتان', 'قطع', 'قطعة'])}) في كتلة خاصة لأكريليك المرآة؛ ألصق كل رقم على موضعه المحفور بلاصق جِل أو UV لا يذيب طلاء المرآة.`] : []),
         'اكتب «Table» أو اسمَي العروسين فوق الرقم بالحفر في RDWorks. للّوحات البيضاء استعمل أكريليك أبيض والأرقام ذهبية، وللخشب احفر الرقم.',
       ]
       return { panels, notes, warnings, errors }
@@ -2946,7 +2951,7 @@ MORE.push(
       return {
         panels: [...panels, ...extra],
         notes: [
-          `${n} علبة ${W} × ${D} × ${H} مم${win > 0 ? ' بنافذة قلب في الغطاء' : ''}.`,
+          `${arCount(n, ['علبة واحدة', 'علبتان', 'علب', 'علبة'])} ${W} × ${D} × ${H} مم${win > 0 ? ' بنافذة قلب في الغطاء' : ''}.`,
           ...notes,
           ...(win === 2 ? [`نافذة الأكريليك ${(ow - 1).toFixed(1)} × ${(od - 1).toFixed(1)} مم تُلصق تحت الغطاء داخل إطار الشفة (بعد لصق الإطار) فيُرى ما في العلبة ولا يخرج.`] : []),
           ...(Math.round(p.tag) > 0 ? ['الإطار المحفور على الواجهة لاسمَي العروسين أو التاريخ؛ أضف النصّ في RDWorks.'] : []),

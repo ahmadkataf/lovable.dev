@@ -1000,15 +1000,23 @@ describe('wedding designs', () => {
   })
 
   it('every gold digit, at any plate size, is one piece with its counters: none, or one in 0 6 9, two in 8', () => {
-    for (const W of [70, 93.7, 137.3, 220]) {
-      const d = generate(T('tablenumbers'), { W, H: 300, Db: 90, from: 0, n: 10, num: 2 }, S0)
+    // every size from 70 to 220 mm in half millimetres, single digits and the 1 and 0 of three-digit numbers (their digits are smaller)
+    for (let W = 70; W <= 220; W += 0.5) for (const from of [0, 100]) {
+      const d = generate(T('tablenumbers'), { W, H: 320, Db: 90, shape: 2, from, n: 10, num: 2 }, S0)
       expect(d.errors).toEqual([])
       for (let dg = 0; dg <= 9; dg++) {
-        const pn = d.panels.find(x => x.id === `digit-${dg}`)!
+        const pn = d.panels.find(x => x.id === `digit-${dg}`)
+        if (!pn) continue
         expect(cutLoops(pn).filter(l => signedArea(l) > 0).length, `W${W} digit ${dg}`).toBe(1)
         expect(holesOf(pn).length, `W${W} digit ${dg} counters`).toBe(dg === 8 ? 2 : [0, 6, 9].includes(dg) ? 1 : 0)
       }
     }
+  })
+
+  it('the guest frame warns when the cavity cannot hold the hearts asked for', () => {
+    expect(generate(T('guestframe'), {}, S0).warnings).toEqual([])
+    const w = generate(T('guestframe'), { W: 200, H: 250, b: 15, bt: 30, hw: 45, layers: 2, n: 300 }, S0).warnings
+    expect(w.some(m => m.includes('يتّسع'))).toBe(true)
   })
 
   it('favour boxes multiply by the count, and the heart window sits inside the lip frame over the clear plate', () => {
