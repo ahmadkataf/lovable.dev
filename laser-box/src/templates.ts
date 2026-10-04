@@ -1484,7 +1484,8 @@ export const CATEGORIES: { id: string; name: string; ids: string[] }[] = [
   { id: 'gift', name: 'هدايا وديكور', ids: ['chest', 'catbank', 'decobox', 'jewelry', 'moneybox', 'teahouse', 'frame', 'basket', 'fence', 'clock'] },
   { id: 'kitchen', name: 'مطبخ وتقديم', ids: ['carrier', 'mugtree', 'spicerack', 'bedtray', 'tray', 'teabox', 'tissue'] },
   { id: 'office', name: 'مكتب وتنظيم', ids: ['organizer', 'phonestand', 'bookstand', 'headphone', 'keyholder', 'wallshelf', 'jewelrytree'] },
-  { id: 'home', name: 'بيت وحديقة', ids: ['doorpanel', 'planter', 'petfeeder', 'birdhouse', 'incense', 'napkin'] },
+  { id: 'doors', name: 'أبواب', ids: ['doorpanel'] },
+  { id: 'home', name: 'بيت وحديقة', ids: ['planter', 'petfeeder', 'birdhouse', 'incense', 'napkin'] },
   { id: 'light', name: 'إضاءة ورمضان', ids: ['ramadanlantern', 'ramadanornaments', 'lantern', 'shade'] },
   { id: 'bulk', name: 'بالجملة', ids: ['keychains', 'coasters'] },
 ]
