@@ -1480,7 +1480,7 @@ export const templateById = (id: string) => TEMPLATES.find(t => t.id === id) ?? 
 /** The picker's groups, in the order they are shown; every template belongs to exactly one. */
 export const CATEGORIES: { id: string; name: string; ids: string[] }[] = [
   { id: 'box', name: 'صناديق', ids: ['closed', 'open', 'sliding', 'liftoff', 'hinged', 'hinged90', 'flex', 'lip', 'window', 'drawer', 'roundbox', 'crate'] },
-  { id: 'wedding', name: 'أعراس وخطوبة', ids: ['engagement', 'hexringbox', 'caketopper', 'guestframe', 'sweetstand', 'tablenumbers', 'favorbox'] },
+  { id: 'wedding', name: 'أعراس وخطوبة', ids: ['engagement', 'hexringbox', 'nikahtray', 'hennatray', 'welcomesign', 'placecards', 'invitebox', 'caketopper', 'guestframe', 'sweetstand', 'tablenumbers', 'favorbox'] },
   { id: 'gift', name: 'هدايا وديكور', ids: ['chest', 'catbank', 'decobox', 'jewelry', 'moneybox', 'teahouse', 'frame', 'basket', 'fence', 'clock'] },
   { id: 'kitchen', name: 'مطبخ وتقديم', ids: ['carrier', 'mugtree', 'spicerack', 'bedtray', 'tray', 'teabox', 'tissue'] },
   { id: 'office', name: 'مكتب وتنظيم', ids: ['organizer', 'phonestand', 'bookstand', 'headphone', 'keyholder', 'wallshelf', 'jewelrytree'] },
@@ -1491,7 +1491,7 @@ export const CATEGORIES: { id: string; name: string; ids: string[] }[] = [
   { id: 'bulk', name: 'بالجملة', ids: ['keychains', 'coasters'] },
 ]
 /** the newest designs get a badge in the picker */
-export const NEW_IDS = ['doorhanger', 'doordiagonal', 'doorblocks', 'doororbit', 'doorchevron', 'doormihrab', 'doorkhatam', 'doormashrabiya', 'doorstars', 'doorandalus', 'doorpanel', 'doorclassic', 'doorarch', 'doordiamond', 'doorwaves', 'doorstar', 'doormodern', 'doorframes', 'caketopper', 'guestframe', 'sweetstand', 'tablenumbers', 'favorbox', 'hexringbox', 'engagement', 'hinged90', 'crate', 'carrier', 'jewelry', 'moneybox', 'planter', 'petfeeder', 'incense', 'bedtray', 'phonestand', 'bookstand', 'headphone', 'keyholder', 'wallshelf', 'spicerack', 'coasters', 'clock', 'keychains', 'ramadanornaments', 'mugtree', 'jewelrytree', 'birdhouse', 'ramadanlantern']
+export const NEW_IDS = ['nikahtray', 'hennatray', 'welcomesign', 'placecards', 'invitebox', 'doorhanger', 'doordiagonal', 'doorblocks', 'doororbit', 'doorchevron', 'doormihrab', 'doorkhatam', 'doormashrabiya', 'doorstars', 'doorandalus', 'doorpanel', 'doorclassic', 'doorarch', 'doordiamond', 'doorwaves', 'doorstar', 'doormodern', 'doorframes', 'caketopper', 'guestframe', 'sweetstand', 'tablenumbers', 'favorbox', 'hexringbox', 'engagement', 'hinged90', 'crate', 'carrier', 'jewelry', 'moneybox', 'planter', 'petfeeder', 'incense', 'bedtray', 'phonestand', 'bookstand', 'headphone', 'keyholder', 'wallshelf', 'spicerack', 'coasters', 'clock', 'keychains', 'ramadanornaments', 'mugtree', 'jewelrytree', 'birdhouse', 'ramadanlantern']
 
 // ====================================================================== more designs, built from the shared parts
 
@@ -3508,5 +3508,239 @@ MORE.push({
     }
   },
 })
+
+// ------------------------------------------------------------------ wedding acrylic, second set
+
+/** A shape in a plate, for spacing checks: a circle, or a box (stadiums and slots by their bounding box). */
+type Spot = { c: P2; r: number } | { x0: number; y0: number; x1: number; y1: number }
+function spotGap(a: Spot, b: Spot): number {
+  const box = (s: Spot) => ('r' in s ? { x0: s.c.x - s.r, y0: s.c.y - s.r, x1: s.c.x + s.r, y1: s.c.y + s.r } : s)
+  if ('r' in a && 'r' in b) return Math.hypot(a.c.x - b.c.x, a.c.y - b.c.y) - a.r - b.r
+  if ('r' in a || 'r' in b) {
+    const c = ('r' in a ? a : b) as { c: P2; r: number }, B = box('r' in a ? b : a)
+    return Math.hypot(Math.max(B.x0 - c.c.x, 0, c.c.x - B.x1), Math.max(B.y0 - c.c.y, 0, c.c.y - B.y1)) - c.r
+  }
+  const A = box(a), B = box(b)
+  return Math.hypot(Math.max(B.x0 - A.x1, 0, A.x0 - B.x1), Math.max(B.y0 - A.y1, 0, A.y0 - B.y1))
+}
+/** The narrowest wood (acrylic) between any two spots and between each spot and a W × D plate's edge. */
+function spotsTight(spots: Spot[], W: number, D: number): number {
+  let m = Infinity
+  for (let i = 0; i < spots.length; i++) {
+    const s = spots[i], b = 'r' in s ? { x0: s.c.x - s.r, y0: s.c.y - s.r, x1: s.c.x + s.r, y1: s.c.y + s.r } : s
+    m = Math.min(m, b.x0, b.y0, W - b.x1, D - b.y1)
+    for (let j = i + 1; j < spots.length; j++) m = Math.min(m, spotGap(s, spots[j]))
+  }
+  return m
+}
+
+/**
+ * A layered acrylic tray: a solid base (gold mirror by default), pocket plates whose cut-outs become the recesses, and
+ * handle slots through every layer near the short ends. `pockets` gives the recesses (holes) and their spots.
+ */
+function layeredTray(p: Record<string, number>, c: Common, pockets: (W: number, D: number, hx: number) => { holes: Loop[]; spots: Spot[]; engrave?: Loop[] }, what: string): BuildResult {
+  const warnings: string[] = [], errors: string[] = []
+  const { W, D } = p, t = c.t, layers = Math.round(p.layers), rc = Math.min(p.rc, D / 4, W / 4)
+  // handles: a vertical slot near each short end, as wide as fingers need
+  const hw = 18, hl = round3(Math.min(0.45 * D, 110)), hx = 14 + hw / 2
+  const handles = [hx, W - hx].map(x => stadiumV(round3(x), round3(D / 2), hl, hw))
+  const handleSpots: Spot[] = [hx, W - hx].map(x => ({ x0: x - hw / 2, y0: D / 2 - hl / 2, x1: x + hw / 2, y1: D / 2 + hl / 2 }))
+  const pk = pockets(W, D, hx + hw / 2)
+  const tight = spotsTight([...handleSpots, ...pk.spots], W, D)
+  if (tight < 6) errors.push(`الصينية صغيرة على ما فيها: يبقى ${Math.max(0, tight).toFixed(1)} مم فقط بين فتحتين أو عند الحافّة (6 مم على الأقل)؛ كبّر الصينية أو صغّر الفتحات.`)
+  const rounded = (loops: Loop[]) => { for (const [x, y] of [[0, 0], [W, 0], [W, D], [0, D]]) roundCorner(loops, x, y, rc) }
+  const copy = (ls: Loop[]) => ls.map(l => ({ ...l, pts: l.pts.map(q => ({ ...q })) }))
+  const mirror = Math.round(p.mirror) > 0
+  const panels: PanelSpec[] = [
+    { id: 'base', name: 'القاعدة', w: W, h: D, post: rounded, holes: copy(handles), ...(mirror ? { material: 'mirror' } : {}), note: mirror ? 'أكريليك مرآة: تظهر من خلال الفتحات' : 'القاعدة' },
+    { id: 'pocket', name: layers > 1 ? 'طبقة الفتحات' : 'الطبقة العليا', w: W, h: D, count: layers, post: rounded, holes: [...copy(handles), ...pk.holes], engrave: pk.engrave ?? [], note: 'فتحاتها تصير تجاويف فوق القاعدة' },
+  ]
+  return {
+    panels,
+    notes: [
+      `${what} ${W} × ${D} مم من ${layers + 1} طبقات؛ عمق التجاويف ${(layers * t).toFixed(1)} مم. فتحتا المقبض تنفذان في كل الطبقات.`,
+      mirror ? 'القاعدة من أكريليك مرآة ذهبي أو فضي فتلمع في قاع كل تجويف، والطبقة العليا أكريليك أبيض أو شفّاف أو أسود. ألصق الطبقات بلاصق جِل أو UV لا يذيب طلاء المرآة، وابدأ بمحاذاة فتحتي المقبض.' : 'ألصق الطبقات فوق بعضها والحواف متطابقة؛ ابدأ بمحاذاة فتحتي المقبض.',
+    ],
+    warnings, errors,
+  }
+}
+
+/**
+ * A sign standing on two feet by halving joints: each foot has a slot from the top, the sign one from the bottom, each
+ * half the foot's height, so the sign's bottom and the feet stand on the table together and come apart for storage.
+ */
+function footedSign(p: Record<string, number>, c: Common, o: { id: string; name: string; count: number; footMin: number }): BuildResult {
+  const warnings: string[] = [], errors: string[] = []
+  const t = c.t, { W, fit } = p, shape = Math.round(p.shape), n = o.count
+  const s = round3(t + fit), Lf = p.Lf, hf = p.hf, hs = round3(hf / 2)
+  const H = shape === 3 ? round3(0.94 * W) : p.H
+  if (shape === 1 && H < W / 2 + hs + 10) errors.push(`اللوحة قصيرة على قوسها: اجعل ارتفاعها ${Math.ceil(W / 2 + hs + 10)} مم على الأقل.`)
+  if (hf < Math.max(o.footMin, 4 * t)) errors.push(`القدم منخفضة: ${Math.ceil(Math.max(o.footMin, 4 * t))} مم على الأقل.`)
+  if (Lf < 0.3 * H) errors.push(`القدم قصيرة على هذا الارتفاع وقد تنقلب اللوحة: اجعل طولها ${Math.ceil(0.3 * H)} مم على الأقل.`)
+  if (Lf < 4 * s + 20) errors.push('القدم قصيرة على شقّها.')
+  // the feet: under the sides of a flat-bottomed sign, nearer the middle under a round one (its flat is short)
+  const R = W / 2, cy = R, chordHalf = shape === 3 ? Math.sqrt(Math.max(0, R * R - (H - cy) ** 2)) : W / 2
+  const fx = shape === 3 ? [W / 2 - 0.62 * chordHalf, W / 2 + 0.62 * chordHalf] : [0.2 * W, 0.8 * W]
+  if (fx[0] - s / 2 < (shape === 3 ? W / 2 - chordHalf + 6 : 10)) errors.push('اللوحة ضيّقة على القدمين.')
+  const v = (x: number, y: number, b?: number) => ({ x: round3(x), y: round3(y), ...(b ? { b } : {}) })
+  const bottom: { x: number; y: number; b?: number }[] = []
+  const xl = W / 2 - chordHalf, xr = W / 2 + chordHalf
+  bottom.push(v(xl, H))
+  for (const x of fx) bottom.push(v(x - s / 2, H), v(x - s / 2, H - hs), v(x + s / 2, H - hs), v(x + s / 2, H))
+  bottom.push(v(xr, H))
+  const rc = Math.min(20, W / 8), k45 = Math.SQRT1_2
+  let pts: { x: number; y: number; b?: number }[]
+  if (shape === 3) pts = [...bottom.slice(0, -1), v(xr, H, arcBulge({ x: xr, y: H }, { x: xl, y: H }, { x: R, y: cy }, { x: R, y: 0 }))]
+  else if (shape === 1) pts = [...bottom, v(W, W / 2, arcBulge({ x: W, y: W / 2 }, { x: 0, y: W / 2 }, { x: R, y: W / 2 }, { x: R, y: 0 })), v(0, W / 2)]
+  else pts = [...bottom, v(W, rc, arcBulge({ x: W, y: rc }, { x: W - rc, y: 0 }, { x: W - rc, y: rc }, { x: W - rc + rc * k45, y: rc - rc * k45 })), v(W - rc, 0), v(rc, 0, arcBulge({ x: rc, y: 0 }, { x: 0, y: rc }, { x: rc, y: rc }, { x: rc - rc * k45, y: rc - rc * k45 })), v(0, rc)]
+  const outline = polyLoop(pts, 'outer')
+  // an engraved border following the shape, clear of the slots
+  const g = Math.max(4, Math.min(12, 0.03 * W))
+  let border: Loop | null = null
+  if (Math.round(p.border) > 0) {
+    if (shape === 3) border = { ...flatDisc(R, cy, R - g, H - g - hs, [], 0, 0), layer: 'engrave' }
+    else if (shape === 1) { if (H - 2 * g - hs > (W - 2 * g) / 2) border = { ...archHole(g, g, W - 2 * g, H - 2 * g - hs), layer: 'engrave' } }
+    else border = { ...roundedRectHole(g, g, W - 2 * g, H - 2 * g - hs, Math.max(2, rc - g)), layer: 'engrave' }
+  }
+  const panels: PanelSpec[] = [
+    { id: o.id, name: o.name, w: W, h: H, count: n, shape: [outline], engrave: border ? [border] : [], note: 'شقّاها من الأسفل يتعاشقان مع القدمين' },
+    {
+      id: 'foot', name: 'القدم', w: Lf, h: hf, count: 2 * n, cuts: [rect(round3(Lf / 2 - s / 2), 0, s, hs)],
+      post: loops => { const r = Math.min(hf / 2 - 0.5, 12); roundCorner(loops, 0, 0, r); roundCorner(loops, Lf, 0, r) }, note: 'شقّها من الأعلى بنصف ارتفاعها',
+    },
+  ]
+  return { panels, notes: [], warnings, errors }
+}
+const SIGN_SHAPE: ParamDef = { key: 'shape', label: 'الشكل', min: 1, max: 3, step: 1, int: true, hint: '1 = قوس، 2 = مستطيل بزوايا مدوّرة، 3 = دائرة بقاعدة مسطّحة' }
+
+MORE.push(
+  {
+    id: 'nikahtray',
+    name: 'صينية عقد القران (الملكة)',
+    desc: 'صينية أكريليك بطبقات: تجويف للقلم وتجويفان للمحبسين ومساحة محفورة للأسماء والتاريخ، فوق قاعدة مرآة ذهبية، بمقبضين.',
+    icon: `<rect x="6" y="16" width="52" height="34" rx="5"/><path d="M12 26v14M52 26v14" stroke-width="3"/><circle cx="26" cy="24" r="3"/><circle cx="38" cy="24" r="3"/><path d="M22 32h20" stroke-width="1.2"/><path d="M20 42h24" stroke-width="3"/>`,
+    params: [
+      mm('W', 'الطول', 220, 500), mm('D', 'العرض', 150, 350), mm('rc', 'زوايا الصينية', 0, 60),
+      mm('pen', 'طول تجويف القلم', 100, 200, 'أطول من القلم بـ 10 مم'), mm('penW', 'عرض تجويف القلم', 10, 30),
+      mm('ring', 'قطر تجويف المحبس', 18, 40, 'المحبس يجلس فيه'),
+      { key: 'layers', label: 'طبقات التجاويف', min: 1, max: 3, step: 1, int: true, hint: 'عمق التجويف بعدد السماكات' },
+      { key: 'mirror', label: 'قاعدة مرآة', min: 0, max: 1, step: 1, int: true },
+    ],
+    defaults: { W: 320, D: 220, rc: 24, pen: 160, penW: 16, ring: 26, layers: 1, mirror: 1 },
+    innerAdd: () => ({ W: 0, D: 0, H: 0 }),
+    build(p, c) {
+      const res = layeredTray(p, c, (W, D, hzone) => {
+        const cx = W / 2, rr = p.ring / 2, ry = 0.28 * D, gapR = Math.max(10, rr)
+        const rings = [cx - gapR - rr, cx + gapR + rr].map(x => ({ c: { x, y: ry }, r: rr }))
+        const py = 0.76 * D, pen = { x0: cx - p.pen / 2, y0: py - p.penW / 2, x1: cx + p.pen / 2, y1: py + p.penW / 2 }
+        // the names: an engraved panel between the rings and the pen
+        const ny0 = ry + rr + 10, ny1 = py - p.penW / 2 - 10, nw = Math.min(W - 2 * hzone - 30, 0.62 * W)
+        const engrave: Loop[] = ny1 - ny0 >= 20 ? [{ ...roundedRectHole(round3(cx - nw / 2), round3(ny0), round3(nw), round3(ny1 - ny0), 6), layer: 'engrave' }] : []
+        return { holes: [...rings.map(r => circle(round3(r.c.x), round3(r.c.y), rr)), stadium(round3(cx), round3(py), p.pen, p.penW)], spots: [...rings, pen], engrave }
+      }, 'صينية عقد القران')
+      res.notes.push('اكتب الاسمين والتاريخ أو «بارك الله لكما» داخل الإطار المحفور في RDWorks. ضع القلم في تجويفه والمحبسين في تجويفيهما.')
+      return res
+    },
+  },
+  {
+    id: 'hennatray',
+    name: 'صينية الحنّة',
+    desc: 'صينية أكريليك بطبقات: تجويف لصحن الحنّة في الوسط وحوله تجاويف للشموع الصغيرة، فوق قاعدة مرآة، بمقبضين.',
+    icon: `<rect x="4" y="14" width="56" height="38" rx="6"/><path d="M10 25v16M54 25v16" stroke-width="3"/><circle cx="32" cy="33" r="8"/><circle cx="20" cy="22" r="3"/><circle cx="44" cy="22" r="3"/><circle cx="20" cy="44" r="3"/><circle cx="44" cy="44" r="3"/>`,
+    params: [
+      mm('W', 'الطول', 250, 600), mm('D', 'العرض', 180, 450), mm('rc', 'زوايا الصينية', 0, 80),
+      mm('bowl', 'قطر صحن الحنّة', 60, 250, 'قطر قاعدة الصحن التي تجلس في التجويف'),
+      { key: 'candles', label: 'عدد الشموع', min: 0, max: 12, step: 1, int: true }, mm('cd', 'قطر الشمعة', 30, 60, 'شمعة الكوب الصغيرة 38–40 مم'),
+      { key: 'layers', label: 'طبقات التجاويف', min: 1, max: 3, step: 1, int: true },
+      { key: 'mirror', label: 'قاعدة مرآة', min: 0, max: 1, step: 1, int: true },
+    ],
+    defaults: { W: 380, D: 270, rc: 30, bowl: 130, candles: 6, cd: 40, layers: 1, mirror: 1 },
+    innerAdd: () => ({ W: 0, D: 0, H: 0 }),
+    build(p, c) {
+      const res = layeredTray(p, c, (W, D, hzone) => {
+        const cx = W / 2, cy = D / 2, rb = p.bowl / 2, rcd = p.cd / 2 + 0.5, k = Math.round(p.candles)
+        // the candles on an ellipse halfway between the bowl and the edge (the handles at the ends), first one straight up
+        const a = (rb + W / 2 - hzone) / 2, b = (rb + D / 2) / 2
+        const cs = Array.from({ length: k }, (_, i) => { const th = -Math.PI / 2 + (2 * Math.PI * i) / k; return { c: { x: cx + a * Math.cos(th), y: cy + b * Math.sin(th) }, r: rcd } })
+        return { holes: [circle(round3(cx), round3(cy), rb), ...cs.map(q => circle(round3(q.c.x), round3(q.c.y), q.r))], spots: [{ c: { x: cx, y: cy }, r: rb }, ...cs] }
+      }, 'صينية الحنّة')
+      res.notes.push('الشموع في كؤوسها المعدنية فقط، ولا تتركها مشتعلة بلا مراقبة: الأكريليك يلين قرب اللهب. صحن الحنّة يجلس في تجويف الوسط.')
+      return res
+    },
+  },
+  {
+    id: 'welcomesign',
+    name: 'لوحة ترحيب بقدمين',
+    desc: 'لوحة أكريليك كبيرة بقوس أو مستطيلة أو دائرية لمدخل القاعة، تقف على قدمين بتعشيق نصفي بلا غراء وتُفكّ للتخزين، بإطار محفور.',
+    icon: `<path d="M18 50V22a14 14 0 0 1 28 0v28z"/><path d="M14 54h12M38 54h12" stroke-width="3"/><path d="M21 49V23a11 11 0 0 1 22 0v26" stroke-width="1.2"/><path d="M26 30h12M24 36h16M27 42h10" stroke-width="1.3"/>`,
+    params: [
+      mm('W', 'العرض', 250, 1000), mm('H', 'الارتفاع', 300, 1400, 'للدائرة يُحسب من العرض'), SIGN_SHAPE,
+      mm('Lf', 'طول القدم', 80, 500, 'من الأمام إلى الخلف؛ ثلث ارتفاع اللوحة على الأقل'), mm('hf', 'ارتفاع القدم', 20, 120),
+      { key: 'border', label: 'إطار محفور', min: 0, max: 1, step: 1, int: true }, mm('fit', 'خلوص الشقوق', 0, 0.5),
+    ],
+    defaults: { W: 450, H: 620, shape: 1, Lf: 220, hf: 50, border: 1, fit: 0.2 },
+    innerAdd: () => ({ W: 0, D: 0, H: 0 }),
+    build(p, c) {
+      const res = footedSign(p, c, { id: 'sign', name: 'اللوحة', count: 1, footMin: 30 })
+      res.notes.push(
+        `اللوحة ${p.W} مم عرضاً، تقف على قدمين بطول ${p.Lf} مم: أدخل شقّ كل قدم في شقّ اللوحة حتى تلامس الأرضَ معاً.`,
+        'للوحة بهذا الحجم استعمل أكريليك 5–6 مم (أو 4 مم على الأقل)؛ اختر السماكة نفسها في البرنامج لأن الشقوق تُقاس عليها.',
+        'اكتب «أهلاً وسهلاً» أو «Welcome» واسمَي العروسين والتاريخ داخل الإطار المحفور، أو ألصق عليها حروفاً مقصوصة من مرآة ذهبية.',
+      )
+      return res
+    },
+  },
+  {
+    id: 'placecards',
+    name: 'كروت أماكن الضيوف',
+    desc: 'كروت أكريليك صغيرة بأسماء الضيوف تقف على الطاولة بقدمين صغيرتين متعاشقتين، تُقصّ بالعشرات؛ تصلح أيضاً كأرقام طاولات صغيرة.',
+    icon: `<path d="M10 40V24a4 4 0 0 1 4-4h36a4 4 0 0 1 4 4v16z"/><path d="M12 44h10M42 44h10" stroke-width="3"/><path d="M18 30h28M22 35h20" stroke-width="1.3"/>`,
+    params: [
+      mm('W', 'العرض', 50, 200), mm('H', 'الارتفاع', 30, 150, 'للدائرة يُحسب من العرض'), SIGN_SHAPE,
+      mm('Lf', 'طول القدم', 20, 80), mm('hf', 'ارتفاع القدم', 10, 30),
+      { key: 'border', label: 'إطار محفور', min: 0, max: 1, step: 1, int: true }, { key: 'n', label: 'العدد', min: 1, max: 80, step: 1, int: true }, mm('fit', 'خلوص الشقوق', 0, 0.5),
+    ],
+    defaults: { W: 90, H: 60, shape: 2, Lf: 36, hf: 14, border: 1, n: 20, fit: 0.15 },
+    innerAdd: () => ({ W: 0, D: 0, H: 0 }),
+    build(p, c) {
+      const n = Math.round(p.n)
+      const res = footedSign(p, c, { id: 'card', name: 'الكرت', count: n, footMin: 10 })
+      res.notes.push(`${arCount(n, ['كرت واحد', 'كرتان', 'كروت', 'كرتاً'])} ${p.W} مم بقدمين لكل كرت. اكتب اسم كل ضيف داخل الإطار في RDWorks قبل القصّ، أو بقلم ذهبي بعده.`, 'أكريليك المرآة الذهبي أو الأبيض الأشيع لهذه الكروت؛ اختر سماكته في البرنامج لأن الشقوق تُقاس عليها.')
+      return res
+    },
+  },
+  {
+    id: 'invitebox',
+    name: 'علبة كرت الدعوة',
+    desc: 'علبة مسطّحة بغطاء ذي شفة على مقاس كرت الدعوة، بإطار محفور على الغطاء لاسمَي العروسين؛ تُقصّ بالجملة من أكريليك شفّاف أو مرآة.',
+    icon: `<path d="M8 24h48v24H8z"/><path d="M6 18h52v6H6z"/><path d="M16 30h32v12H16z" stroke-width="1.3"/><path d="M22 36h20" stroke-width="1.3"/>`,
+    params: [
+      mm('cw', 'عرض الكرت', 80, 300), mm('ch', 'طول الكرت', 100, 400), mm('depth', 'عمق المحتوى', 4, 60, 'الكرت وحده 3–5 مم؛ مع شوكولا أو هدية أكثر'),
+      mm('lipH', 'ارتفاع الشفة', 6, 30), mm('gap', 'خلوص الشفة', 0.2, 1.5),
+      { key: 'frame', label: 'إطار محفور على الغطاء', min: 0, max: 1, step: 1, int: true }, { key: 'n', label: 'العدد', min: 1, max: 100, step: 1, int: true },
+    ],
+    defaults: { cw: 150, ch: 210, depth: 6, lipH: 9, gap: 0.4, frame: 1, n: 10 },
+    innerAdd: () => ({ W: 0, D: 0, H: 0 }),
+    build(p, c) {
+      const warnings: string[] = [], errors: string[] = []
+      const t = c.t, n = Math.round(p.n)
+      // the card lies under the lip frame: the box is the card plus 1 mm all round, as deep as the contents plus the lip
+      const W = round3(p.cw + 2 + 2 * t), D = round3(p.ch + 2 + 2 * t), H = round3(t + p.depth + p.lipH + 1)
+      const q = { ...p, W, D, H }
+      checkBasics(q, c, warnings, errors)
+      const { panels, notes } = lipLidBox(q, c, errors)
+      if (Math.round(p.frame) > 0) {
+        const lid = panels.find(x => x.id === 'lid')!, m = 2 * t + p.gap + 8
+        lid.engrave = [...(lid.engrave ?? []), { ...roundedRectHole(round3(m), round3(m), round3(W - 2 * m), round3(D - 2 * m), 6), layer: 'engrave' }]
+      }
+      for (const sp of panels) sp.count = (sp.count ?? 1) * n
+      return {
+        panels,
+        notes: [`${arCount(n, ['علبة واحدة', 'علبتان', 'علب', 'علبة'])} ${W} × ${D} × ${H} مم لكرت ${p.cw} × ${p.ch} مم؛ تحت الشفة ${p.depth} مم للكرت وما معه.`, ...notes, 'اكتب اسمَي العروسين والتاريخ داخل الإطار المحفور على الغطاء. للأكريليك الشفّاف انزع ورق الحماية بعد القصّ واستعمل غراء الأكريليك السائل.'],
+        warnings, errors,
+      }
+    },
+  },
+)
 
 TEMPLATES.push(...MORE)

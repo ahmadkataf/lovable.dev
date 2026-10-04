@@ -1120,7 +1120,41 @@ describe('wedding designs', () => {
     expect(generate(T('doorhanger'), { slit: 1, sw: 36 }, S0).errors.length).toBeGreaterThan(0)
   })
 
+  it('signs and place cards stand on halving joints: sign slot + foot slot = foot height, each the stock plus clearance, under the sign', () => {
+    for (const [id, params] of [['welcomesign', {}], ['welcomesign', { shape: 2 }], ['welcomesign', { shape: 3, W: 500 }], ['placecards', {}], ['placecards', { shape: 1, H: 80 }]] as [string, Record<string, number>][]) {
+      const tpl = T(id), p = { ...tpl.defaults, ...params }, d = generate(tpl, params, S0)
+      expect(d.errors, id).toEqual([])
+      const sign = d.panels.find(x => x.id === 'sign' || x.id === 'card')!, foot = d.panels.find(x => x.id === 'foot')!
+      expect(foot.count).toBe(2 * sign.count)
+      const sb = bbox([outerOf(sign)]), H = sb.maxY
+      // the sign's slots: where its outline rises from the bottom edge
+      const cut = crossings(outerOf(sign), H - 0.5)
+      expect(cut.length, id).toBe(6) // two edges and two slots of two sides each
+      const slotW = cut[2] - cut[1]
+      expect(slotW).toBeCloseTo(3 + p.fit, 3)
+      expect(materialAt(outerOf(sign), (cut[1] + cut[2]) / 2)[0][1]).toBeCloseTo(H - p.hf / 2, 3) // the slot reaches up half the foot
+      const fc = crossings(outerOf(foot), 0.5)
+      expect(fc[2] - fc[1]).toBeCloseTo(3 + p.fit, 3)
+      expect(materialAt(outerOf(foot), (fc[1] + fc[2]) / 2)[0][0]).toBeCloseTo(p.hf / 2, 3) // and the foot's down half its height
+    }
+    expect(generate(T('welcomesign'), { Lf: 120 }, S0).errors.length).toBeGreaterThan(0) // too short a foot for 620 mm
+  })
+
+  it('the wedding trays: base and pocket plates share one outline and the handle slots, the pockets only in the top', () => {
+    for (const id of ['nikahtray', 'hennatray']) {
+      const d = generate(T(id), {}, S0)
+      expect(d.errors, id).toEqual([])
+      const base = d.panels.find(x => x.id === 'base')!, top = d.panels.find(x => x.id === 'pocket')!
+      expect(base.material).toBe('mirror')
+      const bb = bbox([outerOf(base)]), tb = bbox([outerOf(top)])
+      expect([bb.maxX, bb.maxY]).toEqual([tb.maxX, tb.maxY])
+      expect(holesOf(base).length).toBe(2)
+      expect(holesOf(top).length).toBe(id === 'nikahtray' ? 2 + 3 : 2 + 1 + 6)
+    }
+    expect(generate(T('hennatray'), { W: 250, D: 180, bowl: 200 }, S0).errors.length).toBeGreaterThan(0)
+  })
+
   it('the wedding group lists the engagement set, the ring box and the five wedding designs', () => {
-    expect(CATEGORIES.find(c => c.id === 'wedding')!.ids).toEqual(['engagement', 'hexringbox', 'caketopper', 'guestframe', 'sweetstand', 'tablenumbers', 'favorbox'])
+    expect(CATEGORIES.find(c => c.id === 'wedding')!.ids).toEqual(['engagement', 'hexringbox', 'nikahtray', 'hennatray', 'welcomesign', 'placecards', 'invitebox', 'caketopper', 'guestframe', 'sweetstand', 'tablenumbers', 'favorbox'])
   })
 })
