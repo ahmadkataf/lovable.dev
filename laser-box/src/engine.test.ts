@@ -1053,8 +1053,26 @@ describe('wedding designs', () => {
     expect(cleft[0].y).toBeCloseTo(0.1 + r - Math.sqrt((r + 0.1) ** 2 - r * r), 3)
   })
 
-  it('the door panel: every groove is n lines lw apart, and no two lines burn the same wood, where grooves meet included', () => {
-    for (const [gw, lw] of [[10, 2], [10, 1], [6, 2], [16, 2]]) {
+  // points of two different engraving lines, sampled every `step`, never closer than `min`
+  const closestApart = (lines: Loop[], step: number) => {
+    const grid = new Map<string, { x: number; y: number; id: number }[]>()
+    lines.forEach((l, id) => {
+      const pts = l.closed ? [...l.pts, l.pts[0]] : l.pts
+      for (let i = 0; i + 1 < pts.length; i++) {
+        const a = pts[i], b = pts[i + 1], k = Math.max(1, Math.ceil(Math.hypot(b.x - a.x, b.y - a.y) / step))
+        for (let j = 0; j <= k; j++) { const q = { x: a.x + (b.x - a.x) * j / k, y: a.y + (b.y - a.y) * j / k, id }; const key = `${Math.floor(q.x)},${Math.floor(q.y)}`; (grid.get(key) ?? grid.set(key, []).get(key)!).push(q) }
+      }
+    })
+    let closest = Infinity
+    for (const [key, pts] of grid) {
+      const [cx, cy] = key.split(',').map(Number)
+      for (let dx = -1; dx <= 1; dx++) for (let dy = -1; dy <= 1; dy++) for (const q of grid.get(`${cx + dx},${cy + dy}`) ?? []) for (const p of pts) if (p.id !== q.id) closest = Math.min(closest, Math.hypot(p.x - q.x, p.y - q.y))
+    }
+    return closest
+  }
+
+  it('the door panel from the photo: the frame, three circles and three bars, each n lines lw apart', () => {
+    for (const [gw, lw] of [[10, 2], [10, 1], [6, 2]]) {
       const d = generate(T('doorpanel'), { gw, lw }, S0)
       expect(d.errors, `gw${gw} lw${lw}`).toEqual([])
       const pn = d.panels[0], lines = pn.loops.filter(l => l.layer === 'engrave')
@@ -1065,23 +1083,21 @@ describe('wedding designs', () => {
       expect(lines.filter(l => l.closed && l.pts.length === 4).length).toBe(n) // the frame's rectangles
       expect(lines.filter(l => l.closed && l.pts.length > 4).length).toBe(3 * n) // three circles
       expect(lines.filter(l => !l.closed && l.pts.length === 2).length).toBe(3 * n) // three bars
-      // every line sampled every 0.1 mm; points of two different lines are never closer than half a line width
-      const cell = 1, grid = new Map<string, { x: number; y: number; id: number }[]>()
-      lines.forEach((l, id) => {
-        const pts = l.closed ? [...l.pts, l.pts[0]] : l.pts
-        for (let i = 0; i + 1 < pts.length; i++) {
-          const a = pts[i], b = pts[i + 1], k = Math.max(1, Math.ceil(Math.hypot(b.x - a.x, b.y - a.y) / 0.1))
-          for (let j = 0; j <= k; j++) { const q = { x: a.x + (b.x - a.x) * j / k, y: a.y + (b.y - a.y) * j / k, id }; const key = `${Math.floor(q.x / cell)},${Math.floor(q.y / cell)}`; (grid.get(key) ?? grid.set(key, []).get(key)!).push(q) }
-        }
-      })
-      let closest = Infinity
-      for (const [key, pts] of grid) {
-        const [cx, cy] = key.split(',').map(Number)
-        for (let dx = -1; dx <= 1; dx++) for (let dy = -1; dy <= 1; dy++) for (const q of grid.get(`${cx + dx},${cy + dy}`) ?? []) for (const p of pts) if (p.id !== q.id) closest = Math.min(closest, Math.hypot(p.x - q.x, p.y - q.y))
-      }
-      expect(closest, `gw${gw} lw${lw}`).toBeGreaterThan(lw / 2 - 0.06)
     }
     expect(generate(T('doorpanel'), { gw: 30 }, S0).errors.length).toBeGreaterThan(0)
+  })
+
+  it('every door design: no two laser lines burn the same wood, where grooves meet included, and every groove has its n lines', () => {
+    const doors = CATEGORIES.find(c => c.id === 'doors')!.ids
+    expect(doors.length).toBe(8)
+    for (const id of doors) for (const [gw, lw] of [[10, 2], [12, 1.5]]) {
+      const d = generate(T(id), { gw, lw }, S0)
+      expect(d.errors, `${id} gw${gw} lw${lw}`).toEqual([])
+      const lines = d.panels[0].loops.filter(l => l.layer === 'engrave')
+      // the frame is drawn first and never clipped: n whole rectangles
+      expect(lines.filter(l => l.closed && l.pts.length === 4 && l.pts[0].x < 50 && l.pts[0].y < 50).length, id).toBe(Math.round(gw / lw))
+      expect(closestApart(lines, 0.2), `${id} gw${gw} lw${lw}`).toBeGreaterThan(lw - 0.11) // round spots lw wide: they touch, never overlap
+    }
   })
 
   it('the wedding group lists the engagement set, the ring box and the five wedding designs', () => {
