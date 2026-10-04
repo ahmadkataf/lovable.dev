@@ -1,0 +1,229 @@
+<!doctype html>
+<html lang="ar" dir="rtl"><head><meta charset="utf-8">
+<style>
+@font-face{font-family:A;src:url(alexandria-arabic-wght-normal.woff2) format('woff2');font-weight:100 900;unicode-range:U+0600-06FF,U+0750-077F,U+FB50-FDFF,U+FE70-FEFF,U+0660-0669}
+@font-face{font-family:A;src:url(alexandria-latin-wght-normal.woff2) format('woff2');font-weight:100 900}
+:root{--ink:#17131f;--pur:#7c3aed;--lil:#ce82ff;--yel:#FFD23F;--grn:#58CC02;--blu:#1CB0F6;--bg:#f3f0fa}
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{width:1080px;height:1080px;overflow:hidden;background:var(--bg)}
+body{font-family:A,'Noto Color Emoji',sans-serif;color:var(--ink);position:relative}
+.abs{position:absolute}.full{position:absolute;inset:0}
+.blob{position:absolute;width:900px;height:900px;border-radius:50%}
+.scene{position:absolute;inset:0;opacity:0}
+.m{display:block;overflow:hidden;padding:.06em 0 .14em}.mi{display:block;will-change:transform}
+.word{position:absolute;left:0;right:0;top:50%;text-align:center;font-weight:900;font-size:220px;line-height:1;margin-top:-125px;opacity:0;will-change:transform,filter}
+.icon{border-radius:26%;background:linear-gradient(145deg,#e3b3ff,#ce82ff 40%,#8b46ff);display:flex;align-items:center;justify-content:center;color:#fff;font-weight:900;direction:ltr;box-shadow:0 30px 60px rgba(124,58,237,.35),inset 0 0 0 5px rgba(255,255,255,.25);overflow:hidden;position:relative}
+.shine{position:absolute;top:-50%;left:-80%;width:45%;height:200%;background:linear-gradient(90deg,rgba(255,255,255,0),rgba(255,255,255,.75),rgba(255,255,255,0));transform:rotate(20deg)}
+.chip{display:inline-block;padding:12px 28px;border-radius:999px;font-weight:800;font-size:32px}
+/* phone */
+#stage{position:absolute;inset:0;perspective:1700px;perspective-origin:50% 45%}
+#phone{position:absolute;left:0;top:0;width:362px;height:746px;transform-style:preserve-3d;will-change:transform}
+#frame{position:absolute;inset:0;border-radius:58px;background:linear-gradient(150deg,#3a3446,#0d0a14 55%,#2b2537);box-shadow:0 0 0 2px rgba(255,255,255,.12) inset}
+#screen{position:absolute;left:16px;top:16px;width:330px;height:714px;border-radius:44px;overflow:hidden;background:#fff}
+#screen img{position:absolute;left:0;top:0;width:330px;height:714px}
+#flash{position:absolute;inset:0;background:#fff;opacity:0}
+#tint{position:absolute;inset:0;background:var(--pur);opacity:0}
+#notch{position:absolute;left:50%;top:26px;width:110px;height:30px;margin-left:-55px;background:#000;border-radius:16px}
+#pops{position:absolute;left:16px;top:16px;width:330px;height:714px;transform-style:preserve-3d}
+.pop{position:absolute;transform-origin:50% 50%;opacity:0;will-change:transform}
+.pop img{display:block;width:100%;height:100%}
+#shadow{position:absolute;width:420px;height:70px;border-radius:50%;background:radial-gradient(closest-side,rgba(23,19,31,.35),rgba(23,19,31,0));top:960px}
+.cap{position:absolute;top:300px;width:450px;text-align:right}
+.cap .n{font-size:30px;font-weight:900;color:var(--pur);direction:ltr;text-align:right}
+.cap .t{font-size:68px;font-weight:900;line-height:1.12}
+.cap .s{font-size:30px;font-weight:600;color:#5b546b;line-height:1.5;margin-top:10px}
+/* stats */
+.stat{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;opacity:0}
+.stat .big{font-size:300px;font-weight:900;line-height:1;color:#fff;direction:ltr;font-variant-numeric:tabular-nums}
+.stat .big b{color:var(--yel)}
+.stat .lab{font-size:58px;font-weight:800;color:#fff;margin-top:24px}
+</style></head><body>
+<div class="blob" id="g1" style="background:radial-gradient(closest-side,rgba(206,130,255,.55),rgba(206,130,255,0))"></div>
+<div class="blob" id="g2" style="background:radial-gradient(closest-side,rgba(120,230,170,.45),rgba(120,230,170,0))"></div>
+<div class="blob" id="g3" style="background:radial-gradient(closest-side,rgba(255,200,160,.55),rgba(255,200,160,0))"></div>
+
+<!-- A: kinetic words -->
+<div class="scene" id="sA">
+  <div class="word" id="w0">إنجليزي</div>
+  <div class="word" id="w1" style="color:var(--pur)">البكالوريا</div>
+  <div class="word" id="w2">صار</div>
+  <div class="word" id="w3"><span style="position:relative;display:inline-block;padding:0 30px"><span id="hl" style="position:absolute;left:0;right:0;top:18%;bottom:6%;background:var(--yel);border-radius:24px;transform-origin:100% 50%;z-index:-1"></span>أسهل</span></div>
+  <div class="word" id="w4">بكتير<span style="color:var(--pur)">.</span></div>
+  <div class="abs" id="dot" style="left:540px;top:540px;width:40px;height:40px;margin:-20px 0 0 -20px;border-radius:50%;background:var(--pur);opacity:0"></div>
+</div>
+
+<!-- B: logo -->
+<div class="scene" id="sB">
+  <div class="abs" style="left:0;right:0;top:170px;display:flex;justify-content:center;perspective:900px">
+    <div class="icon" id="logo" style="width:300px;height:300px;font-size:150px">12<div class="shine" id="sh1"></div></div>
+  </div>
+  <div class="abs" style="left:0;right:0;top:520px;text-align:center;font-size:126px;font-weight:900"><span class="m"><span class="mi" id="b1">إمار ١٢</span></span></div>
+  <div class="abs" style="left:0;right:0;top:700px;text-align:center;font-size:46px;font-weight:700;color:#5b546b"><span class="m"><span class="mi" id="b2">تطبيق إنجليزي البكالوريا</span></span></div>
+  <div class="abs" style="left:0;right:0;top:800px;display:flex;gap:16px;justify-content:center">
+    <span class="chip" id="b3" style="background:#fff;box-shadow:0 10px 30px rgba(23,19,31,.08)">📘 كتاب الطالب</span>
+    <span class="chip" id="b4" style="background:#fff;box-shadow:0 10px 30px rgba(23,19,31,.08)">📒 كتاب الأنشطة</span>
+  </div>
+</div>
+
+<!-- C: phone -->
+<div class="scene" id="sC">
+  <div id="shadow"></div>
+  <div class="cap" id="cap"><div class="m"><div class="mi n" id="cn"></div></div><div class="m"><div class="mi t" id="ct1"></div></div><div class="m"><div class="mi t" id="ct2"></div></div><div class="m"><div class="mi s" id="cs"></div></div></div>
+  <div id="stage"><div id="phone">
+    <div id="frame"></div>
+    <div id="screen"><img id="i0" src="s-path.png"><img id="i1" src="s-lesson1.png"><img id="i2" src="s-lesson2.png"><img id="i3" src="s-exam-paper.png"><div id="flash"></div><div id="tint"></div></div>
+    <div id="notch"></div>
+    <div id="pops">
+      <div class="pop" id="p0" style="left:13px;top:49px;width:304px;height:70px;border-radius:18px;overflow:hidden;box-shadow:0 30px 50px rgba(23,19,31,.28)"><img src="c-path.png"></div>
+      <div class="pop" id="p1" style="left:11px;top:114px;width:308px;height:369px;border-radius:22px;overflow:visible;"><img src="c-word.png" style="border-radius:22px;box-shadow:0 34px 60px rgba(23,19,31,.3)">
+        <div id="rings" style="position:absolute;left:252px;top:44px"></div>
+        <div id="slow" style="position:absolute;left:-30px;top:-34px;padding:8px 18px;border-radius:999px;background:var(--pur);color:#fff;font-weight:800;font-size:22px;opacity:0;box-shadow:0 12px 24px rgba(124,58,237,.4)">🐢 أبطأ</div>
+      </div>
+      <div class="pop" id="p2" style="left:13px;top:159px;width:304px;height:55px;border-radius:16px">
+        <img src="c-opt.png" style="border-radius:16px;box-shadow:0 26px 46px rgba(23,19,31,.28)">
+        <div id="ok" style="position:absolute;inset:0;border-radius:16px;border:4px solid var(--grn);background:rgba(88,204,2,.14);opacity:0"></div>
+        <div id="okb" style="position:absolute;left:-22px;top:-22px;width:52px;height:52px;border-radius:50%;background:var(--grn);color:#fff;font-size:32px;font-weight:900;display:flex;align-items:center;justify-content:center;opacity:0;box-shadow:0 8px 18px rgba(88,204,2,.45)">✓</div>
+      </div>
+      <div class="pop" id="p3" style="left:46px;top:12px;width:82px;height:24px;border-radius:10px;background:#ddf3fd;color:#1899d6;font-weight:900;font-size:15px;display:flex;align-items:center;justify-content:center;gap:3px;direction:ltr;box-shadow:0 14px 26px rgba(24,153,214,.35)"><span id="tm">149:59</span> ⏱</div>
+    </div>
+  </div></div>
+</div>
+
+<!-- D: stats -->
+<div class="scene" id="sD">
+  <div class="stat" id="d0" style="background:var(--pur)"><div class="big"><b>+</b><span id="v0">0</span></div><div class="lab">تمرين محلول ومشروح</div></div>
+  <div class="stat" id="d1" style="background:var(--ink)"><div class="big"><span id="v1">0</span></div><div class="lab">نموذج امتحان بكالوريا</div></div>
+  <div class="stat" id="d2" style="background:var(--grn)"><div class="big"><span id="v2">0</span></div><div class="lab">كلمة من الكتاب بمعانيها</div></div>
+  <div class="stat" id="d3" style="background:var(--blu)"><div class="big"><b>+</b><span id="v3">0</span></div><div class="lab">جملة بصوت طبيعي 🔊</div></div>
+</div>
+
+<!-- E: CTA -->
+<div class="scene" id="sE">
+  <div class="abs" id="lock" style="left:0;right:0;top:90px;display:flex;align-items:center;justify-content:center;gap:24px">
+    <div class="icon" style="width:120px;height:120px;font-size:60px">12<div class="shine" id="sh2"></div></div>
+    <div style="text-align:right"><div style="font-size:64px;font-weight:900;line-height:1.1">إمار ١٢</div><div style="font-size:30px;font-weight:600;color:#5b546b">تطبيق إنجليزي البكالوريا</div></div>
+  </div>
+  <div class="abs" style="left:0;right:0;top:300px;text-align:center;font-size:66px;font-weight:800"><span class="m"><span class="mi" id="e1">الوحدة الأولى</span></span></div>
+  <div class="abs" style="left:0;right:0;top:405px;text-align:center"><span id="e2" style="display:inline-block;padding:.22em .12em 0;margin-top:-.22em;font-size:170px;font-weight:900;line-height:1.15;background:linear-gradient(90deg,#58CC02,#1CB0F6 50%,#7c3aed);-webkit-background-clip:text;background-clip:text;color:transparent">مجاناً</span></div>
+  <div class="abs" style="left:0;right:0;top:640px;text-align:center"><span id="e3" style="display:inline-flex;align-items:center;gap:22px;padding:18px 40px;border-radius:999px;background:var(--ink);color:#fff;font-size:38px;font-weight:700"><span style="font-size:64px;font-weight:900;color:var(--yel);direction:ltr">20$</span>للعام الدراسي كامل</span></div>
+  <div class="abs" style="left:0;right:0;top:790px;text-align:center"><span id="e4" class="chip" style="background:#25d366;color:#fff;font-size:42px;padding:16px 40px;box-shadow:0 18px 40px rgba(37,211,102,.35)">💬 واتساب <span dir="ltr">+963 996 489 504</span></span></div>
+  <div class="abs" style="left:0;right:0;top:910px;text-align:center;font-size:27px;font-weight:600;color:#5b546b"><span id="e5" style="display:inline-block;direction:ltr">🌐 emar-api.almutafawiqin.workers.dev/app/</span></div>
+</div>
+<div id="reveal" class="full" style="background:var(--bg);clip-path:circle(0px at 540px 540px);opacity:0"></div>
+
+<script>
+const $=id=>document.getElementById(id)
+const clamp=(x,a=0,b=1)=>Math.max(a,Math.min(b,x)), P=(t,a,b)=>clamp((t-a)/(b-a)), lerp=(a,b,x)=>a+(b-a)*x
+const eo3=x=>1-Math.pow(1-x,3), eio=x=>x<.5?4*x*x*x:1-Math.pow(-2*x+2,3)/2, eoE=x=>x>=1?1:1-Math.pow(2,-10*x), eiE=x=>x<=0?0:Math.pow(2,10*x-10)
+const eB=(x,s=1.7)=>{x=clamp(x);const c=s+1;return 1+c*Math.pow(x-1,3)+s*Math.pow(x-1,2)}
+const eEl=x=>{if(x<=0)return 0;if(x>=1)return 1;return Math.pow(2,-10*x)*Math.sin((x*10-.75)*2*Math.PI/3)+1}
+function rv(el,t,t0,dur=.45,tOut=null,od=.25){const x=P(t,t0,t0+dur);let y=(1-eoE(x))*115;let o=0;if(tOut!=null){o=P(t,tOut,tOut+od);y-=eio(o)*115}el.style.transform=`translateY(${y}%)`;el.style.opacity=(x<=0||o>=1)?0:1}
+function slam(el,t,t0,dur=.35,from=1.8){const x=P(t,t0,t0+dur);el.style.opacity=clamp(x*5);el.style.transform=`scale(${lerp(from,1,eoE(x))})`;el.style.filter=`blur(${(1-eoE(x))*14}px)`}
+for(let i=0;i<3;i++){const d=document.createElement('div');d.style.cssText='position:absolute;left:-30px;top:-30px;width:60px;height:60px;border-radius:50%;border:4px solid #1CB0F6';$('rings').appendChild(d)}
+
+const W=[0.0,0.42,0.84,1.18,1.6]
+const SEG=[4.5,6.5,8.5,10.5], SEG_END=12.5
+const CAPS=[['01','دروس الكتاب','كاملة','كتاب الطالب وكتاب الأنشطة، وحدة وحدة'],['02','صوت طبيعي','لكل كلمة','وبكبسة وحدة بتسمعها أبطأ 🐢'],['03','تمارين محلولة','ومشروحة','كل إجابة إلها شرح بالعربي'],['04','امتحانات بشكل','البكالوريا','نفس الأقسام والوقت، مع التصحيح']]
+const POPT=[5.0,6.95,8.95,10.95]
+const STAT=[13.0,13.75,14.5,15.25], VALS=[1700,12,535,4500]
+
+function phonePose(i){ // side: 0 left, 1 right
+  const left=i%2==0; return {x:left?330:750, ry:left?20:-20}
+}
+function render(t){
+  // background blobs
+  const B=[['g1',300,300,260,200,.09,.11],['g2',850,800,220,240,.12,.08],['g3',800,200,240,200,.07,.1]]
+  for(const [id,cx,cy,ax,ay,fx,fy] of B) $(id).style.transform=`translate(${cx+ax*Math.sin(t*fx*6.28+cx)-450}px,${cy+ay*Math.cos(t*fy*6.28+cy)-450}px)`
+  const SC=[['sA',0,2.45],['sB',2.3,4.5],['sC',4.2,13.02],['sD',13.0,16.4],['sE',16.0,99]]
+  for(const [id,a,b] of SC) $(id).style.opacity=(t>=a&&t<b)?1:0
+
+  // ---- A
+  if(t<2.5){
+    const cam=1+t*.05; $('sA').style.transform=`scale(${cam})`
+    for(let i=0;i<5;i++){const el=$('w'+i), a=W[i], b=W[i+1]??2.0
+      if(t<a||t>b+.14){el.style.opacity=0;continue}
+      if(t<b){slam(el,t,a,.3,1.9)} else {const o=P(t,b,b+.14);el.style.opacity=1-o;el.style.transform=`scale(${1+eiE(o)*1.2})`;el.style.filter=`blur(${o*12}px)`}
+    }
+    $('hl').style.transform=`scaleX(${eoE(P(t,1.24,1.45))})`
+    // collapse "بكتير." into dot
+    if(t>=2.0){const x=eio(P(t,2.0,2.2)), el=$('w4'); el.style.opacity=1-x; el.style.transform=`scale(${1-x*.9})`; el.style.filter='none'}
+    const dx=P(t,2.1,2.25); $('dot').style.opacity=dx>0&&t<2.45?1:0; $('dot').style.transform=`scale(${eB(dx,3)*(1+eiE(P(t,2.28,2.45))*7)})`
+  }
+  // ---- B
+  if(t>=2.3&&t<4.8){
+    const x=P(t,2.3,2.85), lg=$('logo'), out=eio(P(t,4.1,4.45))
+    lg.style.transform=`rotateY(${(1-eoE(x))*200}deg) scale(${eEl(P(t,2.3,3.1))*(1-out*.6)}) translateY(${-out*200}px)`
+    lg.style.opacity=1-out
+    $('sh1').style.left=lerp(-80,180,eio(P(t,3.0,3.5)))+'%'
+    rv($('b1'),t,2.8,.45,4.2,.25); rv($('b2'),t,3.0,.45,4.22,.25)
+    ;['b3','b4'].forEach((id,i)=>{const y=P(t,3.3+i*.1,3.65+i*.1),o=P(t,4.2,4.45);const el=$(id);el.style.opacity=clamp(y*4)*(1-o);el.style.transform=`translateY(${(1-eoE(y))*40+o*-30}px) scale(${eB(y,2.5)})`})
+    $('sB').style.transform=`scale(${1+t*.01})`
+  }
+  // ---- C phone
+  if(t>=4.2&&t<13.05){
+    let si=0;for(let i=0;i<4;i++) if(t>=SEG[i]) si=i
+    // pose interpolation
+    let pose=phonePose(si), x=pose.x, ry=pose.ry, y=170, sc=1, rz=0
+    if(t<SEG[0]+.6){const e=eoE(P(t,4.25,5.0)); x=lerp(1500,pose.x,e); ry=lerp(-70,pose.ry,e); rz=lerp(-14,0,e); y=lerp(260,170,e)}
+    for(let i=1;i<4;i++){ if(t>=SEG[i]-.25&&t<SEG[i]+.35){const e=eio(P(t,SEG[i]-.25,SEG[i]+.35)),a=phonePose(i-1),b=phonePose(i); x=lerp(a.x,b.x,e); ry=lerp(a.ry,b.ry,e)+Math.sin(e*Math.PI)*(b.ry>a.ry?40:-40); y=170-Math.sin(e*Math.PI)*25} }
+    // zoom-through
+    const z=P(t,12.45,13.0), ze=eiE(z)
+    if(z>0){x=lerp(x,540,eio(P(t,12.45,12.75))); ry=lerp(ry,0,eio(P(t,12.45,12.7))); sc=1+ze*9; y=lerp(170,170,ze)}
+    const fl=Math.sin(t*1.6)*8
+    const ph=$('phone'); ph.style.transform=`translate(${x-181}px,${y+fl}px) rotateY(${ry+Math.sin(t*.8)*3}deg) rotateX(${6+Math.cos(t*.7)*2}deg) rotateZ(${rz}deg) scale(${sc})`
+    ph.style.transformOrigin='50% 46%'
+    $('shadow').style.left=(x-210)+'px'; $('shadow').style.opacity=1-z; $('shadow').style.transform=`scaleX(${1-Math.abs(ry)/120})`
+    // screens
+    for(let i=0;i<4;i++) $('i'+i).style.opacity = (i==si || (i==si-1 && t<SEG[si]+.05)) ? 1:0
+    for(let i=1;i<4;i++){ if(t>=SEG[i]&&t<SEG[i]+.3){ const e=eoE(P(t,SEG[i],SEG[i]+.3)); $('i'+i).style.transform=`translateY(${(1-e)*714}px)`; } else $('i'+i).style.transform='none' }
+    { let f=0; for(let i=1;i<4;i++) f=Math.max(f, 1-P(t,SEG[i],SEG[i]+.18)); $('flash').style.opacity= (t>=SEG[1]? f*.0:0) }
+    $('tint').style.opacity=eio(P(t,12.62,12.95))
+    // pop-outs
+    for(let i=0;i<4;i++){const el=$('p'+i), a=POPT[i], end=(SEG[i+1]??SEG_END)-.3
+      const x0=P(t,a,a+.45), x1=P(t,end,end+.25)
+      if(t<a||t>end+.25){el.style.opacity=0;continue}
+      const k=eB(x0,1.6)*(1-eio(x1)); const big=i==3?2.6:1.12, dz=i==3?140:110
+      el.style.opacity=1; el.style.transform=`translateZ(${k*dz}px) scale(${lerp(1,big,k)}) rotateY(${-pose.ry*.35*k}deg)`
+    }
+    // word card extras
+    const rOn=t>7.2&&t<8.35; $('rings').style.opacity=rOn?1:0; [...$('rings').children].forEach((d,i)=>{const p=((t-7.2)*1.5+i/3)%1;d.style.transform=`scale(${.7+p*1.8})`;d.style.opacity=1-p})
+    { const s=P(t,7.7,7.95); $('slow').style.opacity=t<8.3?clamp(s*3):0; $('slow').style.transform=`scale(${eB(s,2.6)}) rotate(-6deg)` }
+    // correct
+    { const c=P(t,9.15,9.35); $('ok').style.opacity=c; $('okb').style.opacity=c>0?1:0; $('okb').style.transform=`scale(${eB(c,3)})` }
+    // timer live
+    { const el=Math.max(0,Math.floor((t-11.1)*3)); const s=149*60+59-el; $('tm').textContent=Math.floor(s/60)+':'+String(s%60).padStart(2,'0') }
+    // captions
+    const c=CAPS[si]; if($('cn').dataset.i!=si){$('cn').textContent=c[0];$('ct1').textContent=c[1];$('ct2').textContent=c[2];$('cs').textContent=c[3];$('cn').dataset.i=si}
+    const cap=$('cap'); const left=si%2==0; cap.style.left=left?'570px':'60px'
+    const s0=SEG[si]+(si==0?.35:.25), so=(SEG[si+1]??12.45)-.3
+    rv($('cn'),t,s0,.4,so,.22); rv($('ct1'),t,s0+.06,.45,so+.02,.22); rv($('ct2'),t,s0+.12,.45,so+.04,.22); rv($('cs'),t,s0+.22,.45,so+.06,.22)
+  }
+  // ---- D stats
+  if(t>=13&&t<16.45){
+    for(let i=0;i<4;i++){const el=$('d'+i), a=STAT[i], b=STAT[i+1]??16.0
+      if(t<a||t>=b+.2){el.style.opacity=0;continue}
+      el.style.opacity=1
+      const pushIn=i==0?1:eoE(P(t,a,a+.18)), pushOut=eiE(P(t,b,b+.18))
+      el.style.transform=`translateY(${(1-pushIn)*1080-pushOut*0}px)`; el.style.zIndex=i
+      const big=el.querySelector('.big'), x=P(t,a+.02,a+.32); big.style.transform=`scale(${lerp(2.2,1,eoE(x))})`; big.style.filter=`blur(${(1-eoE(x))*10}px)`
+      $('v'+i).textContent=Math.round(VALS[i]*eo3(P(t,a+.05,a+.5)))
+      const lab=el.querySelector('.lab'), y=P(t,a+.2,a+.45); lab.style.opacity=y; lab.style.transform=`translateY(${(1-eo3(y))*40}px)`
+    }
+  }
+  // ---- E CTA
+  { const r=P(t,16.0,16.4); const rv_=$('reveal'); rv_.style.opacity=(t>=16&&t<16.4)?1:0; rv_.style.clipPath=`circle(${eio(r)*800}px at 540px 540px)` }
+  if(t>=16.0){
+    $('sE').style.clipPath=t<16.4?`circle(${eio(P(t,16.0,16.4))*800}px at 540px 540px)`:'none'
+    const l=P(t,16.15,16.6); $('lock').style.opacity=clamp(l*3); $('lock').style.transform=`translateY(${(1-eoE(l))*-60}px) scale(${eB(l,2)})`
+    rv($('e1'),t,16.4,.4)
+    slam($('e2'),t,16.6,.35,2.4)
+    { const x=P(t,17.2,17.6), el=$('e3'); el.style.opacity=clamp(x*3); el.style.transform=`translateY(${(1-eoE(x))*80}px) scale(${eB(x,2)})` }
+    { const x=P(t,17.7,18.05), el=$('e4'); el.style.opacity=clamp(x*3); el.style.transform=`scale(${eB(x,2.5)})` }
+    { const x=P(t,17.9,18.3), el=$('e5'); el.style.opacity=x; el.style.transform=`translateY(${(1-eo3(x))*20}px)` }
+    $('sh2').style.left=lerp(-80,180,eio(P(t,18.6,19.1)))+'%'
+    const pul=t>19.2?1+Math.sin((t-19.2)*Math.PI*2.2)*.03*Math.exp(-(t-19.2)*1.2):1; $('e2').style.transform+=` scale(${pul})`
+  }
+  return true
+}
+window.render=render; render(0)
+</script></body></html>
