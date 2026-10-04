@@ -332,6 +332,7 @@ function sizeLabel(p: Record<string, number>) {
   if (p.Dm !== undefined) return `Ø${fmt(p.Dm)} × ${fmt(p.H)}`
   if (p.Dd !== undefined) return `مرآة Ø${fmt(p.Dd)}، قاعدة ${fmt(p.W)} × ${fmt(p.D)}`
   if (p.S !== undefined) return `سداسي ${fmt(p.S)} × ${fmt(p.H)}`
+  if (p.D1 !== undefined) return `${fmt(p.tiers)} طوابق، قاعدة ${fmt(p.D1)}`
   if (!Number.isFinite(p.W) || !Number.isFinite(p.D) || !Number.isFinite(p.H)) return [p.W, p.D, p.H].filter(Number.isFinite).map(fmt).join(' × ') || '—'
   return `${fmt(p.W)} × ${fmt(p.D)} × ${fmt(p.H)}${state.settings.inner ? ' (داخلي)' : ''}`
 }
@@ -396,7 +397,7 @@ function applyView() {
 function fileName(ext: string) {
   const p = params()
   // the template's own size keys, in order, skipping any it does not have
-  const keys = p.pw !== undefined ? ['pw', 'ph'] : p.Dm !== undefined ? ['Dm', 'H'] : p.Dd !== undefined ? ['Dd', 'W', 'D'] : p.S !== undefined ? ['S', 'H'] : ['W', 'D', 'H']
+  const keys = p.pw !== undefined ? ['pw', 'ph'] : p.Dm !== undefined ? ['Dm', 'H'] : p.Dd !== undefined ? ['Dd', 'W', 'D'] : p.S !== undefined ? ['S', 'H'] : p.D1 !== undefined ? ['tiers', 'D1'] : ['W', 'D', 'H']
   const dims = keys.filter(k => Number.isFinite(p[k])).map(k => fmt(p[k])).join('x') || state.tpl
   return `laser-box-${state.tpl}-${dims}-t${state.settings.t}.${ext}`
 }

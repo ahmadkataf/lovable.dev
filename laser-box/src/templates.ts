@@ -1,5 +1,5 @@
 // Ready-made box designs. Every template turns its parameters into panel specs.
-import { Loop, rect, circle, disc, stadium, stadiumV, roundedRectHole, rotatedRectHole, roundCorner, edgeNotch, engraveRect, hingeLines, heart, ellipse, archHole, keyhole, polyLoop, peakSegments, oriented, signedArea, round3 } from './geom'
+import { Loop, Pt, Rect, rect, unionRects, offsetLoop, circle, disc, stadium, stadiumV, roundedRectHole, rotatedRectHole, roundCorner, edgeNotch, engraveRect, hingeLines, heart, ellipse, archHole, keyhole, polyLoop, peakSegments, oriented, signedArea, round3 } from './geom'
 import { PanelSpec, fingerCount } from './joints'
 
 export interface ParamDef {
@@ -1480,7 +1480,8 @@ export const templateById = (id: string) => TEMPLATES.find(t => t.id === id) ?? 
 /** The picker's groups, in the order they are shown; every template belongs to exactly one. */
 export const CATEGORIES: { id: string; name: string; ids: string[] }[] = [
   { id: 'box', name: 'صناديق', ids: ['closed', 'open', 'sliding', 'liftoff', 'hinged', 'hinged90', 'flex', 'lip', 'window', 'drawer', 'roundbox', 'crate'] },
-  { id: 'gift', name: 'هدايا وديكور', ids: ['engagement', 'hexringbox', 'chest', 'catbank', 'decobox', 'jewelry', 'moneybox', 'teahouse', 'frame', 'basket', 'fence', 'clock'] },
+  { id: 'wedding', name: 'أعراس وخطوبة', ids: ['engagement', 'hexringbox', 'caketopper', 'guestframe', 'sweetstand', 'tablenumbers', 'favorbox'] },
+  { id: 'gift', name: 'هدايا وديكور', ids: ['chest', 'catbank', 'decobox', 'jewelry', 'moneybox', 'teahouse', 'frame', 'basket', 'fence', 'clock'] },
   { id: 'kitchen', name: 'مطبخ وتقديم', ids: ['carrier', 'mugtree', 'spicerack', 'bedtray', 'tray', 'teabox', 'tissue'] },
   { id: 'office', name: 'مكتب وتنظيم', ids: ['organizer', 'phonestand', 'bookstand', 'headphone', 'keyholder', 'wallshelf', 'jewelrytree'] },
   { id: 'home', name: 'بيت وحديقة', ids: ['planter', 'petfeeder', 'birdhouse', 'incense', 'napkin'] },
@@ -1488,7 +1489,7 @@ export const CATEGORIES: { id: string; name: string; ids: string[] }[] = [
   { id: 'bulk', name: 'بالجملة', ids: ['keychains', 'coasters'] },
 ]
 /** the newest designs get a badge in the picker */
-export const NEW_IDS = ['hexringbox', 'engagement', 'hinged90', 'crate', 'carrier', 'jewelry', 'moneybox', 'planter', 'petfeeder', 'incense', 'bedtray', 'phonestand', 'bookstand', 'headphone', 'keyholder', 'wallshelf', 'spicerack', 'coasters', 'clock', 'keychains', 'ramadanornaments', 'mugtree', 'jewelrytree', 'birdhouse', 'ramadanlantern']
+export const NEW_IDS = ['caketopper', 'guestframe', 'sweetstand', 'tablenumbers', 'favorbox', 'hexringbox', 'engagement', 'hinged90', 'crate', 'carrier', 'jewelry', 'moneybox', 'planter', 'petfeeder', 'incense', 'bedtray', 'phonestand', 'bookstand', 'headphone', 'keyholder', 'wallshelf', 'spicerack', 'coasters', 'clock', 'keychains', 'ramadanornaments', 'mugtree', 'jewelrytree', 'birdhouse', 'ramadanlantern']
 
 // ====================================================================== more designs, built from the shared parts
 
@@ -2554,5 +2555,406 @@ MORE.push({
     return { panels, notes, warnings, errors }
   },
 })
+
+// ------------------------------------------------------------------ wedding
+
+/** Bulge of the arc from p to q about c that passes through m (b > 0 bows to the right of p → q, see geom.ts). */
+function arcBulge(p: Pt, q: Pt, c: Pt, m: Pt): number {
+  const tau = 2 * Math.PI, norm = (a: number) => ((a % tau) + tau) % tau, ang = (v: Pt) => Math.atan2(v.y - c.y, v.x - c.x)
+  const plus = norm(ang(q) - ang(p)), theta = norm(ang(m) - ang(p)) < plus ? plus : tau - plus
+  const side = -(m.x - p.x) * (q.y - p.y) + (m.y - p.y) * (q.x - p.x)
+  return Math.sign(side) * Math.tan(theta / 4)
+}
+
+/**
+ * The geometry of heart(cx, cy, w) and of the same heart eroded by b, the hole of a heart frame b wide: the lobes shrink
+ * to radius w/4 − b about the same centres, the sides move in by b and meet at a tip 1.72 b above the outer one, and the
+ * notch between the lobes becomes an arc of radius b about it (b of material all round, the notch included).
+ */
+function heartFrame(cx: number, cy: number, w: number, b: number) {
+  const r = w / 4, top = cy - 0.225 * w, tipY = top + 0.7 * w, rho = r - b
+  const len = Math.hypot(2 * r, 0.7 * w), d = { x: -2 * r / len, y: 0.7 * w / len }, nIn = { x: -0.7 * w / len, y: -2 * r / len }
+  const A = { x: cx + 2 * r + b * nIn.x, y: top + b * nIn.y } // the right side moved in, running down along d
+  const xAt = (y: number) => A.x + ((y - A.y) / d.y) * d.x
+  const T = { x: cx, y: A.y + ((cx - A.x) / d.x) * d.y }
+  // where the shrunk right lobe meets the moved side: the intersection nearer the corner
+  const C = { x: cx + r, y: top }, f = { x: A.x - C.x, y: A.y - C.y }, fd = f.x * d.x + f.y * d.y
+  const disc = fd * fd - (f.x * f.x + f.y * f.y) + rho * rho
+  const s1 = -fd - Math.sqrt(Math.max(0, disc))
+  const PR = { x: A.x + s1 * d.x, y: A.y + s1 * d.y }, PL = { x: 2 * cx - PR.x, y: PR.y }
+  const JR = { x: cx + b, y: top }, JL = { x: cx - b, y: top }
+  const bR = arcBulge(PR, JR, C, { x: cx + r, y: top - rho })
+  const bN = arcBulge(JR, JL, { x: cx, y: top }, { x: cx, y: top + b })
+  const bL = arcBulge(JL, PL, { x: cx - r, y: top }, { x: cx - r, y: top - rho })
+  const v = (p: Pt, bb?: number) => ({ x: round3(p.x), y: round3(p.y), ...(bb ? { b: bb } : {}) })
+  /** the eroded heart; with a band [y0, y1] across it, the part above the band and (when given) the part below */
+  const holes = (band?: [number, number], lower = true): Loop[] => {
+    if (!band) return [polyLoop([v(T), v(PR, bR), v(JR, bN), v(JL, bL), v(PL)], 'hole')]
+    const [y0, y1] = band
+    const out = [polyLoop([v({ x: xAt(y0), y: y0 }), v(PR, bR), v(JR, bN), v(JL, bL), v(PL), v({ x: 2 * cx - xAt(y0), y: y0 })], 'hole')]
+    if (lower) out.push(polyLoop([v(T), v({ x: xAt(y1), y: y1 }), v({ x: 2 * cx - xAt(y1), y: y1 })], 'hole'))
+    return out
+  }
+  return { r, top, tipY, rho, T, PR, ok: disc > 0 && rho > 0, holes, xAt, bandTop: top + b }
+}
+
+/** heart(cx, cy, w) as an outline with one stake under its tip, or two hanging from its sides spread ±sx; sw wide, the points L below the tip. */
+function stakedHeart(cx: number, cy: number, w: number, stakes: number, sx: number, sw: number, L: number): Loop {
+  const r = w / 4, top = cy - 0.225 * w, tipY = top + 0.7 * w, yE = tipY + L, pl = sw
+  const yOf = (hw: number) => tipY - (hw * 0.7 * w) / (2 * r) // where the heart is ±hw wide
+  const v = (x: number, y: number, b?: number) => ({ x: round3(x), y: round3(y), ...(b ? { b } : {}) })
+  const lobes = [v(cx + 2 * r, top, 1), v(cx, top, 1), v(cx - 2 * r, top)]
+  // counter-clockwise on screen (polyLoop turns it round): up the right side, over the lobes, down the left
+  const pts = stakes === 1
+    ? [v(cx, yE), v(cx + sw / 2, yE - pl), v(cx + sw / 2, yOf(sw / 2)), ...lobes, v(cx - sw / 2, yOf(sw / 2)), v(cx - sw / 2, yE - pl)]
+    : [
+      v(cx, tipY), v(cx + sx - sw, yOf(sx - sw)), v(cx + sx - sw, yE - pl), v(cx + sx - sw / 2, yE), v(cx + sx, yE - pl), v(cx + sx, yOf(sx)),
+      ...lobes,
+      v(cx - sx, yOf(sx)), v(cx - sx, yE - pl), v(cx - sx + sw / 2, yE), v(cx - sx + sw, yE - pl), v(cx - sx + sw, yOf(sx - sw)),
+    ]
+  return polyLoop(pts, 'outer')
+}
+
+/** Rectangles of the digit d in a gw × gh box at (x0, y0), strokes s wide: seven segments, and a 1 with a flag and a foot. */
+function digitRects(d: number, x0: number, y0: number, gw: number, gh: number, s: number): Rect[] {
+  // corners rounded, not sizes, so strokes that meet edge to edge share the same coordinate and merge into one piece
+  const R = (x: number, y: number, w: number, h: number) => { const xa = round3(x0 + x), ya = round3(y0 + y); return rect(xa, ya, round3(x0 + x + w) - xa, round3(y0 + y + h) - ya) }
+  if (d === 1) { const c = gw / 2; return [R(c - s / 2, 0, s, gh), R(c - s / 2 - 0.28 * gw, 0, 0.28 * gw, s), R(c - 0.36 * gw, gh - s, 0.72 * gw, s)] }
+  const m0 = (gh - s) / 2, m1 = (gh + s) / 2
+  const seg: Record<string, Rect> = {
+    a: R(0, 0, gw, s), b: R(gw - s, 0, s, m1), c: R(gw - s, m0, s, gh - m0), d: R(0, gh - s, gw, s), e: R(0, m0, s, gh - m0), f: R(0, 0, s, m1), g: R(0, m0, gw, s),
+  }
+  return [...['abcdef', '', 'abdeg', 'abcdg', 'bcfg', 'acdfg', 'acdefg', 'abc', 'abcdefg', 'abcdfg'][d]].map(k => seg[k])
+}
+
+/** A number as outlines, its corners softly rounded, centred on (cx, cy) with digits gh tall: one loop list per digit. */
+function numberGlyphs(num: number, cx: number, cy: number, gh: number): { digit: number; loops: Loop[] }[] {
+  const ds = String(num).split('').map(Number), gw = 0.56 * gh, s = 0.15 * gh, gap = 0.16 * gh
+  const total = ds.length * gw + (ds.length - 1) * gap
+  return ds.map((dg, i) => {
+    const loops = unionRects(digitRects(dg, cx - total / 2 + i * (gw + gap), cy - gh / 2, gw, gh, s), [])
+    for (const l of loops) for (const q of l.pts.map(p => ({ x: p.x, y: p.y }))) roundCorner([l], q.x, q.y, 0.3 * s)
+    return { digit: dg, loops }
+  })
+}
+const numberWidth = (num: number, gh: number) => { const n = String(num).length; return n * 0.56 * gh + (n - 1) * 0.16 * gh }
+
+MORE.push(
+  {
+    id: 'caketopper',
+    name: 'توبر كيك العرس',
+    desc: 'قلب مفرّغ بإطار ثابت العرض وشريط في وسطه لأسماء العروسين، على عودين (أو عود واحد) يُغرزان في الكيك؛ يُقصّ عادةً من أكريليك مرآة ذهبي.',
+    icon: `<path d="M32 46 14 28a9 9 0 0 1 18-10 9 9 0 0 1 18 10z"/><path d="M20 27h24v6H20z" stroke-width="1.5"/><path d="M26 40v18M38 40v18" stroke-width="2.5"/>`,
+    params: [
+      mm('W', 'عرض القلب', 60, 300), mm('b', 'عرض الإطار', 3, 20, 'ثابت حول القلب كلّه، حتى عند الشقّ بين الفصّين'),
+      mm('band', 'ارتفاع شريط الأسماء', 0, 60, '0 = قلب مفرّغ بلا شريط'),
+      { key: 'stakes', label: 'عدد العيدان', min: 1, max: 2, step: 1, int: true }, mm('sw', 'عرض العود', 4, 12), mm('L', 'طول العود تحت القلب', 40, 160, 'الجزء المغروز في الكيك مع ما يظهر فوقه'),
+      { key: 'n', label: 'العدد', min: 1, max: 20, step: 1, int: true },
+    ],
+    defaults: { W: 150, b: 7, band: 22, stakes: 2, sw: 6, L: 75, n: 1 },
+    innerAdd: () => ({ W: 0, D: 0, H: 0 }),
+    build(p) {
+      const warnings: string[] = [], errors: string[] = []
+      const { W, b, sw, L } = p, band = p.band, stakes = Math.round(p.stakes), n = Math.round(p.n)
+      const cx = W / 2, cy = W / 4 + 0.225 * W // the lobes touch y = 0
+      const hf = heartFrame(cx, cy, W, b)
+      if (hf.rho < 5 || !hf.ok) errors.push(`الإطار عريض على هذا القلب: أقصاه ${Math.max(0, Math.floor(W / 4 - 5))} مم، أو كبّر القلب.`)
+      const sx = Math.max(0.2 * W, sw + 3)
+      if (stakes === 2 && sx > 0.4 * W) errors.push(`القلب ضيّق على عودين بهذا العرض: كبّر القلب إلى ${Math.ceil((sw + 3) / 0.4)} مم أو اختر عوداً واحداً.`)
+      // the band crosses the heart where its hole has straight sides, below the notch; it sits a third of the way down
+      let holes: Loop[] = [], bandAt: [number, number] | undefined
+      if (!errors.length) {
+        if (band > 0 && band < 8) errors.push('شريط الأسماء أرفع من 8 مم: لا يتّسع لحروف واضحة ويضعف؛ اجعله 8 مم أو أكثر، أو 0 لإلغائه.')
+        else if (band > 0) {
+          const lo = hf.bandTop + 2, hi = hf.T.y - 2
+          if (lo + band > hi) errors.push(`شريط الأسماء أعرض من القلب: أقصاه ${Math.max(0, Math.floor(hi - lo))} مم.`)
+          else {
+            const mid = Math.min(Math.max(hf.top + 0.32 * W, lo + band / 2), hi - band / 2)
+            bandAt = [round3(mid - band / 2), round3(mid + band / 2)]
+          }
+        }
+        if (!errors.length) holes = hf.holes(bandAt, !!bandAt && hf.T.y - bandAt[1] >= 12)
+      }
+      const outline = stakedHeart(cx, cy, W, stakes, sx, sw, L)
+      const panels: PanelSpec[] = [{ id: 'topper', name: 'التوبر', w: W, h: round3(W / 4 + 0.7 * W + L), count: n, shape: [outline], holes, note: bandAt ? 'الأسماء تُحفر على الشريط' : 'قلب مفرّغ' }]
+      const notes = [
+        `القلب ${W} مم عرضاً و${(0.95 * W).toFixed(0)} مم ارتفاعاً بإطار ${b} مم، و${stakes === 2 ? 'عودان' : 'عود'} بعرض ${sw} مم ينزل ${L} مم تحت رأس القلب؛ اغرز منه 4–6 سم في الكيك.`,
+        ...(bandAt ? [`شريط الأسماء ${band} مم: اكتب الاسمين أو «Mr & Mrs» في RDWorks ووسّطها على الشريط. على أكريليك المرآة احفر على الوجه الأمامي بقدرة منخفضة فتظهر الحروف بيضاء مطفية.`] : []),
+        'أكريليك مرآة ذهبي 3 مم هو الأشيع للتوبر (والخشب 3 مم يصلح أيضاً). اترك ورق الحماية حتى التسليم، ولفّ طرف العود بشريط طعام قبل غرزه.',
+      ]
+      return { panels, notes, warnings, errors }
+    },
+  },
+  {
+    id: 'guestframe',
+    name: 'لوحة قلوب الضيوف (دفتر توقيعات)',
+    desc: 'إطار بنافذة قلب أو قوس خلفها لوح أكريليك شفّاف وتجويف؛ يوقّع كل ضيف على قلب صغير ويُسقطه من فتحة في الأعلى فيتجمّع خلف الزجاج ذكرى للعروسين.',
+    icon: `<rect x="10" y="8" width="44" height="50" rx="3"/><path d="M32 50 20 38a6 6 0 0 1 12-7 6 6 0 0 1 12 7z" stroke-width="1.5"/><path d="M27 8h10" stroke-width="3"/><path d="M28 1l4 4 4-4" stroke-width="1.5"/><path d="M16 17h32" stroke-width="1.2"/>`,
+    params: [
+      mm('W', 'عرض اللوحة', 200, 700), mm('H', 'ارتفاع اللوحة', 250, 900), mm('b', 'عرض الإطار', 15, 80, 'الجانبان والأسفل'),
+      mm('bt', 'عرض الإطار العلوي', 30, 200, 'أعرض من الباقي لتُحفر عليه أسماء العروسين والتاريخ'),
+      { key: 'win', label: 'شكل النافذة', min: 1, max: 3, step: 1, int: true, hint: '1 = مستطيل، 2 = قلب، 3 = قوس' },
+      { key: 'layers', label: 'طبقات التجويف', min: 2, max: 4, step: 1, int: true, hint: 'عمق التجويف بعدد السماكات؛ القلوب بسماكة واحدة فتسقط بسهولة' },
+      mm('hw', 'عرض القلب الصغير', 25, 80), { key: 'n', label: 'عدد القلوب', min: 0, max: 300, step: 1, int: true },
+      { key: 'deco', label: 'خط زخرفي حول النافذة', min: 0, max: 1, step: 1, int: true },
+      { key: 'hang', label: 'فتحتا تعليق', min: 0, max: 1, step: 1, int: true }, mm('ocr', 'زوايا اللوحة', 0, 30),
+    ],
+    defaults: { W: 300, H: 400, b: 30, bt: 70, win: 2, layers: 2, hw: 45, n: 60, deco: 1, hang: 1, ocr: 6 },
+    innerAdd: () => ({ W: 0, D: 0, H: 0 }),
+    build(p, c) {
+      const warnings: string[] = [], errors: string[] = []
+      const t = c.t, { W, H, b, bt, hw } = p, layers = Math.round(p.layers), win = Math.round(p.win), n = Math.round(p.n)
+      const ww = W - 2 * b, wh = H - bt - b
+      if (ww < 80 || wh < 80) errors.push(`النافذة أصغر من 80 مم: اجعل العرض ${Math.ceil(2 * b + 80)} مم والارتفاع ${Math.ceil(bt + b + 80)} مم على الأقل، أو صغّر الإطار.`)
+      // the drop slot: as wide as a heart plus 10 mm, as deep as the cavity; a heart is one thickness, so 1.5 mm to spare
+      const slot = round3(hw + 10)
+      if (layers * t - t < 1.5) errors.push(`التجويف (${layers * t} مم) لا يترك للقلب خلوصاً كافياً: زد طبقات التجويف.`)
+      if (slot > ww - 20) errors.push(`فتحة الإسقاط (${slot} مم) أعرض من التجويف: صغّر القلب الصغير أو كبّر اللوحة.`)
+      if (n > 0 && hw - 4 * t < 8) errors.push(`القلب الصغير صغير على التوقيع وسيضعف: ${Math.ceil(4 * t + 8)} مم على الأقل.`)
+      const ocr = Math.max(0, Math.min(p.ocr, b - 4))
+      const rounded = (loops: Loop[]) => { if (ocr > 0) for (const [x, y] of [[0, 0], [W, 0], [W, H], [0, H]]) roundCorner(loops, x, y, ocr) }
+      // the window, and the engraved line 5 mm outside it
+      const archOk = wh > ww / 2 + 5
+      if (win === 3 && !archOk) warnings.push('النافذة أعرض من أن تُقوَّس؛ صارت مستطيلة.')
+      let windowLoop: Loop, decoLoop: Loop | null = null
+      if (win === 2) {
+        const hwW = Math.min(ww, wh / 0.95), hcy = bt + wh / 2
+        // the heart shrunk by 3 mm: its notch is rounded, so no hair-thin point of wood is left between the lobes
+        windowLoop = heartFrame(W / 2, hcy, hwW, 3).holes()[0]
+        if (p.deco) decoLoop = heartOffset(W / 2, hcy, hwW, Math.min(5, b / 3) - 1)
+      } else if (win === 3 && archOk) {
+        windowLoop = archHole(b, bt, ww, wh)
+        if (p.deco) { const g = Math.min(5, b / 3); decoLoop = archHole(b - g, bt - g, ww + 2 * g, wh + 2 * g) }
+      } else {
+        windowLoop = roundedRectHole(b, bt, ww, wh, 8)
+        if (p.deco) { const g = Math.min(5, b / 3); decoLoop = roundedRectHole(b - g, bt - g, ww + 2 * g, wh + 2 * g, 8 + g) }
+      }
+      // keyholes in the back, high in the top border; the spacers get a pocket there for the nail head
+      const holes: Loop[] = [], pockets: Rect[] = []
+      let keyGap = 0
+      if (Math.round(p.hang) > 0) {
+        const yk = (bt + 7) / 2, xk = W / 2 + Math.max(W / 4, slot / 2 + 12)
+        if (bt < 32 || xk + 11 > W - b / 2) warnings.push('لا مكان لفتحتي التعليق في الإطار العلوي؛ كبّره أو ضع اللوحة على حامل لوحات.')
+        else {
+          for (const x of [W - xk, xk]) { holes.push(keyhole(round3(x), round3(yk), 4, 4, 7)); pockets.push(rect(round3(x - 7), round3(yk - 13), 14, 19)) }
+          keyGap = round3(2 * xk - W)
+        }
+      }
+      const panels: PanelSpec[] = [
+        { id: 'front', name: 'الإطار الأمامي', w: W, h: H, post: rounded, holes: [windowLoop], engrave: decoLoop ? [{ ...decoLoop, layer: 'engrave' }] : [], note: 'تُحفر أسماء العروسين والتاريخ على الإطار العلوي' },
+        { id: 'glass', name: 'لوح الأكريليك الشفّاف', w: W, h: H, post: rounded, material: 'clear', note: 'بين الإطار الأمامي والتجويف' },
+        {
+          id: 'spacer', name: 'طبقة التجويف', w: W, h: H, count: layers, post: rounded,
+          cuts: [rect(b, bt, ww, wh), rect(round3(W / 2 - slot / 2), 0, slot, bt + 1), ...pockets], note: 'الفتحة في أعلاها مجرى القلوب',
+        },
+        { id: 'back', name: 'الظهر', w: W, h: H, post: rounded, holes, note: holes.length ? 'فتحتا التعليق في الأعلى' : 'الظهر' },
+      ]
+      if (n > 0) panels.push({ id: 'heart', name: 'قلب التوقيع', w: hw, h: round3(0.95 * hw), count: n, shape: [oriented(heart(hw / 2, 0.475 * hw, hw), 'outer')], note: 'يوقّع عليه الضيف ويُسقطه من الفتحة' })
+      const notes = [
+        `اللوحة ${W} × ${H} مم، سماكة طبقاتها الخشبية ${((layers + 2) * t).toFixed(1)} مم يُضاف إليها لوح الأكريليك. التجويف ${ww} × ${wh} مم بعمق ${(layers * t).toFixed(1)} مم، وفتحة الإسقاط في الحافّة العلوية ${slot} × ${(layers * t).toFixed(1)} مم.`,
+        `الترتيب من الأمام: الإطار الأمامي، لوح الأكريليك، طبقات التجويف (${layers})، الظهر. انزع ورق الحماية عن الأكريليك، ثم ألصق الطبقات والحواف متطابقة؛ الأكريليك بلاصق شفّاف على حافّته فقط، وأبقِ مجرى الفتحة نظيفاً من الغراء.`,
+        ...(n > 0 ? [`${n} قلباً بعرض ${hw} مم بسماكة الخشب نفسها، وفتحة الإسقاط أعرض منها بـ 10 مم. ضع بجانب اللوحة قلماً وصحناً للقلوب.`] : []),
+        ...(keyGap > 0 ? [`فتحتا التعليق بينهما ${keyGap} مم؛ دقّ مسمارين على هذا البعد، أو ضع اللوحة على حامل لوحات (easel).`] : ['ضع اللوحة على حامل لوحات (easel) في مدخل القاعة.']),
+      ]
+      return { panels, notes, warnings, errors }
+    },
+  },
+  {
+    id: 'sweetstand',
+    name: 'ستاند حلويات بطوابق',
+    desc: 'صحون مستديرة أو مربّعة متدرّجة على عمود من لوحين متقاطعين: كل صحن ينزلق من الأعلى ويستقرّ على كتف في العمود؛ ينفكّ ويُخزّن مسطّحاً. للكب كيك والحلويات والتوزيعات.',
+    icon: `<path d="M8 54h48M14 38h36M20 22h24" stroke-width="3"/><path d="M32 54V10" stroke-width="3"/><circle cx="32" cy="8" r="2"/>`,
+    params: [
+      { key: 'tiers', label: 'عدد الطوابق', min: 2, max: 4, step: 1, int: true, hint: 'مع القاعدة' },
+      mm('D1', 'قطر القاعدة (الصحن السفلي)', 180, 450), mm('step', 'نقصان القطر لكل طابق', 0, 120),
+      mm('gap', 'الارتفاع بين الطوابق', 60, 250, 'الفراغ الصافي فوق كل صحن: ارتفاع الكب كيك أو الحلويات مع 2 سم'),
+      { key: 'shape', label: 'شكل الصحون', min: 1, max: 2, step: 1, int: true, hint: '1 = دائري، 2 = مربّع بزوايا مدوّرة' },
+      mm('topH', 'بروز العمود فوق الصحن الأعلى', 20, 120), mm('ledge', 'عرض كتف الصحن', 6, 15, 'ما يستند عليه كل صحن من كل جهة من العمود'),
+      { key: 'deco', label: 'حلقة محفورة على الصحون', min: 0, max: 1, step: 1, int: true }, mm('fit', 'خلوص الشقوق', 0, 0.5),
+    ],
+    defaults: { tiers: 3, D1: 320, step: 70, gap: 110, shape: 1, topH: 40, ledge: 8, deco: 1, fit: 0.15 },
+    innerAdd: () => ({ W: 0, D: 0, H: 0 }),
+    build(p, c) {
+      const warnings: string[] = [], errors: string[] = []
+      const t = c.t, { D1, step, gap, topH, ledge, fit } = p, k = Math.round(p.tiers), sq = Math.round(p.shape) === 2
+      const sw = round3(t + fit)
+      // the column's widths, top down: the top section, then one ledge wider on each side below every plate; the tab
+      // through the base is 6 mm narrower each side than the section standing on it
+      const w: number[] = [] // w[j]: the section above plate j (j = 1 is the base), j = 1..k
+      w[k] = round3(Math.max(24, t + 16 + fit))
+      for (let j = k - 1; j >= 1; j--) w[j] = round3(w[j + 1] + 2 * ledge)
+      const w0 = round3(w[1] - 12)
+      // heights from the base's top surface up: plate j (2..k) rests at z[j]
+      const z: number[] = []
+      z[1] = 0
+      for (let j = 2; j <= k; j++) z[j] = round3((j - 1) * gap + (j - 2) * t)
+      const top = round3(z[k] + t + topH), Hc = round3(top + t) // the column, from its top to the tab's end under the base
+      const Dj = (j: number) => round3(D1 - (j - 1) * step)
+      for (let j = 1; j <= k; j++) {
+        const span = j === 1 ? w0 : w[j]
+        if (Dj(j) < Math.max(100, span + 50)) { errors.push(`الصحن ${j === 1 ? 'السفلي' : `رقم ${j}`} صغير (${Dj(j)} مم): كبّر القاعدة أو قلّل النقصان، فأصغر صحن يلزمه ${Math.max(100, Math.ceil(span + 50))} مم.`); break }
+      }
+      if (D1 < 0.6 * Hc) errors.push(`الستاند عالٍ على قاعدته وقد ينقلب: اجعل قطر القاعدة ${Math.ceil(0.6 * Hc)} مم على الأقل أو قلّل الارتفاع بين الطوابق.`)
+      // the column: two identical profiles, one slotted from the top to half height, the other from the bottom
+      const W1 = w[1], cx = W1 / 2
+      const yOf = (zz: number) => round3(top - zz)
+      const sides: Rect[] = []
+      const band = (y0: number, y1: number, wd: number) => { if (wd < W1 - 1e-9) for (const x of [0, cx + wd / 2]) sides.push(rect(round3(x), y0, round3((W1 - wd) / 2), round3(y1 - y0))) }
+      band(0, yOf(z[k]), w[k])
+      for (let j = k - 1; j >= 1; j--) band(yOf(z[j + 1]), yOf(z[j]), w[j])
+      band(yOf(0), Hc, w0)
+      const rTop = Math.max(0, Math.min(6, (w[k] - sw) / 2 - 1.5))
+      const column = (id: string, name: string, fromTop: boolean): PanelSpec => ({
+        id, name, w: W1, h: Hc, cuts: [...sides, fromTop ? rect(round3(cx - sw / 2), 0, sw, round3(Hc / 2)) : rect(round3(cx - sw / 2), round3(Hc / 2), sw, round3(Hc / 2))],
+        post: loops => { if (rTop > 0) for (const x of [cx - w[k] / 2, cx + w[k] / 2]) roundCorner(loops, round3(x), 0, rTop) },
+        note: fromTop ? 'يتقاطع مع الثاني على شكل +' : 'يدخل في شقّ الأول من الأسفل',
+      })
+      // each plate: a + shaped hole as wide as the column above its shoulder, plus the clearance
+      const plus = (cxp: number, cyp: number, span: number): Loop => {
+        const a = round3((span + fit) / 2), h = round3(sw / 2)
+        return polyLoop([[h, -a], [-h, -a], [-h, -h], [-a, -h], [-a, h], [-h, h], [-h, a], [h, a], [h, h], [a, h], [a, -h], [h, -h]].map(([x, y]) => ({ x: round3(cxp + x), y: round3(cyp + y) })), 'hole')
+      }
+      const panels: PanelSpec[] = [column('column-a', 'العمود — شقّه من الأعلى', true), column('column-b', 'العمود — شقّه من الأسفل', false)]
+      for (let j = 1; j <= k; j++) {
+        const D = Dj(j), R = D / 2
+        if (D <= 0) break
+        const engrave: Loop[] = Math.round(p.deco) > 0 && R > 40 ? [sq ? { ...roundedRectHole(10, 10, D - 20, D - 20, Math.max(2, 0.1 * D - 10)), layer: 'engrave' } : { ...circle(R, R, R - 10), layer: 'engrave' }] : []
+        panels.push({
+          id: `plate-${j}`, name: j === 1 ? 'القاعدة (الصحن السفلي)' : `الصحن ${j}`, w: D, h: D, holes: [plus(R, R, j === 1 ? w0 : w[j])], engrave,
+          ...(sq ? { post: (loops: Loop[]) => { for (const [x, y] of [[0, 0], [D, 0], [D, D], [0, D]]) roundCorner(loops, x, y, 0.1 * D) } } : { shape: [disc(R, R, R)] }),
+          note: j === 1 ? 'لسان العمود ينفذ فيها' : `يستقرّ على كتف العمود على ارتفاع ${(z[j] + t).toFixed(0)} مم`,
+        })
+      }
+      const notes = [
+        `${k} طوابق: ${Array.from({ length: k }, (_, i) => Dj(i + 1)).join('، ')} مم، بينها ${gap} مم صافية. الارتفاع الكلّي ${(Hc).toFixed(0)} مم.`,
+        'التجميع: أدخل اللوحين المتقاطعين في بعضهما (+)، ثم أدخل لسان العمود السفلي في فتحة القاعدة، ثم أنزل الصحون من الأعلى بالترتيب من الأكبر إلى الأصغر؛ كل صحن يمرّ فوق الأجزاء الأضيق ويستقرّ على كتفه. لا يحتاج غراء، وينفكّ للتخزين.',
+        `كل صحن يستند على أربعة أكتاف عرضها ${ledge} مم. للحلويات الخفيفة يكفي 3 مم، وللأثقل (كيك حقيقي) استعمل 4–6 مم وكتفاً أعرض. غطِّ الصحون الخشبية بورق حلويات أو اقصّها من أكريليك.`,
+      ]
+      return { panels, notes, warnings, errors }
+    },
+  },
+  {
+    id: 'tablenumbers',
+    name: 'أرقام طاولات العرس',
+    desc: 'لوحات بأرقام متسلسلة تقف على قواعد بطبقات: الرقم محفور، أو مقصوص من أكريليك مرآة ذهبي ليُلصق على اللوحة. يقصّ لكل طاولة رقمها تلقائياً.',
+    icon: `<path d="M18 48V20a14 14 0 0 1 28 0v28z"/><path d="M10 48h44v6H10z"/><path d="M27 24h10v4H27zM33 28h4v12h-4M27 36h10v4H27z" stroke-width="1.3"/>`,
+    params: [
+      mm('W', 'عرض اللوحة', 70, 220), mm('H', 'ارتفاع اللوحة فوق القاعدة', 100, 320),
+      { key: 'shape', label: 'شكل اللوحة', min: 1, max: 2, step: 1, int: true, hint: '1 = قوس، 2 = مستطيل بزوايا مدوّرة' },
+      { key: 'from', label: 'أول رقم', min: 0, max: 200, step: 1, int: true }, { key: 'n', label: 'عدد الطاولات', min: 1, max: 40, step: 1, int: true },
+      { key: 'num', label: 'الرقم', min: 0, max: 2, step: 1, int: true, hint: '0 = بلا رقم، 1 = محفور (اجعل طبقته Scan في RDWorks فيمتلئ)، 2 = قطع مرآة ذهبية تُلصق' },
+      mm('Db', 'عمق القاعدة', 40, 160), { key: 'layers', label: 'طبقات القاعدة', min: 1, max: 3, step: 1, int: true }, mm('fit', 'خلوص الشقوق', 0, 0.5),
+    ],
+    defaults: { W: 110, H: 180, shape: 1, from: 1, n: 10, num: 2, Db: 60, layers: 2, fit: 0.15 },
+    innerAdd: () => ({ W: 0, D: 0, H: 0 }),
+    build(p, c) {
+      const warnings: string[] = [], errors: string[] = []
+      const t = c.t, { W, H, Db, fit } = p, arch = Math.round(p.shape) === 1, n = Math.round(p.n), from = Math.round(p.from), style = Math.round(p.num)
+      const layers = Math.round(p.layers), L = round3(layers * t)
+      if (W < 50) errors.push('اللوحة ضيّقة: 50 مم على الأقل.')
+      if (H < (arch ? W / 2 + 30 : 60)) errors.push(`اللوحة قصيرة على عرضها: اجعل ارتفاعها ${Math.ceil(arch ? W / 2 + 30 : 60)} مم على الأقل.`)
+      if (Db < Math.max(40, 0.28 * H)) errors.push(`القاعدة قصيرة على اللوحة وقد تنقلب: اجعل عمقها ${Math.ceil(Math.max(40, 0.28 * H))} مم على الأقل.`)
+      // two tabs through every base layer
+      const tw = round3(Math.min(30, Math.max(10, 0.2 * W))), tabX = [round3(0.25 * W), round3(0.75 * W)]
+      const v = (x: number, y: number, b?: number) => ({ x: round3(x), y: round3(y), ...(b ? { b } : {}) })
+      const bottom = [v(0, H), ...tabX.flatMap(x => [v(x - tw / 2, H), v(x - tw / 2, H + L), v(x + tw / 2, H + L), v(x + tw / 2, H)]), v(W, H)]
+      const outline = arch ? polyLoop([v(0, W / 2), ...bottom, v(W, W / 2, 1)], 'outer') : polyLoop([v(0, 0), ...bottom, v(W, 0)], 'outer')
+      const rTop = arch ? 0 : Math.min(12, W / 6)
+      // the number: as tall as the face allows, centred on the face below the arch
+      const last = from + n - 1, widest = Math.max(...Array.from({ length: n }, (_, i) => numberWidth(from + i, 1)))
+      // the face the number may use: below the arch's narrow top (or 8 mm under a square top), 8 mm above the base
+      const ya = arch ? 0.3 * W : 8, yb = H - 8
+      const gh = round3(Math.min(0.45 * H, (0.76 * W) / widest, 110, yb - ya))
+      const cy = round3(Math.min(Math.max(arch ? Math.max(W / 2, H * 0.52) : H / 2, ya + gh / 2), yb - gh / 2))
+      if (style > 0 && 0.15 * gh < 3) errors.push(`الأرقام صغيرة (خطّها أرفع من 3 مم): كبّر اللوحة.`)
+      const panels: PanelSpec[] = []
+      const digitCount = new Map<number, { loops: Loop[]; count: number }>()
+      for (let i = 0; i < n; i++) {
+        const num = from + i
+        const glyphs = style > 0 ? numberGlyphs(num, W / 2, cy, gh) : []
+        const engrave: Loop[] = []
+        for (const g of glyphs) {
+          if (style === 1) for (const l of g.loops) engrave.push({ ...l, layer: 'engrave' })
+          else {
+            // the gold digit's placement line, 1 mm inside its outline, so it hides under the glued piece
+            for (const l of g.loops.filter(l2 => signedArea(l2) > 0)) engrave.push({ ...offsetLoop(l, -1), layer: 'engrave' })
+            const e = digitCount.get(g.digit)
+            if (e) e.count++; else digitCount.set(g.digit, { loops: numberGlyphs(g.digit, 0, 0, gh)[0].loops, count: 1 })
+          }
+        }
+        panels.push({
+          id: style > 0 ? `plate-${num}` : 'plate', name: style > 0 ? `لوحة الطاولة ${num}` : 'لوحة الطاولة', w: W, h: round3(H + L), count: style > 0 ? 1 : n,
+          shape: [outline], engrave, post: rTop > 0 ? (loops: Loop[]) => { roundCorner(loops, 0, 0, rTop); roundCorner(loops, W, 0, rTop) } : undefined,
+          note: style === 2 ? 'الخطوط المحفورة مواضع قطع الرقم الذهبية' : 'لسانا اللوحة في شقّي القاعدة',
+        })
+        if (style === 0) break
+      }
+      for (const [dg, e] of [...digitCount].sort((a, b) => a[0] - b[0])) {
+        const outer = e.loops.filter(l => signedArea(l) > 0), holes = e.loops.filter(l => signedArea(l) < 0)
+        panels.push({ id: `digit-${dg}`, name: `الرقم ${dg} (ذهبي)`, w: round3(0.56 * gh), h: gh, count: e.count, material: 'mirror', shape: outer, holes, note: 'يُلصق على موضعه المحفور' })
+      }
+      // the base: a little wider than the plate, its slots through every layer, the plate standing in the middle of its depth
+      const Wb = round3(W + 24), rb = Math.min(12, Db / 2 - 0.5)
+      const slots = tabX.map(x => rotatedRectHole(round3(Wb / 2 + x - W / 2), round3(Db / 2), tw + fit, round3(t + fit), 0))
+      const roundB = (loops: Loop[]) => { for (const [x, y] of [[0, 0], [Wb, 0], [Wb, Db], [0, Db]]) roundCorner(loops, x, y, rb) }
+      panels.push({ id: 'base-top', name: 'القاعدة — الطبقة العليا', w: Wb, h: Db, count: n, holes: slots, post: roundB, note: 'شقّا لساني اللوحة' })
+      if (layers > 1) panels.push({ id: 'base-under', name: 'القاعدة — الطبقة السفلى', w: Wb, h: Db, count: n * (layers - 1), holes: slots.map(l => ({ ...l, pts: l.pts.map(q => ({ ...q })) })), post: roundB, note: 'الشقوق نفسها لتنفذ فيها الألسنة' })
+      const notes = [
+        `${n} ${n > 10 ? 'لوحة' : 'لوحات'} من ${from} إلى ${last}، كل لوحة ${W} × ${H} مم تقف بلسانيها في قاعدة ${Wb} × ${Db} مم (${layers} ${layers > 1 ? 'طبقات' : 'طبقة'}) والألسنة تصل أسفلها.`,
+        ...(style === 1 ? ['الأرقام على طبقة الحفر الزرقاء: في RDWorks اجعلها Scan (حفر ممتلئ) فتظهر الأرقام مملوءة، أو Cut بقدرة منخفضة لحفر خطّي.'] : []),
+        ...(style === 2 ? [`الأرقام الذهبية (${[...digitCount.values()].reduce((s, e) => s + e.count, 0)} قطعة) في كتلة خاصة لأكريليك المرآة؛ ألصق كل رقم على موضعه المحفور بلاصق جِل أو UV لا يذيب طلاء المرآة.`] : []),
+        'اكتب «Table» أو اسمَي العروسين فوق الرقم بالحفر في RDWorks. للّوحات البيضاء استعمل أكريليك أبيض والأرقام ذهبية، وللخشب احفر الرقم.',
+      ]
+      return { panels, notes, warnings, errors }
+    },
+  },
+  {
+    id: 'favorbox',
+    name: 'علب توزيعات العرس',
+    desc: 'علب صغيرة بغطاء ذي شفة فيه نافذة قلب (مكشوفة أو خلفها أكريليك شفّاف) للشوكولا والملبّس، تُقصّ بالعشرات في لوح واحد.',
+    icon: `<path d="M14 28h36v26H14z"/><path d="M11 22h42v6H11z"/><path d="M32 30 26 24a3.5 3.5 0 0 1 6-3 3.5 3.5 0 0 1 6 3z" stroke-width="1.3"/><path d="M20 38h24v8H20z" stroke-width="1.2"/>`,
+    params: [
+      ...DIMS.map(d => ({ ...d, min: 30 })), mm('lipH', 'ارتفاع الشفة', 6, 30), mm('gap', 'خلوص الشفة', 0.2, 1.5),
+      { key: 'win', label: 'نافذة الغطاء', min: 0, max: 2, step: 1, int: true, hint: '0 = بلا، 1 = قلب مفرّغ، 2 = قلب خلفه أكريليك شفّاف' },
+      { key: 'tag', label: 'إطار محفور للأسماء على الواجهة', min: 0, max: 1, step: 1, int: true },
+      { key: 'n', label: 'العدد', min: 1, max: 60, step: 1, int: true },
+    ],
+    defaults: { W: 60, D: 60, H: 45, lipH: 10, gap: 0.4, win: 2, tag: 1, n: 12 },
+    innerAdd: t => ({ W: 2 * t, D: 2 * t, H: t }),
+    build(p, c) {
+      const warnings: string[] = [], errors: string[] = []
+      checkBasics(p, c, warnings, errors)
+      const t = c.t, { W, D, H } = p, n = Math.round(p.n), win = Math.round(p.win)
+      const { panels, notes, Wl, Dl } = lipLidBox(p, c, errors)
+      // the heart sits in the lip frame's opening, which is where the clear plate goes (glued under the lid)
+      const ow = Wl - 2 * t, od = Dl - 2 * t
+      const extra: PanelSpec[] = []
+      if (win > 0) {
+        const hwH = round3(0.8 * Math.min(ow, od / 0.95))
+        if (hwH < 15) errors.push(`الغطاء صغير على نافذة القلب: اجعل العرض والعمق ${Math.ceil((15 / 0.8) + 2 * t + 2 * t + 2 * p.gap)} مم على الأقل، أو ألغِ النافذة.`)
+        else {
+          // a rounded notch, as on the guest frame: no hair-thin point between the lobes
+          panels.find(x => x.id === 'lid')!.holes = [heartFrame(W / 2, D / 2, hwH, Math.min(2, hwH / 12)).holes()[0]]
+          if (win === 2) extra.push({ id: 'window', name: 'نافذة الأكريليك', w: round3(ow - 1), h: round3(od - 1), material: 'clear', note: 'تُلصق تحت الغطاء داخل إطار الشفة فتغطي القلب' })
+        }
+      }
+      if (Math.round(p.tag) > 0) {
+        const tw = W - 2 * t - 12, th = Math.min(16, (H - t) / 3)
+        if (tw >= 20 && th >= 8) panels.find(x => x.id === 'front')!.engrave = [engraveRect(round3((W - tw) / 2), round3((H - t - th) / 2), round3(tw), round3(th))]
+      }
+      for (const sp of [...panels, ...extra]) sp.count = (sp.count ?? 1) * n
+      return {
+        panels: [...panels, ...extra],
+        notes: [
+          `${n} علبة ${W} × ${D} × ${H} مم${win > 0 ? ' بنافذة قلب في الغطاء' : ''}.`,
+          ...notes,
+          ...(win === 2 ? [`نافذة الأكريليك ${(ow - 1).toFixed(1)} × ${(od - 1).toFixed(1)} مم تُلصق تحت الغطاء داخل إطار الشفة (بعد لصق الإطار) فيُرى ما في العلبة ولا يخرج.`] : []),
+          ...(Math.round(p.tag) > 0 ? ['الإطار المحفور على الواجهة لاسمَي العروسين أو التاريخ؛ أضف النصّ في RDWorks.'] : []),
+        ],
+        warnings, errors,
+      }
+    },
+  },
+)
 
 TEMPLATES.push(...MORE)

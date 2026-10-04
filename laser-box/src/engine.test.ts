@@ -872,3 +872,162 @@ describe('zip', () => {
   })
 })
 
+
+describe('wedding designs', () => {
+  const S0 = { ...DEFAULT_SETTINGS, kerf: 0 }
+  const T = (id: string) => TEMPLATES.find(x => x.id === id)!
+  const cutLoops = (pn: { loops: Loop[] }) => pn.loops.filter(l => l.closed && l.layer !== 'engrave')
+  const outerOf = (pn: { loops: Loop[] }) => cutLoops(pn).find(l => signedArea(l) > 0)!
+  const holesOf = (pn: { loops: Loop[] }) => cutLoops(pn).filter(l => signedArea(l) < 0)
+  // where a horizontal line y = Y crosses a closed loop, left to right
+  const crossings = (l: Loop, Y: number) => {
+    const poly = samplePoly(l, 1), xs: number[] = []
+    for (let i = 0; i < poly.length; i++) {
+      const a = poly[i], b = poly[(i + 1) % poly.length]
+      if ((a.y <= Y && b.y > Y) || (b.y <= Y && a.y > Y)) xs.push(a.x + (b.x - a.x) * (Y - a.y) / (b.y - a.y))
+    }
+    return xs.sort((u, v) => u - v)
+  }
+  const extent = (l: Loop, Y: number) => { const xs = crossings(l, Y); return xs[xs.length - 1] - xs[0] }
+
+  it('the cake topper keeps its frame exactly b wide all round, the notch included, and its band splits the hole', () => {
+    for (const [W, b, band, stakes] of [[150, 7, 22, 2], [80, 4, 0, 1], [250, 15, 40, 2], [100, 6, 12, 1], [60, 3, 0, 2]]) {
+      const d = generate(T('caketopper'), { W, b, band, stakes }, S0)
+      expect(d.errors, `W${W} b${b}`).toEqual([])
+      const pn = d.panels[0], outer = samplePoly(outerOf(pn), 1), holes = holesOf(pn)
+      expect(holes.length, `W${W} band${band}`).toBe(band > 0 ? (holes.length === 2 ? 2 : 1) : 1)
+      for (const h of holes) {
+        const dist = polyDistance(samplePoly(h, 1), outer)
+        expect(dist, `W${W} b${b} frame`).toBeGreaterThan(b - 0.05)
+        expect(dist, `W${W} b${b} frame`).toBeLessThan(b + 0.05)
+      }
+      if (band > 0 && holes.length === 2) expect(polyDistance(samplePoly(holes[0], 1), samplePoly(holes[1], 1))).toBeCloseTo(band, 2)
+      // the lobes top out at y = 0; below the heart's tip the stakes: two pieces of material, or one
+      const bb = bbox([outerOf(pn)])
+      expect(bb.minY).toBeCloseTo(0, 6)
+      expect(crossings(outerOf(pn), bb.maxY - 20).length).toBe(2 * stakes)
+    }
+    expect(generate(T('caketopper'), { W: 80, b: 16 }, S0).errors.length).toBeGreaterThan(0)
+    expect(generate(T('caketopper'), { band: 5 }, S0).errors.length).toBeGreaterThan(0)
+  })
+
+  it('the guest frame: one outline for every layer, hearts pass the drop slot, the window shows only the cavity, and nail heads have room', () => {
+    for (const win of [1, 2, 3]) {
+      const p = { W: 300, H: 400, b: 30, bt: 70, hw: 45, win, layers: 2 }
+      const d = generate(T('guestframe'), p, S0)
+      expect(d.errors).toEqual([])
+      for (const id of ['front', 'glass', 'spacer', 'back']) {
+        const bb = bbox([outerOf(d.panels.find(x => x.id === id)!)])
+        expect([bb.minX, bb.minY, bb.maxX, bb.maxY].map(v => Math.round(v * 1000) / 1000 + 0), id).toEqual([0, 0, 300, 400])
+      }
+      const spacer = d.panels.find(x => x.id === 'spacer')!, heartPn = d.panels.find(x => x.id === 'heart')!
+      // the drop slot at the top of the spacer: wider than the heart by 10 mm; the cavity is two thicknesses deep for a one-thickness heart
+      const xs = crossings(outerOf(spacer), 10)
+      expect(xs.length).toBe(4)
+      expect(xs[2] - xs[1]).toBeCloseTo(heartPn.w + 10, 2)
+      expect(spacer.count * 3 - 3).toBeGreaterThanOrEqual(1.5)
+      // every point of the window lies inside the cavity, and away from the frame's edge
+      const front = d.panels.find(x => x.id === 'front')!, wnd = samplePoly(holesOf(front)[0], 2)
+      for (const q of wnd) { expect(q.x).toBeGreaterThanOrEqual(30 - 1e-6); expect(q.x).toBeLessThanOrEqual(270 + 1e-6); expect(q.y).toBeGreaterThanOrEqual(70 - 1e-6); expect(q.y).toBeLessThanOrEqual(370 + 1e-6) }
+      if (win === 2) {
+        // the heart window's notch is rounded: wood stays 3 mm around the point where the lobes meet
+        const hw = Math.min(240, 300 / 0.95), cusp = { x: 150, y: 70 + 300 / 2 - 0.225 * hw }
+        expect(Math.min(...wnd.map(q => Math.hypot(q.x - cusp.x, q.y - cusp.y)))).toBeGreaterThan(2.9)
+      }
+      // each keyhole in the back sits inside a pocket of every spacer layer
+      const back = d.panels.find(x => x.id === 'back')!, pockets = holesOf(spacer).map(h => samplePoly(h, 5))
+      expect(holesOf(back).length).toBe(2)
+      for (const kh of holesOf(back)) for (const q of samplePoly(kh, 5)) expect(pockets.some(pk => pointIn(q, pk)), 'keyhole in pocket').toBe(true)
+    }
+    expect(generate(T('guestframe'), { layers: 2 }, { ...S0, t: 1 }).errors.length).toBeGreaterThan(0) // 2 mm cavity for a 1 mm heart: too tight
+  })
+
+  it('the sweets stand: every plate slides down over the narrower column and rests on a ledge, and the base takes the tab', () => {
+    for (const [tiers, gap, ledge, shape] of [[3, 110, 8, 1], [2, 80, 6, 2], [4, 120, 10, 1]]) {
+      const p: Record<string, number> = { ...T('sweetstand').defaults, tiers, gap, ledge, shape, D1: 400 }, t = 3, fit = p.fit
+      const d = generate(T('sweetstand'), p, S0)
+      expect(d.errors).toEqual([])
+      const colA = outerOf(d.panels.find(x => x.id === 'column-a')!), colB = outerOf(d.panels.find(x => x.id === 'column-b')!)
+      const z = (j: number) => (j - 1) * gap + (j - 2) * t, top = z(tiers) + t + p.topH, Hc = top + t
+      const plusSpan = (j: number) => { const h = holesOf(d.panels.find(x => x.id === `plate-${j}`)!)[0]; const bb = bbox([h]); return bb.maxX - bb.minX }
+      for (const col of [colA, colB]) {
+        // the base: the tab is the hole's size, the column above it 6 mm wider each side
+        expect(plusSpan(1)).toBeCloseTo(extent(col, Hc - t / 2) + fit, 3)
+        expect(extent(col, Hc - t - 0.5) - extent(col, Hc - t / 2)).toBeCloseTo(12, 3)
+        for (let j = 2; j <= tiers; j++) {
+          const seat = top - z(j)
+          expect(plusSpan(j), `plate ${j}`).toBeCloseTo(extent(col, seat - 0.5) + fit, 3)  // its own section passes through the hole
+          expect(extent(col, seat + 0.5) - extent(col, seat - 0.5), `ledge ${j}`).toBeCloseTo(2 * ledge, 3) // and rests on the wider one below
+          for (let y = 1; y < seat - 0.5; y += 5) expect(extent(col, y) + fit).toBeLessThanOrEqual(plusSpan(j) + 1e-6) // everything above passes
+        }
+      }
+      // the halving slots meet at half height
+      expect(colA.pts.some(v => Math.abs(v.y - Hc / 2) < 1e-3)).toBe(true)
+      expect(colB.pts.some(v => Math.abs(v.y - Hc / 2) < 1e-3)).toBe(true)
+      expect(bbox([colA]).maxY).toBeCloseTo(Hc, 3)
+    }
+  })
+
+  it('table numbers: one plate per number, gold digits counted, guides hidden under them, tabs through every base layer', () => {
+    const d = generate(T('tablenumbers'), { from: 8, n: 3, num: 2, layers: 2 }, S0)
+    expect(d.errors).toEqual([])
+    expect(d.panels.filter(x => x.id.startsWith('plate-')).map(x => x.id)).toEqual(['plate-8', 'plate-9', 'plate-10'])
+    const digits = Object.fromEntries(d.panels.filter(x => x.id.startsWith('digit-')).map(x => [x.id, x.count]))
+    expect(digits).toEqual({ 'digit-0': 1, 'digit-1': 1, 'digit-8': 1, 'digit-9': 1 })
+    for (const x of d.panels.filter(q => q.id.startsWith('digit-'))) expect(x.material).toBe('mirror')
+    expect(holesOf(d.panels.find(x => x.id === 'digit-8')!).length).toBe(2)
+    const plate = d.panels.find(x => x.id === 'plate-10')!, outline = samplePoly(outerOf(plate), 2)
+    const guides = plate.loops.filter(l => l.layer === 'engrave')
+    expect(guides.length).toBe(2)
+    const H = T('tablenumbers').defaults.H
+    for (const g of guides) for (const q of samplePoly(g, 5)) { expect(pointIn(q, outline)).toBe(true); expect(q.y).toBeLessThan(H - 8) }
+    // a guide is 1 mm inside its gold digit: smaller than the piece, so it hides under it
+    const g8 = d.panels.find(x => x.id === 'plate-8')!.loops.find(l => l.layer === 'engrave')!, p8 = outerOf(d.panels.find(x => x.id === 'digit-8')!)
+    expect(Math.abs(signedArea(g8))).toBeLessThan(Math.abs(signedArea(p8)))
+    const gb = bbox([g8]), pb = bbox([p8])
+    expect(pb.maxX - pb.minX - (gb.maxX - gb.minX)).toBeCloseTo(2, 3)
+    // the tabs: as long as the base stack, as wide as the slots less the clearance
+    const base = d.panels.find(x => x.id === 'base-top')!, under = d.panels.find(x => x.id === 'base-under')!
+    expect(base.count).toBe(3); expect(under.count).toBe(3)
+    const slot = bbox([holesOf(base)[0]]), tabs = crossings(outerOf(plate), H + 3)
+    expect(tabs.length).toBe(4)
+    expect(tabs[1] - tabs[0] + 0.15).toBeCloseTo(slot.maxX - slot.minX, 3)
+    expect(bbox([outerOf(plate)]).maxY - H).toBeCloseTo(2 * 3, 3)
+    // engraved style: the counters are engraved too
+    const e = generate(T('tablenumbers'), { from: 8, n: 1, num: 1 }, S0)
+    expect(e.panels.find(x => x.id === 'plate-8')!.loops.filter(l => l.layer === 'engrave').length).toBe(3)
+    expect(e.panels.some(x => x.id.startsWith('digit-'))).toBe(false)
+  })
+
+  it('every gold digit, at any plate size, is one piece with its counters: none, or one in 0 6 9, two in 8', () => {
+    for (const W of [70, 93.7, 137.3, 220]) {
+      const d = generate(T('tablenumbers'), { W, H: 300, Db: 90, from: 0, n: 10, num: 2 }, S0)
+      expect(d.errors).toEqual([])
+      for (let dg = 0; dg <= 9; dg++) {
+        const pn = d.panels.find(x => x.id === `digit-${dg}`)!
+        expect(cutLoops(pn).filter(l => signedArea(l) > 0).length, `W${W} digit ${dg}`).toBe(1)
+        expect(holesOf(pn).length, `W${W} digit ${dg} counters`).toBe(dg === 8 ? 2 : [0, 6, 9].includes(dg) ? 1 : 0)
+      }
+    }
+  })
+
+  it('favour boxes multiply by the count, and the heart window sits inside the lip frame over the clear plate', () => {
+    const d = generate(T('favorbox'), { W: 60, D: 60, H: 45, n: 12, win: 2 }, S0)
+    expect(d.errors).toEqual([])
+    const cnt = (id: string) => d.panels.find(x => x.id === id)!.count
+    expect([cnt('bottom'), cnt('front'), cnt('back'), cnt('side'), cnt('lid'), cnt('lip-fb'), cnt('lip-side'), cnt('window')]).toEqual([12, 12, 12, 24, 12, 24, 24, 12])
+    const t = 3, gap = 0.4, open = 60 - 2 * t - 2 * gap - 2 * t // the lip frame's opening
+    const win = d.panels.find(x => x.id === 'window')!
+    expect(win.w).toBeCloseTo(open - 1, 3)
+    expect(win.material).toBe('clear')
+    const lo = (60 - (open - 1)) / 2
+    for (const q of samplePoly(holesOf(d.panels.find(x => x.id === 'lid')!)[0], 3)) {
+      expect(q.x).toBeGreaterThan(lo + 2); expect(q.x).toBeLessThan(60 - lo - 2)
+      expect(q.y).toBeGreaterThan(lo + 2); expect(q.y).toBeLessThan(60 - lo - 2)
+    }
+  })
+
+  it('the wedding group lists the engagement set, the ring box and the five wedding designs', () => {
+    expect(CATEGORIES.find(c => c.id === 'wedding')!.ids).toEqual(['engagement', 'hexringbox', 'caketopper', 'guestframe', 'sweetstand', 'tablenumbers', 'favorbox'])
+  })
+})
