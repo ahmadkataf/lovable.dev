@@ -1,0 +1,266 @@
+<!doctype html>
+<html lang="ar" dir="rtl"><head><meta charset="utf-8">
+<style>
+@font-face{font-family:A;src:url(alexandria-arabic-wght-normal.woff2) format('woff2');font-weight:100 900;unicode-range:U+0600-06FF,U+0750-077F,U+FB50-FDFF,U+FE70-FEFF,U+0660-0669}
+@font-face{font-family:A;src:url(alexandria-latin-wght-normal.woff2) format('woff2');font-weight:100 900}
+:root{--ink:#17131f;--pur:#7c3aed;--lil:#ce82ff;--yel:#FFD23F;--grn:#58CC02;--blu:#1CB0F6;--bg:#f3f0fa}
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{width:1080px;height:1080px;overflow:hidden;background:var(--bg)}
+body{font-family:A,'Noto Color Emoji',sans-serif;color:var(--ink);position:relative}
+.abs{position:absolute}.full{position:absolute;inset:0}
+.blob{position:absolute;width:900px;height:900px;border-radius:50%}
+.scene{position:absolute;inset:0;opacity:0}
+.m{display:block;overflow:hidden;padding:.06em 0 .14em}.mi{display:block;will-change:transform}
+.word{position:absolute;left:0;right:0;top:50%;text-align:center;font-weight:900;font-size:200px;line-height:1;margin-top:-115px;opacity:0}
+.icon{border-radius:26%;background:linear-gradient(145deg,#e3b3ff,#ce82ff 40%,#8b46ff);display:flex;align-items:center;justify-content:center;color:#fff;font-weight:900;direction:ltr;box-shadow:0 18px 40px rgba(124,58,237,.35),inset 0 0 0 4px rgba(255,255,255,.25);overflow:hidden;position:relative;flex:none}
+.shine{position:absolute;top:-50%;left:-80%;width:45%;height:200%;background:linear-gradient(90deg,rgba(255,255,255,0),rgba(255,255,255,.75),rgba(255,255,255,0));transform:rotate(20deg)}
+/* phone */
+#stage{position:absolute;inset:0;perspective:1800px;perspective-origin:50% 45%}
+#phone{position:absolute;left:0;top:0;width:412px;height:854px;transform-style:preserve-3d;transform-origin:50% 46%}
+#frame{position:absolute;inset:0;border-radius:64px;background:linear-gradient(150deg,#3a3446,#0d0a14 55%,#2b2537);box-shadow:0 0 0 2px rgba(255,255,255,.12) inset}
+#screen{position:absolute;left:16px;top:16px;width:380px;height:822px;border-radius:50px;overflow:hidden;background:#fff}
+#screen>img{position:absolute;left:0;top:0;width:380px;height:822px}
+#notch{position:absolute;left:50%;top:28px;width:120px;height:32px;margin-left:-60px;background:#000;border-radius:18px}
+#pops{position:absolute;left:16px;top:16px;width:380px;height:822px;transform-style:preserve-3d;z-index:20}
+.pop{position:absolute;opacity:0;transform-origin:50% 50%}
+.pop img{display:block;width:100%;height:100%}
+#shadow{position:absolute;width:460px;height:70px;border-radius:50%;background:radial-gradient(closest-side,rgba(23,19,31,.33),rgba(23,19,31,0));top:985px}
+/* chat */
+#chat{position:absolute;inset:0;background:#f6f2fc;z-index:5}
+#sbar{position:absolute;left:0;right:0;top:0;height:50px;direction:ltr;display:flex;justify-content:space-between;align-items:center;padding:12px 34px 0;font-weight:800;font-size:17px}
+#head{position:absolute;left:0;right:0;top:50px;height:74px;background:#fff;display:flex;align-items:center;gap:12px;padding:0 18px;box-shadow:0 2px 10px rgba(23,19,31,.06)}
+.av{width:46px;height:46px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:22px;color:#fff;flex:none}
+#vp{position:absolute;left:0;right:0;top:124px;bottom:72px;overflow:hidden;background-image:radial-gradient(rgba(124,58,237,.07) 1.5px,transparent 1.5px);background-size:22px 22px}
+#msgs{position:absolute;left:0;right:0;top:0;padding:14px 14px 10px}
+.it{overflow:visible}
+.b{max-width:80%;padding:11px 15px 8px;border-radius:20px;font-size:22px;font-weight:600;line-height:1.42;margin-bottom:9px;position:relative;width:fit-content;transform-origin:50% 100%}
+.me{margin-right:0;margin-left:auto;background:var(--pur);color:#fff;border-bottom-right-radius:6px}
+.them{margin-right:auto;margin-left:0;background:#fff;border-bottom-left-radius:6px;box-shadow:0 2px 6px rgba(23,19,31,.06)}
+.b .tm{display:block;font-size:11.5px;opacity:.65;margin-top:2px;direction:ltr;text-align:left}
+.dots{display:flex;gap:6px;padding:16px 18px}
+.dots i{width:9px;height:9px;border-radius:50%;background:#a79fbd;display:block}
+#inbar{position:absolute;left:0;right:0;bottom:0;height:72px;background:#fff;display:flex;align-items:center;gap:10px;padding:0 14px 8px}
+#inp{flex:1;height:46px;border-radius:23px;background:#f1edf8;display:flex;align-items:center;padding:0 16px;font-size:18px;font-weight:600;white-space:nowrap;overflow:hidden}
+#send{width:46px;height:46px;border-radius:50%;background:var(--pur);color:#fff;display:flex;align-items:center;justify-content:center;font-size:20px;flex:none}
+.card{width:270px;background:#fff;border-radius:20px;overflow:hidden;box-shadow:0 2px 8px rgba(23,19,31,.08)}
+.card .top{height:120px;background:linear-gradient(135deg,#efe3ff,#d9c2ff 60%,#c4f2d7);display:flex;align-items:center;justify-content:center;gap:12px}
+.card .bd{padding:10px 14px 4px}
+.card .btn{margin:8px 12px 12px;border-radius:12px;background:var(--grn);color:#fff;text-align:center;font-weight:800;font-size:17px;padding:8px}
+.react{position:absolute;bottom:-14px;left:-6px;background:#fff;border-radius:14px;padding:1px 6px;font-size:18px;box-shadow:0 3px 8px rgba(23,19,31,.15);opacity:0}
+.cap{position:absolute;top:330px;width:440px;text-align:right}
+.cap .n{font-size:28px;font-weight:900;color:var(--pur);direction:ltr;text-align:right}
+.cap .t{font-size:72px;font-weight:900;line-height:1.12}
+/* CTA */
+.bb{position:absolute;right:120px;max-width:860px;white-space:nowrap;padding:22px 34px;border-radius:40px;border-bottom-right-radius:12px;font-size:42px;font-weight:800;background:#fff;box-shadow:0 20px 50px rgba(23,19,31,.1);opacity:0;transform-origin:100% 100%}
+</style></head><body>
+<div class="blob" id="g1" style="background:radial-gradient(closest-side,rgba(206,130,255,.55),rgba(206,130,255,0))"></div>
+<div class="blob" id="g2" style="background:radial-gradient(closest-side,rgba(120,230,170,.45),rgba(120,230,170,0))"></div>
+<div class="blob" id="g3" style="background:radial-gradient(closest-side,rgba(255,200,160,.55),rgba(255,200,160,0))"></div>
+
+<!-- hook -->
+<div class="scene" id="sA">
+  <div class="word" id="w0">كل</div>
+  <div class="word" id="w1">طالب</div>
+  <div class="word" id="w2" style="color:var(--pur)">بكالوريا</div>
+  <div class="word" id="w3">سأل</div>
+  <div class="word" id="w4">هالسؤال 👇</div>
+</div>
+
+<!-- phone (chat + app) -->
+<div class="scene" id="sC">
+  <div id="shadow"></div>
+  <div class="cap" id="cap"><div class="m"><div class="mi n" id="cn"></div></div><div class="m"><div class="mi t" id="ct1"></div></div><div class="m"><div class="mi t" id="ct2"></div></div></div>
+  <div id="stage"><div id="phone">
+    <div id="frame"></div>
+    <div id="screen">
+      <img id="i0" src="s-path.png"><img id="i1" src="s-lesson1.png"><img id="i2" src="s-lesson2.png"><img id="i3" src="s-exam-paper.png">
+      <div id="chat">
+        <div id="sbar"><span>9:41</span><span>▂▄▆ 🔋</span></div>
+        <div id="head"><span style="font-size:26px;color:var(--pur)">›</span><div class="av" style="background:linear-gradient(135deg,#1CB0F6,#58CC02)">م</div><div><div style="font-weight:800;font-size:20px">مجد</div><div id="status" style="font-size:13px;color:#58a700;font-weight:600">متصل الآن</div></div></div>
+        <div id="vp"><div id="msgs"></div></div>
+        <div id="inbar"><div id="inp"><span id="typed" style="color:#17131f"></span><span id="caret" style="display:inline-block;width:2px;height:22px;background:var(--pur);margin-right:2px"></span><span id="ph" style="color:#a79fbd">اكتب رسالة…</span></div><div id="send">➤</div></div>
+      </div>
+      <div id="flash" style="position:absolute;inset:0;background:#fff;opacity:0;z-index:9"></div>
+    </div>
+    <div id="notch"></div>
+    <div id="pops">
+      <div class="pop" id="q0" style="left:15.6px;top:57px;width:349px;height:80px;border-radius:20px;overflow:hidden;box-shadow:0 30px 50px rgba(23,19,31,.28)"><img src="c-path.png"></div>
+      <div class="pop" id="q1" style="left:13px;top:131px;width:354px;height:425px"><img src="c-word.png" style="border-radius:24px;box-shadow:0 34px 60px rgba(23,19,31,.3)"><div id="rings" style="position:absolute;left:290px;top:51px"></div></div>
+      <div class="pop" id="q2" style="left:15px;top:183px;width:350px;height:64px"><img src="c-opt.png" style="border-radius:18px;box-shadow:0 26px 46px rgba(23,19,31,.28)"><div id="ok" style="position:absolute;inset:0;border-radius:18px;border:4px solid var(--grn);background:rgba(88,204,2,.14);opacity:0"></div><div id="okb" style="position:absolute;left:-22px;top:-22px;width:54px;height:54px;border-radius:50%;background:var(--grn);color:#fff;font-size:32px;font-weight:900;display:flex;align-items:center;justify-content:center;opacity:0">✓</div></div>
+      <div class="pop" id="q3" style="left:53px;top:14px;width:94px;height:28px;border-radius:11px;background:#ddf3fd;color:#1899d6;font-weight:900;font-size:17px;display:flex;align-items:center;justify-content:center;gap:3px;direction:ltr;box-shadow:0 14px 26px rgba(24,153,214,.35)"><span id="tm">149:59</span> ⏱</div>
+      <div id="bpops" style="position:absolute;inset:0;transform-style:preserve-3d"></div>
+      <div id="tapc" style="position:absolute;width:70px;height:70px;margin:-35px 0 0 -35px;border-radius:50%;background:rgba(124,58,237,.3);border:4px solid var(--pur);opacity:0"></div>
+    </div>
+  </div></div>
+</div>
+
+<!-- CTA as chat -->
+<div class="scene" id="sE">
+  <div class="abs" id="ch" style="right:120px;top:80px;display:flex;align-items:center;gap:20px">
+    <div class="icon" style="width:96px;height:96px;font-size:48px">12<div class="shine" id="sh2"></div></div>
+    <div><div style="font-size:50px;font-weight:900;line-height:1.1">إمار ١٢</div><div style="font-size:24px;font-weight:700;color:#58a700">● متصل الآن · تطبيق إنجليزي البكالوريا</div></div>
+  </div>
+  <div class="bb" id="c1" style="top:240px">الوحدة الأولى <span style="color:var(--grn)">مجاناً</span> 🎁</div>
+  <div class="bb" id="c2" style="top:372px">اشتراك العام الدراسي كامل بـ <span style="color:var(--pur);direction:ltr;display:inline-block">20$</span></div>
+  <div class="bb" id="c3" style="top:504px;background:#25d366;color:#fff">💬 واتساب <span dir="ltr">+963 996 489 504</span></div>
+  <div class="bb" id="c4" style="top:636px;font-size:30px;padding:20px 30px;color:#5b546b"><span dir="ltr" style="display:inline-block">🌐 emar-api.almutafawiqin.workers.dev/app/</span></div>
+  <div class="abs" style="left:0;right:0;top:810px;text-align:center"><div id="tag" style="display:inline-block;white-space:nowrap;font-size:58px;font-weight:900;opacity:0">ابعته لصاحبك <span style="background:var(--yel);border-radius:18px;padding:0 16px">اللي عم يسأل</span> 😉</div></div>
+</div>
+
+<script>
+const $=id=>document.getElementById(id)
+const clamp=(x,a=0,b=1)=>Math.max(a,Math.min(b,x)), P=(t,a,b)=>clamp((t-a)/(b-a)), lerp=(a,b,x)=>a+(b-a)*x
+const eo3=x=>1-Math.pow(1-x,3), eio=x=>x<.5?4*x*x*x:1-Math.pow(-2*x+2,3)/2, eoE=x=>x>=1?1:1-Math.pow(2,-10*x), eiE=x=>x<=0?0:Math.pow(2,10*x-10)
+const eB=(x,s=1.7)=>{x=clamp(x);const c=s+1;return 1+c*Math.pow(x-1,3)+s*Math.pow(x-1,2)}
+function rv(el,t,t0,dur=.45,tOut=null,od=.25){const x=P(t,t0,t0+dur);let y=(1-eoE(x))*115,o=0;if(tOut!=null){o=P(t,tOut,tOut+od);y-=eio(o)*115}el.style.transform=`translateY(${y}%)`;el.style.opacity=(x<=0||o>=1)?0:1}
+function slam(el,t,t0,dur=.3,from=1.9){const x=P(t,t0,t0+dur);el.style.opacity=clamp(x*5);el.style.transform=`scale(${lerp(from,1,eoE(x))})`;el.style.filter=`blur(${(1-eoE(x))*14}px)`}
+for(let i=0;i<3;i++){const d=document.createElement('div');d.style.cssText='position:absolute;left:-30px;top:-30px;width:60px;height:60px;border-radius:50%;border:4px solid #1CB0F6';$('rings').appendChild(d)}
+
+// ---- chat script: [time, who, html, popOut]
+const T1='مجد! كيف عم تدرس إنجليزي البكالوريا؟ 😩'
+const MSG=[
+  [3.6,'me',T1,true],
+  [4.25,'me','أنا ضايعة بين الكلمات والقواعد والنماذج',true],
+  [5.5,'them','نزّلت تطبيق <b>إمار ١٢</b> 😎',true],
+  [6.8,'them','فيه الكتاب كامل، وكل كلمة بصوت طبيعي، وتمارين محلولة بالعربي',true],
+  [7.8,'me','طيب والامتحانات؟ 🤔',true],
+  [8.9,'them','نماذج بشكل البكالوريا تماماً، ومع التصحيح ⏱',true],
+  [9.75,'me','ابعتلي ياه 🙏',true],
+  [10.35,'them','CARD',true],
+  [16.9,'me','يا عمي شو هاد 😍 اشتركت!',true],
+]
+const TYPING=[[4.75,5.5],[6.15,6.8],[8.3,8.9],[9.95,10.35]]  // Majd typing windows
+const CARD=`<div class="card"><div class="top"><div class="icon" style="width:72px;height:72px;font-size:36px">12</div><div style="text-align:right"><div style="font-weight:900;font-size:24px">إمار ١٢</div><div style="font-size:14px;font-weight:600;color:#5b546b">إنجليزي البكالوريا</div></div></div><div class="bd"><div style="font-weight:800;font-size:17px">الكتاب كامل + امتحانات بكالوريا</div><div style="font-size:14.5px;color:#58a700;font-weight:700">الوحدة الأولى مجاناً 🎁</div></div><div class="btn">افتح التطبيق</div></div>`
+const items=[] // {el,inner,t,end,h,type,idx}
+const msgs=$('msgs')
+function addItem(t,end,html,cls,type,idx){const w=document.createElement('div');w.className='it';const b=document.createElement('div');b.className=cls;b.innerHTML=html;w.appendChild(b);msgs.appendChild(w);items.push({el:w,inner:b,t,end,type,idx});return b}
+// interleave typing indicators and messages chronologically
+const ev=[]; MSG.forEach((m,i)=>ev.push({t:m[0],kind:'m',i})); TYPING.forEach(([a,b],k)=>ev.push({t:a,kind:'d',a,b}))
+ev.sort((x,y)=>x.t-y.t)
+for(const e of ev){
+  if(e.kind=='d') addItem(e.a,e.b,'<div class="dots"><i></i><i></i><i></i></div>','b them','dots',-1)
+  else {const [t,who,html]=MSG[e.i]; const isCard=html=='CARD'; const b=addItem(t,99,isCard?CARD:html+`<span class="tm">9:4${1+Math.min(8,e.i)} ${who=='me'?'✓✓':''}</span>`,'b '+(who=='me'?'me':'them')+(isCard?' cardb':''),'msg',e.i); if(isCard){b.style.padding='4px';b.style.background='transparent';b.style.boxShadow='none'}}
+}
+const VPH=822-124-72; let SCROLL=0, react
+
+function layoutChat(t){
+  let H=0
+  for(const it of items){
+    let k=0
+    if(t>=it.t){ k = it.type=='dots' ? eoE(P(t,it.t,it.t+.2))*(1-eio(P(t,it.end-.12,it.end))) : eoE(P(t,it.t,it.t+.28)) }
+    if(it.type=='dots' && t>=it.end) k=0
+    it.el.style.height=(it.h*k)+'px'; it.el.style.display=k<=0?'none':'block'
+    const s=it.type=='dots'?k:eB(P(t,it.t,it.t+.35),2.2)
+    it.inner.style.transform=`scale(${Math.max(0,s)})`
+    if(it.type=='dots') [...it.inner.querySelectorAll('i')].forEach((d,j)=>d.style.transform=`translateY(${-Math.max(0,Math.sin(t*9-j*.9))*6}px)`)
+    H+=it.h*k
+  }
+  const scroll=Math.max(0,H+24-VPH); msgs.style.transform=`translateY(${-scroll}px)`
+  return scroll
+}
+// pre-pass: settled rect of pop-out messages (relative to screen)
+const POPS=[]
+function prepass(){ const scr=$('screen').getBoundingClientRect()
+  for(const it of items){ if(it.type!='msg'||!MSG[it.idx][3]) continue
+    layoutChat(it.t+.6); const r=it.inner.getBoundingClientRect()
+    const c=document.createElement('div'); c.className='pop'; c.style.cssText=`width:${r.width}px;height:${r.height}px`
+    const inner=it.inner.cloneNode(true); inner.style.transform='none'; inner.style.margin='0'; inner.style.maxWidth='none'; inner.style.width=r.width+'px'; inner.style.height=r.height+'px'; inner.style.boxShadow='0 26px 50px rgba(23,19,31,.28)'
+    if(inner.classList.contains('cardb')) inner.querySelector('.card').style.boxShadow='0 30px 60px rgba(23,19,31,.3)'
+    c.appendChild(inner); $('bpops').appendChild(c); POPS.push({c,it,t:it.t})
+  }
+}
+let INIT=false
+function init(){INIT=true
+  items.forEach(it=>{it.h=it.el.offsetHeight})
+  react=document.createElement('div');react.className='react';react.textContent='❤️';items.find(i=>i.idx==8).inner.appendChild(react)
+  prepass()
+}
+
+const W=[0.0,0.32,0.62,1.0,1.32]
+const SEG=[11.75,12.95,14.15,15.35], SEG_END=16.4
+const CAPS=[['01','الكتاب','كامل'],['02','صوت','طبيعي 🔊'],['03','تمارين','محلولة ✅'],['04','امتحانات','بكالوريا ⏱']]
+const POPT=SEG.map(s=>s+.25)
+function pose(i){const left=i%2==0;return{x:left?330:750,ry:left?20:-20}}
+
+function render(t){
+  if(!INIT) init()
+  const B=[['g1',300,300,260,200,.09,.11],['g2',850,800,220,240,.12,.08],['g3',800,200,240,200,.07,.1]]
+  for(const [id,cx,cy,ax,ay,fx,fy] of B) $(id).style.transform=`translate(${cx+ax*Math.sin(t*fx*6.28+cx)-450}px,${cy+ay*Math.cos(t*fy*6.28+cy)-450}px)`
+  const SC=[['sA',0,1.85],['sC',1.6,19.05],['sE',18.7,99]]
+  for(const [id,a,b] of SC) $(id).style.opacity=(t>=a&&t<b)?1:0
+  // ---- hook
+  if(t<1.9){ $('sA').style.transform=`scale(${1+t*.05})`
+    for(let i=0;i<5;i++){const el=$('w'+i),a=W[i],b=W[i+1]??1.62
+      if(t<a||t>b+.14){el.style.opacity=0;continue}
+      if(t<b) slam(el,t,a,.26,1.9); else {const o=P(t,b,b+.14);el.style.opacity=1-o;el.style.transform=`scale(${1+eiE(o)*1.2})`;el.style.filter=`blur(${o*12}px)`}}
+  }
+  // ---- phone
+  if(t>=1.6&&t<19.1){
+    let x=540,ry=0,y=113,sc=1,rz=0,rx=5
+    const inE=eoE(P(t,1.62,2.35)); if(t<2.4){x=540;y=lerp(1100,113,inE);ry=lerp(-40,0,inE);rz=lerp(10,0,inE)}
+    // chat idle sway
+    if(t<11.0){ry+=Math.sin(t*.8)*5}
+    // enter app: zoom toward card then out to montage pose
+    const zi=P(t,11.0,11.45), zo=P(t,11.45,11.85)
+    if(t>=11.0&&t<11.85){ const p0=pose(0)
+      if(t<11.45){sc=1+eiE(zi)*2.2; y=113-eiE(zi)*220}
+      else {const e=eoE(zo); sc=lerp(3.2,1,e); y=lerp(-107,113,e); x=lerp(540,p0.x,e); ry=lerp(0,p0.ry,e)} }
+    let si=-1; for(let i=0;i<4;i++) if(t>=SEG[i]-.1) si=i
+    if(t>=11.85&&t<16.4){ const p=pose(si); x=p.x; ry=p.ry
+      for(let i=1;i<4;i++){ if(t>=SEG[i]-.25&&t<SEG[i]+.3){const e=eio(P(t,SEG[i]-.25,SEG[i]+.3)),a=pose(i-1),b=pose(i);x=lerp(a.x,b.x,e);ry=lerp(a.ry,b.ry,e)+Math.sin(e*Math.PI)*(b.ry>a.ry?40:-40);y=113-Math.sin(e*Math.PI)*25}} }
+    if(t>=16.4){ const e=eio(P(t,16.4,16.85)), a=pose(3); x=lerp(a.x,540,e); ry=lerp(a.ry,0,e)+Math.sin(t*.8)*4*e }
+    // exit to CTA
+    const ex=P(t,18.5,19.0); if(ex>0){ y=113+eiE(ex)*1100; rz=ex*-12; ry+=ex*30 }
+    { const cz = t<11.0 ? 1.1 : (t>=16.4 ? lerp(1,1.1,eio(P(t,16.4,16.85))) : 1); if(!(t>=11.0&&t<11.85)) sc*=cz; else if(t<11.45) sc*=1.1 }
+    const fl=Math.sin(t*1.6)*7
+    $('phone').style.transform=`translate(${x-206}px,${y+fl}px) rotateY(${ry}deg) rotateX(${rx}deg) rotateZ(${rz}deg) scale(${sc})`
+    $('shadow').style.left=(x-230)+'px'; $('shadow').style.opacity=t<11.0||t>11.85?1-ex:0
+    // chat visibility
+    const chatOn = t<11.4 || t>=16.45
+    const co = t<11.4 ? 1-P(t,11.25,11.4) : P(t,16.45,16.65)
+    $('chat').style.opacity=chatOn?co:0
+    $('flash').style.opacity=(t>=11.3&&t<11.7)?(1-Math.abs(t-11.45)/.25)*.9:0
+    // typing in input
+    const n=Math.round(T1.length*P(t,2.45,3.45)); const typing=t>=2.45&&t<3.6
+    $('typed').textContent=typing?T1.slice(0,n):''; $('ph').style.display=typing?'none':'inline'; $('caret').style.opacity=typing&&Math.floor(t*4)%2==0?1:(typing?1:0)
+    $('send').style.transform=`scale(${t>=3.55&&t<3.75?1-.25*Math.sin(P(t,3.55,3.75)*Math.PI):1})`
+    $('status').textContent=TYPING.some(([a,b])=>t>=a&&t<b)?'عم يكتب…':'متصل الآن'
+    SCROLL=layoutChat(t)
+    // in-screen copy hidden while its 3D clone is flying
+    for(const p of POPS){ const d=t-p.t, on=d>=0&&d<1.0; p.it.inner.style.visibility=on?'hidden':'visible'
+      if(!on||!chatOn){p.c.style.opacity=0;continue}
+      const up=eB(P(d,0,.35),1.5), down=eio(P(d,.62,1.0)), k=up*(1-down)
+      p.c.style.left=p.it.inner.offsetLeft+'px'; p.c.style.top=(124+p.it.inner.offsetTop-SCROLL)+'px'
+      p.c.style.opacity=1; p.c.style.transform=`translateZ(${k*130}px) scale(${1+k*.16}) rotateZ(${(p.it.inner.classList.contains('me')?-1:1)*k*3}deg)` }
+    // heart reaction
+    { const r=P(t,17.7,17.95); react.style.opacity=r>0?1:0; react.style.transform=`scale(${eB(r,3)*(1+(t>17.95?0:0))})` }
+    // tap on link card
+    { const d=t-10.95; if(d>=0&&d<.45){ const card=POPS.find(p=>p.it.idx==7); const L=parseFloat(card.c.style.left)+parseFloat(card.c.style.width)/2, T=parseFloat(card.c.style.top)+parseFloat(card.c.style.height)-30; $('tapc').style.left=L+'px';$('tapc').style.top=T+'px';$('tapc').style.opacity=1-d/.45;$('tapc').style.transform=`scale(${.4+d*2.6})`} else $('tapc').style.opacity=0 }
+    // app screens
+    for(let i=0;i<4;i++) $('i'+i).style.opacity=(si==i||(si==-1&&i==0)||(i==si-1&&t<SEG[si]+.05))&&t<16.7?1:0
+    for(let i=1;i<4;i++){ if(t>=SEG[i]&&t<SEG[i]+.3){const e=eoE(P(t,SEG[i],SEG[i]+.3)); $('i'+i).style.transform=`translateY(${(1-e)*822}px)`} else $('i'+i).style.transform='none' }
+    for(let i=0;i<4;i++){ const el=$('q'+i), a=POPT[i], end=(SEG[i+1]??SEG_END)-.28
+      if(t<a||t>end+.22){el.style.opacity=0;continue}
+      const k=eB(P(t,a,a+.4),1.6)*(1-eio(P(t,end,end+.22))), big=i==3?2.6:1.12
+      el.style.opacity=1; el.style.transform=`translateZ(${k*(i==3?140:110)}px) scale(${lerp(1,big,k)}) rotateY(${-pose(i).ry*.35*k}deg)` }
+    const rOn=t>13.3&&t<14.0; $('rings').style.opacity=rOn?1:0; [...$('rings').children].forEach((d,i)=>{const p=((t-13.3)*1.6+i/3)%1;d.style.transform=`scale(${.7+p*1.8})`;d.style.opacity=1-p})
+    { const c=P(t,14.55,14.72); $('ok').style.opacity=c; $('okb').style.opacity=c>0?1:0; $('okb').style.transform=`scale(${eB(c,3)})` }
+    { const el=Math.max(0,Math.floor((t-15.5)*3)); const s=149*60+59-el; $('tm').textContent=Math.floor(s/60)+':'+String(s%60).padStart(2,'0') }
+    // captions
+    const cap=$('cap')
+    if(si>=0&&t<16.4){ const c=CAPS[si]; if($('cn').dataset.i!=si){$('cn').textContent=c[0];$('ct1').textContent=c[1];$('ct2').textContent=c[2];$('cn').dataset.i=si}
+      cap.style.left=si%2==0?'580px':'60px'; const s0=SEG[si]+.2, so=(SEG[si+1]??16.3)-.28
+      rv($('cn'),t,s0,.35,so,.2); rv($('ct1'),t,s0+.05,.4,so+.02,.2); rv($('ct2'),t,s0+.1,.4,so+.04,.2) }
+    else { ['cn','ct1','ct2'].forEach(id=>$(id).style.opacity=0) }
+  }
+  // ---- CTA
+  if(t>=18.7){
+    { const x=P(t,18.85,19.25); $('ch').style.opacity=clamp(x*3); $('ch').style.transform=`translateY(${(1-eoE(x))*-50}px)` }
+    ;[['c1',19.15],['c2',19.75],['c3',20.35],['c4',20.95]].forEach(([id,a])=>{const x=P(t,a,a+.4),el=$(id);el.style.opacity=clamp(x*4);el.style.transform=`scale(${eB(x,2)}) translateY(${(1-eoE(x))*30}px)`})
+    { const x=P(t,21.7,22.05),el=$('tag'); el.style.opacity=clamp(x*4); el.style.transform=`scale(${lerp(2.2,1,eoE(x))})`; el.style.filter=`blur(${(1-eoE(x))*12}px)` }
+    $('sh2').style.left=lerp(-80,180,eio(P(t,22.6,23.1)))+'%'
+  }
+  return true
+}
+window.render=render
+</script></body></html>
