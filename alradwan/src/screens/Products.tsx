@@ -9,7 +9,7 @@ import { NumberInput } from '../ui/components'
 import { Chips, Empty, SearchInput } from '../ui/components'
 import { Modal, dialogDepth, useConfirm } from '../ui/modal'
 import { SCAN_PRIORITY, useScan } from '../lib/scan'
-import { findProductByScan, prefillFromScan } from '../lib/productMatch'
+import { findProductByScan, notAProductCode, prefillFromScan } from '../lib/productMatch'
 import { ScanButton } from '../ui/scanFlow'
 import { IntakePanel } from '../ui/intake'
 import { useToast } from '../ui/toast'
@@ -43,6 +43,8 @@ export function Products() {
     if (dialogDepth() > 0) return false
     const hit = findProductByScan(products.values(), s.text)
     if (hit) { setEdit(hit.product); setScanned({ scan: s.text }); return true }
+    const why = notAProductCode(s.text)
+    if (why) { toast.error(why); return 'reject' }
     if (!canAdd) { toast.error(`الرمز ${s.text} غير مسجّل لأي قطعة`); return 'reject' }
     setEdit('new'); setScanned({ initial: prefillFromScan(s.text), scan: s.text })
     return true

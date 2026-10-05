@@ -4,7 +4,7 @@ import { ScanLine, ShoppingCart, Pencil, MapPin } from 'lucide-react'
 import { useCollection, usePerm } from '../db/store'
 import type { Product } from '../db/types'
 import { emitScan, focusedField, insertIntoField, replayTerminator, SCAN_PRIORITY, startKeyboardScanner, useScan, type Scan } from '../lib/scan'
-import { findProductByScan, prefillFromScan, type MatchVia } from '../lib/productMatch'
+import { findProductByScan, notAProductCode, prefillFromScan, type MatchVia } from '../lib/productMatch'
 import { formatLabel, type Decoded } from '../lib/camera'
 import { CameraScanner } from './scanner'
 import { Modal, dialogDepth } from './modal'
@@ -36,6 +36,8 @@ export function ScanHost() {
     if (dialogDepth() > 0) return false
     const hit = findProductByScan(products.values(), s.text)
     if (hit) { setCard({ id: hit.product.id, via: hit.via, scan: s }); return true }
+    const why = notAProductCode(s.text)
+    if (why) { toast.error(why); return 'reject' }
     if (canAdd) { setCreate({ initial: prefillFromScan(s.text), scan: s.text }); return true }
     toast.error(`الرمز ${s.text} غير مسجّل لأي قطعة`)
     return false

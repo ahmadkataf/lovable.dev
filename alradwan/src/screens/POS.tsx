@@ -11,7 +11,7 @@ import { CURRENCY_SYMBOL, convert, equiv, fmtDate, fromInputDate, invoiceNo, mat
 import { Field, NumberInput, Chips, Price } from '../ui/components'
 import { Modal, dialogDepth, useConfirm } from '../ui/modal'
 import { focusedField, SCAN_PRIORITY, useScan } from '../lib/scan'
-import { findProductByScan, prefillFromScan } from '../lib/productMatch'
+import { findProductByScan, notAProductCode, prefillFromScan } from '../lib/productMatch'
 import { useToast } from '../ui/toast'
 import { ProductSearch, PartyPicker, useProductStock } from '../ui/pickers'
 import { carLabel, productsForCar } from '../ui/cars'
@@ -135,6 +135,8 @@ export function POS() {
     else if (dialogDepth() > 0) return false
     const hit = findProductByScan(products.values(), s.text)
     if (hit) { add(hit.product); toast.success(`أُضيف: ${hit.product.name}`); return true }
+    const why = notAProductCode(s.text)
+    if (why) { toast.error(why); return 'reject' }
     if (canAddProduct) { newFromScan(s.text); return true }
     toast.error(`الرمز ${s.text} غير مسجّل لأي قطعة`)
     return 'reject'

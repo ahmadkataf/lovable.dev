@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { barcodeOwner, barcodeToSave, findProductByScan, prefillFromScan, shortGtin, withBarcode } from '../lib/productMatch'
+import { barcodeOwner, barcodeToSave, findProductByScan, labelPartNumber, notAProductCode, prefillFromScan, shortGtin, withBarcode } from '../lib/productMatch'
 import type { Product } from '../db/types'
 
 const p = (id: string, x: Partial<Product>): Product => ({ id, updatedAt: 0, createdAt: 0, code: id, name: id, unit: 'قطعة', cost: 0, price: 0, minStock: 0, kind: 'product', ...x } as Product)
@@ -58,3 +58,25 @@ describe('what a scan saves', () => {
   })
 })
 
+
+describe('car-part labels', () => {
+  const mopar = { id: 'm', code: 'P-0007', name: 'فلتر زيت', oemNumbers: '98 189 149 80', barcode: '' } as Product
+  it('reads the part number after P', () => {
+    expect(labelPartNumber('P9818914980')).toBe('9818914980')
+    expect(labelPartNumber('1PW712/75')).toBe('W712/75')
+    expect(labelPartNumber('P-0001')).toBeNull()
+    expect(labelPartNumber('PX12')).toBeNull()
+  })
+  it('finds the part by the number on its label', () => {
+    expect(findProductByScan([mopar], 'P9818914980')?.product.id).toBe('m')
+  })
+  it('a new part keeps the scanned code as its barcode and the number as its part number', () => {
+    expect(prefillFromScan('P9818914980')).toEqual({ barcode: 'P9818914980', oemNumbers: '9818914980' })
+  })
+  it('the quantity and the authenticity link are not products', () => {
+    expect(notAProductCode('Q1')).toMatch(/الكمية/)
+    expect(notAProductCode('HTTP://VERIFY.MOPAR.COM/FHRBV9LT93XW')).toMatch(/رابط/)
+    expect(notAProductCode('P9818914980')).toBeNull()
+    expect(notAProductCode('6291041500213')).toBeNull()
+  })
+})

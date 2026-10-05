@@ -208,6 +208,9 @@ export function ProductForm({ initial, currentStock, onClose, onSaved, scanned }
       focusPrice(edited, focused)
     } catch (e) { if (alive.current) toast.error((e as Error).message) } finally { if (alive.current) setReading(false) }
   }
+  // nothing will be looked up for this code (a part number, an in-store code): the photo is offered at once
+  const noLookup = !!scanned && !(settings.barcodeLookup !== false && publicGtin(barcodeToSave(scanned)))
+  const offerPhoto = lookup.state === 'none' || (lookup.state === 'idle' && noLookup) || reading
   const boxButton = (primary: boolean) => API_URL && canEdit
     ? <button type="button" className={`btn sm ${primary ? 'primary' : ''}`} onClick={() => setBoxCam(true)} disabled={reading}>{reading ? <RefreshCw className="spin" /> : <Camera />} {reading ? 'جارٍ قراءة الصورة…' : 'صوّر العلبة واملأ البيانات'}</button>
     : null
@@ -253,11 +256,11 @@ export function ProductForm({ initial, currentStock, onClose, onSaved, scanned }
     </>}>
       {!canEdit && <div className="badge tone-warning mb">ليس لديك صلاحية تعديل القطع والأسعار — للعرض فقط</div>}
       {isNew && scanned && canEdit && <div className="card pad tone-info mb" style={{ padding: '10px 14px' }}>
-        <div>باركود غير مسجّل: <b className="mono" dir="ltr">{scanned.length > 60 ? scanned.slice(0, 60) + '…' : scanned}</b>{lookup.state === 'idle' ? ' — اكتب اسم القطعة وسعرها ثم احفظ.' : ''}</div>
+        <div>باركود غير مسجّل: <b className="mono" dir="ltr">{scanned.length > 60 ? scanned.slice(0, 60) + '…' : scanned}</b>{lookup.state === 'idle' ? (API_URL && noLookup ? ' — صوّر العلبة فنملأ بياناتها، أو اكتب اسمها وسعرها ثم احفظ.' : ' — اكتب اسم القطعة وسعرها ثم احفظ.') : ''}</div>
         {lookup.state === 'looking' && <div className="mt"><RefreshCw size={14} className="spin" style={{ verticalAlign: -2 }} /> جارٍ البحث عن اسم القطعة وصورتها على الإنترنت…</div>}
         {lookup.state === 'found' && <div className="mt"><Globe size={14} style={{ verticalAlign: -2 }} /> وُجدت بياناتها لدى {SOURCE_LABEL[lookup.source ?? 'openfoodfacts']}{lookup.shops && lookup.shops > 1 ? ` (${lookup.shops} محلات)` : ''}. راجع الاسم وأدخل السعر ثم احفظ.</div>}
         {lookup.state === 'none' && <div className="mt">لم نجد هذه القطعة في قواعد البيانات. {API_URL ? 'صوّر العلبة فنقرأ اسمها وماركتها ورقمها منها، أو اكتب اسمها' : 'اكتب اسمها'} مرة واحدة{settings.shareCatalog !== false ? '، فتظهر جاهزة لأي محل يمسحها بعدك' : ''}. <a href={`https://www.google.com/search?q=${encodeURIComponent(barcodeToSave(scanned))}`} target="_blank" rel="noreferrer" style={{ textDecoration: 'underline' }}>ابحث عنه في جوجل</a></div>}
-        {(lookup.state === 'none' || reading) && <div className="mt">{boxButton(true)}</div>}
+        {offerPhoto && <div className="mt">{boxButton(true)}</div>}
         {linking ? <div className="mt"><ProductSearch placeholder="ابحث عن القطعة الموجودة لربط الباركود بها…" onPick={link} autoFocus showStock={false} /></div>
           : <button className="btn sm ghost mt" onClick={() => setLinking(true)}><Link2 /> القطعة موجودة عندي بلا باركود؟ اربطه بها</button>}
       </div>}
@@ -313,7 +316,7 @@ export function ProductForm({ initial, currentStock, onClose, onSaved, scanned }
             {f.image && <img src={f.image} alt="" style={{ width: 56, height: 56, objectFit: 'cover', borderRadius: 10 }} />}
             <label className="btn sm"><ImagePlus /> {f.image ? 'تغيير الصورة' : 'إضافة صورة'}<input type="file" accept="image/*" hidden onChange={async e => { const file = e.target.files?.[0]; if (file) set('image', await shrinkImage(file)) }} /></label>
             {f.image && <button className="btn sm ghost" onClick={() => set('image', undefined)}>إزالة</button>}
-            {!(isNew && scanned && (lookup.state === 'none' || reading)) && boxButton(false)}
+            {!(isNew && scanned && canEdit && offerPhoto) && boxButton(false)}
           </div>
         </Field>
       </div>

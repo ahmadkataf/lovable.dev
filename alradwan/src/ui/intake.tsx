@@ -3,7 +3,7 @@ import { ScanLine, Camera, Pencil, Globe, Check, RefreshCw } from 'lucide-react'
 import { audit, put, usePerm, useSettings, useStore } from '../db/store'
 import type { Product } from '../db/types'
 import { SCAN_PRIORITY, useScan } from '../lib/scan'
-import { barcodeToSave, findProductByScan } from '../lib/productMatch'
+import { barcodeToSave, findProductByScan, labelPartNumber, notAProductCode } from '../lib/productMatch'
 import { brandHint, codeFacts, publicGtin } from '../lib/gs1'
 import { lookupEnabled, lookupProduct, readBoxPhoto, shareCatalogChanges, SOURCE_LABEL, type LookupSource } from '../lib/productLookup'
 import { API_URL } from '../lib/platform'
@@ -66,6 +66,8 @@ export function IntakePanel({ onClose, onEdit }: { onClose: () => void; onEdit: 
       return true
     }
     if (hit) { upsertRow(key, { code, productId: hit.id, status: 'existing', count: 0 }); return true }
+    const why = notAProductCode(text)
+    if (why) { toast.error(why); return 'reject' }
     if (!canAdd) { toast.error('ليس لديك صلاحية إضافة القطع'); return 'reject' }
     waiting.set(key, 1)
     const mine = session.current
@@ -81,7 +83,7 @@ export function IntakePanel({ onClose, onEdit }: { onClose: () => void; onEdit: 
         const named = found?.name || (hint?.partNumber ? `${hint.brand} ${hint.partNumber}` : `قطعة ${code}`)
         const p = await put('products', {
           code: nextCode(useStore.getState().products as unknown as Map<string, Product>), barcode: code, name: named, catalogName: found?.name, brand: found?.brand ?? hint?.brand ?? '', cars: '',
-          oemNumbers: codeFacts(text).looksLikePartNumber ? text.trim() : hint?.partNumber, image: found?.image,
+          oemNumbers: labelPartNumber(text) ?? (codeFacts(text).looksLikePartNumber ? text.trim() : hint?.partNumber), image: found?.image,
           unit: settings.units[0] ?? 'قطعة', cost: 0, price: 0, wholesalePrice: 0, minStock: settings.lowStockDefault, openingStock: count, openingCost: 0,
           location: '', notes: '', kind: 'product', createdAt: now,
         } as Omit<Product, 'id' | 'updatedAt'>)

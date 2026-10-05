@@ -3,6 +3,7 @@ import { Camera, Focus, ImagePlus, RefreshCw, Zap, ZapOff } from 'lucide-react'
 import { Modal } from './modal'
 import { decodeImageData, decodeStill, formatLabel, loadDecoder, UNCHECKED, type Decoded } from '../lib/camera'
 import { scanFeedback } from '../lib/scan'
+import { notAProductCode } from '../lib/productMatch'
 
 const CAMERA_KEY = 'alradwan.camera'
 const savedCamera = () => { try { return localStorage.getItem(CAMERA_KEY) } catch { return null } }
@@ -59,6 +60,9 @@ export function CameraScanner({ onCode, onClose, title = 'مسح الباركو�
     let stop = false
     let timer: ReturnType<typeof setTimeout> | null = null
     let pass = 0
+    // only a QR link or a label's quantity in the picture: its part number is likely there too, too small for
+    // the reduced frame, so the next pass reads the full-size frame, carefully
+    let closer = false
     const open = async () => {
       const size = { width: { ideal: 1280 }, height: { ideal: 720 } }
       if (camId) {
@@ -96,7 +100,8 @@ export function CameraScanner({ onCode, onClose, title = 'مسح الباركو�
           if (document.hidden) { timer = setTimeout(tick, 400); return }
           if (v && v.readyState >= 2 && v.videoWidth) {
             // a smaller frame decodes faster; every third pass looks harder (rotated, inverted, small, 2D codes)
-            const scale = Math.min(1, 960 / v.videoWidth)
+            const full = closer
+            const scale = full ? 1 : Math.min(1, 960 / v.videoWidth)
             const w = Math.round(v.videoWidth * scale), h = Math.round(v.videoHeight * scale)
             const c = (canvas.current ??= document.createElement('canvas'))
             if (c.width !== w) c.width = w
@@ -106,7 +111,8 @@ export function CameraScanner({ onCode, onClose, title = 'مسح الباركو�
               ctx.drawImage(v, 0, 0, w, h)
               try {
                 const td = performance.now()
-                const found = await decodeImageData(ctx.getImageData(0, 0, w, h), pass++ % 3 !== 2)
+                const found = await decodeImageData(ctx.getImageData(0, 0, w, h), !full && pass++ % 3 !== 2)
+                closer = found.length > 0 && found.every(x => !!notAProductCode(x.text)) && !closer
                 log(`pass ${pass} ${w}x${h} ${Math.round(performance.now() - td)}ms found ${found.length}`)
                 const now = Date.now()
                 for (const x of found) {
@@ -120,7 +126,11 @@ export function CameraScanner({ onCode, onClose, title = 'مسح الباركو�
                 if (found.some(x => x.text === lastLive.current.text) && now - lastLive.current.at < 1500) for (const x of found) { const v = inView.current.get(x.text)!; if (v.frames === 1) v.done = true }
                 // a code with no check digit counts only when a second frame reads the same
                 const fresh = found.filter(x => { const v = inView.current.get(x.text)!; return !v.done && (!UNCHECKED.has(x.format) || v.frames >= 2) })
-                const d = fresh.find(x => !UNCHECKED.has(x.format)) ?? fresh[0]
+                // a label's part number before its quantity or the box's authenticity QR: those count only when
+                // nothing else has been in the picture for a few frames
+                const product = fresh.filter(x => !notAProductCode(x.text))
+                const d = product.find(x => !UNCHECKED.has(x.format)) ?? product[0]
+                  ?? (found.some(x => !notAProductCode(x.text)) ? undefined : fresh.find(x => inView.current.get(x.text)!.frames >= 8))
                 if (d && !stop) {
                   // the other codes on the same box (its part-number label) are the same item
                   for (const x of found) inView.current.get(x.text)!.done = true
@@ -181,7 +191,8 @@ export function CameraScanner({ onCode, onClose, title = 'مسح الباركو�
       const found = await decodeStill(src)
       if (!alive.current) return
       // a snapshot and the live view reading the same box count once
-      if (found.length) { inView.current.set(found[0].text, { last: Date.now(), frames: 2, done: true }); await deliver(found[0]) } else setErr('لم أجد باركوداً. قرّب الكاميرا حتى يملأ الباركود الصورة وتكون الخطوط واضحة، أو شغّل الضوء.')
+      const best = found.find(x => !notAProductCode(x.text)) ?? found[0]
+      if (best) { inView.current.set(best.text, { last: Date.now(), frames: 2, done: true }); await deliver(best) } else setErr('لم أجد باركوداً. قرّب الكاميرا حتى يملأ الباركود الصورة وتكون الخطوط واضحة، أو شغّل الضوء.')
     } catch { if (alive.current) setErr('تعذّر قراءة الصورة.') } finally { if (alive.current) setBusyPhoto(false) }
   }
   // one sharp picture at the camera's full size: for small or dense codes the live view cannot resolve

@@ -9,7 +9,7 @@ import { addDays, fmtDate, fmtDateTime, fromInputDate, invoiceNo, matches, money
 import { DateRange, Empty, Field, NumberInput, PayBadge, SearchInput } from '../ui/components'
 import { Modal, useConfirm, useIsTopDialog } from '../ui/modal'
 import { focusedField, SCAN_PRIORITY, useScan } from '../lib/scan'
-import { findProductByScan, prefillFromScan } from '../lib/productMatch'
+import { findProductByScan, notAProductCode, prefillFromScan } from '../lib/productMatch'
 import { useToast } from '../ui/toast'
 import { PartyPicker, ProductSearch } from '../ui/pickers'
 import { ProductForm, SupplierForm } from '../ui/forms'
@@ -93,6 +93,8 @@ function PurchaseForm({ initial, onClose }: { initial?: Purchase; onClose: () =>
     if (focusedField()?.dataset.scan === 'text') return false
     const hit = findProductByScan(Array.from(products.values()).filter(p => p.kind === 'product'), s.text)
     if (hit) { addLine(hit.product); toast.success(`أُضيف: ${hit.product.name}`); return true }
+    const why = notAProductCode(s.text)
+    if (why) { toast.error(why); return 'reject' }
     if (canAddProduct) { newFromScan(s.text); return true }
     toast.error(`الرمز ${s.text} غير مسجّل لأي قطعة`)
     return 'reject'
