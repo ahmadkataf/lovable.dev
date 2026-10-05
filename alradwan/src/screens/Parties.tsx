@@ -1,18 +1,20 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
-import { Plus, Pencil, Phone, Printer, HandCoins, FileSpreadsheet, MessageCircle, Trash2 } from 'lucide-react'
-import { useCollection, useIsAdmin, useSettings, usePerm } from '../db/store'
+import { Plus, Pencil, Phone, Printer, HandCoins, FileSpreadsheet, MessageCircle, Trash2, Upload } from 'lucide-react'
+import { can, putMany, useCollection, useIsAdmin, useSettings, usePerm } from '../db/store'
 import { CustomerVehicles } from '../ui/vehicles'
-import type { Customer, Supplier, Payment } from '../db/types'
+import type { Base, Customer, CurrencyCode, Supplier, Payment } from '../db/types'
 import { addPayment, deleteMoneyEntry } from '../db/actions'
 import { customerBalance, supplierBalance } from '../lib/calc'
-import { fmtDate, invoiceNo, matches, money, toInputDate, fromInputDate } from '../lib/format'
+import { convert, CURRENCY_DECIMALS, CURRENCY_SYMBOL, fmtDate, invoiceNo, matches, money, norm, otherCurrency, toInputDate, fromInputDate } from '../lib/format'
 import { Empty, Field, NumberInput, SearchInput, Stat, Tabs } from '../ui/components'
 import { Modal, useConfirm } from '../ui/modal'
 import { useToast } from '../ui/toast'
 import { CustomerForm, SupplierForm } from '../ui/forms'
 import { printDocument } from '../print/PrintHost'
-import { exportSheet } from '../lib/excel'
+import { amountsLookLike, exportSheet, readPartiesFile, type ImportedParty } from '../lib/excel'
+import { pickFile } from '../lib/platform'
+import { newId } from '../lib/id'
 
 // Customers and suppliers are the same screen with the signs flipped: what they owe us / what we owe them.
 export function Parties({ type }: { type: 'customer' | 'supplier' }) {
@@ -33,6 +35,7 @@ export function Parties({ type }: { type: 'customer' | 'supplier' }) {
   const [vinNew, setVinNew] = useState<string | null>(null)
   useEffect(() => { const v = params.get('vin'); if (v) { setVinNew(v); setForm('new'); setParams({}) } }, [params])
   const [pay, setPay] = useState<Customer | Supplier | null>(null)
+  const [imp, setImp] = useState<{ rows: ImportedParty[]; guessed?: string; signKnown: boolean } | null>(null)
   const toast = useToast(); const confirm = useConfirm()
   const isC = type === 'customer'
   const base = `/${isC ? 'customers' : 'suppliers'}`
@@ -63,8 +66,19 @@ export function Parties({ type }: { type: 'customer' | 'supplier' }) {
     return lines.sort((a, b) => b.date - a.date)
   }
 
+  const importFile = async () => {
+    const f = await pickFile('.xlsx,.xls,.csv')
+    if (!f) return
+    try {
+      const r = await readPartiesFile(f)
+      if (!r.rows.length) { toast.error(`لم أجد في الملف أي ${isC ? 'عميل' : 'مورد'}: يجب أن يكون فيه عمود للأسماء`); return }
+      setImp(r)
+    } catch (e) { toast.error('تعذّر قراءة الملف: ' + (e as Error).message) }
+  }
+
   return (
     <div className="stack">
+      {imp && <PartiesImport type={type} {...imp} onClose={() => setImp(null)} />}
       <div className="grid cols-2">
         <Stat label={isC ? 'إجمالي ديون العملاء' : 'إجمالي ما علينا للموردين'} value={money(totalDebt)} icon={<HandCoins />} tone={isC ? 'warning' : 'danger'} />
         <Stat label={isC ? 'عدد العملاء' : 'عدد الموردين'} value={isC ? customers.size : suppliers.size} sub={`${rows.filter(r => r.balance > 0.001).length} عليهم رصيد`} icon={<Phone />} tone="info" />
@@ -72,6 +86,7 @@ export function Parties({ type }: { type: 'customer' | 'supplier' }) {
       <div className="toolbar">
         <div className="search"><SearchInput value={q} onChange={setQ} placeholder="بحث بالاسم أو الهاتف أو السيارة…" /></div>
         {canEditParty && <button className="btn primary" onClick={() => setForm('new')}><Plus /> {isC ? 'عميل جديد' : 'مورد جديد'}</button>}
+        {canEditParty && <button className="btn" onClick={importFile} title={`استيراد ${isC ? 'العملاء' : 'الموردين'} وأرصدتهم من إكسل (من برنامج آخر)`}><Upload /> <span className="hide-mobile">استيراد</span></button>}
         <button className="btn" onClick={() => exportSheet(isC ? 'العملاء' : 'الموردون', rows.map(r => ({ 'الاسم': r.p.name, 'الهاتف': r.p.phone ?? '', ...(isC ? { 'السيارة': (r.p as Customer).car ?? '' } : {}), 'العنوان': r.p.address ?? '', 'الرصيد': r.balance, 'ملاحظات': r.p.notes ?? '' })))}><FileSpreadsheet /></button>
       </div>
       <Tabs value={tab} onChange={setTab} items={[{ id: 'all', label: 'الكل' }, { id: 'debt', label: isC ? 'عليهم دين' : 'لهم رصيد علينا' }, { id: 'overdue', label: 'ديون متأخرة (+30 يوم)' }]} />
@@ -164,6 +179,82 @@ function PaymentModal({ type, party, balance, onClose }: { type: 'customer' | 's
         <Field label="ملاحظة"><input className="input" value={note} onChange={e => setNote(e.target.value)} placeholder="نقداً، حوالة…" /></Field>
         <Field label="التاريخ"><input type="date" className="input" value={toInputDate(date)} onChange={e => { if (e.target.value) setDate(fromInputDate(e.target.value, date)) }} /></Field>
       </div>
+    </Modal>
+  )
+}
+
+/** Customers or suppliers with their balances from another program's list (exported to Excel). */
+function PartiesImport({ type, rows, guessed, signKnown, onClose }: { type: 'customer' | 'supplier'; rows: ImportedParty[]; guessed?: string; signKnown: boolean; onClose: () => void }) {
+  const isC = type === 'customer'
+  const customers = useCollection('customers')
+  const suppliers = useCollection('suppliers')
+  const settings = useSettings()
+  const toast = useToast()
+  const [busy, setBusy] = useState(false)
+  const [mode, setMode] = useState<'skip' | 'update'>('skip')
+  // a list of suppliers with plain positive balances means what the shop owes them; customers' what they owe
+  const [flip, setFlip] = useState(() => !isC && !signKnown && rows.filter(r => r.balance > 0).length >= rows.filter(r => r.balance < 0).length)
+  const base = settings.baseCurrency ?? 'SYP'
+  const other = otherCurrency(base)
+  const [cur, setCur] = useState<CurrencyCode>(() => (amountsLookLike(rows.map(r => r.balance), other) ? other : base))
+  const d = 10 ** CURRENCY_DECIMALS[base]
+  const toBase = (n: number) => (n ? Math.round(convert(n, cur, base, settings.rate) * d) / d : 0)
+  // what the party owes the shop, in the shop's currency (negative: the shop owes them)
+  const owes = (r: ImportedParty) => toBase(flip ? -r.balance : r.balance)
+  const list = Array.from((isC ? customers : suppliers).values()) as (Customer | Supplier)[]
+  const byName = new Map(list.map(p => [norm(p.name), p]))
+  const phoneKey = (s?: string) => (s ?? '').replace(/\D/g, '').slice(-9)
+  const byPhone = new Map(list.filter(p => phoneKey(p.phone).length === 9).map(p => [phoneKey(p.phone), p]))
+  const match = (r: ImportedParty) => byName.get(norm(r.name)) ?? (phoneKey(r.phone).length === 9 ? byPhone.get(phoneKey(r.phone)) : undefined)
+  const existing = rows.filter(r => match(r)).length
+  const toUs = rows.reduce((t, r) => t + Math.max(0, owes(r)), 0)
+  const toThem = rows.reduce((t, r) => t + Math.max(0, -owes(r)), 0)
+  // n: what they owe the shop
+  const side = (n: number) => (n > 0 ? 'عليه' : n < 0 ? 'له' : '')
+  const run = async () => {
+    if (!can('customers')) { toast.error('ليس لديك صلاحية'); return }
+    if (cur !== base && !(settings.rate > 0)) { toast.error('أدخل سعر الدولار أولاً (من الزر أعلى الشاشة)'); return }
+    setBusy(true)
+    try {
+      const entries: { collection: 'customers' | 'suppliers'; record: Base }[] = []
+      const seen = new Map<string, Customer | Supplier>()
+      let added = 0, updated = 0
+      for (const r of rows) {
+        // the shop's own sign: a customer's opening balance is what they owe, a supplier's what the shop owes them
+        const opening = isC ? owes(r) : -owes(r)
+        const old = seen.get(norm(r.name)) ?? match(r)
+        if (old) {
+          if (mode === 'skip') continue
+          const rec = { ...old, phone: old.phone || r.phone, address: old.address || r.address, notes: old.notes || r.notes, openingBalance: opening, ...(isC ? { car: (old as Customer).car || r.car } : {}) }
+          entries.push({ collection: isC ? 'customers' : 'suppliers', record: rec }); seen.set(norm(r.name), rec); updated++
+        } else {
+          const rec = { id: newId(), updatedAt: 0, name: r.name, phone: r.phone ?? '', address: r.address ?? '', notes: r.notes ?? '', openingBalance: opening, createdAt: Date.now(), ...(isC ? { car: r.car ?? '' } : {}) }
+          entries.push({ collection: isC ? 'customers' : 'suppliers', record: rec }); seen.set(norm(r.name), rec as Customer); added++
+        }
+      }
+      await putMany(entries)
+      toast.success(`تم الاستيراد: ${added} جديد، ${updated} محدَّث`)
+      onClose()
+    } catch (e) { toast.error('فشل الاستيراد: ' + (e as Error).message) } finally { setBusy(false) }
+  }
+  return (
+    <Modal title={`استيراد ${isC ? 'العملاء' : 'الموردين'} وأرصدتهم`} onClose={onClose} size="wide" footer={<><button className="btn primary" onClick={run} disabled={busy || (cur !== base && !(settings.rate > 0))}><Upload /> استيراد {rows.length}</button><button className="btn" onClick={onClose}>إلغاء</button></>}>
+      {guessed && <div className="card pad tone-warning mb" style={{ padding: '10px 14px' }}>{guessed}</div>}
+      <p className="mb">وجدت <b>{rows.length}</b> {isC ? 'عميلاً' : 'مورداً'}، منهم <b>{existing}</b> موجود سابقاً (بنفس الاسم أو الهاتف).
+        {' '}{isC ? 'ديون العملاء' : 'ما علينا للموردين'}: <b>{money(isC ? toUs : toThem)}</b>{(isC ? toThem : toUs) > 0 ? <> · {isC ? 'لعملاء عندنا' : 'لنا عند موردين'}: <b>{money(isC ? toThem : toUs)}</b></> : null}</p>
+      {existing > 0 && <div className="tabs small mb"><button className={mode === 'skip' ? 'active' : ''} onClick={() => setMode('skip')}>تجاهل الموجودين</button><button className={mode === 'update' ? 'active' : ''} onClick={() => setMode('update')}>تحديث رصيدهم الافتتاحي</button></div>}
+      <div className="row mb" style={{ gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+        <span>المبالغ في الملف بـ</span>
+        <div className="tabs small">{[base, other].map(c => <button key={c} className={cur === c ? 'active' : ''} onClick={() => setCur(c)}>{CURRENCY_SYMBOL[c]}</button>)}</div>
+        {cur !== base && !(settings.rate > 0) && <span className="small" style={{ color: 'var(--danger)' }}>أدخل سعر الدولار أولاً</span>}
+        <span className="grow" />
+        <label className="row small" style={{ gap: 6, alignItems: 'center' }}><input type="checkbox" checked={flip} onChange={e => setFlip(e.target.checked)} /> عكس الإشارة (إن ظهرت الديون معكوسة)</label>
+      </div>
+      <p className="help mb">يُسجَّل الرصيد كـ«دين سابق» لكل {isC ? 'عميل' : 'مورد'}، ويظهر في كشف حسابه. راجع أن «عليه» و«له» صحيحان قبل الاستيراد.</p>
+      <div className="table-wrap" style={{ maxHeight: 300 }}><table className="table">
+        <thead><tr><th>الاسم</th><th>الهاتف</th><th className="num">الرصيد</th><th></th></tr></thead>
+        <tbody>{rows.slice(0, 50).map((r, i) => { const n = owes(r); return <tr key={i}><td>{r.name}{match(r) ? <span className="badge tone-muted" style={{ marginInlineStart: 6 }}>موجود</span> : null}</td><td className="mono small" dir="ltr">{r.phone}</td><td className="num">{money(Math.abs(n), { currency: false })}</td><td className="small">{side(n)}</td></tr> })}</tbody>
+      </table>{rows.length > 50 && <div className="muted small" style={{ padding: 8 }}>… و{rows.length - 50} آخرين</div>}</div>
     </Modal>
   )
 }

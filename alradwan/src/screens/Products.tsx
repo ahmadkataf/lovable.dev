@@ -15,7 +15,7 @@ import { IntakePanel } from '../ui/intake'
 import { useToast } from '../ui/toast'
 import { ProductForm } from '../ui/forms'
 import { useProductStock } from '../ui/pickers'
-import { downloadProductsTemplate, exportSheet, readProductsFile, type ImportedProduct } from '../lib/excel'
+import { amountsLookLike, downloadProductsTemplate, exportSheet, readProductsFile, type ImportedProduct } from '../lib/excel'
 import { pickFile } from '../lib/platform'
 import { newId } from '../lib/id'
 
@@ -155,14 +155,6 @@ function CategoriesModal({ onClose }: { onClose: () => void }) {
   )
 }
 
-/** Whether a file's prices look written in the given currency: dollar prices are small, with cents. */
-function looksLike(rows: ImportedProduct[], c: CurrencyCode): boolean {
-  const p = rows.flatMap(r => [r.cost, r.price]).filter(n => n > 0).sort((a, b) => a - b)
-  if (!p.length) return false
-  const median = p[Math.floor(p.length / 2)]
-  return c === 'USD' ? median < 200 && p.some(n => !Number.isInteger(n)) : median >= 1000
-}
-
 function ImportModal({ rows, guessed, onClose }: { rows: ImportedProduct[]; guessed?: string; onClose: () => void }) {
   const products = useCollection('products')
   const categories = useCollection('categories')
@@ -173,7 +165,7 @@ function ImportModal({ rows, guessed, onClose }: { rows: ImportedProduct[]; gues
   const base = settings.baseCurrency ?? 'SYP'
   const other = otherCurrency(base)
   // the currency the file's prices are in: prices like 0.16 and 2.5 in a pound shop are dollars
-  const [cur, setCur] = useState<CurrencyCode>(() => (looksLike(rows, other) ? other : base))
+  const [cur, setCur] = useState<CurrencyCode>(() => (amountsLookLike(rows.flatMap(r => [r.cost, r.price]), other) ? other : base))
   const d = 10 ** CURRENCY_DECIMALS[base]
   const toBase = (n: number) => (n ? Math.round(convert(n, cur, base, settings.rate) * d) / d : n)
   const byCode = new Map(Array.from(products.values()).map(p => [p.code.toLowerCase(), p]))

@@ -92,7 +92,8 @@ function guessColumns(data: unknown[][]): Map<keyof ImportedProduct, number> {
 /** Reads a product list from Excel (.xlsx, old .xls), CSV, or the HTML/XML "Excel" files other programs
  *  export. Column titles may be in any of the first rows, in Arabic or English; with no titles at all the
  *  columns are worked out from their contents and `guessed` says how, for the shop to check. */
-export async function readProductsFile(file: File): Promise<{ rows: ImportedProduct[]; headers: string[]; guessed?: string }> {
+/** The rows of a sheet file (cells as they are): the sheet with the most rows, since some programs put a cover sheet first. */
+async function readSheetRows(file: File): Promise<unknown[][]> {
   const [XLSX, cp] = await Promise.all([xlsx(), import('xlsx/dist/cpexcel.full.mjs')])
   // old .xls files keep their text in a Windows code page
   XLSX.set_cptable(cp)
@@ -100,9 +101,20 @@ export async function readProductsFile(file: File): Promise<{ rows: ImportedProd
   // an old binary .xls that does not say which code page it uses is taken as Arabic (never a CSV: that is UTF-8)
   const ole = new Uint8Array(buf.slice(0, 4)).join() === '208,207,17,224'
   const wb = XLSX.read(buf, { type: 'array', ...(ole ? { codepage: 1256 } : {}) })
-  // the sheet with the most rows (some programs put a cover sheet first)
   const sheets = wb.SheetNames.map(n => XLSX.utils.sheet_to_json<unknown[]>(wb.Sheets[n], { header: 1, defval: '', blankrows: false, raw: true }))
-  const aoa = sheets.sort((a, b) => b.length - a.length)[0] ?? []
+  return sheets.sort((a, b) => b.length - a.length)[0] ?? []
+}
+
+/** Whether amounts look written in the given currency: dollar amounts are small and have cents; pounds are big. */
+export function amountsLookLike(values: number[], c: 'USD' | 'SYP'): boolean {
+  const p = values.map(Math.abs).filter(n => n > 0).sort((a, b) => a - b)
+  if (!p.length) return false
+  const median = p[Math.floor(p.length / 2)]
+  return c === 'USD' ? median < 200 && p.some(n => !Number.isInteger(n)) : median >= 1000
+}
+
+export async function readProductsFile(file: File): Promise<{ rows: ImportedProduct[]; headers: string[]; guessed?: string }> {
+  const aoa = await readSheetRows(file)
   const keyOf = (cell: unknown): keyof ImportedProduct | null => {
     const nh = normHeader(String(cell ?? ''))
     if (!nh) return null
@@ -144,6 +156,85 @@ export async function readProductsFile(file: File): Promise<{ rows: ImportedProd
     })
   }
   return { rows, headers, guessed }
+}
+
+// ---------- customers and suppliers ----------
+/** A customer or supplier read from another program's list. `balance`: what they owe the shop (a debit balance;
+ *  negative: the shop owes them). `signKnown`: the file said which side (debit/credit columns or a side column). */
+export interface ImportedParty { name: string; phone?: string; address?: string; car?: string; notes?: string; balance: number }
+type PartyCol = 'name' | 'phone' | 'address' | 'car' | 'notes' | 'debit' | 'credit' | 'balance' | 'side'
+const PARTY_COLS: Record<PartyCol, string[]> = {
+  name: ['الاسم', 'اسم', 'اسم الحساب', 'الحساب', 'اسم العميل', 'العميل', 'الزبون', 'اسم الزبون', 'العملاء', 'الزبائن', 'اسم المورد', 'المورد', 'الموردين', 'name', 'customer', 'supplier', 'account', 'account name'],
+  phone: ['الهاتف', 'هاتف', 'رقم الهاتف', 'الموبايل', 'موبايل', 'الجوال', 'جوال', 'تلفون', 'التلفون', 'الهاتف المحمول', 'phone', 'mobile', 'tel'],
+  address: ['العنوان', 'عنوان', 'المنطقة', 'المدينة', 'address', 'city'],
+  car: ['السيارة', 'سيارة', 'car'],
+  notes: ['ملاحظات', 'ملاحظة', 'notes', 'note'],
+  debit: ['مدين', 'المدين', 'رصيد مدين', 'الرصيد المدين', 'عليه', 'debit', 'dr'],
+  credit: ['دائن', 'الدائن', 'رصيد دائن', 'الرصيد الدائن', 'له', 'credit', 'cr'],
+  balance: ['الرصيد', 'رصيد', 'الرصيد النهائي', 'الرصيد الحالي', 'الرصيد الختامي', 'صافي الرصيد', 'الدين', 'المبلغ', 'balance', 'amount'],
+  side: ['طبيعة الرصيد', 'نوع الرصيد', 'مدين/دائن', 'دائن/مدين', 'الحالة', 'side'],
+}
+const PARTY_LABEL: Record<PartyCol, string> = { name: 'الاسم', phone: 'الهاتف', address: 'العنوان', car: 'السيارة', notes: 'ملاحظات', debit: 'مدين', credit: 'دائن', balance: 'الرصيد', side: 'مدين/دائن' }
+const isPhoneCell = (v: unknown) => /^(\+?963|00963|0)?9\d{8}$|^0\d{8,10}$/.test(String(v ?? '').replace(/[\s\-()]/g, ''))
+
+/** Reads a list of customers or suppliers with their balances (the "account balances" report of another program,
+ *  exported to Excel). Column titles in any of the top rows, or none at all: then the text column is the name, a
+ *  column of phone numbers the phone, two amount columns debit and credit, one amount column the balance. */
+export async function readPartiesFile(file: File): Promise<{ rows: ImportedParty[]; guessed?: string; signKnown: boolean }> {
+  const aoa = await readSheetRows(file)
+  const keyOf = (cell: unknown): PartyCol | null => {
+    const nh = normHeader(String(cell ?? ''))
+    if (!nh) return null
+    for (const k of Object.keys(PARTY_COLS) as PartyCol[]) if (PARTY_COLS[k].some(a => normHeader(a) === nh)) return k
+    return null
+  }
+  let headerAt = -1
+  for (let i = 0; i < Math.min(15, aoa.length); i++) if (aoa[i].map(keyOf).includes('name')) { headerAt = i; break }
+  const map = new Map<PartyCol, number>()
+  let data: unknown[][]
+  let guessed: string | undefined
+  if (headerAt >= 0) {
+    aoa[headerAt].forEach((h, c) => { const k = keyOf(h); if (k && !map.has(k)) map.set(k, c) })
+    data = aoa.slice(headerAt + 1)
+  } else {
+    data = aoa
+    const width = Math.max(0, ...data.map(r => r.length))
+    const stats = Array.from({ length: width }, (_, c) => {
+      const cells = data.map(r => r[c]).filter(v => String(v ?? '').trim() !== '')
+      const n = cells.length || 1
+      return { c, filled: cells.length / Math.max(1, data.length), phone: cells.filter(isPhoneCell).length / n, number: cells.filter(isNumberCell).length / n, length: cells.reduce((t: number, v) => t + String(v).length, 0) / n }
+    }).filter(x => x.filled >= 0.2)
+    const phone = stats.find(x => x.phone >= 0.6)
+    if (phone) map.set('phone', phone.c)
+    const name = stats.filter(x => x !== phone && x.number < 0.4).sort((a, b) => b.length - a.length)[0]
+    if (name) map.set('name', name.c)
+    const amounts = stats.filter(x => x !== phone && x.number >= 0.6).sort((a, b) => a.c - b.c)
+    // a running number (1, 2, 3…) in the first column is not an amount
+    const seq = amounts.find(x => data.every((r, i) => toNumber(String(r[x.c] ?? '')) === i + 1))
+    const money = amounts.filter(x => x !== seq)
+    if (money.length >= 2) { map.set('debit', money[0].c); map.set('credit', money[1].c) } else if (money.length === 1) map.set('balance', money[0].c)
+    guessed = 'الملف بلا عناوين أعمدة، فقرأناه هكذا: ' + [...map.entries()].sort((a, b) => a[1] - b[1]).map(([k, c]) => `العمود ${colName(c)} = ${PARTY_LABEL[k]}`).join('، ') + '. راجع الأرصدة قبل الاستيراد.'
+  }
+  const get = (r: unknown[], k: PartyCol) => { const c = map.get(k); return c === undefined ? '' : String(r[c] ?? '').trim() }
+  const signKnown = (map.has('debit') && map.has('credit')) || map.has('side')
+  const rows: ImportedParty[] = []
+  for (const r of data) {
+    const name = get(r, 'name')
+    if (!name || name.length < 2 || isNumberCell(name)) continue
+    if (keyOf(name) || /^(المجموع|الإجمالي|اجمالي|المجاميع|total)/i.test(name)) continue
+    let balance = 0
+    if (map.has('debit') || map.has('credit')) balance = toNumber(get(r, 'debit')) - toNumber(get(r, 'credit'))
+    else {
+      balance = toNumber(get(r, 'balance'))
+      const side = normHeader(get(r, 'side'))
+      if (/دائن|له|credit|cr/.test(side)) balance = -Math.abs(balance)
+      else if (/مدين|عليه|debit|dr/.test(side)) balance = Math.abs(balance)
+    }
+    // a mobile number kept as a number in Excel has lost its leading 0
+    const phone = get(r, 'phone').replace(/^9\d{8}$/, '0$&')
+    rows.push({ name, phone: phone || undefined, address: get(r, 'address') || undefined, car: get(r, 'car') || undefined, notes: get(r, 'notes') || undefined, balance })
+  }
+  return { rows, guessed, signKnown }
 }
 
 export async function downloadProductsTemplate(): Promise<void> {

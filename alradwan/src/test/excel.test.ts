@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import * as XLSX from 'xlsx'
-import { readProductsFile } from '../lib/excel'
+import { readPartiesFile, readProductsFile } from '../lib/excel'
 
 const file = (aoa: unknown[][], bookType: XLSX.BookType = 'xlsx', name = 'list.xlsx') => {
   const wb = XLSX.utils.book_new()
@@ -37,5 +37,28 @@ describe('reading a product list', () => {
     const aoa = [['6291041500213', 'شامبو سيارات', 1, 1.5, 12], ['6281007030137', 'معطر', 0.7, 1, 30], ['5011321300016', 'منظف زجاج', 2, 2.75, 4]]
     const { rows } = await readProductsFile(file(aoa, 'csv', 'list.csv'))
     expect(rows[0]).toEqual(expect.objectContaining({ barcode: '6291041500213', name: 'شامبو سيارات', cost: 1, price: 1.5, stock: 12 }))
+  })
+})
+
+describe('reading customers and suppliers', () => {
+  it('reads an account-balances report with debit and credit columns', async () => {
+    const { rows, signKnown } = await readPartiesFile(file([['تقرير أرصدة الحسابات'], [], ['رقم الحساب', 'اسم الحساب', 'الهاتف', 'مدين', 'دائن'], [101, 'ورشة الأمانة', '0933555111', 150000, 0], [102, 'أبو محمد', '', 0, 20000], ['', 'المجموع', '', 150000, 20000]]))
+    expect(signKnown).toBe(true)
+    expect(rows).toEqual([
+      expect.objectContaining({ name: 'ورشة الأمانة', phone: '0933555111', balance: 150000 }),
+      expect.objectContaining({ name: 'أبو محمد', balance: -20000 }),
+    ])
+  })
+  it('a side column says which way the balance goes', async () => {
+    const { rows } = await readPartiesFile(file([['اسم المورد', 'الرصيد', 'طبيعة الرصيد'], ['مستودع الشرق', 500000, 'دائن'], ['شركة النور', 30000, 'مدين']]))
+    expect(rows.map(r => r.balance)).toEqual([-500000, 30000])
+  })
+  it('works out a list with no titles: running number, name, phone, balance', async () => {
+    const { rows, guessed, signKnown } = await readPartiesFile(file([[1, 'خالد الحسن', 955777888, 75000], [2, 'سامر', '0944123456', 0], [3, 'محل الوفاء', '0933000111', 12500]]))
+    expect(signKnown).toBe(false)
+    expect(rows[0]).toEqual(expect.objectContaining({ name: 'خالد الحسن', phone: '0955777888', balance: 75000 }))
+    expect(guessed).toContain('= الاسم')
+    expect(guessed).toContain('= الهاتف')
+    expect(guessed).toContain('= الرصيد')
   })
 })
