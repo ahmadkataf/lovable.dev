@@ -4050,6 +4050,30 @@ function distToPolyline(q: P2, pts: P2[]): number {
   return best
 }
 
+
+/** The eight-fold rhombus star, point to point D, centred on (cx, cy): eight 45° rhombi round the centre and eight
+ * squares in the notches between them (on the axes as diamonds, on the diagonals upright). */
+function rhombusStar(cx: number, cy: number, D: number) {
+  const a = D / 2 / (1 + Math.SQRT2), u = (k: number) => ({ x: Math.cos((k * Math.PI) / 4), y: Math.sin((k * Math.PI) / 4) })
+  const at = (x: number, y: number): P2 => ({ x: cx + x, y: cy + y })
+  const A = (k: number) => at(a * u(k).x, a * u(k).y)
+  const T = (k: number) => at(a * (u(k).x + u(k + 1).x), a * (u(k).y + u(k + 1).y))
+  const C = (k: number) => at(a * (1 + Math.SQRT2) * u(k).x, a * (1 + Math.SQRT2) * u(k).y)
+  const O = at(0, 0), ks = [0, 1, 2, 3, 4, 5, 6, 7]
+  return {
+    a,
+    outline: ks.flatMap(k => [C(k), T(k)]),
+    cells: [...ks.map(k => [O, A(k), T(k), A(k + 1)]), ...ks.map(k => [A(k), T(k), C(k), T(k - 1)])],
+    // every line once: the spokes, a V round each square's inner corner, and the outline
+    lines: ks.flatMap(k => [[O, A(k)], [T(k - 1), A(k), T(k)]]),
+  }
+}
+/** A closed polygon moved outwards (d > 0) or inwards (d < 0) by |d|, whichever way round it runs. */
+const grow = (pts: P2[], d: number) => {
+  const A = pts.reduce((sum, p, k) => { const q = pts[(k + 1) % pts.length]; return sum + p.x * q.y - q.x * p.y }, 0)
+  return offsetPolyline(pts, true, A > 0 ? d : -d)
+}
+
 MORE.push({
   id: 'mabkharatower',
   name: 'مبخرة برج بالمرايا',
@@ -4066,7 +4090,8 @@ MORE.push({
     mm('gap', 'خلوص حول جسم الصحن', 1, 6),
     { key: 'pattern', label: 'تخريم الجانبين', min: 1, max: 7, step: 1, int: true, hint: PATTERN_HINT },
     { key: 'cell', label: 'حجم ثقب التخريم', min: 6, max: 40, step: 0.5, unit: 'مم' },
-    { key: 'motif', label: 'زخرفة الواجهة', min: 0, max: 3, step: 1, int: true, hint: '0 = إطار فقط، 1 = قلب، 2 = نجمة ثمانية، 3 = محراب؛ تُحفر على المرآة ويمكنك إضافة حرف أو اسم في وسطها' },
+    { key: 'motif', label: 'زخرفة الواجهة', min: 0, max: 4, step: 1, int: true, hint: '0 = إطار فقط، 1 = قلب، 2 = نجمة ثمانية، 3 = محراب، 4 = نجمة المعيّنات؛ تُحفر على المرآة ويمكنك إضافة حرف أو اسم' },
+    { key: 'gold', label: 'نجمة المعيّنات قطعة ذهبية', min: 0, max: 1, step: 1, int: true, hint: '1 = تُقصّ من مرآة ذهبية مخرّمة وتُلصق على الواجهة، 0 = تُحفر خطوطاً على الواجهة' },
     { key: 'beads', label: 'حبيبات على الحواف', min: 0, max: 1, step: 1, int: true, hint: 'صفّ دوائر صغيرة محفورة حول الواجهات والإطار' },
     { key: 'dome', label: 'القبّة والريشة', min: 0, max: 1, step: 1, int: true },
     mm('dh', 'ارتفاع القبّة', 45, 120, 'بدون الريشة'),
@@ -4074,7 +4099,7 @@ MORE.push({
     { key: 'n', label: 'العدد', min: 1, max: 20, step: 1, int: true },
     mm('fit', 'خلوص الشقوق', 0, 0.5),
   ],
-  defaults: { S: 115, H: 250, ov: 5, tm: 2, rd: 65, bd: 52, bh: 20, gap: 2.5, pattern: 7, cell: 12, motif: 1, beads: 1, dome: 1, dh: 60, test: 1, n: 1, fit: 0.15 },
+  defaults: { S: 115, H: 250, ov: 5, tm: 2, rd: 65, bd: 52, bh: 20, gap: 2.5, pattern: 7, cell: 12, motif: 4, gold: 1, beads: 1, dome: 1, dh: 60, test: 1, n: 1, fit: 0.15 },
   innerAdd: () => ({ W: 0, D: 0, H: 0 }),
   build(p, c) {
     const warnings: string[] = [], errors: string[] = []
@@ -4120,6 +4145,24 @@ MORE.push({
       : motif === 2 ? [engraveLoop(starPts(cx, cy, ms / 2, (ms / 2) * 0.765, 8, 0)), engraveLoop(starPts(cx, cy, ms / 2 - 6, (ms / 2 - 6) * 0.765, 8, 0))]
       : motif === 3 ? [mark(archHole(cx - 0.35 * ms, cy - 0.65 * ms, 0.7 * ms, 1.3 * ms)), mark(archHole(cx - 0.35 * ms + 4, cy - 0.65 * ms + 4, 0.7 * ms - 8, 1.3 * ms - 8))]
       : []
+    // the rhombus star: engraved lines, or a gold strapwork piece (the cells shrunk by half a strap, the outline grown
+    // by half a strap) glued over an engraved outline
+    const extra: PanelSpec[] = []
+    if (motif === 4) {
+      const st4 = rhombusStar(cx, cy, round3(Math.min(0.72 * (S - 19), 0.35 * H))), sw4 = round3(Math.max(2.2, 0.16 * st4.a))
+      const goldOk = st4.a * Math.SQRT1_2 - sw4 >= 2
+      if (Math.round(p.gold) > 0 && !goldOk) warnings.push('الواجهة صغيرة على نجمة المعيّنات الذهبية (ثقوبها أصغر من 2 مم)؛ ستُحفر خطوطاً بدلاً منها. كبّر البرج أو اجعلها محفورة.')
+      if (Math.round(p.gold) > 0 && goldOk) {
+        const out = grow(st4.outline, sw4 / 2), xs = out.map(q => q.x), ys = out.map(q => q.y)
+        const ox = Math.min(...xs), oy = Math.min(...ys), sh = (ps: P2[]) => ps.map(q => ({ x: round3(q.x - ox), y: round3(q.y - oy) }))
+        motifLoops.push(engraveLoop(out))
+        extra.push({
+          id: 'star-gold', name: 'نجمة المعيّنات (مرآة ذهبية)', w: round3(Math.max(...xs) - ox), h: round3(Math.max(...ys) - oy), count: 2 * n, material: 'gold',
+          shape: [polyLoop(sh(out), 'outer')], holes: st4.cells.map(c => polyLoop(sh(grow(c, -sw4 / 2)), 'hole')),
+          note: 'تُلصق في وسط الواجهة على الخط المحفور',
+        })
+      } else motifLoops.push(engraveLoop(st4.outline), ...st4.lines.map(l => ({ closed: false, layer: 'engrave' as const, pts: l.map(q => ({ x: round3(q.x), y: round3(q.y) })) })))
+    }
     const fw = round3(S + 2 * tm), m = tm + 7
     const filigree = pattern(Math.round(p.pattern), m, 7, fw - m, H - 7, cell)
     if (!filigree.length) warnings.push('الجانبان أصغر من أن يحملا التخريم بهذا الحجم وسيبقيان بلا ثقوب؛ صغّر حجم الثقب.')
@@ -4134,6 +4177,7 @@ MORE.push({
         engrave: [engraveRect(7, 7, S - 14, H - 14), engraveRect(9.5, 9.5, S - 19, H - 19), ...motifLoops, ...(beads ? beadBorder(3.5, 3.5, S - 3.5, H - 3.5) : [])],
         note: 'تُلصق على الجدار بين القاعدة والسطح',
       },
+      ...extra,
       { id: 'face-side', name: 'الجانب المخرّم (مرآة)', w: fw, h: H, count: 2 * n, material: 'mirror', holes: filigree, engrave: beads ? beadBorder(tm + 3.5, 3.5, fw - tm - 3.5, H - 3.5) : [], note: `أعرض من الجدار بـ ${tm} مم من كل طرف: يغطّي حافّتي الواجهتين` },
     ]
 
@@ -4213,6 +4257,7 @@ MORE.push({
         `البرج ${S} × ${S} مم والجدران ${H} مم؛ القاعدة والسطح ${P} مم. الجدران من الأكريليك الأساسي (الأسود أو الأبيض يُظهر التخريم)، والواجهات والجانبان وإطار السطح والقبّة من مرآة سماكتها ${tm} مم.`,
         'التجميع: أدخل ألسنة الجدران في شقوق القاعدة (الأمام والخلف من الخارج والجانبان بينهما) وضع السطح على الألسنة العلوية بلا غراء ليستقيم كل شيء، ثم ألصق الزوايا والألسنة بغراء الأكريليك السائل من الداخل عبر فتحة الصحن.',
         'المرايا: ألصق الواجهتين أولاً بين القاعدة والسطح، ثم الجانبين المخرّمين فيغطّيان حافّتيهما، ثم إطار السطح. على المرآة استعمل لاصق UV أو جِل شفّافاً، لا غراء الأكريليك السائل (يذيب طلاءها). اترك ورق الحماية على وجه المرآة حتى النهاية.',
+        ...(extra.length ? ['نجمة المعيّنات الذهبية: اقصّها من مرآة ذهبية، وألصقها بلاصق UV أو جِل على الخط المحفور في وسط كل واجهة، بعد نزع ورق الحماية عن ظهرها فقط.'] : []),
         'الحرف أو الاسم: أضفه في RDWorks نصّاً على طبقة الحفر داخل الإطار المحفور للواجهة.',
         ...notes,
         'الأكريليك يلين قرب 80–100°م: استعمل الصحن المعدني دائماً، ولا تترك الفحم يلمس الأكريليك.',

@@ -1278,6 +1278,31 @@ describe('wedding designs', () => {
     }
   })
 
+  it('the rhombus star on the tower burner: a gold strapwork piece of sixteen cells with even straps, or engraved lines', () => {
+    for (const S of [100, 115, 160, 250]) {
+      const p = { ...T('mabkharatower').defaults, S, rd: 50, bd: 38 }
+      const d = generate(T('mabkharatower'), p, S0)
+      expect(d.errors, `S ${S}`).toEqual([]); expect(d.warnings, `S ${S}`).toEqual([])
+      const g = d.panels.find(x => x.id === 'star-gold')!
+      expect(g.material).toBe('gold'); expect(g.count).toBe(2)
+      const out = samplePoly(outerOf(g), 3), holes = holesOf(g).map(h => samplePoly(h, 3))
+      expect(holes.length).toBe(16)
+      const a = Math.min(0.72 * (S - 19), 0.35 * p.H) / 2 / (1 + Math.SQRT2), sw = Math.max(2.2, 0.16 * a)
+      let gap = Infinity
+      for (let i = 0; i < holes.length; i++) { gap = Math.min(gap, polyDistance(holes[i], out)); for (let j = i + 1; j < holes.length; j++) gap = Math.min(gap, polyDistance(holes[i], holes[j])) }
+      expect(gap).toBeCloseTo(sw, 2)
+      // the face carries the piece's outline as a placement guide, the same size as the piece
+      const face = d.panels.find(x => x.id === 'face')!
+      const guide = face.loops.filter(l => l.layer === 'engrave' && l.pts.length === 16)
+      expect(guide.length).toBe(1)
+      const gb = bbox(guide), ob = bbox([outerOf(g)])
+      expect(gb.maxX - gb.minX).toBeCloseTo(ob.maxX - ob.minX, 2)
+    }
+    const e = generate(T('mabkharatower'), { gold: 0 }, S0)
+    expect(e.panels.some(x => x.id === 'star-gold')).toBe(false)
+    expect(e.panels.find(x => x.id === 'face')!.loops.filter(l => l.layer === 'engrave' && !l.closed).length).toBe(16)
+  })
+
   it('the wedding group lists the engagement set, the ring box and the five wedding designs', () => {
     expect(CATEGORIES.find(c => c.id === 'wedding')!.ids).toEqual(['engagement', 'hexringbox', 'nikahtray', 'hennatray', 'welcomesign', 'placecards', 'invitebox', 'caketopper', 'guestframe', 'sweetstand', 'tablenumbers', 'favorbox'])
   })
