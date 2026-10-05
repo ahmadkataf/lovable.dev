@@ -158,8 +158,9 @@ function readCursor(): Cursor {
     const raw = localStorage.getItem(SHARED_KEY) || ''
     const [at, id = ''] = raw.split('|')
     const n = Number(at) || 0
-    // a cursor in the future (this clock was ahead, or another device's was) would hide new edits: cap it
-    return n > Date.now() ? { at: Date.now(), id: '' } : { at: n, id }
+    // a cursor in the future (this clock was ahead and has been set right) would hide every edit until then:
+    // start over (sending again is harmless: one vote per device per barcode)
+    return n > Date.now() ? { at: 0, id: '' } : { at: n, id }
   } catch { return { at: 0, id: '' } }
 }
 const writeCursor = (c: Cursor) => { try { localStorage.setItem(SHARED_KEY, `${c.at}|${c.id}`) } catch { /* private mode */ } }

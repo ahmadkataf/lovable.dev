@@ -230,8 +230,14 @@ export function ssiPacket(b: number[]): { size: number; data: number[]; more: bo
 }
 const SSI_ACK = Uint8Array.of(0x04, 0xd0, 0x04, 0x00, 0xff, 0x28)
 
-/** Whole UTF-8 text (an Arabic QR code) is a reading even though its bytes are not plain ASCII. */
-const isUtf8 = (b: Uint8Array) => { try { new TextDecoder('utf-8', { fatal: true }).decode(b); return true } catch { return false } }
+/** Share of readable characters: whole UTF-8 text (an Arabic QR code) is measured by its characters, so it
+ *  counts as a reading, while control-character garbage from a wrong speed does not. */
+function textShare(b: Uint8Array): number {
+  let s: string
+  try { s = new TextDecoder('utf-8', { fatal: true }).decode(b) } catch { return printable(b) }
+  const cs = [...s]
+  return cs.length ? cs.filter(c => !/[\x00-\x08\x0a-\x1c\x1e\x1f\x7f-\x9f]/.test(c)).length / cs.length : 1
+}
 const serialOpen = new Map<SerialPort, { id: string; close: () => Promise<void> }>()
 
 /** Printable share of a reading: a wrong speed (baud) turns text into noise. */
@@ -282,7 +288,7 @@ async function openSerial(p: SerialPort) {
       if (idle) { clearTimeout(idle); idle = null }
       if (!buf.length) return
       const bytes = Uint8Array.from(buf); buf = []
-      if (!isUtf8(bytes) && printable(bytes) < 0.8) { if (++noise >= 2 && tryBauds.length > 1) { wrongBaud = true; void reader?.cancel() } return }
+      if (textShare(bytes) < 0.8) { if (++noise >= 2 && tryBauds.length > 1) { wrongBaud = true; void reader?.cancel() } return }
       noise = 0
       if (tryBauds.length > 1) saveBaud(id, baud)
       emitText(bytes)

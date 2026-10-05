@@ -34,11 +34,14 @@ export function CameraScanner({ onCode, onClose, title = 'مسح الباركو�
   useEffect(() => { alive.current = true; return () => { alive.current = false } }, [])
   const torchOn = useRef(false)
 
-  const deliver = async (d: Decoded) => {
+  // the last code the live view counted: labels that show up beside it a moment later belong to the same box
+  const lastLive = useRef<{ text: string; at: number }>({ text: '', at: 0 })
+  const deliver = async (d: Decoded, live = false) => {
     // closed while a photo was still being read: it is not wanted any more
     if (!alive.current) return false
     const now = Date.now()
-    if (d.text === seen.current.text && now - seen.current.at < 1800) return false
+    // stills only: in the live view `inView` already keeps a box from counting twice
+    if (!live && d.text === seen.current.text && now - seen.current.at < 1800) return false
     seen.current = { text: d.text, at: now }
     setLast(d)
     scanFeedback(true)
@@ -109,13 +112,17 @@ export function CameraScanner({ onCode, onClose, title = 'مسح الباركو�
                   else { seenBefore.last = now; seenBefore.frames++ }
                 }
                 if (inView.current.size > 50) for (const [k, v] of inView.current) if (now - v.last > 10000) inView.current.delete(k)
+                // the box just counted is still in the picture: a label first read now (a rotated or small
+                // part-number label the faster passes missed) is part of it, not a new item
+                if (found.some(x => x.text === lastLive.current.text) && now - lastLive.current.at < 1500) for (const x of found) { const v = inView.current.get(x.text)!; if (v.frames === 1) v.done = true }
                 // a code with no check digit counts only when a second frame reads the same
                 const fresh = found.filter(x => { const v = inView.current.get(x.text)!; return !v.done && (!UNCHECKED.has(x.format) || v.frames >= 2) })
                 const d = fresh.find(x => !UNCHECKED.has(x.format)) ?? fresh[0]
                 if (d && !stop) {
                   // the other codes on the same box (its part-number label) are the same item
                   for (const x of found) inView.current.get(x.text)!.done = true
-                  await deliver(d)
+                  lastLive.current = { text: d.text, at: now }
+                  await deliver(d, true)
                 }
               } catch { /* keep trying */ }
             }
@@ -170,7 +177,8 @@ export function CameraScanner({ onCode, onClose, title = 'مسح الباركو�
     try {
       const found = await decodeStill(src)
       if (!alive.current) return
-      if (found.length) await deliver(found[0]); else setErr('لم أجد باركوداً. قرّب الكاميرا حتى يملأ الباركود الصورة وتكون الخطوط واضحة، أو شغّل الضوء.')
+      // a snapshot and the live view reading the same box count once
+      if (found.length) { inView.current.set(found[0].text, { last: Date.now(), frames: 2, done: true }); await deliver(found[0]) } else setErr('لم أجد باركوداً. قرّب الكاميرا حتى يملأ الباركود الصورة وتكون الخطوط واضحة، أو شغّل الضوء.')
     } catch { if (alive.current) setErr('تعذّر قراءة الصورة.') } finally { if (alive.current) setBusyPhoto(false) }
   }
   // one sharp picture at the camera's full size: for small or dense codes the live view cannot resolve
