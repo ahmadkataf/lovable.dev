@@ -1280,7 +1280,7 @@ describe('wedding designs', () => {
 
   it('the rhombus star on the tower burner: a gold strapwork piece of sixteen cells with even straps, or engraved lines', () => {
     for (const S of [100, 115, 160, 250]) {
-      const p = { ...T('mabkharatower').defaults, S, rd: 50, bd: 38 }
+      const p: Record<string, number> = { ...T('mabkharatower').defaults, S, rd: 50, bd: 38 }
       const d = generate(T('mabkharatower'), p, S0)
       expect(d.errors, `S ${S}`).toEqual([]); expect(d.warnings, `S ${S}`).toEqual([])
       const g = d.panels.find(x => x.id === 'star-gold')!
