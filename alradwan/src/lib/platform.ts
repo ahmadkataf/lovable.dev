@@ -13,6 +13,8 @@ declare global {
       saveFile(name: string, mime: string, base64: string): void
       print(): void
       deviceId(): string
+      /** JSON {maker, model, scanner}: the built-in barcode scanner this phone has, if known */
+      scannerInfo?(): string
     }
     garageDesktop?: {
       saveFile(name: string, base64: string): Promise<boolean>
@@ -23,9 +25,18 @@ declare global {
       listBackups(): Promise<{ name: string; size: number; mtime: number }[]>
       readBackup(name: string): Promise<string | null>
       backupsFolder(): Promise<string>
+      /** barcode scanners: the app's own device list instead of the browser's chooser */
+      scanners?: {
+        inventory(): Promise<DesktopDevice[]>
+        onChoose(cb: (req: { kind: 'hid' | 'serial'; list: DesktopDevice[] }) => void): () => void
+        choose(kind: 'hid' | 'serial', id: string | null): void
+      }
     }
   }
 }
+
+/** A device as the Windows app lists it (HID devices, COM ports). */
+export interface DesktopDevice { id: string; name: string; vendorId?: number; productId?: number; scanner?: boolean; keyboard?: boolean }
 
 export const isAndroid = () => typeof window !== 'undefined' && !!window.GarageAndroid
 export const isDesktop = () => typeof window !== 'undefined' && !!window.garageDesktop

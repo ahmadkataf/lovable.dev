@@ -21,15 +21,16 @@ import type { CurrencyCode, CurrencyDisplay } from '../db/types'
 import { loadDemoData } from '../db/demo'
 import { previewDocument } from '../print/PrintHost'
 import { db } from '../db/db'
+import { ScannerTab } from '../ui/scannerSettings'
 
-type Tab = 'shop' | 'print' | 'users' | 'backup' | 'sync' | 'look' | 'about'
+type Tab = 'shop' | 'print' | 'users' | 'backup' | 'sync' | 'scanner' | 'look' | 'about'
 
 export function SettingsScreen() {
   const isAdmin = useIsAdmin()
   const [params] = useSearchParams()
   const items: { id: Tab; label: string }[] = isAdmin
-    ? [{ id: 'shop', label: 'المحل' }, { id: 'print', label: 'الفواتير والطباعة' }, { id: 'users', label: 'المستخدمون' }, { id: 'backup', label: 'النسخ الاحتياطي' }, { id: 'sync', label: 'المزامنة بين الأجهزة' }, { id: 'look', label: 'المظهر' }, { id: 'about', label: 'حول' }]
-    : [{ id: 'look', label: 'المظهر' }, { id: 'about', label: 'حول' }]
+    ? [{ id: 'shop', label: 'المحل' }, { id: 'print', label: 'الفواتير والطباعة' }, { id: 'users', label: 'المستخدمون' }, { id: 'backup', label: 'النسخ الاحتياطي' }, { id: 'sync', label: 'المزامنة بين الأجهزة' }, { id: 'scanner', label: 'قارئ الباركود' }, { id: 'look', label: 'المظهر' }, { id: 'about', label: 'حول' }]
+    : [{ id: 'scanner', label: 'قارئ الباركود' }, { id: 'look', label: 'المظهر' }, { id: 'about', label: 'حول' }]
   const [tab, setTab] = useState<Tab>(() => { const t = params.get('tab') as Tab; return items.some(i => i.id === t) ? t : items[0].id })
   const wanted = params.get('tab')
   useEffect(() => { if (wanted && items.some(i => i.id === wanted)) setTab(wanted as Tab) }, [wanted]) // eslint-disable-line react-hooks/exhaustive-deps
@@ -42,6 +43,7 @@ export function SettingsScreen() {
       {tab === 'users' && <UsersTab />}
       {tab === 'backup' && <BackupTab />}
       {tab === 'sync' && <SyncTab />}
+      {tab === 'scanner' && <ScannerTab />}
       {tab === 'look' && <LookTab />}
       {tab === 'about' && <AboutTab />}
     </div>

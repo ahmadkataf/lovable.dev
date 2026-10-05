@@ -21,6 +21,8 @@ import { SettingsScreen } from './screens/Settings'
 import { Setup } from './screens/Setup'
 import { Login } from './screens/Login'
 import { PrintHost } from './print/PrintHost'
+import { ScanHost } from './ui/scanFlow'
+import { DeviceChooserHost } from './ui/scannerSettings'
 import { Trash } from './screens/Trash'
 import { Activity } from './screens/Activity'
 import { Cars } from './screens/Cars'
@@ -149,6 +151,8 @@ function Gate() {
         </Routes>
       </Layout>
       <PrintHost />
+      <ScanHost />
+      <DeviceChooserHost />
     </>
   )
 }

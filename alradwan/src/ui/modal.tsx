@@ -12,6 +12,16 @@ if (typeof window !== 'undefined') {
   }
 }
 
+/** How many dialogs are open: a screen's barcode handler stands aside while one is. */
+export const dialogDepth = () => openDialogs.length
+/** For a component that renders a Modal: whether its dialog is the top one now (nothing opened over it). */
+export function useIsTopDialog(): () => boolean {
+  const depth = useRef(0)
+  // a parent's effect runs after its Modal child registered itself
+  useEffect(() => { depth.current = openDialogs.length }, [])
+  return useCallback(() => depth.current > 0 && openDialogs.length === depth.current, [])
+}
+
 const FOCUSABLE = 'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
 
 export function Modal({ title, onClose, children, footer, size, icon }: { title: ReactNode; onClose: () => void; children: ReactNode; footer?: ReactNode; size?: 'wide' | 'narrow'; icon?: ReactNode }) {

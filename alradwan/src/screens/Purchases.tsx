@@ -1,13 +1,15 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { Plus, Trash2, Save, Pencil, FileSpreadsheet, Eye } from 'lucide-react'
-import { useCollection, useSettings, useIsAdmin } from '../db/store'
-import type { Purchase, PurchaseItem } from '../db/types'
+import { useCollection, useSettings, useIsAdmin, usePerm } from '../db/store'
+import type { Product, Purchase, PurchaseItem } from '../db/types'
 import { deletePurchase, savePurchase } from '../db/actions'
 import { payStatus } from '../lib/calc'
 import { addDays, fmtDate, fmtDateTime, fromInputDate, invoiceNo, matches, money, num, toInputDate, rangeStart, rangeEnd, fmtDateExcel } from '../lib/format'
 import { DateRange, Empty, Field, NumberInput, PayBadge, SearchInput } from '../ui/components'
-import { Modal, useConfirm } from '../ui/modal'
+import { Modal, useConfirm, useIsTopDialog } from '../ui/modal'
+import { SCAN_PRIORITY, useScan } from '../lib/scan'
+import { findProductByScan, prefillFromScan } from '../lib/productMatch'
 import { useToast } from '../ui/toast'
 import { PartyPicker, ProductSearch } from '../ui/pickers'
 import { ProductForm, SupplierForm } from '../ui/forms'
@@ -77,7 +79,22 @@ function PurchaseForm({ initial, onClose }: { initial?: Purchase; onClose: () =>
   const [paid, setPaid] = useState<number | null>(initial ? initial.paid : null)
   const [addSupplier, setAddSupplier] = useState(false)
   const [addProduct, setAddProduct] = useState(false)
+  const [scanNew, setScanNew] = useState<{ initial: Partial<Product>; scan: string } | null>(null)
   const toast = useToast()
+  const products = useCollection('products')
+  const canAddProduct = usePerm('products')
+  const isTop = useIsTopDialog()
+  const addLine = (p: Product) => setItems(l => { const i = l.findIndex(x => x.productId === p.id); if (i >= 0) return l.map((x, k) => (k === i ? { ...x, qty: x.qty + 1 } : x)); return [...l, { productId: p.id, name: p.name, code: p.code, qty: 1, cost: p.cost }] })
+  const newFromScan = (text: string) => setScanNew({ initial: prefillFromScan(text), scan: text })
+  // receiving goods: every scanned box adds a line (or one more to its line); a new code opens a new part
+  useScan(s => {
+    if (!isTop()) return false
+    const hit = findProductByScan(Array.from(products.values()).filter(p => p.kind === 'product'), s.text)
+    if (hit) { addLine(hit.product); toast.success(`أُضيف: ${hit.product.name}`); return true }
+    if (canAddProduct) { newFromScan(s.text); return true }
+    toast.error(`الرمز ${s.text} غير مسجّل لأي قطعة`)
+    return false
+  }, { priority: SCAN_PRIORITY.dialog })
   const total = items.reduce((s, i) => s + i.qty * i.cost, 0)
   const paidValue = paid === null ? total : Math.min(paid, total)
   const update = (i: number, patch: Partial<PurchaseItem>) => setItems(l => l.map((x, k) => (k === i ? { ...x, ...patch } : x)))
@@ -96,7 +113,7 @@ function PurchaseForm({ initial, onClose }: { initial?: Purchase; onClose: () =>
           <Field label="رقم فاتورة المورد"><input className="input" value={reference} onChange={e => setReference(e.target.value)} /></Field>
           <Field label="التاريخ"><input type="date" className="input" value={date} onChange={e => setDate(e.target.value)} /></Field>
         </div>
-        <Field label="إضافة قطعة"><div className="row"><div style={{ flex: 1 }}><ProductSearch allowServices={false} onPick={p => setItems(l => { const i = l.findIndex(x => x.productId === p.id); if (i >= 0) return l.map((x, k) => (k === i ? { ...x, qty: x.qty + 1 } : x)); return [...l, { productId: p.id, name: p.name, code: p.code, qty: 1, cost: p.cost }] })} placeholder="ابحث عن القطعة…" /></div><button className="btn icon" title="قطعة جديدة" onClick={() => setAddProduct(true)}><Plus /></button></div></Field>
+        <Field label="إضافة قطعة"><div className="row"><div style={{ flex: 1 }}><ProductSearch allowServices={false} onPick={addLine} onUnknown={canAddProduct ? newFromScan : undefined} placeholder="ابحث عن القطعة أو امسح الباركود…" /></div><button className="btn icon" title="قطعة جديدة" onClick={() => setAddProduct(true)}><Plus /></button></div></Field>
         {items.length > 0 && (
           <div className="table-wrap"><table className="table">
             <thead><tr><th>الصنف</th><th className="num">الكمية</th><th className="num">سعر الشراء</th><th className="num">المجموع</th><th></th></tr></thead>
@@ -111,7 +128,8 @@ function PurchaseForm({ initial, onClose }: { initial?: Purchase; onClose: () =>
         <div className="btn-row"><button className="btn sm" onClick={() => setPaid(null)}>دفع كامل</button><button className="btn sm" onClick={() => setPaid(0)}>آجل</button></div>
       </div>
       {addSupplier && <SupplierForm onClose={() => setAddSupplier(false)} onSaved={s => { setSupplierId(s.id); setSupplierName(s.name) }} />}
-      {addProduct && <ProductForm onClose={() => setAddProduct(false)} onSaved={p => setItems(l => [...l, { productId: p.id, name: p.name, code: p.code, qty: 1, cost: p.cost }])} />}
+      {addProduct && <ProductForm onClose={() => setAddProduct(false)} onSaved={addLine} />}
+      {scanNew && <ProductForm initial={scanNew.initial} scanned={scanNew.scan} onClose={() => setScanNew(null)} onSaved={addLine} />}
     </Modal>
   )
 }

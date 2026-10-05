@@ -7,7 +7,10 @@ import type { Base, Category, Product } from '../db/types'
 import { matches, money } from '../lib/format'
 import { NumberInput } from '../ui/components'
 import { Chips, Empty, SearchInput } from '../ui/components'
-import { Modal, useConfirm } from '../ui/modal'
+import { Modal, dialogDepth, useConfirm } from '../ui/modal'
+import { SCAN_PRIORITY, useScan } from '../lib/scan'
+import { findProductByScan, prefillFromScan } from '../lib/productMatch'
+import { ScanButton } from '../ui/scanFlow'
 import { useToast } from '../ui/toast'
 import { ProductForm } from '../ui/forms'
 import { useProductStock } from '../ui/pickers'
@@ -26,12 +29,22 @@ export function Products() {
   const [q, setQ] = useState('')
   const [cat, setCat] = useState('all')
   const [edit, setEdit] = useState<Product | null | 'new'>(null)
+  const [scanned, setScanned] = useState<{ initial?: Partial<Product>; scan: string } | null>(null)
   const [cats, setCats] = useState(false)
   const [imp, setImp] = useState<ImportedProduct[] | null>(null)
   const [labels, setLabels] = useState(false)
   const [limit, setLimit] = useState(150)
   const toast = useToast()
   useEffect(() => { if (params.get('new')) { setEdit('new'); setParams({}) } }, [params])
+  // scanning here opens the part, or a new part with the barcode already filled in
+  useScan(s => {
+    if (dialogDepth() > 0) return false
+    const hit = findProductByScan(products.values(), s.text)
+    if (hit) { setEdit(hit.product); setScanned({ scan: s.text }); return true }
+    if (!canAdd) { toast.error(`الرمز ${s.text} غير مسجّل لأي قطعة`); return false }
+    setEdit('new'); setScanned({ initial: prefillFromScan(s.text), scan: s.text })
+    return true
+  }, { priority: SCAN_PRIORITY.screen })
 
   const list = useMemo(() => Array.from(products.values()).filter(p => (cat === 'all' || (cat === 'none' ? !p.categoryId : p.categoryId === cat)) && matches(q, p.name, p.code, p.barcode, p.brand, p.cars, p.location, p.oemNumbers)).sort((a, b) => a.name.localeCompare(b.name, 'ar')), [products, q, cat])
   const catList = useMemo(() => Array.from(categories.values()).sort((a, b) => a.name.localeCompare(b.name, 'ar')), [categories])
@@ -48,6 +61,7 @@ export function Products() {
       <div className="toolbar">
         <div className="search"><SearchInput value={q} onChange={setQ} placeholder="بحث بالاسم أو الكود أو السيارة أو الرف…" /></div>
         {canAdd && <button className="btn primary" onClick={() => setEdit('new')}><Plus /> قطعة جديدة</button>}
+        <ScanButton className="btn" label="مسح باركود" />
         {canAdd && <button className="btn" onClick={() => setCats(true)} title="التصنيفات"><Tag /> <span className="hide-mobile">التصنيفات</span></button>}
         {canAdd && <button className="btn" onClick={importExcel} title="استيراد من إكسل"><Upload /> <span className="hide-mobile">استيراد</span></button>}
         <button className="btn" onClick={exportExcel} title="تصدير إلى إكسل"><FileSpreadsheet /> <span className="hide-mobile">إكسل</span></button>
@@ -75,7 +89,7 @@ export function Products() {
         {list.length > limit && <div style={{ padding: 12, textAlign: 'center' }}><button className="btn" onClick={() => setLimit(l => l + 300)}>عرض المزيد ({list.length - limit} متبقٍ)</button></div>}
       </div>
       <div className="muted small">{list.length} قطعة · العملة {settings.currency}</div>
-      {edit && <ProductForm initial={edit === 'new' ? undefined : edit} currentStock={edit === 'new' ? 0 : stock.get(edit.id)} onClose={() => setEdit(null)} />}
+      {edit && <ProductForm initial={edit === 'new' ? scanned?.initial : edit} scanned={scanned?.scan} currentStock={edit === 'new' ? 0 : stock.get(edit.id)} onClose={() => { setEdit(null); setScanned(null) }} />}
       {cats && <CategoriesModal onClose={() => setCats(false)} />}
       {imp && <ImportModal rows={imp} onClose={() => setImp(null)} />}
       {labels && <LabelsModal products={list.filter(p => p.kind === 'product')} onClose={() => setLabels(false)} />}

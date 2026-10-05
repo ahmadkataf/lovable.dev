@@ -23,8 +23,93 @@ function createWindow() {
   win.webContents.setWindowOpenHandler(({ url }) => { openOutside(url); return { action: 'deny' } })
   win.webContents.on('will-navigate', (e, url) => { if (!url.startsWith('file:')) { e.preventDefault(); openOutside(url) } })
   win.webContents.session.setPermissionRequestHandler((_wc, permission, cb) => cb(permission === 'media' || permission === 'clipboard-read'))
+  setupScanners(win.webContents.session)
   win.on('closed', () => { win = null })
 }
+
+// ---- barcode scanners that are not keyboards: USB scanners in HID POS mode (WebHID) and scanners on a COM
+// port: USB virtual COM, RS-232 adapters, Bluetooth serial (Web Serial). The page reads them itself; here the
+// app decides which devices it may open. Scanners are trusted on sight (the HID POS scanner page, or a COM
+// port of a scanner maker); any other port only once it is picked from the app's own list, and that choice is
+// kept in scanners.json so it reconnects on every start. A printer or a scale on another COM port is never
+// opened unless the shop picks it.
+const SCANNER_VIDS = new Set([0x0536, 0x0c2e, 0x23d0, 0x05e0, 0x05f9, 0x080c, 0x1dc2, 0x1eab, 0x24ea, 0x065a, 0x08d7, 0x2415, 0x11fa, 0x067e, 0x2745, 0x08fb, 0x27dd, 0x0581, 0x324f, 0x32c3])
+const scannersFile = () => path.join(app.getPath('userData'), 'scanners.json')
+let scannerStore = null
+function scanners() {
+  if (!scannerStore) {
+    try { scannerStore = JSON.parse(fs.readFileSync(scannersFile(), 'utf8')) } catch { scannerStore = {} }
+    if (!Array.isArray(scannerStore.hid)) scannerStore.hid = []
+    if (!Array.isArray(scannerStore.serial)) scannerStore.serial = []
+  }
+  return scannerStore
+}
+function saveScanners() { try { fs.mkdirSync(app.getPath('userData'), { recursive: true }); fs.writeFileSync(scannersFile(), JSON.stringify(scannerStore)) } catch {} }
+const hasScannerPage = d => (function walk(cs) { return (cs || []).some(c => c.usagePage === 0x8c || walk(c.children)) })(d && d.collections)
+const sameHid = (h, d) => h.vendorId === d.vendorId && h.productId === d.productId && (!h.serialNumber || h.serialNumber === d.serialNumber)
+const vidOf = id => { const m = /VID_([0-9A-F]{4})/i.exec(id || ''); return m ? parseInt(m[1], 16) : -1 }
+let choosing = { hid: null, serial: null }
+let inventory = null
+function setupScanners(ses) {
+  ses.setDevicePermissionHandler(({ deviceType, origin, device }) => {
+    if (origin !== 'file://') return false
+    // listing USB devices only names a scanner in keyboard mode; Windows lets no page open them
+    if (deviceType === 'usb') return true
+    if (deviceType === 'hid') return hasScannerPage(device) || scanners().hid.some(h => sameHid(h, device))
+    if (deviceType === 'serial') {
+      const id = device.device_instance_id || ''
+      return scanners().serial.some(s => s.id === id) || SCANNER_VIDS.has(vidOf(id))
+    }
+    return false
+  })
+  // the page asked for a device (a click on «ربط قارئ»): it shows its own Arabic list and answers here
+  const ask = (kind, list, pick, cancel) => {
+    if (choosing[kind]) choosing[kind].finish(null)
+    const timer = setTimeout(() => finish(null), 120000)
+    const finish = id => { clearTimeout(timer); if (choosing[kind] && choosing[kind].finish === finish) choosing[kind] = null; if (id) pick(id); else cancel() }
+    choosing[kind] = { finish }
+    if (win) win.webContents.send('scanner:choose', { kind, list })
+    else finish(null)
+  }
+  ses.on('select-hid-device', (event, details, callback) => {
+    event.preventDefault()
+    const list = details.deviceList.map(d => ({ id: d.deviceId, name: d.name, vendorId: d.vendorId, productId: d.productId, scanner: hasScannerPage(d) || SCANNER_VIDS.has(d.vendorId), keyboard: (d.collections || []).some(c => c.usagePage === 1 && c.usage === 6) }))
+    if (inventory) { const done = inventory; inventory = null; done(list); callback(); return }
+    ask('hid', list, id => {
+      const d = details.deviceList.find(x => x.deviceId === id)
+      if (!d) return callback()
+      // remembered before the grant: with a permission handler installed, opening the device asks it again
+      const st = scanners()
+      if (!st.hid.some(h => sameHid(h, d))) { st.hid.push({ vendorId: d.vendorId, productId: d.productId, serialNumber: d.serialNumber, name: d.name }); saveScanners() }
+      callback(d.deviceId)
+    }, () => callback())
+  })
+  ses.on('select-serial-port', (event, portList, _wc, callback) => {
+    event.preventDefault()
+    const list = portList.map(p => ({ id: p.portId, name: [p.portName, p.displayName].filter(Boolean).join(' — '), vendorId: p.vendorId ? Number(p.vendorId) : undefined, productId: p.productId ? Number(p.productId) : undefined, scanner: SCANNER_VIDS.has(Number(p.vendorId)) }))
+    ask('serial', list, id => {
+      const p = portList.find(x => x.portId === id)
+      if (!p) return callback('')
+      const st = scanners()
+      if (p.deviceInstanceId && !st.serial.some(s => s.id === p.deviceInstanceId)) { st.serial.push({ id: p.deviceInstanceId, name: p.displayName || p.portName }); saveScanners() }
+      callback(p.portId)
+    }, () => callback(''))
+  })
+  ses.on('hid-device-revoked', (_e, details) => { const d = details && details.device; if (!d) return; const st = scanners(); st.hid = st.hid.filter(h => !sameHid(h, d)); saveScanners() })
+  ses.on('serial-port-revoked', (_e, details) => { const id = details && details.port && details.port.deviceInstanceId; if (!id) return; const st = scanners(); st.serial = st.serial.filter(s => s.id !== id); saveScanners() })
+}
+ipcMain.on('scanner:choice', (_e, kind, id) => { const c = choosing[kind === 'serial' ? 'serial' : 'hid']; if (c) c.finish(id || null) })
+// every HID device plugged in, keyboards and Bluetooth scanners included: names what is connected
+ipcMain.handle('scanner-inventory', async () => {
+  if (!win) return []
+  return new Promise(resolve => {
+    const timer = setTimeout(() => { inventory = null; resolve([]) }, 5000)
+    inventory = list => { clearTimeout(timer); resolve(list) }
+    // the second argument makes this count as a click, which the device request needs
+    win.webContents.executeJavaScript('navigator.hid ? navigator.hid.requestDevice({ filters: [] }).then(() => 1, () => 0) : 0', true)
+      .catch(() => 0).then(() => { if (inventory) { clearTimeout(timer); inventory = null; resolve([]) } })
+  })
+})
 
 // Printing. The system print dialog is modal and on Windows it can open behind a maximized window, which
 // looks like the app froze. So the default is a preview: the page is rendered to a PDF (with the print

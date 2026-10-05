@@ -4,11 +4,12 @@ import { useCollection, useStore } from '../db/store'
 import type { Customer, Product, Supplier } from '../db/types'
 import { matches, money, norm } from '../lib/format'
 import { stockMap } from '../lib/calc'
-import { Modal } from './modal'
-import { splitOem } from '../lib/vin'
+import { CameraScanner } from './scanner'
+import { findProductByScan } from '../lib/productMatch'
 
 /** Search box with a dropdown of products; a scanned/typed exact code adds at once on Enter. */
-export function ProductSearch({ onPick, placeholder, autoFocus, showStock = true, allowServices = true }: { onPick: (p: Product) => void; placeholder?: string; autoFocus?: boolean; showStock?: boolean; allowServices?: boolean }) {
+/** `onUnknown`: what to do with a camera-read code that matches no product (else it is put in the box). */
+export function ProductSearch({ onPick, onUnknown, placeholder, autoFocus, showStock = true, allowServices = true }: { onPick: (p: Product) => void; onUnknown?: (code: string) => void; placeholder?: string; autoFocus?: boolean; showStock?: boolean; allowServices?: boolean }) {
   const products = useCollection('products')
   const movements = useCollection('movements')
   const [q, setQ] = useState('')
@@ -23,12 +24,12 @@ export function ProductSearch({ onPick, placeholder, autoFocus, showStock = true
     return r.sort((a, b) => a.name.localeCompare(b.name, 'ar')).slice(0, 30)
   }, [q, products, allowServices])
   useEffect(() => setIdx(0), [q])
-  const pick = (p: Product) => { onPick(p); setQ(''); setOpen(false); ref.current?.focus() }
+  const pick = (p: Product, focus = true) => { onPick(p); setQ(''); setOpen(false); if (focus) ref.current?.focus() }
   const enter = () => {
-    const nq = norm(q)
-    if (!nq) return
-    const exact = Array.from(products.values()).find(p => splitOem(p.barcode).some(b => norm(b) === nq) || norm(p.code) === nq || splitOem(p.oemNumbers).some(o => norm(o) === nq))
-    if (exact) { pick(exact); return }
+    if (!norm(q)) return
+    // a typed or pasted code: the same number in any form (EAN/UPC lengths, GS1 data, part numbers)
+    const exact = findProductByScan(Array.from(products.values()).filter(p => allowServices || p.kind === 'product'), q)
+    if (exact) { pick(exact.product); return }
     if (list[idx]) pick(list[idx])
   }
   return (
@@ -38,7 +39,7 @@ export function ProductSearch({ onPick, placeholder, autoFocus, showStock = true
         <input ref={ref} className="input lg" value={q} autoFocus={autoFocus} placeholder={placeholder ?? 'ابحث بالاسم أو الكود أو الباركود أو نوع السيارة…'}
           onChange={e => { setQ(e.target.value); setOpen(true) }} onFocus={() => setOpen(true)} onBlur={() => setTimeout(() => setOpen(false), 150)}
           onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); enter() } else if (e.key === 'ArrowDown') { e.preventDefault(); setIdx(i => Math.min(list.length - 1, i + 1)) } else if (e.key === 'ArrowUp') { e.preventDefault(); setIdx(i => Math.max(0, i - 1)) } else if (e.key === 'Escape') setOpen(false) }} />
-        {'BarcodeDetector' in window && <button type="button" className="btn ghost icon" style={{ position: 'absolute', left: 6 }} title="مسح باركود بالكاميرا" onClick={() => setScan(true)}><Camera /></button>}
+        <button type="button" className="btn ghost icon" style={{ position: 'absolute', left: 6 }} title="مسح باركود بالكاميرا" aria-label="مسح باركود بالكاميرا" onClick={() => setScan(true)}><Camera /></button>
       </div>
       {open && q.trim() !== '' && list.length > 0 && (
         <div className="card" style={{ position: 'absolute', insetInline: 0, top: '100%', marginTop: 4, zIndex: 40, maxHeight: 320, overflowY: 'auto' }}>
@@ -53,37 +54,13 @@ export function ProductSearch({ onPick, placeholder, autoFocus, showStock = true
           })}
         </div>
       )}
-      {scan && <BarcodeScanner onClose={() => setScan(false)} onCode={code => { setScan(false); const nq = norm(code); const p = Array.from(products.values()).find(x => splitOem(x.barcode).some(b => norm(b) === nq) || norm(x.code) === nq); if (p) pick(p); else { setQ(code); setOpen(true) } }} />}
+      {scan && <CameraScanner onClose={() => setScan(false)} hint="وجّه الكاميرا نحو باركود القطعة؛ تبقى الكاميرا مفتوحة لمسح عدة قطع، ثم أغلقها." onCode={d => {
+        // a known part is added and the camera stays open for the next one
+        const hit = findProductByScan(Array.from(products.values()).filter(p => allowServices || p.kind === 'product'), d.text)
+        if (hit) { pick(hit.product, false); return true }
+        if (onUnknown) onUnknown(d.text); else { setQ(d.text); setOpen(true) }
+      }} />}
     </div>
-  )
-}
-
-/** Reads a barcode with the camera (where the browser has BarcodeDetector: Android and Chrome). */
-export function BarcodeScanner({ onCode, onClose }: { onCode: (code: string) => void; onClose: () => void }) {
-  const video = useRef<HTMLVideoElement>(null)
-  const [err, setErr] = useState('')
-  useEffect(() => {
-    let stream: MediaStream | null = null
-    let stop = false
-    const Detector = (window as any).BarcodeDetector
-    const detector = new Detector({ formats: ['ean_13', 'ean_8', 'upc_a', 'upc_e', 'code_128', 'code_39', 'code_93', 'codabar', 'itf', 'qr_code', 'data_matrix', 'pdf417', 'aztec'] })
-    navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } }).then(s => {
-      stream = s
-      if (video.current) { video.current.srcObject = s; video.current.play() }
-      const tick = async () => {
-        if (stop) return
-        try { if (video.current && video.current.readyState >= 2) { const codes = await detector.detect(video.current); if (codes.length) { onCode(codes[0].rawValue); return } } } catch { /* keep trying */ }
-        setTimeout(tick, 200)
-      }
-      tick()
-    }).catch(() => setErr('تعذّر فتح الكاميرا. تأكد من السماح للتطبيق باستخدام الكاميرا.'))
-    return () => { stop = true; stream?.getTracks().forEach(t => t.stop()) }
-  }, [onCode])
-  return (
-    <Modal title="مسح الباركود" onClose={onClose} size="narrow">
-      {err ? <div className="error">{err}</div> : <video ref={video} muted playsInline style={{ width: '100%', borderRadius: 12, background: '#000' }} />}
-      <p className="help mt">وجّه الكاميرا نحو الباركود</p>
-    </Modal>
   )
 }
 

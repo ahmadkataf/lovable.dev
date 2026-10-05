@@ -9,7 +9,9 @@ import { saveSale } from '../db/actions'
 import { saleTotals } from '../lib/calc'
 import { CURRENCY_SYMBOL, convert, equiv, fmtDate, fromInputDate, invoiceNo, matches, money, num, otherCurrency, toInputDate, toNumber } from '../lib/format'
 import { Field, NumberInput, Chips, Price } from '../ui/components'
-import { Modal, useConfirm } from '../ui/modal'
+import { Modal, dialogDepth, useConfirm } from '../ui/modal'
+import { SCAN_PRIORITY, useScan } from '../lib/scan'
+import { findProductByScan, prefillFromScan } from '../lib/productMatch'
 import { useToast } from '../ui/toast'
 import { ProductSearch, PartyPicker, useProductStock } from '../ui/pickers'
 import { carLabel, productsForCar } from '../ui/cars'
@@ -61,6 +63,7 @@ export function POS() {
   const [q, setQ] = useState('')
   const [addCustomer, setAddCustomer] = useState(false)
   const [addProduct, setAddProduct] = useState(false)
+  const [scanNew, setScanNew] = useState<{ initial: Partial<Product>; scan: string } | null>(null)
   const [done, setDone] = useState<Sale | null>(null)
   const [busy, setBusy] = useState(false)
   const [showCart, setShowCart] = useState(false)
@@ -122,6 +125,19 @@ export function POS() {
   const update = (i: number, patch: Partial<InvoiceItem>) => setItems(list => list.map((x, k) => (k === i ? { ...x, ...patch } : x)))
   const removeAt = (i: number) => setItems(list => list.filter((_, k) => k !== i))
 
+  // a barcode scanner or the camera adds the part to the invoice; an unknown code opens a new part for it
+  const newFromScan = (text: string) => setScanNew({ initial: prefillFromScan(text), scan: text })
+  useScan(s => {
+    // the saved-invoice window is open: the next scan starts the next sale
+    if (done && dialogDepth() === 1) { reset(); setShowCart(false) }
+    else if (dialogDepth() > 0) return false
+    const hit = findProductByScan(products.values(), s.text)
+    if (hit) { add(hit.product); toast.success(`أُضيف: ${hit.product.name}`); return true }
+    if (canAddProduct) { newFromScan(s.text); return true }
+    toast.error(`الرمز ${s.text} غير مسجّل لأي قطعة`)
+    return false
+  }, { priority: SCAN_PRIORITY.screen })
+
   const reset = () => { draftStore.setState({ d: null }); setItems([]); setCustomerId(undefined); setCustomerName('زبون نقدي'); setDiscount(0); setDiscMode('amount'); setDiscPct(0); setQuote(false); setJob(false); setVehicleId(undefined); setOdometer(0); setNextKm(0); setNextDays(0); setPaid(null); setDate(toInputDate(Date.now())); setNotes(''); setDone(null); if (editId) setParams({}) }
 
   const save = async (andPrint: boolean) => {
@@ -158,7 +174,7 @@ export function POS() {
     <div className="pos">
       <div className="catalog stack">
         {editId && <div className="card pad tone-info" style={{ padding: '10px 14px' }}>تعديل الفاتورة رقم {invoiceNo(sales.get(editId)?.number ?? 0)} — <a href="#" onClick={e => { e.preventDefault(); reset(); nav('/sales') }} style={{ textDecoration: 'underline' }}>إلغاء التعديل</a></div>}
-        <ProductSearch onPick={add} autoFocus={!isTouch} />
+        <ProductSearch onPick={add} autoFocus={!isTouch} onUnknown={canAddProduct ? newFromScan : undefined} />
         <div className="between" style={{ flexWrap: 'wrap' }}>
           <Chips value={cat} onChange={setCat} items={[{ id: 'all', label: 'الكل' }, ...catList.map(c => ({ id: c.id, label: c.name }))]} />
           <div className="row" style={{ position: 'relative' }}>
@@ -264,6 +280,7 @@ export function POS() {
 
       {addCustomer && <CustomerForm onClose={() => setAddCustomer(false)} onSaved={c => { setCustomerId(c.id); setCustomerName(c.name) }} />}
       {addProduct && <ProductForm onClose={() => setAddProduct(false)} onSaved={p => add(p)} />}
+      {scanNew && <ProductForm initial={scanNew.initial} scanned={scanNew.scan} onClose={() => setScanNew(null)} onSaved={p => add(p)} />}
       {done && <DoneModal sale={done} onNew={() => { reset(); setShowCart(false) }} onClose={() => { reset(); setShowCart(false); if (editId) nav('/sales') }} />}
     </div>
   )

@@ -360,3 +360,15 @@ table.table { width: 100%; border-collapse: collapse; font-size: 14px; }
 .activate-ok { display: flex; gap: 14px; align-items: center; color: var(--success-text); padding: 10px; }
 .activate-foot { padding: 10px 24px; border-top: 1px solid var(--border); font-size: 12px; color: var(--muted); display: flex; gap: 6px; align-items: center; justify-content: center; }
 @media (max-width: 760px) { .activate-cols { grid-template-columns: 1fr; gap: 18px; } .activate-enter { border-inline-start: 0; padding-inline-start: 0; border-top: 1px solid var(--border); padding-top: 18px; } .activate-qr { flex-direction: column; text-align: center; } .activate-body { padding: 16px; } .activate { padding: 0; align-items: stretch; } .activate-box { border-radius: 0; border: 0; } }
+
+/* camera barcode scanner */
+.scanner-view { position: relative; border-radius: 14px; overflow: hidden; background: #000; aspect-ratio: 4 / 3; }
+.scanner-view video { width: 100%; height: 100%; object-fit: cover; display: block; }
+.scanner-aim { position: absolute; inset: 14% 8%; border: 3px solid rgba(255, 255, 255, .85); border-radius: 14px; box-shadow: 0 0 0 9999px rgba(0, 0, 0, .28); pointer-events: none; }
+.scanner-aim i { position: absolute; inset-inline: 6%; top: 50%; height: 2px; background: #ef4444; box-shadow: 0 0 8px #ef4444; animation: scanline 1.6s ease-in-out infinite alternate; }
+@keyframes scanline { from { transform: translateY(-38px); } to { transform: translateY(38px); } }
+.scanner-wait { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; gap: 8px; color: #fff; font-weight: 700; }
+.scanner-last { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 10px 12px; border-radius: 12px; background: var(--surface-2); }
+.scan-test { border: 2px dashed var(--border); border-radius: 14px; padding: 14px; margin-top: 8px; display: flex; flex-direction: column; gap: 4px; }
+.scan-test b { font-size: 20px; word-break: break-all; }
+.scan-test.empty { color: var(--muted); text-align: center; padding: 22px; }

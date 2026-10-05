@@ -1,13 +1,18 @@
-import { useState } from 'react'
-import { Save, Trash2, ImagePlus } from 'lucide-react'
+import { useMemo, useState } from 'react'
+import { Save, Trash2, ImagePlus, ScanLine, Link2 } from 'lucide-react'
 import { audit, can, put, useCollection, useSettings, useCanSeeCost, useIsAdmin, usePerm } from '../db/store'
 import type { Category, Customer, Product, Supplier } from '../db/types'
 import { Field, NumberInput } from './components'
 import { equiv } from '../lib/format'
 import { CarModelPick, CarModelSelect } from './cars'
-import { decodeVin, normalizeVin } from '../lib/vin'
+import { decodeVin, normalizeVin, splitOem } from '../lib/vin'
 import { Search } from 'lucide-react'
-import { Modal, useConfirm } from './modal'
+import { Modal, useConfirm, useIsTopDialog } from './modal'
+import { CameraScanner } from './scanner'
+import { ProductSearch } from './pickers'
+import { focusedField, insertIntoField, SCAN_PRIORITY, useScan } from '../lib/scan'
+import { barcodeOwner, barcodeToSave, findProductByScan, withBarcode } from '../lib/productMatch'
+import { codeFacts, parseGs1 } from '../lib/gs1'
 import { useToast } from './toast'
 import { deleteProduct, remove } from '../db/actions'
 
@@ -103,7 +108,8 @@ async function shrinkImage(file: File): Promise<string> {
   } finally { URL.revokeObjectURL(url) }
 }
 
-export function ProductForm({ initial, currentStock, onClose, onSaved }: { initial?: Partial<Product>; currentStock?: number; onClose: () => void; onSaved?: (p: Product) => void }) {
+/** `scanned`: the code that was scanned to open this form (a new product for it, or the product it matched). */
+export function ProductForm({ initial, currentStock, onClose, onSaved, scanned }: { initial?: Partial<Product>; currentStock?: number; onClose: () => void; onSaved?: (p: Product) => void; scanned?: string }) {
   const products = useCollection('products')
   const categories = useCollection('categories')
   const settings = useSettings()
@@ -117,6 +123,38 @@ export function ProductForm({ initial, currentStock, onClose, onSaved }: { initi
   const set = (k: keyof Product, v: unknown) => setF(x => ({ ...x, [k]: v }))
   const isNew = !f.id
   const [busy, setBusy] = useState(false)
+  const [camera, setCamera] = useState(false)
+  const [linking, setLinking] = useState(false)
+  const isTop = useIsTopDialog()
+  const addBarcode = (text: string) => setF(x => ({ ...x, barcode: withBarcode(x.barcode, barcodeToSave(text)) }))
+  // a scan while this form is on top fills the barcode, or the part-number / notes field the cursor is in
+  useScan(sc => {
+    if (!isTop()) return false
+    const el = focusedField()
+    const target = el?.dataset.scan
+    if (el && target === 'text') insertIntoField(el, sc.text)
+    else if (target === 'oem') setF(x => ({ ...x, oemNumbers: withBarcode(x.oemNumbers, sc.text) }))
+    else if (target === 'code') setF(x => ({ ...x, code: sc.text }))
+    else addBarcode(sc.text)
+    return true
+  }, { priority: SCAN_PRIORITY.dialog })
+  const barcodes = splitOem(f.barcode)
+  const owners = useMemo(() => splitOem(f.barcode).map(c => ({ c, p: barcodeOwner(products.values(), c, f.id) })).filter((x): x is { c: string; p: Product } => !!x.p), [f.barcode, products, f.id])
+  const lastCode = barcodes[barcodes.length - 1]
+  const facts = useMemo(() => (lastCode ? codeFacts(lastCode) : null), [lastCode])
+  const gs1 = useMemo(() => (scanned ? parseGs1(scanned)?.filter(x => x.ai !== '01' && x.ai !== '02') : null), [scanned])
+  // the product was found by its part number or another form of the code: offer to keep the scanned code
+  const scannedMissing = !isNew && !!scanned && !findProductByScan([{ ...(f as Product), oemNumbers: '', code: '' }], scanned)
+  const link = async (p: Product) => {
+    if (!scanned) return
+    if (!canEdit) { toast.error('ليس لديك صلاحية تعديل القطع'); return }
+    const code = barcodeToSave(scanned)
+    try {
+      const saved = await put('products', { ...p, barcode: withBarcode(p.barcode, code) })
+      await audit('update', `ربط الباركود ${code} بالقطعة ${p.name}`, 'products', p.id)
+      toast.success(`تم ربط الباركود بالقطعة «${p.name}»`); onSaved?.(saved); onClose()
+    } catch (e) { toast.error('تعذّر الحفظ: ' + (e as Error).message) }
+  }
   const save = async () => {
     if (busy) return
     if (!f.name?.trim()) { toast.error('اكتب اسم القطعة'); return }
@@ -124,6 +162,7 @@ export function ProductForm({ initial, currentStock, onClose, onSaved }: { initi
     const dup = Array.from(products.values()).find(p => p.id !== f.id && p.code.toLowerCase() === code.toLowerCase())
     if (dup) { toast.error(`الكود ${code} مستخدم للقطعة «${dup.name}»`); return }
     if (!canEdit) { toast.error('ليس لديك صلاحية تعديل القطع'); return }
+    if (owners.length && !(await confirm({ title: 'باركود مكرر', text: `الباركود ${owners[0].c} مسجّل للقطعة «${owners[0].p.name}». عند مسحه سيظهر أول قطعة تحمله. الحفظ على أي حال؟`, okText: 'حفظ' }))) return
     let categoryId = f.categoryId
     if (newCat.trim()) { const c = await put('categories', { name: newCat.trim() } as Category); categoryId = c.id }
     const before = initial?.id ? products.get(initial.id) : undefined
@@ -147,13 +186,30 @@ export function ProductForm({ initial, currentStock, onClose, onSaved }: { initi
       {!isNew && isAdmin && <><span className="grow" /><button className="btn danger" onClick={del}><Trash2 /> حذف</button></>}
     </>}>
       {!canEdit && <div className="badge tone-warning mb">ليس لديك صلاحية تعديل القطع والأسعار — للعرض فقط</div>}
+      {isNew && scanned && canEdit && <div className="card pad tone-info mb" style={{ padding: '10px 14px' }}>
+        <div>باركود غير مسجّل: <b className="mono" dir="ltr">{scanned.length > 60 ? scanned.slice(0, 60) + '…' : scanned}</b> — اكتب اسم القطعة وسعرها ثم احفظ.</div>
+        {linking ? <div className="mt"><ProductSearch placeholder="ابحث عن القطعة الموجودة لربط الباركود بها…" onPick={link} autoFocus showStock={false} /></div>
+          : <button className="btn sm ghost mt" onClick={() => setLinking(true)}><Link2 /> القطعة موجودة عندي بلا باركود؟ اربطه بها</button>}
+      </div>}
+      {scannedMissing && canEdit && <div className="card pad tone-info mb" style={{ padding: '10px 14px' }}>
+        قُرئ الرمز <b className="mono" dir="ltr">{scanned}</b> وتعرّفنا على القطعة برقمها. <button className="btn sm ghost" onClick={() => addBarcode(scanned!)}><ScanLine /> احفظه باركوداً لها</button>
+      </div>}
       <div className="form-grid">
         <Field label="النوع" className="full">
           <div className="tabs small"><button className={f.kind === 'product' ? 'active' : ''} onClick={() => set('kind', 'product')}>قطعة (لها مخزون)</button><button className={f.kind === 'service' ? 'active' : ''} onClick={() => set('kind', 'service')}>خدمة / أجرة عمل</button></div>
         </Field>
         <Field label="الاسم" required className="full"><input className="input lg" value={f.name} onChange={e => set('name', e.target.value)} autoFocus placeholder="مثال: فلتر زيت" /></Field>
-        <Field label="الكود / رقم القطعة" help="رقمك الداخلي للقطعة (أو رقم المورد) تكتبه بنفسك؛ يُولَّد تلقائياً إن تركته"><input className="input" value={f.code} onChange={e => set('code', e.target.value)} dir="ltr" style={{ textAlign: 'right' }} /></Field>
-        <Field label="الباركود" help="الرقم المطبوع تحت الخطوط على العلبة (EAN-13 بـ13 رقماً، أو الطويل Code 128، أو رمز QR). امسحه بالقارئ وهو في هذا الحقل؛ عدة باركودات تُفصل بفاصلة"><input className="input" value={f.barcode} onChange={e => set('barcode', e.target.value)} dir="ltr" style={{ textAlign: 'right' }} inputMode="numeric" /></Field>
+        <Field label="الكود / رقم القطعة" help="رقمك الداخلي للقطعة (أو رقم المورد) تكتبه بنفسك؛ يُولَّد تلقائياً إن تركته"><input className="input" value={f.code} onChange={e => set('code', e.target.value)} dir="ltr" style={{ textAlign: 'right' }} data-scan="code" /></Field>
+        <Field label="الباركود" help="امسح الباركود المطبوع على العلبة بالقارئ أو بزر الكاميرا وهذه النافذة مفتوحة، فيُكتب هنا وحده. أي نوع: EAN/UPC، Code 128، QR، Data Matrix… وعدة باركودات تُفصل بفاصلة">
+          <div className="row" style={{ gap: 6, flexWrap: 'nowrap' }}>
+            <input className="input" value={f.barcode} onChange={e => set('barcode', e.target.value)} dir="ltr" style={{ textAlign: 'right', flex: 1, minWidth: 0 }} inputMode="numeric" />
+            <button type="button" className="btn icon" title="مسح الباركود بالكاميرا" aria-label="مسح الباركود بالكاميرا" onClick={() => setCamera(true)}><ScanLine /></button>
+          </div>
+          {facts?.gtin && <div className="help">رقم منتج دولي صحيح{facts.country ? ` · بلد تسجيل الباركود: ${facts.country}` : ''}</div>}
+          {facts && !facts.gtin && /^\d{12,14}$/.test(lastCode.replace(/[\s-]/g, '')) && <div className="help neg-txt">رقم التحقق (آخر رقم) لا يطابق — تأكد من الباركود</div>}
+          {gs1 && gs1.length > 0 && <div className="help">{gs1.map(x => `${x.label}: ${x.value}`).join(' · ')}</div>}
+          {owners.map(({ c, p }) => <div key={c} className="help neg-txt">الباركود {c} مسجّل للقطعة «{p.name}»</div>)}
+        </Field>
         <Field label="التصنيف">
           <select className="select" value={f.categoryId ?? ''} onChange={e => { set('categoryId', e.target.value || undefined); setNewCat('') }}>
             <option value="">بدون تصنيف</option>
@@ -165,7 +221,7 @@ export function ProductForm({ initial, currentStock, onClose, onSaved }: { initi
         <Field label="الماركة / الشركة"><input className="input" value={f.brand} onChange={e => set('brand', e.target.value)} placeholder="Bosch, TRW…" /></Field>
         <Field label="تناسب الموديلات (من دليل السيارات)" className="full" help="اربط القطعة بالموديلات فتظهر عند البحث بالشاصي أو اختيار السيارة"><CarModelSelect value={f.carModelIds ?? []} onChange={ids => set('carModelIds', ids)} /></Field>
         <Field label="تناسب السيارات (نص حر)" className="full"><input className="input" value={f.cars} onChange={e => set('cars', e.target.value)} placeholder="مثال: كيا ريو 2012–2017، هيونداي أكسنت" /></Field>
-        <Field label="أرقام القطعة الأصلية (OEM) والبديلة" className="full" help="افصل بين الأرقام بفاصلة؛ يبحث البرنامج بها في شاشة البيع"><input className="input" dir="ltr" style={{ textAlign: 'right', fontFamily: 'monospace' }} value={f.oemNumbers ?? ''} onChange={e => set('oemNumbers', e.target.value)} placeholder="26300-35503, 26300-35504" /></Field>
+        <Field label="أرقام القطعة الأصلية (OEM) والبديلة" className="full" help="افصل بين الأرقام بفاصلة؛ يبحث البرنامج بها في شاشة البيع"><input className="input" dir="ltr" style={{ textAlign: 'right', fontFamily: 'monospace' }} value={f.oemNumbers ?? ''} onChange={e => set('oemNumbers', e.target.value)} placeholder="26300-35503, 26300-35504" data-scan="oem" /></Field>
         {seeCost && <Field label="سعر الشراء (الكلفة)" help={equiv(f.cost ?? 0) || undefined}><NumberInput value={f.cost ?? 0} onChange={v => set('cost', v)} min={0} suffix={settings.currency} disabled={!canEdit || !(canPrices || isNew)} /></Field>}
         <Field label="سعر البيع" required help={!canPrices && !isNew ? 'تعديل الأسعار يحتاج صلاحية من المدير' : equiv(f.price ?? 0) || undefined}><NumberInput value={f.price ?? 0} onChange={v => set('price', v)} min={0} suffix={settings.currency} disabled={!canEdit || !(canPrices || isNew)} /></Field>
         <Field label="سعر الجملة" help="يظهر كخيار عند البيع"><NumberInput value={f.wholesalePrice ?? 0} onChange={v => set('wholesalePrice', v)} min={0} suffix={settings.currency} disabled={!canEdit || !(canPrices || isNew)} /></Field>
@@ -178,7 +234,7 @@ export function ProductForm({ initial, currentStock, onClose, onSaved }: { initi
           <Field label="حد التنبيه" help="ينبّهك عندما تنزل الكمية إليه"><NumberInput value={f.minStock ?? 0} onChange={v => set('minStock', v)} min={0} /></Field>
           <Field label="مكان القطعة في المحل"><input className="input" value={f.location} onChange={e => set('location', e.target.value)} placeholder="رف A3" /></Field>
         </>}
-        <Field label="ملاحظات" className="full"><input className="input" value={f.notes} onChange={e => set('notes', e.target.value)} /></Field>
+        <Field label="ملاحظات" className="full"><input className="input" value={f.notes} onChange={e => set('notes', e.target.value)} data-scan="text" /></Field>
         <Field label="صورة (اختياري)" className="full">
           <div className="row">
             {f.image && <img src={f.image} alt="" style={{ width: 56, height: 56, objectFit: 'cover', borderRadius: 10 }} />}
@@ -187,6 +243,7 @@ export function ProductForm({ initial, currentStock, onClose, onSaved }: { initi
           </div>
         </Field>
       </div>
+      {camera && <CameraScanner onClose={() => setCamera(false)} onCode={d => { addBarcode(d.text) }} hint="وجّه الكاميرا نحو باركود القطعة فيُضاف إلى حقل الباركود." />}
     </Modal>
   )
 }

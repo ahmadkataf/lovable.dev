@@ -9,6 +9,7 @@ import { useToast } from './toast'
 import { RateModal } from './RateModal'
 import { useLicense } from '../lib/license'
 import { Activate } from '../screens/Activate'
+import { ScanButton } from './scanFlow'
 
 const NAV: { to: string; label: string; icon: typeof LayoutDashboard; end?: boolean; admin?: boolean; perm?: Permission }[] = [
   { to: '/', label: 'الرئيسية', icon: LayoutDashboard, end: true },
@@ -76,6 +77,7 @@ export function Layout({ children }: { children: ReactNode }) {
             <DollarSign />
             <span dir="ltr">{settings.rate ? <>1 $ = <b>{settings.rate.toLocaleString('en-US')}</b> <span className="hide-mobile">ل.س</span></> : 'سعر الدولار'}</span>
           </button>
+          <ScanButton />
           {hasUsers && <button className="btn ghost icon" title="قفل الشاشة (تبديل المستخدم)" aria-label="قفل الشاشة" onClick={() => logout()}><Lock /></button>}
           <button className="btn ghost icon" title={dark ? 'التبديل إلى المظهر الفاتح' : 'التبديل إلى المظهر الداكن'} aria-label="المظهر" onClick={() => saveSettings({ theme: dark ? 'light' : 'dark' })}>{dark ? <Sun /> : <Moon />}</button>
           <SyncPill />

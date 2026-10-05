@@ -7,4 +7,10 @@ contextBridge.exposeInMainWorld('garageDesktop', {
   listBackups: () => ipcRenderer.invoke('list-backups'),
   readBackup: (name) => ipcRenderer.invoke('read-backup', name),
   backupsFolder: () => ipcRenderer.invoke('backups-folder'),
+  // barcode scanners: the app's own device list instead of the browser's chooser
+  scanners: {
+    inventory: () => ipcRenderer.invoke('scanner-inventory'),
+    onChoose: (cb) => { const f = (_e, req) => cb(req); ipcRenderer.on('scanner:choose', f); return () => ipcRenderer.removeListener('scanner:choose', f) },
+    choose: (kind, id) => ipcRenderer.send('scanner:choice', kind, id || null),
+  },
 })

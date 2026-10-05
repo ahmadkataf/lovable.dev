@@ -42,6 +42,8 @@ public class MainActivity extends Activity {
     private WebView web;
     private FrameLayout root;
     private ValueCallback<Uri[]> pendingPick;
+    private PermissionRequest pendingCamera;
+    private int webViewMajor = -1;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -150,8 +152,10 @@ public class MainActivity extends Activity {
             for (String r : request.getResources()) {
                 if (PermissionRequest.RESOURCE_VIDEO_CAPTURE.equals(r)) {
                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && host.checkSelfPermission(android.Manifest.permission.CAMERA) != android.content.pm.PackageManager.PERMISSION_GRANTED) {
+                        // ask the phone first; the page's request waits and is answered when the user decides
+                        if (host.pendingCamera != null) host.pendingCamera.deny();
+                        host.pendingCamera = request;
                         host.requestPermissions(new String[]{android.Manifest.permission.CAMERA}, 7);
-                        request.deny();
                         return;
                     }
                     request.grant(new String[]{PermissionRequest.RESOURCE_VIDEO_CAPTURE});
@@ -160,6 +164,19 @@ public class MainActivity extends Activity {
             }
             request.deny();
         }
+    }
+
+    @Override
+    public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] results) {
+        if (requestCode != 7) { super.onRequestPermissionsResult(requestCode, permissions, results); return; }
+        boolean ok = results.length > 0 && results[0] == android.content.pm.PackageManager.PERMISSION_GRANTED;
+        PermissionRequest r = pendingCamera;
+        pendingCamera = null;
+        if (r != null) {
+            try { if (ok) r.grant(new String[]{PermissionRequest.RESOURCE_VIDEO_CAPTURE}); else r.deny(); return; }
+            catch (RuntimeException ignored) { /* the page gave up waiting: tell it to open the camera again */ }
+        }
+        if (ok && web != null) web.evaluateJavascript("window.alradwanCameraReady&&window.alradwanCameraReady()", null);
     }
 
     @Override
@@ -248,10 +265,35 @@ public class MainActivity extends Activity {
             Map<String, String> headers = new HashMap<>();
             headers.put("Access-Control-Allow-Origin", "*");
             headers.put("Cache-Control", path.endsWith(".html") || path.equals("/") ? "no-cache" : "max-age=31536000");
-            return new WebResourceResponse(mime(rel), "utf-8", 200, "OK", headers, in);
+            String type = mime(rel);
+            if (rel.equals("www/index.html") && webViewMajor() > 0 && webViewMajor() < 97) in = oldWebViewPage(in);
+            boolean text = type.startsWith("text/") || type.equals("application/javascript") || type.equals("application/json") || type.equals("image/svg+xml");
+            return new WebResourceResponse(type, text ? "utf-8" : null, 200, "OK", headers, in);
         } catch (IOException e) {
             return new WebResourceResponse("text/plain", "utf-8", 404, "Not Found", new HashMap<String, String>(), new java.io.ByteArrayInputStream(new byte[0]));
         }
+    }
+
+    /** The Chrome version inside the phone's WebView (0 when unknown). */
+    int webViewMajor() {
+        if (webViewMajor >= 0) return webViewMajor;
+        webViewMajor = 0;
+        try {
+            java.util.regex.Matcher m = java.util.regex.Pattern.compile("Chrome/(\\d+)").matcher(WebSettings.getDefaultUserAgent(this));
+            if (m.find()) webViewMajor = Integer.parseInt(m.group(1));
+        } catch (RuntimeException ignored) { }
+        return webViewMajor;
+    }
+
+    /** WebViews before Chrome 97 do not know 'wasm-unsafe-eval' and refuse the barcode reader (WebAssembly)
+     *  unless the page allows 'unsafe-eval'; only those old phones get that, the rest keep the strict rule. */
+    private static InputStream oldWebViewPage(InputStream in) throws IOException {
+        java.io.ByteArrayOutputStream buf = new java.io.ByteArrayOutputStream();
+        byte[] chunk = new byte[16384];
+        for (int n; (n = in.read(chunk)) > 0; ) buf.write(chunk, 0, n);
+        in.close();
+        String html = new String(buf.toByteArray(), "UTF-8").replace("'wasm-unsafe-eval'", "'unsafe-eval'");
+        return new java.io.ByteArrayInputStream(html.getBytes("UTF-8"));
     }
 
     private static String mime(String p) {
@@ -262,6 +304,8 @@ public class MainActivity extends Activity {
         if (p.endsWith(".svg")) return "image/svg+xml";
         if (p.endsWith(".png")) return "image/png";
         if (p.endsWith(".woff2")) return "font/woff2";
+        if (p.endsWith(".wasm")) return "application/wasm";
+        if (p.endsWith(".webp")) return "image/webp";
         return "application/octet-stream";
     }
 
