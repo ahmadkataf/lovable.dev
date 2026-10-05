@@ -9,6 +9,10 @@ directory = "../dist"
 binding = "ASSETS"
 run_worker_first = ["/api/*", "/admin", "/admin/"]
 
+# Workers AI: reads photos of product boxes whose barcode no database knows (/api/catalog/photo)
+[ai]
+binding = "AI"
+
 [[d1_databases]]
 binding = "DB"
 database_name = "alradwan"

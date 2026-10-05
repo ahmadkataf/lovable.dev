@@ -3,6 +3,8 @@
 //   GET  /api/catalog/lookup?code=&device=                      -> {found, name, brand?, category?, quantity?, image, source, shops?} | {found: false, retry?}
 //   GET  /api/catalog/image?code=&device=                       -> the product's picture (from the looked-up result only)
 //   POST /api/catalog/contribute  {token, device, items[]}      -> {ok, saved}            licensed devices share what they typed
+//   POST /api/catalog/photo       {device, image}               -> {found, name, brand?, partNumber?, size?, category?, cars?}
+//                                                                   a photo of the box read by an AI model (Workers AI)
 //
 // Only public product numbers (EAN-13, UPC-A, EAN-8, UPC-E, GTIN-14 with a valid check digit) are looked up; a
 // shop's own in-store numbers (prefix 2…, coupons, UPC number systems 2/4/5) mean something different in every shop.
@@ -20,7 +22,7 @@
 
 import { readToken } from './license'
 
-export interface CatalogEnv { DB: D1Database; TOKEN_SECRET?: string; CATALOG_OFF_URL?: string; CATALOG_UPC_URL?: string }
+export interface CatalogEnv { DB: D1Database; TOKEN_SECRET?: string; CATALOG_OFF_URL?: string; CATALOG_UPC_URL?: string; AI?: { run(model: string, input: unknown): Promise<unknown> } }
 
 const CORS = { 'access-control-allow-origin': '*', 'access-control-allow-headers': 'authorization, content-type', 'access-control-allow-methods': 'GET, POST, OPTIONS', 'access-control-max-age': '86400' }
 const OFF_URL = 'https://world.openfoodfacts.org'
@@ -42,6 +44,11 @@ const UPC_DEVICE = 10                   // …of which one device may use this m
 const UPC_IP = 20                       // …and one address this many
 const UPC_PAUSE = 60000                 // after TOO_FAST; after EXCEED_LIMIT until the end of the day
 const MAX_ITEMS = 50                    // per contribute call
+const PHOTO_MODEL = '@cf/mistralai/mistral-small-3.1-24b-instruct'
+const MAX_PHOTO = 900 * 1024            // the app sends one JPEG of at most 1024 px
+const PHOTO_DEVICE = 40                 // box photos read per device per UTC day…
+const PHOTO_IP = 80                     // …per address…
+const PHOTO_DAY = 400                   // …and for the whole server (the AI service's daily allowance)
 const MAX_BODY = 64 * 1024
 
 const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json; charset=utf-8', 'x-content-type-options': 'nosniff', 'cache-control': 'no-store', ...CORS } })
@@ -310,6 +317,48 @@ async function contribute(req: Request, env: CatalogEnv): Promise<Response> {
   return json({ ok: true, saved: items.size })
 }
 
+const PHOTO_PROMPT = `You read the packaging of products sold in a car-parts and general shop in Syria (boxes of parts, oils, filters, bulbs, tools, accessories, cleaning products and the like).
+Look at the photo and answer with one JSON object only, no other text:
+{"name": the product's name as a shop would write it in Arabic, short (at most 8 words): what it is in Arabic, then the brand and the model or part number in Latin letters (for example "فلتر زيت MANN W 712/75", "زيت محرك Castrol 5W-30 4 لتر", "لمبة H4 Philips 12V"),
+ "brand": the maker's name as printed,
+ "partNumber": the part / reference / article number printed on it (not the barcode digits),
+ "size": the size, volume, weight, quantity or voltage printed (like "4 L", "12V 55W", "500 ml"),
+ "category": a short Arabic category (like "فلاتر", "زيوت", "كهرباء", "فرامل", "إكسسوارات", "تنظيف"),
+ "cars": the vehicles it fits if they are printed on it}
+Use null for anything you cannot read on the box. Never invent a brand or a number that is not visible. If the photo does not show a product, answer {"name": null}.`
+
+/** Reads a photo of a product's box with an AI model: what it is, its maker, part number and size. For barcodes
+ *  no database knows: the shop takes one picture instead of typing. Counted per device, address and server. */
+async function photo(req: Request, env: CatalogEnv): Promise<Response> {
+  if (!env.AI) return json({ error: 'not configured' }, 503)
+  if (Number(req.headers.get('content-length') ?? 0) > MAX_PHOTO * 1.4 + 4096) return json({ error: 'too large' }, 413)
+  let b: { device?: unknown; image?: unknown }
+  try { b = await req.json() } catch { return json({ error: 'bad json' }, 400) }
+  if (!b || typeof b !== 'object' || !validDevice(b.device)) return json({ error: 'bad device' }, 400)
+  const img = b.image
+  if (typeof img !== 'string' || !/^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/=]+$/.test(img) || img.length > MAX_PHOTO * 1.37 + 40) return json({ error: 'bad image' }, 400)
+  const who = await addressKey(env, req)
+  const [d, i] = await env.DB.batch<{ n: number }>([bump(env, 'pd:' + b.device, 1, PHOTO_DEVICE), bump(env, 'pi:' + who, 1, PHOTO_IP)])
+  if (!d.results[0] || !i.results[0]) return json({ error: 'too many' }, 429)
+  if (!(await bump(env, 'photo', 1, PHOTO_DAY).first())) return json({ error: 'too many' }, 429)
+  let text = ''
+  try {
+    const r = await env.AI.run(PHOTO_MODEL, { messages: [{ role: 'user', content: [{ type: 'text', text: PHOTO_PROMPT }, { type: 'image_url', image_url: { url: img } }] }], max_tokens: 300, temperature: 0 }) as { response?: unknown; choices?: { message?: { content?: unknown } }[] }
+    const out = r?.choices?.[0]?.message?.content ?? r?.response
+    text = typeof out === 'string' ? out : out && typeof out === 'object' ? JSON.stringify(out) : ''
+  } catch (e) {
+    // the service's own allowance for the day is used up, or it is busy: try again later
+    return json({ error: 'unavailable', detail: String(e).slice(0, 200) }, 503)
+  }
+  const m = /\{[\s\S]*\}/.exec(text)
+  let o: Record<string, unknown> = {}
+  try { o = m ? JSON.parse(m[0]) : {} } catch { o = {} }
+  const pick = (k: string, max: number) => { const v = clean(o[k], max + 1); return v && !/^(null|none|unknown|n\/a|غير معروف)$/i.test(v) && [...v].length <= max ? v : null }
+  const name = pick('name', 120)
+  if (!name || [...name].length < 2) return json({ found: false })
+  return json({ found: true, name, brand: pick('brand', 60), partNumber: pick('partNumber', 60), size: pick('size', 40), category: pick('category', 60), cars: pick('cars', 160) })
+}
+
 /** Routes the catalogue paths (no shop key needed); returns null for anything else. */
 export async function handleCatalog(req: Request, env: CatalogEnv, path: string): Promise<Response | null> {
   if (!path.startsWith('/api/catalog/')) return null
@@ -317,5 +366,6 @@ export async function handleCatalog(req: Request, env: CatalogEnv, path: string)
   if (path === '/api/catalog/lookup' && req.method === 'GET') return lookup(req, env, url)
   if (path === '/api/catalog/image' && req.method === 'GET') return image(req, env, url)
   if (path === '/api/catalog/contribute' && req.method === 'POST') return contribute(req, env)
+  if (path === '/api/catalog/photo' && req.method === 'POST') return photo(req, env)
   return json({ error: 'not found' }, 404)
 }

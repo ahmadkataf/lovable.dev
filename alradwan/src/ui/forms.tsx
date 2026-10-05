@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Save, Trash2, ImagePlus, ScanLine, Link2, Globe, RefreshCw } from 'lucide-react'
+import { Save, Trash2, ImagePlus, ScanLine, Link2, Globe, RefreshCw, Camera } from 'lucide-react'
 import { audit, can, put, useCollection, useSettings, useCanSeeCost, useIsAdmin, usePerm } from '../db/store'
 import type { Category, Customer, Product, Supplier } from '../db/types'
 import { Field, NumberInput } from './components'
-import { equiv } from '../lib/format'
+import { equiv, norm } from '../lib/format'
 import { CarModelPick, CarModelSelect } from './cars'
 import { decodeVin, normalizeVin, splitOem } from '../lib/vin'
 import { Search } from 'lucide-react'
@@ -13,7 +13,8 @@ import { ProductSearch } from './pickers'
 import { focusedField, insertIntoField, SCAN_PRIORITY, useScan } from '../lib/scan'
 import { barcodeOwner, barcodeToSave, findProductByScan, withBarcode } from '../lib/productMatch'
 import { brandHint, codeFacts, learnBrandPrefixes, parseGs1, publicGtin } from '../lib/gs1'
-import { lookupProduct, shareCatalogChanges, SOURCE_LABEL, type LookupSource } from '../lib/productLookup'
+import { lookupProduct, readBoxPhoto, shareCatalogChanges, SOURCE_LABEL, type LookupSource } from '../lib/productLookup'
+import { API_URL } from '../lib/platform'
 import { shrinkImage } from '../lib/image'
 import { useToast } from './toast'
 import { deleteProduct, remove } from '../db/actions'
@@ -118,6 +119,8 @@ export function ProductForm({ initial, currentStock, onClose, onSaved, scanned }
   const isNew = !f.id
   const [busy, setBusy] = useState(false)
   const [camera, setCamera] = useState(false)
+  const [boxCam, setBoxCam] = useState(false)
+  const [reading, setReading] = useState(false)
   const [linking, setLinking] = useState(false)
   const isTop = useIsTopDialog()
   const addBarcode = (text: string) => setF(x => ({ ...x, barcode: withBarcode(x.barcode, barcodeToSave(text)) }))
@@ -170,13 +173,44 @@ export function ProductForm({ initial, currentStock, onClose, onSaved, scanned }
     setLookup({ state: 'found', source: r.source, shops: r.shops })
     toast.success(`وُجدت بياناتها: ${r.name}`)
     // only the price is left to type
-    setTimeout(() => { if (!alive.current || edits.current !== edited || document.activeElement !== focused) return; const el = Array.from(document.querySelectorAll<HTMLInputElement>('.modal .price-field input')).pop(); if (el && !el.disabled) { el.focus(); el.select() } }, 60)
+    focusPrice(edited, focused)
   }
   useEffect(() => {
     if (!isNew || !scanned) return
     if (settings.barcodeLookup !== false && publicGtin(barcodeToSave(scanned))) void fillFrom(barcodeToSave(scanned)); else applyHint(barcodeToSave(scanned))
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
+  const focusPrice = (edited: number, focused: Element | null) => setTimeout(() => { if (!alive.current || edits.current !== edited || document.activeElement !== focused) return; const el = Array.from(document.querySelectorAll<HTMLInputElement>('.modal .price-field input')).pop(); if (el && !el.disabled) { el.focus(); el.select() } }, 60)
+  // a photo of the box: its picture becomes the part's, and what is printed on it fills the empty fields
+  const readBox = async (photo: Blob) => {
+    setReading(true)
+    const edited = edits.current, focused = document.activeElement
+    try {
+      const pic = await shrinkImage(photo)
+      setF(x => ({ ...x, image: x.image || pic }))
+      const r = await readBoxPhoto(photo)
+      if (!alive.current) return
+      if (!r) { toast.error('لم نستطع قراءة اسم القطعة من الصورة. صوّر الوجه الذي عليه الاسم، قريباً وبإضاءة جيدة.'); return }
+      const name = r.size && !norm(r.name).includes(norm(r.size)) ? `${r.name} ${r.size}` : r.name
+      const cat = r.category ? Array.from(categories.values()).find(c => c.name.trim().toLowerCase() === r.category!.trim().toLowerCase()) : undefined
+      // a category the shop does not have yet is offered as a new one
+      const newCategory = !f.categoryId && !cat && !!r.category
+      if (newCategory) setNewCat(r.category!)
+      setF(x => ({
+        ...x, name: x.name?.trim() ? x.name : name,
+        brand: x.brand?.trim() && x.brand !== hinted.current ? x.brand : (r.brand ?? x.brand),
+        oemNumbers: x.oemNumbers?.trim() ? x.oemNumbers : (r.partNumber ?? x.oemNumbers),
+        cars: x.cars?.trim() ? x.cars : (r.cars ?? x.cars),
+        categoryId: x.categoryId || cat?.id || (newCategory ? '__new' : x.categoryId),
+      }))
+      setLookup(l => (l.state === 'none' ? { state: 'idle' } : l))
+      toast.success(`قرأنا من الصورة: ${name} — راجعها وأدخل السعر`)
+      focusPrice(edited, focused)
+    } catch (e) { if (alive.current) toast.error((e as Error).message) } finally { if (alive.current) setReading(false) }
+  }
+  const boxButton = (primary: boolean) => API_URL && canEdit
+    ? <button type="button" className={`btn sm ${primary ? 'primary' : ''}`} onClick={() => setBoxCam(true)} disabled={reading}>{reading ? <RefreshCw className="spin" /> : <Camera />} {reading ? 'جارٍ قراءة الصورة…' : 'صوّر العلبة واملأ البيانات'}</button>
+    : null
   const link = async (p: Product) => {
     if (!scanned) return
     if (!canEdit) { toast.error('ليس لديك صلاحية تعديل القطع'); return }
@@ -222,7 +256,8 @@ export function ProductForm({ initial, currentStock, onClose, onSaved, scanned }
         <div>باركود غير مسجّل: <b className="mono" dir="ltr">{scanned.length > 60 ? scanned.slice(0, 60) + '…' : scanned}</b>{lookup.state === 'idle' ? ' — اكتب اسم القطعة وسعرها ثم احفظ.' : ''}</div>
         {lookup.state === 'looking' && <div className="mt"><RefreshCw size={14} className="spin" style={{ verticalAlign: -2 }} /> جارٍ البحث عن اسم القطعة وصورتها على الإنترنت…</div>}
         {lookup.state === 'found' && <div className="mt"><Globe size={14} style={{ verticalAlign: -2 }} /> وُجدت بياناتها لدى {SOURCE_LABEL[lookup.source ?? 'openfoodfacts']}{lookup.shops && lookup.shops > 1 ? ` (${lookup.shops} محلات)` : ''}. راجع الاسم وأدخل السعر ثم احفظ.</div>}
-        {lookup.state === 'none' && <div className="mt">لم نجد هذه القطعة في قواعد البيانات. اكتب اسمها مرة واحدة{settings.shareCatalog !== false ? '، فتظهر جاهزة لأي محل يمسحها بعدك' : ''}. <a href={`https://www.google.com/search?q=${encodeURIComponent(barcodeToSave(scanned))}`} target="_blank" rel="noreferrer" style={{ textDecoration: 'underline' }}>ابحث عنه في جوجل</a></div>}
+        {lookup.state === 'none' && <div className="mt">لم نجد هذه القطعة في قواعد البيانات. {API_URL ? 'صوّر العلبة فنقرأ اسمها وماركتها ورقمها منها، أو اكتب اسمها' : 'اكتب اسمها'} مرة واحدة{settings.shareCatalog !== false ? '، فتظهر جاهزة لأي محل يمسحها بعدك' : ''}. <a href={`https://www.google.com/search?q=${encodeURIComponent(barcodeToSave(scanned))}`} target="_blank" rel="noreferrer" style={{ textDecoration: 'underline' }}>ابحث عنه في جوجل</a></div>}
+        {(lookup.state === 'none' || reading) && <div className="mt">{boxButton(true)}</div>}
         {linking ? <div className="mt"><ProductSearch placeholder="ابحث عن القطعة الموجودة لربط الباركود بها…" onPick={link} autoFocus showStock={false} /></div>
           : <button className="btn sm ghost mt" onClick={() => setLinking(true)}><Link2 /> القطعة موجودة عندي بلا باركود؟ اربطه بها</button>}
       </div>}
@@ -278,10 +313,12 @@ export function ProductForm({ initial, currentStock, onClose, onSaved, scanned }
             {f.image && <img src={f.image} alt="" style={{ width: 56, height: 56, objectFit: 'cover', borderRadius: 10 }} />}
             <label className="btn sm"><ImagePlus /> {f.image ? 'تغيير الصورة' : 'إضافة صورة'}<input type="file" accept="image/*" hidden onChange={async e => { const file = e.target.files?.[0]; if (file) set('image', await shrinkImage(file)) }} /></label>
             {f.image && <button className="btn sm ghost" onClick={() => set('image', undefined)}>إزالة</button>}
+            {!(isNew && scanned && (lookup.state === 'none' || reading)) && boxButton(false)}
           </div>
         </Field>
       </div>
       {camera && <CameraScanner onClose={() => setCamera(false)} onCode={d => { addBarcode(d.text) }} hint="وجّه الكاميرا نحو باركود القطعة فيُضاف إلى حقل الباركود." />}
+      {boxCam && <CameraScanner title="صوّر العلبة" onClose={() => setBoxCam(false)} onPhoto={b => { void readBox(b) }} />}
     </Modal>
   )
 }

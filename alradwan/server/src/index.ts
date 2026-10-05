@@ -5,6 +5,7 @@
 //   GET  /api/catalog/lookup?code=&device=                   -> {found, name, brand?, …}   product details from a barcode (catalog.ts)
 //   GET  /api/catalog/image?code=&device=                    -> the looked-up product's picture
 //   POST /api/catalog/contribute  {token, device, items[]}   -> {ok, saved}                licensed devices share product names
+//   POST /api/catalog/photo       {device, image}            -> {found, name, brand?, …}   a photo of the box, read by AI (catalog.ts)
 //   /api/license/*, /api/admin/*                              activation codes and the seller's panel (license.ts)
 //   everything else: the website (the built app in ../dist)
 //
@@ -16,7 +17,7 @@ import { handleLicense } from './license'
 import { handleCatalog } from './catalog'
 import { ADMIN_PAGE } from './admin'
 
-export interface Env { DB: D1Database; ASSETS: Fetcher; TOKEN_SECRET?: string; ADMIN_KEY?: string; CATALOG_OFF_URL?: string; CATALOG_UPC_URL?: string }
+export interface Env { DB: D1Database; ASSETS: Fetcher; TOKEN_SECRET?: string; ADMIN_KEY?: string; CATALOG_OFF_URL?: string; CATALOG_UPC_URL?: string; AI?: { run(model: string, input: unknown): Promise<unknown> } }
 // CATALOG_OFF_URL / CATALOG_UPC_URL: local tests only (they point the catalogue at a mock server); never set in production
 
 

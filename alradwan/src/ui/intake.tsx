@@ -5,7 +5,9 @@ import type { Product } from '../db/types'
 import { SCAN_PRIORITY, useScan } from '../lib/scan'
 import { barcodeToSave, findProductByScan } from '../lib/productMatch'
 import { brandHint, codeFacts, publicGtin } from '../lib/gs1'
-import { lookupEnabled, lookupProduct, shareCatalogChanges, SOURCE_LABEL, type LookupSource } from '../lib/productLookup'
+import { lookupEnabled, lookupProduct, readBoxPhoto, shareCatalogChanges, SOURCE_LABEL, type LookupSource } from '../lib/productLookup'
+import { API_URL } from '../lib/platform'
+import { shrinkImage } from '../lib/image'
 import { norm, toNumber } from '../lib/format'
 import { dialogDepth } from './modal'
 import { CameraScanner } from './scanner'
@@ -125,6 +127,27 @@ export function IntakePanel({ onClose, onEdit }: { onClose: () => void; onEdit: 
 type Later = (job: () => Promise<void>) => void
 function IntakeRow({ row, product: p, onEdit, later }: { row: Row; product?: Product; onEdit: (p: Product) => void; later: Later }) {
   const placeholder = !!p && /^قطعة\s+\S+$/.test(p.name)
+  const toast = useToast()
+  const [cam, setCam] = useState(false)
+  const [reading, setReading] = useState(false)
+  // no name anywhere: a photo of the box names it (and becomes its picture)
+  const readBox = async (photo: Blob) => {
+    if (!p) return
+    setReading(true)
+    try {
+      const [pic, r] = await Promise.all([shrinkImage(photo), readBoxPhoto(photo)])
+      if (!r) toast.error('لم نستطع قراءة اسم القطعة من الصورة. صوّر الوجه الذي عليه الاسم بوضوح.')
+      const name = r ? (r.size && !norm(r.name).includes(norm(r.size)) ? `${r.name} ${r.size}` : r.name) : null
+      later(async () => {
+        const cur = latest(p.id)
+        if (!cur) return
+        const still = /^قطعة\s+\S+$/.test(cur.name)
+        await put('products', { ...cur, image: cur.image || pic, name: name && still ? name : cur.name, brand: cur.brand || r?.brand || '', oemNumbers: cur.oemNumbers || r?.partNumber, cars: cur.cars || r?.cars || '' })
+        if (name && still) void shareCatalogChanges()
+      })
+      if (name) toast.success(`قرأنا من الصورة: ${name}`)
+    } catch (e) { toast.error((e as Error).message) } finally { setReading(false) }
+  }
   return (
     <div className="list-item intake-row">
       {p?.image ? <img src={p.image} alt="" /> : <span className="intake-img" />}
@@ -138,7 +161,9 @@ function IntakeRow({ row, product: p, onEdit, later }: { row: Row; product?: Pro
       </div>
       {row.status !== 'existing' && <span className="badge tone-info" title="الكمية"><span className="mono">{row.count}</span></span>}
       {p && row.status === 'new' && <PriceCell product={p} later={later} />}
+      {p && placeholder && API_URL && <button className="btn sm icon" title="صوّر العلبة لقراءة اسمها" aria-label="صوّر العلبة لقراءة اسمها" disabled={reading} onClick={() => setCam(true)}>{reading ? <RefreshCw className="spin" /> : <Camera />}</button>}
       {p && <button className="btn sm ghost icon" title="تعديل" aria-label="تعديل" onClick={() => onEdit(p)}><Pencil /></button>}
+      {cam && <CameraScanner title="صوّر العلبة" onClose={() => setCam(false)} onPhoto={b => { void readBox(b) }} />}
     </div>
   )
 }

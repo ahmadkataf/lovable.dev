@@ -224,3 +224,26 @@ export function shareCatalogChanges(): Promise<void> {
   sharing = run
   return run!
 }
+
+export interface BoxReading { name: string; brand?: string; partNumber?: string; size?: string; category?: string; cars?: string }
+/** What a photo of the box says (read on the shop's server by an AI model): for a barcode no database knows.
+ *  Throws a message for the shop when it cannot be read. */
+export async function readBoxPhoto(photo: Blob): Promise<BoxReading | null> {
+  if (!API_URL) throw new Error('قراءة الصور تحتاج اتصال البرنامج بالخادم')
+  const device = await licenseDevice()
+  // 1024 px is enough for the print on a box and keeps the upload small
+  const image = await shrinkImage(photo, 1024)
+  let r: Response
+  try {
+    const ctl = new AbortController(); const t = setTimeout(() => ctl.abort(), 45000)
+    try { r = await fetch(`${API_URL}/api/catalog/photo`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ device, image }), signal: ctl.signal }) } finally { clearTimeout(t) }
+  } catch { throw new Error('لا اتصال بالإنترنت أو الخادم بطيء. حاول مرة أخرى.') }
+  if (r.status === 429) throw new Error('انتهى عدد الصور المسموح اليوم. اكتب البيانات يدوياً أو حاول غداً.')
+  if (!r.ok) throw new Error('خدمة قراءة الصور غير متاحة الآن. حاول بعد قليل.')
+  const d = await r.json().catch(() => null) as Record<string, unknown> | null
+  if (!d?.found) return null
+  const name = clean(d.name, 120)
+  if (!name) return null
+  const opt = (k: string, max: number) => clean(d[k], max) || undefined
+  return { name, brand: opt('brand', 60), partNumber: opt('partNumber', 60), size: opt('size', 40), category: opt('category', 60), cars: opt('cars', 160) }
+}

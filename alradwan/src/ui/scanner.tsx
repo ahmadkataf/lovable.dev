@@ -11,8 +11,10 @@ const isAndroidApp = () => typeof (window as unknown as { GarageAndroid?: unknow
 
 /** Reads barcodes with the camera: every common type, on the phone, the Windows app and any browser.
  *  `onCode` returns true to keep scanning (several items in a row), anything else closes. */
-export function CameraScanner({ onCode, onClose, title = 'مسح الباركود بالكاميرا', hint }: {
-  onCode: (d: Decoded) => boolean | void | Promise<boolean | void>; onClose: () => void; title?: string; hint?: string
+export function CameraScanner({ onCode, onClose, title = 'مسح الباركود بالكاميرا', hint, onPhoto }: {
+  onCode?: (d: Decoded) => boolean | void | Promise<boolean | void>; onClose: () => void; title?: string; hint?: string
+  /** photo mode: no barcode reading, the shutter (or a picture chosen from the phone) hands over one photo and closes */
+  onPhoto?: (photo: Blob) => void
 }) {
   const video = useRef<HTMLVideoElement>(null)
   const canvas = useRef<HTMLCanvasElement | null>(null)
@@ -45,7 +47,7 @@ export function CameraScanner({ onCode, onClose, title = 'مسح الباركو�
     seen.current = { text: d.text, at: now }
     setLast(d)
     scanFeedback(true)
-    const keep = await handle.current(d)
+    const keep = await handle.current?.(d)
     if (keep !== true) onClose()
     return true
   }
@@ -68,7 +70,7 @@ export function CameraScanner({ onCode, onClose, title = 'مسح الباركو�
     }
     const start = async () => {
       try {
-        await loadDecoder()
+        if (!onPhoto) await loadDecoder()
         if (stop) return
         log('decoder ready')
         if (!navigator.mediaDevices?.getUserMedia) throw new Error('nocam')
@@ -86,6 +88,7 @@ export function CameraScanner({ onCode, onClose, title = 'مسح الباركو�
         try { setCams((await navigator.mediaDevices.enumerateDevices()).filter(d => d.kind === 'videoinput')) } catch { /* ignore */ }
         setState('live'); setErr(''); setDenied(false)
         log('camera live ' + (video.current?.videoWidth ?? 0))
+        if (onPhoto) return
         const tick = async () => {
           if (stop) return
           const v = video.current
@@ -190,21 +193,41 @@ export function CameraScanner({ onCode, onClose, title = 'مسح الباركو�
     }
     if (video.current) await readStill(video.current)
   }
-  const photo = (file: File | undefined) => { if (file) void readStill(file) }
+  const photo = (file: File | undefined) => { if (!file) return; if (onPhoto) { onPhoto(file); onClose() } else void readStill(file) }
+  // photo mode: the picture as the camera sees it, at its full size
+  const shoot = async () => {
+    if (!onPhoto) return
+    setBusyPhoto(true)
+    const track = stream.current?.getVideoTracks()[0]
+    const IC = (window as unknown as { ImageCapture?: new (t: MediaStreamTrack) => { takePhoto(): Promise<Blob> } }).ImageCapture
+    let blob: Blob | null = null
+    if (track && IC) { try { blob = await new IC(track).takePhoto() } catch { /* the video frame below */ } }
+    const v = video.current
+    if (!blob && v && v.videoWidth) {
+      const c = document.createElement('canvas'); c.width = v.videoWidth; c.height = v.videoHeight
+      c.getContext('2d')!.drawImage(v, 0, 0)
+      blob = await new Promise<Blob | null>(res => c.toBlob(res, 'image/jpeg', 0.9))
+    }
+    if (!alive.current) return
+    setBusyPhoto(false)
+    if (!blob) { setErr('تعذّر التقاط الصورة. حاول مرة أخرى.'); return }
+    onPhoto(blob); onClose()
+  }
 
   return (
     <Modal title={title} onClose={onClose} size="narrow">
       <div className="scanner">
         {state !== 'nocam' && <div className="scanner-view">
           <video ref={video} muted playsInline />
-          <div className="scanner-aim"><i /></div>
+          {!onPhoto && <div className="scanner-aim"><i /></div>}
           {state === 'loading' && <div className="scanner-wait"><Camera /> جارٍ تشغيل الكاميرا…</div>}
         </div>}
         {err && <div className="error mt">{err}</div>}
         {last && <div className="scanner-last mt"><b className="mono" dir="ltr">{last.text}</b><span className="muted small">{formatLabel(last.format)}</span></div>}
-        <p className="help mt">{hint ?? 'وجّه الكاميرا نحو الباركود: يقرأ الخطوط العادية والطويلة ورموز QR وData Matrix وغيرها.'}</p>
+        <p className="help mt">{hint ?? (onPhoto ? 'صوّر وجه العلبة الذي عليه الاسم والماركة والرقم، قريباً وواضحاً.' : undefined) ?? 'وجّه الكاميرا نحو الباركود: يقرأ الخطوط العادية والطويلة ورموز QR وData Matrix وغيرها.'}</p>
         <div className="row mt" style={{ flexWrap: 'wrap' }}>
-          {state === 'live' && <button className="btn sm" onClick={snap} disabled={busyPhoto} title="صورة واحدة بأعلى دقة للباركود الصغير أو الكثيف"><Focus /> {busyPhoto ? 'جارٍ القراءة…' : 'لقطة دقيقة'}</button>}
+          {state === 'live' && onPhoto && <button className="btn primary" onClick={shoot} disabled={busyPhoto}><Camera /> التقط الصورة</button>}
+          {state === 'live' && !onPhoto && <button className="btn sm" onClick={snap} disabled={busyPhoto} title="صورة واحدة بأعلى دقة للباركود الصغير أو الكثيف"><Focus /> {busyPhoto ? 'جارٍ القراءة…' : 'لقطة دقيقة'}</button>}
           {state === 'nocam' && <button className={`btn sm ${denied ? 'primary' : ''}`} onClick={() => { setState('loading'); setErr(''); setAttempt(a => a + 1) }}><RefreshCw /> إعادة المحاولة</button>}
           <label className="btn sm" aria-busy={busyPhoto}><ImagePlus /> صورة<input type="file" accept="image/*" capture="environment" hidden onChange={e => { photo(e.target.files?.[0]); e.target.value = '' }} /></label>
           {cams.length > 1 && <button className="btn sm" onClick={switchCam}><RefreshCw /> كاميرا أخرى</button>}
