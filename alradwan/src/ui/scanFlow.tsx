@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { ScanLine, ShoppingCart, Pencil, MapPin } from 'lucide-react'
 import { useCollection, usePerm } from '../db/store'
 import type { Product } from '../db/types'
-import { emitScan, focusedField, insertIntoField, SCAN_PRIORITY, startKeyboardScanner, useScan, type Scan } from '../lib/scan'
+import { emitScan, focusedField, insertIntoField, replayTerminator, SCAN_PRIORITY, startKeyboardScanner, useScan, type Scan } from '../lib/scan'
 import { findProductByScan, prefillFromScan, type MatchVia } from '../lib/productMatch'
 import { formatLabel, type Decoded } from '../lib/camera'
 import { CameraScanner } from './scanner'
@@ -13,6 +13,8 @@ import { useProductStock } from './pickers'
 import { Price } from './components'
 import { useToast } from './toast'
 import { startDeviceScanners } from '../lib/devices'
+import { startAndroidScanners, upcLookupNative } from '../lib/androidScan'
+import { setNativeUpc } from '../lib/productLookup'
 
 /** Mounted once for the signed-in app: starts listening to scanners and catches the readings no screen
  *  took. A known product shows its card; an unknown code opens a new product with the barcode filled in. */
@@ -22,11 +24,11 @@ export function ScanHost() {
   const toast = useToast()
   const [card, setCard] = useState<{ id: string; via: MatchVia; scan: Scan } | null>(null)
   const [create, setCreate] = useState<{ initial: Partial<Product>; scan: string } | null>(null)
-  useEffect(() => { startKeyboardScanner(); void startDeviceScanners() }, [])
+  useEffect(() => { startKeyboardScanner(); void startDeviceScanners(); startAndroidScanners(); setNativeUpc(upcLookupNative) }, [])
   useScan(s => {
     const field = focusedField()
     // a reading into a field no screen claimed is typed there, as a scanner always did
-    if (field && (s.source === 'keyboard' || dialogDepth() > 0)) { insertIntoField(field, s.text); return true }
+    if (field && (s.source === 'keyboard' || dialogDepth() > 0)) { insertIntoField(field, s.text); replayTerminator(field, s.terminator); return true }
     if (dialogDepth() > 0) return false
     const hit = findProductByScan(products.values(), s.text)
     if (hit) { setCard({ id: hit.product.id, via: hit.via, scan: s }); return true }

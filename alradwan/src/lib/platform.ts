@@ -30,7 +30,7 @@ declare global {
       /** barcode scanners: the app's own device list instead of the browser's chooser */
       scanners?: {
         inventory(): Promise<DesktopDevice[]>
-        onChoose(cb: (req: { kind: 'hid' | 'serial'; list: DesktopDevice[] }) => void): () => void
+        onChoose(cb: (req: { kind: 'hid' | 'serial'; list: DesktopDevice[] } | null) => void): () => void
         choose(kind: 'hid' | 'serial', id: string | null): void
       }
     }

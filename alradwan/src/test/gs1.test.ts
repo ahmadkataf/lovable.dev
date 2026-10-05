@@ -167,7 +167,9 @@ describe('GS1 element strings', () => {
   it('understands GS1 symbology identifiers', () => {
     expect(parseGs1(']d20109501101530003' + '10AB12')!.map(x => x.ai)).toEqual(['01', '10'])
     expect(parseGs1(']C10109501101530003' + '10AB12' + GS + '17271231')!.map(x => x.ai)).toEqual(['01', '10', '17'])
-    expect(parseGs1(']Q30109501101530003' + '10AB12%17271231')!.map(x => [x.ai, x.value])).toEqual([['01', '09501101530003'], ['10', 'AB12'], ['17', '2027-12-31']])
+    // '%' is data in a GS1 QR Code, not a separator (GS1 General Specifications §7.8.5): only GS ends a field
+    expect(parseGs1(']Q30109501101530003' + '10AB12%17271231')!.map(x => [x.ai, x.value])).toEqual([['01', '09501101530003'], ['10', 'AB12%17271231']])
+    expect(parseGs1(']Q30109501101530003' + '10AB12' + GS + '17271231')!.map(x => [x.ai, x.value])).toEqual([['01', '09501101530003'], ['10', 'AB12'], ['17', '2027-12-31']])
     expect(productNumber(']Q1https://example.com/01/09501101530003')).toBe('09501101530003')
   })
   it('does not take plain barcodes or part numbers for GS1', () => {
@@ -185,6 +187,18 @@ describe('GS1 element strings', () => {
     expect(productNumber('9501101530003')).toBe('09501101530003')
     expect(productNumber('W 712/52')).toBeNull()
   })
+  it('reads a code that holds only the product number (GS1 DataBar)', () => {
+    expect(parseGs1('0109501101530003')).toEqual([{ ai: '01', label: expect.any(String), value: '09501101530003' }])
+    expect(productNumber('0109501101530003')).toBe('09501101530003')
+    expect(productNumber(']e00109501101530003')).toBe('09501101530003')
+  })
+  it('does not break on a field without the shape its AI needs', () => {
+    expect(parseGs1('(01)09501101530003(423)')?.[1]).toMatchObject({ ai: '423', value: '' })
+    expect(parseGs1('(423)ABC')?.[0]).toMatchObject({ ai: '423', value: 'ABC' })
+    expect(parseGs1('https://id.gs1.org/01/09501101530003?425=XYZ')?.[1]).toMatchObject({ ai: '425', value: 'XYZ' })
+    expect(parseGs1('(3102)ABC')?.[0].value).toBe('ABC')
+    expect(codeFacts('(01)09501101530003(423)').gtin).toBe('09501101530003')
+  })
   it('describes a scan', () => {
     expect(codeFacts('0986452041').looksLikePartNumber).toBe(true)
     expect(codeFacts('W 712/52').looksLikePartNumber).toBe(true)
@@ -200,6 +214,7 @@ describe('GS1 element strings', () => {
     expect(codeFacts('(01)09501101530003(241)C-9(426)760').origin).toBe('سوريا')
     expect(codeFacts('(01)09501101530003(241)C-9(426)760').partNumber).toBe('C-9')
     expect(codeFacts('(01)09501101530003(422)999').origin).toBeNull()
+    expect(codeFacts('(01)09501101530003(422)999(426)760').origin).toBe('سوريا')  // 422 unknown: use 426
     expect(codeFacts('6291041500213')).toMatchObject({ origin: null, partNumber: null })
   })
 })

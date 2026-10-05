@@ -21,6 +21,8 @@ export interface AndroidInputDevice {
 interface ScanBridge {
   inputDevices?(): string
   upcLookup?(code: string, id: string): void
+  /** tells the app the page hears 'garage-scan', so a Honeywell may stop typing and broadcast instead */
+  scanListening?(): void
 }
 interface ScanDetail { text?: unknown; symbology?: unknown; vendor?: unknown }
 interface UpcDetail { id?: unknown; status?: unknown; body?: unknown }
@@ -70,6 +72,7 @@ export function startAndroidScanners(): void {
     useAndroidInputs.setState({ list: Array.isArray(list) ? (list as AndroidInputDevice[]) : [], lastChange: Date.now() })
   })
   useAndroidInputs.setState({ list: androidInputDevices() })
+  try { bridge()?.scanListening?.() } catch { /* an older app build */ }
 }
 
 /** Asks UPCitemdb through the Android app (12 s at most); null when the app cannot or did not answer. */

@@ -33,7 +33,9 @@ function createWindow() {
 // port of a scanner maker); any other port only once it is picked from the app's own list, and that choice is
 // kept in scanners.json so it reconnects on every start. A printer or a scale on another COM port is never
 // opened unless the shop picks it.
-const SCANNER_VIDS = new Set([0x0536, 0x0c2e, 0x23d0, 0x05e0, 0x05f9, 0x080c, 0x1dc2, 0x1eab, 0x24ea, 0x065a, 0x08d7, 0x2415, 0x11fa, 0x067e, 0x2745, 0x08fb, 0x27dd, 0x0581, 0x324f, 0x32c3])
+const SCANNER_VIDS = new Set([0x0536, 0x0c2e, 0x23d0, 0x05e0, 0x05f9, 0x080c, 0x1dc2, 0x1eab, 0x24ea, 0x065a, 0x08d7, 0x2415, 0x11fa, 0x067e, 0x2745, 0x08fb, 0x27dd, 0x0581])
+// makers of POS terminals and payment devices: named in lists, never opened without the shop picking them
+const LABEL_ONLY_VIDS = new Set([0x324f, 0x32c3, 0x26f1])
 const scannersFile = () => path.join(app.getPath('userData'), 'scanners.json')
 let scannerStore = null
 function scanners() {
@@ -57,8 +59,9 @@ function setupScanners(ses) {
     if (deviceType === 'usb') return true
     if (deviceType === 'hid') return hasScannerPage(device) || scanners().hid.some(h => sameHid(h, device))
     if (deviceType === 'serial') {
-      const id = device.device_instance_id || ''
-      return scanners().serial.some(s => s.id === id) || SCANNER_VIDS.has(vidOf(id))
+      // a Windows COM port has an instance id; a Bluetooth port opened by Chromium itself has the device's address
+      const id = device.device_instance_id || device.bluetooth_device_path || ''
+      return !!id && (scanners().serial.some(s => s.id === id) || SCANNER_VIDS.has(vidOf(id)))
     }
     return false
   })
@@ -66,7 +69,13 @@ function setupScanners(ses) {
   const ask = (kind, list, pick, cancel) => {
     if (choosing[kind]) choosing[kind].finish(null)
     const timer = setTimeout(() => finish(null), 120000)
-    const finish = id => { clearTimeout(timer); if (choosing[kind] && choosing[kind].finish === finish) choosing[kind] = null; if (id) pick(id); else cancel() }
+    const finish = id => {
+      clearTimeout(timer)
+      if (choosing[kind] && choosing[kind].finish === finish) choosing[kind] = null
+      if (id) pick(id); else cancel()
+      // the page's list closes too (after a timeout, or when a newer request replaced this one)
+      if (win && !win.isDestroyed()) win.webContents.send('scanner:choose', null)
+    }
     choosing[kind] = { finish }
     if (win) win.webContents.send('scanner:choose', { kind, list })
     else finish(null)
@@ -86,17 +95,19 @@ function setupScanners(ses) {
   })
   ses.on('select-serial-port', (event, portList, _wc, callback) => {
     event.preventDefault()
-    const list = portList.map(p => ({ id: p.portId, name: [p.portName, p.displayName].filter(Boolean).join(' — '), vendorId: p.vendorId ? Number(p.vendorId) : undefined, productId: p.productId ? Number(p.productId) : undefined, scanner: SCANNER_VIDS.has(Number(p.vendorId)) }))
+    const list = portList.map(p => ({ id: p.portId, name: [p.portName, p.displayName].filter(Boolean).join(' — '), vendorId: p.vendorId ? Number(p.vendorId) : undefined, productId: p.productId ? Number(p.productId) : undefined, scanner: SCANNER_VIDS.has(Number(p.vendorId)) || LABEL_ONLY_VIDS.has(Number(p.vendorId)) }))
     ask('serial', list, id => {
       const p = portList.find(x => x.portId === id)
       if (!p) return callback('')
       const st = scanners()
-      if (p.deviceInstanceId && !st.serial.some(s => s.id === p.deviceInstanceId)) { st.serial.push({ id: p.deviceInstanceId, name: p.displayName || p.portName }); saveScanners() }
+      // remembered before the grant (see the HID chooser); a Bluetooth port is known by its address (its port name)
+      const key = p.deviceInstanceId || p.portName
+      if (key && !st.serial.some(s => s.id === key)) { st.serial.push({ id: key, name: p.displayName || p.portName }); saveScanners() }
       callback(p.portId)
     }, () => callback(''))
   })
   ses.on('hid-device-revoked', (_e, details) => { const d = details && details.device; if (!d) return; const st = scanners(); st.hid = st.hid.filter(h => !sameHid(h, d)); saveScanners() })
-  ses.on('serial-port-revoked', (_e, details) => { const id = details && details.port && details.port.deviceInstanceId; if (!id) return; const st = scanners(); st.serial = st.serial.filter(s => s.id !== id); saveScanners() })
+  ses.on('serial-port-revoked', (_e, details) => { const port = details && details.port; const id = port && (port.deviceInstanceId || port.portName); if (!id) return; const st = scanners(); st.serial = st.serial.filter(s => s.id !== id); saveScanners() })
 }
 ipcMain.on('scanner:choice', (_e, kind, id) => { const c = choosing[kind === 'serial' ? 'serial' : 'hid']; if (c) c.finish(id || null) })
 // every HID device plugged in, keyboards and Bluetooth scanners included: names what is connected

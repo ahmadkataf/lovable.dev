@@ -255,6 +255,12 @@ public class MainActivity extends Activity {
         /** Looks a barcode up on UPCitemdb; the answer comes back as a 'garage-upc' event carrying the same id. */
         @JavascriptInterface
         public void upcLookup(String code, String id) { host.scanners.upcLookup(code, id); }
+
+        /** The page listens to 'garage-scan': the scanners that replace their keystrokes with intents may now do so. */
+        @JavascriptInterface
+        public void scanListening() {
+            host.runOnUiThread(new Runnable() { public void run() { host.scanners.pageListening(); } });
+        }
     }
 
     void doPrint() {

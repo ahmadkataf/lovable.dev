@@ -28,10 +28,15 @@ export function CameraScanner({ onCode, onClose, title = 'مسح الباركو�
   const [busyPhoto, setBusyPhoto] = useState(false)
   const handle = useRef(onCode); handle.current = onCode
   const seen = useRef<{ text: string; at: number }>({ text: '', at: 0 })
-  const unconfirmed = useRef<{ text: string; at: number }>({ text: '', at: 0 })
+  // every code in front of the camera: a box held there counts once, until it leaves the picture for a moment
+  const inView = useRef(new Map<string, { last: number; frames: number; done: boolean }>())
+  const alive = useRef(true)
+  useEffect(() => { alive.current = true; return () => { alive.current = false } }, [])
   const torchOn = useRef(false)
 
   const deliver = async (d: Decoded) => {
+    // closed while a photo was still being read: it is not wanted any more
+    if (!alive.current) return false
     const now = Date.now()
     if (d.text === seen.current.text && now - seen.current.at < 1800) return false
     seen.current = { text: d.text, at: now }
@@ -61,6 +66,7 @@ export function CameraScanner({ onCode, onClose, title = 'مسح الباركو�
     const start = async () => {
       try {
         await loadDecoder()
+        if (stop) return
         log('decoder ready')
         if (!navigator.mediaDevices?.getUserMedia) throw new Error('nocam')
         const s = await open()
@@ -96,12 +102,20 @@ export function CameraScanner({ onCode, onClose, title = 'مسح الباركو�
                 const td = performance.now()
                 const found = await decodeImageData(ctx.getImageData(0, 0, w, h), pass++ % 3 !== 2)
                 log(`pass ${pass} ${w}x${h} ${Math.round(performance.now() - td)}ms found ${found.length}`)
-                const d = found.find(x => !UNCHECKED.has(x.format)) ?? found[0]
+                const now = Date.now()
+                for (const x of found) {
+                  const seenBefore = inView.current.get(x.text)
+                  if (!seenBefore || now - seenBefore.last > 1500) inView.current.set(x.text, { last: now, frames: 1, done: false })
+                  else { seenBefore.last = now; seenBefore.frames++ }
+                }
+                if (inView.current.size > 50) for (const [k, v] of inView.current) if (now - v.last > 10000) inView.current.delete(k)
+                // a code with no check digit counts only when a second frame reads the same
+                const fresh = found.filter(x => { const v = inView.current.get(x.text)!; return !v.done && (!UNCHECKED.has(x.format) || v.frames >= 2) })
+                const d = fresh.find(x => !UNCHECKED.has(x.format)) ?? fresh[0]
                 if (d && !stop) {
-                  // a code with no check digit counts only when a second frame reads the same
-                  const now = Date.now()
-                  if (!UNCHECKED.has(d.format) || (unconfirmed.current.text === d.text && now - unconfirmed.current.at < 1500)) await deliver(d)
-                  else unconfirmed.current = { text: d.text, at: now }
+                  // the other codes on the same box (its part-number label) are the same item
+                  for (const x of found) inView.current.get(x.text)!.done = true
+                  await deliver(d)
                 }
               } catch { /* keep trying */ }
             }
@@ -114,7 +128,7 @@ export function CameraScanner({ onCode, onClose, title = 'مسح الباركو�
         setState('nocam')
         const name = (e as Error).name, msg = (e as Error).message || ''
         setDenied(name === 'NotAllowedError' || name === 'SecurityError')
-        setErr(name === 'NotAllowedError' || name === 'SecurityError' ? (isAndroidApp() ? 'اسمح للتطبيق باستخدام الكاميرا عندما يسألك الهاتف، ثم اضغط «إعادة المحاولة». أو صوّر الباركود بزر «صورة».' : 'لم يُسمح باستخدام الكاميرا. اسمح بها من إعدادات الجهاز أو المتصفح (وفي ويندوز: الإعدادات ← الخصوصية ← الكاميرا)، ثم اضغط «إعادة المحاولة».')
+        setErr(name === 'NotAllowedError' || name === 'SecurityError' ? (isAndroidApp() ? 'اسمح للتطبيق باستخدام الكاميرا عندما يسألك الهاتف، ثم اضغط «إعادة المحاولة». أو اختر صورة للباركود بزر «صورة».' : 'لم يُسمح باستخدام الكاميرا. اسمح بها من إعدادات الجهاز أو المتصفح (وفي ويندوز: الإعدادات ← الخصوصية ← الكاميرا)، ثم اضغط «إعادة المحاولة».')
           : name === 'NotFoundError' || msg === 'nocam' ? 'لا توجد كاميرا في هذا الجهاز. استخدم زر «صورة» أو قارئ باركود.'
           : name === 'NotReadableError' ? 'الكاميرا مشغولة ببرنامج آخر. أغلقه ثم اضغط «إعادة المحاولة».'
           : name === 'CompileError' || name === 'RuntimeError' || msg.startsWith('wasm') ? (isAndroidApp() ? 'تعذّر تشغيل قارئ الباركود على هذا الهاتف. حدّث «Android System WebView» و«Chrome» من المتجر ثم أعد فتح التطبيق.' : 'تعذّر تحميل قارئ الباركود. أعد فتح البرنامج.')
@@ -124,7 +138,7 @@ export function CameraScanner({ onCode, onClose, title = 'مسح الباركو�
     start()
     // the Android app calls this when the user has just allowed the camera
     const w = window as unknown as { alradwanCameraReady?: () => void }
-    w.alradwanCameraReady = () => setAttempt(a => a + 1)
+    w.alradwanCameraReady = () => { setState('loading'); setErr(''); setAttempt(a => a + 1) }
     return () => {
       stop = true
       if (timer) clearTimeout(timer)
@@ -155,8 +169,9 @@ export function CameraScanner({ onCode, onClose, title = 'مسح الباركو�
     setBusyPhoto(true); setErr('')
     try {
       const found = await decodeStill(src)
+      if (!alive.current) return
       if (found.length) await deliver(found[0]); else setErr('لم أجد باركوداً. قرّب الكاميرا حتى يملأ الباركود الصورة وتكون الخطوط واضحة، أو شغّل الضوء.')
-    } catch { setErr('تعذّر قراءة الصورة.') } finally { setBusyPhoto(false) }
+    } catch { if (alive.current) setErr('تعذّر قراءة الصورة.') } finally { if (alive.current) setBusyPhoto(false) }
   }
   // one sharp picture at the camera's full size: for small or dense codes the live view cannot resolve
   const snap = async () => {

@@ -17,6 +17,7 @@ interface HIDInputReportEvent extends Event { device: HIDDevice; reportId: numbe
 interface HID extends EventTarget { getDevices(): Promise<HIDDevice[]>; requestDevice(o: { filters: { usagePage?: number; vendorId?: number }[] }): Promise<HIDDevice[]> }
 export interface SerialPort extends EventTarget {
   readable: ReadableStream<Uint8Array> | null
+  writable?: WritableStream<Uint8Array> | null
   getInfo(): { usbVendorId?: number; usbProductId?: number; bluetoothServiceClassId?: number | string }
   open(o: { baudRate: number; dataBits?: number; stopBits?: number; parity?: string; flowControl?: string; bufferSize?: number }): Promise<void>
   close(): Promise<void>; forget?(): Promise<void>
@@ -128,11 +129,12 @@ export function readHidReport(layouts: Layout[], reportId: number, v: DataView):
   const lay = layouts.find(l => l.reportId === reportId)
   if (lay) {
     const data: number[] = [], sym = ['', '', '']
-    let more = false
+    let more = false, contSeen = false
     for (const f of lay.fields) {
       if (f.role === 'data' && f.size === 8) data.push(bitsAt(v, f.bit, 8))
       else if (f.role === 'sym' && f.symIndex !== undefined) { const c = bitsAt(v, f.bit, f.size); if (c) sym[f.symIndex] = String.fromCharCode(c) }
-      else if (f.role === 'cont') more = more || bitsAt(v, f.bit, f.size) !== 0
+      // the first bit of the "Decode Data Continued" field; the rest of its byte is padding
+      else if (f.role === 'cont' && !contSeen) { more = bitsAt(v, f.bit, 1) !== 0; contSeen = true }
     }
     const len = lay.lenField ? bitsAt(v, lay.lenField.bit, 8) : 0
     let n = len > 0 && len <= data.length ? len : data.length
@@ -154,6 +156,9 @@ export function readHidReport(layouts: Layout[], reportId: number, v: DataView):
 }
 
 const hidOpen = new WeakSet<HIDDevice>()
+// the report listener of each open device: switching a scanner off and on again must not add a second one
+const hidHandlers = new WeakMap<HIDDevice, EventListener>()
+function dropHidHandler(d: HIDDevice) { const h = hidHandlers.get(d); if (h) { d.removeEventListener('inputreport', h); hidHandlers.delete(d) } }
 const hidId = (d: HIDDevice) => `hid:${hex4(d.vendorId)}:${hex4(d.productId)}`
 async function openHid(d: HIDDevice) {
   const id = hidId(d)
@@ -174,7 +179,8 @@ async function openHid(d: HIDDevice) {
       countRead(id)
       void emitScan({ text, source: 'hid', device: name })
     }
-    d.addEventListener('inputreport', e => {
+    dropHidHandler(d)
+    const onReport: EventListener = e => {
       const ev = e as HIDInputReportEvent
       const piece = readHidReport(layouts, ev.reportId, ev.data)
       if (!piece) return
@@ -182,7 +188,9 @@ async function openHid(d: HIDDevice) {
       parts.push(...piece.bytes)
       // a long code comes in several reports; wait for the last one (or a short pause)
       if (piece.more) { if (flush) clearTimeout(flush); flush = setTimeout(done, 200) } else done()
-    })
+    }
+    hidHandlers.set(d, onReport)
+    d.addEventListener('inputreport', onReport)
     upsert({ id, state: 'connected', detail: 'USB HID POS' })
   } catch (e) {
     hidOpen.delete(d)
@@ -193,17 +201,46 @@ async function openHid(d: HIDDevice) {
 // ------------------------------------------------------------------------------------------- serial (COM / Bluetooth)
 const BAUDS = [9600, 115200, 19200, 38400, 57600]
 const BAUD_KEY = 'alradwan.scanners.baud'
-const serialId = (p: SerialPort, i: number) => { const x = p.getInfo(); return x.usbVendorId ? `serial:${hex4(x.usbVendorId)}:${hex4(x.usbProductId)}` : x.bluetoothServiceClassId ? `serial:bt:${i}` : `serial:com:${i}` }
-const savedBaud = (id: string): number | undefined => { try { return (JSON.parse(localStorage.getItem(BAUD_KEY) || '{}') as Record<string, number>)[id] } catch { return undefined } }
-const saveBaud = (id: string, b: number) => { try { const m = JSON.parse(localStorage.getItem(BAUD_KEY) || '{}'); m[id] = b; localStorage.setItem(BAUD_KEY, JSON.stringify(m)) } catch { /* private mode */ } }
+// A USB port is named by its vendor and product; a plain COM or Bluetooth port has nothing stable the page can
+// see (the browser lists ports in a random order), so it gets a name for this session only and nothing about
+// it (switched off, speed) is remembered under that name: switching it off forgets the port instead.
+const sessionIds = new WeakMap<SerialPort, string>()
+let nextSerial = 1
+const serialId = (p: SerialPort) => {
+  const x = p.getInfo()
+  if (x.usbVendorId) return `serial:${hex4(x.usbVendorId)}:${hex4(x.usbProductId)}`
+  let id = sessionIds.get(p)
+  if (!id) { id = `serial:${x.bluetoothServiceClassId ? 'bt' : 'com'}:${nextSerial++}`; sessionIds.set(p, id) }
+  return id
+}
+const persistent = (id: string) => !/^serial:(com|bt):/.test(id)
+const serialPorts = new Map<string, SerialPort>()
+const savedBaud = (id: string): number | undefined => { if (!persistent(id)) return undefined; try { return (JSON.parse(localStorage.getItem(BAUD_KEY) || '{}') as Record<string, number>)[id] } catch { return undefined } }
+const saveBaud = (id: string, b: number) => { if (!persistent(id)) return; try { const m = JSON.parse(localStorage.getItem(BAUD_KEY) || '{}'); m[id] = b; localStorage.setItem(BAUD_KEY, JSON.stringify(m)) } catch { /* private mode */ } }
+/** Zebra scanners in SSI mode wrap each reading in a packet ([length][0xF3][source 0][status][type][data…]
+ *  [checksum ×2]) and wait for an acknowledgement. 'wait' = looks like one but is not complete yet. */
+export function ssiPacket(b: number[]): { size: number; data: number[]; more: boolean } | 'wait' | null {
+  const L = b[0]
+  if (b.length === 0 || L < 5 || (b.length > 1 && b[1] !== 0xf3) || (b.length > 2 && b[2] !== 0x00)) return null
+  if (b.length < L + 2) return 'wait'
+  let sum = 0
+  for (let i = 0; i < L; i++) sum += b[i]
+  if (((sum + ((b[L] << 8) | b[L + 1])) & 0xffff) !== 0) return null
+  return { size: L + 2, data: b.slice(5, L), more: (b[3] & 0x02) !== 0 }
+}
+const SSI_ACK = Uint8Array.of(0x04, 0xd0, 0x04, 0x00, 0xff, 0x28)
+
+/** Whole UTF-8 text (an Arabic QR code) is a reading even though its bytes are not plain ASCII. */
+const isUtf8 = (b: Uint8Array) => { try { new TextDecoder('utf-8', { fatal: true }).decode(b); return true } catch { return false } }
 const serialOpen = new Map<SerialPort, { id: string; close: () => Promise<void> }>()
 
 /** Printable share of a reading: a wrong speed (baud) turns text into noise. */
 const printable = (b: Uint8Array) => b.length ? Array.from(b).filter(c => (c >= 0x20 && c < 0x7f) || c === 0x1d || c === 0x09 || c >= 0xa0).length / b.length : 1
 
-async function openSerial(p: SerialPort, index: number) {
+async function openSerial(p: SerialPort) {
   const info = p.getInfo()
-  const id = serialId(p, index)
+  const id = serialId(p)
+  serialPorts.set(id, p)
   const vendor = info.usbVendorId !== undefined ? SCANNER_VENDORS[info.usbVendorId] : undefined
   const chip = info.usbVendorId !== undefined ? SERIAL_CHIPS[info.usbVendorId] : undefined
   const name = vendor ? `قارئ ${vendor} (COM)` : info.bluetoothServiceClassId ? 'قارئ بلوتوث (منفذ تسلسلي)' : chip ? `قارئ عبر محوّل ${chip}` : 'قارئ على منفذ COM'
@@ -223,15 +260,32 @@ async function openSerial(p: SerialPort, index: number) {
     catch (e) { serialOpen.delete(p); upsert({ id, state: 'error', detail: /already open|in use|busy|access/i.test((e as Error).message) ? 'المنفذ مستخدم من برنامج آخر' : (e as Error).message }); return }
     upsert({ id, state: 'connected', detail: tryBauds.length > 1 ? `سرعة ${baud}` : undefined })
     let buf: number[] = [], idle: ReturnType<typeof setTimeout> | null = null, noise = 0, wrongBaud = false
+    let pending: number[] = [], ssi: number[] = []
+    const emitText = (bytes: Uint8Array) => { countRead(id); void emitScan({ text: decodeBytes(bytes), source: 'serial', device: name }) }
+    const ack = () => { try { const w = p.writable?.getWriter(); if (w) void w.write(SSI_ACK).catch(() => {}).finally(() => w.releaseLock()) } catch { /* read-only port */ } }
+    // bytes in: SSI packets are unwrapped and acknowledged, plain text is cut at CR/LF
+    const take = () => {
+      while (pending.length) {
+        // a packet only starts between readings, never in the middle of text
+        const pk = buf.length ? null : ssiPacket(pending)
+        if (pk === 'wait') return
+        if (pk) {
+          pending.splice(0, pk.size); ack(); ssi.push(...pk.data)
+          if (!pk.more) { emitText(Uint8Array.from(ssi)); ssi = [] }
+          continue
+        }
+        const b = pending.shift()!
+        if (b === 0x0d || b === 0x0a) flush(); else buf.push(b)
+      }
+    }
     const flush = () => {
       if (idle) { clearTimeout(idle); idle = null }
       if (!buf.length) return
       const bytes = Uint8Array.from(buf); buf = []
-      if (printable(bytes) < 0.8) { if (++noise >= 2 && tryBauds.length > 1) { wrongBaud = true; void reader?.cancel() } return }
+      if (!isUtf8(bytes) && printable(bytes) < 0.8) { if (++noise >= 2 && tryBauds.length > 1) { wrongBaud = true; void reader?.cancel() } return }
       noise = 0
       if (tryBauds.length > 1) saveBaud(id, baud)
-      countRead(id)
-      void emitScan({ text: decodeBytes(bytes), source: 'serial', device: name })
+      emitText(bytes)
     }
     try {
       while (p.readable && !closing) {
@@ -240,11 +294,18 @@ async function openSerial(p: SerialPort, index: number) {
           for (;;) {
             const { value, done } = await reader.read()
             if (done) break
-            for (const b of value) { if (b === 0x0d || b === 0x0a) flush(); else buf.push(b) }
+            pending.push(...value)
+            take()
             // scanners set to send no Enter: the reading ends with a short pause
             if (idle) clearTimeout(idle)
-            idle = setTimeout(flush, 80)
+            idle = setTimeout(() => { buf.push(...pending); pending = []; flush() }, 80)
           }
+        } catch (e) {
+          // a framing, parity or overrun error is not the end: the port gives a new stream to read from;
+          // framing and parity errors usually mean a wrong speed
+          const n = (e as Error).name
+          if (!/Framing|Parity|Break|BufferOverrun/.test(n)) throw e
+          if (/Framing|Parity/.test(n) && tryBauds.length > 1 && ++noise >= 2) wrongBaud = true
         } finally { reader.releaseLock() }
         if (wrongBaud) break
       }
@@ -293,20 +354,20 @@ let started = false
 export async function startDeviceScanners() {
   if (started) return
   started = true
-  if (typeof window !== 'undefined') {
-    const w = window as unknown as { alradwanScan?: (text: string, symbology?: string, device?: string) => void }
-    w.alradwanScan = (text, symbology, device) => { void emitScan({ text: String(text ?? ''), source: 'android', symbology: symbology || undefined, device: device || undefined }) }
-  }
   const { hid, serial, usb } = nav()
   if (hid) {
     try { for (const d of await hid.getDevices()) if (hidIsScanner(d)) void openHid(d) } catch { /* not allowed */ }
     hid.addEventListener('connect', e => { const d = (e as unknown as { device: HIDDevice }).device; if (hidIsScanner(d)) void openHid(d) })
-    hid.addEventListener('disconnect', e => { const d = (e as unknown as { device: HIDDevice }).device; hidOpen.delete(d); upsert({ id: hidId(d), state: 'off', detail: 'انفصل' }) })
+    hid.addEventListener('disconnect', e => { const d = (e as unknown as { device: HIDDevice }).device; hidOpen.delete(d); dropHidHandler(d); upsert({ id: hidId(d), state: 'off', detail: 'انفصل' }) })
   }
   if (serial) {
-    try { (await serial.getPorts()).forEach((p, i) => void openSerial(p, i)) } catch { /* not allowed */ }
-    serial.addEventListener('connect', e => { const p = e.target as unknown as SerialPort; void serial.getPorts().then(ps => openSerial(p, Math.max(0, ps.indexOf(p)))) })
-    serial.addEventListener('disconnect', e => { const p = e.target as unknown as SerialPort; void serialOpen.get(p)?.close() })
+    try { (await serial.getPorts()).forEach(p => void openSerial(p)) } catch { /* not allowed */ }
+    serial.addEventListener('connect', e => { void openSerial(e.target as unknown as SerialPort) })
+    serial.addEventListener('disconnect', e => {
+      const p = e.target as unknown as SerialPort
+      const s = serialOpen.get(p)
+      if (s) void s.close().then(() => upsert({ id: s.id, state: 'off', detail: 'انفصل' }))
+    })
   }
   if (usb) {
     await listUsb()
@@ -328,25 +389,32 @@ export async function linkSerialScanner(): Promise<boolean> {
   const serial = nav().serial
   if (!serial) return false
   const p = await serial.requestPort()
-  const ports = await serial.getPorts()
-  setDeviceOff(serialId(p, Math.max(0, ports.indexOf(p))), false)
-  await openSerial(p, Math.max(0, ports.indexOf(p)))
+  setDeviceOff(serialId(p), false)
+  await openSerial(p)
   return true
 }
 
-/** Stops reading a device and keeps it off on this computer (it can be switched back on). */
+/** Stops reading a device and keeps it off on this computer (it can be switched back on). A plain COM or
+ *  Bluetooth port, which has no lasting name, is forgotten instead: it can be linked again from the list. */
 export async function turnDeviceOff(id: string) {
-  setDeviceOff(id, true)
   for (const [, s] of serialOpen) if (s.id === id) await s.close()
+  if (!persistent(id)) {
+    const p = serialPorts.get(id)
+    serialPorts.delete(id)
+    try { await p?.forget?.() } catch { /* older browsers keep it */ }
+    dropDevice(id)
+    return
+  }
+  setDeviceOff(id, true)
   const hid = nav().hid
-  if (hid) for (const d of await hid.getDevices()) if (hidId(d) === id) { hidOpen.delete(d); try { await d.close() } catch { /* ignore */ } }
+  if (hid) for (const d of await hid.getDevices()) if (hidId(d) === id) { hidOpen.delete(d); dropHidHandler(d); try { await d.close() } catch { /* ignore */ } }
   upsert({ id, state: 'off', detail: 'موقوف' })
 }
 export async function turnDeviceOn(id: string) {
   setDeviceOff(id, false)
   const { hid, serial } = nav()
   if (hid) for (const d of await hid.getDevices()) if (hidId(d) === id) await openHid(d)
-  if (serial) (await serial.getPorts()).forEach((p, i) => { if (serialId(p, i) === id) void openSerial(p, i) })
+  if (serial) for (const p of await serial.getPorts()) if (serialId(p) === id) void openSerial(p)
 }
 export const forgetDevice = (id: string) => dropDevice(id)
 
@@ -358,7 +426,8 @@ export async function desktopInventory(): Promise<number> {
   for (const d of list) {
     if (!(d.scanner || NAME_HINT.test(d.name))) continue
     const id = `hid:${hex4(d.vendorId)}:${hex4(d.productId)}`
-    if (useDevices.getState().list.some(x => x.id === id && x.state === 'connected')) continue
+    // a scanner read through HID POS keeps its own row (with its on/off switch), whatever its state
+    if (useDevices.getState().list.some(x => x.id === id && x.kind !== 'usb')) continue
     upsert({ id, kind: 'usb', name: d.name || SCANNER_VENDORS[d.vendorId ?? 0] || 'قارئ باركود', state: d.keyboard ? 'keyboard' : 'connecting', detail: d.keyboard ? 'وضع لوحة المفاتيح — يعمل تلقائياً' : 'USB' })
   }
   await listUsb()

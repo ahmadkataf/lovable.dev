@@ -12,7 +12,7 @@ import { CameraScanner } from './scanner'
 import { ProductSearch } from './pickers'
 import { focusedField, insertIntoField, SCAN_PRIORITY, useScan } from '../lib/scan'
 import { barcodeOwner, barcodeToSave, findProductByScan, withBarcode } from '../lib/productMatch'
-import { codeFacts, parseGs1, publicGtin } from '../lib/gs1'
+import { brandHint, codeFacts, learnBrandPrefixes, parseGs1, publicGtin } from '../lib/gs1'
 import { lookupProduct, shareCatalogChanges, SOURCE_LABEL, type LookupSource } from '../lib/productLookup'
 import { shrinkImage } from '../lib/image'
 import { useToast } from './toast'
@@ -112,7 +112,9 @@ export function ProductForm({ initial, currentStock, onClose, onSaved, scanned }
   const [f, setF] = useState<Partial<Product>>({ code: nextCode(products), barcode: '', name: '', brand: '', cars: '', unit: settings.units[0] ?? 'قطعة', cost: 0, price: 0, wholesalePrice: 0, minStock: settings.lowStockDefault, openingStock: 0, location: '', notes: '', kind: 'product', ...initial })
   const [newCat, setNewCat] = useState('')
   const toast = useToast(); const confirm = useConfirm()
-  const set = (k: keyof Product, v: unknown) => setF(x => ({ ...x, [k]: v }))
+  // every change the user makes (the automatic lookup must not move the cursor away from someone typing)
+  const edits = useRef(0)
+  const set = (k: keyof Product, v: unknown) => { edits.current++; setF(x => ({ ...x, [k]: v })) }
   const isNew = !f.id
   const [busy, setBusy] = useState(false)
   const [camera, setCamera] = useState(false)
@@ -122,6 +124,8 @@ export function ProductForm({ initial, currentStock, onClose, onSaved, scanned }
   // a scan while this form is on top fills the barcode, or the part-number / notes field the cursor is in
   useScan(sc => {
     if (!isTop()) return false
+    // looking for the part this new barcode belongs to: its scanned shelf label (or old barcode) picks it
+    if (linking) { const hit = findProductByScan(Array.from(products.values()).filter(p => p.id !== f.id), sc.text); if (hit) { void link(hit.product); return true } }
     const el = focusedField()
     const target = el?.dataset.scan
     if (el && target === 'text') insertIntoField(el, sc.text)
@@ -140,8 +144,15 @@ export function ProductForm({ initial, currentStock, onClose, onSaved, scanned }
   // a new barcode fills in the part by itself: name, brand and picture from the shared catalogue or the internet
   const [lookup, setLookup] = useState<{ state: 'idle' | 'looking' | 'found' | 'none'; source?: LookupSource; shops?: number }>({ state: 'idle' })
   const alive = useRef(true)
-  useEffect(() => () => { alive.current = false }, [])
+  useEffect(() => { alive.current = true; return () => { alive.current = false } }, [])
+  // offline first: the maker (and part number) that the barcode's company prefix gives away
+  const applyHint = (code: string) => {
+    const h = brandHint(code, learnBrandPrefixes(products.values()))
+    if (h) setF(x => ({ ...x, brand: x.brand?.trim() ? x.brand : h.brand, oemNumbers: x.oemNumbers?.trim() || !h.partNumber ? x.oemNumbers : h.partNumber }))
+  }
   const fillFrom = async (code: string) => {
+    applyHint(code)
+    const edited = edits.current, focused = document.activeElement
     setLookup({ state: 'looking' })
     const r = await lookupProduct(code)
     if (!alive.current) return
@@ -151,10 +162,11 @@ export function ProductForm({ initial, currentStock, onClose, onSaved, scanned }
     setLookup({ state: 'found', source: r.source, shops: r.shops })
     toast.success(`وُجدت بياناتها: ${r.name}`)
     // only the price is left to type
-    setTimeout(() => { if (!alive.current) return; const el = Array.from(document.querySelectorAll<HTMLInputElement>('.modal .price-field input')).pop(); if (el && !el.disabled) { el.focus(); el.select() } }, 60)
+    setTimeout(() => { if (!alive.current || edits.current !== edited || document.activeElement !== focused) return; const el = Array.from(document.querySelectorAll<HTMLInputElement>('.modal .price-field input')).pop(); if (el && !el.disabled) { el.focus(); el.select() } }, 60)
   }
   useEffect(() => {
-    if (isNew && scanned && settings.barcodeLookup !== false && publicGtin(barcodeToSave(scanned))) void fillFrom(barcodeToSave(scanned))
+    if (!isNew || !scanned) return
+    if (settings.barcodeLookup !== false && publicGtin(barcodeToSave(scanned))) void fillFrom(barcodeToSave(scanned)); else applyHint(barcodeToSave(scanned))
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
   const link = async (p: Product) => {
@@ -220,7 +232,8 @@ export function ProductForm({ initial, currentStock, onClose, onSaved, scanned }
             <input className="input" value={f.barcode} onChange={e => set('barcode', e.target.value)} dir="ltr" style={{ textAlign: 'right', flex: 1, minWidth: 0 }} inputMode="numeric" />
             <button type="button" className="btn icon" title="مسح الباركود بالكاميرا" aria-label="مسح الباركود بالكاميرا" onClick={() => setCamera(true)}><ScanLine /></button>
           </div>
-          {facts?.gtin && <div className="help">رقم منتج دولي صحيح{facts.country ? ` · بلد تسجيل الباركود: ${facts.country}` : ''}</div>}
+          {facts?.gtin && (publicGtin(lastCode) ? <div className="help">رقم منتج دولي صحيح{facts.country ? ` · مسجّل لدى GS1 ${facts.country}` : ''}{facts.origin ? ` · المنشأ: ${facts.origin}` : ''}</div>
+            : <div className="help">رمز داخلي (للمتجر أو الميزان) — ليس رقماً دولياً</div>)}
           {isNew && !scanned && canEdit && lastCode && publicGtin(lastCode) && lookup.state !== 'looking' && <button type="button" className="btn sm ghost" style={{ marginTop: 4 }} onClick={() => fillFrom(lastCode)}><Globe /> {lookup.state === 'none' ? 'لم تُوجد — حاول مجدداً' : 'املأ الاسم والصورة من الإنترنت'}</button>}
           {isNew && !scanned && lookup.state === 'looking' && <div className="help"><RefreshCw size={12} className="spin" /> جارٍ البحث…</div>}
           {facts && !facts.gtin && /^\d{12,14}$/.test(lastCode.replace(/[\s-]/g, '')) && <div className="help neg-txt">رقم التحقق (آخر رقم) لا يطابق — تأكد من الباركود</div>}

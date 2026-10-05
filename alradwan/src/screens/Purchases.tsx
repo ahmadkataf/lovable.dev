@@ -8,7 +8,7 @@ import { payStatus } from '../lib/calc'
 import { addDays, fmtDate, fmtDateTime, fromInputDate, invoiceNo, matches, money, num, toInputDate, rangeStart, rangeEnd, fmtDateExcel } from '../lib/format'
 import { DateRange, Empty, Field, NumberInput, PayBadge, SearchInput } from '../ui/components'
 import { Modal, useConfirm, useIsTopDialog } from '../ui/modal'
-import { SCAN_PRIORITY, useScan } from '../lib/scan'
+import { focusedField, SCAN_PRIORITY, useScan } from '../lib/scan'
 import { findProductByScan, prefillFromScan } from '../lib/productMatch'
 import { useToast } from '../ui/toast'
 import { PartyPicker, ProductSearch } from '../ui/pickers'
@@ -89,11 +89,13 @@ function PurchaseForm({ initial, onClose }: { initial?: Purchase; onClose: () =>
   // receiving goods: every scanned box adds a line (or one more to its line); a new code opens a new part
   useScan(s => {
     if (!isTop()) return false
+    // the supplier's invoice number field takes any text: the reading is typed there
+    if (focusedField()?.dataset.scan === 'text') return false
     const hit = findProductByScan(Array.from(products.values()).filter(p => p.kind === 'product'), s.text)
     if (hit) { addLine(hit.product); toast.success(`أُضيف: ${hit.product.name}`); return true }
     if (canAddProduct) { newFromScan(s.text); return true }
     toast.error(`الرمز ${s.text} غير مسجّل لأي قطعة`)
-    return false
+    return 'reject'
   }, { priority: SCAN_PRIORITY.dialog })
   const total = items.reduce((s, i) => s + i.qty * i.cost, 0)
   const paidValue = paid === null ? total : Math.min(paid, total)
@@ -110,7 +112,7 @@ function PurchaseForm({ initial, onClose }: { initial?: Purchase; onClose: () =>
         <div className="tabs small"><button className={type === 'purchase' ? 'active' : ''} onClick={() => setType('purchase')}>شراء (يدخل المخزون)</button><button className={type === 'return' ? 'active' : ''} onClick={() => setType('return')}>مرتجع للمورد (يخرج من المخزون)</button></div>
         <div className="form-grid">
           <Field label="المورد" className="full"><PartyPicker type="supplier" value={supplierId} onChange={(id, name) => { setSupplierId(id); setSupplierName(name) }} onAddNew={() => setAddSupplier(true)} /></Field>
-          <Field label="رقم فاتورة المورد"><input className="input" value={reference} onChange={e => setReference(e.target.value)} /></Field>
+          <Field label="رقم فاتورة المورد"><input className="input" value={reference} onChange={e => setReference(e.target.value)} data-scan="text" /></Field>
           <Field label="التاريخ"><input type="date" className="input" value={date} onChange={e => setDate(e.target.value)} /></Field>
         </div>
         <Field label="إضافة قطعة"><div className="row"><div style={{ flex: 1 }}><ProductSearch allowServices={false} onPick={addLine} onUnknown={canAddProduct ? newFromScan : undefined} placeholder="ابحث عن القطعة أو امسح الباركود…" /></div><button className="btn icon" title="قطعة جديدة" onClick={() => setAddProduct(true)}><Plus /></button></div></Field>

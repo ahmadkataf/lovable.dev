@@ -11,8 +11,13 @@ const { startAndroidScanners, symbologyName, upcLookupNative, useAndroidInputs }
 const fire = (name: string, detail: unknown) => win.dispatchEvent(new CustomEvent(name, { detail }))
 
 describe('Android built-in scanners', () => {
-  beforeAll(() => { startAndroidScanners(); startAndroidScanners() })
+  const scanListening = vi.fn()
+  beforeAll(() => { win.GarageAndroid = { scanListening }; startAndroidScanners(); startAndroidScanners() })
   afterEach(() => { emitScan.mockClear(); delete win.GarageAndroid; vi.useRealTimers() })
+
+  it('tells the app once that the page listens', () => {
+    expect(scanListening).toHaveBeenCalledTimes(1)
+  })
 
   it('hands a vendor broadcast to the scan bus once, named after the brand', () => {
     fire('garage-scan', { text: '6291041500213', source: 'intent', action: 'com.symbol.datawedge', symbology: 'LABEL-TYPE-EAN13', vendor: 'Zebra' })
@@ -49,8 +54,11 @@ describe('Android built-in scanners', () => {
       setTimeout(() => fire('garage-upc', { id, status: 200, body: '{"code":"OK"}' }), 0)
     })
     win.GarageAndroid = { upcLookup }
+    const rm = vi.spyOn(win, 'removeEventListener')
     expect(await upcLookupNative('036000291452')).toEqual({ status: 200, body: '{"code":"OK"}' })
     expect(upcLookup).toHaveBeenCalledTimes(1)
+    expect(rm).toHaveBeenCalledWith('garage-upc', expect.any(Function))
+    rm.mockRestore()
   })
 
   it('answers null without the bridge, for a bad code, or after 12 s of silence', async () => {
@@ -60,6 +68,7 @@ describe('Android built-in scanners', () => {
     expect(await upcLookupNative('12-34')).toBeNull()
     expect(upcLookup).not.toHaveBeenCalled()
     vi.useFakeTimers()
+    const rm = vi.spyOn(win, 'removeEventListener')
     const p = upcLookupNative('4006381333931')
     vi.advanceTimersByTime(11999)
     let settled = false
@@ -68,8 +77,8 @@ describe('Android built-in scanners', () => {
     expect(settled).toBe(false)
     vi.advanceTimersByTime(1)
     expect(await p).toBeNull()
-    // the late answer finds no listener
-    const id = upcLookup.mock.calls[0][1] as string
-    expect(() => fire('garage-upc', { id, status: 200, body: '{}' })).not.toThrow()
+    // its listener is gone with it
+    expect(rm).toHaveBeenCalledWith('garage-upc', expect.any(Function))
+    rm.mockRestore()
   })
 })

@@ -235,12 +235,13 @@ function format(ai: string, v: string): string | null {
     case 'measure': case 'amount': return decimal(v, Number(ai[3]))
     case 'amountCcy': return `${decimal(v.slice(3), Number(ai[3]))} ${CURRENCY[v.slice(0, 3)] ?? v.slice(0, 3)}`
     case 'country': return isoCountryName(v) ?? v
-    case 'countries': return v.length % 3 ? null : v.match(/\d{3}/g)!.map(c => isoCountryName(c) ?? c).join('، ')
+    case 'countries': return /^(\d{3})+$/.test(v) ? v.match(/\d{3}/g)!.map(c => isoCountryName(c) ?? c).join('، ') : null
     case 'postal': return /^\d{3}/.test(v) ? `${isoCountryName(v.slice(0, 3)) ?? v.slice(0, 3)} ${v.slice(3)}` : null
     default: return v
   }
 }
-function field(ai: string, raw: string, value = format(ai, raw) ?? raw): Gs1Field {
+// a value without the shape its AI needs (bracketed or Digital Link) is shown as it was written
+function field(ai: string, raw: string, value = (AI[ai] && fits(ai, raw) ? format(ai, raw) : null) ?? raw): Gs1Field {
   return { ai, label: AI[ai]?.label ?? `AI ${ai}`, value, ...(value !== raw ? { raw } : {}) }
 }
 
@@ -279,7 +280,7 @@ export function parseGs1Detailed(raw: string): Gs1Parse | null {
   let s = raw.trim()
   // a reader's GS1 symbology identifier; GS1 QR Code may use "%" as the separator
   const aim = /^\](C1|e0|d2|Q3|J1|d1|Q1)/.exec(s)
-  if (aim) { s = s.slice(3); if (aim[1] === 'Q3') s = s.replace(/%/g, GS) }
+  if (aim) s = s.slice(3)
   // (01)09501101530003(17)271231
   if (/^\(\d{2,4}\)/.test(s)) {
     const out: Gs1Field[] = []
@@ -316,8 +317,9 @@ export function parseGs1Detailed(raw: string): Gs1Parse | null {
     out.push(field(ai, v, value))
   }
   if (!out.length) return null
-  // a short run of digits that happens to start like an AI is not GS1 data either
-  return out.length > 1 || t.includes(GS) || t.length > 16 ? { fields: out, complete } : null
+  // a short run of digits that happens to start like an AI is not GS1 data either; a lone (01)/(02)/(03) with
+  // a right check digit is (GS1 DataBar, or a carton label carrying only the product number)
+  return out.length > 1 || t.includes(GS) || t.length > 16 || (complete && /^0[123]$/.test(out[0].ai)) ? { fields: out, complete } : null
 }
 /** The fields of a GS1 code (see parseGs1Detailed), or null when the code is not GS1 data. */
 export function parseGs1(raw: string): Gs1Field[] | null {
@@ -452,11 +454,11 @@ export function codeFacts(text: string): CodeFacts {
   const digits = text.replace(/[\s-]/g, '')
   const validCheckDigit = /^\d{8}$|^\d{12,14}$/.test(digits) ? !!gtin14(digits) : gtin ? true : null
   const first = (...ais: string[]) => ais.map(a => gs1?.find(f => f.ai === a)).find(Boolean)
-  const origin = first('422', '426')
   return {
     gtin, validCheckDigit, gs1,
     country: gtin ? gs1Country(gtin) : null,
-    origin: origin ? isoCountryName(origin.raw ?? origin.value) : null,
+    // 422 when it names a country we know, else 426
+    origin: ['422', '426'].map(a => gs1?.find(f => f.ai === a)).map(f => f && isoCountryName(f.raw ?? f.value)).find(Boolean) ?? null,
     partNumber: first('240', '241')?.value ?? null,
     // letters and digits with dashes/dots/slashes, not a product number: a manufacturer's part number
     looksLikePartNumber: !gtin && !gs1 && /^[A-Za-z0-9][A-Za-z0-9 .\-/]{3,30}$/.test(text.trim()) && /\d/.test(text) && !/^https?:/i.test(text),

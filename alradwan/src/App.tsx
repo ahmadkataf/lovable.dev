@@ -68,7 +68,8 @@ function useAutoLock() {
     if (!minutes || !active) return
     let last = Date.now()
     const touch = () => { last = Date.now() }
-    const events = ['pointerdown', 'keydown', 'scroll', 'touchstart']
+    // a camera or scanner reading is activity too (hands-free scanning touches nothing)
+    const events = ['pointerdown', 'keydown', 'scroll', 'touchstart', 'alradwan-activity']
     events.forEach(e => window.addEventListener(e, touch, { passive: true }))
     const t = setInterval(() => { if (Date.now() - last > minutes * 60000) logout('auto') }, 5000)
     return () => { events.forEach(e => window.removeEventListener(e, touch)); clearInterval(t) }

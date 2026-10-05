@@ -2,8 +2,9 @@ import { useEffect, useState } from 'react'
 import { Usb, Cable, Keyboard, Camera, Smartphone, RefreshCw, Power, PowerOff, PlusCircle, ScanLine, Globe } from 'lucide-react'
 import { saveSettings, useCollection, useIsAdmin, usePerm, useSettings } from '../db/store'
 import { DEFAULT_SCANNER, SCAN_PRIORITY, useScan, useScanStatus, writeScannerConfig, type ScanSource, type ScannerConfig } from '../lib/scan'
-import { canUseHid, canUseSerial, desktopInventory, linkHidScanner, linkSerialScanner, turnDeviceOff, turnDeviceOn, useDevices, type ScannerDevice } from '../lib/devices'
-import { codeFacts, parseGs1 } from '../lib/gs1'
+import { androidScanner, canUseHid, canUseSerial, desktopInventory, linkHidScanner, linkSerialScanner, turnDeviceOff, turnDeviceOn, useDevices, type ScannerDevice } from '../lib/devices'
+import { useAndroidInputs } from '../lib/androidScan'
+import { codeFacts, parseGs1, publicGtin } from '../lib/gs1'
 import { findProductByScan, prefillFromScan } from '../lib/productMatch'
 import { fmtTime } from '../lib/format'
 import { API_URL, isAndroid, isDesktop, type DesktopDevice } from '../lib/platform'
@@ -26,6 +27,9 @@ const SPEEDS: { id: string; label: string; cfg: Pick<ScannerConfig, 'maxAvgMs' |
 export function ScannerTab() {
   const status = useScanStatus()
   const devices = useDevices(s => s.list)
+  // Android: the phone's own scanner, and keyboards/scanners plugged in or paired (keyboard type)
+  const phone = isAndroid() ? androidScanner() : null
+  const androidInputs = useAndroidInputs(s => s.list).filter(d => d.external !== false && d.alphabetic)
   const products = useCollection('products')
   const canAdd = usePerm('products')
   const toast = useToast()
@@ -62,7 +66,8 @@ export function ScannerTab() {
           <div className="scan-test">
             <b className="mono" dir="ltr">{last.text.replace(/\x1d/g, '⟨GS⟩')}</b>
             <div className="small muted">{[last.symbology, SOURCE[last.source], last.device, fmtTime(last.at)].filter(Boolean).join(' · ')}</div>
-            {facts?.gtin && <div className="small">رقم منتج دولي صحيح{facts.country ? ` · بلد تسجيل الباركود: ${facts.country}` : ''}</div>}
+            {facts?.gtin && (publicGtin(last.text) ? <div className="small">رقم منتج دولي صحيح{facts.country ? ` · مسجّل لدى GS1 ${facts.country}` : ''}{facts.origin ? ` · المنشأ: ${facts.origin}` : ''}</div>
+              : <div className="small">رمز داخلي (للمتجر أو الميزان) — ليس رقماً دولياً</div>)}
             {gs1 && <div className="small">{gs1.map(x => `${x.label}: ${x.value}`).join(' · ')}</div>}
             <div className="mt">{hit ? <span className="badge tone-success">القطعة: {hit.product.name}</span>
               : <span className="row" style={{ gap: 8 }}><span className="badge tone-warning">غير مسجّل لأي قطعة</span>{canAdd && <button className="btn sm" onClick={() => setCreate(last.text)}><PlusCircle /> أضف قطعة بهذا الباركود</button>}</span>}</div>
@@ -79,8 +84,9 @@ export function ScannerTab() {
             action={d.kind !== 'usb' && (d.state === 'off'
               ? <button className="btn sm ghost" onClick={() => turnDeviceOn(d.id)}><Power /> تشغيل</button>
               : <button className="btn sm ghost" onClick={() => turnDeviceOff(d.id)}><PowerOff /> إيقاف</button>)} />)}
-          {isAndroid() && <DeviceRow icon={<Smartphone />} name="قارئ الجهاز المدمج (أجهزة نقاط البيع والهواتف الصناعية)" state={status.counts.android ? 'connected' : 'idle'}
-            detail={status.counts.android ? `يعمل — ${status.counts.android} قراءة` : 'يُستقبل تلقائياً من قارئات Zebra وHoneywell وSunmi وUrovo وNewland وiData وغيرها. إن لم يصل المسح فاختر في إعدادات القارئ «إرسال كلوحة مفاتيح» أو «Broadcast».'} />}
+          {isAndroid() && <DeviceRow icon={<Smartphone />} name={phone?.scanner ? `قارئ ${phone.scanner} المدمج (${phone.model})` : 'قارئ الجهاز المدمج (أجهزة نقاط البيع والهواتف الصناعية)'} state={status.counts.android ? 'connected' : phone?.scanner ? 'idle' : 'idle'}
+            detail={status.counts.android ? `يعمل — ${status.counts.android} قراءة` : phone?.scanner ? 'يُستقبل المسح تلقائياً — اضغط زر المسح في الجهاز لتجربته.' : 'يُستقبل تلقائياً من قارئات Zebra وHoneywell وSunmi وUrovo وNewland وiData وغيرها. إن لم يصل المسح فاضبط إخراج القارئ في إعداداته على «Broadcast / Intent» باسم com.alradwan.garage.SCAN والمفتاح data، أو على «لوحة المفاتيح».'} />}
+          {androidInputs.map(d => <DeviceRow key={d.descriptor} icon={<Keyboard />} name={d.name || 'جهاز إدخال'} state="keyboard" detail="موصول كلوحة مفاتيح — يُقرأ مسحه تلقائياً. إن اختفت لوحة المفاتيح على الشاشة: الإعدادات ← النظام ← اللغات والإدخال ← لوحة المفاتيح الفعلية ← «استخدام لوحة المفاتيح على الشاشة»." />)}
           <DeviceRow icon={<Camera />} name="كاميرا الجهاز" state={typeof navigator !== 'undefined' && navigator.mediaDevices ? 'idle' : 'off'} detail="زر الكاميرا في أعلى الشاشة وفي شاشات البيع والمشتريات والمنتجات" />
         </div>
         {(canUseHid() || canUseSerial()) && <div className="row mt" style={{ flexWrap: 'wrap' }}>

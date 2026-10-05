@@ -43,7 +43,7 @@ export function Products() {
     if (dialogDepth() > 0) return false
     const hit = findProductByScan(products.values(), s.text)
     if (hit) { setEdit(hit.product); setScanned({ scan: s.text }); return true }
-    if (!canAdd) { toast.error(`الرمز ${s.text} غير مسجّل لأي قطعة`); return false }
+    if (!canAdd) { toast.error(`الرمز ${s.text} غير مسجّل لأي قطعة`); return 'reject' }
     setEdit('new'); setScanned({ initial: prefillFromScan(s.text), scan: s.text })
     return true
   }, { priority: SCAN_PRIORITY.screen, enabled: !intake })

@@ -4,7 +4,7 @@ import { audit, put, usePerm, useSettings, useStore } from '../db/store'
 import type { Product } from '../db/types'
 import { SCAN_PRIORITY, useScan } from '../lib/scan'
 import { barcodeToSave, findProductByScan } from '../lib/productMatch'
-import { codeFacts, publicGtin } from '../lib/gs1'
+import { brandHint, codeFacts, learnBrandPrefixes, publicGtin } from '../lib/gs1'
 import { lookupEnabled, lookupProduct, shareCatalogChanges, SOURCE_LABEL, type LookupSource } from '../lib/productLookup'
 import { norm, toNumber } from '../lib/format'
 import { dialogDepth } from './modal'
@@ -37,7 +37,7 @@ export function IntakePanel({ onClose, onEdit }: { onClose: () => void; onEdit: 
     return [{ ...l[i], ...patch }, ...copy]
   })
 
-  const take = (text: string): boolean => {
+  const take = (text: string): boolean | 'reject' => {
     const key = keyOf(text)
     const code = barcodeToSave(text)
     // still being looked up: one more box of it
@@ -56,7 +56,7 @@ export function IntakePanel({ onClose, onEdit }: { onClose: () => void; onEdit: 
       return true
     }
     if (hit) { upsertRow(key, { code, productId: hit.id, status: 'existing', count: 0 }); return true }
-    if (!canAdd) { toast.error('ليس لديك صلاحية إضافة القطع'); return false }
+    if (!canAdd) { toast.error('ليس لديك صلاحية إضافة القطع'); return 'reject' }
     waiting.current.set(key, 1)
     upsertRow(key, { code, status: 'looking', count: 1 })
     void (async () => {
@@ -64,16 +64,22 @@ export function IntakePanel({ onClose, onEdit }: { onClose: () => void; onEdit: 
       later(async () => {
         const count = waiting.current.get(key) ?? 1
         const now = Date.now()
+        // not found anywhere: the maker (and part number) its barcode gives away still names it
+        const hint = found ? null : brandHint(text, learnBrandPrefixes((useStore.getState().products as unknown as Map<string, Product>).values()))
+        const named = found?.name || (hint?.partNumber ? `${hint.brand} ${hint.partNumber}` : `قطعة ${code}`)
         const p = await put('products', {
-          code: nextCode(useStore.getState().products as unknown as Map<string, Product>), barcode: code, name: found?.name || `قطعة ${code}`, brand: found?.brand ?? '', cars: '',
-          oemNumbers: codeFacts(text).looksLikePartNumber ? text.trim() : undefined, image: found?.image,
+          code: nextCode(useStore.getState().products as unknown as Map<string, Product>), barcode: code, name: named, brand: found?.brand ?? hint?.brand ?? '', cars: '',
+          oemNumbers: codeFacts(text).looksLikePartNumber ? text.trim() : hint?.partNumber, image: found?.image,
           unit: settings.units[0] ?? 'قطعة', cost: 0, price: 0, wholesalePrice: 0, minStock: settings.lowStockDefault, openingStock: count, openingCost: 0,
           location: '', notes: '', kind: 'product', createdAt: now,
         } as Omit<Product, 'id' | 'updatedAt'>)
         await audit('create', `إضافة قطعة بالمسح السريع ${p.name} (${p.code}) — الكمية ${count}`, 'products', p.id)
+        // boxes of it scanned while it was being saved count too
+        const total = waiting.current.get(key) ?? count
         made.current.set(key, p.id)
         waiting.current.delete(key)
-        upsertRow(key, { code, productId: p.id, status: 'new', count, source: found?.source ?? null })
+        if (total !== count) await put('products', { ...p, openingStock: total })
+        upsertRow(key, { code, productId: p.id, status: 'new', count: total, source: found?.source ?? null })
         if (found) void shareCatalogChanges()
       })
     })()

@@ -10,7 +10,7 @@ import { saleTotals } from '../lib/calc'
 import { CURRENCY_SYMBOL, convert, equiv, fmtDate, fromInputDate, invoiceNo, matches, money, num, otherCurrency, toInputDate, toNumber } from '../lib/format'
 import { Field, NumberInput, Chips, Price } from '../ui/components'
 import { Modal, dialogDepth, useConfirm } from '../ui/modal'
-import { SCAN_PRIORITY, useScan } from '../lib/scan'
+import { focusedField, SCAN_PRIORITY, useScan } from '../lib/scan'
 import { findProductByScan, prefillFromScan } from '../lib/productMatch'
 import { useToast } from '../ui/toast'
 import { ProductSearch, PartyPicker, useProductStock } from '../ui/pickers'
@@ -128,14 +128,16 @@ export function POS() {
   // a barcode scanner or the camera adds the part to the invoice; an unknown code opens a new part for it
   const newFromScan = (text: string) => setScanNew({ initial: prefillFromScan(text), scan: text })
   useScan(s => {
-    // the saved-invoice window is open: the next scan starts the next sale
-    if (done && dialogDepth() === 1) { reset(); setShowCart(false) }
+    // a field that takes any text (the invoice notes): the reading is typed there
+    if (focusedField()?.dataset.scan === 'text') return false
+    // the saved-invoice window is open: the next scan starts the next sale (and leaves the invoice being edited)
+    if (done && dialogDepth() === 1) { wasEditing.current = false; reset(); setShowCart(false) }
     else if (dialogDepth() > 0) return false
     const hit = findProductByScan(products.values(), s.text)
     if (hit) { add(hit.product); toast.success(`أُضيف: ${hit.product.name}`); return true }
     if (canAddProduct) { newFromScan(s.text); return true }
     toast.error(`الرمز ${s.text} غير مسجّل لأي قطعة`)
-    return false
+    return 'reject'
   }, { priority: SCAN_PRIORITY.screen })
 
   const reset = () => { draftStore.setState({ d: null }); setItems([]); setCustomerId(undefined); setCustomerName('زبون نقدي'); setDiscount(0); setDiscMode('amount'); setDiscPct(0); setQuote(false); setJob(false); setVehicleId(undefined); setOdometer(0); setNextKm(0); setNextDays(0); setPaid(null); setDate(toInputDate(Date.now())); setNotes(''); setDone(null); if (editId) setParams({}) }
@@ -264,7 +266,7 @@ export function POS() {
             <summary className="muted small" style={{ cursor: 'pointer' }}>التاريخ والملاحظات</summary>
             <div className="form-grid mt">
               <Field label="التاريخ" help={canBackdate ? undefined : 'تغيير التاريخ يحتاج صلاحية من المدير'}><input type="date" className="input" value={date} onChange={e => setDate(e.target.value)} disabled={!canBackdate} /></Field>
-              <Field label="ملاحظات"><input className="input" value={notes} onChange={e => setNotes(e.target.value)} placeholder="تظهر على الفاتورة" /></Field>
+              <Field label="ملاحظات"><input className="input" value={notes} onChange={e => setNotes(e.target.value)} placeholder="تظهر على الفاتورة" data-scan="text" /></Field>
             </div>
           </details>
           <div className="btn-row" style={{ marginTop: 6 }}>

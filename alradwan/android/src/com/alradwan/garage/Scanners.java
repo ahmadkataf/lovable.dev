@@ -39,10 +39,10 @@ final class Scanners {
     static final String[][] ACTIONS = {
         { OWN_ACTION, null },
         { "com.sunmi.scanner.ACTION_DATA_CODE_RECEIVED", "Sunmi" },
-        { "android.intent.ACTION_DECODE_DATA", "Urovo" },                     // also Unitech (Android 9 and older), many Chinese PDAs
+        { "android.intent.ACTION_DECODE_DATA", null },                        // Urovo, Unitech (Android 9 and older), many Chinese PDAs
         { "nlscan.action.SCANNER_RESULT", "Newland" },
         { "android.intent.action.SCANRESULT", "iData" },
-        { "com.android.server.scannerservice.broadcast", "Seuic" },           // also M3 Mobile
+        { "com.android.server.scannerservice.broadcast", null },              // Seuic, M3 Mobile
         { "com.datalogic.decodewedge.decode_action", "Datalogic" },
         { "unitech.scanservice.data", "Unitech" },
         { "com.cipherlab.barcodebaseapi.PASS_DATA_2_APP", "CipherLab" },
@@ -83,6 +83,7 @@ final class Scanners {
 
     private final MainActivity host;
     private BroadcastReceiver receiver;
+    private boolean resumed, listening;
     private InputManager inputs;
     private InputManager.InputDeviceListener inputListener;
 
@@ -101,14 +102,22 @@ final class Scanners {
             if (Build.VERSION.SDK_INT >= 33) host.registerReceiver(receiver, f, Context.RECEIVER_EXPORTED);
             else host.registerReceiver(receiver, f);
         } catch (RuntimeException ignored) { }
-        try { claimHoneywell(); } catch (RuntimeException ignored) { }
+        resumed = true;
+        if (listening) { try { claimHoneywell(); } catch (RuntimeException ignored) { } }
         if (!dataWedgeDone) { dataWedgeDone = true; try { configureDataWedge(); } catch (RuntimeException ignored) { } }
     }
 
     void onPause() {
+        resumed = false;
         if (receiver != null) { try { host.unregisterReceiver(receiver); } catch (IllegalArgumentException ignored) { } }
         try { host.sendBroadcast(new Intent("com.honeywell.aidc.action.ACTION_RELEASE_SCANNER").setPackage("com.intermec.datacollectionservice")); }
         catch (RuntimeException ignored) { }
+    }
+
+    /** The page listens to 'garage-scan' now: only then may the Honeywell claim turn its keyboard wedge into intents. */
+    void pageListening() {
+        listening = true;
+        if (resumed) { try { claimHoneywell(); } catch (RuntimeException ignored) { } }
     }
 
     void handle(Intent i) {
@@ -142,15 +151,16 @@ final class Scanners {
         return s.isEmpty() ? null : s;
     }
 
-    /** The brand that sent it, from the action (the app's own action tells by its extras). */
+    /** The brand that sent it, from the action (the app's own action tells by its extras); an action several
+     *  brands share takes the phone's maker. */
     static String vendor(String action, Bundle x) {
         if (OWN_ACTION.equals(action)) {
             if (x.containsKey("com.symbol.datawedge.data_string")) return "Zebra";
             if (x.containsKey("codeId") || x.containsKey("aimId") || x.containsKey("dataBytes")) return "Honeywell";
-            return null;
+            return deviceBrand();
         }
         if ("com.android.server.scannerservice.broadcast".equals(action) && x.containsKey("m3scannerdata")) return "M3";
-        for (String[] a : ACTIONS) if (a[0].equals(action)) return a[1];
+        for (String[] a : ACTIONS) if (a[0].equals(action)) return a[1] != null ? a[1] : deviceBrand();
         return null;
     }
 
@@ -188,7 +198,7 @@ final class Scanners {
             .putExtra("com.honeywell.aidc.extra.EXTRA_PROPERTIES", p));
     }
 
-    // ---------- Zebra: a DataWedge profile for this app with intent output instead of keystrokes ----------
+    // ---------- Zebra: a DataWedge profile for this app with intent output next to the keystrokes ----------
     void configureDataWedge() {
         Bundle main = new Bundle();
         main.putString("PROFILE_NAME", "AlRadwanGarage");
@@ -210,6 +220,8 @@ final class Scanners {
         intentPlugin.putString("RESET_CONFIG", "true");
         intentPlugin.putBundle("PARAM_LIST", intentParams);
         plugins.add(intentPlugin);
+        // the page listens to 'garage-scan' (src/lib/androidScan.ts): typing the code as well would deliver it twice
+        // and only into a focused field, so keystroke output is off for this app's profile
         plugins.add(plugin("KEYSTROKE", "keystroke_output_enabled", "false", null, null));
         main.putParcelableArrayList("PLUGIN_CONFIG", plugins);
         host.sendBroadcast(new Intent("com.symbol.datawedge.api.ACTION").putExtra("com.symbol.datawedge.api.SET_CONFIG", main));
@@ -264,13 +276,17 @@ final class Scanners {
         inputListener = null;
     }
 
+    /** The brand when the phone comes from a scanner maker, else null. */
+    static String deviceBrand() {
+        String hay = ((Build.MANUFACTURER == null ? "" : Build.MANUFACTURER) + " " + (Build.BRAND == null ? "" : Build.BRAND)).toLowerCase(Locale.ROOT);
+        for (String[] m : MAKERS) if (hay.contains(m[0])) return m[1];
+        return hay.startsWith("m3") ? "M3" : null;                               // M3 Mobile, "M3SKY"
+    }
+
     /** JSON {maker, model, scanner}: scanner is the brand when the phone comes from a scanner maker. */
     static String scannerInfo() {
         String maker = Build.MANUFACTURER == null ? "" : Build.MANUFACTURER;
-        String hay = (maker + " " + (Build.BRAND == null ? "" : Build.BRAND)).toLowerCase(Locale.ROOT);
-        String scanner = null;
-        for (String[] m : MAKERS) if (hay.contains(m[0])) { scanner = m[1]; break; }
-        if (scanner == null && hay.startsWith("m3")) scanner = "M3";                // M3 Mobile, "M3SKY"
+        String scanner = deviceBrand();
         try {
             JSONObject o = new JSONObject();
             o.put("maker", maker);

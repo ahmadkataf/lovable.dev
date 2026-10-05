@@ -78,6 +78,8 @@ CREATE TABLE IF NOT EXISTS catalog_contrib (
   PRIMARY KEY (gtin, device)
 );
 CREATE INDEX IF NOT EXISTS catalog_contrib_gtin ON catalog_contrib (gtin);
+-- a lookup counts only votes of devices still bound to a live licence
+CREATE INDEX IF NOT EXISTS license_devices_device ON license_devices (device);
 -- what the outside services (Open Food Facts, UPCitemdb) answered, found or not, so each is asked once
 CREATE TABLE IF NOT EXISTS catalog_cache (
   gtin      TEXT PRIMARY KEY,
@@ -90,7 +92,9 @@ CREATE TABLE IF NOT EXISTS catalog_cache (
   source    TEXT,                        -- openfoodfacts, upcitemdb
   at        INTEGER NOT NULL
 );
--- lookups per device ('d:'), per hashed address ('i:') and contributed items per device ('c:'), per UTC day
+-- per UTC day: lookups per device ('d:') and per address ('i:', a keyed hash that changes daily), contributed items
+-- per device ('c:'), UPCitemdb asks for the whole server ('upc'), per device ('ud:') and per address ('ui:'), Open
+-- Food Facts asks per minute ('o:<minute>'), and until when UPCitemdb is not asked after its 429 ('upc-pause', n = ms)
 CREATE TABLE IF NOT EXISTS catalog_quota (
   k   TEXT NOT NULL,
   day INTEGER NOT NULL,

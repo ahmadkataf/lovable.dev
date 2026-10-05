@@ -30,8 +30,11 @@ export function loadDecoder(): Promise<Reader> {
 
 /** Every symbology the decoder knows: shop barcodes (EAN/UPC), part labels (Code 128/39/93, Codabar, ITF),
  *  GS1 DataBar, and 2D codes (QR, Micro QR, rMQR, Data Matrix, PDF417, Aztec, MaxiCode). */
-// Plain text keeps the GS1 separator (ASCII 29) as a character, exactly as a USB scanner sends it
-const OPTIONS: ReaderOptions = { formats: [], tryHarder: true, tryRotate: true, tryInvert: true, tryDownscale: true, maxNumberOfSymbols: 4, textMode: 'Plain' }
+// Plain text keeps the GS1 separator (ASCII 29) as a character, exactly as a USB scanner sends it. The formats
+// are listed rather than "all": all would read ordinary Code 39 part labels as Full ASCII ('SET/A-12' → 'SET!-12'),
+// which no hand scanner does by default.
+const FORMATS = ['Codabar', 'Code39Std', 'Code93', 'Code128', 'ITF', 'DataBar', 'EANUPC', 'Telepen', 'DXFilmEdge', 'PDF417', 'Aztec', 'QRCode', 'DataMatrix', 'MaxiCode'] as ReaderOptions['formats']
+const OPTIONS: ReaderOptions = { formats: FORMATS, tryHarder: true, tryRotate: true, tryInvert: true, tryDownscale: true, maxNumberOfSymbols: 4, textMode: 'Plain' }
 
 export interface Decoded { text: string; format: string; symbologyIdentifier: string }
 const pick = (r: ReadResult[]): Decoded[] => r.filter(x => x.isValid && x.text).map(x => ({ text: x.text, format: x.format, symbologyIdentifier: x.symbologyIdentifier }))
@@ -76,7 +79,7 @@ export async function decodeStill(src: Blob | HTMLVideoElement | ImageBitmap): P
 export const decodeFile = (file: Blob) => decodeStill(file)
 
 /** Barcodes without a check digit: one frame can misread them, so the live camera waits for two that agree. */
-export const UNCHECKED = new Set(['Codabar', 'Code39', 'Code32', 'PZN', 'ITF', 'DXFilmEdge', 'Telepen'])
+export const UNCHECKED = new Set(['Codabar', 'Code39', 'Code39Std', 'Code39Ext', 'Code32', 'PZN', 'ITF', 'DXFilmEdge', 'Telepen'])
 
 /** Arabic-friendly names for the formats ZXing reports. */
 export function formatLabel(f: string): string {

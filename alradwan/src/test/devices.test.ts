@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { hidIsScanner, hidLayouts, readHidReport } from '../lib/devices'
+import { hidIsScanner, hidLayouts, readHidReport, ssiPacket } from '../lib/devices'
 
 const U = (id: number) => (0x8c << 16) | id
 // HID POS Usage Tables 1.02, Fig. 2: 3 symbology id bytes, 50 data bytes, then the continued bit (8 × 1 bit)
@@ -47,5 +47,28 @@ describe('HID POS scanners', () => {
     expect(text(r)).toBe(']E04006381333931')
     expect(readHidReport([], 2, bytes(63, [[0, [3]], [1, ascii('xyz')]]))).toBeNull()
     expect(readHidReport([], 5, bytes(63, []))).toBeNull()
+  })
+})
+
+describe('Zebra SSI packets', () => {
+  // [len][F3][00][status][type] data [checksum hi][checksum lo]; checksum = 2's complement of the byte sum
+  const packet = (data: string, status = 0) => {
+    const body = [5 + data.length - 1 + 1, 0xf3, 0x00, status, 0x0b, ...[...data].map(c => c.charCodeAt(0))]
+    body[0] = body.length
+    const sum = body.reduce((a, b) => a + b, 0)
+    const chk = (0x10000 - sum) & 0xffff
+    return [...body, chk >> 8, chk & 0xff]
+  }
+  it('unwraps a decode packet and checks its checksum', () => {
+    const p = packet('6291041500213')
+    expect(ssiPacket(p)).toEqual({ size: p.length, data: [...'6291041500213'].map(c => c.charCodeAt(0)), more: false })
+    const bad = [...p]; bad[bad.length - 1] ^= 1
+    expect(ssiPacket(bad)).toBeNull()
+  })
+  it('waits for the rest of a packet, and leaves plain text alone', () => {
+    const p = packet('ABC', 2)
+    expect(ssiPacket(p.slice(0, 4))).toBe('wait')
+    expect(ssiPacket(p)).toMatchObject({ more: true })
+    expect(ssiPacket([...'6291041500213'].map(c => c.charCodeAt(0)))).toBeNull()
   })
 })

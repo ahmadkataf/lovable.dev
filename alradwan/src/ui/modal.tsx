@@ -3,6 +3,8 @@ import { X } from 'lucide-react'
 
 // Open dialogs register here so the phone's back button closes the top one instead of leaving the screen.
 const openDialogs: (() => void)[] = []
+// the page's own scroll setting, kept while any dialog is open (dialogs may close in any order, even together)
+let pageOverflow = ''
 if (typeof window !== 'undefined') {
   ;(window as any).alradwanBack = () => {
     const top = openDialogs[openDialogs.length - 1]
@@ -46,12 +48,17 @@ export function Modal({ title, onClose, children, footer, size, icon }: { title:
       }
     }
     window.addEventListener('keydown', onKey)
-    const prev = document.body.style.overflow
+    if (!openDialogs.length) pageOverflow = document.body.style.overflow
     document.body.style.overflow = 'hidden'
     openDialogs.push(close)
     // the first field gets the keyboard, unless something inside asked for it already
     setTimeout(() => { if (box.current && !box.current.contains(document.activeElement)) (box.current.querySelector<HTMLElement>('.modal-body ' + FOCUSABLE) ?? box.current.querySelector<HTMLElement>(FOCUSABLE))?.focus() }, 30)
-    return () => { window.removeEventListener('keydown', onKey); document.body.style.overflow = prev; const i = openDialogs.lastIndexOf(close); if (i >= 0) openDialogs.splice(i, 1); opener?.focus?.() }
+    return () => {
+      window.removeEventListener('keydown', onKey)
+      const i = openDialogs.lastIndexOf(close); if (i >= 0) openDialogs.splice(i, 1)
+      document.body.style.overflow = openDialogs.length ? 'hidden' : pageOverflow
+      opener?.focus?.()
+    }
   }, [])
   return (
     <div className="modal-backdrop" onMouseDown={e => { if (e.target === e.currentTarget) onClose() }}>

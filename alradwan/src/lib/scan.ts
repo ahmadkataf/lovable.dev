@@ -14,6 +14,8 @@ export interface Scan {
   symbology?: string
   /** which device read it (shown on the scanner page) */
   device?: string
+  /** the key that ended a keyboard-type reading (given back to a field the reading is typed into) */
+  terminator?: 'Enter' | 'Tab'
   at: number
 }
 
@@ -59,7 +61,10 @@ export interface ScanStatus {
 export const useScanStatus = create<ScanStatus>(() => ({ config: readScannerConfig(), last: null, keyboardSeen: null, counts: {} }))
 
 // ------------------------------------------------------------------------------------------- the bus
-type Handler = (s: Scan) => boolean | void | Promise<boolean | void>
+/** true: handled. 'reject': this screen decided against it (an unknown code it may not create): nobody else
+ *  gets it, so it is never typed into a price or quantity box behind the message. */
+type HandlerResult = boolean | void | 'reject'
+type Handler = (s: Scan) => HandlerResult | Promise<HandlerResult>
 interface Sub { id: number; fn: Handler; priority: number }
 let subs: Sub[] = []
 let nextId = 1
@@ -117,8 +122,10 @@ export function cleanScanText(raw: string): { text: string; symbology?: string }
 }
 
 let audio: AudioContext | null = null
-/** The good-read beep (or the error buzz) and a short vibration, as the settings ask. */
+/** The good-read beep (or the error buzz) and a short vibration, as the settings ask. A reading also counts
+ *  as activity for the screen lock (hands-free camera scanning touches nothing). */
 export function scanFeedback(ok: boolean) {
+  try { window.dispatchEvent(new Event('alradwan-activity')) } catch { /* no window */ }
   const c = useScanStatus.getState().config
   if (c.vibrate) { try { navigator.vibrate?.(ok ? 40 : [60, 60, 60]) } catch { /* not supported */ } }
   if (!c.beep) return
@@ -137,18 +144,22 @@ export function scanFeedback(ok: boolean) {
 let lastEmit = { text: '', source: '', at: 0 }
 
 /** Hands a reading to the screens. Returns whether something used it. */
-export async function emitScan(input: { text: string; source: ScanSource; symbology?: string; device?: string; quiet?: boolean }): Promise<boolean> {
+export async function emitScan(input: { text: string; source: ScanSource; symbology?: string; device?: string; terminator?: 'Enter' | 'Tab'; quiet?: boolean }): Promise<boolean> {
   const { text, symbology } = cleanScanText(input.text)
   if (!text) return false
   // a POS phone may send each reading twice (as keys and as a broadcast): the second copy is dropped
   const now = Date.now()
   if (text === lastEmit.text && input.source !== lastEmit.source && now - lastEmit.at < 800 && [input.source, lastEmit.source].every(x => x === 'keyboard' || x === 'android')) return true
   lastEmit = { text, source: input.source, at: now }
-  const scan: Scan = { text, source: input.source, symbology: input.symbology || symbology, device: input.device, at: Date.now() }
+  const scan: Scan = { text, source: input.source, symbology: input.symbology || symbology, device: input.device, terminator: input.terminator, at: Date.now() }
   useScanStatus.setState(s => ({ last: scan, counts: { ...s.counts, [scan.source]: (s.counts[scan.source] ?? 0) + 1 }, keyboardSeen: scan.source === 'keyboard' ? scan.at : s.keyboardSeen }))
   const order = [...subs].sort((a, b) => b.priority - a.priority || b.id - a.id)
   for (const s of order) {
-    try { if (await s.fn(scan)) { if (!input.quiet) scanFeedback(true); return true } } catch (e) { console.error('scan handler', e) }
+    try {
+      const r = await s.fn(scan)
+      if (r === 'reject') { scanFeedback(false); return false }
+      if (r) { if (!input.quiet) scanFeedback(true); return true }
+    } catch (e) { console.error('scan handler', e) }
   }
   scanFeedback(false)
   return false
@@ -267,7 +278,7 @@ function arm(cfg: ScannerConfig) {
     if (cfg.noSuffix && scannedWithoutEnd(cfg)) finish(); else reset()
   }, cfg.maxGapMs + 30)
 }
-function finish() {
+function finish(terminator?: 'Enter' | 'Tab') {
   const text = textOf(strokes, useScanStatus.getState().config.layoutKeys)
   // nothing listens (the lock screen, the first-run setup): the characters stay where they were typed
   if (!subs.length) { reset(); return }
@@ -278,13 +289,13 @@ function finish() {
     try { if (snap.start !== null && snap.end !== null) snap.el.setSelectionRange(snap.start, snap.end) } catch { /* number inputs */ }
   }
   reset()
-  void emitScan({ text, source: 'keyboard' })
+  void emitScan({ text, source: 'keyboard', terminator })
 }
 /** Enter, Tab or Ctrl+J at the end of a burst: a reading if it was fast enough; the key itself is kept from the page. */
 function terminator(e: KeyboardEvent, t: number, cfg: ScannerConfig) {
   if (subs.length && strokes.length && t - strokes[strokes.length - 1].t <= cfg.maxGapMs && scannedWithEnd(cfg)) {
     e.preventDefault(); e.stopImmediatePropagation()
-    finish()
+    finish(e.key === 'Tab' ? 'Tab' : 'Enter')
   } else reset()
 }
 
@@ -292,7 +303,17 @@ const blocked = (target: EventTarget | null) =>
   // never on a PIN/password field: a fast typist's PIN must not become a "scan"
   (target instanceof HTMLInputElement && target.type === 'password') || (target instanceof HTMLElement && !!target.closest('[data-noscan]'))
 
+let replaying = false
+/** Gives a field the Enter (or Tab) that ended a reading typed into it, so what the field does on Enter (read
+ *  a VIN, pick a match) still happens, as when the scanner typed into it directly. */
+export function replayTerminator(el: HTMLElement, key: 'Enter' | 'Tab' | undefined) {
+  if (!key) return
+  replaying = true
+  try { el.dispatchEvent(new KeyboardEvent('keydown', { key, code: key, bubbles: true, cancelable: true })) } finally { replaying = false }
+}
+
 function onKeyDown(e: KeyboardEvent) {
+  if (replaying) return
   const cfg = useScanStatus.getState().config
   if (!cfg.keyboard || e.isComposing) return
   const t = e.timeStamp || performance.now()
