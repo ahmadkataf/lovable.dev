@@ -1,12 +1,13 @@
 import { useEffect, useState } from 'react'
-import { Usb, Cable, Keyboard, Camera, Smartphone, RefreshCw, Power, PowerOff, PlusCircle, ScanLine } from 'lucide-react'
-import { useCollection, usePerm } from '../db/store'
+import { Usb, Cable, Keyboard, Camera, Smartphone, RefreshCw, Power, PowerOff, PlusCircle, ScanLine, Globe } from 'lucide-react'
+import { saveSettings, useCollection, useIsAdmin, usePerm, useSettings } from '../db/store'
 import { DEFAULT_SCANNER, SCAN_PRIORITY, useScan, useScanStatus, writeScannerConfig, type ScanSource, type ScannerConfig } from '../lib/scan'
 import { canUseHid, canUseSerial, desktopInventory, linkHidScanner, linkSerialScanner, turnDeviceOff, turnDeviceOn, useDevices, type ScannerDevice } from '../lib/devices'
 import { codeFacts, parseGs1 } from '../lib/gs1'
 import { findProductByScan, prefillFromScan } from '../lib/productMatch'
 import { fmtTime } from '../lib/format'
-import { isAndroid, isDesktop, type DesktopDevice } from '../lib/platform'
+import { API_URL, isAndroid, isDesktop, type DesktopDevice } from '../lib/platform'
+import { shareCatalogChanges } from '../lib/productLookup'
 import { Modal } from './modal'
 import { ProductForm } from './forms'
 import { ScanButton } from './scanFlow'
@@ -17,8 +18,8 @@ const SOURCE: Record<ScanSource, string> = { keyboard: 'قارئ USB/بلوتو�
 /** Speeds a keyboard-type scanner types at: a person never types this fast. */
 const SPEEDS: { id: string; label: string; cfg: Pick<ScannerConfig, 'maxAvgMs' | 'maxGapMs'> }[] = [
   { id: 'normal', label: 'عادي (أغلب القارئات)', cfg: { maxAvgMs: DEFAULT_SCANNER.maxAvgMs, maxGapMs: DEFAULT_SCANNER.maxGapMs } },
-  { id: 'slow', label: 'قارئ بطيء أو بلوتوث', cfg: { maxAvgMs: 80, maxGapMs: 180 } },
-  { id: 'fast', label: 'سريع فقط (إن ظهر كلامك المكتوب كمسح)', cfg: { maxAvgMs: 25, maxGapMs: 60 } },
+  { id: 'slow', label: 'قارئ بطيء أو بلوتوث', cfg: { maxAvgMs: 100, maxGapMs: 200 } },
+  { id: 'fast', label: 'سريع فقط (إن ظهر كلامك المكتوب كمسح)', cfg: { maxAvgMs: 35, maxGapMs: 80 } },
 ]
 
 /** Settings → barcode reader: what is connected, a test box, and how keyboard-type scanners are told apart. */
@@ -30,6 +31,8 @@ export function ScannerTab() {
   const toast = useToast()
   const [busy, setBusy] = useState(false)
   const [create, setCreate] = useState<string | null>(null)
+  const shop = useSettings()
+  const isAdmin = useIsAdmin()
   const cfg = status.config
   const set = (c: Partial<ScannerConfig>) => writeScannerConfig(c)
   const speed = SPEEDS.find(s => s.cfg.maxAvgMs === cfg.maxAvgMs && s.cfg.maxGapMs === cfg.maxGapMs)?.id ?? 'custom'
@@ -91,6 +94,19 @@ export function ScannerTab() {
       </div>
 
       <div className="card pad">
+        <div className="card-title"><h2><Globe size={18} style={{ verticalAlign: -3 }} /> بيانات القطع من الباركود</h2></div>
+        <div className="stack" style={{ gap: 10 }}>
+          <label className="checkbox"><input type="checkbox" disabled={!isAdmin} checked={shop.barcodeLookup !== false} onChange={e => void saveSettings({ barcodeLookup: e.target.checked })} /> عند مسح باركود جديد: املأ اسم القطعة وماركتها وصورتها وحدها</label>
+          <div className="help">من قاعدة الباركود المشتركة بين المحلات التي تستخدم البرنامج، ومن Open Food Facts وUPCitemdb. يحتاج إنترنت؛ القطع المحلية قد لا توجد، فتكتب اسمها مرة واحدة.</div>
+          {API_URL && <>
+            <label className="checkbox"><input type="checkbox" disabled={!isAdmin} checked={shop.shareCatalog !== false} onChange={e => { void saveSettings({ shareCatalog: e.target.checked }).then(() => { if (e.target.checked) void shareCatalogChanges() }) }} /> شارك أسماء قطعي مع المحلات الأخرى</label>
+            <div className="help">يُرسل الباركود مع اسم القطعة وماركتها وتصنيفها فقط — دون الأسعار أو الكميات أو اسم المحل — فيجدها غيرك جاهزة، كما تجد أنت ما أدخلوه. الباركودات الداخلية التي يطبعها المحل لا تُرسل.</div>
+          </>}
+          {!isAdmin && <div className="help">يغيّر هذه الخيارات المدير فقط.</div>}
+        </div>
+      </div>
+
+      <div className="card pad">
         <div className="card-title"><h2>إعدادات القارئ</h2></div>
         <div className="stack" style={{ gap: 10 }}>
           <label className="checkbox"><input type="checkbox" checked={cfg.keyboard} onChange={e => set({ keyboard: e.target.checked })} /> التعرّف على القارئ الذي يعمل كلوحة مفاتيح في كل الشاشات</label>
@@ -103,6 +119,8 @@ export function ScannerTab() {
               <div className="help">إن لم يُعرف المسح فاختر «قارئ بطيء». وإن صار ما تكتبه بيدك يُعامل كمسح فاختر «سريع فقط».</div>
             </div>
             <label className="checkbox"><input type="checkbox" checked={cfg.noSuffix} onChange={e => set({ noSuffix: e.target.checked })} /> قبول المسح الذي لا ينتهي بـ Enter (بعض القارئات لا ترسله)</label>
+            <label className="checkbox"><input type="checkbox" checked={cfg.layoutKeys} onChange={e => set({ layoutKeys: e.target.checked })} /> القارئ مضبوط على لغة لوحة المفاتيح نفسها (لا الإنجليزية)</label>
+            <div className="help">اتركه مطفأً في الغالب: القارئ يكتب كلوحة مفاتيح إنجليزية، والبرنامج يقرأ أزراره صحيحة حتى لو كانت لغة الجهاز عربية.</div>
           </>}
           <label className="checkbox"><input type="checkbox" checked={cfg.beep} onChange={e => set({ beep: e.target.checked })} /> صوت عند كل مسح</label>
           {isAndroid() && <label className="checkbox"><input type="checkbox" checked={cfg.vibrate} onChange={e => set({ vibrate: e.target.checked })} /> اهتزاز عند كل مسح</label>}

@@ -1,0 +1,273 @@
+// Product details from a scanned barcode, so a shop adds a product by scanning it instead of typing.
+//
+//   GET  /api/catalog/lookup?code=&device=                      -> {found, name, brand?, category?, quantity?, image, source, shops?} | {found: false, retry?}
+//   GET  /api/catalog/image?code=&device=                       -> the product's picture (from the looked-up result only)
+//   POST /api/catalog/contribute  {token, device, items[]}      -> {ok, saved}            licensed devices share what they typed
+//
+// Only public product numbers (EAN-13, UPC-A, EAN-8, UPC-E, GTIN-14 with a valid check digit) are looked up; a
+// shop's own in-store numbers (prefix 2…, coupons, UPC number systems 2/4/5) mean something different in every shop.
+// The answer comes from, in order: what the shops themselves named the product (most common name wins, one vote
+// per device), a cache of earlier outside answers, then Open Food Facts (and its sister sites for non-food), and
+// only when that has nothing UPCitemdb, whose free tier allows 100 lookups a day from this server. Nothing else
+// is shared: the contributions hold only the number, the name, the brand, the category and the unit — never
+// prices, stock, shop names, addresses or licence codes. Lookups are counted per device and per address
+// (hashed) so the server is not a free proxy.
+//
+// CATALOG_OFF_URL and CATALOG_UPC_URL (optional, for local tests only) replace the base URLs of the two outside
+// services, and an http: picture on the same host as one of them is then allowed too. Never set them in production.
+
+import { readToken } from './license'
+
+export interface CatalogEnv { DB: D1Database; TOKEN_SECRET?: string; CATALOG_OFF_URL?: string; CATALOG_UPC_URL?: string }
+
+const CORS = { 'access-control-allow-origin': '*', 'access-control-allow-headers': 'authorization, content-type', 'access-control-allow-methods': 'GET, POST, OPTIONS', 'access-control-max-age': '86400' }
+const OFF_URL = 'https://world.openfoodfacts.org'
+const UPC_URL = 'https://api.upcitemdb.com/prod/trial'
+const OFF_FIELDS = 'product_name,product_name_ar,product_name_en,generic_name,brands,quantity,categories,image_front_small_url,image_front_url'
+const USER_AGENT = 'AlRadwanGarage/1.8 (+https://alradwan.almutafawiqin.workers.dev)'
+const DAY = 86400000
+const FRESH_FOUND = 180 * DAY           // an outside answer is asked again after this long…
+const FRESH_MISSING = 14 * DAY          // …and a "nobody knows it" sooner, products get added
+const TIMEOUT = 4500                    // each outside call
+const MAX_IMAGE = 1.5 * 1024 * 1024
+const IMAGE_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp', 'image/gif'])
+const LIMIT_DEVICE = 400                // lookups (and pictures) per device per UTC day
+const LIMIT_IP = 2000                   // …and per address
+const LIMIT_CONTRIB = 3000              // contributed items per device per day
+const MAX_ITEMS = 50                    // per contribute call
+const MAX_BODY = 64 * 1024
+
+const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json; charset=utf-8', 'x-content-type-options': 'nosniff', 'cache-control': 'no-store', ...CORS } })
+const validDevice = (d: unknown): d is string => typeof d === 'string' && /^[a-f0-9]{32,64}$/.test(d)
+const ipOf = (req: Request) => req.headers.get('cf-connecting-ip') ?? 'unknown'
+
+// ---------- product numbers ----------
+function checkDigit(body: string): number {
+  let sum = 0
+  for (let i = body.length - 1, w = 3; i >= 0; i--, w = w === 3 ? 1 : 3) sum += Number(body[i]) * w
+  return (10 - (sum % 10)) % 10
+}
+const validCheck = (c: string) => checkDigit(c.slice(0, -1)) === Number(c[c.length - 1])
+
+/** UPC-E (number system 0 or 1) to its UPC-A, or null when the check digit does not fit. */
+function upcEtoA(e: string): string | null {
+  if (!/^[01]\d{7}$/.test(e)) return null
+  const d = e.slice(1, 7), last = d[5]
+  let body: string
+  if (last <= '2') body = d.slice(0, 2) + last + '0000' + d.slice(2, 5)
+  else if (last === '3') body = d.slice(0, 3) + '00000' + d.slice(3, 5)
+  else if (last === '4') body = d.slice(0, 4) + '00000' + d[4]
+  else body = d.slice(0, 5) + '0000' + last
+  const a = e[0] + body + e[7]
+  return validCheck(a) ? a : null
+}
+
+/** A public product number as {gtin: its GTIN-14 key, ask: the form the outside services know}, else null. */
+export function publicGtin(raw: unknown): { gtin: string; ask: string } | null {
+  const c = String(raw ?? '').replace(/[\s-]/g, '')
+  if (/^\d{8}$/.test(c)) {
+    // an 8-digit number starting with 0/1 that reads as a UPC-E is one (EAN-8 numbers 0… are in-store anyway)
+    const a = upcEtoA(c)
+    if (a) return { gtin: a.padStart(14, '0'), ask: '0' + a }
+    if (!validCheck(c) || c[0] === '0' || c[0] === '2') return null
+    return { gtin: c.padStart(14, '0'), ask: c }
+  }
+  if (!/^\d{12,14}$/.test(c) || !validCheck(c)) return null
+  const gtin = c.padStart(14, '0')
+  if (gtin[0] === '9') return null                       // GTIN-14 indicator 9: weighed / variable items
+  const t = gtin.slice(1)                                // the 13-digit form (for GTIN-14 without the indicator)
+  if (t[0] === '2' || /^(02|04|05|98|99)/.test(t)) return null
+  if (t.startsWith('00000') && (t[5] === '0' || t[5] === '2')) return null   // an in-store EAN-8 written long
+  return { gtin, ask: gtin[0] === '0' ? t : gtin }
+}
+
+// ---------- text ----------
+/** Control characters out, spaces collapsed, at most `max` characters; empty → null. */
+function clean(v: unknown, max: number): string | null {
+  if (typeof v !== 'string') return null
+  const s = [...v.replace(/[\u0000-\u001f\u007f-\u009f​-‏‪-‮⁦-⁩﻿]/g, ' ').replace(/\s+/g, ' ').trim()].slice(0, max).join('').trim()
+  return s || null
+}
+/** The most specific entry of a category path ("A > B > C" or "a, b, c"), without a language prefix like "en:". */
+const lastPart = (v: unknown) => clean(typeof v === 'string' ? v.split(/\s*[>,]\s*/).filter(Boolean).pop()?.replace(/^[a-z]{2}:/, '') : null, 60)
+
+// ---------- counting ----------
+const today = () => Math.floor(Date.now() / DAY)
+async function hashIp(ip: string): Promise<string> {
+  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode('alradwan-catalog:' + ip))
+  return Array.from(new Uint8Array(buf).slice(0, 16), b => b.toString(16).padStart(2, '0')).join('')
+}
+const bump = (env: CatalogEnv, k: string, by: number) => env.DB.prepare('INSERT INTO catalog_quota (k, day, n) VALUES (?, ?, ?) ON CONFLICT(k, day) DO UPDATE SET n = n + excluded.n RETURNING n').bind(k, today(), by)
+
+/** Counts one lookup for the device and the address; false when either is over its day's limit. */
+async function allowLookup(env: CatalogEnv, req: Request, device: string): Promise<boolean> {
+  const stmts = [bump(env, 'd:' + device, 1), bump(env, 'i:' + await hashIp(ipOf(req)), 1)]
+  // old days are dropped now and then, not on every call
+  if (Math.random() < 0.01) stmts.push(env.DB.prepare('DELETE FROM catalog_quota WHERE day < ?').bind(today() - 3))
+  const [d, i] = await env.DB.batch<{ n: number }>(stmts)
+  return (d.results[0]?.n ?? 0) <= LIMIT_DEVICE && (i.results[0]?.n ?? 0) <= LIMIT_IP
+}
+
+// ---------- outside services ----------
+type Found = { name: string; brand: string | null; category: string | null; quantity: string | null; image: string | null; source: 'openfoodfacts' | 'upcitemdb' }
+/** found, nothing (a definite "not known"), or failed (could not ask: try again later, remember nothing) */
+type Ask = Found | 'nothing' | 'failed'
+type CacheRow = { gtin: string; found: number; name: string | null; brand: string | null; category: string | null; quantity: string | null; image_url: string | null; source: string | null; at: number }
+
+/** A picture address the server may fetch: https only (plus the test hosts, when they are set). */
+function imageUrl(env: CatalogEnv, v: unknown): string | null {
+  if (typeof v !== 'string' || v.length > 1000) return null
+  try {
+    const u = new URL(v)
+    if (u.username || u.password) return null
+    if (u.protocol === 'https:') return u.href
+    const test = [env.CATALOG_OFF_URL, env.CATALOG_UPC_URL].filter((b): b is string => !!b).map(b => new URL(b).origin)
+    return u.protocol === 'http:' && test.includes(u.origin) ? u.href : null
+  } catch { return null }
+}
+
+async function askOff(env: CatalogEnv, code: string): Promise<Ask> {
+  let res: Response
+  try {
+    // non-food products answer with a redirect to openproductsfacts / openbeautyfacts: followed
+    res = await fetch(`${env.CATALOG_OFF_URL || OFF_URL}/api/v2/product/${code}.json?product_type=all&fields=${OFF_FIELDS}`, { headers: { 'user-agent': USER_AGENT, accept: 'application/json' }, signal: AbortSignal.timeout(TIMEOUT) })
+  } catch { return 'failed' }
+  if (res.status === 404) return 'nothing'
+  if (!res.ok) return 'failed'
+  let b: { status?: number; product?: Record<string, unknown> }
+  try { b = await res.json() } catch { return 'failed' }
+  const p = b.product
+  if (b.status !== 1 || !p) return 'nothing'
+  const name = clean(p.product_name_ar, 120) ?? clean(p.product_name, 120) ?? clean(p.product_name_en, 120) ?? clean(p.generic_name, 120)
+  if (!name) return 'nothing'
+  const brand = clean(typeof p.brands === 'string' ? p.brands.split(',')[0] : null, 60)
+  return { name, brand, category: lastPart(p.categories), quantity: clean(p.quantity, 60), image: imageUrl(env, p.image_front_small_url) ?? imageUrl(env, p.image_front_url), source: 'openfoodfacts' }
+}
+
+async function askUpc(env: CatalogEnv, code: string): Promise<Ask> {
+  let res: Response
+  try {
+    res = await fetch(`${env.CATALOG_UPC_URL || UPC_URL}/lookup?upc=${code}`, { headers: { 'user-agent': USER_AGENT, accept: 'application/json' }, signal: AbortSignal.timeout(TIMEOUT) })
+  } catch { return 'failed' }
+  // 429 is TOO_FAST / EXCEED_LIMIT: the free tier is used up for now, so this says nothing about the product
+  if (res.status === 400 || res.status === 404) return 'nothing'
+  if (!res.ok) return 'failed'
+  let b: { code?: string; items?: Record<string, unknown>[] }
+  try { b = await res.json() } catch { return 'failed' }
+  if (b.code !== 'OK') return 'failed'
+  const it = Array.isArray(b.items) ? b.items[0] : undefined
+  const name = clean(it?.title, 120)
+  if (!it || !name) return 'nothing'
+  const images = Array.isArray(it.images) ? it.images : []
+  return { name, brand: clean(it.brand, 60), category: lastPart(it.category), quantity: null, image: images.map(u => imageUrl(env, u)).find(Boolean) ?? null, source: 'upcitemdb' }
+}
+
+// ---------- the endpoints ----------
+async function lookup(req: Request, env: CatalogEnv, url: URL): Promise<Response> {
+  const g = publicGtin(url.searchParams.get('code'))
+  if (!g) return json({ error: 'bad code' }, 400)
+  const device = url.searchParams.get('device')
+  if (!validDevice(device)) return json({ error: 'bad device' }, 400)
+  if (!(await allowLookup(env, req, device))) return json({ error: 'too many' }, 429)
+  const cached = await env.DB.prepare('SELECT * FROM catalog_cache WHERE gtin = ?').bind(g.gtin).first<CacheRow>()
+
+  // 1. what the shops called it: the most common name (newest wins a tie), the details from its newest entry
+  const shop = await env.DB.prepare(`SELECT name, brand, category, unit, (SELECT COUNT(*) FROM catalog_contrib x WHERE x.gtin = c.gtin AND x.name = c.name) AS n
+    FROM catalog_contrib c WHERE gtin = ? ORDER BY n DESC, at DESC LIMIT 1`).bind(g.gtin).first<{ name: string; brand: string | null; category: string | null; unit: string | null; n: number }>()
+  if (shop) return json({ found: true, name: shop.name, brand: shop.brand ?? undefined, category: shop.category ?? undefined, quantity: shop.unit ?? undefined, image: !!(cached?.found && cached.image_url), source: 'shops', shops: shop.n })
+
+  // 2. an earlier outside answer that is still fresh
+  const now = Date.now()
+  if (cached && now - cached.at < (cached.found ? FRESH_FOUND : FRESH_MISSING)) {
+    if (!cached.found || !cached.name) return json({ found: false })
+    return json({ found: true, name: cached.name, brand: cached.brand ?? undefined, category: cached.category ?? undefined, quantity: cached.quantity ?? undefined, image: !!cached.image_url, source: cached.source })
+  }
+
+  // 3. ask outside: Open Food Facts first; UPCitemdb (100 a day) only when that has nothing
+  const off = await askOff(env, g.ask)
+  const got = typeof off === 'object' ? off : await askUpc(env, g.ask)
+  if (got === 'failed' || (got === 'nothing' && off === 'failed')) return json({ found: false, retry: true })
+  const f = typeof got === 'object' ? got : null
+  await env.DB.prepare(`INSERT INTO catalog_cache (gtin, found, name, brand, category, quantity, image_url, source, at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+    ON CONFLICT(gtin) DO UPDATE SET found = excluded.found, name = excluded.name, brand = excluded.brand, category = excluded.category, quantity = excluded.quantity, image_url = excluded.image_url, source = excluded.source, at = excluded.at`)
+    .bind(g.gtin, f ? 1 : 0, f?.name ?? null, f?.brand ?? null, f?.category ?? null, f?.quantity ?? null, f?.image ?? null, f?.source ?? null, now).run()
+  if (!f) return json({ found: false })
+  return json({ found: true, name: f.name, brand: f.brand ?? undefined, category: f.category ?? undefined, quantity: f.quantity ?? undefined, image: !!f.image, source: f.source })
+}
+
+/** The picture of a looked-up product, fetched from the address the lookup stored (never one the caller gives). */
+async function image(req: Request, env: CatalogEnv, url: URL): Promise<Response> {
+  const g = publicGtin(url.searchParams.get('code'))
+  if (!g) return json({ error: 'bad code' }, 400)
+  const device = url.searchParams.get('device')
+  if (!validDevice(device)) return json({ error: 'bad device' }, 400)
+  if (!(await allowLookup(env, req, device))) return json({ error: 'too many' }, 429)
+  const row = await env.DB.prepare('SELECT image_url FROM catalog_cache WHERE gtin = ? AND found = 1').bind(g.gtin).first<{ image_url: string | null }>()
+  const src = imageUrl(env, row?.image_url)
+  if (!src) return json({ error: 'no image' }, 404)
+  let res: Response
+  try { res = await fetch(src, { headers: { 'user-agent': USER_AGENT, accept: 'image/*' }, signal: AbortSignal.timeout(TIMEOUT) }) } catch { return json({ error: 'unavailable' }, 502) }
+  const type = (res.headers.get('content-type') ?? '').split(';')[0].trim().toLowerCase()
+  // a redirect may only end at an address the server would have fetched in the first place
+  if (!res.ok || !IMAGE_TYPES.has(type) || !imageUrl(env, res.url || src) || Number(res.headers.get('content-length') ?? 0) > MAX_IMAGE || !res.body) { res.body?.cancel(); return json({ error: 'no image' }, 404) }
+  // read it whole (at most 1.5 MB): a picture that turns out too big is refused, not sent half
+  const parts: Uint8Array[] = []
+  let size = 0
+  const reader = res.body.getReader()
+  try {
+    for (;;) {
+      const { done, value } = await reader.read()
+      if (done) break
+      size += value.byteLength
+      if (size > MAX_IMAGE) { await reader.cancel(); return json({ error: 'no image' }, 404) }
+      parts.push(value)
+    }
+  } catch { return json({ error: 'unavailable' }, 502) }
+  const bytes = new Uint8Array(size)
+  let at = 0
+  for (const p of parts) { bytes.set(p, at); at += p.byteLength }
+  return new Response(bytes, { headers: { 'content-type': type, 'content-length': String(size), 'cache-control': 'public, max-age=604800', 'x-content-type-options': 'nosniff', ...CORS } })
+}
+
+/** A licensed device shares the names it gave scanned products; one vote per device per number, the newest replaces its own. */
+async function contribute(req: Request, env: CatalogEnv): Promise<Response> {
+  if (!env.TOKEN_SECRET) return json({ error: 'not configured' }, 503)
+  if (Number(req.headers.get('content-length') ?? 0) > MAX_BODY) return json({ error: 'too large' }, 413)
+  let b: { token?: unknown; device?: unknown; items?: unknown }
+  try { b = await req.json() } catch { return json({ error: 'bad json' }, 400) }
+  if (!b || typeof b !== 'object') return json({ error: 'bad json' }, 400)
+  const s = await readToken(env.TOKEN_SECRET, b.token)
+  if (!s || !validDevice(b.device) || s.d !== b.device) return json({ error: 'not licensed' }, 401)
+  // the session is a binding, re-checked against the licence as it is now (revoked, expired or moved: no longer counts)
+  const ok = await env.DB.prepare('SELECT 1 FROM licenses l JOIN license_devices d ON d.code = l.code WHERE l.code = ? AND d.device = ? AND l.revoked = 0 AND (l.expires_at IS NULL OR l.expires_at > ?)').bind(s.c, s.d, Date.now()).first()
+  if (!ok) return json({ error: 'not licensed' }, 401)
+  if (!Array.isArray(b.items)) return json({ error: 'bad items' }, 400)
+  if (b.items.length > MAX_ITEMS) return json({ error: `too many items: send at most ${MAX_ITEMS} per request` }, 400)
+
+  const items = new Map<string, { name: string; brand: string | null; category: string | null; unit: string | null }>()
+  for (const it of b.items as Record<string, unknown>[]) {
+    if (!it || typeof it !== 'object') continue
+    const g = publicGtin(it.code)
+    const name = clean(it.name, 121)
+    if (!g || !name || [...name].length < 2 || [...name].length > 120) continue   // a longer name is refused, not cut
+    items.set(g.gtin, { name, brand: clean(it.brand, 60), category: clean(it.category, 60), unit: clean(it.unit, 60) })
+  }
+  if (!items.size) return json({ ok: true, saved: 0 })
+  const n = (await bump(env, 'c:' + s.d, items.size).first<{ n: number }>())?.n ?? 0
+  if (n > LIMIT_CONTRIB) return json({ error: 'too many' }, 429)
+  const now = Date.now()
+  const upsert = env.DB.prepare(`INSERT INTO catalog_contrib (gtin, device, name, brand, category, unit, at) VALUES (?, ?, ?, ?, ?, ?, ?)
+    ON CONFLICT(gtin, device) DO UPDATE SET name = excluded.name, brand = excluded.brand, category = excluded.category, unit = excluded.unit, at = excluded.at`)
+  await env.DB.batch([...items].map(([gtin, i]) => upsert.bind(gtin, s.d, i.name, i.brand, i.category, i.unit, now)))
+  return json({ ok: true, saved: items.size })
+}
+
+/** Routes the catalogue paths (no shop key needed); returns null for anything else. */
+export async function handleCatalog(req: Request, env: CatalogEnv, path: string): Promise<Response | null> {
+  if (!path.startsWith('/api/catalog/')) return null
+  const url = new URL(req.url)
+  if (path === '/api/catalog/lookup' && req.method === 'GET') return lookup(req, env, url)
+  if (path === '/api/catalog/image' && req.method === 'GET') return image(req, env, url)
+  if (path === '/api/catalog/contribute' && req.method === 'POST') return contribute(req, env)
+  return json({ error: 'not found' }, 404)
+}

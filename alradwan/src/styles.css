@@ -372,3 +372,8 @@ table.table { width: 100%; border-collapse: collapse; font-size: 14px; }
 .scan-test { border: 2px dashed var(--border); border-radius: 14px; padding: 14px; margin-top: 8px; display: flex; flex-direction: column; gap: 4px; }
 .scan-test b { font-size: 20px; word-break: break-all; }
 .scan-test.empty { color: var(--muted); text-align: center; padding: 22px; }
+.intake { border: 2px solid var(--accent); }
+.intake-row img, .intake-row .intake-img { width: 44px; height: 44px; border-radius: 8px; object-fit: cover; flex: none; background: var(--surface-2); }
+.intake-row .input { min-height: 34px; padding: 4px 10px; font-size: 14px; }
+.intake-row .intake-price { width: 110px; flex: none; }
+@media (max-width: 600px) { .intake-row { flex-wrap: wrap; } .intake-row .intake-price { width: 90px; } }

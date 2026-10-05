@@ -50,7 +50,7 @@ async function makeToken(secret: string, s: Session): Promise<string> {
   const body = b64url(enc.encode(JSON.stringify(s)))
   return `${body}.${b64url(await hmac(secret, body))}`
 }
-async function readToken(secret: string, token: unknown): Promise<Session | null> {
+export async function readToken(secret: string, token: unknown): Promise<Session | null> {
   if (typeof token !== 'string' || !token.includes('.')) return null
   const [body, sig] = token.split('.')
   try {

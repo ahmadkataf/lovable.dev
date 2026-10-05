@@ -30,6 +30,7 @@ import { Accounting } from './screens/Accounting'
 import { Activate } from './screens/Activate'
 import { licenseAllows, startLicenseChecks, useLicense } from './lib/license'
 import { autoBackupIfDue } from './lib/backup'
+import { shareCatalogChanges } from './lib/productLookup'
 
 function applyTheme(theme: 'light' | 'dark' | 'auto') {
   const dark = theme === 'dark' || (theme === 'auto' && window.matchMedia('(prefers-color-scheme: dark)').matches)
@@ -79,7 +80,13 @@ export function App() {
   const [error, setError] = useState<string | null>(null)
   const [slow, setSlow] = useState(false)
   useEffect(() => {
-    loadAll().then(initSync).then(() => { startLicenseChecks(); return autoBackupIfDue().catch(() => {}) }).catch(e => setError(String(e?.message ?? e)))
+    loadAll().then(initSync).then(() => {
+      startLicenseChecks()
+      // names of parts with a real barcode go to the shared catalogue a little after start (and then hourly)
+      setTimeout(() => void shareCatalogChanges(), 20000)
+      setInterval(() => void shareCatalogChanges(), 3600000)
+      return autoBackupIfDue().catch(() => {})
+    }).catch(e => setError(String(e?.message ?? e)))
     const t = setTimeout(() => setSlow(true), 6000)
     return () => clearTimeout(t)
   }, [])

@@ -84,6 +84,10 @@ const NOTICE: Record<string, string> = {
 
 let devicePromise: Promise<string> | null = null
 const device = () => { devicePromise ??= serverDevice().catch(e => { devicePromise = null; throw e }); return devicePromise }
+/** This device's id as the server knows it (also when the build is free). */
+export const licenseDevice = () => device()
+/** The signed licence session, for the server's paid-shop features (empty during the trial or offline codes). */
+export const licenseToken = () => saved()?.token || ''
 
 function trialEnds(): number {
   if (!SALES.trialDays) return 0

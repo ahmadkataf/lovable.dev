@@ -1,5 +1,5 @@
-import { useMemo, useState } from 'react'
-import { Save, Trash2, ImagePlus, ScanLine, Link2 } from 'lucide-react'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { Save, Trash2, ImagePlus, ScanLine, Link2, Globe, RefreshCw } from 'lucide-react'
 import { audit, can, put, useCollection, useSettings, useCanSeeCost, useIsAdmin, usePerm } from '../db/store'
 import type { Category, Customer, Product, Supplier } from '../db/types'
 import { Field, NumberInput } from './components'
@@ -12,7 +12,9 @@ import { CameraScanner } from './scanner'
 import { ProductSearch } from './pickers'
 import { focusedField, insertIntoField, SCAN_PRIORITY, useScan } from '../lib/scan'
 import { barcodeOwner, barcodeToSave, findProductByScan, withBarcode } from '../lib/productMatch'
-import { codeFacts, parseGs1 } from '../lib/gs1'
+import { codeFacts, parseGs1, publicGtin } from '../lib/gs1'
+import { lookupProduct, shareCatalogChanges, SOURCE_LABEL, type LookupSource } from '../lib/productLookup'
+import { shrinkImage } from '../lib/image'
 import { useToast } from './toast'
 import { deleteProduct, remove } from '../db/actions'
 
@@ -90,23 +92,13 @@ export function SupplierForm({ initial, onClose, onSaved }: { initial?: Partial<
   )
 }
 
-function nextCode(products: Map<string, Product>): string {
+/** The next free internal code: P-0001, P-0002… */
+export function nextCode(products: Map<string, Product>): string {
   let max = 0
   for (const p of products.values()) { const m = /^P-?(\d+)$/i.exec(p.code); if (m) max = Math.max(max, parseInt(m[1])) }
   return `P-${String(max + 1).padStart(4, '0')}`
 }
 
-async function shrinkImage(file: File): Promise<string> {
-  const url = URL.createObjectURL(file)
-  try {
-    const img = new Image(); img.src = url
-    await new Promise((res, rej) => { img.onload = res; img.onerror = rej })
-    const max = 320; const k = Math.min(1, max / Math.max(img.width, img.height))
-    const c = document.createElement('canvas'); c.width = Math.round(img.width * k); c.height = Math.round(img.height * k)
-    c.getContext('2d')!.drawImage(img, 0, 0, c.width, c.height)
-    return c.toDataURL('image/jpeg', 0.8)
-  } finally { URL.revokeObjectURL(url) }
-}
 
 /** `scanned`: the code that was scanned to open this form (a new product for it, or the product it matched). */
 export function ProductForm({ initial, currentStock, onClose, onSaved, scanned }: { initial?: Partial<Product>; currentStock?: number; onClose: () => void; onSaved?: (p: Product) => void; scanned?: string }) {
@@ -145,6 +137,26 @@ export function ProductForm({ initial, currentStock, onClose, onSaved, scanned }
   const gs1 = useMemo(() => (scanned ? parseGs1(scanned)?.filter(x => x.ai !== '01' && x.ai !== '02') : null), [scanned])
   // the product was found by its part number or another form of the code: offer to keep the scanned code
   const scannedMissing = !isNew && !!scanned && !findProductByScan([{ ...(f as Product), oemNumbers: '', code: '' }], scanned)
+  // a new barcode fills in the part by itself: name, brand and picture from the shared catalogue or the internet
+  const [lookup, setLookup] = useState<{ state: 'idle' | 'looking' | 'found' | 'none'; source?: LookupSource; shops?: number }>({ state: 'idle' })
+  const alive = useRef(true)
+  useEffect(() => () => { alive.current = false }, [])
+  const fillFrom = async (code: string) => {
+    setLookup({ state: 'looking' })
+    const r = await lookupProduct(code)
+    if (!alive.current) return
+    if (!r) { setLookup({ state: 'none' }); return }
+    const cat = r.category ? Array.from(categories.values()).find(c => c.name.trim().toLowerCase() === r.category!.trim().toLowerCase()) : undefined
+    setF(x => ({ ...x, name: x.name?.trim() ? x.name : r.name, brand: x.brand?.trim() ? x.brand : (r.brand ?? x.brand), image: x.image || r.image, categoryId: x.categoryId || cat?.id }))
+    setLookup({ state: 'found', source: r.source, shops: r.shops })
+    toast.success(`وُجدت بياناتها: ${r.name}`)
+    // only the price is left to type
+    setTimeout(() => { if (!alive.current) return; const el = Array.from(document.querySelectorAll<HTMLInputElement>('.modal .price-field input')).pop(); if (el && !el.disabled) { el.focus(); el.select() } }, 60)
+  }
+  useEffect(() => {
+    if (isNew && scanned && settings.barcodeLookup !== false && publicGtin(barcodeToSave(scanned))) void fillFrom(barcodeToSave(scanned))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
   const link = async (p: Product) => {
     if (!scanned) return
     if (!canEdit) { toast.error('ليس لديك صلاحية تعديل القطع'); return }
@@ -152,7 +164,7 @@ export function ProductForm({ initial, currentStock, onClose, onSaved, scanned }
     try {
       const saved = await put('products', { ...p, barcode: withBarcode(p.barcode, code) })
       await audit('update', `ربط الباركود ${code} بالقطعة ${p.name}`, 'products', p.id)
-      toast.success(`تم ربط الباركود بالقطعة «${p.name}»`); onSaved?.(saved); onClose()
+      toast.success(`تم ربط الباركود بالقطعة «${p.name}»`); void shareCatalogChanges(); onSaved?.(saved); onClose()
     } catch (e) { toast.error('تعذّر الحفظ: ' + (e as Error).message) }
   }
   const save = async () => {
@@ -171,7 +183,7 @@ export function ProductForm({ initial, currentStock, onClose, onSaved, scanned }
     const p = await put('products', { ...(f as Product), code, name: f.name.trim(), categoryId, openingCost: isNew ? (f.cost ?? 0) : f.openingCost, createdAt: f.createdAt ?? Date.now() })
     const changes = before ? [before.price !== p.price ? `سعر البيع ${before.price} ← ${p.price}` : '', before.cost !== p.cost ? `الكلفة ${before.cost} ← ${p.cost}` : '', before.name !== p.name ? `الاسم ${before.name} ← ${p.name}` : ''].filter(Boolean).join('، ') : ''
     await audit(isNew ? 'create' : 'update', isNew ? `إضافة قطعة ${p.name} (${p.code}) بسعر ${p.price}` : `تعديل قطعة ${p.name}${changes ? ': ' + changes : ''}`, 'products', p.id)
-    toast.success(isNew ? 'تمت إضافة القطعة' : 'تم حفظ التعديلات'); onSaved?.(p); onClose()
+    toast.success(isNew ? 'تمت إضافة القطعة' : 'تم حفظ التعديلات'); void shareCatalogChanges(); onSaved?.(p); onClose()
     } catch (e) { toast.error('تعذّر الحفظ: ' + (e as Error).message) } finally { setBusy(false) }
   }
   const del = async () => {
@@ -187,7 +199,10 @@ export function ProductForm({ initial, currentStock, onClose, onSaved, scanned }
     </>}>
       {!canEdit && <div className="badge tone-warning mb">ليس لديك صلاحية تعديل القطع والأسعار — للعرض فقط</div>}
       {isNew && scanned && canEdit && <div className="card pad tone-info mb" style={{ padding: '10px 14px' }}>
-        <div>باركود غير مسجّل: <b className="mono" dir="ltr">{scanned.length > 60 ? scanned.slice(0, 60) + '…' : scanned}</b> — اكتب اسم القطعة وسعرها ثم احفظ.</div>
+        <div>باركود غير مسجّل: <b className="mono" dir="ltr">{scanned.length > 60 ? scanned.slice(0, 60) + '…' : scanned}</b>{lookup.state === 'idle' ? ' — اكتب اسم القطعة وسعرها ثم احفظ.' : ''}</div>
+        {lookup.state === 'looking' && <div className="mt"><RefreshCw size={14} className="spin" style={{ verticalAlign: -2 }} /> جارٍ البحث عن اسم القطعة وصورتها على الإنترنت…</div>}
+        {lookup.state === 'found' && <div className="mt"><Globe size={14} style={{ verticalAlign: -2 }} /> وُجدت بياناتها لدى {SOURCE_LABEL[lookup.source ?? 'openfoodfacts']}{lookup.shops && lookup.shops > 1 ? ` (${lookup.shops} محلات)` : ''}. راجع الاسم وأدخل السعر ثم احفظ.</div>}
+        {lookup.state === 'none' && <div className="mt">لم نجد هذه القطعة في قواعد البيانات. اكتب اسمها مرة واحدة{settings.shareCatalog !== false ? '، فتظهر جاهزة لأي محل يمسحها بعدك' : ''}. <a href={`https://www.google.com/search?q=${encodeURIComponent(barcodeToSave(scanned))}`} target="_blank" rel="noreferrer" style={{ textDecoration: 'underline' }}>ابحث عنه في جوجل</a></div>}
         {linking ? <div className="mt"><ProductSearch placeholder="ابحث عن القطعة الموجودة لربط الباركود بها…" onPick={link} autoFocus showStock={false} /></div>
           : <button className="btn sm ghost mt" onClick={() => setLinking(true)}><Link2 /> القطعة موجودة عندي بلا باركود؟ اربطه بها</button>}
       </div>}
@@ -206,6 +221,8 @@ export function ProductForm({ initial, currentStock, onClose, onSaved, scanned }
             <button type="button" className="btn icon" title="مسح الباركود بالكاميرا" aria-label="مسح الباركود بالكاميرا" onClick={() => setCamera(true)}><ScanLine /></button>
           </div>
           {facts?.gtin && <div className="help">رقم منتج دولي صحيح{facts.country ? ` · بلد تسجيل الباركود: ${facts.country}` : ''}</div>}
+          {isNew && !scanned && canEdit && lastCode && publicGtin(lastCode) && lookup.state !== 'looking' && <button type="button" className="btn sm ghost" style={{ marginTop: 4 }} onClick={() => fillFrom(lastCode)}><Globe /> {lookup.state === 'none' ? 'لم تُوجد — حاول مجدداً' : 'املأ الاسم والصورة من الإنترنت'}</button>}
+          {isNew && !scanned && lookup.state === 'looking' && <div className="help"><RefreshCw size={12} className="spin" /> جارٍ البحث…</div>}
           {facts && !facts.gtin && /^\d{12,14}$/.test(lastCode.replace(/[\s-]/g, '')) && <div className="help neg-txt">رقم التحقق (آخر رقم) لا يطابق — تأكد من الباركود</div>}
           {gs1 && gs1.length > 0 && <div className="help">{gs1.map(x => `${x.label}: ${x.value}`).join(' · ')}</div>}
           {owners.map(({ c, p }) => <div key={c} className="help neg-txt">الباركود {c} مسجّل للقطعة «{p.name}»</div>)}
@@ -223,7 +240,7 @@ export function ProductForm({ initial, currentStock, onClose, onSaved, scanned }
         <Field label="تناسب السيارات (نص حر)" className="full"><input className="input" value={f.cars} onChange={e => set('cars', e.target.value)} placeholder="مثال: كيا ريو 2012–2017، هيونداي أكسنت" /></Field>
         <Field label="أرقام القطعة الأصلية (OEM) والبديلة" className="full" help="افصل بين الأرقام بفاصلة؛ يبحث البرنامج بها في شاشة البيع"><input className="input" dir="ltr" style={{ textAlign: 'right', fontFamily: 'monospace' }} value={f.oemNumbers ?? ''} onChange={e => set('oemNumbers', e.target.value)} placeholder="26300-35503, 26300-35504" data-scan="oem" /></Field>
         {seeCost && <Field label="سعر الشراء (الكلفة)" help={equiv(f.cost ?? 0) || undefined}><NumberInput value={f.cost ?? 0} onChange={v => set('cost', v)} min={0} suffix={settings.currency} disabled={!canEdit || !(canPrices || isNew)} /></Field>}
-        <Field label="سعر البيع" required help={!canPrices && !isNew ? 'تعديل الأسعار يحتاج صلاحية من المدير' : equiv(f.price ?? 0) || undefined}><NumberInput value={f.price ?? 0} onChange={v => set('price', v)} min={0} suffix={settings.currency} disabled={!canEdit || !(canPrices || isNew)} /></Field>
+        <Field label="سعر البيع" required className="price-field" help={!canPrices && !isNew ? 'تعديل الأسعار يحتاج صلاحية من المدير' : equiv(f.price ?? 0) || undefined}><NumberInput value={f.price ?? 0} onChange={v => set('price', v)} min={0} suffix={settings.currency} disabled={!canEdit || !(canPrices || isNew)} /></Field>
         <Field label="سعر الجملة" help="يظهر كخيار عند البيع"><NumberInput value={f.wholesalePrice ?? 0} onChange={v => set('wholesalePrice', v)} min={0} suffix={settings.currency} disabled={!canEdit || !(canPrices || isNew)} /></Field>
         <Field label="الوحدة">
           <select className="select" value={f.unit} onChange={e => set('unit', e.target.value)}>{Array.from(new Set([...(settings.units ?? []), f.unit ?? 'قطعة'])).map(u => <option key={u} value={u}>{u}</option>)}</select>

@@ -1,5 +1,5 @@
 // The Windows app: the same web app inside its own window, with a save dialog for backups and Excel files.
-const { app, BrowserWindow, dialog, ipcMain, shell, Menu } = require('electron')
+const { app, BrowserWindow, dialog, ipcMain, shell, Menu, net } = require('electron')
 const path = require('path')
 const fs = require('fs')
 
@@ -170,6 +170,16 @@ ipcMain.handle('read-backup', async (_e, name) => {
   try { return fs.readFileSync(path.join(backupsDir(), safeName(name)), 'utf8') } catch { return null }
 })
 ipcMain.handle('backups-folder', async () => backupsDir())
+
+// UPCitemdb's free product lookup answers programs but not web pages, and counts lookups per internet address,
+// so the shop's own computer asks it (a shared server would use up the daily allowance). Only that one address.
+ipcMain.handle('upc-lookup', async (_e, code) => {
+  if (!/^\d{8,14}$/.test(String(code))) return null
+  try {
+    const r = await net.fetch(`https://api.upcitemdb.com/prod/trial/lookup?upc=${code}`, { headers: { accept: 'application/json' }, signal: AbortSignal.timeout(8000) })
+    return { status: r.status, body: (await r.text()).slice(0, 262144) }
+  } catch { return { status: 0, body: '' } }
+})
 
 // a random id kept in the app's folder: the same after updates, different on another computer
 ipcMain.handle('device-id', async () => {

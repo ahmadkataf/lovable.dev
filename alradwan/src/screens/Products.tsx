@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { Plus, FileSpreadsheet, Upload, Pencil, Tag, Download, Barcode, Printer } from 'lucide-react'
+import { Plus, FileSpreadsheet, Upload, Pencil, Tag, Download, Barcode, Printer, Zap } from 'lucide-react'
 import { printDocument } from '../print/PrintHost'
 import { can, put, putMany, remove, useCollection, useCanSeeCost, useSettings, usePerm } from '../db/store'
 import type { Base, Category, Product } from '../db/types'
@@ -11,6 +11,7 @@ import { Modal, dialogDepth, useConfirm } from '../ui/modal'
 import { SCAN_PRIORITY, useScan } from '../lib/scan'
 import { findProductByScan, prefillFromScan } from '../lib/productMatch'
 import { ScanButton } from '../ui/scanFlow'
+import { IntakePanel } from '../ui/intake'
 import { useToast } from '../ui/toast'
 import { ProductForm } from '../ui/forms'
 import { useProductStock } from '../ui/pickers'
@@ -30,6 +31,7 @@ export function Products() {
   const [cat, setCat] = useState('all')
   const [edit, setEdit] = useState<Product | null | 'new'>(null)
   const [scanned, setScanned] = useState<{ initial?: Partial<Product>; scan: string } | null>(null)
+  const [intake, setIntake] = useState(false)
   const [cats, setCats] = useState(false)
   const [imp, setImp] = useState<ImportedProduct[] | null>(null)
   const [labels, setLabels] = useState(false)
@@ -44,9 +46,10 @@ export function Products() {
     if (!canAdd) { toast.error(`الرمز ${s.text} غير مسجّل لأي قطعة`); return false }
     setEdit('new'); setScanned({ initial: prefillFromScan(s.text), scan: s.text })
     return true
-  }, { priority: SCAN_PRIORITY.screen })
+  }, { priority: SCAN_PRIORITY.screen, enabled: !intake })
 
-  const list = useMemo(() => Array.from(products.values()).filter(p => (cat === 'all' || (cat === 'none' ? !p.categoryId : p.categoryId === cat)) && matches(q, p.name, p.code, p.barcode, p.brand, p.cars, p.location, p.oemNumbers)).sort((a, b) => a.name.localeCompare(b.name, 'ar')), [products, q, cat])
+  const list = useMemo(() => Array.from(products.values()).filter(p => (cat === 'all' || (cat === 'none' ? !p.categoryId : cat === 'noprice' ? !(p.price > 0) : p.categoryId === cat)) && matches(q, p.name, p.code, p.barcode, p.brand, p.cars, p.location, p.oemNumbers)).sort((a, b) => a.name.localeCompare(b.name, 'ar')), [products, q, cat])
+  const noPrice = useMemo(() => Array.from(products.values()).filter(p => !(p.price > 0)).length, [products])
   const catList = useMemo(() => Array.from(categories.values()).sort((a, b) => a.name.localeCompare(b.name, 'ar')), [categories])
 
   const exportExcel = () => exportSheet('المنتجات', list.map(p => ({ 'الكود': p.code, 'الاسم': p.name, 'التصنيف': p.categoryId ? categories.get(p.categoryId)?.name ?? '' : '', 'الماركة': p.brand ?? '', 'السيارات': p.cars ?? '', 'الوحدة': p.unit, ...(seeCost ? { 'سعر الشراء': p.cost } : {}), 'سعر البيع': p.price, 'سعر الجملة': p.wholesalePrice ?? 0, 'الكمية': p.kind === 'service' ? '' : stock.get(p.id) ?? 0, 'حد التنبيه': p.minStock, 'المكان': p.location ?? '', 'باركود': p.barcode ?? '', 'OEM': p.oemNumbers ?? '', 'ملاحظات': p.notes ?? '' })), 'المنتجات')
@@ -62,12 +65,14 @@ export function Products() {
         <div className="search"><SearchInput value={q} onChange={setQ} placeholder="بحث بالاسم أو الكود أو السيارة أو الرف…" /></div>
         {canAdd && <button className="btn primary" onClick={() => setEdit('new')}><Plus /> قطعة جديدة</button>}
         <ScanButton className="btn" label="مسح باركود" />
+        {canAdd && !intake && <button className="btn" onClick={() => setIntake(true)} title="امسح العلب واحدة تلو الأخرى فتُضاف القطع وحدها بأسمائها"><Zap /> <span className="hide-mobile">إدخال سريع بالمسح</span></button>}
         {canAdd && <button className="btn" onClick={() => setCats(true)} title="التصنيفات"><Tag /> <span className="hide-mobile">التصنيفات</span></button>}
         {canAdd && <button className="btn" onClick={importExcel} title="استيراد من إكسل"><Upload /> <span className="hide-mobile">استيراد</span></button>}
         <button className="btn" onClick={exportExcel} title="تصدير إلى إكسل"><FileSpreadsheet /> <span className="hide-mobile">إكسل</span></button>
         <button className="btn" onClick={() => setLabels(true)} title="طباعة ملصقات باركود"><Barcode /> <span className="hide-mobile">ملصقات</span></button>
       </div>
-      <Chips value={cat} onChange={setCat} items={[{ id: 'all', label: `الكل (${products.size})` }, ...catList.map(c => ({ id: c.id, label: c.name })), { id: 'none', label: 'بدون تصنيف' }]} />
+      {intake && <IntakePanel onClose={() => setIntake(false)} onEdit={p => setEdit(p)} />}
+      <Chips value={cat} onChange={setCat} items={[{ id: 'all', label: `الكل (${products.size})` }, ...catList.map(c => ({ id: c.id, label: c.name })), { id: 'none', label: 'بدون تصنيف' }, ...(noPrice ? [{ id: 'noprice', label: `بلا سعر (${noPrice})` }] : [])]} />
       <div className="card">
         {list.length === 0 ? <Empty title={products.size === 0 ? 'لا توجد قطع بعد' : 'لا نتائج'} text={products.size === 0 ? 'أضف قطعك واحدة واحدة، أو استوردها دفعة واحدة من ملف إكسل' : undefined} action={products.size === 0 ? <div className="btn-row" style={{ justifyContent: 'center' }}><button className="btn primary" onClick={() => setEdit('new')}><Plus /> قطعة جديدة</button><button className="btn" onClick={importExcel}><Upload /> استيراد من إكسل</button><button className="btn ghost" onClick={downloadProductsTemplate}><Download /> نموذج إكسل</button></div> : undefined} /> : (
           <div className="table-wrap"><table className="table">

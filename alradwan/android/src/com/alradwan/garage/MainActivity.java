@@ -33,7 +33,8 @@ import java.util.HashMap;
 import java.util.Map;
 
 /** The Android app: the web app served from assets/www inside a WebView, with a small bridge for
- *  printing invoices, saving/sharing files (backups, Excel), picking files and using the camera. */
+ *  printing invoices, saving/sharing files (backups, Excel), picking files, using the camera and the
+ *  built-in barcode scanner of POS terminals and rugged phones. */
 public class MainActivity extends Activity {
     private static final String HOST = "alradwan.app";
     private static final int PICK_FILE = 41;
@@ -44,6 +45,7 @@ public class MainActivity extends Activity {
     private ValueCallback<Uri[]> pendingPick;
     private PermissionRequest pendingCamera;
     private int webViewMajor = -1;
+    private Scanners scanners;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -53,6 +55,8 @@ public class MainActivity extends Activity {
         root.setOnApplyWindowInsetsListener(new BarPadding());
         setContentView(root);
         styleBars();
+        scanners = new Scanners(this);
+        scanners.watchInputDevices();
         web = newWebView();
         if (savedInstanceState == null || web.restoreState(savedInstanceState) == null) web.loadUrl("https://" + HOST + "/index.html");
     }
@@ -94,6 +98,9 @@ public class MainActivity extends Activity {
         root.addView(v, new FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT));
         return v;
     }
+
+    /** The page showing now (a new WebView after the old one crashed). */
+    WebView webView() { return web; }
 
     void restartPage(WebView dead) {
         if (dead != web) return;
@@ -236,6 +243,18 @@ public class MainActivity extends Activity {
         public void saveFile(final String name, final String mime, final String base64) {
             host.runOnUiThread(new Runnable() { public void run() { host.saveAs(name, mime, base64); } });
         }
+
+        /** JSON list of the keyboard-type devices plugged in (USB/Bluetooth scanners among them). */
+        @JavascriptInterface
+        public String inputDevices() { return host.scanners.inputDevicesJson(); }
+
+        /** JSON {maker, model, scanner}: the built-in barcode scanner this phone has, if known. */
+        @JavascriptInterface
+        public String scannerInfo() { return Scanners.scannerInfo(); }
+
+        /** Looks a barcode up on UPCitemdb; the answer comes back as a 'garage-upc' event carrying the same id. */
+        @JavascriptInterface
+        public void upcLookup(String code, String id) { host.scanners.upcLookup(code, id); }
     }
 
     void doPrint() {
@@ -331,7 +350,13 @@ public class MainActivity extends Activity {
     @Override
     protected void onSaveInstanceState(Bundle outState) { super.onSaveInstanceState(outState); if (web != null) web.saveState(outState); }
     @Override
-    protected void onPause() { super.onPause(); if (web != null) web.onPause(); }
+    protected void onPause() { super.onPause(); scanners.onPause(); if (web != null) web.onPause(); }
     @Override
-    protected void onResume() { super.onResume(); if (web != null) web.onResume(); }
+    protected void onResume() {
+        super.onResume();
+        if (web != null) { web.onResume(); web.requestFocus(); }
+        scanners.onResume();
+    }
+    @Override
+    protected void onDestroy() { scanners.onDestroy(); super.onDestroy(); }
 }

@@ -2,6 +2,10 @@
 //
 //   POST /api/sync   Bearer <shop key>   {since, changes[]}  -> {seq, changes[]}
 //   GET  /api/ping   Bearer <shop key>                       -> {ok, records}
+//   GET  /api/catalog/lookup?code=&device=                   -> {found, name, brand?, …}   product details from a barcode (catalog.ts)
+//   GET  /api/catalog/image?code=&device=                    -> the looked-up product's picture
+//   POST /api/catalog/contribute  {token, device, items[]}   -> {ok, saved}                licensed devices share product names
+//   /api/license/*, /api/admin/*                              activation codes and the seller's panel (license.ts)
 //   everything else: the website (the built app in ../dist)
 //
 // A shop is identified by its key: a long secret the owner types into every device. The key is never
@@ -9,9 +13,11 @@
 // be kept private — but there is no account to create and nothing else to set up.
 
 import { handleLicense } from './license'
+import { handleCatalog } from './catalog'
 import { ADMIN_PAGE } from './admin'
 
-export interface Env { DB: D1Database; ASSETS: Fetcher; TOKEN_SECRET?: string; ADMIN_KEY?: string }
+export interface Env { DB: D1Database; ASSETS: Fetcher; TOKEN_SECRET?: string; ADMIN_KEY?: string; CATALOG_OFF_URL?: string; CATALOG_UPC_URL?: string }
+// CATALOG_OFF_URL / CATALOG_UPC_URL: local tests only (they point the catalogue at a mock server); never set in production
 
 
 const COLLECTIONS = new Set(['products', 'categories', 'customers', 'suppliers', 'sales', 'purchases', 'payments', 'expenses', 'cash', 'movements', 'users', 'settings', 'audit', 'carModels', 'journal', 'vehicles'])
@@ -83,6 +89,8 @@ async function handle(req: Request, env: Env): Promise<Response> {
     if (url.pathname === '/admin' || url.pathname === '/admin/') return new Response(ADMIN_PAGE, { headers: { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store' } })
     if (!url.pathname.startsWith('/api/')) return env.ASSETS.fetch(req)
     if (req.method === 'OPTIONS') return new Response(null, { status: 204, headers: CORS })
+    const cat = await handleCatalog(req, env, url.pathname)
+    if (cat) return cat
     const lic = await handleLicense(req, env, url.pathname)
     if (lic) return lic
     const key = keyOf(req)

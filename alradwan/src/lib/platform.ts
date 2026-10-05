@@ -25,6 +25,8 @@ declare global {
       listBackups(): Promise<{ name: string; size: number; mtime: number }[]>
       readBackup(name: string): Promise<string | null>
       backupsFolder(): Promise<string>
+      /** UPCitemdb's answer for a product number (status 0 = no internet) */
+      upcLookup?(code: string): Promise<{ status: number; body: string } | null>
       /** barcode scanners: the app's own device list instead of the browser's chooser */
       scanners?: {
         inventory(): Promise<DesktopDevice[]>

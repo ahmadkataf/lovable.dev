@@ -29,11 +29,14 @@ export interface ScannerConfig {
   minLength: number
   /** accept readings that end without Enter/Tab (some scanners send no terminator) */
   noSuffix: boolean
+  /** the scanner types in the same keyboard language as the computer: read the typed characters, not key positions */
+  layoutKeys: boolean
   beep: boolean
   vibrate: boolean
 }
 const CONFIG_KEY = 'alradwan.scanner'
-export const DEFAULT_SCANNER: ScannerConfig = { keyboard: true, maxAvgMs: 45, maxGapMs: 100, minLength: 4, noSuffix: true, beep: true, vibrate: true }
+// Wired USB scanners type a key every 1-10 ms, Bluetooth ones 15-50 ms with the odd stall; people far slower.
+export const DEFAULT_SCANNER: ScannerConfig = { keyboard: true, maxAvgMs: 60, maxGapMs: 120, minLength: 4, noSuffix: true, layoutKeys: false, beep: true, vibrate: true }
 export function readScannerConfig(): ScannerConfig {
   try { return { ...DEFAULT_SCANNER, ...(JSON.parse(localStorage.getItem(CONFIG_KEY) || '{}') as Partial<ScannerConfig>) } } catch { return { ...DEFAULT_SCANNER } }
 }
@@ -83,9 +86,12 @@ export function useScan(fn: Handler, opts?: { enabled?: boolean; priority?: numb
   }, [enabled, priority])
 }
 
+// ISO/IEC 15424 symbology identifiers ("]" + code letter + modifier) that scanners can put before a reading
 const AIM: Record<string, string> = {
-  A: 'Code 39', C: 'Code 128', d: 'Data Matrix', E: 'EAN/UPC', e: 'GS1 DataBar', F: 'Codabar', G: 'Code 93',
-  H: 'Code 11', I: 'ITF', L: 'PDF417', M: 'MSI', Q: 'QR Code', U: 'MaxiCode', z: 'Aztec', X: 'Other',
+  A: 'Code 39', B: 'Telepen', C: 'Code 128', D: 'Code One', E: 'EAN/UPC', F: 'Codabar', G: 'Code 93', H: 'Code 11', I: 'ITF',
+  J: 'DotCode', K: 'Code 16K', L: 'PDF417', M: 'MSI', N: 'Anker', O: 'Codablock', P: 'Plessey', Q: 'QR Code', R: 'Straight 2 of 5',
+  S: 'Industrial 2 of 5', T: 'Code 49', U: 'MaxiCode', X: 'Other', Z: 'Keyboard', c: 'Channel Code', d: 'Data Matrix', e: 'GS1 DataBar',
+  g: 'Grid Matrix', h: 'Han Xin', o: 'OCR', p: 'PosiCode', s: 'SuperCode', z: 'Aztec',
 }
 const ARABIC_DIGITS = /[٠-٩۰-۹]/g
 
@@ -97,11 +103,15 @@ export function cleanScanText(raw: string): { text: string; symbology?: string }
   const m = /^\]([A-Za-z])([0-9A-Za-z])/.exec(text)
   if (m && AIM[m[1]]) {
     symbology = AIM[m[1]]
-    if (m[1] === 'E') symbology = m[2] === '4' ? 'EAN-8' : 'EAN-13 / UPC'
+    if (m[1] === 'E') symbology = m[2] === '4' ? 'EAN-8' : m[2] === '3' ? 'EAN-13 + add-on' : 'EAN-13 / UPC'
     if (m[1] === 'C' && m[2] === '1') symbology = 'GS1-128'
     if (m[1] === 'd' && m[2] === '2') symbology = 'GS1 DataMatrix'
     if (m[1] === 'Q' && m[2] === '3') symbology = 'GS1 QR Code'
     text = text.slice(3)
+    // ]E3: the 13-digit number followed by a 2- or 5-digit add-on (magazines, books): the product is the 13 digits
+    if (m[1] === 'E' && m[2] === '3' && /^\d{15}$|^\d{18}$/.test(text.trim())) text = text.trim().slice(0, 13)
+    if (m[1] === 'I' && m[2] === '1') symbology = 'ITF-14'
+    if (m[1] === 'J' && m[2] === '1') symbology = 'GS1 DotCode'
   }
   return { text: text.trim(), symbology }
 }
@@ -124,10 +134,16 @@ export function scanFeedback(ok: boolean) {
   } catch { /* no sound */ }
 }
 
+let lastEmit = { text: '', source: '', at: 0 }
+
 /** Hands a reading to the screens. Returns whether something used it. */
 export async function emitScan(input: { text: string; source: ScanSource; symbology?: string; device?: string; quiet?: boolean }): Promise<boolean> {
   const { text, symbology } = cleanScanText(input.text)
   if (!text) return false
+  // a POS phone may send each reading twice (as keys and as a broadcast): the second copy is dropped
+  const now = Date.now()
+  if (text === lastEmit.text && input.source !== lastEmit.source && now - lastEmit.at < 800 && [input.source, lastEmit.source].every(x => x === 'keyboard' || x === 'android')) return true
+  lastEmit = { text, source: input.source, at: now }
   const scan: Scan = { text, source: input.source, symbology: input.symbology || symbology, device: input.device, at: Date.now() }
   useScanStatus.setState(s => ({ last: scan, counts: { ...s.counts, [scan.source]: (s.counts[scan.source] ?? 0) + 1 }, keyboardSeen: scan.source === 'keyboard' ? scan.at : s.keyboardSeen }))
   const order = [...subs].sort((a, b) => b.priority - a.priority || b.id - a.id)
@@ -189,21 +205,70 @@ let strokes: Stroke[] = []
 let snapshot: Snapshot | null = null
 let idle: ReturnType<typeof setTimeout> | null = null
 let started = false
+// Alt held while numpad digits are typed: a character the scanner's keyboard lacks (keypad emulation)
+let altDigits = ''
+// an Android keyboard app took the key (keyCode 229): its character arrives as text right after
+let imeKeyAt = -1e9
+// a whole reading typed in one go (Android POS "keyboard output"): the Enter that follows belongs to it
+let swallowEnterUntil = 0
+// when a key was last pressed (a person typing on an Android keyboard app also produces text in one go)
+let lastKeyAt = -1e9
+// only Android POS phones "type" a whole reading as text; elsewhere text in one go is a paste, dictation or autofill
+const textReadings = () => typeof navigator !== 'undefined' && /Android/i.test(navigator.userAgent)
 
-const reset = () => { strokes = []; snapshot = null; if (idle) { clearTimeout(idle); idle = null } }
+const reset = () => { strokes = []; snapshot = null; altDigits = ''; if (idle) { clearTimeout(idle); idle = null } }
+const foldDigits = (k: string) => k.replace(/[٠-٩۰-۹]/g, d => String(d.charCodeAt(0) & 0xf))
 
-function textOf(list: Stroke[]): string {
-  // one non-Latin character means the layout is not English: read every key by its position
-  const foreign = list.some(s => !/^[\x20-\x7e\x1d]$/.test(s.key))
-  return list.map(s => (foreign ? s.us ?? s.key : s.key)).join('')
+/** A scanner types as if on a US keyboard: each key is read by its position, so an Arabic (or French)
+ *  layout cannot change what was scanned. The typed character is used only for keys with no position
+ *  (Android keyboard apps, virtual wedges), or when the scanner was set to the same language as Windows. */
+function textOf(list: Stroke[], byLayout: boolean): string {
+  return list.map(s => (byLayout ? s.key || s.us : s.us ?? s.key) ?? '').join('')
 }
-function looksScanned(cfg: ScannerConfig): boolean {
+function gaps(): number[] { const g: number[] = []; for (let i = 1; i < strokes.length; i++) g.push(strokes[i].t - strokes[i - 1].t); return g }
+const mean = (g: number[]) => g.reduce((a, b) => a + b, 0) / g.length
+/** Ended by Enter/Tab: fast on average and for most keys (one Bluetooth hiccup is fine). */
+function scannedWithEnd(cfg: ScannerConfig): boolean {
   if (strokes.length < cfg.minLength) return false
-  const span = strokes[strokes.length - 1].t - strokes[0].t
-  return span / (strokes.length - 1) <= cfg.maxAvgMs
+  const g = gaps()
+  return g.length > 0 && mean(g) <= cfg.maxAvgMs && [...g].sort((a, b) => a - b)[g.length >> 1] <= cfg.maxAvgMs * 2 / 3
+}
+/** Ended by silence: it must look even more like a machine (a fast typist rolls 2-3 keys, never 6). */
+function scannedWithoutEnd(cfg: ScannerConfig): boolean {
+  if (strokes.length < Math.max(6, cfg.minLength)) return false
+  const g = gaps()
+  return mean(g) <= cfg.maxAvgMs * 0.6 && Math.max(...g) <= cfg.maxGapMs * 2 / 3
+}
+/** The keys so far already look typed by a machine (decides whether Ctrl+]/F8… belong to a reading). */
+const machineSoFar = (cfg: ScannerConfig) => strokes.length >= 2 && mean(gaps()) <= cfg.maxAvgMs
+
+function begin() {
+  if (snapshot) return
+  const el = focusedField()
+  let start: number | null = null, end: number | null = null
+  if (el) { try { start = el.selectionStart; end = el.selectionEnd } catch { /* number inputs */ } }
+  snapshot = el ? { el, value: el.value, start, end } : null
+}
+function push(key: string, us: string | null, t: number, cfg: ScannerConfig) {
+  const prev = strokes[strokes.length - 1]
+  if (prev && t - prev.t > cfg.maxGapMs) reset()
+  if (!strokes.length) begin()
+  strokes.push({ key, us, t })
+  arm(cfg)
+}
+/** The pause that ends a reading with no Enter (restarted by every key of the reading, modifiers included). */
+function arm(cfg: ScannerConfig) {
+  if (idle) clearTimeout(idle)
+  idle = setTimeout(() => {
+    idle = null
+    // an Alt + numpad character is still being typed: wait for it
+    if (altDigits) { arm(cfg); return }
+    // a scanner set to send no Enter: the reading ends with the pause
+    if (cfg.noSuffix && scannedWithoutEnd(cfg)) finish(); else reset()
+  }, cfg.maxGapMs + 30)
 }
 function finish() {
-  const text = textOf(strokes)
+  const text = textOf(strokes, useScanStatus.getState().config.layoutKeys)
   // nothing listens (the lock screen, the first-run setup): the characters stay where they were typed
   if (!subs.length) { reset(); return }
   // take back what the scanner typed into the field: the reading is delivered whole, correctly decoded
@@ -215,52 +280,93 @@ function finish() {
   reset()
   void emitScan({ text, source: 'keyboard' })
 }
+/** Enter, Tab or Ctrl+J at the end of a burst: a reading if it was fast enough; the key itself is kept from the page. */
+function terminator(e: KeyboardEvent, t: number, cfg: ScannerConfig) {
+  if (subs.length && strokes.length && t - strokes[strokes.length - 1].t <= cfg.maxGapMs && scannedWithEnd(cfg)) {
+    e.preventDefault(); e.stopImmediatePropagation()
+    finish()
+  } else reset()
+}
+
+const blocked = (target: EventTarget | null) =>
+  // never on a PIN/password field: a fast typist's PIN must not become a "scan"
+  (target instanceof HTMLInputElement && target.type === 'password') || (target instanceof HTMLElement && !!target.closest('[data-noscan]'))
 
 function onKeyDown(e: KeyboardEvent) {
   const cfg = useScanStatus.getState().config
   if (!cfg.keyboard || e.isComposing) return
   const t = e.timeStamp || performance.now()
-  const target = e.target as Element | null
-  // never on a PIN/password field: a fast typist's PIN must not become a "scan"
-  if (target instanceof HTMLInputElement && target.type === 'password') { reset(); return }
-  if (target instanceof HTMLElement && target.closest('[data-noscan]')) { reset(); return }
+  lastKeyAt = t
+  if (blocked(e.target)) { reset(); return }
   if (e.key === 'Enter' || e.key === 'Tab' || e.code === 'NumpadEnter') {
-    if (subs.length && strokes.length && t - strokes[strokes.length - 1].t <= cfg.maxGapMs && looksScanned(cfg)) {
-      e.preventDefault(); e.stopImmediatePropagation()
-      finish()
-    } else reset()
+    if (t < swallowEnterUntil) { swallowEnterUntil = 0; e.preventDefault(); e.stopImmediatePropagation(); return }
+    terminator(e, t, cfg)
     return
   }
+  // the key went to an Android keyboard app; its character follows as text (onBeforeInput)
+  if (e.key === 'Unidentified' || e.keyCode === 229) { imeKeyAt = t; return }
   // a modifier pressed on its own (the Ctrl of Ctrl+], the Shift of a capital) is part of a reading, not a break
-  if (/^(Shift|Control|Alt|AltGraph|Meta|CapsLock)$/.test(e.key)) return
-  // GS1 group separator: scanners send it as Ctrl+] (ASCII 29)
-  if (e.ctrlKey && !e.altKey && (e.code === 'BracketRight' || e.key === ']') && strokes.length) {
-    strokes.push({ key: '\x1d', us: '\x1d', t }); e.preventDefault(); return
+  if (/^(Shift|Control|Alt|AltGraph|Meta|CapsLock|Dead|Process)$/.test(e.key)) { if (strokes.length) arm(cfg); return }
+  // Alt + numpad digits: one character, decided when Alt is let go (onKeyUp)
+  if (e.altKey && !e.ctrlKey && /^Numpad\d$/.test(e.code)) { altDigits += e.code.slice(6); if (strokes.length) arm(cfg); return }
+  // control characters inside a reading: GS1's group separator and friends, as scanners type them
+  if (machineSoFar(cfg)) {
+    const ctl = e.ctrlKey && !e.altKey && !e.metaKey
+    const c = ctl && (e.code === 'BracketRight' || e.key === ']') ? '\x1d'      // Zebra, Netum: Ctrl+]
+      : !e.ctrlKey && !e.altKey && e.key === 'F8' ? '\x1d'                       // Honeywell default
+      : (ctl && e.code === 'Digit6') || (!e.ctrlKey && !e.altKey && e.key === 'F9') ? '\x1e'
+      : ctl && e.code === 'KeyD' ? '\x04' : null
+    if (c) { push(c, c, t, cfg); e.preventDefault(); e.stopImmediatePropagation(); return }
+    if (ctl && e.code === 'KeyJ') { terminator(e, t, cfg); return }
   }
   if (e.ctrlKey || e.metaKey || e.repeat) { reset(); return }
   if (e.altKey && !e.getModifierState?.('AltGraph')) { reset(); return }
-  const single = e.key.length === 1 ? e.key.replace(/[٠-٩۰-۹]/, d => String(d.charCodeAt(0) & 0xf)) : ''
-  const us = usChar(e.code, e.shiftKey)
-  if (!single && !us) {
-    // Shift/CapsLock/arrows: only a non-modifier key breaks a reading
-    if (!/^(Shift|CapsLock|Control|Alt|AltGraph|Meta|Unidentified|Dead|Process)$/.test(e.key)) reset()
+  const single = e.key.length === 1 ? foldDigits(e.key) : ''
+  let us = usChar(e.code, e.shiftKey)
+  // a capital without Shift while Caps Lock is off comes from a program typing, not from a key: trust it
+  if (us && single && /^[a-z]$/i.test(single) && single.toLowerCase() === us && single !== us && !e.getModifierState?.('CapsLock')) us = single
+  // arrows, F-keys, Escape…: the reading is over
+  if (!single && !us) { reset(); return }
+  push(single || us || '', us, t, cfg)
+}
+
+function onKeyUp(e: KeyboardEvent) {
+  if (!altDigits || (e.key !== 'Alt' && e.code !== 'AltLeft' && e.code !== 'AltRight')) return
+  const cfg = useScanStatus.getState().config
+  const digits = altDigits
+  altDigits = ''
+  const n = parseInt(digits, 10)
+  const t = e.timeStamp || performance.now()
+  if (n === 13 || n === 10) { terminator(e, t, cfg); return }
+  let c = ''
+  if (n > 0 && n < 128) c = String.fromCharCode(n)
+  // above 127 with a leading zero Windows uses the ANSI code page (Arabic Windows: 1256)
+  else if (n < 256 && digits.startsWith('0')) { try { c = new TextDecoder('windows-1256').decode(Uint8Array.of(n)) } catch { /* no decoder */ } }
+  if (c) push(c, c, t, cfg)
+}
+
+/** Android: a keyboard app (IME) swallows a hardware scanner's keys and hands over text instead, and the
+ *  built-in scanners of POS phones "type" a whole reading at once. Both come through here. */
+function onBeforeInput(ev: Event) {
+  const e = ev as InputEvent
+  const cfg = useScanStatus.getState().config
+  if (!cfg.keyboard || !subs.length || e.inputType !== 'insertText' || !e.data) return
+  if (blocked(e.target)) return
+  const t = e.timeStamp || performance.now()
+  if (e.data.length === 1) {
+    if (t - imeKeyAt < 80) push(foldDigits(e.data), null, t, cfg)
     return
   }
-  const prev = strokes[strokes.length - 1]
-  if (prev && t - prev.t > cfg.maxGapMs) reset()
-  if (!strokes.length) {
-    const el = focusedField()
-    let start: number | null = null, end: number | null = null
-    if (el) { try { start = el.selectionStart; end = el.selectionEnd } catch { /* number inputs */ } }
-    snapshot = el ? { el, value: el.value, start, end } : null
-  }
-  strokes.push({ key: single || us || '', us, t })
-  if (idle) clearTimeout(idle)
-  idle = setTimeout(() => {
-    idle = null
-    // a scanner set to send no Enter: the reading ends with the pause
-    if (cfg.noSuffix && looksScanned(cfg)) finish(); else reset()
-  }, cfg.maxGapMs + 30)
+  const data = e.data
+  if (!textReadings() || t - lastKeyAt < 300) return
+  if (strokes.length || data.length < cfg.minLength || !/^[\x1d\x20-\x7e٠-٩۰-۹]+$/.test(data) || !/[0-9٠-٩۰-۹]/.test(data) || data.trim() !== data) return
+  // keep the field as it was (when the browser will not let us stop the typing, put it back right after)
+  const el = focusedField()
+  const before = el ? { el, value: el.value } : null
+  e.preventDefault()
+  if (before) setTimeout(() => { if (document.contains(before.el) && before.el.value !== before.value) setFieldValue(before.el, before.value) }, 0)
+  swallowEnterUntil = t + 400
+  void emitScan({ text: foldDigits(data), source: 'keyboard' })
 }
 
 /** Starts listening for keyboard-type scanners (once, for the life of the app). */
@@ -268,6 +374,8 @@ export function startKeyboardScanner() {
   if (started || typeof window === 'undefined') return
   started = true
   window.addEventListener('keydown', onKeyDown, true)
+  window.addEventListener('keyup', onKeyUp, true)
+  window.addEventListener('beforeinput', onBeforeInput, true)
 }
 
 /** For tests: forget the current partial reading. */

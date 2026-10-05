@@ -282,6 +282,8 @@ export interface Settings extends Base {
   staffSeesCost: boolean  // هل يرى الموظف سعر الشراء والأرباح
   staffEditsPrices: boolean // هل يعدّل الموظف الأسعار والقطع
   autoLockMinutes: number   // قفل البرنامج بعد دقائق من الخمول (0 = لا)
+  barcodeLookup?: boolean   // البحث عن اسم القطعة وصورتها على الإنترنت عند مسح باركود جديد (افتراضياً نعم)
+  shareCatalog?: boolean    // مشاركة اسم القطعة وماركتها (لا الأسعار) مع المحلات الأخرى لتجدها جاهزة (افتراضياً نعم)
   expenseCategories: string[]
   units: string[]
   sync: { url: string; key: string; enabled: boolean }

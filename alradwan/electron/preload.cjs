@@ -7,6 +7,8 @@ contextBridge.exposeInMainWorld('garageDesktop', {
   listBackups: () => ipcRenderer.invoke('list-backups'),
   readBackup: (name) => ipcRenderer.invoke('read-backup', name),
   backupsFolder: () => ipcRenderer.invoke('backups-folder'),
+  // product names for a barcode from UPCitemdb (asked by the app, not the page)
+  upcLookup: (code) => ipcRenderer.invoke('upc-lookup', code),
   // barcode scanners: the app's own device list instead of the browser's chooser
   scanners: {
     inventory: () => ipcRenderer.invoke('scanner-inventory'),

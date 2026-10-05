@@ -63,3 +63,37 @@ CREATE TABLE IF NOT EXISTS license_events (
 );
 CREATE INDEX IF NOT EXISTS license_events_ip_at ON license_events (ip, at);
 CREATE INDEX IF NOT EXISTS license_events_code ON license_events (code);
+
+-- The shared product catalogue, filled from barcode scans. What each device named a product (one vote per device
+-- per number; a later one replaces its own). Only the product's own details: never prices, stock, shop names,
+-- addresses or licence codes.
+CREATE TABLE IF NOT EXISTS catalog_contrib (
+  gtin     TEXT NOT NULL,                -- GTIN-14 key (EAN-8/13 and UPC-A/E padded with zeros)
+  device   TEXT NOT NULL,
+  name     TEXT NOT NULL,
+  brand    TEXT,
+  category TEXT,
+  unit     TEXT,
+  at       INTEGER NOT NULL,
+  PRIMARY KEY (gtin, device)
+);
+CREATE INDEX IF NOT EXISTS catalog_contrib_gtin ON catalog_contrib (gtin);
+-- what the outside services (Open Food Facts, UPCitemdb) answered, found or not, so each is asked once
+CREATE TABLE IF NOT EXISTS catalog_cache (
+  gtin      TEXT PRIMARY KEY,
+  found     INTEGER NOT NULL,
+  name      TEXT,
+  brand     TEXT,
+  category  TEXT,
+  quantity  TEXT,
+  image_url TEXT,
+  source    TEXT,                        -- openfoodfacts, upcitemdb
+  at        INTEGER NOT NULL
+);
+-- lookups per device ('d:'), per hashed address ('i:') and contributed items per device ('c:'), per UTC day
+CREATE TABLE IF NOT EXISTS catalog_quota (
+  k   TEXT NOT NULL,
+  day INTEGER NOT NULL,
+  n   INTEGER NOT NULL,
+  PRIMARY KEY (k, day)
+);
