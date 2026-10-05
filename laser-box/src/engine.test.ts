@@ -1154,6 +1154,21 @@ describe('wedding designs', () => {
     expect(generate(T('hennatray'), { W: 250, D: 180, bowl: 200 }, S0).errors.length).toBeGreaterThan(0)
   })
 
+  it('the fit test: open slots stepping 0.1 mm around the thickness entered, the third one exactly it, and a note on every slotted design', () => {
+    for (const t of [3, 3.2, 4]) {
+      const d = generate(T('fittest'), {}, { ...S0, t })
+      expect(d.errors).toEqual([])
+      const comb = d.panels.find(x => x.id === 'comb')!
+      const xs = crossings(outerOf(comb), 1)
+      const widths = Array.from({ length: (xs.length - 2) / 2 }, (_, i) => Math.round((xs[2 * i + 2] - xs[2 * i + 1]) * 1000) / 1000)
+      expect(widths.length).toBe(9)
+      widths.forEach((w, i) => expect(w, `t ${t} slot ${i + 1}`).toBeCloseTo(t + (i - 2) * 0.1, 3))
+    }
+    expect(generate(T('closed'), {}, S0).notes.some(n => n.includes('اختبار التعشيق'))).toBe(true)
+    expect(generate(T('welcomesign'), {}, S0).notes.some(n => n.includes('اختبار التعشيق'))).toBe(true)
+    expect(generate(T('keychains'), {}, S0).notes.some(n => n.includes('اختبار التعشيق'))).toBe(false)
+  })
+
   it('the wedding group lists the engagement set, the ring box and the five wedding designs', () => {
     expect(CATEGORIES.find(c => c.id === 'wedding')!.ids).toEqual(['engagement', 'hexringbox', 'nikahtray', 'hennatray', 'welcomesign', 'placecards', 'invitebox', 'caketopper', 'guestframe', 'sweetstand', 'tablenumbers', 'favorbox'])
   })

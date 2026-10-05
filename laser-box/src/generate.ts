@@ -2,7 +2,7 @@
 import { buildPanel, applyKerf, Panel } from './joints'
 import { layout, Layout } from './layout'
 import { Template, Common } from './templates'
-import { loopLength } from './geom'
+import { loopLength, signedArea, bbox } from './geom'
 import { MATERIAL_INFO, COLOUR_NAME } from './materials'
 
 export interface Settings extends Common { spacing: number; sheetW: number }
@@ -54,5 +54,14 @@ export function generate(tpl: Template, params: Record<string, number>, s: Setti
   // pieces for other sheets: say which colour (= RDWorks layer) belongs to which material
   const mats = [...new Set(panels.map(p => p.material).filter((m): m is string => !!m))]
   const notes = mats.length ? [...res.notes, `الملف مقسوم حسب الخامة، كلّ خامة في كتلة ولون خاصّ: الأحمر للخامة الأساسية، ${mats.map(m => `${COLOUR_NAME[MATERIAL_INFO[m]?.hex] ?? m} لـ${MATERIAL_INFO[m]?.label ?? m}`).join('، ')}. في RDWorks اقصّ كلّ لوح وحده: شغّل طبقة لونه وأوقف الباقي (Output = No).`] : res.notes
-  return { panels, layout: lay, notes, warnings, errors, cutLength, pieceCount, finger }
+  // anything that slots together is sized on the thickness entered: say so, since a «3 mm» sheet is often 3.3
+  // (finger joints, or a slot hole about as wide as the stock and longer than it is wide)
+  const isSlot = (l: { closed: boolean; layer?: string; pts: { x: number; y: number }[] }) => {
+    if (!l.closed || l.layer === 'engrave' || signedArea(l as never) >= 0) return false
+    const b = bbox([l as never]), a = b.maxX - b.minX, c = b.maxY - b.minY, short = Math.min(a, c), long = Math.max(a, c)
+    return short > 0.8 * s.t && short < s.t + 1 && long > 1.5 * short
+  }
+  const slotted = !!res.slotted || built.some(b => Number.isFinite(b.minFinger) || b.loops.some(isSlot))
+  const fitNote = slotted ? [`الشقوق والأصابع مقاسة على سماكة ${s.t} مم بالضبط مع خلوص صغير: قِس لوحك (وفي أكثر من مكان) وأدخل سماكته الحقيقية قبل القصّ، أو اقصّ «اختبار التعشيق» من قسم المعايرة أولاً.`] : []
+  return { panels, layout: lay, notes: [...notes, ...fitNote], warnings, errors, cutLength, pieceCount, finger }
 }

@@ -19,7 +19,7 @@ const android: AndroidBridge | null = (window as unknown as { LaserAndroid?: And
 interface State { tpl: string; params: Record<string, Record<string, number>>; settings: Settings; labels: boolean }
 
 const SETTING_DEFS: ParamDef[] = [
-  { key: 't', label: 'سماكة الخامة', min: 0.5, max: 30, step: 0.1, unit: 'مم', hint: 'قِس اللوح بالقدمة: 3 مم المكتوبة قد تكون 2.7 فعلياً' },
+  { key: 't', label: 'سماكة الخامة', min: 0.5, max: 30, step: 0.1, unit: 'مم', hint: 'قِس اللوح بالقدمة في أكثر من مكان: لوح «3 مم» كثيراً ما يكون 3.2–3.5 فعلياً (أو 2.7). الشقوق تُقصّ على هذا الرقم، فإن كان أصغر من الحقيقي لا تدخل القطع إلا بالكسر. لا قدمة؟ اقصّ «اختبار التعشيق» من قسم المعايرة' },
   { key: 'kerf', label: 'عرض الشقّ (kerf)', min: 0, max: 1, step: 0.01, unit: 'مم', hint: 'ما يأكله شعاع الليزر؛ عادةً 0.1–0.2 مم. يُعوَّض تلقائياً لتعشيق محكم' },
   { key: 'finger', label: 'عرض الأصبع', min: 0, max: 100, step: 0.5, unit: 'مم', hint: '0 = تلقائي (بين ضعف السماكة وثلاثة أضعافها بحسب حجم الصندوق). يُضبط ليكون العدد فردياً' },
   { key: 'spacing', label: 'المسافة بين القطع', min: 0, max: 50, step: 0.5, unit: 'مم' },

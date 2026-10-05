@@ -16,7 +16,7 @@ export interface ParamDef {
 
 export interface Common { t: number; kerf: number; finger: number; inner: boolean }
 
-export interface BuildResult { panels: PanelSpec[]; notes: string[]; warnings: string[]; errors?: string[] }
+export interface BuildResult { panels: PanelSpec[]; notes: string[]; warnings: string[]; errors?: string[]; /** pieces slot into each other (edge slots the outline hides from detection) */ slotted?: boolean }
 
 export interface Template {
   id: string
@@ -1488,10 +1488,11 @@ export const CATEGORIES: { id: string; name: string; ids: string[] }[] = [
   { id: 'doorsarab', name: 'أبواب عربي وكلاسيك', ids: ['doormihrab', 'doorkhatam', 'doormashrabiya', 'doorstars', 'doorandalus', 'doorstar', 'doorarch', 'doorclassic', 'doordiamond'] },
   { id: 'home', name: 'بيت وحديقة', ids: ['doorhanger', 'planter', 'petfeeder', 'birdhouse', 'incense', 'napkin'] },
   { id: 'light', name: 'إضاءة ورمضان', ids: ['ramadanlantern', 'ramadanornaments', 'lantern', 'shade'] },
+  { id: 'tools', name: 'معايرة', ids: ['fittest'] },
   { id: 'bulk', name: 'بالجملة', ids: ['keychains', 'coasters'] },
 ]
 /** the newest designs get a badge in the picker */
-export const NEW_IDS = ['nikahtray', 'hennatray', 'welcomesign', 'placecards', 'invitebox', 'doorhanger', 'doordiagonal', 'doorblocks', 'doororbit', 'doorchevron', 'doormihrab', 'doorkhatam', 'doormashrabiya', 'doorstars', 'doorandalus', 'doorpanel', 'doorclassic', 'doorarch', 'doordiamond', 'doorwaves', 'doorstar', 'doormodern', 'doorframes', 'caketopper', 'guestframe', 'sweetstand', 'tablenumbers', 'favorbox', 'hexringbox', 'engagement', 'hinged90', 'crate', 'carrier', 'jewelry', 'moneybox', 'planter', 'petfeeder', 'incense', 'bedtray', 'phonestand', 'bookstand', 'headphone', 'keyholder', 'wallshelf', 'spicerack', 'coasters', 'clock', 'keychains', 'ramadanornaments', 'mugtree', 'jewelrytree', 'birdhouse', 'ramadanlantern']
+export const NEW_IDS = ['fittest', 'nikahtray', 'hennatray', 'welcomesign', 'placecards', 'invitebox', 'doorhanger', 'doordiagonal', 'doorblocks', 'doororbit', 'doorchevron', 'doormihrab', 'doorkhatam', 'doormashrabiya', 'doorstars', 'doorandalus', 'doorpanel', 'doorclassic', 'doorarch', 'doordiamond', 'doorwaves', 'doorstar', 'doormodern', 'doorframes', 'caketopper', 'guestframe', 'sweetstand', 'tablenumbers', 'favorbox', 'hexringbox', 'engagement', 'hinged90', 'crate', 'carrier', 'jewelry', 'moneybox', 'planter', 'petfeeder', 'incense', 'bedtray', 'phonestand', 'bookstand', 'headphone', 'keyholder', 'wallshelf', 'spicerack', 'coasters', 'clock', 'keychains', 'ramadanornaments', 'mugtree', 'jewelrytree', 'birdhouse', 'ramadanlantern']
 
 // ====================================================================== more designs, built from the shared parts
 
@@ -2207,7 +2208,7 @@ MORE.push(
       const top = yLow - (2 * lv - 1) * step - hook
       if (top < 15) errors.push(`الارتفاع لا يكفي لـ ${lv} ${lv > 1 ? 'طوابق' : 'طابق'}: ${Math.ceil(p.H - top + 15)} مم على الأقل.`)
       const panels = crossTree(p, c, { arms: k => Array.from({ length: lv }, (_, j) => round3(yLow - (2 * j + k) * step)), aL: p.arm, aw, hook })
-      return { panels, notes: [`${4 * lv * 2} أكواب: ${lv} ${lv > 1 ? 'طوابق' : 'طابق'} في كل لوح، ذراعان في كل طابق، والأذرع متعامدة بين اللوحين.`, 'أدخل اللوح ذا الشقّ السفلي فوق ذي الشقّ العلوي حتى تتساوى قمّتاهما، والصق عند التقاطع.'], warnings, errors }
+      return { panels, notes: [`${4 * lv * 2} أكواب: ${lv} ${lv > 1 ? 'طوابق' : 'طابق'} في كل لوح، ذراعان في كل طابق، والأذرع متعامدة بين اللوحين.`, 'أدخل اللوح ذا الشقّ السفلي فوق ذي الشقّ العلوي حتى تتساوى قمّتاهما، والصق عند التقاطع.'], warnings, errors, slotted: true }
     },
   },
   {
@@ -2224,7 +2225,7 @@ MORE.push(
       const span = p.H - fh - 70, step = span / (2 * lv)
       if (step < aw + 14) errors.push(`الارتفاع لا يكفي لـ ${lv} طوابق: ${Math.ceil((aw + 14) * 2 * lv + fh + 70)} مم على الأقل.`)
       const panels = crossTree(p, c, { arms: k => Array.from({ length: lv }, (_, j) => round3(20 + (2 * j + k) * step)), aL: p.arm, aw, hook: 0, notches: Math.max(1, Math.floor(p.arm / 18)), holes: true })
-      return { panels, notes: ['الحزوز في أعلى الأذرع للقلائد والأساور، والثقوب الصغيرة للأقراط ذات المشبك.', 'ركّب اللوحين متقاطعين والصق؛ ضع تحتها صحناً صغيراً للخواتم إن شئت.'], warnings, errors }
+      return { panels, notes: ['الحزوز في أعلى الأذرع للقلائد والأساور، والثقوب الصغيرة للأقراط ذات المشبك.', 'ركّب اللوحين متقاطعين والصق؛ ضع تحتها صحناً صغيراً للخواتم إن شئت.'], warnings, errors, slotted: true }
     },
   },
   {
@@ -2837,7 +2838,7 @@ MORE.push(
         'التجميع: أدخل اللوحين المتقاطعين في بعضهما (+)، ثم أدخل لسان العمود السفلي في فتحة القاعدة، ثم أنزل الصحون من الأعلى بالترتيب من الأكبر إلى الأصغر؛ كل صحن يمرّ فوق الأجزاء الأضيق ويستقرّ على كتفه. لا يحتاج غراء، وينفكّ للتخزين.',
         `كل صحن يستند على أربعة أكتاف عرضها ${ledge} مم. للحلويات الخفيفة يكفي 3 مم، وللأثقل (كيك حقيقي) استعمل 4–6 مم وكتفاً أعرض. غطِّ الصحون الخشبية بورق حلويات أو اقصّها من أكريليك.`,
       ]
-      return { panels, notes, warnings, errors }
+      return { panels, notes, warnings, errors, slotted: true }
     },
   },
   {
@@ -3609,7 +3610,7 @@ function footedSign(p: Record<string, number>, c: Common, o: { id: string; name:
       post: loops => { const r = Math.min(hf / 2 - 0.5, 12); roundCorner(loops, 0, 0, r); roundCorner(loops, Lf, 0, r) }, note: 'شقّها من الأعلى بنصف ارتفاعها',
     },
   ]
-  return { panels, notes: [], warnings, errors }
+  return { panels, notes: [], warnings, errors, slotted: true }
 }
 const SIGN_SHAPE: ParamDef = { key: 'shape', label: 'الشكل', min: 1, max: 3, step: 1, int: true, hint: '1 = قوس، 2 = مستطيل بزوايا مدوّرة، 3 = دائرة بقاعدة مسطّحة' }
 
@@ -3742,5 +3743,54 @@ MORE.push(
     },
   },
 )
+
+// ------------------------------------------------------------------ calibration
+
+MORE.push({
+  id: 'fittest',
+  name: 'اختبار التعشيق والسماكة',
+  desc: 'مشط بشقوق مفتوحة تتدرّج حول السماكة المُدخلة، وزاوية صغيرة بأصابع تعشيق: اقصّها من قطعة صغيرة من اللوح نفسه قبل أي تصميم، فتعرف السماكة التي تُدخلها فتدخل القطع بضغط اليد دون كسر.',
+  icon: `<path d="M6 20h52v24H6z"/><path d="M12 20v8M20 20v8M28 20v8M36 20v8M44 20v8M52 20v8" stroke-width="2.5"/><path d="M11 36h2M19 36h2M27 36h2M35 36h2M43 36h2M51 36h2" stroke-width="1.5"/>`,
+  params: [
+    { key: 'count', label: 'عدد الشقوق', min: 5, max: 15, step: 1, int: true },
+    { key: 'step', label: 'الفرق بين شقّ وآخر', min: 0.05, max: 0.3, step: 0.05, unit: 'مم' },
+    { key: 'below', label: 'شقوق أضيق من السماكة', min: 0, max: 6, step: 1, int: true, hint: 'كم شقّاً قبل شقّ السماكة المُدخلة' },
+  ],
+  defaults: { count: 9, step: 0.1, below: 2 },
+  innerAdd: () => ({ W: 0, D: 0, H: 0 }),
+  build(p, c) {
+    const warnings: string[] = [], errors: string[] = []
+    const t = c.t, k = Math.round(p.count), below = Math.min(Math.round(p.below), k - 1), step = p.step
+    const widths = Array.from({ length: k }, (_, i) => round3(t + (i - below) * step))
+    if (widths[0] < 0.5) errors.push('الشقّ الأضيق أرفع من 0.5 مم: قلّل «شقوق أضيق من السماكة» أو الفرق بين الشقوق.')
+    // the comb: open slots from the top edge, a numbered label under each, teeth at least 2 t wide between them
+    const pitch = round3(Math.max(14, widths[k - 1] + 2 * t + 6)), depth = round3(Math.max(12, 3 * t)), m = 8
+    const W = round3(2 * m + k * pitch), H = round3(depth + 22)
+    const xs = widths.map((_, i) => round3(m + pitch * (i + 0.5)))
+    const gh = 7, labels: Loop[] = []
+    xs.forEach((x, i) => { for (const g of numberGlyphs(i + 1, x, depth + 4 + gh / 2 + 1, gh)) for (const l of g.loops) labels.push({ ...l, layer: 'engrave' }) })
+    // a mark under the slot of the thickness entered
+    const xt = xs[below]
+    labels.push({ closed: true, layer: 'engrave', pts: [{ x: round3(xt - 3), y: round3(H - 3) }, { x: round3(xt + 3), y: round3(H - 3) }, { x: round3(xt), y: round3(H - 7) }] })
+    const panels: PanelSpec[] = [
+      { id: 'comb', name: 'مشط الشقوق', w: W, h: H, cuts: widths.map((w, i) => rect(round3(xs[i] - w / 2), 0, w, depth)), engrave: labels, note: 'الرقم تحت كل شقّ؛ المثلّث تحت شقّ السماكة المُدخلة' },
+      { id: 'strip', name: 'شريحة التجربة', w: round3(Math.max(60, W / 2)), h: 12, note: 'تُدخل في الشقوق، أو جرّب بأي قطعة من اللوح نفسه' },
+      // a small corner with finger joints at the current kerf and finger settings
+      { id: 'corner-a', name: 'زاوية التجربة — القطعة الأولى', w: 50, h: 40, right: 'male', note: 'تُركّب مع الثانية على شكل L' },
+      { id: 'corner-b', name: 'زاوية التجربة — القطعة الثانية', w: 50, h: 40, left: 'female', note: 'أصابعها تدخل بين أصابع الأولى' },
+    ]
+    const table = widths.map((w, i) => `${i + 1} = ${w.toFixed(2)}`).join('، ')
+    return {
+      panels,
+      notes: [
+        `عرض الشقوق بالترتيب (مم): ${table}. الشقّ ${below + 1} (عليه المثلّث) يساوي السماكة المُدخلة ${t} مم.`,
+        'اقصّ هذه القطع من اللوح نفسه الذي ستقصّ منه التصميم، وبإعداد الليزر نفسه. أدخل الشريحة (أو حافّة أي قطعة من اللوح) في الشقوق من الأضيق: الشقّ الذي تدخل فيه بضغط اليد بلا كسر ولا رخاوة، رقمه في الجدول هو السماكة التي تكتبها في «سماكة الخامة». التصاميم تضيف فوقها خلوصاً صغيراً من نفسها.',
+        'زاوية التجربة: إن دخلت أصابعها بالقوة فقلّل «عرض الشقّ (kerf)» 0.03–0.05 مم، وإن كانت رخوة فزِده، ثم أعد القصّ. الشقوق والأصابع تتأثر بالـ kerf والسماكة معاً، فاضبط السماكة أولاً.',
+        'السماكة تختلف بين الألواح وأحياناً في اللوح نفسه: كرّر الاختبار مع كل لوح جديد.',
+      ],
+      warnings, errors,
+    }
+  },
+})
 
 TEMPLATES.push(...MORE)
