@@ -11,7 +11,7 @@ import { Modal, useConfirm, useIsTopDialog } from './modal'
 import { CameraScanner } from './scanner'
 import { ProductSearch } from './pickers'
 import { focusedField, insertIntoField, SCAN_PRIORITY, useScan } from '../lib/scan'
-import { barcodeOwner, barcodeToSave, findProductByScan, withBarcode } from '../lib/productMatch'
+import { barcodeOwner, barcodeToSave, findProductByScan, labelPartNumber, withBarcode } from '../lib/productMatch'
 import { brandHint, codeFacts, learnBrandPrefixes, parseGs1, publicGtin } from '../lib/gs1'
 import { lookupProduct, readBoxPhoto, shareCatalogChanges, SOURCE_LABEL, type LookupSource } from '../lib/productLookup'
 import { API_URL } from '../lib/platform'
@@ -177,7 +177,8 @@ export function ProductForm({ initial, currentStock, onClose, onSaved, scanned }
   }
   useEffect(() => {
     if (!isNew || !scanned) return
-    if (settings.barcodeLookup !== false && publicGtin(barcodeToSave(scanned))) void fillFrom(barcodeToSave(scanned)); else applyHint(barcodeToSave(scanned))
+    const code = barcodeToSave(scanned)
+    if (settings.barcodeLookup !== false && (publicGtin(code) || labelPartNumber(code))) void fillFrom(code); else applyHint(code)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
   const focusPrice = (edited: number, focused: Element | null) => setTimeout(() => { if (!alive.current || edits.current !== edited || document.activeElement !== focused) return; const el = Array.from(document.querySelectorAll<HTMLInputElement>('.modal .price-field input')).pop(); if (el && !el.disabled) { el.focus(); el.select() } }, 60)
@@ -209,7 +210,7 @@ export function ProductForm({ initial, currentStock, onClose, onSaved, scanned }
     } catch (e) { if (alive.current) toast.error((e as Error).message) } finally { if (alive.current) setReading(false) }
   }
   // nothing will be looked up for this code (a part number, an in-store code): the photo is offered at once
-  const noLookup = !!scanned && !(settings.barcodeLookup !== false && publicGtin(barcodeToSave(scanned)))
+  const noLookup = !!scanned && !(settings.barcodeLookup !== false && (publicGtin(barcodeToSave(scanned)) || labelPartNumber(barcodeToSave(scanned))))
   const offerPhoto = lookup.state === 'none' || (lookup.state === 'idle' && noLookup) || reading
   const boxButton = (primary: boolean) => API_URL && canEdit
     ? <button type="button" className={`btn sm ${primary ? 'primary' : ''}`} onClick={() => setBoxCam(true)} disabled={reading}>{reading ? <RefreshCw className="spin" /> : <Camera />} {reading ? 'جارٍ قراءة الصورة…' : 'صوّر العلبة واملأ البيانات'}</button>

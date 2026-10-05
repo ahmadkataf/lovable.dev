@@ -75,6 +75,17 @@ function upcEtoA(e: string): string | null {
   return validCheck(a) ? a : null
 }
 
+/** The shared catalogue's key for a scanned code: a public product number's GTIN-14, or "pn:" and the part number
+ *  of a car-part label (a Code 39 "P9818914980": part 98 189 149 80 of its maker, the same in every shop). Such
+ *  part numbers are known only to the shops: no outside database is asked about them. */
+export function catalogKey(raw: unknown): { key: string; gtin: { gtin: string; ask: string } | null } | null {
+  const g = publicGtin(raw)
+  if (g) return { key: g.gtin, gtin: g }
+  const m = /^(?:1P|30P|P)([0-9A-Z][0-9A-Z.\-/ ]{4,39})$/.exec(String(raw ?? '').trim().toUpperCase())
+  const pn = m ? m[1].replace(/[^0-9A-Z]/g, '') : ''
+  return pn.length >= 5 && pn.length <= 30 && (pn.match(/\d/g)?.length ?? 0) >= 4 ? { key: 'pn:' + pn, gtin: null } : null
+}
+
 /** A public product number as {gtin: its GTIN-14 key, ask: the form the outside services know}, else null. */
 export function publicGtin(raw: unknown): { gtin: string; ask: string } | null {
   const c = String(raw ?? '').replace(/[\s-]/g, '')
@@ -211,8 +222,9 @@ async function askUpc(env: CatalogEnv, code: string): Promise<Ask> {
 
 // ---------- the endpoints ----------
 async function lookup(req: Request, env: CatalogEnv, url: URL): Promise<Response> {
-  const g = publicGtin(url.searchParams.get('code'))
-  if (!g) return json({ error: 'bad code' }, 400)
+  const k = catalogKey(url.searchParams.get('code'))
+  if (!k) return json({ error: 'bad code' }, 400)
+  const g = { gtin: k.key, ask: k.gtin?.ask ?? '' }
   const device = url.searchParams.get('device')
   if (!validDevice(device)) return json({ error: 'bad device' }, 400)
   const who = await addressKey(env, req)
@@ -229,6 +241,8 @@ async function lookup(req: Request, env: CatalogEnv, url: URL): Promise<Response
     SELECT name, brand, category, unit, (SELECT COUNT(DISTINCT x.lic) FROM v x WHERE x.name = v.name) AS n FROM v ORDER BY n DESC, at DESC LIMIT 1`)
     .bind(g.gtin, now, g.gtin).first<{ name: string; brand: string | null; category: string | null; unit: string | null; n: number }>()
   if (shop) return json({ found: true, name: shop.name, brand: shop.brand ?? undefined, category: shop.category ?? undefined, quantity: shop.unit ?? undefined, image: !!(cached?.found && cached.image_url), source: 'shops', shops: shop.n })
+  // a part number: only the shops know it
+  if (!k.gtin) return json({ found: false })
 
   // 2. an earlier outside answer that is still fresh
   if (cached && now - cached.at < (cached.found ? FRESH_FOUND : FRESH_MISSING)) {
@@ -303,10 +317,10 @@ async function contribute(req: Request, env: CatalogEnv): Promise<Response> {
   const items = new Map<string, { name: string; brand: string | null; category: string | null; unit: string | null }>()
   for (const it of b.items as Record<string, unknown>[]) {
     if (!it || typeof it !== 'object') continue
-    const g = publicGtin(it.code)
+    const g = catalogKey(it.code)
     const name = clean(it.name, 121)
     if (!g || !name || [...name].length < 2 || [...name].length > 120) continue   // a longer name is refused, not cut
-    items.set(g.gtin, { name, brand: clean(it.brand, 60), category: clean(it.category, 60), unit: clean(it.unit, 60) })
+    items.set(g.key, { name, brand: clean(it.brand, 60), category: clean(it.category, 60), unit: clean(it.unit, 60) })
   }
   if (!items.size) return json({ ok: true, saved: 0 })
   if (!(await bump(env, 'c:' + s.d, items.size, LIMIT_CONTRIB).first())) return json({ error: 'too many' }, 429)

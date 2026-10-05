@@ -5,7 +5,7 @@
 import { API_URL } from './platform'
 import { licenseDevice, licenseToken } from './license'
 import { publicGtin } from './gs1'
-import { shortGtin } from './productMatch'
+import { labelPartNumber, shortGtin } from './productMatch'
 import { shrinkImage } from './image'
 import { useStore } from '../db/store'
 import type { Product } from '../db/types'
@@ -121,7 +121,19 @@ const memo = new Map<string, Promise<LookupResult | null>>()
 /** What the world knows about a barcode, or null (not a product number, unknown, or no internet). */
 export function lookupProduct(code: string, opts: { image?: boolean } = {}): Promise<LookupResult | null> {
   const g = publicGtin(code)
-  if (!g) return Promise.resolve(null)
+  if (!g) {
+    // a car-part label's part number: only the shops know it (the shared catalogue on the server)
+    const pn = labelPartNumber(code)?.replace(/[^0-9A-Z]/gi, '').toUpperCase()
+    if (!pn) return Promise.resolve(null)
+    const key = `pn:${pn}`
+    let p = memo.get(key)
+    if (!p) {
+      p = viaServer(`P${pn}`, false).then(r => r || null, () => null)
+      memo.set(key, p)
+      void p.then(r => { if (!r) setTimeout(() => memo.delete(key), 60000) })
+    }
+    return p
+  }
   const key = `${g}|${opts.image !== false}`
   let p = memo.get(key)
   if (!p) {
@@ -207,7 +219,8 @@ export function shareCatalogChanges(): Promise<void> {
         // a placeholder name ("قطعة 629…") or an unchecked catalogue name teaches nobody anything
         if (name.length >= 2 && !/^قطعة\s+\S+$/.test(name) && name !== p.catalogName?.trim()) {
           for (const b of (p.barcode ?? '').split(/[,\n;،؛]+/).map(x => x.trim()).filter(Boolean)) {
-            if (!publicGtin(b)) continue
+            // public product numbers, and the part numbers of car-part labels
+            if (!publicGtin(b) && !labelPartNumber(b)) continue
             items.push({ code: b, name: name.slice(0, 120), brand: p.brand?.trim().slice(0, 60) || undefined, category: p.categoryId ? cats.get(p.categoryId)?.name?.slice(0, 60) : undefined, unit: p.unit?.slice(0, 60) || undefined })
           }
         }
