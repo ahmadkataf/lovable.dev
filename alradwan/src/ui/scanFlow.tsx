@@ -28,7 +28,11 @@ export function ScanHost() {
   useScan(s => {
     const field = focusedField()
     // a reading into a field no screen claimed is typed there, as a scanner always did
-    if (field && (s.source === 'keyboard' || dialogDepth() > 0)) { insertIntoField(field, s.text); replayTerminator(field, s.terminator); return true }
+    if (field && (s.source === 'keyboard' || dialogDepth() > 0)) {
+      // a barcode is never a quantity, a price or a rate: a number box keeps its value (and its Enter, which saves)
+      if (field.inputMode === 'decimal' || field.inputMode === 'numeric' || field.type === 'number') { toast.error('هذه الخانة للأرقام؛ امسح الباركود في خانة البحث'); return 'reject' }
+      insertIntoField(field, s.text); replayTerminator(field, s.terminator); return true
+    }
     if (dialogDepth() > 0) return false
     const hit = findProductByScan(products.values(), s.text)
     if (hit) { setCard({ id: hit.product.id, via: hit.via, scan: s }); return true }

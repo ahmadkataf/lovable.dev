@@ -29,6 +29,7 @@ export interface Product extends Base {
   notes?: string
   kind: ProductKind       // خدمة = لا تخضع للمخزون (مثل أجرة تركيب)
   image?: string          // data URL, small
+  catalogName?: string    // الاسم كما جاء من قاعدة الباركود (لا يُعاد إرساله صوتاً للمحل ما لم يعدّله)
   createdAt: number
 }
 

@@ -146,9 +146,11 @@ export function ProductForm({ initial, currentStock, onClose, onSaved, scanned }
   const alive = useRef(true)
   useEffect(() => { alive.current = true; return () => { alive.current = false } }, [])
   // offline first: the maker (and part number) that the barcode's company prefix gives away
+  // a guessed brand stays a guess: a brand found online replaces it
+  const hinted = useRef<string | undefined>(undefined)
   const applyHint = (code: string) => {
     const h = brandHint(code, learnBrandPrefixes(products.values()))
-    if (h) setF(x => ({ ...x, brand: x.brand?.trim() ? x.brand : h.brand, oemNumbers: x.oemNumbers?.trim() || !h.partNumber ? x.oemNumbers : h.partNumber }))
+    if (h) setF(x => { if (!x.brand?.trim()) hinted.current = h.brand; return { ...x, brand: x.brand?.trim() ? x.brand : h.brand, oemNumbers: x.oemNumbers?.trim() || !h.partNumber ? x.oemNumbers : h.partNumber } })
   }
   const fillFrom = async (code: string) => {
     applyHint(code)
@@ -158,7 +160,13 @@ export function ProductForm({ initial, currentStock, onClose, onSaved, scanned }
     if (!alive.current) return
     if (!r) { setLookup({ state: 'none' }); return }
     const cat = r.category ? Array.from(categories.values()).find(c => c.name.trim().toLowerCase() === r.category!.trim().toLowerCase()) : undefined
-    setF(x => ({ ...x, name: x.name?.trim() ? x.name : r.name, brand: x.brand?.trim() ? x.brand : (r.brand ?? x.brand), image: x.image || r.image, categoryId: x.categoryId || cat?.id }))
+    setF(x => ({
+      ...x,
+      // what the user typed meanwhile stays; the catalogue's name is remembered so it is not sent back as this shop's own
+      name: x.name?.trim() ? x.name : r.name, catalogName: x.name?.trim() ? x.catalogName : r.name,
+      brand: x.brand?.trim() && x.brand !== hinted.current ? x.brand : (r.brand ?? x.brand),
+      image: x.image || r.image, categoryId: x.categoryId || cat?.id,
+    }))
     setLookup({ state: 'found', source: r.source, shops: r.shops })
     toast.success(`وُجدت بياناتها: ${r.name}`)
     // only the price is left to type

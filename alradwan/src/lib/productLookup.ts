@@ -151,43 +151,75 @@ const SHARED_KEY = 'alradwan.catalogShared'
 let sharing: Promise<void> | null = null
 let again = false
 
+/** The point reached in the products, ordered by (updatedAt, id): ties from an Excel import cannot stall it. */
+type Cursor = { at: number; id: string }
+function readCursor(): Cursor {
+  try {
+    const raw = localStorage.getItem(SHARED_KEY) || ''
+    const [at, id = ''] = raw.split('|')
+    const n = Number(at) || 0
+    // a cursor in the future (this clock was ahead, or another device's was) would hide new edits: cap it
+    return n > Date.now() ? { at: Date.now(), id: '' } : { at: n, id }
+  } catch { return { at: 0, id: '' } }
+}
+const writeCursor = (c: Cursor) => { try { localStorage.setItem(SHARED_KEY, `${c.at}|${c.id}`) } catch { /* private mode */ } }
+const after = (p: { updatedAt?: number; id: string }, c: Cursor) => (p.updatedAt ?? 0) > c.at || ((p.updatedAt ?? 0) === c.at && p.id > c.id)
+
 /** Sends the names of products with a real barcode, changed since the last time, to the shared catalogue:
  *  barcode, name, brand, category and unit only — never prices, quantities or anything about the shop.
- *  Only from activated copies, and only while the shop allows it. */
+ *  Only from activated copies, and only while the shop allows it. A name the catalogue itself gave and the
+ *  shop kept as it was is not sent back (it would count as this shop's vote without anyone checking it). */
 export function shareCatalogChanges(): Promise<void> {
   if (sharing) { again = true; return sharing }
-  sharing = (async () => {
+  let run: Promise<void> | null = null
+  run = (async () => {
+    // after the first await: `finally` must not run before `sharing` holds this run
+    await null
     try {
       const st = useStore.getState()
       if (!API_URL || st.cfg.shareCatalog === false) return
       const token = licenseToken()
       if (!token) return
       const device = await licenseDevice()
-      let since = 0
-      try { since = Number(localStorage.getItem(SHARED_KEY)) || 0 } catch { /* private mode */ }
+      const started = Date.now()
+      let cursor = readCursor()
       const cats = st.categories as unknown as Map<string, { name: string }>
-      const items: { code: string; name: string; brand?: string; category?: string; unit?: string }[] = []
-      let newest = since
-      for (const p of (st.products as unknown as Map<string, Product>).values()) {
-        if ((p.updatedAt ?? 0) <= since) continue
-        newest = Math.max(newest, p.updatedAt ?? 0)
-        const name = p.name?.trim() ?? ''
-        // a placeholder name ("قطعة 629…") teaches nobody anything
-        if (name.length < 2 || /^قطعة\s+\d+$/.test(name)) continue
-        for (const b of (p.barcode ?? '').split(/[,\n;،؛]+/).map(x => x.trim()).filter(Boolean)) {
-          if (!publicGtin(b)) continue
-          items.push({ code: b, name: name.slice(0, 120), brand: p.brand?.trim().slice(0, 60) || undefined, category: p.categoryId ? cats.get(p.categoryId)?.name?.slice(0, 60) : undefined, unit: p.unit?.slice(0, 60) || undefined })
+      const changed = Array.from((st.products as unknown as Map<string, Product>).values())
+        .filter(p => after(p, cursor) && (p.updatedAt ?? 0) <= started)
+        .sort((a, b) => (a.updatedAt ?? 0) - (b.updatedAt ?? 0) || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0))
+      // whole products per batch (at most 50 barcodes), the cursor saved after each accepted batch
+      let batch: { code: string; name: string; brand?: string; category?: string; unit?: string }[] = []
+      let last: Cursor | null = null
+      const send = async () => {
+        if (batch.length) {
+          const r = await fetch(`${API_URL}/api/catalog/contribute`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ token, device, items: batch }) })
+          // over the server's daily allowance or refused: keep what was accepted, try again later
+          if (!r.ok) return false
         }
+        if (last) { cursor = last; writeCursor(cursor) }
+        batch = []
+        return true
       }
-      for (let i = 0; i < items.length; i += 50) {
-        const r = await fetch(`${API_URL}/api/catalog/contribute`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ token, device, items: items.slice(i, i + 50) }) })
-        if (!r.ok) return
+      for (const p of changed) {
+        const name = p.name?.trim() ?? ''
+        const items: typeof batch = []
+        // a placeholder name ("قطعة 629…") or an unchecked catalogue name teaches nobody anything
+        if (name.length >= 2 && !/^قطعة\s+\S+$/.test(name) && name !== p.catalogName?.trim()) {
+          for (const b of (p.barcode ?? '').split(/[,\n;،؛]+/).map(x => x.trim()).filter(Boolean)) {
+            if (!publicGtin(b)) continue
+            items.push({ code: b, name: name.slice(0, 120), brand: p.brand?.trim().slice(0, 60) || undefined, category: p.categoryId ? cats.get(p.categoryId)?.name?.slice(0, 60) : undefined, unit: p.unit?.slice(0, 60) || undefined })
+          }
+        }
+        if (batch.length + items.length > 50 && !(await send())) return
+        batch.push(...items.slice(0, 50))
+        last = { at: p.updatedAt ?? 0, id: p.id }
       }
-      try { localStorage.setItem(SHARED_KEY, String(newest)) } catch { /* private mode */ }
+      await send()
     } catch { /* offline: next time */ } finally {
-      sharing = null
+      if (sharing === run) sharing = null
       if (again) { again = false; setTimeout(() => void shareCatalogChanges(), 5000) }
     }
   })()
-  return sharing
+  sharing = run
+  return run!
 }
