@@ -1199,6 +1199,64 @@ describe('wedding designs', () => {
     expect(generate(T('mabkhara'), { bh: 70, H: 150 }, S0).errors.length).toBeGreaterThan(0)    // too deep a bowl for the height
   })
 
+  it('the mirror tower burner: wall tabs land in their slots, the bowl hangs by its rim, and the dome halves at the crown on the ring', () => {
+    for (const [rd, bd, S] of [[65, 52, 115], [80, 68, 140], [50, 38, 100]]) for (const tm of [2, 3]) {
+      const p: Record<string, number> = { ...T('mabkharatower').defaults, rd, bd, S, tm }
+      const d = generate(T('mabkharatower'), p, S0)
+      expect(d.errors, `bowl ${rd} tm ${tm}`).toEqual([])
+      const t = S0.t, fit = p.fit, ov = p.ov, P = S + 2 * ov, tw = Math.min(16, 0.2 * S)
+      // the front wall's tabs sit over the base slots, the slots wider by the fit
+      const tabs = crossings(outerOf(d.panels.find(x => x.id === 'wall-fb')!), t / 2)
+      expect(tabs.length).toBe(4)
+      const fb = holesOf(d.panels.find(x => x.id === 'base')!).map(l => bbox([l])).filter(b => b.maxX - b.minX > b.maxY - b.minY && b.minY < P / 2)
+      expect(fb.length).toBe(2)
+      fb.sort((a, b) => a.minX - b.minX).forEach((b, i) => {
+        expect((b.minX + b.maxX) / 2 - ov).toBeCloseTo((tabs[2 * i] + tabs[2 * i + 1]) / 2, 3)
+        expect(b.maxX - b.minX).toBeCloseTo(tw + fit, 3)
+        expect(tabs[2 * i + 1] - tabs[2 * i]).toBeCloseTo(tw, 3)
+        expect((b.minY + b.maxY) / 2).toBeCloseTo(ov + t / 2, 3)
+      })
+      // the top plate's hole clears the body by the gap and leaves the rim 3 mm or more to rest on
+      const cw = bd + 2 * p.gap
+      const hole = holesOf(d.panels.find(x => x.id === 'top')!).map(l => bbox([l])).find(b => Math.abs(b.maxX - b.minX - cw) < 1e-3)!
+      expect((hole.minX + hole.maxX) / 2).toBeCloseTo(P / 2, 3)
+      expect((hole.minY + hole.maxY) / 2).toBeCloseTo(P / 2, 3)
+      expect(rd / 2 - cw / 2).toBeGreaterThanOrEqual(3)
+      // the side mirrors cover the front mirrors' edges
+      expect(d.panels.find(x => x.id === 'face-side')!.w).toBeCloseTo(S + 2 * tm, 3)
+      // the dome: plate A keeps the crown above zm, plate B below it, and the slots are the mirror plus the fit
+      const A = outerOf(d.panels.find(x => x.id === 'dome-a')!), B = outerOf(d.panels.find(x => x.id === 'dome-b')!)
+      const ba = bbox([A]), bb = bbox([B]), ca = (ba.minX + ba.maxX) / 2, cb = (bb.minX + bb.maxX) / 2
+      const zTip = ba.maxY - t, hd = bb.maxY - t
+      const ma = materialAt(A, ca), mb = materialAt(B, cb)
+      expect(ma.length).toBe(1); expect(mb.length).toBe(1)
+      const zmA = zTip - ma[0][1], zmB = hd - mb[0][0], za = hd - mb[0][1]
+      expect(zmA).toBeCloseTo(zmB, 3)
+      expect(hd - zmA).toBeGreaterThanOrEqual(7.9); expect(zmB - za).toBeGreaterThanOrEqual(7.9)
+      const sl = crossings(A, zTip - (za + zmA) / 2), mid = sl.findIndex((x, i) => i % 2 === 1 && x < ca && sl[i + 1] > ca)
+      expect(sl[mid + 1] - sl[mid]).toBeCloseTo(tm + fit, 3)
+      // the dome's tabs stand over the ring's slots, at rm from the centre
+      const rm = rd / 2 + 1.5 + 7
+      for (const [pl, c, y] of [[A, ca, zTip], [B, cb, hd]] as const) {
+        const ft = crossings(pl, y + t / 2)
+        expect(ft.length).toBe(4)
+        expect((ft[2] + ft[3]) / 2 - c).toBeCloseTo(rm, 2); expect(c - (ft[0] + ft[1]) / 2).toBeCloseTo(rm, 2)
+        expect(ft[3] - ft[2]).toBeCloseTo(6, 3)
+      }
+      const ring = d.panels.find(x => x.id === 'dome-ring')!, Ro = ring.w / 2
+      const rs = holesOf(ring).map(l => bbox([l])).filter(b => b.maxX - b.minX < 10 || b.maxY - b.minY < 10)
+      expect(rs.length).toBe(4)
+      for (const b of rs) {
+        expect(Math.hypot((b.minX + b.maxX) / 2 - Ro, (b.minY + b.maxY) / 2 - Ro)).toBeCloseTo(rm, 2)
+        expect(Math.min(b.maxX - b.minX, b.maxY - b.minY)).toBeCloseTo(tm + fit, 3)
+      }
+    }
+    expect(generate(T('mabkharatower'), { rd: 60, bd: 60 }, S0).errors.length).toBeGreaterThan(0)   // body as wide as the rim
+    expect(generate(T('mabkharatower'), { rd: 62, bd: 52 }, S0).errors.length).toBeGreaterThan(0)   // the rim barely overhangs
+    expect(generate(T('mabkharatower'), { rd: 100, bd: 85, S: 115 }, S0).errors.length).toBeGreaterThan(0)   // the dome ring outgrows the top
+    expect(generate(T('mabkharatower'), { bh: 100, H: 110 }, S0).errors.length).toBeGreaterThan(0)   // too deep a bowl
+  })
+
   it('the wedding group lists the engagement set, the ring box and the five wedding designs', () => {
     expect(CATEGORIES.find(c => c.id === 'wedding')!.ids).toEqual(['engagement', 'hexringbox', 'nikahtray', 'hennatray', 'welcomesign', 'placecards', 'invitebox', 'caketopper', 'guestframe', 'sweetstand', 'tablenumbers', 'favorbox'])
   })

@@ -1486,14 +1486,14 @@ export const CATEGORIES: { id: string; name: string; ids: string[] }[] = [
   { id: 'office', name: 'مكتب وتنظيم', ids: ['organizer', 'phonestand', 'bookstand', 'headphone', 'keyholder', 'wallshelf', 'jewelrytree'] },
   { id: 'doorsmodern', name: 'أبواب مودرن', ids: ['doorpanel', 'doormodern', 'doorwaves', 'doorframes', 'doordiagonal', 'doorblocks', 'doororbit', 'doorchevron'] },
   { id: 'doorsarab', name: 'أبواب عربي وكلاسيك', ids: ['doormihrab', 'doorkhatam', 'doormashrabiya', 'doorstars', 'doorandalus', 'doorstar', 'doorarch', 'doorclassic', 'doordiamond'] },
-  { id: 'mabakher', name: 'مباخر', ids: ['mabkhara', 'incense'] },
+  { id: 'mabakher', name: 'مباخر', ids: ['mabkhara', 'mabkharatower', 'incense'] },
   { id: 'home', name: 'بيت وحديقة', ids: ['doorhanger', 'planter', 'petfeeder', 'birdhouse', 'napkin'] },
   { id: 'light', name: 'إضاءة ورمضان', ids: ['ramadanlantern', 'ramadanornaments', 'lantern', 'shade'] },
   { id: 'tools', name: 'معايرة', ids: ['fittest'] },
   { id: 'bulk', name: 'بالجملة', ids: ['keychains', 'coasters'] },
 ]
 /** the newest designs get a badge in the picker */
-export const NEW_IDS = ['mabkhara', 'fittest', 'nikahtray', 'hennatray', 'welcomesign', 'placecards', 'invitebox', 'doorhanger', 'doordiagonal', 'doorblocks', 'doororbit', 'doorchevron', 'doormihrab', 'doorkhatam', 'doormashrabiya', 'doorstars', 'doorandalus', 'doorpanel', 'doorclassic', 'doorarch', 'doordiamond', 'doorwaves', 'doorstar', 'doormodern', 'doorframes', 'caketopper', 'guestframe', 'sweetstand', 'tablenumbers', 'favorbox', 'hexringbox', 'engagement', 'hinged90', 'crate', 'carrier', 'jewelry', 'moneybox', 'planter', 'petfeeder', 'incense', 'bedtray', 'phonestand', 'bookstand', 'headphone', 'keyholder', 'wallshelf', 'spicerack', 'coasters', 'clock', 'keychains', 'ramadanornaments', 'mugtree', 'jewelrytree', 'birdhouse', 'ramadanlantern']
+export const NEW_IDS = ['mabkharatower', 'mabkhara', 'fittest', 'nikahtray', 'hennatray', 'welcomesign', 'placecards', 'invitebox', 'doorhanger', 'doordiagonal', 'doorblocks', 'doororbit', 'doorchevron', 'doormihrab', 'doorkhatam', 'doormashrabiya', 'doorstars', 'doorandalus', 'doorpanel', 'doorclassic', 'doorarch', 'doordiamond', 'doorwaves', 'doorstar', 'doormodern', 'doorframes', 'caketopper', 'guestframe', 'sweetstand', 'tablenumbers', 'favorbox', 'hexringbox', 'engagement', 'hinged90', 'crate', 'carrier', 'jewelry', 'moneybox', 'planter', 'petfeeder', 'incense', 'bedtray', 'phonestand', 'bookstand', 'headphone', 'keyholder', 'wallshelf', 'spicerack', 'coasters', 'clock', 'keychains', 'ramadanornaments', 'mugtree', 'jewelrytree', 'birdhouse', 'ramadanlantern']
 
 // ====================================================================== more designs, built from the shared parts
 
@@ -3914,6 +3914,207 @@ MORE.push({
         'قِس صحنك بالقدمة قبل القصّ: الحافّة العليا من طرف إلى طرف، والجسم تحتها مباشرة، والعمق من الحافّة إلى القاع. ثم اقصّ «قطعة تجربة الصحن» أولاً وضع الصحن فيها: يجب أن ينزل الجسم بلا احتكاك وتستند الحافّة على الكتفين.',
         `التركيب: أنزل اللوح الثاني (شقّه من الأسفل) على الأول (شقّه من الأعلى) متعامدين حتى تتساوى القاعدتان، ثم ضع الصحن. لا غراء. الارتفاع ${H} مم والقدمان ${Wf} مم.`,
         'الحرارة: الأكريليك يلين قرب 80–100°م. استعمل الصحن المعدني دائماً، ولا تترك الفحم يلمس الأكريليك، واستعمل فحم البخور الصغير؛ الهواء حول الصحن وتحته مقصود فلا تقلّله. الأكريليك 4–5 مم أمتن للمبخرة من 3 مم.',
+      ],
+      warnings, errors, slotted: true,
+    }
+  },
+})
+
+/** Small engraved circles about `pitch` apart round a rectangle: a beaded border. */
+function beadBorder(x0: number, y0: number, x1: number, y1: number, r = 1, pitch = 4): Loop[] {
+  const out: Loop[] = []
+  const side = (ax: number, ay: number, bx: number, by: number) => {
+    const k = Math.max(1, Math.round(Math.hypot(bx - ax, by - ay) / pitch))
+    for (let i = 0; i < k; i++) out.push({ ...circle(round3(ax + ((bx - ax) * i) / k), round3(ay + ((by - ay) * i) / k), r), layer: 'engrave' })
+  }
+  side(x0, y0, x1, y0); side(x1, y0, x1, y1); side(x1, y1, x0, y1); side(x0, y1, x0, y0)
+  return out
+}
+/** x on a side sampled bottom-up (y holding the height), at height z. */
+function xAt(pts: P2[], z: number): number {
+  for (let i = 0; i + 1 < pts.length; i++) {
+    const a = pts[i], b = pts[i + 1]
+    if ((a.y - z) * (b.y - z) <= 0 && a.y !== b.y) return a.x + ((b.x - a.x) * (z - a.y)) / (b.y - a.y)
+  }
+  return pts[z <= pts[0].y ? 0 : pts.length - 1].x
+}
+/** Shortest distance from q to the polyline pts. */
+function distToPolyline(q: P2, pts: P2[]): number {
+  let best = Infinity
+  for (let i = 0; i + 1 < pts.length; i++) {
+    const a = pts[i], b = pts[i + 1], dx = b.x - a.x, dy = b.y - a.y, l2 = dx * dx + dy * dy
+    const u = l2 ? Math.max(0, Math.min(1, ((q.x - a.x) * dx + (q.y - a.y) * dy) / l2)) : 0
+    best = Math.min(best, Math.hypot(q.x - a.x - u * dx, q.y - a.y - u * dy))
+  }
+  return best
+}
+
+MORE.push({
+  id: 'mabkharatower',
+  name: 'مبخرة برج بالمرايا',
+  desc: 'برج مربّع: واجهتان من المرآة بإطار وزخرفة محفورة، وجانبان مخرّمان من المرآة فوق لون الجدار. الصحن المعدني يتعلّق بحافّته في السطح، وفوقه قبّة مفتوحة متعاشقة بريشة.',
+  icon: `<path d="M20 26h24v32H20z"/><path d="M17 23h30v3H17zM17 58h30v3H17z"/><path d="M24 23c0-9 16-9 16 0" /><path d="M32 14V10M32 2c3 2 3 6 0 8-3-2-3-6 0-8z" stroke-width="1.5"/><path d="M24 30h9v24h-9z" stroke-width="1.3"/><path d="M37 32l3 3-3 3-3-3zM37 44l3 3-3 3-3-3z" stroke-width="1.3"/>`,
+  params: [
+    mm('S', 'عرض البرج', 70, 250, 'عرض الجدار من الخارج (البرج مربّع)'),
+    mm('H', 'ارتفاع الجدران', 100, 500, 'بين القاعدة والسطح'),
+    mm('ov', 'بروز القاعدة والسطح', 2, 15, 'عن الجدران من كل جهة'),
+    mm('tm', 'سماكة أكريليك المرآة', 1, 5, 'للواجهات والإطار والقبّة: قِسها، فشقوق القبّة عليها'),
+    mm('rd', 'قطر حافّة الصحن', 40, 160, 'قِس الحافّة العليا البارزة من طرف إلى طرف (بالقدمة)'),
+    mm('bd', 'قطر جسم الصحن', 30, 150, 'تحت الحافّة مباشرة: الجزء الذي ينزل في الفتحة'),
+    mm('bh', 'عمق الصحن تحت الحافّة', 10, 120),
+    mm('gap', 'خلوص حول جسم الصحن', 1, 6),
+    { key: 'pattern', label: 'تخريم الجانبين', min: 1, max: 6, step: 1, int: true, hint: PATTERN_HINT },
+    { key: 'cell', label: 'حجم ثقب التخريم', min: 6, max: 40, step: 0.5, unit: 'مم' },
+    { key: 'motif', label: 'زخرفة الواجهة', min: 0, max: 3, step: 1, int: true, hint: '0 = إطار فقط، 1 = قلب، 2 = نجمة ثمانية، 3 = محراب؛ تُحفر على المرآة ويمكنك إضافة حرف أو اسم في وسطها' },
+    { key: 'beads', label: 'حبيبات على الحواف', min: 0, max: 1, step: 1, int: true, hint: 'صفّ دوائر صغيرة محفورة حول الواجهات والإطار' },
+    { key: 'dome', label: 'القبّة والريشة', min: 0, max: 1, step: 1, int: true },
+    mm('dh', 'ارتفاع القبّة', 45, 120, 'بدون الريشة'),
+    { key: 'test', label: 'قطعة تجربة الصحن', min: 0, max: 1, step: 1, int: true },
+    { key: 'n', label: 'العدد', min: 1, max: 20, step: 1, int: true },
+    mm('fit', 'خلوص الشقوق', 0, 0.5),
+  ],
+  defaults: { S: 115, H: 250, ov: 5, tm: 2, rd: 65, bd: 52, bh: 20, gap: 2.5, pattern: 6, cell: 12, motif: 1, beads: 1, dome: 1, dh: 60, test: 1, n: 1, fit: 0.15 },
+  innerAdd: () => ({ W: 0, D: 0, H: 0 }),
+  build(p, c) {
+    const warnings: string[] = [], errors: string[] = []
+    const t = c.t, { S, H, ov, tm, rd, bd, bh, gap, cell, fit } = p, n = Math.round(p.n), dome = Math.round(p.dome) > 0
+    const P = round3(S + 2 * ov), st = round3(t + fit), s = round3(tm + fit)
+    // the bowl: its body drops through the top plate's hole, its rim rests round it
+    const cw = round3(bd + 2 * gap)
+    if (bd >= rd) errors.push('قطر جسم الصحن يجب أن يكون أصغر من قطر حافّته (الحافّة هي التي يستند عليها).')
+    else if (rd / 2 - cw / 2 < 3) errors.push(`حافّة الصحن لا تستند بما يكفي: تبرز ${(rd / 2 - cw / 2).toFixed(1)} مم فقط عن الفتحة (3 مم على الأقل). قلّل الخلوص حول الجسم، أو تأكد من القياسين.`)
+    if (cw / 2 + 4 > S / 2 - t) errors.push(`البرج ضيّق على الصحن: اجعل عرضه ${Math.ceil(cw + 8 + 2 * t)} مم على الأقل.`)
+    if (bh + 15 > H) errors.push(`الجدران قصيرة على عمق الصحن: اجعلها ${Math.ceil(bh + 15)} مم على الأقل.`)
+    if (tm + 0.5 > ov) warnings.push(`المرآة (${tm} مم) أسمك من بروز القاعدة والسطح (${ov} مم)؛ ستبرز خارجهما. زد البروز إلى ${Math.ceil(tm + 0.5)} مم.`)
+    // the top frame covers the tab ends; the bowl's rim and the dome's ring sit inside its window
+    const bt = round3(ov + t + 2), win = P / 2 - bt
+    const tw = 6, band = 14, Ri = round3(rd / 2 + 1.5), Ro = round3(Ri + band), rm = round3(Ri + band / 2)
+    if (dome && Ro > win - 1) errors.push(`السطح صغير على حلقة القبّة: اجعل عرض البرج ${Math.ceil(2 * (Ro + 1 + bt - ov))} مم على الأقل، أو ألغِ القبّة.`)
+    else if (!dome && rd / 2 + 2 > win) errors.push(`السطح صغير على حافّة الصحن: اجعل عرض البرج ${Math.ceil(2 * (rd / 2 + 2 + bt - ov))} مم على الأقل.`)
+
+    // walls: H between base and top plate, with a t-deep strip of tabs at each end; front and back span the full
+    // width, the sides fit between them
+    const wallTw = round3(Math.min(16, 0.2 * S)), ks = [0.25, 0.75]
+    const strip = (w: number) => {
+      const out: ReturnType<typeof rect>[] = []
+      for (const y of [0, H + t]) {
+        let x0 = 0
+        for (const k of ks) { out.push(rect(x0, y, w * k - wallTw / 2 - x0, t)); x0 = w * k + wallTw / 2 }
+        out.push(rect(x0, y, w - x0, t))
+      }
+      return out
+    }
+    const slots: Loop[] = []
+    for (const k of ks) {
+      for (const y of [ov + t / 2, ov + S - t / 2]) slots.push(rotatedRectHole(round3(ov + S * k), round3(y), wallTw + fit, st, 0))
+      for (const x of [ov + t / 2, ov + S - t / 2]) slots.push(rotatedRectHole(round3(x), round3(ov + t + (S - 2 * t) * k), st, wallTw + fit, 0))
+    }
+    const copy = (ls: Loop[]) => ls.map(l => ({ ...l, pts: l.pts.map(v => ({ ...v })) }))
+    const beads = Math.round(p.beads) > 0
+    const ms = round3(Math.min(0.5 * (S - 19), 0.3 * H)), cx = S / 2, cy = H / 2
+    const motif = Math.round(p.motif)
+    const mark = (l: Loop): Loop => ({ ...l, layer: 'engrave' })
+    const motifLoops: Loop[] =
+      motif === 1 ? [mark(heart(cx, cy, ms)), mark(heartFrame(cx, cy, ms, 3).holes()[0])]
+      : motif === 2 ? [engraveLoop(starPts(cx, cy, ms / 2, (ms / 2) * 0.765, 8, 0)), engraveLoop(starPts(cx, cy, ms / 2 - 6, (ms / 2 - 6) * 0.765, 8, 0))]
+      : motif === 3 ? [mark(archHole(cx - 0.35 * ms, cy - 0.65 * ms, 0.7 * ms, 1.3 * ms)), mark(archHole(cx - 0.35 * ms + 4, cy - 0.65 * ms + 4, 0.7 * ms - 8, 1.3 * ms - 8))]
+      : []
+    const fw = round3(S + 2 * tm), m = tm + 7
+    const filigree = pattern(Math.round(p.pattern), m, 7, fw - m, H - 7, cell)
+    if (!filigree.length) warnings.push('الجانبان أصغر من أن يحملا التخريم بهذا الحجم وسيبقيان بلا ثقوب؛ صغّر حجم الثقب.')
+    const panels: PanelSpec[] = [
+      { id: 'base', name: 'القاعدة', w: P, h: P, count: n, holes: slots, note: 'الشقوق لألسنة الجدران' },
+      { id: 'wall-fb', name: 'الجدار — الأمام / الخلف', w: S, h: round3(H + 2 * t), count: 2 * n, cuts: strip(S), note: 'بعرض البرج كاملاً' },
+      { id: 'wall-side', name: 'الجدار — الجانب', w: round3(S - 2 * t), h: round3(H + 2 * t), count: 2 * n, cuts: strip(S - 2 * t), note: 'يدخل بين الأمام والخلف' },
+      { id: 'top', name: 'السطح (مكان الصحن)', w: P, h: P, count: n, holes: [...copy(slots), circle(P / 2, P / 2, cw / 2)], engrave: [{ ...circle(P / 2, P / 2, rd / 2), layer: 'engrave' }], note: 'الدائرة المحفورة موضع حافّة الصحن' },
+      { id: 'top-frame', name: 'إطار السطح (مرآة)', w: P, h: P, count: n, material: 'mirror', holes: [roundedRectHole(bt, bt, P - 2 * bt, P - 2 * bt, 0)], engrave: beads ? beadBorder(bt / 2, bt / 2, P - bt / 2, P - bt / 2) : [], note: 'يُلصق فوق السطح ويخفي أطراف الألسنة' },
+      {
+        id: 'face', name: 'الواجهة — الأمام / الخلف (مرآة)', w: S, h: H, count: 2 * n, material: 'mirror',
+        engrave: [engraveRect(7, 7, S - 14, H - 14), engraveRect(9.5, 9.5, S - 19, H - 19), ...motifLoops, ...(beads ? beadBorder(3.5, 3.5, S - 3.5, H - 3.5) : [])],
+        note: 'تُلصق على الجدار بين القاعدة والسطح',
+      },
+      { id: 'face-side', name: 'الجانب المخرّم (مرآة)', w: fw, h: H, count: 2 * n, material: 'mirror', holes: filigree, engrave: beads ? beadBorder(tm + 3.5, 3.5, fw - tm - 3.5, H - 3.5) : [], note: `أعرض من الجدار بـ ${tm} مم من كل طرف: يغطّي حافّتي الواجهتين` },
+    ]
+
+    // the dome: two mirror profiles cross-lapped at the crown, open between their legs, standing by four tabs in a
+    // ring that sits round the bowl's rim. Heights z run up from the ring's top; P2.y holds z while building
+    const notes: string[] = []
+    if (dome && !errors.length) {
+      const hd = p.dh, cb = 16, cr = Math.max(s / 2 + 4.5, 7), lw = 7, Rb = Ro - 1, xi0 = round3(rm - tw / 2 - 3)
+      // a bell: a half ellipse swelling a little above the feet, flattened at the crown into a neck cr wide
+      const outer = Array.from({ length: Math.ceil(hd) + 1 }, (_, i) => {
+        const u = Math.min(1, i / hd)
+        return { x: Math.max(cr, Rb * (1 + 0.07 * Math.sin(Math.PI * u)) * Math.sqrt(Math.max(0, 1 - u ** 2.2))), y: u * hd }
+      })
+      // the opening: the outline moved lw inwards along its normal (so every leg is lw wide), flared out to the feet
+      // and closed by a pointed arch at least cb under the top, where the two profiles cross
+      const off = outer.map((q, i) => {
+        const a = outer[Math.max(0, i - 1)], b = outer[Math.min(outer.length - 1, i + 1)], l = Math.hypot(b.x - a.x, b.y - a.y)
+        return { x: q.x - (lw * (b.y - a.y)) / l, y: q.y + (lw * (b.x - a.x)) / l }
+      })
+      const zc = hd - cb, z1 = 0.55 * hd, x1 = xAt(off, z1)
+      const inner: P2[] = []
+      for (let z = 0; ; z += 1) {
+        const x = Math.min(xAt(off, z), xi0 + 0.8 * z, z <= z1 ? Infinity : x1 * Math.max(0, (zc - z) / (zc - z1)) ** 0.6)
+        if (x <= 0.3 || z >= zc) { inner.push({ x: 0, y: Math.min(z, zc) }); break }
+        inner.push({ x, y: z })
+      }
+      const za = inner[inner.length - 1].y, zm = (za + hd) / 2
+      const sw = 3, fl = round3(Math.max(24, 0.5 * hd)), fwd = round3(Math.max(6, 0.27 * fl)), z0 = hd + 5, zTip = z0 + fl
+      const xL = (u: number) => Math.max(sw, fwd * Math.sin(Math.PI * (0.08 + 0.87 * u)) ** 0.8)
+      const leaf = Array.from({ length: 25 }, (_, i) => ({ x: xL(i / 24), y: z0 + (fl * i) / 24 }))
+      const foot = (sg: number) => [{ x: sg * xi0, y: 0 }, { x: sg * (rm - tw / 2), y: 0 }, { x: sg * (rm - tw / 2), y: -t }, { x: sg * (rm + tw / 2), y: -t }, { x: sg * (rm + tw / 2), y: 0 }]
+      const mir = (ps: P2[]) => ps.map(q => ({ x: -q.x, y: q.y }))
+      const profile = (feather: boolean): P2[] => {
+        const top = feather
+          ? [{ x: sw, y: hd }, ...leaf, ...mir(leaf).reverse(), { x: -sw, y: hd }]
+          : [{ x: s / 2, y: hd }, { x: s / 2, y: zm }, { x: -s / 2, y: zm }, { x: -s / 2, y: hd }]
+        const inR = feather ? inner.filter(q => q.x > s / 2 + 0.5) : inner.slice(0, -1)
+        const apex = feather ? [{ x: -s / 2, y: za }, { x: -s / 2, y: zm }, { x: s / 2, y: zm }, { x: s / 2, y: za }] : [{ x: 0, y: za }]
+        return [...foot(1), ...outer, ...top, ...mir(outer).reverse(), ...foot(-1).reverse(), ...mir(inR), ...apex, ...[...inR].reverse()]
+      }
+      const A = profile(true), B = profile(false)
+      // strength: every leg at least 5 mm across, every horizontal section of acrylic at least 4 mm
+      const legMin = Math.min(...inner.filter(q => q.y > 0).map(q => distToPolyline(q, outer)))
+      let thin = Infinity
+      for (const pl of [A, B]) for (let z = -t + 0.5; z < hd - 0.25; z += 0.5) {
+        const xs = crossX(pl, z)
+        for (let i = 0; i + 1 < xs.length; i += 2) thin = Math.min(thin, xs[i + 1] - xs[i])
+      }
+      if (legMin < 5 || thin < 4) errors.push(`أرجل القبّة رفيعة (${Math.min(legMin, thin).toFixed(1)} مم): زد ارتفاع القبّة.`)
+      const W0 = Math.max(...A.map(q => Math.abs(q.x)))
+      const toPanel = (pts: P2[], zt: number) => pts.map(q => ({ x: round3(q.x + W0), y: round3(zt - q.y) }))
+      const vane: Loop[] = [{ closed: false, layer: 'engrave', pts: toPanel([{ x: 0, y: z0 }, { x: 0, y: zTip - 3 }], zTip) }]
+      for (let z = z0 + 3; z < zTip - 5; z += 3) {
+        const u = (z - z0) / fl, x = xL(u), e = 0.75 * Math.min(x, xL(Math.min(1, u + (0.5 * x) / fl)))
+        for (const sg of [1, -1]) vane.push({ closed: false, layer: 'engrave', pts: toPanel([{ x: 0, y: z }, { x: sg * e, y: z + 0.5 * e }], zTip) })
+      }
+      panels.push(
+        { id: 'dome-a', name: 'القبّة — اللوح ذو الريشة (مرآة)', w: round3(2 * W0), h: round3(zTip + t), count: n, material: 'mirror', shape: [polyLoop(toPanel(A, zTip), 'outer')], engrave: vane, note: 'شقّه من الداخل إلى الأعلى: يُنزل فوق الثاني' },
+        { id: 'dome-b', name: 'القبّة — اللوح الثاني (مرآة)', w: round3(2 * W0), h: round3(hd + t), count: n, material: 'mirror', shape: [polyLoop(toPanel(B, hd), 'outer')], note: 'شقّه من القمّة إلى الأسفل' },
+        {
+          id: 'dome-ring', name: 'حلقة القبّة', w: round3(2 * Ro), h: round3(2 * Ro), count: n, shape: [disc(Ro, Ro, Ro)],
+          holes: [circle(Ro, Ro, Ri), rotatedRectHole(Ro + rm, Ro, tw + fit, s, 0), rotatedRectHole(Ro - rm, Ro, tw + fit, s, 0), rotatedRectHole(Ro, Ro + rm, s, tw + fit, 0), rotatedRectHole(Ro, Ro - rm, s, tw + fit, 0)],
+          note: 'تحيط بحافّة الصحن على السطح؛ تدخل فيها ألسنة القبّة الأربعة',
+        },
+      )
+      notes.push(`القبّة: أنزل اللوح ذا الريشة فوق الثاني متعامدين حتى تتساوى قاعدتاهما، ثم أدخل الألسنة الأربعة في شقوق الحلقة (نقطة لاصق UV تثبّتها). الحلقة تجلس على السطح حول حافّة الصحن (فتحتها ${(2 * Ri).toFixed(0)} مم) وتُرفع مع القبّة لوضع الفحم.`)
+      notes.push(`الحرارة: القبّة من المرآة وأقرب جزء منها فوق الجمر مباشرة (التاج) على ارتفاع نحو ${Math.round(za + t)} مم فوق السطح. ضعها بعد أن يهدأ الفحم، واستعمل قطعة فحم بخور صغيرة أو مبخرة كهربائية؛ إن سخن التاج فارفع القبّة أو زد ارتفاعها.`)
+    }
+    if (Math.round(p.test) > 0) {
+      const a = round3(cw + 24)
+      panels.push({ id: 'bowl-test', name: 'قطعة تجربة الصحن', w: a, h: a, holes: [circle(a / 2, a / 2, cw / 2)], engrave: [{ ...circle(a / 2, a / 2, rd / 2), layer: 'engrave' }], note: 'اقصّها أولاً وجرّب صحنك فيها' })
+    }
+    return {
+      panels,
+      notes: [
+        `للصحن: حافّة ${rd} مم، جسم ${bd} مم، عمق ${bh} مم. فتحة السطح ${cw} مم (${gap} مم هواء من كل جانب)، والحافّة تستند ${(rd / 2 - cw / 2).toFixed(1)} مم حولها. اقصّ «قطعة تجربة الصحن» أولاً وجرّب صحنك فيها.`,
+        `البرج ${S} × ${S} مم والجدران ${H} مم؛ القاعدة والسطح ${P} مم. الجدران من الأكريليك الأساسي (الأسود أو الأبيض يُظهر التخريم)، والواجهات والجانبان وإطار السطح والقبّة من مرآة سماكتها ${tm} مم.`,
+        'التجميع: أدخل ألسنة الجدران في شقوق القاعدة (الأمام والخلف من الخارج والجانبان بينهما) وضع السطح على الألسنة العلوية بلا غراء ليستقيم كل شيء، ثم ألصق الزوايا والألسنة بغراء الأكريليك السائل من الداخل عبر فتحة الصحن.',
+        'المرايا: ألصق الواجهتين أولاً بين القاعدة والسطح، ثم الجانبين المخرّمين فيغطّيان حافّتيهما، ثم إطار السطح. على المرآة استعمل لاصق UV أو جِل شفّافاً، لا غراء الأكريليك السائل (يذيب طلاءها). اترك ورق الحماية على وجه المرآة حتى النهاية.',
+        'الحرف أو الاسم: أضفه في RDWorks نصّاً على طبقة الحفر داخل الإطار المحفور للواجهة.',
+        ...notes,
+        'الأكريليك يلين قرب 80–100°م: استعمل الصحن المعدني دائماً، ولا تترك الفحم يلمس الأكريليك.',
       ],
       warnings, errors, slotted: true,
     }

@@ -358,6 +358,7 @@ function sizeLabel(p: Record<string, number>) {
   if (p.pw !== undefined) return `صورة ${fmt(p.pw)} × ${fmt(p.ph)}`
   if (p.Dm !== undefined) return `Ø${fmt(p.Dm)} × ${fmt(p.H)}`
   if (p.Dd !== undefined) return `مرآة Ø${fmt(p.Dd)}، قاعدة ${fmt(p.W)} × ${fmt(p.D)}`
+  if (p.S !== undefined && p.rd !== undefined) return `برج ${fmt(p.S)} × ${fmt(p.S)} × ${fmt(p.H)}`
   if (p.S !== undefined) return `سداسي ${fmt(p.S)} × ${fmt(p.H)}`
   if (p.PW !== undefined) return `لوح ${fmt(p.PW)} × ${fmt(p.PH)}`
   if (p.D1 !== undefined) return `${fmt(p.tiers)} طوابق، قاعدة ${fmt(p.D1)}`
