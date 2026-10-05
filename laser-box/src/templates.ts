@@ -201,6 +201,7 @@ function pattern(kind: number, x0: number, y0: number, x1: number, y1: number, c
   if (fw < cell * 2 || fh < cell * 2) return []
   if (kind === 3) return [roundedRectHole(x0, y0, fw, fh, Math.min(4, cell / 2))]
   const out: Loop[] = []
+  if (kind === 7) return rosettes(x0, y0, x1, y1, cell, skip)
   if (kind === 6) {
     // eight-pointed stars (two squares crossed) on a square grid, a small square hole where four stars meet;
     // the stars' facing points stay a bar apart, the bar at least 2.5 mm
@@ -250,7 +251,107 @@ function pattern(kind: number, x0: number, y0: number, x1: number, y1: number, c
   return out
 }
 
-const PATTERN_HINT = '1 = دوائر، 2 = شقوق عمودية، 3 = نافذة واحدة، 4 = قلوب، 5 = شبكة معيّنات، 6 = نجوم ثمانية'
+const PATTERN_HINT = '1 = دوائر، 2 = شقوق عمودية، 3 = نافذة واحدة، 4 = قلوب، 5 = شبكة معيّنات، 6 = نجوم ثمانية، 7 = نجوم ووردات إسلامية متشابكة'
+/**
+ * Islamic eight-fold rosettes in strapwork: Hankin's method on the 4.8.8 tiling (octagons at a square lattice of
+ * period 3·cell, squares between). From each edge's midpoint two rays leave at the contact angle and stop where they
+ * meet the rays of the neighbouring edges; the faces between them are an eight-pointed star in every octagon, a
+ * four-pointed star in every square, and a six-sided petal round every tiling vertex. Each face, clipped to the field,
+ * is shrunk by half the strap width and cut out, so straps of even width are left between them.
+ */
+function rosettes(x0: number, y0: number, x1: number, y1: number, cell: number, skip?: (x: number) => boolean): Loop[] {
+  // the period is stretched so a whole number of rosettes spans the width: both sides then run through star centres,
+  // as in a cut border. Rows are whole too, the spare height left solid above and below
+  const nx = Math.max(1, Math.round((x1 - x0) / (3 * cell))), Pd = (x1 - x0) / nx, ny = Math.floor((y1 - y0) / Pd)
+  if (ny < 1) return []
+  const w = Math.max(2.5, 0.075 * Pd), th = (67.5 * Math.PI) / 180
+  const ys = (y0 + y1) / 2 - (ny * Pd) / 2, ye = ys + ny * Pd
+  y0 = ys; y1 = ye
+  type V = { x: number; y: number }
+  const rot = (v: V, a: number) => ({ x: v.x * Math.cos(a) - v.y * Math.sin(a), y: v.x * Math.sin(a) + v.y * Math.cos(a) })
+  const meet = (p: V, u: V, q: V, v: V) => { const den = u.x * v.y - u.y * v.x, k = ((q.x - p.x) * v.y - (q.y - p.y) * v.x) / den; return { x: p.x + k * u.x, y: p.y + k * u.y } }
+  const key = (v: V) => `${Math.round(v.x * 1000)},${Math.round(v.y * 1000)}`
+  const faces: V[][] = []
+  const around = new Map<string, { at: V; pts: V[] }>()
+  // the tiles, counter-clockwise in a y-up frame (the turn is the same on screen, mirrored, so the faces still close)
+  const tiles: V[][] = []
+  const R8 = 0.5 / Math.cos(Math.PI / 8), s4 = 0.5 - 0.5 * Math.tan(Math.PI / 8)
+  for (let i = -1; i <= nx + 1; i++) for (let j = -1; j <= ny + 1; j++) {
+    tiles.push(Array.from({ length: 8 }, (_, k) => ({ x: i + R8 * Math.cos(Math.PI / 8 + (k * Math.PI) / 4), y: j + R8 * Math.sin(Math.PI / 8 + (k * Math.PI) / 4) })))
+    tiles.push([{ x: i + 0.5 + s4, y: j + 0.5 }, { x: i + 0.5, y: j + 0.5 + s4 }, { x: i + 0.5 - s4, y: j + 0.5 }, { x: i + 0.5, y: j + 0.5 - s4 }])
+  }
+  for (const T of tiles) {
+    const n = T.length, M = T.map((a, k) => { const b = T[(k + 1) % n]; return { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 } })
+    const star: V[] = []
+    for (let k = 0; k < n; k++) {
+      // the corner T[k+1], between edge k and edge k+1: both rays lean towards it, turned inwards by the contact angle
+      const a = T[k], b = T[(k + 1) % n], c = T[(k + 2) % n]
+      const e0 = { x: b.x - a.x, y: b.y - a.y }, e1 = { x: b.x - c.x, y: b.y - c.y }
+      const X = meet(M[k], rot(e0, th), M[(k + 1) % n], rot(e1, -th))
+      star.push(M[k], X)
+      const g = around.get(key(b)) ?? { at: b, pts: [] }
+      g.pts.push(X, M[k], M[(k + 1) % n])
+      around.set(key(b), g)
+    }
+    faces.push(star)
+  }
+  for (const { at, pts } of around.values()) {
+    if (pts.length < 9) continue // a vertex on the rim of the tiles generated
+    const uniq = [...new Map(pts.map(v => [key(v), v])).values()]
+    faces.push(uniq.sort((u, v) => Math.atan2(u.y - at.y, u.x - at.x) - Math.atan2(v.y - at.y, v.x - at.x)))
+  }
+  const out: Loop[] = []
+  const toField = (v: V) => ({ x: x0 + v.x * Pd, y: ys + v.y * Pd })
+  const clip = (poly: V[]) => {
+    let pts = poly
+    for (const [ax, sg, lim] of [['x', 1, x0], ['x', -1, x1], ['y', 1, y0], ['y', -1, y1]] as const) {
+      const inside = (v: V) => sg * (v[ax] - lim) >= 0, res: V[] = []
+      for (let k = 0; k < pts.length; k++) {
+        const a = pts[k], b = pts[(k + 1) % pts.length]
+        if (inside(a)) res.push(a)
+        if (inside(a) !== inside(b)) { const u = (lim - a[ax]) / (b[ax] - a[ax]); res.push({ x: a.x + u * (b.x - a.x), y: a.y + u * (b.y - a.y) }) }
+      }
+      pts = res
+      if (pts.length < 3) return []
+    }
+    return pts
+  }
+  const area = (p: V[]) => p.reduce((sum, a, k) => { const b = p[(k + 1) % p.length]; return sum + a.x * b.y - b.x * a.y }, 0) / 2
+  const crosses = (p: V[]) => {
+    const n = p.length
+    for (let a = 0; a < n; a++) for (let b = a + 2; b < n; b++) {
+      if (a === 0 && b === n - 1) continue
+      const P1 = p[a], P2 = p[(a + 1) % n], Q1 = p[b], Q2 = p[(b + 1) % n]
+      const d = (o: V, q: V, r: V) => (q.x - o.x) * (r.y - o.y) - (q.y - o.y) * (r.x - o.x)
+      if (d(P1, P2, Q1) * d(P1, P2, Q2) < 0 && d(Q1, Q2, P1) * d(Q1, Q2, P2) < 0) return true
+    }
+    return false
+  }
+  for (const f of faces) {
+    const fp = clip(f.map(toField))
+    if (fp.length < 3) continue
+    const dedup = fp.filter((v, k) => Math.hypot(v.x - fp[(k + 1) % fp.length].x, v.y - fp[(k + 1) % fp.length].y) > 1e-6)
+    if (dedup.length < 3) continue
+    const A = area(dedup), ins = offsetPolyline(dedup, true, A > 0 ? -w / 2 : w / 2)
+    // a face clipped to a sliver collapses when shrunk: keep only holes that stay simple, the same way round, and roomy
+    const Ai = area(ins)
+    if (Math.sign(Ai) !== Math.sign(A) || Math.abs(Ai) < 4 || crosses(ins)) continue
+    let room = Infinity
+    for (let a = 0; a < ins.length; a++) for (let b = 0; b < ins.length; b++) {
+      if (b === a || (b + 1) % ins.length === a) continue
+      const q = ins[a], P1 = ins[b], P2 = ins[(b + 1) % ins.length], dx = P2.x - P1.x, dy = P2.y - P1.y, l2 = dx * dx + dy * dy
+      const u = Math.max(0, Math.min(1, ((q.x - P1.x) * dx + (q.y - P1.y) * dy) / l2))
+      room = Math.min(room, Math.hypot(q.x - P1.x - u * dx, q.y - P1.y - u * dy))
+    }
+    // inside the field by the strap's half width (clipped faces were cut at the field's edge)
+    if (room < 1.2 || ins.some(v => v.x < x0 + w / 2 - 1e-6 || v.x > x1 - w / 2 + 1e-6 || v.y < y0 + w / 2 - 1e-6 || v.y > y1 - w / 2 + 1e-6)) continue
+    const mx = ins.reduce((sum, v) => sum + v.x, 0) / ins.length
+    if (skip && skip(mx)) continue
+    out.push(polyLoop(ins.map(v => ({ x: round3(v.x), y: round3(v.y) })), 'hole'))
+  }
+  return out
+}
+
 
 /**
  * A living-hinge cylinder: two end discs with tab slots, and the sheet that wraps round them. Shared by the lamp
@@ -736,7 +837,7 @@ export const TEMPLATES: Template[] = [
       ...DIMS,
       mm('socket', 'قطر فتحة الدواية', 0, 80, 'E27 ≈ 40 مم، E14 ≈ 28 مم؛ 0 = بلا فتحة'),
       mm('vent', 'قطر فتحة التهوية في الغطاء', 0, 150, '0 = بلا فتحة'),
-      { key: 'pattern', label: 'الزخرفة', min: 1, max: 6, step: 1, int: true, hint: PATTERN_HINT },
+      { key: 'pattern', label: 'الزخرفة', min: 1, max: 7, step: 1, int: true, hint: PATTERN_HINT },
       mm('cell', 'حجم الثقب', 3, 40, 'قطر الدائرة أو عرض الشقّ أو القلب'),
       mm('lipH', 'ارتفاع شفة الغطاء', 4, 60), mm('gap', 'خلوص الشفة', 0.2, 2),
       mm('foot', 'ارتفاع القاعدة المرتفعة', 0, 40, 'إطار تحت القاعدة يرفع الفانوس فوق صامولة الدواية، مع فتحة للكابل؛ 0 = بلا'),
@@ -920,7 +1021,7 @@ export const TEMPLATES: Template[] = [
     params: [
       ...DIMS,
       mm('handleH', 'ارتفاع المقبض فوق الحافّة', 0, 200, '0 = بلا مقبض'),
-      { key: 'pattern', label: 'الزخرفة', min: 0, max: 6, step: 1, int: true, hint: '0 = بلا، ' + PATTERN_HINT },
+      { key: 'pattern', label: 'الزخرفة', min: 0, max: 7, step: 1, int: true, hint: '0 = بلا، ' + PATTERN_HINT },
       mm('cell', 'حجم الزخرفة', 5, 40),
       mm('margin', 'هامش أعلى شقّ المقبض', 3, 50), mm('fit', 'خلوص الشقّ', 0, 1),
     ],
@@ -981,7 +1082,7 @@ export const TEMPLATES: Template[] = [
     params: [
       mm('W', 'الطول', 60, 400), mm('D', 'عمق القاعدة', 40, 200), mm('H', 'ارتفاع اللوحين', 40, 300),
       mm('sep', 'المسافة بين اللوحين', 10, 100, 'سماكة رزمة المناديل'),
-      { key: 'pattern', label: 'الزخرفة', min: 0, max: 6, step: 1, int: true, hint: '0 = بلا، ' + PATTERN_HINT },
+      { key: 'pattern', label: 'الزخرفة', min: 0, max: 7, step: 1, int: true, hint: '0 = بلا، ' + PATTERN_HINT },
       mm('cell', 'حجم الزخرفة', 5, 40), mm('fit', 'خلوص الشقّ', 0, 1),
     ],
     defaults: { W: 170, D: 80, H: 110, sep: 35, pattern: 4, cell: 14, fit: 0.2 },
@@ -1035,7 +1136,7 @@ export const TEMPLATES: Template[] = [
       mm('ov', 'بروز السقف', 0, 30), mm('slotH', 'ارتفاع فتحة الأكياس', 10, 40),
       mm('bag', 'عرض كيس الشاي', 30, 150, 'المغلّفات عادةً 65–75 مم؛ الفتحة والداخل يتّسعان له'),
       mm('gap', 'خلوص السقف', 0.2, 2),
-      { key: 'pattern', label: 'زخرفة الجانبين', min: 0, max: 6, step: 1, int: true, hint: '0 = بلا، ' + PATTERN_HINT },
+      { key: 'pattern', label: 'زخرفة الجانبين', min: 0, max: 7, step: 1, int: true, hint: '0 = بلا، ' + PATTERN_HINT },
       mm('cell', 'حجم الزخرفة', 5, 40),
     ],
     defaults: { W: 90, D: 90, H: 120, g: 45, ov: 8, slotH: 18, bag: 72, gap: 0.5, pattern: 4, cell: 12 },
@@ -1166,7 +1267,7 @@ export const TEMPLATES: Template[] = [
     icon: `<path d="M12 30 32 20 52 30 32 40z"/><path d="M12 30v14l20 10V40M52 30v14L32 54"/><path d="M17 36l4 2M17 42l4 2M24 40l4 2M24 46l4 2M43 36l4-2M43 42l4-2M36 40l4-2M36 46l4-2" stroke-width="1.5"/><path d="M26 25c0-6 12-6 12 0" stroke-width="2.5"/>`,
     params: [
       ...DIMS,
-      { key: 'pattern', label: 'الزخرفة', min: 0, max: 6, step: 1, int: true, hint: '0 = بلا، ' + PATTERN_HINT },
+      { key: 'pattern', label: 'الزخرفة', min: 0, max: 7, step: 1, int: true, hint: '0 = بلا، ' + PATTERN_HINT },
       mm('cell', 'حجم الزخرفة', 5, 40),
       { key: 'lidDeco', label: 'زخرفة الغطاء', min: 0, max: 1, step: 1, int: true },
       { key: 'handle', label: 'مقبض فوق الغطاء', min: 0, max: 1, step: 1, int: true },
@@ -1241,7 +1342,7 @@ export const TEMPLATES: Template[] = [
     params: [
       ...DIMS.map(d => d.key === 'H' ? { ...d, hint: 'ارتفاع الجسم فوق الأرجل' } : d),
       mm('legH', 'طول الأرجل', 8, 80), mm('legW', 'عرض الرجل', 10, 60),
-      { key: 'pattern', label: 'الزخرفة', min: 0, max: 6, step: 1, int: true, hint: '0 = بلا، ' + PATTERN_HINT },
+      { key: 'pattern', label: 'الزخرفة', min: 0, max: 7, step: 1, int: true, hint: '0 = بلا، ' + PATTERN_HINT },
       mm('cell', 'حجم الزخرفة', 6, 40),
       { key: 'lidDeco', label: 'زخرفة الغطاء', min: 0, max: 1, step: 1, int: true },
       mm('lipH', 'ارتفاع الشفة', 4, 60), mm('gap', 'خلوص الشفة', 0.2, 2), mm('fit', 'خلوص لسانات القاع', 0, 1),
@@ -1555,7 +1656,7 @@ function leggedBody(p: Record<string, number>, c: Common, warnings: string[], er
 }
 const LEG_PARAMS: ParamDef[] = [mm('legH', 'طول الأرجل', 8, 300), mm('legW', 'عرض الرجل', 10, 80)]
 const PATTERN_PARAMS = (): ParamDef[] => [
-  { key: 'pattern', label: 'الزخرفة', min: 0, max: 6, step: 1, int: true, hint: '0 = بلا، ' + PATTERN_HINT },
+  { key: 'pattern', label: 'الزخرفة', min: 0, max: 7, step: 1, int: true, hint: '0 = بلا، ' + PATTERN_HINT },
   mm('cell', 'حجم الزخرفة', 6, 40),
 ]
 
@@ -3963,7 +4064,7 @@ MORE.push({
     mm('bd', 'قطر جسم الصحن', 30, 150, 'تحت الحافّة مباشرة: الجزء الذي ينزل في الفتحة'),
     mm('bh', 'عمق الصحن تحت الحافّة', 10, 120),
     mm('gap', 'خلوص حول جسم الصحن', 1, 6),
-    { key: 'pattern', label: 'تخريم الجانبين', min: 1, max: 6, step: 1, int: true, hint: PATTERN_HINT },
+    { key: 'pattern', label: 'تخريم الجانبين', min: 1, max: 7, step: 1, int: true, hint: PATTERN_HINT },
     { key: 'cell', label: 'حجم ثقب التخريم', min: 6, max: 40, step: 0.5, unit: 'مم' },
     { key: 'motif', label: 'زخرفة الواجهة', min: 0, max: 3, step: 1, int: true, hint: '0 = إطار فقط، 1 = قلب، 2 = نجمة ثمانية، 3 = محراب؛ تُحفر على المرآة ويمكنك إضافة حرف أو اسم في وسطها' },
     { key: 'beads', label: 'حبيبات على الحواف', min: 0, max: 1, step: 1, int: true, hint: 'صفّ دوائر صغيرة محفورة حول الواجهات والإطار' },
@@ -3973,7 +4074,7 @@ MORE.push({
     { key: 'n', label: 'العدد', min: 1, max: 20, step: 1, int: true },
     mm('fit', 'خلوص الشقوق', 0, 0.5),
   ],
-  defaults: { S: 115, H: 250, ov: 5, tm: 2, rd: 65, bd: 52, bh: 20, gap: 2.5, pattern: 6, cell: 12, motif: 1, beads: 1, dome: 1, dh: 60, test: 1, n: 1, fit: 0.15 },
+  defaults: { S: 115, H: 250, ov: 5, tm: 2, rd: 65, bd: 52, bh: 20, gap: 2.5, pattern: 7, cell: 12, motif: 1, beads: 1, dome: 1, dh: 60, test: 1, n: 1, fit: 0.15 },
   innerAdd: () => ({ W: 0, D: 0, H: 0 }),
   build(p, c) {
     const warnings: string[] = [], errors: string[] = []

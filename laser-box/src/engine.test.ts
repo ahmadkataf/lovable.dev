@@ -1257,6 +1257,27 @@ describe('wedding designs', () => {
     expect(generate(T('mabkharatower'), { bh: 100, H: 110 }, S0).errors.length).toBeGreaterThan(0)   // too deep a bowl
   })
 
+  it('the Islamic rosette pattern: stars, crosses and petals with even straps between them, whole rosettes across the width', () => {
+    for (const [id, v] of [['mabkharatower', {}], ['mabkharatower', { cell: 8, S: 100, rd: 50, bd: 38 }], ['mabkharatower', { cell: 20, S: 200, rd: 120, bd: 100 }], ['lantern', { pattern: 7, cell: 12 }], ['incense', { pattern: 7, cell: 10 }]] as [string, Record<string, number>][]) {
+      const d = generate(T(id), { ...T(id).defaults, ...v }, S0)
+      expect(d.errors, id).toEqual([]); expect(d.warnings, id).toEqual([])
+      const pn = d.panels.find(x => x.id === (id === 'mabkharatower' ? 'face-side' : id === 'lantern' ? 'side' : 'frontback'))!
+      const out = outerOf(pn), holes = holesOf(pn).map(h => samplePoly(h, 3))
+      expect(holes.length, id).toBeGreaterThan(20)
+      // the strap width the pattern aims for, from the period that fits the width
+      const bs = holes.map(h => ({ x0: Math.min(...h.map(q => q.x)), x1: Math.max(...h.map(q => q.x)) }))
+      const span = Math.max(...bs.map(b => b.x1)) - Math.min(...bs.map(b => b.x0))
+      let gap = Infinity
+      for (let a = 0; a < holes.length; a++) for (let b = a + 1; b < holes.length; b++) gap = Math.min(gap, polyDistance(holes[a], holes[b]))
+      expect(gap, id).toBeGreaterThanOrEqual(2.5 - 0.01)
+      for (const h of holes) expect(polyDistance(h, samplePoly(out, 3)), id).toBeGreaterThanOrEqual(2.5)
+      // mirror-symmetric about the panel's middle, as whole rosettes are
+      const mid = pn.w / 2, cx = (Math.min(...bs.map(b => b.x0)) + Math.max(...bs.map(b => b.x1))) / 2
+      if (id !== 'lantern' && id !== 'incense') expect(cx).toBeCloseTo(mid, 1)
+      expect(span).toBeGreaterThan(0)
+    }
+  })
+
   it('the wedding group lists the engagement set, the ring box and the five wedding designs', () => {
     expect(CATEGORIES.find(c => c.id === 'wedding')!.ids).toEqual(['engagement', 'hexringbox', 'nikahtray', 'hennatray', 'welcomesign', 'placecards', 'invitebox', 'caketopper', 'guestframe', 'sweetstand', 'tablenumbers', 'favorbox'])
   })
