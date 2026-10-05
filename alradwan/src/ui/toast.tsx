@@ -1,0 +1,36 @@
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import { CheckCircle2, AlertCircle, Info } from 'lucide-react'
+import { setPrintErrorHandler } from '../print/PrintHost'
+import { setNotify } from '../lib/notify'
+
+type Kind = 'success' | 'error' | 'info'
+interface Toast { id: number; text: string; kind: Kind }
+interface Ctx { toast: (text: string, kind?: Kind) => void; success: (t: string) => void; error: (t: string) => void }
+
+const ToastCtx = createContext<Ctx>({ toast: () => {}, success: () => {}, error: () => {} })
+export const useToast = () => useContext(ToastCtx)
+
+export function ToastProvider({ children }: { children: ReactNode }) {
+  const [items, setItems] = useState<Toast[]>([])
+  const n = useRef(0)
+  const toast = useCallback((text: string, kind: Kind = 'info') => {
+    const id = ++n.current
+    setItems(l => [...l, { id, text, kind }])
+    setTimeout(() => setItems(l => l.filter(t => t.id !== id)), kind === 'error' ? Math.max(4500, text.length * 70) : Math.max(2500, text.length * 50))
+  }, [])
+  const value = useMemo<Ctx>(() => ({ toast, success: t => toast(t, 'success'), error: t => toast(t, 'error') }), [toast])
+  useEffect(() => { setPrintErrorHandler(msg => toast(`تعذّرت الطباعة: ${msg}`, 'error')); setNotify((m, k) => toast(m, k)); return () => { setPrintErrorHandler(null); setNotify(null) } }, [toast])
+  return (
+    <ToastCtx.Provider value={value}>
+      {children}
+      <div className="toasts" aria-live="polite">
+        {items.map(t => (
+          <div key={t.id} className={`toast ${t.kind}`} onClick={() => setItems(l => l.filter(x => x.id !== t.id))}>
+            {t.kind === 'success' ? <CheckCircle2 /> : t.kind === 'error' ? <AlertCircle /> : <Info />}
+            {t.text}
+          </div>
+        ))}
+      </div>
+    </ToastCtx.Provider>
+  )
+}

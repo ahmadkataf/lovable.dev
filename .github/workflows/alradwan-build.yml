@@ -1,0 +1,177 @@
+# كراج الرضوان — builds the three versions of the app and puts them under "Artifacts" (and, when started with
+# "release", on a GitHub Release with download links):
+#   • Windows: AlRadwan-Garage-<version>-setup.exe (installer) and AlRadwan-Garage-<version>-portable.exe (no install)
+#   • Android: AlRadwan-Garage.apk
+#   • Web: alradwan-web.zip (the static website; the same files the Cloudflare deploy publishes)
+# Start it from the Actions tab (Build AlRadwan Garage apps → Run workflow); it also runs when this file or the
+# app's version changes. The version comes from alradwan/package.json unless given when starting it by hand.
+# Android signing key (repository secrets): ALRADWAN_KEYSTORE_BASE64 / ALRADWAN_KEYSTORE_PASSWORD / ALRADWAN_KEY_ALIAS,
+# or Emar's ANDROID_KEYSTORE_BASE64 / ANDROID_KEYSTORE_PASSWORD / ANDROID_KEY_ALIAS; without one every build is signed
+# with a throwaway key and the APK cannot update over an older install.
+# Licensing server: the repository variable ALRADWAN_API, else the account's own address (ALRADWAN_API_DEFAULT below)
+# when that server answers; otherwise the apps are built free, without activation.
+name: Build AlRadwan Garage apps
+# the workflow only reads the repository; the release job alone gets write access to publish the files
+permissions:
+  contents: read
+# one build per branch at a time: a second push waits instead of racing the release upload
+concurrency:
+  group: alradwan-build-${{ github.ref }}
+  cancel-in-progress: false
+on:
+  workflow_dispatch:
+    inputs:
+      release:
+        description: 'Also publish a GitHub Release with the files (tag alradwan-v<version>)'
+        type: boolean
+        default: true
+      version:
+        description: 'Version shown to users (empty = the version in package.json)'
+        required: false
+  push:
+    branches: ['**']
+    tags: ['alradwan-v*']
+    paths: ['.github/workflows/alradwan-build.yml', 'alradwan/package.json']
+env:
+  # the licensing/sync server the apps are built against (repository variable); empty = the default below, if it is live
+  ALRADWAN_API: ${{ vars.ALRADWAN_API }}
+  ALRADWAN_API_DEFAULT: https://alradwan.almutafawiqin.workers.dev
+defaults:
+  run:
+    working-directory: alradwan
+jobs:
+  version:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.v.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: v
+        env:
+          INPUT_VERSION: ${{ inputs.version }}
+        run: |
+          if [ -n "$INPUT_VERSION" ]; then echo "version=$INPUT_VERSION" >> "$GITHUB_OUTPUT"; else echo "version=$(node -p "require('./package.json').version")" >> "$GITHUB_OUTPUT"; fi
+
+  api:
+    # decides once which server the three builds activate against
+    runs-on: ubuntu-latest
+    outputs:
+      url: ${{ steps.pick.outputs.url }}
+    steps:
+      - id: pick
+        working-directory: .
+        run: |
+          URL="$ALRADWAN_API"
+          if [ -z "$URL" ]; then
+            CODE=$(curl -s -o /dev/null -w '%{http_code}' --max-time 20 "$ALRADWAN_API_DEFAULT/admin" || true)
+            if [ "$CODE" = "200" ]; then URL="$ALRADWAN_API_DEFAULT"; echo "Licensing server found at $URL"; fi
+          fi
+          if [ -z "$URL" ]; then echo "::warning::لا خادم ترخيص: هذه نسخة مجانية بلا تفعيل. لبيع البرنامج بأكواد أضف أسرار Cloudflare وشغّل Deploy AlRadwan Garage website أولاً (أو اضبط المتغير ALRADWAN_API)."; else echo "Licensed build against $URL"; fi
+          echo "url=$URL" >> "$GITHUB_OUTPUT"
+
+  web:
+    runs-on: ubuntu-latest
+    needs: api
+    env:
+      ALRADWAN_API: ${{ needs.api.outputs.url }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm, cache-dependency-path: alradwan/package-lock.json }
+      - run: npm ci
+      - run: npm test
+      - run: npm run build
+      - run: cd dist && zip -qr ../alradwan-web.zip .
+      - uses: actions/upload-artifact@v4
+        with: { name: alradwan-web, path: alradwan/alradwan-web.zip, if-no-files-found: error }
+
+  windows:
+    needs: [version, web, api]
+    env:
+      ALRADWAN_API: ${{ needs.api.outputs.url }}
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm, cache-dependency-path: alradwan/package-lock.json }
+      - run: npm ci
+      - name: Set the version
+        shell: bash
+        run: npm version "${{ needs.version.outputs.version }}" --no-git-tag-version --allow-same-version || true
+      - run: npm run build:win
+      - uses: actions/upload-artifact@v4
+        with:
+          name: alradwan-windows
+          path: |
+            alradwan/release/*.exe
+          if-no-files-found: error
+
+  android:
+    needs: [version, web, api]
+    env:
+      ALRADWAN_API: ${{ needs.api.outputs.url }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm, cache-dependency-path: alradwan/package-lock.json }
+      - uses: actions/setup-java@v4
+        with: { distribution: temurin, java-version: 17 }
+      - run: npm ci
+      - run: npm run build
+      - name: Get the signing key
+        env:
+          KS_B64: ${{ secrets.ALRADWAN_KEYSTORE_BASE64 || secrets.ANDROID_KEYSTORE_BASE64 }}
+        run: |
+          if [ -n "$KS_B64" ]; then echo "$KS_B64" | base64 -d > "$RUNNER_TEMP/upload.keystore"
+            # the Google Play bundle is made only with the permanent key: one signed with a throwaway key could never be updated
+            curl -fsSL -o "$RUNNER_TEMP/bundletool.jar" https://github.com/google/bundletool/releases/download/1.18.1/bundletool-all-1.18.1.jar
+            echo "BUNDLETOOL=$RUNNER_TEMP/bundletool.jar" >> "$GITHUB_ENV"
+          else echo "::warning::لا مفتاح توقيع دائم (ALRADWAN_KEYSTORE_BASE64): هذا الـ APK موقّع بمفتاح مؤقت ولا يُحدَّث فوق نسخة أقدم إلا بحذفها أولاً (تضيع بياناتها). أضف المفتاح في الأسرار قبل البيع."; fi
+      - name: Build the APK
+        env:
+          ANDROID_KEYSTORE: ${{ runner.temp }}/upload.keystore
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ALRADWAN_KEYSTORE_PASSWORD || secrets.ANDROID_KEYSTORE_PASSWORD || 'alradwan-pass' }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ALRADWAN_KEY_ALIAS || secrets.ANDROID_KEY_ALIAS || 'alradwan' }}
+          VERSION_NAME: ${{ needs.version.outputs.version }}
+        run: |
+          export VERSION_CODE=$(( ($(date +%s) - 1700000000) / 60 ))   # grows with time, same formula as a local build
+          ./android/build-apk.sh
+      - uses: actions/upload-artifact@v4
+        with:
+          name: alradwan-android
+          if-no-files-found: error
+          path: |
+            alradwan/android/build/AlRadwan-Garage.apk
+            alradwan/android/build/AlRadwan-Garage.aab
+
+  release:
+    needs: [version, web, windows, android]
+    if: ${{ github.event_name != 'workflow_dispatch' || inputs.release }}
+    runs-on: ubuntu-latest
+    permissions: { contents: write }
+    steps:
+      - uses: actions/download-artifact@v4
+        with: { path: files, merge-multiple: true }
+      - name: No Android files signed with a throwaway key
+        env:
+          KS_B64: ${{ secrets.ALRADWAN_KEYSTORE_BASE64 || secrets.ANDROID_KEYSTORE_BASE64 }}
+        run: |
+          # an APK signed with a throwaway key cannot be installed over the shop's copy (signed with its permanent
+          # key): published, it would only make shops delete their app and its data to install it
+          if [ -z "$KS_B64" ]; then rm -f files/*.apk files/*.aab; echo "::warning::لا مفتاح توقيع دائم في الأسرار: نُشرت النسخة بلا ملف أندرويد."; fi
+        working-directory: .
+      - run: ls -la files
+        working-directory: .
+      - uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ startsWith(github.ref, 'refs/tags/') && github.ref_name || format('alradwan-v{0}', needs.version.outputs.version) }}
+          name: كراج الرضوان ${{ needs.version.outputs.version }}
+          body: |
+            ## كراج الرضوان — نظام إدارة قطع الغيار
+            - **ويندوز**: `AlRadwan-Garage-…-setup.exe` (تثبيت) أو `AlRadwan-Garage-…-portable.exe` (يعمل مباشرة بلا تثبيت)
+            - **أندرويد**: `AlRadwan-Garage.apk` (فعّل «السماح بالتثبيت من مصادر غير معروفة» عند الطلب)
+            - **جوجل بلاي**: `AlRadwan-Garage.aab` (الحزمة التي تُرفع إلى Play Console؛ موقّعة بمفتاح المحل الدائم)
+            - **الموقع**: `alradwan-web.zip` (ملفات الموقع الجاهزة لأي استضافة)
+          files: files/*
+          make_latest: true
