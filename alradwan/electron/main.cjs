@@ -2,6 +2,7 @@
 const { app, BrowserWindow, dialog, ipcMain, shell, Menu, net } = require('electron')
 const path = require('path')
 const fs = require('fs')
+const { sqlPrograms } = require('./sqlImport.cjs')
 
 let win = null
 
@@ -193,6 +194,9 @@ ipcMain.handle('upc-lookup', async (_e, code) => {
 })
 
 // a random id kept in the app's folder: the same after updates, different on another computer
+// another shop program's data from its SQL Server database on this computer (الأمين and the like); read only
+ipcMain.handle('sql-programs', async (_e, args) => sqlPrograms(args))
+
 ipcMain.handle('device-id', async () => {
   const f = path.join(app.getPath('userData'), 'device.id')
   try { const v = fs.readFileSync(f, 'utf8').trim(); if (v) return v } catch {}

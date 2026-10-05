@@ -4,7 +4,7 @@
   "executableName": "AlRadwanGarage",
   "artifactName": "AlRadwan-Garage-${version}-${arch}.${ext}",
   "directories": { "output": "release", "buildResources": "electron" },
-  "files": ["dist/**/*", "electron/main.cjs", "electron/preload.cjs", "electron/icon.png", "package.json"],
+  "files": ["dist/**/*", "electron/main.cjs", "electron/preload.cjs", "electron/sqlImport.cjs", "electron/icon.png", "package.json"],
   "asar": true,
   "win": {
     "target": [{ "target": "nsis", "arch": ["x64"] }, { "target": "portable", "arch": ["x64"] }],

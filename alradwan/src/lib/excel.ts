@@ -26,24 +26,31 @@ export interface ImportedProduct { code: string; barcode?: string; oemNumbers?: 
 
 // column names accepted in the imported file (Arabic or English, any of the spellings)
 const COLS: Record<keyof ImportedProduct, string[]> = {
-  code: ['الكود', 'كود', 'رقم القطعة', 'رقم', 'الرمز', 'رمز', 'كود المادة', 'رمز المادة', 'رقم المادة', 'code', 'sku', 'part', 'part number', 'item code'],
-  barcode: ['باركود', 'الباركود', 'بار كود', 'barcode', 'ean', 'upc'],
+  code: ['الكود', 'كود', 'رقم القطعة', 'رقم', 'الرمز', 'رمز', 'كود المادة', 'رمز المادة', 'رقم المادة', 'code', 'sku', 'part', 'part number', 'item code', 'itemcode', 'productcode', 'matcode', 'materialcode', 'partno', 'itemno'],
+  barcode: ['باركود', 'الباركود', 'بار كود', 'barcode', 'ean', 'upc', 'gtin', 'barcode1'],
   oemNumbers: ['oem', 'رقم الأصلي', 'الرقم الأصلي', 'رقم القطعة الأصلي', 'أرقام أصلية', 'oem numbers', 'original'],
-  name: ['الاسم', 'اسم', 'اسم القطعة', 'القطعة', 'الصنف', 'اسم الصنف', 'المنتج', 'اسم المنتج', 'المادة', 'اسم المادة', 'البيان', 'name', 'product', 'item', 'description'],
-  category: ['التصنيف', 'تصنيف', 'الفئة', 'النوع', 'المجموعة', 'القسم', 'category', 'group'],
-  brand: ['الماركة', 'ماركة', 'الشركة', 'brand', 'make'],
+  name: ['الاسم', 'اسم', 'اسم القطعة', 'القطعة', 'الصنف', 'اسم الصنف', 'المنتج', 'اسم المنتج', 'المادة', 'اسم المادة', 'البيان', 'name', 'product', 'item', 'description', 'itemname', 'productname', 'matname', 'materialname', 'arname', 'namear', 'arabicname'],
+  category: ['التصنيف', 'تصنيف', 'الفئة', 'النوع', 'المجموعة', 'القسم', 'category', 'group', 'categoryname', 'groupname', 'catname'],
+  brand: ['الماركة', 'ماركة', 'الشركة', 'brand', 'make', 'company', 'manufacturer'],
   cars: ['السيارة', 'السيارات', 'يناسب', 'الموديل', 'cars', 'car', 'model', 'fits'],
-  unit: ['الوحدة', 'وحدة', 'unit'],
-  cost: ['سعر الشراء', 'الشراء', 'الكلفة', 'التكلفة', 'سعر التكلفة', 'سعر الكلفة', 'cost', 'buy', 'purchase price'],
-  price: ['سعر البيع', 'البيع', 'السعر', 'سعر المبيع', 'المبيع', 'سعر المفرق', 'المفرق', 'price', 'sell', 'sale price'],
-  wholesalePrice: ['سعر الجملة', 'الجملة', 'wholesale'],
-  minStock: ['حد التنبيه', 'الحد الأدنى', 'min', 'min stock', 'minimum'],
-  stock: ['الكمية', 'كمية', 'المخزون', 'الرصيد', 'العدد', 'الكمية المتبقية', 'الكمية الحالية', 'stock', 'qty', 'quantity'],
+  unit: ['الوحدة', 'وحدة', 'unit', 'unity', 'uom', 'unitname'],
+  cost: ['سعر الشراء', 'الشراء', 'الكلفة', 'التكلفة', 'سعر التكلفة', 'سعر الكلفة', 'cost', 'buy', 'purchase price', 'costprice', 'purchaseprice', 'buyprice', 'avgprice', 'avgcost', 'lastprice', 'lastcost', 'unitcost'],
+  price: ['سعر البيع', 'البيع', 'السعر', 'سعر المبيع', 'المبيع', 'سعر المفرق', 'المفرق', 'price', 'sell', 'sale price', 'saleprice', 'sellprice', 'sellingprice', 'retailprice', 'retail', 'enduser', 'price1', 'unitprice'],
+  wholesalePrice: ['سعر الجملة', 'الجملة', 'wholesale', 'wholesaleprice', 'whole', 'price2'],
+  minStock: ['حد التنبيه', 'الحد الأدنى', 'min', 'min stock', 'minimum', 'minqty', 'reorderlevel'],
+  stock: ['الكمية', 'كمية', 'المخزون', 'الرصيد', 'العدد', 'الكمية المتبقية', 'الكمية الحالية', 'stock', 'qty', 'quantity', 'onhand', 'instock', 'currentqty'],
   location: ['المكان', 'الرف', 'الموقع', 'location', 'shelf'],
   notes: ['ملاحظات', 'ملاحظة', 'notes', 'note'],
 }
 
 function normHeader(h: string) { return String(h).trim().toLowerCase().replace(/[أإآ]/g, 'ا').replace(/ة/g, 'ه') }
+/** A column title compared without spaces, underscores and dots: "Sale_Price", "sale price" and "SalePrice" are one. */
+const headerKey = (h: unknown) => normHeader(String(h ?? '')).replace(/[\s_\-.]/g, '')
+function matcher<K extends string>(cols: Record<K, string[]>): (cell: unknown) => K | null {
+  const map = new Map<string, K>()
+  for (const k of Object.keys(cols) as K[]) for (const alias of cols[k]) if (!map.has(headerKey(alias))) map.set(headerKey(alias), k)
+  return cell => { const h = headerKey(cell); return h ? map.get(h) ?? null : null }
+}
 
 const DIGITS = /^[\s\d٠-٩۰-۹.,٫٬-]+$/
 const isNumberCell = (v: unknown) => typeof v === 'number' || (typeof v === 'string' && v.trim() !== '' && DIGITS.test(v) && /[\d٠-٩۰-۹]/.test(v))
@@ -114,13 +121,14 @@ export function amountsLookLike(values: number[], c: 'USD' | 'SYP'): boolean {
 }
 
 export async function readProductsFile(file: File): Promise<{ rows: ImportedProduct[]; headers: string[]; guessed?: string }> {
-  const aoa = await readSheetRows(file)
-  const keyOf = (cell: unknown): keyof ImportedProduct | null => {
-    const nh = normHeader(String(cell ?? ''))
-    if (!nh) return null
-    for (const key of Object.keys(COLS) as (keyof ImportedProduct)[]) if (COLS[key].some(alias => normHeader(alias) === nh)) return key
-    return null
-  }
+  return parseProductRows(await readSheetRows(file))
+}
+/** Which product field a column title names (Arabic or English, a sheet's title or a database column), or null. */
+export const productColumn = matcher(COLS)
+
+/** Products from rows of cells: a sheet, or a table of another program's database ([column names, row, row…]). */
+export function parseProductRows(aoa: unknown[][]): { rows: ImportedProduct[]; headers: string[]; guessed?: string } {
+  const keyOf = productColumn
   // the title row: the first of the top rows that names a product column
   let headerAt = -1
   for (let i = 0; i < Math.min(15, aoa.length); i++) {
@@ -164,14 +172,14 @@ export async function readProductsFile(file: File): Promise<{ rows: ImportedProd
 export interface ImportedParty { name: string; phone?: string; address?: string; car?: string; notes?: string; balance: number }
 type PartyCol = 'name' | 'phone' | 'address' | 'car' | 'notes' | 'debit' | 'credit' | 'balance' | 'side'
 const PARTY_COLS: Record<PartyCol, string[]> = {
-  name: ['الاسم', 'اسم', 'اسم الحساب', 'الحساب', 'اسم العميل', 'العميل', 'الزبون', 'اسم الزبون', 'العملاء', 'الزبائن', 'اسم المورد', 'المورد', 'الموردين', 'name', 'customer', 'supplier', 'account', 'account name'],
-  phone: ['الهاتف', 'هاتف', 'رقم الهاتف', 'الموبايل', 'موبايل', 'الجوال', 'جوال', 'تلفون', 'التلفون', 'الهاتف المحمول', 'phone', 'mobile', 'tel'],
-  address: ['العنوان', 'عنوان', 'المنطقة', 'المدينة', 'address', 'city'],
+  name: ['الاسم', 'اسم', 'اسم الحساب', 'الحساب', 'اسم العميل', 'العميل', 'الزبون', 'اسم الزبون', 'العملاء', 'الزبائن', 'اسم المورد', 'المورد', 'الموردين', 'name', 'customer', 'supplier', 'account', 'account name', 'customername', 'clientname', 'suppliername', 'vendorname', 'fullname'],
+  phone: ['الهاتف', 'هاتف', 'رقم الهاتف', 'الموبايل', 'موبايل', 'الجوال', 'جوال', 'تلفون', 'التلفون', 'الهاتف المحمول', 'phone', 'mobile', 'tel', 'phone1', 'mobile1', 'telephone', 'cellphone'],
+  address: ['العنوان', 'عنوان', 'المنطقة', 'المدينة', 'address', 'city', 'street'],
   car: ['السيارة', 'سيارة', 'car'],
   notes: ['ملاحظات', 'ملاحظة', 'notes', 'note'],
-  debit: ['مدين', 'المدين', 'رصيد مدين', 'الرصيد المدين', 'عليه', 'debit', 'dr'],
-  credit: ['دائن', 'الدائن', 'رصيد دائن', 'الرصيد الدائن', 'له', 'credit', 'cr'],
-  balance: ['الرصيد', 'رصيد', 'الرصيد النهائي', 'الرصيد الحالي', 'الرصيد الختامي', 'صافي الرصيد', 'الدين', 'المبلغ', 'balance', 'amount'],
+  debit: ['مدين', 'المدين', 'رصيد مدين', 'الرصيد المدين', 'عليه', 'debit', 'dr', 'totaldebit'],
+  credit: ['دائن', 'الدائن', 'رصيد دائن', 'الرصيد الدائن', 'له', 'credit', 'cr', 'totalcredit'],
+  balance: ['الرصيد', 'رصيد', 'الرصيد النهائي', 'الرصيد الحالي', 'الرصيد الختامي', 'صافي الرصيد', 'الدين', 'المبلغ', 'balance', 'amount', 'currentbalance', 'openingbalance', 'debt'],
   side: ['طبيعة الرصيد', 'نوع الرصيد', 'مدين/دائن', 'دائن/مدين', 'الحالة', 'side'],
 }
 const PARTY_LABEL: Record<PartyCol, string> = { name: 'الاسم', phone: 'الهاتف', address: 'العنوان', car: 'السيارة', notes: 'ملاحظات', debit: 'مدين', credit: 'دائن', balance: 'الرصيد', side: 'مدين/دائن' }
@@ -181,13 +189,14 @@ const isPhoneCell = (v: unknown) => /^(\+?963|00963|0)?9\d{8}$|^0\d{8,10}$/.test
  *  exported to Excel). Column titles in any of the top rows, or none at all: then the text column is the name, a
  *  column of phone numbers the phone, two amount columns debit and credit, one amount column the balance. */
 export async function readPartiesFile(file: File): Promise<{ rows: ImportedParty[]; guessed?: string; signKnown: boolean }> {
-  const aoa = await readSheetRows(file)
-  const keyOf = (cell: unknown): PartyCol | null => {
-    const nh = normHeader(String(cell ?? ''))
-    if (!nh) return null
-    for (const k of Object.keys(PARTY_COLS) as PartyCol[]) if (PARTY_COLS[k].some(a => normHeader(a) === nh)) return k
-    return null
-  }
+  return parsePartyRows(await readSheetRows(file))
+}
+/** Which customer/supplier field a column title names, or null. */
+export const partyColumn = matcher(PARTY_COLS)
+
+/** Customers or suppliers from rows of cells: a sheet, or a table of another program's database. */
+export function parsePartyRows(aoa: unknown[][]): { rows: ImportedParty[]; guessed?: string; signKnown: boolean } {
+  const keyOf = partyColumn
   let headerAt = -1
   for (let i = 0; i < Math.min(15, aoa.length); i++) if (aoa[i].map(keyOf).includes('name')) { headerAt = i; break }
   const map = new Map<PartyCol, number>()

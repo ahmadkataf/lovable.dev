@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
-import { Plus, Pencil, Phone, Printer, HandCoins, FileSpreadsheet, MessageCircle, Trash2, Upload } from 'lucide-react'
+import { Plus, Pencil, Phone, Printer, HandCoins, FileSpreadsheet, MessageCircle, Trash2, Upload, Database } from 'lucide-react'
 import { can, putMany, useCollection, useIsAdmin, useSettings, usePerm } from '../db/store'
 import { CustomerVehicles } from '../ui/vehicles'
 import type { Base, Customer, CurrencyCode, Supplier, Payment } from '../db/types'
@@ -14,6 +14,7 @@ import { CustomerForm, SupplierForm } from '../ui/forms'
 import { printDocument } from '../print/PrintHost'
 import { amountsLookLike, exportSheet, readPartiesFile, type ImportedParty } from '../lib/excel'
 import { pickFile } from '../lib/platform'
+import { ProgramImport } from '../ui/programImport'
 import { newId } from '../lib/id'
 
 // Customers and suppliers are the same screen with the signs flipped: what they owe us / what we owe them.
@@ -36,6 +37,7 @@ export function Parties({ type }: { type: 'customer' | 'supplier' }) {
   useEffect(() => { const v = params.get('vin'); if (v) { setVinNew(v); setForm('new'); setParams({}) } }, [params])
   const [pay, setPay] = useState<Customer | Supplier | null>(null)
   const [imp, setImp] = useState<{ rows: ImportedParty[]; guessed?: string; signKnown: boolean } | null>(null)
+  const [fromProgram, setFromProgram] = useState(false)
   const toast = useToast(); const confirm = useConfirm()
   const isC = type === 'customer'
   const base = `/${isC ? 'customers' : 'suppliers'}`
@@ -79,6 +81,7 @@ export function Parties({ type }: { type: 'customer' | 'supplier' }) {
   return (
     <div className="stack">
       {imp && <PartiesImport type={type} {...imp} onClose={() => setImp(null)} />}
+      {fromProgram && <ProgramImport kind={isC ? 'customers' : 'suppliers'} onClose={() => setFromProgram(false)} onParsed={p => { if (p.kind !== 'products') { setFromProgram(false); setImp({ rows: p.rows, guessed: p.guessed, signKnown: p.signKnown }) } }} />}
       <div className="grid cols-2">
         <Stat label={isC ? 'إجمالي ديون العملاء' : 'إجمالي ما علينا للموردين'} value={money(totalDebt)} icon={<HandCoins />} tone={isC ? 'warning' : 'danger'} />
         <Stat label={isC ? 'عدد العملاء' : 'عدد الموردين'} value={isC ? customers.size : suppliers.size} sub={`${rows.filter(r => r.balance > 0.001).length} عليهم رصيد`} icon={<Phone />} tone="info" />
@@ -87,6 +90,7 @@ export function Parties({ type }: { type: 'customer' | 'supplier' }) {
         <div className="search"><SearchInput value={q} onChange={setQ} placeholder="بحث بالاسم أو الهاتف أو السيارة…" /></div>
         {canEditParty && <button className="btn primary" onClick={() => setForm('new')}><Plus /> {isC ? 'عميل جديد' : 'مورد جديد'}</button>}
         {canEditParty && <button className="btn" onClick={importFile} title={`استيراد ${isC ? 'العملاء' : 'الموردين'} وأرصدتهم من إكسل (من برنامج آخر)`}><Upload /> <span className="hide-mobile">استيراد</span></button>}
+        {canEditParty && <button className="btn" onClick={() => setFromProgram(true)} title={`استيراد ${isC ? 'العملاء' : 'الموردين'} مباشرة من برنامج آخر`}><Database /> <span className="hide-mobile">من برنامج آخر</span></button>}
         <button className="btn" onClick={() => exportSheet(isC ? 'العملاء' : 'الموردون', rows.map(r => ({ 'الاسم': r.p.name, 'الهاتف': r.p.phone ?? '', ...(isC ? { 'السيارة': (r.p as Customer).car ?? '' } : {}), 'العنوان': r.p.address ?? '', 'الرصيد': r.balance, 'ملاحظات': r.p.notes ?? '' })))}><FileSpreadsheet /></button>
       </div>
       <Tabs value={tab} onChange={setTab} items={[{ id: 'all', label: 'الكل' }, { id: 'debt', label: isC ? 'عليهم دين' : 'لهم رصيد علينا' }, { id: 'overdue', label: 'ديون متأخرة (+30 يوم)' }]} />

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { Plus, FileSpreadsheet, Upload, Pencil, Tag, Download, Barcode, Printer, Zap } from 'lucide-react'
+import { Plus, FileSpreadsheet, Upload, Pencil, Tag, Download, Barcode, Printer, Zap, Database } from 'lucide-react'
 import { printDocument } from '../print/PrintHost'
 import { can, put, putMany, remove, useCollection, useCanSeeCost, useSettings, usePerm } from '../db/store'
 import type { Base, Category, CurrencyCode, Product } from '../db/types'
@@ -17,6 +17,7 @@ import { ProductForm } from '../ui/forms'
 import { useProductStock } from '../ui/pickers'
 import { amountsLookLike, downloadProductsTemplate, exportSheet, readProductsFile, type ImportedProduct } from '../lib/excel'
 import { pickFile } from '../lib/platform'
+import { ProgramImport } from '../ui/programImport'
 import { newId } from '../lib/id'
 
 export function Products() {
@@ -34,6 +35,7 @@ export function Products() {
   const [intake, setIntake] = useState(false)
   const [cats, setCats] = useState(false)
   const [imp, setImp] = useState<{ rows: ImportedProduct[]; guessed?: string } | null>(null)
+  const [fromProgram, setFromProgram] = useState(false)
   const [labels, setLabels] = useState(false)
   const [limit, setLimit] = useState(150)
   const toast = useToast()
@@ -70,13 +72,14 @@ export function Products() {
         {canAdd && !intake && <button className="btn" onClick={() => setIntake(true)} title="امسح العلب واحدة تلو الأخرى فتُضاف القطع وحدها بأسمائها"><Zap /> <span className="hide-mobile">إدخال سريع بالمسح</span></button>}
         {canAdd && <button className="btn" onClick={() => setCats(true)} title="التصنيفات"><Tag /> <span className="hide-mobile">التصنيفات</span></button>}
         {canAdd && <button className="btn" onClick={importExcel} title="استيراد من إكسل"><Upload /> <span className="hide-mobile">استيراد</span></button>}
+        {canAdd && <button className="btn" onClick={() => setFromProgram(true)} title="استيراد المواد مباشرة من برنامج آخر (الأمين وغيره)"><Database /> <span className="hide-mobile">من برنامج آخر</span></button>}
         <button className="btn" onClick={exportExcel} title="تصدير إلى إكسل"><FileSpreadsheet /> <span className="hide-mobile">إكسل</span></button>
         <button className="btn" onClick={() => setLabels(true)} title="طباعة ملصقات باركود"><Barcode /> <span className="hide-mobile">ملصقات</span></button>
       </div>
       {intake && <IntakePanel onClose={() => setIntake(false)} onEdit={p => setEdit(p)} />}
       <Chips value={cat} onChange={setCat} items={[{ id: 'all', label: `الكل (${products.size})` }, ...catList.map(c => ({ id: c.id, label: c.name })), { id: 'none', label: 'بدون تصنيف' }, ...(noPrice ? [{ id: 'noprice', label: `بلا سعر (${noPrice})` }] : [])]} />
       <div className="card">
-        {list.length === 0 ? <Empty title={products.size === 0 ? 'لا توجد قطع بعد' : 'لا نتائج'} text={products.size === 0 ? 'أضف قطعك واحدة واحدة، أو استوردها دفعة واحدة من ملف إكسل' : undefined} action={products.size === 0 ? <div className="btn-row" style={{ justifyContent: 'center' }}><button className="btn primary" onClick={() => setEdit('new')}><Plus /> قطعة جديدة</button><button className="btn" onClick={importExcel}><Upload /> استيراد من إكسل</button><button className="btn ghost" onClick={downloadProductsTemplate}><Download /> نموذج إكسل</button></div> : undefined} /> : (
+        {list.length === 0 ? <Empty title={products.size === 0 ? 'لا توجد قطع بعد' : 'لا نتائج'} text={products.size === 0 ? 'أضف قطعك واحدة واحدة، أو استوردها دفعة واحدة من ملف إكسل' : undefined} action={products.size === 0 ? <div className="btn-row" style={{ justifyContent: 'center' }}><button className="btn primary" onClick={() => setEdit('new')}><Plus /> قطعة جديدة</button><button className="btn" onClick={importExcel}><Upload /> استيراد من إكسل</button><button className="btn" onClick={() => setFromProgram(true)}><Database /> من برنامج آخر</button><button className="btn ghost" onClick={downloadProductsTemplate}><Download /> نموذج إكسل</button></div> : undefined} /> : (
           <div className="table-wrap"><table className="table">
             <thead><tr><th className="hide-mobile">الكود</th><th>الاسم</th><th className="hide-mobile">السيارات</th><th className="hide-mobile">المكان</th>{seeCost && <th className="num hide-mobile">الشراء</th>}<th className="num">البيع</th><th className="num">الكمية</th><th className="actions"></th></tr></thead>
             <tbody>{list.slice(0, limit).map(p => { const st = stock.get(p.id) ?? 0; return (
@@ -98,6 +101,7 @@ export function Products() {
       <div className="muted small">{list.length} قطعة · العملة {settings.currency}</div>
       {edit && <ProductForm initial={edit === 'new' ? scanned?.initial : edit} scanned={scanned?.scan} currentStock={edit === 'new' ? 0 : stock.get(edit.id)} onClose={() => { setEdit(null); setScanned(null) }} />}
       {cats && <CategoriesModal onClose={() => setCats(false)} />}
+      {fromProgram && <ProgramImport kind="products" onClose={() => setFromProgram(false)} onParsed={p => { if (p.kind === 'products') { setFromProgram(false); setImp({ rows: p.rows, guessed: p.guessed }) } }} />}
       {imp && <ImportModal rows={imp.rows} guessed={imp.guessed} onClose={() => setImp(null)} />}
       {labels && <LabelsModal products={list.filter(p => p.kind === 'product')} onClose={() => setLabels(false)} />}
     </div>
@@ -210,7 +214,7 @@ function ImportModal({ rows, guessed, onClose }: { rows: ImportedProduct[]; gues
     } catch (e) { toast.error('فشل الاستيراد: ' + (e as Error).message) } finally { setBusy(false) }
   }
   return (
-    <Modal title="استيراد المنتجات من إكسل" onClose={onClose} size="wide" footer={<><button className="btn primary" onClick={run} disabled={busy || (cur !== base && !(settings.rate > 0))}><Upload /> استيراد {rows.length} صف</button><button className="btn" onClick={onClose}>إلغاء</button></>}>
+    <Modal title="استيراد المنتجات" onClose={onClose} size="wide" footer={<><button className="btn primary" onClick={run} disabled={busy || (cur !== base && !(settings.rate > 0))}><Upload /> استيراد {rows.length} صف</button><button className="btn" onClick={onClose}>إلغاء</button></>}>
       {guessed && <div className="card pad tone-warning mb" style={{ padding: '10px 14px' }}>{guessed}</div>}
       <p className="mb">وجدت <b>{rows.length}</b> قطعة في الملف، منها <b>{existing}</b> موجودة سابقاً (بنفس الكود، أو بنفس الاسم إن لم يكن لها كود).</p>
       {existing > 0 && <div className="tabs small mb"><button className={mode === 'update' ? 'active' : ''} onClick={() => setMode('update')}>تحديث الموجودة (الأسعار والبيانات)</button><button className={mode === 'skip' ? 'active' : ''} onClick={() => setMode('skip')}>تجاهل الموجودة</button></div>}

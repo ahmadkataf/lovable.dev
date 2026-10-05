@@ -9,6 +9,8 @@ contextBridge.exposeInMainWorld('garageDesktop', {
   backupsFolder: () => ipcRenderer.invoke('backups-folder'),
   // product names for a barcode from UPCitemdb (asked by the app, not the page)
   upcLookup: (code) => ipcRenderer.invoke('upc-lookup', code),
+  // another shop program's database on this computer (الأمين): find it, read its materials
+  sqlPrograms: (args) => ipcRenderer.invoke('sql-programs', args),
   // barcode scanners: the app's own device list instead of the browser's chooser
   scanners: {
     inventory: () => ipcRenderer.invoke('scanner-inventory'),

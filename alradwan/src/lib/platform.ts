@@ -27,6 +27,8 @@ declare global {
       backupsFolder(): Promise<string>
       /** UPCitemdb's answer for a product number (status 0 = no internet) */
       upcLookup?(code: string): Promise<{ status: number; body: string } | null>
+      /** another shop program's SQL Server database on this computer (الأمين…): read only */
+      sqlPrograms?(args: { action: 'scan' | 'tables' | 'table' | 'ameen'; server?: string; database?: string; schema?: string; table?: string; user?: string; password?: string; limit?: number }): Promise<Record<string, unknown>>
       /** barcode scanners: the app's own device list instead of the browser's chooser */
       scanners?: {
         inventory(): Promise<DesktopDevice[]>
