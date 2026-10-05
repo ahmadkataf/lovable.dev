@@ -1169,6 +1169,36 @@ describe('wedding designs', () => {
     expect(generate(T('keychains'), {}, S0).notes.some(n => n.includes('اختبار التعشيق'))).toBe(false)
   })
 
+  it('the incense stand: the bowl drops through with air all round and rests on four shoulders, and the two plates halve into each other', () => {
+    for (const style of [1, 2, 3]) for (const [rd, bd, bh] of [[72, 60, 25], [100, 86, 35], [55, 43, 18]]) {
+      const p: Record<string, number> = { ...T('mabkhara').defaults, style, rd, bd, bh, H: Math.max(170, 2 * (12 + bh + 12 + 12) + 2) }
+      const d = generate(T('mabkhara'), p, S0)
+      expect(d.errors, `style ${style} bowl ${rd}`).toEqual([])
+      const A = outerOf(d.panels.find(x => x.id === 'plate-a')!), B = outerOf(d.panels.find(x => x.id === 'plate-b')!)
+      const W0 = bbox([A]).maxX / 2, cw = bd + 2 * p.gap, ys = 12, yNB = ys + bh + p.air, H = p.H
+      for (const pl of [A, B]) {
+        // across the notch, just under the shoulders: an opening the bowl's body clears by the gap on each side
+        const xs = crossings(pl, ys + 1)
+        expect(xs[2] - xs[1], `style ${style} notch`).toBeCloseTo(cw, 3)
+        // the rim lands on the shoulders: just above them the horns stand clear of the rim, below them the notch is inside it by 3 mm or more
+        const above = crossings(pl, ys - 0.5)
+        expect(above[2] - W0, `style ${style} horn`).toBeGreaterThan(rd / 2)
+        expect(rd / 2 - cw / 2).toBeGreaterThanOrEqual(3)
+      }
+      // the halving: plate A has wood in the middle from H/2 down to the arch, plate B from the notch down to H/2
+      const ma = materialAt(A, W0), mb = materialAt(B, W0)
+      expect(ma.length).toBe(1); expect(mb.length).toBe(1)
+      expect(ma[0][0]).toBeCloseTo(H / 2, 3)
+      expect(mb[0][0]).toBeCloseTo(yNB, 3); expect(mb[0][1]).toBeCloseTo(H / 2, 3)
+      // the slots are the stock plus clearance
+      const sa = crossings(A, H / 2 - 1)
+      expect(sa[2] - sa[1]).toBeCloseTo(3 + p.fit, 3)
+    }
+    expect(generate(T('mabkhara'), { rd: 60, bd: 60 }, S0).errors.length).toBeGreaterThan(0)    // body as wide as the rim
+    expect(generate(T('mabkhara'), { rd: 64, bd: 60 }, S0).errors.length).toBeGreaterThan(0)    // the rim barely overhangs
+    expect(generate(T('mabkhara'), { bh: 70, H: 150 }, S0).errors.length).toBeGreaterThan(0)    // too deep a bowl for the height
+  })
+
   it('the wedding group lists the engagement set, the ring box and the five wedding designs', () => {
     expect(CATEGORIES.find(c => c.id === 'wedding')!.ids).toEqual(['engagement', 'hexringbox', 'nikahtray', 'hennatray', 'welcomesign', 'placecards', 'invitebox', 'caketopper', 'guestframe', 'sweetstand', 'tablenumbers', 'favorbox'])
   })

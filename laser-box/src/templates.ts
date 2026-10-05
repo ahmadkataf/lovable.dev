@@ -1486,13 +1486,14 @@ export const CATEGORIES: { id: string; name: string; ids: string[] }[] = [
   { id: 'office', name: 'مكتب وتنظيم', ids: ['organizer', 'phonestand', 'bookstand', 'headphone', 'keyholder', 'wallshelf', 'jewelrytree'] },
   { id: 'doorsmodern', name: 'أبواب مودرن', ids: ['doorpanel', 'doormodern', 'doorwaves', 'doorframes', 'doordiagonal', 'doorblocks', 'doororbit', 'doorchevron'] },
   { id: 'doorsarab', name: 'أبواب عربي وكلاسيك', ids: ['doormihrab', 'doorkhatam', 'doormashrabiya', 'doorstars', 'doorandalus', 'doorstar', 'doorarch', 'doorclassic', 'doordiamond'] },
-  { id: 'home', name: 'بيت وحديقة', ids: ['doorhanger', 'planter', 'petfeeder', 'birdhouse', 'incense', 'napkin'] },
+  { id: 'mabakher', name: 'مباخر', ids: ['mabkhara', 'incense'] },
+  { id: 'home', name: 'بيت وحديقة', ids: ['doorhanger', 'planter', 'petfeeder', 'birdhouse', 'napkin'] },
   { id: 'light', name: 'إضاءة ورمضان', ids: ['ramadanlantern', 'ramadanornaments', 'lantern', 'shade'] },
   { id: 'tools', name: 'معايرة', ids: ['fittest'] },
   { id: 'bulk', name: 'بالجملة', ids: ['keychains', 'coasters'] },
 ]
 /** the newest designs get a badge in the picker */
-export const NEW_IDS = ['fittest', 'nikahtray', 'hennatray', 'welcomesign', 'placecards', 'invitebox', 'doorhanger', 'doordiagonal', 'doorblocks', 'doororbit', 'doorchevron', 'doormihrab', 'doorkhatam', 'doormashrabiya', 'doorstars', 'doorandalus', 'doorpanel', 'doorclassic', 'doorarch', 'doordiamond', 'doorwaves', 'doorstar', 'doormodern', 'doorframes', 'caketopper', 'guestframe', 'sweetstand', 'tablenumbers', 'favorbox', 'hexringbox', 'engagement', 'hinged90', 'crate', 'carrier', 'jewelry', 'moneybox', 'planter', 'petfeeder', 'incense', 'bedtray', 'phonestand', 'bookstand', 'headphone', 'keyholder', 'wallshelf', 'spicerack', 'coasters', 'clock', 'keychains', 'ramadanornaments', 'mugtree', 'jewelrytree', 'birdhouse', 'ramadanlantern']
+export const NEW_IDS = ['mabkhara', 'fittest', 'nikahtray', 'hennatray', 'welcomesign', 'placecards', 'invitebox', 'doorhanger', 'doordiagonal', 'doorblocks', 'doororbit', 'doorchevron', 'doormihrab', 'doorkhatam', 'doormashrabiya', 'doorstars', 'doorandalus', 'doorpanel', 'doorclassic', 'doorarch', 'doordiamond', 'doorwaves', 'doorstar', 'doormodern', 'doorframes', 'caketopper', 'guestframe', 'sweetstand', 'tablenumbers', 'favorbox', 'hexringbox', 'engagement', 'hinged90', 'crate', 'carrier', 'jewelry', 'moneybox', 'planter', 'petfeeder', 'incense', 'bedtray', 'phonestand', 'bookstand', 'headphone', 'keyholder', 'wallshelf', 'spicerack', 'coasters', 'clock', 'keychains', 'ramadanornaments', 'mugtree', 'jewelrytree', 'birdhouse', 'ramadanlantern']
 
 // ====================================================================== more designs, built from the shared parts
 
@@ -3789,6 +3790,132 @@ MORE.push({
         'السماكة تختلف بين الألواح وأحياناً في اللوح نفسه: كرّر الاختبار مع كل لوح جديد.',
       ],
       warnings, errors,
+    }
+  },
+})
+
+// ------------------------------------------------------------------ incense burner stands
+
+/** Where the horizontal line y = Y crosses a closed polygon, left to right. */
+function crossX(pts: P2[], Y: number): number[] {
+  const xs: number[] = []
+  for (let i = 0; i < pts.length; i++) {
+    const a = pts[i], b = pts[(i + 1) % pts.length]
+    if ((a.y <= Y && b.y > Y) || (b.y <= Y && a.y > Y)) xs.push(a.x + ((b.x - a.x) * (Y - a.y)) / (b.y - a.y))
+  }
+  return xs.sort((u, v) => u - v)
+}
+/** A monotone cubic through (y, x) knots, sampled every mm: a smooth outline down one side. */
+function smoothSide(knots: [number, number][]): P2[] {
+  const out: P2[] = []
+  const n = knots.length, d: number[] = []
+  for (let i = 0; i < n; i++) {
+    const p = knots[Math.max(0, i - 1)], q = knots[Math.min(n - 1, i + 1)]
+    d.push((q[1] - p[1]) / (q[0] - p[0] || 1))
+  }
+  // flat at the turning points (the waist), so the curve does not overshoot
+  for (let i = 1; i < n - 1; i++) if ((knots[i][1] - knots[i - 1][1]) * (knots[i + 1][1] - knots[i][1]) <= 0) d[i] = 0
+  for (let i = 0; i + 1 < n; i++) {
+    const [y0, x0] = knots[i], [y1, x1] = knots[i + 1], h = y1 - y0, m = Math.max(2, Math.ceil(h))
+    for (let k = 0; k < m; k++) {
+      const s = k / m, h00 = 2 * s ** 3 - 3 * s * s + 1, h10 = s ** 3 - 2 * s * s + s, h01 = -2 * s ** 3 + 3 * s * s, h11 = s ** 3 - s * s
+      out.push({ x: h00 * x0 + h10 * h * d[i] + h01 * x1 + h11 * h * d[i + 1], y: y0 + s * h })
+    }
+  }
+  out.push({ x: knots[n - 1][1], y: knots[n - 1][0] })
+  return out
+}
+
+MORE.push({
+  id: 'mabkhara',
+  name: 'مبخرة أكريليك متعاشقة',
+  desc: 'لوحان يتعاشقان على شكل X بلا غراء، وصحن المبخرة المعدني يتعلّق بحافّته على أربعة أكتاف بين قرنين، بعيداً عن الأكريليك من تحته ومن جوانبه. ثلاثة أشكال، وكل المقاسات من مقاس صحنك.',
+  icon: `<path d="M20 8l4 6h16l4-6M24 14v8l6 8v14l-8 12h20l-8-12V30l6-8v-8" /><path d="M22 14h20" stroke-width="3"/><path d="M27 18h10v5H27z" stroke-width="1.3"/>`,
+  params: [
+    mm('rd', 'قطر حافّة الصحن', 40, 160, 'قِس الحافّة العليا البارزة من طرف إلى طرف (بالقدمة)'),
+    mm('bd', 'قطر جسم الصحن', 30, 150, 'تحت الحافّة مباشرة: الجزء الذي ينزل في الحامل'),
+    mm('bh', 'عمق الصحن تحت الحافّة', 10, 80),
+    { key: 'style', label: 'الشكل', min: 1, max: 3, step: 1, int: true, hint: '1 = قرون وخصر (كالصورة)، 2 = منحنيات ناعمة، 3 = درجات عربية' },
+    mm('H', 'الارتفاع', 100, 350), mm('Wt', 'عرض القرنين', 60, 300), mm('Wf', 'عرض القدمين', 60, 300), mm('Ww', 'عرض الخصر', 20, 120),
+    mm('gap', 'خلوص حول جسم الصحن', 1, 6, 'هواء بين الصحن الساخن والأكريليك من الجانبين'),
+    mm('air', 'هواء تحت الصحن', 8, 40, 'بين قاع الصحن وأقرب أكريليك تحته'),
+    { key: 'n', label: 'العدد', min: 1, max: 30, step: 1, int: true },
+    { key: 'test', label: 'قطعة تجربة الصحن', min: 0, max: 1, step: 1, int: true, hint: 'قطعة صغيرة بشكل مكان الصحن: اقصّها أولاً وجرّب صحنك فيها' },
+    mm('fit', 'خلوص شقّ التعشيق', 0, 0.5),
+  ],
+  defaults: { rd: 72, bd: 60, bh: 25, style: 1, H: 170, Wt: 130, Wf: 120, Ww: 44, gap: 2.5, air: 12, n: 1, test: 1, fit: 0.15 },
+  innerAdd: () => ({ W: 0, D: 0, H: 0 }),
+  build(p, c) {
+    const warnings: string[] = [], errors: string[] = []
+    const t = c.t, { rd, bd, bh, H, Wt, Wf, Ww, gap, air, fit } = p, style = Math.round(p.style), n = Math.round(p.n)
+    const s = round3(t + fit), hw = Ww / 2
+    // the bowl: its body drops through a notch gap wider than it, its rim rests on the shoulders either side
+    const cw = round3(bd + 2 * gap), ys = 12, dn = round3(bh + air), yNB = round3(ys + dn)
+    const xi = round3(rd / 2 + 1.5), tw = 8, xw = round3(Math.max(cw / 2 + 9, xi + 2))
+    if (bd >= rd) errors.push('قطر جسم الصحن يجب أن يكون أصغر من قطر حافّته (الحافّة هي التي يستند عليها).')
+    else if (rd / 2 - cw / 2 < 3) errors.push(`حافّة الصحن لا تستند بما يكفي: تبرز ${(rd / 2 - cw / 2).toFixed(1)} مم فقط عن فتحة الحامل (3 مم على الأقل). قلّل الخلوص حول الجسم، أو تأكد من القياسين.`)
+    if (Wt / 2 < xw + 2) errors.push(`القرنان أضيق من الصحن: اجعل عرضهما ${Math.ceil(2 * (xw + 2 + tw))} مم على الأقل.`)
+    if (yNB > H / 2 - 12) errors.push(`المبخرة قصيرة على عمق الصحن: اجعل ارتفاعها ${Math.ceil(2 * (yNB + 12))} مم على الأقل.`)
+    if (hw < s / 2 + 8) errors.push(`الخصر ضيّق على شقّ التعشيق: اجعله ${Math.ceil(s + 16)} مم على الأقل.`)
+    if (Wf < 0.55 * H) errors.push(`القدمان قريبتان على هذا الارتفاع وقد تنقلب: اجعل عرضهما ${Math.ceil(0.55 * H)} مم على الأقل.`)
+    // the right half's outer side, from the wing tip down to the foot, in the chosen style
+    const yw0 = round3(Math.max(yNB + 16, 0.42 * H)), yw1 = round3(0.74 * H), fw = 12, ah = round3(Math.min(0.17 * H, H / 2 - 14))
+    let side: P2[]
+    if (style === 2) side = smoothSide([[0, Wt / 2], [yNB + 6, xw], [(yw0 + yw1) / 2, hw], [H - 6, Wf / 2]]).concat([{ x: Wf / 2, y: H }])
+    else if (style === 3) side = [
+      { x: Wt / 2, y: 0 }, { x: Wt / 2, y: ys + 6 }, { x: xw + 4, y: ys + 6 }, { x: xw + 4, y: yNB + 6 }, { x: hw + 10, y: yNB + 6 }, { x: hw + 10, y: yw0 },
+      { x: hw, y: yw0 }, { x: hw, y: yw1 }, { x: hw + 10, y: yw1 }, { x: hw + 10, y: yw1 + 10 }, { x: Wf / 2, y: H - 10 }, { x: Wf / 2, y: H },
+    ]
+    else side = [
+      { x: Wt / 2, y: 0 }, { x: xw, y: yNB + 6 }, { x: hw + 4, y: yw0 }, { x: hw + 4, y: yw0 + 5 }, { x: hw, y: yw0 + 5 },
+      { x: hw, y: yw1 - 5 }, { x: hw + 4, y: yw1 - 5 }, { x: hw + 4, y: yw1 }, { x: Wf / 2, y: H - 8 }, { x: Wf / 2, y: H },
+    ]
+    // the arch between the feet, as a parabola from the foot's inner corner to its apex in the middle
+    const xe = Wf / 2 - fw, K = Math.max(8, Math.ceil(xe / 2))
+    const arch = Array.from({ length: K + 1 }, (_, i) => { const x = xe * (1 - i / K); return { x, y: H - ah * (1 - (x / xe) ** 2) } })
+    const archAt = (x: number) => H - ah * (1 - (x / xe) ** 2)
+    // one plate, centred on x = 0: `top` has the halving slot from the notch down, otherwise from the arch up
+    const plate = (top: boolean): P2[] => {
+      // the arch's points stop short of the middle, and of the slot's edge on the plate slotted from below
+      const right: P2[] = [{ x: cw / 2, y: yNB }, { x: cw / 2, y: ys }, { x: xi, y: ys }, { x: Wt / 2 - tw, y: 0 }, ...side, { x: Wf / 2 - fw, y: H }, ...arch.slice(1, -1).filter(q => q.x > (top ? 0.5 : s / 2 + 0.5))]
+      const mid = top ? [{ x: s / 2, y: H / 2 }, { x: s / 2, y: yNB }] : [{ x: cw / 2, y: yNB }]
+      const bottom = top ? [{ x: 0, y: H - ah }] : [{ x: s / 2, y: archAt(s / 2) }, { x: s / 2, y: H / 2 }, { x: -s / 2, y: H / 2 }, { x: -s / 2, y: archAt(s / 2) }]
+      const r = top ? right : right.slice(1)
+      const left = [...r].reverse().map(q => ({ x: -q.x, y: q.y }))
+      const topClose = top ? [{ x: -s / 2, y: yNB }, { x: -s / 2, y: H / 2 }] : [{ x: -cw / 2, y: yNB }]
+      return top ? [...mid, ...r, ...bottom, ...left, ...topClose] : [...mid, ...r, ...bottom, ...left, ...topClose]
+    }
+    const W0 = Math.max(Wt, Wf) / 2
+    const toLoop = (pts: P2[]) => polyLoop(pts.map(q => ({ x: round3(q.x + W0), y: round3(q.y) })), 'outer')
+    const A = plate(true), B = plate(false)
+    // strength: across every height, each piece of acrylic at least 6 mm wide (the feet's flats excepted at the very bottom)
+    if (!errors.length) {
+      let thin = Infinity, at = 0
+      for (const pl of [A, B]) for (let y = 0.5; y < H - 2; y += 0.5) {
+        const xs = crossX(pl, y)
+        for (let i = 0; i + 1 < xs.length; i += 2) if (xs[i + 1] - xs[i] < thin) { thin = xs[i + 1] - xs[i]; at = y }
+      }
+      if (thin < 6) errors.push(`في اللوح جزء أرفع من 6 مم (${thin.toFixed(1)} مم على ارتفاع ${at.toFixed(0)} مم من الأعلى): غيّر العرض أو الارتفاع أو مقاس الصحن.`)
+    }
+    const panels: PanelSpec[] = [
+      { id: 'plate-a', name: 'اللوح الأول — شقّه من الأعلى', w: 2 * W0, h: H, count: n, shape: [toLoop(A)], note: 'يُدخل الثاني فيه من الأعلى' },
+      { id: 'plate-b', name: 'اللوح الثاني — شقّه من الأسفل', w: 2 * W0, h: H, count: n, shape: [toLoop(B)], note: 'ينزل على الأول حتى تتساوى قاعدتاهما' },
+    ]
+    if (Math.round(p.test) > 0) {
+      const tx = xi + 10, ty = yNB + 10
+      panels.push({ id: 'bowl-test', name: 'قطعة تجربة الصحن', w: 2 * tx, h: ty, shape: [polyLoop([
+        { x: -tx, y: 0 }, { x: -xi, y: 0 }, { x: -xi, y: ys }, { x: -cw / 2, y: ys }, { x: -cw / 2, y: yNB }, { x: cw / 2, y: yNB }, { x: cw / 2, y: ys }, { x: xi, y: ys }, { x: xi, y: 0 }, { x: tx, y: 0 }, { x: tx, y: ty }, { x: -tx, y: ty },
+      ].map(q => ({ x: round3(q.x + tx), y: round3(q.y) })), 'outer')], note: 'جرّب صحنك فيها قبل قصّ المبخرة' })
+    }
+    return {
+      panels,
+      notes: [
+        `للصحن: حافّة ${rd} مم، جسم ${bd} مم، عمق ${bh} مم. فتحة الحامل ${cw} مم (${gap} مم هواء من كل جانب)، والحافّة تستند ${(rd / 2 - cw / 2).toFixed(1)} مم على كل كتف من الأكتاف الأربعة، وتحت القاع ${air} مم هواء.`,
+        'قِس صحنك بالقدمة قبل القصّ: الحافّة العليا من طرف إلى طرف، والجسم تحتها مباشرة، والعمق من الحافّة إلى القاع. ثم اقصّ «قطعة تجربة الصحن» أولاً وضع الصحن فيها: يجب أن ينزل الجسم بلا احتكاك وتستند الحافّة على الكتفين.',
+        `التركيب: أنزل اللوح الثاني (شقّه من الأسفل) على الأول (شقّه من الأعلى) متعامدين حتى تتساوى القاعدتان، ثم ضع الصحن. لا غراء. الارتفاع ${H} مم والقدمان ${Wf} مم.`,
+        'الحرارة: الأكريليك يلين قرب 80–100°م. استعمل الصحن المعدني دائماً، ولا تترك الفحم يلمس الأكريليك، واستعمل فحم البخور الصغير؛ الهواء حول الصحن وتحته مقصود فلا تقلّله. الأكريليك 4–5 مم أمتن للمبخرة من 3 مم.',
+      ],
+      warnings, errors, slotted: true,
     }
   },
 })
