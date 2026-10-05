@@ -153,6 +153,13 @@ jobs:
     steps:
       - uses: actions/download-artifact@v4
         with: { path: files, merge-multiple: true }
+      - name: No Android files signed with a throwaway key
+        env:
+          KS_B64: ${{ secrets.ALRADWAN_KEYSTORE_BASE64 || secrets.ANDROID_KEYSTORE_BASE64 }}
+        run: |
+          # an APK signed with a throwaway key cannot be installed over the shop's copy (signed with its permanent
+          # key): published, it would only make shops delete their app and its data to install it
+          if [ -z "$KS_B64" ]; then rm -f files/*.apk files/*.aab; echo "::warning::لا مفتاح توقيع دائم في الأسرار: نُشرت النسخة بلا ملف أندرويد."; fi
       - run: ls -la files
         working-directory: .
       - uses: softprops/action-gh-release@v2
