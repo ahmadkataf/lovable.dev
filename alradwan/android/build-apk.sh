@@ -2,7 +2,9 @@
 # Builds the Android app (APK) from the web build in dist/, with the Android build-tools only (no Gradle).
 #   npm run build && ./android/build-apk.sh        -> android/build/AlRadwan-Garage.apk
 # Needs ANDROID_HOME (build-tools + a platform) and JDK 17+. Optional: ANDROID_KEYSTORE, ANDROID_KEYSTORE_PASSWORD,
-# ANDROID_KEY_ALIAS (the signing key; a throwaway one is made when absent), VERSION_CODE, VERSION_NAME.
+# ANDROID_KEY_ALIAS (the signing key; a throwaway one is made when absent), VERSION_CODE, VERSION_NAME, and
+# BUNDLETOOL (the path of bundletool-all.jar): with it the Google Play bundle android/build/AlRadwan-Garage.aab is
+# made too, signed with the same key (Google Play takes only bundles, signed with the shop's permanent upload key).
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 SDK="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-/opt/android-sdk}}"
@@ -43,3 +45,19 @@ OUT="$A/build/AlRadwan-Garage.apk"
 "$BT/apksigner" sign --ks "$KS" --ks-key-alias "$KS_ALIAS" --ks-pass "pass:$KS_PASS" --key-pass "pass:$KS_PASS" --out "$OUT" "$B/aligned.apk"
 "$BT/apksigner" verify "$OUT"
 ls -la "$OUT"
+
+if [ -n "${BUNDLETOOL:-}" ]; then
+  # the bundle: the same app with its resources in protobuf form, laid out as bundletool's "base" module
+  "$BT/aapt2" link --proto-format -o "$B/proto.apk" -I "$AJ" --manifest "$A/AndroidManifest.xml" -R "$B/res.zip" --auto-add-overlay -A "$B/assets" \
+    --min-sdk-version 24 --target-sdk-version "${PLATFORM#android-}" "${VERSION[@]}"
+  mkdir -p "$B/base/manifest" "$B/base/dex"
+  (cd "$B/base" && unzip -q ../proto.apk && mv AndroidManifest.xml manifest/)
+  cp "$B/dex/classes.dex" "$B/base/dex/"
+  (cd "$B/base" && zip -q -r ../base.zip .)
+  AAB="$A/build/AlRadwan-Garage.aab"
+  java -jar "$BUNDLETOOL" build-bundle --modules="$B/base.zip" --output="$AAB" --overwrite
+  jarsigner -sigalg SHA256withRSA -digestalg SHA-256 -keystore "$KS" -storepass "$KS_PASS" -keypass "$KS_PASS" "$AAB" "$KS_ALIAS" >/dev/null
+  jarsigner -verify "$AAB" | tail -1
+  java -jar "$BUNDLETOOL" validate --bundle="$AAB" >/dev/null
+  ls -la "$AAB"
+fi

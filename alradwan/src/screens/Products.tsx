@@ -3,8 +3,8 @@ import { useSearchParams } from 'react-router-dom'
 import { Plus, FileSpreadsheet, Upload, Pencil, Tag, Download, Barcode, Printer, Zap } from 'lucide-react'
 import { printDocument } from '../print/PrintHost'
 import { can, put, putMany, remove, useCollection, useCanSeeCost, useSettings, usePerm } from '../db/store'
-import type { Base, Category, Product } from '../db/types'
-import { matches, money } from '../lib/format'
+import type { Base, Category, CurrencyCode, Product } from '../db/types'
+import { convert, CURRENCY_DECIMALS, CURRENCY_SYMBOL, matches, money, norm, otherCurrency } from '../lib/format'
 import { NumberInput } from '../ui/components'
 import { Chips, Empty, SearchInput } from '../ui/components'
 import { Modal, dialogDepth, useConfirm } from '../ui/modal'
@@ -33,7 +33,7 @@ export function Products() {
   const [scanned, setScanned] = useState<{ initial?: Partial<Product>; scan: string } | null>(null)
   const [intake, setIntake] = useState(false)
   const [cats, setCats] = useState(false)
-  const [imp, setImp] = useState<ImportedProduct[] | null>(null)
+  const [imp, setImp] = useState<{ rows: ImportedProduct[]; guessed?: string } | null>(null)
   const [labels, setLabels] = useState(false)
   const [limit, setLimit] = useState(150)
   const toast = useToast()
@@ -56,7 +56,7 @@ export function Products() {
   const importExcel = async () => {
     const f = await pickFile('.xlsx,.xls,.csv')
     if (!f) return
-    try { const { rows } = await readProductsFile(f); if (!rows.length) { toast.error('لم أجد أي صف فيه اسم أو كود'); return } setImp(rows) } catch (e) { toast.error('تعذّر قراءة الملف: ' + (e as Error).message) }
+    try { const { rows, guessed } = await readProductsFile(f); if (!rows.length) { toast.error('لم أجد في الملف أي صف فيه اسم قطعة أو كود'); return } setImp({ rows, guessed }) } catch (e) { toast.error('تعذّر قراءة الملف: ' + (e as Error).message) }
   }
 
   return (
@@ -96,7 +96,7 @@ export function Products() {
       <div className="muted small">{list.length} قطعة · العملة {settings.currency}</div>
       {edit && <ProductForm initial={edit === 'new' ? scanned?.initial : edit} scanned={scanned?.scan} currentStock={edit === 'new' ? 0 : stock.get(edit.id)} onClose={() => { setEdit(null); setScanned(null) }} />}
       {cats && <CategoriesModal onClose={() => setCats(false)} />}
-      {imp && <ImportModal rows={imp} onClose={() => setImp(null)} />}
+      {imp && <ImportModal rows={imp.rows} guessed={imp.guessed} onClose={() => setImp(null)} />}
       {labels && <LabelsModal products={list.filter(p => p.kind === 'product')} onClose={() => setLabels(false)} />}
     </div>
   )
@@ -153,39 +153,60 @@ function CategoriesModal({ onClose }: { onClose: () => void }) {
   )
 }
 
-function ImportModal({ rows, onClose }: { rows: ImportedProduct[]; onClose: () => void }) {
+/** Whether a file's prices look written in the given currency: dollar prices are small, with cents. */
+function looksLike(rows: ImportedProduct[], c: CurrencyCode): boolean {
+  const p = rows.flatMap(r => [r.cost, r.price]).filter(n => n > 0).sort((a, b) => a - b)
+  if (!p.length) return false
+  const median = p[Math.floor(p.length / 2)]
+  return c === 'USD' ? median < 200 && p.some(n => !Number.isInteger(n)) : median >= 1000
+}
+
+function ImportModal({ rows, guessed, onClose }: { rows: ImportedProduct[]; guessed?: string; onClose: () => void }) {
   const products = useCollection('products')
   const categories = useCollection('categories')
   const settings = useSettings()
   const [mode, setMode] = useState<'update' | 'skip'>('update')
   const [busy, setBusy] = useState(false)
   const toast = useToast()
+  const base = settings.baseCurrency ?? 'SYP'
+  const other = otherCurrency(base)
+  // the currency the file's prices are in: prices like 0.16 and 2.5 in a pound shop are dollars
+  const [cur, setCur] = useState<CurrencyCode>(() => (looksLike(rows, other) ? other : base))
+  const d = 10 ** CURRENCY_DECIMALS[base]
+  const toBase = (n: number) => (n ? Math.round(convert(n, cur, base, settings.rate) * d) / d : n)
   const byCode = new Map(Array.from(products.values()).map(p => [p.code.toLowerCase(), p]))
-  const existing = rows.filter(r => r.code && byCode.has(r.code.toLowerCase())).length
+  // a row without a code is the part of the same name (a list from another program, imported again)
+  const byName = new Map(Array.from(products.values()).map(p => [norm(p.name), p]))
+  const match = (r: ImportedProduct) => (r.code ? byCode.get(r.code.toLowerCase()) : byName.get(norm(r.name)))
+  const existing = rows.filter(r => match(r)).length
   const run = async () => {
     if (!can('products')) { toast.error('ليس لديك صلاحية إضافة القطع'); return }
+    if (cur !== base && !(settings.rate > 0)) { toast.error('أدخل سعر الدولار أولاً (من الزر أعلى الشاشة)'); return }
     const prices = can('editPrices')
     setBusy(true)
     try {
       const entries: { collection: 'products' | 'categories' | 'movements'; record: Base }[] = []
       const catByName = new Map(Array.from(categories.values()).map(c => [c.name.trim(), c]))
       let added = 0, updated = 0, n = 0
-      for (const r of rows) {
+      for (const raw of rows) {
+        const r = cur === base ? raw : { ...raw, cost: toBase(raw.cost), price: toBase(raw.price), wholesalePrice: raw.wholesalePrice === undefined ? undefined : toBase(raw.wholesalePrice) }
         let categoryId: string | undefined
         if (r.category) {
           let c = catByName.get(r.category.trim())
           if (!c) { c = { id: newId(), updatedAt: 0, name: r.category.trim() }; catByName.set(c.name, c); entries.push({ collection: 'categories', record: c }) }
           categoryId = c.id
         }
-        const code = r.code || `P-${String(products.size + ++n).padStart(4, '0')}`
-        const old = byCode.get(code.toLowerCase())
+        const old = match(r)
+        // a new part without a code gets the next free one
+        let code = r.code || old?.code || ''
+        while (!code || (!old && !r.code && byCode.has(code.toLowerCase()))) code = `P-${String(products.size + ++n).padStart(4, '0')}`
         if (old) {
           if (mode === 'skip') continue
           const rec: Product = { ...old, name: r.name || old.name, barcode: r.barcode ?? old.barcode, oemNumbers: r.oemNumbers ?? old.oemNumbers, categoryId: categoryId ?? old.categoryId, brand: r.brand ?? old.brand, cars: r.cars ?? old.cars, unit: r.unit || old.unit, cost: prices ? r.cost || old.cost : old.cost, price: prices ? r.price || old.price : old.price, wholesalePrice: prices ? r.wholesalePrice ?? old.wholesalePrice : old.wholesalePrice, minStock: r.minStock ?? old.minStock, location: r.location ?? old.location, notes: r.notes ?? old.notes }
           entries.push({ collection: 'products', record: rec }); updated++
         } else {
           const rec: Product = { id: newId(), updatedAt: 0, code, name: r.name, barcode: r.barcode, oemNumbers: r.oemNumbers, categoryId, brand: r.brand, cars: r.cars, unit: r.unit || settings.units[0] || 'قطعة', cost: r.cost, price: r.price, wholesalePrice: r.wholesalePrice, minStock: r.minStock ?? settings.lowStockDefault, openingStock: r.stock ?? 0, location: r.location, notes: r.notes, kind: 'product', createdAt: Date.now() }
-          byCode.set(code.toLowerCase(), rec)
+          byCode.set(code.toLowerCase(), rec); byName.set(norm(rec.name), rec)
           entries.push({ collection: 'products', record: rec }); added++
         }
       }
@@ -195,13 +216,19 @@ function ImportModal({ rows, onClose }: { rows: ImportedProduct[]; onClose: () =
     } catch (e) { toast.error('فشل الاستيراد: ' + (e as Error).message) } finally { setBusy(false) }
   }
   return (
-    <Modal title="استيراد المنتجات من إكسل" onClose={onClose} size="wide" footer={<><button className="btn primary" onClick={run} disabled={busy}><Upload /> استيراد {rows.length} صف</button><button className="btn" onClick={onClose}>إلغاء</button></>}>
-      <p className="mb">وجدت <b>{rows.length}</b> قطعة في الملف، منها <b>{existing}</b> موجودة سابقاً بنفس الكود.</p>
+    <Modal title="استيراد المنتجات من إكسل" onClose={onClose} size="wide" footer={<><button className="btn primary" onClick={run} disabled={busy || (cur !== base && !(settings.rate > 0))}><Upload /> استيراد {rows.length} صف</button><button className="btn" onClick={onClose}>إلغاء</button></>}>
+      {guessed && <div className="card pad tone-warning mb" style={{ padding: '10px 14px' }}>{guessed}</div>}
+      <p className="mb">وجدت <b>{rows.length}</b> قطعة في الملف، منها <b>{existing}</b> موجودة سابقاً (بنفس الكود، أو بنفس الاسم إن لم يكن لها كود).</p>
       {existing > 0 && <div className="tabs small mb"><button className={mode === 'update' ? 'active' : ''} onClick={() => setMode('update')}>تحديث الموجودة (الأسعار والبيانات)</button><button className={mode === 'skip' ? 'active' : ''} onClick={() => setMode('skip')}>تجاهل الموجودة</button></div>}
+      <div className="row mb" style={{ gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+        <span>الأسعار في الملف بـ</span>
+        <div className="tabs small">{[base, other].map(c => <button key={c} className={cur === c ? 'active' : ''} onClick={() => setCur(c)}>{CURRENCY_SYMBOL[c]}</button>)}</div>
+        {cur !== base && (settings.rate > 0 ? <span className="muted small">تُحوَّل إلى {CURRENCY_SYMBOL[base]} بسعر <span dir="ltr">1 $ = {settings.rate.toLocaleString('en-US')} ل.س</span></span> : <span className="small" style={{ color: 'var(--danger)' }}>أدخل سعر الدولار أولاً</span>)}
+      </div>
       <p className="help mb">ملاحظة: عمود «الكمية» يُستخدم للقطع الجديدة فقط كرصيد أول. كميات القطع الموجودة تُعدَّل من شاشة المخزون.</p>
       <div className="table-wrap" style={{ maxHeight: 300 }}><table className="table">
         <thead><tr><th>الكود</th><th>الاسم</th><th>التصنيف</th><th className="num">الشراء</th><th className="num">البيع</th><th className="num">الكمية</th></tr></thead>
-        <tbody>{rows.slice(0, 50).map((r, i) => <tr key={i}><td className="mono small">{r.code}</td><td>{r.name}</td><td>{r.category}</td><td className="num">{r.cost}</td><td className="num">{r.price}</td><td className="num">{r.stock ?? ''}</td></tr>)}</tbody>
+        <tbody>{rows.slice(0, 50).map((r, i) => <tr key={i}><td className="mono small">{r.code}</td><td>{r.name}</td><td>{r.category}</td><td className="num">{money(toBase(r.cost), { currency: false })}</td><td className="num">{money(toBase(r.price), { currency: false })}</td><td className="num">{r.stock ?? ''}</td></tr>)}</tbody>
       </table>{rows.length > 50 && <div className="muted small" style={{ padding: 8 }}>… و{rows.length - 50} صفاً آخر</div>}</div>
     </Modal>
   )

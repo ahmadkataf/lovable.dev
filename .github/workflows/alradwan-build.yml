@@ -124,6 +124,9 @@ jobs:
           KS_B64: ${{ secrets.ALRADWAN_KEYSTORE_BASE64 || secrets.ANDROID_KEYSTORE_BASE64 }}
         run: |
           if [ -n "$KS_B64" ]; then echo "$KS_B64" | base64 -d > "$RUNNER_TEMP/upload.keystore"
+            # the Google Play bundle is made only with the permanent key: one signed with a throwaway key could never be updated
+            curl -fsSL -o "$RUNNER_TEMP/bundletool.jar" https://github.com/google/bundletool/releases/download/1.18.1/bundletool-all-1.18.1.jar
+            echo "BUNDLETOOL=$RUNNER_TEMP/bundletool.jar" >> "$GITHUB_ENV"
           else echo "::warning::لا مفتاح توقيع دائم (ALRADWAN_KEYSTORE_BASE64): هذا الـ APK موقّع بمفتاح مؤقت ولا يُحدَّث فوق نسخة أقدم إلا بحذفها أولاً (تضيع بياناتها). أضف المفتاح في الأسرار قبل البيع."; fi
       - name: Build the APK
         env:
@@ -135,7 +138,12 @@ jobs:
           export VERSION_CODE=$(( ($(date +%s) - 1700000000) / 60 ))   # grows with time, same formula as a local build
           ./android/build-apk.sh
       - uses: actions/upload-artifact@v4
-        with: { name: alradwan-android, path: alradwan/android/build/AlRadwan-Garage.apk, if-no-files-found: error }
+        with:
+          name: alradwan-android
+          if-no-files-found: error
+          path: |
+            alradwan/android/build/AlRadwan-Garage.apk
+            alradwan/android/build/AlRadwan-Garage.aab
 
   release:
     needs: [version, web, windows, android]
@@ -155,6 +163,7 @@ jobs:
             ## كراج الرضوان — نظام إدارة قطع الغيار
             - **ويندوز**: `AlRadwan-Garage-…-setup.exe` (تثبيت) أو `AlRadwan-Garage-…-portable.exe` (يعمل مباشرة بلا تثبيت)
             - **أندرويد**: `AlRadwan-Garage.apk` (فعّل «السماح بالتثبيت من مصادر غير معروفة» عند الطلب)
+            - **جوجل بلاي**: `AlRadwan-Garage.aab` (الحزمة التي تُرفع إلى Play Console؛ موقّعة بمفتاح المحل الدائم)
             - **الموقع**: `alradwan-web.zip` (ملفات الموقع الجاهزة لأي استضافة)
           files: files/*
           make_latest: true

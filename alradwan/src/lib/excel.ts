@@ -26,45 +26,115 @@ export interface ImportedProduct { code: string; barcode?: string; oemNumbers?: 
 
 // column names accepted in the imported file (Arabic or English, any of the spellings)
 const COLS: Record<keyof ImportedProduct, string[]> = {
-  code: ['الكود', 'كود', 'رقم القطعة', 'رقم', 'code', 'sku', 'part', 'part number'],
-  barcode: ['باركود', 'الباركود', 'barcode'],
+  code: ['الكود', 'كود', 'رقم القطعة', 'رقم', 'الرمز', 'رمز', 'كود المادة', 'رمز المادة', 'رقم المادة', 'code', 'sku', 'part', 'part number', 'item code'],
+  barcode: ['باركود', 'الباركود', 'بار كود', 'barcode', 'ean', 'upc'],
   oemNumbers: ['oem', 'رقم الأصلي', 'الرقم الأصلي', 'رقم القطعة الأصلي', 'أرقام أصلية', 'oem numbers', 'original'],
-  name: ['الاسم', 'اسم', 'اسم القطعة', 'القطعة', 'الصنف', 'المنتج', 'name', 'product'],
-  category: ['التصنيف', 'تصنيف', 'الفئة', 'النوع', 'category'],
+  name: ['الاسم', 'اسم', 'اسم القطعة', 'القطعة', 'الصنف', 'اسم الصنف', 'المنتج', 'اسم المنتج', 'المادة', 'اسم المادة', 'البيان', 'name', 'product', 'item', 'description'],
+  category: ['التصنيف', 'تصنيف', 'الفئة', 'النوع', 'المجموعة', 'القسم', 'category', 'group'],
   brand: ['الماركة', 'ماركة', 'الشركة', 'brand', 'make'],
   cars: ['السيارة', 'السيارات', 'يناسب', 'الموديل', 'cars', 'car', 'model', 'fits'],
   unit: ['الوحدة', 'وحدة', 'unit'],
-  cost: ['سعر الشراء', 'الشراء', 'الكلفة', 'التكلفة', 'cost', 'buy', 'purchase price'],
-  price: ['سعر البيع', 'البيع', 'السعر', 'price', 'sell', 'sale price'],
+  cost: ['سعر الشراء', 'الشراء', 'الكلفة', 'التكلفة', 'سعر التكلفة', 'سعر الكلفة', 'cost', 'buy', 'purchase price'],
+  price: ['سعر البيع', 'البيع', 'السعر', 'سعر المبيع', 'المبيع', 'سعر المفرق', 'المفرق', 'price', 'sell', 'sale price'],
   wholesalePrice: ['سعر الجملة', 'الجملة', 'wholesale'],
   minStock: ['حد التنبيه', 'الحد الأدنى', 'min', 'min stock', 'minimum'],
-  stock: ['الكمية', 'كمية', 'المخزون', 'الرصيد', 'stock', 'qty', 'quantity'],
+  stock: ['الكمية', 'كمية', 'المخزون', 'الرصيد', 'العدد', 'الكمية المتبقية', 'الكمية الحالية', 'stock', 'qty', 'quantity'],
   location: ['المكان', 'الرف', 'الموقع', 'location', 'shelf'],
   notes: ['ملاحظات', 'ملاحظة', 'notes', 'note'],
 }
 
 function normHeader(h: string) { return String(h).trim().toLowerCase().replace(/[أإآ]/g, 'ا').replace(/ة/g, 'ه') }
 
-export async function readProductsFile(file: File): Promise<{ rows: ImportedProduct[]; headers: string[] }> {
-  const XLSX = await xlsx()
-  const buf = await file.arrayBuffer()
-  const wb = XLSX.read(buf, { type: 'array' })
-  const ws = wb.Sheets[wb.SheetNames[0]]
-  const raw = XLSX.utils.sheet_to_json<Record<string, unknown>>(ws, { defval: '' })
-  const headers = Object.keys(raw[0] ?? {})
-  const map = new Map<keyof ImportedProduct, string>()
-  for (const h of headers) {
-    const nh = normHeader(h)
-    for (const key of Object.keys(COLS) as (keyof ImportedProduct)[]) {
-      if (map.has(key)) continue
-      if (COLS[key].some(alias => normHeader(alias) === nh)) { map.set(key, h); break }
+const DIGITS = /^[\s\d٠-٩۰-۹.,٫٬-]+$/
+const isNumberCell = (v: unknown) => typeof v === 'number' || (typeof v === 'string' && v.trim() !== '' && DIGITS.test(v) && /[\d٠-٩۰-۹]/.test(v))
+const isBarcodeCell = (v: unknown) => /^\d{8,14}$/.test(String(v).trim())
+const colName = (i: number) => (i < 26 ? String.fromCharCode(65 + i) : `${String.fromCharCode(64 + Math.floor(i / 26))}${String.fromCharCode(65 + (i % 26))}`)
+const LABEL: Partial<Record<keyof ImportedProduct, string>> = { name: 'الاسم', code: 'الكود', barcode: 'الباركود', cost: 'سعر الشراء', price: 'سعر البيع', stock: 'الكمية' }
+
+/** Which column holds what when the file has no column titles (lists exported by other programs often
+ *  start straight with the data): the text column is the name, two price columns are the purchase (the
+ *  smaller) and the sale price, 8-14 digit numbers are barcodes, a third whole-number column the quantity. */
+function guessColumns(data: unknown[][]): Map<keyof ImportedProduct, number> {
+  const width = Math.max(0, ...data.map(r => r.length))
+  const stats = Array.from({ length: width }, (_, c) => {
+    const cells = data.map(r => r[c]).filter(v => String(v ?? '').trim() !== '')
+    const n = cells.length || 1
+    const nums = cells.filter(isNumberCell)
+    return {
+      c, filled: cells.length / Math.max(1, data.length),
+      text: cells.filter(v => !isNumberCell(v)).length / n, number: nums.length / n,
+      barcode: cells.filter(isBarcodeCell).length / n, whole: nums.every(v => Number.isInteger(toNumber(String(v)))),
+      length: cells.reduce((t: number, v) => t + String(v).length, 0) / n,
+      unique: new Set(cells.map(v => String(v).trim())).size / n,
     }
+  }).filter(x => x.filled >= 0.3)
+  const map = new Map<keyof ImportedProduct, number>()
+  const texts = stats.filter(x => x.text >= 0.6).sort((a, b) => b.length - a.length)
+  if (texts[0]) map.set('name', texts[0].c)
+  // a short, mostly unique text column beside the name: its code
+  const code = texts.slice(1).find(x => x.length <= 16 && x.unique >= 0.9)
+  if (code) map.set('code', code.c)
+  const barcode = stats.find(x => x.barcode >= 0.6)
+  if (barcode) map.set('barcode', barcode.c)
+  const numeric = stats.filter(x => x.number >= 0.6 && x !== barcode).sort((a, b) => a.c - b.c)
+  if (numeric.length >= 2) {
+    const [a, b] = numeric
+    // the purchase price is the smaller one in most rows
+    let aSmaller = 0, rows = 0
+    for (const r of data) { const x = toNumber(String(r[a.c] ?? '')), y = toNumber(String(r[b.c] ?? '')); if (x || y) { rows++; if (x <= y) aSmaller++ } }
+    map.set('cost', aSmaller >= rows / 2 ? a.c : b.c); map.set('price', aSmaller >= rows / 2 ? b.c : a.c)
+    const qty = numeric.slice(2).find(x => x.whole)
+    if (qty) map.set('stock', qty.c)
+  } else if (numeric.length === 1) map.set('price', numeric[0].c)
+  return map
+}
+
+/** Reads a product list from Excel (.xlsx, old .xls), CSV, or the HTML/XML "Excel" files other programs
+ *  export. Column titles may be in any of the first rows, in Arabic or English; with no titles at all the
+ *  columns are worked out from their contents and `guessed` says how, for the shop to check. */
+export async function readProductsFile(file: File): Promise<{ rows: ImportedProduct[]; headers: string[]; guessed?: string }> {
+  const [XLSX, cp] = await Promise.all([xlsx(), import('xlsx/dist/cpexcel.full.mjs')])
+  // old .xls files keep their text in a Windows code page
+  XLSX.set_cptable(cp)
+  const buf = await file.arrayBuffer()
+  // an old binary .xls that does not say which code page it uses is taken as Arabic (never a CSV: that is UTF-8)
+  const ole = new Uint8Array(buf.slice(0, 4)).join() === '208,207,17,224'
+  const wb = XLSX.read(buf, { type: 'array', ...(ole ? { codepage: 1256 } : {}) })
+  // the sheet with the most rows (some programs put a cover sheet first)
+  const sheets = wb.SheetNames.map(n => XLSX.utils.sheet_to_json<unknown[]>(wb.Sheets[n], { header: 1, defval: '', blankrows: false, raw: true }))
+  const aoa = sheets.sort((a, b) => b.length - a.length)[0] ?? []
+  const keyOf = (cell: unknown): keyof ImportedProduct | null => {
+    const nh = normHeader(String(cell ?? ''))
+    if (!nh) return null
+    for (const key of Object.keys(COLS) as (keyof ImportedProduct)[]) if (COLS[key].some(alias => normHeader(alias) === nh)) return key
+    return null
   }
-  const get = (r: Record<string, unknown>, k: keyof ImportedProduct) => { const h = map.get(k); return h === undefined ? '' : String(r[h] ?? '').trim() }
+  // the title row: the first of the top rows that names a product column
+  let headerAt = -1
+  for (let i = 0; i < Math.min(15, aoa.length); i++) {
+    const keys = aoa[i].map(keyOf)
+    if (keys.some(k => k === 'name' || k === 'code') && keys.filter(Boolean).length >= 1) { headerAt = i; break }
+  }
+  let map = new Map<keyof ImportedProduct, number>()
+  let headers: string[] = []
+  let data: unknown[][]
+  let guessed: string | undefined
+  if (headerAt >= 0) {
+    headers = aoa[headerAt].map(h => String(h ?? ''))
+    aoa[headerAt].forEach((h, c) => { const k = keyOf(h); if (k && !map.has(k)) map.set(k, c) })
+    data = aoa.slice(headerAt + 1)
+  } else {
+    data = aoa
+    map = guessColumns(data)
+    guessed = 'الملف بلا عناوين أعمدة، فقرأناه هكذا: ' + [...map.entries()].sort((a, b) => a[1] - b[1]).map(([k, c]) => `العمود ${colName(c)} = ${LABEL[k] ?? k}`).join('، ') + '. راجع الأسعار قبل الاستيراد.'
+  }
+  const get = (r: unknown[], k: keyof ImportedProduct) => { const c = map.get(k); return c === undefined ? '' : String(r[c] ?? '').trim() }
   const rows: ImportedProduct[] = []
-  for (const r of raw) {
+  for (const r of data) {
     const name = get(r, 'name'); const code = get(r, 'code')
     if (!name && !code) continue
+    // a repeated title row or a totals line in the middle of the list
+    if (keyOf(name) || /^(المجموع|الإجمالي|total)/i.test(name)) continue
     rows.push({
       code, name: name || code, barcode: get(r, 'barcode') || undefined, oemNumbers: get(r, 'oemNumbers') || undefined, category: get(r, 'category') || undefined,
       brand: get(r, 'brand') || undefined, cars: get(r, 'cars') || undefined, unit: get(r, 'unit') || undefined,
@@ -73,7 +143,7 @@ export async function readProductsFile(file: File): Promise<{ rows: ImportedProd
       location: get(r, 'location') || undefined, notes: get(r, 'notes') || undefined,
     })
   }
-  return { rows, headers }
+  return { rows, headers, guessed }
 }
 
 export async function downloadProductsTemplate(): Promise<void> {
