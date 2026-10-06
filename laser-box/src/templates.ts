@@ -4289,7 +4289,7 @@ MORE.push({
     mm('fh', 'ارتفاع الحاضنة', 6, 60),
     { key: 'n', label: 'عدد الأطقم', min: 1, max: 20, step: 1, int: true },
   ],
-  defaults: { W: 200, D: 140, H: 50, hl: 40, tf: 1, cs: 40, ch: 30, band: 2.5, sl: 16, ringH: 20, Wb: 460, Db: 320, Hb: 100, seat: 1, fh: 15, n: 1 },
+  defaults: { W: 175, D: 125, H: 55, hl: 30, tf: 1, cs: 45, ch: 30, band: 2.5, sl: 16, ringH: 20, Wb: 380, Db: 280, Hb: 80, seat: 1, fh: 15, n: 1 },
   innerAdd: () => ({ W: 0, D: 0, H: 0 }),
   build(p, c) {
     const warnings: string[] = [], errors: string[] = []
