@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="ar" dir="rtl"><head><meta charset="utf-8">
+<style>
+@font-face{font-family:A;src:url(alexandria-arabic-wght-normal.woff2) format('woff2');font-weight:100 900;unicode-range:U+0600-06FF,U+0750-077F,U+FB50-FDFF,U+FE70-FEFF,U+0660-0669}
+@font-face{font-family:A;src:url(alexandria-latin-wght-normal.woff2) format('woff2');font-weight:100 900}
+:root{--ink:#17131f;--pur:#7c3aed;--lil:#ce82ff;--yel:#FFD23F;--grn:#58CC02;--blu:#1CB0F6;--bg:#f3f0fa;--mut:#5b546b}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:A,'Noto Color Emoji',sans-serif;color:var(--ink);background:var(--bg)}
+#c{position:relative;overflow:hidden;background:var(--bg)}
+.blob{position:absolute;border-radius:50%}
+.abs{position:absolute}
+.icon{border-radius:26%;background:linear-gradient(145deg,#e3b3ff,#ce82ff 40%,#8b46ff);display:flex;align-items:center;justify-content:center;color:#fff;font-weight:900;box-shadow:0 18px 40px rgba(124,58,237,.35),inset 0 0 0 4px rgba(255,255,255,.25);flex:none}
+.foot{position:absolute;left:60px;right:60px;bottom:50px;display:flex;align-items:center;justify-content:space-between;font-size:26px;font-weight:700;color:var(--mut)}
+.foot .b{display:flex;align-items:center;gap:14px;color:var(--ink);font-weight:900;font-size:30px}
+.tag{display:inline-block;padding:10px 26px;border-radius:999px;font-weight:800;font-size:30px}
+.card{background:#fff;border-radius:40px;box-shadow:0 30px 70px rgba(23,19,31,.12)}
+.opt{display:flex;align-items:center;gap:22px;background:#fff;border:3px solid #e6e1f0;border-radius:28px;padding:22px 30px;font-size:44px;font-weight:700;direction:ltr;margin-bottom:22px}
+.opt i{font-style:normal;width:62px;height:62px;border-radius:18px;background:#f1edf8;display:flex;align-items:center;justify-content:center;font-size:32px;font-weight:900;color:var(--pur);flex:none}
+.opt.ok{border-color:var(--grn);background:#effbe5}.opt.ok i{background:var(--grn);color:#fff}
+.en{direction:ltr;unicode-bidi:isolate}
+.phone{position:absolute;border-radius:58px;background:linear-gradient(150deg,#3a3446,#0d0a14 55%,#2b2537);padding:16px;box-shadow:0 40px 80px rgba(23,19,31,.3)}
+.phone img{display:block;border-radius:44px;width:100%}
+</style></head><body><div id="c"></div>
+<script>
+const P = location.hash.slice(1)
+const SIZES = { avatar: [1080, 1080], cover: [1640, 624] }
+const [W, H] = SIZES[P] || [1080, 1350]
+const c = document.getElementById('c'); c.style.width = W + 'px'; c.style.height = H + 'px'
+const blobs = (list) => list.map(([x, y, r, col]) => `<div class="blob" style="left:${x - r}px;top:${y - r}px;width:${2 * r}px;height:${2 * r}px;background:radial-gradient(closest-side,${col},transparent)"></div>`).join('')
+const BG = blobs([[180, 160, 520, 'rgba(206,130,255,.55)'], [W - 120, H - 200, 480, 'rgba(120,230,170,.45)'], [W - 160, 140, 420, 'rgba(255,200,160,.55)']])
+const foot = (right = 'الوحدة الأولى مجاناً 🎁') => `<div class="foot"><div class="b"><div class="icon" style="width:64px;height:64px;font-size:26px;border-radius:18px">إمار</div>إمار · إنجليزي المنهاج السوري</div><div>${right}</div></div>`
+
+const WORDS = {
+  misguide: { en: 'misguide', pos: 'verb', ar: 'يُضلِّل / يوجّه توجيهاً خاطئاً', ex: 'Many parents said they had misguided their children into choosing a career of their choice.', exAr: 'قال كثير من الآباء إنهم وجّهوا أبناءهم توجيهاً خاطئاً فدفعوهم إلى اختيار مهنة من اختيار الآباء.', unit: 'البكالوريا · الوحدة 1 · Life Choices' },
+  aptitude: { en: 'aptitude', pos: 'noun', ar: 'استعداد / موهبة طبيعية', ex: 'A designed aptitude test can reveal a lot of information regarding the child.', exAr: 'يمكن لاختبار قدرات مُصمَّم جيداً أن يكشف الكثير من المعلومات عن الطفل.', unit: 'البكالوريا · الوحدة 1 · Life Choices' },
+  highlight: { en: 'highlight', pos: 'verb', ar: 'يُبرز / يسلّط الضوء على', ex: 'Most studies have highlighted the role of parents as active agents in the career development of their children.', exAr: 'سلّطت معظم الدراسات الضوء على دور الآباء بوصفهم عناصر فاعلة في التطوّر المهني لأبنائهم.', unit: 'البكالوريا · الوحدة 1 · Life Choices' },
+}
+const QS = {
+  whose: { q: 'The woman ……… car was stolen called the police.', qAr: 'المرأة ___ سُرقت سيارتها اتصلت بالشرطة.', o: ['who', 'whose', 'which', 'where'], a: 1, why: 'بعد الفراغ اسم (car) بيملكه الشخص (The woman)، فمنستخدم <b class="en">whose</b> للملكية.<br><b class="en">who</b> للعاقل وبعده فعل، <b class="en">which</b> لغير العاقل، <b class="en">where</b> للمكان.', src: 'من نموذج الفصل الأول (B) · الوحدة 5' },
+  roll: { q: 'This is our fifth win in the game! We are ……….', qAr: 'هذا فوزنا الخامس في اللعبة! نحن ___.', o: ['dead in the water', 'backing the wrong horse', 'joining the ranks', 'on a roll'], a: 3, why: '<b class="en">on a roll</b> = بسلسلة نجاحات متتالية (تعابير الوحدة 2).<br><b class="en">dead in the water</b> = فاشل بلا أمل · <b class="en">back the wrong horse</b> = يراهن على الخيار الغلط.', src: 'من نموذج الفصل الأول (A) · الوحدة 2' },
+  when: { q: 'The evening is a time ……… we can all relax.', qAr: 'المساء وقتٌ ___ نستطيع جميعاً أن نرتاح فيه.', o: ['when', 'who', 'which', 'where'], a: 0, why: 'بعد اسم بيدل على زمن (<b class="en">a time</b>) وبعده جملة كاملة، منستخدم <b class="en">when</b>.<br><b class="en">where</b> للمكان، <b class="en">who</b> للعاقل، <b class="en">which</b> بدها فعل بلا فاعل.', src: 'من نموذج الفصل الأول (A) · الوحدة 5' },
+}
+
+function word(k) {
+  const w = WORDS[k]
+  return BG + `<div class="abs" style="right:60px;top:70px"><span class="tag" style="background:var(--ink);color:#fff">📌 كلمة اليوم</span></div>
+  <div class="abs muted" style="left:60px;top:84px;font-size:26px;font-weight:700;color:var(--mut)">${w.unit}</div>
+  <div class="card abs" style="left:60px;right:60px;top:190px;padding:60px 60px 50px;text-align:center">
+    <div class="en" style="font-size:150px;font-weight:900;line-height:1.05;color:var(--blu)">${w.en}</div>
+    <div class="en" style="font-size:36px;font-weight:600;color:#9a93ad;margin-top:6px">${w.pos}</div>
+    <div style="font-size:74px;font-weight:900;margin-top:26px;line-height:1.3">${w.ar}</div>
+    <div style="height:3px;background:#efeaf7;margin:44px 0 36px"></div>
+    <div class="en" style="font-size:38px;font-weight:600;line-height:1.5;text-align:left">“${w.ex.replace(new RegExp(w.en.slice(0, 6) + '\\w*', 'i'), m => '<b style="color:var(--pur)">' + m + '</b>')}”</div>
+    <div style="font-size:34px;font-weight:600;line-height:1.6;color:var(--mut);margin-top:20px;text-align:right">${w.exAr}</div>
+  </div>
+  <div class="abs" style="left:0;right:0;top:1140px;text-align:center;font-size:30px;font-weight:700;color:var(--mut)">🔊 اسمع لفظها الطبيعي وتدرّب عليها بالتطبيق</div>` + foot()
+}
+function question(k, answer) {
+  const q = QS[k]
+  return BG + `<div class="abs" style="right:60px;top:70px"><span class="tag" style="background:${answer ? 'var(--grn)' : 'var(--pur)'};color:#fff">${answer ? '✅ الجواب' : '🧠 سؤال بكالوريا'}</span></div>
+  <div class="abs" style="left:60px;top:84px;font-size:26px;font-weight:700;color:var(--mut)">${q.src}</div>
+  <div class="abs" style="left:60px;right:60px;top:200px">
+    <div class="card" style="padding:50px 50px 40px;margin-bottom:40px">
+      <div class="en" style="font-size:54px;font-weight:800;line-height:1.4;text-align:left">${q.q}</div>
+      <div style="font-size:32px;font-weight:600;color:var(--mut);margin-top:16px">${q.qAr}</div>
+    </div>
+    ${q.o.map((o, i) => `<div class="opt${answer && i === q.a ? ' ok' : ''}" style="${answer && i !== q.a ? 'opacity:.45' : ''}"><i>${'abcd'[i]}</i>${o}${answer && i === q.a ? '<span style="margin-left:auto;font-size:44px">✓</span>' : ''}</div>`).join('')}
+    ${answer ? `<div style="font-size:31px;font-weight:600;line-height:1.65;margin-top:12px">${q.why}</div>` : `<div style="text-align:center;font-size:40px;font-weight:900;margin-top:30px">شو الجواب؟ اكتبه بالتعليقات 👇</div>`}
+  </div>` + foot(answer ? 'شرح كل إجابة بالعربي ✅' : 'الجواب بالصورة الجاية ⬅️')
+}
+const PAGES = {
+  avatar: () => `<div class="abs" style="inset:0;background:linear-gradient(145deg,#e3b3ff,#ce82ff 40%,#7c3aed)"></div>
+    <div class="abs" style="left:0;right:0;top:300px;text-align:center;color:#fff;font-size:250px;font-weight:900;line-height:1;text-shadow:0 14px 0 rgba(0,0,0,.1)">إمار</div>
+    <div class="abs en" style="left:0;right:0;top:600px;text-align:center;color:#fff;font-size:86px;font-weight:800;letter-spacing:4px;opacity:.95">ENGLISH</div>`,
+  cover: () => blobs([[200, 120, 600, 'rgba(206,130,255,.6)'], [1500, 800, 520, 'rgba(120,230,170,.45)'], [1450, 80, 480, 'rgba(255,200,160,.55)']]) + `
+    <div class="phone" style="left:150px;top:70px;width:250px;transform:rotate(-6deg)"><img src="s-path.png"></div>
+    <div class="phone" style="left:360px;top:110px;width:250px;transform:rotate(5deg)"><img src="s-lesson1.png"></div>
+    <div class="abs" style="right:110px;top:70px;width:820px;text-align:right">
+      <div style="display:flex;align-items:center;gap:24px;justify-content:flex-start"><div class="icon" style="width:120px;height:120px;font-size:44px">إمار</div><div style="font-size:84px;font-weight:900">إمار للإنجليزي</div></div>
+      <div style="font-size:48px;font-weight:800;margin-top:18px;line-height:1.3">إنجليزي المنهاج السوري<br><span style="color:var(--pur)">بطريقة اللعبة 🎮</span></div>
+      <div style="display:flex;gap:12px;flex-wrap:wrap;margin-top:24px">${['الخامس', 'الثامن', 'التاسع', 'الحادي عشر', 'البكالوريا'].map(g => `<span class="tag" style="background:#fff;font-size:30px;box-shadow:0 10px 24px rgba(23,19,31,.08)">${g}</span>`).join('')}</div>
+      <div style="font-size:36px;font-weight:800;margin-top:24px;color:var(--grn)">الوحدة الأولى مجاناً 🎁</div>
+    </div>`,
+  'p01-intro': () => BG + `
+    <div class="abs" style="left:0;right:0;top:80px;text-align:center"><span class="tag" style="background:var(--ink);color:#fff">👋 تعرّف على إمار</span></div>
+    <div class="abs" style="left:0;right:0;top:170px;text-align:center;font-size:84px;font-weight:900;line-height:1.2">كتابك المدرسي<br><span style="color:var(--pur)">صار لعبة</span> 🎮</div>
+    <div class="phone" style="left:70px;top:420px;width:330px;transform:rotate(-4deg)"><img src="s-lesson1.png"></div>
+    <div class="abs" style="right:60px;top:430px;width:560px;font-size:33px;font-weight:800;line-height:1.45">
+      ${['📘 كتاب الطالب + كتاب الأنشطة، درس درس', '🔊 كل كلمة بصوت طبيعي، ومع تبطيء', '✅ تمارين محلولة ومشروحة بالعربي', '📝 امتحانات بشكل الامتحان الحقيقي', '📱 أندرويد، أو من المتصفح للآيفون'].map(t => `<div style="background:#fff;border-radius:24px;padding:18px 24px;margin-bottom:14px;box-shadow:0 10px 26px rgba(23,19,31,.07)">${t}</div>`).join('')}
+    </div>` + foot(),
+  'p02-word-misguide': () => word('misguide'),
+  'p03-q-whose': () => question('whose', false), 'p03-a-whose': () => question('whose', true),
+  'p04-word-aptitude': () => word('aptitude'),
+  'p05-q-roll': () => question('roll', false), 'p05-a-roll': () => question('roll', true),
+  'p06-offer': () => BG + `
+    <div class="abs" style="left:0;right:0;top:90px;text-align:center"><span class="tag" style="background:var(--grn);color:#fff">🎁 جرّب مجاناً</span></div>
+    <div class="abs" style="left:0;right:0;top:180px;text-align:center;font-size:90px;font-weight:900;line-height:1.2">الوحدة الأولى<br><span style="color:var(--grn)">مجاناً</span> لكل الصفوف</div>
+    <div class="card abs" style="left:90px;right:90px;top:480px;padding:30px 50px">
+      ${[['الخامس', '5$'], ['الثامن', '5$'], ['التاسع', '15$'], ['الحادي عشر', '15$'], ['البكالوريا', '20$']].map(([g, p], i) => `<div style="display:flex;justify-content:space-between;align-items:center;padding:22px 0;${i ? 'border-top:2px solid #f0ecf7' : ''}"><span style="font-size:46px;font-weight:800">${g}</span><span class="en" style="font-size:54px;font-weight:900;color:var(--pur)">${p}</span></div>`).join('')}
+      <div style="text-align:center;font-size:28px;font-weight:700;color:var(--mut);margin-top:6px">الاشتراك للعام الدراسي كامل (حتى 31 آب)</div>
+    </div>
+    <div class="abs" style="left:0;right:0;top:1150px;text-align:center"><span class="tag" style="background:#25d366;color:#fff;font-size:38px;padding:14px 36px">💬 واتساب <span class="en">+963 996 489 504</span></span></div>` + foot('الدفع بشام كاش'),
+  'p07-invite': () => BG + `
+    <div class="abs" style="left:0;right:0;top:90px;text-align:center"><span class="tag" style="background:var(--yel)">🎁 ادعُ صاحبك</span></div>
+    <div class="abs" style="left:0;right:0;top:190px;text-align:center;font-size:84px;font-weight:900;line-height:1.25">شارك كود دعوتك<br>و<span style="color:var(--pur)">اربحوا سوا</span></div>
+    <div class="card abs" style="left:90px;right:90px;top:470px;padding:44px 50px;font-size:42px;font-weight:800;line-height:1.5">
+      <div style="display:flex;gap:24px;align-items:center"><span style="font-size:80px">👫</span><div>صاحبك بياخد <span style="color:var(--grn)">خصم 10%</span><div style="font-size:30px;font-weight:600;color:var(--mut)">لما يشترك بكود دعوتك</div></div></div>
+      <div style="height:3px;background:#f0ecf7;margin:30px 0"></div>
+      <div style="display:flex;gap:24px;align-items:center"><span style="font-size:80px">🎁</span><div>وإنت بتاخد <span style="color:var(--pur)">اشتراك هدية</span><div style="font-size:30px;font-weight:600;color:var(--mut)">مع كل 5 أصحاب بيشتركوا</div></div></div>
+    </div>
+    <div class="abs" style="left:0;right:0;top:1060px;text-align:center;font-size:34px;font-weight:700;color:var(--mut)">كود دعوتك موجود بالتطبيق ← «ملفّي» ← «ادعُ أصحابك»</div>` + foot(),
+  'p08-word-highlight': () => word('highlight'),
+  'p09-q-when': () => question('when', false), 'p09-a-when': () => question('when', true),
+}
+c.innerHTML = PAGES[P] ? PAGES[P]() : 'unknown ' + P
+window.PAGES = Object.keys(PAGES); window.SIZE = [W, H]
+</script></body></html>
