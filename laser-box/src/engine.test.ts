@@ -1304,13 +1304,26 @@ describe('wedding designs', () => {
   })
 
   it('the fabric engagement set: every box fits the next with its fabric, the slit closes to the band, and the lid clears the ring', () => {
-    for (const tf of [0.5, 1, 2]) for (const t of [3, 4]) {
-      const p: Record<string, number> = { ...T('fabricset').defaults, tf }
+    for (const tf of [0.5, 1, 2]) for (const t of [3, 3.2, 4]) for (const [Rr, Rb] of [[0, 0], [10, 15], [8, 20]]) {
+      const p: Record<string, number> = { ...T('fabricset').defaults, tf, Rr, Rb }
       const d = generate(T('fabricset'), p, { ...S0, t })
-      expect(d.errors, `tf ${tf} t ${t}`).toEqual([])
+      expect(d.errors, `tf ${tf} t ${t} rims ${Rr}/${Rb}`).toEqual([])
       const pn = (id: string) => d.panels.find(x => x.id === id)!
+      const er = Rr > 0 ? Rr : t, eb = Rb > 0 ? Rb : t
+      // with a rim: inner walls whose inner faces stand R in from outside, and a frame R wide over both walls, its
+      // total height the one asked for
+      for (const [ids, R, e, w, d2, h] of [['rb-', Rr, er, p.W, p.D, p.H], ['rl-', Rr, er, p.W, p.D, p.hl], ['bb-', Rb, eb, p.Wb, p.Db, p.Hb]] as [string, number, number, number, number, number][]) {
+        if (R <= 0) { expect(d.panels.some(x => x.id === ids + 'cap-fb')).toBe(false); expect(pn(ids + 'front').h).toBeCloseTo(h, 3); continue }
+        expect(pn(ids + 'frame-fb').w - 2 * t).toBeCloseTo(w - 2 * e, 3)
+        expect(pn(ids + 'frame-side').w - 2 * t).toBeCloseTo(d2 - 2 * e, 3)
+        expect(pn(ids + 'front').h + t).toBeCloseTo(h, 3)
+        expect(pn(ids + 'frame-fb').h).toBeCloseTo(h - 2 * t, 3)
+        // the frame's strips: front and back the full length, the sides between them, all R wide
+        expect(pn(ids + 'cap-fb').w).toBeCloseTo(w, 3); expect(pn(ids + 'cap-fb').h).toBeCloseTo(e, 3)
+        expect(pn(ids + 'cap-side').w + 2 * e).toBeCloseTo(d2, 3); expect(pn(ids + 'cap-side').h).toBeCloseTo(e, 3)
+      }
       // the wrapped boards drop into the lined ring box with 0.5 mm to spare on each side
-      const board = pn('rb-board'), inside = p.W - 2 * t - 2 * tf
+      const board = pn('rb-board'), inside = p.W - 2 * er - 2 * tf
       expect(inside - (board.w + 2 * tf)).toBeCloseTo(1, 3)
       expect(pn('rl-board').w).toBeCloseTo(board.w, 3)
       // the slit, once the fabric is pushed in from both sides, is the band by the slit length
@@ -1323,13 +1336,14 @@ describe('wedding designs', () => {
       expect(pn('seat-side').w - 2 * t - 2 * tf - (p.D + 2 * tf)).toBeCloseTo(1, 3)
       // and its guide on the big box floor sits against the back wall's lining, centred
       const g = bbox(pn('bb-bottom').loops.filter(l => l.layer === 'engrave'))
-      expect(g.minY).toBeCloseTo(t + tf, 3)
+      expect(g.minY).toBeCloseTo(eb + tf, 3)
       expect((g.minX + g.maxX) / 2).toBeCloseTo(p.Wb / 2, 3)
       expect(g.maxX - g.minX).toBeCloseTo(pn('seat-fb').w, 3)
     }
     expect(generate(T('fabricset'), { H: 30, hl: 20 }, S0).errors.length).toBeGreaterThan(0)    // the lid would press the ring
     expect(generate(T('fabricset'), { W: 110 }, S0).errors.length).toBeGreaterThan(0)           // no room for two cubes
     expect(generate(T('fabricset'), { Wb: 260 }, S0).errors.length).toBeGreaterThan(0)          // no room for flowers
+    expect(generate(T('fabricset'), { Rb: 4 }, S0).errors.length).toBeGreaterThan(0)            // a rim thinner than two walls
   })
 
   it('the wedding group lists the engagement set, the ring box and the five wedding designs', () => {

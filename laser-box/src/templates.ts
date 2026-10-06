@@ -4278,6 +4278,7 @@ MORE.push({
     mm('D', 'بوكس الخواتم — العمق', 60, 300),
     mm('H', 'بوكس الخواتم — ارتفاع الجسم', 25, 150),
     mm('hl', 'ارتفاع الغطاء', 15, 150, 'الغطاء صندوق ضحل بالمقاس نفسه، يُقلب فوق الجسم'),
+    mm('Rr', 'سماكة حافّة بوكس الخواتم', 0, 40, 'جدار مزدوج بإطار علوي يُظهر حافّة عريضة؛ 0 = جدار واحد'),
     mm('tf', 'سماكة القماش', 0.3, 4, 'قِسها مع اللاصق: مخمل عادي نحو 1 مم، مع إسفنجة رقيقة 2–3 مم'),
     mm('cs', 'مكعّب الخاتم — العرض', 20, 80, 'مقاس الخشب'),
     mm('ch', 'مكعّب الخاتم — الارتفاع', 15, 80),
@@ -4285,11 +4286,12 @@ MORE.push({
     mm('sl', 'طول الشقّ', 8, 30, 'بعد القماش'),
     mm('ringH', 'بروز الخاتم فوق المكعّب', 5, 40, 'ليُغلق الغطاء فوقه'),
     mm('Wb', 'البوكس الكبير — العرض', 150, 1000), mm('Db', 'البوكس الكبير — العمق', 120, 800), mm('Hb', 'البوكس الكبير — الارتفاع', 30, 300),
+    mm('Rb', 'سماكة حافّة البوكس الكبير', 0, 60, 'كما في الصورة نحو 15 مم؛ 0 = جدار واحد'),
     { key: 'seat', label: 'حاضنة بوكس الخواتم', min: 0, max: 1, step: 1, int: true, hint: 'إطار منخفض في البوكس الكبير يثبّت بوكس الخواتم في الخلف؛ 0 = خطّ محفور فقط' },
     mm('fh', 'ارتفاع الحاضنة', 6, 60),
     { key: 'n', label: 'عدد الأطقم', min: 1, max: 20, step: 1, int: true },
   ],
-  defaults: { W: 175, D: 125, H: 55, hl: 30, tf: 1, cs: 45, ch: 30, band: 2.5, sl: 16, ringH: 20, Wb: 380, Db: 280, Hb: 80, seat: 1, fh: 15, n: 1 },
+  defaults: { W: 175, D: 125, H: 55, hl: 30, tf: 1, cs: 45, ch: 30, band: 2.5, sl: 16, ringH: 20, Wb: 380, Db: 280, Hb: 80, Rr: 10, Rb: 15, seat: 1, fh: 15, n: 1 },
   innerAdd: () => ({ W: 0, D: 0, H: 0 }),
   build(p, c) {
     const warnings: string[] = [], errors: string[] = []
@@ -4298,7 +4300,15 @@ MORE.push({
     // fabric goes round the outside of every box and lines the inside walls; the floor of the ring box and the inside
     // of its lid get loose boards, each wrapped in fabric, that drop in with 0.5 mm to spare all round
     const clr = 0.5
-    const Wi = W - 2 * t - 2 * tf, Di = D - 2 * t - 2 * tf              // ring box inside, walls lined
+    // a thick rim: a second, inner set of walls and a flat frame over both, so the wall reads R thick from outside to
+    // inside (heights are the finished ones, the frame included). Without it, one wall t thick
+    const rimOf = (R: number, what: string) => {
+      if (R <= 0) return t
+      if (R < 2 * t) errors.push(`سماكة حافّة ${what} إمّا 0 أو ${round3(2 * t)} مم على الأقل (جداران بسماكة ${t}).`)
+      return Math.max(R, 2 * t)
+    }
+    const er = rimOf(p.Rr, 'بوكس الخواتم'), eb = rimOf(p.Rb, 'البوكس الكبير')
+    const Wi = W - 2 * er - 2 * tf, Di = D - 2 * er - 2 * tf            // ring box inside, walls lined
     const insW = round3(Wi - 2 * tf - 2 * clr), insD = round3(Di - 2 * tf - 2 * clr)
     const cf = cs + 2 * tf                                              // a cube with its fabric
     const gx = (Wi - 2 * cf) / 3
@@ -4312,18 +4322,34 @@ MORE.push({
     if (slitL > cs - 2 * t - 6) errors.push(`الشقّ أطول من سطح المكعّب: أقصى طول ${Math.floor(cs - 2 * t - 6 - 2 * tf)} مم بعد القماش، أو كبّر المكعّب.`)
     if (ch < 3 * t + 4) errors.push(`المكعّب قصير على هذه السماكة: ${Math.ceil(3 * t + 4)} مم على الأقل.`)
     // the big box: the seat frame, lined inside, holds the ring box in its fabric, against the back wall
-    const Wbi = Wb - 2 * t - 2 * tf, Dbi = Db - 2 * t - 2 * tf
+    const Wbi = Wb - 2 * eb - 2 * tf, Dbi = Db - 2 * eb - 2 * tf
     const Fw = round3(W + 2 * tf + 2 * clr + 2 * tf + 2 * t), Fd = round3(D + 2 * tf + 2 * clr + 2 * tf + 2 * t)
     const foot = seat ? { w: Fw, d: Fd } : { w: W + 2 * tf, d: D + 2 * tf }
     if (foot.w + 80 > Wbi) errors.push(`البوكس الكبير ضيّق: يلزم 40 مم للورد على كل جانب، فاجعل عرضه ${Math.ceil(foot.w + 80 + 2 * t + 2 * tf)} مم على الأقل.`)
     if (foot.d + 40 > Dbi) errors.push(`البوكس الكبير قليل العمق: يلزم 40 مم للورد أمام بوكس الخواتم، فاجعل عمقه ${Math.ceil(foot.d + 40 + 2 * t + 2 * tf)} مم على الأقل.`)
     if (seat && fh < 3 * t) errors.push(`الحاضنة منخفضة على تعشيق زواياها: ${Math.ceil(3 * t)} مم على الأقل.`)
     if (seat && fh > Math.min(H, Hb) - 5) errors.push('الحاضنة أعلى من اللازم: اجعلها أقصر من بوكس الخواتم والبوكس الكبير.')
-    if (hl < 3 * t) errors.push(`الغطاء ضحل على تعشيق زواياه: ${Math.ceil(3 * t)} مم على الأقل.`)
+    const capR = p.Rr > 0 ? t : 0, capB = p.Rb > 0 ? t : 0
+    if (hl - capR - (capR ? t : 0) < 3 * t) errors.push(`الغطاء ضحل على تعشيق زواياه: ${Math.ceil(3 * t + 2 * capR)} مم على الأقل.`)
+    if (H - capR - (capR ? t : 0) < 3 * t) errors.push(`جسم بوكس الخواتم قصير على تعشيق زواياه: ${Math.ceil(3 * t + 2 * capR)} مم على الأقل.`)
+    if (Hb - capB - (capB ? t : 0) < 3 * t) errors.push(`البوكس الكبير قصير على تعشيق زواياه: ${Math.ceil(3 * t + 2 * capB)} مم على الأقل.`)
 
     const times = (ps: PanelSpec[]) => ps.map(x => ({ ...x, count: (x.count ?? 1) * n }))
-    const fx = round3((Wb - foot.w) / 2), fy = round3(t + tf)
-    const big = openBox(Wb, Db, Hb, 'البوكس الكبير', 'bb-')
+    const fx = round3((Wb - foot.w) / 2), fy = round3(eb + tf)
+    // a box of finished height h: the outer box, and with a rim the inner walls standing on its floor and the frame on top
+    const box = (w: number, d: number, h: number, R: number, e: number, name: string, ids: string): PanelSpec[] => {
+      if (R <= 0) return openBox(w, d, h, name, ids)
+      const fw = round3(w - 2 * (e - t)), fd = round3(d - 2 * (e - t)), fh2 = round3(h - 2 * t)
+      return [
+        ...openBox(w, d, round3(h - t), name, ids),
+        { id: ids + 'frame-fb', name: `${name} — الجدار الداخلي، الأمام / الخلف`, w: fw, h: fh2, left: 'male', right: 'male', count: 2, note: 'يقف على الأرضية داخل الجدران' },
+        { id: ids + 'frame-side', name: `${name} — الجدار الداخلي، الجانب`, w: fd, h: fh2, left: 'female', right: 'female', count: 2 },
+        // the frame in four strips (not one sheet with its middle thrown away), butted at the corners under the fabric
+        { id: ids + 'cap-fb', name: `${name} — شريط الحافّة، الأمام / الخلف`, w, h: round3(e), count: 2, note: 'يُلصق فوق الجدارين فيسدّ ما بينهما' },
+        { id: ids + 'cap-side', name: `${name} — شريط الحافّة، الجانب`, w: round3(d - 2 * e), h: round3(e), count: 2, note: 'بين شريطي الأمام والخلف' },
+      ]
+    }
+    const big = box(Wb, Db, Hb, p.Rb, eb, 'البوكس الكبير', 'bb-')
     big[0].engrave = [engraveRect(fx, fy, round3(foot.w), round3(foot.d))]
     big[0].note = `الخطّ المحفور مكان ${seat ? 'الحاضنة' : 'بوكس الخواتم'}: اجعل الحافّة القريبة منه هي الخلفية`
     const panels: PanelSpec[] = times([
@@ -4332,8 +4358,8 @@ MORE.push({
         { id: 'seat-fb', name: 'الحاضنة — الأمام / الخلف', w: Fw, h: fh, left: 'male', right: 'male', count: 2 } as PanelSpec,
         { id: 'seat-side', name: 'الحاضنة — الجانب', w: Fd, h: fh, left: 'female', right: 'female', count: 2 } as PanelSpec,
       ] : []),
-      ...openBox(W, D, H, 'بوكس الخواتم', 'rb-'),
-      ...openBox(W, D, hl, 'غطاء بوكس الخواتم', 'rl-'),
+      ...box(W, D, H, p.Rr, er, 'بوكس الخواتم', 'rb-'),
+      ...box(W, D, hl, p.Rr, er, 'غطاء بوكس الخواتم', 'rl-'),
       { id: 'rb-board', name: 'لوح أرضية بوكس الخواتم (يُغلّف بالقماش)', w: insW, h: insD, note: 'يُغلّف ويوضع في القاع، والمكعّبان فوقه' },
       { id: 'rl-board', name: 'لوح الأسماء داخل الغطاء (يُغلّف بالقماش)', w: insW, h: insD, note: 'يُغلّف ويُلصق في سقف الغطاء، وعليه الأسماء الذهبية' },
       { id: 'cube-top', name: 'مكعّب الخاتم — السطح (بالشقّ)', w: cs, h: cs, top: 'male', right: 'male', bottom: 'male', left: 'male', count: 2, holes: [rotatedRectHole(cs / 2, cs / 2, slitL, slitW, 0)], note: 'الشقّ أعرض بسماكتَي القماش: يُدفع القماش فيه' },
@@ -4342,9 +4368,11 @@ MORE.push({
       { id: 'cube-side', name: 'مكعّب الخاتم — الجانب', w: cs, h: ch, top: 'female', bottom: 'female', left: 'female', right: 'female', count: 4 },
     ])
     const fin = (v: number) => r1(v + 2 * tf)
+    const rimNote = p.Rr > 0 || p.Rb > 0 ? [`الحافّة العريضة: في كل صندوق جداران، الخارجي بأرضيته والداخلي يقف على الأرضية على بُعد ${p.Rb > 0 ? r1(eb - t) : r1(er - t)} مم منه${p.Rr > 0 && p.Rb > 0 ? ` (${r1(er - t)} مم في بوكس الخواتم)` : ''}، وفوقهما إطار مسطّح من أربعة أشرطة يسدّ ما بينهما. الصق الداخلي ثم الأشرطة (الأمام والخلف بطول الصندوق، والجانبان بينهما)، ثم لفّ القماش من الخارج فوق الإطار إلى الداخل، فتظهر الحافّة بعرض ${p.Rb > 0 ? r1(eb + 2 * tf) : r1(er + 2 * tf)} مم${p.Rr > 0 && p.Rb > 0 ? ` و${r1(er + 2 * tf)} مم` : ''} بالقماش.`] : []
     return {
       panels,
       notes: [
+        ...rimNote,
         `المقاسات بعد القماش (${tf} مم): بوكس الخواتم ${fin(W)} × ${fin(D)}، ارتفاعه مغلقاً نحو ${r1(H + hl + 4 * tf)} مم؛ المكعّب ${fin(cs)} × ${fin(cs)} × ${fin(ch)}؛ البوكس الكبير ${fin(Wb)} × ${fin(Db)} × ${fin(Hb)} مم.`,
         `بوكس الخواتم من الداخل بعد تبطين الجدران ${r1(Wi)} × ${r1(Di)} مم. لوحا الأرضية والأسماء ${r1(insW)} × ${r1(insD)} مم: بعد تغليفهما يبقى 0.5 مم من كل جهة فيدخلان بلا ضغط.`,
         `المكعّبان بالقماش ${r1(cf)} مم؛ ضعهما على لوح الأرضية بمسافة ${r1(gx)} مم بين الجدار والمكعّب وبين المكعّبين، و${r1((Di - cf) / 2)} مم من الأمام والخلف، والشقّ موازٍ للواجهة فيظهر الخاتم من الأمام.`,
