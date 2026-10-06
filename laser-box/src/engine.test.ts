@@ -1303,7 +1303,36 @@ describe('wedding designs', () => {
     expect(e.panels.find(x => x.id === 'face')!.loops.filter(l => l.layer === 'engrave' && !l.closed).length).toBe(16)
   })
 
+  it('the fabric engagement set: every box fits the next with its fabric, the slit closes to the band, and the lid clears the ring', () => {
+    for (const tf of [0.5, 1, 2]) for (const t of [3, 4]) {
+      const p: Record<string, number> = { ...T('fabricset').defaults, tf }
+      const d = generate(T('fabricset'), p, { ...S0, t })
+      expect(d.errors, `tf ${tf} t ${t}`).toEqual([])
+      const pn = (id: string) => d.panels.find(x => x.id === id)!
+      // the wrapped boards drop into the lined ring box with 0.5 mm to spare on each side
+      const board = pn('rb-board'), inside = p.W - 2 * t - 2 * tf
+      expect(inside - (board.w + 2 * tf)).toBeCloseTo(1, 3)
+      expect(pn('rl-board').w).toBeCloseTo(board.w, 3)
+      // the slit, once the fabric is pushed in from both sides, is the band by the slit length
+      const slit = bbox(holesOf(pn('cube-top')))
+      expect(slit.maxX - slit.minX - 2 * tf).toBeCloseTo(p.sl, 3)
+      expect(slit.maxY - slit.minY - 2 * tf).toBeCloseTo(p.band, 3)
+      // the seat, lined, takes the ring box in its fabric with 0.5 mm all round
+      const seatIn = pn('seat-fb').w - 2 * t - 2 * tf
+      expect(seatIn - (p.W + 2 * tf)).toBeCloseTo(1, 3)
+      expect(pn('seat-side').w - 2 * t - 2 * tf - (p.D + 2 * tf)).toBeCloseTo(1, 3)
+      // and its guide on the big box floor sits against the back wall's lining, centred
+      const g = bbox(pn('bb-bottom').loops.filter(l => l.layer === 'engrave'))
+      expect(g.minY).toBeCloseTo(t + tf, 3)
+      expect((g.minX + g.maxX) / 2).toBeCloseTo(p.Wb / 2, 3)
+      expect(g.maxX - g.minX).toBeCloseTo(pn('seat-fb').w, 3)
+    }
+    expect(generate(T('fabricset'), { H: 30, hl: 20 }, S0).errors.length).toBeGreaterThan(0)    // the lid would press the ring
+    expect(generate(T('fabricset'), { W: 110 }, S0).errors.length).toBeGreaterThan(0)           // no room for two cubes
+    expect(generate(T('fabricset'), { Wb: 260 }, S0).errors.length).toBeGreaterThan(0)          // no room for flowers
+  })
+
   it('the wedding group lists the engagement set, the ring box and the five wedding designs', () => {
-    expect(CATEGORIES.find(c => c.id === 'wedding')!.ids).toEqual(['engagement', 'hexringbox', 'nikahtray', 'hennatray', 'welcomesign', 'placecards', 'invitebox', 'caketopper', 'guestframe', 'sweetstand', 'tablenumbers', 'favorbox'])
+    expect(CATEGORIES.find(c => c.id === 'wedding')!.ids).toEqual(['fabricset', 'engagement', 'hexringbox', 'nikahtray', 'hennatray', 'welcomesign', 'placecards', 'invitebox', 'caketopper', 'guestframe', 'sweetstand', 'tablenumbers', 'favorbox'])
   })
 })

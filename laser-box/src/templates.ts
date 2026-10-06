@@ -1581,7 +1581,7 @@ export const templateById = (id: string) => TEMPLATES.find(t => t.id === id) ?? 
 /** The picker's groups, in the order they are shown; every template belongs to exactly one. */
 export const CATEGORIES: { id: string; name: string; ids: string[] }[] = [
   { id: 'box', name: 'صناديق', ids: ['closed', 'open', 'sliding', 'liftoff', 'hinged', 'hinged90', 'flex', 'lip', 'window', 'drawer', 'roundbox', 'crate'] },
-  { id: 'wedding', name: 'أعراس وخطوبة', ids: ['engagement', 'hexringbox', 'nikahtray', 'hennatray', 'welcomesign', 'placecards', 'invitebox', 'caketopper', 'guestframe', 'sweetstand', 'tablenumbers', 'favorbox'] },
+  { id: 'wedding', name: 'أعراس وخطوبة', ids: ['fabricset', 'engagement', 'hexringbox', 'nikahtray', 'hennatray', 'welcomesign', 'placecards', 'invitebox', 'caketopper', 'guestframe', 'sweetstand', 'tablenumbers', 'favorbox'] },
   { id: 'gift', name: 'هدايا وديكور', ids: ['chest', 'catbank', 'decobox', 'jewelry', 'moneybox', 'teahouse', 'frame', 'basket', 'fence', 'clock'] },
   { id: 'kitchen', name: 'مطبخ وتقديم', ids: ['carrier', 'mugtree', 'spicerack', 'bedtray', 'tray', 'teabox', 'tissue'] },
   { id: 'office', name: 'مكتب وتنظيم', ids: ['organizer', 'phonestand', 'bookstand', 'headphone', 'keyholder', 'wallshelf', 'jewelrytree'] },
@@ -1594,7 +1594,7 @@ export const CATEGORIES: { id: string; name: string; ids: string[] }[] = [
   { id: 'bulk', name: 'بالجملة', ids: ['keychains', 'coasters'] },
 ]
 /** the newest designs get a badge in the picker */
-export const NEW_IDS = ['mabkharatower', 'mabkhara', 'fittest', 'nikahtray', 'hennatray', 'welcomesign', 'placecards', 'invitebox', 'doorhanger', 'doordiagonal', 'doorblocks', 'doororbit', 'doorchevron', 'doormihrab', 'doorkhatam', 'doormashrabiya', 'doorstars', 'doorandalus', 'doorpanel', 'doorclassic', 'doorarch', 'doordiamond', 'doorwaves', 'doorstar', 'doormodern', 'doorframes', 'caketopper', 'guestframe', 'sweetstand', 'tablenumbers', 'favorbox', 'hexringbox', 'engagement', 'hinged90', 'crate', 'carrier', 'jewelry', 'moneybox', 'planter', 'petfeeder', 'incense', 'bedtray', 'phonestand', 'bookstand', 'headphone', 'keyholder', 'wallshelf', 'spicerack', 'coasters', 'clock', 'keychains', 'ramadanornaments', 'mugtree', 'jewelrytree', 'birdhouse', 'ramadanlantern']
+export const NEW_IDS = ['fabricset', 'mabkharatower', 'mabkhara', 'fittest', 'nikahtray', 'hennatray', 'welcomesign', 'placecards', 'invitebox', 'doorhanger', 'doordiagonal', 'doorblocks', 'doororbit', 'doorchevron', 'doormihrab', 'doorkhatam', 'doormashrabiya', 'doorstars', 'doorandalus', 'doorpanel', 'doorclassic', 'doorarch', 'doordiamond', 'doorwaves', 'doorstar', 'doormodern', 'doorframes', 'caketopper', 'guestframe', 'sweetstand', 'tablenumbers', 'favorbox', 'hexringbox', 'engagement', 'hinged90', 'crate', 'carrier', 'jewelry', 'moneybox', 'planter', 'petfeeder', 'incense', 'bedtray', 'phonestand', 'bookstand', 'headphone', 'keyholder', 'wallshelf', 'spicerack', 'coasters', 'clock', 'keychains', 'ramadanornaments', 'mugtree', 'jewelrytree', 'birdhouse', 'ramadanlantern']
 
 // ====================================================================== more designs, built from the shared parts
 
@@ -4263,6 +4263,100 @@ MORE.push({
         'الأكريليك يلين قرب 80–100°م: استعمل الصحن المعدني دائماً، ولا تترك الفحم يلمس الأكريليك.',
       ],
       warnings, errors, slotted: true,
+    }
+  },
+})
+
+// ------------------------------------------------------------------ fabric-covered engagement set
+MORE.push({
+  id: 'fabricset',
+  name: 'طقم خطوبة للتلبيس بالقماش',
+  desc: 'بوكس كبير للورد، فيه بوكس الخواتم بغطاء يُفتح على مفصل من القماش، ومكعّبا الخاتمين بشقّ. كل المقاسات محسوبة مع سماكة الخشب وسماكة القماش من الخارج والداخل، فيدخل كل شيء في مكانه بعد التلبيس.',
+  icon: `<path d="M6 34h52v20H6z"/><path d="M20 24h24v18H20z"/><path d="M20 24l3-14h24l-3 14" /><path d="M24 34h6v5h-6zM34 34h6v5h-6z" stroke-width="1.3"/><circle cx="10" cy="32" r="3"/><circle cx="54" cy="32" r="3"/><circle cx="15" cy="30" r="2.5"/><circle cx="49" cy="30" r="2.5"/>`,
+  params: [
+    mm('W', 'بوكس الخواتم — العرض', 80, 400, 'مقاس الخشب من الخارج، قبل القماش'),
+    mm('D', 'بوكس الخواتم — العمق', 60, 300),
+    mm('H', 'بوكس الخواتم — ارتفاع الجسم', 25, 150),
+    mm('hl', 'ارتفاع الغطاء', 15, 150, 'الغطاء صندوق ضحل بالمقاس نفسه، يُقلب فوق الجسم'),
+    mm('tf', 'سماكة القماش', 0.3, 4, 'قِسها مع اللاصق: مخمل عادي نحو 1 مم، مع إسفنجة رقيقة 2–3 مم'),
+    mm('cs', 'مكعّب الخاتم — العرض', 20, 80, 'مقاس الخشب'),
+    mm('ch', 'مكعّب الخاتم — الارتفاع', 15, 80),
+    mm('band', 'سماكة حلقة الخاتم', 1, 6, 'الشقّ بعد القماش يكون بهذا العرض'),
+    mm('sl', 'طول الشقّ', 8, 30, 'بعد القماش'),
+    mm('ringH', 'بروز الخاتم فوق المكعّب', 5, 40, 'ليُغلق الغطاء فوقه'),
+    mm('Wb', 'البوكس الكبير — العرض', 150, 1000), mm('Db', 'البوكس الكبير — العمق', 120, 800), mm('Hb', 'البوكس الكبير — الارتفاع', 30, 300),
+    { key: 'seat', label: 'حاضنة بوكس الخواتم', min: 0, max: 1, step: 1, int: true, hint: 'إطار منخفض في البوكس الكبير يثبّت بوكس الخواتم في الخلف؛ 0 = خطّ محفور فقط' },
+    mm('fh', 'ارتفاع الحاضنة', 6, 60),
+    { key: 'n', label: 'عدد الأطقم', min: 1, max: 20, step: 1, int: true },
+  ],
+  defaults: { W: 200, D: 140, H: 50, hl: 40, tf: 1, cs: 40, ch: 30, band: 2.5, sl: 16, ringH: 20, Wb: 460, Db: 320, Hb: 100, seat: 1, fh: 15, n: 1 },
+  innerAdd: () => ({ W: 0, D: 0, H: 0 }),
+  build(p, c) {
+    const warnings: string[] = [], errors: string[] = []
+    const t = c.t, { W, D, H, hl, tf, cs, ch, band, sl, ringH, Wb, Db, Hb, fh } = p, n = Math.round(p.n), seat = Math.round(p.seat) > 0
+    const r1 = (v: number) => (Math.round(v * 10) / 10).toString()
+    // fabric goes round the outside of every box and lines the inside walls; the floor of the ring box and the inside
+    // of its lid get loose boards, each wrapped in fabric, that drop in with 0.5 mm to spare all round
+    const clr = 0.5
+    const Wi = W - 2 * t - 2 * tf, Di = D - 2 * t - 2 * tf              // ring box inside, walls lined
+    const insW = round3(Wi - 2 * tf - 2 * clr), insD = round3(Di - 2 * tf - 2 * clr)
+    const cf = cs + 2 * tf                                              // a cube with its fabric
+    const gx = (Wi - 2 * cf) / 3
+    if (gx < 8) errors.push(`بوكس الخواتم ضيّق على مكعّبين بالقماش: اجعل عرضه ${Math.ceil(2 * cf + 24 + 2 * t + 2 * tf)} مم على الأقل، أو صغّر المكعّب.`)
+    if (Di - cf < 16) errors.push(`بوكس الخواتم قليل العمق على المكعّب بالقماش: اجعل عمقه ${Math.ceil(cf + 16 + 2 * t + 2 * tf)} مم على الأقل.`)
+    // heights: the wrapped floor board, the cube on it, the ring standing up out of it, and the wrapped board in the lid
+    const ringTop = t + (t + 2 * tf) + (ch + 2 * tf) + ringH, lidIn = H + hl - t - (t + 2 * tf)
+    if (ringTop + 2 > lidIn) errors.push(`الغطاء لا يُغلق فوق الخاتم: ينقص ${r1(ringTop + 2 - lidIn)} مم. زد ارتفاع الجسم أو الغطاء، أو قصّر المكعّب.`)
+    if (ch + 2 * tf + t + 2 * tf + t > H - 5) warnings.push('المكعّب أعلى من حافّة الجسم تقريباً؛ سيظهر فوقها والغطاء مفتوح.')
+    const slitW = round3(band + 2 * tf), slitL = round3(sl + 2 * tf)
+    if (slitL > cs - 2 * t - 6) errors.push(`الشقّ أطول من سطح المكعّب: أقصى طول ${Math.floor(cs - 2 * t - 6 - 2 * tf)} مم بعد القماش، أو كبّر المكعّب.`)
+    if (ch < 3 * t + 4) errors.push(`المكعّب قصير على هذه السماكة: ${Math.ceil(3 * t + 4)} مم على الأقل.`)
+    // the big box: the seat frame, lined inside, holds the ring box in its fabric, against the back wall
+    const Wbi = Wb - 2 * t - 2 * tf, Dbi = Db - 2 * t - 2 * tf
+    const Fw = round3(W + 2 * tf + 2 * clr + 2 * tf + 2 * t), Fd = round3(D + 2 * tf + 2 * clr + 2 * tf + 2 * t)
+    const foot = seat ? { w: Fw, d: Fd } : { w: W + 2 * tf, d: D + 2 * tf }
+    if (foot.w + 80 > Wbi) errors.push(`البوكس الكبير ضيّق: يلزم 40 مم للورد على كل جانب، فاجعل عرضه ${Math.ceil(foot.w + 80 + 2 * t + 2 * tf)} مم على الأقل.`)
+    if (foot.d + 40 > Dbi) errors.push(`البوكس الكبير قليل العمق: يلزم 40 مم للورد أمام بوكس الخواتم، فاجعل عمقه ${Math.ceil(foot.d + 40 + 2 * t + 2 * tf)} مم على الأقل.`)
+    if (seat && fh < 3 * t) errors.push(`الحاضنة منخفضة على تعشيق زواياها: ${Math.ceil(3 * t)} مم على الأقل.`)
+    if (seat && fh > Math.min(H, Hb) - 5) errors.push('الحاضنة أعلى من اللازم: اجعلها أقصر من بوكس الخواتم والبوكس الكبير.')
+    if (hl < 3 * t) errors.push(`الغطاء ضحل على تعشيق زواياه: ${Math.ceil(3 * t)} مم على الأقل.`)
+
+    const times = (ps: PanelSpec[]) => ps.map(x => ({ ...x, count: (x.count ?? 1) * n }))
+    const fx = round3((Wb - foot.w) / 2), fy = round3(t + tf)
+    const big = openBox(Wb, Db, Hb, 'البوكس الكبير', 'bb-')
+    big[0].engrave = [engraveRect(fx, fy, round3(foot.w), round3(foot.d))]
+    big[0].note = `الخطّ المحفور مكان ${seat ? 'الحاضنة' : 'بوكس الخواتم'}: اجعل الحافّة القريبة منه هي الخلفية`
+    const panels: PanelSpec[] = times([
+      ...big,
+      ...(seat ? [
+        { id: 'seat-fb', name: 'الحاضنة — الأمام / الخلف', w: Fw, h: fh, left: 'male', right: 'male', count: 2 } as PanelSpec,
+        { id: 'seat-side', name: 'الحاضنة — الجانب', w: Fd, h: fh, left: 'female', right: 'female', count: 2 } as PanelSpec,
+      ] : []),
+      ...openBox(W, D, H, 'بوكس الخواتم', 'rb-'),
+      ...openBox(W, D, hl, 'غطاء بوكس الخواتم', 'rl-'),
+      { id: 'rb-board', name: 'لوح أرضية بوكس الخواتم (يُغلّف بالقماش)', w: insW, h: insD, note: 'يُغلّف ويوضع في القاع، والمكعّبان فوقه' },
+      { id: 'rl-board', name: 'لوح الأسماء داخل الغطاء (يُغلّف بالقماش)', w: insW, h: insD, note: 'يُغلّف ويُلصق في سقف الغطاء، وعليه الأسماء الذهبية' },
+      { id: 'cube-top', name: 'مكعّب الخاتم — السطح (بالشقّ)', w: cs, h: cs, top: 'male', right: 'male', bottom: 'male', left: 'male', count: 2, holes: [rotatedRectHole(cs / 2, cs / 2, slitL, slitW, 0)], note: 'الشقّ أعرض بسماكتَي القماش: يُدفع القماش فيه' },
+      { id: 'cube-bottom', name: 'مكعّب الخاتم — القاعدة', w: cs, h: cs, top: 'male', right: 'male', bottom: 'male', left: 'male', count: 2 },
+      { id: 'cube-fb', name: 'مكعّب الخاتم — الأمام / الخلف', w: cs, h: ch, top: 'female', bottom: 'female', left: 'male', right: 'male', count: 4 },
+      { id: 'cube-side', name: 'مكعّب الخاتم — الجانب', w: cs, h: ch, top: 'female', bottom: 'female', left: 'female', right: 'female', count: 4 },
+    ])
+    const fin = (v: number) => r1(v + 2 * tf)
+    return {
+      panels,
+      notes: [
+        `المقاسات بعد القماش (${tf} مم): بوكس الخواتم ${fin(W)} × ${fin(D)}، ارتفاعه مغلقاً نحو ${r1(H + hl + 4 * tf)} مم؛ المكعّب ${fin(cs)} × ${fin(cs)} × ${fin(ch)}؛ البوكس الكبير ${fin(Wb)} × ${fin(Db)} × ${fin(Hb)} مم.`,
+        `بوكس الخواتم من الداخل بعد تبطين الجدران ${r1(Wi)} × ${r1(Di)} مم. لوحا الأرضية والأسماء ${r1(insW)} × ${r1(insD)} مم: بعد تغليفهما يبقى 0.5 مم من كل جهة فيدخلان بلا ضغط.`,
+        `المكعّبان بالقماش ${r1(cf)} مم؛ ضعهما على لوح الأرضية بمسافة ${r1(gx)} مم بين الجدار والمكعّب وبين المكعّبين، و${r1((Di - cf) / 2)} مم من الأمام والخلف، والشقّ موازٍ للواجهة فيظهر الخاتم من الأمام.`,
+        `الشقّ مقصوص ${slitW} × ${slitL} مم: بعد دفع القماش فيه من الجهتين يصبح ${band} × ${sl} مم. ادفعه بسكّين رفيعة قبل لصق الغطاء السفلي للمكعّب.`,
+        `الخاتم: من أرضية الجسم إلى رأس الخاتم ${r1(ringTop)} مم، ومن أرضية الجسم إلى لوح الأسماء والغطاء مغلق ${r1(lidIn)} مم، فيبقى فوق الخاتم ${r1(lidIn - ringTop)} مم.`,
+        `المفصل من القماش: ضع الغطاء مقلوباً خلف الجسم، اترك بين حافّتيهما ${r1(2 * tf + 1)} مم ليثني القماش، والصق شريطاً واحداً من القماش على الظهرين معاً، ثم لبّس الباقي. ليبقى الغطاء مفتوحاً نحو 100° اربط شريطَي ستان بين جانبي الغطاء والجسم من الداخل.`,
+        seat ? `الحاضنة: إطار ${r1(Fw)} × ${r1(Fd)} × ${fh} مم يُلصق على الخطّ المحفور في أرضية البوكس الكبير، ملاصقاً للجدار الخلفي بعد تبطينه. من الداخل بعد تبطينه يتّسع لبوكس الخواتم بقماشه مع 0.5 مم من كل جهة.` : 'الخطّ المحفور في أرضية البوكس الكبير مكان بوكس الخواتم بقماشه، ملاصقاً للجدار الخلفي.',
+        `الورد حول بوكس الخواتم: ${r1((Wbi - foot.w) / 2)} مم على كل جانب و${r1(Dbi - foot.d)} مم من الأمام. ضع إسفنج الورد (أواسيس) بعد التبطين.`,
+        `الأسماء والتاريخ: اكتبها في RDWorks نصّاً بخطّك، واقصّها من أكريليك مرآة ذهبي بعرض ${Math.floor(insW - 30)} مم على الأكثر لتُلصق على لوح الأسماء. وكذلك الكتابة على البوكس الكبير.`,
+        'الخشب: MDF أو بلاي 3 مم. الصق الزوايا بغراء الخشب وانتظر جفافه، ثم صنفر الحواف قبل القماش حتى لا تظهر أصابع التعشيق تحته.',
+      ],
+      warnings, errors,
     }
   },
 })
