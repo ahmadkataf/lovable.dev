@@ -11,7 +11,17 @@ import android.view.View;
 import android.view.Window;
 import android.view.WindowInsets;
 import android.view.WindowInsetsController;
+import android.content.pm.PackageInfo;
+import android.view.Gravity;
+import android.webkit.ConsoleMessage;
 import android.webkit.JavascriptInterface;
+import android.webkit.WebChromeClient;
+import android.webkit.WebResourceError;
+import android.webkit.WebStorage;
+import android.widget.Button;
+import android.widget.LinearLayout;
+import android.widget.ScrollView;
+import android.widget.TextView;
 import android.webkit.RenderProcessGoneDetail;
 import android.webkit.WebResourceRequest;
 import android.webkit.WebResourceResponse;
@@ -22,6 +32,7 @@ import android.widget.FrameLayout;
 import android.widget.Toast;
 
 import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -30,12 +41,16 @@ import java.util.HashMap;
 import java.util.Map;
 
 /**
- * Minimal shell: serves the bundled web app from assets/www at https://laserbox.app/ inside a WebView,
+ * Minimal shell: loads the bundled web app (one self-contained page in assets/www) into a WebView,
  * and saves the generated SVG/DXF files wherever the user picks (the system "create document" dialog,
  * so no storage permission is needed on any Android version).
  */
 public class MainActivity extends Activity {
-    private static final String HOST = "laserbox.app";
+    private static final String HOST = "appassets.androidplatform.net";
+    private static final String BASE = "https://" + HOST + "/";
+    private final StringBuilder log = new StringBuilder();
+    private boolean ready;
+    private View problem;
     private static final int SAVE_REQUEST = 7;
     private WebView web;
     private FrameLayout root;
@@ -50,7 +65,107 @@ public class MainActivity extends Activity {
         setContentView(root);
         styleBars();
         web = newWebView();
-        if (savedInstanceState == null || web.restoreState(savedInstanceState) == null) web.loadUrl("https://" + HOST + "/index.html");
+        load();
+    }
+
+    /** The page is one file with its script and styles inline, loaded directly: nothing to fetch, nothing to cache. */
+    void load() {
+        ready = false;
+        hideProblem();
+        try {
+            InputStream in = getAssets().open("www/index.html");
+            ByteArrayOutputStream buf = new ByteArrayOutputStream();
+            byte[] chunk = new byte[16384];
+            int n;
+            try { while ((n = in.read(chunk)) > 0) buf.write(chunk, 0, n); } finally { in.close(); }
+            web.loadDataWithBaseURL(BASE, new String(buf.toByteArray(), StandardCharsets.UTF_8), "text/html", "utf-8", null);
+        } catch (IOException e) {
+            note("assets: " + e);
+        }
+        root.removeCallbacks(watchdog);
+        root.postDelayed(watchdog, 10000);
+    }
+
+    private final Runnable watchdog = new Watchdog(this);
+
+    static final class Watchdog implements Runnable {
+        private final MainActivity host;
+        Watchdog(MainActivity host) { this.host = host; }
+        @Override public void run() { if (!host.ready) host.showProblem(); }
+    }
+
+    void note(String line) {
+        synchronized (log) {
+            if (log.length() > 6000) log.delete(0, log.length() - 4000);
+            log.append(line).append('\n');
+        }
+    }
+
+    void markReady() { ready = true; hideProblem(); }
+
+    private void hideProblem() { if (problem != null) { root.removeView(problem); problem = null; } }
+
+    /** The page did not start: say so on a native screen, with what the phone runs, the errors seen, and two ways out. */
+    void showProblem() {
+        if (problem != null) return;
+        String wv = "?";
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                PackageInfo pi = WebView.getCurrentWebViewPackage();
+                if (pi != null) wv = pi.packageName + " " + pi.versionName;
+            }
+        } catch (RuntimeException ignored) { }
+        String details;
+        synchronized (log) { details = log.toString(); }
+        LinearLayout box = new LinearLayout(this);
+        box.setOrientation(LinearLayout.VERTICAL);
+        box.setPadding(40, 40, 40, 40);
+        box.setBackgroundColor(Color.WHITE);
+        TextView t = new TextView(this);
+        t.setTextColor(Color.BLACK);
+        t.setTextSize(16);
+        t.setGravity(Gravity.RIGHT);
+        t.setText("لم تبدأ واجهة التطبيق. جرّب «إعادة المحاولة»، ثم «مسح الإعدادات». إن بقيت المشكلة فحدّث «Android System WebView» و«Chrome» من متجر Play، وأرسل صورة لهذه الشاشة.");
+        TextView d = new TextView(this);
+        d.setTextColor(Color.DKGRAY);
+        d.setTextSize(12);
+        d.setTextIsSelectable(true);
+        d.setText("Android " + Build.VERSION.RELEASE + " (SDK " + Build.VERSION.SDK_INT + "), " + Build.MANUFACTURER + " " + Build.MODEL + "\nWebView: " + wv + "\n" + details);
+        Button retry = new Button(this);
+        retry.setText("إعادة المحاولة");
+        retry.setOnClickListener(new Action(this, false));
+        Button reset = new Button(this);
+        reset.setText("مسح الإعدادات وإعادة التشغيل");
+        reset.setOnClickListener(new Action(this, true));
+        box.addView(t);
+        box.addView(retry);
+        box.addView(reset);
+        box.addView(d);
+        ScrollView sv = new ScrollView(this);
+        sv.setBackgroundColor(Color.WHITE);
+        sv.addView(box);
+        problem = sv;
+        root.addView(sv, new FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT));
+    }
+
+    static final class Action implements View.OnClickListener {
+        private final MainActivity host;
+        private final boolean wipe;
+        Action(MainActivity host, boolean wipe) { this.host = host; this.wipe = wipe; }
+        @Override public void onClick(View v) {
+            if (wipe) { WebStorage.getInstance().deleteAllData(); host.web.clearCache(true); }
+            host.load();
+        }
+    }
+
+    static final class Chrome extends WebChromeClient {
+        private final MainActivity host;
+        Chrome(MainActivity host) { this.host = host; }
+        @Override public boolean onConsoleMessage(ConsoleMessage m) {
+            if (m.messageLevel() == ConsoleMessage.MessageLevel.ERROR || m.messageLevel() == ConsoleMessage.MessageLevel.WARNING)
+                host.note(m.messageLevel() + ": " + m.message() + " @" + m.lineNumber());
+            return false;
+        }
     }
 
     /** White system bars with dark icons; the container is padded by their size and by the keyboard's. */
@@ -86,6 +201,7 @@ public class MainActivity extends Activity {
         s.setCacheMode(WebSettings.LOAD_DEFAULT);
         v.setBackgroundColor(Color.WHITE);
         v.setWebViewClient(new AppClient(this));
+        v.setWebChromeClient(new Chrome(this));
         v.addJavascriptInterface(new Bridge(this), "LaserAndroid");
         root.addView(v, new FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT));
         return v;
@@ -97,7 +213,8 @@ public class MainActivity extends Activity {
         root.removeView(dead);
         dead.destroy();
         web = newWebView();
-        web.loadUrl("https://" + HOST + "/index.html");
+        note("the page's process stopped; started again");
+        load();
     }
 
     /** Named (not anonymous) classes throughout, so d8 handles them on every JDK. */
@@ -110,6 +227,11 @@ public class MainActivity extends Activity {
             Uri u = request.getUrl();
             if (HOST.equals(u.getHost())) return host.serve(u.getPath());
             return null;
+        }
+
+        @Override
+        public void onReceivedError(WebView view, WebResourceRequest request, WebResourceError error) {
+            host.note("load error " + error.getErrorCode() + " " + error.getDescription() + " " + request.getUrl());
         }
 
         @Override
@@ -147,9 +269,20 @@ public class MainActivity extends Activity {
         Bridge(MainActivity host) { this.host = host; }
 
         @JavascriptInterface
+        public void ready() {
+            host.runOnUiThread(new ReadyTask(host));
+        }
+
+        @JavascriptInterface
         public void save(String filename, String mime, String text) {
             host.runOnUiThread(new SaveTask(host, filename, mime, text));
         }
+    }
+
+    static final class ReadyTask implements Runnable {
+        private final MainActivity host;
+        ReadyTask(MainActivity host) { this.host = host; }
+        @Override public void run() { host.markReady(); }
     }
 
     static final class SaveTask implements Runnable {
@@ -228,7 +361,6 @@ public class MainActivity extends Activity {
     @Override
     protected void onSaveInstanceState(Bundle outState) {
         super.onSaveInstanceState(outState);
-        if (web != null) web.saveState(outState);
     }
 
     @Override

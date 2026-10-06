@@ -496,6 +496,8 @@ async function share() {
 renderGallery()
 renderForm()
 update(true)
+// the Android shell waits for this before it stops watching for a page that never started
+try { (window as unknown as { LaserAndroid?: { ready?: () => void } }).LaserAndroid?.ready?.() } catch { /* not in the app */ }
 window.addEventListener('hashchange', () => { const s = loadState(); Object.assign(state, s); renderGallery(); renderForm(); update(true) })
 
 // keep an eye on the real size of the canvas for the first fit

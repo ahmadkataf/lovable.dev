@@ -28,6 +28,24 @@ rm -rf "$B"
 mkdir -p "$B/gen" "$B/obj" "$B/dex" "$B/assets/www"
 cp -r "$ROOT/dist/." "$B/assets/www/"
 rm -f "$B/assets/www/artifact.html"
+# one self-contained page (the script and the styles inline): the app loads it directly, with nothing to fetch
+python3 - "$B/assets/www" <<'PY'
+import re, sys, os
+www = sys.argv[1]
+html = open(os.path.join(www, 'index.html'), encoding='utf-8').read()
+def inline_js(m):
+    js = open(os.path.join(www, m.group(1)), encoding='utf-8').read()
+    assert '</script' not in js
+    return '<script type="module">' + js + '</script>'
+def inline_css(m):
+    return '<style>' + open(os.path.join(www, m.group(1)), encoding='utf-8').read() + '</style>'
+html, nj = re.subn(r'<script type="module"[^>]*src="\./(assets/[^"]+\.js)"[^>]*></script>', inline_js, html)
+html, nc = re.subn(r'<link rel="stylesheet"[^>]*href="\./(assets/[^"]+\.css)"[^>]*>', inline_css, html)
+assert nj == 1 and nc == 1, (nj, nc)
+# the module runs after the body is parsed, as it did from its own file
+html = html.replace('<script type="module">', '<script type="module" data-inline>')
+open(os.path.join(www, 'index.html'), 'w', encoding='utf-8').write(html)
+PY
 (cd "$ROOT" && python3 scripts/android-res.py "$B")
 
 "$BT/aapt2" compile --dir "$B/res" -o "$B/res.zip"
