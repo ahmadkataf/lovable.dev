@@ -11,4 +11,4 @@ Re-export after edits:
 node render.mjs "$PWD/design.html" "$PWD/carpentry-square.png"
 ```
 
-The phone number `0000 000 000` and the wordmark "منجرة" are placeholders for the real workshop name and number.
+The wordmark "منجرة" is a placeholder for the real workshop name.
