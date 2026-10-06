@@ -7,6 +7,10 @@
 //   POST /v1/activate   {book, code, device}      -> {token, until}     first use of a code on a phone
 //   POST /v1/session    {book, token, device}     -> {token, until, version}   every time the app opens
 //   GET  /v1/content/<book>/<file>   Bearer token + X-Device                   the book and its audio
+//   POST /v1/request    {book, device, name, phone, payRef, invite, price} -> {id}   "I paid, send my code"
+//   POST /v1/request-status {book, device, id} -> {status, code?}   the app asks until the seller approves
+//   GET  /v1/invite-check?invite=     -> {discount}            a friend's invite code is valid
+//   POST /v1/invite     {book, token, device} -> {invite, joined, gifts…}   the subscriber's own invite code
 //   /admin and /v1/admin/*          Bearer ADMIN_KEY                          the seller's control panel
 import { ADMIN_PAGE } from './admin'
 import { privacyPage } from './privacy'
@@ -174,6 +178,124 @@ async function content(req: Request, env: Env, book: string, file: string): Prom
   return new Response(res.body, { headers })
 }
 
+
+// ---------- payment requests and invites ----------
+const INVITE_LEN = 6
+function newInvite(): string {
+  const bytes = crypto.getRandomValues(new Uint8Array(INVITE_LEN))
+  return [...bytes].map(b => ALPHABET[b % 32]).join('')
+}
+export function cleanInvite(s: unknown): string | null {
+  const c = String(s ?? '').toUpperCase().replace(/[^0-9A-Z]/g, '')
+  return c.length === INVITE_LEN && [...c].every(ch => ALPHABET.includes(ch)) ? c : null
+}
+/** The end of the school year a code bought today should last to: 31 August (from September on, next year's). */
+export function yearEnd(now = Date.now()): number {
+  const d = new Date(now)
+  const y = d.getUTCMonth() >= 8 ? d.getUTCFullYear() + 1 : d.getUTCFullYear()
+  return Date.UTC(y, 7, 31, 23, 59)
+}
+type Settings = { discount: number; giftEvery: number }
+const DEFAULTS: Settings = { discount: 10, giftEvery: 5 }   // 10% off for the invited friend; a free code per 5 friends
+async function settings(env: Env): Promise<Settings> {
+  const rows = await env.DB.prepare('SELECT key, value FROM settings').all<{ key: string; value: string }>()
+  const s = { ...DEFAULTS }
+  for (const r of rows.results) if (r.key in s) (s as Record<string, number>)[r.key] = Number(r.value)
+  return s
+}
+const clip = (v: unknown, n: number) => String(v ?? '').replace(/[\u0000-\u001f]/g, ' ').trim().slice(0, n)
+type RequestRow = { id: number; book: string; device: string; name: string; phone: string; pay_ref: string; invite: string | null
+  price: string; created_at: number; status: string; decided_at: number | null; code: string | null }
+
+async function inviteOwner(env: Env, invite: string) {
+  return env.DB.prepare('SELECT i.invite, c.code, c.book, c.device, c.note FROM invites i JOIN codes c ON c.code = i.code WHERE i.invite = ?')
+    .bind(invite).first<{ invite: string; code: string; book: string; device: string | null; note: string }>()
+}
+
+async function request(req: Request, env: Env): Promise<Response> {
+  const b = await body(req)
+  if (!validBook(b.book) || !validDevice(b.device)) return fail('bad-request')
+  const name = clip(b.name, 60), phone = clip(b.phone, 24).replace(/[^\d+ ]/g, ''), payRef = clip(b.payRef, 60), price = clip(b.price, 20)
+  if (name.length < 2) return fail('name')
+  if (phone.replace(/\D/g, '').length < 7) return fail('phone')
+  // one open request per phone is enough: asking again returns it
+  const open = await env.DB.prepare("SELECT id FROM requests WHERE device = ? AND book = ? AND status = 'pending' ORDER BY id DESC").bind(b.device, b.book).first<{ id: number }>()
+  if (open) return json({ id: open.id, again: true })
+  const day = await env.DB.prepare('SELECT COUNT(*) AS n FROM requests WHERE ip = ? AND created_at > ?').bind(ip(req), Date.now() - 86400000).first<{ n: number }>()
+  if ((day?.n ?? 0) >= 30) return fail('wait', 429)
+  let invite: string | null = null
+  if (b.invite) {
+    invite = cleanInvite(b.invite)
+    const owner = invite ? await inviteOwner(env, invite) : null
+    if (!owner) return fail('invite', 404)
+    if (owner.device === b.device) return fail('self-invite')
+  }
+  const r = await env.DB.prepare('INSERT INTO requests (book, device, name, phone, pay_ref, invite, price, created_at, ip) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id')
+    .bind(b.book, b.device, name, phone, payRef, invite, price, Date.now(), ip(req)).first<{ id: number }>()
+  await log(env, 'request', req, null, b.device, `#${r!.id} ${b.book}`)
+  return json({ id: r!.id })
+}
+
+async function requestStatus(req: Request, env: Env): Promise<Response> {
+  const b = await body(req)
+  if (!validBook(b.book) || !validDevice(b.device)) return fail('bad-request')
+  const row = await env.DB.prepare('SELECT * FROM requests WHERE id = ? AND device = ? AND book = ?').bind(Number(b.id) || 0, b.device, b.book).first<RequestRow>()
+  if (!row) return fail('not-found', 404)
+  return json({ id: row.id, status: row.status, code: row.status === 'approved' && row.code ? formatCode(row.code) : undefined })
+}
+
+async function inviteCheck(env: Env, url: URL): Promise<Response> {
+  const invite = cleanInvite(url.searchParams.get('invite'))
+  if (!invite || !(await inviteOwner(env, invite))) return fail('invite', 404)
+  return json({ invite, discount: (await settings(env)).discount })
+}
+
+async function myInvite(req: Request, env: Env): Promise<Response> {
+  const b = await body(req)
+  const s = await readToken(env, b.token)
+  if (!s || s.d !== b.device || s.b !== b.book) return fail('session', 401)
+  if (refuse(await getCode(env, s.c), s.b, s.d)) return fail('session', 401)
+  let row = await env.DB.prepare('SELECT invite FROM invites WHERE code = ?').bind(s.c).first<{ invite: string }>()
+  for (let i = 0; !row && i < 5; i++) {
+    await env.DB.prepare('INSERT OR IGNORE INTO invites (invite, code, created_at) VALUES (?, ?, ?)').bind(newInvite(), s.c, Date.now()).run()
+    row = await env.DB.prepare('SELECT invite FROM invites WHERE code = ?').bind(s.c).first<{ invite: string }>()
+  }
+  if (!row) return fail('server', 500)
+  const counts = await env.DB.prepare("SELECT SUM(status = 'approved') AS joined, SUM(status = 'pending') AS waiting FROM requests WHERE invite = ?").bind(row.invite).first<{ joined: number | null; waiting: number | null }>()
+  const gifts = await env.DB.prepare('SELECT g.code, c.device FROM gifts g JOIN codes c ON c.code = g.code WHERE g.invite = ? ORDER BY g.created_at').bind(row.invite).all<{ code: string; device: string | null }>()
+  const set = await settings(env)
+  return json({ invite: row.invite, joined: counts?.joined ?? 0, waiting: counts?.waiting ?? 0, discount: set.discount, giftEvery: set.giftEvery,
+    gifts: gifts.results.map(g => ({ code: formatCode(g.code), used: !!g.device })) })
+}
+
+async function insertCode(env: Env, book: string, expires: number | null, note: string, seller: string): Promise<string> {
+  for (;;) {
+    const c = newCode()
+    const r = await env.DB.prepare('INSERT OR IGNORE INTO codes (code, book, created_at, expires_at, note, seller) VALUES (?, ?, ?, ?, ?, ?)').bind(c, book, Date.now(), expires, note.slice(0, 200), seller.slice(0, 80)).run()
+    if (r.meta.changes) return c
+  }
+}
+
+/** Approve a paid request: make its code and, when the request came through an invite, reward the friend. */
+async function approve(req: Request, env: Env, row: RequestRow): Promise<Record<string, unknown>> {
+  const code = await insertCode(env, row.book, yearEnd(), `طلب #${row.id} · ${row.name} · ${row.phone}`, row.invite ? `دعوة ${row.invite}` : 'طلب مباشر')
+  const done = await env.DB.prepare("UPDATE requests SET status = 'approved', code = ?, decided_at = ? WHERE id = ? AND status = 'pending'").bind(code, Date.now(), row.id).run()
+  if (!done.meta.changes) { await env.DB.prepare('DELETE FROM codes WHERE code = ?').bind(code).run(); throw new Error('done') }
+  await log(env, 'admin', req, code, null, `approve #${row.id}`)
+  let gift: string | null = null
+  if (row.invite) {
+    const set = await settings(env)
+    const owner = await inviteOwner(env, row.invite)
+    const n = (await env.DB.prepare("SELECT COUNT(*) AS n FROM requests WHERE invite = ? AND status = 'approved'").bind(row.invite).first<{ n: number }>())?.n ?? 0
+    if (owner && set.giftEvery > 0 && n % set.giftEvery === 0) {
+      gift = await insertCode(env, owner.book, yearEnd(), `هدية دعوة ${row.invite} (${n} أصدقاء)`, 'هدية دعوة')
+      await env.DB.prepare('INSERT INTO gifts (code, invite, created_at) VALUES (?, ?, ?)').bind(gift, row.invite, Date.now()).run()
+      await log(env, 'admin', req, gift, null, `gift ${row.invite}`)
+    }
+  }
+  return { ok: true, code: formatCode(code), gift: gift ? formatCode(gift) : null }
+}
+
 // ---------- the seller's control panel ----------
 function isAdmin(req: Request, env: Env): boolean {
   const key = (req.headers.get('authorization') || '').replace(/^Bearer\s+/i, '')
@@ -224,6 +346,37 @@ async function admin(req: Request, env: Env, path: string): Promise<Response> {
     await log(env, 'admin', req, code, null, act)
     return json({ ok: true, code: formatCode(code), row: await getCode(env, code) })
   }
+  if (path === 'requests' && req.method === 'GET') {
+    const st = url.searchParams.get('status') || 'pending'
+    const sql = `SELECT r.*, c.note AS ref_note FROM requests r LEFT JOIN invites i ON i.invite = r.invite
+      LEFT JOIN codes c ON c.code = i.code ${st === 'all' ? '' : 'WHERE r.status = ?'} ORDER BY r.id DESC LIMIT 200`
+    const rows = await (st === 'all' ? env.DB.prepare(sql) : env.DB.prepare(sql).bind(st)).all<RequestRow & { ref_note: string | null }>()
+    return json({ requests: rows.results.map(r => ({ ...r, device: undefined, ip: undefined, code: r.code ? formatCode(r.code) : null })) })
+  }
+  if (path === 'request' && req.method === 'POST') {
+    const b = await body(req)
+    const row = await env.DB.prepare('SELECT * FROM requests WHERE id = ?').bind(Number(b.id) || 0).first<RequestRow>()
+    if (!row) return fail('not-found', 404)
+    if (row.status !== 'pending') return fail('done')
+    if (b.action === 'approve') { try { return json(await approve(req, env, row)) } catch { return fail('done') } }
+    if (b.action === 'reject') {
+      await env.DB.prepare("UPDATE requests SET status = 'rejected', decided_at = ? WHERE id = ? AND status = 'pending'").bind(Date.now(), row.id).run()
+      await log(env, 'admin', req, null, null, `reject #${row.id}`)
+      return json({ ok: true })
+    }
+    return fail('action')
+  }
+  if (path === 'settings') {
+    if (req.method === 'POST') {
+      const b = await body(req)
+      const discount = Math.round(Number(b.discount)), giftEvery = Math.round(Number(b.giftEvery))
+      if (!Number.isFinite(discount) || !Number.isFinite(giftEvery)) return fail('bad-request')
+      const put = (k: string, v: number) => env.DB.prepare('INSERT INTO settings (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value').bind(k, String(v))
+      await env.DB.batch([put('discount', Math.max(0, Math.min(50, discount))), put('giftEvery', Math.max(0, Math.min(50, giftEvery)))])
+      await log(env, 'admin', req, null, null, `settings ${discount}% / ${giftEvery}`)
+    }
+    return json(await settings(env))
+  }
   if (path === 'stats') {
     const week = Date.now() - 7 * 86400000
     const rows = await env.DB.prepare(`SELECT book, COUNT(*) AS total, SUM(device IS NOT NULL) AS activated, SUM(revoked) AS revoked,
@@ -235,7 +388,10 @@ async function admin(req: Request, env: Env, path: string): Promise<Response> {
     // the day length is written into the SQL: a bound number arrives as a decimal, and the division would then not round down
     const byDay = await env.DB.prepare(`SELECT (bound_at / ${day}) * ${day} AS day, COUNT(*) AS n FROM codes WHERE bound_at >= ? GROUP BY day`).bind(from).all<{ day: number; n: number }>()
     const days = Array.from({ length: 14 }, (_, i) => ({ day: from + i * day, n: byDay.results.find(r => r.day === from + i * day)?.n ?? 0 }))
-    return json({ books: rows.results, recent: recent.results, sellers: sellers.results, days, today: days[13].n })
+    const pending = (await env.DB.prepare("SELECT COUNT(*) AS n FROM requests WHERE status = 'pending'").first<{ n: number }>())?.n ?? 0
+    const inviters = await env.DB.prepare(`SELECT r.invite, COUNT(*) AS joined, c.note, (SELECT COUNT(*) FROM gifts g WHERE g.invite = r.invite) AS gifts
+      FROM requests r JOIN invites i ON i.invite = r.invite JOIN codes c ON c.code = i.code WHERE r.status = 'approved' GROUP BY r.invite ORDER BY joined DESC LIMIT 20`).all()
+    return json({ books: rows.results, recent: recent.results, sellers: sellers.results, days, today: days[13].n, pending, inviters: inviters.results })
   }
   return fail('not-found', 404)
 }
@@ -264,6 +420,10 @@ export default {
       if (p === '/admin') return new Response(ADMIN_PAGE, { headers: { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store' } })
       if (p === '/v1/activate' && req.method === 'POST') return await activate(req, env)
       if (p === '/v1/session' && req.method === 'POST') return await session(req, env)
+      if (p === '/v1/request' && req.method === 'POST') return await request(req, env)
+      if (p === '/v1/request-status' && req.method === 'POST') return await requestStatus(req, env)
+      if (p === '/v1/invite-check' && req.method === 'GET') return await inviteCheck(env, url)
+      if (p === '/v1/invite' && req.method === 'POST') return await myInvite(req, env)
       const c = p.match(/^\/v1\/content\/([a-z0-9]+)\/(.+)$/)
       if (c && req.method === 'GET') return await content(req, env, c[1], c[2])
       const a = p.match(/^\/v1\/admin\/([a-z]+)$/)

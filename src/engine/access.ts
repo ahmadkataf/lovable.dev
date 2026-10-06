@@ -69,7 +69,7 @@ export function keepLicense<T>(fn: () => T): T {
   try {
     for (let i = 0; i < localStorage.length; i++) {
       const k = localStorage.key(i)!
-      if (k === RAW_KEY || k.endsWith('.license') || k.endsWith('.session')) keep.push([k, localStorage.getItem(k)!])
+      if (k === RAW_KEY || k.endsWith('.license') || k.endsWith('.session') || k.endsWith('.request') || k.endsWith('.ref')) keep.push([k, localStorage.getItem(k)!])
     }
   } catch { /* ignore */ }
   const out = fn()

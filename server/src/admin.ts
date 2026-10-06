@@ -82,6 +82,9 @@ label.l{display:block;font-size:13px;font-weight:700;margin:0 0 6px;color:var(--
 @keyframes up{from{transform:translateY(30px);opacity:0}}@keyframes fade{from{opacity:0}}
 .toast{position:fixed;bottom:calc(var(--nav) + 16px + var(--sab));left:50%;transform:translateX(-50%);background:var(--text);color:var(--bg);padding:11px 18px;border-radius:999px;font-weight:700;font-size:14px;z-index:60;box-shadow:0 10px 30px -10px rgba(0,0,0,.5);animation:up .2s}
 @media (min-width:900px){.toast{bottom:24px}}
+.req .meta{display:flex;gap:6px 12px;flex-wrap:wrap;font-size:12.5px;color:var(--muted);margin:8px 0 10px}.req .meta a{color:var(--blue);text-decoration:none;font-weight:700}
+.nbadge{display:inline-grid;place-items:center;min-width:18px;height:18px;padding:0 5px;border-radius:9px;background:var(--red);color:#fff;font-size:11px;font-weight:800;margin-inline-start:4px}.nav .nbadge{position:absolute;top:4px;margin-inline-start:18px}.nav button{position:relative}
+.alert{display:flex;gap:12px;align-items:center;background:linear-gradient(135deg,var(--brand),var(--brand-2));color:#fff;border-radius:18px;padding:14px 16px;cursor:pointer;box-shadow:var(--shadow)}.alert b{font-size:17px}
 .codecard{border:2px dashed var(--line);border-radius:14px;padding:12px;text-align:center;background:var(--soft)}.codecard b{display:block;font-size:20px;margin:4px 0}.codecard .muted{font-size:11.5px}
 .cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:10px}
 .chart{display:flex;align-items:flex-end;gap:4px;height:90px}.chart div{flex:1;background:linear-gradient(180deg,var(--brand-2),var(--brand));border-radius:4px 4px 2px 2px;min-height:3px;position:relative}
@@ -108,6 +111,7 @@ table{width:100%;border-collapse:collapse;font-size:13.5px}th,td{padding:9px 6px
   <aside class="side">
     <div class="brand"><div class="logo">E</div><div><b>Emar</b><div class="muted">لوحة التحكم</div></div></div>
     <button data-t="home" class="on"><span class="ic">📊</span>الرئيسية</button>
+    <button data-t="req"><span class="ic">📥</span>الطلبات<span class="nbadge hidden" data-pending></span></button>
     <button data-t="codes"><span class="ic">🎟️</span>الأكواد</button>
     <button data-t="make"><span class="ic">➕</span>إنشاء أكواد</button>
     <div class="foot"><button id="logout2"><span class="ic">🚪</span>خروج</button></div>
@@ -118,12 +122,29 @@ table{width:100%;border-collapse:collapse;font-size:13.5px}th,td{padding:9px 6px
 
       <section id="t-home" class="stack">
         <div class="row spread"><h2>نظرة عامة</h2><button class="btn ghost sm" id="refresh">↻ تحديث</button></div>
+        <div class="alert hidden" id="pendAlert"><span style="font-size:28px">📥</span><div class="grow"><b id="pendText"></b><div style="font-size:13px;opacity:.9">تأكد من الدفع على شام كاش، ثم وافق بكبسة: الكود بيتفعّل عند الطالب لحاله.</div></div><span style="font-size:22px">‹</span></div>
         <div class="grid4" id="kpis"><div class="kpi"><div class="skeleton"></div></div><div class="kpi"><div class="skeleton"></div></div><div class="kpi"><div class="skeleton"></div></div><div class="kpi"><div class="skeleton"></div></div></div>
         <div class="card"><h3>التفعيلات في آخر 14 يوماً</h3><div id="chart" style="margin-top:22px"></div></div>
         <h3>التطبيقات</h3>
         <div class="grid2" id="apps"></div>
         <div class="card"><h3>البائعون</h3><div id="sellers" style="margin-top:8px"></div></div>
+        <div class="card"><h3>🎁 أكثر من دعا أصحابه</h3><div id="inviters" style="margin-top:8px"></div></div>
         <div class="card"><h3>آخر الأحداث</h3><div id="events" style="margin-top:4px"></div></div>
+      </section>
+
+      <section id="t-req" class="stack hidden">
+        <div class="chips" id="reqChips"></div>
+        <div class="list" id="reqs"></div>
+        <div class="card stack">
+          <h2>⚙️ إعدادات الدعوات</h2>
+          <div class="muted">كل مشترك عنده كود دعوة. صاحبه اللي بيشترك فيه بياخد خصم، وصاحب الكود بياخد كود هدية مجاني لكل عدد من الأصحاب.</div>
+          <div class="grid2">
+            <div><label class="l">خصم صاحب الدعوة (%)</label><input id="setDiscount" class="in" type="number" min="0" max="50"></div>
+            <div><label class="l">كود هدية لكل (صديق)</label><input id="setGift" class="in" type="number" min="0" max="50"></div>
+          </div>
+          <div class="muted">ضع 0 لإيقاف الخصم أو الهدايا.</div>
+          <button class="btn block" id="saveSet">حفظ الإعدادات</button>
+        </div>
       </section>
 
       <section id="t-codes" class="stack hidden">
@@ -152,6 +173,7 @@ table{width:100%;border-collapse:collapse;font-size:13.5px}th,td{padding:9px 6px
     </main>
     <nav class="nav">
       <button data-t="home" class="on"><span class="ic">📊</span>الرئيسية</button>
+      <button data-t="req"><span class="ic">📥</span>الطلبات<span class="nbadge hidden" data-pending></span></button>
       <button data-t="codes"><span class="ic">🎟️</span>الأكواد</button>
       <button data-t="make"><span class="ic">➕</span>إنشاء</button>
     </nav>
@@ -164,7 +186,7 @@ const $ = id => document.getElementById(id)
 const BOOKS = { g12: ['البكالوريا', 'Emar 12', '#8b5cf6'], g11: ['الحادي عشر', 'Emar 11', '#2383e2'], g9: ['التاسع', 'Emar 9', '#e5484d'], g8: ['الثامن', 'Emar 8', '#1ea85a'], g5: ['الخامس', 'Emar 5', '#d98500'] }
 const bookName = b => BOOKS[b] ? BOOKS[b][0] + ' — ' + BOOKS[b][1] : b
 const appTag = b => '<span class="app" style="background:' + (BOOKS[b] ? BOOKS[b][2] : '#888') + '">' + (BOOKS[b] ? BOOKS[b][0] : b) + '</span>'
-const TITLES = { home: 'الرئيسية', codes: 'الأكواد', make: 'إنشاء أكواد' }
+const TITLES = { home: 'الرئيسية', req: 'طلبات الاشتراك', codes: 'الأكواد', make: 'إنشاء أكواد' }
 let KEY = localStorage.getItem('emar.admin') || ''
 const api = async (path, opts = {}) => {
   const r = await fetch('/v1/admin/' + path, { ...opts, headers: { 'content-type': 'application/json', authorization: 'Bearer ' + KEY } })
@@ -200,11 +222,12 @@ $('logout').onclick = $('logout2').onclick = () => { localStorage.removeItem('em
 function go(t) {
   $('sheetHost').innerHTML = ''
   document.querySelectorAll('[data-t]').forEach(x => x.classList.toggle('on', x.dataset.t === t))
-  ;['home', 'codes', 'make'].forEach(x => $('t-' + x).classList.toggle('hidden', x !== t))
+  ;['home', 'req', 'codes', 'make'].forEach(x => $('t-' + x).classList.toggle('hidden', x !== t))
   $('title').textContent = TITLES[t]
   window.scrollTo(0, 0)
   if (t === 'home') stats()
   if (t === 'codes') find()
+  if (t === 'req') { requests(); loadSettings() }
 }
 document.querySelectorAll('[data-t]').forEach(b => b.onclick = () => go(b.dataset.t))
 $('refresh').onclick = stats
@@ -231,6 +254,9 @@ async function stats() {
     sellersKnown = sellers.map(x => x.seller).filter(Boolean)
     $('sellerList').innerHTML = sellersKnown.map(x => '<option value="' + esc(x) + '">').join('')
     $('sellers').innerHTML = sellers.length ? '<table><thead><tr><th>البائع</th><th>أكواد</th><th>مفعّلة</th><th>النسبة</th></tr></thead><tbody>' + sellers.map(x => '<tr><td><b>' + esc(x.seller || 'مباشر') + '</b></td><td>' + x.total + '</td><td>' + (x.activated || 0) + '</td><td><div class="bar" style="width:80px;display:inline-block;vertical-align:middle"><i style="width:' + (x.total ? Math.round((x.activated || 0) / x.total * 100) : 0) + '%"></i></div></td></tr>').join('') + '</tbody></table>' : '<div class="muted">لا بائعين بعد.</div>'
+    setPending(s.pending || 0)
+    const inv = s.inviters || []
+    $('inviters').innerHTML = inv.length ? '<table><thead><tr><th>كود الدعوة</th><th>الطالب</th><th>أصحاب اشتركوا</th><th>هدايا</th></tr></thead><tbody>' + inv.map(x => '<tr><td class="mono">' + esc(x.invite) + '</td><td>' + esc(String(x.note || '').split(' · ')[1] || '—') + '</td><td><b>' + x.joined + '</b></td><td>' + (x.gifts ? '🎁 ' + x.gifts : '—') + '</td></tr>').join('') + '</tbody></table>' : '<div class="muted">لم يشترك أحد بكود دعوة بعد.</div>'
     $('events').innerHTML = (s.recent || []).slice(0, 25).map(e => { const [ic, t, d] = describe(e); return '<div class="ev"><div class="ic">' + ic + '</div><div class="grow"><div class="t">' + t + (e.code ? ' <span class="mono">' + esc(e.code) + '</span>' : '') + '</div><div class="s">' + when(e.at) + (d ? ' · ' + d : '') + '</div></div></div>' }).join('') || '<div class="muted">لا أحداث بعد.</div>'
   } catch (e) { toast('تعذّر التحميل: ' + e.message) }
 }
@@ -243,6 +269,11 @@ function describe(e) {
   if (e.kind === 'activate') return ['✅', 'تفعيل جديد', '']
   if (e.kind === 'activate-fail') return ['⚠️', 'محاولة تفعيل فاشلة', WHY[d] || esc(d)]
   if (e.kind === 'session') return ['📱', 'فتح التطبيق', '']
+  if (e.kind === 'request') { const m = d.match(/^#(\\d+) (\\w+)$/); return ['📥', 'طلب اشتراك جديد' + (m ? ' #' + m[1] : ''), m ? bookName(m[2]) : ''] }
+  if (e.kind === 'admin' && /^approve #/.test(d)) return ['✅', 'موافقة على طلب ' + esc(d.slice(8)), '']
+  if (e.kind === 'admin' && /^reject #/.test(d)) return ['✖️', 'رفض طلب ' + esc(d.slice(7)), '']
+  if (e.kind === 'admin' && /^gift /.test(d)) return ['🎁', 'كود هدية لصاحب الدعوة', esc(d.slice(5))]
+  if (e.kind === 'admin' && /^settings /.test(d)) return ['⚙️', 'تعديل إعدادات الدعوات', esc(d.slice(9))]
   if (e.kind === 'admin') { const m = d.match(/^created (\\d+) (\\w+)$/); if (m) return ['🛠️', 'إنشاء ' + m[1] + ' كود', bookName(m[2])]; return ['🛠️', ACT[d] || 'إجراء إداري', ACT[d] ? '' : esc(d)] }
   return ['•', esc(e.kind), esc(d)]
 }
@@ -299,6 +330,52 @@ function sheet(r) {
     } catch (e) { toast('خطأ: ' + e.message) }
   })
 }
+
+// ---- payment requests
+let fReq = 'pending', reqRows = []
+const waNum = p => { let d = String(p || '').replace(/\\D/g, ''); if (d.startsWith('00')) d = d.slice(2); else if (d.startsWith('0')) d = '963' + d.slice(1); return d }
+function setPending(n) {
+  document.querySelectorAll('[data-pending]').forEach(b => { b.textContent = n; b.classList.toggle('hidden', !n) })
+  $('pendAlert').classList.toggle('hidden', !n)
+  $('pendText').textContent = n === 1 ? 'طلب اشتراك واحد بانتظار موافقتك' : n + ' طلبات اشتراك بانتظار موافقتك'
+}
+$('pendAlert').onclick = () => go('req')
+function drawReqChips() { chips($('reqChips'), [['pending', 'بانتظار الموافقة'], ['approved', 'تمت الموافقة'], ['rejected', 'مرفوضة'], ['all', 'الكل']], fReq, v => fReq = v) }
+async function requests() {
+  drawReqChips()
+  try {
+    reqRows = (await api('requests?status=' + fReq)).requests
+    if (fReq === 'pending') setPending(reqRows.length)
+    $('reqs').innerHTML = reqRows.map((r, i) => '<div class="card req"><div class="row spread"><div class="row" style="gap:8px"><b>#' + r.id + ' · ' + esc(r.name) + '</b>' + appTag(r.book) + '</div><span class="muted">' + ago(r.created_at) + '</span></div>'
+      + '<div class="meta"><span>📞 <a href="https://wa.me/' + waNum(r.phone) + '" target="_blank" rel="noreferrer" dir="ltr">' + esc(r.phone) + '</a></span>' + (r.price ? '<span>💵 ' + esc(r.price) + '</span>' : '') + (r.pay_ref ? '<span>🧾 عملية <span class="mono">' + esc(r.pay_ref) + '</span></span>' : '') + (r.invite ? '<span>🎁 دعوة <span class="mono">' + esc(r.invite) + '</span>' + (r.ref_note ? ' (' + esc(String(r.ref_note).split(' · ')[1] || '') + ')' : '') + '</span>' : '') + '</div>'
+      + (r.status === 'pending' ? '<div class="row"><button class="btn green grow" data-ok="' + i + '">✅ موافقة وإرسال الكود</button><button class="btn ghost" data-no="' + i + '">رفض</button></div>'
+        : r.status === 'approved' ? '<div class="row spread"><span class="badge b-used">تمت الموافقة</span><span class="mono">' + esc(r.code || '') + '</span><button class="btn ghost sm" data-msg="' + i + '">💬 واتساب الطالب</button></div>'
+        : '<span class="badge b-rev">مرفوض</span>') + '</div>').join('')
+      || '<div class="empty"><div class="big">📭</div>' + (fReq === 'pending' ? 'لا طلبات بانتظار الموافقة' : 'لا طلبات') + '</div>'
+  } catch (e) { toast(e.message) }
+}
+$('reqs').onclick = async e => {
+  const b = e.target.closest('button'); if (!b) return
+  if (b.dataset.msg) { const r = reqRows[+b.dataset.msg]; window.open('https://wa.me/' + waNum(r.phone) + '?text=' + encodeURIComponent(studentMsg(r.book, r.code, null) + '\\n(إذا كان التطبيق مفتوحاً عندك فقد تفعّل تلقائياً.)'), '_blank'); return }
+  const i = b.dataset.ok ?? b.dataset.no; if (i === undefined) return
+  const r = reqRows[+i], ok = b.dataset.ok !== undefined
+  if (ok && !confirm('هل وصلك مبلغ ' + (r.price || 'الاشتراك') + ' من ' + r.name + ' على شام كاش؟')) return
+  if (!ok && !confirm('رفض طلب ' + r.name + '؟')) return
+  b.disabled = true
+  try {
+    const res = await api('request', { method: 'POST', body: JSON.stringify({ id: r.id, action: ok ? 'approve' : 'reject' }) })
+    toast(ok ? 'تمت الموافقة ✓ الكود ' + res.code + ' بيتفعّل عند الطالب لحاله' : 'رُفض الطلب')
+    if (res.gift) setTimeout(() => toast('🎁 صاحب الدعوة ربح كود هدية: ' + res.gift), 2400)
+  } catch (e) { toast(e.message === 'done' ? 'هذا الطلب عولج من قبل' : 'خطأ: ' + e.message) }
+  requests()
+}
+async function loadSettings() { try { const s = await api('settings'); $('setDiscount').value = s.discount; $('setGift').value = s.giftEvery } catch (e) { toast(e.message) } }
+$('saveSet').onclick = async () => {
+  try { const s = await api('settings', { method: 'POST', body: JSON.stringify({ discount: +$('setDiscount').value, giftEvery: +$('setGift').value }) }); $('setDiscount').value = s.discount; $('setGift').value = s.giftEvery; toast('حُفظت الإعدادات ✓') }
+  catch (e) { toast('خطأ: ' + e.message) }
+}
+// a new request shows up without reloading the page
+setInterval(() => { if (KEY && !$('app').classList.contains('hidden')) api('requests?status=pending').then(r => { setPending(r.requests.length); if (!$('t-req').classList.contains('hidden') && fReq === 'pending' && r.requests.length !== reqRows.length) requests() }).catch(() => {}) }, 30000)
 
 // ---- make
 $('book').innerHTML = Object.keys(BOOKS).map(b => '<option value="' + b + '">' + bookName(b) + '</option>').join('')

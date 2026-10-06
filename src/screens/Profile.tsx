@@ -2,9 +2,10 @@ import type { Progress } from '../engine/progress'
 import { levelFromXp, today } from '../engine/progress'
 import { audioStatus, setSpeechRate, speak } from '../engine/audio'
 import { SPEEDS } from '../components/common'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
+import meta from '@book-meta'
 import type { Access } from '../engine/access'
-import { privacyUrl } from '../engine/online'
+import { onlineBook, playStore, privacyUrl, webAppUrl, type InviteInfo, type OnlineAccess } from '../engine/online'
 
 interface Props { progress: Progress; totalLessons: number; subtitle: string; onChange: (p: Progress) => void; onReset: () => void; access?: Access; onActivate?: () => void }
 
@@ -30,6 +31,7 @@ export default function Profile({ progress, totalLessons, subtitle, onChange, on
           <button className="btn btn-sm btn-blue" onClick={onActivate}>{access.pro ? 'التفاصيل' : 'فعّل'}</button>
         </div>
       )}
+      {access?.pro && onlineBook && !playStore && <InviteCard access={access as OnlineAccess} />}
       {privacyUrl && <p className="center"><a className="muted" href={privacyUrl} target="_blank" rel="noreferrer">سياسة الخصوصية</a></p>}
       <div className="card mb">
         <div className="row">
@@ -115,4 +117,48 @@ export default function Profile({ progress, totalLessons, subtitle, onChange, on
 
 function Ach({ ok, icon, t }: { ok: boolean; icon: string; t: string }) {
   return <div className="center" style={{ width: 84, opacity: ok ? 1 : .35, filter: ok ? 'none' : 'grayscale(1)' }}><div style={{ fontSize: 32 }}>{icon}</div><div style={{ fontSize: 11, fontWeight: 700 }}>{t}</div></div>
+}
+
+/** Every subscriber can invite friends: the friend gets a discount, and every few friends earn a free code. */
+function InviteCard({ access }: { access: OnlineAccess }) {
+  const [info, setInfo] = useState<InviteInfo | null>(null)
+  const [copied, setCopied] = useState('')
+  useEffect(() => { let live = true; access.inviteInfo().then(i => { if (live) setInfo(i) }); return () => { live = false } }, []) // eslint-disable-line
+  if (!info) return null
+  const link = `${webAppUrl}?ref=${info.invite}`
+  const text = `جرّب تطبيق ${meta.appName} (${meta.titleAr}) 📚 الوحدة الأولى مجاناً.${info.discount ? `\nاستخدم كود الدعوة ${info.invite} وخذ خصم ${info.discount}% على الاشتراك 🎁` : `\nكود الدعوة: ${info.invite}`}\n${link}`
+  const share = () => {
+    const nav = navigator as Navigator & { share?: (d: { text: string }) => Promise<void> }
+    if (nav.share) nav.share({ text }).catch(() => {})
+    else window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank')
+  }
+  const cp = (t: string) => { try { navigator.clipboard?.writeText(t) } catch { /* ignore */ } setCopied(t) }
+  const left = info.giftEvery ? info.giftEvery - (info.joined % info.giftEvery) : 0
+  return (
+    <div className="card mb" style={{ border: '2px solid var(--purple, #ce82ff)' }}>
+      <div className="h2">🎁 ادعُ أصحابك</div>
+      <p className="muted" style={{ fontSize: 13 }}>
+        {info.discount ? `صاحبك بياخد خصم ${info.discount}% بكود دعوتك` : 'شارك كود دعوتك مع أصحابك'}
+        {info.giftEvery ? `، وإنت بتاخد كود اشتراك مجاني هدية مع كل ${info.giftEvery} أصحاب بيشتركوا (بتعطيه لمين ما بدك).` : '.'}
+      </p>
+      <div className="row spread" style={{ background: 'var(--gray-1)', borderRadius: 12, padding: '10px 14px' }}>
+        <span className="en" style={{ fontSize: 26, fontWeight: 900, letterSpacing: 3 }}>{info.invite}</span>
+        <button className="btn btn-outline btn-sm" onClick={() => cp(info.invite)}>{copied === info.invite ? '✓ نُسخ' : 'نسخ'}</button>
+      </div>
+      <button className="btn btn-primary btn-block mt" onClick={share}>📤 شارك مع أصحابك</button>
+      <div className="row mt" style={{ justifyContent: 'space-around', textAlign: 'center' }}>
+        <div><div className="h2">{info.joined}</div><div className="muted" style={{ fontSize: 12 }}>اشتركوا بدعوتك</div></div>
+        {info.waiting > 0 && <div><div className="h2">{info.waiting}</div><div className="muted" style={{ fontSize: 12 }}>بانتظار التأكيد</div></div>}
+        {info.giftEvery > 0 && <div><div className="h2">{left}</div><div className="muted" style={{ fontSize: 12 }}>باقي للهدية الجاية</div></div>}
+      </div>
+      {info.gifts.length > 0 && <div className="mt">
+        <div className="h2" style={{ fontSize: 15 }}>أكواد الهدايا تبعك</div>
+        {info.gifts.map(g => (
+          <div key={g.code} className="row spread" style={{ padding: '6px 0' }}>
+            <span className="en" style={{ fontWeight: 800, textDecoration: g.used ? 'line-through' : 'none', opacity: g.used ? .5 : 1 }}>{g.code}</span>
+            {g.used ? <span className="muted" style={{ fontSize: 12 }}>مستخدم</span> : <button className="btn btn-outline btn-sm" onClick={() => cp(g.code)}>{copied === g.code ? '✓ نُسخ' : 'نسخ'}</button>}
+          </div>))}
+      </div>}
+    </div>
+  )
 }
