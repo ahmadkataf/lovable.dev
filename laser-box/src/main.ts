@@ -194,6 +194,18 @@ function materialPicker(): HTMLElement {
   return seg
 }
 
+/** One tap for the common sheet thicknesses (the field below still takes any measured value). */
+const THICKNESSES = [2.7, 3, 3.2, 4, 5, 6]
+function thicknessPicker(): HTMLElement {
+  const seg = el('div', { class: 'segmented', role: 'group', 'aria-label': 'السماكة' })
+  for (const v of THICKNESSES) {
+    const b = el('button', { type: 'button', class: Math.abs(state.settings.t - v) < 1e-9 ? 'on' : '' }, String(v))
+    b.onclick = () => { state.settings.t = v; persist(); renderForm(); update() }
+    seg.append(b)
+  }
+  return seg
+}
+
 function renderQuick() {
   const t = tpl()
   const cur = params()
@@ -225,6 +237,7 @@ function renderForm() {
   for (const def of t.params) dims.append(numberField(def, cur[def.key], v => { (state.params[state.tpl] ??= {})[def.key] = v; persist(); update() }))
   const mat = el('fieldset', {}, el('legend', {}, 'الخامة والقص'))
   mat.append(el('div', { class: 'field' }, el('span', { class: 'field-label' }, 'نوع الخامة'), materialPicker(), el('span', { class: 'hint' }, 'يضبط عرض الشقّ المعتاد؛ اكتب السماكة المقاسة بالقدمة في الخانة أدناه')))
+  mat.append(el('div', { class: 'field' }, el('span', { class: 'field-label' }, 'سماكات شائعة (مم)'), thicknessPicker(), el('span', { class: 'hint' }, 'اختر سماكة لوحك، أو اكتب المقاسة بالقدمة في «سماكة الخامة»')))
   for (const def of SETTING_DEFS) mat.append(numberField(def, (state.settings as unknown as Record<string, number>)[def.key], v => { (state.settings as unknown as Record<string, number>)[def.key] = v; persist(); update() }))
   const reset = el('button', { type: 'button', class: 'link' }, 'إعادة القيم الافتراضية')
   reset.onclick = () => { state.params[state.tpl] = {}; state.settings = { ...DEFAULT_SETTINGS }; persist(); renderForm(); update(true) }
