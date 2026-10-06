@@ -6,42 +6,42 @@
 <style>
 @font-face{font-family:A;src:url(alexandria-arabic-wght-normal.woff2) format('woff2');font-weight:100 900;unicode-range:U+0600-06FF,U+0750-077F,U+FB50-FDFF,U+FE70-FEFF,U+200C-200E}
 @font-face{font-family:A;src:url(alexandria-latin-wght-normal.woff2) format('woff2');font-weight:100 900}
-:root{--cream:#F5F0E8;--beige:#E9DFCF;--oak:#D6A468;--oak2:#B7834B;--oak3:#8E6136;--ink:#262523;--muted:#6B655C;--sage:#8EA48A;--terra:#C7714A;--blue:#0A5BA8;--yel:#FFD21F;--paper:#F6F7F4;--sky:#DCE8F4}
+:root{--cream:#F5F0E8;--beige:#E9DFCF;--oak:#D6A468;--oak2:#B7834B;--oak3:#8E6136;--ink:#262523;--muted:#6B655C;--sage:#8EA48A;--terra:#C7714A}
 *{margin:0;padding:0;box-sizing:border-box}
-html,body{width:1080px;height:1080px;background:var(--paper);font-family:A,sans-serif;color:var(--ink);overflow:hidden}
+html,body{width:1080px;height:1080px;background:var(--cream);font-family:A,sans-serif;color:var(--ink);overflow:hidden}
 .c{position:relative;width:1080px;height:1080px;overflow:hidden}
 /* grain lines */
 .wood-lines{position:absolute;inset:0;opacity:.05;background:repeating-linear-gradient(90deg,#000 0 1px,transparent 1px 54px)}
 header{position:absolute;top:56px;right:64px;left:64px;display:flex;align-items:center;justify-content:space-between}
 .brand{display:flex;align-items:center;gap:18px}
-.mark{width:74px;height:74px;border-radius:18px;background:var(--blue);display:grid;place-items:center}
+.mark{width:74px;height:74px;border-radius:18px;background:var(--ink);display:grid;place-items:center}
 .bname{font-weight:800;font-size:40px;line-height:1}
 .btag{font-weight:400;font-size:19px;color:var(--muted);margin-top:16px}
-.pill{border:2px solid var(--blue);color:var(--blue);border-radius:999px;padding:10px 24px;font-weight:600;font-size:20px}
+.pill{border:2px solid var(--ink);border-radius:999px;padding:10px 24px;font-weight:600;font-size:20px}
 .text{position:absolute;top:196px;right:64px;width:490px;bottom:206px;display:flex;flex-direction:column;align-items:flex-start}
-.kicker{display:inline-block;background:var(--yel);color:var(--blue);font-weight:700;font-size:20px;padding:8px 18px;border-radius:8px}
+.kicker{display:inline-block;background:var(--oak);color:var(--ink);font-weight:700;font-size:20px;padding:8px 18px;border-radius:8px}
 h1{white-space:nowrap;font-weight:800;font-size:72px;line-height:1.12;margin-top:22px;letter-spacing:-.5px}
-h1 span{color:var(--blue)}
+h1 span{color:var(--oak2)}
 .sub{font-size:23px;line-height:1.75;color:var(--muted);margin-top:20px;font-weight:400}
 .sub b{color:var(--ink);font-weight:600}
 .feats{margin-top:auto;width:100%;display:grid;grid-template-columns:1fr 1fr;gap:16px}
 .f{display:flex;align-items:center;gap:12px;background:#fff;border-radius:14px;padding:14px 14px;box-shadow:0 1px 0 rgba(0,0,0,.04)}
-.f i{flex:none;width:44px;height:44px;border-radius:11px;background:#FFF1B0;display:grid;place-items:center}
+.f i{flex:none;width:44px;height:44px;border-radius:11px;background:var(--beige);display:grid;place-items:center}
 .f p{font-size:18.5px;font-weight:600;line-height:1.3}
 .art{position:absolute;left:30px;top:226px;width:500px;height:700px}
-footer{position:absolute;bottom:0;left:0;right:0;height:176px;background:var(--blue);color:#fff;display:flex;align-items:center;justify-content:space-between;padding:0 64px}
+footer{position:absolute;bottom:0;left:0;right:0;height:176px;background:var(--ink);color:var(--cream);display:flex;align-items:center;justify-content:space-between;padding:0 64px}
 .wa{display:flex;align-items:center;gap:20px}
 .wa-t{display:flex;flex-direction:column;gap:8px;align-items:flex-start}
-.cta{background:var(--yel);color:var(--blue);font-weight:800;font-size:26px;padding:14px 24px;border-radius:12px;display:flex;align-items:center;gap:12px}
-.wa-t small{font-size:18px;color:#D3E3F4;display:flex;align-items:center;gap:8px}
+.cta{background:var(--oak);color:var(--ink);font-weight:800;font-size:26px;padding:14px 24px;border-radius:12px;display:flex;align-items:center;gap:12px}
+.wa-t small{font-size:18px;color:#B9B2A6;display:flex;align-items:center;gap:8px}
 .qr{flex:none;width:136px;height:136px;background:#fff;border-radius:14px;padding:10px}
 .qr img{display:block;width:100%;height:100%}
 .contact{display:flex;flex-direction:column;gap:10px}
 .row{display:flex;align-items:center;gap:12px;font-size:22px;font-weight:500}
 .row .num{font-weight:700;font-size:28px;letter-spacing:1px;direction:ltr;unicode-bidi:isolate}
 .row small{color:#B9B2A6;font-size:19px}
-.area{font-size:22px;color:#D3E3F4}
-.area b{color:#fff;font-weight:700}
+.area{font-size:22px;color:#D9D2C6}
+.area b{color:var(--cream);font-weight:700}
 </style>
 </head>
 <body>
@@ -53,8 +53,8 @@ footer{position:absolute;bottom:0;left:0;right:0;height:176px;background:var(--b
       <div class="mark">
         <!-- plank + square tool mark -->
         <svg width="46" height="46" viewBox="0 0 46 46" fill="none">
-          <path d="M6 8h10v30H6z" fill="#FFD21F"/>
-          <path d="M16 28h24v10H16z" fill="#FFD21F"/>
+          <path d="M6 8h10v30H6z" fill="#D6A468"/>
+          <path d="M16 28h24v10H16z" fill="#D6A468"/>
           <path d="M9 13h4M9 18h4M9 23h4M21 31v4M26 31v4M31 31v4" stroke="#262523" stroke-width="2" stroke-linecap="round"/>
           <circle cx="35" cy="13" r="6" stroke="#F5F0E8" stroke-width="3"/>
         </svg>
@@ -72,10 +72,10 @@ footer{position:absolute;bottom:0;left:0;right:0;height:176px;background:var(--b
     <h1>أثاث بسيط<br><span>وجودة بتدوم</span></h1>
     <p class="sub">منصمّم ومنصنّع <b>مطابخ، خزائن، مكتبات وغرف نوم</b> بالستايل الحديث اللي بتحبّه، <b>على قياس بيتك</b> وبسعر المعمل مباشرة.</p>
   <div class="feats">
-    <div class="f"><i><svg width="26" height="26" viewBox="0 0 26 26" fill="none" stroke="#0A5BA8" stroke-width="2.2" stroke-linecap="round"><path d="M3 18 18 3l5 5L8 23z"/><path d="M8 13l2 2M11 10l2 2M14 7l2 2"/></svg></i><p>قياس حسب<br>مساحتك</p></div>
-    <div class="f"><i><svg width="26" height="26" viewBox="0 0 26 26" fill="none" stroke="#0A5BA8" stroke-width="2.2" stroke-linejoin="round"><rect x="3" y="5" width="20" height="16" rx="2"/><path d="M3 10c5 2 9-2 20 0M3 15c6 2 11-2 20 0"/></svg></i><p>خشب و MDF<br>درجة أولى</p></div>
-    <div class="f"><i><svg width="26" height="26" viewBox="0 0 26 26" fill="none" stroke="#0A5BA8" stroke-width="2.2" stroke-linejoin="round"><path d="M2 7h13v11H2zM15 11h5l4 4v3h-9z"/><circle cx="7" cy="20" r="2.4" fill="#FFF1B0"/><circle cx="19" cy="20" r="2.4" fill="#FFF1B0"/></svg></i><p>توصيل<br>وتركيب</p></div>
-    <div class="f"><i><svg width="26" height="26" viewBox="0 0 26 26" fill="none" stroke="#0A5BA8" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 3 4 7v6c0 5 4 8.5 9 10 5-1.5 9-5 9-10V7z"/><path d="m9 13 3 3 5-6"/></svg></i><p>كفالة على<br>الشغل</p></div>
+    <div class="f"><i><svg width="26" height="26" viewBox="0 0 26 26" fill="none" stroke="#262523" stroke-width="2.2" stroke-linecap="round"><path d="M3 18 18 3l5 5L8 23z"/><path d="M8 13l2 2M11 10l2 2M14 7l2 2"/></svg></i><p>قياس حسب<br>مساحتك</p></div>
+    <div class="f"><i><svg width="26" height="26" viewBox="0 0 26 26" fill="none" stroke="#262523" stroke-width="2.2" stroke-linejoin="round"><rect x="3" y="5" width="20" height="16" rx="2"/><path d="M3 10c5 2 9-2 20 0M3 15c6 2 11-2 20 0"/></svg></i><p>خشب و MDF<br>درجة أولى</p></div>
+    <div class="f"><i><svg width="26" height="26" viewBox="0 0 26 26" fill="none" stroke="#262523" stroke-width="2.2" stroke-linejoin="round"><path d="M2 7h13v11H2zM15 11h5l4 4v3h-9z"/><circle cx="7" cy="20" r="2.4" fill="#E9DFCF"/><circle cx="19" cy="20" r="2.4" fill="#E9DFCF"/></svg></i><p>توصيل<br>وتركيب</p></div>
+    <div class="f"><i><svg width="26" height="26" viewBox="0 0 26 26" fill="none" stroke="#262523" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 3 4 7v6c0 5 4 8.5 9 10 5-1.5 9-5 9-10V7z"/><path d="m9 13 3 3 5-6"/></svg></i><p>كفالة على<br>الشغل</p></div>
   </div>
   </section>
 
@@ -83,14 +83,14 @@ footer{position:absolute;bottom:0;left:0;right:0;height:176px;background:var(--b
   <!-- Illustration -->
   <svg class="art" viewBox="0 0 500 700" fill="none">
     <!-- backdrop arch -->
-    <path d="M40 690V250a210 210 0 0 1 420 0v440z" fill="#DCE8F4"/>
+    <path d="M40 690V250a210 210 0 0 1 420 0v440z" fill="#E9DFCF"/>
     <!-- wall frame -->
     <rect x="300" y="150" width="96" height="120" rx="4" fill="#fff" stroke="#B7834B" stroke-width="6"/>
     <path d="M314 250l26-40 18 24 12-14 16 30z" fill="#8EA48A"/>
-    <circle cx="372" cy="186" r="9" fill="#FFD21F"/>
+    <circle cx="372" cy="186" r="9" fill="#C7714A"/>
     <!-- pendant lamp -->
     <path d="M150 0v170" stroke="#262523" stroke-width="3"/>
-    <path d="M110 214a40 40 0 0 1 80 0z" fill="#0A5BA8"/>
+    <path d="M110 214a40 40 0 0 1 80 0z" fill="#262523"/>
     <ellipse cx="150" cy="216" rx="14" ry="5" fill="#FFE6B0"/>
     <path d="M150 220 96 330h108z" fill="#FFE6B0" opacity=".35"/>
     <!-- shelf unit 3x3 -->
@@ -105,20 +105,20 @@ footer{position:absolute;bottom:0;left:0;right:0;height:176px;background:var(--b
       </g>
       <!-- contents -->
       <!-- books -->
-      <rect x="92" y="362" width="12" height="66" fill="#262523"/><rect x="106" y="370" width="10" height="58" fill="#FFD21F"/><rect x="118" y="358" width="13" height="70" fill="#F5F0E8"/><rect x="134" y="366" width="11" height="62" fill="#8EA48A"/>
+      <rect x="92" y="362" width="12" height="66" fill="#262523"/><rect x="106" y="370" width="10" height="58" fill="#C7714A"/><rect x="118" y="358" width="13" height="70" fill="#F5F0E8"/><rect x="134" y="366" width="11" height="62" fill="#8EA48A"/>
       <rect x="142" y="380" width="10" height="48" fill="#262523" transform="rotate(14 147 428)"/>
       <!-- plant in pot -->
       <path d="M204 400h32l-4 28h-24z" fill="#F5F0E8"/>
       <path d="M220 400c-2-22-18-30-24-28 4 10 12 20 24 28zM220 400c2-26 16-34 24-32-4 12-12 24-24 32zM220 400c0-20 0-30 0-38" stroke="#5E7A5A" stroke-width="3" fill="#8EA48A"/>
       <!-- bins -->
-      <rect x="276" y="352" width="76" height="76" rx="3" fill="#0A5BA8"/><rect x="302" y="364" width="24" height="8" rx="4" fill="#08467F"/>
+      <rect x="276" y="352" width="76" height="76" rx="3" fill="#8EA48A"/><rect x="302" y="364" width="24" height="8" rx="4" fill="#6E8A6A"/>
       <rect x="88" y="446" width="76" height="76" rx="3" fill="#F5F0E8"/><rect x="114" y="458" width="24" height="8" rx="4" fill="#D9CFBF"/>
       <!-- vase + ball -->
-      <path d="M200 522c0-24 8-34 10-44h20c2 10 10 20 10 44z" fill="#0A5BA8"/>
+      <path d="M200 522c0-24 8-34 10-44h20c2 10 10 20 10 44z" fill="#C7714A"/>
       <circle cx="324" cy="504" r="18" fill="#262523"/><rect x="290" y="512" width="20" height="10" fill="#F5F0E8"/>
       <!-- bottom row -->
-      <rect x="182" y="540" width="76" height="76" rx="3" fill="#FFD21F"/><rect x="208" y="552" width="24" height="8" rx="4" fill="#E0B400"/>
-      <rect x="96" y="580" width="60" height="12" fill="#F5F0E8"/><rect x="100" y="592" width="56" height="12" fill="#262523"/><rect x="94" y="604" width="64" height="12" fill="#0A5BA8"/>
+      <rect x="182" y="540" width="76" height="76" rx="3" fill="#C7714A"/><rect x="208" y="552" width="24" height="8" rx="4" fill="#A85A37"/>
+      <rect x="96" y="580" width="60" height="12" fill="#F5F0E8"/><rect x="100" y="592" width="56" height="12" fill="#262523"/><rect x="94" y="604" width="64" height="12" fill="#8EA48A"/>
       <rect x="282" y="560" width="9" height="56" fill="#F5F0E8"/><rect x="293" y="566" width="9" height="50" fill="#262523"/><rect x="304" y="556" width="10" height="60" fill="#D6A468" stroke="#B7834B"/>
       <!-- legs -->
       <rect x="84" y="630" width="10" height="26" fill="#8E6136"/><rect x="346" y="630" width="10" height="26" fill="#8E6136"/>
@@ -135,8 +135,8 @@ footer{position:absolute;bottom:0;left:0;right:0;height:176px;background:var(--b
       <path d="M70 300v20M370 300v20M78 310h284"/>
       <path d="M78 310l10-6M78 310l10 6M362 310l-10-6M362 310l-10 6"/>
     </g>
-    <rect x="160" y="292" width="120" height="36" rx="18" fill="#0A5BA8"/>
-    <text x="220" y="316" text-anchor="middle" font-family="A" font-weight="700" font-size="17" fill="#fff">على مقاسك</text>
+    <rect x="160" y="292" width="120" height="36" rx="18" fill="#262523"/>
+    <text x="220" y="316" text-anchor="middle" font-family="A" font-weight="700" font-size="17" fill="#F5F0E8">على مقاسك</text>
     <!-- dimension: height -->
     <g stroke="#262523" stroke-width="2.2" stroke-linecap="round">
       <path d="M44 330h14M44 630h14M51 338v284"/>
@@ -146,17 +146,17 @@ footer{position:absolute;bottom:0;left:0;right:0;height:176px;background:var(--b
 
   <footer>
     <div class="contact">
-      <div class="row"><svg width="26" height="26" viewBox="0 0 24 24" fill="#FFD21F"><path d="M6.6 10.8a15.2 15.2 0 0 0 6.6 6.6l2.2-2.2c.3-.3.7-.4 1-.2 1.1.4 2.3.6 3.6.6.6 0 1 .4 1 1V20c0 .6-.4 1-1 1A17 17 0 0 1 3 4c0-.6.4-1 1-1h3.5c.6 0 1 .4 1 1 0 1.3.2 2.5.6 3.6.1.3 0 .7-.2 1z"/></svg><span class="num">0996 489 504</span></div>
-      <div class="row area"><svg width="26" height="26" viewBox="0 0 24 24" fill="#FFD21F"><path d="M12 2a7 7 0 0 0-7 7c0 5 7 13 7 13s7-8 7-13a7 7 0 0 0-7-7zm0 9.5a2.5 2.5 0 1 1 0-5 2.5 2.5 0 0 1 0 5z"/></svg><span>منخدم محافظتَي <b>دمشق</b> و<b>درعا</b></span></div>
+      <div class="row"><svg width="26" height="26" viewBox="0 0 24 24" fill="#D6A468"><path d="M6.6 10.8a15.2 15.2 0 0 0 6.6 6.6l2.2-2.2c.3-.3.7-.4 1-.2 1.1.4 2.3.6 3.6.6.6 0 1 .4 1 1V20c0 .6-.4 1-1 1A17 17 0 0 1 3 4c0-.6.4-1 1-1h3.5c.6 0 1 .4 1 1 0 1.3.2 2.5.6 3.6.1.3 0 .7-.2 1z"/></svg><span class="num">0996 489 504</span></div>
+      <div class="row area"><svg width="26" height="26" viewBox="0 0 24 24" fill="#D6A468"><path d="M12 2a7 7 0 0 0-7 7c0 5 7 13 7 13s7-8 7-13a7 7 0 0 0-7-7zm0 9.5a2.5 2.5 0 1 1 0-5 2.5 2.5 0 0 1 0 5z"/></svg><span>منخدم محافظتَي <b>دمشق</b> و<b>درعا</b></span></div>
     </div>
     <div class="wa">
       <div class="wa-t">
         <div class="cta">اطلب تصميمك الآن
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#0A5BA8" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M11 6l-6 6 6 6"/></svg>
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#262523" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M11 6l-6 6 6 6"/></svg>
         </div>
-        <small><svg width="20" height="20" viewBox="0 0 24 24" fill="#FFD21F"><path d="M12 2a10 10 0 0 0-8.6 15.1L2 22l5-1.3A10 10 0 1 0 12 2zm5.3 14.1c-.2.6-1.3 1.2-1.8 1.2-.5.1-1 .2-3.3-.7-2.8-1.1-4.5-4-4.7-4.2-.1-.2-1.1-1.5-1.1-2.8s.7-2 1-2.3c.2-.3.5-.3.7-.3h.5c.2 0 .4 0 .6.5l.9 2.1c.1.2.1.3 0 .5l-.3.5-.4.4c-.1.1-.3.3-.1.6.2.3.8 1.3 1.7 2.1 1.2 1 2.1 1.3 2.4 1.5.3.1.5.1.6-.1l.9-1.1c.2-.3.4-.2.6-.1l2 1c.3.1.5.2.5.3.1.1.1.6-.1 1.2z"/></svg>امسح الكود وراسلنا عالواتساب</small>
+        <small><svg width="20" height="20" viewBox="0 0 24 24" fill="#8EA48A"><path d="M12 2a10 10 0 0 0-8.6 15.1L2 22l5-1.3A10 10 0 1 0 12 2zm5.3 14.1c-.2.6-1.3 1.2-1.8 1.2-.5.1-1 .2-3.3-.7-2.8-1.1-4.5-4-4.7-4.2-.1-.2-1.1-1.5-1.1-2.8s.7-2 1-2.3c.2-.3.5-.3.7-.3h.5c.2 0 .4 0 .6.5l.9 2.1c.1.2.1.3 0 .5l-.3.5-.4.4c-.1.1-.3.3-.1.6.2.3.8 1.3 1.7 2.1 1.2 1 2.1 1.3 2.4 1.5.3.1.5.1.6-.1l.9-1.1c.2-.3.4-.2.6-.1l2 1c.3.1.5.2.5.3.1.1.1.6-.1 1.2z"/></svg>امسح الكود وراسلنا عالواتساب</small>
       </div>
-      <div class="qr"><img src="wa-qr.svg" alt="WhatsApp QR"></div>
+      <div class="qr"><img src="wa-qr-dark.svg" alt="WhatsApp QR"></div>
     </div>
   </footer>
 </div>
