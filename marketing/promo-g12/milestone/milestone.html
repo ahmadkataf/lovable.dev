@@ -1,0 +1,204 @@
+<!doctype html>
+<html lang="ar" dir="rtl"><head><meta charset="utf-8">
+<style>
+@font-face{font-family:A;src:url(alexandria-arabic-wght-normal.woff2) format('woff2');font-weight:100 900;unicode-range:U+0600-06FF,U+0750-077F,U+FB50-FDFF,U+FE70-FEFF,U+0660-0669}
+@font-face{font-family:A;src:url(alexandria-latin-wght-normal.woff2) format('woff2');font-weight:100 900}
+:root{--ink:#17131f;--pur:#7c3aed;--lil:#ce82ff;--yel:#FFD23F;--grn:#58CC02;--blu:#1CB0F6;--pink:#ff6fae;--bg:#f3f0fa}
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{width:1080px;height:1080px;overflow:hidden;background:var(--bg)}
+body{font-family:A,'Noto Color Emoji',sans-serif;color:var(--ink);position:relative}
+.abs{position:absolute}.full{position:absolute;inset:0}
+.blob{position:absolute;width:900px;height:900px;border-radius:50%}
+.scene{position:absolute;inset:0;opacity:0}
+.m{display:block;overflow:hidden;padding:.06em 0 .14em}.mi{display:block}
+.word{position:absolute;left:0;right:0;top:50%;text-align:center;font-weight:900;font-size:190px;line-height:1;margin-top:-110px;opacity:0}
+.icon{border-radius:26%;background:linear-gradient(145deg,#e3b3ff,#ce82ff 40%,#8b46ff);display:flex;align-items:center;justify-content:center;color:#fff;font-weight:900;direction:ltr;box-shadow:0 18px 40px rgba(124,58,237,.35),inset 0 0 0 4px rgba(255,255,255,.25);overflow:hidden;position:relative;flex:none}
+.shine{position:absolute;top:-50%;left:-80%;width:45%;height:200%;background:linear-gradient(90deg,rgba(255,255,255,0),rgba(255,255,255,.75),rgba(255,255,255,0));transform:rotate(20deg)}
+.av{position:absolute;width:52px;height:52px;margin:-26px 0 0 -26px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:30px;box-shadow:0 6px 14px rgba(23,19,31,.15);border:3px solid #fff}
+#num{font-size:300px;font-weight:900;line-height:1;direction:ltr;background:linear-gradient(135deg,#7c3aed,#ce82ff 55%,#ff6fae);-webkit-background-clip:text;background-clip:text;color:transparent;font-variant-numeric:tabular-nums;padding:0 .05em}
+#fx{position:absolute;inset:0;z-index:30;pointer-events:none}
+/* phone */
+#stage{position:absolute;inset:0;perspective:1800px;perspective-origin:50% 45%}
+#phone{position:absolute;left:0;top:0;width:412px;height:854px;transform-style:preserve-3d;transform-origin:50% 46%}
+#frame{position:absolute;inset:0;border-radius:64px;background:linear-gradient(150deg,#3a3446,#0d0a14 55%,#2b2537);box-shadow:0 0 0 2px rgba(255,255,255,.12) inset}
+#screen{position:absolute;left:16px;top:16px;width:380px;height:822px;border-radius:50px;overflow:hidden;background:linear-gradient(165deg,#8b46ff,#ce82ff 55%,#ffb3d1)}
+#notch{position:absolute;left:50%;top:28px;width:120px;height:32px;margin-left:-60px;background:#000;border-radius:18px}
+#pops{position:absolute;left:16px;top:16px;width:380px;height:822px;transform-style:preserve-3d;z-index:20}
+.nt{position:absolute;left:14px;width:352px;background:rgba(255,255,255,.92);border-radius:24px;padding:14px 16px;display:flex;gap:12px;align-items:center;box-shadow:0 10px 24px rgba(23,19,31,.15);transform-origin:50% 50%}
+.nt .tx{flex:1;text-align:right}
+.nt .a{font-size:13px;font-weight:700;color:#6b6480;display:flex;justify-content:space-between}
+.nt .h{font-size:22px;font-weight:900;margin-top:2px}
+.nt .s{font-size:17px;font-weight:600;color:#4a4458}
+#shadow{position:absolute;width:460px;height:70px;border-radius:50%;background:radial-gradient(closest-side,rgba(23,19,31,.33),rgba(23,19,31,0));top:985px;left:310px}
+.chip{display:inline-block;padding:12px 28px;border-radius:999px;font-weight:800;font-size:32px}
+</style></head><body>
+<div class="blob" id="g1" style="background:radial-gradient(closest-side,rgba(206,130,255,.55),rgba(206,130,255,0))"></div>
+<div class="blob" id="g2" style="background:radial-gradient(closest-side,rgba(120,230,170,.45),rgba(120,230,170,0))"></div>
+<div class="blob" id="g3" style="background:radial-gradient(closest-side,rgba(255,200,160,.55),rgba(255,200,160,0))"></div>
+
+<!-- hook -->
+<div class="scene" id="sA">
+  <div class="word" id="w0">خبر</div>
+  <div class="word" id="w1" style="color:var(--pur)">حلو</div>
+  <div class="word" id="w2">جداً 🎉</div>
+</div>
+
+<!-- counter -->
+<div class="scene" id="sB">
+  <div id="avs"></div>
+  <div class="abs" style="left:0;right:0;top:250px;text-align:center;font-size:70px;font-weight:900"><span class="m"><span class="mi" id="k1">وصلنا</span></span></div>
+  <div class="abs" style="left:0;right:0;top:360px;text-align:center"><span id="num" style="display:inline-block">0</span></div>
+  <div class="abs" style="left:0;right:0;top:680px;text-align:center;font-size:66px;font-weight:900"><span class="m"><span class="mi" id="k2">مشترك 🎓</span></span></div>
+</div>
+
+<!-- phone notifications -->
+<div class="scene" id="sC">
+  <div id="shadow"></div>
+  <div class="abs" id="side" style="left:40px;top:360px;width:420px;text-align:right">
+    <div class="m"><div class="mi" id="s1" style="font-size:58px;font-weight:900;line-height:1.15">كل يوم</div></div>
+    <div class="m"><div class="mi" id="s2" style="font-size:58px;font-weight:900;line-height:1.15;color:var(--pur)">عم ينضم</div></div>
+    <div class="m"><div class="mi" id="s3" style="font-size:58px;font-weight:900;line-height:1.15;white-space:nowrap">طلاب جداد</div></div>
+  </div>
+  <div id="stage"><div id="phone">
+    <div id="frame"></div>
+    <div id="screen">
+      <div style="position:absolute;left:0;right:0;top:92px;text-align:center;color:#fff">
+        <div style="font-size:20px;font-weight:700;opacity:.9">الثلاثاء ٦ تشرين الأول</div>
+        <div style="font-size:92px;font-weight:800;line-height:1.1;direction:ltr">9:41</div>
+      </div>
+    </div>
+    <div id="notch"></div>
+    <div id="pops"></div>
+  </div></div>
+</div>
+
+<!-- thanks -->
+<div class="scene" id="sD">
+  <div class="abs" style="left:0;right:0;top:250px;text-align:center"><span class="m"><span class="mi" id="t1" style="font-size:92px;font-weight:900"><span class="nn" style="color:var(--pur);direction:ltr;display:inline-block">104</span> طالب وطالبة</span></span></div>
+  <div class="abs" style="left:0;right:0;top:390px;text-align:center"><span class="m"><span class="mi" id="t2" style="font-size:62px;font-weight:800">اختاروا إمار ١٢</span></span></div>
+  <div class="abs" style="left:0;right:0;top:480px;text-align:center"><span class="m"><span class="mi" id="t3" style="font-size:62px;font-weight:800;color:#5b546b">ليحضّروا للبكالوريا</span></span></div>
+  <div class="abs" style="left:0;right:0;top:640px;text-align:center"><span id="t4" style="display:inline-block;font-size:96px;font-weight:900;opacity:0">شكراً <span style="background:var(--yel);border-radius:22px;padding:0 20px">لثقتكم</span> 🙏</span></div>
+</div>
+
+<!-- CTA -->
+<div class="scene" id="sE">
+  <div class="abs" id="lock" style="left:0;right:0;top:90px;display:flex;align-items:center;justify-content:center;gap:24px">
+    <div class="icon" style="width:120px;height:120px;font-size:60px">12<div class="shine" id="sh2"></div></div>
+    <div style="text-align:right"><div style="font-size:64px;font-weight:900;line-height:1.1">إمار ١٢</div><div style="font-size:30px;font-weight:600;color:#5b546b">تطبيق إنجليزي البكالوريا</div></div>
+  </div>
+  <div class="abs" style="left:0;right:0;top:300px;text-align:center;font-size:70px;font-weight:900"><span class="m"><span class="mi" id="e1">انضم لهم 👇</span></span></div>
+  <div class="abs" style="left:0;right:0;top:420px;text-align:center"><span id="e2" style="display:inline-block;font-size:92px;font-weight:900;padding:.2em .1em 0;margin-top:-.2em;background:linear-gradient(90deg,#58CC02,#1CB0F6 50%,#7c3aed);-webkit-background-clip:text;background-clip:text;color:transparent;opacity:0">الوحدة الأولى مجاناً</span></div>
+  <div class="abs" style="left:0;right:0;top:600px;text-align:center"><span id="e3" style="display:inline-flex;align-items:center;gap:22px;padding:18px 40px;border-radius:999px;background:var(--ink);color:#fff;font-size:38px;font-weight:700;opacity:0"><span style="font-size:64px;font-weight:900;color:var(--yel);direction:ltr">20$</span>للعام الدراسي كامل</span></div>
+  <div class="abs" style="left:0;right:0;top:760px;text-align:center"><span id="e4" class="chip" style="background:#25d366;color:#fff;font-size:42px;padding:16px 40px;box-shadow:0 18px 40px rgba(37,211,102,.35);opacity:0">💬 واتساب <span dir="ltr">+963 996 489 504</span></span></div>
+  <div class="abs" style="left:0;right:0;top:885px;text-align:center;font-size:27px;font-weight:600;color:#5b546b"><span id="e5" style="display:inline-block;direction:ltr;opacity:0">🌐 emar-api.almutafawiqin.workers.dev/app/</span></div>
+</div>
+<canvas id="fx" width="1080" height="1080"></canvas>
+
+<script>
+const SUBS=104
+const $=id=>document.getElementById(id)
+const clamp=(x,a=0,b=1)=>Math.max(a,Math.min(b,x)), P=(t,a,b)=>clamp((t-a)/(b-a)), lerp=(a,b,x)=>a+(b-a)*x
+const eo3=x=>1-Math.pow(1-x,3), eio=x=>x<.5?4*x*x*x:1-Math.pow(-2*x+2,3)/2, eoE=x=>x>=1?1:1-Math.pow(2,-10*x), eiE=x=>x<=0?0:Math.pow(2,10*x-10)
+const eB=(x,s=1.7)=>{x=clamp(x);const c=s+1;return 1+c*Math.pow(x-1,3)+s*Math.pow(x-1,2)}
+const eEl=x=>{if(x<=0)return 0;if(x>=1)return 1;return Math.pow(2,-10*x)*Math.sin((x*10-.75)*2*Math.PI/3)+1}
+function hash(i){const s=Math.sin(i*127.1+311.7)*43758.5453;return s-Math.floor(s)}
+function rv(el,t,t0,dur=.45,tOut=null,od=.25){const x=P(t,t0,t0+dur);let y=(1-eoE(x))*115,o=0;if(tOut!=null){o=P(t,tOut,tOut+od);y-=eio(o)*115}el.style.transform=`translateY(${y}%)`;el.style.opacity=(x<=0||o>=1)?0:1}
+function slam(el,t,t0,dur=.3,from=1.9){const x=P(t,t0,t0+dur);el.style.opacity=clamp(x*5);el.style.transform=`scale(${lerp(from,1,eoE(x))})`;el.style.filter=`blur(${(1-eoE(x))*14}px)`}
+document.querySelectorAll('.nn').forEach(e=>e.textContent=SUBS)
+
+// ---- avatars: SUBS circles on rings around the number; arrival times accelerate
+const COLS=['#ce82ff','#7c3aed','#58CC02','#1CB0F6','#FFD23F','#ff6fae','#ff9f43']
+const EM=['🧑‍🎓','👩‍🎓','🧑‍🎓','👩‍🎓','😎','🤩','🥳']
+const AV=[]; const T_C0=1.75, T_C1=4.55
+{ const rings=[[350,36],[430,42],[515,40]]; let pts=[]
+  for(const [r,n] of rings) for(let i=0;i<n;i++){const a=i/n*Math.PI*2+(r==430?.08:0); const x=540+Math.cos(a)*r, y=540+Math.sin(a)*r; if(x>36&&x<1044&&y>36&&y<1044) pts.push([x,y])}
+  // deterministic shuffle
+  pts=pts.map((p,i)=>[hash(i*3.1)+0,p]).sort((a,b)=>a[0]-b[0]).map(x=>x[1])
+  const n=Math.min(SUBS,pts.length)
+  for(let i=0;i<n;i++){const d=document.createElement('div');d.className='av';d.style.background=COLS[i%COLS.length];d.textContent=EM[(i*3)%EM.length];$('avs').appendChild(d)
+    const u=(i+1)/n, ta=T_C0+(T_C1-T_C0)*Math.sqrt(u)-.28
+    const ang=hash(i+7)*Math.PI*2; AV.push({el:d,x:pts[i][0],y:pts[i][1],sx:540+Math.cos(ang)*900,sy:540+Math.sin(ang)*900,ta})}
+}
+function countAt(t){let c=0;for(const a of AV) if(t>=a.ta+.28) c++; return Math.round(c*SUBS/AV.length)}
+
+// notifications (newest on top)
+const NT=[[6.15,SUBS-3],[6.75,SUBS-2],[7.3,SUBS-1],[7.9,SUBS]]
+const nts=NT.map(([t,n],i)=>{const d=document.createElement('div');d.className='nt';d.innerHTML=`<div class="icon" style="width:52px;height:52px;font-size:24px;border-radius:14px">12</div><div class="tx"><div class="a"><span>إمار ١٢</span><span>الآن</span></div><div class="h">🎉 مشترك جديد!</div><div class="s">صرنا <b style="direction:ltr;display:inline-block">${n}</b> طالب وطالبة</div></div>`;$('pops').appendChild(d);return d})
+
+// confetti / sparks on canvas
+const fx=$('fx'),g=fx.getContext('2d')
+function confetti(t,t0,cx,cy,n,spread=1){const dt=t-t0;if(dt<0||dt>2.2)return
+  for(let i=0;i<n;i++){const base=cx<300?-Math.PI/2+.45:(cx>780?-Math.PI/2-.45:-Math.PI/2); const a=base+(hash(i+t0)-.5)*Math.PI*1.6*spread, sp=lerp(700,1500,hash(i*2+t0))
+    const v=cy>1000?1.35:1; const x=cx+Math.cos(a)*sp*v*dt*(1-dt*.3), y=cy+Math.sin(a)*sp*v*dt*(1-dt*.3)+700*dt*dt
+    g.save();g.globalAlpha=clamp(1-(dt-1.5)/.7);g.translate(x,y);g.rotate(dt*10*(hash(i+3)-.5)*3);g.fillStyle=COLS[i%COLS.length];g.fillRect(-9,-5,18,10+hash(i)*8);g.restore()}}
+
+const W=[0.0,0.35,0.7]
+function render(t){
+  const B=[['g1',300,300,260,200,.09,.11],['g2',850,800,220,240,.12,.08],['g3',800,200,240,200,.07,.1]]
+  for(const [id,cx,cy,ax,ay,fx_,fy] of B) $(id).style.transform=`translate(${cx+ax*Math.sin(t*fx_*6.28+cx)-450}px,${cy+ay*Math.cos(t*fy*6.28+cy)-450}px)`
+  const SC=[['sA',0,1.45],['sB',1.3,5.95],['sC',5.6,10.0],['sD',9.75,13.25],['sE',13.0,99]]
+  for(const [id,a,b] of SC) $(id).style.opacity=(t>=a&&t<b)?1:0
+  g.clearRect(0,0,1080,1080)
+  // ---- hook
+  if(t<1.5){ $('sA').style.transform=`scale(${1+t*.06})`
+    for(let i=0;i<3;i++){const el=$('w'+i),a=W[i],b=W[i+1]??1.2
+      if(t<a||t>b+.14){el.style.opacity=0;continue}
+      if(t<b) slam(el,t,a,.26,1.9); else {const o=P(t,b,b+.14);el.style.opacity=1-o;el.style.transform=`scale(${1+eiE(o)*1.2})`;el.style.filter=`blur(${o*12}px)`}}
+  }
+  // ---- counter
+  if(t>=1.3&&t<6.0){
+    rv($('k1'),t,1.4,.45,5.55,.25)
+    const c=countAt(t); $('num').textContent=c
+    const hit=P(t,T_C1+.25,T_C1+.55)
+    const pulse = t<T_C1+.25 ? 1+.04*Math.sin(t*30)*(c>0?1:0)*P(t,T_C0,T_C1) : lerp(1.35,1,eEl(hit))
+    const ni=P(t,1.5,1.85), out=eio(P(t,5.5,5.9))
+    $('num').style.transform=`scale(${eB(ni,2)*pulse*(1-out*.6)})`; $('num').style.opacity=clamp(ni*3)*(1-out)
+    rv($('k2'),t,T_C1+.3,.45,5.55,.25)
+    for(const a of AV){ const x=P(t,a.ta,a.ta+.3), e=eo3(x); const sway=t>T_C1+.3?Math.sin(t*1.6+a.x*.01)*4:0
+      const rot=t>T_C1+.3?(t-T_C1-.3)*.06:0, dx=a.x-540, dy=a.y-540, cs=Math.cos(rot), sn=Math.sin(rot)
+      let X=540+dx*cs-dy*sn, Y=540+dx*sn+dy*cs; X=lerp(a.sx,X,e); Y=lerp(a.sy,Y,e)+sway
+      const bump=t>=T_C1+.25&&t<T_C1+.7?1+.25*Math.sin(P(t,T_C1+.25,T_C1+.7)*Math.PI):1
+      // exit: avatars rush to center
+      const ox=eiE(P(t,5.45,5.85)); X=lerp(X,540,ox); Y=lerp(Y,540,ox)
+      a.el.style.left=X+'px'; a.el.style.top=Y+'px'; a.el.style.opacity=x>0?(1-ox):0; a.el.style.transform=`scale(${(x<1?lerp(.3,1,eB(x,2.4)):1)*bump})` }
+    confetti(t,T_C1+.25,60,1120,90,.5); confetti(t,T_C1+.3,1020,1120,90,.5)
+    $('sB').style.transform=`scale(${1+(t-1.3)*.012})`
+  }
+  // ---- phone notifications
+  if(t>=5.6&&t<10.05){
+    let y=113, x=700, ry=-16, rz=0
+    const inE=eoE(P(t,5.65,6.35)); y=lerp(1150,113,inE); ry=lerp(-50,-16,inE)+Math.sin(t*.8)*3; rz=lerp(10,0,inE)
+    const ex=P(t,9.55,10.0); if(ex>0){ y+=eiE(ex)*1100; rz-=ex*12 }
+    $('phone').style.transform=`translate(${x-206}px,${y+Math.sin(t*1.6)*7}px) rotateY(${ry}deg) rotateX(5deg) rotateZ(${rz}deg)`
+    $('shadow').style.left=(x-230)+'px'; $('shadow').style.opacity=inE*(1-ex)
+    // stack: newest at top (y=260), older shift down
+    nts.forEach((d,i)=>{const t0=NT[i][0]; if(t<t0){d.style.opacity=0;return}
+      const newer=NT.filter(([tn],j)=>j>i&&t>=tn).length, shift=NT.slice(i+1).reduce((s,[tn])=>s+eoE(P(t,tn,tn+.3))*108,0)
+      const k=P(t,t0,t0+.9), pop=eB(P(t,t0,t0+.3),1.6)*(1-eio(P(t,t0+.5,t0+.9)))
+      const last=i==NT.length-1, hold=last?eB(P(t,t0+.9,t0+1.2),2)*(1-eio(P(t,9.3,9.6))):0
+      const z=pop*130+hold*160, sc=1+pop*.14+hold*.32
+      d.style.top=(250+shift*1.1)+'px'; d.style.opacity=clamp(P(t,t0,t0+.12)*1)*(newer>=3?0:1)
+      d.style.transform=`translateZ(${z}px) scale(${sc})`
+      d.style.boxShadow=`0 ${10+z*.2}px ${24+z*.25}px rgba(23,19,31,${.15+z*.001})`})
+    rv($('s1'),t,6.2,.45,9.4,.22); rv($('s2'),t,6.32,.45,9.42,.22); rv($('s3'),t,6.44,.45,9.44,.22)
+    if(t>8.0) confetti(t,8.0,700,300,70,.9)
+  }
+  // ---- thanks
+  if(t>=9.75&&t<13.3){
+    rv($('t1'),t,9.95,.45,12.85,.25); rv($('t2'),t,10.25,.45,12.88,.25); rv($('t3'),t,10.45,.45,12.9,.25)
+    { const x=P(t,11.0,11.3),el=$('t4'); const o=eio(P(t,12.8,13.05)); el.style.opacity=clamp(x*5)*(1-o); el.style.transform=`scale(${lerp(2.1,1,eoE(x))*(1-o*.3)})`; el.style.filter=`blur(${(1-eoE(x))*12+o*8}px)` }
+  }
+  // ---- CTA
+  if(t>=13.0){
+    { const l=P(t,13.1,13.55); $('lock').style.opacity=clamp(l*3); $('lock').style.transform=`translateY(${(1-eoE(l))*-60}px) scale(${eB(l,2)})` }
+    rv($('e1'),t,13.35,.4)
+    slam($('e2'),t,13.65,.32,2.2)
+    { const x=P(t,14.2,14.6),el=$('e3'); el.style.opacity=clamp(x*3); el.style.transform=`translateY(${(1-eoE(x))*80}px) scale(${eB(x,2)})` }
+    { const x=P(t,14.7,15.05),el=$('e4'); el.style.opacity=clamp(x*3); el.style.transform=`scale(${eB(x,2.5)})` }
+    { const x=P(t,14.9,15.3),el=$('e5'); el.style.opacity=x; el.style.transform=`translateY(${(1-eo3(x))*20}px)` }
+    $('sh2').style.left=lerp(-80,180,eio(P(t,15.6,16.1)))+'%'
+  }
+  return true
+}
+window.render=render
+</script></body></html>
