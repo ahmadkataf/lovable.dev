@@ -200,7 +200,8 @@ public class MainActivity extends Activity {
             InputStream in = am.open(rel);
             Map<String, String> headers = new HashMap<>();
             headers.put("Access-Control-Allow-Origin", "*");
-            headers.put("Cache-Control", "max-age=31536000");
+            // the page itself is never cached, so an updated app never loads an old page that names old scripts
+            headers.put("Cache-Control", rel.endsWith(".html") ? "no-cache" : "max-age=31536000");
             return new WebResourceResponse(mime(rel), "utf-8", 200, "OK", headers, in);
         } catch (IOException e) {
             return new WebResourceResponse("text/plain", "utf-8", 404, "Not Found", new HashMap<String, String>(), new ByteArrayInputStream(new byte[0]));
