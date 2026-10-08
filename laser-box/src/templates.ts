@@ -1581,6 +1581,7 @@ export const templateById = (id: string) => TEMPLATES.find(t => t.id === id) ?? 
 /** The picker's groups, in the order they are shown; every template belongs to exactly one. */
 export const CATEGORIES: { id: string; name: string; ids: string[] }[] = [
   { id: 'box', name: 'صناديق', ids: ['closed', 'open', 'sliding', 'liftoff', 'hinged', 'hinged90', 'flex', 'lip', 'window', 'drawer', 'roundbox', 'crate'] },
+  { id: 'shop', name: 'ستاندات عرض للمحلات', ids: ['displaystand'] },
   { id: 'wedding', name: 'أعراس وخطوبة', ids: ['fabricset', 'engagement', 'hexringbox', 'nikahtray', 'hennatray', 'welcomesign', 'placecards', 'invitebox', 'caketopper', 'guestframe', 'sweetstand', 'tablenumbers', 'favorbox'] },
   { id: 'gift', name: 'هدايا وديكور', ids: ['chest', 'catbank', 'decobox', 'jewelry', 'moneybox', 'teahouse', 'frame', 'basket', 'fence', 'clock'] },
   { id: 'kitchen', name: 'مطبخ وتقديم', ids: ['carrier', 'mugtree', 'spicerack', 'bedtray', 'tray', 'teabox', 'tissue'] },
@@ -1594,7 +1595,7 @@ export const CATEGORIES: { id: string; name: string; ids: string[] }[] = [
   { id: 'bulk', name: 'بالجملة', ids: ['keychains', 'coasters'] },
 ]
 /** the newest designs get a badge in the picker */
-export const NEW_IDS = ['fabricset', 'mabkharatower', 'mabkhara', 'fittest', 'nikahtray', 'hennatray', 'welcomesign', 'placecards', 'invitebox', 'doorhanger', 'doordiagonal', 'doorblocks', 'doororbit', 'doorchevron', 'doormihrab', 'doorkhatam', 'doormashrabiya', 'doorstars', 'doorandalus', 'doorpanel', 'doorclassic', 'doorarch', 'doordiamond', 'doorwaves', 'doorstar', 'doormodern', 'doorframes', 'caketopper', 'guestframe', 'sweetstand', 'tablenumbers', 'favorbox', 'hexringbox', 'engagement', 'hinged90', 'crate', 'carrier', 'jewelry', 'moneybox', 'planter', 'petfeeder', 'incense', 'bedtray', 'phonestand', 'bookstand', 'headphone', 'keyholder', 'wallshelf', 'spicerack', 'coasters', 'clock', 'keychains', 'ramadanornaments', 'mugtree', 'jewelrytree', 'birdhouse', 'ramadanlantern']
+export const NEW_IDS = ['displaystand', 'fabricset', 'mabkharatower', 'mabkhara', 'fittest', 'nikahtray', 'hennatray', 'welcomesign', 'placecards', 'invitebox', 'doorhanger', 'doordiagonal', 'doorblocks', 'doororbit', 'doorchevron', 'doormihrab', 'doorkhatam', 'doormashrabiya', 'doorstars', 'doorandalus', 'doorpanel', 'doorclassic', 'doorarch', 'doordiamond', 'doorwaves', 'doorstar', 'doormodern', 'doorframes', 'caketopper', 'guestframe', 'sweetstand', 'tablenumbers', 'favorbox', 'hexringbox', 'engagement', 'hinged90', 'crate', 'carrier', 'jewelry', 'moneybox', 'planter', 'petfeeder', 'incense', 'bedtray', 'phonestand', 'bookstand', 'headphone', 'keyholder', 'wallshelf', 'spicerack', 'coasters', 'clock', 'keychains', 'ramadanornaments', 'mugtree', 'jewelrytree', 'birdhouse', 'ramadanlantern']
 
 // ====================================================================== more designs, built from the shared parts
 
@@ -4385,6 +4386,201 @@ MORE.push({
         `الخشب: MDF أو بلاي ${t} مم. الصق الزوايا بغراء الخشب وانتظر جفافه، ثم صنفر الحواف قبل القماش حتى لا تظهر أصابع التعشيق تحته.`,
       ],
       warnings, errors,
+    }
+  },
+})
+
+// ------------------------------------------------------------------ tiered counter display (shop stand)
+function pointInPoly(q: P2, poly: P2[]): boolean {
+  let c = false
+  for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
+    const p1 = poly[i], p2 = poly[j]
+    if ((p1.y > q.y) !== (p2.y > q.y) && q.x < ((p2.x - p1.x) * (q.y - p1.y)) / (p2.y - p1.y) + p1.x) c = !c
+  }
+  return c
+}
+/** 0 when two closed polygons cross or one holds the other, else how far apart they are. */
+function polyGap(a: P2[], b: P2[]): number {
+  const inside = pointInPoly
+  const cross = (p: P2, q: P2, r: P2) => (q.x - p.x) * (r.y - p.y) - (q.y - p.y) * (r.x - p.x)
+  for (let i = 0; i < a.length; i++) for (let j = 0; j < b.length; j++) {
+    const p1 = a[i], p2 = a[(i + 1) % a.length], q1 = b[j], q2 = b[(j + 1) % b.length]
+    if (cross(p1, p2, q1) * cross(p1, p2, q2) < 0 && cross(q1, q2, p1) * cross(q1, q2, p2) < 0) return 0
+  }
+  if (inside(a[0], b) || inside(b[0], a)) return 0
+  const closed = (ps: P2[]) => [...ps, ps[0]]
+  return Math.min(...a.map(q => distToPolyline(q, closed(b))), ...b.map(q => distToPolyline(q, closed(a))))
+}
+/** n tabs spread evenly over the length L of a piece's end, each kept `inset` from the ends; [start, end] pairs. */
+function tabRuns(L: number, inset: number): [number, number][] {
+  const avail = L - 2 * inset
+  if (avail < 6) return []
+  const n = avail > 130 ? 3 : avail > 60 ? 2 : 1, tl = Math.min(30, (0.62 * avail) / n)
+  return Array.from({ length: n }, (_, i) => { const c = inset + (avail * (i + 0.5)) / n; return [round3(c - tl / 2), round3(c + tl / 2)] as [number, number] })
+}
+
+MORE.push({
+  id: 'displaystand',
+  name: 'ستاند عرض مدرّج',
+  desc: 'ستاند للمحلات: لوح خلفي بقوس للشعار، ودرجات مائلة كل منها لوح ورفّ عمودي عليه فتستند العلب في زاوية، وواجهة سفلية. كل القطع بألسنة في شقوق الجانبين.',
+  icon: `<path d="M12 18c0-10 40-10 40 0v40H12z"/><path d="M16 30l8 0 6 8M24 30v0M18 26l5 10 5-3M28 40l5 10 5-3M38 54h10" stroke-width="1.6"/><path d="M14 58h36" stroke-width="2.5"/>`,
+  params: [
+    mm('W', 'العرض', 120, 900, 'عرض اللوح الخلفي، وهو العرض الكلّي'),
+    mm('H', 'ارتفاع اللوح الخلفي', 150, 1200, 'مع القوس'),
+    { key: 'N', label: 'عدد الدرجات', min: 1, max: 6, step: 1, int: true },
+    mm('h', 'ارتفاع الدرجة', 40, 250, 'المسافة العمودية بين درجة والتي تليها'),
+    { key: 'ang', label: 'ميل الألواح', min: 45, max: 80, step: 1, unit: '°', hint: 'عن الأفق: أكبر = أقرب إلى الوقوف' },
+    mm('dl', 'عمق الرفّ', 12, 100, 'الرفّ عمودي على اللوح المائل: أكبر سماكة علبة تقف عليه'),
+    mm('hf', 'ارتفاع الواجهة الأمامية', 30, 250, 'من الأرض إلى حافّة الرفّ السفلي'),
+    mm('lip', 'حافّة فوق الرفّ السفلي', 0, 40, 'ترتفع الواجهة فوق الرفّ الأخير لتمسك العلب؛ 0 = بلا'),
+    mm('ar', 'ارتفاع القوس', 0, 200),
+    mm('R', 'تدوير أعلى الجانب', 0, 250, 'نصف قطر الاستدارة من الأمام إلى الحافّة الخلفية'),
+    mm('e', 'هامش الجانب', 6, 40, 'عرض الخشب أمام الدرجات في الجانبين'),
+    { key: 'base', label: 'قاعدة', min: 0, max: 1, step: 1, int: true, hint: 'لوح سفلي يربط الجانبين' },
+    { key: 'n', label: 'العدد', min: 1, max: 30, step: 1, int: true },
+    mm('fit', 'خلوص الشقوق', 0, 0.5),
+  ],
+  defaults: { W: 320, H: 440, N: 3, h: 90, ang: 70, dl: 30, hf: 75, lip: 0, ar: 40, R: 50, e: 12, base: 1, n: 1, fit: 0.15 },
+  innerAdd: () => ({ W: 0, D: 0, H: 0 }),
+  build(p, c) {
+    const warnings: string[] = [], errors: string[] = []
+    const t = c.t, { W, H, h, dl, hf, lip, ar, e, fit } = p, N = Math.round(p.N), n = Math.round(p.n), base = Math.round(p.base) > 0
+    const al = (p.ang * Math.PI) / 180, sa = Math.sin(al), ca = Math.cos(al)
+    const d = { x: ca, y: -sa }, nf = { x: sa, y: ca }                     // down the plate; out of its face
+    const add = (a: P2, b: P2, k = 1): P2 => ({ x: a.x + k * b.x, y: a.y + k * b.y })
+    const ms = round3(Math.max(6, 2 * t))                                  // the back panel past each side
+    const Wi = round3(W - 2 * ms - 2 * t), Wt = round3(Wi + 2 * t)          // between the sides; a piece with its tabs
+    if (Wi < 60) errors.push(`العرض صغير: ${Math.ceil(60 + 2 * ms + 2 * t)} مم على الأقل.`)
+    // the zigzag, in a side view (x forward from the back panel's face, y up from the floor): plate k's face runs down
+    // to the corner V_k, ledge k stands square to it from there, plate k+1 hangs under the ledge's front end
+    const Lp = round3((h + dl * ca) / sa - t)                              // a plate's face, so each step drops h
+    if (Lp < 25) errors.push('الدرجة قصيرة على هذا العمق والميل: زد ارتفاعها.')
+    const D = { x: dl * sa + (t + Lp) * ca, y: dl * ca - (t + Lp) * sa }  // one step of the zigzag (D.y = -h)
+    const VN = { x: 0, y: hf - dl * ca }
+    // the side: its front edge e beyond the line of the ledges' front corners, its top a round of radius R that comes
+    // down into the back edge. The steps stand forward of the back panel by gb, as little as lets the round pass over
+    // the top plate's slots with wood to spare
+    const R = p.R, inset = round3(Math.max(6, 2 * t)), mclr = 2.5
+    const DL0 = Math.hypot(D.x, D.y), u = { x: D.x / DL0, y: D.y / DL0 }, ne = { x: -D.y / DL0, y: D.x / DL0 }
+    const zig = (gb: number) => {
+      const V1x = gb + t * sa + Lp * ca                                    // plate 1's back corner gb from the back panel
+      const V = Array.from({ length: N }, (_, i) => ({ x: V1x + i * D.x, y: VN.y + (N - 1 - i) * -D.y }))
+      const E = V.map(v => add(v, nf, dl)), T = V.map(v => add(v, d, -Lp))
+      const O = add(E[0], ne, e), lineY = (x: number) => O.y + ((x - O.x) * u.y) / u.x
+      const Q = { x: R * (1 + ne.x), y: 0 }; Q.y = lineY(Q.x)
+      const C = R > 0.5 ? add(Q, ne, -R) : { x: 0, y: lineY(0) }
+      // the side's top from the line over the round into the back edge (without the back tabs)
+      const arc: P2[] = []
+      if (R > 0.5) {
+        const a2 = Math.atan2(ne.y, ne.x), a1 = Math.PI, k = Math.max(8, Math.ceil(((a1 - a2) * R) / 3))
+        for (let i = 0; i <= k; i++) { const a = a2 + ((a1 - a2) * i) / k; arc.push({ x: C.x + R * Math.cos(a), y: C.y + R * Math.sin(a) }) }
+      } else arc.push(C)
+      return { V, E, T, lineY, Q, C, arc }
+    }
+    // plate 1's top slot, at gb = 0 (it moves with the steps)
+    const topSlot = (gb: number) => {
+      const z = zig(gb), r = tabRuns(Lp, inset)[0] ?? [inset, Lp - inset], at = add(z.T[0], nf, -t / 2)
+      const a = (r[1] - r[0] + 0.5) / 2, b = (t + 0.5) / 2, cen = add(at, d, (r[0] + r[1]) / 2), q = { x: -d.y, y: d.x }
+      return { z, pts: [add(add(cen, d, -a), q, -b), add(add(cen, d, a), q, -b), add(add(cen, d, a), q, b), add(add(cen, d, -a), q, b)] }
+    }
+    const clear = (gb: number) => {
+      const { z, pts } = topSlot(gb)
+      // the outline near the top: down the back edge, the round, and on down the front line well past the slot
+      const far = Math.max(...pts.map(q => q.x)) + 50, edge = [{ x: 0, y: -1e4 }, ...[...z.arc].reverse(), { x: far, y: z.lineY(far) }, { x: far, y: -1e4 }]
+      // the slot with wood round it, and the plate's top end itself inside the side
+      const ends = [z.T[0], add(z.T[0], nf, -t)]
+      return pts.every(q => pointInPoly(q, edge) && distToPolyline(q, edge.slice(0, -1)) >= mclr + 1) &&
+        ends.every(q => pointInPoly(q, edge) && distToPolyline(q, edge.slice(0, -1)) >= 2)
+    }
+    let gb = 0
+    while (gb < 400 && !clear(gb)) gb += 1
+    if (gb >= 400) errors.push('تدوير أعلى الجانب كبير على هذه الدرجات: صغّره.')
+    const { V, E, T, lineY, Q, C, arc: top } = zig(gb)
+    const EN = E[N - 1], xf = round3(EN.x + t * ca + (lip > 0 ? t : 0))    // the front panel's face
+    // the front panel: under the last ledge's front end, or rising lip above it with the ledge butting its back
+    const fTop = lip > 0 ? EN.y + lip : V[N - 1].y + (dl - t / sa) * ca - t * sa - 0.2
+    const bh = round3(Math.max(5, 1.5 * t)), baseLen = round3(xf - t)
+    const low = Math.min(...V.map(v => add(add(v, nf, -t), d, t).y), ...V.map(v => add(v, nf, -t).y))
+    if (low < (base ? bh + t : 0) + 3) errors.push(`الواجهة الأمامية منخفضة على الدرجات: اجعلها ${Math.ceil(hf + (base ? bh + t : 0) + 3 - low)} مم أعلى على الأقل.`)
+    const mf = round3(Math.max(5, 1.5 * t)), xs = round3(xf + mf)
+    // the front edge rises at least to the front panel's top (a lip above the last ledge gets a flat at the front)
+    const yF = Math.max(lineY(xs), fTop), xFlat = yF > lineY(xs) + 1e-6 ? O_x(yF) : xs
+    function O_x(y: number) { return xs - ((y - lineY(xs)) * u.x) / -u.y }
+    if (Q.x > xs - 10 || C.y < 30) errors.push('تدوير أعلى الجانب كبير على عمق الستاند: صغّره.')
+    // the round: from where it leaves the front edge, over the top, down into the back edge
+    const P1 = { x: 0, y: C.y }
+    // the side's tabs into the back panel, along its back edge under the round
+    const backTabs = tabRuns(P1.y, inset)
+    if (!backTabs.length) errors.push('الجانب قصير من الخلف على ألسنة اللوح الخلفي.')
+    const sideOut: P2[] = [{ x: 0, y: 0 }, { x: xs, y: 0 }, { x: xs, y: yF }, ...(xFlat < xs ? [{ x: xFlat, y: yF }] : []), ...top]
+    for (const [a, b] of [...backTabs].reverse()) sideOut.push({ x: 0, y: b }, { x: -t, y: b }, { x: -t, y: a }, { x: 0, y: a })
+    const ymax = Math.max(...sideOut.map(q => q.y))
+    // every piece between the sides: where its centre line runs in the side view, and how long it is
+    type Piece = { id: string; name: string; at: P2; dir: P2; len: number; count: number; note: string }
+    const pieces: Piece[] = [
+      { id: 'plate', name: 'اللوح المائل', at: add(T[0], nf, -t / 2), dir: d, len: Lp, count: N, note: 'تستند عليه العلب' },
+      { id: 'ledge', name: 'رفّ الدرجة', at: add(add(V[0], nf, -t), d, t / 2), dir: nf, len: round3(dl + t), count: N, note: 'عمودي على اللوح المائل: تقف عليه العلب' },
+      { id: 'front', name: 'الواجهة الأمامية', at: { x: xf - t / 2, y: 0 }, dir: { x: 0, y: 1 }, len: round3(fTop), count: 1, note: 'مكان الرقم أو الشعار الصغير' },
+      ...(base ? [{ id: 'base', name: 'القاعدة', at: { x: 0, y: bh + t / 2 }, dir: { x: 1, y: 0 }, len: baseLen, count: 1, note: 'بين اللوح الخلفي والواجهة' }] : []),
+    ]
+    // a slot for every tab of every piece, at every step of the zigzag
+    const slots: P2[][] = []
+    const slot = (cen: P2, dir: P2, len: number) => {
+      const a = (len + fit) / 2, b = (t + fit) / 2, q = { x: -dir.y, y: dir.x }
+      return [add(add(cen, dir, -a), q, -b), add(add(cen, dir, a), q, -b), add(add(cen, dir, a), q, b), add(add(cen, dir, -a), q, b)]
+    }
+    const shifts = (pc: Piece) => (pc.id === 'plate' || pc.id === 'ledge' ? Array.from({ length: N }, (_, i) => ({ x: i * D.x, y: i * D.y })) : [{ x: 0, y: 0 }])
+    const runs = new Map<string, [number, number][]>()
+    for (const pc of pieces) {
+      const r = tabRuns(pc.len, pc.id === 'ledge' ? Math.max(4, 1.2 * t) : inset)
+      if (!r.length) errors.push(`${pc.name} قصير على لسان في الجانب.`)
+      runs.set(pc.id, r)
+      for (const sh of shifts(pc)) for (const [a, b] of r) slots.push(slot(add(add(pc.at, sh), pc.dir, (a + b) / 2), pc.dir, b - a))
+    }
+    // strength: every slot clear of the outline and of the others
+    if (!errors.length) {
+      let gap = Infinity
+      const outline = sideOut
+      const ring = [...outline, outline[0]]
+      for (let i = 0; i < slots.length; i++) {
+        // inside the outline (no edge crossing it), then its distance to the edge
+        gap = Math.min(gap, polyGap(slots[i], outline) === 0 && slots[i].every(q => pointInPoly(q, outline)) ? Math.min(...slots[i].map(q => distToPolyline(q, ring)), ...outline.map(q => distToPolyline(q, [...slots[i], slots[i][0]]))) : 0)
+        for (let j = i + 1; j < slots.length; j++) gap = Math.min(gap, polyGap(slots[i], slots[j]))
+      }
+      if (gap < 2) errors.push(`في الجانب شقّان متقاربان أو شقّ قريب من الحافّة (${gap.toFixed(1)} مم): زد هامش الجانب أو ارتفاع الدرجة أو عمق الرفّ.`)
+    }
+    if (H < ymax + ar + 20) errors.push(`اللوح الخلفي قصير: يلزم ${Math.ceil(ymax + ar + 20)} مم على الأقل ليظهر فوق الجانبين.`)
+    if (ar > W / 2) errors.push('القوس أعلى من نصف العرض.')
+    if (xs < 0.3 * H) warnings.push('الستاند قليل العمق على ارتفاعه وقد ينقلب للخلف؛ زد عمق الرفّ أو عدد الدرجات أو قلّل الارتفاع.')
+    // to panel coordinates: x shifted past the tabs, y down from the top
+    const Hs = round3(ymax), toSide = (ps: P2[]) => ps.map(q => ({ x: round3(q.x + t), y: round3(Hs - q.y) }))
+    const panels: PanelSpec[] = []
+    // the back panel: an arch over the full width, slots for the sides' tabs
+    const archPts: P2[] = []
+    if (ar > 0.5) {
+      const Rr = (ar * ar + (W / 2) ** 2) / (2 * ar), cy = Rr, a0 = Math.asin(Math.min(1, W / 2 / Rr)), k = Math.max(12, Math.ceil((2 * a0 * Rr) / 4))
+      for (let i = 0; i <= k; i++) { const a = -a0 + (2 * a0 * i) / k; archPts.push({ x: round3(W / 2 + Rr * Math.sin(a)), y: round3(cy - Rr * Math.cos(a)) }) }
+    } else archPts.push({ x: 0, y: 0 }, { x: W, y: 0 })
+    const backHoles: Loop[] = []
+    for (const [a, b] of backTabs) for (const x of [ms, W - ms - t]) backHoles.push(polyLoop([{ x: x - fit / 2, y: H - b - fit / 2 }, { x: x + t + fit / 2, y: H - b - fit / 2 }, { x: x + t + fit / 2, y: H - a + fit / 2 }, { x: x - fit / 2, y: H - a + fit / 2 }].map(q => ({ x: round3(q.x), y: round3(q.y) })), 'hole'))
+    panels.push({ id: 'back', name: 'اللوح الخلفي (بالقوس)', w: W, h: H, count: n, shape: [polyLoop([...archPts, { x: W, y: H }, { x: 0, y: H }], 'outer')], holes: backHoles, note: `الشعار فوق الجانبين: مساحة نحو ${Math.floor(W - 30)} × ${Math.floor(H - ymax - ar)} مم` })
+    panels.push({ id: 'side', name: 'الجانب', w: round3(xs + t), h: Hs, count: 2 * n, shape: [polyLoop(toSide(sideOut), 'outer')], holes: slots.map(s => polyLoop(toSide(s), 'hole')), note: 'اثنان متماثلان: اقلب أحدهما' })
+    for (const pc of pieces) {
+      const r = runs.get(pc.id)!, cuts: ReturnType<typeof rect>[] = []
+      for (const x of [0, Wt - t]) { let y0 = 0; for (const [a, b] of r) { cuts.push(rect(x, y0, t, a - y0)); y0 = b } cuts.push(rect(x, y0, t, pc.len - y0)) }
+      panels.push({ id: pc.id, name: pc.name, w: Wt, h: pc.len, count: pc.count * n, cuts, note: pc.note })
+    }
+    const r1 = (v: number) => (Math.round(v * 10) / 10).toString()
+    return {
+      panels,
+      notes: [
+        `الستاند ${W} مم عرضاً، ${H} مم ارتفاعاً مع القوس، و${r1(xs + t)} مم عمقاً. ${N} ${N > 2 && N < 11 ? 'درجات' : 'درجة'}، كل درجة أخفض من التي فوقها بـ ${h} مم.`,
+        `كل درجة لوح مائل ${p.ang}° (وجهه ${r1(Lp)} مم) ورفّ عمودي عليه بعمق ${dl} مم: تقف العلبة على الرفّ وتستند إلى اللوح في الزاوية فلا تنزلق. أكبر سماكة علبة ${dl} مم.`,
+        `التركيب: ضع جانباً على الطاولة ووجهه الداخلي للأعلى، أدخل ألسنة الألواح المائلة والرفوف والواجهة${base ? ' والقاعدة' : ''} في شقوقه، ثم أنزل الجانب الثاني فوقها لسان لسان، ثم أدخل ألسنة الجانبين الخلفية في شقوق اللوح الخلفي. نقطة غراء خشب في كل شقّ تثبّت كل شيء.`,
+        `الشعار: مساحة اللوح الخلفي فوق الجانبين نحو ${Math.floor(W - 30)} × ${Math.floor(H - ymax - ar)} مم؛ اكتبه في RDWorks واقصّه من أكريليك مرآة ذهبي، وكذلك الرقم على الواجهة الأمامية (ارتفاعها ${r1(fTop)} مم).`,
+        'الخشب: MDF بقشرة خشب 3 مم أو بلاي؛ أدخل سماكة لوحك الحقيقية.',
+      ],
+      warnings, errors, slotted: true,
     }
   },
 })

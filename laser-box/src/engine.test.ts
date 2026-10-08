@@ -1346,6 +1346,97 @@ describe('wedding designs', () => {
     expect(generate(T('fabricset'), { Rb: 4 }, S0).errors.length).toBeGreaterThan(0)            // a rim thinner than two walls
   })
 
+  it('the tiered display stand: every tab has its slot, the steps are square troughs inside the side, and the sides key into the back', () => {
+    const cases: Record<string, number>[] = [{}, { N: 1 }, { N: 4, H: 520 }, { ang: 50, dl: 40 }, { ang: 80, dl: 15 }, { lip: 20 }, { R: 0 }, { base: 0 }, { e: 6 }]
+    for (const v of cases) for (const t of [3, 3.2, 4]) {
+      const p: Record<string, number> = { ...T('displaystand').defaults, ...v }
+      const d = generate(T('displaystand'), p, { ...S0, t })
+      const label = `${JSON.stringify(v)} t ${t}`
+      expect(d.errors, label).toEqual([])
+      const pn = (id: string) => d.panels.find(x => x.id === id)
+      const side = pn('side')!, outer = outerOf(side), holes = holesOf(side)
+      const lens: Record<string, number> = {}
+      for (const id of ['plate', 'ledge', 'front', 'base']) if (pn(id)) lens[id] = pn(id)!.h
+      // every slot is the stock plus the fit wide
+      const sl = holes.map(h => {
+        const q = h.pts, e1 = { x: q[1].x - q[0].x, y: q[1].y - q[0].y }, e2 = { x: q[2].x - q[1].x, y: q[2].y - q[1].y }
+        const L1 = Math.hypot(e1.x, e1.y), L2 = Math.hypot(e2.x, e2.y), ax = L1 > L2 ? { x: e1.x / L1, y: e1.y / L1 } : { x: e2.x / L2, y: e2.y / L2 }
+        return { c: { x: q.reduce((s2, a) => s2 + a.x, 0) / 4, y: q.reduce((s2, a) => s2 + a.y, 0) / 4 }, ax, w: Math.min(L1, L2), L: Math.max(L1, L2) }
+      })
+      for (const x of sl) expect(x.w, label).toBeCloseTo(t + p.fit, 2)
+      // the pieces' tabs: each slot as long as a tab plus the fit, and as many slots as tabs
+      const tabsOf = (id: string) => {
+        const panel = pn(id)!, o = outerOf(panel)
+        // the tabs are the parts of the outline left of x = t on the panel's left end
+        const xs = crossings(o, 0)
+        void xs
+        const runs: number[] = []
+        const pts = samplePoly(o, 3)
+        for (let i = 0; i < pts.length; i++) { const a = pts[i], b = pts[(i + 1) % pts.length]; if (Math.abs(a.x) < 1e-6 && Math.abs(b.x) < 1e-6) runs.push(Math.abs(b.y - a.y)) }
+        return runs
+      }
+      const expected = (tabsOf('plate').length + tabsOf('ledge').length) * p.N + tabsOf('front').length + (pn('base') ? tabsOf('base').length : 0)
+      expect(sl.length, label).toBe(expected)
+      // group the slots into pieces (collinear slots), and draw each piece back through its slots
+      const groups: { c: { x: number; y: number }; ax: { x: number; y: number }; n: number }[] = []
+      const used = new Set<number>()
+      for (let i = 0; i < sl.length; i++) {
+        if (used.has(i)) continue
+        const g = [i]; used.add(i)
+        for (let j = i + 1; j < sl.length; j++) {
+          if (used.has(j)) continue
+          const par = Math.abs(sl[i].ax.x * sl[j].ax.y - sl[i].ax.y * sl[j].ax.x) < 1e-3
+          const off = Math.abs((sl[j].c.x - sl[i].c.x) * sl[i].ax.y - (sl[j].c.y - sl[i].c.y) * sl[i].ax.x)
+          if (par && off < 0.3 && Math.hypot(sl[j].c.x - sl[i].c.x, sl[j].c.y - sl[i].c.y) < 2000) { g.push(j); used.add(j) }
+        }
+        groups.push({ c: { x: g.reduce((s2, k) => s2 + sl[k].c.x, 0) / g.length, y: g.reduce((s2, k) => s2 + sl[k].c.y, 0) / g.length }, ax: sl[i].ax, n: g.length })
+      }
+      const kind = (ax: { x: number; y: number }) => {
+        const deg = ((Math.atan2(Math.abs(ax.y), Math.abs(ax.x)) * 180) / Math.PI)
+        if (Math.abs(deg - 90) < 0.5) return 'front'
+        if (deg < 0.5) return 'base'
+        // a plate leans back at the angle from the floor, so in panel coordinates (y down) its long axis runs down
+        // towards the front; a ledge is square to it and rises towards the front
+        expect(Math.abs(deg - (Math.sign(ax.x * ax.y) > 0 ? p.ang : 90 - p.ang))).toBeLessThan(0.5)
+        return Math.sign(ax.x * ax.y) > 0 ? 'plate' : 'ledge'
+      }
+      const rects = groups.map(g => {
+        const k = kind(g.ax), L = lens[k], n2 = { x: -g.ax.y, y: g.ax.x }, a = L / 2 - 0.05, b = t / 2 - 0.05
+        return { k, pts: [[-a, -b], [a, -b], [a, b], [-a, b]].map(([s2, u2]) => ({ x: g.c.x + s2 * g.ax.x + u2 * n2.x, y: g.c.y + s2 * g.ax.y + u2 * n2.y })) }
+      })
+      expect(rects.filter(r => r.k === 'plate').length, label).toBe(p.N)
+      expect(rects.filter(r => r.k === 'ledge').length, label).toBe(p.N)
+      // no two pieces overlap, and every piece lies inside the side
+      const sideP = samplePoly(outer, 3)
+      for (let i = 0; i < rects.length; i++) {
+        for (const q of rects[i].pts) expect(pointIn(q, sideP), `${label} ${rects[i].k} corner outside the side`).toBe(true)
+        for (let j = i + 1; j < rects.length; j++) expect(polysOverlap(rects[i].pts, rects[j].pts), `${label} ${rects[i].k} overlaps ${rects[j].k}`).toBe(false)
+      }
+      // the troughs are square: each ledge stands at 90° to the plates
+      const pl = groups.find(g => kind(g.ax) === 'plate')!, le = groups.find(g => kind(g.ax) === 'ledge')!
+      expect(Math.abs(pl.ax.x * le.ax.x + pl.ax.y * le.ax.y), label).toBeLessThan(1e-3)
+      // the sides' tabs into the back panel line up with its slots, both columns, at the sides' inner faces
+      const back = pn('back')!, bh = holesOf(back).map(h => bbox([h]))
+      const sideTabs: [number, number][] = []
+      const op = outer.pts
+      for (let i = 0; i < op.length; i++) {
+        const a = op[i], b = op[(i + 1) % op.length]
+        if (Math.abs(a.x) < 1e-6 && Math.abs(b.x) < 1e-6) sideTabs.push([Math.min(a.y, b.y), Math.max(a.y, b.y)])
+      }
+      expect(bh.length, label).toBe(2 * sideTabs.length)
+      for (const [y0, y1] of sideTabs) {
+        // side panel y is measured down from its top; the floor is at side.h, and at back.h on the back panel
+        const fy0 = side.h - y1, fy1 = side.h - y0
+        const hits = bh.filter(b2 => Math.abs((back.h - b2.maxY) - (fy0 - p.fit / 2)) < 1e-2 && Math.abs((back.h - b2.minY) - (fy1 + p.fit / 2)) < 1e-2)
+        expect(hits.length, `${label} back slots for side tab ${y0}-${y1}`).toBe(2)
+        const ms = Math.round(((p.W - pn('plate')!.w) / 2) * 1000) / 1000
+        expect(hits.map(b2 => Math.round((b2.minX + p.fit / 2) * 1000) / 1000).sort((x, y) => x - y)).toEqual([ms, Math.round((p.W - ms - t) * 1000) / 1000])
+      }
+    }
+    expect(generate(T('displaystand'), { hf: 30, base: 1, dl: 60, ang: 50 }, S0).errors.length).toBeGreaterThan(0)   // the steps would hit the base
+    expect(generate(T('displaystand'), { W: 120 }, { ...S0, t: 20 }).errors.length).toBeGreaterThan(0)                // too narrow between the sides
+  })
+
   it('the wedding group lists the engagement set, the ring box and the five wedding designs', () => {
     expect(CATEGORIES.find(c => c.id === 'wedding')!.ids).toEqual(['fabricset', 'engagement', 'hexringbox', 'nikahtray', 'hennatray', 'welcomesign', 'placecards', 'invitebox', 'caketopper', 'guestframe', 'sweetstand', 'tablenumbers', 'favorbox'])
   })
