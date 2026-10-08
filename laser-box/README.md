@@ -90,9 +90,16 @@ npm install
 npm run dev              # تطوير
 npm run build            # إنتاج → dist/
 npm run build:artifact   # ملف واحد → dist/artifact.html
-npm run build:apk        # تطبيق أندرويد → android/build/LaserBox.apk (يحتاج ANDROID_HOME وJDK 17+)
+npm run build:apk        # تطبيق أندرويد → android/build/LaserBox.apk للمشاركة وLaserBox.aab لـ Google Play (يحتاج ANDROID_HOME وJDK 17+ وbundletool)
 npm test                 # اختبارات محرّك الهندسة
 ```
+
+### توقيع التطبيق
+اسم الحزمة الدائم `io.github.ahmadkataf.laserbox`، ويجب أن يوقَّع كل إصدار بالمفتاح نفسه، وإلا رفض الهاتف التحديث ورفض Google Play الرفع. المفتاح لا يوضع في هذا المستودع لأنه عام؛ أعطه للبناء بأحد المتغيّرين:
+- `ANDROID_KEYSTORE_BASE64`: ملف المفتاح ‎.p12 مرمّزاً base64 (يناسب متغيّرات بيئة السحابة)، أو `ANDROID_KEYSTORE`: مساره.
+- مع `ANDROID_KEYSTORE_PASSWORD`، و`ANDROID_KEY_ALIAS` إن لم يكن `laserbox`.
+
+بدونهما يُوقَّع البناء بمفتاح مؤقّت ويكتب تحذيراً: يصلح للتجربة فقط. بصمة المفتاح الدائم (SHA-256): `BD:89:56:C1:15:44:E0:C6:E2:D2:97:B7:1A:BC:FF:77:8B:F9:BA:92:F0:D7:59:03:39:5C:DB:A3:3B:E0:30:95`. زِد `versionCode` في `android/AndroidManifest.xml` مع كل إصدار.
 
 ## البنية
 - `src/geom.ts` — الهندسة: اتحاد المستطيلات (الأصابع والشقوق تندمج بلا قصّات مكرّرة)، الأقواس (bulge)، الأقراص والشقوق المدوّرة، المفاصل المرنة، تعويض الـ kerf، مسارات SVG.

@@ -1,4 +1,4 @@
-package com.laserbox.app;
+package io.github.ahmadkataf.laserbox;
 
 import android.app.Activity;
 import android.content.Intent;
