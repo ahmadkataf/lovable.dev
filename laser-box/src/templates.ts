@@ -14,6 +14,8 @@ export interface ParamDef {
   hint?: string
   /** integer count rather than a length */
   int?: boolean
+  /** a choice among a few kinds: short labels for min, min + 1, … (shown as buttons) */
+  options?: string[]
 }
 
 export interface Common { t: number; kerf: number; finger: number; inner: boolean }

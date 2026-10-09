@@ -244,3 +244,7 @@ legend { font-weight: 600; color: var(--accent); font-size: 13px; padding: 0; ma
 .alerts .done .link { color: inherit; font-weight: 600; }
 .busy { position: fixed; inset: 0; display: grid; place-items: center; background: rgba(0, 0, 0, .3); background: color-mix(in srgb, var(--bg) 55%, transparent); color: var(--text); font-size: 15px; z-index: 20; }
 .alerts .done.partial { background: var(--warn-bg); color: var(--warn-text); border-color: var(--warn-text); }
+.segmented.choice { flex-wrap: wrap; }
+.segmented.choice button { flex: 1 1 auto; min-width: 0; font-size: 13px; padding: 8px 6px; }
+.quick-choice .field { border-bottom: 0; padding: 6px 0 0; }
+.quick-choice .hint { display: none; }

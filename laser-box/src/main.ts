@@ -89,7 +89,20 @@ function toast(msg: string, ms = 2200) {
   setTimeout(() => { t.classList.remove('show'); setTimeout(() => t.remove(), 300) }, ms)
 }
 
+/** A choice among a few kinds, as a row of buttons (the number field's place for params with option labels). */
+function choiceField(def: ParamDef, value: number, onChange: (v: number) => void): HTMLElement {
+  const seg = el('div', { class: 'segmented choice', role: 'group', 'aria-label': def.label })
+  def.options!.forEach((label, i) => {
+    const v = def.min + i
+    seg.append(el('button', { type: 'button', class: Math.round(value) === v ? 'on' : '', 'aria-pressed': String(Math.round(value) === v), onclick: () => onChange(v) }, label))
+  })
+  const wrap = el('div', { class: 'field' }, el('span', { class: 'field-label' }, def.label), seg)
+  if (def.hint) wrap.append(el('span', { class: 'hint' }, def.hint))
+  return wrap
+}
+
 function numberField(def: ParamDef, value: number, onChange: (v: number) => void, idPrefix = 'f'): HTMLElement {
+  if (def.options?.length === def.max - def.min + 1) return choiceField(def, value, v => { onChange(v); renderForm() })
   const input = el('input', { id: `${idPrefix}-${def.key}`, type: 'number', inputmode: 'decimal', min: String(def.min), max: String(def.max), step: String(def.step ?? 1), value: String(value) }) as HTMLInputElement
   const commit = () => {
     let v = parseFloat(input.value)
@@ -219,7 +232,9 @@ function renderQuick() {
     el('div', { class: 'field' }, el('span', { class: 'field-label' }, 'الخامة', el('small', {}, `kerf ${state.settings.kerf} مم`)), materialPicker()),
     el('button', { type: 'button', class: 'more', onclick: () => form.scrollIntoView({ behavior: 'smooth', block: 'start' }) }, '⚙ كل الإعدادات (الخلوص، المحور، عرض الأصبع…)'),
   )
-  quick.append(row, foot)
+  // the design's choices (the box's wall, the base, the plaque's shape) where they are seen first
+  const choices = t.params.filter(d => d.options?.length === d.max - d.min + 1)
+  quick.append(row, ...choices.map(def => el('div', { class: 'quick-choice' }, choiceField(def, cur[def.key], v => { setParam(def.key, v); renderForm() }))), foot)
 }
 
 function renderForm() {
