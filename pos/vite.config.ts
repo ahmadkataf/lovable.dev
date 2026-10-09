@@ -4,7 +4,7 @@ import { execSync } from 'child_process'
 import fs from 'fs'
 
 // Build-time facts the app ships with:
-//   POS_API                 the license server, e.g. https://kasher-api.<name>.workers.dev (empty = demo mode, no activation)
+//   POS_API                 the license server, e.g. https://kaseb-api.<name>.workers.dev (empty = demo mode, no activation)
 //   POS_LICENSE_PUBLIC_KEY  the server's Ed25519 public key (hex); the app refuses licenses signed by anything else
 //   POS_BUILD               a build id (the CI run number or the git commit) sent with every license check
 const pkg = JSON.parse(fs.readFileSync(new URL('./package.json', import.meta.url), 'utf8'))

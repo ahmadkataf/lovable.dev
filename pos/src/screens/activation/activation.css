@@ -1,0 +1,54 @@
+/* Activation screen: full-screen card when the app is blocked, a normal page when embedded. */
+.act-screen { overflow-y: auto; align-items: flex-start; padding: 24px 16px calc(24px + var(--safe-bottom)); }
+.act-screen .act-card { margin: auto; }
+.act-card { width: 100%; max-width: 460px; padding: 22px 20px; display: flex; flex-direction: column; gap: 16px; }
+.act-page .act-card { max-width: 560px; margin: 4px auto 0; }
+@media (max-width: 480px) { .act-card { padding: 18px 16px; } }
+
+.act-brand { display: flex; flex-direction: column; align-items: center; gap: 4px; text-align: center; }
+.act-brand img { width: 64px; height: 64px; border-radius: 18px; margin-bottom: 6px; box-shadow: var(--shadow-2); }
+.act-brand h1 { font-size: 24px; font-weight: 800; }
+.act-brand p { color: var(--text-3); font-size: 13px; }
+
+.act-device { border-radius: var(--radius); background: var(--surface-2); border: 1px dashed var(--line-2); padding: 12px 14px; display: flex; flex-direction: column; gap: 4px; }
+.act-device-label { font-size: 12px; font-weight: 600; color: var(--text-3); }
+.act-device-row { display: flex; align-items: center; gap: 10px; }
+.act-device-code { flex: 1; font-size: 30px; font-weight: 800; letter-spacing: .12em; font-family: var(--mono); color: var(--text); line-height: 1.2; }
+.act-device-hint { font-size: 12px; color: var(--text-2); }
+@media (max-width: 360px) { .act-device-code { font-size: 25px; } }
+
+.act-state { display: flex; gap: 12px; align-items: flex-start; padding: 14px; border-radius: var(--radius); border: 1px solid var(--line); }
+.act-state .act-state-ico { width: 44px; height: 44px; border-radius: 13px; display: inline-flex; align-items: center; justify-content: center; flex: none; }
+.act-state h2 { font-size: 16px; font-weight: 700; }
+.act-state p { font-size: 13px; color: var(--text-2); margin-top: 2px; }
+.act-state .act-state-meta { display: flex; flex-wrap: wrap; gap: 4px 12px; margin-top: 8px; font-size: 12px; color: var(--text-3); align-items: center; }
+.act-state.ok { background: var(--primary-soft); border-color: transparent; }
+.act-state.ok .act-state-ico { background: var(--primary); color: var(--on-primary); }
+.act-state.warn { background: var(--warn-soft); border-color: transparent; }
+.act-state.warn .act-state-ico { background: var(--warn); color: #3b2a00; }
+.act-state.bad { background: var(--danger-soft); border-color: transparent; }
+.act-state.bad .act-state-ico { background: var(--danger); color: #fff; }
+.act-state.info { background: var(--info-soft); border-color: transparent; }
+.act-state.info .act-state-ico { background: var(--info); color: #fff; }
+.act-state.neutral .act-state-ico { background: var(--surface-3); color: var(--text-2); }
+
+.act-offline { border-radius: var(--radius-sm); font-size: 13px; }
+.act-form { display: flex; flex-direction: column; gap: 8px; }
+.act-code-row { display: flex; gap: 8px; align-items: stretch; }
+.act-code-row .act-code-input { font-family: var(--mono); font-size: 20px; font-weight: 700; letter-spacing: .14em; text-align: center; min-height: 52px; text-transform: uppercase; }
+.act-code-row .act-code-input::placeholder { letter-spacing: .14em; font-weight: 500; color: var(--text-3); }
+.act-code-row > .btn { flex: none; min-height: 52px; padding-inline: 20px; font-size: 16px; }
+@media (max-width: 480px) { .act-code-row { flex-direction: column; } .act-code-row > .btn { width: 100%; } }
+.act-error { font-size: 13px; color: var(--danger); font-weight: 600; display: flex; gap: 6px; align-items: flex-start; line-height: 1.5; }
+.act-error svg { flex: none; margin-top: 2px; }
+
+.act-buy { display: flex; flex-direction: column; gap: 10px; padding-top: 4px; }
+.act-price { text-align: center; font-size: 14px; color: var(--text-2); }
+.act-price .num { font-weight: 800; font-size: 18px; color: var(--text); }
+.act-wa { background: #22c35e; color: #fff; }
+.act-wa:hover { background: #1daf52; }
+.act-message { font-size: 13px; line-height: 1.7; padding: 10px 14px; border-radius: var(--radius-sm); background: var(--surface-2); border-inline-start: 3px solid var(--accent); color: var(--text-2); white-space: pre-wrap; }
+.act-message b { display: block; font-size: 12px; color: var(--text-3); margin-bottom: 2px; }
+.act-or { display: flex; align-items: center; gap: 10px; color: var(--text-3); font-size: 12px; }
+.act-or::before, .act-or::after { content: ''; flex: 1; height: 1px; background: var(--line); }
+.act-foot { display: flex; justify-content: center; flex-wrap: wrap; gap: 4px 10px; font-size: 11px; color: var(--text-3); padding-top: 4px; border-top: 1px solid var(--line); }

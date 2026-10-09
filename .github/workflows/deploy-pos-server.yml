@@ -1,0 +1,72 @@
+# Puts the Kaseb license server (pos/server) online on Cloudflare: the activation API and the seller's codes page.
+# Runs when started by hand from the Actions tab, and whenever pos/server changes.
+# Needs four repository secrets (Settings → Secrets and variables → Actions), two of them shared with the Emar server:
+#   CLOUDFLARE_API_TOKEN   a Cloudflare API token with "Edit Cloudflare Workers" and "D1 Edit"
+#   CLOUDFLARE_ACCOUNT_ID  your Cloudflare account id
+#   KASEB_ADMIN_KEY       the password of the codes page (/admin) — long and secret
+#   KASEB_LICENSE_SECRET  a long random text the license signing key is derived from — never change it afterwards
+# At the end it prints the server URL (for the KASEB_API repository variable) and the public key the app is built with.
+name: Deploy Kaseb server
+on:
+  workflow_dispatch:
+  push:
+    paths: ['pos/server/**', '.github/workflows/deploy-pos-server.yml']
+concurrency: deploy-pos-server
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+    steps:
+      - name: Wait for the Cloudflare secrets
+        if: env.CLOUDFLARE_API_TOKEN == ''
+        run: echo "::notice::Add the CLOUDFLARE_API_TOKEN, CLOUDFLARE_ACCOUNT_ID, KASEB_ADMIN_KEY and KASEB_LICENSE_SECRET secrets, then run this workflow again."
+      - uses: actions/checkout@v4
+        if: env.CLOUDFLARE_API_TOKEN != ''
+      - uses: actions/setup-node@v4
+        if: env.CLOUDFLARE_API_TOKEN != ''
+        with: { node-version: 22 }
+      - name: Install the server tools
+        if: env.CLOUDFLARE_API_TOKEN != ''
+        working-directory: pos/server
+        run: npm ci
+      - name: Type-check
+        if: env.CLOUDFLARE_API_TOKEN != ''
+        working-directory: pos/server
+        run: npx tsc --noEmit
+      - name: Create the database the first time, and use its id
+        if: env.CLOUDFLARE_API_TOKEN != ''
+        working-directory: pos/server
+        run: |
+          ID=$(npx wrangler d1 list --json | node -e "let s='';process.stdin.on('data',d=>s+=d).on('end',()=>{const d=JSON.parse(s).find(x=>x.name==='kaseb');console.log(d?d.uuid:'')})")
+          if [ -z "$ID" ]; then npx wrangler d1 create kaseb; ID=$(npx wrangler d1 list --json | node -e "let s='';process.stdin.on('data',d=>s+=d).on('end',()=>{console.log(JSON.parse(s).find(x=>x.name==='kaseb').uuid)})"); fi
+          sed -i "s/^database_id = .*/database_id = \"$ID\"/" wrangler.toml
+          npx wrangler d1 execute kaseb --remote --file=schema.sql
+      - name: Deploy
+        if: env.CLOUDFLARE_API_TOKEN != ''
+        working-directory: pos/server
+        run: |
+          npx wrangler deploy 2>&1 | tee deploy.log
+          URL=$(grep -oE 'https://[a-z0-9.-]+\.workers\.dev' deploy.log | head -1)
+          echo "URL=$URL" >> "$GITHUB_ENV"
+      - name: Set the secrets
+        if: env.CLOUDFLARE_API_TOKEN != ''
+        working-directory: pos/server
+        env:
+          ADMIN_KEY: ${{ secrets.KASEB_ADMIN_KEY }}
+          LICENSE_SECRET: ${{ secrets.KASEB_LICENSE_SECRET }}
+        # only when given: an empty secret would lock out the codes page or change the signing key (every license would stop)
+        run: |
+          if [ -n "$ADMIN_KEY" ]; then printf %s "$ADMIN_KEY" | npx wrangler secret put ADMIN_KEY; fi
+          if [ -n "$LICENSE_SECRET" ]; then printf %s "$LICENSE_SECRET" | npx wrangler secret put LICENSE_SECRET; fi
+      - name: Show the server address and the public key for the app build
+        if: env.CLOUDFLARE_API_TOKEN != ''
+        run: |
+          if [ -z "$URL" ]; then echo "::warning::Could not read the worker URL from the deploy output; open Workers & Pages in the Cloudflare dashboard to find it."; exit 0; fi
+          sleep 5
+          KEY=$(curl -sS --max-time 30 "$URL/api/public-key" | node -e "let s='';process.stdin.on('data',d=>s+=d).on('end',()=>{try{console.log(JSON.parse(s).publicKey||'')}catch{console.log('')}})")
+          echo "::notice title=Kaseb server::$URL  — set the repository variable KASEB_API to this address, and open $URL/admin for the codes page."
+          if [ -n "$KEY" ]; then echo "::notice title=Kaseb license public key::$KEY  — the app build (POS_LICENSE_PUBLIC_KEY) must use exactly this key."; else echo "::warning::The public key is not available yet: add the KASEB_LICENSE_SECRET secret and run this workflow again."; fi
+          echo "Server: $URL"
+          echo "Public key: $KEY"

@@ -16,6 +16,7 @@ export interface SellerInfo {
   trialDays: number
   message?: string       // shown on the activation screen
   minVersion?: string
+  graceDays?: number     // days the app may stay offline between two checks
 }
 
 export interface LicenseStatus {
@@ -29,9 +30,13 @@ export interface LicenseStatus {
   checking: boolean
   online: boolean
   error?: string         // the last error, as a message key ('license.err.invalid_code' ...)
+  errorText?: string     // the server's own sentence for that error, when it sent one
   info?: SellerInfo
 }
 
 /** Blocks the whole app (only the activation screen is shown). */
 export const isBlocked = (s: LicenseStatus): boolean =>
   s.state === 'none' || s.state === 'expired' || s.state === 'revoked' || s.state === 'locked' || s.state === 'tampered'
+
+/** The default seller info, used before /api/info was ever reached. */
+export const DEFAULT_INFO: SellerInfo = { price: '35$', whatsapp: '', trialDays: 7, graceDays: 10 }

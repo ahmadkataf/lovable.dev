@@ -1,0 +1,78 @@
+/* Receipts (history) screen. */
+.hi-toolbar { display: flex; gap: 8px; align-items: center; }
+.hi-period { max-width: 100%; overflow-x: auto; scrollbar-width: none; flex: none; }
+.hi-period::-webkit-scrollbar { display: none; }
+.hi-period > button { flex: none; }
+.hi-range { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.hi-filters { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 10px; align-items: end; }
+.hi-filters .field { gap: 4px; }
+.hi-summary { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding: 10px 14px; border-radius: var(--radius); background: var(--surface-2); font-size: 13px; font-weight: 600; color: var(--text-2); }
+.hi-summary .hi-ref { color: var(--danger); }
+.hi-group { display: flex; flex-direction: column; gap: 6px; }
+.hi-day { position: sticky; top: 0; z-index: 3; display: flex; align-items: center; gap: 10px; padding: 8px 4px 6px; background: var(--bg); font-size: 13px; font-weight: 700; color: var(--text-2); }
+.hi-day .hi-day-count { font-weight: 500; color: var(--text-3); }
+.hi-day .hi-day-total { margin-inline-start: auto; }
+.hi-ico { width: 38px; height: 38px; border-radius: 11px; display: inline-flex; align-items: center; justify-content: center; flex: none; }
+.hi-ico.cash { background: var(--primary-soft); color: var(--primary-700); }
+.hi-ico.card { background: var(--accent-soft); color: var(--accent); }
+.hi-ico.transfer { background: var(--info-soft); color: #0369a1; }
+.hi-ico.credit { background: var(--warn-soft); color: #9a6700; }
+[data-theme="dark"] .hi-ico.cash { color: var(--primary); }
+[data-theme="dark"] .hi-ico.transfer { color: var(--info); }
+[data-theme="dark"] .hi-ico.credit { color: var(--warn); }
+.hi-row .title { display: flex; align-items: center; gap: 6px; min-width: 0; }
+.hi-row .title .hi-num { font-weight: 800; flex: none; }
+.hi-row .title .hi-cust { font-weight: 500; color: var(--text-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.hi-row .sub { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.hi-row .sub .hi-methods { display: inline-flex; gap: 3px; color: var(--text-3); }
+.hi-row .end { display: flex; flex-direction: column; align-items: flex-end; gap: 2px; }
+.hi-row .end .hi-total { font-weight: 800; font-size: 15px; }
+.hi-row .end .hi-total.refunded { text-decoration: line-through; color: var(--text-3); font-weight: 600; }
+.hi-more { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 8px 0; }
+
+/* detail */
+.hi-detail { display: grid; grid-template-columns: minmax(280px, 340px) minmax(0, 1fr); gap: 18px; align-items: start; }
+@media (max-width: 899px) { .hi-detail { grid-template-columns: 1fr; gap: 14px; } }
+.hi-receipt { display: flex; flex-direction: column; align-items: center; gap: 12px; position: sticky; top: 8px; }
+@media (max-width: 899px) { .hi-receipt { position: static; } }
+.hi-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; width: 100%; max-width: 300px; }
+.hi-info { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+.hi-table td.hi-name { white-space: normal; min-width: 140px; }
+.hi-table .hi-sub { font-size: 11px; color: var(--text-3); }
+.hi-table .strike { text-decoration: line-through; color: var(--text-3); margin-inline-start: 4px; font-size: 12px; }
+.hi-table tfoot td { font-weight: 700; background: var(--surface-2); }
+.hi-table tfoot tr.hi-grand td { font-size: 15px; font-weight: 800; }
+.hi-kv { display: flex; flex-direction: column; }
+.hi-kv > div { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 40px; padding: 4px 0; border-bottom: 1px solid var(--line); font-size: 14px; }
+.hi-kv > div:last-child { border-bottom: 0; }
+.hi-kv .k { display: inline-flex; align-items: center; gap: 8px; color: var(--text-2); }
+.hi-kv .v { font-weight: 600; text-align: end; }
+.hi-kv .v.strong { font-weight: 800; font-size: 16px; }
+.hi-link { display: inline-flex; align-items: center; gap: 4px; color: var(--accent); font-weight: 600; }
+.hi-link:hover { text-decoration: underline; }
+.hi-rf-ico { width: 36px; height: 36px; border-radius: 10px; background: var(--danger-soft); color: var(--danger); display: inline-flex; align-items: center; justify-content: center; flex: none; }
+.hi-refund-row .sub { display: flex; flex-wrap: wrap; gap: 4px 8px; }
+.hi-note { white-space: pre-wrap; }
+
+/* refund dialog */
+.hi-rf-list { display: flex; flex-direction: column; border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; }
+.hi-rf-row { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: 8px 12px; align-items: center; padding: 10px 12px; border-bottom: 1px solid var(--line); }
+.hi-rf-row:last-child { border-bottom: 0; }
+.hi-rf-row.done { opacity: .55; }
+.hi-rf-row .hi-rf-name { font-weight: 600; min-width: 0; }
+.hi-rf-row .hi-rf-left { font-size: 12px; color: var(--text-3); }
+.hi-rf-row .hi-rf-amt { font-weight: 700; min-width: 70px; text-align: end; }
+@media (max-width: 520px) { .hi-rf-row { grid-template-columns: minmax(0, 1fr) auto; } .hi-rf-row .hi-rf-amt { grid-column: 1 / -1; text-align: start; margin-top: -4px; } }
+.hi-step { display: inline-flex; align-items: center; gap: 2px; border: 1.5px solid var(--line); border-radius: var(--radius-sm); background: var(--surface); }
+.hi-step > button { width: 40px; height: 40px; display: inline-flex; align-items: center; justify-content: center; color: var(--text-2); border-radius: 8px; }
+.hi-step > button:hover { background: var(--surface-3); color: var(--text); }
+.hi-step > button:disabled { opacity: .35; }
+.hi-step > .input { width: 64px; min-height: 36px; border: 0; text-align: center; padding: 0 4px; font-weight: 700; background: transparent; }
+.hi-step > .input:focus { box-shadow: none; }
+.hi-rf-total { display: flex; align-items: center; justify-content: space-between; padding: 12px 14px; border-radius: var(--radius); background: var(--surface-2); font-weight: 700; }
+.hi-rf-total .num { font-size: 22px; font-weight: 800; color: var(--danger); }
+.hi-rf-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+@media (max-width: 599px) { .hi-rf-grid { grid-template-columns: 1fr; } }
+
+/* rows built from spans: title over sub, stacked */
+.list-row > .grow > .title, .list-row > .grow > .sub, .list-row > .end > .sub { display: block; }

@@ -1,4 +1,4 @@
-/* Kasher design tokens. Light is the default; dark is set with data-theme="dark" on <html>. */
+/* Kaseb design tokens. Light is the default; dark is set with data-theme="dark" on <html>. */
 :root {
   --font: 'Alexandria Variable', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
   --mono: ui-monospace, 'Cascadia Mono', 'Roboto Mono', Menlo, monospace;

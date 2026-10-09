@@ -1,6 +1,17 @@
-// PLACEHOLDER — the history module replaces this file.
-import { useT } from '../../i18n'
-export default function Screen() {
-  const t = useT()
-  return <div className="page"><div className="page-head"><h1>{t('nav.history')}</h1></div><div className="page-body"><div className="empty"><p>{t('common.loading')}</p></div></div></div>
+// /history: every receipt grouped by day with filters and a number / barcode search; /history/:id the receipt
+// with its details, reprint, share and refunds.
+import './i18n'
+import './history.css'
+import { Routes, Route, Navigate } from 'react-router-dom'
+import { HistoryList } from './HistoryList'
+import { SaleDetail } from './SaleDetail'
+
+export default function HistoryScreen() {
+  return (
+    <Routes>
+      <Route index element={<HistoryList />} />
+      <Route path=":id" element={<SaleDetail />} />
+      <Route path="*" element={<Navigate to="/history" replace />} />
+    </Routes>
+  )
 }

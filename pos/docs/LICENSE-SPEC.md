@@ -1,6 +1,6 @@
 # License spec — online activation with periodic verification
 
-Goal: a copy of Kasher works only after it was activated **online** with a code the seller made, keeps working offline for a
+Goal: a copy of Kaseb works only after it was activated **online** with a code the seller made, keeps working offline for a
 grace period, and must reach the server again before that period ends. The seller can revoke a code or move it to another
 device at any time from the control panel (the "codes page"). The app cannot be talked into a valid license without the
 server's private key, and modified builds are refused.
@@ -21,7 +21,7 @@ server's private key, and modified builds are refused.
 
 ## Identity
 - `deviceId` (raw, from `platform.deviceId()`): Windows MachineGuid / Android ANDROID_ID / a stored UUID on the web.
-- `device` = hex SHA-256 of `kasher:<platform>:<deviceId>`. Sent to the server; stored there.
+- `device` = hex SHA-256 of `kaseb:<platform>:<deviceId>`. Sent to the server; stored there.
 - `deviceCode` = the first 8 characters of base32 (alphabet `23456789ABCDEFGHJKLMNPQRSTUVWXYZ`) of that hash, shown as
   `XXXX-XXXX`. The seller sees it in the panel next to the code; support uses it.
 - `sig` = `platform.appSignature()`: SHA-256 of the Android signing cert, `electron`, or `web`. The panel setting
@@ -40,13 +40,13 @@ server's private key, and modified builds are refused.
 payload:
 ```json
 { "v": 1, "code": "ABCD...", "d": "<device hash hex>", "p": "full" | "trial", "iat": 1760000000000,
-  "exp": null | 1790000000000, "gr": 1760864000000, "n": "<nonce the client sent>", "srv": "kasher" }
+  "exp": null | 1790000000000, "gr": 1760864000000, "n": "<nonce the client sent>", "srv": "kaseb" }
 ```
 - `gr` (grace until) = server time + `grace_days` (panel setting, default 10). The client must complete a successful
   `/api/check` before `gr`; otherwise state becomes `locked` until it does.
 - `exp`: license expiry (trial end, or the code's expiry); `null` = lifetime.
 - The client verifies: signature with the embedded public key, `d` equals its own device hash, `n` equals the nonce it sent
-  (on fresh responses), `srv === 'kasher'`. A token that fails any of these is discarded.
+  (on fresh responses), `srv === 'kaseb'`. A token that fails any of these is discarded.
 
 ## Endpoints (JSON; CORS `*`; every error is `{ "error": "<key>", "message"?: "<Arabic text>" }` with status 400/403/429)
 - `GET /api/info` → `{ price, whatsapp, trialDays, message, minVersion, graceDays }` from panel settings

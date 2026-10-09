@@ -1,0 +1,14 @@
+# The Kaseb license server (Cloudflare Worker + D1): online activation, periodic verification and the
+# seller's codes page at /admin. Deployed by .github/workflows/deploy-pos-server.yml — see README.md.
+name = "kaseb-api"
+main = "src/index.ts"
+compatibility_date = "2025-06-01"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "kaseb"
+# The deploy workflow creates the database the first time and writes its id here.
+database_id = "00000000-0000-0000-0000-000000000000"
+
+# Secrets (never in this file): LICENSE_SECRET derives the signing key of every license token,
+# ADMIN_KEY opens the codes page. Set by the deploy workflow from the repository secrets.
