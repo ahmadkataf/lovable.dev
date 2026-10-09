@@ -2,7 +2,8 @@
 import { useEffect } from 'react'
 import { Check, Receipt } from 'lucide-react'
 import type { Sale, Settings } from '../../db/types'
-import { formatMoney } from '../../lib/money'
+import { formatMoney, round } from '../../lib/money'
+import { currencyForCode } from '../../lib/fx'
 import { useT } from '../../i18n'
 import { Modal, Button } from '../../components/ui'
 import { ReceiptView, ReceiptActions } from '../../components/ReceiptView'
@@ -10,6 +11,8 @@ import { ReceiptView, ReceiptActions } from '../../components/ReceiptView'
 export function DoneDialog({ sale, balanceAfter, settings, showKbd, onClose }: { sale: Sale; balanceAfter?: number; settings: Settings; showKbd: boolean; onClose: () => void }) {
   const t = useT()
   const c = settings.currency
+  // the total in the second currency at the rate the sale was valued at
+  const c2 = sale.rate && sale.rate > 0 && settings.currency2.enabled ? currencyForCode(sale.rateCode, settings) : null
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== 'Enter') return
@@ -35,6 +38,7 @@ export function DoneDialog({ sale, balanceAfter, settings, showKbd, onClose }: {
           </>
         )}
         <div className="done-no">{t('sales.doneReceipt', { n: sale.number })} · <span className="num">{formatMoney(sale.total, c)}</span></div>
+        {c2 && <div className="done-fx small muted num">≈ {formatMoney(round(sale.total / sale.rate!, c2.decimals), c2)}</div>}
         <ReceiptActions sale={sale} settings={settings} balanceAfter={balanceAfter} />
       </div>
       <div className="done-receipt">

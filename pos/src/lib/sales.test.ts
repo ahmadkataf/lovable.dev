@@ -165,7 +165,7 @@ describe('second currency on a sale', () => {
     const product = { id: 'fxp', name: 'x', barcodes: [], price: 14000, cost: 10000, trackStock: false, stock: 0, lowStock: 0, unit: 'piece', allowFraction: false, favorite: false, active: true, createdAt: 0, updatedAt: 0 }
     await db.products.add(product)
     const cart = addToCart(emptyCart(), lineFromProduct(product))
-    const settings = { ...DEFAULT_SETTINGS, currency2: { enabled: true, code: 'USD', symbol: '$', decimals: 2, symbolAfter: false, rate: 13000 } }
+    const settings = { ...DEFAULT_SETTINGS, currency2: { ...DEFAULT_SETTINGS.currency2, enabled: true, rate: 13000 } }
     const totals = computeTotals(cart, settings.tax, 0)
     const plan = planPayment({ total: totals.total, method: 'cash', tendered: 26000, hasCustomer: false, decimals: 0 })
     const fx = { code: 'USD', symbol: '$', symbolAfter: false, decimals: 2, rate: 13000, received: 2, receivedPrimary: 26000 }
@@ -177,6 +177,27 @@ describe('second currency on a sale', () => {
     const text = receiptText(sale, settings)
     expect(text).toContain('$')
     expect(text).toMatch(/13,000/)
+    expect(sale.rate).toBe(13000); expect(sale.rateCode).toBe('USD')
+    expect(sale.fx!.rate).toBe(sale.rate)
+  })
+  it('stores the rate and its code on every sale while currency2 is on, nothing when it is off', async () => {
+    const on: Settings = { ...settings, currency2: { ...settings.currency2, enabled: true, rate: 13000, code: 'USD' } }
+    const cart = cartWith([[milk, 1]])
+    const totals = computeTotals(cart, on.tax, 0)
+    const pay = { payments: [{ method: 'cash' as const, amount: totals.total }], paid: totals.total, change: 0, credit: 0, user, shift: null }
+    const s1 = await completeSale({ cart, totals, ...pay, settings: on })
+    expect(s1.rate).toBe(13000); expect(s1.rateCode).toBe('USD'); expect(s1.fx).toBeUndefined()
+    expect((await db.sales.get(s1.id))!.rate).toBe(13000)
+    const s2 = await completeSale({ cart, totals, ...pay, settings: { ...on, currency2: { ...on.currency2, enabled: false } } })
+    expect(s2.rate).toBeUndefined(); expect(s2.rateCode).toBeUndefined()
+    const s3 = await completeSale({ cart, totals, ...pay, settings: { ...on, currency2: { ...on.currency2, rate: 0 } } })
+    expect(s3.rate).toBeUndefined()
+    // anchored product: the items carry the $ figures
+    await db.products.put({ ...milk, fxPrice: 0.08, fxCost: 0.06 })
+    const anchored = cartWith([[(await db.products.get('p1'))!, 2]])
+    const t2 = computeTotals(anchored, on.tax, 0)
+    const s4 = await completeSale({ cart: anchored, totals: t2, payments: [{ method: 'cash', amount: t2.total }], paid: t2.total, change: 0, credit: 0, user, shift: null, settings: on })
+    expect(s4.items[0]).toMatchObject({ fxPrice: 0.08, fxCost: 0.06 })
   })
 })
 

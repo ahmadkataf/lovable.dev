@@ -67,5 +67,41 @@ describe('reports screen logic', () => {
     expect(c.prevSummary?.gross).toBe(150)
     expect(c.prevSummary?.refunds).toBe(5)
     expect(c.prevBuckets?.map(b => b.total)).toEqual([100, 50])
+    expect(r.fx).toBe(false)
+    expect(r.estimated).toBe(0)
+  })
+  it('values the report in the second currency, each receipt at its own rate', () => {
+    const fxRaw: RawData = {
+      sales: [
+        sale('s1', at(2026, 10, 8, 10), 130000, { rate: 13000, rateCode: 'USD', cost: 65000, items: [{ productId: 'p', name: 'x', unit: 'piece', qty: 1, price: 130000, originalPrice: 130000, cost: 65000, discount: 0, taxRate: 0, tax: 0, total: 130000 }] }),
+        sale('s2', at(2026, 10, 9, 10), 140000, { rate: 14000, rateCode: 'USD' }),
+      ],
+      refunds: [{ ...refund('r1', 's1', at(2026, 10, 9, 12), 130000), rate: 13000, rateCode: 'USD', items: [{ productId: 'p', name: 'x', qty: 1, price: 130000, total: 130000 }] }],
+      expenses: [expense('e1', at(2026, 10, 9), 28000)],
+      extra: [],
+    }
+    const fx = { rateAt: () => undefined, current: 14000, decimals: 2 }
+    const r = buildReport(fxRaw, range, 'custom', false, [], [], 2, fx)
+    expect(r.fx).toBe(true)
+    expect(r.summary.gross).toBe(20)           // $10 + $10, each at its own rate
+    expect(r.summary.refunds).toBe(10)         // the full refund of s1 at the sale's rate
+    expect(r.summary.net).toBe(10)             // s1 nets to $0
+    expect(r.summary.cost).toBe(5)
+    expect(r.summary.expenses).toBe(2)         // 28,000 at today's rate (no own rate) → estimated
+    expect(r.estimated).toBe(1)
+    expect(r.buckets.map(b => b.total)).toEqual([10, 10])
+    expect(r.products[0]).toMatchObject({ productId: 'p', revenue: 20, refunded: 10 })   // both receipts sell 'p'
+  })
+  it('estimates unrated receipts from the history, then the current rate', () => {
+    const mixed: RawData = {
+      sales: [sale('old', at(2026, 10, 8, 10), 120000), sale('older', at(2026, 10, 9, 10), 100000), sale('new', at(2026, 10, 9, 11), 150000, { rate: 15000 })],
+      refunds: [], expenses: [], extra: [],
+    }
+    const history = (ms: number) => (ms < at(2026, 10, 9, 0) ? 12000 : undefined)
+    const r = buildReport(mixed, range, 'custom', false, [], [], 2, { rateAt: history, current: 10000, decimals: 2 })
+    expect(r.summary.gross).toBe(30)           // 10 (history) + 10 (current) + 10 (own)
+    expect(r.estimated).toBe(2)
+    // without fx nothing is touched
+    expect(buildReport(mixed, range, 'custom', false, [], [], 0).summary.gross).toBe(370000)
   })
 })

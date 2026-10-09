@@ -142,3 +142,28 @@ describe('backup', () => {
     expect(backupFileName(new Date(2026, 0, 3).getTime())).toBe('kaseb-backup-2026-01-03.json')
   })
 })
+
+describe('restore and the exchange rate', () => {
+  it('re-derives anchored products at the restored rate and notes it in the history; plain files restore untouched', async () => {
+    await db.users.add({ id: 'u', name: 'Admin', role: 'admin', active: true, createdAt: 1 })
+    const c2 = { ...DEFAULT_SETTINGS.currency2, enabled: true, pricing: true, rate: 13000 }
+    await db.kv.put({ key: 'settings', value: { ...DEFAULT_SETTINGS, currency2: c2 } })
+    // a hand-edited file: the lira price disagrees with the anchor at the file's rate
+    await db.products.bulkAdd([{ ...product('p1', 'Oil'), price: 999, fxPrice: 10, updatedAt: 7 }, product('p2', 'Tea')])
+    const json = await exportBackup()
+    await db.products.clear()
+    await importBackup(json)
+    const p1 = (await db.products.get('p1'))!
+    expect(p1.price).toBe(130000); expect(p1.updatedAt).toBe(7); expect(p1.repricedAt).toBeDefined()
+    expect((await db.products.get('p2'))!.price).toBe(10)
+    const hist = (await db.kv.get('fx.history'))!.value as { source: string; repriced: number }[]
+    expect(hist[0]).toMatchObject({ source: 'restore', repriced: 1 })
+    // a second restore of the now-consistent data changes nothing and adds no history row
+    await importBackup(await exportBackup())
+    expect(((await db.kv.get('fx.history'))!.value as unknown[]).length).toBe(1)
+    // pre-feature file (no currency2 pricing): nothing happens
+    await importBackup(JSON.stringify({ app: 'kaseb', version: 1, exportedAt: 1, tables: { products: [{ ...product('p9'), fxPrice: 1 }] } }))
+    expect((await db.products.get('p9'))!.price).toBe(10)
+    expect(await db.kv.get('fx.history')).toBeUndefined()
+  })
+})

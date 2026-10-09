@@ -11,6 +11,7 @@ import { beep } from '../../lib/audio'
 import { printSale } from '../../lib/receipt'
 import { createRefund, refundErrorText, refundLineTotal, refundTotal, remainingQty } from '../../lib/refunds'
 import { toast, useSettings, useStore, useUser } from '../../state/store'
+import { currencyForCode } from '../../lib/fx'
 import { methodLabel } from './shared'
 
 function unitLabel(unit: string, t: (k: string) => string): string {
@@ -33,6 +34,8 @@ export function RefundDialog({ sale, refunds, onClose, onDone }: { sale: Sale; r
   const d = c.decimals
   const user = useUser()
   const shift = useStore(s => s.shift)
+  // the sale's own rate: the refund returns the lira paid, and this is what that is worth in the second currency
+  const c2 = typeof sale.rate === 'number' && sale.rate > 0 ? currencyForCode(sale.rateCode, settings) : null
   const remaining = useMemo(() => remainingQty(sale, refunds, d), [sale, refunds, d])
   const products = useLiveQuery(async () => {
     const ids = [...new Set(sale.items.map(i => i.productId).filter((x): x is string => !!x))]
@@ -120,7 +123,7 @@ export function RefundDialog({ sale, refunds, onClose, onDone }: { sale: Sale; r
             })}
           </div>
         )}
-        <div className="hi-rf-total"><span>{t('history.rf.total')}</span><span className="num">{formatMoney(total, c)}</span></div>
+        <div className="hi-rf-total"><span>{t('history.rf.total')}</span><span className="num">{formatMoney(total, c)}{c2 && total > 0 ? <span className="small muted"> ≈ {formatMoney(round(total / sale.rate!, c2.decimals), c2)}</span> : null}</span></div>
         <Field label={t('history.rf.method')} hint={method === 'credit' ? t('history.rf.creditHint', { name: sale.customerName ?? '' }) : undefined}>
           <Seg block value={method} onChange={setMethod} options={methods.map(m => ({ value: m.value, label: m.value === 'credit' ? m.label : methodLabel(m.value) }))} />
         </Field>

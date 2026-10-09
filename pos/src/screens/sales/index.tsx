@@ -6,7 +6,6 @@ import { useLiveQuery } from 'dexie-react-hooks'
 import { ShoppingCart } from 'lucide-react'
 import { db } from '../../db'
 import type { Customer, HeldTicket, Product, Sale, ProductPack, CustomerTier } from '../../db/types'
-import { productPrice } from '../../db/types'
 import { type Cart, type CartLine, computeTotals, lineKey, lineFromProduct, lineUnits } from '../../lib/cart'
 import { useStore, toast, confirmDialog } from '../../state/store'
 import { useT } from '../../i18n'
@@ -22,6 +21,7 @@ import { allowed } from '../../lib/audit'
 import { redeemPlan } from '../../lib/loyalty'
 import { Modal, Button, useIsMobile } from '../../components/ui'
 import { ScannerModal } from '../../components/Scanner'
+import { RateDialog, canChangeRate, ratePricingOn } from '../../components/RateDialog'
 import { ProductsPanel } from './ProductsPanel'
 import { CartPanel, CartHeadActions } from './CartPanel'
 import { PaymentModal } from './PaymentModal'
@@ -45,6 +45,7 @@ type Dialog =
   | { kind: 'custom' }
   | { kind: 'quickAdd'; barcode?: string; name?: string }
   | { kind: 'scanner' }
+  | { kind: 'rate' }
 
 function useDebounced<T>(value: T, ms: number): T {
   const [v, setV] = useState(value)
@@ -76,6 +77,7 @@ export default function SalesScreen() {
   const setCartNote = useStore(s => s.setCartNote)
   const d = settings.currency.decimals
   const showKbd = !isMobile && !platform.isTouch
+  const rateOn = ratePricingOn(settings.currency2)
 
   const [search, setSearch] = useState('')
   const q = useDebounced(search, 110)
@@ -95,20 +97,13 @@ export default function SalesScreen() {
   const tier: CustomerTier = customer?.tier === 'wholesale' ? 'wholesale' : 'retail'
 
   const activeProducts = useMemo(() => sortProducts((allProducts ?? []).filter(p => p.active)), [allProducts])
-  // the customer changed tier (or was picked / removed): lines at the list price follow, overridden ones stay
+  // the customer changed tier (or was picked / removed): lines at the list price follow (price, cost, $ anchor), overridden ones stay
   const lastTier = useRef(tier)
   useEffect(() => {
     if (lastTier.current === tier) return
     lastTier.current = tier
-    const { cart, patchLine } = useStore.getState()
-    for (const l of cart.lines) {
-      if (!l.productId || l.unitsPerQty || l.price !== l.originalPrice) continue
-      const p = activeProducts.find(x => x.id === l.productId)
-      if (!p) continue
-      const price = productPrice(p, tier)
-      if (price !== l.price) patchLine(l.key, { price, originalPrice: price })
-    }
-  }, [tier, activeProducts])
+    void useStore.getState().refreshCartPrices()
+  }, [tier])
   const visible = useMemo(() => (allProducts === undefined ? undefined : filterProducts(activeProducts, q, { categoryId: category !== 'all' && category !== 'fav' ? category : undefined, favorites: category === 'fav' })), [allProducts, activeProducts, q, category])
   const totals = useMemo(() => computeTotals(cart, settings.tax, d), [cart, settings.tax, d])
   const inCart = useMemo(() => {
@@ -229,7 +224,10 @@ export default function SalesScreen() {
     try { await db.heldTickets.delete(tk.id) } catch { /* the ticket is already in the cart */ }
     setDialog(null)
     toast(t('sales.heldRestored'), 'success')
+    // a held ticket keeps the prices of the moment it was parked: bring the list-price lines up to date (rate / price changes)
+    try { if (await useStore.getState().refreshCartPrices()) toast(t('fx.heldRepriced'), 'info') } catch { /* the ticket is in the cart as it was */ }
   }
+  const openRate = useCallback(() => { if (!rateOn) return; if (canChangeRate()) openDialog({ kind: 'rate' }) }, [rateOn, openDialog])
   const doDeleteHeld = async (tk: HeldTicket) => {
     if (await confirmDialog({ title: t('sales.heldDeleteTitle'), text: t('common.cannotUndo'), danger: true, okLabel: t('common.delete') })) {
       try { await db.heldTickets.delete(tk.id); toast(t('common.deleted'), 'info') } catch { toast(t('common.error'), 'error') }
@@ -264,6 +262,7 @@ export default function SalesScreen() {
       if (e.key === 'F1') { e.preventDefault(); if (!dialog) { setCartOpen(false); focusSearch() } return }
       if (e.key === 'F2') { e.preventDefault(); if (!dialog) openCharge(); return }
       if (e.key === 'F4') { e.preventDefault(); if (!dialog && cart.lines.length) openDialog({ kind: 'hold' }); return }
+      if (e.key === 'F6') { if (!rateOn) return; e.preventDefault(); if (!dialog) openRate(); return }
       if (dialog || customerPicker) return
       const el = document.activeElement as HTMLElement | null
       const inField = !!el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.tagName === 'SELECT' || el.isContentEditable)
@@ -277,7 +276,7 @@ export default function SalesScreen() {
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [dialog, customerPicker, cart.lines, search, focusSearch, openCharge, setQty, removeLine])
+  }, [dialog, customerPicker, cart.lines, search, focusSearch, openCharge, openRate, rateOn, setQty, removeLine])
 
   const editingLine = dialog?.kind === 'line' || dialog?.kind === 'fraction' ? cart.lines.find(l => l.key === dialog.key) : undefined
   useEffect(() => { if ((dialog?.kind === 'line' || dialog?.kind === 'fraction') && !editingLine) setDialog(null) }, [dialog, editingLine])
@@ -301,6 +300,7 @@ export default function SalesScreen() {
       onClear={() => void doClear()}
       onCharge={openCharge}
       showKbd={showKbd}
+      rateKbd={rateOn}
       inSheet={inSheet}
       noShift={!shift}
       onOpenShift={() => nav('/shifts')}
@@ -395,6 +395,7 @@ export default function SalesScreen() {
             return true
           }} />
       )}
+      {dialog?.kind === 'rate' && <RateDialog onClose={close} />}
       {customerPicker && (
         <CustomerPickerDialog selectedId={cart.customerId} settings={settings} onClose={() => setCustomerPicker(false)}
           onPick={c => { setCartCustomer(c?.id, c?.name); setCustomerPicker(false) }} />

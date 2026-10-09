@@ -36,6 +36,22 @@ export function formatMoney(n: number, c: CurrencySettings, opts: { sign?: boole
   return c.symbolAfter ? `${sign}${abs} ${c.symbol}` : `${sign}${c.symbol}${abs}`
 }
 
+/**
+ * Rounds a selling price to a step (100 → 129,870 becomes 129,900). `step <= 0` means plain rounding to `decimals`.
+ * Shrink guard: a step bigger than a quarter of the price shrinks tenfold until it fits, so 650 at step 500 rounds at
+ * step 10 (→ 650) and a positive price never becomes 0 or moves by more than about 25 %.
+ */
+export function roundToStep(n: number, step: number, mode: 'nearest' | 'up', decimals: number): number {
+  if (!Number.isFinite(n) || n <= 0) return 0
+  if (!(step > 0)) return round(n, decimals)
+  const floor = 10 ** -decimals
+  let s = step
+  while (s > floor && n < 4 * s) s /= 10
+  if (s <= floor) return round(n, decimals)
+  const r = mode === 'up' ? Math.ceil(n / s - 1e-9) * s : Math.round(n / s) * s
+  return round(r, decimals)
+}
+
 /** Primary units → second currency (rate = primary per 1 secondary). 0 when there is no rate. */
 export function toSecondary(primary: number, rate: number, decimals2: number): number {
   if (!(rate > 0)) return 0

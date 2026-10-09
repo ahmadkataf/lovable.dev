@@ -16,7 +16,9 @@ export function SuppliersTab() {
   const t = useT()
   const nav = useNavigate()
   const lang = useLang()
-  const c = useSettings().currency
+  const settings = useSettings()
+  const c = settings.currency
+  const c2 = settings.currency2
   const admin = isAdmin(useUser())
   const [q, setQ] = useState('')
   const [add, setAdd] = useState(false)
@@ -24,6 +26,7 @@ export function SuppliersTab() {
   if (!suppliers) return <div className="empty"><Spinner /></div>
   const list = suppliers.filter(s => !q.trim() || normalize(s.name).includes(normalize(q)) || (s.phone ?? '').includes(q.trim()))
   const owed = round(suppliers.reduce((s, x) => s + Math.max(0, x.balance), 0), c.decimals)
+  const owedFx = round(suppliers.reduce((s, x) => s + Math.max(0, x.fxBalance ?? 0), 0), c2.decimals)
   const Chevron = lang === 'ar' ? ChevronLeft : ChevronRight
   return (
     <div className="col">
@@ -33,7 +36,7 @@ export function SuppliersTab() {
       </div>
       {admin && suppliers.length > 0 && (
         <div className="stats">
-          <div className="stat"><div className="stat-label">{t('inventory.suppliers.totalBalance')}</div><div className={`stat-value num ${owed > 0 ? 'inv-warn' : ''}`}>{formatMoney(owed, c)}</div></div>
+          <div className="stat"><div className="stat-label">{t('inventory.suppliers.totalBalance')}</div><div className={`stat-value num ${owed > 0 ? 'inv-warn' : ''}`}>{formatMoney(owed, c)}</div>{owedFx > 0 && <div className="stat-sub num inv-warn">{t('inventory.supplier.fxBalance', { cur: c2.symbol })}: {formatMoney(owedFx, c2)}</div>}</div>
           <div className="stat"><div className="stat-label">{t('inventory.suppliers.count')}</div><div className="stat-value num">{suppliers.length}</div></div>
         </div>
       )}
@@ -48,7 +51,8 @@ export function SuppliersTab() {
               <span className="end">
                 {s.balance > 0 ? <><span className="num bold inv-warn">{formatMoney(s.balance, c)}</span><span className="sub">{t('inventory.suppliers.weOwe')}</span></>
                   : s.balance < 0 ? <><span className="num bold inv-pos">{formatMoney(-s.balance, c)}</span><span className="sub">{t('inventory.suppliers.owesUs')}</span></>
-                  : <span className="sub">{t('inventory.suppliers.settled')}</span>}
+                  : !(s.fxBalance ?? 0) ? <span className="sub">{t('inventory.suppliers.settled')}</span> : null}
+                {(s.fxBalance ?? 0) !== 0 && <span className={`sub num ${(s.fxBalance ?? 0) > 0 ? 'inv-warn' : 'inv-pos'}`}>{formatMoney(Math.abs(s.fxBalance ?? 0), c2)} {(s.fxBalance ?? 0) > 0 ? t('inventory.suppliers.weOwe') : t('inventory.suppliers.owesUs')}</span>}
               </span>
               <Chevron size={18} className="faint" />
             </button>
@@ -74,7 +78,7 @@ export function SupplierModal({ open, onClose, supplier, onSaved }: { open: bool
     try {
       const row: Supplier = {
         id: supplier?.id ?? uid(), name: name.trim(), phone: phone.trim() || undefined, notes: notes.trim() || undefined,
-        balance: supplier?.balance ?? 0, createdAt: supplier?.createdAt ?? Date.now(),
+        balance: supplier?.balance ?? 0, ...(supplier?.fxBalance !== undefined ? { fxBalance: supplier.fxBalance } : {}), createdAt: supplier?.createdAt ?? Date.now(),
       }
       await db.suppliers.put(row)
       toast(t('common.saved'), 'success')

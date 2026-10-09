@@ -175,6 +175,8 @@ export async function createRefund(input: CreateRefundInput): Promise<Refund> {
     const refund: Refund = {
       id: uid(), saleId: fresh.id, saleNumber: fresh.number, createdAt: at, items, total, method, restock, reason,
       customerId: fresh.customerId, userId: user.id, userName: user.name, shiftId: shift?.id,
+      // valued at the sale's rate, never today's: the $ view of reports then nets a full refund to zero
+      ...(fresh.rate !== undefined ? { rate: fresh.rate, rateCode: fresh.rateCode } : {}),
     }
     if (restock) {
       await applyStock(

@@ -11,6 +11,7 @@ import { platform } from '../../lib/platform'
 import { formatDate, formatDateTime, daysBetween } from '../../lib/format'
 import { Button, Input, useIsMobile } from '../../components/ui'
 import { license } from '../../license'
+import { PolicyBanner } from '../../components/PolicyBanner'
 import { DEFAULT_INFO, type LicenseStatus } from '../../license/types'
 import { cleanCode, formatTyping } from '../../license/crypto'
 
@@ -145,6 +146,8 @@ export default function ActivationScreen({ embedded }: { embedded?: boolean }) {
       </section>
 
       {!demo && (!online || !lic.online) && <div className="banner warn act-offline"><WifiOff size={16} /> {t(online ? 'license.err.network' : 'activation.offline')}</div>}
+
+      {!demo && <PolicyBanner terms />}
 
       {showForm && (
         <form className="act-form" onSubmit={e => void activate(e)}>

@@ -63,3 +63,25 @@ describe('import parsing', () => {
     expect(row.price).toBeUndefined()
   })
 })
+
+describe('second-currency columns', () => {
+  it('maps the exported USD headers and keeps the lira ones', () => {
+    const m = autoMap(['name/الاسم', 'barcode/الباركود', 'sku/الرمز', 'category/الفئة', 'price/السعر', 'price_USD/السعر بالدولار', 'cost/التكلفة', 'cost_USD/التكلفة بالدولار', 'stock/المخزون', 'lowStock/حد التنبيه', 'unit/الوحدة', 'active/نشط', 'notes/ملاحظات'])
+    expect(m).toEqual({ name: 0, barcode: 1, sku: 2, category: 3, price: 4, fxPrice: 5, cost: 6, fxCost: 7, stock: 8, lowStock: 9, unit: 10, notes: 12 })
+  })
+  it('knows the usual synonyms in both languages', () => {
+    expect(autoMap(['الصنف', 'السعر', 'سعر الدولار'])).toEqual({ name: 0, price: 1, fxPrice: 2 })
+    expect(autoMap(['Item', 'Price', 'USD', 'Cost USD'])).toEqual({ name: 0, price: 1, fxPrice: 2, fxCost: 3 })
+    expect(autoMap(['Item', 'Price $', 'Dollar'])).toEqual({ name: 0, fxPrice: 1 })
+    expect(autoMap(['Product', '$'])).toEqual({ name: 0, fxPrice: 1 })
+    expect(autoMap(['المنتج', 'بالدولار', 'التكلفة بالدولار'])).toEqual({ name: 0, fxPrice: 1, fxCost: 2 })
+  })
+  it('matches price_EUR style headers for another second currency', () => {
+    expect(autoMap(['name', 'price_EUR/السعر بـEUR', 'cost_EUR/التكلفة بـEUR'])).toEqual({ name: 0, fxPrice: 1, fxCost: 2 })
+  })
+  it('reads the amounts into fxPrice / fxCost', () => {
+    const row = parseImportRow(['زيت', '129900', '٩٫٩٩', '8.5'], { name: 0, price: 1, fxPrice: 2, fxCost: 3 }, 2)
+    expect(row).toEqual({ line: 2, name: 'زيت', barcodes: [], price: 129900, fxPrice: 9.99, fxCost: 8.5 })
+    expect(parseImportRow(['زيت', ''], { name: 0, fxPrice: 1 }, 3).fxPrice).toBeUndefined()
+  })
+})

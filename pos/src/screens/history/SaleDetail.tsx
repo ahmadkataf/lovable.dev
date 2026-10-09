@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useLiveQuery } from 'dexie-react-hooks'
-import { Receipt, Copy, Undo2, Printer, User, Clock, ChevronLeft, ChevronRight, PackageCheck, PackageX, Wallet, StickyNote, CheckCircle2 } from 'lucide-react'
+import { Receipt, Copy, Undo2, Printer, User, Clock, ChevronLeft, ChevronRight, PackageCheck, PackageX, Wallet, StickyNote, CheckCircle2, ArrowLeftRight, Coins } from 'lucide-react'
 import { db } from '../../db'
 import type { Refund } from '../../db/types'
 import { useT, useLang } from '../../i18n'
@@ -13,6 +13,7 @@ import { formatMoney, formatQty, round } from '../../lib/money'
 import { formatDateTime } from '../../lib/format'
 import { printSale } from '../../lib/receipt'
 import { canRefund, remainingQty } from '../../lib/refunds'
+import { currencyForCode } from '../../lib/fx'
 import { toast, useSettings, useUser } from '../../state/store'
 import { allowed } from '../../lib/audit'
 import { SubHead } from '../inventory/shared'
@@ -57,6 +58,11 @@ export function SaleDetail() {
   }
 
   const money = (n: number) => formatMoney(n, c)
+  // the rate the receipt was valued at (its own, never today's) and the currency it names
+  const rate = typeof sale.rate === 'number' && sale.rate > 0 ? sale.rate : null
+  const c2 = rate ? currencyForCode(sale.rateCode, settings) : null
+  const inFx = (n: number) => (rate && c2 ? formatMoney(round(n / rate, c2.decimals), c2) : '')
+  const seeCost = allowed(user, settings, 'cashierSeeCost')
   const cashTendered = sale.payments.filter(p => p.method === 'cash').reduce((s, p) => s + p.amount, 0)
 
   return (
@@ -90,7 +96,7 @@ export function SaleDetail() {
                     <tr key={i}>
                       <td className="hi-name">{it.name}{it.note && <div className="hi-sub">{it.note}</div>}{it.barcode && <div className="hi-sub num">{it.barcode}</div>}</td>
                       <td className="num">{formatQty(it.qty)}</td>
-                      <td className="num">{money(it.price)}{round(it.originalPrice, c.decimals) !== round(it.price, c.decimals) && <span className="strike">{money(it.originalPrice)}</span>}</td>
+                      <td className="num">{money(it.price)}{round(it.originalPrice, c.decimals) !== round(it.price, c.decimals) && <span className="strike">{money(it.originalPrice)}</span>}{typeof it.fxPrice === 'number' && c2 && <div className="hi-sub num">({formatMoney(it.fxPrice, c2)})</div>}</td>
                       {sale.items.some(x => x.discount > 0) && <td className="num">{it.discount > 0 ? `-${money(it.discount)}` : ''}</td>}
                       <td className="num bold">{money(it.total)}</td>
                       {anyReturned && <td className="num">{returned[i] > 0 ? <Badge kind="warn" className="num">{formatQty(returned[i])}</Badge> : ''}</td>}
@@ -138,6 +144,9 @@ export function SaleDetail() {
                 <span className="k"><Clock size={16} /> {t('history.shift')}</span>
                 {sale.shiftId && shift ? <button type="button" className="hi-link" onClick={() => nav(`/shifts/${shift.id}`)}><span className="num">{formatDateTime(shift.openedAt)}</span> <Chevron size={16} /></button> : <span className="v faint">{t('history.noShift')}</span>}
               </div>
+              {rate && c2 && <div><span className="k"><ArrowLeftRight size={16} /> {t('history.fxRate')}</span><span className="v num" dir="ltr">1 {c2.symbol} = {money(rate)}</span></div>}
+              {rate && c2 && <div><span className="k">{t('history.fxTotal', { cur: c2.symbol })}</span><span className="v num">{inFx(sale.total)}</span></div>}
+              {seeCost && <div><span className="k"><Coins size={16} /> {t('history.profit')}</span><span className="v num">{money(round(sale.total - sale.cost, c.decimals))}{rate ? <span className="faint"> ≈ {inFx(sale.total - sale.cost)}</span> : null}</span></div>}
               {sale.note && <div><span className="k"><StickyNote size={16} /> {t('history.note')}</span><span className="v hi-note">{sale.note}</span></div>}
             </div>
           </div>

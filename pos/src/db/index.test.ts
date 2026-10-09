@@ -26,6 +26,15 @@ describe('settings', () => {
     expect(s.currency2).toEqual(DEFAULT_SETTINGS.currency2)
     expect(mergeSettings(undefined)).toEqual(DEFAULT_SETTINGS)
   })
+  it('an older install gets the new currency2 and permission defaults, keeping what it had', () => {
+    const s = mergeSettings({ currency2: { enabled: true, code: 'USD', symbol: '$', decimals: 2, symbolAfter: false, rate: 13000 } as never, permissions: { cashierDiscount: false } as never })
+    expect(s.currency2).toEqual({ ...DEFAULT_SETTINGS.currency2, enabled: true, rate: 13000 })
+    expect(s.currency2.pricing).toBe(false); expect(s.currency2.roundTo).toBe(100); expect(s.currency2.roundMode).toBe('nearest')
+    expect(s.currency2.askOnOpen).toBe(true); expect(s.currency2.staleAfterDays).toBe(2); expect(s.currency2.newProductsIn).toBe('primary'); expect(s.currency2.showOnReceipt).toBe(true)
+    expect(s.permissions.cashierChangeRate).toBe(false)
+    expect(s.permissions.cashierDiscount).toBe(false)
+    expect(DEFAULT_SETTINGS.permissions.cashierChangeRate).toBe(false)
+  })
   it('ensureDefaults makes one admin and the settings, once', async () => {
     await Promise.all([ensureDefaults(), ensureDefaults()])
     expect(await db.users.count()).toBe(1)

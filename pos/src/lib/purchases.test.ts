@@ -122,3 +122,52 @@ describe('deletePurchase', () => {
     expect(row.method).toBe('card')
   })
 })
+
+describe('invoices in the second currency', () => {
+  const usd = { code: 'USD', symbol: '$', decimals: 2, symbolAfter: false, rate: 13000 }
+  it('derives the lira figures at the invoice rate, keeps the $ invoice, sets the products\' fxCost and moves fxBalance only', async () => {
+    const p = await createPurchase({
+      supplierId: 'sup', user, decimals: 0, paid: 10, method: 'cash', fx: usd,
+      items: [{ productId: 'a', name: 'a', qty: 10, cost: 0, fxCost: 1.25 }, { productId: 'b', name: 'b', qty: 2, cost: 19500 }],   // b typed in lira: derived
+    })
+    expect(p.items[0]).toMatchObject({ cost: 16250, fxCost: 1.25 })
+    expect(p.items[1]).toMatchObject({ cost: 19500, fxCost: 1.5 })
+    expect(p.fx).toEqual({ ...usd, total: 15.5, paid: 10 })
+    expect(p.total).toBe(201500); expect(p.paid).toBe(130000)
+    const a = (await db.products.get('a'))!
+    expect(a.cost).toBe(16250); expect(a.fxCost).toBe(1.25); expect(a.price).toBe(100); expect(a.stock).toBe(15)
+    const sup = (await db.suppliers.get('sup'))!
+    expect(sup.balance).toBe(100); expect(sup.fxBalance).toBe(5.5)
+    // paying in dollars lowers fxBalance; the record keeps the lira equivalent as paid
+    const pay = await paySupplier({ supplierId: 'sup', amount: 2, user, decimals: 0, fx: usd })
+    expect(pay.paid).toBe(26000); expect(pay.fx).toEqual({ ...usd, total: 0, paid: 2 })
+    expect((await db.suppliers.get('sup'))!.fxBalance).toBe(3.5)
+    // deleting reverses by the same rule
+    await deletePurchase(p.id, user, 0)
+    expect((await db.suppliers.get('sup'))!.fxBalance).toBe(-2)
+    expect((await db.suppliers.get('sup'))!.balance).toBe(100)
+    await deletePurchase(pay.id, user, 0)
+    expect((await db.suppliers.get('sup'))!.fxBalance).toBe(0)
+  })
+  it('validates the $ figures and refuses a missing rate', async () => {
+    await expect(createPurchase({ user, paid: 0, fx: { ...usd, rate: 0 }, items: [{ productId: 'a', name: 'a', qty: 1, cost: 0, fxCost: 1 }] })).rejects.toMatchObject({ key: 'inventory.err.rate' })
+    await expect(createPurchase({ user, paid: 1.01, fx: usd, items: [{ productId: 'a', name: 'a', qty: 1, cost: 0, fxCost: 1 }] })).rejects.toMatchObject({ key: 'inventory.err.paid' })
+    await expect(createPurchase({ user, paid: 0, fx: usd, items: [{ productId: 'a', name: 'a', qty: 1, cost: 0, fxCost: -1 }] })).rejects.toMatchObject({ key: 'inventory.err.cost' })
+    await expect(paySupplier({ supplierId: 'sup', amount: 1, user, fx: { ...usd, rate: 0 } })).rejects.toMatchObject({ key: 'inventory.err.rate' })
+    expect(await db.purchases.count()).toBe(0)
+  })
+  it('a lira invoice on a product bought in dollars re-expresses fxCost at the current rate, or drops it', async () => {
+    await db.products.put(product('a', { cost: 16250, fxCost: 1.25 }))
+    await createPurchase({ user, paid: 0, decimals: 0, currency2: { rate: 14000 }, items: [{ productId: 'a', name: 'a', qty: 1, cost: 14000 }] })
+    expect((await db.products.get('a'))).toMatchObject({ cost: 14000, fxCost: 1 })
+    await createPurchase({ user, paid: 0, decimals: 0, items: [{ productId: 'a', name: 'a', qty: 1, cost: 15000 }] })
+    const a = (await db.products.get('a'))!
+    expect(a.cost).toBe(15000); expect(a.fxCost).toBeUndefined()
+  })
+  it('takes the lira equivalent out of the drawer', async () => {
+    const shift = await openShift({ user, openingCash: 0, decimals: 0 })
+    const p = await createPurchase({ user, paid: 1, method: 'cash', drawerShiftId: shift.id, decimals: 0, fx: usd, items: [{ productId: 'a', name: 'a', qty: 1, cost: 0, fxCost: 1 }] })
+    expect(p.shiftId).toBe(shift.id)
+    expect((await db.shifts.get(shift.id))!.cashOut).toBe(13000)
+  })
+})

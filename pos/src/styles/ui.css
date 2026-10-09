@@ -209,5 +209,9 @@ button.list-row:hover, a.list-row:hover { background: var(--surface-2); }
 .policy-banner strong { display: block; color: #dc2626; font-size: 18px; font-weight: 900; margin-bottom: 2px; }
 .policy-banner.compact { padding: 8px 12px; align-items: center; }
 .policy-banner.compact strong { font-size: 15px; margin: 0; }
+.policy-banner.terms strong { font-size: 20px; }
+.policy-banner .policy-label { font-size: 11px; font-weight: 700; letter-spacing: .04em; color: #991b1b; margin-bottom: 2px; }
+.policy-banner .policy-accept { margin-top: 6px; font-weight: 700; }
+[data-theme="dark"] .policy-banner .policy-label { color: #fca5a5; }
 [data-theme="dark"] .policy-banner { background: #3f1212; color: #fecaca; border-color: #ef4444; }
 [data-theme="dark"] .policy-banner strong, [data-theme="dark"] .policy-banner > svg { color: #f87171; }

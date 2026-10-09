@@ -111,6 +111,10 @@ export async function completeSale(input: CompleteSaleInput): Promise<Sale> {
       }
     }
     const number = await nextNumber('sale')
+    // the rate the sale was valued at: the one the cash in the second currency used, else today's (nothing when currency2 is off)
+    const c2 = settings.currency2
+    const fx = input.fx && input.fx.received > 0 ? input.fx : undefined
+    const rate = fx && fx.rate > 0 ? fx.rate : c2.enabled && c2.rate > 0 ? c2.rate : undefined
     const sale: Sale = {
       id: uid(),
       number,
@@ -126,7 +130,9 @@ export async function completeSale(input: CompleteSaleInput): Promise<Sale> {
       paid,
       change,
       credit,
-      fx: input.fx && input.fx.received > 0 ? input.fx : undefined,
+      fx,
+      rate,
+      rateCode: rate !== undefined ? (fx?.code ?? c2.code) : undefined,
       pointsEarned: pointsEarnedNow || undefined,
       pointsRedeemed: pointsRedeemed || undefined,
       customerId: cart.customerId,

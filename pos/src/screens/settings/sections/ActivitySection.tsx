@@ -12,8 +12,8 @@ import { saveCsv } from '../../../lib/csv'
 import type { AuditKind } from '../../../db/types'
 import { SectionCard } from '../shared'
 
-const KINDS: AuditKind[] = ['sale.discount', 'sale.priceOverride', 'refund', 'product.delete', 'product.price', 'stock.adjust', 'user.add', 'user.change', 'user.remove', 'backup.restore', 'data.reset', 'shift.close', 'customer.adjust']
-const MONEY_KINDS: AuditKind[] = ['sale.discount', 'refund', 'product.price', 'shift.close', 'customer.adjust']
+const KINDS: AuditKind[] = ['sale.discount', 'sale.priceOverride', 'refund', 'product.delete', 'product.price', 'stock.adjust', 'user.add', 'user.change', 'user.remove', 'backup.restore', 'data.reset', 'shift.close', 'customer.adjust', 'rate.change']
+const MONEY_KINDS: AuditKind[] = ['sale.discount', 'refund', 'product.price', 'shift.close', 'customer.adjust', 'rate.change']
 
 export default function ActivitySection() {
   const t = useT()

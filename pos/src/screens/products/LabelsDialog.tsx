@@ -3,11 +3,13 @@ import { useMemo, useState } from 'react'
 import { Printer, AlertTriangle } from 'lucide-react'
 import type { Product } from '../../db/types'
 import { useT } from '../../i18n'
-import { Modal, Button, Field, Select, NumberInput, SwitchRow } from '../../components/ui'
+import { Modal, Button, Field, Select, NumberInput, SwitchRow, Seg } from '../../components/ui'
 import { toast, useSettings } from '../../state/store'
-import { LABEL_SIZES, countLabels, printLabels, type LabelSize } from '../../lib/labels'
+import { LABEL_SIZES, countLabels, printLabels, type LabelSize, type LabelPriceMode } from '../../lib/labels'
 
 const STORAGE = 'kaseb.labels.size'
+const PRICE_MODE_KEY = 'kaseb.labels.priceMode'
+const PRICE_MODES: LabelPriceMode[] = ['primary', 'secondary', 'both']
 
 export function LabelsDialog({ open, onClose, products }: { open: boolean; onClose: () => void; products: Product[] }) {
   const t = useT()
@@ -15,17 +17,22 @@ export function LabelsDialog({ open, onClose, products }: { open: boolean; onClo
   const [size, setSize] = useState<LabelSize>(() => { try { return (localStorage.getItem(STORAGE) as LabelSize) || '50x30' } catch { return '50x30' } })
   const [copies, setCopies] = useState(1)
   const [showStore, setShowStore] = useState(true)
+  const [priceMode, setPriceMode] = useState<LabelPriceMode>(() => { try { const v = localStorage.getItem(PRICE_MODE_KEY) as LabelPriceMode; return PRICE_MODES.includes(v) ? v : 'primary' } catch { return 'primary' } })
   const [busy, setBusy] = useState(false)
+  const c2 = settings.currency2
+  // the price-mode choice only matters when something could print in the second currency
+  const fxLabels = c2.enabled && (c2.pricing || products.some(p => typeof p.fxPrice === 'number'))
+  const mode: LabelPriceMode = fxLabels ? priceMode : 'primary'
 
-  const items = useMemo(() => products.map(p => ({ name: p.name, price: p.price, barcode: p.barcodes[0] ?? '', copies: Math.max(1, Math.floor(copies)) })), [products, copies])
+  const items = useMemo(() => products.map(p => ({ name: p.name, price: p.price, fxPrice: p.fxPrice, barcode: p.barcodes[0] ?? '', copies: Math.max(1, Math.floor(copies)) })), [products, copies])
   const noBarcode = products.filter(p => !p.barcodes.length).length
   const total = countLabels(items)
 
   const print = async () => {
     setBusy(true)
     try {
-      try { localStorage.setItem(STORAGE, size) } catch { /* ignore */ }
-      const ok = await printLabels(items, settings, { size, showStore })
+      try { localStorage.setItem(STORAGE, size); localStorage.setItem(PRICE_MODE_KEY, mode) } catch { /* ignore */ }
+      const ok = await printLabels(items, settings, { size, showStore, priceMode: mode })
       if (ok) { toast(t('products.labels.sent', { n: total }), 'success'); onClose() }
       else toast(t('products.labels.failed'), 'error')
     } catch { toast(t('products.labels.failed'), 'error') }
@@ -49,6 +56,15 @@ export function LabelsDialog({ open, onClose, products }: { open: boolean; onClo
         <Field label={t('products.labels.copies')}>
           <NumberInput value={copies} onChange={n => setCopies(Math.min(200, Math.max(1, Math.floor(n))))} decimals={0} min={1} max={200} />
         </Field>
+        {fxLabels && (
+          <Field label={t('products.labels.priceMode')}>
+            <Seg block value={priceMode} onChange={setPriceMode} options={[
+              { value: 'primary', label: settings.currency.symbol },
+              { value: 'secondary', label: c2.symbol },
+              { value: 'both', label: t('products.labels.both') },
+            ]} />
+          </Field>
+        )}
         <SwitchRow label={t('products.labels.showStore')} on={showStore} onChange={setShowStore} disabled={!settings.store.name.trim()} />
         {noBarcode > 0 && <div className="banner warn"><AlertTriangle size={16} />{t('products.labels.noBarcode', { n: noBarcode })}</div>}
       </div>

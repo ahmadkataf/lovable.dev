@@ -124,7 +124,17 @@ addMessages({
     'inventory.form.discardText': 'ستُحذف كل الأصناف المضافة.',
     'inventory.form.notePh': 'رقم فاتورة المورّد، ملاحظات…',
 
+    'inventory.form.invoiceIn': 'الفاتورة بـ',
+    'inventory.form.rate': 'سعر الصرف لهذه الفاتورة',
+    'inventory.form.rateHint': '1 {cur} = {rate}',
+    'inventory.form.rateNote': 'الدرج يُحسب بالليرة: يُسجَّل المدفوع نقداً بما يعادله بالليرة',
+    'inventory.form.convertLines': 'تحويل الأسطر المدخلة بسعر الصرف؟',
+    'inventory.form.convertLinesText': 'ستُعاد كتابة أسعار الوحدات المدخلة بالعملة الأخرى بسعر {rate}.',
+    'inventory.form.convert': 'تحويل',
+    'inventory.form.equiv': '= {v}',
+
     'inventory.err.noItems': 'أضف صنفاً واحداً على الأقل',
+    'inventory.err.rate': 'أدخل سعر صرف صحيح',
     'inventory.err.cost': 'تحقق من أسعار الوحدات',
     'inventory.err.paid': 'المدفوع أكبر من الإجمالي',
     'inventory.err.amount': 'أدخل المبلغ',
@@ -137,6 +147,11 @@ addMessages({
     'inventory.detail.deleteText': 'ستُرجَع الكميات من المخزون ويُصحَّح رصيد المورّد.',
     'inventory.detail.deletePaymentText': 'سيُعاد المبلغ إلى رصيد المورّد.',
     'inventory.detail.notFound': 'الفاتورة غير موجودة',
+
+    'inventory.purchase.rate': 'سعر الصرف: 1 {cur} = {rate}',
+    'inventory.purchases.unpaidFx': 'منها بـ{cur}: {v}',
+    'inventory.supplier.fxBalance': 'الرصيد بـ{cur}',
+    'inventory.pay.inFx': 'الدفع بـ{cur}',
 
     'inventory.pay.title': 'سداد للمورّد',
     'inventory.pay.balance': 'الرصيد الحالي',
@@ -323,7 +338,17 @@ addMessages({
     'inventory.form.discardText': 'All added items will be removed.',
     'inventory.form.notePh': 'Supplier invoice number, notes…',
 
+    'inventory.form.invoiceIn': 'Invoice in',
+    'inventory.form.rate': 'Rate for this invoice',
+    'inventory.form.rateHint': '1 {cur} = {rate}',
+    'inventory.form.rateNote': 'The drawer is counted in {main}: cash paid is recorded at its {main} equivalent',
+    'inventory.form.convertLines': 'Convert the typed lines at the rate?',
+    'inventory.form.convertLinesText': 'The unit costs you typed are rewritten in the other currency at {rate}.',
+    'inventory.form.convert': 'Convert',
+    'inventory.form.equiv': '= {v}',
+
     'inventory.err.noItems': 'Add at least one item',
+    'inventory.err.rate': 'Enter a valid rate',
     'inventory.err.cost': 'Check the unit costs',
     'inventory.err.paid': 'Paid is more than the total',
     'inventory.err.amount': 'Enter the amount',
@@ -336,6 +361,11 @@ addMessages({
     'inventory.detail.deleteText': 'Quantities go back out of stock and the supplier balance is corrected.',
     'inventory.detail.deletePaymentText': 'The amount goes back on the supplier balance.',
     'inventory.detail.notFound': 'Invoice not found',
+
+    'inventory.purchase.rate': 'Rate: 1 {cur} = {rate}',
+    'inventory.purchases.unpaidFx': 'of which in {cur}: {v}',
+    'inventory.supplier.fxBalance': 'Balance in {cur}',
+    'inventory.pay.inFx': 'Pay in {cur}',
 
     'inventory.pay.title': 'Pay supplier',
     'inventory.pay.balance': 'Current balance',

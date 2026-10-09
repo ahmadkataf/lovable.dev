@@ -1,8 +1,10 @@
 // Backup and restore: the whole database as one JSON file, plus the "delete everything" reset.
 // The file is { app: 'kaseb', version: 1, exportedAt, tables: { <name>: rows[] } } for every name in TABLES.
-import { db, TABLES, ensureDefaults, type TableName } from '../db'
+import { db, TABLES, ensureDefaults, loadSettings, type TableName } from '../db'
 import { logAudit } from './audit'
 import { forbiddenProduct } from './policy'
+import { FX_HISTORY_KEY, FX_HISTORY_CAP, loadRateHistory, repriceAll } from './fx'
+import type { RateHistoryEntry } from '../db/types'
 
 export const BACKUP_APP = 'kaseb'
 export const BACKUP_VERSION = 1
@@ -95,8 +97,29 @@ export async function importBackup(json: string): Promise<BackupCounts> {
   })
   // a backup from a broken install could lack users or settings
   await ensureDefaults()
+  await repriceAfterRestore()
   await logAudit({ kind: 'backup.restore', detail: data.exportedAt ? new Date(data.exportedAt).toISOString().slice(0, 16) : '', amount: v.total })
   return v.counts
+}
+
+/**
+ * After a restore the products and the settings come from the same file, but a file edited by hand (or written by an
+ * older build) may disagree: anchored products are re-derived at the restored rate, and when anything moved a history
+ * entry with source 'restore' says so. Never throws (a failed reprice must not undo a successful restore).
+ */
+async function repriceAfterRestore(): Promise<void> {
+  try {
+    const s = await loadSettings()
+    const c2 = s.currency2
+    if (!c2.enabled || !c2.pricing || !(c2.rate > 0)) return
+    await db.transaction('rw', db.products, db.kv, async () => {
+      const at = Date.now()
+      const { changed } = await repriceAll(c2, s.currency.decimals, at)
+      if (!changed) return
+      const entry: RateHistoryEntry = { at, rate: c2.rate, prev: c2.rate, repriced: changed, source: 'restore' }
+      await db.kv.put({ key: FX_HISTORY_KEY, value: [entry, ...(await loadRateHistory())].slice(0, FX_HISTORY_CAP) })
+    })
+  } catch { /* the restore itself succeeded */ }
 }
 
 /** Deletes every table, settings and users included, then recreates the defaults (one admin, default settings). */

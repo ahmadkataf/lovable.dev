@@ -1,10 +1,15 @@
 // Sample data for screenshots and demos. Loaded only with ?qa=1 in the URL (see main.tsx); never part of normal use.
 import { db, saveSettings, loadSettings, nextNumber } from '../db'
-import type { Product, Category, Customer, Sale, SaleItem, PaymentMethod } from '../db/types'
+import type { Product, Category, Customer, Sale, SaleItem, PaymentMethod, RateHistoryEntry } from '../db/types'
 import { uid } from '../lib/ids'
 import { applyStock } from '../lib/stock'
 import { applyLedger } from '../lib/ledger'
 import { round } from '../lib/money'
+import { derivePrices, rateAt, FX_HISTORY_KEY } from '../lib/fx'
+
+/** The dollar over the last two weeks: 12,600 → 13,000 (newest first, as stored in kv 'fx.history'). */
+const RATE = 13000
+const RATE_STEPS: [number, number][] = [[0, 13000], [2, 12900], [5, 12850], [9, 12700], [14, 12600]]   // [days ago, rate]
 
 const CATS: Omit<Category, 'id' | 'createdAt'>[] = [
   { name: 'مشروبات', color: '#3b6cf6', icon: '🥤', sort: 0 },
@@ -53,7 +58,7 @@ export async function seed(): Promise<void> {
   s.store = { name: 'سوبرماركت الأمل', phone: '0944 123 456', address: 'دمشق — المزة، شارع الجلاء' }
   s.onboarded = true
   s.loyalty = { enabled: true, earnPer: 1000, pointValue: 10, minRedeem: 100 }
-  s.currency2 = { enabled: true, code: 'USD', symbol: '$', decimals: 2, symbolAfter: false, rate: 13000 }
+  s.currency2 = { enabled: true, code: 'USD', symbol: '$', decimals: 2, symbolAfter: false, rate: RATE, pricing: true, roundTo: 100, roundMode: 'nearest', askOnOpen: true, staleAfterDays: 2, newProductsIn: 'primary', showOnReceipt: true, rateUpdatedAt: now, rateUpdatedBy: 'المدير' }
   s.receipt.footer = 'شكراً لزيارتكم — نتمنى لكم يوماً سعيداً'
   await saveSettings(s)
   const admin = (await db.users.toArray())[0]
@@ -66,15 +71,27 @@ export async function seed(): Promise<void> {
   const stocks: number[] = []
   const products: Product[] = PRODUCTS.map(([name, price, cost, stock, cat, seedN, emoji, frac], i) => {
     stocks.push(stock * 4)
-    return {
+    const p: Product = {
       id: uid(), name, barcodes: [ean(seedN)], price, cost, trackStock: true, stock: 0, lowStock: 5, unit: frac ? 'kg' : 'piece',
       allowFraction: !!frac, categoryId: byName[cat].id, color: byName[cat].color, emoji, favorite: i < 4, active: true,
       createdAt: now - 40 * 864e5, updatedAt: now - 40 * 864e5,
       // the first two drinks come by the carton and have a wholesale price
       ...(i < 2 ? { wholesalePrice: Math.round(price * 0.9), packs: [{ id: uid(), name: 'كرتونة', qty: i === 0 ? 6 : 24, price: Math.round(price * (i === 0 ? 6 : 24) * 0.92), barcode: ean(900 + i) }] } : {}),
     }
+    // the first six are bought in dollars: anchored, their lira prices follow the daily rate
+    if (i < 6) {
+      p.fxPrice = round(price / RATE, 2); p.fxCost = round(cost / RATE, 2)
+      if (p.wholesalePrice) p.fxWholesalePrice = round(p.wholesalePrice / RATE, 2)
+      if (p.packs) p.packs = p.packs.map(k => ({ ...k, fxPrice: round(k.price / RATE, 2) }))
+      Object.assign(p, derivePrices(p, s.currency2, s.currency.decimals, now) ?? {})
+    }
+    return p
   })
   await db.products.bulkAdd(products)
+  const history: RateHistoryEntry[] = RATE_STEPS.map(([days, rate], i) => ({
+    at: now - days * 864e5, rate, prev: RATE_STEPS[i + 1]?.[1] ?? rate, repriced: i === RATE_STEPS.length - 1 ? 0 : 6, userId: admin.id, userName: admin.name, source: i === RATE_STEPS.length - 1 ? 'settings' : 'dialog',
+  }))
+  await db.kv.put({ key: FX_HISTORY_KEY, value: history })
   await applyStock(products.map((p, i) => ({ productId: p.id, qty: stocks[i], type: 'initial' as const, note: 'رصيد افتتاحي', userId: admin.id })), now - 40 * 864e5)
 
   const customers: Customer[] = CUSTOMERS.map(([name, phone], i) => ({ id: uid(), name, phone: phone || undefined, balance: 0, points: i * 120, tier: name === 'مطعم الشام' ? ('wholesale' as const) : undefined, createdAt: now - 20 * 864e5, updatedAt: now - 20 * 864e5 }))
@@ -96,8 +113,9 @@ export async function seed(): Promise<void> {
       while (chosen.size < n) chosen.add(pick(live))
       const items: SaleItem[] = [...chosen].map(p => {
         const qty = p.allowFraction ? round(0.5 + rand() * 2, 2) : 1 + Math.floor(rand() * 3)
-        return { productId: p.id, name: p.name, barcode: p.barcodes[0], unit: p.unit, qty, price: p.price, originalPrice: p.price, cost: p.cost, discount: 0, taxRate: 0, tax: 0, total: round(p.price * qty, 0) }
+        return { productId: p.id, name: p.name, barcode: p.barcodes[0], unit: p.unit, qty, price: p.price, originalPrice: p.price, cost: p.cost, discount: 0, taxRate: 0, tax: 0, total: round(p.price * qty, 0), fxPrice: p.fxPrice, fxCost: p.fxCost }
       })
+      const rate = rateAt(history, at.getTime())
       const subtotal = items.reduce((a, i) => a + i.total, 0)
       const cost = round(items.reduce((a, i) => a + i.cost * i.qty, 0), 0)
       const customer = rand() < 0.3 ? pick(customers) : undefined
@@ -109,6 +127,7 @@ export async function seed(): Promise<void> {
         payments: method === 'credit' ? [] : [{ method, amount: subtotal }], paid: method === 'credit' ? 0 : subtotal, change: method === 'cash' ? paid - subtotal : 0, credit,
         customerId: customer?.id, customerName: customer?.name, userId: rand() < 0.5 ? admin.id : cashier.id, userName: rand() < 0.5 ? admin.name : cashier.name,
         shiftId: day === 0 ? shiftOpen.id : day === 7 ? shiftOld.id : undefined, status: 'completed', refunded: 0,
+        rate, rateCode: 'USD',
       }
       await db.sales.add(sale)
       await applyStock(items.map(i => ({ productId: i.productId!, qty: -i.qty, type: 'sale' as const, refId: sale.id })), sale.createdAt)
@@ -119,9 +138,9 @@ export async function seed(): Promise<void> {
   const debtor = (await db.customers.toArray()).find(c => c.balance > 0)
   if (debtor) await applyLedger({ customerId: debtor.id, type: 'payment', amount: -Math.min(debtor.balance, 20000), method: 'cash', userId: admin.id, shiftId: shiftOpen.id }, 0, now - 36e5)
   await db.expenses.bulkAdd([
-    { id: uid(), amount: 150000, category: 'إيجار', createdAt: now - 10 * 864e5, userId: admin.id },
-    { id: uid(), amount: 35000, category: 'كهرباء وماء', createdAt: now - 4 * 864e5, userId: admin.id },
-    { id: uid(), amount: 8000, category: 'نقل', note: 'توصيل بضاعة', createdAt: now - 2 * 36e5, userId: admin.id, shiftId: shiftOpen.id },
+    { id: uid(), amount: 150000, category: 'إيجار', createdAt: now - 10 * 864e5, userId: admin.id, rate: rateAt(history, now - 10 * 864e5) },
+    { id: uid(), amount: 35000, category: 'كهرباء وماء', createdAt: now - 4 * 864e5, userId: admin.id, rate: rateAt(history, now - 4 * 864e5) },
+    { id: uid(), amount: 8000, category: 'نقل', note: 'توصيل بضاعة', createdAt: now - 2 * 36e5, userId: admin.id, shiftId: shiftOpen.id, rate: RATE },
   ])
 }
 

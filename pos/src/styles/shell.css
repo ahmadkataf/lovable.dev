@@ -35,4 +35,28 @@
   .bottom-nav a.active svg { transform: translateY(-1px); }
   .bottom-nav svg { transition: transform var(--t-fast); }
 }
+
+/* The daily exchange rate: the chip in the top bar (and the phone "more" sheet), the stale banner, the dialog. */
+.rate-chip { display: inline-flex; align-items: center; gap: 6px; min-height: 32px; padding: 0 10px; border-radius: 999px; background: var(--surface-3); color: var(--text-2); font-size: 12px; font-weight: 700; white-space: nowrap; transition: background var(--t-fast), color var(--t-fast); }
+.rate-chip:hover { background: var(--line); color: var(--text); }
+.rate-chip .age { font-weight: 600; color: var(--text-3); }
+.rate-chip.warn { background: var(--warn-soft); color: #9a6700; }
+.rate-chip.warn .age { color: inherit; opacity: .85; }
+[data-theme="dark"] .rate-chip.warn { color: var(--warn); }
+.rate-chip.danger { background: var(--danger-soft); color: var(--danger); }
+.rate-chip.danger .age { color: inherit; opacity: .85; }
+.rate-chip.grow { justify-content: center; min-height: 44px; font-size: 14px; }
+.banner.rate-stale .btn { margin-inline-start: 0; }
+.rate-dialog .rate-display { display: flex; align-items: baseline; justify-content: center; gap: 10px; padding: 10px 12px; border-radius: var(--radius); background: var(--surface-2); min-height: 64px; }
+.rate-dialog .rate-display .eq { font-size: 16px; font-weight: 700; color: var(--text-3); }
+.rate-dialog .rate-display .val { font-size: 34px; font-weight: 800; font-variant-numeric: tabular-nums; letter-spacing: .5px; }
+.rate-dialog .rate-display .val.ph { color: var(--text-3); font-weight: 600; }
+.rate-dialog .rate-preview { display: flex; flex-direction: column; gap: 4px; padding: 8px 12px; border-radius: var(--radius-sm); background: var(--surface-2); }
+.rate-dialog .rate-preview .row { gap: 8px; }
+.rate-dialog .rate-preview .row > .truncate { min-width: 0; flex: 1; }
+.rate-dialog .rate-preview .row > .num { flex: none; white-space: nowrap; }
+.rate-dialog .rate-preview .strike { text-decoration: line-through; }
+.rate-dialog .rate-suggest { display: flex; align-items: center; gap: 8px; min-height: 44px; padding: 0 12px; border-radius: var(--radius-sm); background: var(--warn-soft); color: #7a5200; font-weight: 700; font-size: 14px; text-align: start; }
+[data-theme="dark"] .rate-dialog .rate-suggest { color: var(--warn); }
+
 .lock-screen { position: fixed; inset: 0; z-index: 150; background: var(--bg); display: flex; align-items: center; justify-content: center; padding: 20px; }

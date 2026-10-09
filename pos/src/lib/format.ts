@@ -5,9 +5,11 @@ export const MS_DAY = DAY
 
 export function formatDate(ms: number, style: 'short' | 'long' = 'short'): string {
   const d = new Date(ms)
+  // Chrome's Arabic locale inserts right-to-left marks after the day and month; inside an LTR number run they
+  // scramble the order (and they leak into receipts and CSV files), so they are dropped.
   return d.toLocaleDateString(locale(), style === 'long'
     ? { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }
-    : { year: 'numeric', month: '2-digit', day: '2-digit' })
+    : { year: 'numeric', month: '2-digit', day: '2-digit' }).replace(/[\u200e\u200f]/g, '')
 }
 export function formatTime(ms: number): string {
   return new Date(ms).toLocaleTimeString(locale(), { hour: '2-digit', minute: '2-digit' })

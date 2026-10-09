@@ -9,6 +9,7 @@ import QRCode from 'qrcode'
 import { zatcaQr } from './zatca'
 import { addMessages, t } from '../i18n'
 import { balanceAfterSale } from './sales'
+import { currencyForCode } from './fx'
 
 addMessages({
   ar: {
@@ -47,6 +48,7 @@ addMessages({
     'receipt.restocked': 'أُعيدت الأصناف إلى المخزون',
     'receipt.reason': 'السبب',
     'receipt.docTitle': 'فاتورة #{n}',
+    'receipt.fxTotal': '≈ بالـ{cur}',
   },
   en: {
     'receipt.number': 'Receipt no.',
@@ -84,6 +86,7 @@ addMessages({
     'receipt.restocked': 'Items returned to stock',
     'receipt.reason': 'Reason',
     'receipt.docTitle': 'Receipt #{n}',
+    'receipt.fxTotal': '≈ in {cur}',
   },
 })
 
@@ -143,6 +146,11 @@ export function receiptDoc(sale: Sale, settings: Settings, opts: ReceiptOptions 
   const c = settings.currency
   const r = settings.receipt
   const money = (n: number) => formatMoney(n, c)
+  // the rate the sale was valued at (settings.currency2.showOnReceipt decides whether it is printed)
+  const rate = sale.rate && sale.rate > 0 && settings.currency2.showOnReceipt ? sale.rate : undefined
+  const c2 = currencyForCode(sale.rateCode, settings)
+  const money2 = (n: number) => formatMoney(n, c2)
+  const rateLine = (): ReceiptLine => ({ label: t('receipt.fxRate'), value: `1 ${c2.symbol} = ${money(rate!)}` })
   const paper = r.paper === 58 ? 58 : 80
   const storeLines = [settings.store.address, settings.store.phone ? `${t('receipt.tel')}: ${settings.store.phone}` : '', settings.store.taxNumber ? `${t('receipt.taxNumber')}: ${settings.store.taxNumber}` : '']
     .map(s => (s ?? '').trim()).filter(Boolean)
@@ -185,6 +193,7 @@ export function receiptDoc(sale: Sale, settings: Settings, opts: ReceiptOptions 
     base.itemCount = t('receipt.itemCount', { n: f.items.length })
     base.totals = [{ label: t('receipt.refunded'), value: money(f.total), strong: true, big: true }]
     base.payments = [{ label: t('receipt.refundMethod'), value: f.method === 'credit' ? t('receipt.refundToAccount') : methodLabel(f.method) }]
+    if (rate) base.payments.push(rateLine())
     if (f.restock) base.extra.push(t('receipt.restocked'))
     if (f.reason) base.extra.push(`${t('receipt.reason')}: ${f.reason}`)
     base.barcode = r.showBarcode ? String(f.saleNumber) : undefined
@@ -200,11 +209,12 @@ export function receiptDoc(sale: Sale, settings: Settings, opts: ReceiptOptions 
 
   base.items = sale.items.map(i => {
     const overridden = round(i.originalPrice, c.decimals) !== round(i.price, c.decimals)
-    const showDetail = i.qty !== 1 || overridden || i.discount > 0
+    const fxPrice = rate && !overridden && typeof i.fxPrice === 'number' ? i.fxPrice : undefined
+    const showDetail = i.qty !== 1 || overridden || i.discount > 0 || fxPrice !== undefined
     return {
       name: i.name,
       total: money(i.total),
-      detail: showDetail ? `${formatQty(i.qty)} × ${money(i.price)}` : undefined,
+      detail: showDetail ? `${formatQty(i.qty)} × ${money(i.price)}${fxPrice !== undefined ? ` (${money2(fxPrice)})` : ''}` : undefined,
       original: overridden ? money(i.originalPrice) : undefined,
       discount: i.discount > 0 ? `${t('receipt.lineDiscount')} -${money(i.discount)}` : undefined,
       note: i.note?.trim() || undefined,
@@ -220,6 +230,7 @@ export function receiptDoc(sale: Sale, settings: Settings, opts: ReceiptOptions 
     base.totals.push({ label: settings.tax.inclusive ? `${label} (${t('receipt.taxInclusive')})` : label, value: money(sale.tax) })
   }
   base.totals.push({ label: t('common.total'), value: money(sale.total), strong: true, big: true })
+  if (rate) base.totals.push({ label: t('receipt.fxTotal', { cur: c2.symbol }), value: money2(sale.total / rate), small: true })
 
   for (const p of sale.payments) {
     if (p.method === 'credit') continue
@@ -231,7 +242,7 @@ export function receiptDoc(sale: Sale, settings: Settings, opts: ReceiptOptions 
     const fm = (n: number) => formatMoney(n, { code: fx.code, symbol: fx.symbol, decimals: fx.decimals, symbolAfter: fx.symbolAfter })
     base.payments.push({ label: t('receipt.fxReceived', { cur: fx.symbol }), value: `${fm(fx.received)} = ${money(fx.receivedPrimary)}` })
     base.payments.push({ label: t('receipt.fxRate'), value: `1 ${fx.symbol} = ${money(fx.rate)}` })
-  }
+  } else if (rate) base.payments.push(rateLine())   // the fx block above already prints the rate
   if (sale.change > 0) base.payments.push({ label: t('common.change'), value: money(sale.change), strong: true })
   if (sale.credit > 0) {
     base.payments.push({ label: t('receipt.onAccount'), value: money(sale.credit), strong: true })

@@ -16,8 +16,9 @@ export interface ProductPack {
   id: string
   name: string         // "كرتونة", "علبة"
   qty: number          // base units per pack
-  price: number        // price of one pack
+  price: number        // price of one pack (primary); derived from fxPrice when the pack is anchored
   barcode?: string     // the pack's own barcode, when it has one
+  fxPrice?: number     // pack price in currency2; `price` is derived from it when set (see lib/fx.ts)
 }
 export type CustomerTier = 'retail' | 'wholesale'
 
@@ -44,9 +45,21 @@ export interface Product {
   expiry?: number      // ms (local midnight): the batch on the shelf expires then; undefined = not tracked
   wholesalePrice?: number  // charged instead of `price` to wholesale customers; undefined/0 = same price
   packs?: ProductPack[]
+  // USD-anchored pricing (lib/fx.ts): the primary fields above stay what every reader uses; when an anchor is set the
+  // primary figure is re-derived from it whenever the exchange rate changes. Written only through derivePrices().
+  fxPrice?: number            // selling price in currency2 → price = roundToStep(fxPrice × rate)
+  fxCost?: number             // cost in currency2 → cost = round(fxCost × rate, d) (never step-rounded)
+  fxWholesalePrice?: number   // → wholesalePrice
+  repricedAt?: number         // last reprice; updatedAt is NOT touched by reprices
   createdAt: number
   updatedAt: number
 }
+
+/** Priced in the second currency (the selling price follows the rate). */
+export const isFxPriced = (p: Pick<Product, 'fxPrice'>): boolean => typeof p.fxPrice === 'number'
+/** Has any anchor in the second currency (price, cost or a pack), so a rate change reprices it. */
+export const hasFxAnchor = (p: Pick<Product, 'fxPrice' | 'fxCost' | 'packs'>): boolean =>
+  typeof p.fxPrice === 'number' || typeof p.fxCost === 'number' || !!p.packs?.some(k => typeof k.fxPrice === 'number')
 
 /** The unit price for a customer tier: the wholesale price when there is one, else the retail price. */
 export function productPrice(p: Pick<Product, 'price' | 'wholesalePrice'>, tier?: CustomerTier | null): number {
@@ -80,7 +93,8 @@ export interface Supplier {
   name: string
   phone?: string
   notes?: string
-  balance: number      // what we owe the supplier
+  balance: number      // what we owe the supplier (primary currency invoices)
+  fxBalance?: number   // what we owe in currency2 (invoices and payments made in it); undefined = 0
   createdAt: number
 }
 
@@ -103,6 +117,8 @@ export interface SaleItem {
   note?: string
   unitsPerQty?: number // a pack line: base units in each qty (stock moves by qty * unitsPerQty)
   packName?: string
+  fxPrice?: number     // unit list price in currency2 when the line was anchored and not overridden (pack line: the pack's)
+  fxCost?: number      // unit cost in currency2 when the product has one (pack line: × pack.qty)
 }
 
 export type SaleStatus = 'completed' | 'refunded' | 'partial'
@@ -123,6 +139,8 @@ export interface Sale {
   change: number       // cash handed back
   credit: number       // put on the customer's account
   fx?: FxPayment       // when (part of) the cash came in the second currency
+  rate?: number        // currency2.rate at completeSale (undefined when currency2 is off); sale.fx.rate === sale.rate
+  rateCode?: string    // currency2.code at that time
   pointsEarned?: number
   pointsRedeemed?: number
   customerId?: ID
@@ -150,6 +168,8 @@ export interface Refund {
   userId: ID
   userName: string
   shiftId?: ID
+  rate?: number        // copied from the sale (the valuation rate, never today's)
+  rateCode?: string
 }
 
 export type StockMoveType = 'sale' | 'refund' | 'purchase' | 'adjust' | 'initial' | 'import' | 'count'
@@ -166,7 +186,9 @@ export interface StockMove {
   userId?: ID
 }
 
-export interface PurchaseItem { productId: ID; name: string; qty: number; cost: number }
+export interface PurchaseItem { productId: ID; name: string; qty: number; cost: number; fxCost?: number }
+/** The invoice as the supplier wrote it, when it was in currency2: `total`/`paid` here are in that currency. */
+export interface PurchaseFx { code: string; symbol: string; decimals: number; symbolAfter: boolean; rate: number; total: number; paid: number }
 export interface Purchase {
   id: ID
   number: number
@@ -174,10 +196,11 @@ export interface Purchase {
   supplierId?: ID
   supplierName?: string
   items: PurchaseItem[]
-  total: number
-  paid: number
+  total: number        // always primary
+  paid: number         // always primary
   note?: string
   userId: ID
+  fx?: PurchaseFx
 }
 
 export type LedgerType = 'sale' | 'payment' | 'refund' | 'adjust'
@@ -203,6 +226,7 @@ export interface Expense {
   createdAt: number
   userId: ID
   shiftId?: ID
+  rate?: number        // currency2.rate when it was recorded (for the $ view of reports)
 }
 
 export interface Shift {
@@ -254,6 +278,7 @@ export interface KV { key: string; value: unknown }
 export type AuditKind =
   | 'sale.discount' | 'sale.priceOverride' | 'refund' | 'product.delete' | 'product.price' | 'stock.adjust'
   | 'user.add' | 'user.change' | 'user.remove' | 'backup.restore' | 'data.reset' | 'shift.close' | 'customer.adjust'
+  | 'rate.change'      // detail "USD: 13,000 → 13,500 (+3.8%) · 120", amount = the new rate
 export interface AuditEntry {
   id: ID
   createdAt: number
@@ -274,8 +299,9 @@ export interface Permissions {
   cashierEditProducts: boolean
   cashierAdjustStock: boolean
   cashierSeeHistory: boolean
+  cashierChangeRate: boolean
 }
-export const DEFAULT_PERMISSIONS: Permissions = { cashierDiscount: true, cashierPriceOverride: true, cashierRefund: true, cashierSeeCost: false, cashierEditProducts: false, cashierAdjustStock: false, cashierSeeHistory: true }
+export const DEFAULT_PERMISSIONS: Permissions = { cashierDiscount: true, cashierPriceOverride: true, cashierRefund: true, cashierSeeCost: false, cashierEditProducts: false, cashierAdjustStock: false, cashierSeeHistory: true, cashierChangeRate: false }
 
 /** Barcodes printed by a label scale: <prefix><PLU><value><check>, 13 digits. The PLU is the product's barcode. */
 export interface ScaleBarcodes {
@@ -286,8 +312,25 @@ export interface ScaleBarcodes {
   valueDecimals: number   // weight: 3 (grams → kg); price: the currency's decimals (0 for lira)
 }
 export interface CurrencySettings { code: string; symbol: string; decimals: number; symbolAfter: boolean }
-/** A second currency the till accepts (dollars in a lira shop): `rate` primary units per 1 unit of it. Records stay in the primary. */
-export interface SecondCurrency extends CurrencySettings { enabled: boolean; rate: number }
+/**
+ * A second currency the till accepts (dollars in a lira shop): `rate` primary units per 1 unit of it. Records stay in the
+ * primary. With `pricing` on, products may be anchored in it (Product.fxPrice…) and their primary prices follow the rate.
+ */
+export interface SecondCurrency extends CurrencySettings {
+  enabled: boolean
+  rate: number
+  pricing: boolean                          // products may be anchored; shows the chip / prompt / $ fields
+  roundTo: number                           // selling prices rounded to this step: 0 | 10 | 50 | 100 | 500 | 1000
+  roundMode: 'nearest' | 'up'
+  rateUpdatedAt?: number
+  rateUpdatedBy?: string
+  askOnOpen: boolean                        // ask for today's rate when the app opens
+  staleAfterDays: number                    // warn when the rate is older than this (0 = never)
+  newProductsIn: 'primary' | 'secondary'    // the default pricing currency of a new product
+  showOnReceipt: boolean                    // print the rate and the ≈ total in currency2
+}
+/** One line of the rate history (db.kv 'fx.history', newest first). */
+export interface RateHistoryEntry { at: number; rate: number; prev: number; repriced: number; userId?: ID; userName?: string; source: 'dialog' | 'settings' | 'restore' }
 /** What was received in the second currency on a sale. */
 export interface FxPayment { code: string; symbol: string; symbolAfter: boolean; decimals: number; rate: number; received: number; receivedPrimary: number }
 export interface TaxSettings { enabled: boolean; rate: number; inclusive: boolean; label: string }
@@ -331,7 +374,7 @@ export interface Settings {
 export const DEFAULT_SETTINGS: Settings = {
   store: { name: '', phone: '', address: '' },
   currency: { code: 'SYP', symbol: 'ل.س', decimals: 0, symbolAfter: true },
-  currency2: { enabled: false, code: 'USD', symbol: '$', decimals: 2, symbolAfter: false, rate: 0 },
+  currency2: { enabled: false, code: 'USD', symbol: '$', decimals: 2, symbolAfter: false, rate: 0, pricing: false, roundTo: 100, roundMode: 'nearest', askOnOpen: true, staleAfterDays: 2, newProductsIn: 'primary', showOnReceipt: true },
   tax: { enabled: false, rate: 0, inclusive: true, label: 'ضريبة' },
   receipt: { header: '', footer: 'شكراً لزيارتكم', paper: 80, showLogo: true, autoPrint: false, copies: 1, showBarcode: true },
   pos: {

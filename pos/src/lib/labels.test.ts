@@ -47,3 +47,18 @@ describe('labels', () => {
     expect(barcodeSvg('')).toBe('')
   })
 })
+
+describe('labels in the second currency', () => {
+  const fx: Settings = { ...settings, currency2: { ...settings.currency2, enabled: true, rate: 13000 } }
+  const items = [{ name: 'A', price: 130000, barcode: '1', fxPrice: 10 }, { name: 'B', price: 2000, barcode: '2' }]
+  it('prints the primary price by default, the $ price on request, or both with the $ big', () => {
+    expect(labelsHtml(items, fx, { size: '50x30' })).toContain('<div class="price">130,000 ل.س</div>')
+    expect(labelsHtml(items, fx, { size: '50x30' })).not.toContain('$10.00')
+    const sec = labelsHtml(items, fx, { size: '50x30', priceMode: 'secondary' })
+    expect(sec).toContain('<div class="price">$10.00</div>')
+    expect(sec).toContain('<div class="price">2,000 ل.س</div>')      // no anchor: the primary price
+    const both = labelsHtml(items, fx, { size: '50x30', priceMode: 'both' })
+    expect(both).toContain('<div class="price">$10.00</div><div class="price2">130,000 ل.س</div>')
+    expect(both).not.toContain('<div class="price2">2,000')
+  })
+})

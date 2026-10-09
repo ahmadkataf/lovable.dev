@@ -9,6 +9,7 @@ import { type Cart, type CartLine, computeTotals, lineKey } from '../../lib/cart
 import { uid } from '../../lib/ids'
 import { applyStock } from '../../lib/stock'
 import { formatMoney, formatQty, parseNumber, round } from '../../lib/money'
+import { fxToPrimary } from '../../lib/fx'
 import { formatDateTime } from '../../lib/format'
 import { cleanBarcode } from '../../lib/barcode'
 import { useT } from '../../i18n'
@@ -95,7 +96,11 @@ export function LineEditorDialog({ line, settings, onSave, onRemove, onClose, al
             <Button iconOnly size="lg" icon={<Plus size={18} />} aria-label="+" onClick={() => setQty(round(q + step, 3))} />
           </div>
         </Field>
-        <Field label={t('sales.linePrice')} hint={line.price !== line.originalPrice || pr !== line.originalPrice ? t('sales.lineOriginal', { price: formatMoney(line.originalPrice, c) }) : undefined}>
+        <Field label={t('sales.linePrice')} hint={
+          line.price !== line.originalPrice || pr !== line.originalPrice ? t('sales.lineOriginal', { price: formatMoney(line.originalPrice, c) })
+            : typeof line.fxPrice === 'number' && settings.currency2.enabled && settings.currency2.pricing ? t('sales.lineFx', { fx: formatMoney(line.fxPrice, settings.currency2), primary: formatMoney(line.originalPrice, c) })
+            : undefined
+        }>
           <div className="row">
             <NumberInput value={price} onChange={setPrice} decimals={d} disabled={!allowPrice} />
             {allowPrice && pr !== line.originalPrice && <Button iconOnly icon={<RotateCcw size={16} />} title={t('sales.lineOriginal', { price: formatMoney(line.originalPrice, c) })} aria-label={t('common.retry')} onClick={() => setPrice(line.originalPrice)} />}
@@ -364,6 +369,10 @@ export function QuickAddDialog({ barcode, initialName, categories, settings, adm
 }) {
   const t = useT()
   const d = settings.currency.decimals
+  const c2 = settings.currency2
+  // the price fields may be typed in the second currency (anchored product): the lira figures are derived at today's rate
+  const fxAllowed = c2.enabled && c2.pricing && c2.rate > 0
+  const [fxMode, setFxMode] = useState(fxAllowed && c2.newProductsIn === 'secondary')
   const [name, setName] = useState(initialName ?? '')
   const [price, setPrice] = useState<number | ''>('')
   const [cost, setCost] = useState<number | ''>('')
@@ -387,10 +396,16 @@ export function QuickAddDialog({ barcode, initialName, categories, settings, adm
         if (taken) { setErr({ code: t('sales.quickAddBarcodeTaken') }); setSaving(false); return }
       }
       const now = Date.now()
+      const fx = fxMode && fxAllowed
+      const fxPrice = fx ? round(price === '' ? 0 : price, c2.decimals) : undefined
+      const fxCost = fx && cost !== '' && cost > 0 ? round(cost, c2.decimals) : undefined
       const p: Product = {
         id: uid(), name: name.trim(), barcodes: bc ? [bc] : [], categoryId: categoryId || undefined,
-        price: round(price === '' ? 0 : price, d), cost: round(cost === '' ? 0 : cost, d), trackStock: track, stock: 0, lowStock: 0,
+        price: fx ? fxToPrimary(fxPrice!, c2, d, 'price') : round(price === '' ? 0 : price, d),
+        cost: fx ? (fxCost !== undefined ? fxToPrimary(fxCost, c2, d, 'cost') : 0) : round(cost === '' ? 0 : cost, d),
+        trackStock: track, stock: 0, lowStock: 0,
         unit: 'piece', allowFraction: false, favorite: false, active: true, createdAt: now, updatedAt: now,
+        ...(fx ? { fxPrice, fxCost, repricedAt: now } : {}),
       }
       const initial = track && stock !== '' && stock > 0 ? round(stock, 3) : 0
       await db.transaction('rw', [db.products, db.stockMoves], async () => {
@@ -416,12 +431,21 @@ export function QuickAddDialog({ barcode, initialName, categories, settings, adm
           <Field label={t('common.name')} span2 error={err.name}>
             <Input value={name} onChange={e => { setName(e.target.value); setErr(x => ({ ...x, name: undefined })) }} autoFocus maxLength={100} />
           </Field>
-          <Field label={t('common.price')} error={err.price}>
-            <NumberInput value={price} onChange={v => { setPrice(v); setErr(x => ({ ...x, price: undefined })) }} decimals={d} placeholder="0" />
+          {fxAllowed && (
+            <div className="span-2 row" style={{ gap: 10 }}>
+              <span className="label" style={{ margin: 0 }}>{t('sales.quickAddPriceIn')}</span>
+              <Seg value={fxMode ? 'secondary' : 'primary'} onChange={m => { setFxMode(m === 'secondary'); setPrice(''); setCost('') }}
+                options={[{ value: 'primary', label: settings.currency.symbol }, { value: 'secondary', label: c2.symbol }]} />
+            </div>
+          )}
+          <Field label={`${t('common.price')} (${fxMode && fxAllowed ? c2.symbol : settings.currency.symbol})`} error={err.price}
+            hint={fxMode && fxAllowed && price !== '' && price > 0 ? t('sales.quickAddFxHint', { primary: formatMoney(fxToPrimary(price, c2, d, 'price'), settings.currency) }) : undefined}>
+            <NumberInput value={price} onChange={v => { setPrice(v); setErr(x => ({ ...x, price: undefined })) }} decimals={fxMode && fxAllowed ? c2.decimals : d} placeholder="0" />
           </Field>
           {admin && (
-            <Field label={`${t('common.cost')} (${t('common.optional')})`}>
-              <NumberInput value={cost} onChange={setCost} decimals={d} placeholder="0" />
+            <Field label={`${t('common.cost')} (${t('common.optional')})`}
+              hint={fxMode && fxAllowed && cost !== '' && cost > 0 ? t('sales.quickAddFxHint', { primary: formatMoney(fxToPrimary(cost, c2, d, 'cost'), settings.currency) }) : undefined}>
+              <NumberInput value={cost} onChange={setCost} decimals={fxMode && fxAllowed ? c2.decimals : d} placeholder="0" />
             </Field>
           )}
           <Field label={t('common.category')}>

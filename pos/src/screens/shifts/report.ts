@@ -1,11 +1,31 @@
 // The shift (Z) report as printable HTML (thermal width) and as plain text for sharing.
 import type { CashMove, Settings, Shift } from '../../db/types'
-import { t } from '../../i18n'
+import { addMessages, t } from '../../i18n'
 import { formatMoney } from '../../lib/money'
 import { formatDateTime, formatTime } from '../../lib/format'
 import { platform } from '../../lib/platform'
 import { shiftDifference, shiftMinutes, type ShiftSummary } from '../../lib/shifts'
+import { loadRateHistory, rateAt } from '../../lib/fx'
 import { htmlDoc, esc } from '../inventory/print'
+
+addMessages({
+  ar: { 'shifts.fxRate': 'سعر الصرف' },
+  en: { 'shifts.fxRate': 'Exchange rate' },
+})
+
+/** The exchange rate the shift closed at (the history entry in force at `closedAt`; today's for an open shift); undefined when currency2 is off. */
+export async function shiftRate(shift: Pick<Shift, 'status' | 'closedAt'>, settings: Settings): Promise<number | undefined> {
+  const c2 = settings.currency2
+  if (!c2.enabled) return undefined
+  try {
+    const history = await loadRateHistory()
+    const at = shift.status === 'closed' && shift.closedAt ? shift.closedAt : Date.now()
+    const r = rateAt(history, at)
+    return r && r > 0 ? r : c2.rate > 0 ? c2.rate : undefined
+  } catch { return c2.rate > 0 ? c2.rate : undefined }
+}
+/** "1 $ = 13,000 ل.س" */
+const rateLabel = (rate: number, settings: Settings): string => `1 ${settings.currency2.symbol} = ${formatMoney(rate, settings.currency)}`
 
 export function durationLabel(minutes: number): string {
   const h = Math.floor(minutes / 60), m = minutes % 60
@@ -38,7 +58,7 @@ export function methodLines(s: ShiftSummary): Line[] {
   ]
 }
 
-export function shiftReportHtml(shift: Shift, summary: ShiftSummary, settings: Settings, cashMoves: CashMove[] = []): string {
+export function shiftReportHtml(shift: Shift, summary: ShiftSummary, settings: Settings, cashMoves: CashMove[] = [], rate?: number): string {
   const c = settings.currency
   const money = (n: number) => formatMoney(n, c)
   const row = (l: Line) => `<div class="tot${l.bold ? ' big' : ''}"><span>${l.sign ? `${l.sign} ` : ''}${esc(l.label)}</span><span class="num">${money(l.value)}</span></div>`
@@ -51,6 +71,7 @@ export function shiftReportHtml(shift: Shift, summary: ShiftSummary, settings: S
   <div class="tot"><span>${esc(t('shifts.openedAt'))}</span><span class="num">${formatDateTime(shift.openedAt)}</span></div>
   ${closed ? `<div class="tot"><span>${esc(t('shifts.closedAt'))}</span><span class="num">${formatDateTime(shift.closedAt!)}</span></div>` : ''}
   <div class="tot"><span>${esc(t('shifts.duration'))}</span><span class="num">${esc(durationLabel(shiftMinutes(shift)))}</span></div>
+  ${rate ? `<div class="tot"><span>${esc(t('shifts.fxRate'))}</span><span class="num">${esc(rateLabel(rate, settings))}</span></div>` : ''}
   <h2>${esc(t('shifts.sales'))}</h2>
   <div class="tot"><span>${esc(t('shifts.salesCount'))}</span><span class="num">${summary.salesCount}</span></div>
   <div class="tot big"><span>${esc(t('shifts.salesTotal'))}</span><span class="num">${money(summary.salesTotal)}</span></div>
@@ -67,7 +88,7 @@ export function shiftReportHtml(shift: Shift, summary: ShiftSummary, settings: S
   return htmlDoc(t('shifts.report'), body, { widthMm: settings.receipt.paper })
 }
 
-export function shiftReportText(shift: Shift, summary: ShiftSummary, settings: Settings): string {
+export function shiftReportText(shift: Shift, summary: ShiftSummary, settings: Settings, rate?: number): string {
   const c = settings.currency
   const money = (n: number) => formatMoney(n, c)
   const closed = shift.status === 'closed'
@@ -78,7 +99,9 @@ export function shiftReportText(shift: Shift, summary: ShiftSummary, settings: S
     `${t('shifts.openedAt')}: ${formatDateTime(shift.openedAt)}`,
   ]
   if (closed) out.push(`${t('shifts.closedAt')}: ${formatDateTime(shift.closedAt!)}`)
-  out.push(`${t('shifts.duration')}: ${durationLabel(shiftMinutes(shift))}`, '', `${t('shifts.sales')}: ${summary.salesCount} — ${money(summary.salesTotal)}`)
+  out.push(`${t('shifts.duration')}: ${durationLabel(shiftMinutes(shift))}`)
+  if (rate) out.push(`${t('shifts.fxRate')}: ${rateLabel(rate, settings)}`)
+  out.push('', `${t('shifts.sales')}: ${summary.salesCount} — ${money(summary.salesTotal)}`)
   for (const l of methodLines(summary)) out.push(`  ${l.label}: ${money(l.value)}`)
   out.push(`${t('shifts.refunds')}: ${money(summary.refundsTotal)}`, '', `${t('shifts.cashFlow')}:`)
   for (const l of cashLines(summary)) out.push(`  ${l.sign ? l.sign + ' ' : ''}${l.label}: ${money(l.value)}`)
@@ -91,8 +114,10 @@ export function shiftReportText(shift: Shift, summary: ShiftSummary, settings: S
 }
 
 export async function printShiftReport(shift: Shift, summary: ShiftSummary, settings: Settings, cashMoves: CashMove[] = []): Promise<boolean> {
-  return platform.print(shiftReportHtml(shift, summary, settings, cashMoves), { printer: settings.receipt.printerName, widthMm: settings.receipt.paper })
+  const rate = await shiftRate(shift, settings)
+  return platform.print(shiftReportHtml(shift, summary, settings, cashMoves, rate), { printer: settings.receipt.printerName, widthMm: settings.receipt.paper })
 }
 export async function shareShiftReport(shift: Shift, summary: ShiftSummary, settings: Settings): Promise<boolean> {
-  return platform.share(shiftReportText(shift, summary, settings), t('shifts.report'))
+  const rate = await shiftRate(shift, settings)
+  return platform.share(shiftReportText(shift, summary, settings, rate), t('shifts.report'))
 }

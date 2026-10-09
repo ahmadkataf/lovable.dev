@@ -7,11 +7,14 @@ import { barcodeFormat, cleanBarcode } from './barcode'
 import { platform } from './platform'
 
 export type LabelSize = '38x25' | '50x30' | '58x40' | 'a4'
-export interface LabelItem { name: string; price: number; barcode: string; copies?: number }
+export interface LabelItem { name: string; price: number; barcode: string; copies?: number; fxPrice?: number }
+export type LabelPriceMode = 'primary' | 'secondary' | 'both'
 export interface LabelOptions {
   size: LabelSize
   /** Print the store name on top of every label (default true when the store has a name). */
   showStore?: boolean
+  /** Which price to print: the primary one (default), the second-currency one, or both ($ big, primary small). Items without `fxPrice` always print the primary. */
+  priceMode?: LabelPriceMode
 }
 
 export const LABEL_SIZES: { id: LabelSize; w: number; h: number }[] = [
@@ -69,6 +72,15 @@ export function labelsHtml(items: LabelItem[], settings: Settings, opts: LabelOp
   const store = settings.store.name.trim()
   const showStore = (opts.showStore ?? true) && store !== ''
   const dir = settings.lang === 'en' ? 'ltr' : 'rtl'
+  const mode = opts.priceMode ?? 'primary'
+  const c2 = settings.currency2
+  const priceHtml = (item: LabelItem): string => {
+    const primary = esc(formatMoney(item.price, settings.currency))
+    if (mode === 'primary' || typeof item.fxPrice !== 'number') return `<div class="price">${primary}</div>`
+    const fx = esc(formatMoney(item.fxPrice, c2))
+    if (mode === 'secondary') return `<div class="price">${fx}</div>`
+    return `<div class="price">${fx}</div><div class="price2">${primary}</div>`
+  }
 
   const labels: string[] = []
   for (const item of items) {
@@ -80,7 +92,7 @@ export function labelsHtml(items: LabelItem[], settings: Settings, opts: LabelOp
       '<div class="label">',
       showStore ? `<div class="store">${esc(store)}</div>` : '',
       `<div class="name">${esc(item.name)}</div>`,
-      `<div class="price">${esc(formatMoney(item.price, settings.currency))}</div>`,
+      priceHtml(item),
       code ? `<div class="bc">${svg}</div><div class="code">${esc(code)}</div>` : '<div class="bc empty"></div>',
       '</div>',
     ].join('')
@@ -105,6 +117,7 @@ export function labelsHtml(items: LabelItem[], settings: Settings, opts: LabelOp
     .store { font-size: ${f.store}pt; color: #333; line-height: 1.15; max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .name { font-size: ${f.name}pt; font-weight: 600; line-height: 1.2; max-width: 100%; overflow: hidden; display: -webkit-box; -webkit-line-clamp: ${f.nameLines}; -webkit-box-orient: vertical; word-break: break-word; }
     .price { font-size: ${f.price}pt; font-weight: 800; line-height: 1.15; margin-top: 0.4mm; direction: ltr; unicode-bidi: isolate; font-variant-numeric: tabular-nums; }
+    .price2 { font-size: ${f.code}pt; font-weight: 600; line-height: 1.1; direction: ltr; unicode-bidi: isolate; font-variant-numeric: tabular-nums; }
     .bc { width: 100%; height: ${f.barH}mm; margin-top: 0.6mm; display: flex; align-items: flex-end; justify-content: center; }
     .bc svg { width: 92%; height: 100%; }
     .bc.empty { height: 0; margin: 0; }

@@ -6,7 +6,7 @@ import { Modal, Button, Select, SwitchRow, Spinner, Field } from '../../componen
 import { toast, useSettings, useUser } from '../../state/store'
 import { parseCsv, pickFile, readFileText, saveCsv } from '../../lib/csv'
 import { formatNumber } from '../../lib/money'
-import { autoMap, looksLikeHeader, mappingOk, parseImportRow, IMPORT_FIELDS, type ImportField, type Mapping } from './import-map'
+import { autoMap, looksLikeHeader, mappingOk, parseImportRow, IMPORT_FIELDS, FX_IMPORT_FIELDS, type ImportField, type Mapping } from './import-map'
 import { runImport, skipReasonText, type ImportReport } from './import-run'
 import { templateCsv } from './product-utils'
 
@@ -24,6 +24,16 @@ export function ImportModal({ open, onClose }: { open: boolean; onClose: () => v
   const [progress, setProgress] = useState({ done: 0, total: 0 })
   const [report, setReport] = useState<ImportReport | null>(null)
   const [busy, setBusy] = useState(false)
+  const c2 = settings.currency2
+  // the second-currency columns are offered only while products may be priced in it
+  const fxOn = c2.enabled && c2.pricing
+  const fields = useMemo(() => (fxOn ? IMPORT_FIELDS : IMPORT_FIELDS.filter(f => !FX_IMPORT_FIELDS.includes(f))), [fxOn])
+  const guess = (header: string[]): Mapping => {
+    const m = autoMap(header)
+    if (!fxOn) for (const f of FX_IMPORT_FIELDS) delete m[f]
+    return m
+  }
+  const fieldLabel = (f: ImportField) => t(`products.import.field.${f}`, { cur: c2.symbol })
 
   useEffect(() => { if (open) { setStep('pick'); setRows([]); setMapping({}); setReport(null); setFileName('') } }, [open])
 
@@ -37,13 +47,13 @@ export function ImportModal({ open, onClose }: { open: boolean; onClose: () => v
       if (!parsed.length) { toast(t('products.import.emptyFile'), 'error'); return }
       const header = looksLikeHeader(parsed[0])
       setFileName(f.name); setRows(parsed); setHasHeader(header)
-      setMapping(header ? autoMap(parsed[0]) : {})
+      setMapping(header ? guess(parsed[0]) : {})
       setStep('map')
     } catch { toast(t('products.import.readFailed'), 'error') }
     finally { setBusy(false) }
   }
   const template = async () => {
-    const ok = await saveCsv('kaseb-products-template.csv', templateCsv())
+    const ok = await saveCsv('kaseb-products-template.csv', templateCsv(c2))
     if (ok) toast(t('products.import.templateSaved'), 'success')
   }
 
@@ -61,6 +71,7 @@ export function ImportModal({ open, onClose }: { open: boolean; onClose: () => v
     try {
       const rep = await runImport(parsedRows, {
         stockMapped: mapping.stock !== undefined, userId: user?.id, decimals: settings.currency.decimals,
+        currency2: fxOn ? c2 : undefined,
         onProgress: (done, total) => setProgress({ done, total }),
       })
       setReport(rep); setStep('done')
@@ -102,10 +113,10 @@ export function ImportModal({ open, onClose }: { open: boolean; onClose: () => v
           <div className="row between wrap">
             <span className="small"><b>{fileName}</b> · {t('products.import.rows', { n: dataRows.length })}</span>
           </div>
-          <SwitchRow label={t('products.import.hasHeader')} on={hasHeader} onChange={v => { setHasHeader(v); setMapping(v ? autoMap(rows[0] ?? []) : {}) }} />
+          <SwitchRow label={t('products.import.hasHeader')} on={hasHeader} onChange={v => { setHasHeader(v); setMapping(v ? guess(rows[0] ?? []) : {}) }} />
           <div className="form-grid pr-map-grid">
-            {IMPORT_FIELDS.map(f => (
-              <Field key={f} label={t(`products.import.field.${f}`)}>
+            {fields.map(f => (
+              <Field key={f} label={fieldLabel(f)}>
                 <Select value={mapping[f] === undefined ? '' : String(mapping[f])} onChange={e => setField(f, e.target.value)}>
                   <option value="">{t('products.import.notMapped')}</option>
                   {headerLabels.map((h, i) => <option key={i} value={i}>{h}</option>)}
@@ -115,23 +126,28 @@ export function ImportModal({ open, onClose }: { open: boolean; onClose: () => v
           </div>
           {!ok && <div className="banner warn"><AlertTriangle size={16} />{t('products.import.needKey')}</div>}
           {mapping.stock !== undefined && <div className="banner warn"><AlertTriangle size={16} />{t('products.import.stockWarn')}</div>}
+          {fxOn && (mapping.fxPrice !== undefined || mapping.fxCost !== undefined) && (
+            <div className="banner warn"><AlertTriangle size={16} />{c2.rate > 0 ? t('products.import.fxHint', { cur: c2.symbol, main: settings.currency.symbol }) : t('products.fxNoRate')}</div>
+          )}
           <div className="section-title">{t('products.import.preview')}</div>
           <div className="table-wrap">
             <table className="table pr-preview">
-              <thead><tr><th>{t('common.name')}</th><th>{t('common.barcode')}</th><th className="num">{t('common.price')}</th><th className="num">{t('common.cost')}</th><th className="num">{t('products.stock')}</th><th>{t('common.category')}</th><th>{t('products.unit')}</th></tr></thead>
+              <thead><tr><th>{t('common.name')}</th><th>{t('common.barcode')}</th><th className="num">{t('common.price')}</th>{fxOn && <th className="num">{fieldLabel('fxPrice')}</th>}<th className="num">{t('common.cost')}</th>{fxOn && <th className="num">{fieldLabel('fxCost')}</th>}<th className="num">{t('products.stock')}</th><th>{t('common.category')}</th><th>{t('products.unit')}</th></tr></thead>
               <tbody>
                 {preview.map(r => (
                   <tr key={r.line}>
                     <td>{r.name || <span className="faint">—</span>}</td>
                     <td className="num">{r.barcodes.join(', ')}</td>
                     <td className="num">{fmt(r.price)}</td>
+                    {fxOn && <td className="num">{fmt(r.fxPrice)}</td>}
                     <td className="num">{fmt(r.cost)}</td>
+                    {fxOn && <td className="num">{fmt(r.fxCost)}</td>}
                     <td className="num">{fmt(r.stock)}</td>
                     <td>{r.category}</td>
                     <td>{r.unit}</td>
                   </tr>
                 ))}
-                {!preview.length && <tr><td colSpan={7} className="faint center">{t('products.import.noRows')}</td></tr>}
+                {!preview.length && <tr><td colSpan={fxOn ? 9 : 7} className="faint center">{t('products.import.noRows')}</td></tr>}
               </tbody>
             </table>
           </div>

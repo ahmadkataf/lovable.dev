@@ -1,8 +1,10 @@
 import { create } from 'zustand'
 import { db, loadSettings, saveSettings, ensureDefaults } from '../db'
-import type { Settings, User, Shift, Product } from '../db/types'
-import { type Cart, type CartLine, emptyCart, addToCart, lineFromProduct, setLineQty, updateLine, removeLine } from '../lib/cart'
-import { setLang, applyLangToDocument } from '../i18n'
+import type { Settings, User, Shift, Product, RateHistoryEntry } from '../db/types'
+import { type Cart, type CartLine, emptyCart, addToCart, lineFromProduct, setLineQty, updateLine, removeLine, refreshCartPrices } from '../lib/cart'
+import { setLang, applyLangToDocument, t } from '../i18n'
+import { setExchangeRate as setExchangeRateLib, formatRate } from '../lib/fx'
+import { formatNumber } from '../lib/money'
 import { configureFeedback } from '../lib/audio'
 import type { LicenseStatus } from '../license/types'
 import { license } from '../license'
@@ -47,6 +49,10 @@ export interface AppState {
   setCartCustomer(id?: string, name?: string): void
   setCartRedeem(points: number, amount: number): void
   setCartNote(note: string): void
+  /** THE way the exchange rate changes (lib/fx setExchangeRate + the settings in memory + the open cart + a toast). */
+  setExchangeRate(rate: number, source: RateHistoryEntry['source'], repriceCart?: boolean): Promise<{ repriced: number; prev: number }>
+  /** Re-derives the open cart's non-overridden lines from the products as they are now; returns how many lines changed. */
+  refreshCartPrices(): Promise<number>
 
   toast(text: string, kind?: Toast['kind']): void
   dismissToast(id: number): void
@@ -157,6 +163,30 @@ export const useStore = create<AppState>((set, get) => ({
     set({ cart: points > 0 ? { ...c, redeemPoints: points, discount: amount, discountPct: undefined } : { ...c, redeemPoints: undefined, discount: 0 } })
   },
   setCartNote(note) { set({ cart: { ...get().cart, note: note || undefined } }) },
+  async setExchangeRate(rate, source, repriceCart = true) {
+    const s = get()
+    const res = await setExchangeRateLib({ rate, settings: s.settings, user: s.user, source })
+    set({ settings: res.settings })
+    if (repriceCart) await get().refreshCartPrices()
+    const c2 = res.settings.currency2
+    get().toast(t('fx.done', { cur: c2.symbol, rate: formatRate(c2.rate, res.settings), n: formatNumber(res.repriced) }), 'success')
+    return { repriced: res.repriced, prev: res.prev }
+  },
+  async refreshCartPrices() {
+    const cart = get().cart
+    const ids = [...new Set(cart.lines.map(l => l.productId).filter((id): id is string => !!id))]
+    if (!ids.length) return 0
+    const products = (await db.products.bulkGet(ids)).filter((p): p is Product => !!p)
+    const tier = cart.customerId ? (await db.customers.get(cart.customerId))?.tier : undefined
+    const res = refreshCartPrices(cart, products, tier)
+    // the cart may have moved while we read: patch only the lines we looked at, by key
+    if (res.changed) {
+      const byKey = new Map(res.cart.lines.map(l => [l.key, l]))
+      const cur = get().cart
+      set({ cart: { ...cur, lines: cur.lines.map(l => byKey.get(l.key) ?? l) } })
+    }
+    return res.changed
+  },
 
   toast(text, kind = 'info') {
     const id = toastSeq++

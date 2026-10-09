@@ -84,6 +84,11 @@ addMessages({
     'history.rf.confirm': 'تأكيد الإرجاع',
     'history.rf.pickItems': 'اختر الكميات المُرجعة',
     'history.rf.nothingLeft': 'لا يوجد ما يمكن إرجاعه',
+    'history.fxRate': 'سعر الصرف يوم البيع',
+    'history.fxTotal': '≈ بالـ{cur}',
+    'history.profit': 'ربح الفاتورة',
+    'history.csv.rate': 'سعر الصرف',
+    'history.csv.totalFx': 'الإجمالي بالـ{cur}',
   },
   en: {
     'history.title': 'Receipts',
@@ -168,5 +173,10 @@ addMessages({
     'history.rf.confirm': 'Confirm refund',
     'history.rf.pickItems': 'Choose the quantities to return',
     'history.rf.nothingLeft': 'Nothing left to refund',
+    'history.fxRate': 'Rate on the sale day',
+    'history.fxTotal': '≈ in {cur}',
+    'history.profit': 'Receipt profit',
+    'history.csv.rate': 'rate',
+    'history.csv.totalFx': 'total {cur}',
   },
 })

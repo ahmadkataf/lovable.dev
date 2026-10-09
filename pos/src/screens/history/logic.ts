@@ -67,11 +67,16 @@ export function parseReceiptNumber(s: string): number | null {
   return n > 0 ? n : null
 }
 
+/** The second-currency columns of the CSV: the rate the receipt was valued at and its total at that rate. */
+export interface CsvFxColumns { rate: string; totalFx: string; decimals: number }
+
 /** Rows for the CSV export of a filtered list. Labels come from the screen so they are translated. */
-export function salesCsvRows(sales: Sale[], labels: { number: string; date: string; time: string; customer: string; cashier: string; items: string; total: number | string; paid: string; credit: string; refunded: string; status: string; methods: string; note: string }, fmt: { date: (ms: number) => string; time: (ms: number) => string; status: (s: Sale) => string; method: (m: PaymentMethod) => string }, decimals: number): (string | number)[][] {
-  const rows: (string | number)[][] = [[labels.number, labels.date, labels.time, labels.customer, labels.cashier, labels.items, labels.total, labels.paid, labels.credit, labels.refunded, labels.status, labels.methods, labels.note]]
+export function salesCsvRows(sales: Sale[], labels: { number: string; date: string; time: string; customer: string; cashier: string; items: string; total: number | string; paid: string; credit: string; refunded: string; status: string; methods: string; note: string }, fmt: { date: (ms: number) => string; time: (ms: number) => string; status: (s: Sale) => string; method: (m: PaymentMethod) => string }, decimals: number, fx?: CsvFxColumns): (string | number)[][] {
+  const rows: (string | number)[][] = [[labels.number, labels.date, labels.time, labels.customer, labels.cashier, labels.items, labels.total, labels.paid, labels.credit, labels.refunded, labels.status, labels.methods, labels.note, ...(fx ? [fx.rate, fx.totalFx] : [])]]
   for (const s of sales) {
-    rows.push([s.number, fmt.date(s.createdAt), fmt.time(s.createdAt), s.customerName ?? '', s.userName, s.items.length, s.total, round(s.paid - s.change, decimals), s.credit, s.refunded, fmt.status(s), saleMethods(s).map(fmt.method).join(' + '), s.note ?? ''])
+    const rated = typeof s.rate === 'number' && s.rate > 0
+    rows.push([s.number, fmt.date(s.createdAt), fmt.time(s.createdAt), s.customerName ?? '', s.userName, s.items.length, s.total, round(s.paid - s.change, decimals), s.credit, s.refunded, fmt.status(s), saleMethods(s).map(fmt.method).join(' + '), s.note ?? '',
+      ...(fx ? [rated ? s.rate! : '', rated ? round(s.total / s.rate!, fx.decimals) : ''] : [])])
   }
   const sum = summarizeSales(sales, decimals)
   rows.push([], ['', '', '', '', '', sum.count, sum.total, '', '', sum.refunded])

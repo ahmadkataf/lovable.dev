@@ -126,7 +126,8 @@ function ExpenseModal({ expense, onClose }: { expense?: Expense; onClose: () => 
   const user = useUser()
   const admin = isAdmin(user)
   const shift = useStore(s => s.shift)
-  const c = useSettings().currency
+  const settings = useSettings()
+  const c = settings.currency
   const editing = !!expense
   const [v, setV] = useState(expense ? String(round(expense.amount, c.decimals)) : '')
   const [cat, setCat] = useState<string>(expense ? (isBuiltinCategory(expense.category) ? expense.category : 'custom') : '')
@@ -149,9 +150,12 @@ function ExpenseModal({ expense, onClose }: { expense?: Expense; onClose: () => 
     setBusy(true)
     try {
       const shiftId = !drawer ? undefined : closedShift ? expense?.shiftId : shift?.id ?? expense?.shiftId
+      // the rate in force when the expense was booked (for the $ view of the reports); an edit keeps the original snapshot
+      const c2 = settings.currency2
+      const rate = expense ? expense.rate : c2.enabled && c2.rate > 0 ? c2.rate : undefined
       const row: Expense = {
         id: expense?.id ?? uid(), amount: round(n, c.decimals), category, note: note.trim() || undefined,
-        createdAt: fromDateTimeInput(date, expense?.createdAt ?? Date.now()), userId: expense?.userId ?? user.id, shiftId,
+        createdAt: fromDateTimeInput(date, expense?.createdAt ?? Date.now()), userId: expense?.userId ?? user.id, shiftId, rate,
       }
       await db.expenses.put(row)
       toast(editing ? t('common.saved') : t('expenses.saved'), 'success')

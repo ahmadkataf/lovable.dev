@@ -19,7 +19,9 @@ pos/
     db/types.ts                  the data model (Product, Sale, Customer, Shift, Settings ...)
     db/index.ts                  Dexie schema `db`, loadSettings/saveSettings, nextNumber(key), ensureDefaults, TABLES
     lib/cart.ts                  Cart/CartLine, addToCart, computeTotals (discounts + tax), toSaleItems — pure, tested
-    lib/money.ts                 round, parseNumber (Arabic digits), formatMoney, formatQty, quickAmounts
+    lib/money.ts                 round, roundToStep, parseNumber (Arabic digits), formatMoney, formatQty, quickAmounts
+    lib/fx.ts                    USD-anchored pricing: fxToPrimary, derivePrices, repriceAll, setExchangeRate (THE way the rate changes),
+                                 rateAge/isRateStale, rateAt + kv 'fx.history', toFxRows (the $ view of reports), stockValueFx
     lib/format.ts                dates/periods: formatDate/Time/DateTime/Day, startOfDay/Week/Month, periodRange, toDateInput
     lib/barcode.ts               EAN-13/8/UPC checks, in-store EAN-13 (prefix 200), barcodeFormat for JsBarcode
     lib/scanner-input.ts         useBarcodeWedge(onScan): USB/Bluetooth scanners typing fast + Enter
@@ -66,6 +68,22 @@ pos/
 - **Roles.** `user.role === 'admin'` sees reports and settings; cashiers sell, take payments, see customers and inventory.
 - **No new shared files.** A module edits only its own folder (and may add tests). If it needs a change in a shared file, it says
   so in its report instead of editing it.
+
+## Second currency and USD-anchored pricing (`lib/fx.ts`)
+- `settings.currency2` is the one rate (`rate` = primary units per 1 unit of it, e.g. 13,000 ل.س per $); it serves both cash
+  taken in that currency and pricing. `pricing: true` lets products carry anchors: `fxPrice`, `fxCost`, `fxWholesalePrice`,
+  `packs[].fxPrice`. The primary fields (`price`, `cost`, `wholesalePrice`, `packs[].price`) stay what every reader uses.
+- **Materialized, never computed on read.** Anchored primary fields are written only through `derivePrices()` (selling prices
+  step-rounded with `roundToStep` per `roundTo`/`roundMode`, costs rounded exactly); `repriceAll()` rewrites every anchored
+  product in one transaction. Reprices set `repricedAt` and never touch `updatedAt`.
+- **Every rate write goes through `useStore.setExchangeRate(rate, source)`** → `lib/fx.setExchangeRate` (one transaction:
+  reprice → settings → kv `'fx.history'` prepend, capped at 400) → audit `'rate.change'` → `refreshCartPrices` on the open cart
+  (only lines still at the list price) → toast `fx.done`. Never write `currency2.rate` with `updateSettings`.
+- Records snapshot the rate: `Sale.rate/rateCode` at `completeSale` (equal to `sale.fx.rate` when cash came in dollars),
+  `Refund.rate` copied from its sale, `Expense.rate` at creation, `Purchase.fx` for invoices written in the second currency
+  (`Supplier.fxBalance` tracks what is owed in it; `balance` stays for primary-currency invoices). Reports value rows in $
+  through `toFxRows` at each row's own rate (fallback: `rateAt(history)`, then the current rate, counted as estimated).
+- `importBackup` runs `repriceAll` after a restore so products and settings never disagree.
 
 ## Testing
 `npm test` runs vitest (node + fake-indexeddb). Pure logic (cart, money, barcode, reports aggregation, license token checks) has

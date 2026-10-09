@@ -71,7 +71,8 @@ export function HistoryList() {
     const rows = salesCsvRows(filtered, {
       number: t('history.search'), date: t('common.date'), time: t('common.time'), customer: t('common.customer'), cashier: t('common.cashier'), items: t('history.items'),
       total: t('common.total'), paid: t('common.paid'), credit: t('common.credit'), refunded: t('history.refundTotal'), status: t('history.status'), methods: t('history.method'), note: t('common.note'),
-    }, { date: formatDate, time: formatTime, status: statusLabel, method: methodLabel }, c.decimals)
+    }, { date: formatDate, time: formatTime, status: statusLabel, method: methodLabel }, c.decimals,
+    settings.currency2.enabled ? { rate: t('history.csv.rate'), totalFx: t('history.csv.totalFx', { cur: settings.currency2.code }), decimals: settings.currency2.decimals } : undefined)
     if (await saveCsv(`receipts-${toDateInput(range.from)}-${toDateInput(range.to)}.csv`, rows)) toast(t('history.exported'), 'success')
   }
 

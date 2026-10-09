@@ -62,4 +62,14 @@ describe('history logic', () => {
     expect(rows[2][11]).toBe('cash + credit')
     expect(rows[rows.length - 1]).toEqual(['', '', '', '', '', 3, 600, '', '', 150])
   })
+  it('adds the rate and the second-currency total when asked, blank for unrated receipts', () => {
+    const rated = [sale({ id: 'r', number: 7, total: 130000, rate: 13000, rateCode: 'USD' }), sales[1]]
+    const rows = salesCsvRows(rated, { number: 'n', date: 'd', time: 't', customer: 'c', cashier: 'u', items: 'i', total: 'T', paid: 'p', credit: 'cr', refunded: 'r', status: 's', methods: 'm', note: 'nt' },
+      { date: () => 'D', time: () => 'T', status: s => s.status, method: m => m }, 0, { rate: 'rate', totalFx: 'total USD', decimals: 2 })
+    expect(rows[0]).toHaveLength(15)
+    expect(rows[0].slice(13)).toEqual(['rate', 'total USD'])
+    expect(rows[1].slice(13)).toEqual([13000, 10])
+    expect(rows[2].slice(13)).toEqual(['', ''])
+    expect(rows[rows.length - 1]).toEqual(['', '', '', '', '', 2, 130200, '', '', 0])
+  })
 })

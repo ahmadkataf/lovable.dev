@@ -20,7 +20,9 @@ export function SupplierDetail() {
   const { id = '' } = useParams()
   const t = useT()
   const nav = useNavigate()
-  const c = useSettings().currency
+  const settings = useSettings()
+  const c = settings.currency
+  const c2 = settings.currency2
   const admin = isAdmin(useUser())
   const mobile = useIsMobile()
   const [edit, setEdit] = useState(false)
@@ -32,9 +34,16 @@ export function SupplierDetail() {
 
   const bought = round(purchases.reduce((a, p) => a + p.total, 0), c.decimals)
   const paid = round(purchases.reduce((a, p) => a + p.paid, 0), c.decimals)
+  // the second-currency side: invoices and payments written in it, and what we owe in it
+  const fxBalance = s.fxBalance ?? 0
+  const boughtFx = round(purchases.reduce((a, p) => a + (p.fx?.total ?? 0), 0), c2.decimals)
+  const paidFx = round(purchases.reduce((a, p) => a + (p.fx?.paid ?? 0), 0), c2.decimals)
+  const showFx = fxBalance !== 0 || boughtFx > 0 || paidFx > 0
+  const fxLine = (n: number, cls = '') => showFx ? <div className={`stat-sub num ${cls}`}>{t('inventory.supplier.fxBalance', { cur: c2.symbol })}: {formatMoney(n, c2)}</div> : null
   const digits = (s.phone ?? '').replace(/[^0-9]/g, '').replace(/^00/, '')
   const del = async () => {
-    const text = s.balance !== 0 ? `${t('inventory.suppliers.deleteText')} ${t('inventory.suppliers.deleteBalance', { v: formatMoney(s.balance, c) })}` : t('inventory.suppliers.deleteText')
+    const owed = [s.balance !== 0 ? formatMoney(s.balance, c) : '', fxBalance !== 0 ? formatMoney(fxBalance, c2) : ''].filter(Boolean).join(' + ')
+    const text = owed ? `${t('inventory.suppliers.deleteText')} ${t('inventory.suppliers.deleteBalance', { v: owed })}` : t('inventory.suppliers.deleteText')
     if (!(await confirmDialog({ title: t('inventory.suppliers.deleteTitle'), text, danger: true, okLabel: t('common.delete') }))) return
     await db.suppliers.delete(s.id)
     toast(t('common.deleted'), 'success')
@@ -66,9 +75,9 @@ export function SupplierDetail() {
           {s.notes && <p className="small muted" style={{ marginTop: 10 }}>{s.notes}</p>}
         </div>
         <div className="stats">
-          <div className="stat"><div className="stat-label">{t('inventory.suppliers.balance')}</div><div className={`stat-value num ${s.balance > 0 ? 'inv-warn' : s.balance < 0 ? 'inv-pos' : ''}`}>{formatMoney(s.balance, c)}</div><div className="stat-sub">{s.balance > 0 ? t('inventory.suppliers.weOwe') : s.balance < 0 ? t('inventory.suppliers.owesUs') : t('inventory.suppliers.settled')}</div></div>
-          <div className="stat"><div className="stat-label">{t('inventory.suppliers.totalPurchases')}</div><div className="stat-value num">{formatMoney(bought, c)}</div></div>
-          <div className="stat"><div className="stat-label">{t('inventory.suppliers.totalPaid')}</div><div className="stat-value num">{formatMoney(paid, c)}</div></div>
+          <div className="stat"><div className="stat-label">{t('inventory.suppliers.balance')}</div><div className={`stat-value num ${s.balance > 0 ? 'inv-warn' : s.balance < 0 ? 'inv-pos' : ''}`}>{formatMoney(s.balance, c)}</div><div className="stat-sub">{s.balance > 0 ? t('inventory.suppliers.weOwe') : s.balance < 0 ? t('inventory.suppliers.owesUs') : t('inventory.suppliers.settled')}</div>{fxLine(fxBalance, fxBalance > 0 ? 'inv-warn' : fxBalance < 0 ? 'inv-pos' : '')}</div>
+          <div className="stat"><div className="stat-label">{t('inventory.suppliers.totalPurchases')}</div><div className="stat-value num">{formatMoney(bought, c)}</div>{fxLine(boughtFx)}</div>
+          <div className="stat"><div className="stat-label">{t('inventory.suppliers.totalPaid')}</div><div className="stat-value num">{formatMoney(paid, c)}</div>{fxLine(paidFx)}</div>
         </div>
         <div className="inv-actions-2">
           <Button variant="primary" size={mobile ? 'lg' : 'md'} icon={<Plus size={18} />} onClick={() => nav(`/inventory/purchases/new?supplier=${s.id}`)}>{t('inventory.suppliers.newPurchase')}</Button>

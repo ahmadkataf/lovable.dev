@@ -1,6 +1,6 @@
 // Pure inventory logic: filters, stock status, stock value, stock-take arithmetic. Tested in logic.test.ts.
 import { isExpiring } from '../../db/types'
-import type { Product } from '../../db/types'
+import type { CurrencySettings, Product, PurchaseFx } from '../../db/types'
 import { round } from '../../lib/money'
 
 export type StockStatus = 'untracked' | 'out' | 'low' | 'ok'
@@ -76,17 +76,70 @@ export function addCountLine(lines: CountLine[], p: Pick<Product, 'id' | 'name' 
   return [{ productId: p.id, name: p.name, unit: p.unit, allowFraction: p.allowFraction, counted: round(counted, 3) }, ...lines]
 }
 
-/** The lines of a purchase being typed. */
-export interface PurchaseLine { key: string; productId: string; name: string; unit: string; allowFraction: boolean; qty: number; cost: number }
+/**
+ * The lines of a purchase being typed. `cost` is the unit cost in the primary currency; `fxCost` the unit cost in the
+ * second currency when the invoice is written in it (the form keeps whichever one the invoice is in as the source of
+ * truth and derives the other at the invoice's rate, see lineCost / lineFxCost).
+ */
+export interface PurchaseLine { key: string; productId: string; name: string; unit: string; allowFraction: boolean; qty: number; cost: number; fxCost?: number }
 
-export function addPurchaseLine(lines: PurchaseLine[], p: Pick<Product, 'id' | 'name' | 'unit' | 'allowFraction' | 'cost'>, key: string): PurchaseLine[] {
+/** The second currency of an invoice being typed: its rate and how many decimals it has (2 for dollars). */
+export interface LineFx { rate: number; decimals?: number }
+
+/**
+ * Adds a product to the invoice, or +1 on its line. With `fx` (an invoice in the second currency) the line is seeded
+ * with the product's `fxCost`, else with its primary cost converted at the invoice's rate.
+ */
+export function addPurchaseLine(lines: PurchaseLine[], p: Pick<Product, 'id' | 'name' | 'unit' | 'allowFraction' | 'cost'> & { fxCost?: number }, key: string, fx?: LineFx): PurchaseLine[] {
   const i = lines.findIndex(l => l.productId === p.id)
   if (i >= 0) {
     const next = lines.slice()
     next[i] = { ...next[i], qty: round(next[i].qty + 1, 3) }
     return next
   }
-  return [...lines, { key, productId: p.id, name: p.name, unit: p.unit, allowFraction: p.allowFraction, qty: 1, cost: p.cost }]
+  const line: PurchaseLine = { key, productId: p.id, name: p.name, unit: p.unit, allowFraction: p.allowFraction, qty: 1, cost: p.cost }
+  if (fx && fx.rate > 0) line.fxCost = typeof p.fxCost === 'number' ? p.fxCost : round(p.cost / fx.rate, fx.decimals ?? 2)
+  return [...lines, line]
+}
+
+/** The unit cost of a line in the primary currency: typed directly, or derived from `fxCost` at the rate on a second-currency invoice. */
+export function lineCost(l: Pick<PurchaseLine, 'cost' | 'fxCost'>, fx: boolean, rate: number, decimals: number): number {
+  return fx ? round((l.fxCost ?? 0) * rate, decimals) : l.cost
+}
+/** The unit cost of a line in the second currency: `fxCost` when the invoice is in it, else `cost ÷ rate`. */
+export function lineFxCost(l: Pick<PurchaseLine, 'cost' | 'fxCost'>, fx: boolean, rate: number, fxDecimals = 2): number {
+  if (fx) return l.fxCost ?? 0
+  return rate > 0 ? round(l.cost / rate, fxDecimals) : 0
+}
+
+/**
+ * Re-expresses every line in the other currency at `rate` when the invoice switches between the primary currency and the
+ * second one: to 'fx' sets `fxCost = cost ÷ rate`, to 'primary' sets `cost = fxCost × rate`. Lines keep both figures.
+ */
+export function convertLines(lines: PurchaseLine[], to: 'fx' | 'primary', rate: number, decimals: number, fxDecimals = 2): PurchaseLine[] {
+  if (!(rate > 0)) return lines
+  return lines.map(l => (to === 'fx'
+    ? { ...l, fxCost: round(l.cost / rate, fxDecimals) }
+    : { ...l, cost: round((l.fxCost ?? 0) * rate, decimals) }))
+}
+
+/** Totals of the invoice being typed in both currencies (the one it is written in is exact; the other derived at `rate`). */
+export function purchaseTotals(lines: Pick<PurchaseLine, 'qty' | 'cost' | 'fxCost'>[], fx: boolean, rate: number, decimals: number, fxDecimals = 2): { total: number; fxTotal: number } {
+  if (fx) {
+    const fxTotal = round(lines.reduce((s, l) => s + round(l.qty * (l.fxCost ?? 0), fxDecimals), 0), fxDecimals)
+    return { fxTotal, total: round(fxTotal * rate, decimals) }
+  }
+  const total = round(lines.reduce((s, l) => s + round(l.qty * l.cost, decimals), 0), decimals)
+  return { total, fxTotal: rate > 0 ? round(total / rate, fxDecimals) : 0 }
+}
+
+/** The currency a stored second-currency invoice is written in, as formatMoney wants it. */
+export function fxCurrency(fx: Pick<PurchaseFx, 'code' | 'symbol' | 'decimals' | 'symbolAfter'>): CurrencySettings {
+  return { code: fx.code, symbol: fx.symbol, decimals: fx.decimals, symbolAfter: fx.symbolAfter }
+}
+/** What is still owed on a second-currency invoice, in that currency. */
+export function fxRemaining(fx: Pick<PurchaseFx, 'total' | 'paid' | 'decimals'>): number {
+  return round(fx.total - fx.paid, fx.decimals)
 }
 
 /** 2 → 2, 1.5 → "1.5" formatted for a signed display. */

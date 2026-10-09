@@ -2,6 +2,7 @@
 // previous one (both windows come from one DB read), the chart buckets, and the whole report in one object.
 import type { Sale, Refund, Expense, Product, Category } from '../../db/types'
 import { daysBetween, type Period } from '../../lib/format'
+import { toFxRows, type FxRowsRate } from '../../lib/fx'
 import {
   summarize, bucketByDay, bucketByHour, bucketByMonth, topProducts, byCategory, byCashier, byMethod, byCustomer, peakHours, expensesByCategory, previousPeriod,
   type Range, type ReportSummary, type ProductStat, type CategoryStat, type CashierStat, type MethodStat, type CustomerStat, type ExpenseCategoryStat,
@@ -64,10 +65,20 @@ export interface Report {
   peakCount: number[][]
   peakTotal: number[][]
   expenseCats: ExpenseCategoryStat[]
+  /** True when every figure is in the second currency (each row at its own rate). */
+  fx: boolean
+  /** Rows (receipts, refunds, expenses) of the loaded window that had no rate of their own and were valued at an estimated one. */
+  estimated: number
 }
 
-export function buildReport(raw: RawData, range: Range, period: Period, compare: boolean, products: Product[], categories: Category[], decimals: number): Report {
+/**
+ * The whole report from the loaded rows. With `fx`, the rows are first revalued in the second currency through
+ * `toFxRows` (every receipt at its own rate) and `decimals` should be the second currency's; the aggregates are the same.
+ */
+export function buildReport(raw: RawData, range: Range, period: Period, compare: boolean, products: Product[], categories: Category[], decimals: number, fx?: FxRowsRate): Report {
   const g = granularity(period, range)
+  let estimated = 0
+  if (fx) { const conv = toFxRows(raw, fx); raw = conv.rows; estimated = conv.estimated }
   const { cur, prev, salesById } = splitPeriods(raw, range)
   const opts = { decimals, salesById }
   const prevRange = compare ? previousPeriod(range) : null
@@ -85,5 +96,6 @@ export function buildReport(raw: RawData, range: Range, period: Period, compare:
     peakCount: peakHours(cur.sales, 'count'),
     peakTotal: peakHours(cur.sales, 'total', decimals),
     expenseCats: expensesByCategory(cur.expenses, decimals),
+    fx: !!fx, estimated,
   }
 }

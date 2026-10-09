@@ -99,3 +99,53 @@ describe('cart', () => {
     expect(lineFromProduct(prod, 1, 0, { tier: 'wholesale', pack: prod.packs![0] })).toMatchObject({ price: 5500, originalPrice: 5500 })
   })
 })
+
+describe('second-currency anchors in the cart', () => {
+  it('lineFromProduct carries the $ list price and cost of the product, the wholesale anchor or the pack', async () => {
+    const { lineFromProduct } = await import('./cart')
+    const prod = p({ fxPrice: 1, fxCost: 0.8, wholesalePrice: 900, fxWholesalePrice: 0.9, packs: [{ id: 'k', name: 'box', qty: 6, price: 5500, fxPrice: 5.5 }] })
+    expect(lineFromProduct(prod)).toMatchObject({ fxPrice: 1, fxCost: 0.8 })
+    expect(lineFromProduct(prod, 1, 0, { tier: 'wholesale' })).toMatchObject({ price: 900, fxPrice: 0.9, fxCost: 0.8 })
+    expect(lineFromProduct(prod, 1, 0, { pack: prod.packs![0] })).toMatchObject({ price: 5500, fxPrice: 5.5, fxCost: 4.8 })
+    // a wholesale price in lira only: the charged price is not the anchored one, so no $ list price
+    expect(lineFromProduct(p({ fxPrice: 1, wholesalePrice: 900 }), 1, 0, { tier: 'wholesale' }).fxPrice).toBeUndefined()
+    const plain = lineFromProduct(p())
+    expect(plain.fxPrice).toBeUndefined(); expect(plain.fxCost).toBeUndefined()
+  })
+  it('toSaleItems keeps fxCost always and fxPrice only when the list price was charged', async () => {
+    const { lineFromProduct, toSaleItems, computeTotals, addToCart, emptyCart, updateLine } = await import('./cart')
+    let c = addToCart(emptyCart(), lineFromProduct(p({ fxPrice: 1, fxCost: 0.8 })))
+    c = addToCart(c, lineFromProduct(p({ id: 'p2', fxPrice: 2, fxCost: 1.5, price: 2000 })))
+    c = updateLine(c, c.lines[1].key, { price: 1800 })
+    const items = toSaleItems(c, computeTotals(c, noTax, 0), 0)
+    expect(items[0]).toMatchObject({ fxPrice: 1, fxCost: 0.8 })
+    expect(items[1].fxPrice).toBeUndefined()
+    expect(items[1].fxCost).toBe(1.5)
+  })
+  it('refreshCartPrices re-derives list-price lines and leaves overridden, discounted, custom and unknown lines alone', async () => {
+    const { lineFromProduct, addToCart, emptyCart, updateLine, refreshCartPrices } = await import('./cart')
+    const carton = { id: 'k1', name: 'كرتونة', qty: 24, price: 20000, fxPrice: 1.6 }
+    const old = p({ fxPrice: 0.08, fxCost: 0.06, packs: [carton], wholesalePrice: 900, fxWholesalePrice: 0.07 })
+    let c = addToCart(emptyCart(), lineFromProduct(old, 2))                                   // list price → refreshed
+    c = addToCart(c, lineFromProduct(old, 1, 0, { pack: carton }))                            // pack line → refreshed from the pack
+    c = addToCart(c, { ...lineFromProduct(old), key: 'ov', price: 950 })                     // overridden
+    c = addToCart(c, { ...lineFromProduct(old), key: 'disc', discount: 100 })                 // discounted
+    c = addToCart(c, { ...lineFromProduct(old), key: 'custom', productId: undefined, name: 'خدمة' })
+    c = addToCart(c, { ...lineFromProduct(old), key: 'gone', productId: 'missing' })
+    c = updateLine(c, c.lines[0].key, {})
+    const fresh = { ...old, price: 1100, cost: 850, fxCost: 0.065, packs: [{ ...carton, price: 21000 }] }
+    const { cart, changed } = refreshCartPrices(c, [fresh])
+    expect(changed).toBe(2)
+    expect(cart.lines[0]).toMatchObject({ price: 1100, originalPrice: 1100, cost: 850, fxPrice: 0.08, fxCost: 0.065, qty: 2 })
+    expect(cart.lines[1]).toMatchObject({ price: 21000, originalPrice: 21000, fxPrice: 1.6, cost: 20400, unitsPerQty: 24 })
+    expect(cart.lines.find(l => l.key === 'ov')).toMatchObject({ price: 950, originalPrice: 1000 })
+    expect(cart.lines.find(l => l.key === 'disc')).toMatchObject({ price: 1000, discount: 100 })
+    expect(cart.lines.find(l => l.key === 'custom')!.price).toBe(1000)
+    expect(cart.lines.find(l => l.key === 'gone')!.price).toBe(1000)
+    // wholesale tier: the wholesale price and anchor
+    expect(refreshCartPrices(c, new Map([[fresh.id, fresh]]), 'wholesale').cart.lines[0]).toMatchObject({ price: 900, fxPrice: 0.07 })
+    // nothing to do: the same cart object comes back
+    const again = refreshCartPrices(cart, [fresh])
+    expect(again.changed).toBe(0); expect(again.cart).toBe(cart)
+  })
+})

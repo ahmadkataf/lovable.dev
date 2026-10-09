@@ -21,6 +21,8 @@ export interface CartLine {
   note?: string
   unitsPerQty?: number    // a pack line: base units per qty
   packName?: string
+  fxPrice?: number        // unit list price in currency2 when the product (or pack) is anchored
+  fxCost?: number         // unit cost in currency2 when the product has one (pack line: × pack.qty)
 }
 
 /** Base units a line takes from stock. */
@@ -61,12 +63,48 @@ export interface LineOptions {
 export function lineFromProduct(p: Product, qty = 1, defaultTaxRate = 0, o: LineOptions = {}): CartLine {
   const pack = o.pack && o.pack.qty > 0 ? o.pack : undefined
   const price = pack ? pack.price : productPrice(p, o.tier)
+  const { fxPrice, fxCost } = fxFields(p, pack, o.tier)
   return {
     key: lineKey(), productId: p.id, name: p.name, barcode: pack?.barcode || p.barcodes[0], unit: pack ? pack.name : p.unit,
     price, originalPrice: price, qty, cost: pack ? round(p.cost * pack.qty, 4) : p.cost, discount: 0,
     taxRate: p.taxRate ?? defaultTaxRate, allowFraction: pack ? false : p.allowFraction, trackStock: p.trackStock, stock: p.stock,
     unitsPerQty: pack ? pack.qty : undefined, packName: pack?.name,
+    fxPrice, fxCost,
   }
+}
+
+/** The second-currency figures of a line: the pack's anchor, the wholesale anchor when that tier's price applies, else the product's. */
+function fxFields(p: Product, pack: ProductPack | undefined, tier?: CustomerTier | null): { fxPrice?: number; fxCost?: number } {
+  const wholesale = tier === 'wholesale' && p.wholesalePrice !== undefined && p.wholesalePrice > 0
+  const fxPrice = pack ? pack.fxPrice : wholesale ? p.fxWholesalePrice : p.fxPrice
+  const fxCost = typeof p.fxCost === 'number' ? round(p.fxCost * (pack?.qty ?? 1), 4) : undefined
+  return { fxPrice: typeof fxPrice === 'number' ? fxPrice : undefined, fxCost }
+}
+
+/**
+ * Re-derives the price, cost and second-currency figures of the lines that still carry the product's list price
+ * (price === originalPrice, no line discount) from the products as they are now — after a rate change or a tier change.
+ * Overridden, discounted and custom lines are left alone, as are lines whose product (or pack) no longer exists.
+ */
+export function refreshCartPrices(cart: Cart, products: Product[] | Map<string, Product>, tier?: CustomerTier | null): { cart: Cart; changed: number } {
+  const byId = products instanceof Map ? products : new Map(products.map(p => [p.id, p]))
+  let changed = 0
+  const lines = cart.lines.map(l => {
+    if (!l.productId || l.price !== l.originalPrice || l.discount > 0) return l
+    const p = byId.get(l.productId)
+    if (!p) return l
+    const pack = l.packName !== undefined || (l.unitsPerQty ?? 1) !== 1
+      ? p.packs?.find(k => k.name === l.packName && k.qty === (l.unitsPerQty ?? 1)) ?? p.packs?.find(k => k.qty === (l.unitsPerQty ?? 1))
+      : undefined
+    if ((l.packName !== undefined || (l.unitsPerQty ?? 1) !== 1) && !pack) return l
+    const price = pack ? pack.price : productPrice(p, tier)
+    const cost = pack ? round(p.cost * pack.qty, 4) : p.cost
+    const { fxPrice, fxCost } = fxFields(p, pack, tier)
+    if (price === l.price && cost === l.cost && fxPrice === l.fxPrice && fxCost === l.fxCost) return l
+    changed++
+    return { ...l, price, originalPrice: price, cost, fxPrice, fxCost }
+  })
+  return { cart: changed ? { ...cart, lines } : cart, changed }
 }
 
 export function lineTotal(l: CartLine, decimals: number): number {
@@ -140,6 +178,9 @@ export function toSaleItems(cart: Cart, totals: Totals, decimals: number): SaleI
       price: l.price, originalPrice: l.originalPrice, cost: l.cost, discount: l.discount,
       taxRate: l.taxRate, tax: t?.tax ?? 0, total: lineTotal(l, decimals), note: l.note,
       unitsPerQty: l.unitsPerQty && l.unitsPerQty !== 1 ? l.unitsPerQty : undefined, packName: l.packName,
+      // the anchor only when the list price was charged: an overridden line has no $ list price to print
+      fxPrice: l.price === l.originalPrice && typeof l.fxPrice === 'number' ? l.fxPrice : undefined,
+      fxCost: typeof l.fxCost === 'number' ? l.fxCost : undefined,
     }
   })
 }

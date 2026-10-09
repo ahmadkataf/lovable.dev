@@ -204,6 +204,24 @@ describe('createRefund', () => {
   })
 })
 
+describe('refund and the exchange rate', () => {
+  it('copies the sale rate and code onto the refund, never today\'s rate', async () => {
+    const on: Settings = { ...settings, currency2: { ...settings.currency2, enabled: true, rate: 13000 } }
+    const cart = cartWith([[milk, 2]])
+    const totals = computeTotals(cart, on.tax, 0)
+    const sale = await completeSale({ cart, totals, payments: [{ method: 'cash', amount: totals.total }], paid: totals.total, change: 0, credit: 0, user, shift: null, settings: on })
+    expect(sale.rate).toBe(13000)
+    const later: Settings = { ...on, currency2: { ...on.currency2, rate: 15000 } }
+    const r = await refund(sale, [{ index: 0, qty: 1 }], { settings: later })
+    expect(r.rate).toBe(13000); expect(r.rateCode).toBe('USD'); expect(r.total).toBe(1000)
+    expect((await db.refunds.get(r.id))!.rate).toBe(13000)
+    // a sale without a rate gives a refund without one
+    const plain = await sell(cartWith([[bread, 1]]))
+    const r2 = await refund(plain, [{ index: 0, qty: 1 }])
+    expect(r2.rate).toBeUndefined(); expect('rate' in r2).toBe(false)
+  })
+})
+
 describe('pure helpers', () => {
   const base: Sale = {
     id: 's1', number: 7, createdAt: 0, subtotal: 2500, discount: 0, tax: 0, total: 2500, cost: 0, payments: [{ method: 'cash', amount: 2500 }],

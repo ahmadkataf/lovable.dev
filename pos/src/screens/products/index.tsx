@@ -4,16 +4,17 @@ import { allowed } from '../../lib/audit'
 import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent, type PointerEvent, type ReactNode } from 'react'
 import { Routes, Route, Outlet, useNavigate, useParams, useSearchParams, useLocation, useMatch } from 'react-router-dom'
 import { useLiveQuery } from 'dexie-react-hooks'
-import { Plus, Filter, ArrowUpDown, MoreHorizontal, CheckSquare, Star, Package, SearchX, Tag, Printer, Download, Upload, FileText, X, Check, FolderInput, Eye, EyeOff, Trash2, Percent, ScanBarcode } from 'lucide-react'
+import { Plus, Filter, ArrowUpDown, MoreHorizontal, CheckSquare, Star, Package, SearchX, Tag, Printer, Download, Upload, FileText, X, Check, FolderInput, Eye, EyeOff, Trash2, Percent, ScanBarcode, ArrowLeftRight } from 'lucide-react'
 import { db } from '../../db'
-import { daysToExpiry, EXPIRY_WARN_DAYS, type Category, type Product } from '../../db/types'
+import { daysToExpiry, EXPIRY_WARN_DAYS, isFxPriced, type Category, type Product } from '../../db/types'
 import { useT, useLang } from '../../i18n'
 import { Button, SearchInput, Avatar, Badge, Money, Empty, Spinner, useIsMobile } from '../../components/ui'
 import { toast, confirmDialog, useSettings, useUser, isAdmin } from '../../state/store'
 import { useBarcodeWedge } from '../../lib/scanner-input'
 import { beep } from '../../lib/audio'
 import { saveCsv } from '../../lib/csv'
-import { formatQty } from '../../lib/money'
+import { formatQty, formatMoney } from '../../lib/money'
+import { stockValueFx } from '../../lib/fx'
 import { cleanBarcode, looksLikeBarcode } from '../../lib/barcode'
 import { filterProducts, sortProducts, stockState, stockValue, productsToCsv, templateCsv, unitLabel, exactBarcodeMatch, type ProductFilter, type ProductSort, type CategoryPick } from './product-utils'
 import { deleteProduct } from './actions'
@@ -22,12 +23,12 @@ import { ProductForm } from './ProductForm'
 import { CategoriesModal } from './CategoriesModal'
 import { ImportModal } from './ImportModal'
 import { LabelsDialog } from './LabelsDialog'
-import { BulkPriceModal, BulkCategoryModal } from './BulkModals'
+import { BulkPriceModal, BulkCategoryModal, BulkAnchorModal } from './BulkModals'
 import './i18n'
 import './products.css'
 
 const VIEW_KEY = 'kaseb.products.view'
-const FILTERS: ProductFilter[] = ['all', 'low', 'out', 'expiring', 'favorites', 'inactive']
+const FILTERS: ProductFilter[] = ['all', 'low', 'out', 'expiring', 'favorites', 'inactive', 'fx']
 const SORTS: ProductSort[] = ['name', 'price', 'stock', 'recent']
 
 export default function ProductsScreen() {
@@ -88,6 +89,8 @@ function ListScreen() {
   const mobile = useIsMobile()
   const formOpen = !!useMatch('/products/:id')
   const d = settings.currency.decimals
+  const c2 = settings.currency2
+  const fxOn = c2.enabled && c2.pricing
 
   const products = useLiveQuery(() => db.products.toArray(), [])
   const categories = useLiveQuery(() => db.categories.orderBy('sort').toArray(), []) ?? []
@@ -102,6 +105,7 @@ function ListScreen() {
   const [labelsFor, setLabelsFor] = useState<Product[] | null>(null)
   const [priceOpen, setPriceOpen] = useState(false)
   const [bulkCatOpen, setBulkCatOpen] = useState(false)
+  const [anchorOpen, setAnchorOpen] = useState(false)
   const searchRef = useRef<HTMLInputElement>(null)
   const { filter, sort } = view
   const setFilter = (f: ProductFilter) => setView(v => persistView({ ...v, filter: f }))
@@ -111,7 +115,7 @@ function ListScreen() {
   const visible = useMemo(() => sortProducts(filterProducts(products ?? [], { search, category: cat, filter }), sort, lang), [products, search, cat, filter, sort, lang])
   const uncategorized = useMemo(() => (products ?? []).some(p => !p.categoryId && p.active), [products])
   const selectedProducts = useMemo(() => (products ?? []).filter(p => selected.has(p.id)), [products, selected])
-  const anyModal = formOpen || catsOpen || importOpen || !!labelsFor || priceOpen || bulkCatOpen
+  const anyModal = formOpen || catsOpen || importOpen || !!labelsFor || priceOpen || bulkCatOpen || anchorOpen
 
   // a USB scanner anywhere on the page: open that product (or offer to create it)
   useBarcodeWedge(code => {
@@ -173,19 +177,20 @@ function ListScreen() {
     exitSelect()
   }
   const downloadTemplate = async () => {
-    if (await saveCsv('kaseb-products-template.csv', templateCsv())) toast(t('products.import.templateSaved'), 'success')
+    if (await saveCsv('kaseb-products-template.csv', templateCsv(c2))) toast(t('products.import.templateSaved'), 'success')
   }
   const exportCsv = async () => {
-    const ok = await saveCsv(`kaseb-products-${new Date().toISOString().slice(0, 10)}.csv`, productsToCsv(sortProducts(products ?? [], 'name', lang), categories, { includeCost: admin }))
+    const ok = await saveCsv(`kaseb-products-${new Date().toISOString().slice(0, 10)}.csv`, productsToCsv(sortProducts(products ?? [], 'name', lang), categories, { includeCost: admin, currency2: c2 }))
     if (ok) toast(t('products.exported', { n: (products ?? []).length }), 'success')
   }
 
-  const filterLabel = (f: ProductFilter) => t(`products.filter.${f}`)
+  const filterLabel = (f: ProductFilter) => t(`products.filter.${f}`, { cur: c2.symbol })
   const sortLabel = (s: ProductSort) => t(`products.sort.${s}`)
+  const filters = fxOn ? FILTERS : FILTERS.filter(f => f !== 'fx')
   const filterMenu = (
     <Menu
       trigger={(_o, toggle) => <Button variant={filter !== 'all' ? 'soft' : 'default'} iconOnly={mobile} icon={<Filter size={18} />} onClick={toggle} aria-label={t('common.filter')} title={t('common.filter')}>{filterLabel(filter)}</Button>}
-      items={FILTERS.map(f => ({ key: f, label: filterLabel(f), checked: filter === f, onClick: () => setFilter(f) }))}
+      items={filters.map(f => ({ key: f, label: filterLabel(f), checked: filter === f, onClick: () => setFilter(f) }))}
     />
   )
   const sortMenu = (
@@ -266,7 +271,7 @@ function ListScreen() {
           <>
             <div className="pr-summary">
               <span>{t('products.count', { n: visible.length })}</span>
-              {seeCost && <span>· {t('products.stockValue')}: <Money value={stockValue(visible, d)} /></span>}
+              {seeCost && <span>· {t('products.stockValue')}: <Money value={stockValue(visible, d)} />{fxOn && c2.rate > 0 && <span className="faint"> ≈ <span className="num">{formatMoney(stockValueFx(visible, c2), c2)}</span></span>}</span>}
               {!mobile && <span className="pr-kbd-hint">· <span className="kbd">F1</span> {t('common.search')}</span>}
             </div>
             <div className={`card flat pr-table ${seeCost ? '' : 'no-cost'} ${mobile ? 'mobile' : ''}`}>
@@ -288,6 +293,7 @@ function ListScreen() {
                   p={p}
                   category={p.categoryId ? catMap.get(p.categoryId) : undefined}
                   admin={seeCost}
+                  fx={c2.enabled}
                   mobile={mobile}
                   selectMode={selectMode}
                   selected={selected.has(p.id)}
@@ -317,6 +323,7 @@ function ListScreen() {
             <Button size="sm" icon={<Eye size={16} />} disabled={!selected.size} onClick={() => void bulkActive(true)}>{t('products.bulk.activate')}</Button>
             <Button size="sm" icon={<EyeOff size={16} />} disabled={!selected.size} onClick={() => void bulkActive(false)}>{t('products.bulk.deactivate')}</Button>
             {admin && <Button size="sm" icon={<Percent size={16} />} disabled={!selected.size} onClick={() => setPriceOpen(true)}>{t('products.bulk.price')}</Button>}
+            {admin && fxOn && <Button size="sm" icon={<ArrowLeftRight size={16} />} disabled={!selected.size} onClick={() => setAnchorOpen(true)}>{t('products.bulk.convert')}</Button>}
             <Button size="sm" icon={<Printer size={16} />} disabled={!selected.size} onClick={() => setLabelsFor(selectedProducts)}>{t('products.labels.short')}</Button>
             <Button size="sm" variant="soft-danger" icon={<Trash2 size={16} />} disabled={!selected.size} onClick={() => void bulkDelete()}>{t('common.delete')}</Button>
           </div>
@@ -329,6 +336,7 @@ function ListScreen() {
       <LabelsDialog open={!!labelsFor} onClose={() => setLabelsFor(null)} products={labelsFor ?? []} />
       <BulkPriceModal open={priceOpen} onClose={() => setPriceOpen(false)} products={selectedProducts} onDone={exitSelect} />
       <BulkCategoryModal open={bulkCatOpen} onClose={() => setBulkCatOpen(false)} products={selectedProducts} onDone={exitSelect} />
+      <BulkAnchorModal open={anchorOpen} onClose={() => setAnchorOpen(false)} products={selectedProducts} onDone={exitSelect} />
     </div>
   )
 }
@@ -353,9 +361,12 @@ function StockBadge({ p }: { p: Product }) {
   return <>{exp}<Badge kind={s === 'low' ? 'warn' : undefined}>{qty} <span className="xs">{unitLabel(p.unit)}</span></Badge></>
 }
 
-interface RowProps { p: Product; category?: Category; admin: boolean; mobile: boolean; selectMode: boolean; selected: boolean; onOpen: () => void; onLongPress: () => void; onFav: () => void }
-function ProductRow({ p, category, admin, mobile, selectMode, selected, onOpen, onLongPress, onFav }: RowProps) {
+interface RowProps { p: Product; category?: Category; admin: boolean; fx: boolean; mobile: boolean; selectMode: boolean; selected: boolean; onOpen: () => void; onLongPress: () => void; onFav: () => void }
+function ProductRow({ p, category, admin, fx, mobile, selectMode, selected, onOpen, onLongPress, onFav }: RowProps) {
   const t = useT()
+  const c2 = useSettings().currency2
+  // anchored products show their second-currency price under the primary one
+  const fxCaption = fx && isFxPriced(p) ? <div className="pr-fx" title={t('products.fxBadge', { cur: c2.symbol })}>{formatMoney(p.fxPrice!, c2)}</div> : null
   const timer = useRef<number | undefined>(undefined)
   const fired = useRef(false)
   const startPt = useRef<{ x: number; y: number } | null>(null)
@@ -397,6 +408,7 @@ function ProductRow({ p, category, admin, mobile, selectMode, selected, onOpen, 
         </div>
         <div className="end">
           <div className="bold"><Money value={p.price} /></div>
+          {fxCaption}
           <div className="xs"><StockBadge p={p} /></div>
         </div>
         {!selectMode && star}
@@ -412,8 +424,8 @@ function ProductRow({ p, category, admin, mobile, selectMode, selected, onOpen, 
       </div>
       <div className="truncate">{category ? <span className="chip pr-cat-chip"><span className="dot" style={{ background: category.color }} />{category.icon ? `${category.icon} ` : ''}{category.name}</span> : <span className="faint">—</span>}</div>
       <div className="num truncate">{p.barcodes[0] ?? <span className="faint">—</span>}{p.barcodes.length > 1 && <span className="xs faint"> +{p.barcodes.length - 1}</span>}</div>
-      <div className="end bold"><Money value={p.price} /></div>
-      {admin && <div className="end muted"><Money value={p.cost} /></div>}
+      <div className="end bold"><Money value={p.price} />{fxCaption}</div>
+      {admin && <div className="end muted"><Money value={p.cost} />{typeof p.fxCost === 'number' && fx && <div className="pr-fx">{formatMoney(p.fxCost, c2)}</div>}</div>}
       <div className="end"><StockBadge p={p} /></div>
       <div className="end">{!selectMode && star}</div>
     </div>

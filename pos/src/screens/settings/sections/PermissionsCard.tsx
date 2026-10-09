@@ -6,7 +6,7 @@ import { SwitchRow } from '../../../components/ui'
 import type { Permissions } from '../../../db/types'
 import { SectionCard, AutosaveHint } from '../shared'
 
-const KEYS: (keyof Permissions)[] = ['cashierDiscount', 'cashierPriceOverride', 'cashierRefund', 'cashierSeeCost', 'cashierEditProducts', 'cashierAdjustStock', 'cashierSeeHistory']
+const KEYS: (keyof Permissions)[] = ['cashierDiscount', 'cashierPriceOverride', 'cashierRefund', 'cashierSeeCost', 'cashierEditProducts', 'cashierAdjustStock', 'cashierSeeHistory', 'cashierChangeRate']
 
 export default function PermissionsCard() {
   const t = useT()

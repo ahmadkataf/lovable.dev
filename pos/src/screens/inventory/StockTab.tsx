@@ -13,6 +13,7 @@ import { formatDay, formatTime, toDateInput } from '../../lib/format'
 import { saveCsv } from '../../lib/csv'
 import { toast, useSettings, useUser, isAdmin } from '../../state/store'
 import { allowed } from '../../lib/audit'
+import { stockValueFx } from '../../lib/fx'
 import { filterProducts, productValue, stockCounts, stockValue, type StockFilter, type StockSort } from './logic'
 import { AmountPad, ProductAvatar, StockBadge, unitLabel } from './shared'
 import { MoveTypeBadge } from './MovesTab'
@@ -25,6 +26,8 @@ export function StockTab() {
   const canAdjust = allowed(user, settings, 'cashierAdjustStock')
   const c = settings.currency
   const d = c.decimals
+  const c2 = settings.currency2
+  const showFx = c2.enabled && c2.rate > 0
   const mobile = useIsMobile()
   const nav = useNavigate()
   const [q, setQ] = useState('')
@@ -42,14 +45,19 @@ export function StockTab() {
   const counts = stockCounts(products)
   const list = filterProducts(products, { q, filter, sort, decimals: d })
   const value = stockValue(products, d)
+  const valueFx = showFx ? stockValueFx(products, c2) : 0
+  /** Unit cost in the second currency: the product's own anchor, else today's conversion. */
+  const fxCostOf = (p: Product) => (typeof p.fxCost === 'number' ? p.fxCost : round(p.cost / c2.rate, c2.decimals))
 
   const exportCsv = async () => {
     const head = [t('common.name'), t('common.barcode'), 'SKU', t('common.category'), t('inventory.unit'), t('common.qty'), t('inventory.stock.lowAt'), t('common.price')]
     if (admin) head.push(t('common.cost'), t('inventory.stock.value'))
+    if (admin && showFx) head.push(`cost_${c2.code}`, `value_${c2.code}`)
     const rows: (string | number)[][] = [head]
     for (const p of list) {
       const r: (string | number)[] = [p.name, p.barcodes[0] ?? '', p.sku ?? '', catName(p.categoryId) ?? '', unitLabel(p.unit), p.trackStock ? formatQty(p.stock) : t('inventory.stock.untracked'), p.lowStock || '', p.price]
       if (admin) r.push(p.cost, productValue(p, d))
+      if (admin && showFx) r.push(fxCostOf(p), p.trackStock && p.stock > 0 ? round(p.stock * fxCostOf(p), c2.decimals) : 0)
       rows.push(r)
     }
     if (await saveCsv(`stock-${toDateInput(Date.now())}.csv`, rows)) toast(t('inventory.exported'), 'success')
@@ -73,7 +81,7 @@ export function StockTab() {
   return (
     <div className="col">
       <div className="stats inv-stats">
-        {admin && <button type="button" className="stat inv-stat" onClick={() => setFilter('all')}><div className="stat-label"><Coins size={14} /> {t('inventory.stock.value')}</div><div className="stat-value num">{formatMoney(value, c)}</div><div className="stat-sub">{t('inventory.stock.valueSub')}</div></button>}
+        {admin && <button type="button" className="stat inv-stat" onClick={() => setFilter('all')}><div className="stat-label"><Coins size={14} /> {t('inventory.stock.value')}</div><div className="stat-value num">{formatMoney(value, c)}</div><div className="stat-sub">{t('inventory.stock.valueSub')}{showFx && <>{' · ≈ '}<span className="num">{formatMoney(valueFx, c2)}</span></>}</div></button>}
         <button type="button" className={`stat inv-stat ${filter === 'low' ? 'on' : ''}`} onClick={() => setFilter(filter === 'low' ? 'all' : 'low')}><div className="stat-label"><AlertTriangle size={14} /> {t('inventory.stock.lowCount')}</div><div className={`stat-value num ${counts.low ? 'inv-warn' : ''}`}>{counts.low}</div>{counts.low > 0 && canAdjust && <div className="stat-sub"><span className="btn soft sm" role="link" onClick={e => { e.stopPropagation(); nav('/inventory/purchases/new?low=1') }}>{t('inventory.stock.reorder')}</span></div>}</button>
         <button type="button" className={`stat inv-stat ${filter === 'out' ? 'on' : ''}`} onClick={() => setFilter(filter === 'out' ? 'all' : 'out')}><div className="stat-label"><PackageX size={14} /> {t('inventory.stock.outCount')}</div><div className={`stat-value num ${counts.out ? 'inv-neg' : ''}`}>{counts.out}</div></button>
         {!mobile && <div className="stat"><div className="stat-label"><Boxes size={14} /> {t('inventory.stock.products')}</div><div className="stat-value num">{counts.all}</div></div>}
@@ -147,7 +155,9 @@ export function StockTab() {
 function ProductSheet({ p, admin, canAdjust, onClose, onAdjust, onCount }: { p: Product; admin: boolean; canAdjust: boolean; onClose: () => void; onAdjust: (dir: 1 | -1) => void; onCount: () => void }) {
   const t = useT()
   const nav = useNavigate()
-  const c = useSettings().currency
+  const settings = useSettings()
+  const c = settings.currency
+  const c2 = settings.currency2
   const moves = useLiveQuery(async () => (await db.stockMoves.where('productId').equals(p.id).sortBy('createdAt')).slice(-5).reverse(), [p.id], [])
   const toggleTrack = async (on: boolean) => {
     await db.products.update(p.id, { trackStock: on, updatedAt: Date.now() })
@@ -164,7 +174,7 @@ function ProductSheet({ p, admin, canAdjust, onClose, onAdjust, onCount }: { p: 
         <div className="stats inv-stats-2">
           <div className="stat"><div className="stat-label">{t('inventory.stock.current')}</div><div className="stat-value num">{p.trackStock ? formatQty(p.stock) : '—'}</div></div>
           <div className="stat"><div className="stat-label">{t('inventory.stock.lowAt')}</div><div className="stat-value num">{p.lowStock > 0 ? formatQty(p.lowStock) : '—'}</div></div>
-          {admin && <div className="stat"><div className="stat-label">{t('common.cost')}</div><div className="stat-value num">{formatMoney(p.cost, c)}</div></div>}
+          {admin && <div className="stat"><div className="stat-label">{t('common.cost')}</div><div className="stat-value num">{formatMoney(p.cost, c)}</div>{c2.enabled && typeof p.fxCost === 'number' && <div className="stat-sub num">{formatMoney(p.fxCost, c2)}</div>}</div>}
           {admin && <div className="stat"><div className="stat-label">{t('inventory.stock.value')}</div><div className="stat-value num">{formatMoney(productValue(p, c.decimals), c)}</div></div>}
         </div>
         <SwitchRow label={t('inventory.stock.trackSwitch')} desc={t('inventory.stock.trackDesc')} on={p.trackStock} onChange={v => void toggleTrack(v)} disabled={!canAdjust} />

@@ -3,8 +3,10 @@ import { parseNumber } from '../../lib/money'
 import { cleanBarcode } from '../../lib/barcode'
 import { UNIT_KEYS } from './product-utils'
 
-export type ImportField = 'name' | 'barcode' | 'price' | 'cost' | 'stock' | 'category' | 'unit' | 'sku' | 'lowStock' | 'notes'
-export const IMPORT_FIELDS: ImportField[] = ['name', 'barcode', 'price', 'cost', 'stock', 'category', 'unit', 'sku', 'lowStock', 'notes']
+export type ImportField = 'name' | 'barcode' | 'price' | 'cost' | 'stock' | 'category' | 'unit' | 'sku' | 'lowStock' | 'notes' | 'fxPrice' | 'fxCost'
+export const IMPORT_FIELDS: ImportField[] = ['name', 'barcode', 'price', 'cost', 'stock', 'category', 'unit', 'sku', 'lowStock', 'notes', 'fxPrice', 'fxCost']
+/** The fields that only make sense while products may be priced in the second currency. */
+export const FX_IMPORT_FIELDS: ImportField[] = ['fxPrice', 'fxCost']
 /** Column index per field; a missing field is not imported. */
 export type Mapping = Partial<Record<ImportField, number>>
 
@@ -20,6 +22,10 @@ export interface ImportRow {
   stock?: number
   lowStock?: number
   notes?: string
+  /** Selling price in the second currency: the row anchors the product (its primary price is derived at the current rate). */
+  fxPrice?: number
+  /** Cost in the second currency. */
+  fxCost?: number
 }
 
 const SYNONYMS: Record<ImportField, string[]> = {
@@ -33,6 +39,13 @@ const SYNONYMS: Record<ImportField, string[]> = {
   sku: ['sku', 'ref', 'reference', 'item code', 'product code', 'internal code', 'الرمز', 'رمز', 'رمز المنتج', 'كود', 'الكود', 'رقم الصنف'],
   lowStock: ['low stock', 'lowstock', 'min', 'minimum', 'min stock', 'reorder', 'reorder level', 'alert', 'حد التنبيه', 'الحد الأدنى', 'حد ادنى', 'تنبيه', 'حد الطلب'],
   notes: ['notes', 'note', 'description', 'desc', 'comment', 'ملاحظات', 'ملاحظة', 'الوصف', 'وصف', 'تعليق'],
+  fxPrice: ['price usd', 'usd', 'usd price', 'price $', '$', 'dollar', 'السعر بالدولار', 'سعر الدولار', 'بالدولار', 'دولار'],
+  fxCost: ['cost usd', 'تكلفة بالدولار', 'التكلفة بالدولار'],
+}
+/** `price_EUR` / `السعر بـEUR` style headers for a second currency that is not the dollar. */
+const FX_CODE: Record<'fxPrice' | 'fxCost', RegExp> = {
+  fxPrice: /^(price|السعر|سعر) ?(بـ|ب)?[a-z]{3}$/,
+  fxCost: /^(cost|التكلفة|تكلفة) ?(بـ|ب)?[a-z]{3}$/,
 }
 
 function normHeader(h: string): string {
@@ -52,7 +65,7 @@ export function autoMap(headers: string[]): Mapping {
       for (let i = 0; i < parts.length; i++) {
         if (used.has(i)) continue
         const hit = pass === 'exact'
-          ? parts[i].some(p => syns.includes(p))
+          ? parts[i].some(p => syns.includes(p) || ((field === 'fxPrice' || field === 'fxCost') && FX_CODE[field].test(p)))
           : parts[i].some(p => syns.some(s => s.length >= 3 && (p.includes(s) || s.includes(p)) && p.length >= 3))
         if (hit) { m[field] = i; used.add(i); break }
       }
@@ -124,6 +137,8 @@ export function parseImportRow(row: string[], mapping: Mapping, line: number): I
   const cost = parseAmount(cell('cost')); if (cost !== undefined) out.cost = cost
   const stock = parseAmount(cell('stock')); if (stock !== undefined) out.stock = stock
   const low = parseAmount(cell('lowStock')); if (low !== undefined) out.lowStock = low
+  const fxPrice = parseAmount(cell('fxPrice')); if (fxPrice !== undefined) out.fxPrice = fxPrice
+  const fxCost = parseAmount(cell('fxCost')); if (fxCost !== undefined) out.fxCost = fxCost
   return out
 }
 

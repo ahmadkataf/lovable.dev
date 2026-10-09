@@ -237,3 +237,29 @@ describe('helpers', () => {
     expect(saleMethods(sale({ id: 'z', createdAt: 1, items: [], payments: [] }))).toEqual(['cash'])
   })
 })
+
+describe('the $ view through toFxRows', () => {
+  it('values each row at its own rate, a full refund nets to 0, and unrated rows are estimated', async () => {
+    const { toFxRows, rateAt } = await import('./fx')
+    const s1 = sale({ id: 'x1', createdAt: DAY1, rate: 10000, rateCode: 'USD', items: [item({ productId: 'p1', name: 'Cola', qty: 1, price: 130000, cost: 100000 })] })
+    const s2 = sale({ id: 'x2', createdAt: DAY2, items: [item({ productId: 'p1', name: 'Cola', qty: 1, price: 26000, cost: 13000 })] })   // pre-feature, no rate
+    const full: Refund = { id: 'r1', saleId: 'x1', saleNumber: 1, createdAt: DAY3, items: [{ productId: 'p1', name: 'Cola', qty: 1, price: 130000, total: 130000 }], total: 130000, method: 'cash', restock: true, userId: 'u1', userName: 'Sami', rate: 10000 }
+    const orphan: Refund = { ...full, id: 'r2', saleId: 'x2', rate: undefined, total: 26000, items: [{ ...full.items[0], price: 26000, total: 26000 }] }
+    const history = [{ at: DAY2, rate: 13000, prev: 12000, repriced: 0, source: 'dialog' as const }, { at: DAY1 - 1, rate: 12000, prev: 0, repriced: 0, source: 'settings' as const }]
+    const { rows, estimated } = toFxRows({ sales: [s1, s2], refunds: [full, orphan], expenses: [{ id: 'e', amount: 65000, category: 'rent', createdAt: DAY2, userId: 'u1' }], extra: [] },
+      { rateAt: ms => rateAt(history, ms), current: 15000, decimals: 2 })
+    expect(rows.sales[0]).toMatchObject({ total: 13, cost: 10, subtotal: 13 })
+    expect(rows.sales[0].items[0]).toMatchObject({ price: 13, total: 13, cost: 10 })
+    expect(rows.sales[1].total).toBe(2)            // DAY2 history rate 13,000
+    expect(rows.refunds[0].total).toBe(13)         // the sale's rate, not today's
+    expect(rows.refunds[1].total).toBe(2)          // falls back to the history rate of its day
+    expect(rows.expenses[0].amount).toBe(5)
+    expect(estimated).toBe(3)                      // s2, the orphan refund, the expense
+    const sum = summarize(rows.sales, rows.refunds, rows.expenses, { decimals: 2 })
+    expect(sum.gross).toBe(15); expect(sum.refunds).toBe(15); expect(sum.net).toBe(0)
+    expect(sum.profit).toBe(0)                     // both sales fully refunded: the margin comes back too
+    expect(sum.netProfit).toBe(-5)
+    // the lira rows are untouched
+    expect(s1.total).toBe(130000)
+  })
+})

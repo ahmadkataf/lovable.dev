@@ -100,3 +100,49 @@ describe('receiptHtml', () => {
     expect(receiptDoc(sale, { ...settings, receipt: { ...settings.receipt, showBarcode: false } }).barcode).toBeUndefined()
   })
 })
+
+describe('receipt and the exchange rate', () => {
+  const fxSettings: Settings = { ...settings, currency2: { ...settings.currency2, enabled: true, rate: 13000, showOnReceipt: true } }
+  const fxSale: Sale = {
+    ...sale, rate: 13000, rateCode: 'USD', discount: 0, discountPct: undefined, subtotal: 130000, total: 130000, cost: 100000,
+    payments: [{ method: 'cash', amount: 130000 }], paid: 130000, change: 0, credit: 0,
+    items: [
+      { productId: 'p1', name: 'زيت', unit: 'piece', qty: 1, price: 130000, originalPrice: 130000, cost: 100000, discount: 0, taxRate: 0, tax: 0, total: 130000, fxPrice: 10, fxCost: 7.69 },
+    ],
+  }
+  it('prints the $ list price next to the lira price, the ≈ total and the rate line exactly once', () => {
+    const doc = receiptDoc(fxSale, fxSettings)
+    expect(doc.items[0].detail).toBe('1 × 130,000 ل.س ($10.00)')         // shown even for qty 1
+    expect(doc.totals.map(l => l.label)).toContain('≈ بالـ$')
+    expect(doc.totals.find(l => l.label === '≈ بالـ$')).toMatchObject({ value: '$10.00', small: true })
+    expect(doc.payments.filter(l => l.label === 'سعر الصرف')).toHaveLength(1)
+    expect(doc.payments.find(l => l.label === 'سعر الصرف')!.value).toBe('1 $ = 13,000 ل.س')
+    const txt = receiptText(fxSale, fxSettings)
+    expect(txt).toContain('($10.00)'); expect(txt).toContain('$10.00'); expect(txt).toContain('1 $ = 13,000 ل.س')
+    expect(receiptHtml(fxSale, fxSettings)).toContain('≈ بالـ$')
+  })
+  it('does not print the rate twice when the cash came in dollars (that block already has it)', () => {
+    const withFx: Sale = { ...fxSale, fx: { code: 'USD', symbol: '$', symbolAfter: false, decimals: 2, rate: 13000, received: 10, receivedPrimary: 130000 } }
+    const doc = receiptDoc(withFx, fxSettings)
+    expect(doc.payments.filter(l => l.label === 'سعر الصرف')).toHaveLength(1)
+    expect(doc.payments.some(l => l.label === 'المستلم بـ$')).toBe(true)
+  })
+  it('prints nothing of it when the sale has no rate, the setting is off, or the line was overridden', () => {
+    expect(receiptDoc({ ...fxSale, rate: undefined, rateCode: undefined }, fxSettings).totals.some(l => l.label.startsWith('≈'))).toBe(false)
+    const off = receiptDoc(fxSale, { ...fxSettings, currency2: { ...fxSettings.currency2, showOnReceipt: false } })
+    expect(off.totals.some(l => l.label.startsWith('≈'))).toBe(false)
+    expect(off.payments.some(l => l.label === 'سعر الصرف')).toBe(false)
+    expect(off.items[0].detail).toBeUndefined()
+    const over = receiptDoc({ ...fxSale, items: [{ ...fxSale.items[0], price: 120000, total: 120000 }] }, fxSettings)
+    expect(over.items[0].detail).toBe('1 × 120,000 ل.س')
+    expect(over.items[0].original).toBe('130,000 ل.س')
+  })
+  it('uses the catalog when the sale was in another code, and prints the sale rate on a refund receipt', () => {
+    const eur = receiptDoc({ ...fxSale, rateCode: 'EUR' }, fxSettings)
+    expect(eur.totals.find(l => l.label.startsWith('≈'))!.value).toBe('€10.00')
+    const doc = receiptDoc(fxSale, fxSettings, { refund: { ...refund, rate: 13000, rateCode: 'USD' } })
+    expect(doc.payments.find(l => l.label === 'سعر الصرف')!.value).toBe('1 $ = 13,000 ل.س')
+    expect(doc.totals.some(l => l.label.startsWith('≈'))).toBe(false)
+    expect(receiptDoc(sale, settings, { refund }).payments.some(l => l.label === 'سعر الصرف')).toBe(false)
+  })
+})

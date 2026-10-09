@@ -2,7 +2,7 @@
 // low stock, expenses by category and the peak-hours heat table. Each card exports its rows as CSV.
 import { useState, type ReactNode } from 'react'
 import { Download, Trophy, Layers, UserRound, Users, HandCoins, CreditCard, TriangleAlert, Wallet, Flame, ChevronDown, ChevronUp } from 'lucide-react'
-import type { Customer, PaymentMethod, Product } from '../../db/types'
+import type { Customer, CurrencySettings, PaymentMethod, Product } from '../../db/types'
 import { t, useT } from '../../i18n'
 import { Badge, Button, Seg, colorFor } from '../../components/ui'
 import { formatMoney, formatQty } from '../../lib/money'
@@ -154,10 +154,19 @@ function HeatTable({ matrix, metric, money }: { matrix: number[][]; metric: 'cou
 
 /* ---------- the cards ---------- */
 
-export function ReportSections({ report, range, debtors, lowStock }: { report: Report; range: Range; debtors: Customer[]; lowStock: Product[] }) {
+export function ReportSections({ report, range, debtors, lowStock, currency, stockValue }: {
+  report: Report; range: Range; debtors: Customer[]; lowStock: Product[]
+  /** The currency every figure of `report` is in (the second one in the $ view). */
+  currency?: CurrencySettings
+  /** What the stock is worth at cost (admin): in the primary currency, and ≈ in the second one when products are priced in it. */
+  stockValue?: { primary: string; fx?: string }
+}) {
   const tt = useT()
-  const c = useSettings().currency
+  const settings = useSettings()
+  const c = currency ?? settings.currency
   const money = (n: number) => formatMoney(n, c)
+  // debts stay in the primary currency whatever the view
+  const debt = (n: number) => formatMoney(n, settings.currency)
   const [metric, setMetric] = useState<'count' | 'total'>('count')
   const suffix = `${toDateInput(range.from)}-${toDateInput(range.to)}`
   const hasSales = report.cur.sales.length > 0
@@ -270,13 +279,14 @@ export function ReportSections({ report, range, debtors, lowStock }: { report: R
             {debtors.map(cu => (
               <div key={cu.id} className="list-row">
                 <span className="grow truncate"><span className="title truncate">{cu.name}</span>{cu.phone && <span className="sub num">{cu.phone}</span>}</span>
-                <span className="end"><span className="num rp-neg">{money(cu.balance)}</span></span>
+                <span className="end"><span className="num rp-neg">{debt(cu.balance)}</span></span>
               </div>
             ))}
           </div>
         )}
       </Section>
       <Section title={tt('reports.lowStock')} icon={<TriangleAlert size={18} />} onExport={lowStock.length ? exportLowStock : undefined}>
+        {stockValue && <p className="xs faint rp-stock-value">{tt('reports.stockValue', { v: stockValue.primary })}{stockValue.fx ? <>{' ≈ '}<span className="num">{stockValue.fx}</span></> : null}</p>}
         {lowStock.length === 0 ? <NoData text={tt('reports.lowStockOk')} /> : (
           <div className="list">
             {lowStock.slice(0, 30).map(p => (

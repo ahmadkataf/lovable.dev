@@ -61,6 +61,14 @@
 .inv-amount-btn { text-align: start; font-weight: 700; font-size: 18px; cursor: pointer; }
 .inv-amount-btn:hover { border-color: var(--primary); }
 
+/* second-currency figures: the invoice's own currency over its primary equivalent */
+.inv-dual { display: inline-flex; flex-direction: column; align-items: flex-end; gap: 1px; line-height: 1.2; }
+.inv-fx-sub { font-weight: 500; }
+.inv-fx-row { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 10px; align-items: start; }
+.inv-fx-row .seg { min-height: 44px; }
+.inv-rate { font-weight: 700; }
+@media (max-width: 599px) { .inv-fx-row { grid-template-columns: 1fr; } }
+
 /* purchase form */
 .inv-form-grid { display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 16px; align-items: start; }
 .inv-form-side { position: sticky; top: 8px; }

@@ -30,6 +30,8 @@ export interface CartPanelProps {
   onClear: () => void
   onCharge: () => void
   showKbd: boolean
+  /** F6 opens the exchange-rate dialog (products priced in the second currency). */
+  rateKbd?: boolean
   inSheet?: boolean
   noShift?: boolean
   onOpenShift?: () => void
@@ -134,7 +136,7 @@ export function CartPanel(p: CartPanelProps) {
           <span className="lbl"><Banknote size={22} /> {t('sales.charge')} {p.showKbd && <span className="kbd">F2</span>}</span>
           <span className="amt num">{formatMoney(totals.total, c)}</span>
         </Button>
-        {p.showKbd && !p.inSheet && <div className="cart-kbd-hint">{t('sales.kbdHint')}</div>}
+        {p.showKbd && !p.inSheet && <div className="cart-kbd-hint">{t('sales.kbdHint')}{p.rateKbd ? ` · ${t('sales.kbdRate')}` : ''}</div>}
       </div>
     </aside>
   )
@@ -152,6 +154,7 @@ function Line({ l, settings, flash, onEdit, onQty, onFraction }: { l: CartLine; 
         <div className="cl-name">{l.name}</div>
         <div className="cl-sub">
           <span className="num">{formatMoney(l.price, c)}{unit ? ` / ${unit}` : ''}</span>
+          {!overridden && typeof l.fxPrice === 'number' && settings.currency2.enabled && settings.currency2.pricing && <span className="num muted">({formatMoney(l.fxPrice, settings.currency2)})</span>}
           {l.unitsPerQty && l.unitsPerQty !== 1 ? <span className="num muted">= {formatQty(lineUnits(l))} {t('sales.baseUnits')}</span> : null}
           {overridden && <span className="strike num">{formatMoney(l.originalPrice, c)}</span>}
           {l.discount > 0 && <span className="disc num">-{formatMoney(l.discount, c)}</span>}

@@ -1,12 +1,16 @@
 import { useEffect, useState, type ReactNode } from 'react'
 import { NavLink, useLocation, useNavigate } from 'react-router-dom'
-import { ShoppingCart, Package, Users, Warehouse, Receipt, BarChart3, Clock, Wallet, Settings, MoreHorizontal, Lock, PanelRightClose, PanelRightOpen, KeyRound, X, HelpCircle } from 'lucide-react'
+import { ShoppingCart, Package, Users, Warehouse, Receipt, BarChart3, Clock, Wallet, Settings, MoreHorizontal, Lock, PanelRightClose, PanelRightOpen, KeyRound, X, HelpCircle, ArrowLeftRight } from 'lucide-react'
+import { db } from '../db'
+import { hasFxAnchor } from '../db/types'
 import { useStore } from '../state/store'
 import { useT } from '../i18n'
 import { Avatar, Badge, Button } from './ui'
-import { daysBetween } from '../lib/format'
+import { daysBetween, toDateInput } from '../lib/format'
 import { platform } from '../lib/platform'
 import { allowed } from '../lib/audit'
+import { rateAge, FX_PROMPTED_KEY } from '../lib/fx'
+import { RateChip, RateDialog, canChangeRate, ratePricingOn, useRateAge } from './RateDialog'
 import icon from '/icon.svg'
 
 const NAV = [
@@ -33,6 +37,7 @@ export function Shell({ children }: { children: ReactNode }) {
   const mini = useStore(s => s.sidebarMini)
   const setMini = useStore(s => s.setSidebarMini)
   const [more, setMore] = useState(false)
+  const [rateDialog, setRateDialog] = useState<'open' | 'prompt' | null>(null)
   const loc = useLocation()
   const nav = useNavigate()
   const items = NAV.filter(n => (!n.admin || user?.role === 'admin') && (n.to !== '/history' || allowed(user, settings, 'cashierSeeHistory')))
@@ -57,6 +62,29 @@ export function Shell({ children }: { children: ReactNode }) {
     evs.forEach(e => window.addEventListener(e, bump, { passive: true }))
     return () => { clearTimeout(timer); evs.forEach(e => window.removeEventListener(e, bump)) }
   }, [settings.pos.lockAfterMinutes, settings.pos.requirePin, logout])
+
+  // the daily rate: the chip, the stale banner and the morning prompt (only while products are priced in currency2)
+  const c2 = settings.currency2
+  const pricingOn = ratePricingOn(c2)
+  const canRate = allowed(user, settings, 'cashierChangeRate')
+  const age = useRateAge(c2)
+  const openRate = () => { if (canChangeRate()) setRateDialog('open') }
+  useEffect(() => {
+    if (!user || !settings.onboarded || !pricingOn || !c2.askOnOpen || !canRate || rateAge(c2).updatedToday) return
+    let alive = true
+    void (async () => {
+      try {
+        const today = toDateInput(Date.now())
+        const marker = await db.kv.get(FX_PROMPTED_KEY)
+        if (marker?.value === today) return
+        const anchored = await db.products.filter(p => hasFxAnchor(p)).count()
+        if (alive && anchored > 0) setRateDialog(cur => cur ?? 'prompt')
+      } catch { /* the prompt is a convenience */ }
+    })()
+    return () => { alive = false }
+    // once per login / when the feature is switched on, not on every settings change
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id, settings.onboarded, pricingOn, c2.askOnOpen, canRate])
 
   const trialDays = license.state === 'trial' && license.expiresAt ? Math.max(0, daysBetween(Date.now(), license.expiresAt)) : null
   const offlineDays = license.state === 'active' && license.graceUntil && !license.online ? Math.max(0, daysBetween(Date.now(), license.graceUntil)) : null
@@ -90,10 +118,18 @@ export function Shell({ children }: { children: ReactNode }) {
           {license.state === 'demo' && <Badge kind="info">DEMO</Badge>}
           {trialDays !== null && <Badge kind="warn">{trialDays === 0 ? t('license.trialLastDay') : t('license.trialBanner', { n: trialDays })}</Badge>}
           {shift ? <Badge kind="primary"><Clock size={12} /> {t('nav.shifts')}</Badge> : null}
+          {pricingOn && <RateChip onClick={openRate} />}
           {platform.isDesktop && <span className="kbd">F1</span>}
         </header>
         {offlineDays !== null && (
           <div className="banner warn">{t('license.offlineBanner', { n: offlineDays })}<Button size="sm" variant="soft" onClick={() => nav('/activation')}>{t('license.activate')}</Button></div>
+        )}
+        {pricingOn && age.stale && (
+          <div className="banner warn rate-stale">
+            <ArrowLeftRight size={16} />
+            <span className="grow">{Number.isFinite(age.days) ? t('fx.stale', { n: age.days }) : `${t('fx.title')}: ${t('fx.never')}`}</span>
+            {canRate ? <Button size="sm" variant="soft" onClick={openRate}>{t('fx.update')}</Button> : <span className="small">{t('fx.tellAdmin')}</span>}
+          </div>
         )}
         <main className={`content ${isSales ? 'fixed' : ''}`}>{children}</main>
       </div>
@@ -115,6 +151,7 @@ export function Shell({ children }: { children: ReactNode }) {
                 <div className="grow"><div className="bold">{user?.name}</div><div className="small faint">{t(user?.role === 'admin' ? 'common.admin' : 'common.cashier')}</div></div>
                 <Button size="sm" icon={<Lock size={16} />} onClick={logout}>{t('lock.logout')}</Button>
               </div>
+              {pricingOn && <div className="row" style={{ marginBottom: 12 }}><RateChip className="grow" onClick={() => { setMore(false); openRate() }} /></div>}
               <div className="list card flat">
                 {items.filter(n => !MOBILE_MAIN.includes(n.to)).map(n => (
                   <NavLink key={n.to} to={n.to} className="list-row"><n.icon size={20} /><span className="title">{t(n.key)}</span></NavLink>
@@ -125,6 +162,7 @@ export function Shell({ children }: { children: ReactNode }) {
           </div>
         </div>
       )}
+      {rateDialog && <RateDialog prompt={rateDialog === 'prompt'} onClose={() => setRateDialog(null)} />}
     </div>
   )
 }

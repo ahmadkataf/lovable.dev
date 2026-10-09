@@ -43,3 +43,37 @@ describe('second currency', () => {
     expect(q).toEqual([1.08, 2, 5, 10])
   })
 })
+
+describe('roundToStep', () => {
+  it('rounds selling prices to the step, nearest or up', async () => {
+    const { roundToStep } = await import('./money')
+    expect(roundToStep(129870, 100, 'nearest', 0)).toBe(129900)
+    expect(roundToStep(16250, 100, 'nearest', 0)).toBe(16300)
+    expect(roundToStep(129870, 500, 'up', 0)).toBe(130000)
+    expect(roundToStep(129870, 0, 'nearest', 0)).toBe(129870)       // no step: plain rounding
+    expect(roundToStep(1234.56, 0, 'nearest', 2)).toBe(1234.56)
+    expect(roundToStep(1234, 10, 'nearest', 0)).toBe(1230)
+    expect(roundToStep(1235, 10, 'nearest', 0)).toBe(1240)
+    expect(roundToStep(1231, 10, 'up', 0)).toBe(1240)
+    expect(roundToStep(1230, 10, 'up', 0)).toBe(1230)               // already on the step: 'up' does not move it
+  })
+  it('shrinks the step for small prices so nothing moves by more than a quarter and never becomes 0', async () => {
+    const { roundToStep } = await import('./money')
+    expect(roundToStep(650, 500, 'nearest', 0)).toBe(650)            // step 500 → 10 for a 650 price
+    expect(roundToStep(650, 500, 'up', 0)).toBe(650)
+    expect(roundToStep(12, 100, 'nearest', 0)).toBe(12)
+    expect(roundToStep(3, 100, 'nearest', 0)).toBe(3)
+    expect(roundToStep(0.4, 100, 'nearest', 0)).toBe(0)              // below one unit of the currency: plain rounding
+    expect(roundToStep(0.4, 100, 'nearest', 2)).toBe(0.4)
+    expect(roundToStep(1.237, 1, 'nearest', 2)).toBe(1.2)            // step 1 on a 1.24 price shrinks to 0.1
+    expect(roundToStep(0.237, 1, 'nearest', 2)).toBe(0.24)           // and on to 0.01
+    for (const n of [1, 7, 49, 51, 99, 101, 149, 151, 249, 251, 499, 501, 999, 1001]) {
+      const r = roundToStep(n, 100, 'nearest', 0)
+      expect(r, String(n)).toBeGreaterThan(0)
+      expect(Math.abs(r - n) / n, String(n)).toBeLessThanOrEqual(0.26)
+    }
+    expect(roundToStep(0, 100, 'nearest', 0)).toBe(0)
+    expect(roundToStep(-5, 100, 'nearest', 0)).toBe(0)
+    expect(roundToStep(NaN, 100, 'nearest', 0)).toBe(0)
+  })
+})
