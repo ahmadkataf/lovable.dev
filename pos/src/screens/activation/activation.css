@@ -52,3 +52,5 @@
 .act-or { display: flex; align-items: center; gap: 10px; color: var(--text-3); font-size: 12px; }
 .act-or::before, .act-or::after { content: ''; flex: 1; height: 1px; background: var(--line); }
 .act-foot { display: flex; justify-content: center; flex-wrap: wrap; gap: 4px 10px; font-size: 11px; color: var(--text-3); padding-top: 4px; border-top: 1px solid var(--line); }
+.act-terms-row { display: flex; justify-content: flex-start; margin-top: -4px; }
+.act-terms-row .btn { color: var(--text-3); }

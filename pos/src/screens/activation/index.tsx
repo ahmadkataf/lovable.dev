@@ -3,13 +3,13 @@
 import './i18n'
 import './activation.css'
 import { useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react'
-import { Copy, KeyRound, CheckCircle2, Clock, AlertTriangle, WifiOff, ShieldAlert, Ban, RefreshCw, MessageCircle, ArrowLeftRight, Sparkles, Hourglass, MonitorSmartphone } from 'lucide-react'
+import { Copy, KeyRound, CheckCircle2, Clock, AlertTriangle, WifiOff, ShieldAlert, Ban, RefreshCw, MessageCircle, ArrowLeftRight, Sparkles, Hourglass, MonitorSmartphone, ScrollText } from 'lucide-react'
 import icon from '/icon.svg'
 import { useT } from '../../i18n'
 import { toast, confirmDialog, useStore, useUser, isAdmin } from '../../state/store'
 import { platform } from '../../lib/platform'
 import { formatDate, formatDateTime, daysBetween } from '../../lib/format'
-import { Button, Input, useIsMobile } from '../../components/ui'
+import { Button, Input, Modal, useIsMobile } from '../../components/ui'
 import { license } from '../../license'
 import { PolicyBanner } from '../../components/PolicyBanner'
 import { DEFAULT_INFO, type LicenseStatus } from '../../license/types'
@@ -52,6 +52,7 @@ export default function ActivationScreen({ embedded }: { embedded?: boolean }) {
   const user = useUser()
   const mobile = useIsMobile()
   const online = useOnline()
+  const [terms, setTerms] = useState(false)
   const [code, setCode] = useState('')
   const [busy, setBusy] = useState<Busy>(null)
   const [showError, setShowError] = useState(false)
@@ -147,7 +148,14 @@ export default function ActivationScreen({ embedded }: { embedded?: boolean }) {
 
       {!demo && (!online || !lic.online) && <div className="banner warn act-offline"><WifiOff size={16} /> {t(online ? 'license.err.network' : 'activation.offline')}</div>}
 
-      {!demo && <PolicyBanner terms />}
+      {!demo && (
+        <div className="act-terms-row">
+          <Button variant="ghost" size="sm" icon={<ScrollText size={14} />} onClick={() => setTerms(true)}>{t('activation.terms')}</Button>
+        </div>
+      )}
+      <Modal open={terms} onClose={() => setTerms(false)} title={t('activation.terms')} size="narrow" footer={<Button variant="primary" onClick={() => setTerms(false)}>{t('common.ok')}</Button>}>
+        <PolicyBanner terms />
+      </Modal>
 
       {showForm && (
         <form className="act-form" onSubmit={e => void activate(e)}>
