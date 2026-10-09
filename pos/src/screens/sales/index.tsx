@@ -6,13 +6,13 @@ import { useLiveQuery } from 'dexie-react-hooks'
 import { ShoppingCart } from 'lucide-react'
 import { db } from '../../db'
 import type { Customer, HeldTicket, Product, Sale } from '../../db/types'
-import { type Cart, type CartLine, computeTotals, lineKey } from '../../lib/cart'
+import { type Cart, type CartLine, computeTotals, lineKey, lineFromProduct } from '../../lib/cart'
 import { useStore, toast, confirmDialog } from '../../state/store'
 import { useT } from '../../i18n'
 import { beep } from '../../lib/audio'
 import { uid } from '../../lib/ids'
 import { formatMoney, formatQty } from '../../lib/money'
-import { cleanBarcode } from '../../lib/barcode'
+import { cleanBarcode, parseScaleBarcode, matchesPlu } from '../../lib/barcode'
 import { useBarcodeWedge } from '../../lib/scanner-input'
 import { platform } from '../../lib/platform'
 import { completeSale, balanceAfterSale, saleErrorText, type PaymentPlan } from '../../lib/sales'
@@ -123,22 +123,42 @@ export default function SalesScreen() {
     return true
   }, [addProduct, flashLine, settings.pos.allowNegativeStock, t])
 
+  /** A barcode printed by a label scale: the PLU names the product, the digits carry the weight or the price. */
+  const handleScaleCode = useCallback((code: string): boolean => {
+    const sc = settings.pos.scale
+    if (!sc.enabled) return false
+    const scan = parseScaleBarcode(code, sc)
+    if (!scan) return false
+    const p = activeProducts.find(x => matchesPlu(x.barcodes, scan.plu))
+    if (!p) return false
+    if (scan.kind === 'weight') { addToCart(p, scan.value, 'scan'); return true }
+    // a priced label: one line whose total is the printed price
+    const qty = p.price > 0 ? Math.max(0.001, Math.round((scan.value / p.price) * 1000) / 1000) : 1
+    const line = lineFromProduct(p, qty, settings.tax.rate)
+    line.price = qty > 0 ? Math.round((scan.value / qty) * 10 ** d) / 10 ** d : scan.value
+    line.note = t('sales.scaleLabel', { amount: formatMoney(scan.value, settings.currency) })
+    addLine(line); beep('scan')
+    return true
+  }, [activeProducts, addToCart, addLine, settings.pos.scale, settings.tax.rate, settings.currency, d, t])
+
   /** A code from the hardware scanner or the camera. Returns whether it was known. */
   const handleCode = useCallback((raw: string): boolean => {
     const code = cleanBarcode(raw)
     if (!code) return false
     const p = findByBarcode(activeProducts, code)
     if (p) { addToCart(p, 1, 'scan'); return true }
+    if (handleScaleCode(code)) return true
     beep('error')
     toast(t('sales.unknownBarcode'), 'warn')
     openDialog({ kind: 'quickAdd', barcode: code })
     return false
-  }, [activeProducts, addToCart, openDialog, t])
+  }, [activeProducts, addToCart, handleScaleCode, openDialog, t])
 
   useBarcodeWedge(code => { if (!dialog) handleCode(code) }, { enabled: !dialog })
 
   const onSearchEnter = (text: string) => {
     const a = resolveEntry(text, activeProducts)
+    if (a.kind === 'quickAdd' && a.barcode && handleScaleCode(a.barcode)) { setSearch(''); return }
     if (a.kind === 'product') {
       if (addToCart(a.product, 1, a.scanned ? 'scan' : 'tap')) setSearch('')
     } else if (a.kind === 'quickAdd') {

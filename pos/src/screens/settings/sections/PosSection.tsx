@@ -1,10 +1,10 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useLiveQuery } from 'dexie-react-hooks'
-import { Banknote, Boxes, Bell, LayoutGrid, Lock, Plus, X } from 'lucide-react'
+import { Banknote, Boxes, Bell, LayoutGrid, Lock, Plus, X, Scale } from 'lucide-react'
 import { useStore, toast } from '../../../state/store'
 import { useT } from '../../../i18n'
-import { Button, Field, NumberInput, Seg, SwitchRow } from '../../../components/ui'
+import { Button, Field, NumberInput, Seg, SwitchRow, Input } from '../../../components/ui'
 import { db } from '../../../db'
 import type { PaymentMethod, Settings } from '../../../db/types'
 import { formatMoney } from '../../../lib/money'
@@ -88,6 +88,28 @@ export default function PosSection() {
               options={LOCK_OPTIONS.map(m => ({ value: String(m), label: t(`settings.pos.lock.${m}`) }))} />
           </div>
         </Field>
+      </SectionCard>
+
+      <SectionCard title={t('settings.scale.title')} icon={<Scale size={16} />}>
+        <p className="small muted">{t('settings.scale.desc')}</p>
+        <SwitchRow label={t('settings.scale.enable')} on={pos.scale.enabled} onChange={v => set({ scale: { ...pos.scale, enabled: v } })} />
+        {pos.scale.enabled && (
+          <div className="form-grid">
+            <Field label={t('settings.scale.prefix')} hint={t('settings.scale.prefixHint')}>
+              <Input ltr inputMode="numeric" value={pos.scale.prefix} maxLength={2} onChange={e => { const v = e.target.value.replace(/\D/g, '').slice(0, 2); if (v) set({ scale: { ...pos.scale, prefix: v } }) }} />
+            </Field>
+            <Field label={t('settings.scale.plu')} hint={t('settings.scale.pluHint')}>
+              <Seg<'4' | '5'> block value={String(pos.scale.pluDigits) as '4' | '5'} onChange={v => set({ scale: { ...pos.scale, pluDigits: Number(v) as 4 | 5 } })} options={[{ value: '4', label: <span className="num">4</span> }, { value: '5', label: <span className="num">5</span> }]} />
+            </Field>
+            <Field label={t('settings.scale.value')}>
+              <Seg<'weight' | 'price'> block value={pos.scale.value} onChange={v => set({ scale: { ...pos.scale, value: v, valueDecimals: v === 'weight' ? 3 : 0 } })} options={[{ value: 'weight', label: t('settings.scale.weight') }, { value: 'price', label: t('settings.scale.price') }]} />
+            </Field>
+            <Field label={t('settings.scale.decimals')} hint={pos.scale.value === 'weight' ? t('settings.scale.decimalsWeight') : t('settings.scale.decimalsPrice')}>
+              <Seg<'0' | '1' | '2' | '3'> block value={String(pos.scale.valueDecimals) as '0' | '1' | '2' | '3'} onChange={v => set({ scale: { ...pos.scale, valueDecimals: Number(v) } })} options={[{ value: '0', label: <span className="num">0</span> }, { value: '1', label: <span className="num">1</span> }, { value: '2', label: <span className="num">2</span> }, { value: '3', label: <span className="num">3</span> }]} />
+            </Field>
+            <div className="span-2"><Note kind="info">{t('settings.scale.example', { prefix: pos.scale.prefix, plu: 'X'.repeat(pos.scale.pluDigits), value: 'V'.repeat(12 - pos.scale.prefix.length - pos.scale.pluDigits) })}</Note></div>
+          </div>
+        )}
       </SectionCard>
     </>
   )

@@ -1,6 +1,6 @@
 import { useEffect, useState, type ReactNode } from 'react'
 import { NavLink, useLocation, useNavigate } from 'react-router-dom'
-import { ShoppingCart, Package, Users, Warehouse, Receipt, BarChart3, Clock, Wallet, Settings, MoreHorizontal, Lock, PanelRightClose, PanelRightOpen, KeyRound, X } from 'lucide-react'
+import { ShoppingCart, Package, Users, Warehouse, Receipt, BarChart3, Clock, Wallet, Settings, MoreHorizontal, Lock, PanelRightClose, PanelRightOpen, KeyRound, X, HelpCircle } from 'lucide-react'
 import { useStore } from '../state/store'
 import { useT } from '../i18n'
 import { Avatar, Badge, Button } from './ui'
@@ -18,6 +18,7 @@ const NAV = [
   { to: '/shifts', key: 'nav.shifts', icon: Clock },
   { to: '/expenses', key: 'nav.expenses', icon: Wallet },
   { to: '/settings', key: 'nav.settings', icon: Settings, admin: true },
+  { to: '/help', key: 'nav.help', icon: HelpCircle },
 ]
 const MOBILE_MAIN = ['/', '/products', '/customers', '/history']
 

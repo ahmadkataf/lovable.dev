@@ -2,15 +2,22 @@
 // document for the printer, for sharing and for this preview), plus the print / share buttons.
 import { useState } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
-import { Printer, Share2 } from 'lucide-react'
+import { Printer, Share2, MessageCircle } from 'lucide-react'
 import type { Sale, Refund, Settings } from '../db/types'
 import { useStore, toast } from '../state/store'
 import { addMessages, useT } from '../i18n'
-import { receiptDoc, printSale, shareSale, type ReceiptLine } from '../lib/receipt'
+import { receiptDoc, printSale, shareSale, receiptText, type ReceiptLine } from '../lib/receipt'
+import { db } from '../db'
+import { platform } from '../lib/platform'
 import { balanceAfterSale } from '../lib/sales'
 import { Button } from './ui'
 import { BarcodeImage } from './BarcodeImage'
 import '../screens/sales/receipt-view.css'
+
+addMessages({
+  ar: { 'receipt.actions.wa': 'واتساب العميل', 'receipt.actions.waOpened': 'فُتح واتساب' },
+  en: { 'receipt.actions.wa': 'WhatsApp the customer', 'receipt.actions.waOpened': 'WhatsApp opened' },
+})
 
 addMessages({
   ar: {
@@ -108,6 +115,13 @@ export function ReceiptActions({ sale, refund, settings, compact, copy, balanceA
   const storeSettings = useStore(s => s.settings)
   const s = settings ?? storeSettings
   const [busy, setBusy] = useState<'print' | 'share' | null>(null)
+  const customer = useLiveQuery(async () => (sale.customerId ? await db.customers.get(sale.customerId) : undefined), [sale.customerId])
+  const waDigits = (customer?.phone ?? '').replace(/\D/g, '').replace(/^00/, '')
+  const whatsapp = () => {
+    const text = receiptText(sale, s, { refund, copy, balanceAfter })
+    platform.openUrl(`https://wa.me/${waDigits}?text=${encodeURIComponent(text)}`)
+    toast(t('receipt.actions.waOpened'), 'info')
+  }
   const print = async () => {
     setBusy('print')
     try {
@@ -130,6 +144,7 @@ export function ReceiptActions({ sale, refund, settings, compact, copy, balanceA
         {copy ? t('receipt.actions.printCopy') : t('common.print')}
       </Button>
       <Button size={compact ? 'sm' : 'md'} icon={<Share2 size={18} />} loading={busy === 'share'} disabled={busy !== null} onClick={() => void share()}>{t('common.share')}</Button>
+      {waDigits.length >= 8 && <Button size={compact ? 'sm' : 'md'} variant="soft" icon={<MessageCircle size={18} />} disabled={busy !== null} onClick={whatsapp}>{t('receipt.actions.wa')}</Button>}
     </div>
   )
 }

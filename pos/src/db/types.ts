@@ -216,6 +216,14 @@ export interface HeldTicket {
 
 export interface KV { key: string; value: unknown }
 
+/** Barcodes printed by a label scale: <prefix><PLU><value><check>, 13 digits. The PLU is the product's barcode. */
+export interface ScaleBarcodes {
+  enabled: boolean
+  prefix: string          // '2' (EAN-13 in-store range) or '20'..'29'
+  pluDigits: 4 | 5        // digits of the product code after the prefix
+  value: 'weight' | 'price'   // what the 5 value digits mean
+  valueDecimals: number   // weight: 3 (grams → kg); price: the currency's decimals (0 for lira)
+}
 export interface CurrencySettings { code: string; symbol: string; decimals: number; symbolAfter: boolean }
 /** A second currency the till accepts (dollars in a lira shop): `rate` primary units per 1 unit of it. Records stay in the primary. */
 export interface SecondCurrency extends CurrencySettings { enabled: boolean; rate: number }
@@ -250,6 +258,7 @@ export interface Settings {
     askPrintAfterSale: boolean
     cameraScanner: boolean
     cloudAuto: boolean         // daily cloud backup while the cloud plan is active
+    scale: ScaleBarcodes       // weight / price embedded barcodes printed by label scales
   }
   lang: 'ar' | 'en'
   theme: 'light' | 'dark' | 'system'
@@ -265,6 +274,7 @@ export const DEFAULT_SETTINGS: Settings = {
   pos: {
     defaultMethod: 'cash', quickAmounts: [], allowNegativeStock: true, soundOn: true, vibrate: true,
     gridSize: 'medium', showStockOnCards: true, requirePin: false, lockAfterMinutes: 0, askPrintAfterSale: true, cameraScanner: true, cloudAuto: true,
+    scale: { enabled: false, prefix: '2', pluDigits: 5, value: 'weight', valueDecimals: 3 },
   },
   lang: 'ar',
   theme: 'system',

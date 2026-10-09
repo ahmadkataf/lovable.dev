@@ -16,6 +16,7 @@ import ShiftsScreen from './screens/shifts'
 import ExpensesScreen from './screens/expenses'
 import SettingsScreen from './screens/settings'
 import ActivationScreen from './screens/activation'
+import HelpScreen from './screens/help'
 import { useT } from './i18n'
 import { startCloudScheduler } from './lib/cloud'
 
@@ -51,6 +52,7 @@ export default function App() {
           <Route path="/expenses/*" element={<ExpensesScreen />} />
           <Route path="/settings/*" element={<SettingsScreen />} />
           <Route path="/activation" element={<ActivationScreen embedded />} />
+          <Route path="/help" element={<HelpScreen />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </Shell>

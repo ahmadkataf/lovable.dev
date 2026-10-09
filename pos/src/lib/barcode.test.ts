@@ -23,3 +23,22 @@ describe('barcode', () => {
     expect(looksLikeBarcode('ab')).toBe(false)
   })
 })
+
+describe('scale barcodes', () => {
+  it('decodes weight labels (2 + PLU 5 + grams 5 + check)', async () => {
+    const { parseScaleBarcode, ean13CheckDigit, matchesPlu } = await import('./barcode')
+    const body = '2' + '00123' + '001250'                // PLU 123, 1.250 kg (6 value digits after a 1-digit prefix)
+    const code = body + ean13CheckDigit(body)
+    const f = { prefix: '2', pluDigits: 5 as const, value: 'weight' as const, valueDecimals: 3 }
+    expect(parseScaleBarcode(code, f)).toEqual({ plu: '123', value: 1.25, kind: 'weight' })
+    expect(parseScaleBarcode(body + ((Number(code[12]) + 1) % 10), f)).toBeNull()   // bad check digit
+    expect(parseScaleBarcode('6291041500213', f)).toBeNull()                           // a normal product
+    expect(matchesPlu(['00123'], '123')).toBe(true); expect(matchesPlu(['1234'], '123')).toBe(false)
+  })
+  it('decodes priced labels with 4-digit PLUs', async () => {
+    const { parseScaleBarcode, ean13CheckDigit } = await import('./barcode')
+    const body = '20' + '0045' + '012500'                 // prefix 20, PLU 45, price 12500 (0 decimals)
+    const code = body + ean13CheckDigit(body)
+    expect(parseScaleBarcode(code, { prefix: '20', pluDigits: 4, value: 'price', valueDecimals: 0 })).toEqual({ plu: '45', value: 12500, kind: 'price' })
+  })
+})

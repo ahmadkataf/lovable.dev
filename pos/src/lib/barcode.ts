@@ -43,6 +43,32 @@ export function randomInternalEan13(): string {
   return makeInternalEan13(n)
 }
 
+/** A weight/price barcode from a label scale, decoded: which product (PLU) and the embedded value. */
+export interface ScaleScan { plu: string; value: number; kind: 'weight' | 'price' }
+export interface ScaleFormat { prefix: string; pluDigits: 4 | 5; value: 'weight' | 'price'; valueDecimals: number }
+/**
+ * Decodes <prefix><PLU><value><check> (13 digits). Returns null when the code is not a scale barcode of this
+ * format or its check digit is wrong. The PLU keeps its leading zeros stripped ("00123" → "123").
+ */
+export function parseScaleBarcode(code: string, f: ScaleFormat): ScaleScan | null {
+  const c = cleanBarcode(code)
+  if (!/^\d{13}$/.test(c) || !c.startsWith(f.prefix)) return null
+  if (!isValidEan13(c)) return null
+  const body = c.slice(f.prefix.length, 12)
+  const valueDigits = 12 - f.prefix.length - f.pluDigits
+  if (valueDigits < 3) return null
+  const plu = body.slice(0, f.pluDigits).replace(/^0+(?=\d)/, '')
+  const raw = Number(body.slice(f.pluDigits))
+  if (!Number.isFinite(raw)) return null
+  const value = raw / 10 ** Math.max(0, f.valueDecimals)
+  if (value <= 0) return null
+  return { plu, value, kind: f.value }
+}
+/** Products whose main barcode is the PLU (as typed by the shop: "123", "00123"…). */
+export function matchesPlu(barcodes: string[], plu: string): boolean {
+  return barcodes.some(b => b.replace(/^0+(?=\d)/, '') === plu)
+}
+
 /** The format JsBarcode should use for a value. */
 export function barcodeFormat(value: string): 'EAN13' | 'EAN8' | 'UPC' | 'CODE128' {
   if (isValidEan13(value)) return 'EAN13'
