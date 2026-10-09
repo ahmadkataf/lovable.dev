@@ -23,6 +23,10 @@ on:
       version_code:
         description: 'Android version code (must grow with every Play upload); empty = the run number + 100'
         required: false
+      api:
+        description: 'License server address (used when the KASEB_API repository variable is not set)'
+        default: 'https://kaseb-api.almutafawiqin.workers.dev'
+        required: false
 
 jobs:
   web:
@@ -42,7 +46,7 @@ jobs:
         run: npm ci
       - name: Read the license server address and its public key
         env:
-          KASEB_API: ${{ vars.KASEB_API }}
+          KASEB_API: ${{ vars.KASEB_API || github.event.inputs.api }}
         run: |
           if [ -z "$KASEB_API" ]; then
             echo "::error::Set the repository variable KASEB_API to the server address (see pos/server/README.md)"

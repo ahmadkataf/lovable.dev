@@ -19,7 +19,7 @@ import {
 
 export interface Env {
   DB: D1Database
-  BACKUPS: KVNamespace
+  BACKUPS?: KVNamespace   // absent when the deploy had no KV access: cloud endpoints answer cloud_unavailable
   LICENSE_SECRET: string
   ADMIN_KEY: string
 }
@@ -31,8 +31,12 @@ const CORS = {
   'access-control-allow-methods': 'GET, POST, OPTIONS',
   'access-control-max-age': '86400',
 }
-const RATE_WINDOW = 10 * 60000   // 30 activate/trial requests per 10 minutes per address
-const RATE_LIMIT = 30
+const RATE_WINDOW = 10 * 60000   // per address, per 10 minutes: 30 activate/trial requests, 120 token calls (check/release/backup)
+const RATE: Record<'activate' | 'token', { kinds: string[]; limit: number }> = {
+  activate: { kinds: ['activate', 'activate-fail', 'trial', 'trial-fail'], limit: 30 },
+  token: { kinds: ['check', 'check-fail', 'release', 'backup', 'backup-fail', 'restore'], limit: 120 },
+}
+const EVENTS_KEEP = 365 * 86400000   // the privacy page promises security logs are deleted after a year
 const MAX_BODY = 8 * 1024
 const MAX_SELF_MOVES = 3
 const MAX_BACKUP = 20 * 1024 * 1024      // one compressed backup
@@ -48,8 +52,8 @@ export type DeviceRow = {
   code: string | null; bound_at: number | null; trial_started: number | null; trial_ends: number | null
   first_seen: number; last_seen: number; ip: string | null
 }
-type Settings = { price: string; whatsapp: string; trial_days: number; grace_days: number; min_version: string; android_signature: string; message: string; cloud_price: string; cloud_days: number; cloud_keep: number }
-const DEFAULTS: Settings = { price: '35$', whatsapp: '963996489504', trial_days: 7, grace_days: 10, min_version: '', android_signature: '', message: '', cloud_price: '35$', cloud_days: 365, cloud_keep: 3 }
+type Settings = { price: string; whatsapp: string; trial_days: number; grace_days: number; min_version: string; android_signature: string; message: string; cloud_price: string; cloud_days: number; cloud_keep: number; web_trial: number }
+const DEFAULTS: Settings = { price: '35$', whatsapp: '963996489504', trial_days: 7, grace_days: 10, min_version: '', android_signature: '', message: '', cloud_price: '35$', cloud_days: 365, cloud_keep: 3, web_trial: 0 }
 
 // Arabic sentences for the app (it has its own; these help when the app is older than the server)
 const MESSAGES: Record<string, string> = {
@@ -61,6 +65,8 @@ const MESSAGES: Record<string, string> = {
   rate_limited: 'محاولات كثيرة. انتظر قليلاً ثم أعد المحاولة.',
   min_version: 'حدّث التطبيق إلى آخر إصدار للمتابعة.',
   no_trial: 'التجربة المجانية غير متاحة لهذا الجهاز.',
+  no_trial_web: 'التجربة المجانية متاحة في تطبيق أندرويد أو ويندوز فقط.',
+  cloud_unavailable: 'التخزين السحابي غير مفعّل على السيرفر حالياً.',
   invalid_token: 'بيانات الترخيص غير صالحة. فعّل التطبيق من جديد.',
   device_mismatch: 'الترخيص مرتبط بجهاز آخر.',
   move_limit: 'استُنفدت مرات النقل الذاتي. اطلب من البائع نقل الترخيص.',
@@ -103,9 +109,10 @@ async function settings(env: Env): Promise<Settings> {
   const rows = await env.DB.prepare('SELECT key, value FROM settings').all<{ key: string; value: string }>()
   const s: Settings = { ...DEFAULTS }
   for (const r of rows.results) {
-    if (r.key === 'trial_days' || r.key === 'grace_days' || r.key === 'cloud_days' || r.key === 'cloud_keep') { const n = Number(r.value); if (Number.isFinite(n)) s[r.key] = Math.max(0, Math.round(n)) }
+    if (r.key === 'trial_days' || r.key === 'grace_days' || r.key === 'cloud_days' || r.key === 'cloud_keep' || r.key === 'web_trial') { const n = Number(r.value); if (Number.isFinite(n)) s[r.key] = Math.max(0, Math.round(n)) }
     else if (r.key in s) (s as unknown as Record<string, string>)[r.key] = r.value
   }
+  s.grace_days = Math.max(1, s.grace_days)   // 0 would issue tokens that are locked the moment they arrive (gr = now)
   return s
 }
 const info = (s: Settings) => ({ price: s.price || DEFAULTS.price, whatsapp: s.whatsapp.replace(/\D/g, ''), trialDays: s.trial_days, message: s.message, minVersion: s.min_version, graceDays: s.grace_days, cloudPrice: s.cloud_price || DEFAULTS.cloud_price })
@@ -140,10 +147,12 @@ function refuseBuild(s: Settings, c: Client): 'min_version' | 'tampered' | null 
   return null
 }
 
-async function rateLimited(env: Env, req: Request): Promise<boolean> {
-  const r = await env.DB.prepare(`SELECT COUNT(*) AS n FROM events WHERE ip = ? AND at > ? AND kind IN ('activate', 'activate-fail', 'trial', 'trial-fail')`)
-    .bind(ip(req), Date.now() - RATE_WINDOW).first<{ n: number }>()
-  return (r?.n ?? 0) >= RATE_LIMIT
+/** Too many calls of this kind from this address lately (counted in the events table; a refused call is not logged, so it costs no write). */
+async function rateLimited(env: Env, req: Request, which: keyof typeof RATE = 'activate'): Promise<boolean> {
+  const { kinds, limit } = RATE[which]
+  const r = await env.DB.prepare(`SELECT COUNT(*) AS n FROM events WHERE ip = ? AND at > ? AND kind IN (${kinds.map(() => '?').join(', ')})`)
+    .bind(ip(req), Date.now() - RATE_WINDOW, ...kinds).first<{ n: number }>()
+  return (r?.n ?? 0) >= limit
 }
 
 /** Why a code cannot be used right now, or null. */
@@ -200,6 +209,8 @@ async function trial(req: Request, env: Env): Promise<Response> {
   const bad = refuseBuild(s, c)
   if (bad) { await log(env, 'trial-fail', req, null, c.device, bad); return fail(bad, 403) }
   if (s.trial_days <= 0) { await log(env, 'trial-fail', req, null, c.device, 'disabled'); return fail('no_trial', 403) }
+  // a browser identity is whatever the page says (clear the site data → a new device): trials there are off unless the seller turns them on
+  if (c.platform === 'web' && !s.web_trial) { await log(env, 'trial-fail', req, null, c.device, 'web'); return fail('no_trial_web', 403) }
   await touchDevice(env, req, c, now)
   const me = await getDevice(env, c.device)
   if (me?.trial_started) { await log(env, 'trial-fail', req, null, c.device, 'used'); return fail('no_trial', 403) }
@@ -216,7 +227,10 @@ async function check(req: Request, env: Env): Promise<Response> {
   if (!b || !c) return fail('bad_request')
   const t = await verifyToken(env.LICENSE_SECRET, b.token)
   if (!t) return fail('invalid_token', 403)
-  if (t.d !== c.device) { await log(env, 'check-fail', req, t.code, c.device, 'device_mismatch'); return fail('device_mismatch', 403) }
+  // a token presented with another device's hash only comes from a modified client: refused without a log row
+  // (the row could be written without limit, with any device value), unlike the real "code moved" case below
+  if (t.d !== c.device) return fail('device_mismatch', 403)
+  if (await rateLimited(env, req, 'token')) return fail('rate_limited', 429)
   const now = Date.now()
   const s = await settings(env)
   const bad = refuseBuild(s, c)
@@ -224,19 +238,22 @@ async function check(req: Request, env: Env): Promise<Response> {
   await touchDevice(env, req, c, now)
   const me = await getDevice(env, c.device)
   if (!me) return fail('invalid_token', 403)
-  // a licensed device: the code must still be bound to it and usable
+  // the code bound to this device right now wins (the one the seller sees in the panel): the same code is refreshed,
+  // a trial device the seller granted a code upgrades itself, and a device the seller re-bound to a new code follows it
+  if (me.code) {
+    const row = await getCode(env, me.code)
+    if (row && !refuseCode(row, now)) {
+      await log(env, 'check', req, row.code, c.device, me.code === t.code ? '' : 'upgrade')
+      return issue(env, s, c, 'full', row.code, row.expires_at, now, row.cloud_until)
+    }
+  }
+  // a licensed device whose code is no longer usable here: say why
   if (t.p === 'full') {
     const row = await getCode(env, t.code)
     const why = refuseCode(row, now)
     if (why || !row) { await log(env, 'check-fail', req, t.code, c.device, why ?? 'invalid_code'); return fail(why === 'invalid_code' || !why ? 'invalid_token' : why, 403) }
-    if (me.code !== row.code) { await log(env, 'check-fail', req, t.code, c.device, 'device_mismatch'); return fail('device_mismatch', 403) }
-    await log(env, 'check', req, row.code, c.device)
-    return issue(env, s, c, 'full', row.code, row.expires_at, now, row.cloud_until)
-  }
-  // a trial device: if the seller granted it a code meanwhile, the code wins and the app upgrades itself
-  if (me.code) {
-    const row = await getCode(env, me.code)
-    if (row && !refuseCode(row, now)) { await log(env, 'check', req, row.code, c.device, 'upgrade'); return issue(env, s, c, 'full', row.code, row.expires_at, now, row.cloud_until) }
+    await log(env, 'check-fail', req, t.code, c.device, 'device_mismatch')   // usable, but bound to another device now
+    return fail('device_mismatch', 403)
   }
   if (!me.trial_started || !me.trial_ends) { await log(env, 'check-fail', req, null, c.device, 'no_trial'); return fail('invalid_token', 403) }
   if (me.trial_ends <= now) { await log(env, 'check-fail', req, null, c.device, 'expired'); return fail('expired', 403) }
@@ -256,6 +273,7 @@ async function release(req: Request, env: Env): Promise<Response> {
   if (!me || me.code !== t.code) return json({ ok: true })   // already free: nothing to do
   const row = await getCode(env, t.code)
   if (!row) return fail('invalid_token', 403)
+  if (await rateLimited(env, req, 'token')) return fail('rate_limited', 429)
   if (row.moves >= MAX_SELF_MOVES) { await log(env, 'release', req, t.code, c.device, 'move_limit'); return fail('move_limit', 403) }
   await env.DB.batch([
     env.DB.prepare('UPDATE devices SET code = NULL, bound_at = NULL WHERE device = ? AND code = ?').bind(c.device, t.code),
@@ -290,16 +308,18 @@ async function listBackups(env: Env, code: string): Promise<BackupRow[]> {
   return (await env.DB.prepare('SELECT * FROM backups WHERE code = ? ORDER BY at DESC').bind(code).all<BackupRow>()).results
 }
 async function deleteBackup(env: Env, b: BackupRow): Promise<void> {
-  await env.BACKUPS.delete(backupKey(b.code, b.id))
+  if (env.BACKUPS) await env.BACKUPS.delete(backupKey(b.code, b.id))
   await env.DB.prepare('DELETE FROM backups WHERE id = ?').bind(b.id).run()
 }
 
 /** POST /api/backup — the compressed backup as the body; token, device and meta in headers. */
 async function backupUpload(req: Request, env: Env): Promise<Response> {
+  if (!env.BACKUPS) return fail('cloud_unavailable', 503)
   const auth = await cloudAuth(env, req.headers.get('x-kaseb-token'), req.headers.get('x-kaseb-device'))
   if (typeof auth === 'string') return fail(auth, auth === 'bad_request' ? 400 : 403)
   const { row, t } = auth
   const now = Date.now()
+  if (await rateLimited(env, req, 'token')) return fail('rate_limited', 429)
   if (!cloudActive(row, now)) { await log(env, 'backup-fail', req, row.code, t.d, 'inactive'); return fail('cloud_inactive', 403) }
   const len = Number(req.headers.get('content-length') || 0)
   if (len > MAX_BACKUP) return fail('too_large', 413)
@@ -339,10 +359,12 @@ async function backupList(req: Request, env: Env): Promise<Response> {
 
 /** POST /api/backup/get {token, device, id} — the compressed file. Allowed after the subscription ended too: the data is the shop's. */
 async function backupGet(req: Request, env: Env): Promise<Response> {
+  if (!env.BACKUPS) return fail('cloud_unavailable', 503)
   const b = await body(req)
   if (!b) return fail('bad_request')
   const auth = await cloudAuth(env, b.token, b.device)
   if (typeof auth === 'string') return fail(auth, auth === 'bad_request' ? 400 : 403)
+  if (await rateLimited(env, req, 'token')) return fail('rate_limited', 429)
   const id = clip(b.id, 40)
   const row = await env.DB.prepare('SELECT * FROM backups WHERE id = ? AND code = ?').bind(id, auth.row.code).first<BackupRow>()
   if (!row) return fail('not_found', 404)
@@ -512,6 +534,7 @@ async function admin(req: Request, env: Env, path: string, url: URL): Promise<Re
         put('cloud_price', clip(b.cloud_price, 40) || DEFAULTS.cloud_price),
         put('cloud_days', num(b.cloud_days, 3650, DEFAULTS.cloud_days)),
         put('cloud_keep', num(b.cloud_keep, 10, DEFAULTS.cloud_keep)),
+        put('web_trial', b.web_trial ? '1' : '0'),
       ])
       await log(env, 'admin', req, null, null, 'settings')
     }
@@ -572,5 +595,10 @@ export default {
     } catch (e) {
       return fail('server_error', 500, `خطأ في الخادم: ${(e as Error).message}`)
     }
+  },
+
+  /** Nightly (wrangler.toml [triggers]): drops events older than a year, as the privacy page promises. */
+  async scheduled(_event: ScheduledEvent, env: Env): Promise<void> {
+    await env.DB.prepare('DELETE FROM events WHERE at < ?').bind(Date.now() - EVENTS_KEEP).run()
   },
 }

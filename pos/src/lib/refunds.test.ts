@@ -31,6 +31,23 @@ beforeEach(async () => {
 })
 
 describe('createRefund', () => {
+  it('takes back the loyalty points earned on the refunded share', async () => {
+    const loyal: Settings = { ...settings, loyalty: { enabled: true, earnPer: 1000, pointValue: 10, minRedeem: 100 } }
+    await db.customers.put({ id: 'c9', name: 'سعاد', balance: 0, points: 20, createdAt: 0, updatedAt: 0 })
+    const cart = { ...cartWith([[milk, 4], [bread, 2]]), customerId: 'c9', customerName: 'سعاد' }   // 5000 → 5 points
+    const totals = computeTotals(cart, loyal.tax, 0)
+    const sale = await completeSale({ cart, totals, payments: [{ method: 'cash', amount: totals.total }], paid: totals.total, change: 0, credit: 0, user, shift: null, settings: loyal })
+    expect(sale.pointsEarned).toBe(5)
+    expect((await db.customers.get('c9'))!.points).toBe(25)
+    const r1 = await refund(sale, [{ index: 0, qty: 2 }], { settings: loyal })        // 2000 of 5000 → 2 points back
+    expect(r1.pointsTaken).toBe(2)
+    expect((await db.customers.get('c9'))!.points).toBe(23)
+    const r2 = await refund(sale, [{ index: 0, qty: 2 }, { index: 1, qty: 2 }], { settings: loyal })   // the rest → the remaining 3
+    expect(r2.pointsTaken).toBe(3)
+    expect((await db.customers.get('c9'))!.points).toBe(20)
+    expect((await db.sales.get(sale.id))!.status).toBe('refunded')
+  })
+
   it('restocks a refunded carton as 24 pieces', async () => {
     const carton = { id: 'k1', name: 'كرتونة', qty: 24, price: 20000 }
     await db.products.put({ ...milk, stock: 50, packs: [carton] })
@@ -151,6 +168,30 @@ describe('createRefund', () => {
     expect(w.total).toBe(750)
     expect((await db.products.get('p3'))!.stock).toBe(18.75)
     expect(remainingQty((await db.sales.get(weighed.id))!, [w], 0)).toEqual([1.25])
+  })
+
+  it('a sale whose money ran out before its items can still take the rest back (and restock it)', async () => {
+    // 1000 + 500 with 1499 off: the customer paid 1. Refunding the milk hands back that 1 (0.67 rounds up)…
+    const sale = await sell(cartWith([[milk, 1], [bread, 1]], { discount: 1499 }))
+    expect(sale.total).toBe(1)
+    const r1 = await refund(sale, [{ index: 0, qty: 1 }])
+    expect(r1.total).toBe(1)
+    let s = (await db.sales.get(sale.id))!
+    expect(s.status).toBe('partial')                       // …but the bread is still out
+    expect(canRefund(s, [r1], 0)).toBe(true)
+    const r2 = await refund(s, [{ index: 1, qty: 1 }])
+    expect(r2.total).toBe(0)                                // nothing more to hand back
+    s = (await db.sales.get(sale.id))!
+    expect(s).toMatchObject({ refunded: 1, status: 'refunded' })
+    expect(remainingQty(s, [r1, r2], 0)).toEqual([0, 0])
+    // a free sale (100% off) behaves the same way
+    const free = await sell(cartWith([[milk, 2]], { discountPct: 100, discount: 0 }))
+    expect(free.total).toBe(0)
+    await refund(free, [{ index: 0, qty: 1 }])
+    expect((await db.sales.get(free.id))!.status).toBe('partial')
+    await refund((await db.sales.get(free.id))!, [{ index: 0, qty: 1 }])
+    expect((await db.sales.get(free.id))!.status).toBe('refunded')
+    expect((await db.products.get('p1'))!.stock).toBe(10)   // both milks back on the shelf
   })
 
   it('records the shift on the refund and its ledger entry', async () => {

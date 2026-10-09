@@ -188,6 +188,7 @@ select.in{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.o
           <div><label class="l">مدة الاشتراك بالأيام</label><input id="sCloudDays" class="in num" type="number" min="30" max="3650" inputmode="numeric"><div class="faint" style="margin-top:4px">ما يضيفه زر «تفعيل/تمديد السحابة».</div></div>
         </div>
         <div><label class="l">عدد النسخ السحابية المحفوظة لكل عميل</label><input id="sCloudKeep" class="in num" type="number" min="1" max="10" inputmode="numeric"><div class="faint" style="margin-top:4px">الأحدث تحلّ محل الأقدم. 3 نسخ تكفي عادةً.</div></div>
+        <div><label class="l"><input id="sWebTrial" type="checkbox"> السماح بالتجربة المجانية من المتصفح</label><div class="faint" style="margin-top:4px">مغلق افتراضياً: هوية المتصفح يمكن تجديدها بمسح بيانات الموقع، فتصبح التجربة بلا حدود. تطبيقا أندرويد وويندوز غير متأثرين.</div></div>
         <div><label class="l">أقل إصدار مسموح (اختياري)</label><input id="sMin" class="in num" placeholder="1.0.0" maxlength="20"><div class="faint" style="margin-top:4px">النسخ الأقدم تُطالَب بالتحديث ولا تُفعَّل.</div></div>
         <div><label class="l">بصمة توقيع أندرويد المسموحة (اختياري)</label><textarea id="sSig" class="in mono" maxlength="2000" placeholder="SHA-256 لشهادة التوقيع، ويمكن أكثر من واحدة مفصولة بفاصلة"></textarea><div class="faint" style="margin-top:4px">فارغة = لا تحقق. مع قيمة، تُرفض نسخ أندرويد المعاد توقيعها (تطبيق معدّل).</div></div>
         <button class="btn primary block lg" id="saveSet">حفظ الإعدادات</button>
@@ -260,7 +261,7 @@ const copy = t => navigator.clipboard && navigator.clipboard.writeText ? navigat
 function fallbackCopy(t) { const ta = document.createElement('textarea'); ta.value = t; ta.style.cssText = 'position:fixed;opacity:0'; document.body.appendChild(ta); ta.select(); try { document.execCommand('copy'); toast('تم النسخ ✓', 'ok') } catch (e) { prompt('انسخ:', t) } ta.remove() }
 const platIcon = p => p === 'android' ? ICONS.phone : p === 'electron' ? ICONS.pc : ICONS.web
 const platName = p => p === 'android' ? 'أندرويد' : p === 'electron' ? 'ويندوز' : 'متصفح'
-let SET = { price: '35$', whatsapp: '', trial_days: 7, grace_days: 10, min_version: '', android_signature: '', message: '', cloud_price: '35$', cloud_days: 365, cloud_keep: 3 }
+let SET = { price: '35$', whatsapp: '', trial_days: 7, grace_days: 10, min_version: '', android_signature: '', message: '', cloud_price: '35$', cloud_days: 365, cloud_keep: 3, web_trial: 0 }
 const kb = n => n < 1024 * 1024 ? Math.round(n / 1024) + ' KB' : (n / 1048576).toFixed(1) + ' MB'
 const customerMsg = (code, exp, maxDev, cloud) => 'شكراً لشرائك كاسب 🌟' + '\n' + 'كود التفعيل: ' + code + '\n' + 'افتح التطبيق وأنت متصل بالإنترنت ← شاشة التفعيل ← أدخل الكود ← تفعيل.' + '\n' + 'الكود يعمل على ' + (maxDev > 1 ? maxDev + ' أجهزة' : 'جهاز واحد') + (exp ? '، وصالح حتى ' + fmt(exp) : '، ترخيص دائم') + '.' + (cloud ? '\n' + 'التخزين السحابي مفعّل حتى ' + fmt(cloud) + ': من الإعدادات ← النسخ الاحتياطي ← السحابة.' : '')
 
@@ -545,7 +546,7 @@ async function loadSettings() {
   try {
     const s = await api('settings'); SET = s
     $('sPrice').value = s.price; $('sWhatsapp').value = s.whatsapp; $('sMessage').value = s.message; $('sTrial').value = s.trial_days; $('sGrace').value = s.grace_days; $('sMin').value = s.min_version; $('sSig').value = s.android_signature
-    $('sCloudPrice').value = s.cloud_price || '35$'; $('sCloudDays').value = s.cloud_days || 365; $('sCloudKeep').value = s.cloud_keep || 3
+    $('sCloudPrice').value = s.cloud_price || '35$'; $('sCloudDays').value = s.cloud_days || 365; $('sCloudKeep').value = s.cloud_keep || 3; $('sWebTrial').checked = !!s.web_trial
   } catch (e) { toast(e.message, 'bad') }
   $('apiUrl').textContent = location.origin
   try { const k = await fetch('/api/public-key').then(r => r.json()); $('pubKey').textContent = k.publicKey || (k.message || 'غير مهيّأ') } catch (e) { $('pubKey').textContent = 'تعذّر الجلب' }
@@ -555,7 +556,7 @@ $('saveSet').onclick = async () => {
   if (!(grace >= 1)) return toast('أيام السماح يجب أن تكون 1 على الأقل', 'bad')
   $('saveSet').disabled = true
   try {
-    SET = await post('settings', { price: $('sPrice').value, whatsapp: $('sWhatsapp').value, message: $('sMessage').value, trial_days: +$('sTrial').value, grace_days: grace, min_version: $('sMin').value, android_signature: $('sSig').value, cloud_price: $('sCloudPrice').value, cloud_days: +$('sCloudDays').value, cloud_keep: +$('sCloudKeep').value })
+    SET = await post('settings', { price: $('sPrice').value, whatsapp: $('sWhatsapp').value, message: $('sMessage').value, trial_days: +$('sTrial').value, grace_days: grace, min_version: $('sMin').value, android_signature: $('sSig').value, cloud_price: $('sCloudPrice').value, cloud_days: +$('sCloudDays').value, cloud_keep: +$('sCloudKeep').value, web_trial: $('sWebTrial').checked ? 1 : 0 })
     $('sWhatsapp').value = SET.whatsapp; $('sMin').value = SET.min_version; $('sSig').value = SET.android_signature; $('sPrice').value = SET.price
     toast('حُفظت الإعدادات ✓', 'ok')
   } catch (e) { toast('خطأ: ' + e.message, 'bad') }

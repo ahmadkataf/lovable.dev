@@ -106,10 +106,13 @@ export function computeTotals(cart: Cart, tax: TaxSettings, decimals: number): T
   const lineTotals = cart.lines.map(l => ({ key: l.key, gross: lineTotal(l, decimals), rate: tax.enabled ? l.taxRate : 0 }))
   const subtotal = round(lineTotals.reduce((s, l) => s + l.gross, 0), decimals)
   const discount = saleDiscount(cart, subtotal, decimals)
-  // spread the sale discount over the lines in proportion, so each line's tax is right
-  let spread = 0
+  // spread the sale discount over the lines in proportion, so each line's tax is right. Shares are rounded
+  // cumulatively, so every line stays within one unit of its exact share and the rounding never piles up
+  // on the last line (100 lines of 1 with 50 off: 0/1 each, not 0 … 0, 50)
+  let spread = 0, cum = 0
   const lines = lineTotals.map((l, i) => {
-    let share = subtotal > 0 ? round((l.gross / subtotal) * discount, decimals) : 0
+    cum += l.gross
+    let share = subtotal > 0 ? round(round((cum / subtotal) * discount, decimals) - spread, decimals) : 0
     if (i === lineTotals.length - 1) share = round(discount - spread, decimals)
     spread = round(spread + share, decimals)
     const net = round(l.gross - share, decimals)

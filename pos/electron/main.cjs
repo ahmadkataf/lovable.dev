@@ -4,6 +4,7 @@
 
 const { app, BrowserWindow, Menu, dialog, ipcMain, safeStorage, session, shell } = require('electron')
 const path = require('node:path')
+const { pathToFileURL } = require('node:url')
 const fs = require('node:fs')
 const os = require('node:os')
 const crypto = require('node:crypto')
@@ -86,13 +87,16 @@ function createWindow() {
   })
 }
 
-/** Every web contents (the main window and the print windows): never leave file: pages, never open popups. */
+const INDEX_URL = pathToFileURL(path.join(__dirname, '..', 'dist', 'index.html')).href
+
+/** Every web contents (the main window and the print windows): never leave the app's page, never open popups. */
 function hardenSessions() {
   app.on('web-contents-created', (_event, contents) => {
     contents.on('will-navigate', (event, url) => {
-      if (lib.isFileUrl(url)) return
+      // the only page this app ever shows is its own index.html (hash routes); anything else opens outside
+      if (lib.isFileUrl(url) && url.split(/[?#]/)[0] === INDEX_URL) return
       event.preventDefault()
-      openExternal(url)
+      if (!lib.isFileUrl(url)) openExternal(url)
     })
     contents.setWindowOpenHandler(({ url }) => {
       openExternal(url)
@@ -101,7 +105,7 @@ function hardenSessions() {
     contents.on('will-attach-webview', event => event.preventDefault())
   })
   // The page only needs the camera (barcode scanning with a webcam), fullscreen and the clipboard
-  const allowed = new Set(['media', 'fullscreen', 'clipboard-read', 'clipboard-sanitized-write', 'display-capture'])
+  const allowed = new Set(['media', 'fullscreen', 'clipboard-read', 'clipboard-sanitized-write'])
   session.defaultSession.setPermissionRequestHandler((_wc, permission, callback) => callback(allowed.has(permission)))
   session.defaultSession.setPermissionCheckHandler((_wc, permission) => allowed.has(permission))
 }
@@ -158,23 +162,38 @@ async function deviceId() {
       id = lib.parseIoregUuid(await run('ioreg', ['-rd1', '-c', 'IOPlatformExpertDevice']))
     }
   } catch { /* fall back to the stored id */ }
-  if (!id) id = await storedDeviceId()
+  // The hardware id, once read, is remembered: a slow `reg query` (5 s timeout) on a later launch must not turn
+  // this into a different device, which would throw the stored license away and take the code's only slot.
+  if (id) await rememberDeviceId(id)
+  else id = await storedDeviceId()
   deviceIdCache = id
   return id
 }
 
-/** A UUID kept in userData/device.json for machines without a readable hardware id. */
-async function storedDeviceId() {
-  const file = path.join(app.getPath('userData'), 'device.json')
+function deviceFile() {
+  return path.join(app.getPath('userData'), 'device.json')
+}
+
+async function rememberDeviceId(id) {
+  const file = deviceFile()
   try {
     const saved = JSON.parse(await fs.promises.readFile(file, 'utf8'))
-    if (saved && typeof saved.id === 'string' && saved.id.length >= 16) return saved.id
+    if (saved && saved.id === id) return
   } catch { /* not there yet */ }
-  const id = crypto.randomUUID()
   try {
     await fs.promises.mkdir(path.dirname(file), { recursive: true })
     await fs.promises.writeFile(file, JSON.stringify({ id, createdAt: Date.now() }), 'utf8')
-  } catch { /* the id lives for this run only */ }
+  } catch { /* read again next time */ }
+}
+
+/** The id kept in userData/device.json: the last hardware id read, or a UUID for machines without a readable one. */
+async function storedDeviceId() {
+  try {
+    const saved = JSON.parse(await fs.promises.readFile(deviceFile(), 'utf8'))
+    if (saved && typeof saved.id === 'string' && saved.id.length >= 16) return saved.id
+  } catch { /* not there yet */ }
+  const id = crypto.randomUUID()
+  await rememberDeviceId(id)
   return id
 }
 

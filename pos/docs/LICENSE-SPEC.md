@@ -61,13 +61,20 @@ payload:
   One trial per device, ever (the `devices` row remembers `trial_started`). Errors: `no_trial` (trialDays = 0 or already used),
   `tampered`, `rate_limited`.
 - `POST /api/check` `{ token, device, platform, version, build, sig, nonce }` → fresh `{ token, status }`.
-  Verifies the old token's signature, that `d` matches, that the code is still bound to this device and not revoked/expired
-  (for a trial: that the trial has not ended). Errors: `invalid_token`, `revoked`, `expired`, `device_mismatch`, `tampered`,
-  `min_version`. Updates `devices.last_seen`, `version`, `build`.
+  Verifies the old token's signature and that `d` matches. The code bound to the device *now* wins: the same code is
+  refreshed, a trial device the seller granted a code upgrades itself, a device the seller re-bound to a new code follows
+  it. Otherwise the token's code is judged: not revoked/expired and still bound here (for a trial: the trial has not ended).
+  Errors: `invalid_token`, `revoked`, `expired`, `device_mismatch`, `tampered`, `min_version`, `rate_limited`.
+  Updates `devices.last_seen`, `version`, `build`.
 - `POST /api/release` `{ token, device }` → `{ ok: true }`: unbinds this device so the code can be used on another one;
   `codes.moves` += 1; refused with `move_limit` after 3 self-moves (the seller can always move it from the panel).
-- Rate limit: 30 requests / 10 minutes / IP on `/api/activate` and `/api/trial` (events table), `rate_limited` beyond.
-- Every call writes an `events` row (`kind`: activate, activate-fail, trial, check, check-fail, release, admin).
+- Rate limit (counted in the events table, per IP, per 10 minutes; a refused call writes nothing): 30 on `/api/activate` +
+  `/api/trial`, 120 on the token calls (`/api/check`, `/api/release`, `/api/backup*`), `rate_limited` (429) beyond. A client
+  that gets 429 keeps its state and retries. A `/api/check` whose `device` differs from the token's `d` (only a modified
+  client does that) is refused without an events row, so it cannot be used to fill the table.
+- Every other call writes an `events` row (`kind`: activate, activate-fail, trial, check, check-fail, release, backup, admin).
+  A nightly cron (`wrangler.toml [triggers]`, `scheduled` in index.ts) deletes rows older than a year.
+- `grace_days` is clamped to at least 1 when read: with 0 every token would be locked on arrival (`gr = now`).
 
 ## Admin panel — the "codes page" (`GET /admin`, Arabic, RTL, phone-friendly, single HTML string from `admin.ts`)
 Login with ADMIN_KEY (kept in localStorage). Tabs:
@@ -89,14 +96,32 @@ Also `GET /privacy` (short privacy text) and `GET /` (one line naming the servic
   `trial`/`active` when valid and `now < gr`; `expired` when `exp` passed; `locked` when `gr` passed. Then, in the background,
   run `check()` if online and (`lastCheck` older than 6 hours or state is `locked`). Schedule `check()` every 6 hours while the
   app runs and on `online` events. Returns the status at once (never waits for the network).
-- Clock rollback: keep `maxSeenTime` in storage next to the token; if `Date.now() < maxSeenTime - 1h`, treat as `locked`
-  until a successful check. Server time from `status.serverTime` updates `maxSeenTime`.
+- Clock rollback: keep `maxSeenTime` (the newest *local* clock reading, bumped every minute) in storage next to the token;
+  if `Date.now() < maxSeenTime - 1h`, treat as `locked` until a successful check. Server time never enters `maxSeenTime`
+  (a clock running an hour slow would otherwise look rolled back after every check and flap between active and locked).
+- Clock skew: every successful check stores `skew = status.serverTime - Date.now()`; `exp` and `gr` are compared against
+  `Date.now() + skew`, so a clock that was set back *before* activation gains no extra offline time, and a slow clock is not
+  punished. (A storage snapshot restored together with a clock set back to the snapshot's time still passes: see
+  "Residual risks".)
+- If `platform.deviceId()` fails for a run, the stored token is neither verified nor discarded (state `none` for this run).
 - `activate(code)`, `startTrial()`, `check()`, `release()` call the endpoints, store the new token (with `lastCheck`,
   `maxSeenTime`), and publish the status to subscribers. Network failures leave the state as it was and set `online: false`
   with `error: 'license.err.network'`. Server errors map to states: `revoked` → `revoked`, `expired` → `expired`,
   `device_mismatch` → `revoked`, `tampered` → `tampered`, `invalid_token` → `none`.
 - `fetchInfo()` caches `/api/info` in storage so the activation screen shows the price/WhatsApp even offline.
-- Stored blob (via `platform.license`): JSON `{ token, lastCheck, maxSeenTime, info }`.
+- Stored blob (via `platform.license`): JSON `{ token, lastCheck, maxSeenTime, skew, info, denied }`.
+- Electron remembers the hardware id it read (MachineGuid…) in `userData/device.json`, so a later failed read (a slow
+  `reg query`) returns the same id instead of a fresh UUID — a changed device hash would discard the license and take the
+  code's only slot.
+
+## Residual risks (what the design cannot stop)
+- Everything the client enforces (grace, expiry, rollback guard) can be patched out of a modified binary / re-packed APK;
+  `sig`, `platform` and `version` are client-reported. The Android allow-list stops naive re-signing only. Electron's asar
+  integrity fuse stops editing the packaged app files, not a rebuilt app.
+- A storage snapshot (`license.bin` / SharedPreferences) restored together with the clock set back to the snapshot's time
+  passes the rollback guard: an offline device can stay `active` indefinitely at the cost of wrong timestamps on every sale.
+- Trial-per-device rests on the device id: a fresh web profile, a changed MachineGuid or a factory reset is a new device.
+  The bundle extracted from the APK runs in a browser as platform `web`, where clearing site data is a new device.
 - Tests: token verification (good, bad signature, wrong device, expired grace), state derivation, clock rollback, error mapping,
   with a key pair generated in the test (`@noble/ed25519`).
 

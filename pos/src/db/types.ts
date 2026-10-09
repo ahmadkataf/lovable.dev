@@ -142,6 +142,7 @@ export interface Refund {
   createdAt: number
   items: { productId?: ID; name: string; qty: number; price: number; total: number; unitsPerQty?: number }[]
   total: number
+  pointsTaken?: number    // loyalty points earned on the sale that this refund took back
   method: PaymentMethod   // how the money went back (credit = taken off the customer's debt)
   restock: boolean
   reason?: string

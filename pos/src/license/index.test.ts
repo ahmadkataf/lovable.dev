@@ -4,11 +4,11 @@ import * as ed from '@noble/ed25519'
 import { b64url, bytesToHex, type TokenPayload } from './crypto'
 import type { LicenseStatus } from './types'
 
-const h = vi.hoisted(() => ({ store: { v: null as string | null }, kind: 'web' as 'web' | 'android' | 'electron' }))
+const h = vi.hoisted(() => ({ store: { v: null as string | null }, kind: 'web' as 'web' | 'android' | 'electron', noDevice: false }))
 vi.mock('../lib/platform', () => ({
   platform: {
     get kind() { return h.kind }, isDesktop: false, isAndroid: false, isWeb: true, isTouch: false,
-    deviceId: async () => 'device-1', deviceName: async () => 'Test PC', appSignature: async () => 'web', appVersion: () => '1.0.0',
+    deviceId: async () => { if (h.noDevice) throw new Error('bridge down'); return 'device-1' }, deviceName: async () => 'Test PC', appSignature: async () => 'web', appVersion: () => '1.0.0',
     openUrl: () => undefined, copy: async () => true,
     license: { get: async () => h.store.v, set: async (v: string | null) => { h.store.v = v } },
   },
@@ -16,6 +16,7 @@ vi.mock('../lib/platform', () => ({
 
 const enc = new TextEncoder()
 const DAY = 86400000
+const HOUR = 3600000
 const seed = ed.utils.randomSecretKey()
 const pubHex = bytesToHex(await ed.getPublicKeyAsync(seed))
 const sha = async (s: string) => bytesToHex(new Uint8Array(await crypto.subtle.digest('SHA-256', enc.encode(s))))
@@ -53,7 +54,7 @@ async function load(api = 'https://api.test', key = pubHex) {
   return (await import('./index')).license
 }
 
-beforeEach(() => { h.store.v = null; h.kind = 'web'; calls.length = 0; handler = () => reply({ error: 'unknown' }, 500) })
+beforeEach(() => { h.store.v = null; h.kind = 'web'; h.noDevice = false; calls.length = 0; handler = () => reply({ error: 'unknown' }, 500) })
 afterEach(() => { vi.unstubAllGlobals() })
 
 describe('init', () => {
@@ -113,6 +114,35 @@ describe('init', () => {
     handler = (_p, b) => issued(String(b.nonce))
     expect((await license.check()).state).toBe('active')
     expect(stored().maxSeenTime).toBeGreaterThanOrEqual(now + 2 * 3600000)   // never lowered
+  })
+  it('a clock running hours slow is corrected with the server time, never mistaken for a rollback', async () => {
+    const now = Date.now()
+    h.store.v = JSON.stringify({ token: await makeToken(), lastCheck: 1, maxSeenTime: now })
+    handler = async (_p, b) => {                                       // the server's clock is 3 hours ahead of this device
+      const srv = Date.now() + 3 * HOUR
+      return reply({ token: await makeToken({ n: String(b.nonce), iat: srv, gr: srv + 10 * DAY }), status: { plan: 'full', expiresAt: null, graceUntil: srv + 10 * DAY, serverTime: srv } })
+    }
+    const license = await load()
+    await license.init()
+    expect((await license.check()).state).toBe('active')
+    expect(stored().skew).toBeGreaterThan(2.5 * HOUR)
+    expect(stored().maxSeenTime).toBeLessThan(now + HOUR)              // server time never enters the rollback guard
+    expect((await (await load()).init()).state).toBe('active')         // and a restart does not lock the app either
+  })
+  it('judges the grace deadline on the corrected time, so a clock set back before activation gains nothing', async () => {
+    const now = Date.now()
+    h.store.v = JSON.stringify({ token: await makeToken({ gr: now + 2 * HOUR }), maxSeenTime: now, skew: 3 * HOUR })
+    expect((await (await load()).init()).state).toBe('locked')
+    h.store.v = JSON.stringify({ token: await makeToken({ gr: now + 2 * HOUR }), maxSeenTime: now, skew: HOUR })
+    expect((await (await load()).init()).state).toBe('active')
+  })
+  it('keeps the stored token when the device identity cannot be read this run', async () => {
+    h.noDevice = true
+    h.store.v = JSON.stringify({ token: await makeToken(), lastCheck: Date.now() })
+    const s = await (await load()).init()
+    expect(s.state).toBe('none')
+    expect(s.deviceCode).toBe('')
+    expect(stored().token).toBeTruthy()
   })
   it('remembers a refusal across restarts', async () => {
     h.store.v = JSON.stringify({ token: await makeToken(), denied: { state: 'revoked', at: Date.now() } })

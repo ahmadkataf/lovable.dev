@@ -25,6 +25,7 @@ addMessages({
     'sales.err.paymentMismatch': 'المبالغ لا تطابق الإجمالي، أعد المحاولة',
     'sales.err.invalidQty': 'توجد كمية غير صحيحة في السلة',
     'sales.err.outOfStock': 'لا يوجد مخزون كافٍ من «{name}»',
+    'sales.err.points': 'نقاط العميل لا تكفي لهذا الاستبدال',
     'sales.pay.enterAmount': 'أدخل المبلغ المستلم',
     'sales.pay.shortNoCustomer': 'المبلغ أقل من الإجمالي — اختر عميلاً لتسجيل الباقي ديناً',
   },
@@ -35,6 +36,7 @@ addMessages({
     'sales.err.paymentMismatch': 'The amounts do not add up to the total, try again',
     'sales.err.invalidQty': 'A line in the cart has an invalid quantity',
     'sales.err.outOfStock': 'Not enough stock of "{name}"',
+    'sales.err.points': 'The customer does not have enough points for this redemption',
     'sales.pay.enterAmount': 'Enter the amount received',
     'sales.pay.shortNoCustomer': 'Less than the total — pick a customer to put the rest on credit',
   },
@@ -98,7 +100,12 @@ export async function completeSale(input: CompleteSaleInput): Promise<Sale> {
     if (settings.loyalty.enabled && cart.customerId) {
       const cust = await db.customers.get(cart.customerId)
       if (cust) {
-        pointsRedeemed = Math.min(cust.points ?? 0, Math.max(0, Math.floor(cart.redeemPoints ?? 0)))
+        // never more points than the discount actually given is worth: the cart may have shrunk (or the discount
+        // been changed) after the redeem, and saleDiscount() caps it at the subtotal
+        const requested = Math.max(0, Math.floor(cart.redeemPoints ?? 0))
+        const worth = settings.loyalty.pointValue > 0 ? Math.floor(totals.discount / settings.loyalty.pointValue + 1e-9) : 0
+        pointsRedeemed = Math.min(requested, worth)
+        if (pointsRedeemed > (cust.points ?? 0)) throw new SaleError('sales.err.points')
         pointsEarnedNow = pointsEarned(totals.total, settings.loyalty)
         await db.customers.update(cust.id, { points: Math.max(0, (cust.points ?? 0) - pointsRedeemed + pointsEarnedNow), updatedAt: at })
       }

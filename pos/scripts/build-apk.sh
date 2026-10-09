@@ -24,6 +24,12 @@ PKG=$(sed -n 's/.*package="\([^"]*\)".*/\1/p' "$A/AndroidManifest.xml" | head -1
 KS="${ANDROID_KEYSTORE:-$A/release.keystore}"
 KS_PASS="${ANDROID_KEYSTORE_PASSWORD:-kasebpass}"
 KS_ALIAS="${ANDROID_KEY_ALIAS:-kaseb}"
+# the version comes from the environment (CI), else from package.json: 1.2.3 → code 10203 (grows with every release)
+PKG_VERSION=$(node -p "require('$ROOT/package.json').version" 2>/dev/null || echo "")
+VERSION_NAME="${VERSION_NAME:-$PKG_VERSION}"
+if [ -z "${VERSION_CODE:-}" ] && [ -n "$PKG_VERSION" ]; then
+  VERSION_CODE=$(node -p "const [a,b,c]='$PKG_VERSION'.split('.').map(n=>parseInt(n,10)||0);a*10000+b*100+c")
+fi
 VERSION=()
 [ -n "${VERSION_CODE:-}" ] && VERSION+=(--version-code "$VERSION_CODE")
 [ -n "${VERSION_NAME:-}" ] && VERSION+=(--version-name "$VERSION_NAME")
@@ -50,6 +56,7 @@ javac --release 17 -encoding UTF-8 -Xlint:-options -cp "$AJ" -d "$B/obj" $(find 
 
 if [ ! -f "$KS" ]; then
   echo "No keystore at $KS: generating one (keep it safe — updates must be signed with the same key)"
+  echo "WARNING: no ANDROID_KEYSTORE given: making a throwaway signing key at $KS. Never ship an APK signed with it (updates and the Play Store need one key kept forever)."
   keytool -genkeypair -v -keystore "$KS" -alias "$KS_ALIAS" -keyalg RSA -keysize 2048 -validity 10000 \
     -storepass "$KS_PASS" -keypass "$KS_PASS" -dname "CN=Kaseb, OU=POS, O=Kaseb, L=Damascus, C=SY" >/dev/null 2>&1
 fi

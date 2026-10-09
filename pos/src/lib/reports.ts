@@ -39,19 +39,23 @@ export interface ReportSummary {
   credit: number         // Σ sale.credit (new debt)
 }
 
-/** The sale line a refunded item came from: same product and name, else the same product. */
+/** The sale line a refunded item came from: same product, name and pack size; then same product and name; then the same product. */
 export function matchSaleItem(sale: Sale, ri: Refund['items'][number]): SaleItem | undefined {
   const pid = ri.productId ?? ''
-  return sale.items.find(x => (x.productId ?? '') === pid && x.name === ri.name) ?? (ri.productId ? sale.items.find(x => x.productId === ri.productId) : undefined)
+  const units = ri.unitsPerQty ?? 1
+  const sameUnits = (x: SaleItem) => (x.unitsPerQty ?? 1) === units
+  return sale.items.find(x => (x.productId ?? '') === pid && x.name === ri.name && sameUnits(x))
+    ?? sale.items.find(x => (x.productId ?? '') === pid && x.name === ri.name)
+    ?? (ri.productId ? sale.items.find(x => x.productId === ri.productId && sameUnits(x)) ?? sale.items.find(x => x.productId === ri.productId) : undefined)
 }
 
-/** What the refunded units had cost us (sale item cost × refunded qty); 0 when the sale is unknown. */
+/** What the refunded units had cost us (the sale line's cost per base unit × refunded base units); 0 when the sale is unknown. */
 export function refundCost(refund: Refund, sale: Sale | undefined, decimals = 2): number {
   if (!sale) return 0
   let cost = 0
   for (const ri of refund.items) {
     const it = matchSaleItem(sale, ri)
-    if (it) cost += it.cost * ri.qty
+    if (it) cost += (it.cost / (it.unitsPerQty ?? 1)) * ri.qty * (ri.unitsPerQty ?? 1)
   }
   return round(cost, decimals)
 }
@@ -71,7 +75,7 @@ export function summarize(sales: Sale[], refunds: Refund[], expenses: Expense[],
   for (const s of sales) {
     byId.set(s.id, s)
     gross += s.total; cost += s.cost; credit += s.credit; discount += s.discount; tax += s.tax
-    for (const it of s.items) items += it.qty
+    for (const it of s.items) items += it.qty * (it.unitsPerQty ?? 1)
   }
   let refundTotal = 0, refundMargin = 0
   for (const f of refunds) {
@@ -211,7 +215,7 @@ export function byCategory(sales: Sale[], products: Pick<Product, 'id' | 'catego
       const key = cid && cats.has(cid) ? cid : ''
       let a = acc.get(key)
       if (!a) { a = { categoryId: key || undefined, qty: 0, revenue: 0, cost: 0 }; acc.set(key, a) }
-      a.qty += it.qty; a.revenue += it.total * ratio; a.cost += it.cost * it.qty
+      a.qty += it.qty * (it.unitsPerQty ?? 1); a.revenue += it.total * ratio; a.cost += it.cost * it.qty
     }
   }
   let sum = 0

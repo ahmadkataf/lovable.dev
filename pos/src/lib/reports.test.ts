@@ -91,6 +91,25 @@ describe('refundCost', () => {
   })
 })
 
+describe('refunds of packs', () => {
+  // one carton of 24 (cost 1920) and 2 loose units (cost 80 each) of the same product on one receipt
+  const carton = item({ productId: 'p1', name: 'Cola', qty: 1, price: 2400, cost: 1920, unitsPerQty: 24, packName: 'carton' })
+  const loose = item({ productId: 'p1', name: 'Cola', qty: 2, price: 100, cost: 80 })
+  const s = sale({ id: 'sp', createdAt: DAY1 + 1, items: [carton, loose] })
+  const oneLoose: Refund = { id: 'r1', saleId: 'sp', saleNumber: 1, createdAt: DAY1 + 2, items: [{ productId: 'p1', name: 'Cola', qty: 1, price: 100, total: 100 }], total: 100, method: 'cash', restock: true, userId: 'u1', userName: 'Sami' }
+  const theCarton: Refund = { id: 'r2', saleId: 'sp', saleNumber: 1, createdAt: DAY1 + 3, items: [{ productId: 'p1', name: 'Cola', qty: 1, price: 2400, total: 2400, unitsPerQty: 24 }], total: 2400, method: 'cash', restock: true, userId: 'u1', userName: 'Sami' }
+  it('refundCost tells a pack line from a unit line of the same product', () => {
+    expect(refundCost(oneLoose, s, 0)).toBe(80)        // not the carton's 1920
+    expect(refundCost(theCarton, s, 0)).toBe(1920)
+    expect(refundCost(theCarton, { ...s, items: [loose, carton] }, 0)).toBe(1920)   // whichever line comes first
+    expect(summarize([s], [oneLoose], [], { decimals: 0 }).profit).toBe(2600 - 2080 - (100 - 80))
+  })
+  it('topProducts counts the refunded units and their cost the same way', () => {
+    const [cola] = topProducts([s], [theCarton], 5, { decimals: 0 })
+    expect(cola).toMatchObject({ qty: 26, refundedQty: 24, refunded: 2400, profit: 2600 - 2080 - (2400 - 1920) })
+  })
+})
+
 describe('time buckets', () => {
   it('bucketByDay has one entry per day and ignores rows outside the range', () => {
     const b = bucketByDay(sales, refunds, DAY1 + 3600000, DAY3 + 5000, 0)

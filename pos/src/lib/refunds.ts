@@ -186,7 +186,20 @@ export async function createRefund(input: CreateRefundInput): Promise<Refund> {
       await applyLedger({ customerId: fresh.customerId!, type: 'refund', amount: -total, refId: refund.id, note: `#${fresh.number}`, method: 'credit', userId: user.id, shiftId: shift?.id }, d, at)
     }
     const refunded = round(fresh.refunded + total, d)
-    const status: Sale['status'] = allDone || round(fresh.total - refunded, d) <= 0 ? 'refunded' : 'partial'
+    // the points earned on the sale go back in proportion to the money refunded (never below zero)
+    if (fresh.pointsEarned && fresh.customerId && fresh.total > 0) {
+      const share = (x: number) => Math.floor(fresh.pointsEarned! * Math.min(1, Math.max(0, x / fresh.total)))
+      const take = allDone ? fresh.pointsEarned - share(fresh.refunded) : share(refunded) - share(fresh.refunded)
+      if (take > 0) {
+        const cust = await db.customers.get(fresh.customerId)
+        if (cust) {
+          const taken = Math.min(take, Math.max(0, cust.points ?? 0))
+          if (taken > 0) { await db.customers.update(cust.id, { points: (cust.points ?? 0) - taken, updatedAt: at }); refund.pointsTaken = taken }
+        }
+      }
+    }
+    // closed by its items, not by the money: rounding (or a free sale) can use up the total while units are still out
+    const status: Sale['status'] = allDone ? 'refunded' : 'partial'
     await db.refunds.add(refund)
     await db.sales.update(fresh.id, { refunded, status })
     await logAudit({ kind: 'refund', detail: `#${fresh.number} · ${refund.items.map(i => i.name).join(', ')}`, refId: refund.id, amount: total, user: { id: user.id, name: user.name } })

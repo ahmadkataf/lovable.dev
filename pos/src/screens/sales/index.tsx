@@ -225,7 +225,7 @@ export default function SalesScreen() {
     }
     const c = tk.cart as Cart
     const lines = Array.isArray(c?.lines) ? c.lines.map(l => ({ ...l, key: lineKey() })) : []
-    setCart({ lines, discount: c?.discount ?? 0, discountPct: c?.discountPct, customerId: c?.customerId, customerName: c?.customerName, note: c?.note })
+    setCart({ lines, discount: c?.discount ?? 0, discountPct: c?.discountPct, customerId: c?.customerId, customerName: c?.customerName, note: c?.note, redeemPoints: c?.customerId && c?.redeemPoints ? c.redeemPoints : undefined })
     try { await db.heldTickets.delete(tk.id) } catch { /* the ticket is already in the cart */ }
     setDialog(null)
     toast(t('sales.heldRestored'), 'success')

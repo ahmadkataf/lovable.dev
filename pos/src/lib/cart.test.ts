@@ -52,6 +52,20 @@ describe('cart', () => {
     const t = computeTotals(c, noTax, 2)
     expect(t.lines.reduce((s, l) => s + l.net, 0)).toBeCloseTo(20, 2)
   })
+  it('spreads a discount over many small lines without piling the rounding on the last one', () => {
+    let c = emptyCart()
+    for (let i = 0; i < 100; i++) c = addToCart(c, lineFromProduct(p({ id: 'x' + i, price: 1 }), 1, 10))
+    c = { ...c, discount: 50 }
+    const t = computeTotals(c, { enabled: true, rate: 10, inclusive: true, label: 'VAT' }, 0)
+    expect(t.total).toBe(50)
+    expect(t.lines.reduce((s, l) => s + l.net, 0)).toBe(50)
+    expect(t.lines.every(l => l.net === 0 || l.net === 1)).toBe(true)   // not 0, 0, … 0, 50
+    expect(t.lines[99].net).toBeLessThanOrEqual(1)
+    // the usual case is unchanged: 2000 + 3000 with 500 off
+    let c2 = addToCart(emptyCart(), lineFromProduct(p(), 2))
+    c2 = addToCart(c2, lineFromProduct(p({ id: 'p2', price: 3000 })))
+    expect(computeTotals({ ...c2, discount: 500 }, noTax, 0).lines.map(l => l.net)).toEqual([1800, 2700])
+  })
   it('turns lines into receipt items', () => {
     const c = addToCart(emptyCart(), lineFromProduct(p(), 2))
     const items = toSaleItems(c, computeTotals(c, noTax, 0), 0)

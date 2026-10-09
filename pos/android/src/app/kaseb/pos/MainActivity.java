@@ -401,6 +401,8 @@ public class MainActivity extends Activity {
     /** Renders the receipt in an offscreen WebView and hands it to the Android print framework (system dialog:
      *  a Bluetooth/Wi-Fi printer with a print service, or "save as PDF"). UI thread only. */
     void printHtml(final String html) {
+        // one hidden WebView per print: the previous one is released first (it is never shown, so nothing is lost)
+        if (printView != null) { try { printView.destroy(); } catch (Exception ignored) { } printView = null; }
         final WebView view = new WebView(this);
         WebSettings s = view.getSettings();
         s.setJavaScriptEnabled(true);
@@ -634,8 +636,14 @@ public class MainActivity extends Activity {
 
     @Override
     public void onBackPressed() {
-        if (web != null && web.canGoBack()) web.goBack();
-        else super.onBackPressed();
+        if (web == null) { super.onBackPressed(); return; }
+        // the page closes its topmost dialog itself; otherwise go back in history, and at the root just leave the app
+        // in the background (the cart and the open screen survive)
+        web.evaluateJavascript("(function(){try{return !!(window.onPosBack&&window.onPosBack())}catch(e){return false}})()", value -> {
+            if ("true".equals(value)) return;
+            if (web.canGoBack()) web.goBack();
+            else moveTaskToBack(true);
+        });
     }
 
     @Override

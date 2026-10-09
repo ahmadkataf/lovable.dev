@@ -18,3 +18,7 @@ database_id = "00000000-0000-0000-0000-000000000000"
 [[kv_namespaces]]
 binding = "BACKUPS"
 id = "00000000000000000000000000000000"
+
+# Nightly cleanup: events older than a year are deleted (src/index.ts `scheduled`).
+[triggers]
+crons = ["0 3 * * *"]

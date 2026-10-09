@@ -7,7 +7,7 @@
 //   fetchInfo()   GET /api/info (price, WhatsApp, trial days…), cached in storage for offline use
 //   subscribe()   every status change
 //
-// Storage (platform.license, outside the page on Electron/Android): JSON { token, lastCheck, maxSeenTime, info, denied }.
+// Storage (platform.license, outside the page on Electron/Android): JSON { token, lastCheck, maxSeenTime, skew, info, denied }.
 // Nothing here ever waits for the network before answering init().
 import './i18n'
 import { platform } from '../lib/platform'
@@ -29,7 +29,8 @@ type Denied = Extract<LicenseState, 'revoked' | 'expired' | 'tampered'>
 interface Stored {
   token: string | null
   lastCheck?: number
-  maxSeenTime?: number
+  maxSeenTime?: number       // the newest local clock reading ever seen (the rollback guard; never includes server time)
+  skew?: number              // serverTime - local time at the last successful check: exp / grace are judged on local time + skew
   info?: SellerInfo
   denied?: { state: Denied; at: number }   // the server refused the stored token: blocked until a check succeeds again
 }
@@ -66,6 +67,7 @@ async function readStored(): Promise<Stored> {
     const out: Stored = { token: typeof v.token === 'string' ? v.token : null }
     if (typeof v.lastCheck === 'number') out.lastCheck = v.lastCheck
     if (typeof v.maxSeenTime === 'number') out.maxSeenTime = v.maxSeenTime
+    if (typeof v.skew === 'number' && Number.isFinite(v.skew)) out.skew = v.skew
     if (v.info && typeof v.info === 'object' && typeof v.info.price === 'string') out.info = { ...DEFAULT_INFO, ...v.info }
     if (v.denied && (v.denied.state === 'revoked' || v.denied.state === 'expired' || v.denied.state === 'tampered')) out.denied = { state: v.denied.state, at: Number(v.denied.at) || 0 }
     return out
@@ -78,11 +80,13 @@ async function save(patch: Partial<Stored>): Promise<void> {
 }
 
 // ---------- state ----------
+/** Our best idea of the server's time: the local clock corrected by the offset measured at the last successful check. */
+const serverNow = (now = Date.now()): number => now + (stored.skew ?? 0)
 function derive(now = Date.now()): LicenseState {
   if (!API) return 'demo'
   if (stored.denied) return stored.denied.state
   if (!payload) return 'none'
-  return deriveState(payload, now, clockBad)
+  return deriveState(payload, serverNow(now), clockBad)
 }
 function fromPayload(p: TokenPayload | null): Partial<LicenseStatus> {
   if (!p) return { code: undefined, plan: undefined, expiresAt: undefined, graceUntil: undefined, cloudUntil: undefined }
@@ -140,7 +144,12 @@ async function accept(r: Result<Issued>, nonce: string): Promise<boolean> {
   const now = Date.now()
   payload = p
   clockBad = false
-  await save({ token: r.data.token, lastCheck: now, denied: undefined, maxSeenTime: Math.max(stored.maxSeenTime ?? 0, now, Number(r.data.status?.serverTime) || 0) })
+  // The server's time is not mixed into maxSeenTime (a clock running an hour slow would then look rolled back after
+  // every check); it is kept as an offset instead, so exp and the grace deadline are judged on corrected time
+  // whatever the local clock says — a clock set back before activation gains nothing.
+  const serverTime = Number(r.data.status?.serverTime)
+  const skew = Number.isFinite(serverTime) && serverTime > 0 ? serverTime - now : stored.skew
+  await save({ token: r.data.token, lastCheck: now, denied: undefined, skew, maxSeenTime: Math.max(stored.maxSeenTime ?? 0, now) })
   publish({ state: derive(now), ...fromPayload(p), lastCheck: now, online: true, error: undefined, errorText: undefined })
   return true
 }
@@ -185,8 +194,9 @@ export const license = {
       stored = await readStored()
       const now = Date.now()
       clockBad = clockRolledBack(now, stored.maxSeenTime)
-      payload = stored.token ? await verifyToken(stored.token, PUBLIC_KEY, device) : null
-      if (stored.token && !payload) await discardToken()        // forged, for another device, or signed by another server
+      // without a device identity (the bridge failed this run) nothing can be verified: the token is kept for the next run
+      payload = stored.token && device ? await verifyToken(stored.token, PUBLIC_KEY, device) : null
+      if (stored.token && device && !payload) await discardToken()        // forged, for another device, or signed by another server
       if (!clockBad) await bumpSeen(now)
       publish({ state: derive(now), deviceCode, ...fromPayload(payload), lastCheck: stored.lastCheck, info: stored.info, checking: false, online: isOnline(), error: undefined, errorText: undefined })
       startBackground()

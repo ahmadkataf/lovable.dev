@@ -202,4 +202,31 @@ describe('loyalty on a sale', () => {
     expect(sale.pointsEarned).toBe(18)
     expect((await db.customers.get('c1'))!.points).toBe(18)
   })
+
+  it('never takes more points than the discount is worth, and refuses points the customer no longer has', async () => {
+    const { db } = await import('../db')
+    const { completeSale, planPayment } = await import('./sales')
+    const { emptyCart, addToCart, lineFromProduct, computeTotals } = await import('./cart')
+    const { DEFAULT_SETTINGS } = await import('../db/types')
+    await db.delete(); await db.open()
+    const product = { id: 'lp', name: 'x', barcodes: [], price: 1000, cost: 800, trackStock: false, stock: 0, lowStock: 0, unit: 'piece', allowFraction: false, favorite: false, active: true, createdAt: 0, updatedAt: 0 }
+    await db.products.add(product)
+    await db.customers.add({ id: 'c1', name: 'Ali', balance: 0, points: 150, createdAt: 0, updatedAt: 0 })
+    const settings = { ...DEFAULT_SETTINGS, loyalty: { enabled: true, earnPer: 1000, pointValue: 10, minRedeem: 100 } }
+    const user = { id: 'u', name: 'u', role: 'admin' as const, active: true, createdAt: 0 }
+    // 150 points (1500) were redeemed, then the cart shrank to one item of 1000: the discount is capped at 1000…
+    const cart = { ...addToCart(emptyCart(), lineFromProduct(product, 1)), customerId: 'c1', customerName: 'Ali', redeemPoints: 150, discount: 1500 }
+    const totals = computeTotals(cart, settings.tax, 0)
+    expect(totals.discount).toBe(1000); expect(totals.total).toBe(0)
+    const plan = planPayment({ total: 0, method: 'cash', tendered: 0, hasCustomer: true, decimals: 0 })
+    const sale = await completeSale({ cart, totals, payments: plan.payments, paid: plan.paid, change: plan.change, credit: plan.credit, user, shift: null, settings })
+    expect(sale.pointsRedeemed).toBe(100)                      // …so only 100 points are consumed
+    expect((await db.customers.get('c1'))!.points).toBe(50)
+    // the 50 left do not cover another 100-point redeem: refused, nothing written
+    const again = { ...addToCart(emptyCart(), lineFromProduct(product, 1)), customerId: 'c1', customerName: 'Ali', redeemPoints: 100, discount: 1000 }
+    const t2 = computeTotals(again, settings.tax, 0)
+    await expect(completeSale({ cart: again, totals: t2, payments: plan.payments, paid: 0, change: 0, credit: 0, user, shift: null, settings })).rejects.toMatchObject({ key: 'sales.err.points' })
+    expect(await db.sales.count()).toBe(1)
+    expect((await db.customers.get('c1'))!.points).toBe(50)
+  })
 })

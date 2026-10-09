@@ -83,7 +83,8 @@ export async function nextNumber(key: string): Promise<number> {
   return db.transaction('rw', db.kv, async () => {
     const k = `counter:${key}`
     const row = await db.kv.get(k)
-    const n = ((row?.value as number | undefined) ?? 0) + 1
+    const prev = Math.floor(Number(row?.value))
+    const n = (Number.isFinite(prev) && prev > 0 ? prev : 0) + 1
     await db.kv.put({ key: k, value: n })
     return n
   })

@@ -15,11 +15,18 @@ function b64(bytes: Uint8Array): string {
   return btoa(s)
 }
 
+/** The longest prefix of `s` that fits in `max` UTF-8 bytes (a TLV length is one byte; Arabic letters take two). */
+function fitBytes(s: string, max = 255): string {
+  let out = ''
+  for (const ch of s) { if (enc.encode(out + ch).length > max) break; out += ch }
+  return out
+}
+
 export interface ZatcaFields { seller: string; vat: string; time: Date; total: number; vatAmount: number }
 
 /** The base64 text to put in the QR. Amounts are written with two decimals, as the spec asks. */
 export function zatcaQr(f: ZatcaFields): string {
-  const parts = [tlv(1, f.seller.slice(0, 200)), tlv(2, f.vat.replace(/\s/g, '')), tlv(3, f.time.toISOString().replace(/\.\d{3}Z$/, 'Z')), tlv(4, f.total.toFixed(2)), tlv(5, f.vatAmount.toFixed(2))]
+  const parts = [tlv(1, fitBytes(f.seller.trim())), tlv(2, f.vat.replace(/\s/g, '')), tlv(3, f.time.toISOString().replace(/\.\d{3}Z$/, 'Z')), tlv(4, f.total.toFixed(2)), tlv(5, f.vatAmount.toFixed(2))]
   const len = parts.reduce((n, p) => n + p.length, 0)
   const all = new Uint8Array(len)
   let o = 0
