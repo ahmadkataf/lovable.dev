@@ -109,3 +109,19 @@ paste works) with **تفعيل**; **ابدأ التجربة المجانية ({n
 `https://wa.me/<whatsapp>?text=<Arabic message with the device code>`; **تحقّق الآن** (check) and **نقل الترخيص لجهاز آخر**
 (release, after confirm) when active; last check time; the seller's message; version + build. Works offline (shows cached
 info and a "no internet" hint). Errors are shown in Arabic under the input.
+
+## Cloud backup (the yearly add-on, "التخزين السحابي")
+- Pricing: the lifetime license is sold once (`price`); the cloud add-on is a subscription (`cloud_price`, default "35$" per year).
+  `codes.cloud_until` (ms, NULL = none) says until when it is paid. The seller sets it at code creation (`cloudDays`) or from
+  the code sheet (`POST /admin/api/codes/:code/cloud` with `{ addDays }`, `{ until }` or `{ until: null }`).
+- The token carries it as `cl` (ms or null); the app shows the plan in Settings → Backup and runs a daily upload while
+  `cl > now` and `settings.pos.cloudAuto` is on (lib/cloud.ts).
+- Storage: Workers KV namespace `BACKUPS` holds the gzip of the local backup JSON under `b:<code>:<id>` (≤ 20 MB);
+  D1 table `backups` lists them. The newest `cloud_keep` (default 3) snapshots per code are kept.
+- Endpoints (the same `token` + `device` as the license; the device must be bound to the code):
+  - `POST /api/backup` — body = gzip bytes, headers `x-kaseb-token`, `x-kaseb-device`, `x-kaseb-meta` (JSON: counts,
+    appVersion, exportedAt, name). Needs an active plan. Errors: `cloud_inactive`, `too_large`, `backup_limit` (12/day).
+  - `POST /api/backups` `{ token, device }` → `{ backups: [{ id, at, size, device (short code), counts, appVersion }], cloudUntil }`.
+  - `POST /api/backup/get` `{ token, device, id }` → the gzip bytes. Allowed after the plan ended too: the data is the shop's.
+- Panel: a "سحابي" option when creating codes, cloud status + extend/stop/delete-backups on the code sheet, the KPI
+  "اشتراكات سحابية", and settings `cloud_price`, `cloud_days`, `cloud_keep`. `GET /api/info` returns `cloudPrice`.

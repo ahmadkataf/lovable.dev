@@ -9,7 +9,8 @@ CREATE TABLE IF NOT EXISTS codes (
   note        TEXT NOT NULL DEFAULT '',   -- customer name, shop, payment… anything
   seller      TEXT NOT NULL DEFAULT '',
   revoked     INTEGER NOT NULL DEFAULT 0,
-  moves       INTEGER NOT NULL DEFAULT 0  -- times the customer moved it to another device by himself
+  moves       INTEGER NOT NULL DEFAULT 0, -- times the customer moved it to another device by himself
+  cloud_until INTEGER                     -- ms; the cloud backup subscription (yearly) runs until then; NULL = none
 );
 CREATE INDEX IF NOT EXISTS codes_created ON codes(created_at);
 
@@ -54,3 +55,14 @@ CREATE TABLE IF NOT EXISTS settings (
   key   TEXT PRIMARY KEY,
   value TEXT NOT NULL
 );
+
+-- Cloud backups (the yearly plan): one row per snapshot; the compressed file is in KV under key b:<code>:<id>.
+CREATE TABLE IF NOT EXISTS backups (
+  id         TEXT PRIMARY KEY,
+  code       TEXT NOT NULL,
+  device     TEXT NOT NULL,
+  at         INTEGER NOT NULL,
+  size       INTEGER NOT NULL,           -- compressed bytes
+  meta       TEXT NOT NULL DEFAULT '{}'  -- { counts, appVersion, exportedAt, name }
+);
+CREATE INDEX IF NOT EXISTS backups_code_at ON backups(code, at);

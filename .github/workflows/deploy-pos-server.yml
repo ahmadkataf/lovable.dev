@@ -1,7 +1,7 @@
 # Puts the Kaseb license server (pos/server) online on Cloudflare: the activation API and the seller's codes page.
 # Runs when started by hand from the Actions tab, and whenever pos/server changes.
 # Needs four repository secrets (Settings → Secrets and variables → Actions), two of them shared with the Emar server:
-#   CLOUDFLARE_API_TOKEN   a Cloudflare API token with "Edit Cloudflare Workers" and "D1 Edit"
+#   CLOUDFLARE_API_TOKEN   a Cloudflare API token with "Edit Cloudflare Workers", "D1 Edit" and "Workers KV Storage Edit"
 #   CLOUDFLARE_ACCOUNT_ID  your Cloudflare account id
 #   KASEB_ADMIN_KEY       the password of the codes page (/admin) — long and secret
 #   KASEB_LICENSE_SECRET  a long random text the license signing key is derived from — never change it afterwards
@@ -43,6 +43,11 @@ jobs:
           if [ -z "$ID" ]; then npx wrangler d1 create kaseb; ID=$(npx wrangler d1 list --json | node -e "let s='';process.stdin.on('data',d=>s+=d).on('end',()=>{console.log(JSON.parse(s).find(x=>x.name==='kaseb').uuid)})"); fi
           sed -i "s/^database_id = .*/database_id = \"$ID\"/" wrangler.toml
           npx wrangler d1 execute kaseb --remote --file=schema.sql
+          # the KV namespace that holds the cloud backups (yearly plan): created once, its id written next to the D1 id
+          KV=$(npx wrangler kv namespace list | node -e "let s='';process.stdin.on('data',d=>s+=d).on('end',()=>{try{const d=JSON.parse(s).find(x=>x.title.endsWith('BACKUPS'));console.log(d?d.id:'')}catch{console.log('')}})")
+          if [ -z "$KV" ]; then npx wrangler kv namespace create BACKUPS >/dev/null; KV=$(npx wrangler kv namespace list | node -e "let s='';process.stdin.on('data',d=>s+=d).on('end',()=>{console.log(JSON.parse(s).find(x=>x.title.endsWith('BACKUPS')).id)})"); fi
+          sed -i "s/^id = \"0\{32\}\"/id = \"$KV\"/" wrangler.toml
+          grep -n "database_id\|^id = " wrangler.toml
       - name: Deploy
         if: env.CLOUDFLARE_API_TOKEN != ''
         working-directory: pos/server

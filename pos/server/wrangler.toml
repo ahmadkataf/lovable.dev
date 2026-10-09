@@ -12,3 +12,9 @@ database_id = "00000000-0000-0000-0000-000000000000"
 
 # Secrets (never in this file): LICENSE_SECRET derives the signing key of every license token,
 # ADMIN_KEY opens the codes page. Set by the deploy workflow from the repository secrets.
+
+# Cloud backups of the shops that subscribe (yearly plan): the compressed files live in Workers KV,
+# their list in the D1 table `backups`. The deploy workflow creates the namespace the first time and writes its id here.
+[[kv_namespaces]]
+binding = "BACKUPS"
+id = "00000000000000000000000000000000"

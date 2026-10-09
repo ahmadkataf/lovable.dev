@@ -63,7 +63,7 @@ select.in{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.o
 .chip{flex:none;min-height:36px;padding:0 14px;border-radius:999px;border:1.5px solid var(--line);background:var(--card);font-size:13px;font-weight:600;color:var(--muted);cursor:pointer}.chip.on{background:var(--text);color:var(--card);border-color:var(--text)}
 .grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}.grid3{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}
 @media (min-width:700px){.grid3{grid-template-columns:repeat(3,1fr)}}
-.kpis{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}@media (min-width:700px){.kpis{grid-template-columns:repeat(5,1fr)}}
+.kpis{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}@media (min-width:700px){.kpis{grid-template-columns:repeat(6,1fr)}}
 .kpi{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:14px 16px;box-shadow:var(--shadow)}
 .kpi .v{font-size:26px;font-weight:800;line-height:1.1;font-variant-numeric:tabular-nums}.kpi .k{font-size:12px;color:var(--faint);font-weight:600;margin-top:6px}.kpi.hero{background:var(--brand);border-color:var(--brand);color:#fff}.kpi.hero .k{color:rgba(255,255,255,.85)}
 .badge{display:inline-flex;align-items:center;gap:5px;padding:2px 9px;border-radius:999px;font-size:12px;font-weight:600;white-space:nowrap;background:var(--soft2);color:var(--muted)}
@@ -139,6 +139,7 @@ select.in{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.o
           <div><label class="l">أجهزة لكل كود</label><select id="maxDev" class="in"><option value="1">جهاز واحد</option><option value="2">جهازان</option><option value="3">3 أجهزة</option><option value="4">4 أجهزة</option><option value="5">5 أجهزة</option></select></div>
         </div>
         <div><label class="l">مدة الترخيص</label><div class="seg" id="valid"><button data-v="life" class="on" type="button">دائم</button><button data-v="year" type="button">سنة</button><button data-v="date" type="button">حتى تاريخ</button></div><input id="date" type="date" class="in hidden num" style="margin-top:8px"></div>
+        <div><label class="l">التخزين السحابي (اشتراك سنوي)</label><div class="seg" id="cloud"><button data-v="0" class="on" type="button">بدون</button><button data-v="1" type="button">سنة من اليوم</button></div><div class="faint" style="margin-top:4px">نسخ احتياطي سحابي تلقائي واستعادة على أي جهاز. يُمدَّد لاحقاً من بطاقة الكود.</div></div>
         <div class="grid2"><div><label class="l">البائع</label><input id="seller" class="in" placeholder="مباشر" list="sellerList" maxlength="80"><datalist id="sellerList"></datalist></div><div><label class="l">ملاحظة</label><input id="note" class="in" placeholder="اسم المحل، المبلغ…" maxlength="200"></div></div>
         <button class="btn primary block lg" id="make">إنشاء الأكواد</button>
       </div>
@@ -182,6 +183,11 @@ select.in{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.o
           <div><label class="l">أيام التجربة المجانية</label><input id="sTrial" class="in num" type="number" min="0" max="365" inputmode="numeric"><div class="faint" style="margin-top:4px">0 يوقف التجربة. تجربة واحدة لكل جهاز.</div></div>
           <div><label class="l">أيام السماح بلا إنترنت</label><input id="sGrace" class="in num" type="number" min="1" max="365" inputmode="numeric"><div class="faint" style="margin-top:4px">بعدها يتوقف التطبيق حتى يتصل ويتحقق.</div></div>
         </div>
+        <div class="grid2">
+          <div><label class="l">سعر التخزين السحابي (سنوياً)</label><input id="sCloudPrice" class="in" maxlength="40" placeholder="35$"><div class="faint" style="margin-top:4px">يظهر في التطبيق كعرض اشتراك.</div></div>
+          <div><label class="l">مدة الاشتراك بالأيام</label><input id="sCloudDays" class="in num" type="number" min="30" max="3650" inputmode="numeric"><div class="faint" style="margin-top:4px">ما يضيفه زر «تفعيل/تمديد السحابة».</div></div>
+        </div>
+        <div><label class="l">عدد النسخ السحابية المحفوظة لكل عميل</label><input id="sCloudKeep" class="in num" type="number" min="1" max="10" inputmode="numeric"><div class="faint" style="margin-top:4px">الأحدث تحلّ محل الأقدم. 3 نسخ تكفي عادةً.</div></div>
         <div><label class="l">أقل إصدار مسموح (اختياري)</label><input id="sMin" class="in num" placeholder="1.0.0" maxlength="20"><div class="faint" style="margin-top:4px">النسخ الأقدم تُطالَب بالتحديث ولا تُفعَّل.</div></div>
         <div><label class="l">بصمة توقيع أندرويد المسموحة (اختياري)</label><textarea id="sSig" class="in mono" maxlength="2000" placeholder="SHA-256 لشهادة التوقيع، ويمكن أكثر من واحدة مفصولة بفاصلة"></textarea><div class="faint" style="margin-top:4px">فارغة = لا تحقق. مع قيمة، تُرفض نسخ أندرويد المعاد توقيعها (تطبيق معدّل).</div></div>
         <button class="btn primary block lg" id="saveSet">حفظ الإعدادات</button>
@@ -254,8 +260,9 @@ const copy = t => navigator.clipboard && navigator.clipboard.writeText ? navigat
 function fallbackCopy(t) { const ta = document.createElement('textarea'); ta.value = t; ta.style.cssText = 'position:fixed;opacity:0'; document.body.appendChild(ta); ta.select(); try { document.execCommand('copy'); toast('تم النسخ ✓', 'ok') } catch (e) { prompt('انسخ:', t) } ta.remove() }
 const platIcon = p => p === 'android' ? ICONS.phone : p === 'electron' ? ICONS.pc : ICONS.web
 const platName = p => p === 'android' ? 'أندرويد' : p === 'electron' ? 'ويندوز' : 'متصفح'
-let SET = { price: '35$', whatsapp: '', trial_days: 7, grace_days: 10, min_version: '', android_signature: '', message: '' }
-const customerMsg = (code, exp, maxDev) => 'شكراً لشرائك كاسب 🌟' + '\n' + 'كود التفعيل: ' + code + '\n' + 'افتح التطبيق وأنت متصل بالإنترنت ← شاشة التفعيل ← أدخل الكود ← تفعيل.' + '\n' + 'الكود يعمل على ' + (maxDev > 1 ? maxDev + ' أجهزة' : 'جهاز واحد') + (exp ? '، وصالح حتى ' + fmt(exp) : '، ترخيص دائم') + '.'
+let SET = { price: '35$', whatsapp: '', trial_days: 7, grace_days: 10, min_version: '', android_signature: '', message: '', cloud_price: '35$', cloud_days: 365, cloud_keep: 3 }
+const kb = n => n < 1024 * 1024 ? Math.round(n / 1024) + ' KB' : (n / 1048576).toFixed(1) + ' MB'
+const customerMsg = (code, exp, maxDev, cloud) => 'شكراً لشرائك كاسب 🌟' + '\n' + 'كود التفعيل: ' + code + '\n' + 'افتح التطبيق وأنت متصل بالإنترنت ← شاشة التفعيل ← أدخل الكود ← تفعيل.' + '\n' + 'الكود يعمل على ' + (maxDev > 1 ? maxDev + ' أجهزة' : 'جهاز واحد') + (exp ? '، وصالح حتى ' + fmt(exp) : '، ترخيص دائم') + '.' + (cloud ? '\n' + 'التخزين السحابي مفعّل حتى ' + fmt(cloud) + ': من الإعدادات ← النسخ الاحتياطي ← السحابة.' : '')
 
 // ---- confirm dialog (a Promise)
 function ask(title, text, opts) {
@@ -321,6 +328,7 @@ async function stats() {
       ['أجهزة نشطة (7 أيام)', s.devices.active7, ''],
       ['تجارب جارية', s.devices.trials, ''],
       ['تفعيلات هذا الأسبوع', s.activationsWeek, ''],
+      ['اشتراكات سحابية', (s.cloud && s.cloud.active) || 0, ''],
     ].map(([k, v, c]) => '<div class="kpi ' + c + '"><div class="v">' + (v || 0) + '</div><div class="k">' + k + '</div></div>').join('')
     const days = s.days || []
     const max = Math.max(1, ...days.map(d => d.n))
@@ -376,13 +384,18 @@ function deviceLine(d, withRelease) {
   return '<div class="dev"><div class="ico" style="width:36px;height:36px;border-radius:10px;background:var(--soft2);display:grid;place-items:center;color:var(--muted)">' + platIcon(d.platform) + '</div><div class="grow"><div class="bold truncate">' + esc(d.name || platName(d.platform)) + ' <span class="mono faint">' + esc(d.device_code) + '</span></div><div class="faint">' + platName(d.platform) + (d.version ? ' · v' + esc(d.version) : '') + ' · ' + ago(d.last_seen) + (d.bound_at ? ' · رُبط ' + fmt(d.bound_at) : '') + '</div></div>' + (withRelease ? '<button class="btn sm soft-red" data-rel="' + d.device + '" type="button">تحرير</button>' : trial) + '</div>'
 }
 async function openCode(code) {
-  let r, devices, events
-  try { const j = await api('codes/' + code.replace(/-/g, '')); devices = j.devices; events = j.events; r = Object.assign(j.code, { devices: devices.length, last_seen: Math.max(0, ...devices.map(d => d.last_seen || 0)) }) } catch (e) { return toast(e.message, 'bad') }
+  let r, devices, events, backups = [], now = Date.now()
+  try { const j = await api('codes/' + code.replace(/-/g, '')); devices = j.devices; events = j.events; backups = j.backups || []; now = j.now || now; r = Object.assign(j.code, { devices: devices.length, last_seen: Math.max(0, ...devices.map(d => d.last_seen || 0)) }) } catch (e) { return toast(e.message, 'bad') }
+  const cloudOn = r.cloud_until && r.cloud_until > now
+  const cloudHtml = '<div class="card" style="padding:10px 12px"><div class="row spread"><h3 style="padding:0">☁️ التخزين السحابي</h3>' + (cloudOn ? '<span class="badge ok">مفعّل حتى ' + fmt(r.cloud_until) + '</span>' : r.cloud_until ? '<span class="badge bad">انتهى ' + fmt(r.cloud_until) + '</span>' : '<span class="badge">غير مشترك</span>') + '</div>'
+    + (backups.length ? '<div class="faint" style="margin-top:6px">النسخ المحفوظة: ' + backups.map(b => fmt(b.at) + ' (' + kb(b.size) + (b.device ? ' · ' + b.device : '') + ')').join('، ') + '</div>' : '<div class="faint" style="margin-top:6px">لا نسخ محفوظة بعد.</div>') + '</div>'
   const host = openSheet('<div class="row spread"><div><div class="mono" style="font-size:24px;font-weight:800">' + r.code + '</div><div class="muted">' + (r.expires_at ? 'صالح حتى ' + fmt(r.expires_at) : 'ترخيص دائم') + ' · ' + (r.max_devices > 1 ? r.max_devices + ' أجهزة' : 'جهاز واحد') + '</div></div>' + badge(r) + '</div>'
     + (r.note || r.seller ? '<div class="muted">' + esc([r.seller, r.note].filter(Boolean).join(' · ')) + '</div>' : '')
     + '<div class="card" style="padding:4px 12px"><h3 style="padding:8px 0 2px">الأجهزة (' + devices.length + '/' + r.max_devices + ')</h3>' + (devices.map(d => deviceLine(d, true)).join('') || '<div class="faint" style="padding:8px 0 12px">لم يُفعَّل على أي جهاز بعد.</div>') + '</div>'
+    + cloudHtml
     + '<div id="codeForm"></div>'
     + '<div class="col" style="gap:0">' + act('copy', 'نسخ الكود', '', 'copy') + act('msg', 'نسخ رسالة للعميل', '', 'msg') + act('print', 'طباعة بطاقة', '', 'print') + act('note', 'الملاحظة والبائع', '', 'note') + act('cal', 'تمديد / تغيير الانتهاء', '', 'extend') + act('devices', 'عدد الأجهزة المسموح', '', 'devices')
+    + act('cal', cloudOn ? 'تمديد السحابة سنة' : 'تفعيل السحابة سنة', '', 'cloud-add') + (r.cloud_until ? act('ban', 'إيقاف السحابة', '', 'cloud-stop') : '') + (backups.length ? act('ban', 'حذف النسخ السحابية', 'danger', 'backups-delete') : '')
     + (r.revoked ? act('undo', 'إعادة الكود', '', 'unrevoke') : act('ban', 'إلغاء الكود', 'danger', 'revoke')) + '</div>'
     + '<details><summary class="muted" style="cursor:pointer;padding:6px 0">سجل الأحداث (' + events.length + ')</summary><div>' + (events.map(eventHtml).join('') || '<div class="faint">لا أحداث.</div>') + '</div></details>'
     + '<button class="btn block" data-a="close" type="button">إغلاق</button>')
@@ -397,7 +410,7 @@ async function openCode(code) {
     try {
       if (a === 'close') return closeSheet()
       if (a === 'copy') return copy(r.code)
-      if (a === 'msg') return copy(customerMsg(r.code, r.expires_at, r.max_devices))
+      if (a === 'msg') return copy(customerMsg(r.code, r.expires_at, r.max_devices, r.cloud_until && r.cloud_until > Date.now() ? r.cloud_until : null))
       if (a === 'print') return printCards([r.code], r.expires_at, r.max_devices)
       if (a === 'note') {
         form.innerHTML = '<div class="card stack"><div class="grid2"><div><label class="l">البائع</label><input id="fSeller" class="in" value="' + esc(r.seller) + '" maxlength="80"></div><div><label class="l">الملاحظة</label><input id="fNote" class="in" value="' + esc(r.note) + '" maxlength="200"></div></div><div class="row"><button class="btn primary grow" id="fSave" type="button">حفظ</button><button class="btn" id="fCancel" type="button">إلغاء</button></div></div>'
@@ -425,6 +438,9 @@ async function openCode(code) {
         form.querySelector('#fSave').onclick = async () => { try { await post('codes/' + r.code + '/devices', { maxDevices: +form.querySelector('#fMax').value }); toast('تم الحفظ ✓', 'ok'); refresh() } catch (e) { toast(e.message, 'bad') } }
         return
       }
+      if (a === 'cloud-add') { try { await post('codes/' + r.code + '/cloud', { addDays: SET.cloud_days || 365 }); toast('تم تفعيل السحابة ✓', 'ok'); refresh() } catch (e) { toast(e.message, 'bad') } return }
+      if (a === 'cloud-stop') { if (!(await ask('إيقاف التخزين السحابي؟', 'سيتوقف النسخ التلقائي عند هذا العميل، وتبقى نسخه المحفوظة قابلة للاستعادة.', { danger: true, ok: 'إيقاف' }))) return; try { await post('codes/' + r.code + '/cloud', { until: null }); toast('تم ✓', 'ok'); refresh() } catch (e) { toast(e.message, 'bad') } return }
+      if (a === 'backups-delete') { if (!(await ask('حذف كل النسخ السحابية لهذا الكود؟', 'لا يمكن التراجع.', { danger: true, ok: 'حذف' }))) return; try { await post('codes/' + r.code + '/backups-delete'); toast('حُذفت ✓', 'ok'); refresh() } catch (e) { toast(e.message, 'bad') } return }
       if (a === 'revoke') { if (!(await ask('إلغاء الكود؟', 'سيتوقف التطبيق عند صاحب هذا الكود خلال ساعات (عند أول تحقق). يمكنك إعادته لاحقاً.', { danger: true, ok: 'إلغاء الكود' }))) return; await post('codes/' + r.code + '/revoke') }
       if (a === 'unrevoke') await post('codes/' + r.code + '/unrevoke')
       toast('تم ✓', 'ok'); refresh()
@@ -440,15 +456,17 @@ $('minus').onclick = () => { $('cnt').value = Math.max(1, +$('cnt').value - 1) }
 $('plus').onclick = () => { $('cnt').value = Math.min(100, +$('cnt').value + 1) }
 const expiry = () => valid === 'life' ? null : valid === 'year' ? Date.now() + 365 * 86400000 : $('date').value ? endOfDay($('date').value) : NaN
 let last = null
+let cloudYears = 0
+$('cloud').querySelectorAll('button').forEach(b => b.onclick = () => { cloudYears = +b.dataset.v; $('cloud').querySelectorAll('button').forEach(x => x.classList.toggle('on', x === b)) })
 $('make').onclick = async () => {
   const count = Math.max(1, Math.min(100, +$('cnt').value || 1))
   const exp = expiry()
   if (Number.isNaN(exp)) return toast('اختر تاريخ الانتهاء', 'bad')
   $('make').disabled = true
   try {
-    last = await post('codes', { count, expiresAt: exp, maxDevices: +$('maxDev').value, seller: $('seller').value, note: $('note').value })
+    last = await post('codes', { count, expiresAt: exp, maxDevices: +$('maxDev').value, seller: $('seller').value, note: $('note').value, cloudDays: cloudYears ? SET.cloud_days || 365 : 0 })
     $('made').classList.remove('hidden')
-    $('madeTitle').textContent = last.codes.length + ' كود · ' + (last.expiresAt ? 'حتى ' + fmt(last.expiresAt) : 'دائم') + ' · ' + (last.maxDevices > 1 ? last.maxDevices + ' أجهزة' : 'جهاز واحد')
+    $('madeTitle').textContent = last.codes.length + ' كود · ' + (last.expiresAt ? 'حتى ' + fmt(last.expiresAt) : 'دائم') + ' · ' + (last.maxDevices > 1 ? last.maxDevices + ' أجهزة' : 'جهاز واحد') + (last.cloudUntil ? ' · سحابي حتى ' + fmt(last.cloudUntil) : '')
     $('cards').innerHTML = last.codes.map(c => '<div class="codecard"><div class="faint">كاسب — كود التفعيل</div><b class="mono">' + c + '</b><div class="faint">' + (last.expiresAt ? 'صالح حتى ' + fmt(last.expiresAt) : 'ترخيص دائم') + ' · ' + (last.maxDevices > 1 ? last.maxDevices + ' أجهزة' : 'لجهاز واحد') + '</div><button class="btn sm" style="margin-top:8px" data-c="' + c + '" type="button">نسخ</button></div>').join('')
     $('cards').querySelectorAll('[data-c]').forEach(b => b.onclick = () => copy(b.dataset.c))
     $('made').scrollIntoView({ behavior: 'smooth', block: 'start' })
@@ -459,7 +477,7 @@ $('make').onclick = async () => {
 }
 $('madeClose').onclick = () => $('made').classList.add('hidden')
 $('copyAll').onclick = () => last && copy(last.codes.join('\n'))
-$('copyMsg').onclick = () => last && copy(customerMsg(last.codes[0], last.expiresAt, last.maxDevices))
+$('copyMsg').onclick = () => last && copy(customerMsg(last.codes[0], last.expiresAt, last.maxDevices, last.cloudUntil))
 $('printCards').onclick = () => last && printCards(last.codes, last.expiresAt, last.maxDevices)
 function printCards(codes, exp, maxDev) {
   $('printArea').innerHTML = '<div class="cards">' + codes.map(c => '<div class="codecard"><div class="faint">كاسب — كود التفعيل</div><b class="mono">' + c + '</b><div class="faint">افتح كاسب ← شاشة التفعيل ← أدخل الكود<br>' + (exp ? 'صالح حتى ' + fmt(exp) : 'ترخيص دائم') + ' · ' + (maxDev > 1 ? maxDev + ' أجهزة' : 'لجهاز واحد') + (SET.whatsapp ? '<br>واتساب: <span class="num">' + esc(SET.whatsapp) + '</span>' : '') + '</div></div>').join('') + '</div>'
@@ -527,6 +545,7 @@ async function loadSettings() {
   try {
     const s = await api('settings'); SET = s
     $('sPrice').value = s.price; $('sWhatsapp').value = s.whatsapp; $('sMessage').value = s.message; $('sTrial').value = s.trial_days; $('sGrace').value = s.grace_days; $('sMin').value = s.min_version; $('sSig').value = s.android_signature
+    $('sCloudPrice').value = s.cloud_price || '35$'; $('sCloudDays').value = s.cloud_days || 365; $('sCloudKeep').value = s.cloud_keep || 3
   } catch (e) { toast(e.message, 'bad') }
   $('apiUrl').textContent = location.origin
   try { const k = await fetch('/api/public-key').then(r => r.json()); $('pubKey').textContent = k.publicKey || (k.message || 'غير مهيّأ') } catch (e) { $('pubKey').textContent = 'تعذّر الجلب' }
@@ -536,7 +555,7 @@ $('saveSet').onclick = async () => {
   if (!(grace >= 1)) return toast('أيام السماح يجب أن تكون 1 على الأقل', 'bad')
   $('saveSet').disabled = true
   try {
-    SET = await post('settings', { price: $('sPrice').value, whatsapp: $('sWhatsapp').value, message: $('sMessage').value, trial_days: +$('sTrial').value, grace_days: grace, min_version: $('sMin').value, android_signature: $('sSig').value })
+    SET = await post('settings', { price: $('sPrice').value, whatsapp: $('sWhatsapp').value, message: $('sMessage').value, trial_days: +$('sTrial').value, grace_days: grace, min_version: $('sMin').value, android_signature: $('sSig').value, cloud_price: $('sCloudPrice').value, cloud_days: +$('sCloudDays').value, cloud_keep: +$('sCloudKeep').value })
     $('sWhatsapp').value = SET.whatsapp; $('sMin').value = SET.min_version; $('sSig').value = SET.android_signature; $('sPrice').value = SET.price
     toast('حُفظت الإعدادات ✓', 'ok')
   } catch (e) { toast('خطأ: ' + e.message, 'bad') }

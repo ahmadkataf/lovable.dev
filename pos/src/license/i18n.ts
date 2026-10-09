@@ -15,6 +15,10 @@ addMessages({
     'license.err.device_mismatch': 'انتقل هذا الترخيص إلى جهاز آخر.',
     'license.err.move_limit': 'استُنفدت مرات النقل الذاتي. اطلب من البائع نقل الترخيص.',
     'license.err.network': 'تعذّر الاتصال بالخادم. تأكد من الإنترنت وأعد المحاولة.',
+    'license.err.cloud_inactive': 'التخزين السحابي غير مفعّل لهذا الترخيص.',
+    'license.err.too_large': 'النسخة الاحتياطية أكبر من الحد المسموح (20 م.ب).',
+    'license.err.backup_limit': 'وصلت إلى الحد اليومي للنسخ السحابي. حاول غداً.',
+    'license.err.not_found': 'النسخة غير موجودة على الخادم.',
     'license.err.unknown': 'حدث خطأ غير متوقع. أعد المحاولة بعد قليل.',
   },
   en: {
@@ -30,6 +34,10 @@ addMessages({
     'license.err.device_mismatch': 'This license moved to another device.',
     'license.err.move_limit': 'No self-moves left. Ask the seller to move the license.',
     'license.err.network': 'Could not reach the server. Check the internet connection and try again.',
+    'license.err.cloud_inactive': 'Cloud backup is not active for this license.',
+    'license.err.too_large': 'The backup is larger than the allowed 20 MB.',
+    'license.err.backup_limit': 'Daily cloud backup limit reached. Try again tomorrow.',
+    'license.err.not_found': 'This snapshot no longer exists on the server.',
     'license.err.unknown': 'Something unexpected happened. Try again in a moment.',
   },
 })

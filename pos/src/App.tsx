@@ -17,6 +17,7 @@ import ExpensesScreen from './screens/expenses'
 import SettingsScreen from './screens/settings'
 import ActivationScreen from './screens/activation'
 import { useT } from './i18n'
+import { startCloudScheduler } from './lib/cloud'
 
 export default function App() {
   const ready = useStore(s => s.ready)
@@ -25,6 +26,7 @@ export default function App() {
   const license = useStore(s => s.license)
   const t = useT()
   useEffect(() => { void boot() }, [boot])
+  useEffect(() => { if (ready) startCloudScheduler() }, [ready])
 
   if (!ready) {
     return (

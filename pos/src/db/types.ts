@@ -243,6 +243,7 @@ export interface Settings {
     lockAfterMinutes: number   // 0 = never
     askPrintAfterSale: boolean
     cameraScanner: boolean
+    cloudAuto: boolean         // daily cloud backup while the cloud plan is active
   }
   lang: 'ar' | 'en'
   theme: 'light' | 'dark' | 'system'
@@ -256,7 +257,7 @@ export const DEFAULT_SETTINGS: Settings = {
   receipt: { header: '', footer: 'شكراً لزيارتكم', paper: 80, showLogo: true, autoPrint: false, copies: 1, showBarcode: true },
   pos: {
     defaultMethod: 'cash', quickAmounts: [], allowNegativeStock: true, soundOn: true, vibrate: true,
-    gridSize: 'medium', showStockOnCards: true, requirePin: false, lockAfterMinutes: 0, askPrintAfterSale: true, cameraScanner: true,
+    gridSize: 'medium', showStockOnCards: true, requirePin: false, lockAfterMinutes: 0, askPrintAfterSale: true, cameraScanner: true, cloudAuto: true,
   },
   lang: 'ar',
   theme: 'system',

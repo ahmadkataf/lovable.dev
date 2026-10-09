@@ -171,6 +171,7 @@ export default function ActivationScreen({ embedded }: { embedded?: boolean }) {
       {showBuy && (
         <section className="act-buy">
           <div className="act-price">{t('activation.price')}: <span className="num">{info.price || DEFAULT_INFO.price}</span> — {t('activation.priceLine')}</div>
+          <div className="act-price small muted">{t('activation.cloudLine', { price: info.cloudPrice || DEFAULT_INFO.cloudPrice || '35$' })}</div>
           {info.whatsapp && <Button className="act-wa" size="lg" block icon={<MessageCircle size={18} />} onClick={buy}>{t('activation.buyWa')}</Button>}
         </section>
       )}

@@ -18,6 +18,7 @@ export interface TokenPayload {
   gr: number              // grace until: the app must reach /api/check before this time
   n: string               // the nonce the client sent
   srv: typeof SRV
+  cl?: number | null       // cloud backup subscription until (ms); null / missing = none
 }
 
 // ---------- codes ----------

@@ -6,6 +6,8 @@
 //   POST /api/trial     {device, …, nonce}           one free trial per device → signed token
 //   POST /api/check     {token, device, …, nonce}    every 6 hours: still valid? → fresh token
 //   POST /api/release   {token, device}              unbind this device so the code can move
+//   POST /api/backup    (gzip body + x-kaseb-* headers) store a cloud backup (yearly plan)
+//   POST /api/backups   {token, device}              the stored snapshots;  POST /api/backup/get {token, device, id} → the file
 //   GET  /admin  +  /admin/api/*  (Bearer ADMIN_KEY) the seller's codes page and its API
 //   GET  /privacy, GET /
 // Every error is { error: '<key>', message?: '<Arabic>' } with status 400 / 403 / 429.
@@ -17,13 +19,15 @@ import {
 
 export interface Env {
   DB: D1Database
+  BACKUPS: KVNamespace
   LICENSE_SECRET: string
   ADMIN_KEY: string
 }
 
 const CORS = {
   'access-control-allow-origin': '*',
-  'access-control-allow-headers': 'authorization, content-type',
+  'access-control-allow-headers': 'authorization, content-type, x-kaseb-token, x-kaseb-device, x-kaseb-meta',
+  'access-control-expose-headers': 'x-kaseb-at',
   'access-control-allow-methods': 'GET, POST, OPTIONS',
   'access-control-max-age': '86400',
 }
@@ -31,18 +35,21 @@ const RATE_WINDOW = 10 * 60000   // 30 activate/trial requests per 10 minutes pe
 const RATE_LIMIT = 30
 const MAX_BODY = 8 * 1024
 const MAX_SELF_MOVES = 3
+const MAX_BACKUP = 20 * 1024 * 1024      // one compressed backup
+const BACKUPS_PER_DAY = 12               // uploads per code per day
 
 export type CodeRow = {
   code: string; plan: string; created_at: number; expires_at: number | null; max_devices: number
-  note: string; seller: string; revoked: number; moves: number
+  note: string; seller: string; revoked: number; moves: number; cloud_until: number | null
 }
+export type BackupRow = { id: string; code: string; device: string; at: number; size: number; meta: string }
 export type DeviceRow = {
   device: string; device_code: string; name: string; platform: string; version: string; build: string; sig: string
   code: string | null; bound_at: number | null; trial_started: number | null; trial_ends: number | null
   first_seen: number; last_seen: number; ip: string | null
 }
-type Settings = { price: string; whatsapp: string; trial_days: number; grace_days: number; min_version: string; android_signature: string; message: string }
-const DEFAULTS: Settings = { price: '35$', whatsapp: '', trial_days: 7, grace_days: 10, min_version: '', android_signature: '', message: '' }
+type Settings = { price: string; whatsapp: string; trial_days: number; grace_days: number; min_version: string; android_signature: string; message: string; cloud_price: string; cloud_days: number; cloud_keep: number }
+const DEFAULTS: Settings = { price: '35$', whatsapp: '', trial_days: 7, grace_days: 10, min_version: '', android_signature: '', message: '', cloud_price: '35$', cloud_days: 365, cloud_keep: 3 }
 
 // Arabic sentences for the app (it has its own; these help when the app is older than the server)
 const MESSAGES: Record<string, string> = {
@@ -59,6 +66,10 @@ const MESSAGES: Record<string, string> = {
   move_limit: 'استُنفدت مرات النقل الذاتي. اطلب من البائع نقل الترخيص.',
   bad_request: 'طلب غير مفهوم.',
   not_configured: 'الخادم غير مهيّأ بعد (LICENSE_SECRET).',
+  cloud_inactive: 'التخزين السحابي غير مفعّل لهذا الترخيص. اشترك من البائع.',
+  too_large: 'النسخة الاحتياطية أكبر من الحد المسموح.',
+  backup_limit: 'وصلت إلى الحد اليومي للنسخ السحابي. حاول غداً.',
+  not_found: 'غير موجود.',
 }
 
 const json = (data: unknown, status = 200): Response =>
@@ -92,12 +103,12 @@ async function settings(env: Env): Promise<Settings> {
   const rows = await env.DB.prepare('SELECT key, value FROM settings').all<{ key: string; value: string }>()
   const s: Settings = { ...DEFAULTS }
   for (const r of rows.results) {
-    if (r.key === 'trial_days' || r.key === 'grace_days') { const n = Number(r.value); if (Number.isFinite(n)) s[r.key] = Math.max(0, Math.round(n)) }
+    if (r.key === 'trial_days' || r.key === 'grace_days' || r.key === 'cloud_days' || r.key === 'cloud_keep') { const n = Number(r.value); if (Number.isFinite(n)) s[r.key] = Math.max(0, Math.round(n)) }
     else if (r.key in s) (s as unknown as Record<string, string>)[r.key] = r.value
   }
   return s
 }
-const info = (s: Settings) => ({ price: s.price || DEFAULTS.price, whatsapp: s.whatsapp.replace(/\D/g, ''), trialDays: s.trial_days, message: s.message, minVersion: s.min_version, graceDays: s.grace_days })
+const info = (s: Settings) => ({ price: s.price || DEFAULTS.price, whatsapp: s.whatsapp.replace(/\D/g, ''), trialDays: s.trial_days, message: s.message, minVersion: s.min_version, graceDays: s.grace_days, cloudPrice: s.cloud_price || DEFAULTS.cloud_price })
 
 /** What the app said about itself with this request. */
 type Client = { device: string; name: string; platform: string; version: string; build: string; sig: string; nonce: string }
@@ -143,10 +154,10 @@ function refuseCode(row: CodeRow | null, now: number): 'invalid_code' | 'revoked
   return null
 }
 
-async function issue(env: Env, s: Settings, c: Client, plan: 'full' | 'trial', code: string, exp: number | null, now: number) {
-  const payload: TokenPayload = { v: 1, code, d: c.device, p: plan, iat: now, exp, gr: now + s.grace_days * DAY, n: c.nonce, srv: SRV }
+async function issue(env: Env, s: Settings, c: Client, plan: 'full' | 'trial', code: string, exp: number | null, now: number, cloudUntil: number | null = null) {
+  const payload: TokenPayload = { v: 1, code, d: c.device, p: plan, iat: now, exp, gr: now + s.grace_days * DAY, n: c.nonce, srv: SRV, cl: cloudUntil }
   const token = await signToken(env.LICENSE_SECRET, payload)
-  return json({ token, status: { plan, expiresAt: exp, graceUntil: payload.gr, serverTime: now, code: code ? formatCode(code) : '' } })
+  return json({ token, status: { plan, expiresAt: exp, graceUntil: payload.gr, serverTime: now, code: code ? formatCode(code) : '', cloudUntil } })
 }
 
 // ---------- app endpoints ----------
@@ -176,7 +187,7 @@ async function activate(req: Request, env: Env): Promise<Response> {
     }
     await log(env, 'activate', req, row.code, c.device, 'bind')
   } else await log(env, 'activate', req, row.code, c.device, 'refresh')
-  return issue(env, s, c, 'full', row.code, row.expires_at, now)
+  return issue(env, s, c, 'full', row.code, row.expires_at, now, row.cloud_until)
 }
 
 async function trial(req: Request, env: Env): Promise<Response> {
@@ -220,12 +231,12 @@ async function check(req: Request, env: Env): Promise<Response> {
     if (why || !row) { await log(env, 'check-fail', req, t.code, c.device, why ?? 'invalid_code'); return fail(why === 'invalid_code' || !why ? 'invalid_token' : why, 403) }
     if (me.code !== row.code) { await log(env, 'check-fail', req, t.code, c.device, 'device_mismatch'); return fail('device_mismatch', 403) }
     await log(env, 'check', req, row.code, c.device)
-    return issue(env, s, c, 'full', row.code, row.expires_at, now)
+    return issue(env, s, c, 'full', row.code, row.expires_at, now, row.cloud_until)
   }
   // a trial device: if the seller granted it a code meanwhile, the code wins and the app upgrades itself
   if (me.code) {
     const row = await getCode(env, me.code)
-    if (row && !refuseCode(row, now)) { await log(env, 'check', req, row.code, c.device, 'upgrade'); return issue(env, s, c, 'full', row.code, row.expires_at, now) }
+    if (row && !refuseCode(row, now)) { await log(env, 'check', req, row.code, c.device, 'upgrade'); return issue(env, s, c, 'full', row.code, row.expires_at, now, row.cloud_until) }
   }
   if (!me.trial_started || !me.trial_ends) { await log(env, 'check-fail', req, null, c.device, 'no_trial'); return fail('invalid_token', 403) }
   if (me.trial_ends <= now) { await log(env, 'check-fail', req, null, c.device, 'expired'); return fail('expired', 403) }
@@ -254,6 +265,93 @@ async function release(req: Request, env: Env): Promise<Response> {
   return json({ ok: true })
 }
 
+// ---------- cloud backups (the yearly plan) ----------
+const cloudActive = (row: CodeRow, now: number): boolean => row.cloud_until !== null && row.cloud_until > now
+/** The licensed device behind a token, or an error key. Cloud calls need a full license bound to this device. */
+async function cloudAuth(env: Env, token: unknown, device: unknown): Promise<{ t: TokenPayload; row: CodeRow } | string> {
+  if (!validDevice(device)) return 'bad_request'
+  const t = await verifyToken(env.LICENSE_SECRET, token)
+  if (!t) return 'invalid_token'
+  if (t.d !== device) return 'device_mismatch'
+  if (t.p !== 'full' || !t.code) return 'cloud_inactive'
+  const row = await getCode(env, t.code)
+  if (!row || refuseCode(row, Date.now())) return 'invalid_token'
+  const me = await getDevice(env, device)
+  if (!me || me.code !== row.code) return 'device_mismatch'
+  return { t, row }
+}
+const backupKey = (code: string, id: string) => `b:${code}:${id}`
+const publicBackup = (b: BackupRow) => {
+  let meta: Record<string, unknown> = {}
+  try { meta = JSON.parse(b.meta) } catch { /* old row */ }
+  return { id: b.id, at: b.at, size: b.size, device: deviceCodeOf(b.device), ...meta }
+}
+async function listBackups(env: Env, code: string): Promise<BackupRow[]> {
+  return (await env.DB.prepare('SELECT * FROM backups WHERE code = ? ORDER BY at DESC').bind(code).all<BackupRow>()).results
+}
+async function deleteBackup(env: Env, b: BackupRow): Promise<void> {
+  await env.BACKUPS.delete(backupKey(b.code, b.id))
+  await env.DB.prepare('DELETE FROM backups WHERE id = ?').bind(b.id).run()
+}
+
+/** POST /api/backup — the compressed backup as the body; token, device and meta in headers. */
+async function backupUpload(req: Request, env: Env): Promise<Response> {
+  const auth = await cloudAuth(env, req.headers.get('x-kaseb-token'), req.headers.get('x-kaseb-device'))
+  if (typeof auth === 'string') return fail(auth, auth === 'bad_request' ? 400 : 403)
+  const { row, t } = auth
+  const now = Date.now()
+  if (!cloudActive(row, now)) { await log(env, 'backup-fail', req, row.code, t.d, 'inactive'); return fail('cloud_inactive', 403) }
+  const len = Number(req.headers.get('content-length') || 0)
+  if (len > MAX_BACKUP) return fail('too_large', 413)
+  const today = await env.DB.prepare(`SELECT COUNT(*) AS n FROM events WHERE kind = 'backup' AND code = ? AND at > ?`).bind(row.code, now - DAY).first<{ n: number }>()
+  if ((today?.n ?? 0) >= BACKUPS_PER_DAY) return fail('backup_limit', 429)
+  const bytes = new Uint8Array(await req.arrayBuffer())
+  if (bytes.length === 0) return fail('bad_request')
+  if (bytes.length > MAX_BACKUP) return fail('too_large', 413)
+  // gzip magic: the app always compresses
+  if (bytes[0] !== 0x1f || bytes[1] !== 0x8b) return fail('bad_request', 400, 'الملف ليس مضغوطاً.')
+  let meta: Record<string, unknown> = {}
+  try { meta = JSON.parse(req.headers.get('x-kaseb-meta') || '{}') } catch { meta = {} }
+  const safeMeta = {
+    counts: meta.counts && typeof meta.counts === 'object' ? meta.counts : {},
+    appVersion: clip(meta.appVersion, 20), exportedAt: Number(meta.exportedAt) || now, name: clip(meta.name, 60),
+  }
+  const id = `${now}-${newCode().slice(0, 6)}`
+  await env.BACKUPS.put(backupKey(row.code, id), bytes, { metadata: { at: now, size: bytes.length, device: t.d } })
+  await env.DB.prepare('INSERT INTO backups (id, code, device, at, size, meta) VALUES (?, ?, ?, ?, ?, ?)').bind(id, row.code, t.d, now, bytes.length, JSON.stringify(safeMeta)).run()
+  // keep only the newest cloud_keep snapshots of this code
+  const s = await settings(env)
+  const all = await listBackups(env, row.code)
+  for (const old of all.slice(Math.max(1, s.cloud_keep))) await deleteBackup(env, old)
+  await log(env, 'backup', req, row.code, t.d, `${bytes.length}`)
+  return json({ id, at: now, size: bytes.length, kept: Math.min(all.length, Math.max(1, s.cloud_keep)), cloudUntil: row.cloud_until })
+}
+
+/** POST /api/backups {token, device} — the snapshots of this license (any of its devices). */
+async function backupList(req: Request, env: Env): Promise<Response> {
+  const b = await body(req)
+  if (!b) return fail('bad_request')
+  const auth = await cloudAuth(env, b.token, b.device)
+  if (typeof auth === 'string') return fail(auth, auth === 'bad_request' ? 400 : 403)
+  const rows = await listBackups(env, auth.row.code)
+  return json({ backups: rows.map(publicBackup), cloudUntil: auth.row.cloud_until, serverTime: Date.now() })
+}
+
+/** POST /api/backup/get {token, device, id} — the compressed file. Allowed after the subscription ended too: the data is the shop's. */
+async function backupGet(req: Request, env: Env): Promise<Response> {
+  const b = await body(req)
+  if (!b) return fail('bad_request')
+  const auth = await cloudAuth(env, b.token, b.device)
+  if (typeof auth === 'string') return fail(auth, auth === 'bad_request' ? 400 : 403)
+  const id = clip(b.id, 40)
+  const row = await env.DB.prepare('SELECT * FROM backups WHERE id = ? AND code = ?').bind(id, auth.row.code).first<BackupRow>()
+  if (!row) return fail('not_found', 404)
+  const bytes = await env.BACKUPS.get(backupKey(row.code, row.id), 'arrayBuffer')
+  if (!bytes) return fail('not_found', 404)
+  await log(env, 'restore', req, row.code, auth.t.d, row.id)
+  return new Response(bytes, { headers: { ...CORS, 'content-type': 'application/octet-stream', 'cache-control': 'no-store', 'x-kaseb-at': String(row.at) } })
+}
+
 // ---------- the seller's codes page ----------
 function isAdmin(req: Request, env: Env): boolean {
   const key = (req.headers.get('authorization') || '').replace(/^Bearer\s+/i, '')
@@ -278,6 +376,8 @@ async function admin(req: Request, env: Env, path: string, url: URL): Promise<Re
     const devices = await env.DB.prepare(`SELECT COUNT(*) AS total, SUM(last_seen > ?) AS active7, SUM(code IS NOT NULL) AS licensed,
       SUM(code IS NULL AND trial_started IS NOT NULL AND trial_ends > ?) AS trials FROM devices`).bind(week, now).first<{ total: number; active7: number | null; licensed: number | null; trials: number | null }>()
     const weekAct = await env.DB.prepare(`SELECT COUNT(*) AS n FROM events WHERE kind = 'activate' AND detail = 'bind' AND at > ?`).bind(week).first<{ n: number }>()
+    const cloud = await env.DB.prepare(`SELECT SUM(cloud_until > ?) AS active, SUM(cloud_until IS NOT NULL AND cloud_until <= ?) AS ended FROM codes`).bind(now, now).first<{ active: number | null; ended: number | null }>()
+    const storage = await env.DB.prepare('SELECT COUNT(*) AS n, IFNULL(SUM(size), 0) AS bytes FROM backups').first<{ n: number; bytes: number }>()
     const from = Math.floor(now / DAY) * DAY - 13 * DAY
     const byDay = await env.DB.prepare(`SELECT (at / ${DAY}) * ${DAY} AS day, COUNT(*) AS n FROM events WHERE kind = 'activate' AND detail = 'bind' AND at >= ? GROUP BY day`).bind(from).all<{ day: number; n: number }>()
     const days = Array.from({ length: 14 }, (_, i) => ({ day: from + i * DAY, n: byDay.results.find(r => r.day === from + i * DAY)?.n ?? 0 }))
@@ -286,6 +386,7 @@ async function admin(req: Request, env: Env, path: string, url: URL): Promise<Re
     return json({
       codes: { total: codes?.total ?? 0, activated: codes?.activated ?? 0, revoked: codes?.revoked ?? 0 },
       devices: { total: devices?.total ?? 0, active7: devices?.active7 ?? 0, licensed: devices?.licensed ?? 0, trials: devices?.trials ?? 0 },
+      cloud: { active: cloud?.active ?? 0, ended: cloud?.ended ?? 0, backups: storage?.n ?? 0, bytes: storage?.bytes ?? 0 },
       activationsWeek: weekAct?.n ?? 0, days, recent: recent.results.map(r => ({ ...r, code: r.code ? formatCode(String(r.code)) : null })),
     })
   }
@@ -299,13 +400,15 @@ async function admin(req: Request, env: Env, path: string, url: URL): Promise<Re
     if (expires === undefined) return fail('bad_request', 400, 'تاريخ الانتهاء غير صحيح.')
     const note = clip(b.note, 200), seller = clip(b.seller, 80)
     const device = validDevice(b.device) ? b.device : null   // "منح كود": the code is made for one device and bound to it at once
+    const cloudDays = Math.max(0, Math.min(3650, Math.round(Number(b.cloudDays)) || 0))
+    const cloudUntil = cloudDays ? now + cloudDays * DAY : null
     const codes: string[] = []
     while (codes.length < (device ? 1 : count)) { const c = newCode(); if (!codes.includes(c)) codes.push(c) }
-    const stmts = codes.map(c => env.DB.prepare('INSERT INTO codes (code, plan, created_at, expires_at, max_devices, note, seller) VALUES (?, ?, ?, ?, ?, ?, ?)').bind(c, 'full', now, expires, maxDevices, note, seller))
+    const stmts = codes.map(c => env.DB.prepare('INSERT INTO codes (code, plan, created_at, expires_at, max_devices, note, seller, cloud_until) VALUES (?, ?, ?, ?, ?, ?, ?, ?)').bind(c, 'full', now, expires, maxDevices, note, seller, cloudUntil))
     if (device) stmts.push(env.DB.prepare('UPDATE devices SET code = ?, bound_at = ? WHERE device = ?').bind(codes[0], now, device))
     await env.DB.batch(stmts)
     await log(env, 'admin', req, device ? codes[0] : null, device, device ? 'grant' : `created ${codes.length}`)
-    return json({ codes: codes.map(formatCode), expiresAt: expires, maxDevices })
+    return json({ codes: codes.map(formatCode), expiresAt: expires, maxDevices, cloudUntil })
   }
 
   if (seg[0] === 'codes' && seg.length === 1 && req.method === 'GET') {
@@ -330,7 +433,8 @@ async function admin(req: Request, env: Env, path: string, url: URL): Promise<Re
     if (seg.length === 2 && req.method === 'GET') {
       const devices = await env.DB.prepare('SELECT * FROM devices WHERE code = ? ORDER BY bound_at DESC').bind(code).all<DeviceRow>()
       const events = await env.DB.prepare('SELECT id, at, kind, device, detail FROM events WHERE code = ? ORDER BY id DESC LIMIT 60').bind(code).all()
-      return json({ code: publicCode(row), devices: devices.results.map(d => ({ ...d, ip: undefined })), events: events.results })
+      const backups = (await listBackups(env, code)).map(publicBackup)
+      return json({ code: publicCode(row), devices: devices.results.map(d => ({ ...d, ip: undefined })), events: events.results, backups, now })
     }
     if (seg.length === 3 && req.method === 'POST') {
       const act = seg[2]
@@ -347,6 +451,25 @@ async function admin(req: Request, env: Env, path: string, url: URL): Promise<Re
         const n = Math.round(Number(b.maxDevices))
         if (!(n >= 1 && n <= 5)) return fail('bad_request')
         await env.DB.prepare('UPDATE codes SET max_devices = ? WHERE code = ?').bind(n, code).run()
+      }
+      else if (act === 'cloud') {
+        // { until: ms } sets the end of the cloud subscription; { addDays: n } extends it from today or from its current end; { until: null } stops it
+        let until: number | null
+        if (b.until === null) until = null
+        else if (b.addDays !== undefined) {
+          const days = Math.round(Number(b.addDays))
+          if (!(days >= 1 && days <= 3650)) return fail('bad_request')
+          const base = row.cloud_until && row.cloud_until > now ? row.cloud_until : now
+          until = base + days * DAY
+        } else {
+          const u = expiresArg(b.until)
+          if (u === undefined) return fail('bad_request', 400, 'التاريخ غير صحيح.')
+          until = u
+        }
+        await env.DB.prepare('UPDATE codes SET cloud_until = ? WHERE code = ?').bind(until, code).run()
+      }
+      else if (act === 'backups-delete') {
+        for (const bk of await listBackups(env, code)) await deleteBackup(env, bk)
       }
       else return fail('not_found', 404)
       await log(env, 'admin', req, code, null, act)
@@ -386,6 +509,9 @@ async function admin(req: Request, env: Env, path: string, url: URL): Promise<Re
         put('min_version', clip(b.min_version, 20).replace(/[^0-9.]/g, '')),
         put('android_signature', clip(b.android_signature, 2000).replace(/[^0-9a-fA-F,:\s]/g, '').replace(/:/g, '').toLowerCase()),
         put('message', clip(b.message, 400)),
+        put('cloud_price', clip(b.cloud_price, 40) || DEFAULTS.cloud_price),
+        put('cloud_days', num(b.cloud_days, 3650, DEFAULTS.cloud_days)),
+        put('cloud_keep', num(b.cloud_keep, 10, DEFAULTS.cloud_keep)),
       ])
       await log(env, 'admin', req, null, null, 'settings')
     }
@@ -433,7 +559,10 @@ export default {
         if (!env.LICENSE_SECRET) return fail('not_configured', 500)
         if (p === '/api/public-key' && req.method === 'GET') return json({ publicKey: await publicKeyHex(env.LICENSE_SECRET) })
         if (req.method !== 'POST') return fail('not_found', 404)
+        if (p === '/api/backup') return await backupUpload(req, env)      // binary body
         if (!/^application\/json/i.test(req.headers.get('content-type') || '')) return fail('bad_request', 400, 'JSON only.')
+        if (p === '/api/backups') return await backupList(req, env)
+        if (p === '/api/backup/get') return await backupGet(req, env)
         if (p === '/api/activate') return await activate(req, env)
         if (p === '/api/trial') return await trial(req, env)
         if (p === '/api/check') return await check(req, env)

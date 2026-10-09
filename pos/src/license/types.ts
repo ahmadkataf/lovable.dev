@@ -17,6 +17,7 @@ export interface SellerInfo {
   message?: string       // shown on the activation screen
   minVersion?: string
   graceDays?: number     // days the app may stay offline between two checks
+  cloudPrice?: string    // "35$" per year, the cloud backup add-on
 }
 
 export interface LicenseStatus {
@@ -26,6 +27,7 @@ export interface LicenseStatus {
   plan?: 'trial' | 'full'
   expiresAt?: number | null   // null = lifetime
   graceUntil?: number    // the app must talk to the server again before this time
+  cloudUntil?: number | null  // the cloud backup subscription runs until then; null/undefined = none
   lastCheck?: number
   checking: boolean
   online: boolean
@@ -39,4 +41,7 @@ export const isBlocked = (s: LicenseStatus): boolean =>
   s.state === 'none' || s.state === 'expired' || s.state === 'revoked' || s.state === 'locked' || s.state === 'tampered'
 
 /** The default seller info, used before /api/info was ever reached. */
-export const DEFAULT_INFO: SellerInfo = { price: '35$', whatsapp: '', trialDays: 7, graceDays: 10 }
+export const DEFAULT_INFO: SellerInfo = { price: '35$', whatsapp: '', trialDays: 7, graceDays: 10, cloudPrice: '35$' }
+
+/** The cloud backup add-on is paid up (a lifetime/active license with cloudUntil in the future). */
+export const cloudActive = (s: LicenseStatus, now = Date.now()): boolean => s.state === 'active' && typeof s.cloudUntil === 'number' && s.cloudUntil > now

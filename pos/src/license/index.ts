@@ -85,8 +85,8 @@ function derive(now = Date.now()): LicenseState {
   return deriveState(payload, now, clockBad)
 }
 function fromPayload(p: TokenPayload | null): Partial<LicenseStatus> {
-  if (!p) return { code: undefined, plan: undefined, expiresAt: undefined, graceUntil: undefined }
-  return { code: p.code ? formatCode(p.code) : undefined, plan: p.p, expiresAt: p.exp, graceUntil: p.gr }
+  if (!p) return { code: undefined, plan: undefined, expiresAt: undefined, graceUntil: undefined, cloudUntil: undefined }
+  return { code: p.code ? formatCode(p.code) : undefined, plan: p.p, expiresAt: p.exp, graceUntil: p.gr, cloudUntil: typeof p.cl === 'number' ? p.cl : null }
 }
 /** Bumps the newest time we ever saw (the clock-rollback guard), never lowering it. */
 async function bumpSeen(...times: number[]): Promise<void> {
@@ -197,6 +197,14 @@ export const license = {
 
   get(): LicenseStatus { return status },
 
+  /** The server address this build talks to ('' in demo mode). */
+  api(): string { return API },
+
+  /** What cloud calls need to prove who they are: the stored token and this device's hash, or null when not licensed. */
+  credentials(): { token: string; device: string } | null {
+    return stored.token && device && payload?.p === 'full' ? { token: stored.token, device } : null
+  },
+
   subscribe(cb: (s: LicenseStatus) => void): () => void {
     listeners.add(cb)
     return () => { listeners.delete(cb) }
@@ -283,6 +291,7 @@ export const license = {
         message: typeof d.message === 'string' ? d.message : '',
         minVersion: typeof d.minVersion === 'string' ? d.minVersion : '',
         graceDays: Number.isFinite(Number(d.graceDays)) ? Number(d.graceDays) : DEFAULT_INFO.graceDays,
+        cloudPrice: typeof d.cloudPrice === 'string' && d.cloudPrice.trim() ? d.cloudPrice.trim() : DEFAULT_INFO.cloudPrice,
       }
       await save({ info })
       publish({ info, online: true })
