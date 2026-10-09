@@ -6,7 +6,7 @@ import type { Cart, CartLine, Totals } from '../../lib/cart'
 import { lineTotal } from '../../lib/cart'
 import { useT } from '../../i18n'
 import { Button, Badge, Money } from '../../components/ui'
-import { formatMoney, formatQty } from '../../lib/money'
+import { formatMoney, formatQty, toSecondary } from '../../lib/money'
 
 export interface CartPanelProps {
   cart: Cart
@@ -115,6 +115,9 @@ export function CartPanel(p: CartPanelProps) {
           </div>
         )}
         <div className="tot-row total"><span className="lbl">{t('common.total')}</span><Money value={totals.total} /></div>
+        {settings.currency2.enabled && settings.currency2.rate > 0 && totals.total > 0 && (
+          <div className="tot-row fx"><span className="lbl small muted">≈ {t('sales.fxEquivalent', { cur: settings.currency2.code })}</span><span className="num small muted">{formatMoney(toSecondary(totals.total, settings.currency2.rate, settings.currency2.decimals), settings.currency2)}</span></div>
+        )}
       </div>
 
       <div className="cart-charge">

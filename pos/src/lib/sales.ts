@@ -7,7 +7,7 @@
 //   change    cash handed back            →  paid - change + credit === total
 //   credit    what went on the customer's account
 import { db, nextNumber } from '../db'
-import type { Sale, Payment, PaymentMethod, User, Shift, Settings } from '../db/types'
+import type { Sale, Payment, PaymentMethod, User, Shift, Settings, FxPayment } from '../db/types'
 import { toSaleItems, type Cart, type Totals } from './cart'
 import { applyStock } from './stock'
 import { applyLedger } from './ledger'
@@ -57,6 +57,7 @@ export interface CompleteSaleInput {
   paid: number
   change: number
   credit: number
+  fx?: FxPayment
   user: User
   shift: Shift | null
   settings: Settings
@@ -106,6 +107,7 @@ export async function completeSale(input: CompleteSaleInput): Promise<Sale> {
       paid,
       change,
       credit,
+      fx: input.fx && input.fx.received > 0 ? input.fx : undefined,
       customerId: cart.customerId,
       customerName: cart.customerName,
       userId: user.id,
@@ -146,6 +148,8 @@ export interface PaymentPlan {
   valid: boolean
   /** Why it is not valid (an i18n key). */
   reason?: string
+  /** Set when the cash came in the second currency. */
+  fx?: FxPayment
 }
 
 /**

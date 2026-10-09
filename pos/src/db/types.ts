@@ -91,6 +91,7 @@ export interface Sale {
   paid: number         // cash/card/transfer received
   change: number       // cash handed back
   credit: number       // put on the customer's account
+  fx?: FxPayment       // when (part of) the cash came in the second currency
   customerId?: ID
   customerName?: string
   userId: ID
@@ -216,10 +217,15 @@ export interface HeldTicket {
 export interface KV { key: string; value: unknown }
 
 export interface CurrencySettings { code: string; symbol: string; decimals: number; symbolAfter: boolean }
+/** A second currency the till accepts (dollars in a lira shop): `rate` primary units per 1 unit of it. Records stay in the primary. */
+export interface SecondCurrency extends CurrencySettings { enabled: boolean; rate: number }
+/** What was received in the second currency on a sale. */
+export interface FxPayment { code: string; symbol: string; symbolAfter: boolean; decimals: number; rate: number; received: number; receivedPrimary: number }
 export interface TaxSettings { enabled: boolean; rate: number; inclusive: boolean; label: string }
 export interface Settings {
   store: { name: string; phone: string; address: string; logo?: string; taxNumber?: string }
   currency: CurrencySettings
+  currency2: SecondCurrency
   tax: TaxSettings
   receipt: {
     header: string
@@ -253,6 +259,7 @@ export interface Settings {
 export const DEFAULT_SETTINGS: Settings = {
   store: { name: '', phone: '', address: '' },
   currency: { code: 'SYP', symbol: 'ل.س', decimals: 0, symbolAfter: true },
+  currency2: { enabled: false, code: 'USD', symbol: '$', decimals: 2, symbolAfter: false, rate: 0 },
   tax: { enabled: false, rate: 0, inclusive: true, label: 'ضريبة' },
   receipt: { header: '', footer: 'شكراً لزيارتكم', paper: 80, showLogo: true, autoPrint: false, copies: 1, showBarcode: true },
   pos: {

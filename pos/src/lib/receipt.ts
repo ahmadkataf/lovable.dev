@@ -23,6 +23,8 @@ addMessages({
     'receipt.lineDiscount': 'خصم',
     'receipt.taxInclusive': 'شامل',
     'receipt.onAccount': 'على الحساب',
+    'receipt.fxReceived': 'المستلم بـ{cur}',
+    'receipt.fxRate': 'سعر الصرف',
     'receipt.balanceAfter': 'الرصيد بعد البيع',
     'receipt.refunded': 'المبلغ المُعاد',
     'receipt.refundMethod': 'طريقة الإرجاع',
@@ -45,6 +47,8 @@ addMessages({
     'receipt.lineDiscount': 'Discount',
     'receipt.taxInclusive': 'incl.',
     'receipt.onAccount': 'On account',
+    'receipt.fxReceived': 'Received in {cur}',
+    'receipt.fxRate': 'Exchange rate',
     'receipt.balanceAfter': 'Balance after',
     'receipt.refunded': 'Refunded',
     'receipt.refundMethod': 'Refunded via',
@@ -193,6 +197,12 @@ export function receiptDoc(sale: Sale, settings: Settings, opts: ReceiptOptions 
     if (p.method === 'credit') continue
     const amount = p.method === 'cash' ? round(p.amount + sale.change, c.decimals) : p.amount
     base.payments.push({ label: methodLabel(p.method), value: money(amount) })
+  }
+  if (sale.fx && sale.fx.received > 0) {
+    const fx = sale.fx
+    const fm = (n: number) => formatMoney(n, { code: fx.code, symbol: fx.symbol, decimals: fx.decimals, symbolAfter: fx.symbolAfter })
+    base.payments.push({ label: t('receipt.fxReceived', { cur: fx.symbol }), value: `${fm(fx.received)} = ${money(fx.receivedPrimary)}` })
+    base.payments.push({ label: t('receipt.fxRate'), value: `1 ${fx.symbol} = ${money(fx.rate)}` })
   }
   if (sale.change > 0) base.payments.push({ label: t('common.change'), value: money(sale.change), strong: true })
   if (sale.credit > 0) {

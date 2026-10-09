@@ -3,7 +3,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Banknote, CreditCard, ArrowLeftRight, BookUser, User, Check, Info, TriangleAlert } from 'lucide-react'
 import type { Customer, PaymentMethod, Settings } from '../../db/types'
 import type { Cart, Totals } from '../../lib/cart'
-import { formatMoney, parseNumber, quickAmounts, round } from '../../lib/money'
+import { formatMoney, parseNumber, quickAmounts, round, toPrimary, toSecondary, secondaryQuickAmounts } from '../../lib/money'
 import { planPayment, type PaymentPlan } from '../../lib/sales'
 import { useT } from '../../i18n'
 import { Modal, Button, NumPad, useIsMobile } from '../../components/ui'
@@ -33,15 +33,27 @@ export function PaymentModal(p: PaymentModalProps) {
   const hasCustomer = !!cart.customerId
   const [method, setMethod] = useState<PaymentMethod>(() => (settings.pos.defaultMethod === 'credit' && !hasCustomer ? 'cash' : settings.pos.defaultMethod))
   const [tendered, setTendered] = useState('')
+  const c2 = settings.currency2
+  const fxOn = c2.enabled && c2.rate > 0
+  const [inFx, setInFx] = useState(false)          // the numpad types the second currency
   useEffect(() => { if (method === 'credit' && !hasCustomer) setMethod('cash') }, [hasCustomer, method])
+  useEffect(() => { if (method !== 'cash' && inFx) setInFx(false) }, [method, inFx])
 
   const typed = tendered !== ''
-  const received = typed ? parseNumber(tendered) : total
-  const plan = useMemo(() => planPayment({ total, method, tendered: received, hasCustomer, decimals: d }), [total, method, received, hasCustomer, d])
+  const typedNum = typed ? parseNumber(tendered) : 0
+  const fxReceived = inFx ? (typed ? typedNum : toSecondary(total, c2.rate, c2.decimals)) : 0
+  const received = inFx ? toPrimary(fxReceived, c2.rate, d) : typed ? typedNum : total
+  const plan = useMemo(() => {
+    const base = planPayment({ total, method, tendered: received, hasCustomer, decimals: d })
+    if (!inFx || !fxOn || fxReceived <= 0) return base
+    return { ...base, fx: { code: c2.code, symbol: c2.symbol, symbolAfter: c2.symbolAfter, decimals: c2.decimals, rate: c2.rate, received: fxReceived, receivedPrimary: received } }
+  }, [total, method, received, hasCustomer, d, inFx, fxOn, fxReceived, c2])
   const quick = useMemo(() => mergeQuickAmounts(quickAmounts(total, d), settings.pos.quickAmounts, total), [total, d, settings.pos.quickAmounts])
+  const quickFx = useMemo(() => (fxOn ? secondaryQuickAmounts(total, c2.rate, c2.decimals) : []), [fxOn, total, c2])
+  const changeFx = fxOn && plan.change > 0 ? toSecondary(plan.change, c2.rate, c2.decimals) : 0
   const balanceAfter = customer ? round(customer.balance + plan.credit, d) : undefined
   const confirm = useCallback(() => { if (plan.valid && !p.busy) p.onConfirm(plan) }, [plan, p])
-  useNumKeys({ enabled: !p.frozen && method !== 'credit', value: tendered, onChange: setTendered, decimals: d, onEnter: confirm })
+  useNumKeys({ enabled: !p.frozen && method !== 'credit', value: tendered, onChange: setTendered, decimals: inFx ? c2.decimals : d, onEnter: confirm })
   useEffect(() => {
     if (p.frozen || method !== 'credit') return
     const onKey = (e: KeyboardEvent) => {
@@ -66,7 +78,9 @@ export function PaymentModal(p: PaymentModalProps) {
     <div className="pay-summary">
       <div className="tot-row"><span className="lbl">{t('common.total')}</span><span className="num">{formatMoney(total, c)}</span></div>
       {method !== 'credit' && <div className="tot-row"><span className="lbl">{t('common.paid')}</span><span className="num">{formatMoney(plan.paid, c)}</span></div>}
+      {plan.fx && <div className="tot-row"><span className="lbl">{t('sales.payFxReceived', { cur: c2.symbol })}</span><span className="num">{formatMoney(plan.fx.received, c2)} = {formatMoney(plan.fx.receivedPrimary, c)}</span></div>}
       {plan.change > 0 && <div className="tot-row change"><span className="lbl">{t('sales.payChange')}</span><span className="num">{formatMoney(plan.change, c)}</span></div>}
+      {plan.change > 0 && changeFx > 0 && <div className="tot-row"><span className="lbl small muted">{t('sales.payChangeFx', { cur: c2.code })}</span><span className="num small muted">≈ {formatMoney(changeFx, c2)}</span></div>}
       {plan.short > 0 && <div className="tot-row short"><span className="lbl">{t('common.remaining')}</span><span className="num">{formatMoney(plan.short, c)}</span></div>}
       {plan.credit > 0 && <div className="tot-row"><span className="lbl">{t('receipt.onAccount')}</span><span className="num">{formatMoney(plan.credit, c)}</span></div>}
       {plan.credit > 0 && balanceAfter !== undefined && <div className="tot-row"><span className="lbl">{t('sales.payBalanceAfter')}</span><span className="num bold">{formatMoney(balanceAfter, c)}</span></div>}
@@ -87,15 +101,27 @@ export function PaymentModal(p: PaymentModalProps) {
 
   const amountPane = method === 'credit' ? null : (
     <>
+      {fxOn && method === 'cash' && (
+        <div className="row between" style={{ gap: 8 }}>
+          <span className="small muted">{t('sales.payInCurrency')}</span>
+          <div className="seg">
+            <button type="button" className={!inFx ? 'on' : ''} onClick={() => { setInFx(false); setTendered('') }}><span className="num">{c.symbol}</span></button>
+            <button type="button" className={inFx ? 'on' : ''} onClick={() => { setInFx(true); setTendered('') }}><span className="num">{c2.symbol}</span></button>
+          </div>
+        </div>
+      )}
       <div className={`pay-tendered ${typed ? 'editing' : ''}`} onClick={() => setTendered('')} role="textbox" aria-label={t('sales.payTendered')}>
-        <span className="lbl">{t('sales.payTendered')}</span>
-        {typed ? <>{tendered}<span className="caret" /></> : <span>{formatMoney(total, c, { symbol: false })}</span>}
+        <span className="lbl">{t('sales.payTendered')}{inFx ? ` (${c2.symbol})` : ''}</span>
+        {typed ? <>{tendered}<span className="caret" /></> : <span>{inFx ? formatMoney(toSecondary(total, c2.rate, c2.decimals), c2, { symbol: false }) : formatMoney(total, c, { symbol: false })}</span>}
       </div>
+      {inFx && <div className="small muted num" style={{ textAlign: 'center' }}>{t('sales.payFxEquals')} {formatMoney(received, c)} · {t('sales.payFxRate', { cur: c2.symbol, rate: formatMoney(c2.rate, c) })}</div>}
       <div className="pay-quick">
         <Button size="sm" variant={!typed ? 'soft' : 'default'} onClick={() => setTendered('')}>{t('sales.payExact')}</Button>
-        {quick.filter(n => n !== total).map(n => <Button key={n} size="sm" variant={typed && parseNumber(tendered) === n ? 'soft' : 'default'} onClick={() => setTendered(String(n))}><span className="num">{formatMoney(n, c, { symbol: false })}</span></Button>)}
+        {inFx
+          ? quickFx.map(n => <Button key={n} size="sm" variant={typed && typedNum === n ? 'soft' : 'default'} onClick={() => setTendered(String(n))}><span className="num">{formatMoney(n, c2)}</span></Button>)
+          : quick.filter(n => n !== total).map(n => <Button key={n} size="sm" variant={typed && typedNum === n ? 'soft' : 'default'} onClick={() => setTendered(String(n))}><span className="num">{formatMoney(n, c, { symbol: false })}</span></Button>)}
       </div>
-      <NumPad value={tendered} onChange={setTendered} decimals={d} />
+      <NumPad value={tendered} onChange={setTendered} decimals={inFx ? c2.decimals : d} />
     </>
   )
 

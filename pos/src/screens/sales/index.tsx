@@ -195,7 +195,7 @@ export default function SalesScreen() {
     try {
       const current = useStore.getState().cart
       const tot = computeTotals(current, settings.tax, d)
-      const sale = await completeSale({ cart: current, totals: tot, payments: plan.payments, paid: plan.paid, change: plan.change, credit: plan.credit, user, shift, settings })
+      const sale = await completeSale({ cart: current, totals: tot, payments: plan.payments, paid: plan.paid, change: plan.change, credit: plan.credit, fx: plan.fx, user, shift, settings })
       beep('ok')
       const balanceAfter = plan.credit > 0 ? await balanceAfterSale(sale).catch(() => undefined) : undefined
       clearCart(); setSearch(''); setCartOpen(false); setCustomerPicker(false)

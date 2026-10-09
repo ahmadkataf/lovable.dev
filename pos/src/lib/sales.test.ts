@@ -134,3 +134,28 @@ describe('planPayment', () => {
     expect(planPayment({ total: 1000, method: 'credit', tendered: 0, hasCustomer: true, decimals: 0 })).toMatchObject({ valid: true, credit: 1000, paid: 0, change: 0 })
   })
 })
+
+describe('second currency on a sale', () => {
+  it('keeps what was received in the second currency', async () => {
+    const { db } = await import('../db')
+    const { completeSale, planPayment } = await import('./sales')
+    const { emptyCart, addToCart, lineFromProduct, computeTotals } = await import('./cart')
+    const { DEFAULT_SETTINGS } = await import('../db/types')
+    await db.delete(); await db.open()
+    const product = { id: 'fxp', name: 'x', barcodes: [], price: 14000, cost: 10000, trackStock: false, stock: 0, lowStock: 0, unit: 'piece', allowFraction: false, favorite: false, active: true, createdAt: 0, updatedAt: 0 }
+    await db.products.add(product)
+    const cart = addToCart(emptyCart(), lineFromProduct(product))
+    const settings = { ...DEFAULT_SETTINGS, currency2: { enabled: true, code: 'USD', symbol: '$', decimals: 2, symbolAfter: false, rate: 13000 } }
+    const totals = computeTotals(cart, settings.tax, 0)
+    const plan = planPayment({ total: totals.total, method: 'cash', tendered: 26000, hasCustomer: false, decimals: 0 })
+    const fx = { code: 'USD', symbol: '$', symbolAfter: false, decimals: 2, rate: 13000, received: 2, receivedPrimary: 26000 }
+    const user = { id: 'u', name: 'u', role: 'admin' as const, active: true, createdAt: 0 }
+    const sale = await completeSale({ cart, totals, payments: plan.payments, paid: plan.paid, change: plan.change, credit: plan.credit, fx, user, shift: null, settings })
+    expect(sale.change).toBe(12000)
+    expect(sale.fx).toEqual(fx)
+    const { receiptText } = await import('./receipt')
+    const text = receiptText(sale, settings)
+    expect(text).toContain('$')
+    expect(text).toMatch(/13,000/)
+  })
+})

@@ -52,6 +52,7 @@ export async function seed(): Promise<void> {
   const s = await loadSettings()
   s.store = { name: 'سوبرماركت الأمل', phone: '0944 123 456', address: 'دمشق — المزة، شارع الجلاء' }
   s.onboarded = true
+  s.currency2 = { enabled: true, code: 'USD', symbol: '$', decimals: 2, symbolAfter: false, rate: 13000 }
   s.receipt.footer = 'شكراً لزيارتكم — نتمنى لكم يوماً سعيداً'
   await saveSettings(s)
   const admin = (await db.users.toArray())[0]

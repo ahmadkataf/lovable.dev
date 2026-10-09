@@ -36,6 +36,25 @@ export function formatMoney(n: number, c: CurrencySettings, opts: { sign?: boole
   return c.symbolAfter ? `${sign}${abs} ${c.symbol}` : `${sign}${c.symbol}${abs}`
 }
 
+/** Primary units → second currency (rate = primary per 1 secondary). 0 when there is no rate. */
+export function toSecondary(primary: number, rate: number, decimals2: number): number {
+  if (!(rate > 0)) return 0
+  return round(primary / rate, decimals2)
+}
+/** Second currency → primary units. */
+export function toPrimary(secondary: number, rate: number, decimals1: number): number {
+  if (!(rate > 0)) return 0
+  return round(secondary * rate, decimals1)
+}
+/** Round "cash" amounts in the second currency to pay a total: the exact figure plus round notes above it. */
+export function secondaryQuickAmounts(total: number, rate: number, decimals2: number): number[] {
+  if (!(rate > 0) || total <= 0) return []
+  const exact = round(Math.ceil((total / rate) * 10 ** decimals2) / 10 ** decimals2, decimals2)
+  const out = new Set<number>([exact])
+  for (const n of [1, 2, 5, 10, 20, 50, 100, 200, 500, 1000]) { if (n > exact) out.add(n); if (out.size >= 4) break }
+  return [...out].slice(0, 4)
+}
+
 /** A quantity: 1 -> "1", 0.25 -> "0.25", 1.5 -> "1.5". */
 export function formatQty(q: number): string {
   if (!Number.isFinite(q)) return '0'

@@ -63,6 +63,7 @@ export function mergeSettings(s?: Partial<Settings>): Settings {
     ...d, ...s,
     store: { ...d.store, ...s?.store },
     currency: { ...d.currency, ...s?.currency },
+    currency2: { ...d.currency2, ...s?.currency2 },
     tax: { ...d.tax, ...s?.tax },
     receipt: { ...d.receipt, ...s?.receipt },
     pos: { ...d.pos, ...s?.pos },
