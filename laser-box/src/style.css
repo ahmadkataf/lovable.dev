@@ -259,6 +259,7 @@ legend { font-weight: 600; color: var(--accent); font-size: 13px; padding: 0; ma
 .chooser-title { display: flex; align-items: center; justify-content: space-between; }
 .search { width: 100%; border: 1.5px solid var(--line); border-radius: 12px; padding: 10px 12px; font: inherit; font-size: 15px; background: var(--surface-2); color: var(--text); outline: none; }
 .search:focus { border-color: var(--accent); }
+.search::placeholder { color: var(--muted); opacity: 1; }
 .chips { top: 108px; }
 .empty { color: var(--muted); font-size: 13.5px; padding: 8px 16px 0; margin: 0; }
 .empty:empty { display: none; }
@@ -272,8 +273,8 @@ legend { font-weight: 600; color: var(--accent); font-size: 13px; padding: 0; ma
 .section[open] summary::after { content: '▴'; }
 
 /* stats: five tiles, the cost one wide on phones */
-.stats { grid-template-columns: repeat(5, 1fr); }
-.stat.money b { color: var(--accent); }
+.stats { grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); }
+.stat.money b { color: var(--accent); direction: rtl; text-align: start; white-space: normal; }
 @media (max-width: 860px) { .stats { grid-template-columns: repeat(4, 1fr); } .stat.money { grid-column: 1 / -1; } }
 @media (max-width: 480px) { .stats { grid-template-columns: repeat(2, 1fr); } }
 
@@ -300,7 +301,34 @@ legend { font-weight: 600; color: var(--accent); font-size: 13px; padding: 0; ma
 .cost-totals .hint { grid-column: 1 / -1; }
 .add-project { display: block; width: 100%; margin: 10px 0 4px; border: 1.5px dashed var(--accent); background: var(--accent-soft); color: var(--text); border-radius: 10px; padding: 10px 12px; font-size: 14px; font-weight: 600; }
 .project { margin-top: 14px; padding-top: 10px; border-top: 1px solid var(--line); }
-@media (max-width: 600px) { .cost-qty { grid-template-columns: 1fr; } .cost-table th:nth-child(2), .cost-table td:nth-child(2) { display: none; } }
+@media (max-width: 600px) { .cost-qty { grid-template-columns: 1fr; } .cost-sheets th:nth-child(2), .cost-sheets td:nth-child(2) { display: none; } }
+/* the project: rows that fold into two lines on phones */
+.proj-list { display: flex; flex-direction: column; font-size: 13px; }
+.proj-row { display: grid; grid-template-columns: 1fr auto auto auto auto; grid-template-areas: 'name qty unit total del'; gap: 6px 10px; align-items: center; padding: 7px 0; border-bottom: 1px dashed var(--line); }
+.proj-row.head { color: var(--muted); font-size: 11.5px; border-bottom: 1px solid var(--line); padding: 4px 0; }
+.proj-row .name { grid-area: name; min-width: 0; }
+.proj-row .name small { display: block; color: var(--muted); font-size: 11px; }
+.proj-row .qty { grid-area: qty; white-space: nowrap; }
+.proj-row .qty .bump { width: 30px; font-size: 17px; vertical-align: middle; }
+.proj-row .qty b { display: inline-block; min-width: 24px; text-align: center; }
+.proj-row .unit { grid-area: unit; }
+.proj-row .total { grid-area: total; }
+.proj-row .del { grid-area: del; }
+.proj-row .bad { color: var(--error-text); font-weight: 600; }
+.proj-row.excluded .name { opacity: .7; }
+.proj-row .linkish { background: none; border: 0; padding: 0; color: var(--text); font-weight: 600; text-decoration: underline dotted; text-align: start; }
+.money2 { white-space: normal; }
+.money2 > span { white-space: nowrap; }
+.proj-row > * { min-width: 0; }
+.cost { min-width: 0; overflow-wrap: anywhere; }
+@media (max-width: 600px) {
+  .proj-row { grid-template-columns: auto 1fr auto; grid-template-areas: 'name name del' 'qty unit total'; gap: 6px; }
+  .proj-row .money2 { display: inline-flex; flex-direction: column; line-height: 1.4; }
+  .proj-row .money2 .sep { display: none; }
+  .proj-row.head { display: none; }
+  .proj-row .unit::before { content: 'الواحدة '; color: var(--muted); font-size: 11px; }
+  .proj-row .total::before { content: 'المجموع '; color: var(--muted); font-size: 11px; }
+}
 
 /* the prices dialog */
 .pricing { width: min(560px, 100vw); }

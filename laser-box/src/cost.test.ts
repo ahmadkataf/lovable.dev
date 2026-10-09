@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { setsPerSheet, designCost, projectTotal, sheetsFor, money, matches, normalizeArabic, DEFAULT_PRICING, MAIN, Pricing } from './cost'
+import { setsPerSheet, designCost, projectTotal, sheetsFor, money, matches, normalizeArabic, DEFAULT_PRICING, defaultPricing, MAIN, Pricing } from './cost'
 import { templateById } from './templates'
 import { generate, DEFAULT_SETTINGS } from './generate'
 import { Panel } from './joints'
@@ -20,6 +20,11 @@ describe('sheet costing', () => {
     const tiny = setsPerSheet([panel(25, 25, 4)], 2, { w: 1220, h: 2440 })
     expect(tiny.sets).toBeGreaterThan(900)
     expect(tiny.sets).toBeLessThanOrEqual(Math.floor((1220 * 2440) / (4 * 625)))
+    // past the packing cap the count is only what verifiably packs: a leftover strip that holds no big square adds nothing
+    expect(setsPerSheet([panel(600, 600), panel(10, 10, 609)], 3, { w: 1210, h: 1178 }).sets).toBe(2)
+    expect(setsPerSheet([panel(10, 10, 500)], 2, { w: 118, h: 1798 }).sets).toBe(3)
+    // a board laid on its side fills the strip left under the upright ones
+    expect(setsPerSheet([panel(450, 620), panel(220, 50, 2)], 3, { w: 1220, h: 2440 }).sets).toBeGreaterThanOrEqual(8)
     // never more than the areas allow
     const big = setsPerSheet([panel(600, 600), panel(50, 50, 4)], 3, { w: 1220, h: 2440 })
     expect(big.sets).toBeLessThanOrEqual(Math.floor((1220 * 2440) / (600 * 600 + 4 * 2500)))
@@ -74,6 +79,14 @@ describe('sheet costing', () => {
     expect(c.problems).toEqual([])
   })
 
+  it('hands out fresh pricing defaults: editing one never changes the next', () => {
+    const a = defaultPricing()
+    a.sheets[MAIN].price = 20
+    expect(defaultPricing().sheets[MAIN].price).toBe(11)
+    expect(DEFAULT_PRICING.sheets[MAIN].price).toBe(11)
+    expect(() => { (DEFAULT_PRICING.sheets[MAIN] as { price: number }).price = 5 }).toThrow()
+  })
+
   it('finds products by any spelling of their name', () => {
     expect(normalizeArabic('مبخَرة أكْريليك')).toBe('مبخره اكريليك')
     expect(matches('مبخرة', 'مبخرة برج بالمرايا')).toBe(true)
@@ -82,5 +95,8 @@ describe('sheet costing', () => {
     expect(matches('كوستر', 'طقم كوسترات بنقشة الزهرة')).toBe(true)
     expect(matches('صينية', 'مبخرة برج')).toBe(false)
     expect(matches('', 'anything')).toBe(true)
+    expect(matches('الصندوق', 'صندوق مغلق')).toBe(true)
+    expect(matches('والدرع', 'درع الهلال')).toBe(true)
+    expect(matches('ال', 'صندوق')).toBe(false)
   })
 })

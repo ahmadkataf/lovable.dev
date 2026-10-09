@@ -6,7 +6,7 @@ import { loopToPath } from './geom'
 import { makeZip } from './zip'
 import { MATERIAL_INFO } from './materials'
 import { scaleDesign, repair, roleOf, Change } from './scale'
-import { designCost, projectTotal, sheetsFor, money, fmtUsd, fmtSyp, matches, DEFAULT_PRICING, DEFAULT_SHEET, MAIN, Pricing, Currency, materialLabel, DesignCost } from './cost'
+import { designCost, projectTotal, sheetsFor, money, fmtUsd, fmtSyp, matches, defaultPricing, DEFAULT_SHEET, MAIN, Pricing, Currency, materialLabel, DesignCost } from './cost'
 
 // Inside the claude.ai viewer the page cannot start downloads itself and the link hash carries no state.
 type ClaudeUse = (name: string) => Promise<{ save(r: { filename: string; data: string | Blob }): Promise<unknown> } | null>
@@ -39,14 +39,14 @@ const MATERIALS: { id: string; label: string; kerf: number }[] = [
 const LS_KEY = 'laser-box-state-v2'
 
 function loadState(): State {
-  const base: State = { tpl: TEMPLATES[0].id, params: {}, settings: { ...DEFAULT_SETTINGS }, labels: true, pricing: { ...DEFAULT_PRICING, sheets: { ...DEFAULT_PRICING.sheets } }, project: [], qty: {} }
+  const base: State = { tpl: TEMPLATES[0].id, params: {}, settings: { ...DEFAULT_SETTINGS }, labels: true, pricing: defaultPricing(), project: [], qty: {} }
   try {
     const raw = localStorage.getItem(LS_KEY)
     if (raw) {
       const saved = JSON.parse(raw)
       Object.assign(base, saved, {
         settings: { ...DEFAULT_SETTINGS, ...saved.settings },
-        pricing: { ...DEFAULT_PRICING, ...(saved.pricing ?? {}), sheets: { ...DEFAULT_PRICING.sheets, ...(saved.pricing?.sheets ?? {}) } },
+        pricing: { ...defaultPricing(), ...(saved.pricing ?? {}), sheets: Object.fromEntries(Object.entries({ ...defaultPricing().sheets, ...(saved.pricing?.sheets ?? {}) }).map(([k, v]) => [k, { ...(v as object) }])) },
         project: Array.isArray(saved.project) ? saved.project.filter((it: ProjectItem) => TEMPLATES.some(t => t.id === it.tpl)) : [],
         qty: saved.qty ?? {},
       })
@@ -229,11 +229,12 @@ function renderChooser() {
     if (q && !ids.length) empty.textContent = `لا يوجد منتج باسم «${q}». جرّب كلمة أقصر، أو تصفّح الأقسام.`
   }
   search.oninput = () => { chooserQuery = search.value; fill() }
-  search.onkeydown = e => { if ((e as KeyboardEvent).key === 'Escape') { search.value = ''; chooserQuery = ''; fill(); e.stopPropagation() } }
   fill()
   chooser.append(head, chips, empty, grid)
 }
 chooser.addEventListener('click', e => { if (e.target === chooser) chooser.close() }) // a tap on the backdrop closes it
+// Escape clears a search first; a second one closes
+chooser.addEventListener('cancel', e => { if (chooserQuery) { e.preventDefault(); chooserQuery = ''; const inp = chooser.querySelector<HTMLInputElement>('.search'); if (inp) { inp.value = ''; inp.dispatchEvent(new Event('input')) } } })
 
 // ------------------------------------------------------------------ form
 
@@ -566,13 +567,16 @@ function sizeLabel(p: Record<string, number>) {
 }
 
 /** a tile; a value with line breaks is shown line by line (a price in two currencies) */
-const stat = (k: string, v: string, cls = '') => el('div', { class: 'stat' + (cls ? ' ' + cls : '') }, el('span', {}, k), el('b', {}, ...v.split('\n').flatMap((line, i) => (i ? [el('br'), line] : [line]))))
+const stat = (k: string, v: string, cls = '') => el('div', { class: 'stat' + (cls ? ' ' + cls : '') }, el('span', {}, k), el('b', {}, ...v.split('\n').flatMap((line, i) => { const node = line.startsWith('$') ? el('span', { dir: 'ltr' }, line) : line; return i ? [el('br'), node] : [node] })))
 
 // ------------------------------------------------------------------ cost: this design, a quantity, and the project
 
 const qtyOf = () => Math.max(1, Math.round(state.qty[state.tpl] ?? 1))
+/** «قطعة واحدة»، «قطعتان»، «3 قطع»، «11 قطعة» */
+const countWord = (n: number, one: string, two: string, few: string) => (n === 1 ? `${one} واحدة` : n === 2 ? two : n <= 10 ? `${n} ${few}` : `${n} ${one}`)
+const pieces = (n: number) => countWord(n, 'قطعة', 'قطعتان', 'قطع')
 /** "$3.67 · 40,370 ل.س" from a price in the input currency, each currency kept in its own direction */
-const both = (v: number) => { const m = money(state.pricing, v); return el('span', { class: 'money2' }, el('span', { dir: 'ltr' }, fmtUsd(m.usd)), ' · ', el('span', {}, fmtSyp(m.syp))) }
+const both = (v: number) => { const m = money(state.pricing, v); return el('span', { class: 'money2' }, el('span', { dir: 'ltr' }, fmtUsd(m.usd)), el('span', { class: 'sep' }, ' · '), el('span', {}, fmtSyp(m.syp))) }
 const twoLines = (v: number) => { const m = money(state.pricing, v); return `${fmtUsd(m.usd)}\n${fmtSyp(m.syp)}` }
 const costCache = new Map<string, DesignCost | null>()
 /** a project item's cost at the numbers it was added with (the sheet prices as they are now) */
@@ -591,13 +595,13 @@ function renderCost(cost: DesignCost) {
   const pr = state.pricing, qty = qtyOf(), ok = !!design && !design.errors.length && !cost.problems.length
   costBox.append(el('div', { class: 'cost-head' }, el('h3', {}, '💲 التكلفة'), el('button', { type: 'button', class: 'link', onclick: () => openPricing() }, '⚙ أسعار الألواح وسعر الصرف')))
   // one set: each material's share of its sheet
-  const tbl = el('table', { class: 'cost-table' })
+  const tbl = el('table', { class: 'cost-table cost-sheets' })
   tbl.append(el('thead', {}, el('tr', {}, el('th', {}, 'الخامة'), el('th', {}, 'اللوح'), el('th', {}, 'يطلع من اللوح'), el('th', {}, 'حصّة القطعة'))))
   const tb = el('tbody', {})
   for (const part of cost.parts) {
     const sh = part.sheet
     tb.append(el('tr', {},
-      el('td', {}, el('b', {}, part.label), el('small', {}, `${part.pieces} ${part.pieces === 1 ? 'قطعة' : part.pieces === 2 ? 'قطعتان' : part.pieces <= 10 ? 'قطع' : 'قطعة'}`)),
+      el('td', {}, el('b', {}, part.label), el('small', {}, pieces(part.pieces))),
       el('td', {}, `${fmt(sh.w)} × ${fmt(sh.h)} سم`, el('small', {}, both(sh.price))),
       el('td', {}, part.nest.sets > 0 ? el('b', {}, String(part.nest.sets)) : el('b', { class: 'bad' }, 'لا يتّسع'), part.nest.sets > 0 ? el('small', {}, `استغلال ${Math.round((100 * part.nest.area * part.nest.sets) / part.nest.sheetArea)}٪${part.nest.turned ? '، بالعرض' : ''}`) : ''),
       el('td', {}, part.nest.sets > 0 ? el('b', {}, both(part.perSet)) : '—'),
@@ -607,26 +611,29 @@ function renderCost(cost: DesignCost) {
   costBox.append(tbl)
   for (const pb of cost.problems) costBox.append(el('div', { class: 'warn' }, `⚠ ${pb}: كبّر اللوح في الأسعار أو صغّر التصميم.`))
   if (design?.errors.length) costBox.append(el('div', { class: 'hint' }, 'التصميم فيه أخطاء، فالتكلفة تقريبية حتى تُصلح.'))
-  // a quantity
+  // a quantity: typing in it redraws only the totals, so the field keeps the focus
   const q = el('div', { class: 'cost-qty' })
-  q.append(numberField({ key: 'qty', label: 'عدد القطع المطلوبة', min: 1, max: 10000, step: 1, int: true }, qty, v => { state.qty[state.tpl] = v; persist(); renderCost(cost) }, 'c'))
   const totals = el('div', { class: 'cost-totals' })
-  if (ok) {
-    const whole = cost.parts.map(part => ({ part, ...sheetsFor(part, qty) }))
+  const fillTotals = () => {
+    totals.innerHTML = ''
+    if (!ok) return
+    const n = qtyOf(), whole = cost.parts.map(part => ({ part, ...sheetsFor(part, n) }))
     const wholeCost = whole.reduce((s, w) => s + w.sheets * w.part.sheet.price, 0)
     totals.append(
       stat('القطعة الواحدة', twoLines(cost.perSet)),
-      stat(`${qty} ${qty === 1 ? 'قطعة' : qty === 2 ? 'قطعتان' : qty <= 10 ? 'قطع' : 'قطعة'} (حصّتها من الألواح)`, twoLines(cost.perSet * qty)),
+      stat(`${pieces(n)} (حصّتها من الألواح)`, twoLines(cost.perSet * n)),
       stat('ألواح تشتريها كاملة', `${whole.map(w => `${w.sheets} ${w.part.label}`).join(' + ')}\n${twoLines(wholeCost)}`),
     )
     const left = whole.filter(w => w.leftover > 0).map(w => `يبقى من ${w.part.label} ما يكفي لـ ${w.leftover} أخرى`).join('، ')
     if (left) totals.append(el('div', { class: 'hint' }, left + '.'))
   }
+  q.append(numberField({ key: 'qty', label: 'عدد القطع المطلوبة', min: 1, max: 10000, step: 1, int: true }, qty, v => { state.qty[state.tpl] = v; persist(); fillTotals() }, 'c'))
+  fillTotals()
   q.append(totals)
   costBox.append(q)
   const add = el('button', { type: 'button', class: 'add-project', onclick: () => {
     if (!ok) { toast('أصلح التصميم أولاً ثم أضفه'); return }
-    state.project.push({ id: `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`, tpl: state.tpl, name: tpl().name, size: sizeLabel(params()), params: { ...params() }, settings: { ...state.settings }, qty })
+    state.project.push({ id: `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`, tpl: state.tpl, name: tpl().name, size: sizeLabel(params()), params: { ...params() }, settings: { ...state.settings }, qty: qtyOf() })
     persist(); renderCost(cost); toast('أُضيف إلى المشروع')
   } }, '＋ أضف هذه القطعة إلى المشروع')
   costBox.append(add)
@@ -638,34 +645,35 @@ function renderCost(cost: DesignCost) {
 function renderProject(): HTMLElement {
   const box = el('div', { class: 'project' })
   const items = state.project
-  box.append(el('h3', {}, `🧾 المشروع`, el('small', {}, items.length ? ` ${items.length} ${items.length === 1 ? 'قطعة' : items.length === 2 ? 'قطعتان' : items.length <= 10 ? 'قطع' : 'قطعة'}` : ' فارغ')))
+  const recost = () => { if (design) renderCost(designCost(design.panels, state.settings.spacing, state.pricing)) }
+  box.append(el('h3', {}, '🧾 المشروع', el('small', {}, items.length ? ` ${pieces(items.length)}` : ' فارغ')))
   if (!items.length) { box.append(el('p', { class: 'hint' }, 'أضف القطع التي يطلبها الزبون واحدة بعد الأخرى (من أي تصميم)، فتُحسب تكلفة المشروع كلّه وكم لوحاً من كل خامة تحتاج.')); return box }
-  const tbl = el('table', { class: 'cost-table' })
-  tbl.append(el('thead', {}, el('tr', {}, el('th', {}, 'القطعة'), el('th', {}, 'العدد'), el('th', {}, 'الواحدة'), el('th', {}, 'المجموع'), el('th', {}, ''))))
-  const tb = el('tbody', {})
+  const list = el('div', { class: 'proj-list' })
+  list.append(el('div', { class: 'proj-row head' }, el('span', { class: 'name' }, 'القطعة'), el('span', { class: 'qty' }, 'العدد'), el('span', { class: 'unit' }, 'الواحدة'), el('span', { class: 'total' }, 'المجموع'), el('span', { class: 'del' })))
   const lines: { name: string; qty: number; cost: DesignCost }[] = []
+  let excluded = 0
   for (const it of items) {
     const c = itemCost(it)
-    if (c && !c.problems.length) lines.push({ name: it.name, qty: it.qty, cost: c })
-    const setQty = (v: number) => { it.qty = Math.max(1, Math.round(v)); persist(); design && renderCost(designCost(design.panels, state.settings.spacing, state.pricing)) }
-    tb.append(el('tr', {},
-      el('td', {}, el('button', { type: 'button', class: 'linkish', title: 'افتح هذه القطعة', onclick: () => { state.tpl = it.tpl; state.params[it.tpl] = { ...it.params }; state.settings = { ...it.settings }; lastAction = null; lastEdited = null; persist(); renderGallery(); renderForm(); update(true); window.scrollTo({ top: 0, behavior: 'smooth' }) } }, it.name), el('small', {}, `${it.size} · ${it.settings.t} مم`)),
-      el('td', { class: 'qty' }, el('button', { type: 'button', class: 'bump', onclick: () => setQty(it.qty - 1) }, '−'), el('b', {}, String(it.qty)), el('button', { type: 'button', class: 'bump', onclick: () => setQty(it.qty + 1) }, '+')),
-      el('td', {}, c ? (c.problems.length ? el('span', { class: 'bad' }, 'لا يتّسع') : both(c.perSet)) : el('span', { class: 'bad' }, 'فيها خطأ')),
-      el('td', {}, c && !c.problems.length ? el('b', {}, both(c.perSet * it.qty)) : '—'),
-      el('td', {}, el('button', { type: 'button', class: 'tool small', 'aria-label': 'احذف', onclick: () => { state.project = state.project.filter(x => x.id !== it.id); persist(); design && renderCost(designCost(design.panels, state.settings.spacing, state.pricing)) } }, '✕')),
+    if (c && !c.problems.length) lines.push({ name: it.name, qty: it.qty, cost: c }); else excluded++
+    const setQty = (v: number) => { it.qty = Math.max(1, Math.round(v)); persist(); recost() }
+    list.append(el('div', { class: 'proj-row' + (c && !c.problems.length ? '' : ' excluded') },
+      el('span', { class: 'name' }, el('button', { type: 'button', class: 'linkish', title: 'افتح هذه القطعة', onclick: () => { state.tpl = it.tpl; state.params[it.tpl] = { ...it.params }; state.settings = { ...it.settings }; lastAction = null; lastEdited = null; persist(); renderGallery(); renderForm(); update(true); window.scrollTo({ top: 0, behavior: 'smooth' }) } }, it.name), el('small', {}, `${it.size} · ${it.settings.t} مم`)),
+      el('span', { class: 'qty' }, el('button', { type: 'button', class: 'bump', 'aria-label': 'أقل', onclick: () => setQty(it.qty - 1) }, '−'), el('b', {}, String(it.qty)), el('button', { type: 'button', class: 'bump', 'aria-label': 'أكثر', onclick: () => setQty(it.qty + 1) }, '+')),
+      el('span', { class: 'unit' }, c ? (c.problems.length ? el('span', { class: 'bad' }, 'لا يتّسع على اللوح') : both(c.perSet)) : el('span', { class: 'bad' }, 'فيها خطأ')),
+      el('span', { class: 'total' }, c && !c.problems.length ? el('b', {}, both(c.perSet * it.qty)) : '—'),
+      el('span', { class: 'del' }, el('button', { type: 'button', class: 'tool small', 'aria-label': 'احذف', onclick: () => { state.project = state.project.filter(x => x.id !== it.id); persist(); recost() } }, '✕')),
     ))
   }
-  tbl.append(tb)
-  box.append(tbl)
+  box.append(list)
   const t = projectTotal(lines, state.pricing)
-  const totals = el('div', { class: 'cost-totals' },
-    stat('تكلفة المشروع (حصّة من الألواح)', twoLines(t.cost)),
-    stat('ألواح تشتريها كاملة', t.materials.length ? `${t.materials.map(m => `${m.sheets} ${m.label}`).join(' + ')}\n${twoLines(t.whole)}` : '—'),
-  )
-  box.append(totals)
-  if (t.materials.length) box.append(el('div', { class: 'hint' }, t.materials.map(m => `${m.label}: ${(Math.round(m.fraction * 100) / 100).toLocaleString('en-US')} لوح من ${fmt(m.sheet.w)} × ${fmt(m.sheet.h)} سم`).join('، ') + '.'))
-  box.append(el('button', { type: 'button', class: 'link', onclick: () => { if (confirm('تفريغ المشروع كلّه؟')) { state.project = []; persist(); design && renderCost(designCost(design.panels, state.settings.spacing, state.pricing)) } } }, 'تفريغ المشروع'))
+  if (excluded) box.append(el('div', { class: 'warn' }, `⚠ ${countWord(excluded, 'قطعة', 'قطعتان', 'قطع')} لم تُحسب في المجموع (لا تتّسع على لوحها أو فيها خطأ): كبّر اللوح في 💲 أو افتحها وأصلحها.`))
+  const partial = excluded ? ' (ناقص)' : ''
+  box.append(el('div', { class: 'cost-totals' },
+    stat('تكلفة المشروع (حصّة من الألواح)' + partial, lines.length ? twoLines(t.cost) : '—'),
+    stat('ألواح تشتريها كاملة' + partial, t.materials.length ? `${t.materials.map(m => `${m.sheets} ${m.label}`).join(' + ')}\n${twoLines(t.whole)}` : '—'),
+  ))
+  if (t.materials.length) box.append(el('div', { class: 'hint' }, t.materials.map(m => `${m.label}: ${m.fraction < 0.01 ? 'أقل من 0.01' : (Math.round(m.fraction * 100) / 100).toLocaleString('en-US')} لوح من ${fmt(m.sheet.w)} × ${fmt(m.sheet.h)} سم`).join('، ') + '.'))
+  box.append(el('button', { type: 'button', class: 'link', onclick: () => { if (confirm('تفريغ المشروع كلّه؟')) { state.project = []; persist(); recost() } } }, 'تفريغ المشروع'))
   return box
 }
 
@@ -680,9 +688,12 @@ function renderPricing() {
   const head = el('div', { class: 'chooser-head' }, el('div', { class: 'chooser-title' }, el('h2', {}, 'الأسعار والعملة'), el('button', { type: 'button', class: 'tool', 'aria-label': 'إغلاق', onclick: () => priceDlg.close() }, '✕')))
   const body = el('div', { class: 'pricing-body' })
   // the exchange rate, used everywhere
-  body.append(el('div', { class: 'field' }, el('span', { class: 'field-label' }, 'سعر صرف الدولار اليوم', el('small', {}, 'ليرة سورية لكل دولار')),
-    el('div', { class: 'field-ctl' }, el('input', { type: 'number', inputmode: 'decimal', min: '1', step: '1', value: String(pr.rate), onchange: (e: Event) => { const v = parseFloat((e.target as HTMLInputElement).value); if (v > 0) { pr.rate = v; rerender(); renderPricing() } } })),
-    el('span', { class: 'hint' }, `كل الأسعار تُعرض بالدولار وبالليرة معاً على هذا السعر. الآن: $1 = ${fmtSyp(pr.rate)}.`)))
+  const rateHint = el('span', { class: 'hint' }, `كل الأسعار تُعرض بالدولار وبالليرة معاً على هذا السعر. الآن: $1 = ${fmtSyp(pr.rate)}.`)
+  const rateIn = el('input', { type: 'number', inputmode: 'decimal', min: '1', step: '1', value: String(pr.rate), onchange: (e: Event) => {
+    const v = parseFloat((e.target as HTMLInputElement).value)
+    if (v > 0) { pr.rate = v; rerender(); rateHint.textContent = `كل الأسعار تُعرض بالدولار وبالليرة معاً على هذا السعر. الآن: $1 = ${fmtSyp(pr.rate)}.` } else (e.target as HTMLInputElement).value = String(pr.rate)
+  } })
+  body.append(el('div', { class: 'field' }, el('span', { class: 'field-label' }, 'سعر صرف الدولار اليوم', el('small', {}, 'ليرة سورية لكل دولار')), el('div', { class: 'field-ctl' }, rateIn), rateHint))
   // the currency the sheet prices are typed in
   const seg = el('div', { class: 'segmented', role: 'group' })
   for (const [cur, label] of [['USD', 'بالدولار $'], ['SYP', 'بالليرة ل.س']] as [Currency, string][]) {
@@ -710,7 +721,7 @@ function renderPricing() {
   tbl.append(tb)
   body.append(el('div', { class: 'field' }, el('span', { class: 'field-label' }, 'الألواح وأسعارها'), tbl,
     el('span', { class: 'hint' }, 'اللوح الشائع 122 × 244 سم. اكتب سعر كل لوح كما تشتريه؛ الأكريليك الذهبي والمرآة والشفّاف لكلٍّ سعره، وهذه الأسعار تُحفظ وتُستعمل في كل التصاميم.')))
-  body.append(el('button', { type: 'button', class: 'link', onclick: () => { state.pricing = { ...DEFAULT_PRICING, rate: pr.rate, sheets: { ...DEFAULT_PRICING.sheets } }; rerender(); renderPricing() } }, 'إعادة الأسعار الافتراضية (122 × 244 سم بـ $11)'))
+  body.append(el('button', { type: 'button', class: 'link', onclick: () => { state.pricing = { ...defaultPricing(), rate: pr.rate }; rerender(); renderPricing() } }, 'إعادة الأسعار الافتراضية (122 × 244 سم بـ $11)'))
   priceDlg.append(head, body)
 }
 priceDlg.addEventListener('click', e => { if (e.target === priceDlg) priceDlg.close() })

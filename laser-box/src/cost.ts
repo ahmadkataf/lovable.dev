@@ -17,8 +17,10 @@ export interface Pricing {
   sheets: Record<string, SheetSpec>
 }
 export const MAIN = 'main'
-export const DEFAULT_SHEET: SheetSpec = { w: 122, h: 244, price: 11 }
-export const DEFAULT_PRICING: Pricing = { rate: 11000, currency: 'USD', sheets: { [MAIN]: { ...DEFAULT_SHEET } } }
+export const DEFAULT_SHEET: Readonly<SheetSpec> = Object.freeze({ w: 122, h: 244, price: 11 })
+/** fresh objects every time: the app edits its pricing in place, and a shared default would change with it */
+export const defaultPricing = (): Pricing => ({ rate: 11000, currency: 'USD', sheets: { [MAIN]: { ...DEFAULT_SHEET } } })
+export const DEFAULT_PRICING: Readonly<Pricing> = Object.freeze({ ...defaultPricing(), sheets: Object.freeze({ [MAIN]: DEFAULT_SHEET }) })
 
 /** the sheet for a material, the default when none was set */
 export const sheetOf = (p: Pricing, material: string): SheetSpec => p.sheets[material] ?? { ...DEFAULT_SHEET }
@@ -93,25 +95,34 @@ export function setsPerSheet(panels: Panel[], spacing: number, sheetMm: { w: num
       rows.push({ y, h: it.h, x: it.w + spacing, cols: [{ w: it.w, free: y + it.h + spacing }] })
       return true
     }
-    for (const it of items) {
+    const tryPlace = (it: It) => {
       const cur = rows[rows.length - 1]
-      if (cur && it.h <= cur.h && cur.x + it.w <= W) { cur.cols.push({ w: it.w, free: cur.y + it.h + spacing }); cur.x += it.w + spacing; continue }
-      if (!(stack(it) || append(it) || newRow(it))) return { ok: false, usedH: H }
+      if (cur && it.h <= cur.h && cur.x + it.w <= W) { cur.cols.push({ w: it.w, free: cur.y + it.h + spacing }); cur.x += it.w + spacing; return true }
+      return stack(it) || append(it) || newRow(it)
     }
+    // a piece that finds no place upright may find one turned (a board laid on its side in the last strip)
+    for (const it of items) if (!tryPlace(it) && !(it.w !== it.h && tryPlace({ w: it.h, h: it.w, i: it.i }))) return { ok: false, usedH: H }
     const last = rows[rows.length - 1]
     return { ok: true, usedH: last ? last.y + last.h : 0 }
+  }
+  // the largest k in [1, hi] whose every piece packs on a W × H sheet (0 when even one set does not)
+  const most = (hi: number, W: number, H: number, rot: boolean): number => {
+    if (hi < 1 || !pack(1, W, H, rot).ok) return 0
+    if (pack(hi, W, H, rot).ok) return hi
+    let lo = 1, up = hi
+    while (up - lo > 1) { const m = Math.floor((lo + up) / 2); if (pack(m, W, H, rot).ok) lo = m; else up = m }
+    return lo
   }
   let best = 0, turned = false
   for (const [W, H, sheetTurned] of [[sheetMm.w, sheetMm.h, false], [sheetMm.h, sheetMm.w, true]] as const) {
     for (const rot of [false, true]) {
-      if (!pack(1, W, H, rot).ok) continue
-      // the largest k that packs, by halving between a k that does and one that does not
-      let lo = 1, hi = cap
-      const top = pack(cap, W, H, rot)
-      if (top.ok) lo = cap
-      else while (hi - lo > 1) { const m = Math.floor((lo + hi) / 2); if (pack(m, W, H, rot).ok) lo = m; else hi = m }
-      let sets = lo
-      if (top.ok && cap < bound && top.usedH > 0) sets = Math.min(bound, Math.floor((cap * H) / (top.usedH + spacing)))
+      let sets = most(cap, W, H, rot)
+      if (sets === cap && cap < bound) {
+        // past the cap: the capped packing's block repeated down the sheet, and whatever still packs in the strip left
+        const top = pack(cap, W, H, rot), block = top.usedH + spacing
+        const blocks = Math.max(1, Math.floor((H + spacing) / block))
+        sets = cap * blocks + most(cap, W, H - blocks * block, rot)
+      }
       if (sets > best) { best = sets; turned = sheetTurned || rot }
     }
   }
@@ -185,5 +196,6 @@ export function matches(query: string, ...texts: string[]): boolean {
   const q = normalizeArabic(query).split(' ').filter(Boolean)
   if (!q.length) return true
   const hay = normalizeArabic(texts.join(' '))
-  return q.every(w => hay.includes(w))
+  // «الصندوق» finds «صندوق»: the word without its article (and a و/ب/ل/ك before it) counts too
+  return q.every(w => { const bare = w.replace(/^[وبلك]?ال/, ''); return hay.includes(w) || (bare.length >= 2 && hay.includes(bare)) })
 }
