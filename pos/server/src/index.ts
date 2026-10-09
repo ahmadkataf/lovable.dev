@@ -49,7 +49,7 @@ export type DeviceRow = {
   first_seen: number; last_seen: number; ip: string | null
 }
 type Settings = { price: string; whatsapp: string; trial_days: number; grace_days: number; min_version: string; android_signature: string; message: string; cloud_price: string; cloud_days: number; cloud_keep: number }
-const DEFAULTS: Settings = { price: '35$', whatsapp: '', trial_days: 7, grace_days: 10, min_version: '', android_signature: '', message: '', cloud_price: '35$', cloud_days: 365, cloud_keep: 3 }
+const DEFAULTS: Settings = { price: '35$', whatsapp: '963996489504', trial_days: 7, grace_days: 10, min_version: '', android_signature: '', message: '', cloud_price: '35$', cloud_days: 365, cloud_keep: 3 }
 
 // Arabic sentences for the app (it has its own; these help when the app is older than the server)
 const MESSAGES: Record<string, string> = {

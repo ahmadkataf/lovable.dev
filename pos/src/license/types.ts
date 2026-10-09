@@ -41,7 +41,7 @@ export const isBlocked = (s: LicenseStatus): boolean =>
   s.state === 'none' || s.state === 'expired' || s.state === 'revoked' || s.state === 'locked' || s.state === 'tampered'
 
 /** The default seller info, used before /api/info was ever reached. */
-export const DEFAULT_INFO: SellerInfo = { price: '35$', whatsapp: '', trialDays: 7, graceDays: 10, cloudPrice: '35$' }
+export const DEFAULT_INFO: SellerInfo = { price: '35$', whatsapp: '963996489504', trialDays: 7, graceDays: 10, cloudPrice: '35$' }
 
 /** The cloud backup add-on is paid up (a lifetime/active license with cloudUntil in the future). */
 export const cloudActive = (s: LicenseStatus, now = Date.now()): boolean => s.state === 'active' && typeof s.cloudUntil === 'number' && s.cloudUntil > now
