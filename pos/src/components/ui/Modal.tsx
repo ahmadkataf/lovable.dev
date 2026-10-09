@@ -15,6 +15,15 @@ export interface ModalProps {
   className?: string
 }
 
+// The Android shell asks the page to handle the back button: close the topmost dialog when one is open.
+if (typeof window !== 'undefined' && !window.onPosBack) {
+  window.onPosBack = () => {
+    if (!document.querySelector('body > .overlay')) return false
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }))
+    return true
+  }
+}
+
 /** Centred dialog on wide screens, bottom sheet on phones. Escape and the backdrop close it. */
 export function Modal({ open, onClose, title, children, footer, size = 'normal', full, headExtra, noClose, className = '' }: ModalProps) {
   const ref = useRef<HTMLDivElement>(null)

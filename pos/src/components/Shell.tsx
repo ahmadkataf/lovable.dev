@@ -40,6 +40,12 @@ export function Shell({ children }: { children: ReactNode }) {
   const current = items.find(n => (n.end ? loc.pathname === n.to : loc.pathname.startsWith(n.to)))
 
   useEffect(() => { setMore(false) }, [loc.pathname])
+  useEffect(() => {
+    if (!more) return
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setMore(false) }
+    document.addEventListener('keydown', onKey)
+    return () => document.removeEventListener('keydown', onKey)
+  }, [more])
 
   // auto-lock after a quiet spell
   useEffect(() => {

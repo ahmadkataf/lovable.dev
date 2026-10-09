@@ -53,6 +53,8 @@ interface Window {
   PosAndroid?: PosAndroidBridge
   /** Called by the Android shell when a file saved through saveFile() finished (ok) or was cancelled. */
   onPosFileSaved?: (ok: boolean) => void
+  /** Called by the Android shell on the back button: true when the page handled it (closed a dialog). */
+  onPosBack?: () => boolean
 }
 
 declare module '*.svg' { const src: string; export default src }
