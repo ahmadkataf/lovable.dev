@@ -4402,7 +4402,8 @@ function pointInPoly(q: P2, poly: P2[]): boolean {
 /** 0 when two closed polygons cross or one holds the other, else how far apart they are. */
 function polyGap(a: P2[], b: P2[]): number {
   const inside = pointInPoly
-  const cross = (p: P2, q: P2, r: P2) => (q.x - p.x) * (r.y - p.y) - (q.y - p.y) * (r.x - p.x)
+  // round-off on collinear edges (the plates lie in one plane, the rails on one line) is not a crossing
+  const cross = (p: P2, q: P2, r: P2) => { const v = (q.x - p.x) * (r.y - p.y) - (q.y - p.y) * (r.x - p.x); return Math.abs(v) < 1e-7 ? 0 : v }
   for (let i = 0; i < a.length; i++) for (let j = 0; j < b.length; j++) {
     const p1 = a[i], p2 = a[(i + 1) % a.length], q1 = b[j], q2 = b[(j + 1) % b.length]
     if (cross(p1, p2, q1) * cross(p1, p2, q2) < 0 && cross(q1, q2, p1) * cross(q1, q2, p2) < 0) return 0
@@ -4456,7 +4457,7 @@ function tierStand(p: Record<string, number>, c: Common, pro: boolean): BuildRes
   const L0 = at(0, dlF + e), lineY = (x: number) => L0.y - (x - L0.x) * ta
   const yc = lineY(0), xb = -t - rear
   const R = Math.max(0, Math.min(p.R, rear + t, 0.6 * yc))
-  if (p.R - R > 1) warnings.push(`تدوير أعلى الجانب خُفّض إلى ${Math.floor(R)} مم ليناسب امتداده الخلفي.`)
+  if (p.R - R > 1) warnings.push(`تدوير أعلى الجانب خُفّض إلى ${Math.floor(R)} مم ليناسب ${0.6 * yc < rear + t ? 'ارتفاع الجانب' : 'امتداده الخلفي'}.`)
   const yF = Math.max(lineY(xs), fTop), xFlat = yF > lineY(xs) + 1e-6 ? xs - (yF - lineY(xs)) / ta : xs
   if (xFlat < inset + 10) errors.push('الحافّة فوق الرفّ السفلي أعلى من مقدّمة الجانب: قلّلها أو زد ارتفاع الدرجة.')
   // the brace behind the back panel at mid height (the back panel stands on it), or a back panel down to the floor
@@ -4475,7 +4476,7 @@ function tierStand(p: Record<string, number>, c: Common, pro: boolean): BuildRes
     { id: 'plate', name: 'اللوح المائل', at: at(0, -t / 2), dir: d, len: Lp, count: N, runs: plateRuns, shift: { x: step * ca, y: -step * sa }, note: pro ? 'شقوق الفواصل عند طرفه السفلي' : 'تستند عليه العلب', short: 'اللوح المائل قصير: زد ارتفاع الدرجة.' },
     { id: 'ledge', name: 'رفّ الدرجة', at: at(step - t / 2, -t), dir: nf, len: round3(dl + t), count: N, runs: oneTab(dl + t, Math.max(3, 0.8 * t)), shift: { x: step * ca, y: -step * sa }, note: 'عمودي على الألواح المائلة: تقف عليه العلب', short: 'رفّ الدرجة قصير على لسان في الجانب: زد عمق الرفّ.' },
     ...(rail > 0 ? [{ id: 'rail', name: 'حافّة السعر', at: at(step, dl + t / 2), dir: { x: -d.x, y: -d.y }, len: round3(rail + t), count: N, runs: oneTab(rail + t, Math.max(3, 0.8 * t)), shift: { x: step * ca, y: -step * sa }, note: 'أمام طرف الرفّ: تمسك العلب ويُلصق عليها السعر', short: 'حافّة السعر قصيرة على لسان: زد ارتفاعها.' }] : []),
-    ...(base ? [{ id: 'base', name: 'القاعدة', at: { x: brace ? xb + inset : 0, y: bh + t / 2 }, dir: { x: 1, y: 0 }, len: round3(xs - t - (brace ? xb + inset : 0)), count: 1, runs: tabRuns(xs - t - (brace ? xb + inset : 0), inset), note: 'من خلف الجانبين إلى الواجهة', short: 'القاعدة قصيرة على لسان.' }] : []),
+    ...(base ? [{ id: 'base', name: 'القاعدة', at: { x: brace ? xb + inset : 0, y: bh + t / 2 }, dir: { x: 1, y: 0 }, len: round3(xs - t - fit / 2 - (brace ? xb + inset : 0)), count: 1, runs: tabRuns(xs - t - fit / 2 - (brace ? xb + inset : 0), inset), note: 'من خلف الجانبين إلى الواجهة', short: 'القاعدة قصيرة على لسان.' }] : []),
     ...(brace ? [{ id: 'brace', name: 'دعامة اللوح الخلفي', at: { x: xb + inset, y: yb + t / 2 }, dir: { x: 1, y: 0 }, len: round3(braceEnd - xb - inset), count: 1, runs: tabRuns(braceEnd - xb - inset, inset), note: 'خلف الدرجات في منتصف الارتفاع: يقف عليها اللوح الخلفي', short: 'الدعامة قصيرة: زد امتداد الجانب خلف اللوح الخلفي.' }] : []),
   ]
   for (const pc of pieces) if (!pc.runs.length) errors.push(pc.short)
@@ -4485,10 +4486,15 @@ function tierStand(p: Record<string, number>, c: Common, pro: boolean): BuildRes
   if (!frontRuns.length) errors.push('الواجهة الأمامية قصيرة على لسان في الجانب: زد ارتفاع الرفّ السفلي.')
   // lane dividers: standing in each trough, a tab into the plate and one into the ledge
   const lanes = pro ? Math.round(p.lanes) : 1, hd = pro ? p.hd : 0
-  if (pro && lanes > 1 && hd > Lp - 8) errors.push(`الفاصل أعلى من اللوح المائل: اجعله ${Math.floor(Lp - 8)} مم على الأقصى.`)
-  if (pro && lanes > 1 && Wi / lanes < 20) errors.push('الأقسام كثيرة على هذا العرض.')
-  const run1 = (L: number, m: number, cap: number): [number, number] => { const l = Math.min(cap, 0.5 * (L - 2 * m)); return [round3(L / 2 - l / 2), round3(L / 2 + l / 2)] }
-  const dvP = run1(hd, 3, 25), dvL = run1(dl, 3, 20)                       // along the plate from the ledge; along the ledge from the plate
+  // the divider is lifted a thickness to go in and come out (see the plate's slot), so it stays that much under the ledge above
+  if (pro && lanes > 1 && hd > Lp - 8 - t) errors.push(`الفاصل أعلى من اللوح المائل: اجعله ${Math.floor(Lp - 8 - t)} مم على الأقصى.`)
+  if (pro && lanes > 1 && (Wi - (lanes - 1) * t) / lanes < 20) errors.push(`الأقسام كثيرة على هذا العرض: ${Math.max(1, Math.floor((Wi + t) / (20 + t)))} على الأكثر.`)
+  if (rail > 0.5 * Lp) errors.push(`حافّة السعر عالية فلا تدخل العلب فوقها: اجعلها ${Math.floor(0.5 * Lp)} مم على الأكثر.`)
+  // a tab of at least 6 mm centred at c, with 2 mm or more to spare on either side
+  const run1 = (c: number, room: number, cap: number): [number, number] => { const l = Math.min(cap, Math.max(6, room / 2)); return [round3(c - l / 2), round3(c + l / 2)] }
+  // into the plate, along it from the ledge; into the ledge, along it from the plate, centred on the ledge so it fits either way round
+  const dvP = run1(hd / 2, hd - 6, 25), dvL = run1((dl - t) / 2, dl - t - 6, 20)
+  if (pro && lanes > 1 && (dvL[0] < 2 || dvP[0] < 3)) errors.push(`${dvL[0] < 2 ? `عمق الرفّ قليل على لسان الفاصل: اجعله ${Math.ceil(10 + t)} مم على الأقل` : 'الفاصل قصير على لسانه'}، أو اجعل الأقسام 1.`)
   // the slots in the side
   const box = (cen: P2, dir: P2, len: number, thick: number) => {
     const a = len / 2, b = thick / 2, q = { x: -dir.y, y: dir.x }
@@ -4511,6 +4517,8 @@ function tierStand(p: Record<string, number>, c: Common, pro: boolean): BuildRes
     const k = Math.max(6, Math.ceil((Math.PI / 2) * R / 3))
     for (let i = 1; i <= k; i++) { const a = Math.PI / 2 + (Math.PI / 2) * (i / k); side.push({ x: xb + R + R * Math.cos(a), y: yc - R + R * Math.sin(a) }) }
   } else side.push({ x: xb, y: yc })
+  const yW = yc + 0.5, needH = Math.ceil(yW + ar + 20)
+  if (H < needH) errors.push(`اللوح الخلفي قصير: يلزم ${needH} مم على الأقل${needH > 1200 ? '، وهذا أكثر من أقصى ارتفاع (1200 مم): قلّل عدد الدرجات أو ارتفاعها أو الميل أو ارتفاع القوس' : ''}.`)
   // checks: no two pieces collide in the side view (the back and front panels included), everything inside the side,
   // every slot with 2 mm of wood round it
   if (!errors.length) {
@@ -4534,8 +4542,6 @@ function tierStand(p: Record<string, number>, c: Common, pro: boolean): BuildRes
       if (gap < 2) errors.push(`في الجانب شقّان متقاربان أو شقّ قريب من الحافّة (${gap.toFixed(1)} مم): زد هامش الجانب أو ارتفاع الدرجة أو عمق الرفّ.`)
     }
   }
-  const yW = yc + 0.5
-  if (H < yW + ar + 20) errors.push(`اللوح الخلفي قصير: يلزم ${Math.ceil(yW + ar + 20)} مم على الأقل.`)
   const depth = xs - xb
   if (depth < 0.3 * H) warnings.push('الستاند قليل العمق على ارتفاعه وقد ينقلب للخلف؛ زد امتداد الجانب خلف اللوح الخلفي أو قلّل الارتفاع.')
   // to panel coordinates
@@ -4564,22 +4570,26 @@ function tierStand(p: Record<string, number>, c: Common, pro: boolean): BuildRes
     return { id, name, w: W, h: len, count: count * n, cuts, holes, note }
   }
   for (const pc of pieces) {
-    const holes = pc.id === 'plate' ? laneSlots(Lp - dvP[1] - fit / 2, Lp - dvP[0] + fit / 2) : pc.id === 'ledge' ? laneSlots(t + dvL[0] - fit / 2, t + dvL[1] + fit / 2) : []
+    // the plate's divider slot runs a thickness (and the fit) further up the plate: the divider goes in lifted by that
+    // much, then drops into the ledge's slot, and comes out the same way
+    const holes = pc.id === 'plate' ? laneSlots(Lp - dvP[1] - fit / 2 - t - fit, Lp - dvP[0] + fit / 2) : pc.id === 'ledge' ? laneSlots(t + dvL[0] - fit / 2, t + dvL[1] + fit / 2) : []
     panels.push(tabbed(pc.id, pc.name, pc.len, pc.runs, pc.count, pc.note, false, holes))
   }
-  panels.push(tabbed('front', 'الواجهة الأمامية', fTop, frontRuns, 1, 'وجهها مع حافّة الجانبين وألسنتها تظهر فيها؛ ضلعها الأقصر لسانين على الأرض', true))
+  panels.push(tabbed('front', 'الواجهة الأمامية', fTop, frontRuns, 1, 'وجهها مع حافّة الجانبين وألسنتها تظهر فيها؛ ضلعها الطويل الأقرب إلى الألسنة هو الذي على الأرض', true))
   if (lanes > 1) {
     // a divider in the trough: (r out along the ledge, s up the plate), tabs into the plate (r < 0) and the ledge (s < 0)
-    const tip = Math.min(10, hd), out: P2[] = [{ x: 0, y: 0 }, { x: 0, y: dvP[0] }, { x: -t, y: dvP[0] }, { x: -t, y: dvP[1] }, { x: 0, y: dvP[1] }, { x: 0, y: hd }, { x: dl, y: tip }, { x: dl, y: 0 },
+    // behind a price rail it stops a thickness short of it: lifted out of the ledge's slot, it then slides forward out of the plate's
+    const dd = round3(rail > 0 ? dl - t - fit : dl), tip = Math.min(10, hd)
+    const out: P2[] = [{ x: 0, y: 0 }, { x: 0, y: dvP[0] }, { x: -t, y: dvP[0] }, { x: -t, y: dvP[1] }, { x: 0, y: dvP[1] }, { x: 0, y: hd }, { x: dd, y: tip }, { x: dd, y: 0 },
       { x: dvL[1], y: 0 }, { x: dvL[1], y: -t }, { x: dvL[0], y: -t }, { x: dvL[0], y: 0 }]
-    panels.push({ id: 'divider', name: 'فاصل الأقسام', w: round3(dl + t), h: round3(hd + t), count: N * (lanes - 1) * n, shape: [polyLoop(out.map(q => ({ x: round3(q.x + t), y: round3(hd - q.y) })), 'outer')], note: 'لسانه الطويل في اللوح المائل، والقصير في الرفّ' })
+    panels.push({ id: 'divider', name: 'فاصل الأقسام', w: round3(dd + t), h: round3(hd + t), count: N * (lanes - 1) * n, shape: [polyLoop(out.map(q => ({ x: round3(q.x + t), y: round3(hd - q.y) })), 'outer')], note: 'لسان الضلع الذي ينتهي بالرأس المدبّب في اللوح المائل، ولسان الضلع الآخر في الرفّ' })
   }
   return {
     panels,
     notes: [
       `الستاند ${W} مم عرضاً، و${H} مم ارتفاعاً${arched ? ' مع القوس' : ''}، و${r1(depth)} مم عمقاً (منها ${r1(-xb)} مم خلف اللوح الخلفي). ${arCount(N, ['درجة واحدة', 'درجتان', 'درجات', 'درجة'])}${N > 1 ? `، كل درجة أخفض من التي فوقها بـ ${h} مم` : ''}.`,
       `الألواح المائلة سطح واحد بميل ${p.ang}°، وعند أسفل كل لوح رفّ عمودي عليه بعمق ${dl} مم: تقف العلبة على الرفّ وتستند إلى اللوح في الزاوية فلا تنزلق. أكبر علبة: سماكة ${dl} مم وارتفاع ${r1(Lp)} مم (وإلا لمست الرفّ الذي فوقها).`,
-      ...(pro && lanes > 1 ? [`الأقسام: ${lanes} في كل درجة بـ ${N * (lanes - 1)} فاصلاً، عرض القسم نحو ${r1((Wi - (lanes - 1) * t) / lanes)} مم. أدخل الفاصل في شقّي اللوح المائل والرفّ بعد التركيب، فيُنزع ويُبدّل مكانه.`] : []),
+      ...(pro && lanes > 1 ? [`الأقسام: ${lanes} في كل درجة بـ ${N * (lanes - 1)} فاصلاً، عرض القسم نحو ${r1((Wi - (lanes - 1) * t) / lanes)} مم. الفواصل تُركّب بعد الستاند: ارفع الفاصل قليلاً وأدخل لسان ضلعه المدبّب في شقّ اللوح المائل (الشقّ أطول من اللسان لهذا)، ثم أنزله حتى يدخل لسانه الآخر في شقّ الرفّ. وللنزع: ارفعه قليلاً واسحبه نحوك. هكذا يُنزع ويُبدّل مكانه متى شئت.`] : []),
       ...(rail > 0 ? [`حافّة السعر: شريط بارتفاع ${rail} مم فوق طرف كل رفّ، يُلصق عليه السعر أو اسم النكهة.`] : []),
       `التركيب: ضع جانباً على الطاولة ووجهه الداخلي للأعلى، أدخل فيه ألسنة اللوح الخلفي${brace ? ' والدعامة' : ''} والألواح المائلة والرفوف${rail > 0 ? ' وحوافّ السعر' : ''}${base ? ' والقاعدة' : ''} والواجهة الأمامية (ألسنتها في الفتحات المفتوحة على حافّته الأمامية)، ثم أنزل الجانب الثاني فوقها لساناً لساناً. نقطة غراء خشب في كل شقّ، وخاصّة عند الواجهة الأمامية لأن فتحاتها مفتوحة من الأمام.`,
       `الشعار: مساحة اللوح الخلفي بين الجانبين فوق اللوح المائل العلوي نحو ${logoW} × ${logoH} مم؛ اكتبه في RDWorks واقصّه من أكريليك مرآة ذهبي، وكذلك الرقم على الواجهة الأمامية (ارتفاعها ${r1(fTop)} مم).`,

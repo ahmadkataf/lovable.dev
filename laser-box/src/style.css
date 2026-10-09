@@ -16,6 +16,9 @@
   --error-bg: #fde8e8;
   --error-text: #8a1c1c;
   --error-line: #e3a0a0;
+  --ok-bg: #e7f5ea;
+  --ok-text: #1d5a2c;
+  --ok-line: #a9d6b4;
   --shadow: 0 1px 2px rgba(60, 40, 20, 0.06), 0 8px 24px rgba(60, 40, 20, 0.08);
   --radius: 14px;
   color-scheme: light dark;
@@ -39,6 +42,9 @@
     --error-bg: #3f1717;
     --error-text: #ffb4b4;
     --error-line: #7a3030;
+    --ok-bg: #16301c;
+    --ok-text: #b6e8c2;
+    --ok-line: #2f6b3e;
     --shadow: 0 1px 2px rgba(0, 0, 0, 0.4), 0 8px 24px rgba(0, 0, 0, 0.35);
   }
 }
@@ -46,6 +52,7 @@
   --bg: #17120e; --surface: #221b15; --surface-2: #2a211a; --text: #f3ebe2; --muted: #b3a394; --line: #3a2f26;
   --accent: #f0a04b; --accent-2: #f7b76d; --accent-soft: #3d2a17; --wood: #6b4a2a; --wood-line: #f0c48a; --cut: #ff6b6b;
   --warn-bg: #3b2f10; --warn-text: #ffd97a; --error-bg: #3f1717; --error-text: #ffb4b4; --error-line: #7a3030;
+  --ok-bg: #16301c; --ok-text: #b6e8c2; --ok-line: #2f6b3e;
 }
 
 * { box-sizing: border-box; }
@@ -203,3 +210,34 @@ legend { font-weight: 600; color: var(--accent); font-size: 13px; padding: 0; ma
 
 .toast { position: fixed; bottom: 86px; left: 50%; transform: translate(-50%, 10px); background: var(--text); color: var(--bg); padding: 9px 16px; border-radius: 14px; font-size: 13px; line-height: 1.6; text-align: center; width: max-content; max-width: min(92vw, 440px); opacity: 0; transition: .25s; z-index: 10; pointer-events: none; }
 .toast.show { opacity: 1; transform: translate(-50%, 0); }
+
+/* scale the whole design */
+.scaler { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow); padding: 0 12px; margin-bottom: 12px; }
+.scaler summary { cursor: pointer; padding: 11px 0; display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; list-style: none; }
+.scaler summary::-webkit-details-marker { display: none; }
+.scaler summary::after { content: '▾'; margin-inline-start: auto; color: var(--accent); }
+.scaler[open] summary::after { content: '▴'; }
+.scaler summary b { font-size: 14.5px; }
+.scaler summary small { color: var(--muted); font-size: 12px; }
+.scale-body { padding: 0 0 12px; display: flex; flex-direction: column; gap: 6px; }
+.scale-body .field-label { margin: 4px 0 0; font-size: 13px; }
+.scale-presets { display: grid; grid-template-columns: repeat(9, 1fr); gap: 5px; }
+@media (max-width: 560px) { .scale-presets { grid-template-columns: repeat(5, 1fr); } }
+.scale-presets button { border: 1.5px solid var(--line); background: var(--surface-2); color: var(--text); border-radius: 9px; padding: 8px 0; font-size: 13.5px; font-variant-numeric: tabular-nums; min-width: 0; }
+.scale-presets button.up { color: var(--accent); }
+.scale-presets button:active { background: var(--accent-soft); }
+.scale-target { display: flex; gap: 6px; min-width: 0; }
+.scale-target select { flex: 1 1 auto; min-width: 0; border: 1.5px solid var(--line); border-radius: 10px; background: var(--surface-2); color: var(--text); padding: 8px 6px; font: inherit; font-size: 13.5px; }
+.scale-target input { flex: 0 0 84px; width: 84px; border: 1.5px solid var(--line); border-radius: 10px; background: var(--surface-2); color: var(--text); padding: 8px 6px; font-size: 16px; text-align: center; direction: ltr; }
+.scale-target .go, .alerts .fix { border: 0; border-radius: 10px; background: var(--accent); color: #fff; font: inherit; font-weight: 600; padding: 8px 14px; }
+.scale-obj { display: flex; gap: 8px; align-items: flex-start; font-size: 13px; margin-top: 4px; }
+.scale-obj input { margin-top: 4px; accent-color: var(--accent); flex: 0 0 auto; }
+.scale-obj small { display: block; color: var(--muted); font-size: 11.5px; }
+.alerts .fix { display: block; width: 100%; margin: 8px 0 2px; font-size: 14.5px; padding: 10px 14px; }
+.alerts .error .hint { color: inherit; opacity: .8; }
+.alerts .done { background: var(--ok-bg); color: var(--ok-text); border: 1.5px solid var(--ok-line); border-radius: 10px; padding: 9px 12px; font-size: 13.5px; }
+.alerts .done ul { margin: 4px 0; padding-inline-start: 18px; }
+.alerts .done li small { display: block; opacity: .8; font-size: 11.5px; }
+.alerts .done .hint { color: inherit; opacity: .85; }
+.alerts .done .link { color: inherit; font-weight: 600; }
+.busy { position: fixed; inset: 0; display: grid; place-items: center; background: rgba(0, 0, 0, .3); background: color-mix(in srgb, var(--bg) 55%, transparent); color: var(--text); font-size: 15px; z-index: 20; }

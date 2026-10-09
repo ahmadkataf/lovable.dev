@@ -1352,7 +1352,7 @@ describe('wedding designs', () => {
       ['displaystand', { dl: 12 }], ['displaystand', { lip: 0 }], ['displaystand', { lip: 40 }], ['displaystand', { R: 0 }], ['displaystand', { brace: 0 }],
       ['displaystand', { base: 0 }], ['displaystand', { e: 6 }], ['displaystand', { ar: 0 }], ['displaystand', { rear: 40 }],
       ['displaystandpro', {}], ['displaystandpro', { lanes: 1 }], ['displaystandpro', { lanes: 8, W: 600 }], ['displaystandpro', { rail: 0 }], ['displaystandpro', { rail: 30, dl: 40 }],
-      ['displaystandpro', { brace: 1 }], ['displaystandpro', { N: 4, H: 480 }], ['displaystandpro', { hd: 70 }],
+      ['displaystandpro', { brace: 1 }], ['displaystandpro', { N: 4, H: 480 }], ['displaystandpro', { hd: 65 }],
     ]
     for (const [id, v] of cases) for (const t of [3, 3.2, 4]) for (const kerf of [0, 0.15]) {
       const tpl = T(id), p: Record<string, number> = { ...tpl.defaults, ...v }
@@ -1404,7 +1404,7 @@ describe('wedding designs', () => {
       for (let q = 0; q < fo.length; q++) { const a2 = fo[q], b2 = fo[(q + 1) % fo.length]; if (Math.abs(a2.x) < 1e-6 && Math.abs(b2.x) < 1e-6) ftabs.push([fr.h - Math.max(a2.y, b2.y), fr.h - Math.min(a2.y, b2.y)]) }
       expect(notches.length, label).toBe(ftabs.length)
       for (const [a2, b2] of ftabs) expect(notches.some(([y0, y1]) => Math.abs(y0 - (a2 - p.fit / 2)) < 0.01 && Math.abs(y1 - (b2 + p.fit / 2)) < 0.01), `${label} front notch`).toBe(true)
-      // the pro dividers: a long tab into the plate, a short one into the ledge, each over a slot of its size at every lane
+      // the pro dividers: a tab into the plate and one into the ledge, over slots at every lane; they go in and come out after assembly
       if (id === 'displaystandpro' && p.lanes > 1) {
         const dv = pn('divider')!
         expect(dv.count, label).toBe(p.N * (p.lanes - 1))
@@ -1422,17 +1422,40 @@ describe('wedding designs', () => {
         for (let q = 0; q < dvo.length; q++) { const a2 = dvo[q], b2 = dvo[(q + 1) % dvo.length]
           if (Math.abs(a2.x) < 1e-6 && Math.abs(b2.x) < 1e-6) plateTab = Math.abs(b2.y - a2.y)
           if (Math.abs(a2.y - dv.h) < 1e-6 && Math.abs(b2.y - dv.h) < 1e-6) ledgeTab = Math.abs(b2.x - a2.x) }
-        expect(ps[0].maxY - ps[0].minY, label).toBeCloseTo(plateTab + p.fit, 2)
+        expect(plateTab, `${label} divider plate tab`).toBeGreaterThanOrEqual(6 - 1e-6)
+        expect(ledgeTab, `${label} divider ledge tab`).toBeGreaterThanOrEqual(6 - 1e-6)
+        // the plate's slot runs a thickness and the fit further up than its tab: lifted that much, the divider's ledge tab clears the ledge
+        expect(ps[0].maxY - ps[0].minY, label).toBeCloseTo(plateTab + p.fit + t + p.fit, 2)
         expect(ls[0].maxY - ls[0].minY, label).toBeCloseTo(ledgeTab + p.fit, 2)
-        // the plate's divider slots sit just above its lower end, the ledge's near its back end
-        expect(pl.h - ps[0].maxY, label).toBeGreaterThan(2)
-        expect(ls[0].minY, label).toBeGreaterThan(t)
+        // seated, the plate tab sits at the slot's lower end, where the divider's own edge is
+        let tabLow = Infinity
+        for (let q = 0; q < dvo.length; q++) { const a2 = dvo[q], b2 = dvo[(q + 1) % dvo.length]; if (Math.abs(a2.x) < 1e-6 && Math.abs(b2.x) < 1e-6) tabLow = Math.min(tabLow, dv.h - t - Math.max(a2.y, b2.y)) }
+        expect(pl.h - ps[0].maxY, label).toBeCloseTo(tabLow - p.fit / 2, 2)
+        expect(ps[0].minY, label).toBeGreaterThan(2)
+        // the ledge's slot is centred on it, so the ledge fits either way round
+        expect(ls[0].minY, label).toBeCloseTo(le.h - ls[0].maxY, 2)
+        // behind a price rail the divider stops a thickness and the fit short of it, room to slide out of the plate once lifted
+        expect(dv.w - t, label).toBeCloseTo(p.rail > 0 ? p.dl - t - p.fit : p.dl, 2)
       }
     }
     expect(generate(T('displaystand'), { hf: 25, dl: 60 }, S0).errors.length).toBeGreaterThan(0)          // the steps would hit the base
     expect(generate(T('displaystand'), { W: 120 }, { ...S0, t: 35 }).errors.length).toBeGreaterThan(0)     // too narrow between the sides
     expect(generate(T('displaystand'), { ang: 80 }, S0).errors.length).toBeGreaterThan(0)                  // the brace would hit the plates
     expect(generate(T('displaystandpro'), { hd: 200 }, S0).errors.length).toBeGreaterThan(0)               // a divider taller than its plate
+    // round-off on the collinear plates, rails and slots is not a collision (each of these was refused)
+    expect(generate(T('displaystand'), { ang: 76, H: 510 }, { ...S0, t: 3.2 }).errors).toEqual([])
+    expect(generate(T('displaystandpro'), { ang: 55, H: 420 }, { ...S0, t: 4 }).errors).toEqual([])
+    expect(generate(T('displaystand'), { W: 130, H: 1200, N: 3, h: 156, ang: 58, lip: 12, rear: 227, R: 42 }, { ...S0, t: 3.2 }).errors).toEqual([])
+    // the base between the sides does not need side wood at the front notch
+    expect(generate(T('displaystand'), { hf: 25, ang: 40, dl: 12 }, { ...S0, t: 3.2 }).errors).toEqual([])
+    expect(generate(T('displaystand'), { hf: 46 }, { ...S0, t: 6 }).errors).toEqual([])
+    // a price rail as tall as the trough, lanes too narrow between dividers, a ledge too shallow for a divider's tab
+    expect(generate(T('displaystandpro'), { h: 40, ang: 80, rail: 37.4, lanes: 1, H: 700 }, { ...S0, t: 3.2 }).errors.join()).toContain('حافّة السعر')
+    expect(generate(T('displaystandpro'), { W: 246.4, lanes: 12 }, { ...S0, t: 3.2 }).errors.join()).toContain('الأقسام')
+    expect(generate(T('displaystandpro'), { dl: 12 }, { ...S0, t: 3.2 }).errors.join()).toContain('لسان الفاصل')
+    // only the back panel's height is wrong: only that is said, and past the field's maximum the advice is what else to change
+    expect(generate(T('displaystand'), { h: 229 }, { ...S0, t: 3.2 }).errors).toEqual([expect.stringContaining('اللوح الخلفي قصير')])
+    expect(generate(T('displaystand'), { N: 6, h: 180, H: 1200 }, { ...S0, t: 3.2 }).errors.join()).toContain('قلّل عدد الدرجات')
   })
 
   it('the wedding group lists the engagement set, the ring box and the five wedding designs', () => {

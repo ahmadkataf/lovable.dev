@@ -29,6 +29,9 @@ export function autoFinger(t: number, dims: number[]): number {
   return Math.round(Math.max(2 * t, Math.min(3 * t, byDim)) * 10) / 10
 }
 
+/** 9.600000000000001 → 9.6 in the texts shown to the user */
+const tidy = (s: string) => s.replace(/\d+\.\d{3,}/g, m => String(Math.round(parseFloat(m) * 10) / 10))
+
 export function generate(tpl: Template, params: Record<string, number>, s: Settings): Design {
   const p = { ...tpl.defaults, ...params }
   if (s.inner) {
@@ -63,5 +66,5 @@ export function generate(tpl: Template, params: Record<string, number>, s: Setti
   }
   const slotted = !!res.slotted || built.some(b => Number.isFinite(b.minFinger) || b.loops.some(isSlot))
   const fitNote = slotted ? [`الشقوق والأصابع مقاسة على سماكة ${s.t} مم بالضبط مع خلوص صغير: قِس لوحك (وفي أكثر من مكان) وأدخل سماكته الحقيقية قبل القصّ، أو اقصّ «اختبار التعشيق» من قسم المعايرة أولاً.`] : []
-  return { panels, layout: lay, notes: [...notes, ...fitNote], warnings, errors, cutLength, pieceCount, finger }
+  return { panels, layout: lay, notes: [...notes, ...fitNote].map(tidy), warnings: warnings.map(tidy), errors: errors.map(tidy), cutLength, pieceCount, finger }
 }

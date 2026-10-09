@@ -5,6 +5,7 @@ import { toSVG, toDXF, toAI } from './export'
 import { loopToPath } from './geom'
 import { makeZip } from './zip'
 import { MATERIAL_INFO } from './materials'
+import { scaleDesign, repair, roleOf, Change } from './scale'
 
 // Inside the claude.ai viewer the page cannot start downloads itself and the link hash carries no state.
 type ClaudeUse = (name: string) => Promise<{ save(r: { filename: string; data: string | Blob }): Promise<unknown> } | null>
@@ -123,6 +124,7 @@ const header = el('header', { class: 'top' },
 const gallery = el('nav', { class: 'picker', 'aria-label': 'التصميم المختار' })
 const chooser = el('dialog', { class: 'chooser', 'aria-label': 'اختر التصميم' }) as HTMLDialogElement
 const quick = el('section', { class: 'quick', 'aria-label': 'القياسات الأساسية' })
+const scaler = el('details', { class: 'scaler' }) as HTMLDetailsElement
 const form = el('aside', { class: 'form' })
 const previewWrap = el('section', { class: 'preview' })
 const svgNS = 'http://www.w3.org/2000/svg'
@@ -134,7 +136,7 @@ const notesBox = el('div', { class: 'notes' })
 const actions = el('div', { class: 'actions' })
 previewWrap.append(stats, alerts, el('div', { class: 'canvas-wrap' }, svg, el('div', { class: 'canvas-tools' }, el('button', { type: 'button', class: 'tool', onclick: () => fitView(), title: 'ملاءمة' }, '⤢'), el('button', { type: 'button', class: 'tool', onclick: () => { state.labels = !state.labels; persist(); render() }, title: 'الأسماء' }, 'Aa'))), actions)
 document.body.append(chooser)
-app.append(header, gallery, quick, el('div', { class: 'work' }, form, previewWrap), notesBox, el('footer', { class: 'foot' }, 'الملفات بالمليمتر. افتح SVG أو DXF في LightBurn أو RDWorks أو Inkscape، وتأكّد أن القياس 1:1 قبل القص.'))
+app.append(header, gallery, quick, scaler, el('div', { class: 'work' }, form, previewWrap), notesBox, el('footer', { class: 'foot' }, 'الملفات بالمليمتر. افتح SVG أو DXF في LightBurn أو RDWorks أو Inkscape، وتأكّد أن القياس 1:1 قبل القص.'))
 
 // ------------------------------------------------------------------ gallery
 
@@ -175,7 +177,7 @@ function renderChooser() {
     const card = el('button', { type: 'button', class: 'card' + (t.id === state.tpl ? ' active' : ''), 'aria-pressed': String(t.id === state.tpl), title: t.desc })
     card.innerHTML = `${iconSvg(t.icon)}<span></span>${NEW_IDS.includes(t.id) ? '<i class="badge">جديد</i>' : ''}`
     card.querySelector('span')!.textContent = t.name
-    card.onclick = () => { state.tpl = t.id; persist(); chooser.close(); renderGallery(); renderForm(); update(true) }
+    card.onclick = () => { state.tpl = t.id; lastAction = null; lastEdited = null; persist(); chooser.close(); renderGallery(); renderForm(); update(true) }
     grid.append(card)
   }
   chooser.append(head, chips, grid)
@@ -211,7 +213,7 @@ function renderQuick() {
   const cur = params()
   quick.innerHTML = ''
   const row = el('div', { class: 'quick-row' })
-  for (const def of t.params.filter(d => ['W', 'D', 'H', 'Dm', 'pw', 'ph', 'border'].includes(d.key))) row.append(numberField(def, cur[def.key], v => { (state.params[state.tpl] ??= {})[def.key] = v; persist(); update() }, 'q'))
+  for (const def of t.params.filter(d => ['W', 'D', 'H', 'Dm', 'pw', 'ph', 'border'].includes(d.key))) row.append(numberField(def, cur[def.key], v => setParam(def.key, v), 'q'))
   row.append(numberField(SETTING_DEFS[0], state.settings.t, v => { state.settings.t = v; persist(); update() }, 'q'))
   const foot = el('div', { class: 'quick-foot' },
     el('div', { class: 'field' }, el('span', { class: 'field-label' }, 'الخامة', el('small', {}, `kerf ${state.settings.kerf} مم`)), materialPicker()),
@@ -222,6 +224,7 @@ function renderQuick() {
 
 function renderForm() {
   renderQuick()
+  renderScaler()
   const t = tpl()
   form.innerHTML = ''
   form.append(el('h2', {}, t.name), el('p', { class: 'desc' }, t.desc))
@@ -234,14 +237,119 @@ function renderForm() {
   }
   dims.append(el('div', { class: 'field' }, el('span', { class: 'field-label' }, 'القياسات المدخلة'), seg, el('span', { class: 'hint' }, state.settings.inner ? 'الأبعاد هي الفراغ الداخلي؛ تُضاف السماكات تلقائياً' : 'الأبعاد هي الحجم الخارجي للصندوق')))
   const cur = params()
-  for (const def of t.params) dims.append(numberField(def, cur[def.key], v => { (state.params[state.tpl] ??= {})[def.key] = v; persist(); update() }))
+  for (const def of t.params) dims.append(numberField(def, cur[def.key], v => setParam(def.key, v)))
   const mat = el('fieldset', {}, el('legend', {}, 'الخامة والقص'))
   mat.append(el('div', { class: 'field' }, el('span', { class: 'field-label' }, 'نوع الخامة'), materialPicker(), el('span', { class: 'hint' }, 'يضبط عرض الشقّ المعتاد؛ اكتب السماكة المقاسة بالقدمة في الخانة أدناه')))
   mat.append(el('div', { class: 'field' }, el('span', { class: 'field-label' }, 'سماكات شائعة (مم)'), thicknessPicker(), el('span', { class: 'hint' }, 'اختر سماكة لوحك، أو اكتب المقاسة بالقدمة في «سماكة الخامة»')))
   for (const def of SETTING_DEFS) mat.append(numberField(def, (state.settings as unknown as Record<string, number>)[def.key], v => { (state.settings as unknown as Record<string, number>)[def.key] = v; persist(); update() }))
   const reset = el('button', { type: 'button', class: 'link' }, 'إعادة القيم الافتراضية')
-  reset.onclick = () => { state.params[state.tpl] = {}; state.settings = { ...DEFAULT_SETTINGS }; persist(); renderForm(); update(true) }
+  reset.onclick = () => { lastAction = null; state.params[state.tpl] = {}; state.settings = { ...DEFAULT_SETTINGS }; persist(); renderForm(); update(true) }
   form.append(dims, mat, reset)
+}
+
+// ------------------------------------------------------------------ scale the whole design, and repair errors
+
+/** the field the user set last: the automatic repair leaves it as they typed it */
+let lastEdited: string | null = null
+/** what the last scale or repair did, shown above the drawing with a way back */
+let lastAction: { tpl: string; title: string; changes: Change[]; clamped: Change[]; kept: string; undo: Record<string, number> } | null = null
+let scaleObjects = false
+
+function setParam(key: string, v: number) {
+  (state.params[state.tpl] ??= {})[key] = v
+  lastEdited = key
+  lastAction = null
+  persist(); update()
+}
+
+/** Run a slow search after the page has had a moment to show that it is busy. */
+function busy(msg: string, job: () => void) {
+  const b = el('div', { class: 'busy' }, msg)
+  document.body.append(b)
+  setTimeout(() => { try { job() } finally { b.remove() } }, 40)
+}
+
+function renderScaler() {
+  const t = tpl(), cur = params()
+  const lens = t.params.filter(d => roleOf(t, d) === 'length' && cur[d.key] > 0)
+  const objs = t.params.filter(d => roleOf(t, d) === 'object')
+  const open = scaler.open
+  scaler.innerHTML = ''
+  scaler.hidden = !lens.length && !objs.length
+  if (scaler.hidden) return
+  scaler.append(el('summary', {}, el('b', {}, '📐 تصغير أو تكبير التصميم كاملاً'), el('small', {}, 'كل القياسات معاً، والشقوق تبقى على سماكة اللوح')))
+  const presets = el('div', { class: 'scale-presets', role: 'group', 'aria-label': 'نسبة الحجم' })
+  for (const pc of [50, 60, 70, 75, 80, 90, 110, 125, 150]) presets.append(el('button', { type: 'button', class: pc < 100 ? 'down' : 'up', onclick: () => doScale(pc / 100, `${pc}% من حجمه`) }, `${pc}%`))
+  // a size the customer asked for, on one of the big dimensions
+  const biggest = Math.max(1, ...lens.map(d => cur[d.key]))
+  const mains = lens.filter(d => cur[d.key] >= 0.4 * biggest)
+  const sel = el('select', { 'aria-label': 'القياس' }) as HTMLSelectElement
+  for (const d of mains) sel.append(el('option', { value: d.key }, `${d.label} (الآن ${fmt(cur[d.key])})`))
+  const target = el('input', { type: 'number', inputmode: 'decimal', placeholder: 'مم', 'aria-label': 'القياس المطلوب بالمليمتر' }) as HTMLInputElement
+  const go = () => {
+    const d = mains.find(m => m.key === sel.value), v = parseFloat(target.value)
+    if (!d || !(v > 0)) { toast('اكتب القياس المطلوب بالمليمتر'); return }
+    doScale(v / cur[d.key], `${d.label} ${fmt(v)} مم`)
+  }
+  target.onkeydown = e => { if ((e as KeyboardEvent).key === 'Enter') go() }
+  const body = el('div', { class: 'scale-body' },
+    el('span', { class: 'field-label' }, 'نسبة من الحجم الحالي'), presets,
+  )
+  if (mains.length) body.append(el('span', { class: 'field-label' }, 'أو قياس محدّد يطلبه الزبون'), el('div', { class: 'scale-target' }, sel, target, el('button', { type: 'button', class: 'go', onclick: go }, 'طبّق')))
+  if (objs.length) {
+    const box = el('input', { type: 'checkbox' }) as HTMLInputElement
+    box.checked = scaleObjects
+    box.onchange = () => { scaleObjects = box.checked }
+    body.append(el('label', { class: 'scale-obj' }, box, el('span', {}, `غيّر معها أيضاً: ${objs.map(d => `${d.label} (${fmt(cur[d.key])})`).join('، ')}`, el('small', {}, 'هذه قياسات أشياء حقيقية فتبقى ثابتة عادةً. فعّلها فقط إن كان عندك منها بالمقاس الجديد، ثم صحّح أرقامها بالقدمة.'))))
+  }
+  body.append(el('span', { class: 'hint' }, 'لا تصغّر ملف القصّ في RDWorks أو غيره: الشقوق والأصابع تصغر معه فتصبح أضيق من سماكة اللوح ولا تدخل القطع. صغّر من هنا، فتتغيّر القياسات وتبقى الشقوق على سماكتك وتُصحَّح التعشيقات.'))
+  scaler.append(body)
+  scaler.open = open
+}
+
+function doScale(f: number, what: string) {
+  const t = tpl(), before = params()
+  busy('جارٍ تغيير الحجم…', () => {
+    const r = scaleDesign(t, state.settings, before, f, scaleObjects)
+    state.params[state.tpl] = { ...r.params }
+    const objs = t.params.filter(d => roleOf(t, d) === 'object')
+    lastAction = {
+      tpl: t.id,
+      title: `${f < 1 ? 'صُغّر' : 'كُبّر'} التصميم: ${what}`,
+      changes: r.changes, clamped: r.clamped,
+      kept: objs.length && !scaleObjects ? `بقيت كما هي: ${objs.map(d => `${d.label} ${fmt(before[d.key])}`).join('، ')}.` : '',
+      undo: before,
+    }
+    persist(); renderForm(); update()
+    alerts.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
+  })
+}
+
+function doRepair() {
+  const t = tpl(), before = params()
+  busy('جارٍ البحث عن أقرب قياسات تصلح للقص…', () => {
+    const n0 = generate(t, before, state.settings).errors.length
+    let r = repair(t, state.settings, before, { locked: lastEdited ? [lastEdited] : [] })
+    // what the user typed may itself be the problem
+    if (!r.ok && lastEdited) { const r2 = repair(t, state.settings, before); if (r2.errors.length < r.errors.length) r = r2 }
+    if (!r.changes.length || r.errors.length >= n0) { toast('لم أجد تصحيحاً تلقائياً لهذا الخطأ: اقرأ الرسالة الحمراء وغيّر القياس المذكور فيها', 6000); return }
+    state.params[state.tpl] = { ...r.params }
+    lastAction = { tpl: t.id, title: r.ok ? 'صُحّح التصميم تلقائياً' : 'صُحّح جزء من الأخطاء تلقائياً', changes: r.changes, clamped: [], kept: '', undo: before }
+    persist(); renderForm(); update()
+  })
+}
+
+function actionBox(a: NonNullable<typeof lastAction>): HTMLElement {
+  const box = el('div', { class: 'done' }, el('b', {}, '✓ ' + a.title), el('div', {}, `القياس الآن: ${sizeLabel(params())}`))
+  if (a.changes.length) {
+    const ul = el('ul', {})
+    for (const c of a.changes) ul.append(el('li', {}, `${c.label}: ${fmt(c.from)} ← ${fmt(c.to)}`, c.why ? el('small', {}, `لأن: ${c.why}`) : ''))
+    box.append(el('div', {}, a.title.startsWith('صُحّح') ? 'غيّرتُ:' : 'وعدّلتُ هذه ليبقى التصميم سليماً للقص:'), ul)
+  }
+  if (a.clamped.length) box.append(el('div', { class: 'hint' }, `وصلت إلى حدّها المسموح: ${a.clamped.map(c => `${c.label} ${fmt(c.to)} بدل ${fmt(c.from)}`).join('، ')}.`))
+  if (a.kept) box.append(el('div', { class: 'hint' }, a.kept))
+  box.append(el('button', { type: 'button', class: 'link', onclick: () => { state.params[state.tpl] = { ...a.undo }; lastAction = null; persist(); renderForm(); update() } }, '↶ تراجع'))
+  return box
 }
 
 // ------------------------------------------------------------------ preview
@@ -318,8 +426,11 @@ function render() {
     stat('القياس', sizeLabel(p)),
   )
   alerts.innerHTML = ''
+  if (lastAction?.tpl === state.tpl) alerts.append(actionBox(lastAction))
   const blocked = design.errors.length > 0
-  if (blocked) alerts.append(el('div', { class: 'error' }, el('b', {}, 'لا تقصّ هذا الملف: '), ...design.errors.map(e => el('div', {}, '✕ ' + e))))
+  if (blocked) alerts.append(el('div', { class: 'error' }, el('b', {}, 'لا تقصّ هذا الملف: '), ...design.errors.map(e => el('div', {}, '✕ ' + e)),
+    el('button', { type: 'button', class: 'fix', onclick: () => doRepair() }, '🔧 صحّح تلقائياً'),
+    el('span', { class: 'hint' }, 'يغيّر أقلّ ما يمكن من القياسات، ويترك السماكة والخلوص وقياسات الأغراض (الصحن، الصورة…) كما هي، ويمكنك التراجع.')))
   for (const w of design.warnings) alerts.append(el('div', { class: 'warn' }, '⚠ ' + w))
   if (!blocked && state.settings.finger === 0) alerts.append(el('div', { class: 'info' }, `عرض الأصبع التلقائي: ${fmt(design.finger)} مم (السماكة ${state.settings.t} مم)`))
   notesBox.innerHTML = ''
