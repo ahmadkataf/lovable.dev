@@ -28,7 +28,7 @@ describe('stock status and filters', () => {
   })
   it('counts and filters', () => {
     const list = [p('a', { stock: 0 }), p('b', { stock: 2, lowStock: 3 }), p('c', { trackStock: false }), p('d')]
-    expect(stockCounts(list)).toEqual({ all: 4, low: 1, out: 1, untracked: 1 })
+    expect(stockCounts(list)).toEqual({ all: 4, low: 1, out: 1, untracked: 1, expiring: 0 })
     expect(filterProducts(list, { q: '', filter: 'low', sort: 'name' }).map(x => x.id)).toEqual(['b'])
     expect(filterProducts(list, { q: '', filter: 'out', sort: 'name' }).map(x => x.id)).toEqual(['a'])
     expect(filterProducts(list, { q: '', filter: 'untracked', sort: 'name' }).map(x => x.id)).toEqual(['c'])
