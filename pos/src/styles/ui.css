@@ -80,6 +80,13 @@
 .chip { display: inline-flex; align-items: center; gap: 6px; min-height: 36px; padding: 0 14px; border-radius: 999px; background: var(--surface); border: 1.5px solid var(--line); font-weight: 600; font-size: 13px; white-space: nowrap; color: var(--text-2); transition: all var(--t-fast); flex: none; }
 .chip:hover { border-color: var(--line-2); color: var(--text); }
 .chip.on { background: var(--text); color: var(--surface); border-color: var(--text); }
+/* fingers, not mouse pointers: the small controls grow to a comfortable tap height */
+@media (pointer: coarse) {
+  .btn.sm { min-height: 40px; }
+  .btn.icon.sm { width: 40px; }
+  .seg > button { min-height: 40px; }
+  .chip { min-height: 40px; }
+}
 .chip .dot { width: 10px; height: 10px; border-radius: 50%; }
 
 /* ---------- Surfaces ---------- */

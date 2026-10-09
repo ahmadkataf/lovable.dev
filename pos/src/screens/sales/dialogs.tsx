@@ -28,7 +28,6 @@ export function useNumKeys(o: { enabled: boolean; value: string; onChange: (v: s
       if (inDialog && (el!.tagName === 'INPUT' || el!.tagName === 'TEXTAREA' || el!.tagName === 'SELECT' || el!.isContentEditable)) return
       if (e.ctrlKey || e.metaKey || e.altKey) return
       let k = e.key
-      console.log('NUMKEYS', k, 'inDialog=' + inDialog, 'el=' + (el && el.tagName + '.' + el.className), 'onEnter=' + typeof onEnter, 'value=' + JSON.stringify(value))
       const ar = '٠١٢٣٤٥٦٧٨٩'.indexOf(k)
       if (ar >= 0) k = String(ar)
       if (/^\d$/.test(k)) {

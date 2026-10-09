@@ -33,11 +33,11 @@ export function SaleDetail() {
   const shift = useLiveQuery(async () => (sale?.shiftId ? (await db.shifts.get(sale.shiftId)) ?? null : null), [sale?.shiftId])
   const [refundOpen, setRefundOpen] = useState(false)
   const [printing, setPrinting] = useState<string | null>(null)
+  const user = useUser()
 
   if (sale === undefined) return <div className="page"><SubHead title={t('history.receipt', { n: '' })} back="/history" /><div className="empty"><Spinner /></div></div>
   if (sale === null) return <div className="page"><SubHead title={t('nav.history')} back="/history" /><Empty icon={<Receipt size={32} />} title={t('history.notFound')} text={t('history.notFoundText')} /></div>
 
-  const user = useUser()
   const refundable = canRefund(sale, refunds, c.decimals) && allowed(user, settings, 'cashierRefund')
   const returned = remainingQty(sale, refunds, c.decimals).map((r, i) => round(sale.items[i].qty - r, 3))
   const anyReturned = returned.some(q => q > 0)

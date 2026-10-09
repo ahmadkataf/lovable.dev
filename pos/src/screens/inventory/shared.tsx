@@ -51,7 +51,10 @@ export function useNumPadKeys(enabled: boolean, value: string, onChange: (v: str
         onChange((value || '0') + '.')
       } else if (k === 'Backspace') { e.preventDefault(); onChange(value.slice(0, -1)) }
       else if (k === 'Delete') { e.preventDefault(); onChange('') }
-      else if (k === 'Enter' && onEnter) { e.preventDefault(); onEnter() }
+      else if (k === 'Enter' && onEnter) {
+        if (el && el.tagName === 'BUTTON') return   // a focused button (Cancel, a quick amount) keeps its own Enter
+        e.preventDefault(); onEnter()
+      }
     }
     document.addEventListener('keydown', onKey)
     return () => document.removeEventListener('keydown', onKey)

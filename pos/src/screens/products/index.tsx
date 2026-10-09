@@ -44,14 +44,19 @@ export default function ProductsScreen() {
 
 /** The form lives on its own route so a product link (/products/:id) opens it directly. */
 function FormRoute({ mode }: { mode: 'new' | 'edit' }) {
+  const t = useT()
   const { id } = useParams()
   const [sp] = useSearchParams()
   const nav = useNavigate()
   const loc = useLocation()
+  const canEdit = allowed(useUser(), useSettings(), 'cashierEditProducts')
   const close = useCallback(() => {
     if (loc.key !== 'default') nav(-1)
     else nav('/products', { replace: true })
   }, [loc.key, nav])
+  // the URL (or a scan / search that leads here) must not open the form for a cashier without the permission
+  useEffect(() => { if (!canEdit) { toast(t('common.noPermission'), 'warn'); nav('/products', { replace: true }) } }, [canEdit, nav, t])
+  if (!canEdit) return null
   return (
     <ProductForm
       open

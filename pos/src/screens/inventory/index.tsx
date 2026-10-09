@@ -6,6 +6,8 @@ import { useLiveQuery } from 'dexie-react-hooks'
 import { Boxes, ArrowLeftRight, ShoppingBag, Truck, ClipboardCheck, type LucideIcon } from 'lucide-react'
 import { db } from '../../db'
 import { useT } from '../../i18n'
+import { useSettings, useUser } from '../../state/store'
+import { allowed } from '../../lib/audit'
 import { StockTab } from './StockTab'
 import { MovesTab } from './MovesTab'
 import { PurchasesTab } from './PurchasesTab'
@@ -28,13 +30,14 @@ function TabsLayout() {
   const loc = useLocation()
   const nav = useNavigate()
   const alerts = useLiveQuery(() => db.products.filter(p => p.active && p.trackStock && (p.stock <= 0 || (p.lowStock > 0 && p.stock <= p.lowStock))).count(), [], 0)
+  const canCount = allowed(useUser(), useSettings(), 'cashierAdjustStock')
   const path = loc.pathname.replace(/\/$/, '') || '/inventory'
   return (
     <div className="page">
       <div className="page-head"><h1>{t('nav.inventory')}</h1></div>
       <div className="page-body">
         <div className="tabs inv-tabs" role="tablist">
-          {TABS.map(tab => (
+          {TABS.filter(tab => tab.to !== '/inventory/count' || canCount).map(tab => (
             <button key={tab.to} type="button" role="tab" aria-selected={path === tab.to} className={path === tab.to ? 'on' : ''} onClick={() => nav(tab.to)}>
               <tab.icon size={17} />{t(tab.key)}
               {tab.to === '/inventory' && alerts > 0 && <span className="inv-tab-badge num" title={t('inventory.stock.alerts', { n: alerts })}>{alerts}</span>}
@@ -48,6 +51,7 @@ function TabsLayout() {
 }
 
 export default function InventoryScreen() {
+  const canCount = allowed(useUser(), useSettings(), 'cashierAdjustStock')
   return (
     <Routes>
       <Route element={<TabsLayout />}>
@@ -55,7 +59,7 @@ export default function InventoryScreen() {
         <Route path="moves" element={<MovesTab />} />
         <Route path="purchases" element={<PurchasesTab />} />
         <Route path="suppliers" element={<SuppliersTab />} />
-        <Route path="count" element={<StockTakeTab />} />
+        <Route path="count" element={canCount ? <StockTakeTab /> : <Navigate to="/inventory" replace />} />
       </Route>
       <Route path="purchases/new" element={<PurchaseForm />} />
       <Route path="purchases/:id" element={<PurchaseDetail />} />

@@ -1,4 +1,4 @@
-import { useEffect, type ReactNode } from 'react'
+import { useEffect, useRef, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import { X } from 'lucide-react'
 
@@ -17,17 +17,30 @@ export interface ModalProps {
 
 /** Centred dialog on wide screens, bottom sheet on phones. Escape and the backdrop close it. */
 export function Modal({ open, onClose, title, children, footer, size = 'normal', full, headExtra, noClose, className = '' }: ModalProps) {
+  const ref = useRef<HTMLDivElement>(null)
   useEffect(() => {
     if (!open) return
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape' && !noClose) { e.stopPropagation(); onClose() } }
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape' || noClose) return
+      // dialogs stack (a confirm over a form): only the one on top answers Escape
+      const all = document.querySelectorAll('body > .overlay')
+      if (all.length && all[all.length - 1] !== ref.current) return
+      e.stopPropagation(); onClose()
+    }
     document.addEventListener('keydown', onKey)
     const prev = document.body.style.overflow
     document.body.style.overflow = 'hidden'
     return () => { document.removeEventListener('keydown', onKey); document.body.style.overflow = prev }
   }, [open, onClose, noClose])
+  // give the focus back to whatever had it before the dialog opened (keyboard users land where they were)
+  useEffect(() => {
+    if (!open) return
+    const before = document.activeElement as HTMLElement | null
+    return () => { if (before && before !== document.body && before.isConnected) { try { before.focus() } catch { /* ignore */ } } }
+  }, [open])
   if (!open) return null
   return createPortal(
-    <div className="overlay" onMouseDown={e => { if (e.target === e.currentTarget && !noClose) onClose() }}>
+    <div ref={ref} className="overlay" onMouseDown={e => { if (e.target === e.currentTarget && !noClose) onClose() }}>
       <div className={`modal ${size !== 'normal' ? size : ''} ${full ? 'full' : ''} ${className}`} role="dialog" aria-modal="true">
         {(title || !noClose) && (
           <div className="modal-head">

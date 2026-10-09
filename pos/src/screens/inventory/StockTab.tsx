@@ -136,7 +136,7 @@ export function StockTab() {
         </div>
       )}
 
-      {sheet && <ProductSheet p={sheet} admin={admin} onClose={() => setSheetId(null)} onAdjust={dir => { setAdjust({ id: sheet.id, dir }) }} onCount={() => setCountId(sheet.id)} />}
+      {sheet && <ProductSheet p={sheet} admin={admin} canAdjust={canAdjust} onClose={() => setSheetId(null)} onAdjust={dir => { setAdjust({ id: sheet.id, dir }) }} onCount={() => setCountId(sheet.id)} />}
       {adjustP && adjust && <AdjustModal p={adjustP} dir={adjust.dir} onClose={() => setAdjust(null)} />}
       {countP && <CountModal p={countP} onClose={() => setCountId(null)} />}
     </div>
@@ -144,7 +144,7 @@ export function StockTab() {
 }
 
 /** The product's stock card: numbers, the tracking switch, the three actions and the last moves. */
-function ProductSheet({ p, admin, onClose, onAdjust, onCount }: { p: Product; admin: boolean; onClose: () => void; onAdjust: (dir: 1 | -1) => void; onCount: () => void }) {
+function ProductSheet({ p, admin, canAdjust, onClose, onAdjust, onCount }: { p: Product; admin: boolean; canAdjust: boolean; onClose: () => void; onAdjust: (dir: 1 | -1) => void; onCount: () => void }) {
   const t = useT()
   const nav = useNavigate()
   const c = useSettings().currency
@@ -167,11 +167,11 @@ function ProductSheet({ p, admin, onClose, onAdjust, onCount }: { p: Product; ad
           {admin && <div className="stat"><div className="stat-label">{t('common.cost')}</div><div className="stat-value num">{formatMoney(p.cost, c)}</div></div>}
           {admin && <div className="stat"><div className="stat-label">{t('inventory.stock.value')}</div><div className="stat-value num">{formatMoney(productValue(p, c.decimals), c)}</div></div>}
         </div>
-        <SwitchRow label={t('inventory.stock.trackSwitch')} desc={t('inventory.stock.trackDesc')} on={p.trackStock} onChange={v => void toggleTrack(v)} />
+        <SwitchRow label={t('inventory.stock.trackSwitch')} desc={t('inventory.stock.trackDesc')} on={p.trackStock} onChange={v => void toggleTrack(v)} disabled={!canAdjust} />
         <div className="inv-actions-3">
-          <Button variant="soft" size="lg" icon={<Plus size={18} />} disabled={!p.trackStock} onClick={() => onAdjust(1)}>{t('inventory.stock.add')}</Button>
-          <Button variant="soft-danger" size="lg" icon={<Minus size={18} />} disabled={!p.trackStock} onClick={() => onAdjust(-1)}>{t('inventory.stock.remove')}</Button>
-          <Button size="lg" icon={<ClipboardCheck size={18} />} disabled={!p.trackStock} onClick={onCount}>{t('inventory.stock.count')}</Button>
+          <Button variant="soft" size="lg" icon={<Plus size={18} />} disabled={!p.trackStock || !canAdjust} onClick={() => onAdjust(1)}>{t('inventory.stock.add')}</Button>
+          <Button variant="soft-danger" size="lg" icon={<Minus size={18} />} disabled={!p.trackStock || !canAdjust} onClick={() => onAdjust(-1)}>{t('inventory.stock.remove')}</Button>
+          <Button size="lg" icon={<ClipboardCheck size={18} />} disabled={!p.trackStock || !canAdjust} onClick={onCount}>{t('inventory.stock.count')}</Button>
         </div>
         <div className="section-title">{t('inventory.stock.recentMoves')}<Button variant="ghost" size="sm" onClick={() => { onClose(); nav(`/inventory/moves?product=${p.id}`) }}>{t('inventory.stock.allMoves')}</Button></div>
         {moves.length === 0 ? <p className="faint small center">{t('inventory.moves.none')}</p> : (
