@@ -283,12 +283,13 @@ async function loadLog() {
 }
 
 // ---- settings
-const SKEYS = ['price', 'cloud_price', 'whatsapp', 'trial_days', 'grace_days', 'web_trial', 'min_version', 'android_signature', 'cloud_days', 'cloud_keep', 'message']
+const SKEYS = ['price', 'cloud_price', 'whatsapp', 'apk_url', 'win_url', 'trial_days', 'grace_days', 'web_trial', 'min_version', 'android_signature', 'cloud_days', 'cloud_keep', 'message']
 const sEl = k => document.querySelector('#v-settings [data-k=' + k + ']')
 const VALID = {
   price: v => v.trim() ? '' : 'x', cloud_price: v => v.trim() ? '' : 'x',
   whatsapp: v => v === '' || /^\d{8,15}$/.test(v) ? '' : 'x', trial_days: v => ynum(v, 0, 365) ? '' : 'x', grace_days: v => ynum(v, 1, 365) ? '' : 'x',
   min_version: v => v === '' || /^\d+(\.\d+)*$/.test(v.trim()) ? '' : 'x',
+  apk_url: v => v.trim() === '' || /^https:\/\/\S+$/i.test(v.trim()) ? '' : 'x', win_url: v => v.trim() === '' || /^https:\/\/\S+$/i.test(v.trim()) ? '' : 'x',
   android_signature: v => v.trim() === '' || v.split(',').every(s => /^[0-9a-fA-F]{64}$/.test(s.replace(/[\s:]/g, ''))) ? '' : 'x',
   cloud_days: v => ynum(v, 1, 3650) ? '' : 'x', cloud_keep: v => ynum(v, 1, 10) ? '' : 'x',
 }

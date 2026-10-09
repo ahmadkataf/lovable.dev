@@ -3,6 +3,13 @@
 name = "kaseb-api"
 main = "src/index.ts"
 compatibility_date = "2025-06-01"
+# The public address (landing page + /admin) and the workers.dev address the apps were built with: both stay on.
+workers_dev = true
+routes = [{ pattern = "kaseb.raqeem.dev", custom_domain = true }]
+
+# Static files: the Android APK at /download/Kaseb.apk and the landing page images under /img/.
+[assets]
+directory = "./public"
 
 [[d1_databases]]
 binding = "DB"

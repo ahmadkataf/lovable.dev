@@ -12,6 +12,7 @@
 //   GET  /privacy, GET /
 // Every error is { error: '<key>', message?: '<Arabic>' } with status 400 / 403 / 429.
 import { ADMIN_PAGE } from './admin'
+import { LANDING_PAGE } from './landing'
 import {
   DAY, SRV, type TokenPayload, cleanCode, formatCode, newCode, validDevice, validNonce, validPlatform, deviceCodeOf, clip,
   sameText, publicKeyHex, signToken, verifyToken, compareVersions,
@@ -53,8 +54,10 @@ export type DeviceRow = {
   first_seen: number; last_seen: number; ip: string | null
   blocked?: number   // undefined on a database that predates the column (ensureSchema adds it)
 }
-type Settings = { price: string; whatsapp: string; trial_days: number; grace_days: number; min_version: string; android_signature: string; message: string; cloud_price: string; cloud_days: number; cloud_keep: number; web_trial: number }
-const DEFAULTS: Settings = { price: '35$', whatsapp: '963996489504', trial_days: 7, grace_days: 10, min_version: '', android_signature: '', message: '', cloud_price: '35$', cloud_days: 365, cloud_keep: 3, web_trial: 0 }
+type Settings = { price: string; whatsapp: string; trial_days: number; grace_days: number; min_version: string; android_signature: string; message: string; cloud_price: string; cloud_days: number; cloud_keep: number; web_trial: number; apk_url: string; win_url: string }
+const DEFAULTS: Settings = { price: '35$', whatsapp: '963996489504', trial_days: 7, grace_days: 10, min_version: '', android_signature: '', message: '', cloud_price: '35$', cloud_days: 365, cloud_keep: 3, web_trial: 0, apk_url: '', win_url: '' }
+/** Download links the seller may point elsewhere (a GitHub release, a drive): https only, else the built-in file / WhatsApp. */
+const safeUrl = (v: unknown): string => { const s = clip(v, 400).trim(); return /^https:\/\/[^\s<>"']+$/i.test(s) ? s : '' }
 
 // Arabic sentences for the app (it has its own; these help when the app is older than the server)
 const MESSAGES: Record<string, string> = {
@@ -82,6 +85,19 @@ const MESSAGES: Record<string, string> = {
 
 const json = (data: unknown, status = 200): Response =>
   new Response(JSON.stringify(data), { status, headers: { ...CORS, 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' } })
+/** A WhatsApp chat link with a prefilled message. */
+const waLink = (whatsapp: string, text: string): string => `https://wa.me/${whatsapp.replace(/\D/g, '')}?text=${encodeURIComponent(text)}`
+/** The public page with the seller's price and contact filled in (HTML-escaped). */
+function renderLanding(s: Settings): string {
+  const esc = (v: string) => v.replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch] as string))
+  const wa = s.whatsapp.replace(/\D/g, '')
+  const pretty = wa.startsWith('963') ? '0' + wa.slice(3) : '+' + wa
+  return LANDING_PAGE
+    .replace(/\{\{WHATSAPP\}\}/g, esc(pretty))
+    .replace(/\{\{WA_LINK\}\}/g, esc(waLink(wa, 'مرحباً، أريد الاستفسار عن برنامج كاسب')))
+    .replace(/\{\{PRICE\}\}/g, esc(s.price || DEFAULTS.price))
+    .replace(/\{\{CLOUD_PRICE\}\}/g, esc(s.cloud_price || DEFAULTS.cloud_price))
+}
 const fail = (error: string, status = 400, message?: string): Response => json({ error, message: message ?? MESSAGES[error] }, status)
 const html = (s: string): Response => new Response(s, { headers: { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store' } })
 
@@ -798,6 +814,8 @@ async function admin(req: Request, env: Env, path: string, url: URL): Promise<Re
         put('cloud_price', clip(v('cloud_price'), 40) || DEFAULTS.cloud_price),
         put('cloud_days', num(v('cloud_days'), 3650, DEFAULTS.cloud_days)),
         put('cloud_keep', num(v('cloud_keep'), 10, DEFAULTS.cloud_keep)),
+        put('apk_url', safeUrl(v('apk_url'))),
+        put('win_url', safeUrl(v('win_url'))),
         put('web_trial', v('web_trial') ? '1' : '0'),
       ])
       await log(env, 'admin', req, null, null, 'settings')
@@ -826,9 +844,15 @@ export default {
     const p = url.pathname.replace(/\/+$/, '') || '/'
     if (req.method === 'OPTIONS') return new Response(null, { status: 204, headers: CORS })
     try {
-      if (p === '/') return new Response('Kaseb license server — كاسب', { headers: { 'content-type': 'text/plain; charset=utf-8' } })
+      if (p === '/') return html(renderLanding(await settings(env)))
       if (p === '/privacy') return html(PRIVACY)
       if (p === '/admin') return html(ADMIN_PAGE)
+      if (p === '/panel' || p === '/login' || p === '/dashboard') return Response.redirect(new URL('/admin', url).toString(), 302)
+      if (p === '/download/android' || p === '/download/apk') { const s = await settings(env); return Response.redirect(s.apk_url || new URL('/download/Kaseb.apk', url).toString(), 302) }
+      if (p === '/download/windows' || p === '/download/win') {
+        const s = await settings(env)
+        return Response.redirect(s.win_url || waLink(s.whatsapp, 'مرحباً، أريد نسخة ويندوز من برنامج كاسب'), 302)
+      }
       await ensureSchema(env)
       if (p.startsWith('/admin/api/')) return await admin(req, env, p.slice('/admin/api/'.length), url)
       if (p.startsWith('/api/')) {
