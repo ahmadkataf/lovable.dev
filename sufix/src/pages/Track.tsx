@@ -88,7 +88,7 @@ export function TrackPage() {
         {res?.kind === 'order' && <OrderView o={res.order} />}
         {res?.kind === 'ticket' && <TicketView t={res.ticket} />}
       </div>
-      <p className="muted small center" style={{ marginTop: 20 }}>لم تطلب بعد؟ <Link to="/shop" style={{ color: 'var(--primary)' }}>تصفّح المتجر</Link> أو <Link to="/repair" style={{ color: 'var(--primary)' }}>اطلب صيانة</Link>.</p>
+      <p className="muted small center" style={{ marginTop: 20 }}>لم تطلب بعد؟ <Link to="/shop" style={{ color: 'var(--primary-text)' }}>تصفّح المتجر</Link> أو <Link to="/repair" style={{ color: 'var(--primary-text)' }}>اطلب صيانة</Link>.</p>
     </div>
   )
 }

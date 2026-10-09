@@ -41,7 +41,7 @@ export function DjiPage() {
       <section className="section" style={{ paddingBottom: 0 }}>
         <div className="section-head"><div><span className="kicker">أنواع القطع</span><h2 style={{ fontSize: 24 }}>ماذا نوفّر لكل طراز؟</h2></div></div>
         <div className="chip-list">{PART_TYPES.map(t => <Link key={t} to={`/shop?q=${encodeURIComponent(t.split(' ')[0])}`} className="chip">{t}</Link>)}</div>
-        <p className="muted small" style={{ marginTop: 14 }}>لا تجد قطعتك؟ <Link to="/contact" style={{ color: 'var(--primary)' }}>تواصل معنا</Link> ونوفّرها لك خلال أيام، أو <Link to="/repair" style={{ color: 'var(--primary)' }}>اطلب صيانة</Link> ونحن نؤمّن القطعة ونركّبها.</p>
+        <p className="muted small" style={{ marginTop: 14 }}>لا تجد قطعتك؟ <Link to="/contact" style={{ color: 'var(--primary-text)' }}>تواصل معنا</Link> ونوفّرها لك خلال أيام، أو <Link to="/repair" style={{ color: 'var(--primary-text)' }}>اطلب صيانة</Link> ونحن نؤمّن القطعة ونركّبها.</p>
       </section>
       {droneProducts.length > 0 && (
         <section className="section" style={{ paddingBottom: 0 }}>

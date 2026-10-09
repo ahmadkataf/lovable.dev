@@ -47,14 +47,14 @@ export function Dashboard() {
       </div>
       <div className="two-col">
         <div className="panel">
-          <div className="row-between" style={{ marginBottom: 12 }}><h3 style={{ margin: 0 }}>آخر الطلبات</h3><Link to="/admin/orders" className="small" style={{ color: 'var(--primary)' }}>عرض الكل</Link></div>
+          <div className="row-between" style={{ marginBottom: 12 }}><h3 style={{ margin: 0 }}>آخر الطلبات</h3><Link to="/admin/orders" className="small" style={{ color: 'var(--primary-text)' }}>عرض الكل</Link></div>
           <div className="table-wrap"><table className="tbl"><thead><tr><th>#</th><th>العميل</th><th>الإجمالي</th><th>الحالة</th><th>التاريخ</th></tr></thead><tbody>
             {s.recentOrders.map(o => <tr key={o.id} className="click" onClick={() => (window.location.href = `/admin/orders?open=${o.id}`)}><td className="num">{o.number}</td><td>{o.customer.name}<div className="hint">{o.customer.city}</div></td><td className="num">{fmtMoney(o.total, settings)}</td><td><StatusBadge status={o.status} kind="order" /></td><td className="hint num">{fmtDateTime(o.createdAt)}</td></tr>)}
             {!s.recentOrders.length && <tr><td colSpan={5} className="center muted">لا طلبات بعد</td></tr>}
           </tbody></table></div>
         </div>
         <div className="panel">
-          <div className="row-between" style={{ marginBottom: 12 }}><h3 style={{ margin: 0 }}>آخر طلبات الصيانة</h3><Link to="/admin/tickets" className="small" style={{ color: 'var(--primary)' }}>عرض الكل</Link></div>
+          <div className="row-between" style={{ marginBottom: 12 }}><h3 style={{ margin: 0 }}>آخر طلبات الصيانة</h3><Link to="/admin/tickets" className="small" style={{ color: 'var(--primary-text)' }}>عرض الكل</Link></div>
           <div className="table-wrap"><table className="tbl"><thead><tr><th>#</th><th>الجهاز</th><th>العميل</th><th>الحالة</th></tr></thead><tbody>
             {s.recentTickets.map(t => <tr key={t.id} className="click" onClick={() => (window.location.href = `/admin/tickets?open=${t.id}`)}><td className="num">{t.number}</td><td>{t.brand} {t.model}<div className="hint">{t.deviceType}</div></td><td>{t.customer.name}</td><td><StatusBadge status={t.status} kind="ticket" /></td></tr>)}
             {!s.recentTickets.length && <tr><td colSpan={4} className="center muted">لا طلبات صيانة بعد</td></tr>}

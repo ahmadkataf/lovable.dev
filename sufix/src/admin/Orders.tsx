@@ -44,7 +44,7 @@ function OrderDrawer({ order, onClose, onChange }: { order: Order; onClose: () =
           <h3>العميل</h3>
           <div className="stack small" style={{ gap: 6 }}>
             <div className="row-between"><span className="muted">الاسم</span><b>{o.customer.name}</b></div>
-            <div className="row-between"><span className="muted">الهاتف</span><a className="num" dir="ltr" href={`tel:${o.customer.phone}`} style={{ color: 'var(--primary)' }}>{o.customer.phone}</a></div>
+            <div className="row-between"><span className="muted">الهاتف</span><a className="num" dir="ltr" href={`tel:${o.customer.phone}`} style={{ color: 'var(--primary-text)' }}>{o.customer.phone}</a></div>
             <div className="row-between"><span className="muted">المحافظة</span><span>{o.customer.city}</span></div>
             <div className="row-between"><span className="muted">العنوان</span><span style={{ textAlign: 'end' }}>{o.customer.address}</span></div>
             {o.customer.notes && <div className="row-between"><span className="muted">ملاحظات العميل</span><span style={{ textAlign: 'end' }}>{o.customer.notes}</span></div>}

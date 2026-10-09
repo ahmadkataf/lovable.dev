@@ -5,7 +5,7 @@ export const DEFAULT_SETTINGS: SiteSettings = {
   tagline: 'صيانة وبيع الإلكترونيات والدرونات',
   primaryColor: '#22d3ee',
   accentColor: '#a3e635',
-  theme: 'dark',
+  theme: 'light',
   whatsapp: '963900000000',
   phone: '+963 900 000 000',
   email: 'info@sufix.sy',
