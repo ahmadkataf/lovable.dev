@@ -21,6 +21,7 @@ jobs:
     steps:
       - name: Wait for the Cloudflare secrets
         if: env.CLOUDFLARE_API_TOKEN == ''
+        working-directory: .   # runs before checkout, so sufix/ does not exist yet
         run: echo "::notice::Add the CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID secrets, then run this workflow again."
       - uses: actions/checkout@v4
         if: env.CLOUDFLARE_API_TOKEN != ''
