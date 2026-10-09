@@ -110,6 +110,7 @@ export function CustomerDetail() {
             <div className="cu-balance-label">{t('customers.balance')}</div>
             <div className={`cu-balance-value num ${kind}`}>{formatMoney(Math.abs(customer.balance), c)}</div>
             <div className={`cu-balance-kind ${kind === 'owes' ? 'cu-amt up' : kind === 'has' ? 'cu-amt down' : 'faint'}`} style={{ fontSize: 13 }}>{t(`customers.balance.${kind}Label`)}</div>
+            {settings.loyalty.enabled && <div className="small muted" style={{ marginTop: 4 }}>⭐ <span className="num">{customer.points ?? 0}</span> {t('customers.points')}</div>}
             <div className={`cu-balance-actions ${admin ? 'two' : ''}`}>
               <Button variant="primary" size="lg" icon={<HandCoins size={18} />} onClick={() => setPaying(true)}>{t('customers.pay')}</Button>
               {admin && <Button size="lg" icon={<SlidersHorizontal size={18} />} onClick={() => setAdjusting(true)}>{t('customers.adjust')}</Button>}

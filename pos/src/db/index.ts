@@ -71,6 +71,7 @@ export function mergeSettings(s?: Partial<Settings>): Settings {
     receipt: { ...d.receipt, ...s?.receipt },
     pos: { ...d.pos, ...s?.pos, scale: { ...d.pos.scale, ...s?.pos?.scale } },
     permissions: { ...d.permissions, ...s?.permissions },
+    loyalty: { ...d.loyalty, ...s?.loyalty },
   }
 }
 export async function saveSettings(s: Settings): Promise<void> {

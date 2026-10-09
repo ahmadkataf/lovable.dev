@@ -28,6 +28,7 @@ export interface Cart {
   customerId?: string
   customerName?: string
   note?: string
+  redeemPoints?: number   // loyalty points turned into the sale discount
 }
 
 export interface Totals {

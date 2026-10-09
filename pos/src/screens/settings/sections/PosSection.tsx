@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useLiveQuery } from 'dexie-react-hooks'
-import { Banknote, Boxes, Bell, LayoutGrid, Lock, Plus, X, Scale } from 'lucide-react'
+import { Banknote, Boxes, Bell, LayoutGrid, Lock, Plus, X, Scale, Star } from 'lucide-react'
 import { useStore, toast } from '../../../state/store'
 import { useT } from '../../../i18n'
 import { Button, Field, NumberInput, Seg, SwitchRow, Input } from '../../../components/ui'
@@ -17,6 +17,9 @@ const LOCK_OPTIONS = [0, 1, 5, 15, 30] as const
 export default function PosSection() {
   const t = useT()
   const pos = useStore(s => s.settings.pos)
+  const loyalty = useStore(s => s.settings.loyalty)
+  const c = useStore(s => s.settings.currency)
+  const update = useStore(s => s.updateSettings)
   const currency = useStore(s => s.settings.currency)
   const updateSettings = useStore(s => s.updateSettings)
   const set = (p: Partial<Pos>) => void updateSettings({ pos: p }).catch(() => toast(t('settings.saveFailed'), 'error'))
@@ -88,6 +91,25 @@ export default function PosSection() {
               options={LOCK_OPTIONS.map(m => ({ value: String(m), label: t(`settings.pos.lock.${m}`) }))} />
           </div>
         </Field>
+      </SectionCard>
+
+      <SectionCard title={t('settings.loyalty.title')} icon={<Star size={16} />}>
+        <p className="small muted">{t('settings.loyalty.desc')}</p>
+        <SwitchRow label={t('settings.loyalty.enable')} on={loyalty.enabled} onChange={v => void update({ loyalty: { enabled: v } })} />
+        {loyalty.enabled && (
+          <div className="form-grid">
+            <Field label={t('settings.loyalty.earnPer', { cur: c.symbol })} hint={t('settings.loyalty.earnPerHint')}>
+              <NumberInput value={loyalty.earnPer || ''} onChange={n => void update({ loyalty: { earnPer: Math.max(0, n) } })} decimals={c.decimals} />
+            </Field>
+            <Field label={t('settings.loyalty.pointValue', { cur: c.symbol })} hint={t('settings.loyalty.pointValueHint')}>
+              <NumberInput value={loyalty.pointValue || ''} onChange={n => void update({ loyalty: { pointValue: Math.max(0, n) } })} decimals={c.decimals} />
+            </Field>
+            <Field label={t('settings.loyalty.minRedeem')} hint={t('settings.loyalty.minRedeemHint')}>
+              <NumberInput value={loyalty.minRedeem || ''} onChange={n => void update({ loyalty: { minRedeem: Math.max(1, Math.round(n)) } })} decimals={0} />
+            </Field>
+            <div className="span-2"><Note kind="info">{t('settings.loyalty.example', { earn: formatMoney(loyalty.earnPer || 0, c), value: formatMoney(loyalty.pointValue || 0, c) })}</Note></div>
+          </div>
+        )}
       </SectionCard>
 
       <SectionCard title={t('settings.scale.title')} icon={<Scale size={16} />}>

@@ -15,6 +15,7 @@ import { uid } from './ids'
 import { round } from './money'
 import { addMessages, t } from '../i18n'
 import { logAudit } from './audit'
+import { pointsEarned } from './loyalty'
 
 addMessages({
   ar: {
@@ -92,6 +93,16 @@ export async function completeSale(input: CompleteSaleInput): Promise<Sale> {
       }
     }
     if (credit > 0 && !(await db.customers.get(cart.customerId!))) throw new SaleError('sales.err.creditNoCustomer')
+    // loyalty: redeem what the cart asked for, earn on what was paid
+    let pointsRedeemed = 0, pointsEarnedNow = 0
+    if (settings.loyalty.enabled && cart.customerId) {
+      const cust = await db.customers.get(cart.customerId)
+      if (cust) {
+        pointsRedeemed = Math.min(cust.points ?? 0, Math.max(0, Math.floor(cart.redeemPoints ?? 0)))
+        pointsEarnedNow = pointsEarned(totals.total, settings.loyalty)
+        await db.customers.update(cust.id, { points: Math.max(0, (cust.points ?? 0) - pointsRedeemed + pointsEarnedNow), updatedAt: at })
+      }
+    }
     const number = await nextNumber('sale')
     const sale: Sale = {
       id: uid(),
@@ -109,6 +120,8 @@ export async function completeSale(input: CompleteSaleInput): Promise<Sale> {
       change,
       credit,
       fx: input.fx && input.fx.received > 0 ? input.fx : undefined,
+      pointsEarned: pointsEarnedNow || undefined,
+      pointsRedeemed: pointsRedeemed || undefined,
       customerId: cart.customerId,
       customerName: cart.customerName,
       userId: user.id,

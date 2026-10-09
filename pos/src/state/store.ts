@@ -45,6 +45,7 @@ export interface AppState {
   clearCart(): void
   setCartDiscount(amount: number, pct?: number): void
   setCartCustomer(id?: string, name?: string): void
+  setCartRedeem(points: number, amount: number): void
   setCartNote(note: string): void
 
   toast(text: string, kind?: Toast['kind']): void
@@ -146,7 +147,15 @@ export const useStore = create<AppState>((set, get) => ({
   setCart(cart) { set({ cart }) },
   clearCart() { set({ cart: emptyCart() }) },
   setCartDiscount(amount, pct) { set({ cart: { ...get().cart, discount: amount, discountPct: pct } }) },
-  setCartCustomer(customerId, customerName) { set({ cart: { ...get().cart, customerId, customerName } }) },
+  setCartCustomer(customerId, customerName) {
+    const c = get().cart
+    const changed = c.customerId !== customerId
+    set({ cart: { ...c, customerId, customerName, ...(changed && c.redeemPoints ? { redeemPoints: undefined, discount: 0, discountPct: undefined } : {}) } })
+  },
+  setCartRedeem(points, amount) {
+    const c = get().cart
+    set({ cart: points > 0 ? { ...c, redeemPoints: points, discount: amount, discountPct: undefined } : { ...c, redeemPoints: undefined, discount: 0 } })
+  },
   setCartNote(note) { set({ cart: { ...get().cart, note: note || undefined } }) },
 
   toast(text, kind = 'info') {

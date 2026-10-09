@@ -159,3 +159,27 @@ describe('second currency on a sale', () => {
     expect(text).toMatch(/13,000/)
   })
 })
+
+describe('loyalty on a sale', () => {
+  it('earns points on the total and redeems what the cart asked for', async () => {
+    const { db } = await import('../db')
+    const { completeSale, planPayment } = await import('./sales')
+    const { emptyCart, addToCart, lineFromProduct, computeTotals } = await import('./cart')
+    const { DEFAULT_SETTINGS } = await import('../db/types')
+    await db.delete(); await db.open()
+    const product = { id: 'lp', name: 'x', barcodes: [], price: 10000, cost: 8000, trackStock: false, stock: 0, lowStock: 0, unit: 'piece', allowFraction: false, favorite: false, active: true, createdAt: 0, updatedAt: 0 }
+    await db.products.add(product)
+    await db.customers.add({ id: 'c1', name: 'Ali', balance: 0, points: 150, createdAt: 0, updatedAt: 0 })
+    const settings = { ...DEFAULT_SETTINGS, loyalty: { enabled: true, earnPer: 1000, pointValue: 10, minRedeem: 100 } }
+    let cart = addToCart(emptyCart(), lineFromProduct(product, 2))
+    cart = { ...cart, customerId: 'c1', customerName: 'Ali', redeemPoints: 150, discount: 1500 }
+    const totals = computeTotals(cart, settings.tax, 0)
+    expect(totals.total).toBe(18500)
+    const plan = planPayment({ total: totals.total, method: 'cash', tendered: 18500, hasCustomer: true, decimals: 0 })
+    const user = { id: 'u', name: 'u', role: 'admin' as const, active: true, createdAt: 0 }
+    const sale = await completeSale({ cart, totals, payments: plan.payments, paid: plan.paid, change: plan.change, credit: plan.credit, user, shift: null, settings })
+    expect(sale.pointsRedeemed).toBe(150)
+    expect(sale.pointsEarned).toBe(18)
+    expect((await db.customers.get('c1'))!.points).toBe(18)
+  })
+})

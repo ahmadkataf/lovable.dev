@@ -52,6 +52,8 @@ export interface Customer {
   address?: string
   notes?: string
   balance: number      // what the customer owes us (debt); negative = we owe them
+  points?: number      // loyalty points
+  tier?: 'retail' | 'wholesale'
   createdAt: number
   updatedAt: number
 }
@@ -102,6 +104,8 @@ export interface Sale {
   change: number       // cash handed back
   credit: number       // put on the customer's account
   fx?: FxPayment       // when (part of) the cash came in the second currency
+  pointsEarned?: number
+  pointsRedeemed?: number
   customerId?: ID
   customerName?: string
   userId: ID
@@ -298,6 +302,7 @@ export interface Settings {
     scale: ScaleBarcodes       // weight / price embedded barcodes printed by label scales
   }
   permissions: Permissions
+  loyalty: { enabled: boolean; earnPer: number; pointValue: number; minRedeem: number }
   lang: 'ar' | 'en'
   theme: 'light' | 'dark' | 'system'
   onboarded: boolean
@@ -315,6 +320,7 @@ export const DEFAULT_SETTINGS: Settings = {
     scale: { enabled: false, prefix: '2', pluDigits: 5, value: 'weight', valueDecimals: 3 },
   },
   permissions: { ...DEFAULT_PERMISSIONS },
+  loyalty: { enabled: false, earnPer: 1000, pointValue: 10, minRedeem: 100 },
   lang: 'ar',
   theme: 'system',
   onboarded: false,

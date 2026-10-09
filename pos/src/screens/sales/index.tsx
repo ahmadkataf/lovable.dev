@@ -18,6 +18,7 @@ import { platform } from '../../lib/platform'
 import { completeSale, balanceAfterSale, saleErrorText, type PaymentPlan } from '../../lib/sales'
 import { printSale } from '../../lib/receipt'
 import { allowed } from '../../lib/audit'
+import { redeemPlan } from '../../lib/loyalty'
 import { Modal, Button, useIsMobile } from '../../components/ui'
 import { ScannerModal } from '../../components/Scanner'
 import { ProductsPanel } from './ProductsPanel'
@@ -64,6 +65,7 @@ export default function SalesScreen() {
   const cart = useStore(s => s.cart)
   const addProduct = useStore(s => s.addProduct)
   const addLine = useStore(s => s.addLine)
+  const setCartRedeem = useStore(s => s.setCartRedeem)
   const setQty = useStore(s => s.setQty)
   const patchLine = useStore(s => s.patchLine)
   const removeLine = useStore(s => s.removeLine)
@@ -266,6 +268,9 @@ export default function SalesScreen() {
       onCustomer={openCustomerPicker}
       onRemoveCustomer={() => setCartCustomer(undefined, undefined)}
       onDiscount={() => { if (canDiscount) openDialog({ kind: 'discount' }); else toast(t('common.noPermission'), 'warn') }}
+      points={settings.loyalty.enabled && customer ? (customer.points ?? 0) : undefined}
+      redeemable={settings.loyalty.enabled && customer ? redeemPlan(customer.points ?? 0, settings.loyalty, totals.subtotal, d) : undefined}
+      onRedeem={() => { if (cart.redeemPoints) setCartRedeem(0, 0); else if (customer) { const r = redeemPlan(customer.points ?? 0, settings.loyalty, totals.subtotal, d); if (r.points > 0) setCartRedeem(r.points, r.value) } }}
       onNote={() => openDialog({ kind: 'note' })}
       onHold={() => openDialog({ kind: 'hold' })}
       onHeld={() => openDialog({ kind: 'held' })}

@@ -1,6 +1,6 @@
 // The cart: lines with quantity controls, the sale tools, the totals and the big Charge button.
 import { useEffect } from 'react'
-import { Minus, Plus, Trash, User, Percent, StickyNote, Pause, CirclePause, Banknote, ShoppingCart, TriangleAlert, X, Clock } from 'lucide-react'
+import { Minus, Plus, Trash, User, Percent, StickyNote, Pause, CirclePause, Banknote, ShoppingCart, TriangleAlert, X, Clock, Star } from 'lucide-react'
 import type { Settings } from '../../db/types'
 import type { Cart, CartLine, Totals } from '../../lib/cart'
 import { lineTotal } from '../../lib/cart'
@@ -20,6 +20,10 @@ export interface CartPanelProps {
   onRemoveCustomer: () => void
   onDiscount: () => void
   onNote: () => void
+  /** The customer's loyalty points (when loyalty is on and a customer is picked) and the redeem toggle. */
+  points?: number
+  redeemable?: { points: number; value: number }
+  onRedeem?: () => void
   onHold: () => void
   onHeld: () => void
   heldCount: number
@@ -100,6 +104,11 @@ export function CartPanel(p: CartPanelProps) {
           <Percent size={15} />
           {totals.discount > 0 ? <span className="num">{cart.discountPct !== undefined ? `${formatQty(cart.discountPct)}%` : formatMoney(totals.discount, c)}</span> : t('common.discount')}
         </button>
+        {p.points !== undefined && (
+          <button type="button" className={`chip ${cart.redeemPoints ? 'on' : ''}`} disabled={!cart.redeemPoints && !(p.redeemable && p.redeemable.points > 0)} onClick={p.onRedeem} title={t('sales.pointsTitle')}>
+            <Star size={15} /> <span className="num">{p.points}</span>{cart.redeemPoints ? ` · ${t('sales.pointsRedeemed', { n: cart.redeemPoints })}` : p.redeemable && p.redeemable.points > 0 ? ` · ${t('sales.pointsRedeem', { amount: formatMoney(p.redeemable.value, c) })}` : ''}
+          </button>
+        )}
         <button type="button" className={`chip ${cart.note ? 'on' : ''}`} onClick={p.onNote}>
           <StickyNote size={15} /> {t('common.note')}
         </button>

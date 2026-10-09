@@ -27,6 +27,8 @@ addMessages({
     'receipt.onAccount': 'على الحساب',
     'receipt.fxReceived': 'المستلم بـ{cur}',
     'receipt.invoiceA4': 'فاتورة A4',
+    'receipt.pointsEarned': 'نقاط مكتسبة: {n}',
+    'receipt.pointsRedeemed': 'نقاط مستبدلة: {n}',
     'receipt.invoice': 'فاتورة',
     'receipt.taxInvoice': 'فاتورة ضريبية مبسطة',
     'receipt.col.n': '#',
@@ -62,6 +64,8 @@ addMessages({
     'receipt.onAccount': 'On account',
     'receipt.fxReceived': 'Received in {cur}',
     'receipt.invoiceA4': 'A4 invoice',
+    'receipt.pointsEarned': 'Points earned: {n}',
+    'receipt.pointsRedeemed': 'Points redeemed: {n}',
     'receipt.invoice': 'Invoice',
     'receipt.taxInvoice': 'Simplified tax invoice',
     'receipt.col.n': '#',
@@ -233,6 +237,8 @@ export function receiptDoc(sale: Sale, settings: Settings, opts: ReceiptOptions 
     base.payments.push({ label: t('receipt.onAccount'), value: money(sale.credit), strong: true })
     if (opts.balanceAfter !== undefined) base.payments.push({ label: t('receipt.balanceAfter'), value: money(opts.balanceAfter) })
   }
+  if (sale.pointsRedeemed) base.extra.push(t('receipt.pointsRedeemed', { n: sale.pointsRedeemed }))
+  if (sale.pointsEarned) base.extra.push(t('receipt.pointsEarned', { n: sale.pointsEarned }))
   base.note = sale.note?.trim() || undefined
   return base
 }

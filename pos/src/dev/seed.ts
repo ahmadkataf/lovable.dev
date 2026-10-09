@@ -52,6 +52,7 @@ export async function seed(): Promise<void> {
   const s = await loadSettings()
   s.store = { name: 'سوبرماركت الأمل', phone: '0944 123 456', address: 'دمشق — المزة، شارع الجلاء' }
   s.onboarded = true
+  s.loyalty = { enabled: true, earnPer: 1000, pointValue: 10, minRedeem: 100 }
   s.currency2 = { enabled: true, code: 'USD', symbol: '$', decimals: 2, symbolAfter: false, rate: 13000 }
   s.receipt.footer = 'شكراً لزيارتكم — نتمنى لكم يوماً سعيداً'
   await saveSettings(s)
@@ -74,7 +75,7 @@ export async function seed(): Promise<void> {
   await db.products.bulkAdd(products)
   await applyStock(products.map((p, i) => ({ productId: p.id, qty: stocks[i], type: 'initial' as const, note: 'رصيد افتتاحي', userId: admin.id })), now - 40 * 864e5)
 
-  const customers: Customer[] = CUSTOMERS.map(([name, phone]) => ({ id: uid(), name, phone: phone || undefined, balance: 0, createdAt: now - 20 * 864e5, updatedAt: now - 20 * 864e5 }))
+  const customers: Customer[] = CUSTOMERS.map(([name, phone], i) => ({ id: uid(), name, phone: phone || undefined, balance: 0, points: i * 120, createdAt: now - 20 * 864e5, updatedAt: now - 20 * 864e5 }))
   await db.customers.bulkAdd(customers)
 
   // a closed shift last week and an open one today
