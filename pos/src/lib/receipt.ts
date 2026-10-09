@@ -5,6 +5,8 @@ import type { Sale, Refund, Settings, PaymentMethod } from '../db/types'
 import { formatMoney, formatQty, round } from './money'
 import { formatDateTime } from './format'
 import { platform } from './platform'
+import QRCode from 'qrcode'
+import { zatcaQr } from './zatca'
 import { addMessages, t } from '../i18n'
 import { balanceAfterSale } from './sales'
 
@@ -24,6 +26,17 @@ addMessages({
     'receipt.taxInclusive': 'شامل',
     'receipt.onAccount': 'على الحساب',
     'receipt.fxReceived': 'المستلم بـ{cur}',
+    'receipt.invoiceA4': 'فاتورة A4',
+    'receipt.invoice': 'فاتورة',
+    'receipt.taxInvoice': 'فاتورة ضريبية مبسطة',
+    'receipt.col.n': '#',
+    'receipt.col.item': 'الصنف',
+    'receipt.col.qty': 'الكمية',
+    'receipt.col.price': 'السعر',
+    'receipt.col.discount': 'الخصم',
+    'receipt.col.total': 'الإجمالي',
+    'receipt.customerLabel': 'العميل',
+    'receipt.qrHint': 'امسح الرمز للتحقق',
     'receipt.fxRate': 'سعر الصرف',
     'receipt.balanceAfter': 'الرصيد بعد البيع',
     'receipt.refunded': 'المبلغ المُعاد',
@@ -48,6 +61,17 @@ addMessages({
     'receipt.taxInclusive': 'incl.',
     'receipt.onAccount': 'On account',
     'receipt.fxReceived': 'Received in {cur}',
+    'receipt.invoiceA4': 'A4 invoice',
+    'receipt.invoice': 'Invoice',
+    'receipt.taxInvoice': 'Simplified tax invoice',
+    'receipt.col.n': '#',
+    'receipt.col.item': 'Item',
+    'receipt.col.qty': 'Qty',
+    'receipt.col.price': 'Price',
+    'receipt.col.discount': 'Discount',
+    'receipt.col.total': 'Total',
+    'receipt.customerLabel': 'Customer',
+    'receipt.qrHint': 'Scan to verify',
     'receipt.fxRate': 'Exchange rate',
     'receipt.balanceAfter': 'Balance after',
     'receipt.refunded': 'Refunded',
@@ -358,4 +382,55 @@ export async function printSale(sale: Sale, settings: Settings, opts: { refund?:
 export async function shareSale(sale: Sale, settings: Settings, opts: ReceiptOptions = {}): Promise<boolean> {
   const balanceAfter = await resolveBalance(sale, opts)
   return platform.share(receiptText(sale, settings, { ...opts, balanceAfter }), t('receipt.docTitle', { n: sale.number }))
+}
+
+
+/** An A4 invoice (business customers, tax invoices): the same data as the receipt laid out on a page, with a ZATCA QR when tax and a VAT number are set. */
+export async function invoiceHtml(sale: Sale, settings: Settings, opts: ReceiptOptions = {}): Promise<string> {
+  const doc = receiptDoc(sale, settings, opts)
+  const h = escapeHtml
+  const c = settings.currency
+  const money = (n: number) => formatMoney(n, c)
+  const taxOn = settings.tax.enabled && !!settings.store.taxNumber?.trim()
+  let qr = ''
+  if (taxOn) {
+    try {
+      const text = zatcaQr({ seller: settings.store.name, vat: settings.store.taxNumber!.trim(), time: new Date(sale.createdAt), total: sale.total, vatAmount: sale.tax })
+      qr = await QRCode.toDataURL(text, { margin: 0, width: 240, errorCorrectionLevel: 'M' })
+    } catch { qr = '' }
+  }
+  const customer = sale.customerName ? `<div><b>${h(t('receipt.customerLabel'))}:</b> ${h(sale.customerName)}</div>` : ''
+  const rows = sale.items.map((i, n) => `<tr><td class="num">${n + 1}</td><td>${h(i.name)}${i.note ? `<div class="s muted">${h(i.note)}</div>` : ''}</td><td class="num">${h(formatQty(i.qty))}</td><td class="num">${h(money(i.price))}</td><td class="num">${i.discount ? h(money(i.discount)) : '—'}</td><td class="num b">${h(money(i.total))}</td></tr>`).join('')
+  const totals = doc.totals.map(l => `<tr class="${l.big ? 'big' : ''}"><td>${h(l.label)}</td><td class="num">${h(l.value)}</td></tr>`).join('')
+  const pays = doc.payments.map(l => `<tr><td>${h(l.label)}</td><td class="num">${h(l.value)}</td></tr>`).join('')
+  const title = opts.refund ? doc.title || t('receipt.invoice') : taxOn ? t('receipt.taxInvoice') : t('receipt.invoice')
+  return `<!doctype html><html lang="${doc.lang}" dir="${doc.dir}"><head><meta charset="utf-8"><title>${h(doc.docTitle)}</title><style>
+@page { size: A4; margin: 14mm }
+body { font-family: system-ui, -apple-system, 'Segoe UI', Arial, sans-serif; color: #111; font-size: 12.5px; margin: 0 }
+.head { display: flex; justify-content: space-between; gap: 16px; align-items: flex-start; border-bottom: 2px solid #111; padding-bottom: 10px }
+.store { font-size: 20px; font-weight: 800 } .s { font-size: 11.5px } .muted { color: #555 }
+.logo { max-height: 60px; max-width: 160px }
+.title { font-size: 18px; font-weight: 800; margin: 16px 0 8px }
+.meta { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 24px; margin-bottom: 12px }
+table.items { width: 100%; border-collapse: collapse; margin-top: 6px }
+table.items th, table.items td { border: 1px solid #bbb; padding: 6px 8px; text-align: start; vertical-align: top }
+table.items th { background: #f0f0f0; font-size: 11.5px }
+.num { direction: ltr; unicode-bidi: isolate; font-variant-numeric: tabular-nums; text-align: end } .b { font-weight: 700 }
+.bottom { display: flex; justify-content: space-between; gap: 24px; margin-top: 14px; align-items: flex-start }
+table.tot { border-collapse: collapse; min-width: 260px } table.tot td { padding: 4px 8px; border-bottom: 1px solid #ddd } table.tot tr.big td { font-size: 16px; font-weight: 800; border-bottom: 2px solid #111 }
+.qr { text-align: center } .qr img { width: 120px; height: 120px } .qr div { font-size: 10px; color: #555; margin-top: 4px }
+.footer { margin-top: 24px; border-top: 1px solid #ddd; padding-top: 8px; font-size: 11.5px; color: #555; white-space: pre-wrap; text-align: center }
+</style></head><body>
+<div class="head"><div>${doc.logo ? `<img class="logo" src="${h(doc.logo)}" alt="">` : ''}<div class="store">${h(doc.storeName)}</div>${doc.storeLines.map(x => `<div class="s muted">${h(x)}</div>`).join('')}${settings.store.taxNumber ? `<div class="s"><b>${h(t('receipt.taxNumber'))}:</b> <span class="num">${h(settings.store.taxNumber)}</span></div>` : ''}</div>
+<div>${qr ? `<div class="qr"><img src="${qr}" alt="QR"><div>${h(t('receipt.qrHint'))}</div></div>` : ''}</div></div>
+<div class="title">${h(title)}</div>
+<div class="meta">${doc.meta.map(l => `<div><b>${h(l.label)}:</b> <span class="num">${h(l.value)}</span></div>`).join('')}${customer}</div>
+<table class="items"><thead><tr><th>${h(t('receipt.col.n'))}</th><th>${h(t('receipt.col.item'))}</th><th>${h(t('receipt.col.qty'))}</th><th>${h(t('receipt.col.price'))}</th><th>${h(t('receipt.col.discount'))}</th><th>${h(t('receipt.col.total'))}</th></tr></thead><tbody>${rows}</tbody></table>
+<div class="bottom"><div>${pays ? `<table class="tot">${pays}</table>` : ''}${doc.note ? `<div class="s" style="margin-top:8px;white-space:pre-wrap">${h(doc.note)}</div>` : ''}</div><table class="tot">${totals}</table></div>
+${doc.footer ? `<div class="footer">${h(doc.footer)}</div>` : ''}
+</body></html>`
+}
+export async function printInvoice(sale: Sale, settings: Settings, opts: ReceiptOptions = {}): Promise<boolean> {
+  const html = await invoiceHtml(sale, settings, opts)
+  return platform.print(html, { printer: undefined, silent: false, widthMm: 210, copies: 1 })
 }

@@ -51,6 +51,18 @@ export function PurchaseForm() {
       if (dr && Array.isArray(dr.lines) && dr.lines.length) {
         setState(s => ({ ...s, ...dr, supplierId: params.get('supplier') ?? dr.supplierId, drawer: !!dr.drawer && !!shift }))
         setRestored(true)
+      } else if (params.get('low') === '1') {
+        // a reorder suggestion: every low-stock product, enough to be back above its threshold twice over
+        void db.products.filter(p => p.active && p.trackStock && p.lowStock > 0 && p.stock <= p.lowStock).toArray().then(low => {
+          if (!alive || !low.length) return
+          let lines: PurchaseLine[] = []
+          for (const p of low) {
+            lines = addPurchaseLine(lines, p, lineKey())
+            const want = Math.max(1, round(p.lowStock * 2 - p.stock, p.allowFraction ? 3 : 0))
+            lines = lines.map(l => (l.productId === p.id ? { ...l, qty: want } : l))
+          }
+          setState(s => ({ ...s, lines }))
+        })
       }
       setLoaded(true)
     }).catch(() => setLoaded(true))

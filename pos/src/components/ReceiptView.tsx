@@ -2,11 +2,11 @@
 // document for the printer, for sharing and for this preview), plus the print / share buttons.
 import { useState } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
-import { Printer, Share2, MessageCircle } from 'lucide-react'
+import { Printer, Share2, MessageCircle, FileText } from 'lucide-react'
 import type { Sale, Refund, Settings } from '../db/types'
 import { useStore, toast } from '../state/store'
 import { addMessages, useT } from '../i18n'
-import { receiptDoc, printSale, shareSale, receiptText, type ReceiptLine } from '../lib/receipt'
+import { receiptDoc, printSale, shareSale, receiptText, printInvoice, type ReceiptLine } from '../lib/receipt'
 import { db } from '../db'
 import { platform } from '../lib/platform'
 import { balanceAfterSale } from '../lib/sales'
@@ -114,7 +114,11 @@ export function ReceiptActions({ sale, refund, settings, compact, copy, balanceA
   const t = useT()
   const storeSettings = useStore(s => s.settings)
   const s = settings ?? storeSettings
-  const [busy, setBusy] = useState<'print' | 'share' | null>(null)
+  const [busy, setBusy] = useState<'print' | 'share' | 'a4' | null>(null)
+  const a4 = async () => {
+    setBusy('a4')
+    try { const ok = await printInvoice(sale, s, { refund, copy, balanceAfter }); toast(t(ok ? 'receipt.actions.printed' : 'receipt.actions.printFailed'), ok ? 'success' : 'error') } catch { toast(t('receipt.actions.printFailed'), 'error') } finally { setBusy(null) }
+  }
   const customer = useLiveQuery(async () => (sale.customerId ? await db.customers.get(sale.customerId) : undefined), [sale.customerId])
   const waDigits = (customer?.phone ?? '').replace(/\D/g, '').replace(/^00/, '')
   const whatsapp = () => {
@@ -144,6 +148,7 @@ export function ReceiptActions({ sale, refund, settings, compact, copy, balanceA
         {copy ? t('receipt.actions.printCopy') : t('common.print')}
       </Button>
       <Button size={compact ? 'sm' : 'md'} icon={<Share2 size={18} />} loading={busy === 'share'} disabled={busy !== null} onClick={() => void share()}>{t('common.share')}</Button>
+      <Button size={compact ? 'sm' : 'md'} icon={<FileText size={18} />} loading={busy === 'a4'} disabled={busy !== null} onClick={() => void a4()}>{t('receipt.invoiceA4')}</Button>
       {waDigits.length >= 8 && <Button size={compact ? 'sm' : 'md'} variant="soft" icon={<MessageCircle size={18} />} disabled={busy !== null} onClick={whatsapp}>{t('receipt.actions.wa')}</Button>}
     </div>
   )
