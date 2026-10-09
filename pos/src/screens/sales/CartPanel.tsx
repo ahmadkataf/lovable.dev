@@ -3,7 +3,7 @@ import { useEffect } from 'react'
 import { Minus, Plus, Trash, User, Percent, StickyNote, Pause, CirclePause, Banknote, ShoppingCart, TriangleAlert, X, Clock, Star } from 'lucide-react'
 import type { Settings } from '../../db/types'
 import type { Cart, CartLine, Totals } from '../../lib/cart'
-import { lineTotal } from '../../lib/cart'
+import { lineTotal, lineUnits } from '../../lib/cart'
 import { useT } from '../../i18n'
 import { Button, Badge, Money } from '../../components/ui'
 import { formatMoney, formatQty, toSecondary } from '../../lib/money'
@@ -152,6 +152,7 @@ function Line({ l, settings, flash, onEdit, onQty, onFraction }: { l: CartLine; 
         <div className="cl-name">{l.name}</div>
         <div className="cl-sub">
           <span className="num">{formatMoney(l.price, c)}{unit ? ` / ${unit}` : ''}</span>
+          {l.unitsPerQty && l.unitsPerQty !== 1 ? <span className="num muted">= {formatQty(lineUnits(l))} {t('sales.baseUnits')}</span> : null}
           {overridden && <span className="strike num">{formatMoney(l.originalPrice, c)}</span>}
           {l.discount > 0 && <span className="disc num">-{formatMoney(l.discount, c)}</span>}
           {l.note && <span className="truncate" style={{ maxWidth: 120 }}>· {l.note}</span>}

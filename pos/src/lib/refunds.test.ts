@@ -31,6 +31,19 @@ beforeEach(async () => {
 })
 
 describe('createRefund', () => {
+  it('restocks a refunded carton as 24 pieces', async () => {
+    const carton = { id: 'k1', name: 'كرتونة', qty: 24, price: 20000 }
+    await db.products.put({ ...milk, stock: 50, packs: [carton] })
+    const prod = (await db.products.get('p1'))!
+    const sale = await sell(addToCart(emptyCart(), lineFromProduct(prod, 2, 0, { pack: carton })))
+    expect((await db.products.get('p1'))!.stock).toBe(2)
+    const r = await refund(sale, [{ index: 0, qty: 1 }])
+    expect(r.items[0]).toMatchObject({ qty: 1, price: 20000, total: 20000, unitsPerQty: 24 })
+    expect((await db.products.get('p1'))!.stock).toBe(26)
+    const mv = await db.stockMoves.where('refId').equals(r.id).first()
+    expect(mv).toMatchObject({ qty: 24, before: 2, after: 26 })
+  })
+
   it('partial then full refund: statuses, totals, stock back with moves', async () => {
     const sale = await sell(cartWith([[milk, 2], [bread, 1]]))        // 2500
     expect((await db.products.get('p1'))!.stock).toBe(8)

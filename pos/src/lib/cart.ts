@@ -1,5 +1,5 @@
 // The shopping cart and its arithmetic. Pure functions: the store and the tests both use them.
-import type { Product, TaxSettings, SaleItem } from '../db/types'
+import { productPrice, type CustomerTier, type Product, type ProductPack, type TaxSettings, type SaleItem } from '../db/types'
 import { round } from './money'
 
 export interface CartLine {
@@ -17,9 +17,14 @@ export interface CartLine {
   taxRate: number         // percent
   allowFraction: boolean
   trackStock: boolean
-  stock: number           // stock at the time it was added (for warnings)
+  stock: number           // stock at the time it was added (for warnings), in base units
   note?: string
+  unitsPerQty?: number    // a pack line: base units per qty
+  packName?: string
 }
+
+/** Base units a line takes from stock. */
+export const lineUnits = (l: Pick<CartLine, 'qty' | 'unitsPerQty'>): number => round(l.qty * (l.unitsPerQty ?? 1), 3)
 
 export interface Cart {
   lines: CartLine[]
@@ -47,11 +52,20 @@ export const emptyCart = (): Cart => ({ lines: [], discount: 0 })
 let keySeq = 0
 export const lineKey = (): string => `${Date.now().toString(36)}-${(keySeq++).toString(36)}`
 
-export function lineFromProduct(p: Product, qty = 1, defaultTaxRate = 0): CartLine {
+export interface LineOptions {
+  /** Sell one of the product's packs instead of the base unit. */
+  pack?: ProductPack
+  /** Wholesale customers get the wholesale price (packs keep their own price). */
+  tier?: CustomerTier | null
+}
+export function lineFromProduct(p: Product, qty = 1, defaultTaxRate = 0, o: LineOptions = {}): CartLine {
+  const pack = o.pack && o.pack.qty > 0 ? o.pack : undefined
+  const price = pack ? pack.price : productPrice(p, o.tier)
   return {
-    key: lineKey(), productId: p.id, name: p.name, barcode: p.barcodes[0], unit: p.unit,
-    price: p.price, originalPrice: p.price, qty, cost: p.cost, discount: 0,
-    taxRate: p.taxRate ?? defaultTaxRate, allowFraction: p.allowFraction, trackStock: p.trackStock, stock: p.stock,
+    key: lineKey(), productId: p.id, name: p.name, barcode: pack?.barcode || p.barcodes[0], unit: pack ? pack.name : p.unit,
+    price, originalPrice: price, qty, cost: pack ? round(p.cost * pack.qty, 4) : p.cost, discount: 0,
+    taxRate: p.taxRate ?? defaultTaxRate, allowFraction: pack ? false : p.allowFraction, trackStock: p.trackStock, stock: p.stock,
+    unitsPerQty: pack ? pack.qty : undefined, packName: pack?.name,
   }
 }
 
@@ -61,7 +75,8 @@ export function lineTotal(l: CartLine, decimals: number): number {
 
 /** Adds a product: a line with the same product and price grows, anything else is a new line. */
 export function addToCart(cart: Cart, line: CartLine): Cart {
-  const i = cart.lines.findIndex(l => l.productId && l.productId === line.productId && l.price === line.price && !l.note && !line.note && l.discount === 0 && line.discount === 0)
+  const i = cart.lines.findIndex(l => l.productId && l.productId === line.productId && l.price === line.price && !l.note && !line.note && l.discount === 0 && line.discount === 0
+    && (l.unitsPerQty ?? 1) === (line.unitsPerQty ?? 1) && (l.packName ?? '') === (line.packName ?? ''))
   if (i >= 0) {
     const lines = cart.lines.slice()
     lines[i] = { ...lines[i], qty: round(lines[i].qty + line.qty, 3) }
@@ -121,6 +136,7 @@ export function toSaleItems(cart: Cart, totals: Totals, decimals: number): SaleI
       productId: l.productId, name: l.name, barcode: l.barcode, unit: l.unit, qty: l.qty,
       price: l.price, originalPrice: l.originalPrice, cost: l.cost, discount: l.discount,
       taxRate: l.taxRate, tax: t?.tax ?? 0, total: lineTotal(l, decimals), note: l.note,
+      unitsPerQty: l.unitsPerQty && l.unitsPerQty !== 1 ? l.unitsPerQty : undefined, packName: l.packName,
     }
   })
 }

@@ -1,7 +1,7 @@
 // The product side of the sales screen: search / scan bar, category chips and the tappable grid.
 import { useRef, type RefObject } from 'react'
 import { Camera, Star, PackagePlus, Package, SearchX, Sparkles, Clock } from 'lucide-react'
-import type { Product, Category, Settings } from '../../db/types'
+import { productPrice, type CustomerTier, type ProductPack, type Product, type Category, type Settings } from '../../db/types'
 import { useT } from '../../i18n'
 import { Button, SearchInput, Empty, Badge, colorFor, useIsMobile } from '../../components/ui'
 import { formatMoney, formatQty } from '../../lib/money'
@@ -18,6 +18,10 @@ export interface ProductsPanelProps {
   onCategory: (id: string) => void
   onPick: (p: Product) => void
   onPickQty: (p: Product) => void
+  /** One of the product's packs (carton, box) was tapped. */
+  onPickPack: (p: Product, pack: ProductPack) => void
+  /** Prices on the cards follow the cart customer's tier. */
+  tier?: CustomerTier
   onScan: () => void
   onCustom: () => void
   onQuickAdd: (name: string) => void
@@ -75,7 +79,7 @@ export function ProductsPanel(p: ProductsPanelProps) {
           } />
         ) : (
           <div className="product-grid">
-            {products.map(pr => <ProductCard key={pr.id} p={pr} settings={settings} inCart={p.inCart.get(pr.id) ?? 0} onPick={p.onPick} onPickQty={p.onPickQty} />)}
+            {products.map(pr => <ProductCard key={pr.id} p={pr} settings={settings} inCart={p.inCart.get(pr.id) ?? 0} onPick={p.onPick} onPickQty={p.onPickQty} onPickPack={p.onPickPack} tier={p.tier} />)}
           </div>
         )}
       </div>
@@ -86,7 +90,7 @@ export function ProductsPanel(p: ProductsPanelProps) {
 
 const LONG_PRESS_MS = 450
 
-function ProductCard({ p, settings, inCart, onPick, onPickQty }: { p: Product; settings: Settings; inCart: number; onPick: (p: Product) => void; onPickQty: (p: Product) => void }) {
+function ProductCard({ p, settings, inCart, onPick, onPickQty, onPickPack, tier }: { p: Product; settings: Settings; inCart: number; onPick: (p: Product) => void; onPickQty: (p: Product) => void; onPickPack: (p: Product, pack: ProductPack) => void; tier?: CustomerTier }) {
   const t = useT()
   const timer = useRef<number | undefined>(undefined)
   const fired = useRef(false)
@@ -111,6 +115,9 @@ function ProductCard({ p, settings, inCart, onPick, onPickQty }: { p: Product; s
   const low = p.trackStock && !out && p.lowStock > 0 && remaining <= p.lowStock
   const color = p.color || colorFor(p.name)
   const showStock = p.trackStock && settings.pos.showStockOnCards
+  const price = productPrice(p, tier)
+  const wholesale = price !== p.price
+  const packs = (p.packs ?? []).filter(k => k.qty > 0 && k.name.trim()).slice(0, 3)
   return (
     <button
       type="button"
@@ -129,7 +136,18 @@ function ProductCard({ p, settings, inCart, onPick, onPickQty }: { p: Product; s
       )}
       <div className="info">
         <div className="name">{p.name}</div>
-        <div className="price num">{formatMoney(p.price, settings.currency)}</div>
+        <div className="price num">{formatMoney(price, settings.currency)}{wholesale && <span className="tier-tag">{t('sales.wholesaleTag')}</span>}</div>
+        {packs.length > 0 && (
+          <div className="packs" onPointerDown={e => e.stopPropagation()} onClick={e => e.stopPropagation()}>
+            {packs.map(k => (
+              <span key={k.id} role="button" tabIndex={0} className="pack" title={`${k.name} × ${formatQty(k.qty)}`}
+                onClick={e => { e.stopPropagation(); onPickPack(p, k) }}
+                onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.stopPropagation(); onPickPack(p, k) } }}>
+                <Package size={11} /> {k.name} <span className="num">×{formatQty(k.qty)}</span> · <span className="num">{formatMoney(k.price, settings.currency, { symbol: false })}</span>
+              </span>
+            ))}
+          </div>
+        )}
       </div>
     </button>
   )

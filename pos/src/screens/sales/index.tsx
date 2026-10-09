@@ -5,8 +5,9 @@ import { useNavigate } from 'react-router-dom'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { ShoppingCart } from 'lucide-react'
 import { db } from '../../db'
-import type { Customer, HeldTicket, Product, Sale } from '../../db/types'
-import { type Cart, type CartLine, computeTotals, lineKey, lineFromProduct } from '../../lib/cart'
+import type { Customer, HeldTicket, Product, Sale, ProductPack, CustomerTier } from '../../db/types'
+import { productPrice } from '../../db/types'
+import { type Cart, type CartLine, computeTotals, lineKey, lineFromProduct, lineUnits } from '../../lib/cart'
 import { useStore, toast, confirmDialog } from '../../state/store'
 import { useT } from '../../i18n'
 import { beep } from '../../lib/audio'
@@ -26,7 +27,7 @@ import { CartPanel, CartHeadActions } from './CartPanel'
 import { PaymentModal } from './PaymentModal'
 import { DoneDialog } from './DoneDialog'
 import { LineEditorDialog, DiscountDialog, NoteDialog, QtyDialog, CustomItemDialog, HoldDialog, HeldTicketsDialog, CustomerPickerDialog, QuickAddDialog } from './dialogs'
-import { filterProducts, sortProducts, findByBarcode, resolveEntry, availableQty } from './search'
+import { filterProducts, sortProducts, findByBarcode, findPackByBarcode, resolveEntry, availableQty } from './search'
 import './i18n'
 import './sales.css'
 
@@ -63,7 +64,6 @@ export default function SalesScreen() {
   const users = useStore(s => s.users)
   const shift = useStore(s => s.shift)
   const cart = useStore(s => s.cart)
-  const addProduct = useStore(s => s.addProduct)
   const addLine = useStore(s => s.addLine)
   const setCartRedeem = useStore(s => s.setCartRedeem)
   const setQty = useStore(s => s.setQty)
@@ -92,8 +92,23 @@ export default function SalesScreen() {
   const categories = useLiveQuery(() => db.categories.orderBy('sort').toArray(), []) ?? []
   const heldCount = useLiveQuery(() => db.heldTickets.count(), []) ?? 0
   const customer = useLiveQuery<Customer | undefined>(() => (cart.customerId ? db.customers.get(cart.customerId) : Promise.resolve(undefined)), [cart.customerId])
+  const tier: CustomerTier = customer?.tier === 'wholesale' ? 'wholesale' : 'retail'
 
   const activeProducts = useMemo(() => sortProducts((allProducts ?? []).filter(p => p.active)), [allProducts])
+  // the customer changed tier (or was picked / removed): lines at the list price follow, overridden ones stay
+  const lastTier = useRef(tier)
+  useEffect(() => {
+    if (lastTier.current === tier) return
+    lastTier.current = tier
+    const { cart, patchLine } = useStore.getState()
+    for (const l of cart.lines) {
+      if (!l.productId || l.unitsPerQty || l.price !== l.originalPrice) continue
+      const p = activeProducts.find(x => x.id === l.productId)
+      if (!p) continue
+      const price = productPrice(p, tier)
+      if (price !== l.price) patchLine(l.key, { price, originalPrice: price })
+    }
+  }, [tier, activeProducts])
   const visible = useMemo(() => (allProducts === undefined ? undefined : filterProducts(activeProducts, q, { categoryId: category !== 'all' && category !== 'fav' ? category : undefined, favorites: category === 'fav' })), [allProducts, activeProducts, q, category])
   const totals = useMemo(() => computeTotals(cart, settings.tax, d), [cart, settings.tax, d])
   const inCart = useMemo(() => {
@@ -117,17 +132,19 @@ export default function SalesScreen() {
     for (let i = lines.length - 1; i >= 0; i--) if (find(lines[i])) { setFlash({ key: lines[i].key, seq: ++flashSeq.current }); return }
   }, [])
 
-  /** Adds a product to the cart, respecting the stock rule. Returns whether it went in. */
-  const addToCart = useCallback((p: Product, qty = 1, source: 'tap' | 'scan' = 'tap'): boolean => {
-    const have = useStore.getState().cart.lines.filter(l => l.productId === p.id).reduce((s, l) => s + l.qty, 0)
+  /** Adds a product (or one of its packs) to the cart, respecting the stock rule in base units. Returns whether it went in. */
+  const addToCart = useCallback((p: Product, qty = 1, source: 'tap' | 'scan' = 'tap', pack?: ProductPack): boolean => {
+    const have = useStore.getState().cart.lines.filter(l => l.productId === p.id).reduce((s, l) => s + lineUnits(l), 0)
     const avail = availableQty(p, have, settings.pos.allowNegativeStock)
+    const units = qty * (pack?.qty ?? 1)
     if (avail <= 0) { toast(t('sales.outOfStock', { name: p.name }), 'warn'); beep('error'); return false }
-    if (qty > avail) { toast(t('sales.notEnoughStock', { name: p.name, n: formatQty(avail) }), 'warn'); beep('error'); return false }
-    addProduct(p, qty)
+    if (units > avail) { toast(t('sales.notEnoughStock', { name: p.name, n: formatQty(avail) }), 'warn'); beep('error'); return false }
+    const line = lineFromProduct(p, qty, settings.tax.rate, { pack, tier })
+    addLine(line)
     if (source === 'scan') beep('scan')
-    flashLine(l => l.productId === p.id && l.price === p.price && !l.note && l.discount === 0)
+    flashLine(l => l.productId === p.id && l.price === line.price && (l.packName ?? '') === (pack?.name ?? '') && !l.note && l.discount === 0)
     return true
-  }, [addProduct, flashLine, settings.pos.allowNegativeStock, t])
+  }, [addLine, flashLine, settings.pos.allowNegativeStock, settings.tax.rate, tier, t])
 
   /** A barcode printed by a label scale: the PLU names the product, the digits carry the weight or the price. */
   const handleScaleCode = useCallback((code: string): boolean => {
@@ -153,6 +170,8 @@ export default function SalesScreen() {
     if (!code) return false
     const p = findByBarcode(activeProducts, code)
     if (p) { addToCart(p, 1, 'scan'); return true }
+    const pk = findPackByBarcode(activeProducts, code)
+    if (pk) { addToCart(pk.product, 1, 'scan', pk.pack); return true }
     if (handleScaleCode(code)) return true
     beep('error')
     toast(t('sales.unknownBarcode'), 'warn')
@@ -164,7 +183,11 @@ export default function SalesScreen() {
 
   const onSearchEnter = (text: string) => {
     const a = resolveEntry(text, activeProducts)
-    if (a.kind === 'quickAdd' && a.barcode && handleScaleCode(a.barcode)) { setSearch(''); return }
+    if (a.kind === 'quickAdd' && a.barcode) {
+      const pk = findPackByBarcode(activeProducts, a.barcode)
+      if (pk) { if (addToCart(pk.product, 1, 'scan', pk.pack)) setSearch(''); return }
+      if (handleScaleCode(a.barcode)) { setSearch(''); return }
+    }
     if (a.kind === 'product') {
       if (addToCart(a.product, 1, a.scanned ? 'scan' : 'tap')) setSearch('')
     } else if (a.kind === 'quickAdd') {
@@ -296,6 +319,8 @@ export default function SalesScreen() {
         category={category} onCategory={setCategory}
         onPick={onPick}
         onPickQty={p => openDialog({ kind: 'qty', product: p })}
+        onPickPack={(p, pack) => { if (addToCart(p, 1, 'tap', pack) && !isMobile) focusSearch() }}
+        tier={tier}
         onScan={() => openDialog({ kind: 'scanner' })}
         onCustom={() => openDialog({ kind: 'custom' })}
         onQuickAdd={name => openDialog({ kind: 'quickAdd', name })}

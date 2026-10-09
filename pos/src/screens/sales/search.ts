@@ -1,5 +1,5 @@
 // Finding products the way a cashier types: Arabic-friendly, by name / barcode / sku. Pure, tested.
-import type { Product } from '../../db/types'
+import type { Product, ProductPack } from '../../db/types'
 import { cleanBarcode, looksLikeBarcode } from '../../lib/barcode'
 
 const AR_DIGITS = '٠١٢٣٤٥٦٧٨٩'
@@ -55,6 +55,19 @@ export function findByBarcode(products: Product[], code: string): Product | unde
   const c = cleanBarcode(code)
   if (!c) return undefined
   return products.find(p => p.active && p.barcodes.includes(c)) ?? products.find(p => p.active && p.barcodes.some(b => b.toLowerCase() === c.toLowerCase()))
+}
+
+/** A pack's own barcode (the carton code printed by the maker). */
+export function findPackByBarcode(products: Product[], code: string): { product: Product; pack: ProductPack } | undefined {
+  const c = cleanBarcode(code)
+  if (!c) return undefined
+  const lc = c.toLowerCase()
+  for (const p of products) {
+    if (!p.active || !p.packs?.length) continue
+    const pack = p.packs.find(k => k.barcode && k.qty > 0 && k.barcode.toLowerCase() === lc)
+    if (pack) return { product: p, pack }
+  }
+  return undefined
 }
 
 /** A whole code as a scanner would type it (8+ digits, or a long alphanumeric code). */

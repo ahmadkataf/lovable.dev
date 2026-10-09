@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../../db'
-import type { Customer } from '../../db/types'
+import type { Customer, CustomerTier } from '../../db/types'
 import { useT } from '../../i18n'
 import { Button, Field, Input, Modal, NumberInput, Seg, Textarea } from '../../components/ui'
 import { applyLedger } from '../../lib/ledger'
@@ -33,6 +33,7 @@ export function CustomerForm({ open, onClose, onSaved, customer, initial }: Cust
   const [phone, setPhone] = useState('')
   const [address, setAddress] = useState('')
   const [notes, setNotes] = useState('')
+  const [tier, setTier] = useState<CustomerTier>('retail')
   const [openingKind, setOpeningKind] = useState<'owes' | 'has'>('owes')
   const [opening, setOpening] = useState<number | ''>('')
   const [err, setErr] = useState<string | null>(null)
@@ -45,6 +46,7 @@ export function CustomerForm({ open, onClose, onSaved, customer, initial }: Cust
     setPhone(customer?.phone ?? (looksLikePhone ? initial!.trim() : ''))
     setAddress(customer?.address ?? '')
     setNotes(customer?.notes ?? '')
+    setTier(customer?.tier === 'wholesale' ? 'wholesale' : 'retail')
     setOpeningKind('owes'); setOpening(''); setErr(null); setBusy(false)
     // keyed on the id: the live customer object changes identity on every balance change
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -63,7 +65,7 @@ export function CustomerForm({ open, onClose, onSaved, customer, initial }: Cust
     setBusy(true)
     try {
       const now = Date.now()
-      const fields = { name: nm, phone: phone.trim() || undefined, address: address.trim() || undefined, notes: notes.trim() || undefined }
+      const fields = { name: nm, phone: phone.trim() || undefined, address: address.trim() || undefined, notes: notes.trim() || undefined, tier: tier === 'wholesale' ? ('wholesale' as const) : undefined }
       let saved: Customer
       if (customer) {
         await db.customers.update(customer.id, { ...fields, updatedAt: now })
@@ -100,6 +102,9 @@ export function CustomerForm({ open, onClose, onSaved, customer, initial }: Cust
         </Field>
         <Field label={`${t('customers.form.address')} (${t('common.optional')})`}>
           <Input value={address} onChange={e => setAddress(e.target.value)} maxLength={120} autoComplete="off" />
+        </Field>
+        <Field label={t('customers.form.tier')} hint={t('customers.form.tierHint')}>
+          <Seg value={tier} onChange={setTier} options={[{ value: 'retail', label: t('customers.tier.retail') }, { value: 'wholesale', label: t('customers.tier.wholesale') }]} />
         </Field>
         <Field label={`${t('customers.form.notes')} (${t('common.optional')})`}>
           <Textarea value={notes} onChange={e => setNotes(e.target.value)} maxLength={500} rows={2} style={{ minHeight: 64 }} />

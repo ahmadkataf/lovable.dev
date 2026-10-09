@@ -8,7 +8,7 @@
 //   credit    what went on the customer's account
 import { db, nextNumber } from '../db'
 import type { Sale, Payment, PaymentMethod, User, Shift, Settings, FxPayment } from '../db/types'
-import { toSaleItems, type Cart, type Totals } from './cart'
+import { toSaleItems, type Cart, type Totals, lineUnits } from './cart'
 import { applyStock } from './stock'
 import { applyLedger } from './ledger'
 import { uid } from './ids'
@@ -86,7 +86,7 @@ export async function completeSale(input: CompleteSaleInput): Promise<Sale> {
   const sale = await db.transaction('rw', [db.sales, db.products, db.stockMoves, db.customers, db.ledger, db.kv], async () => {
     if (!settings.pos.allowNegativeStock) {
       const need = new Map<string, number>()
-      for (const l of cart.lines) if (l.productId) need.set(l.productId, round((need.get(l.productId) ?? 0) + l.qty, 3))
+      for (const l of cart.lines) if (l.productId) need.set(l.productId, round((need.get(l.productId) ?? 0) + lineUnits(l), 3))
       for (const [productId, qty] of need) {
         const p = await db.products.get(productId)
         if (p && p.trackStock && round(p.stock - qty, 3) < 0) throw new SaleError('sales.err.outOfStock', { name: p.name })
@@ -132,7 +132,7 @@ export async function completeSale(input: CompleteSaleInput): Promise<Sale> {
       note: cart.note,
     }
     await applyStock(
-      cart.lines.filter(l => l.productId).map(l => ({ productId: l.productId!, qty: -l.qty, type: 'sale' as const, refId: sale.id, userId: user.id })),
+      cart.lines.filter(l => l.productId).map(l => ({ productId: l.productId!, qty: -lineUnits(l), type: 'sale' as const, refId: sale.id, userId: user.id })),
       at,
     )
     if (credit > 0) {

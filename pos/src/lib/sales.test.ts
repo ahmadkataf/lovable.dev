@@ -27,6 +27,26 @@ beforeEach(async () => {
 })
 
 describe('completeSale', () => {
+  it('a carton takes 24 pieces off the stock and is refused when they are not there', async () => {
+    const carton = { id: 'k1', name: 'كرتونة', qty: 24, price: 20000 }
+    await db.products.put({ ...milk, stock: 30, packs: [carton] })
+    const prod = (await db.products.get('p1'))!
+    let cart = addToCart(emptyCart(), lineFromProduct(prod, 1, 0, { pack: carton }))
+    cart = addToCart(cart, lineFromProduct(prod, 2))
+    const s = await sell(cart)
+    expect(s.total).toBe(22000); expect(s.cost).toBe(19200 + 1600)
+    expect(s.items[0]).toMatchObject({ qty: 1, unitsPerQty: 24, packName: 'كرتونة' })
+    expect((await db.products.get('p1'))!.stock).toBe(4)
+    const moves = await db.stockMoves.where('refId').equals(s.id).sortBy('qty')
+    expect(moves.map(m => m.qty)).toEqual([-24, -2])
+    // 4 left: another carton does not fit
+    const strict: Settings = { ...settings, pos: { ...settings.pos, allowNegativeStock: false } }
+    const again = addToCart(emptyCart(), lineFromProduct(prod, 1, 0, { pack: carton }))
+    const totals = computeTotals(again, strict.tax, 0)
+    await expect(completeSale({ cart: again, totals, payments: [{ method: 'cash', amount: totals.total }], paid: totals.total, change: 0, credit: 0, user, shift: null, settings: strict })).rejects.toMatchObject({ key: 'sales.err.outOfStock' })
+    expect((await db.products.get('p1'))!.stock).toBe(4)
+  })
+
   it('writes the sale, decreases stock and numbers receipts 1, 2, 3', async () => {
     const s1 = await sell(cartWith([[milk, 2], [bread, 1]]))
     const s2 = await sell(cartWith([[bread, 3]]))

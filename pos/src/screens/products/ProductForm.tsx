@@ -1,9 +1,9 @@
 // New / edit product: the modal form with barcodes (typed, scanned or generated), pricing, stock, unit and looks.
 import { useEffect, useRef, useState, type FormEvent, type KeyboardEvent } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
-import { Camera, Plus, X, Wand2, Image as ImageIcon, Trash2, MoreVertical, Copy, Printer, AlertTriangle, Smile } from 'lucide-react'
+import { Camera, Plus, X, Wand2, Image as ImageIcon, Trash2, MoreVertical, Copy, Printer, AlertTriangle, Smile, Package } from 'lucide-react'
 import { db, nextNumber } from '../../db'
-import type { Category, Product } from '../../db/types'
+import type { Category, Product, ProductPack } from '../../db/types'
 import { useT } from '../../i18n'
 import { Modal, Button, Input, Textarea, Select, Field, SwitchRow, Avatar, Spinner, useIsMobile } from '../../components/ui'
 import { ScannerModal } from '../../components/Scanner'
@@ -23,16 +23,18 @@ import { Menu } from './Menu'
 import { deleteProduct, findBarcodeConflicts } from './actions'
 import { LabelsDialog } from './LabelsDialog'
 
+interface PackDraft { id: string; name: string; qty: string; price: string; barcode: string }
 interface FormState {
   name: string; barcodes: string[]; sku: string; categoryId: string; price: string; cost: string
   trackStock: boolean; stock: string; lowStock: string; unit: string; unitOther: string; allowFraction: boolean
   taxRate: string; color: string; emoji: string; image: string; favorite: boolean; active: boolean; notes: string; expiry: string
+  wholesalePrice: string; packs: PackDraft[]
 }
 const num = (n: number | undefined): string => (n === undefined || n === null || !Number.isFinite(n) ? '' : String(n))
 const emptyForm = (): FormState => ({
   name: '', barcodes: [], sku: '', categoryId: '', price: '', cost: '', trackStock: false, stock: '0', lowStock: '0',
   unit: 'piece', unitOther: '', allowFraction: false, taxRate: '', color: PRODUCT_COLORS[Math.floor(Math.random() * PRODUCT_COLORS.length)],
-  emoji: '', image: '', favorite: false, active: true, notes: '', expiry: '',
+  emoji: '', image: '', favorite: false, active: true, notes: '', expiry: '', wholesalePrice: '', packs: [],
 })
 function fromProduct(p: Product): FormState {
   const known = (UNIT_KEYS as readonly string[]).includes(p.unit)
@@ -41,6 +43,8 @@ function fromProduct(p: Product): FormState {
     trackStock: p.trackStock, stock: num(p.stock), lowStock: num(p.lowStock), unit: known ? p.unit : 'other', unitOther: known ? '' : p.unit,
     allowFraction: p.allowFraction, taxRate: num(p.taxRate), color: p.color ?? PRODUCT_COLORS[0], emoji: p.emoji ?? '', image: p.image ?? '',
     favorite: p.favorite, active: p.active, notes: p.notes ?? '', expiry: p.expiry ? toDateInput(p.expiry) : '',
+    wholesalePrice: p.wholesalePrice ? num(p.wholesalePrice) : '',
+    packs: (p.packs ?? []).map(k => ({ id: k.id, name: k.name, qty: num(k.qty), price: num(k.price), barcode: k.barcode ?? '' })),
   }
 }
 
@@ -99,7 +103,7 @@ export function ProductForm({ open, productId, duplicateFrom, presetBarcode, onC
         if (cancelled) return
         setLoading(false)
         setOriginal(null)
-        setForm(p ? { ...fromProduct(p), name: `${p.name} (${t('products.copySuffix')})`, barcodes: [], sku: '', stock: '0' } : emptyForm())
+        setForm(p ? { ...fromProduct(p), name: `${p.name} (${t('products.copySuffix')})`, barcodes: [], sku: '', stock: '0', packs: (p.packs ?? []).map(k => ({ id: uid(), name: k.name, qty: num(k.qty), price: num(k.price), barcode: '' })) } : emptyForm())
       } else {
         setOriginal(null)
         const code = presetBarcode ? cleanBarcode(presetBarcode) : ''
@@ -179,7 +183,17 @@ export function ProductForm({ open, productId, duplicateFrom, presetBarcode, onC
     if (form.trackStock && form.stock.trim() !== '' && !Number.isFinite(parseNumber(form.stock))) errs.stock = t('products.err.stock')
     setErrors(errs)
     if (Object.keys(errs).length) { nameRef.current?.focus(); return }
-    const conflicts = await findBarcodeConflicts(form.barcodes, productId)
+    const wholesale = form.wholesalePrice.trim() === '' ? 0 : parseNumber(form.wholesalePrice)
+    const packs: ProductPack[] = []
+    for (const k of form.packs) {
+      const name = k.name.trim(); const qty = k.qty.trim() === '' ? 0 : parseNumber(k.qty); const pprice = k.price.trim() === '' ? NaN : parseNumber(k.price)
+      if (!name && !k.qty && !k.price && !k.barcode.trim()) continue   // an empty row
+      if (!name || !(qty > 0) || !Number.isFinite(pprice) || pprice < 0) { toast(t('products.packErr'), 'warn'); return }
+      const barcode = cleanBarcode(k.barcode)
+      if (barcode && (form.barcodes.includes(barcode) || packs.some(x => x.barcode === barcode))) { toast(t('products.barcodeAlready'), 'warn'); return }
+      packs.push({ id: k.id || uid(), name, qty: round(qty, 3), price: round(pprice, d), barcode: barcode || undefined })
+    }
+    const conflicts = await findBarcodeConflicts([...form.barcodes, ...packs.map(k => k.barcode ?? '').filter(Boolean)], productId)
     if (conflicts.length) {
       setDups(Object.fromEntries(conflicts.map(c => [c.code, c.product.name])))
       toast(t('products.barcodeUsedBy', { name: conflicts[0].product.name }), 'error')
@@ -198,6 +212,7 @@ export function ProductForm({ open, productId, duplicateFrom, presetBarcode, onC
         trackStock: form.trackStock, lowStock, unit, allowFraction: form.allowFraction, taxRate,
         color: form.color || undefined, emoji: form.emoji || undefined, image: form.image || undefined,
         favorite: form.favorite, active: form.active, notes: form.notes.trim() || undefined, expiry: form.expiry ? fromDateInput(form.expiry) : undefined, updatedAt: now,
+        wholesalePrice: wholesale > 0 ? round(wholesale, d) : undefined, packs: packs.length ? packs : undefined,
       }
       if (original) {
         const saved: Product = { ...original, ...base, stock: original.stock }
@@ -345,6 +360,9 @@ export function ProductForm({ open, productId, duplicateFrom, presetBarcode, onC
                 <Input ltr inputMode={d > 0 ? 'decimal' : 'numeric'} value={form.cost} onChange={e => set('cost', e.target.value)} onFocus={e => e.target.select()} placeholder="0" />
               </Field>
             )}
+            <Field label={t('products.wholesalePrice')} hint={t('products.wholesalePriceHint')}>
+              <Input ltr inputMode={d > 0 ? 'decimal' : 'numeric'} value={form.wholesalePrice} onChange={e => set('wholesalePrice', e.target.value)} onFocus={e => e.target.select()} placeholder={t('common.optional')} />
+            </Field>
             <Field label={t('products.unit')}>
               <div className="col" style={{ gap: 6 }}>
                 <Select value={form.unit} onChange={e => set('unit', e.target.value)}>
@@ -376,6 +394,31 @@ export function ProductForm({ open, productId, duplicateFrom, presetBarcode, onC
             <SwitchRow label={t('products.allowFraction')} desc={t('products.allowFractionDesc')} on={form.allowFraction} onChange={v => set('allowFraction', v)} />
             <SwitchRow label={t('products.favorite')} desc={t('products.favoriteDesc')} on={form.favorite} onChange={v => set('favorite', v)} />
             {original && <SwitchRow label={t('common.active')} desc={t('products.activeDesc')} on={form.active} onChange={v => set('active', v)} />}
+          </div>
+
+          <div className="card flat pad pr-packs">
+            <div className="row between" style={{ gap: 8 }}>
+              <div>
+                <div className="bold"><Package size={15} style={{ verticalAlign: -2 }} /> {t('products.packs')}</div>
+                <div className="small muted">{t('products.packsHint', { unit: form.unit === 'other' ? form.unitOther || t('products.unitOther') : unitLabel(form.unit) })}</div>
+              </div>
+              <Button size="sm" variant="soft" icon={<Plus size={16} />} onClick={() => set('packs', [...form.packs, { id: uid(), name: '', qty: '', price: '', barcode: '' }])}>{t('products.packAdd')}</Button>
+            </div>
+            {form.packs.map((k, i) => {
+              const upd = (patch: Partial<PackDraft>) => set('packs', form.packs.map((x, j) => (j === i ? { ...x, ...patch } : x)))
+              const qty = k.qty.trim() === '' ? 0 : parseNumber(k.qty); const pp = k.price.trim() === '' ? NaN : parseNumber(k.price)
+              const perUnit = qty > 0 && Number.isFinite(pp) ? pp / qty : null
+              return (
+                <div key={k.id} className="pr-pack">
+                  <Input value={k.name} onChange={e => upd({ name: e.target.value })} placeholder={t('products.packNamePh')} maxLength={24} aria-label={t('products.packName')} />
+                  <Input ltr inputMode="numeric" value={k.qty} onChange={e => upd({ qty: e.target.value })} placeholder={t('products.packQty')} aria-label={t('products.packQty')} />
+                  <Input ltr inputMode={d > 0 ? 'decimal' : 'numeric'} value={k.price} onChange={e => upd({ price: e.target.value })} placeholder={t('products.packPrice')} aria-label={t('products.packPrice')} />
+                  <Input ltr value={k.barcode} onChange={e => upd({ barcode: e.target.value })} placeholder={t('products.packBarcode')} aria-label={t('products.packBarcode')} inputMode="text" autoComplete="off" data-no-wedge="" />
+                  <Button variant="ghost" size="sm" iconOnly icon={<X size={16} />} onClick={() => set('packs', form.packs.filter((_, j) => j !== i))} aria-label={t('common.delete')} />
+                  {perUnit !== null && <div className="small muted num pr-pack-hint">{t('products.packPerUnit', { price: formatMoney(round(perUnit, d), settings.currency) })}{price > 0 && perUnit < price ? ` · ${t('products.packSaves', { pct: formatNumber(round((1 - perUnit / price) * 100, 1), 1, { trim: true }) })}` : ''}</div>}
+                </div>
+              )
+            })}
           </div>
 
           <Field label={t('products.expiry')} hint={t('products.expiryHint')}>

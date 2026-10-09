@@ -45,9 +45,11 @@ export async function findBarcodeConflicts(codes: string[], exceptId?: string): 
   const clean = [...new Set(codes.map(cleanBarcode).filter(Boolean))]
   if (!clean.length) return []
   const owners = await db.products.where('barcodes').anyOf(clean).toArray()
+  // pack barcodes are not indexed: one scan of the products that have packs
+  const packOwners = await db.products.filter(p => !!p.packs?.some(k => !!k.barcode && clean.includes(k.barcode))).toArray()
   const out: BarcodeConflict[] = []
   for (const code of clean) {
-    const owner = owners.find(p => p.id !== exceptId && p.barcodes.includes(code))
+    const owner = owners.find(p => p.id !== exceptId && p.barcodes.includes(code)) ?? packOwners.find(p => p.id !== exceptId && p.packs?.some(k => k.barcode === code))
     if (owner) out.push({ code, product: owner })
   }
   return out

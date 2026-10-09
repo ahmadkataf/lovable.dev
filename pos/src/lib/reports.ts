@@ -164,7 +164,7 @@ export function topProducts(sales: Sale[], refunds: Refund[], n = 20, opts: Repo
     const ratio = s.subtotal > 0 ? s.total / s.subtotal : 1
     for (const it of s.items) {
       const a = get(it.productId, it.name)
-      a.qty += it.qty; a.revenue += it.total * ratio; a.cost += it.cost * it.qty
+      a.qty += it.qty * (it.unitsPerQty ?? 1); a.revenue += it.total * ratio; a.cost += it.cost * it.qty
       if (it.productId) a.name = it.name   // the latest name wins
     }
   }
@@ -172,10 +172,11 @@ export function topProducts(sales: Sale[], refunds: Refund[], n = 20, opts: Repo
     const sale = find(f.saleId)
     for (const ri of f.items) {
       const a = get(ri.productId, ri.name)
-      a.refundedQty += ri.qty; a.refunded += ri.total
+      const units = ri.unitsPerQty ?? 1
+      a.refundedQty += ri.qty * units; a.refunded += ri.total
       const it = sale ? matchSaleItem(sale, ri) : undefined
-      const unitCost = it ? it.cost : a.qty > 0 ? a.cost / a.qty : 0
-      a.refundedCost += unitCost * ri.qty
+      const unitCost = it ? it.cost / (it.unitsPerQty ?? 1) : a.qty > 0 ? a.cost / a.qty : 0
+      a.refundedCost += unitCost * ri.qty * units
     }
   }
   let sum = 0

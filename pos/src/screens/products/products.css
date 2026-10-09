@@ -92,3 +92,9 @@
 /* the barcode digits never get cut: the category shrinks instead */
 .p-sub { display: flex; align-items: center; gap: 4px; min-width: 0; }
 .p-sub .p-code { flex: none; }
+
+/* sale units (packs) editor */
+.pr-packs { display: flex; flex-direction: column; gap: 10px; }
+.pr-pack { display: grid; grid-template-columns: 1.3fr .7fr .9fr 1.2fr auto; gap: 6px; align-items: center; }
+.pr-pack .pr-pack-hint { grid-column: 1 / -1; margin-top: -2px; }
+@media (max-width: 640px) { .pr-pack { grid-template-columns: 1fr 1fr; } .pr-pack > :first-child { grid-column: 1 / 3; } }

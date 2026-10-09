@@ -70,12 +70,14 @@ export async function seed(): Promise<void> {
       id: uid(), name, barcodes: [ean(seedN)], price, cost, trackStock: true, stock: 0, lowStock: 5, unit: frac ? 'kg' : 'piece',
       allowFraction: !!frac, categoryId: byName[cat].id, color: byName[cat].color, emoji, favorite: i < 4, active: true,
       createdAt: now - 40 * 864e5, updatedAt: now - 40 * 864e5,
+      // the first two drinks come by the carton and have a wholesale price
+      ...(i < 2 ? { wholesalePrice: Math.round(price * 0.9), packs: [{ id: uid(), name: 'كرتونة', qty: i === 0 ? 6 : 24, price: Math.round(price * (i === 0 ? 6 : 24) * 0.92), barcode: ean(900 + i) }] } : {}),
     }
   })
   await db.products.bulkAdd(products)
   await applyStock(products.map((p, i) => ({ productId: p.id, qty: stocks[i], type: 'initial' as const, note: 'رصيد افتتاحي', userId: admin.id })), now - 40 * 864e5)
 
-  const customers: Customer[] = CUSTOMERS.map(([name, phone], i) => ({ id: uid(), name, phone: phone || undefined, balance: 0, points: i * 120, createdAt: now - 20 * 864e5, updatedAt: now - 20 * 864e5 }))
+  const customers: Customer[] = CUSTOMERS.map(([name, phone], i) => ({ id: uid(), name, phone: phone || undefined, balance: 0, points: i * 120, tier: name === 'مطعم الشام' ? ('wholesale' as const) : undefined, createdAt: now - 20 * 864e5, updatedAt: now - 20 * 864e5 }))
   await db.customers.bulkAdd(customers)
 
   // a closed shift last week and an open one today

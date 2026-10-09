@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
-import { emptyCart, addToCart, lineFromProduct, computeTotals, setLineQty, toSaleItems } from './cart'
-import type { Product } from '../db/types'
+import { emptyCart, addToCart, lineFromProduct, computeTotals, setLineQty, toSaleItems, lineUnits } from './cart'
+import { productPrice, type Product } from '../db/types'
 
 const p = (over: Partial<Product> = {}): Product => ({
   id: 'p1', name: 'Milk', barcodes: ['123'], price: 1000, cost: 800, trackStock: true, stock: 10, lowStock: 2, unit: 'piece',
@@ -56,5 +56,32 @@ describe('cart', () => {
     const c = addToCart(emptyCart(), lineFromProduct(p(), 2))
     const items = toSaleItems(c, computeTotals(c, noTax, 0), 0)
     expect(items[0]).toMatchObject({ productId: 'p1', qty: 2, total: 2000, cost: 800 })
+  })
+
+  it('sells packs: own price, stock in base units, merges only with the same pack', () => {
+    const carton = { id: 'k1', name: 'كرتونة', qty: 24, price: 20000, barcode: '999' }
+    const prod = p({ packs: [carton], wholesalePrice: 900 })
+    let c = addToCart(emptyCart(), lineFromProduct(prod, 1, 0, { pack: carton }))
+    c = addToCart(c, lineFromProduct(prod, 1, 0, { pack: carton }))
+    c = addToCart(c, lineFromProduct(prod, 3))
+    expect(c.lines).toHaveLength(2)
+    expect(c.lines[0]).toMatchObject({ qty: 2, price: 20000, unitsPerQty: 24, packName: 'كرتونة', unit: 'كرتونة', barcode: '999', allowFraction: false, cost: 19200 })
+    expect(lineUnits(c.lines[0])).toBe(48)
+    expect(c.lines[1]).toMatchObject({ qty: 3, price: 1000, cost: 800 })
+    expect(lineUnits(c.lines[1])).toBe(3)
+    const tot = computeTotals(c, noTax, 0)
+    expect(tot.subtotal).toBe(43000); expect(tot.cost).toBe(40800)
+    const items = toSaleItems(c, tot, 0)
+    expect(items[0]).toMatchObject({ unitsPerQty: 24, packName: 'كرتونة', qty: 2, total: 40000 })
+    expect(items[1].unitsPerQty).toBeUndefined()
+  })
+  it('prices by customer tier: wholesale when set, retail otherwise; packs keep their own price', () => {
+    const prod = p({ wholesalePrice: 900, packs: [{ id: 'k', name: 'box', qty: 6, price: 5500 }] })
+    expect(productPrice(prod, 'wholesale')).toBe(900)
+    expect(productPrice(prod, 'retail')).toBe(1000)
+    expect(productPrice(prod, undefined)).toBe(1000)
+    expect(productPrice(p({ wholesalePrice: 0 }), 'wholesale')).toBe(1000)
+    expect(lineFromProduct(prod, 1, 0, { tier: 'wholesale' })).toMatchObject({ price: 900, originalPrice: 900 })
+    expect(lineFromProduct(prod, 1, 0, { tier: 'wholesale', pack: prod.packs![0] })).toMatchObject({ price: 5500, originalPrice: 5500 })
   })
 })

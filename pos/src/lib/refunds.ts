@@ -159,7 +159,7 @@ export async function createRefund(input: CreateRefundInput): Promise<Refund> {
       const it = fresh.items[index]
       if (!it) throw new RefundError('refunds.err.badLine')
       if (qty > remaining[index] + EPS) throw new RefundError('refunds.err.overRefund', { name: it.name, qty: formatQty(remaining[index]) })
-      items.push({ productId: it.productId, name: it.name, qty, price: unitRefundPrice(fresh, index, d), total: refundLineTotal(fresh, index, qty, d) })
+      items.push({ productId: it.productId, name: it.name, qty, price: unitRefundPrice(fresh, index, d), total: refundLineTotal(fresh, index, qty, d), ...(it.unitsPerQty && it.unitsPerQty !== 1 ? { unitsPerQty: it.unitsPerQty } : {}) })
     }
     const allDone = remaining.every((r, i) => round(r - (want.get(i) ?? 0), 3) <= EPS)
     const left = refundableTotal(fresh, d)
@@ -178,7 +178,7 @@ export async function createRefund(input: CreateRefundInput): Promise<Refund> {
     }
     if (restock) {
       await applyStock(
-        items.filter(i => i.productId).map(i => ({ productId: i.productId!, qty: i.qty, type: 'refund' as const, refId: refund.id, note: `#${fresh.number}`, userId: user.id })),
+        items.filter(i => i.productId).map(i => ({ productId: i.productId!, qty: round(i.qty * (i.unitsPerQty ?? 1), 3), type: 'refund' as const, refId: refund.id, note: `#${fresh.number}`, userId: user.id })),
         at,
       )
     }

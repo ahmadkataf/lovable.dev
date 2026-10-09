@@ -11,6 +11,16 @@ export interface Category {
   createdAt: number
 }
 
+/** A selling unit bigger than the base one: a carton of 24, a box of 6. Stock stays in base units. */
+export interface ProductPack {
+  id: string
+  name: string         // "كرتونة", "علبة"
+  qty: number          // base units per pack
+  price: number        // price of one pack
+  barcode?: string     // the pack's own barcode, when it has one
+}
+export type CustomerTier = 'retail' | 'wholesale'
+
 export interface Product {
   id: ID
   name: string
@@ -32,8 +42,15 @@ export interface Product {
   active: boolean
   notes?: string
   expiry?: number      // ms (local midnight): the batch on the shelf expires then; undefined = not tracked
+  wholesalePrice?: number  // charged instead of `price` to wholesale customers; undefined/0 = same price
+  packs?: ProductPack[]
   createdAt: number
   updatedAt: number
+}
+
+/** The unit price for a customer tier: the wholesale price when there is one, else the retail price. */
+export function productPrice(p: Pick<Product, 'price' | 'wholesalePrice'>, tier?: CustomerTier | null): number {
+  return tier === 'wholesale' && p.wholesalePrice !== undefined && p.wholesalePrice > 0 ? p.wholesalePrice : p.price
 }
 
 /** Days until a product expires (negative = expired); null when not tracked. */
@@ -53,7 +70,7 @@ export interface Customer {
   notes?: string
   balance: number      // what the customer owes us (debt); negative = we owe them
   points?: number      // loyalty points
-  tier?: 'retail' | 'wholesale'
+  tier?: CustomerTier
   createdAt: number
   updatedAt: number
 }
@@ -84,6 +101,8 @@ export interface SaleItem {
   tax: number          // tax amount for the line (after the sale discount was spread)
   total: number        // qty * price - discount (before tax if tax is exclusive)
   note?: string
+  unitsPerQty?: number // a pack line: base units in each qty (stock moves by qty * unitsPerQty)
+  packName?: string
 }
 
 export type SaleStatus = 'completed' | 'refunded' | 'partial'
@@ -121,7 +140,7 @@ export interface Refund {
   saleId: ID
   saleNumber: number
   createdAt: number
-  items: { productId?: ID; name: string; qty: number; price: number; total: number }[]
+  items: { productId?: ID; name: string; qty: number; price: number; total: number; unitsPerQty?: number }[]
   total: number
   method: PaymentMethod   // how the money went back (credit = taken off the customer's debt)
   restock: boolean
