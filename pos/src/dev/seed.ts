@@ -122,6 +122,6 @@ export async function seed(): Promise<void> {
 }
 
 export function install(): void {
-  ;(window as any).__kasherSeed = async () => { await seed(); location.reload() }
+  ;(window as any).__kasebSeed = async () => { await seed(); location.reload() }
   void db.products.count().then(n => { if (n === 0) void seed().then(() => location.reload()) })
 }

@@ -1,8 +1,8 @@
 // Backup and restore: the whole database as one JSON file, plus the "delete everything" reset.
-// The file is { app: 'kasher', version: 1, exportedAt, tables: { <name>: rows[] } } for every name in TABLES.
+// The file is { app: 'kaseb', version: 1, exportedAt, tables: { <name>: rows[] } } for every name in TABLES.
 import { db, TABLES, ensureDefaults, type TableName } from '../db'
 
-export const BACKUP_APP = 'kasher'
+export const BACKUP_APP = 'kaseb'
 export const BACKUP_VERSION = 1
 /** db.kv key holding the time of the last successful export. */
 export const BACKUP_LAST_KEY = 'backup.last'
@@ -18,7 +18,7 @@ export interface BackupFile {
   tables: Partial<Record<TableName, unknown[]>>
 }
 export type BackupCounts = Record<TableName, number>
-export type BackupError = 'invalid_json' | 'not_kasher' | 'version' | 'no_tables' | 'bad_rows'
+export type BackupError = 'invalid_json' | 'not_kaseb' | 'version' | 'no_tables' | 'bad_rows'
 export interface BackupValidation {
   ok: boolean
   counts: BackupCounts
@@ -54,8 +54,8 @@ export function validateBackup(json: string): BackupValidation {
   try { parsed = JSON.parse(json) } catch { return fail('invalid_json') }
   if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return fail('invalid_json')
   const f = parsed as Record<string, unknown>
-  if (f.app !== BACKUP_APP) return fail('not_kasher')
-  if (typeof f.version !== 'number' || !Number.isInteger(f.version) || f.version < 1) return fail('not_kasher')
+  if (f.app !== BACKUP_APP) return fail('not_kaseb')
+  if (typeof f.version !== 'number' || !Number.isInteger(f.version) || f.version < 1) return fail('not_kaseb')
   if (f.version > BACKUP_VERSION) return fail('version')
   if (!f.tables || typeof f.tables !== 'object' || Array.isArray(f.tables)) return fail('no_tables')
   const tables = f.tables as Record<string, unknown>
@@ -76,7 +76,7 @@ export function validateBackup(json: string): BackupValidation {
 
 /**
  * Replaces EVERYTHING with the file's content: one transaction over all tables, each cleared then filled
- * (chunks of 500). Throws with the validation error code when the file is not a Kasher backup.
+ * (chunks of 500). Throws with the validation error code when the file is not a Kaseb backup.
  */
 export async function importBackup(json: string): Promise<BackupCounts> {
   const v = validateBackup(json)
@@ -116,9 +116,9 @@ export function backupIsStale(last: number | null | undefined, now = Date.now())
   if (!last) return true
   return now - last > BACKUP_REMIND_DAYS * 86400000
 }
-/** kasher-backup-2026-10-09.json (local date). */
+/** kaseb-backup-2026-10-09.json (local date). */
 export function backupFileName(at = Date.now()): string {
   const d = new Date(at)
   const p = (n: number) => String(n).padStart(2, '0')
-  return `kasher-backup-${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}.json`
+  return `kaseb-backup-${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}.json`
 }

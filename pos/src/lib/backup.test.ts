@@ -17,11 +17,11 @@ async function seed() {
 }
 
 describe('backup', () => {
-  it('exports a kasher file with every table', async () => {
+  it('exports a kaseb file with every table', async () => {
     await seed()
     const json = await exportBackup()
     const f = JSON.parse(json)
-    expect(f.app).toBe('kasher')
+    expect(f.app).toBe('kaseb')
     expect(f.version).toBe(1)
     expect(typeof f.exportedAt).toBe('number')
     for (const name of TABLES) expect(Array.isArray(f.tables[name])).toBe(true)
@@ -76,7 +76,7 @@ describe('backup', () => {
   })
 
   it('creates the defaults when the file has no users', async () => {
-    const json = JSON.stringify({ app: 'kasher', version: 1, exportedAt: 1, tables: { products: [product('p1')] } })
+    const json = JSON.stringify({ app: 'kaseb', version: 1, exportedAt: 1, tables: { products: [product('p1')] } })
     await importBackup(json)
     expect(await db.products.count()).toBe(1)
     expect(await db.users.count()).toBe(1)
@@ -88,21 +88,21 @@ describe('backup', () => {
     expect(validateBackup('{nope')).toMatchObject({ ok: false, error: 'invalid_json' })
     expect(validateBackup('[]')).toMatchObject({ ok: false, error: 'invalid_json' })
     expect(validateBackup('"text"')).toMatchObject({ ok: false, error: 'invalid_json' })
-    expect(validateBackup(JSON.stringify({ app: 'other', version: 1, tables: {} }))).toMatchObject({ ok: false, error: 'not_kasher' })
-    expect(validateBackup(JSON.stringify({ app: 'kasher', version: 99, tables: { products: [] } }))).toMatchObject({ ok: false, error: 'version' })
-    expect(validateBackup(JSON.stringify({ app: 'kasher', version: 1 }))).toMatchObject({ ok: false, error: 'no_tables' })
-    expect(validateBackup(JSON.stringify({ app: 'kasher', version: 1, tables: { foreign: [] } }))).toMatchObject({ ok: false, error: 'no_tables' })
-    expect(validateBackup(JSON.stringify({ app: 'kasher', version: 1, tables: { products: 'x' } }))).toMatchObject({ ok: false, error: 'bad_rows' })
-    expect(validateBackup(JSON.stringify({ app: 'kasher', version: 1, tables: { products: [1, 2] } }))).toMatchObject({ ok: false, error: 'bad_rows' })
+    expect(validateBackup(JSON.stringify({ app: 'other', version: 1, tables: {} }))).toMatchObject({ ok: false, error: 'not_kaseb' })
+    expect(validateBackup(JSON.stringify({ app: 'kaseb', version: 99, tables: { products: [] } }))).toMatchObject({ ok: false, error: 'version' })
+    expect(validateBackup(JSON.stringify({ app: 'kaseb', version: 1 }))).toMatchObject({ ok: false, error: 'no_tables' })
+    expect(validateBackup(JSON.stringify({ app: 'kaseb', version: 1, tables: { foreign: [] } }))).toMatchObject({ ok: false, error: 'no_tables' })
+    expect(validateBackup(JSON.stringify({ app: 'kaseb', version: 1, tables: { products: 'x' } }))).toMatchObject({ ok: false, error: 'bad_rows' })
+    expect(validateBackup(JSON.stringify({ app: 'kaseb', version: 1, tables: { products: [1, 2] } }))).toMatchObject({ ok: false, error: 'bad_rows' })
     await seed()
     await expect(importBackup('{nope')).rejects.toThrow('invalid_json')
-    await expect(importBackup(JSON.stringify({ app: 'x' }))).rejects.toThrow('not_kasher')
+    await expect(importBackup(JSON.stringify({ app: 'x' }))).rejects.toThrow('not_kaseb')
     // nothing was touched
     expect(await db.products.count()).toBe(2)
   })
 
   it('ignores unknown tables and keeps the known ones', () => {
-    const v = validateBackup(JSON.stringify({ app: 'kasher', version: 1, exportedAt: 123, tables: { products: [product('a')], future: [{ x: 1 }] } }))
+    const v = validateBackup(JSON.stringify({ app: 'kaseb', version: 1, exportedAt: 123, tables: { products: [product('a')], future: [{ x: 1 }] } }))
     expect(v.ok).toBe(true)
     expect(v.counts.products).toBe(1)
     expect(v.total).toBe(1)
@@ -138,7 +138,7 @@ describe('backup', () => {
     expect(backupIsStale(now - 86400000, now)).toBe(false)
     expect(backupIsStale(now - BACKUP_REMIND_DAYS * 86400000, now)).toBe(false)
     expect(backupIsStale(now - (BACKUP_REMIND_DAYS * 86400000 + 1), now)).toBe(true)
-    expect(backupFileName(now)).toBe('kasher-backup-2026-10-09.json')
-    expect(backupFileName(new Date(2026, 0, 3).getTime())).toBe('kasher-backup-2026-01-03.json')
+    expect(backupFileName(now)).toBe('kaseb-backup-2026-10-09.json')
+    expect(backupFileName(new Date(2026, 0, 3).getTime())).toBe('kaseb-backup-2026-01-03.json')
   })
 })

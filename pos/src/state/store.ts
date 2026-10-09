@@ -88,7 +88,7 @@ export const useStore = create<AppState>((set, get) => ({
   toasts: [],
   confirmReq: null,
   cameraOpen: false,
-  sidebarMini: (() => { try { return localStorage.getItem('kasher.sidebar') === 'mini' } catch { return false } })(),
+  sidebarMini: (() => { try { return localStorage.getItem('kaseb.sidebar') === 'mini' } catch { return false } })(),
 
   async boot() {
     await ensureDefaults()
@@ -106,7 +106,7 @@ export const useStore = create<AppState>((set, get) => ({
     }
     // restore the last user of this session (page reloads inside the app)
     try {
-      const last = sessionStorage.getItem('kasher.user')
+      const last = sessionStorage.getItem('kaseb.user')
       const u = last ? allUsers.find(x => x.id === last) : undefined
       if (u) user = u
     } catch { /* ignore */ }
@@ -128,8 +128,8 @@ export const useStore = create<AppState>((set, get) => ({
     const cur = get().user
     set({ users, user: cur ? users.find(u => u.id === cur.id) ?? null : null })
   },
-  login(user) { try { sessionStorage.setItem('kasher.user', user.id) } catch { /* ignore */ } set({ user }) },
-  logout() { try { sessionStorage.removeItem('kasher.user') } catch { /* ignore */ } set({ user: null }) },
+  login(user) { try { sessionStorage.setItem('kaseb.user', user.id) } catch { /* ignore */ } set({ user }) },
+  logout() { try { sessionStorage.removeItem('kaseb.user') } catch { /* ignore */ } set({ user: null }) },
   setShift(shift) { set({ shift }) },
   async reloadShift() { set({ shift: (await db.shifts.where('status').equals('open').first()) ?? null }) },
   setLicense(license) { set({ license }) },
@@ -157,7 +157,7 @@ export const useStore = create<AppState>((set, get) => ({
   confirm(opts) { return new Promise<boolean>(resolve => set({ confirmReq: { ...opts, resolve } })) },
   resolveConfirm(ok) { const r = get().confirmReq; set({ confirmReq: null }); r?.resolve(ok) },
   setCameraOpen(cameraOpen) { set({ cameraOpen }) },
-  setSidebarMini(sidebarMini) { try { localStorage.setItem('kasher.sidebar', sidebarMini ? 'mini' : 'full') } catch { /* ignore */ } set({ sidebarMini }) },
+  setSidebarMini(sidebarMini) { try { localStorage.setItem('kaseb.sidebar', sidebarMini ? 'mini' : 'full') } catch { /* ignore */ } set({ sidebarMini }) },
 }))
 
 /** Shortcuts used everywhere. */

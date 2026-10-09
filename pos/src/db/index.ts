@@ -5,7 +5,7 @@ import type {
 import { DEFAULT_SETTINGS } from './types'
 import { uid } from '../lib/ids'
 
-export class KasherDB extends Dexie {
+export class KasebDB extends Dexie {
   products!: Table<Product, string>
   categories!: Table<Category, string>
   customers!: Table<Customer, string>
@@ -22,7 +22,7 @@ export class KasherDB extends Dexie {
   heldTickets!: Table<HeldTicket, string>
   kv!: Table<KV, string>
 
-  constructor(name = 'kasher') {
+  constructor(name = 'kaseb') {
     super(name)
     this.version(1).stores({
       products: 'id, name, *barcodes, sku, categoryId, updatedAt, favorite, active, stock',
@@ -44,7 +44,7 @@ export class KasherDB extends Dexie {
   }
 }
 
-export const db = new KasherDB()
+export const db = new KasebDB()
 
 /** Every table, for backups. Keep in the order they should be restored. */
 export const TABLES = ['categories', 'products', 'customers', 'suppliers', 'users', 'shifts', 'cashMoves', 'sales', 'refunds', 'stockMoves', 'purchases', 'ledger', 'expenses', 'heldTickets', 'kv'] as const

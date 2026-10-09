@@ -43,7 +43,7 @@ export function ImportModal({ open, onClose }: { open: boolean; onClose: () => v
     finally { setBusy(false) }
   }
   const template = async () => {
-    const ok = await saveCsv('kasher-products-template.csv', templateCsv())
+    const ok = await saveCsv('kaseb-products-template.csv', templateCsv())
     if (ok) toast(t('products.import.templateSaved'), 'success')
   }
 

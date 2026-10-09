@@ -25,7 +25,7 @@ test('parseMachineId accepts /etc/machine-id and rejects junk', () => {
 })
 
 test('isExternalUrlAllowed lets only web, mail, phone and WhatsApp links out', () => {
-  for (const ok of ['https://kasher.app', 'http://example.com/x?y=1', 'mailto:a@b.c', 'tel:+963900000000', 'whatsapp://send?text=hi']) {
+  for (const ok of ['https://kaseb.app', 'http://example.com/x?y=1', 'mailto:a@b.c', 'tel:+963900000000', 'whatsapp://send?text=hi']) {
     assert.equal(lib.isExternalUrlAllowed(ok), true, ok)
   }
   for (const bad of ['file:///C:/Windows/system.ini', 'javascript:alert(1)', 'ms-settings:', 'smb://server/share', 'not a url', '', null]) {
@@ -60,7 +60,7 @@ test('license encoding round-trips with and without encryption', () => {
 
 test('filtersFor builds a filter for the extension then all files', () => {
   assert.deepEqual(lib.filtersFor('sales-2026-10.csv'), [{ name: 'CSV', extensions: ['csv'] }, { name: 'All files', extensions: ['*'] }])
-  assert.deepEqual(lib.filtersFor('backup.kasher'), [{ name: 'Kasher backup', extensions: ['kasher'] }, { name: 'All files', extensions: ['*'] }])
+  assert.deepEqual(lib.filtersFor('backup.kaseb'), [{ name: 'Kaseb backup', extensions: ['kaseb'] }, { name: 'All files', extensions: ['*'] }])
   assert.deepEqual(lib.filtersFor('noext'), [{ name: 'All files', extensions: ['*'] }])
   assert.equal(lib.filtersFor('x.XyZ')[0].name, 'XYZ')
 })

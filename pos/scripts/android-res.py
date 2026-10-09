@@ -1,4 +1,4 @@
-"""Writes the Android resources of Kasher (app name + launcher icons) into <out>/res.
+"""Writes the Android resources of Kaseb (app name + launcher icons) into <out>/res.
 Usage: python3 scripts/android-res.py <out_dir> [icon.png] [icon-fg.png] [icon-bg.png]
 Defaults: build/icon.png (legacy icon), build/icon-fg.png + build/icon-bg.png (adaptive icon layers, from scripts/make-icons.mjs).
 Needs Pillow (pip install pillow)."""
@@ -13,7 +13,7 @@ icon = sys.argv[2] if len(sys.argv) > 2 else os.path.join(ROOT, 'build', 'icon.p
 icon_fg = sys.argv[3] if len(sys.argv) > 3 else os.path.join(ROOT, 'build', 'icon-fg.png')
 icon_bg = sys.argv[4] if len(sys.argv) > 4 else os.path.join(ROOT, 'build', 'icon-bg.png')
 
-APP_NAME = 'كاشير'
+APP_NAME = 'كاسب'
 # launcher icon: 48dp; adaptive layers: 108dp
 DENSITIES = {'mdpi': 1, 'hdpi': 1.5, 'xhdpi': 2, 'xxhdpi': 3, 'xxxhdpi': 4}
 

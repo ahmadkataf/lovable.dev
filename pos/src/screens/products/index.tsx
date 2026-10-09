@@ -25,7 +25,7 @@ import { BulkPriceModal, BulkCategoryModal } from './BulkModals'
 import './i18n'
 import './products.css'
 
-const VIEW_KEY = 'kasher.products.view'
+const VIEW_KEY = 'kaseb.products.view'
 const FILTERS: ProductFilter[] = ['all', 'low', 'out', 'favorites', 'inactive']
 const SORTS: ProductSort[] = ['name', 'price', 'stock', 'recent']
 
@@ -165,10 +165,10 @@ function ListScreen() {
     exitSelect()
   }
   const downloadTemplate = async () => {
-    if (await saveCsv('kasher-products-template.csv', templateCsv())) toast(t('products.import.templateSaved'), 'success')
+    if (await saveCsv('kaseb-products-template.csv', templateCsv())) toast(t('products.import.templateSaved'), 'success')
   }
   const exportCsv = async () => {
-    const ok = await saveCsv(`kasher-products-${new Date().toISOString().slice(0, 10)}.csv`, productsToCsv(sortProducts(products ?? [], 'name', lang), categories, { includeCost: admin }))
+    const ok = await saveCsv(`kaseb-products-${new Date().toISOString().slice(0, 10)}.csv`, productsToCsv(sortProducts(products ?? [], 'name', lang), categories, { includeCost: admin }))
     if (ok) toast(t('products.exported', { n: (products ?? []).length }), 'success')
   }
 

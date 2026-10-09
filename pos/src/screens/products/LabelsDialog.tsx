@@ -7,7 +7,7 @@ import { Modal, Button, Field, Select, NumberInput, SwitchRow } from '../../comp
 import { toast, useSettings } from '../../state/store'
 import { LABEL_SIZES, countLabels, printLabels, type LabelSize } from '../../lib/labels'
 
-const STORAGE = 'kasher.labels.size'
+const STORAGE = 'kaseb.labels.size'
 
 export function LabelsDialog({ open, onClose, products }: { open: boolean; onClose: () => void; products: Product[] }) {
   const t = useT()

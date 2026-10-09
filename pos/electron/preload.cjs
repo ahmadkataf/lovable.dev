@@ -1,4 +1,4 @@
-// Kasher POS — what the page sees as window.pos (the PosElectronBridge contract in src/vite-env.d.ts).
+// Kaseb POS — what the page sees as window.pos (the PosElectronBridge contract in src/vite-env.d.ts).
 // Runs sandboxed: only ipcRenderer and contextBridge are available here.
 'use strict'
 

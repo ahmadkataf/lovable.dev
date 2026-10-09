@@ -1,4 +1,4 @@
-// Kasher POS — the Windows shell. One window that serves dist/index.html, plus the bridge the page calls
+// Kaseb POS — the Windows shell. One window that serves dist/index.html, plus the bridge the page calls
 // through electron/preload.cjs (window.pos). Every handler returns a safe default on failure: the main process never crashes.
 'use strict'
 
@@ -11,7 +11,7 @@ const { execFile } = require('node:child_process')
 const lib = require('./lib.cjs')
 const pkg = require('../package.json')
 
-const APP_ID = 'app.kasher.pos'
+const APP_ID = 'app.kaseb.pos'
 const PRINT_TIMEOUT_MS = 60000
 let win = null
 let deviceIdCache = null
@@ -27,7 +27,7 @@ if (!app.requestSingleInstanceLock()) {
     win.focus()
   })
   app.whenReady().then(start).catch(err => {
-    console.error('Kasher failed to start', err)
+    console.error('Kaseb failed to start', err)
     app.quit()
   })
 }
@@ -52,7 +52,7 @@ function createWindow() {
     minWidth: 960,
     minHeight: 640,
     backgroundColor: '#f3f5f9',
-    title: 'Kasher POS',
+    title: 'Kaseb POS',
     icon: fs.existsSync(iconPath) ? iconPath : undefined,
     show: false,
     autoHideMenuBar: true,
@@ -77,12 +77,12 @@ function createWindow() {
   })
   // No pinch / ctrl+wheel zoom: the layout is designed for the screen as it is
   win.webContents.setVisualZoomLevelLimits(1, 1).catch(() => {})
-  win.webContents.on('did-finish-load', () => { if (win && !win.isDestroyed()) win.setTitle('Kasher POS') })
+  win.webContents.on('did-finish-load', () => { if (win && !win.isDestroyed()) win.setTitle('Kaseb POS') })
   win.on('page-title-updated', e => e.preventDefault())
 
   win.loadFile(path.join(__dirname, '..', 'dist', 'index.html')).catch(err => {
     console.error('Cannot load the app page', err)
-    dialog.showErrorBox('Kasher POS', 'The app files are missing or damaged. Please reinstall Kasher POS.')
+    dialog.showErrorBox('Kaseb POS', 'The app files are missing or damaged. Please reinstall Kaseb POS.')
   })
 }
 
@@ -182,7 +182,7 @@ async function storedDeviceId() {
 async function saveFile(name, _mime, data, base64) {
   const fileName = lib.safeFileName(name)
   const result = await dialog.showSaveDialog(win && !win.isDestroyed() ? win : undefined, {
-    title: 'Kasher POS',
+    title: 'Kaseb POS',
     defaultPath: path.join(app.getPath('downloads'), fileName),
     filters: lib.filtersFor(fileName),
   })

@@ -1,4 +1,4 @@
-package app.kasher.pos;
+package app.kaseb.pos;
 
 import android.Manifest;
 import android.app.Activity;
@@ -57,12 +57,12 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Kasher POS — the Android shell. Serves the bundled web app from assets/www at https://kasher.app/ inside a WebView,
+ * Kaseb POS — the Android shell. Serves the bundled web app from assets/www at https://kaseb.app/ inside a WebView,
  * grants it the camera (barcode scanning), and offers the phone's features through the "PosAndroid" bridge
  * (the PosAndroidBridge contract in src/vite-env.d.ts).
  */
 public class MainActivity extends Activity {
-    static final String HOST = "kasher.app";
+    static final String HOST = "kaseb.app";
     static final String ORIGIN = "https://" + HOST + "/";
     private static final String CRASHES = "crashes";
     private static final String LICENSE_PREFS = "license";
@@ -140,7 +140,7 @@ public class MainActivity extends Activity {
         @Override
         public void onClick(DialogInterface d, int which) {
             ClipboardManager cm = (ClipboardManager) host.getSystemService(CLIPBOARD_SERVICE);
-            if (cm != null) cm.setPrimaryClip(ClipData.newPlainText("Kasher error", text));
+            if (cm != null) cm.setPrimaryClip(ClipData.newPlainText("Kaseb error", text));
         }
     }
 
@@ -340,7 +340,7 @@ public class MainActivity extends Activity {
                 Intent intent = new Intent(Intent.ACTION_CREATE_DOCUMENT);
                 intent.addCategory(Intent.CATEGORY_OPENABLE);
                 intent.setType(mime == null || mime.isEmpty() ? "application/octet-stream" : mime);
-                intent.putExtra(Intent.EXTRA_TITLE, name == null || name.isEmpty() ? "kasher-file" : name);
+                intent.putExtra(Intent.EXTRA_TITLE, name == null || name.isEmpty() ? "kaseb-file" : name);
                 try {
                     startActivityForResult(intent, REQ_SAVE_FILE);
                 } catch (Exception e) {
@@ -438,7 +438,7 @@ public class MainActivity extends Activity {
             PrintManager pm = (PrintManager) getSystemService(Context.PRINT_SERVICE);
             if (pm == null) return;
             PrintDocumentAdapter adapter = view.createPrintDocumentAdapter("receipt");
-            printJob = pm.print("Kasher receipt", adapter, new PrintAttributes.Builder().build());
+            printJob = pm.print("Kaseb receipt", adapter, new PrintAttributes.Builder().build());
         } catch (Exception ignored) {
             // no print service on this phone: nothing else to do
         }

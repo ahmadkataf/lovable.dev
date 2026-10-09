@@ -61,7 +61,7 @@ function decodeLicense(text, decrypt) {
 
 const FILTER_NAMES = {
   csv: 'CSV', json: 'JSON', txt: 'Text', pdf: 'PDF', png: 'PNG', jpg: 'JPEG', jpeg: 'JPEG', svg: 'SVG',
-  html: 'HTML', zip: 'ZIP', xlsx: 'Excel', kasher: 'Kasher backup', bak: 'Backup',
+  html: 'HTML', zip: 'ZIP', xlsx: 'Excel', kaseb: 'Kaseb backup', bak: 'Backup',
 }
 
 /** "Save as" filters for a file name: its extension first, then "all files". */

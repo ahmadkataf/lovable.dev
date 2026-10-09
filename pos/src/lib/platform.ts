@@ -10,7 +10,7 @@ function detect(): PlatformKind {
   return 'web'
 }
 
-const WEB_ID_KEY = 'kasher.device'
+const WEB_ID_KEY = 'kaseb.device'
 function webDeviceId(): string {
   try {
     let id = localStorage.getItem(WEB_ID_KEY)
@@ -133,14 +133,14 @@ export const platform = {
       try {
         if (platform.kind === 'electron') return await window.pos!.licenseGet()
         if (platform.kind === 'android') return window.PosAndroid!.licenseGet() || null
-        return localStorage.getItem('kasher.license')
+        return localStorage.getItem('kaseb.license')
       } catch { return null }
     },
     async set(v: string | null): Promise<void> {
       try {
         if (platform.kind === 'electron') return await window.pos!.licenseSet(v)
         if (platform.kind === 'android') return window.PosAndroid!.licenseSet(v ?? '')
-        if (v === null) localStorage.removeItem('kasher.license'); else localStorage.setItem('kasher.license', v)
+        if (v === null) localStorage.removeItem('kaseb.license'); else localStorage.setItem('kaseb.license', v)
       } catch { /* ignore */ }
     },
   },

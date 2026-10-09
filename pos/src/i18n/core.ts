@@ -3,7 +3,7 @@ import { addMessages } from './index'
 // Words every screen uses. Screens add their own keys next to their code.
 addMessages({
   ar: {
-    'app.name': 'كاشير',
+    'app.name': 'كاسب',
     'app.tagline': 'نقطة البيع الحديثة لمحلّك',
     'nav.sales': 'البيع',
     'nav.products': 'المنتجات',
@@ -119,7 +119,7 @@ addMessages({
     'license.activate': 'تفعيل',
   },
   en: {
-    'app.name': 'Kasher',
+    'app.name': 'Kaseb',
     'app.tagline': 'The modern point of sale for your shop',
     'nav.sales': 'Sell',
     'nav.products': 'Products',

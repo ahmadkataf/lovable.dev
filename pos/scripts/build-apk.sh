@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
-# Builds the Android app of Kasher from its Vite build, with the Android build-tools only (no Gradle):
+# Builds the Android app of Kaseb from its Vite build, with the Android build-tools only (no Gradle):
 # an APK to hand out directly and, when bundletool is available, the App Bundle (AAB) Google Play asks for.
-#   npm run build:apk            -> android/build/Kasher.apk (+ Kasher.aab)
+#   npm run build:apk            -> android/build/Kaseb.apk (+ Kaseb.aab)
 # Requires ANDROID_HOME with build-tools and a platform (the newest installed are used), JDK 17+, python3 + Pillow,
 # and the icons from `node scripts/make-icons.mjs` (build/icon.png).
 # Optional environment:
@@ -19,11 +19,11 @@ AJ="$SDK/platforms/$PLATFORM/android.jar"
 TARGET="${PLATFORM#android-}"
 A="$ROOT/android"
 B="$A/build/app"
-APPNAME="Kasher"
+APPNAME="Kaseb"
 PKG=$(sed -n 's/.*package="\([^"]*\)".*/\1/p' "$A/AndroidManifest.xml" | head -1)
 KS="${ANDROID_KEYSTORE:-$A/release.keystore}"
-KS_PASS="${ANDROID_KEYSTORE_PASSWORD:-kasherpass}"
-KS_ALIAS="${ANDROID_KEY_ALIAS:-kasher}"
+KS_PASS="${ANDROID_KEYSTORE_PASSWORD:-kasebpass}"
+KS_ALIAS="${ANDROID_KEY_ALIAS:-kaseb}"
 VERSION=()
 [ -n "${VERSION_CODE:-}" ] && VERSION+=(--version-code "$VERSION_CODE")
 [ -n "${VERSION_NAME:-}" ] && VERSION+=(--version-name "$VERSION_NAME")
@@ -31,7 +31,7 @@ VERSION=()
 [ ${#VERSION[@]} -gt 0 ] && VERSION+=(--replace-version)
 [ -d "$ROOT/dist" ] && [ -f "$ROOT/dist/index.html" ] || { echo "No web build at $ROOT/dist — run 'npx vite build' first"; exit 1; }
 [ -f "$ROOT/build/icon.png" ] || { echo "No icons at $ROOT/build — run 'node scripts/make-icons.mjs' first"; exit 1; }
-echo "Kasher ($PKG): build-tools $(basename "$BT"), target SDK $TARGET"
+echo "Kaseb ($PKG): build-tools $(basename "$BT"), target SDK $TARGET"
 
 rm -rf "$B"
 mkdir -p "$B/gen" "$B/obj" "$B/dex" "$B/assets/www"
@@ -51,7 +51,7 @@ javac --release 17 -encoding UTF-8 -Xlint:-options -cp "$AJ" -d "$B/obj" $(find 
 if [ ! -f "$KS" ]; then
   echo "No keystore at $KS: generating one (keep it safe — updates must be signed with the same key)"
   keytool -genkeypair -v -keystore "$KS" -alias "$KS_ALIAS" -keyalg RSA -keysize 2048 -validity 10000 \
-    -storepass "$KS_PASS" -keypass "$KS_PASS" -dname "CN=Kasher, OU=POS, O=Kasher, L=Damascus, C=SY" >/dev/null 2>&1
+    -storepass "$KS_PASS" -keypass "$KS_PASS" -dname "CN=Kaseb, OU=POS, O=Kaseb, L=Damascus, C=SY" >/dev/null 2>&1
 fi
 mkdir -p "$A/build"
 OUT="$A/build/$APPNAME.apk"

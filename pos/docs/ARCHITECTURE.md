@@ -1,6 +1,6 @@
-# Kasher POS — architecture and module contracts
+# Kaseb POS — architecture and module contracts
 
-Kasher (كاشير) is an offline-first point of sale for small shops. One React + TypeScript + Vite web app is shipped three ways:
+Kaseb (كاسب) is an offline-first point of sale for small shops. One React + TypeScript + Vite web app is shipped three ways:
 Windows (Electron, `electron/`), Android (a WebView shell without Gradle, `android/`), and a plain browser/PWA.
 The only network traffic is the license server (`server/`, a Cloudflare Worker + D1).
 

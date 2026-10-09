@@ -27,7 +27,7 @@ addMessages({
     'scanner.err.noCamera': 'لا توجد كاميرا',
     'scanner.err.noCameraHelp': 'لم نجد كاميرا على هذا الجهاز. يمكنك إدخال الباركود يدوياً في الأسفل أو استخدام قارئ باركود خارجي.',
     'scanner.err.denied': 'لم يُسمح باستخدام الكاميرا',
-    'scanner.err.deniedHelpAndroid': 'افتح إعدادات الهاتف ← التطبيقات ← كاشير ← الأذونات ← الكاميرا، واختر «السماح»، ثم ارجع إلى هنا واضغط إعادة المحاولة.',
+    'scanner.err.deniedHelpAndroid': 'افتح إعدادات الهاتف ← التطبيقات ← كاسب ← الأذونات ← الكاميرا، واختر «السماح»، ثم ارجع إلى هنا واضغط إعادة المحاولة.',
     'scanner.err.deniedHelpDesktop': 'اسمح للتطبيق باستخدام الكاميرا: من إعدادات ويندوز ← الخصوصية والأمان ← الكاميرا، أو من رمز القفل بجانب عنوان الصفحة ← الكاميرا ← سماح. ثم اضغط إعادة المحاولة.',
     'scanner.err.insecure': 'الكاميرا تحتاج اتصالاً آمناً',
     'scanner.err.insecureHelp': 'المسح بالكاميرا يعمل فقط عبر https أو من داخل التطبيق. استخدم الإدخال اليدوي أو قارئ باركود خارجي.',
@@ -53,7 +53,7 @@ addMessages({
     'scanner.err.noCamera': 'No camera found',
     'scanner.err.noCameraHelp': 'This device has no camera we can use. Type the barcode below or use a USB/Bluetooth scanner.',
     'scanner.err.denied': 'Camera access was denied',
-    'scanner.err.deniedHelpAndroid': 'Open the phone Settings → Apps → Kasher → Permissions → Camera and choose "Allow", then come back and tap Try again.',
+    'scanner.err.deniedHelpAndroid': 'Open the phone Settings → Apps → Kaseb → Permissions → Camera and choose "Allow", then come back and tap Try again.',
     'scanner.err.deniedHelpDesktop': 'Allow the camera: Windows Settings → Privacy & security → Camera, or the lock icon next to the page address → Camera → Allow. Then press Try again.',
     'scanner.err.insecure': 'The camera needs a secure connection',
     'scanner.err.insecureHelp': 'Camera scanning only works over https or inside the app. Type the barcode or use an external scanner.',
@@ -137,7 +137,7 @@ async function getStream(deviceId?: string): Promise<MediaStream> {
 }
 
 /* Styles live here so the scanner works wherever it is used, without touching the shared stylesheets. */
-const STYLE_ID = 'kasher-scanner-css'
+const STYLE_ID = 'kaseb-scanner-css'
 const CSS = `
 .scanner-modal .modal-body { padding: 0; display: flex; flex-direction: column; min-height: 0; }
 .scanner-modal .modal-head { padding-bottom: 8px; }

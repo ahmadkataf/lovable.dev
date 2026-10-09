@@ -1,8 +1,8 @@
 {
-  "name": "kasher-pos",
+  "name": "kaseb-pos",
   "private": true,
   "version": "1.0.0",
-  "description": "Kasher — modern point of sale for shops (Windows + Android)",
+  "description": "Kaseb — modern point of sale for shops (Windows + Android)",
   "type": "module",
   "main": "electron/main.cjs",
   "scripts": {
