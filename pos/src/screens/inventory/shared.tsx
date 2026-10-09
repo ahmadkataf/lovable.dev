@@ -2,6 +2,8 @@
 // AmountPad + NumPadSheet (a keypad that also takes keyboard digits), ProductPicker (search + camera +
 // USB scanner, with quick product creation for unknown barcodes), badges and the sub-page head.
 import { useEffect, useRef, useState, type ReactNode } from 'react'
+import { forbiddenProduct } from '../../lib/policy'
+import { PolicyBanner } from '../../components/PolicyBanner'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { useNavigate } from 'react-router-dom'
 import { ArrowLeft, ArrowRight, ScanLine, PackagePlus } from 'lucide-react'
@@ -245,6 +247,7 @@ export function QuickProductModal({ open, barcode, onClose, onCreated }: { open:
   useEffect(() => { if (open) { setName(isCode ? '' : barcode); setCode(isCode ? barcode : ''); setPrice(0); setCost(0); setUnit('piece'); setBusy(false) } }, [open, barcode, isCode])
   const save = async () => {
     if (!name.trim()) { toast(t('inventory.quick.errName'), 'error'); return }
+    if (forbiddenProduct({ name })) { toast(t('policy.tobaccoTitle'), 'error'); return }
     setBusy(true)
     try {
       const trimmed = code.trim()
@@ -270,6 +273,7 @@ export function QuickProductModal({ open, barcode, onClose, onCreated }: { open:
         <Button variant="primary" loading={busy} onClick={() => void save()}>{t('inventory.quick.create')}</Button>
       </>
     }>
+      {forbiddenProduct({ name }) && <PolicyBanner />}
       <p className="muted small inv-hint">{isCode ? t('inventory.quick.unknown') : t('inventory.quick.text')}</p>
       <div className="col">
         <Field label={t('inventory.quick.name')}><Input value={name} onChange={e => setName(e.target.value)} autoFocus onKeyDown={e => { if (e.key === 'Enter') void save() }} /></Field>

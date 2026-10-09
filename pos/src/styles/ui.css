@@ -203,3 +203,11 @@ button.list-row:hover, a.list-row:hover { background: var(--surface-2); }
 [data-theme="dark"] .banner.warn { color: var(--warn); }
 .banner.danger { background: var(--danger-soft); color: var(--danger); }
 .banner .btn { margin-inline-start: auto; }
+/* the tobacco rule: loud, red, impossible to miss */
+.policy-banner { display: flex; align-items: flex-start; gap: 10px; padding: 12px 14px; border-radius: var(--radius); border: 2px solid #dc2626; background: #fee2e2; color: #7f1d1d; font-size: 13px; font-weight: 600; line-height: 1.5; }
+.policy-banner > svg { flex: none; color: #dc2626; margin-top: 2px; }
+.policy-banner strong { display: block; color: #dc2626; font-size: 18px; font-weight: 900; margin-bottom: 2px; }
+.policy-banner.compact { padding: 8px 12px; align-items: center; }
+.policy-banner.compact strong { font-size: 15px; margin: 0; }
+[data-theme="dark"] .policy-banner { background: #3f1212; color: #fecaca; border-color: #ef4444; }
+[data-theme="dark"] .policy-banner strong, [data-theme="dark"] .policy-banner > svg { color: #f87171; }

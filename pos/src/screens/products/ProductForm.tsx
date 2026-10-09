@@ -21,6 +21,8 @@ import { SHOP_EMOJIS } from './emoji'
 import { resizeImageFile } from './image'
 import { Menu } from './Menu'
 import { deleteProduct, findBarcodeConflicts } from './actions'
+import { forbiddenProduct } from '../../lib/policy'
+import { PolicyBanner } from '../../components/PolicyBanner'
 import { LabelsDialog } from './LabelsDialog'
 
 interface PackDraft { id: string; name: string; qty: string; price: string; barcode: string }
@@ -162,6 +164,7 @@ export function ProductForm({ open, productId, duplicateFrom, presetBarcode, onC
     if (!name) return
     const existing = categories.find(c => c.name.trim().toLowerCase() === name.toLowerCase())
     if (existing) { set('categoryId', existing.id); setNewCat(null); return }
+    if (forbiddenProduct({ name })) { toast(t('policy.tobaccoCategory'), 'error'); return }
     const c: Category = { id: uid(), name, color: PRODUCT_COLORS[categories.length % PRODUCT_COLORS.length], sort: (categories.reduce((m, x) => Math.max(m, x.sort), 0) + 1), createdAt: Date.now() }
     await db.categories.add(c)
     set('categoryId', c.id); setNewCat(null)
@@ -172,6 +175,7 @@ export function ProductForm({ open, productId, duplicateFrom, presetBarcode, onC
   const cost = form.cost.trim() === '' ? 0 : parseNumber(form.cost)
   const margin = Number.isFinite(price) ? marginPct(price, cost) : null
   const stockChanged = !!original && form.trackStock && round(parseNumber(form.stock), 3) !== round(original.stock, 3)
+  const forbidden = forbiddenProduct({ name: form.name, notes: form.notes, sku: form.sku }) !== null
 
   const save = async (e?: FormEvent) => {
     e?.preventDefault()
@@ -183,6 +187,7 @@ export function ProductForm({ open, productId, duplicateFrom, presetBarcode, onC
     if (form.trackStock && form.stock.trim() !== '' && !Number.isFinite(parseNumber(form.stock))) errs.stock = t('products.err.stock')
     setErrors(errs)
     if (Object.keys(errs).length) { nameRef.current?.focus(); return }
+    if (forbidden) { toast(t('policy.tobaccoTitle'), 'error'); nameRef.current?.focus(); return }
     const wholesale = form.wholesalePrice.trim() === '' ? 0 : parseNumber(form.wholesalePrice)
     const packs: ProductPack[] = []
     for (const k of form.packs) {
@@ -284,6 +289,7 @@ export function ProductForm({ open, productId, duplicateFrom, presetBarcode, onC
     >
       {loading ? <div className="empty"><Spinner /></div> : (
         <form className="pr-form" onSubmit={save} noValidate>
+          {forbidden && <PolicyBanner />}
           <section className="pr-look">
             <Avatar name={form.name || '?'} color={form.color} emoji={form.emoji || undefined} image={form.image || undefined} size={mobile ? 64 : 80} />
             <div className="col grow">

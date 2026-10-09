@@ -1,5 +1,6 @@
 // First run: a short wizard that names the store, picks the currency and adds a first product. Shown until settings.onboarded.
 import { useState } from 'react'
+import { forbiddenProduct } from '../lib/policy'
 import { ArrowLeft, ArrowRight, BarChart3, Check, Package, ShieldCheck, Zap } from 'lucide-react'
 import '../screens/settings/i18n'
 import '../screens/settings/settings.css'
@@ -66,6 +67,7 @@ function Wizard({ settings }: { settings: Settings }) {
     setBusy('finish')
     try {
       const cur = { ...currency, symbol: currency.symbol.trim() }
+      if (product.name.trim() && forbiddenProduct({ name: product.name })) { toast(t('policy.tobaccoTitle'), 'error'); setBusy(null); return }
       if (product.name.trim()) {
         const now = Date.now()
         const code = cleanBarcode(product.barcode)

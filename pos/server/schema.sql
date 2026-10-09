@@ -29,8 +29,11 @@ CREATE TABLE IF NOT EXISTS devices (
   trial_ends    INTEGER,
   first_seen    INTEGER NOT NULL,
   last_seen     INTEGER NOT NULL,
-  ip            TEXT
+  ip            TEXT,
+  blocked       INTEGER NOT NULL DEFAULT 0 -- 1 = the seller blocked this device: activate/check/trial answer 'blocked'
 );
+-- Databases made before `blocked` existed get the column from the deploy workflow (ALTER TABLE … || true) and, as a
+-- fallback, from the worker itself at startup (src/index.ts ensureSchema): SQLite has no ADD COLUMN IF NOT EXISTS.
 CREATE INDEX IF NOT EXISTS devices_code ON devices(code);
 CREATE INDEX IF NOT EXISTS devices_last_seen ON devices(last_seen);
 CREATE INDEX IF NOT EXISTS devices_device_code ON devices(device_code);

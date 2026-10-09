@@ -12,6 +12,8 @@ import { formatMoney, formatQty, parseNumber, round } from '../../lib/money'
 import { formatDateTime } from '../../lib/format'
 import { cleanBarcode } from '../../lib/barcode'
 import { useT } from '../../i18n'
+import { forbiddenProduct } from '../../lib/policy'
+import { PolicyBanner } from '../../components/PolicyBanner'
 import { toast } from '../../state/store'
 import { Modal, Button, Input, NumberInput, Textarea, Select, Field, Seg, SwitchRow, NumPad, Avatar, Empty, SearchInput, Money } from '../../components/ui'
 import { normalizeText } from './search'
@@ -195,6 +197,7 @@ export function CustomItemDialog({ settings, onAdd, onClose }: { settings: Setti
   const [err, setErr] = useState<string | null>(null)
   const add = () => {
     if (!name.trim()) { setErr(t('sales.customNameRequired')); return }
+    if (forbiddenProduct({ name })) { toast(t('policy.tobaccoTitle'), 'error'); return }
     if (price === '' || price < 0) { setErr(t('sales.quickAddPriceRequired')); return }
     const q = qty === '' || qty <= 0 ? 1 : qty
     onAdd({
@@ -205,6 +208,7 @@ export function CustomItemDialog({ settings, onAdd, onClose }: { settings: Setti
   return (
     <Modal open onClose={onClose} title={t('sales.customTitle')} size="narrow" footer={<Button variant="primary" icon={<Plus size={16} />} onClick={add}>{t('sales.customAdd')}</Button>}>
       <div className="col" style={{ gap: 12 }} onKeyDown={enterSaves(add)}>
+        {forbiddenProduct({ name }) && <PolicyBanner />}
         <Field label={t('sales.customName')} error={err && !name.trim() ? err : undefined}>
           <Input value={name} onChange={e => { setName(e.target.value); setErr(null) }} autoFocus maxLength={80} />
         </Field>
@@ -375,6 +379,7 @@ export function QuickAddDialog({ barcode, initialName, categories, settings, adm
     if (price === '' || price < 0) e.price = t('sales.quickAddPriceRequired')
     const bc = cleanBarcode(code)
     if (Object.keys(e).length) { setErr(e); return }
+    if (forbiddenProduct({ name })) { toast(t('policy.tobaccoTitle'), 'error'); return }
     setSaving(true)
     try {
       if (bc) {
@@ -400,6 +405,7 @@ export function QuickAddDialog({ barcode, initialName, categories, settings, adm
   return (
     <Modal open onClose={onClose} title={t('sales.quickAddTitle')} footer={
       <>
+      {forbiddenProduct({ name }) && <PolicyBanner />}
         <Button onClick={onClose}>{t('common.cancel')}</Button>
         <Button variant="primary" loading={saving} icon={<Check size={16} />} onClick={() => void save()}>{t('sales.quickAddSave')}</Button>
       </>

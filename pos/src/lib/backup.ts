@@ -2,6 +2,7 @@
 // The file is { app: 'kaseb', version: 1, exportedAt, tables: { <name>: rows[] } } for every name in TABLES.
 import { db, TABLES, ensureDefaults, type TableName } from '../db'
 import { logAudit } from './audit'
+import { forbiddenProduct } from './policy'
 
 export const BACKUP_APP = 'kaseb'
 export const BACKUP_VERSION = 1
@@ -87,7 +88,8 @@ export async function importBackup(json: string): Promise<BackupCounts> {
     for (const name of TABLES) {
       const table = db.table(name)
       await table.clear()
-      const rows = data.tables[name] ?? []
+      let rows = data.tables[name] ?? []
+      if (name === 'products') rows = rows.filter(r => !forbiddenProduct(r as { name?: string; notes?: string; sku?: string }))   // the tobacco rule holds for restored data too
       for (let i = 0; i < rows.length; i += CHUNK) await table.bulkPut(rows.slice(i, i + CHUNK))
     }
   })

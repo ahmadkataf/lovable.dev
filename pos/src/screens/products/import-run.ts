@@ -1,5 +1,6 @@
 // Runs a parsed CSV import against the database: match by barcode, then by exact name; update or create.
 import { db } from '../../db'
+import { forbiddenProduct } from '../../lib/policy'
 import type { Category, Product } from '../../db/types'
 import { uid } from '../../lib/ids'
 import { round } from '../../lib/money'
@@ -8,7 +9,7 @@ import { t } from '../../i18n'
 import type { ImportRow } from './import-map'
 import { normalizeText, PRODUCT_COLORS } from './product-utils'
 
-export type SkipReason = 'empty' | 'noName' | 'noPrice' | 'badPrice'
+export type SkipReason = 'empty' | 'noName' | 'noPrice' | 'badPrice' | 'policy'
 export interface ImportReport {
   created: number
   updated: number
@@ -56,6 +57,7 @@ export async function runImport(rows: ImportRow[], opts: ImportRunOptions): Prom
       const barcodes = row.barcodes
       if (!name && !barcodes.length) { report.skipped.push({ line: row.line, name, reason: 'empty' }); continue }
       if (row.price !== undefined && row.price < 0) { report.skipped.push({ line: row.line, name, reason: 'badPrice' }); continue }
+      if (forbiddenProduct({ name, notes: row.notes, sku: row.sku })) { report.skipped.push({ line: row.line, name, reason: 'policy' }); continue }
 
       let existing: Product | undefined
       if (barcodes.length) existing = await db.products.where('barcodes').anyOf(barcodes).first()

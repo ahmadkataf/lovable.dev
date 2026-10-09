@@ -23,6 +23,7 @@ addMessages({
 })
 
 const FAQ_AR: [string, string][] = [
+  ['لماذا يرفض التطبيق إضافة الدخان؟', 'كاسب لا يبيع منتجات التبغ والدخان بكل أنواعها (سجائر، معسل، أرجيلة، سجائر إلكترونية، نيكوتين): بيعها حرام، وهذه قاعدة ثابتة في البرنامج لا يمكن تعطيلها. أي منتج باسم أو وصف من هذا النوع يُرفض عند الإضافة أو الاستيراد.'],
   ['كيف أبدأ البيع؟', 'أضف منتجاتك من «المنتجات» (أو استوردها من ملف CSV)، ثم افتح «البيع»: اضغط على المنتج أو امسح باركوده، ثم «الدفع» واختر طريقة الدفع. الفاتورة تُطبع أو تُشارك على واتساب.'],
   ['المسح بالكاميرا لا يعمل', 'اسمح للتطبيق باستخدام الكاميرا من إعدادات الهاتف ← التطبيقات ← كاسب ← الأذونات. قرّب الباركود حتى يملأ الإطار، وفعّل الإضاءة في الأماكن المعتمة. يمكنك دائماً كتابة الرقم يدوياً أسفل شاشة المسح.'],
   ['هل يعمل مع قارئ باركود USB أو بلوتوث؟', 'نعم بدون أي إعداد: وصّل القارئ وامسح وأنت في شاشة البيع، فيُضاف المنتج فوراً. أرقام الفواتير على الإيصال تُقرأ أيضاً لفتح الفاتورة في «الفواتير».'],
@@ -41,6 +42,7 @@ const FAQ_AR: [string, string][] = [
   ['الكاشير يرى التكلفة والتقارير', 'أنشئ له حساباً بدور «كاشير» من الإعدادات ← المستخدمون مع رمز PIN: الكاشير يبيع ويستلم ويرجع، ولا يرى التقارير ولا الإعدادات ولا التكلفة.'],
 ]
 const FAQ_EN: [string, string][] = [
+  ['Why does the app refuse tobacco products?', 'Kaseb does not sell tobacco or smoking products of any kind (cigarettes, shisha tobacco, hookah, e-cigarettes, nicotine): selling them is haram, and this is a fixed rule of the program that cannot be switched off. Any product whose name or description is of that kind is refused when added or imported.'],
   ['How do I start selling?', 'Add products in Products (or import a CSV), open Sell, tap a product or scan its barcode, then Charge and pick the payment method. The receipt prints or goes to WhatsApp.'],
   ['Camera scanning does not work', 'Allow the camera in the phone settings → Apps → Kaseb → Permissions. Bring the barcode close until it fills the frame and use the torch in the dark. You can always type the number below the scanner.'],
   ['Does it work with a USB or Bluetooth scanner?', 'Yes, with no setup: plug it in and scan on the Sell screen. Receipt numbers on the printed slip can be scanned too, to open the receipt in History.'],

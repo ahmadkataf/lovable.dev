@@ -1,5 +1,6 @@
 // The categories manager: add, rename, colour, emoji, reorder and delete.
 import { useEffect, useState } from 'react'
+import { forbiddenProduct } from '../../lib/policy'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { Plus, Pencil, Trash2, ChevronUp, ChevronDown, Tag } from 'lucide-react'
 import { db } from '../../db'
@@ -33,6 +34,7 @@ export function CategoriesModal({ open, onClose }: { open: boolean; onClose: () 
     const name = draft.name.trim()
     if (!name) return
     if (categories.some(c => c.id !== draft.id && c.name.trim().toLowerCase() === name.toLowerCase())) { toast(t('products.cats.exists'), 'warn'); return }
+    if (forbiddenProduct({ name })) { toast(t('policy.tobaccoCategory'), 'error'); return }
     setSaving(true)
     try {
       if (draft.id) {
