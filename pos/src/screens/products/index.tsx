@@ -378,10 +378,10 @@ function ProductRow({ p, category, admin, mobile, selectMode, selected, onOpen, 
         {selectMode ? check : avatar}
         <div className="grow truncate">
           <div className="title truncate">{p.name}</div>
-          <div className="sub truncate">
-            {category && <span>{category.icon ? `${category.icon} ` : ''}{category.name}</span>}
-            {category && p.barcodes[0] && <span> · </span>}
-            {p.barcodes[0] && <span className="num">{p.barcodes[0]}</span>}
+          <div className="sub p-sub">
+            {category && <span className="truncate">{category.icon ? `${category.icon} ` : ''}{category.name}</span>}
+            {category && p.barcodes[0] && <span>·</span>}
+            {p.barcodes[0] && <span className="num p-code">{p.barcodes[0]}</span>}
             {inactiveBadge && <> {inactiveBadge}</>}
           </div>
         </div>

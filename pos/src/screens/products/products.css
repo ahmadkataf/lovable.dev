@@ -88,3 +88,7 @@
   .pr-look { gap: 12px; }
   .pr-form-modal .modal-body { padding-bottom: 32px; }
 }
+
+/* the barcode digits never get cut: the category shrinks instead */
+.p-sub { display: flex; align-items: center; gap: 4px; min-width: 0; }
+.p-sub .p-code { flex: none; }

@@ -63,7 +63,7 @@ export async function seed(): Promise<void> {
   const byName = Object.fromEntries(cats.map(c => [c.name, c]))
   const stocks: number[] = []
   const products: Product[] = PRODUCTS.map(([name, price, cost, stock, cat, seedN, emoji, frac], i) => {
-    stocks.push(stock)
+    stocks.push(stock * 4)
     return {
       id: uid(), name, barcodes: [ean(seedN)], price, cost, trackStock: true, stock: 0, lowStock: 5, unit: frac ? 'kg' : 'piece',
       allowFraction: !!frac, categoryId: byName[cat].id, color: byName[cat].color, emoji, favorite: i < 4, active: true,
