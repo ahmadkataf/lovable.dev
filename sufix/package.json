@@ -10,7 +10,8 @@
     "test": "vitest run",
     "server": "npm run build:server && node server/node.mjs",
     "deploy": "npm run build && wrangler deploy",
-    "build:server": "esbuild worker/index.ts --bundle --format=esm --platform=neutral --target=es2022 --outfile=server/api.mjs"
+    "build:server": "esbuild worker/index.ts --bundle --format=esm --platform=neutral --target=es2022 --outfile=server/api.mjs",
+    "build:preview": "ARTIFACT=1 vite build && node scripts/make-preview.mjs"
   },
   "dependencies": {
     "react": "^18.3.1",

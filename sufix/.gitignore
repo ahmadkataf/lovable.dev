@@ -5,3 +5,4 @@ dist
 server/data
 *.log
 server/api.mjs
+dist-preview

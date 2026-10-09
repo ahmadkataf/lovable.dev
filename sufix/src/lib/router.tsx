@@ -5,11 +5,22 @@ type RouterState = { path: string; search: URLSearchParams }
 const Ctx = createContext<RouterState>({ path: '/', search: new URLSearchParams() })
 const listeners = new Set<() => void>()
 
-const read = (): RouterState => ({ path: window.location.pathname.replace(/\/+$/, '') || '/', search: new URLSearchParams(window.location.search) })
+// The preview build (an embedded single page) keeps the route in the hash: #/shop?category=drones
+const HASH = import.meta.env.VITE_HASH_ROUTER === '1'
+
+function read(): RouterState {
+  if (HASH) {
+    const h = window.location.hash.replace(/^#/, '') || '/'
+    const [p, q = ''] = h.split('?')
+    return { path: p.replace(/\/+$/, '') || '/', search: new URLSearchParams(q) }
+  }
+  return { path: window.location.pathname.replace(/\/+$/, '') || '/', search: new URLSearchParams(window.location.search) }
+}
 
 export function navigate(to: string, opts: { replace?: boolean; scroll?: boolean } = {}) {
-  if (opts.replace) window.history.replaceState(null, '', to)
-  else window.history.pushState(null, '', to)
+  const url = HASH ? `#${to}` : to
+  if (opts.replace) window.history.replaceState(null, '', url)
+  else window.history.pushState(null, '', url)
   listeners.forEach(l => l())
   if (opts.scroll !== false) window.scrollTo({ top: 0 })
 }
@@ -20,7 +31,8 @@ export function RouterProvider({ children }: { children: React.ReactNode }) {
     const update = () => setState(read())
     listeners.add(update)
     window.addEventListener('popstate', update)
-    return () => { listeners.delete(update); window.removeEventListener('popstate', update) }
+    window.addEventListener('hashchange', update)
+    return () => { listeners.delete(update); window.removeEventListener('popstate', update); window.removeEventListener('hashchange', update) }
   }, [])
   return <Ctx.Provider value={state}>{children}</Ctx.Provider>
 }
@@ -41,7 +53,7 @@ export function matchPath(pattern: string, path: string): Record<string, string>
 export function Link({ to, children, className, onClick, ...rest }: React.AnchorHTMLAttributes<HTMLAnchorElement> & { to: string }) {
   return (
     <a
-      href={to}
+      href={HASH ? `#${to}` : to}
       className={className}
       onClick={e => {
         onClick?.(e)
