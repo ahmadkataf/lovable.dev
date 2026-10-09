@@ -51,6 +51,7 @@ CREATE TABLE IF NOT EXISTS events (
 CREATE INDEX IF NOT EXISTS events_ip_at ON events(ip, at);
 CREATE INDEX IF NOT EXISTS events_code ON events(code);
 CREATE INDEX IF NOT EXISTS events_device ON events(device);
+CREATE INDEX IF NOT EXISTS events_kind_at ON events(kind, at);   -- dashboard: binds / trials / failures per period without scanning the table
 
 -- Seller settings shown on the activation screen and used by the checks:
 -- price, whatsapp, trial_days, grace_days, min_version, android_signature, message.

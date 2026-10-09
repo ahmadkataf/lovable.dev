@@ -112,6 +112,7 @@ let schemaReady: Promise<void> | null = null
  *  already has the column is the expected outcome; tried once per isolate. The deploy workflow runs the same statement. */
 function ensureSchema(env: Env): Promise<void> {
   if (!schemaReady) schemaReady = env.DB.prepare('ALTER TABLE devices ADD COLUMN blocked INTEGER NOT NULL DEFAULT 0').run().then(() => undefined, () => undefined)
+    .then(() => env.DB.prepare('CREATE INDEX IF NOT EXISTS events_kind_at ON events(kind, at)').run()).then(() => undefined, () => undefined)
   return schemaReady
 }
 
@@ -309,6 +310,7 @@ async function cloudAuth(env: Env, token: unknown, device: unknown): Promise<{ t
   if (!row || refuseCode(row, Date.now())) return 'invalid_token'
   const me = await getDevice(env, device)
   if (!me || me.code !== row.code) return 'device_mismatch'
+  if (me.blocked) return 'blocked'
   return { t, row }
 }
 const backupKey = (code: string, id: string) => `b:${code}:${id}`
@@ -419,6 +421,8 @@ const timeArg = (v: string | null): number | null => {
   const d = Date.parse(v)
   return Number.isFinite(d) ? d : null
 }
+/** The allow-listed SQL for a query-string key; a prototype name ('constructor', '__proto__'…) is not a hit. */
+const pick = (table: Record<string, string>, key: string, fallback: string): string => Object.prototype.hasOwnProperty.call(table, key) ? table[key] : fallback
 const pageArgs = (url: URL, max = 200, def = 50) => {
   const limit = intArg(url.searchParams.get('limit'), 1, max, def)
   const page = intArg(url.searchParams.get('page'), 1, 100000, 1)
@@ -569,7 +573,7 @@ async function admin(req: Request, env: Env, path: string, url: URL): Promise<Re
     if (from) { where.push('c.created_at >= ?'); args.push(from) }
     if (to) { where.push('c.created_at <= ?'); args.push(to) }
     const SORT: Record<string, string> = { created: 'c.created_at', expires: 'c.expires_at', cloud: 'c.cloud_until', devices: 'devices', last_seen: 'last_seen', note: 'c.note', code: 'c.code' }
-    const sort = SORT[qs('sort')] || 'c.created_at'
+    const sort = pick(SORT, qs('sort'), 'c.created_at')
     const dir = qs('dir') === 'asc' ? 'ASC' : 'DESC'
     const { limit, page, offset } = pageArgs(url)
     const cond = where.length ? `WHERE ${where.join(' AND ')}` : ''
@@ -661,7 +665,7 @@ async function admin(req: Request, env: Env, path: string, url: URL): Promise<Re
     const platform = qs('platform')
     if (validPlatform(platform)) { where.push('d.platform = ?'); args.push(platform) }
     const SORT: Record<string, string> = { last_seen: 'd.last_seen', first_seen: 'd.first_seen', name: 'd.name', trial_ends: 'd.trial_ends' }
-    const sort = SORT[qs('sort')] || 'd.last_seen'
+    const sort = pick(SORT, qs('sort'), 'd.last_seen')
     const dir = qs('dir') === 'asc' ? 'ASC' : 'DESC'
     const { limit, page, offset } = pageArgs(url)
     const cond = where.length ? `WHERE ${where.join(' AND ')}` : ''
@@ -778,20 +782,23 @@ async function admin(req: Request, env: Env, path: string, url: URL): Promise<Re
     if (req.method === 'POST') {
       const b = await body(req)
       if (!b) return fail('bad_request')
+      const cur = await settings(env)
+      const v = (k: keyof Settings): unknown => (b[k] === undefined ? cur[k] : b[k])   // a key the body leaves out keeps its value
       const put = (k: string, v: string) => env.DB.prepare('INSERT INTO settings (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value').bind(k, v)
       const num = (v: unknown, max: number, fallback: number) => { const n = Math.round(Number(v)); return Number.isFinite(n) ? String(Math.max(0, Math.min(max, n))) : String(fallback) }
       await env.DB.batch([
-        put('price', clip(b.price, 40) || DEFAULTS.price),
-        put('whatsapp', clip(b.whatsapp, 20).replace(/\D/g, '')),
-        put('trial_days', num(b.trial_days, 365, DEFAULTS.trial_days)),
-        put('grace_days', num(b.grace_days, 365, DEFAULTS.grace_days)),
-        put('min_version', clip(b.min_version, 20).replace(/[^0-9.]/g, '')),
-        put('android_signature', clip(b.android_signature, 2000).replace(/[^0-9a-fA-F,:\s]/g, '').replace(/:/g, '').toLowerCase()),
-        put('message', clip(b.message, 400)),
-        put('cloud_price', clip(b.cloud_price, 40) || DEFAULTS.cloud_price),
-        put('cloud_days', num(b.cloud_days, 3650, DEFAULTS.cloud_days)),
-        put('cloud_keep', num(b.cloud_keep, 10, DEFAULTS.cloud_keep)),
-        put('web_trial', b.web_trial ? '1' : '0'),
+        put('price', clip(v('price'), 40) || DEFAULTS.price),
+        put('whatsapp', clip(v('whatsapp'), 20).replace(/\D/g, '')),
+        put('trial_days', num(v('trial_days'), 365, DEFAULTS.trial_days)),
+        put('grace_days', num(v('grace_days'), 365, DEFAULTS.grace_days)),
+        put('min_version', clip(v('min_version'), 20).replace(/[^0-9.]/g, '')),
+        // one or more SHA-256 fingerprints: anything that is not 64 hex digits is dropped (a stray entry would refuse every Android build)
+        put('android_signature', clip(v('android_signature'), 2000).toLowerCase().split(',').map(x => x.replace(/[^0-9a-f]/g, '')).filter(x => x.length === 64).join(',')),
+        put('message', clip(v('message'), 400)),
+        put('cloud_price', clip(v('cloud_price'), 40) || DEFAULTS.cloud_price),
+        put('cloud_days', num(v('cloud_days'), 3650, DEFAULTS.cloud_days)),
+        put('cloud_keep', num(v('cloud_keep'), 10, DEFAULTS.cloud_keep)),
+        put('web_trial', v('web_trial') ? '1' : '0'),
       ])
       await log(env, 'admin', req, null, null, 'settings')
     }
@@ -840,7 +847,8 @@ export default {
       }
       return fail('not_found', 404, 'لا يوجد.')
     } catch (e) {
-      return fail('server_error', 500, `خطأ في الخادم: ${(e as Error).message}`)
+      // the exception text (SQL, binding names…) is for the seller's panel only; an anonymous caller gets the key alone
+      return fail('server_error', 500, isAdmin(req, env) ? `خطأ في الخادم: ${(e as Error).message}` : 'خطأ في الخادم.')
     }
   },
 
