@@ -1,6 +1,6 @@
 import Dexie, { type Table } from 'dexie'
 import type {
-  Category, Product, Customer, Supplier, Sale, Refund, StockMove, Purchase, LedgerEntry, Expense, Shift, CashMove, User, HeldTicket, KV, Settings,
+  Category, Product, Customer, Supplier, Sale, Refund, StockMove, Purchase, LedgerEntry, Expense, Shift, CashMove, User, HeldTicket, KV, Settings, AuditEntry,
 } from './types'
 import { DEFAULT_SETTINGS } from './types'
 import { uid } from '../lib/ids'
@@ -21,6 +21,7 @@ export class KasebDB extends Dexie {
   users!: Table<User, string>
   heldTickets!: Table<HeldTicket, string>
   kv!: Table<KV, string>
+  audit!: Table<AuditEntry, string>
 
   constructor(name = 'kaseb') {
     super(name)
@@ -41,13 +42,15 @@ export class KasebDB extends Dexie {
       heldTickets: 'id, createdAt, userId',
       kv: 'key',
     })
+    // v2: the activity log (who gave a discount, refunded, deleted a product…)
+    this.version(2).stores({ audit: 'id, createdAt, kind, userId' })
   }
 }
 
 export const db = new KasebDB()
 
 /** Every table, for backups. Keep in the order they should be restored. */
-export const TABLES = ['categories', 'products', 'customers', 'suppliers', 'users', 'shifts', 'cashMoves', 'sales', 'refunds', 'stockMoves', 'purchases', 'ledger', 'expenses', 'heldTickets', 'kv'] as const
+export const TABLES = ['categories', 'products', 'customers', 'suppliers', 'users', 'shifts', 'cashMoves', 'sales', 'refunds', 'stockMoves', 'purchases', 'ledger', 'expenses', 'heldTickets', 'kv', 'audit'] as const
 export type TableName = (typeof TABLES)[number]
 
 const SETTINGS_KEY = 'settings'
@@ -66,7 +69,8 @@ export function mergeSettings(s?: Partial<Settings>): Settings {
     currency2: { ...d.currency2, ...s?.currency2 },
     tax: { ...d.tax, ...s?.tax },
     receipt: { ...d.receipt, ...s?.receipt },
-    pos: { ...d.pos, ...s?.pos },
+    pos: { ...d.pos, ...s?.pos, scale: { ...d.pos.scale, ...s?.pos?.scale } },
+    permissions: { ...d.permissions, ...s?.permissions },
   }
 }
 export async function saveSettings(s: Settings): Promise<void> {

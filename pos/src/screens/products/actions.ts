@@ -1,4 +1,5 @@
 // Database actions shared by the form, the list and the bulk bar.
+import { logAudit } from '../../lib/audit'
 import { db } from '../../db'
 import type { Product } from '../../db/types'
 import { cleanBarcode } from '../../lib/barcode'
@@ -27,12 +28,14 @@ export async function deleteProduct(id: string): Promise<DeleteOutcome> {
   if (!p) return 'missing'
   if (await isProductReferenced(id)) {
     await db.products.update(id, { active: false, updatedAt: Date.now() })
+    await logAudit({ kind: 'product.delete', detail: `${p.name} (deactivated)`, refId: id })
     return 'deactivated'
   }
   await db.transaction('rw', db.products, db.stockMoves, async () => {
     await db.stockMoves.where('productId').equals(id).delete()
     await db.products.delete(id)
   })
+  await logAudit({ kind: 'product.delete', detail: p.name, refId: id })
   return 'deleted'
 }
 

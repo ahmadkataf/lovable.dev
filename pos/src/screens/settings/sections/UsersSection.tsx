@@ -1,3 +1,4 @@
+import { logAudit } from '../../../lib/audit'
 import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useLiveQuery } from 'dexie-react-hooks'
@@ -96,6 +97,7 @@ function UserModal({ user, users, me, onClose }: { user: User | null; users: Use
       const row: User = { id: user?.id ?? uid(), name: name.trim(), role, active, createdAt: user?.createdAt ?? Date.now() }
       if (pinHash) row.pinHash = pinHash
       await db.users.put(row)
+      void logAudit({ kind: user ? 'user.change' : 'user.add', detail: `${row.name} (${row.role}${row.active ? '' : ', off'})`, refId: row.id })
       await reloadUsers()
       toast(t('settings.users.saved'), 'success')
       onClose()
@@ -109,6 +111,7 @@ function UserModal({ user, users, me, onClose }: { user: User | null; users: Use
     if (!ok) return
     try {
       await db.users.delete(user.id)
+      void logAudit({ kind: 'user.remove', detail: user.name, refId: user.id })
       await reloadUsers()
       toast(t('settings.users.deleted'), 'success')
       onClose()

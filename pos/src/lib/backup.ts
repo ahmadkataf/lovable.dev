@@ -1,6 +1,7 @@
 // Backup and restore: the whole database as one JSON file, plus the "delete everything" reset.
 // The file is { app: 'kaseb', version: 1, exportedAt, tables: { <name>: rows[] } } for every name in TABLES.
 import { db, TABLES, ensureDefaults, type TableName } from '../db'
+import { logAudit } from './audit'
 
 export const BACKUP_APP = 'kaseb'
 export const BACKUP_VERSION = 1
@@ -92,6 +93,7 @@ export async function importBackup(json: string): Promise<BackupCounts> {
   })
   // a backup from a broken install could lack users or settings
   await ensureDefaults()
+  await logAudit({ kind: 'backup.restore', detail: data.exportedAt ? new Date(data.exportedAt).toISOString().slice(0, 16) : '', amount: v.total })
   return v.counts
 }
 
@@ -101,6 +103,7 @@ export async function resetAllData(): Promise<void> {
     for (const name of TABLES) await db.table(name).clear()
   })
   await ensureDefaults()
+  await logAudit({ kind: 'data.reset', detail: '' })
 }
 
 export async function markBackupDone(at = Date.now()): Promise<void> {

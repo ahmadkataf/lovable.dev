@@ -1,5 +1,6 @@
 // Products: the catalogue list (search, categories, filters, sort, multi-select) with the form, categories,
 // import/export and labels. Routes: /products, /products/new, /products/:id.
+import { allowed } from '../../lib/audit'
 import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent, type PointerEvent, type ReactNode } from 'react'
 import { Routes, Route, Outlet, useNavigate, useParams, useSearchParams, useLocation, useMatch } from 'react-router-dom'
 import { useLiveQuery } from 'dexie-react-hooks'
@@ -75,8 +76,10 @@ function ListScreen() {
   const lang = useLang()
   const nav = useNavigate()
   const user = useUser()
-  const admin = isAdmin(user)
   const settings = useSettings()
+  const admin = isAdmin(user)
+  const canEdit = allowed(user, settings, 'cashierEditProducts')
+  const seeCost = allowed(user, settings, 'cashierSeeCost')
   const mobile = useIsMobile()
   const formOpen = !!useMatch('/products/:id')
   const d = settings.currency.decimals
@@ -214,7 +217,7 @@ function ListScreen() {
           <div className="actions">
             <Button variant={selectMode ? 'soft' : 'default'} icon={<CheckSquare size={18} />} onClick={() => (selectMode ? exitSelect() : enterSelect())}>{t('products.select')}</Button>
             {moreMenu}
-            <Button variant="primary" icon={<Plus size={18} />} onClick={() => newProduct()}>{t('products.new')}</Button>
+            {canEdit && <Button variant="primary" icon={<Plus size={18} />} onClick={() => newProduct()}>{t('products.new')}</Button>}
           </div>
         )}
       </div>
@@ -258,10 +261,10 @@ function ListScreen() {
           <>
             <div className="pr-summary">
               <span>{t('products.count', { n: visible.length })}</span>
-              {admin && <span>· {t('products.stockValue')}: <Money value={stockValue(visible, d)} /></span>}
+              {seeCost && <span>· {t('products.stockValue')}: <Money value={stockValue(visible, d)} /></span>}
               {!mobile && <span className="pr-kbd-hint">· <span className="kbd">F1</span> {t('common.search')}</span>}
             </div>
-            <div className={`card flat pr-table ${admin ? '' : 'no-cost'} ${mobile ? 'mobile' : ''}`}>
+            <div className={`card flat pr-table ${seeCost ? '' : 'no-cost'} ${mobile ? 'mobile' : ''}`}>
               {!mobile && (
                 <div className="pr-thead">
                   <span />
@@ -269,7 +272,7 @@ function ListScreen() {
                   <span>{t('common.category')}</span>
                   <span>{t('common.barcode')}</span>
                   <HeadSort label={t('common.price')} active={sort === 'price'} onClick={() => setSort('price')} end />
-                  {admin && <span className="end">{t('common.cost')}</span>}
+                  {seeCost && <span className="end">{t('common.cost')}</span>}
                   <HeadSort label={t('products.stock')} active={sort === 'stock'} onClick={() => setSort('stock')} end />
                   <span />
                 </div>
@@ -279,11 +282,11 @@ function ListScreen() {
                   key={p.id}
                   p={p}
                   category={p.categoryId ? catMap.get(p.categoryId) : undefined}
-                  admin={admin}
+                  admin={seeCost}
                   mobile={mobile}
                   selectMode={selectMode}
                   selected={selected.has(p.id)}
-                  onOpen={() => (selectMode ? toggleSel(p.id) : openProduct(p))}
+                  onOpen={() => (selectMode ? toggleSel(p.id) : canEdit ? openProduct(p) : toast(t('common.noPermission'), 'warn'))}
                   onLongPress={() => { if (!selectMode) enterSelect(p.id); else toggleSel(p.id) }}
                   onFav={() => void toggleFav(p)}
                 />
@@ -293,7 +296,7 @@ function ListScreen() {
         )}
       </div>
 
-      {mobile && !selectMode && !formOpen && (
+      {mobile && !selectMode && !formOpen && canEdit && (
         <button type="button" className="pr-fab" onClick={() => newProduct()} aria-label={t('products.new')}><Plus size={26} /></button>
       )}
 

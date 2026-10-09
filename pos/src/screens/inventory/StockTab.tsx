@@ -12,6 +12,7 @@ import { formatMoney, formatQty, parseNumber, round } from '../../lib/money'
 import { formatDay, formatTime, toDateInput } from '../../lib/format'
 import { saveCsv } from '../../lib/csv'
 import { toast, useSettings, useUser, isAdmin } from '../../state/store'
+import { allowed } from '../../lib/audit'
 import { filterProducts, productValue, stockCounts, stockValue, type StockFilter, type StockSort } from './logic'
 import { AmountPad, ProductAvatar, StockBadge, unitLabel } from './shared'
 import { MoveTypeBadge } from './MovesTab'
@@ -19,8 +20,9 @@ import { MoveTypeBadge } from './MovesTab'
 export function StockTab() {
   const t = useT()
   const user = useUser()
-  const admin = isAdmin(user)
   const settings = useSettings()
+  const admin = isAdmin(user) || allowed(user, settings, 'cashierSeeCost')
+  const canAdjust = allowed(user, settings, 'cashierAdjustStock')
   const c = settings.currency
   const d = c.decimals
   const mobile = useIsMobile()
@@ -62,9 +64,9 @@ export function StockTab() {
   const countP = countId ? byId.get(countId) : undefined
   const actions = (p: Product) => (
     <div className="row inv-row-actions" onClick={e => e.stopPropagation()}>
-      <Button variant="soft" iconOnly icon={<Plus size={18} />} disabled={!p.trackStock} onClick={() => setAdjust({ id: p.id, dir: 1 })} title={t('inventory.stock.add')} aria-label={t('inventory.stock.add')} />
-      <Button variant="soft-danger" iconOnly icon={<Minus size={18} />} disabled={!p.trackStock} onClick={() => setAdjust({ id: p.id, dir: -1 })} title={t('inventory.stock.remove')} aria-label={t('inventory.stock.remove')} />
-      <Button icon={<ClipboardCheck size={18} />} disabled={!p.trackStock} onClick={() => setCountId(p.id)}>{t('inventory.stock.count')}</Button>
+      <Button variant="soft" iconOnly icon={<Plus size={18} />} disabled={!p.trackStock || !canAdjust} onClick={() => setAdjust({ id: p.id, dir: 1 })} title={t('inventory.stock.add')} aria-label={t('inventory.stock.add')} />
+      <Button variant="soft-danger" iconOnly icon={<Minus size={18} />} disabled={!p.trackStock || !canAdjust} onClick={() => setAdjust({ id: p.id, dir: -1 })} title={t('inventory.stock.remove')} aria-label={t('inventory.stock.remove')} />
+      <Button icon={<ClipboardCheck size={18} />} disabled={!p.trackStock || !canAdjust} onClick={() => setCountId(p.id)}>{t('inventory.stock.count')}</Button>
     </div>
   )
 

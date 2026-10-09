@@ -1,4 +1,5 @@
 // The money sheets on a customer's account: take a payment (any cashier) and adjust the balance (admin).
+import { logAudit } from '../../lib/audit'
 import { useState } from 'react'
 import { Banknote, CreditCard, ArrowLeftRight, Printer } from 'lucide-react'
 import type { Customer, LedgerEntry, PaymentMethod } from '../../db/types'
@@ -96,6 +97,7 @@ export function AdjustDialog({ customer, onClose }: { customer: Customer; onClos
     setBusy(true)
     try {
       await applyLedger({ customerId: customer.id, type: 'adjust', amount: delta, note: reason.trim(), userId: user.id }, c.decimals)
+      void logAudit({ kind: 'customer.adjust', detail: `${customer.name}: ${delta > 0 ? '+' : ''}${delta} · ${reason.trim()}`, refId: customer.id, amount: delta })
       beep('ok')
       toast(t('customers.adjust.done'), 'success')
       onClose()

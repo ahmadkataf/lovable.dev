@@ -5,6 +5,7 @@
 // What a line is worth when refunded: the customer paid `sale.total` for `sale.subtotal` worth of lines
 // (a sale discount, or an exclusive tax, sits between the two), so a line's refund value is its share of
 // the total. Without a discount or exclusive tax that is exactly item.total / item.qty per unit.
+import { logAudit } from './audit'
 import { db } from '../db'
 import type { Sale, Refund, PaymentMethod, User, Shift, Settings } from '../db/types'
 import { applyStock } from './stock'
@@ -188,6 +189,7 @@ export async function createRefund(input: CreateRefundInput): Promise<Refund> {
     const status: Sale['status'] = allDone || round(fresh.total - refunded, d) <= 0 ? 'refunded' : 'partial'
     await db.refunds.add(refund)
     await db.sales.update(fresh.id, { refunded, status })
+    await logAudit({ kind: 'refund', detail: `#${fresh.number} · ${refund.items.map(i => i.name).join(', ')}`, refId: refund.id, amount: total, user: { id: user.id, name: user.name } })
     return refund
   })
 }

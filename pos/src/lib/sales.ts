@@ -13,7 +13,8 @@ import { applyStock } from './stock'
 import { applyLedger } from './ledger'
 import { uid } from './ids'
 import { round } from './money'
-import { addMessages } from '../i18n'
+import { addMessages, t } from '../i18n'
+import { logAudit } from './audit'
 
 addMessages({
   ar: {
@@ -81,7 +82,7 @@ export async function completeSale(input: CompleteSaleInput): Promise<Sale> {
   if (cart.lines.some(l => !(l.qty > 0))) throw new SaleError('sales.err.invalidQty')
 
   const at = Date.now()
-  return db.transaction('rw', [db.sales, db.products, db.stockMoves, db.customers, db.ledger, db.kv], async () => {
+  const sale = await db.transaction('rw', [db.sales, db.products, db.stockMoves, db.customers, db.ledger, db.kv], async () => {
     if (!settings.pos.allowNegativeStock) {
       const need = new Map<string, number>()
       for (const l of cart.lines) if (l.productId) need.set(l.productId, round((need.get(l.productId) ?? 0) + l.qty, 3))
@@ -127,6 +128,13 @@ export async function completeSale(input: CompleteSaleInput): Promise<Sale> {
     await db.sales.add(sale)
     return sale
   })
+  // the owner's activity log: discounts and price changes at the till
+  const lineDiscounts = round(cart.lines.reduce((s, l) => s + l.discount, 0), d)
+  if (totals.discount > 0 || lineDiscounts > 0) await logAudit({ kind: 'sale.discount', detail: `#${sale.number}`, refId: sale.id, amount: round(totals.discount + lineDiscounts, d), user: { id: user.id, name: user.name } })
+  const overridden = cart.lines.filter(l => l.productId && l.price !== l.originalPrice)
+  if (overridden.length) await logAudit({ kind: 'sale.priceOverride', detail: `#${sale.number}: ${overridden.map(l => `${l.name} ${l.originalPrice}→${l.price}`).join(', ')}`, refId: sale.id, user: { id: user.id, name: user.name } })
+  void t
+  return sale
 }
 
 /** The customer's balance right after a sale on credit (from the ledger), or undefined when there is none. */

@@ -6,6 +6,7 @@ import { setLang, applyLangToDocument } from '../i18n'
 import { configureFeedback } from '../lib/audio'
 import type { LicenseStatus } from '../license/types'
 import { license } from '../license'
+import { setAuditActor } from '../lib/audit'
 
 export interface Toast { id: number; text: string; kind: 'info' | 'success' | 'error' | 'warn' }
 export interface ConfirmOptions { title: string; text?: string; okLabel?: string; cancelLabel?: string; danger?: boolean }
@@ -167,3 +168,5 @@ export const useSettings = (): Settings => useStore(s => s.settings)
 export const useCurrency = () => useStore(s => s.settings.currency)
 export const useUser = (): User | null => useStore(s => s.user)
 export const isAdmin = (u: User | null): boolean => !!u && u.role === 'admin'
+
+setAuditActor(() => { const u = useStore.getState().user; return u ? { id: u.id, name: u.name } : null })

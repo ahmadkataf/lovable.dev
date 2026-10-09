@@ -13,7 +13,8 @@ import { formatMoney, formatQty, round } from '../../lib/money'
 import { formatDateTime } from '../../lib/format'
 import { printSale } from '../../lib/receipt'
 import { canRefund, remainingQty } from '../../lib/refunds'
-import { toast, useSettings } from '../../state/store'
+import { toast, useSettings, useUser } from '../../state/store'
+import { allowed } from '../../lib/audit'
 import { SubHead } from '../inventory/shared'
 import { RefundDialog } from './RefundDialog'
 import { MethodIcon, StatusBadge, methodLabel } from './shared'
@@ -36,7 +37,8 @@ export function SaleDetail() {
   if (sale === undefined) return <div className="page"><SubHead title={t('history.receipt', { n: '' })} back="/history" /><div className="empty"><Spinner /></div></div>
   if (sale === null) return <div className="page"><SubHead title={t('nav.history')} back="/history" /><Empty icon={<Receipt size={32} />} title={t('history.notFound')} text={t('history.notFoundText')} /></div>
 
-  const refundable = canRefund(sale, refunds, c.decimals)
+  const user = useUser()
+  const refundable = canRefund(sale, refunds, c.decimals) && allowed(user, settings, 'cashierRefund')
   const returned = remainingQty(sale, refunds, c.decimals).map((r, i) => round(sale.items[i].qty - r, 3))
   const anyReturned = returned.some(q => q > 0)
   const Chevron = lang === 'ar' ? ChevronLeft : ChevronRight

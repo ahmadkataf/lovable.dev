@@ -6,6 +6,7 @@ import { useT } from '../i18n'
 import { Avatar, Badge, Button } from './ui'
 import { daysBetween } from '../lib/format'
 import { platform } from '../lib/platform'
+import { allowed } from '../lib/audit'
 import icon from '/icon.svg'
 
 const NAV = [
@@ -34,7 +35,7 @@ export function Shell({ children }: { children: ReactNode }) {
   const [more, setMore] = useState(false)
   const loc = useLocation()
   const nav = useNavigate()
-  const items = NAV.filter(n => !n.admin || user?.role === 'admin')
+  const items = NAV.filter(n => (!n.admin || user?.role === 'admin') && (n.to !== '/history' || allowed(user, settings, 'cashierSeeHistory')))
   const isSales = loc.pathname === '/'
   const current = items.find(n => (n.end ? loc.pathname === n.to : loc.pathname.startsWith(n.to)))
 

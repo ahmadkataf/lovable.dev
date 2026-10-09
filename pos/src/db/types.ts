@@ -226,6 +226,33 @@ export interface HeldTicket {
 
 export interface KV { key: string; value: unknown }
 
+/** Sensitive actions, kept so the owner can see who did what. */
+export type AuditKind =
+  | 'sale.discount' | 'sale.priceOverride' | 'refund' | 'product.delete' | 'product.price' | 'stock.adjust'
+  | 'user.add' | 'user.change' | 'user.remove' | 'backup.restore' | 'data.reset' | 'shift.close' | 'customer.adjust'
+export interface AuditEntry {
+  id: ID
+  createdAt: number
+  userId?: ID
+  userName?: string
+  kind: AuditKind
+  detail: string       // a short sentence in the UI language at the time
+  refId?: ID           // the sale / refund / product / shift it concerns
+  amount?: number
+}
+
+/** What a cashier (role 'cashier') may do; admins may do everything. */
+export interface Permissions {
+  cashierDiscount: boolean
+  cashierPriceOverride: boolean
+  cashierRefund: boolean
+  cashierSeeCost: boolean
+  cashierEditProducts: boolean
+  cashierAdjustStock: boolean
+  cashierSeeHistory: boolean
+}
+export const DEFAULT_PERMISSIONS: Permissions = { cashierDiscount: true, cashierPriceOverride: true, cashierRefund: true, cashierSeeCost: false, cashierEditProducts: false, cashierAdjustStock: false, cashierSeeHistory: true }
+
 /** Barcodes printed by a label scale: <prefix><PLU><value><check>, 13 digits. The PLU is the product's barcode. */
 export interface ScaleBarcodes {
   enabled: boolean
@@ -270,6 +297,7 @@ export interface Settings {
     cloudAuto: boolean         // daily cloud backup while the cloud plan is active
     scale: ScaleBarcodes       // weight / price embedded barcodes printed by label scales
   }
+  permissions: Permissions
   lang: 'ar' | 'en'
   theme: 'light' | 'dark' | 'system'
   onboarded: boolean
@@ -286,6 +314,7 @@ export const DEFAULT_SETTINGS: Settings = {
     gridSize: 'medium', showStockOnCards: true, requirePin: false, lockAfterMinutes: 0, askPrintAfterSale: true, cameraScanner: true, cloudAuto: true,
     scale: { enabled: false, prefix: '2', pluDigits: 5, value: 'weight', valueDecimals: 3 },
   },
+  permissions: { ...DEFAULT_PERMISSIONS },
   lang: 'ar',
   theme: 'system',
   onboarded: false,

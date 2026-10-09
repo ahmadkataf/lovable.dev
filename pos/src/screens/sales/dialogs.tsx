@@ -56,7 +56,7 @@ const enterSaves = (save: () => void) => (e: React.KeyboardEvent) => {
 }
 
 /* ---------------- line editor ---------------- */
-export function LineEditorDialog({ line, settings, onSave, onRemove, onClose }: { line: CartLine; settings: Settings; onSave: (patch: Partial<CartLine>) => void; onRemove: () => void; onClose: () => void }) {
+export function LineEditorDialog({ line, settings, onSave, onRemove, onClose, allowPrice = true, allowDiscount = true }: { line: CartLine; settings: Settings; onSave: (patch: Partial<CartLine>) => void; onRemove: () => void; onClose: () => void; allowPrice?: boolean; allowDiscount?: boolean }) {
   const t = useT()
   const c = settings.currency
   const d = c.decimals
@@ -75,7 +75,7 @@ export function LineEditorDialog({ line, settings, onSave, onRemove, onClose }: 
   const save = () => {
     if (q <= 0) { onRemove(); return }
     onSave({
-      qty: round(q, 3), price: round(Math.max(0, pr), d), discount, discountPct: mode === 'pct' && dv > 0 ? Math.min(100, dv) : undefined, note: note.trim() || undefined,
+      qty: round(q, 3), price: allowPrice ? round(Math.max(0, pr), d) : line.price, discount: allowDiscount ? discount : line.discount, discountPct: allowDiscount ? (mode === 'pct' && dv > 0 ? Math.min(100, dv) : undefined) : line.discountPct, note: note.trim() || undefined,
     })
   }
   return (
@@ -96,14 +96,14 @@ export function LineEditorDialog({ line, settings, onSave, onRemove, onClose }: 
         </Field>
         <Field label={t('sales.linePrice')} hint={line.price !== line.originalPrice || pr !== line.originalPrice ? t('sales.lineOriginal', { price: formatMoney(line.originalPrice, c) }) : undefined}>
           <div className="row">
-            <NumberInput value={price} onChange={setPrice} decimals={d} />
-            {pr !== line.originalPrice && <Button iconOnly icon={<RotateCcw size={16} />} title={t('sales.lineOriginal', { price: formatMoney(line.originalPrice, c) })} aria-label={t('common.retry')} onClick={() => setPrice(line.originalPrice)} />}
+            <NumberInput value={price} onChange={setPrice} decimals={d} disabled={!allowPrice} />
+            {allowPrice && pr !== line.originalPrice && <Button iconOnly icon={<RotateCcw size={16} />} title={t('sales.lineOriginal', { price: formatMoney(line.originalPrice, c) })} aria-label={t('common.retry')} onClick={() => setPrice(line.originalPrice)} />}
           </div>
         </Field>
         <Field label={t('sales.lineDiscount')}>
           <div className="row">
             <Seg value={mode} onChange={m => { setMode(m); setDisc('') }} options={[{ value: 'amount', label: t('sales.discountAmount') }, { value: 'pct', label: t('sales.discountPct') }]} />
-            <NumberInput value={disc} onChange={setDisc} decimals={mode === 'pct' ? 1 : d} placeholder="0" />
+            <NumberInput value={disc} onChange={setDisc} decimals={mode === 'pct' ? 1 : d} placeholder="0" disabled={!allowDiscount} />
           </div>
         </Field>
         <Field label={t('common.note')}>

@@ -3,7 +3,7 @@ import './i18n'
 import './settings.css'
 import type { ComponentType } from 'react'
 import { Routes, Route, Navigate, NavLink, Link } from 'react-router-dom'
-import { Store, Coins, Percent, Printer, SlidersHorizontal, Users, Palette, DatabaseBackup, Info, ChevronLeft, ShieldAlert, type LucideIcon } from 'lucide-react'
+import { Store, Coins, Percent, Printer, SlidersHorizontal, Users, Palette, DatabaseBackup, Info, ChevronLeft, ShieldAlert, type LucideIcon, ClipboardList } from 'lucide-react'
 import { useStore, isAdmin } from '../../state/store'
 import { useT } from '../../i18n'
 import { Empty, useIsMobile } from '../../components/ui'
@@ -17,8 +17,11 @@ import UsersSection from './sections/UsersSection'
 import AppearanceSection from './sections/AppearanceSection'
 import BackupSection from './sections/BackupSection'
 import AboutSection from './sections/AboutSection'
+import ActivitySection from './sections/ActivitySection'
+import PermissionsCard from './sections/PermissionsCard'
 
-export type SectionKey = 'store' | 'currency' | 'tax' | 'receipt' | 'pos' | 'users' | 'appearance' | 'backup' | 'about'
+export type SectionKey = 'store' | 'currency' | 'tax' | 'receipt' | 'pos' | 'users' | 'activity' | 'appearance' | 'backup' | 'about'
+const UsersAndPermissions = () => <><UsersSection /><PermissionsCard /></>
 interface Section { key: SectionKey; icon: LucideIcon; el: ComponentType }
 export const SECTIONS: Section[] = [
   { key: 'store', icon: Store, el: StoreSection },
@@ -26,7 +29,8 @@ export const SECTIONS: Section[] = [
   { key: 'tax', icon: Percent, el: TaxSection },
   { key: 'receipt', icon: Printer, el: ReceiptSection },
   { key: 'pos', icon: SlidersHorizontal, el: PosSection },
-  { key: 'users', icon: Users, el: UsersSection },
+  { key: 'users', icon: Users, el: UsersAndPermissions },
+  { key: 'activity', icon: ClipboardList, el: ActivitySection },
   { key: 'appearance', icon: Palette, el: AppearanceSection },
   { key: 'backup', icon: DatabaseBackup, el: BackupSection },
   { key: 'about', icon: Info, el: AboutSection },

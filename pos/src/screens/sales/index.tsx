@@ -17,6 +17,7 @@ import { useBarcodeWedge } from '../../lib/scanner-input'
 import { platform } from '../../lib/platform'
 import { completeSale, balanceAfterSale, saleErrorText, type PaymentPlan } from '../../lib/sales'
 import { printSale } from '../../lib/receipt'
+import { allowed } from '../../lib/audit'
 import { Modal, Button, useIsMobile } from '../../components/ui'
 import { ScannerModal } from '../../components/Scanner'
 import { ProductsPanel } from './ProductsPanel'
@@ -55,6 +56,9 @@ export default function SalesScreen() {
   const isMobile = useIsMobile()
   const settings = useStore(s => s.settings)
   const user = useStore(s => s.user)
+  const canDiscount = allowed(user, settings, 'cashierDiscount')
+  const canOverride = allowed(user, settings, 'cashierPriceOverride')
+  const canEditProducts = allowed(user, settings, 'cashierEditProducts')
   const users = useStore(s => s.users)
   const shift = useStore(s => s.shift)
   const cart = useStore(s => s.cart)
@@ -150,9 +154,9 @@ export default function SalesScreen() {
     if (handleScaleCode(code)) return true
     beep('error')
     toast(t('sales.unknownBarcode'), 'warn')
-    openDialog({ kind: 'quickAdd', barcode: code })
+    if (canEditProducts) openDialog({ kind: 'quickAdd', barcode: code })
     return false
-  }, [activeProducts, addToCart, handleScaleCode, openDialog, t])
+  }, [activeProducts, addToCart, handleScaleCode, openDialog, canEditProducts, t])
 
   useBarcodeWedge(code => { if (!dialog) handleCode(code) }, { enabled: !dialog })
 
@@ -164,7 +168,7 @@ export default function SalesScreen() {
     } else if (a.kind === 'quickAdd') {
       beep('error')
       setSearch('')
-      openDialog({ kind: 'quickAdd', barcode: a.barcode })
+      if (canEditProducts) openDialog({ kind: 'quickAdd', barcode: a.barcode }); else toast(t('sales.unknownBarcode'), 'warn')
     }
   }
 
@@ -261,7 +265,7 @@ export default function SalesScreen() {
       onFraction={key => openDialog({ kind: 'fraction', key })}
       onCustomer={openCustomerPicker}
       onRemoveCustomer={() => setCartCustomer(undefined, undefined)}
-      onDiscount={() => openDialog({ kind: 'discount' })}
+      onDiscount={() => { if (canDiscount) openDialog({ kind: 'discount' }); else toast(t('common.noPermission'), 'warn') }}
       onNote={() => openDialog({ kind: 'note' })}
       onHold={() => openDialog({ kind: 'hold' })}
       onHeld={() => openDialog({ kind: 'held' })}
@@ -321,7 +325,7 @@ export default function SalesScreen() {
       )}
       {dialog?.kind === 'done' && <DoneDialog sale={dialog.sale} balanceAfter={dialog.balanceAfter} settings={settings} showKbd={showKbd} onClose={closeDone} />}
       {dialog?.kind === 'line' && editingLine && (
-        <LineEditorDialog line={editingLine} settings={settings} onClose={close}
+        <LineEditorDialog line={editingLine} settings={settings} onClose={close} allowPrice={canOverride} allowDiscount={canDiscount}
           onSave={patch => { patchLine(editingLine.key, patch); setDialog(null) }}
           onRemove={() => { removeLine(editingLine.key); setDialog(null) }} />
       )}

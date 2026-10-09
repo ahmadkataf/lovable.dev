@@ -2,6 +2,7 @@
 // Every number on the closing report comes from summarizeShift(), which only looks at what happened
 // during the shift (sales, refunds, expenses, cash moves, customer payments), so the expected cash can
 // always be re-derived from the records. Closing stores expectedCash and closingCash on the shift.
+import { logAudit } from './audit'
 import { db } from '../db'
 import type { CashMove, Expense, LedgerEntry, PaymentMethod, Refund, Sale, Shift, User } from '../db/types'
 import { uid } from './ids'
@@ -154,6 +155,8 @@ export async function closeShift(o: { shiftId: string; countedCash: number; note
       cashIn: summary.cashIn, cashOut: summary.cashOut, note: o.note?.trim() || undefined,
     }
     await db.shifts.update(shift.id, patch)
+    const diff = round((patch.closingCash ?? 0) - summary.expectedCash, d)
+    await logAudit({ kind: 'shift.close', detail: `${shift.userName}: ${diff >= 0 ? '+' : ''}${diff}`, refId: shift.id, amount: diff })
     return { shift: { ...shift, ...patch }, summary }
   })
 }

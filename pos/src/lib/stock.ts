@@ -4,6 +4,7 @@ import { db } from '../db'
 import type { StockMoveType } from '../db/types'
 import { uid } from './ids'
 import { round } from './money'
+import { logAudit } from './audit'
 
 export interface StockChange { productId: string; qty: number; type: StockMoveType; refId?: string; note?: string; userId?: string }
 
@@ -24,7 +25,11 @@ export async function applyStock(changes: StockChange[], at = Date.now()): Promi
     }
   }
   if (Dexie.currentTransaction) return run()
-  return db.transaction('rw', db.products, db.stockMoves, run)
+  await db.transaction('rw', db.products, db.stockMoves, run)
+  for (const c of changes) if ((c.type === 'adjust' || c.type === 'count') && c.qty) {
+    const p = await db.products.get(c.productId)
+    if (p) await logAudit({ kind: 'stock.adjust', detail: `${p.name}: ${c.qty > 0 ? '+' : ''}${c.qty}${c.note ? ' · ' + c.note : ''}`, refId: p.id, amount: c.qty })
+  }
 }
 
 /** Sets the stock to an exact counted value (a stock-take). */

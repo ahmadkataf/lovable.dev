@@ -11,6 +11,7 @@ import { toast, confirmDialog, useSettings, useUser, isAdmin } from '../../state
 import { uid } from '../../lib/ids'
 import { parseNumber, round, formatMoney, formatNumber } from '../../lib/money'
 import { toDateInput, fromDateInput } from '../../lib/format'
+import { logAudit } from '../../lib/audit'
 import { cleanBarcode, makeInternalEan13 } from '../../lib/barcode'
 import { applyStock } from '../../lib/stock'
 import { beep } from '../../lib/audio'
@@ -202,6 +203,7 @@ export function ProductForm({ open, productId, duplicateFrom, presetBarcode, onC
         const saved: Product = { ...original, ...base, stock: original.stock }
         await db.transaction('rw', db.products, db.stockMoves, async () => {
           await db.products.put(saved)
+          if (saved.price !== original.price) void logAudit({ kind: 'product.price', detail: `${saved.name}: ${original.price} → ${saved.price}`, refId: saved.id, amount: saved.price })
           if (form.trackStock) {
             const diff = round(stock - original.stock, 3)
             if (diff !== 0) await applyStock([{ productId: saved.id, qty: diff, type: original.trackStock ? 'adjust' : 'initial', note: t('products.adjustNote'), userId: user?.id }], now)
