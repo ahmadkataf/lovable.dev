@@ -8,5 +8,6 @@ export const MATERIAL_INFO: Record<string, MaterialInfo> = {
   black: { label: 'أكريليك أسود', hex: '#ff8000', rgb: '255 128 0', cmyk: '0 0.5 1 0', aci: 30, fill: '#4a4a4a' },
   gold: { label: 'أكريليك مرآة ذهبي', hex: '#c0a000', rgb: '192 160 0', cmyk: '0 0.17 1 0.25', aci: 2, fill: '#e6c45a' },
   clear: { label: 'أكريليك شفّاف', hex: '#00b4b4', rgb: '0 180 180', cmyk: '1 0 0 0.29', aci: 4, fill: '#d9f2f5' },
+  light: { label: 'خشب أو MDF فاتح (للحشوات)', hex: '#a0522d', rgb: '160 82 45', cmyk: '0 0.49 0.72 0.37', aci: 34, fill: '#d8bc94' },
 }
-export const COLOUR_NAME: Record<string, string> = { '#ff0000': 'الأحمر', '#00a000': 'الأخضر', '#ff00ff': 'البنفسجي', '#ff8000': 'البرتقالي', '#00b4b4': 'السماوي', '#c0a000': 'الأصفر' }
+export const COLOUR_NAME: Record<string, string> = { '#ff0000': 'الأحمر', '#00a000': 'الأخضر', '#ff00ff': 'البنفسجي', '#ff8000': 'البرتقالي', '#00b4b4': 'السماوي', '#c0a000': 'الأصفر', '#a0522d': 'البنّي' }
