@@ -83,12 +83,12 @@ export async function nextNumber(key: string): Promise<number> {
   })
 }
 
-/** Called once at start: the admin user exists, and settings exist. */
+/** Called once at start: the admin user exists, and settings exist. Atomic, so two concurrent boots (StrictMode) make one admin. */
 export async function ensureDefaults(): Promise<void> {
-  const users = await db.users.count()
-  if (users === 0) {
-    await db.users.add({ id: uid(), name: 'المدير', role: 'admin', active: true, createdAt: Date.now() })
-  }
-  const s = await db.kv.get(SETTINGS_KEY)
-  if (!s) await saveSettings(DEFAULT_SETTINGS)
+  await db.transaction('rw', db.users, db.kv, async () => {
+    if ((await db.users.count()) === 0) {
+      await db.users.add({ id: uid(), name: 'المدير', role: 'admin', active: true, createdAt: Date.now() })
+    }
+    if (!(await db.kv.get(SETTINGS_KEY))) await db.kv.put({ key: SETTINGS_KEY, value: DEFAULT_SETTINGS })
+  })
 }

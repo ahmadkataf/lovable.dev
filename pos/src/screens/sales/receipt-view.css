@@ -1,0 +1,42 @@
+/* On-screen receipt preview: a white "paper" card that mirrors the printed layout, framed by the themed UI. */
+.rv-wrap { display: flex; flex-direction: column; align-items: center; gap: 12px; }
+.rv-paper {
+  width: 100%; max-width: 300px; background: #fff; color: #111; border-radius: 6px;
+  padding: 16px 14px 18px; box-shadow: var(--shadow-2); font-size: 13px; line-height: 1.45;
+  font-family: var(--font); position: relative;
+}
+.rv-paper[data-paper="58"] { max-width: 236px; font-size: 12px; }
+.rv-paper.compact { padding: 12px 12px 14px; font-size: 12px; }
+.rv-paper::after {
+  content: ''; position: absolute; inset-inline: 0; bottom: -6px; height: 6px;
+  background: linear-gradient(135deg, transparent 50%, #fff 50%) 0 0 / 12px 12px, linear-gradient(-135deg, transparent 50%, #fff 50%) 0 0 / 12px 12px;
+  background-repeat: repeat-x; opacity: .9;
+}
+[data-theme="dark"] .rv-paper { box-shadow: 0 10px 30px rgba(0,0,0,.5); }
+.rv-logo { display: block; max-width: 140px; max-height: 70px; margin: 0 auto 8px; filter: grayscale(1); }
+.rv-store { text-align: center; font-size: 17px; font-weight: 800; margin-bottom: 2px; word-break: break-word; }
+.rv-c { text-align: center; }
+.rv-s { font-size: 11px; color: #333; }
+.rv-title { text-align: center; font-size: 18px; font-weight: 800; letter-spacing: 1px; margin: 6px 0; }
+.rv-wm { text-align: center; font-weight: 800; letter-spacing: 3px; border: 1px solid #111; padding: 2px 0; margin: 6px 0; }
+.rv-rule { border: 0; border-top: 1px dashed #111; margin: 8px 0; height: 0; }
+.rv-row { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; padding: 1px 0; }
+.rv-row .lbl { min-width: 0; word-break: break-word; }
+.rv-row .val { white-space: nowrap; }
+.rv-row.strong { font-weight: 700; }
+.rv-row.big { font-size: 20px; font-weight: 800; padding-top: 6px; }
+.rv-items { display: flex; flex-direction: column; }
+.rv-item { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; padding: 5px 0; }
+.rv-item + .rv-item { border-top: 1px dotted #aaa; }
+.rv-item .name { min-width: 0; word-break: break-word; }
+.rv-item .total { font-weight: 700; white-space: nowrap; }
+.rv-item .sub { font-size: 11px; color: #333; margin-top: 1px; }
+.rv-item .strike { text-decoration: line-through; opacity: .7; margin-inline-start: 4px; }
+.rv-count { font-size: 11px; color: #444; margin-top: 2px; }
+.rv-note, .rv-footer { white-space: pre-wrap; font-size: 12px; }
+.rv-footer { text-align: center; }
+.rv-barcode { margin-top: 10px; display: flex; justify-content: center; }
+.rv-barcode svg { max-width: 100%; height: auto; }
+.rv-actions { display: flex; gap: 8px; width: 100%; max-width: 300px; }
+.rv-actions .btn { flex: 1; }
+.rv-paper .num { direction: ltr; unicode-bidi: isolate; font-variant-numeric: tabular-nums; }

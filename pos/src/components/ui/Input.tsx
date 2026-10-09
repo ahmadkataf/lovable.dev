@@ -1,4 +1,4 @@
-import { forwardRef, type InputHTMLAttributes, type ReactNode, type SelectHTMLAttributes, type TextareaHTMLAttributes } from 'react'
+import { forwardRef, useRef, useState, type InputHTMLAttributes, type ReactNode, type SelectHTMLAttributes, type TextareaHTMLAttributes } from 'react'
 import { Search, X } from 'lucide-react'
 
 export interface FieldProps { label?: ReactNode; hint?: ReactNode; error?: ReactNode; children: ReactNode; className?: string; span2?: boolean }
@@ -34,19 +34,27 @@ export interface NumberInputProps extends Omit<InputHTMLAttributes<HTMLInputElem
   decimals?: number
   invalid?: boolean
 }
-export const NumberInput = forwardRef<HTMLInputElement, NumberInputProps>(function NumberInput({ value, onChange, decimals = 2, invalid, className = '', ...rest }, ref) {
+export const NumberInput = forwardRef<HTMLInputElement, NumberInputProps>(function NumberInput({ value, onChange, decimals = 2, invalid, className = '', onBlur, ...rest }, ref) {
+  const [text, setText] = useState(value === '' ? '' : String(value))
+  const last = useRef(value)
+  if (value !== last.current) {            // the parent changed the value (not by typing): show it
+    last.current = value
+    setText(value === '' ? '' : String(value))
+  }
   return (
     <input
       ref={ref}
       className={`input ltr ${invalid ? 'invalid' : ''} ${className}`}
       inputMode={decimals > 0 ? 'decimal' : 'numeric'}
-      value={value === '' ? '' : String(value)}
+      value={text}
       onChange={e => {
         const raw = e.target.value.replace(/[٠-٩]/g, ch => String('٠١٢٣٤٥٦٧٨٩'.indexOf(ch))).replace(/[٫,]/g, '.')
-        if (raw === '' || raw === '-') { onChange(0); return }
-        const n = Number(raw)
-        if (Number.isFinite(n)) onChange(n)
+        if (!/^-?\d*\.?\d*$/.test(raw)) return
+        setText(raw)
+        const n = raw === '' || raw === '-' || raw === '.' ? 0 : Number(raw)
+        if (Number.isFinite(n)) { last.current = n; onChange(n) }
       }}
+      onBlur={e => { setText(value === '' ? '' : String(value)); onBlur?.(e) }}
       onFocus={e => e.target.select()}
       {...rest}
     />

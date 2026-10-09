@@ -5,6 +5,7 @@ import { isBlocked } from './license/types'
 import { Shell } from './components/Shell'
 import { ToastHost, ConfirmHost } from './components/ui'
 import { LockScreen } from './components/LockScreen'
+import Onboarding from './components/Onboarding'
 import SalesScreen from './screens/sales'
 import ProductsScreen from './screens/products'
 import CustomersScreen from './screens/customers'
@@ -53,6 +54,7 @@ export default function App() {
       </Shell>
       <ToastHost />
       <ConfirmHost />
+      <Onboarding />
     </HashRouter>
   )
 }

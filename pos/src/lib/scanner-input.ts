@@ -9,6 +9,17 @@ export interface WedgeOptions {
   enabled?: boolean
 }
 
+/**
+ * Sets an input's value the way the browser does on typing, so a React controlled input
+ * sees the change (plain `el.value = x` would be undone by React on the next render).
+ */
+function setNativeValue(el: HTMLInputElement | HTMLTextAreaElement, value: string): void {
+  const proto = el instanceof HTMLTextAreaElement ? HTMLTextAreaElement.prototype : HTMLInputElement.prototype
+  const setter = Object.getOwnPropertyDescriptor(proto, 'value')?.set
+  if (setter) setter.call(el, value); else el.value = value
+  el.dispatchEvent(new Event('input', { bubbles: true }))
+}
+
 export function useBarcodeWedge(onScan: (code: string) => void, opts: WedgeOptions = {}): void {
   const cb = useRef(onScan); cb.current = onScan
   const { maxGap = 60, minLength = 4, enabled = true } = opts
@@ -20,10 +31,11 @@ export function useBarcodeWedge(onScan: (code: string) => void, opts: WedgeOptio
     let timer: number | undefined
     const reset = () => { buf = ''; target = null; if (timer) { clearTimeout(timer); timer = undefined } }
     const onKey = (e: KeyboardEvent) => {
+      if (e.isComposing) return
       const now = performance.now()
       const el = document.activeElement as HTMLElement | null
-      const inField = el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.isContentEditable)
-      // typed into a field that opts out (e.g. the PIN pad or the search box handles Enter itself)
+      const inField = !!el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.isContentEditable)
+      // typed into a field that opts out (e.g. the PIN pad or a barcode box that handles Enter itself)
       if (inField && el.dataset.noWedge !== undefined) return
       if (now - last > maxGap) { buf = ''; target = null }
       last = now
@@ -31,7 +43,7 @@ export function useBarcodeWedge(onScan: (code: string) => void, opts: WedgeOptio
         if (buf.length >= minLength) {
           const code = buf
           // the scanner typed into a field: take its characters back out
-          if (target && target.value.endsWith(code)) target.value = target.value.slice(0, -code.length)
+          if (target && target.value.endsWith(code)) setNativeValue(target, target.value.slice(0, -code.length))
           e.preventDefault(); e.stopPropagation()
           reset()
           cb.current(code)
