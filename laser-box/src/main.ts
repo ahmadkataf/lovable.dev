@@ -495,7 +495,7 @@ async function saveApk() {
 
 function sizeLabel(p: Record<string, number>) {
   if (state.tpl.startsWith('trophy')) return `درع ${fmt(p.H)} مم، قاعدة ${fmt(p.W)} × ${fmt(p.D)}`
-  if (state.tpl === 'coasterset') return `${fmt(p.nc)} كوستر ${fmt(p.S)} × ${fmt(p.S)}`
+  if (state.tpl.startsWith('coasterset')) return `${fmt(p.nc)} كوستر ${fmt(p.S)} × ${fmt(p.S)}`
   if (p.pw !== undefined) return `صورة ${fmt(p.pw)} × ${fmt(p.ph)}`
   if (p.Dm !== undefined) return `Ø${fmt(p.Dm)} × ${fmt(p.H)}`
   if (p.Dd !== undefined) return `مرآة Ø${fmt(p.Dd)}، قاعدة ${fmt(p.W)} × ${fmt(p.D)}`

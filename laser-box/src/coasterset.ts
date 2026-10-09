@@ -323,6 +323,7 @@ const PARAMS: ParamDef[] = [
   { ...mm('tm', 'سماكة لوح الكوسترات', 0, 10, '0 = تُقصّ من اللوح نفسه. إن قصصتها من لوح آخر فأدخل سماكته المقيسة: شقوق الستاند وارتفاع العلبة عليها'), step: 0.1 },
   { key: 'nc', label: 'عدد الكوسترات', min: 2, max: 12, step: 1, int: true, hint: 'العلبة تتّسع لها فوق بعضها، والستاند فيه شقّ لكل واحد' },
   { key: 'holder', label: 'العلبة', min: 0, max: 1, step: 1, int: true, hint: '0 = الكوسترات وحدها' },
+  { key: 'style', label: 'جدار العلبة', min: 1, max: 3, step: 1, int: true, hint: '1 = مرن على طوله كالصورة (أطول قصّاً)، 2 = مرن عند الزوايا فقط (الزوايا مستديرة، وقصّه نحو الثلث)، 3 = أربعة ألواح مستقيمة بتعشيق أصابع بلا مفصل (الأسرع، وزوايا العلبة قائمة)' },
   { key: 'stand', label: 'الغطاء / الستاند', min: 0, max: 1, step: 1, int: true, hint: 'غطاء بشقوق يقف فيها كل كوستر على زاويته فوق العلبة' },
   { ...mm('gap', 'خلوص الكوستر في فتحة العلبة', 0.5, 4), step: 0.1 },
   { ...mm('air', 'فراغ فوق الكوسترات', 0.5, 10, 'بين أعلى الكومة والغطاء'), step: 0.1 },
@@ -334,7 +335,7 @@ const PARAMS: ParamDef[] = [
   { key: 'n', label: 'عدد الأطقم', min: 1, max: 10, step: 1, int: true },
 ]
 
-const DEFAULTS = { S: 100, R: 14.5, border: 3.5, web: 0, tm: 0, nc: 6, holder: 1, stand: 1, gap: 1, air: 1.5, ow: 36, rim: 3, tab: 10, fit: 0.2, seg: 8, bridge: 2, pitch: 1.5, n: 1 }
+const DEFAULTS = { S: 100, R: 14.5, border: 3.5, web: 0, tm: 0, nc: 6, holder: 1, style: 1, stand: 1, gap: 1, air: 1.5, ow: 36, rim: 3, tab: 10, fit: 0.2, seg: 8, bridge: 2, pitch: 1.5, n: 1 }
 
 /** the narrowest a tab may be made on the short wall beside the opening */
 const minTab = (t: number) => Math.max(5, 1.5 * t)
@@ -387,7 +388,9 @@ function build(p: Record<string, number>, c: Common): BuildResult {
   if (Number.isFinite(fr.web) && fr.web < g.web - 0.05 && !errors.length) errors.push(`أرفع جسر في النقشة ${f1(fr.web)} مم فقط: كبّر الكوستر أو صغّر «أرفع جسر».`)
   if (g.web < 0.7 * tc) warnings.push(`الجسور (${f1(g.web)} مم) رفيعة على لوح ${tc} مم؛ الكوستر ينكسر بسهولة. اجعل «أرفع جسر» ${f1(Math.ceil(0.7 * tc * 10) / 10)} مم أو كبّر الكوستر.`)
   const cx = S / 2
-  const coasterHoles = fr.holes.map(h => ({ ...h, pts: h.pts.map(v => ({ ...v, x: v.x + cx, y: v.y + cx })) }))
+  // an arc shorter than a millimetre (a sliver of the border's corner on a small hole) is cut straight: offset for the
+  // kerf, so short an arc can turn inside out
+  const coasterHoles = fr.holes.map(h => ({ ...h, pts: h.pts.map((v, i, a) => { const q = a[(i + 1) % a.length]; return { ...v, x: v.x + cx, y: v.y + cx, ...(v.b && Math.hypot(q.x - v.x, q.y - v.y) < 1 ? { b: 0 } : {}) } }) }))
   const roundAll = (w: number, h: number, r: number) => (loops: Loop[]) => { for (const [x, y] of [[0, 0], [w, 0], [w, h], [0, h]]) roundCorner(loops, x, y, r) }
   const panels: PanelSpec[] = [{
     id: 'coaster', name: p.tm > 0 && Math.abs(p.tm - t) > 1e-9 ? `كوستر بنقشة الزهرة (من لوح ${tc} مم)` : 'كوستر بنقشة الزهرة',
@@ -409,8 +412,17 @@ function build(p: Record<string, number>, c: Common): BuildResult {
   const Ls = round3(4 * Fl + 4 * arc - ow)  // the wall strip, round the mid-surface less the opening
   const aF = (Fl - ow) / 2                  // the straight wall either side of the opening
   const tabF = round3(Math.min(tab, aF - 6)) // tabs there are narrowed to leave 3 mm each side
+  // the wall: 1 bent all round (the photo), 2 bent at the corners only, 3 four flat boards with finger joints
+  const wallKind = Math.min(3, Math.max(1, Math.round(p.style ?? 1))), flat = wallKind === 3
   const cornerOk = Fl >= 2 * tab + 12
-  if (holder) {
+  if (holder && flat) {
+    // flat walls: square inside, the plates' corners only as round as still covers the square corner of the walls
+    const leg = Ci - ow / 2
+    if (ow > 0 && leg < minTab(t) + 6 + t) errors.push(`الفتحة الأمامية عريضة على الجدار الأمامي: اجعلها ${f1(Math.floor(2 * (Ci - minTab(t) - 6 - t)))} مم على الأكثر.`)
+    if (Hc < 6) errors.push(`الجدران أقصر (${f1(Hc)} مم) من أن تتعشّق: زد «فراغ فوق الكوسترات» أو عدد الكوسترات.`)
+    if (rim < 2 + fit / 2) errors.push(`البروز لا يترك خشباً كافياً خارج شقوق الألسنة: اجعله ${f1(2 + fit / 2)} مم على الأقل.`)
+  }
+  if (holder && !flat) {
     if (!cornerOk) errors.push(`الجانب المستقيم للعلبة (${f1(Fl)} مم) قصير على لسانين بعرض ${tab} مم: صغّر نصف قطر الزاوية إلى ${f1(Math.floor((S - 2 * tab - 12) / 2 * 2) / 2)} مم أو عرض اللسان إلى ${f1(Math.floor((Fl - 12) / 2))} مم.`)
     if (ow > 0 && tabF < minTab(t)) errors.push(`الفتحة الأمامية عريضة: لا يبقى بجانبها جدار يحمل لساناً. اجعلها ${f1(Math.floor(Fl - 2 * (minTab(t) + 6)))} مم على الأكثر.`)
     if (Rm < 2.5 * t) errors.push(`زوايا العلبة ضيّقة على انحناء المفصل (نصف قطر ${f1(Rm)} مم): اجعل نصف قطر زاوية الكوستر ${f1(Math.ceil((2.5 * t - (Rm - R)) * 2) / 2)} مم على الأقل.`)
@@ -420,6 +432,8 @@ function build(p: Record<string, number>, c: Common): BuildResult {
     if (pitch - c.kerf < 1) warnings.push('قصّات المفصل متقاربة جداً: الشريحة بينها أرقّ من 1 مم وقد تحترق أو تنقطع.')
     if (bridge >= seg) warnings.push('الجسور أطول من قصّات المفصل؛ سيكون الجدار قاسياً عند الثني. قلّل الجسر أو أطل القصّة.')
   }
+  // flat walls take the plates' corners in: round only as far as still covers the walls' square corner
+  const Rq = flat ? round3(Math.min(Rp, 3 * rim)) : Rp
   // tab centres along the strip (from the opening's right edge round the right side, the back and the left side)
   const tabsU: { u: number; w: number }[] = []
   if (ow > 0) tabsU.push({ u: aF / 2, w: tabF })
@@ -431,6 +445,15 @@ function build(p: Record<string, number>, c: Common): BuildResult {
   // the same tabs as slots in the plates (plate coordinates, front at the bottom of the drawing)
   const slots = (o: number): Loop[] => {
     const sw = t + fit, out: Loop[] = []
+    if (flat) {
+      const fx = ow > 0 ? (Ci + ow / 2) / 2 : Ci / 2, fw = ow > 0 ? Math.min(tab, Ci - ow / 2 - 6 - t) : tab
+      for (const sx of [-1, 1]) {
+        out.push(rotatedRectHole(round3(o + sx * fx), round3(o + Wm), round3(fw + fit), round3(sw), 0))
+        out.push(rotatedRectHole(round3(o + sx * Ci / 2), round3(o - Wm), round3(tab + fit), round3(sw), 0))
+        for (const q of [-Ci / 2, Ci / 2]) out.push(rotatedRectHole(round3(o + sx * Wm), round3(o + q), round3(sw), round3(tab + fit), 0))
+      }
+      return out
+    }
     const fx = ow > 0 ? (Fl / 2 + ow / 2) / 2 : Fl / 4
     for (const sx of [-1, 1]) {
       out.push(rotatedRectHole(round3(o + sx * fx), round3(o + Wm), round3(tabsU[0].w + fit), round3(sw), 0))
@@ -440,7 +463,38 @@ function build(p: Record<string, number>, c: Common): BuildResult {
     for (const q of [-Fl / 4, Fl / 4]) out.push(rotatedRectHole(round3(o + q), round3(o - Wm), round3(tab + fit), round3(sw), 0))
     return out
   }
-  if (holder && !errors.length) {
+  if (holder && !errors.length && flat) {
+    // four boards: back and front male at their ends, the sides female; tabs top and bottom into the base and the frame
+    const Lw = round3(2 * (Ci + t)), H2 = round3(Hc + 2 * t), half = Lw / 2
+    const rows = (tabs: { x: number; w: number }[]) => {
+      const out: Rect[] = []
+      for (const y of [0, Hc + t]) {
+        let x = 0
+        for (const tb of [...tabs].sort((a, b) => a.x - b.x)) { out.push(rect(x, y, tb.x - tb.w / 2 - x, t)); x = tb.x + tb.w / 2 }
+        out.push(rect(x, y, Lw - x, t))
+      }
+      return out.filter(r => r.w > 1e-6)
+    }
+    const quarter = [{ x: half - Ci / 2, w: tab }, { x: half + Ci / 2, w: tab }]
+    const fx = ow > 0 ? (Ci + ow / 2) / 2 : Ci / 2, fw = ow > 0 ? Math.min(tab, Ci - ow / 2 - 6 - t) : tab
+    const frontTabs = [{ x: half - fx, w: fw }, { x: half + fx, w: fw }]
+    const bTop = Math.max(6, 2 * t)
+    const ends = (type: 'male' | 'female') => ({ left: { type, from: t, len: Hc }, right: { type, from: t, len: Hc } })
+    panels.push(
+      { id: 'base', name: 'العلبة — القاعدة', w: 2 * Po, h: 2 * Po, count: n, post: roundAll(2 * Po, 2 * Po, Rq), holes: slots(Po), note: 'شقوق ألسنة الجدران؛ الشقّان المتقاربان من جهة الفتحة الأمامية' },
+      { id: 'wall-back', name: 'العلبة — الجدار الخلفي', w: Lw, h: H2, count: n, ...ends('male'), cuts: rows(quarter), note: 'أصابعه على طرفيه تدخل في الجانبين' },
+      { id: 'wall-front', name: 'العلبة — الجدار الأمامي', w: Lw, h: H2, count: n, ...ends('male'), cuts: [...rows(frontTabs), ...(ow > 0 ? [rect(round3(half - ow / 2), round3(t + bTop), round3(ow), round3(Hc + t - bTop))] : [])], note: ow > 0 ? 'الفتحة من أسفله: تظهر منها الكومة ويُدفع منها الكوستر' : 'أصابعه على طرفيه تدخل في الجانبين' },
+      { id: 'wall-side', name: 'العلبة — الجدار الجانبي', w: Lw, h: H2, count: 2 * n, ...ends('female'), cuts: rows(quarter), note: 'بين الأمامي والخلفي' },
+      {
+        id: 'ring', name: 'العلبة — الإطار العلوي', w: 2 * Po, h: 2 * Po, count: n, post: roundAll(2 * Po, 2 * Po, Rq),
+        holes: [roundedRectHole(round3(Po - S / 2 - gap), round3(Po - S / 2 - gap), round3(S + 2 * gap), round3(S + 2 * gap), R + gap), ...slots(Po)],
+        note: 'تسقط الكوسترات من فتحته',
+      },
+    )
+    notes.push(`العلبة من الخارج ${f1(2 * Po)} × ${f1(2 * Po)} مم وارتفاعها ${f1(Hc + 2 * t)} مم؛ من الداخل ${f1(2 * Ci)} مم وارتفاع ${f1(Hc)} مم يتّسع لـ ${nc} كوسترات بسماكة ${tc} مم وفوقها ${f1(air)} مم.`)
+    notes.push(`الجدار أربعة ألواح مستقيمة ${f1(Lw)} × ${f1(H2)} مم بتعشيق أصابع في الزوايا، بلا قصّات مفصل: قصّ العلبة أسرع بكثير من جدار الصورة المرن، وزواياها قائمة بين القاعدة والإطار المستديرين قليلاً.`)
+  }
+  if (holder && !errors.length && !flat) {
     const L2 = Ls > 380 ? round3(Ls / 2) : Ls, parts = Ls > 380 ? 2 : 1
     const H2 = round3(Hc + 2 * t)
     const myTabs = tabsU.filter(tb => tb.u < L2 + 1e-6)
@@ -452,9 +506,12 @@ function build(p: Record<string, number>, c: Common): BuildResult {
       return out.filter(r => r.w > 1e-6)
     }
     const end = Math.max(4, 2 * pitch)
-    const open = hingeLines(end, t, L2 - end, Hc + t, seg, bridge, pitch, 'y', { through: true, keepEdge: r => myTabs.some(tb => Math.abs(end + r - tb.u) < tb.w / 2 + bridge) })
+    const hinge = (x0: number, x1: number) => hingeLines(x0, t, x1, Hc + t, seg, bridge, pitch, 'y', { through: true, keepEdge: r => myTabs.some(tb => Math.abs(x0 + r - tb.u) < tb.w / 2 + bridge) })
+    // kind 2: only where the wall bends round a corner (its arc and a little either side), straight runs left whole
+    const bendZones = Array.from({ length: 4 }, (_, i) => [aF + i * (Fl + arc) - 2 * pitch, aF + i * (Fl + arc) + arc + 2 * pitch]).map(([a, b]) => [Math.max(end, a), Math.min(L2 - end, b)]).filter(([a, b]) => b - a > 2 * pitch)
+    const open = wallKind === 2 ? bendZones.flatMap(([a, b]) => hinge(a, b)) : hinge(end, L2 - end)
     panels.push(
-      { id: 'base', name: 'العلبة — القاعدة', w: 2 * Po, h: 2 * Po, count: n, post: roundAll(2 * Po, 2 * Po, Rp), holes: slots(Po), note: 'شقوق ألسنة الجدار؛ الفتحة الأمامية بين الشقّين القريبين من بعضهما' },
+      { id: 'base', name: 'العلبة — القاعدة', w: 2 * Po, h: 2 * Po, count: n, post: roundAll(2 * Po, 2 * Po, Rq), holes: slots(Po), note: 'شقوق ألسنة الجدار؛ الفتحة الأمامية بين الشقّين القريبين من بعضهما' },
       {
         id: 'wall', name: parts > 1 ? 'العلبة — الجدار المرن (نصفان)' : 'العلبة — الجدار المرن', w: L2, h: H2, count: parts * n,
         cuts: [...stripCuts(0), ...stripCuts(Hc + t)], open,
@@ -469,7 +526,7 @@ function build(p: Record<string, number>, c: Common): BuildResult {
       },
     )
     notes.push(`العلبة من الخارج ${f1(2 * Po)} × ${f1(2 * Po)} مم وارتفاعها ${f1(Hc + 2 * t)} مم؛ من الداخل ${f1(2 * Ci)} مم وارتفاع ${f1(Hc)} مم يتّسع لـ ${nc} كوسترات بسماكة ${tc} مم وفوقها ${f1(air)} مم.`)
-    notes.push(`الجدار شريط واحد ${f1(Ls)} × ${f1(H2)} مم${parts > 1 ? ' (مقسوم نصفين لطوله)' : ''} بقصّات مفصل مرن على طوله كما في الصورة، و${tabsU.length} ألسنة في كل حافّة.${ow > 0 ? ` يبدأ وينتهي عند الفتحة الأمامية (عرضها ${f1(ow)} مم) فلا يحتاج وصلة.` : ''}`)
+    notes.push(`الجدار شريط واحد ${f1(Ls)} × ${f1(H2)} مم${parts > 1 ? ' (مقسوم نصفين لطوله)' : ''} ${wallKind === 2 ? 'بقصّات مفصل مرن عند الزوايا الأربع فقط (الأجزاء المستقيمة مصمتة): قصّه نحو ثلث جدار الصورة' : 'بقصّات مفصل مرن على طوله كما في الصورة'}، و${tabsU.length} ألسنة في كل حافّة.${ow > 0 ? ` يبدأ وينتهي عند الفتحة الأمامية (عرضها ${f1(ow)} مم) فلا يحتاج وصلة.` : ''}`)
   }
 
   // -------------------------------------------------------------- the lid that is also the stand
@@ -496,7 +553,7 @@ function build(p: Record<string, number>, c: Common): BuildResult {
       const lidSlots = (o: number) => slotPos.map(q => rotatedRectHole(round3(o + q.x), round3(o + q.y), L, sw, 0))
       const Uw = round3(2 * U)
       panels.push(
-        { id: 'lid', name: 'الغطاء / الستاند — اللوح العلوي', w: 2 * Po, h: 2 * Po, count: n, post: roundAll(2 * Po, 2 * Po, Rp), holes: lidSlots(Po), note: `${nc} شقوق بعرض ${sw} مم، كلّ شقّ مزاح عن الذي أمامه` },
+        { id: 'lid', name: 'الغطاء / الستاند — اللوح العلوي', w: 2 * Po, h: 2 * Po, count: n, post: roundAll(2 * Po, 2 * Po, Rq), holes: lidSlots(Po), note: `${nc} شقوق بعرض ${sw} مم، كلّ شقّ مزاح عن الذي أمامه` },
         { id: 'lid-under', name: 'الغطاء / الستاند — اللوح السفلي', w: Uw, h: Uw, count: n, post: roundAll(Uw, Uw, Ur), holes: lidSlots(U), note: 'يُلصق تحت اللوح العلوي ويدخل في فتحة الإطار' },
       )
       notes.push(`الستاند: شقوق ${f1(L)} × ${sw} مم، بين كلّ شقّ والذي يليه ${f1(pitchS)} مم للخلف و${f1(dx)} مم للجانب. الكوستر يقف على زاويته فتنزل ${f1(depth)} مم تحت سطح الغطاء: تمرّ في اللوحين (${f1(zIn)} مم) وتتدلّى ${f1(depth - zIn)} مم داخل العلبة الفارغة (ارتفاعها ${f1(Hc)} مم) دون أن تلمس قاعها.`)
@@ -508,7 +565,10 @@ function build(p: Record<string, number>, c: Common): BuildResult {
   notes.unshift(
     `${nc * n} كوستر ${S} × ${S} مم بزوايا نصف قطرها ${f1(R)} مم، بنقشة الزهرة كما في الصورة: ثماني بتلات تلتقي رؤوسها في الوسط، وبينها ثماني بتلات كبيرة، ثم زوج بتلات صغيرة أمام كل بتلة، ومثلّثات في الزوايا؛ إطار مصمت ${f1(border)} مم وأرفع جسر ${f1(g.web)} مم${p.web > 0 ? '' : ' (تلقائي بنسبة الصورة)'}.`,
   )
-  if (holder) notes.push(
+  if (holder && flat) notes.push(
+    'تجميع العلبة: ركّب الجدران الأربعة بأصابعها (الأمامي والخلفي بين الجانبين، والفتحة إلى الأسفل)، ثم أدخل ألسنتها السفلية في شقوق القاعدة والعلوية في شقوق الإطار. نقطة غراء خشب في كل زاوية وكل لسان.',
+  )
+  else if (holder) notes.push(
     'تجميع العلبة: ابدأ بتليين الجدار: اثنه بيديك ببطء حول علبة أو زجاجة حتى يلين المفصل. ضع القاعدة والفتحة الأمامية أمامك، وأدخل ألسنة الحافّة السفلية للجدار في شقوقها بدءاً من أحد طرفي الفتحة ودُر به حول العلبة حتى الطرف الآخر، ثم ركّب الإطار العلوي فوق الألسنة العلوية وتجويفه فوق الفتحة. نقطة غراء خشب في كل لسان تكفي؛ أطراف الألسنة تظهر على الإطار كما في الصورة.',
   )
   if (stand) notes.push(
@@ -532,6 +592,15 @@ export const COASTER_SETS: Template[] = [
     build,
   },
 ]
+
+COASTER_SETS.push({
+  ...COASTER_SETS[0],
+  id: 'coastersetfast',
+  name: 'طقم كوسترات بنقشة الزهرة — علبة سريعة القصّ',
+  desc: 'الطقم نفسه بالنقشة نفسها، لكن جدار العلبة أربعة ألواح مستقيمة بتعشيق أصابع بدل الجدار المرن: يُقصّ في وقت أقصر بكثير. (يمكن أيضاً اختيار جدار مرن عند الزوايا فقط.)',
+  icon: `<rect x="6" y="6" width="34" height="34" rx="6"/><path d="M23 23l-12-4 12 4-4-12 4 12 4-12-4 12 12-4-12 4 12 4-12-4 4 12-4-12-4 12 4-12-12 4z" stroke-width="1.5"/><path d="M30 44h28v14H30z"/><path d="M30 48h3v3h-3zM55 48h3v3h-3zM30 53h3v3h-3zM55 53h3v3h-3z" stroke-width="1.2"/>`,
+  defaults: { ...DEFAULTS, style: 3 },
+})
 
 /** for tests and previews: the fret alone, and the numbers it was measured with */
 export const DAHLIA = { D, fret, coasterGeom, clipHole, roundedSquare, cornerWidth }

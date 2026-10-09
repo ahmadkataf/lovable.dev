@@ -83,6 +83,40 @@ describe('the coaster set with the dahlia fret', () => {
     }
   })
 
+  it('the quick-cutting box: four flat boards with finger joints, every tab in a slot of its size; or the wall bent at the corners only', () => {
+    const fast = COASTER_SETS.find(x => x.id === 'coastersetfast')!
+    expect(fast.defaults.style).toBe(3)
+    for (const t of [2.7, 3.2, 4]) for (const v of [{}, { ow: 0 }, { nc: 4 }, { S: 120 }] as Record<string, number>[]) {
+      const p = { ...fast.defaults, ...v }, label = `fast ${JSON.stringify(v)} t=${t}`
+      const d = generate(fast, p, { ...S0, t })
+      expect(d.errors, label).toEqual([])
+      expect(d.panels.map(x => x.id).sort(), label).toEqual(['base', 'coaster', 'lid', 'lid-under', 'ring', 'wall-back', 'wall-front', 'wall-side'])
+      const walls = d.panels.filter(x => x.id.startsWith('wall'))
+      for (const w of walls) expect(w.loops.length, `${label} ${w.id} has no hinge cuts`).toBeLessThanOrEqual(2)
+      // tabs on the bottom edge of every board, as many slots in the base, each the tab plus the fit long
+      const tabs: number[] = []
+      for (const w of walls) {
+        const o = outerOf(w).pts, yMax = Math.max(...o.map(q => q.y))
+        for (let i = 0; i < o.length; i++) { const a = o[i], b = o[(i + 1) % o.length]; if (Math.abs(a.y - yMax) < 1e-6 && Math.abs(b.y - yMax) < 1e-6) for (let k = 0; k < w.count; k++) tabs.push(Math.abs(b.x - a.x)) }
+      }
+      const base = d.panels.find(x => x.id === 'base')!, ring = d.panels.find(x => x.id === 'ring')!
+      const slotsB = boxes(base), slotsR = boxes(ring).filter(sl => Math.min(sl.x1 - sl.x0, sl.y1 - sl.y0) < t + 1)
+      expect(slotsB.length, label).toBe(tabs.length)
+      expect(slotsR.length, label).toBe(tabs.length)
+      for (const sl of slotsB) {
+        expect(Math.min(sl.x1 - sl.x0, sl.y1 - sl.y0), `${label} slot width`).toBeCloseTo(t + p.fit, 3)
+        expect(tabs.some(w => Math.abs(Math.max(sl.x1 - sl.x0, sl.y1 - sl.y0) - w - p.fit) < 1e-3), `${label} slot length`).toBe(true)
+      }
+      // the boards' outer corner stays inside the base's rounded corner
+      const half = walls[0].w / 2, r = base.w / 2
+      expect(Math.hypot(half, half), label).toBeLessThan(Math.hypot(r, r) - 0.3)
+    }
+    // bent at the corners only: far fewer hinge cuts than bent all round
+    const hingeCuts = (style: number) => generate(tpl, { style }, S0).panels.find(x => x.id === 'wall')!.loops.filter(l => !l.closed).length
+    expect(hingeCuts(2), 'corners only').toBeLessThan(0.5 * hingeCuts(1))
+    expect(generate(tpl, { style: 2 }, S0).errors).toEqual([])
+  })
+
   it('says what to change when the fret or the stand does not fit', () => {
     expect(generate(tpl, { S: 70, web: 6 }, S0).errors.length).toBeGreaterThan(0)
     expect(generate(tpl, { nc: 12, S: 70 }, S0).errors.join()).toMatch(/الستاند|الشقوق|عدد/)
