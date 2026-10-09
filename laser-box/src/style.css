@@ -248,3 +248,70 @@ legend { font-weight: 600; color: var(--accent); font-size: 13px; padding: 0; ma
 .segmented.choice button { flex: 1 1 auto; min-width: 0; font-size: 13px; padding: 8px 6px; }
 .quick-choice .field { border-bottom: 0; padding: 6px 0 0; }
 .quick-choice .hint { display: none; }
+
+/* header tools: search and prices */
+.top-tools { margin-inline-start: auto; display: flex; gap: 8px; }
+.icon-btn { width: 42px; height: 42px; border-radius: 12px; border: 1.5px solid var(--line); background: var(--surface); font-size: 18px; box-shadow: var(--shadow); }
+.icon-btn:active { background: var(--accent-soft); }
+
+/* the chooser's search */
+.chooser-head { flex-direction: column; align-items: stretch; gap: 8px; padding-bottom: 8px; }
+.chooser-title { display: flex; align-items: center; justify-content: space-between; }
+.search { width: 100%; border: 1.5px solid var(--line); border-radius: 12px; padding: 10px 12px; font: inherit; font-size: 15px; background: var(--surface-2); color: var(--text); outline: none; }
+.search:focus { border-color: var(--accent); }
+.chips { top: 108px; }
+.empty { color: var(--muted); font-size: 13.5px; padding: 8px 16px 0; margin: 0; }
+.empty:empty { display: none; }
+.card-cat { color: var(--muted); font-size: 10.5px; font-weight: 400; }
+
+/* the form's sections fold */
+.section { border: 0; padding: 0; margin: 0 0 10px; }
+.section summary { cursor: pointer; list-style: none; font-weight: 600; color: var(--accent); font-size: 13.5px; padding: 6px 0; display: flex; align-items: center; }
+.section summary::-webkit-details-marker { display: none; }
+.section summary::after { content: '▾'; margin-inline-start: auto; }
+.section[open] summary::after { content: '▴'; }
+
+/* stats: five tiles, the cost one wide on phones */
+.stats { grid-template-columns: repeat(5, 1fr); }
+.stat.money b { color: var(--accent); }
+@media (max-width: 860px) { .stats { grid-template-columns: repeat(4, 1fr); } .stat.money { grid-column: 1 / -1; } }
+@media (max-width: 480px) { .stats { grid-template-columns: repeat(2, 1fr); } }
+
+/* the cost card and the project */
+.cost { margin-top: 16px; padding: 14px 16px; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow); }
+.cost-head { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 6px; margin-bottom: 6px; }
+.cost h3 { font-size: 15px; color: var(--accent); }
+.cost h3 small { color: var(--muted); font-weight: 400; font-size: 12px; }
+.cost-table { width: 100%; border-collapse: collapse; font-size: 13px; margin: 4px 0 8px; }
+.cost-table th { text-align: start; color: var(--muted); font-weight: 500; font-size: 11.5px; padding: 4px 6px; border-bottom: 1px solid var(--line); }
+.cost-table td { padding: 7px 6px; border-bottom: 1px dashed var(--line); vertical-align: top; }
+.cost-table td small { display: block; color: var(--muted); font-size: 11px; }
+.cost-table td b { font-variant-numeric: tabular-nums; }
+.cost-table .bad { color: var(--error-text); font-weight: 600; }
+.cost-table .qty { white-space: nowrap; }
+.cost-table .qty .bump { width: 30px; font-size: 17px; vertical-align: middle; }
+.cost-table .qty b { display: inline-block; min-width: 24px; text-align: center; }
+.cost-table .linkish { background: none; border: 0; padding: 0; color: var(--text); font-weight: 600; text-decoration: underline dotted; text-align: start; }
+.tool.small { width: 30px; height: 30px; font-size: 12px; box-shadow: none; }
+.cost-qty { display: grid; grid-template-columns: 220px 1fr; gap: 12px; align-items: start; margin: 6px 0; }
+.cost-qty .field { border-bottom: 0; padding: 0; }
+.cost-totals { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 8px; }
+.cost-totals .stat b { white-space: normal; direction: rtl; text-align: start; }
+.cost-totals .hint { grid-column: 1 / -1; }
+.add-project { display: block; width: 100%; margin: 10px 0 4px; border: 1.5px dashed var(--accent); background: var(--accent-soft); color: var(--text); border-radius: 10px; padding: 10px 12px; font-size: 14px; font-weight: 600; }
+.project { margin-top: 14px; padding-top: 10px; border-top: 1px solid var(--line); }
+@media (max-width: 600px) { .cost-qty { grid-template-columns: 1fr; } .cost-table th:nth-child(2), .cost-table td:nth-child(2) { display: none; } }
+
+/* the prices dialog */
+.pricing { width: min(560px, 100vw); }
+.pricing-body { padding: 4px 16px 18px; }
+.pricing-body .field-ctl input { direction: ltr; }
+.pr-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.pr-table th { color: var(--muted); font-weight: 500; font-size: 11.5px; text-align: start; padding: 4px; }
+.pr-table td { padding: 4px; border-bottom: 1px dashed var(--line); }
+.pr-table td small { display: block; color: var(--accent); font-size: 10.5px; }
+.pr-table input { width: 100%; min-width: 58px; border: 1.5px solid var(--line); border-radius: 8px; background: var(--surface-2); color: var(--text); padding: 7px 4px; font: inherit; font-size: 14px; text-align: center; direction: ltr; -moz-appearance: textfield; }
+.pr-table input::-webkit-outer-spin-button, .pr-table input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+.pr-table tr.used td:first-child b { color: var(--accent); }
+.money2 { white-space: nowrap; font-variant-numeric: tabular-nums; }
+.stat.money b, .cost-totals .stat b { line-height: 1.5; }

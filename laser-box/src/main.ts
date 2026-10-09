@@ -6,6 +6,7 @@ import { loopToPath } from './geom'
 import { makeZip } from './zip'
 import { MATERIAL_INFO } from './materials'
 import { scaleDesign, repair, roleOf, Change } from './scale'
+import { designCost, projectTotal, sheetsFor, money, fmtUsd, fmtSyp, matches, DEFAULT_PRICING, DEFAULT_SHEET, MAIN, Pricing, Currency, materialLabel, DesignCost } from './cost'
 
 // Inside the claude.ai viewer the page cannot start downloads itself and the link hash carries no state.
 type ClaudeUse = (name: string) => Promise<{ save(r: { filename: string; data: string | Blob }): Promise<unknown> } | null>
@@ -17,7 +18,9 @@ const android: AndroidBridge | null = (window as unknown as { LaserAndroid?: And
 
 // ------------------------------------------------------------------ state
 
-interface State { tpl: string; params: Record<string, Record<string, number>>; settings: Settings; labels: boolean }
+/** a design put in the project, with the numbers it was costed at */
+interface ProjectItem { id: string; tpl: string; name: string; size: string; params: Record<string, number>; settings: Settings; qty: number }
+interface State { tpl: string; params: Record<string, Record<string, number>>; settings: Settings; labels: boolean; pricing: Pricing; project: ProjectItem[]; qty: Record<string, number> }
 
 const SETTING_DEFS: ParamDef[] = [
   { key: 't', label: 'سماكة الخامة', min: 0.5, max: 30, step: 0.1, unit: 'مم', hint: 'قِس اللوح بالقدمة في أكثر من مكان: لوح «3 مم» كثيراً ما يكون 3.2–3.5 فعلياً (أو 2.7). الشقوق تُقصّ على هذا الرقم، فإن كان أصغر من الحقيقي لا تدخل القطع إلا بالكسر. لا قدمة؟ اقصّ «اختبار التعشيق» من قسم المعايرة' },
@@ -36,10 +39,18 @@ const MATERIALS: { id: string; label: string; kerf: number }[] = [
 const LS_KEY = 'laser-box-state-v2'
 
 function loadState(): State {
-  const base: State = { tpl: TEMPLATES[0].id, params: {}, settings: { ...DEFAULT_SETTINGS }, labels: true }
+  const base: State = { tpl: TEMPLATES[0].id, params: {}, settings: { ...DEFAULT_SETTINGS }, labels: true, pricing: { ...DEFAULT_PRICING, sheets: { ...DEFAULT_PRICING.sheets } }, project: [], qty: {} }
   try {
     const raw = localStorage.getItem(LS_KEY)
-    if (raw) Object.assign(base, JSON.parse(raw), { settings: { ...DEFAULT_SETTINGS, ...JSON.parse(raw).settings } })
+    if (raw) {
+      const saved = JSON.parse(raw)
+      Object.assign(base, saved, {
+        settings: { ...DEFAULT_SETTINGS, ...saved.settings },
+        pricing: { ...DEFAULT_PRICING, ...(saved.pricing ?? {}), sheets: { ...DEFAULT_PRICING.sheets, ...(saved.pricing?.sheets ?? {}) } },
+        project: Array.isArray(saved.project) ? saved.project.filter((it: ProjectItem) => TEMPLATES.some(t => t.id === it.tpl)) : [],
+        qty: saved.qty ?? {},
+      })
+    }
   } catch { /* storage may be unavailable */ }
   // a shared link wins over what was saved
   const h = new URLSearchParams(location.hash.replace(/^#/, ''))
@@ -132,7 +143,11 @@ const app = document.getElementById('app')!
 app.innerHTML = ''
 
 const header = el('header', { class: 'top' },
-  el('div', { class: 'brand' }, el('span', { class: 'logo', 'aria-hidden': 'true' }, '▣'), el('div', {}, el('h1', {}, 'مولّد صناديق الليزر'), el('p', {}, 'اختر الشكل، اضبط القياسات والسماكة، ونزّل ملفاً جاهزاً للقص'))),
+  el('div', { class: 'brand' }, el('span', { class: 'logo', 'aria-hidden': 'true' }, '▣'), el('div', {}, el('h1', {}, 'صناديق الليزر'), el('p', {}, 'صمّم، سعّر، ونزّل ملفاً جاهزاً للقص'))),
+  el('div', { class: 'top-tools' },
+    el('button', { type: 'button', class: 'icon-btn', title: 'ابحث عن منتج', 'aria-label': 'بحث', onclick: () => openChooser(true) }, '🔍'),
+    el('button', { type: 'button', class: 'icon-btn', title: 'أسعار الألواح وسعر الصرف', 'aria-label': 'الأسعار والعملة', onclick: () => openPricing() }, '💲'),
+  ),
 )
 const gallery = el('nav', { class: 'picker', 'aria-label': 'التصميم المختار' })
 const chooser = el('dialog', { class: 'chooser', 'aria-label': 'اختر التصميم' }) as HTMLDialogElement
@@ -146,15 +161,17 @@ svg.setAttribute('class', 'canvas')
 const stats = el('div', { class: 'stats' })
 const alerts = el('div', { class: 'alerts' })
 const notesBox = el('div', { class: 'notes' })
+const costBox = el('section', { class: 'cost', 'aria-label': 'التكلفة' })
+const priceDlg = el('dialog', { class: 'chooser pricing', 'aria-label': 'الأسعار والعملة' }) as HTMLDialogElement
 const actions = el('div', { class: 'actions' })
 previewWrap.append(stats, alerts, el('div', { class: 'canvas-wrap' }, svg, el('div', { class: 'canvas-tools' }, el('button', { type: 'button', class: 'tool', onclick: () => fitView(), title: 'ملاءمة' }, '⤢'), el('button', { type: 'button', class: 'tool', onclick: () => { state.labels = !state.labels; persist(); render() }, title: 'الأسماء' }, 'Aa'))), actions)
-document.body.append(chooser)
-app.append(header, gallery, quick, scaler, el('div', { class: 'work' }, form, previewWrap), notesBox, el('footer', { class: 'foot' }, 'الملفات بالمليمتر. افتح SVG أو DXF في LightBurn أو RDWorks أو Inkscape، وتأكّد أن القياس 1:1 قبل القص.'))
+document.body.append(chooser, priceDlg)
+app.append(header, gallery, quick, scaler, el('div', { class: 'work' }, form, previewWrap), costBox, notesBox, el('footer', { class: 'foot' }, 'الملفات بالمليمتر. افتح SVG أو DXF في LightBurn أو RDWorks أو Inkscape، وتأكّد أن القياس 1:1 قبل القص. · الإصدار 1.7'))
 
 // ------------------------------------------------------------------ gallery
 
 const iconSvg = (icon: string) => `<svg viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" aria-hidden="true">${icon}</svg>`
-let chooserCat = ''
+let chooserCat = '', chooserQuery = ''
 
 /** The page shows only the chosen design; "change" opens a sheet with every design, grouped. */
 function renderGallery() {
@@ -167,33 +184,54 @@ function renderGallery() {
   gallery.append(cur)
 }
 
-function openChooser() {
+function openChooser(focusSearch = false) {
   chooserCat = CATEGORIES.find(c => c.ids.includes(state.tpl))?.id ?? ''
+  chooserQuery = ''
   renderChooser()
   chooser.showModal()
-  chooser.querySelector<HTMLElement>('.card.active')?.scrollIntoView({ block: 'nearest' })
-  chooser.querySelector<HTMLElement>('.chip.on')?.scrollIntoView({ block: 'nearest', inline: 'center' })
+  if (focusSearch) chooser.querySelector<HTMLInputElement>('.search')?.focus()
+  else {
+    chooser.querySelector<HTMLElement>('.card.active')?.scrollIntoView({ block: 'nearest' })
+    chooser.querySelector<HTMLElement>('.chip.on')?.scrollIntoView({ block: 'nearest', inline: 'center' })
+  }
 }
 
+const categoryOf = (id: string) => CATEGORIES.find(c => c.ids.includes(id))
+
+/** The sheet of every design: a search box, the groups as chips, and the cards (the search looks across every group). */
 function renderChooser() {
   chooser.innerHTML = ''
-  const head = el('div', { class: 'chooser-head' }, el('h2', {}, 'اختر التصميم'), el('button', { type: 'button', class: 'tool', 'aria-label': 'إغلاق', onclick: () => chooser.close() }, '✕'))
+  const search = el('input', { class: 'search', type: 'search', placeholder: 'ابحث باسم المنتج: مبخرة، درع، كوستر…', 'aria-label': 'بحث', autocomplete: 'off', value: chooserQuery }) as HTMLInputElement
+  const head = el('div', { class: 'chooser-head' },
+    el('div', { class: 'chooser-title' }, el('h2', {}, 'اختر التصميم'), el('button', { type: 'button', class: 'tool', 'aria-label': 'إغلاق', onclick: () => chooser.close() }, '✕')),
+    search)
   const chips = el('div', { class: 'chips', role: 'tablist' })
-  for (const c of [{ id: '', name: 'الكل', ids: TEMPLATES.map(x => x.id) }, ...CATEGORIES]) {
-    const b = el('button', { type: 'button', role: 'tab', class: 'chip' + (c.id === chooserCat ? ' on' : ''), 'aria-selected': String(c.id === chooserCat), onclick: () => { chooserCat = c.id; renderChooser() } }, `${c.name} `, el('small', {}, String(c.ids.length)))
-    chips.append(b)
-  }
-  const ids = chooserCat ? CATEGORIES.find(c => c.id === chooserCat)!.ids : CATEGORIES.flatMap(c => c.ids)
   const grid = el('div', { class: 'grid' })
-  for (const id of ids) {
-    const t = templateById(id)
-    const card = el('button', { type: 'button', class: 'card' + (t.id === state.tpl ? ' active' : ''), 'aria-pressed': String(t.id === state.tpl), title: t.desc })
-    card.innerHTML = `${iconSvg(t.icon)}<span></span>${NEW_IDS.includes(t.id) ? '<i class="badge">جديد</i>' : ''}`
-    card.querySelector('span')!.textContent = t.name
-    card.onclick = () => { state.tpl = t.id; lastAction = null; lastEdited = null; persist(); chooser.close(); renderGallery(); renderForm(); update(true) }
-    grid.append(card)
+  const empty = el('p', { class: 'empty' })
+  const fill = () => {
+    chips.innerHTML = ''; grid.innerHTML = ''; empty.textContent = ''
+    const q = chooserQuery.trim()
+    for (const c of [{ id: '', name: 'الكل', ids: TEMPLATES.map(x => x.id) }, ...CATEGORIES]) {
+      const on = !q && c.id === chooserCat
+      const b = el('button', { type: 'button', role: 'tab', class: 'chip' + (on ? ' on' : ''), 'aria-selected': String(on), onclick: () => { chooserCat = c.id; chooserQuery = ''; search.value = ''; fill() } }, `${c.name} `, el('small', {}, String(c.ids.length)))
+      chips.append(b)
+    }
+    const ids = q ? TEMPLATES.filter(t => matches(q, t.name, t.desc, categoryOf(t.id)?.name ?? '')).map(t => t.id) : chooserCat ? CATEGORIES.find(c => c.id === chooserCat)!.ids : CATEGORIES.flatMap(c => c.ids)
+    for (const id of ids) {
+      const t = templateById(id)
+      const card = el('button', { type: 'button', class: 'card' + (t.id === state.tpl ? ' active' : ''), 'aria-pressed': String(t.id === state.tpl), title: t.desc })
+      card.innerHTML = `${iconSvg(t.icon)}<span></span>${NEW_IDS.includes(t.id) ? '<i class="badge">جديد</i>' : ''}`
+      card.querySelector('span')!.textContent = t.name
+      if (q) card.append(el('small', { class: 'card-cat' }, categoryOf(t.id)?.name ?? ''))
+      card.onclick = () => { state.tpl = t.id; lastAction = null; lastEdited = null; persist(); chooser.close(); renderGallery(); renderForm(); update(true) }
+      grid.append(card)
+    }
+    if (q && !ids.length) empty.textContent = `لا يوجد منتج باسم «${q}». جرّب كلمة أقصر، أو تصفّح الأقسام.`
   }
-  chooser.append(head, chips, grid)
+  search.oninput = () => { chooserQuery = search.value; fill() }
+  search.onkeydown = e => { if ((e as KeyboardEvent).key === 'Escape') { search.value = ''; chooserQuery = ''; fill(); e.stopPropagation() } }
+  fill()
+  chooser.append(head, chips, empty, grid)
 }
 chooser.addEventListener('click', e => { if (e.target === chooser) chooser.close() }) // a tap on the backdrop closes it
 
@@ -243,7 +281,7 @@ function renderForm() {
   const t = tpl()
   form.innerHTML = ''
   form.append(el('h2', {}, t.name), el('p', { class: 'desc' }, t.desc))
-  const dims = el('fieldset', {}, el('legend', {}, 'القياسات'))
+  const dims = el('details', { class: 'section', open: '' }, el('summary', {}, 'القياسات والخيارات'))
   const seg = el('div', { class: 'segmented', role: 'group', 'aria-label': 'نوع القياسات' })
   for (const [val, label] of [[false, 'خارجية'], [true, 'داخلية']] as const) {
     const b = el('button', { type: 'button', class: state.settings.inner === val ? 'on' : '' }, label)
@@ -253,7 +291,7 @@ function renderForm() {
   dims.append(el('div', { class: 'field' }, el('span', { class: 'field-label' }, 'القياسات المدخلة'), seg, el('span', { class: 'hint' }, state.settings.inner ? 'الأبعاد هي الفراغ الداخلي؛ تُضاف السماكات تلقائياً' : 'الأبعاد هي الحجم الخارجي للصندوق')))
   const cur = params()
   for (const def of t.params) dims.append(numberField(def, cur[def.key], v => setParam(def.key, v)))
-  const mat = el('fieldset', {}, el('legend', {}, 'الخامة والقص'))
+  const mat = el('details', { class: 'section', ...(window.innerWidth > 860 ? { open: '' } : {}) }, el('summary', {}, 'الخامة والقص'))
   mat.append(el('div', { class: 'field' }, el('span', { class: 'field-label' }, 'نوع الخامة'), materialPicker(), el('span', { class: 'hint' }, 'يضبط عرض الشقّ المعتاد؛ اكتب السماكة المقاسة بالقدمة في الخانة أدناه')))
   mat.append(el('div', { class: 'field' }, el('span', { class: 'field-label' }, 'سماكات شائعة (مم)'), thicknessPicker(), el('span', { class: 'hint' }, 'اختر سماكة لوحك، أو اكتب المقاسة بالقدمة في «سماكة الخامة»')))
   for (const def of SETTING_DEFS) mat.append(numberField(def, (state.settings as unknown as Record<string, number>)[def.key], v => { (state.settings as unknown as Record<string, number>)[def.key] = v; persist(); update() }))
@@ -448,13 +486,16 @@ function render() {
   if (dirtyFit) { fitView(); dirtyFit = false } else applyView()
 
   const p = params()
+  const cost = designCost(design.panels, state.settings.spacing, state.pricing)
   stats.innerHTML = ''
   stats.append(
     stat('القطع', String(design.pieceCount)),
     stat('اللوح المطلوب', `${fmt(lay.w)} × ${fmt(lay.h)} مم`),
     stat('طول القصّ', `${fmt(design.cutLength / 1000)} م`),
     stat('القياس', sizeLabel(p)),
+    stat('تكلفة القطعة', design.errors.length ? '—' : cost.problems.length ? 'لا تتّسع على اللوح' : twoLines(cost.perSet), 'money'),
   )
+  renderCost(cost)
   alerts.innerHTML = ''
   if (lastAction?.tpl === state.tpl) alerts.append(actionBox(lastAction))
   const blocked = design.errors.length > 0
@@ -524,7 +565,155 @@ function sizeLabel(p: Record<string, number>) {
   return `${fmt(p.W)} × ${fmt(p.D)} × ${fmt(p.H)}${state.settings.inner ? ' (داخلي)' : ''}`
 }
 
-const stat = (k: string, v: string) => el('div', { class: 'stat' }, el('span', {}, k), el('b', {}, v))
+/** a tile; a value with line breaks is shown line by line (a price in two currencies) */
+const stat = (k: string, v: string, cls = '') => el('div', { class: 'stat' + (cls ? ' ' + cls : '') }, el('span', {}, k), el('b', {}, ...v.split('\n').flatMap((line, i) => (i ? [el('br'), line] : [line]))))
+
+// ------------------------------------------------------------------ cost: this design, a quantity, and the project
+
+const qtyOf = () => Math.max(1, Math.round(state.qty[state.tpl] ?? 1))
+/** "$3.67 · 40,370 ل.س" from a price in the input currency, each currency kept in its own direction */
+const both = (v: number) => { const m = money(state.pricing, v); return el('span', { class: 'money2' }, el('span', { dir: 'ltr' }, fmtUsd(m.usd)), ' · ', el('span', {}, fmtSyp(m.syp))) }
+const twoLines = (v: number) => { const m = money(state.pricing, v); return `${fmtUsd(m.usd)}\n${fmtSyp(m.syp)}` }
+const costCache = new Map<string, DesignCost | null>()
+/** a project item's cost at the numbers it was added with (the sheet prices as they are now) */
+function itemCost(it: ProjectItem): DesignCost | null {
+  const key = JSON.stringify([it.tpl, it.params, it.settings, state.pricing])
+  if (costCache.has(key)) return costCache.get(key)!
+  let c: DesignCost | null = null
+  try { const d = generate(templateById(it.tpl), it.params, it.settings); c = d.errors.length ? null : designCost(d.panels, it.settings.spacing, state.pricing) } catch { c = null }
+  if (costCache.size > 200) costCache.clear()
+  costCache.set(key, c)
+  return c
+}
+
+function renderCost(cost: DesignCost) {
+  costBox.innerHTML = ''
+  const pr = state.pricing, qty = qtyOf(), ok = !!design && !design.errors.length && !cost.problems.length
+  costBox.append(el('div', { class: 'cost-head' }, el('h3', {}, '💲 التكلفة'), el('button', { type: 'button', class: 'link', onclick: () => openPricing() }, '⚙ أسعار الألواح وسعر الصرف')))
+  // one set: each material's share of its sheet
+  const tbl = el('table', { class: 'cost-table' })
+  tbl.append(el('thead', {}, el('tr', {}, el('th', {}, 'الخامة'), el('th', {}, 'اللوح'), el('th', {}, 'يطلع من اللوح'), el('th', {}, 'حصّة القطعة'))))
+  const tb = el('tbody', {})
+  for (const part of cost.parts) {
+    const sh = part.sheet
+    tb.append(el('tr', {},
+      el('td', {}, el('b', {}, part.label), el('small', {}, `${part.pieces} ${part.pieces === 1 ? 'قطعة' : part.pieces === 2 ? 'قطعتان' : part.pieces <= 10 ? 'قطع' : 'قطعة'}`)),
+      el('td', {}, `${fmt(sh.w)} × ${fmt(sh.h)} سم`, el('small', {}, both(sh.price))),
+      el('td', {}, part.nest.sets > 0 ? el('b', {}, String(part.nest.sets)) : el('b', { class: 'bad' }, 'لا يتّسع'), part.nest.sets > 0 ? el('small', {}, `استغلال ${Math.round((100 * part.nest.area * part.nest.sets) / part.nest.sheetArea)}٪${part.nest.turned ? '، بالعرض' : ''}`) : ''),
+      el('td', {}, part.nest.sets > 0 ? el('b', {}, both(part.perSet)) : '—'),
+    ))
+  }
+  tbl.append(tb)
+  costBox.append(tbl)
+  for (const pb of cost.problems) costBox.append(el('div', { class: 'warn' }, `⚠ ${pb}: كبّر اللوح في الأسعار أو صغّر التصميم.`))
+  if (design?.errors.length) costBox.append(el('div', { class: 'hint' }, 'التصميم فيه أخطاء، فالتكلفة تقريبية حتى تُصلح.'))
+  // a quantity
+  const q = el('div', { class: 'cost-qty' })
+  q.append(numberField({ key: 'qty', label: 'عدد القطع المطلوبة', min: 1, max: 10000, step: 1, int: true }, qty, v => { state.qty[state.tpl] = v; persist(); renderCost(cost) }, 'c'))
+  const totals = el('div', { class: 'cost-totals' })
+  if (ok) {
+    const whole = cost.parts.map(part => ({ part, ...sheetsFor(part, qty) }))
+    const wholeCost = whole.reduce((s, w) => s + w.sheets * w.part.sheet.price, 0)
+    totals.append(
+      stat('القطعة الواحدة', twoLines(cost.perSet)),
+      stat(`${qty} ${qty === 1 ? 'قطعة' : qty === 2 ? 'قطعتان' : qty <= 10 ? 'قطع' : 'قطعة'} (حصّتها من الألواح)`, twoLines(cost.perSet * qty)),
+      stat('ألواح تشتريها كاملة', `${whole.map(w => `${w.sheets} ${w.part.label}`).join(' + ')}\n${twoLines(wholeCost)}`),
+    )
+    const left = whole.filter(w => w.leftover > 0).map(w => `يبقى من ${w.part.label} ما يكفي لـ ${w.leftover} أخرى`).join('، ')
+    if (left) totals.append(el('div', { class: 'hint' }, left + '.'))
+  }
+  q.append(totals)
+  costBox.append(q)
+  const add = el('button', { type: 'button', class: 'add-project', onclick: () => {
+    if (!ok) { toast('أصلح التصميم أولاً ثم أضفه'); return }
+    state.project.push({ id: `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`, tpl: state.tpl, name: tpl().name, size: sizeLabel(params()), params: { ...params() }, settings: { ...state.settings }, qty })
+    persist(); renderCost(cost); toast('أُضيف إلى المشروع')
+  } }, '＋ أضف هذه القطعة إلى المشروع')
+  costBox.append(add)
+  // the project: every design added, on the sheets they share
+  costBox.append(renderProject())
+  costBox.append(el('p', { class: 'hint' }, `التكلفة هي حصّة القطعة من اللوح بحسب الرصّ (${fmt(state.settings.spacing)} مم بين القطع)، بلا وقت القص والكهرباء والتغليف. سعر الصرف ${fmtSyp(pr.rate)} للدولار؛ غيّره من ⚙.`))
+}
+
+function renderProject(): HTMLElement {
+  const box = el('div', { class: 'project' })
+  const items = state.project
+  box.append(el('h3', {}, `🧾 المشروع`, el('small', {}, items.length ? ` ${items.length} ${items.length === 1 ? 'قطعة' : items.length === 2 ? 'قطعتان' : items.length <= 10 ? 'قطع' : 'قطعة'}` : ' فارغ')))
+  if (!items.length) { box.append(el('p', { class: 'hint' }, 'أضف القطع التي يطلبها الزبون واحدة بعد الأخرى (من أي تصميم)، فتُحسب تكلفة المشروع كلّه وكم لوحاً من كل خامة تحتاج.')); return box }
+  const tbl = el('table', { class: 'cost-table' })
+  tbl.append(el('thead', {}, el('tr', {}, el('th', {}, 'القطعة'), el('th', {}, 'العدد'), el('th', {}, 'الواحدة'), el('th', {}, 'المجموع'), el('th', {}, ''))))
+  const tb = el('tbody', {})
+  const lines: { name: string; qty: number; cost: DesignCost }[] = []
+  for (const it of items) {
+    const c = itemCost(it)
+    if (c && !c.problems.length) lines.push({ name: it.name, qty: it.qty, cost: c })
+    const setQty = (v: number) => { it.qty = Math.max(1, Math.round(v)); persist(); design && renderCost(designCost(design.panels, state.settings.spacing, state.pricing)) }
+    tb.append(el('tr', {},
+      el('td', {}, el('button', { type: 'button', class: 'linkish', title: 'افتح هذه القطعة', onclick: () => { state.tpl = it.tpl; state.params[it.tpl] = { ...it.params }; state.settings = { ...it.settings }; lastAction = null; lastEdited = null; persist(); renderGallery(); renderForm(); update(true); window.scrollTo({ top: 0, behavior: 'smooth' }) } }, it.name), el('small', {}, `${it.size} · ${it.settings.t} مم`)),
+      el('td', { class: 'qty' }, el('button', { type: 'button', class: 'bump', onclick: () => setQty(it.qty - 1) }, '−'), el('b', {}, String(it.qty)), el('button', { type: 'button', class: 'bump', onclick: () => setQty(it.qty + 1) }, '+')),
+      el('td', {}, c ? (c.problems.length ? el('span', { class: 'bad' }, 'لا يتّسع') : both(c.perSet)) : el('span', { class: 'bad' }, 'فيها خطأ')),
+      el('td', {}, c && !c.problems.length ? el('b', {}, both(c.perSet * it.qty)) : '—'),
+      el('td', {}, el('button', { type: 'button', class: 'tool small', 'aria-label': 'احذف', onclick: () => { state.project = state.project.filter(x => x.id !== it.id); persist(); design && renderCost(designCost(design.panels, state.settings.spacing, state.pricing)) } }, '✕')),
+    ))
+  }
+  tbl.append(tb)
+  box.append(tbl)
+  const t = projectTotal(lines, state.pricing)
+  const totals = el('div', { class: 'cost-totals' },
+    stat('تكلفة المشروع (حصّة من الألواح)', twoLines(t.cost)),
+    stat('ألواح تشتريها كاملة', t.materials.length ? `${t.materials.map(m => `${m.sheets} ${m.label}`).join(' + ')}\n${twoLines(t.whole)}` : '—'),
+  )
+  box.append(totals)
+  if (t.materials.length) box.append(el('div', { class: 'hint' }, t.materials.map(m => `${m.label}: ${(Math.round(m.fraction * 100) / 100).toLocaleString('en-US')} لوح من ${fmt(m.sheet.w)} × ${fmt(m.sheet.h)} سم`).join('، ') + '.'))
+  box.append(el('button', { type: 'button', class: 'link', onclick: () => { if (confirm('تفريغ المشروع كلّه؟')) { state.project = []; persist(); design && renderCost(designCost(design.panels, state.settings.spacing, state.pricing)) } } }, 'تفريغ المشروع'))
+  return box
+}
+
+// ------------------------------------------------------------------ prices and the exchange rate, for the whole app
+
+function openPricing() { renderPricing(); priceDlg.showModal() }
+
+function renderPricing() {
+  priceDlg.innerHTML = ''
+  const pr = state.pricing
+  const rerender = () => { persist(); if (design) render() }
+  const head = el('div', { class: 'chooser-head' }, el('div', { class: 'chooser-title' }, el('h2', {}, 'الأسعار والعملة'), el('button', { type: 'button', class: 'tool', 'aria-label': 'إغلاق', onclick: () => priceDlg.close() }, '✕')))
+  const body = el('div', { class: 'pricing-body' })
+  // the exchange rate, used everywhere
+  body.append(el('div', { class: 'field' }, el('span', { class: 'field-label' }, 'سعر صرف الدولار اليوم', el('small', {}, 'ليرة سورية لكل دولار')),
+    el('div', { class: 'field-ctl' }, el('input', { type: 'number', inputmode: 'decimal', min: '1', step: '1', value: String(pr.rate), onchange: (e: Event) => { const v = parseFloat((e.target as HTMLInputElement).value); if (v > 0) { pr.rate = v; rerender(); renderPricing() } } })),
+    el('span', { class: 'hint' }, `كل الأسعار تُعرض بالدولار وبالليرة معاً على هذا السعر. الآن: $1 = ${fmtSyp(pr.rate)}.`)))
+  // the currency the sheet prices are typed in
+  const seg = el('div', { class: 'segmented', role: 'group' })
+  for (const [cur, label] of [['USD', 'بالدولار $'], ['SYP', 'بالليرة ل.س']] as [Currency, string][]) {
+    seg.append(el('button', { type: 'button', class: pr.currency === cur ? 'on' : '', onclick: () => {
+      if (pr.currency === cur) return
+      // the prices keep their worth: converted to the new currency
+      for (const sh of Object.values(pr.sheets)) sh.price = Math.round((cur === 'SYP' ? sh.price * pr.rate : sh.price / pr.rate) * 100) / 100
+      pr.currency = cur; rerender(); renderPricing()
+    } }, label))
+  }
+  body.append(el('div', { class: 'field' }, el('span', { class: 'field-label' }, 'أسعار الألواح مكتوبة'), seg))
+  // every sheet: the main one and one per other material
+  const used = new Set(design?.panels.map(p => p.material ?? MAIN) ?? [])
+  const tbl = el('table', { class: 'pr-table' })
+  tbl.append(el('thead', {}, el('tr', {}, el('th', {}, 'اللوح'), el('th', {}, 'عرض سم'), el('th', {}, 'طول سم'), el('th', {}, `السعر ${pr.currency === 'USD' ? '$' : 'ل.س'}`))))
+  const tb = el('tbody', {})
+  const cell = (v: number, min: number, step: number, set: (v: number) => void) => el('td', {}, el('input', { type: 'number', inputmode: 'decimal', min: String(min), step: String(step), value: String(v), onchange: (e: Event) => { const n = parseFloat((e.target as HTMLInputElement).value); if (Number.isFinite(n) && n >= min) { set(n); rerender() } else (e.target as HTMLInputElement).value = String(v) } }))
+  for (const m of [MAIN, ...Object.keys(MATERIAL_INFO)]) {
+    const sh = (pr.sheets[m] ??= { ...DEFAULT_SHEET, price: pr.currency === 'USD' ? DEFAULT_SHEET.price : Math.round(DEFAULT_SHEET.price * pr.rate) })
+    tb.append(el('tr', { class: used.has(m) ? 'used' : '' },
+      el('td', {}, el('b', {}, materialLabel(m)), used.has(m) ? el('small', {}, 'في هذا التصميم') : ''),
+      cell(sh.w, 5, 1, v => { sh.w = v }), cell(sh.h, 5, 1, v => { sh.h = v }), cell(sh.price, 0, pr.currency === 'USD' ? 0.5 : 100, v => { sh.price = v }),
+    ))
+  }
+  tbl.append(tb)
+  body.append(el('div', { class: 'field' }, el('span', { class: 'field-label' }, 'الألواح وأسعارها'), tbl,
+    el('span', { class: 'hint' }, 'اللوح الشائع 122 × 244 سم. اكتب سعر كل لوح كما تشتريه؛ الأكريليك الذهبي والمرآة والشفّاف لكلٍّ سعره، وهذه الأسعار تُحفظ وتُستعمل في كل التصاميم.')))
+  body.append(el('button', { type: 'button', class: 'link', onclick: () => { state.pricing = { ...DEFAULT_PRICING, rate: pr.rate, sheets: { ...DEFAULT_PRICING.sheets } }; rerender(); renderPricing() } }, 'إعادة الأسعار الافتراضية (122 × 244 سم بـ $11)'))
+  priceDlg.append(head, body)
+}
+priceDlg.addEventListener('click', e => { if (e.target === priceDlg) priceDlg.close() })
 
 function fitView() {
   if (!design) return
