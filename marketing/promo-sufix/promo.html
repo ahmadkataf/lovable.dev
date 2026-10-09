@@ -1,0 +1,284 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<link rel="stylesheet" href="fonts.css">
+<style>
+/* SUFIX promo — 1080×1920, time-driven: render(t) places every element for second t. */
+:root{ --cy:#22d3ee; --cy2:#06b6d4; --lime:#a3e635; --wa:#25d366; --ink:#0b1220; --ink2:#3d4a60; --ink3:#6b7689; --paper:#f5f7fb; --card:#ffffff; --line:rgba(10,20,40,.1) }
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{width:1080px;height:1920px;overflow:hidden;background:var(--paper);font-family:'IBM Plex Sans Arabic','Inter',sans-serif;color:var(--ink)}
+.num,.latin{font-family:'Inter','IBM Plex Sans Arabic',sans-serif;font-variant-numeric:tabular-nums}
+#stage{position:absolute;inset:0;overflow:hidden}
+.scene{position:absolute;inset:0;opacity:0;will-change:transform,opacity}
+.blob{position:absolute;width:900px;height:900px;border-radius:50%;filter:blur(90px);opacity:.55;will-change:transform}
+#g1{background:rgba(34,211,238,.45)} #g2{background:rgba(163,230,53,.35)} #g3{background:rgba(34,211,238,.25)}
+.grid{position:absolute;inset:0;background-image:linear-gradient(var(--line) 1px,transparent 1px),linear-gradient(90deg,var(--line) 1px,transparent 1px);background-size:120px 120px;opacity:.5;mask-image:radial-gradient(circle at 50% 40%,#000 20%,transparent 75%);-webkit-mask-image:radial-gradient(circle at 50% 40%,#000 20%,transparent 75%)}
+
+/* A — kinetic words */
+.kw{position:absolute;inset-inline:60px;text-align:center;font-weight:700;line-height:1.1;letter-spacing:-.01em;opacity:0;will-change:transform,opacity,filter}
+.kw.big{font-size:150px}
+.kw.mid{font-size:110px}
+.kw .hl{color:var(--cy2)}
+.ink{position:absolute;left:50%;top:50%;width:200px;height:200px;margin:-100px 0 0 -100px;border-radius:50%;background:var(--ink);opacity:0;will-change:transform}
+
+/* B — logo */
+.logo{position:absolute;left:50%;top:46%;transform:translate(-50%,-50%);display:flex;align-items:center;gap:34px;direction:ltr;will-change:transform,opacity}
+.mark{width:230px;height:230px;border-radius:64px;display:grid;place-items:center;background:linear-gradient(135deg,var(--cy),var(--lime));color:#06121a;font-family:Inter,sans-serif;font-weight:800;font-size:150px;box-shadow:0 40px 90px -30px rgba(34,211,238,.9);position:relative;overflow:hidden}
+.mark .sh{position:absolute;top:-40%;left:-80%;width:60%;height:180%;background:linear-gradient(100deg,transparent,rgba(255,255,255,.75),transparent);transform:skewX(-20deg)}
+.word{font-family:Inter,sans-serif;font-weight:800;font-size:200px;letter-spacing:.04em;color:var(--ink)}
+.tag{position:absolute;inset-inline:0;top:60%;text-align:center;font-size:54px;font-weight:500;color:var(--ink2);opacity:0}
+.pill{position:absolute;padding:20px 36px;border-radius:999px;background:#fff;border:2px solid var(--line);box-shadow:0 30px 60px -30px rgba(10,20,40,.35);font-size:40px;font-weight:700;display:flex;align-items:center;gap:16px;white-space:nowrap;opacity:0;will-change:transform,opacity}
+.pill svg{width:46px;height:46px}
+.pill.wa{background:var(--wa);color:#04220f;border-color:transparent;box-shadow:0 30px 60px -24px rgba(37,211,102,.9)}
+.pill.cy{background:var(--cy);color:#06121a;border-color:transparent}
+.pill.lm{background:var(--lime);color:#0b1a04;border-color:transparent}
+
+/* C — phone */
+#phoneWrap{position:absolute;left:50%;top:50%;width:560px;height:1180px;margin:-590px 0 0 -280px;perspective:2600px;will-change:transform}
+.phone{position:relative;width:560px;height:1180px;border-radius:84px;background:#0b1220;padding:16px;box-shadow:0 80px 140px -50px rgba(10,20,40,.7),inset 0 0 0 4px #1f2937;transform-style:preserve-3d;will-change:transform}
+.phone .scr{position:relative;width:100%;height:100%;border-radius:68px;overflow:hidden;background:#fff}
+.phone .scr img{position:absolute;left:0;top:0;width:100%;will-change:transform}
+.phone .scr .layer{position:absolute;inset:0;will-change:transform,opacity}
+.phone .notch{position:absolute;top:26px;left:50%;width:150px;height:40px;margin-left:-75px;border-radius:999px;background:#0b1220;z-index:5}
+.phone .glare{position:absolute;inset:0;border-radius:68px;background:linear-gradient(115deg,rgba(255,255,255,.22),transparent 45%);pointer-events:none;z-index:4}
+.callout{position:absolute;font-size:44px;font-weight:700;color:var(--ink);opacity:0;will-change:transform,opacity}
+.callout .k{display:block;font-size:30px;color:var(--ink3);font-weight:500;margin-top:6px}
+.title{position:absolute;inset-inline:60px;top:150px;text-align:center;font-size:92px;font-weight:700;line-height:1.15;opacity:0;will-change:transform,opacity}
+.title .hl{color:var(--cy2)}
+.sub{position:absolute;inset-inline:120px;text-align:center;font-size:44px;color:var(--ink2);font-weight:500;line-height:1.5;opacity:0}
+.finger{position:absolute;width:90px;height:90px;border-radius:50%;background:rgba(34,211,238,.35);border:6px solid var(--cy2);opacity:0;will-change:transform,opacity}
+
+/* D — repair */
+.card{position:absolute;background:var(--card);border:2px solid var(--line);border-radius:40px;box-shadow:0 40px 80px -40px rgba(10,20,40,.35);opacity:0;will-change:transform,opacity}
+.tl{position:absolute;left:120px;right:120px;top:1120px;display:flex;flex-direction:column;gap:0}
+.tl .t{display:flex;align-items:center;gap:28px;height:110px;position:relative;opacity:0;will-change:transform,opacity}
+.tl .dot{width:54px;height:54px;border-radius:50%;border:5px solid rgba(10,20,40,.18);background:#fff;display:grid;place-items:center;flex:none}
+.tl .dot svg{width:28px;height:28px;opacity:0}
+.tl .t.done .dot{background:var(--cy);border-color:var(--cy)}
+.tl .t.done .dot svg{opacity:1}
+.tl .lbl{font-size:40px;font-weight:700}
+.tl .t:not(.done) .lbl{color:var(--ink3);font-weight:500}
+
+/* E — stats */
+.stat{position:absolute;inset-inline:100px;text-align:center;opacity:0;will-change:transform,opacity}
+.stat .v{font-family:Inter,sans-serif;font-weight:800;font-size:220px;line-height:1;color:var(--ink);letter-spacing:-.03em}
+.stat .v b{color:var(--cy2)}
+.stat .l{font-size:52px;color:var(--ink2);font-weight:500;margin-top:10px}
+.bar{position:absolute;left:50%;height:14px;border-radius:7px;background:linear-gradient(90deg,var(--cy),var(--lime));transform-origin:left;will-change:transform}
+
+/* F — CTA */
+.cta{position:absolute;inset-inline:0;text-align:center;opacity:0;will-change:transform,opacity}
+.btn{display:inline-flex;align-items:center;gap:22px;padding:34px 70px;border-radius:999px;background:var(--wa);color:#04220f;font-size:60px;font-weight:700;box-shadow:0 40px 90px -30px rgba(37,211,102,.9)}
+.btn svg{width:70px;height:70px}
+.ring{position:absolute;left:50%;top:50%;width:300px;height:300px;margin:-150px 0 0 -150px;border-radius:50%;border:6px solid var(--wa);opacity:0;will-change:transform,opacity}
+.url{font-family:Inter,sans-serif;font-weight:700;font-size:64px;letter-spacing:.06em;color:var(--ink)}
+.chk{position:absolute;left:50%;top:50%;width:260px;height:260px;margin:-130px 0 0 -130px;border-radius:50%;background:rgba(22,163,74,.12);display:grid;place-items:center;opacity:0;will-change:transform,opacity}
+.chk svg{width:130px;height:130px;color:#16a34a}
+.spark{position:absolute;width:14px;height:14px;border-radius:50%;background:var(--lime);opacity:0;will-change:transform,opacity}
+#flash{position:absolute;inset:0;background:#fff;opacity:0;pointer-events:none}
+#vig{position:absolute;inset:0;background:radial-gradient(ellipse at 50% 50%,transparent 60%,rgba(10,20,40,.18));pointer-events:none}
+</style>
+</head>
+<body>
+<div id="stage">
+  <div class="blob" id="g1"></div><div class="blob" id="g2"></div><div class="blob" id="g3"></div>
+  <div class="grid"></div>
+
+  <!-- A: hook -->
+  <div class="scene" id="sA">
+    <div class="kw big" id="w0" style="top:720px">درونك<br>تعطّل؟</div>
+    <div class="kw big" id="w1" style="top:720px">هاتفك<br>انكسر؟</div>
+    <div class="kw mid" id="w2" style="top:640px">بدك قطعة<br><span class="hl">DJI</span> أصلية؟</div>
+    <div class="ink" id="ink"></div>
+  </div>
+
+  <!-- B: logo -->
+  <div class="scene" id="sB">
+    <div class="logo" id="logo"><div class="mark">S<div class="sh" id="sh1"></div></div><div class="word">SUFIX</div></div>
+    <div class="tag" id="tag">صيانة وبيع الإلكترونيات والدرونات</div>
+    <div class="pill cy" id="p1" style="left:120px;top:1250px">🛰️ كل طرازات DJI</div>
+    <div class="pill" id="p2" style="right:120px;top:1370px">🔧 صيانة بقطع أصلية</div>
+    <div class="pill wa" id="p3" style="left:50%;top:1500px;transform:translateX(-50%)">
+      <svg viewBox="0 0 24 24" fill="currentColor"><path d="M17.5 14.4c-.3-.1-1.8-.9-2-1-.3-.1-.5-.1-.7.1-.2.3-.8 1-.9 1.2-.2.2-.3.2-.6.1-.3-.1-1.3-.5-2.4-1.5-.9-.8-1.5-1.8-1.7-2.1-.2-.3 0-.5.1-.6l.4-.5.3-.5c.1-.2 0-.4 0-.5l-.9-2.2c-.2-.6-.5-.5-.7-.5h-.6c-.2 0-.5.1-.8.4-.3.3-1 1-1 2.5s1.1 2.9 1.2 3.1c.1.2 2.1 3.2 5.1 4.5.7.3 1.3.5 1.7.6.7.2 1.4.2 1.9.1.6-.1 1.8-.7 2-1.4.2-.7.2-1.3.2-1.4-.1-.2-.3-.3-.6-.4M12 21.8c-1.8 0-3.5-.5-5-1.4l-.4-.2-3.7 1 1-3.6-.2-.4A9.8 9.8 0 0 1 2.2 12 9.8 9.8 0 0 1 12 2.2 9.8 9.8 0 0 1 21.8 12 9.8 9.8 0 0 1 12 21.8M12 0C5.4 0 0 5.4 0 12c0 2.1.6 4.2 1.6 6L0 24l6.2-1.6c1.8 1 3.8 1.5 5.8 1.5 6.6 0 12-5.4 12-12S18.6 0 12 0"/></svg>
+      اطلب عبر واتساب</div>
+  </div>
+
+  <!-- C: phone tour -->
+  <div class="scene" id="sC">
+    <div class="title" id="t1">متجر كامل<br><span class="hl">بين يديك</span></div>
+    <div class="title" id="t2">قطع <span class="hl">كل طراز</span><br>في مكان واحد</div>
+    <div class="title" id="t3">اطلب… واضغط<br><span class="hl">واتساب</span></div>
+    <div id="phoneWrap"><div class="phone" id="phone">
+      <div class="notch"></div><div class="glare"></div>
+      <div class="scr">
+        <div class="layer" id="L1"><img src="shots/home-full.png" id="imgHome"></div>
+        <div class="layer" id="L2"><img src="shots/shop.png"></div>
+        <div class="layer" id="L3"><img src="shots/dji.png"></div>
+        <div class="layer" id="L4"><img src="shots/product.png"></div>
+        <div class="layer" id="L5"><img src="shots/checkout.png"></div>
+        <div class="layer" id="L6"><img src="shots/order.png"></div>
+      </div>
+    </div></div>
+    <div class="finger" id="fg"></div>
+    <div class="callout" id="c1" style="right:60px;top:720px"><span class="pill cy" style="position:static;opacity:1">+100 منتج</span></div>
+    <div class="callout" id="c2" style="left:60px;top:1250px"><span class="pill lm" style="position:static;opacity:1">48 طراز DJI</span></div>
+    <div class="callout" id="c3" style="right:60px;top:1500px"><span class="pill" style="position:static;opacity:1">🚚 شحن لكل المحافظات</span></div>
+    <div class="callout" id="c4" style="left:50%;top:1640px;transform:translateX(-50%)"><span class="pill wa" style="position:static;opacity:1">بدون دفع إلكتروني — الدفع عند الاستلام</span></div>
+    <div class="chk" id="chk"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg></div>
+  </div>
+
+  <!-- D: repair -->
+  <div class="scene" id="sD">
+    <div class="title" id="t4" style="top:170px">صيانة احترافية<br><span class="hl">بضمان</span></div>
+    <div class="sub" id="s4" style="top:430px">فحص مجاني · قطع أصلية · تتبّع حالة جهازك لحظة بلحظة</div>
+    <div class="card" id="rc" style="left:140px;right:140px;top:600px;height:440px;padding:40px 48px">
+      <div style="font-size:34px;color:var(--ink3);font-weight:500">طلب صيانة</div>
+      <div class="num" style="font-size:96px;font-weight:800;line-height:1.1">#512</div>
+      <div style="font-size:40px;font-weight:700;margin-top:10px">DJI Mini 3 Pro</div>
+      <div style="font-size:34px;color:var(--ink2);margin-top:6px">سقط من ارتفاع، انكسر الذراع الأمامي والجيمبال يهتز</div>
+      <div id="badge" style="position:absolute;left:48px;top:48px;padding:14px 26px;border-radius:999px;color:#fff;font-size:30px;font-weight:700;background:#3b82f6">تم الاستلام</div>
+    </div>
+    <div class="tl" id="tl">
+      <div class="t" id="tl0"><span class="dot"><svg viewBox="0 0 24 24" fill="none" stroke="#06121a" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg></span><span class="lbl">تم الاستلام</span></div>
+      <div class="t" id="tl1"><span class="dot"><svg viewBox="0 0 24 24" fill="none" stroke="#06121a" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg></span><span class="lbl">قيد الفحص — تقرير خلال 24 ساعة</span></div>
+      <div class="t" id="tl2"><span class="dot"><svg viewBox="0 0 24 24" fill="none" stroke="#06121a" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg></span><span class="lbl">موافقتك على التكلفة</span></div>
+      <div class="t" id="tl3"><span class="dot"><svg viewBox="0 0 24 24" fill="none" stroke="#06121a" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg></span><span class="lbl">قيد الإصلاح</span></div>
+      <div class="t" id="tl4"><span class="dot"><svg viewBox="0 0 24 24" fill="none" stroke="#06121a" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg></span><span class="lbl">جاهز للاستلام 🎉</span></div>
+    </div>
+  </div>
+
+  <!-- E: stats -->
+  <div class="scene" id="sE">
+    <div class="stat" id="st0" style="top:380px"><div class="v"><b>+</b><span id="n0">0</span></div><div class="l">جهاز تمت صيانته</div></div>
+    <div class="stat" id="st1" style="top:830px"><div class="v"><span id="n1">0</span></div><div class="l">طراز DJI مدعوم بقطعه</div></div>
+    <div class="stat" id="st2" style="top:1280px"><div class="v"><span id="n2">0</span> <b style="font-size:120px">أيام</b></div><div class="l">ضمان على كل صيانة</div></div>
+    <div class="bar" id="b0" style="top:700px;width:600px;margin-left:-300px"></div>
+    <div class="bar" id="b1" style="top:1150px;width:600px;margin-left:-300px"></div>
+  </div>
+
+  <!-- F: CTA -->
+  <div class="scene" id="sF">
+    <div class="logo" id="logo2" style="top:30%"><div class="mark">S</div><div class="word">SUFIX</div></div>
+    <div class="cta" id="f1" style="top:48%"><div style="font-size:72px;font-weight:700;line-height:1.2">درونك وهاتفك<br>بأيدٍ أمينة</div></div>
+    <div class="ring" id="r1" style="top:66%"></div><div class="ring" id="r2" style="top:66%"></div>
+    <div class="cta" id="f2" style="top:62%"><span class="btn"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M17.5 14.4c-.3-.1-1.8-.9-2-1-.3-.1-.5-.1-.7.1-.2.3-.8 1-.9 1.2-.2.2-.3.2-.6.1-.3-.1-1.3-.5-2.4-1.5-.9-.8-1.5-1.8-1.7-2.1-.2-.3 0-.5.1-.6l.4-.5.3-.5c.1-.2 0-.4 0-.5l-.9-2.2c-.2-.6-.5-.5-.7-.5h-.6c-.2 0-.5.1-.8.4-.3.3-1 1-1 2.5s1.1 2.9 1.2 3.1c.1.2 2.1 3.2 5.1 4.5.7.3 1.3.5 1.7.6.7.2 1.4.2 1.9.1.6-.1 1.8-.7 2-1.4.2-.7.2-1.3.2-1.4-.1-.2-.3-.3-.6-.4M12 21.8c-1.8 0-3.5-.5-5-1.4l-.4-.2-3.7 1 1-3.6-.2-.4A9.8 9.8 0 0 1 2.2 12 9.8 9.8 0 0 1 12 2.2 9.8 9.8 0 0 1 21.8 12 9.8 9.8 0 0 1 12 21.8M12 0C5.4 0 0 5.4 0 12c0 2.1.6 4.2 1.6 6L0 24l6.2-1.6c1.8 1 3.8 1.5 5.8 1.5 6.6 0 12-5.4 12-12S18.6 0 12 0"/></svg>اطلب الآن</span></div>
+    <div class="cta" id="f3" style="top:73%"><div class="url" dir="ltr">+90 552 824 51 00</div><div style="font-size:40px;color:var(--ink2);margin-top:14px">صيانة · بيع · قطع أصلية · شحن لكل المحافظات</div></div>
+  </div>
+
+  <div id="flash"></div><div id="vig"></div>
+</div>
+
+<script>
+const $=id=>document.getElementById(id)
+const clamp=(x,a=0,b=1)=>Math.max(a,Math.min(b,x))
+const P=(t,a,b)=>clamp((t-a)/(b-a))
+const lerp=(a,b,x)=>a+(b-a)*x
+const eoE=x=>x===1?1:1-Math.pow(2,-10*x)                 // ease out expo
+const eiE=x=>x===0?0:Math.pow(2,10*x-10)
+const eio=x=>x<.5?4*x*x*x:1-Math.pow(-2*x+2,3)/2
+const eoB=x=>{const c=1.70158,c3=c+1;return 1+c3*Math.pow(x-1,3)+c*Math.pow(x-1,2)}   // back
+const eB=(x,k=2.5)=>{const c3=k+1;return 1+c3*Math.pow(x-1,3)+k*Math.pow(x-1,2)}
+const eEl=x=>x===0?0:x===1?1:Math.pow(2,-10*x)*Math.sin((x*10-.75)*(2*Math.PI/3))+1
+function show(el,o){el.style.opacity=o}
+function slam(el,t,a,dur){const x=P(t,a,a+dur);el.style.opacity=clamp(x*5);el.style.transform=`scale(${lerp(2.2,1,eoE(x))}) translateY(${(1-eoE(x))*40}px)`;el.style.filter=`blur(${(1-eoE(x))*18}px)`}
+function pop(el,t,a,dur=.5,k=2.5){const x=P(t,a,a+dur);el.style.opacity=clamp(x*4);el.style.transform=`translateY(${(1-eoE(x))*60}px) scale(${eB(x,k)})`}
+function popX(el,t,a,dur=.5,extra=''){const x=P(t,a,a+dur);el.style.opacity=clamp(x*4);el.style.transform=`${extra} translateY(${(1-eoE(x))*60}px) scale(${eB(x,2.2)})`}
+function rise(el,t,a,dur=.6,dy=80){const x=P(t,a,a+dur);el.style.opacity=clamp(x*3);el.style.transform=`translateY(${(1-eoE(x))*dy}px)`}
+function out(el,t,a,dur=.3,dy=-60){const x=P(t,a,a+dur);if(x>0){el.style.opacity=1-x;el.style.transform=`translateY(${eiE(x)*dy}px) scale(${1-x*.1})`;el.style.filter=`blur(${x*8}px)`}}
+function fmt(n){return Math.round(n).toLocaleString('en-US')}
+
+const SC=[['sA',0,2.75],['sB',2.6,6.2],['sC',6.0,15.1],['sD',15.0,18.6],['sE',18.5,21.6],['sF',21.5,99]]
+const NUMS=[[2500,.0],[48,.25],[7,.5]]
+
+function render(t){
+  // ambient background
+  const B=[['g1',200,300,220,180,.07,.09],['g2',900,1500,260,220,.09,.06],['g3',700,900,200,260,.05,.08]]
+  for(const [id,cx,cy,ax,ay,fx,fy] of B) $(id).style.transform=`translate(${cx+ax*Math.sin(t*fx*6.28+cx)-450}px,${cy+ay*Math.cos(t*fy*6.28+cy)-450}px)`
+  for(const [id,a,b] of SC) $(id).style.opacity=(t>=a&&t<b)?1:0
+  let flash=0
+
+  // ---- A: hook (0–2.75)
+  if(t<2.8){
+    const W=[[0.05,0.85],[0.95,1.75],[1.85,2.55]]
+    W.forEach(([a,b],i)=>{const el=$('w'+i); if(t<a||t>b+.15){el.style.opacity=0;return}
+      if(t<b) slam(el,t,a,.32); else {const o=P(t,b,b+.15);el.style.opacity=1-o;el.style.transform=`scale(${1+eiE(o)*.6})`;el.style.filter=`blur(${o*14}px)`}})
+    $('sA').style.transform=`scale(${1+t*.03})`
+    const x=P(t,2.45,2.75); $('ink').style.opacity=x>0?1:0; $('ink').style.transform=`scale(${eiE(x)*16})`
+    if(t>=2.6) flash=Math.max(flash,P(t,2.6,2.75))
+  }
+  // ---- B: logo (2.6–6.2)
+  if(t>=2.6&&t<6.3){
+    const x=P(t,2.65,3.35), o=eio(P(t,5.75,6.15))
+    $('logo').style.transform=`translate(-50%,-50%) rotateY(${(1-eoE(x))*160}deg) scale(${eEl(P(t,2.65,3.5))*(1-o*.4)}) translateY(${-o*300}px)`
+    $('logo').style.opacity=1-o
+    $('sh1').style.left=lerp(-90,200,eio(P(t,3.3,3.9)))+'%'
+    rise($('tag'),t,3.3,.6); if(o>0){$('tag').style.opacity=1-o;$('tag').style.transform=`translateY(${-o*200}px)`}
+    pop($('p1'),t,3.9,.55); pop($('p2'),t,4.15,.55); popX($('p3'),t,4.45,.6,'translateX(-50%)')
+    for(const id of ['p1','p2','p3']) if(o>0){$(id).style.opacity=1-o}
+    flash=Math.max(flash,1-P(t,2.6,2.95))
+  }
+  // ---- C: phone tour (6.0–15.1)
+  if(t>=6.0&&t<15.2){
+    const inx=P(t,6.0,6.9), ox=eio(P(t,14.7,15.1))
+    // phone: enters from below with a 3D tilt, then settles slightly rotated, drifts
+    const tilt=lerp(-28,-10,eoE(inx))+Math.sin(t*.9)*3, ry=lerp(40,-12,eoE(inx))+Math.sin(t*.7)*4
+    const zoom=P(t,12.9,13.6)   // push in on the WhatsApp button
+    const sc=lerp(.78,1,eoE(inx))*lerp(1,1.55,eio(zoom))
+    $('phoneWrap').style.transform=`translateY(${lerp(1100,200,eoE(inx))+lerp(0,-260,eio(zoom))+ox*1300}px)`
+    $('phone').style.transform=`rotateX(${lerp(tilt,2,eio(zoom))}deg) rotateY(${lerp(ry,0,eio(zoom))}deg) scale(${sc})`
+    // screens: 1 home scroll → 2 shop → 3 dji → 4 product → 5 checkout → 6 order
+    const L=[[6.0,8.6],[8.6,9.9],[9.9,11.1],[11.1,12.2],[12.2,13.0],[13.0,15.2]]
+    L.forEach(([a,b],i)=>{const el=$('L'+(i+1)); const inn=P(t,a-.25,a), outt=P(t,b-.25,b)
+      el.style.opacity=(t>=a-.25&&t<b)?1:0
+      el.style.transform=`translateY(${i===0?0:(1-eoE(inn))*1180}px)`
+      el.style.zIndex=i+1
+      if(i===0){ const s=eio(P(t,6.9,8.4)); $('imgHome').style.transform=`translateY(${-s*1750}px)` } })
+    // titles
+    const T=[['t1',6.3,8.6],['t2',8.7,11.1],['t3',11.2,15.0]]
+    T.forEach(([id,a,b])=>{const el=$(id); if(t<a||t>b+.3){el.style.opacity=0;return} rise(el,t,a,.55,70); if(t>b) out(el,t,b,.3)})
+    // callouts
+    const C=[['c1',7.4,8.5],['c2',10.1,11.1],['c3',11.9,12.9],['c4',13.9,14.7]]
+    C.forEach(([id,a,b])=>{const el=$(id); if(t<a||t>b+.25){el.style.opacity=0;return} const extra=id==='c4'?'translateX(-50%)':''; popX(el,t,a,.5,extra); if(t>b){const o=P(t,b,b+.25);el.style.opacity=1-o}})
+    // finger taps
+    const taps=[[8.45,0,220],[9.85,-60,460],[11.05,30,-40],[12.15,0,510],[12.95,0,370]]
+    $('fg').style.opacity=0
+    for(const [ta,fx,fy] of taps){const x=P(t,ta-.18,ta+.22); if(x>0&&x<1){$('fg').style.opacity=Math.sin(x*Math.PI); $('fg').style.transform=`translate(${540+fx-45}px,${1120+fy-45}px) scale(${lerp(1.6,.7,x)})`}}
+    // success check burst at the end
+    const ck=P(t,13.65,14.15); $('chk').style.opacity=ck>0&&t<14.7?1:0; $('chk').style.transform=`translateY(40px) scale(${eB(ck,3)})`
+    if(ox>0){$('chk').style.opacity=1-ox}
+    $('sC').style.transform=`scale(${1+(t-6)*.006})`
+  }
+  // ---- D: repair (15.0–18.6)
+  if(t>=15.0&&t<18.7){
+    const o=eio(P(t,18.2,18.6))
+    rise($('t4'),t,15.1,.55,70); rise($('s4'),t,15.35,.55,50); pop($('rc'),t,15.5,.6,2)
+    const steps=[15.9,16.35,16.8,17.25,17.7], colors=['#3b82f6','#8b5cf6','#f59e0b','#f97316','#22c55e'], labels=['تم الاستلام','قيد الفحص','بانتظار موافقتك','قيد الإصلاح','جاهز للاستلام']
+    let cur=0
+    steps.forEach((a,i)=>{const el=$('tl'+i); const x=P(t,a,a+.4); el.style.opacity=clamp(x*4); el.style.transform=`translateX(${(1-eoE(x))*-80}px)`; el.classList.toggle('done',t>=a+.25); if(t>=a) cur=i})
+    $('badge').style.background=colors[cur]; $('badge').textContent=labels[cur]
+    const bx=P(t,steps[cur],steps[cur]+.3); $('badge').style.transform=`scale(${eB(bx,3)})`
+    for(const id of ['t4','s4','rc','tl']) if(o>0){$(id).style.opacity=1-o;$(id).style.transform=`translateY(${-o*160}px)`}
+  }
+  // ---- E: stats (18.5–21.6)
+  if(t>=18.5&&t<21.7){
+    const o=eio(P(t,21.2,21.6))
+    NUMS.forEach(([n,d],i)=>{const a=18.6+d; pop($('st'+i),t,a,.55,2); const x=eoE(P(t,a+.1,a+1.3)); $('n'+i).textContent=fmt(n*x)
+      if(o>0){$('st'+i).style.opacity=1-o;$('st'+i).style.transform=`translateY(${-o*200}px)`}})
+    ;['b0','b1'].forEach((id,i)=>{const x=P(t,19.3+i*.25,19.9+i*.25); $(id).style.transform=`scaleX(${eoE(x)*(1-o)})`})
+  }
+  // ---- F: CTA (21.5–)
+  if(t>=21.5){
+    const x=P(t,21.55,22.2)
+    $('logo2').style.transform=`translate(-50%,-50%) scale(${eB(x,2)})`; $('logo2').style.opacity=clamp(x*4)
+    rise($('f1'),t,22.0,.6,70); pop($('f2'),t,22.5,.6,2.5); rise($('f3'),t,23.0,.6,50)
+    ;['r1','r2'].forEach((id,i)=>{const p=((t-22.8+i*.6)%1.2)/1.2; const on=t>=22.8+i*.6; $(id).style.opacity=on?(1-p)*.7:0; $(id).style.transform=`scale(${lerp(.9,2.4,p)})`})
+    const beat=t>=23.2?1+Math.max(0,Math.sin((t-23.2)*5.2))*.04:1; $('f2').style.transform+=` scale(${beat})`
+    flash=Math.max(flash,1-P(t,21.5,21.9))
+  }
+  $('flash').style.opacity=flash*.9
+}
+render(0)
+</script>
+</body>
+</html>
