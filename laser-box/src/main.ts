@@ -213,7 +213,7 @@ function renderQuick() {
   const cur = params()
   quick.innerHTML = ''
   const row = el('div', { class: 'quick-row' })
-  for (const def of t.params.filter(d => ['W', 'D', 'H', 'Dm', 'pw', 'ph', 'border'].includes(d.key))) row.append(numberField(def, cur[def.key], v => setParam(def.key, v), 'q'))
+  for (const def of t.params.filter(d => ['W', 'D', 'H', 'Dm', 'S', 'pw', 'ph', 'border'].includes(d.key))) row.append(numberField(def, cur[def.key], v => setParam(def.key, v), 'q'))
   row.append(numberField(SETTING_DEFS[0], state.settings.t, v => { state.settings.t = v; persist(); update() }, 'q'))
   const foot = el('div', { class: 'quick-foot' },
     el('div', { class: 'field' }, el('span', { class: 'field-label' }, 'الخامة', el('small', {}, `kerf ${state.settings.kerf} مم`)), materialPicker()),
@@ -252,7 +252,7 @@ function renderForm() {
 /** the field the user set last: the automatic repair leaves it as they typed it */
 let lastEdited: string | null = null
 /** what the last scale or repair did, shown above the drawing with a way back */
-let lastAction: { tpl: string; title: string; changes: Change[]; clamped: Change[]; kept: string; undo: Record<string, number> } | null = null
+let lastAction: { tpl: string; title: string; ok: boolean; changes: Change[]; clamped: Change[]; kept: string; undo: Record<string, number> } | null = null
 let scaleObjects = false
 
 function setParam(key: string, v: number) {
@@ -287,9 +287,10 @@ function renderScaler() {
   for (const d of mains) sel.append(el('option', { value: d.key }, `${d.label} (الآن ${fmt(cur[d.key])})`))
   const target = el('input', { type: 'number', inputmode: 'decimal', placeholder: 'مم', 'aria-label': 'القياس المطلوب بالمليمتر' }) as HTMLInputElement
   const go = () => {
-    const d = mains.find(m => m.key === sel.value), v = parseFloat(target.value)
-    if (!d || !(v > 0)) { toast('اكتب القياس المطلوب بالمليمتر'); return }
-    doScale(v / cur[d.key], `${d.label} ${fmt(v)} مم`)
+    // the value now, not when the panel was drawn: the field may have been typed in since
+    const d = mains.find(m => m.key === sel.value), v = parseFloat(target.value), now = params()[d?.key ?? '']
+    if (!d || !(v > 0) || !(now > 0)) { toast('اكتب القياس المطلوب بالمليمتر'); return }
+    doScale(v / now, `${d.label} ${fmt(v)} مم`, d.key)
   }
   target.onkeydown = e => { if ((e as KeyboardEvent).key === 'Enter') go() }
   const body = el('div', { class: 'scale-body' },
@@ -307,17 +308,23 @@ function renderScaler() {
   scaler.open = open
 }
 
-function doScale(f: number, what: string) {
+/** Scale the design by f; a size the customer asked for (`keep`) stays as typed unless nothing can be cut that way. */
+function doScale(f: number, what: string, keep?: string) {
   const t = tpl(), before = params()
   busy('جارٍ تغيير الحجم…', () => {
-    const r = scaleDesign(t, state.settings, before, f, scaleObjects)
+    let r = scaleDesign(t, state.settings, before, f, scaleObjects, 2500, keep ? [keep] : [])
+    let kept = ''
+    if (keep && !r.ok) {
+      const r2 = scaleDesign(t, state.settings, before, f, scaleObjects)
+      if (r2.ok) { r = r2; kept = `لم يمكن إبقاء ${t.params.find(d => d.key === keep)?.label ?? keep} على ${what.split(' ').pop()} بالضبط مع باقي القياسات؛ هذا أقرب تصميم يصلح للقص.` }
+    }
     state.params[state.tpl] = { ...r.params }
     const objs = t.params.filter(d => roleOf(t, d) === 'object')
     lastAction = {
-      tpl: t.id,
+      tpl: t.id, ok: r.ok,
       title: `${f < 1 ? 'صُغّر' : 'كُبّر'} التصميم: ${what}`,
       changes: r.changes, clamped: r.clamped,
-      kept: objs.length && !scaleObjects ? `بقيت كما هي: ${objs.map(d => `${d.label} ${fmt(before[d.key])}`).join('، ')}.` : '',
+      kept: [kept, objs.length && !scaleObjects ? `بقيت كما هي: ${objs.map(d => `${d.label} ${fmt(before[d.key])}`).join('، ')}.` : ''].filter(Boolean).join(' '),
       undo: before,
     }
     persist(); renderForm(); update()
@@ -329,21 +336,29 @@ function doRepair() {
   const t = tpl(), before = params()
   busy('جارٍ البحث عن أقرب قياسات تصلح للقص…', () => {
     const n0 = generate(t, before, state.settings).errors.length
+    // keep the field the user set last as typed, unless leaving it free gives a much smaller change (or the only fix)
     let r = repair(t, state.settings, before, { locked: lastEdited ? [lastEdited] : [] })
-    // what the user typed may itself be the problem
-    if (!r.ok && lastEdited) { const r2 = repair(t, state.settings, before); if (r2.errors.length < r.errors.length) r = r2 }
+    if (lastEdited) {
+      const r2 = repair(t, state.settings, before)
+      if ((r2.ok && !r.ok) || (r2.ok === r.ok && (r2.errors.length < r.errors.length || r2.cost < 0.5 * r.cost))) r = r2
+    }
     if (!r.changes.length || r.errors.length >= n0) { toast('لم أجد تصحيحاً تلقائياً لهذا الخطأ: اقرأ الرسالة الحمراء وغيّر القياس المذكور فيها', 6000); return }
     state.params[state.tpl] = { ...r.params }
-    lastAction = { tpl: t.id, title: r.ok ? 'صُحّح التصميم تلقائياً' : 'صُحّح جزء من الأخطاء تلقائياً', changes: r.changes, clamped: [], kept: '', undo: before }
+    lastAction = { tpl: t.id, ok: r.ok, title: r.ok ? 'صُحّح التصميم تلقائياً' : 'صُحّح جزء من الأخطاء تلقائياً', changes: r.changes, clamped: [], kept: '', undo: before }
     persist(); renderForm(); update()
   })
 }
 
 function actionBox(a: NonNullable<typeof lastAction>): HTMLElement {
-  const box = el('div', { class: 'done' }, el('b', {}, '✓ ' + a.title), el('div', {}, `القياس الآن: ${sizeLabel(params())}`))
+  const box = el('div', { class: a.ok ? 'done' : 'done partial' }, el('b', {}, (a.ok ? '✓ ' : '⚠ ') + a.title), el('div', {}, `القياس الآن: ${sizeLabel(params())}`))
+  if (!a.ok) box.append(el('div', {}, 'بقيت أخطاء (في المربّع الأحمر تحت): لا تقصّ قبل أن تصلحها، أو تراجع.'))
   if (a.changes.length) {
-    const ul = el('ul', {})
-    for (const c of a.changes) ul.append(el('li', {}, `${c.label}: ${fmt(c.from)} ← ${fmt(c.to)}`, c.why ? el('small', {}, `لأن: ${c.why}`) : ''))
+    const t = tpl(), ul = el('ul', {})
+    for (const c of a.changes) {
+      const def = t.params.find(d => d.key === c.key), role = def ? roleOf(t, def) : 'length'
+      const what = role === 'toggle' ? (c.to ? `أُضيف: ${c.label}` : `أُلغي: ${c.label}`) : `${c.label}: ${fmt(c.from)} ← ${fmt(c.to)}`
+      ul.append(el('li', {}, what, c.why ? el('small', {}, `لأن: ${c.why}`) : ''))
+    }
     box.append(el('div', {}, a.title.startsWith('صُحّح') ? 'غيّرتُ:' : 'وعدّلتُ هذه ليبقى التصميم سليماً للقص:'), ul)
   }
   if (a.clamped.length) box.append(el('div', { class: 'hint' }, `وصلت إلى حدّها المسموح: ${a.clamped.map(c => `${c.label} ${fmt(c.to)} بدل ${fmt(c.from)}`).join('، ')}.`))
@@ -430,7 +445,7 @@ function render() {
   const blocked = design.errors.length > 0
   if (blocked) alerts.append(el('div', { class: 'error' }, el('b', {}, 'لا تقصّ هذا الملف: '), ...design.errors.map(e => el('div', {}, '✕ ' + e)),
     el('button', { type: 'button', class: 'fix', onclick: () => doRepair() }, '🔧 صحّح تلقائياً'),
-    el('span', { class: 'hint' }, 'يغيّر أقلّ ما يمكن من القياسات، ويترك السماكة والخلوص وقياسات الأغراض (الصحن، الصورة…) كما هي، ويمكنك التراجع.')))
+    el('span', { class: 'hint' }, 'يغيّر أقلّ ما يمكن من القياسات (وإن لم يكفِ ذلك قد يُلغي جزءاً صغيراً)، ويترك السماكة والخلوص وقياسات الأغراض (الصحن، الصورة…) كما هي، ويمكنك التراجع.')))
   for (const w of design.warnings) alerts.append(el('div', { class: 'warn' }, '⚠ ' + w))
   if (!blocked && state.settings.finger === 0) alerts.append(el('div', { class: 'info' }, `عرض الأصبع التلقائي: ${fmt(design.finger)} مم (السماكة ${state.settings.t} مم)`))
   notesBox.innerHTML = ''
@@ -479,12 +494,15 @@ async function saveApk() {
 }
 
 function sizeLabel(p: Record<string, number>) {
+  if (state.tpl.startsWith('trophy')) return `درع ${fmt(p.H)} مم، قاعدة ${fmt(p.W)} × ${fmt(p.D)}`
+  if (state.tpl === 'coasterset') return `${fmt(p.nc)} كوستر ${fmt(p.S)} × ${fmt(p.S)}`
   if (p.pw !== undefined) return `صورة ${fmt(p.pw)} × ${fmt(p.ph)}`
   if (p.Dm !== undefined) return `Ø${fmt(p.Dm)} × ${fmt(p.H)}`
   if (p.Dd !== undefined) return `مرآة Ø${fmt(p.Dd)}، قاعدة ${fmt(p.W)} × ${fmt(p.D)}`
   if (p.Wb !== undefined) return `خواتم ${fmt(p.W)} × ${fmt(p.D)} · كبير ${fmt(p.Wb)} × ${fmt(p.Db)}`
   if (p.S !== undefined && p.rd !== undefined) return `برج ${fmt(p.S)} × ${fmt(p.S)} × ${fmt(p.H)}`
-  if (p.S !== undefined) return `سداسي ${fmt(p.S)} × ${fmt(p.H)}`
+  if (p.S !== undefined && p.H !== undefined) return `سداسي ${fmt(p.S)} × ${fmt(p.H)}`
+  if (p.S !== undefined) return `المقاس ${fmt(p.S)}`
   if (p.PW !== undefined) return `لوح ${fmt(p.PW)} × ${fmt(p.PH)}`
   if (p.D1 !== undefined) return `${fmt(p.tiers)} طوابق، قاعدة ${fmt(p.D1)}`
   if (!Number.isFinite(p.W) || !Number.isFinite(p.D) || !Number.isFinite(p.H)) return [p.W, p.D, p.H].filter(Number.isFinite).map(fmt).join(' × ') || '—'
@@ -609,7 +627,7 @@ renderForm()
 update(true)
 // the Android shell waits for this before it stops watching for a page that never started
 try { (window as unknown as { LaserAndroid?: { ready?: () => void } }).LaserAndroid?.ready?.() } catch { /* not in the app */ }
-window.addEventListener('hashchange', () => { const s = loadState(); Object.assign(state, s); renderGallery(); renderForm(); update(true) })
+window.addEventListener('hashchange', () => { const s = loadState(); Object.assign(state, s); lastAction = null; lastEdited = null; renderGallery(); renderForm(); update(true) })
 
 // keep an eye on the real size of the canvas for the first fit
 new ResizeObserver(() => applyView()).observe(svg)

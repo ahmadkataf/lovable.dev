@@ -17,8 +17,11 @@ describe('scaling a whole design, and repairing one with errors', () => {
     expect(role('mabkharatower', 'pattern')).toBe('choice')
     expect(role('mabkharatower', 'dome')).toBe('toggle')
     expect(role('displaystand', 'ang')).toBe('angle')
-    expect(role('displaystand', 'N')).toBe('count')
-    expect(role('sweetstand', 'gap')).toBe('length')
+    expect(role('displaystand', 'N')).toBe('choice') // the steps the customer ordered
+    expect(role('wallshelf', 'M')).toBe('count')
+    expect(role('mabkharatower', 'dh')).toBe('object') // the dome follows the bowl and the coals
+    expect(role('engagement', 'Dd')).toBe('length') // a laser-cut mirror, not a bought one
+    expect(role('sweetstand', 'gap')).toBe('object') // the sweets' height between tiers
     expect(role('lip', 'gap')).toBe('fixed')
     expect(role('invitebox', 'cw')).toBe('object')
     expect(role('fittest', 'step')).toBe('fixed')
@@ -31,8 +34,10 @@ describe('scaling a whole design, and repairing one with errors', () => {
     expect(params.H).toBe(175)
     expect(params.rd).toBe(tpl.defaults.rd)
     expect(params.fit).toBe(tpl.defaults.fit)
-    expect(params.dh).toBe(45) // 42 is under the field's minimum
-    expect(clamped.map(c => c.key)).toEqual(['dh'])
+    expect(params.dh).toBe(tpl.defaults.dh) // the dome follows the bowl, which stays
+    expect(clamped).toEqual([])
+    expect(scaleParams(tpl, {}, 0.7, true).params.dh).toBe(45) // 42 is under the field's minimum
+    expect(scaleParams(tpl, {}, 0.7, true).clamped.map(c => c.key)).toEqual(['dh'])
     expect(scaleParams(tpl, {}, 0.7, true).params.rd).toBe(45.5)
   })
 

@@ -29,8 +29,8 @@ export function autoFinger(t: number, dims: number[]): number {
   return Math.round(Math.max(2 * t, Math.min(3 * t, byDim)) * 10) / 10
 }
 
-/** 9.600000000000001 → 9.6 in the texts shown to the user */
-const tidy = (s: string) => s.replace(/\d+\.\d{3,}/g, m => String(Math.round(parseFloat(m) * 10) / 10))
+/** 9.600000000000001 → 9.6 in the texts shown to the user (two decimals at most, so a minimum is never rounded below itself by more than 0.005) */
+const tidy = (s: string) => s.replace(/\d+\.\d{3,}/g, m => String(Math.round(parseFloat(m) * 100) / 100))
 
 export function generate(tpl: Template, params: Record<string, number>, s: Settings): Design {
   const p = { ...tpl.defaults, ...params }
@@ -50,6 +50,9 @@ export function generate(tpl: Template, params: Record<string, number>, s: Setti
   if (thin.length) errors.push(`أصابع التعشيق في «${thin[0].name}» عرضها ${f1(thin[0].minFinger)} مم فقط، أرقّ من السماكة ${s.t} مم؛ كبّر عرض الأصبع أو القياس.`)
   if (loose.length) errors.push(`أصبع الزاوية في «${loose[0].name}» سيتّصل بشريحة رفيعة وينكسر؛ اجعل عرض الأصبع ${f1(s.t + neckMin + 0.5)} مم أو أكثر (أو اتركه تلقائياً).`)
   if (!thin.length && weak.length) warnings.push(`أصابع «${weak[0].name}» أرقّ قليلاً من السماكة (${f1(weak[0].minFinger)} مم)؛ ستكون ضعيفة.`)
+  // an engraved line past its piece's outline would burn the bed or the next piece: say so (a door arch on a wide board, say)
+  const stray = built.find(b => { const box = bbox(b.loops.filter(l => l.layer !== 'engrave')), e = bbox(b.loops.filter(l => l.layer === 'engrave')); return b.loops.some(l => l.layer === 'engrave') && (e.minX < box.minX - 0.5 || e.minY < box.minY - 0.5 || e.maxX > box.maxX + 0.5 || e.maxY > box.maxY + 0.5) })
+  if (stray) errors.push(`النقش يخرج عن حدود «${stray.name}» بهذه المقاسات: غيّر القياسات (مثلاً اجعل اللوح أطول من عرضه).`)
   const panels = built.map(b => applyKerf(b, s.kerf))
   const lay = layout(panels, s.spacing, s.sheetW)
   let cutLength = 0, pieceCount = 0

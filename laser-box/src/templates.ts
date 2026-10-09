@@ -1,6 +1,8 @@
 // Ready-made box designs. Every template turns its parameters into panel specs.
 import { Loop, Pt, Rect, rect, unionRects, offsetLoop, circle, disc, stadium, stadiumV, roundedRectHole, rotatedRectHole, roundCorner, edgeNotch, engraveRect, hingeLines, heart, ellipse, archHole, keyhole, polyLoop, peakSegments, oriented, signedArea, round3 } from './geom'
 import { PanelSpec, fingerCount } from './joints'
+import { TROPHIES } from './trophies'
+import { COASTER_SETS } from './coasterset'
 
 export interface ParamDef {
   key: string
@@ -74,12 +76,16 @@ function pivotLidBox(p: Record<string, number>, c: Common, warnings: string[], e
   // stopDeg; the whole side is drawn o lower so the post fits above the ear
   let o = 0, xf = D
   if (stopDeg !== undefined) {
-    const d = ((stopDeg - 90) * Math.PI) / 180, py = g.a - t / 2
-    const s = t / 2 + g.a + g.gap + Math.max(10, Math.min(20, 0.3 * (g.earX - g.gap))) // along the lid, inside its full-width part
+    const d = ((stopDeg - 90) * Math.PI) / 180, py = g.a - t / 2, need = Math.max(5, 1.5 * t)
+    // where the lid meets the post, along the lid inside its full-width part; nearer the pivot when the post behind
+    // would come out thinner than `need` (the post's width does not grow with the depth, the contact's distance does)
+    const sWant = t / 2 + g.a + g.gap + Math.max(10, Math.min(20, 0.3 * (g.earX - g.gap))), sMin = t / 2 + g.a + g.gap + 6
+    const sFit = Math.sin(d) > 1e-6 ? (D - g.pivotX - (t / 2) * Math.cos(d) - need) / Math.sin(d) : sWant
+    const s = Math.max(sMin, Math.min(sWant, sFit))
     const yt = py + (t / 2) * Math.sin(d) - s * Math.cos(d)
     xf = round3(g.pivotX + (t / 2) * Math.cos(d) + s * Math.sin(d))
     o = round3(-yt)
-    const post = D - xf, need = Math.max(5, 1.5 * t)
+    const post = round3(D - xf)
     if (post < need) errors.push(`العمود الخلفي الذي يسند الغطاء رفيع (${post.toFixed(1)} مم) بهذه الزاوية؛ قلّل زاوية التوقّف أو زد «جدار الأذن».`)
   }
   const minD = Math.ceil((D - g.earX) + 2 * t + 8), minH = Math.ceil(g.a + 3 * t + 2)
@@ -1288,6 +1294,7 @@ export const TEMPLATES: Template[] = [
         if (sp.id === 'front' || sp.id === 'back') sp.holes = pattern(kind, fm, top, W - fm, bot, cell)
         if (sp.id === 'side') sp.holes = pattern(kind, fm, top, D - fm, bot, cell)
       }
+      if (kind > 0 && !panels.some(sp => sp.holes?.length)) warnings.push(`الجدران أقصر من أن تحمل الزخرفة بحجم ${cell} مم فستبقى بلا ثقوب: صغّر «حجم الزخرفة» أو زد الارتفاع.`)
       const lid = panels.find(x => x.id === 'lid')!
       const lidHoles: Loop[] = []
       const m = 2 * t + gap + 3 // inside the lip frame
@@ -1581,10 +1588,11 @@ export const templateById = (id: string) => TEMPLATES.find(t => t.id === id) ?? 
 /** The picker's groups, in the order they are shown; every template belongs to exactly one. */
 export const CATEGORIES: { id: string; name: string; ids: string[] }[] = [
   { id: 'box', name: 'صناديق', ids: ['closed', 'open', 'sliding', 'liftoff', 'hinged', 'hinged90', 'flex', 'lip', 'window', 'drawer', 'roundbox', 'crate'] },
+  { id: 'trophy', name: 'دروع وجوائز', ids: ['trophyswoosh', 'trophyflame', 'trophystar', 'trophycup', 'trophyplaque', 'trophycrescent'] },
   { id: 'shop', name: 'ستاندات عرض للمحلات', ids: ['displaystand', 'displaystandpro'] },
   { id: 'wedding', name: 'أعراس وخطوبة', ids: ['fabricset', 'engagement', 'hexringbox', 'nikahtray', 'hennatray', 'welcomesign', 'placecards', 'invitebox', 'caketopper', 'guestframe', 'sweetstand', 'tablenumbers', 'favorbox'] },
   { id: 'gift', name: 'هدايا وديكور', ids: ['chest', 'catbank', 'decobox', 'jewelry', 'moneybox', 'teahouse', 'frame', 'basket', 'fence', 'clock'] },
-  { id: 'kitchen', name: 'مطبخ وتقديم', ids: ['carrier', 'mugtree', 'spicerack', 'bedtray', 'tray', 'teabox', 'tissue'] },
+  { id: 'kitchen', name: 'مطبخ وتقديم', ids: ['coasterset', 'carrier', 'mugtree', 'spicerack', 'bedtray', 'tray', 'teabox', 'tissue'] },
   { id: 'office', name: 'مكتب وتنظيم', ids: ['organizer', 'phonestand', 'bookstand', 'headphone', 'keyholder', 'wallshelf', 'jewelrytree'] },
   { id: 'doorsmodern', name: 'أبواب مودرن', ids: ['doorpanel', 'doormodern', 'doorwaves', 'doorframes', 'doordiagonal', 'doorblocks', 'doororbit', 'doorchevron'] },
   { id: 'doorsarab', name: 'أبواب عربي وكلاسيك', ids: ['doormihrab', 'doorkhatam', 'doormashrabiya', 'doorstars', 'doorandalus', 'doorstar', 'doorarch', 'doorclassic', 'doordiamond'] },
@@ -1595,7 +1603,7 @@ export const CATEGORIES: { id: string; name: string; ids: string[] }[] = [
   { id: 'bulk', name: 'بالجملة', ids: ['keychains', 'coasters'] },
 ]
 /** the newest designs get a badge in the picker */
-export const NEW_IDS = ['displaystandpro', 'displaystand', 'fabricset', 'mabkharatower', 'mabkhara', 'fittest', 'nikahtray', 'hennatray', 'welcomesign', 'placecards', 'invitebox', 'doorhanger', 'doordiagonal', 'doorblocks', 'doororbit', 'doorchevron', 'doormihrab', 'doorkhatam', 'doormashrabiya', 'doorstars', 'doorandalus', 'doorpanel', 'doorclassic', 'doorarch', 'doordiamond', 'doorwaves', 'doorstar', 'doormodern', 'doorframes', 'caketopper', 'guestframe', 'sweetstand', 'tablenumbers', 'favorbox', 'hexringbox', 'engagement', 'hinged90', 'crate', 'carrier', 'jewelry', 'moneybox', 'planter', 'petfeeder', 'incense', 'bedtray', 'phonestand', 'bookstand', 'headphone', 'keyholder', 'wallshelf', 'spicerack', 'coasters', 'clock', 'keychains', 'ramadanornaments', 'mugtree', 'jewelrytree', 'birdhouse', 'ramadanlantern']
+export const NEW_IDS = ['trophyswoosh', 'trophyflame', 'trophystar', 'trophycup', 'trophyplaque', 'trophycrescent', 'coasterset', 'displaystandpro', 'displaystand', 'fabricset', 'mabkharatower', 'mabkhara', 'fittest', 'nikahtray', 'hennatray', 'welcomesign', 'placecards', 'invitebox', 'doorhanger', 'doordiagonal', 'doorblocks', 'doororbit', 'doorchevron', 'doormihrab', 'doorkhatam', 'doormashrabiya', 'doorstars', 'doorandalus', 'doorpanel', 'doorclassic', 'doorarch', 'doordiamond', 'doorwaves', 'doorstar', 'doormodern', 'doorframes', 'caketopper', 'guestframe', 'sweetstand', 'tablenumbers', 'favorbox', 'hexringbox', 'engagement', 'hinged90', 'crate', 'carrier', 'jewelry', 'moneybox', 'planter', 'petfeeder', 'incense', 'bedtray', 'phonestand', 'bookstand', 'headphone', 'keyholder', 'wallshelf', 'spicerack', 'coasters', 'clock', 'keychains', 'ramadanornaments', 'mugtree', 'jewelrytree', 'birdhouse', 'ramadanlantern']
 
 // ====================================================================== more designs, built from the shared parts
 
@@ -4646,4 +4654,4 @@ MORE.push({
   innerAdd: () => ({ W: 0, D: 0, H: 0 }),
   build: (p, c) => tierStand(p, c, true),
 })
-TEMPLATES.push(...MORE)
+TEMPLATES.push(...MORE, ...TROPHIES, ...COASTER_SETS)

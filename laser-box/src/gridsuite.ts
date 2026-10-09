@@ -20,8 +20,12 @@ describe(`robustness grid ${shard + 1}/${shards}`, () => {
       const engraving = tpl.id.startsWith('door') && tpl.id !== 'doorhanger'
       // the display stand has no fingers or inner sizes, and a back panel taller than any of the boxes
       const stand = tpl.id.startsWith('displaystand')
-      for (const t of engraving ? [3] : [2, 2.7, 3, 4, 6]) for (const kerf of [0, 0.2]) for (const finger of engraving || stand ? [0] : [0, 12]) for (const [W, D, H] of engraving ? boxes.slice(0, 1) : boxes) for (const inner of engraving || stand ? [false] : [false, true]) for (const v of variants) {
-        const params = tpl.params.some(d => d.key === 'Dm') ? { Dm: W, H, ...v } : tpl.id === 'frame' ? { pw: W, ph: D + H, ...v } : stand ? { W: 160 + W, H: 420 + 2 * H, ...v } : { W, D, H, ...v }
+      // trophies stand on a base W × D and are H tall in all; the coaster set is sized by its coaster
+      const trophy = tpl.id.startsWith('trophy'), coaster = tpl.id === 'coasterset', own = stand || trophy || coaster
+      for (const t of engraving ? [3] : [2, 2.7, 3, 4, 6]) for (const kerf of [0, 0.2]) for (const finger of engraving || own ? [0] : [0, 12]) for (const [W, D, H] of engraving ? boxes.slice(0, 1) : boxes) for (const inner of engraving || own ? [false] : [false, true]) for (const v of variants) {
+        const params = tpl.params.some(d => d.key === 'Dm') ? { Dm: W, H, ...v } : tpl.id === 'frame' ? { pw: W, ph: D + H, ...v } : stand ? { W: 160 + W, H: 420 + 2 * H, ...v }
+          : trophy ? { W: 50 + W / 2, D: 40 + D / 2, H: 60 + 1.3 * (50 + W / 2) + 2.2 * (50 + W / 2) * (H / 120), ...(tpl.id === 'trophyplaque' ? { bw: 45 + W / 2 } : {}), ...v }
+          : coaster ? { S: 70 + W / 4, ...v } : { W, D, H, ...v }
         runs++
         let d
         try { d = generate(tpl, params, { ...DEFAULT_SETTINGS, t, kerf, finger, inner }) } catch (e) { throw new Error(`${tpl.id} ${JSON.stringify(params)} t=${t} kerf=${kerf} threw: ${(e as Error).message}`) }
