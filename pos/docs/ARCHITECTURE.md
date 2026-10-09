@@ -70,3 +70,4 @@ pos/
 ## Testing
 `npm test` runs vitest (node + fake-indexeddb). Pure logic (cart, money, barcode, reports aggregation, license token checks) has
 unit tests; keep them next to the code (`*.test.ts`).
+`npm run test:shell` runs the Node tests of the Windows shell helpers (electron/lib.test.cjs) and the ICO writer (scripts/ico.test.cjs); they use node:test because vitest's include is limited to src/**.

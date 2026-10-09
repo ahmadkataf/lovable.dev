@@ -10,8 +10,11 @@
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
     "test": "vitest run",
+    "test:shell": "node --test electron/lib.test.cjs scripts/ico.test.cjs",
+    "icons": "node scripts/make-icons.mjs",
     "electron:dev": "vite build && electron .",
     "build:win": "vite build && electron-builder --win --x64 --config electron-builder.json",
+    "build:win:dir": "vite build && electron-builder --win --x64 --dir --config electron-builder.json",
     "build:apk": "vite build && ./scripts/build-apk.sh",
     "codes:dev": "cd server && npm run dev"
   },
