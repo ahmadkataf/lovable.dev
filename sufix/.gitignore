@@ -1,0 +1,8 @@
+node_modules
+dist
+.wrangler
+.dev.vars
+server/data
+*.log
+server/api.mjs
+dist-preview
