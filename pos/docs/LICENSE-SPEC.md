@@ -64,7 +64,7 @@ payload:
   Verifies the old token's signature and that `d` matches. The code bound to the device *now* wins: the same code is
   refreshed, a trial device the seller granted a code upgrades itself, a device the seller re-bound to a new code follows
   it. Otherwise the token's code is judged: not revoked/expired and still bound here (for a trial: the trial has not ended).
-  Errors: `invalid_token`, `revoked`, `expired`, `device_mismatch`, `tampered`, `min_version`, `rate_limited`.
+  Errors: `invalid_token`, `revoked`, `expired`, `device_mismatch`, `blocked` (the seller stopped the device from the panel; also refused on activate, trial and the cloud endpoints), `tampered`, `min_version`, `rate_limited`.
   Updates `devices.last_seen`, `version`, `build`.
 - `POST /api/release` `{ token, device }` → `{ ok: true }`: unbinds this device so the code can be used on another one;
   `codes.moves` += 1; refused with `move_limit` after 3 self-moves (the seller can always move it from the panel).
@@ -107,7 +107,7 @@ Also `GET /privacy` (short privacy text) and `GET /` (one line naming the servic
 - `activate(code)`, `startTrial()`, `check()`, `release()` call the endpoints, store the new token (with `lastCheck`,
   `maxSeenTime`), and publish the status to subscribers. Network failures leave the state as it was and set `online: false`
   with `error: 'license.err.network'`. Server errors map to states: `revoked` → `revoked`, `expired` → `expired`,
-  `device_mismatch` → `revoked`, `tampered` → `tampered`, `invalid_token` → `none`.
+  `device_mismatch` → `revoked`, `blocked` → `revoked`, `tampered` → `tampered`, `invalid_token` → `none`.
 - `fetchInfo()` caches `/api/info` in storage so the activation screen shows the price/WhatsApp even offline.
 - Stored blob (via `platform.license`): JSON `{ token, lastCheck, maxSeenTime, skew, info, denied }`.
 - Electron remembers the hardware id it read (MachineGuid…) in `userData/device.json`, so a later failed read (a slow

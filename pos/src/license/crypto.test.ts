@@ -109,6 +109,7 @@ describe('state', () => {
     expect(errorMessageKey('whatever')).toBe('license.err.unknown')
     expect(stateForCheckError('revoked')).toBe('revoked')
     expect(stateForCheckError('device_mismatch')).toBe('revoked')
+    expect(stateForCheckError('blocked')).toBe('revoked')
     expect(stateForCheckError('expired')).toBe('expired')
     expect(stateForCheckError('tampered')).toBe('tampered')
     expect(stateForCheckError('invalid_token')).toBe('none')

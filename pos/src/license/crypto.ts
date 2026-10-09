@@ -110,7 +110,7 @@ export function deriveState(p: TokenPayload, now: number, clockBad = false): Ext
   return p.p === 'trial' ? 'trial' : 'active'
 }
 
-export const ERROR_KEYS = ['invalid_code', 'revoked', 'expired', 'device_limit', 'tampered', 'rate_limited', 'min_version', 'no_trial', 'invalid_token', 'device_mismatch', 'move_limit', 'network', 'unknown', 'cloud_inactive', 'too_large', 'backup_limit', 'not_found'] as const
+export const ERROR_KEYS = ['invalid_code', 'revoked', 'expired', 'device_limit', 'tampered', 'rate_limited', 'min_version', 'no_trial', 'invalid_token', 'device_mismatch', 'move_limit', 'blocked', 'no_trial_web', 'cloud_unavailable', 'network', 'unknown', 'cloud_inactive', 'too_large', 'backup_limit', 'not_found'] as const
 export type ErrorKey = (typeof ERROR_KEYS)[number]
 /** 'license.err.<key>' for a server error key, 'license.err.unknown' for anything else. */
 export const errorMessageKey = (error: string): string => `license.err.${(ERROR_KEYS as readonly string[]).includes(error) ? error : 'unknown'}`
@@ -121,6 +121,7 @@ export function stateForCheckError(error: string): Extract<LicenseState, 'revoke
     case 'revoked': return 'revoked'
     case 'expired': return 'expired'
     case 'device_mismatch': return 'revoked'
+    case 'blocked': return 'revoked'          // the seller stopped this device from the panel: locked at once, not after the grace period
     case 'tampered': return 'tampered'
     case 'invalid_token': return 'none'
     default: return undefined

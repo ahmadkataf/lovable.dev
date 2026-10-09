@@ -5,6 +5,8 @@ addMessages({
   ar: {
     'license.err.invalid_code': 'الكود غير صحيح. تأكد من كتابته كما وصلك من البائع.',
     'license.err.revoked': 'أُلغي هذا الترخيص. تواصل مع البائع.',
+    'license.err.blocked': 'أوقف البائع هذا الجهاز. تواصل معه لمعرفة السبب.',
+    'license.err.cloud_unavailable': 'التخزين السحابي غير مفعّل على السيرفر حالياً.',
     'license.err.expired': 'انتهت صلاحية الترخيص.',
     'license.err.device_limit': 'هذا الكود مستخدم على جهاز آخر. اطلب من البائع نقله إلى جهازك.',
     'license.err.tampered': 'هذه النسخة من التطبيق معدّلة ولا يمكن تفعيلها. ثبّت النسخة الأصلية.',
@@ -25,6 +27,8 @@ addMessages({
   en: {
     'license.err.invalid_code': 'That code is not valid. Type it exactly as the seller gave it to you.',
     'license.err.revoked': 'This license was cancelled. Contact the seller.',
+    'license.err.blocked': 'The seller stopped this device. Contact them to find out why.',
+    'license.err.cloud_unavailable': 'Cloud storage is not enabled on the server right now.',
     'license.err.expired': 'The license has expired.',
     'license.err.device_limit': 'This code is in use on another device. Ask the seller to move it to yours.',
     'license.err.tampered': 'This copy of the app was modified and cannot be activated. Install the original build.',
