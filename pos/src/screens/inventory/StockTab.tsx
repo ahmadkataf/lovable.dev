@@ -55,7 +55,7 @@ export function StockTab() {
 
   const chips: { key: StockFilter; label: string; n: number }[] = [
     { key: 'all', label: t('common.all'), n: counts.all }, { key: 'low', label: t('inventory.stock.chipLow'), n: counts.low },
-    { key: 'out', label: t('inventory.stock.chipOut'), n: counts.out }, { key: 'untracked', label: t('inventory.stock.untracked'), n: counts.untracked },
+    { key: 'out', label: t('inventory.stock.chipOut'), n: counts.out }, { key: 'expiring', label: t('inventory.stock.chipExpiring'), n: counts.expiring }, { key: 'untracked', label: t('inventory.stock.untracked'), n: counts.untracked },
   ]
   const sheet = sheetId ? byId.get(sheetId) : undefined
   const adjustP = adjust ? byId.get(adjust.id) : undefined

@@ -5,7 +5,7 @@ import { Routes, Route, Outlet, useNavigate, useParams, useSearchParams, useLoca
 import { useLiveQuery } from 'dexie-react-hooks'
 import { Plus, Filter, ArrowUpDown, MoreHorizontal, CheckSquare, Star, Package, SearchX, Tag, Printer, Download, Upload, FileText, X, Check, FolderInput, Eye, EyeOff, Trash2, Percent, ScanBarcode } from 'lucide-react'
 import { db } from '../../db'
-import type { Category, Product } from '../../db/types'
+import { daysToExpiry, EXPIRY_WARN_DAYS, type Category, type Product } from '../../db/types'
 import { useT, useLang } from '../../i18n'
 import { Button, SearchInput, Avatar, Badge, Money, Empty, Spinner, useIsMobile } from '../../components/ui'
 import { toast, confirmDialog, useSettings, useUser, isAdmin } from '../../state/store'
@@ -26,7 +26,7 @@ import './i18n'
 import './products.css'
 
 const VIEW_KEY = 'kaseb.products.view'
-const FILTERS: ProductFilter[] = ['all', 'low', 'out', 'favorites', 'inactive']
+const FILTERS: ProductFilter[] = ['all', 'low', 'out', 'expiring', 'favorites', 'inactive']
 const SORTS: ProductSort[] = ['name', 'price', 'stock', 'recent']
 
 export default function ProductsScreen() {
@@ -337,10 +337,12 @@ function HeadSort({ label, active, onClick, end }: { label: ReactNode; active: b
 function StockBadge({ p }: { p: Product }) {
   const t = useT()
   const s = stockState(p)
-  if (s === 'untracked') return <span className="faint">—</span>
+  const days = daysToExpiry(p)
+  const exp = days === null ? null : days < 0 ? <Badge kind="danger">{t('products.expired')}</Badge> : days === 0 ? <Badge kind="danger">{t('products.expiresToday')}</Badge> : days <= EXPIRY_WARN_DAYS ? <Badge kind="warn">{t('products.expiring', { n: days })}</Badge> : null
+  if (s === 'untracked') return <>{exp ?? <span className="faint">—</span>}</>
   const qty = <span className="num">{formatQty(p.stock)}</span>
-  if (s === 'out') return <Badge kind="danger">{t('products.outOfStock')}</Badge>
-  return <Badge kind={s === 'low' ? 'warn' : undefined}>{qty} <span className="xs">{unitLabel(p.unit)}</span></Badge>
+  if (s === 'out') return <>{exp}<Badge kind="danger">{t('products.outOfStock')}</Badge></>
+  return <>{exp}<Badge kind={s === 'low' ? 'warn' : undefined}>{qty} <span className="xs">{unitLabel(p.unit)}</span></Badge></>
 }
 
 interface RowProps { p: Product; category?: Category; admin: boolean; mobile: boolean; selectMode: boolean; selected: boolean; onOpen: () => void; onLongPress: () => void; onFav: () => void }

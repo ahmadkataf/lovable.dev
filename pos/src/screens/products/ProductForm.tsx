@@ -10,6 +10,7 @@ import { ScannerModal } from '../../components/Scanner'
 import { toast, confirmDialog, useSettings, useUser, isAdmin } from '../../state/store'
 import { uid } from '../../lib/ids'
 import { parseNumber, round, formatMoney, formatNumber } from '../../lib/money'
+import { toDateInput, fromDateInput } from '../../lib/format'
 import { cleanBarcode, makeInternalEan13 } from '../../lib/barcode'
 import { applyStock } from '../../lib/stock'
 import { beep } from '../../lib/audio'
@@ -24,13 +25,13 @@ import { LabelsDialog } from './LabelsDialog'
 interface FormState {
   name: string; barcodes: string[]; sku: string; categoryId: string; price: string; cost: string
   trackStock: boolean; stock: string; lowStock: string; unit: string; unitOther: string; allowFraction: boolean
-  taxRate: string; color: string; emoji: string; image: string; favorite: boolean; active: boolean; notes: string
+  taxRate: string; color: string; emoji: string; image: string; favorite: boolean; active: boolean; notes: string; expiry: string
 }
 const num = (n: number | undefined): string => (n === undefined || n === null || !Number.isFinite(n) ? '' : String(n))
 const emptyForm = (): FormState => ({
   name: '', barcodes: [], sku: '', categoryId: '', price: '', cost: '', trackStock: false, stock: '0', lowStock: '0',
   unit: 'piece', unitOther: '', allowFraction: false, taxRate: '', color: PRODUCT_COLORS[Math.floor(Math.random() * PRODUCT_COLORS.length)],
-  emoji: '', image: '', favorite: false, active: true, notes: '',
+  emoji: '', image: '', favorite: false, active: true, notes: '', expiry: '',
 })
 function fromProduct(p: Product): FormState {
   const known = (UNIT_KEYS as readonly string[]).includes(p.unit)
@@ -38,7 +39,7 @@ function fromProduct(p: Product): FormState {
     name: p.name, barcodes: p.barcodes.slice(), sku: p.sku ?? '', categoryId: p.categoryId ?? '', price: num(p.price), cost: num(p.cost),
     trackStock: p.trackStock, stock: num(p.stock), lowStock: num(p.lowStock), unit: known ? p.unit : 'other', unitOther: known ? '' : p.unit,
     allowFraction: p.allowFraction, taxRate: num(p.taxRate), color: p.color ?? PRODUCT_COLORS[0], emoji: p.emoji ?? '', image: p.image ?? '',
-    favorite: p.favorite, active: p.active, notes: p.notes ?? '',
+    favorite: p.favorite, active: p.active, notes: p.notes ?? '', expiry: p.expiry ? toDateInput(p.expiry) : '',
   }
 }
 
@@ -195,7 +196,7 @@ export function ProductForm({ open, productId, duplicateFrom, presetBarcode, onC
         price: round(price, d), cost: round(admin || !original ? Math.max(0, cost) : original.cost, d),
         trackStock: form.trackStock, lowStock, unit, allowFraction: form.allowFraction, taxRate,
         color: form.color || undefined, emoji: form.emoji || undefined, image: form.image || undefined,
-        favorite: form.favorite, active: form.active, notes: form.notes.trim() || undefined, updatedAt: now,
+        favorite: form.favorite, active: form.active, notes: form.notes.trim() || undefined, expiry: form.expiry ? fromDateInput(form.expiry) : undefined, updatedAt: now,
       }
       if (original) {
         const saved: Product = { ...original, ...base, stock: original.stock }
@@ -375,6 +376,9 @@ export function ProductForm({ open, productId, duplicateFrom, presetBarcode, onC
             {original && <SwitchRow label={t('common.active')} desc={t('products.activeDesc')} on={form.active} onChange={v => set('active', v)} />}
           </div>
 
+          <Field label={t('products.expiry')} hint={t('products.expiryHint')}>
+            <Input type="date" ltr value={form.expiry} onChange={e => set('expiry', e.target.value)} />
+          </Field>
           <Field label={t('common.notes')}>
             <Textarea value={form.notes} onChange={e => set('notes', e.target.value)} placeholder={t('common.optional')} rows={2} maxLength={500} />
           </Field>

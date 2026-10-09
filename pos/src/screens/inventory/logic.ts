@@ -1,9 +1,10 @@
 // Pure inventory logic: filters, stock status, stock value, stock-take arithmetic. Tested in logic.test.ts.
+import { isExpiring } from '../../db/types'
 import type { Product } from '../../db/types'
 import { round } from '../../lib/money'
 
 export type StockStatus = 'untracked' | 'out' | 'low' | 'ok'
-export type StockFilter = 'all' | 'low' | 'out' | 'untracked'
+export type StockFilter = 'all' | 'low' | 'out' | 'untracked' | 'expiring'
 export type StockSort = 'name' | 'lowest' | 'value'
 
 export function stockStatus(p: Pick<Product, 'trackStock' | 'stock' | 'lowStock'>): StockStatus {
@@ -25,13 +26,13 @@ export function matchesProduct(p: Pick<Product, 'name' | 'barcodes' | 'sku'>, q:
 }
 
 export function stockCounts(products: Product[]): Record<StockFilter, number> {
-  const c = { all: products.length, low: 0, out: 0, untracked: 0 }
-  for (const p of products) { const s = stockStatus(p); if (s !== 'ok') c[s]++ }
+  const c = { all: products.length, low: 0, out: 0, untracked: 0, expiring: 0 }
+  for (const p of products) { const s = stockStatus(p); if (s !== 'ok') c[s]++; if (isExpiring(p)) c.expiring++ }
   return c
 }
 
 export function filterProducts(products: Product[], o: { q: string; filter: StockFilter; sort: StockSort; decimals?: number }): Product[] {
-  const out = products.filter(p => (o.filter === 'all' || stockStatus(p) === o.filter) && matchesProduct(p, o.q))
+  const out = products.filter(p => (o.filter === 'all' || (o.filter === 'expiring' ? isExpiring(p) : stockStatus(p) === o.filter)) && matchesProduct(p, o.q))
   const d = o.decimals ?? 2
   if (o.sort === 'lowest') out.sort((a, b) => (a.trackStock === b.trackStock ? a.stock - b.stock : a.trackStock ? -1 : 1) || a.name.localeCompare(b.name))
   else if (o.sort === 'value') out.sort((a, b) => productValue(b, d) - productValue(a, d) || a.name.localeCompare(b.name))

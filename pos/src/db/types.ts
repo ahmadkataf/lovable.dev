@@ -31,9 +31,19 @@ export interface Product {
   favorite: boolean
   active: boolean
   notes?: string
+  expiry?: number      // ms (local midnight): the batch on the shelf expires then; undefined = not tracked
   createdAt: number
   updatedAt: number
 }
+
+/** Days until a product expires (negative = expired); null when not tracked. */
+export function daysToExpiry(p: Pick<Product, 'expiry'>, now = Date.now()): number | null {
+  if (!p.expiry) return null
+  return Math.ceil((p.expiry - now) / 86400000)
+}
+/** Expired or expiring within `within` days. */
+export const EXPIRY_WARN_DAYS = 30
+export const isExpiring = (p: Pick<Product, 'expiry'>, within = EXPIRY_WARN_DAYS, now = Date.now()): boolean => { const d = daysToExpiry(p, now); return d !== null && d <= within }
 
 export interface Customer {
   id: ID

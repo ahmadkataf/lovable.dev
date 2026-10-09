@@ -1,10 +1,11 @@
 // Pure helpers for the products screen: search, filters, sorting, stock state, CSV rows.
+import { isExpiring } from '../../db/types'
 import type { Category, Product } from '../../db/types'
 import { cleanBarcode } from '../../lib/barcode'
 import { round } from '../../lib/money'
 import { t } from '../../i18n'
 
-export type ProductFilter = 'all' | 'low' | 'out' | 'inactive' | 'favorites'
+export type ProductFilter = 'all' | 'low' | 'out' | 'inactive' | 'favorites' | 'expiring'
 export type ProductSort = 'name' | 'price' | 'stock' | 'recent'
 /** 'all' = every product, 'none' = products without a category, else a category id. */
 export type CategoryPick = 'all' | 'none' | string
@@ -49,6 +50,7 @@ export function filterProducts(products: Product[], o: FilterOptions): Product[]
       case 'inactive': if (p.active) return false; break
       case 'low': if (!p.active || (stockState(p) !== 'low' && stockState(p) !== 'out')) return false; break
       case 'out': if (!p.active || stockState(p) !== 'out') return false; break
+      case 'expiring': if (!p.active || !isExpiring(p)) return false; break
       case 'favorites': if (!p.active || !p.favorite) return false; break
       default: if (!p.active && !q) return false
     }
