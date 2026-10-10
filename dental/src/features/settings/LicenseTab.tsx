@@ -1,7 +1,7 @@
 import { useState, type FormEvent } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { BadgeCheck, CalendarClock, Copy, Crown, Infinity as InfinityIcon, KeyRound, Lock, Mail, MessageCircle, ShieldAlert, ShieldCheck, Sparkles, Store } from 'lucide-react'
-import { Alert, Badge, Button, buttonClass, Card, CardBody, Input, ProgressBar, useConfirm, useToast } from '@/ui'
+import { Alert, Badge, Button, buttonClass, Card, CardBody, ProgressBar, useConfirm, useToast, Textarea } from '@/ui'
 import { useI18n } from '@/i18n'
 import { getSetting, logActivity } from '@/db'
 import { useClinic } from '@/app/hooks'
@@ -132,8 +132,9 @@ export default function LicenseTab() {
             <SectionTitle icon={<BadgeCheck />} title={status === 'active' ? t('license.renew') : t('license.activateTitle')} sub={status === 'active' ? t('license.renewHint') : t('license.activateDesc')} tone="success" />
             {showForm ? (
               <form className="st-activate" onSubmit={activate} noValidate>
-                <Input label={t('license.codeLabel')} value={code} onChange={e => { setCode(formatCodeInput(e.target.value)); setError(null) }}
-                  placeholder="XXXX-XXXX-XXXX-XXXX" dir="ltr" autoComplete="off" autoCapitalize="characters" spellCheck={false}
+                <Textarea label={t('license.codeLabel')} value={code} onChange={e => { setCode(formatCodeInput(e.target.value)); setError(null) }}
+                  placeholder={t('license.codePlaceholder')} dir="ltr" autoComplete="off" autoCapitalize="characters" spellCheck={false} rows={7}
+                  onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); activate() } }}
                   className="st-code-input" error={error ?? undefined} hint={error ? undefined : t('license.codeHint')} data-qa="code-input" />
                 <div className="st-activate-foot">
                   <span className="st-code-count num" aria-live="polite">{codeChars(code)}/{CODE_CHARS}</span>

@@ -230,8 +230,8 @@
 .st-device-no, .st-mono { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
 .st-device-no { font-size: var(--fs-3xl); font-weight: 800; letter-spacing: 3px; color: var(--text); line-height: 1.2; }
 .st-activate { display: flex; flex-direction: column; gap: 12px; }
-.st-code-input.input { font-family: var(--font-mono); font-size: var(--fs-xl); font-weight: 700; letter-spacing: 2px; text-align: center; min-height: 52px; }
-.st-code-input.input::placeholder { letter-spacing: 2px; font-weight: 500; }
+.st-code-input.textarea { font-family: var(--font-mono); font-size: var(--fs-md); font-weight: 600; letter-spacing: 1px; line-height: 1.7; min-height: calc(7 * 1.7em + 18px); field-sizing: content; resize: none; word-break: break-all; text-align: left; }
+.st-code-input.textarea::placeholder { letter-spacing: 0; font-weight: 500; font-family: var(--font); }
 .st-activate-foot { display: flex; align-items: center; justify-content: flex-end; gap: 8px; }
 .st-code-count { margin-inline-end: auto; font-size: var(--fs-xs); font-weight: 700; color: var(--text-4); }
 .st-buy-steps { list-style: none; margin: 0 0 18px; padding: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }

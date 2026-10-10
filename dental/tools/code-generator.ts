@@ -1,14 +1,43 @@
 // The offline seller page: make a code, check a code, keep a local log of what was issued.
 import {
-  LOG_KEY, checkCode, clinicMessage, formatDeviceInput, isDeviceNumber, isPlan, issueCode, ltr, parseLog, parseUntil, toCSV, waLink,
+  LOG_KEY, checkCode, clinicMessage, formatDeviceInput, importSigningKey, isDeviceNumber, isPlan, issueCode, ltr, parseLog, parsePrivateKey, parseUntil, toCSV, waLink,
   type Issued, type LogEntry, type Plan,
 } from './generator-lib.ts'
+import { CODE_CHARS, cleanCode, formatCode } from '../src/license/core.ts'
 
 const $ = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as T
 const PLAN_AR: Record<Plan, string> = { standard: 'الأساسية', pro: 'الاحترافية' }
 const REASON_AR = { format: 'الرمز غير مكتمل أو فيه خطأ في الكتابة', device: 'الرمز لا يخص هذا الجهاز', expired: 'انتهت صلاحية الرمز' } as const
 
 let last: (Issued & { note: string }) | null = null
+
+// ---- the seller's private key: loaded once from license-private.jwk, kept in this browser only ----
+const KEY_STORE = 'dentora.generator.key'
+let signingKey: CryptoKey | null = null
+async function useKeyText(text: string, save: boolean): Promise<boolean> {
+  const parsed = parsePrivateKey(text)
+  if (!parsed.ok) {
+    $('key-err').textContent = parsed.reason === 'mismatch' ? 'هذا المفتاح لا يطابق المفتاح المبني في نسخة التطبيق الحالية.' : 'هذا الملف ليس مفتاح Dentora خاصاً (license-private.jwk).'
+    return false
+  }
+  signingKey = await importSigningKey(parsed.jwk)
+  if (save) { try { localStorage.setItem(KEY_STORE, text) } catch { /* private mode: the key stays for this visit only */ } }
+  $('key-err').textContent = ''
+  renderKey()
+  return true
+}
+function renderKey() {
+  const ok = !!signingKey
+  const box = $('keybox')
+  box.classList.toggle('ok', ok); box.classList.toggle('missing', !ok)
+  $('key-title').textContent = ok ? 'المفتاح الخاص محمّل' : 'حمّل مفتاحك الخاص أولاً'
+  $('key-sub').textContent = ok
+    ? 'يمكنك الآن إنشاء الرموز. المفتاح محفوظ في هذا المتصفح فقط؛ لا تستخدم هذه الصفحة على جهاز غير جهازك.'
+    : 'الملف license-private.jwk الذي استلمته مع البرنامج. يُحفظ في هذا المتصفح فقط ولا يُرسل إلى أي مكان. بدونه لا يمكن إنشاء رموز، ولا يستطيع أحد صنعها من التطبيق نفسه.'
+  $('key-load').classList.toggle('hidden', ok)
+  $('key-remove').classList.toggle('hidden', !ok)
+  $('make').setAttribute('aria-disabled', ok ? 'false' : 'true')
+}
 
 function toast(msg: string) {
   const t = $('toast'); t.textContent = msg; t.classList.add('show')
@@ -47,11 +76,8 @@ function renderLog() {
 function bindDeviceInput(input: HTMLInputElement) {
   input.addEventListener('input', () => { input.value = formatDeviceInput(input.value) })
 }
-function bindCodeInput(input: HTMLInputElement) {
-  input.addEventListener('input', () => {
-    const c = input.value.toUpperCase().replace(/[^0-9A-Z]/g, '').slice(0, 16)
-    input.value = (c.match(/.{1,4}/g) || []).join('-')
-  })
+function bindCodeInput(input: HTMLTextAreaElement) {
+  input.addEventListener('input', () => { input.value = formatCode(cleanCode(input.value).slice(0, CODE_CHARS)) })
 }
 
 function refreshMessage() {
@@ -75,7 +101,8 @@ async function make(e: Event) {
   const until = parseUntil(validity === 'date' ? $<HTMLInputElement>('date').value : validity)
   if (until === undefined) { $('date-err').textContent = 'اختر تاريخاً صحيحاً اليوم أو بعده'; return }
   if (!isPlan(plan)) return
-  const issued = await issueCode(device, plan, until)
+  if (!signingKey) { toast('حمّل مفتاحك الخاص أولاً'); return }
+  const issued = await issueCode(device, plan, until, signingKey)
   last = { ...issued, note }
   $('code').textContent = issued.code
   $('meta').textContent = `الباقة ${PLAN_AR[issued.plan]} · ${issued.until ? `صالح حتى ${ltr(issued.until)}` : 'ترخيص دائم'} · الجهاز ${ltr(issued.device)}`
@@ -84,13 +111,13 @@ async function make(e: Event) {
   writeLog([{ ...issued, note, at: new Date().toISOString() }, ...readLog()])
   renderLog()
   $<HTMLInputElement>('v-device').value = issued.device
-  $<HTMLInputElement>('v-code').value = issued.code
+  $<HTMLTextAreaElement>('v-code').value = issued.code
 }
 
 async function verify(e: Event) {
   e.preventDefault()
   const device = $<HTMLInputElement>('v-device').value
-  const code = $<HTMLInputElement>('v-code').value
+  const code = $<HTMLTextAreaElement>('v-code').value
   const v = $('verdict'); v.classList.remove('hidden', 'ok', 'bad')
   if (!isDeviceNumber(device)) { v.classList.add('bad'); v.textContent = 'رقم الجهاز غير صحيح'; return }
   const r = await checkCode(formatDeviceInput(device), code)
@@ -106,7 +133,20 @@ function exportCSV() {
   document.body.append(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(url), 2000)
 }
 
-bindDeviceInput($('device')); bindDeviceInput($('v-device')); bindCodeInput($('v-code'))
+bindDeviceInput($('device')); bindDeviceInput($('v-device')); bindCodeInput($('v-code') as HTMLTextAreaElement)
+$('key-load').addEventListener('click', () => $<HTMLInputElement>('key-file').click())
+$('key-file').addEventListener('change', async () => {
+  const f = $<HTMLInputElement>('key-file').files?.[0]
+  if (f && await useKeyText(await f.text(), true)) toast('تم تحميل المفتاح')
+  $<HTMLInputElement>('key-file').value = ''
+})
+$('key-remove').addEventListener('click', () => {
+  if (!confirm('إزالة المفتاح من هذا المتصفح؟ ستحتاج إلى تحميل الملف مجدداً لإنشاء رموز.')) return
+  try { localStorage.removeItem(KEY_STORE) } catch { /* ignore */ }
+  signingKey = null; renderKey()
+})
+renderKey()
+try { const saved = localStorage.getItem(KEY_STORE); if (saved) void useKeyText(saved, false) } catch { /* ignore */ }
 $('validity').addEventListener('change', () => $('date-wrap').classList.toggle('hidden', $<HTMLSelectElement>('validity').value !== 'date'))
 $('make').addEventListener('submit', e => void make(e))
 $('verify').addEventListener('submit', e => void verify(e))

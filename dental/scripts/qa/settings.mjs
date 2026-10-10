@@ -7,9 +7,20 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 import { startServer, openBrowser, seedAndLogin, shot, BASE } from './lib.mjs'
-import { makeCode } from '../../src/license/core.ts'
+import { makeCode as signCode, importSigningKey, parsePrivateKey } from '../../tools/generator-lib.ts'
+import { checkCode } from '../../src/license/core.ts'
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
+
+// Codes are signed with the seller's private key (never in the repository): DENTORA_LICENSE_KEY or ../secrets-for-user.
+const KEY_FILE = process.env.DENTORA_LICENSE_KEY || path.resolve(ROOT, '../secrets-for-user/dentora/license-private.jwk')
+const signingKey = await (async () => {
+  if (!fs.existsSync(KEY_FILE)) return null
+  const p = parsePrivateKey(fs.readFileSync(KEY_FILE, 'utf8'))
+  return p.ok ? importSigningKey(p.jwk) : null
+})()
+if (!signingKey) { console.error(`the licence private key is needed for these checks: ${KEY_FILE}`); process.exit(2) }
+const makeCode = (device, plan, until) => signCode(device, plan, until, signingKey)
 const errors = []
 let failures = 0
 function ok(cond, msg) { if (!cond) { failures++; console.error('FAIL:', msg) } else console.log('ok  ', msg) }
@@ -312,6 +323,10 @@ try {
     await page.goto(pathToFileURL(file).href)
     await page.waitForFunction(() => window.__generatorReady)
     await snap(page, 'g-1-empty')
+    ok((await page.getAttribute('#make', 'aria-disabled')) === 'true', 'generator: making codes is locked until the private key is loaded')
+    await page.setInputFiles('#key-file', KEY_FILE)
+    await page.waitForFunction(() => document.getElementById('make').getAttribute('aria-disabled') === 'false')
+    ok(true, 'generator: the private key loads and unlocks the form')
     await page.click('#make-btn')
     ok((await page.textContent('#device-err')).length > 0, 'generator: device number required')
     // the app gives the device number; the page makes the code; the app accepts it
@@ -329,7 +344,7 @@ try {
     await page.click('#make-btn')
     await page.waitForSelector('#result:not(.hidden)')
     const code = (await page.textContent('#code')).trim()
-    ok(/^([2-9A-Z]{4}-){3}[2-9A-Z]{4}$/.test(code), `generator: code made (${code})`)
+    ok(/^([2-9A-Z]{4}-){27}[2-9A-Z]{4}$/.test(code), `generator: signed code made (112 characters)`)
     ok((await page.inputValue('#message')).includes(code), 'generator: clinic message carries the code')
     await page.fill('#phone', '0944 123 456')
     ok((await page.getAttribute('#wa', 'href')).startsWith('https://wa.me/963944123456?text='), 'generator: WhatsApp link to the clinic')

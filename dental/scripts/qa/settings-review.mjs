@@ -8,9 +8,20 @@ import os from 'node:os'
 import path from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 import { startServer, openBrowser, seedAndLogin, shot, BASE } from './lib.mjs'
-import { makeCode } from '../../src/license/core.ts'
+import { makeCode as signCode, importSigningKey, parsePrivateKey } from '../../tools/generator-lib.ts'
+import { checkCode } from '../../src/license/core.ts'
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
+
+// Codes are signed with the seller's private key (never in the repository): DENTORA_LICENSE_KEY or ../secrets-for-user.
+const KEY_FILE = process.env.DENTORA_LICENSE_KEY || path.resolve(ROOT, '../secrets-for-user/dentora/license-private.jwk')
+const signingKey = await (async () => {
+  if (!fs.existsSync(KEY_FILE)) return null
+  const p = parsePrivateKey(fs.readFileSync(KEY_FILE, 'utf8'))
+  return p.ok ? importSigningKey(p.jwk) : null
+})()
+if (!signingKey) { console.error(`the licence private key is needed for these checks: ${KEY_FILE}`); process.exit(2) }
+const makeCode = (device, plan, until) => signCode(device, plan, until, signingKey)
 const TMP = fs.mkdtempSync(path.join(os.tmpdir(), 'st-review-'))
 const errors = []
 let failures = 0
@@ -434,12 +445,12 @@ try {
   {
     const d = '7KQ4-M2XD'
     const c = cli(d, 'standard', '2027-12-31')
-    ok(/^[2-9A-HJ-NP-Z]{4}(-[2-9A-HJ-NP-Z]{4}){3}$/.test(c), `cli: code format ${c}`)
+    ok(/^[2-9A-HJ-NP-Z]{4}(-[2-9A-HJ-NP-Z]{4}){27}$/.test(c), `cli: code format (112 characters)`)
     ok(cli('verify', d, c).startsWith('valid · plan standard · until 2027-12-31'), 'cli: verify valid')
     let failed = false
     try { cli('verify', '7KQ4-M2XE', c) } catch { failed = true }
     ok(failed, 'cli: verify on another device exits non-zero')
-    ok((await makeCode(d, 'standard', new Date(Date.UTC(2027, 11, 31)))) === c, 'cli: same code as core.makeCode')
+    ok((await checkCode(d, c)).ok === true, 'cli: the app verifier accepts the CLI code')
   }
 
   ok(errors.length === 0, `no console errors (${errors.length})`)

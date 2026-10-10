@@ -41,7 +41,14 @@
     .small { min-height: 32px; padding: 0 10px; font-size: 13px; border-radius: 9px; }
     .actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
     .result { margin-top: 16px; border-radius: 16px; background: var(--p-soft); border: 1px solid #ABE9DD; padding: 16px; }
-    .code { font-size: 28px; font-weight: 800; color: var(--text); text-align: center; padding: 10px; background: #fff; border-radius: 12px; border: 1.5px dashed #74D7C6; user-select: all; word-break: break-all; }
+    .code { font-size: 17px; line-height: 1.7; letter-spacing: .5px; font-weight: 700; color: var(--text); text-align: center; padding: 12px; background: #fff; border-radius: 12px; border: 1.5px dashed #74D7C6; user-select: all; word-break: break-all; }
+    .keybox { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; margin-bottom: 16px; }
+    .keybox .grow { flex: 1; min-width: 220px; }
+    .keybox.ok { border-color: #ABE9DD; background: #F4FCFA; }
+    .keybox.missing { border-color: #FDE68A; background: #FFFBEB; }
+    .keybox b { display: block; margin-bottom: 2px; }
+    textarea.codefield { min-height: 96px; font-size: 13px; letter-spacing: .3px; }
+    form[aria-disabled="true"] { opacity: .5; pointer-events: none; }
     .meta { text-align: center; color: var(--text-2); font-size: 13.5px; margin: 8px 0 12px; }
     textarea { min-height: 190px; resize: vertical; line-height: 1.7; }
     .verdict { margin-top: 12px; padding: 10px 14px; border-radius: 12px; font-weight: 700; }
@@ -62,7 +69,7 @@
     .toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: var(--text); color: #fff; padding: 10px 18px; border-radius: 12px; font-weight: 600; opacity: 0; transition: opacity .2s; pointer-events: none; }
     .toast.show { opacity: 1; }
     footer { margin-top: 24px; color: var(--muted); font-size: 12.5px; text-align: center; }
-    @media (max-width: 760px) { .grid, .fields { grid-template-columns: 1fr; } .private { display: none; } .code { font-size: 22px; } }
+    @media (max-width: 760px) { .grid, .fields { grid-template-columns: 1fr; } .private { display: none; } .code { font-size: 14px; } }
   </style>
 </head>
 <body>
@@ -77,6 +84,17 @@
       </div>
       <span class="private">أداة خاصة بالبائع — لا تُرسلها لأي عيادة</span>
     </header>
+
+    <section class="card keybox missing" id="keybox">
+      <div class="grow">
+        <b id="key-title">حمّل مفتاحك الخاص أولاً</b>
+        <span class="sub" id="key-sub">الملف license-private.jwk الذي استلمته مع البرنامج. يُحفظ في هذا المتصفح فقط ولا يُرسل إلى أي مكان. بدونه لا يمكن إنشاء رموز، ولا يستطيع أحد صنعها من التطبيق نفسه.</span>
+        <span class="err" id="key-err"></span>
+      </div>
+      <input type="file" id="key-file" accept=".jwk,.json,application/json" class="hidden" />
+      <button class="primary" type="button" id="key-load">تحميل المفتاح</button>
+      <button class="danger small hidden" type="button" id="key-remove">إزالة المفتاح من هذا المتصفح</button>
+    </section>
 
     <div class="grid">
       <section class="card">
@@ -134,7 +152,7 @@
               <input id="v-device" class="mono ltr" placeholder="XXXX-XXXX" autocomplete="off" spellcheck="false" />
             </label>
             <label class="full">رمز التفعيل
-              <input id="v-code" class="mono ltr" placeholder="XXXX-XXXX-XXXX-XXXX" autocomplete="off" spellcheck="false" />
+              <textarea id="v-code" class="mono ltr codefield" placeholder="الصق رمز التفعيل هنا" autocomplete="off" spellcheck="false"></textarea>
             </label>
           </div>
           <div class="actions"><button class="secondary" type="submit" id="verify-btn">تحقق</button></div>

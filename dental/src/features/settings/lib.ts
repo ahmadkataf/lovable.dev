@@ -1,6 +1,7 @@
 // Pure helpers of the settings module: tabs, form drafts and validation, backup checks, licence-code input.
 // No React and no database here, so tests/settings.test.ts can cover all of it.
 import type { BackupFile, Clinic } from '@/db/types'
+import { CODE_CHARS } from '@/license/core'
 import type { FontKey } from '@/app/theme'
 import { normalizeText, round2 } from '@/lib/format'
 import {
@@ -244,8 +245,8 @@ export function typedConfirm(input: string, word: string): boolean {
 }
 
 // ---- licence ----------------------------------------------------------------------------------
-export const CODE_CHARS = 16
-/** What the activation field shows while typing: upper case, digits normalised, grouped XXXX-XXXX-XXXX-XXXX. */
+export { CODE_CHARS }
+/** What the activation field shows while typing or pasting: upper case, digits normalised, grouped in fours. */
 export function formatCodeInput(raw: string): string {
   const clean = normalizeDigits(raw || '').toUpperCase().replace(/[^0-9A-Z]/g, '').slice(0, CODE_CHARS)
   return (clean.match(/.{1,4}/g) || []).join('-')

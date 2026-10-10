@@ -1,9 +1,34 @@
 // Seller-side helpers shared by the code generator CLI (scripts/code-generator.mjs) and the offline page
 // (tools/code-generator.html). Never imported by the app. Plain TypeScript that Node 22.18+ runs directly.
-import { checkCode, cleanCode, formatCode, makeCode, PLANS, type CodeCheck, type Plan } from '../src/license/core.ts'
+// Codes are signed with the seller's PRIVATE key (license-private.jwk); the app only has the public key.
+import {
+  PUBLIC_KEY, checkCode, cleanCode, expiryDay, formatCode, packCode, signedMessage, PLANS, type CodeCheck, type Plan,
+} from '../src/license/core.ts'
 
 export { checkCode, formatCode, PLANS }
 export type { CodeCheck, Plan }
+
+/** The private key file as written by `node scripts/code-generator.mjs keygen`. */
+export interface PrivateKeyFile extends JsonWebKey { product?: string; created?: string }
+
+/** Parses a key file and checks it is the private half of the key built into the app. */
+export function parsePrivateKey(text: string): { ok: true; jwk: PrivateKeyFile } | { ok: false; reason: 'format' | 'mismatch' } {
+  let jwk: PrivateKeyFile
+  try { jwk = JSON.parse(text) } catch { return { ok: false, reason: 'format' } }
+  if (!jwk || jwk.kty !== 'EC' || jwk.crv !== 'P-256' || !jwk.d || !jwk.x || !jwk.y) return { ok: false, reason: 'format' }
+  if (jwk.x !== PUBLIC_KEY.x || jwk.y !== PUBLIC_KEY.y) return { ok: false, reason: 'mismatch' }
+  return { ok: true, jwk }
+}
+export async function importSigningKey(jwk: JsonWebKey): Promise<CryptoKey> {
+  return crypto.subtle.importKey('jwk', { kty: 'EC', crv: 'P-256', x: jwk.x, y: jwk.y, d: jwk.d, ext: true }, { name: 'ECDSA', namedCurve: 'P-256' }, false, ['sign'])
+}
+
+/** Seller side: the code for one device. `until` null = lifetime. */
+export async function makeCode(device: string, plan: Plan, until: Date | null, signingKey: CryptoKey): Promise<string> {
+  const day = expiryDay(until)
+  const sig = new Uint8Array(await crypto.subtle.sign({ name: 'ECDSA', hash: 'SHA-256' }, signingKey, signedMessage(device, plan, day)))
+  return packCode(plan, day, sig)
+}
 
 /** Characters the device number and the codes use (no 0/O or 1/I). */
 const DEVICE_RE = /^[2-9A-HJ-NP-Z]{8}$/
@@ -46,11 +71,11 @@ export function untilISO(d: Date | null): string | null {
 
 export interface Issued { code: string; device: string; plan: Plan; until: string | null }
 /** Makes a code and checks it back with the app's own verifier, so a bad code can never be handed out. */
-export async function issueCode(device: string, plan: Plan, until: Date | null): Promise<Issued> {
+export async function issueCode(device: string, plan: Plan, until: Date | null, signingKey: CryptoKey, publicKey: JsonWebKey = PUBLIC_KEY): Promise<Issued> {
   if (!isDeviceNumber(device)) throw new Error('device')
   const dev = formatDeviceInput(device)
-  const code = await makeCode(dev, plan, until)
-  const back = await checkCode(dev, code)
+  const code = await makeCode(dev, plan, until, signingKey)
+  const back = await checkCode(dev, code, new Date(), publicKey)
   if (!back.ok || back.plan !== plan) throw new Error('self-check')
   return { code, device: dev, plan, until: untilISO(until) }
 }

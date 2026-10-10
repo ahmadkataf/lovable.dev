@@ -9,7 +9,7 @@ import {
 } from '../src/features/settings/lib'
 import { translate } from '../src/i18n'
 import { eraseEverything, restoreBackup } from '../src/features/settings/backup'
-import { clinicMessage, formatDeviceInput, isDeviceNumber, issueCode, ltr, parseLog, parseUntil, toCSV, untilISO, waLink } from '../tools/generator-lib'
+import { parsePrivateKey, clinicMessage, formatDeviceInput, isDeviceNumber, issueCode, ltr, parseLog, parseUntil, toCSV, untilISO, waLink } from '../tools/generator-lib'
 
 const clinic = (p: Partial<Clinic> = {}): Clinic => ({ ...DEFAULT_CLINIC, name: 'عيادة الابتسامة', setupDone: true, ...p })
 
@@ -185,10 +185,12 @@ describe('licence code input', () => {
   it('formats while typing', () => {
     expect(formatCodeInput('abcd')).toBe('ABCD')
     expect(formatCodeInput('abcde')).toBe('ABCD-E')
-    expect(formatCodeInput('ab cd-ef gh--jk lm np qr st')).toBe('ABCD-EFGH-JKLM-NPQR')
+    expect(formatCodeInput('ab cd-ef gh--jk lm np qr st')).toBe('ABCD-EFGH-JKLM-NPQR-ST')
     expect(formatCodeInput('٢٣٤٥')).toBe('2345')
-    expect(isCodeComplete('ABCD-EFGH-JKLM-NPQR')).toBe(true)
-    expect(isCodeComplete('ABCD-EFGH')).toBe(false)
+    expect(formatCodeInput('ab\ncd\r\nef')).toBe('ABCD-EF')                       // pasted from a message over several lines
+    expect(formatCodeInput('A'.repeat(200)).replace(/-/g, '')).toHaveLength(112)    // never longer than a code
+    expect(isCodeComplete('A'.repeat(112))).toBe(true)
+    expect(isCodeComplete('ABCD-EFGH-JKLM-NPQR')).toBe(false)
   })
   it('derives the trial bar and the renewal warning', () => {
     expect(trialUsedPercent(7, 7)).toBe(0)
@@ -220,16 +222,28 @@ describe('seller code generator', () => {
     expect(isDeviceNumber('7KQ4-M2X0')).toBe(false)          // 0 is not in the alphabet
   })
   it('issues codes the app accepts, for that device only', async () => {
+    // a throwaway key pair: the real private key never leaves the seller
+    const kp = await crypto.subtle.generateKey({ name: 'ECDSA', namedCurve: 'P-256' }, true, ['sign', 'verify'])
+    const pub = await crypto.subtle.exportKey('jwk', kp.publicKey)
     const device = await deviceNumber('clinic-pc-1')
     const other = await deviceNumber('clinic-pc-2')
-    const lifetime = await issueCode(device, 'pro', null)
-    expect(await checkCode(device, lifetime.code)).toEqual({ ok: true, plan: 'pro', until: null })
-    expect((await checkCode(other, lifetime.code)).ok).toBe(false)
-    const yearly = await issueCode(device.toLowerCase().replace('-', ''), 'standard', parseUntil('1y')!)
-    const r = await checkCode(device, yearly.code)
+    const lifetime = await issueCode(device, 'pro', null, kp.privateKey, pub)
+    expect(await checkCode(device, lifetime.code, new Date(), pub)).toEqual({ ok: true, plan: 'pro', until: null })
+    expect((await checkCode(other, lifetime.code, new Date(), pub)).ok).toBe(false)
+    const yearly = await issueCode(device.toLowerCase().replace('-', ''), 'standard', parseUntil('1y')!, kp.privateKey, pub)
+    const r = await checkCode(device, yearly.code, new Date(), pub)
     expect(r.ok && r.plan).toBe('standard')
     expect(yearly.device).toBe(device)
-    await expect(issueCode('nope', 'pro', null)).rejects.toThrow('device')
+    await expect(issueCode('nope', 'pro', null, kp.privateKey, pub)).rejects.toThrow('device')
+    // the app's built-in key refuses codes signed by any other key, and so does the self-check
+    expect(await checkCode(device, lifetime.code)).toEqual({ ok: false, reason: 'device' })
+    await expect(issueCode(device, 'pro', null, kp.privateKey)).rejects.toThrow('self-check')
+  })
+  it('accepts only the private half of the app key as a seller key', async () => {
+    expect(parsePrivateKey('not json')).toEqual({ ok: false, reason: 'format' })
+    expect(parsePrivateKey(JSON.stringify({ kty: 'EC', crv: 'P-256', x: 'a', y: 'b' }))).toEqual({ ok: false, reason: 'format' })
+    const kp = await crypto.subtle.generateKey({ name: 'ECDSA', namedCurve: 'P-256' }, true, ['sign', 'verify'])
+    expect(parsePrivateKey(JSON.stringify(await crypto.subtle.exportKey('jwk', kp.privateKey)))).toEqual({ ok: false, reason: 'mismatch' })
   })
   it('writes the clinic message, the WhatsApp link and the CSV log', () => {
     const i = { code: 'ABCD-EFGH-JKLM-NPQR', plan: 'pro' as const, until: '2027-10-10', device: '7KQ4-M2XD' }
