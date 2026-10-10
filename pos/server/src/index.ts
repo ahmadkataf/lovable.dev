@@ -842,6 +842,42 @@ section{background:#fff;border:1px solid #e3e8f0;border-radius:14px;padding:16px
 <section><h2>المشاركة</h2><p>لا نبيع البيانات ولا نشاركها مع أي جهة، ولا توجد إعلانات ولا أدوات تتبّع. الخادم مستضاف لدى Cloudflare، وتُحذف سجلات الأمان بعد سنة على الأكثر.</p></section>
 </main></body></html>`
 
+/** Serves an R2 object with byte ranges (206 only when a range was asked for), conditional requests (304) and HEAD.
+ *  `download` adds a Content-Disposition attachment name. Returns null when the object does not exist. */
+async function r2File(req: Request, bucket: R2Bucket, key: string, o: { download?: string; type: string; maxAge: number }): Promise<Response | null> {
+  const headers = (obj: R2Object) => {
+    const h = new Headers()
+    obj.writeHttpMetadata(h)
+    h.set('etag', obj.httpEtag)
+    h.set('accept-ranges', 'bytes')
+    h.set('cache-control', `public, max-age=${o.maxAge}`)
+    if (o.download) h.set('content-disposition', `attachment; filename="${o.download}"`)
+    if (!h.has('content-type')) h.set('content-type', o.type)
+    return h
+  }
+  if (req.method === 'HEAD') {
+    const obj = await bucket.head(key)
+    if (!obj) return null
+    const h = headers(obj); h.set('content-length', String(obj.size))
+    return new Response(null, { status: 200, headers: h })
+  }
+  let obj: R2Object | R2ObjectBody | null
+  try { obj = await bucket.get(key, { range: req.headers, onlyIf: req.headers }) }
+  catch {
+    // a range outside the file
+    const head = await bucket.head(key)
+    if (!head) return null
+    return new Response(null, { status: 416, headers: { 'content-range': `bytes */${head.size}`, 'accept-ranges': 'bytes' } })
+  }
+  if (!obj) return null
+  const h = headers(obj)
+  // R2 reports a range even for a whole-file request: only a request that asked for a range gets a 206
+  const partial = req.headers.has('range') && !!obj.range && 'offset' in obj.range
+  if (partial) { const r = obj.range as { offset?: number; length?: number }; const end = (r.offset ?? 0) + (r.length ?? obj.size) - 1; h.set('content-range', `bytes ${r.offset ?? 0}-${end}/${obj.size}`) }
+  const body = 'body' in obj ? obj.body : null
+  return new Response(body, { status: body ? (partial ? 206 : 200) : 304, headers: h })
+}
+
 export default {
   async fetch(req: Request, env: Env): Promise<Response> {
     const url = new URL(req.url)
@@ -865,21 +901,18 @@ export default {
         // big files live in R2 (the static-asset limit is 25 MB): streamed with a download name, range requests honoured
         const key = decodeURIComponent(p.slice('/download/'.length))
         if (/^[\w.-]+$/.test(key)) {
-          const obj = await env.FILES.get(key, { range: req.headers, onlyIf: req.headers })
-          if (obj) {
-            const h = new Headers()
-            obj.writeHttpMetadata(h)
-            h.set('etag', obj.httpEtag)
-            h.set('accept-ranges', 'bytes')
-            h.set('content-disposition', `attachment; filename="${key}"`)
-            h.set('cache-control', 'public, max-age=3600')
-            if (!h.has('content-type')) h.set('content-type', key.endsWith('.exe') ? 'application/vnd.microsoft.portable-executable' : 'application/octet-stream')
-            // R2 reports a range even for a whole-file request: only a request that asked for a range gets a 206
-            const partial = req.headers.has('range') && !!obj.range && 'offset' in obj.range
-            if (partial) { const r = obj.range as { offset?: number; length?: number }; const end = (r.offset ?? 0) + (r.length ?? obj.size) - 1; h.set('content-range', `bytes ${r.offset ?? 0}-${end}/${obj.size}`) }
-            const body = 'body' in obj ? obj.body : null
-            return new Response(body, { status: body ? (partial ? 206 : 200) : 304, headers: h })
-          }
+          const type = key.endsWith('.exe') ? 'application/vnd.microsoft.portable-executable' : 'application/octet-stream'
+          const r = await r2File(req, env.FILES, key, { download: key, type, maxAge: 3600 })
+          if (r) return r
+        }
+      }
+      if (p.startsWith('/videos/') && p.endsWith('.mp4') && env.FILES) {
+        // the tutorial and promo videos are streamed from R2 so players can seek and Safari (which insists on byte
+        // ranges for video) plays them; static assets would answer every range request with the whole file
+        const name = decodeURIComponent(p.slice('/videos/'.length))
+        if (/^[\w.-]+$/.test(name)) {
+          const r = await r2File(req, env.FILES, 'videos/' + name, { type: 'video/mp4', maxAge: 86400 })
+          if (r) return r
         }
       }
       await ensureSchema(env)

@@ -78,7 +78,13 @@
   (يُخدم من `/download/Kaseb-Setup.exe` مع دعم الاستئناف)، وإن لم يوجد يفتح محادثة واتساب لطلب النسخة. يُضبط الرابطان من
   لوحة البائع ← الإعدادات (رابط APK، رابط ويندوز). رفع مثبّت جديد (ملف `kaseb-windows` من workflow البناء):
   `npx wrangler r2 object put kaseb-files/Kaseb-Setup.exe --file Kaseb-POS-Setup-1.0.0.exe --content-type application/octet-stream --remote`.
-- **الفيديو التعريفي:** زر «شاهد الفيديو» في الواجهة يفتح `public/videos/kaseb-ad.mp4` (النسخة العمودية `kaseb-ad-story.mp4`).
+- **الفيديوهات:** ملفات MP4 (الإعلان `kaseb-ad.mp4` و`kaseb-ad-story.mp4`، ودروس الشرح الـ11) محفوظة في `media/videos/`
+  وتُرفع إلى حاوية R2 `kaseb-files` تحت `videos/`، والـWorker يخدمها على `/videos/<الملف>.mp4` مع دعم المقاطع (Range)،
+  وهو شرط تشغيل الفيديو على آيفون والتقديم داخل الفيديو. الصور المصغّرة تبقى في `public/videos/` (و`public/videos/thumbs/` بصيغة WebP).
+  رفع ملف جديد أو معدّل:
+  `npx wrangler r2 object put kaseb-files/videos/<الملف>.mp4 --file media/videos/<الملف>.mp4 --content-type video/mp4 --remote`.
+- **قسم «الشرح بالفيديو» في الصفحة الرئيسية (`#learn`):** مشغّل للدروس الـ11 مع أقسام كل درس وقائمة الدروس؛ زر «شاهد الفيديو»
+  في الواجهة يفتح الإعلان. صفحة الشرح الكاملة على `/learn`، وتتشاركان علامة «شوهد» (`kaseb.learn.done` في المتصفح).
 - **الصور:** تُخدم من `public/img/` على `/img/<الملف>` (لقطات الهاتف 390×844 ولقطات الحاسوب 1366×800)، والأيقونة من `public/icon.svg`.
 - **روابط أخرى في الصفحة:** `/privacy` سياسة الخصوصية، و`/admin` «لوحة البائع» (رابط صغير في التذييل).
 - **الدومين:** `wrangler.toml` يربط الدومين `kaseb.raqeem.dev` كـ Custom Domain ويُبقي عنوان `workers.dev` شغّالاً، لأن التطبيقات

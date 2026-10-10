@@ -257,6 +257,43 @@ footer .links a.dim{font-weight:500;color:var(--t3);font-size:13px}
 footer .bot{display:flex;flex-wrap:wrap;justify-content:space-between;gap:10px 24px;padding-top:18px;font-size:13px}
 footer .rule{color:#6b7a93}
 .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+/* video tutorials */
+.tut{display:grid;grid-template-columns:minmax(0,1fr) 370px;gap:22px;align-items:start}
+.tv{background:var(--card);border:1px solid var(--line);border-radius:var(--r3);overflow:hidden;box-shadow:var(--sh)}
+.tvp{position:relative;background:#0b1220;aspect-ratio:16/9}
+.tvp video{position:absolute;inset:0;width:100%;height:100%;display:block;background:#0b1220;object-fit:contain}
+.tvb{padding:18px 22px 22px}
+.tvk{display:flex;flex-wrap:wrap;gap:8px;align-items:center;font-size:13px;font-weight:700;color:var(--t3)}
+.tvk .n{color:var(--gd);background:var(--gs);padding:3px 10px;border-radius:999px}
+.tvk #tut-d{direction:ltr;unicode-bidi:isolate}
+.tvb h3{font-size:clamp(20px,2.2vw,24px);line-height:1.35;margin:10px 0 6px;font-weight:800}
+.tvb p{color:var(--t2);font-size:15px;margin:0 0 14px;line-height:1.7}
+.tch{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:16px}
+.tch button{display:inline-flex;align-items:center;gap:8px;padding:6px 12px;border-radius:999px;border:1.5px solid var(--line);background:#fff;font:inherit;font-size:13.5px;font-weight:600;color:var(--t);cursor:pointer;transition:border-color .15s,background .15s;line-height:1.5}
+.tch button:hover{border-color:var(--g);background:#f6fbf9}
+.tch button b{color:var(--gd);font-weight:800;direction:ltr;unicode-bidi:isolate}
+.tna{display:flex;gap:10px;flex-wrap:wrap;justify-content:space-between}
+.tna .btn:disabled{opacity:.45;cursor:default;transform:none}
+.tl{background:var(--card);border:1px solid var(--line);border-radius:var(--r3);box-shadow:var(--sh);overflow:hidden;display:flex;flex-direction:column;max-height:640px}
+.tlh{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:16px 18px;border-bottom:1px solid var(--line)}
+.tlh b{font-size:17px}.tlh span{font-size:13px;color:var(--t3);font-weight:600}
+.tl ol{list-style:none;margin:0;padding:8px;overflow:auto;display:grid;gap:4px;position:relative}
+.tl button{display:flex;gap:12px;align-items:center;width:100%;padding:8px;border-radius:14px;text-align:start;border:0;background:none;font:inherit;color:inherit;cursor:pointer;transition:background .15s}
+.tl button:hover{background:#f4f7fa}
+.tl button[aria-current=true]{background:var(--gs);box-shadow:inset 0 0 0 1.5px var(--g)}
+.tl .th{position:relative;flex:none;width:112px;aspect-ratio:16/9;border-radius:10px;overflow:hidden;background:#0b1220}
+.tl .th img{width:100%;height:100%;object-fit:cover}
+.tl .th .ck{position:absolute;bottom:5px;left:5px;width:22px;height:22px;border-radius:50%;background:var(--g);color:#fff;display:none;place-items:center}
+.tl button.seen .th .ck{display:grid}
+.tl .tx{display:flex;flex-direction:column;gap:2px;min-width:0}
+.tl .tx b{font-size:14.5px;line-height:1.45}
+.tl .tx small{font-size:12.5px;color:var(--t3);font-weight:600;align-self:flex-start;direction:ltr;unicode-bidi:isolate}
+.tl button[aria-current=true] .tx small{color:var(--gd)}
+.tmore{text-align:center;margin-top:22px}
+.tmore a{display:inline-flex;align-items:center;gap:8px;font-weight:700;color:var(--gd)}
+.tmore a:hover{text-decoration:underline}
+@media(max-width:980px){.tut{grid-template-columns:1fr}.tl{max-height:none}.tl ol{max-height:430px}}
+@media(max-width:560px){.tvb{padding:16px}.tl .th{width:96px}}
 </style>
 </head>
 <body>
@@ -269,7 +306,7 @@ footer .rule{color:#6b7a93}
       <a href="#gallery" data-en="Screens">الشاشات</a>
       <a href="#pricing" data-en="Pricing">الأسعار</a>
       <a href="#faq" data-en="FAQ">الأسئلة</a>
-      <a href="/learn" data-en="Tutorials">الشرح</a>
+      <a href="#learn" data-en="Tutorials">الشرح</a>
       <a href="#download" data-en="Download">تحميل</a>
     </nav>
     <div class="acts">
@@ -282,7 +319,7 @@ footer .rule{color:#6b7a93}
           <a href="#gallery" data-en="Screens">الشاشات</a>
           <a href="#pricing" data-en="Pricing">الأسعار</a>
           <a href="#faq" data-en="FAQ">الأسئلة</a>
-      <a href="/learn" data-en="Tutorials">الشرح</a>
+      <a href="#learn" data-en="Tutorials">الشرح</a>
           <a href="#download" data-en="Download">تحميل</a>
         </nav>
       </details>
@@ -475,6 +512,33 @@ footer .rule{color:#6b7a93}
   </div>
 </section>
 
+<section id="learn" aria-labelledby="h-learn">
+  <div class="wrap">
+    <div class="sh rv">
+      <span class="kick" data-en="Video tutorials">الشرح بالفيديو</span>
+      <h2 class="h2" id="h-learn" data-en="Learn Kaseb in a few minutes">تعلّم كاسب خلال دقائق</h2>
+      <p data-en="11 short lessons recorded inside the app, with the explanation written on screen — from installing it to the daily reports. Watch them right here.">11 درساً قصيراً مصوّراً من داخل البرنامج، والشرح مكتوب على الشاشة: من التثبيت والتفعيل حتى التقارير اليومية. شاهدها هنا مباشرة.</p>
+    </div>
+    <div class="tut rv">
+      <div class="tv" id="tut-box">
+        <div class="tvp"><video id="tut-v" controls playsinline preload="none" poster="/videos/thumbs/01-install-activate-lg.webp" src="/videos/01-install-activate.mp4" aria-label="فيديو الدرس"></video></div>
+        <div class="tvb">
+          <div class="tvk"><span class="n" id="tut-n">الدرس 1 من 11</span><span id="tut-d">1:13</span></div>
+          <h3 id="tut-t">التثبيت والتفعيل</h3>
+          <p id="tut-s">في هذه الحلقة نثبّت تطبيق كاسب ونفعّله خطوة بخطوة: رمز الجهاز، التجربة المجانية 7 أيام، إدخال كود التفعيل من البائع، ثم إعداد المتجر (الاسم، الهاتف، العملة) حتى تصل إلى شاشة البيع.</p>
+          <div class="tch" id="tut-ch" aria-label="أقسام الدرس"><button type="button" data-t="0"><b>0:00</b>المقدمة</button><button type="button" data-t="4"><b>0:04</b>شاشة التفعيل ورمز الجهاز</button><button type="button" data-t="18"><b>0:18</b>إدخال كود التفعيل</button><button type="button" data-t="26"><b>0:26</b>الترحيب وإعداد المتجر: الاسم والهاتف</button><button type="button" data-t="41"><b>0:41</b>اختيار العملة</button><button type="button" data-t="51"><b>0:51</b>أول منتج (اختياري)</button><button type="button" data-t="56"><b>0:56</b>شاشة البيع</button><button type="button" data-t="61"><b>1:01</b>حالة الترخيص والعمل بلا إنترنت</button></div>
+          <div class="tna"><button class="btn btn-o btn-s" type="button" id="tut-prev" data-en="Previous lesson" disabled>الدرس السابق</button><button class="btn btn-p btn-s" type="button" id="tut-next" data-en="Next lesson">الدرس التالي</button></div>
+        </div>
+      </div>
+      <div class="tl">
+        <div class="tlh"><b data-en="Lessons">الدروس</b><span data-en="11 lessons · 22 min">11 درساً · 22 دقيقة</span></div>
+        <ol id="tut-l"><li><button type="button" data-k="0" aria-current="true"><span class="th"><img src="/videos/thumbs/01-install-activate.webp" width="480" height="270" loading="lazy" decoding="async" alt=""><span class="ck"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12 5 5L20 7"/></svg></span></span><span class="tx"><b>1. التثبيت والتفعيل</b><small>1:13</small></span></button></li><li><button type="button" data-k="1" aria-current="false"><span class="th"><img src="/videos/thumbs/02-store-setup.webp" width="480" height="270" loading="lazy" decoding="async" alt=""><span class="ck"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12 5 5L20 7"/></svg></span></span><span class="tx"><b>2. إعداد المحل والعملة</b><small>2:19</small></span></button></li><li><button type="button" data-k="2" aria-current="false"><span class="th"><img src="/videos/thumbs/03-products.webp" width="480" height="270" loading="lazy" decoding="async" alt=""><span class="ck"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12 5 5L20 7"/></svg></span></span><span class="tx"><b>3. إضافة المنتجات</b><small>2:35</small></span></button></li><li><button type="button" data-k="3" aria-current="false"><span class="th"><img src="/videos/thumbs/04-selling.webp" width="480" height="270" loading="lazy" decoding="async" alt=""><span class="ck"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12 5 5L20 7"/></svg></span></span><span class="tx"><b>4. شاشة البيع والدفع</b><small>1:50</small></span></button></li><li><button type="button" data-k="4" aria-current="false"><span class="th"><img src="/videos/thumbs/05-customers-debts.webp" width="480" height="270" loading="lazy" decoding="async" alt=""><span class="ck"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12 5 5L20 7"/></svg></span></span><span class="tx"><b>5. العملاء والديون</b><small>2:08</small></span></button></li><li><button type="button" data-k="5" aria-current="false"><span class="th"><img src="/videos/thumbs/06-inventory.webp" width="480" height="270" loading="lazy" decoding="async" alt=""><span class="ck"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12 5 5L20 7"/></svg></span></span><span class="tx"><b>6. المخزون والمشتريات</b><small>2:57</small></span></button></li><li><button type="button" data-k="6" aria-current="false"><span class="th"><img src="/videos/thumbs/07-shifts-expenses.webp" width="480" height="270" loading="lazy" decoding="async" alt=""><span class="ck"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12 5 5L20 7"/></svg></span></span><span class="tx"><b>7. الورديات والمصاريف</b><small>2:42</small></span></button></li><li><button type="button" data-k="7" aria-current="false"><span class="th"><img src="/videos/thumbs/08-rate-reports.webp" width="480" height="270" loading="lazy" decoding="async" alt=""><span class="ck"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12 5 5L20 7"/></svg></span></span><span class="tx"><b>8. سعر الصرف اليومي والتقارير</b><small>1:33</small></span></button></li><li><button type="button" data-k="8" aria-current="false"><span class="th"><img src="/videos/thumbs/09-users-permissions.webp" width="480" height="270" loading="lazy" decoding="async" alt=""><span class="ck"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12 5 5L20 7"/></svg></span></span><span class="tx"><b>9. الكاشير والصلاحيات</b><small>1:56</small></span></button></li><li><button type="button" data-k="9" aria-current="false"><span class="th"><img src="/videos/thumbs/10-backup-cloud-help.webp" width="480" height="270" loading="lazy" decoding="async" alt=""><span class="ck"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12 5 5L20 7"/></svg></span></span><span class="tx"><b>10. النسخ الاحتياطي والمساعدة</b><small>1:35</small></span></button></li><li><button type="button" data-k="10" aria-current="false"><span class="th"><img src="/videos/thumbs/11-phone-tour.webp" width="480" height="270" loading="lazy" decoding="async" alt=""><span class="ck"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12 5 5L20 7"/></svg></span></span><span class="tx"><b>11. التطبيق على الهاتف</b><small>1:24</small></span></button></li></ol>
+      </div>
+    </div>
+    <p class="tmore rv"><a href="/learn" data-en="Open the full tutorials page">افتح صفحة الشرح الكاملة</a></p>
+  </div>
+</section>
+
 <section id="pricing" aria-labelledby="h-pricing">
   <div class="wrap">
     <div class="sh rv">
@@ -636,6 +700,46 @@ footer .rule{color:#6b7a93}
   }else{for(var k=0;k<rv.length;k++)rv[k].classList.add('on')}
   var dlg=d.getElementById("ad-dlg"),pv=d.getElementById("ad-v"),pb=d.getElementById("play-ad");
   if(dlg&&pv&&pb){pb.addEventListener("click",function(){if(dlg.showModal){dlg.showModal();pv.play().catch(function(){})}else{window.open("/videos/kaseb-ad.mp4")}});d.getElementById("ad-x").addEventListener("click",function(){dlg.close()});dlg.addEventListener("close",function(){pv.pause()});dlg.addEventListener("click",function(e){if(e.target===dlg)dlg.close()})}
+})();
+</script>
+<script type="application/json" id="tut-data">[{"slug": "01-install-activate", "title": "التثبيت والتفعيل", "seconds": 73, "summary": "في هذه الحلقة نثبّت تطبيق كاسب ونفعّله خطوة بخطوة: رمز الجهاز، التجربة المجانية 7 أيام، إدخال كود التفعيل من البائع، ثم إعداد المتجر (الاسم، الهاتف، العملة) حتى تصل إلى شاشة البيع.", "chapters": [[0, "المقدمة"], [4, "شاشة التفعيل ورمز الجهاز"], [18, "إدخال كود التفعيل"], [26, "الترحيب وإعداد المتجر: الاسم والهاتف"], [41, "اختيار العملة"], [51, "أول منتج (اختياري)"], [56, "شاشة البيع"], [61, "حالة الترخيص والعمل بلا إنترنت"]], "portrait": false}, {"slug": "02-store-setup", "title": "إعداد المحل والعملة", "seconds": 139, "summary": "في هذه الحلقة نجهّز محلّك في كاسب: اسم المتجر وهاتفه وعنوانه وشعاره، والعملة الأساسية مع الدولار كعملة ثانية بسعر صرف يومي تحدّثه بنفسك وتقريب مريح للأسعار، ثم الضريبة ونصّ الفاتورة والطباعة التلقائية وشريط الحفظ.", "chapters": [[0, "المقدمة"], [5, "فتح الإعدادات"], [15, "بيانات المتجر والشعار"], [32, "العملة الأساسية والدولار وسعر الصرف"], [87, "الضريبة"], [98, "نصّ الفاتورة والمعاينة والطباعة التلقائية"], [125, "حفظ التغييرات"]], "portrait": false}, {"slug": "03-products", "title": "إضافة المنتجات", "seconds": 155, "summary": "في هذه الحلقة نضيف منتجاً جديداً في كاسب خطوة بخطوة: الاسم، الباركود الداخلي، الفئة، سعر البيع والتكلفة وسعر الجملة، تتبّع المخزون، ووحدات البيع بالكرتونة.", "chapters": [[0, "المقدمة"], [7, "قائمة المنتجات"], [17, "منتج جديد: الاسم والباركود والفئة"], [38, "سعر البيع والتكلفة وسعر الجملة"], [56, "تتبّع المخزون والكمية"], [70, "وحدات البيع (الكرتونة)"], [88, "حفظ المنتج"], [98, "الاستيراد من ملف CSV"], [120, "طباعة ملصقات الأسعار"], [136, "التعديل السريع"]], "portrait": false}, {"slug": "04-selling", "title": "شاشة البيع والدفع", "seconds": 110, "summary": "في هذه الحلقة نتعلّم شاشة البيع في كاسب من أولها لآخرها: البحث بالاسم، الإضافة بالضغط أو بقارئ الباركود، تعديل الكميات، الخصم على الصنف أو على الفاتورة، اختيار العميل، تعليق الفاتورة واسترجاعها، ثم الدفع نقداً أو بالدولار مع حساب الباقي تلقائياً، وطباعة الفاتورة أو إرسالها عبر واتساب.", "chapters": [[0, "المقدمة"], [7, "شاشة البيع والبحث بالاسم"], [17, "المسح بالباركود"], [21, "تعديل الكمية"], [27, "خصم على الصنف"], [37, "خصم على الفاتورة"], [47, "اختيار العميل"], [52, "تعليق الفاتورة واسترجاعها"], [64, "اختصارات لوحة المفاتيح"], [70, "الدفع نقداً والباقي"], [83, "الدفع بالدولار"], [89, "إتمام البيع والفاتورة"]], "portrait": false}, {"slug": "05-customers-debts", "title": "العملاء والديون", "seconds": 128, "summary": "في هذه الحلقة نتعلّم كيف تسجّل عملاءك في كاسب، وتبيع لهم بالآجل (دين)، ثم تتابع رصيد كل عميل وكشف حسابه وتسجّل الدفعات، مع تذكير واتساب ونقاط الولاء.", "chapters": [[0, "مقدمة"], [6, "صفحة العملاء"], [13, "إضافة عميل جديد (الاسم، الهاتف، مفرّق أو جملة)"], [38, "بيع بالآجل: اختيار العميل والدفع «دين (آجل)»"], [74, "رصيد العميل وكشف الحساب"], [85, "تسديد دفعة جزئية"], [111, "تذكير بالرصيد عبر واتساب"], [115, "نقاط الولاء واستبدالها"]], "portrait": false}, {"slug": "06-inventory", "title": "المخزون والمشتريات", "seconds": 177, "summary": "في هذه الحلقة من سلسلة كاسب نتعلّم إدارة المخزون والمشتريات: كميات المنتجات والفلاتر، تعديل كمية منتج مع السبب، الجرد الشامل وتطبيقه، تسجيل فاتورة شراء بالدولار مع سعر الصرف، متابعة رصيد المورّد وسداده، واقتراح طلبية تلقائية للنواقص.", "chapters": [[0, "المقدمة"], [5, "تبويب المخزون: القيمة، الناقص والنافد، والفلاتر"], [18, "تعديل كمية منتج (إضافة / سحب) مع السبب"], [40, "الجرد الشامل وتطبيقه"], [79, "إضافة مورّد جديد"], [94, "فاتورة شراء بالدولار: سعر الصرف، الأصناف، المدفوع الآن"], [137, "حفظ الفاتورة وزيادة المخزون تلقائياً"], [144, "سداد المورّد"], [159, "اقتراح طلبية للنواقص"]], "portrait": false}, {"slug": "07-shifts-expenses", "title": "الورديات والمصاريف", "seconds": 162, "summary": "في هذه الحلقة نتعلّم كيف تتابع نقد الدرج في كاسب: الوردية المفتوحة والنقد المتوقع، إدخال وإخراج النقد، تسجيل مصروف من الدرج مع فئته، ثم إغلاق الوردية بعدّ النقد ومعرفة الفرق، وتقرير الوردية وفتح وردية جديدة.", "chapters": [[0, "المقدمة"], [5, "الوردية المفتوحة والنقد المتوقع"], [28, "إدخال نقد إلى الدرج (وإخراج النقد)"], [57, "تسجيل مصروف من درج الكاشير"], [95, "إغلاق الوردية: المتوقع مقابل المعدود"], [130, "تقرير الوردية (طباعة ومشاركة)"], [143, "فتح وردية جديدة"]], "portrait": false}, {"slug": "08-rate-reports", "title": "سعر الصرف اليومي والتقارير", "seconds": 93, "summary": "تغيّر سعر الدولار اليوم؟ في هذه الحلقة تتعلّم كيف تحدّث سعر الصرف في كاسب بثوانٍ من شريحة أعلى الشاشة، فتُعاد تسعير كل المنتجات بالليرة فوراً مع معاينة للأسعار الجديدة وتأكيد إضافي عند التغييرات الكبيرة.", "chapters": [[0, "المقدمة"], [7, "شريحة سعر الصرف في أعلى الشاشة"], [18, "نافذة تحديث السعر ولوحة الأرقام"], [24, "التحذير عند التغيير الكبير"], [33, "معاينة الأسعار الجديدة والحفظ"], [40, "المنتجات بعد التحديث"], [48, "شاشة التقارير"], [57, "اختيار الفترة: اليوم، الأسبوع، الشهر"], [64, "عرض الأرقام بالدولار"], [71, "أفضل المنتجات وحسب الكاشير"], [80, "تصدير التقارير كملف CSV"], [87, "الخلاصة"]], "portrait": false}, {"slug": "09-users-permissions", "title": "الكاشير والصلاحيات", "seconds": 116, "summary": "في هذه الحلقة تتعلّم كيف تضيف حساباً لكل موظف في محلّك برمز PIN، وتقرّر ما يستطيع الكاشير فعله (خصم، إرجاع، تعديل سعر، رؤية التكلفة…)، ثم تقفل الشاشة وتدخل كاشيراً لترى ما يختفي عنه، وتراجع سجل النشاط الذي يحفظ من فعل ماذا ومتى.", "chapters": [[0, "مقدمة"], [6, "قائمة المستخدمين"], [15, "إضافة كاشير برمز PIN"], [39, "بطاقة صلاحيات الكاشير"], [58, "قفل الشاشة والدخول بالرمز"], [70, "ماذا يرى الكاشير وما يختفي عنه"], [80, "العودة كمدير"], [87, "سجل النشاط: من فعل ماذا ومتى"]], "portrait": false}, {"slug": "10-backup-cloud-help", "title": "النسخ الاحتياطي والمساعدة", "seconds": 95, "summary": "في الحلقة الأخيرة من سلسلة كاسب: كيف تحمي بيانات محلّك بملف نسخة احتياطية واحد، وكيف تستعيده على جهاز جديد، وما الذي يقدّمه التخزين السحابي للمشتركين.", "chapters": [[0, "المقدمة"], [7, "تذكير النسخة الاحتياطية"], [14, "تصدير نسخة احتياطية"], [31, "استعادة نسخة (والتحذير)"], [52, "التخزين السحابي"], [65, "صفحة المساعدة والدعم"], [92, "الخاتمة"]], "portrait": false}, {"slug": "11-phone-tour", "title": "التطبيق على الهاتف", "seconds": 84, "summary": "كاسب يعمل على هاتفك بنفس بيانات محلّك: بيع بالضغط على المنتج أو بمسح الباركود بالكاميرا، سلة وخصم وعميل، دفع سريع وإيصال عبر واتساب.", "chapters": [[0, "المقدمة"], [6, "الشريط السفلي والأقسام"], [16, "البيع بالضغط على المنتج"], [22, "ماسح الباركود بالكاميرا"], [27, "إدخال الباركود يدوياً"], [42, "السلة وتعديل الكميات"], [53, "الدفع والمبلغ السريع"], [64, "إنهاء البيع والإيصال"], [69, "قائمة «المزيد»"]], "portrait": true}]</script>
+<script>
+(function(){
+  var d=document,data=JSON.parse(d.getElementById('tut-data').textContent),v=d.getElementById('tut-v'),list=d.getElementById('tut-l')
+  if(!v||!list||!data.length)return
+  var KEY='kaseb.learn.done',done=[],cur=0
+  try{done=JSON.parse(localStorage.getItem(KEY)||'[]')||[]}catch(e){}
+  function fmt(s){var m=Math.floor(s/60),x=Math.floor(s%60);return m+':'+(x<10?'0':'')+x}
+  function esc(t){return String(t).replace(/[&<>"]/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]})}
+  var btns=list.querySelectorAll('button[data-k]')
+  function mark(){for(var i=0;i<btns.length;i++){var k=+btns[i].getAttribute('data-k');btns[i].setAttribute('aria-current',String(k===cur));btns[i].classList.toggle('seen',done.indexOf(data[k].slug)>=0)}}
+  function play(){var p=v.play();if(p&&p.catch)p.catch(function(){})}
+  function seek(t){
+    var go=function(){try{v.currentTime=t}catch(e){}play()}
+    if(v.readyState>=1)go();else{v.preload='auto';v.addEventListener('loadedmetadata',function h(){v.removeEventListener('loadedmetadata',h);go()});v.load()}
+  }
+  function sel(k,autoplay){
+    cur=k;var e=data[k],src='/videos/'+e.slug+'.mp4'
+    if(v.getAttribute('src')!==src){v.pause();v.setAttribute('poster','/videos/thumbs/'+e.slug+'-lg.webp');v.setAttribute('src',src);v.preload=autoplay?'auto':'none';v.load()}
+    d.getElementById('tut-n').textContent='الدرس '+(k+1)+' من '+data.length
+    d.getElementById('tut-d').textContent=fmt(e.seconds)
+    d.getElementById('tut-t').textContent=e.title
+    d.getElementById('tut-s').textContent=e.summary
+    d.getElementById('tut-ch').innerHTML=e.chapters.map(function(c){return '<button type="button" data-t="'+c[0]+'"><b>'+fmt(c[0])+'</b>'+esc(c[1])+'</button>'}).join('')
+    d.getElementById('tut-prev').disabled=k===0
+    d.getElementById('tut-next').disabled=k===data.length-1
+    mark()
+    var b=btns[k];if(b&&list.scrollHeight>list.clientHeight){var li=b.parentNode;list.scrollTop=li.offsetTop-list.clientHeight/2+li.offsetHeight/2}
+    if(autoplay)play()
+  }
+  list.addEventListener('click',function(ev){var b=ev.target.closest('button[data-k]');if(b)sel(+b.getAttribute('data-k'),true)})
+  d.getElementById('tut-ch').addEventListener('click',function(ev){var b=ev.target.closest('button[data-t]');if(b)seek(+b.getAttribute('data-t'))})
+  d.getElementById('tut-prev').addEventListener('click',function(){if(cur>0)sel(cur-1,true)})
+  d.getElementById('tut-next').addEventListener('click',function(){if(cur<data.length-1)sel(cur+1,true)})
+  v.addEventListener('ended',function(){var s=data[cur].slug;if(done.indexOf(s)<0){done.push(s);try{localStorage.setItem(KEY,JSON.stringify(done))}catch(e){}}if(cur<data.length-1)sel(cur+1,false);else mark()})
+  // one video at a time: the lesson and the promo dialog pause each other
+  var ad=d.getElementById('ad-v');if(ad){ad.addEventListener('play',function(){v.pause()});v.addEventListener('play',function(){ad.pause()})}
+  mark()
 })();
 </script>
 </body>
