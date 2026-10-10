@@ -248,6 +248,23 @@ export function seigaiha(clip: Arch, R: number, rings: number, web: number): Loo
   return out
 }
 
+/**
+ * The fret's holes, remembered for the last few windows: changing the height, the tabs, the kerf or the thickness
+ * (when the window stays put) does not cut the whole pattern again. Each call gets its own loop objects, since the
+ * panel builder moves a panel's loops by reassigning their points.
+ */
+const fretMemo = new Map<string, Loop[]>()
+function fretHoles(clip: Arch, R: number, rings: number, web: number): Loop[] {
+  const key = [clip.cx, clip.cy, clip.r, clip.yTop, R, rings, web].map(round3).join(',')
+  let holes = fretMemo.get(key)
+  if (!holes) {
+    holes = seigaiha(clip, R, rings, web)
+    fretMemo.set(key, holes)
+    if (fretMemo.size > 6) fretMemo.delete(fretMemo.keys().next().value as string)
+  }
+  return holes.map(l => ({ ...l }))
+}
+
 // ------------------------------------------------------------------ the box
 
 const PARAMS: ParamDef[] = [
@@ -275,7 +292,7 @@ const PARAMS: ParamDef[] = [
   mm('pitch', 'المسافة بين الصفوف', 0.6, 6, 'القوس هنا واسع فتكفي 2–3 مم'),
   intP('n', 'العدد', 1, 20),
 ]
-const DEFAULTS = { W: 240, Ls: 220, H: 70, hexOn: 1, hex: 80, hexH: 55, plaqueOn: 1, plaque: 130, plH: 22, inset: 14, frame: 4.5, fan: 28, rings: 4, web: 2.2, tabs: 20, tabW: 10, fit: 0.2, gap: 0.5, split: 0, seg: 18, bridge: 3, pitch: 2.5, n: 1 }
+const DEFAULTS = { W: 240, Ls: 220, H: 70, hexOn: 1, hex: 80, hexH: 55, plaqueOn: 1, plaque: 130, plH: 18, inset: 14, frame: 4.5, fan: 36, rings: 5, web: 2.5, tabs: 20, tabW: 10, fit: 0.2, gap: 0.5, split: 0, seg: 18, bridge: 3, pitch: 2.5, n: 1 }
 
 /** The sizes every part is drawn from, for tests and previews. */
 export function archGeom(p: Record<string, number>, c: Common) {
@@ -309,7 +326,7 @@ function build(p: Record<string, number>, c: Common): BuildResult {
   if (sagitta > fit + 0.3) errors.push(`اللسان عريض بالنسبة للقوس (ينحرف ${sagitta.toFixed(2)} مم عنه)؛ اجعل «عرض اللسان» ${Math.floor(2 * Math.sqrt(Math.max(0, Rmid * Rmid - (Rmid - fit - 0.3) ** 2)))} مم أو أقلّ.`)
   if (n * (tabW + 4) > L) errors.push(`اللسانات كثيرة أو عريضة بالنسبة لطول الجدار (${f1(L)} مم)؛ اجعل عددها ${Math.max(4, Math.floor(L / (tabW + 4)))} أو أقلّ.`)
   else if (xs[0] - tabW / 2 < t + 2) errors.push(`اللسان الأول يصل إلى تعشيق الزاوية؛ اجعل عدد اللسانات ${Math.max(4, Math.floor(L / (tabW + 2 * t + 4)))} أو أقلّ.`)
-  if (split && n % 2 === 1) errors.push('مع تقسيم الجدار قطعتين اجعل عدد اللسانات زوجياً، وإلا وقع لسان على خطّ القسمة.')
+  if (split && n % 2 === 1) errors.push(`مع تقسيم الجدار قطعتين اجعل عدد اللسانات ${n - 1} أو ${n + 1} (عدداً زوجياً)، وإلا وقع لسان على خطّ القسمة.`)
   if (seg + 3 * bridge > H) errors.push(`طول قصّة المفصل أكبر من الارتفاع؛ اجعل «طول قصّة المفصل» ${f1(Math.floor((H - 3 * bridge) * 2) / 2)} مم أو أقلّ.`)
   if (pitch / Rmid > 0.09) errors.push(`القوس ضيّق لهذه المسافة بين صفوف المفصل؛ اجعل «المسافة بين الصفوف» ${f1(Math.floor(0.08 * Rmid * 10) / 10)} مم أو أقلّ، أو زد العرض.`)
   else if (pitch / Rmid > 0.035) warnings.push('صفوف المفصل متباعدة بالنسبة للقوس؛ قد ينكسر الخشب عند الانحناء. قرّبها إلى 1.5–2 مم.')
@@ -339,11 +356,32 @@ function build(p: Record<string, number>, c: Common): BuildResult {
   // and a little either side; the ends meet the end wall with finger joints (or a glued seam in the middle when split)
   const ext = Math.min(4, Math.max(0, Ls - t - 4))
   const hz0 = Ls - ext, hz1 = Ls + arcLen + ext
-  const thruAll: number[] = []
-  const piece = (id: string, name: string, a: number, b: number, note: string): PanelSpec => {
+  /** the hinge cuts of the strip piece from a to b with tabs at tabXs, and where its through-columns run (along the whole strip) */
+  const pieceHinge = (a: number, b: number, tabXs: number[]) => {
     // the piece's own coordinates start at round3(a), so its last cut ends exactly on its rounded width
-    const A = round3(a), w = round3(round3(b) - A)
-    const tabsIn = xs.filter(x => x > a && x < b).map(x => round3(x - A))
+    const A = round3(a)
+    const tabsIn = tabXs.filter(x => x > a && x < b).map(x => round3(x - A))
+    const z0 = round3(Math.max(hz0, a + (a > 0 ? seam : 0)) - A), z1 = round3(Math.min(hz1, b - (b < L ? seam : 0)) - A)
+    const open = z1 - z0 > 2 * pitch
+      ? hingeLines(z0, t, z1, H + t, seg, bridge, pitch, 'y', { through: true, keepEdge: r => tabsIn.some(xk => Math.abs(z0 + r - xk) < tabW / 2 + bridge) })
+      : []
+    const reaches = (edge: (l: Loop) => boolean) => new Set(open.filter(edge).map(l => round3(l.pts[0].x)))
+    const lo = reaches(l => Math.min(l.pts[0].y, l.pts[1].y) < t), hi = reaches(l => Math.max(l.pts[0].y, l.pts[1].y) > H + t)
+    return { A, tabsIn, open, thru: [...lo].filter(x => hi.has(x)).map(x => round3(x + A)) }
+  }
+  const ranges: [number, number][] = split ? [[0, L / 2], [L / 2, L]] : [[0, L]]
+  // the edge band left between the hinge's through-columns must be cut often enough over the arc: a solid run there
+  // is a flat facet, allowed under a tab (and across the glued seam) but nowhere else
+  const longestRun = (tabXs: number[]) => {
+    const thru = [...new Set(ranges.flatMap(([a, b]) => pieceHinge(a, b, tabXs).thru))].sort((u, v) => u - v), a0 = Ls, a1 = Ls + arcLen
+    const cuts = [-Infinity, ...thru, Infinity]
+    let longest = 0
+    for (let i = 0; i + 1 < cuts.length; i++) longest = Math.max(longest, Math.min(cuts[i + 1], a1) - Math.max(cuts[i], a0))
+    return longest
+  }
+  const tabsAt = (k: number) => Array.from({ length: k }, (_, j) => round3((L * (j + 0.5)) / k))
+  const piece = (id: string, name: string, a: number, b: number, note: string): PanelSpec => {
+    const { A, tabsIn, open } = pieceHinge(a, b, xs), w = round3(round3(b) - A)
     const stripCuts = (y: number) => {
       const out: Rect[] = []
       let x = 0
@@ -351,13 +389,6 @@ function build(p: Record<string, number>, c: Common): BuildResult {
       out.push(rect(x, y, round3(w - x), t))
       return out.filter(r => r.w > 1e-6)
     }
-    const z0 = round3(Math.max(hz0, a + (a > 0 ? seam : 0)) - A), z1 = round3(Math.min(hz1, b - (b < L ? seam : 0)) - A)
-    const open = z1 - z0 > 2 * pitch
-      ? hingeLines(z0, t, z1, H + t, seg, bridge, pitch, 'y', { through: true, keepEdge: r => tabsIn.some(xk => Math.abs(z0 + r - xk) < tabW / 2 + bridge) })
-      : []
-    const reaches = (edge: (l: Loop) => boolean) => new Set(open.filter(edge).map(l => round3(l.pts[0].x)))
-    const lo = reaches(l => Math.min(l.pts[0].y, l.pts[1].y) < t), hi = reaches(l => Math.max(l.pts[0].y, l.pts[1].y) > H + t)
-    for (const x of lo) if (hi.has(x)) thruAll.push(round3(x + A))
     return {
       id, name, w, h: round3(H + 2 * t), count: copies,
       left: a === 0 ? { type: 'male', from: t, len: H } : 'flat', right: b >= L ? { type: 'male', from: t, len: H } : 'flat',
@@ -365,18 +396,17 @@ function build(p: Record<string, number>, c: Common): BuildResult {
     }
   }
   const wallPanels: PanelSpec[] = split
-    ? [piece('wall-l', 'الجدار الملتفّ — النصف الأيسر', 0, L / 2, 'يبدأ بتعشيق أصابع عند الجدار الأمامي وينتهي في وسط القوس'), piece('wall-r', 'الجدار الملتفّ — النصف الأيمن', L / 2, L, 'صورة مرآة للنصف الأيسر؛ الطرفان يلتقيان في وسط القوس ويُلصقان')]
+    ? [piece('wall-l', 'الجدار الملتفّ — النصف الأيسر', 0, L / 2, 'يبدأ بتعشيق أصابع عند الجدار الأمامي وينتهي في وسط القوس'), piece('wall-r', 'الجدار الملتفّ — النصف الأيمن', L / 2, L, 'يبدأ في وسط القوس عند النصف الأيسر ويُلصق به رأساً لرأس، وينتهي بتعشيق أصابع عند الجدار الأمامي')]
     : [piece('wall', 'الجدار الملتفّ (مفصل مرن على القوس)', 0, L, 'مصمت على الجانبين المستقيمين، بقصّات مفصل مرن على القوس؛ طرفاه بتعشيق أصابع مع الجدار الأمامي')]
-  // the edge band left between the hinge's through-columns must be cut often enough over the arc: a solid run there
-  // is a flat facet, allowed under a tab (and across the glued seam) but nowhere else
   if (!errors.length) {
-    const thru = [...new Set(thruAll)].sort((u, v) => u - v), a0 = Ls, a1 = Ls + arcLen
-    const runs: number[] = []
-    const cuts = [-Infinity, ...thru, Infinity]
-    for (let i = 0; i + 1 < cuts.length; i++) runs.push(Math.max(0, Math.min(cuts[i + 1], a1) - Math.max(cuts[i], a0)))
-    const longest = Math.max(...runs)
+    const longest = longestRun(xs)
     const allowed = Math.max(tabW + 2 * bridge, split ? 2 * seam : 0) + 4 * pitch + 0.5
-    if (longest > allowed + 1e-6) errors.push('اللسانات متقاربة فلا تبقى بينها قصّات مفصل نافذة كافية، فيبقى شريط مصمت على الحافّة يمنع الشريط من الالتفاف؛ قلّل عدد اللسانات أو عرضها أو الجسر.')
+    if (longest > allowed + 1e-6) {
+      // the most tabs that leave enough through-columns (fewer tabs leave wider gaps between them; even when split)
+      let k = split ? n - 2 : n - 1
+      while (k >= 4 && longestRun(tabsAt(k)) > allowed + 1e-6) k -= split ? 2 : 1
+      errors.push(`اللسانات متقاربة فلا تبقى بينها قصّات مفصل نافذة كافية، فيبقى شريط مصمت على الحافّة يمنع الشريط من الالتفاف؛ ${k >= 4 ? `اجعل عدد اللسانات ${k} أو أقلّ، أو قلّل عرضها أو الجسر.` : 'قلّل «عرض اللسان» أو «الجسر بين القصّات» أو «المسافة بين الصفوف».'}`)
+    }
     else if (longest / Rmid > 0.5) errors.push(`القوس ضيّق: الجزء المصمت تحت كل لسان (${f1(longest)} مم) يبقى مستقيماً على قوس نصف قطره ${f1(Rmid)} مم؛ اجعل «عرض اللسان» ${f1(Math.max(4, Math.floor(0.45 * Rmid - 2 * bridge - 4 * pitch)))} مم أو أقلّ${0.45 * Rmid - 2 * bridge - 4 * pitch < 6 ? ' وقرّب صفوف المفصل إلى 1.5 مم والجسر إلى 2 مم' : ''}، أو زد العرض.`)
     else if (longest / Rmid > 0.3) warnings.push('القوس سيبدو مضلّعاً قليلاً تحت الألسنة؛ لتنعيمه قلّل عرض اللسان أو الجسر أو المسافة بين الصفوف.')
   }
@@ -385,7 +415,8 @@ function build(p: Record<string, number>, c: Common): BuildResult {
   let inset = p.inset
   const insetMin = round3(rim + g.ringIn + gap + 1)
   if (inset < insetMin) { inset = insetMin; warnings.push(`هامش النافذة رُفع إلى ${f1(inset)} مم لتبقى النافذة فوق الطبقة السفلية للغطاء.`) }
-  const gapV = Math.min(12, Math.max(6, 0.6 * inset))
+  // the wood left between the pockets and above the window: about 7 % of the lid's width, as in the photo (17 mm on 250)
+  const gapV = round3(Math.min(20, Math.max(6, 0.07 * Wp)))
   const hexW = p.hex, plL = p.plaque, plH = p.plH
   let y = inset
   const hexC = { x: Rp, y: y + hexH / 2 }
@@ -396,9 +427,13 @@ function build(p: Record<string, number>, c: Common): BuildResult {
   window.yTop = round3(y)
   if (hexOn && hexW > Wp - 2 * inset) errors.push(`السداسي أعرض من الغطاء بين الهامشين؛ اجعل «عرض السداسي» ${f1(Math.floor((Wp - 2 * inset) * 2) / 2)} مم أو أقلّ.`)
   if (plaqueOn && plL > Wp - 2 * inset) errors.push(`لوحة النصّ أطول من الغطاء بين الهامشين؛ اجعل «طول لوحة النصّ» ${f1(Math.floor((Wp - 2 * inset) * 2) / 2)} مم أو أقلّ.`)
-  if (plaqueOn && plH < 2 * fit + 4) errors.push('لوحة النصّ منخفضة جداً؛ اجعل ارتفاعها 6 مم أو أكثر.')
+  // a stadium no longer than it is tall comes out a circle as tall as plH, whatever the length says
+  if (plaqueOn && plH > plL) errors.push(`لوحة النصّ أعلى من طولها؛ اجعل «طول لوحة النصّ» ${f1(Math.ceil(plH * 2) / 2)} مم أو أكثر، أو «ارتفاع لوحة النصّ» ${f1(Math.floor(plL * 2) / 2)} مم أو أقلّ.`)
+  if (hexOn && p.hexH > 0 && p.hexH < 10) errors.push('السداسي منبسط جداً فتخرج لوحته شريحة رفيعة؛ اجعل «ارتفاع السداسي» 0 (سداسي منتظم) أو 10 مم أو أكثر.')
   const fretArch = archInset(window, frame + fit), clip = archInset(fretArch, web)
-  if (window.yTop > window.cy) errors.push(`الطول المستقيم قصير للجيوب والنافذة؛ اجعل «الطول المستقيم» ${f1(Math.ceil((window.yTop - rim) * 2) / 2)} مم أو أكثر، أو ألغِ أحد الجيوب.`)
+  // every arch inside the window (the frame's opening, the fret, the fret's pattern area) keeps a straight part of 1 mm
+  // or more: an arch whose top edge drops below its centre crosses its own semicircle
+  if (clip.yTop > clip.cy - 1 + 1e-6) errors.push(`الطول المستقيم قصير للجيوب والنافذة؛ اجعل «الطول المستقيم» ${f1(Math.ceil((window.yTop + frame + fit + web + 1 - rim - (c.inner ? t : 0)) * 2) / 2)} مم أو أكثر، أو ألغِ أحد الجيوب.`)
   else if (clip.r < R + 1 || clip.cy + clip.r - clip.yTop < R + 2) errors.push(`النافذة ضيّقة لمروحة واحدة؛ اجعل «نصف قطر المروحة» ${f1(Math.floor(Math.min(clip.r - 1, clip.cy + clip.r - clip.yTop - 2) * 2) / 2)} مم أو أقلّ، أو صغّر هامش النافذة.`)
   if (R / rings - web < 1.2) errors.push(`الفجوة بين أقواس المروحة أرفع من 1.2 مم؛ اجعل «عدد الأقواس» ${Math.max(3, Math.floor(R / (web + 1.2)))} أو أقلّ، أو «نصف قطر المروحة» ${f1(Math.ceil(rings * (web + 1.2) * 2) / 2)} مم أو أكثر.`)
   if (frame < 2) errors.push('الإطار الذهبي أرفع من 2 مم وسينكسر؛ اجعله 3 مم أو أكثر.')
@@ -412,7 +447,7 @@ function build(p: Record<string, number>, c: Common): BuildResult {
   const hexPlate = polyLoop(r3(offsetPoly(ccw(hexPts(hexW, hexH, hexW / 2 + 1, hexH / 2 + 1)), fit / 2)), 'outer')
   const stadiumHole = stadium(round3(plC.x), round3(plC.y), round3(plL), round3(plH))
   const stadiumPlate = oriented(stadium(round3(plL / 2 + 1), round3(plH / 2 + 1), round3(plL - fit), round3(plH - fit)), 'outer')
-  const fret = seigaiha(clip, R, rings, web)
+  const fret = fretHoles(clip, R, rings, web)
   const ph = round3(Lp + Rp)
   const panels: PanelSpec[] = [
     { id: 'base', name: 'القاعدة', w: Wp, h: ph, count: copies, shape: [archLoop(plate, 'outer')], holes: slots, note: 'لوح على شكل القوس بشقوق ألسنة الجدار قرب حافّته' },
@@ -435,9 +470,10 @@ function build(p: Record<string, number>, c: Common): BuildResult {
   }
 
   const notes = [
-    `العلبة من الخارج ${f1(Wp)} × ${f1(ph)} مم (الجدار ${f1(W)} مم عرضاً و${f1(Ls)} مم مستقيماً ثم نصف دائرة)، وارتفاعها الكلّي ${f1(H + 3 * t)} مم: الارتفاع الداخلي ${f1(H)} مم وفوقه الحلقة وطبقتا الغطاء. القاعدة والحلقة والغطاء تبرز عن الجدار ${f1(rim)} مم من كل جهة.`,
+    `العلبة من الخارج ${f1(Wp)} × ${f1(ph)} مم (الجدار ${f1(W)} مم عرضاً و${f1(Ls)} مم مستقيماً ثم نصف دائرة)، وارتفاعها الكلّي ${f1(H + 3 * t)} مم: القاعدة ثم الارتفاع الداخلي ${f1(H)} مم ثم الحلقة والطبقة العلوية للغطاء (طبقته السفلية تنزل داخل الحلقة). القاعدة والحلقة والغطاء تبرز عن الجدار ${f1(rim)} مم من كل جهة.`,
     `الجدار الملتفّ شريط ${split ? `من نصفين كلّ منهما ${f1(L / 2)}` : f1(L)} × ${f1(H + 2 * t)} مم (منها ${f1(t)} مم ألسنة في كل حافّة)، فيه ${n} لساناً في كل حافّة، وقصّات المفصل المرن على القوس وحده (${f1(arcLen)} مم) والجانبان المستقيمان مصمتان. طرفاه يعشّقان بأصابع مع الجدار الأمامي المستقيم (${f1(W)} × ${f1(H + 2 * t)} مم) الذي له ${m === 1 ? 'لسان واحد' : m === 2 ? 'لسانان' : `${m} ألسنة`}.${split ? ' النصفان يلتقيان رأساً لرأس في وسط القوس ويُلصقان؛ لسان قريب على كل جانب من الوصلة يثبّتهما.' : ''}`,
-    'التجميع: ضع القاعدة وأدخل ألسنة الجدار الأمامي في شقوقها، ثم عشّق طرف الشريط في أصابعه وأدخل ألسنته في شقوق الجانب، وابدأ ثني القوس لساناً بعد لسان حتى الجانب الثاني والطرف الآخر. ركّب الحلقة العلوية على الألسنة العلوية، ثم الصق الألسنة كلّها بغراء الخشب والأصابع في الزوايا.',
+    // the corner fingers lock sideways and the tabs drop in from above: the walls are joined first, off the base
+    `التجميع: اجمع الجدران أولاً بعيداً عن القاعدة: عشّق ${split ? 'طرف النصف الأيسر' : 'أحد طرفي الشريط'} بأصابع الجدار الأمامي، ولُفّه حول القوس ${split ? 'والصق به النصف الأيمن رأساً لرأس في وسط القوس، ثم عشّق طرفه' : 'وعشّق طرفه الآخر'} في الجهة الثانية فيصير طوقاً مغلقاً. أنزل الطوق على القاعدة فتدخل الألسنة السفلية في شقوقها: الجدار الأمامي والجانبان أولاً ثم القوس لساناً بعد لسان. ركّب الحلقة العلوية على الألسنة العلوية بالترتيب نفسه، ثم الصق الألسنة كلّها بغراء الخشب والأصابع في الزوايا.`,
     `الغطاء طبقتان: الصق الطبقة السفلية (${f1(2 * under.r)} × ${f1(under.cy + under.r - under.yTop)} مم) تحت العلوية في وسطها تماماً (تبقى ${f1(rim + g.ringIn + gap)} مم من حافّة الغطاء من كل جهة)؛ تدخل في فتحة الحلقة بخلوص ${f1(gap)} مم فيستقرّ الغطاء ويرفع باليد.`,
     `النافذة: أنزل لوح النقشة ثم الإطار الذهبي حوله في جيب النافذة فوق الطبقة السفلية ولصقهما بنقاط لاصق قليلة؛ المروحة نصف قطرها ${f1(R)} مم بـ${rings} أقواس والجسور ${f1(web)} مم، وعدد الفتحات ${fret.length}.${hexOn || plaqueOn ? ` اللوحات الذهبية (أكريليك مرآة ذهبي 2–3 مم) فارغة لتحفر عليها شعارك ونصّك بالليزر قبل القصّ، وتدخل في جيوبها بخلوص ${f1(fit)} مم.` : ''}`,
     'الأدوات: غراء خشب للألسنة والأصابع، ولاصق أكريليك أو نقاط غراء شفّاف للقطع الذهبية. في الخشب الرقيق رطّب القوس قليلاً قبل الثني إن سمعت طقطقة.',

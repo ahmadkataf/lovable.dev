@@ -1,8 +1,8 @@
 // A set of clear acrylic cubes with white lids, a small standing badge on every lid, all in a low black tray.
 //
 // Every cube is five finger-jointed panels (solvent-glued acrylic). Its lid is a flat plate the size of the cube with a
-// lip frame glued underneath that drops inside the walls; a slot near the plate's back edge takes the foot of a blank
-// badge (the user adds the text in RDWorks). The tray is an open finger-jointed box the whole block of cubes sits in,
+// lip frame glued underneath that drops inside the walls; a slot in the middle of the plate, parallel to the front, takes
+// the foot of a blank badge (the user adds the text in RDWorks), as in the photo. The tray is an open finger-jointed box the whole block of cubes sits in,
 // with optional egg-crate dividers that stand in slots cut through the tray's base.
 import type { Template, ParamDef, Common, BuildResult } from './templates'
 import { Loop, Vtx, Rect, rect, polyLoop, rotatedRectHole, engraveRect, bulgeFromAngles, bbox, round3 } from './geom'
@@ -116,7 +116,7 @@ const PARAMS: ParamDef[] = [
   mm('trayH', 'ارتفاع الصينية', 10, 80, 'جدرانها تخفي أسفل المكعّبات'),
   mm('lipH', 'ارتفاع شفة الغطاء', 0, 40, '0 = تلقائي: ثلاث سماكات (8 مم على الأقل)'),
   { ...mm('gap', 'خلوص الغطاء', 0.2, 2, 'بين إطار الشفة وجدران المكعّب من كل جهة'), step: 0.1 },
-  { key: 'topper', label: 'لافتة على الغطاء', min: 0, max: 1, step: 1, int: true, hint: 'لوحة ذهبية صغيرة واقفة في شقّ في مؤخّرة كل غطاء' },
+  { key: 'topper', label: 'لافتة على الغطاء', min: 0, max: 1, step: 1, int: true, hint: 'لوحة ذهبية صغيرة واقفة في شقّ في وسط كل غطاء' },
   { key: 'style', label: 'شكل اللافتة', min: 1, max: 3, step: 1, int: true, options: ['سحابة مموّجة', 'مستطيل مستدير', 'هلال ونجمة'], hint: '1 = سحابة مموّجة بقاعدة مستقيمة كالصورة، 2 = لوحة مستطيلة بزوايا مستديرة، 3 = هلال يحتضن قرصاً فوقه نجمة' },
   mm('tw', 'عرض اللافتة', 16, 80, 'النصّ يُضاف في RDWorks'),
   { ...mm('tm', 'سماكة لوح اللافتة', 0, 10, '0 = كاللوح الأساسي. المرآة الذهبية غالباً 2 أو 3 مم: أدخل سماكتها المقيسة ليضبط الشقّ عليها'), step: 0.1 },
@@ -125,7 +125,7 @@ const PARAMS: ParamDef[] = [
   { key: 'n', label: 'عدد الأطقم', min: 1, max: 10, step: 1, int: true },
 ]
 
-const DEFAULTS = { a: 80, h: 0, rows: 2, cols: 3, gapC: 2, play: 1, trayH: 25, lipH: 0, gap: 0.5, topper: 1, style: 1, tw: 34, tm: 0, fit: 0.2, div: 0, n: 1 }
+const DEFAULTS = { a: 80, h: 0, rows: 2, cols: 3, gapC: 2, play: 1, trayH: 18, lipH: 0, gap: 0.5, topper: 1, style: 1, tw: 34, tm: 0, fit: 0.2, div: 0, n: 1 }
 
 const STYLE_NAME = ['', 'سحابة مموّجة', 'مستطيل مستدير الزوايا', 'هلال ونجمة']
 
@@ -136,7 +136,8 @@ export function cubeGeom(p: Record<string, number>, t: number) {
   const lipH = p.lipH > 0 ? p.lipH : up5(Math.max(3 * t, 8))
   const tm = p.tm > 0 ? p.tm : t
   const sw = round3(tm + p.fit), ft = round3(Math.min(10, Math.max(4, 0.3 * p.tw))), fh = round3(t + 1)
-  const yb = round3(Math.max(2 * t + p.gap + 2.5 + sw / 2, Math.min(15, 0.2 * a)))
+  // the badge stands in the middle of the lid, as in the photo (the slot's centre line, from the plate's edge)
+  const yb = round3(a / 2)
   const Wi = round3(cols * a + (cols - 1) * p.gapC + 2 * p.play), Di = round3(rows * a + (rows - 1) * p.gapC + 2 * p.play)
   const Wl = round3(a - 2 * t - 2 * p.gap)
   return { a, h, rows, cols, n, lipH, tm, sw, ft, fh, yb, Wi, Di, Wo: round3(Wi + 2 * t), Do: round3(Di + 2 * t), Wl, hd: round3(p.trayH - t), swD: round3(t + p.fit), tl: round3(Math.min(20, Math.max(8, 0.4 * a))) }
@@ -151,25 +152,32 @@ function build(p: Record<string, number>, c: Common): BuildResult {
 
   // -------------------------------------------------------------- checks
   if (c.kerf > t / 2) warnings.push('عرض الشق (kerf) كبير بشكل غير معتاد.')
-  if (a < 4 * t) errors.push(`ضلع المكعّب (${a} مم) أصغر من أربع سماكات (${4 * t} مم)؛ لا مكان للتعشيق. اجعله ${4 * t} مم على الأقل.`)
+  // every minimum is offered on the field's half-millimetre step and compared with a hair of slack, so the value an
+  // error asks for always clears it (3 × 3.2 is 9.600000000000001 in floating point)
+  const lt = (v: number, min: number) => v < min - 1e-9
+  if (lt(a, 4 * t)) errors.push(`ضلع المكعّب (${a} مم) أصغر من أربع سماكات: اجعله ${f1(up5(4 * t))} مم على الأقل لتتّسع للتعشيق.`)
   const hMin = up5(Math.max(4 * t, lipH + t + 2))
-  if (h < hMin) errors.push(`ارتفاع المكعّب (${f1(h)} مم) قليل: يلزم ${f1(hMin)} مم على الأقل ليتعشّق وتدخل فيه شفة الغطاء (${f1(lipH)} مم).`)
-  if (lipH < 3 * t) errors.push(`ارتفاع الشفة (${f1(lipH)} مم) صغير جداً: يلزم ${f1(3 * t)} مم على الأقل لتعشيق زوايا الإطار (أو 0 ليُحسب تلقائياً).`)
-  if (Wl < 3 * t) errors.push(`المكعّب ضيّق على إطار الشفة: كبّر الضلع إلى ${f1(up5(5 * t + 2 * p.gap))} مم على الأقل.`)
-  if (p.trayH < 3 * t) errors.push(`ارتفاع الصينية (${p.trayH} مم) أقلّ من ثلاث سماكات: اجعله ${f1(3 * t)} مم على الأقل لتتعشّق زواياها.`)
+  if (lt(h, hMin)) errors.push(`ارتفاع المكعّب (${f1(h)} مم) قليل: يلزم ${f1(hMin)} مم على الأقل ليتعشّق وتدخل فيه شفة الغطاء (${f1(lipH)} مم).`)
+  if (lt(lipH, 3 * t)) errors.push(`ارتفاع الشفة (${f1(lipH)} مم) صغير جداً: يلزم ${f1(up5(3 * t))} مم على الأقل لتعشيق زوايا الإطار (أو 0 ليُحسب تلقائياً).`)
+  if (lt(Wl, 3 * t)) errors.push(`المكعّب ضيّق على إطار الشفة: كبّر الضلع إلى ${f1(up5(5 * t + 2 * p.gap))} مم على الأقل.`)
+  if (lt(p.trayH, 3 * t)) errors.push(`ارتفاع الصينية (${p.trayH} مم) أقلّ من ثلاث سماكات: اجعله ${f1(up5(3 * t))} مم على الأقل لتتعشّق زواياها.`)
   if (topper) {
-    // the slot: clear of the lip strip behind it, short of the plate's middle, and the plate wide enough round it
-    const aMinSlot = up5(Math.max(2 * (yb + sw / 2) + 2, ft + p.fit + 2 * (2 * t + p.gap + 2.5)))
-    if (a < aMinSlot) errors.push(`المكعّب صغير على شقّ اللافتة خلف إطار الشفة: كبّر الضلع إلى ${f1(aMinSlot)} مم على الأقل، أو أطفئ «لافتة على الغطاء».`)
+    // the slot in the middle of the lid keeps 2.5 mm clear of the lip frame's inner faces on all four sides
+    const M = 2 * t + p.gap + 2.5, aMinSlot = up5(2 * M + Math.max(sw, ft + p.fit))
+    if (lt(a, aMinSlot)) errors.push(`المكعّب صغير على شقّ اللافتة داخل إطار الشفة: كبّر الضلع إلى ${f1(aMinSlot)} مم على الأقل، أو أطفئ «لافتة على الغطاء».`)
     if (p.tm > 0 && p.tm < 1) errors.push('لوح اللافتة أرقّ من 1 مم لا يقف في شقّ: اجعل سماكته 1 مم على الأقل (أو 0 ليكون كاللوح الأساسي).')
     if (p.tw > 0.75 * a) warnings.push(`اللافتة (${p.tw} مم) عريضة على غطاء ${a} مم؛ الأجمل ألّا تتجاوز ${f1(Math.floor(0.6 * a))} مم.`)
   }
+  // the photo's tray hides only the bottom fifth of the cubes; a tray as tall as half a cube holds the lids and cubes
+  // between its walls with a millimetre of play, and there is nothing left to take hold of
+  if (p.trayH > h / 2 + 1e-9) warnings.push(`جدران الصينية (${p.trayH} مم) تغطّي أكثر من نصف ارتفاع المكعّب (${f1(h)} مم) فيصعب إخراج المكعّبات؛ الأنسب نحو ${f1(Math.max(up5(3 * t), Math.round(0.22 * h)))} مم كما في الصورة.`)
+  if (Math.max(Wo, Do) > 600) warnings.push(`قاعدة الصينية ${f1(Wo)} × ${f1(Do)} مم قطعة واحدة: تأكّد أنّ لوحك وسرير آلتك يتّسعان لها، أو قلّل عدد المكعّبات في الصفّ.`)
   if (div) {
     const need = up5(t + p.fit + 1)
     if (perSet === 1) warnings.push('مكعّب واحد لا يحتاج فواصل؛ لم يُقصّ أيّ فاصل.')
     else {
-      if (p.gapC < need) errors.push(`المسافة بين المكعّبات (${p.gapC} مم) لا تتّسع لفاصل بسماكة ${t} مم وخلوصه: اجعلها ${f1(need)} مم على الأقل، أو أطفئ الفواصل.`)
-      if (hd < 6) errors.push(`الصينية واطئة على الفواصل: اجعل ارتفاعها ${f1(t + 6)} مم على الأقل.`)
+      if (lt(p.gapC, need)) errors.push(`المسافة بين المكعّبات (${p.gapC} مم) لا تتّسع لفاصل بسماكة ${t} مم وخلوصه: اجعلها ${f1(need)} مم على الأقل، أو أطفئ الفواصل.`)
+      if (lt(hd, 6)) errors.push(`الصينية واطئة على الفواصل: اجعل ارتفاعها ${f1(up5(t + 6))} مم على الأقل.`)
       if (tl + p.fit + 2 * (t + 2.5) > a) errors.push(`المكعّب صغير على ألسنة الفواصل: كبّر الضلع إلى ${f1(up5(tl + p.fit + 2 * t + 5))} مم على الأقل.`)
     }
   }
@@ -185,7 +193,7 @@ function build(p: Record<string, number>, c: Common): BuildResult {
       id: 'lid', name: 'الغطاء — اللوح', w: a, h: a, material: 'white', count: N,
       engrave: [engraveRect(t + p.gap, t + p.gap, Wl, Wl)],
       holes: topper ? [rotatedRectHole(a / 2, yb, round3(ft + p.fit), sw, 0)] : [],
-      note: topper ? `الخط المحفور يحدّد موضع إطار الشفة على وجهه السفلي؛ الشقّ ${f1(ft + p.fit)} × ${sw} مم لقدم اللافتة على بُعد ${f1(yb)} مم من الحافّة الخلفية` : 'الخط المحفور يحدّد موضع إطار الشفة على وجهه السفلي',
+      note: `الخط المحفور يحدّد موضع إطار الشفة: اقلب اللوح فيصير وجهه المحفور هو السفلي${topper ? `؛ الشقّ ${f1(ft + p.fit)} × ${sw} مم في وسطه لقدم اللافتة` : ''}`,
     },
     { id: 'lip-fb', name: 'الغطاء — شفة الأمام / الخلف', w: Wl, h: lipH, left: 'male', right: 'male', count: 2 * N, material: 'white' },
     { id: 'lip-side', name: 'الغطاء — شفة الجانب', w: Wl, h: lipH, left: 'female', right: 'female', count: 2 * N, material: 'white' },
@@ -239,20 +247,22 @@ function build(p: Record<string, number>, c: Common): BuildResult {
   // -------------------------------------------------------------- notes
   const totalH = round3(t + h + t + (badge ? badge.bodyH : 0))
   notes.push(
-    `${perSet} مكعّبات أكريليك شفّاف ${a} × ${a} × ${f1(h)} مم (${rows} × ${cols}) بتعشيق أصابع، لكلّ مكعّب غطاء أبيض ${a} × ${a} مم بإطار شفة تحته${topper ? `، ولافتة ذهبية «${STYLE_NAME[style]}» ${badge ? `${f1(badge.bodyW)} × ${f1(badge.bodyH)} مم` : ''} واقفة في مؤخّرة الغطاء` : ''}، والكلّ في صينية ${f1(Wo)} × ${f1(Do)} × ${p.trayH} مم. ارتفاع الطقم كاملاً نحو ${f1(totalH)} مم.`,
+    `${perSet === 1 ? 'مكعّب أكريليك شفّاف' : `${perSet} مكعّبات أكريليك شفّاف`} ${a} × ${a} × ${f1(h)} مم (${rows} × ${cols}) بتعشيق أصابع، لكلّ مكعّب غطاء أبيض ${a} × ${a} مم بإطار شفة تحته${topper ? `، ولافتة ذهبية «${STYLE_NAME[style]}» ${badge ? `${f1(badge.bodyW)} × ${f1(badge.bodyH)} مم` : ''} واقفة في وسط الغطاء` : ''}، والكلّ في صينية ${f1(Wo)} × ${f1(Do)} × ${p.trayH} مم. ارتفاع الطقم كاملاً نحو ${f1(totalH)} مم.${n > 1 ? ` الملف يكفي ${n} أطقم: ${N} من المكعّبات و${n} من الصواني.` : ''}`,
     `الخامات: أكريليك شفّاف مصبوب (cast) ${t} مم للمكعّبات، أبيض ${t} مم للأغطية${topper ? `، مرآة ذهبية أو فضية ${f1(tm)} مم للافتات` : ''}، وأسود ${t} مم للصينية (أو MDF مدهون أسود). غراء أكريليك سائل (كلوروفورم أو دايكلوروميثان) مع إبرة أو محقنة، وصنفرة ناعمة للحواف.`,
     'المكعّب: ركّب القاعدة والواجهتين والجانبين جافّة بالأصابع، تأكّد من التربيع، ثم مرّر الغراء السائل بالإبرة على خطوط التعشيق من الداخل فيسحبه التشرّب إلى داخل الوصلة. انزع الورق الواقي عن حوافّ اللصق فقط واتركه على الوجوه حتى النهاية.',
     `الغطاء: ألصق إطار الشفة (شريحتان ${f1(Wl)} × ${f1(lipH)} مم بأصابع ذكر وشريحتان بأصابع أنثى، تتعشّق في الزوايا) تحت اللوح داخل الخط المحفور؛ ينزل الإطار داخل المكعّب بخلوص ${p.gap} مم من كل جهة فيثبت الغطاء ولا ينزلق. سطح الغطاء بمقاس المكعّب تماماً.`,
   )
   if (topper) notes.push(
-    `اللافتة: أدخل قدمها (${f1(ft)} × ${f1(tm)} مم) في شقّ الغطاء من الأعلى؛ تنزل ${f1(fh)} مم وتبرز نحو 1 مم تحت اللوح فضع عليها نقطة غراء من الأسفل. الشقّ في وسط اللوح على بُعد ${f1(yb)} مم من الحافّة الخلفية: أدخله في RDWorks كما هو ولا تُدِر الغطاء عند التركيب.`,
+    `اللافتة: أدخل قدمها (${f1(ft)} × ${f1(tm)} مم) في شقّ الغطاء من الأعلى؛ تنزل ${f1(fh)} مم وتبرز نحو 1 مم تحت اللوح فضع عليها نقطة غراء من الأسفل. الشقّ في وسط الغطاء وموازٍ لحافّته: ضع الغطاء على المكعّب بحيث يكون الشقّ موازياً للواجهة فتتّجه اللافتة إلى الأمام.`,
     'اللافتة فارغة من النصّ: أضف «عيد مبارك» أو الاسم في RDWorks داخل الشكل، نقشاً أو قصّاً. على المرآة الذهبية انقش من الوجه الخلفي بنصّ معكوس (يزيل طبقة المرآة فيظهر النصّ من الأمام)، أو اقصّ الأحرف من لوح آخر وألصقها.',
   )
   notes.push(`الصينية: قاعدة وأربعة جدران بتعشيق أصابع، داخلها ${f1(Wi)} × ${f1(Di)} مم = ${cols} × ${a} + ${cols - 1} × ${p.gapC} + خلوص ${p.play} مم من كل جهة بالعرض، و${rows} × ${a} + ${rows - 1} × ${p.gapC} + الخلوص بالعمق؛ جدرانها ${p.trayH} مم تخفي أسفل المكعّبات. في الأكريليك الأسود الصق بالغراء السائل، وفي الـMDF بغراء الخشب ثم ادهن.`)
   if (strips.length) notes.push(
-    `الفواصل: شرائح ارتفاعها ${f1(hd)} مم (بمستوى حافّة الصينية) تقف في شقوق القاعدة بألسنة ${f1(tl)} × ${t} مم تظهر من تحتها بمستوى سطحها، وتتشابك ببعضها بشقوق نصفية: الطولية شقوقها من الأعلى والعرضية من الأسفل. التجميع: أدخل ألسنة الفواصل في القاعدة وشبّكها، ثم ركّب الجدران الأربعة على القاعدة، ونقطة غراء على كل لسان.`,
+    `الفواصل: شرائح ارتفاعها ${f1(hd)} مم (بمستوى حافّة الصينية) تقف في شقوق القاعدة بألسنة ${f1(tl)} × ${t} مم تظهر من تحتها بمستوى سطحها، وتتشابك ببعضها بشقوق نصفية: الطولية شقوقها من الأعلى والعرضية من الأسفل. التجميع: أدخل ألسنة الفواصل الطولية في القاعدة أولاً، ثم أنزل العرضية عليها من فوق حتى تدخل ألسنتها في شقوقها، ثم ركّب الجدران الأربعة على القاعدة، ونقطة غراء على كل لسان.`,
   )
-  else notes.push('التجميع الأخير: ضع المكعّبات في الصينية متلاصقة بالمسافة المحدّدة، وأغطيتها عليها واللافتات إلى الخلف كما في الصورة. بلا فواصل تبقى المكعّبات حرّة الحركة قليلاً بقدر الخلوص.')
+  notes.push(strips.length
+    ? 'التجميع الأخير: ضع كل مكعّب في خانته بين الفواصل، والغطاء عليه واللافتة متّجهة إلى الأمام كما في الصورة.'
+    : 'التجميع الأخير: ضع المكعّبات في الصينية متلاصقة بالمسافة المحدّدة، وأغطيتها عليها واللافتات متّجهة إلى الأمام كما في الصورة. بلا فواصل تبقى المكعّبات حرّة الحركة قليلاً بقدر الخلوص.')
   return { panels, notes, warnings, errors, slotted: true }
 }
 
@@ -260,7 +270,7 @@ export const CUBE_SETS: Template[] = [
   {
     id: 'cubeset',
     name: 'طقم مكعّبات أكريليك على صينية',
-    desc: 'مكعّبات أكريليك شفّاف بتعشيق أصابع، لكلّ مكعّب غطاء أبيض بإطار شفة ولافتة ذهبية صغيرة واقفة في مؤخّرته (فارغة لتضيف نصّك)، والكلّ في صينية سوداء واطئة كما في الصورة؛ مع فواصل اختيارية بين المكعّبات.',
+    desc: 'مكعّبات أكريليك شفّاف بتعشيق أصابع، لكلّ مكعّب غطاء أبيض بإطار شفة ولافتة ذهبية صغيرة واقفة في وسطه (فارغة لتضيف نصّك)، والكلّ في صينية سوداء واطئة كما في الصورة؛ مع فواصل اختيارية بين المكعّبات.',
     icon: `<path d="M4 44h56v12H4z"/><rect x="8" y="22" width="14" height="22"/><rect x="25" y="22" width="14" height="22"/><rect x="42" y="22" width="14" height="22"/><path d="M8 22h14M25 22h14M42 22h14" stroke-width="3"/><path d="M12 20a3 3 0 1 1 6 0 3 3 0 1 1-6 0M29 20a3 3 0 1 1 6 0 3 3 0 1 1-6 0M46 20a3 3 0 1 1 6 0 3 3 0 1 1-6 0" stroke-width="1.2"/>`,
     params: PARAMS,
     defaults: DEFAULTS,

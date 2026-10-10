@@ -558,6 +558,7 @@ function sizeLabel(p: Record<string, number>) {
   if (state.tpl === 'cubeset') return `${fmt(p.rows * p.cols)} مكعّب ${fmt(p.a)} مم على صينية`
   if (state.tpl === 'mihrabbox') return `${fmt(p.W)} × ${fmt(p.D)} × ${fmt(p.H)}، المحراب ${fmt(p.A)}`
   if (state.tpl === 'easel') return `إيزل بارتفاع ${fmt(p.Lm)} مم`
+  if (state.tpl === 'giftbag') return `${fmt(p.W)} × ${fmt(p.D)} × ${fmt(p.H)}، المقبض ${fmt(p.hh)}`
   if (p.pw !== undefined) return `صورة ${fmt(p.pw)} × ${fmt(p.ph)}`
   if (p.Dm !== undefined) return `Ø${fmt(p.Dm)} × ${fmt(p.H)}`
   if (p.Dd !== undefined) return `مرآة Ø${fmt(p.Dd)}، قاعدة ${fmt(p.W)} × ${fmt(p.D)}`

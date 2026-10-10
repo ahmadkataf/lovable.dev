@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { ARCH_BOXES, archGeom, seigaiha } from './archbox'
 import { generate, DEFAULT_SETTINGS } from './generate'
+import { toDXF } from './export'
 import { signedArea, bbox, Loop } from './geom'
 import { samplePoly, pointIn, polysOverlap, selfIntersects, P } from './testutil'
 
@@ -195,19 +196,133 @@ describe('the arch box with the seigaiha window', () => {
     expect(generate(tpl, { Ls: 20 }, S0).errors.join()).toContain('الطول المستقيم')
     expect(generate(tpl, { tabs: 40, tabW: 30 }, S0).errors.join()).toContain('اللسانات')
     expect(generate(tpl, { split: 1, tabs: 15 }, S0).errors.join()).toContain('زوجياً')
-    expect(generate(tpl, { W: 80, Ls: 60, H: 40, hexOn: 0, plaqueOn: 0, fan: 16, tabs: 8, tabW: 10 }, { ...S0, t: 3 }).errors.join()).toContain('القوس ضيّق')
+    expect(generate(tpl, { W: 80, Ls: 60, H: 40, hexOn: 0, plaqueOn: 0, fan: 16, rings: 4, web: 2.2, tabs: 8, tabW: 10 }, { ...S0, t: 3 }).errors.join()).toContain('القوس ضيّق')
     // and a small box that does fit
-    const small = generate(tpl, { W: 120, Ls: 60, H: 40, hexOn: 0, plaqueOn: 0, fan: 16, tabs: 8, tabW: 6, pitch: 1.5, seg: 12 }, { ...S0, t: 3 })
+    const small = generate(tpl, { W: 120, Ls: 60, H: 40, hexOn: 0, plaqueOn: 0, fan: 16, rings: 4, web: 2.2, tabs: 8, tabW: 6, pitch: 1.5, seg: 12 }, { ...S0, t: 3 })
     expect(small.errors).toEqual([])
     for (const p of small.panels) soundPanel(p, 'small')
   })
 
-  it('robustness grid: every thickness and kerf, every parameter at its ends: sound geometry or a clear error', () => {
-    const extras = tpl.params.filter(d => !['W', 'H'].includes(d.key))
+  it('bent round the base: each strip tab, walked along the wall\'s mid-line drawn from the plate itself, lands on a slot of its size and direction in the base and the ring, and the strip is exactly as long as that path', () => {
+    for (const t of [2.7, 3.2, 6]) for (const v of [{}, { split: 1 }, { tabs: 12, tabW: 14 }, { W: 160, Ls: 130, H: 45, tabs: 16 }, { W: 400, Ls: 300, tabs: 30, split: 1 }, { tabs: 4 }] as Record<string, number>[]) {
+      const p = { ...tpl.defaults, ...v }, label = `${JSON.stringify(v)} t=${t}`
+      const d = generate(tpl, p, { ...S0, t })
+      expect(d.errors, label).toEqual([])
+      const by = (id: string) => d.panels.find(x => x.id === id)!
+      const base = by('base'), ring = by('ring'), end = by('end'), walls = d.panels.filter(x => x.id.startsWith('wall'))
+      // the plate: an arch Wp wide whose semicircle is centred Wp/2 above its bottom; the wall sits rim in from its edge
+      const Wp = base.w, rim = (Wp - p.W) / 2, Rp = Wp / 2, Lp = base.h - Rp, Rm = p.W / 2 - t / 2, Ls = Lp - rim, arc = Math.PI * Rm, L = 2 * Ls + arc
+      const path = (s: number) => s <= Ls ? { x: rim + t / 2, y: rim + s, a: Math.PI / 2 }
+        : s <= Ls + arc ? { x: Rp + Rm * Math.cos(Math.PI - (s - Ls) / Rm), y: Lp + Rm * Math.sin(Math.PI - (s - Ls) / Rm), a: Math.PI * 1.5 - (s - Ls) / Rm }
+        : { x: rim + p.W - t / 2, y: rim + (L - s), a: Math.PI / 2 }
+      expect(walls.reduce((s, w) => s + w.w, 0), `${label} strip = path`).toBeCloseTo(L, 2)
+      // the strip's ends start at the end wall's outer face, where its fingers meet the end wall's (opposite genders, both H long)
+      expect(path(0).y, label).toBeCloseTo(rim, 6)
+      expect(end.w, label).toBeCloseTo(p.W, 3)
+      const want: { x: number; y: number; a: number }[] = []
+      let off = 0
+      for (const w of walls) {
+        const runs = (y: number) => { const o = outerOf(w).pts, r: number[] = []; for (let i = 0; i < o.length; i++) { const a = o[i], b = o[(i + 1) % o.length]; if (Math.abs(a.y - y) < 1e-6 && Math.abs(b.y - y) < 1e-6) r.push((a.x + b.x) / 2) } return r.sort((u, v) => u - v) }
+        expect(runs(w.h), `${label} ${w.id} top and bottom tabs line up`).toEqual(runs(0).map(x => expect.closeTo(x, 6)))
+        for (const x of runs(0)) want.push(path(off + x))
+        off += w.w
+      }
+      const endRuns = edgeRuns(end, 0).length
+      const eo = outerOf(end).pts
+      for (let i = 0; i < eo.length; i++) { const a = eo[i], b = eo[(i + 1) % eo.length]; if (Math.abs(a.y) < 1e-6 && Math.abs(b.y) < 1e-6) want.push({ x: rim + (a.x + b.x) / 2, y: rim + t / 2, a: 0 }) }
+      expect(want.length, label).toBe(p.tabs + endRuns)
+      for (const pl of [base, ring]) {
+        const slots = slotsOf(pl, t, p.fit, p.tabW).map(h => { const q = h.pts, c = { x: q.reduce((s, v) => s + v.x, 0) / 4, y: q.reduce((s, v) => s + v.y, 0) / 4 }; const e = [0, 1].map(i => ({ l: Math.hypot(q[i + 1].x - q[i].x, q[i + 1].y - q[i].y), a: Math.atan2(q[i + 1].y - q[i].y, q[i + 1].x - q[i].x) })); return { c, a: (e[0].l > e[1].l ? e[0] : e[1]).a } })
+        expect(slots.length, `${label} ${pl.id} slots`).toBe(want.length)
+        for (const q of want) {
+          const s = slots.find(s => Math.hypot(s.c.x - q.x, s.c.y - q.y) < 0.01)
+          expect(s, `${label} ${pl.id}: a slot under the tab at ${q.x.toFixed(2)},${q.y.toFixed(2)}`).toBeTruthy()
+          expect(Math.abs(Math.sin(s!.a - q.a)), `${label} ${pl.id}: slot along the wall`).toBeLessThan(1e-3)
+        }
+      }
+    }
+  })
+
+  it('a straight part too short for the window\'s frame and fret is refused (the fret outline used to cross itself), and the length it asks for builds', () => {
+    // the window top sits 122 mm down on the defaults; the fret inside it starts frame + fit + web lower
+    for (const [t, inner] of [[3.2, false], [3, true], [6, false]] as [number, boolean][]) for (const Ls of [110, 118, 121, 124, 127]) {
+      const s = { ...S0, t, inner }, d = generate(tpl, { Ls }, s), label = `Ls=${Ls} t=${t} inner=${inner}`
+      if (!d.errors.length) { for (const pn of d.panels) soundPanel(pn, label, 0.8, 0.8, 3); continue }
+      const e = d.errors.find(e => e.includes('الطول المستقيم'))
+      expect(e, label).toBeTruthy()
+      const want = +e!.match(/«الطول المستقيم» ([\d.]+)/)![1]
+      const ok = generate(tpl, { Ls: want }, s)
+      expect(ok.errors, `${label} -> Ls ${want}`).toEqual([])
+      for (const pn of ok.panels) soundPanel(pn, `${label} -> Ls ${want}`, 0.8, 0.8, 3)
+    }
+    // the exact case that used to come out crossed
+    expect(generate(tpl, { Ls: 105 + 18 }, { ...S0, t: 3.2 }).errors.join()).toContain('الطول المستقيم')
+  })
+
+  it('every refusal names the value to set, and setting it clears that refusal', () => {
+    const LABEL: [RegExp, string][] = [[/«عرض اللسان» ([\d.]+)/, 'tabW'], [/«طول قصّة المفصل» ([\d.]+)/, 'seg'], [/«المسافة بين الصفوف» ([\d.]+)/, 'pitch'], [/«الطول المستقيم» ([\d.]+)/, 'Ls'], [/«نصف قطر المروحة» ([\d.]+)/, 'fan'], [/«عدد الأقواس» ([\d.]+)/, 'rings'], [/«عرض السداسي» ([\d.]+)/, 'hex'], [/«طول لوحة النصّ» ([\d.]+)/, 'plaque'], [/«ارتفاع السداسي» ([\d.]+)/, 'hexH'], [/عدد اللسانات ([\d.]+)/, 'tabs'], [/عددها ([\d.]+)/, 'tabs']]
+    const cases: Record<string, number>[] = [
+      { tabs: 40 }, { Ls: 20, hexOn: 0, plaqueOn: 0 }, { split: 1, tabs: 15 }, { split: 1, tabs: 34, H: 162 }, { split: 1, tabs: 11, tabW: 28.5 }, { hexOn: 0, pitch: 6, split: 1 },
+      { plaque: 30, plH: 40 }, { plaque: 40, plH: 80 }, { hexH: 0.5 }, { hexH: 9.5 }, { Ls: 110 }, { seg: 80 }, { W: 80 }, { fan: 100, inset: 60 }, { fan: 12 }, { tabW: 30 }, { tabs: 40, tabW: 30 }, { pitch: 6, W: 100 },
+    ]
+    for (const t of [2, 3.2, 6]) for (const v of cases) {
+      const s = { ...S0, t }, d = generate(tpl, v, s)
+      for (const e of d.errors) {
+        const label = `${JSON.stringify(v)} t=${t}: ${e}`
+        const m = LABEL.map(([re, key]) => { const x = e.match(re); return x ? { key, val: +x[1] } : null }).find(Boolean)
+        expect(m, `${label} names no value`).toBeTruthy()
+        const def = tpl.params.find(d => d.key === m!.key)!
+        expect(m!.val, `${label} in range`).toBeGreaterThanOrEqual(def.min)
+        expect(m!.val, `${label} in range`).toBeLessThanOrEqual(def.max)
+        const again = generate(tpl, { ...v, [m!.key]: m!.val }, s).errors
+        expect(again.filter(e2 => e2.slice(0, 25) === e.slice(0, 25)), `${label} -> ${m!.key} = ${m!.val}`).toEqual([])
+      }
+    }
+    // the cases this test was written for are refused at all
+    expect(generate(tpl, { plaque: 30, plH: 40 }, S0).errors.join()).toContain('لوحة النصّ أعلى من طولها')
+    expect(generate(tpl, { hexH: 0.5 }, S0).errors.join()).toContain('ارتفاع السداسي')
+    expect(generate(tpl, { hexH: 0 }, S0).errors).toEqual([])
+    expect(generate(tpl, { split: 1, tabs: 15 }, S0).errors.join()).toMatch(/عدد اللسانات 14 أو 16/)
+    expect(generate(tpl, { tabs: 40 }, { ...S0, t: 3.2 }).errors.join()).toMatch(/اجعل عدد اللسانات \d+ أو أقلّ/)
+  })
+
+  it('notes: the height adds up (base, inner height, ring, top layer of the lid), the walls are joined before they go on the base, and building is quick and repeatable', () => {
+    for (const split of [0, 1]) {
+      const t = 3.2, d = generate(tpl, { split }, { ...S0, t }), all = d.notes.join(' ')
+      expect(all, `split=${split}`).toContain(`${Math.round((70 + 3 * t) * 10) / 10} مم: القاعدة ثم الارتفاع الداخلي 70 مم ثم الحلقة والطبقة العلوية للغطاء`)
+      expect(all).toContain('اجمع الجدران أولاً بعيداً عن القاعدة')
+      expect(all).toContain('أنزل الطوق على القاعدة')
+    }
+    // the fret is remembered between builds: a second build (another kerf) gives the very same, unmoved holes
+    const a = generate(tpl, {}, { ...S0, t: 3 }), b = generate(tpl, {}, { ...S0, t: 3, kerf: 0.2 }), c = generate(tpl, {}, { ...S0, t: 3 })
+    const fretOf = (d: typeof a) => d.panels.find(p => p.id === 'fret')!
+    expect(JSON.stringify(fretOf(c).loops)).toBe(JSON.stringify(fretOf(a).loops))
+    expect(fretOf(b).loops.length).toBe(fretOf(a).loops.length)
+    // one build at the defaults, the pattern cut afresh, well under 150 ms
+    const times: number[] = []
+    for (const t of [2.9, 3.1, 3.3]) { const t0 = performance.now(); generate(tpl, {}, { ...DEFAULT_SETTINGS, t }); times.push(performance.now() - t0) }
+    expect(times.sort((u, v) => u - v)[1]).toBeLessThan(150)
+  })
+
+  it('robustness grid: every thickness and kerf, every parameter at its ends (the box sizes too), and random combinations: sound geometry or a clear error', () => {
+    // W and H are this template's own parameters: their ends belong in the grid (a 600 mm arch, a 25 mm wall)
     const variants: Record<string, number>[] = [{}]
-    for (const def of extras) variants.push({ [def.key]: def.min }, { [def.key]: def.max })
+    for (const def of tpl.params) variants.push({ [def.key]: def.min }, { [def.key]: def.max })
+    // and three or four parameters at once, anywhere in their ranges (fixed seed), on a thin, a common and a thick sheet
+    // with the kerf offset (where outlines fold over)
+    let seed = 20261010
+    const rnd = () => (seed = (seed * 48271) % 2147483647) / 2147483647
+    const combos: Record<string, number>[] = []
+    for (let i = 0; i < 16; i++) {
+      const v: Record<string, number> = {}
+      for (let j = 3 + (i % 2); j > 0; j--) { const def = tpl.params[Math.floor(rnd() * tpl.params.length)], st = def.int ? 1 : def.step ?? 0.5; v[def.key] = Math.round((def.min + rnd() * (def.max - def.min)) / st) * st }
+      combos.push(v)
+    }
+    const cases: [number, number, Record<string, number>][] = []
+    for (const t of [2, 2.7, 3, 3.2, 4, 6]) for (const kerf of [0, 0.2]) for (const v of variants) cases.push([t, kerf, v])
+    for (const t of [2, 3.2, 6]) for (const v of combos) cases.push([t, 0.2, v])
     let runs = 0, refused = 0
-    for (const t of [2, 2.7, 3, 3.2, 4, 6]) for (const kerf of [0, 0.2]) for (const v of variants) {
+    for (const [t, kerf, v] of cases) {
       const label = `${JSON.stringify(v)} t=${t} kerf=${kerf}`
       let d
       try { d = generate(tpl, v, { ...DEFAULT_SETTINGS, t, kerf }) } catch (e) { throw new Error(`${label} threw: ${(e as Error).message}`) }
@@ -216,9 +331,12 @@ describe('the arch box with the seigaiha window', () => {
       expect(finite, `${label} non-finite coordinates`).toBe(true)
       if (d.errors.length) { refused++; for (const e of d.errors) expect(e, label).toMatch(/[؀-ۿ]/); continue }
       expect(d.layout.w, label).toBeLessThanOrEqual(Math.max(DEFAULT_SETTINGS.sheetW, Math.max(...d.panels.map(p => p.w))) + 1e-6)
-      for (const pn of d.panels) { expect(pn.w, `${label} ${pn.id} width`).toBeGreaterThan(0); soundPanel(pn, label) }
+      // outlines sampled every 3°: on a 300 mm arch a 15° chord falls 2.6 mm inside the true arc, past the fret's web
+      for (const pn of d.panels) { expect(pn.w, `${label} ${pn.id} width`).toBeGreaterThan(0); soundPanel(pn, label, 0.8, 0.8, 3) }
+      const dxf = toDXF(d.layout)
+      expect(dxf.includes('NaN') || dxf.includes('undefined'), `${label} dxf`).toBe(false)
     }
-    expect(runs).toBeGreaterThan(100)
+    expect(runs).toBeGreaterThan(500)
     expect(refused).toBeLessThan(runs / 2)
   })
 })

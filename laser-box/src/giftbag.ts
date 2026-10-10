@@ -1,13 +1,15 @@
 // A handled gift box (علبة هدايا بمقبض): an open-top finger-jointed box whose front and back panels carry on above
 // the body into two handle panels. A living-hinge band right above the body lets each handle lean inward so the two
-// meet at the top; above the band every handle has rounded top corners and a hand hole. Fretwork fills the walls and
-// the handles, and the front carries a blank plaque with an engraved ornamental frame (the text is added in RDWorks).
+// meet at the top; above the band every handle has rounded top corners and a hand hole. The sides' top corners are
+// rounded too (as in the photo). Fretwork fills the walls and the handles, and the front carries a blank plaque with
+// an engraved ornamental frame (the text is added in RDWorks).
 //
 // Panel coordinates are millimetres, y down. On the front and the back the handle is at the top (y = 0), then the
-// hinge band, then the body with its finger joints; the body alone is jointed to the sides and the bottom.
+// hinge band, then the body with its finger joints; the body alone is jointed to the sides and the bottom, the side
+// joints starting below the sides' rounded corners (above them the front and back keep the corner column).
 import type { Template, ParamDef, Common, BuildResult } from './templates'
-import { Loop, Vtx, arcInfo, offsetLoop, circle, stadium, stadiumV, heart, roundedRectHole, rotatedRectHole, polyLoop, roundCorner, hingeLines, round3, bbox } from './geom'
-import type { PanelSpec } from './joints'
+import { Loop, Vtx, arcInfo, offsetLoop, rect, circle, stadium, stadiumV, heart, roundedRectHole, rotatedRectHole, polyLoop, roundCorner, hingeLines, round3, bbox } from './geom'
+import type { PanelSpec, EdgeSpec } from './joints'
 
 type P2 = { x: number; y: number }
 const mm = (key: string, label: string, min: number, max: number, hint?: string): ParamDef => ({ key, label, min, max, step: 0.5, unit: 'مم', hint })
@@ -112,12 +114,14 @@ function roundedRectPoly(x: number, y: number, w: number, h: number, r: number):
 }
 
 /**
- * The polygon H less the convex polygon C: pieces bounded by H's edges outside C and runs along C's boundary
- * (Weiler–Atherton). H's interior is kept on the left of travel and C is walked with its interior on the right,
- * so every piece comes out with H's orientation. Null when the crossings do not pair up (a touching vertex, say).
+ * The polygon H less the convex polygon C (keep 'out'), or the part of H inside C (keep 'in'): pieces bounded by H's
+ * edges outside (inside) C and runs along C's boundary (Weiler–Atherton). H's interior is kept on the left of travel;
+ * C is walked with its interior on the right to go round it, on the left to follow it, so every piece comes out with
+ * H's orientation. Null when the crossings do not pair up (a touching vertex, say).
  */
-function subtractConvex(H0: P2[], C0: P2[]): P2[][] | null {
-  const H = areaOf(H0) > 0 ? H0 : [...H0].reverse(), C = areaOf(C0) < 0 ? C0 : [...C0].reverse()
+function clipConvex(H0: P2[], C0: P2[], keep: 'out' | 'in'): P2[][] | null {
+  const inMode = keep === 'in'
+  const H = areaOf(H0) > 0 ? H0 : [...H0].reverse(), C = (areaOf(C0) < 0) !== inMode ? C0 : [...C0].reverse()
   const n = H.length, m = C.length, cb = bboxOf(C)
   type X = { i: number; t: number; pos: number; p: P2; visited: boolean; exit: boolean }
   const xs: X[] = []
@@ -133,7 +137,8 @@ function subtractConvex(H0: P2[], C0: P2[]): P2[][] | null {
       xs.push({ i, t, pos: j + u, p: { x: a.x + t * (b.x - a.x), y: a.y + t * (b.y - a.y) }, visited: false, exit: false })
     }
   }
-  if (!xs.length) return pointIn(H[0], C) || pointIn(C[0], H) ? [] : [H]
+  const none = () => (inMode ? (pointIn(H[0], C) ? [H] : pointIn(C[0], H) ? [C] : []) : pointIn(H[0], C) || pointIn(C[0], H) ? [] : [H])
+  if (!xs.length) return none()
   // the hole's vertices and crossings in order; each crossing must change side, else it only touches
   type Node = { p: P2; x?: X }
   const seq: Node[] = []
@@ -161,18 +166,18 @@ function subtractConvex(H0: P2[], C0: P2[]): P2[][] | null {
     live.push(x)
   }
   if (live.length % 2) return null
-  if (!live.length) return pointIn(H[0], C) || pointIn(C[0], H) ? [] : [H]
+  if (!live.length) return none()
   const after = (x: X): X => { let best: X | null = null, bd = Infinity; for (const y of live) { if (y === x) continue; const d = ((y.pos - x.pos) % m + m) % m; if (d < bd) { bd = d; best = y } } return best! }
   const pieces: P2[][] = []
   for (const start of live) {
-    if (start.visited || !start.exit) continue
+    if (start.visited || start.exit === inMode) continue
     const piece: P2[] = [start.p]
     let cur = start
     for (let guard = 0; guard <= live.length; guard++) {
       cur.visited = true
       let k = seq.findIndex(nd => nd.x === cur), entry: X | undefined
       for (let s = 0; s < N; s++) { k = (k + 1) % N; const nd = seq[k]; piece.push(nd.p); if (nd.x) { entry = nd.x; break } }
-      if (!entry || entry.exit) return null
+      if (!entry || entry.exit !== inMode) return null
       entry.visited = true
       const next = after(entry), span = ((next.pos - entry.pos) % m + m) % m
       for (let jj = Math.floor(entry.pos) + 1; ; jj++) {
@@ -181,7 +186,7 @@ function subtractConvex(H0: P2[], C0: P2[]): P2[][] | null {
         piece.push(C[((jj % m) + m) % m])
       }
       if (next === start) break
-      if (!next.exit) return null
+      if (next.exit === inMode) return null
       piece.push(next.p)
       cur = next
       if (guard === live.length) return null
@@ -191,6 +196,7 @@ function subtractConvex(H0: P2[], C0: P2[]): P2[][] | null {
   if (live.some(x => !x.visited)) return null
   return pieces
 }
+const subtractConvex = (H: P2[], C: P2[]) => clipConvex(H, C, 'out')
 /**
  * Corners sharper than minDeg are cut off: the outline is trimmed back along its path either side of the corner (over
  * as many short edges as that takes), far enough that the new edge across is at least minEdge long. A sliver point
@@ -427,24 +433,68 @@ function ogee(x0: number, y0: number, x1: number, y1: number, cell: number, minE
   return out
 }
 
+/** what the fret must stay inside: a convex polygon and the boxes where it differs from the field's rectangle */
+type Keep = { poly: P2[]; corners: { x0: number; y0: number; x1: number; y1: number }[] }
 /**
  * The fret of `kind` (0 = ogee, else a deco-box pattern) in the field; holes meeting `zone` (a convex polygon) are
- * clipped round it. Clipped outlines keep no edge shorter than minEdge (set from the kerf).
+ * clipped round it, and holes reaching into a corner of `keep` (the field with rounded corners) are clipped to it
+ * (the lattices, clipped at the field's edges anyway), shortened (slots) or left out (whole motifs). Clipped outlines
+ * keep no edge shorter than minEdge (set from the kerf).
  */
-function fret(kind: number, x0: number, y0: number, x1: number, y1: number, cell: number, minEdge: number, zone?: P2[]): Loop[] {
-  const raw = kind === 0 ? ogee(x0, y0, x1, y1, cell, minEdge) : pattern(kind, x0, y0, x1, y1, cell)
+function fret(kind: number, x0: number, y0: number, x1: number, y1: number, cell: number, minEdge: number, zone?: P2[], keep?: Keep): Loop[] {
+  let raw = kind === 0 ? ogee(x0, y0, x1, y1, cell, minEdge) : pattern(kind, x0, y0, x1, y1, cell)
+  // a vertex exactly on the polygon's boundary can defeat the walk: the polygon a hair bigger (smaller) clips just as well
+  const nudge = (poly: P2[], d: number) => { const b = bboxOf(poly), mx = (b.x0 + b.x1) / 2, my = (b.y0 + b.y1) / 2; return poly.map(q => ({ x: q.x + (q.x > mx ? d : -d), y: q.y + (q.y > my ? 0.85 * d : -0.85 * d) })) }
+  if (keep) {
+    // inside tests a hair generous: the field's own edges are on the polygon's boundary
+    const out: Loop[] = [], roomy = nudge(keep.poly, 0.02)
+    for (const hl of raw) {
+      const b = bbox([hl])
+      if (!keep.corners.some(c => b.maxX > c.x0 && b.minX < c.x1 && b.maxY > c.y0 && b.minY < c.y1)) { out.push(hl); continue }
+      const poly = sample(hl)
+      if (poly.every(q => pointIn(q, roomy))) { out.push(hl); continue }
+      if (kind === 2) {
+        // a vertical slot is shortened from its top until it fits under the rounded corner
+        const w = b.maxX - b.minX, cx = (b.minX + b.maxX) / 2, slot = (top: number) => stadiumV(cx, (top + b.maxY) / 2, b.maxY - top, w)
+        const fits = (top: number) => sample(slot(top)).every(q => pointIn(q, roomy))
+        let lo = b.minY, hi = b.maxY - 1.5 * w
+        if (hi <= lo || !fits(hi)) continue
+        for (let i = 0; i < 24; i++) { const m = (lo + hi) / 2; if (fits(m)) hi = m; else lo = m }
+        out.push(slot(round3(hi + 0.01)))
+        continue
+      }
+      if (kind !== 0 && kind !== 7) continue
+      const pieces = clipConvex(poly, keep.poly, 'in') ?? clipConvex(poly, nudge(keep.poly, -0.013), 'in')
+      for (const pc of pieces ?? []) { const l = asHole(pc, minEdge); if (l) out.push(l) }
+    }
+    raw = out
+  }
   if (!zone) return raw
   const zb = bboxOf(zone), out: Loop[] = []
   for (const hl of raw) {
     const b = bbox([hl])
     if (b.maxX < zb.x0 - 0.01 || b.minX > zb.x1 + 0.01 || b.maxY < zb.y0 - 0.01 || b.minY > zb.y1 + 0.01) { out.push(hl); continue }
     const poly = sample(hl)
-    // a vertex exactly on the zone's boundary can defeat the walk: a zone a hair bigger clips just as well
-    const pieces = subtractConvex(poly, zone) ?? subtractConvex(poly, zone.map(q => ({ x: q.x + (q.x > (zb.x0 + zb.x1) / 2 ? 0.013 : -0.013), y: q.y + (q.y > (zb.y0 + zb.y1) / 2 ? 0.011 : -0.011) })))
+    const pieces = subtractConvex(poly, zone) ?? subtractConvex(poly, nudge(zone, 0.013))
     if (!pieces) continue
     for (const pc of pieces) { const l = asHole(pc, minEdge); if (l) out.push(l) }
   }
   return out
+}
+
+/**
+ * The field x0..x1 × y0..y1 with its top corners rounded: arcs of radius r about (x0 + r, cy) and (x1 - r, cy), cut
+ * by the field's top edge where they rise above it. Sampled inside the true arcs; `corners` box where it differs.
+ */
+function archField(x0: number, y0: number, x1: number, y1: number, r: number, cy: number): Keep {
+  const k = 18, pts: P2[] = [{ x: x0, y: y1 }]
+  const arc = (cx: number, a0: number, a1: number) => { for (let i = 0; i <= k; i++) { const a = a0 + ((a1 - a0) * i) / k; pts.push({ x: cx + r * Math.cos(a), y: cy + r * Math.sin(a) }) } }
+  arc(x0 + r, Math.PI, 1.5 * Math.PI)
+  arc(x1 - r, 1.5 * Math.PI, 2 * Math.PI)
+  pts.push({ x: x1, y: y1 })
+  // the field's top edge cuts off what of the arcs rises above it
+  const poly = dropCollinear(dedupe(clipRect(pts, x0, y0, x1, y1), 1e-4))
+  return { poly, corners: [{ x0: x0 - 1, y0: y0 - 1, x1: x0 + r, y1: cy }, { x0: x1 - r, y0: y0 - 1, x1: x1 + 1, y1: cy }] }
 }
 
 // ------------------------------------------------------------------ the plaque's engraved frame
@@ -507,35 +557,53 @@ const DIM_NAMES: Record<string, string> = { W: 'العرض', D: 'العمق', H:
 /** wood to keep above and beside the hand hole */
 const HAND_WEB = 12
 
+/** the hand hole's height and the wood above it, for a handle hh tall */
+const holeH = (hh: number) => round3(Math.min(30, Math.max(22, 0.25 * hh)))
+const woodAbove = (hh: number) => round3(Math.max(HAND_WEB, 0.12 * hh))
+const LIM = Object.fromEntries(PARAMS.map(d => [d.key, d])) as Record<string, ParamDef>
+
 function build(p: Record<string, number>, c: Common): BuildResult {
   const warnings: string[] = [], errors: string[] = [], notes: string[] = []
   const t = c.t, { W, D, H, hh, band, hand, cell, seg, bridge, pitch } = p
   const n = Math.round(p.n), kind = KIND[Math.min(7, Math.max(1, Math.round(p.pattern))) - 1], plaque = Math.round(p.plaque) > 0
   for (const k of ['W', 'D', 'H']) if (p[k] < 4 * t) errors.push(`${DIM_NAMES[k]} (${p[k]} مم) أصغر من أربع سماكات (${4 * t} مم)؛ لا مكان للتعشيق.`)
   if (c.kerf > t / 2) warnings.push('عرض الشق (kerf) كبير بشكل غير معتاد.')
+  /** the first value from v up (or down) to the field's limit that passes, or NaN */
+  const search = (key: string, v: number, ok: (x: number) => boolean, dir: 1 | -1 = 1, step = 1) => {
+    const lim = dir > 0 ? LIM[key].max : LIM[key].min
+    for (let x = dir > 0 ? Math.ceil(v / step) * step : Math.floor(v / step) * step; dir > 0 ? x <= lim + 1e-9 : x >= lim - 1e-9; x += dir * step) if (ok(x)) return round3(x)
+    return NaN
+  }
+  const or = (parts: string[]) => parts.filter(Boolean).join(' أو ')
 
   // -------------------------------------------------------------- the handle: rounded top corners, a hand hole
   const fm = round3(2 * t + 2)                                  // solid margin along every edge
   const mb = round3(Math.max(4, t + 2))                         // solid strip either side of the hinge band
-  const rc = round3(Math.min(25, W / 6, hh / 4))                // the handle's top corners
-  const hw = round3(Math.min(30, Math.max(22, 0.25 * hh)))      // the hand hole's height
-  const mt = round3(Math.max(HAND_WEB, 0.12 * hh))              // wood above it
+  const rcOf = (w: number) => round3(Math.min(25, w / 6, hh / 4))
+  const rc = rcOf(W)                                            // the handle's top corners
+  const hw = holeH(hh)                                          // the hand hole's height
+  const mt = woodAbove(hh)                                      // wood above it
   const yh = round3(mt + hw / 2)                                // its centre line
-  // wood between the hole's rounded ends and the handle's outline (the top corners are round)
-  const handWeb = (len: number) => {
-    const ex = W / 2 - len / 2 + hw / 2, inCorner = ex < rc && yh < rc
-    return (inCorner ? rc - Math.hypot(ex - rc, yh - rc) : Math.min(yh, ex)) - hw / 2
+  // wood between the hole's rounded ends and the handle's outline (the top corners are round), for a box w wide
+  const handWeb = (len: number, w = W) => {
+    const r = rcOf(w), ex = w / 2 - len / 2 + hw / 2, inCorner = ex < r && yh < r
+    return (inCorner ? r - Math.hypot(ex - r, yh - r) : Math.min(yh, ex)) - hw / 2
   }
   if (hand <= hw + 2) errors.push(`فتحة اليد أقصر من ارتفاعها (${f1(hw)} مم): اجعل طولها ${f1(hw + 10)} مم على الأقل.`)
   else if (handWeb(hand) < HAND_WEB - 1e-9) {
-    let ok = hand
-    while (ok > hw + 2 && handWeb(ok) < HAND_WEB) ok -= 1
-    if (ok > hw + 2) errors.push(`فتحة اليد (${f1(hand)} مم) تترك ${f1(handWeb(hand))} مم فقط من الخشب حولها بدل ${HAND_WEB}: قصّر فتحة اليد إلى ${f1(ok)} مم أو وسّع الصندوق إلى ${f1(Math.ceil(hand + 2 * (HAND_WEB + hw / 2)))} مم.`)
-    else errors.push(`المقبض ضيّق على فتحة يد: وسّع الصندوق إلى ${f1(Math.ceil(hand + 2 * (HAND_WEB + hw / 2)))} مم أو قصّر فتحة اليد.`)
+    const okLen = search('hand', hand, x => x > hw + 2 && handWeb(x) >= HAND_WEB, -1)
+    const okW = search('W', W, x => handWeb(hand, x) >= HAND_WEB)
+    const fix = or([Number.isFinite(okLen) ? `قصّر فتحة اليد إلى ${f1(okLen)} مم` : '', Number.isFinite(okW) ? `وسّع الصندوق إلى ${f1(okW)} مم` : ''])
+    const left = handWeb(hand)
+    errors.push(`${left > 0 ? `فتحة اليد (${f1(hand)} مم) تترك ${f1(left)} مم فقط من الخشب حولها بدل ${HAND_WEB}` : `فتحة اليد (${f1(hand)} مم) أطول من أن يتّسع لها المقبض بعرض ${f1(W)} مم`}: ${fix || 'قصّر فتحة اليد ووسّع الصندوق'}.`)
   }
   const yHandle0 = round3(mt + hw + fm)                         // the handle's fret starts under the hole
   const yHandle1 = round3(hh - mb)
-  if (hh < mt + hw + fm + mb + 4) errors.push(`المقبض قصير على فتحة اليد وما حولها: اجعل ارتفاعه ${f1(Math.ceil(mt + hw + fm + mb + 4))} مم على الأقل.`)
+  const handleRoom = (h: number) => h - mb - (woodAbove(h) + holeH(h) + fm) - 4
+  if (handleRoom(hh) < 0) {
+    const okH = search('hh', hh, x => handleRoom(x) >= 0)
+    errors.push(`المقبض قصير على فتحة اليد وما حولها: ${Number.isFinite(okH) ? `اجعل ارتفاعه ${f1(okH)} مم على الأقل` : 'استعمل لوحاً أرقّ'}.`)
+  }
 
   // -------------------------------------------------------------- the hinge band and how far the handles lean
   const rows = Math.floor(band / pitch)
@@ -547,17 +615,19 @@ function build(p: Record<string, number>, c: Common): BuildResult {
   // the two handles lean in until their inner faces meet at the top: the band bends into an arc of angle θ and the
   // handle above it stays straight at θ; each must move in half the clear depth
   const reach = D / 2 - t
-  const lean = (th: number) => (band / th) * (1 - Math.cos(th)) + hh * Math.sin(th)
-  let theta = 0
-  {
-    let lo = 1e-4, hi = 75 * DEG
-    if (lean(hi) < reach) theta = hi
-    else { for (let i = 0; i < 40; i++) { const m = (lo + hi) / 2; if (lean(m) < reach) lo = m; else hi = m } theta = hi }
-  }
+  const lean = (th: number, h = hh) => (band / th) * (1 - Math.cos(th)) + h * Math.sin(th)
+  const MAX_LEAN = 75 * DEG, meet = lean(MAX_LEAN) >= reach
+  let theta = MAX_LEAN
+  if (meet) { let lo = 1e-4, hi = MAX_LEAN; for (let i = 0; i < 40; i++) { const m = (lo + hi) / 2; if (lean(m) < reach) lo = m; else hi = m } theta = hi }
   const thetaDeg = Math.round(theta / DEG), R = band / theta
-  const hhFor = (deg: number) => (reach - (band / (deg * DEG)) * (1 - Math.cos(deg * DEG))) / Math.sin(deg * DEG)
-  if (lean(75 * DEG) < reach) warnings.push(`المقبضان لا يلتقيان في القمّة ولو مالا 75°: زد ارتفاع المقبض إلى ${f1(Math.ceil(hhFor(35)))} مم (يميلان عندها 35°) أو قلّل العمق.`)
-  else if (thetaDeg > 40) warnings.push(`كل مقبض يميل ${thetaDeg}° ليلتقي بالآخر، وهذا كثير: زد ارتفاع المقبض إلى ${f1(Math.ceil(hhFor(35)))} مم ليميل 35° فقط، أو قلّل العمق.`)
+  if (!meet || thetaDeg > 40) {
+    // a handle tall enough, or a box shallow enough, for a lean of 35°
+    const okH = search('hh', hh, x => lean(35 * DEG, x) >= reach), okD = Math.floor(2 * (lean(35 * DEG) + t))
+    const fix = or([Number.isFinite(okH) ? `زد ارتفاع المقبض إلى ${f1(okH)} مم` : '', okD >= LIM.D.min ? `قلّل العمق إلى ${f1(okD)} مم` : ''])
+    warnings.push(!meet
+      ? `المقبضان لا يلتقيان في القمّة ولو مال كلّ منهما 75°؛ ${fix || 'قلّل العمق'} ليلتقيا وهما يميلان 35°، أو اربطهما بشريط أطول بينهما.`
+      : `كل مقبض يميل ${thetaDeg}° ليلتقي بالآخر، وهذا كثير: ${fix || 'قلّل العمق'} ليميل 35° فقط.`)
+  }
   if (R < 2 * t) errors.push(`شريط المفصل قصير على انحناء ${thetaDeg}° (نصف قطر ${f1(R)} مم): اجعله ${f1(Math.ceil(2.5 * t * theta))} مم على الأقل.`)
   else if (R - t / 2 < 3 * t) warnings.push(`المفصل ينحني على نصف قطر ${f1(R)} مم فقط وقد يتشقّق؛ شريط بارتفاع ${f1(Math.ceil(3.5 * t * theta + 1))} مم أو أكثر أأمن.`)
 
@@ -567,51 +637,71 @@ function build(p: Record<string, number>, c: Common): BuildResult {
   let zone: P2[] | undefined, frame: Loop[] = [], plaqueAt: { x: number; y: number } | undefined
   if (plaque) {
     const gp = 6                                                // from the hand hole to the frame's scallops
-    const roomH = hh - mb - (mt + hw) - gp, roomW = W - 2 * fm - 2 * zoneM
-    if (pw > roomW + 1e-9) errors.push(`لوحة الإهداء أعرض من المقبض: اجعل عرضها ${f1(Math.floor(roomW * 2) / 2)} مم على الأكثر أو وسّع الصندوق إلى ${f1(Math.ceil(pw + 2 * fm + 2 * zoneM))} مم.`)
-    if (ph > roomH + 1e-9) errors.push(`لوحة الإهداء أطول من مكانها تحت فتحة اليد: اجعل ارتفاعها ${f1(Math.floor(Math.max(0, roomH) * 2) / 2)} مم على الأكثر أو ارتفاع المقبض ${f1(Math.ceil(hh + ph - roomH))} مم على الأقل.`)
+    const roomHOf = (h: number) => h - mb - (woodAbove(h) + holeH(h)) - gp, roomWOf = (w: number) => w - 2 * fm - 2 * zoneM
+    const roomH = roomHOf(hh), roomW = roomWOf(W), off = 'أوقف لوحة الإهداء'
+    if (pw > roomW + 1e-9) {
+      const okPw = Math.floor(roomW * 2) / 2, okW = search('W', W, x => roomWOf(x) >= pw - 1e-9)
+      errors.push(`لوحة الإهداء أعرض من المقبض: ${or([okPw >= LIM.pw.min ? `اجعل عرضها ${f1(okPw)} مم على الأكثر` : '', Number.isFinite(okW) ? `وسّع الصندوق إلى ${f1(okW)} مم` : '', off])}.`)
+    }
+    if (ph > roomH + 1e-9) {
+      const okPh = Math.floor(roomH * 2) / 2, okHh = search('hh', hh, x => roomHOf(x) >= ph - 1e-9)
+      errors.push(`لوحة الإهداء أطول من مكانها تحت فتحة اليد: ${or([okPh >= LIM.ph.min ? `اجعل ارتفاعها ${f1(okPh)} مم على الأكثر` : '', Number.isFinite(okHh) ? `اجعل ارتفاع المقبض ${f1(okHh)} مم على الأقل` : '', off])}.`)
+    }
     if (!errors.length) {
       const y0 = mt + hw + gp, y1 = hh - mb
       const rr = Math.min(10, pw / 5, ph / 5)
       plaqueAt = { x: round3(W / 2 - pw / 2), y: round3(Math.min(Math.max(y0, (y0 + y1) / 2 - ph / 2), y1 - ph)) }
       frame = plaqueFrame(plaqueAt.x, plaqueAt.y, pw, ph, rr)
       // the fret is clipped round the frame and its scallops; a strip of fret narrower than minStrip between the
-      // zone and the field's edge would be slivers, so the zone swallows it
+      // zone and the field's edge would be slivers, so the zone swallows it (it only ever grows)
       const minStrip = Math.max(5, 0.35 * cell), fx0 = fm, fx1 = W - fm
       let zx0 = plaqueAt.x - zoneM, zx1 = plaqueAt.x + pw + zoneM, zy0 = plaqueAt.y - zoneM, zy1 = plaqueAt.y + ph + zoneM
-      if (zx0 - fx0 < minStrip) zx0 = fx0 - 2
-      if (fx1 - zx1 < minStrip) zx1 = fx1 + 2
-      if (zy0 - yHandle0 < minStrip) zy0 = yHandle0 - 2
-      if (yHandle1 - zy1 < minStrip) zy1 = yHandle1 + 2
+      if (zx0 - fx0 < minStrip) zx0 = Math.min(zx0, fx0 - 2)
+      if (fx1 - zx1 < minStrip) zx1 = Math.max(zx1, fx1 + 2)
+      if (zy0 - yHandle0 < minStrip) zy0 = Math.min(zy0, yHandle0 - 2)
+      if (yHandle1 - zy1 < minStrip) zy1 = Math.max(zy1, yHandle1 + 2)
       zone = roundedRectPoly(zx0, zy0, zx1 - zx0, zy1 - zy0, rr + zoneM)
     }
   }
 
   // -------------------------------------------------------------- the fret on every wall
   const total = round3(hh + band + H)
-  const fields = {
-    body: [fm, hh + band + mb, W - fm, total - t - fm] as const,
-    side: [fm, fm, D - fm, H - t - fm] as const,
-    handle: [fm, yHandle0, W - fm, yHandle1] as const,
-  }
+  // the sides' top corners are rounded (as in the photo); their finger joints start below the rounding
+  const rqOf = (d: number, h: number) => round3(Math.min(0.22 * d, 0.3 * h, 30))
+  const rq = rqOf(D, H)
+  type Field = readonly [number, number, number, number]
+  const fieldsFor = (w: number, d: number, h: number, hhv: number) => ({
+    body: [fm, hhv + band + mb, w - fm, hhv + band + h - t - fm] as Field,
+    side: [fm, fm, d - fm, h - t - fm] as Field,
+    handle: [fm, round3(woodAbove(hhv) + holeH(hhv) + fm), w - fm, hhv - mb] as Field,
+  })
+  /** the sides' fret keeps fm - t from their rounded corners, as it does from the joints' notches */
+  const sideKeep = (d: number, h: number): Keep | undefined => { const r = rqOf(d, h), ri = r - (fm - t); return ri > 0.2 ? archField(fm, fm, d - fm, h - t - fm, ri, r) : undefined }
+  const fields = fieldsFor(W, D, H, hh)
   const minEdge = Math.max(0.4, 3.5 * c.kerf)
-  const holesIn = (f: readonly [number, number, number, number], kd = kind, cl = cell, z?: P2[]) => (f[2] - f[0] < 1 || f[3] - f[1] < 1 ? [] : fret(kd, f[0], f[1], f[2], f[3], cl, minEdge, z))
+  const holesIn = (f: Field, cl = cell, z?: P2[], keep?: Keep) => (f[2] - f[0] < 1 || f[3] - f[1] < 1 ? [] : fret(kind, f[0], f[1], f[2], f[3], cl, minEdge, z, keep))
   let bodyHoles: Loop[] = [], sideHoles: Loop[] = [], handleHoles: Loop[] = [], frontHandleHoles: Loop[] = []
   if (!errors.length) {
     bodyHoles = holesIn(fields.body)
-    sideHoles = holesIn(fields.side)
+    sideHoles = holesIn(fields.side, cell, undefined, sideKeep(D, H))
     handleHoles = holesIn(fields.handle)
-    frontHandleHoles = plaque ? holesIn(fields.handle, kind, cell, zone) : handleHoles
-    const needed: [string, readonly [number, number, number, number], Loop[]][] = [['الواجهة', fields.body, bodyHoles], ['الجانب', fields.side, sideHoles]]
-    if (!plaque) needed.push(['المقبض', fields.handle, handleHoles])
-    const bare = needed.find(([, , hs]) => !hs.length)
+    frontHandleHoles = plaque ? holesIn(fields.handle, cell, zone) : handleHoles
+    // every wall that must carry fret: its name, the sizes that make it bigger, and its fret for a cell and sizes
+    type Q = { W: number; D: number; H: number; hh: number }
+    type Wall = { name: string; keys: (keyof Q)[]; holes: (cl: number, q: Q) => Loop[] }
+    const walls: Wall[] = [
+      { name: 'الواجهة', keys: ['H', 'W'], holes: (cl, q) => holesIn(fieldsFor(q.W, q.D, q.H, q.hh).body, cl) },
+      { name: 'الجانب', keys: ['H', 'D'], holes: (cl, q) => holesIn(fieldsFor(q.W, q.D, q.H, q.hh).side, cl, undefined, sideKeep(q.D, q.H)) },
+    ]
+    if (!plaque) walls.push({ name: 'المقبض', keys: ['hh', 'W'], holes: (cl, q) => holesIn(fieldsFor(q.W, q.D, q.H, q.hh).handle, cl) })
+    const now = [bodyHoles, sideHoles, handleHoles], bare = walls.find((_, i) => !now[i].length)
     if (bare) {
-      // the biggest cell every wall takes with this pattern, if any
-      let ok = 0
-      for (let cl = Math.floor(cell * 2) / 2 - 0.5; cl >= 5; cl -= 0.5) if (needed.every(([, f]) => holesIn(f, kind, cl).length)) { ok = cl; break }
-      errors.push(ok > 0
-        ? `${bare[0]} أصغر من الزخرفة بحجم ${f1(cell)} مم: صغّر «حجم الزخرفة» إلى ${f1(ok)} مم على الأكثر، أو كبّر الصندوق.`
-        : `${bare[0]} أصغر من أن يحمل هذه الزخرفة ولو بأصغر حجم: كبّر الصندوق (الجدار يحتاج نحو ${f1(Math.ceil(2 * fm + 2 * 6 + 4))} مم على الأقل في كل اتجاه).`)
+      // the biggest cell every wall takes with this pattern, and the box sizes that take this cell
+      const q0: Q = { W, D, H, hh }, names: Record<keyof Q, string> = { W: 'العرض', D: 'العمق', H: 'ارتفاع الجسم', hh: 'ارتفاع المقبض' }
+      const okCell = search('cell', cell - 0.5, cl => walls.every(w => w.holes(cl, q0).length > 0), -1, 0.5)
+      const grow = bare.keys.map(k => [k, search(k, q0[k], v => walls.every(w => w.holes(cell, { ...q0, [k]: v }).length > 0))] as const).filter(([, v]) => Number.isFinite(v))
+      const fix = or([Number.isFinite(okCell) ? `صغّر «حجم الزخرفة» إلى ${f1(okCell)} مم على الأكثر` : '', ...grow.map(([k, v]) => `اجعل ${names[k]} ${f1(v)} مم`)])
+      errors.push(`${bare.name} أصغر من الزخرفة بحجم ${f1(cell)} مم: ${fix || 'كبّر الصندوق أو اختر زخرفة أخرى'}.`)
     } else if (plaque && !frontHandleHoles.length) warnings.push('لوحة الإهداء تملأ مقبض الواجهة فلا تبقى حولها زخرفة؛ كبّر ارتفاع المقبض أو صغّر اللوحة إن أردت الزخرفة حولها.')
   }
 
@@ -620,33 +710,43 @@ function build(p: Record<string, number>, c: Common): BuildResult {
   const handlePost = (loops: Loop[]) => { roundCorner(loops, 0, 0, rc); roundCorner(loops, W, 0, rc) }
   const hole = stadium(W / 2, yh, hand, hw)
   const bodyFrom = round3(hh + band)
+  // the joints between the walls run below the sides' rounded corners; above them the front and back keep the
+  // corner to themselves, so the sides are cut back by t there
+  const wallEdge: EdgeSpec = { type: 'male', from: round3(bodyFrom + rq), len: round3(H - rq) }
+  const sideEdge: EdgeSpec = { type: 'female', from: rq, len: round3(H - rq) }
+  const sidePost = (loops: Loop[]) => { roundCorner(loops, t, 0, rq); roundCorner(loops, D - t, 0, rq) }
   const panels: PanelSpec[] = [
     { id: 'bottom', name: 'القاعدة', w: W, h: D, top: 'male', right: 'male', bottom: 'male', left: 'male', count: n },
     {
       id: 'front', name: 'الواجهة الأمامية + المقبض (اللوحة)', w: W, h: total, count: n,
-      bottom: 'female', left: { type: 'male', from: bodyFrom, len: H }, right: { type: 'male', from: bodyFrom, len: H },
+      bottom: 'female', left: wallEdge, right: wallEdge,
       holes: [hole, ...frontHandleHoles, ...bodyHoles], open: hinge, engrave: frame, post: handlePost,
       note: plaque ? 'المقبض فوق شريط المفصل، وعليه لوحة الإهداء الفارغة' : 'المقبض فوق شريط المفصل',
     },
     {
       id: 'back', name: 'الواجهة الخلفية + المقبض', w: W, h: total, count: n,
-      bottom: 'female', left: { type: 'male', from: bodyFrom, len: H }, right: { type: 'male', from: bodyFrom, len: H },
+      bottom: 'female', left: wallEdge, right: wallEdge,
       holes: [hole, ...handleHoles, ...bodyHoles], open: hinge, post: handlePost,
       note: 'كالواجهة الأمامية بلا لوحة',
     },
-    { id: 'side', name: 'الجانب', w: D, h: H, bottom: 'female', left: 'female', right: 'female', count: 2 * n, holes: sideHoles, note: 'بين الواجهتين، حافّته العلوية مستوية' },
+    {
+      id: 'side', name: 'الجانب', w: D, h: H, bottom: 'female', left: sideEdge, right: sideEdge, count: 2 * n,
+      cuts: [rect(0, 0, t, rq), rect(D - t, 0, t, rq)], post: sidePost, holes: sideHoles, note: 'بين الواجهتين، زاويتاه العلويتان مستديرتان',
+    },
   ]
 
   // -------------------------------------------------------------- notes
   const holeCount = bodyHoles.length * 2 + sideHoles.length * 2 + handleHoles.length + frontHandleHoles.length
   notes.push(
-    `علبة ${W} × ${D} × ${H} مم مفتوحة من الأعلى بتعشيق أصابع، واجهتاها ترتفعان ${f1(band)} مم شريط مفصل ثم ${f1(hh)} مم مقبضاً بزاويتين مستديرتين وفتحة يد ${f1(hand)} × ${f1(hw)} مم؛ الارتفاع الكلّي قائمةً ${f1(total)} مم.`,
+    `علبة ${W} × ${D} × ${H} مم مفتوحة من الأعلى بتعشيق أصابع، جانباها مستديرا الزاويتين العلويتين (نصف قطر ${f1(rq)} مم)، وواجهتاها ترتفعان ${f1(band)} مم شريط مفصل ثم ${f1(hh)} مم مقبضاً بزاويتين مستديرتين وفتحة يد ${f1(hand)} × ${f1(hw)} مم؛ الارتفاع الكلّي قائمةً ${f1(total)} مم.`,
     `الزخرفة «${PATTERNS[KIND.indexOf(kind)]}» بحجم ${f1(cell)} مم على الجدران الأربعة والمقبضين (${holeCount} ثقباً)، بهامش مصمت ${f1(fm)} مم حول كل حافّة وحول فتحة اليد؛ الجسور بين الثقوب لا تقلّ عن 2 مم.`,
     plaqueAt
       ? `لوحة الإهداء ${f1(pw)} × ${f1(ph)} مم مصمتة في وسط مقبض الواجهة، بإطار محفور مزدوج تحيط به زخارف صغيرة، والزخرفة مقصوصة حولها. تُترك فارغة: اكتب «مع أطيب الأمنيات» أو اسم المهدى إليه داخل الإطار في RDWorks على طبقة الحفر.`
       : 'بلا لوحة إهداء: المقبضان متماثلان.',
-    `التجميع: ألصق القاعدة بين الواجهتين والجانبين بأصابع التعشيق (نقطة غراء خشب في كل أصبع، واضغط حتى يجفّ)؛ الجانبان بين الواجهتين، وحافّتهما العلوية عند أسفل شريط المفصل. ثم اثنِ المقبضين للداخل برفق على شريطَي المفصل حتى يلتقيا في القمّة (كلّ منهما يميل نحو ${thetaDeg}°، على نصف قطر ${f1(R)} مم)، ومرّر شريط ستان في فتحتَي اليد واعقده ليمسكهما معاً ويُحمل منه.`,
-    `المفصل المرن: ${rows} صفوف من القصّات بطول ${f1(seg)} مم وجسور ${f1(bridge)} مم؛ الصفوف المتناوبة تخرج من الحافّتين. الإعدادات الموصى بها للأبلكاش 3 مم: قصّة 20، جسر 3، صفوف 1.5 (وللـ MDF قرّب الصفوف إلى 1.2 واثنِ أبطأ). جرّب الشريط على قطعة صغيرة أولاً، واثنِ المقبض ببطء وبيدين.`,
+    `التجميع: ألصق القاعدة بين الواجهتين والجانبين بأصابع التعشيق (نقطة غراء خشب في كل أصبع، واضغط حتى يجفّ)؛ الجانبان بين الواجهتين، وحافّتهما العلوية عند أسفل شريط المفصل. ${meet
+      ? `ثم اثنِ المقبضين للداخل برفق على شريطَي المفصل حتى يلتقيا في القمّة (كلّ منهما يميل نحو ${thetaDeg}°، على نصف قطر ${f1(R)} مم)، ومرّر شريط ستان في فتحتَي اليد واعقده ليمسكهما معاً ويُحمل منه.`
+      : `ثم اثنِ المقبضين للداخل برفق على شريطَي المفصل قدر ما يلين الشريط (لن يلتقيا في القمّة بهذه المقاسات)، ومرّر شريط ستان في فتحتَي اليد واعقده بينهما ليُحمل منه.`}`,
+    `المفصل المرن: ${rows} صفوف من القصّات بطول ${f1(seg)} مم وجسور ${f1(bridge)} مم، بين الصفّ والصفّ ${f1(pitch)} مم؛ الصفوف المتناوبة تخرج من الحافّتين. الإعدادات الموصى بها للأبلكاش 3 مم: قصّة 20، جسر 3، مسافة الصفوف 1.5 (وللـ MDF قرّب الصفوف إلى 1.2 واثنِ أبطأ). جرّب الشريط على قطعة صغيرة أولاً، واثنِ المقبض ببطء وبيدين.`,
   )
   for (const sp of panels) if (sp.count && n > 1) sp.note = sp.note ? `${sp.note} — ${n} علب` : `${n} علب`
   return { panels, notes, warnings, errors }
@@ -666,4 +766,4 @@ export const GIFT_BAGS: Template[] = [
 ]
 
 /** for tests and previews */
-export const GIFTBAG_GEOM = { subtractConvex, clipRect, roundedRectPoly, ogee, fret, sample, asHole, areaOf, widthOf, HAND_WEB, SCALLOP }
+export const GIFTBAG_GEOM = { subtractConvex, clipConvex, clipRect, roundedRectPoly, ogee, fret, sample, asHole, areaOf, widthOf, HAND_WEB, SCALLOP }

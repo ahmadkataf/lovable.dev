@@ -1458,7 +1458,7 @@ describe('wedding designs', () => {
     expect(generate(T('displaystand'), { N: 6, h: 180, H: 1200 }, { ...S0, t: 3.2 }).errors.join()).toContain('قلّل عدد الدرجات')
   })
 
-  it('the wedding group lists the engagement set, the ring box and the five wedding designs', () => {
-    expect(CATEGORIES.find(c => c.id === 'wedding')!.ids).toEqual(['fabricset', 'engagement', 'hexringbox', 'nikahtray', 'hennatray', 'welcomesign', 'placecards', 'invitebox', 'caketopper', 'guestframe', 'sweetstand', 'tablenumbers', 'favorbox'])
+  it('the wedding group lists the engagement set, the ring box and the wedding designs, the easel beside the welcome sign it carries', () => {
+    expect(CATEGORIES.find(c => c.id === 'wedding')!.ids).toEqual(['fabricset', 'engagement', 'hexringbox', 'nikahtray', 'hennatray', 'welcomesign', 'easel', 'placecards', 'invitebox', 'caketopper', 'guestframe', 'sweetstand', 'tablenumbers', 'favorbox'])
   })
 })

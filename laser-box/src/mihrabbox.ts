@@ -90,7 +90,8 @@ const PATTERN_OPTIONS = ['بلا', 'دوائر', 'شقوق', 'نافذة', 'قل
  * strap width (engraved straps are fine lines).
  */
 export function rosettes(x0: number, y0: number, x1: number, y1: number, cell: number, clipTo?: (face: P2[]) => P2[], strap?: number, near?: (c: P2) => boolean): Loop[] {
-  const nx = Math.max(1, Math.round((x1 - x0) / (3 * cell))), Pd = (x1 - x0) / nx, ny = Math.floor((y1 - y0) / Pd)
+  // (a field a whole number of tiles high must give that number, not one less by a rounding error: the lattice would shift half a tile)
+  const nx = Math.max(1, Math.round((x1 - x0) / (3 * cell))), Pd = (x1 - x0) / nx, ny = Math.floor((y1 - y0) / Pd + 1e-9)
   if (ny < 1) return []
   const w = strap ?? Math.max(2.5, 0.075 * Pd), th = (67.5 * Math.PI) / 180
   const ys = (y0 + y1) / 2 - (ny * Pd) / 2, ye = ys + ny * Pd
@@ -325,7 +326,13 @@ export function insetPath(prof: P2[], W: number, d: number, y0: number): P2[] {
     if (up.length === 0 && q && q.y < y0) { const u = (y0 - q.y) / (p.y - q.y); up.push({ x: q.x + u * (p.x - q.x), y: y0 }) }
     up.push(p)
   }
-  const L = thin(up)
+  // a cut or a mitre a hair from a vertex leaves an edge of a few hundredths of a millimetre, which the kerf offset
+  // turns into a loop: drop vertices closer than 0.3 mm to the last one kept (the ends stay: the cut and the axis)
+  const L = [up[0]]
+  for (let i = 1; i < up.length - 1; i++) if (Math.hypot(up[i].x - L[L.length - 1].x, up[i].y - L[L.length - 1].y) > 0.3) L.push(up[i])
+  const end = up[up.length - 1]
+  while (L.length > 1 && Math.hypot(end.x - L[L.length - 1].x, end.y - L[L.length - 1].y) <= 0.3) L.pop()
+  L.push(end)
   return [...L, ...L.slice(0, -1).reverse().map(q => ({ x: W - q.x, y: q.y }))]
 }
 
@@ -370,6 +377,10 @@ function lozenge(cx: number, cy: number, w: number, h: number): Loop {
 // ------------------------------------------------------------------ the template
 
 const ARCH_STYLES = ['محراب', 'مدبّب', 'مستدير']
+/** the bar across the gold band's foot that joins its two legs */
+const BAR = 4
+/** the knob's screw hole is this much wider than the screw */
+const KNOB_PLAY = 0.4
 
 export const MIHRAB_BOXES: Template[] = [{
   id: 'mihrabbox',
@@ -378,17 +389,17 @@ export const MIHRAB_BOXES: Template[] = [{
   icon: `<path d="M10 42h44v14H10z"/><path d="M14 42V30c0-12 10-18 18-28 8 10 18 16 18 28v12" stroke-width="1.6"/><path d="M19 42V31c0-9 7-14 13-21 6 7 13 12 13 21v11" stroke-width="1"/><path d="M30 38h4M32 34v4" stroke-width="1.5"/><path d="M12 58l-3 3M52 58l3 3" stroke-width="2"/><path d="M18 46l2 2-2 2-2-2zM32 46l2 2-2 2-2-2zM46 46l2 2-2 2-2-2z" stroke-width="1.2"/>`,
   params: [
     mm('W', 'العرض', 100, 600), mm('D', 'العمق', 80, 500), mm('H', 'ارتفاع العلبة', 30, 200, 'بلا الغطاء والأرجل'),
-    mm('A', 'ارتفاع المحراب', 50, 900, 'فوق حافّة العلبة؛ بين نصف العرض وضعفه'),
-    { key: 'style', label: 'شكل القوس', min: 1, max: 3, step: 1, int: true, options: ARCH_STYLES, hint: 'محراب: قوس بصلي برأس مدبّب كما في الصورة' },
+    mm('A', 'ارتفاع المحراب', 50, 900, 'فوق حافّة العلبة؛ بين نصف العرض وضعفه، ونحو 0.7 من العرض كما في الصورة'),
+    { key: 'style', label: 'شكل القوس', min: 1, max: 3, step: 1, int: true, options: ARCH_STYLES, hint: 'مدبّب: قوسان يلتقيان في رأس حادّ كما في الصورة؛ محراب: قوس بصلي ينثني قرب رأسه' },
     mm('band', 'عرض الشريط الذهبي', 6, 60, 'يتبع حافّة المحراب؛ من نحو 18 مم يُخرّم، والأضيق يُحفر'),
     { key: 'pattern', label: 'الزخرفة', min: 0, max: 7, step: 1, int: true, options: PATTERN_OPTIONS, hint: 'الوردات الإسلامية كما في الصورة' },
     mm('cell', 'حجم الزخرفة', 6, 40, 'في الأكريليك 10 مم أو أكثر'),
     { key: 'lidDeco', label: 'معيّن ذهبي على الغطاء', min: 0, max: 1, step: 1, int: true },
-    mm('knob', 'قطر برغي المقبض', 3, 10, 'ثقب المقبض في الغطاء والمعيّن'),
+    mm('knob', 'قطر برغي المقبض', 3, 10, 'ثقب المقبض في الغطاء والمعيّن أوسع منه بـ 0.4 مم'),
     mm('lipH', 'ارتفاع شفة الغطاء', 4, 40), mm('gap', 'خلوص الشفة', 0.2, 2, 'بين إطار الشفة والجدران'),
     { key: 'n', label: 'عدد العلب', min: 1, max: 20, step: 1, int: true },
   ],
-  defaults: { W: 300, D: 220, H: 70, A: 270, style: 1, band: 25, pattern: 7, cell: 12, lidDeco: 1, knob: 4, lipH: 10, gap: 0.5, n: 1 },
+  defaults: { W: 300, D: 220, H: 70, A: 210, style: 2, band: 40, pattern: 7, cell: 12, lidDeco: 1, knob: 4, lipH: 10, gap: 0.5, n: 1 },
   innerAdd: t => ({ W: 2 * t, D: 2 * t, H: t }),
   build(p, c) { return buildMihrab(p, c) },
 }]
@@ -408,20 +419,38 @@ function buildMihrab(p: Record<string, number>, c: Common): BuildResult {
   else if (A > aMax) errors.push(`المحراب طويل جداً لعرضه فيصير رأسه إبرة: اجعل ارتفاعه ${aMax} مم أو أقل، أو وسّع العلبة.`)
   const Au = Math.min(aMax, Math.max(aMin, A))
   const arch = archProfile(style, W, Au)
-  const hb = t + 1 // the band and the arch's fret start here above the walls' top edge: just above the lid's top face
-  // ---- the band: its inner edge's apex (a mitre, band / sin α deep, deeper still where the sides curve in) must stay
-  // well above the lid; the widest band that keeps it 12 mm up is found by halving, the apex sinking as the band grows
-  const innerApex = (b: number) => { const path = insetPath(arch.pts, W, b, hb); return Math.max(...path.map(q => q.y)) }
+  // ---- the gold band. The lid comes off straight up by its lip's height before it can slide forward, and its back
+  // edge lies right under the band's legs: so the band ends lipH + 1 mm above the lid's top face. A bar across its
+  // bottom joins the legs into one frame (as in the photo); the band's opening and the arch's fret start above it.
+  const hb = t + lipH + 1, hIn = hb + BAR
+  // the band's inner apex (a mitre, band / sin α deep, deeper still where the sides curve in) must stay 12 mm above the
+  // bar; the widest band that keeps it there is found by halving, the apex sinking as the band grows
+  const innerApex = (prof: P2[], b: number) => Math.max(...insetPath(prof, W, b, hIn).map(q => q.y))
+  const fitsBand = (prof: P2[], b: number) => innerApex(prof, b) >= hIn + 12
   let bandMax = 0
-  if (innerApex(1) >= hb + 12) {
+  if (fitsBand(arch.pts, 1)) {
     let lo = 1, hi = Math.floor(W / 6)
-    if (innerApex(hi) >= hb + 12) lo = hi
-    else for (let i = 0; i < 12 && hi - lo > 0.5; i++) { const m = (lo + hi) / 2; if (innerApex(m) >= hb + 12) lo = m; else hi = m }
+    if (fitsBand(arch.pts, hi)) lo = hi
+    else for (let i = 0; i < 12 && hi - lo > 0.5; i++) { const m = (lo + hi) / 2; if (fitsBand(arch.pts, m)) lo = m; else hi = m }
     bandMax = Math.floor(lo)
   }
-  if (band > bandMax) errors.push(bandMax >= 6
-    ? `الشريط الذهبي عريض على هذا المحراب (رأسه الداخلي ينزل كثيراً): اجعل عرضه ${bandMax} مم أو أقل.`
-    : `المحراب صغير على شريط ذهبي: ارفع المحراب إلى ${Math.ceil(hb + 12 + 8 / Math.sin(arch.alpha))} مم أو أكثر.`)
+  if (band > bandMax) {
+    if (bandMax >= 6) errors.push(`الشريط الذهبي عريض على هذا المحراب (رأسه الداخلي ينزل كثيراً): اجعل عرضه ${bandMax} مم أو أقل.`)
+    else {
+      // the arch is too low for even the narrowest band above the lid's lip: the lowest arch that takes this band (or the narrowest)
+      let aFix = 0, bFix = band
+      for (const b of [band, 6]) {
+        if (!fitsBand(archProfile(style, W, aMax).pts, b)) continue
+        let lo = Au, hi = aMax
+        while (hi - lo > 1) { const m = Math.floor((lo + hi) / 2); if (fitsBand(archProfile(style, W, m).pts, b)) hi = m; else lo = m }
+        aFix = hi; bFix = b
+        break
+      }
+      errors.push(aFix
+        ? `المحراب منخفض على شريط ذهبي يبدأ فوق شفة الغطاء: ارفع المحراب إلى ${aFix} مم أو أكثر${bFix < band ? ` واجعل عرض الشريط ${bFix} مم` : ''}.`
+        : `المحراب منخفض على شريط ذهبي يبدأ فوق شفة الغطاء: اجعل ارتفاع الشفة ${Math.max(4, Math.floor(lipH / 2))} مم أو أقل.`)
+    }
+  }
   const bu = Math.max(1, Math.min(band, bandMax))
   // ---- the lid's lip frame, as in the lidded gift box; a lip shorter than three thicknesses cannot carry corner
   // fingers, so its corners are butt-glued instead (it is glued to the lid anyway)
@@ -430,32 +459,35 @@ function buildMihrab(p: Record<string, number>, c: Common): BuildResult {
 
   // ---- the walls' fret: solid margins 2t + 2 round every edge, and the lip zone at the top left solid
   const fm = 2 * t + 2, top = Math.max(fm, lipH + 2)
-  const wallHoles = (w: number, ce: number) => (kind > 0 ? pattern(kind, fm, top, w - fm, H - fm, ce) : [])
-  let frontHoles = wallHoles(W, cell)
+  const wallHoles = (w: number, h: number, ce: number) => (kind > 0 ? pattern(kind, fm, top, w - fm, h - fm, ce) : [])
+  let frontHoles = wallHoles(W, H, cell)
   if (kind > 0 && frontHoles.length === 0) {
-    // the wall is too short or narrow for this cell: say the biggest cell that fits, or that the box must grow
-    let fits = 0
-    for (let ce = Math.min(cell, 40) - 0.5; ce >= 6; ce -= 0.5) if (wallHoles(W, ce).length > 0) { fits = ce; break }
+    // the wall is too short or narrow for this cell: say the biggest cell that fits, and the height at which this one does
+    let fits = 0, hFix = 0
+    for (let ce = Math.min(cell, 40) - 0.5; ce >= 6; ce -= 0.5) if (wallHoles(W, H, ce).length > 0) { fits = ce; break }
+    for (let h = Math.ceil(H) + 1; h <= 200; h++) if (wallHoles(W, h, cell).length > 0) { hFix = h; break }
     errors.push(fits > 0
-      ? `الجدران صغيرة على زخرفة بحجم ${cell} مم: اجعل حجم الزخرفة ${fits} مم أو أقل.`
-      : `العلبة صغيرة على الزخرفة (الجدار الأمامي ${W} × ${H} مم): ارفع العلبة إلى ${Math.ceil(top + fm + 3 * 6 + 1)} مم أو أكثر أو اختر «بلا» زخرفة.`)
+      ? `الجدران صغيرة على زخرفة بحجم ${cell} مم: اجعل حجم الزخرفة ${fits} مم أو أقل${hFix ? `، أو ارفع العلبة إلى ${hFix} مم أو أكثر` : ''}.`
+      : hFix
+        ? `العلبة صغيرة على الزخرفة (الجدار الأمامي ${W} × ${H} مم): ارفع العلبة إلى ${hFix} مم أو أكثر أو اختر «بلا» زخرفة.`
+        : `العلبة صغيرة على الزخرفة (الجدار الأمامي ${W} × ${H} مم): اختر «بلا» زخرفة أو اجعل ارتفاع شفة الغطاء ${Math.max(4, Math.floor(lipH / 2))} مم أو أقل.`)
     frontHoles = []
   }
-  const sideHoles = wallHoles(D, cell)
+  const sideHoles = wallHoles(D, H, cell)
 
   // ---- the arch's fret, clipped to the arch inset by the band and a 2 mm glue margin (panel frame: y down, the wall's top edge at y = 0)
-  const archInset = insetPath(arch.pts, W, bu + 2, hb + 2), archIn = envelope(archInset, W)
+  const archInset = insetPath(arch.pts, W, bu + 2, hIn + 2), archIn = envelope(archInset, W)
   const archRegion = archInset.map(q => ({ x: q.x, y: -q.y }))
   // the safety test is a hair looser than the clip: a clipped rosette face sits exactly on the margin, then shrinks by half a strap
-  const archIn1 = envelope(insetPath(arch.pts, W, bu + 1, hb + 1), W)
-  const inArch = (q: P2) => { const h = -q.y; return h >= hb + 1 && h <= archIn1(q.x) }
+  const archIn1 = envelope(insetPath(arch.pts, W, bu + 1, hIn + 1), W)
+  const inArch = (q: P2) => { const h = -q.y; return h >= hIn + 1 && h <= archIn1(q.x) }
   const archHoles: Loop[] = []
   if (kind === 3) {
-    const win = insetPath(arch.pts, W, bu + 2 + Math.max(2, t), hb + 2 + Math.max(2, t))
-    if (win.length > 3 && Math.max(...win.map(q => q.y)) - (hb + 2) > 10) archHoles.push(polyLoop(win.map(q => ({ x: round3(q.x), y: round3(-q.y) })), 'hole'))
+    const win = insetPath(arch.pts, W, bu + 2 + Math.max(2, t), hIn + 2 + Math.max(2, t))
+    if (win.length > 3 && Math.max(...win.map(q => q.y)) - (hIn + 2) > 10) archHoles.push(polyLoop(win.map(q => ({ x: round3(q.x), y: round3(-q.y) })), 'hole'))
   } else if (kind > 0) {
     const nxA = Math.max(1, Math.round(W / (3 * cell))), Pd = W / nxA
-    const yb = -(hb + 2), yt = yb - Math.ceil((Au - hb - 2) / Pd) * Pd
+    const yb = -(hIn + 2), yt = yb - Math.ceil((Au - hIn - 2) / Pd) * Pd
     // tiles whose centre is more than a tile away from the region cannot touch it: the region's top is a height function
     const nearArch = (c: P2) => { const r = 0.8 * Pd, xs = [c.x - r, c.x + r, c.x]; if (c.x - r < W / 2 && c.x + r > W / 2) xs.push(W / 2); return -c.y <= Math.max(...xs.map(archIn)) + r && c.x > bu - r && c.x < W - bu + r }
     const raw = kind === 2 ? [] : kind === 7 ? rosettes(0, yt, W, yb, cell, regionClipper(archRegion), undefined, nearArch) : pattern(kind, 0, yt, W, yb, cell)
@@ -464,7 +496,7 @@ function buildMihrab(p: Record<string, number>, c: Common): BuildResult {
       const pitch = 2 * cell, m = Math.max(1, Math.floor((W - 2 * (bu + 2) - cell) / pitch) + 1), sx = W / 2 - ((m - 1) * pitch) / 2
       for (let i = 0; i < m; i++) {
         const x = sx + i * pitch, hTop = Math.min(archIn(x - cell / 2), archIn(x + cell / 2), archIn(x)) - 1
-        if (hTop - (hb + 2) > 2 * cell) raw.push(stadiumV(round3(x), round3(-(hb + 2 + hTop) / 2), round3(hTop - hb - 2), cell))
+        if (hTop - (hIn + 2) > 2 * cell) raw.push(stadiumV(round3(x), round3(-(hIn + 2 + hTop) / 2), round3(hTop - hIn - 2), cell))
       }
     }
     for (const h of raw) if (outlinePts(h, 2).every(inArch)) archHoles.push(h)
@@ -500,11 +532,12 @@ function buildMihrab(p: Record<string, number>, c: Common): BuildResult {
 
   // ---- the lid: a plate on the front and sides, butting against the arch, with the knob hole and the lozenge's outline engraved
   const Dlid = D - t, lcx = W / 2, lcy = Dlid / 2
-  const lw = Math.round(Math.min(0.3 * W, 0.6 * Dlid)), lh = Math.round((2 * lw) / 3)
+  // the gold lozenge spans about half the lid as in the photo, and keeps an eighth of the lid's depth clear at each end
+  const lw = Math.round(Math.min(0.55 * W, 1.1 * Dlid)), lh = Math.round((2 * lw) / 3)
   const deco = p.lidDeco > 0 && lw >= 30
   if (p.lidDeco > 0 && !deco) warnings.push('الغطاء صغير على المعيّن الذهبي فأُسقط؛ يبقى ثقب المقبض.')
-  if (knob + 6 > Math.min(Wl, Dl) / 2) errors.push(`ثقب المقبض (${knob} مم) كبير على هذا الغطاء.`)
-  const rk = knob / 2
+  if (knob + 6 > Math.min(Wl, Dl) / 2) errors.push(`ثقب المقبض (${knob} مم) كبير على هذا الغطاء: اجعله ${Math.max(3, Math.floor(Math.min(Wl, Dl) / 2 - 6))} مم أو أقل.`)
+  const rk = (knob + KNOB_PLAY) / 2 // the screw passes freely: a tight hole cracks acrylic
   const lidEngrave: Loop[] = deco ? [{ ...lozenge(lcx, lcy, lw, lh), layer: 'engrave' }] : []
   panels.push(
     {
@@ -535,17 +568,18 @@ function buildMihrab(p: Record<string, number>, c: Common): BuildResult {
   }
 
   // ---- the gold band: the arch outline inset by the band width, cut off just above the lid, with a fret bent along it
-  const bandOuter = insetPath(arch.pts, W, 0, hb), bandInner = insetPath(arch.pts, W, bu, hb)
+  // one frame: the arch's outline closed by the bar at its foot, and the opening one band width in, above the bar
+  const bandOuter = insetPath(arch.pts, W, 0, hb), bandInner = insetPath(arch.pts, W, bu, hIn)
   const toBand = (q: P2) => ({ x: round3(q.x), y: round3(Au - q.y) })
-  const bandShape = polyLoop([...bandOuter.map(toBand), ...bandInner.slice().reverse().map(toBand)], 'outer')
+  const bandShape = polyLoop(bandOuter.map(toBand), 'outer'), bandOpening = polyLoop(bandInner.map(toBand), 'hole')
   const bandHoles: Loop[] = [], bandEngrave: Loop[] = []
   // the fret bent along the band: a chain of motifs on the band's centre line, each at least `mg` from both edges; cut
   // when the band is wide enough for the motifs to survive, engraved (closer to the edges, smaller) otherwise
   const bandFret = (mg: number): Loop[] => {
     const zone = bu - 2 * mg, out: Loop[] = []
     if (zone < 6) return out
-    const hOut = envelope(insetPath(arch.pts, W, mg - 0.5, hb + mg - 0.5), W), hIn = envelope(insetPath(arch.pts, W, bu - mg + 0.5, hb), W)
-    const inBand = (q: P2) => q.y >= hb + mg - 0.5 && q.y <= hOut(q.x) && q.y > hIn(q.x)
+    const hOut = envelope(insetPath(arch.pts, W, mg - 0.5, hb + mg - 0.5), W), hOpen = envelope(insetPath(arch.pts, W, bu - mg + 0.5, hb), W)
+    const inBand = (q: P2) => q.y >= hb + mg - 0.5 && q.y <= hOut(q.x) && q.y > hOpen(q.x)
     const strip = bentStrip(insetPath(arch.pts, W, bu / 2, hb))
     const R = zone / 2
     // the first motif above the band's bottom, the last far enough from the apex that its mirror image keeps a strap away
@@ -575,16 +609,16 @@ function buildMihrab(p: Record<string, number>, c: Common): BuildResult {
   }
   const bandDeco = bandHoles.length > 0 || bandEngrave.length > 0
   panels.push({
-    id: 'band', name: 'الشريط الذهبي للمحراب', w: W, h: Au - hb, material: 'gold', shape: [bandShape], holes: bandHoles, engrave: bandEngrave,
-    note: `يُلصق على وجه المحراب الأمامي مع حافّته الخارجية؛ طرفاه ينتهيان ${f1(hb)} مم فوق حافّة العلبة (فوق سطح الغطاء)`,
+    id: 'band', name: 'الشريط الذهبي للمحراب', w: W, h: Au - hb, material: 'gold', shape: [bandShape], holes: [bandOpening, ...bandHoles], engrave: bandEngrave,
+    note: `إطار واحد: القوس وتحته شريط عرضه ${BAR} مم يصل الرجلين؛ يُلصق على وجه المحراب وحافّته الخارجية على حافّة المحراب، وأسفله ${f1(hb)} مم فوق حافّة العلبة`,
   })
   for (const pn of panels) pn.count = (pn.count ?? 1) * n
 
   const notes = [
     `العلبة ${W} × ${D} × ${H} مم، والمحراب يرتفع ${A} مم فوقها (الارتفاع الكلّي ${f1(H + A)} مم بلا الأرجل). الغطاء ${W} × ${f1(Dlid)} مم يجلس على الواجهة والجانبين ويستند بحافّته الخلفية إلى وجه المحراب، فلا يفتح إلا رفعاً.`,
     `التركيب: ركّب الواجهة الأمامية والخلفية (بالمحراب) مع الجانبين على القاعدة بالتعشيق والغراء. ${lipJoint ? 'عشّق' : 'ألصق'} إطار الشفة (${f1(Wl)} × ${f1(Dl)} × ${lipH} مم${lipJoint ? '' : '؛ زواياه ملصوقة لأن الشفة أقصر من ثلاث سماكات'}) وضعه داخل العلبة، ادهن حافّته العلوية بالغراء وأنزل لوح الغطاء عليه وهو في مكانه، فيلتصق في موضعه الصحيح بخلوص ${gap} مم من كل جهة.`,
-    `الشريط الذهبي يُلصق على وجه المحراب الأمامي بحيث تنطبق حافّته الخارجية على حافّة المحراب؛ ينتهي طرفاه ${f1(hb)} مم فوق حافّة العلبة فلا يعيق الغطاء.${bandDeco && !bandCut ? ' الشريط ضيّق على التخريم فزخرفته محفورة؛ من نحو 18 مم فأكثر تُخرَّم.' : ''}`,
-    `المستلزمات: مقبض نحاسي ببرغي قطره ${knob} مم (يمرّ في ثقب الغطاء${deco ? ' والمعيّن الذهبي؛ البرغي نفسه يثبّت المعيّن في مكانه' : ''})، أربعة أرجل نحاسية تُلصق أو تُبرغى على الدوائر المحفورة تحت القاعدة، غراء أكريليك (كلوروفورم) أو غراء فوري شفّاف للشريط والمعيّن.`,
+    `الشريط الذهبي إطار واحد (القوس وشريط ${BAR} مم تحته يصل رجليه): يُلصق على وجه المحراب الأمامي بحيث تنطبق حافّته الخارجية على حافّة المحراب، وأسفله ${f1(hb)} مم فوق حافّة العلبة (${lipH + 1} مم فوق سطح الغطاء)، فيرتفع الغطاء بشفّته من العلبة دون أن تصطدم حافّته الخلفية بالشريط.${bandDeco && !bandCut ? ' الشريط ضيّق على التخريم فزخرفته محفورة؛ من نحو 18 مم فأكثر تُخرَّم.' : ''}`,
+    `المستلزمات: مقبض نحاسي ببرغي قطره ${knob} مم (يمرّ في ثقب الغطاء${deco ? ' والمعيّن الذهبي؛ البرغي نفسه يثبّت المعيّن في مكانه' : ''}؛ الثقب ${f1(knob + KNOB_PLAY)} مم)، أربعة أرجل نحاسية تُلصق أو تُبرغى على الدوائر المحفورة تحت القاعدة، غراء خشب للجسم إن كان خشباً أو MDF (أو كلوروفورم إن كان أكريليك)، وغراء فوري شفّاف للشريط والمعيّن.`,
     kind > 0 ? 'الزخرفة تبتعد عن التعشيق وعن منطقة الشفة؛ في الأكريليك اجعل حجمها 10 مم أو أكثر. يمكن قصّ الجسم من الأكريليك الأبيض والشريط والمعيّن من المرآة الذهبية كما في الصورة.' : 'الجدران بلا زخرفة؛ يبقى الشريط الذهبي على المحراب.',
   ]
   return { panels, notes, warnings, errors }

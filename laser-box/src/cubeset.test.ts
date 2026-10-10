@@ -32,12 +32,13 @@ describe('the acrylic cube set on a tray', () => {
       const base = by(d, 'tray-bottom')
       expect(base.w).toBeCloseTo(3 * 80 + 2 * 2 + 2 * 1 + 2 * t, 3)
       expect(base.h).toBeCloseTo(2 * 80 + 1 * 2 + 2 * 1 + 2 * t, 3)
-      expect(by(d, 'tray-front').h).toBeCloseTo(25, 3)
+      // a low tray, as in the photo: its walls hide about the bottom fifth of the cubes
+      expect(by(d, 'tray-front').h).toBeCloseTo(18, 3)
       expect(d.notes.join(' ')).toMatch(/كلوروفورم|غراء أكريليك/)
     }
   })
 
-  it('the lid: a plate the size of the cube, a lip frame that drops inside the walls with the clearance, the badge slot centred near the back', () => {
+  it('the lid: a plate the size of the cube, a lip frame that drops inside the walls with the clearance, the badge slot in the middle', () => {
     for (const t of [2.7, 3.2, 4]) for (const v of [{}, { a: 60, gap: 1 }, { a: 120, tm: 2 }, { tw: 20 }] as Record<string, number>[]) {
       const p = { ...tpl.defaults, ...v }, label = `${JSON.stringify(v)} t=${t}`
       const d = generate(tpl, p, { ...S0, t })
@@ -55,9 +56,12 @@ describe('the acrylic cube set on a tray', () => {
       expect(s.h, `${label} slot width`).toBeCloseTo((p.tm > 0 ? p.tm : t) + p.fit, 3)
       expect(s.w, `${label} slot length`).toBeCloseTo(g.ft + p.fit, 3)
       expect((s.x0 + s.x1) / 2, `${label} centred`).toBeCloseTo(p.a / 2, 3)
-      // behind the lip strip with 2 mm to spare, and in the back part of the plate
-      expect(s.y0, `${label} clear of the lip`).toBeGreaterThanOrEqual(2 * t + p.gap + 2 - 1e-9)
-      expect(s.y1, `${label} in the back half`).toBeLessThanOrEqual(p.a / 2 + 1e-9)
+      // the badges stand in the middle of the lids in the photo (not at the back edge), the slot parallel to the front
+      expect((s.y0 + s.y1) / 2, `${label} in the middle`).toBeCloseTo(p.a / 2, 3)
+      expect(s.w, `${label} along the front`).toBeGreaterThan(s.h)
+      // inside the lip frame with 2 mm to spare on every side (the foot pokes out under the plate there)
+      const inner = 2 * t + p.gap
+      expect(Math.min(s.x0, s.y0, p.a - s.x1, p.a - s.y1), `${label} clear of the lip`).toBeGreaterThanOrEqual(inner + 2 - 1e-9)
       // the badge's foot is the slot's size less the fit, and as tall as the plate plus a millimetre
       const top = by(d, 'topper'), o = outerOf(top).pts, yMax = Math.max(...o.map(q => q.y))
       const footPts = o.filter(q => Math.abs(q.y - yMax) < 1e-6)
@@ -178,11 +182,101 @@ describe('the acrylic cube set on a tray', () => {
     expect(holesOf(by(d5, 'lid')).length).toBe(0)
   })
 
+  it('every error names a value on the field’s step that, once entered, clears it (3 × 3.2 used to ask for 9.6 and still refuse 9.6)', () => {
+    // error text → the field its value belongs to
+    const rules: [RegExp, string][] = [
+      [/ارتفاع المكعّب .*يلزم ([\d.]+)/, 'h'], [/ارتفاع الشفة .*يلزم ([\d.]+)/, 'lipH'], [/كبّر الضلع إلى ([\d.]+)/, 'a'], [/ضلع المكعّب .*اجعله ([\d.]+)/, 'a'],
+      [/ارتفاع الصينية .*اجعله ([\d.]+)/, 'trayH'], [/اجعل ارتفاعها ([\d.]+)/, 'trayH'], [/اجعلها ([\d.]+) مم على الأقل، أو أطفئ الفواصل/, 'gapC'], [/اجعل سماكته ([\d.]+)/, 'tm'],
+    ]
+    const cases: Record<string, number>[] = [{ h: 12 }, { h: 30, lipH: 30 }, { lipH: 5 }, { lipH: 4 }, { trayH: 10 }, { a: 40 }, { a: 40, tm: 10 }, { a: 45, gap: 2 }, { tm: 0.5 }, { div: 1 }, { div: 1, gapC: 3, trayH: 10 }, { div: 1, a: 40, gapC: 2 }, { a: 40, h: 20 }]
+    let refusedOnce = 0
+    for (const t of [2, 2.7, 3, 3.2, 4, 6]) for (const v of cases) {
+      let p: Record<string, number> = { ...v }, fixed = false
+      for (let round = 0; round < 4 && !fixed; round++) {
+        const errs = generate(tpl, p, { ...S0, t }).errors
+        if (!errs.length) { fixed = true; break }
+        if (round === 0) refusedOnce++
+        // the generic too-thin-finger notice of generate() rides along with the design's own error that causes it
+        const own = errs.filter(e => !/^أصابع التعشيق في|^أصبع الزاوية/.test(e))
+        expect(own.length, `${JSON.stringify(p)} t=${t}: only ${errs.join(' | ')}`).toBeGreaterThan(0)
+        for (const e of own) {
+          const hit = rules.map(([re, key]) => [e.match(re), key] as const).find(([m]) => m)
+          expect(hit, `${JSON.stringify(v)} t=${t}: no value to set in «${e}»`).toBeTruthy()
+          const val = +hit![0]![1], def = tpl.params.find(q => q.key === hit![1])!
+          expect(Math.abs(val / (def.step ?? 1) - Math.round(val / (def.step ?? 1))), `${e}: ${val} is off the field's step`).toBeLessThan(1e-6)
+          expect(val, `${e}: beyond the field`).toBeLessThanOrEqual(def.max)
+          p = { ...p, [hit![1]]: val }
+        }
+      }
+      expect(fixed, `${JSON.stringify(v)} t=${t} → ${JSON.stringify(p)} still refused`).toBe(true)
+    }
+    expect(refusedOnce).toBeGreaterThan(40)
+  })
+
+  it('finger joints mate: along every joint exactly one of the two pieces fills the shared corner column', () => {
+    const at = (pn: { loops: L[] }, x: number, y: number) => pointIn({ x, y }, samplePoly(outerOf(pn) as never, 10))
+    for (const t of [2, 3.2, 6]) for (const v of [{}, { h: 120, a: 60 }, { lipH: 30, h: 100 }, { trayH: 40, rows: 1, cols: 4 }] as Record<string, number>[]) {
+      const p = { ...tpl.defaults, ...v }, d = generate(tpl, p, { ...S0, t }), label = `${JSON.stringify(v)} t=${t}`
+      expect(d.errors, label).toEqual([])
+      // [piece A, its column as a function of the position u along the joint, piece B, its column, joint length]
+      const pairs: [string, (u: number) => [number, number], string, (u: number) => [number, number]][] = []
+      for (const [pre, base] of [['cube', 'cube-bottom'], ['tray', 'tray-bottom']]) {
+        const B = by(d, base), F = by(d, `${pre}-front`), S = by(d, `${pre}-side`)
+        pairs.push([base, u => [u, t / 2], `${pre}-front`, u => [u, F.h - t / 2]])                  // base top edge ↔ front bottom
+        pairs.push([base, u => [t / 2, u], `${pre}-side`, u => [u, S.h - t / 2]])                   // base left edge ↔ side bottom
+        pairs.push([`${pre}-front`, u => [t / 2, u], `${pre}-side`, u => [t / 2, u]])              // front end ↔ side end, up the wall
+        // the bottom t of that column is the base's own corner square, which neither wall reaches
+        expect(at(B, t / 2, t / 2), `${label} ${base} corner`).toBe(true)
+        expect(at(F, t / 2, F.h - t / 2) || at(S, t / 2, S.h - t / 2), `${label} ${pre} walls in the base's corner`).toBe(false)
+      }
+      pairs.push(['lip-fb', u => [t / 2, u], 'lip-side', u => [t / 2, u]])
+      for (const [a, fa, b, fb] of pairs) {
+        const A = by(d, a), Bp = by(d, b)
+        const len = a.endsWith('bottom') ? (fa(0)[0] === t / 2 ? A.h : A.w) : Math.min(A.h, Bp.h) - (a.startsWith('lip') ? 0 : t)
+        for (let k = 0; k < 97; k++) {
+          const u = ((k + 0.5) / 97) * len
+          const inA = at(A, ...fa(u)), inB = at(Bp, ...fb(u))
+          // a finger boundary passes within 0.05 mm: skip, either answer is right there
+          if (at(A, ...fa(u + 0.05)) !== inA || at(A, ...fa(u - 0.05)) !== inA) continue
+          expect(inA !== inB, `${label} ${a} ↔ ${b} at ${u.toFixed(2)}`).toBe(true)
+        }
+      }
+    }
+  })
+
+  it('notes: final assembly with or without dividers, several sets named; warnings for a tray that buries the cubes or outgrows the bed', () => {
+    const d = generate(tpl, { div: 1, gapC: 6 }, S0)
+    expect(d.notes.join(' ')).toMatch(/التجميع الأخير.*خانته/)
+    expect(d.notes.join(' ')).toMatch(/الطولية .*أولاً/)
+    expect(generate(tpl, {}, S0).notes.join(' ')).toMatch(/التجميع الأخير/)
+    expect(generate(tpl, { n: 3 }, S0).notes.join(' ')).toMatch(/3 أطقم: 18 من المكعّبات/)
+    expect(generate(tpl, { rows: 1, cols: 1 }, S0).notes[0]).toMatch(/^مكعّب أكريليك شفّاف/)
+    expect(generate(tpl, {}, S0).warnings).toEqual([])
+    expect(generate(tpl, { trayH: 50 }, S0).warnings.join()).toMatch(/أكثر من نصف ارتفاع المكعّب.*18 مم/)
+    expect(generate(tpl, { cols: 6, a: 120 }, S0).warnings.join()).toMatch(/سرير آلتك/)
+  })
+
+  it('builds at its defaults in well under 150 ms', () => {
+    for (let i = 0; i < 3; i++) generate(tpl, {}, { ...DEFAULT_SETTINGS, t: 3.2 })
+    const t0 = performance.now()
+    for (let i = 0; i < 5; i++) generate(tpl, {}, { ...DEFAULT_SETTINGS, t: 3.2 })
+    expect((performance.now() - t0) / 5).toBeLessThan(150)
+  })
+
   it('robustness grid: every thickness, kerf and parameter extreme either refuses with an error or cuts sound geometry', () => {
     const variants: Record<string, number>[] = [{}]
     for (const def of tpl.params) variants.push({ [def.key]: def.min }, { [def.key]: def.max })
     // the dividers only fit with a wider gap: their extremes once more with room for them
-    variants.push({ div: 1, gapC: 8 }, { div: 1, gapC: 8, rows: 4, cols: 6 }, { div: 1, gapC: 15, a: 150 }, { style: 2, tw: 80 }, { style: 3, tw: 16 }, { style: 3, tw: 80, a: 150 })
+    variants.push({ div: 1, gapC: 8 }, { div: 1, gapC: 8, rows: 4, cols: 6 }, { div: 1, gapC: 15, a: 150 }, { style: 2, tw: 80 }, { style: 3, tw: 16 }, { style: 3, tw: 80, a: 150 }, { div: 1, gapC: 6, a: 40, trayH: 80 })
+    // and a few random combinations of three or four parameters at once (fixed seed), half of them with dividers
+    let seed = 20261010
+    const rnd = () => { seed = (seed * 1103515245 + 12345) % 2147483648; return seed / 2147483648 }
+    for (let i = 0; i < 16; i++) {
+      const v: Record<string, number> = {}
+      for (const def of [...tpl.params].sort(() => rnd() - 0.5).slice(0, 3 + Math.floor(rnd() * 2))) { const st = def.int ? 1 : def.step ?? 1; v[def.key] = Math.round(Math.round((def.min + rnd() * (def.max - def.min)) / st) * st * 1000) / 1000 }
+      if (i % 2) { v.div = 1; v.gapC = Math.max(v.gapC ?? 0, 7.5) }
+      variants.push(v)
+    }
     let runs = 0, refused = 0
     for (const t of [2, 2.7, 3, 3.2, 4, 6]) for (const kerf of [0, 0.2]) for (const v of variants) {
       runs++
