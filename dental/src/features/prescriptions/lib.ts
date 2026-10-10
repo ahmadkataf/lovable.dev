@@ -2,7 +2,7 @@
 // plain-text version of a prescription (WhatsApp). No React, no database: everything here is unit-tested.
 import type { Drug, ISODate, Lang, Patient, Prescription, PrescriptionItem } from '@/db/types'
 import { newId } from '@/db/ids'
-import { addDays, startOfMonth } from '@/lib/dates'
+import { addDays, diffDays, startOfMonth } from '@/lib/dates'
 import { matches } from '@/lib/format'
 
 // ---- presets ------------------------------------------------------------------------------------
@@ -163,6 +163,14 @@ export function filterPrescriptions(list: Prescription[], f: { q: string; preset
     const pt = f.patients.get(p.patientId)
     return matches(pt?.name, q) || (pt ? String(pt.fileNo) === q.replace(/^#/, '') : false) || matches(p.diagnosis, q) || p.items.some(i => matches(i.name, q))
   })
+}
+/**
+ * The short hint shown under a prescription's date: today, yesterday, or the weekday within the past week. Older
+ * (or future) dates get none, since the date itself says it all.
+ */
+export function dayHint(date: ISODate, today: ISODate): 'today' | 'yesterday' | 'weekday' | null {
+  const ago = diffDays(date, today)
+  return ago === 0 ? 'today' : ago === 1 ? 'yesterday' : ago >= 2 && ago <= 6 ? 'weekday' : null
 }
 /** Newest first: by date, then by creation time. */
 export function sortPrescriptions(list: Prescription[]): Prescription[] {

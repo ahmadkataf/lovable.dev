@@ -9,10 +9,10 @@ import { useI18n } from '@/i18n'
 import { useClinic } from '@/app/hooks'
 import { useLicense } from '@/license/useLicense'
 import { Button, Loading, Modal } from '@/ui'
-import { ageFrom, fmtDate } from '@/lib/dates'
+import { ageFrom, fmtDate, fromISODate, weekdayName } from '@/lib/dates'
 import { formatPhone, whatsappLink } from '@/lib/format'
 import { openExternal } from '@/platform'
-import { buildRxText } from './lib'
+import { buildRxText, dayHint } from './lib'
 import { RxMark, SheetClinic, printModalSheet, usePrintCleanup } from './parts'
 
 export function RxSheet({ rx, patient, doctor, clinic, drugs }: { rx: Prescription; patient?: Patient; doctor?: User; clinic: Clinic; drugs?: Map<string, Drug> }) {
@@ -91,6 +91,15 @@ export function RxSheet({ rx, patient, doctor, clinic, drugs }: { rx: Prescripti
       </footer>
     </article>
   )
+}
+
+/** "Today" / "Yesterday" / the weekday name for the past week, else nothing (see dayHint). */
+export function useDayHint() {
+  const { t, lang } = useI18n()
+  return (date: string, today: string): string | null => {
+    const h = dayHint(date, today)
+    return h === 'today' ? t('today') : h === 'yesterday' ? t('yesterday') : h === 'weekday' ? weekdayName(fromISODate(date).getDay(), lang) : null
+  }
 }
 
 /** Plain text of a prescription for WhatsApp, in the UI language. */

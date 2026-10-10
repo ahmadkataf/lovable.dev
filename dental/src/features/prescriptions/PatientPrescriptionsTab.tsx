@@ -7,10 +7,11 @@ import { useI18n } from '@/i18n'
 import { useUsers } from '@/app/hooks'
 import { useLicense } from '@/license/useLicense'
 import { Button, Card, CardHeader, EmptyState, IconButton, Skeleton } from '@/ui'
-import { fromISODate, relativeDay } from '@/lib/dates'
+import { fromISODate } from '@/lib/dates'
+import { todayISO } from '@/db/ids'
 import { duplicateDefaults, itemsSummary, sortPrescriptions } from './lib'
 import PrescriptionFormModal, { type RxFormDefaults } from './PrescriptionFormModal'
-import RxSheetModal from './RxSheet'
+import RxSheetModal, { useDayHint } from './RxSheet'
 import './prescriptions.css'
 
 const PAGE = 10
@@ -25,6 +26,8 @@ export default function PatientPrescriptionsTab({ patientId }: { patientId: stri
   const [form, setForm] = useState<{ prescription?: Prescription; defaults?: RxFormDefaults } | null>(null)
   const [openId, setOpenId] = useState<string | null>(null)
   const [shown, setShown] = useState(PAGE)
+  const dayHintOf = useDayHint()
+  const today = todayISO()
   const monthFmt = useMemo(() => new Intl.DateTimeFormat(lang === 'ar' ? 'ar-SY-u-nu-latn' : 'en-GB', { month: 'short' }), [lang])
 
   const newBtn = !readOnly && <Button variant="primary" size="sm" icon={<FilePlus2 />} onClick={() => setForm({ defaults: { patientId } })}>{t('prescriptions.new')}</Button>
@@ -46,7 +49,7 @@ export default function PatientPrescriptionsTab({ patientId }: { patientId: stri
               <div className="grow" style={{ minWidth: 0 }}>
                 <div className="rx-pitem-head">
                   <span className="li-main truncate">{rx.diagnosis || t('prescriptions.sheet.title')}</span>
-                  <span className="rx-pitem-when">{relativeDay(rx.date, lang)}</span>
+                  {dayHintOf(rx.date, today) && <span className="rx-pitem-when">{dayHintOf(rx.date, today)}</span>}
                 </div>
                 <div className="rx-sum mt-1">
                   {s.names.map((n, i) => <span key={i} className="rx-sum-pill" dir="auto">{n}</span>)}

@@ -11,11 +11,11 @@ import { useDebounced, useIsMobile, useUsers } from '@/app/hooks'
 import { useSession } from '@/app/session'
 import { useLicense } from '@/license/useLicense'
 import { Alert, Avatar, Button, Card, DataTable, EmptyState, IconButton, Input, PageHeader, Pagination, Segmented, Skeleton, Tabs, useConfirmDelete, usePagination, useToast, type Column } from '@/ui'
-import { fmtDate, relativeDay } from '@/lib/dates'
+import { fmtDate } from '@/lib/dates'
 import { DATE_PRESETS, duplicateDefaults, filterPrescriptions, itemsSummary, sortPrescriptions, type DatePreset } from './lib'
 import { deletePrescription } from './actions'
 import PrescriptionFormModal, { type RxFormDefaults } from './PrescriptionFormModal'
-import RxSheetModal from './RxSheet'
+import RxSheetModal, { useDayHint } from './RxSheet'
 import DrugsTab from './DrugsTab'
 import { useElementWidth } from './parts'
 import './prescriptions.css'
@@ -59,6 +59,7 @@ function RxList({ onNew, onEdit, onDuplicate }: { onNew: () => void; onEdit: (rx
   const { readOnly } = useLicense()
   const users = useUsers(false)
   const today = todayISO()
+  const dayHintOf = useDayHint()
   const [q, setQ] = useState('')
   const dq = useDebounced(q)
   const [preset, setPreset] = useState<DatePreset>('all')
@@ -76,13 +77,19 @@ function RxList({ onNew, onEdit, onDuplicate }: { onNew: () => void; onEdit: (rx
   const listEl = useRef<HTMLDivElement | null>(null)
   const setList = useCallback((el: HTMLDivElement | null) => { listEl.current = el; listRef(el) }, [listRef])
   const [narrow, setNarrow] = useState(false)
-  const fitFor = useRef<number | null>(null)
+  const fit = useRef({ w: null as number | null, at: 0 })
   useLayoutEffect(() => {
     if (mobile) return
-    if (fitFor.current !== listW) { fitFor.current = listW; if (narrow) { setNarrow(false); return } }
+    const f = fit.current
+    if (f.w !== listW) {
+      // only a clearly wider list tries the table again (a page scrollbar coming and going must not flip it)
+      const grew = listW !== null && f.w !== null && listW > f.at + 24
+      f.w = listW
+      if (grew && narrow) { setNarrow(false); return }
+    }
     if (narrow) return
     const wrap = listEl.current?.querySelector('.table-wrap')
-    if (wrap && wrap.scrollWidth > wrap.clientWidth + 1) setNarrow(true)
+    if (wrap && wrap.scrollWidth > wrap.clientWidth + 1) { f.at = listW ?? 0; setNarrow(true) }
   })
   const cards = mobile || narrow
 
@@ -121,7 +128,7 @@ function RxList({ onNew, onEdit, onDuplicate }: { onNew: () => void; onEdit: (rx
     </div>
   )
   const columns: Column<Prescription>[] = [
-    { key: 'date', header: t('date'), render: rx => <div><div className="cell-main rx-nowrap">{fmtDate(rx.date, lang)}</div><div className="cell-sub">{relativeDay(rx.date, lang)}</div></div>, width: 150 },
+    { key: 'date', header: t('date'), render: rx => <div><div className="cell-main rx-nowrap">{fmtDate(rx.date, lang)}</div>{dayHintOf(rx.date, today) && <div className="cell-sub">{dayHintOf(rx.date, today)}</div>}</div>, width: 150 },
     { key: 'patient', header: t('patient'), render: patientCell },
     { key: 'doctor', header: t('doctor'), render: rx => <span className="rx-nowrap text-sm">{userMap.get(rx.doctorId)?.name ?? '—'}</span>, hideBelow: 'lg' },
     { key: 'items', header: t('prescriptions.col.items'), render: rx => <div>{summary(rx)}{rx.diagnosis && <div className="cell-sub truncate rx-diag-sub rx-auto" dir="auto">{rx.diagnosis}</div>}</div> },

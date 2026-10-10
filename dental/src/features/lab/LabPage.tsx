@@ -58,13 +58,19 @@ export default function LabPage() {
   const boardEl = useRef<HTMLDivElement | null>(null)
   const setBoard = useCallback((el: HTMLDivElement | null) => { boardEl.current = el; boardRef(el) }, [boardRef])
   const [layout, setLayout] = useState<'full' | 'compact' | 'cards'>('full')
-  const fitFor = useRef<number | null>(null)
+  const fit = useRef({ w: null as number | null, at: 0 })
   useLayoutEffect(() => {
     if (mobile) return
-    if (fitFor.current !== boardW) { fitFor.current = boardW; if (layout !== 'full') { setLayout('full'); return } }
+    const f = fit.current
+    if (f.w !== boardW) {
+      // only a clearly wider board tries the roomier layouts again (a page scrollbar coming and going must not flip it)
+      const grew = boardW !== null && f.w !== null && boardW > f.at + 24
+      f.w = boardW
+      if (grew && layout !== 'full') { setLayout('full'); return }
+    }
     if (layout === 'cards') return
     const wrap = boardEl.current?.querySelector('.table-wrap')
-    if (wrap && wrap.scrollWidth > wrap.clientWidth + 1) setLayout(layout === 'full' ? 'compact' : 'cards')
+    if (wrap && wrap.scrollWidth > wrap.clientWidth + 1) { f.at = boardW ?? 0; setLayout(layout === 'full' ? 'compact' : 'cards') }
   })
   const cards = mobile || layout === 'cards'
   const filtered = !!(lab || doctorId || due || dq || status !== 'all')

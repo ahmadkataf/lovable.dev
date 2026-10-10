@@ -1,6 +1,6 @@
 import type { Drug, LabOrder, Patient, Prescription, PrescriptionItem } from '../src/db/types'
 import {
-  DRUG_FORMS, DURATION_DAYS, FREQUENCY_PRESETS, INSTRUCTION_PRESETS, buildRxText, draftsToItems, duplicateDefaults, duplicateItems, durationLabel, durationPresets, emptyItem, filterPrescriptions,
+  DRUG_FORMS, DURATION_DAYS, FREQUENCY_PRESETS, dayHint, INSTRUCTION_PRESETS, buildRxText, draftsToItems, duplicateDefaults, duplicateItems, durationLabel, durationPresets, emptyItem, filterPrescriptions,
   hasErrors, isBlankItem, itemFromDrug, itemTitle, itemToDraft, itemsSummary, presetRange, regimenLine, searchDrugs, sortPrescriptions, validatePrescription,
 } from '../src/features/prescriptions/lib'
 import {
@@ -124,6 +124,13 @@ describe('prescriptions: items', () => {
 
 describe('prescriptions: list filters and text', () => {
   const patients = new Map<string, Patient>([['p1', { id: 'p1', fileNo: 12, name: 'محمد الأحمد', gender: 'male', allergies: [], chronicDiseases: [], medications: [], tags: [], archived: false, createdAt: '', updatedAt: '' }]])
+  it('day hints: today, yesterday, the past week, then nothing', () => {
+    expect(dayHint(TODAY, TODAY)).toBe('today')
+    expect(dayHint('2026-10-09', TODAY)).toBe('yesterday')
+    expect(dayHint('2026-10-04', TODAY)).toBe('weekday')
+    expect(dayHint('2026-10-03', TODAY)).toBeNull()
+    expect(dayHint('2026-10-11', TODAY)).toBeNull()
+  })
   it('date presets', () => {
     expect(presetRange('all', TODAY)).toBeNull()
     expect(presetRange('today', TODAY)).toEqual({ from: TODAY, to: TODAY })
