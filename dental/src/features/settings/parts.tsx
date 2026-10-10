@@ -1,7 +1,8 @@
 // Building blocks shared by the settings tabs: the draft hook, the save bar, option cards, the type-to-confirm dialog.
-import { useCallback, useEffect, useState, type ButtonHTMLAttributes, type ReactNode } from 'react'
+import { useCallback, useEffect, useRef, useState, type ButtonHTMLAttributes, type ReactNode } from 'react'
+import { useBlocker } from 'react-router-dom'
 import { Check, CheckCircle2, Lock, Save } from 'lucide-react'
-import { Alert, Button, Card, CardBody, Input, Modal, Skeleton } from '@/ui'
+import { Alert, Button, Card, CardBody, Input, Modal, Skeleton, useConfirm } from '@/ui'
 import { useI18n } from '@/i18n'
 import { useSession } from '@/app/session'
 import { useLicense } from '@/license/useLicense'
@@ -28,6 +29,37 @@ export function useDraft<S, D>(source: S | undefined, from: (s: S) => D) {
   const reset = useCallback((next?: S) => { const s = next ?? source; if (s !== undefined) setDraft(from(s)) }, [source]) // eslint-disable-line react-hooks/exhaustive-deps
   const patch = useCallback((p: Partial<D>) => setDraft(d => (d ? { ...d, ...p } : d)), [])
   return { draft, setDraft, patch, dirty, reset }
+}
+
+/**
+ * Runs one async action at a time. A ref (not state) guards it, so a double click or a held Enter cannot start
+ * the same save twice before React re-renders the button as busy.
+ */
+export function useSingleFlight() {
+  const running = useRef(false)
+  return useCallback(async (fn: () => Promise<void>) => {
+    if (running.current) return
+    running.current = true
+    try { await fn() } finally { running.current = false }
+  }, [])
+}
+
+/**
+ * Asks before leaving a form with unsaved changes (another settings tab or another page). Locking the app or
+ * signing out is never held back.
+ */
+export function useUnsavedGuard(dirty: boolean) {
+  const { t } = useI18n()
+  const confirm = useConfirm()
+  const blocker = useBlocker(useCallback(({ currentLocation, nextLocation }: { currentLocation: { pathname: string }; nextLocation: { pathname: string } }) =>
+    dirty && currentLocation.pathname !== nextLocation.pathname && nextLocation.pathname !== '/login' && nextLocation.pathname !== '/setup', [dirty]))
+  useEffect(() => {
+    if (blocker.state !== 'blocked') return
+    let alive = true
+    void confirm({ title: t('settings.leaveTitle'), description: t('settings.leaveDesc'), confirmLabel: t('settings.leaveConfirm'), cancelLabel: t('settings.stay'), danger: true })
+      .then(ok => { if (alive) (ok ? blocker.proceed : blocker.reset)() })
+    return () => { alive = false }
+  }, [blocker.state]) // eslint-disable-line react-hooks/exhaustive-deps
 }
 
 /** t() for a validation message, undefined when there is none. */

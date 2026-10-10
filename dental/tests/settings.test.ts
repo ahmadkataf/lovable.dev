@@ -5,9 +5,11 @@ import {
   backupAgeDays, backupFileName, backupHealth, billingDraftFrom, billingPatch, clinicDraftFrom, clinicPatch, formatCodeInput, hoursPerDay,
   invoiceSeq, isCodeComplete, isWebsite, lastInvoiceSeq, lockMinutes, lockMs, mailtoLink, parseBackup, previewInvoiceNumber, renewSoon,
   resolveTab, sampleTotals, trialUsedPercent, typedConfirm, validateBilling, validateClinic, validateHours, visibleTabs, withCurrency,
+  codeDay, trialEndsAt,
 } from '../src/features/settings/lib'
+import { translate } from '../src/i18n'
 import { eraseEverything, restoreBackup } from '../src/features/settings/backup'
-import { clinicMessage, formatDeviceInput, isDeviceNumber, issueCode, parseLog, parseUntil, toCSV, untilISO, waLink } from '../tools/generator-lib'
+import { clinicMessage, formatDeviceInput, isDeviceNumber, issueCode, ltr, parseLog, parseUntil, toCSV, untilISO, waLink } from '../tools/generator-lib'
 
 const clinic = (p: Partial<Clinic> = {}): Clinic => ({ ...DEFAULT_CLINIC, name: 'عيادة الابتسامة', setupDone: true, ...p })
 
@@ -232,7 +234,7 @@ describe('seller code generator', () => {
   it('writes the clinic message, the WhatsApp link and the CSV log', () => {
     const i = { code: 'ABCD-EFGH-JKLM-NPQR', plan: 'pro' as const, until: '2027-10-10', device: '7KQ4-M2XD' }
     expect(clinicMessage(i, 'ar', 'عيادة النور')).toContain('ABCD-EFGH-JKLM-NPQR')
-    expect(clinicMessage(i, 'ar')).toContain('صالح حتى 2027-10-10')
+    expect(clinicMessage(i, 'ar')).toContain('صالح حتى \u200E2027-10-10')
     expect(clinicMessage({ ...i, until: null }, 'en')).toContain('lifetime license')
     expect(waLink('0944 123 456', 'hi')).toBe('https://wa.me/963944123456?text=hi')
     expect(waLink('+966 50 000 0000', 'hi')).toBe('https://wa.me/966500000000?text=hi')
@@ -241,5 +243,46 @@ describe('seller code generator', () => {
     expect(csv).toContain('"عيادة ""النور"", دمشق"')
     expect(parseLog('not json')).toEqual([])
     expect(parseLog(JSON.stringify([{ code: 'A', device: 'B' }, { nope: 1 }]))).toHaveLength(1)
+  })
+})
+
+describe('review fixes', () => {
+  it('formats a pasted code even with surrounding spaces, separators and lower case', () => {
+    // the input used to have maxLength=19, which cut "  abcd - efgh - ..." before it could be cleaned
+    expect(formatCodeInput('  abcd - efgh - jkLM - npqr \n')).toBe('ABCD-EFGH-JKLM-NPQR')
+    expect(formatCodeInput('\u200EABCD-EFGH-JKLM-NPQR')).toBe('ABCD-EFGH-JKLM-NPQR')
+    expect(formatDeviceInput(' \u200E2345 abcd ')).toBe('2345-ABCD')
+  })
+  it('ends the trial at the install instant + 7 days, not on the UTC date of install', () => {
+    const at = '2026-10-09T22:30:00.000Z'   // 01:30 on 10 October in Damascus
+    expect(trialEndsAt(at, 7)?.toISOString()).toBe('2026-10-16T22:30:00.000Z')
+    expect(trialEndsAt(null, 7)).toBeNull()
+    expect(trialEndsAt('nope', 7)).toBeNull()
+  })
+  it('shows a code\'s last day as the UTC day it encodes', () => {
+    expect(codeDay(new Date(Date.UTC(2027, 9, 10)))).toBe('2027-10-10')
+  })
+  it('keeps device numbers, codes and dates left-to-right inside Arabic messages', () => {
+    const i = { code: '2632-226Z-SH8Y-G6QN', plan: 'standard' as const, until: '2027-01-31', device: '2345-ABCD' }
+    const msg = clinicMessage(i, 'ar')
+    expect(msg).toContain(`رقم الجهاز: ${ltr('2345-ABCD')}`)
+    expect(msg).toContain(`\n${ltr('2632-226Z-SH8Y-G6QN')}\n`)
+    expect(msg).toContain(`صالح حتى ${ltr('2027-01-31')}`)
+    expect(translate('ar', 'license.requestMsg', { clinic: 'عيادة النور', device: '2345-ABCD' })).toContain('رقم الجهاز: \u200E2345-ABCD')
+    expect(translate('ar', 'license.requestSubject', { device: '2345-ABCD' })).toContain('\u200E2345-ABCD')
+  })
+})
+
+describe('font cards', () => {
+  it('render each choice with exactly the stack fonts.css applies for it', async () => {
+    const fs = await import('node:fs')
+    const path = await import('node:path')
+    const css = fs.readFileSync(path.resolve(process.cwd(), 'src/styles/fonts.css'), 'utf8')
+    const { FONT_FAMILIES } = await import('../src/features/settings/lib')
+    const { FONT_OPTIONS } = await import('../src/app/theme')
+    for (const o of FONT_OPTIONS) {
+      const m = new RegExp(`\\[data-font="${o.key}"\\][^{]*\\{\\s*--font:\\s*([^;]+);`).exec(css)
+      expect(m?.[1].trim(), o.key).toBe(FONT_FAMILIES[o.key])
+    }
   })
 })

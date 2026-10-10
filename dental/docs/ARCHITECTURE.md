@@ -58,6 +58,10 @@ Status colours: appointment statuses `var(--st-<status>)`, tooth conditions `var
 - Dates/times: `fmtDate(d, lang)`, `fmtTime(iso, lang)`; money: `useMoney()`. Do not force `fmtTime` output LTR (the Arabic ص/م marker would read backwards); use `unicode-bidi: isolate` instead.
 - `.num`, `.money` and `.ltr` set `direction: ltr`, so logical margins on that same element resolve to physical left in RTL: put them on an inner span, never on an element that carries logical margins.
 - Person names: add `dir="auto"` (or `.name-auto`) so an Arabic name in the English UI (and the reverse) truncates at its own end.
+- Formatted dates and times (`fmtDate`, `fmtTime`) go in `<bdi>`, never in `.num` (that would reverse Arabic month names and the ص/م marker). Keep `.num` for digits, phones and codes.
+- Quick-add dialogs open from anywhere with `window.dispatchEvent(new CustomEvent('dentora:quick-add', { detail: 'patient' | 'appointment' | 'payment' }))`.
+- The kit `Menu` renders in a portal and flips upward near the screen edge, so tables and cards never clip it.
+- localStorage keys: `dentora.session`, `dentora.lang`, `dentora.font`, `dentora.sidebar`, `dentora.lockAfter`, `dentora.device`, `dentora.search.recent`, `dentora.notif.seen`.
 - Escape closes only the top-most overlay (`useEscapeLayer(onClose)` for custom overlays). Routes are permission-guarded in App.tsx.
 
 ## Design rules (the product sells on looks)

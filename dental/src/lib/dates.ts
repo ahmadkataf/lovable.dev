@@ -12,7 +12,14 @@ export function fromISODate(s: ISODate): Date {
 }
 export function today(): ISODate { return toISODate(new Date()) }
 export function addDays(s: ISODate, n: number): ISODate { const d = fromISODate(s); d.setDate(d.getDate() + n); return toISODate(d) }
-export function addMonths(s: ISODate, n: number): ISODate { const d = fromISODate(s); d.setMonth(d.getMonth() + n); return toISODate(d) }
+/** 2026-01-31 + 1 month → 2026-02-28 (clamped to the target month, never spilling into the next one). */
+export function addMonths(s: ISODate, n: number): ISODate {
+  const d = fromISODate(s)
+  const target = new Date(d.getFullYear(), d.getMonth() + n, 1)
+  const last = new Date(target.getFullYear(), target.getMonth() + 1, 0).getDate()
+  target.setDate(Math.min(d.getDate(), last))
+  return toISODate(target)
+}
 export function startOfWeek(s: ISODate, weekStart = 6): ISODate {   // Saturday by default (Levant)
   const d = fromISODate(s); const diff = (d.getDay() - weekStart + 7) % 7; d.setDate(d.getDate() - diff); return toISODate(d)
 }

@@ -66,9 +66,9 @@ export default function PatientsTab({ period, data, setExport, onShowYear }: Tab
 
   const spendCols: Column<(typeof spendRows)[number]>[] = [
     { key: 'p', header: t('patient'), render: s => { const p = data?.patientMap.get(s.patientId); return (
-      <div className="row gap-3" style={{ minWidth: 0 }}>
+      <div className="row gap-3 rp-namecell">
         <Avatar name={p?.name ?? '?'} src={p?.photo} size="sm" />
-        <div className="grow"><Link to={`/patients/${s.patientId}`} className="cell-main truncate" style={{ display: 'block', color: 'var(--text)' }}><bdi>{p?.name ?? t('unknown')}</bdi></Link>
+        <div className="grow"><Link to={`/patients/${s.patientId}`} className="cell-main truncate" style={{ color: 'var(--text)' }}><bdi>{p?.name ?? t('unknown')}</bdi></Link>
           {p && <div className="cell-sub">{t('fileNo')} <span className="num">{p.fileNo}</span></div>}</div>
       </div>) } },
     { key: 'n', header: t('reports.pat.payments'), className: 'num', hideBelow: 'sm', render: s => <span className="num">{num(s.payments)}</span> },

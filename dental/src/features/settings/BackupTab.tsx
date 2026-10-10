@@ -11,7 +11,7 @@ import { formatNumber } from '@/lib/format'
 import { DEMO_STEPS, loadDemoData, type DemoStep } from '@/features/seed/demo'
 import { backupAgeDays, backupHealth, parseBackup, type BackupSummary } from './lib'
 import { eraseEverything, exportBackupFile, restartApp, restoreBackup } from './backup'
-import { SectionTitle, TypeToConfirm, useAccess } from './parts'
+import { SectionTitle, TypeToConfirm, useAccess, useSingleFlight } from './parts'
 
 export default function BackupTab() {
   const { t, lang } = useI18n()
@@ -29,17 +29,18 @@ export default function BackupTab() {
   const [busy, setBusy] = useState(false)
   const [resetOpen, setResetOpen] = useState(false)
   const [demo, setDemo] = useState<{ step: DemoStep; index: number } | null>(null)
+  const once = useSingleFlight()
 
   const health = lastBackup === undefined ? null : backupHealth(lastBackup)
   const age = backupAgeDays(lastBackup)
 
-  const doExport = async () => {
+  const doExport = () => once(async () => {
     setExporting(true)
     try {
       const name = await exportBackupFile(t('settings.bk.act.backup'), access.userId)
       if (name) toast.success(t('settings.bk.exported'), t('settings.bk.exportedDesc', { file: name }))
     } catch { toast.error(t('settings.bk.exportFailed')) } finally { setExporting(false) }
-  }
+  })
 
   const chooseBackup = async () => {
     setRestoreError(null)
@@ -51,29 +52,33 @@ export default function BackupTab() {
     if (!r.ok) { setRestoreError(t(`settings.bk.err.${r.reason}`)); return }
     setRestore({ file: file.name, data: r.data, summary: r.summary })
   }
-  const doRestore = async () => {
-    if (!restore) return
+  // Restore and reset end with a reload, so after success they stay busy (and locked) until the page goes away.
+  const doRestore = () => once(async () => {
+    if (!restore || busy) return
     setBusy(true)
     try {
       await restoreBackup(restore.data)
       toast.success(t('settings.bk.restored'), t('settings.bk.restoredDesc'))
-      window.setTimeout(() => restartApp('/'), 900)
+      await new Promise<void>(r => window.setTimeout(r, 900))
+      restartApp('/')
     } catch {
       setBusy(false)
       toast.error(t('settings.bk.restoreFailed'))
     }
-  }
+  })
 
-  const doReset = async () => {
+  const doReset = () => once(async () => {
+    if (busy) return
     setBusy(true)
     try {
       await eraseEverything()
       toast.success(t('settings.bk.resetDone'))
-      window.setTimeout(() => restartApp('/setup'), 700)
+      await new Promise<void>(r => window.setTimeout(r, 700))
+      restartApp('/setup')
     } catch { setBusy(false); toast.error(t('error')) }
-  }
+  })
 
-  const loadDemo = async () => {
+  const loadDemo = () => once(async () => {
     const ok = await confirm({ title: t('seed.loadDemo'), description: <>{t('seed.loadDemoConfirm')}<br /><br />{t('seed.demoDoctors')}</>, confirmLabel: t('seed.loadDemo') })
     if (!ok) return
     setDemo({ step: DEMO_STEPS[0], index: 0 })
@@ -87,7 +92,7 @@ export default function BackupTab() {
       setDemo(null)
       toast.error(t('seed.failed'))
     }
-  }
+  })
 
   const stats = [
     { icon: <Users />, label: t('patients'), value: counts?.patients },
@@ -128,7 +133,7 @@ export default function BackupTab() {
           {health === 'old' && <Alert tone="warning" title={t('settings.bk.oldTitle', { n: age ?? 0 })} className="mt-4">{t('settings.bk.oldDesc')}</Alert>}
           {health === 'ok' && lastBackup && <Alert tone="success" title={t('settings.bk.okTitle')} className="mt-4">{t('settings.bk.okDesc', { when: timeAgo(lastBackup, lang) })}</Alert>}
           <div className="st-actions">
-            <Button variant="primary" size="lg" icon={<Download />} loading={exporting} onClick={doExport} data-qa="export-backup">{t('settings.bk.export')}</Button>
+            <Button variant="primary" size="lg" icon={<Download />} loading={exporting} onClick={() => void doExport()} data-qa="export-backup">{t('settings.bk.export')}</Button>
             {access.readOnly && <span className="text-sm muted">{t('settings.bk.readonlyExport')}</span>}
           </div>
         </CardBody>
@@ -148,7 +153,7 @@ export default function BackupTab() {
         <CardBody>
           <SectionTitle icon={<Sparkles />} title={t('settings.bk.demoTitle')} sub={t('seed.loadDemoDesc')} tone="success" />
           {counts !== undefined && !canDemo && <div className="mb-4" data-qa="demo-blocked"><Alert tone="info">{t('settings.bk.demoBlocked', { n: counts.patients })}</Alert></div>}
-          <Button variant="soft" icon={<Sparkles />} onClick={loadDemo} disabled={!canDemo || access.readOnly} data-qa="load-demo">{t('seed.loadDemo')}</Button>
+          <Button variant="soft" icon={<Sparkles />} onClick={() => void loadDemo()} disabled={!canDemo || access.readOnly} data-qa="load-demo">{t('seed.loadDemo')}</Button>
         </CardBody>
       </Card>
 
@@ -168,7 +173,7 @@ export default function BackupTab() {
 
       {/* ---- restore confirmation ---- */}
       <TypeToConfirm open={!!restore} onClose={() => setRestore(null)} title={t('settings.bk.confirmTitle')} subtitle={t('settings.bk.confirmSub')} icon={<RotateCcw />}
-        word={t('settings.bk.replaceWord')} confirmLabel={t('settings.bk.restoreBtn')} busy={busy} onConfirm={doRestore}>
+        word={t('settings.bk.replaceWord')} confirmLabel={t('settings.bk.restoreBtn')} busy={busy} onConfirm={() => void doRestore()}>
         {restore && (
           <>
             <div className="st-file-card">
@@ -192,8 +197,8 @@ export default function BackupTab() {
 
       {/* ---- reset confirmation ---- */}
       <TypeToConfirm open={resetOpen} onClose={() => setResetOpen(false)} title={t('settings.bk.resetTitle')} icon={<AlertTriangle />}
-        word={t('settings.bk.resetWord')} confirmLabel={t('settings.bk.resetBtn')} busy={busy} onConfirm={doReset}
-        footerStart={<Button variant="secondary" icon={<Download />} onClick={doExport} loading={exporting} disabled={busy}>{t('settings.bk.exportFirst')}</Button>}>
+        word={t('settings.bk.resetWord')} confirmLabel={t('settings.bk.resetBtn')} busy={busy} onConfirm={() => void doReset()}
+        footerStart={<Button variant="secondary" icon={<Download />} onClick={() => void doExport()} loading={exporting} disabled={busy}>{t('settings.bk.exportFirst')}</Button>}>
         <Alert tone="danger">{t('settings.bk.resetWarn')}</Alert>
         {health && health !== 'never' && lastBackup && (
           <div className="st-file-card">

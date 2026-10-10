@@ -259,6 +259,7 @@
 .menu-item:hover { background: var(--surface-3); color: var(--text); }
 .menu-item.danger { color: var(--danger-text); } .menu-item.danger svg { color: var(--danger); } .menu-item.danger:hover { background: var(--danger-soft); }
 .menu-item:disabled { opacity: .5; }
+.menu.menu-portal { position: fixed; inset-inline: auto; right: auto; bottom: auto; z-index: 150; max-height: calc(100vh - 16px); overflow-y: auto; }
 .menu-sep { height: 1px; background: var(--divider); margin: 6px 4px; }
 .menu-label { padding: 6px 12px 4px; font-size: var(--fs-xs); font-weight: 700; color: var(--text-4); text-transform: uppercase; letter-spacing: .4px; }
 .menu-item .kbd { margin-inline-start: auto; }

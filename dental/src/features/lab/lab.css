@@ -216,3 +216,4 @@
 
 /* a one-line name in its own direction (dir=auto: a Latin lab name truncates at its end) but aligned like the page */
 .lab-auto { text-align: match-parent; }
+.lab-menu .menu-item:focus-visible { outline: none; background: var(--surface-3); color: var(--text); }

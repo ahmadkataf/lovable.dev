@@ -5,7 +5,6 @@ import type { ModuleDict } from '../types'
 const reports: ModuleDict = {
   ar: {
     title: 'التقارير',
-    noPermission: 'التقارير متاحة لإدارة العيادة والأطباء', noPermissionSub: 'لا يملك حسابك صلاحية الاطلاع على التقارير. تواصل مع مدير العيادة إذا احتجت إليها.', backHome: 'العودة إلى الرئيسية',
     // period bar
     'preset.month': 'هذا الشهر', 'preset.lastMonth': 'الشهر الماضي', 'preset.quarter': 'آخر 3 أشهر', 'preset.year': 'هذه السنة', 'preset.custom': 'فترة مخصصة', fromDate: 'من تاريخ', toDate: 'إلى تاريخ', allDoctors: 'جميع الأطباء', doctorFilter: 'الطبيب',
     rangeSwapped: 'تاريخ البداية بعد تاريخ النهاية؛ تم عكس الفترة.',
@@ -64,7 +63,6 @@ const reports: ModuleDict = {
   },
   en: {
     title: 'Reports',
-    noPermission: 'Reports are for the clinic managers and doctors', noPermissionSub: 'Your account cannot view reports. Ask the clinic manager if you need access.', backHome: 'Back to the dashboard',
     'preset.month': 'This month', 'preset.lastMonth': 'Last month', 'preset.quarter': 'Last 3 months', 'preset.year': 'This year', 'preset.custom': 'Custom', fromDate: 'From', toDate: 'To', allDoctors: 'All doctors', doctorFilter: 'Doctor',
     rangeSwapped: 'The start date was after the end date, so the range was flipped.',
     exportCsv: 'Export CSV', csvSaved: 'Table exported', csvNothing: 'There is no table to export in this section', printedOn: 'Printed on {date}',

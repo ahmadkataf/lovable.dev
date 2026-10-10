@@ -11,7 +11,7 @@ import {
   SAMPLE_LINES, billingDraftFrom, billingPatch, hasErrors, lastInvoiceSeq, previewInvoiceNumber, sampleTotals, validateBilling, withCurrency,
   type BillingDraft, type FieldErrors,
 } from './lib'
-import { LockedNotice, SaveBar, SectionTitle, TabSkeleton, useAccess, useDraft, useErrText } from './parts'
+import { LockedNotice, SaveBar, SectionTitle, TabSkeleton, useAccess, useDraft, useErrText, useSingleFlight, useUnsavedGuard } from './parts'
 
 export default function BillingTab() {
   const { t, lang } = useI18n()
@@ -24,6 +24,8 @@ export default function BillingTab() {
   const [errors, setErrors] = useState<FieldErrors>({})
   const [saving, setSaving] = useState(false)
   const errText = useErrText()
+  const once = useSingleFlight()
+  useUnsavedGuard(dirty)
 
   if (!clinic || !draft || numbers === undefined || lastFileNo === undefined) return <TabSkeleton cards={3} />
   const disabled = !access.canEdit
@@ -35,19 +37,21 @@ export default function BillingTab() {
   }
   const set = <K extends keyof BillingDraft>(k: K, v: BillingDraft[K]) => update({ ...draft, [k]: v })
 
-  const save = async (e?: FormEvent) => {
+  const save = (e?: FormEvent) => {
     e?.preventDefault()
-    if (disabled || saving) return
-    const errs = validateBilling(draft, used)
-    setErrors(errs)
-    if (hasErrors(errs)) { toast.error(t('settings.fixErrors')); return }
-    setSaving(true)
-    try {
-      const next = await updateClinic(billingPatch(draft))
-      reset(next)
-      toast.success(t('settings.savedToast'))
-      void logActivity({ type: 'system', action: 'update', message: t('settings.act.billing'), by: access.userId })
-    } catch { toast.error(t('settings.saveFailed')) } finally { setSaving(false) }
+    if (disabled || !dirty) return
+    void once(async () => {
+      const errs = validateBilling(draft, used)
+      setErrors(errs)
+      if (hasErrors(errs)) { toast.error(t('settings.fixErrors')); return }
+      setSaving(true)
+      try {
+        const next = await updateClinic(billingPatch(draft))
+        reset(next)
+        toast.success(t('settings.savedToast'))
+        void logActivity({ type: 'system', action: 'update', message: t('settings.act.billing'), by: access.userId })
+      } catch { toast.error(t('settings.saveFailed')) } finally { setSaving(false) }
+    })
   }
   const discard = () => { reset(); setErrors({}) }
 
@@ -56,7 +60,8 @@ export default function BillingTab() {
   const fmt = (n: number) => formatMoney(n, moneyOpts, lang)
   const totals = sampleTotals(draft.taxPercent)
   const currencyChanged = p.currency !== clinic.currency
-  const lowered = (draft.nextInvoiceNumber ?? 0) < clinic.nextInvoiceNumber && !errors.nextInvoiceNumber
+  // Starting a new prefix at 1 is a new series, not a step back; warn only when the same series is lowered.
+  const lowered = draft.invoicePrefix.trim() === (clinic.invoicePrefix ?? '') && (draft.nextInvoiceNumber ?? 0) < clinic.nextInvoiceNumber && !errors.nextInvoiceNumber
   const currencyOptions = [
     ...CURRENCIES.map(c => ({ value: c.code, label: `${t(`auth.cur.${c.code}`)} — ${c.code} (${c.symbol})` })),
     { value: CUSTOM_CURRENCY, label: t('auth.money.custom') },
@@ -105,7 +110,7 @@ export default function BillingTab() {
               onChange={e => set('symbol', e.target.value)} error={errText(errors.symbol)} disabled={disabled} data-qa="currency-symbol" />
             <div className="field">
               <span className="field-label">{t('settings.bill.decimals')}</span>
-              <Segmented<'0' | '2'> block value={String(draft.decimals) as '0' | '2'} onChange={v => !disabled && set('decimals', v === '0' ? 0 : 2)}
+              <Segmented<'0' | '2'> block className={disabled ? 'st-inert' : undefined} value={String(draft.decimals) as '0' | '2'} onChange={v => !disabled && set('decimals', v === '0' ? 0 : 2)}
                 options={[{ value: '0', label: t('settings.bill.dec0') }, { value: '2', label: t('settings.bill.dec2') }]} />
             </div>
           </div>

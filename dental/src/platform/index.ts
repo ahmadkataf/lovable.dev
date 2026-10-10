@@ -17,7 +17,7 @@ interface ElectronBridge {
 }
 interface AndroidBridge {
   deviceId(): string
-  saveFile(name: string, mime: string, base64: string): boolean
+  saveFile(name: string, mime: string, base64: string): boolean | Promise<boolean>   // the Android shell wraps it in a Promise
   print(): void
   appVersion(): string
   openExternal(url: string): void
@@ -85,6 +85,7 @@ export async function pickFile(accept = '*/*'): Promise<File | null> {
     let done = false
     const finish = (f: File | null) => { if (done) return; done = true; res(f); setTimeout(() => input.remove(), 0) }
     input.onchange = () => finish(input.files?.[0] ?? null)
+    input.addEventListener('cancel', () => finish(null))   // Chrome 113+ and Android WebView
     // a cancelled picker fires no change event: notice when the window regains focus
     const onFocus = () => { window.removeEventListener('focus', onFocus); setTimeout(() => finish(input.files?.[0] ?? null), 600) }
     window.addEventListener('focus', onFocus)

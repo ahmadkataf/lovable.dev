@@ -80,19 +80,32 @@ export function LabRowActions({ order, patientName, onEdit, onPrint, compact }: 
 function RowMenu({ items, label }: { items: MenuItemDef[]; label: string }) {
   const [open, setOpen] = useState(false)
   const anchor = useRef<HTMLSpanElement>(null)
+  const menu = useRef<HTMLDivElement>(null)
   const close = useCallback(() => setOpen(false), [])
   useEffect(() => {
     if (!open) return
+    // the menu lives at the end of the page: bring the keyboard to its first item
+    const raf = requestAnimationFrame(() => menu.current?.querySelector<HTMLButtonElement>('[role=menuitem]:not(:disabled)')?.focus({ preventScroll: true }))
     // capture phase: Escape closes the menu only, never a dialog behind it
-    const k = (e: KeyboardEvent) => { if (e.key === 'Escape') { e.stopPropagation(); setOpen(false) } }
+    const k = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') { e.stopPropagation(); setOpen(false); anchor.current?.querySelector('button')?.focus() }
+      else if (e.key === 'Tab') setOpen(false)
+    }
     window.addEventListener('keydown', k, true)
-    return () => window.removeEventListener('keydown', k, true)
+    return () => { cancelAnimationFrame(raf); window.removeEventListener('keydown', k, true) }
   }, [open])
+  const onMenuKey = (e: React.KeyboardEvent) => {
+    if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp') return
+    e.preventDefault()
+    const list = [...(menu.current?.querySelectorAll<HTMLButtonElement>('[role=menuitem]:not(:disabled)') ?? [])]
+    const i = list.indexOf(document.activeElement as HTMLButtonElement)
+    list[(i + (e.key === 'ArrowDown' ? 1 : -1) + list.length) % list.length]?.focus()
+  }
   return (
     <span ref={anchor} className="menu-anchor lab-menu-anchor">
       <IconButton variant="ghost" size="sm" label={label} aria-haspopup="menu" aria-expanded={open} onClick={() => setOpen(o => !o)}><MoreHorizontal /></IconButton>
       <Popover anchor={anchor} open={open} onClose={close} align="end" minWidth={232} maxHeight={360} className="lab-menu">
-        <div role="menu">
+        <div role="menu" ref={menu} onKeyDown={onMenuKey}>
           {items.map((it, i) => it.sep ? <div key={i} className="menu-sep" /> : (
             <button key={i} type="button" role="menuitem" className={`menu-item${it.danger ? ' danger' : ''}`} disabled={it.disabled}
               onClick={() => { setOpen(false); it.onClick?.() }}>{it.icon}<span className="grow">{it.label}</span></button>

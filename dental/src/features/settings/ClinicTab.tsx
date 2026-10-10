@@ -10,7 +10,7 @@ import { fmtDate } from '@/lib/dates'
 import { todayISO } from '@/db/ids'
 import { SheetHeader } from '@/features/billing/shared'
 import { clinicDraftFrom, clinicPatch, hasErrors, previewInvoiceNumber, validateClinic, type ClinicDraft, type FieldErrors } from './lib'
-import { LockedNotice, SaveBar, SectionTitle, TabSkeleton, useAccess, useDraft, useErrText } from './parts'
+import { LockedNotice, SaveBar, SectionTitle, TabSkeleton, useAccess, useDraft, useErrText, useSingleFlight, useUnsavedGuard } from './parts'
 
 export default function ClinicTab() {
   const { t, lang } = useI18n()
@@ -21,6 +21,8 @@ export default function ClinicTab() {
   const [errors, setErrors] = useState<FieldErrors>({})
   const [saving, setSaving] = useState(false)
   const errText = useErrText()
+  const once = useSingleFlight()
+  useUnsavedGuard(dirty)
 
   if (!clinic || !draft) return <TabSkeleton cards={3} />
   const disabled = !access.canEdit
@@ -37,19 +39,21 @@ export default function ClinicTab() {
     try { set('logo', await imageToDataUrl(file, 256)) } catch { toast.error(t('settings.clinic.logoError')) }
   }
 
-  const save = async (e?: FormEvent) => {
+  const save = (e?: FormEvent) => {
     e?.preventDefault()
-    if (disabled || saving) return
-    const errs = validateClinic(draft)
-    setErrors(errs)
-    if (hasErrors(errs)) { toast.error(t('settings.fixErrors')); return }
-    setSaving(true)
-    try {
-      const next = await updateClinic(clinicPatch(draft))
-      reset(next)
-      toast.success(t('settings.savedToast'))
-      void logActivity({ type: 'system', action: 'update', message: t('settings.act.clinic'), by: access.userId })
-    } catch { toast.error(t('settings.saveFailed')) } finally { setSaving(false) }
+    if (disabled || !dirty) return
+    void once(async () => {
+      const errs = validateClinic(draft)
+      setErrors(errs)
+      if (hasErrors(errs)) { toast.error(t('settings.fixErrors')); return }
+      setSaving(true)
+      try {
+        const next = await updateClinic(clinicPatch(draft))
+        reset(next)
+        toast.success(t('settings.savedToast'))
+        void logActivity({ type: 'system', action: 'update', message: t('settings.act.clinic'), by: access.userId })
+      } catch { toast.error(t('settings.saveFailed')) } finally { setSaving(false) }
+    })
   }
   const discard = () => { reset(); setErrors({}) }
 

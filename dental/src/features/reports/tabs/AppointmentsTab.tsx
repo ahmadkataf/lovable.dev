@@ -58,9 +58,9 @@ export default function AppointmentsTab({ period, data, setExport, onShowYear }:
   const totalHours = c ? Math.round(c.work / 60) : 0
 
   const cols: Column<DoctorAptRow>[] = [
-    { key: 'd', header: t('doctor'), render: r => <span className="row gap-2" style={{ minWidth: 0 }}><span className="status-dot" style={{ background: r.color || 'var(--text-4)' }} /><span className="strong truncate">{docName(r)}</span></span> },
+    { key: 'd', header: t('doctor'), render: r => <span className="row gap-2 rp-namecell"><span className="status-dot" style={{ background: r.color || 'var(--text-4)' }} /><span className="strong truncate" title={docName(r)}><bdi>{docName(r)}</bdi></span></span> },
     { key: 'b', header: t('reports.apt.booked'), className: 'num', render: r => <span className="num">{num(r.booked)}</span> },
-    { key: 'c', header: t('reports.apt.done'), className: 'num', render: r => <span className="num">{num(r.completed)}</span> },
+    { key: 'c', header: t('reports.apt.done'), className: 'num', hideBelow: 'sm', render: r => <span className="num">{num(r.completed)}</span> },
     { key: 'n', header: t('reports.apt.noShow'), className: 'num', hideBelow: 'sm', render: r => <span className={`num${r.noShows ? ' strong' : ' muted'}`} style={r.noShows ? { color: 'var(--danger-text)' } : undefined}>{num(r.noShows)}</span> },
     { key: 'x', header: t('reports.apt.cancel'), className: 'num', hideBelow: 'md', render: r => <span className="num muted">{num(r.cancelled)}</span> },
     { key: 'h', header: t('reports.apt.hours'), className: 'num', hideBelow: 'md', render: r => <span className="num">{num(Math.round(r.minutes / 6) / 10, r.minutes % 60 ? 1 : 0)}</span> },

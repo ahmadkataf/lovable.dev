@@ -257,6 +257,14 @@ export function trialUsedPercent(daysLeft: number, total: number): number {
   if (total <= 0) return 100
   return Math.round((Math.min(total, Math.max(0, total - daysLeft)) / total) * 100)
 }
+/** When the trial ends: the install instant plus the trial length, the same instant useLicense() counts down to. */
+export function trialEndsAt(installedAt: string | null | undefined, days: number): Date | null {
+  if (!installedAt) return null
+  const t = new Date(installedAt).getTime()
+  return Number.isNaN(t) ? null : new Date(t + days * 86_400_000)
+}
+/** A code's last valid day ('YYYY-MM-DD'). Codes store UTC days, so read the UTC date, not the local one. */
+export const codeDay = (until: Date): string => until.toISOString().slice(0, 10)
 /** True when an active subscription ends within `days` (lifetime never does). */
 export function renewSoon(until: Date | null, now: Date = new Date(), days = 30): boolean {
   if (!until) return false

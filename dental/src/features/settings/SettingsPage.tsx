@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, type ReactNode } from 'react'
+import { lazy, Suspense, useEffect, useRef, type ReactNode } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { Building2, DatabaseBackup, Info, KeyRound, Receipt, SlidersHorizontal } from 'lucide-react'
@@ -32,8 +32,17 @@ export default function SettingsPage() {
   const tabs = visibleTabs(isAdmin)
   const current = resolveTab(tab, tabs)
   const lastBackup = useLiveQuery(() => getSetting<string | null>('lastBackupAt', null), [])
+  const pills = useRef<HTMLDivElement>(null)
 
   useEffect(() => { if (tab !== undefined && tab !== current) navigate(`/settings/${current}`, { replace: true }) }, [tab, current, navigate])
+  // Phones: the pill row scrolls sideways; keep the open tab in sight (e.g. when arriving at /settings/license).
+  useEffect(() => {
+    const row = pills.current?.querySelector<HTMLElement>('.tabs')
+    const pill = row?.querySelector<HTMLElement>('.tab.active')
+    if (!row || !pill || row.scrollWidth <= row.clientWidth) return
+    const r = row.getBoundingClientRect(), p = pill.getBoundingClientRect()
+    if (p.left < r.left + 8 || p.right > r.right - 8) row.scrollBy({ left: (p.left + p.width / 2) - (r.left + r.width / 2), behavior: 'smooth' })
+  }, [current])
   const go = (id: SettingsTab) => { if (id !== current) navigate(`/settings/${id}`) }
 
   const badge = (id: SettingsTab): ReactNode => {
@@ -51,7 +60,7 @@ export default function SettingsPage() {
   return (
     <div className="page st-page">
       <PageHeader title={t('settings.title')} subtitle={t('settings.subtitle')} />
-      <div className="st-mobile-tabs">
+      <div className="st-mobile-tabs" ref={pills}>
         <Tabs<SettingsTab> pills value={current} onChange={go} tabs={tabs.map(id => ({ id, icon: ICONS[id], label: t(`settings.tab.${id}`) }))} />
       </div>
       <div className="st-layout">

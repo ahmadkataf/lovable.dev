@@ -41,20 +41,22 @@
 .st-textarea-short { min-height: 64px; }
 
 /* ---- sticky save bar ---- */
-.st-savebar { position: relative; bottom: 16px; z-index: 20; display: flex; align-items: center; gap: 12px; padding-block: 10px; padding-inline: 16px 10px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-lg); box-shadow: var(--sh-md); transition: box-shadow var(--t-med), border-color var(--t-med); }
-.st-savebar.dirty { position: sticky; border-color: var(--p-300); box-shadow: var(--sh-lg), 0 0 0 3px var(--primary-ring); }
+.st-savebar { position: relative; z-index: 20; display: flex; align-items: center; gap: 12px; padding-block: 10px; padding-inline: 16px 10px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-lg); box-shadow: var(--sh-md); transition: box-shadow var(--t-med), border-color var(--t-med); }
+/* Only an unsaved form pins the bar to the bottom of the screen; a saved one sits in the flow, below the last card. */
+.st-savebar.dirty { position: sticky; bottom: 16px; border-color: var(--p-300); box-shadow: var(--sh-lg), 0 0 0 3px var(--primary-ring); }
 .st-savebar-msg { flex: 1; min-width: 0; display: flex; align-items: center; gap: 10px; font-weight: 600; font-size: var(--fs-md); color: var(--text-3); }
 .st-savebar.dirty .st-savebar-msg { color: var(--text); }
 .st-savebar-msg svg { width: 18px; height: 18px; color: var(--success); flex: none; }
 .st-savebar-actions { display: flex; align-items: center; gap: 8px; flex: none; }
 .st-pulse { width: 10px; height: 10px; border-radius: 50%; background: var(--warning); flex: none; animation: st-pulse 1.8s infinite; }
 @keyframes st-pulse { 0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--warning) 55%, transparent); } 70% { box-shadow: 0 0 0 8px color-mix(in srgb, var(--warning) 0%, transparent); } 100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--warning) 0%, transparent); } }
-@media (max-width: 1023px) { .st-savebar { bottom: calc(var(--bottomnav-h) + var(--safe-bottom) + 12px); } }
+@media (max-width: 1023px) { .st-savebar.dirty { bottom: calc(var(--bottomnav-h) + var(--safe-bottom) + 12px); } }
 @media (max-width: 639px) {
-  .st-savebar { flex-wrap: wrap; padding: 12px; }
-  .st-savebar-msg { flex-basis: 100%; font-size: var(--fs-sm); }
-  .st-savebar-actions { flex: 1; }
-  .st-savebar-actions .btn { flex: 1; }
+  /* one compact row on phones, so the pinned bar does not hide the field being typed in */
+  .st-savebar { gap: 8px; padding: 8px 8px 8px 12px; padding-inline: 12px 8px; }
+  .st-savebar-msg { font-size: var(--fs-xs); line-height: 1.35; gap: 6px; }
+  .st-savebar-actions { gap: 4px; }
+  .st-savebar-actions .btn { padding-inline: 12px; }
 }
 
 /* ---- clinic: logo and invoice header preview ---- */
@@ -292,3 +294,16 @@
   .st-days .chip { flex: 1 1 calc(33% - 8px); justify-content: center; }
   .st-activate-foot .btn-primary { flex: 1; }
 }
+
+/* while a form is unsaved, focusing a field keeps it clear of the pinned bar */
+html:has(.st-savebar.dirty) { scroll-padding-bottom: calc(var(--bottomnav-h, 0px) + var(--safe-bottom, 0px) + 96px); }
+
+/* Controls that cannot be changed by this user (read-only licence, not an administrator) */
+.st-inert { pointer-events: none; opacity: .6; filter: saturate(.6); }
+
+/* Dark theme: the deep teal used on light backgrounds is unreadable on the dark soft-teal, use the light teal */
+:root[data-theme="dark"] .st-nav-item.active,
+:root[data-theme="dark"] .st-nav-item.active .st-nav-desc,
+:root[data-theme="dark"] .st-font-current,
+:root[data-theme="dark"] .st-money-label,
+:root[data-theme="dark"] .st-mini-row.total .money { color: var(--p-300); }

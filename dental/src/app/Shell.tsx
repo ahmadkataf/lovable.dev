@@ -18,7 +18,7 @@ import NotificationsPanel, { useNotificationCount } from '@/features/search/Noti
 const COLLAPSE_KEY = 'dentora.sidebar'
 
 export default function Shell() {
-  const { t } = useI18n()
+  const { t, pick } = useI18n()
   const session = useSession()
   const clinic = useClinic()
   const license = useLicense()
@@ -35,14 +35,19 @@ export default function Shell() {
 
   // keyboard: Ctrl/⌘+K search, Ctrl/⌘+Shift+N new patient, Ctrl/⌘+Shift+A new appointment
   useEffect(() => {
+    // physical keys (e.code) as well, so the shortcuts also work with an Arabic keyboard layout
+    const is = (e: KeyboardEvent, letter: string) => e.key.toLowerCase() === letter || e.code === `Key${letter.toUpperCase()}`
     const h = (e: KeyboardEvent) => {
       const mod = e.ctrlKey || e.metaKey
-      if (mod && e.key.toLowerCase() === 'k') { e.preventDefault(); setSearch(s => !s) }
-      else if (mod && e.shiftKey && e.key.toLowerCase() === 'n') { e.preventDefault(); setQuick('patient') }
-      else if (mod && e.shiftKey && e.key.toLowerCase() === 'a') { e.preventDefault(); setQuick('appointment') }
+      if (mod && !e.shiftKey && is(e, 'k')) { e.preventDefault(); setSearch(s => !s) }
+      else if (mod && e.shiftKey && is(e, 'n')) { e.preventDefault(); setQuick('patient') }
+      else if (mod && e.shiftKey && is(e, 'a')) { e.preventDefault(); setQuick('appointment') }
     }
+    // other screens open the quick-add dialogs with: window.dispatchEvent(new CustomEvent('dentora:quick-add', { detail: 'patient' }))
+    const q = (e: Event) => { const d = (e as CustomEvent).detail; if (d === 'patient' || d === 'appointment' || d === 'payment') setQuick(d) }
     window.addEventListener('keydown', h)
-    return () => window.removeEventListener('keydown', h)
+    window.addEventListener('dentora:quick-add', q)
+    return () => { window.removeEventListener('keydown', h); window.removeEventListener('dentora:quick-add', q) }
   }, [])
   useEffect(() => { setMore(false) }, [location.pathname])
 
@@ -70,7 +75,7 @@ export default function Shell() {
         <div className="brand">
           <div className="brand-logo">{clinic.logo ? <img src={clinic.logo} alt="" /> : <ToothIcon />}</div>
           <div className="brand-text grow truncate">
-            <div className="brand-name truncate" dir="auto">{clinic.name || t('appName')}</div>
+            <div className="brand-name truncate" dir="auto">{pick(clinic.name, clinic.nameEn) || t('appName')}</div>
             <div className="brand-sub truncate">{clinic.name ? t('appName') : t('appTagline')}</div>
           </div>
         </div>
@@ -107,7 +112,7 @@ export default function Shell() {
         <header className="app-topbar no-print">
           <div className="topbar-mobile-brand">
             <div className="brand-logo">{clinic.logo ? <img src={clinic.logo} alt="" /> : <ToothIcon />}</div>
-            <span className="truncate" dir="auto" style={{ maxWidth: 160 }}>{clinic.name || t('appName')}</span>
+            <span className="truncate" dir="auto" style={{ maxWidth: 160 }}>{pick(clinic.name, clinic.nameEn) || t('appName')}</span>
           </div>
           <button type="button" className="topbar-search" onClick={() => setSearch(true)} aria-label={t('quickSearch')}>
             <Search /><span>{t('searchPlaceholder')}</span>{desktop && <Kbd>Ctrl K</Kbd>}

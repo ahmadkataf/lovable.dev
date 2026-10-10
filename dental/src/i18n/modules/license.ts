@@ -47,8 +47,9 @@ const license: ModuleDict = {
     seller: 'البائع',
     whatsapp: 'طلب عبر واتساب',
     email: 'طلب عبر البريد',
-    requestMsg: 'مرحباً، أرغب في تفعيل برنامج Dentora.\nاسم العيادة: {clinic}\nرقم الجهاز: {device}',
-    requestSubject: 'طلب تفعيل Dentora — {device}',
+    // \u200E keeps a device number such as 2345-ABCD from showing as ABCD-2345 inside Arabic text (WhatsApp, e-mail)
+    requestMsg: 'مرحباً، أرغب في تفعيل برنامج Dentora.\nاسم العيادة: {clinic}\nرقم الجهاز: \u200E{device}',
+    requestSubject: 'طلب تفعيل Dentora — \u200E{device}',
     deactivate: 'إلغاء التفعيل على هذا الجهاز',
     deactivateTitle: 'إلغاء التفعيل؟',
     deactivateDesc: 'سيُحذف رمز التفعيل من هذا الجهاز، ويعود البرنامج إلى الفترة التجريبية أو إلى وضع القراءة فقط إن كانت قد انتهت. احتفظ بالرمز إن أردت التفعيل لاحقاً.',

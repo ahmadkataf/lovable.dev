@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import { createContext, useCallback, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import { AlertTriangle, X } from 'lucide-react'
 import { Button, type ButtonVariant } from './Button'
@@ -111,25 +111,52 @@ export function Drawer({ open, onClose, title, size = 'md', footer, children, ac
 export interface MenuItemDef { label?: ReactNode; icon?: ReactNode; onClick?: () => void; danger?: boolean; disabled?: boolean; shortcut?: string; sep?: boolean; header?: ReactNode }
 export function Menu({ trigger, items, align = 'end', vertical = 'bottom', children, className }: { trigger: (open: boolean) => ReactNode; items?: MenuItemDef[]; align?: 'start' | 'end'; vertical?: 'top' | 'bottom'; children?: ReactNode; className?: string }) {
   const [open, setOpen] = useState(false)
+  const [pos, setPos] = useState<{ top: number; left: number } | null>(null)
   const ref = useRef<HTMLDivElement>(null)
+  const trig = useRef<HTMLSpanElement>(null)
+  const menu = useRef<HTMLDivElement>(null)
+  // The menu lives in a portal with fixed positioning, so a table or a card with overflow never clips it.
+  // It opens below the trigger (or above with vertical="top") and flips when there is no room.
+  const place = useCallback(() => {
+    const t = trig.current?.getBoundingClientRect(), m = menu.current
+    if (!t || !m) return
+    const w = m.offsetWidth, h = m.offsetHeight, gap = 6, vw = window.innerWidth, vh = window.innerHeight
+    const rtl = getComputedStyle(trig.current!).direction === 'rtl'
+    const alignRight = (align === 'end') !== rtl          // the menu's right edge meets the trigger's right edge
+    let left = alignRight ? t.right - w : t.left
+    left = Math.max(8, Math.min(left, vw - w - 8))
+    const below = t.bottom + gap, above = t.top - gap - h
+    let top = vertical === 'top' ? (above >= 8 ? above : below) : (below + h <= vh - 8 || above < 8 ? below : above)
+    top = Math.max(8, Math.min(top, vh - h - 8))
+    setPos(p => (p && p.top === top && p.left === left ? p : { top, left }))
+  }, [align, vertical])
+  useLayoutEffect(() => { if (open) place(); else setPos(null) }, [open, place])
   useEffect(() => {
     if (!open) return
-    const h = (e: MouseEvent | TouchEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false) }
+    const h = (e: MouseEvent | TouchEvent) => {
+      const n = e.target as Node
+      if (!ref.current?.contains(n) && !menu.current?.contains(n)) setOpen(false)
+    }
+    const close = () => setOpen(false)
     document.addEventListener('mousedown', h); document.addEventListener('touchstart', h)
-    return () => { document.removeEventListener('mousedown', h); document.removeEventListener('touchstart', h) }
-  }, [open])
+    window.addEventListener('resize', close); window.addEventListener('scroll', place, true)
+    return () => {
+      document.removeEventListener('mousedown', h); document.removeEventListener('touchstart', h)
+      window.removeEventListener('resize', close); window.removeEventListener('scroll', place, true)
+    }
+  }, [open, place])
   useEscapeLayer(open ? () => setOpen(false) : undefined)
   return (
     <div ref={ref} className={['menu-anchor', className].filter(Boolean).join(' ')}>
-      <span onClick={() => setOpen(o => !o)} style={{ display: 'inline-flex' }}>{trigger(open)}</span>
-      {open && (
-        <div className={['menu', align === 'start' && 'align-start', vertical === 'top' && 'align-top'].filter(Boolean).join(' ')} role="menu" onClick={() => setOpen(false)}>
+      <span ref={trig} onClick={() => setOpen(o => !o)} style={{ display: 'inline-flex' }}>{trigger(open)}</span>
+      {open && createPortal(
+        <div ref={menu} className="menu menu-portal" role="menu" onClick={() => setOpen(false)}
+          style={{ top: pos?.top ?? 0, left: pos?.left ?? 0, visibility: pos ? 'visible' : 'hidden' }}>
           {items?.map((it, i) => it.sep ? <div key={i} className="menu-sep" /> : it.header ? <div key={i} className="menu-label">{it.header}</div> : (
             <button key={i} type="button" role="menuitem" className={`menu-item${it.danger ? ' danger' : ''}`} disabled={it.disabled} onClick={it.onClick}>{it.icon}<span className="grow">{it.label}</span>{it.shortcut && <kbd className="kbd">{it.shortcut}</kbd>}</button>
           ))}
           {children}
-        </div>
-      )}
+        </div>, document.body)}
     </div>
   )
 }

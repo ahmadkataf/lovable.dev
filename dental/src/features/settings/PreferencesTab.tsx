@@ -2,7 +2,7 @@ import { useState, type FormEvent } from 'react'
 import { CalendarClock, Check, Hash, Languages, LockKeyhole, Moon, Palette, Sun, Type } from 'lucide-react'
 import { Alert, Badge, Button, Chip, Input, Select, Card, CardBody, CardFooter, useToast } from '@/ui'
 import { translate, useI18n } from '@/i18n'
-import { logActivity, updateClinic } from '@/db'
+import { db, logActivity, updateClinic } from '@/db'
 import type { Lang } from '@/db/types'
 import { useClinicMaybe } from '@/app/hooks'
 import { applyFont, currentFont, FONT_OPTIONS, type FontKey } from '@/app/theme'
@@ -12,10 +12,22 @@ import {
   DEFAULT_FONT, DURATION_CHOICES, FONT_FAMILIES, FONT_SAMPLE_AMOUNT, LOCK_KEY, LOCK_OPTIONS, SLOT_CHOICES,
   hasErrors, hoursDraftFrom, hoursPerDay, lockMinutes, lockMs, validateHours, type FieldErrors,
 } from './lib'
-import { LockedNotice, OptionCard, SectionTitle, TabSkeleton, useAccess, useDraft, useErrText } from './parts'
+import { LockedNotice, OptionCard, SectionTitle, TabSkeleton, useAccess, useDraft, useErrText, useSingleFlight, useUnsavedGuard } from './parts'
 
 function readLock(): number {
   try { return lockMinutes(localStorage.getItem(LOCK_KEY)) } catch { return lockMinutes(null) }
+}
+/**
+ * Makes a new auto-lock delay count from now instead of from the next sign-in. The session re-reads
+ * 'dentora.lockAfter' whenever the signed-in user's record is re-read, so writing that row back unchanged
+ * re-arms its inactivity timer. The event is for a session that listens for the change directly.
+ */
+async function applyLockNow(userId?: string): Promise<void> {
+  try { window.dispatchEvent(new CustomEvent('dentora:lockAfter')) } catch { /* old WebView */ }
+  if (!userId) return
+  try {
+    await db.transaction('rw', db.users, async () => { const u = await db.users.get(userId); if (u) await db.users.put(u) })
+  } catch { /* the next sign-in picks it up */ }
 }
 
 export default function PreferencesTab() {
@@ -29,9 +41,12 @@ export default function PreferencesTab() {
   const [errors, setErrors] = useState<FieldErrors>({})
   const [savingHours, setSavingHours] = useState(false)
   const errText = useErrText()
+  const once = useSingleFlight()
+  useUnsavedGuard(hours.dirty)
 
   if (!clinic || !hours.draft) return <TabSkeleton cards={3} />
   const h = hours.draft
+  const theme = clinic.theme === 'dark' ? 'dark' : 'light'
   // Language, theme and hours are clinic-wide: administrators only. Font and auto-lock belong to this device.
   const clinicWide = access.isAdmin
 
@@ -43,7 +58,7 @@ export default function PreferencesTab() {
     void logActivity({ type: 'system', action: 'update', message: t('settings.act.prefs'), by: access.userId })
   }
   const chooseTheme = async (theme: 'light' | 'dark') => {
-    if (!clinicWide || theme === clinic.theme) return
+    if (!clinicWide || theme === (clinic.theme === 'dark' ? 'dark' : 'light')) return
     await updateClinic({ theme })
     toast.success(t('settings.pref.themeChanged'))
   }
@@ -56,6 +71,7 @@ export default function PreferencesTab() {
     if (!access.isAdmin) return
     try { localStorage.setItem(LOCK_KEY, String(lockMs(min))) } catch { /* private mode */ }
     setLock(min)
+    void applyLockNow(access.userId)
     toast.success(t('settings.pref.lockSaved'))
   }
 
@@ -63,19 +79,21 @@ export default function PreferencesTab() {
     hours.patch(p)
     if (hasErrors(errors)) setErrors(validateHours({ ...h, ...p }))
   }
-  const saveHours = async (e?: FormEvent) => {
+  const saveHours = (e?: FormEvent) => {
     e?.preventDefault()
-    if (!access.canEdit || savingHours) return
-    const errs = validateHours(h)
-    setErrors(errs)
-    if (hasErrors(errs)) { toast.error(t('settings.fixErrors')); return }
-    setSavingHours(true)
-    try {
-      const next = await updateClinic({ ...h })
-      hours.reset(next)
-      toast.success(t('settings.savedToast'))
-      void logActivity({ type: 'system', action: 'update', message: t('settings.act.hours'), by: access.userId })
-    } catch { toast.error(t('settings.saveFailed')) } finally { setSavingHours(false) }
+    if (!access.canEdit || !hours.dirty) return
+    void once(async () => {
+      const errs = validateHours(h)
+      setErrors(errs)
+      if (hasErrors(errs)) { toast.error(t('settings.fixErrors')); return }
+      setSavingHours(true)
+      try {
+        const next = await updateClinic({ ...h })
+        hours.reset(next)
+        toast.success(t('settings.savedToast'))
+        void logActivity({ type: 'system', action: 'update', message: t('settings.act.hours'), by: access.userId })
+      } catch { toast.error(t('settings.saveFailed')) } finally { setSavingHours(false) }
+    })
   }
 
   const minutesLabel = (n: number) => n === 60 ? t('settings.pref.hourOpt') : n === 90 ? t('settings.pref.hoursAndHalf') : n === 120 ? t('settings.pref.twoHours') : t('settings.pref.minutesOpt', { n })
@@ -132,7 +150,7 @@ export default function PreferencesTab() {
           <SectionTitle icon={<Palette />} title={t('settings.pref.theme')} sub={t('settings.pref.themeSub')} end={scope(false)} />
           <div className="st-options st-options-2" role="radiogroup" aria-label={t('settings.pref.theme')}>
             {(['light', 'dark'] as const).map(th => (
-              <OptionCard key={th} active={clinic.theme === th} onClick={() => void chooseTheme(th)} disabled={!clinicWide} className="st-theme" data-theme-option={th}>
+              <OptionCard key={th} active={theme === th} onClick={() => void chooseTheme(th)} disabled={!clinicWide} className="st-theme" data-theme-option={th}>
                 <span className={`st-mock st-mock-${th}`} aria-hidden>
                   <span className="st-mock-side"><i /><i /><i /><i /></span>
                   <span className="st-mock-main"><span className="st-mock-bar" /><span className="st-mock-cards"><i /><i /><i /></span><span className="st-mock-panel" /></span>
@@ -160,7 +178,7 @@ export default function PreferencesTab() {
               {access.isAdmin && access.readOnly && <LockedNotice reason="readonly" />}
               <div className="field">
                 <span className="field-label">{t('settings.pref.workingDays')}</span>
-                <div className="chips st-days" role="group" aria-label={t('settings.pref.workingDays')}>
+                <div className={`chips st-days${access.canEdit ? '' : ' st-inert'}`} role="group" aria-label={t('settings.pref.workingDays')}>
                   {WEEK_ORDER.map(d => {
                     const on = h.workingDays.includes(d)
                     return (

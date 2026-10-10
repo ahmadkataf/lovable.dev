@@ -55,6 +55,13 @@ export async function issueCode(device: string, plan: Plan, until: Date | null):
   return { code, device: dev, plan, until: untilISO(until) }
 }
 
+/**
+ * A date, device number or code inside Arabic text. Without a left-to-right mark in front, bidi turns 2027-10-10
+ * into 10-10-2027 and a device number like 2345-ABCD into ABCD-2345 (digits after Arabic letters become separate
+ * Arabic numbers). The mark is invisible in WhatsApp, e-mail and terminals.
+ */
+export const ltr = (s: string) => `\u200E${s}`
+
 const PLAN_NAME = { ar: { standard: 'الباقة الأساسية', pro: 'الباقة الاحترافية' }, en: { standard: 'Standard plan', pro: 'Pro plan' } }
 /** The ready-to-send message for the clinic. */
 export function clinicMessage(i: Pick<Issued, 'code' | 'plan' | 'until' | 'device'>, lang: 'ar' | 'en' = 'ar', clinic = ''): string {
@@ -71,9 +78,9 @@ export function clinicMessage(i: Pick<Issued, 'code' | 'plan' | 'until' | 'devic
   return [
     `مرحباً${clinic ? ` ${clinic}` : ''}،`,
     'هذا رمز تفعيل برنامج Dentora الخاص بكم:',
-    i.code,
-    `${PLAN_NAME.ar[i.plan]} — ${i.until ? `صالح حتى ${i.until}` : 'ترخيص دائم'}`,
-    `رقم الجهاز: ${i.device}`,
+    ltr(i.code),
+    `${PLAN_NAME.ar[i.plan]} — ${i.until ? `صالح حتى ${ltr(i.until)}` : 'ترخيص دائم'}`,
+    `رقم الجهاز: ${ltr(i.device)}`,
     'افتحوا الإعدادات ← الترخيص، وأدخلوا الرمز ثم اضغطوا «تفعيل». شكراً لثقتكم!',
   ].join('\n')
 }

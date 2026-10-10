@@ -1,5 +1,5 @@
 import { formatMoney, matches, normalizeText, initials } from '../src/lib/format'
-import { addDays, ageFrom, combine, startOfWeek, timeOf, toISODate, fromISODate } from '../src/lib/dates'
+import { addDays, addMonths, ageFrom, combine, startOfWeek, timeOf, toISODate, fromISODate } from '../src/lib/dates'
 
 const usd = { currency: 'USD', currencySymbol: '$', currencyDecimals: 2 }
 describe('format', () => {
@@ -21,6 +21,9 @@ describe('format', () => {
   it('dates', () => {
     expect(toISODate(fromISODate('2026-03-05'))).toBe('2026-03-05')
     expect(addDays('2026-01-31', 1)).toBe('2026-02-01')
+    expect(addMonths('2026-01-31', 1)).toBe('2026-02-28')
+    expect(addMonths('2028-03-31', -1)).toBe('2028-02-29')
+    expect(addMonths('2026-10-10', 3)).toBe('2027-01-10')
     expect(startOfWeek('2026-10-07', 6)).toBe('2026-10-03')   // Wednesday → previous Saturday
     expect(timeOf(combine('2026-10-07', '14:30'))).toBe('14:30')
     expect(ageFrom('2000-10-10', new Date(2026, 9, 9))).toBe(25)

@@ -1,6 +1,6 @@
 // The offline seller page: make a code, check a code, keep a local log of what was issued.
 import {
-  LOG_KEY, checkCode, clinicMessage, formatDeviceInput, isDeviceNumber, isPlan, issueCode, parseLog, parseUntil, toCSV, waLink,
+  LOG_KEY, checkCode, clinicMessage, formatDeviceInput, isDeviceNumber, isPlan, issueCode, ltr, parseLog, parseUntil, toCSV, waLink,
   type Issued, type LogEntry, type Plan,
 } from './generator-lib.ts'
 
@@ -78,7 +78,7 @@ async function make(e: Event) {
   const issued = await issueCode(device, plan, until)
   last = { ...issued, note }
   $('code').textContent = issued.code
-  $('meta').textContent = `الباقة ${PLAN_AR[issued.plan]} · ${issued.until ? `صالح حتى ${issued.until}` : 'ترخيص دائم'} · الجهاز ${issued.device}`
+  $('meta').textContent = `الباقة ${PLAN_AR[issued.plan]} · ${issued.until ? `صالح حتى ${ltr(issued.until)}` : 'ترخيص دائم'} · الجهاز ${ltr(issued.device)}`
   $('result').classList.remove('hidden')
   refreshMessage()
   writeLog([{ ...issued, note, at: new Date().toISOString() }, ...readLog()])
@@ -94,7 +94,7 @@ async function verify(e: Event) {
   const v = $('verdict'); v.classList.remove('hidden', 'ok', 'bad')
   if (!isDeviceNumber(device)) { v.classList.add('bad'); v.textContent = 'رقم الجهاز غير صحيح'; return }
   const r = await checkCode(formatDeviceInput(device), code)
-  if (r.ok) { v.classList.add('ok'); v.textContent = `رمز صالح · الباقة ${PLAN_AR[r.plan]} · ${r.until ? `حتى ${r.until.toISOString().slice(0, 10)}` : 'ترخيص دائم'}` }
+  if (r.ok) { v.classList.add('ok'); v.textContent = `رمز صالح · الباقة ${PLAN_AR[r.plan]} · ${r.until ? `حتى ${ltr(r.until.toISOString().slice(0, 10))}` : 'ترخيص دائم'}` }
   else { v.classList.add('bad'); v.textContent = `رمز غير صالح: ${REASON_AR[r.reason]}` }
 }
 

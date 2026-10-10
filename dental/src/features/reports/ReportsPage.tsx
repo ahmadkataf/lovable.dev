@@ -1,10 +1,9 @@
 import { lazy, Suspense, useCallback, useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { Activity, CalendarDays, CalendarRange, Download, HandCoins, Printer, ShieldAlert, Users, Wallet } from 'lucide-react'
-import { Button, Card, EmptyState, Input, PageHeader, Segmented, Select, Tabs, useToast, type TabItem } from '@/ui'
+import { Activity, CalendarDays, CalendarRange, Download, HandCoins, Printer, Users, Wallet } from 'lucide-react'
+import { Button, Card, Input, PageHeader, Segmented, Select, Tabs, useToast, type TabItem } from '@/ui'
 import { useI18n } from '@/i18n'
 import { useClinic, useDoctors } from '@/app/hooks'
-import { useSession } from '@/app/session'
 import { print } from '@/platform'
 import { fmtDate, today } from '@/lib/dates'
 import { downloadCSV, fmtPeriod, ChartSkeleton } from './parts'
@@ -29,20 +28,6 @@ function storedPreset(): PeriodPreset {
 }
 
 export default function ReportsPage() {
-  const { t } = useI18n()
-  const session = useSession()
-  // the route itself is open to every signed-in user: clinic finances stay with the roles allowed to see reports
-  if (!session.can('reports')) {
-    return (
-      <div className="page" data-testid="reports-denied">
-        <Card><EmptyState icon={<ShieldAlert />} title={t('reports.noPermission')} description={t('reports.noPermissionSub')} actions={<Button variant="primary" to="/">{t('reports.backHome')}</Button>} /></Card>
-      </div>
-    )
-  }
-  return <Reports />
-}
-
-function Reports() {
   const { t, lang } = useI18n()
   const toast = useToast()
   const clinic = useClinic()

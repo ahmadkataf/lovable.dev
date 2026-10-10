@@ -56,10 +56,10 @@ export default function OutstandingTab({ data, setExport }: TabProps) {
   const loading = !rows
   const cols: Column<Row>[] = [
     { key: 'p', header: t('patient'), render: r => (
-      <div className="row gap-3" style={{ minWidth: 0 }}>
+      <div className="row gap-3 rp-namecell">
         <Avatar name={r.name} src={r.photo} size="sm" />
         <div className="grow">
-          <Link to={`/patients/${r.patientId}`} className="cell-main truncate" style={{ display: 'block', color: 'var(--text)' }}><bdi>{r.name}</bdi></Link>
+          <Link to={`/patients/${r.patientId}`} className="cell-main truncate" style={{ color: 'var(--text)' }}><bdi>{r.name}</bdi></Link>
           <div className="cell-sub">{r.fileNo !== undefined && <>{t('fileNo')} <span className="num">{r.fileNo}</span></>}{r.phone && <span className="hide-mobile"><span className="subtle"> · </span><span className="ltr">{formatPhone(r.phone)}</span></span>}</div>
         </div>
       </div>) },
@@ -78,7 +78,7 @@ export default function OutstandingTab({ data, setExport }: TabProps) {
         <KpiCard testId="kpi-out-total" loading={loading} tone="danger" icon={<HandCoins />} label={t('reports.out.total')} value={<span className="money">{money(total)}</span>} />
         <KpiCard loading={loading} tone="orange" icon={<Users />} label={t('reports.out.patients')} value={<span className="num">{formatNumber(rows?.length ?? 0, lang)}</span>} />
         <KpiCard loading={loading} tone="accent" icon={<Scale />} label={t('reports.out.avg')} value={<span className="money">{money(rows?.length ? round2(total / rows.length) : 0)}</span>} />
-        <KpiCard loading={loading} tone="purple" icon={<TrendingUp />} label={t('reports.out.max')} value={<span className="money">{money(rows?.[0]?.due ?? 0)}</span>} sub={rows?.[0] ? <bdi>{rows[0].name}</bdi> : undefined} />
+        <KpiCard loading={loading} tone="purple" icon={<TrendingUp />} label={t('reports.out.max')} value={<span className="money">{money(rows?.[0]?.due ?? 0)}</span>} sub={rows?.[0] ? <span className="truncate" style={{ display: 'block' }} title={rows[0].name}><bdi>{rows[0].name}</bdi></span> : undefined} />
       </div>
       <Card className="rp-card" data-testid="table-outstanding">
         <CardHeader icon={<HandCoins />} title={t('reports.out.tableTitle')} subtitle={t('reports.out.tableSub')} actions={rows ? <span className="text-sm muted">{plural('reports.n.patients', rows.length)}</span> : undefined} />

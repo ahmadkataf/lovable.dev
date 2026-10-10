@@ -47,8 +47,9 @@ interface Item {
 interface Section { key: string; title: string; count?: number; items: Item[]; link?: { label: string; onClick: () => void } }
 
 /** Opens the shell's quick-add modals through their keyboard shortcuts (Ctrl+Shift+N / Ctrl+Shift+A). */
+/** Opens the shell's quick-add dialog (after the palette has closed). */
 function fireShortcut(key: 'N' | 'A') {
-  window.setTimeout(() => window.dispatchEvent(new KeyboardEvent('keydown', { key, code: `Key${key}`, ctrlKey: true, shiftKey: true, bubbles: true })), 30)
+  window.setTimeout(() => window.dispatchEvent(new CustomEvent('dentora:quick-add', { detail: key === 'N' ? 'patient' : 'appointment' })), 30)
 }
 
 function Hl({ text, q }: { text: string; q: string }) {
