@@ -1,6 +1,6 @@
 // In-app help: short answers to what shop owners ask most, plus where to get support.
 import { useState } from 'react'
-import { ChevronDown, LifeBuoy, MessageCircle } from 'lucide-react'
+import { ChevronDown, LifeBuoy, MessageCircle, PlayCircle } from 'lucide-react'
 import { addMessages, useT, useLang } from '../../i18n'
 import { useStore } from '../../state/store'
 import { platform } from '../../lib/platform'
@@ -12,12 +12,14 @@ addMessages({
     'help.title': 'المساعدة',
     'help.intro': 'إجابات سريعة عن الأسئلة الشائعة. لم تجد جوابك؟ راسل الدعم على واتساب.',
     'help.contact': 'تواصل مع الدعم',
+    'help.videos': 'فيديوهات الشرح',
     'help.version': 'الإصدار',
   },
   en: {
     'help.title': 'Help',
     'help.intro': 'Quick answers to the common questions. Not here? Message support on WhatsApp.',
     'help.contact': 'Contact support',
+    'help.videos': 'Tutorial videos',
     'help.version': 'Version',
   },
 })
@@ -77,6 +79,7 @@ export default function HelpScreen() {
         <div className="card pad row" style={{ gap: 12, marginBottom: 14 }}>
           <LifeBuoy size={28} style={{ color: 'var(--primary)', flex: 'none' }} />
           <p className="small muted grow">{t('help.intro')}</p>
+          <Button variant="soft" icon={<PlayCircle size={16} />} onClick={() => platform.openUrl('https://kaseb.raqeem.dev/learn')}>{t('help.videos')}</Button>
           {wa && <Button variant="primary" icon={<MessageCircle size={16} />} onClick={() => platform.openUrl(`https://wa.me/${wa}`)}>{t('help.contact')}</Button>}
         </div>
         <div className="card flat">

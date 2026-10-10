@@ -13,6 +13,7 @@
 // Every error is { error: '<key>', message?: '<Arabic>' } with status 400 / 403 / 429.
 import { ADMIN_PAGE } from './admin'
 import { LANDING_PAGE } from './landing'
+import { LEARN_PAGE } from './learn'
 import {
   DAY, SRV, type TokenPayload, cleanCode, formatCode, newCode, validDevice, validNonce, validPlatform, deviceCodeOf, clip,
   sameText, publicKeyHex, signToken, verifyToken, compareVersions,
@@ -846,6 +847,7 @@ export default {
     try {
       if (p === '/') return html(renderLanding(await settings(env)))
       if (p === '/privacy') return html(PRIVACY)
+      if (p === '/learn' || p === '/tutorials' || p === '/help') return html(LEARN_PAGE)
       if (p === '/admin') return html(ADMIN_PAGE)
       if (p === '/panel' || p === '/login' || p === '/dashboard') return Response.redirect(new URL('/admin', url).toString(), 302)
       if (p === '/download/android' || p === '/download/apk') { const s = await settings(env); return Response.redirect(s.apk_url || new URL('/download/Kaseb.apk', url).toString(), 302) }

@@ -264,6 +264,7 @@ footer .rule{color:#6b7a93}
       <a href="#gallery" data-en="Screens">الشاشات</a>
       <a href="#pricing" data-en="Pricing">الأسعار</a>
       <a href="#faq" data-en="FAQ">الأسئلة</a>
+      <a href="/learn" data-en="Tutorials">الشرح</a>
       <a href="#download" data-en="Download">تحميل</a>
     </nav>
     <div class="acts">
@@ -276,6 +277,7 @@ footer .rule{color:#6b7a93}
           <a href="#gallery" data-en="Screens">الشاشات</a>
           <a href="#pricing" data-en="Pricing">الأسعار</a>
           <a href="#faq" data-en="FAQ">الأسئلة</a>
+      <a href="/learn" data-en="Tutorials">الشرح</a>
           <a href="#download" data-en="Download">تحميل</a>
         </nav>
       </details>
@@ -591,6 +593,7 @@ footer .rule{color:#6b7a93}
         <a href="#features" data-en="Features">المزايا</a>
         <a href="#pricing" data-en="Pricing">الأسعار</a>
         <a href="#faq" data-en="FAQ">الأسئلة</a>
+      <a href="/learn" data-en="Tutorials">الشرح</a>
         <a href="/privacy" data-en="Privacy policy">سياسة الخصوصية</a>
         <a href="{{WA_LINK}}" target="_blank" rel="noopener" data-en="WhatsApp">واتساب</a>
         <a class="dim" href="/admin" data-en="Seller panel">لوحة البائع</a>
