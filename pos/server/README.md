@@ -74,8 +74,11 @@
   | `{{WHATSAPP}}` | رقم واتساب بصيغة مقروءة (مثل `0996489504`) |
   | `{{WA_LINK}}` | رابط `wa.me` برسالة جاهزة |
 - **روابط التحميل:** `/download/android` يحوّل إلى ملف APK (رابط «APK» من الإعدادات، وإلا `public/download/Kaseb.apk`)،
-  و`/download/windows` يحوّل إلى رابط ويندوز من الإعدادات، وإن كان فارغاً يفتح محادثة واتساب لطلب النسخة. يُضبط الرابطان من
-  لوحة البائع ← الإعدادات (رابط APK، رابط ويندوز).
+  و`/download/windows` يحوّل إلى رابط ويندوز من الإعدادات، وإلا إلى المثبّت `Kaseb-Setup.exe` في حاوية R2 `kaseb-files`
+  (يُخدم من `/download/Kaseb-Setup.exe` مع دعم الاستئناف)، وإن لم يوجد يفتح محادثة واتساب لطلب النسخة. يُضبط الرابطان من
+  لوحة البائع ← الإعدادات (رابط APK، رابط ويندوز). رفع مثبّت جديد (ملف `kaseb-windows` من workflow البناء):
+  `npx wrangler r2 object put kaseb-files/Kaseb-Setup.exe --file Kaseb-POS-Setup-1.0.0.exe --content-type application/octet-stream --remote`.
+- **الفيديو التعريفي:** زر «شاهد الفيديو» في الواجهة يفتح `public/videos/kaseb-ad.mp4` (النسخة العمودية `kaseb-ad-story.mp4`).
 - **الصور:** تُخدم من `public/img/` على `/img/<الملف>` (لقطات الهاتف 390×844 ولقطات الحاسوب 1366×800)، والأيقونة من `public/icon.svg`.
 - **روابط أخرى في الصفحة:** `/privacy` سياسة الخصوصية، و`/admin` «لوحة البائع» (رابط صغير في التذييل).
 - **الدومين:** `wrangler.toml` يربط الدومين `kaseb.raqeem.dev` كـ Custom Domain ويُبقي عنوان `workers.dev` شغّالاً، لأن التطبيقات

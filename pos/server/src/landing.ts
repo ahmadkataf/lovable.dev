@@ -90,6 +90,11 @@ button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
 .dl{display:flex;flex-wrap:wrap;gap:12px;margin-bottom:22px}
 .dl .btn{min-height:56px;padding-inline:26px}
 .dl .btn .i{width:22px;height:22px}
+.btn-v{background:#fff;color:var(--t);border:1.5px solid var(--line);box-shadow:var(--sh)}.btn-v:hover{border-color:#cbd3df}.btn-v .i{color:var(--g)}
+.vd{border:0;padding:0;background:#0b1220;border-radius:18px;width:min(960px,94vw);max-width:none;box-shadow:0 40px 100px rgba(2,6,23,.6)}.vd::backdrop{background:rgba(2,6,23,.78);backdrop-filter:blur(4px)}
+.vd video{display:block;width:100%;aspect-ratio:16/9;border-radius:18px;background:#0b1220}
+.vd .x{position:absolute;top:10px;inset-inline-end:10px;z-index:2;width:40px;height:40px;border-radius:12px;background:rgba(2,6,23,.6);color:#fff;font-size:20px;font-weight:700;display:grid;place-items:center;border:1px solid rgba(255,255,255,.18)}
+.vd .x:hover{background:rgba(2,6,23,.85)}
 .trust{display:flex;flex-wrap:wrap;gap:8px 20px;color:var(--t2);font-size:14px;font-weight:500}
 .trust li{display:flex;align-items:center;gap:7px}
 .trust .i{color:var(--g);width:18px;height:18px}
@@ -296,6 +301,7 @@ footer .rule{color:#6b7a93}
       <div class="dl rv on d2">
         <a class="btn btn-p" href="/download/android" rel="noopener"><svg class="i" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M17.5 11.5h-11a1 1 0 0 0-1 1V18a1 1 0 0 0 1 1h1v2.5a1.5 1.5 0 0 0 3 0V19h3v2.5a1.5 1.5 0 0 0 3 0V19h1a1 1 0 0 0 1-1v-5.5a1 1 0 0 0-1-1zM3.5 11.5A1.5 1.5 0 0 0 2 13v4a1.5 1.5 0 0 0 3 0v-4a1.5 1.5 0 0 0-1.5-1.5zm17 0A1.5 1.5 0 0 0 19 13v4a1.5 1.5 0 0 0 3 0v-4a1.5 1.5 0 0 0-1.5-1.5zM15.8 3.9l1.3-1.6-.6-.5-1.4 1.7A6.5 6.5 0 0 0 12 3a6.5 6.5 0 0 0-3.1.6L7.5 1.8l-.6.5 1.3 1.6A5.6 5.6 0 0 0 5.5 8v2.5h13V8a5.6 5.6 0 0 0-2.7-4.1zM9 7a1 1 0 1 1 0-2 1 1 0 0 1 0 2zm6 0a1 1 0 1 1 0-2 1 1 0 0 1 0 2z"/></svg><span data-en="Download for Android">تحميل لأندرويد</span></a>
         <a class="btn btn-d" href="/download/windows" rel="noopener"><svg class="i" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M3 5.5l7.5-1v7H3zM11.5 4.3L21 3v8.5h-9.5zM3 12.5h7.5v7L3 18.5zM11.5 12.5H21V21l-9.5-1.3z"/></svg><span data-en="Download for Windows">تحميل لويندوز</span></a>
+        <button class="btn btn-v" type="button" id="play-ad"><svg class="i" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5.5v13l11-6.5z"/></svg><span data-en="Watch the video (1 min)">شاهد الفيديو (دقيقة)</span></button>
       </div>
       <ul class="trust rv on d3" aria-label="مزايا سريعة">
         <li><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12 5 5L20 7"/></svg><span data-en="Works offline">يعمل بلا إنترنت</span></li>
@@ -606,8 +612,9 @@ footer .rule{color:#6b7a93}
   </div>
 </footer>
 
+<dialog class="vd" id="ad-dlg" aria-label="فيديو تعريفي بكاسب"><button class="x" type="button" id="ad-x" aria-label="إغلاق">✕</button><video id="ad-v" src="/videos/kaseb-ad.mp4" poster="/videos/kaseb-ad.jpg" controls playsinline preload="none"></video></dialog>
 <script>
-(function(){
+(function(){  if(dlg&&pv&&pb){pb.addEventListener("click",function(){if(dlg.showModal){dlg.showModal();pv.play().catch(function(){})}else{window.open("/videos/kaseb-ad.mp4")}});d.getElementById("ad-x").addEventListener("click",function(){dlg.close()});dlg.addEventListener("close",function(){pv.pause()});dlg.addEventListener("click",function(e){if(e.target===dlg)dlg.close()})}
   var d=document,h=d.documentElement,hd=d.querySelector('.hd'),btn=d.getElementById('lang');
   function setLang(en){
     h.setAttribute('data-lang',en?'en':'ar');h.lang=en?'en':'ar';h.dir=en?'ltr':'rtl';
@@ -627,6 +634,8 @@ footer .rule{color:#6b7a93}
     var io=new IntersectionObserver(function(es){es.forEach(function(x){if(x.isIntersecting){x.target.classList.add('on');io.unobserve(x.target)}})},{rootMargin:'0px 0px -8% 0px',threshold:.08});
     for(var j=0;j<rv.length;j++)io.observe(rv[j]);
   }else{for(var k=0;k<rv.length;k++)rv[k].classList.add('on')}
+  var dlg=d.getElementById("ad-dlg"),pv=d.getElementById("ad-v"),pb=d.getElementById("play-ad");
+  if(dlg&&pv&&pb){pb.addEventListener("click",function(){if(dlg.showModal){dlg.showModal();pv.play().catch(function(){})}else{window.open("/videos/kaseb-ad.mp4")}});d.getElementById("ad-x").addEventListener("click",function(){dlg.close()});dlg.addEventListener("close",function(){pv.pause()});dlg.addEventListener("click",function(e){if(e.target===dlg)dlg.close()})}
 })();
 </script>
 </body>
