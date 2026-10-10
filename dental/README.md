@@ -27,28 +27,44 @@ npm install
 npm run dev          # http://localhost:5173
 npm test             # اختبارات vitest
 npm run build        # الإنتاج → dist/
-npm run qa:smoke     # لقطات شاشة للتأكد من الواجهة (Playwright)
 ```
 
 ## النسخ المبيعة
 | المنصة | الأمر | الناتج |
 |---|---|---|
-| ويندوز (مثبّت + نسخة محمولة) | `npm run electron:build` على جهاز ويندوز، أو Actions → **Dentora – Windows** | `release/Dentora-Setup-x.y.z.exe`, `release/Dentora-Portable-x.y.z.exe` |
-| أندرويد (APK + AAB) | `npm run android:build` (يحتاج Android SDK)، أو Actions → **Dentora – Android** | `android/build/Dentora.apk`, `android/build/Dentora.aab` |
+| ويندوز (مثبّت + نسخة محمولة) | `npm run electron:build` (على ويندوز، أو على لينكس مع wine) أو Actions ← **Dentora – Windows** | `release/Dentora-Setup-x.y.z.exe` و`release/Dentora-Portable-x.y.z.exe` |
+| أندرويد (APK + AAB) | `npm run build && ./scripts/build-apk.sh` مع مفتاح التوقيع النهائي، أو Actions ← **Dentora – Android** | `android/build/Dentora.apk` و`android/build/Dentora.aab` |
 
-التفاصيل في `docs/WINDOWS.md` و`docs/ANDROID.md`.
+- **التوقيع النهائي لأندرويد:** ملف APK الذي تشاركه وحزمة Google Play موقّعان بالمفتاح نفسه (`dentora-release.keystore`،
+  بصمة SHA-256 تبدأ بـ `43:68:DD`). السكربت يرفض أي بناء بمفتاح آخر عند ضبط `DENTORA_EXPECTED_CERT_SHA256`.
+  عند إنشاء التطبيق في Play Console اختر رفع مفتاحك أنت (PEPK) ليوقّع المتجر بالمفتاح نفسه. التفاصيل في `docs/ANDROID.md`.
+- **سير العمل على GitHub:** يعمل بدفع وسم مثل `dentora-v1.0.1`، ويظهر في تبويب Actions للتشغيل اليدوي بعد دمج هذا الفرع في الفرع الرئيسي.
+  بناء أندرويد يحتاج أسرار المفتاح (`ANDROID_KEYSTORE_BASE64`، `ANDROID_KEYSTORE_PASSWORD`، `ANDROID_KEY_ALIAS`).
+- التفاصيل في `docs/WINDOWS.md` و`docs/ANDROID.md`.
 
 ## الترخيص والبيع
 - يعمل النظام **7 أيام تجريبية** بكل المزايا، ثم ينتقل إلى **وضع القراءة فقط** حتى التفعيل.
 - في **الإعدادات ← الترخيص** يظهر **رقم الجهاز** (8 أحرف). يرسله صاحب العيادة إليك، فتصنع له كود تفعيل
-  (16 حرفاً) بأداة التوليد الخاصة بك، ويعمل الكود على ذلك الجهاز فقط حتى التاريخ الذي تحدده أو مدى الحياة.
-- أداة التوليد (لا تُسلَّم للعميل أبداً):
+  (16 حرفاً) يعمل على ذلك الجهاز فقط، لمدة تحددها أو مدى الحياة، وبباقة standard أو pro.
+- أداة التوليد خاصة بك وحدك (لا تُسلَّم للعميل أبداً):
   ```bash
-  node scripts/code-generator.mjs <رقم-الجهاز> standard|pro [YYYY-MM-DD|lifetime]
-  npx vite build --config vite.tools.config.ts     # نسخة HTML تعمل بلا إنترنت: dist-tools/code-generator.html
+  node scripts/code-generator.mjs <رقم-الجهاز> standard|pro [YYYY-MM-DD | 1y | 2y | lifetime]
+  node scripts/code-generator.mjs verify <رقم-الجهاز> <الكود>
+  npx vite build --config vite.tools.config.ts      # نسخة HTML تعمل بلا إنترنت: dist-tools/code-generator.html
   ```
-- عدّل بيانات التواصل (واتساب/بريد/السعر) في `src/features/settings/seller.ts` قبل البناء.
-- غيّر النص السري `MASTER` في `src/license/core.ts` مرة واحدة قبل أول بيع (ثم لا تغيّره أبداً، وإلا بطلت كل الأكواد).
+- **Google Play:** لأن الملف المشارَك ونسخة المتجر واحد، لا تعرض شاشة الترخيص سعراً ولا زر شراء (سياسة الدفع في Play).
+  اعرض السعر وطرق الشراء خارج التطبيق. لنسخة بيع مباشر فقط يمكن إظهار بيانات البائع والأسعار بضبط
+  `showPurchaseInfo: true` في `src/features/settings/seller.ts` (ولا تُرفع تلك النسخة إلى Play).
+- غيّر النص السري `MASTER` في `src/license/core.ts` مرة واحدة قبل أول بيع، ثم لا تغيّره أبداً (وإلا بطلت كل الأكواد).
+
+## التجربة والفحص
+```bash
+npm test                                   # اختبارات الوحدات (vitest)
+npx vite build --outDir /tmp/dist-tour
+QA_DIST=/tmp/dist-tour QA_PORT=4420 QA_SHOTS=qa-shots/tour node scripts/qa/tour.mjs --demo   # لقطات لكل الشاشات ببيانات تجريبية
+xvfb-run -a node scripts/qa/electron.mjs   # فحص تطبيق ويندوز (Electron)
+```
+بيانات العيادة التجريبية (60 مريضاً، مواعيد، علاجات، فواتير…) تُحمَّل من **الإعدادات ← النسخ الاحتياطي ← بيانات تجريبية**.
 
 ## البنية
 انظر `docs/ARCHITECTURE.md`: التقنيات، نموذج البيانات، قواعد الواجهة، وطريقة التحقق.

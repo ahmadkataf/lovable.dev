@@ -5,7 +5,8 @@ import { db, logActivity } from '@/db'
 import type { Procedure, ProcedureCategory } from '@/db/types'
 import { PROCEDURE_CATEGORIES } from '@/db/types'
 import { useI18n } from '@/i18n'
-import { useDebounced, useIsMobile, useMoney } from '@/app/hooks'
+import { useClinic, useDebounced, useIsMobile, useMoney } from '@/app/hooks'
+import { scalesPrices } from '@/features/seed/catalog'
 import { useSession } from '@/app/session'
 import { useLicense } from '@/license/useLicense'
 import {
@@ -24,6 +25,11 @@ type Show = 'all' | 'active' | 'inactive'
 export default function ProceduresPage() {
   const { t, lang, pick } = useI18n()
   const money = useMoney()
+  const clinic = useClinic()
+  // the default catalogue keeps dollar figures for currencies it cannot convert (e.g. SYP): say so until reviewed
+  const REVIEWED = 'dentora.pricesReviewed'
+  const [reviewed, setReviewed] = useState(() => { try { return localStorage.getItem(REVIEWED) || '' } catch { return '' } })
+  const markReviewed = () => { try { localStorage.setItem(REVIEWED, clinic.currency) } catch { /* ignore */ } setReviewed(clinic.currency) }
   const mobile = useIsMobile()
   const toast = useToast()
   const confirm = useConfirm()
@@ -165,6 +171,11 @@ export default function ProceduresPage() {
           <Button variant="primary" icon={<Plus />} disabled={readOnly} onClick={() => setForm({ open: true })}>{t('treatments.proc.new')}</Button>
         </>} />
       {expired && <Alert tone="warning" className="mb-4">{t('trial.readonly')}</Alert>}
+      {!loading && !empty && !scalesPrices(clinic.currency) && reviewed !== clinic.currency && (
+        <Alert tone="info" className="mb-4" action={<Button size="sm" variant="secondary" onClick={markReviewed}>{t('treatments.proc.pricesReviewed')}</Button>}>
+          {t('seed.pricesInUsd', { currency: clinic.currency })}
+        </Alert>
+      )}
 
       {empty ? (
         <Card>

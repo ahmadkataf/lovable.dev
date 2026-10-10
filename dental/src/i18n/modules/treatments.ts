@@ -66,7 +66,7 @@ const treatments: ModuleDict = {
     'print.patientSign': 'توقيع المريض', 'print.doctorSign': 'توقيع الطبيب',
 
     // procedures (price list)
-    'proc.title': 'قائمة الإجراءات والأسعار', 'proc.subtitle': '{n} في {cats} — المفعّل منها {active}', 'proc.subtitleEmpty': 'سعر العيادة لكل إجراء علاجي',
+    'proc.pricesReviewed': 'راجعت الأسعار', 'proc.title': 'قائمة الإجراءات والأسعار', 'proc.subtitle': '{n} في {cats} — المفعّل منها {active}', 'proc.subtitleEmpty': 'سعر العيادة لكل إجراء علاجي',
     'proc.new': 'إجراء جديد', 'proc.newTitle': 'إجراء جديد', 'proc.editTitle': 'تعديل الإجراء', 'proc.copyTitle': 'نسخ الإجراء', 'proc.copySuffix': '(نسخة)',
     'proc.formSub': 'يظهر بهذا الاسم والسعر في خطط العلاج والفواتير.', 'proc.name': 'اسم الإجراء', 'proc.namePh': 'مثال: حشوة كومبوزيت — سطح واحد',
     'proc.nameEn': 'الاسم بالإنجليزية', 'proc.nameEnHint': 'يظهر عند استخدام الواجهة الإنجليزية', 'proc.duration': 'المدة المعتادة',
@@ -178,7 +178,7 @@ const treatments: ModuleDict = {
     'print.disclaimer': 'This is a preliminary estimate, valid for 30 days. It may change if the treatment plan changes after examination or during treatment.',
     'print.patientSign': 'Patient signature', 'print.doctorSign': 'Doctor signature',
 
-    'proc.title': 'Procedures & prices', 'proc.subtitle': '{n} in {cats} — {active} active', 'proc.subtitleEmpty': 'Your clinic’s price for every procedure',
+    'proc.pricesReviewed': 'Prices reviewed', 'proc.title': 'Procedures & prices', 'proc.subtitle': '{n} in {cats} — {active} active', 'proc.subtitleEmpty': 'Your clinic’s price for every procedure',
     'proc.new': 'New procedure', 'proc.newTitle': 'New procedure', 'proc.editTitle': 'Edit procedure', 'proc.copyTitle': 'Duplicate procedure', 'proc.copySuffix': '(copy)',
     'proc.formSub': 'Shown with this name and price on treatment plans and invoices.', 'proc.name': 'Name', 'proc.namePh': 'e.g. Composite filling — 1 surface',
     'proc.nameEn': 'English name', 'proc.nameEnHint': 'Shown when the app is in English', 'proc.duration': 'Usual duration',
