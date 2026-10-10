@@ -91,10 +91,15 @@ export function validateMove(amount: number | null | undefined, direction: MoveD
   return null
 }
 
+/** Newest first: by calendar date, then by the moment it was recorded. */
+export function sortMovements<T extends Pick<StockMovement, 'date' | 'createdAt'>>(list: T[]): T[] {
+  return [...list].sort((a, b) => b.date.localeCompare(a.date) || b.createdAt.localeCompare(a.createdAt))
+}
+
 export interface MovementRow extends StockMovement { after: number }
 /** Newest first, each row annotated with the quantity after it, derived backwards from the current quantity. */
 export function withRunningBalance(movements: StockMovement[], currentQuantity: number): MovementRow[] {
-  const sorted = [...movements].sort((a, b) => (b.date.localeCompare(a.date)) || b.createdAt.localeCompare(a.createdAt))
+  const sorted = sortMovements(movements)
   let after = currentQuantity
   return sorted.map(m => { const row = { ...m, after }; after = round2(after - m.delta); return row })
 }
@@ -122,4 +127,49 @@ export function toCSV(rows: (string | number | null | undefined)[][]): string {
     return /[",\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s
   }
   return '﻿' + rows.map(r => r.map(cell).join(',')).join('\r\n')
+}
+
+/** An item can be deleted only while its history holds nothing but the opening stock; otherwise it is deactivated. */
+export function canDeleteItem(movements: Pick<StockMovement, 'reason'>[]): boolean {
+  return movements.every(m => m.reason === 'initial')
+}
+
+/** A sensible re-order quantity for a low item: back up to twice the alert threshold (at least 1). */
+export function suggestReorderQty(item: Pick<InventoryItem, 'quantity' | 'minQuantity'>): number {
+  const target = Math.max(1, (item.minQuantity || 0) * 2)
+  return Math.max(1, Math.ceil(target - Math.max(0, item.quantity)))
+}
+
+/**
+ * What the category box holds → what is stored: a preset typed or picked by its label (in either language)
+ * is stored as its key, anything else as the trimmed text.
+ */
+export function parseCategoryInput(text: string, presetLabels: Record<string, string[]>): string {
+  const v = text.trim()
+  if (!v) return ''
+  const low = v.toLowerCase()
+  for (const key of CATEGORY_PRESETS) {
+    if (key === low) return key
+    if ((presetLabels[key] || []).some(l => l.trim().toLowerCase() === low)) return key
+  }
+  return v
+}
+
+export interface ItemFormValues { name: string; quantity: number | null; minQuantity: number | null; costPrice: number | null; expiryDate: string; unit: string }
+export type ItemFormErrors = Partial<Record<'name' | 'quantity' | 'minQuantity' | 'costPrice' | 'expiryDate' | 'unit', 'required' | 'min' | 'date'>>
+export function validateItem(v: ItemFormValues): ItemFormErrors {
+  const e: ItemFormErrors = {}
+  if (!v.name.trim()) e.name = 'required'
+  if (!v.unit.trim()) e.unit = 'required'
+  if (v.quantity !== null && (!Number.isFinite(v.quantity) || v.quantity < 0)) e.quantity = 'min'
+  if (v.minQuantity !== null && (!Number.isFinite(v.minQuantity) || v.minQuantity < 0)) e.minQuantity = 'min'
+  if (v.costPrice !== null && (!Number.isFinite(v.costPrice) || v.costPrice < 0)) e.costPrice = 'min'
+  if (v.expiryDate && !/^\d{4}-\d{2}-\d{2}$/.test(v.expiryDate)) e.expiryDate = 'date'
+  return e
+}
+
+/** Decimals to show a unit price with: the clinic's own, or 2 when that would hide cents (0.25 must not read 0). */
+export function unitPriceDecimals(n: number, clinicDecimals: number): number {
+  const d = Math.max(0, Math.min(2, clinicDecimals))
+  return Math.round(Math.abs(n) * 100) % Math.pow(10, 2 - d) !== 0 ? 2 : d
 }

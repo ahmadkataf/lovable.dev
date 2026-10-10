@@ -16,3 +16,5 @@ dental/dist
 dental/dist-*
 dental/qa-shots
 dental/release
+dental/android/build
+dental/android/release.keystore

@@ -1,9 +1,11 @@
 import type { InventoryItem, StockMovement } from '../src/db/types'
 import {
-  customCategories, daysToExpiry, expiryState, filterItems, inventoryStats, isLowStock, isOutOfStock, itemValue, signedDelta, sortItems, stockValue,
-  toCSV, validateMove, validatePurchase, purchaseTotal, withRunningBalance,
+  canDeleteItem, customCategories, daysToExpiry, expiryState, filterItems, inventoryStats, isLowStock, isOutOfStock, itemValue, parseCategoryInput, signedDelta, sortItems,
+  sortMovements, stockValue, suggestReorderQty, toCSV, unitPriceDecimals, validateItem, validateMove, validatePurchase, purchaseTotal, withRunningBalance,
 } from '../src/features/inventory/lib'
 import { matches } from '../src/lib/format'
+import { translate } from '../src/i18n'
+import { pluralRule, tn } from '../src/features/inventory/plural'
 
 const base = { id: 'x', name: 'x', category: 'consumables', unit: 'piece', quantity: 0, minQuantity: 0, active: true, createdAt: '2026-01-01T00:00:00.000Z', updatedAt: '2026-01-01T00:00:00.000Z' }
 const item = (p: Partial<InventoryItem>): InventoryItem => ({ ...base, ...p })
@@ -103,5 +105,67 @@ describe('inventory: movements', () => {
     const csv = toCSV([['name', 'qty'], ['Gloves, L', 3], ['He said "hi"', null], ['multi\nline', undefined]])
     expect(csv.charCodeAt(0)).toBe(0xfeff)
     expect(csv.slice(1).split('\r\n')).toEqual(['name,qty', '"Gloves, L",3', '"He said ""hi""",', '"multi\nline",'])
+  })
+})
+
+describe('inventory: deletion, re-order, form helpers', () => {
+  it('only items whose history is the opening stock can be deleted', () => {
+    expect(canDeleteItem([])).toBe(true)
+    expect(canDeleteItem([{ reason: 'initial' }])).toBe(true)
+    expect(canDeleteItem([{ reason: 'initial' }, { reason: 'use' }])).toBe(false)
+    expect(canDeleteItem([{ reason: 'purchase' }])).toBe(false)
+  })
+  it('suggests restocking up to twice the threshold', () => {
+    expect(suggestReorderQty({ quantity: 3, minQuantity: 5 })).toBe(7)
+    expect(suggestReorderQty({ quantity: 0, minQuantity: 2 })).toBe(4)
+    expect(suggestReorderQty({ quantity: -1, minQuantity: 2 })).toBe(4)       // negative never counts
+    expect(suggestReorderQty({ quantity: 0, minQuantity: 0 })).toBe(1)        // at least one
+    expect(suggestReorderQty({ quantity: 12, minQuantity: 5 })).toBe(1)
+  })
+  it('category box maps preset labels in either language to the key', () => {
+    const labels = { consumables: ['مستهلكات', 'Consumables'], materials: ['مواد', 'Materials'] }
+    expect(parseCategoryInput(' مستهلكات ', labels)).toBe('consumables')
+    expect(parseCategoryInput('materials', labels)).toBe('materials')
+    expect(parseCategoryInput('MATERIALS', labels)).toBe('materials')
+    expect(parseCategoryInput('تعقيم', labels)).toBe('تعقيم')
+    expect(parseCategoryInput('   ', labels)).toBe('')
+  })
+  it('validates the item form', () => {
+    const v = { name: 'Gloves', quantity: 0, minQuantity: 0, costPrice: null, expiryDate: '', unit: 'box' }
+    expect(validateItem(v)).toEqual({})
+    expect(validateItem({ ...v, name: ' ', unit: '' })).toEqual({ name: 'required', unit: 'required' })
+    expect(validateItem({ ...v, quantity: -1, minQuantity: -2, costPrice: -3 })).toEqual({ quantity: 'min', minQuantity: 'min', costPrice: 'min' })
+    expect(validateItem({ ...v, expiryDate: '10/10/2026' })).toEqual({ expiryDate: 'date' })
+    expect(validateItem({ ...v, quantity: null, minQuantity: null })).toEqual({})
+  })
+  it('sorts movements newest first and keeps cents on unit prices', () => {
+    const m = [{ id: 'a', date: '2026-10-01', createdAt: '2026-10-01T09:00:00Z' }, { id: 'b', date: '2026-10-02', createdAt: '2026-10-02T08:00:00Z' }, { id: 'c', date: '2026-10-02', createdAt: '2026-10-02T09:00:00Z' }]
+    expect(sortMovements(m).map(x => x.id)).toEqual(['c', 'b', 'a'])
+    expect(unitPriceDecimals(6, 0)).toBe(0)
+    expect(unitPriceDecimals(2.5, 0)).toBe(2)
+    expect(unitPriceDecimals(0.01, 0)).toBe(2)
+    expect(unitPriceDecimals(2.5, 2)).toBe(2)
+    expect(unitPriceDecimals(12, 2)).toBe(2)
+  })
+})
+
+describe('counted strings use real plural forms', () => {
+  const tAr = (k: string, p?: Record<string, string | number>) => translate('ar', k, p)
+  const tEn = (k: string, p?: Record<string, string | number>) => translate('en', k, p)
+  it('Arabic: one, two, few, many, other (zero falls back to other)', () => {
+    expect(pluralRule(5, 'ar')).toBe('few')
+    expect(tn(tAr, 'ar', 'inventory.itemsCount', 1)).toBe('صنف واحد')
+    expect(tn(tAr, 'ar', 'inventory.itemsCount', 2)).toBe('صنفان')
+    expect(tn(tAr, 'ar', 'inventory.itemsCount', 5)).toBe('5 أصناف')
+    expect(tn(tAr, 'ar', 'inventory.itemsCount', 12)).toBe('12 صنفاً')
+    expect(tn(tAr, 'ar', 'inventory.itemsCount', 100)).toBe('100 صنف')
+    expect(tn(tAr, 'ar', 'inventory.itemsCount', 0)).toBe('0 صنف')
+    expect(tn(tAr, 'ar', 'inventory.expiresIn', 1)).toBe('ينتهي غداً')
+    expect(tn(tAr, 'ar', 'expenses.period.days', 31)).toBe('31 يوماً')
+  })
+  it('English: one and other', () => {
+    expect(tn(tEn, 'en', 'expenses.period.days', 1)).toBe('1 day')
+    expect(tn(tEn, 'en', 'expenses.period.days', 30)).toBe('30 days')
+    expect(tn(tEn, 'en', 'expenses.entries', 3)).toBe('3 entries')
   })
 })
