@@ -52,9 +52,11 @@
 .topbar-mobile-brand .brand-logo { width: 32px; height: 32px; border-radius: 10px; }
 .notif-dot { position: absolute; top: 7px; inset-inline-end: 7px; width: 8px; height: 8px; border-radius: 50%; background: var(--danger); border: 2px solid var(--surface); }
 @media (max-width: 1023px) {
-  .topbar-mobile-brand { display: flex; }
-  .topbar-search { flex: none; width: 40px; padding: 0; justify-content: center; margin-inline-start: auto; } .topbar-search span, .topbar-search .kbd { display: none; }
-  .topbar-actions { margin-inline-start: 0; }
+  .topbar-mobile-brand { display: flex; flex: 1; min-width: 0; }
+  .topbar-mobile-brand > span { flex: 1; min-width: 0; max-width: none !important; }
+  .topbar-search { flex: none; width: 40px; padding: 0; justify-content: center; margin-inline-start: 0; } .topbar-search span, .topbar-search .kbd { display: none; }
+  .topbar-actions { margin-inline-start: 0; gap: 4px; flex: none; }
+  body { overflow-x: hidden; }
 }
 .trial-bar { display: flex; align-items: center; justify-content: center; gap: 12px; padding: 8px var(--gutter); background: linear-gradient(90deg, #FEF3C7, #FDE68A); color: #78350F; font-size: var(--fs-sm); font-weight: 600; flex-wrap: wrap; text-align: center; }
 .trial-bar.expired { background: linear-gradient(90deg, #FEE2E2, #FECACA); color: #7F1D1D; }
