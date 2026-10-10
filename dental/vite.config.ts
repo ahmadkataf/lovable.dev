@@ -13,8 +13,7 @@ export default defineConfig({
     outDir: 'dist',
     emptyOutDir: true,
     target: 'es2020',
-    // fonts travel inside the stylesheet so the offline apps never miss them
-    assetsInlineLimit: (file: string) => (file.endsWith('.woff2') ? true : undefined),
+    // fonts stay separate files (relative URLs work from file:// and the Android asset server); only used faces load
     chunkSizeWarningLimit: 1500,
   },
   test: {

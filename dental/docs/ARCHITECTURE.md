@@ -8,7 +8,7 @@ is a JSON file of every table. There is no server.
 - Vite 7 · React 19 · TypeScript (strict) · react-router-dom 7 (HashRouter: works from file:// and the Android asset server)
 - Dexie 4 + dexie-react-hooks (`useLiveQuery`) for all data; `lucide-react` icons; no other runtime libraries. **Do not add npm packages.**
 - Plain CSS with design tokens (`src/styles/tokens.css`), the UI kit (`src/styles/components.css`) and the shell (`src/styles/shell.css`).
-- Fonts: IBM Plex Sans Arabic (bundled, offline). Digits are Latin in both languages.
+- Fonts: Inter (Latin, digits) + Noto Kufi Arabic (Arabic) by default, bundled offline; other Arabic fonts selectable via data-font (src/app/theme.ts). Digits are Latin in both languages.
 
 ## Folders
 ```

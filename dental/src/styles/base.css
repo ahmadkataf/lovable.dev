@@ -1,13 +1,10 @@
-@import '@fontsource/ibm-plex-sans-arabic/400.css';
-@import '@fontsource/ibm-plex-sans-arabic/500.css';
-@import '@fontsource/ibm-plex-sans-arabic/600.css';
-@import '@fontsource/ibm-plex-sans-arabic/700.css';
+@import './fonts.css';
 @import './tokens.css';
 
 *, *::before, *::after { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
 html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
 html, body, #root { height: 100%; }
-body { margin: 0; background: var(--bg); color: var(--text); font-family: var(--font); font-size: var(--fs-md); line-height: 1.55; font-feature-settings: 'tnum' 1; -webkit-font-smoothing: antialiased; overscroll-behavior-y: none; }
+body { margin: 0; background: var(--bg); color: var(--text); font-family: var(--font); font-size: var(--fs-md); line-height: 1.6; font-feature-settings: 'tnum' 1, 'cv11' 1; -webkit-font-smoothing: antialiased; overscroll-behavior-y: none; }
 h1, h2, h3, h4, p { margin: 0; }
 button, input, select, textarea { font: inherit; color: inherit; }
 button { cursor: pointer; border: 0; background: none; padding: 0; }
@@ -30,6 +27,7 @@ input[type="date"], input[type="time"], input[type="datetime-local"] { direction
 .ltr { direction: ltr; unicode-bidi: isolate; }
 .rtl { direction: rtl; unicode-bidi: isolate; }
 .num { font-variant-numeric: tabular-nums; direction: ltr; unicode-bidi: isolate; }
+.kbd, kbd { font-family: var(--font-mono); }
 .mono { font-family: var(--font-mono); }
 .muted { color: var(--text-3); }
 .subtle { color: var(--text-4); }

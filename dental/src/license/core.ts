@@ -78,4 +78,4 @@ export async function checkCode(device: string, code: string, now = new Date()):
   return { ok: true, plan, until }
 }
 
-export const TRIAL_DAYS = 30
+export const TRIAL_DAYS = 7

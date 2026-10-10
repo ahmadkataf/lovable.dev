@@ -40,9 +40,10 @@
   --sh-primary: 0 6px 16px -4px rgba(14, 143, 134, .45);
 
   /* type */
-  --font: 'IBM Plex Sans Arabic', 'Segoe UI', Tahoma, system-ui, -apple-system, sans-serif;
-  --font-mono: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
-  --fs-xs: 11.5px; --fs-sm: 13px; --fs-md: 14px; --fs-lg: 16px; --fs-xl: 18px; --fs-2xl: 22px; --fs-3xl: 28px; --fs-4xl: 34px;
+  /* --font and --font-scale come from fonts.css (data-font on <html>) */
+  --font-mono: 'Inter Variable', ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+  --fs-xs: calc(11.5px * var(--font-scale, 1)); --fs-sm: calc(12.75px * var(--font-scale, 1)); --fs-md: calc(13.75px * var(--font-scale, 1)); --fs-lg: calc(15.5px * var(--font-scale, 1));
+  --fs-xl: calc(17.5px * var(--font-scale, 1)); --fs-2xl: calc(21px * var(--font-scale, 1)); --fs-3xl: calc(26px * var(--font-scale, 1)); --fs-4xl: calc(32px * var(--font-scale, 1));
 
   /* layout */
   --sidebar-w: 264px; --sidebar-w-collapsed: 76px; --topbar-h: 64px; --bottomnav-h: 64px;
