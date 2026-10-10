@@ -194,7 +194,7 @@ export default function PatientPage() {
             sub={balance < -0.004 ? t('patients.credit') : undefined} onClick={can('billing') ? () => setTab('billing') : undefined} />
           <Kpi icon={<CalendarClock />} tone={next ? 'primary' : 'muted'} label={t('patients.nextAppointment')}
             value={facts === undefined ? <Skeleton w={80} h={20} /> : next ? relativeDay(dateOf(next.start), lang) : <span className="pt-kpi-muted">{t('patients.noUpcoming')}</span>}
-            sub={next ? <span className="num">{fmtTime(next.start, lang)}</span> : undefined} onClick={can('appointments') ? () => setTab('appointments') : undefined} />
+            sub={next ? <bdi className="tnum">{fmtTime(next.start, lang)}</bdi> : undefined} onClick={can('appointments') ? () => setTab('appointments') : undefined} />
           <Kpi icon={<CalendarDays />} tone={lastVisit ? 'info' : 'muted'} label={t('patients.lastVisit')}
             value={facts === undefined ? <Skeleton w={80} h={20} /> : lastVisit ? fmtDate(dateOf(lastVisit), lang) : <span className="pt-kpi-muted">{t('patients.noVisits')}</span>}
             sub={lastVisit ? timeAgo(lastVisit, lang) : undefined} />

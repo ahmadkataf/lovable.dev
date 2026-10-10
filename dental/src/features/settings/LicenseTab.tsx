@@ -35,7 +35,7 @@ export default function LicenseTab() {
   const trialEnd = trialEndsAt(installedAt, TRIAL_DAYS)
   // A code's last day is stored as a UTC day: show that calendar day whatever the device's time zone.
   const untilText = lic.until ? fmtDate(codeDay(lic.until), lang, 'long') : ''
-  const hasSeller = !!(SELLER.name || SELLER.whatsapp || SELLER.email || SELLER.priceText || SELLER.priceTextEn)
+  const hasSeller = SELLER.showPurchaseInfo && !!(SELLER.name || SELLER.whatsapp || SELLER.email || SELLER.priceText || SELLER.priceTextEn)
   const showForm = status !== 'active' || renewing
 
   const copyDevice = async () => {
@@ -151,10 +151,10 @@ export default function LicenseTab() {
       {/* ---- how to buy ---- */}
       <Card>
         <CardBody>
-          <SectionTitle icon={<Store />} title={t('license.buyTitle')} sub={t('license.buySub')} />
+          <SectionTitle icon={<Store />} title={t('license.buyTitle')} sub={t(hasSeller ? 'license.buySub' : 'license.buySubNeutral')} />
           <ol className="st-buy-steps">
             <li><span className="st-step-no num">1</span>{t('license.buy.step1')}</li>
-            <li><span className="st-step-no num">2</span>{t('license.buy.step2')}</li>
+            <li><span className="st-step-no num">2</span>{t(hasSeller ? 'license.buy.step2' : 'license.buy.step2Neutral')}</li>
             <li><span className="st-step-no num">3</span>{t('license.buy.step3')}</li>
           </ol>
           {hasSeller && <div className="st-seller">

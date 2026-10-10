@@ -90,7 +90,7 @@ export default function PatientOverview({ patient, appointments, onEdit, onBook 
                       <span className="pt-apt-date"><span className="pt-apt-day num">{d.getDate()}</span><span className="pt-apt-mon">{weekdayShort(d, lang)}</span></span>
                       <div className="grow">
                         <div className="li-main">{nearDay(a.start, lang) ?? fmtDate(a.start, lang, 'long')}</div>
-                        <div className="li-sub"><span className="num">{fmtTime(a.start, lang)}</span> · {t(`aptType.${a.type}`)}{userName(a.doctorId) ? <> · <bdi>{userName(a.doctorId)}</bdi></> : null}</div>
+                        <div className="li-sub"><bdi className="tnum">{fmtTime(a.start, lang)}</bdi> · {t(`aptType.${a.type}`)}{userName(a.doctorId) ? <> · <bdi>{userName(a.doctorId)}</bdi></> : null}</div>
                       </div>
                       <Badge tone={toneFor(a.status)} dot>{t(`apt.${a.status}`)}</Badge>
                     </div>

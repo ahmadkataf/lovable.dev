@@ -362,7 +362,7 @@ export interface ClinicalNote {
   updatedAt: ISOTime
 }
 
-export type ActivityType = 'patient' | 'appointment' | 'treatment' | 'invoice' | 'payment' | 'prescription' | 'lab' | 'inventory' | 'expense' | 'system'
+export type ActivityType = 'patient' | 'appointment' | 'treatment' | 'chart' | 'file' | 'note' | 'invoice' | 'payment' | 'prescription' | 'lab' | 'inventory' | 'expense' | 'system'
 export interface Activity {
   id: ID
   type: ActivityType

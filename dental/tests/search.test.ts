@@ -209,11 +209,12 @@ describe('inventory alerts', () => {
     const list = lowStockItems([item('low', { quantity: 1, minQuantity: 5 }), item('ok', {}), item('out', { quantity: 0, minQuantity: 3 })])
     expect(list.map(i => i.id)).toEqual(['out', 'low'])
   })
-  it('expiry windows: expired, today, within 30 days, beyond', () => {
+  it('expiry windows: expired, today, within 60 days (as the inventory page promises), beyond', () => {
     expect(expiryState(item('x', { expiryDate: '2026-10-09' }), TODAY)).toEqual({ kind: 'expired', days: -1 })
     expect(expiryState(item('x', { expiryDate: TODAY }), TODAY)).toEqual({ kind: 'expiring', days: 0 })
     expect(expiryState(item('x', { expiryDate: '2026-11-09' }), TODAY)).toEqual({ kind: 'expiring', days: 30 })
-    expect(expiryState(item('x', { expiryDate: '2026-11-10' }), TODAY)).toBeNull()
+    expect(expiryState(item('x', { expiryDate: '2026-12-09' }), TODAY)).toEqual({ kind: 'expiring', days: 60 })
+    expect(expiryState(item('x', { expiryDate: '2026-12-10' }), TODAY)).toBeNull()
     expect(expiryState(item('x', { expiryDate: '2026-10-01', quantity: 0 }), TODAY)).toBeNull()   // nothing left to throw away
     expect(expiryState(item('x', { expiryDate: '2026-10-01', active: false }), TODAY)).toBeNull()
     expect(expiryState(item('x', {}), TODAY)).toBeNull()

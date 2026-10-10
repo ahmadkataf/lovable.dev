@@ -107,7 +107,7 @@ function PaymentForm({ onClose, patientId: givenPatient, invoiceId, onSaved }: O
           <div>{t(refund ? 'billing.payment.refundDesc' : 'billing.payment.savedDesc', { amount: ltr(money(Math.abs(signed))), method: t(`pay.${method}`) })}</div>
           <button type="button" className="bl-toast-action" onClick={() => openReceipt(main.id)}><Printer />{t('billing.payment.printReceipt')}</button>
         </>
-      ), 9000)
+      ), 7000)
       onSaved?.(main.id)
       onClose()
     } catch {

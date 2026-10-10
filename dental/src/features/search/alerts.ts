@@ -10,7 +10,7 @@ import { useSession, type Permission } from '@/app/session'
 import { collator } from './lib'
 
 export const OVERDUE_AFTER_DAYS = 30     // an invoice without a due date is overdue this long after its date
-export const EXPIRY_WINDOW_DAYS = 30
+export const EXPIRY_WINDOW_DAYS = 60   // the same window as the inventory page (EXPIRY_SOON_DAYS) and its form hint
 export const RECALL_MONTHS = 6
 export const RECALL_LIMIT = 10
 export const TODAY_LIMIT = 3

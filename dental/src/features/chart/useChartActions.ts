@@ -36,7 +36,7 @@ export function useChartActions(patientId: string) {
 
   const log = useCallback((action: 'create' | 'update' | 'delete', key: string, tooth: number, cond: ToothCondition, surfaces: ToothSurface[] = [], entityId?: string) => {
     const code = surfaceCode(surfaces)
-    void logActivity({ type: 'treatment', action, patientId, entityId, by: user?.id, message: t(key, { n: tooth, cond: t(`cond.${cond}`) + (code ? ` (${code})` : '') }) })
+    void logActivity({ type: 'chart', action, patientId, entityId, by: user?.id, message: t(key, { n: tooth, cond: t(`cond.${cond}`) + (code ? ` (${code})` : '') }) })
   }, [patientId, t, user?.id])
 
   /** Records a finding from the tooth panel. */

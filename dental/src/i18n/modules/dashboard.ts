@@ -23,7 +23,7 @@ const dashboard: ModuleDict = {
     'alerts.clearTitle': 'كل شيء على ما يرام', 'alerts.clearDesc': 'لا توجد فواتير متأخرة أو نواقص أو أعمال مخبر مستحقة.',
     // activity
     'activity.title': 'آخر النشاطات', 'activity.emptyTitle': 'لا نشاطات بعد', 'activity.emptyDesc': 'ستظهر هنا آخر العمليات في العيادة فور حدوثها.',
-    'type.patient': 'مريض', 'type.appointment': 'موعد', 'type.treatment': 'علاج', 'type.invoice': 'فاتورة', 'type.payment': 'دفعة', 'type.prescription': 'وصفة طبية',
+    'type.patient': 'مريض', 'type.appointment': 'موعد', 'type.treatment': 'علاج', 'type.chart': 'مخطط الأسنان', 'type.file': 'ملف', 'type.note': 'ملاحظة سريرية', 'type.invoice': 'فاتورة', 'type.payment': 'دفعة', 'type.prescription': 'وصفة طبية',
     'type.lab': 'طلب مخبر', 'type.inventory': 'المخزون', 'type.expense': 'مصروف', 'type.system': 'النظام',
     'act.patient.create': 'ملف مريض جديد', 'act.patient.update': 'تعديل بيانات مريض', 'act.patient.delete': 'حذف ملف مريض', 'act.patient.status': 'تغيير حالة ملف', 'act.patient.other': 'تحديث في ملف مريض',
     'act.appointment.create': 'حجز موعد', 'act.appointment.update': 'تعديل موعد', 'act.appointment.delete': 'حذف موعد', 'act.appointment.status': 'تحديث حالة موعد', 'act.appointment.other': 'متابعة موعد',
@@ -63,7 +63,7 @@ const dashboard: ModuleDict = {
     'alerts.unconfirmed': "Tomorrow's unconfirmed visits", 'alerts.unconfirmedSub': 'Call patients to confirm',
     'alerts.clearTitle': 'All clear', 'alerts.clearDesc': 'No overdue invoices, shortages or lab work due.',
     'activity.title': 'Recent activity', 'activity.emptyTitle': 'No activity yet', 'activity.emptyDesc': 'The latest actions in the clinic will appear here as they happen.',
-    'type.patient': 'Patient', 'type.appointment': 'Appointment', 'type.treatment': 'Treatment', 'type.invoice': 'Invoice', 'type.payment': 'Payment', 'type.prescription': 'Prescription',
+    'type.patient': 'Patient', 'type.appointment': 'Appointment', 'type.treatment': 'Treatment', 'type.chart': 'Dental chart', 'type.file': 'File', 'type.note': 'Clinical note', 'type.invoice': 'Invoice', 'type.payment': 'Payment', 'type.prescription': 'Prescription',
     'type.lab': 'Lab order', 'type.inventory': 'Inventory', 'type.expense': 'Expense', 'type.system': 'System',
     'act.patient.create': 'New patient file', 'act.patient.update': 'Patient details updated', 'act.patient.delete': 'Patient file deleted', 'act.patient.status': 'Patient file status changed', 'act.patient.other': 'Patient file updated',
     'act.appointment.create': 'Appointment booked', 'act.appointment.update': 'Appointment changed', 'act.appointment.delete': 'Appointment deleted', 'act.appointment.status': 'Appointment status updated', 'act.appointment.other': 'Appointment follow-up',

@@ -1,8 +1,5 @@
 import { Link } from 'react-router-dom'
-import {
-  Activity as ActivityIcon, BellRing, Boxes, CalendarClock, CalendarDays, ChevronRight, FileText, FlaskConical, History, LogIn, PackageMinus, Pill, Receipt,
-  ShieldCheck, Stethoscope, UserRound, Wallet,
-} from 'lucide-react'
+import { Activity as ActivityIcon, BellRing, Boxes, CalendarClock, CalendarDays, ChevronRight, FileText, FlaskConical, History, LogIn, PackageMinus, Pill, Receipt, ShieldCheck, Stethoscope, UserRound, Wallet, Smile, Paperclip, StickyNote } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { Card, CardHeader, EmptyState, Skeleton } from '@/ui'
 import { useI18n } from '@/i18n'
@@ -48,11 +45,11 @@ export function AlertsCard({ items, loading, style }: { items: AlertItem[]; load
 }
 
 const TYPE_ICON: Record<ActivityType, LucideIcon> = {
-  patient: UserRound, appointment: CalendarDays, treatment: Stethoscope, invoice: Receipt, payment: Wallet, prescription: Pill,
+  patient: UserRound, appointment: CalendarDays, treatment: Stethoscope, chart: Smile, file: Paperclip, note: StickyNote, invoice: Receipt, payment: Wallet, prescription: Pill,
   lab: FlaskConical, inventory: Boxes, expense: FileText, system: LogIn,
 }
 const TYPE_TONE: Record<ActivityType, string> = {
-  patient: 'primary', appointment: 'info', treatment: 'purple', invoice: 'accent', payment: 'success', prescription: 'pink',
+  patient: 'primary', appointment: 'info', treatment: 'purple', chart: 'pink', file: 'info', note: 'primary', invoice: 'accent', payment: 'success', prescription: 'pink',
   lab: 'orange', inventory: 'warning', expense: 'orange', system: 'gray',
 }
 

@@ -3,6 +3,14 @@ import { Check, X } from 'lucide-react'
 import { useTSafe } from '@/i18n'
 
 export interface FieldProps { label?: ReactNode; hint?: ReactNode; error?: ReactNode; required?: boolean; children: ReactNode; className?: string; htmlFor?: string }
+/** Grid placement classes belong on the field wrapper, not on the <input> inside it. */
+function splitGrid(className?: string): [string | undefined, string | undefined] {
+  if (!className) return [undefined, undefined]
+  const parts = className.split(/\s+/)
+  const grid = parts.filter(c => /^span-\d$/.test(c)).join(' ')
+  const rest = parts.filter(c => !/^span-\d$/.test(c)).join(' ')
+  return [rest || undefined, grid || undefined]
+}
 export function Field({ label, hint, error, required, children, className, htmlFor }: FieldProps) {
   return (
     <div className={['field', className].filter(Boolean).join(' ')}>
@@ -20,8 +28,11 @@ export interface InputProps extends Omit<InputHTMLAttributes<HTMLInputElement>, 
   invalid?: boolean
   clearable?: boolean
   onClear?: () => void
+  /** class for the labelled wrapper (e.g. span-2 in a .form-grid) */
+  fieldClassName?: string
 }
-export const Input = forwardRef<HTMLInputElement, InputProps>(function Input({ label, hint, error, iconStart, iconEnd, onIconEndClick, size = 'md', invalid, clearable, onClear, className, required, id, ...rest }, ref) {
+export const Input = forwardRef<HTMLInputElement, InputProps>(function Input({ label, hint, error, iconStart, iconEnd, onIconEndClick, size = 'md', invalid, clearable, onClear, className: cls, fieldClassName, required, id, ...rest }, ref) {
+  const [className, gridCls] = splitGrid(cls)
   const auto = useId(); const inputId = id || auto
   const t = useTSafe()
   const showClear = clearable && rest.value !== undefined && String(rest.value).length > 0
@@ -34,23 +45,26 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(function Input({ l
     </div>
   )
   if (!label && !hint && !error) return control
-  return <Field label={label} hint={hint} error={error} required={required} htmlFor={inputId}>{control}</Field>
+  return <Field label={label} hint={hint} error={error} required={required} htmlFor={inputId} className={[gridCls, fieldClassName].filter(Boolean).join(' ') || undefined}>{control}</Field>
 })
 
-export interface TextareaProps extends TextareaHTMLAttributes<HTMLTextAreaElement> { label?: ReactNode; hint?: ReactNode; error?: ReactNode; invalid?: boolean }
-export const Textarea = forwardRef<HTMLTextAreaElement, TextareaProps>(function Textarea({ label, hint, error, invalid, className, required, id, ...rest }, ref) {
+export interface TextareaProps extends TextareaHTMLAttributes<HTMLTextAreaElement> { label?: ReactNode; hint?: ReactNode; error?: ReactNode; invalid?: boolean; fieldClassName?: string }
+export const Textarea = forwardRef<HTMLTextAreaElement, TextareaProps>(function Textarea({ label, hint, error, invalid, className: cls, fieldClassName, required, id, ...rest }, ref) {
+  const [className, gridCls] = splitGrid(cls)
   const auto = useId(); const tid = id || auto
   const el = <textarea ref={ref} id={tid} required={required} className={['textarea', (invalid || error) && 'invalid', className].filter(Boolean).join(' ')} {...rest} />
   if (!label && !hint && !error) return el
-  return <Field label={label} hint={hint} error={error} required={required} htmlFor={tid}>{el}</Field>
+  return <Field label={label} hint={hint} error={error} required={required} htmlFor={tid} className={[gridCls, fieldClassName].filter(Boolean).join(' ') || undefined}>{el}</Field>
 })
 
 export interface SelectOption { value: string; label: ReactNode; disabled?: boolean }
 export interface SelectProps extends Omit<SelectHTMLAttributes<HTMLSelectElement>, 'size'> {
   label?: ReactNode; hint?: ReactNode; error?: ReactNode; invalid?: boolean; size?: 'sm' | 'md' | 'lg'
   options?: SelectOption[]; placeholder?: string
+  fieldClassName?: string
 }
-export const Select = forwardRef<HTMLSelectElement, SelectProps>(function Select({ label, hint, error, invalid, size = 'md', options, placeholder, className, required, id, children, ...rest }, ref) {
+export const Select = forwardRef<HTMLSelectElement, SelectProps>(function Select({ label, hint, error, invalid, size = 'md', options, placeholder, className: cls, fieldClassName, required, id, children, ...rest }, ref) {
+  const [className, gridCls] = splitGrid(cls)
   const auto = useId(); const sid = id || auto
   const el = (
     <select ref={ref} id={sid} required={required} className={['select', size !== 'md' && `input-${size}`, (invalid || error) && 'invalid', className].filter(Boolean).join(' ')} {...rest}>
@@ -60,7 +74,7 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(function Select
     </select>
   )
   if (!label && !hint && !error) return el
-  return <Field label={label} hint={hint} error={error} required={required} htmlFor={sid}>{el}</Field>
+  return <Field label={label} hint={hint} error={error} required={required} htmlFor={sid} className={[gridCls, fieldClassName].filter(Boolean).join(' ') || undefined}>{el}</Field>
 })
 
 export function Checkbox({ label, className, ...rest }: InputHTMLAttributes<HTMLInputElement> & { label?: ReactNode }) {

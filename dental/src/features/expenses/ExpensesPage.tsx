@@ -100,8 +100,7 @@ function ExpensesView() {
   const exportCsv = async () => {
     const data = [[t('expenses.col.date'), t('expenses.col.category'), t('expenses.col.description'), t('expenses.col.vendor'), t('expenses.col.method'), t('expenses.col.amount'), t('expenses.col.by')],
       ...rows.map(e => [e.date, t(`exp.${e.category}`), e.description, e.vendor ?? '', e.method ? t(`pay.${e.method}`) : '', e.amount, e.by ? userName(e.by) : ''])]
-    await saveText(`expenses-${period.from}_${period.to}.csv`, toCSV(data), 'text/csv;charset=utf-8')
-    toast.success(t('expenses.toast.exported'))
+    if (await saveText(`expenses-${period.from}_${period.to}.csv`, toCSV(data), 'text/csv;charset=utf-8')) toast.success(t('expenses.toast.exported'))
   }
 
   const pickCategory = (c: ExpenseCategory) => setCategory(cur => (cur === c ? '' : c))

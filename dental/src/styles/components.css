@@ -47,6 +47,10 @@
 .input:focus, .select:focus, .textarea:focus { border-color: var(--primary); box-shadow: 0 0 0 3px var(--primary-ring); }
 .input:disabled, .select:disabled, .textarea:disabled { background: var(--surface-3); color: var(--text-3); }
 .input.has-start { padding-inline-start: 40px; } .input.has-end { padding-inline-end: 40px; }
+/* an LTR input (phone, code) inside the RTL layout: its icons sit on the RTL sides */
+[dir="rtl"] .input[dir="ltr"].has-start { padding-left: 12px; padding-right: 40px; }
+[dir="rtl"] .input[dir="ltr"].has-end { padding-right: 12px; padding-left: 40px; }
+[dir="rtl"] .input[dir="ltr"].has-start.has-end { padding-left: 40px; padding-right: 40px; }
 .input.invalid, .select.invalid, .textarea.invalid { border-color: var(--danger); }
 .input.invalid:focus, .select.invalid:focus, .textarea.invalid:focus { box-shadow: 0 0 0 3px rgba(220, 38, 38, .2); }
 .input-sm { min-height: 32px; padding: 4px 10px; font-size: var(--fs-sm); border-radius: var(--r-sm); }
@@ -271,7 +275,8 @@
 @media (min-width: 1024px) { .toast-stack { inset-inline-start: auto; inset-inline-end: 24px; transform: none !important; bottom: 24px; } }
 .toast { pointer-events: auto; display: flex; align-items: flex-start; gap: 12px; padding: 12px 14px; background: var(--text); color: #fff; border-radius: var(--r-lg); box-shadow: var(--sh-lg); animation: rise-in var(--t-slow) var(--ease) both; font-size: var(--fs-md); }
 .toast svg { width: 20px; height: 20px; flex: none; margin-top: 1px; }
-.toast .toast-title { font-weight: 600; } .toast .toast-desc { opacity: .8; font-size: var(--fs-sm); margin-top: 2px; }
+.toast .toast-title { font-weight: 600; overflow-wrap: anywhere; } .toast .toast-desc { opacity: .8; font-size: var(--fs-sm); margin-top: 2px; overflow-wrap: anywhere; }
+.modal-header .modal-sub, .modal-body p, .alert .alert-desc { overflow-wrap: anywhere; }
 .toast .toast-x { margin-inline-start: auto; opacity: .7; } .toast .toast-x:hover { opacity: 1; }
 .toast-success svg { color: #4ADE80; } .toast-error svg { color: #F87171; } .toast-warning svg { color: #FBBF24; } .toast-info svg { color: #60A5FA; }
 :root[data-theme="dark"] .toast { background: var(--surface-3); border: 1px solid var(--border-2); }
@@ -312,6 +317,7 @@
 @media (max-width: 639px) { .hide-below-sm { display: none !important; } }
 @media (max-width: 767px) { .hide-below-md { display: none !important; } }
 @media (max-width: 1023px) { .hide-below-lg { display: none !important; } }
+@media (max-width: 1279px) { .hide-below-xl { display: none !important; } }
 
 /* toasts never cover a dialog's buttons: on phones they move to the top while a dialog or drawer is open,
    on desktop they step aside from an open drawer */

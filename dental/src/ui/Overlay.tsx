@@ -66,7 +66,10 @@ export function Modal({ open, onClose, title, subtitle, icon, size = 'md', foote
   const t = useTSafe()
   useEffect(() => {
     if (!open) return
-    const first = ref.current?.querySelector<HTMLElement>('input:not([type=hidden]), select, textarea, button:not(.modal-x)')
+    const root = ref.current
+    const first = root?.querySelector<HTMLElement>('[data-autofocus], [autofocus]')
+      ?? root?.querySelector<HTMLElement>('input:not([type=hidden]):not([type=checkbox]):not([type=radio]):not([disabled]), textarea:not([disabled])')
+      ?? root?.querySelector<HTMLElement>('select:not([disabled]), input:not([type=hidden]), button:not(.modal-x)')
     const t = window.setTimeout(() => first?.focus(), 50)
     return () => window.clearTimeout(t)
   }, [open])

@@ -101,7 +101,7 @@ function NoteModal({ patientId, note, onClose }: { patientId: string; note?: Cli
       const id = note?.id ?? newId()
       if (note) await db.notes.update(note.id, { date, doctorId: doctorId || undefined, text: text.trim(), updatedAt: now })
       else await db.notes.add({ id, patientId, date, doctorId: doctorId || undefined, text: text.trim(), createdAt: now, updatedAt: now })
-      void logActivity({ type: 'patient', action: note ? 'update' : 'other', entityId: id, patientId, message: `${t('patients.notes.logged')}: ${text.trim().slice(0, 60)}`, by: me?.id })
+      void logActivity({ type: 'note', action: note ? 'update' : 'create', entityId: id, patientId, message: `${t('patients.notes.logged')}: ${text.trim().slice(0, 60)}`, by: me?.id })
       toast.success(t('patients.notes.saved'))
       onClose()
     } catch {

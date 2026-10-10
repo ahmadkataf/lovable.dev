@@ -19,7 +19,7 @@ export interface Session {
   can: (perm: Permission) => boolean
 }
 export type Permission = 'manage' | 'clinical' | 'billing' | 'reports' | 'inventory' | 'patients' | 'appointments' | 'settings' | 'staff'
-const PERMS: Record<Role, Permission[]> = {
+export const PERMS: Record<Role, Permission[]> = {
   admin: ['manage', 'clinical', 'billing', 'reports', 'inventory', 'patients', 'appointments', 'settings', 'staff'],
   doctor: ['clinical', 'billing', 'reports', 'inventory', 'patients', 'appointments'],
   assistant: ['clinical', 'inventory', 'patients', 'appointments'],
@@ -44,7 +44,13 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   const logout = useCallback(() => persist(null), [])
   const lock = useCallback(() => persist(null), [])
 
-  // auto-lock after inactivity
+  // auto-lock after inactivity; Settings dispatches 'dentora:lockAfter' when the delay changes
+  const [lockTick, setLockTick] = useState(0)
+  useEffect(() => {
+    const h = () => setLockTick(n => n + 1)
+    window.addEventListener('dentora:lockAfter', h)
+    return () => window.removeEventListener('dentora:lockAfter', h)
+  }, [])
   useEffect(() => {
     if (!user) return
     let after = LOCK_AFTER_MS
@@ -55,7 +61,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     const evs = ['mousemove', 'keydown', 'touchstart', 'click']
     evs.forEach(e => window.addEventListener(e, bump, { passive: true }))
     return () => { window.clearTimeout(t); evs.forEach(e => window.removeEventListener(e, bump)) }
-  }, [user, lock])
+  }, [user, lock, lockTick])
 
   const value = useMemo<Session>(() => ({
     user, users: users ?? [], ready: users !== undefined, login, logout, lock,

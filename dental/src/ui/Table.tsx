@@ -8,7 +8,7 @@ export interface Column<T> {
   render: (row: T, index: number) => ReactNode
   className?: string            // e.g. 'num' | 'actions'
   width?: number | string
-  hideBelow?: 'sm' | 'md' | 'lg' // responsive: hide on small screens
+  hideBelow?: 'sm' | 'md' | 'lg' | 'xl' // responsive: hide below 640 / 768 / 1024 / 1280 px
 }
 export interface DataTableProps<T> {
   columns: Column<T>[]
@@ -21,7 +21,7 @@ export interface DataTableProps<T> {
   className?: string
   rowClassName?: (row: T) => string | undefined
 }
-const HIDE: Record<string, string> = { sm: 'hide-below-sm', md: 'hide-below-md', lg: 'hide-below-lg' }
+const HIDE: Record<string, string> = { sm: 'hide-below-sm', md: 'hide-below-md', lg: 'hide-below-lg', xl: 'hide-below-xl' }
 
 export function DataTable<T>({ columns, rows, rowKey, onRowClick, empty, compact, footer, className, rowClassName }: DataTableProps<T>) {
   return (

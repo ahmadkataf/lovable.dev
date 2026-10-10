@@ -140,18 +140,19 @@ function InventoryView() {
 
   const exportCsv = async () => {
     const date = today
+    let saved = false
     if (tab === 'movements') {
       const list = sortMovements(movements ?? (await db.stock.toArray()))
       const byId = new Map((items ?? []).map(i => [i.id, i]))
       const data = [[t('inventory.col.date'), t('time'), t('inventory.col.item'), t('inventory.col.reason'), t('inventory.col.delta'), t('inventory.field.unit'), t('inventory.col.note'), t('inventory.col.by')],
         ...list.map(m => [m.date, fmtTime(m.createdAt, lang), byId.get(m.itemId)?.name ?? '', reasonLabel(t, m.reason), m.delta, byId.get(m.itemId) ? unitLabel(t, byId.get(m.itemId)!.unit) : '', m.note ?? '', users.find(u => u.id === m.by)?.name ?? ''])]
-      await saveText(`stock-movements-${date}.csv`, toCSV(data), 'text/csv;charset=utf-8')
+      saved = await saveText(`stock-movements-${date}.csv`, toCSV(data), 'text/csv;charset=utf-8')
     } else {
       const data = [[t('inventory.col.item'), t('inventory.field.sku'), t('inventory.field.category'), t('inventory.field.unit'), t('inventory.col.quantity'), t('inventory.col.min'), t('inventory.col.cost'), t('inventory.col.value'), t('inventory.col.supplier'), t('inventory.col.expiry'), t('inventory.col.location'), t('status')],
         ...rows.map(i => [i.name, i.sku ?? '', catLabel(t, i.category), unitLabel(t, i.unit), i.quantity, i.minQuantity, i.costPrice ?? '', itemValue(i), i.supplier ?? '', i.expiryDate ?? '', i.location ?? '', i.active ? t('active') : t('inactive')])]
-      await saveText(`inventory-${date}.csv`, toCSV(data), 'text/csv;charset=utf-8')
+      saved = await saveText(`inventory-${date}.csv`, toCSV(data), 'text/csv;charset=utf-8')
     }
-    toast.success(t('inventory.toast.exported'))
+    if (saved) toast.success(t('inventory.toast.exported'))
   }
 
   // ---- cells ----

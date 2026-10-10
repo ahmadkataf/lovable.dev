@@ -143,7 +143,7 @@ function UploadModal({ file, patientId, onClose, onSaved }: { file: File; patien
       const mime = file.type || (fileShape(file.type, file.name) === 'pdf' ? 'application/pdf' : 'application/octet-stream')
       const rec: PatientFile = { id, patientId, kind, name: name.trim(), mime, size: file.size, data: file, thumb, note: note.trim() || undefined, tooth: tooth ?? undefined, createdAt: nowISO(), by: session.user?.id }
       await db.files.add(rec)
-      void logActivity({ type: 'patient', action: 'other', entityId: id, patientId, message: t('patients.files.logUpload', { name: rec.name }), by: session.user?.id })
+      void logActivity({ type: 'file', action: 'create', entityId: id, patientId, message: t('patients.files.logUpload', { name: rec.name }), by: session.user?.id })
       toast.success(t('patients.files.uploaded'), rec.name)
       onSaved?.(kind) // a new x-ray must not stay hidden behind a "photos" filter
       onClose()
@@ -214,12 +214,12 @@ function PreviewModal({ file, onClose, onPrev, onNext, position }: { file: Patie
       toast.error(t('patients.saveFailed'))
     } finally { setSaving(false) }
   }
-  const download = async () => { if (file.data instanceof Blob) await saveFile(file.name, file.data) }
+  const download = async () => { if (file.data instanceof Blob && await saveFile(file.name, file.data)) toast.success(t('patients.files.downloaded')) }
   const remove = async () => {
     if (!(await confirmDelete(t('patients.files.deleteConfirm')))) return
     try {
       await db.files.delete(file.id)
-      void logActivity({ type: 'patient', action: 'delete', entityId: file.id, patientId: file.patientId, message: t('patients.files.logDelete', { name: file.name }), by: session.user?.id })
+      void logActivity({ type: 'file', action: 'delete', entityId: file.id, patientId: file.patientId, message: t('patients.files.logDelete', { name: file.name }), by: session.user?.id })
       toast.success(t('patients.files.deleted'), file.name)
       onClose()
     } catch {
