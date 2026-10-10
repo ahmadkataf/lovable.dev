@@ -70,7 +70,7 @@ export default function Shell() {
         <div className="brand">
           <div className="brand-logo">{clinic.logo ? <img src={clinic.logo} alt="" /> : <ToothIcon />}</div>
           <div className="brand-text grow truncate">
-            <div className="brand-name truncate">{clinic.name || t('appName')}</div>
+            <div className="brand-name truncate" dir="auto">{clinic.name || t('appName')}</div>
             <div className="brand-sub truncate">{clinic.name ? t('appName') : t('appTagline')}</div>
           </div>
         </div>
@@ -94,7 +94,7 @@ export default function Shell() {
           <Menu align="start" vertical="top" items={userItems} trigger={() => (
             <div className="sidebar-user grow">
               <Avatar name={user.name} color={user.color} size="sm" />
-              <div className="grow truncate"><div className="u-name truncate">{user.name}</div><div className="u-role">{roleLabel}</div></div>
+              <div className="grow truncate"><div className="u-name truncate" dir="auto">{user.name}</div><div className="u-role">{roleLabel}</div></div>
               <ChevronDown size={16} className="muted" />
             </div>
           )} />
@@ -107,7 +107,7 @@ export default function Shell() {
         <header className="app-topbar no-print">
           <div className="topbar-mobile-brand">
             <div className="brand-logo">{clinic.logo ? <img src={clinic.logo} alt="" /> : <ToothIcon />}</div>
-            <span className="truncate" style={{ maxWidth: 160 }}>{clinic.name || t('appName')}</span>
+            <span className="truncate" dir="auto" style={{ maxWidth: 160 }}>{clinic.name || t('appName')}</span>
           </div>
           <button type="button" className="topbar-search" onClick={() => setSearch(true)} aria-label={t('quickSearch')}>
             <Search /><span>{t('searchPlaceholder')}</span>{desktop && <Kbd>Ctrl K</Kbd>}
