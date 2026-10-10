@@ -166,7 +166,7 @@ const priceDlg = el('dialog', { class: 'chooser pricing', 'aria-label': 'الأ�
 const actions = el('div', { class: 'actions' })
 previewWrap.append(stats, alerts, el('div', { class: 'canvas-wrap' }, svg, el('div', { class: 'canvas-tools' }, el('button', { type: 'button', class: 'tool', onclick: () => fitView(), title: 'ملاءمة' }, '⤢'), el('button', { type: 'button', class: 'tool', onclick: () => { state.labels = !state.labels; persist(); render() }, title: 'الأسماء' }, 'Aa'))), actions)
 document.body.append(chooser, priceDlg)
-app.append(header, gallery, quick, scaler, el('div', { class: 'work' }, form, previewWrap), costBox, notesBox, el('footer', { class: 'foot' }, 'الملفات بالمليمتر. افتح SVG أو DXF في LightBurn أو RDWorks أو Inkscape، وتأكّد أن القياس 1:1 قبل القص. · الإصدار 1.7'))
+app.append(header, gallery, quick, scaler, el('div', { class: 'work' }, form, previewWrap), costBox, notesBox, el('footer', { class: 'foot' }, 'الملفات بالمليمتر. افتح SVG أو DXF في LightBurn أو RDWorks أو Inkscape، وتأكّد أن القياس 1:1 قبل القص. · الإصدار 1.8'))
 
 // ------------------------------------------------------------------ gallery
 
@@ -553,6 +553,7 @@ async function saveApk() {
 function sizeLabel(p: Record<string, number>) {
   if (state.tpl.startsWith('trophy')) return `درع ${fmt(p.H)} مم، قاعدة ${fmt(p.W)} × ${fmt(p.D)}`
   if (state.tpl.startsWith('coasterset')) return `${fmt(p.nc)} كوستر ${fmt(p.S)} × ${fmt(p.S)}`
+  if (state.tpl === 'rosesign') return `وردة بارتفاع ${fmt(p.H)} مم، قلب ${fmt(p.hw)}`
   if (p.pw !== undefined) return `صورة ${fmt(p.pw)} × ${fmt(p.ph)}`
   if (p.Dm !== undefined) return `Ø${fmt(p.Dm)} × ${fmt(p.H)}`
   if (p.Dd !== undefined) return `مرآة Ø${fmt(p.Dd)}، قاعدة ${fmt(p.W)} × ${fmt(p.D)}`

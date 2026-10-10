@@ -41,6 +41,7 @@ const PER_TEMPLATE: Record<string, Record<string, Role>> = {
   ramadanornaments: { hole: 'fixed' },
   clock: { hole: 'object' },
   doorhanger: { hole: 'object', sw: 'object' },
+  giftbag: { hand: 'fixed' }, // the hand hole is sized for a hand
 }
 
 export function roleOf(tpl: Template, def: ParamDef): Role {
