@@ -43,6 +43,12 @@ public final class ServeTable {
         }
         b.append("},\"js\":{\"back\":").append(WebFiles.jsString(WebFiles.BACK_JS))
             .append(",\"printShim\":").append(WebFiles.jsString(WebFiles.PRINT_SHIM_JS))
+            .append(",\"bridge\":").append(WebFiles.jsString(WebFiles.BRIDGE_JS))
+            .append(",\"printHold\":").append(WebFiles.jsString(WebFiles.PRINT_HOLD_JS))
+            .append(",\"printDone\":").append(WebFiles.jsString(WebFiles.PRINT_DONE_JS))
+            .append(",\"pickCancelled\":").append(WebFiles.jsString(WebFiles.PICK_CANCELLED_JS))
+            .append(",\"savedOk\":").append(WebFiles.jsString(WebFiles.savedEventJs(true, false, "__NAME__")))
+            .append(",\"savedCancelled\":").append(WebFiles.jsString(WebFiles.savedEventJs(false, true, "__NAME__")))
             .append(",\"saveBlob\":").append(WebFiles.jsString(WebFiles.saveBlobJs("__URL__", "__NAME__")))
             .append(",\"startUrl\":").append(WebFiles.jsString(WebFiles.START_URL)).append("}}");
         System.out.println(b);

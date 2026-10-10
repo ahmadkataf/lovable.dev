@@ -25,13 +25,25 @@ export function lineTotal(qty: number, unitPrice: number, discount = 0): number 
 export interface Totals { subtotal: number; discount: number; tax: number; total: number }
 type LineLike = Pick<InvoiceItem, 'qty' | 'unitPrice' | 'discount'>
 
-/** Invoice totals: Σ line totals, minus the invoice discount (never below zero), plus tax on what remains. */
-export function computeTotals(items: LineLike[], invoiceDiscount = 0, taxPercent = 0): Totals {
+/** Rounds to the currency's minor unit (0–2 decimals; anything else falls back to cents). */
+export function roundMoney(n: number, decimals = 2): number {
+  const d = Number.isInteger(decimals) && decimals >= 0 && decimals <= 2 ? decimals : 2
+  if (d === 2) return round2(n)
+  const f = Math.pow(10, d)
+  return Math.round((Number(n) || 0) * f + (n >= 0 ? 1e-9 : -1e-9)) / f
+}
+
+/**
+ * Invoice totals: Σ line totals, minus the invoice discount (never below zero), plus tax on what remains.
+ * Amounts are rounded to cents (round2); pass the clinic's `currencyDecimals` so a currency without minor units
+ * (0 decimals) gets a whole-number tax and total, the same amount the patient sees and pays.
+ */
+export function computeTotals(items: LineLike[], invoiceDiscount = 0, taxPercent = 0, decimals = 2): Totals {
   const subtotal = round2(items.reduce((a, i) => a + lineTotal(i.qty, i.unitPrice, i.discount), 0))
   const discount = round2(Math.min(Math.max(0, Number(invoiceDiscount) || 0), Math.max(0, subtotal)))
   const taxable = round2(subtotal - discount)
-  const tax = round2((Math.max(0, taxable) * Math.max(0, Number(taxPercent) || 0)) / 100)
-  return { subtotal, discount, tax, total: round2(taxable + tax) }
+  const tax = roundMoney((Math.max(0, taxable) * Math.max(0, Number(taxPercent) || 0)) / 100, decimals)
+  return { subtotal, discount, tax, total: roundMoney(taxable + tax, decimals) }
 }
 
 /** Status from the money: paid / partial / unpaid. Drafts and cancelled invoices keep their status. */
@@ -255,12 +267,16 @@ export interface DraftLine {
   discount: number | null
 }
 export interface LineErrors { description?: 'required'; qty?: 'positive'; unitPrice?: 'number'; discount?: 'tooBig' | 'number'; tooth?: 'tooth' }
-export interface InvoiceErrors { patient?: 'required'; items?: 'empty'; discount?: 'tooBig'; tax?: 'number'; date?: 'date'; lines: Record<string, LineErrors> }
+export interface InvoiceErrors { patient?: 'required'; items?: 'empty'; discount?: 'tooBig' | 'number'; tax?: 'number'; date?: 'date'; dueDate?: 'date' | 'beforeIssue'; lines: Record<string, LineErrors> }
 
-export function validateInvoice(input: { patientId?: string; date?: string; lines: DraftLine[]; discount: number | null; taxPercent: number | null }): InvoiceErrors {
+export function validateInvoice(input: { patientId?: string; date?: string; dueDate?: string; lines: DraftLine[]; discount: number | null; taxPercent: number | null }): InvoiceErrors {
   const e: InvoiceErrors = { lines: {} }
   if (!input.patientId) e.patient = 'required'
   if (!isRealDate(input.date)) e.date = 'date'
+  if (input.dueDate) {
+    if (!isRealDate(input.dueDate)) e.dueDate = 'date'
+    else if (isRealDate(input.date) && input.dueDate < input.date!) e.dueDate = 'beforeIssue'
+  }
   if (!input.lines.length) e.items = 'empty'
   for (const l of input.lines) {
     const le: LineErrors = {}
@@ -273,11 +289,12 @@ export function validateInvoice(input: { patientId?: string; date?: string; line
     if (Object.keys(le).length) e.lines[l.key] = le
   }
   const subtotal = round2(input.lines.reduce((a, l) => a + lineTotal(l.qty || 0, l.unitPrice || 0, l.discount || 0), 0))
-  if ((input.discount || 0) > Math.max(0, subtotal) + EPS || (input.discount || 0) < 0) e.discount = 'tooBig'
-  if (input.taxPercent !== null && (input.taxPercent < 0 || input.taxPercent > 100)) e.tax = 'number'
+  if ((input.discount || 0) < 0) e.discount = 'number'
+  else if ((input.discount || 0) > Math.max(0, subtotal) + EPS) e.discount = 'tooBig'
+  if (input.taxPercent !== null && !(input.taxPercent >= 0 && input.taxPercent <= 100)) e.tax = 'number'
   return e
 }
-export const hasErrors = (e: InvoiceErrors) => !!(e.patient || e.items || e.discount || e.tax || e.date || Object.keys(e.lines).length)
+export const hasErrors = (e: InvoiceErrors) => !!(e.patient || e.items || e.discount || e.tax || e.date || e.dueDate || Object.keys(e.lines).length)
 
 /** Turns edited lines into stored invoice items (empty numbers become 0, totals recomputed). */
 export function toInvoiceItems(lines: DraftLine[], idOf: (l: DraftLine) => string = l => l.key): InvoiceItem[] {
@@ -292,4 +309,15 @@ export function toInvoiceItems(lines: DraftLine[], idOf: (l: DraftLine) => strin
 }
 export function toDraftLines(items: InvoiceItem[]): DraftLine[] {
   return items.map(i => ({ key: i.id, treatmentItemId: i.treatmentItemId, procedureId: i.procedureId, description: i.description, tooth: i.tooth ?? null, qty: i.qty, unitPrice: i.unitPrice, discount: i.discount || null }))
+}
+
+// ---- wording ----------------------------------------------------------------------------------
+
+const PLURAL_FORMS: Record<string, readonly string[]> = { ar: ['zero', 'one', 'two', 'few', 'many', 'other'], en: ['one', 'other'] }
+/** 'billing.payments.count' + 3 + 'ar' → 'billing.payments.count.few' (Arabic has six plural forms, English two). */
+export function pluralKey(base: string, n: number, lang: string): string {
+  const forms = PLURAL_FORMS[lang] ?? PLURAL_FORMS.en
+  let cat = 'other'
+  try { cat = new Intl.PluralRules(lang === 'ar' ? 'ar' : 'en').select(n) } catch { cat = n === 1 ? 'one' : 'other' }
+  return `${base}.${forms.includes(cat) ? cat : 'other'}`
 }

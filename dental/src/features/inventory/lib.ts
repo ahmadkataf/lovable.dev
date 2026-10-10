@@ -106,7 +106,7 @@ export function withRunningBalance(movements: StockMovement[], currentQuantity: 
 
 /** Purchase rows as typed in the purchase modal. */
 export interface PurchaseLine { itemId: ID; quantity: number | null; costPrice: number | null }
-export type PurchaseLineError = 'item' | 'duplicate' | 'quantity' | null
+export type PurchaseLineError = 'item' | 'duplicate' | 'quantity' | 'cost' | null
 export function validatePurchase(lines: PurchaseLine[]): { ok: boolean; errors: PurchaseLineError[] } {
   const seen = new Set<ID>()
   const errors = lines.map(l => {
@@ -114,16 +114,21 @@ export function validatePurchase(lines: PurchaseLine[]): { ok: boolean; errors: 
     if (seen.has(l.itemId)) return 'duplicate' as const
     seen.add(l.itemId)
     if (l.quantity === null || !Number.isFinite(l.quantity) || l.quantity <= 0) return 'quantity' as const
+    if (l.costPrice !== null && (!Number.isFinite(l.costPrice) || l.costPrice < 0)) return 'cost' as const
     return null
   })
   return { ok: lines.length > 0 && errors.every(e => e === null), errors }
 }
 export const purchaseTotal = (lines: PurchaseLine[]) => round2(lines.reduce((a, l) => a + (l.quantity || 0) * (l.costPrice || 0), 0))
 
-/** RFC-4180 CSV with a BOM so Excel opens Arabic text correctly. */
+/**
+ * RFC-4180 CSV with a BOM so Excel opens Arabic text correctly. Typed text that starts like a formula
+ * (= + - @, tab, CR) gets a leading apostrophe so a spreadsheet shows it instead of running it; numbers stay numbers.
+ */
 export function toCSV(rows: (string | number | null | undefined)[][]): string {
   const cell = (v: string | number | null | undefined) => {
-    const s = v === null || v === undefined ? '' : String(v)
+    let s = v === null || v === undefined ? '' : String(v)
+    if (typeof v === 'string' && /^[=+\-@\t\r]/.test(s)) s = `'${s}`
     return /[",\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s
   }
   return '﻿' + rows.map(r => r.map(cell).join(',')).join('\r\n')

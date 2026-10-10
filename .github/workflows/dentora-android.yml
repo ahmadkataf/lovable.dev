@@ -68,8 +68,8 @@ jobs:
             yes | "$SDKMANAGER" --licenses > /dev/null || true
             "$SDKMANAGER" --install "build-tools;35.0.0" "platforms;android-35" > /dev/null
           fi
-          echo "build-tools: $(ls "$SDK/build-tools" | tr '\n' ' ')"
-          echo "platforms:   $(ls "$SDK/platforms" | tr '\n' ' ')"
+          echo "build-tools:" "$SDK"/build-tools/*/
+          echo "platforms:  " "$SDK"/platforms/*/
 
       - name: Pillow and bundletool
         run: |
@@ -91,15 +91,16 @@ jobs:
         run: |
           if [ -n "$KS_B64" ]; then
             echo "$KS_B64" | base64 -d > "$RUNNER_TEMP/upload.keystore"
+            echo "ANDROID_KEYSTORE=$RUNNER_TEMP/upload.keystore" >> "$GITHUB_ENV"
             echo "Using the upload key from the repository secrets."
           else
+            # build-apk.sh then makes a throwaway android/release.keystore on this runner (and warns again)
             echo "::warning::No ANDROID_KEYSTORE_BASE64 secret: this build is signed with a throwaway key. Fine for testing; never upload it to Google Play."
           fi
 
       - name: Build the APK and the App Bundle
         env:
           BUNDLETOOL: ${{ runner.temp }}/bundletool.jar
-          ANDROID_KEYSTORE: ${{ runner.temp }}/upload.keystore
           ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD || 'dentora-release' }}
           ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS || 'dentora' }}
           INPUT_VERSION_NAME: ${{ inputs.version_name }}
@@ -117,7 +118,10 @@ jobs:
           {
             echo "### Dentora for Android"
             echo '```'
-            "$ANDROID_HOME/build-tools/$(ls "$ANDROID_HOME/build-tools" | sort -V | tail -1)/aapt2" dump badging android/build/Dentora.apk | head -1
+            AAPT2="$(find "$ANDROID_HOME/build-tools" -mindepth 2 -maxdepth 2 -name aapt2 | sort -V | tail -1)"
+            # (no "| head": under pipefail an early-closing pipe would fail the step)
+            "$AAPT2" dump badging android/build/Dentora.apk > "$RUNNER_TEMP/badging.txt"
+            grep -E "^(package|minSdkVersion|targetSdkVersion|uses-permission|application-label|launchable-activity):" "$RUNNER_TEMP/badging.txt"
             (cd android/build && ls -la Dentora.apk Dentora.aab && sha256sum Dentora.apk Dentora.aab)
             echo '```'
           } >> "$GITHUB_STEP_SUMMARY"

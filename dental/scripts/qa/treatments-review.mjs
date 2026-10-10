@@ -1,0 +1,437 @@
+// Adversarial review QA of the treatments module (edge cases, data integrity, phone, English).
+// Usage: npx vite build --outDir /tmp/dist-treatments-r && QA_DIST=/tmp/dist-treatments-r QA_PORT=4354 QA_SHOTS=qa-shots/treatments-review node scripts/qa/treatments-review.mjs [ar|en|phone]
+import fs from 'node:fs'
+import { startServer, openBrowser, seedAndLogin, shot, BASE } from './lib.mjs'
+
+const parts = process.argv.slice(2)
+const want = p => !parts.length || parts.includes(p)
+const failures = []
+const consoleErrors = []
+const check = (cond, msg) => { if (!cond) { failures.push(msg); console.error('FAIL:', msg) } else console.log('ok:', msg) }
+const wait = (page, ms = 350) => page.waitForTimeout(ms)
+const go = async (page, hash) => { await page.goto(`${BASE}/index.html#${hash}`); await page.waitForLoadState('networkidle'); await wait(page, 700) }
+const q = (page, fn, arg) => page.evaluate(fn, arg)
+async function noOverflow(page, label) {
+  const r = await page.evaluate(() => ({ sw: document.documentElement.scrollWidth, w: window.innerWidth }))
+  check(r.sw <= r.w, `${label}: no horizontal overflow (${r.sw} <= ${r.w})`)
+}
+async function snap(page, name, opts) { await noOverflow(page, name); await shot(page, name, opts) }
+function watchConsole(page, tag) {
+  page.on('pageerror', e => consoleErrors.push(`[${tag}] ${e.message}`))
+  page.on('console', m => { if (m.type() === 'error') consoleErrors.push(`[${tag}] ${m.text()}`) })
+}
+const modal = page => page.locator('.modal').last()
+async function toastClear(page, label) {
+  const r = await page.evaluate(() => {
+    const f = document.querySelector('.modal-footer')?.getBoundingClientRect()
+    const toasts = [...document.querySelectorAll('.toast')].map(t => t.getBoundingClientRect())
+    if (!f) return { ok: true, n: toasts.length }
+    return { ok: toasts.every(t => t.bottom <= f.top || t.top >= f.bottom), n: toasts.length }
+  })
+  check(r.ok, `${label}: no toast over the modal footer (${r.n} toasts)`)
+}
+const modalCount = page => page.locator('.modal').count()
+const rowTooth = (page, n) => page.locator('tbody tr').filter({ has: page.locator('.tr-tooth .num', { hasText: new RegExp(`^${n}$`) }) }).first()
+const LONG = 'محمد عبد الرحمن بن عبد العزيز آل الشيخ الحسيني القرشي الهاشمي المكي المدني الدمشقي الحلبي'
+
+async function seedBase(page, lang = 'ar') {
+  return q(page, async (lang) => {
+    const db = window.__dentora.db
+    const now = new Date().toISOString()
+    const ar = lang === 'ar'
+    await db.patients.bulkPut([
+      { id: 'pl', fileNo: 7, name: ar ? 'محمد عبد الرحمن بن عبد العزيز آل الشيخ الحسيني القرشي الهاشمي المكي المدني الدمشقي الحلبي' : 'Mohammad Abdulrahman bin Abdulaziz Al-Sheikh Al-Husseini Al-Qurashi Al-Hashimi of Damascus', gender: 'male', allergies: [], chronicDiseases: [], medications: [], tags: [], archived: false, createdAt: now, updatedAt: now },
+      { id: 'p2', fileNo: 8, name: ar ? 'هدى سليمان' : 'Huda Suleiman', gender: 'female', phone: '0933000111', allergies: [], chronicDiseases: [], medications: [], tags: [], archived: false, createdAt: now, updatedAt: now },
+    ])
+  }, lang)
+}
+
+// ------------------------------------------------------------------------------------------------
+async function arabic() {
+  const { browser, page } = await openBrowser()
+  watchConsole(page, 'ar')
+  await seedAndLogin(page)
+  await seedBase(page)
+
+  // ---- price list: empty, defaults load procedures only ----
+  await go(page, '/procedures')
+  await snap(page, 'ar-01-proc-empty')
+  const before = await q(page, async () => ({ drugs: await window.__dentora.db.drugs.count(), inv: await window.__dentora.db.inventory.count() }))
+  await page.locator('.empty').getByRole('button', { name: 'تحميل القائمة الافتراضية' }).click()
+  await page.waitForFunction(async () => (await window.__dentora.db.procedures.count()) > 10, null, { timeout: 8000 })
+  await wait(page, 700)
+  const after = await q(page, async () => ({ procs: await window.__dentora.db.procedures.count(), drugs: await window.__dentora.db.drugs.count(), inv: await window.__dentora.db.inventory.count(), act: await window.__dentora.db.activity.where('type').equals('system').count() }))
+  check(after.procs > 30, `defaults: ${after.procs} procedures`)
+  check(after.drugs === before.drugs && after.inv === before.inv, `defaults: drugs/inventory untouched (${before.drugs}->${after.drugs}, ${before.inv}->${after.inv})`)
+  check(after.act >= 1, 'defaults: system activity logged')
+  await snap(page, 'ar-02-proc-list')
+
+  // ---- new procedure: Escape closes, Enter submits, double click saves once ----
+  await page.getByRole('button', { name: 'إجراء جديد' }).first().click(); await wait(page)
+  check(await modalCount(page) === 1, 'proc form: opens')
+  await page.keyboard.press('Escape'); await wait(page, 300)
+  check(await modalCount(page) === 0, 'proc form: Escape closes')
+  await page.getByRole('button', { name: 'إجراء جديد' }).first().click(); await wait(page)
+  await modal(page).getByLabel('اسم الإجراء').fill('إجراء باسم طويل جداً لاختبار التفاف النص داخل الجدول والبطاقات دون أن يكسر التخطيط أو يخرج عن الحدود المسموحة')
+  await modal(page).locator('select').selectOption('cosmetic')
+  await modal(page).getByLabel('السعر').fill('-5')
+  await modal(page).getByLabel('السعر').press('Enter'); await wait(page, 300)
+  check(await modal(page).getByText('لا يمكن أن يكون السعر سالباً').isVisible(), 'proc form: negative price rejected')
+  await modal(page).getByLabel('السعر').fill('0')
+  await modal(page).getByLabel('السعر').press('Enter'); await wait(page, 600)
+  let longProc = await q(page, () => window.__dentora.db.procedures.filter(p => p.name.startsWith('إجراء باسم طويل')).toArray())
+  check(longProc.length === 1 && longProc[0].price === 0 && longProc[0].createdAt && longProc[0].updatedAt && longProc[0].id, 'proc form: Enter submits; price 0 allowed; ids/timestamps set')
+  check(await modalCount(page) === 0, 'proc form: closes after save')
+  await page.getByRole('button', { name: 'إجراء جديد' }).first().click(); await wait(page)
+  await modal(page).getByLabel('اسم الإجراء').fill('اختبار النقر المزدوج')
+  await modal(page).locator('select').selectOption('other')
+  await modal(page).getByLabel('السعر').fill('10')
+  await modal(page).getByRole('button', { name: 'حفظ' }).dblclick(); await wait(page, 700)
+  const dbl = await q(page, () => window.__dentora.db.procedures.filter(p => p.name === 'اختبار النقر المزدوج').count())
+  check(dbl === 1, `proc form: double click saves once (${dbl})`)
+  await page.getByPlaceholder('ابحث في القائمة بالاسم أو الرمز…').fill('طويل'); await wait(page, 500)
+  await snap(page, 'ar-03-proc-long-search')
+  await page.getByPlaceholder('ابحث في القائمة بالاسم أو الرمز…').fill(''); await wait(page, 400)
+  // cosmetic section with the long name
+  await page.locator('.tr-cat-chips .chip', { hasText: 'تجميلي' }).click().catch(() => {}); await wait(page, 300)
+  await snap(page, 'ar-04-proc-cosmetic')
+  // bulk: fixed decrease larger than prices clamps at 0
+  await page.getByRole('button', { name: 'تعديل الأسعار' }).click(); await wait(page)
+  await modal(page).getByRole('tab', { name: 'تخفيض' }).click()
+  await modal(page).getByRole('tab', { name: 'مبلغ ثابت' }).click()
+  await modal(page).getByLabel('القيمة').fill('100000'); await wait(page, 250)
+  await snap(page, 'ar-05-bulk-clamp')
+  await page.keyboard.press('Escape'); await wait(page, 300)
+  check(await modalCount(page) === 0, 'bulk: Escape closes without applying')
+  await page.locator('.tr-cat-chips .chip').first().click(); await wait(page, 300)
+
+  // ---- patient with no phone and a very long name: plan board ----
+  await go(page, '/patients/pl?tab=treatments')
+  await page.getByText('لا توجد خطط علاج بعد').waitFor({ timeout: 6000 }).catch(() => {})
+  await snap(page, 'ar-06-tab-empty')
+  await page.locator('.empty').getByRole('button', { name: 'خطة علاج جديدة' }).click(); await wait(page)
+  await modal(page).getByLabel('عنوان الخطة').press('Enter'); await wait(page, 800)
+  const plan = await q(page, () => window.__dentora.db.plans.where('patientId').equals('pl').first())
+  check(plan && plan.status === 'draft' && plan.createdAt && plan.updatedAt && plan.title.startsWith('خطة علاج —'), 'plan: Enter creates a draft plan with default title')
+  check(await q(page, (id) => window.__dentora.db.activity.filter(a => a.entityId === id && a.type === 'treatment').count(), plan.id) === 1, 'plan: activity row')
+  check(await modalCount(page) === 1 && await modal(page).getByText('إضافة بند علاجي').isVisible(), 'plan: add-item opens after creation')
+  // Enter in the picker search picks the first match instead of submitting
+  await modal(page).getByPlaceholder('ابحث بالاسم أو الرمز…').fill('كومبوزيت')
+  await modal(page).getByPlaceholder('ابحث بالاسم أو الرمز…').press('Enter'); await wait(page, 300)
+  check(await modal(page).locator('.tr-chosen').count() === 1, 'picker: Enter chooses the first match')
+  check(await modal(page).locator('.field-error').count() === 0, 'picker: Enter did not submit the form')
+  // negative price and too-large discount
+  await modal(page).locator('[data-tooth="16"]').click()
+  await modal(page).locator('[data-tooth="17"]').click()
+  await modal(page).locator('[data-tooth="26"]').click()
+  await modal(page).locator('.tr-surfaces .chip').filter({ hasText: '(O)' }).click()
+  const priceLabel = 'السعر لكل سن'
+  await modal(page).getByLabel(priceLabel).fill('-3')
+  await modal(page).getByLabel(priceLabel).press('Enter'); await wait(page, 300)
+  check(await modal(page).getByText('لا يمكن أن يكون السعر سالباً').isVisible(), 'item: negative price rejected')
+  await modal(page).getByLabel(priceLabel).fill('40')
+  await modal(page).getByLabel('الخصم لكل سن').fill('50'); await wait(page, 150)
+  await modal(page).getByLabel('الخصم لكل سن').press('Enter'); await wait(page, 300)
+  check(await modal(page).getByText('الخصم أكبر من السعر').isVisible(), 'item: discount larger than price rejected')
+  await modal(page).getByLabel('الخصم لكل سن').fill('5')
+  await snap(page, 'ar-07-item-3teeth')
+  // double click on the add button: exactly three items
+  await modal(page).getByRole('button', { name: /إضافة 3 بنود/ }).dblclick(); await wait(page, 900)
+  let items = await q(page, (pid) => window.__dentora.db.treatments.where('planId').equals(pid).toArray(), plan.id)
+  check(items.length === 3, `item: double click adds 3 items once (${items.length})`)
+  check(items.every(i => i.price === 40 && i.discount === 5 && i.surfaces?.join('') === 'O' && i.status === 'planned' && i.createdAt && i.updatedAt && i.patientId === 'pl'), 'item: fields stored per tooth')
+  const logAdd = await q(page, () => window.__dentora.db.activity.filter(a => a.type === 'treatment' && a.action === 'create' && a.patientId === 'pl').toArray())
+  check(logAdd.some(a => a.message.includes('17، 16، 26')), 'item: activity names the teeth')
+  // a 0-price item without tooth via "new plan" target
+  await page.getByRole('button', { name: 'إضافة بند' }).first().click(); await wait(page)
+  await modal(page).getByPlaceholder('ابحث بالاسم أو الرمز…').fill('فحص'); await wait(page, 300)
+  await modal(page).locator('.tr-pick').first().click(); await wait(page, 200)
+  await modal(page).getByLabel('السعر').fill('0')
+  await modal(page).locator('select').nth(1).selectOption('__new').catch(async () => { /* the plan select index may differ */ })
+  await snap(page, 'ar-08-item-newplan')
+  await modal(page).getByRole('button', { name: /^إضافة البند$/ }).click(); await wait(page, 800)
+  const plans2 = await q(page, () => window.__dentora.db.plans.where('patientId').equals('pl').toArray())
+  check(plans2.length === 2, `item: "new plan" target created a second plan (${plans2.length})`)
+  check(plans2.some(p => p.title === plan.title + ' (2)'), 'item: the second plan gets a distinct default title')
+  const newPlan = plans2.find(p => p.id !== plan.id)
+  check(newPlan && await q(page, (id) => window.__dentora.db.activity.filter(a => a.entityId === id && a.action === 'create').count(), newPlan.id) === 1, 'item: plan created from the item form is logged')
+  await snap(page, 'ar-09-tab-two-plans')
+  await snap(page, 'ar-09-tab-two-plans-full', { full: true })
+
+  // ---- workflow on the first plan ----
+  await page.locator(`.tr-plan[aria-label="${plan.title}"]`).getByRole('button', { name: 'اعتماد الخطة' }).click(); await wait(page, 500)
+  check((await q(page, (id) => window.__dentora.db.plans.get(id), plan.id)).status === 'approved', 'plan: approved')
+  await rowTooth(page, 16).getByRole('button', { name: 'بدء' }).click(); await wait(page, 500)
+  check((await q(page, (id) => window.__dentora.db.plans.get(id), plan.id)).status === 'in_progress', 'plan: in progress after start')
+  await rowTooth(page, 16).getByRole('button', { name: 'إنجاز' }).click(); await wait(page, 700)
+  check(await modal(page).getByText('تحديث مخطط الأسنان؟').isVisible(), 'complete: chart prompt')
+  // crown → filling: the surfaces get a default again instead of an error
+  await modal(page).locator('select').selectOption('crown'); await wait(page, 200)
+  await modal(page).locator('select').selectOption('filled'); await wait(page, 200)
+  check(await modal(page).getByText('اختر سطحاً واحداً على الأقل').count() === 0, 'chart prompt: switching back to a surface condition keeps a default surface')
+  await snap(page, 'ar-10-chart-prompt')
+  await modal(page).getByRole('button', { name: 'تحديث المخطط' }).dblclick(); await wait(page, 700)
+  const recs = await q(page, (id) => window.__dentora.db.teeth.filter(r => r.treatmentItemId === id).toArray(), items.find(i => i.tooth === 16).id)
+  check(recs.length === 1 && recs[0].condition === 'filled' && recs[0].active && recs[0].recordedBy === 'u-admin' && recs[0].surfaces.join('') === 'O', `chart: one record (${recs.length}) filled O`)
+  const i16 = await q(page, (id) => window.__dentora.db.treatments.get(id), items.find(i => i.tooth === 16).id)
+  check(i16.status === 'completed' && !!i16.completedAt, 'item: completed with completedAt')
+  check(await q(page, (id) => window.__dentora.db.activity.filter(a => a.entityId === id && a.action === 'status').count(), i16.id) === 2, 'item: two status activity rows (start, complete)')
+
+  // cancel the plan, restore an item → plan comes back
+  await page.locator(`.tr-plan[aria-label="${plan.title}"]`).locator('.tr-plan-bar').getByRole('button', { name: 'المزيد' }).click()
+  await page.getByRole('menuitem', { name: 'إلغاء الخطة' }).click(); await wait(page)
+  await modal(page).getByRole('button', { name: 'إلغاء الخطة' }).click(); await wait(page, 600)
+  let p1 = await q(page, (id) => window.__dentora.db.plans.get(id), plan.id)
+  items = await q(page, (pid) => window.__dentora.db.treatments.where('planId').equals(pid).toArray(), plan.id)
+  check(p1.status === 'cancelled' && items.filter(i => i.status === 'cancelled').length === 2 && items.find(i => i.tooth === 16).status === 'completed', 'plan cancel: open items cancelled, completed kept')
+  await snap(page, 'ar-11-plan-cancelled')
+  const cancelledCard = page.locator('.tr-plan.st-cancelled').first()
+  if (!(await cancelledCard.locator('.tr-plan-bar').count())) await cancelledCard.locator('.tr-plan-toggle').click()
+  await wait(page, 300)
+  await cancelledCard.getByRole('button', { name: 'استعادة' }).first().click(); await wait(page, 600)
+  p1 = await q(page, (id) => window.__dentora.db.plans.get(id), plan.id)
+  check(p1.status === 'in_progress', `plan: restoring an item revives the cancelled plan (${p1.status})`)
+
+  // a lab order and an appointment point at the 17 item; deleting it unlinks them
+  const i17 = items.find(i => i.tooth === 17)
+  await q(page, async (id) => {
+    const db = window.__dentora.db; const now = new Date().toISOString()
+    await db.labOrders.put({ id: 'lab-1', patientId: 'pl', labName: 'مخبر', type: 'crown', teeth: [17], status: 'draft', cost: 0, treatmentItemId: id, createdAt: now, updatedAt: now })
+    await db.appointments.put({ id: 'apt-1', patientId: 'pl', doctorId: 'u-admin', date: now.slice(0, 10), start: '10:00', end: '10:30', type: 'treatment', status: 'scheduled', treatmentItemIds: [id], createdAt: now, updatedAt: now })
+  }, i17.id)
+  await rowTooth(page, 17).getByRole('button', { name: 'المزيد' }).click()
+  await page.getByRole('menuitem', { name: 'حذف' }).click(); await wait(page)
+  await modal(page).getByRole('button', { name: 'حذف' }).click(); await wait(page, 600)
+  const links = await q(page, async () => ({ lab: await window.__dentora.db.labOrders.get('lab-1'), apt: await window.__dentora.db.appointments.get('apt-1') }))
+  check(!links.lab.treatmentItemId && !(links.apt.treatmentItemIds || []).length, 'delete item: lab order and appointment links removed')
+
+  // ---- billing with tax and 0-decimals currency ----
+  await q(page, () => window.__dentora.db.clinic.update('clinic', { taxPercent: 5, currencyDecimals: 0 }))
+  await page.getByRole('button', { name: 'علاج سريع' }).click(); await wait(page)
+  await modal(page).getByPlaceholder('ابحث بالاسم أو الرمز…').fill('تقليح'); await wait(page, 300)
+  await modal(page).locator('.tr-pick').first().click(); await wait(page, 200)
+  await modal(page).getByLabel('السعر').fill('33')
+  await modal(page).getByLabel('ملاحظات').fill('ملاحظة طويلة جداً عن حالة اللثة والنزف عند التفريش وضرورة المتابعة بعد شهرين مع صورة شعاعية')
+  await modal(page).getByRole('button', { name: 'حفظ كعلاج منجز' }).click(); await wait(page, 800)
+  await snap(page, 'ar-12-tab-before-bill')
+  await page.getByRole('button', { name: /فوترة المنجز/ }).click(); await wait(page, 500)
+  await snap(page, 'ar-13-bill')
+  const nextNo = (await q(page, () => window.__dentora.db.clinic.get('clinic'))).nextInvoiceNumber
+  await modal(page).getByRole('button', { name: 'إصدار الفاتورة' }).dblclick()
+  await page.waitForURL(/#\/invoices\//, { timeout: 8000 }).catch(() => {})
+  await wait(page, 900)
+  const invs = await q(page, () => window.__dentora.db.invoices.where('patientId').equals('pl').toArray())
+  check(invs.length === 1, `bill: double click made one invoice (${invs.length})`)
+  const inv = invs[0]
+  const clinicAfter = await q(page, () => window.__dentora.db.clinic.get('clinic'))
+  check(clinicAfter.nextInvoiceNumber === nextNo + 1, 'bill: invoice counter advanced once')
+  check(inv && Number.isInteger(inv.tax) && Number.isInteger(inv.total) && inv.total === inv.subtotal + inv.tax && inv.taxPercent === 5, `bill: totals rounded to the currency (${inv?.subtotal} + ${inv?.tax} = ${inv?.total})`)
+  check(inv && inv.status === 'unpaid' && inv.paid === 0 && inv.createdBy === 'u-admin' && inv.date && inv.number.startsWith('INV-'), 'bill: status/paid/createdBy/date/number')
+  const billed = await q(page, (id) => window.__dentora.db.treatments.where('invoiceId').equals(id).toArray(), inv?.id)
+  check(billed.length === inv?.items.length && inv.items.every(l => billed.some(b => b.id === l.treatmentItemId && l.total === Math.max(0, b.price - b.discount))), 'bill: lines match linked items')
+  check(await q(page, (id) => window.__dentora.db.activity.filter(a => a.type === 'invoice' && a.entityId === id).count(), inv?.id) === 1, 'bill: invoice activity row')
+  check(page.url().includes('/invoices/' + inv?.id), 'bill: navigated to the invoice')
+  await snap(page, 'ar-14-invoice')
+  await q(page, () => window.__dentora.db.clinic.update('clinic', { taxPercent: 0, currencyDecimals: 0 }))
+
+  // ---- deep links ----
+  await go(page, '/patients/pl?tab=treatments&tooth=99')
+  check(!page.url().includes('tooth='), 'deep link: invalid tooth dropped from the URL')
+  check(await modalCount(page) === 0, 'deep link: invalid tooth opens nothing')
+  await go(page, '/patients/pl?tab=treatments&tooth=21')
+  check(await modalCount(page) === 1 && await modal(page).locator('[data-tooth="21"].on').count() === 1, 'deep link: 21 preselected')
+  await snap(page, 'ar-15-deeplink')
+  await page.keyboard.press('Escape'); await wait(page, 300)
+
+  // ---- print ----
+  await page.locator('.tr-plan').first().getByRole('button', { name: 'طباعة التقدير' }).click(); await wait(page, 500)
+  await snap(page, 'ar-16-print-modal')
+  const vp = page.viewportSize()
+  await page.evaluate(() => document.body.classList.add('tr-printing'))
+  await page.setViewportSize({ width: 794, height: 1123 }); await page.emulateMedia({ media: 'print' }); await wait(page, 300)
+  await shot(page, 'ar-17-print-sheet', { full: true })
+  await page.emulateMedia({ media: 'screen' }); await page.setViewportSize(vp)
+  await page.evaluate(() => document.body.classList.remove('tr-printing'))
+  await page.keyboard.press('Escape'); await wait(page, 300)
+
+  // ---- delete plan keeps completed work; delete a used procedure is blocked ----
+  const keepBefore = await q(page, (pid) => window.__dentora.db.treatments.where('planId').equals(pid).toArray(), plan.id)
+  const card1 = page.locator(`.tr-plan[aria-label="${plan.title}"]`)
+  if (!(await card1.locator('.tr-plan-bar').count())) { await card1.locator('.tr-plan-toggle').click(); await wait(page, 300) }
+  await page.locator(`.tr-plan[aria-label="${plan.title}"]`).locator('.tr-plan-bar').getByRole('button', { name: 'المزيد' }).click()
+  await page.getByRole('menuitem', { name: 'حذف الخطة' }).click(); await wait(page)
+  await modal(page).getByRole('button', { name: 'حذف' }).click(); await wait(page, 600)
+  const left = await q(page, (ids) => window.__dentora.db.treatments.bulkGet(ids), keepBefore.map(i => i.id))
+  check(!(await q(page, (id) => window.__dentora.db.plans.get(id), plan.id)) && left.filter(Boolean).every(i => i.status === 'completed' && !i.planId), 'delete plan: completed work kept without plan, the rest deleted')
+  await snap(page, 'ar-18-after-delete-plan')
+
+  // ---- register ----
+  await go(page, '/treatments')
+  await snap(page, 'ar-19-register')
+  await page.getByRole('tab', { name: 'كل الفترات' }).click(); await wait(page, 300)
+  await page.locator('.tr-filters .switch').click(); await wait(page, 300)
+  await snap(page, 'ar-20-register-grouped')
+  await page.locator('.tr-filters .switch').click(); await wait(page, 300)
+  await page.getByPlaceholder('ابحث باسم المريض أو الإجراء أو رقم السن…').fill('عبد الرحمن'); await wait(page, 500)
+  check(await page.locator('tbody tr').count() >= 2, 'register: search by part of a long name')
+  await page.getByPlaceholder('ابحث باسم المريض أو الإجراء أو رقم السن…').fill(''); await wait(page, 400)
+  // custom range
+  await page.getByRole('tab', { name: 'فترة مخصصة' }).click(); await wait(page, 300)
+  await snap(page, 'ar-21-register-custom')
+  // CSV content
+  const dl = page.waitForEvent('download', { timeout: 5000 }).catch(() => null)
+  await page.getByRole('button', { name: 'تصدير CSV' }).click()
+  const file = await dl
+  if (file) {
+    const path = await file.path()
+    const csv = fs.readFileSync(path, 'utf8')
+    check(csv.charCodeAt(0) === 0xFEFF && csv.includes('عبد الرحمن') && csv.split('\r\n').length >= 3, 'register: CSV has BOM, header and rows')
+  } else check(false, 'register: CSV download')
+  await browser.close()
+}
+
+// ------------------------------------------------------------------------------------------------
+async function english() {
+  const { browser, page } = await openBrowser({ lang: 'en' })
+  watchConsole(page, 'en')
+  await seedAndLogin(page, { lang: 'en' })
+  await seedBase(page, 'en')
+  await go(page, '/procedures')
+  await page.getByRole('button', { name: 'Load default catalogue' }).first().click()
+  await page.waitForFunction(async () => (await window.__dentora.db.procedures.count()) > 10, null, { timeout: 8000 }); await wait(page, 600)
+  await snap(page, 'en-01-proc-list')
+  await page.getByRole('row').nth(1).click(); await wait(page)
+  await snap(page, 'en-02-proc-edit')
+  await page.keyboard.press('Escape'); await wait(page, 300)
+  await go(page, '/patients/pl?tab=treatments')
+  await page.getByRole('button', { name: 'Quick treatment' }).first().click(); await wait(page)
+  await modal(page).getByPlaceholder('Search by name or code…').fill('extraction'); await wait(page, 300)
+  await modal(page).getByPlaceholder('Search by name or code…').press('Enter'); await wait(page, 300)
+  await modal(page).locator('[data-tooth="38"]').click(); await modal(page).locator('[data-tooth="48"]').click()
+  await snap(page, 'en-03-quick')
+  await modal(page).getByRole('button', { name: 'Save as completed' }).click(); await wait(page, 800)
+  check(await modal(page).getByText('Update the dental chart?').isVisible(), 'en: quick extraction asks to update the chart')
+  await snap(page, 'en-04-chart')
+  await modal(page).getByRole('button', { name: 'Update chart' }).click(); await wait(page, 600)
+  const missing = await q(page, () => window.__dentora.db.teeth.where('patientId').equals('pl').filter(r => r.active && r.condition === 'missing').toArray())
+  check(missing.length === 2 && missing.every(r => r.surfaces.length === 0 && r.treatmentItemId), 'en: extraction marks both teeth missing')
+  const log = await q(page, () => window.__dentora.db.activity.filter(a => a.patientId === 'pl' && a.type === 'treatment').toArray())
+  check(log.some(a => a.message.includes('38, 48')), 'en: English list separator in the activity text')
+  await page.locator('.empty, .tr-tab-head').first().waitFor().catch(() => {})
+  await snap(page, 'en-05-tab')
+  await page.getByRole('button', { name: 'New treatment plan' }).first().click(); await wait(page)
+  await snap(page, 'en-06-plan-form')
+  await modal(page).getByRole('button', { name: 'Create plan' }).click(); await wait(page, 800)
+  await modal(page).getByPlaceholder('Search by name or code…').fill('crown'); await wait(page, 300)
+  await modal(page).locator('.tr-pick').first().click(); await wait(page, 200)
+  await modal(page).locator('[data-tooth="11"]').click(); await modal(page).locator('[data-tooth="21"]').click()
+  await snap(page, 'en-07-item')
+  await modal(page).getByRole('button', { name: 'Add 2 items' }).click(); await wait(page, 700)
+  await snap(page, 'en-08-tab-plan')
+  await page.getByRole('button', { name: /Bill completed/ }).click(); await wait(page, 400)
+  await snap(page, 'en-09-bill')
+  await page.keyboard.press('Escape'); await wait(page, 300)
+  await page.locator('.tr-plan').first().getByRole('button', { name: 'Print estimate' }).click(); await wait(page, 400)
+  await snap(page, 'en-10-print')
+  await page.keyboard.press('Escape'); await wait(page, 300)
+  await go(page, '/treatments')
+  await page.getByRole('tab', { name: 'All time' }).click(); await wait(page, 300)
+  await snap(page, 'en-11-register')
+  // a completed, unbilled item can be cancelled from its menu
+  await go(page, '/patients/pl?tab=treatments')
+  await rowTooth(page, 38).getByRole('button', { name: 'More' }).click()
+  await page.getByRole('menuitem', { name: 'Cancel item' }).click(); await wait(page, 500)
+  const c38 = await q(page, () => window.__dentora.db.treatments.filter(i => i.tooth === 38).first())
+  check(c38.status === 'cancelled' && !c38.completedAt, 'en: completed item cancelled (completedAt cleared)')
+  // a doctor sees the price list read-only
+  await q(page, () => localStorage.setItem('dentora.session', 'u-doc2'))
+  await page.reload(); await page.waitForLoadState('networkidle'); await wait(page, 500)
+  await go(page, '/procedures')
+  check(await page.getByRole('button', { name: 'New procedure' }).isDisabled(), 'en: doctor cannot add procedures')
+  check(await page.getByRole('button', { name: 'Adjust prices' }).isDisabled(), 'en: doctor cannot bulk-change prices')
+  await page.getByRole('row').nth(1).click(); await wait(page, 300)
+  check(await modalCount(page) === 0, 'en: doctor row click opens no editor')
+  await snap(page, 'en-12-doctor-readonly')
+  await browser.close()
+}
+
+// ------------------------------------------------------------------------------------------------
+async function phone() {
+  const { browser, page } = await openBrowser({ mobile: true, width: 390, height: 844 })
+  watchConsole(page, 'phone')
+  await seedAndLogin(page)
+  await seedBase(page)
+  await go(page, '/procedures')
+  await snap(page, 'm-01-proc-empty')
+  await page.locator('.empty').getByRole('button', { name: 'تحميل القائمة الافتراضية' }).click()
+  await page.waitForFunction(async () => (await window.__dentora.db.procedures.count()) > 10, null, { timeout: 8000 }); await wait(page, 600)
+  await snap(page, 'm-02-proc-list')
+  await page.getByRole('button', { name: 'تعديل الأسعار' }).click(); await wait(page)
+  await snap(page, 'm-03-bulk')
+  await page.keyboard.press('Escape'); await wait(page, 300)
+  await page.getByRole('button', { name: 'إجراء جديد' }).click(); await wait(page)
+  await snap(page, 'm-04-proc-form')
+  await page.keyboard.press('Escape'); await wait(page, 300)
+  await go(page, '/patients/pl?tab=treatments')
+  await snap(page, 'm-05-tab-empty')
+  await page.locator('.empty').getByRole('button', { name: 'خطة علاج جديدة' }).click(); await wait(page)
+  await snap(page, 'm-06-plan-form')
+  await modal(page).getByRole('button', { name: 'إنشاء الخطة' }).click(); await wait(page, 800)
+  await toastClear(page, 'phone add-item after plan')
+  await snap(page, 'm-07-item-picker')
+  await modal(page).getByPlaceholder('ابحث بالاسم أو الرمز…').fill('سطحان')
+  await modal(page).getByPlaceholder('ابحث بالاسم أو الرمز…').press('Enter'); await wait(page, 300)
+  await modal(page).locator('[data-tooth="17"]').click(); await modal(page).locator('[data-tooth="47"]').click(); await modal(page).locator('[data-tooth="36"]').click(); await wait(page, 400)
+  await snap(page, 'm-08-item-teeth')
+  await modal(page).locator('.modal-body').evaluate(el => el.scrollTo(0, el.scrollHeight)); await wait(page, 200)
+  await snap(page, 'm-09-item-bottom')
+  await modal(page).getByRole('button', { name: /إضافة 3 بنود/ }).click(); await wait(page, 800)
+  await page.getByRole('button', { name: 'علاج سريع' }).click(); await wait(page)
+  await modal(page).getByPlaceholder('ابحث بالاسم أو الرمز…').fill('فحص'); await wait(page, 300)
+  await modal(page).locator('.tr-pick').first().click(); await wait(page, 200)
+  await modal(page).getByRole('button', { name: 'حفظ كعلاج منجز' }).click(); await wait(page, 800)
+  await snap(page, 'm-10-tab')
+  await snap(page, 'm-10-tab-full', { full: true })
+  await page.locator('.tr-mitem', { hasText: '17' }).getByRole('button', { name: 'إنجاز' }).click(); await wait(page, 700)
+  await snap(page, 'm-11-chart')
+  await modal(page).getByRole('button', { name: 'تحديث المخطط' }).click(); await wait(page, 500)
+  await page.getByRole('button', { name: /فوترة المنجز/ }).click(); await wait(page, 500)
+  await toastClear(page, 'phone bill after chart toast')
+  await snap(page, 'm-12-bill')
+  await page.keyboard.press('Escape'); await wait(page, 300)
+  await page.locator('.tr-plan').first().locator('.tr-plan-bar').getByRole('button', { name: 'المزيد' }).click(); await wait(page, 200)
+  await snap(page, 'm-13-plan-menu')
+  await page.getByRole('menuitem', { name: 'طباعة التقدير' }).click(); await wait(page, 500)
+  await snap(page, 'm-14-print')
+  await page.keyboard.press('Escape'); await wait(page, 300)
+  await go(page, '/treatments')
+  check(await page.locator('.tr-mfilters select').count() === 2, 'phone register: status and period as selects')
+  await page.locator('.tr-mfilters select').nth(1).selectOption('custom'); await wait(page, 300)
+  await snap(page, 'm-15b-register-custom')
+  await page.locator('.tr-mfilters select').nth(1).selectOption('month'); await wait(page, 300)
+  await page.locator('.tr-mfilters select').nth(0).selectOption('completed'); await wait(page, 300)
+  check(await page.locator('.tr-mitem').count() === 2, 'phone register: status select filters')
+  await page.locator('.tr-mfilters select').nth(0).selectOption('all'); await wait(page, 300)
+  await snap(page, 'm-15-register')
+  await snap(page, 'm-15-register-full', { full: true })
+  await page.locator('.tr-filters .switch').click(); await wait(page, 300)
+  await snap(page, 'm-16-register-grouped')
+  await browser.close()
+}
+
+const server = await startServer()
+try {
+  if (want('ar')) await arabic()
+  if (want('en')) await english()
+  if (want('phone')) await phone()
+} catch (e) {
+  failures.push('script error: ' + (e?.stack || e))
+  console.error(e)
+} finally {
+  server.kill()
+}
+const relevant = consoleErrors.filter(e => !/favicon/i.test(e))
+check(relevant.length === 0, `console: no errors (${relevant.length})`)
+if (relevant.length) console.error(relevant.join('\n'))
+console.log(failures.length ? `\n${failures.length} FAILURE(S)\n` + failures.join('\n') : '\nALL CHECKS PASSED')
+process.exit(failures.length ? 1 : 0)

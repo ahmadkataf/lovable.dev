@@ -1,5 +1,5 @@
 // New / edit expense. Opened from the expenses page and from quick-add elsewhere in the app.
-import { useEffect, useId, useMemo, useState, type FormEvent } from 'react'
+import { useEffect, useId, useMemo, useRef, useState, type FormEvent } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { Pencil, ReceiptText } from 'lucide-react'
 import { db, logActivity } from '@/db'
@@ -32,6 +32,7 @@ export default function ExpenseFormModal({ open, onClose, expense, onSaved }: Ex
   const [f, setF] = useState<FormState>({ category: '', amount: null, date: todayISO(), description: '', vendor: '', method: 'cash' })
   const [tried, setTried] = useState(false)
   const [busy, setBusy] = useState(false)
+  const saving = useRef(false)   // a second Enter or click before the first write ends must not save twice
   useEffect(() => {
     if (!open) return
     setTried(false); setBusy(false)
@@ -56,6 +57,8 @@ export default function ExpenseFormModal({ open, onClose, expense, onSaved }: Ex
       return
     }
     if (readOnly) { toast.warning(t('expenses.toast.readOnly')); return }
+    if (saving.current) return
+    saving.current = true
     setBusy(true)
     const data = {
       category: f.category as ExpenseCategory, amount: Math.round((f.amount ?? 0) * 100) / 100, date: f.date, description: f.description.trim(),
@@ -66,19 +69,19 @@ export default function ExpenseFormModal({ open, onClose, expense, onSaved }: Ex
       if (expense) {
         id = expense.id
         await db.expenses.put({ ...expense, ...data })
-        toast.success(t('expenses.toast.updated'), <><bdi>{data.description}</bdi> · <span className="money">{money(data.amount)}</span></>)
+        toast.success(t('expenses.toast.updated'), <><bdi className="inv-exp-wrap">{data.description}</bdi> · <span className="money">{money(data.amount)}</span></>)
         void logActivity({ type: 'expense', action: 'update', entityId: id, by: user?.id, message: t('expenses.act.updated', { desc: data.description }) })
       } else {
         id = newId()
         await db.expenses.add({ id, ...data, by: user?.id, createdAt: nowISO() })
-        toast.success(t('expenses.toast.created'), <><bdi>{data.description}</bdi> · <span className="money">{money(data.amount)}</span></>)
+        toast.success(t('expenses.toast.created'), <><bdi className="inv-exp-wrap">{data.description}</bdi> · <span className="money">{money(data.amount)}</span></>)
         void logActivity({ type: 'expense', action: 'create', entityId: id, by: user?.id, message: t('expenses.act.created', { desc: data.description, amount: money(data.amount) }) })
       }
       onSaved?.(id)
       onClose()
     } catch {
       toast.error(t('error'), t('tryAgain'))
-    } finally { setBusy(false) }
+    } finally { saving.current = false; setBusy(false) }
   }
 
   const formId = `${uid}-form`

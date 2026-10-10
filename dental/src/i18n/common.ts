@@ -61,6 +61,7 @@ const common: ModuleDict = {
     'trial.banner': 'نسخة تجريبية — متبقٍ {days} يوماً', 'trial.expired': 'انتهت الفترة التجريبية. فعّل النظام لمتابعة العمل.', 'trial.activate': 'تفعيل الآن', 'trial.readonly': 'وضع القراءة فقط: الإضافة والتعديل متوقفان حتى التفعيل.',
     pressEnter: 'اضغط Enter', typeToSearch: 'اكتب للبحث…', searchPlaceholder: 'ابحث عن مريض، موعد، فاتورة…', quickSearch: 'بحث سريع', shortcuts: 'اختصارات',
     welcome: 'مرحباً', goodMorning: 'صباح الخير', goodEvening: 'مساء الخير', dr: 'د.',
+    noPermission: 'هذه الصفحة غير متاحة لدورك', noPermissionDesc: 'اطلب من مدير العيادة منحك الصلاحية من صفحة الفريق إذا كنت تحتاجها.',
   },
   en: {
     appName: 'Dentora', appTagline: 'Dental clinic management',
@@ -108,6 +109,7 @@ const common: ModuleDict = {
     'trial.banner': 'Trial version — {days} days left', 'trial.expired': 'The trial has ended. Activate to keep working.', 'trial.activate': 'Activate now', 'trial.readonly': 'Read-only mode: adding and editing are paused until activation.',
     pressEnter: 'Press Enter', typeToSearch: 'Type to search…', searchPlaceholder: 'Search patients, appointments, invoices…', quickSearch: 'Quick search', shortcuts: 'Shortcuts',
     welcome: 'Welcome', goodMorning: 'Good morning', goodEvening: 'Good evening', dr: 'Dr.',
+    noPermission: 'This page is not available for your role', noPermissionDesc: 'Ask the clinic admin to change your role on the Staff page if you need it.',
   },
 }
 export default common

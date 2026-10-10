@@ -82,9 +82,13 @@ export default function PatientsPage() {
   }
   const remove = async (p: Patient) => {
     if (!(await confirmDelete(t('patients.deleteConfirm')))) return
-    await deletePatientCascade(p.id)
-    void logActivity({ type: 'patient', action: 'delete', entityId: p.id, message: p.name, by: session.user?.id })
-    toast.success(t('patients.deletedToast'), p.name)
+    try {
+      await deletePatientCascade(p.id)
+      void logActivity({ type: 'patient', action: 'delete', entityId: p.id, message: p.name, by: session.user?.id })
+      toast.success(t('patients.deletedToast'), p.name)
+    } catch {
+      toast.error(t('patients.deleteFailed'))
+    }
   }
   const rowItems = (p: Patient): MenuItemDef[] => [
     { label: t('open'), icon: <Eye />, onClick: () => open(p) },
@@ -211,7 +215,7 @@ export default function PatientsPage() {
                       {Math.abs(balances.get(p.id) ?? 0) >= 0.005 && <div className="pt-card-end">{balanceCell(p)}</div>}
                       <RowMenu items={rowItems(p)} label={t('actions')} />
                     </div>
-                    {(p.phone || p.allergies.length > 0 || p.chronicDiseases.length > 0) && (
+                    {(p.phone || (p.allergies ?? []).length > 0 || (p.chronicDiseases ?? []).length > 0) && (
                       <div className="pt-card-bottom">
                         <div className="pt-phone"><PhoneText phone={p.phone} /><ContactButtons phone={p.phone} /></div>
                         <MedicalBadges patient={p} />

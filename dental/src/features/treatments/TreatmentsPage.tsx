@@ -79,8 +79,8 @@ export default function TreatmentsPage() {
         return [itemDate(i), p?.fileNo ?? '', p?.name ?? '', i.tooth ?? '', surfaceCode(i.surfaces), i.procedureName, c ? t(`cat.${c}`) : '', nameOf(users, i.doctorId), t(`tr.${i.status}`), i.price, i.discount || 0, itemTotal(i), i.invoiceId ? t('yes') : t('no')]
       }),
     ]
-    await saveText(`treatments-${range ? `${range.from}_${range.to}` : today}.csv`, toCSV(data), 'text/csv;charset=utf-8')
-    toast.success(t('treatments.toast.exported'), tn(t, lang, 'treatments.n.items', rows.length))
+    const saved = await saveText(`treatments-${range ? `${range.from}_${range.to}` : today}.csv`, toCSV(data), 'text/csv;charset=utf-8')
+    if (saved !== false) toast.success(t('treatments.toast.exported'), tn(t, lang, 'treatments.n.items', rows.length))
   }
 
   const Open = isRTL ? ArrowUpLeft : ArrowUpRight
@@ -174,15 +174,27 @@ export default function TreatmentsPage() {
               <Select className="tr-cat-select" value={category} onChange={e => setCategory(e.target.value as ProcedureCategory | '')} aria-label={t('category')}
                 options={[{ value: '', label: t('treatments.proc.allCategories') }, ...PROCEDURE_CATEGORIES.map(c => ({ value: c, label: t(`cat.${c}`) }))]} />
             </div>
-            <div className="tr-seg-scroll">
-              <Segmented<StatusFilter> value={status} onChange={setStatus} options={statusOptions.map(s => ({
-                value: s, label: <>{s === 'all' ? t('all') : t(`tr.${s}`)} <span className="tr-seg-count num">{statusCounts[s]}</span></>,
-              }))} />
-            </div>
-            <div className="tr-filter-row">
-              <div className="tr-seg-scroll">
-                <Segmented<RangePreset> value={preset} onChange={setPreset} options={presets.map(p => ({ value: p, label: t(`treatments.range.${p}`) }))} />
+            {/* phones: two compact selects, so no option (or the chosen one) sits cut off at the screen edge */}
+            {mobile ? (
+              <div className="tr-mfilters">
+                <Select aria-label={t('status')} value={status} onChange={e => setStatus(e.target.value as StatusFilter)}
+                  options={statusOptions.map(s => ({ value: s, label: `${s === 'all' ? t('all') : t(`tr.${s}`)} (${statusCounts[s]})` }))} />
+                <Select aria-label={t('date')} value={preset} onChange={e => setPreset(e.target.value as RangePreset)}
+                  options={presets.map(p => ({ value: p, label: t(`treatments.range.${p}`) }))} />
               </div>
+            ) : (
+              <div className="tr-seg-scroll">
+                <Segmented<StatusFilter> value={status} onChange={setStatus} options={statusOptions.map(s => ({
+                  value: s, label: <>{s === 'all' ? t('all') : t(`tr.${s}`)} <span className="tr-seg-count">{statusCounts[s]}</span></>,
+                }))} />
+              </div>
+            )}
+            <div className="tr-filter-row">
+              {!mobile && (
+                <div className="tr-seg-scroll">
+                  <Segmented<RangePreset> value={preset} onChange={setPreset} options={presets.map(p => ({ value: p, label: t(`treatments.range.${p}`) }))} />
+                </div>
+              )}
               {preset === 'custom' && (
                 <div className="tr-range">
                   <Input type="date" aria-label={t('from')} value={custom.from} max={custom.to || undefined} onChange={e => setCustom(c => ({ ...c, from: e.target.value }))} />
@@ -194,7 +206,7 @@ export default function TreatmentsPage() {
               <Switch checked={grouped} onChange={e => setGrouped(e.target.checked)} label={t('treatments.reg.group')} />
             </div>
             {doctors.length > 1 && (
-              <div className="tr-chips-scroll">
+              <div className="tr-chips-scroll tr-chips-wrap">
                 <Chip active={!doctorId} onClick={() => setDoctorId('')}>{t('treatments.reg.allDoctors')}</Chip>
                 {doctors.map(d => <Chip key={d.id} active={doctorId === d.id} onClick={() => setDoctorId(doctorId === d.id ? '' : d.id)} icon={<span className="tr-dot" style={{ background: d.color }} />}>{d.name}</Chip>)}
               </div>

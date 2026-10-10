@@ -11,7 +11,7 @@ import { useLicense } from '@/license/useLicense'
 import { Button, Modal, Skeleton, type ButtonVariant } from '@/ui'
 import { fmtDate, fmtTime, relativeDay, diffDays, today, timeAgo } from '@/lib/dates'
 import { formatPhone } from '@/lib/format'
-import { STATUS_ACTIONS } from './lib'
+import { safeDuration, STATUS_ACTIONS } from './lib'
 import { ContactButtons, DocDot, PatientAvatar, StatusBadge, fmtTimeRange, useAptActions, useDurationLabel, type AptRow } from './shared'
 
 const ACTION_ICON: Record<AppointmentStatus, ReactNode> = {
@@ -38,6 +38,7 @@ export default function AppointmentDetailsModal({ id, onClose, onEdit }: { id: s
   }, [id])
 
   if (!id) return null
+  const close = actions.guardClose(onClose)
   const a = row ?? undefined
   const p = a?.patient
   const when = a ? (Math.abs(diffDays(today(), a.date)) <= 1 ? `${relativeDay(a.date, lang)} · ${fmtDate(a.date, lang, 'weekday')}` : fmtDate(a.date, lang, 'weekday')) : ''
@@ -51,13 +52,13 @@ export default function AppointmentDetailsModal({ id, onClose, onEdit }: { id: s
   const footer = a ? (
     <>
       {!readOnly && <Button variant="danger-soft" icon={<Trash2 />} className="start" onClick={() => void remove()}>{t('delete')}</Button>}
-      <Button variant="ghost" onClick={onClose}>{t('close')}</Button>
+      <Button variant="ghost" onClick={close}>{t('close')}</Button>
       {!readOnly && <Button variant="primary" icon={<Pencil />} onClick={() => onEdit(a)}>{t('edit')}</Button>}
     </>
   ) : undefined
 
   return (
-    <Modal open onClose={onClose} size="md" title={t('appointments.details.title')} icon={<CalendarClock />} footer={footer} className="apt-details">
+    <Modal open onClose={close} size="md" title={t('appointments.details.title')} icon={<CalendarClock />} footer={footer} className="apt-details">
       {row === undefined ? (
         <div className="col gap-3"><Skeleton h={64} r={16} /><Skeleton h={120} r={16} /><Skeleton h={44} r={12} /></div>
       ) : row === null || !a ? (
@@ -68,7 +69,7 @@ export default function AppointmentDetailsModal({ id, onClose, onEdit }: { id: s
             <PatientAvatar patient={p} size="lg" />
             <div className="grow">
               {p ? (
-                <button type="button" className="apt-det-name" onClick={() => { onClose(); navigate(`/patients/${p.id}`) }}>{p.name}</button>
+                <button type="button" className="apt-det-name" dir="auto" title={p.name} onClick={() => { onClose(); navigate(`/patients/${p.id}`) }}>{p.name}</button>
               ) : <div className="apt-det-name">{t('appointments.deletedPatient')}</div>}
               <div className="apt-det-meta">
                 {p && <span className="num">#{p.fileNo}</span>}
@@ -84,10 +85,10 @@ export default function AppointmentDetailsModal({ id, onClose, onEdit }: { id: s
           </div>
 
           <dl className="apt-det-grid">
-            <div><dt><Stethoscope />{t('doctor')}</dt><dd><DocDot doctor={a.doctor} /><bdi>{a.doctor?.name ?? t('unknown')}</bdi></dd></div>
+            <div><dt><Stethoscope />{t('doctor')}</dt><dd><DocDot doctor={a.doctor} /><bdi>{a.doctor?.name ?? t('appointments.formerDoctor')}</bdi></dd></div>
             <div><dt><CalendarDays />{t('date')}</dt><dd>{when}</dd></div>
             <div><dt><Clock />{t('time')}</dt><dd className="apt-tm">{fmtTimeRange(a, lang)}</dd></div>
-            <div><dt><Hourglass />{t('duration')}</dt><dd>{durLabel(a.durationMin)}</dd></div>
+            <div><dt><Hourglass />{t('duration')}</dt><dd>{durLabel(safeDuration(a))}</dd></div>
             <div><dt><Tag />{t('type')}</dt><dd>{t(`aptType.${a.type}`)}</dd></div>
           </dl>
 

@@ -29,6 +29,7 @@
   --tooth-healthy: #FFFFFF; --tooth-caries: #EF4444; --tooth-filled: #3B82F6; --tooth-crown: #F59E0B; --tooth-missing: #CBD5E1;
   --tooth-implant: #8B5CF6; --tooth-root_canal: #EC4899; --tooth-bridge: #0EA5E9; --tooth-veneer: #14B8A6; --tooth-fracture: #F97316;
   --tooth-to_extract: #991B1B; --tooth-impacted: #78716C; --tooth-sealant: #22C55E;
+  --tooth-mobile: #CA8A04; --tooth-abscess: #E11D48; --tooth-attrition: #A8A29E; --tooth-other: #64748B;
 
   /* shape & depth */
   --r-xs: 6px; --r-sm: 8px; --r-md: 12px; --r-lg: 16px; --r-xl: 20px; --r-2xl: 28px; --r-full: 999px;

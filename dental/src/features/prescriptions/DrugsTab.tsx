@@ -9,7 +9,6 @@ import { useDebounced, useIsMobile } from '@/app/hooks'
 import { useLicense } from '@/license/useLicense'
 import { Badge, Button, Card, DataTable, EmptyState, IconButton, Input, Pagination, Segmented, Skeleton, Switch, useConfirmDelete, usePagination, useToast, type Column } from '@/ui'
 import { matches } from '@/lib/format'
-import { seedDefaults } from '@/features/seed/demo'
 import { usedValues } from '@/features/lab/lib'
 import { regimenLine } from './lib'
 import DrugFormModal from './DrugFormModal'
@@ -38,6 +37,8 @@ export default function DrugsTab() {
   const loadDefaults = async () => {
     setSeeding(true)
     try {
+      // loaded on demand: the seed module also carries the demo-clinic generator
+      const { seedDefaults } = await import('@/features/seed/demo')
       const r = await seedDefaults({ procedures: false, inventory: false })
       if (r.drugs) toast.success(t('prescriptions.drugs.loaded', { n: r.drugs }))
       else toast.info(t('prescriptions.drugs.notEmpty'))
@@ -61,7 +62,7 @@ export default function DrugsTab() {
   )
   const nameCell = (d: Drug) => {
     const main = pick(d.name, d.nameEn), alt = main === d.name ? d.nameEn : d.name
-    return <div className="rx-drug-cell"><span className="rx-drug-icon"><Pill /></span><div style={{ minWidth: 0 }}><div className="cell-main" dir="auto">{main}</div>{alt && alt !== main && <div className="cell-sub" dir="auto">{alt}</div>}</div></div>
+    return <div className="rx-drug-cell"><span className="rx-drug-icon"><Pill /></span><div style={{ minWidth: 0 }}><div className="cell-main"><bdi>{main}</bdi></div>{alt && alt !== main && <div className="cell-sub"><bdi>{alt}</bdi></div>}</div></div>
   }
   const columns: Column<Drug>[] = [
     { key: 'name', header: t('prescriptions.drugs.name'), render: nameCell },

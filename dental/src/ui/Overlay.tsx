@@ -2,7 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import { createPortal } from 'react-dom'
 import { AlertTriangle, X } from 'lucide-react'
 import { Button, type ButtonVariant } from './Button'
-import { useI18n } from '@/i18n'
+import { useI18n, useTSafe } from '@/i18n'
 
 let openCount = 0
 function useScrollLock(active: boolean) {
@@ -13,14 +13,38 @@ function useScrollLock(active: boolean) {
     return () => { openCount--; if (openCount <= 0) { openCount = 0; document.body.style.overflow = '' } }
   }, [active])
 }
-function useEscape(onClose?: () => void) {
-  useEffect(() => {
-    if (!onClose) return
-    const h = (e: KeyboardEvent) => { if (e.key === 'Escape') { e.stopPropagation(); onClose() } }
-    window.addEventListener('keydown', h)
-    return () => window.removeEventListener('keydown', h)
-  }, [onClose])
+/*
+ * One Escape closes only the top-most layer (a confirmation over a form closes the confirmation, nothing else).
+ * Layers register in opening order; a single window listener in the bubble phase calls the last one, so inner
+ * controls (pickers, dropdowns) that stop the event in their own React handlers still get to handle it first.
+ */
+const escapeStack: { current: () => void }[] = []
+let escapeInstalled = false
+function installEscape() {
+  if (escapeInstalled || typeof window === 'undefined') return
+  escapeInstalled = true
+  window.addEventListener('keydown', e => {
+    if (e.key !== 'Escape' || e.defaultPrevented) return
+    const top = escapeStack[escapeStack.length - 1]
+    if (!top) return
+    e.preventDefault()
+    top.current()
+  })
 }
+/** Registers a layer that Escape closes while `onClose` is given. Use it for custom overlays too. */
+export function useEscapeLayer(onClose?: () => void) {
+  const ref = useRef(onClose)
+  ref.current = onClose
+  const active = !!onClose
+  useEffect(() => {
+    if (!active) return
+    installEscape()
+    const entry = { current: () => ref.current?.() }
+    escapeStack.push(entry)
+    return () => { const i = escapeStack.lastIndexOf(entry); if (i >= 0) escapeStack.splice(i, 1) }
+  }, [active])
+}
+const useEscape = useEscapeLayer
 
 export interface ModalProps {
   open: boolean
@@ -39,6 +63,7 @@ export function Modal({ open, onClose, title, subtitle, icon, size = 'md', foote
   useScrollLock(open)
   useEscape(open ? onClose : undefined)
   const ref = useRef<HTMLDivElement>(null)
+  const t = useTSafe()
   useEffect(() => {
     if (!open) return
     const first = ref.current?.querySelector<HTMLElement>('input:not([type=hidden]), select, textarea, button:not(.modal-x)')
@@ -52,7 +77,7 @@ export function Modal({ open, onClose, title, subtitle, icon, size = 'md', foote
         {(title || subtitle) && (
           <div className="modal-header">
             <div className="grow"><div className="modal-title">{icon}{title}</div>{subtitle && <div className="modal-sub">{subtitle}</div>}</div>
-            <button type="button" className="btn btn-ghost btn-icon btn-sm modal-x" onClick={onClose} aria-label="close"><X /></button>
+            <button type="button" className="btn btn-ghost btn-icon btn-sm modal-x" onClick={onClose} aria-label={t('close')} title={t('close')}><X /></button>
           </div>
         )}
         <div className={['modal-body', bodyClassName].filter(Boolean).join(' ')}>{children}</div>
@@ -63,6 +88,7 @@ export function Modal({ open, onClose, title, subtitle, icon, size = 'md', foote
 
 export interface DrawerProps { open: boolean; onClose: () => void; title?: ReactNode; size?: 'md' | 'lg'; footer?: ReactNode; children: ReactNode; actions?: ReactNode }
 export function Drawer({ open, onClose, title, size = 'md', footer, children, actions }: DrawerProps) {
+  const t = useTSafe()
   useScrollLock(open)
   useEscape(open ? onClose : undefined)
   if (!open) return null
@@ -73,7 +99,7 @@ export function Drawer({ open, onClose, title, size = 'md', footer, children, ac
         <div className="drawer-header">
           <div className="drawer-title grow">{title}</div>
           {actions}
-          <button type="button" className="btn btn-ghost btn-icon btn-sm" onClick={onClose} aria-label="close"><X /></button>
+          <button type="button" className="btn btn-ghost btn-icon btn-sm" onClick={onClose} aria-label={t('close')} title={t('close')}><X /></button>
         </div>
         <div className="drawer-body">{children}</div>
         {footer && <div className="drawer-footer">{footer}</div>}
@@ -89,10 +115,10 @@ export function Menu({ trigger, items, align = 'end', vertical = 'bottom', child
   useEffect(() => {
     if (!open) return
     const h = (e: MouseEvent | TouchEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false) }
-    const k = (e: KeyboardEvent) => { if (e.key === 'Escape') setOpen(false) }
-    document.addEventListener('mousedown', h); document.addEventListener('touchstart', h); window.addEventListener('keydown', k)
-    return () => { document.removeEventListener('mousedown', h); document.removeEventListener('touchstart', h); window.removeEventListener('keydown', k) }
+    document.addEventListener('mousedown', h); document.addEventListener('touchstart', h)
+    return () => { document.removeEventListener('mousedown', h); document.removeEventListener('touchstart', h) }
   }, [open])
+  useEscapeLayer(open ? () => setOpen(false) : undefined)
   return (
     <div ref={ref} className={['menu-anchor', className].filter(Boolean).join(' ')}>
       <span onClick={() => setOpen(o => !o)} style={{ display: 'inline-flex' }}>{trigger(open)}</span>

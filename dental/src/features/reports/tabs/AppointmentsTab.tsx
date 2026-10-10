@@ -20,15 +20,20 @@ export default function AppointmentsTab({ period, data, setExport, onShowYear }:
 
   const c = useMemo(() => {
     if (!data) return null
-    const work = workingMinutes(period, clinic)
+    // utilisation of a running period covers the days so far: future working days are not "unused" yet
+    const soFar = data.partial ? data.appointments.filter(a => a.date <= data.cmpTo) : data.appointments
+    const work = workingMinutes(data.partial ? { from: period.from, to: data.cmpTo } : period, clinic)
     const docs = data.users.filter(u => u.active && (u.role === 'doctor' || u.role === 'admin') && (!data.doctorId || u.id === data.doctorId))
     const unit = chooseUnit(period, { dayUpTo: 31, weekUpTo: 190 })
+    const util = new Map(appointmentsByDoctor(soFar, docs, work).map(r => [r.doctorId, r.utilisation]))
     return {
       work, unit,
       stats: appointmentStats(data.appointments, work),
+      // the delta compares the part of the period up to today with the same stretch before (future bookings aside)
+      cur: data.partial ? appointmentStats(data.appointments.filter(a => a.date <= data.cmpTo)) : null,
       prev: appointmentStats(data.prevAppointments),
       series: appointmentsSeries(data.appointments, period, unit),
-      rows: appointmentsByDoctor(data.appointments, docs, work),
+      rows: appointmentsByDoctor(data.appointments, docs, work).map(r => ({ ...r, utilisation: util.get(r.doctorId) ?? r.utilisation })),
     }
   }, [data, period, clinic])
   const text = useBucketText(c?.series ?? [], c?.unit ?? 'day')
@@ -45,7 +50,7 @@ export default function AppointmentsTab({ period, data, setExport, onShowYear }:
       action={<Button to="/appointments" icon={<CalendarDays />}>{t('reports.apt.goCalendar')}</Button>} />
   }
   const loading = !c
-  const vs = t('reports.vsPrevious')
+  const vs = data?.partial ? t('reports.vsSameDays') : t('reports.vsPrevious')
   const seriesData = (c?.series ?? []).map((p, i) => ({ label: text[i]?.label ?? '', title: text[i]?.title, values: [p.value] }))
   const statusData = c ? APPOINTMENT_STATUSES.map(s => ({ id: s, label: t(`apt.${s}`), value: c.stats.byStatus[s], color: `var(--st-${s})` })) : []
   const perTitle = c?.unit === 'month' ? t('reports.apt.perMonth') : c?.unit === 'week' ? t('reports.apt.perWeek') : t('reports.apt.perDay')
@@ -66,27 +71,27 @@ export default function AppointmentsTab({ period, data, setExport, onShowYear }:
   return (
     <div className="rp-section" data-testid="rp-appointments">
       <div className="rp-kpis">
-        <KpiCard testId="kpi-apt-total" loading={loading} tone="primary" icon={<CalendarDays />} label={t('reports.apt.total')} value={c && <span className="num">{num(c.stats.total)}</span>} delta={c ? delta(c.stats.total, c.prev.total) : undefined} deltaLabel={vs} />
+        <KpiCard testId="kpi-apt-total" loading={loading} tone="primary" icon={<CalendarDays />} label={t('reports.apt.total')} value={c && <span className="num">{num(c.stats.total)}</span>} delta={c ? delta((c.cur ?? c.stats).total, c.prev.total) : undefined} deltaLabel={vs} />
         <KpiCard loading={loading} tone="success" icon={<CalendarCheck2 />} label={t('reports.apt.completed')} value={c && <span className="num">{num(c.stats.completed)}</span>}
           sub={c ? t('reports.apt.completionRate', { pct: iso(pct(c.stats.completionRate)) }) : undefined} />
-        <KpiCard loading={loading} tone="orange" icon={<CalendarX2 />} label={t('reports.apt.cancelled')} value={c && <span className="num">{num(c.stats.cancelled)}</span>} delta={c ? delta(c.stats.cancelled, c.prev.cancelled) : undefined} deltaLabel={vs} upIsGood={false} />
+        <KpiCard loading={loading} tone="orange" icon={<CalendarX2 />} label={t('reports.apt.cancelled')} value={c && <span className="num">{num(c.stats.cancelled)}</span>} delta={c ? delta((c.cur ?? c.stats).cancelled, c.prev.cancelled) : undefined} deltaLabel={vs} upIsGood={false} />
         <KpiCard testId="kpi-noshow" loading={loading} tone="danger" icon={<UserX />} label={t('reports.apt.noShowRate')} value={c && <span className="num">{pct(c.stats.noShowRate)}</span>}
           sub={c ? t('reports.apt.noShows', { n: num(c.stats.noShow) }) : undefined} />
       </div>
 
       <div className="rp-row">
         <ChartCard testId="chart-apt-series" loading={loading} icon={<CalendarDays />} title={perTitle} subtitle={t('reports.apt.perSub')} height={250}
-          table={{ columns: [{ key: 'd', header: t('date') }, { key: 'n', header: t('reports.apt.booked'), num: true }], rows: seriesData.filter(d => d.values[0]).map(d => ({ d: d.title, n: <span className="num">{d.values[0]}</span> })) }}>
+          table={{ columns: [{ key: 'd', header: t('date') }, { key: 'n', header: t('reports.apt.booked'), num: true }], rows: seriesData.filter(d => d.values[0]).map(d => ({ d: d.title, n: <span className="num">{num(d.values[0])}</span> })) }}>
           <BarChart fill data={seriesData} series={[{ id: 'apt', label: t('reports.apt.booked'), color: 'var(--rp-c1)' }]} height={250} integer format={num} title={perTitle} desc={range} />
         </ChartCard>
         <ChartCard testId="chart-apt-status" loading={loading} icon={<ChartPie />} title={t('reports.apt.byStatus')} subtitle={t('reports.apt.byStatusSub')} height={200}
-          table={{ columns: [{ key: 's', header: t('status') }, { key: 'n', header: t('reports.count'), num: true }], rows: statusData.filter(s => s.value).map(s => ({ s: s.label, n: <span className="num">{s.value}</span> })) }}>
+          table={{ columns: [{ key: 's', header: t('status') }, { key: 'n', header: t('reports.count'), num: true }], rows: statusData.filter(s => s.value).map(s => ({ s: s.label, n: <span className="num">{num(s.value)}</span> })) }}>
           <DonutChart data={statusData} format={num} centerValue={c ? num(c.stats.total) : ''} centerLabel={t('reports.apt.total')} title={t('reports.apt.byStatus')} desc={range} />
         </ChartCard>
       </div>
 
       <Card className="rp-card" data-testid="table-doctors">
-        <CardHeader icon={<Stethoscope />} title={t('reports.apt.perDoctor')} subtitle={t('reports.apt.perDoctorSub', { hours: num(totalHours) })}
+        <CardHeader icon={<Stethoscope />} title={t('reports.apt.perDoctor')} subtitle={t(data?.partial ? 'reports.apt.perDoctorSubToDate' : 'reports.apt.perDoctorSub', { hours: num(totalHours) })}
           actions={dayHours ? <span className="text-xs muted hide-mobile num">{clinic.workStart}–{clinic.workEnd}</span> : undefined} />
         <div className="card-body">
           {c && !c.rows.length ? <CardEmpty icon={<Stethoscope />}>{t('reports.noDataPeriod')}</CardEmpty>

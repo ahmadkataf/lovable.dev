@@ -1,6 +1,6 @@
 // Purchase: several items in one go. Quantities go up, cost prices are refreshed and each line becomes a
 // 'purchase' movement; optionally the total is also recorded as a materials expense.
-import { useEffect, useId, useMemo, useState, type FormEvent } from 'react'
+import { useEffect, useId, useMemo, useRef, useState, type FormEvent } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { Plus, ShoppingCart, Trash2, TriangleAlert } from 'lucide-react'
 import { db, logActivity } from '@/db'
@@ -15,6 +15,7 @@ import { useLicense } from '@/license/useLicense'
 import { isLowStock, purchaseTotal, suggestReorderQty, validatePurchase, type PurchaseLine } from './lib'
 import { recordPurchase } from './actions'
 import { qtyText, unitLabel } from './parts'
+import { tn } from './plural'
 
 interface Row extends PurchaseLine { key: string }
 let seq = 0
@@ -41,6 +42,7 @@ export default function PurchaseModal({ open, onClose, initialItemIds }: { open:
   const [asExpense, setAsExpense] = useState(true)
   const [tried, setTried] = useState(false)
   const [busy, setBusy] = useState(false)
+  const saving = useRef(false)   // a second Enter or click before the first write ends must not save twice
   const canExpense = session.can('manage')
 
   // fresh form on every open (pre-filled with the given items, e.g. the low-stock ones)
@@ -85,28 +87,30 @@ export default function PurchaseModal({ open, onClose, initialItemIds }: { open:
   const rowError = (i: number) => {
     if (!tried) return undefined
     const e = check.errors[i]
-    return e === 'item' ? t('inventory.purchase.pickItem') : e === 'duplicate' ? t('inventory.purchase.dup') : e === 'quantity' ? t('inventory.v.amount') : undefined
+    return e === 'item' ? t('inventory.purchase.pickItem') : e === 'duplicate' ? t('inventory.purchase.dup') : e === 'quantity' ? t('inventory.v.amount') : e === 'cost' ? t('inventory.v.cost') : undefined
   }
 
   const submit = async (e?: FormEvent) => {
     e?.preventDefault()
     setTried(true)
-    if (!check.ok || !date) return
+    if (!check.ok || !date || date > todayISO()) return
     if (readOnly) { toast.warning(t('inventory.toast.readOnly')); return }
+    if (saving.current) return
+    saving.current = true
     setBusy(true)
     try {
-      const desc = t('inventory.purchase.expenseDesc', { n: rows.length }) + (supplier.trim() ? ` — ${supplier.trim()}` : '')
+      const desc = tn(t, lang, 'inventory.purchase.expenseDesc', rows.length) + (supplier.trim() ? ` — ${supplier.trim()}` : '')
       const r = await recordPurchase({
         lines: rows.map(r => ({ itemId: r.itemId, quantity: r.quantity ?? 0, costPrice: r.costPrice })), date, supplier, reference, by: session.user?.id,
         expenseDescription: canExpense && asExpense ? desc : undefined,
       })
-      toast.success(t('inventory.toast.purchased', { n: r.count }), r.total > 0 ? money(r.total) : undefined)
-      void logActivity({ type: 'inventory', action: 'create', by: session.user?.id, message: t('inventory.act.purchased', { n: r.count }) + (r.total > 0 ? ` (${money(r.total)})` : '') })
+      toast.success(tn(t, lang, 'inventory.toast.purchased', r.count), r.total > 0 ? money(r.total) : undefined)
+      void logActivity({ type: 'inventory', action: 'create', by: session.user?.id, message: tn(t, lang, 'inventory.act.purchased', r.count) + (r.total > 0 ? ` (${money(r.total)})` : '') })
       if (r.expenseId) void logActivity({ type: 'expense', action: 'create', entityId: r.expenseId, by: session.user?.id, message: t('expenses.act.created', { desc, amount: money(r.total) }) })
       onClose()
     } catch {
       toast.error(t('error'), t('tryAgain'))
-    } finally { setBusy(false) }
+    } finally { saving.current = false; setBusy(false) }
   }
 
   const formId = `${uid}-purchase`
@@ -121,7 +125,7 @@ export default function PurchaseModal({ open, onClose, initialItemIds }: { open:
       {empty ? <Alert tone="info">{t('inventory.purchase.needItems')}</Alert> : (
         <form id={formId} onSubmit={submit} noValidate className="inv-purchase">
           <div className="form-grid form-grid-3 inv-form-3">
-            <Input type="date" label={t('inventory.purchase.date')} required value={date} onChange={e => setDate(e.target.value)} error={tried && !date ? t('v.required') : undefined} />
+            <Input type="date" label={t('inventory.purchase.date')} required value={date} max={todayISO()} onChange={e => setDate(e.target.value)} error={tried && !date ? t('v.required') : tried && date > todayISO() ? t('inventory.purchase.futureDate') : undefined} />
             <div className="field">
               <Input label={t('inventory.purchase.supplier')} value={supplier} onChange={e => setSupplier(e.target.value)} list={`${uid}-sup`} maxLength={80} />
               <datalist id={`${uid}-sup`}>{suppliers.map(s => <option key={s} value={s} />)}</datalist>
@@ -144,7 +148,8 @@ export default function PurchaseModal({ open, onClose, initialItemIds }: { open:
                   <div className="inv-pl-item">
                     <Select aria-label={t('inventory.purchase.item')} value={r.itemId} onChange={ev => update(r.key, { itemId: ev.target.value })} placeholder={t('inventory.purchase.pickItem')}
                       invalid={tried && (check.errors[i] === 'item' || check.errors[i] === 'duplicate')}
-                      options={sorted.map(o => ({ value: o.id, label: `${o.name}${o.sku ? ` · ${o.sku}` : ''}` }))} />
+                      // native <option> text cannot hold <bdi>: isolate the name (FSI…PDI) so an Arabic name keeps its order in the English UI and vice versa
+                      options={sorted.map(o => ({ value: o.id, label: `\u2068${o.name}\u2069${o.sku ? ` · \u2066${o.sku}\u2069` : ''}` }))} />
                     {it && <div className="inv-pl-meta">{t('inventory.move.current')}: <span className="num">{qtyText(it.quantity, lang)}</span> {unitLabel(t, it.unit)}{isLowStock(it) && <span className="inv-text-danger"> · {t('inventory.low')}</span>}</div>}
                   </div>
                   <div className="inv-pl-cell">
@@ -153,7 +158,7 @@ export default function PurchaseModal({ open, onClose, initialItemIds }: { open:
                   </div>
                   <div className="inv-pl-cell">
                     {mobile && <span className="inv-pl-label">{t('inventory.purchase.cost')}</span>}
-                    <NumberField aria-label={t('inventory.purchase.cost')} value={r.costPrice} onChange={v => update(r.key, { costPrice: v })} decimals={2} min={0} addon={clinic.currencySymbol || clinic.currency} />
+                    <NumberField aria-label={t('inventory.purchase.cost')} value={r.costPrice} onChange={v => update(r.key, { costPrice: v })} decimals={2} min={0} invalid={tried && check.errors[i] === 'cost'} addon={clinic.currencySymbol || clinic.currency} />
                   </div>
                   <div className="inv-pl-total">{mobile && <span className="inv-pl-label">{t('inventory.purchase.lineTotal')}</span>}<span className="money">{money(line)}</span></div>
                   <div className="inv-pl-remove">

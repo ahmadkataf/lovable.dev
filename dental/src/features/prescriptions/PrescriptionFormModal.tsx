@@ -7,7 +7,7 @@ import { db } from '@/db'
 import type { Drug, Patient, Prescription, PrescriptionItem } from '@/db/types'
 import { todayISO } from '@/db/ids'
 import { useI18n } from '@/i18n'
-import { useDoctors } from '@/app/hooks'
+import { useDoctors, useUsers } from '@/app/hooks'
 import { useSession } from '@/app/session'
 import { Alert, Button, Field, IconButton, Input, Modal, Select, Textarea, useToast } from '@/ui'
 import {
@@ -47,6 +47,7 @@ function RxForm({ onClose, prescription, defaults, lockPatient, onSaved }: Omit<
   const toast = useToast()
   const session = useSession()
   const doctors = useDoctors()
+  const allUsers = useUsers(false)
   const editing = !!prescription
   const duplicating = !editing && !!defaults?.items?.length
 
@@ -63,20 +64,22 @@ function RxForm({ onClose, prescription, defaults, lockPatient, onSaved }: Omit<
 
   // load the patient of an existing / pre-filled prescription
   const initialPatientId = prescription?.patientId ?? defaults?.patientId
+  const [patientLoading, setPatientLoading] = useState(!!initialPatientId)
   useEffect(() => {
     if (!initialPatientId) return
     let alive = true
-    void db.patients.get(initialPatientId).then(p => { if (alive && p) setPatient(p) })
+    void db.patients.get(initialPatientId).then(p => { if (!alive) return; if (p) setPatient(p); setPatientLoading(false) }, () => { if (alive) setPatientLoading(false) })
     return () => { alive = false }
   }, [initialPatientId])
 
-  // default doctor: the signed-in doctor, else the patient's usual doctor, else the first doctor
+  // default doctor (until one is picked): the signed-in doctor, else the patient's usual doctor, else the first doctor
+  const [doctorTouched, setDoctorTouched] = useState(!!(prescription?.doctorId ?? defaults?.doctorId))
   useEffect(() => {
-    if (doctorId || !doctors.length) return
+    if (doctorTouched || !doctors.length) return
     const me = session.user
-    const pick = (me && doctors.some(d => d.id === me.id) ? me.id : undefined) ?? (patient?.doctorId && doctors.some(d => d.id === patient.doctorId) ? patient.doctorId : undefined) ?? doctors[0].id
-    setDoctorId(pick)
-  }, [doctors, doctorId, session.user, patient?.doctorId])
+    const next = (me && doctors.some(d => d.id === me.id) ? me.id : undefined) ?? (patient?.doctorId && doctors.some(d => d.id === patient.doctorId) ? patient.doctorId : undefined) ?? doctors[0].id
+    if (next !== doctorId) setDoctorId(next)
+  }, [doctors, doctorTouched, doctorId, session.user, patient?.doctorId])
 
   useEffect(() => {
     if (!focusKey.current) return
@@ -113,6 +116,13 @@ function RxForm({ onClose, prescription, defaults, lockPatient, onSaved }: Omit<
     } finally { setBusy(false) }
   }
 
+  // a deactivated doctor stays selectable on the records that name them
+  const doctorOptions = useMemo(() => {
+    const list = [...doctors]
+    const cur = doctorId && !list.some(d => d.id === doctorId) ? allUsers.find(u => u.id === doctorId) : undefined
+    if (cur) list.push(cur)
+    return list.map(d => ({ value: d.id, label: d.name }))
+  }, [doctors, allUsers, doctorId])
   const title = editing ? t('prescriptions.form.editTitle') : duplicating ? t('prescriptions.form.duplicateTitle') : t('prescriptions.form.newTitle')
   const allergies = patient?.allergies?.filter(Boolean) ?? []
   const filled = items.filter(i => !isBlankItem(i)).length
@@ -127,10 +137,10 @@ function RxForm({ onClose, prescription, defaults, lockPatient, onSaved }: Omit<
       <form onSubmit={submit} noValidate className="rx-form">
         <div className="form-grid rx-form-top">
           <div className="span-2">
-            <PatientSelect value={patient} onChange={setPatient} locked={lockPatient && !!patient} error={live?.patient ? t('v.required') : undefined} autoFocus={!initialPatientId} />
+            <PatientSelect value={patient} onChange={setPatient} pending={patientLoading} locked={lockPatient && !!patient} error={live?.patient ? t('v.required') : undefined} autoFocus={!initialPatientId} />
           </div>
-          <Select label={t('doctor')} required value={doctorId} onChange={e => setDoctorId(e.target.value)} error={live?.doctor ? t('v.required') : undefined}
-            options={doctors.map(d => ({ value: d.id, label: d.name }))} placeholder={doctors.length ? undefined : t('prescriptions.form.noDoctors')} />
+          <Select label={t('doctor')} required value={doctorId} onChange={e => { setDoctorId(e.target.value); setDoctorTouched(true) }} error={live?.doctor ? t('v.required') : undefined}
+            options={doctorOptions} placeholder={doctorOptions.length ? undefined : t('prescriptions.form.noDoctors')} />
           <Input label={t('date')} required type="date" value={date} onChange={e => setDate(e.target.value)} error={live?.date ? t('v.date') : undefined} />
           <div className="span-2">
             <Input label={t('prescriptions.form.diagnosis')} value={diagnosis} onChange={e => setDiagnosis(e.target.value)} placeholder={t('prescriptions.form.diagnosisPh')}
@@ -174,7 +184,7 @@ function ItemRow({ n, item, onChange, onRemove, nameError }: { n: number; item: 
   const freq = FREQUENCY_PRESETS[lang], dur = durationPresets(lang), instr = INSTRUCTION_PRESETS[lang]
   return (
     <div className="rx-row" data-row={item.key}>
-      <span className="rx-row-no num">{n}</span>
+      <span className="rx-row-no">{n}</span>
       <div className="rx-row-grid">
         <Input className="rx-f-name" aria-label={t('prescriptions.item.name')} placeholder={t('prescriptions.item.name')} value={item.name} onChange={e => onChange({ name: e.target.value })}
           error={nameError ? t('v.required') : undefined} dir="auto" iconStart={<Pill />} />
@@ -215,17 +225,20 @@ function DrugSearch({ onPick, onFree, invalid }: { onPick: (d: Drug) => void; on
   useEffect(() => setHi(0), [q])
   const close = useCallback(() => setOpen(false), [])
   const choose = (i: number) => {
-    if (i < results.length) onPick(results[i]); else if (free) onFree(free)
-    setQ(''); setHi(0)
-    input.current?.focus()
+    const freeRow = i >= results.length
+    if (!freeRow) onPick(results[i]); else if (free) onFree(free)
+    setQ(''); setHi(0); setOpen(false)
+    if (!freeRow) input.current?.focus()
   }
+  const catalogueEmpty = drugs !== undefined && drugs.filter(d => d.active).length === 0
+  const visible = open && (count > 0 || catalogueEmpty)
   const onKey = (e: KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'ArrowDown') { e.preventDefault(); setOpen(true); setHi(h => Math.min(count - 1, h + 1)) }
     else if (e.key === 'ArrowUp') { e.preventDefault(); setHi(h => Math.max(0, h - 1)) }
-    else if (e.key === 'Enter') { e.preventDefault(); if (count) choose(Math.min(hi, count - 1)) }
-    else if (e.key === 'Escape' && open) { e.stopPropagation(); setOpen(false) }
+    // Enter adds the highlighted drug only while the list is showing; otherwise it opens the list (never submits)
+    else if (e.key === 'Enter') { e.preventDefault(); if (visible && count) choose(Math.min(hi, count - 1)); else setOpen(true) }
+    else if (e.key === 'Escape' && visible) { e.stopPropagation(); setOpen(false) }
   }
-  const catalogueEmpty = drugs !== undefined && drugs.filter(d => d.active).length === 0
 
   return (
     <Field className="rx-drug-search">
@@ -234,7 +247,7 @@ function DrugSearch({ onPick, onFree, invalid }: { onPick: (d: Drug) => void; on
           role="combobox" aria-expanded={open} aria-label={t('prescriptions.form.searchDrug')}
           onChange={e => { setQ(e.target.value); setOpen(true) }} onFocus={() => setOpen(true)} onClick={() => setOpen(true)} onKeyDown={onKey} />
       </div>
-      <Popover anchor={wrap} open={open && (count > 0 || catalogueEmpty)} onClose={close} maxHeight={380}>
+      <Popover anchor={wrap} open={visible} onClose={close} maxHeight={380}>
         <div role="listbox" className="rx-opt-list">
           {results.length > 0 && <div className="rx-pop-label">{free ? t('prescriptions.form.catalogue') : usage?.size ? t('prescriptions.form.mostUsed') : t('prescriptions.form.catalogue')}</div>}
           {results.map((d, i) => {

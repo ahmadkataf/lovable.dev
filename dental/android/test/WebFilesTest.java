@@ -107,6 +107,23 @@ public final class WebFilesTest {
         eq(false, WebFiles.isAppUrl("https", "wa.me"), "whatsapp is outside");
         eq(false, WebFiles.isAppUrl("https", "evil-dentora.app"), "look-alike host");
         eq(false, WebFiles.isAppUrl("tel", null), "tel");
+        // shouldOverrideUrlLoading: the app stays inside; tel:, mailto:, WhatsApp and other sites go to the phone
+        eq("app", WebFiles.linkAction("https", "dentora.app", true), "own page stays inside");
+        eq("app", WebFiles.linkAction("https", "dentora.app", false), "own frame stays inside");
+        eq("outside", WebFiles.linkAction("tel", null, true), "tel goes to the dialer");
+        eq("outside", WebFiles.linkAction("mailto", null, true), "mailto goes to e-mail");
+        eq("outside", WebFiles.linkAction("https", "wa.me", true), "wa.me goes to WhatsApp");
+        eq("outside", WebFiles.linkAction("whatsapp", null, true), "whatsapp: goes to WhatsApp");
+        eq("outside", WebFiles.linkAction("https", "example.com", true), "other site goes to the browser");
+        eq("outside", WebFiles.linkAction("http", "dentora.app.evil.com", true), "look-alike goes outside");
+        eq("outside", WebFiles.linkAction("intent", null, true), "intent: goes outside (checked there)");
+        eq("outside", WebFiles.linkAction(null, null, true), "no scheme is not loaded inside");
+        eq("allow", WebFiles.linkAction("https", "maps.example.com", false), "a frame inside the page loads");
+        eq("allow", WebFiles.linkAction("about", null, true), "about:blank");
+        eq("allow", WebFiles.linkAction("JavaScript", null, true), "javascript:");
+        eq("data", WebFiles.linkAction("data", null, true), "data: is saved");
+        eq("blob", WebFiles.linkAction("blob", null, true), "blob: is saved");
+
         eq("android.intent.action.DIAL", WebFiles.externalAction("tel"), "tel action");
         eq("android.intent.action.SENDTO", WebFiles.externalAction("mailto"), "mailto action");
         eq("android.intent.action.SENDTO", WebFiles.externalAction("smsto"), "sms action");
@@ -121,11 +138,21 @@ public final class WebFilesTest {
         eq("window.dispatchEvent(new CustomEvent('dentora:saved',{detail:{ok:true,cancelled:false,name:\"x.json\"}}))",
             WebFiles.savedEventJs(true, false, "x.json"), "saved event");
 
+        // scripts run in every page
+        eq(true, WebFiles.BRIDGE_JS.contains("dentora:saved") && WebFiles.BRIDGE_JS.contains("new Promise"), "saveFile answers with a Promise");
+        eq(true, WebFiles.PRINT_SHIM_JS.contains("__dentoraPrinting") && WebFiles.PRINT_HOLD_JS.contains("__dentoraPrinting=true"), "afterprint held while printing");
+        eq(true, WebFiles.PRINT_DONE_JS.contains("afterprint"), "afterprint released at the end");
+
         // messages
-        eq("تم حفظ الملف", WebFiles.text("saved", "ar"), "arabic message");
-        eq("File saved", WebFiles.text("saved", "en"), "english message");
-        eq("تم حفظ الملف", WebFiles.text("saved", null), "arabic by default");
-        eq("تم حفظ الملف", WebFiles.text("saved", "fr"), "arabic for other languages");
+        eq("تعذّر حفظ الملف", WebFiles.text("save_failed", "ar"), "arabic message");
+        eq("Could not save the file", WebFiles.text("save_failed", "en"), "english message");
+        eq("تعذّر حفظ الملف", WebFiles.text("save_failed", null), "arabic by default");
+        eq("تعذّر حفظ الملف", WebFiles.text("save_failed", "fr"), "arabic for other languages");
+        String[] keys = {"saved_downloads", "save_failed", "no_app", "no_picker", "no_print", "crash_title", "crash_body", "copy", "close"};
+        for (String k : keys) {
+            eq(false, WebFiles.text(k, "ar").equals(k) || WebFiles.text(k, "en").equals(k), "message " + k + " in both languages");
+            eq(false, WebFiles.text(k, "ar").equals(WebFiles.text(k, "en")), "message " + k + " translated");
+        }
 
         System.out.println("WebFilesTest: " + checks + " checks passed");
     }

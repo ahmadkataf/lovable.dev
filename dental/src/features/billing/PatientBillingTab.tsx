@@ -10,7 +10,7 @@ import { useIsMobile, useUsers } from '@/app/hooks'
 import { useLicense } from '@/license/useLicense'
 import { fmtDate } from '@/lib/dates'
 import { Badge, Button, Card, CardHeader, DataTable, EmptyState, IconButton, Skeleton, StatCard, type Column } from '@/ui'
-import { accountFrom, invoiceBalance, isDraftNumber } from './lib'
+import { accountFrom, invoiceBalance, isBillable, isDraftNumber, pluralKey } from './lib'
 import { MethodBadge, Money, StatusBadge } from './shared'
 import { openReceipt } from './Receipt'
 import { StatementModal } from './Statement'
@@ -53,13 +53,14 @@ export default function PatientBillingTab({ patientId }: { patientId: string }) 
     )
   }
   const { invoices, payments, account } = data
-  const due = account.due
+  const due = Math.abs(account.due) < 0.005 ? 0 : account.due
+  const issuedCount = invoices.filter(isBillable).length
 
   const invColumns: Column<Invoice>[] = [
     { key: 'number', header: t('number'), render: i => (isDraftNumber(i.number) ? <span className="muted strong">{t('billing.draftNumber')}</span> : <Link className="bl-num-link num" to={`/invoices/${i.id}`} onClick={e => e.stopPropagation()}>{i.number}</Link>) },
     { key: 'date', header: t('date'), render: i => <span className="bl-date">{fmtDate(i.date, lang)}</span> },
     { key: 'total', header: t('total'), className: 'num', render: i => <Money value={i.total} strong /> },
-    { key: 'paid', header: t('paid'), className: 'num', hideBelow: 'md', render: i => (i.status === 'draft' ? <span className="bl-dash">—</span> : <Money value={i.paid} kind="muted" />) },
+    { key: 'paid', header: t('paid'), className: 'num bl-hide-1440', render: i => (i.status === 'draft' ? <span className="bl-dash">—</span> : <Money value={i.paid} kind="muted" />) },
     { key: 'due', header: t('due'), className: 'num', render: i => (i.status === 'draft' || i.status === 'cancelled' ? <span className="bl-dash">—</span> : <Money value={invoiceBalance(i)} kind="due" />) },
     { key: 'status', header: t('status'), render: i => <StatusBadge status={i.status} /> },
     { key: 'open', header: '', className: 'actions', width: 48, render: () => <Chev size={18} className="muted" /> },
@@ -68,7 +69,7 @@ export default function PatientBillingTab({ patientId }: { patientId: string }) 
     { key: 'date', header: t('date'), render: p => <span className="bl-date">{fmtDate(p.date, lang)}</span> },
     { key: 'invoice', header: t('billing.invoice'), render: p => { const inv = p.invoiceId ? invNumber.get(p.invoiceId) : undefined; return inv ? <Link className="bl-num-link num" to={`/invoices/${inv.id}`} onClick={e => e.stopPropagation()}>{inv.number}</Link> : <Badge tone="outline">{t('billing.payments.onAccount')}</Badge> } },
     { key: 'method', header: t('billing.method'), render: p => <MethodBadge method={p.method} /> },
-    { key: 'by', header: t('billing.payments.receivedBy'), hideBelow: 'lg', render: p => userName(p.receivedBy) },
+    { key: 'by', header: t('billing.payments.receivedBy'), className: 'bl-hide-1200', render: p => userName(p.receivedBy) },
     { key: 'amount', header: t('amount'), className: 'num', render: p => <Money value={p.amount} kind="signed" strong /> },
     { key: 'receipt', header: '', className: 'actions', width: 56, render: p => <IconButton label={t('billing.payment.printReceipt')} size="sm" variant="ghost" className="bl-menu-btn" onClick={e => { e.stopPropagation(); openReceipt(p.id) }}><Printer /></IconButton> },
   ]
@@ -76,8 +77,8 @@ export default function PatientBillingTab({ patientId }: { patientId: string }) 
   return (
     <div className="bl-tab">
       <div className="grid grid-3 bl-stats">
-        <StatCard tone="primary" icon={<FileText />} label={t('billing.account.invoiced')} value={<Money value={account.invoiced} />} sub={t('billing.invoicesCount', { n: invoices.filter(i => i.status !== 'draft' && i.status !== 'cancelled').length })} />
-        <StatCard tone="success" icon={<Wallet />} label={t('billing.account.paid')} value={<Money value={account.paid} />} sub={t('billing.payments.count', { n: payments.length })} />
+        <StatCard tone="primary" icon={<FileText />} label={t('billing.account.invoiced')} value={<Money value={account.invoiced} />} sub={t(pluralKey('billing.invoicesCount', issuedCount, lang), { n: issuedCount })} />
+        <StatCard tone="success" icon={<Wallet />} label={t('billing.account.paid')} value={<Money value={account.paid} />} sub={t(pluralKey('billing.payments.count', payments.length, lang), { n: payments.length })} />
         <StatCard tone={due > 0 ? 'danger' : 'success'} icon={due > 0 ? <Receipt /> : <BadgeCheck />} label={due < 0 ? t('billing.account.credit') : t('billing.account.due')}
           value={<Money value={Math.abs(due)} kind={due > 0 ? 'due' : undefined} />} sub={due === 0 ? t('billing.accountSettled') : undefined} />
       </div>

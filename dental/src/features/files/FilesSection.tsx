@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type DragEvent, type ReactNode } from 'react'
+import { useEffect, useMemo, useRef, useState, type DragEvent, type ReactNode } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { Camera, ChevronLeft, ChevronRight, Download, FileText, FolderOpen, ImageOff, Paperclip, ScanLine, Signature, Trash, Upload, File as FileIcon } from 'lucide-react'
 import { db, logActivity } from '@/db'
@@ -20,10 +20,15 @@ export const KIND_ICON: Record<FileKind, ReactNode> = { xray: <ScanLine />, phot
 export const KIND_TONE: Record<FileKind, Tone> = { xray: 'purple', photo: 'pink', document: 'info', consent: 'success', other: 'default' }
 const ACCEPT = 'image/*,.pdf,application/pdf'
 
-/** An object URL for a blob that lives as long as the component shows it. */
+/** An object URL for a blob that lives as long as the component shows it (created and revoked in the same effect, so StrictMode's re-run cannot leave a revoked URL behind). */
 function useObjectUrl(blob?: Blob | null): string | undefined {
-  const url = useMemo(() => (blob ? URL.createObjectURL(blob) : undefined), [blob])
-  useEffect(() => () => { if (url) URL.revokeObjectURL(url) }, [url])
+  const [url, setUrl] = useState<string>()
+  useEffect(() => {
+    if (!blob) { setUrl(undefined); return }
+    const u = URL.createObjectURL(blob)
+    setUrl(u)
+    return () => URL.revokeObjectURL(u)
+  }, [blob])
   return url
 }
 
@@ -87,7 +92,7 @@ export default function FilesSection({ patientId }: { patientId: string }) {
         </div>
       )}
 
-      {pending && <UploadModal file={pending} patientId={patientId} onClose={() => setPending(null)} />}
+      {pending && <UploadModal file={pending} patientId={patientId} onClose={() => setPending(null)} onSaved={k => setKind(cur => (cur === 'all' || cur === k ? cur : 'all'))} />}
       {previewId && index >= 0 && (
         <PreviewModal file={shown[index]} onClose={() => setPreviewId(null)}
           onPrev={index > 0 ? () => setPreviewId(shown[index - 1].id) : undefined}
@@ -111,7 +116,7 @@ function KindPicker({ value, onChange }: { value: FileKind; onChange: (k: FileKi
   )
 }
 
-function UploadModal({ file, patientId, onClose }: { file: File; patientId: string; onClose: () => void }) {
+function UploadModal({ file, patientId, onClose, onSaved }: { file: File; patientId: string; onClose: () => void; onSaved?: (kind: FileKind) => void }) {
   const { t } = useI18n()
   const toast = useToast()
   const session = useSession()
@@ -120,6 +125,7 @@ function UploadModal({ file, patientId, onClose }: { file: File; patientId: stri
   const [note, setNote] = useState('')
   const [tooth, setTooth] = useState<number | null>(null)
   const [saving, setSaving] = useState(false)
+  const busy = useRef(false) // clicks/Enter in the same frame must not store the file twice
   const [tried, setTried] = useState(false)
   const image = fileShape(file.type, file.name) === 'image'
   const url = useObjectUrl(image ? file : null)
@@ -128,7 +134,8 @@ function UploadModal({ file, patientId, onClose }: { file: File; patientId: stri
 
   const save = async () => {
     setTried(true)
-    if (saving || toothError || !name.trim()) return
+    if (busy.current || toothError || !name.trim()) return
+    busy.current = true
     setSaving(true)
     try {
       const thumb = image ? await imageToDataUrl(file, 240).catch(() => undefined) : undefined
@@ -138,9 +145,11 @@ function UploadModal({ file, patientId, onClose }: { file: File; patientId: stri
       await db.files.add(rec)
       void logActivity({ type: 'patient', action: 'other', entityId: id, patientId, message: t('patients.files.logUpload', { name: rec.name }), by: session.user?.id })
       toast.success(t('patients.files.uploaded'), rec.name)
+      onSaved?.(kind) // a new x-ray must not stay hidden behind a "photos" filter
       onClose()
     } catch {
       toast.error(t('patients.files.uploadFailed'))
+      busy.current = false
       setSaving(false)
     }
   }
@@ -168,6 +177,7 @@ function UploadModal({ file, patientId, onClose }: { file: File; patientId: stri
 function PreviewModal({ file, onClose, onPrev, onNext, position }: { file: PatientFile; onClose: () => void; onPrev?: () => void; onNext?: () => void; position?: string }) {
   const { t, lang, isRTL } = useI18n()
   const toast = useToast()
+  const session = useSession()
   const users = useUsers(false)
   const confirmDelete = useConfirmDelete()
   const { readOnly } = useLicense()
@@ -195,19 +205,26 @@ function PreviewModal({ file, onClose, onPrev, onNext, position }: { file: Patie
   }, [onPrev, onNext, isRTL])
 
   const save = async () => {
-    if (toothError || !dirty) return
+    if (toothError || !dirty || saving) return
     setSaving(true)
     try {
       await db.files.update(file.id, { kind, note: note.trim() || undefined, tooth: tooth ?? undefined })
       toast.success(t('patients.files.noteSaved'))
+    } catch {
+      toast.error(t('patients.saveFailed'))
     } finally { setSaving(false) }
   }
   const download = async () => { if (file.data instanceof Blob) await saveFile(file.name, file.data) }
   const remove = async () => {
     if (!(await confirmDelete(t('patients.files.deleteConfirm')))) return
-    await db.files.delete(file.id)
-    toast.success(t('patients.files.deleted'), file.name)
-    onClose()
+    try {
+      await db.files.delete(file.id)
+      void logActivity({ type: 'patient', action: 'delete', entityId: file.id, patientId: file.patientId, message: t('patients.files.logDelete', { name: file.name }), by: session.user?.id })
+      toast.success(t('patients.files.deleted'), file.name)
+      onClose()
+    } catch {
+      toast.error(t('patients.deleteFailed'))
+    }
   }
   const Prev = isRTL ? ChevronRight : ChevronLeft, Next = isRTL ? ChevronLeft : ChevronRight
   // an inline PDF needs the browser's viewer (desktop Chrome / Electron); Android WebView and headless browsers get the download fallback

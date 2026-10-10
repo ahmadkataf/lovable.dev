@@ -368,7 +368,11 @@ try {
     await shot(page, 'ar-22-form-duplicate')
     await page.keyboard.press('Escape')
     await wait(page, 300)
-    check(await page.locator('.modal').count() === 0, 'Escape closes the form')
+    // typed data: Escape asks before throwing it away
+    check(await page.locator('.modal-title', { hasText: 'تجاهل التغييرات؟' }).isVisible(), 'Escape on a typed form asks before discarding')
+    await page.getByRole('button', { name: 'إغلاق دون حفظ' }).click()
+    await wait(page, 300)
+    check(await page.locator('.modal').count() === 0, 'Escape closes the form (after confirming the discard)')
 
     // full profile
     await go(page, `/patients/${ids[0]}`)

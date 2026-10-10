@@ -7,7 +7,10 @@
 }
 .srch-head { display: flex; align-items: center; gap: 12px; height: 64px; padding-inline: 18px 14px; border-bottom: 1px solid var(--divider); flex: none; }
 .srch-head .srch-glass { width: 22px; height: 22px; color: var(--primary); flex: none; }
-.srch-input { flex: 1; min-width: 0; height: 100%; border: 0; outline: 0; background: transparent; font-size: var(--fs-xl); font-weight: 500; color: var(--text); padding: 0; }
+.srch-input { flex: 1; min-width: 0; height: 100%; border: 0; outline: 0; background: transparent; font-size: var(--fs-xl); font-weight: 500; color: var(--text); padding: 0; text-align: start; }
+/* text typed in the other direction (a phone in the Arabic UI, a name in Arabic in the English UI) keeps its own
+   order (dir on the input) but stays on the interface's start side */
+.srch-input.flip { text-align: end; }
 .srch-input:focus-visible { outline: 0; }
 .srch-input::placeholder { color: var(--text-4); font-weight: 400; }
 .srch-head .srch-clear { width: 28px; height: 28px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; color: var(--text-4); background: var(--surface-3); flex: none; transition: color var(--t-fast), background var(--t-fast); }
@@ -44,7 +47,7 @@
 .srch-end { flex: none; display: flex; align-items: center; gap: 8px; }
 .srch-end .money { font-size: var(--fs-sm); }
 .srch-stack { display: flex; align-items: center; gap: 8px; }
-@media (max-width: 639px) { .srch-stack { flex-direction: column; align-items: flex-end; gap: 3px; } }
+@media (max-width: 767px) { .srch-stack { flex-direction: column; align-items: flex-end; gap: 3px; } }
 .srch-enter { width: 24px; height: 24px; display: inline-flex; align-items: center; justify-content: center; border-radius: 7px; color: var(--primary); background: var(--surface); box-shadow: var(--sh-xs); opacity: 0; transition: opacity var(--t-fast); }
 .srch-enter svg { width: 14px; height: 14px; }
 .srch-item.active .srch-enter { opacity: 1; }
@@ -63,7 +66,7 @@ mark.srch-hit { background: var(--p-100); color: var(--p-800); border-radius: 3p
 .srch-foot .kbd svg { width: 12px; height: 12px; }
 .srch-foot .grow { text-align: end; }
 
-@media (max-width: 639px) {
+@media (max-width: 767px) {
   .overlay.srch-overlay { padding: 0; align-items: stretch; }
   .srch-panel { max-width: none; max-height: none; height: 100%; border-radius: 0; animation: fade-in var(--t-med) both; }
   .srch-head { height: calc(60px + var(--safe-top)); padding-top: var(--safe-top); padding-inline: 16px 8px; gap: 10px; }
@@ -105,6 +108,6 @@ mark.srch-hit { background: var(--p-100); color: var(--p-800); border-radius: 3p
 .ntf-skel { display: flex; align-items: center; gap: 12px; padding: 12px 14px; border-bottom: 1px solid var(--divider); }
 .ntf-skel:last-child { border-bottom: 0; }
 .ntf-clear .empty .empty-icon { background: var(--success-soft); color: var(--success); }
-@media (max-width: 639px) {
+@media (max-width: 767px) {
   .ntf-main { min-height: 64px; padding: 11px 12px; }
 }

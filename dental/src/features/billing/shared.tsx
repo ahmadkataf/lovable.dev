@@ -2,24 +2,44 @@
 // the clinic identity printed on every sheet, and the print helper for sheets shown inside a modal.
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
-import { ArrowLeftRight, Banknote, CalendarRange, CircleDollarSign, CreditCard, Search, ShieldCheck, Smartphone, UserRound, type LucideIcon } from 'lucide-react'
+import { ArrowLeftRight, Banknote, CalendarRange, CircleDollarSign, CreditCard, Search, ShieldAlert, ShieldCheck, Smartphone, UserRound, type LucideIcon } from 'lucide-react'
 import { db } from '@/db'
 import { todayISO } from '@/db/ids'
 import type { Clinic, InvoiceStatus, Patient, PaymentMethod } from '@/db/types'
 import { useI18n } from '@/i18n'
 import { useMoney } from '@/app/hooks'
+import { useSession } from '@/app/session'
 import { ToothIcon } from '@/app/ToothIcon'
 import { fmtDate } from '@/lib/dates'
 import { formatPhone, matches } from '@/lib/format'
 import { print } from '@/platform'
-import { Avatar, Badge, Button, Field, Input, Segmented, toneFor, type Tone } from '@/ui'
+import { Avatar, Badge, Button, Card, EmptyState, Field, Input, Segmented, toneFor, type Tone } from '@/ui'
 import { normalizePeriod, PERIOD_PRESETS, presetPeriod, type Period, type PeriodPreset } from './lib'
 import './billing.css'
 
+// ---- access ------------------------------------------------------------------------------------
+
+/** Billing screens are for roles with the 'billing' permission (admin, doctors, reception); others see this instead. */
+export function BillingGate({ children }: { children: ReactNode }) {
+  const { t } = useI18n()
+  const session = useSession()
+  if (session.can('billing')) return <>{children}</>
+  return (
+    <div className="page">
+      <Card><EmptyState icon={<ShieldAlert />} title={t('billing.noPermission')} description={t('billing.noPermissionDesc')} actions={<Button variant="primary" to="/">{t('billing.backHome')}</Button>} /></Card>
+    </div>
+  )
+}
+
 // ---- badges & money ---------------------------------------------------------------------------
 
-/** Isolates a left-to-right fragment (an amount, an invoice number) inside a translated sentence so it reads correctly in Arabic. */
-export const ltr = (s: string | number) => `\u2066${s}\u2069`
+/**
+ * Isolates a left-to-right fragment (an amount, an invoice number) inside a translated sentence so it reads correctly
+ * in Arabic, and keeps it on one line (no break inside "INV-000001" or between an amount and its currency).
+ */
+/** A plain bidi isolate for text that leaves the screen (activity feed, WhatsApp): no invisible joiners inside it. */
+export const iso = (s: string | number) => `\u2066${s}\u2069`
+export const ltr = (s: string | number) => `\u2066${String(s).replace(/ /g, '\u00a0').replace(/-/g, '\u2060-\u2060')}\u2069`
 /** 'YYYY-MM-DD' → 'DD/MM/YYYY' for dense printed tables (plain digits, no locale direction marks). */
 export const shortDate = (d: string) => { const [y, m, day] = d.slice(0, 10).split('-'); return `${day}/${m}/${y}` }
 
@@ -47,31 +67,36 @@ export function Money({ value, kind, className, strong }: { value: number; kind?
 
 const PERIOD_LABEL: Record<PeriodPreset, string> = { today: 'today', week: 'thisWeek', month: 'thisMonth', lastMonth: 'lastMonth', custom: 'custom' }
 
-/** The selected period of one screen, remembered per device (the preset, and the dates of a custom range). */
-export function usePeriod(screen: string, initial: PeriodPreset = 'month'): [Period, (p: Period) => void] {
+/**
+ * The selected period of one screen, remembered per device (the preset, and the dates of a custom range).
+ * Returns [period to query (a custom range put the right way round), setter, the range exactly as typed].
+ * The date fields show what was typed: while a year is being keyed in, the half-typed date must not jump fields.
+ */
+export function usePeriod(screen: string, initial: PeriodPreset = 'month'): [Period, (p: Period) => void, Period] {
   const key = `dentora.billing.period.${screen}`
-  const [p, setP] = useState<Period>(() => {
+  const [raw, setRaw] = useState<Period>(() => {
     try {
-      const raw = localStorage.getItem(key)
-      if (raw) {
-        const s = JSON.parse(raw) as Period
+      const stored = localStorage.getItem(key)
+      if (stored) {
+        const s = JSON.parse(stored) as Period
         if (s.preset === 'custom') return normalizePeriod(s)
         if (PERIOD_PRESETS.includes(s.preset)) return presetPeriod(s.preset, todayISO())
       }
     } catch { /* ignore */ }
     return presetPeriod(initial, todayISO())
   })
+  const effective = useMemo(() => (raw.preset === 'custom' ? normalizePeriod(raw) : raw), [raw])
   const set = (next: Period) => {
-    const n = next.preset === 'custom' ? normalizePeriod(next) : next
-    setP(n)
-    try { localStorage.setItem(key, JSON.stringify(n)) } catch { /* ignore */ }
+    setRaw(next)
+    try { localStorage.setItem(key, JSON.stringify(next.preset === 'custom' ? normalizePeriod(next) : next)) } catch { /* ignore */ }
   }
-  return [p, set]
+  return [effective, set, raw]
 }
 
 export function PeriodBar({ value, onChange, end }: { value: Period; onChange: (p: Period) => void; end?: ReactNode }) {
   const { t, lang } = useI18n()
-  const same = value.from === value.to
+  const shown = value.preset === 'custom' ? normalizePeriod(value) : value
+  const same = shown.from === shown.to
   return (
     <div className="bl-period">
       <div className="bl-scroll-x">
@@ -87,7 +112,7 @@ export function PeriodBar({ value, onChange, end }: { value: Period; onChange: (
       )}
       <div className="bl-period-label">
         <CalendarRange />
-        <span>{same ? fmtDate(value.from, lang, 'long') : `${fmtDate(value.from, lang)} – ${fmtDate(value.to, lang)}`}</span>
+        <span>{same ? fmtDate(shown.from, lang, 'long') : `${fmtDate(shown.from, lang)} – ${fmtDate(shown.to, lang)}`}</span>
       </div>
       {end && <div className="bl-period-end">{end}</div>}
     </div>

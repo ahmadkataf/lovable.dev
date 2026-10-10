@@ -44,7 +44,9 @@ export function ReasonBadge({ reason }: { reason: StockReason }) {
 export function CategoryBadge({ category }: { category: string }) {
   const { t } = useI18n()
   if (!category) return null
-  return <Badge tone={isPresetCategory(category) ? 'primary' : 'outline'} size="sm">{catLabel(t, category)}</Badge>
+  const label = catLabel(t, category)
+  // custom categories are free text: keep a long one from widening the row
+  return <Badge tone={isPresetCategory(category) ? 'primary' : 'outline'} size="sm" className="inv-cat-badge"><span className="truncate" dir="auto" title={label}>{label}</span></Badge>
 }
 
 /** Expired / expires soon badge; nothing for far or missing dates unless `always`. */

@@ -15,7 +15,7 @@ import { round2 } from '@/lib/format'
 import { Alert, Button, Field, Input, Modal, NumberInput, Select, Skeleton, Switch, Textarea, useToast } from '@/ui'
 import { recordPayment } from './actions'
 import { accountFrom, invoiceBalance, isOpen, splitPayment } from './lib'
-import { Money, PatientPicker, ltr } from './shared'
+import { Money, PatientPicker, ltr, iso } from './shared'
 import { openReceipt } from './Receipt'
 import './billing.css'
 
@@ -47,6 +47,7 @@ function PaymentForm({ onClose, patientId: givenPatient, invoiceId, onSaved }: O
   const [note, setNote] = useState('')
   const [submitted, setSubmitted] = useState(false)
   const [saving, setSaving] = useState(false)
+  const busy = useRef(false)          // Enter pressed twice / double click must not record the payment twice
   const amountRef = useRef<HTMLDivElement>(null)
 
   const data = useLiveQuery(async () => {
@@ -91,14 +92,16 @@ function PaymentForm({ onClose, patientId: givenPatient, invoiceId, onSaved }: O
   const errDate = !date ? t('v.date') : undefined
 
   const save = async () => {
+    if (busy.current || license.readOnly) return
     setSubmitted(true)
-    if (errAmount || errPatient || errDate || !data?.patient) return
+    if (errAmount || errPatient || errDate || !ready) return
+    busy.current = true
     setSaving(true)
     try {
       const created = await recordPayment({ patientId, invoiceId: selected?.id, amount: signed, method, date, reference, note, receivedBy: session.user?.id })
       const main = created[0]
-      const name = data.patient.name
-      void logActivity({ type: 'payment', action: 'create', entityId: main.id, patientId, message: t(refund ? 'billing.act.refundCreated' : 'billing.act.paymentCreated', { amount: ltr(money(Math.abs(signed))), patient: name }), by: session.user?.id })
+      const name = data?.patient?.name ?? t('unknown')
+      void logActivity({ type: 'payment', action: 'create', entityId: main.id, patientId, message: t(refund ? 'billing.act.refundCreated' : 'billing.act.paymentCreated', { amount: iso(money(Math.abs(signed))), patient: name }), by: session.user?.id })
       toast.toast('success', t(refund ? 'billing.payment.refundSaved' : 'billing.payment.saved'), (
         <>
           <div>{t(refund ? 'billing.payment.refundDesc' : 'billing.payment.savedDesc', { amount: ltr(money(Math.abs(signed))), method: t(`pay.${method}`) })}</div>
@@ -108,6 +111,7 @@ function PaymentForm({ onClose, patientId: givenPatient, invoiceId, onSaved }: O
       onSaved?.(main.id)
       onClose()
     } catch {
+      busy.current = false
       toast.error(t('error'), t('tryAgain'))
     } finally { setSaving(false) }
   }

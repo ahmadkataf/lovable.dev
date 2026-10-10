@@ -55,6 +55,7 @@ export default function PatientTreatmentsTab({ patientId }: { patientId: string 
 
   const plans = useMemo(() => [...(data?.plans ?? [])].sort((a, b) => PLAN_RANK[a.status] - PLAN_RANK[b.status] || (a.createdAt < b.createdAt ? 1 : -1)), [data?.plans])
   const openPlans = plans.filter(p => OPEN.includes(p.status))
+  const titles = useMemo(() => plans.map(p => p.title), [plans])
   const allItems = data?.items ?? []
   const planIds = useMemo(() => new Set(plans.map(p => p.id)), [plans])
   const byPlan = useMemo(() => {
@@ -73,14 +74,16 @@ export default function PatientTreatmentsTab({ patientId }: { patientId: string 
   const canBill = can('billing')
 
   // ---- deep link from the dental chart: ?tooth=16 opens "add item" with that tooth, once ----
-  const handled = useRef(false)
+  // (keyed on the query so a later link while this tab stays mounted is handled too, but never the same one twice)
+  const handled = useRef<string | null>(null)
   useEffect(() => {
-    if (handled.current || !data) return
+    if (!params.has('tooth')) { handled.current = null; return }
+    const key = params.toString()
+    if (!data || handled.current === key) return
+    handled.current = key
     const n = parseTooth(params.get('tooth'))
-    if (n === null) return
-    handled.current = true
     setParams(p => { const x = new URLSearchParams(p); x.delete('tooth'); return x }, { replace: true })
-    if (readOnly) return
+    if (readOnly || n === null) return     // a bad number is dropped quietly
     setItemForm({ open: true, mode: 'add', target: openPlans[0]?.id ?? NEW_PLAN, teeth: [n] })
   }, [data, params]) // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -138,6 +141,7 @@ export default function PatientTreatmentsTab({ patientId }: { patientId: string 
     },
     onReopen: async p => {
       await reopenPlan(p.id)
+      void logActivity({ type: 'treatment', action: 'status', entityId: p.id, patientId, by: user?.id, message: t('treatments.log.planReopened', { title: p.title }) })
       toast.success(t('treatments.toast.planReopened'), p.title)
     },
     onDelete: async p => {
@@ -161,7 +165,7 @@ export default function PatientTreatmentsTab({ patientId }: { patientId: string 
       <Button variant="secondary" icon={<Zap />} disabled={readOnly} onClick={() => setItemForm({ open: true, mode: 'quick' })}>{t('treatments.quick')}</Button>
       {canBill && (
         <Button variant={unbilled.length ? 'success' : 'secondary'} icon={<ReceiptText />} disabled={readOnly || !unbilled.length} onClick={() => setBilling(true)}>
-          {t('treatments.bill.button')}{unbilled.length > 0 && <span className="tr-btn-count num">{unbilled.length}</span>}
+          {t('treatments.bill.button')}{unbilled.length > 0 && <span className="tr-btn-count">{unbilled.length}</span>}
         </Button>
       )}
     </div>
@@ -223,10 +227,10 @@ export default function PatientTreatmentsTab({ patientId }: { patientId: string 
         </>
       )}
 
-      <PlanFormModal open={planForm.open} plan={planForm.plan} patientId={patientId} patientDoctorId={data?.patient?.doctorId}
+      <PlanFormModal open={planForm.open} plan={planForm.plan} patientId={patientId} patientDoctorId={data?.patient?.doctorId} takenTitles={titles}
         onClose={() => setPlanForm({ open: false })} onCreated={p => setItemForm({ open: true, mode: 'add', target: p.id })} />
       <ItemFormModal open={itemForm.open} mode={itemForm.mode} item={itemForm.item} target={itemForm.target ?? NO_PLAN} initialTeeth={itemForm.teeth}
-        plans={openPlans} marked={marked} patientId={patientId} patientDoctorId={data?.patient?.doctorId}
+        plans={openPlans} marked={marked} patientId={patientId} patientDoctorId={data?.patient?.doctorId} takenTitles={titles}
         onClose={() => setItemForm(s => ({ ...s, open: false }))}
         onSaved={(items, mode, proc) => { if (mode === 'quick') askChart(items, proc) }} quiet={(mode, proc) => mode === 'quick' && !!chartConditionFor(proc?.category)} />
       <ChartUpdateModal prompt={chart} onClose={() => setChart(null)} patientId={patientId} />

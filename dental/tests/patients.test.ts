@@ -231,3 +231,28 @@ describe('patients: files and notes', () => {
     expect(sortNotes(notes).map(n => n.id)).toEqual(['3', '2', '1'])
   })
 })
+
+describe('patients: delete cascade (review)', () => {
+  it('covers every table that is indexed by patientId, so no orphan rows survive a delete', async () => {
+    const { db } = await import('../src/db')
+    const { PATIENT_TABLES } = await import('../src/features/patients/data')
+    const indexed = db.tables.filter(t => t.schema.indexes.some(i => i.name === 'patientId')).map(t => t.name).sort()
+    expect(indexed).toEqual([...PATIENT_TABLES].sort())
+  })
+  it('removes the patient and all of their rows, and nothing that belongs to another patient', async () => {
+    const { db } = await import('../src/db')
+    const { deletePatientCascade, PATIENT_TABLES } = await import('../src/features/patients/data')
+    const now = new Date().toISOString()
+    for (const pid of ['casc-a', 'casc-b']) {
+      await db.patients.add(pt({ id: pid, name: pid }))
+      for (const name of PATIENT_TABLES) await (db[name] as any).add({ id: `${name}-${pid}`, patientId: pid, createdAt: now, at: now, date: now.slice(0, 10), status: 'scheduled' })
+    }
+    await deletePatientCascade('casc-a')
+    expect(await db.patients.get('casc-a')).toBeUndefined()
+    expect(await db.patients.get('casc-b')).toBeDefined()
+    for (const name of PATIENT_TABLES) {
+      expect(await (db[name] as any).where('patientId').equals('casc-a').count()).toBe(0)
+      expect(await (db[name] as any).where('patientId').equals('casc-b').count()).toBe(1)
+    }
+  })
+})

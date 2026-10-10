@@ -36,6 +36,7 @@ export default function PatientPicker({ value, onChange, error, disabled, autoFo
   const inputRef = useRef<HTMLInputElement>(null)
   const wrapRef = useRef<HTMLDivElement>(null)
   const nameRef = useRef<HTMLInputElement>(null)
+  const busyRef = useRef(false)   // a repeated Enter / double click must not create the patient twice
 
   const all = useLiveQuery(async () => {
     const list = await db.patients.filter(p => !p.archived).toArray()
@@ -67,7 +68,7 @@ export default function PatientPicker({ value, onChange, error, disabled, autoFo
   }
 
   const createQuick = async () => {
-    if (!quick) return
+    if (!quick || busyRef.current) return
     const name = quick.name.trim().replace(/\s+/g, ' ')
     const phone = quick.phone.trim()
     const errs: { name?: string; phone?: string } = {}
@@ -75,6 +76,7 @@ export default function PatientPicker({ value, onChange, error, disabled, autoFo
     if (phone && phone.replace(/\D/g, '').length < 6) errs.phone = t('v.phone')
     setQErr(errs)
     if (errs.name || errs.phone) return
+    busyRef.current = true
     setBusy(true)
     try {
       const fileNo = await nextFileNumber()
@@ -88,7 +90,9 @@ export default function PatientPicker({ value, onChange, error, disabled, autoFo
       toast.success(t('appointments.form.patientCreated'), `${p.name} · #${p.fileNo}`)
       setQuick(null); setQ('')
       onChange(p)
-    } finally { setBusy(false) }
+    } catch {
+      toast.error(t('error'), t('tryAgain'))
+    } finally { busyRef.current = false; setBusy(false) }
   }
   const quickKey = (e: KeyboardEvent) => {
     if (e.key === 'Enter') { e.preventDefault(); void createQuick() }
@@ -101,7 +105,7 @@ export default function PatientPicker({ value, onChange, error, disabled, autoFo
         <div className="apt-picked">
           <PatientAvatar patient={value} />
           <div className="grow">
-            <div className="apt-picked-name truncate">{value.name}</div>
+            <div className="apt-picked-name truncate" dir="auto" title={value.name}>{value.name}</div>
             <div className="apt-picked-sub"><span className="num">#{value.fileNo}</span>{value.phone && <span className="ltr num">{formatPhone(value.phone)}</span>}</div>
           </div>
           {!disabled && (
@@ -160,7 +164,7 @@ export default function PatientPicker({ value, onChange, error, disabled, autoFo
                     onMouseEnter={() => setHi(i)} onMouseDown={e => e.preventDefault()} onClick={() => pick(p)}>
                     <PatientAvatar patient={p} size="sm" />
                     <span className="grow">
-                      <span className="apt-drop-name truncate">{p.name}</span>
+                      <span className="apt-drop-name truncate" dir="auto">{p.name}</span>
                       <span className="apt-drop-sub"><span className="num">#{p.fileNo}</span>{p.phone && <span className="ltr num">{formatPhone(p.phone)}</span>}</span>
                     </span>
                   </button>

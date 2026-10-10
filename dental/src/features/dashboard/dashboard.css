@@ -90,3 +90,5 @@ a.rp-feed-row:hover { background: var(--surface-2); }
   .rp-dashboard .page-header .page-actions .btn { padding: 0 8px; font-size: var(--fs-sm); gap: 6px; height: 44px; }
 }
 @media print { .rp-dashboard .page-actions, .rp-apt-actions { display: none !important; } }
+/* the revenue card's "Reports" link: on a phone the revenue stat card already opens the reports, and the title needs the room */
+@media (max-width: 767px) { .rp-dashboard .rp-hide-phone { display: none !important; } }

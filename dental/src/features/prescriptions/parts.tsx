@@ -1,6 +1,6 @@
 // Building blocks shared by the prescriptions and lab modules: a portal popover anchored to a field, a free-text
 // input with presets, the patient picker, the clinic header of printed sheets and the modal print helper.
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent, type ReactNode } from 'react'
+import { useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { ChevronDown, Search, UserRound, X } from 'lucide-react'
@@ -17,10 +17,12 @@ import './prescriptions.css'
 
 /**
  * A dropdown rendered into <body> with fixed positioning under (or above) its anchor, so it is never clipped by a
- * scrolling modal body. Closes on outside press; follows the anchor while the page scrolls.
+ * scrolling modal body. Closes on outside press; follows the anchor while it moves.
  */
-export function Popover({ anchor, open, onClose, children, className, maxHeight = 300, minWidth = 220 }: {
+export function Popover({ anchor, open, onClose, children, className, maxHeight = 300, minWidth = 220, align = 'start' }: {
   anchor: React.RefObject<HTMLElement | null>; open: boolean; onClose: () => void; children: ReactNode; className?: string; maxHeight?: number; minWidth?: number
+  /** Which edge of the anchor the popover lines up with: its start (fields) or its end (a "more" button at a row's end). */
+  align?: 'start' | 'end'
 }) {
   const ref = useRef<HTMLDivElement>(null)
   const [style, setStyle] = useState<CSSProperties>({ visibility: 'hidden' })
@@ -33,33 +35,72 @@ export function Popover({ anchor, open, onClose, children, className, maxHeight 
     const up = below < Math.min(maxHeight, 200) && above > below
     const width = Math.min(Math.max(r.width, minWidth), vw - 16)
     const rtl = document.documentElement.dir === 'rtl'
-    // align with the anchor's start edge, kept inside the viewport
-    let left = rtl ? r.right - width : r.left
+    // line up with the anchor's start (or end) edge, kept inside the viewport
+    const alignRight = rtl ? align === 'start' : align === 'end'
+    let left = alignRight ? r.right - width : r.left
     left = Math.max(8, Math.min(left, vw - width - 8))
     setStyle({
       position: 'fixed', left, width, zIndex: 300,
       maxHeight: Math.max(120, Math.min(maxHeight, (up ? above : below) - 4)),
       ...(up ? { bottom: vh - r.top + 4 } : { top: r.bottom + 4 }),
     })
-  }, [anchor, maxHeight, minWidth])
+  }, [anchor, maxHeight, minWidth, align])
   useLayoutEffect(() => { if (open) place() }, [open, place])
   useEffect(() => {
     if (!open) return
-    const onScroll = (e: Event) => { if (ref.current && e.target instanceof Node && ref.current.contains(e.target)) return; place() }
+    // the boxes that clip the anchor (a modal body, a table's scroll box): once the field has scrolled out of one of
+    // them the list closes, like a native one, instead of floating over the dialog's header
+    const clips: HTMLElement[] = []
+    for (let p = anchor.current?.parentElement; p && p !== document.body; p = p.parentElement) {
+      const cs = getComputedStyle(p)
+      if (/auto|scroll|hidden|clip/.test(`${cs.overflowX} ${cs.overflowY}`)) clips.push(p)
+    }
+    // follow the anchor: scrolling, a modal still sliding in, content shifting above it
+    let raf = 0, last = ''
+    const tick = () => {
+      const a = anchor.current
+      if (a) {
+        const r = a.getBoundingClientRect()
+        const hidden = clips.some(c => { const cr = c.getBoundingClientRect(); return r.bottom <= cr.top || r.top >= cr.bottom || r.right <= cr.left || r.left >= cr.right })
+        if (hidden) { onClose(); return }
+        const k = `${r.top}|${r.left}|${r.width}|${r.height}|${window.innerHeight}|${window.innerWidth}`
+        if (k !== last) { last = k; place() }
+      }
+      raf = requestAnimationFrame(tick)
+    }
+    raf = requestAnimationFrame(tick)
     const onDown = (e: MouseEvent | TouchEvent) => {
       const t = e.target as Node
       if (ref.current?.contains(t) || anchor.current?.contains(t)) return
       onClose()
     }
-    window.addEventListener('scroll', onScroll, true); window.addEventListener('resize', place)
     document.addEventListener('mousedown', onDown); document.addEventListener('touchstart', onDown)
     return () => {
-      window.removeEventListener('scroll', onScroll, true); window.removeEventListener('resize', place)
+      cancelAnimationFrame(raf)
       document.removeEventListener('mousedown', onDown); document.removeEventListener('touchstart', onDown)
     }
   }, [open, place, onClose, anchor])
   if (!open) return null
   return createPortal(<div ref={ref} className={['rx-pop', className].filter(Boolean).join(' ')} style={style} onMouseDown={e => e.preventDefault()}>{children}</div>, document.body)
+}
+
+/**
+ * The width of an element, live (ResizeObserver). Pass the returned callback as the element's ref. Lets a list pick
+ * a table or a card layout by the room it really has (the sidebar and its collapsed state change it, not the viewport).
+ */
+export function useElementWidth(): [(el: HTMLElement | null) => void, number | null] {
+  const [el, setEl] = useState<HTMLElement | null>(null)
+  const [width, setWidth] = useState<number | null>(null)
+  useLayoutEffect(() => {
+    if (!el) return
+    const measure = () => setWidth(Math.round(el.getBoundingClientRect().width))
+    measure()
+    if (typeof ResizeObserver === 'undefined') { window.addEventListener('resize', measure); return () => window.removeEventListener('resize', measure) }
+    const ro = new ResizeObserver(measure)
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [el])
+  return [setEl, width]
 }
 
 // ---- free text with presets ---------------------------------------------------------------------
@@ -73,6 +114,8 @@ export function ComboInput({ value, onChange, options, label, placeholder, error
   value: string; onChange: (v: string) => void; options: (string | ComboOption)[]; label?: ReactNode; placeholder?: string; error?: ReactNode; required?: boolean
   id?: string; className?: string; grid?: boolean; dir?: 'ltr' | 'rtl' | 'auto'; inputClassName?: string; 'aria-label'?: string
 }) {
+  const autoId = useId()
+  const inputId = id ?? autoId
   const wrap = useRef<HTMLDivElement>(null)
   const input = useRef<HTMLInputElement>(null)
   const [open, setOpen] = useState(false)
@@ -83,27 +126,29 @@ export function ComboInput({ value, onChange, options, label, placeholder, error
     return options.map(o => (typeof o === 'string' ? { value: o } : o)).filter(o => o.value.trim() && !seen.has(o.value) && (seen.add(o.value), true))
   }, [options])
   const shown = useMemo(() => (typed && value.trim() ? opts.filter(o => matches(o.value, value)) : opts), [opts, typed, value])
+  const visible = open && shown.length > 0
   const close = useCallback(() => { setOpen(false); setHi(-1) }, [])
   const pick = (v: string) => { onChange(v); setTyped(false); close(); input.current?.focus() }
   const onKey = (e: KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'ArrowDown') { e.preventDefault(); if (!open) { setTyped(false); setOpen(true) } setHi(h => Math.min(shown.length - 1, h + 1)) }
     else if (e.key === 'ArrowUp') { e.preventDefault(); setHi(h => Math.max(0, h - 1)) }
-    else if (e.key === 'Enter' && open && hi >= 0 && shown[hi]) { e.preventDefault(); pick(shown[hi].value) }
-    else if (e.key === 'Escape' && open) { e.stopPropagation(); close() }
+    else if (e.key === 'Enter' && visible && hi >= 0 && shown[hi]) { e.preventDefault(); pick(shown[hi].value) }
+    else if (e.key === 'Escape' && visible) { e.stopPropagation(); close() }
     else if (e.key === 'Tab') close()
   }
   const control = (
-    <div ref={wrap} className={['rx-combo', className].filter(Boolean).join(' ')}>
-      <Input ref={input} id={id} value={value} placeholder={placeholder} invalid={!!error} autoComplete="off" dir={dir} className={inputClassName} aria-label={ariaLabel}
+    // `dir` goes on the wrapper so the chevron and the input's padding follow the same direction as the text
+    <div ref={wrap} className={['rx-combo', className].filter(Boolean).join(' ')} dir={dir}>
+      <Input ref={input} id={inputId} value={value} placeholder={placeholder} invalid={!!error} autoComplete="off" className={inputClassName} aria-label={ariaLabel}
         onChange={e => { onChange(e.target.value); setTyped(true); setOpen(true); setHi(-1) }} onKeyDown={onKey}
         iconEnd={<ChevronDown className={open ? 'rx-flip' : undefined} />} onIconEndClick={() => { if (open) close(); else { setTyped(false); setOpen(true); input.current?.focus() } }} />
-      <Popover anchor={wrap} open={open && shown.length > 0} onClose={close} className={grid ? 'rx-pop-grid' : undefined}>
+      <Popover anchor={wrap} open={visible} onClose={close} className={grid ? 'rx-pop-grid' : undefined}>
         <div role="listbox" className={grid ? 'rx-opt-grid' : 'rx-opt-list'}>
           {shown.map((o, i) => (
             <button key={o.value} type="button" role="option" aria-selected={o.value === value} className={`rx-opt${i === hi ? ' hi' : ''}${o.value === value ? ' sel' : ''}`}
               onMouseEnter={() => setHi(i)} onClick={() => pick(o.value)} tabIndex={-1}>
               {o.swatch && <span className="rx-swatch" style={{ background: o.swatch }} />}
-              <span className="grow truncate" dir="auto">{o.value}</span>
+              <span className="grow truncate"><bdi>{o.value}</bdi></span>
               {o.hint && <span className="rx-opt-hint">{o.hint}</span>}
             </button>
           ))}
@@ -112,7 +157,7 @@ export function ComboInput({ value, onChange, options, label, placeholder, error
     </div>
   )
   if (!label && !error) return control
-  return <Field label={label} error={error} required={required} htmlFor={id}>{control}</Field>
+  return <Field label={label} error={error} required={required} htmlFor={inputId}>{control}</Field>
 }
 
 // ---- patient picker -----------------------------------------------------------------------------
@@ -129,7 +174,7 @@ function searchPatients(list: Patient[], q: string, limit = 8): Patient[] {
  * Patient field: search by name, file number or phone (Arabic-aware). Once chosen it shows a compact card;
  * `locked` hides the "change" action (forms opened from a patient's profile).
  */
-export function PatientSelect({ value, onChange, error, locked, autoFocus }: { value?: Patient; onChange: (p?: Patient) => void; error?: string; locked?: boolean; autoFocus?: boolean }) {
+export function PatientSelect({ value, onChange, error, locked, autoFocus, pending }: { value?: Patient; onChange: (p?: Patient) => void; error?: string; locked?: boolean; autoFocus?: boolean; pending?: boolean }) {
   const { t } = useI18n()
   const [q, setQ] = useState('')
   const [open, setOpen] = useState(false)
@@ -151,6 +196,8 @@ export function PatientSelect({ value, onChange, error, locked, autoFocus }: { v
     else if (e.key === 'Escape' && open) { e.stopPropagation(); setOpen(false) }
   }
 
+  // the pre-filled patient is still loading: a placeholder, so the search box (and its list) never flashes open
+  if (pending && !value) return <Field label={t('patient')} required><Skeleton h={56} r={14} /></Field>
   if (value) {
     return (
       <Field label={t('patient')} required>
@@ -212,7 +259,7 @@ export function SheetClinic({ clinic, compact }: { clinic: Clinic; compact?: boo
       <div className="rx-clinic-logo">{clinic.logo ? <img src={clinic.logo} alt="" /> : <ToothIcon size={compact ? 24 : 30} />}</div>
       <div className="rx-clinic-text">
         <div className="rx-clinic-name">{primary || t('appName')}</div>
-        {secondary && <div className="rx-clinic-alt" dir="auto">{secondary}</div>}
+        {secondary && <div className="rx-clinic-alt"><bdi>{secondary}</bdi></div>}
         {clinic.tagline && !compact && <div className="rx-clinic-tag">{clinic.tagline}</div>}
         <div className="rx-clinic-meta">
           {clinic.address && <span>{clinic.address}</span>}

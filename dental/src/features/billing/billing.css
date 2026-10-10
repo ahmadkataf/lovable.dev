@@ -12,8 +12,29 @@
 .bl-link:hover { color: var(--primary); text-decoration: underline; text-underline-offset: 3px; }
 .bl-num-link { font-weight: 700; color: var(--p-700); }
 .bl-num-link:hover { text-decoration: underline; text-underline-offset: 3px; }
-.bl-patient-cell { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.bl-patient-cell { display: flex; align-items: center; gap: 10px; min-width: 0; max-width: 220px; }
+.bl-patient-cell > .grow { min-width: 0; }
+/* a long name wraps onto a second line, then ends with an ellipsis; the table never grows past its card */
+.bl-patient-cell .bl-link { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; overflow: hidden; white-space: normal; min-width: 0; line-height: 1.35; overflow-wrap: anywhere; }
 .bl-patient-cell .cell-sub { white-space: nowrap; }
+.bl-table .table th, .bl-table .table td { padding-inline: 12px; }
+.bl-table .table th:first-child, .bl-table .table td:first-child { padding-inline-start: 16px; }
+/* secondary columns step aside on laptop widths (large amounts in SYP and the like need the room) */
+.bl-table .bl-show-1200 { display: none; }
+@media screen and (max-width: 1439px) { .bl-table .bl-hide-1440 { display: none; } }
+@media screen and (max-width: 1199px) {
+  .bl-table .bl-hide-1200 { display: none; }
+  .bl-table .bl-show-1200 { display: block; }
+  .bl-table .bl-patient-cell { max-width: 180px; }
+  .bl-table .table th, .bl-table .table td { padding-inline: 9px; }
+  .bl-table .table th:first-child, .bl-table .table td:first-child { padding-inline-start: 14px; }
+}
+/* tablets and small laptops: the four figures as a 2 × 2 block rather than 3 + 1 */
+@media screen and (min-width: 768px) and (max-width: 1199px) {
+  .bl-stats.grid-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .bl-tab .bl-stats.grid-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }   /* the account: one row of three */
+}
+.bl-num-cell .cell-sub { font-weight: 500; }
 .bl-toast-action { display: inline-flex; align-items: center; gap: 6px; margin-top: 8px; height: 30px; padding: 0 12px; border-radius: var(--r-sm); background: rgba(255, 255, 255, .14); color: var(--text-inverse); font-weight: 700; font-size: var(--fs-sm); }
 .bl-toast-action:hover { background: rgba(255, 255, 255, .24); }
 .bl-toast-action svg { width: 15px; height: 15px; margin: 0 !important; color: inherit !important; }
@@ -25,7 +46,16 @@
 .bl-period-label { display: inline-flex; align-items: center; gap: 8px; color: var(--text-3); font-size: var(--fs-sm); font-weight: 500; }
 .bl-period-label svg { width: 16px; height: 16px; color: var(--text-4); }
 .bl-period-end { margin-inline-start: auto; display: flex; gap: 8px; }
-.bl-stats { margin-bottom: 20px; }
+.bl-stats { margin-bottom: 20px; container-type: inline-size; }
+.bl-stats .stat-card .grow { min-width: 0; }
+.bl-stats .stat-value { white-space: nowrap; }
+/* narrow cards (a 4-up row on a laptop, 3-up on a tablet): icon above the figure so large amounts keep their room */
+@container (max-width: 1120px) {
+  .bl-stats .stat-card { flex-direction: column; gap: 10px; padding: 16px 18px; }
+  .bl-stats .stat-card .stat-icon { width: 38px; height: 38px; border-radius: 12px; }
+  .bl-stats .stat-card .stat-icon svg { width: 19px; height: 19px; }
+  .bl-stats .stat-card .grow { width: 100%; }
+}
 .bl-filters { display: flex; flex-direction: column; gap: 12px; margin-bottom: 16px; }
 .bl-filters-row { display: flex; align-items: center; gap: 10px 12px; flex-wrap: wrap; }
 .bl-filters-row .bl-search { flex: 1; min-width: 240px; max-width: 420px; }
@@ -151,7 +181,9 @@
 /* ---- invoice page ---- */
 .bl-invoice-page .page-header { margin-bottom: 18px; }
 .bl-title-row { display: inline-flex; align-items: center; gap: 12px; flex-wrap: wrap; }
-.bl-head-sub { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.bl-head-sub { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.bl-head-sub .bl-link { min-width: 0; max-width: min(520px, 100%); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.bl-head-sub > span { flex: none; }
 .bl-desk { display: flex; justify-content: center; padding-bottom: 32px; }
 .bl-summary { display: flex; align-items: center; gap: 18px; flex-wrap: wrap; width: 100%; max-width: 880px; margin: 0 auto 14px; padding: 12px 16px; border-radius: var(--r-lg); background: var(--surface); border: 1px solid var(--border); box-shadow: var(--sh-xs); }
 .bl-summary-item { display: flex; flex-direction: column; min-width: 0; }
@@ -194,6 +226,7 @@
 .bl-items th { text-align: start; font-size: var(--fs-xs); font-weight: 700; color: var(--text-3); text-transform: uppercase; letter-spacing: .4px; padding: 10px 12px; background: var(--surface-2); border-top: 1px solid var(--border); border-bottom: 1.5px solid var(--border-2); white-space: nowrap; }
 .bl-items td { padding: 11px 12px; border-bottom: 1px solid var(--divider); vertical-align: top; color: var(--text-2); }
 .bl-items td.bl-desc { color: var(--text); font-weight: 600; }
+.bl-items .num, .bl-items .bl-date { white-space: nowrap; }
 .bl-items .bl-n { text-align: end; white-space: nowrap; font-variant-numeric: tabular-nums; }
 .bl-items .bl-c { text-align: center; white-space: nowrap; font-variant-numeric: tabular-nums; }
 .bl-items .bl-idx { width: 36px; color: var(--text-4); font-weight: 600; }
@@ -201,6 +234,11 @@
 .bl-items tfoot td { border-bottom: 0; }
 .bl-items .bl-group td { background: var(--surface-2); font-weight: 700; color: var(--text); border-bottom: 1px solid var(--border); }
 .bl-items .bl-subtotal td { font-weight: 700; color: var(--text); border-bottom: 1.5px solid var(--border-2); }
+.bl-table-scroll { max-width: 100%; }
+.bl-items .bl-only-sm { display: none; }
+.bl-items .money.bl-credit-amt { color: var(--success-text); }
+.bl-row-date { font-size: var(--fs-xs); color: var(--text-3); font-weight: 500; margin-top: 2px; }
+.bl-table-scroll > .bl-items .bl-n { white-space: nowrap; }
 .bl-items-sm { font-size: var(--fs-sm); margin-top: 10px; }
 .bl-items-sm th { padding: 8px 10px; }
 .bl-items-sm td { padding: 8px 10px; }
@@ -309,20 +347,26 @@
   .bl-line-err { grid-area: err; margin-top: 0; }
   .bl-add-btns { width: 100%; }
   .bl-add-btns .btn { flex: 1; padding: 0 8px; font-size: var(--fs-sm); }
-  .bl-acct { gap: 6px; }
-  .bl-acct-cell { padding: 8px 10px; }
-  .bl-acct-cell .money { font-size: var(--fs-md); }
+  /* the account in the payment form: one row per figure, so large amounts are never cut */
+  .bl-acct { grid-template-columns: minmax(0, 1fr); gap: 6px; }
+  .bl-acct-cell { padding: 8px 12px; display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+  .bl-acct-cell .money { font-size: var(--fs-md); margin-top: 0; white-space: nowrap; overflow: visible; }
   .bl-pay-grid { grid-template-columns: minmax(0, 1fr); }
   .bl-tp-row .bl-tp-input { width: 120px; }
   .bl-summary { gap: 12px; }
   .bl-summary .progress { flex-basis: 100%; order: 9; }
   .bl-tab-actions .btn { flex: 1; }
-  .bl-tab .bl-stats.grid { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
-  .bl-tab .bl-stats .stat-card { padding: 12px; }
-  .bl-tab .bl-stats .stat-card .stat-icon { display: none; }
-  .bl-tab .bl-stats .stat-card .stat-label { font-size: var(--fs-xs); line-height: 1.35; }
-  .bl-tab .bl-stats .stat-card .stat-value { font-size: var(--fs-lg); }
-  .bl-tab .bl-stats .stat-card .text-sm { font-size: var(--fs-xs); }
+  /* the account on a phone: three slim rows (label start, amount end) so large amounts always fit */
+  .bl-tab .bl-stats.grid { grid-template-columns: minmax(0, 1fr); gap: 8px; }
+  .bl-tab .bl-stats .stat-card { padding: 10px 14px; flex-direction: row; align-items: center; gap: 12px; }
+  .bl-tab .bl-stats .stat-card .stat-icon { width: 34px; height: 34px; border-radius: 10px; }
+  .bl-tab .bl-stats .stat-card .stat-icon svg { width: 17px; height: 17px; }
+  .bl-tab .bl-stats .stat-card .grow { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; column-gap: 12px; width: auto; }
+  .bl-tab .bl-stats .stat-card .stat-label { grid-column: 1; font-size: var(--fs-sm); line-height: 1.35; }
+  .bl-tab .bl-stats .stat-card .stat-value { grid-column: 2; grid-row: 1 / span 2; margin: 0; font-size: var(--fs-lg); white-space: nowrap; }
+  .bl-tab .bl-stats .stat-card .text-sm { grid-column: 1; font-size: var(--fs-xs); }
+  /* wide statement / report tables scroll sideways inside the sheet instead of being cut off */
+  .bl-table-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; margin-inline: -4px; padding-inline: 4px; }
 
   /* the sheet on a phone: same document, tighter */
   .bl-sheet { padding: 26px 16px 20px; border-radius: var(--r-md); font-size: var(--fs-sm); }
@@ -337,6 +381,12 @@
   .bl-items { font-size: var(--fs-sm); }
   .bl-items th, .bl-items td { padding: 8px 6px; }
   .bl-items .bl-hide-sm { display: none; }
+  .bl-items th.bl-only-sm, .bl-items td.bl-only-sm { display: table-cell; }
+  .bl-modal-sheet .modal-body { padding-inline: 10px; }
+  .bl-modal-sheet .bl-sheet { padding-inline: 12px; }
+  .bl-statement .bl-items, .bl-report .bl-items { font-size: var(--fs-xs); }
+  .bl-statement .bl-items th, .bl-statement .bl-items td, .bl-report .bl-items th, .bl-report .bl-items td { padding-inline: 4px; }
+  .bl-items div.bl-only-sm { display: block; }
   .bl-watermark { font-size: 64px; }
   .bl-stamp { font-size: 19px; }
   .bl-receipt { padding: 24px 16px 18px; }

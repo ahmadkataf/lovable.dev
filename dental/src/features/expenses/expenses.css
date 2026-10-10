@@ -98,9 +98,15 @@
 .inv-exp-item:active { background: var(--surface-2); }
 .inv-exp-item-icon { width: 40px; height: 40px; border-radius: 12px; display: inline-flex; align-items: center; justify-content: center; flex: none; background: color-mix(in srgb, currentColor 12%, transparent); }
 .inv-exp-item-icon svg { width: 19px; height: 19px; }
-.inv-exp-item-desc { font-weight: 600; line-height: 1.4; overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+.inv-exp-item-desc { font-weight: 600; line-height: 1.4; overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow-wrap: anywhere; }
 .inv-exp-item-sub { font-size: var(--fs-xs); color: var(--text-3); margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .inv-exp-item-end { display: flex; align-items: center; gap: 0; flex: none; }
 .inv-exp-item-amount { font-size: var(--fs-lg); font-weight: 700; color: var(--text); }
 .inv-exp-mtotal { display: flex; align-items: center; justify-content: space-between; padding: 14px 16px; border-radius: var(--r-lg); font-weight: 600; color: var(--text-2); }
 .inv-exp-mtotal .money { font-size: var(--fs-xl); font-weight: 700; color: var(--text); }
+
+/* user-typed text may be one long unbroken word: wrap it instead of widening toasts and dialogs */
+.inv-exp-wrap { overflow-wrap: anywhere; }
+/* truncated user text (dir="auto"): lines up with the page's reading start, but cuts at the end of its own script */
+:root[dir="rtl"] .inv-exp-auto { text-align: right; }
+:root[dir="ltr"] .inv-exp-auto { text-align: left; }

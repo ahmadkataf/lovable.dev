@@ -1,6 +1,6 @@
 // Pure search logic for the command palette: Arabic-aware patient ranking, invoice-number matching,
 // match highlighting, recent searches and plural phrases. No database or React here (tests/search.test.ts).
-import type { Patient } from '@/db/types'
+import type { Invoice, Patient } from '@/db/types'
 import { normalizeText } from '@/lib/format'
 
 // ---- normalisation ---------------------------------------------------------------------------------
@@ -22,6 +22,50 @@ export function norm(s?: string): string {
 export function tokens(q: string): string[] {
   return norm(q).split(' ').filter(Boolean)
 }
+/** Digits with phone/number punctuation only ("0944-123-456", "(011) 22", "+963 944…"). */
+const PHONEISH = /^[+#]?[\d\-().\/]+$/
+/** True when the whole query is a number typed in groups ("0944 123 456", "+963 944 123 456"). */
+export function looksLikeGroupedNumber(q: string): boolean {
+  const t = norm(q)
+  return /\s/.test(t) && t.split(' ').every(w => PHONEISH.test(w)) && digitsOnly(t).length >= 6
+}
+
+/** Direction of typed text from its first strong letter; digits and symbols alone read left to right. */
+export function textDir(s: string): 'rtl' | 'ltr' {
+  const m = s.match(/[A-Za-z\u00C0-\u024F\u0370-\u03FF\u0400-\u04FF\u0590-\u08FF\uFB1D-\uFDFF\uFE70-\uFEFF]/)
+  return m && /[\u0590-\u08FF\uFB1D-\uFDFF\uFE70-\uFEFF]/.test(m[0]) ? 'rtl' : 'ltr'
+}
+
+// ---- phones -----------------------------------------------------------------------------------------
+/** Country codes of the region, stripped so "+963 944…" finds "0944…" and the other way round. */
+const COUNTRY_CODES = ['963', '966', '962', '964', '961', '965', '971', '974', '973', '968', '967', '970', '20', '212', '213', '216', '218', '249', '90']
+/**
+ * Comparable forms of a phone number: its digits, the national number with and without the leading 0
+ * (when it was written with a country code), and the local number without its leading 0.
+ */
+export function phoneForms(raw?: string): string[] {
+  const s = String(raw ?? '').trim()
+  let d = digitsOnly(s)
+  if (!d) return []
+  const intl = /^(\+|00)/.test(s) || d.length >= 11
+  if (d.startsWith('00')) d = d.slice(2)
+  const out = new Set([d])
+  if (intl) for (const c of COUNTRY_CODES) if (d.startsWith(c) && d.length - c.length >= 7) { const n = d.slice(c.length).replace(/^0/, ''); out.add('0' + n); out.add(n) }
+  if (/^0[1-9]/.test(d)) out.add(d.slice(1))
+  return [...out]
+}
+/** How well a typed number matches a stored phone: 95 same number, 80 starts with, 75 ends with, 55 contains, 0 none. */
+export function phoneScore(stored: string[], typed: string[]): number {
+  let best = 0
+  for (const ph of stored) for (const q of typed) {
+    if (q.length < 3) continue
+    if (ph === q) return 95
+    if (ph.startsWith(q)) best = Math.max(best, 80)
+    else if (ph.endsWith(q)) best = Math.max(best, 75)
+    else if (ph.includes(q)) best = Math.max(best, 55)
+  }
+  return best
+}
 const AL = 'ال'
 /** A word without the Arabic definite article, so "خطيب" finds "الخطيب" as a word start. */
 function bare(word: string): string {
@@ -38,7 +82,7 @@ export interface PatientIndex<P extends SearchPatient = SearchPatient> {
   words: string[]       // normalised words, plus their article-less forms
   compact: string       // name without spaces ("عبد الله" ≈ "عبدالله")
   file: string
-  phones: string[]      // digits
+  phones: string[]      // every comparable form of every phone (see phoneForms)
   nid: string           // digits (or the normalised text when it has letters)
 }
 export function indexPatient<P extends SearchPatient>(p: P): PatientIndex<P> {
@@ -49,30 +93,39 @@ export function indexPatient<P extends SearchPatient>(p: P): PatientIndex<P> {
   return {
     p, name, words, compact: name.replace(/ /g, ''),
     file: String(p.fileNo ?? ''),
-    phones: [p.phone, p.phone2].map(x => digitsOnly(x)).filter(Boolean),
+    phones: [...new Set([p.phone, p.phone2].flatMap(x => phoneForms(x)))],
     nid: nidDigits || norm(p.nationalId),
   }
 }
 
+/** One query word, analysed once per keystroke (not once per patient). */
+interface QueryToken { tok: string; d: string; numeric: boolean; forms: string[] }
+/** A query ready to score many patients: its words and, for a number typed in groups, the whole number. */
+export interface PreparedQuery { toks: QueryToken[]; joined: QueryToken | null; phrase: string }
+function analyse(tok: string): QueryToken {
+  const d = digitsOnly(tok.replace(/^[#+]/, ''))
+  // digits, optionally typed with separators ("0944-123-456")
+  const numeric = d.length > 0 && PHONEISH.test(tok)
+  return { tok, d, numeric, forms: numeric && d.length >= 3 ? phoneForms(tok) : [] }
+}
+export function prepareQuery(q: string): PreparedQuery {
+  const words = tokens(q)
+  // a number typed in groups ("0944 123 456", "+963 944 123 456") is also tried as one number
+  const joined = words.length > 1 && looksLikeGroupedNumber(q) ? analyse((words[0].startsWith('+') ? '+' : '') + digitsOnly(q)) : null
+  return { toks: words.map(analyse), joined, phrase: words.join(' ') }
+}
+
 /** Score of one query word against one patient; 0 = no match. */
-function scoreToken(ix: PatientIndex, tok: string): number {
+function scoreToken(ix: PatientIndex, qt: QueryToken): number {
   let best = 0
   const add = (s: number) => { if (s > best) best = s }
-  const plain = tok.replace(/^[#+]/, '')
-  const d = digitsOnly(plain)
-  const numeric = d.length > 0 && d.length === plain.length
+  const { tok, d, numeric } = qt
   if (numeric) {
     if (ix.file === d) add(100)
     else if (ix.file.startsWith(d)) add(70)
     if (d.length >= 3) {
-      for (const ph of ix.phones) {
-        // phones are typed with or without the leading zero / country code
-        const local = ph.replace(/^(00|\+)?963/, '0')
-        if (ph === d || local === d) add(95)
-        else if (ph.startsWith(d) || local.startsWith(d)) add(80)
-        else if (ph.endsWith(d)) add(75)
-        else if (ph.includes(d)) add(55)
-      }
+      // phones are typed with or without the leading zero / country code
+      add(phoneScore(ix.phones, qt.forms))
       if (ix.nid) {
         if (ix.nid === d) add(90)
         else if (ix.nid.startsWith(d)) add(60)
@@ -95,62 +148,110 @@ function scoreToken(ix: PatientIndex, tok: string): number {
  * (name word, file number, phone, national id); the whole query as a phrase scores higher.
  * Archived files rank below active ones but stay findable.
  */
-export function scorePatient(ix: PatientIndex, q: string): number {
-  const toks = tokens(q)
+export function scorePatient(ix: PatientIndex, query: string | PreparedQuery): number {
+  const pq = typeof query === 'string' ? prepareQuery(query) : query
+  const { toks } = pq
   if (!toks.length) return 0
   let total = 0
-  for (const tok of toks) {
-    const s = scoreToken(ix, tok)
-    if (!s) return 0
+  for (const qt of toks) {
+    const s = scoreToken(ix, qt)
+    if (!s) { total = 0; break }
     total += s
   }
   let score = total / toks.length
+  if (pq.joined) score = Math.max(score, scoreToken(ix, pq.joined))
+  if (!score) return 0
   if (toks.length > 1) {
-    const phrase = toks.join(' ')
-    if (ix.name.startsWith(phrase)) score += 12
-    else if (ix.name.includes(phrase)) score += 6
+    if (ix.name.startsWith(pq.phrase)) score += 12
+    else if (ix.name.includes(pq.phrase)) score += 6
   }
   if (ix.p.archived) score -= 30
   return Math.max(1, score)
 }
 
+/** Arabic-aware alphabetical order (one shared collator: localeCompare(…, 'ar') builds one per call). */
+export const collator = new Intl.Collator('ar')
+
 export interface Ranked<T> { item: T; score: number }
 /** Matches sorted by score, then most recent visit, then name. */
 export function rankPatients<P extends SearchPatient>(index: PatientIndex<P>[], q: string, limit = Infinity): Ranked<P>[] {
-  if (!tokens(q).length) return []
+  const pq = prepareQuery(q)
+  if (!pq.toks.length) return []
   const out: Ranked<P>[] = []
   for (const ix of index) {
-    const score = scorePatient(ix, q)
+    const score = scorePatient(ix, pq)
     if (score > 0) out.push({ item: ix.p, score })
   }
   out.sort((a, b) => b.score - a.score
-    || (b.item.lastVisit || '').localeCompare(a.item.lastVisit || '')
-    || a.item.name.localeCompare(b.item.name, 'ar'))
+    || (a.item.lastVisit === b.item.lastVisit ? 0 : (b.item.lastVisit || '') > (a.item.lastVisit || '') ? 1 : -1)
+    || collator.compare(a.item.name, b.item.name))
   return out.slice(0, limit)
 }
 
+/** The phone to show for a patient row: the one the query matched, else the main one. */
+export function matchedPhone(p: Pick<SearchPatient, 'phone' | 'phone2'>, q: string): string | undefined {
+  const typed = looksLikeGroupedNumber(q) ? [(q.trim().startsWith('+') ? '+' : '') + digitsOnly(q)] : tokens(q).filter(t => PHONEISH.test(t))
+  const forms = typed.flatMap(t => phoneForms(t))
+  if (forms.length && p.phone2 && phoneScore(phoneForms(p.phone2), forms) > phoneScore(phoneForms(p.phone), forms)) return p.phone2
+  return p.phone || p.phone2
+}
+
 // ---- invoices ---------------------------------------------------------------------------------------
+/** Lower-case, spaces collapsed; plain ASCII (the usual "INV-000123") skips the Arabic folding. */
+function normNumber(s: string): string {
+  return /^[\x20-\x7e]*$/.test(s) ? s.toLowerCase().replace(/\s+/g, ' ').trim() : norm(s)
+}
 /**
- * How well an invoice number matches the query: 3 exact ("INV-000123" ← "123", "inv-000123", "000123"),
- * 2 prefix of the serial ("12" → 123), 1 contains, 0 no match.
+ * A matcher for one query, to run over many invoice numbers: 3 exact ("INV-000123" ← "123", "inv-000123",
+ * "INV-123", "000123"), 2 prefix of the serial ("12" → 123), 1 contains, 0 no match.
  */
-export function invoiceNumberMatch(number: string, q: string): 0 | 1 | 2 | 3 {
+export function invoiceMatcher(q: string): (number: string) => 0 | 1 | 2 | 3 {
   const nq = norm(q).replace(/\s+/g, '')
-  if (!nq || !number) return 0
-  const nn = norm(number)
-  if (nn === nq) return 3
-  const serial = digitsOnly(number).replace(/^0+/, '') || '0'
+  if (!nq) return () => 0
   const plain = nq.replace(/^#/, '')
   const qd = digitsOnly(plain)
-  if (qd && qd.length === plain.length) {
-    const qs = qd.replace(/^0+/, '') || '0'
-    if (serial === qs) return 3
-    if (serial.startsWith(qs)) return 2
-    if (digitsOnly(number).includes(qd)) return 1
-    return 0
+  const letters = (x: string) => x.replace(/[^\p{L}]/gu, '')
+  const ql = letters(plain)
+  const qs = qd.replace(/^0+/, '') || '0'
+  return (number: string) => {
+    if (!number) return 0
+    const nn = normNumber(number)
+    if (nn === nq) return 3
+    if (qd) {
+      // letters typed with the number must be the start of the number's letters ("inv-12", "INV12", "inv 12")
+      if (ql && !letters(nn).startsWith(ql)) return 0
+      const runs = nn.match(/\d+/g)
+      const serial = (runs ? runs[runs.length - 1] : '').replace(/^0+/, '') || '0'   // the counter: last run of digits
+      if (serial === qs) return 3
+      if (serial.startsWith(qs)) return 2
+      if (digitsOnly(nn).includes(qd)) return 1
+      return 0
+    }
+    if (nn.startsWith(nq)) return nq.length >= 3 ? 2 : 0
+    return nq.length >= 3 && nn.includes(nq) ? 1 : 0
   }
-  if (nn.startsWith(nq)) return nq.length >= 3 ? 2 : 0
-  return nq.length >= 3 && nn.includes(nq) ? 1 : 0
+}
+export function invoiceNumberMatch(number: string, q: string): 0 | 1 | 2 | 3 {
+  return invoiceMatcher(q)(number)
+}
+export type SearchInvoice = Pick<Invoice, 'id' | 'number' | 'patientId' | 'date' | 'total' | 'status'>
+/**
+ * Invoices for the palette: those whose number matches (best match first), then the invoices of the
+ * best-matching patients (`patientIds`, best first), newest first.
+ */
+export function searchInvoices<I extends SearchInvoice>(invoices: I[], q: string, patientIds: string[] = [], limit = 5): { invoice: I; score: number }[] {
+  const text = q.trim()
+  const match = text && (looksLikeNumber(text) || text.length >= 3) ? invoiceMatcher(text) : null
+  const rank = new Map(patientIds.map((id, i) => [id, i]))
+  const found: { invoice: I; score: number }[] = []
+  for (const inv of invoices) {
+    const m = match ? match(inv.number) : 0
+    if (m) found.push({ invoice: inv, score: 100 + m * 10 })
+    else { const r = rank.get(inv.patientId); if (r !== undefined) found.push({ invoice: inv, score: 60 - Math.min(40, r) }) }
+  }
+  return found
+    .sort((a, b) => b.score - a.score || (a.invoice.date === b.invoice.date ? 0 : a.invoice.date < b.invoice.date ? 1 : -1) || (a.invoice.number < b.invoice.number ? 1 : -1))
+    .slice(0, limit)
 }
 /** True when the query looks like it is aimed at an invoice number (digits, '#12', 'INV-12'). */
 export function looksLikeNumber(q: string): boolean {
@@ -201,14 +302,27 @@ export function highlightRanges(text: string, q: string): [number, number][] {
     for (let k = 0; k < f.length; k++) { folded += f[k]; map.push(i) }
   }
   const ranges: [number, number][] = []
-  for (const tok of toks) {
+  const find = (hay: string, at2orig: number[], needle: string) => {
     let from = 0
-    while (from <= folded.length - tok.length) {
-      const at = folded.indexOf(tok, from)
+    while (needle && from <= hay.length - needle.length) {
+      const at = hay.indexOf(needle, from)
       if (at < 0) break
-      ranges.push([map[at], map[at + tok.length - 1] + 1])
-      from = at + tok.length
+      ranges.push([at2orig[at], at2orig[at + needle.length - 1] + 1])
+      from = at + needle.length
     }
+  }
+  // numbers are also looked up across the spaces / dashes of the text ("0944123456" in "0944 123 456")
+  let digits = ''
+  const dmap: number[] = []
+  for (let i = 0; i < folded.length; i++) if (/\d/.test(folded[i])) { digits += folded[i]; dmap.push(map[i]) }
+  const numbers = looksLikeGroupedNumber(q) ? [(q.trim().startsWith('+') ? '+' : '') + digitsOnly(q)] : []
+  for (const tok of toks) {
+    find(folded, map, tok)
+    if (PHONEISH.test(tok) && digitsOnly(tok).length >= 3) numbers.push(tok)
+  }
+  for (const n of numbers) {
+    const before = ranges.length
+    for (const f of [digitsOnly(n), ...phoneForms(n)]) { if (f.length >= 3) find(digits, dmap, f); if (ranges.length > before) break }
   }
   ranges.sort((a, b) => a[0] - b[0])
   const merged: [number, number][] = []

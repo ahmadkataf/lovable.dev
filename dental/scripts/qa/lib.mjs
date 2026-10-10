@@ -11,7 +11,10 @@ export const DIST = process.env.QA_DIST || 'dist'          // build with: npx vi
 export const BASE = `http://127.0.0.1:${PORT}`
 
 export async function startServer() {
-  const p = spawn('npx', ['vite', 'preview', '--outDir', DIST, '--port', String(PORT), '--strictPort', '--host', '127.0.0.1'], { cwd: ROOT, stdio: 'ignore' })
+  // a leftover server on this port would silently serve someone else's build
+  try { await fetch(BASE + '/index.html'); throw new Error(`port ${PORT} is already in use: pick another QA_PORT`) } catch (e) { if (String(e.message).startsWith('port ')) throw e }
+  const p = spawn(process.execPath, [path.join(ROOT, 'node_modules/vite/bin/vite.js'), 'preview', '--outDir', DIST, '--port', String(PORT), '--strictPort', '--host', '127.0.0.1'], { cwd: ROOT, stdio: 'ignore' })
+  process.on('exit', () => { try { p.kill() } catch { /* already gone */ } })
   for (let i = 0; i < 60; i++) {
     try { const r = await fetch(BASE + '/index.html'); if (r.ok) return p } catch { /* not yet */ }
     await new Promise(r => setTimeout(r, 300))

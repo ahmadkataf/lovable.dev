@@ -13,10 +13,10 @@ import { useSession } from '@/app/session'
 import { useLicense } from '@/license/useLicense'
 import { fmtDate } from '@/lib/dates'
 import { matches } from '@/lib/format'
-import { Alert, Badge, Button, Checkbox, IconButton, Input, Loading, Modal, NumberInput, Select, Textarea, useToast } from '@/ui'
-import { saveInvoice } from './actions'
+import { Alert, Badge, Button, Checkbox, IconButton, Input, Loading, Modal, NumberInput, Select, Textarea, useConfirm, useToast } from '@/ui'
+import { BillingError, saveInvoice } from './actions'
 import { computeTotals, hasErrors, lineTotal, toDraftLines, toInvoiceItems, validateInvoice, type DraftLine, type LineErrors } from './lib'
-import { Money, PatientPicker, ltr } from './shared'
+import { Money, PatientPicker, iso } from './shared'
 import './billing.css'
 
 export interface InvoiceFormModalProps {
@@ -48,6 +48,7 @@ function InvoiceForm({ onClose, patientId: initialPatient, existing, onSaved }: 
   const toast = useToast()
   const license = useLicense()
   const isMobile = useIsMobile()
+  const confirm = useConfirm()
   const isEdit = !!existing
   const isIssued = !!existing && existing.status !== 'draft'
 
@@ -62,10 +63,27 @@ function InvoiceForm({ onClose, patientId: initialPatient, existing, onSaved }: 
   const [panel, setPanel] = useState<'treatments' | 'procedures' | null>(!existing && initialPatient ? 'treatments' : null)
   const [submitted, setSubmitted] = useState(false)
   const [saving, setSaving] = useState<'draft' | 'issue' | null>(null)
+  const busy = useRef(false)          // blocks a second save while the first one runs (double click)
   const focusKey = useRef<string | null>(null)
 
-  // the clinic's tax rate is the default of a new invoice (it may load after the first render)
-  useEffect(() => { if (!existing && taxPercent === null && clinic.taxPercent) setTaxPercent(clinic.taxPercent) }, [clinic.taxPercent, existing, taxPercent])
+  // the clinic's tax rate is the default of a new invoice (it may load after the first render) until the user edits it
+  const taxTouched = useRef(false)
+  useEffect(() => { if (!existing && !taxTouched.current && taxPercent === null && clinic.taxPercent) setTaxPercent(clinic.taxPercent) }, [clinic.taxPercent, existing, taxPercent])
+  const changeTax = (n: number | null) => { taxTouched.current = true; setTaxPercent(n) }
+
+  // closing with unsaved work asks first (Escape, ×, Cancel)
+  const sig = JSON.stringify([lines, notes.trim(), discount, date, dueDate])
+  const initialSig = useRef(sig)
+  const dirty = sig !== initialSig.current
+  const asking = useRef(false)
+  const requestClose = async () => {
+    if (busy.current || asking.current) return
+    if (!dirty) { onClose(); return }
+    asking.current = true
+    try {
+      if (await confirm({ title: t('billing.discardTitle'), description: t('billing.discardDesc'), danger: true, confirmLabel: t('billing.discard'), cancelLabel: t('billing.keepEditing') })) onClose()
+    } finally { asking.current = false }
+  }
 
   const patient = useLiveQuery(() => (patientId ? db.patients.get(patientId) : undefined), [patientId])
   // a new invoice follows the patient's usual doctor
@@ -78,8 +96,8 @@ function InvoiceForm({ onClose, patientId: initialPatient, existing, onSaved }: 
   const usedTreatments = useMemo(() => new Set(lines.map(l => l.treatmentItemId).filter(Boolean)), [lines])
   const available = useMemo(() => (treatments ?? []).filter(tr => !usedTreatments.has(tr.id)).sort((a, b) => (a.completedAt || a.createdAt).localeCompare(b.completedAt || b.createdAt)), [treatments, usedTreatments])
 
-  const totals = computeTotals(lines.map(l => ({ qty: l.qty || 0, unitPrice: l.unitPrice || 0, discount: l.discount || 0 })), discount || 0, taxPercent || 0)
-  const errors = validateInvoice({ patientId, date, lines, discount, taxPercent })
+  const totals = computeTotals(lines.map(l => ({ qty: l.qty || 0, unitPrice: l.unitPrice || 0, discount: l.discount || 0 })), discount || 0, taxPercent || 0, clinic.currencyDecimals ?? 2)
+  const errors = validateInvoice({ patientId, date, dueDate, lines, discount, taxPercent })
   const show = submitted
 
   const changePatient = (id: string) => {
@@ -104,11 +122,13 @@ function InvoiceForm({ onClose, patientId: initialPatient, existing, onSaved }: 
   }, [lines])
 
   const run = async (mode: 'draft' | 'issue') => {
+    if (busy.current || license.readOnly) return
     setSubmitted(true)
     if (hasErrors(errors)) {
       setTimeout(() => document.querySelector('.bl-form .invalid, .bl-form .field-error, .bl-form .alert-danger')?.scrollIntoView({ block: 'center', behavior: 'smooth' }), 30)
       return
     }
+    busy.current = true
     setSaving(mode)
     try {
       const inv = await saveInvoice(
@@ -117,21 +137,22 @@ function InvoiceForm({ onClose, patientId: initialPatient, existing, onSaved }: 
       )
       const name = patient?.name ?? ''
       const message = mode === 'draft' ? t('billing.act.draftCreated', { patient: name })
-        : isIssued ? t('billing.act.invoiceUpdated', { number: ltr(inv.number), patient: name })
-        : t('billing.act.invoiceCreated', { number: ltr(inv.number), patient: name })
+        : isIssued ? t('billing.act.invoiceUpdated', { number: iso(inv.number), patient: name })
+        : t('billing.act.invoiceCreated', { number: iso(inv.number), patient: name })
       void logActivity({ type: 'invoice', action: isEdit ? 'update' : 'create', entityId: inv.id, patientId, message, by: session.user?.id })
       toast.success(mode === 'draft' ? t('billing.draftSaved') : isIssued ? t('billing.invoiceUpdated') : t('billing.invoiceIssued'), mode === 'issue' ? <><span className="num">{inv.number}</span> · <span className="money">{money(inv.total)}</span></> : undefined)
       onSaved?.(inv, mode)
       onClose()
-    } catch {
-      toast.error(t('error'), t('tryAgain'))
-    } finally { setSaving(null) }
+    } catch (err) {
+      if (err instanceof BillingError && err.code === 'alreadyBilled') toast.error(t('error'), t('billing.v.alreadyBilled'))
+      else toast.error(t('error'), t('tryAgain'))
+    } finally { busy.current = false; setSaving(null) }
   }
 
   const ro = license.readOnly
   const footer = (
     <>
-      <Button variant="ghost" onClick={onClose} className="start">{t('cancel')}</Button>
+      <Button variant="ghost" onClick={() => void requestClose()} className="start">{t('cancel')}</Button>
       {!isIssued && <Button variant="secondary" icon={<FilePlus2 />} loading={saving === 'draft'} disabled={ro || !!saving} onClick={() => run('draft')}>{t('billing.saveDraft')}</Button>}
       <Button variant="primary" icon={isIssued ? <Check /> : <Receipt />} loading={saving === 'issue'} disabled={ro || !!saving} onClick={() => run('issue')}>{isIssued ? t('saveChanges') : t('billing.issue')}</Button>
     </>
@@ -139,7 +160,7 @@ function InvoiceForm({ onClose, patientId: initialPatient, existing, onSaved }: 
   const title = isEdit ? (isIssued ? `${t('billing.editInvoice')} · ${existing!.number}` : t('billing.editInvoice')) : t('billing.newInvoice')
 
   return (
-    <Modal open onClose={onClose} size="xl" title={title} icon={<Receipt />} footer={footer} closeOnOverlay={false}>
+    <Modal open onClose={() => void requestClose()} size="xl" title={title} icon={<Receipt />} footer={footer} closeOnOverlay={false}>
       <div className="bl-form">
         {ro && <Alert tone="warning">{t('trial.readonly')}</Alert>}
         <div className="bl-form-top">
@@ -147,7 +168,8 @@ function InvoiceForm({ onClose, patientId: initialPatient, existing, onSaved }: 
           <Select label={t('doctor')} value={doctorId} onChange={e => setDoctorId(e.target.value)} placeholder="—"
             options={doctors.map(d => ({ value: d.id, label: d.name }))} />
           <Input type="date" label={t('billing.issueDate')} value={date} onChange={e => setDate(e.target.value)} required error={show && errors.date ? t('v.date') : undefined} />
-          <Input type="date" label={t('billing.dueDate')} value={dueDate} min={date} onChange={e => setDueDate(e.target.value)} hint={!dueDate ? t('optional') : undefined} />
+          <Input type="date" label={t('billing.dueDate')} value={dueDate} min={date} onChange={e => setDueDate(e.target.value)} hint={!dueDate ? t('optional') : undefined}
+            error={show && errors.dueDate ? (errors.dueDate === 'beforeIssue' ? t('billing.v.dueDate') : t('v.date')) : undefined} />
         </div>
 
         <section>
@@ -190,11 +212,12 @@ function InvoiceForm({ onClose, patientId: initialPatient, existing, onSaved }: 
               <span>{t('billing.invoiceDiscount')}</span>
               <div className="bl-tp-input"><NumberInput size="sm" value={discount} onChange={setDiscount} min={0} placeholder="0" invalid={show && !!errors.discount} aria-label={t('billing.invoiceDiscount')} /></div>
             </div>
-            {show && errors.discount && <div className="bl-tp-err">{t('billing.v.discount')}</div>}
+            {show && errors.discount && <div className="bl-tp-err" role="alert">{errors.discount === 'number' ? t('billing.v.discountNegative') : t('billing.v.discount')}</div>}
             <div className="bl-tp-row">
               <span>{t('billing.taxPercent')}</span>
-              <div className="bl-tp-input"><NumberInput size="sm" value={taxPercent} onChange={setTaxPercent} min={0} max={100} placeholder="0" addon="%" invalid={show && !!errors.tax} aria-label={t('billing.taxPercent')} /></div>
+              <div className="bl-tp-input"><NumberInput size="sm" value={taxPercent} onChange={changeTax} min={0} max={100} placeholder="0" addon="%" invalid={show && !!errors.tax} aria-label={t('billing.taxPercent')} /></div>
             </div>
+            {show && errors.tax && <div className="bl-tp-err" role="alert">{t('billing.v.tax')}</div>}
             {totals.tax > 0 && <div className="bl-tp-row"><span>{t('tax')}</span><Money value={totals.tax} /></div>}
             <div className="bl-tp-row bl-tp-total"><span>{t('total')}</span><Money value={totals.total} /></div>
           </div>

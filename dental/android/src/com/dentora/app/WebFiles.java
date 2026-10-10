@@ -210,8 +210,8 @@ final class WebFiles {
                 case '\r': b.append("\\r"); break;
                 case '\t': b.append("\\t"); break;
                 case '<': b.append("\\u003c"); break;
-                case ' ': b.append("\\u2028"); break;
-                case ' ': b.append("\\u2029"); break;
+                case '\u2028': b.append("\\u2028"); break;
+                case '\u2029': b.append("\\u2029"); break;
                 default:
                     if (c < 0x20) b.append(String.format(Locale.ROOT, "\\u%04x", (int) c));
                     else b.append(c);
@@ -223,6 +223,21 @@ final class WebFiles {
     /** True for addresses the app itself serves; everything else is handed to another app. */
     static boolean isAppUrl(String scheme, String host) {
         return scheme != null && host != null && (scheme.equalsIgnoreCase("https") || scheme.equalsIgnoreCase("http")) && host.equalsIgnoreCase(HOST);
+    }
+
+    /**
+     * What the shell does with a navigation (shouldOverrideUrlLoading): "app" the app's own pages stay inside,
+     * "allow" the WebView handles it (about:, javascript:, a frame inside the page), "data" / "blob" a file the
+     * page tried to open is saved, "outside" handed to the app that handles it (tel:, mailto:, WhatsApp, the web).
+     */
+    static String linkAction(String scheme, String host, boolean mainFrame) {
+        String s = scheme == null ? "" : scheme.toLowerCase(Locale.ROOT);
+        if (isAppUrl(s, host)) return "app";
+        if (s.equals("about") || s.equals("javascript")) return "allow";
+        if (s.equals("data")) return "data";
+        if (s.equals("blob")) return "blob";
+        if (!mainFrame && (s.equals("http") || s.equals("https"))) return "allow";
+        return "outside";
     }
 
     /** The intent action that suits a link handed to the system. */
@@ -252,10 +267,52 @@ final class WebFiles {
         + "if(h===''||h==='#'||h==='#/'||h.indexOf('#/login')===0||h.indexOf('#/setup')===0)return 'home';"
         + "}catch(e){}return 'page';})()";
 
-    /** window.print() does nothing in a WebView: route it to the bridge, as the platform layer does. */
+    /**
+     * Run on every page: window.print() does nothing in a WebView, so it goes to the bridge, as the platform layer
+     * does. And the page's 'afterprint' handlers (which take the page out of its print layout) get a thin wrapper:
+     * while an Android print job is open (window.__dentoraPrinting, set by PRINT_HOLD_JS) they ignore the WebView's
+     * own afterprint, because the print screen renders the page again whenever the paper or orientation changes;
+     * PRINT_DONE_JS runs them once, when the print screen closes. (A capture listener cannot do this: on window,
+     * Chromium runs listeners in the order they were added.)
+     */
     static final String PRINT_SHIM_JS =
-        "(function(){try{if(window.DentoraAndroid&&!window.__dentoraPrintShim){window.__dentoraPrintShim=true;"
-        + "window.print=function(){window.DentoraAndroid.print();};}}catch(e){}})()";
+        "(function(){try{if(!window.DentoraAndroid||window.__dentoraPrintShim)return;window.__dentoraPrintShim=true;"
+        + "window.print=function(){window.DentoraAndroid.print();};"
+        + "var add=window.addEventListener,rem=window.removeEventListener,held=new WeakMap();"
+        + "var hold=function(l){var w=held.get(l);if(!w){w=function(e){if(window.__dentoraPrinting&&!e.__dentora)return;"
+        + "return typeof l==='function'?l.call(this,e):l.handleEvent(e);};held.set(l,w);}return w;};"
+        + "window.addEventListener=function(t,l,o){return t==='afterprint'&&l&&(typeof l==='function'||typeof l.handleEvent==='function')"
+        + "?add.call(this,t,hold(l),o):add.apply(this,arguments);};"
+        + "window.removeEventListener=function(t,l,o){return t==='afterprint'&&l&&held.has(l)?rem.call(this,t,held.get(l),o):rem.apply(this,arguments);};"
+        + "}catch(e){}})()";
+
+    /**
+     * Run on every page (with the print shim): wraps window.DentoraAndroid so that saveFile() answers with a Promise
+     * that settles when the save really ends (true = written, false = cancelled or failed), told by the
+     * 'dentora:saved' event. The Java method itself still returns true at once ("the save screen is shown"); the
+     * platform layer awaits whatever saveFile returns, so `await saveFile()` now means what it says: a cancelled
+     * backup is not recorded as done. If the wrapper cannot be installed the page keeps the plain bridge.
+     */
+    static final String BRIDGE_JS =
+        "(function(){try{var real=window.DentoraAndroid;if(!real||real.__dentora)return;var waiting=[];"
+        + "window.addEventListener('dentora:saved',function(e){var r=waiting.shift();if(r)r(!!(e.detail&&e.detail.ok));});"
+        + "var w={__dentora:true,"
+        + "deviceId:function(){return real.deviceId();},"
+        + "appVersion:function(){return real.appVersion();},"
+        + "print:function(){real.print();},"
+        + "openExternal:function(u){real.openExternal(String(u));},"
+        + "saveFile:function(n,m,b){if(!real.saveFile(n,m,b))return false;return new Promise(function(r){waiting.push(r);});}};"
+        + "try{window.DentoraAndroid=w;}catch(x){}"
+        + "if(window.DentoraAndroid!==w)Object.defineProperty(window,'DentoraAndroid',{value:w,configurable:true,writable:true});"
+        + "}catch(e){}})()";
+
+    /** Before an Android print job: the page's afterprint handlers wait for PRINT_DONE_JS (see PRINT_SHIM_JS). */
+    static final String PRINT_HOLD_JS = "(function(){try{window.__dentoraPrinting=true;}catch(e){}})()";
+
+    /** When the print screen closes: the page's afterprint handlers run, once. */
+    static final String PRINT_DONE_JS =
+        "(function(){try{if(!window.__dentoraPrinting)return;window.__dentoraPrinting=false;"
+        + "var e=new Event('afterprint');e.__dentora=true;window.dispatchEvent(e);}catch(x){}})()";
 
     /** After a cancelled file picker: the page may wait for the window to regain focus to notice it. */
     static final String PICK_CANCELLED_JS = "window.dispatchEvent(new Event('focus'))";
@@ -278,7 +335,6 @@ final class WebFiles {
     static String text(String key, String lang) {
         boolean en = lang != null && lang.toLowerCase(Locale.ROOT).startsWith("en");
         switch (key) {
-            case "saved": return en ? "File saved" : "تم حفظ الملف";
             case "saved_downloads": return en ? "Saved to Downloads: " : "حُفظ الملف في التنزيلات: ";
             case "save_failed": return en ? "Could not save the file" : "تعذّر حفظ الملف";
             case "no_app": return en ? "No app on this phone can open this" : "لا يوجد على الهاتف تطبيق يفتح هذا الرابط";

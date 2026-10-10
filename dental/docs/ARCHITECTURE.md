@@ -55,7 +55,10 @@ Status colours: appointment statuses `var(--st-<status>)`, tooth conditions `var
 - Every visible string goes through `t()`. Module strings live in `src/i18n/modules/<module>.ts` as `{ ar: {...}, en: {...} }` and are read as `t('<module>.<key>')`. Shared words (save, cancel, statuses, categories, roles…) are already in `common.ts`: `t('save')`, `t('apt.scheduled')`, `t('cat.restorative')`, `t('cond.caries')`, `t('pay.cash')`, `t('exp.rent')`, `t('role.doctor')`, `t('inv.paid')`, `t('lab.sent')`, `t('labType.crown')`, `t('surf.M')`, `t('fileKind.xray')`, `t('v.required')`. Check common.ts before adding duplicates.
 - Arabic is the default and the reference: write natural, professional clinic Arabic (not literal translations). Keep ar and en keys identical.
 - Layout must work in RTL and LTR: use logical CSS (`inset-inline-start`, `margin-inline-end`, `text-align: start`), never `left/right` for layout. Numbers, phone numbers, codes: wrap in `.num` or `.ltr`.
-- Dates/times: `fmtDate(d, lang)`, `fmtTime(iso, lang)`; money: `useMoney()`.
+- Dates/times: `fmtDate(d, lang)`, `fmtTime(iso, lang)`; money: `useMoney()`. Do not force `fmtTime` output LTR (the Arabic ص/م marker would read backwards); use `unicode-bidi: isolate` instead.
+- `.num`, `.money` and `.ltr` set `direction: ltr`, so logical margins on that same element resolve to physical left in RTL: put them on an inner span, never on an element that carries logical margins.
+- Person names: add `dir="auto"` (or `.name-auto`) so an Arabic name in the English UI (and the reverse) truncates at its own end.
+- Escape closes only the top-most overlay (`useEscapeLayer(onClose)` for custom overlays). Routes are permission-guarded in App.tsx.
 
 ## Design rules (the product sells on looks)
 - Light theme first: white cards on `var(--bg)`, soft borders, generous spacing (16–24px), 12–20px radii, subtle shadows, teal primary. Every screen opens with `PageHeader`, then content in `Card`s or a `DataTable`. Use `EmptyState` (with an icon and a primary action) for empty lists, `Skeleton`/`Loading` while loading.

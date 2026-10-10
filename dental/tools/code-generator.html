@@ -1,0 +1,165 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="robots" content="noindex" />
+  <title>مولّد رموز تفعيل Dentora</title>
+  <!-- Private seller tool: works offline from a single file. Build: npx vite build --config vite.tools.config.ts -->
+  <style>
+    :root { --p: #0E8F86; --p-dark: #0F716C; --p-soft: #EEFBF8; --bg: #F5F7FA; --card: #fff; --line: #E6EAF0; --line-2: #D7DEE8; --text: #0F172A; --text-2: #334155; --muted: #64748B;
+      --ok: #15803D; --ok-soft: #ECFDF3; --bad: #B91C1C; --bad-soft: #FEF2F2; --warn: #B45309; --warn-soft: #FFFBEB; --r: 14px; color-scheme: light; }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: var(--bg); color: var(--text); font: 15px/1.6 'Segoe UI', Tahoma, 'Noto Sans Arabic', system-ui, sans-serif; }
+    .wrap { max-width: 980px; margin: 0 auto; padding: 24px 16px 48px; }
+    header { display: flex; align-items: center; gap: 14px; margin-bottom: 20px; }
+    .logo { width: 52px; height: 52px; border-radius: 16px; background: linear-gradient(135deg, #14B8A6, var(--p)); color: #fff; display: flex; align-items: center; justify-content: center; flex: none; box-shadow: 0 6px 16px -4px rgba(14,143,134,.45); }
+    h1 { font-size: 22px; margin: 0; line-height: 1.3; }
+    .sub { color: var(--muted); font-size: 13.5px; }
+    .private { margin-inline-start: auto; background: var(--warn-soft); color: var(--warn); border: 1px solid #FDE68A; border-radius: 999px; padding: 4px 12px; font-size: 12.5px; font-weight: 700; white-space: nowrap; }
+    .grid { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); gap: 16px; align-items: start; }
+    .card { background: var(--card); border: 1px solid var(--line); border-radius: 20px; padding: 20px; box-shadow: 0 1px 2px rgba(16,24,40,.05); }
+    .card h2 { font-size: 16px; margin: 0 0 14px; display: flex; align-items: center; gap: 8px; }
+    .card h2 .n { width: 24px; height: 24px; border-radius: 50%; background: var(--p); color: #fff; font-size: 12.5px; display: inline-flex; align-items: center; justify-content: center; }
+    .fields { display: grid; grid-template-columns: 1fr 1fr; gap: 12px 14px; }
+    .full { grid-column: 1 / -1; }
+    label { display: flex; flex-direction: column; gap: 5px; font-size: 13px; font-weight: 600; color: var(--text-2); }
+    input, select, textarea { font: inherit; color: inherit; width: 100%; min-height: 42px; padding: 8px 12px; border: 1px solid var(--line-2); border-radius: 12px; background: #fff; outline: none; }
+    input:focus, select:focus, textarea:focus { border-color: var(--p); box-shadow: 0 0 0 3px rgba(14,143,134,.2); }
+    .ltr { direction: ltr; unicode-bidi: isolate; }
+    .mono { font-family: Consolas, 'SF Mono', Menlo, monospace; letter-spacing: 1.5px; }
+    input.mono { text-align: center; font-weight: 700; }
+    .err { color: var(--bad); font-size: 12.5px; font-weight: 600; min-height: 0; }
+    .hidden { display: none !important; }
+    button, .btn { font: inherit; font-weight: 700; display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 42px; padding: 0 18px; border-radius: 12px; border: 1px solid transparent; cursor: pointer; text-decoration: none; white-space: nowrap; }
+    .primary { background: var(--p); color: #fff; box-shadow: 0 6px 16px -6px rgba(14,143,134,.6); }
+    .primary:hover { background: var(--p-dark); }
+    .secondary { background: #fff; color: var(--text); border-color: var(--line-2); }
+    .secondary:hover { background: #F8FAFC; }
+    .wa { background: #16A34A; color: #fff; }
+    .danger { background: #fff; color: var(--bad); border-color: #FECACA; }
+    .small { min-height: 32px; padding: 0 10px; font-size: 13px; border-radius: 9px; }
+    .actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
+    .result { margin-top: 16px; border-radius: 16px; background: var(--p-soft); border: 1px solid #ABE9DD; padding: 16px; }
+    .code { font-size: 28px; font-weight: 800; color: var(--text); text-align: center; padding: 10px; background: #fff; border-radius: 12px; border: 1.5px dashed #74D7C6; user-select: all; word-break: break-all; }
+    .meta { text-align: center; color: var(--text-2); font-size: 13.5px; margin: 8px 0 12px; }
+    textarea { min-height: 190px; resize: vertical; line-height: 1.7; }
+    .verdict { margin-top: 12px; padding: 10px 14px; border-radius: 12px; font-weight: 700; }
+    .verdict.ok { background: var(--ok-soft); color: var(--ok); }
+    .verdict.bad { background: var(--bad-soft); color: var(--bad); }
+    .log { margin-top: 16px; }
+    .log-head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
+    .log-head h2 { margin: 0; margin-inline-end: auto; }
+    .table-wrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 14px; }
+    table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+    th { text-align: start; background: #F8FAFC; color: var(--muted); font-size: 12px; padding: 10px 12px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+    td { padding: 10px 12px; border-bottom: 1px solid #EEF1F5; vertical-align: middle; }
+    tr:last-child td { border-bottom: 0; }
+    td.ltr { text-align: right; }
+    .empty { padding: 28px; text-align: center; color: var(--muted); }
+    .pill { display: inline-block; padding: 2px 10px; border-radius: 999px; font-size: 12px; font-weight: 700; background: #EEF2FF; color: #4F46E5; }
+    .pill.standard { background: var(--p-soft); color: var(--p-dark); }
+    .toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: var(--text); color: #fff; padding: 10px 18px; border-radius: 12px; font-weight: 600; opacity: 0; transition: opacity .2s; pointer-events: none; }
+    .toast.show { opacity: 1; }
+    footer { margin-top: 24px; color: var(--muted); font-size: 12.5px; text-align: center; }
+    @media (max-width: 760px) { .grid, .fields { grid-template-columns: 1fr; } .private { display: none; } .code { font-size: 22px; } }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <div class="logo" aria-hidden="true">
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5.5c-1.4-1.4-3.5-1.7-5-.6-1.8 1.3-2.1 3.7-1.3 5.8.9 2.4 1.3 5.3 2.1 7 .3.7 1.2.7 1.5 0 .5-1.2.8-2.9 1.3-4 .3-.8 1.3-.8 1.6 0 .5 1.1.8 2.8 1.3 4 .3.7 1.2.7 1.5 0 .8-1.7 1.2-4.6 2.1-7 .8-2.1.5-4.5-1.3-5.8-1.5-1.1-3.6-.8-5 .6z"/><path d="M18.5 3.5v2M17.5 4.5h2" stroke-width="1.6"/></svg>
+      </div>
+      <div>
+        <h1>مولّد رموز تفعيل Dentora</h1>
+        <div class="sub">يعمل دون إنترنت. أدخل رقم الجهاز الذي أرسلته العيادة، واختر الباقة والمدة، ثم أرسل الرمز.</div>
+      </div>
+      <span class="private">أداة خاصة بالبائع — لا تُرسلها لأي عيادة</span>
+    </header>
+
+    <div class="grid">
+      <section class="card">
+        <h2><span class="n">1</span>إنشاء رمز تفعيل</h2>
+        <form id="make" novalidate>
+          <div class="fields">
+            <label class="full">رقم الجهاز
+              <input id="device" class="mono ltr" placeholder="XXXX-XXXX" autocomplete="off" spellcheck="false" maxlength="9" required />
+              <span class="err" id="device-err"></span>
+            </label>
+            <label>الباقة
+              <select id="plan"><option value="standard">الباقة الأساسية</option><option value="pro">الباقة الاحترافية</option></select>
+            </label>
+            <label>مدة الصلاحية
+              <select id="validity"><option value="1y">سنة واحدة</option><option value="2y">سنتان</option><option value="lifetime">ترخيص دائم</option><option value="date">حتى تاريخ محدد…</option></select>
+            </label>
+            <label class="full hidden" id="date-wrap">آخر يوم صالح
+              <input id="date" type="date" class="ltr" />
+              <span class="err" id="date-err"></span>
+            </label>
+            <label>اسم العيادة / ملاحظة
+              <input id="note" placeholder="مثال: عيادة الابتسامة — دمشق" autocomplete="off" />
+            </label>
+            <label>لغة الرسالة
+              <select id="lang"><option value="ar">العربية</option><option value="en">English</option></select>
+            </label>
+          </div>
+          <div class="actions"><button class="primary" type="submit" id="make-btn">إنشاء الرمز</button></div>
+        </form>
+
+        <div class="result hidden" id="result">
+          <div class="code mono ltr" id="code"></div>
+          <div class="meta" id="meta"></div>
+          <label>رسالة جاهزة للعيادة
+            <textarea id="message" readonly></textarea>
+          </label>
+          <div class="fields" style="margin-top:12px">
+            <label class="full">رقم واتساب العيادة (اختياري)
+              <input id="phone" class="ltr" placeholder="+963 944 123 456" inputmode="tel" autocomplete="off" />
+            </label>
+          </div>
+          <div class="actions">
+            <button class="secondary" type="button" id="copy-code">نسخ الرمز</button>
+            <button class="secondary" type="button" id="copy-msg">نسخ الرسالة</button>
+            <a class="btn wa" id="wa" href="#" target="_blank" rel="noopener">إرسال عبر واتساب</a>
+          </div>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2><span class="n">2</span>التحقق من رمز</h2>
+        <form id="verify" novalidate>
+          <div class="fields">
+            <label class="full">رقم الجهاز
+              <input id="v-device" class="mono ltr" placeholder="XXXX-XXXX" autocomplete="off" spellcheck="false" maxlength="9" />
+            </label>
+            <label class="full">رمز التفعيل
+              <input id="v-code" class="mono ltr" placeholder="XXXX-XXXX-XXXX-XXXX" autocomplete="off" spellcheck="false" maxlength="19" />
+            </label>
+          </div>
+          <div class="actions"><button class="secondary" type="submit" id="verify-btn">تحقق</button></div>
+        </form>
+        <div class="verdict hidden" id="verdict"></div>
+      </section>
+    </div>
+
+    <section class="card log">
+      <div class="log-head">
+        <h2>سجل الرموز الصادرة <span class="sub" id="count"></span></h2>
+        <button class="secondary small" type="button" id="csv">تصدير CSV</button>
+        <button class="danger small" type="button" id="clear">مسح السجل</button>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>التاريخ</th><th>رقم الجهاز</th><th>الباقة</th><th>الصلاحية</th><th>الرمز</th><th>ملاحظة</th><th></th></tr></thead>
+          <tbody id="rows"></tbody>
+        </table>
+        <div class="empty" id="empty">لم تُصدر أي رموز بعد. يُحفظ السجل في هذا المتصفح فقط؛ صدّره إلى CSV بين حين وآخر.</div>
+      </div>
+    </section>
+    <footer>Dentora · مولّد الرموز يعمل محلياً بالكامل ولا يرسل أي بيانات.</footer>
+  </div>
+  <div class="toast" id="toast" role="status"></div>
+  <script type="module" src="./code-generator.ts"></script>
+</body>
+</html>

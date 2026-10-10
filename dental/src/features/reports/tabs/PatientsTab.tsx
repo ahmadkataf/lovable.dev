@@ -55,7 +55,7 @@ export default function PatientsTab({ period, data, setExport, onShowYear }: Tab
       action={<Button to="/patients" icon={<Users />}>{t('reports.pat.goPatients')}</Button>} />
   }
   const loading = !c
-  const vs = t('reports.vsPrevious')
+  const vs = data?.partial ? t('reports.vsSameDays') : t('reports.vsPrevious')
   const seriesData = (c?.series ?? []).map((p, i) => ({ label: text[i]?.label ?? '', title: text[i]?.title, values: [p.value] }))
   const genderData = c ? [
     { id: 'male', label: t('male'), value: c.gender.male, color: SLOTS[0] },
@@ -87,7 +87,7 @@ export default function PatientsTab({ period, data, setExport, onShowYear }: Tab
 
       <div className="rp-row">
         <ChartCard testId="chart-newpatients" loading={loading} icon={<UserPlus />} title={t('reports.pat.newChart')} subtitle={t('reports.pat.newChartSub', { range })} height={240}
-          table={{ columns: [{ key: 'd', header: t('period') }, { key: 'n', header: t('reports.pat.new'), num: true }], rows: seriesData.map(d => ({ d: d.title, n: <span className="num">{d.values[0]}</span> })) }}>
+          table={{ columns: [{ key: 'd', header: t('period') }, { key: 'n', header: t('reports.pat.new'), num: true }], rows: seriesData.map(d => ({ d: d.title, n: <span className="num">{num(d.values[0])}</span> })) }}>
           <BarChart fill data={seriesData} series={[{ id: 'new', label: t('reports.pat.new'), color: 'var(--rp-c1)' }]} height={240} integer format={num} title={t('reports.pat.newChart')} desc={range} />
         </ChartCard>
         <ChartCard testId="chart-gender" loading={loading} icon={<VenusAndMars />} title={t('reports.pat.gender')} subtitle={t('reports.pat.genderSub')} height={200}
@@ -100,7 +100,7 @@ export default function PatientsTab({ period, data, setExport, onShowYear }: Tab
         <ChartCard testId="chart-ages" loading={loading} icon={<Cake />} title={t('reports.pat.ages')} subtitle={t('reports.pat.agesSub')} height={220}
           actions={c && c.ages.unknown > 0 ? <span className="text-xs muted hide-mobile">{t('reports.pat.ageUnknown', { n: num(c.ages.unknown) })}</span> : undefined}
           empty={c && !c.ages.bands.some(b => b.count) ? <CardEmpty icon={<Cake />}>{t('reports.noDataPeriod')}</CardEmpty> : undefined}
-          table={{ columns: [{ key: 'a', header: t('reports.pat.ageGroup') }, { key: 'n', header: t('patients'), num: true }], rows: ageData.map(d => ({ a: <span className="num">{d.label}</span>, n: <span className="num">{d.values[0]}</span> })) }}>
+          table={{ columns: [{ key: 'a', header: t('reports.pat.ageGroup') }, { key: 'n', header: t('patients'), num: true }], rows: ageData.map(d => ({ a: <span className="num">{d.label}</span>, n: <span className="num">{num(d.values[0])}</span> })) }}>
           <BarChart fill data={ageData} series={[{ id: 'age', label: t('patients'), color: 'var(--rp-o3)' }]} barColors={ORDINAL} mirror height={220} integer format={num} title={t('reports.pat.ages')} desc={range} />
         </ChartCard>
         <Card className="rp-card" data-testid="table-referrals">

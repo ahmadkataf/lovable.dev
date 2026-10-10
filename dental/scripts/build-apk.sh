@@ -9,7 +9,7 @@
 #        JDK 17+ (javac, keytool, jarsigner), python3 with Pillow, node (renders the icon), zip/unzip.
 # Optional environment:
 #   ANDROID_HOME                       the SDK (default: $ANDROID_SDK_ROOT, else /opt/android-sdk)
-#   ANDROID_KEYSTORE                   the signing (upload) key; default android/release.keystore, created when missing
+#   ANDROID_KEYSTORE                   the signing (upload) key, must exist; default android/release.keystore (created when missing)
 #   ANDROID_KEYSTORE_PASSWORD          its password (default dentora-release: set your own before the first build)
 #   ANDROID_KEY_ALIAS                  the key alias (default dentora)
 #   VERSION_NAME                       default: the version in package.json (1.2.3)
@@ -46,13 +46,19 @@ COMPILE_SDK="${PLATFORM#android-}"
 TARGET_SDK="${TARGET_SDK:-35}"
 [ "$TARGET_SDK" -le "$COMPILE_SDK" ] || die "TARGET_SDK=$TARGET_SDK needs platforms;android-$TARGET_SDK (newest installed: $PLATFORM)"
 need javac "install a JDK 17 or newer"
+need java "install a JDK 17 or newer"
+need jar "install a JDK 17 or newer"
 need keytool "install a JDK 17 or newer"
 need jarsigner "install a JDK 17 or newer"
 need python3 "install Python 3 with Pillow (pip install pillow)"
 need zip "install zip"
 need unzip "install unzip"
+# a key named on purpose must exist: a new key there (a typo in the path) would make every phone refuse the update
+if [ -n "${ANDROID_KEYSTORE:-}" ] && [ ! -s "$ANDROID_KEYSTORE" ]; then
+  die "ANDROID_KEYSTORE=$ANDROID_KEYSTORE does not exist or is empty. Fix the path (or unset it to use android/release.keystore)."
+fi
 JAVAC_MAJOR="$(javac -version 2>&1 | grep -oE 'javac [0-9]+' | grep -oE '[0-9]+' | head -1 || true)"
-[ -n "$JAVAC_MAJOR" ] && [ "$JAVAC_MAJOR" -ge 17 ] || die "javac 17 or newer is needed (found: $(javac -version 2>&1 | tail -1))"
+if [ -z "$JAVAC_MAJOR" ] || [ "$JAVAC_MAJOR" -lt 17 ]; then die "javac 17 or newer is needed (found: $(javac -version 2>&1 | tail -1))"; fi
 
 # ---- version -------------------------------------------------------------------------------------------
 PKG_VERSION="$(python3 -c "import json,sys;print(json.load(open(sys.argv[1]))['version'])" "$ROOT/package.json")"
@@ -70,8 +76,9 @@ print(max(1, major * 10000 + minor * 100 + patch))
 PY
 )"
 fi
-[[ "$VERSION_CODE" =~ ^[0-9]+$ ]] && [ "$VERSION_CODE" -ge 1 ] && [ "$VERSION_CODE" -le 2100000000 ] \
-  || die "VERSION_CODE must be a whole number from 1 to 2100000000 (got '$VERSION_CODE')"
+if ! [[ "$VERSION_CODE" =~ ^[1-9][0-9]{0,9}$ ]] || [ "$VERSION_CODE" -gt 2100000000 ]; then
+  die "VERSION_CODE must be a whole number from 1 to 2100000000 (got '$VERSION_CODE')"
+fi
 echo "Dentora $VERSION_NAME (versionCode $VERSION_CODE) · build-tools $BT_VERSION · compile $PLATFORM · target SDK $TARGET_SDK · min SDK $MIN_SDK"
 
 # ---- the shell's own checks (plain Java, no Android needed) ---------------------------------------------

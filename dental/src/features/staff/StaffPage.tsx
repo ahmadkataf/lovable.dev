@@ -65,12 +65,15 @@ function StaffManager() {
     if (readOnly) return
     const block = deleteBlock(u, all, selfId)
     if (block) { toast.error(block === 'self' ? t('staff.err.selfDelete') : t('staff.err.lastAdminDelete')); return }
-    const [a, tr, rx] = await Promise.all([
+    // records that name this member: deleting leaves them without a name, so the dialog recommends deactivating instead
+    const counts = await Promise.all([
       db.appointments.where('doctorId').equals(u.id).count(),
       db.treatments.where('doctorId').equals(u.id).count(),
       db.prescriptions.where('doctorId').equals(u.id).count(),
+      db.invoices.where('doctorId').equals(u.id).count(),
+      db.payments.where('receivedBy').equals(u.id).count(),
     ])
-    const linked = a + tr + rx
+    const linked = counts.reduce((a, b) => a + b, 0)
     const name = displayName(u)
     const ok = await confirm({
       title: t('staff.deleteTitle', { name }), danger: true,
@@ -130,7 +133,7 @@ function StaffManager() {
                 <div className="au-member-top">
                   <Avatar name={plainName(u.name)} color={u.color} size="lg" />
                   <div className="au-member-id">
-                    <div className="au-member-name"><span>{displayName(u)}</span>{self && <Badge tone="accent" size="sm">{t('staff.you')}</Badge>}</div>
+                    <div className="au-member-name"><span title={displayName(u)}>{displayName(u)}</span>{self && <Badge tone="accent" size="sm">{t('staff.you')}</Badge>}</div>
                     <div className="au-member-badges">
                       <Badge tone={ROLE_TONE[u.role]}>{t(`role.${u.role}`)}</Badge>
                       {!u.active && <Badge dot>{t('staff.deactivated')}</Badge>}

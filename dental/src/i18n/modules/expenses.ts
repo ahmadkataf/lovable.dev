@@ -23,6 +23,7 @@ const expenses: ModuleDict = {
     entries_one: 'عملية واحدة', entries_two: 'عمليتان', entries_few: '{n} عمليات', entries_many: '{n} عملية', entries_other: '{n} عملية',
     'empty.descPeriod': 'لم يُسجَّل أي مصروف في هذه الفترة. جرّب فترة أخرى أو سجّل مصروفاً جديداً.', filteredTotal: 'إجمالي النتائج',
     'form.subtitle': 'سجّل أي مبلغ صرفته العيادة', 'form.create': 'تسجيل المصروف',
+    noPermission: 'المصروفات متاحة لمدير العيادة', noPermissionSub: 'سجل مصاريف العيادة وتحليلها من صلاحيات المدير فقط. اطلب من المدير تسجيل أي مصروف تحتاجه.', backHome: 'العودة إلى الرئيسية',
   },
   en: {
     title: 'Expenses', subtitle: 'Record clinic spending and see where the money goes, month by month',
@@ -45,6 +46,7 @@ const expenses: ModuleDict = {
     entries_one: '1 entry', entries_two: '2 entries', entries_few: '{n} entries', entries_many: '{n} entries', entries_other: '{n} entries',
     'empty.descPeriod': 'Nothing was recorded in this period. Try another period or record a new expense.', filteredTotal: 'Total of results',
     'form.subtitle': 'Record money the clinic has spent', 'form.create': 'Save expense',
+    noPermission: 'Expenses are for the clinic admin', noPermissionSub: 'Recording and reviewing clinic spending is limited to admin accounts. Ask an admin to record any expense you need.', backHome: 'Back to dashboard',
   },
 }
 export default expenses

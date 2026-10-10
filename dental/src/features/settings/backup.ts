@@ -17,17 +17,17 @@ export async function exportBackupFile(message: string, by?: string): Promise<st
 }
 
 /** This installation's own settings (activation, trial start), so a restore or a reset never takes them away. */
-async function deviceSettings(): Promise<Setting[]> {
-  const rows = await db.settings.bulkGet([...DEVICE_SETTING_KEYS])
+async function deviceSettings(extra: string[] = []): Promise<Setting[]> {
+  const rows = await db.settings.bulkGet([...DEVICE_SETTING_KEYS, ...extra])
   return rows.filter((r): r is Setting => !!r)
 }
 async function putBack(rows: Setting[]): Promise<void> {
   if (rows.length) await db.settings.bulkPut(rows)
 }
 
-/** Replaces everything with the backup, keeping this device's activation. */
+/** Replaces everything with the backup, keeping this device's activation (and the date of its last export). */
 export async function restoreBackup(data: BackupFile): Promise<{ tables: number; rows: number }> {
-  const keep = await deviceSettings()
+  const keep = await deviceSettings(['lastBackupAt'])
   const r = await importBackup(data)
   await putBack(keep)
   return r

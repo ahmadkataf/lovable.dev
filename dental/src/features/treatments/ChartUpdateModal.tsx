@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Check } from 'lucide-react'
 import type { ToothCondition, ToothSurface, TreatmentItem } from '@/db/types'
 import { logActivity } from '@/db'
@@ -6,7 +6,7 @@ import { useI18n } from '@/i18n'
 import { useSession } from '@/app/session'
 import { ToothIcon } from '@/app/ToothIcon'
 import { Button, Field, Modal, Select, useToast } from '@/ui'
-import { CHART_CHOICES, chartSurfaces, isSurfaceCondition, sortTeeth, surfaceCode, tn } from './lib'
+import { CHART_CHOICES, chartSurfaces, isSurfaceCondition, listSep, sortTeeth, surfaceCode, tn } from './lib'
 import { SurfaceChips, ToothBadge } from './parts'
 import { applyChartEntries } from './actions'
 
@@ -23,6 +23,7 @@ export default function ChartUpdateModal({ prompt, onClose, patientId }: { promp
   const [condition, setCondition] = useState<ToothCondition>('filled')
   const [surfaces, setSurfaces] = useState<Record<string, ToothSurface[]>>({})
   const [saving, setSaving] = useState(false)
+  const busy = useRef(false)
   const items = (prompt?.items ?? []).filter(i => i.tooth)
 
   useEffect(() => {
@@ -33,31 +34,42 @@ export default function ChartUpdateModal({ prompt, onClose, patientId }: { promp
     setSurfaces(s)
   }, [prompt])
 
+  /** Switching to a surface condition (e.g. crown → filling) gives teeth without surfaces the usual default. */
+  const changeCondition = (c: ToothCondition) => {
+    setCondition(c)
+    if (!isSurfaceCondition(c)) return
+    setSurfaces(m => {
+      const n = { ...m }
+      for (const i of items) if (!(n[i.id] ?? []).length) n[i.id] = chartSurfaces(c, i.tooth!, i.surfaces)
+      return n
+    })
+  }
   const surfaceCond = isSurfaceCondition(condition)
   const surfOf = (i: TreatmentItem) => (surfaceCond ? (surfaces[i.id]?.length ? surfaces[i.id] : chartSurfaces(condition, i.tooth!, i.surfaces)) : [])
   const missing = surfaceCond && items.some(i => (surfaces[i.id] ?? []).length === 0)
 
   const apply = async () => {
-    if (missing || saving) return
+    if (missing || busy.current) return
+    busy.current = true
     setSaving(true)
     try {
       const entries = items.map(i => ({ tooth: i.tooth!, condition, surfaces: surfOf(i), treatmentItemId: i.id }))
       await applyChartEntries(patientId, entries, user?.id)
       const teeth = sortTeeth(items.map(i => i.tooth!))
-      void logActivity({ type: 'treatment', action: 'update', patientId, by: user?.id, entityId: items[0]?.id, message: t('treatments.log.chart', { teeth: teeth.join('، '), cond: t(`cond.${condition}`) }) })
-      toast.success(t('treatments.toast.chartUpdated'), `${t(`cond.${condition}`)} · ${teeth.join(', ')}`)
+      void logActivity({ type: 'treatment', action: 'update', patientId, by: user?.id, entityId: items[0]?.id, message: t('treatments.log.chart', { teeth: teeth.join(listSep(lang)), cond: t(`cond.${condition}`) }) })
+      toast.success(t('treatments.toast.chartUpdated'), `${t(`cond.${condition}`)} · ${teeth.join(listSep(lang))}`)
       onClose()
-    } catch (e) { toast.error(t('error'), String((e as Error)?.message ?? e)) } finally { setSaving(false) }
+    } catch (e) { toast.error(t('error'), String((e as Error)?.message ?? e)) } finally { busy.current = false; setSaving(false) }
   }
 
   return (
-    <Modal open={!!prompt && items.length > 0} onClose={onClose} size="sm" icon={<ToothIcon size={20} />} title={t('treatments.chart.title')} subtitle={t('treatments.chart.sub', { name: items.length === 1 ? items[0].procedureName : tn(t, lang, 'treatments.n.items', items.length) })}
+    <Modal open={!!prompt && items.length > 0} onClose={onClose} size="sm" className="tr-modal" icon={<ToothIcon size={20} />} title={t('treatments.chart.title')} subtitle={t('treatments.chart.sub', { name: items.length === 1 ? items[0].procedureName : tn(t, lang, 'treatments.n.items', items.length) })}
       footer={<>
         <Button variant="ghost" onClick={onClose}>{t('treatments.chart.skip')}</Button>
         <Button variant="primary" icon={<Check />} loading={saving} disabled={missing} onClick={() => void apply()}>{t('treatments.chart.apply')}</Button>
       </>}>
       <div className="col gap-4">
-        <Select label={t('treatments.chart.condition')} value={condition} onChange={e => setCondition(e.target.value as ToothCondition)}
+        <Select label={t('treatments.chart.condition')} value={condition} onChange={e => changeCondition(e.target.value as ToothCondition)}
           options={[...new Set([prompt?.condition ?? condition, ...CHART_CHOICES])].map(c => ({ value: c, label: t(`cond.${c}`) }))} />
         <div className="tr-chart-list">
           {items.map(i => (

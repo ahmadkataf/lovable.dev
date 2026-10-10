@@ -7,6 +7,8 @@ import type {
 import { PROCEDURE_CATEGORIES } from '@/db/types'
 import { addDays, dateOf, endOfMonth, startOfMonth, startOfWeek } from '@/lib/dates'
 import { round2 } from '@/lib/format'
+// the billing module's own totals and status rules, so an invoice made here adds up exactly as one made there
+import { computeTotals, invoiceStatus } from '@/features/billing/lib'
 
 export type PlanStatus = TreatmentPlan['status']
 export const ITEM_STATUSES: TreatmentStatus[] = ['planned', 'in_progress', 'completed', 'cancelled']
@@ -74,12 +76,15 @@ export function planStatusFrom(items: readonly Pick<TreatmentItem, 'status'>[], 
   return current === 'draft' ? 'draft' : 'approved'
 }
 
-/** Which status changes an item offers. A billed item cannot be reopened (its invoice would no longer match). */
+/**
+ * Which status changes an item offers: any item can be cancelled, except billed work, which can be neither reopened
+ * nor cancelled (its invoice would no longer match).
+ */
 export function nextStatuses(i: Pick<TreatmentItem, 'status' | 'invoiceId'>): TreatmentStatus[] {
   switch (i.status) {
     case 'planned': return ['in_progress', 'completed', 'cancelled']
     case 'in_progress': return ['completed', 'planned', 'cancelled']
-    case 'completed': return i.invoiceId ? [] : ['in_progress']
+    case 'completed': return i.invoiceId ? [] : ['in_progress', 'cancelled']
     case 'cancelled': return ['planned']
   }
 }
@@ -106,11 +111,12 @@ export function mainDoctor(items: readonly Pick<TreatmentItem, 'doctorId'>[]): I
 export type InvoiceDraft = Omit<Invoice, 'id' | 'number' | 'createdAt' | 'updatedAt' | 'createdBy'>
 /**
  * The invoice for a set of completed treatment items: one line per item (qty 1, the item's price and discount),
- * no invoice-level discount, the clinic's tax on the subtotal, nothing paid yet.
+ * no invoice-level discount, the clinic's tax on the subtotal (rounded to the currency's minor unit, as billing
+ * does), nothing paid yet.
  */
 export function invoiceFromItems(
   items: readonly TreatmentItem[],
-  clinic: Pick<Clinic, 'taxPercent'>,
+  clinic: Pick<Clinic, 'taxPercent'> & Partial<Pick<Clinic, 'currencyDecimals'>>,
   opts: { date: ISODate; patientId?: ID; doctorId?: ID; makeId: () => string; describe?: (i: TreatmentItem) => string },
 ): InvoiceDraft {
   const lines: InvoiceItem[] = items.map(i => {
@@ -122,13 +128,11 @@ export function invoiceFromItems(
     if (i.tooth) line.tooth = i.tooth
     return line
   })
-  const subtotal = round2(lines.reduce((a, l) => a + l.total, 0))
   const taxPercent = Math.max(0, Number(clinic.taxPercent) || 0)
-  const tax = round2((subtotal * taxPercent) / 100)
-  const total = round2(subtotal + tax)
+  const { subtotal, tax, total } = computeTotals(lines, 0, taxPercent, clinic.currencyDecimals ?? 2)
   const draft: InvoiceDraft = {
     patientId: opts.patientId ?? items[0]?.patientId ?? '', date: opts.date, items: lines,
-    subtotal, discount: 0, taxPercent, tax, total, paid: 0, status: total > 0 ? 'unpaid' : 'paid',
+    subtotal, discount: 0, taxPercent, tax, total, paid: 0, status: invoiceStatus(total, 0, 'unpaid'),
   }
   const doctorId = opts.doctorId ?? mainDoctor(items)
   if (doctorId) draft.doctorId = doctorId
@@ -312,16 +316,31 @@ export function groupByPatient<T extends Pick<TreatmentItem, 'patientId'>>(items
   return [...map].map(([patientId, list]) => ({ patientId, items: list }))
 }
 
-/** RFC 4180 CSV with a BOM so Excel opens Arabic text correctly. */
+/**
+ * RFC 4180 CSV with a BOM so Excel opens Arabic text correctly. Text that a spreadsheet would read as a formula
+ * (=, +, -, @ at the start, e.g. a patient "name" typed as =HYPERLINK(…)) is prefixed with an apostrophe.
+ */
 export function toCSV(rows: readonly (readonly (string | number | null | undefined)[])[]): string {
   const cell = (v: string | number | null | undefined) => {
-    const s = v === null || v === undefined ? '' : String(v)
+    let s = v === null || v === undefined ? '' : String(v)
+    if (typeof v === 'string' && /^[=+\-@\t\r]/.test(s)) s = `'${s}`
     return /[",\n\r;]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s
   }
   return '﻿' + rows.map(r => r.map(cell).join(',')).join('\r\n')
 }
 
 // ---- words --------------------------------------------------------------------------------------
+
+/** A title no other plan of the patient uses yet: "Plan — date", then "Plan — date (2)", "(3)"… */
+export function uniqueTitle(base: string, taken: readonly string[] = []): string {
+  const set = new Set(taken.map(s => s.trim()))
+  if (!set.has(base)) return base
+  for (let n = 2; n < 100; n++) { const c = `${base} (${n})`; if (!set.has(c)) return c }
+  return base
+}
+
+/** The separator of a short list (tooth numbers…): the Arabic comma in Arabic. */
+export const listSep = (lang: 'ar' | 'en') => (lang === 'ar' ? '، ' : ', ')
 
 type T = (k: string, p?: Record<string, string | number>) => string
 /** Counted strings with real plural forms: keys '<key>_<rule>' (Arabic: zero one two few many other), falling back to '<key>_other'. */

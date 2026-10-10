@@ -45,7 +45,7 @@ export function CashReportModal({ rows, period, filters, onClose }: { rows: Ledg
         </div>
 
         {groups.length === 0 ? <div className="bl-muted-line" style={{ marginTop: 24, textAlign: 'center' }}>{t('billing.report.noPayments')}</div> : (
-          <table className="bl-items">
+          <div className="bl-table-scroll"><table className="bl-items">
             <thead>
               <tr>
                 <th>{t('date')}</th>
@@ -72,7 +72,7 @@ export function CashReportModal({ rows, period, filters, onClose }: { rows: Ledg
                 <tr className="bl-subtotal"><td colSpan={2}>{t('billing.report.subtotal', { method: t(`pay.${g.method}`) })}</td><td colSpan={3} className="bl-hide-sm" /><td className="bl-n"><Money value={g.total} kind="signed" /></td></tr>
               </tbody>
             ))}
-          </table>
+          </table></div>
         )}
 
         <div className="bl-sheet-bottom">

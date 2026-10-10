@@ -23,10 +23,11 @@ export function useChartActions(patientId: string) {
       for (const id of plan.activate) await db.teeth.update(id, { active: true })
       const now = nowISO()
       for (const r of plan.add) {
-        const row: ToothRecord = { id: newId(), patientId, tooth: r.tooth, surfaces: r.surfaces, condition: r.condition, active: r.active, recordedAt: now }
+        const row: ToothRecord = { id: newId(), patientId, tooth: r.tooth, surfaces: r.surfaces, condition: r.condition, active: r.active, recordedAt: r.recordedAt ?? now }
         if (r.note) row.note = r.note
         if (r.treatmentItemId) row.treatmentItemId = r.treatmentItemId
-        if (user?.id) row.recordedBy = user.id
+        const by = r.recordedAt ? r.recordedBy : user?.id      // a kept remainder keeps its author
+        if (by) row.recordedBy = by
         await db.teeth.add(row)
       }
       return { plan, added: plan.add }

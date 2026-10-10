@@ -7,7 +7,7 @@ import { useI18n } from '@/i18n'
 import { Button, IconButton } from '@/ui'
 import { formatPhone } from '@/lib/format'
 import { fmtDate, fmtTime, fromISODate, minutesToTime, relativeDay, diffDays, today as todayISO } from '@/lib/dates'
-import { groupByDate, layoutColumns, minutesOfDay, monthGrid, nextStep, durationOf, isWorkingDay, slotIsBusy } from './lib'
+import { groupByDate, layoutColumns, minutesOfDay, monthGrid, nextStep, durationOf, isWorkingDay, safeDuration } from './lib'
 import { aptVars, DocDot, PatientAvatar, StatusBadge, useCountLabel, useDurationLabel, type AptRow } from './shared'
 
 const ST_ICON: Partial<Record<AppointmentStatus, ReactNode>> = {
@@ -74,7 +74,7 @@ export function TimeGrid({ columns, startMin, endMin, step, pxPerMin, workStart,
     el.scrollTop = Math.max(0, target)
   }, [scrollKey]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  const gridStyle = { ['--tg-cols' as string]: columns.length, ['--tg-colmin' as string]: compact ? '112px' : '200px', ['--slot-h' as string]: `${slotH}px` } as CSSProperties
+  const gridStyle = { ['--tg-cols' as string]: columns.length, ['--slot-h' as string]: `${slotH}px` } as CSSProperties
 
   return (
     <div className={`apt-tg${compact ? ' compact' : ''}${readOnly ? ' ro' : ''}`} style={gridStyle}>
@@ -135,16 +135,16 @@ function EventCard({ row, top, height, col, cols, compact, onOpen }: { row: AptR
   return (
     <button type="button" className={`apt-ev size-${size} is-${row.status}${narrow ? ' narrow' : ''}`} style={style} title={title} onClick={e => { e.stopPropagation(); onOpen(row) }}>
       {size === 's' ? (
-        <span className="apt-ev-line"><span className="apt-ev-time apt-tm">{fmtTime(row.start, lang)}</span><span className="apt-ev-name">{name}</span></span>
+        <span className="apt-ev-line"><span className="apt-ev-time apt-tm">{fmtTime(row.start, lang)}</span><span className="apt-ev-name" dir="auto">{name}</span></span>
       ) : size === 'm' ? (
         <>
-          <span className="apt-ev-name">{name}</span>
+          <span className="apt-ev-name" dir="auto">{name}</span>
           <span className="apt-ev-sub"><span className="apt-tm">{fmtTime(row.start, lang)}</span>{!compact && <> · {t(`aptType.${row.type}`)}</>}</span>
         </>
       ) : (
         <>
           <span className="apt-ev-time apt-tm">{fmtTime(row.start, lang)} – {fmtTime(row.end, lang)}</span>
-          <span className="apt-ev-name">{name}</span>
+          <span className="apt-ev-name" dir="auto">{name}</span>
           <span className="apt-ev-sub">{t(`aptType.${row.type}`)}{row.reason && !compact ? <> · {row.reason}</> : null}</span>
         </>
       )}
@@ -181,7 +181,7 @@ export function MonthView({ date, rows, workingDays, mobile, onDay, onOpen }: { 
                   <button key={r.id} type="button" className={`apt-mchip is-${r.status}`} style={aptVars(r)} onClick={e => { e.stopPropagation(); onOpen(r) }}
                     title={`${fmtTime(r.start, lang)} · ${r.patient?.name ?? ''} · ${t(`apt.${r.status}`)}`}>
                     <span className="apt-mchip-time apt-tm">{fmtTime(r.start, lang)}</span>
-                    <span className="apt-mchip-name">{r.patient?.name ?? t('appointments.deletedPatient')}</span>
+                    <span className="apt-mchip-name" dir="auto">{r.patient?.name ?? t('appointments.deletedPatient')}</span>
                   </button>
                 ))}
                 {items.length > 3 && <span className="apt-mmore">{t('appointments.moreN', { n: items.length - 3 })}</span>}
@@ -239,21 +239,23 @@ function AgendaRow({ row, readOnly, onOpen, onStep, onRemind }: { row: AptRow; r
     <div className={`apt-arow is-${row.status}`} style={aptVars(row)} role="button" tabIndex={0} onClick={() => onOpen(row)} onKeyDown={onKeyActivate(() => onOpen(row))}>
       <div className="apt-arow-time">
         <span className="apt-arow-start apt-tm">{fmtTime(row.start, lang)}</span>
-        <span className="apt-arow-dur">{durLabel(row.durationMin)}</span>
+        <span className="apt-arow-dur">{durLabel(safeDuration(row))}</span>
       </div>
       <div className="apt-arow-patient">
         <PatientAvatar patient={p} size="sm" />
         <span className="grow">
-          <span className="apt-arow-name truncate">{p?.name ?? t('appointments.deletedPatient')}</span>
+          <span className="apt-arow-name truncate" dir="auto">{p?.name ?? t('appointments.deletedPatient')}</span>
           <span className="apt-arow-sub">{p?.phone ? <span className="ltr num">{formatPhone(p.phone)}</span> : <span className="subtle">—</span>}</span>
         </span>
       </div>
-      <div className="apt-arow-doc truncate"><DocDot doctor={row.doctor} /><bdi className="truncate">{row.doctor?.name ?? t('unknown')}</bdi></div>
+      <div className="apt-arow-doc truncate"><DocDot doctor={row.doctor} /><bdi className="truncate">{row.doctor?.name ?? t('appointments.formerDoctor')}</bdi></div>
       <div className="apt-arow-type truncate">{t(`aptType.${row.type}`)}{row.reason && <span className="apt-arow-reason truncate">{row.reason}</span>}</div>
       <div className="apt-arow-status"><StatusBadge status={row.status} /></div>
       <div className="apt-arow-actions" onClick={e => e.stopPropagation()}>
         {!readOnly && step && <Button size="sm" variant={step === 'completed' ? 'success' : step === 'in_progress' ? 'primary' : 'soft'} onClick={() => onStep(row, step)}>{t(`appointments.action.${step}`)}</Button>}
-        {!readOnly && canRemind && <IconButton size="sm" variant="ghost" label={t('appointments.reminder')} className="apt-wa-btn" onClick={() => onRemind(row)}><MessageCircle /></IconButton>}
+        {!readOnly && (canRemind
+          ? <IconButton size="sm" variant="ghost" label={t('appointments.reminder')} className="apt-wa-btn" onClick={() => onRemind(row)}><MessageCircle /></IconButton>
+          : <span className="apt-wa-sp" aria-hidden="true" />)}
         <IconButton size="sm" variant="ghost" label={t('details')} className="apt-flip" onClick={() => onOpen(row)}><ChevronRight /></IconButton>
       </div>
     </div>
@@ -269,16 +271,16 @@ export function MobileItem({ row, onOpen, showDoctor = true }: { row: AptRow; on
     <button type="button" className={`apt-mitem is-${row.status}`} style={aptVars(row)} onClick={() => onOpen(row)}>
       <span className="apt-mitem-time">
         <span className="apt-tm">{fmtTime(row.start, lang)}</span>
-        <small>{durLabel(row.durationMin)}</small>
+        <small>{durLabel(safeDuration(row))}</small>
       </span>
       <span className="apt-mitem-card">
         <span className="apt-mitem-top">
-          <span className="apt-mitem-name">{row.patient?.name ?? t('appointments.deletedPatient')}</span>
+          <span className="apt-mitem-name" dir="auto">{row.patient?.name ?? t('appointments.deletedPatient')}</span>
           <StatusBadge status={row.status} size="sm" />
         </span>
         <span className="apt-mitem-sub">
           <span>{t(`aptType.${row.type}`)}</span>
-          {showDoctor && row.doctor && <><span className="sep">·</span><DocDot doctor={row.doctor} /><bdi className="truncate">{row.doctor.name}</bdi></>}
+          {showDoctor && <><span className="sep">·</span><DocDot doctor={row.doctor} /><bdi className="truncate">{row.doctor?.name ?? t('appointments.formerDoctor')}</bdi></>}
         </span>
       </span>
     </button>
@@ -289,8 +291,9 @@ export function DayList({ rows, onOpen, showDoctor }: { rows: AptRow[]; onOpen: 
   return <div className="apt-daylist">{rows.map(r => <MobileItem key={r.id} row={r} onOpen={onOpen} showDoctor={showDoctor} />)}</div>
 }
 
-/** Horizontal strip of the day's slots: tap a time to book it. Busy slots are marked, not blocked. */
-export function TimeStrip({ date, slots, rows, step, readOnly, onPick }: { date: string; slots: string[]; rows: AptRow[]; step: number; readOnly?: boolean; onPick: (time: string) => void }) {
+export type SlotLoad = 'free' | 'part' | 'busy'
+/** Horizontal strip of the day's slots: tap a time to book it. Booked slots are marked (all doctors busy, or some), not blocked. */
+export function TimeStrip({ date, slots, loadOf, readOnly, onPick }: { date: string; slots: string[]; loadOf: (time: string) => SlotLoad; readOnly?: boolean; onPick: (time: string) => void }) {
   const { t, lang } = useI18n()
   const ref = useRef<HTMLDivElement>(null)
   const isToday = date === todayISO()
@@ -309,10 +312,11 @@ export function TimeStrip({ date, slots, rows, step, readOnly, onPick }: { date:
       <div className="apt-strip-label">{t('appointments.tapToBook')}</div>
       <div className="apt-strip" ref={ref}>
         {slots.map(s => {
-          const busy = slotIsBusy(rows, date, s, step)
+          const load = loadOf(s)
           return (
-            <button key={s} type="button" className={`apt-strip-slot${busy ? ' busy' : ''}`} onClick={() => onPick(s)} aria-label={t('appointments.addAt', { time: fmtTime(s, lang) })}>
-              {busy ? <span className="apt-strip-dot" /> : <Plus />}
+            <button key={s} type="button" className={`apt-strip-slot ${load}`} onClick={() => onPick(s)} aria-label={t('appointments.addAt', { time: fmtTime(s, lang) })}
+              title={load === 'busy' ? t('appointments.busy') : load === 'part' ? t('appointments.partlyBusy') : undefined}>
+              {load === 'free' ? <Plus /> : <span className="apt-strip-dot" />}
               <span className="apt-tm">{fmtTime(s, lang)}</span>
             </button>
           )

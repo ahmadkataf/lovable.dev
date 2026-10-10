@@ -1,7 +1,7 @@
-import { highlightRanges, indexPatient, invoiceNumberMatch, looksLikeNumber, plural, pushRecent, rankPatients, removeRecent, scoreLabel, scorePatient, splitHighlight, type SearchPatient } from '../src/features/search/lib'
+import { highlightRanges, indexPatient, invoiceNumberMatch, looksLikeGroupedNumber, looksLikeNumber, matchedPhone, phoneForms, plural, prepareQuery, pushRecent, rankPatients, removeRecent, scoreLabel, scorePatient, searchInvoices, splitHighlight, textDir, type SearchInvoice, type SearchPatient } from '../src/features/search/lib'
 import {
   birthdaysToday, computeAlerts, expiringItems, expiryState, importantIds, isBirthday, isLowStock, isOverdueInvoice, labDue, lowStockItems,
-  monthsBetween, overdueInvoices, recallPatients, remainingToday, unconfirmedTomorrow, unseenCount,
+  monthsBetween, overdueInvoices, recallPatients, remainingToday, shiftMonths, unconfirmedTomorrow, unseenCount,
 } from '../src/features/search/alerts'
 import { translate } from '../src/i18n'
 import { combine } from '../src/lib/dates'
@@ -38,6 +38,26 @@ describe('patient ranking', () => {
     expect(ids('123456')).toEqual(['a'])             // the end of a phone
     expect(ids('0102030')).toEqual(['c'])
   })
+  it('finds phones typed in groups, with dashes or with a country code', () => {
+    expect(ids('0944 123 456')).toEqual(['a'])
+    expect(ids('0944-123-456')).toEqual(['a'])
+    expect(ids('+963 944 123 456')).toEqual(['a'])     // stored as 0944123456
+    expect(ids('+963944123456')).toEqual(['a'])
+    expect(ids('00963944123456')).toEqual(['a'])
+    expect(ids('944123456')).toEqual(['a'])            // without the leading zero
+    expect(ids('0944 999 888')).toEqual(['e'])         // stored as +963944999888
+    expect(ids('0944 777')).toEqual([])                // a grouped number must match as a whole
+    expect(phoneForms('+963 944-123-456')).toEqual(['963944123456', '0944123456', '944123456'])
+    expect(looksLikeGroupedNumber('0944 123 456')).toBe(true)
+    expect(looksLikeGroupedNumber('أحمد 0944')).toBe(false)
+  })
+  it('shows the phone the query matched', () => {
+    const p = { phone: '0944123456', phone2: '0933000111' }
+    expect(matchedPhone(p, '0933')).toBe('0933000111')
+    expect(matchedPhone(p, '+963 933 000 111')).toBe('0933000111')
+    expect(matchedPhone(p, 'أحمد')).toBe('0944123456')
+    expect(matchedPhone({ phone2: '0933000111' }, 'x')).toBe('0933000111')
+  })
   it('requires every word to match', () => {
     expect(ids('أحمد 0944')).toEqual(['a'])
     expect(ids('أحمد 0933')).toEqual(['b'])
@@ -63,8 +83,31 @@ describe('invoice numbers, labels, highlighting, recents', () => {
     expect(invoiceNumberMatch('INV-000123', '23')).toBe(1)
     expect(invoiceNumberMatch('INV-000123', '9')).toBe(0)
     expect(invoiceNumberMatch('INV-000123', 'in')).toBe(0)
+    // the prefix can be typed with the number, with or without its dash
+    expect(invoiceNumberMatch('INV-000012', 'INV-12')).toBe(3)
+    expect(invoiceNumberMatch('INV-000012', 'inv 12')).toBe(3)
+    expect(invoiceNumberMatch('INV-000012', 'INV12')).toBe(3)
+    expect(invoiceNumberMatch('INV-000123', 'inv-12')).toBe(2)
+    expect(invoiceNumberMatch('INV-000012', 'ab12')).toBe(0)
+    expect(invoiceNumberMatch('INV2026-000012', '12')).toBe(3)       // the serial is the last run of digits
     expect(looksLikeNumber('INV-12')).toBe(true)
     expect(looksLikeNumber('أحمد')).toBe(false)
+  })
+  it('searches invoices by number first, then by the matched patients, newest first', () => {
+    const I = (id: string, number: string, patientId: string, date: string): SearchInvoice => ({ id, number, patientId, date, total: 100, status: 'unpaid' })
+    const list = [I('1', 'INV-000012', 'x', '2026-01-01'), I('2', 'INV-000120', 'y', '2026-02-01'), I('3', 'INV-000123', 'a', '2026-03-01'), I('4', 'INV-000300', 'a', '2026-04-01'), I('5', 'INV-000013', 'b', '2026-05-01')]
+    expect(searchInvoices(list, '12').map(r => r.invoice.id)).toEqual(['1', '3', '2'])        // exact, then prefixes (newest first)
+    expect(searchInvoices(list, 'INV-12', [], 1).map(r => r.invoice.id)).toEqual(['1'])
+    expect(searchInvoices(list, 'احمد', ['a', 'b']).map(r => r.invoice.id)).toEqual(['4', '3', '5'])   // best patient first
+    expect(searchInvoices(list, '12', ['b']).map(r => r.invoice.id)).toEqual(['1', '3', '2', '5'])    // number matches outrank the patient's
+    expect(searchInvoices(list, 'زز')).toEqual([])
+    expect(searchInvoices(list, '12', [], 2)).toHaveLength(2)
+  })
+  it('prepares a query once for many patients, with the same scores', () => {
+    const pq = prepareQuery('+963 944 123 456')
+    expect(pq.toks).toHaveLength(4)
+    expect(pq.joined?.forms).toContain('0944123456')
+    for (const ix of index) expect(scorePatient(ix, pq)).toBe(scorePatient(ix, '+963 944 123 456'))
   })
   it('scores page labels in both languages', () => {
     expect(scoreLabel(['المواعيد', 'Appointments'], 'موا')).toBeGreaterThan(0)
@@ -78,6 +121,18 @@ describe('invoice numbers, labels, highlighting, recents', () => {
     expect(highlightRanges(voweled, 'محمد')).toEqual([[0, voweled.length]])
     expect(splitHighlight('Ahmad Khatib', 'kha')).toEqual([{ text: 'Ahmad ', hit: false }, { text: 'Kha', hit: true }, { text: 'tib', hit: false }])
     expect(splitHighlight('#12', '12')).toEqual([{ text: '#', hit: false }, { text: '12', hit: true }])
+    // numbers match across the spaces of a formatted phone, with or without a country code
+    expect(highlightRanges('0944 123 456', '0944123456')).toEqual([[0, 12]])
+    expect(highlightRanges('0944 123 456', '+963 944 123 456')).toEqual([[0, 12]])
+    expect(highlightRanges('0944 123 456', '123456')).toEqual([[5, 12]])
+  })
+  it('reads the direction of typed text from its first letter', () => {
+    expect(textDir('أحمد 0944')).toBe('rtl')
+    expect(textDir('0944 123 456')).toBe('ltr')
+    expect(textDir('+963 944')).toBe('ltr')
+    expect(textDir('12 أحمد')).toBe('rtl')
+    expect(textDir('ahmad أحمد')).toBe('ltr')
+    expect(textDir('')).toBe('ltr')
   })
   it('keeps at most six recent searches, newest first, deduplicated', () => {
     let list: string[] = []
@@ -201,7 +256,10 @@ describe('lab work and appointments', () => {
 })
 
 describe('recall and birthdays', () => {
-  it('counts whole calendar months', () => {
+  it('counts whole calendar months and clamps month ends', () => {
+    expect(shiftMonths('2026-08-31', -6)).toBe('2026-02-28')
+    expect(shiftMonths('2028-08-31', -6)).toBe('2028-02-29')
+    expect(shiftMonths('2026-10-10', -6)).toBe('2026-04-10')
     expect(monthsBetween('2026-03-01', TODAY)).toBe(7)
     expect(monthsBetween('2026-03-15', TODAY)).toBe(6)
     expect(monthsBetween('2025-10-10', TODAY)).toBe(12)
@@ -225,6 +283,11 @@ describe('recall and birthdays', () => {
     expect(r.list[0].lastVisit).toBe('2026-04-09')
     expect(recallPatients(patients, apts, TODAY, { limit: 2 })).toMatchObject({ total: 3 })
     expect(recallPatients(patients, apts, TODAY, { limit: 2 }).list).toHaveLength(2)
+  })
+  it('never recalls a visit less than six months old at a month end', () => {
+    // 31 Aug − 6 months is 28 Feb: a visit on 1 March is five months ago
+    const r = recallPatients([pat('A'), pat('B')], [apt('a', '2026-03-01', '10:00', 'completed', 'A'), apt('b', '2026-02-27', '10:00', 'completed', 'B')], '2026-08-31')
+    expect(r.list.map(x => [x.patient.id, x.months])).toEqual([['B', 6]])
   })
   it('caps the recall list at ten', () => {
     const patients = Array.from({ length: 14 }, (_, i) => pat(`p${i}`))

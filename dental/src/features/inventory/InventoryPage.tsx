@@ -1,13 +1,13 @@
 import { useCallback, useMemo, useState, type MouseEvent } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import {
-  Boxes, CalendarClock, Coins, Download, Eye, History, Minus, PackagePlus, Pencil, Plus, Power, PowerOff, Search, ShoppingCart, Trash2, TriangleAlert, X,
+  Boxes, CalendarClock, Coins, Download, Eye, History, Minus, PackagePlus, Pencil, Plus, Power, PowerOff, Search, ShieldAlert, ShoppingCart, Trash2, TriangleAlert, X,
 } from 'lucide-react'
 import { db, logActivity } from '@/db'
 import { todayISO } from '@/db/ids'
 import type { InventoryItem, StockMovement } from '@/db/types'
 import {
-  Alert, Badge, Button, Chip, DataTable, EmptyState, Input, PageHeader, Pagination, Skeleton, StatCard, Switch, Tabs, useConfirm, useToast, usePagination,
+  Alert, Badge, Button, Card, Chip, DataTable, EmptyState, Input, PageHeader, Pagination, Skeleton, StatCard, Switch, Tabs, useConfirm, useToast, usePagination,
   type Column, type MenuItemDef,
 } from '@/ui'
 import { useI18n } from '@/i18n'
@@ -33,7 +33,21 @@ import './inventory.css'
 
 type TabId = 'items' | 'movements'
 
+/** Stock is for roles with the 'inventory' permission: the menu hides the page from others, and a typed URL lands here. */
 export default function InventoryPage() {
+  const { t } = useI18n()
+  const session = useSession()
+  if (!session.can('inventory')) {
+    return (
+      <div className="page">
+        <Card><EmptyState icon={<ShieldAlert />} title={t('inventory.noPermission')} description={t('inventory.noPermissionSub')} actions={<Button variant="primary" to="/">{t('inventory.backHome')}</Button>} /></Card>
+      </div>
+    )
+  }
+  return <InventoryView />
+}
+
+function InventoryView() {
   const { t, lang } = useI18n()
   const money = useMoney()
   const unitMoney = useUnitMoney()
@@ -47,6 +61,8 @@ export default function InventoryPage() {
 
   const items = useLiveQuery(() => db.inventory.toArray(), [])
   const movementCount = useLiveQuery(() => db.stock.count(), [])
+  // items with history beyond their opening stock: those are deactivated, not deleted (the menu hides "delete")
+  const withHistory = useLiveQuery(async () => new Set((await db.stock.where('reason').noneOf(['initial']).toArray()).map(m => m.itemId)), [])
   const [tab, setTab] = useState<TabId>('items')
   const movements = useLiveQuery<StockMovement[] | undefined>(async () => (tab === 'movements' ? db.stock.toArray() : undefined), [tab])
 
@@ -91,7 +107,7 @@ export default function InventoryPage() {
 
   const toggleActive = async (it: InventoryItem) => {
     await setItemActive(it.id, !it.active)
-    toast.success(it.active ? t('inventory.toast.deactivated') : t('inventory.toast.activated'), it.name)
+    toast.success(it.active ? t('inventory.toast.deactivated') : t('inventory.toast.activated'), <bdi className="inv-wrap">{it.name}</bdi>)
     void logActivity({ type: 'inventory', action: 'status', entityId: it.id, by: user?.id, message: t('inventory.act.status', { name: it.name, status: it.active ? t('inactive') : t('active') }) })
   }
   const remove = async (it: InventoryItem) => {
@@ -100,11 +116,11 @@ export default function InventoryPage() {
       if (ok && it.active) await toggleActive(it)
       return
     }
-    const ok = await confirm({ title: t('confirmDeleteTitle'), description: t('inventory.deleteDesc', { name: it.name }), danger: true })
+    const ok = await confirm({ title: t('confirmDeleteTitle'), description: <span className="inv-wrap">{t('inventory.deleteDesc', { name: it.name })}</span>, danger: true })
     if (!ok) return
     try {
       await deleteItem(it.id)
-      toast.success(t('inventory.toast.deleted'), it.name)
+      toast.success(t('inventory.toast.deleted'), <bdi className="inv-wrap">{it.name}</bdi>)
       void logActivity({ type: 'inventory', action: 'delete', entityId: it.id, by: user?.id, message: t('inventory.act.deleted', { name: it.name }) })
     } catch { toast.error(t('error')) }
   }
@@ -115,8 +131,10 @@ export default function InventoryPage() {
       { label: t('edit'), icon: <Pencil />, onClick: () => setForm({ open: true, item: it }) },
       ...(it.active ? [{ label: t('inventory.purchaseItem'), icon: <ShoppingCart />, onClick: () => setPurchase({ open: true, ids: [it.id] }) }] : []),
       { label: it.active ? t('inventory.deactivate') : t('inventory.activate'), icon: it.active ? <PowerOff /> : <Power />, onClick: () => void toggleActive(it) },
-      { sep: true },
-      { label: t('inventory.deleteItem'), icon: <Trash2 />, danger: true, onClick: () => void remove(it) },
+      ...(withHistory && !withHistory.has(it.id) ? [
+        { sep: true },
+        { label: t('inventory.deleteItem'), icon: <Trash2 />, danger: true, onClick: () => void remove(it) },
+      ] : []),
     ] as MenuItemDef[]),
   ]
 
@@ -166,7 +184,7 @@ export default function InventoryPage() {
     { key: 'min', header: t('inventory.col.min'), render: it => <span className="num muted">{qtyText(it.minQuantity, lang)}</span>, hideBelow: 'lg', className: 'num' },
     { key: 'cost', header: t('inventory.col.cost'), render: it => (it.costPrice ? <span className="money inv-money">{unitMoney(it.costPrice)}</span> : <span className="muted">—</span>), hideBelow: 'lg', className: 'num' },
     { key: 'value', header: t('inventory.col.value'), render: it => <span className="money">{money(itemValue(it))}</span>, hideBelow: 'md', className: 'num' },
-    { key: 'supplier', header: t('inventory.col.supplier'), render: it => <span className="truncate inv-supplier">{it.supplier ? <bdi>{it.supplier}</bdi> : <span className="muted">—</span>}</span>, hideBelow: 'lg' },
+    { key: 'supplier', header: t('inventory.col.supplier'), render: it => (it.supplier ? <span className="truncate inv-supplier inv-auto" dir="auto" title={it.supplier}>{it.supplier}</span> : <span className="muted">—</span>), hideBelow: 'lg' },
     { key: 'expiry', header: t('inventory.col.expiry'), render: it => <ExpiryBadge date={it.expiryDate} today={today} always />, hideBelow: 'sm' },
     { key: 'actions', header: <span className="sr-only">{t('actions')}</span>, render: it => <RowMenu items={menuFor(it)} label={t('actions')} />, className: 'actions', width: 56 },
   ]
@@ -240,7 +258,7 @@ export default function InventoryPage() {
                   <Chip active={!category} onClick={() => setCategory('')}>{t('inventory.allCategories')}</Chip>
                   {categories.map(c => (
                     <Chip key={c.value} active={category === c.value} onClick={() => setCategory(category === c.value ? '' : c.value)}>
-                      {catLabel(t, c.value)}<span className="inv-chip-count num">{c.count}</span>
+                      <span className="inv-chip-label truncate" dir="auto" title={catLabel(t, c.value)}>{catLabel(t, c.value)}</span><span className="inv-chip-count num">{c.count}</span>
                     </Chip>
                   ))}
                   {expiringOnly && <Chip active className="inv-chip-warn" icon={<CalendarClock />} onRemove={() => setExpiringOnly(false)} onClick={() => setExpiringOnly(false)}>{t('inventory.expiringOnly')}</Chip>}
@@ -252,7 +270,8 @@ export default function InventoryPage() {
               ) : rows.length === 0 ? (
                 <div className="card">
                   <EmptyState compact icon={<Search />} title={t('noResults')} description={t('inventory.noResults.desc')}
-                    actions={filtered && <Button variant="secondary" icon={<X />} onClick={clearFilters}>{t('inventory.clearFilters')}</Button>} />
+                    actions={filtered ? <Button variant="secondary" icon={<X />} onClick={clearFilters}>{t('inventory.clearFilters')}</Button>
+                      : !showInactive && items!.some(i => !i.active) ? <Button variant="secondary" icon={<Eye />} onClick={() => setShowInactive(true)}>{t('inventory.showInactive')}</Button> : undefined} />
                 </div>
               ) : mobile ? (
                 <div className="inv-cards">

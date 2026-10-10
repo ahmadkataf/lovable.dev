@@ -1,7 +1,7 @@
 import type { Expense } from '../src/db/types'
 import {
   categoryBreakdown, filterExpenses, inPeriod, isFullMonth, isRealDate, isValidPeriod, monthPeriod, periodDays, periodDelta, periodTotal, previousPeriod, shiftMonth, sortExpenses,
-  topCategory, validateExpense,
+  toCSV, topCategory, validateExpense,
 } from '../src/features/expenses/lib'
 import { matches } from '../src/lib/format'
 
@@ -91,5 +91,13 @@ describe('expenses: filters, sorting, validation', () => {
     expect(validateExpense({ category: '', amount: null, date: '', description: '  ' })).toEqual({ category: 'required', amount: 'required', date: 'required', description: 'required' })
     expect(validateExpense({ category: 'rent', amount: 0, date: '2026-13-01', description: 'x' })).toEqual({ amount: 'positive', date: 'date' })
     expect(validateExpense({ category: 'rent', amount: -5, date: 'abc', description: 'x' })).toEqual({ amount: 'positive', date: 'date' })
+  })
+})
+
+describe('expenses: csv', () => {
+  it('BOM, quoting, and formula-looking text neutralised', () => {
+    const csv = toCSV([['date', 'description', 'amount'], ['2026-10-01', '=cmd|calc', 120.5], ['2026-10-02', 'Rent, October', -0]])
+    expect(csv.charCodeAt(0)).toBe(0xfeff)
+    expect(csv.slice(1).split('\r\n')).toEqual(['date,description,amount', "2026-10-01,'=cmd|calc,120.5", '2026-10-02,"Rent, October",0'])
   })
 })

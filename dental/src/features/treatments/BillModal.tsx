@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { FileText, ReceiptText } from 'lucide-react'
 import type { TreatmentItem } from '@/db/types'
@@ -23,6 +23,7 @@ export default function BillModal({ open, onClose, patientId, patientName, items
   const { user } = useSession()
   const [chosen, setChosen] = useState<Set<string>>(new Set())
   const [saving, setSaving] = useState(false)
+  const busy = useRef(false)          // one invoice per click, however fast the clicks
   useEffect(() => { if (open) setChosen(new Set(items.map(i => i.id))) }, [open]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const picked = items.filter(i => chosen.has(i.id))
@@ -34,7 +35,8 @@ export default function BillModal({ open, onClose, patientId, patientName, items
   const toggle = (id: string) => setChosen(s => { const n = new Set(s); if (n.has(id)) n.delete(id); else n.add(id); return n })
 
   const confirm = async () => {
-    if (!picked.length || saving) return
+    if (!picked.length || busy.current) return
+    busy.current = true
     setSaving(true)
     try {
       const inv = await billItems(patientId, picked.map(i => i.id), user?.id)
@@ -44,11 +46,11 @@ export default function BillModal({ open, onClose, patientId, patientName, items
       navigate('/invoices/' + inv.id)
     } catch (e) {
       toast.error(t('error'), (e as Error)?.message === 'nothing-to-bill' ? t('treatments.bill.nothing') : String((e as Error)?.message ?? e))
-    } finally { setSaving(false) }
+    } finally { busy.current = false; setSaving(false) }
   }
 
   return (
-    <Modal open={open} onClose={onClose} size="lg" icon={<ReceiptText />} title={t('treatments.bill.title')} subtitle={t('treatments.bill.sub')}
+    <Modal open={open} onClose={onClose} size="lg" icon={<ReceiptText />} title={t('treatments.bill.title')} subtitle={t('treatments.bill.sub')} className="tr-modal"
       footer={<>
         <span className="start text-sm muted">{tn(t, lang, 'treatments.n.items', picked.length)}</span>
         <Button variant="ghost" onClick={onClose}>{t('cancel')}</Button>

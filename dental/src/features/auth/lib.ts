@@ -222,6 +222,10 @@ export function buildClinicPatch(lang: Lang, c: ClinicDraft, m: MoneyDraft): Par
   }
 }
 
+/** The title the owner starts with in each language (the wizard's default until it is chosen by hand). Same strings as auth.owner.titleAr/En. */
+export function ownerTitleFor(lang: Lang): string {
+  return lang === 'ar' ? 'د.' : 'Dr.'
+}
 /** "د. أحمد" — the title in front of the name, unless the name already starts with it. */
 export function displayName(u: { name: string; title?: string }): string {
   const name = (u.name || '').trim()

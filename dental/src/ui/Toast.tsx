@@ -1,5 +1,6 @@
 import { createContext, useCallback, useContext, useMemo, useRef, useState, type ReactNode } from 'react'
 import { AlertCircle, AlertTriangle, CheckCircle2, Info, X } from 'lucide-react'
+import { useTSafe } from '@/i18n'
 
 export type ToastKind = 'success' | 'error' | 'warning' | 'info'
 interface Toast { id: number; kind: ToastKind; title: ReactNode; description?: ReactNode }
@@ -15,6 +16,7 @@ const ICON = { success: CheckCircle2, error: AlertCircle, warning: AlertTriangle
 
 export function ToastProvider({ children }: { children: ReactNode }) {
   const [list, setList] = useState<Toast[]>([])
+  const t = useTSafe()
   const seq = useRef(0)
   const dismiss = useCallback((id: number) => setList(l => l.filter(t => t.id !== id)), [])
   const toast = useCallback((kind: ToastKind, title: ReactNode, description?: ReactNode, ms = kind === 'error' ? 6000 : 3500) => {
@@ -30,11 +32,11 @@ export function ToastProvider({ children }: { children: ReactNode }) {
     <Ctx.Provider value={api}>
       {children}
       <div className="toast-stack" aria-live="polite">
-        {list.map(t => { const I = ICON[t.kind]; return (
-          <div key={t.id} className={`toast toast-${t.kind}`}>
+        {list.map(item => { const I = ICON[item.kind]; return (
+          <div key={item.id} className={`toast toast-${item.kind}`}>
             <I />
-            <div className="grow"><div className="toast-title">{t.title}</div>{t.description && <div className="toast-desc">{t.description}</div>}</div>
-            <button className="toast-x" onClick={() => dismiss(t.id)} aria-label="close"><X size={16} /></button>
+            <div className="grow"><div className="toast-title">{item.title}</div>{item.description && <div className="toast-desc">{item.description}</div>}</div>
+            <button className="toast-x" onClick={() => dismiss(item.id)} aria-label={t('close')}><X size={16} /></button>
           </div>
         ) })}
       </div>

@@ -62,6 +62,18 @@ export function previousPeriod(p: Period): Period {
   return { from: addDays(p.from, -days), to: addDays(p.from, -1) }
 }
 
+/**
+ * What the KPI deltas compare with. A period that is still running (today inside it) is compared with the same
+ * stretch of the previous period: this month so far vs the same days of last month, this year so far vs the same
+ * days of last year. `to` is where the current side of the comparison stops (today, or the period's end).
+ */
+export function comparablePeriod(p: Period, today: ISODate): { prev: Period; to: ISODate; partial: boolean } {
+  const prev = previousPeriod(p)
+  if (!(p.from <= today && today < p.to)) return { prev, to: p.to, partial: false }
+  const end = addDays(prev.from, diffDays(p.from, today))
+  return { prev: { from: prev.from, to: end < prev.to ? end : prev.to }, to: today, partial: true }
+}
+
 /** % change; null when there is nothing to compare with. */
 export function delta(cur: number, prev: number): number | null {
   if (!Number.isFinite(cur) || !Number.isFinite(prev)) return null

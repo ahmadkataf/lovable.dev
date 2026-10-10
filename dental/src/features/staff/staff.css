@@ -64,7 +64,8 @@
 .au-preview .avatar { box-shadow: 0 0 0 3px var(--surface), 0 0 0 4px var(--border); }
 .au-preview-name { font-weight: 700; font-size: var(--fs-lg); line-height: 1.35; }
 .au-preview-name.au-ph { color: var(--text-4); }
-.au-name-row { grid-column: 1 / -1; display: grid; grid-template-columns: 130px minmax(0, 1fr); gap: 16px 20px; }
+.au-staff-form .au-name-row { grid-column: 1 / -1; display: grid; grid-template-columns: 130px minmax(0, 1fr); gap: 16px 20px; }
+.au-staff-form .au-name-row .au-title-cell { order: -1; min-width: 0; }
 .au-colors { display: flex; flex-wrap: wrap; gap: 10px; }
 .au-color { width: 40px; height: 40px; border-radius: 50%; background: var(--swatch); color: var(--on-primary); display: inline-flex; align-items: center; justify-content: center; transition: transform var(--t-fast), box-shadow var(--t-fast); }
 .au-color:hover { transform: scale(1.06); }
@@ -91,5 +92,5 @@
   .au-matrix th.au-role-col { font-size: 10.5px; }
   .au-log .list-item { padding: 10px 16px; }
   .au-log-day { padding: 12px 16px 6px; }
-  .au-name-row { grid-template-columns: 122px minmax(0, 1fr); gap: 16px 12px; }
+  .au-staff-form .au-name-row { grid-template-columns: 112px minmax(0, 1fr); gap: 16px 12px; }
 }

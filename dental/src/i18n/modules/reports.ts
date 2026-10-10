@@ -5,6 +5,7 @@ import type { ModuleDict } from '../types'
 const reports: ModuleDict = {
   ar: {
     title: 'التقارير',
+    noPermission: 'التقارير متاحة لإدارة العيادة والأطباء', noPermissionSub: 'لا يملك حسابك صلاحية الاطلاع على التقارير. تواصل مع مدير العيادة إذا احتجت إليها.', backHome: 'العودة إلى الرئيسية',
     // period bar
     'preset.month': 'هذا الشهر', 'preset.lastMonth': 'الشهر الماضي', 'preset.quarter': 'آخر 3 أشهر', 'preset.year': 'هذه السنة', 'preset.custom': 'فترة مخصصة', fromDate: 'من تاريخ', toDate: 'إلى تاريخ', allDoctors: 'جميع الأطباء', doctorFilter: 'الطبيب',
     rangeSwapped: 'تاريخ البداية بعد تاريخ النهاية؛ تم عكس الفترة.',
@@ -12,7 +13,7 @@ const reports: ModuleDict = {
     // tabs
     'tab.financial': 'المالية', 'tab.patients': 'المرضى', 'tab.appointments': 'المواعيد', 'tab.treatments': 'العلاجات', 'tab.outstanding': 'الذمم المستحقة',
     // shared
-    showTable: 'عرض كجدول', showChart: 'عرض كرسم بياني', vsPrevious: 'عن الفترة السابقة', unassigned: 'غير محدد',
+    showTable: 'عرض كجدول', showChart: 'عرض كرسم بياني', vsPrevious: 'عن الفترة السابقة', vsSameDays: 'عن المدة نفسها سابقاً', unassigned: 'غير محدد',
     noDataPeriod: 'لا توجد بيانات في هذه الفترة', showYear: 'عرض هذه السنة', share: 'النسبة', count: 'العدد', value: 'القيمة',
     clinicWide: 'المصروفات وصافي الربح تُحسب على مستوى العيادة كاملة، لذلك لا تظهر عند اختيار طبيب.',
     // financial
@@ -38,7 +39,7 @@ const reports: ModuleDict = {
     'apt.completionRate': 'نسبة الإنجاز {pct}', 'apt.noShows': 'لم يحضر: {n}',
     'apt.perDay': 'المواعيد اليومية', 'apt.perWeek': 'المواعيد الأسبوعية', 'apt.perMonth': 'المواعيد الشهرية', 'apt.perSub': 'المواعيد المحجوزة باستثناء الملغاة',
     'apt.byStatus': 'المواعيد حسب الحالة', 'apt.byStatusSub': 'كل مواعيد الفترة',
-    'apt.perDoctor': 'أداء الأطباء', 'apt.perDoctorSub': 'نسبة الإشغال = الدقائق المحجوزة ÷ دقائق الدوام ({hours} ساعة لكل طبيب)',
+    'apt.perDoctor': 'أداء الأطباء', 'apt.perDoctorSub': 'نسبة الإشغال = الدقائق المحجوزة ÷ دقائق الدوام ({hours} ساعة لكل طبيب)', 'apt.perDoctorSubToDate': 'نسبة الإشغال حتى اليوم = الدقائق المحجوزة ÷ دقائق الدوام ({hours} ساعة لكل طبيب)',
     'apt.booked': 'المحجوزة', 'apt.done': 'المكتملة', 'apt.noShow': 'لم يحضروا', 'apt.cancel': 'الملغاة', 'apt.hours': 'ساعات محجوزة', 'apt.utilisation': 'نسبة الإشغال',
     'apt.emptyTitle': 'لا توجد مواعيد في هذه الفترة', 'apt.emptyDesc': 'لم يُحجز أي موعد خلال {range}.', 'apt.goCalendar': 'التقويم',
     // treatments
@@ -63,11 +64,12 @@ const reports: ModuleDict = {
   },
   en: {
     title: 'Reports',
+    noPermission: 'Reports are for the clinic managers and doctors', noPermissionSub: 'Your account cannot view reports. Ask the clinic manager if you need access.', backHome: 'Back to the dashboard',
     'preset.month': 'This month', 'preset.lastMonth': 'Last month', 'preset.quarter': 'Last 3 months', 'preset.year': 'This year', 'preset.custom': 'Custom', fromDate: 'From', toDate: 'To', allDoctors: 'All doctors', doctorFilter: 'Doctor',
     rangeSwapped: 'The start date was after the end date, so the range was flipped.',
     exportCsv: 'Export CSV', csvSaved: 'Table exported', csvNothing: 'There is no table to export in this section', printedOn: 'Printed on {date}',
     'tab.financial': 'Financial', 'tab.patients': 'Patients', 'tab.appointments': 'Appointments', 'tab.treatments': 'Treatments', 'tab.outstanding': 'Outstanding',
-    showTable: 'Show as table', showChart: 'Show as chart', vsPrevious: 'vs previous period', unassigned: 'Unassigned',
+    showTable: 'Show as table', showChart: 'Show as chart', vsPrevious: 'vs previous period', vsSameDays: 'vs same days last period', unassigned: 'Unassigned',
     noDataPeriod: 'No data for this period', showYear: 'Show this year', share: 'Share', count: 'Count', value: 'Value',
     clinicWide: 'Expenses and net profit are clinic-wide, so they are hidden while a doctor is selected.',
     'fin.revenue': 'Revenue', 'fin.expenses': 'Expenses', 'fin.profit': 'Net profit', 'fin.avgInvoice': 'Average invoice', 'fin.invoiced': 'Invoiced',
@@ -90,7 +92,7 @@ const reports: ModuleDict = {
     'apt.completionRate': '{pct} completion', 'apt.noShows': 'No-shows: {n}',
     'apt.perDay': 'Appointments per day', 'apt.perWeek': 'Appointments per week', 'apt.perMonth': 'Appointments per month', 'apt.perSub': 'Booked appointments, cancellations excluded',
     'apt.byStatus': 'Appointments by status', 'apt.byStatusSub': 'Every appointment in the period',
-    'apt.perDoctor': 'Doctor performance', 'apt.perDoctorSub': 'Utilisation = booked minutes ÷ working minutes ({hours} h per doctor)',
+    'apt.perDoctor': 'Doctor performance', 'apt.perDoctorSub': 'Utilisation = booked minutes ÷ working minutes ({hours} h per doctor)', 'apt.perDoctorSubToDate': 'Utilisation so far = booked minutes ÷ working minutes ({hours} h per doctor to date)',
     'apt.booked': 'Booked', 'apt.done': 'Completed', 'apt.noShow': 'No-shows', 'apt.cancel': 'Cancelled', 'apt.hours': 'Booked hours', 'apt.utilisation': 'Utilisation',
     'apt.emptyTitle': 'No appointments in this period', 'apt.emptyDesc': 'Nothing was booked for {range}.', 'apt.goCalendar': 'Calendar',
     'tr.completedCount': 'Procedures completed', 'tr.completedValue': 'Value of completed work', 'tr.added': 'Added to plans', 'tr.pendingValue': 'Pending work value',

@@ -14,7 +14,9 @@ describe('format', () => {
     expect(matches('فاطمة الزهراء', 'فاطمه')).toBe(true)
     expect(matches('Ahmad Khatib', 'khat')).toBe(true)
     expect(matches('٠٩٤٤', '0944')).toBe(true)
-    expect(initials('أحمد الخطيب')).toBe('أا')
+    expect(initials('أحمد الخطيب')).toBe('أخ')
+    expect(initials('د. ليلى حداد')).toBe('لح')
+    expect(initials('Dr. Sara Haddad')).toBe('SH')
   })
   it('dates', () => {
     expect(toISODate(fromISODate('2026-03-05'))).toBe('2026-03-05')

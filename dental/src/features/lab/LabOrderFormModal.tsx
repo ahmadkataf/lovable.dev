@@ -7,7 +7,7 @@ import type { LabOrder, LabOrderStatus, LabOrderType, Patient } from '@/db/types
 import { LAB_ORDER_STATUSES, LAB_ORDER_TYPES } from '@/db/types'
 import { todayISO } from '@/db/ids'
 import { useI18n } from '@/i18n'
-import { useClinic, useDoctors } from '@/app/hooks'
+import { useClinic, useDoctors, useUsers } from '@/app/hooks'
 import { useSession } from '@/app/session'
 import { Button, Field, Input, Modal, NumberInput, Select, Textarea, useToast } from '@/ui'
 import { ComboInput, PatientSelect } from '@/features/prescriptions/parts'
@@ -40,6 +40,7 @@ function LabForm({ onClose, order, defaults, lockPatient, onSaved }: Props) {
   const toast = useToast()
   const session = useSession()
   const doctors = useDoctors()
+  const allUsers = useUsers(false)
   const clinic = useClinic()
   const today = todayISO()
   const editing = !!order
@@ -63,17 +64,21 @@ function LabForm({ onClose, order, defaults, lockPatient, onSaved }: Props) {
   const [busy, setBusy] = useState(false)
 
   const initialPatientId = order?.patientId ?? defaults?.patientId
+  const [patientLoading, setPatientLoading] = useState(!!initialPatientId)
   useEffect(() => {
     if (!initialPatientId) return
     let alive = true
-    void db.patients.get(initialPatientId).then(p => { if (alive && p) setPatient(p) })
+    void db.patients.get(initialPatientId).then(p => { if (!alive) return; if (p) setPatient(p); setPatientLoading(false) }, () => { if (alive) setPatientLoading(false) })
     return () => { alive = false }
   }, [initialPatientId])
+  // default doctor (until one is picked): the signed-in doctor, else the patient's usual doctor, else the first doctor
+  const [doctorTouched, setDoctorTouched] = useState(editing)
   useEffect(() => {
-    if (doctorId || !doctors.length || editing) return
+    if (doctorTouched || !doctors.length) return
     const me = session.user
-    setDoctorId((me && doctors.some(d => d.id === me.id) ? me.id : undefined) ?? (patient?.doctorId && doctors.some(d => d.id === patient.doctorId) ? patient.doctorId : undefined) ?? doctors[0].id)
-  }, [doctors, doctorId, session.user, patient?.doctorId, editing])
+    const next = (me && doctors.some(d => d.id === me.id) ? me.id : undefined) ?? (patient?.doctorId && doctors.some(d => d.id === patient.doctorId) ? patient.doctorId : undefined) ?? doctors[0].id
+    if (next !== doctorId) setDoctorId(next)
+  }, [doctors, doctorTouched, doctorId, session.user, patient?.doctorId])
 
   const allOrders = useLiveQuery(() => db.labOrders.toArray(), [])
   const labs = useMemo(() => labNames(allOrders ?? []), [allOrders])
@@ -122,6 +127,12 @@ function LabForm({ onClose, order, defaults, lockPatient, onSaved }: Props) {
     } finally { setBusy(false) }
   }
 
+  const doctorOptions = useMemo(() => {
+    const list = [...doctors]
+    const cur = doctorId && !list.some(d => d.id === doctorId) ? allUsers.find(u => u.id === doctorId) : undefined
+    if (cur) list.push(cur)
+    return list.map(d => ({ value: d.id, label: d.name }))
+  }, [doctors, allUsers, doctorId])
   const shadeOptions = useMemo(() => VITA_SHADES.map(s => ({ value: s, swatch: SHADE_SWATCH[s] })), [])
 
   return (
@@ -133,9 +144,9 @@ function LabForm({ onClose, order, defaults, lockPatient, onSaved }: Props) {
       <form onSubmit={submit} noValidate className="lab-form">
         <div className="form-grid">
           <div className="span-2">
-            <PatientSelect value={patient} onChange={p => { setPatient(p); setTreatmentItemId('') }} locked={lockPatient && !!patient} error={live?.patient ? t('v.required') : undefined} autoFocus={!initialPatientId} />
+            <PatientSelect value={patient} onChange={p => { setPatient(p); setTreatmentItemId('') }} pending={patientLoading} locked={lockPatient && !!patient} error={live?.patient ? t('v.required') : undefined} autoFocus={!initialPatientId} />
           </div>
-          <Select label={t('doctor')} value={doctorId} onChange={e => setDoctorId(e.target.value)} options={doctors.map(d => ({ value: d.id, label: d.name }))} placeholder={t('lab.form.noDoctor')} />
+          <Select label={t('doctor')} value={doctorId} onChange={e => { setDoctorId(e.target.value); setDoctorTouched(true) }} options={doctorOptions} placeholder={t('lab.form.noDoctor')} />
           <ComboInput label={t('lab.form.lab')} required value={labName} onChange={setLabName} options={labs} placeholder={t('lab.form.labPh')} error={live?.lab ? t('v.required') : undefined} />
         </div>
 
@@ -143,7 +154,7 @@ function LabForm({ onClose, order, defaults, lockPatient, onSaved }: Props) {
           <div className="form-section-title"><FlaskConical />{t('lab.form.sectionWork')}</div>
           <div className="form-grid form-grid-3 lab-work-grid">
             <Select label={t('lab.form.type')} value={type} onChange={e => setType(e.target.value as LabOrderType)} options={LAB_ORDER_TYPES.map(x => ({ value: x, label: t(`labType.${x}`) }))} />
-            <ComboInput label={<span className="row gap-1"><Palette size={14} />{t('lab.form.shade')}</span>} value={shade} onChange={setShade} options={shadeOptions} grid placeholder="A2" dir="ltr" />
+            <ComboInput label={<span className="row gap-1"><Palette size={14} />{t('lab.form.shade')}</span>} value={shade} onChange={setShade} options={shadeOptions} grid placeholder="A2" />
             <ComboInput label={t('lab.form.material')} value={material} onChange={setMaterial} options={materials} placeholder={t('lab.form.materialPh')} />
           </div>
           <Field label={t('lab.form.teeth')} hint={t('lab.form.teethHint')} className="mt-4">

@@ -36,7 +36,7 @@ export function LabSlip({ order, patient, doctor, clinic }: { order: LabOrder; p
       <section className="lab-slip-to">
         <div>
           <div className="lab-k">{t('lab.slip.to')}</div>
-          <div className="lab-slip-lab" dir="auto">{order.labName || '—'}</div>
+          <div className="lab-slip-lab"><bdi>{order.labName || '—'}</bdi></div>
         </div>
         <div className="lab-slip-due">
           <CalendarClock />

@@ -12,8 +12,8 @@ import { useLicense } from '@/license/useLicense'
 import { fmtDate } from '@/lib/dates'
 import { Avatar, Button, Chip, DataTable, EmptyState, IconButton, Input, Menu, PageHeader, Pagination, Segmented, Skeleton, StatCard, useConfirm, useConfirmDelete, usePagination, useToast, type Column, type MenuItemDef } from '@/ui'
 import { cancelInvoice, deleteDraftInvoice } from './actions'
-import { filterInvoices, invoiceBalance, invoiceStats, isDraftNumber, isOpen, sortInvoices, statusCounts, type StatusFilter } from './lib'
-import { Money, PeriodBar, StatusBadge, usePeriod, ltr } from './shared'
+import { filterInvoices, invoiceBalance, invoiceStats, isDraftNumber, isOpen, pluralKey, sortInvoices, statusCounts, type StatusFilter } from './lib'
+import { BillingGate, Money, PeriodBar, StatusBadge, usePeriod, ltr, iso } from './shared'
 import InvoiceFormModal from './InvoiceFormModal'
 import './billing.css'
 
@@ -21,6 +21,10 @@ const PaymentFormModal = lazy(() => import('./PaymentFormModal'))
 const STATUSES: StatusFilter[] = ['all', 'unpaid', 'partial', 'paid', 'draft', 'cancelled']
 
 export default function InvoicesPage() {
+  return <BillingGate><InvoicesPageScreen /></BillingGate>
+}
+
+function InvoicesPageScreen() {
   const { t, lang } = useI18n()
   const money = useMoney()
   const navigate = useNavigate()
@@ -34,7 +38,7 @@ export default function InvoicesPage() {
   const confirm = useConfirm()
   const confirmDelete = useConfirmDelete()
 
-  const [period, setPeriod] = usePeriod('invoices')
+  const [period, setPeriod, rawPeriod] = usePeriod('invoices')
   const [status, setStatus] = useState<StatusFilter>('all')
   const [doctorId, setDoctorId] = useState('')
   const [q, setQ] = useState('')
@@ -75,7 +79,7 @@ export default function InvoicesPage() {
     const desc = inv.paid > 0 ? `${t('billing.cancelInvoiceDesc')} ${t('billing.cancelWithPayments', { amount: ltr(money(inv.paid)) })}` : t('billing.cancelInvoiceDesc')
     if (!(await confirm({ title: `${t('billing.cancelInvoice')} ${inv.number}`, description: desc, danger: true, confirmLabel: t('billing.cancelInvoice'), cancelLabel: t('billing.keepInvoice') }))) return
     await cancelInvoice(inv.id)
-    void logActivity({ type: 'invoice', action: 'status', entityId: inv.id, patientId: inv.patientId, message: t('billing.act.invoiceCancelled', { number: ltr(inv.number), patient: patientOf(inv)?.name ?? '' }), by: session.user?.id })
+    void logActivity({ type: 'invoice', action: 'status', entityId: inv.id, patientId: inv.patientId, message: t('billing.act.invoiceCancelled', { number: iso(inv.number), patient: patientOf(inv)?.name ?? '' }), by: session.user?.id })
     toast.success(t('billing.invoiceCancelled'))
   }
   const doDelete = async (inv: Invoice) => {
@@ -98,8 +102,15 @@ export default function InvoicesPage() {
   )
 
   const columns: Column<Invoice>[] = [
-    { key: 'number', header: t('number'), render: i => <span className={isDraftNumber(i.number) ? 'muted strong' : 'bl-num-link num'}>{numberOf(i)}</span> },
-    { key: 'date', header: t('date'), render: i => <span className="bl-date">{fmtDate(i.date, lang)}</span>, hideBelow: 'lg' },
+    {
+      key: 'number', header: t('number'), render: i => (
+        <div className="bl-num-cell">
+          <span className={isDraftNumber(i.number) ? 'muted strong' : 'bl-num-link num'}>{numberOf(i)}</span>
+          <div className="cell-sub bl-date bl-show-1200">{fmtDate(i.date, lang)}</div>
+        </div>
+      ),
+    },
+    { key: 'date', header: t('date'), className: 'bl-hide-1200', render: i => <span className="bl-date">{fmtDate(i.date, lang)}</span> },
     {
       key: 'patient', header: t('patient'), render: i => {
         const p = patientOf(i)
@@ -107,16 +118,16 @@ export default function InvoicesPage() {
           <div className="bl-patient-cell">
             <Avatar name={p?.name ?? '?'} src={p?.photo} size="xs" />
             <div className="grow">
-              {p ? <Link className="bl-link truncate" to={`/patients/${p.id}`} onClick={e => e.stopPropagation()}>{p.name}</Link> : <span className="muted">{t('unknown')}</span>}
+              {p ? <Link className="bl-link" title={p.name} to={`/patients/${p.id}`} onClick={e => e.stopPropagation()}>{p.name}</Link> : <span className="muted">{t('unknown')}</span>}
               {p && <div className="cell-sub">{t('fileNo')} <span className="num">{p.fileNo}</span></div>}
             </div>
           </div>
         )
       },
     },
-    { key: 'doctor', header: t('doctor'), render: i => (i.doctorId ? userName.get(i.doctorId) ?? '—' : <span className="bl-dash">—</span>), hideBelow: 'lg' },
+    { key: 'doctor', header: t('doctor'), className: 'bl-hide-1200', render: i => (i.doctorId ? userName.get(i.doctorId) ?? '—' : <span className="bl-dash">—</span>) },
     { key: 'total', header: t('total'), className: 'num', render: i => <Money value={i.total} strong /> },
-    { key: 'paid', header: t('paid'), className: 'num', hideBelow: 'md', render: i => (i.status === 'draft' ? <span className="bl-dash">—</span> : <Money value={i.paid} kind="muted" />) },
+    { key: 'paid', header: t('paid'), className: 'num bl-hide-1440', render: i => (i.status === 'draft' ? <span className="bl-dash">—</span> : <Money value={i.paid} kind="muted" />) },
     { key: 'due', header: t('due'), className: 'num', render: i => (i.status === 'draft' || i.status === 'cancelled' ? <span className="bl-dash">—</span> : <Money value={invoiceBalance(i)} kind="due" />) },
     { key: 'status', header: t('status'), render: i => <StatusBadge status={i.status} /> },
     { key: 'actions', header: '', className: 'actions', width: 56, render: rowMenu },
@@ -169,14 +180,14 @@ export default function InvoicesPage() {
       <PageHeader title={t('billing.title')} subtitle={t('billing.subtitle')}
         actions={<><Button variant="secondary" icon={<Wallet />} to="/payments" className="hide-mobile">{t('nav.payments')}</Button>{newBtn}</>} />
 
-      <PeriodBar value={period} onChange={setPeriod} />
+      <PeriodBar value={rawPeriod} onChange={setPeriod} />
 
       <div className="grid grid-stats bl-stats">
         <StatCard tone="primary" icon={<FileText />} label={t('billing.stat.invoiced')} value={loading ? <Skeleton w={110} h={26} /> : <Money value={stats.invoiced} />} />
         <StatCard tone="success" icon={<CheckCircle2 />} label={t('billing.stat.collected')} value={loading ? <Skeleton w={110} h={26} /> : <Money value={stats.collected} />} />
         <StatCard tone="danger" icon={<Hourglass />} label={t('billing.stat.outstanding')} value={loading ? <Skeleton w={110} h={26} /> : <Money value={stats.outstanding} />} />
         <StatCard tone="info" icon={<Receipt />} label={t('billing.stat.count')} value={loading ? <Skeleton w={50} h={26} /> : <span className="num">{stats.count}</span>}
-          sub={stats.drafts > 0 ? t('billing.draftsCount', { n: stats.drafts }) : undefined} />
+          sub={stats.drafts > 0 ? t(pluralKey('billing.draftsCount', stats.drafts, lang), { n: stats.drafts }) : undefined} />
       </div>
 
       {anyInvoice !== 0 && <div className="bl-filters">

@@ -4,9 +4,10 @@ import { useEffect, useMemo, useState, useSyncExternalStore } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '@/db'
 import type { Appointment, AppointmentStatus, InventoryItem, Invoice, ISODate, LabOrder, Patient } from '@/db/types'
-import { addDays, addMonths, diffDays, fromISODate, toISODate } from '@/lib/dates'
+import { addDays, diffDays, fromISODate, toISODate } from '@/lib/dates'
 import { round2 } from '@/lib/format'
 import { useSession, type Permission } from '@/app/session'
+import { collator } from './lib'
 
 export const OVERDUE_AFTER_DAYS = 30     // an invoice without a due date is overdue this long after its date
 export const EXPIRY_WINDOW_DAYS = 30
@@ -72,7 +73,7 @@ export function isLowStock(item: ItemLike): boolean {
 /** Low-stock items: out of stock first, then the emptiest relative to the minimum. */
 export function lowStockItems<I extends ItemLike>(items: I[]): I[] {
   const ratio = (i: I) => (i.minQuantity > 0 ? i.quantity / i.minQuantity : i.quantity)
-  return items.filter(isLowStock).sort((a, b) => (a.quantity > 0 ? 1 : 0) - (b.quantity > 0 ? 1 : 0) || ratio(a) - ratio(b) || a.name.localeCompare(b.name))
+  return items.filter(isLowStock).sort((a, b) => (a.quantity > 0 ? 1 : 0) - (b.quantity > 0 ? 1 : 0) || ratio(a) - ratio(b) || collator.compare(a.name, b.name))
 }
 export interface ExpiryAlert<I extends ItemLike = InventoryItem> { item: I; kind: 'expired' | 'expiring'; days: number }  // days left (negative = past)
 /** In-stock items already expired, or expiring within `windowDays` (today counts as expiring, not expired). */
@@ -105,6 +106,14 @@ export function labDue<L extends LabLike>(orders: L[], today: ISODate): LabAlert
 
 // ---- recall & birthdays -----------------------------------------------------------------------------
 type PatLike = Pick<Patient, 'id' | 'name' | 'archived'> & Partial<Pick<Patient, 'birthDate' | 'gender'>>
+/** The same day n months away, clamped to the month's last day (31 Aug − 6 months = 28/29 Feb, not 3 Mar). */
+export function shiftMonths(d: ISODate, n: number): ISODate {
+  const x = fromISODate(d)
+  const first = new Date(x.getFullYear(), x.getMonth() + n, 1)
+  const last = new Date(first.getFullYear(), first.getMonth() + 1, 0).getDate()
+  first.setDate(Math.min(x.getDate(), last))
+  return toISODate(first)
+}
 /** Whole months from a to b (calendar months, day of month respected). */
 export function monthsBetween(a: ISODate, b: ISODate): number {
   const x = fromISODate(a), y = fromISODate(b)
@@ -133,7 +142,7 @@ export function recallPatients<P extends PatLike>(
 ): { list: RecallItem<P>[]; total: number } {
   const last = lastCompletedByPatient(apts)
   const booked = new Set(apts.filter(a => a.date >= today && a.status !== 'cancelled' && a.status !== 'no_show' && a.status !== 'completed').map(a => a.patientId))
-  const cutoff = addMonths(today, -months)
+  const cutoff = shiftMonths(today, -months)
   const all: RecallItem<P>[] = []
   for (const p of patients) {
     if (p.archived || booked.has(p.id)) continue
@@ -141,7 +150,7 @@ export function recallPatients<P extends PatLike>(
     if (!lv || lv >= cutoff) continue
     all.push({ patient: p, lastVisit: lv, months: monthsBetween(lv, today) })
   }
-  all.sort((a, b) => b.lastVisit.localeCompare(a.lastVisit) || a.patient.name.localeCompare(b.patient.name, 'ar'))
+  all.sort((a, b) => (a.lastVisit === b.lastVisit ? collator.compare(a.patient.name, b.patient.name) : a.lastVisit < b.lastVisit ? 1 : -1))
   return { list: all.slice(0, limit), total: all.length }
 }
 const isLeap = (y: number) => (y % 4 === 0 && y % 100 !== 0) || y % 400 === 0
@@ -157,7 +166,7 @@ export function birthdaysToday<P extends PatLike>(patients: P[], today: ISODate)
   return patients
     .filter(p => !p.archived && isBirthday(p.birthDate, today) && p.birthDate!.slice(0, 10) < today)
     .map(p => ({ patient: p, age: Number(today.slice(0, 4)) - Number(p.birthDate!.slice(0, 4)) }))
-    .sort((a, b) => a.patient.name.localeCompare(b.patient.name, 'ar'))
+    .sort((a, b) => collator.compare(a.patient.name, b.patient.name))
 }
 
 // ---- the "important" set behind the red dot -----------------------------------------------------------

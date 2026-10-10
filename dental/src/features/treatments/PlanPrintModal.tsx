@@ -42,7 +42,7 @@ export default function PlanPrintModal({ open, onClose, plan, items, patient, us
   const showDiscount = lines.some(i => i.discount > 0)
 
   return (
-    <Modal open={open} onClose={onClose} size="lg" icon={<Printer />} title={t('treatments.print.title')} subtitle={plan.title} className="tr-print-modal"
+    <Modal open={open} onClose={onClose} size="lg" icon={<Printer />} title={t('treatments.print.title')} subtitle={plan.title} className="tr-modal tr-print-modal"
       footer={<>
         <Button variant="ghost" onClick={onClose}>{t('close')}</Button>
         <Button variant="primary" icon={<Printer />} onClick={printSheet}>{t('print')}</Button>

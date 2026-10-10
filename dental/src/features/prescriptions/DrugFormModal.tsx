@@ -4,15 +4,9 @@ import { Pill } from 'lucide-react'
 import type { Drug } from '@/db/types'
 import { useI18n } from '@/i18n'
 import { Button, Input, Modal, Switch, useToast } from '@/ui'
-import { durationPresets, FREQUENCY_PRESETS, INSTRUCTION_PRESETS } from './lib'
+import { DRUG_FORMS, durationPresets, FREQUENCY_PRESETS, INSTRUCTION_PRESETS } from './lib'
 import { saveDrug, type DrugInput } from './actions'
 import { ComboInput } from './parts'
-
-/** Dosage forms offered in the form field (free text stays possible). */
-const FORMS: Record<'ar' | 'en', string[]> = {
-  ar: ['أقراص', 'كبسولات', 'أقراص فوّارة', 'شراب', 'معلّق فموي', 'غسول فموي', 'جل فموي', 'بخاخ فموي', 'معجون فموي', 'كريم', 'معجون أسنان', 'حقن'],
-  en: ['Tablets', 'Capsules', 'Effervescent tablets', 'Syrup', 'Oral suspension', 'Mouthwash', 'Oral gel', 'Oral spray', 'Oral paste', 'Cream', 'Toothpaste', 'Injection'],
-}
 
 export default function DrugFormModal({ drug, onClose, onSaved, forms }: { drug?: Drug; onClose: () => void; onSaved?: (id: string) => void; forms?: string[] }) {
   const { t, lang } = useI18n()
@@ -53,7 +47,7 @@ export default function DrugFormModal({ drug, onClose, onSaved, forms }: { drug?
             <Input label={t('prescriptions.drugs.name')} required value={f.name} onChange={e => { set('name', e.target.value); setErr(false) }} error={err ? t('v.required') : undefined}
               placeholder={t('prescriptions.drugs.namePh')} autoFocus dir="auto" />
             <Input label={t('prescriptions.drugs.nameEn')} value={f.nameEn} onChange={e => { set('nameEn', e.target.value); setErr(false) }} placeholder="Amoxicillin" dir="ltr" />
-            <ComboInput label={t('prescriptions.drugs.form')} value={f.form ?? ''} onChange={v => set('form', v)} options={[...FORMS[lang], ...(forms ?? [])]} placeholder={FORMS[lang][0]} />
+            <ComboInput label={t('prescriptions.drugs.form')} value={f.form ?? ''} onChange={v => set('form', v)} options={[...DRUG_FORMS[lang], ...(forms ?? [])]} placeholder={DRUG_FORMS[lang][0]} />
             <Input label={t('prescriptions.drugs.strength')} value={f.strength} onChange={e => set('strength', e.target.value)} placeholder="500 mg" dir="auto" />
           </div>
         </div>

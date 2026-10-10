@@ -77,5 +77,10 @@ export function useI18n(): I18n {
   if (!v) throw new Error('useI18n outside I18nProvider')
   return v
 }
+/** t() for the UI kit: falls back to English outside the provider instead of throwing. */
+export function useTSafe(): I18n['t'] {
+  const v = useContext(Ctx)
+  return v?.t ?? ((key: string, params?: Record<string, string | number>) => translate('en', key, params))
+}
 /** Shorthand: const t = useT() */
 export function useT() { return useI18n().t }

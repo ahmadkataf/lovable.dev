@@ -45,6 +45,7 @@ export default function DashboardPage() {
   const nowIso = clock.toISOString()
   const canMoney = session.can('billing')
   const canApts = session.can('appointments')
+  const canReports = session.can('reports')
   const raw = useDashboardData(today, canMoney)
 
   const c = useMemo(() => {
@@ -98,7 +99,7 @@ export default function DashboardPage() {
     ...(canMoney ? [{ id: 'overdue', to: '/invoices', icon: Receipt, tone: 'danger' as const, title: t('dashboard.alerts.overdue'), sub: t('dashboard.alerts.overdueSub', { amount: iso(money(c.overdue.total)) }), count: c.overdue.count }] : []),
     ...(session.can('inventory') ? [{ id: 'stock', to: '/inventory', icon: Boxes, tone: 'warning' as const, title: t('dashboard.alerts.lowStock'), sub: t('dashboard.alerts.lowStockSub'), count: c.low.length }] : []),
     ...(session.can('clinical') ? [{ id: 'lab', to: '/lab', icon: FlaskConical, tone: 'accent' as const, title: t('dashboard.alerts.lab'), sub: t('dashboard.alerts.labSub', { late: formatNumber(c.lab.late, lang), today: formatNumber(c.lab.today, lang) }), count: c.lab.late + c.lab.today }] : []),
-    ...(canApts ? [{ id: 'unconfirmed', to: '/appointments', icon: CalendarDays, tone: 'info' as const, title: t('dashboard.alerts.unconfirmed'), sub: t('dashboard.alerts.unconfirmedSub'), count: c.unconfirmed }] : []),
+    ...(canApts ? [{ id: 'unconfirmed', to: `/appointments?view=day&date=${addDays(today, 1)}`, icon: CalendarDays, tone: 'info' as const, title: t('dashboard.alerts.unconfirmed'), sub: t('dashboard.alerts.unconfirmedSub'), count: c.unconfirmed }] : []),
   ] : []
 
   const revData = (c?.rev30 ?? []).map((p, i) => ({ label: revText[i]?.label ?? '', title: revText[i]?.title, values: [p.value] }))
@@ -118,7 +119,7 @@ export default function DashboardPage() {
         </>} />
 
       <div className={`rp-kpis rp-dash-kpis${canMoney ? '' : ' cols-3'}`}>
-        <KpiCard testId="stat-today" loading={loading} to="/appointments" tone="primary" icon={<CalendarDays />} label={t('dashboard.stat.today')}
+        <KpiCard testId="stat-today" loading={loading} to={`/appointments?view=day&date=${today}`} tone="primary" icon={<CalendarDays />} label={t('dashboard.stat.today')}
           value={c && <span className="num">{formatNumber(c.todayCount, lang)}</span>}
           sub={c ? (c.todayCount ? t('dashboard.stat.todayDone', { n: formatNumber(c.todayDone, lang) }) : t('dashboard.stat.todayNone')) : undefined} />
         <KpiCard testId="stat-seen" loading={loading} to="/patients" tone="accent" icon={<UserCheck />} label={t('dashboard.stat.seen')}
@@ -128,10 +129,10 @@ export default function DashboardPage() {
         {canMoney && <>
           <KpiCard testId="stat-rev-today" loading={loading} to="/payments" tone="success" icon={<Wallet />} label={t('dashboard.stat.revenueToday')}
             value={c && <span className="money">{money(c.revToday)}</span>} sub={c ? (c.revTodayCount ? plural('dashboard.n.payments', c.revTodayCount) : t('dashboard.stat.noPaymentsToday')) : undefined} />
-          <KpiCard testId="stat-rev-month" loading={loading} to="/reports" tone="info" icon={<TrendingUp />} label={t('dashboard.stat.revenueMonth')}
+          <KpiCard testId="stat-rev-month" loading={loading} to={canReports ? '/reports' : '/payments'} tone="info" icon={<TrendingUp />} label={t('dashboard.stat.revenueMonth')}
             value={c && <span className="money">{money(c.revMonth)}</span>} delta={c ? delta(c.revMonth, c.revLast) : undefined} deltaLabel={vsLast}
             spark={c && c.rev30.some(p => p.value) && <Sparkline values={c.rev30.map(p => p.value)} labels={revText.map(x => x.title)} format={n => money(n)} title={t('dashboard.rev.title')} height={38} color="var(--rp-c5)" />} />
-          <KpiCard testId="stat-outstanding" loading={loading} to="/reports?tab=outstanding" tone="danger" icon={<HandCoins />} label={t('dashboard.stat.outstanding')}
+          <KpiCard testId="stat-outstanding" loading={loading} to={canReports ? '/reports?tab=outstanding' : '/invoices'} tone="danger" icon={<HandCoins />} label={t('dashboard.stat.outstanding')}
             value={c && <span className="money">{money(c.outstanding.total)}</span>} sub={c && c.outstanding.patients ? plural('dashboard.n.patients', c.outstanding.patients) : undefined} />
         </>}
       </div>
@@ -139,11 +140,11 @@ export default function DashboardPage() {
       <div className="rp-dash">
         <div className="rp-dash-main">
           <Schedule apts={raw?.todayApts} patients={raw?.schedulePatients ?? new Map()} users={users} now={nowIso} readOnly={readOnly} canWrite={canApts}
-            userId={user?.id} onAdd={() => setModal('appointment')} />
+            onAdd={() => setModal('appointment')} />
           {canMoney && (
             <div style={{ order: 3 }}>
               <ChartCard testId="dash-revenue" loading={loading} icon={<TrendingUp />} title={t('dashboard.rev.title')} subtitle={c ? t('dashboard.rev.sub', { amount: iso(money(rev30Total)) }) : undefined} height={220}
-                actions={<Button size="sm" variant="ghost" onClick={() => navigate('/reports')}>{t('dashboard.openReports')}</Button>}
+                actions={canReports ? <Button size="sm" variant="ghost" className="rp-hide-phone" onClick={() => navigate('/reports')}>{t('dashboard.openReports')}</Button> : undefined}
                 empty={c && !c.rev30.some(p => p.value) ? <CardEmpty icon={<Wallet />}>{t('dashboard.rev.empty')}</CardEmpty> : undefined}
                 table={{ columns: [{ key: 'd', header: t('date') }, { key: 'v', header: t('reports.fin.revenue'), num: true }], rows: revData.filter(d => d.values[0]).reverse().map(d => ({ d: d.title, v: <span className="money">{money(d.values[0])}</span> })) }}>
                 <AreaChart data={revData} series={[{ id: 'rev', label: t('reports.fin.revenue'), color: 'var(--rp-c1)' }]} height={220} format={n => money(n)} title={t('dashboard.rev.title')} />

@@ -1,5 +1,5 @@
 // /prescriptions — every prescription of the clinic (search, date presets, print, duplicate) and the drug catalogue.
-import { useMemo, useState } from 'react'
+import { useCallback, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { BookOpen, CalendarDays, ClipboardList, Copy, FilePlus2, Pill, Printer, Search, Trash2 } from 'lucide-react'
@@ -17,6 +17,7 @@ import { deletePrescription } from './actions'
 import PrescriptionFormModal, { type RxFormDefaults } from './PrescriptionFormModal'
 import RxSheetModal from './RxSheet'
 import DrugsTab from './DrugsTab'
+import { useElementWidth } from './parts'
 import './prescriptions.css'
 
 type TabId = 'prescriptions' | 'drugs'
@@ -70,6 +71,21 @@ function RxList({ onNew, onEdit, onDuplicate }: { onNew: () => void; onEdit: (rx
   const rows = useMemo(() => sortPrescriptions(filterPrescriptions(list ?? [], { q: dq, preset, today, patients: patients ?? new Map() })), [list, dq, preset, today, patients])
   const pg = usePagination(rows, mobile ? 15 : 20)
 
+  // the table when it fits the width the list really has (sidebar, font, long names), the card list otherwise
+  const [listRef, listW] = useElementWidth()
+  const listEl = useRef<HTMLDivElement | null>(null)
+  const setList = useCallback((el: HTMLDivElement | null) => { listEl.current = el; listRef(el) }, [listRef])
+  const [narrow, setNarrow] = useState(false)
+  const fitFor = useRef<number | null>(null)
+  useLayoutEffect(() => {
+    if (mobile) return
+    if (fitFor.current !== listW) { fitFor.current = listW; if (narrow) { setNarrow(false); return } }
+    if (narrow) return
+    const wrap = listEl.current?.querySelector('.table-wrap')
+    if (wrap && wrap.scrollWidth > wrap.clientWidth + 1) setNarrow(true)
+  })
+  const cards = mobile || narrow
+
   const remove = async (rx: Prescription) => {
     const name = patients?.get(rx.patientId)?.name ?? ''
     if (!(await confirmDelete(t('prescriptions.deleteDesc', { patient: name, date: fmtDate(rx.date, lang) })))) return
@@ -108,7 +124,7 @@ function RxList({ onNew, onEdit, onDuplicate }: { onNew: () => void; onEdit: (rx
     { key: 'date', header: t('date'), render: rx => <div><div className="cell-main rx-nowrap">{fmtDate(rx.date, lang)}</div><div className="cell-sub">{relativeDay(rx.date, lang)}</div></div>, width: 150 },
     { key: 'patient', header: t('patient'), render: patientCell },
     { key: 'doctor', header: t('doctor'), render: rx => <span className="rx-nowrap text-sm">{userMap.get(rx.doctorId)?.name ?? '—'}</span>, hideBelow: 'lg' },
-    { key: 'items', header: t('prescriptions.col.items'), render: rx => <div>{summary(rx)}{rx.diagnosis && <div className="cell-sub truncate rx-diag-sub">{rx.diagnosis}</div>}</div> },
+    { key: 'items', header: t('prescriptions.col.items'), render: rx => <div>{summary(rx)}{rx.diagnosis && <div className="cell-sub truncate rx-diag-sub rx-auto" dir="auto">{rx.diagnosis}</div>}</div> },
     { key: 'actions', header: <span className="sr-only">{t('actions')}</span>, render: actions, className: 'actions', width: 132 },
   ]
 
@@ -130,9 +146,10 @@ function RxList({ onNew, onEdit, onDuplicate }: { onNew: () => void; onEdit: (rx
           <Segmented<DatePreset> value={preset} onChange={setPreset} options={DATE_PRESETS.map(p => ({ value: p, label: t(`prescriptions.preset.${p}`) }))} />
         </div>
       </div>
+      <div ref={setList}>
       {loading ? (
         <div className="card card-pad col gap-3">{[0, 1, 2, 3, 4].map(i => <Skeleton key={i} h={48} />)}</div>
-      ) : mobile ? (
+      ) : cards ? (
         <div className="card rx-mlist">
           {pg.slice.length === 0 ? <EmptyState compact icon={<Search />} title={t('noResults')} description={t('prescriptions.empty.filtered')} /> : pg.slice.map(rx => {
             const p = patients.get(rx.patientId)
@@ -142,7 +159,7 @@ function RxList({ onNew, onEdit, onDuplicate }: { onNew: () => void; onEdit: (rx
                   <Avatar name={p?.name ?? '?'} src={p?.photo} size="sm" />
                   <div className="grow" style={{ minWidth: 0 }}>
                     <div className="strong truncate">{p?.name ?? t('unknown')}</div>
-                    <div className="text-xs muted row gap-1"><CalendarDays size={12} />{fmtDate(rx.date, lang)} · {userMap.get(rx.doctorId)?.name ?? '—'}</div>
+                    <div className="rx-mcard-sub"><CalendarDays size={12} /><span>{fmtDate(rx.date, lang)}</span><span className="truncate">· {userMap.get(rx.doctorId)?.name ?? '—'}</span></div>
                   </div>
                   {actions(rx)}
                 </div>
@@ -156,6 +173,7 @@ function RxList({ onNew, onEdit, onDuplicate }: { onNew: () => void; onEdit: (rx
         <DataTable columns={columns} rows={pg.slice} rowKey={rx => rx.id} onRowClick={rx => setOpenId(rx.id)}
           empty={<EmptyState compact icon={<Search />} title={t('noResults')} description={t('prescriptions.empty.filtered')} />} footer={<Pagination {...pg} />} />
       )}
+      </div>
       {openId && <RxSheetModal id={openId} onClose={() => setOpenId(null)} onEdit={rx => { setOpenId(null); onEdit(rx) }} onDuplicate={rx => { setOpenId(null); onDuplicate(rx) }} />}
     </>
   )

@@ -1,9 +1,14 @@
 // Billing writes. Each runs in one transaction so invoices, payments and treatment links never disagree.
 // The UI logs the activity line afterwards (it knows the patient name and the language).
-import { db, nextInvoiceNumber } from '@/db'
+import { db, getClinic, nextInvoiceNumber } from '@/db'
 import { newId, nowISO } from '@/db/ids'
 import type { ID, Invoice, InvoiceItem, InvoiceStatus, ISODate, Payment, PaymentMethod } from '@/db/types'
 import { computeTotals, DRAFT_NUMBER, invoiceStatus, isBillable, isDraftNumber, lineTotal, recomputeInvoice, splitPayment } from './lib'
+
+/** A refusal the screens can recognise and explain (alreadyBilled → billing.v.alreadyBilled; the others are guarded in the UI). */
+export class BillingError extends Error {
+  constructor(public code: 'alreadyBilled' | 'cancelled' | 'zeroAmount') { super(code) }
+}
 
 export interface InvoiceInput {
   patientId: ID
@@ -31,9 +36,14 @@ function clean<T extends object>(o: T): T {
 export async function saveInvoice(input: InvoiceInput, opts: { id?: ID; mode: 'draft' | 'issue'; userId?: ID }): Promise<Invoice> {
   return db.transaction('rw', [db.invoices, db.treatments, db.clinic], async () => {
     const existing = opts.id ? await db.invoices.get(opts.id) : undefined
-    if (existing && existing.status === 'cancelled') throw new Error('cancelled')
+    if (existing && existing.status === 'cancelled') throw new BillingError('cancelled')
     const items = input.items.map(i => ({ ...i, total: lineTotal(i.qty, i.unitPrice, i.discount) }))
-    const totals = computeTotals(items, input.discount, input.taxPercent)
+    // a treatment can sit on one invoice only: refuse lines whose treatment was billed elsewhere meanwhile
+    const linkIds = [...new Set(items.map(i => i.treatmentItemId).filter(Boolean) as ID[])]
+    const linkRows = await db.treatments.bulkGet(linkIds)
+    if (linkRows.some(tr => tr && ((tr.invoiceId && tr.invoiceId !== existing?.id) || tr.patientId !== input.patientId))) throw new BillingError('alreadyBilled')
+    const clinic = await getClinic()
+    const totals = computeTotals(items, input.discount, input.taxPercent, clinic.currencyDecimals ?? 2)
     const wasDraft = !existing || existing.status === 'draft'
     let number = existing?.number ?? DRAFT_NUMBER
     let base: InvoiceStatus = 'draft'
@@ -118,6 +128,7 @@ export interface PaymentInput {
  * on-account payment. Returns the created payments (the first is the one to show on the receipt).
  */
 export async function recordPayment(input: PaymentInput): Promise<Payment[]> {
+  if (!(Math.abs(Number(input.amount) || 0) > 0)) throw new BillingError('zeroAmount')
   return db.transaction('rw', db.payments, db.invoices, async () => {
     const inv = input.invoiceId ? await db.invoices.get(input.invoiceId) : undefined
     const target = inv && isBillable(inv) ? inv : undefined

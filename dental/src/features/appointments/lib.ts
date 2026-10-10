@@ -45,6 +45,11 @@ export function endFrom(startISO: string, minutes: number): string {
 export function durationOf(a: Span): number {
   return Math.max(0, Math.round((ms(a.end) - ms(a.start)) / MIN))
 }
+/** The length to show and edit: the stored minutes when sane, else derived from start/end (never negative). */
+export function safeDuration(a: Span & { durationMin?: number }): number {
+  const d = a.durationMin
+  return typeof d === 'number' && Number.isFinite(d) && d > 0 ? Math.round(d) : durationOf(a)
+}
 /** Minutes since local midnight of an instant. */
 export function minutesOfDay(iso: string): number {
   const d = new Date(iso)
@@ -52,9 +57,13 @@ export function minutesOfDay(iso: string): number {
 }
 
 // ---- slots ---------------------------------------------------------------------------------------
+/** The clinic's slot length, made safe: 5–240 minutes, 30 when missing or broken (a zero or negative step would never end a loop). */
+export function slotStep(n?: number): number {
+  return typeof n === 'number' && Number.isFinite(n) && n >= 5 ? Math.min(240, Math.round(n)) : 30
+}
 /** 'HH:MM' slots from `start` (inclusive) to `end` (exclusive), every `step` minutes. */
 export function generateSlots(start: string, end: string, step: number): string[] {
-  const s = timeToMinutes(start), e = timeToMinutes(end), st = Math.max(5, Math.round(step) || 30)
+  const s = timeToMinutes(start), e = timeToMinutes(end), st = slotStep(step || 30)
   const out: string[] = []
   for (let m = s; m < e && out.length < 288; m += st) out.push(minutesToTime(m))
   return out
@@ -77,7 +86,7 @@ export interface WorkHours { workStart: string; workEnd: string; slotMinutes: nu
  * without touching any busy span. `busy` should already be limited to one doctor and to time-blocking statuses.
  */
 export function nextFreeSlot(busy: Span[], date: ISODate, durationMin: number, hours: WorkHours, from?: string): string | null {
-  const step = Math.max(5, hours.slotMinutes || 30)
+  const step = slotStep(hours.slotMinutes)
   const ws = timeToMinutes(hours.workStart), we = timeToMinutes(hours.workEnd)
   let m = ws
   if (from) m = Math.max(ws, ceilMinutes(timeToMinutes(from) - ws, step) + ws)
@@ -94,6 +103,23 @@ export function slotIsBusy(items: (Span & { status: AppointmentStatus })[], date
   const start = combine(date, time)
   const span = { start, end: endFrom(start, step) }
   return items.some(a => blocksTime(a.status) && overlaps(span, a))
+}
+
+/**
+ * The doctor to pre-select when a time is picked without one (several doctors on screen): the preferred one
+ * (the signed-in doctor) if free, else the first free candidate; undefined when everybody is busy.
+ */
+export function firstFreeDoctor(candidates: string[], items: (Span & { doctorId: string; status: AppointmentStatus })[], start: string, minutes: number, preferred?: string): string | undefined {
+  const span = { start, end: endFrom(start, Math.max(1, minutes)) }
+  const free = (id: string) => !items.some(a => a.doctorId === id && blocksTime(a.status) && overlaps(span, a))
+  const order = preferred && candidates.includes(preferred) ? [preferred, ...candidates.filter(c => c !== preferred)] : candidates
+  return order.find(free)
+}
+/** How booked a slot is across the doctors on screen: nobody, some of them, or all of them. */
+export function slotLoad(candidates: string[], items: (Span & { doctorId: string; status: AppointmentStatus })[], date: ISODate, time: string, step: number): 'free' | 'part' | 'busy' {
+  if (!candidates.length) return slotIsBusy(items, date, time, step) ? 'busy' : 'free'
+  const busy = candidates.filter(id => slotIsBusy(items.filter(a => a.doctorId === id), date, time, step)).length
+  return busy === 0 ? 'free' : busy === candidates.length ? 'busy' : 'part'
 }
 
 // ---- day grid ------------------------------------------------------------------------------------
@@ -143,7 +169,7 @@ export function gridBounds(workStart: string, workEnd: string, items: Span[]): {
 /** Vertical scale of the time grid: pixels per minute for a slot length (a 30-minute slot is 52px tall). */
 export function pxPerMinute(step: number): number {
   const px: Record<number, number> = { 5: 14, 10: 22, 15: 30, 20: 36, 30: 52, 60: 76 }
-  const st = step || 30
+  const st = slotStep(step)
   return (px[st] ?? 52) / st
 }
 
@@ -252,6 +278,16 @@ export function nextStep(status: AppointmentStatus): AppointmentStatus | null {
 export function nextLastVisit(current: string | undefined, visitStart: string): string {
   if (!current) return visitStart
   return ms(visitStart) > ms(current) ? visitStart : current
+}
+
+/**
+ * Patient.lastVisit once the completed visits changed. `latestCompleted` is the start of the patient's latest completed
+ * appointment now; `undoneStart` the start of a visit that stopped counting (reopened, deleted or moved). A stored value
+ * that came from the undone visit follows the appointments (even back to none); any other value only moves forward.
+ */
+export function lastVisitAfter(current: string | undefined, latestCompleted: string | undefined, undoneStart?: string): string | undefined {
+  if (undoneStart && current === undoneStart) return latestCompleted
+  return latestCompleted ? nextLastVisit(current, latestCompleted) : current
 }
 
 // ---- patient tab ---------------------------------------------------------------------------------

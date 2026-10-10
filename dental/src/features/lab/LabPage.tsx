@@ -1,5 +1,5 @@
 // /lab — the lab board: every order by status, what is due, what is late and what the lab costs this month.
-import { useMemo, useState } from 'react'
+import { useCallback, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { AlarmClock, CalendarClock, FlaskConical, Plus, Search, Wallet, X } from 'lucide-react'
@@ -13,6 +13,7 @@ import { Alert, Avatar, Button, Card, Chip, DataTable, EmptyState, Input, PageHe
 import { fmtDate, fmtMonth } from '@/lib/dates'
 import { STATUS_FILTERS, filterOrders, labNames, labStats, sortOrders, statusCounts, type DueFilter, type StatusFilter } from './lib'
 import { DueBadge, LabStatusBadge, TeethBadges } from './parts'
+import { useElementWidth } from '@/features/prescriptions/parts'
 import { LabRowActions } from './LabRowActions'
 import LabOrderFormModal from './LabOrderFormModal'
 import LabSlipModal from './LabSlip'
@@ -50,6 +51,22 @@ export default function LabPage() {
   const counts = useMemo(() => statusCounts(base), [base])
   const rows = useMemo(() => sortOrders(status === 'all' ? base : base.filter(o => o.status === status), today), [base, status, today])
   const pg = usePagination(rows, mobile ? 15 : 20)
+
+  // The board picks the roomiest layout that fits the width it really has (sidebar open or collapsed, the chosen
+  // font, long lab names): the full table, then the table with icon-only advance buttons, then the card list.
+  const [boardRef, boardW] = useElementWidth()
+  const boardEl = useRef<HTMLDivElement | null>(null)
+  const setBoard = useCallback((el: HTMLDivElement | null) => { boardEl.current = el; boardRef(el) }, [boardRef])
+  const [layout, setLayout] = useState<'full' | 'compact' | 'cards'>('full')
+  const fitFor = useRef<number | null>(null)
+  useLayoutEffect(() => {
+    if (mobile) return
+    if (fitFor.current !== boardW) { fitFor.current = boardW; if (layout !== 'full') { setLayout('full'); return } }
+    if (layout === 'cards') return
+    const wrap = boardEl.current?.querySelector('.table-wrap')
+    if (wrap && wrap.scrollWidth > wrap.clientWidth + 1) setLayout(layout === 'full' ? 'compact' : 'cards')
+  })
+  const cards = mobile || layout === 'cards'
   const filtered = !!(lab || doctorId || due || dq || status !== 'all')
   const clearAll = () => { setLab(''); setDoctorId(''); setDue(''); setQ(''); setStatus('all') }
 
@@ -63,22 +80,27 @@ export default function LabPage() {
       </Link>
     )
   }
-  const rowActions = (o: LabOrder) => <LabRowActions order={o} patientName={name(o.patientId) ?? ''} onEdit={() => setForm({ order: o })} onPrint={() => setSlipId(o.id)} />
+  const rowActions = (o: LabOrder) => <LabRowActions order={o} patientName={name(o.patientId) ?? ''} onEdit={() => setForm({ order: o })} onPrint={() => setSlipId(o.id)} compact={!cards && layout === 'compact'} />
   const columns: Column<LabOrder>[] = [
     { key: 'patient', header: t('patient'), render: patientCell },
-    { key: 'type', header: t('lab.col.type'), render: o => <div style={{ minWidth: 0 }}><div className="cell-main lab-nowrap">{t(`labType.${o.type}`)}</div>{o.material && <div className="cell-sub truncate lab-sub-max">{o.material}{o.shade ? ` · ${o.shade}` : ''}</div>}</div> },
+    { key: 'type', header: t('lab.col.type'), render: o => <div style={{ minWidth: 0 }}><div className="cell-main lab-nowrap">{t(`labType.${o.type}`)}</div>{o.material && <div className="cell-sub truncate lab-fill lab-auto" dir="auto">{o.material}{o.shade ? ` · ${o.shade}` : ''}</div>}</div>, width: 150 },
     { key: 'teeth', header: t('teeth'), render: o => <TeethBadges teeth={o.teeth} max={3} />, className: 'lab-teeth-cell' },
-    { key: 'lab', header: t('lab.col.lab'), render: o => <div style={{ minWidth: 0 }}><div className="truncate lab-sub-max" dir="auto">{o.labName}</div>{o.doctorId && <div className="cell-sub truncate">{userMap.get(o.doctorId)?.name}</div>}</div>, hideBelow: 'lg' },
+    { key: 'lab', header: t('lab.col.lab'), render: o => <div style={{ minWidth: 0 }}><div className="truncate lab-fill lab-auto" dir="auto">{o.labName}</div>{o.doctorId && <div className="cell-sub truncate lab-fill">{userMap.get(o.doctorId)?.name}</div>}</div>, width: 160, hideBelow: 'lg' },
     {
       key: 'dates', header: t('lab.col.due'), render: o => (
         <div className="lab-dates">
           <DueBadge order={o} today={today} />
-          <div className="cell-sub lab-nowrap">{o.receivedDate ? t('lab.receivedOn', { date: fmtDate(o.receivedDate, lang) }) : o.sentDate ? t('lab.sentOn', { date: fmtDate(o.sentDate, lang) }) : t('lab.notSent')}</div>
+          <div className="cell-sub">{o.receivedDate ? t('lab.receivedOn', { date: fmtDate(o.receivedDate, lang) }) : o.sentDate ? t('lab.sentOn', { date: fmtDate(o.sentDate, lang) }) : t('lab.notSent')}</div>
         </div>
       ),
     },
-    { key: 'status', header: t('status'), render: o => <LabStatusBadge status={o.status} /> },
-    { key: 'cost', header: t('lab.col.cost'), render: o => <span className="money">{money(o.cost)}</span>, className: 'num', hideBelow: 'md' },
+    // a tight table (compact layout) carries the cost under the status, giving its column to the lab name
+    ...(layout === 'compact' ? [
+      { key: 'status', header: t('status'), render: (o: LabOrder) => <div className="lab-status-cell"><LabStatusBadge status={o.status} /><span className="cell-sub money">{money(o.cost)}</span></div> },
+    ] : [
+      { key: 'status', header: t('status'), render: (o: LabOrder) => <LabStatusBadge status={o.status} /> },
+      { key: 'cost', header: t('lab.col.cost'), render: (o: LabOrder) => <span className="money">{money(o.cost)}</span>, className: 'num', hideBelow: 'md' as const },
+    ]),
     { key: 'actions', header: <span className="sr-only">{t('actions')}</span>, render: rowActions, className: 'actions' },
   ]
 
@@ -100,7 +122,7 @@ export default function LabPage() {
         <div className="grid grid-stats lab-stats">
           {loading ? statLoading : <>
             <StatCard tone="primary" icon={<FlaskConical />} label={t('lab.stat.open')} value={<span className="num">{stats.open}</span>}
-              sub={t('lab.stat.openSub', { atLab: stats.atLab, ready: stats.ready })} onClick={() => { clearAll() }} />
+              sub={t('lab.stat.openSub', { atLab: stats.atLab, ready: stats.ready })} />
             <StatCard tone="warning" icon={<CalendarClock />} label={t('lab.stat.dueWeek')} value={<span className="num">{stats.dueWeek}</span>} sub={t('lab.stat.dueWeekSub')}
               onClick={() => { setStatus('all'); setDue(d => (d === 'week' ? '' : 'week')) }} />
             <StatCard tone="danger" icon={<AlarmClock />} label={t('lab.stat.overdue')} value={<span className="num">{stats.overdue}</span>} sub={stats.overdue ? t('lab.stat.overdueSub') : t('lab.stat.overdueNone')}
@@ -109,6 +131,7 @@ export default function LabPage() {
           </>}
         </div>
 
+        <div ref={setBoard}>
         <Card className="lab-board">
           <div className="lab-filters">
             <div className="lab-seg-scroll">
@@ -142,8 +165,8 @@ export default function LabPage() {
 
           {loading ? (
             <div className="card-body col gap-3">{[0, 1, 2, 3, 4].map(i => <Skeleton key={i} h={48} />)}</div>
-          ) : mobile ? (
-            <div className="lab-mlist">
+          ) : cards ? (
+            <div className={`lab-mlist${!mobile && (boardW ?? 0) >= 700 ? ' lab-mlist-grid' : ''}`}>
               {pg.slice.length === 0 ? <EmptyState compact icon={<Search />} title={t('noResults')} description={t('lab.empty.filtered')} /> : pg.slice.map(o => {
                 const p = patients.get(o.patientId)
                 return (
@@ -152,7 +175,7 @@ export default function LabPage() {
                       <Avatar name={p?.name ?? '?'} src={p?.photo} size="sm" />
                       <div className="grow" style={{ minWidth: 0 }}>
                         <div className="strong truncate">{p?.name ?? t('unknown')}</div>
-                        <div className="text-xs muted truncate" dir="auto">{o.labName}</div>
+                        <div className="text-xs muted truncate lab-auto" dir="auto">{o.labName}</div>
                       </div>
                       <LabStatusBadge status={o.status} />
                     </div>
@@ -179,6 +202,7 @@ export default function LabPage() {
               footer={<Pagination {...pg} />} />
           )}
         </Card>
+        </div>
       </>}
 
       {form && <LabOrderFormModal open order={form.order} onClose={() => setForm(null)} />}

@@ -67,7 +67,7 @@ export function RxSheet({ rx, patient, doctor, clinic, drugs }: { rx: Prescripti
                   {(reg.length > 0 || i.instructions) && (
                     <div className="rx-item-reg">
                       {reg.map(r => <span key={r.k} className="rx-reg"><span className="rx-reg-k">{r.k}</span><span className="rx-reg-v" dir="auto">{r.v}</span></span>)}
-                      {i.instructions && <span className="rx-item-instr" dir="auto">{i.instructions}</span>}
+                      {i.instructions && <span className="rx-item-instr"><bdi>{i.instructions}</bdi></span>}
                     </div>
                   )}
                 </div>

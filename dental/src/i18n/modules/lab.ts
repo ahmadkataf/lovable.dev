@@ -27,7 +27,6 @@ const lab: ModuleDict = {
 
     'col.type': 'نوع العمل',
     'col.lab': 'المخبر',
-    'col.sent': 'تاريخ الإرسال',
     'col.due': 'موعد التسليم',
     'col.received': 'تاريخ الاستلام',
     'col.cost': 'التكلفة',
@@ -139,7 +138,6 @@ const lab: ModuleDict = {
 
     'col.type': 'Work',
     'col.lab': 'Lab',
-    'col.sent': 'Sent',
     'col.due': 'Due',
     'col.received': 'Received',
     'col.cost': 'Cost',

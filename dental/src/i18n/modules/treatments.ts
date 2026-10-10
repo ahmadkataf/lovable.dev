@@ -43,7 +43,7 @@ const treatments: ModuleDict = {
     'item.plannedDate': 'التاريخ المخطط', 'item.doneDate': 'تاريخ التنفيذ', 'item.plan': 'ضمن الخطة',
     'item.newPlanOption': '+ خطة علاج جديدة', 'item.noPlanOption': 'بدون خطة', 'item.newPlanHint': 'ستُنشأ خطة جديدة بتاريخ اليوم.', 'item.noPlanHint': 'يظهر البند ضمن «علاجات خارج الخطط».',
     'item.notesPh': 'ملاحظة للطبيب أو للمريض', 'item.add': 'إضافة البند', 'item.saveQuick': 'حفظ كعلاج منجز',
-    'item.addN_two': 'إضافة بندين', 'item.addN_few': 'إضافة {n} بنود', 'item.addN_many': 'إضافة {n} بنداً', 'item.addN_other': 'إضافة {n} بند',
+    'item.addN_one': 'إضافة بند واحد', 'item.addN_two': 'إضافة بندين', 'item.addN_few': 'إضافة {n} بنود', 'item.addN_many': 'إضافة {n} بنداً', 'item.addN_other': 'إضافة {n} بند',
     'item.billed': 'مفوتر', 'item.openInvoice': 'فتح الفاتورة',
     'item.billedLock': 'هذا البند مُدرج في فاتورة، لذا لا يمكن تغيير الإجراء أو السن أو السعر. يمكنك تعديل الطبيب والتاريخ والملاحظات.',
     'item.deleteDesc': 'سيُحذف البند «{name}» نهائياً.',
@@ -86,6 +86,7 @@ const treatments: ModuleDict = {
     'bulk.value': 'القيمة', 'bulk.round': 'التقريب', 'bulk.roundNone': 'بدون تقريب', 'bulk.roundTo': 'لأقرب {n}',
     'bulk.preview': 'معاينة الأسعار الجديدة', 'bulk.andMore': 'وإجراءات أخرى ({n})', 'bulk.apply': 'تطبيق التعديل', 'bulk.affects': 'يشمل التعديل {prices}', 'bulk.changedN': 'عدد الأسعار المعدّلة: {n}',
     'bulk.empty': 'لا توجد إجراءات في هذه الفئة.', 'bulk.tooMuch': 'يجب أن يكون التخفيض أقل من 100%',
+    'bulk.zeroWarn': 'انتبه: هذا التخفيض يجعل {prices} صفراً. تأكد من القيمة قبل التطبيق.',
 
     // clinic register
     'reg.title': 'سجل العلاجات', 'reg.subtitle': 'كل العلاجات المخططة والمنجزة في العيادة', 'reg.search': 'ابحث باسم المريض أو الإجراء أو رقم السن…',
@@ -109,7 +110,7 @@ const treatments: ModuleDict = {
 
     // activity feed
     'log.planCreated': 'خطة علاج جديدة: {title}', 'log.planUpdated': 'تعديل خطة العلاج: {title}', 'log.planApproved': 'اعتماد خطة العلاج: {title}',
-    'log.planCancelled': 'إلغاء خطة العلاج: {title}', 'log.planDeleted': 'حذف خطة العلاج: {title}',
+    'log.planCancelled': 'إلغاء خطة العلاج: {title}', 'log.planDeleted': 'حذف خطة العلاج: {title}', 'log.planReopened': 'إعادة تفعيل خطة العلاج: {title}',
     'log.itemsAdded': 'إضافة إلى خطة العلاج: {name}', 'log.quickDone': 'علاج منجز: {name}', 'log.itemUpdated': 'تعديل بند علاجي: {name}', 'log.itemDeleted': 'حذف بند علاجي: {name}',
     'log.status.planned': 'إعادة إلى المخطط: {name}', 'log.status.in_progress': 'بدء العلاج: {name}', 'log.status.completed': 'إنجاز العلاج: {name}', 'log.status.cancelled': 'إلغاء العلاج: {name}',
     'log.chart': 'تحديث مخطط الأسنان: {teeth} ← {cond}', 'log.invoice': 'فاتورة {number} للعلاجات المنجزة — {name}',
@@ -196,6 +197,7 @@ const treatments: ModuleDict = {
     'bulk.value': 'Value', 'bulk.round': 'Rounding', 'bulk.roundNone': 'No rounding', 'bulk.roundTo': 'Nearest {n}',
     'bulk.preview': 'Preview of the new prices', 'bulk.andMore': 'and {n} more', 'bulk.apply': 'Apply change', 'bulk.affects': '{prices} will change', 'bulk.changedN': 'Prices changed: {n}',
     'bulk.empty': 'There are no procedures in this category.', 'bulk.tooMuch': 'A decrease must be less than 100%',
+    'bulk.zeroWarn': 'Careful: {prices} will drop to zero with this decrease. Check the value before applying.',
 
     'reg.title': 'Treatments register', 'reg.subtitle': 'Every planned and completed treatment in the clinic', 'reg.search': 'Search by patient, procedure or tooth…',
     'reg.group': 'Group by patient', 'reg.allDoctors': 'All doctors', 'reg.noMatch': 'No treatments match the current filters.',
@@ -215,7 +217,7 @@ const treatments: ModuleDict = {
     'toast.defaultsLoaded': 'Default catalogue loaded', 'toast.defaultsNone': 'The default catalogue is already loaded', 'toast.bulkDone': 'Prices updated', 'toast.exported': 'File exported',
 
     'log.planCreated': 'New treatment plan: {title}', 'log.planUpdated': 'Treatment plan edited: {title}', 'log.planApproved': 'Treatment plan approved: {title}',
-    'log.planCancelled': 'Treatment plan cancelled: {title}', 'log.planDeleted': 'Treatment plan deleted: {title}',
+    'log.planCancelled': 'Treatment plan cancelled: {title}', 'log.planDeleted': 'Treatment plan deleted: {title}', 'log.planReopened': 'Treatment plan reopened: {title}',
     'log.itemsAdded': 'Added to treatment plan: {name}', 'log.quickDone': 'Treatment done: {name}', 'log.itemUpdated': 'Treatment edited: {name}', 'log.itemDeleted': 'Treatment deleted: {name}',
     'log.status.planned': 'Back to planned: {name}', 'log.status.in_progress': 'Treatment started: {name}', 'log.status.completed': 'Treatment completed: {name}', 'log.status.cancelled': 'Treatment cancelled: {name}',
     'log.chart': 'Dental chart updated: {teeth} → {cond}', 'log.invoice': 'Invoice {number} for completed treatments — {name}',

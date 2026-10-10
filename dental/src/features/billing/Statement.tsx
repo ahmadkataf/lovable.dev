@@ -56,31 +56,35 @@ export function StatementModal({ patientId, onClose }: { patientId: string; onCl
           </section>
 
           {data.rows.length === 0 ? <div className="bl-muted-line" style={{ marginTop: 24, textAlign: 'center' }}>{t('billing.statement.empty')}</div> : (
-            <table className="bl-items">
+            <div className="bl-table-scroll"><table className="bl-items">
               <thead>
                 <tr>
-                  <th>{t('date')}</th>
+                  <th className="bl-hide-sm">{t('date')}</th>
                   <th>{t('billing.statement.movement')}</th>
-                  <th className="bl-n">{t('billing.statement.debit')}</th>
-                  <th className="bl-n">{t('billing.statement.credit')}</th>
+                  <th className="bl-n bl-hide-sm">{t('billing.statement.debit')}</th>
+                  <th className="bl-n bl-hide-sm">{t('billing.statement.credit')}</th>
+                  <th className="bl-n bl-only-sm">{t('amount')}</th>
                   <th className="bl-n">{t('billing.statement.balance')}</th>
                 </tr>
               </thead>
               <tbody>
                 {data.rows.map(r => (
                   <tr key={r.key}>
-                    <td className="num">{shortDate(r.date)}</td>
+                    <td className="num bl-hide-sm">{shortDate(r.date)}</td>
                     <td className="bl-desc">
                       {r.kind === 'invoice' ? <>{t('billing.invoice')} <span className="num">{r.number}</span></>
                         : <>{r.kind === 'refund' ? t('billing.payments.refund') : t('billing.statement.paymentLabel')} · {t(`pay.${r.method}`)}{r.invoiceId && data.numbers.get(r.invoiceId) ? <span className="muted"> — <span className="num">{data.numbers.get(r.invoiceId)}</span></span> : null}</>}
+                      <div className="bl-only-sm bl-row-date num">{shortDate(r.date)}</div>
                     </td>
-                    <td className="bl-n">{r.debit ? <Money value={r.debit} /> : <span className="bl-dash">—</span>}</td>
-                    <td className="bl-n">{r.credit ? <Money value={r.credit} /> : <span className="bl-dash">—</span>}</td>
+                    <td className="bl-n bl-hide-sm">{r.debit ? <Money value={r.debit} /> : <span className="bl-dash">—</span>}</td>
+                    <td className="bl-n bl-hide-sm">{r.credit ? <Money value={r.credit} /> : <span className="bl-dash">—</span>}</td>
+                    {/* phones: debit and credit in one signed column (+ owed, − paid) */}
+                    <td className="bl-n bl-only-sm">{r.debit ? <Money value={r.debit} /> : <Money value={-r.credit} className="bl-credit-amt" />}</td>
                     <td className="bl-n bl-strong"><Money value={r.balance} kind="due" /></td>
                   </tr>
                 ))}
               </tbody>
-            </table>
+            </table></div>
           )}
 
           <div className="bl-sheet-bottom">

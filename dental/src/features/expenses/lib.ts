@@ -88,10 +88,14 @@ export function validateExpense(v: { category: string; amount: number | null; da
   return e
 }
 
-/** RFC-4180 CSV with a BOM so Excel opens Arabic text correctly. */
+/**
+ * RFC-4180 CSV with a BOM so Excel opens Arabic text correctly. Typed text that starts like a formula
+ * (= + - @, tab, CR) gets a leading apostrophe so a spreadsheet shows it instead of running it; numbers stay numbers.
+ */
 export function toCSV(rows: (string | number | null | undefined)[][]): string {
   const cell = (v: string | number | null | undefined) => {
-    const s = v === null || v === undefined ? '' : String(v)
+    let s = v === null || v === undefined ? '' : String(v)
+    if (typeof v === 'string' && /^[=+\-@\t\r]/.test(s)) s = `'${s}`
     return /[",\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s
   }
   return '﻿' + rows.map(r => r.map(cell).join(',')).join('\r\n')

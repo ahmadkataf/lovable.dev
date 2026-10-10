@@ -1,7 +1,7 @@
 import {
   CURRENCIES, CUSTOM_CURRENCY, FRESH_GUARD, LOCK_MS, MAX_ATTEMPTS, attemptsLeft, buildClinicPatch, cleanCurrencyCode, currencyPreset, defaultDecimals, displayName,
   dotCount, formatCountdown, greetingKey, isEmail, isLocked, isPhone, lockRemaining, normalizeDigits, normalizeGuard, orderedDays, parseGuard, pinError, pinErrorKey,
-  plainName, registerFailure, resolveCurrency, sanitizePin, toggleDay, validateClinicStep, validateMoneyStep, validateOwnerStep, type MoneyDraft, type OwnerDraft,
+  ownerTitleFor, plainName, registerFailure, resolveCurrency, sanitizePin, toggleDay, validateClinicStep, validateMoneyStep, validateOwnerStep, type MoneyDraft, type OwnerDraft,
 } from '../src/features/auth/lib'
 import {
   AREAS, ROLES, ROLE_PERMS, STAFF_COLORS, activeAdmins, deactivateBlock, deleteBlock, filterStaff, lastLoginMap, nextFreeColor, roleAreas, roleCan, saveBlock, sortStaff,
@@ -12,6 +12,8 @@ import { translate } from '../src/i18n'
 import auth from '../src/i18n/modules/auth'
 import staff from '../src/i18n/modules/staff'
 import type { Role, User } from '../src/db/types'
+import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
 
 describe('auth: currency presets', () => {
   it('maps every preset code to its symbol and decimals', () => {
@@ -250,5 +252,37 @@ describe('auth/staff dictionaries', () => {
     expect(translate('en', 'staff.toast.added', { name: 'Layla' })).toBe('Layla joined the team')
     expect(translate('en', 'auth.v.pinMismatch')).toBe('The two PINs do not match')
     for (const a of AREAS) expect(translate('ar', `staff.area.${a}`)).not.toBe(`area.${a}`)
+  })
+})
+
+describe('review fixes', () => {
+  it('the owner title follows the wizard language (also when English was stored before setup)', () => {
+    expect(ownerTitleFor('ar')).toBe('د.')
+    expect(ownerTitleFor('en')).toBe('Dr.')
+    // the Select offers the dictionary's strings, so the default must be one of them
+    expect(ownerTitleFor('ar')).toBe(auth.ar['owner.titleAr'])
+    expect(ownerTitleFor('en')).toBe(auth.en['owner.titleEn'])
+  })
+  it('ROLE_PERMS mirrors PERMS in src/app/session.tsx (not exported there)', () => {
+    const src = readFileSync(resolve(process.cwd(), 'src/app/session.tsx'), 'utf8')
+    const block = /const PERMS[^{]*\{([\s\S]*?)\n\}/.exec(src)?.[1] ?? ''
+    expect(block).not.toBe('')
+    for (const r of ROLES) {
+      const line = new RegExp(`${r}:\\s*\\[([^\\]]*)\\]`).exec(block)?.[1] ?? ''
+      const perms = [...line.matchAll(/'([a-z]+)'/g)].map(m => m[1]).sort()
+      expect(perms, r).toEqual([...ROLE_PERMS[r]].sort())
+    }
+  })
+  it('only an active admin keeps the clinic manageable: an admin cannot demote or deactivate the last admin, even themselves', () => {
+    const team = [
+      { id: 'a', role: 'admin' as Role, active: true },
+      { id: 'd', role: 'doctor' as Role, active: true },
+      { id: 'x', role: 'admin' as Role, active: false },
+    ]
+    expect(saveBlock(team[0], { role: 'doctor', active: true }, team, 'a')).toBe('lastAdmin')
+    expect(saveBlock(team[0], { role: 'admin', active: false }, team, 'a')).toBe('self')
+    // re-activating the inactive admin is always allowed; deleting them is allowed while 'a' stays
+    expect(saveBlock(team[2], { role: 'admin', active: true }, team, 'a')).toBeNull()
+    expect(deleteBlock(team[2], team, 'a')).toBeNull()
   })
 })

@@ -136,7 +136,8 @@ export function ProcedurePicker({ procedures, value, onPick, error }: { procedur
   return (
     <div className={`tr-picker${error ? ' invalid' : ''}`}>
       <div className="tr-picker-head">
-        <Input iconStart={<Search />} placeholder={t('treatments.picker.search')} value={q} onChange={e => setQ(e.target.value)} clearable onClear={() => setQ('')} aria-label={t('treatments.picker.search')} />
+        <Input iconStart={<Search />} placeholder={t('treatments.picker.search')} value={q} onChange={e => setQ(e.target.value)} clearable onClear={() => setQ('')} aria-label={t('treatments.picker.search')}
+          onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); if (q.trim() && list.length) onPick(list[0]) } }} />
         <div className="tr-chips-scroll">
           <Chip active={!cat} onClick={() => setCat('')}>{t('all')}</Chip>
           {cats.map(c => <Chip key={c} active={cat === c} onClick={() => setCat(cat === c ? '' : c)} icon={<CategoryDot category={c} />}>{t(`cat.${c}`)}</Chip>)}

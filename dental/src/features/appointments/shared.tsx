@@ -1,5 +1,5 @@
 // Building blocks shared by the calendar, the dialogs and the patient tab.
-import { useCallback, useEffect, useState, type CSSProperties, type MouseEvent as ReactMouseEvent } from 'react'
+import { useCallback, useEffect, useRef, useState, type CSSProperties, type MouseEvent as ReactMouseEvent } from 'react'
 import { MessageCircle, Phone } from 'lucide-react'
 import { db, logActivity } from '@/db'
 import type { Appointment, AppointmentStatus, Clinic, Lang, Patient, User } from '@/db/types'
@@ -11,7 +11,7 @@ import { Badge, toneFor, useConfirmDelete, useToast } from '@/ui'
 import { colorFor, whatsappLink } from '@/lib/format'
 import { fmtDate, fmtTime, fromISODate } from '@/lib/dates'
 import { openExternal, platform } from '@/platform'
-import { nextLastVisit, pluralForm, type CalView } from './lib'
+import { lastVisitAfter, pluralForm, type CalView } from './lib'
 import './appointments.css'
 
 /** An appointment with its patient and doctor resolved, as the views render it. */
@@ -33,17 +33,17 @@ export function nameInitials(name: string): string {
   const strip = (w: string) => w.replace(/^ال(?=\S{2,})/, '')
   return strip(parts[0])[0] + strip(parts[parts.length - 1])[0]
 }
-export function PersonAvatar({ name, color, photo, size, className }: { name: string; color?: string; photo?: string; size?: 'xs' | 'sm' | 'lg' | 'xl'; className?: string }) {
+export function PersonAvatar({ name, color, photo, size, className, initials }: { name: string; color?: string; photo?: string; size?: 'xs' | 'sm' | 'lg' | 'xl'; className?: string; initials?: string }) {
   return (
     <span className={['avatar', size && `avatar-${size}`, className].filter(Boolean).join(' ')} style={{ background: photo ? 'var(--surface-3)' : color || colorFor(name) }} title={name} aria-hidden="true">
-      {photo ? <img src={photo} alt="" /> : nameInitials(name)}
+      {photo ? <img src={photo} alt="" /> : initials ?? nameInitials(name)}
     </span>
   )
 }
 /** Same colour as the patients module (id + name), so a patient looks the same everywhere. */
 export function PatientAvatar({ patient, size }: { patient?: Pick<Patient, 'id' | 'name' | 'photo'>; size?: 'xs' | 'sm' | 'lg' | 'xl' }) {
   const { t } = useI18n()
-  if (!patient) return <PersonAvatar name={t('unknown')} color="var(--text-4)" size={size} />
+  if (!patient) return <PersonAvatar name={t('unknown')} initials="?" color="var(--text-4)" size={size} />
   return <PersonAvatar name={patient.name} photo={patient.photo} color={colorFor(patient.id + patient.name)} size={size} />
 }
 export function doctorColor(d?: Pick<User, 'id' | 'color' | 'name'>): string {
@@ -134,6 +134,25 @@ export function useNow(ms = 60_000): Date {
 }
 
 // ---- actions -------------------------------------------------------------------------------------
+/**
+ * Keeps the cached Patient.lastVisit in step with the completed appointments. Call inside a transaction that
+ * includes appointments and patients, after the appointment write. `undoneStart`: a completed visit that no longer
+ * counts (reopened, deleted, moved or given to another patient).
+ */
+export async function syncLastVisit(patientId: string, now: string, undoneStart?: string): Promise<void> {
+  const p = await db.patients.get(patientId)
+  if (!p) return
+  const done = await db.appointments.where('patientId').equals(patientId).filter(x => x.status === 'completed').toArray()
+  const latest = done.reduce<string | undefined>((m, x) => (!m || new Date(x.start) > new Date(m) ? x.start : m), undefined)
+  const lv = lastVisitAfter(p.lastVisit, latest, undoneStart)
+  if (lv !== p.lastVisit) await db.patients.update(p.id, { lastVisit: lv, updatedAt: now })
+}
+
+/** When each appointment last changed status here: a double click on a status button must not also press the
+ * button that takes its place after the first click (confirm → arrived). */
+const lastStatusChange = new Map<string, number>()
+const STATUS_DEBOUNCE_MS = 600
+
 /** Status changes, deletion and the WhatsApp reminder, with activity log and toasts. */
 export function useAptActions() {
   const { t, lang } = useI18n()
@@ -143,31 +162,50 @@ export function useAptActions() {
   const clinic = useClinic()
   const by = session.user?.id
 
+  // While our delete confirmation is open, Escape must close only the confirmation, not the dialog under it
+  // (every open Modal listens to Escape on window).
+  const confirming = useRef(false)
+  const swallowEscape = useRef(false)
+  useEffect(() => {
+    const h = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && confirming.current) { swallowEscape.current = true; window.setTimeout(() => { swallowEscape.current = false }, 0) }
+    }
+    window.addEventListener('keydown', h, true)
+    return () => window.removeEventListener('keydown', h, true)
+  }, [])
+  /** Wraps a dialog's onClose so it ignores the Escape (or anything else) aimed at our confirmation on top. */
+  const guardClose = useCallback((fn: () => void) => () => { if (!confirming.current && !swallowEscape.current) fn() }, [])
+
   const when = (a: Pick<Appointment, 'date' | 'start'>) => `${fmtDate(a.date, lang)} ${fmtTime(a.start, lang)}`
 
+  /** Resolves false when ignored (a repeat click right after a change). */
   const setStatus = async (a: Appointment, status: AppointmentStatus, patientName = '') => {
+    const t0 = Date.now()
+    if ((lastStatusChange.get(a.id) ?? 0) > t0 - STATUS_DEBOUNCE_MS || a.status === status) return false
+    lastStatusChange.set(a.id, t0)
     const now = nowISO()
     await db.transaction('rw', db.appointments, db.patients, async () => {
       await db.appointments.update(a.id, { status, updatedAt: now })
-      if (status === 'completed') {
-        const p = await db.patients.get(a.patientId)
-        if (p) {
-          const lv = nextLastVisit(p.lastVisit, a.start)
-          if (lv !== p.lastVisit) await db.patients.update(p.id, { lastVisit: lv })
-        }
-      }
+      // completing sets the patient's last visit; reopening a completed visit takes it back
+      if (status === 'completed' || a.status === 'completed') await syncLastVisit(a.patientId, now, a.status === 'completed' ? a.start : undefined)
     })
     void logActivity({ type: 'appointment', action: 'status', entityId: a.id, patientId: a.patientId, message: t('appointments.act.status', { name: patientName, status: t(`apt.${status}`), when: when(a) }), by })
     toast.success(t('appointments.statusToast', { status: t(`apt.${status}`) }), patientName || undefined)
+    return true
   }
 
   /** Asks first; resolves true when deleted. Links from treatments and notes are cleared, not left dangling. */
   const remove = async (a: Appointment, patientName = '') => {
-    if (!(await confirmDelete(t('appointments.deleteConfirm')))) return false
-    await db.transaction('rw', db.appointments, db.treatments, db.notes, async () => {
+    confirming.current = true
+    let ok = false
+    try { ok = await confirmDelete(t('appointments.deleteConfirm')) } finally { confirming.current = false }
+    if (!ok) return false
+    const now = nowISO()
+    await db.transaction('rw', db.appointments, db.treatments, db.notes, db.patients, async () => {
       await db.appointments.delete(a.id)
-      await db.treatments.where('appointmentId').equals(a.id).modify(x => { delete x.appointmentId })
-      await db.notes.where('appointmentId').equals(a.id).modify(x => { delete x.appointmentId })
+      if (a.status === 'completed') await syncLastVisit(a.patientId, now, a.start)
+      await db.treatments.where('appointmentId').equals(a.id).modify(x => { delete x.appointmentId; x.updatedAt = now })
+      await db.notes.where('appointmentId').equals(a.id).modify(x => { delete x.appointmentId; x.updatedAt = now })
     })
     void logActivity({ type: 'appointment', action: 'delete', entityId: a.id, patientId: a.patientId, message: t('appointments.act.deleted', { name: patientName, when: when(a) }), by })
     toast.success(t('appointments.deletedToast'), patientName || undefined)
@@ -183,7 +221,7 @@ export function useAptActions() {
     void logActivity({ type: 'appointment', action: 'other', entityId: a.id, patientId: a.patientId, message: t('appointments.act.reminded', { name: patient.name, when: when(a) }), by })
   }
 
-  return { setStatus, remove, remind, reminderText }
+  return { setStatus, remove, remind, reminderText, guardClose }
 }
 
 // ---- view state ----------------------------------------------------------------------------------

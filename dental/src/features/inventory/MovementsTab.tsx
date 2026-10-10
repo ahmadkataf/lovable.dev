@@ -40,8 +40,8 @@ export default function MovementsTab({ movements, items, onOpenItem }: { movemen
     const it = byId.get(m.itemId)
     return (
       <button type="button" className="inv-link" onClick={e => { e.stopPropagation(); onOpenItem(m.itemId) }}>
-        <span className="cell-main truncate">{it ? <bdi>{it.name}</bdi> : t('inventory.deletedItem')}</span>
-        {it?.sku && <span className="cell-sub ltr">{it.sku}</span>}
+        <span className="cell-main truncate inv-auto" dir={it ? 'auto' : undefined}>{it ? it.name : t('inventory.deletedItem')}</span>
+        {it?.sku && <span className="cell-sub ltr truncate">{it.sku}</span>}
       </button>
     )
   }
@@ -55,7 +55,7 @@ export default function MovementsTab({ movements, items, onOpenItem }: { movemen
     { key: 'item', header: t('inventory.col.item'), render: itemCell },
     { key: 'reason', header: t('inventory.col.reason'), render: m => <ReasonBadge reason={m.reason} /> },
     { key: 'delta', header: t('inventory.col.delta'), render: delta, className: 'inv-nowrap' },
-    { key: 'note', header: t('inventory.col.note'), render: m => <span className="muted truncate inv-note">{m.note ? <bdi>{m.note}</bdi> : '—'}</span>, hideBelow: 'lg' },
+    { key: 'note', header: t('inventory.col.note'), render: m => (m.note ? <span className="muted truncate inv-note inv-auto" dir="auto" title={m.note}>{m.note}</span> : <span className="muted">—</span>), hideBelow: 'lg' },
     { key: 'by', header: t('inventory.col.by'), render: m => <span className="muted inv-nowrap">{userName(m.by)}</span>, hideBelow: 'md' },
   ]
 
@@ -76,7 +76,7 @@ export default function MovementsTab({ movements, items, onOpenItem }: { movemen
           {pg.slice.map(m => (
             <div key={m.id} className="card inv-mcard" onClick={() => onOpenItem(m.itemId)}>
               <div className="row spread gap-2">
-                <div className="grow truncate strong">{byId.get(m.itemId) ? <bdi>{byId.get(m.itemId)!.name}</bdi> : t('inventory.deletedItem')}</div>
+                <div className="grow truncate strong inv-auto" dir={byId.get(m.itemId) ? 'auto' : undefined}>{byId.get(m.itemId)?.name ?? t('inventory.deletedItem')}</div>
                 {delta(m)}
               </div>
               <div className="row spread gap-2 mt-1">

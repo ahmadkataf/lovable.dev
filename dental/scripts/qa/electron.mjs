@@ -1,11 +1,19 @@
 // QA for the Windows app shell (Electron). Runs on Linux under a virtual display:
 //   npm run build && xvfb-run -a node scripts/qa/electron.mjs
-// Uses a throwaway data folder (DENTORA_USER_DATA), so it never touches a real clinic's data.
-// Checks: window + title, the preload bridge (platform, deviceId, appVersion, saveFile, openFile, openExternal),
-// isolation (no Node in the page, CSP, untrusted windows get no IPC), navigation guards, zoom keys,
-// window-state.json, and that IndexedDB data, the device id and the window size survive a restart.
-// Screenshots: qa-shots/electron/window.png (first run) and shell.png (signed in).
+//   npx vite build --outDir /tmp/dist-x && QA_DIST=/tmp/dist-x QA_SHOTS=qa-shots/electron-x xvfb-run -a node scripts/qa/electron.mjs
+//   QA_APP=release/win-unpacked/resources/app.asar xvfb-run -a node scripts/qa/electron.mjs      (the packaged archive)
+// QA_DIST stages electron/, the icons, package.json and that build in a temporary app folder, so a parallel
+// `npm run build` cannot swap dist/ under a running check. A throwaway data folder (DENTORA_USER_DATA) keeps real
+// clinic data out of it.
+// Checks: window + title, the preload bridge (platform, deviceId, appVersion, saveFile, openFile, openExternal, print),
+// isolation (no Node in the page, CSP, untrusted windows get no IPC), navigation guards, zoom keys, Ctrl+P,
+// PDFs in an iframe, the clipboard, English menu/dialogs, every route with no CSP violation or page error,
+// the single-instance lock, window-state.json, and that IndexedDB data, the device id and the window size survive
+// a restart. Screenshots (QA_SHOTS, default qa-shots/electron): window.png (first run), shell.png (signed in),
+// shell-en.png (English), pdf.png (a PDF inside the app).
 import { _electron as electron } from 'playwright'
+import { execFileSync, spawn } from 'node:child_process'
+import crypto from 'node:crypto'
 import { createRequire } from 'node:module'
 import fs from 'node:fs'
 import os from 'node:os'
@@ -16,13 +24,27 @@ const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const SHOTS = path.join(ROOT, process.env.QA_SHOTS || 'qa-shots/electron')
 const pkg = JSON.parse(fs.readFileSync(path.join(ROOT, 'package.json'), 'utf8'))
 const electronPath = createRequire(import.meta.url)('electron')
-// QA_APP=release/win-unpacked/resources/app.asar runs the packaged archive instead of the source folder
-const APP_PATH = process.env.QA_APP ? path.resolve(ROOT, process.env.QA_APP) : '.'
+const DIST = process.env.QA_DIST ? path.resolve(ROOT, process.env.QA_DIST) : path.join(ROOT, 'dist')
+if (!process.env.QA_APP && !fs.existsSync(path.join(DIST, 'index.html'))) { console.error(`${path.join(DIST, 'index.html')} missing: build first`); process.exit(1) }
 const userData = fs.mkdtempSync(path.join(os.tmpdir(), 'dentora-electron-'))
 const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'dentora-electron-files-'))
 fs.mkdirSync(SHOTS, { recursive: true })
 
-if (!fs.existsSync(path.join(ROOT, 'dist/index.html'))) { console.error('dist/index.html missing: run npm run build first'); process.exit(1) }
+/** A private copy of the app folder around the QA_DIST build (the main process loads <app>/dist/index.html). */
+function stageApp() {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'dentora-electron-app-'))
+  fs.copyFileSync(path.join(ROOT, 'package.json'), path.join(dir, 'package.json'))
+  fs.cpSync(path.join(ROOT, 'electron'), path.join(dir, 'electron'), { recursive: true })
+  fs.mkdirSync(path.join(dir, 'build'))
+  for (const f of ['icon.png', 'icon.ico']) fs.copyFileSync(path.join(ROOT, 'build', f), path.join(dir, 'build', f))
+  fs.cpSync(DIST, path.join(dir, 'dist'), { recursive: true })
+  return dir
+}
+// QA_APP: the packaged archive · QA_DIST: a staged copy · default: the source folder (dist/ from npm run build)
+const STAGED = !process.env.QA_APP && process.env.QA_DIST ? stageApp() : null
+const APP_PATH = process.env.QA_APP ? path.resolve(ROOT, process.env.QA_APP) : STAGED || '.'
+const ENV = { ...process.env, ELECTRON_DISABLE_SANDBOX: '1', DENTORA_USER_DATA: userData, DENTORA_DEV: '' }
+const pageErrors = []
 
 let failures = 0
 function check(name, ok, detail = '') {
@@ -35,12 +57,12 @@ async function launch() {
     executablePath: electronPath,
     args: [APP_PATH],
     cwd: ROOT,
-    env: { ...process.env, ELECTRON_DISABLE_SANDBOX: '1', DENTORA_USER_DATA: userData, DENTORA_DEV: '' },
+    env: ENV,
     timeout: 60_000,
   })
   const page = await app.firstWindow()
-  page.on('pageerror', e => console.error('PAGE ERROR:', e.message))
-  page.on('console', m => { if (m.type() === 'error') console.error('CONSOLE:', m.text()) })
+  page.on('pageerror', e => { pageErrors.push(e.message); console.error('PAGE ERROR:', e.message) })
+  page.on('console', m => { if (m.type() === 'error') { console.error('CONSOLE:', m.text()); if (!/example\.com|inline script/i.test(m.text())) pageErrors.push(m.text()) } })
   await page.waitForLoadState('domcontentloaded')
   await page.waitForFunction(() => window.__dentora?.db, null, { timeout: 30_000 })
   // the window is shown on ready-to-show
@@ -60,18 +82,18 @@ const winInfo = app => app.evaluate(({ BrowserWindow }) => {
 })
 
 // ---------------------------------------------------------------------------------------------------------------
-console.log(`electron ${pkg.devDependencies.electron} · app ${APP_PATH} · data ${userData}`)
+console.log(`electron ${pkg.devDependencies.electron} · app ${APP_PATH}${STAGED ? ` (staged from ${DIST})` : ''} · data ${userData}`)
 let { app, page } = await launch()
 
 // window
 let info = await winInfo(app)
 check('window is visible', info.visible)
 check('document title mentions Dentora', /Dentora/.test(await page.title()), await page.title())
-check('window title mentions Dentora', /Dentora/.test(info.title), info.title)
+check('window title is "Dentora" (not the web <title>)', info.title === 'Dentora', info.title)
 check('minimum size 1024×680', info.min[0] === 1024 && info.min[1] === 680, info.min.join('×'))
 check('menu bar auto-hides', info.menuAutoHide)
 check('background #F5F7FA', /^#?F5F7FA/i.test(info.bg.replace(/^#FF/i, '#')), info.bg)
-check('loaded from dist/index.html (file://)', info.url.startsWith('file://') && info.url.includes('/dist/index.html') && (!process.env.QA_APP || info.url.includes('.asar/')), info.url)
+check('loaded from dist/index.html (file://)', info.url.startsWith('file://') && info.url.includes('/dist/index.html') && (!process.env.QA_APP || info.url.includes('.asar/')) && (!STAGED || info.url.includes(path.basename(STAGED))), info.url)
 const icon = await app.evaluate(({ app: a, nativeImage }) => {
   const dir = a.getAppPath()
   return { png: nativeImage.createFromPath(`${dir}/build/icon.png`).getSize(), ico: process.platform !== 'win32' ? 'decoded on Windows only' : nativeImage.createFromPath(`${dir}/build/icon.ico`).isEmpty() ? 'missing' : 'ok' }
@@ -98,6 +120,14 @@ check('methods return Promises', bridge?.promises)
 check('deviceId is a non-empty string', typeof bridge?.id1 === 'string' && bridge.id1.length >= 16, bridge?.id1)
 check('deviceId is stable across calls', bridge?.id1 === bridge?.id2)
 check(`appVersion matches package.json (${pkg.version})`, bridge?.version === pkg.version, bridge?.version)
+if (process.platform === 'win32') {
+  // the real Windows path: SHA-256 of the MachineGuid that reg.exe reports (not the stored random fallback)
+  let guid = ''
+  try { guid = /MachineGuid\s+REG_SZ\s+([0-9A-Fa-f-]{16,})/.exec(execFileSync('reg', ['query', 'HKLM\\SOFTWARE\\Microsoft\\Cryptography', '/v', 'MachineGuid', '/reg:64'], { encoding: 'utf8' }))?.[1]?.toLowerCase() || '' } catch { /* reported below */ }
+  check('Windows: device id is derived from MachineGuid', !!guid && bridge?.id1 === crypto.createHash('sha256').update(`dentora|win:${guid}`).digest('hex'), guid ? 'guid read' : 'reg query failed')
+} else {
+  check('device id comes from this machine, not the random fallback', !fs.existsSync(path.join(userData, 'device-id')))
+}
 
 // isolation + CSP
 const iso = await page.evaluate(async () => {
@@ -203,6 +233,56 @@ await page.waitForTimeout(300)
 const zReset = (await winInfo(app)).zoom
 check('Ctrl+= zooms in, Ctrl+0 resets', zIn > 1.01 && Math.abs(zReset - 1) < 0.01, `${zIn} → ${zReset}`)
 
+// print: the system dialog cannot be driven here, so webContents.print is replaced by a recorder. The page must get
+// 'afterprint' even when printing fails before it starts (pages hide the app while a sheet prints).
+await app.evaluate(({ BrowserWindow }) => {
+  const wc = BrowserWindow.getAllWindows()[0].webContents
+  globalThis.__prints = []
+  wc.print = (opts, cb) => { globalThis.__prints.push(opts); setTimeout(() => cb(false, 'no printer'), 30) }
+})
+const printed = await page.evaluate(async () => {
+  let after = 0; const on = () => { after++ }
+  window.addEventListener('afterprint', on)
+  const r = await window.dentora.print()
+  await new Promise(res => setTimeout(res, 50))
+  window.removeEventListener('afterprint', on)
+  return { r: r === undefined ? 'undefined' : String(r), after }
+})
+const printOpts = await app.evaluate(() => globalThis.__prints)
+check('print() asks for the system dialog with backgrounds', printOpts.length === 1 && printOpts[0].silent === false && printOpts[0].printBackground === true, JSON.stringify(printOpts))
+check('print() resolves and the page always gets afterprint', printed.r === 'undefined' && printed.after === 1, JSON.stringify(printed))
+await key('P')
+await page.waitForTimeout(400)
+check('Ctrl+P prints the current screen', (await app.evaluate(() => globalThis.__prints.length)) === 2)
+
+// a PDF in an iframe (the patient files viewer) renders under the CSP: blob: frames, the built-in viewer
+const pdfProbe = await page.evaluate(async () => {
+  const v = []; const onV = e => v.push(`${e.violatedDirective} ${e.blockedURI}`)
+  document.addEventListener('securitypolicyviolation', onV)
+  const pdf = '%PDF-1.4\n1 0 obj<</Type/Catalog/Pages 2 0 R>>endobj 2 0 obj<</Type/Pages/Kids[3 0 R]/Count 1>>endobj 3 0 obj<</Type/Page/Parent 2 0 R/MediaBox[0 0 300 200]>>endobj\ntrailer<</Root 1 0 R>>\n%%EOF'
+  const f = document.createElement('iframe')
+  f.src = URL.createObjectURL(new Blob([pdf], { type: 'application/pdf' }))
+  f.style.cssText = 'position:fixed;top:60px;left:60px;width:640px;height:420px;z-index:9999;border:0'
+  document.body.appendChild(f)
+  await new Promise(r => setTimeout(r, 2500))
+  document.removeEventListener('securitypolicyviolation', onV)
+  return { viewer: navigator.pdfViewerEnabled, v }
+})
+// the viewer's toolbar is dark grey; a blocked or missing viewer leaves the frame white/light grey
+const pdfToolbar = await app.evaluate(async ({ BrowserWindow }) => {
+  const img = await BrowserWindow.getAllWindows()[0].webContents.capturePage({ x: 80, y: 66, width: 400, height: 28 })
+  const b = img.toBitmap(); let sum = 0
+  for (let i = 0; i < b.length; i += 4) sum += (b[i] + b[i + 1] + b[i + 2]) / 3
+  return Math.round(sum / Math.max(1, b.length / 4))
+})
+await page.screenshot({ path: path.join(SHOTS, 'pdf.png') })
+await page.evaluate(() => document.querySelectorAll('iframe').forEach(f => f.remove()))
+check('PDF in an iframe opens in the built-in viewer, no CSP violation', pdfProbe.viewer === true && pdfProbe.v.length === 0 && pdfToolbar < 110, JSON.stringify({ ...pdfProbe, toolbarBrightness: pdfToolbar }))
+
+// clipboard (copy the device number / an activation code)
+const clip = await page.evaluate(async () => { try { await navigator.clipboard.writeText('7KQ2-M9XD'); return 'ok' } catch (e) { return String(e) } })
+check('navigator.clipboard.writeText works', clip === 'ok' && (await app.evaluate(({ clipboard }) => clipboard.readText())) === '7KQ2-M9XD', clip)
+
 // first-run screen
 await page.evaluate(() => { location.hash = '#/setup' })
 await page.waitForTimeout(1200)
@@ -211,7 +291,10 @@ console.log('shot', path.relative(ROOT, path.join(SHOTS, 'window.png')))
 const setupText = (await page.textContent('body')) || ''
 check('first run shows the setup route, right-to-left', setupText.trim().length > 0 && page.url().endsWith('#/setup') && (await page.evaluate(() => document.documentElement.dir)) === 'rtl', page.url())
 
-// seed a clinic + admin and sign in (same data as scripts/qa/lib.mjs seedAndLogin), plus one patient
+// seed a clinic + admin and sign in (same data as scripts/qa/lib.mjs seedAndLogin), plus one patient.
+// Wait for the app's own first-run clinic record first, or it can land after the seed and undo setupDone.
+await page.waitForFunction(async () => !!(await window.__dentora.db.clinic.get('clinic')), null, { timeout: 15_000 })
+await page.waitForTimeout(300)
 await page.evaluate(async () => {
   const db = window.__dentora.db
   const now = new Date().toISOString()
@@ -231,7 +314,48 @@ await page.waitForFunction(() => window.__dentora?.db)
 await page.waitForTimeout(1500)
 await page.screenshot({ path: path.join(SHOTS, 'shell.png') })
 console.log('shot', path.relative(ROOT, path.join(SHOTS, 'shell.png')))
-check('signed-in shell renders after reload', (await page.locator('.app-sidebar, .app').count()) > 0)
+check('signed-in shell renders after reload', (await page.locator('.app-sidebar').count()) > 0 && page.url().endsWith('#/'), page.url())
+
+// English: the menu, the dialogs and the page follow the clinic's language
+await page.evaluate(async () => { await window.__dentora.db.clinic.update('clinic', { lang: 'en' }); localStorage.setItem('dentora.lang', 'en') })
+await page.reload()
+await page.waitForFunction(() => window.__dentora?.db && document.documentElement.lang === 'en' && document.querySelector('.app-sidebar'))
+await page.waitForTimeout(1200)
+await page.screenshot({ path: path.join(SHOTS, 'shell-en.png') })
+console.log('shot', path.relative(ROOT, path.join(SHOTS, 'shell-en.png')))
+const menuEn = await app.evaluate(({ Menu }) => Menu.getApplicationMenu()?.items.map(i => i.label))
+await app.evaluate(() => { globalThis.__cancel = true })
+await page.evaluate(() => window.dentora.saveFile('report.csv', 'text/csv', 'AA=='))
+const saveEn = await app.evaluate(() => globalThis.__saveOpts)
+check('English: menu and save dialog in English, page left-to-right', menuEn?.[0] === 'View' && saveEn?.title === 'Save file' && saveEn?.filters?.[0]?.name === 'CSV file' && (await page.evaluate(() => document.documentElement.dir)) === 'ltr', `${menuEn} / ${saveEn?.title}`)
+const enOverflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)
+check('English shell: no horizontal overflow', enOverflow <= 0, String(enOverflow))
+
+// every screen loads inside Electron with no CSP violation, page error or console error
+const routes = ['/', '/appointments', '/patients', '/patients/qa-electron-patient', '/treatments', '/prescriptions', '/lab', '/invoices', '/payments', '/expenses', '/reports', '/inventory', '/procedures', '/staff', '/settings']
+await page.evaluate(() => { window.__csp = []; document.addEventListener('securitypolicyviolation', e => window.__csp.push(`${e.violatedDirective} ${e.blockedURI}`)) })
+const errorsBefore = pageErrors.length
+const notShell = []
+for (const r of routes) {
+  await page.evaluate(h => { location.hash = '#' + h }, r)
+  await page.waitForTimeout(600)
+  if (!(await page.evaluate(h => location.hash === '#' + h && !!document.querySelector('.app-sidebar'), r))) notShell.push(r)
+}
+const csp = await page.evaluate(() => window.__csp)
+check(`all ${routes.length} routes render in the shell`, notShell.length === 0, notShell.join(' '))
+check('no CSP violation on any route', csp.length === 0, csp.join(' | '))
+check('no page or console errors on any route', pageErrors.length === errorsBefore, pageErrors.slice(errorsBefore).join(' | '))
+check('window title stays "Dentora" while navigating', (await winInfo(app)).title === 'Dentora', (await winInfo(app)).title)
+
+// single instance: a second launch exits, the running window stays (and is focused), its state file is untouched
+const stateFileLive = path.join(userData, 'window-state.json')
+const stateBefore = fs.existsSync(stateFileLive) ? fs.readFileSync(stateFileLive, 'utf8') : null
+const second = spawn(electronPath, [APP_PATH], { cwd: ROOT, env: ENV, stdio: 'ignore' })
+const secondExit = await new Promise(res => { const t = setTimeout(() => { second.kill(); res('still running after 20 s') }, 20_000); second.on('exit', c => { clearTimeout(t); res(c) }) })
+await page.waitForTimeout(300)
+const afterSecond = await winInfo(app)
+check('a second launch exits and leaves one window', secondExit === 0 && afterSecond.windows === 1 && afterSecond.visible, `exit ${secondExit}, windows ${afterSecond.windows}`)
+check('…without touching window-state.json', (fs.existsSync(stateFileLive) ? fs.readFileSync(stateFileLive, 'utf8') : null) === stateBefore)
 
 // resize, then quit: state must be written
 // a size that fits the screen (CI runners can be 1024×768) but differs from the first-run default
@@ -257,6 +381,6 @@ check('IndexedDB data survives a restart', after.patient?.name === 'مريض ا�
 await app.close()
 
 // leave the throwaway folders behind only when something failed (for inspection)
-if (!failures) { fs.rmSync(userData, { recursive: true, force: true }); fs.rmSync(tmp, { recursive: true, force: true }) }
+if (!failures) for (const d of [userData, tmp, STAGED]) if (d) fs.rmSync(d, { recursive: true, force: true })
 console.log(failures ? `\n${failures} check(s) FAILED (data folder kept: ${userData})` : '\nall electron checks passed')
 process.exit(failures ? 1 : 0)

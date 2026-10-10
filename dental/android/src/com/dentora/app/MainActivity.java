@@ -17,9 +17,12 @@ import android.graphics.Color;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
+import android.os.CancellationSignal;
 import android.os.Environment;
 import android.os.Looper;
 import android.os.Parcel;
+import android.os.ParcelFileDescriptor;
+import android.print.PageRange;
 import android.print.PrintAttributes;
 import android.print.PrintDocumentAdapter;
 import android.print.PrintManager;
@@ -183,6 +186,8 @@ public class MainActivity extends Activity {
             } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                 decor.setSystemUiVisibility(View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR | View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR);
             } else {
+                // Android 7 cannot draw dark navigation buttons: on a white bar they would be invisible
+                w.setNavigationBarColor(Color.BLACK);
                 decor.setSystemUiVisibility(View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR);
             }
         } catch (RuntimeException ignored) {
@@ -304,14 +309,28 @@ public class MainActivity extends Activity {
 
     /** Where a link goes: the app's own pages stay inside; tel:, mailto:, WhatsApp and the web go to the phone. */
     boolean route(Uri u, boolean mainFrame) {
-        String scheme = u.getScheme() == null ? "" : u.getScheme().toLowerCase(Locale.ROOT);
-        if (WebFiles.isAppUrl(scheme, u.getHost())) return false;
-        if (scheme.equals("about") || scheme.equals("javascript")) return false;
-        if (scheme.equals("data")) { saveDataUrl(u.toString(), ""); return true; }
-        if (scheme.equals("blob")) { saveBlobUrl(u.toString(), ""); return true; }
-        if (!mainFrame && (scheme.equals("http") || scheme.equals("https"))) return false;
-        openOutside(u.toString());
-        return true;
+        switch (WebFiles.linkAction(u.getScheme(), u.getHost(), mainFrame)) {
+            case "app":
+            case "allow":
+                return false;
+            case "data":
+                saveDataUrl(u.toString(), "");
+                return true;
+            case "blob":
+                saveBlobUrl(u.toString(), "");
+                return true;
+            default:
+                openOutside(u.toString());
+                return true;
+        }
+    }
+
+    /** What every page of the app gets from the shell: window.print → the phone's printing, and saveFile()
+     *  answering when the save really ends. Run as soon as the page is visible and again when it has loaded
+     *  (both scripts install themselves once per page). */
+    void setUpPage(WebView view) {
+        view.evaluateJavascript(WebFiles.PRINT_SHIM_JS, null);
+        view.evaluateJavascript(WebFiles.BRIDGE_JS, null);
     }
 
     /** Hands a link to the app that handles it (WhatsApp, the dialer, e-mail, the browser). UI thread. */
@@ -363,8 +382,13 @@ public class MainActivity extends Activity {
         }
 
         @Override
+        public void onPageCommitVisible(WebView view, String url) {
+            host.setUpPage(view);
+        }
+
+        @Override
         public void onPageFinished(WebView view, String url) {
-            view.evaluateJavascript(WebFiles.PRINT_SHIM_JS, null);
+            host.setUpPage(view);
             host.refreshLang();
         }
 
@@ -488,6 +512,11 @@ public class MainActivity extends Activity {
         } catch (ActivityNotFoundException e) {
             // no documents screen on this phone: put the file in Downloads/Dentora instead
             new Thread(new DownloadsWriter(this, name, type), "dentora-save").start();
+        } catch (RuntimeException e) {
+            // the page waits for an answer (saveFile's Promise): always give one
+            dropPending();
+            say("save_failed");
+            notifySaved(false, false, name);
         }
     }
 
@@ -634,8 +663,9 @@ public class MainActivity extends Activity {
 
         @Override
         public void run() {
+            // success needs no toast of the shell's own: the page confirms it (saveFile's Promise answers now)
             if (message != null) host.say(message, name);
-            else host.say(ok ? "saved" : "save_failed");
+            else if (!ok) host.say("save_failed");
             host.notifySaved(ok, false, name);
         }
     }
@@ -681,16 +711,54 @@ public class MainActivity extends Activity {
      *  print service (a printer, or "Save as PDF"). */
     void printPage() {
         if (web == null) return;
+        // from here on the page's afterprint waits for printFinished(), which every path below reaches once
+        web.evaluateJavascript(WebFiles.PRINT_HOLD_JS, null);
         try {
             PrintManager pm = (PrintManager) getSystemService(Context.PRINT_SERVICE);
-            if (pm == null) { say("no_print"); return; }
+            if (pm == null) { say("no_print"); printFinished(); return; }
             String title = web.getTitle();
             String job = title == null || title.trim().isEmpty() || title.startsWith("Dentora") ? "Dentora" : "Dentora - " + title.trim();
-            PrintDocumentAdapter adapter = web.createPrintDocumentAdapter(job);
+            PrintDocumentAdapter adapter = new PrintJobAdapter(this, web.createPrintDocumentAdapter(job));
             PrintAttributes attrs = new PrintAttributes.Builder().setMediaSize(PrintAttributes.MediaSize.ISO_A4).build();
             pm.print(job, adapter, attrs);
         } catch (RuntimeException e) {
             say("no_print");
+            printFinished();
+        }
+    }
+
+    /** The print screen closed (printed, saved as PDF or cancelled): the page may leave its print layout. */
+    void printFinished() {
+        if (web != null) web.evaluateJavascript(WebFiles.PRINT_DONE_JS, null);
+    }
+
+    /** The WebView's own print adapter, plus a call to printFinished() when the print screen is done with it. */
+    static final class PrintJobAdapter extends PrintDocumentAdapter {
+        private final MainActivity host;
+        private final PrintDocumentAdapter page;
+        PrintJobAdapter(MainActivity host, PrintDocumentAdapter page) { this.host = host; this.page = page; }
+
+        @Override
+        public void onStart() { page.onStart(); }
+
+        @Override
+        public void onLayout(PrintAttributes oldAttributes, PrintAttributes newAttributes, CancellationSignal cancel,
+                             LayoutResultCallback callback, Bundle extras) {
+            page.onLayout(oldAttributes, newAttributes, cancel, callback, extras);
+        }
+
+        @Override
+        public void onWrite(PageRange[] pages, ParcelFileDescriptor destination, CancellationSignal cancel, WriteResultCallback callback) {
+            page.onWrite(pages, destination, cancel, callback);
+        }
+
+        @Override
+        public void onFinish() {
+            try {
+                page.onFinish();
+            } finally {
+                host.printFinished();
+            }
         }
     }
 

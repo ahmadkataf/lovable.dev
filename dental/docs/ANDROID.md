@@ -55,7 +55,7 @@ npm run android:build          # = npm run build && ./scripts/build-apk.sh
 | المتغير | الافتراضي | المعنى |
 |---|---|---|
 | `ANDROID_HOME` | `$ANDROID_SDK_ROOT` ثم `/opt/android-sdk` | مكان الـ SDK (تُستخدم أحدث build-tools وأحدث platform مثبّتة) |
-| `ANDROID_KEYSTORE` | `android/release.keystore` | ملف مفتاح التوقيع (يُنشأ تلقائياً إن لم يوجد) |
+| `ANDROID_KEYSTORE` | `android/release.keystore` | ملف مفتاح التوقيع. المسار الافتراضي يُنشأ تلقائياً إن لم يوجد؛ أما المسار الذي تحدده بنفسك فيجب أن يكون موجوداً وإلا يتوقف البناء (حتى لا يُوقَّع التطبيق بمفتاح جديد بسبب خطأ في المسار) |
 | `ANDROID_KEYSTORE_PASSWORD` | `dentora-release` | كلمة سر المفتاح — **اختر كلمتك قبل أول بناء** |
 | `ANDROID_KEY_ALIAS` | `dentora` | اسم المفتاح داخل الملف |
 | `VERSION_NAME` | إصدار `package.json` | رقم الإصدار الظاهر للمستخدم، مثل `1.2.3` |
@@ -70,7 +70,7 @@ B=$ANDROID_HOME/build-tools/35.0.0
 $B/aapt2 dump badging android/build/Dentora.apk | head -4      # الحزمة، الإصدار، SDK، النشاط الرئيسي
 $B/apksigner verify --verbose android/build/Dentora.apk        # التوقيع
 unzip -l android/build/Dentora.apk | grep www/index.html       # تطبيق الويب داخل الملف
-node android/test/webview-sim.mjs                              # تشغيل الـ APK المبني في Chromium كما يقدّمه الغلاف (لقطات في qa-shots/android)
+node android/test/webview-sim.mjs                              # تشغيل الـ APK المبني في Chromium كما يقدّمه الغلاف، بالعربية والإنجليزية على شاشة هاتف 390px (لقطات في qa-shots/android)
 ```
 
 ---
@@ -184,19 +184,26 @@ adb install -r android/build/Dentora.apk
   الموجّه `HashRouter` والمسارات النسبية (`base: './'`) تجعل كل صفحة هي `index.html#/…`.
 - **الجسر `window.DentoraAndroid`** (العقد في `src/platform/index.ts`):
   `deviceId()` · `saveFile(name, mime, base64)` · `print()` · `appVersion()` · `openExternal(url)`.
-- **الحفظ:** `saveFile` يفتح شاشة «حفظ باسم» من النظام (Storage Access Framework، بلا أي صلاحية تخزين) ويعيد `true` فوراً؛
-  عند اختيار المكان تُكتب البايتات ويظهر إشعار «تم حفظ الملف» بلغة البرنامج، ويُطلق الحدث
-  `window` ← `dentora:saved` بالتفاصيل `{ ok, cancelled, name }`. تُحفظ نسخة مؤقتة في مجلد cache حتى لا تضيع النسخة الاحتياطية
+- **الحفظ:** `DentoraAndroid.saveFile` يفتح شاشة «حفظ باسم» من النظام (Storage Access Framework، بلا أي صلاحية تخزين) ويعيد `true` فوراً؛
+  عند اختيار المكان تُكتب البايتات في الخلفية ويُطلق الحدث `window` ← `dentora:saved` بالتفاصيل `{ ok, cancelled, name }`.
+  ويغلّف الغلاف `window.DentoraAndroid` في كل صفحة بحيث تعيد `saveFile` وعداً (Promise) لا يُحسم إلا عند انتهاء الحفظ فعلاً:
+  `true` إذا كُتب الملف و`false` إذا أُلغي أو فشل. لذلك `await saveFile()` في `src/platform` يعني ما يقوله: النسخة الاحتياطية
+  الملغاة لا تُسجَّل كنسخة مأخوذة، ورسالة النجاح تظهر بعد الحفظ لا قبله. رسالة النجاح من البرنامج نفسه؛ والغلاف يُظهر رسالة فقط عند الفشل
+  أو عند الحفظ في «التنزيلات/Dentora» (هاتف بلا شاشة «حفظ باسم»). تُحفظ نسخة مؤقتة في مجلد cache حتى لا تضيع النسخة الاحتياطية
   إذا أغلق Android التطبيق خلف شاشة الحفظ.
 - **الطباعة:** `print()` (وكذلك `window.print()`) تطبع الصفحة بأنماط الطباعة (`.print-area` فقط) على **A4** عبر خدمة الطباعة في الهاتف
-  (طابعة، أو «حفظ كـ PDF»).
+  (طابعة، أو «حفظ كـ PDF»). على أندرويد تعود `print()` فوراً وتُرسم الصفحة لاحقاً، وتُعاد رسمها كلما غيّر المستخدم الورق أو الاتجاه؛
+  لذلك يؤجّل الغلاف حدث `afterprint` الخاص بالصفحة حتى تُغلق شاشة الطباعة (`PrintDocumentAdapter.onFinish`) ثم يطلقه مرة واحدة،
+  فتبقى الوصفة/الفاتورة/مخطط الأسنان في وضع الطباعة طوال المهمة.
 - **اختيار الملفات:** `<input type=file>` و`pickFile()` تفتح منتقي الملفات من النظام؛ الصور وPDF تُرشَّح حسب `accept`، وباقي الأنواع
   (مثل ملف النسخة الاحتياطية) تُظهر كل الملفات.
 - **الروابط:** صفحات التطبيق تبقى داخله؛ `tel:` يفتح الاتصال، `mailto:` البريد، `https://wa.me/…` واتساب، وأي موقع آخر المتصفح.
 - **زر الرجوع:** يغلق أولاً أي نافذة أو قائمة مفتوحة في الصفحة (بإرسال Escape)، ثم يعود صفحة، وفي الصفحة الرئيسية ينقل التطبيق
   إلى الخلفية بدل إغلاقه. يمكن للصفحة التحكم به: `window.__dentoraBack = () => true` يعني «تعاملتُ معه».
 - **الثبات:** حفظ آخر خطأ أغلق التطبيق وعرضه مرة واحدة مع زر نسخ للدعم الفني؛ إعادة فتح الصفحة تلقائياً إذا أوقف النظام عملية
-  WebView لنقص الذاكرة؛ بقاء الصفحة عند تدوير الشاشة؛ أشرطة نظام بيضاء وهوامش تلقائية للشريط العلوي والسفلي ولوحة المفاتيح.
+  WebView لنقص الذاكرة؛ بقاء الصفحة (وأي نموذج نصف مكتمل) عند تدوير الشاشة أو ظهور لوحة المفاتيح أو تغيير الوضع الداكن أو لغة الهاتف
+  أو حجم الخط؛ أشرطة نظام بيضاء بأيقونات داكنة وهوامش تلقائية للشريط العلوي والسفلي ولوحة المفاتيح (على Android 7 يبقى شريط التنقل
+  أسود لأن النظام لا يرسم أزراراً داكنة).
 
 ---
 
@@ -207,6 +214,7 @@ adb install -r android/build/Dentora.apk
 | `dist/index.html is missing` | نفّذ `npm run build` أولاً (أو استخدم `npm run android:build`) |
 | `no Android SDK at …` / `no build-tools` / `no platform` | اضبط `ANDROID_HOME` وثبّت `build-tools;35.0.0` و`platforms;android-35` |
 | `TARGET_SDK=36 needs platforms;android-36` | ثبّت المنصة المطلوبة بـ `sdkmanager` |
+| `ANDROID_KEYSTORE=… does not exist` | صحّح مسار ملف المفتاح (أو احذف المتغير لاستخدام `android/release.keystore`) |
 | `minor and patch must be below 100` | استخدم أرقام إصدار أصغر من 100 أو مرّر `VERSION_CODE` |
 | تحذير رسم الأيقونة بـ Pillow | `npx playwright install chromium` لرسمها من SVG مباشرة |
 | شاشة بيضاء على الهاتف | حدّث **Android System WebView** وChrome من متجر Play |

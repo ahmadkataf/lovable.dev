@@ -6,6 +6,7 @@
 .pt-phone { display: flex; align-items: center; gap: 6px; min-width: 0; }
 .pt-phone-text { font-weight: 500; color: var(--text-2); white-space: nowrap; }
 .pt-nowrap { white-space: nowrap; }
+.pt-col-visit .subtle { white-space: nowrap; }
 .table .pt-flags { flex-wrap: nowrap; }
 .pt-contact { display: inline-flex; align-items: center; gap: 2px; flex: none; }
 .pt-icon-link { width: 32px; height: 32px; display: inline-flex; align-items: center; justify-content: center; border-radius: var(--r-sm); color: var(--text-3); transition: background var(--t-fast), color var(--t-fast); }
@@ -89,7 +90,9 @@
 .pt-kpi { display: flex; align-items: center; gap: 12px; padding: 16px 24px; min-width: 0; text-align: start; border-inline-start: 1px solid var(--divider); }
 .pt-kpi:first-child { border-inline-start: 0; }
 .pt-kpi.clickable { cursor: pointer; transition: background var(--t-fast); }
-.pt-kpi.clickable:hover { background: var(--surface-3); }
+@media (hover: hover) { .pt-kpi.clickable:hover { background: var(--surface-3); } }
+.pt-kpi.clickable:active { background: var(--surface-3); }
+.pt-kpi.clickable:focus-visible { outline: 2px solid var(--primary); outline-offset: -2px; }
 .pt-kpi-icon { width: 40px; height: 40px; border-radius: 12px; display: inline-flex; align-items: center; justify-content: center; flex: none; background: var(--surface-3); color: var(--text-3); }
 .pt-kpi-icon svg { width: 19px; height: 19px; }
 .pt-kpi-icon.tone-primary { background: var(--primary-soft); color: var(--primary); }
@@ -101,7 +104,7 @@
 .pt-kpi-value { font-size: var(--fs-lg); font-weight: 700; color: var(--text); line-height: 1.4; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .pt-kpi-value .money { font-weight: 700; }
 .pt-kpi-muted { color: var(--text-4); font-weight: 600; font-size: var(--fs-md); }
-.pt-kpi-sub { font-size: var(--fs-xs); color: var(--text-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pt-kpi-sub { font-size: var(--fs-xs); color: var(--text-3); line-height: 1.45; }
 
 .pt-alert { display: flex; gap: 14px; align-items: flex-start; margin-top: 16px; padding: 14px 18px; border-radius: var(--r-lg); background: var(--danger-soft); border: 1px solid color-mix(in srgb, var(--danger) 22%, transparent); border-inline-start: 4px solid var(--danger); }
 .pt-alert.warn { background: var(--warning-soft); border-color: color-mix(in srgb, var(--warning) 30%, transparent); border-inline-start-color: var(--warning); }
@@ -114,6 +117,9 @@
 .pt-alert-groups { display: flex; flex-wrap: wrap; gap: 8px 22px; margin-top: 8px; }
 .pt-alert-group { display: inline-flex; align-items: center; gap: 6px; flex-wrap: wrap; }
 .pt-alert-label { font-size: var(--fs-sm); font-weight: 700; color: var(--text-2); }
+/* items as pills that stand off the tinted strip: allergies solid red (seen at a glance), the rest white with a tone outline */
+.pt-alert .badge { background: var(--surface); box-shadow: inset 0 0 0 1px color-mix(in srgb, currentColor 30%, transparent); }
+.pt-alert .badge-danger { background: var(--danger); color: var(--text-inverse); box-shadow: none; }
 
 .pt-tabs { margin: 20px 0 18px; }
 .pt-tab-tooth { display: inline-flex; }
@@ -186,6 +192,10 @@
 }
 @media (max-width: 1023px) {
   .pt-overview { grid-template-columns: minmax(0, 1fr); }
+}
+/* the key figures go 2 × 2 by the header card's own width (laptops with the sidebar open, tablets, phones) */
+.pt-hero { container-type: inline-size; }
+@container (max-width: 900px) {
   .pt-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .pt-kpi:nth-child(3) { border-inline-start: 0; }
   .pt-kpi:nth-child(n+3) { border-top: 1px solid var(--divider); }
@@ -220,6 +230,12 @@
   .pt-hero-actions > .btn { flex: 1 1 0; min-width: 0; padding: 0 8px; }
   .pt-hero-actions > .btn > span { overflow: hidden; text-overflow: ellipsis; }
   .pt-hero-actions .menu-anchor { flex: none; }
+  /* with both booking and payment on the bar, edit collapses to its pencil (still named for screen readers) and moves to the end */
+  .pt-hero-actions.compact > .btn { flex: 1 1 auto; padding: 0 8px; gap: 5px; font-size: var(--fs-sm); }
+  .pt-hero-actions.compact > .btn svg { width: 16px; height: 16px; }
+  .pt-hero-actions.compact .pt-act-edit { order: 3; flex: none; width: 40px; padding: 0; }
+  .pt-hero-actions.compact .pt-act-edit > span { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+  .pt-hero-actions.compact .menu-anchor { order: 4; }
   .pt-kpis { margin: 16px -16px 0; }
   .pt-kpi { padding: 12px 14px; gap: 10px; }
   .pt-kpi-icon { width: 34px; height: 34px; border-radius: 10px; }

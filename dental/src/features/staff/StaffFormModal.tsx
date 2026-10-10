@@ -1,4 +1,4 @@
-import { useMemo, useState, type FormEvent } from 'react'
+import { useMemo, useRef, useState, type FormEvent } from 'react'
 import { Check, KeyRound, Mail, Palette, Phone, ShieldCheck, Stethoscope, UserPlus, UserRound, UserCog } from 'lucide-react'
 import { Alert, Avatar, Badge, Button, Field, Input, Modal, Select, Switch, useToast } from '@/ui'
 import { useI18n } from '@/i18n'
@@ -31,6 +31,7 @@ export default function StaffFormModal({ open, onClose, user, users }: { open: b
   const [setPin, setSetPin] = useState(!editing)
   const [tried, setTried] = useState(false)
   const [saving, setSaving] = useState(false)
+  const savingRef = useRef(false)   // a second Enter before the first save re-renders must not add the member twice
   const set = <K extends keyof StaffDraft>(k: K, v: StaffDraft[K]) => setD(x => ({ ...x, [k]: v }))
 
   const others = useMemo(() => users.filter(u => u.id !== user?.id), [users, user?.id])
@@ -41,7 +42,7 @@ export default function StaffFormModal({ open, onClose, user, users }: { open: b
 
   const save = async (e?: FormEvent) => {
     e?.preventDefault()
-    if (saving || readOnly) return
+    if (savingRef.current || readOnly) return
     if (Object.keys(errors).length) {
       setTried(true)
       requestAnimationFrame(() => document.querySelector<HTMLElement>('.au-staff-form .invalid')?.focus())
@@ -51,6 +52,7 @@ export default function StaffFormModal({ open, onClose, user, users }: { open: b
       const block = saveBlock(user, { role: d.role, active: d.active }, users, session.user?.id)
       if (block) { toast.error(block === 'self' ? t('staff.err.selfDeactivate') : t('staff.err.lastAdminRole')); return }
     }
+    savingRef.current = true
     setSaving(true)
     try {
       const now = nowISO()
@@ -75,6 +77,7 @@ export default function StaffFormModal({ open, onClose, user, users }: { open: b
       onClose()
     } catch {
       toast.error(t('error'))
+      savingRef.current = false
       setSaving(false)
     }
   }
@@ -102,13 +105,16 @@ export default function StaffFormModal({ open, onClose, user, users }: { open: b
         <div className="form-section">
           <div className="form-section-title"><UserRound />{t('staff.secBasics')}</div>
           <div className="form-grid">
+            {/* the name comes first in the DOM so the modal's initial focus (first field) lands on it; CSS shows the title first */}
             <div className="au-name-row">
-              <Select label={t('staff.titleLabel')} value={d.title} onChange={e => set('title', e.target.value)} options={titles} name="title" />
               <Input label={t('staff.name')} required value={d.name} onChange={e => set('name', e.target.value)} placeholder={t('staff.namePh')} error={err('name')} name="name" maxLength={60} autoFocus />
+              <div className="au-title-cell"><Select label={t('staff.titleLabel')} value={d.title} onChange={e => set('title', e.target.value)} options={titles} name="title" /></div>
             </div>
             <Input label={t('staff.specialty')} value={d.specialty} onChange={e => set('specialty', e.target.value)} placeholder={t('staff.specialtyPh')} iconStart={<Stethoscope />} name="specialty" maxLength={60} />
             <Input label={t('phone')} value={d.phone} onChange={e => set('phone', e.target.value)} placeholder={t('staff.phonePh')} iconStart={<Phone />} dir="ltr" type="tel" inputMode="tel" error={err('phone')} name="phone" maxLength={24} />
-            <Input className="span-2" label={t('email')} value={d.email} onChange={e => set('email', e.target.value)} placeholder={t('staff.emailPh')} iconStart={<Mail />} dir="ltr" type="email" inputMode="email" error={err('email')} name="email" maxLength={80} />
+            <div className="span-2">
+              <Input label={t('email')} value={d.email} onChange={e => set('email', e.target.value)} placeholder={t('staff.emailPh')} iconStart={<Mail />} dir="ltr" type="email" inputMode="email" error={err('email')} name="email" maxLength={80} />
+            </div>
           </div>
         </div>
 

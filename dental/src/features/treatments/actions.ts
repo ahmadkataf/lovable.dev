@@ -17,15 +17,44 @@ function clean<T extends object>(o: T): T {
 
 // ---- plans ----------------------------------------------------------------------------------------
 
-/** Re-derives a plan's status from its items and writes it when it changed. Call inside a transaction on plans + treatments. */
+/**
+ * Re-derives a plan's status from its items and writes it when it changed. Call inside a transaction on plans +
+ * treatments. A cancelled plan comes back (as approved work) when one of its items is restored or reopened: open
+ * work inside a cancelled plan would otherwise be invisible to every "open plans" list.
+ */
 async function syncPlan(planId?: ID): Promise<void> {
   if (!planId) return
   const plan = await db.plans.get(planId)
   if (!plan) return
   const items = await db.treatments.where('planId').equals(planId).toArray()
-  const next = planStatusFrom(items, plan.status)
+  const revived = plan.status === 'cancelled' && items.some(i => i.status === 'planned' || i.status === 'in_progress')
+  const next = planStatusFrom(items, revived ? 'approved' : plan.status)
   if (next !== plan.status) await db.plans.update(planId, { status: next, updatedAt: nowISO() })
 }
+
+/**
+ * Other records that point at treatment items being deleted lose the link (they stay, as history): lab orders, the
+ * planned work of appointments and the chart findings the treatment left. Call inside a transaction on those tables.
+ */
+async function unlinkDeleted(ids: ID[]): Promise<void> {
+  if (!ids.length) return
+  const gone = new Set(ids)
+  const now = nowISO()
+  for (const o of await db.labOrders.filter(o => !!o.treatmentItemId && gone.has(o.treatmentItemId)).toArray()) {
+    const { treatmentItemId: _t, ...rest } = o
+    await db.labOrders.put({ ...rest, updatedAt: now })
+  }
+  for (const a of await db.appointments.filter(a => !!a.treatmentItemIds?.some(id => gone.has(id))).toArray()) {
+    const left = a.treatmentItemIds!.filter(id => !gone.has(id))
+    const { treatmentItemIds: _t, ...rest } = a
+    await db.appointments.put(left.length ? { ...rest, treatmentItemIds: left, updatedAt: now } : { ...rest, updatedAt: now })
+  }
+  for (const r of await db.teeth.filter(r => !!r.treatmentItemId && gone.has(r.treatmentItemId)).toArray()) {
+    const { treatmentItemId: _t, ...rest } = r
+    await db.teeth.put(rest)
+  }
+}
+const LINKED = () => [db.plans, db.treatments, db.labOrders, db.appointments, db.teeth]
 
 export interface PlanInput { title: string; doctorId?: ID; notes?: string }
 export async function createPlan(patientId: ID, input: PlanInput): Promise<TreatmentPlan> {
@@ -71,17 +100,19 @@ export async function reopenPlan(id: ID): Promise<void> {
  * plan; everything else in the plan is deleted.
  */
 export async function deletePlan(id: ID): Promise<{ deleted: number; kept: number }> {
-  return db.transaction('rw', db.plans, db.treatments, async () => {
+  return db.transaction('rw', LINKED(), async () => {
     const items = await db.treatments.where('planId').equals(id).toArray()
-    let deleted = 0, kept = 0
+    let kept = 0
+    const removed: ID[] = []
     for (const i of items) {
       if (i.status === 'completed' || i.invoiceId) {
         const { planId: _p, ...rest } = i
         await db.treatments.put({ ...rest, updatedAt: nowISO() }); kept++
-      } else { await db.treatments.delete(i.id); deleted++ }
+      } else { await db.treatments.delete(i.id); removed.push(i.id) }
     }
+    await unlinkDeleted(removed)
     await db.plans.delete(id)
-    return { deleted, kept }
+    return { deleted: removed.length, kept }
   })
 }
 
@@ -153,10 +184,11 @@ export async function setItemStatus(id: ID, status: TreatmentStatus): Promise<Tr
 
 /** Deletes an item that has not been billed. */
 export async function deleteItem(id: ID): Promise<boolean> {
-  return db.transaction('rw', db.plans, db.treatments, async () => {
+  return db.transaction('rw', LINKED(), async () => {
     const cur = await db.treatments.get(id)
     if (!cur || cur.invoiceId) return false
     await db.treatments.delete(id)
+    await unlinkDeleted([id])
     await syncPlan(cur.planId)
     return true
   })
@@ -259,12 +291,13 @@ export async function applyBulkPrice(ids: ID[], change: BulkChange): Promise<num
   })
 }
 /**
- * Loads the default catalogue. seedDefaults() (seed module) is idempotent; if it leaves the list empty (an older
- * build where it is not available), the catalogue is inserted from the same definitions here.
+ * Loads the default catalogue. seedDefaults() (seed module) is idempotent; only its procedure list is asked for
+ * here (the price list must not quietly fill the drug list or put opening stock in the inventory). If it leaves the
+ * list empty, the catalogue is inserted from the same definitions here.
  */
 export async function loadDefaultCatalogue(): Promise<number> {
   const before = await db.procedures.count()
-  try { await seedDefaults() } catch { /* fall back below */ }
+  try { await seedDefaults({ procedures: true, drugs: false, inventory: false }) } catch { /* fall back below */ }
   if ((await db.procedures.count()) === 0) {
     const clinic = await getClinic()
     const now = nowISO()

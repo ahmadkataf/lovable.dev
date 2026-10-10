@@ -99,12 +99,19 @@ describe('inventory: movements', () => {
     expect(r.ok).toBe(false)
     expect(r.errors).toEqual(['item', 'quantity', null, 'duplicate'])
     expect(validatePurchase([{ itemId: 'a', quantity: 2, costPrice: null }]).ok).toBe(true)
+    // a negative unit price is refused instead of being silently replaced by the old cost
+    expect(validatePurchase([{ itemId: 'a', quantity: 2, costPrice: -1 }]).errors).toEqual(['cost'])
+    expect(validatePurchase([{ itemId: 'a', quantity: 2, costPrice: 0 }]).ok).toBe(true)
     expect(purchaseTotal([{ itemId: 'a', quantity: 2, costPrice: 3.5 }, { itemId: 'b', quantity: 1, costPrice: null }])).toBe(7)
   })
   it('csv quotes commas, quotes and newlines and starts with a BOM', () => {
     const csv = toCSV([['name', 'qty'], ['Gloves, L', 3], ['He said "hi"', null], ['multi\nline', undefined]])
     expect(csv.charCodeAt(0)).toBe(0xfeff)
     expect(csv.slice(1).split('\r\n')).toEqual(['name,qty', '"Gloves, L",3', '"He said ""hi""",', '"multi\nline",'])
+  })
+  it('csv neutralises text that a spreadsheet would run as a formula, but keeps numbers', () => {
+    const csv = toCSV([['=HYPERLINK("x")', '+1', '-2', '@SUM(A1)', 'safe'], [-3, 4.5, 'A-1', '', null]])
+    expect(csv.slice(1).split('\r\n')).toEqual([`"'=HYPERLINK(""x"")",'+1,'-2,'@SUM(A1),safe`, '-3,4.5,A-1,,'])
   })
 })
 
@@ -167,5 +174,64 @@ describe('counted strings use real plural forms', () => {
     expect(tn(tEn, 'en', 'expenses.period.days', 1)).toBe('1 day')
     expect(tn(tEn, 'en', 'expenses.period.days', 30)).toBe('30 days')
     expect(tn(tEn, 'en', 'expenses.entries', 3)).toBe('3 entries')
+  })
+})
+
+// ---- data layer: every quantity change is a movement written with the item ----
+import { db } from '../src/db'
+import { createItem, deleteItem, recordMovement, recordPurchase, StockError, updateItem } from '../src/features/inventory/actions'
+
+describe('inventory actions (IndexedDB)', () => {
+  beforeEach(async () => { await db.inventory.clear(); await db.stock.clear(); await db.expenses.clear() })
+  const draft = { name: 'Gloves', category: 'consumables', unit: 'box', quantity: 10, minQuantity: 2, costPrice: 4, active: true }
+
+  it('creates an item with an opening-stock movement, and none for zero', async () => {
+    const id = await createItem(draft, 'u1')
+    const it = await db.inventory.get(id)
+    expect(it).toMatchObject({ quantity: 10, active: true })
+    expect(it!.createdAt).toBe(it!.updatedAt)
+    const mv = await db.stock.where('itemId').equals(id).toArray()
+    expect(mv).toHaveLength(1)
+    expect(mv[0]).toMatchObject({ delta: 10, reason: 'initial', by: 'u1' })
+    const id0 = await createItem({ ...draft, quantity: 0 })
+    expect(await db.stock.where('itemId').equals(id0).count()).toBe(0)
+  })
+  it('editing keeps the quantity; movements change it and never below zero', async () => {
+    const id = await createItem(draft)
+    await updateItem(id, { ...draft, name: 'Gloves L', quantity: 999 })
+    expect((await db.inventory.get(id))!.quantity).toBe(10)
+    expect(await recordMovement(id, -4, 'use', { note: '  chair 1 ', by: 'u2' })).toBe(6)
+    await expect(recordMovement(id, -7, 'use')).rejects.toBeInstanceOf(StockError)
+    expect((await db.inventory.get(id))!.quantity).toBe(6)
+    const mv = await db.stock.where('itemId').equals(id).toArray()
+    expect(mv.map(m => m.delta).sort((x, y) => x - y)).toEqual([-4, 10])
+    expect(mv.find(m => m.delta === -4)).toMatchObject({ reason: 'use', note: 'chair 1', by: 'u2' })
+    // the item always equals the sum of its movements (dashboard and alerts read the item directly)
+    expect(mv.reduce((a, m) => a + m.delta, 0)).toBe((await db.inventory.get(id))!.quantity)
+  })
+  it('purchase raises quantities, refreshes cost, writes movements and one materials expense', async () => {
+    const a = await createItem(draft)
+    const b = await createItem({ ...draft, name: 'Masks', quantity: 0, costPrice: 1 })
+    const r = await recordPurchase({ lines: [{ itemId: a, quantity: 5, costPrice: 4.5 }, { itemId: b, quantity: 10, costPrice: null }], date: '2026-10-10', supplier: ' Pharma ', reference: 'INV-1', by: 'u1', expenseDescription: 'Stock purchase' })
+    expect(r).toMatchObject({ total: 32.5, count: 2 })
+    expect(await db.inventory.get(a)).toMatchObject({ quantity: 15, costPrice: 4.5, supplier: 'Pharma' })
+    expect(await db.inventory.get(b)).toMatchObject({ quantity: 10, costPrice: 1 })
+    const mv = await db.stock.where('reason').equals('purchase').toArray()
+    expect(mv).toHaveLength(2)
+    expect(mv.every(m => m.note === 'Pharma · INV-1' && m.date === '2026-10-10' && m.by === 'u1')).toBe(true)
+    const ex = await db.expenses.toArray()
+    expect(ex).toHaveLength(1)
+    expect(ex[0]).toMatchObject({ id: r.expenseId, category: 'materials', amount: 32.5, vendor: 'Pharma', by: 'u1', date: '2026-10-10' })
+  })
+  it('deletes only items whose history is the opening stock', async () => {
+    const a = await createItem(draft)
+    await deleteItem(a)
+    expect(await db.inventory.get(a)).toBeUndefined()
+    expect(await db.stock.where('itemId').equals(a).count()).toBe(0)
+    const b = await createItem(draft)
+    await recordMovement(b, -1, 'use')
+    await expect(deleteItem(b)).rejects.toBeInstanceOf(StockError)
+    expect(await db.inventory.get(b)).toBeDefined()
+    expect(await db.stock.where('itemId').equals(b).count()).toBe(2)
   })
 })

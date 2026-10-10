@@ -69,9 +69,9 @@ function Panel({ onClose }: { onClose: () => void }) {
       const nowIso = now.toISOString()
       out.push({
         key: 'today', title: t('search.g.today'), count: a.todayApts.length, tone: 'info',
-        more: a.todayApts.length > 3 ? { to: `/appointments?date=${a.today}`, n: a.todayApts.length } : undefined,
+        more: a.todayApts.length > 3 ? { to: `/appointments?date=${a.today}&view=day`, n: a.todayApts.length } : undefined,
         rows: a.todayApts.slice(0, 3).map(apt => {
-          const mins = Math.round((new Date(apt.start).getTime() - now.getTime()) / 60_000)
+          const mins = Math.ceil((new Date(apt.start).getTime() - now.getTime()) / 60_000)   // ≥ 1 for anything still ahead
           const arrived = apt.status === 'arrived'
           const label = arrived ? t('search.today.arrived') : apt.start <= nowIso ? t('search.today.now') : mins <= 60 ? t('search.today.inMin', { n: mins }) : fmtTime(apt.start, lang)
           const doctor = doctors.get(apt.doctorId)
@@ -81,7 +81,7 @@ function Panel({ onClose }: { onClose: () => void }) {
             title: <bdi>{pname(apt.patientId)}</bdi>,
             desc: <>{!chipIsTime && <><bdi>{fmtTime(apt.start, lang)}</bdi><Sep /></>}{t(`aptType.${apt.type}`)}{doctor && <><Sep /><bdi>{doctor}</bdi></>}</>,
             end: <span className={`ntf-time${chipIsTime ? '' : ' soon'}`}><bdi>{label}</bdi></span>,
-            to: `/appointments?date=${a.today}`,
+            to: `/appointments?date=${a.today}&view=day`,
           }
         }),
       })
@@ -90,7 +90,7 @@ function Panel({ onClose }: { onClose: () => void }) {
       const tomorrow = addDays(a.today, 1)
       out.push({
         key: 'unconfirmed', title: t('search.g.unconfirmed'), sub: t('search.g.unconfirmedSub'), count: a.unconfirmed.length, tone: 'warning',
-        more: a.unconfirmed.length > 4 ? { to: `/appointments?date=${tomorrow}`, n: a.unconfirmed.length } : undefined,
+        more: a.unconfirmed.length > 4 ? { to: `/appointments?date=${tomorrow}&view=day`, n: a.unconfirmed.length } : undefined,
         rows: a.unconfirmed.slice(0, 4).map(apt => {
           const p = a.patients.get(apt.patientId)
           const doctor = doctors.get(apt.doctorId)
@@ -99,7 +99,7 @@ function Panel({ onClose }: { onClose: () => void }) {
             key: `unconf:${apt.id}`, tone: 'warning', icon: <CalendarClock />, isNew: !seenAtOpen.has(`apt:${apt.id}`),
             title: <bdi>{pname(apt.patientId)}</bdi>,
             desc: <><bdi>{time}</bdi><Sep />{t(`aptType.${apt.type}`)}{doctor && <><Sep /><bdi>{doctor}</bdi></>}</>,
-            to: `/appointments?date=${tomorrow}`,
+            to: `/appointments?date=${tomorrow}&view=day`,
             action: p?.phone ? { label: t('search.remind.send'), icon: <MessageCircle />, onClick: () => openExternal(whatsappLink(p.phone!, t('search.remind.message', { name: p.name, time, clinic: clinicName }))) } : undefined,
           }
         }),
@@ -132,20 +132,25 @@ function Panel({ onClose }: { onClose: () => void }) {
       })
     }
     if (perms.inventory && (a.lowStock.length || a.expiry.length)) {
+      const expiryText = ({ kind, days: d }: { kind: 'expired' | 'expiring'; days: number }) =>
+        kind === 'expired' ? t('search.stock.expired', { d: days(d) }) : d === 0 ? t('search.stock.expiresToday') : t('search.stock.expiresIn', { d: days(d) })
+      // an item that is both short and expiring is one row with both facts
+      const expiryOf = new Map(a.expiry.map(x => [x.item.id, x]))
       const rows: Row[] = [
         ...a.lowStock.map(item => {
           const out = item.quantity <= 0
+          const exp = expiryOf.get(item.id)
           return {
-            key: `stock:${item.id}`, tone: out ? 'danger' : 'warning', icon: out ? <PackageX /> : <PackageMinus />, isNew: !seenAtOpen.has(`stock:${item.id}`),
+            key: `stock:${item.id}`, tone: out || exp?.kind === 'expired' ? 'danger' : 'warning', icon: out ? <PackageX /> : <PackageMinus />, isNew: !seenAtOpen.has(`stock:${item.id}`),
             title: <bdi>{item.name}</bdi>,
-            desc: out ? t('search.stock.out') : t('search.stock.low', { q: `${item.quantity} ${unit(item.unit)}`.trim(), min: item.minQuantity }),
+            desc: <>{out ? t('search.stock.out') : t('search.stock.low', { q: `${item.quantity} ${unit(item.unit)}`.trim(), min: item.minQuantity })}{exp && <><Sep />{expiryText(exp)}</>}</>,
             to: '/inventory',
           }
         }),
-        ...a.expiry.map(({ item, kind, days: d }) => ({
-          key: `exp:${item.id}`, tone: kind === 'expired' ? 'danger' : 'orange', icon: kind === 'expired' ? <CalendarX2 /> : <Hourglass />,
-          title: <bdi>{item.name}</bdi>,
-          desc: <>{kind === 'expired' ? t('search.stock.expired', { d: days(d) }) : d === 0 ? t('search.stock.expiresToday') : t('search.stock.expiresIn', { d: days(d) })}{item.expiryDate && <><Sep /><bdi>{fmtDate(item.expiryDate, lang)}</bdi></>}</>,
+        ...a.expiry.filter(x => !a.lowStock.some(i => i.id === x.item.id)).map(x => ({
+          key: `exp:${x.item.id}`, tone: x.kind === 'expired' ? 'danger' : 'orange', icon: x.kind === 'expired' ? <CalendarX2 /> : <Hourglass />,
+          title: <bdi>{x.item.name}</bdi>,
+          desc: <>{expiryText(x)}{x.item.expiryDate && <><Sep /><bdi>{fmtDate(x.item.expiryDate, lang)}</bdi></>}</>,
           to: '/inventory',
         })),
       ]

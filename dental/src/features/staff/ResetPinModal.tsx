@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react'
+import { useRef, useState, type FormEvent } from 'react'
 import { KeyRound } from 'lucide-react'
 import { Alert, Avatar, Badge, Button, Modal, useToast } from '@/ui'
 import { useI18n } from '@/i18n'
@@ -23,6 +23,7 @@ export default function ResetPinModal({ user, onClose }: { user: User; onClose: 
   const [pin2, setPin2] = useState('')
   const [tried, setTried] = useState(false)
   const [saving, setSaving] = useState(false)
+  const savingRef = useRef(false)
   const name = displayName(user)
 
   const e1 = pinError(pin)
@@ -32,8 +33,9 @@ export default function ResetPinModal({ user, onClose }: { user: User; onClose: 
 
   const save = async (e?: FormEvent) => {
     e?.preventDefault()
-    if (saving || readOnly) return
+    if (savingRef.current || readOnly) return
     if (e1 || e2) { setTried(true); return }
+    savingRef.current = true
     setSaving(true)
     try {
       const salt = randomHex()
@@ -42,7 +44,7 @@ export default function ResetPinModal({ user, onClose }: { user: User; onClose: 
       void logActivity({ type: 'system', action: 'update', entityId: user.id, by: session.user?.id, message: t('staff.act.pinReset', { name }) })
       onClose()
     } catch {
-      toast.error(t('error')); setSaving(false)
+      toast.error(t('error')); savingRef.current = false; setSaving(false)
     }
   }
 

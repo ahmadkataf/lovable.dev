@@ -1,4 +1,4 @@
-import { useMemo, useState, type KeyboardEvent } from 'react'
+import { useMemo, useRef, useState, type KeyboardEvent } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { NotebookPen, Pencil, Plus, Trash } from 'lucide-react'
 import { db, logActivity } from '@/db'
@@ -12,6 +12,7 @@ import { Avatar, Button, Card, CardHeader, EmptyState, IconButton, Input, Kbd, M
 import { fmtDate, timeAgo } from '@/lib/dates'
 import { colorFor } from '@/lib/format'
 import { sortNotes } from '@/features/patients/lib'
+import { useGuardedClose } from '@/features/patients/parts'
 import './files.css'
 
 export default function NotesSection({ patientId }: { patientId: string }) {
@@ -84,12 +85,16 @@ function NoteModal({ patientId, note, onClose }: { patientId: string; note?: Cli
   const [text, setText] = useState(note?.text ?? '')
   const [tried, setTried] = useState(false)
   const [saving, setSaving] = useState(false)
+  const busy = useRef(false) // a second Ctrl+Enter / click before the first save lands must not add the note twice
+  const dirty = text.trim() !== (note?.text ?? '').trim() || date !== (note?.date ?? todayISO()) || (!!note && doctorId !== (note.doctorId ?? ''))
+  const requestClose = useGuardedClose(dirty, onClose, busy)
   const textError = tried && !text.trim() ? t('v.required') : undefined
   const dateError = tried && !date ? t('v.required') : undefined
 
   const save = async () => {
     setTried(true)
-    if (saving || !text.trim() || !date) return
+    if (busy.current || !text.trim() || !date) return
+    busy.current = true
     setSaving(true)
     try {
       const now = nowISO()
@@ -101,6 +106,7 @@ function NoteModal({ patientId, note, onClose }: { patientId: string; note?: Cli
       onClose()
     } catch {
       toast.error(t('patients.saveFailed'))
+      busy.current = false
       setSaving(false)
     }
   }
@@ -108,10 +114,10 @@ function NoteModal({ patientId, note, onClose }: { patientId: string; note?: Cli
   const doctorOptions = [{ value: '', label: t('patients.notes.unknownDoctor') }, ...doctors.map(d => ({ value: d.id, label: d.name }))]
 
   return (
-    <Modal open onClose={onClose} size="md" closeOnOverlay={false} icon={<NotebookPen />} title={note ? t('patients.notes.edit') : t('patients.notes.add')}
+    <Modal open onClose={() => void requestClose()} size="md" closeOnOverlay={false} icon={<NotebookPen />} title={note ? t('patients.notes.edit') : t('patients.notes.add')}
       footer={<>
         <span className="start subtle text-xs hide-mobile"><Kbd>Ctrl</Kbd> + <Kbd>Enter</Kbd> {t('patients.notes.toSave')}</span>
-        <Button variant="ghost" onClick={onClose}>{t('cancel')}</Button>
+        <Button variant="ghost" onClick={() => void requestClose()}>{t('cancel')}</Button>
         <Button variant="primary" onClick={save} loading={saving}>{t('save')}</Button>
       </>}>
       <div className="col gap-4" onKeyDown={onKey}>

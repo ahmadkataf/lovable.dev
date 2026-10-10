@@ -65,6 +65,7 @@
 .rp-dlegend li.active, .rp-dlegend li:hover { background: var(--surface-2); }
 .rp-dl-label { color: var(--text-2); }
 .rp-dl-val { font-weight: 700; color: var(--text); white-space: nowrap; }
+.rp-dl-val.neg { color: var(--danger-text); }
 .rp-dl-pct { color: var(--text-3); text-align: end; font-size: var(--fs-xs); }
 
 /* ===== horizontal bars ===== */
@@ -161,6 +162,9 @@ a.rp-kpi:hover { box-shadow: var(--sh-md); border-color: var(--border-2); transf
 .rp-table-total td:first-child { border-end-start-radius: var(--r-xl); }
 .rp-wa { color: var(--success-text) !important; }
 .rp-print-head { display: none; }
+/* dates and times written in words ("4 تشرين الأول 2026", "3:30 م"): tabular digits but the text's own direction —
+   .num would force LTR and scramble the Arabic word order */
+.rp-tnum { font-variant-numeric: tabular-nums; unicode-bidi: isolate; white-space: nowrap; }
 
 @media (max-width: 767px) {
   .rp-periodbar { padding: 10px; gap: 10px; }

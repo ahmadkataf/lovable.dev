@@ -12,7 +12,7 @@ import { hashPin, randomHex } from '@/lib/crypto'
 import { pickFile } from '@/platform'
 import { seedDefaults } from '@/features/seed/demo'
 import {
-  CURRENCIES, buildClinicPatch, validateClinicStep, validateMoneyStep, validateOwnerStep,
+  CURRENCIES, buildClinicPatch, ownerTitleFor, validateClinicStep, validateMoneyStep, validateOwnerStep,
   type ClinicDraft, type Errors, type MoneyDraft, type OwnerDraft,
 } from './lib'
 import { ClinicStep, LanguageStep, MoneyStep, OWNER_COLOR, OwnerStep, ReviewStep } from './SetupSteps'
@@ -36,6 +36,7 @@ export default function SetupPage() {
   const userId = useMemo(() => newId(), [])
   const bodyRef = useRef<HTMLDivElement>(null)
   const titleTouched = useRef(false)
+  const finishing = useRef(false)   // a second Enter / click while the first finish is still writing must not run it again
 
   const [step, setStep] = useState(0)
   const [reached, setReached] = useState(0)
@@ -47,7 +48,7 @@ export default function SetupPage() {
     currency: CURRENCIES[0].code, customCode: '', customSymbol: '', decimals: CURRENCIES[0].decimals,
     workingDays: [0, 1, 2, 3, 4, 6], workStart: '09:00', workEnd: '18:00', slotMinutes: 30, taxPercent: null,
   })
-  const [owner, setOwner] = useState<OwnerDraft>(() => ({ name: '', title: t('auth.owner.titleAr'), specialty: '', phone: '', pin: '', pin2: '' }))
+  const [owner, setOwner] = useState<OwnerDraft>(() => ({ name: '', title: ownerTitleFor(lang), specialty: '', phone: '', pin: '', pin2: '' }))
 
   const errorsOf = (i: number): Errors => (i === 1 ? validateClinicStep(clinic) : i === 2 ? validateMoneyStep(money) : i === 3 ? validateOwnerStep(owner) : {})
   const validUpTo = (i: number) => { for (let s = 0; s < i; s++) if (Object.keys(errorsOf(s)).length) return false; return true }
@@ -60,17 +61,22 @@ export default function SetupPage() {
     setStep(i)
     setReached(r => Math.max(r, i))
     window.scrollTo({ top: 0 })
-    requestAnimationFrame(() => bodyRef.current?.querySelector<HTMLElement>('input:not([type=hidden]), select')?.focus({ preventScroll: true }))
+    // a field with autoFocus (the name on the owner step) has already taken focus; otherwise the step's first field gets it
+    requestAnimationFrame(() => {
+      const body = bodyRef.current
+      if (!body || body.contains(document.activeElement)) return
+      body.querySelector<HTMLElement>('input:not([type=hidden]), select')?.focus({ preventScroll: true })
+    })
   }
   const pickLang = (l: Lang) => {
     setLang(l)
     // the owner's title follows the language until it is chosen by hand
-    if (!titleTouched.current) setOwner(o => ({ ...o, title: l === 'ar' ? t('auth.owner.titleAr') : t('auth.owner.titleEn') }))
+    if (!titleTouched.current) setOwner(o => ({ ...o, title: ownerTitleFor(l) }))
   }
 
   const next = (e?: FormEvent) => {
     e?.preventDefault()
-    if (busy) return
+    if (busy || finishing.current) return
     if (Object.keys(errors).length) {
       setTried(m => ({ ...m, [step]: true }))
       requestAnimationFrame(() => bodyRef.current?.querySelector<HTMLElement>('.invalid')?.focus())
@@ -81,7 +87,9 @@ export default function SetupPage() {
   }
 
   const finish = async () => {
+    if (finishing.current) return
     for (let s = 0; s < STEPS.length; s++) if (Object.keys(errorsOf(s)).length) { setTried(m => ({ ...m, [s]: true })); go(s); return }
+    finishing.current = true
     setBusy(true)
     try {
       const now = nowISO()
@@ -103,6 +111,7 @@ export default function SetupPage() {
       navigate(ok ? '/' : '/login', { replace: true })
     } catch {
       toast.error(t('auth.setup.failed'))
+      finishing.current = false
       setBusy(false)
     }
   }

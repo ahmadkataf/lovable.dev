@@ -249,7 +249,7 @@ async function main() {
     const before = target.updatedAt
     for (const s of ['confirmed', 'arrived', 'in_progress', 'completed']) {
       await row.locator(`[data-testid="apt-do-${s}"]`).click()
-      await wait(page, 450)
+      await wait(page, 750)   // the calendar's status writer ignores a second press on the same visit within 600 ms
       const rec = await page.evaluate(id => window.__dentora.db.appointments.get(id), target.id)
       check(rec.status === s, `dashboard: quick action sets status ${s}`)
       check(rec.updatedAt > before, `dashboard: updatedAt bumped after ${s}`)

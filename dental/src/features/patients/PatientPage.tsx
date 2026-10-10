@@ -1,4 +1,4 @@
-import { lazy, Suspense, useMemo, useState, type ReactNode } from 'react'
+import { lazy, Suspense, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { useLiveQuery } from 'dexie-react-hooks'
 import {
@@ -87,6 +87,18 @@ export default function PatientPage() {
   const tab: TabId = requested && tabs.some(x => x.id === requested) ? requested : 'overview'
   const setTab = (next: TabId) => setParams(p => { const n = new URLSearchParams(p); if (next === 'overview') n.delete('tab'); else n.set('tab', next); return n }, { replace: true })
 
+  // phones scroll the tab bar sideways: keep the active tab in view (deep links, key-figure shortcuts, counts arriving)
+  const tabsRef = useRef<HTMLDivElement>(null)
+  const loaded = !!patient
+  useLayoutEffect(() => {
+    const bar = tabsRef.current?.querySelector<HTMLElement>('.tabs')
+    const active = bar?.querySelector<HTMLElement>('.tab.active')
+    if (!bar || !active || bar.scrollWidth <= bar.clientWidth) return
+    const b = bar.getBoundingClientRect(), a = active.getBoundingClientRect(), pad = 24
+    if (a.left < b.left + pad) bar.scrollLeft -= b.left + pad - a.left
+    else if (a.right > b.right - pad) bar.scrollLeft += a.right - (b.right - pad)
+  }, [tab, tabs, loaded])
+
   const Back = isRTL ? ArrowRight : ArrowLeft
   if (patient === undefined) return <ProfileSkeleton />
   if (patient === null) {
@@ -112,10 +124,16 @@ export default function PatientPage() {
   }
   const remove = async () => {
     if (!(await confirmDelete(t('patients.deleteConfirm')))) return
-    await deletePatientCascade(patient.id)
-    void logActivity({ type: 'patient', action: 'delete', entityId: patient.id, message: patient.name, by: session.user?.id })
-    toast.success(t('patients.deletedToast'), patient.name)
+    const { id: pid, name } = patient
+    // leave first: the live query would otherwise flash "patient not found" between the delete and the navigation
     navigate('/patients', { replace: true })
+    try {
+      await deletePatientCascade(pid)
+      void logActivity({ type: 'patient', action: 'delete', entityId: pid, message: name, by: session.user?.id })
+      toast.success(t('patients.deletedToast'), name)
+    } catch {
+      toast.error(t('patients.deleteFailed'))
+    }
   }
   const moreItems: MenuItemDef[] = [
     { label: patient.archived ? t('restore') : t('archive'), icon: patient.archived ? <ArchiveRestore /> : <Archive />, onClick: () => void toggleArchive(), disabled: readOnly },
@@ -160,10 +178,10 @@ export default function PatientPage() {
               {patient.email && <a className="pt-meta-item pt-link" href={`mailto:${patient.email}`}><Mail /><span className="ltr">{patient.email}</span></a>}
               {patient.address && <span className="pt-meta-item"><MapPin />{patient.address}</span>}
             </div>
-            {patient.tags.length > 0 && <div className="pt-tags">{patient.tags.map(tg => <Badge key={tg} tone="primary">{tg}</Badge>)}</div>}
+            {(patient.tags ?? []).length > 0 && <div className="pt-tags">{patient.tags.map(tg => <Badge key={tg} tone="primary">{tg}</Badge>)}</div>}
           </div>
-          <div className="pt-hero-actions no-print">
-            <Button icon={<Pencil />} onClick={() => setModal('edit')} disabled={readOnly}>{t('edit')}</Button>
+          <div className={`pt-hero-actions no-print${can('appointments') && can('billing') ? ' compact' : ''}`}>
+            <Button className="pt-act-edit" icon={<Pencil />} onClick={() => setModal('edit')} disabled={readOnly} title={t('edit')}>{t('edit')}</Button>
             {can('appointments') && <Button variant="primary" icon={<CalendarPlus />} onClick={() => setModal('appointment')} disabled={readOnly}>{t('patients.newAppointment')}</Button>}
             {can('billing') && <Button variant="soft" icon={<HandCoins />} onClick={() => setModal('payment')} disabled={readOnly}>{t('patients.addPayment')}</Button>}
             <Menu items={moreItems} trigger={() => <Button icon={<Ellipsis />} aria-label={t('more')} title={t('more')} />} />
@@ -172,7 +190,7 @@ export default function PatientPage() {
 
         <div className="pt-kpis">
           <Kpi icon={<Wallet />} tone={balance > 0.004 ? 'danger' : balance < -0.004 ? 'success' : 'muted'} label={t('patients.balanceDue')}
-            value={facts === undefined ? <Skeleton w={80} h={20} /> : Math.abs(balance) < 0.005 ? <span className="pt-kpi-muted">{t('patients.noBalance')}</span> : <span className={`money ${balance > 0 ? 'neg' : 'pos'}`}>{money(balance)}</span>}
+            value={facts === undefined ? <Skeleton w={80} h={20} /> : Math.abs(balance) < 0.005 ? <span className="pt-kpi-muted">{t('patients.noBalance')}</span> : <span className={`money ${balance > 0 ? 'neg' : 'pos'}`}>{money(Math.abs(balance))}</span>}
             sub={balance < -0.004 ? t('patients.credit') : undefined} onClick={can('billing') ? () => setTab('billing') : undefined} />
           <Kpi icon={<CalendarClock />} tone={next ? 'primary' : 'muted'} label={t('patients.nextAppointment')}
             value={facts === undefined ? <Skeleton w={80} h={20} /> : next ? relativeDay(dateOf(next.start), lang) : <span className="pt-kpi-muted">{t('patients.noUpcoming')}</span>}
@@ -200,7 +218,7 @@ export default function PatientPage() {
         </div>
       )}
 
-      <div className="pt-tabs no-print">
+      <div className="pt-tabs no-print" ref={tabsRef}>
         <Tabs tabs={tabs} value={tab} onChange={setTab} />
       </div>
       <div className="pt-tab-body" key={tab}>

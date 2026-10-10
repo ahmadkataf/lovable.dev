@@ -49,7 +49,7 @@ export default function TreatmentsTab({ period, data, setExport, onShowYear }: T
       action={<Button to="/treatments" icon={<Activity />}>{t('reports.tr.goTreatments')}</Button>} />
   }
   const loading = !c
-  const vs = t('reports.vsPrevious')
+  const vs = data?.partial ? t('reports.vsSameDays') : t('reports.vsPrevious')
   const overData = (c?.over ?? []).map((p, i) => ({ label: text[i]?.label ?? '', title: text[i]?.title, values: [p.planned, p.completed] }))
   const overSeries = [{ id: 'planned', label: t('reports.tr.planned'), color: 'var(--rp-c2)' }, { id: 'completed', label: t('reports.tr.completed'), color: 'var(--rp-c1)' }]
   const noDone = c && !c.done.length ? <CardEmpty icon={<Trophy />}>{t('reports.noDataPeriod')}</CardEmpty> : undefined
@@ -66,7 +66,7 @@ export default function TreatmentsTab({ period, data, setExport, onShowYear }: T
 
       <div className="rp-row even">
         <ChartCard testId="chart-top-count" loading={loading} icon={<Trophy />} title={t('reports.tr.topCount')} subtitle={t('reports.tr.topCountSub')} height={220} empty={noDone}
-          table={{ columns: [{ key: 'p', header: t('reports.tr.procedure') }, { key: 'n', header: t('reports.tr.times'), num: true }], rows: (c?.byCount ?? []).map(r => ({ p: r.name, n: <span className="num">{r.count}</span> })) }}>
+          table={{ columns: [{ key: 'p', header: t('reports.tr.procedure') }, { key: 'n', header: t('reports.tr.times'), num: true }], rows: (c?.byCount ?? []).map(r => ({ p: r.name, n: <span className="num">{num(r.count)}</span> })) }}>
           <HorizontalBars data={(c?.byCount ?? []).map(r => ({ id: r.key, label: r.name, value: r.count, sub: money(r.value) }))} format={num} title={t('reports.tr.topCount')} tipLabel={t('reports.tr.times')} />
         </ChartCard>
         <ChartCard testId="chart-top-value" loading={loading} icon={<Gem />} title={t('reports.tr.topValue')} subtitle={t('reports.tr.topValueSub')} height={220} empty={noDone}
@@ -76,7 +76,7 @@ export default function TreatmentsTab({ period, data, setExport, onShowYear }: T
       </div>
 
       <ChartCard testId="chart-planned" loading={loading} icon={<ListChecks />} title={t('reports.tr.plannedVsDone')} subtitle={t('reports.tr.plannedVsDoneSub')} height={250}
-        table={{ columns: [{ key: 'd', header: t('date') }, { key: 'p', header: t('reports.tr.planned'), num: true }, { key: 'c', header: t('reports.tr.completed'), num: true }], rows: overData.filter(d => d.values[0] || d.values[1]).map(d => ({ d: d.title, p: <span className="num">{d.values[0]}</span>, c: <span className="num">{d.values[1]}</span> })) }}>
+        table={{ columns: [{ key: 'd', header: t('date') }, { key: 'p', header: t('reports.tr.planned'), num: true }, { key: 'c', header: t('reports.tr.completed'), num: true }], rows: overData.filter(d => d.values[0] || d.values[1]).map(d => ({ d: d.title, p: <span className="num">{num(d.values[0])}</span>, c: <span className="num">{num(d.values[1])}</span> })) }}>
         <BarChart data={overData} series={overSeries} height={250} integer format={num} title={t('reports.tr.plannedVsDone')} desc={range} labelPeak={false} />
       </ChartCard>
     </div>

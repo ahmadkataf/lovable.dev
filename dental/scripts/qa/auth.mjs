@@ -406,7 +406,7 @@ try {
     await page.locator('.au-member[data-user="u-doc2"] [data-qa=member-menu]').click()
     await page.click('.menu .menu-item:has-text("حذف العضو")')
     await page.waitForSelector('.modal:has-text("حذف")')
-    ok((await page.textContent('.modal-body')).includes('1 من المواعيد'), 'delete: warns about linked records')
+    ok((await page.textContent('.modal-body')).includes('1 من السجلات'), 'delete: warns about linked records')
     await snap(page, 'staff-9-delete-confirm')
     await page.click('.modal-footer .btn-danger')
     await page.waitForTimeout(400)

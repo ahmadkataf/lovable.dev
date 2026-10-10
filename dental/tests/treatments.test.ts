@@ -4,10 +4,11 @@ import type { Procedure, TreatmentItem } from '@/db/types'
 import {
   bulkPrice, chartConditionFor, chartSurfaces, filterRegister, groupByCategory, groupByPatient, inRange, invoiceFromItems, isAnterior, isValidTooth, itemDate, itemTotal,
   mainDoctor, nextStatuses, parseTooth, planStatusFrom, planTotals, rangeFor, sortByDateDesc, sortSurfaces, sortTeeth, statusPatch, summarize, surfaceCode, surfacesForTeeth,
-  TEETH_GRID, tn, toCSV, uniqueCode, unbilledItems, validateItem,
+  TEETH_GRID, listSep, tn, toCSV, uniqueCode, uniqueTitle, unbilledItems, validateItem,
 } from '@/features/treatments/lib'
 import {
-  addItems, applyBulkPrice, applyChartEntries, approvePlan, billItems, cancelPlan, createPlan, deleteItem, deletePlan, deleteProcedure, procedureUsage, saveProcedure, setItemStatus, updateItem,
+  addItems, applyBulkPrice, applyChartEntries, approvePlan, billItems, cancelPlan, createPlan, deleteItem, deletePlan, deleteProcedure, loadDefaultCatalogue, procedureUsage,
+  saveProcedure, setItemStatus, updateItem,
 } from '@/features/treatments/actions'
 import { matches } from '@/lib/format'
 import { translate } from '@/i18n'
@@ -64,7 +65,7 @@ describe('status workflow', () => {
   })
   it('nextStatuses: billed work cannot be reopened', () => {
     expect(nextStatuses({ status: 'planned' })).toEqual(['in_progress', 'completed', 'cancelled'])
-    expect(nextStatuses({ status: 'completed' })).toEqual(['in_progress'])
+    expect(nextStatuses({ status: 'completed' })).toEqual(['in_progress', 'cancelled'])
     expect(nextStatuses({ status: 'completed', invoiceId: 'x' })).toEqual([])
     expect(nextStatuses({ status: 'cancelled' })).toEqual(['planned'])
   })
@@ -94,6 +95,13 @@ describe('invoices', () => {
     ])
     expect(inv).toMatchObject({ patientId: 'p1', doctorId: 'd1', date: '2026-10-10', subtotal: 90, discount: 0, taxPercent: 10, tax: 9, total: 99, paid: 0, status: 'unpaid' })
     expect(invoiceFromItems([item({ price: 0 })], { taxPercent: 0 }, { date: '2026-10-10', makeId: () => 'x' }).status).toBe('paid')
+  })
+  it('invoiceFromItems rounds tax and total to the currency, as billing does', () => {
+    const items = [item({ price: 33, status: 'completed' }), item({ price: 35, discount: 0, status: 'completed' })]
+    const inv = invoiceFromItems(items, { taxPercent: 5, currencyDecimals: 0 }, { date: '2026-10-10', makeId: () => 'x' })
+    expect(inv).toMatchObject({ subtotal: 68, tax: 3, total: 71 })                 // 3.4 → 3 in a currency without cents
+    const cents = invoiceFromItems(items, { taxPercent: 5, currencyDecimals: 2 }, { date: '2026-10-10', makeId: () => 'x' })
+    expect(cents).toMatchObject({ subtotal: 68, tax: 3.4, total: 71.4 })
   })
   it('unbilledItems', () => {
     expect(unbilledItems([item({ status: 'completed' }), item({ status: 'completed', invoiceId: 'i' }), item()]).length).toBe(1)
@@ -216,6 +224,21 @@ describe('register', () => {
     expect(csv.startsWith('﻿')).toBe(true)
     expect(csv.slice(1)).toBe('a,"b,c"\r\n"""q""",3')
   })
+  it('toCSV defuses text a spreadsheet would run as a formula (numbers stay numbers)', () => {
+    expect(toCSV([['=HYPERLINK("x")', '+1', '@a', -5, 'سامر']]).slice(1)).toBe(`"'=HYPERLINK(""x"")",'+1,'@a,-5,سامر`)
+  })
+})
+
+describe('plan titles and lists', () => {
+  it('uniqueTitle adds (2), (3)… when the title is taken', () => {
+    expect(uniqueTitle('خطة علاج — 10 تشرين الأول 2026', [])).toBe('خطة علاج — 10 تشرين الأول 2026')
+    expect(uniqueTitle('Plan', ['Plan'])).toBe('Plan (2)')
+    expect(uniqueTitle('Plan', ['Plan', 'Plan (2)', 'Other'])).toBe('Plan (3)')
+  })
+  it('listSep follows the language', () => {
+    expect([16, 26].join(listSep('ar'))).toBe('16، 26')
+    expect([16, 26].join(listSep('en'))).toBe('16, 26')
+  })
 })
 
 describe('i18n', () => {
@@ -230,6 +253,9 @@ describe('i18n', () => {
     expect(tn(t, 'ar', 'treatments.n.items', 11)).toBe('11 بنداً')
     expect(tn(t, 'ar', 'treatments.n.items', 100)).toBe('100 بند')
     const te = (k: string, p?: Record<string, string | number>) => translate('en', k, p)
+    // every counted string stays Arabic for every Arabic plural form (no fallback to the English '_one')
+    const counted = [...new Set(Object.keys(ar.en).filter(k => /_(one|other)$/.test(k)).map(k => k.replace(/_(one|other)$/, '')))]
+    for (const base of counted) for (const n of [0, 1, 2, 3, 11, 100]) expect(tn(t, 'ar', `treatments.${base}`, n)).not.toMatch(/[A-Za-z]/)
     expect(tn(te, 'en', 'treatments.n.items', 1)).toBe('1 item')
     expect(tn(te, 'en', 'treatments.n.items', 3)).toBe('3 items')
   })
@@ -311,6 +337,46 @@ describe('actions (database)', () => {
     // a filling on O replaces the caries on O only
     await applyChartEntries('p1', [{ tooth: 17, condition: 'filled', surfaces: ['O'] }])
     expect((await db.teeth.get('r3'))?.active).toBe(false)
+  })
+
+  it('restoring an item of a cancelled plan brings the plan back', async () => {
+    const plan = await createPlan('p1', { title: 'خطة' })
+    const { items } = await addItems('p1', { procedure: proc, procedureName: proc.name, teeth: [11, 12], price: 40, discount: 0 }, { id: plan.id })
+    await approvePlan(plan.id)
+    await setItemStatus(items[0].id, 'completed')
+    await cancelPlan(plan.id)
+    expect((await db.plans.get(plan.id))?.status).toBe('cancelled')
+    await setItemStatus(items[1].id, 'planned')
+    expect((await db.plans.get(plan.id))?.status).toBe('in_progress')
+    // a completed, unbilled item can be cancelled directly; completedAt goes with it
+    const c = await setItemStatus(items[0].id, 'cancelled')
+    expect(c?.status).toBe('cancelled')
+    expect(c?.completedAt).toBeUndefined()
+  })
+
+  it('deleting items unlinks lab orders, appointments and chart findings', async () => {
+    const plan = await createPlan('p1', { title: 'خطة' })
+    const { items } = await addItems('p1', { procedure: proc, procedureName: proc.name, teeth: [16, 26], price: 50, discount: 0 }, { id: plan.id })
+    const [a, b] = items
+    await db.labOrders.put({ id: 'lab', patientId: 'p1', labName: 'L', type: 'crown', teeth: [16], status: 'draft', cost: 0, treatmentItemId: a.id, createdAt: NOW, updatedAt: NOW } as never)
+    await db.appointments.put({ id: 'apt', patientId: 'p1', doctorId: 'u1', date: '2026-10-11', start: '10:00', end: '10:30', type: 'treatment', status: 'scheduled', treatmentItemIds: [a.id, b.id], createdAt: NOW, updatedAt: NOW } as never)
+    await db.teeth.put({ id: 'r', patientId: 'p1', tooth: 16, surfaces: ['O'], condition: 'filled', active: true, recordedAt: NOW, treatmentItemId: a.id })
+    expect(await deleteItem(a.id)).toBe(true)
+    expect((await db.labOrders.get('lab'))?.treatmentItemId).toBeUndefined()
+    expect((await db.appointments.get('apt'))?.treatmentItemIds).toEqual([b.id])
+    expect((await db.teeth.get('r'))).toMatchObject({ active: true, condition: 'filled' })
+    expect((await db.teeth.get('r'))?.treatmentItemId).toBeUndefined()
+    await deletePlan(plan.id)
+    expect((await db.appointments.get('apt'))?.treatmentItemIds).toBeUndefined()
+  })
+
+  it('the default catalogue loads procedures only', async () => {
+    await db.procedures.clear()
+    const n = await loadDefaultCatalogue()
+    expect(n).toBeGreaterThan(30)
+    expect(await db.drugs.count()).toBe(0)
+    expect(await db.inventory.count()).toBe(0)
+    expect(await loadDefaultCatalogue()).toBe(0)                           // idempotent
   })
 
   it('procedures: save, usage blocks delete, bulk price', async () => {

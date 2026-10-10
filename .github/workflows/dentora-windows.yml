@@ -126,3 +126,12 @@ jobs:
             dental/release/*.blockmap
           if-no-files-found: error
           retention-days: 90
+
+      # screenshots of the Windows smoke test (window, signed-in shell, English, a PDF), for checking a failed run
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: Dentora-windows-qa
+          path: dental/qa-shots/electron
+          if-no-files-found: ignore
+          retention-days: 14

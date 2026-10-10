@@ -26,6 +26,7 @@ export function QuickMoveForm({ item, initialDir = 'in', onDone, onCancel, autoF
   const [note, setNote] = useState('')
   const [tried, setTried] = useState(false)
   const [busy, setBusy] = useState(false)
+  const saving = useRef(false)   // a second Enter or click before the first write ends must not save twice
   const amountId = `inv-move-amount-${useId().replace(/:/g, '')}`
   const focusAmount = () => document.getElementById(amountId)?.focus()
 
@@ -41,17 +42,19 @@ export function QuickMoveForm({ item, initialDir = 'in', onDone, onCancel, autoF
     e?.preventDefault()
     setTried(true)
     if (error || amount === null) { focusAmount(); return }
+    if (saving.current) return
+    saving.current = true
     setBusy(true)
     try {
       const delta = signedDelta(amount, dir)
       const qty = await recordMovement(item.id, delta, reason, { note, by: user?.id })
       const d = `${delta > 0 ? '+' : '−'}${qtyText(Math.abs(delta), lang)}`
-      toast.success(t('inventory.toast.moved'), <><bdi>{item.name}</bdi>: <span className="num">{d}</span> {isRTL ? '←' : '→'} <span className="num">{qtyText(qty, lang)}</span> {unit}</>)
+      toast.success(t('inventory.toast.moved'), <><bdi className="inv-wrap">{item.name}</bdi>: <span className="num">{d}</span> {isRTL ? '←' : '→'} <span className="num">{qtyText(qty, lang)}</span> {unit}</>)
       void logActivity({ type: 'inventory', action: 'update', entityId: item.id, by: user?.id, message: t('inventory.act.moved', { reason: reasonLabel(t, reason), name: item.name, delta: `\u2066${d}\u2069` }) })
       onDone()
     } catch (err) {
       toast.error(err instanceof StockError && err.code === 'notEnough' ? t('inventory.v.notEnough', { qty: qtyText(item.quantity, lang) }) : t('error'))
-    } finally { setBusy(false) }
+    } finally { saving.current = false; setBusy(false) }
   }
 
   const reasons = dir === 'in' ? REASONS_IN : REASONS_OUT
@@ -130,10 +133,10 @@ export function QuickMovePopover({ item, dir, anchor, onClose }: { item: Invento
     return () => { document.removeEventListener('mousedown', down); window.removeEventListener('keydown', key) }
   }, [anchor, mobile, onClose])
 
-  const title = <span className="truncate"><bdi>{item.name}</bdi></span>
+  const title = <span className="truncate inv-auto" dir="auto">{item.name}</span>
   if (mobile) {
     return (
-      <Modal open onClose={onClose} size="sm" title={t('inventory.move.title')} subtitle={<bdi>{item.name}</bdi>}>
+      <Modal open onClose={onClose} size="sm" title={t('inventory.move.title')} subtitle={<bdi className="inv-wrap">{item.name}</bdi>}>
         <QuickMoveForm item={item} initialDir={dir} onDone={onClose} onCancel={onClose} />
       </Modal>
     )

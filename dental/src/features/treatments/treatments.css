@@ -14,6 +14,8 @@
 .tr-linkbtn svg { width: 14px; height: 14px; }
 .tr-chev { width: 18px; height: 18px; color: var(--text-4); transition: transform var(--t-med) var(--ease); flex: none; }
 .tr-chev.open { transform: rotate(180deg); }
+/* counters stay in the text direction (a .num would flip their logical margins to the wrong side in RTL) */
+.tr-seg-count, .tr-chip-count, .tr-btn-count { font-variant-numeric: tabular-nums; }
 .tr-seg-count { display: inline-block; min-width: 18px; padding: 0 5px; margin-inline-start: 2px; border-radius: var(--r-full); background: var(--border); color: var(--text-3); font-size: 10.5px; line-height: 17px; text-align: center; }
 .segmented button.active .tr-seg-count { background: var(--primary-soft); color: var(--p-700); }
 .tr-chip-count { font-size: 11px; color: var(--text-4); font-weight: 600; }
@@ -32,6 +34,8 @@
 .tr-chips-scroll::-webkit-scrollbar { display: none; }
 .tr-chips-scroll .chip { flex: none; }
 @media (min-width: 768px) { .tr-chips-scroll { flex-wrap: wrap; overflow: visible; } }
+.tr-chips-wrap { flex-wrap: wrap; overflow: visible; }
+.tr-mfilters { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
 .tr-seg-scroll { max-width: 100%; overflow-x: auto; scrollbar-width: none; }
 .tr-seg-scroll::-webkit-scrollbar { display: none; }
 
@@ -132,7 +136,8 @@ button.tr-section-head:hover { background: var(--surface-2); }
 .tr-tbtn { position: relative; height: 40px; min-width: 0; border-radius: var(--r-sm); border: 1px solid var(--border-2); background: var(--surface); color: var(--text-2); font-weight: 700; font-size: var(--fs-sm); display: inline-flex; align-items: center; justify-content: center; transition: background var(--t-fast), border-color var(--t-fast), color var(--t-fast), transform var(--t-fast); }
 .tr-tbtn:hover { border-color: var(--primary); color: var(--primary); }
 .tr-tbtn:active { transform: scale(.96); }
-.tr-tbtn.on { background: var(--primary); border-color: var(--primary); color: var(--on-primary); box-shadow: var(--sh-primary); }
+.tr-tbtn.on, .tr-tbtn.on:hover { background: var(--primary); border-color: var(--primary); color: var(--on-primary); box-shadow: var(--sh-primary); }
+.tr-tbtn.on:hover { background: var(--primary-hover); }
 .tr-tbtn-mark { position: absolute; top: 4px; inset-inline-end: 4px; width: 6px; height: 6px; border-radius: 50%; background: var(--warning); }
 .tr-tbtn.on .tr-tbtn-mark { background: var(--on-primary); }
 .tr-surfaces .chip { height: 36px; }
@@ -236,7 +241,7 @@ button.tr-section-head:hover { background: var(--surface-2); }
 .tr-mitem .tr-item-sub { margin-top: 0; }
 
 /* ---------- register ---------- */
-.tr-patient { display: inline-flex; align-items: center; gap: 8px; color: var(--text); font-weight: 600; max-width: 240px; min-width: 0; }
+.tr-patient { display: inline-flex; align-items: center; gap: 8px; color: var(--text); font-weight: 600; max-width: 210px; min-width: 0; }
 .tr-patient:hover { color: var(--primary); }
 .tr-result-bar { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 10px; padding: 0 4px; }
 .tr-group-head { display: flex; align-items: center; gap: 12px; padding: 12px 18px; border-bottom: 1px solid var(--divider); color: var(--text); }
@@ -257,9 +262,9 @@ button.tr-section-head:hover { background: var(--surface-2); }
 .tr-sheet-doc { text-align: end; flex: none; }
 .tr-sheet-doc-title { font-size: var(--fs-lg); font-weight: 700; color: var(--p-700); }
 .tr-sheet-doc-date { font-size: var(--fs-sm); color: var(--text-3); margin-top: 2px; }
-.tr-sheet-facts { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin: 16px 0; padding: 12px 14px; background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--r-md); }
+.tr-sheet-facts { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, .7fr) minmax(0, 1.6fr) minmax(0, 1.3fr); gap: 12px; margin: 16px 0; padding: 12px 14px; background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--r-md); }
 .tr-sheet-facts > div { display: flex; flex-direction: column; min-width: 0; }
-.tr-sheet-facts span { font-size: var(--fs-xs); color: var(--text-3); }
+.tr-sheet-facts > div > span { font-size: var(--fs-xs); color: var(--text-3); }
 .tr-sheet-facts strong { font-weight: 700; overflow-wrap: anywhere; }
 .tr-sheet-table { width: 100%; border-collapse: collapse; font-size: var(--fs-sm); }
 .tr-sheet-table th { text-align: start; font-size: var(--fs-xs); color: var(--text-3); font-weight: 700; padding: 8px 10px; border-bottom: 1px solid var(--border-2); background: var(--surface-2); }
@@ -329,6 +334,10 @@ button.tr-section-head:hover { background: var(--surface-2); }
   .tr-sheet-bottom { flex-direction: column; }
   .tr-sheet-totals { min-width: 0; width: 100%; }
   .tr-item-modal .modal-body { padding-inline: 16px; }
+}
+/* phones: while one of this module's sheets is open, toasts drop in from the top instead of covering its buttons */
+@media (max-width: 767px) {
+  body:has(.overlay .tr-modal) .toast-stack { top: calc(12px + var(--safe-top)); bottom: auto; }
 }
 /* a full arch does not fit a phone: each quadrant gets its own row there */
 @media (max-width: 559px) {

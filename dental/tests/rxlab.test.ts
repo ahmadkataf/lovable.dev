@@ -1,6 +1,6 @@
 import type { Drug, LabOrder, Patient, Prescription, PrescriptionItem } from '../src/db/types'
 import {
-  DURATION_DAYS, FREQUENCY_PRESETS, INSTRUCTION_PRESETS, buildRxText, draftsToItems, duplicateItems, durationLabel, durationPresets, emptyItem, filterPrescriptions,
+  DRUG_FORMS, DURATION_DAYS, FREQUENCY_PRESETS, INSTRUCTION_PRESETS, buildRxText, draftsToItems, duplicateDefaults, duplicateItems, durationLabel, durationPresets, emptyItem, filterPrescriptions,
   hasErrors, isBlankItem, itemFromDrug, itemTitle, itemToDraft, itemsSummary, presetRange, regimenLine, searchDrugs, sortPrescriptions, validatePrescription,
 } from '../src/features/prescriptions/lib'
 import {
@@ -27,6 +27,8 @@ describe('prescriptions: presets', () => {
     expect(FREQUENCY_PRESETS.ar.length).toBe(FREQUENCY_PRESETS.en.length)
     expect(INSTRUCTION_PRESETS.ar.length).toBe(INSTRUCTION_PRESETS.en.length)
     expect(INSTRUCTION_PRESETS.ar).toContain('بعد الطعام')
+    expect(DRUG_FORMS.ar.length).toBe(DRUG_FORMS.en.length)
+    for (const l of [FREQUENCY_PRESETS, INSTRUCTION_PRESETS, DRUG_FORMS]) for (const lang of ['ar', 'en'] as const) expect(new Set(l[lang]).size).toBe(l[lang].length)
   })
   it('durations 3/5/7/10/14 days with correct Arabic number agreement', () => {
     expect([...DURATION_DAYS]).toEqual([3, 5, 7, 10, 14])
@@ -74,6 +76,11 @@ describe('prescriptions: items', () => {
     expect(dup.map(d => d.id)).not.toContain('x1')
     expect(dup[0]).toEqual({ ...it0, id: dup[0].id })
     expect(new Set(dup.map(d => d.id)).size).toBe(2)
+    const d = duplicateDefaults(rx({ diagnosis: 'Pulpitis', notes: 'n', items: [it0] }))
+    expect(d).toMatchObject({ patientId: 'p1', diagnosis: 'Pulpitis', notes: 'n' })
+    expect('doctorId' in d).toBe(false)            // whoever writes the copy signs it
+    expect(d.items[0].id).not.toBe('x1')
+    expect({ ...d.items[0], id: 'x1' }).toEqual(it0)
   })
   it('validates patient, doctor, date, items and row names', () => {
     const named = { ...emptyItem('Amoxicillin') }
@@ -311,5 +318,36 @@ describe('rxlab: every key used in the code exists', () => {
     expect(missing).toEqual([])
     // the module must not shadow the shared status names
     for (const s of ['draft', 'sent', 'in_progress', 'received', 'fitted', 'remake', 'cancelled']) expect(s in labDict.ar).toBe(false)
+  })
+})
+
+describe('rxlab: every t() key resolves in both languages', () => {
+  it('literal keys, ternary keys and the dynamic status/type/preset families', async () => {
+    const fs = await import('node:fs')
+    const path = await import('node:path')
+    const { translate } = await import('../src/i18n/index')
+    const { LAB_ORDER_STATUSES, LAB_ORDER_TYPES } = await import('../src/db/types')
+    const { DATE_PRESETS } = await import('../src/features/prescriptions/lib')
+    const { nextStatus } = await import('../src/features/lab/lib')
+    const root = path.resolve(__dirname, '../src/features')
+    const files = ['prescriptions', 'lab'].flatMap(d => fs.readdirSync(path.join(root, d)).filter((f: string) => /\.tsx?$/.test(f)).map((f: string) => path.join(root, d, f)))
+    const keys = new Set<string>()
+    for (const f of files) {
+      const src = fs.readFileSync(f, 'utf8')
+      for (const m of src.matchAll(/\bt\(\s*'([^'$]+)'/g)) keys.add(m[1])
+      for (const m of src.matchAll(/\bt\([^()]*?\?\s*'([^']+)'\s*:\s*'([^']+)'/g)) { keys.add(m[1]); keys.add(m[2]) }
+    }
+    for (const s of LAB_ORDER_STATUSES) { keys.add(`lab.${s}`); const n = nextStatus(s); if (n) keys.add(`lab.advance.${n}`) }
+    for (const ty of LAB_ORDER_TYPES) keys.add(`labType.${ty}`)
+    for (const p of DATE_PRESETS) keys.add(`prescriptions.preset.${p}`)
+    for (const s of ['planned', 'in_progress', 'completed', 'cancelled']) keys.add(`tr.${s}`)
+    for (const g of ['male', 'female']) keys.add(g)
+    expect(keys.size).toBeGreaterThan(150)
+    const missing: string[] = []
+    for (const k of keys) for (const lang of ['ar', 'en'] as const) {
+      const v = translate(lang, k)
+      if (v === k || v === k.slice(k.indexOf('.') + 1)) missing.push(`${lang}:${k}`)
+    }
+    expect(missing).toEqual([])
   })
 })

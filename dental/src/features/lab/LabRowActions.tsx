@@ -1,13 +1,15 @@
 // Status actions of one lab order (advance to the next step, remake, cancel, delete) with their toasts and activity
 // lines, plus the row's action cluster shared by the board and the patient tab.
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { Ban, MoreHorizontal, Pencil, Printer, RotateCcw, Trash2 } from 'lucide-react'
 import type { LabOrder, LabOrderStatus } from '@/db/types'
 import { todayISO } from '@/db/ids'
 import { useI18n } from '@/i18n'
 import { useSession } from '@/app/session'
 import { useLicense } from '@/license/useLicense'
-import { Button, IconButton, Menu, useConfirm, useConfirmDelete, useToast, type MenuItemDef } from '@/ui'
+import { Button, IconButton, useConfirm, useConfirmDelete, useToast, type MenuItemDef } from '@/ui'
 import { fmtDate } from '@/lib/dates'
+import { Popover } from '@/features/prescriptions/parts'
 import { deleteLabOrder, setLabStatus } from './actions'
 import { nextStatus } from './lib'
 import { STATUS_ICON } from './parts'
@@ -66,7 +68,37 @@ export function LabRowActions({ order, patientName, onEdit, onPrint, compact }: 
           {compact ? undefined : t(`lab.advance.${next}`)}
         </Button>
       )}
-      <Menu items={items} trigger={() => <IconButton variant="ghost" size="sm" label={t('more')}><MoreHorizontal /></IconButton>} />
+      <RowMenu items={items} label={t('more')} />
     </div>
+  )
+}
+
+/**
+ * The "more" menu of a row. It opens in a layer above the page (like the form popovers), so the table's scroll box,
+ * the board card or the bottom navigation never clip the last rows' menus; it flips upwards near the screen bottom.
+ */
+function RowMenu({ items, label }: { items: MenuItemDef[]; label: string }) {
+  const [open, setOpen] = useState(false)
+  const anchor = useRef<HTMLSpanElement>(null)
+  const close = useCallback(() => setOpen(false), [])
+  useEffect(() => {
+    if (!open) return
+    // capture phase: Escape closes the menu only, never a dialog behind it
+    const k = (e: KeyboardEvent) => { if (e.key === 'Escape') { e.stopPropagation(); setOpen(false) } }
+    window.addEventListener('keydown', k, true)
+    return () => window.removeEventListener('keydown', k, true)
+  }, [open])
+  return (
+    <span ref={anchor} className="menu-anchor lab-menu-anchor">
+      <IconButton variant="ghost" size="sm" label={label} aria-haspopup="menu" aria-expanded={open} onClick={() => setOpen(o => !o)}><MoreHorizontal /></IconButton>
+      <Popover anchor={anchor} open={open} onClose={close} align="end" minWidth={232} maxHeight={360} className="lab-menu">
+        <div role="menu">
+          {items.map((it, i) => it.sep ? <div key={i} className="menu-sep" /> : (
+            <button key={i} type="button" role="menuitem" className={`menu-item${it.danger ? ' danger' : ''}`} disabled={it.disabled}
+              onClick={() => { setOpen(false); it.onClick?.() }}>{it.icon}<span className="grow">{it.label}</span></button>
+          ))}
+        </div>
+      </Popover>
+    </span>
   )
 }

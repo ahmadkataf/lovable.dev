@@ -21,10 +21,11 @@
 .lab-table .table td { padding-block: 10px; }
 .table tr.lab-row-off td { opacity: .62; }
 .lab-patient-link { display: flex; align-items: center; gap: 10px; color: inherit; min-width: 0; max-width: 240px; }
-.lab-patient-link > span { display: flex; flex-direction: column; }
+.lab-patient-link > span { display: flex; flex-direction: column; max-width: 150px; }
 .lab-patient-link:hover .cell-main { color: var(--primary); text-decoration: underline; text-underline-offset: 3px; }
 .lab-nowrap { white-space: nowrap; }
-.lab-sub-max { max-width: 180px; }
+/* long text truncates to the column instead of widening the table (the column's width comes from the header) */
+.lab-fill { width: 0; min-width: 100%; }
 .lab-date { white-space: nowrap; font-size: var(--fs-sm); color: var(--text-2); }
 .lab-due { white-space: nowrap; }
 .lab-status svg { width: 13px; height: 13px; }
@@ -34,8 +35,9 @@
 
 /* teeth & shade chips */
 .lab-teeth-badges { display: inline-flex; flex-wrap: wrap; gap: 3px; align-items: center; }
-.lab-teeth-cell .lab-teeth-badges { flex-wrap: nowrap; }
+.lab-teeth-cell .lab-teeth-badges { min-width: 59px; max-width: 96px; }
 .lab-dates { display: flex; flex-direction: column; align-items: flex-start; gap: 3px; }
+.lab-status-cell { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; }
 .lab-tooth-badge { display: inline-flex; align-items: center; justify-content: center; min-width: 28px; height: 22px; padding: 0 5px; border-radius: 7px; background: var(--surface-3); border: 1px solid var(--border); color: var(--text-2); font-size: 11.5px; font-weight: 700; }
 .lab-tooth-more { font-size: 11px; font-weight: 700; color: var(--p-700); background: var(--primary-soft); border-radius: var(--r-full); padding: 1px 7px; }
 .lab-shade { display: inline-flex; align-items: center; gap: 6px; font-weight: 600; }
@@ -48,6 +50,10 @@
 .lab-mcard-top { display: flex; align-items: center; gap: 12px; min-width: 0; }
 .lab-mcard-mid { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; font-size: var(--fs-sm); }
 .lab-mcard-foot { display: flex; align-items: center; gap: 10px; }
+/* a wide board that cannot hold the table: two cards per row */
+.lab-mlist-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.lab-mlist-grid .lab-mcard:nth-child(odd) { border-inline-end: 1px solid var(--divider); }
+.lab-mlist-grid > .table-footer, .lab-mlist-grid > .empty { grid-column: 1 / -1; }
 
 /* patient tab */
 .lab-plist .list-item { align-items: center; padding: 14px 20px; }
@@ -63,7 +69,17 @@
 .lab-pitem-end { gap: 16px; }
 .lab-pitem-due { display: flex; flex-direction: column; align-items: flex-end; gap: 2px; min-width: 96px; }
 .lab-k { font-size: 10.5px; font-weight: 700; color: var(--text-4); letter-spacing: .3px; text-transform: uppercase; }
+[dir="rtl"] .lab-k, [dir="rtl"] .lab-slip-facts dt { letter-spacing: 0; }
+/* tablets and small laptops: 2 × 2 rather than three cards and a lonely fourth */
+@media (min-width: 768px) and (max-width: 1279px) { .lab-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 @media (max-width: 767px) {
+  /* stats as a compact 2 × 2 grid so the board stays near the top */
+  .lab-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+  .lab-stats .stat-card { flex-direction: column; gap: 8px; padding: 12px 14px; }
+  .lab-stats .stat-card .stat-icon { width: 34px; height: 34px; border-radius: 10px; }
+  .lab-stats .stat-card .stat-icon svg { width: 18px; height: 18px; }
+  .lab-stats .stat-card .stat-value { font-size: var(--fs-xl); }
+  .lab-stats .stat-card .stat-label, .lab-stats .stat-card .text-sm { font-size: var(--fs-xs); }
   .lab-filters { padding: 12px 14px; }
   .lab-doctor { min-width: 0; flex: 1 1 140px; }
   .lab-plist .list-item { flex-wrap: wrap; padding: 12px 14px; gap: 10px; }
@@ -93,8 +109,9 @@
 .lab-arch { grid-column: 2; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
 .lab-occlusal { grid-column: 2; height: 1px; background: repeating-linear-gradient(90deg, var(--border-2) 0 6px, transparent 6px 10px); }
 .lab-q { display: grid; grid-template-columns: repeat(8, minmax(0, 1fr)); gap: 3px; }
-.lab-q1, .lab-q4 { padding-right: 6px; border-right: 2px solid var(--p-200); }
-.lab-q2, .lab-q3 { padding-left: 6px; }
+/* the grid is dir=ltr, so inline-end is the midline side of the patient's right quadrants */
+.lab-q1, .lab-q4 { padding-inline-end: 6px; border-inline-end: 2px solid var(--p-200); }
+.lab-q2, .lab-q3 { padding-inline-start: 6px; }
 .lab-tooth { height: 34px; min-width: 0; border-radius: 8px; border: 1px solid var(--border-2); background: var(--surface); color: var(--text-2); font-size: 12px; font-weight: 700; display: flex; align-items: center; justify-content: center; transition: background var(--t-fast), color var(--t-fast), border-color var(--t-fast), transform var(--t-fast); }
 .lab-tooth:hover:not(:disabled) { border-color: var(--primary); color: var(--p-700); }
 .lab-tooth:active:not(:disabled) { transform: scale(.94); }
@@ -109,8 +126,8 @@
   .lab-side { display: none; }
   .lab-arch, .lab-occlusal { grid-column: 1; }
   .lab-arch { grid-template-columns: minmax(0, 1fr); gap: 4px; }
-  .lab-q1, .lab-q4 { padding-right: 0; border-right: 0; }
-  .lab-q2, .lab-q3 { padding-left: 0; }
+  .lab-q1, .lab-q4 { padding-inline-end: 0; border-inline-end: 0; }
+  .lab-q2, .lab-q3 { padding-inline-start: 0; }
   .lab-tooth { height: 40px; font-size: 13px; }
   .lab-teeth:not(.ro) .lab-q { gap: 4px; }
 }
@@ -192,3 +209,10 @@
   .lab-slip-sign { margin-top: 20px; gap: 24px; }
   .lab-sign-line { height: 28px; }
 }
+
+/* ---- row menu (a layer above the page: never clipped by the table or the card) ---- */
+.lab-menu { padding: 6px; }
+.lab-menu .menu-item { white-space: normal; }
+
+/* a one-line name in its own direction (dir=auto: a Latin lab name truncates at its end) but aligned like the page */
+.lab-auto { text-align: match-parent; }

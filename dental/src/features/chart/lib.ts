@@ -4,8 +4,11 @@ import type { ToothCondition, ToothRecord, ToothSurface } from '@/db/types'
 import { CONDITION_META, LEGEND_ORDER, SURFACE_ORDER, isSurfaceCondition, isValidTooth, normalizeSurfaces, rowOf, toothInfo, type Dentition } from './teeth'
 
 export interface RecordDraft { tooth: number; condition: ToothCondition; surfaces?: ToothSurface[]; note?: string; treatmentItemId?: string }
-/** A record to insert: the caller adds id, patientId, recordedAt and recordedBy. */
-export type NewRecord = Pick<ToothRecord, 'tooth' | 'surfaces' | 'condition' | 'active'> & { note?: string; treatmentItemId?: string }
+/**
+ * A record to insert: the caller adds id and patientId, and recordedAt / recordedBy unless the plan carries them
+ * (what is left of a finding after quick paint took some of its surfaces keeps the original date and author).
+ */
+export type NewRecord = Pick<ToothRecord, 'tooth' | 'surfaces' | 'condition' | 'active'> & { note?: string; treatmentItemId?: string; recordedAt?: string; recordedBy?: string }
 export interface WritePlan { deactivate: string[]; activate: string[]; add: NewRecord[] }
 const EMPTY_PLAN = (): WritePlan => ({ deactivate: [], activate: [], add: [] })
 
@@ -91,9 +94,25 @@ export function validateDraft(d: Partial<RecordDraft>): null | 'condition' | 'su
   return null
 }
 
+/** What is left of a surface record once some of its surfaces are taken: the same finding on the other surfaces. */
+function remainder(r: ToothRecord, taken: readonly ToothSurface[]): NewRecord | null {
+  const rest = r.surfaces.filter(s => !taken.includes(s))
+  if (!rest.length) return null
+  const out: NewRecord = { tooth: r.tooth, surfaces: rest, condition: r.condition, active: true, recordedAt: r.recordedAt }
+  if (r.note) out.note = r.note
+  if (r.treatmentItemId) out.treatmentItemId = r.treatmentItemId
+  if (r.recordedBy) out.recordedBy = r.recordedBy
+  return out
+}
+
 /**
- * Quick-paint click: toggles the condition. Clicking a surface that already shows this condition removes it from that
- * surface (the rest of the record is kept as a new row); clicking a tooth that already has a whole-tooth condition removes it.
+ * Quick-paint click: changes only what was clicked.
+ *  - a surface that already shows this condition: the condition is removed from that surface;
+ *  - a surface showing something else (or nothing): this condition replaces it there;
+ *  - the eraser on a surface clears that surface; on the tooth it resets the whole tooth (a "healthy" history row);
+ *  - a whole-tooth condition toggles on the tooth.
+ * Unlike the panel form (which supersedes overlapping findings whole), a paint click never wipes the other surfaces of a
+ * multi-surface finding: caries MOD with O painted as a filling leaves caries MD + filling O.
  */
 export function planPaint(records: readonly ToothRecord[], tooth: number, surfaces: readonly ToothSurface[], condition: ToothCondition): WritePlan {
   const meta = CONDITION_META[condition]
@@ -107,13 +126,12 @@ export function planPaint(records: readonly ToothRecord[], tooth: number, surfac
   }
   if (meta.scope === 'surface') {
     const shown = surfaceMap(active)
-    const allSame = target.every(s => shown[s]?.condition === condition)
-    if (allSame) {
+    if (target.every(s => shown[s]?.condition === condition)) {
       const plan = EMPTY_PLAN()
       for (const r of active.filter(r => r.condition === condition && overlaps(r.surfaces, target))) {
         plan.deactivate.push(r.id)
-        const rest = r.surfaces.filter(s => !target.includes(s))
-        if (rest.length) plan.add.push({ tooth, surfaces: rest, condition, active: true, note: r.note, treatmentItemId: r.treatmentItemId })
+        const rest = remainder(r, target)
+        if (rest) plan.add.push(rest)
       }
       return plan
     }
@@ -121,6 +139,14 @@ export function planPaint(records: readonly ToothRecord[], tooth: number, surfac
   const plan = planRecord(records, { tooth, condition, surfaces: target })
   // the eraser on a clean tooth or surface changes nothing: do not fill the history with empty "healthy" rows
   if (meta.scope === 'clear' && plan.deactivate.length === 0) return EMPTY_PLAN()
+  // keep the untouched surfaces of every surface finding this click took over
+  if (target.length) {
+    for (const id of plan.deactivate) {
+      const r = active.find(x => x.id === id)
+      const rest = r && isSurfaceRecord(r) && overlaps(r.surfaces, target) ? remainder(r, target) : null
+      if (rest) plan.add.push(rest)
+    }
+  }
   return plan
 }
 

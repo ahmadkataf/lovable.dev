@@ -13,7 +13,7 @@ import { ageFrom } from '@/lib/dates'
 import { colorFor, formatPhone } from '@/lib/format'
 import { imageToDataUrl, pickFile } from '@/platform'
 import { cleanPhone, findDuplicatePhone, sanitizePhoneInput, validatePatient, type PatientErrors, type PatientField } from './lib'
-import { ChipInput, usePlural } from './parts'
+import { ChipInput, useGuardedClose, usePlural } from './parts'
 
 /** Create / edit a patient. onSaved receives the saved patient's id. */
 export interface PatientFormModalProps { open: boolean; onClose: () => void; patient?: Patient; onSaved?: (id: string) => void }
@@ -49,9 +49,20 @@ export default function PatientFormModal({ open, onClose, patient, onSaved }: Pa
   const [saving, setSaving] = useState(false)
   const [photoBusy, setPhotoBusy] = useState(false)
   const formRef = useRef<HTMLFormElement>(null)
+  // a ref, not state: two Enter presses / clicks in the same frame must not create two patients
+  const busy = useRef(false)
+  const initial = useRef(JSON.stringify(draftOf(patient)))
 
   // a fresh form each time the modal opens (or switches patient)
-  useEffect(() => { if (open) { setD(draftOf(patient)); setTouched({}); setSubmitted(false); setSaving(false) } }, [open, patient?.id]) // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    if (!open) return
+    const fresh = draftOf(patient)
+    initial.current = JSON.stringify(fresh)
+    setD(fresh); setTouched({}); setSubmitted(false); setSaving(false); busy.current = false
+  }, [open, patient?.id]) // eslint-disable-line react-hooks/exhaustive-deps
+  const dirty = JSON.stringify(d) !== initial.current
+  /** Escape, Cancel and ✕ land here. */
+  const requestClose = useGuardedClose(dirty && !readOnly, onClose, busy)
 
   const set = <K extends keyof Draft>(k: K, v: Draft[K]) => setD(x => ({ ...x, [k]: v }))
   const errors: PatientErrors = useMemo(() => validatePatient(d, todayISO()), [d])
@@ -77,13 +88,14 @@ export default function PatientFormModal({ open, onClose, patient, onSaved }: Pa
 
   const submit = async (e?: FormEvent) => {
     e?.preventDefault()
-    if (saving || readOnly) return
+    if (busy.current || readOnly) return
     setSubmitted(true)
     if (Object.keys(errors).length) {
       // bring the first problem into view
       window.setTimeout(() => formRef.current?.querySelector<HTMLElement>('.invalid')?.focus(), 0)
       return
     }
+    busy.current = true
     setSaving(true)
     try {
       const now = nowISO()
@@ -108,6 +120,7 @@ export default function PatientFormModal({ open, onClose, patient, onSaved }: Pa
       onClose()
     } catch {
       toast.error(t('patients.saveFailed'))
+      busy.current = false
       setSaving(false)
     }
   }
@@ -116,13 +129,13 @@ export default function PatientFormModal({ open, onClose, patient, onSaved }: Pa
   const errorCount = submitted ? Object.keys(errors).length : 0
 
   return (
-    <Modal open={open} onClose={onClose} size="lg" closeOnOverlay={false}
+    <Modal open={open} onClose={() => void requestClose()} size="lg" closeOnOverlay={false}
       icon={editing ? <UserPen /> : <UserPlus />}
       title={editing ? t('patients.editPatient') : t('patients.newPatient')}
       subtitle={editing ? <><span className="num">#{patient!.fileNo}</span> · {patient!.name}</> : t('patients.formSubtitle')}
       footer={<>
         {errorCount > 0 && <span className="start pt-form-errors">{plural('formErrors', errorCount)}</span>}
-        <Button variant="ghost" onClick={onClose}>{t('cancel')}</Button>
+        <Button variant="ghost" onClick={() => void requestClose()}>{t('cancel')}</Button>
         <Button variant="primary" type="submit" form="pt-patient-form" loading={saving} disabled={readOnly}>{editing ? t('saveChanges') : t('patients.savePatient')}</Button>
       </>}>
       <form id="pt-patient-form" ref={formRef} onSubmit={submit} noValidate className="pt-form">

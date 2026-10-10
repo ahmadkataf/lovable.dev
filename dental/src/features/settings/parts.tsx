@@ -37,8 +37,9 @@ export function useErrText() {
 }
 
 /** Sticky bar at the end of a form: unsaved state, discard and save. The save button submits the surrounding form. */
-export function SaveBar({ dirty, saving, disabled, onDiscard }: { dirty: boolean; saving?: boolean; disabled?: boolean; onDiscard: () => void }) {
+export function SaveBar({ dirty, saving, disabled, hidden, onDiscard }: { dirty: boolean; saving?: boolean; disabled?: boolean; hidden?: boolean; onDiscard: () => void }) {
   const { t } = useI18n()
+  if (hidden) return null
   return (
     <div className={`st-savebar${dirty ? ' dirty' : ''}`} data-qa="savebar">
       <div className="st-savebar-msg">

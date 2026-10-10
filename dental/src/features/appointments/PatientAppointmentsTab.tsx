@@ -9,7 +9,7 @@ import { useUsers } from '@/app/hooks'
 import { useLicense } from '@/license/useLicense'
 import { Button, Card, CardHeader, EmptyState, Skeleton } from '@/ui'
 import { fmtTime, relativeDay, diffDays } from '@/lib/dates'
-import { patientSummary } from './lib'
+import { patientSummary, safeDuration } from './lib'
 import { DocDot, StatusBadge, aptVars, fmtMonthShort, useCountLabel, useDurationLabel, type AptRow } from './shared'
 import { dowName } from './CalendarViews'
 import AppointmentFormModal from './AppointmentFormModal'
@@ -95,7 +95,7 @@ function TabRow({ row, past, next, onOpen }: { row: AptRow; past?: boolean; next
           {next && <span className="apt-trow-next">{t('appointments.tab.next')}</span>}
         </span>
         <span className="apt-trow-sub">
-          <span>{t(`aptType.${row.type}`)}</span><span className="sep">·</span><span>{durLabel(row.durationMin)}</span>
+          <span>{t(`aptType.${row.type}`)}</span><span className="sep">·</span><span>{durLabel(safeDuration(row))}</span>
           {row.doctor && <><span className="sep">·</span><DocDot doctor={row.doctor} /><bdi className="truncate">{row.doctor.name}</bdi></>}
         </span>
         {row.reason && <span className="apt-trow-reason truncate">{row.reason}</span>}

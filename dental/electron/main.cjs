@@ -145,10 +145,12 @@ const L = lang => STRINGS[lang === 'en' ? 'en' : lang === 'ar' ? 'ar' : uiLang]
 // ---- window state (bounds, maximised, zoom) ------------------------------------------------------------------
 const stateFile = () => path.join(app.getPath('userData'), 'window-state.json')
 let state = {}
+let stateLoaded = false   // a second instance quits before 'ready': it must never overwrite the running app's file
 function readState() {
   try { const s = JSON.parse(fs.readFileSync(stateFile(), 'utf8')); return s && typeof s === 'object' ? s : {} } catch { return {} }
 }
 function writeState() {
+  if (!stateLoaded) return
   try {
     const file = stateFile()
     fs.mkdirSync(path.dirname(file), { recursive: true })
@@ -158,9 +160,10 @@ function writeState() {
   } catch (err) { log('window state not saved', err) }
 }
 function captureBounds(win) {
-  if (!win || win.isDestroyed()) return
+  // a minimised window reports neither its size nor whether it was maximised: keep what was saved before
+  if (!win || win.isDestroyed() || win.isMinimized()) return
   const b = win.isMaximized() || win.isFullScreen() ? win.getNormalBounds() : win.getBounds()
-  if (!win.isMinimized()) Object.assign(state, { x: b.x, y: b.y, width: b.width, height: b.height })
+  Object.assign(state, { x: b.x, y: b.y, width: b.width, height: b.height })
   state.maximized = win.isMaximized() || (win.isFullScreen() && !!state.maximized)
 }
 let saveTimer = null
@@ -309,11 +312,20 @@ function createWindow() {
   })
   mainWindow = win
 
-  win.once('ready-to-show', () => {
+  let shown = false
+  const reveal = () => {
+    if (shown || win.isDestroyed()) return
+    shown = true
     if (maximize) win.maximize()
     win.show()
     win.focus()
-  })
+  }
+  win.once('ready-to-show', reveal)
+  // never leave an invisible window behind (a renderer that cannot paint, a failed load): show it anyway
+  const revealTimer = setTimeout(reveal, 10_000)
+  win.once('closed', () => clearTimeout(revealTimer))
+  // the taskbar and title bar say "Dentora" in both languages (index.html's <title> is the Arabic web title)
+  win.on('page-title-updated', e => e.preventDefault())
   for (const ev of ['resize', 'move', 'maximize', 'unmaximize', 'enter-full-screen', 'leave-full-screen']) win.on(ev, () => scheduleSave(win))
   win.on('close', () => { clearTimeout(saveTimer); captureBounds(win); writeState() })
   win.on('closed', () => { if (mainWindow === win) mainWindow = null })
@@ -511,6 +523,7 @@ function onReady() {
     return
   }
   state = readState()
+  stateLoaded = true
   if (state.lang === 'ar' || state.lang === 'en') uiLang = state.lang
   buildMenu()
   setupSession()

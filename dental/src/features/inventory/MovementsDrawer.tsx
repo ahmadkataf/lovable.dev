@@ -20,7 +20,8 @@ export default function MovementsDrawer({ itemId, onClose, onEdit }: { itemId: s
   const users = useUsers(false)
   const { readOnly } = useLicense()
   const [dir, setDir] = useState<MoveDirection | null>(null)
-  const item = useLiveQuery(() => (itemId ? db.inventory.get(itemId) : undefined), [itemId])
+  // undefined while loading, null when the item no longer exists (deleted elsewhere, or a movement of a removed item)
+  const item = useLiveQuery(async () => (itemId ? (await db.inventory.get(itemId)) ?? null : undefined), [itemId])
   const moves = useLiveQuery(() => (itemId ? db.stock.where('itemId').equals(itemId).toArray() : []), [itemId])
   const rows = useMemo(() => (item && moves ? withRunningBalance(moves, item.quantity) : []), [item, moves])
   const userName = (id?: string) => users.find(u => u.id === id)?.name
@@ -32,7 +33,9 @@ export default function MovementsDrawer({ itemId, onClose, onEdit }: { itemId: s
   return (
     <Drawer open={!!itemId} onClose={close} title={<span className="row gap-2"><History className="inv-drawer-icon" />{t('inventory.history')}</span>}
       footer={item && onEdit && !readOnly ? <><Button variant="ghost" onClick={close}>{t('close')}</Button><Button variant="secondary" icon={<Pencil />} onClick={() => onEdit(item.id)}>{t('inventory.editItem')}</Button></> : undefined}>
-      {!item ? (
+      {item === null ? (
+        <EmptyState compact icon={<History />} title={t('inventory.deletedItem')} description={t('inventory.deletedItemDesc')} />
+      ) : !item ? (
         <div className="col gap-3"><Skeleton h={96} r={16} /><Skeleton h={56} /><Skeleton h={56} /><Skeleton h={56} /></div>
       ) : (
         <div className="col gap-4">

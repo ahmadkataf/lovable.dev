@@ -179,13 +179,12 @@ try {
     const paper = await dbq(page, async () => window.__dentora.db.inventory.get('it-paper'))
     ok(paper.name === 'ورق طباعة A4 — 80 غ' && paper.minQuantity === 3 && paper.quantity === 6 && paper.category === 'office', 'item edited, quantity kept')
 
-    // deactivate item with movements via delete → offers deactivate
+    // an item with movements offers no delete, only deactivate (its history stays)
     await page.locator('tr', { hasText: 'حشوة كومبوزيت' }).getByRole('button', { name: 'إجراءات' }).click()
-    await page.getByRole('menuitem', { name: 'حذف الصنف' }).click()
-    await page.waitForTimeout(300)
-    ok(await page.getByText('له حركات مسجلة').count() === 1, 'delete blocked for item with movements')
-    await shot(page, 'inv-11-cant-delete-ar')
-    await page.locator('.modal').getByRole('button', { name: 'إيقاف الصنف' }).click()
+    await page.waitForTimeout(200)
+    ok(await page.getByRole('menuitem', { name: 'حذف الصنف' }).count() === 0, 'no delete for an item with movements')
+    await shot(page, 'inv-11-menu-no-delete-ar')
+    await page.getByRole('menuitem', { name: 'إيقاف الصنف' }).click()
     await page.waitForTimeout(400)
     ok((await dbq(page, async () => (await window.__dentora.db.inventory.get('it-comp')).active)) === false, 'item deactivated')
 

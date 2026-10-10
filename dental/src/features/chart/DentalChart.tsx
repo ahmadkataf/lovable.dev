@@ -304,7 +304,7 @@ export function DentalChart({ records, dentition, selected, selectedSurfaces, hi
                 <g key={n} className={['ch-cell', isSel && 'is-selected', isRing && 'is-ring', v && 'is-charted'].filter(Boolean).join(' ')}
                   onClick={interactive ? () => handlers.tooth(n) : undefined} onKeyDown={interactive ? onKey(n) : undefined}
                   tabIndex={interactive ? 0 : undefined} role={interactive ? 'button' : undefined} aria-label={interactive ? toothLabel(n, lang) : undefined} aria-pressed={interactive ? isSel : undefined} data-tooth={n}>
-                  <title>{toothLabel(n, lang)}{v?.whole.length ? ` — ${v.whole.map(c => t(`cond.${c}`)).join(lang === 'ar' ? '، ' : ', ')}` : ''}</title>
+                  <title>{`${toothLabel(n, lang)}${v?.whole.length ? ` — ${v.whole.map(c => t(`cond.${c}`)).join(lang === 'ar' ? '، ' : ', ')}` : ''}`}</title>
                   <rect x={cx - cw / 2 + 1.5} y={row.y + 1} width={cw - 3} height={row.h - 2} rx={9} className="ch-cell-bg" />
                   <text x={cx} y={row.numY} textAnchor="middle" className="ch-num">{n}</text>
                   <ToothShape info={toothInfo(n)!} view={v ?? EMPTY_VIEW} cx={cx} cy={row.cy} uid={uid}
@@ -385,7 +385,8 @@ export function ToothDiagram({ n, records, picked, onToggle, disabled }: { n: nu
   const vbY = sy === 1 ? -top : -bottom
   const label = (s: ToothSurface, cxc: number, cyc: number) => {
     const X = sx * cxc, Y = sy * cyc
-    const filled = !!view.surfaces[s] || (s === 'R' && view.whole.includes('root_canal'))
+    // white letters on a coloured surface: a finding, the pink root of a root canal, the implant's screw
+    const filled = !!view.surfaces[s] || (s === 'R' && (view.whole.includes('root_canal') || view.whole.includes('implant')))
     return <text key={s} x={X} y={Y + 2.6} textAnchor="middle" className={['ch-dlabel', filled && 'on-fill', picked.includes(s) && 'on-pick'].filter(Boolean).join(' ')}>{s}</text>
   }
   const x = g.iw / 2, y = g.ih / 2

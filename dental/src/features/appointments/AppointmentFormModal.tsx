@@ -1,20 +1,20 @@
-import { useEffect, useMemo, useState, type FormEvent } from 'react'
+import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { CalendarPlus, CalendarCog, Clock, Sparkles, Trash2 } from 'lucide-react'
 import { db, logActivity } from '@/db'
 import { APPOINTMENT_STATUSES, APPOINTMENT_TYPES, type Appointment, type AppointmentStatus, type AppointmentType, type Patient } from '@/db/types'
 import { newId, nowISO, todayISO } from '@/db/ids'
 import { useI18n } from '@/i18n'
-import { useClinic, useDoctors } from '@/app/hooks'
+import { useClinic, useDoctors, useUsers } from '@/app/hooks'
 import { useSession } from '@/app/session'
 import { useLicense } from '@/license/useLicense'
 import { Alert, Button, Field, Input, Modal, Select, Textarea, useToast } from '@/ui'
 import { combine, fmtDate, fmtTime, timeOf, minutesToTime, timeToMinutes, weekdayName } from '@/lib/dates'
 import {
-  blocksTime, DURATIONS, durationOf, endFrom, findConflicts, generateSlots, isValidDate, isValidTime, isWorkingDay, nextFreeSlot, nextLastVisit, slotIsBusy, weekdayOf, withinHours,
+  blocksTime, DURATIONS, endFrom, findConflicts, generateSlots, isValidDate, isValidTime, isWorkingDay, nextFreeSlot, safeDuration, slotIsBusy, slotStep, weekdayOf, withinHours,
 } from './lib'
 import PatientPicker from './PatientPicker'
-import { useAptActions, useDurationLabel } from './shared'
+import { syncLastVisit, useAptActions, useDurationLabel } from './shared'
 
 /** Create / edit an appointment. `defaults` pre-fills a new one (from the calendar or a patient page). */
 export interface AppointmentFormModalProps { open: boolean; onClose: () => void; appointment?: Appointment; defaults?: { patientId?: string; date?: string; time?: string; doctorId?: string }; onSaved?: (id: string) => void }
@@ -29,6 +29,7 @@ function AppointmentForm({ onClose, appointment, defaults, onSaved }: Appointmen
   const { t, lang } = useI18n()
   const clinic = useClinic()
   const doctors = useDoctors()
+  const allUsers = useUsers(false)
   const session = useSession()
   const toast = useToast()
   const { readOnly } = useLicense()
@@ -40,13 +41,14 @@ function AppointmentForm({ onClose, appointment, defaults, onSaved }: Appointmen
   const [doctorId, setDoctorId] = useState(appointment?.doctorId ?? defaults?.doctorId ?? '')
   const [date, setDate] = useState(appointment?.date ?? defaults?.date ?? todayISO())
   const [time, setTime] = useState(appointment ? timeOf(appointment.start) : defaults?.time ?? '')
-  const [duration, setDuration] = useState<number>(appointment ? (appointment.durationMin || durationOf(appointment)) : 0)
+  const [duration, setDuration] = useState<number>(appointment ? safeDuration(appointment) : 0)
   const [type, setType] = useState<AppointmentType>(appointment?.type ?? 'checkup')
   const [status, setStatus] = useState<AppointmentStatus>(appointment?.status ?? 'scheduled')
   const [reason, setReason] = useState(appointment?.reason ?? '')
   const [notes, setNotes] = useState(appointment?.notes ?? '')
   const [errors, setErrors] = useState<Errors>({})
   const [saving, setSaving] = useState(false)
+  const savingRef = useRef(false)   // a double click or a repeated Enter arrives before `saving` re-renders
 
   // the patient chip: from the edited appointment or the defaults
   const initialPatientId = appointment?.patientId ?? defaults?.patientId
@@ -61,7 +63,7 @@ function AppointmentForm({ onClose, appointment, defaults, onSaved }: Appointmen
     setDoctorId((me ?? doctors[0]).id)
   }, [doctors, doctorId, session.user])
   useEffect(() => { if (!duration && clinic.defaultAppointmentMinutes) setDuration(clinic.defaultAppointmentMinutes) }, [clinic.defaultAppointmentMinutes, duration])
-  const dur = duration || clinic.defaultAppointmentMinutes || 30
+  const dur = duration > 0 ? duration : clinic.defaultAppointmentMinutes > 0 ? clinic.defaultAppointmentMinutes : 30
 
   // the doctor's day, for busy slots and the conflict check ([date+doctorId] index)
   const dayKey = `${doctorId}|${date}`
@@ -81,8 +83,10 @@ function AppointmentForm({ onClose, appointment, defaults, onSaved }: Appointmen
   useEffect(() => {
     if (time || editing || !day || !doctorId || !isValidDate(date)) return
     const busy = day.filter(a => blocksTime(a.status))
-    const from = date === todayISO() ? minutesToTime(new Date().getHours() * 60 + new Date().getMinutes()) : undefined
-    setTime(nextFreeSlot(busy, date, dur, clinic, from) ?? slots[0] ?? '09:00')
+    const isToday = date === todayISO()
+    const from = isToday ? minutesToTime(new Date().getHours() * 60 + new Date().getMinutes()) : undefined
+    // nothing free: a full day shows its first slot (with the conflict warning); today after hours leaves the time to the user
+    setTime(nextFreeSlot(busy, date, dur, clinic, from) ?? (isToday ? '' : slots[0] ?? ''))
   }, [day]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const validTime = isValidTime(time)
@@ -101,7 +105,7 @@ function AppointmentForm({ onClose, appointment, defaults, onSaved }: Appointmen
     const list = [...slots]
     if (validTime && !list.includes(time)) { list.push(time); list.sort((a, b) => timeToMinutes(a) - timeToMinutes(b)) }
     return list.map(s => {
-      const busy = day ? slotIsBusy(day, date, s, clinic.slotMinutes || 30) : false
+      const busy = day ? slotIsBusy(day, date, s, slotStep(clinic.slotMinutes)) : false
       return { value: s, label: `${fmtTime(s, lang)}${busy ? ` — ${t('appointments.busy')}` : ''}` }
     })
   }, [slots, time, validTime, day, date, clinic.slotMinutes, lang, t])
@@ -111,15 +115,17 @@ function AppointmentForm({ onClose, appointment, defaults, onSaved }: Appointmen
   }, [dur, durLabel])
   const doctorOptions = useMemo(() => {
     const opts = doctors.map(d => ({ value: d.id, label: d.name }))
-    if (doctorId && !opts.some(o => o.value === doctorId)) opts.push({ value: doctorId, label: t('appointments.formerDoctor') })
+    // an inactive (or deleted) doctor of an edited appointment stays selectable under their name
+    if (doctorId && !opts.some(o => o.value === doctorId)) opts.push({ value: doctorId, label: allUsers.find(u => u.id === doctorId)?.name ?? t('appointments.formerDoctor') })
     return opts
-  }, [doctors, doctorId, t])
+  }, [doctors, doctorId, allUsers, t])
+  const doctorName = doctorOptions.find(o => o.value === doctorId)?.label ?? ''
 
   const clear = (k: keyof Errors) => setErrors(e => (e[k] ? { ...e, [k]: undefined } : e))
 
   const submit = async (e?: FormEvent) => {
     e?.preventDefault()
-    if (readOnly || saving) return
+    if (readOnly || saving || savingRef.current) return
     const errs: Errors = {}
     if (!patient) errs.patient = t('v.required')
     if (!doctorId) errs.doctor = t('v.required')
@@ -127,6 +133,7 @@ function AppointmentForm({ onClose, appointment, defaults, onSaved }: Appointmen
     if (!time) errs.time = t('v.required'); else if (!validTime) errs.time = t('appointments.form.badTime')
     setErrors(errs)
     if (Object.values(errs).some(Boolean) || !patient) return
+    savingRef.current = true
     setSaving(true)
     try {
       const now = nowISO()
@@ -138,9 +145,12 @@ function AppointmentForm({ onClose, appointment, defaults, onSaved }: Appointmen
       await db.transaction('rw', db.appointments, db.patients, async () => {
         if (appointment) await db.appointments.put({ ...appointment, ...fields, updatedAt: now })
         else await db.appointments.add({ id, ...fields, createdAt: now, updatedAt: now, createdBy: session.user?.id })
-        if (status === 'completed') {
-          const p = await db.patients.get(patient.id)
-          if (p) { const lv = nextLastVisit(p.lastVisit, start); if (lv !== p.lastVisit) await db.patients.update(p.id, { lastVisit: lv }) }
+        // keep Patient.lastVisit in step: a completed visit counts, an edited one that was completed may stop counting
+        const wasDone = appointment?.status === 'completed'
+        if (wasDone && appointment.patientId !== patient.id) await syncLastVisit(appointment.patientId, now, appointment.start)
+        if (status === 'completed' || wasDone) {
+          const undone = wasDone && (status !== 'completed' || appointment.start !== start || appointment.patientId !== patient.id) ? appointment.start : undefined
+          await syncLastVisit(patient.id, now, appointment?.patientId === patient.id ? undone : undefined)
         }
       })
       const when = `${fmtDate(date, lang)} ${fmtTime(start, lang)}`
@@ -152,6 +162,7 @@ function AppointmentForm({ onClose, appointment, defaults, onSaved }: Appointmen
       onSaved?.(id)
       onClose()
     } catch {
+      savingRef.current = false
       toast.error(t('error'), t('tryAgain'))
     } finally { setSaving(false) }
   }
@@ -161,10 +172,11 @@ function AppointmentForm({ onClose, appointment, defaults, onSaved }: Appointmen
     if (await actions.remove(appointment, patient?.name)) onClose()
   }
 
+  const close = actions.guardClose(onClose)
   const footer = (
     <>
       {editing && !readOnly && <Button variant="danger-soft" icon={<Trash2 />} className="start" onClick={() => void remove()}>{t('delete')}</Button>}
-      <Button variant="ghost" onClick={onClose}>{t('cancel')}</Button>
+      <Button variant="ghost" onClick={close}>{t('cancel')}</Button>
       <Button variant="primary" type="submit" form="apt-form" loading={saving} disabled={readOnly} title={readOnly ? t('trial.readonly') : undefined} icon={editing ? undefined : <CalendarPlus />}>
         {editing ? t('saveChanges') : t('appointments.form.book')}
       </Button>
@@ -172,7 +184,7 @@ function AppointmentForm({ onClose, appointment, defaults, onSaved }: Appointmen
   )
 
   return (
-    <Modal open onClose={onClose} size="lg" icon={editing ? <CalendarCog /> : <CalendarPlus />} closeOnOverlay={false}
+    <Modal open onClose={close} size="lg" icon={editing ? <CalendarCog /> : <CalendarPlus />} closeOnOverlay={false}
       title={editing ? t('appointments.form.editTitle') : t('appointments.form.newTitle')} subtitle={t('appointments.form.subtitle')} footer={footer}>
       <form id="apt-form" className="apt-form" onSubmit={submit} noValidate>
         {readOnly && <Alert tone="warning">{t('trial.readonly')}</Alert>}
@@ -203,7 +215,7 @@ function AppointmentForm({ onClose, appointment, defaults, onSaved }: Appointmen
         {conflicts.length > 0 && (
           <Alert tone="warning" title={t('appointments.form.conflictTitle')} className="apt-conflict"
             action={freeSlot && !readOnly ? <Button size="sm" variant="secondary" icon={<Sparkles />} onClick={() => setTime(freeSlot)}>{t('appointments.form.useSlot', { time: fmtTime(freeSlot, lang) })}</Button> : undefined}>
-            {t('appointments.form.conflictDesc', { doctor: doctors.find(d => d.id === doctorId)?.name ?? '' })}
+            {t('appointments.form.conflictDesc', { doctor: doctorName })}
             <ul className="apt-conflict-list">
               {conflicts.slice(0, 3).map(c => <li key={c.id}><span className="apt-tm">{fmtTime(c.start, lang)} – {fmtTime(c.end, lang)}</span> · {c.patientName || t('unknown')}</li>)}
             </ul>

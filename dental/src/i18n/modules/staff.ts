@@ -81,7 +81,7 @@ const staff: ModuleDict = {
     'areaDesc.billing': 'إصدار الفواتير وقبض الدفعات',
     'areaDesc.inventory': 'المواد والمستهلكات',
     'areaDesc.reports': 'الإيرادات والأداء',
-    'areaDesc.manage': 'المصروفات وقائمة الإجراءات وأسعارها',
+    'areaDesc.manage': 'المصروفات وقائمة الإجراءات وأسعارها وحذف ملفات المرضى',
     'areaDesc.settings': 'بيانات العيادة والنسخ الاحتياطي والترخيص',
     'areaDesc.staff': 'الأعضاء ورموز الدخول',
 
@@ -112,7 +112,7 @@ const staff: ModuleDict = {
     // delete
     deleteTitle: 'حذف {name}؟',
     deleteDesc: 'سيُحذف الحساب نهائياً ولن يتمكن صاحبه من الدخول.',
-    deleteHistory: 'هذا العضو مرتبط بـ {n} من المواعيد والعلاجات والوصفات. إيقاف الحساب يحفظ هذا السجل واضحاً، وهو الخيار الأفضل غالباً.',
+    deleteHistory: 'هذا العضو مرتبط بـ {n} من السجلات (مواعيد وعلاجات ووصفات وفواتير ودفعات) ستبقى بلا اسمه بعد الحذف. إيقاف الحساب يحفظ هذا السجل واضحاً، وهو الخيار الأفضل غالباً.',
 
     // toasts & activity feed
     'toast.added': 'أُضيف {name} إلى الفريق',
@@ -206,7 +206,7 @@ const staff: ModuleDict = {
     'areaDesc.billing': 'Issuing invoices and taking payments',
     'areaDesc.inventory': 'Materials and supplies',
     'areaDesc.reports': 'Revenue and performance',
-    'areaDesc.manage': 'Expenses, the procedure list and its prices',
+    'areaDesc.manage': 'Expenses, the procedure list and prices, deleting patient files',
     'areaDesc.settings': 'Clinic details, backups and license',
     'areaDesc.staff': 'Members and sign-in PINs',
 
@@ -234,7 +234,7 @@ const staff: ModuleDict = {
 
     deleteTitle: 'Delete {name}?',
     deleteDesc: 'The account will be removed for good and its owner will no longer be able to sign in.',
-    deleteHistory: 'This member is linked to {n} appointments, treatments and prescriptions. Deactivating keeps that history clear and is usually the better choice.',
+    deleteHistory: 'This member is linked to {n} records (appointments, treatments, prescriptions, invoices and payments) that would lose their name. Deactivating keeps that history clear and is usually the better choice.',
 
     'toast.added': '{name} joined the team',
     'toast.updated': '{name} saved',

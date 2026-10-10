@@ -218,22 +218,34 @@ export const DEFAULT_INVENTORY: InventoryDef[] = [
 // ---- currency -------------------------------------------------------------------------------------
 
 /**
- * Catalogue prices are in USD. Currencies pegged to (or stable against) the dollar get the prices scaled and rounded
- * to a sensible step; any other currency keeps the numbers as they are (the clinic edits its price list once).
+ * Catalogue prices are in USD. Currencies pegged to (or fairly stable against) the dollar get the prices scaled and
+ * rounded to a sensible step; any other currency (SYP included) keeps the numbers as they are, and the clinic edits its
+ * price list once. Every currency the setup wizard offers is either here or deliberately left out (SYP).
  */
 const CURRENCY_SCALE: Record<string, [factor: number, step: number]> = {
   USD: [1, 1], EUR: [0.9, 1], GBP: [0.8, 1],
   SAR: [3.75, 5], AED: [3.67, 5], QAR: [3.64, 5], BHD: [0.376, 0.5], OMR: [0.385, 0.5], KWD: [0.31, 0.5], JOD: [0.71, 0.5],
   EGP: [50, 50], IQD: [1310, 500], TRY: [40, 50], LBP: [89500, 50000],
+  MAD: [10, 5], DZD: [135, 100], TND: [3, 1], LYD: [5.5, 5],
 }
-export function priceScale(currency?: string): { factor: number; step: number } {
+/**
+ * The factor and rounding step for a currency. `decimals` is the clinic's currencyDecimals: a clinic that writes
+ * amounts without decimals never gets a fractional step (KWD 0.5 → 1).
+ */
+export function priceScale(currency?: string, decimals?: number): { factor: number; step: number } {
   const s = CURRENCY_SCALE[(currency || 'USD').toUpperCase()]
-  return s ? { factor: s[0], step: s[1] } : { factor: 1, step: 1 }
+  const out = s ? { factor: s[0], step: s[1] } : { factor: 1, step: 1 }
+  if (decimals === 0 && out.step < 1) out.step = 1
+  return out
+}
+/** True when seedDefaults() converts the catalogue prices to this currency; otherwise they stay as USD numbers (show t('seed.pricesInUsd')). */
+export function scalesPrices(currency?: string): boolean {
+  return !!CURRENCY_SCALE[(currency || 'USD').toUpperCase()]
 }
 /** A USD amount in the clinic currency, rounded to the currency step (never to zero). */
-export function scalePrice(usd: number, currency?: string): number {
-  const { factor, step } = priceScale(currency)
-  if (factor === 1 && step === 1) return Math.round(usd)
+export function scalePrice(usd: number, currency?: string, decimals?: number): number {
+  const { factor, step } = priceScale(currency, decimals)
+  if (factor === 1 && step === 1) return Math.max(1, Math.round(usd))
   const v = Math.round((usd * factor) / step) * step
   return v > 0 ? Math.round(v * 100) / 100 : step
 }

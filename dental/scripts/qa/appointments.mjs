@@ -295,7 +295,7 @@ async function flows() {
   await page.locator('.apt-ev', { hasText: 'سامر عادل' }).first().click(); await page.waitForSelector('.apt-det'); await wait(page, 300)
   const chain = [['تأكيد الموعد', 'confirmed'], ['وصل المريض', 'arrived'], ['بدء المعالجة', 'in_progress'], ['إنهاء الزيارة', 'completed']]
   for (const [label, st] of chain) {
-    await page.locator('.apt-det-btns .btn', { hasText: label }).click(); await wait(page, 450)
+    await page.locator('.apt-det-btns .btn', { hasText: label }).click(); await wait(page, 700)
     const s = await db(page, id => window.__dentora.db.appointments.get(id).then(a => a.status), created?.id)
     check(s === st, `status → ${st}`)
   }

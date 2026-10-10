@@ -10,7 +10,11 @@ import {
 
 import fs from 'node:fs'
 import path from 'node:path'
+import { createElement, type ReactElement } from 'react'
+import { renderToStaticMarkup } from 'react-dom/server'
 import chartDict from '../src/i18n/modules/chart'
+import { I18nProvider } from '../src/i18n'
+import { DentalChart, MiniDentalChart, ToothDiagram } from '../src/features/chart/DentalChart'
 
 let seq = 0
 const rec = (tooth: number, condition: ToothCondition, surfaces: ToothSurface[] = [], p: Partial<ToothRecord> = {}): ToothRecord => ({
@@ -180,6 +184,25 @@ describe('chart: quick paint and restore', () => {
     // a different condition on a painted surface replaces it
     expect(state(apply(rows, planPaint(rows, 16, ['M'], 'filled')), 16)).toEqual(['filled:M'])
   })
+  it('a paint click changes only the clicked surface of a multi-surface finding', () => {
+    const mod = rec(16, 'caries', ['M', 'O', 'D'], { note: 'deep', recordedBy: 'u-1', recordedAt: '2026-03-01T09:00:00.000Z' })
+    // a filling painted on O: caries stays on M and D (the panel form would supersede the whole MOD record)
+    const fill = planPaint([mod], 16, ['O'], 'filled')
+    expect(fill.deactivate).toEqual([mod.id])
+    expect(state(apply([mod], fill), 16)).toEqual(['caries:MD', 'filled:O'])
+    // the kept part is the same finding: same note, date and author
+    expect(fill.add).toContainEqual(expect.objectContaining({ condition: 'caries', surfaces: ['M', 'D'], note: 'deep', recordedBy: 'u-1', recordedAt: '2026-03-01T09:00:00.000Z' }))
+    // the eraser on O clears O only and leaves a healthy history row
+    const erase = planPaint([mod], 16, ['O'], 'healthy')
+    expect(state(apply([mod], erase), 16)).toEqual(['caries:MD'])
+    expect(erase.add).toContainEqual(expect.objectContaining({ condition: 'healthy', surfaces: ['O'], active: false }))
+    // the eraser on the tooth resets everything
+    const both = [mod, rec(16, 'crown')]
+    expect(state(apply(both, planPaint(both, 16, [], 'healthy')), 16)).toEqual([])
+    // a whole-tooth record is not split by a surface click
+    const crown = rec(26, 'crown')
+    expect(state(apply([crown], planPaint([crown], 26, ['O'], 'caries')), 26)).toEqual(['caries:O', 'crown'])
+  })
   it('toggles a whole-tooth condition', () => {
     let rows: ToothRecord[] = []
     rows = apply(rows, planPaint(rows, 36, ['O'], 'crown'))
@@ -285,5 +308,39 @@ describe('chart: translations', () => {
     const missing = [...used].filter(k => !(k in chartDict.ar))
     expect(missing).toEqual([])
     expect(used.size).toBeGreaterThan(60)
+  })
+})
+
+describe('chart: drawing', () => {
+  const rows = [rec(18, 'missing'), rec(46, 'implant'), rec(24, 'bridge'), rec(25, 'bridge'), rec(26, 'bridge'), rec(16, 'caries', ['O']), rec(16, 'crown', [], { active: false })]
+  const render = (node: ReactElement, lang: 'ar' | 'en' = 'ar') => renderToStaticMarkup(createElement(I18nProvider, { initial: lang, children: node }))
+  const teethIn = (html: string) => [...html.matchAll(/data-tooth="(\d+)"/g)].map(m => Number(m[1]))
+
+  it('draws the arches like a paper chart, in an LTR box, with Latin numbers, whatever the language', () => {
+    const html = render(createElement(DentalChart, { records: rows, dentition: 'adult', selected: 16, onToothClick: () => {} }))
+    expect(html.startsWith('<div class="ch-chart')).toBe(true)
+    expect(html).toContain('dir="ltr"')
+    expect(teethIn(html)).toEqual([...ROWS.upperAdult, ...ROWS.lowerAdult])
+    expect(html).toMatch(/class="ch-num"[^>]*>18</)
+    expect(html).not.toMatch(/[\u0660-\u0669]/)                                        // no Arabic-Indic digits
+    expect(html).toContain('ch-cell is-selected')
+    expect((html.match(/class="ch-bridge"/g) || []).length).toBe(2)                      // 24–25–26: two connectors
+    expect(html).toContain('class="ch-x"')                                               // missing
+    expect(html).toContain('class="ch-screw"')                                           // implant
+    expect(html).not.toContain('is-crown')                                               // inactive crown not drawn
+    expect(teethIn(render(createElement(DentalChart, { records: [], dentition: 'mixed' })))).toHaveLength(52)
+    expect(teethIn(render(createElement(DentalChart, { records: [], dentition: 'primary' })))).toEqual([...ROWS.upperPrimary, ...ROWS.lowerPrimary])
+  })
+  it('the mini chart is a picture: no buttons, no focus, legend only for what is present', () => {
+    const html = render(createElement(MiniDentalChart, { records: rows }))
+    expect(teethIn(html)).toHaveLength(32)
+    expect(html).not.toContain('tabindex')
+    expect(html).not.toContain('role="button"')
+    expect(html).toContain('ch-mini')
+    expect((html.match(/class="ch-legend-item"/g) || []).length).toBe(4)                 // caries, bridge, implant, missing
+  })
+  it('the single-tooth diagram labels the surfaces of that tooth type', () => {
+    expect(render(createElement(ToothDiagram, { n: 11, records: [], picked: ['M'] }))).toMatch(/>I</)
+    expect(render(createElement(ToothDiagram, { n: 36, records: [], picked: [] }))).toMatch(/>O</)
   })
 })

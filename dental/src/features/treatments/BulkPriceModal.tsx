@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { ArrowLeft, ArrowRight, Percent, Sigma, TrendingDown, TrendingUp } from 'lucide-react'
 import type { Procedure, ProcedureCategory } from '@/db/types'
 import { logActivity } from '@/db'
@@ -24,30 +24,33 @@ export default function BulkPriceModal({ open, onClose, procedures, category }: 
   const [value, setValue] = useState<number | null>(10)
   const [round, setRound] = useState(0)
   const [saving, setSaving] = useState(false)
+  const busy = useRef(false)          // applying twice would raise the prices twice
   useEffect(() => { if (open) { setMode('percent'); setDir('up'); setValue(10); setRound(0) } }, [open])
 
   const scope = useMemo(() => sortProcedures(procedures), [procedures])
   const change: BulkChange = { mode, value: (dir === 'down' ? -1 : 1) * (value ?? 0), round }
   const preview = useMemo(() => scope.map(p => ({ p, next: bulkPrice(p.price, change) })), [scope, mode, dir, value, round]) // eslint-disable-line react-hooks/exhaustive-deps
   const changed = preview.filter(x => x.next !== x.p.price)
+  const zeroed = changed.filter(x => x.next === 0).length       // a decrease that wipes prices out is almost always a typo
   const error = value === null ? t('v.required') : value <= 0 ? t('v.positive') : mode === 'percent' && dir === 'down' && value >= 100 ? t('treatments.bulk.tooMuch') : undefined
   const Arrow = isRTL ? ArrowLeft : ArrowRight
   const scopeLabel = category ? t(`cat.${category}`) : t('treatments.bulk.allCategories')
 
   const apply = async () => {
-    if (error || !changed.length) return
+    if (error || !changed.length || busy.current) return
+    busy.current = true
     setSaving(true)
     try {
       const n = await applyBulkPrice(changed.map(x => x.p.id), change)
       void logActivity({ type: 'system', action: 'update', by: user?.id, message: t('treatments.log.bulk', { n, scope: scopeLabel, change: describe() }) })
       toast.success(t('treatments.toast.bulkDone'), t('treatments.bulk.changedN', { n }))
       onClose()
-    } catch (e) { toast.error(t('error'), String((e as Error)?.message ?? e)) } finally { setSaving(false) }
+    } catch (e) { toast.error(t('error'), String((e as Error)?.message ?? e)) } finally { busy.current = false; setSaving(false) }
   }
   const describe = () => `${dir === 'down' ? '−' : '+'}${mode === 'percent' ? `${value ?? 0}%` : money(value ?? 0)}`
 
   return (
-    <Modal open={open} onClose={onClose} size="md" icon={<Sigma />} title={t('treatments.bulk.title')} subtitle={t('treatments.bulk.sub', { scope: scopeLabel })}
+    <Modal open={open} onClose={onClose} size="md" icon={<Sigma />} title={t('treatments.bulk.title')} subtitle={t('treatments.bulk.sub', { scope: scopeLabel })} className="tr-modal"
       footer={<>
         <span className="start text-sm muted">{t('treatments.bulk.affects', { prices: tn(t, lang, 'treatments.n.prices', changed.length) })}</span>
         <Button variant="ghost" onClick={onClose}>{t('cancel')}</Button>
@@ -74,6 +77,7 @@ export default function BulkPriceModal({ open, onClose, procedures, category }: 
             { value: '5', label: t('treatments.bulk.roundTo', { n: 5 }) }, { value: '10', label: t('treatments.bulk.roundTo', { n: 10 }) },
           ]} />
         </div>
+        {!error && zeroed > 0 && <Alert tone="warning">{t('treatments.bulk.zeroWarn', { prices: tn(t, lang, 'treatments.n.prices', zeroed) })}</Alert>}
         {scope.length === 0 ? <Alert tone="info">{t('treatments.bulk.empty')}</Alert> : (
           <div className="tr-bulk-preview">
             <div className="tr-bulk-head">

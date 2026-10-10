@@ -49,11 +49,13 @@ export function whatsappLink(phone: string, text?: string, defaultCountry = '963
   return `https://wa.me/${d}${text ? `?text=${encodeURIComponent(text)}` : ''}`
 }
 
+/** Two letters for an avatar. Titles (د. / Dr.) are skipped and the Arabic article is dropped: "د. أحمد الخطيب" → "أخ". */
 export function initials(name: string): string {
-  const parts = name.trim().split(/\s+/).filter(Boolean)
+  const parts = name.trim().split(/\s+/).filter(p => p && !/^(د\.?|دكتور|دكتورة|Dr\.?|Mr\.?|Mrs\.?|Ms\.?)$/i.test(p))
   if (!parts.length) return '?'
-  if (parts.length === 1) return parts[0].slice(0, 2)
-  return (parts[0][0] + parts[parts.length - 1][0])
+  if (parts.length === 1) return parts[0].replace(/^ال(?=\S{2,})/, '').slice(0, 2)
+  const strip = (w: string) => w.replace(/^ال(?=\S{2,})/, '')
+  return (strip(parts[0])[0] + strip(parts[parts.length - 1])[0]).toUpperCase()
 }
 
 const AVATAR_COLORS = ['#0E8F86', '#2563EB', '#7C3AED', '#DB2777', '#EA580C', '#16A34A', '#0891B2', '#4F46E5', '#CA8A04', '#DC2626']

@@ -37,13 +37,13 @@ export interface SeedDefaultsOptions { procedures?: boolean; drugs?: boolean; in
 /** Fills the procedure list, the drug list and the inventory of a fresh clinic. Tables that already have rows are left alone. */
 export async function seedDefaults(opts: SeedDefaultsOptions = {}): Promise<DefaultsCounts> {
   const clinic = await getClinic()
-  const cur = clinic.currency
+  const cur = clinic.currency, dec = clinic.currencyDecimals
   const now = nowISO(), today = todayISO()
   const out: DefaultsCounts = { procedures: 0, drugs: 0, inventory: 0 }
   await db.transaction('rw', [db.procedures, db.drugs, db.inventory, db.stock], async () => {
     if (opts.procedures !== false && (await db.procedures.count()) === 0) {
       const rows: Procedure[] = DEFAULT_PROCEDURES.map((p, i) => ({
-        id: newId(), code: p.code, name: p.name, nameEn: p.nameEn, category: p.category, price: scalePrice(p.price, cur), durationMin: p.durationMin,
+        id: newId(), code: p.code, name: p.name, nameEn: p.nameEn, category: p.category, price: scalePrice(p.price, cur, dec), durationMin: p.durationMin,
         toothSpecific: p.toothSpecific, active: true, sortOrder: (i + 1) * 10, createdAt: now, updatedAt: now,
       }))
       await db.procedures.bulkAdd(rows)
@@ -216,8 +216,11 @@ interface PCtx {
   allergies: string[]
   vip: boolean
   insured: boolean
+  /** The general dentist who does this patient's non-specialist work. */
   usual: string
   isNew: boolean
+  /** Referred by another patient (who is picked once everyone's registration date is known). */
+  referredByPatient: boolean
   /** false: this patient only had work that leaves nothing on the chart (check-ups, orthodontics, whitening). */
   charted: boolean
   createdMs: number
@@ -277,6 +280,7 @@ class Generator {
   readonly drugs: Drug[]
   readonly patientCount: number
   readonly cur: string
+  readonly decimals: number
   readonly moneyStep: number
 
   pcs: PCtx[] = []
@@ -303,7 +307,8 @@ class Generator {
     this.rng = new Rng(input.seed)
     this.clinic = input.clinic
     this.cur = input.clinic.currency
-    this.moneyStep = priceScale(this.cur).step
+    this.decimals = input.clinic.currencyDecimals === 0 ? 0 : 2
+    this.moneyStep = priceScale(this.cur, this.decimals).step
     this.nowMs = input.nowMs
     this.today = toISODate(new Date(input.nowMs))
     this.windowStart = addDays(this.today, -90)
@@ -328,7 +333,7 @@ class Generator {
     this.front = active.find(u => u.role === 'receptionist') ?? this.admin
     this.practitioners.forEach((u, i) => this.chairs.set(u.id, `كرسي ${i + 1}`))
 
-    for (const d of DEFAULT_PROCEDURES) this.procByCode.set(d.code, { name: d.name, price: scalePrice(d.price, this.cur), duration: d.durationMin })
+    for (const d of DEFAULT_PROCEDURES) this.procByCode.set(d.code, { name: d.name, price: this.price(d.price), duration: d.durationMin })
     for (const p of input.procedures) if (p.code) this.procByCode.set(p.code, { id: p.id, name: p.name, price: p.price, duration: p.durationMin || this.procByCode.get(p.code)?.duration || 30 })
     this.drugs = input.drugs
   }
@@ -343,15 +348,24 @@ class Generator {
     const lo = Math.min(floor, this.nowMs - 2 * MIN)
     return Math.round(lo + (this.nowMs - MIN - lo) * this.rng.range(0.2, 0.95, 0.01))
   }
-  /** A time during working hours on `date`, not later than now and not before `floor`. */
+  /** A time during working hours on `date`, not later than now and not before `floor` (nor before that day began). */
   timeOn(date: string, floor: number): number {
+    const lo = Math.max(floor, this.at(date, 0))
     let ms = this.at(date, this.ws + this.rng.int(1, this.nSlots - 1) * 30 + this.rng.int(0, 25))
-    if (ms < floor) ms = floor + this.rng.int(1, 20) * MIN
-    return this.before(ms, floor)
+    if (ms < lo) ms = lo + this.rng.int(1, 20) * MIN
+    return this.before(ms, lo)
+  }
+  /** `date` at `minutes`, or earlier that same day when that moment has not come yet (never before the day began). */
+  onDay(date: string, minutes: number): number {
+    const ms = this.at(date, minutes)
+    if (ms <= this.nowMs - 30 * MIN) return ms
+    return Math.max(this.at(date, 0), this.nowMs - this.rng.int(2, 30) * MIN)
   }
   isWorkDay(date: string): boolean { return date === this.today || this.workDays.has(fromISODate(date).getDay()) }
   money(n: number): string { return formatMoney(n, this.clinic, 'ar') }
-  price(usd: number): number { return scalePrice(usd, this.cur) }
+  price(usd: number): number { return scalePrice(usd, this.cur, this.decimals) }
+  /** Rounded to the clinic's minor unit, as the billing screens do (0 or 2 decimals). */
+  cents(n: number): number { return this.decimals === 0 ? Math.round(n) : round2(n) }
   roundMoney(n: number, mult = 5): number { const s = this.moneyStep * (this.moneyStep === 1 ? mult : 1); return Math.max(s, Math.round(n / s) * s) }
 
   // ================================================================================================
@@ -373,14 +387,8 @@ class Generator {
     for (const age of order) this.pcs.push(this.makePatient(age, usedNames, usedPhones))
     for (const pc of this.pcs) pc.charted = rng.chance(0.72)
 
-    // referrals between patients
-    for (let i = 1; i < this.pcs.length; i++) {
-      const pc = this.pcs[i]
-      if (!pc.p.referredBy && rng.chance(0.15)) {
-        const by = this.pcs[rng.int(0, i - 1)].p
-        pc.p.referredBy = `${by.gender === 'female' ? 'المريضة' : 'المريض'} ${by.name}`
-      }
-    }
+    // referrals between patients (the referrer is picked in clinical(), among adults who registered earlier)
+    for (const pc of this.pcs) if (!pc.p.referredBy && rng.chance(0.15)) pc.referredByPatient = true
 
     // the cases every demo must show, then the rest by age
     const required: CaseDef['key'][] = ['implant', 'implant', 'implant', 'bridge', 'bridge', 'veneers', 'veneers', 'aligners', 'aligners', 'denture', 'nightGuard',
@@ -389,13 +397,17 @@ class Generator {
     const primary = new Map<PCtx, string>()
     const finished = new Set<PCtx>()
     for (const key of required) {
-      const candidates = this.pcs.filter(pc => !primary.has(pc) && eligible(key, pc.age) && (pc.charted || CHART_FREE.has(key)))
+      const candidates = this.pcs.filter(pc => !primary.has(pc) && fits(key, pc) && (pc.charted || CHART_FREE.has(key)))
       if (!candidates.length) continue
       const pc = rng.pick(candidates)
       if (FINISH_ONE.has(key) && ![...finished].some(f => primary.get(f) === key)) finished.add(pc)
       primary.set(pc, key)
     }
-    for (const pc of this.pcs) if (!primary.has(pc)) primary.set(pc, pc.charted ? this.caseForAge(pc.age) : this.chartFreeCase(pc.age))
+    for (const pc of this.pcs) {
+      if (primary.has(pc)) continue
+      const key = pc.charted ? this.caseForAge(pc.age) : this.chartFreeCase(pc.age)
+      primary.set(pc, fits(key, pc) ? key : 'endoCrown')
+    }
 
     // a few patients joined recently (their first visit is within the last month)
     const newcomers = new Set(rng.sample(this.pcs.filter(pc => !['braces', 'aligners', 'implant', 'perio', 'denture'].includes(primary.get(pc)!)), Math.round(n * 0.14)))
@@ -404,7 +416,8 @@ class Generator {
     for (const pc of this.pcs) {
       const def = this.buildCase(primary.get(pc)!, pc)
       if (finished.has(pc)) pc.isNew = false
-      if (def.doctor === 'ortho') { pc.usual = this.ortho.id; pc.p.doctorId = this.ortho.id }
+      // the orthodontist is the doctor on file; check-ups, fillings and the like stay with their general dentist (pc.usual)
+      if (def.doctor === 'ortho') pc.p.doctorId = this.ortho.id
       this.runCase(pc, def, finished.has(pc) ? this.finishedStart(def) : this.firstDateFor(pc, def))
     }
     // second, smaller cases
@@ -422,7 +435,7 @@ class Generator {
       for (let i = 0; i < rounds; i++) {
         const options: [string, number][] = pc.kid ? [['checkup', 1], ['pediatric', 1]]
           : [['checkup', 2.5], ['fillings', 2.5], ['endoCrown', 2], ['emergency', 1], ['consult', 0.7], ['whitening', 0.7], ['bridge', 0.4], ['implant', 0.3], ['wisdom', 0.5]]
-        const key = rng.weighted(options.filter(([k]) => eligible(k, pc.age) && (pc.charted || CHART_FREE.has(k))))
+        const key = rng.weighted(options.filter(([k]) => fits(k, pc) && (pc.charted || CHART_FREE.has(k))))
         if (pc.runs.some(run => run.def.key === key)) continue
         this.runCase(pc, this.buildCase(key, pc), addDays(this.today, -rng.int(78, 182)))
       }
@@ -440,7 +453,8 @@ class Generator {
   }
   private caseForAge(age: number): string {
     const r = this.rng
-    if (age <= 12) return r.weighted([['pediatric', 6], ['checkup', 4]])
+    if (age <= 10) return r.weighted([['pediatric', 6], ['checkup', 4]])
+    if (age <= 12) return r.weighted([['braces', 2], ['checkup', 3]])
     if (age <= 17) return r.weighted([['braces', 5], ['fillings', 3], ['checkup', 2]])
     if (age <= 39) return r.weighted([['fillings', 3], ['endoCrown', 2.5], ['wisdom', 1.5], ['whitening', 1], ['checkup', 2.5], ['consult', 1.2], ['emergency', 1], ['nightGuard', 0.4]])
     if (age <= 64) return r.weighted([['endoCrown', 2.5], ['fillings', 2], ['perio', 1], ['emergency', 1.2], ['checkup', 2], ['consult', 1], ['bridge', 0.4], ['implant', 0.4]])
@@ -542,7 +556,6 @@ class Generator {
     p.chronicDiseases = chronic.map(c => c.disease)
     p.medications = chronic.flatMap(c => c.meds)
     const medNotes = chronic.map(c => c.note).filter(Boolean) as string[]
-    if (gender === 'female' && age >= 24 && age <= 38 && r.chance(0.06)) medNotes.push('حامل في الشهر الخامس — تُؤجَّل الصور الشعاعية والإجراءات غير الضرورية')
     if (medNotes.length) p.medicalNotes = medNotes.join('. ')
 
     // tags, insurance, referral, notes
@@ -566,7 +579,7 @@ class Generator {
     const usual = this.rng.weighted(this.generalists.map(u => [u.id, u === this.surgeon && this.generalists.length > 1 ? 0.5 : 1] as const))
     p.doctorId = usual
     const createdMs = this.at(addDays(this.today, -r.int(100, 720)), this.ws + r.int(0, this.nSlots - 1) * 30)
-    return { p, age, kid, first: first[0], father: father?.[0], allergies, vip, insured, usual, isNew: false, charted: true, createdMs, usedTeeth: new Set(), toothEvents: [], runs: [], bookings: [] }
+    return { p, age, kid, first: first[0], father: father?.[0], allergies, vip, insured, usual, isNew: false, referredByPatient: false, charted: true, createdMs, usedTeeth: new Set(), toothEvents: [], runs: [], bookings: [] }
   }
 
   // ================================================================================================
@@ -634,7 +647,8 @@ class Generator {
       seen.add(k)
       m += it.key ? Math.max(20, Math.round((this.procByCode.get(it.code)?.duration ?? 30) * 0.6)) : this.procByCode.get(it.code)?.duration ?? 30
     }
-    return Math.min(120, Math.max(30, Math.ceil(m / 30) * 30))
+    // to the nearest half hour: an exam with a cleaning is a one-hour visit, not ninety minutes
+    return Math.min(120, Math.max(30, Math.round(m / 30) * 30))
   }
 
   /** Lays one case out on the calendar, visit after visit. */
@@ -763,7 +777,8 @@ class Generator {
     const busy = (d: string, id: string) => this.occ(d, id).reduce((a, x) => a + x, 0)
     const dentist = (d: string) => { const min = Math.min(...this.generalists.map(u => busy(d, u.id))); return r.pick(this.generalists.filter(u => busy(d, u.id) === min)).id }
     // today: a full day with visits already finished, one in the chair or waiting, and more to come
-    const refMin = Math.round((this.refMs - this.at(this.today, 0)) / MIN)
+    const ref = new Date(this.refMs)
+    const refMin = ref.getHours() * 60 + ref.getMinutes()      // the local clock (a DST change makes the day 23 or 25 hours long)
     const endMin = this.ws + this.nSlots * 30
     const todays = () => this.allVisits().filter(v => v.date === this.today && !v.historical)
     const want: [(v: Visit) => boolean, number, [number, number]][] = [
@@ -804,7 +819,18 @@ class Generator {
       pc.createdMs = Math.min(pc.createdMs, firstBooking - 5 * MIN, firstHistorical - 7 * DAY)
       pc.createdMs = this.past(pc.createdMs, 60)
       pc.p.createdAt = iso(pc.createdMs)
+      const p = pc.p
+      this.events.push({ at: pc.createdMs, type: 'patient', action: 'create', entityId: p.id, patientId: p.id, by: this.front.id, msg: () => `ملف جديد: ${p.name} — رقم الملف ${p.fileNo}` })
     }
+    // referrals between patients: by an adult patient who registered earlier
+    for (const pc of this.pcs) {
+      if (!pc.referredByPatient) continue
+      const earlier = this.pcs.filter(o => o !== pc && !o.kid && o.createdMs < pc.createdMs - DAY)
+      if (!earlier.length) continue
+      const by = r.pick(earlier).p
+      pc.p.referredBy = `${by.gender === 'female' ? 'المريضة' : 'المريض'} ${by.name}`
+    }
+    this.pregnancy()
     for (const pc of this.pcs) for (const run of pc.runs) this.materialise(run)
     for (const pc of this.pcs) this.baselineChart(pc)
     for (const pc of this.pcs) this.applyTeeth(pc)
@@ -821,6 +847,24 @@ class Generator {
     // one old patient who moved away is archived
     const archive = this.pcs.find(pc => !pc.isNew && pc.age >= 25 && pc.runs.every(run => run.visits.every(v => v.date < addDays(this.today, -20)) && run.active.size === 0 && !run.def.proposal))
     if (archive) { archive.p.archived = true; archive.p.notes = `${archive.p.gender === 'female' ? 'سافرت' : 'سافر'} خارج البلد — الملف مؤرشف` }
+  }
+
+  /**
+   * One patient is five months pregnant. Her file says X-rays and non-urgent work are postponed, so she is chosen
+   * among women of 24–38 with no X-ray, surgery, implant, cosmetic work or prescription in the last five months or booked.
+   */
+  private pregnancy(): void {
+    const since = addDays(this.today, -150)
+    const avoided = (code: string) => /^D0[23]|^D7|^D60|^D42[14]|^D99(72|75)$|^D296[12]$|^DSD$/.test(code)
+    const clear = (pc: PCtx) => pc.runs.every(run => {
+      if (run.def.proposal) return !run.def.proposal.some(it => avoided(it.code))
+      return run.visits.every(v => v.date < since || v.status === 'cancelled' || v.status === 'no_show' ||
+        (!run.def.steps[v.step].rx && !run.def.steps[v.step].items.some(it => avoided(it.code))))
+    })
+    const candidates = this.pcs.filter(pc => pc.p.gender === 'female' && pc.age >= 24 && pc.age <= 38 && !pc.p.medications.length && clear(pc))
+    if (!candidates.length) return
+    const pc = this.rng.pick(candidates)
+    pc.p.medicalNotes = [pc.p.medicalNotes, 'حامل في الشهر الخامس — تُؤجَّل الصور الشعاعية والإجراءات غير الضرورية إلى ما بعد الولادة'].filter(Boolean).join('. ')
   }
 
   /** Turns a case run into appointments, plan, treatment items, notes and prescriptions. */
@@ -875,7 +919,9 @@ class Generator {
     planMs = this.past(Math.max(planMs, pc.createdMs + MIN), 2)
 
     if (def.title) {
-      run.plan = { id: newId(), patientId: pid, doctorId: run.doctorId, title: def.title, status: 'draft', notes: def.planNote, createdAt: iso(planMs), updatedAt: iso(planMs) }
+      const plan: TreatmentPlan = { id: newId(), patientId: pid, doctorId: run.doctorId, title: def.title, status: 'draft', notes: def.planNote, createdAt: iso(planMs), updatedAt: iso(planMs) }
+      run.plan = plan
+      this.events.push({ at: planMs, type: 'treatment', action: 'create', entityId: plan.id, patientId: pid, by: run.doctorId, msg: () => `خطة علاج جديدة: ${plan.title} — ${pc.p.name}` })
     }
 
     // treatment items
@@ -1135,19 +1181,23 @@ class Generator {
       const { pc, v } = gr
       const lines: InvoiceItem[] = gr.items.map(it => clean({ id: newId(), treatmentItemId: it.id, procedureId: it.procedureId, description: it.procedureName, tooth: it.tooth, qty: 1, unitPrice: it.price, discount: it.discount, total: round2(it.price - it.discount) }))
       const createdMs = Math.max(v.endMs + r.int(3, 15) * MIN, ...gr.items.map(i => Date.parse(i.completedAt!) + MIN))
+      let issuedMs = createdMs
       if (gr === cancelAt) {
-        // issued with a wrong line, cancelled, re-issued a few minutes later
-        const wrong = [...lines.map(l => ({ ...l, id: newId() })), clean({ id: newId(), description: this.procByCode.get('D0330')!.name, procedureId: this.procByCode.get('D0330')!.id, qty: 1, unitPrice: this.procByCode.get('D0330')!.price, discount: 0, total: this.procByCode.get('D0330')!.price })]
-        const inv = this.invoice(pc, v, wrong, createdMs - 6 * MIN, false)
-        inv.status = 'cancelled'
-        inv.notes = 'أُلغيت لخطأ في البنود (صورة لم تُجرَ) وأُعيد إصدارها'
-        inv.updatedAt = iso(createdMs - 2 * MIN)
+        // issued with a wrong line, cancelled, re-issued a few minutes later (all after the work was done)
+        const xray = this.procByCode.get('D0330')!
+        const wrong = [...lines.map(l => ({ ...l, id: newId() })), clean({ id: newId(), description: xray.name, procedureId: xray.id, qty: 1, unitPrice: xray.price, discount: 0, total: xray.price })]
+        const bad = this.invoice(pc, v, wrong, createdMs, false)
+        bad.status = 'cancelled'
+        bad.notes = 'أُلغيت لخطأ في البنود (صورة لم تُجرَ) وأُعيد إصدارها'
+        bad.updatedAt = iso(Date.parse(bad.createdAt) + 4 * MIN)
+        issuedMs = Date.parse(bad.createdAt) + 6 * MIN
       }
-      const inv = this.invoice(pc, v, lines, createdMs, pc.vip)
+      const inv = this.invoice(pc, v, lines, issuedMs, pc.vip)
       for (const it of gr.items) it.invoiceId = inv.id
       if (drafts.has(gr)) { inv.status = 'draft'; inv.number = 'DRAFT'; continue }
-      this.collect(pc, inv, createdMs)
+      this.collect(pc, inv, issuedMs)
     }
+    this.settleAtNextVisit()
     // deposits on account before big treatments
     const big = this.pcs.filter(pc => pc.runs.some(run => ['implant', 'braces', 'aligners', 'veneers'].includes(run.def.key) && run.done.size > 0 && [...run.items.values()].some(i => i.row!.status !== 'completed')))
     for (const pc of r.sample(big, 3)) {
@@ -1161,12 +1211,36 @@ class Generator {
     }
   }
 
+  /** Most patients clear what they still owe on a small invoice when they next come in (a week or more later). */
+  private settleAtNextVisit(): void {
+    const r = this.rng
+    for (const pc of this.pcs) {
+      const visits = pc.runs.flatMap(run => [...run.done.values()]).sort((a, b) => a.endMs - b.endMs)
+      for (const inv of this.invoices) {
+        if (inv.patientId !== pc.p.id || (inv.status !== 'unpaid' && inv.status !== 'partial') || inv.total >= this.price(600)) continue
+        const next = visits.find(v => v.date >= addDays(inv.date, 7) && v.endMs > Date.parse(inv.updatedAt))
+        if (!next || !r.chance(0.8)) continue
+        const ms = this.before(next.endMs + r.int(2, 12) * MIN, next.endMs)
+        const amount = this.cents(inv.total - inv.paid)
+        if (amount <= 0) continue
+        const method = r.weighted<PaymentMethod>([['cash', 70], ['card', 15], ['wallet', 10], ['transfer', 5]])
+        const pay: Payment = clean({ id: newId(), patientId: pc.p.id, invoiceId: inv.id, amount, method, date: toISODate(new Date(ms)), note: 'تسديد المتبقي من الفاتورة', receivedBy: this.front.id, createdAt: iso(ms),
+          reference: method === 'card' ? `**** ${r.int(1000, 9999)}` : method === 'wallet' ? `عملية ${r.int(10000000, 99999999)}` : method === 'transfer' ? `حوالة ${r.int(100000, 999999)}` : undefined })
+        this.payments.push(pay)
+        inv.paid = this.cents(inv.paid + amount)
+        inv.status = 'paid'
+        inv.updatedAt = iso(Math.max(Date.parse(inv.updatedAt), ms))
+        this.events.push({ at: ms, type: 'payment', action: 'create', entityId: pay.id, patientId: pc.p.id, by: this.front.id, msg: () => `استلام دفعة ${this.money(amount)} (${common.ar[`pay.${method}`] ?? ''}) من ${pc.p.name} — تسديد فاتورة ${inv.number}` })
+      }
+    }
+  }
+
   private invoice(pc: PCtx, v: Visit, lines: InvoiceItem[], createdMs: number, vip: boolean): Invoice {
     const subtotal = round2(lines.reduce((a, l) => a + l.total, 0))
     const discount = vip ? Math.min(subtotal, this.roundMoney(subtotal * 0.1, 1)) : 0
     const taxPercent = Math.max(0, this.clinic.taxPercent || 0)
-    const tax = round2(((subtotal - discount) * taxPercent) / 100)
-    const total = round2(subtotal - discount + tax)
+    const tax = this.cents(((subtotal - discount) * taxPercent) / 100)
+    const total = this.cents(subtotal - discount + tax)
     const at = this.past(createdMs, 1)
     const inv: Invoice = clean({
       id: newId(), number: '', patientId: pc.p.id, doctorId: v.doctorId, date: v.date, dueDate: total >= this.price(500) ? addDays(v.date, 30) : undefined, items: lines, subtotal, discount, taxPercent, tax, total,
@@ -1185,9 +1259,9 @@ class Generator {
     let mode: 'paid' | 'partial' | 'unpaid'
     const x = r.float()
     if (big) mode = age > 150 ? 'paid' : x < 0.3 ? 'paid' : 'partial'
-    else if (age > 30) mode = x < 0.86 ? 'paid' : x < 0.95 ? 'partial' : 'unpaid'
-    else if (age > 7) mode = x < 0.7 ? 'paid' : x < 0.86 ? 'partial' : 'unpaid'
-    else mode = x < 0.62 ? 'paid' : x < 0.82 ? 'partial' : 'unpaid'
+    else if (age > 30) mode = x < 0.9 ? 'paid' : x < 0.96 ? 'partial' : 'unpaid'
+    else if (age > 7) mode = x < 0.78 ? 'paid' : x < 0.9 ? 'partial' : 'unpaid'
+    else mode = x < 0.66 ? 'paid' : x < 0.84 ? 'partial' : 'unpaid'
     const pays: { amount: number; date: string; method: PaymentMethod; ms?: number }[] = []
     const method = (): PaymentMethod => r.weighted<PaymentMethod>([['cash', 64], ['card', 15], ['transfer', 10], ['wallet', 7], ['other', 1]])
     const laterDate = (minDays: number, maxDays: number) => { const d = addDays(inv.date, r.int(minDays, Math.max(minDays, maxDays))); return d > this.today ? this.today : d }
@@ -1218,7 +1292,7 @@ class Generator {
       } else pays.push({ amount: inv.total, date: inv.date, method: method(), ms: createdMs + r.int(1, 8) * MIN })
     } else if (mode === 'partial') {
       let paid = this.roundMoney(inv.total * r.range(0.3, 0.6, 0.05))
-      if (paid >= inv.total) paid = round2(inv.total / 2)
+      if (paid >= inv.total) paid = this.cents(inv.total / 2)
       pays.push({ amount: paid, date: inv.date, method: method(), ms: createdMs + r.int(1, 8) * MIN })
       if (big) {
         let d = inv.date, left = round2(inv.total - paid)
@@ -1269,7 +1343,7 @@ class Generator {
     const by = this.admin.id
     const add = (category: ExpenseCategory, date: string, usd: number, description: string, extra: Partial<Expense> = {}) => {
       if (date > this.today) return
-      const ms = this.past(this.at(date, this.ws + r.int(2, this.nSlots - 2) * 30), 30)
+      const ms = this.onDay(date, this.ws + r.int(2, this.nSlots - 2) * 30)
       const e: Expense = clean({ id: newId(), category, amount: this.price(usd), date, description, method: 'cash' as PaymentMethod, by, createdAt: iso(ms), ...extra })
       this.expenses.push(e)
       this.events.push({ at: ms, type: 'expense', action: 'create', entityId: e.id, by, msg: () => `مصروف: ${e.description} — ${this.money(e.amount)}` })
@@ -1396,6 +1470,14 @@ const FINISH_ONE = new Set(['implant', 'bridge', 'denture', 'pediatric'])
 /** Cases that leave nothing on the dental chart. */
 const CHART_FREE = new Set(['checkup', 'consult', 'whitening', 'braces', 'aligners'])
 
+/** Age and medical history allow this case (no implants for patients on bisphosphonates). */
+function fits(key: string, pc: PCtx): boolean {
+  if (!eligible(key, pc.age)) return false
+  if (key === 'implant' && pc.p.medications.some(m => BISPHOSPHONATE.test(m))) return false
+  return true
+}
+const BISPHOSPHONATE = /أليندرونات|ريسيدرونات|زوليدرونات/
+
 function eligible(key: string, age: number): boolean {
   switch (key) {
     case 'implant': return age >= 25 && age <= 72
@@ -1409,7 +1491,7 @@ function eligible(key: string, age: number): boolean {
     case 'braces': return age >= 11 && age <= 35
     case 'emergency': return age >= 15
     case 'endoCrown': return age >= 16
-    case 'pediatric': return age <= 12
+    case 'pediatric': return age <= 10           // primary molars are shed from about 10–12
     case 'whitening': return age >= 20 && age <= 55
     case 'fillings': return age >= 13
     default: return true

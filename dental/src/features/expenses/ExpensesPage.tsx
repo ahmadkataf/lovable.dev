@@ -1,6 +1,6 @@
 import { useMemo, useRef, useState } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
-import { CalendarDays, CalendarRange, ChevronLeft, ChevronRight, Download, Hash, History, Pencil, Plus, ReceiptText, Search, Trash2, Wallet, X } from 'lucide-react'
+import { CalendarDays, CalendarRange, ChevronLeft, ChevronRight, Download, Hash, History, Pencil, Plus, ReceiptText, Search, ShieldAlert, Trash2, Wallet, X } from 'lucide-react'
 import { db, logActivity } from '@/db'
 import { todayISO } from '@/db/ids'
 import type { Expense, ExpenseCategory } from '@/db/types'
@@ -28,7 +28,21 @@ import './expenses.css'
 
 type Mode = 'month' | 'custom'
 
+/** Clinic spending is for managers: the menu hides the page from other roles, and a typed URL lands here. */
 export default function ExpensesPage() {
+  const { t } = useI18n()
+  const session = useSession()
+  if (!session.can('manage')) {
+    return (
+      <div className="page">
+        <Card><EmptyState icon={<ShieldAlert />} title={t('expenses.noPermission')} description={t('expenses.noPermissionSub')} actions={<Button variant="primary" to="/">{t('expenses.backHome')}</Button>} /></Card>
+      </div>
+    )
+  }
+  return <ExpensesView />
+}
+
+function ExpensesView() {
   const { t, lang } = useI18n()
   const money = useMoney()
   const mobile = useIsMobile()
@@ -51,6 +65,8 @@ export default function ExpensesPage() {
   const list = useLiveQuery(() => db.expenses.where('date').between(period.from, period.to, true, true).toArray(), [period.from, period.to])
   const prevList = useLiveQuery(() => db.expenses.where('date').between(prev.from, prev.to, true, true).toArray(), [prev.from, prev.to])
   const everCount = useLiveQuery(() => db.expenses.count(), [])
+  // the latest dated expense: a bill entered ahead of time (next month's rent) must stay reachable with the month arrows
+  const lastDate = useLiveQuery(async () => (await db.expenses.orderBy('date').last())?.date ?? '', [])
 
   const [q, setQ] = useState('')
   const dq = useDebounced(q)
@@ -68,13 +84,16 @@ export default function ExpensesPage() {
   const userName = (id?: string) => users.find(u => u.id === id)?.name ?? '—'
   const filtered = !!(dq || category)
 
-  const periodLabel = (p: Period) => (isFullMonth(p) ? fmtMonth(p.from, lang) : `${fmtDate(p.from, lang)} – ${fmtDate(p.to, lang)}`)
-  const atCurrentMonth = month.from >= startOfMonth(today)
+  const periodLabel = (p: Period) => (isFullMonth(p) ? fmtMonth(p.from, lang) : p.from === p.to ? fmtDate(p.from, lang) : `${fmtDate(p.from, lang)} – ${fmtDate(p.to, lang)}`)
+  // a share that rounds to 0.0 but is not empty reads '<0.1%', never a misleading '0%'
+  const pctText = (s: { pct: number; total: number }) => (s.pct === 0 && s.total > 0 ? '<0.1%' : `${s.pct}%`)
+  const atCurrentMonth = month.from === startOfMonth(today)
+  const canGoNext = month.to < today || (!!lastDate && month.to < lastDate)
 
   const remove = async (e: Expense) => {
-    if (!(await confirmDelete(t('expenses.deleteDesc', { desc: e.description })))) return
+    if (!(await confirmDelete(<span className="inv-exp-wrap">{t('expenses.deleteDesc', { desc: e.description })}</span>))) return
     await db.expenses.delete(e.id)
-    toast.success(t('expenses.toast.deleted'), <><bdi>{e.description}</bdi> · <span className="money">{money(e.amount)}</span></>)
+    toast.success(t('expenses.toast.deleted'), <><bdi className="inv-exp-wrap">{e.description}</bdi> · <span className="money">{money(e.amount)}</span></>)
     void logActivity({ type: 'expense', action: 'delete', entityId: e.id, by: user?.id, message: t('expenses.act.deleted', { desc: e.description }) })
   }
 
@@ -97,8 +116,8 @@ export default function ExpensesPage() {
   const columns: Column<Expense>[] = [
     { key: 'date', header: t('expenses.col.date'), render: e => <span className="inv-exp-date">{fmtDate(e.date, lang)}</span> },
     { key: 'category', header: t('expenses.col.category'), render: e => <ExpenseCategoryBadge category={e.category} /> },
-    { key: 'description', header: t('expenses.col.description'), render: e => <div className="inv-exp-desc"><div className="cell-main truncate"><bdi>{e.description}</bdi></div>{e.vendor && <div className="cell-sub truncate inv-exp-vendor-sub"><bdi>{e.vendor}</bdi></div>}</div> },
-    { key: 'vendor', header: t('expenses.col.vendor'), render: e => <span className="truncate inv-exp-vendor">{e.vendor ? <bdi>{e.vendor}</bdi> : <span className="muted">—</span>}</span>, className: 'inv-exp-col-vendor' },
+    { key: 'description', header: t('expenses.col.description'), render: e => <div className="inv-exp-desc"><div className="cell-main truncate inv-exp-auto" dir="auto" title={e.description}>{e.description}</div>{e.vendor && <div className="cell-sub truncate inv-exp-vendor-sub inv-exp-auto" dir="auto">{e.vendor}</div>}</div> },
+    { key: 'vendor', header: t('expenses.col.vendor'), render: e => (e.vendor ? <span className="truncate inv-exp-vendor inv-exp-auto" dir="auto" title={e.vendor}>{e.vendor}</span> : <span className="muted">—</span>), className: 'inv-exp-col-vendor' },
     { key: 'method', header: t('expenses.col.method'), render: e => (e.method ? <span className="inv-exp-method inv-exp-nowrap">{t(`pay.${e.method}`)}</span> : <span className="muted">—</span>), hideBelow: 'lg' },
     { key: 'amount', header: t('expenses.col.amount'), render: e => <span className="money inv-exp-amount">{money(e.amount)}</span>, className: 'num' },
     { key: 'by', header: t('expenses.col.by'), render: e => <span className="muted text-sm inv-exp-nowrap">{userName(e.by)}</span>, hideBelow: 'lg' },
@@ -139,7 +158,7 @@ export default function ExpensesPage() {
           <div className="inv-exp-nav">
             <IconButton variant="ghost" label={t('expenses.period.prev')} onClick={() => setMonth(m => shiftMonth(m, -1))}><ChevronLeft /></IconButton>
             <div className="inv-exp-month">{fmtMonth(month.from, lang)}</div>
-            <IconButton variant="ghost" label={t('expenses.period.next')} onClick={() => setMonth(m => shiftMonth(m, 1))} disabled={atCurrentMonth}><ChevronRight /></IconButton>
+            <IconButton variant="ghost" label={t('expenses.period.next')} onClick={() => setMonth(m => shiftMonth(m, 1))} disabled={!canGoNext}><ChevronRight /></IconButton>
             {!atCurrentMonth && <Button variant="soft" size="sm" onClick={() => setMonth(monthPeriod(today))}>{t('thisMonth')}</Button>}
           </div>
         ) : (
@@ -161,7 +180,7 @@ export default function ExpensesPage() {
           <StatCard tone="primary" icon={<Wallet />} label={t('expenses.stat.total')} value={<span className="money">{money(total)}</span>}
             delta={delta} deltaLabel={deltaLabel} sub={delta !== null ? undefined : total > 0 ? t('expenses.stat.noPrev') : t('expenses.stat.noExpenses')} />
           <StatCard tone="purple" icon={<TopIcon />} label={t('expenses.stat.top')} value={top ? t(`exp.${top.category}`) : '—'}
-            sub={top ? <><span className="money">{money(top.total)}</span> · {t('expenses.ofTotal', { pct: top.pct })}</> : t('expenses.stat.noExpenses')}
+            sub={top ? <><span className="money">{money(top.total)}</span> · <span className="inv-exp-nowrap">{t('expenses.ofTotal', { pct: top.pct })}</span></> : t('expenses.stat.noExpenses')}
             onClick={top ? () => pickCategory(top.category) : undefined} />
           <StatCard tone="info" icon={<Hash />} label={t('expenses.stat.count')} value={<span className="num">{list!.length}</span>}
             sub={list!.length ? <>{t('expenses.stat.avg')}: <span className="money">{money(total / list!.length)}</span></> : t('expenses.stat.noExpenses')} />
@@ -183,7 +202,7 @@ export default function ExpensesPage() {
             <div className="card-body">
               {loading ? <div className="col gap-3"><Skeleton h={14} r={8} /><Skeleton h={36} /><Skeleton h={36} /><Skeleton h={36} /></div> : <>
                 <div className="inv-exp-stack" role="img" aria-label={t('expenses.breakdown.title')}>
-                  {breakdown.map(s => <span key={s.category} style={{ width: `${s.pct}%`, background: CATEGORY_COLOR_VAR[s.category] }} title={`${t(`exp.${s.category}`)} · ${s.pct}%`} />)}
+                  {breakdown.map(s => <span key={s.category} style={{ width: `${s.pct}%`, background: CATEGORY_COLOR_VAR[s.category] }} title={`${t(`exp.${s.category}`)} · ${pctText(s)}`} />)}
                 </div>
                 <div className="inv-exp-bars">
                   {breakdown.map(s => {
@@ -194,7 +213,7 @@ export default function ExpensesPage() {
                         <span className="inv-exp-bar-main">
                           <span className="inv-exp-bar-head">
                             <span className="inv-exp-bar-label">{t(`exp.${s.category}`)}<span className="inv-exp-bar-count">{tn(t, lang, 'expenses.entries', s.count)}</span></span>
-                            <span className="inv-exp-bar-amount"><span className="money">{money(s.total)}</span><span className="inv-exp-bar-pct num">{s.pct}%</span></span>
+                            <span className="inv-exp-bar-amount"><span className="money">{money(s.total)}</span><span className="inv-exp-bar-pct num">{pctText(s)}</span></span>
                           </span>
                           <span className="inv-exp-track"><span style={{ width: `${Math.max(2, s.pct)}%`, background: CATEGORY_COLOR_VAR[s.category] }} /></span>
                         </span>

@@ -1,5 +1,6 @@
 import { forwardRef, useId, type InputHTMLAttributes, type ReactNode, type SelectHTMLAttributes, type TextareaHTMLAttributes } from 'react'
 import { Check, X } from 'lucide-react'
+import { useTSafe } from '@/i18n'
 
 export interface FieldProps { label?: ReactNode; hint?: ReactNode; error?: ReactNode; required?: boolean; children: ReactNode; className?: string; htmlFor?: string }
 export function Field({ label, hint, error, required, children, className, htmlFor }: FieldProps) {
@@ -22,12 +23,13 @@ export interface InputProps extends Omit<InputHTMLAttributes<HTMLInputElement>, 
 }
 export const Input = forwardRef<HTMLInputElement, InputProps>(function Input({ label, hint, error, iconStart, iconEnd, onIconEndClick, size = 'md', invalid, clearable, onClear, className, required, id, ...rest }, ref) {
   const auto = useId(); const inputId = id || auto
+  const t = useTSafe()
   const showClear = clearable && rest.value !== undefined && String(rest.value).length > 0
   const control = (
     <div className="control">
       {iconStart && <span className="icon-start">{iconStart}</span>}
       <input ref={ref} id={inputId} required={required} className={['input', size !== 'md' && `input-${size}`, iconStart && 'has-start', (iconEnd || showClear) && 'has-end', (invalid || error) && 'invalid', className].filter(Boolean).join(' ')} {...rest} />
-      {showClear ? <button type="button" className="icon-end clickable" onClick={onClear} aria-label="clear"><X /></button>
+      {showClear ? <button type="button" className="icon-end clickable" onClick={onClear} aria-label={t('clear')} title={t('clear')}><X /></button>
         : iconEnd ? (onIconEndClick ? <button type="button" className="icon-end clickable" onClick={onIconEndClick}>{iconEnd}</button> : <span className="icon-end">{iconEnd}</span>) : null}
     </div>
   )
@@ -91,13 +93,18 @@ export function Chip({ active, onClick, onRemove, children, icon, className }: {
 
 /** Number input that keeps '' while typing and reports a number (or null) upward. */
 export interface NumberInputProps extends Omit<InputProps, 'value' | 'onChange' | 'type'> { value: number | null | undefined; onChange: (n: number | null) => void; decimals?: number; addon?: ReactNode }
-export function NumberInput({ value, onChange, decimals = 2, addon, ...rest }: NumberInputProps) {
+export function NumberInput({ value, onChange, decimals = 2, addon, label, hint, error, required, ...rest }: NumberInputProps) {
+  const auto = useId(); const nid = rest.id || auto
+  // with an addon the label must sit above the group, not inside it
+  const inner = addon ? { id: nid, required, invalid: !!error || rest.invalid } : { label, hint, error, required, id: nid }
   const input = (
     <Input type="number" inputMode="decimal" step={decimals ? 1 / Math.pow(10, decimals) : 1} dir="ltr" value={value === null || value === undefined || Number.isNaN(value) ? '' : value}
       onChange={e => { const v = e.target.value; if (v === '') onChange(null); else { const n = Number(v); if (!Number.isNaN(n)) onChange(n) } }}
-      onFocus={e => e.target.select()} {...rest} />
+      onFocus={e => e.target.select()} {...rest} {...inner} />
   )
   if (!addon) return input
   // the addon sits on the reading-end side of the number
-  return <div className="input-group">{input}<span className="input-addon">{addon}</span></div>
+  const group = <div className="input-group">{input}<span className="input-addon">{addon}</span></div>
+  if (!label && !hint && !error) return group
+  return <Field label={label} hint={hint} error={error} required={required} htmlFor={nid}>{group}</Field>
 }

@@ -4,9 +4,9 @@ import { db, resetDatabase, updateClinic } from '../src/db'
 import {
   accountFrom, buildStatement, computeTotals, filterInvoices, groupByMethod, invoiceBalance, invoiceStats, invoiceStatus, isRealDate, isValidTooth,
   lineTotal, normalizePeriod, patientAccount, paymentStats, presetPeriod, receiptNo, recomputeInvoice, sortInvoices, splitPayment, statusCounts,
-  toDraftLines, toInvoiceItems, validateInvoice, hasErrors, type DraftLine,
+  toDraftLines, toInvoiceItems, validateInvoice, hasErrors, roundMoney, pluralKey, type DraftLine,
 } from '../src/features/billing/lib'
-import { cancelInvoice, deleteDraftInvoice, deletePayment, recordPayment, saveInvoice } from '../src/features/billing/actions'
+import { BillingError, cancelInvoice, deleteDraftInvoice, deletePayment, recordPayment, saveInvoice } from '../src/features/billing/actions'
 
 const inv = (p: Partial<Invoice>): Invoice => ({
   id: 'i', number: 'INV-000001', patientId: 'p1', date: '2026-10-01', items: [], subtotal: 0, discount: 0, taxPercent: 0, tax: 0, total: 0, paid: 0, status: 'unpaid',
@@ -29,6 +29,13 @@ describe('billing: totals', () => {
     expect(computeTotals(items, 30, 10)).toEqual({ subtotal: 230, discount: 30, tax: 20, total: 220 })
     expect(computeTotals(items, 0, 5)).toEqual({ subtotal: 230, discount: 0, tax: 11.5, total: 241.5 })
     expect(computeTotals([{ qty: 1, unitPrice: 99.99, discount: 0 }], 0, 7.5)).toEqual({ subtotal: 99.99, discount: 0, tax: 7.5, total: 107.49 })
+  })
+  it('rounds tax and total to the currency decimals (a 0-decimal currency gets whole amounts)', () => {
+    const items = [{ qty: 1, unitPrice: 60, discount: 0 }, { qty: 1, unitPrice: 180, discount: 20 }, { qty: 1, unitPrice: 15, discount: 0 }]
+    expect(computeTotals(items, 0, 5)).toEqual({ subtotal: 235, discount: 0, tax: 11.75, total: 246.75 })
+    expect(computeTotals(items, 0, 5, 0)).toEqual({ subtotal: 235, discount: 0, tax: 12, total: 247 })
+    expect(computeTotals(items, 0, 5, 2)).toEqual(computeTotals(items, 0, 5))
+    expect(roundMoney(2.5, 0)).toBe(3); expect(roundMoney(1.005, 2)).toBe(1.01); expect(roundMoney(1.25, 7 as any)).toBe(1.25)
   })
   it('the invoice discount never takes the total below zero', () => {
     expect(computeTotals([{ qty: 1, unitPrice: 100, discount: 0 }], 150, 10)).toEqual({ subtotal: 100, discount: 100, tax: 0, total: 0 })
@@ -161,6 +168,21 @@ describe('billing: invoice editor', () => {
     expect(e2.discount).toBe('tooBig'); expect(e2.tax).toBe('number')
     expect(hasErrors(validateInvoice({ patientId: 'p', date: '2026-10-10', lines: [line({ key: 'a', tooth: 36, discount: 20 })], discount: 10, taxPercent: 5 }))).toBe(false)
   })
+  it('flags a due date before the issue date, a negative discount and a non-numeric tax', () => {
+    const ok = { patientId: 'p', date: '2026-10-10', lines: [line({ key: 'a' })], discount: null, taxPercent: null }
+    expect(validateInvoice({ ...ok, dueDate: '2026-10-01' }).dueDate).toBe('beforeIssue')
+    expect(validateInvoice({ ...ok, dueDate: '2026-10-10' }).dueDate).toBeUndefined()
+    expect(validateInvoice({ ...ok, dueDate: '2026-02-30' }).dueDate).toBe('date')
+    expect(hasErrors(validateInvoice({ ...ok, dueDate: '2026-10-01' }))).toBe(true)
+    expect(validateInvoice({ ...ok, discount: -5 }).discount).toBe('number')
+    expect(validateInvoice({ ...ok, discount: 500 }).discount).toBe('tooBig')
+    expect(validateInvoice({ ...ok, taxPercent: NaN }).tax).toBe('number')
+    expect(hasErrors(validateInvoice(ok))).toBe(false)
+  })
+  it('picks the Arabic and English plural forms', () => {
+    expect([0, 1, 2, 3, 10, 11, 100].map(n => pluralKey('c', n, 'ar'))).toEqual(['c.zero', 'c.one', 'c.two', 'c.few', 'c.few', 'c.many', 'c.other'])
+    expect([0, 1, 2, 7].map(n => pluralKey('c', n, 'en'))).toEqual(['c.other', 'c.one', 'c.other', 'c.other'])
+  })
   it('round-trips lines and items', () => {
     const items = toInvoiceItems([line({ key: 'a', tooth: 36, qty: 2, unitPrice: 50, discount: 10, treatmentItemId: 't1' }), line({ key: 'b', tooth: null, discount: null })])
     expect(items[0]).toEqual({ id: 'a', treatmentItemId: 't1', description: 'Filling', tooth: 36, qty: 2, unitPrice: 50, discount: 10, total: 90 })
@@ -212,6 +234,24 @@ describe('billing: database flows', () => {
     await db.payments.where('invoiceId').equals(a.id).delete()
     expect(await recomputeInvoice(a.id)).toMatchObject({ paid: 0, status: 'unpaid' })
     expect(await recomputeInvoice('nope')).toBeUndefined()
+  })
+
+  it('uses the clinic currency decimals for tax and total', async () => {
+    await updateClinic({ currencyDecimals: 0 })
+    const a = await saveInvoice(input({ taxPercent: 5, items: [{ id: 'l1', description: 'Filling', qty: 1, unitPrice: 235, discount: 0, total: 235 }] }), { mode: 'issue' })
+    expect(a).toMatchObject({ subtotal: 235, tax: 12, total: 247 })
+    await recordPayment({ patientId: 'p1', invoiceId: a.id, amount: 247, method: 'cash', date: '2026-10-10' })
+    expect(await db.invoices.get(a.id)).toMatchObject({ paid: 247, status: 'paid' })
+  })
+
+  it('refuses a treatment that is already billed on another invoice, and zero payments', async () => {
+    const a = await saveInvoice(input(), { mode: 'issue' })
+    await expect(saveInvoice(input(), { mode: 'issue' })).rejects.toBeInstanceOf(BillingError)
+    await expect(saveInvoice(input({ patientId: 'p2' }), { id: a.id, mode: 'issue' })).rejects.toThrow('alreadyBilled')
+    expect((await db.clinic.get('clinic'))?.nextInvoiceNumber).toBe(8)   // the refused invoice took no number
+    expect(await db.invoices.count()).toBe(1)
+    await expect(recordPayment({ patientId: 'p1', invoiceId: a.id, amount: 0, method: 'cash', date: '2026-10-10' })).rejects.toThrow('zeroAmount')
+    expect(await db.payments.count()).toBe(0)
   })
 
   it('refunds reduce what was paid on the invoice', async () => {

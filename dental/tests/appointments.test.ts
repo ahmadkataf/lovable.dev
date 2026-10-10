@@ -4,6 +4,7 @@ import {
   blocksTime, ceilMinutes, countByDate, durationOf, endFrom, findConflicts, generateSlots, gridBounds, groupByDate, isUpcoming, isValidDate, isValidTime,
   isWorkingDay, layoutColumns, matchesDoctor, matchesStatus, minutesOfDay, monthGrid, nextFreeSlot, nextLastVisit, nextStep, overlaps, patientSummary, pluralForm,
   pxPerMinute, quickPatientFromQuery, searchPatients, shiftDate, slotIsBusy, snapMinutes, STATUS_ACTIONS, viewRange, weekDates, withinHours,
+  firstFreeDoctor, lastVisitAfter, safeDuration, slotLoad, slotStep,
 } from '../src/features/appointments/lib'
 
 const D = '2026-10-10' // a Saturday
@@ -244,5 +245,48 @@ describe('appointments: patient picker', () => {
     expect(quickPatientFromQuery('سامر')).toEqual({ name: 'سامر', phone: '' })
     expect(quickPatientFromQuery('0944 555 666')).toEqual({ name: '', phone: '0944 555 666' })
     expect(quickPatientFromQuery('12')).toEqual({ name: '12', phone: '' })
+  })
+})
+
+describe('appointments: review fixes', () => {
+  it('never shows a negative or zero length when the stored one is broken', () => {
+    expect(safeDuration({ ...span('10:00', '10:45'), durationMin: 45 })).toBe(45)
+    expect(safeDuration({ ...span('10:00', '10:45'), durationMin: 0 })).toBe(45)        // derived from start/end
+    expect(safeDuration({ ...span('10:00', '09:30'), durationMin: -30 })).toBe(0)       // end before start
+    expect(safeDuration({ ...span('10:00', '10:20'), durationMin: Number.NaN })).toBe(20)
+  })
+  it('pre-selects a free doctor for a picked time, preferring the signed-in one', () => {
+    const items = [apt('10:00', '10:30', { doctorId: 'd1' }), apt('10:00', '11:00', { doctorId: 'd2', status: 'cancelled' }), apt('09:30', '10:15', { doctorId: 'd3' })]
+    expect(firstFreeDoctor(['d1', 'd2', 'd3'], items, at('10:00'), 30)).toBe('d2')          // d1 busy, d2's booking is cancelled
+    expect(firstFreeDoctor(['d1', 'd2', 'd3'], items, at('10:00'), 30, 'd3')).toBe('d2')    // preferred but busy
+    expect(firstFreeDoctor(['d1', 'd2', 'd3'], items, at('10:30'), 30, 'd1')).toBe('d1')    // preferred and free
+    expect(firstFreeDoctor(['d1', 'd3'], items, at('10:00'), 30)).toBeUndefined()
+    expect(firstFreeDoctor([], items, at('10:00'), 30)).toBeUndefined()
+  })
+  it('keeps the cached last visit in step when a completed visit is reopened or deleted', () => {
+    const old = at('10:00', '2026-09-01'), cur = at('10:00')
+    expect(lastVisitAfter(undefined, cur)).toBe(cur)                       // first completed visit
+    expect(lastVisitAfter(old, cur)).toBe(cur)                             // a newer one moves it forward
+    expect(lastVisitAfter(cur, old)).toBe(cur)                             // an older one never moves it back
+    expect(lastVisitAfter(cur, old, cur)).toBe(old)                        // today's visit reopened: back to the previous one
+    expect(lastVisitAfter(cur, undefined, cur)).toBeUndefined()            // the only visit reopened: no visit left
+    expect(lastVisitAfter(cur, old, at('09:00', '2026-08-01'))).toBe(cur)  // another visit undone: untouched
+  })
+  it('never loops on a broken slot length', () => {
+    expect(slotStep(15)).toBe(15)
+    expect(slotStep(0)).toBe(30)
+    expect(slotStep(-15)).toBe(30)
+    expect(slotStep(Number.NaN)).toBe(30)
+    expect(slotStep(1000)).toBe(240)
+    expect(generateSlots('09:00', '10:00', -30)).toEqual(['09:00', '09:30'])
+    expect(pxPerMinute(-15)).toBeGreaterThan(0)
+    expect(nextFreeSlot([], D, 30, { workStart: '09:00', workEnd: '10:00', slotMinutes: -5 })).toBe('09:00')
+  })
+  it('rates a slot as free, partly booked or fully booked across doctors', () => {
+    const items = [apt('10:00', '10:30', { doctorId: 'd1' }), apt('10:00', '10:30', { doctorId: 'd2' }), apt('11:00', '11:30', { doctorId: 'd1' })]
+    expect(slotLoad(['d1', 'd2'], items, D, '10:00', 30)).toBe('busy')
+    expect(slotLoad(['d1', 'd2'], items, D, '11:00', 30)).toBe('part')
+    expect(slotLoad(['d1', 'd2'], items, D, '12:00', 30)).toBe('free')
+    expect(slotLoad([], items, D, '11:00', 30)).toBe('busy')
   })
 })

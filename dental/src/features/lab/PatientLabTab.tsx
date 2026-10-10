@@ -5,7 +5,7 @@ import { db } from '@/db'
 import type { LabOrder } from '@/db/types'
 import { todayISO } from '@/db/ids'
 import { useI18n } from '@/i18n'
-import { useMoney } from '@/app/hooks'
+import { useIsMobile, useMoney } from '@/app/hooks'
 import { useLicense } from '@/license/useLicense'
 import { Button, Card, CardHeader, EmptyState, Skeleton } from '@/ui'
 import { fmtDate } from '@/lib/dates'
@@ -20,6 +20,7 @@ import './lab.css'
 export default function PatientLabTab({ patientId }: { patientId: string }) {
   const { t, lang } = useI18n()
   const money = useMoney()
+  const mobile = useIsMobile()
   const { readOnly } = useLicense()
   const today = todayISO()
   const data = useLiveQuery(async () => {
@@ -62,7 +63,7 @@ export default function PatientLabTab({ patientId }: { patientId: string }) {
               </div>
               <div className="li-end lab-pitem-end">
                 <div className="lab-pitem-due"><span className="lab-k">{o.receivedDate ? t('lab.col.received') : t('lab.col.due')}</span>{o.receivedDate ? <span className="lab-date">{fmtDate(o.receivedDate, lang)}</span> : <DueBadge order={o} today={today} />}</div>
-                <LabRowActions order={o} patientName={data?.name ?? ''} onEdit={() => setForm({ order: o })} onPrint={() => setSlipId(o.id)} compact />
+                <LabRowActions order={o} patientName={data?.name ?? ''} onEdit={() => setForm({ order: o })} onPrint={() => setSlipId(o.id)} compact={mobile} />
               </div>
             </div>
           )

@@ -298,7 +298,7 @@ export function LineChart({ data, series, area = false, height: minH = 240, form
               if (!data[i]) return null
               return <circle key={`d${si}`} cx={xOf(i)} cy={yOf(data[i].values[si] ?? 0)} r={4} className="rp-dot" style={{ fill: series[si].color }} />
             })}
-            {peak >= 0 && peakV > 0 && active === null && (
+            {peak >= 0 && (peakV > 0 || n === 1) && active === null && (
               <text x={clamp(xOf(peak), plotL + 24, plotR - 24)} y={yOf(peakV) - 9} textAnchor="middle" className="rp-peak">{format(peakV)}</text>
             )}
             <rect x={plotL - 6} y={0} width={plotW + 12} height={height} fill="transparent" onPointerMove={pick} onPointerDown={pick} onPointerLeave={leave} />
@@ -331,7 +331,10 @@ export interface DonutChartProps {
 export function DonutChart({ data, format, centerValue, centerLabel, title, desc, size = 176 }: DonutChartProps) {
   const { formatPct } = usePct()
   const [ref, width] = useWidth()
+  // only positive values make slices; a negative total (refunds larger than what came in) stays in the legend
+  // with its value, so the legend always adds up to the centre figure
   const list = data.filter(d => d.value > 0)
+  const rows = data.filter(d => d.value !== 0)
   const { active, setActive, root, focusProps } = useActive(list.length)
   const total = list.reduce((a, d) => a + d.value, 0)
   const rO = size / 2 - 6, rI = rO - Math.max(16, size * 0.15)
@@ -357,14 +360,17 @@ export function DonutChart({ data, format, centerValue, centerLabel, title, desc
           </div>
         </div>
         <ul className="rp-dlegend">
-          {list.map((d, i) => (
-            <li key={d.id} className={active === i ? 'active' : undefined} onPointerEnter={() => setActive(i)} onPointerLeave={e => { if (e.pointerType === 'mouse') setActive(null) }}>
-              <span className="rp-key-rect" style={{ background: d.color }} />
-              <span className="rp-dl-label truncate"><bdi>{d.label}</bdi></span>
-              <span className="rp-dl-val num">{format(d.value)}</span>
-              <span className="rp-dl-pct num">{formatPct(share(d.value, total))}</span>
-            </li>
-          ))}
+          {rows.map(d => {
+            const i = list.indexOf(d)
+            return (
+              <li key={d.id} className={i >= 0 && active === i ? 'active' : undefined} onPointerEnter={() => setActive(i >= 0 ? i : null)} onPointerLeave={e => { if (e.pointerType === 'mouse') setActive(null) }}>
+                <span className="rp-key-rect" style={{ background: d.color }} />
+                <span className="rp-dl-label truncate"><bdi>{d.label}</bdi></span>
+                <span className={`rp-dl-val num${d.value < 0 ? ' neg' : ''}`}>{format(d.value)}</span>
+                <span className="rp-dl-pct num">{i >= 0 ? formatPct(share(d.value, total)) : '—'}</span>
+              </li>
+            )
+          })}
         </ul>
       </div>
     </div>
@@ -410,7 +416,7 @@ export function HorizontalBars({ data, format, color = 'var(--rp-c1)', title, de
                   </span>
                   <span className="rp-hb-val num">{format(d.value)}</span>
                 </div>
-                <div className="rp-hb-track"><span style={{ width: `${pct}%`, background: color }} /></div>
+                <div className="rp-hb-track">{pct > 0 && <span style={{ width: `${pct}%`, background: color }} />}</div>
               </li>
             )
           })}

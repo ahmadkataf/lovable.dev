@@ -67,7 +67,8 @@ export default function LoginPage() {
     if (!picked || busyRef.current || isLocked(guard, Date.now())) return
     if (value.length < PIN_MIN) { setMsg({ text: t('auth.login.short') }); setShake(s => s + 1); return }
     busyRef.current = true; setBusy(true)
-    const ok = await session.login(picked.id, value)
+    let ok = false
+    try { ok = await session.login(picked.id, value) } catch { /* treated as a failed attempt below */ }
     if (ok) {
       writeLS(GUARD, null); writeLS(LAST_USER, picked.id)
       navigate(from, { replace: true })
@@ -105,7 +106,12 @@ export default function LoginPage() {
       if (/^\d$/.test(d)) { e.preventDefault(); press(d) }
       else if (e.key === 'Backspace') { e.preventDefault(); backspace() }
       else if (e.key === 'Escape' || e.key === 'Delete') clear()
-      else if (e.key === 'Enter') { e.preventDefault(); void submit(pin) }
+      else if (e.key === 'Enter') {
+        // Enter on a focused link/button outside the keypad ("switch user", "forgot PIN?") activates it; anywhere else it signs in
+        const el = e.target as HTMLElement | null
+        if (el?.closest('button, a') && !el.closest('.pin-pad')) return
+        e.preventDefault(); void submit(pin)
+      }
     }
     window.addEventListener('keydown', h)
     return () => window.removeEventListener('keydown', h)
@@ -134,7 +140,7 @@ export default function LoginPage() {
               {users.map(u => (
                 <button key={u.id} type="button" className={`au-tile${u.id === lastId ? ' au-last' : ''}`} onClick={() => pick(u.id)} data-user={u.id}>
                   <Avatar name={plainName(u.name)} color={u.color} size="lg" />
-                  <span className="u-name">{displayName(u)}</span>
+                  <span className="u-name" dir="auto" title={displayName(u)}>{displayName(u)}</span>
                   <span className="u-role">{t(`role.${u.role}`)}</span>
                 </button>
               ))}

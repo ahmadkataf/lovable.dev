@@ -1,5 +1,5 @@
 /** Global search (Ctrl/⌘+K): patients, appointments, invoices, pages and quick actions; keyboard navigable. */
-import { useEffect, useId, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent, type ReactNode } from 'react'
+import { useEffect, useId, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent, type MouseEvent, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import { useNavigate } from 'react-router-dom'
 import type { LucideIcon } from 'lucide-react'
@@ -10,10 +10,10 @@ import { useDebounced, useMoney, useUsers } from '@/app/hooks'
 import { ALL_NAV_ITEMS } from '@/app/nav'
 import { useLicense } from '@/license/useLicense'
 import { Avatar, Badge, EmptyState, Kbd, Skeleton, Spinner, toneFor } from '@/ui'
-import type { Appointment, Invoice } from '@/db/types'
+import type { Appointment } from '@/db/types'
 import { formatPhone } from '@/lib/format'
 import { ageFrom, fmtDate, fmtTime, relativeDay } from '@/lib/dates'
-import { digitsOnly, loadRecent, pushRecent, removeRecent, saveRecent, scoreLabel, splitHighlight, tokens } from './lib'
+import { loadRecent, matchedPhone, pushRecent, removeRecent, saveRecent, scoreLabel, splitHighlight, textDir, tokens, type SearchInvoice } from './lib'
 import { useSearch, type SlimPatient } from './useSearch'
 import './search.css'
 
@@ -64,7 +64,7 @@ export default function CommandPalette({ open, onClose }: { open: boolean; onClo
 }
 
 function Palette({ onClose }: { onClose: () => void }) {
-  const { t, lang } = useI18n()
+  const { t, lang, dir } = useI18n()
   const navigate = useNavigate()
   const session = useSession()
   const { readOnly } = useLicense()
@@ -79,6 +79,8 @@ function Palette({ onClose }: { onClose: () => void }) {
   const dq = useDebounced(q, 140)
   const [recent, setRecent] = useState<string[]>(() => loadRecent())
   const [activeKey, setActiveKey] = useState<string | null>(null)
+  // Enter pressed before the debounced query settled: open the best result once it has
+  const [enterQueued, setEnterQueued] = useState(false)
 
   const can = session.can
   const perms = useMemo(() => ({ patients: can('patients'), appointments: can('appointments'), billing: can('billing') }), [can])
@@ -176,8 +178,7 @@ function Palette({ onClose }: { onClose: () => void }) {
     return out
 
     function patientItem(p: SlimPatient): Item {
-      const digits = digitsOnly(dq)
-      const phone = digits.length >= 3 && p.phone2 && digitsOnly(p.phone2).includes(digits) && !digitsOnly(p.phone).includes(digits) ? p.phone2 : p.phone || p.phone2
+      const phone = matchedPhone(p, dq)
       const age = ageFrom(p.birthDate)
       return {
         key: `patient:${p.id}`, kind: 'patient', run: () => go(`/patients/${p.id}`),
@@ -199,7 +200,7 @@ function Palette({ onClose }: { onClose: () => void }) {
       const p = res.byId.get(a.patientId)
       const doctor = doctorNames.get(a.doctorId)
       return {
-        key: `apt:${a.id}`, kind: 'appointment', run: () => go(`/patients/${a.patientId}?tab=appointments`),
+        key: `apt:${a.id}`, kind: 'appointment', run: () => go(`/appointments?date=${a.date}&view=day`),
         node: <>
           <span className="srch-ico status" style={{ '--st': `var(--st-${a.status})` } as CSSProperties}><CalendarDays /></span>
           <span className="srch-text">
@@ -210,7 +211,7 @@ function Palette({ onClose }: { onClose: () => void }) {
         </>,
       }
     }
-    function invoiceItem(inv: Invoice): Item {
+    function invoiceItem(inv: SearchInvoice): Item {
       const p = res.byId.get(inv.patientId)
       return {
         key: `inv:${inv.id}`, kind: 'invoice', run: () => go(`/invoices/${inv.id}`),
@@ -249,27 +250,42 @@ function Palette({ onClose }: { onClose: () => void }) {
     setActiveKey(flat[(idx + d + flat.length) % flat.length].key)
   }
   const onKeyDown = (e: KeyboardEvent<HTMLDivElement>) => {
-    if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); onClose() }
-    else if (e.key === 'ArrowDown') { e.preventDefault(); move(1) }
+    if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); onClose(); return }
+    // a focused button (clear, remove, close) keeps its own Enter / Space
+    if (e.target !== inputRef.current && (e.target as HTMLElement).closest('button')) return
+    if (e.key === 'ArrowDown') { e.preventDefault(); move(1) }
     else if (e.key === 'ArrowUp') { e.preventDefault(); move(-1) }
     else if (e.key === 'Enter' && !e.nativeEvent.isComposing) {
+      e.preventDefault()
+      if (pending) { setEnterQueued(true); return }
       const item = flat[idx]
-      if (item) { e.preventDefault(); activate(item) }
+      if (item) activate(item)
     }
   }
+  useEffect(() => {
+    if (!enterQueued || pending) return
+    setEnterQueued(false)
+    const item = flat[idx]
+    if (item) activate(item)
+  }, [enterQueued, pending, flat, idx]) // eslint-disable-line react-hooks/exhaustive-deps
+  // clicks on the list keep the focus (and the keyboard) in the search box; buttons still get their click
+  const keepFocus = (e: MouseEvent) => { if (e.target !== inputRef.current) e.preventDefault() }
 
+  // what is typed keeps its own reading order: "0944 123 456" in the Arabic UI, "أحمد" in the English one
+  const typedDir = textDir(q)
+  const flip = q.trim() !== '' && typedDir !== dir
   const showSkeleton = pending && !flat.length
   const showEmpty = hasQuery && !pending && !flat.length
   let row = -1
 
   return createPortal(
     <div className="overlay srch-overlay" onMouseDown={e => { if (e.target === e.currentTarget) onClose() }}>
-      <div className="srch-panel" role="dialog" aria-modal="true" aria-label={t('search.label')} onKeyDown={onKeyDown}>
+      <div className="srch-panel" role="dialog" aria-modal="true" aria-label={t('search.label')} onKeyDown={onKeyDown} onMouseDown={keepFocus}>
         <div className="srch-head">
           <Search className="srch-glass" aria-hidden />
           <input
-            ref={inputRef} className="srch-input" value={q} autoFocus
-            onChange={e => { setQ(e.target.value); setActiveKey(null) }}
+            ref={inputRef} className={`srch-input${flip ? ' flip' : ''}`} value={q} autoFocus dir={flip ? typedDir : undefined}
+            onChange={e => { setQ(e.target.value); setActiveKey(null); setEnterQueued(false) }}
             placeholder={t('searchPlaceholder')} aria-label={t('search.label')}
             role="combobox" aria-expanded="true" aria-controls={listId} aria-autocomplete="list" aria-activedescendant={flat.length ? optId(idx) : undefined}
             autoComplete="off" autoCorrect="off" spellCheck={false} enterKeyHint="search"

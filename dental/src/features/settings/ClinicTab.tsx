@@ -78,9 +78,9 @@ export default function ClinicTab() {
             </div>
           </div>
           <div className="form-grid">
-            <Input label={t('settings.clinic.name')} required placeholder={t('settings.clinic.namePh')} {...field('name')} data-qa="clinic-name" />
+            <Input label={t('settings.clinic.name')} required dir="auto" placeholder={t('settings.clinic.namePh')} {...field('name')} data-qa="clinic-name" />
             <Input label={t('settings.clinic.nameEn')} placeholder={t('settings.clinic.nameEnPh')} dir="ltr" hint={errors.nameEn ? undefined : t('settings.clinic.nameEnHint')} {...field('nameEn')} />
-            <div className="span-2"><Input label={t('settings.clinic.tagline')} placeholder={t('settings.clinic.taglinePh')} {...field('tagline')} /></div>
+            <div className="span-2"><Input label={t('settings.clinic.tagline')} dir="auto" placeholder={t('settings.clinic.taglinePh')} {...field('tagline')} /></div>
           </div>
         </CardBody>
       </Card>
@@ -94,7 +94,7 @@ export default function ClinicTab() {
             <Input label={t('email')} type="email" inputMode="email" dir="ltr" iconStart={<Mail />} placeholder="info@clinic.com" {...field('email')} data-qa="clinic-email" />
             <Input label={t('settings.clinic.website')} dir="ltr" iconStart={<Globe />} placeholder="www.clinic.com" {...field('website')} />
             <div className="span-2">
-              <Textarea label={t('address')} rows={2} placeholder={t('settings.clinic.addressPh')} value={draft.address} onChange={e => set('address', e.target.value)} disabled={disabled} className="st-textarea-short" />
+              <Textarea label={t('address')} rows={2} dir="auto" placeholder={t('settings.clinic.addressPh')} value={draft.address} onChange={e => set('address', e.target.value)} disabled={disabled} className="st-textarea-short" />
             </div>
           </div>
         </CardBody>
@@ -113,7 +113,7 @@ export default function ClinicTab() {
         </CardBody>
       </Card>
 
-      <SaveBar dirty={dirty} saving={saving} disabled={disabled} onDiscard={discard} />
+      <SaveBar dirty={dirty} saving={saving} disabled={disabled} hidden={!access.isAdmin} onDiscard={discard} />
     </form>
   )
 }

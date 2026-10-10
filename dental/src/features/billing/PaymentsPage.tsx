@@ -14,8 +14,8 @@ import { fmtDate } from '@/lib/dates'
 import { matches } from '@/lib/format'
 import { Avatar, Badge, Button, Chip, DataTable, EmptyState, IconButton, Input, PageHeader, Pagination, Select, Skeleton, StatCard, useConfirmDelete, usePagination, useToast, type Column } from '@/ui'
 import { deletePayment } from './actions'
-import { paymentStats } from './lib'
-import { MethodBadge, Money, PeriodBar, usePeriod, ltr } from './shared'
+import { paymentStats, pluralKey } from './lib'
+import { BillingGate, MethodBadge, Money, PeriodBar, usePeriod, iso } from './shared'
 import { openReceipt } from './Receipt'
 import { CashReportModal } from './CashReport'
 import './billing.css'
@@ -25,6 +25,10 @@ const PaymentFormModal = lazy(() => import('./PaymentFormModal'))
 export interface LedgerRow extends Payment { patient?: Patient; invoice?: Invoice }
 
 export default function PaymentsPage() {
+  return <BillingGate><PaymentsPageScreen /></BillingGate>
+}
+
+function PaymentsPageScreen() {
   const { t, lang } = useI18n()
   const money = useMoney()
   const users = useUsers(false)
@@ -34,7 +38,7 @@ export default function PaymentsPage() {
   const toast = useToast()
   const confirmDelete = useConfirmDelete()
 
-  const [period, setPeriod] = usePeriod('payments', 'today')
+  const [period, setPeriod, rawPeriod] = usePeriod('payments', 'today')
   const [method, setMethod] = useState<PaymentMethod | ''>('')
   const [by, setBy] = useState('')
   const [q, setQ] = useState('')
@@ -71,7 +75,7 @@ export default function PaymentsPage() {
   const remove = async (p: LedgerRow) => {
     if (!(await confirmDelete(t('billing.payments.deleteDesc')))) return
     await deletePayment(p.id)
-    void logActivity({ type: 'payment', action: 'delete', entityId: p.id, patientId: p.patientId, message: t('billing.act.paymentDeleted', { amount: ltr(money(p.amount)), patient: p.patient?.name ?? '' }), by: session.user?.id })
+    void logActivity({ type: 'payment', action: 'delete', entityId: p.id, patientId: p.patientId, message: t('billing.act.paymentDeleted', { amount: iso(money(p.amount)), patient: p.patient?.name ?? '' }), by: session.user?.id })
     toast.success(t('billing.payments.deleted'))
   }
   const rowActions = (p: LedgerRow) => (
@@ -90,15 +94,15 @@ export default function PaymentsPage() {
       key: 'patient', header: t('patient'), render: p => (
         <div className="bl-patient-cell">
           <Avatar name={p.patient?.name ?? '?'} src={p.patient?.photo} size="xs" />
-          {p.patient ? <Link className="bl-link truncate" to={`/patients/${p.patient.id}`} onClick={e => e.stopPropagation()}>{p.patient.name}</Link> : <span className="muted">{t('unknown')}</span>}
+          {p.patient ? <Link className="bl-link" title={p.patient.name} to={`/patients/${p.patient.id}`} onClick={e => e.stopPropagation()}>{p.patient.name}</Link> : <span className="muted">{t('unknown')}</span>}
         </div>
       ),
     },
     { key: 'invoice', header: t('billing.invoice'), render: invoiceCell },
     { key: 'method', header: t('billing.method'), render: p => <span className="row gap-2"><MethodBadge method={p.method} />{p.amount < 0 && <Badge tone="warning" icon={<RotateCcw />}>{t('billing.payments.refund')}</Badge>}</span> },
     { key: 'amount', header: t('amount'), className: 'num', render: p => <Money value={p.amount} kind="signed" strong /> },
-    { key: 'by', header: t('billing.payments.receivedBy'), hideBelow: 'lg', render: p => (p.receivedBy ? userName.get(p.receivedBy) ?? '—' : <span className="bl-dash">—</span>) },
-    { key: 'ref', header: t('reference'), hideBelow: 'lg', render: p => (p.reference ? <span className="ltr truncate" style={{ maxWidth: 160, display: 'inline-block', verticalAlign: 'bottom' }}>{p.reference}</span> : <span className="bl-dash">—</span>) },
+    { key: 'by', header: t('billing.payments.receivedBy'), className: 'bl-hide-1200', render: p => (p.receivedBy ? userName.get(p.receivedBy) ?? '—' : <span className="bl-dash">—</span>) },
+    { key: 'ref', header: t('reference'), className: 'bl-hide-1200', render: p => (p.reference ? <span className="ltr truncate" style={{ maxWidth: 160, display: 'inline-block', verticalAlign: 'bottom' }}>{p.reference}</span> : <span className="bl-dash">—</span>) },
     { key: 'actions', header: '', className: 'actions', width: 96, render: rowActions },
   ]
 
@@ -141,10 +145,10 @@ export default function PaymentsPage() {
       <PageHeader title={t('billing.payments.title')} subtitle={t('billing.payments.subtitle')}
         actions={<><Button variant="secondary" icon={<FileBarChart2 />} onClick={() => setReport(true)} disabled={loading}>{t('billing.payments.cashReport')}</Button>{newBtn}</>} />
 
-      <PeriodBar value={period} onChange={setPeriod} />
+      <PeriodBar value={rawPeriod} onChange={setPeriod} />
 
       <div className="grid grid-stats bl-stats">
-        <StatCard tone="primary" icon={<Wallet />} label={t('billing.payments.stat.net')} value={loading ? <Skeleton w={110} h={26} /> : <Money value={stats.net} />} sub={loading ? undefined : t('billing.payments.count', { n: stats.count })} />
+        <StatCard tone="primary" icon={<Wallet />} label={t('billing.payments.stat.net')} value={loading ? <Skeleton w={110} h={26} /> : <Money value={stats.net} />} sub={loading ? undefined : t(pluralKey('billing.payments.count', stats.count, lang), { n: stats.count })} />
         <StatCard tone="success" icon={<Banknote />} label={t('billing.payments.stat.cash')} value={loading ? <Skeleton w={110} h={26} /> : <Money value={stats.cash} />} />
         <StatCard tone="info" icon={<CreditCard />} label={t('billing.payments.stat.cardTransfer')} value={loading ? <Skeleton w={110} h={26} /> : <Money value={stats.cardTransfer} />} />
         <StatCard tone="warning" icon={<RotateCcw />} label={t('billing.payments.stat.refunds')} value={loading ? <Skeleton w={110} h={26} /> : <Money value={stats.refunds} />} />

@@ -1,12 +1,12 @@
 import 'fake-indexeddb/auto'
 import { db, ensureClinic, getClinic, resetDatabase, updateClinic } from '../src/db'
 import { PROCEDURE_CATEGORIES } from '../src/db/types'
-import type { Appointment, ClinicalNote, Expense, Invoice, LabOrder, Patient, Payment, Prescription, StockMovement, ToothRecord, TreatmentItem, TreatmentPlan, User } from '../src/db/types'
+import type { Activity, Appointment, ClinicalNote, Expense, Invoice, LabOrder, Patient, Payment, Prescription, Procedure, StockMovement, ToothRecord, TreatmentItem, TreatmentPlan, User } from '../src/db/types'
 import { hashPin, verifyPin } from '../src/lib/crypto'
 import { addDays, addMonths, startOfMonth, timeToMinutes, toISODate } from '../src/lib/dates'
 import { todayISO } from '../src/db/ids'
 import { round2 } from '../src/lib/format'
-import { DEFAULT_DRUGS, DEFAULT_INVENTORY, DEFAULT_PROCEDURES, scalePrice } from '../src/features/seed/catalog'
+import { DEFAULT_DRUGS, DEFAULT_INVENTORY, DEFAULT_PROCEDURES, priceScale, scalePrice, scalesPrices } from '../src/features/seed/catalog'
 import { DEMO_PIN, loadDemoData, seedDefaults, type DemoCounts } from '../src/features/seed/demo'
 import { mulberry32, Rng } from '../src/features/seed/rng'
 import { DEMO_STEPS } from '../src/features/seed/demo'
@@ -165,6 +165,14 @@ describe('seed: default catalogue', () => {
     expect(scalePrice(15, 'SAR')).toBe(55)
     expect(scalePrice(280, 'SAR') % 5).toBe(0)
     expect(scalePrice(15, 'XYZ')).toBe(15)
+    // every currency the setup wizard offers except SYP is scaled; a clinic without decimals never gets a half step
+    for (const c of ['MAD', 'DZD', 'TND', 'LYD', 'EGP', 'IQD', 'KWD', 'JOD']) expect(priceScale(c).factor).not.toBe(1)
+    expect(priceScale('SYP').factor).toBe(1)
+    expect(scalesPrices('SYP')).toBe(false); expect(scalesPrices('sar')).toBe(true)
+    expect(translate('ar', 'seed.pricesInUsd', { currency: 'SYP' })).toContain('SYP')
+    expect(scalePrice(15, 'KWD')).toBe(4.5)
+    expect(scalePrice(15, 'KWD', 0)).toBe(5)
+    expect(Number.isInteger(scalePrice(15, 'JOD', 0))).toBe(true)
     await updateClinic({ currency: 'SAR', currencySymbol: 'ر.س' })
     await seedDefaults()
     const consult = (await db.procedures.toArray()).find(p => p.code === 'D9310')!
@@ -175,14 +183,14 @@ describe('seed: default catalogue', () => {
 describe('seed: demo data', () => {
   let counts: DemoCounts
   let users: User[], patients: Patient[], apts: Appointment[], plans: TreatmentPlan[], items: TreatmentItem[], invoices: Invoice[], payments: Payment[]
-  let teeth: ToothRecord[], rx: Prescription[], labs: LabOrder[], stock: StockMovement[], expenses: Expense[], notes: ClinicalNote[]
+  let teeth: ToothRecord[], rx: Prescription[], labs: LabOrder[], stock: StockMovement[], expenses: Expense[], notes: ClinicalNote[], activity: Activity[], procedures: Procedure[]
 
   beforeAll(async () => {
     await freshClinic()
     counts = await loadDemoData({ now: NOW })
-    ;[users, patients, apts, plans, items, invoices, payments, teeth, rx, labs, stock, expenses, notes] = await Promise.all([
+    ;[users, patients, apts, plans, items, invoices, payments, teeth, rx, labs, stock, expenses, notes, activity, procedures] = await Promise.all([
       db.users.toArray(), db.patients.toArray(), db.appointments.toArray(), db.plans.toArray(), db.treatments.toArray(), db.invoices.toArray(), db.payments.toArray(),
-      db.teeth.toArray(), db.prescriptions.toArray(), db.labOrders.toArray(), db.stock.toArray(), db.expenses.toArray(), db.notes.toArray(),
+      db.teeth.toArray(), db.prescriptions.toArray(), db.labOrders.toArray(), db.stock.toArray(), db.expenses.toArray(), db.notes.toArray(), db.activity.toArray(), db.procedures.toArray(),
     ])
   }, 60_000)
 
@@ -490,6 +498,83 @@ describe('seed: demo data', () => {
     }
   })
 
+  it('nothing is dated after now, and dates match their timestamps', () => {
+    const now = NOW.toISOString()
+    const stamped: { createdAt: string; updatedAt?: string }[] = [...patients, ...apts, ...plans, ...items, ...invoices, ...payments, ...rx, ...labs, ...notes, ...expenses, ...stock]
+    for (const r of stamped) { expect(r.createdAt <= now).toBe(true); if (r.updatedAt) expect(r.updatedAt <= now).toBe(true) }
+    for (const t of items) if (t.completedAt) expect(t.completedAt <= now).toBe(true)
+    for (const t of teeth) expect(t.recordedAt <= now).toBe(true)
+    for (const a of activity) expect(a.at <= now).toBe(true)
+    for (const x of [...payments, ...expenses, ...stock]) expect(localDate(x.createdAt)).toBe(x.date)
+    for (const i of invoices) expect(i.date <= TODAY).toBe(true)
+    for (const l of labs) for (const d of [l.sentDate, l.receivedDate]) if (d) expect(d <= TODAY).toBe(true)
+  })
+
+  it('appointments list their treatment items; billed work is invoiced after it was done', () => {
+    const byId = new Map(items.map(t => [t.id, t]))
+    const aptById = new Map(apts.map(a => [a.id, a]))
+    for (const a of apts) for (const id of a.treatmentItemIds ?? []) expect(byId.get(id)?.patientId).toBe(a.patientId)
+    for (const t of items) {
+      if (!t.appointmentId) continue
+      const a = aptById.get(t.appointmentId)!
+      expect(a.treatmentItemIds).toContain(t.id)
+      if (t.status === 'completed') expect(a.status).toBe('completed')
+      else expect(['cancelled', 'no_show']).not.toContain(a.status)
+      if (t.plannedDate && t.status !== 'completed') expect(t.plannedDate >= TODAY).toBe(true)
+    }
+    for (const inv of invoices) for (const l of inv.items) if (l.treatmentItemId) {
+      const t = byId.get(l.treatmentItemId)!
+      expect(t.patientId).toBe(inv.patientId)
+      expect(t.completedAt! <= inv.createdAt).toBe(true)
+    }
+    for (const n of notes) if (n.appointmentId) expect(aptById.get(n.appointmentId)?.patientId).toBe(n.patientId)
+    const drugIds = new Set((rx.flatMap(r => r.items.map(i => i.drugId))))
+    expect(drugIds.size).toBeGreaterThan(5)
+  })
+
+  it('the orthodontist does orthodontic work only; general work stays with the other dentists', () => {
+    const leila = users.find(u => u.name === 'د. ليلى حداد')!
+    const proc = new Map(procedures.map(p => [p.id, p]))
+    const hers = items.filter(t => t.doctorId === leila.id)
+    expect(hers.length).toBeGreaterThan(10)
+    for (const t of hers) { const p = proc.get(t.procedureId!)!; expect(p.category === 'orthodontic' || p.code === 'D0330').toBe(true) }
+    for (const a of apts.filter(x => x.doctorId === leila.id)) expect(['orthodontic', 'consultation']).toContain(a.type)
+    // her patients still see a general dentist for check-ups and fillings
+    const others = new Set(apts.filter(a => a.doctorId !== leila.id).map(a => a.patientId))
+    expect(patients.some(p => p.doctorId === leila.id && others.has(p.id))).toBe(true)
+  })
+
+  it('medical history is respected: no X-rays or surgery for a pregnant patient, no implants on bisphosphonates', () => {
+    const proc = new Map(procedures.map(p => [p.id, p]))
+    const since = addDays(TODAY, -150)
+    const pregnant = patients.filter(p => /حامل/.test(p.medicalNotes ?? ''))
+    expect(pregnant.length).toBeLessThanOrEqual(1)
+    for (const p of pregnant) {
+      expect(p.gender).toBe('female')
+      for (const t of items.filter(x => x.patientId === p.id && x.status !== 'cancelled' && (!x.completedAt || localDate(x.completedAt) >= since))) {
+        const c = proc.get(t.procedureId!)!
+        expect(['surgical', 'implant', 'cosmetic'].includes(c.category) || /^D0[23]/.test(c.code!)).toBe(false)
+      }
+      expect(rx.filter(r => r.patientId === p.id && r.date >= since)).toHaveLength(0)
+    }
+    for (const p of patients.filter(x => x.medications.some(m => /أليندرونات/.test(m)))) {
+      expect(items.some(t => t.patientId === p.id && proc.get(t.procedureId!)!.category === 'implant')).toBe(false)
+    }
+  })
+
+  it('a patient referred by another patient was referred by an adult who registered earlier', () => {
+    const byName = new Map(patients.map(p => [p.name, p]))
+    const referred = patients.filter(p => /^المريضة? /.test(p.referredBy ?? ''))
+    expect(referred.length).toBeGreaterThan(0)
+    for (const p of referred) {
+      const by = byName.get(p.referredBy!.replace(/^المريضة? /, ''))!
+      expect(by).toBeTruthy()
+      expect(by.createdAt < p.createdAt).toBe(true)
+      expect(new Date(TODAY).getFullYear() - new Date(by.birthDate!).getFullYear()).toBeGreaterThan(13)
+      expect(p.referredBy!.startsWith(by.gender === 'female' ? 'المريضة ' : 'المريض ')).toBe(true)
+    }
+  })
+
   it('does nothing once the clinic has patients', async () => {
     const again = await loadDemoData({ now: NOW })
     expect(again.skipped).toBe(true)
@@ -543,6 +628,22 @@ describe('seed: demo data is deterministic and additive', () => {
     const ortho = (await db.appointments.toArray()).filter(a => a.type === 'orthodontic')
     expect(ortho.length).toBeGreaterThan(0)
     expect(ortho.every(a => a.doctorId === leila.id)).toBe(true)
+  }, 60_000)
+
+  it('a currency without decimals and with tax gets whole amounts, as the billing screens compute them', async () => {
+    await freshClinic()
+    await updateClinic({ currency: 'KWD', currencySymbol: 'د.ك', currencyDecimals: 0, taxPercent: 15 })
+    await loadDemoData({ now: NOW })
+    const [invs, pays, procs] = await Promise.all([db.invoices.toArray(), db.payments.toArray(), db.procedures.toArray()])
+    for (const p of procs) expect(Number.isInteger(p.price)).toBe(true)
+    for (const i of invs) {
+      for (const x of [i.subtotal, i.discount, i.tax, i.total, i.paid]) expect(Number.isInteger(x)).toBe(true)
+      expect(i.tax).toBe(Math.round(((i.subtotal - i.discount) * 15) / 100))
+      expect(i.total).toBe(i.subtotal - i.discount + i.tax)
+      expect(i.paid).toBe(pays.filter(p => p.invoiceId === i.id).reduce((a, p) => a + p.amount, 0))
+    }
+    for (const p of pays) expect(Number.isInteger(p.amount)).toBe(true)
+    expect(invs.some(i => i.tax > 0)).toBe(true)
   }, 60_000)
 
   it('reports progress through every step', async () => {

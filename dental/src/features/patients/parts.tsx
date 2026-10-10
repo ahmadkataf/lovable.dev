@@ -4,7 +4,7 @@ import { createPortal } from 'react-dom'
 import { EllipsisVertical, HeartPulse, MessageCircle, Phone, Pill, Plus, TriangleAlert, X } from 'lucide-react'
 import type { Patient } from '@/db/types'
 import { useI18n } from '@/i18n'
-import { Badge, type MenuItemDef } from '@/ui'
+import { Badge, useConfirm, type MenuItemDef } from '@/ui'
 import { colorFor, formatPhone, whatsappLink } from '@/lib/format'
 import { ageFrom } from '@/lib/dates'
 import { openExternal, platform } from '@/platform'
@@ -15,6 +15,28 @@ import './patients.css'
 export function usePlural() {
   const { t } = useI18n()
   return useCallback((base: string, n: number) => t(`patients.${base}.${pluralForm(n)}`, { n }), [t])
+}
+
+/**
+ * Close handler for forms: Escape, Cancel and ✕ never throw typed data away without asking.
+ * `busy` (a save in flight) blocks closing. The guard is released after the current event, so the Escape
+ * that answers the question cannot also reach the form's own Escape handler and ask again.
+ */
+export function useGuardedClose(dirty: boolean, onClose: () => void, busy?: { current: boolean }) {
+  const { t } = useI18n()
+  const confirm = useConfirm()
+  const asking = useRef(false)
+  return useCallback(async () => {
+    if (busy?.current || asking.current) return
+    if (!dirty) { onClose(); return }
+    asking.current = true
+    try {
+      const ok = await confirm({ title: t('patients.discard.title'), description: t('patients.discard.desc'), confirmLabel: t('patients.discard.confirm'), cancelLabel: t('patients.discard.keep'), danger: true })
+      if (ok) onClose()
+    } finally {
+      window.setTimeout(() => { asking.current = false }, 0)
+    }
+  }, [dirty, onClose, busy, confirm, t])
 }
 
 /** "ذكر · 34 سنة" */
@@ -64,27 +86,32 @@ export function PhoneText({ phone }: { phone?: string }) {
 }
 
 /** Allergy (danger) and chronic disease (warning) flags for lists. */
+/** The list separator of the interface language (Arabic comma in Arabic). */
+export const listSep = (lang: 'ar' | 'en') => (lang === 'ar' ? '، ' : ', ')
+
 export function MedicalBadges({ patient, withMeds, compact }: { patient: Pick<Patient, 'allergies' | 'chronicDiseases' | 'medications'>; withMeds?: boolean; compact?: boolean }) {
-  const { t } = useI18n()
+  const { t, lang } = useI18n()
+  const sep = listSep(lang)
   const a = patient.allergies ?? [], c = patient.chronicDiseases ?? [], m = patient.medications ?? []
   if (!a.length && !c.length && !(withMeds && m.length)) return null
   return (
     <span className="pt-flags">
-      {a.length > 0 && <span title={a.join('، ')}><Badge tone="danger" icon={<TriangleAlert />}>{t('patients.allergy')}{!compact && a.length > 1 && <span className="num"> {a.length}</span>}</Badge></span>}
-      {c.length > 0 && <span title={c.join('، ')}><Badge tone="warning" icon={<HeartPulse />}>{t('patients.chronic')}{!compact && c.length > 1 && <span className="num"> {c.length}</span>}</Badge></span>}
-      {withMeds && m.length > 0 && <span title={m.join('، ')}><Badge tone="info" icon={<Pill />}>{t('patients.medication')}</Badge></span>}
+      {a.length > 0 && <span title={a.join(sep)}><Badge tone="danger" icon={<TriangleAlert />}>{t('patients.allergy')}{!compact && a.length > 1 && <span className="num"> {a.length}</span>}</Badge></span>}
+      {c.length > 0 && <span title={c.join(sep)}><Badge tone="warning" icon={<HeartPulse />}>{t('patients.chronic')}{!compact && c.length > 1 && <span className="num"> {c.length}</span>}</Badge></span>}
+      {withMeds && m.length > 0 && <span title={m.join(sep)}><Badge tone="info" icon={<Pill />}>{t('patients.medication')}</Badge></span>}
     </span>
   )
 }
 
 /** Up to `max` tag badges and a "+n" for the rest. */
 export function TagList({ tags, max = 2 }: { tags: string[]; max?: number }) {
+  const { lang } = useI18n()
   if (!tags?.length) return null
   const shown = tags.slice(0, max)
   return (
     <span className="pt-tags">
       {shown.map(tg => <Badge key={tg} tone="primary" size="sm">{tg}</Badge>)}
-      {tags.length > max && <span title={tags.slice(max).join('، ')}><Badge size="sm"><span className="num">+{tags.length - max}</span></Badge></span>}
+      {tags.length > max && <span title={tags.slice(max).join(listSep(lang))}><Badge size="sm"><span className="num">+{tags.length - max}</span></Badge></span>}
     </span>
   )
 }

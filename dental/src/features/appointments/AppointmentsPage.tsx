@@ -7,14 +7,15 @@ import { APPOINTMENT_STATUSES, type Appointment, type AppointmentStatus, type Pa
 import { todayISO } from '@/db/ids'
 import { useI18n } from '@/i18n'
 import { useClinic, useDoctors, useIsMobile, useUsers } from '@/app/hooks'
+import { useSession } from '@/app/session'
 import { useLicense } from '@/license/useLicense'
 import { Button, Chip, EmptyState, IconButton, Input, Menu, PageHeader, Segmented, Skeleton, type MenuItemDef } from '@/ui'
-import { fmtDate, fmtMonth, relativeDay, diffDays, timeToMinutes } from '@/lib/dates'
+import { combine, fmtDate, fmtMonth, relativeDay, diffDays, timeToMinutes } from '@/lib/dates'
 import {
-  CAL_VIEWS, countByDate, generateSlots, gridBounds, isValidDate, isWorkingDay, matchesDoctor, matchesStatus, pxPerMinute, shiftDate, sortByStart, viewRange, weekDates,
+  CAL_VIEWS, countByDate, firstFreeDoctor, slotStep, generateSlots, gridBounds, isValidDate, isWorkingDay, matchesDoctor, matchesStatus, pxPerMinute, shiftDate, slotLoad, sortByStart, viewRange, weekDates,
   type CalView, type StatusFilter,
 } from './lib'
-import { AgendaView, DayList, MonthView, TimeGrid, TimeStrip, WeekHead, WeekStrip, type GridColumn } from './CalendarViews'
+import { AgendaView, DayList, MonthView, TimeGrid, TimeStrip, WeekHead, WeekStrip, type GridColumn, type SlotLoad } from './CalendarViews'
 import { DocDot, PersonAvatar, doctorColor, fmtSpan, useAptActions, useCountLabel, useNow, type AptRow, type CalState } from './shared'
 import AppointmentFormModal from './AppointmentFormModal'
 
@@ -47,6 +48,7 @@ export default function AppointmentsPage() {
   const actions = useAptActions()
   const countLabel = useCountLabel()
   const now = useNow()
+  const session = useSession()
   const [params, setParams] = useSearchParams()
 
   const [state, setState] = useState<CalState>(() => loadState(params))
@@ -99,7 +101,15 @@ export default function AppointmentsPage() {
     doctorId: doctorIds.length === 1 ? doctorIds[0] : undefined,
   })
   const openNew = (d?: FormState['defaults']) => { if (!readOnly) setForm({ defaults: d ?? newDefaults() }) }
-  const onSlot = (d: string, time: string, doctorId?: string) => openNew({ date: d, time, doctorId: doctorId ?? (doctorIds.length === 1 ? doctorIds[0] : undefined) })
+  // a time picked with several doctors on screen: book the signed-in doctor if free, else the first free one
+  const onSlot = (d: string, time: string, doctorId?: string) => {
+    let doc = doctorId ?? (doctorIds.length === 1 ? doctorIds[0] : undefined)
+    if (!doc) {
+      const candidates = (doctorIds.length ? doctorIds : doctors.map(x => x.id))
+      doc = firstFreeDoctor(candidates, byDoctor.filter(r => r.date === d), combine(d, time), clinic.defaultAppointmentMinutes || step, session.user?.id)
+    }
+    openNew({ date: d, time, doctorId: doc })
+  }
   const onOpen = (r: AptRow) => setDetailsId(r.id)
   const onEdit = (r: AptRow) => {
     const { patient: _p, doctor: _d, ...a } = r as AptRow & { creator?: unknown }
@@ -114,7 +124,7 @@ export default function AppointmentsPage() {
   const onRemind = (r: AptRow) => actions.remind(r, r.patient)
 
   // ---- grid geometry ----
-  const step = clinic.slotMinutes || 30
+  const step = slotStep(clinic.slotMinutes)
   const ppm = pxPerMinute(step)
   const { startMin, endMin } = useMemo(() => gridBounds(clinic.workStart, clinic.workEnd, view === 'day' || view === 'week' ? rows : []), [clinic.workStart, clinic.workEnd, rows, view])
   const workStart = timeToMinutes(clinic.workStart), workEnd = timeToMinutes(clinic.workEnd)
@@ -124,9 +134,13 @@ export default function AppointmentsPage() {
   const dayDoctors = useMemo<User[]>(() => {
     if (doctorIds.length) return doctorIds.map(id => userMap.get(id)).filter((u): u is User => !!u)
     const list = [...doctors]
-    for (const r of rows) if (!list.some(d => d.id === r.doctorId) && r.doctor) list.push(r.doctor)
+    // inactive doctors with bookings get a column too, and so do bookings of a doctor who was deleted since
+    for (const r of rows) {
+      if (r.date !== date || list.some(d => d.id === r.doctorId)) continue
+      list.push(r.doctor ?? ({ id: r.doctorId, name: t('appointments.formerDoctor'), color: 'var(--text-4)', role: 'doctor', active: false } as User))
+    }
     return list
-  }, [doctorIds, doctors, rows, userMap])
+  }, [doctorIds, doctors, rows, userMap, date, t])
 
   const dayColumns = useMemo<GridColumn[]>(() => dayDoctors.map(d => {
     const items = rows.filter(r => r.doctorId === d.id && r.date === date)
@@ -134,15 +148,21 @@ export default function AppointmentsPage() {
       key: d.id, date, doctorId: d.id, items, off: closedDay, headStyle: { ['--doc' as string]: doctorColor(d) } as CSSProperties,
       head: (
         <div className="apt-dochead">
-          <PersonAvatar name={d.name} color={doctorColor(d)} size="sm" />
+          <PersonAvatar name={d.name} color={doctorColor(d)} size="sm" initials={userMap.has(d.id) ? undefined : '?'} />
           <span className="grow">
-            <span className="apt-dochead-name truncate">{d.name}</span>
+            <span className="apt-dochead-name truncate" dir="auto" title={d.name}>{d.name}</span>
             <span className="apt-dochead-sub">{d.specialty ? <span className="truncate">{d.specialty}</span> : null}<span className="apt-dochead-count num">{countLabel(items.length)}</span></span>
           </span>
         </div>
       ),
     }
-  }), [dayDoctors, rows, date, closedDay, countLabel])
+  }), [dayDoctors, rows, date, closedDay, countLabel, userMap])
+
+  // phone time strip: a slot is "busy" only when every doctor on screen is booked then, "part" when some are
+  const stripLoad = useCallback((time: string): SlotLoad => {
+    const ids = doctorIds.length ? doctorIds : doctors.map(d => d.id)
+    return slotLoad(ids, byDoctor.filter(r => r.date === date), date, time, step)
+  }, [doctorIds, doctors, byDoctor, date, step])
 
   const week = useMemo(() => weekDates(date), [date])
   const counts = useMemo(() => countByDate(rows), [rows])
@@ -178,7 +198,7 @@ export default function AppointmentsPage() {
     body = mobile ? (
       <div className="apt-mobile-day">
         {closedDay && <div className="apt-notice"><Moon />{t('appointments.closedDay')}</div>}
-        <TimeStrip date={date} slots={slots} rows={byDoctor.filter(r => r.date === date)} step={step} readOnly={readOnly} onPick={time => onSlot(date, time)} />
+        <TimeStrip date={date} slots={slots} loadOf={stripLoad} readOnly={readOnly} onPick={time => onSlot(date, time)} />
         {dayRows.length ? <DayList rows={dayRows} onOpen={onOpen} showDoctor={dayDoctors.length > 1} /> : emptyDay}
       </div>
     ) : (

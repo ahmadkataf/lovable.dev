@@ -28,8 +28,10 @@ export default function ProceduresPage() {
   const toast = useToast()
   const confirm = useConfirm()
   const confirmDelete = useConfirmDelete()
-  const { user } = useSession()
-  const { readOnly } = useLicense()
+  const { user, can } = useSession()
+  const { readOnly: expired } = useLicense()
+  // the price list is the clinic's to set: without the 'manage' permission it is read-only
+  const readOnly = expired || !can('manage')
 
   const all = useLiveQuery(() => db.procedures.toArray(), [])
   const [q, setQ] = useState('')
@@ -70,7 +72,7 @@ export default function ProceduresPage() {
   }
   const toggleActive = async (p: Procedure, active = !p.active) => {
     await setProcedureActive(p.id, active)
-    toast.success(t(active ? 'treatments.toast.procActivated' : 'treatments.toast.procDeactivated'), p.name)
+    toast.success(t(active ? 'treatments.toast.procActivated' : 'treatments.toast.procDeactivated'), pick(p.name, p.nameEn))
   }
   const remove = async (p: Procedure) => {
     const used = await procedureUsage(p.id)
@@ -84,7 +86,7 @@ export default function ProceduresPage() {
     }
     if (!(await confirmDelete(t('treatments.proc.deleteDesc', { name: pick(p.name, p.nameEn) })))) return
     if (await deleteProcedure(p.id)) {
-      toast.success(t('treatments.toast.procDeleted'), p.name)
+      toast.success(t('treatments.toast.procDeleted'), pick(p.name, p.nameEn))
       void logActivity({ type: 'system', action: 'delete', entityId: p.id, by: user?.id, message: t('treatments.log.procDeleted', { name: p.name }) })
     }
   }
@@ -128,12 +130,15 @@ export default function ProceduresPage() {
     { key: 'duration', header: t('duration'), hideBelow: 'md', width: 110, render: p => p.durationMin ? <span className="muted"><span className="num">{p.durationMin}</span> {t('min')}</span> : <span className="muted">—</span> },
     { key: 'tooth', header: t('treatments.proc.perTooth'), hideBelow: 'md', width: 96, className: 'tr-center', render: p => p.toothSpecific ? <span className="tr-yes" title={t('treatments.proc.toothSpecific')}><Check /></span> : <span className="muted">—</span> },
     { key: 'price', header: t('price'), className: 'num', width: 140, render: p => <span className="money tr-price">{money(p.price)}</span> },
-    {
-      key: 'active', header: t('active'), hideBelow: 'sm', width: 84, render: p => (
-        <span onClick={e => e.stopPropagation()}><Switch checked={p.active} disabled={readOnly} onChange={e => void toggleActive(p, e.target.checked)} aria-label={t('treatments.proc.activeLabel')} /></span>
-      ),
-    },
-    { key: 'actions', header: <span className="sr-only">{t('actions')}</span>, className: 'actions', width: mobile ? 48 : 96, render: rowMenu },
+    // a read-only list (expired trial, or no 'manage' permission) is a plain price list: no switches, no row menus
+    ...(readOnly ? [] : [
+      {
+        key: 'active', header: t('active'), hideBelow: 'sm' as const, width: 84, render: (p: Procedure) => (
+          <span onClick={e => e.stopPropagation()}><Switch checked={p.active} onChange={e => void toggleActive(p, e.target.checked)} aria-label={t('treatments.proc.activeLabel')} /></span>
+        ),
+      },
+      { key: 'actions', header: <span className="sr-only">{t('actions')}</span>, className: 'actions', width: mobile ? 48 : 96, render: rowMenu },
+    ]),
   ]
 
   const table = (rows: Procedure[], withCategory: boolean) => (
@@ -159,7 +164,7 @@ export default function ProceduresPage() {
           {!empty && <Button variant="secondary" icon={<Sigma />} disabled={readOnly || loading} onClick={() => setBulk(true)}>{t('treatments.bulk.button')}</Button>}
           <Button variant="primary" icon={<Plus />} disabled={readOnly} onClick={() => setForm({ open: true })}>{t('treatments.proc.new')}</Button>
         </>} />
-      {readOnly && <Alert tone="warning" className="mb-4">{t('trial.readonly')}</Alert>}
+      {expired && <Alert tone="warning" className="mb-4">{t('trial.readonly')}</Alert>}
 
       {empty ? (
         <Card>
@@ -175,16 +180,16 @@ export default function ProceduresPage() {
             <div className="tr-filter-row">
               <Input className="tr-search" iconStart={<Search />} placeholder={t('treatments.proc.search')} value={q} onChange={e => setQ(e.target.value)} clearable onClear={() => setQ('')} aria-label={t('search')} />
               <Segmented<Show> value={show} onChange={setShow} options={[
-                { value: 'all', label: <>{t('all')} <span className="tr-seg-count num">{list.length}</span></> },
-                { value: 'active', label: <>{t('treatments.proc.showActive')} <span className="tr-seg-count num">{activeCount}</span></> },
-                { value: 'inactive', label: <>{t('treatments.proc.showInactive')} <span className="tr-seg-count num">{list.length - activeCount}</span></> },
+                { value: 'all', label: <>{t('all')} <span className="tr-seg-count">{list.length}</span></> },
+                { value: 'active', label: <>{t('treatments.proc.showActive')} <span className="tr-seg-count">{activeCount}</span></> },
+                { value: 'inactive', label: <>{t('treatments.proc.showInactive')} <span className="tr-seg-count">{list.length - activeCount}</span></> },
               ]} />
             </div>
             <div className="tr-chips-scroll tr-cat-chips">
-              <Chip active={!cat} onClick={() => setCat('')}>{t('treatments.proc.allCategories')} <span className="tr-chip-count num">{list.length}</span></Chip>
+              <Chip active={!cat} onClick={() => setCat('')}>{t('treatments.proc.allCategories')} <span className="tr-chip-count">{list.length}</span></Chip>
               {usedCats.map(c => (
                 <Chip key={c} active={cat === c} onClick={() => setCat(cat === c ? '' : c)} icon={<CategoryDot category={c} />}>
-                  {t(`cat.${c}`)} <span className="tr-chip-count num">{counts.get(c)}</span>
+                  {t(`cat.${c}`)} <span className="tr-chip-count">{counts.get(c)}</span>
                 </Chip>
               ))}
             </div>

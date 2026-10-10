@@ -67,11 +67,13 @@
         android:usesCleartextTraffic="false"
         android:enableOnBackInvokedCallback="false"
         android:theme="@android:style/Theme.DeviceDefault.Light.NoActionBar">
+        <!-- configChanges: rotation, the keyboard, dark mode, the phone's language or font size never recreate the
+             activity, so the WebView keeps the open page and any half-filled form. -->
         <activity
             android:name=".MainActivity"
             android:exported="true"
             android:launchMode="singleTask"
-            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboard|keyboardHidden|navigation|uiMode"
+            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboard|keyboardHidden|navigation|uiMode|locale|layoutDirection|fontScale"
             android:windowSoftInputMode="adjustResize">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />

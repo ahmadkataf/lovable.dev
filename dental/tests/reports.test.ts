@@ -1,6 +1,6 @@
 import type { Appointment, Expense, InventoryItem, Invoice, LabOrder, Patient, Payment, Procedure, TreatmentItem } from '../src/db/types'
 import {
-  ageBands, appointmentStats, appointmentsByDoctor, appointmentsSeries, avgInvoice, bucketKey, buckets, byCategory, byDoctor, byMethod, chooseUnit, csvCell, delta,
+  ageBands, appointmentStats, appointmentsByDoctor, appointmentsSeries, avgInvoice, bucketKey, buckets, byCategory, byDoctor, byMethod, chooseUnit, comparablePeriod, csvCell, delta,
   expensesByCategory, foldOther, genderSplit, greetingKey, invoicedTotal, isISODate, labDue, lowStock, newPatientsByMonth, nextStatuses, normalizeRange, nowIndex,
   outstandingByPatient, outstandingTotal, overdueInvoices, patientsInScope, patientsSeen, periodDays, previousPeriod, profit, referralSources, resolvePeriod, revenueByDay,
   revenueByMonth, seriesBy, statusCounts, toCSV, topProcedures, topSpenders, totalOf, treatmentsOverTime, unconfirmedTomorrow, untilToday, wholeMonths, workingMinutes,
@@ -49,6 +49,19 @@ describe('reports: periods', () => {
     expect(wholeMonths({ from: '2026-01-01', to: '2026-12-31' })).toBe(12)
     expect(wholeMonths({ from: '2026-01-02', to: '2026-12-31' })).toBe(0)
     expect(periodDays({ from: '2026-10-01', to: '2026-10-31' })).toBe(31)
+  })
+  it('compares a running period with the same stretch of the previous one (review fix: -75% on day 10 of the month)', () => {
+    // this month so far vs the same days of last month
+    expect(comparablePeriod({ from: '2026-10-01', to: '2026-10-31' }, '2026-10-10')).toEqual({ prev: { from: '2026-09-01', to: '2026-09-10' }, to: '2026-10-10', partial: true })
+    // the 31st vs a shorter month: stops at that month's end
+    expect(comparablePeriod({ from: '2026-03-01', to: '2026-03-31' }, '2026-03-30').prev).toEqual({ from: '2026-02-01', to: '2026-02-28' })
+    // this year so far vs the same days of last year; last 3 months so far
+    expect(comparablePeriod({ from: '2026-01-01', to: '2026-12-31' }, '2026-10-10').prev).toEqual({ from: '2025-01-01', to: '2025-10-10' })
+    expect(comparablePeriod({ from: '2026-08-01', to: '2026-10-31' }, '2026-10-10').prev).toEqual({ from: '2026-05-01', to: '2026-07-10' })
+    // a finished (or future) period keeps the whole previous one
+    expect(comparablePeriod({ from: '2026-09-01', to: '2026-09-30' }, '2026-10-10')).toEqual({ prev: { from: '2026-08-01', to: '2026-08-31' }, to: '2026-09-30', partial: false })
+    expect(comparablePeriod({ from: '2026-10-01', to: '2026-10-10' }, '2026-10-10').partial).toBe(false)
+    expect(comparablePeriod({ from: '2026-11-01', to: '2026-11-30' }, '2026-10-10').partial).toBe(false)
   })
   it('clips a period at today only when today falls inside it', () => {
     expect(untilToday({ from: '2026-10-01', to: '2026-10-31' }, '2026-10-10')).toEqual({ from: '2026-10-01', to: '2026-10-10' })
@@ -108,6 +121,11 @@ describe('reports: money', () => {
       [{ id: 'd1', name: 'Dr A', color: '#111111' }, { id: 'd2', name: 'Dr B', color: '#222222' }], { from: '2026-10-01', to: '2026-10-31' })
     expect(rows.map(r => [r.doctorId, r.invoiced, r.invoices, r.collected])).toEqual([['d1', 300, 1, 200], ['d2', 0, 0, 100], ['', 0, 0, 40]])
     expect(rows[0].name).toBe('Dr A')
+  })
+  it('by doctor with one doctor selected lists only that doctor (review fix)', () => {
+    const i1 = inv({ id: 'i1', doctorId: 'd1', total: 300, date: '2026-10-02' }), i2 = inv({ id: 'i2', doctorId: 'd2', total: 100, date: '2026-10-03' })
+    const rows = byDoctor([i1, i2].filter(i => i.doctorId === 'd2'), [pay({ invoiceId: 'i2', amount: 60 })], [{ id: 'd1', name: 'A' }, { id: 'd2', name: 'B' }], { from: '2026-10-01', to: '2026-10-31' })
+    expect(rows.map(r => [r.doctorId, r.invoiced, r.collected])).toEqual([['d2', 100, 60]])
   })
   it('by category: invoice lines through their procedure, net of the invoice discount', () => {
     const procs: Pick<Procedure, 'id' | 'category'>[] = [{ id: 'fill', category: 'restorative' }, { id: 'rct', category: 'endodontic' }]

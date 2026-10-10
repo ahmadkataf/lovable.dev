@@ -31,6 +31,12 @@ export const INSTRUCTION_PRESETS: Record<Lang, string[]> = {
   en: ['After meals', 'Before meals', 'With food', 'On an empty stomach', 'At bedtime', 'Rinse, do not swallow', 'Dissolve in a glass of water', 'Complete the full course'],
 }
 
+/** Dosage forms offered in the drug form (free text stays possible). */
+export const DRUG_FORMS: Record<Lang, string[]> = {
+  ar: ['أقراص', 'كبسولات', 'أقراص فوّارة', 'شراب', 'معلّق فموي', 'غسول فموي', 'جل فموي', 'بخاخ فموي', 'معجون فموي', 'كريم', 'معجون أسنان', 'حقن'],
+  en: ['Tablets', 'Capsules', 'Effervescent tablets', 'Syrup', 'Oral suspension', 'Mouthwash', 'Oral gel', 'Oral spray', 'Oral paste', 'Cream', 'Toothpaste', 'Injection'],
+}
+
 // ---- items --------------------------------------------------------------------------------------
 
 /** An editable row of the form (all strings, never undefined). */
@@ -79,9 +85,12 @@ export function draftsToItems(list: ItemDraft[]): PrescriptionItem[] {
 export function duplicateItems(items: PrescriptionItem[]): PrescriptionItem[] {
   return items.map(i => ({ ...i, id: newId() }))
 }
-/** What a new prescription copied from `rx` starts with (the date is left to the form: today). */
-export function duplicateDefaults(rx: Prescription): { patientId: string; doctorId: string; diagnosis?: string; notes?: string; items: PrescriptionItem[] } {
-  return { patientId: rx.patientId, doctorId: rx.doctorId, diagnosis: rx.diagnosis, notes: rx.notes, items: duplicateItems(rx.items) }
+/**
+ * What a new prescription copied from `rx` starts with: same patient, diagnosis, notes and medicines (fresh ids).
+ * The date (today) and the doctor (whoever writes it now) are left to the form.
+ */
+export function duplicateDefaults(rx: Prescription): { patientId: string; diagnosis?: string; notes?: string; items: PrescriptionItem[] } {
+  return { patientId: rx.patientId, diagnosis: rx.diagnosis, notes: rx.notes, items: duplicateItems(rx.items) }
 }
 
 export interface RxErrors { patient?: boolean; doctor?: boolean; date?: boolean; items?: boolean; names: string[] }

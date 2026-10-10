@@ -311,3 +311,25 @@
 @media (max-width: 639px) { .hide-below-sm { display: none !important; } }
 @media (max-width: 767px) { .hide-below-md { display: none !important; } }
 @media (max-width: 1023px) { .hide-below-lg { display: none !important; } }
+
+/* toasts never cover a dialog's buttons: on phones they move to the top while a dialog or drawer is open,
+   on desktop they step aside from an open drawer */
+@media (max-width: 1023px) {
+  body:has(.overlay) .toast-stack, body:has(.drawer) .toast-stack { top: calc(12px + var(--safe-top)); bottom: auto; }
+}
+@media (min-width: 1024px) {
+  body:has(.drawer) .toast-stack { inset-inline-end: calc(min(520px, 100%) + 24px); }
+  body:has(.drawer-lg) .toast-stack { inset-inline-end: calc(min(720px, 100%) + 24px); }
+}
+
+/* touch screens: controls at least 40px tall */
+@media (pointer: coarse) {
+  .segmented button { height: 38px; }
+  .chip { height: 38px; }
+  .btn-sm { height: 36px; }
+  .tabs .tab { height: 46px; }
+  .pagination button { min-width: 38px; height: 38px; }
+}
+
+/* a person's name in the other script truncates at its own end, not the UI's */
+.name-auto, [dir="auto"] { text-align: -webkit-match-parent; text-align: match-parent; }

@@ -15,13 +15,17 @@ import { Button, EmptyState, IconButton, Menu, PageHeader, ProgressBar, Skeleton
 import { cancelInvoice, deleteDraftInvoice } from './actions'
 import { invoiceBalance, isDraftNumber, isOpen } from './lib'
 import { InvoiceSheet } from './InvoiceSheet'
-import { Money, StatusBadge, ltr } from './shared'
+import { BillingGate, Money, StatusBadge, ltr, iso } from './shared'
 import InvoiceFormModal from './InvoiceFormModal'
 import './billing.css'
 
 const PaymentFormModal = lazy(() => import('./PaymentFormModal'))
 
 export default function InvoicePage() {
+  return <BillingGate><InvoicePageScreen /></BillingGate>
+}
+
+function InvoicePageScreen() {
   const { id = '' } = useParams()
   const { t, lang, isRTL } = useI18n()
   const money = useMoney()
@@ -89,14 +93,14 @@ export default function InvoicePage() {
 
   const share = () => {
     if (!patient?.phone) { toast.warning(t('billing.noPhone')); return }
-    const text = t('billing.share.text', { number: ltr(invoice.number), clinic: clinicName, total: ltr(money(invoice.total)), due: ltr(money(balance)) })
+    const text = t('billing.share.text', { number: iso(invoice.number), clinic: clinicName, total: iso(money(invoice.total)), due: iso(money(balance)) })
     openExternal(whatsappLink(patient.phone, text))
   }
   const doCancel = async () => {
     const desc = invoice.paid > 0 ? `${t('billing.cancelInvoiceDesc')} ${t('billing.cancelWithPayments', { amount: ltr(money(invoice.paid)) })}` : t('billing.cancelInvoiceDesc')
     if (!(await confirm({ title: `${t('billing.cancelInvoice')} ${invoice.number}`, description: desc, danger: true, confirmLabel: t('billing.cancelInvoice'), cancelLabel: t('billing.keepInvoice') }))) return
     await cancelInvoice(invoice.id)
-    void logActivity({ type: 'invoice', action: 'status', entityId: invoice.id, patientId: invoice.patientId, message: t('billing.act.invoiceCancelled', { number: ltr(invoice.number), patient: patient?.name ?? '' }), by: session.user?.id })
+    void logActivity({ type: 'invoice', action: 'status', entityId: invoice.id, patientId: invoice.patientId, message: t('billing.act.invoiceCancelled', { number: iso(invoice.number), patient: patient?.name ?? '' }), by: session.user?.id })
     toast.success(t('billing.invoiceCancelled'))
   }
   const doDelete = async () => {
@@ -136,7 +140,7 @@ export default function InvoicePage() {
           title={<span className="bl-title-row"><IconButton label={t('back')} variant="ghost" size="sm" onClick={goBack}><BackIcon /></IconButton><span className={draft ? '' : 'num'}>{number}</span><StatusBadge status={invoice.status} size="lg" /></span>}
           subtitle={
             <span className="bl-head-sub">
-              {patient ? <Link className="bl-link" to={`/patients/${patient.id}`}>{patient.name}</Link> : t('unknown')}
+              {patient ? <Link className="bl-link" title={patient.name} to={`/patients/${patient.id}`}>{patient.name}</Link> : <span>{t('unknown')}</span>}
               <span>·</span><span className="bl-date">{fmtDate(invoice.date, lang)}</span>
             </span>
           }

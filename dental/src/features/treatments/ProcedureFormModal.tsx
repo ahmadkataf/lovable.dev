@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type FormEvent } from 'react'
+import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
 import { Check, ListPlus, Pencil } from 'lucide-react'
 import type { Procedure, ProcedureCategory } from '@/db/types'
 import { PROCEDURE_CATEGORIES } from '@/db/types'
@@ -21,13 +21,14 @@ const EMPTY: Form = { code: '', name: '', nameEn: '', category: '', price: null,
 export default function ProcedureFormModal({ open, onClose, procedure, copyOf, defaultCategory, all }: {
   open: boolean; onClose: () => void; procedure?: Procedure; copyOf?: Procedure; defaultCategory?: ProcedureCategory; all: Procedure[]
 }) {
-  const { t } = useI18n()
+  const { t, pick } = useI18n()
   const clinic = useClinic()
   const toast = useToast()
   const { user } = useSession()
   const [f, setF] = useState<Form>(EMPTY)
   const [tried, setTried] = useState(false)
   const [saving, setSaving] = useState(false)
+  const busy = useRef(false)
 
   useEffect(() => {
     if (!open) return
@@ -59,7 +60,8 @@ export default function ProcedureFormModal({ open, onClose, procedure, copyOf, d
   const submit = async (e?: FormEvent) => {
     e?.preventDefault()
     setTried(true)
-    if (!valid || saving) return
+    if (!valid || busy.current) return
+    busy.current = true
     setSaving(true)
     try {
       const rec = await saveProcedure({
@@ -67,17 +69,17 @@ export default function ProcedureFormModal({ open, onClose, procedure, copyOf, d
         durationMin: f.durationMin ?? undefined, toothSpecific: f.toothSpecific, color: f.color, active: f.active,
       }, procedure?.id)
       void logActivity({ type: 'system', action: procedure ? 'update' : 'create', entityId: rec.id, by: user?.id, message: t(procedure ? 'treatments.log.procUpdated' : 'treatments.log.procCreated', { name: rec.name }) })
-      toast.success(t(procedure ? 'treatments.toast.procUpdated' : 'treatments.toast.procCreated'), rec.name)
+      toast.success(t(procedure ? 'treatments.toast.procUpdated' : 'treatments.toast.procCreated'), pick(rec.name, rec.nameEn))
       onClose()
     } catch (err) {
       toast.error(t('error'), String((err as Error)?.message ?? err))
-    } finally { setSaving(false) }
+    } finally { busy.current = false; setSaving(false) }
   }
 
   return (
-    <Modal open={open} onClose={onClose} size="md" icon={procedure ? <Pencil /> : <ListPlus />}
+    <Modal open={open} onClose={onClose} size="md" className="tr-modal" icon={procedure ? <Pencil /> : <ListPlus />}
       title={procedure ? t('treatments.proc.editTitle') : copyOf ? t('treatments.proc.copyTitle') : t('treatments.proc.newTitle')}
-      subtitle={procedure ? procedure.name : t('treatments.proc.formSub')}
+      subtitle={procedure ? pick(procedure.name, procedure.nameEn) : t('treatments.proc.formSub')}
       footer={<>
         <Button variant="ghost" onClick={onClose}>{t('cancel')}</Button>
         <Button variant="primary" icon={<Check />} loading={saving} onClick={() => void submit()}>{procedure ? t('saveChanges') : t('save')}</Button>

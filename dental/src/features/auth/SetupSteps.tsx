@@ -65,14 +65,19 @@ export function ClinicStep({ value, onChange, err }: { value: ClinicDraft; onCha
   }
   return (
     <div className="form-grid">
-      <Input className="span-2" label={t('auth.clinic.name')} required autoFocus value={value.name} onChange={e => set('name', e.target.value)} placeholder={t('auth.clinic.namePh')}
-        iconStart={<Building2 />} error={err('name')} name="clinicName" maxLength={80} />
+      {/* Input puts className on the <input>, so full-width fields are wrapped */}
+      <div className="span-2">
+        <Input label={t('auth.clinic.name')} required autoFocus value={value.name} onChange={e => set('name', e.target.value)} placeholder={t('auth.clinic.namePh')}
+          iconStart={<Building2 />} error={err('name')} name="clinicName" maxLength={80} />
+      </div>
       <Input label={t('phone')} value={value.phone} onChange={e => set('phone', e.target.value)} placeholder={t('auth.clinic.phonePh')} iconStart={<Phone />}
         dir="ltr" inputMode="tel" type="tel" error={err('phone')} name="clinicPhone" maxLength={24} />
       <Input label={t('email')} value={value.email} onChange={e => set('email', e.target.value)} placeholder={t('auth.clinic.emailPh')} iconStart={<Mail />}
         dir="ltr" inputMode="email" type="email" error={err('email')} name="clinicEmail" maxLength={80} />
-      <Input className="span-2" label={t('address')} value={value.address} onChange={e => set('address', e.target.value)} placeholder={t('auth.clinic.addressPh')}
-        iconStart={<MapPin />} name="clinicAddress" maxLength={140} />
+      <div className="span-2">
+        <Input label={t('address')} value={value.address} onChange={e => set('address', e.target.value)} placeholder={t('auth.clinic.addressPh')}
+          iconStart={<MapPin />} name="clinicAddress" maxLength={140} />
+      </div>
       <Field className="span-2" label={t('auth.clinic.logo')} hint={t('auth.clinic.logoHint')}>
         <div className="au-logo-field">
           <div className="au-logo-preview">{value.logo ? <img src={value.logo} alt="" /> : <ImagePlus />}</div>
@@ -195,7 +200,7 @@ export function ReviewStep({ lang, clinic, money, owner, onEdit }: { lang: Lang;
           {head(<Building2 />, t('auth.review.clinic'), 1)}
           <div className="au-review-who">
             <div className="au-review-logo">{clinic.logo ? <img src={clinic.logo} alt="" /> : <ToothIcon />}</div>
-            <div className="grow"><div className="strong truncate">{clinic.name}</div><div className="text-sm muted">{lang === 'ar' ? t('arabic') : t('english')}</div></div>
+            <div className="grow"><div className="strong au-wrap">{clinic.name}</div><div className="text-sm muted">{lang === 'ar' ? t('arabic') : t('english')}</div></div>
           </div>
           <dl className="kv">
             {clinic.phone.trim() && <><dt>{t('phone')}</dt><dd><span className="ltr">{clinic.phone.trim()}</span></dd></>}
@@ -207,7 +212,7 @@ export function ReviewStep({ lang, clinic, money, owner, onEdit }: { lang: Lang;
           {head(<UserRound />, t('auth.review.owner'), 3)}
           <div className="au-review-who">
             <Avatar name={plainName(owner.name) || '?'} color={OWNER_COLOR} />
-            <div className="grow"><div className="strong truncate">{displayName(owner)}</div><div className="text-sm muted">{t('role.admin')}</div></div>
+            <div className="grow"><div className="strong au-wrap">{displayName(owner)}</div><div className="text-sm muted">{t('role.admin')}</div></div>
           </div>
           <dl className="kv">
             {owner.specialty.trim() && <><dt>{t('auth.owner.specialty')}</dt><dd>{owner.specialty.trim()}</dd></>}

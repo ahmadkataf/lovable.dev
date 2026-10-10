@@ -1,6 +1,6 @@
 import { useMemo, useState, type ReactNode } from 'react'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
-import { useI18n } from '@/i18n'
+import { useI18n, useTSafe } from '@/i18n'
 
 export interface Column<T> {
   key: string
@@ -52,6 +52,7 @@ export function usePagination<T>(rows: T[], pageSize = 25) {
 
 export function Pagination({ page, pages, setPage, from, to, total }: { page: number; pages: number; setPage: (p: number) => void; from: number; to: number; total: number }) {
   const { t } = useI18n()
+  const tt = useTSafe()
   if (total === 0) return null
   const nums: number[] = []
   for (let p = Math.max(1, page - 2); p <= Math.min(pages, page + 2); p++) nums.push(p)
@@ -60,11 +61,11 @@ export function Pagination({ page, pages, setPage, from, to, total }: { page: nu
       <span className="num">{t('showing', { from, to, total })}</span>
       {pages > 1 && (
         <div className="pagination">
-          <button disabled={page <= 1} onClick={() => setPage(page - 1)} aria-label="previous"><ChevronLeft /></button>
+          <button disabled={page <= 1} onClick={() => setPage(page - 1)} aria-label={tt('previous')} title={tt('previous')}><ChevronLeft /></button>
           {nums[0] > 1 && <><button onClick={() => setPage(1)}>1</button>{nums[0] > 2 && <span className="muted">…</span>}</>}
           {nums.map(p => <button key={p} className={p === page ? 'active' : ''} onClick={() => setPage(p)}>{p}</button>)}
           {nums[nums.length - 1] < pages && <>{nums[nums.length - 1] < pages - 1 && <span className="muted">…</span>}<button onClick={() => setPage(pages)}>{pages}</button></>}
-          <button disabled={page >= pages} onClick={() => setPage(page + 1)} aria-label="next"><ChevronRight /></button>
+          <button disabled={page >= pages} onClick={() => setPage(page + 1)} aria-label={tt('next')} title={tt('next')}><ChevronRight /></button>
         </div>
       )}
     </div>

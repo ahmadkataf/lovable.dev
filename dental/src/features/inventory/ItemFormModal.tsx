@@ -1,6 +1,6 @@
 // New / edit stock item. The quantity is typed only when the item is created (it becomes the opening-stock
 // movement); afterwards it changes through movements so the history stays complete.
-import { useEffect, useId, useMemo, useState, type FormEvent } from 'react'
+import { useEffect, useId, useMemo, useRef, useState, type FormEvent } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { Boxes, Info, PackagePlus, Pencil } from 'lucide-react'
 import { db, logActivity } from '@/db'
@@ -31,13 +31,15 @@ export default function ItemFormModal({ open, onClose, item, onSaved }: ItemForm
   const { user } = useSession()
   const { readOnly } = useLicense()
   const uid = useId().replace(/:/g, '')
-  const all = useLiveQuery(() => db.inventory.toArray(), []) ?? []
+  const live = useLiveQuery(() => db.inventory.toArray(), [])
+  const all = useMemo(() => live ?? [], [live])
   const editing = !!item
 
   const blank = (): FormState => ({ name: '', sku: '', category: '', unit: 'piece', customUnit: '', quantity: null, minQuantity: null, costPrice: null, supplier: '', expiryDate: '', location: '', notes: '', active: true })
   const [f, setF] = useState<FormState>(blank)
   const [tried, setTried] = useState(false)
   const [busy, setBusy] = useState(false)
+  const saving = useRef(false)   // a second Enter or click before the first write ends must not save twice
 
   useEffect(() => {
     if (!open) return
@@ -74,6 +76,8 @@ export default function ItemFormModal({ open, onClose, item, onSaved }: ItemForm
       return
     }
     if (readOnly) { toast.warning(t('inventory.toast.readOnly')); return }
+    if (saving.current) return
+    saving.current = true
     setBusy(true)
     const draft: ItemDraft = {
       name: f.name.trim(), sku: f.sku.trim() || undefined, category: chosenCat, unit: unitValue,
@@ -85,24 +89,24 @@ export default function ItemFormModal({ open, onClose, item, onSaved }: ItemForm
       let id: string
       if (item) {
         await updateItem(item.id, draft); id = item.id
-        toast.success(t('inventory.toast.updated'), draft.name)
+        toast.success(t('inventory.toast.updated'), <bdi className="inv-wrap">{draft.name}</bdi>)
         void logActivity({ type: 'inventory', action: 'update', entityId: id, by: user?.id, message: t('inventory.act.updated', { name: draft.name }) })
       } else {
         id = await createItem(draft, user?.id)
-        toast.success(t('inventory.toast.created'), draft.name)
+        toast.success(t('inventory.toast.created'), <bdi className="inv-wrap">{draft.name}</bdi>)
         void logActivity({ type: 'inventory', action: 'create', entityId: id, by: user?.id, message: t('inventory.act.created', { name: draft.name }) })
       }
       onSaved?.(id)
       onClose()
     } catch {
       toast.error(t('error'), t('tryAgain'))
-    } finally { setBusy(false) }
+    } finally { saving.current = false; setBusy(false) }
   }
 
   const formId = `${uid}-form`
   return (
     <Modal open={open} onClose={onClose} size="lg" icon={editing ? <Pencil /> : <PackagePlus />}
-      title={editing ? t('inventory.editItem') : t('inventory.newItem')} subtitle={editing ? <bdi>{item?.name}</bdi> : t('inventory.form.subtitle')}
+      title={editing ? t('inventory.editItem') : t('inventory.newItem')} subtitle={editing ? <bdi className="inv-wrap">{item?.name}</bdi> : t('inventory.form.subtitle')}
       footer={<>
         <Button variant="ghost" onClick={onClose}>{t('cancel')}</Button>
         <Button type="submit" form={formId} variant="primary" loading={busy} disabled={readOnly}>{editing ? t('saveChanges') : t('inventory.form.create')}</Button>
@@ -120,7 +124,7 @@ export default function ItemFormModal({ open, onClose, item, onSaved }: ItemForm
               </datalist>
               <div className="inv-cat-picks">
                 {CATEGORY_PRESETS.map(c => <Chip key={c} className="inv-chip-sm" active={chosenCat === c} onClick={() => set('category', t(`inventory.cat.${c}`))}>{t(`inventory.cat.${c}`)}</Chip>)}
-                {customCats.slice(0, 4).map(c => <Chip key={c} className="inv-chip-sm" active={chosenCat === c} onClick={() => set('category', c)}>{c}</Chip>)}
+                {customCats.slice(0, 4).map(c => <Chip key={c} className="inv-chip-sm" active={chosenCat === c} onClick={() => set('category', c)}><span className="inv-chip-label truncate" dir="auto" title={c}>{c}</span></Chip>)}
               </div>
             </div>
             <Input label={t('inventory.field.sku')} value={f.sku} onChange={e => set('sku', e.target.value)} dir="ltr" className="inv-ltr-input" placeholder="GL-M-100" maxLength={40} />
