@@ -14,6 +14,8 @@
 #   KASEB_KEY_ALIAS          the key alias inside it (kaseb for the key made by pos/scripts/build-apk.sh)
 name: Build Kaseb POS
 on:
+  push:
+    paths: ['.github/workflows/build-pos.yml', 'pos/package.json']
   workflow_dispatch:
     inputs:
       version_name:
@@ -46,7 +48,7 @@ jobs:
         run: npm ci
       - name: Read the license server address and its public key
         env:
-          KASEB_API: ${{ vars.KASEB_API || github.event.inputs.api }}
+          KASEB_API: ${{ vars.KASEB_API || github.event.inputs.api || 'https://kaseb-api.almutafawiqin.workers.dev' }}
         run: |
           if [ -z "$KASEB_API" ]; then
             echo "::error::Set the repository variable KASEB_API to the server address (see pos/server/README.md)"
@@ -59,7 +61,7 @@ jobs:
           echo "POS_BUILD=$GITHUB_RUN_NUMBER" >> "$GITHUB_ENV"
           echo "Server: $API — public key ${KEY:0:12}…"
       - name: Set the version
-        run: npm version --no-git-tag-version "${{ inputs.version_name }}"
+        run: npm version --no-git-tag-version "${{ inputs.version_name || '1.0.0' }}"
       - name: Build
         run: npx vite build
       - uses: actions/upload-artifact@v4
@@ -91,7 +93,7 @@ jobs:
           name: kaseb-web
           path: pos/dist
       - name: Set the version
-        run: npm version --no-git-tag-version "${{ inputs.version_name }}"
+        run: npm version --no-git-tag-version "${{ inputs.version_name || '1.0.0' }}"
       - name: Build the installer (electron-builder + fuses)
         run: npx electron-builder --win --x64 --config electron-builder.json
       - uses: actions/upload-artifact@v4
@@ -135,7 +137,7 @@ jobs:
           ANDROID_KEYSTORE_PASSWORD: ${{ secrets.KASEB_KEYSTORE_PASSWORD || 'kasebpass' }}
           ANDROID_KEY_ALIAS: ${{ secrets.KASEB_KEY_ALIAS || 'kaseb' }}
           VERSION_CODE_INPUT: ${{ inputs.version_code }}
-          VERSION_NAME: ${{ inputs.version_name }}
+          VERSION_NAME: ${{ inputs.version_name || '1.0.0' }}
         run: |
           export VERSION_CODE="${VERSION_CODE_INPUT:-$((GITHUB_RUN_NUMBER + 100))}"
           chmod +x pos/scripts/build-apk.sh

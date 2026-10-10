@@ -22,6 +22,7 @@ import {
 export interface Env {
   DB: D1Database
   BACKUPS?: KVNamespace   // absent when the deploy had no KV access: cloud endpoints answer cloud_unavailable
+  FILES?: R2Bucket        // big downloads (the Windows installer); absent when the deploy had no R2 access
   LICENSE_SECRET: string
   ADMIN_KEY: string
 }
@@ -86,6 +87,8 @@ const MESSAGES: Record<string, string> = {
 
 const json = (data: unknown, status = 200): Response =>
   new Response(JSON.stringify(data), { status, headers: { ...CORS, 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' } })
+/** The Windows installer's key in the FILES bucket (uploaded with `wrangler r2 object put kaseb-files/<key> --file ...`). */
+const WIN_KEY = 'Kaseb-Setup.exe'
 /** A WhatsApp chat link with a prefilled message. */
 const waLink = (whatsapp: string, text: string): string => `https://wa.me/${whatsapp.replace(/\D/g, '')}?text=${encodeURIComponent(text)}`
 /** The public page with the seller's price and contact filled in (HTML-escaped). */
@@ -853,7 +856,29 @@ export default {
       if (p === '/download/android' || p === '/download/apk') { const s = await settings(env); return Response.redirect(s.apk_url || new URL('/download/Kaseb.apk', url).toString(), 302) }
       if (p === '/download/windows' || p === '/download/win') {
         const s = await settings(env)
-        return Response.redirect(s.win_url || waLink(s.whatsapp, 'مرحباً، أريد نسخة ويندوز من برنامج كاسب'), 302)
+        if (s.win_url) return Response.redirect(s.win_url, 302)
+        const head = env.FILES ? await env.FILES.head(WIN_KEY).catch(() => null) : null
+        if (head) return Response.redirect(new URL('/download/' + WIN_KEY, url).toString(), 302)
+        return Response.redirect(waLink(s.whatsapp, 'مرحباً، أريد نسخة ويندوز من برنامج كاسب'), 302)
+      }
+      if (p.startsWith('/download/') && env.FILES) {
+        // big files live in R2 (the static-asset limit is 25 MB): streamed with a download name, range requests honoured
+        const key = decodeURIComponent(p.slice('/download/'.length))
+        if (/^[\w.-]+$/.test(key)) {
+          const obj = await env.FILES.get(key, { range: req.headers, onlyIf: req.headers })
+          if (obj) {
+            const h = new Headers()
+            obj.writeHttpMetadata(h)
+            h.set('etag', obj.httpEtag)
+            h.set('accept-ranges', 'bytes')
+            h.set('content-disposition', `attachment; filename="${key}"`)
+            h.set('cache-control', 'public, max-age=3600')
+            if (!h.has('content-type')) h.set('content-type', key.endsWith('.exe') ? 'application/vnd.microsoft.portable-executable' : 'application/octet-stream')
+            if (obj.range && 'offset' in obj.range) { const r = obj.range; const end = (r.offset ?? 0) + (r.length ?? obj.size) - 1; h.set('content-range', `bytes ${r.offset ?? 0}-${end}/${obj.size}`) }
+            const body = 'body' in obj ? obj.body : null
+            return new Response(body, { status: body ? (obj.range ? 206 : 200) : 304, headers: h })
+          }
+        }
       }
       await ensureSchema(env)
       if (p.startsWith('/admin/api/')) return await admin(req, env, p.slice('/admin/api/'.length), url)

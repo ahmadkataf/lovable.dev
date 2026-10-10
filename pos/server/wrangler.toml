@@ -29,3 +29,8 @@ id = "00000000000000000000000000000000"
 # Nightly cleanup: events older than a year are deleted (src/index.ts `scheduled`).
 [triggers]
 crons = ["0 3 * * *"]
+
+# Big downloads (the Windows installer) that do not fit the static-asset limit.
+[[r2_buckets]]
+binding = "FILES"
+bucket_name = "kaseb-files"
