@@ -1,0 +1,67 @@
+/* Dentora design tokens — light theme first. A dark palette exists only as an opt-in (Settings → Appearance). */
+:root {
+  /* brand: teal-mint, calm and clinical */
+  --p-50: #EEFBF8; --p-100: #D4F5EE; --p-200: #ABE9DD; --p-300: #74D7C6; --p-400: #3EBFAC;
+  --p-500: #1EA595; --p-600: #0E8F86; --p-700: #0F716C; --p-800: #115A57; --p-900: #124A48;
+  --primary: var(--p-600); --primary-hover: var(--p-700); --primary-soft: var(--p-50); --primary-soft-2: var(--p-100);
+  --primary-ring: rgba(14, 143, 134, .28);
+  --on-primary: #FFFFFF;
+  --accent: #6366F1; --accent-soft: #EEF2FF;
+
+  /* neutrals */
+  --bg: #F5F7FA; --bg-2: #EEF2F6; --surface: #FFFFFF; --surface-2: #F8FAFC; --surface-3: #F1F5F9;
+  --border: #E6EAF0; --border-2: #D7DEE8; --divider: #EEF1F5;
+  --text: #0F172A; --text-2: #334155; --text-3: #64748B; --text-4: #94A3B8; --text-inverse: #FFFFFF;
+
+  /* semantic */
+  --success: #16A34A; --success-soft: #ECFDF3; --success-text: #15803D;
+  --warning: #F59E0B; --warning-soft: #FFFBEB; --warning-text: #B45309;
+  --danger: #DC2626; --danger-soft: #FEF2F2; --danger-text: #B91C1C;
+  --info: #2563EB; --info-soft: #EFF6FF; --info-text: #1D4ED8;
+  --purple: #7C3AED; --purple-soft: #F5F3FF; --pink: #DB2777; --pink-soft: #FDF2F8;
+  --orange: #EA580C; --orange-soft: #FFF7ED; --gray-soft: #F1F5F9; --gray-text: #475569;
+
+  /* appointment statuses */
+  --st-scheduled: #2563EB; --st-confirmed: #4F46E5; --st-arrived: #7C3AED; --st-in_progress: #D97706;
+  --st-completed: #16A34A; --st-cancelled: #64748B; --st-no_show: #DC2626;
+
+  /* dental chart conditions */
+  --tooth-healthy: #FFFFFF; --tooth-caries: #EF4444; --tooth-filled: #3B82F6; --tooth-crown: #F59E0B; --tooth-missing: #CBD5E1;
+  --tooth-implant: #8B5CF6; --tooth-root_canal: #EC4899; --tooth-bridge: #0EA5E9; --tooth-veneer: #14B8A6; --tooth-fracture: #F97316;
+  --tooth-to_extract: #991B1B; --tooth-impacted: #78716C; --tooth-sealant: #22C55E;
+
+  /* shape & depth */
+  --r-xs: 6px; --r-sm: 8px; --r-md: 12px; --r-lg: 16px; --r-xl: 20px; --r-2xl: 28px; --r-full: 999px;
+  --sh-xs: 0 1px 2px rgba(16, 24, 40, .05);
+  --sh-sm: 0 1px 2px rgba(16, 24, 40, .06), 0 1px 3px rgba(16, 24, 40, .08);
+  --sh-md: 0 4px 12px -2px rgba(16, 24, 40, .08), 0 2px 4px -2px rgba(16, 24, 40, .05);
+  --sh-lg: 0 12px 32px -8px rgba(16, 24, 40, .16), 0 4px 10px -4px rgba(16, 24, 40, .06);
+  --sh-xl: 0 24px 60px -12px rgba(16, 24, 40, .25);
+  --sh-primary: 0 6px 16px -4px rgba(14, 143, 134, .45);
+
+  /* type */
+  --font: 'IBM Plex Sans Arabic', 'Segoe UI', Tahoma, system-ui, -apple-system, sans-serif;
+  --font-mono: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+  --fs-xs: 11.5px; --fs-sm: 13px; --fs-md: 14px; --fs-lg: 16px; --fs-xl: 18px; --fs-2xl: 22px; --fs-3xl: 28px; --fs-4xl: 34px;
+
+  /* layout */
+  --sidebar-w: 264px; --sidebar-w-collapsed: 76px; --topbar-h: 64px; --bottomnav-h: 64px;
+  --page-max: 1440px; --gutter: 24px;
+  --ease: cubic-bezier(.2, .8, .2, 1); --t-fast: 120ms; --t-med: 200ms; --t-slow: 320ms;
+  --safe-top: env(safe-area-inset-top, 0px); --safe-bottom: env(safe-area-inset-bottom, 0px);
+  color-scheme: light;
+}
+@media (max-width: 767px) { :root { --gutter: 16px; } }
+
+/* optional dark palette: only when the user picks it in Settings */
+:root[data-theme="dark"] {
+  --bg: #0B1220; --bg-2: #0F172A; --surface: #111A2E; --surface-2: #162036; --surface-3: #1C2740;
+  --border: #223049; --border-2: #2C3B57; --divider: #1C2740;
+  --text: #F1F5F9; --text-2: #CBD5E1; --text-3: #94A3B8; --text-4: #64748B;
+  --primary-soft: #0F2E2C; --primary-soft-2: #134240; --accent-soft: #1E1B4B;
+  --success-soft: #0B2A1A; --warning-soft: #2B1F06; --danger-soft: #2C1212; --info-soft: #0F1F3F; --purple-soft: #221640; --pink-soft: #3B0F24; --orange-soft: #2F1708; --gray-soft: #1C2740; --gray-text: #CBD5E1;
+  --success-text: #4ADE80; --warning-text: #FBBF24; --danger-text: #F87171; --info-text: #93C5FD;
+  --tooth-healthy: #1C2740; --tooth-missing: #334155;
+  --sh-sm: 0 1px 2px rgba(0,0,0,.4); --sh-md: 0 4px 12px -2px rgba(0,0,0,.5); --sh-lg: 0 12px 32px -8px rgba(0,0,0,.6);
+  color-scheme: dark;
+}

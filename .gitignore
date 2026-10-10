@@ -11,3 +11,8 @@ server/.wrangler
 server/node_modules
 server/.dev.vars
 secrets-for-user
+dental/node_modules
+dental/dist
+dental/dist-*
+dental/qa-shots
+dental/release

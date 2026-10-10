@@ -1,0 +1,113 @@
+import type { ModuleDict } from './types'
+
+const common: ModuleDict = {
+  ar: {
+    appName: 'Dentora', appTagline: 'نظام إدارة عيادات الأسنان',
+    // actions
+    save: 'حفظ', saveChanges: 'حفظ التغييرات', cancel: 'إلغاء', delete: 'حذف', edit: 'تعديل', add: 'إضافة', create: 'إنشاء', new: 'جديد', search: 'بحث',
+    close: 'إغلاق', back: 'رجوع', next: 'التالي', previous: 'السابق', finish: 'إنهاء', confirm: 'تأكيد', print: 'طباعة', export: 'تصدير', import: 'استيراد',
+    yes: 'نعم', no: 'لا', ok: 'حسناً', done: 'تم', apply: 'تطبيق', reset: 'إعادة تعيين', clear: 'مسح', select: 'اختر', selectAll: 'تحديد الكل', view: 'عرض', open: 'فتح',
+    details: 'التفاصيل', more: 'المزيد', less: 'أقل', showAll: 'عرض الكل', refresh: 'تحديث', copy: 'نسخ', copied: 'تم النسخ', share: 'مشاركة', download: 'تنزيل', upload: 'رفع',
+    archive: 'أرشفة', restore: 'استعادة', duplicate: 'نسخ مكرر', send: 'إرسال', call: 'اتصال', whatsapp: 'واتساب', filter: 'تصفية', filters: 'عوامل التصفية', sort: 'ترتيب',
+    // states
+    loading: 'جارٍ التحميل…', saving: 'جارٍ الحفظ…', noResults: 'لا توجد نتائج', nothingHere: 'لا يوجد شيء هنا بعد', error: 'حدث خطأ', success: 'تم بنجاح', saved: 'تم الحفظ',
+    deleted: 'تم الحذف', updated: 'تم التحديث', created: 'تمت الإضافة', required: 'مطلوب', optional: 'اختياري', invalid: 'غير صالح', unknown: 'غير معروف',
+    all: 'الكل', none: 'لا شيء', other: 'أخرى', active: 'نشط', inactive: 'غير نشط', archived: 'مؤرشف', default: 'افتراضي',
+    // confirm
+    confirmDeleteTitle: 'تأكيد الحذف', confirmDeleteDesc: 'سيُحذف هذا العنصر نهائياً ولا يمكن التراجع.', confirmTitle: 'هل أنت متأكد؟', unsavedChanges: 'لديك تغييرات غير محفوظة. هل تريد المغادرة؟',
+    // common fields
+    name: 'الاسم', fullName: 'الاسم الكامل', phone: 'الهاتف', phone2: 'هاتف آخر', email: 'البريد الإلكتروني', address: 'العنوان', date: 'التاريخ', time: 'الوقت', from: 'من', to: 'إلى',
+    amount: 'المبلغ', total: 'الإجمالي', subtotal: 'المجموع', discount: 'الخصم', tax: 'الضريبة', price: 'السعر', qty: 'الكمية', unitPrice: 'سعر الوحدة', paid: 'المدفوع', balance: 'الرصيد', due: 'المتبقي', remaining: 'المتبقي',
+    notes: 'ملاحظات', description: 'الوصف', status: 'الحالة', type: 'النوع', category: 'الفئة', actions: 'إجراءات', doctor: 'الطبيب', patient: 'المريض', patients: 'المرضى',
+    tooth: 'السن', teeth: 'الأسنان', duration: 'المدة', minutes: 'دقيقة', min: 'د', hours: 'ساعة', days: 'يوم', day: 'يوم', week: 'أسبوع', month: 'شهر', year: 'سنة', age: 'العمر', years: 'سنة',
+    gender: 'الجنس', male: 'ذكر', female: 'أنثى', birthDate: 'تاريخ الميلاد', createdAt: 'تاريخ الإضافة', updatedAt: 'آخر تعديل', by: 'بواسطة', number: 'الرقم', code: 'الرمز', reference: 'المرجع',
+    today: 'اليوم', tomorrow: 'غداً', yesterday: 'أمس', thisWeek: 'هذا الأسبوع', thisMonth: 'هذا الشهر', thisYear: 'هذه السنة', lastMonth: 'الشهر الماضي', last7: 'آخر 7 أيام', last30: 'آخر 30 يوماً', custom: 'مخصص', period: 'الفترة',
+    currency: 'العملة', language: 'اللغة', arabic: 'العربية', english: 'English', theme: 'المظهر', light: 'فاتح', dark: 'داكن',
+    // navigation
+    'nav.dashboard': 'الرئيسية', 'nav.patients': 'المرضى', 'nav.appointments': 'المواعيد', 'nav.treatments': 'العلاجات', 'nav.procedures': 'قائمة الإجراءات', 'nav.billing': 'الفواتير',
+    'nav.payments': 'المدفوعات', 'nav.prescriptions': 'الوصفات', 'nav.lab': 'المخبر', 'nav.inventory': 'المخزون', 'nav.expenses': 'المصروفات', 'nav.reports': 'التقارير',
+    'nav.staff': 'الفريق', 'nav.settings': 'الإعدادات', 'nav.more': 'المزيد', 'nav.clinical': 'العيادة', 'nav.finance': 'المالية', 'nav.management': 'الإدارة', 'nav.license': 'الترخيص', 'nav.search': 'بحث سريع',
+    'nav.quickAdd': 'إضافة سريعة', 'nav.newPatient': 'مريض جديد', 'nav.newAppointment': 'موعد جديد', 'nav.newInvoice': 'فاتورة جديدة', 'nav.newPayment': 'دفعة جديدة', 'nav.newExpense': 'مصروف جديد',
+    'nav.lock': 'قفل الشاشة', 'nav.logout': 'تسجيل الخروج', 'nav.profile': 'حسابي', 'nav.notifications': 'التنبيهات', 'nav.collapse': 'طيّ القائمة', 'nav.expand': 'توسيع القائمة',
+    // roles
+    'role.admin': 'مدير', 'role.doctor': 'طبيب', 'role.assistant': 'مساعد', 'role.receptionist': 'استقبال',
+    // appointment statuses & types
+    'apt.scheduled': 'مجدول', 'apt.confirmed': 'مؤكد', 'apt.arrived': 'وصل', 'apt.in_progress': 'قيد المعالجة', 'apt.completed': 'مكتمل', 'apt.cancelled': 'ملغى', 'apt.no_show': 'لم يحضر',
+    'aptType.checkup': 'فحص', 'aptType.consultation': 'استشارة', 'aptType.treatment': 'علاج', 'aptType.followup': 'متابعة', 'aptType.cleaning': 'تنظيف', 'aptType.emergency': 'طارئ', 'aptType.surgery': 'جراحة', 'aptType.orthodontic': 'تقويم', 'aptType.other': 'أخرى',
+    // treatment / invoice / lab statuses
+    'tr.planned': 'مخطط', 'tr.in_progress': 'قيد التنفيذ', 'tr.completed': 'مكتمل', 'tr.cancelled': 'ملغى',
+    'plan.draft': 'مسودة', 'plan.approved': 'معتمدة', 'plan.in_progress': 'قيد التنفيذ', 'plan.completed': 'مكتملة', 'plan.cancelled': 'ملغاة',
+    'inv.draft': 'مسودة', 'inv.unpaid': 'غير مدفوعة', 'inv.partial': 'مدفوعة جزئياً', 'inv.paid': 'مدفوعة', 'inv.cancelled': 'ملغاة',
+    'lab.draft': 'مسودة', 'lab.sent': 'مرسل', 'lab.in_progress': 'قيد العمل', 'lab.received': 'مستلم', 'lab.fitted': 'مركّب', 'lab.remake': 'إعادة عمل', 'lab.cancelled': 'ملغى',
+    'labType.crown': 'تاج', 'labType.bridge': 'جسر', 'labType.veneer': 'قشرة (فينير)', 'labType.inlay_onlay': 'حشوة مخبرية', 'labType.denture_full': 'طقم كامل', 'labType.denture_partial': 'طقم جزئي',
+    'labType.implant_crown': 'تاج على زرعة', 'labType.night_guard': 'واقي ليلي', 'labType.retainer': 'مثبّت', 'labType.aligner': 'تقويم شفاف', 'labType.post_core': 'وتد ولبّ', 'labType.other': 'أخرى',
+    // payment methods
+    'pay.cash': 'نقداً', 'pay.card': 'بطاقة', 'pay.transfer': 'تحويل', 'pay.insurance': 'تأمين', 'pay.wallet': 'محفظة إلكترونية', 'pay.other': 'أخرى',
+    // procedure categories
+    'cat.diagnostic': 'تشخيص', 'cat.preventive': 'وقاية', 'cat.restorative': 'ترميم وحشوات', 'cat.endodontic': 'علاج عصب', 'cat.periodontic': 'لثة', 'cat.prosthodontic': 'تعويضات',
+    'cat.surgical': 'جراحة', 'cat.orthodontic': 'تقويم', 'cat.pediatric': 'أطفال', 'cat.cosmetic': 'تجميل', 'cat.implant': 'زراعة', 'cat.other': 'أخرى',
+    // expense categories
+    'exp.rent': 'إيجار', 'exp.salaries': 'رواتب', 'exp.materials': 'مواد', 'exp.lab': 'مخبر', 'exp.equipment': 'معدات', 'exp.utilities': 'كهرباء وماء وإنترنت', 'exp.marketing': 'تسويق', 'exp.maintenance': 'صيانة', 'exp.taxes': 'ضرائب ورسوم', 'exp.other': 'أخرى',
+    // tooth conditions & surfaces
+    'cond.healthy': 'سليم', 'cond.caries': 'تسوس', 'cond.filled': 'حشوة', 'cond.crown': 'تاج', 'cond.missing': 'مفقود', 'cond.implant': 'زرعة', 'cond.root_canal': 'علاج عصب', 'cond.bridge': 'جسر',
+    'cond.veneer': 'فينير', 'cond.fracture': 'كسر', 'cond.to_extract': 'يحتاج قلع', 'cond.impacted': 'منطمر', 'cond.sealant': 'سادّ شقوق', 'cond.mobile': 'متحرك', 'cond.abscess': 'خراج', 'cond.attrition': 'تآكل', 'cond.other': 'أخرى',
+    'surf.M': 'أنسي (M)', 'surf.D': 'وحشي (D)', 'surf.O': 'طاحن (O)', 'surf.B': 'دهليزي (B)', 'surf.L': 'لساني (L)', 'surf.I': 'قاطع (I)', 'surf.R': 'جذر (R)',
+    'fileKind.xray': 'أشعة', 'fileKind.photo': 'صورة', 'fileKind.document': 'مستند', 'fileKind.consent': 'موافقة', 'fileKind.other': 'أخرى',
+    // validation
+    'v.required': 'هذا الحقل مطلوب', 'v.phone': 'رقم هاتف غير صالح', 'v.email': 'بريد إلكتروني غير صالح', 'v.number': 'أدخل رقماً صالحاً', 'v.positive': 'يجب أن يكون أكبر من صفر', 'v.date': 'تاريخ غير صالح', 'v.pin': 'رمز PIN من 4 إلى 6 أرقام',
+    // misc
+    noData: 'لا توجد بيانات', emptyList: 'القائمة فارغة', tryAgain: 'حاول مرة أخرى', readOnly: 'للقراءة فقط', version: 'الإصدار', of: 'من', items: 'عناصر', item: 'عنصر', results: 'نتيجة',
+    showing: 'عرض {from}–{to} من {total}', perPage: 'لكل صفحة', page: 'صفحة', fileNo: 'رقم الملف', untitled: 'بدون عنوان', total_: 'الإجمالي',
+    'trial.banner': 'نسخة تجريبية — متبقٍ {days} يوماً', 'trial.expired': 'انتهت الفترة التجريبية. فعّل النظام لمتابعة العمل.', 'trial.activate': 'تفعيل الآن', 'trial.readonly': 'وضع القراءة فقط: الإضافة والتعديل متوقفان حتى التفعيل.',
+    pressEnter: 'اضغط Enter', typeToSearch: 'اكتب للبحث…', searchPlaceholder: 'ابحث عن مريض، موعد، فاتورة…', quickSearch: 'بحث سريع', shortcuts: 'اختصارات',
+    welcome: 'مرحباً', goodMorning: 'صباح الخير', goodEvening: 'مساء الخير', dr: 'د.',
+  },
+  en: {
+    appName: 'Dentora', appTagline: 'Dental clinic management',
+    save: 'Save', saveChanges: 'Save changes', cancel: 'Cancel', delete: 'Delete', edit: 'Edit', add: 'Add', create: 'Create', new: 'New', search: 'Search',
+    close: 'Close', back: 'Back', next: 'Next', previous: 'Previous', finish: 'Finish', confirm: 'Confirm', print: 'Print', export: 'Export', import: 'Import',
+    yes: 'Yes', no: 'No', ok: 'OK', done: 'Done', apply: 'Apply', reset: 'Reset', clear: 'Clear', select: 'Select', selectAll: 'Select all', view: 'View', open: 'Open',
+    details: 'Details', more: 'More', less: 'Less', showAll: 'Show all', refresh: 'Refresh', copy: 'Copy', copied: 'Copied', share: 'Share', download: 'Download', upload: 'Upload',
+    archive: 'Archive', restore: 'Restore', duplicate: 'Duplicate', send: 'Send', call: 'Call', whatsapp: 'WhatsApp', filter: 'Filter', filters: 'Filters', sort: 'Sort',
+    loading: 'Loading…', saving: 'Saving…', noResults: 'No results', nothingHere: 'Nothing here yet', error: 'Something went wrong', success: 'Success', saved: 'Saved',
+    deleted: 'Deleted', updated: 'Updated', created: 'Created', required: 'Required', optional: 'Optional', invalid: 'Invalid', unknown: 'Unknown',
+    all: 'All', none: 'None', other: 'Other', active: 'Active', inactive: 'Inactive', archived: 'Archived', default: 'Default',
+    confirmDeleteTitle: 'Confirm deletion', confirmDeleteDesc: 'This item will be permanently deleted. This cannot be undone.', confirmTitle: 'Are you sure?', unsavedChanges: 'You have unsaved changes. Leave anyway?',
+    name: 'Name', fullName: 'Full name', phone: 'Phone', phone2: 'Other phone', email: 'Email', address: 'Address', date: 'Date', time: 'Time', from: 'From', to: 'To',
+    amount: 'Amount', total: 'Total', subtotal: 'Subtotal', discount: 'Discount', tax: 'Tax', price: 'Price', qty: 'Qty', unitPrice: 'Unit price', paid: 'Paid', balance: 'Balance', due: 'Due', remaining: 'Remaining',
+    notes: 'Notes', description: 'Description', status: 'Status', type: 'Type', category: 'Category', actions: 'Actions', doctor: 'Doctor', patient: 'Patient', patients: 'Patients',
+    tooth: 'Tooth', teeth: 'Teeth', duration: 'Duration', minutes: 'minutes', min: 'min', hours: 'hours', days: 'days', day: 'day', week: 'Week', month: 'Month', year: 'Year', age: 'Age', years: 'y',
+    gender: 'Gender', male: 'Male', female: 'Female', birthDate: 'Date of birth', createdAt: 'Created', updatedAt: 'Updated', by: 'by', number: 'Number', code: 'Code', reference: 'Reference',
+    today: 'Today', tomorrow: 'Tomorrow', yesterday: 'Yesterday', thisWeek: 'This week', thisMonth: 'This month', thisYear: 'This year', lastMonth: 'Last month', last7: 'Last 7 days', last30: 'Last 30 days', custom: 'Custom', period: 'Period',
+    currency: 'Currency', language: 'Language', arabic: 'العربية', english: 'English', theme: 'Theme', light: 'Light', dark: 'Dark',
+    'nav.dashboard': 'Dashboard', 'nav.patients': 'Patients', 'nav.appointments': 'Appointments', 'nav.treatments': 'Treatments', 'nav.procedures': 'Procedures', 'nav.billing': 'Invoices',
+    'nav.payments': 'Payments', 'nav.prescriptions': 'Prescriptions', 'nav.lab': 'Lab', 'nav.inventory': 'Inventory', 'nav.expenses': 'Expenses', 'nav.reports': 'Reports',
+    'nav.staff': 'Staff', 'nav.settings': 'Settings', 'nav.more': 'More', 'nav.clinical': 'Clinical', 'nav.finance': 'Finance', 'nav.management': 'Management', 'nav.license': 'License', 'nav.search': 'Quick search',
+    'nav.quickAdd': 'Quick add', 'nav.newPatient': 'New patient', 'nav.newAppointment': 'New appointment', 'nav.newInvoice': 'New invoice', 'nav.newPayment': 'New payment', 'nav.newExpense': 'New expense',
+    'nav.lock': 'Lock screen', 'nav.logout': 'Sign out', 'nav.profile': 'My account', 'nav.notifications': 'Notifications', 'nav.collapse': 'Collapse menu', 'nav.expand': 'Expand menu',
+    'role.admin': 'Admin', 'role.doctor': 'Doctor', 'role.assistant': 'Assistant', 'role.receptionist': 'Receptionist',
+    'apt.scheduled': 'Scheduled', 'apt.confirmed': 'Confirmed', 'apt.arrived': 'Arrived', 'apt.in_progress': 'In progress', 'apt.completed': 'Completed', 'apt.cancelled': 'Cancelled', 'apt.no_show': 'No-show',
+    'aptType.checkup': 'Check-up', 'aptType.consultation': 'Consultation', 'aptType.treatment': 'Treatment', 'aptType.followup': 'Follow-up', 'aptType.cleaning': 'Cleaning', 'aptType.emergency': 'Emergency', 'aptType.surgery': 'Surgery', 'aptType.orthodontic': 'Orthodontic', 'aptType.other': 'Other',
+    'tr.planned': 'Planned', 'tr.in_progress': 'In progress', 'tr.completed': 'Completed', 'tr.cancelled': 'Cancelled',
+    'plan.draft': 'Draft', 'plan.approved': 'Approved', 'plan.in_progress': 'In progress', 'plan.completed': 'Completed', 'plan.cancelled': 'Cancelled',
+    'inv.draft': 'Draft', 'inv.unpaid': 'Unpaid', 'inv.partial': 'Partially paid', 'inv.paid': 'Paid', 'inv.cancelled': 'Cancelled',
+    'lab.draft': 'Draft', 'lab.sent': 'Sent', 'lab.in_progress': 'In progress', 'lab.received': 'Received', 'lab.fitted': 'Fitted', 'lab.remake': 'Remake', 'lab.cancelled': 'Cancelled',
+    'labType.crown': 'Crown', 'labType.bridge': 'Bridge', 'labType.veneer': 'Veneer', 'labType.inlay_onlay': 'Inlay / Onlay', 'labType.denture_full': 'Full denture', 'labType.denture_partial': 'Partial denture',
+    'labType.implant_crown': 'Implant crown', 'labType.night_guard': 'Night guard', 'labType.retainer': 'Retainer', 'labType.aligner': 'Clear aligner', 'labType.post_core': 'Post & core', 'labType.other': 'Other',
+    'pay.cash': 'Cash', 'pay.card': 'Card', 'pay.transfer': 'Transfer', 'pay.insurance': 'Insurance', 'pay.wallet': 'E-wallet', 'pay.other': 'Other',
+    'cat.diagnostic': 'Diagnostic', 'cat.preventive': 'Preventive', 'cat.restorative': 'Restorative', 'cat.endodontic': 'Endodontic', 'cat.periodontic': 'Periodontic', 'cat.prosthodontic': 'Prosthodontic',
+    'cat.surgical': 'Surgical', 'cat.orthodontic': 'Orthodontic', 'cat.pediatric': 'Pediatric', 'cat.cosmetic': 'Cosmetic', 'cat.implant': 'Implant', 'cat.other': 'Other',
+    'exp.rent': 'Rent', 'exp.salaries': 'Salaries', 'exp.materials': 'Materials', 'exp.lab': 'Lab', 'exp.equipment': 'Equipment', 'exp.utilities': 'Utilities', 'exp.marketing': 'Marketing', 'exp.maintenance': 'Maintenance', 'exp.taxes': 'Taxes & fees', 'exp.other': 'Other',
+    'cond.healthy': 'Healthy', 'cond.caries': 'Caries', 'cond.filled': 'Filling', 'cond.crown': 'Crown', 'cond.missing': 'Missing', 'cond.implant': 'Implant', 'cond.root_canal': 'Root canal', 'cond.bridge': 'Bridge',
+    'cond.veneer': 'Veneer', 'cond.fracture': 'Fracture', 'cond.to_extract': 'To extract', 'cond.impacted': 'Impacted', 'cond.sealant': 'Sealant', 'cond.mobile': 'Mobile', 'cond.abscess': 'Abscess', 'cond.attrition': 'Attrition', 'cond.other': 'Other',
+    'surf.M': 'Mesial (M)', 'surf.D': 'Distal (D)', 'surf.O': 'Occlusal (O)', 'surf.B': 'Buccal (B)', 'surf.L': 'Lingual (L)', 'surf.I': 'Incisal (I)', 'surf.R': 'Root (R)',
+    'fileKind.xray': 'X-ray', 'fileKind.photo': 'Photo', 'fileKind.document': 'Document', 'fileKind.consent': 'Consent', 'fileKind.other': 'Other',
+    'v.required': 'This field is required', 'v.phone': 'Invalid phone number', 'v.email': 'Invalid email', 'v.number': 'Enter a valid number', 'v.positive': 'Must be greater than zero', 'v.date': 'Invalid date', 'v.pin': 'PIN must be 4–6 digits',
+    noData: 'No data', emptyList: 'The list is empty', tryAgain: 'Try again', readOnly: 'Read only', version: 'Version', of: 'of', items: 'items', item: 'item', results: 'results',
+    showing: 'Showing {from}–{to} of {total}', perPage: 'per page', page: 'Page', fileNo: 'File #', untitled: 'Untitled', total_: 'Total',
+    'trial.banner': 'Trial version — {days} days left', 'trial.expired': 'The trial has ended. Activate to keep working.', 'trial.activate': 'Activate now', 'trial.readonly': 'Read-only mode: adding and editing are paused until activation.',
+    pressEnter: 'Press Enter', typeToSearch: 'Type to search…', searchPlaceholder: 'Search patients, appointments, invoices…', quickSearch: 'Quick search', shortcuts: 'Shortcuts',
+    welcome: 'Welcome', goodMorning: 'Good morning', goodEvening: 'Good evening', dr: 'Dr.',
+  },
+}
+export default common
