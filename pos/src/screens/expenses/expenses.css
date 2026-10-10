@@ -1,0 +1,24 @@
+/* Expenses screen. */
+.ex-range { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.ex-stats { grid-template-columns: minmax(180px, 1fr) minmax(0, 2fr); }
+@media (max-width: 899px) { .ex-stats { grid-template-columns: 1fr; } }
+.ex-total .stat-value { font-size: 26px; }
+.ex-total .stat-label, .ex-cats .stat-label { display: inline-flex; align-items: center; gap: 4px; }
+.ex-bars { display: flex; flex-direction: column; gap: 6px; margin-top: 8px; }
+.ex-bar-row { display: grid; grid-template-columns: minmax(90px, 130px) 1fr auto; align-items: center; gap: 10px; font-size: 13px; }
+.ex-bar-label { display: inline-flex; align-items: center; gap: 6px; font-weight: 600; color: var(--text-2); }
+.ex-bar { height: 8px; border-radius: 4px; background: var(--surface-3); overflow: hidden; }
+.ex-bar-fill { display: block; height: 100%; border-radius: 4px; transition: width var(--t) var(--ease); }
+.ex-bar-val { font-weight: 700; font-size: 12px; }
+.ex-group { display: flex; flex-direction: column; gap: 6px; }
+.ex-day { display: flex; justify-content: space-between; align-items: center; padding: 6px 4px 0; font-size: 13px; font-weight: 700; color: var(--text-2); }
+.ex-ico { width: 38px; height: 38px; border-radius: 11px; display: inline-flex; align-items: center; justify-content: center; color: #fff; flex: none; }
+.ex-fab { position: fixed; inset-inline-end: 16px; bottom: calc(var(--nav-h) + 16px + var(--safe-bottom)); z-index: 60; width: 58px; height: 58px; border-radius: 50%; background: var(--primary); color: var(--on-primary); display: flex; align-items: center; justify-content: center; box-shadow: var(--shadow-2); transition: transform var(--t-fast), background var(--t-fast); }
+.ex-fab:active { transform: scale(.95); }
+.ex-form { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 18px; align-items: start; }
+@media (max-width: 899px) { .ex-form { grid-template-columns: 1fr; gap: 12px; } }
+.ex-chips { flex-wrap: wrap; }
+.ex-chips .chip { min-height: 40px; }
+
+/* rows built from spans: title over sub, stacked */
+.list-row > .grow > .title, .list-row > .grow > .sub, .list-row > .end > .sub { display: block; }

@@ -1,0 +1,62 @@
+/* App frame: sidebar + top bar on wide screens, bottom tabs on phones. */
+.shell { display: flex; height: 100%; width: 100%; overflow: hidden; }
+.sidebar { width: var(--sidebar-w); flex: none; display: flex; flex-direction: column; background: var(--surface); border-inline-end: 1px solid var(--line); transition: width var(--t) var(--ease); }
+.sidebar.mini { width: var(--sidebar-min); }
+.sidebar .brand { display: flex; align-items: center; gap: 10px; height: var(--topbar-h); padding: 0 16px; font-weight: 800; font-size: 17px; border-bottom: 1px solid var(--line); overflow: hidden; white-space: nowrap; }
+.sidebar .brand img { width: 32px; height: 32px; border-radius: 9px; flex: none; }
+.sidebar nav { display: flex; flex-direction: column; gap: 2px; padding: 10px; flex: 1; overflow-y: auto; }
+.sidebar nav a { display: flex; align-items: center; gap: 12px; min-height: 44px; padding: 0 12px; border-radius: var(--radius-sm); color: var(--text-2); font-weight: 600; font-size: 14px; white-space: nowrap; transition: background var(--t-fast), color var(--t-fast); }
+.sidebar nav a:hover { background: var(--surface-2); color: var(--text); }
+.sidebar nav a.active { background: var(--primary-soft); color: var(--primary-700); }
+[data-theme="dark"] .sidebar nav a.active { color: var(--primary); }
+.sidebar nav a svg { flex: none; }
+.sidebar.mini nav a { justify-content: center; padding: 0; }
+.sidebar.mini nav a span, .sidebar.mini .brand span { display: none; }
+.sidebar .sidebar-foot { padding: 10px; border-top: 1px solid var(--line); display: flex; flex-direction: column; gap: 6px; }
+.sidebar .user-chip { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-radius: var(--radius-sm); background: var(--surface-2); overflow: hidden; }
+.sidebar.mini .user-chip { justify-content: center; padding: 8px 0; }
+.sidebar.mini .user-chip > div { display: none; }
+.main { flex: 1; min-width: 0; display: flex; flex-direction: column; height: 100%; }
+.topbar { display: flex; align-items: center; gap: 10px; height: var(--topbar-h); padding: 0 16px; background: var(--surface); border-bottom: 1px solid var(--line); flex: none; }
+.topbar .title { font-weight: 700; font-size: 16px; flex: 1; min-width: 0; }
+.content { flex: 1; min-height: 0; overflow-y: auto; overflow-x: hidden; -webkit-overflow-scrolling: touch; }
+.content.fixed { overflow: hidden; }
+
+.bottom-nav { display: none; }
+@media (max-width: 899px) {
+  .shell { flex-direction: column; }
+  .sidebar, .topbar { display: none; }
+  .main { height: auto; flex: 1; min-height: 0; }
+  .content { padding-bottom: calc(var(--nav-h) + var(--safe-bottom)); }
+  .content.fixed { padding-bottom: 0; }
+  .bottom-nav { display: flex; position: fixed; left: 0; right: 0; bottom: 0; z-index: 90; height: calc(var(--nav-h) + var(--safe-bottom)); padding-bottom: var(--safe-bottom); background: var(--surface); border-top: 1px solid var(--line); }
+  .bottom-nav a, .bottom-nav button { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; font-size: 11px; font-weight: 600; color: var(--text-3); transition: color var(--t-fast); }
+  .bottom-nav a.active { color: var(--primary); }
+  .bottom-nav a.active svg { transform: translateY(-1px); }
+  .bottom-nav svg { transition: transform var(--t-fast); }
+}
+
+/* The daily exchange rate: the chip in the top bar (and the phone "more" sheet), the stale banner, the dialog. */
+.rate-chip { display: inline-flex; align-items: center; gap: 6px; min-height: 32px; padding: 0 10px; border-radius: 999px; background: var(--surface-3); color: var(--text-2); font-size: 12px; font-weight: 700; white-space: nowrap; transition: background var(--t-fast), color var(--t-fast); }
+.rate-chip:hover { background: var(--line); color: var(--text); }
+.rate-chip .age { font-weight: 600; color: var(--text-3); }
+.rate-chip.warn { background: var(--warn-soft); color: #9a6700; }
+.rate-chip.warn .age { color: inherit; opacity: .85; }
+[data-theme="dark"] .rate-chip.warn { color: var(--warn); }
+.rate-chip.danger { background: var(--danger-soft); color: var(--danger); }
+.rate-chip.danger .age { color: inherit; opacity: .85; }
+.rate-chip.grow { justify-content: center; min-height: 44px; font-size: 14px; }
+.banner.rate-stale .btn { margin-inline-start: 0; }
+.rate-dialog .rate-display { display: flex; align-items: baseline; justify-content: center; gap: 10px; padding: 10px 12px; border-radius: var(--radius); background: var(--surface-2); min-height: 64px; }
+.rate-dialog .rate-display .eq { font-size: 16px; font-weight: 700; color: var(--text-3); }
+.rate-dialog .rate-display .val { font-size: 34px; font-weight: 800; font-variant-numeric: tabular-nums; letter-spacing: .5px; }
+.rate-dialog .rate-display .val.ph { color: var(--text-3); font-weight: 600; }
+.rate-dialog .rate-preview { display: flex; flex-direction: column; gap: 4px; padding: 8px 12px; border-radius: var(--radius-sm); background: var(--surface-2); }
+.rate-dialog .rate-preview .row { gap: 8px; }
+.rate-dialog .rate-preview .row > .truncate { min-width: 0; flex: 1; }
+.rate-dialog .rate-preview .row > .num { flex: none; white-space: nowrap; }
+.rate-dialog .rate-preview .strike { text-decoration: line-through; }
+.rate-dialog .rate-suggest { display: flex; align-items: center; gap: 8px; min-height: 44px; padding: 0 12px; border-radius: var(--radius-sm); background: var(--warn-soft); color: #7a5200; font-weight: 700; font-size: 14px; text-align: start; }
+[data-theme="dark"] .rate-dialog .rate-suggest { color: var(--warn); }
+
+.lock-screen { position: fixed; inset: 0; z-index: 150; background: var(--bg); display: flex; align-items: center; justify-content: center; padding: 20px; }
