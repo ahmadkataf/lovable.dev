@@ -12,6 +12,8 @@
 #   ANDROID_KEYSTORE                   the signing (upload) key, must exist; default android/release.keystore (created when missing)
 #   ANDROID_KEYSTORE_PASSWORD          its password (default dentora-release: set your own before the first build)
 #   ANDROID_KEY_ALIAS                  the key alias (default dentora)
+#   DENTORA_EXPECTED_CERT_SHA256       when set, the build fails unless the APK's signing certificate has this SHA-256
+#                                      (hex, colons optional). The release key's is in docs/ANDROID.md.
 #   VERSION_NAME                       default: the version in package.json (1.2.3)
 #   VERSION_CODE                       default: major*10000 + minor*100 + patch of VERSION_NAME (1.2.3 → 10203)
 #   TARGET_SDK                         default 35 (must not exceed the newest installed platform)
@@ -165,3 +167,11 @@ fi
 
 CERT="$("$BT/apksigner" verify --print-certs "$APK" 2>/dev/null | grep -m1 'SHA-256 digest' | sed 's/.*: //' || true)"
 echo "signed with key '$KS_ALIAS' from $KS${CERT:+ (SHA-256 $CERT)}"
+if [ -n "${DENTORA_EXPECTED_CERT_SHA256:-}" ]; then
+  WANT="$(printf '%s' "$DENTORA_EXPECTED_CERT_SHA256" | tr -d ':' | tr 'A-F' 'a-f')"
+  if [ "$CERT" != "$WANT" ]; then
+    rm -f "$APK" "${AAB:-/nonexistent}"
+    die "the APK is signed with certificate $CERT, but the release key is $WANT. Wrong keystore: nothing was kept."
+  fi
+  echo "release key confirmed (SHA-256 matches DENTORA_EXPECTED_CERT_SHA256)"
+fi

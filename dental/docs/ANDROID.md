@@ -75,29 +75,37 @@ node android/test/webview-sim.mjs                              # تشغيل ال
 
 ---
 
-## 2. مفتاح التوقيع: أهم ملف لديك
+## 2. مفتاح التوقيع النهائي: أهم ملف لديك
 
-عند أول بناء يُنشأ `android/release.keystore` ويطبع السكربت تحذيراً واضحاً. هذا الملف هو **هوية التطبيق**:
+لـ Dentora مفتاح توقيع نهائي واحد (`dentora-release.keystore`، الاسم المستعار `dentora`، RSA 4096، صالح حتى 2054)،
+سُلِّم لصاحب المشروع مع ملف `KEY-INFO.txt` الذي يحوي كلمة السر. **كل** ملف APK يُشارَك و**كل** حزمة تُرفع إلى Google Play
+تُوقَّع به، فتكون النسخة المشارَكة ونسخة المتجر تطبيقاً واحداً يُحدِّث بعضه بعضاً.
 
-- **كل تحديث** يجب أن يُوقَّع بالمفتاح نفسه، سواء على Google Play أو عند تثبيت APK جديد فوق القديم.
-  إن ضاع المفتاح لن يقبل أي هاتف التحديث، وسيضطر العميل إلى حذف التطبيق، و**الحذف يمسح كل بيانات العيادة على ذلك الهاتف**.
-- على Android 8 فأحدث يعتمد **رقم الجهاز** (المستخدم في التفعيل) على مفتاح التوقيع أيضاً: مفتاح جديد = أرقام أجهزة جديدة = أكواد تفعيل جديدة.
-- احفظ نسختين منه في مكانين آمنين (قرص خارجي + خزنة كلمات سر أو سحابة مشفّرة)، **مع كلمة السر والاسم المستعار (alias)**.
-- الملف مستثنى من git عمداً (`.gitignore`): لا ترفعه إلى المستودع أبداً.
-
-لإنشاء مفتاحك بنفسك بكلمة سر قوية قبل أول بناء:
-```bash
-keytool -genkeypair -keystore android/release.keystore -storetype PKCS12 -alias dentora \
-  -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=Dentora, O=<اسم شركتك>"
-export ANDROID_KEYSTORE_PASSWORD='<كلمة السر التي اخترتها>'
+بصمة الشهادة (SHA-256) — معلومة عامة يمكن مقارنتها في أي وقت:
+```
+43:68:DD:14:78:37:A1:B2:5E:BD:8E:6E:FE:D1:CB:5A:37:8A:74:9A:A3:02:4C:F1:B6:43:51:6C:F4:B9:82:0B
 ```
 
-للبناء على GitHub Actions ضع المفتاح في أسرار المستودع (Settings ← Secrets and variables ← Actions):
+- **كل تحديث** يجب أن يُوقَّع بالمفتاح نفسه. إن ضاع لن يقبل أي هاتف التحديث، وسيضطر العميل إلى حذف التطبيق،
+  و**الحذف يمسح كل بيانات العيادة على ذلك الهاتف**.
+- على Android 8 فأحدث يعتمد **رقم الجهاز** (المستخدم في التفعيل) على مفتاح التوقيع أيضاً، فتوحيد المفتاح يُبقي أكواد التفعيل صالحة بين القناتين.
+- احفظ نسختين منه في مكانين آمنين **مع كلمة السر**. الملف مستثنى من git عمداً: لا ترفعه إلى المستودع أبداً.
+
+البناء النهائي على جهازك:
 ```bash
-base64 -w0 android/release.keystore      # الناتج ← السر ANDROID_KEYSTORE_BASE64
+npm run build
+ANDROID_KEYSTORE=/path/to/dentora-release.keystore \
+ANDROID_KEYSTORE_PASSWORD='<كلمة السر من KEY-INFO.txt>' ANDROID_KEY_ALIAS=dentora \
+DENTORA_EXPECTED_CERT_SHA256=4368dd147837a1b25ebd8e6efed1cb5a378a749aa3024cf1b643516cf4b9820b \
+./scripts/build-apk.sh
 ```
-ومعه `ANDROID_KEYSTORE_PASSWORD` و`ANDROID_KEY_ALIAS` (`dentora`). بدون هذه الأسرار يُبنى التطبيق بمفتاح مؤقت
-صالح للتجربة فقط، ولا يصلح أبداً للرفع على Google Play.
+مع `DENTORA_EXPECTED_CERT_SHA256` يرفض السكربت أي ملف موقَّع بمفتاح آخر ويحذفه.
+بدون `ANDROID_KEYSTORE` يُنشئ السكربت مفتاح تطوير مؤقتاً (`android/release.keystore`) صالحاً للتجربة فقط.
+
+على GitHub Actions ضع المفتاح في أسرار المستودع (Settings ← Secrets and variables ← Actions):
+`ANDROID_KEYSTORE_BASE64` (محتوى `dentora-release.keystore.base64.txt`)، و`ANDROID_KEYSTORE_PASSWORD`، و`ANDROID_KEY_ALIAS` = `dentora`.
+بناء الوسوم (`dentora-v*`) والتشغيل اليدوي **يفشلان** إن غابت الأسرار أو كانت لمفتاح آخر؛ ولبناء تجريبي بمفتاح مؤقت
+فعّل خيار `test_key` عند التشغيل اليدوي.
 
 ---
 
@@ -126,8 +134,15 @@ adb install -r android/build/Dentora.apk
 
 1. أنشئ حساب مطوّر على Google Play Console (رسوم لمرة واحدة).
 2. أنشئ تطبيقاً جديداً. اسم الحزمة **`com.dentora.app`** ثابت إلى الأبد بعد أول رفع.
-3. فعّل **Play App Signing** (الافتراضي): ترفع `Dentora.aab` موقّعاً بمفتاحك (**مفتاح الرفع** upload key)،
-   وتعيد Google توقيعه بمفتاح التطبيق الخاص بها. إن ضاع مفتاح الرفع يمكن طلب استبداله من دعم Play، لكن احفظه كأنه لا يُستبدل.
+3. **قبل أول رفع:** في خطوة **Play App Signing** اختر استخدام مفتاحك أنت بدل مفتاح تنشئه Google
+   (Use a different app signing key ← Export and upload a key from Java keystore)، ثم نفّذ أداة PEPK التي تعطيك إياها الصفحة:
+   ```bash
+   java -jar pepk.jar --keystore=dentora-release.keystore --alias=dentora --output=dentora-signing-key.zip \
+     --include-cert --rsa-aes-encryption --encryption-key-path=encryption_public_key.pem
+   ```
+   وارفع `dentora-signing-key.zip`. بعدها تأكّد في App integrity ← App signing أن بصمة SHA-256 تطابق البصمة في القسم 2.
+   هكذا توقّع Google نسخ المتجر بمفتاحك نفسه، فيتطابق توقيعها مع ملف APK الذي تشاركه. يمكن استخدام المفتاح نفسه لرفع الحِزم؛
+   تسجيل مفتاح رفع منفصل اختياري.
 4. **`versionCode` يجب أن يزيد مع كل رفع.** ارفع إصدار `package.json` (مثلاً `1.0.0` ← `1.0.1` = `10001`)،
    أو مرّر `VERSION_CODE` يدوياً (من GitHub: حقل version_code عند تشغيل الـ workflow).
 5. ابنِ بأحد الطريقتين:
@@ -144,8 +159,12 @@ adb install -r android/build/Dentora.apk
    ```
    الغلاف جاهز لذلك (العرض من الحافة للحافة، وزر الرجوع مضبوط بـ `enableOnBackInvokedCallback=false`).
 
-> **تنبيه مهم للبيع:** النسخة المثبّتة من Google Play موقّعة بمفتاح Google، والنسخة المباشرة (APK) موقّعة بمفتاحك.
-> لذلك لا تُحدِّث إحداهما الأخرى، و**رقم الجهاز يختلف بينهما** على Android 8+. اختر قناة واحدة لكل عيادة.
+> **تنبيه مهم للبيع:** إذا تُركت Google تنشئ مفتاحها الخاص في الخطوة 3، فستكون نسخ المتجر موقّعة بمفتاح غير مفتاحك،
+> فلا تُحدِّث النسخةُ المشارَكة نسخةَ المتجر ولا العكس، و**يختلف رقم الجهاز** بينهما على Android 8+. لذلك نفّذ الخطوة 3 كما هي.
+>
+> **سياسة الدفع في Google Play:** لأن الملف المشارَك ونسخة المتجر واحد، لا تعرض شاشة الترخيص سعراً ولا رابط شراء خارجياً
+> (Play تمنع توجيه المستخدم إلى الدفع خارج المتجر). يرى العميل رقم جهازه ويُدخل كود التفعيل الذي اشتراه منك مباشرة،
+> وتعرض أنت السعر وطرق الشراء خارج التطبيق (موقعك، صفحتك، واتساب).
 
 ---
 

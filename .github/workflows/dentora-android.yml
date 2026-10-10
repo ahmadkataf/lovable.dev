@@ -8,8 +8,9 @@
 #   ANDROID_KEYSTORE_BASE64    the keystore file, base64-encoded:  base64 -w0 dental/android/release.keystore
 #   ANDROID_KEYSTORE_PASSWORD  its password
 #   ANDROID_KEY_ALIAS          the key alias inside it (dentora for a key made by scripts/build-apk.sh)
-# Without them the run still builds, signed with a throwaway key: fine for testing, never for Google Play
-# (Play and phones accept updates only when they are signed with the same key as the first upload).
+# A tag build, or a manual run without "test_key", FAILS when the secrets are missing or hold another key:
+# every shared APK and every Google Play upload must carry the release key (its SHA-256 is checked below).
+# Tick "test_key" on a manual run to build a throwaway-signed copy for testing only.
 name: Dentora – Android
 
 on:
@@ -23,6 +24,11 @@ on:
         description: 'Version code: must be higher than every earlier Google Play upload (empty = major*10000 + minor*100 + patch)'
         required: false
         default: ''
+      test_key:
+        description: 'Test build: sign with a throwaway key when the release key secrets are missing (never share or upload it)'
+        type: boolean
+        required: false
+        default: false
   push:
     tags: ['dentora-v*']
 
@@ -88,14 +94,20 @@ jobs:
       - name: Get the signing key
         env:
           KS_B64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          TEST_KEY: ${{ inputs.test_key }}
         run: |
           if [ -n "$KS_B64" ]; then
             echo "$KS_B64" | base64 -d > "$RUNNER_TEMP/upload.keystore"
             echo "ANDROID_KEYSTORE=$RUNNER_TEMP/upload.keystore" >> "$GITHUB_ENV"
-            echo "Using the upload key from the repository secrets."
-          else
+            # the release key's public fingerprint: build-apk.sh fails if the secret holds any other key
+            echo "DENTORA_EXPECTED_CERT_SHA256=4368dd147837a1b25ebd8e6efed1cb5a378a749aa3024cf1b643516cf4b9820b" >> "$GITHUB_ENV"
+            echo "Using the release key from the repository secrets."
+          elif [ "$TEST_KEY" = "true" ] && [ "$GITHUB_REF_TYPE" != "tag" ]; then
             # build-apk.sh then makes a throwaway android/release.keystore on this runner (and warns again)
-            echo "::warning::No ANDROID_KEYSTORE_BASE64 secret: this build is signed with a throwaway key. Fine for testing; never upload it to Google Play."
+            echo "::warning::Test build: signed with a throwaway key. Never share it or upload it to Google Play."
+          else
+            echo "::error::The release key secrets are missing (ANDROID_KEYSTORE_BASE64, ANDROID_KEYSTORE_PASSWORD, ANDROID_KEY_ALIAS). Add them, or tick test_key on a manual run for a throwaway test build."
+            exit 1
           fi
 
       - name: Build the APK and the App Bundle
