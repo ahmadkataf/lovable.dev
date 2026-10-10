@@ -874,9 +874,11 @@ export default {
             h.set('content-disposition', `attachment; filename="${key}"`)
             h.set('cache-control', 'public, max-age=3600')
             if (!h.has('content-type')) h.set('content-type', key.endsWith('.exe') ? 'application/vnd.microsoft.portable-executable' : 'application/octet-stream')
-            if (obj.range && 'offset' in obj.range) { const r = obj.range; const end = (r.offset ?? 0) + (r.length ?? obj.size) - 1; h.set('content-range', `bytes ${r.offset ?? 0}-${end}/${obj.size}`) }
+            // R2 reports a range even for a whole-file request: only a request that asked for a range gets a 206
+            const partial = req.headers.has('range') && !!obj.range && 'offset' in obj.range
+            if (partial) { const r = obj.range as { offset?: number; length?: number }; const end = (r.offset ?? 0) + (r.length ?? obj.size) - 1; h.set('content-range', `bytes ${r.offset ?? 0}-${end}/${obj.size}`) }
             const body = 'body' in obj ? obj.body : null
-            return new Response(body, { status: body ? (obj.range ? 206 : 200) : 304, headers: h })
+            return new Response(body, { status: body ? (partial ? 206 : 200) : 304, headers: h })
           }
         }
       }
