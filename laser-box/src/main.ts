@@ -554,6 +554,10 @@ function sizeLabel(p: Record<string, number>) {
   if (state.tpl.startsWith('trophy')) return `درع ${fmt(p.H)} مم، قاعدة ${fmt(p.W)} × ${fmt(p.D)}`
   if (state.tpl.startsWith('coasterset')) return `${fmt(p.nc)} كوستر ${fmt(p.S)} × ${fmt(p.S)}`
   if (state.tpl === 'rosesign') return `وردة بارتفاع ${fmt(p.H)} مم، قلب ${fmt(p.hw)}`
+  if (state.tpl === 'archbox') return `قوس ${fmt(p.W)} × ${fmt(p.Ls + p.W / 2)} × ${fmt(p.H)}`
+  if (state.tpl === 'cubeset') return `${fmt(p.rows * p.cols)} مكعّب ${fmt(p.a)} مم على صينية`
+  if (state.tpl === 'mihrabbox') return `${fmt(p.W)} × ${fmt(p.D)} × ${fmt(p.H)}، المحراب ${fmt(p.A)}`
+  if (state.tpl === 'easel') return `إيزل بارتفاع ${fmt(p.Lm)} مم`
   if (p.pw !== undefined) return `صورة ${fmt(p.pw)} × ${fmt(p.ph)}`
   if (p.Dm !== undefined) return `Ø${fmt(p.Dm)} × ${fmt(p.H)}`
   if (p.Dd !== undefined) return `مرآة Ø${fmt(p.Dd)}، قاعدة ${fmt(p.W)} × ${fmt(p.D)}`
