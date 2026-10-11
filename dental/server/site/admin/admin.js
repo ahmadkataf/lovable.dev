@@ -137,7 +137,7 @@ const T = {
     'se.email': 'أدخلوا بريداً إلكترونياً صحيحاً، أو اتركوه فارغاً.', 'se.windowsUrl': 'أدخلوا رابطاً يبدأ بـ https://‎، أو اتركوه فارغاً.',
     'se.text': 'النص طويل جداً (300 حرف كحد أقصى).',
     'set.saved': 'تم حفظ الإعدادات. تظهر على الموقع خلال 30 ثانية.', 'set.unsaved': 'تعديلات غير محفوظة',
-    'set.clean': 'كل التعديلات محفوظة', 'set.noChanges': 'لا تعديلات لحفظها.', 'set.fix': 'صحّحوا الحقل المحدد ثم احفظوا.',
+    'set.noChanges': 'لا تعديلات لحفظها.', 'set.fix': 'صحّحوا الحقل المحدد ثم احفظوا.',
     'set.system': 'النظام', 'set.signing': 'توقيع الرموز', 'set.signingOk': 'جاهز: المفتاح الخاص مضبوط ويطابق التطبيق.',
     'set.password': 'كلمة مرور اللوحة',
     'set.passwordBody': 'تُغيَّر بالأمر التالي، وتغييرها يُخرج كل الجلسات المفتوحة. تدوم الجلسة 12 ساعة.',
@@ -272,7 +272,7 @@ const T = {
     'se.email': 'Enter a valid e-mail address, or leave it empty.', 'se.windowsUrl': 'Enter a link starting with https://, or leave it empty.',
     'se.text': 'Too long (300 characters at most).',
     'set.saved': 'Settings saved. The website shows them within 30 seconds.', 'set.unsaved': 'Unsaved changes',
-    'set.clean': 'All changes saved', 'set.noChanges': 'Nothing to save.', 'set.fix': 'Fix the highlighted field, then save.',
+    'set.noChanges': 'Nothing to save.', 'set.fix': 'Fix the highlighted field, then save.',
     'set.system': 'System', 'set.signing': 'Code signing', 'set.signingOk': 'Ready: the private key is set and matches the app.',
     'set.password': 'Panel password',
     'set.passwordBody': 'Change it with the command below; changing it signs every open session out. A session lasts 12 hours.',
@@ -509,8 +509,8 @@ function toast(text, kind = 'ok') {
     h('p', { text }),
     h('button', { class: 'icon-btn', type: 'button', 'aria-label': t('close'), on: { click: () => el.remove() } }, icon('x')))
   toastsEl.append(el)
-  while (toastsEl.children.length > 3) toastsEl.firstElementChild.remove()
-  setTimeout(() => el.remove(), kind === 'error' ? 7000 : 3600)
+  while (toastsEl.children.length > 2) toastsEl.firstElementChild.remove()
+  setTimeout(() => el.remove(), kind === 'error' ? 7000 : 3200)
 }
 
 function makeDialog(cls) {
@@ -1195,7 +1195,8 @@ async function viewDashboard(ctx) {
   kpis.replaceChildren(
     kpiTile({ hero: true, wide: true, ico: 'wallet', mark: 'tooth', label: t('dash.revenue'), value: fmtMoney(L.revenue),
       sub: [...pill(t('dash.thisMonth'), fmtMoney(L.revenueMonth)), h('span', { text: `· ${t('dash.revenueNote')}` })] }),
-    kpiTile({ ico: 'key-round', label: t('dash.licences'), value: fmtNum(L.total), sub: pill(t('dash.thisMonth'), fmtNum(L.month)) }),
+    kpiTile({ ico: 'key-round', label: t('dash.licences'), value: fmtNum(L.total),
+      sub: [...pill(t('dash.thisMonth'), fmtNum(L.month)), h('span', { text: `· ${t('dash.licencesNote')}` })] }),
     kpiTile({ ico: 'rotate-ccw-key', label: t('dash.resets'), value: fmtNum(stats.resets.total), sub: h('span', { text: t('dash.allTime') }) }),
     h('article', { class: 'card kpi kpi--wide' },
       h('span', { class: 'kpi-label' }, h('span', { class: 'kpi-ico' }, icon('download')), h('span', { text: t('dash.downloads') })),
