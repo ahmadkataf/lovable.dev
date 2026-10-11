@@ -18,3 +18,6 @@ dental/qa-shots
 dental/release
 dental/android/build
 dental/android/release.keystore
+dental/server/node_modules
+dental/server/.wrangler
+dental/server/.dev.vars

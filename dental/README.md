@@ -73,6 +73,10 @@ npm run build        # الإنتاج → dist/
 - لتغيير المفتاح (إن تسرّب المفتاح الخاص): `node scripts/code-generator.mjs keygen <ملف-جديد>`، ثم ضع المفتاح العام الجديد في
   `src/license/core.ts` وأصدر نسخة جديدة من التطبيق. الرموز القديمة لا تعمل في النسخة الجديدة.
 
+## خادم Cloudflare
+الـ Worker `dentora-api` على https://dentora.raqeem.dev (ورابط workers.dev احتياطي). مصدره وإعداده وبيانات الحساب وطريقة النشر في
+[`server/README.md`](server/README.md). النشر يحتاج `CLOUDFLARE_API_TOKEN` يضيفه صاحب الحساب، ولا يوضع في المستودع.
+
 ## التجربة والفحص
 ```bash
 npm test                                   # اختبارات الوحدات (vitest)
