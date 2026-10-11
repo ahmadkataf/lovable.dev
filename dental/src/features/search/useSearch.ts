@@ -3,13 +3,15 @@
 //   events; no photos, no medical text), turned into a search index that is kept as long as that list does not change;
 // - invoices: only the invoice-number index keys are read on opening (strings, no records); typing then fetches the
 //   few invoices whose number matches and those of the best-matching patients, by index;
-// - upcoming appointments (from today on) are read once per opening.
+// - upcoming appointments (from today on) are read once per opening;
+// - national ID numbers are not kept in the shared index: a long number that matches no name, phone or file number
+//   is looked up in the patients table itself (see useNationalIdHits), so that rare search never slows the others.
 import { useMemo, useRef } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '@/db'
 import type { Appointment, Invoice } from '@/db/types'
-import { usePatientIndex, type SlimPatient as SharedPatient } from '@/features/billing/patientIndex'
-import { indexPatient, invoiceMatcher, looksLikeNumber, rankPatients, searchInvoices, tokens, type PatientIndex, type Ranked, type SearchInvoice } from './lib'
+import { slimPatient, usePatientIndex, type SlimPatient as SharedPatient } from '@/features/billing/patientIndex'
+import { digitsOnly, indexPatient, invoiceMatcher, looksLikeNumber, rankPatients, scorePatient, searchInvoices, tokens, type PatientIndex, type Ranked, type SearchInvoice } from './lib'
 import { useToday } from './alerts'
 
 export const LIMIT = { patients: 8, appointments: 5, invoices: 5 }
@@ -47,6 +49,31 @@ export function bestNumbers(numbers: string[], q: string, limit = 20): string[] 
 }
 const slimInvoice = ({ id, number, patientId, date, total, status }: Invoice): SearchInvoice => ({ id, number, patientId, date, total, status })
 
+/** The digits of a query that can only be a national ID (8+ digits, nothing else typed), else ''. */
+export function nationalIdQuery(q: string): string {
+  const t = q.trim()
+  if (!/^[\d\s\-/]+$/.test(t)) return ''
+  const d = digitsOnly(t)
+  return d.length >= 8 ? d : ''
+}
+/**
+ * Patients whose national ID contains `digits`, read from the patients table. Only runs when the shared index found
+ * nobody (`enabled`): the index carries no national IDs, and reading the table is kept for this one rare search.
+ */
+function useNationalIdHits(digits: string, enabled: boolean): { hits: Ranked<SlimPatient>[]; loading: boolean } {
+  const on = !!digits && enabled
+  const hits = useLiveQuery(async () => {
+    if (!on) return NO_RANKED
+    const rows = await db.patients.filter(p => !!p.nationalId && digitsOnly(p.nationalId).includes(digits)).limit(LIMIT.patients).toArray()
+    return rows
+      .map(p => { const item: SlimPatient = { ...slimPatient(p), nationalId: p.nationalId }; return { item, score: scorePatient(indexPatient(item), digits) } })
+      .filter(r => r.score > 0)
+      .sort((a, b) => b.score - a.score)
+  }, [digits, on])
+  // while the table is read the palette shows its skeleton, not "no results"
+  return { hits: on ? hits ?? NO_RANKED : NO_RANKED, loading: on && hits === undefined }
+}
+
 export interface SearchResults {
   ready: boolean                                   // this opening's own data has loaded (results may show earlier, from the last opening)
   patients: Ranked<SlimPatient>[]
@@ -69,13 +96,17 @@ export function useSearch(q: string, perms: SearchPerms, doctorNames: Map<string
     return list.filter(a => a.status !== 'cancelled' && a.status !== 'no_show').sort((a, b) => (a.start < b.start ? -1 : a.start > b.start ? 1 : 0))
   }, [today, perms.appointments])
   // the invoice numbers only (index keys: no invoice is read until something matches)
-  const { value: numbers, fresh: numbersFresh } = useCachedLiveQuery(`invnums:${perms.billing}`, async () => (
+  // (walking the number index is slow on a phone with tens of thousands of invoices, so the list of the last opening
+  // is used at once while this opening's copy loads, and a query that cannot match a number never waits for it)
+  const { value: numbers } = useCachedLiveQuery(`invnums:${perms.billing}`, async () => (
     perms.billing ? (await db.invoices.orderBy('number').keys()).map(String) : []
   ), [perms.billing])
 
   const has = tokens(q).length > 0
   // every matching patient (for appointments / invoices), then the top ones for the list
-  const ranked = useMemo(() => (index && has ? rankPatients(index, q) : []), [index, q, has])
+  const fromIndex = useMemo(() => (index && has ? rankPatients(index, q) : []), [index, q, has])
+  const nid = useNationalIdHits(nationalIdQuery(q), !!index && fromIndex.length === 0)
+  const ranked = fromIndex.length ? fromIndex : nid.hits
   const patients = useMemo(() => (perms.patients ? ranked.slice(0, LIMIT.patients) : []), [ranked, perms.patients])
 
   const appointments = useMemo(() => {
@@ -121,12 +152,15 @@ export function useSearch(q: string, perms: SearchPerms, doctorNames: Map<string
     return m
   }, [photoIds])
 
-  const ready = (!needPatients || !!index) && aptsFresh && numbersFresh
+  // invoice numbers are Latin letters and digits: a name typed in Arabic does not wait for them
+  const numbersMatter = perms.billing && has && /[\dA-Za-z٠-٩۰-۹]/.test(q)
+  const ready = (!needPatients || !!index) && aptsFresh && (!numbersMatter || numbers !== undefined) && !nid.loading
   return useMemo(() => ({
     ready, patients, appointments, invoices, byId,
     photos: photos ?? NO_PHOTOS,
   }), [ready, patients, appointments, invoices, byId, photos])
 }
 const NO_INVOICES: { invoice: SearchInvoice; score: number }[] = []
+const NO_RANKED: Ranked<SlimPatient>[] = []
 const NO_PATIENTS = new Map<string, SlimPatient>()
 const NO_PHOTOS = new Map<string, string>()

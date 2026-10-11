@@ -73,7 +73,9 @@ function Panel({ onClose }: { onClose: () => void }) {
       out.push({
         key: 'backup', title: t('search.g.backup'), count: 1, tone: b.kind === 'never' ? 'danger' : 'warning',
         rows: [{
-          key: 'backup', tone: b.kind === 'never' ? 'danger' : 'warning', icon: <DatabaseBackup />, isNew: !isSeen(seenAtOpen, b.id),
+          key: 'backup', tone: b.kind === 'never' ? 'danger' : 'warning', icon: <DatabaseBackup />,
+          // only administrators get the red dot for it (and can clear it by backing up)
+          isNew: perms.settings && !isSeen(seenAtOpen, b.id),
           title: b.kind === 'never' ? t('search.backup.never') : t('search.backup.old', { n: b.days ?? 0 }),
           desc: perms.settings ? t('search.backup.desc') : t('search.backup.askAdmin'),
           to: perms.settings ? '/settings/backup' : undefined,

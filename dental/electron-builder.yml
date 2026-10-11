@@ -24,6 +24,16 @@ files:
   - package.json
   - "!**/node_modules/**"
 asar: true
+# Electron fuses, flipped in Dentora.exe at build time (before signing). The installed app cannot be run as plain
+# Node.js (ELECTRON_RUN_AS_NODE), takes no NODE_OPTIONS and no --inspect, loads its code only from app.asar, and
+# refuses an app.asar changed after the build (its hash is embedded in Dentora.exe). main.cjs also refuses
+# --remote-debugging-port and never opens Developer Tools in the installed app.
+electronFuses:
+  runAsNode: false
+  enableNodeOptionsEnvironmentVariable: false
+  enableNodeCliInspectArguments: false
+  onlyLoadAppFromAsar: true
+  enableEmbeddedAsarIntegrityValidation: true
 # nothing is uploaded anywhere (the GitHub workflow keeps the files as an artifact)
 publish: null
 npmRebuild: false
@@ -42,13 +52,18 @@ win:
       arch: [x64]
   icon: build/icon.ico
   requestedExecutionLevel: asInvoker
+  # Code signing (docs/WINDOWS.md §7). Unsigned builds still work, but Smart App Control (on by default on a clean
+  # Windows 11) blocks unsigned installers and SmartScreen warns. The GitHub workflow signs when its secrets exist:
+  # Azure Trusted Signing (azureSignOptions, passed on the command line) or a certificate file (CSC_LINK).
   signtoolOptions:
-    # Only used to verify signed updates. Once you sign, set it to the certificate's "Issued to" name.
+    # Set to the certificate's subject ("Issued to") once you sign; used to check signed updates.
     publisherName: Dentora
+    rfc3161TimeStampServer: http://timestamp.digicert.com
 
 nsis:
   artifactName: Dentora-Setup-${version}.${ext}
   oneClick: false
+  # for the current user only (no administrator rights): build/installer.nsh skips the install-mode page
   perMachine: false
   allowToChangeInstallationDirectory: true
   createDesktopShortcut: always
@@ -58,6 +73,11 @@ nsis:
   installerIcon: build/icon.ico
   uninstallerIcon: build/icon.ico
   installerHeaderIcon: build/icon.ico
+  # the side picture of the welcome and finish pages (build/make-installer-art.mjs draws it)
+  installerSidebar: build/installerSidebar.bmp
+  uninstallerSidebar: build/uninstallerSidebar.bmp
+  # per-user install with no "all users / only for me" page, and Arabic for the messages electron-builder lacks
+  include: build/installer.nsh
   # Arabic first; the installer follows the Windows display language (Arabic or English)
   installerLanguages:
     - ar_SA

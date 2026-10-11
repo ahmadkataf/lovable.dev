@@ -6,6 +6,8 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.io.SyncFailedException;
+import java.nio.channels.FileChannel;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -91,6 +93,26 @@ final class WebFiles {
     /** Vite names its bundles with a content hash (assets/index-AbC123.js): those can be cached for good. */
     static String cacheControl(String asset) {
         return asset.startsWith("www/assets/") ? "public, max-age=31536000, immutable" : "no-cache";
+    }
+
+    /**
+     * The Content-Security-Policy the shell sends with the app's HTML (the same one the Windows app sets): scripts only
+     * from the app itself, pictures, x-rays and backups from data:/blob:, and nothing from any other site.
+     */
+    static final String CSP = "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; "
+        + "font-src 'self' data:; connect-src 'self' data: blob:; media-src 'self' data: blob:; worker-src 'self' blob:; "
+        + "frame-src 'self' data: blob:; object-src 'none'; base-uri 'self'; form-action 'self'";
+
+    /**
+     * What the shell does with a request the page makes (shouldInterceptRequest): "app" answered from the assets,
+     * "block" refused (a page or frame of any other http(s) site: the app never loads anything from the internet),
+     * "pass" left to the WebView (data:, blob: and the like never reach the network).
+     */
+    static String requestAction(String scheme, String host) {
+        String s = scheme == null ? "" : scheme.toLowerCase(Locale.ROOT);
+        if (isAppUrl(s, host)) return "app";
+        if (s.equals("http") || s.equals("https") || s.equals("ws") || s.equals("wss") || s.equals("ftp")) return "block";
+        return "pass";
     }
 
     /** "text/csv;charset=utf-8" → "text/csv"; anything that is not type/subtype → application/octet-stream. */
@@ -233,8 +255,9 @@ final class WebFiles {
 
     /**
      * What the shell does with a navigation (shouldOverrideUrlLoading): "app" the app's own pages stay inside,
-     * "allow" the WebView handles it (about:, javascript:, a frame inside the page), "data" / "blob" a file the
-     * page tried to open is saved, "outside" handed to the app that handles it (tel:, mailto:, WhatsApp, the web).
+     * "allow" the WebView handles it (about:, javascript:), "data" / "blob" a file the page tried to open is saved,
+     * "outside" handed to the app that handles it (tel:, mailto:, WhatsApp, the web), "block" dropped: a frame inside
+     * the page may only show the app's own pages, never another site (which would also see window.DentoraAndroid).
      */
     static String linkAction(String scheme, String host, boolean mainFrame) {
         String s = scheme == null ? "" : scheme.toLowerCase(Locale.ROOT);
@@ -242,7 +265,7 @@ final class WebFiles {
         if (s.equals("about") || s.equals("javascript")) return "allow";
         if (s.equals("data")) return "data";
         if (s.equals("blob")) return "blob";
-        if (!mainFrame && (s.equals("http") || s.equals("https"))) return "allow";
+        if (!mainFrame) return "block";
         return "outside";
     }
 
@@ -259,14 +282,19 @@ final class WebFiles {
     }
 
     /**
-     * The Android back button, asked of the page first: an open dialog, drawer or menu is closed with Escape
-     * (the web app closes them on that key). Answers "handled", "home" (the start page: leave the app) or "page".
+     * The Android back button, asked of the page first. window.__dentoraBack (src/platform) closes the top-most dialog,
+     * drawer or menu, or lets a screen take a step back (the setup wizard); it answers true when it did. A popup the
+     * page does not register there (a menu, a small dialog) is closed with Escape, as on a keyboard, but only once:
+     * if the same popup is still there on the next press within 1.5 s, Escape did not close it and the key goes back
+     * a page instead of doing nothing. Answers "handled", "home" (the start page: leave the app) or "page".
      */
     static final String BACK_JS =
         "(function(){try{"
         + "if(typeof window.__dentoraBack==='function'&&window.__dentoraBack())return 'handled';"
-        + "var open=document.querySelector('[aria-modal=\"true\"],.overlay,.drawer,.menu');"
-        + "if(open){var t=document.activeElement||document.body;"
+        + "var open=document.querySelector('[aria-modal=\"true\"],.overlay,.drawer,.menu,[role=\"menu\"],[role=\"dialog\"]');"
+        + "var last=window.__dentoraBackLast,now=Date.now();"
+        + "if(open&&!(last&&last.el===open&&now-last.t<1500)){window.__dentoraBackLast={el:open,t:now};"
+        + "var t=document.activeElement||document.body;"
         + "t.dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',code:'Escape',keyCode:27,which:27,bubbles:true,cancelable:true}));"
         + "return 'handled';}"
         + "var h=location.hash||'';"
@@ -303,7 +331,7 @@ final class WebFiles {
         + "var w={__dentora:true,"
         + "deviceId:function(){return real.deviceId();},"
         + "appVersion:function(){return real.appVersion();},"
-        + "print:function(){real.print();},"
+        + "print:function(n){if(n)real.print(String(n));else real.print();},"
         + "openExternal:function(u){real.openExternal(String(u));},"
         + "saveBegin:function(n,m,h,q){return real.saveBegin(String(n),String(m),String(h||0),q?'1':'');},"
         + "saveChunk:function(id,b){return real.saveChunk(String(id),String(b));},"
@@ -445,6 +473,82 @@ final class WebFiles {
         return total;
     }
 
+    /**
+     * Copies everything into a file the system opened for writing from its first byte, then cuts the file at the end
+     * of what was written: a storage provider's "w" mode may keep the tail of an older, longer file there (Android 10+),
+     * which would turn a good backup into a broken one. Then asks the disk to keep it. Returns the bytes written.
+     */
+    static long copyAndTruncate(InputStream in, FileOutputStream out) throws IOException {
+        long n = copy(in, out);
+        out.flush();
+        FileChannel ch = out.getChannel();
+        long size;
+        try {
+            size = ch.size();
+        } catch (IOException e) {
+            size = -1;                   // a pipe (a cloud drive): it has no old tail; the read-back check still runs
+        }
+        if (size > n) ch.truncate(n);
+        syncQuietly(out);
+        return n;
+    }
+
+    /** fsync, where there is a disk to sync: a pipe to a cloud provider answers EINVAL, which is not a failed save. */
+    static void syncQuietly(FileOutputStream out) throws IOException {
+        try {
+            out.getFD().sync();
+        } catch (SyncFailedException e) {
+            // nothing to sync on a pipe; the provider stores the file when it is closed
+        }
+    }
+
+    /**
+     * The print job's name, which "Save as PDF" offers as the file name: the name the page asked for (an invoice's
+     * number and the patient), else the page title when it is not the app's own, else "Dentora". No characters a file
+     * name cannot hold, one line, at most 120 characters.
+     */
+    static String printJobName(String requested, String pageTitle) {
+        String n = cleanJobName(requested);
+        if (!n.isEmpty()) return n;
+        String t = cleanJobName(pageTitle);
+        return t.isEmpty() || t.startsWith("Dentora") ? "Dentora" : t;
+    }
+
+    private static String cleanJobName(String s) {
+        if (s == null) return "";
+        StringBuilder b = new StringBuilder();
+        boolean space = false;
+        for (int i = 0; i < s.length(); i++) {
+            char c = s.charAt(i);
+            boolean bad = c < 0x20 || c == 0x7f || "\\/:*?\"<>|".indexOf(c) >= 0 || Character.isWhitespace(c);
+            if (bad) { space = b.length() > 0; continue; }
+            if (space) b.append(' ');
+            space = false;
+            b.append(c);
+        }
+        String n = b.toString();
+        return n.length() > 120 ? n.substring(0, 120).trim() : n;
+    }
+
+    /** True when the picker should also offer the camera: the page accepts photos (image/*, image/jpeg…). */
+    static boolean offersCamera(String[] mimes) {
+        if (mimes == null) return false;
+        for (String m : mimes) {
+            if (m != null && (m.equals("image/*") || m.equals("image/jpeg"))) return true;
+        }
+        return false;
+    }
+
+    /** The name of a photo taken for the page: photo-20261011-153012.jpg (and -2, -3… when taken in the same second). */
+    static String captureName(String stamp, int n) {
+        return "photo-" + stamp + (n > 1 ? "-" + n : "") + ".jpg";
+    }
+
+    /** Only names made by captureName are served by CaptureProvider: no folders, no other files of the cache. */
+    static boolean isCaptureName(String name) {
+        return name != null && name.matches("photo-[0-9]{8}-[0-9]{6}(-[0-9]{1,3})?\\.jpg");
+    }
+
     /** Size and CRC-32 of everything a stream holds: {size, crc}. Used to read a saved file back. */
     static long[] measure(InputStream in) throws IOException {
         CRC32 crc = new CRC32();
@@ -477,6 +581,7 @@ final class WebFiles {
             case "crash_title": return en ? "The app closed last time because of an error" : "أُغلق التطبيق في المرة السابقة بسبب خطأ";
             case "crash_body": return en ? "Send a screenshot of this message to support so it can be fixed:\n\n"
                 : "أرسل صورة لهذه الرسالة إلى الدعم الفني ليُصلَح الخطأ:\n\n";
+            case "pick_title": return en ? "Take a photo or choose a file" : "التقط صورة أو اختر ملفاً";
             case "copy": return en ? "Copy" : "نسخ";
             case "close": return en ? "Close" : "إغلاق";
             default: return key;

@@ -7,6 +7,8 @@ import { GUARDED_TABLES, installTrialStartGuard, isReadOnlyError, setReadOnlyGua
 import { tPlural } from '../src/app/plural'
 import { translate } from '../src/i18n'
 import license from '../src/i18n/modules/license'
+import auth from '../src/i18n/modules/auth'
+import staff from '../src/i18n/modules/staff'
 
 const DAY = 86_400_000
 const T0 = Date.UTC(2026, 9, 11, 9)
@@ -61,6 +63,11 @@ describe('trial banner wording', () => {
   it('uses British "licence" for the noun in English, and keeps ar/en keys in step', () => {
     expect(Object.keys(license.ar).sort()).toEqual(Object.keys(license.en).sort())
     for (const [k, v] of Object.entries(license.en)) expect(v, k).not.toMatch(/\blicense\b/i)
+    // the sign-in and staff screens talk about the licence too
+    for (const dict of [auth, staff]) {
+      expect(Object.keys(dict.ar).sort()).toEqual(Object.keys(dict.en).sort())
+      for (const [k, v] of Object.entries(dict.en)) expect(v, k).not.toMatch(/\blicense\b/i)
+    }
     expect(translate('en', 'license.status.licenseEnded')).toBe('Licence expired')
     expect(translate('ar', 'license.banner.licenseEnded', { date: '10 تشرين الأول 2027' })).toContain('انتهى ترخيص')
   })

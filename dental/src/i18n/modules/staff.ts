@@ -212,7 +212,7 @@ const staff: ModuleDict = {
     'areaDesc.inventory': 'Materials and supplies',
     'areaDesc.reports': 'Revenue and performance',
     'areaDesc.manage': 'Expenses, the procedure list and prices, deleting patient files',
-    'areaDesc.settings': 'Clinic details, backups and license',
+    'areaDesc.settings': 'Clinic details, backups and licence',
     'areaDesc.staff': 'Members and sign-in PINs',
 
     matrixTitle: 'Permissions by role',

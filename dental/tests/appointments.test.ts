@@ -314,3 +314,10 @@ describe('appointments: agenda in steps (audit #137)', () => {
     expect(daysForBudget([0, 0, 3], 2)).toBe(2)
   })
 })
+
+describe('appointments: dictionary', () => {
+  it('Arabic and English have the same keys', async () => {
+    const dict = (await import('../src/i18n/modules/appointments')).default as unknown as { ar: Record<string, string>; en: Record<string, string> }
+    expect(Object.keys(dict.ar).sort()).toEqual(Object.keys(dict.en).sort())
+  })
+})

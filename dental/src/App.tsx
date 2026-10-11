@@ -1,4 +1,4 @@
-import React, { lazy, Suspense, useEffect, useLayoutEffect } from 'react'
+import React, { lazy, Suspense, useEffect } from 'react'
 import { createHashRouter, Navigate, Outlet, RouterProvider, useLocation } from 'react-router-dom'
 import { I18nProvider, useI18n } from '@/i18n'
 import { ToastProvider, ConfirmProvider, Loading, EmptyState, Button } from '@/ui'
@@ -7,6 +7,7 @@ import { LicenseProvider } from '@/license/useLicense'
 import { ShieldAlert } from 'lucide-react'
 import { useClinicMaybe } from '@/app/hooks'
 import Shell from '@/app/Shell'
+import { useScrollReset } from '@/app/scroll'
 import { ensureClinic } from '@/db'
 import { countryCodeFor, setDefaultCountryCode } from '@/lib/format'
 import { LEVANT_COUNTRIES, setArabicMonthStyle } from '@/lib/dates'
@@ -36,8 +37,8 @@ function Gate() {
   const session = useSession()
   const { setLang } = useI18n()
   const location = useLocation()
-  // every screen opens at its top (the page scrolls, not an inner box); a tab change on the same screen (?tab=) keeps its place
-  useLayoutEffect(() => { window.scrollTo(0, 0) }, [location.pathname])
+  // a new screen opens at its top, Back returns to where the screen was left; ?tab= on the same screen keeps its place
+  useScrollReset()
   useEffect(() => { if (clinic?.setupDone) setLang(clinic.lang) }, [clinic?.lang, clinic?.setupDone, setLang])
   useEffect(() => { document.documentElement.dataset.theme = clinic?.theme === 'dark' ? 'dark' : 'light' }, [clinic?.theme])
   // WhatsApp country code and Arabic month names follow the clinic's country (set in Settings, or derived from the currency)

@@ -8,6 +8,7 @@
 // string or sent through IPC or the Android bridge in one piece. Every save is checked: the Windows and Android
 // shells read the written file back and compare its size and CRC-32 with what the page sent.
 import { BlobBuilder, ChunkBuffer, crc32, toBase64 } from './bytes'
+import { closeTopLayer } from '@/ui/Overlay'
 
 export type Platform = 'web' | 'electron' | 'android'
 
@@ -43,12 +44,13 @@ interface AndroidBridge {
    *  How it ends arrives as the window event 'dentora:saved' { id, ok, cancelled, name, reason }. */
   saveEnd(id: string, size: string, crc: string): string
   saveAbort(id: string): void
-  print(): void
+  /** Prints the page; `jobName` names the job, which "Save as PDF" offers as the file name. */
+  print(jobName?: string): void
   appVersion(): string
   openExternal(url: string): void
 }
 declare global {
-  interface Window { dentora?: ElectronBridge; DentoraAndroid?: AndroidBridge }
+  interface Window { dentora?: ElectronBridge; DentoraAndroid?: AndroidBridge; __dentoraBack?: () => boolean }
   const __APP_VERSION__: string
 }
 
@@ -330,9 +332,36 @@ export function print(jobName?: string): void {
   }
   const p = platform()
   if (p === 'electron' && window.dentora) { void window.dentora.print(); return }
-  if (p === 'android' && window.DentoraAndroid) { window.DentoraAndroid.print(); return }
+  if (p === 'android' && window.DentoraAndroid) {
+    // the job name goes with the call: the shell reads it at once, before a title change could reach it
+    if (name) window.DentoraAndroid.print(name); else window.DentoraAndroid.print()
+    return
+  }
   window.print()
 }
+
+// ---- the Android back button --------------------------------------------------------------------------------
+// The Android shell asks window.__dentoraBack() first on every press of the back key (or gesture): true means the
+// page handled it. It closes the top-most dialog, drawer or menu (the same one Escape closes), then lets a screen
+// with steps of its own (the setup wizard) go back a step; otherwise the shell goes back a page or leaves the app.
+const backHandlers: Array<() => boolean> = []
+/**
+ * Lets a screen take the back key while it is shown: `handler` returns true when it did something (a wizard went
+ * back a step), false to let the key go on. Returns the function that removes it (use it as an effect's cleanup).
+ */
+export function onBackButton(handler: () => boolean): () => void {
+  backHandlers.push(handler)
+  return () => { const i = backHandlers.lastIndexOf(handler); if (i >= 0) backHandlers.splice(i, 1) }
+}
+/** One press of the back key: true when the page used it. */
+export function handleBackButton(): boolean {
+  if (closeTopLayer()) return true
+  for (let i = backHandlers.length - 1; i >= 0; i--) {
+    try { if (backHandlers[i]()) return true } catch { /* a broken handler must not trap the back key */ }
+  }
+  return false
+}
+if (typeof window !== 'undefined') window.__dentoraBack = handleBackButton
 
 export function openExternal(url: string): void {
   const p = platform()

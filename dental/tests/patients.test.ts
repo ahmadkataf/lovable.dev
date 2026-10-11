@@ -368,4 +368,45 @@ describe('patients: balances kept for the session (audit #135)', () => {
     expect(after).not.toBe(first)
     expect(after.get('bal-p')).toBe(50)
   })
+  it('a payment written while a read is running is not lost: the next call reads again after it', async () => {
+    // a fresh copy of the module whose first payments read stalls after reading its rows (a slow phone)
+    vi.resetModules()
+    let release: (() => void) | undefined
+    let calls = 0
+    vi.doMock('../src/features/patients/chunked', async () => {
+      const real = await vi.importActual<typeof import('../src/features/patients/chunked')>('../src/features/patients/chunked')
+      return {
+        readAllChunked: async (table: { name: string }, size?: number) => {
+          const rows = await real.readAllChunked(table as never, size)
+          if (table.name === 'payments' && calls++ === 0) await new Promise<void>(r => { release = r })
+          return rows
+        },
+      }
+    })
+    try {
+      const { db } = await import('../src/db')
+      const { loadBalances } = await import('../src/features/patients/balances')
+      await db.invoices.put({ id: 'race-inv', number: 'INV-2', patientId: 'race-p', date: '2026-10-01', items: [], subtotal: 100, discount: 0, taxPercent: 0, tax: 0, total: 100, paid: 0, status: 'unpaid', createdAt: '', updatedAt: '' })
+      const inFlight = loadBalances()
+      for (let i = 0; i < 50 && !release; i++) await new Promise(r => setTimeout(r, 10))
+      expect(release).toBeDefined()                                            // the first read holds its (old) rows
+      await db.payments.put({ id: 'race-pay', patientId: 'race-p', amount: 40, method: 'cash', date: '2026-10-02', createdAt: '' })
+      await new Promise(r => setTimeout(r, 20))
+      const next = loadBalances()                                              // the screen asks again after the change
+      release!()
+      expect((await inFlight).get('race-p')).toBe(100)                         // the stale read
+      expect((await next).get('race-p')).toBe(60)                              // not the stale map: read again
+      expect((await loadBalances()).get('race-p')).toBe(60)
+    } finally {
+      vi.doUnmock('../src/features/patients/chunked')
+      vi.resetModules()
+    }
+  })
+})
+
+describe('patients: dictionary', () => {
+  it('Arabic and English have the same keys', async () => {
+    const dict = (await import('../src/i18n/modules/patients')).default as unknown as { ar: Record<string, string>; en: Record<string, string> }
+    expect(Object.keys(dict.ar).sort()).toEqual(Object.keys(dict.en).sort())
+  })
 })

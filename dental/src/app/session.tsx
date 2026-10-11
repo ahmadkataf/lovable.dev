@@ -3,7 +3,6 @@ import { useLiveQuery } from 'dexie-react-hooks'
 import { db, logActivity } from '@/db'
 import type { Role, User } from '@/db/types'
 import { hashPin, needsRehash, randomHex, verifyPin } from '@/lib/crypto'
-import { trustedNow } from '@/license/clock'
 import { FRESH_GUARD, isLocked, registerFailure, type LoginGuard } from '@/features/auth/lib'
 import { guardFor, saveGuard } from '@/features/auth/guardStore'
 import {
@@ -79,7 +78,10 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const attempt = useCallback(async (id: string, pin: string) => {
-    const now = trustedNow()
+    // the lock runs on the device clock, not the licence clock: the licence clock stands still while the device
+    // clock is behind the latest time ever seen (a date once set too far ahead, then corrected), which would turn
+    // a 30-second lock into days. Moving the clock back only makes a lock longer; forward is the same either way.
+    const now = Date.now()
     const guard = await guardFor(id, now)
     if (isLocked(guard, now)) return { ok: false, guard }
     const u = await db.users.get(id)

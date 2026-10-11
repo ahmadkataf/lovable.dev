@@ -55,23 +55,24 @@ export default function LoginPage() {
   const busyRef = useRef(false)
   const [forgot, setForgot] = useState(false)
   const [resetOpen, setResetOpen] = useState(false)
-  // the lockout of the picked user, as stored (it survives reloads and restarts); the licence clock never runs back
+  // the lockout of the picked user, as stored (it survives reloads and restarts); timed on the device clock, as
+  // session.attempt does (the licence clock can stand still for days after a wrong date was corrected)
   const stored = useLoginGuard(picked?.id)
-  const [now, setNow] = useState(() => license.now())
+  const [now, setNow] = useState(() => Date.now())
   const guard: LoginGuard = normalizeGuard(stored ?? FRESH_GUARD, now)
   const locked = isLocked(guard, now)
 
   // tick while locked; when the lock runs out the stored guard is read again and a fresh round starts
   useEffect(() => {
     if (!locked) return
-    const id = window.setInterval(() => setNow(license.now()), 250)
+    const id = window.setInterval(() => setNow(Date.now()), 250)
     return () => window.clearInterval(id)
-  }, [locked, license])
+  }, [locked])
 
   const pick = (id: string) => { setPickedId(id); setChoosing(false); setPin(''); setMsg(null); setForgot(false) }
 
   const submit = useCallback(async (value: string) => {
-    if (!picked || busyRef.current || isLocked(guard, license.now())) return
+    if (!picked || busyRef.current || isLocked(guard, Date.now())) return
     if (value.length < PIN_MIN) { setMsg({ text: t('auth.login.short') }); setShake(s => s + 1); return }
     busyRef.current = true; setBusy(true)
     let result: { ok: boolean; guard: LoginGuard } = { ok: false, guard }
@@ -81,7 +82,7 @@ export default function LoginPage() {
       navigate(from, { replace: true })
       return
     }
-    const at = license.now()
+    const at = Date.now()
     setNow(at)
     setPin(''); setShake(s => s + 1)
     busyRef.current = false; setBusy(false)
@@ -90,7 +91,7 @@ export default function LoginPage() {
       text: t('auth.login.wrong'),
       sub: left === 1 ? t('auth.login.left1') : left === 2 ? t('auth.login.left2') : left <= 3 ? t('auth.login.leftN', { n: left }) : undefined,
     })
-  }, [picked, guard, session, navigate, from, t, license])
+  }, [picked, guard, session, navigate, from, t])
 
   const press = useCallback((d: string) => {
     if (busyRef.current || locked) return

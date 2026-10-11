@@ -1,6 +1,12 @@
 package com.dentora.app;
 
+import java.io.ByteArrayInputStream;
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.RandomAccessFile;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 import java.util.Arrays;
 
 /**
@@ -23,7 +29,7 @@ public final class WebFilesTest {
         }
     }
 
-    public static void main(String[] args) {
+    public static void main(String[] args) throws IOException {
         // which asset answers a URL path
         eq("www/index.html", WebFiles.assetPath(null), "null path");
         eq("www/index.html", WebFiles.assetPath(""), "empty path");
@@ -118,11 +124,22 @@ public final class WebFilesTest {
         eq("outside", WebFiles.linkAction("http", "dentora.app.evil.com", true), "look-alike goes outside");
         eq("outside", WebFiles.linkAction("intent", null, true), "intent: goes outside (checked there)");
         eq("outside", WebFiles.linkAction(null, null, true), "no scheme is not loaded inside");
-        eq("allow", WebFiles.linkAction("https", "maps.example.com", false), "a frame inside the page loads");
+        eq("block", WebFiles.linkAction("https", "maps.example.com", false), "a frame of another site is not loaded");
+        eq("block", WebFiles.linkAction("http", "evil.com", false), "an http frame of another site is not loaded");
+        eq("block", WebFiles.linkAction("intent", null, false), "a frame never starts another app");
         eq("allow", WebFiles.linkAction("about", null, true), "about:blank");
         eq("allow", WebFiles.linkAction("JavaScript", null, true), "javascript:");
         eq("data", WebFiles.linkAction("data", null, true), "data: is saved");
         eq("blob", WebFiles.linkAction("blob", null, true), "blob: is saved");
+
+        // shouldInterceptRequest: the app's files, nothing from the internet
+        eq("app", WebFiles.requestAction("https", "dentora.app"), "own files served");
+        eq("block", WebFiles.requestAction("https", "evil.com"), "another site refused");
+        eq("block", WebFiles.requestAction("http", "dentora.app.evil.com"), "look-alike refused");
+        eq("block", WebFiles.requestAction("wss", "evil.com"), "websocket refused");
+        eq("pass", WebFiles.requestAction("data", null), "data: stays in the WebView");
+        eq("pass", WebFiles.requestAction("blob", null), "blob: stays in the WebView");
+        eq(true, WebFiles.CSP.contains("script-src 'self';") && WebFiles.CSP.contains("default-src 'self'") && WebFiles.CSP.contains("object-src 'none'"), "csp");
 
         eq("android.intent.action.DIAL", WebFiles.externalAction("tel"), "tel action");
         eq("android.intent.action.SENDTO", WebFiles.externalAction("mailto"), "mailto action");
@@ -143,12 +160,58 @@ public final class WebFilesTest {
         eq(true, WebFiles.PRINT_SHIM_JS.contains("__dentoraPrinting") && WebFiles.PRINT_HOLD_JS.contains("__dentoraPrinting=true"), "afterprint held while printing");
         eq(true, WebFiles.PRINT_DONE_JS.contains("afterprint"), "afterprint released at the end");
 
+        // the back key: the page's own handler first, popups it does not register second (once), then the page
+        eq(true, WebFiles.BACK_JS.indexOf("__dentoraBack()") < WebFiles.BACK_JS.indexOf("querySelector"), "page handler asked first");
+        eq(true, WebFiles.BACK_JS.contains("[role=\"menu\"]") && WebFiles.BACK_JS.contains("[role=\"dialog\"]"), "menus and small dialogs close on back");
+        eq(true, WebFiles.BACK_JS.contains("__dentoraBackLast") && WebFiles.BACK_JS.contains("1500"), "a popup that ignores Escape does not trap the back key");
+        eq(true, WebFiles.BRIDGE_JS.contains("real.print(String(n))"), "print passes the job name");
+
+        // print job names ("Save as PDF" offers them as the file name)
+        eq("فاتورة INV-000034 - محمد العلي", WebFiles.printJobName("فاتورة INV-000034 - محمد العلي", "Dentora — x"), "page's name");
+        eq("a b c", WebFiles.printJobName("  a/b\nc  ", null), "no separators or line breaks");
+        eq("Dentora", WebFiles.printJobName(null, "Dentora — نظام إدارة عيادات الأسنان"), "app title gives the app name");
+        eq("Dentora", WebFiles.printJobName("", ""), "nothing gives the app name");
+        eq("وصفة طبية", WebFiles.printJobName(" ", "وصفة طبية"), "page title");
+        eq(120, WebFiles.printJobName(new String(new char[300]).replace('\0', 'x'), null).length(), "long job name");
+
+        // the camera next to the files
+        eq(true, WebFiles.offersCamera(WebFiles.pickerMimes(new String[] {"image/*"})), "photos: camera offered");
+        eq(true, WebFiles.offersCamera(WebFiles.pickerMimes(new String[] {"image/*,.pdf,application/pdf"})), "files tab: camera offered");
+        eq(true, WebFiles.offersCamera(WebFiles.pickerMimes(new String[] {".jpg"})), "jpeg: camera offered");
+        eq(false, WebFiles.offersCamera(WebFiles.pickerMimes(new String[] {".json,application/json"})), "backup: no camera");
+        eq(false, WebFiles.offersCamera(WebFiles.pickerMimes(new String[] {".png"})), "png only: no camera");
+        eq(false, WebFiles.offersCamera(null), "nothing: no camera");
+        eq("photo-20261011-153012.jpg", WebFiles.captureName("20261011-153012", 1), "photo name");
+        eq("photo-20261011-153012-2.jpg", WebFiles.captureName("20261011-153012", 2), "second photo in a second");
+        eq(true, WebFiles.isCaptureName("photo-20261011-153012-2.jpg"), "photo name served");
+        eq(false, WebFiles.isCaptureName("../pending-save.bin"), "no other cache file");
+        eq(false, WebFiles.isCaptureName("photo-20261011-153012.jpg/../x"), "no path");
+        eq(false, WebFiles.isCaptureName(null), "no name");
+
+        // a save over a longer older file: "w" without truncation must not leave the old tail
+        File f = File.createTempFile("dentora-trunc", ".json");
+        try {
+            Files.write(f.toPath(), new byte[5000]);
+            byte[] fresh = "{\"app\":\"dentora\"}".getBytes(StandardCharsets.UTF_8);
+            try (RandomAccessFile raf = new RandomAccessFile(f, "rw"); FileOutputStream out = new FileOutputStream(raf.getFD())) {
+                eq((long) fresh.length, WebFiles.copyAndTruncate(new ByteArrayInputStream(fresh), out), "bytes written");
+            }
+            eq((long) fresh.length, f.length(), "old tail cut off");
+            eq(new String(fresh, StandardCharsets.UTF_8), new String(Files.readAllBytes(f.toPath()), StandardCharsets.UTF_8), "file is exactly the new one");
+            try (FileOutputStream out = new FileOutputStream(f)) {
+                WebFiles.copyAndTruncate(new ByteArrayInputStream(new byte[10]), out);
+            }
+            eq(10L, f.length(), "a truncating open stays as written");
+        } finally {
+            f.delete();
+        }
+
         // messages
         eq("تعذّر حفظ الملف", WebFiles.text("save_failed", "ar"), "arabic message");
         eq("Could not save the file", WebFiles.text("save_failed", "en"), "english message");
         eq("تعذّر حفظ الملف", WebFiles.text("save_failed", null), "arabic by default");
         eq("تعذّر حفظ الملف", WebFiles.text("save_failed", "fr"), "arabic for other languages");
-        String[] keys = {"saved_downloads", "save_failed", "no_app", "no_picker", "no_print", "crash_title", "crash_body", "copy", "close"};
+        String[] keys = {"saved_downloads", "save_failed", "no_app", "no_picker", "no_print", "crash_title", "crash_body", "copy", "close", "pick_title"};
         for (String k : keys) {
             eq(false, WebFiles.text(k, "ar").equals(k) || WebFiles.text(k, "en").equals(k), "message " + k + " in both languages");
             eq(false, WebFiles.text(k, "ar").equals(WebFiles.text(k, "en")), "message " + k + " translated");

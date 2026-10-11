@@ -492,6 +492,14 @@ describe('billing: database flows', () => {
     await deleteReceipt(refund[0].id, 'u-admin')
     await deleteReceipt(dep[0].id, 'u-admin')
     expect(await db.payments.count()).toBe(0)
+    // on an invoice too: the payment cannot go while a refund taken off it stays (it would leave a debt no invoice can carry once cancelled)
+    const a = await saveInvoice(input(), { mode: 'issue' })
+    const paid = await recordPayment({ patientId: 'p1', invoiceId: a.id, amount: 100, method: 'cash', date: day })
+    const back = await recordPayment({ patientId: 'p1', invoiceId: a.id, amount: -30, method: 'cash', date: day })
+    await expect(deleteReceipt(paid[0].id, 'u-admin')).rejects.toThrow('refundedCredit')
+    await deleteReceipt(back[0].id, 'u-admin')
+    await deleteReceipt(paid[0].id, 'u-admin')
+    expect(await db.invoices.get(a.id)).toMatchObject({ paid: 0, status: 'unpaid' })
   })
 
   it('refunds reduce what was paid on the invoice', async () => {

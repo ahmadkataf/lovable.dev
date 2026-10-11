@@ -238,8 +238,10 @@ function AppointmentForm({ onClose, appointment, defaults, onSaved }: Appointmen
           </Alert>
         )}
         {patientClash.length > 0 && patient && (
-          <Alert tone="warning" title={t('appointments.form.patientBusyTitle')} className="apt-conflict">
-            {t('appointments.form.patientBusyDesc', { name: patient.name })}
+          // its own class: .apt-conflict is the doctor's double booking (scripts and styles count on there being one)
+          <Alert tone="warning" title={t('appointments.form.patientBusyTitle')} className="apt-pclash">
+            {/* the name keeps its own direction inside a sentence of the other language */}
+            {t('appointments.form.patientBusyDesc', { name: `\u2068${patient.name}\u2069` })}
             <ul className="apt-conflict-list">
               {patientClash.slice(0, 3).map(c => <li key={c.id}><span className="apt-tm">{fmtTime(c.start, lang)} – {fmtTime(c.end, lang)}</span> · <bdi>{allUsers.find(u => u.id === c.doctorId)?.name ?? t('appointments.formerDoctor')}</bdi></li>)}
             </ul>

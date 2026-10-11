@@ -270,6 +270,12 @@ describe('backup archive round trip', () => {
     await expect(readBackup(new Blob([badTable]))).rejects.toBeInstanceOf(BackupError)
   }, 60_000)
 
+  it('a .dentora file that is not even an archive any more is reported as damaged, another file as foreign', async () => {
+    const zeros = new Uint8Array(4096)
+    await expect(readBackup(new File([zeros], 'dentora-backup-2026-10-11-0930.dentora'))).rejects.toMatchObject({ reason: 'damaged' })
+    await expect(readBackup(new File([zeros], 'photo.jpg'))).rejects.toMatchObject({ reason: 'app' })
+  })
+
   it('refuses newer versions and foreign files with a reason', async () => {
     await expect(readBackup(new Blob(['hello']))).rejects.toMatchObject({ reason: 'app' })
     await expect(readBackup(new Blob([JSON.stringify({ app: 'dentora', version: 9, tables: { clinic: [], users: [], patients: [] } })]))).rejects.toMatchObject({ reason: 'newer' })

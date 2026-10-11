@@ -32,7 +32,8 @@ function watch() {
 export function loadBalances(): Promise<Map<string, number>> {
   watch()
   if (cached && !dirty) return Promise.resolve(cached)
-  if (running) return running
+  // a payment or invoice written while a read is running: that read may have missed it, so read again after it
+  if (running) return dirty ? running.then(loadBalances, loadBalances) : running
   dirty = false
   running = Promise.all([readAllChunked(db.invoices, CHUNK), readAllChunked(db.payments, CHUNK * 2)])
     .then(([invoices, payments]) => { cached = balancesByPatient(invoices, payments); return cached })

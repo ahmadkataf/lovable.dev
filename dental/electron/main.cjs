@@ -5,14 +5,20 @@
 // Everything the web app needs from the machine goes through the preload bridge (electron/preload.cjs) and the
 // IPC handlers below, typed in src/platform/index.ts:
 //   device-id · save-begin/-chunk/-end/-abort · open-begin/-chunk/-end · print · app-version · open-external
+// The plain decisions (window placement, the app's own URL, refused switches, the right-click menu, the device id)
+// are in electron/lib.cjs, which tests/electron-shell.test.ts checks.
 //
 // Patient data lives in IndexedDB under app.getPath('userData') (Windows: %APPDATA%\Dentora). The installer never
 // deletes that folder, so upgrades and reinstalls keep every record.
 //
 // Environment switches (all optional):
-//   DENTORA_DEV=1           menu shows Developer Tools (F12 / Ctrl+Shift+I)
+//   DENTORA_DEV=1           development only (npm run electron:dev): the menu shows Developer Tools (F12 / Ctrl+Shift+I).
+//                           Ignored by the installed app, which never opens Developer Tools.
 //   DENTORA_USER_DATA=dir   use another data folder (QA runs, a second test clinic on the same PC)
 //   DENTORA_DISABLE_GPU=1   or the --disable-gpu switch: software rendering for old graphics drivers (blank window)
+// The installed app refuses to start with Chromium's remote debugging or Node's inspector switches
+// (--remote-debugging-port, --inspect…), and its Electron fuses switch off ELECTRON_RUN_AS_NODE, NODE_OPTIONS and
+// loading code from outside app.asar (electron-builder.yml).
 
 const { app, BrowserWindow, Menu, dialog, ipcMain, nativeImage, screen, session, shell } = require('electron')
 const path = require('node:path')
@@ -21,12 +27,17 @@ const os = require('node:os')
 const crypto = require('node:crypto')
 const zlib = require('node:zlib')
 const { execFile } = require('node:child_process')
-const { fileURLToPath } = require('node:url')
+const { pathToFileURL } = require('node:url')
+const { fitBounds, sameFileUrl, debugSwitch, contextMenuItems, resolveDeviceId } = require('./lib.cjs')
 
 const APP_ID = 'com.dentora.app'
-const DEV = process.env.DENTORA_DEV === '1'
+// Developer Tools only in a development run (electron .), never in the installed app, whatever the environment says
+const DEV = process.env.DENTORA_DEV === '1' && !app.isPackaged
 const ROOT = path.join(__dirname, '..')
 const INDEX_HTML = path.join(ROOT, 'dist', 'index.html')
+// The page is loaded from this URL and IPC is answered only for it. Built by Node (%, #, spaces, Arabic letters in the
+// Windows user name or install folder are escaped) and compared by decoded path, never as raw text (lib.cjs).
+const APP_URL = pathToFileURL(INDEX_HTML).href
 const BG = '#F5F7FA'
 const MIN_W = 1024
 const MIN_H = 680
@@ -54,10 +65,19 @@ const CSP = [
 
 // ---- early setup (before 'ready') ----------------------------------------------------------------------------
 if (process.env.DENTORA_USER_DATA) app.setPath('userData', path.resolve(process.env.DENTORA_USER_DATA))
+// The installed app never runs with a debugging port or an inspector: either would let another program read and change
+// the clinic's records, skip the PIN or the licence. Checked before anything else, before Chromium opens any port.
+const refusedSwitch = app.isPackaged ? (debugSwitch(process.argv) || ['remote-debugging-port', 'remote-debugging-pipe', 'inspect', 'inspect-brk', 'js-flags'].find(n => app.commandLine.hasSwitch(n)) || null) : null
+if (refusedSwitch) {
+  log(`refused to start with --${refusedSwitch}`)
+  app.exit(1)
+}
 if (process.env.DENTORA_DISABLE_GPU === '1' || process.argv.includes('--disable-gpu')) app.disableHardwareAcceleration()
 app.setAppUserModelId(APP_ID)
 
-if (!app.requestSingleInstanceLock()) {
+if (refusedSwitch) {
+  // app.exit() has already ended the process; nothing below runs
+} else if (!app.requestSingleInstanceLock()) {
   // a second launch (double-clicked shortcut while the app is open) just focuses the running window
   app.quit()
 } else {
@@ -92,15 +112,8 @@ function log(...parts) {
   if (DEV) console.log('[dentora]', ...parts)
 }
 
-const samePath = (a, b) => (process.platform === 'win32' ? path.resolve(a).toLowerCase() === path.resolve(b).toLowerCase() : path.resolve(a) === path.resolve(b))
-
 /** true for the app's own page (any hash route), false for everything else. */
-function isAppUrl(url) {
-  try {
-    const u = new URL(url)
-    return u.protocol === 'file:' && samePath(fileURLToPath(u), INDEX_HTML)
-  } catch { return false }
-}
+const isAppUrl = url => sameFileUrl(url, APP_URL, process.platform === 'win32')
 
 /** IPC is answered only for the app's own top-level page, never for viewer windows or frames. */
 function assertTrusted(event) {
@@ -132,11 +145,13 @@ function appIcon() {
 const STRINGS = {
   ar: {
     view: 'عرض', zoomIn: 'تكبير', zoomOut: 'تصغير', zoomReset: 'الحجم الطبيعي', fullscreen: 'ملء الشاشة', reload: 'إعادة تحميل', devtools: 'أدوات المطوّر',
+    cut: 'قص', copy: 'نسخ', paste: 'لصق', selectAll: 'تحديد الكل',
     saveTitle: 'حفظ الملف', openTitle: 'اختيار ملف', allFiles: 'كل الملفات', supported: 'الملفات المدعومة', fileOf: ext => `ملف ${ext}`,
     saveFailed: 'تعذّر حفظ الملف', openFailed: 'تعذّر فتح الملف', crashed: 'توقفت الواجهة عن العمل عدة مرات. أعد تشغيل Dentora، وإن تكررت المشكلة فتواصل مع الدعم الفني.',
   },
   en: {
     view: 'View', zoomIn: 'Zoom in', zoomOut: 'Zoom out', zoomReset: 'Actual size', fullscreen: 'Full screen', reload: 'Reload', devtools: 'Developer tools',
+    cut: 'Cut', copy: 'Copy', paste: 'Paste', selectAll: 'Select all',
     saveTitle: 'Save file', openTitle: 'Choose a file', allFiles: 'All files', supported: 'Supported files', fileOf: ext => `${ext} file`,
     saveFailed: 'The file could not be saved', openFailed: 'The file could not be opened', crashed: 'The window stopped responding several times. Restart Dentora; if it happens again, contact support.',
   },
@@ -173,26 +188,9 @@ function scheduleSave(win) {
   saveTimer = setTimeout(() => { captureBounds(win); writeState() }, 600)
 }
 
-/** Saved bounds if they still fit a connected screen, otherwise a size that suits the primary screen. */
+/** Saved bounds, whole on a connected screen (lib.cjs fitBounds), otherwise a size that suits the primary screen. */
 function initialBounds() {
-  const wa = screen.getPrimaryDisplay().workArea
-  const minW = Math.min(MIN_W, wa.width)
-  const minH = Math.min(MIN_H, wa.height)
-  const { x, y, width, height } = state
-  if ([x, y, width, height].every(Number.isFinite) && width >= minW && height >= minH) {
-    const visible = screen.getAllDisplays().some(d => {
-      const a = d.workArea
-      const w = Math.min(x + width, a.x + a.width) - Math.max(x, a.x)
-      const h = Math.min(y + height, a.y + a.height) - Math.max(y, a.y)
-      return w >= 160 && h >= 80
-    })
-    if (visible) return { bounds: { x, y, width, height }, minW, minH, maximize: !!state.maximized }
-  }
-  const w = Math.min(DEFAULT_W, wa.width)
-  const h = Math.min(DEFAULT_H, wa.height)
-  // first run on a small laptop screen (1366×768, 1280×720…): start maximised
-  const maximize = state.maximized ?? (wa.width < DEFAULT_W + 40 || wa.height < DEFAULT_H + 20)
-  return { bounds: { width: w, height: h, x: Math.round(wa.x + (wa.width - w) / 2), y: Math.round(wa.y + (wa.height - h) / 2) }, minW, minH, maximize }
+  return fitBounds(state, screen.getAllDisplays(), screen.getPrimaryDisplay().workArea, { minW: MIN_W, minH: MIN_H, defaultW: DEFAULT_W, defaultH: DEFAULT_H })
 }
 
 // ---- zoom (Ctrl + / Ctrl - / Ctrl 0 / Ctrl+wheel), remembered between runs ----------------------------------
@@ -270,6 +268,13 @@ function hardenContents(contents) {
   })
   contents.on('before-input-event', (e, input) => handleShortcuts(contents, e, input))
   contents.on('zoom-changed', (_e, dir) => zoomStep(contents, dir === 'in' ? +1 : -1))
+  // right click: Cut / Copy / Paste / Select all in a field (pasting an activation code from WhatsApp), Copy over text
+  contents.on('context-menu', (_e, params) => {
+    const items = contextMenuItems(params, L(uiLang))
+    if (!items.length) return
+    const win = BrowserWindow.fromWebContents(contents) || undefined
+    Menu.buildFromTemplate(items).popup({ window: win, x: params.x, y: params.y })
+  })
 }
 
 function setupSession() {
@@ -287,7 +292,17 @@ function setupSession() {
     cb(ALLOWED.has(permission) && (isAppUrl(from) || String(from).startsWith('file://')))
   })
   ses.setPermissionCheckHandler((_wc, permission, origin) => ALLOWED.has(permission) && (!origin || String(origin).startsWith('file://')))
-  ses.setSpellCheckerEnabled(false)
+  noSpellChecker(ses)
+}
+
+/** No spell checker: it is off in every window, and on Linux it would download a dictionary from Google at start. */
+function noSpellChecker(ses) {
+  try {
+    ses.setSpellCheckerEnabled(false)
+    if (typeof ses.setSpellCheckerLanguages === 'function' && process.platform !== 'darwin') ses.setSpellCheckerLanguages([])
+    // anything that still asks for a dictionary asks the app itself, never the internet
+    if (typeof ses.setSpellCheckerDictionaryDownloadURL === 'function') ses.setSpellCheckerDictionaryDownloadURL('file:///dentora-no-dictionaries/')
+  } catch (err) { log('spell checker not switched off', err) }
 }
 
 // ---- the window ----------------------------------------------------------------------------------------------
@@ -308,7 +323,7 @@ function createWindow() {
       nodeIntegration: false,
       sandbox: true,
       spellcheck: false,
-      devTools: DEV || !app.isPackaged,
+      devTools: !app.isPackaged,
     },
   })
   mainWindow = win
@@ -342,22 +357,22 @@ function createWindow() {
     if (details.reason === 'clean-exit' || win.isDestroyed()) return
     const now = Date.now()
     crashes = crashes.filter(t => now - t < 60_000).concat(now)
-    if (crashes.length <= 3) win.loadFile(INDEX_HTML).catch(err => log('reload after crash failed', err))
+    if (crashes.length <= 3) win.loadURL(APP_URL).catch(err => log('reload after crash failed', err))
     else dialog.showErrorBox('Dentora', L(uiLang).crashed)
   })
 
-  win.loadFile(INDEX_HTML).catch(err => log('loadFile failed', err))
+  win.loadURL(APP_URL).catch(err => log('load failed', err))
   return win
 }
 
 // ---- IPC: the bridge in src/platform/index.ts ----------------------------------------------------------------
 const sha256 = s => crypto.createHash('sha256').update(s).digest('hex')
 
-function windowsMachineGuid() {
+function windowsMachineGuid(timeout) {
   const reg = path.join(process.env.SystemRoot || process.env.windir || 'C:\\Windows', 'System32', 'reg.exe')
   const query = extra => new Promise(resolve => {
-    execFile(reg, ['query', 'HKLM\\SOFTWARE\\Microsoft\\Cryptography', '/v', 'MachineGuid', ...extra], { windowsHide: true, timeout: 10_000 }, (err, stdout) => {
-      if (err) return resolve(null)
+    execFile(reg, ['query', 'HKLM\\SOFTWARE\\Microsoft\\Cryptography', '/v', 'MachineGuid', ...extra], { windowsHide: true, timeout }, (err, stdout) => {
+      if (err) { log('reg.exe failed', String((err && (err.code || err.message)) || err)); return resolve(null) }
       const m = /MachineGuid\s+REG_SZ\s+([0-9A-Fa-f-]{16,})/.exec(String(stdout))
       resolve(m ? m[1].toLowerCase() : null)
     })
@@ -374,26 +389,38 @@ function hostFingerprint() {
   return host || user || cpu ? `host:${host}|${user}|${cpu}` : null
 }
 
-function storedRandomId() {
-  const file = path.join(app.getPath('userData'), 'device-id')
-  try {
-    const v = fs.readFileSync(file, 'utf8').trim()
-    if (/^[0-9a-f]{32,64}$/.test(v)) return v
-  } catch { /* first run */ }
-  const id = crypto.randomBytes(16).toString('hex')
-  try { fs.mkdirSync(path.dirname(file), { recursive: true }); fs.writeFileSync(file, id) } catch (err) { log('device-id not stored', err) }
-  return id
+/** This computer's id (hashed, never sent raw). On a first run reg.exe gets three tries with longer waits. */
+async function machineId(firstRun) {
+  if (process.platform !== 'win32') {
+    const h = hostFingerprint()
+    return h ? { kind: 'host', id: sha256(`dentora|${h}`) } : null
+  }
+  for (const timeout of firstRun ? [10_000, 20_000, 30_000] : [10_000]) {
+    const g = await windowsMachineGuid(timeout)
+    if (g) return { kind: 'win', id: sha256(`dentora|win:${g}`) }
+  }
+  return null
 }
 
+const deviceFile = () => path.join(app.getPath('userData'), 'device-id.json')
 let deviceIdPromise = null
-/** Stable per machine: Windows MachineGuid (hashed, never sent raw), else a host fingerprint, else a stored random id. */
+/** Stable for the installation: cached on first use, see resolveDeviceId in lib.cjs. */
 function deviceId() {
   if (!deviceIdPromise) {
-    deviceIdPromise = (async () => {
-      let source = null
-      try { source = process.platform === 'win32' ? await windowsMachineGuid().then(g => (g ? `win:${g}` : null)) : hostFingerprint() } catch (err) { log('machine id failed', err) }
-      return source ? sha256(`dentora|${source}`) : storedRandomId()
-    })()
+    deviceIdPromise = resolveDeviceId({
+      readCache: () => { try { return JSON.parse(fs.readFileSync(deviceFile(), 'utf8')) } catch { return null } },
+      writeCache: obj => {
+        const file = deviceFile()
+        fs.mkdirSync(path.dirname(file), { recursive: true })
+        fs.writeFileSync(`${file}.tmp`, JSON.stringify(obj, null, 2))
+        fs.renameSync(`${file}.tmp`, file)
+      },
+      // Dentora 1.0 kept a random id here when reg.exe failed
+      readLegacy: () => { try { return fs.readFileSync(path.join(app.getPath('userData'), 'device-id'), 'utf8').trim() } catch { return null } },
+      machineId,
+      randomId: () => crypto.randomBytes(16).toString('hex'),
+      log,
+    }).then(r => r.id, err => { deviceIdPromise = null; throw err })
   }
   return deviceIdPromise
 }
@@ -664,10 +691,15 @@ function registerIpc() {
 
   ipcMain.handle('print', e => {
     assertTrusted(e)
+    // The window's own colour shows wherever the page does not paint, and printBackground puts it on paper: the page
+    // margins of an invoice or a prescription would come out light grey. White while the print job runs.
+    const win = BrowserWindow.fromWebContents(e.sender)
+    if (win && !win.isDestroyed()) win.setBackgroundColor('#FFFFFF')
+    const restore = () => { if (win && !win.isDestroyed()) win.setBackgroundColor(BG) }
     return new Promise(resolve => {
       try {
-        e.sender.print({ silent: false, printBackground: true }, (ok, reason) => { if (!ok && reason && reason !== 'cancelled') log('print failed', reason); resolve() })
-      } catch (err) { log('print threw', err); resolve() }
+        e.sender.print({ silent: false, printBackground: true }, (ok, reason) => { restore(); if (!ok && reason && reason !== 'cancelled') log('print failed', reason); resolve() })
+      } catch (err) { restore(); log('print threw', err); resolve() }
     })
   })
 

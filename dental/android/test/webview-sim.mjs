@@ -1,11 +1,13 @@
 // Runs the BUILT APK's web app the way the Android shell serves it, without a phone or an emulator:
 //  - unpacks assets/ from android/build/Dentora.apk,
 //  - answers every https://dentora.app/… request with the decisions of WebFiles.java (via ServeTable.java),
-//  - installs a stand-in window.DentoraAndroid that records the bridge calls, and runs the page scripts the shell
-//    runs (print shim, the saveFile Promise wrapper, the afterprint hold),
+//    with the shell's Content-Security-Policy on the HTML, and refuses every other host (the shell answers 403),
+//  - installs a stand-in window.DentoraAndroid that records the bridge calls (the chunked save contract of
+//    src/platform), and runs the page scripts the shell runs (print shim, the bridge wrapper, the afterprint hold),
 //  - and drives the app on a phone-sized Chromium in Arabic and English: start, sign-in, IndexedDB persistence,
-//    fonts, hash routes, no sideways scrolling, the back key (BACK_JS), print, CSV export and backup through
-//    saveFile (cancelled vs saved), restore through the file chooser, the device number from ANDROID_ID, WhatsApp.
+//    fonts, hash routes, no sideways scrolling, the back key (BACK_JS: dialogs, the kit menus, the lab row menu),
+//    print (and its job name), CSV export and backup through saveBegin/saveChunk/saveEnd (cancelled vs saved),
+//    restore through the file chooser, the device number from ANDROID_ID, WhatsApp, no CSP violation.
 //   cd dental && node android/test/webview-sim.mjs            (APK=…, QA_SHOTS=qa-shots/android)
 import { chromium } from 'playwright'
 import { execFileSync } from 'node:child_process'
@@ -52,26 +54,42 @@ await ctx.route('**/*', route => {
     served.push(`${u.pathname} ${d.mime}`)
     return route.fulfill({
       status: 200, body: fs.readFileSync(path.join(tmp, 'assets', d.asset)),
-      headers: { 'content-type': d.mime + (d.charset ? `; charset=${d.charset}` : ''), 'cache-control': d.cache, 'access-control-allow-origin': '*', 'x-content-type-options': 'nosniff' },
+      headers: { 'content-type': d.mime + (d.charset ? `; charset=${d.charset}` : ''), 'cache-control': d.cache, 'access-control-allow-origin': '*', 'x-content-type-options': 'nosniff',
+        ...(d.mime === 'text/html' ? { 'content-security-policy': js.csp } : {}) },
     })
   }
   outside.push(u.href)
   return route.abort()
 })
-// the Java bridge: the same five methods; saveFile returns true at once, as the shell does
+// the Java bridge (MainActivity.Bridge): saveBegin → saveChunk (base64) → saveEnd opens the "save as" screen, whose
+// end the test reports with the shell's 'dentora:saved' event (nativeSaved below)
 await ctx.addInitScript(id => {
   const calls = []
   window.__bridge = calls
+  let open = null
   window.DentoraAndroid = {
     deviceId() { calls.push(['deviceId']); return id },
-    saveFile(name, mime, b64) { calls.push(['saveFile', name, mime]); window.__lastSave = { name, mime, b64 }; return true },
-    print() { calls.push(['print']) },
+    saveBegin(name, mime, size, quiet) { calls.push(['saveBegin', name, mime]); open = { id: 'save-' + calls.length, name, mime, parts: [] }; return JSON.stringify({ id: open.id }) },
+    saveChunk(sid, b64) { if (!open || sid !== open.id) return 'io'; open.parts.push(Uint8Array.from(atob(b64), c => c.charCodeAt(0))); return '' },
+    saveEnd(sid, size, crc) {
+      if (!open || sid !== open.id) return 'io'
+      const bytes = new Uint8Array(open.parts.reduce((n, p) => n + p.length, 0))
+      let at = 0
+      for (const p of open.parts) { bytes.set(p, at); at += p.length }
+      if (bytes.length !== Number(size)) return 'verify'
+      window.__lastSave = { id: open.id, name: open.name, mime: open.mime, bytes }
+      calls.push(['saveEnd', open.name, bytes.length])
+      open = null
+      return ''
+    },
+    saveAbort(sid) { calls.push(['saveAbort', sid]); open = null },
+    print(...args) { calls.push(['print', ...args]) },
     appVersion() { calls.push(['appVersion']); return '1.0.0' },
     openExternal(url) { calls.push(['openExternal', url]) },
   }
 }, ANDROID_ID)
 const page = await ctx.newPage()
-page.on('console', m => { if (m.type() === 'error') consoleErrors.push(m.text()) })
+page.on('console', m => { if (m.type() === 'error' || /Content Security Policy/i.test(m.text())) consoleErrors.push(m.text()) })
 page.on('pageerror', e => consoleErrors.push('pageerror: ' + e.message))
 const run = code => page.evaluate(c => (0, eval)(c), code)
 const calls = () => page.evaluate(() => window.__bridge.slice())
@@ -80,8 +98,9 @@ const onPageFinished = async () => { await run(js.printShim); await run(js.bridg
 const shot = async name => { fs.mkdirSync(SHOTS, { recursive: true }); await page.screenshot({ path: path.join(SHOTS, `${name}.png`) }); console.log('     shot', path.relative(ROOT, path.join(SHOTS, `${name}.png`))) }
 const settle = async () => { await page.waitForLoadState('networkidle'); await page.waitForTimeout(500) }
 const go = async hash => { await page.goto(js.startUrl + hash); await settle() }
-const lastSave = () => page.evaluate(() => window.__lastSave && { name: window.__lastSave.name, mime: window.__lastSave.mime, text: new TextDecoder().decode(Uint8Array.from(atob(window.__lastSave.b64), c => c.charCodeAt(0))) })
-const nativeSaved = (ok, name) => run((ok ? js.savedOk : js.savedCancelled).replace('__NAME__', name))
+const lastSave = () => page.evaluate(() => window.__lastSave && { id: window.__lastSave.id, name: window.__lastSave.name, mime: window.__lastSave.mime,
+  size: window.__lastSave.bytes.length, bytes: Array.from(window.__lastSave.bytes), text: new TextDecoder().decode(window.__lastSave.bytes) })
+const nativeSaved = (ok, save) => run((ok ? js.savedOk : js.savedCancelled).replace('__NAME__', save.name).replace('__ID__', save.id))
 const lastBackupAt = () => page.evaluate(async () => (await window.__dentora.db.settings.get('lastBackupAt'))?.value ?? null)
 // every page: no sideways scrolling on a 390 px phone, and the back key really goes back (nothing left matching
 // BACK_JS's "open dialog" selectors, which would make the back key do nothing on that page)
@@ -120,6 +139,7 @@ try {
     await db.patients.put({ id: 'p-1', fileNo: 1, name: 'محمد العلي', gender: 'male', phone: '0944 555 111', allergies: ['البنسلين'], chronicDiseases: [], medications: [], tags: [], archived: false, createdAt: now, updatedAt: now })
     const today = now.slice(0, 10)
     await db.expenses.put({ id: 'e-1', category: 'rent', amount: 400, date: today, description: 'إيجار العيادة', method: 'cash', by: 'u-admin', createdAt: now })
+    await db.labOrders.put({ id: 'l-1', patientId: 'p-1', type: 'crown', teeth: [16], labName: 'مخبر النور', status: 'sent', sentDate: today, dueDate: today, cost: 50, createdAt: now, updatedAt: now })
     localStorage.setItem('dentora.session', 'u-admin')
     localStorage.setItem('dentora.lang', 'ar')
   })
@@ -175,9 +195,37 @@ try {
   await page.waitForTimeout(300)
   check(await page.locator('[aria-modal="true"]').count() === 0, 'the dialog closed on back')
 
+  // a kit menu (Overlay Menu: registered with the page's back handler) and the lab row menu (a popover that is not):
+  // back closes the menu and stays on the page; the next back goes back a page
+  await go('#/patients')
+  await go('#/lab')
+  const rowMenu = page.locator('.lab-actions [aria-haspopup="menu"]').first()
+  if (await rowMenu.count()) {
+    await rowMenu.click()
+    const menuOpen = await page.waitForSelector('.lab-menu [role="menu"]', { timeout: 5000 }).then(() => true, () => false)
+    await shot('05b-lab-menu')
+    const b1 = await back()
+    await page.waitForTimeout(300)
+    const closed = await page.locator('.lab-menu').count() === 0
+    check(menuOpen && b1 === 'handled' && closed && page.url().endsWith('#/lab'), 'back with the lab row menu open closes the menu and stays on the page', JSON.stringify({ menuOpen, b1, closed, url: page.url() }))
+    check(await back() === 'page', 'the next back goes back a page')
+  } else check(false, 'the lab board has a row menu')
+  await go('#/patients/p-1')
+  const kitMenu = page.locator('.menu-anchor:not(.lab-menu-anchor) > span:visible').first()
+  if (await kitMenu.count()) {
+    await kitMenu.click()
+    const opened2 = await page.waitForSelector('.menu-portal', { timeout: 4000 }).then(() => true, () => false)
+    const b2 = await back()
+    await page.waitForTimeout(300)
+    check(!opened2 || (b2 === 'handled' && await page.locator('.menu-portal').count() === 0), 'back closes a kit menu (window.__dentoraBack → closeTopLayer)', JSON.stringify({ opened2, b2 }))
+  }
+  check(await page.evaluate(() => typeof window.__dentoraBack === 'function' && window.__dentoraBack() === false), 'nothing open: the page leaves the back key to the shell')
+
   // ---- print: window.print is routed to the bridge; afterprint waits for the end of the print job ----
   await page.evaluate(() => window.print())
   check((await calls()).some(c => c[0] === 'print'), 'window.print() → DentoraAndroid.print() (shim from onPageFinished)')
+  await page.evaluate(() => window.DentoraAndroid.print('فاتورة INV-000034 - محمد العلي'))
+  check((await calls()).some(c => c[0] === 'print' && c[1] === 'فاتورة INV-000034 - محمد العلي'), 'print(jobName) reaches the shell with the job name (Save as PDF file name)')
   const held = await page.evaluate(([hold, done]) => {
     let n = 0, removed = 0
     const h = () => { n++ }
@@ -224,8 +272,8 @@ try {
     await exportBtn.click()
     await page.waitForFunction(() => window.__lastSave, null, { timeout: 5000 }).catch(() => {})
     const save = await lastSave()
-    check(!!save && /^expenses-.*\.csv$/.test(save.name) && save.mime.startsWith('text/csv') && save.text.includes('إيجار العيادة'), 'CSV export → DentoraAndroid.saveFile(name, mime, base64)', save ? `${save.name} ${save.mime} ${save.text.length} chars` : 'no call')
-    if (save) await nativeSaved(true, save.name)
+    check(!!save && /^expenses-.*\.csv$/.test(save.name) && save.mime.startsWith('text/csv') && save.text.includes('إيجار العيادة'), 'CSV export → DentoraAndroid.saveBegin/saveChunk/saveEnd', save ? `${save.name} ${save.mime} ${save.size} bytes` : 'no call')
+    if (save) await nativeSaved(true, save)
   } else check(false, 'expenses page has an export button')
 
   // ---- backup: saveFile answers only when the save screen closes; a cancelled save is not a backup ----
@@ -236,20 +284,19 @@ try {
   await exportBackup.click()
   await page.waitForFunction(() => window.__lastSave, null, { timeout: 8000 }).catch(() => {})
   const bk = await lastSave()
-  let backupData = null
-  try { backupData = bk && JSON.parse(bk.text) } catch { /* reported below */ }
-  check(!!bk && /\.json$/.test(bk.name) && bk.mime.startsWith('application/json') && backupData?.app === 'dentora' && backupData?.tables?.patients?.length === 1,
-    'backup → DentoraAndroid.saveFile with the whole database as JSON', bk ? `${bk.name} ${bk.mime} ${bk.text.length} chars` : 'no call')
+  const backupData = bk && bk.bytes[0] === 0x50 && bk.bytes[1] === 0x4b ? Buffer.from(bk.bytes) : null     // a ZIP archive ("PK")
+  check(!!bk && /\.dentora$/.test(bk.name) && !!backupData,
+    'backup → the bridge with the whole database as a .dentora archive', bk ? `${bk.name} ${bk.mime} ${bk.size} bytes` : 'no call')
   check(await exportBackup.evaluate(b => b.disabled || b.classList.contains('btn-loading')), 'while the save screen is open the backup button waits')
   await shot('07-backup-saving')
-  if (bk) await nativeSaved(false, bk.name)
+  if (bk) await nativeSaved(false, bk)
   await page.waitForTimeout(500)
   check(await lastBackupAt() === before && await exportBackup.evaluate(b => !b.disabled), 'a cancelled save screen is not recorded as a backup', String(await lastBackupAt()))
   await page.evaluate(() => { window.__lastSave = null })
   await exportBackup.click()
   await page.waitForFunction(() => window.__lastSave, null, { timeout: 8000 }).catch(() => {})
   const bk2 = await lastSave()
-  if (bk2) await nativeSaved(true, bk2.name)
+  if (bk2) await nativeSaved(true, bk2)
   await page.waitForFunction(b => window.__dentora.db.settings.get('lastBackupAt').then(r => !!r && r.value !== b), before, { timeout: 5000 }).catch(() => {})
   check(await lastBackupAt() !== before, 'a written backup is recorded (last backup date)', String(await lastBackupAt()))
   await page.waitForTimeout(300)
@@ -261,7 +308,7 @@ try {
     check(!!chooser && !chooser.isMultiple(), 'choosing a backup opens the file chooser (one file)')
     if (chooser) {
       const accept = await chooser.element().getAttribute('accept')
-      await chooser.setFiles({ name: bk.name, mimeType: 'application/json', buffer: Buffer.from(bk.text) })
+      await chooser.setFiles({ name: bk.name, mimeType: 'application/octet-stream', buffer: backupData })
       const shown = await page.waitForSelector('[data-qa=restore-summary]', { timeout: 8000 }).then(() => true, () => false)
       check(shown, 'the chosen backup is read and summarised before restoring', `accept="${accept}"`)
       await shot('09-restore')

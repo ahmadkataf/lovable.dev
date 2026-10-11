@@ -18,9 +18,15 @@ function parseUsed(v: unknown): Used[] {
   return Array.isArray(v) ? v.filter((u): u is Used => !!u && typeof u.code === 'string' && Number.isFinite(u.day)) : []
 }
 
-/** Checks a pasted reset code for this device: signature, dates, and that it was not used before. `publicKey`: tests only. */
-export async function checkReset(device: string, pasted: string, now: number, publicKey?: JsonWebKey): Promise<ResetResult> {
-  const r = await checkResetCode(device, pasted, new Date(now), publicKey)
+/**
+ * Checks a pasted reset code for this device: signature, dates, and that it was not used before. `now` is the
+ * licence clock; the code is also accepted when it is in date by the device clock (`deviceNow`), because the
+ * licence clock stands still after a date that was once set too far ahead is corrected, and the locked-out admin
+ * must still get in with a code issued today. Reuse is stopped by the used list. `publicKey`: tests only.
+ */
+export async function checkReset(device: string, pasted: string, now: number, publicKey?: JsonWebKey, deviceNow = Date.now()): Promise<ResetResult> {
+  let r = await checkResetCode(device, pasted, new Date(now), publicKey)
+  if (!r.ok && r.reason === 'expired' && deviceNow !== now) r = await checkResetCode(device, pasted, new Date(deviceNow), publicKey)
   if (!r.ok) return r
   const code = cleanCode(extractCode(pasted))
   const used = parseUsed(await getSetting<unknown>(RESET_USED_SETTING, []))
@@ -32,9 +38,9 @@ export async function checkReset(device: string, pasted: string, now: number, pu
  * the screen), then marked as used. Returns the reason when it cannot be applied.
  */
 export async function applyPinReset(o: {
-  device: string; code: string; userId: string; pin: string; now: number; activityMessage: (name: string) => string; publicKey?: JsonWebKey
+  device: string; code: string; userId: string; pin: string; now: number; activityMessage: (name: string) => string; publicKey?: JsonWebKey; deviceNow?: number
 }): Promise<ResetResult> {
-  const r = await checkReset(o.device, o.code, o.now, o.publicKey)
+  const r = await checkReset(o.device, o.code, o.now, o.publicKey, o.deviceNow)
   if (!r.ok) return r
   if (pinError(o.pin)) throw new Error('pin')
   const user = await db.users.get(o.userId)

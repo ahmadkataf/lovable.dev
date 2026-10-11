@@ -9,7 +9,7 @@ import java.util.Map;
 /**
  * Prints, as JSON, how MainActivity.serve() answers URL paths of https://dentora.app, using the very same WebFiles
  * rules, for the files unpacked from an APK. android/test/webview-sim.mjs uses it to serve the packaged app to
- * Chromium exactly as the Android shell would.
+ * Chromium exactly as the Android shell would (with the shell's Content-Security-Policy on the HTML).
  *   java -cp <classes> com.dentora.app.ServeTable <unpacked-apk>/assets [extra url paths…]
  */
 public final class ServeTable {
@@ -47,8 +47,9 @@ public final class ServeTable {
             .append(",\"printHold\":").append(WebFiles.jsString(WebFiles.PRINT_HOLD_JS))
             .append(",\"printDone\":").append(WebFiles.jsString(WebFiles.PRINT_DONE_JS))
             .append(",\"pickCancelled\":").append(WebFiles.jsString(WebFiles.PICK_CANCELLED_JS))
-            .append(",\"savedOk\":").append(WebFiles.jsString(WebFiles.savedEventJs(true, false, "__NAME__")))
-            .append(",\"savedCancelled\":").append(WebFiles.jsString(WebFiles.savedEventJs(false, true, "__NAME__")))
+            .append(",\"savedOk\":").append(WebFiles.jsString(WebFiles.savedEventJs(true, false, "__NAME__", "__ID__", "")))
+            .append(",\"savedCancelled\":").append(WebFiles.jsString(WebFiles.savedEventJs(false, true, "__NAME__", "__ID__", "")))
+            .append(",\"csp\":").append(WebFiles.jsString(WebFiles.CSP))
             .append(",\"saveBlob\":").append(WebFiles.jsString(WebFiles.saveBlobJs("__URL__", "__NAME__")))
             .append(",\"startUrl\":").append(WebFiles.jsString(WebFiles.START_URL)).append("}}");
         System.out.println(b);

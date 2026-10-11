@@ -265,7 +265,7 @@ export default function AppointmentsPage() {
               <div className="apt-mtitle">
                 <h2 className="apt-title-main">{title}</h2>
                 {rel ? <span className="apt-title-rel">{rel}</span>
-                  : (date !== today || view === 'list') && <button type="button" className="apt-today-chip" onClick={() => patch({ date: today })}>{t('today')}</button>}
+                  : (date !== today || view === 'list') && <button type="button" className="apt-today-chip" onClick={() => patch({ date: today })}><span>{t('today')}</span></button>}
               </div>
               <IconButton label={t('next')} className="apt-flip" onClick={() => go(1)}><ChevronRight /></IconButton>
               <label className="btn btn-secondary btn-icon apt-mdate" title={t('appointments.goToDate')}>

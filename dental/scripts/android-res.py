@@ -1,4 +1,5 @@
-"""Writes the Android resources of Dentora into <out_dir>/res: the app name and the launcher icons.
+"""Writes the Android resources of Dentora into <out_dir>/res: the app name, the launcher icons and the data
+extraction rules (no cloud backup or device transfer of the clinic's data).
 
 Usage (from the dental/ folder, as scripts/build-apk.sh does):
     python3 scripts/android-res.py <out_dir>
@@ -240,6 +241,16 @@ def main():
     write(os.path.join(res, 'values', 'strings.xml'),
           '<?xml version="1.0" encoding="utf-8"?>\n<resources>\n'
           f'    <string name="app_name">{xml_escape(APP_NAME)}</string>\n</resources>\n')
+    # Android 12+: nothing of the app's storage (the WebView's IndexedDB holds every patient record) goes to a cloud
+    # backup or a phone-to-phone transfer; android:allowBackup="false" covers older versions. The backup file made in
+    # the app is the supported way to keep or move the clinic's data.
+    domains = ('root', 'file', 'database', 'sharedpref', 'external')
+    excludes = ''.join(f'        <exclude domain="{d}" path="." />\n' for d in domains)
+    write(os.path.join(res, 'xml', 'data_extraction_rules.xml'),
+          '<?xml version="1.0" encoding="utf-8"?>\n<data-extraction-rules>\n'
+          f'    <cloud-backup>\n{excludes}    </cloud-backup>\n'
+          f'    <device-transfer>\n{excludes}    </device-transfer>\n'
+          '</data-extraction-rules>\n')
 
     svg_text = open(SVG_PATH, encoding='utf-8').read()
     stops = gradient_stops(svg_text) or [(0, (20, 184, 166)), (1, (14, 143, 134))]

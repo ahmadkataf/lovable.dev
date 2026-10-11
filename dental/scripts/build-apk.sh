@@ -2,10 +2,12 @@
 # Builds Dentora for Android from the Vite build (dist/) with the Android build-tools only (no Gradle):
 #   android/build/Dentora.apk   to install directly on a phone or hand to a clinic
 #   android/build/Dentora.aab   the App Bundle Google Play asks for (when bundletool is available)
+#   (OUT_DIR=/some/folder puts them there instead)
 #
 #   cd dental && npm run build && ./scripts/build-apk.sh        (the same as: npm run android:build)
 #
-# Needs: an Android SDK with build-tools and a platform (the newest installed are used; android-35 or newer),
+# Needs: an Android SDK with build-tools and a platform (the newest installed are used; android-36 or newer:
+#        Google Play takes only apps that target API 36 since 31 August 2026),
 #        JDK 17+ (javac, keytool, jarsigner), python3 with Pillow, node (renders the icon), zip/unzip.
 # Optional environment:
 #   ANDROID_HOME                       the SDK (default: $ANDROID_SDK_ROOT, else /opt/android-sdk)
@@ -16,14 +18,17 @@
 #                                      (hex, colons optional). The release key's is in docs/ANDROID.md.
 #   VERSION_NAME                       default: the version in package.json (1.2.3)
 #   VERSION_CODE                       default: major*10000 + minor*100 + patch of VERSION_NAME (1.2.3 → 10203)
-#   TARGET_SDK                         default 35 (must not exceed the newest installed platform)
+#   TARGET_SDK                         default 36, the level Google Play requires (must not exceed the newest installed platform)
 #   BUNDLETOOL                         bundletool-all.jar or a bundletool launcher; default $ANDROID_HOME/bundletool.jar
 #   DIST                               the web build to package (default: dist)
+#   OUT_DIR                            where Dentora.apk / Dentora.aab and the work folder go (default: android/build)
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 A="$ROOT/android"
-OUT="$A/build"
+OUT="${OUT_DIR:-$A/build}"
+mkdir -p "$OUT"
+OUT="$(cd "$OUT" && pwd)"
 B="$OUT/work"
 APK="$OUT/Dentora.apk"
 AAB="$OUT/Dentora.aab"
@@ -36,17 +41,19 @@ need() { command -v "$1" >/dev/null 2>&1 || die "'$1' was not found: $2"; }
 
 # ---- tools ---------------------------------------------------------------------------------------------
 [ -f "$DIST/index.html" ] || die "$DIST/index.html is missing: build the web app first (cd dental && npm run build)."
-[ -d "$SDK/build-tools" ] || die "no Android SDK at $SDK (set ANDROID_HOME). It needs build-tools and platforms;android-35."
+[ -d "$SDK/build-tools" ] || die "no Android SDK at $SDK (set ANDROID_HOME). It needs build-tools;36.0.0 and platforms;android-36."
 newest() { for d in "$1"/*/; do [ -d "$d" ] && basename "$d"; done | grep -E "$2" | sort -V | tail -1 || true; }
 BT_VERSION="$(newest "$SDK/build-tools" '^[0-9]+(\.[0-9]+)*$')"
-[ -n "$BT_VERSION" ] || die "no build-tools in $SDK/build-tools (sdkmanager 'build-tools;35.0.0')"
+[ -n "$BT_VERSION" ] || die "no build-tools in $SDK/build-tools (sdkmanager 'build-tools;36.0.0')"
 BT="$SDK/build-tools/$BT_VERSION"
 PLATFORM="$(newest "$SDK/platforms" '^android-[0-9]+$')"
-[ -n "$PLATFORM" ] || die "no platform in $SDK/platforms (sdkmanager 'platforms;android-35')"
+[ -n "$PLATFORM" ] || die "no platform in $SDK/platforms (sdkmanager 'platforms;android-36')"
 AJ="$SDK/platforms/$PLATFORM/android.jar"
 COMPILE_SDK="${PLATFORM#android-}"
-TARGET_SDK="${TARGET_SDK:-35}"
-[ "$TARGET_SDK" -le "$COMPILE_SDK" ] || die "TARGET_SDK=$TARGET_SDK needs platforms;android-$TARGET_SDK (newest installed: $PLATFORM)"
+TARGET_SDK="${TARGET_SDK:-36}"
+[[ "$TARGET_SDK" =~ ^[0-9]+$ ]] || die "TARGET_SDK must be a number (got '$TARGET_SDK')"
+[ "$TARGET_SDK" -le "$COMPILE_SDK" ] || die "TARGET_SDK=$TARGET_SDK needs platforms;android-$TARGET_SDK (newest installed: $PLATFORM): $SDK/cmdline-tools/latest/bin/sdkmanager 'platforms;android-$TARGET_SDK' 'build-tools;$TARGET_SDK.0.0'"
+if [ "$TARGET_SDK" -lt 36 ]; then echo "build-apk: WARNING: target SDK $TARGET_SDK: Google Play refuses new apps and updates below 36. Fine for a test build only." >&2; fi
 need javac "install a JDK 17 or newer"
 need java "install a JDK 17 or newer"
 need jar "install a JDK 17 or newer"

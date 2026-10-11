@@ -35,12 +35,14 @@ function Dialog({ onClose, initial }: { onClose: () => void; initial: LegalDoc }
   // the documents' text is loaded with the dialog, not with the app
   const [ready, setReady] = useState(false)
   useEffect(() => { let alive = true; void loadLegalDocs().then(() => { if (alive) setReady(true) }); return () => { alive = false } }, [])
+  // the Android and Windows shells print natively and may never send 'afterprint': the print mode ends with the dialog
+  useEffect(() => () => document.body.classList.remove('lg-printing'), [])
   return (
     <Modal open onClose={onClose} size="lg" className="lg-modal" icon={ICON[doc]} title={t(`legal.${doc}`)}
       subtitle={doc !== 'notices' ? t('legal.updated', { date: fmtDate(LEGAL_DATE, lang, 'long') }) : t('legal.legalSub')}
       footer={<>
         {doc !== 'notices' && <Button variant="ghost" className="start" icon={<Languages />} onClick={() => setReadLang(other)} data-qa="legal-lang">{translate(readLang, 'legal.readIn')}</Button>}
-        {doc !== 'notices' && <Button variant="secondary" icon={<Printer />} onClick={() => printLegal()} className="hide-mobile">{t('print')}</Button>}
+        {doc !== 'notices' && <Button variant="secondary" icon={<Printer />} onClick={() => printLegal(tr(`legal.${doc}`))} className="hide-mobile">{t('print')}</Button>}
         <Button variant="primary" onClick={onClose}>{t('close')}</Button>
       </>}>
       <div className="lg-switch no-print">
@@ -57,13 +59,13 @@ function Dialog({ onClose, initial }: { onClose: () => void; initial: LegalDoc }
   )
 }
 
-/** Prints the document shown in the dialog only (the rest of the app is hidden for the print). */
-function printLegal() {
+/** Prints the document shown in the dialog only (the rest of the app is hidden for the print), named after it. */
+function printLegal(jobName: string) {
   const body = document.body
   body.classList.add('lg-printing')
   const done = () => { body.classList.remove('lg-printing'); window.removeEventListener('afterprint', done) }
   window.addEventListener('afterprint', done)
-  print()
+  print(jobName)
 }
 
 /** The open-source notices, loaded when this tab opens (the licence texts stay out of the start-up bundle). */

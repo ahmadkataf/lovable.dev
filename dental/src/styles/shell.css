@@ -35,6 +35,13 @@
 .app.collapsed .nav-item::after { content: attr(data-label); position: absolute; inset-inline-start: calc(100% + 10px); background: var(--text); color: #fff; font-size: var(--fs-xs); padding: 5px 9px; border-radius: 7px; white-space: nowrap; opacity: 0; pointer-events: none; transition: opacity var(--t-fast); z-index: 60; }
 .app.collapsed .nav-item:hover::after { opacity: 1; }
 .sidebar-footer { padding: 12px; border-top: 1px solid var(--divider); display: flex; flex-direction: column; gap: 8px; }
+.sidebar-user { display: flex; align-items: center; gap: 10px; padding: 8px; border-radius: var(--r-md); cursor: pointer; transition: background var(--t-fast); min-width: 0; }
+.sidebar-user:hover { background: var(--surface-3); }
+.sidebar-user .u-name { font-weight: 600; font-size: var(--fs-sm); } .sidebar-user .u-role { font-size: var(--fs-xs); color: var(--text-3); }
+.app.collapsed .sidebar-user { justify-content: center; padding: 6px 0; } .app.collapsed .sidebar-user > div:not(.avatar), .app.collapsed .sidebar-user > svg { display: none; }
+.collapse-btn { align-self: flex-end; }
+.app.collapsed .collapse-btn { align-self: center; } .app.collapsed .collapse-btn svg { transform: scaleX(-1); }
+[dir="rtl"] .collapse-btn svg { transform: scaleX(-1); } [dir="rtl"] .app.collapsed .collapse-btn svg { transform: none; }
 /* shorter screens (a 1280×800 tablet, a laptop): every item fits without scrolling the menu */
 @media (min-width: 1024px) and (max-height: 860px) {
   .nav { padding-block: 8px; gap: 1px; }
@@ -43,13 +50,34 @@
   .sidebar-footer { padding: 8px 12px; gap: 4px; }
   .sidebar-user { padding: 6px 8px; }
 }
-.sidebar-user { display: flex; align-items: center; gap: 10px; padding: 8px; border-radius: var(--r-md); cursor: pointer; transition: background var(--t-fast); min-width: 0; }
-.sidebar-user:hover { background: var(--surface-3); }
-.sidebar-user .u-name { font-weight: 600; font-size: var(--fs-sm); } .sidebar-user .u-role { font-size: var(--fs-xs); color: var(--text-3); }
-.app.collapsed .sidebar-user { justify-content: center; padding: 6px 0; } .app.collapsed .sidebar-user > div:not(.avatar), .app.collapsed .sidebar-user > svg { display: none; }
-.collapse-btn { align-self: flex-end; }
-.app.collapsed .collapse-btn { align-self: center; } .app.collapsed .collapse-btn svg { transform: scaleX(-1); }
-[dir="rtl"] .collapse-btn svg { transform: scaleX(-1); } [dir="rtl"] .app.collapsed .collapse-btn svg { transform: none; }
+/* shorter still (a 1366×768 laptop, a maximised window above the taskbar): tighter rows, and the collapse button
+   sits beside the signed-in user, so the whole menu stays in view */
+@media (min-width: 1024px) and (max-height: 790px) {
+  .nav { padding-block: 6px; gap: 0; }
+  .nav-item { height: 32px; }
+  .nav-group { padding: 6px 10px 2px; }
+  .app:not(.collapsed) .sidebar-footer { flex-direction: row; align-items: center; padding: 6px 8px; }
+  .app:not(.collapsed) .sidebar-footer > .menu-anchor { flex: 1; min-width: 0; }
+  .app:not(.collapsed) .sidebar-footer > .menu-anchor > span { width: 100%; }
+  .app:not(.collapsed) .collapse-btn { align-self: center; }
+}
+/* very short windows (1366×768 shown at 125 %): compact rows; below this the menu scrolls, with the hint below */
+@media (min-width: 1024px) and (max-height: 660px) {
+  .nav { padding-block: 4px; }
+  .nav-item { height: 28px; }
+  .nav-group { padding: 4px 10px 1px; }
+  .app.collapsed .nav-group { margin: 5px 8px; }
+}
+/* when the menu still has to scroll (a very short window), a soft shadow at its top or bottom edge shows there is more */
+.nav {
+  --nav-edge: rgba(16, 24, 40, .16);
+  background:
+    linear-gradient(var(--surface) 30%, transparent) top / 100% 32px no-repeat local,
+    linear-gradient(transparent, var(--surface) 70%) bottom / 100% 32px no-repeat local,
+    radial-gradient(farthest-side at 50% 0, var(--nav-edge), transparent) top / 100% 12px no-repeat scroll,
+    radial-gradient(farthest-side at 50% 100%, var(--nav-edge), transparent) bottom / 100% 12px no-repeat scroll;
+}
+:root[data-theme="dark"] .nav { --nav-edge: rgba(0, 0, 0, .6); }
 
 .app-topbar { position: sticky; top: 0; z-index: 30; height: calc(var(--topbar-h) + var(--safe-top)); padding-top: var(--safe-top); background: rgba(255,255,255,.85); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 12px; padding-inline: var(--gutter); }
 :root[data-theme="dark"] .app-topbar { background: rgba(17,26,46,.85); }

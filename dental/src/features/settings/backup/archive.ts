@@ -180,7 +180,7 @@ export interface ReadOptions { password?: string; onProgress?: (p: BackupProgres
 export async function readBackup(file: Blob, opts: ReadOptions = {}): Promise<ReadResult> {
   let kind: BackupKind
   try { kind = await detectBackup(file) } catch { throw new BackupError('read') }
-  if (kind === 'unknown') throw new BackupError('app')
+  if (kind === 'unknown') throw new BackupError(unknownReason(file))
   if (kind === 'json') return readLegacy(file)
   let archive: Blob = file
   if (kind === 'encrypted') {
@@ -194,6 +194,12 @@ export async function readBackup(file: Blob, opts: ReadOptions = {}): Promise<Re
     if ((await detectBackup(archive)) !== 'archive') throw new BackupError('damaged')
   }
   return readArchive(archive, kind === 'encrypted', opts)
+}
+
+/** An unreadable file that carries the backup's own name (.dentora) is a damaged backup, not some other file. */
+export function unknownReason(file: Blob): BackupFailure {
+  const name = (file as Partial<File>).name
+  return typeof name === 'string' && name.toLowerCase().endsWith(`.${BACKUP_EXT}`) ? 'damaged' : 'app'
 }
 
 const isRow = (r: unknown): r is Record<string, unknown> => !!r && typeof r === 'object' && !Array.isArray(r)

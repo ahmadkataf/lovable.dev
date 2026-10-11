@@ -53,3 +53,14 @@ describe('the red dot after a restart', () => {
     expect(unseenCount(['inv:a', 'stock:b', 'lab:c'], seen)).toBe(1)
   })
 })
+
+describe('national ID search in the palette', () => {
+  it('only a long number with nothing else typed is looked up as a national ID', async () => {
+    const { nationalIdQuery } = await import('../src/features/search/useSearch')
+    expect(nationalIdQuery('12561774325')).toBe('12561774325')
+    expect(nationalIdQuery(' 125-617-743 ')).toBe('125617743')
+    expect(nationalIdQuery('0944123')).toBe('')          // 7 digits: a phone fragment, the index answers it
+    expect(nationalIdQuery('أحمد 12561774325')).toBe('')  // a name with it: the index answers it
+    expect(nationalIdQuery('#36')).toBe('')
+  })
+})

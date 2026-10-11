@@ -56,7 +56,8 @@ const settings: ModuleDict = {
     'clinic.country': 'الدولة',
     'clinic.countryHint': 'يُضاف رمزها إلى الأرقام المحلية (مثل 0944…) في رسائل واتساب، ويحدد أسماء الأشهر العربية',
     'clinic.countryAuto': 'تلقائياً حسب العملة — {country}',
-    'clinic.countryOption': '{country} (+{code})',
+    // the code is isolated left-to-right (\u2066…\u2069) so the plus stays in front of it in Arabic: (+963), not (963+)
+    'clinic.countryOption': '{country} (\u2066+{code}\u2069)',
     'country.963': 'سوريا', 'country.961': 'لبنان', 'country.962': 'الأردن', 'country.970': 'فلسطين', 'country.964': 'العراق', 'country.966': 'السعودية', 'country.971': 'الإمارات', 'country.965': 'الكويت', 'country.974': 'قطر', 'country.973': 'البحرين', 'country.968': 'عُمان', 'country.967': 'اليمن', 'country.20': 'مصر', 'country.249': 'السودان', 'country.218': 'ليبيا', 'country.216': 'تونس', 'country.213': 'الجزائر', 'country.212': 'المغرب', 'country.90': 'تركيا', 'country.49': 'ألمانيا', 'country.44': 'المملكة المتحدة', 'country.33': 'فرنسا', 'country.46': 'السويد', 'country.31': 'هولندا', 'country.1': 'الولايات المتحدة وكندا',
     'clinic.preview': 'معاينة رأس الفاتورة',
     'clinic.previewSub': 'هكذا تظهر بيانات العيادة أعلى الفواتير المطبوعة، وتتحدث مع كل تعديل',

@@ -48,7 +48,7 @@ const appointments: ModuleDict = {
     'form.endsAt': 'ينتهي الساعة {time}',
     'form.conflictTitle': 'تعارض في الجدول', 'form.conflictDesc': 'لدى {doctor} موعد آخر في هذا الوقت. يمكنك الحفظ رغم ذلك أو اختيار وقت آخر:',
     'form.useSlot': 'أقرب وقت متاح: {time}',
-    'form.patientBusyTitle': 'للمريض موعد آخر في هذا الوقت', 'form.patientBusyDesc': '{name} محجوز في الوقت نفسه مع طبيب آخر. يمكنك الحفظ رغم ذلك أو اختيار وقت آخر:',
+    'form.patientBusyTitle': 'للمريض موعد آخر في هذا الوقت', 'form.patientBusyDesc': 'لدى {name} موعد مع طبيب آخر في الوقت نفسه. يمكنك الحفظ رغم ذلك أو اختيار وقت آخر:',
     'form.hoursTitle': 'خارج أوقات الدوام', 'form.closedDay': 'العيادة لا تعمل عادةً يوم {day}.', 'form.outsideHours': 'الوقت خارج ساعات الدوام ({from} – {to}).',
     'form.reasonPh': 'مثال: ألم في الضرس، تنظيف دوري…', 'form.notesPh': 'ملاحظات للطبيب أو لموظف الاستقبال',
     'form.noDoctors': 'لا يوجد أطباء', 'form.book': 'حجز الموعد', 'form.createdToast': 'تم حجز الموعد', 'form.savedToast': 'تم حفظ التعديلات',

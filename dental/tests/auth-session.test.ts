@@ -10,7 +10,7 @@ import { translate } from '../src/i18n'
 import { FRESH_GUARD, MAX_ATTEMPTS, isLocked, registerFailure } from '../src/features/auth/lib'
 import { GUARD_SETTING, guardFor, loadGuards, saveGuard } from '../src/features/auth/guardStore'
 import { RESET_USED_SETTING, applyPinReset, checkReset } from '../src/features/auth/resetPin'
-import { deviceNumber, packResetCode, resetMessage, dayNumber } from '../src/license/core'
+import { checkResetCode, deviceNumber, packResetCode, resetMessage, dayNumber } from '../src/license/core'
 
 const MIN = 60_000
 
@@ -157,6 +157,22 @@ describe('admin PIN reset with a seller code', () => {
     expect(await checkReset(await deviceNumber('other-pc'), c, now, keys.pub)).toEqual({ ok: false, reason: 'device' })
     expect((await checkReset(device, await code(device, now), now)).ok).toBe(false)
     expect((await db.activity.toArray()).some(a => a.message === 'reset د. سامر')).toBe(true)
+  })
+  it('accepts a code issued today when the licence clock stands days ahead of the device clock', async () => {
+    // the device date was once set 3 days ahead and then corrected: the licence clock (latest time seen) is still there
+    const today = Date.now()
+    const ahead = today + 3 * 86_400_000
+    const device = await deviceNumber('clinic-pc')
+    await db.users.put({ id: 'owner', name: 'د. سامر', role: 'admin', pinSalt: 's', pinHash: await sha256Hex('s:2468'), color: '#000', active: true, createdAt: '', updatedAt: '' })
+    const c = await code(device, today)
+    expect(await checkResetCode(device, c, new Date(ahead), keys.pub)).toEqual({ ok: false, reason: 'expired' })
+    expect((await checkReset(device, c, ahead, keys.pub, today)).ok).toBe(true)
+    // out of date by both clocks: refused
+    const old = await code(device, today - 5 * 86_400_000)
+    expect(await checkReset(device, old, ahead, keys.pub, today)).toEqual({ ok: false, reason: 'expired' })
+    const r = await applyPinReset({ device, code: c, userId: 'owner', pin: '1357', now: ahead, deviceNow: today, activityMessage: n => n, publicKey: keys.pub })
+    expect(r.ok).toBe(true)
+    expect(await checkReset(device, c, ahead, keys.pub, today)).toEqual({ ok: false, reason: 'used' })
   })
   it('hashes PINs with PBKDF2 from a reset as from setup', async () => {
     expect(await hashPin('1357', 'x')).toMatch(/^pbkdf2-sha256\$/)

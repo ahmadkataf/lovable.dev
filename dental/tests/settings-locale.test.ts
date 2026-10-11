@@ -32,6 +32,10 @@ describe('clinic country', () => {
     expect(clinicPatch({ ...d, countryCode: '966' }).countryCode).toBe('966')
     expect(clinicDraftFrom(clinic()).countryCode).toBe('')
   })
+  it('the code keeps its plus sign in front in Arabic (isolated left-to-right)', () => {
+    expect(translate('ar', 'settings.clinic.countryOption', { country: 'سوريا', code: '963' })).toBe('سوريا (\u2066+963\u2069)')
+    expect(translate('en', 'settings.clinic.countryOption', { country: 'Syria', code: '963' })).toBe('Syria (+963)')
+  })
   it('every country has a name in both languages', () => {
     for (const c of COUNTRY_CODES) for (const lang of ['ar', 'en'] as const) expect(translate(lang, `settings.country.${c}`)).not.toBe(`country.${c}`)
   })

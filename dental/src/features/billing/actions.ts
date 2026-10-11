@@ -252,6 +252,9 @@ export async function deleteReceipt(paymentId: ID, userId: ID | undefined): Prom
     const group = all.filter(x => receiptKey(x) === key)
     const rest = all.filter(x => receiptKey(x) !== key)
     if (onAccountNet(rest) < -EPS) throw new BillingError('refundedCredit')
+    // the same on an invoice: a refund taken off what this payment paid on it must go first
+    const touched = new Set(group.map(x => x.invoiceId).filter(Boolean) as ID[])
+    for (const id of touched) if (rest.filter(x => x.invoiceId === id).reduce((a, x) => a + (Number(x.amount) || 0), 0) < -EPS) throw new BillingError('refundedCredit')
     await db.payments.bulkDelete(group.map(x => x.id))
     await reconcilePatient(p.patientId)
     return group

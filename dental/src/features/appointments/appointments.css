@@ -361,13 +361,17 @@ button.apt-det-name:hover { color: var(--primary); text-decoration: underline; t
 
 /* ===== phone toolbar & floating action ===== */
 .apt-bar.apt-bar-m { display: flex; flex-direction: column; align-items: stretch; gap: 8px; padding: 10px 12px; }
-.apt-bar.apt-bar-m .apt-views button { height: 38px; }
+.apt-bar.apt-bar-m .apt-views button { height: 40px; }
 .apt-mnav { display: flex; align-items: center; gap: 6px; min-width: 0; }
 .apt-mnav .btn-icon { width: 40px; height: 40px; flex: none; }
 .apt-mtitle { flex: 1; min-width: 0; display: flex; align-items: center; justify-content: center; flex-wrap: wrap; gap: 2px 8px; text-align: center; }
 .apt-mtitle .apt-title-main { font-size: var(--fs-md); white-space: normal; line-height: 1.35; }
 .apt-mtitle .apt-title-rel { padding: 2px 9px; }
-.apt-today-chip { flex: none; font-size: var(--fs-xs); font-weight: 700; color: var(--p-700); background: var(--surface); border: 1px solid color-mix(in srgb, var(--primary) 40%, var(--border)); border-radius: var(--r-full); padding: 3px 10px; line-height: 1.4; }
+/* a small pill, but a 40px touch target (the negative margins keep the title row as tall as before) */
+.apt-today-chip { flex: none; display: inline-flex; align-items: center; min-height: 40px; margin-block: -8px; padding: 0 2px; background: none; border: 0; cursor: pointer; }
+.apt-today-chip > span { font-size: var(--fs-xs); font-weight: 700; color: var(--p-700); background: var(--surface); border: 1px solid color-mix(in srgb, var(--primary) 40%, var(--border)); border-radius: var(--r-full); padding: 3px 10px; line-height: 1.4; }
+.apt-today-chip:focus-visible { outline: none; }
+.apt-today-chip:focus-visible > span { box-shadow: 0 0 0 3px var(--primary-ring); }
 /* the calendar button holds a transparent date input over it: a tap opens the system date picker */
 .apt-mdate { position: relative; overflow: hidden; }
 .apt-mdate input { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; border: 0; padding: 0; margin: 0; }

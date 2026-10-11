@@ -65,14 +65,15 @@ jobs:
         with:
           python-version: '3.12'
 
-      - name: Android SDK (build-tools 35, platform 35)
+      # Google Play takes new apps and updates only when they target API 36 (Android 16) or higher (since 31 Aug 2026)
+      - name: Android SDK (build-tools 36, platform 36)
         run: |
           SDK="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-/usr/local/lib/android/sdk}}"
           echo "ANDROID_HOME=$SDK" >> "$GITHUB_ENV"
-          if [ ! -x "$SDK/build-tools/35.0.0/aapt2" ] || [ ! -f "$SDK/platforms/android-35/android.jar" ]; then
+          if [ ! -x "$SDK/build-tools/36.0.0/aapt2" ] || [ ! -f "$SDK/platforms/android-36/android.jar" ]; then
             SDKMANAGER="$SDK/cmdline-tools/latest/bin/sdkmanager"
             yes | "$SDKMANAGER" --licenses > /dev/null || true
-            "$SDKMANAGER" --install "build-tools;35.0.0" "platforms;android-35" > /dev/null
+            "$SDKMANAGER" --install "build-tools;36.0.0" "platforms;android-36" > /dev/null
           fi
           echo "build-tools:" "$SDK"/build-tools/*/
           echo "platforms:  " "$SDK"/platforms/*/
@@ -126,6 +127,7 @@ jobs:
           if [ -n "$INPUT_VERSION_CODE" ]; then
             export VERSION_CODE="$INPUT_VERSION_CODE"
           fi
+          export TARGET_SDK=36
           ./scripts/build-apk.sh
           {
             echo "### Dentora for Android"
@@ -133,7 +135,9 @@ jobs:
             AAPT2="$(find "$ANDROID_HOME/build-tools" -mindepth 2 -maxdepth 2 -name aapt2 | sort -V | tail -1)"
             # (no "| head": under pipefail an early-closing pipe would fail the step)
             "$AAPT2" dump badging android/build/Dentora.apk > "$RUNNER_TEMP/badging.txt"
-            grep -E "^(package|minSdkVersion|targetSdkVersion|uses-permission|application-label|launchable-activity):" "$RUNNER_TEMP/badging.txt"
+            grep -E "^(package|minSdkVersion|sdkVersion|targetSdkVersion|uses-permission|application-label|launchable-activity):" "$RUNNER_TEMP/badging.txt"
+            # a build Google Play would refuse must not pass as a release
+            grep -q "^targetSdkVersion:'36'" "$RUNNER_TEMP/badging.txt" || { echo "::error::the APK does not target API 36"; exit 1; }
             (cd android/build && ls -la Dentora.apk Dentora.aab && sha256sum Dentora.apk Dentora.aab)
             echo '```'
           } >> "$GITHUB_STEP_SUMMARY"

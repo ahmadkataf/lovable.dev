@@ -5,7 +5,7 @@ import { Alert, Button, Input, Modal, ProgressBar, Switch } from '@/ui'
 import { useI18n } from '@/i18n'
 import { formatBytes } from '@/lib/format'
 import { pickFile, SaveError } from '@/platform'
-import { BACKUP_ACCEPT, BackupError, detectBackup, readBackup, type BackupProgress, type BackupStage, type ReadResult } from './archive'
+import { BACKUP_ACCEPT, BackupError, detectBackup, readBackup, unknownReason, type BackupProgress, type BackupStage, type ReadResult } from './archive'
 import { MIN_PASSWORD } from './crypto'
 import './backup.css'
 
@@ -162,7 +162,7 @@ export function useBackupReader({ onRead, onError }: { onRead: (file: File, r: R
     if (!file) return
     let kind
     try { kind = await detectBackup(file) } catch { onError(t('backup.err.read')); return }
-    if (kind === 'unknown') { onError(t('backup.err.app')); return }
+    if (kind === 'unknown') { onError(t(`backup.err.${unknownReason(file)}`)); return }
     if (kind === 'encrypted') { setPrompt({ file }); return }
     await read(file)
   }

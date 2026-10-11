@@ -11,11 +11,13 @@ export function RowMenu({ items: source, label, size = 'sm' }: { items: MenuItem
   const { isRTL } = useI18n()
   const [open, setOpen] = useState(false)
   const [items, setItems] = useState<MenuItemDef[]>(() => (typeof source === 'function' ? [] : source))
+  // a lazily built menu stays hidden until this opening's items are in (no empty box, no jump, no stale entry)
+  const [ready, setReady] = useState(typeof source !== 'function')
   useEffect(() => {
-    if (typeof source !== 'function') { setItems(source); return }
-    if (!open) return
+    if (typeof source !== 'function') { setItems(source); setReady(true); return }
+    if (!open) { setReady(false); return }
     let alive = true
-    void Promise.resolve(source()).then(list => { if (alive) setItems(list) })
+    void Promise.resolve(source()).then(list => { if (alive) { setItems(list); setReady(true) } })
     return () => { alive = false }
   }, [open, source])
   const [pos, setPos] = useState<{ top: number; left: number } | null>(null)
@@ -39,7 +41,7 @@ export function RowMenu({ items: source, label, size = 'sm' }: { items: MenuItem
     window.addEventListener('resize', place)
     window.addEventListener('scroll', place, true)
     return () => { window.removeEventListener('resize', place); window.removeEventListener('scroll', place, true) }
-  }, [open, isRTL, items.length])
+  }, [open, isRTL, items.length, ready])
 
   useEffect(() => {
     if (!open) return
@@ -59,7 +61,7 @@ export function RowMenu({ items: source, label, size = 'sm' }: { items: MenuItem
         <MoreVertical />
       </button>
       {open && createPortal(
-        <div ref={menu} className="menu inv-portal-menu" role="menu" style={{ top: pos?.top ?? -9999, left: pos?.left ?? -9999, visibility: pos ? 'visible' : 'hidden' }} onClick={() => setOpen(false)}>
+        <div ref={menu} className="menu inv-portal-menu" role="menu" style={{ top: pos?.top ?? -9999, left: pos?.left ?? -9999, visibility: pos && ready ? 'visible' : 'hidden' }} onClick={() => setOpen(false)}>
           {items.map((it, i) => it.sep ? <div key={i} className="menu-sep" /> : it.header ? <div key={i} className="menu-label">{it.header}</div> : (
             <button key={i} type="button" role="menuitem" className={`menu-item${it.danger ? ' danger' : ''}`} disabled={it.disabled} onClick={e => { e.stopPropagation(); setOpen(false); it.onClick?.() }}>
               {it.icon}<span className="grow">{it.label}</span>
