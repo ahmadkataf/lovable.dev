@@ -40,6 +40,7 @@ export default function PlanFormModal({ open, onClose, patientId, plan, patientD
   const [tried, setTried] = useState(false)
   const [saving, setSaving] = useState(false)
   const busy = useRef(false)
+  useEffect(() => { if (open) busy.current = false }, [open])   // a save that worked keeps the lock until the dialog closes: a second Enter handled before it re-renders must not save again
 
   useEffect(() => {
     if (!open) return
@@ -72,7 +73,7 @@ export default function PlanFormModal({ open, onClose, patientId, plan, patientD
         onClose()
         onCreated?.(p)
       }
-    } catch (err) { toast.error(t('error'), String((err as Error)?.message ?? err)) } finally { busy.current = false; setSaving(false) }
+    } catch (err) { busy.current = false; toast.error(t('error'), String((err as Error)?.message ?? err)) } finally { setSaving(false) }
   }
 
   return (

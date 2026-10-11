@@ -1,5 +1,5 @@
 // New / edit lab order. Used by the lab board and the patient's lab tab.
-import { useEffect, useMemo, useState, type FormEvent } from 'react'
+import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { CalendarClock, FlaskConical, Link2, Palette } from 'lucide-react'
 import { db } from '@/db'
@@ -62,6 +62,7 @@ function LabForm({ onClose, order, defaults, lockPatient, onSaved }: Props) {
   const [treatmentItemId, setTreatmentItemId] = useState(order?.treatmentItemId ?? defaults?.treatmentItemId ?? '')
   const [errors, setErrors] = useState<{ patient?: boolean; lab?: boolean; due?: boolean; cost?: boolean } | null>(null)
   const [busy, setBusy] = useState(false)
+  const saving = useRef(false)   // taken by the first submit, released on failure; a save that worked keeps it (the dialog closes)
 
   const initialPatientId = order?.patientId ?? defaults?.patientId
   const [patientLoading, setPatientLoading] = useState(!!initialPatientId)
@@ -108,6 +109,8 @@ function LabForm({ onClose, order, defaults, lockPatient, onSaved }: Props) {
     setErrors(e ?? {})
     // a tall sheet on a phone: bring the first error into view instead of failing silently
     if (e || !patient) { revealFirstError(); return }
+    if (saving.current) return
+    saving.current = true
     setBusy(true)
     try {
       const received = status === 'received' || status === 'fitted' ? receivedDate || today : undefined
@@ -125,6 +128,7 @@ function LabForm({ onClose, order, defaults, lockPatient, onSaved }: Props) {
       onSaved?.(id)
       onClose()
     } catch {
+      saving.current = false
       toast.error(t('error'), t('tryAgain'))
     } finally { setBusy(false) }
   }

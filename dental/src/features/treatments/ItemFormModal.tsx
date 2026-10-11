@@ -67,6 +67,7 @@ export default function ItemFormModal({ open, onClose, patientId, mode, item, ta
   const [tried, setTried] = useState(false)
   const [saving, setSaving] = useState(false)
   const busy = useRef(false)                 // a double click / double Enter must not add the items twice
+  useEffect(() => { if (open) busy.current = false }, [open])   // a save that worked keeps the lock until the dialog closes: a second Enter handled before it re-renders must not save again
 
   const planOf = (id?: string) => plans.find(p => p.id === id)
   const defaultDoctor = useDefaultDoctor(patientDoctorId)
@@ -150,7 +151,7 @@ export default function ItemFormModal({ open, onClose, patientId, mode, item, ta
       if (!(quiet?.(mode, proc) && sorted.length > 0)) toast.success(mode === 'quick' ? t('treatments.toast.quickDone') : tn(t, lang, 'treatments.toast.itemsAdded', res.items.length), name)
       onClose()
       onSaved?.(res.items, mode, proc!)
-    } catch (ex) { toast.error(t('error'), String((ex as Error)?.message ?? ex)) } finally { busy.current = false; setSaving(false) }
+    } catch (ex) { busy.current = false; toast.error(t('error'), String((ex as Error)?.message ?? ex)) } finally { setSaving(false) }
   }
 
   const title = mode === 'edit' ? t('treatments.item.editTitle') : mode === 'quick' ? t('treatments.item.quickTitle') : t('treatments.item.addTitle')

@@ -24,6 +24,7 @@ export default function BillModal({ open, onClose, patientId, patientName, items
   const [chosen, setChosen] = useState<Set<string>>(new Set())
   const [saving, setSaving] = useState(false)
   const busy = useRef(false)          // one invoice per click, however fast the clicks
+  useEffect(() => { if (open) busy.current = false }, [open])   // a save that worked keeps the lock until the dialog closes: a second Enter handled before it re-renders must not save again
   useEffect(() => { if (open) setChosen(new Set(items.map(i => i.id))) }, [open]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const picked = items.filter(i => chosen.has(i.id))
@@ -44,9 +45,9 @@ export default function BillModal({ open, onClose, patientId, patientName, items
       toast.success(t('treatments.toast.invoiced', { number: inv.number }), money(inv.total))
       onClose()
       navigate('/invoices/' + inv.id)
-    } catch (e) {
+    } catch (e) { busy.current = false;
       toast.error(t('error'), (e as Error)?.message === 'nothing-to-bill' ? t('treatments.bill.nothing') : String((e as Error)?.message ?? e))
-    } finally { busy.current = false; setSaving(false) }
+    } finally { setSaving(false) }
   }
 
   return (

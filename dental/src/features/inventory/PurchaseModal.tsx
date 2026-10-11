@@ -43,6 +43,7 @@ export default function PurchaseModal({ open, onClose, initialItemIds }: { open:
   const [tried, setTried] = useState(false)
   const [busy, setBusy] = useState(false)
   const saving = useRef(false)   // a second Enter or click before the first write ends must not save twice
+  useEffect(() => { if (open) saving.current = false }, [open])   // a save that worked keeps the lock until the dialog closes: a second Enter handled before it re-renders must not save again
   const canExpense = session.can('manage')
 
   // fresh form on every open (pre-filled with the given items, e.g. the low-stock ones)
@@ -108,9 +109,9 @@ export default function PurchaseModal({ open, onClose, initialItemIds }: { open:
       void logActivity({ type: 'inventory', action: 'create', by: session.user?.id, message: tn(t, lang, 'inventory.act.purchased', r.count) + (r.total > 0 ? ` (${money(r.total)})` : '') })
       if (r.expenseId) void logActivity({ type: 'expense', action: 'create', entityId: r.expenseId, by: session.user?.id, message: t('expenses.act.created', { desc, amount: money(r.total) }) })
       onClose()
-    } catch {
+    } catch { saving.current = false;
       toast.error(t('error'), t('tryAgain'))
-    } finally { saving.current = false; setBusy(false) }
+    } finally { setBusy(false) }
   }
 
   const formId = `${uid}-purchase`

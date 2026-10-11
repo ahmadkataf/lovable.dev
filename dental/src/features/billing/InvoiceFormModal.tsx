@@ -159,9 +159,9 @@ function InvoiceForm({ onClose, patientId: initialPatient, existing, onSaved }: 
       toast.success(mode === 'draft' ? t('billing.draftSaved') : isIssued ? t('billing.invoiceUpdated') : t('billing.invoiceIssued'), mode === 'issue' ? <><span className="num">{inv.number}</span> · <span className="money">{money(inv.total)}</span></> : undefined)
       onSaved?.(inv, mode)
       onClose()
-    } catch (err) {
+    } catch (err) { busy.current = false;
       toast.error(t('error'), err instanceof BillingError ? t(`billing.err.${err.code}`) : t('tryAgain'))
-    } finally { busy.current = false; setSaving(null) }
+    } finally { setSaving(null) }
   }
 
   const ro = license.readOnly

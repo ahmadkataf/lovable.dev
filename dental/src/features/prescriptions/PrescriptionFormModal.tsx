@@ -62,6 +62,7 @@ function RxForm({ onClose, prescription, defaults, lockPatient, onSaved }: Omit<
   const [items, setItems] = useState<ItemDraft[]>(() => (prescription?.items ?? defaults?.items ?? []).map(itemToDraft))
   const [errors, setErrors] = useState<RxErrors | null>(null)
   const [busy, setBusy] = useState(false)
+  const saving = useRef(false)   // taken by the first submit, released on failure; a save that worked keeps it (the dialog closes)
   const focusKey = useRef<string | null>(null)
   const listRef = useRef<HTMLDivElement>(null)
 
@@ -106,6 +107,8 @@ function RxForm({ onClose, prescription, defaults, lockPatient, onSaved }: Omit<
       revealFirstError()
       return
     }
+    if (saving.current) return
+    saving.current = true
     // a medicine that conflicts with an allergy on the patient's file needs a deliberate second look
     const clashing = items.filter(i => !isBlankItem(i) && conflictsOf(i).length)
     if (clashing.length) {
@@ -113,7 +116,7 @@ function RxForm({ onClose, prescription, defaults, lockPatient, onSaved }: Omit<
         title: t('prescriptions.allergy.confirmTitle'), danger: true, confirmLabel: t('prescriptions.allergy.confirmSave'), cancelLabel: t('prescriptions.allergy.review'),
         description: t('prescriptions.allergy.confirmDesc', { drugs: clashing.map(i => i.name.trim()).join(lang === 'ar' ? '، ' : ', ') }),
       })
-      if (!ok) return
+      if (!ok) { saving.current = false; return }
     }
     setBusy(true)
     try {
@@ -125,6 +128,7 @@ function RxForm({ onClose, prescription, defaults, lockPatient, onSaved }: Omit<
       toast.success(t(editing ? 'prescriptions.toast.updated' : 'prescriptions.toast.created'), patient.name)
       onSaved(id)
     } catch {
+      saving.current = false
       toast.error(t('error'), t('tryAgain'))
     } finally { setBusy(false) }
   }

@@ -24,6 +24,7 @@ export default function ChartUpdateModal({ prompt, onClose, patientId }: { promp
   const [surfaces, setSurfaces] = useState<Record<string, ToothSurface[]>>({})
   const [saving, setSaving] = useState(false)
   const busy = useRef(false)
+  useEffect(() => { if (prompt) busy.current = false }, [prompt])   // a save that worked keeps the lock until the dialog closes: a second Enter handled before it re-renders must not save again
   const items = (prompt?.items ?? []).filter(i => i.tooth)
 
   useEffect(() => {
@@ -63,7 +64,7 @@ export default function ChartUpdateModal({ prompt, onClose, patientId }: { promp
       void logActivity({ type: 'treatment', action: 'update', patientId, by: user?.id, entityId: items[0]?.id, message: t('treatments.log.chart', { teeth: teeth.join(listSep(lang)), cond: t(`cond.${condition}`) }) })
       toast.success(t('treatments.toast.chartUpdated'), `${t(`cond.${condition}`)} · ${teeth.join(listSep(lang))}`)
       onClose()
-    } catch (e) { toast.error(t('error'), String((e as Error)?.message ?? e)) } finally { busy.current = false; setSaving(false) }
+    } catch (e) { busy.current = false; toast.error(t('error'), String((e as Error)?.message ?? e)) } finally { setSaving(false) }
   }
 
   return (

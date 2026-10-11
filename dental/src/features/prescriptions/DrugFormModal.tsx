@@ -1,5 +1,5 @@
 // Add / edit a drug of the catalogue: names, form, strength and the defaults a prescription row is filled with.
-import { useState, type FormEvent } from 'react'
+import { useRef, useState, type FormEvent } from 'react'
 import { Pill } from 'lucide-react'
 import type { Drug } from '@/db/types'
 import { useI18n } from '@/i18n'
@@ -17,11 +17,14 @@ export default function DrugFormModal({ drug, onClose, onSaved, forms }: { drug?
   }))
   const [err, setErr] = useState(false)
   const [busy, setBusy] = useState(false)
+  const saving = useRef(false)   // taken by the first submit, released on failure; a save that worked keeps it (the dialog closes)
   const set = <K extends keyof DrugInput>(k: K, v: DrugInput[K]) => setF(cur => ({ ...cur, [k]: v }))
 
   const submit = async (e?: FormEvent) => {
     e?.preventDefault()
     if (!f.name.trim() && !(f.nameEn ?? '').trim()) { setErr(true); return }
+    if (saving.current) return
+    saving.current = true
     setBusy(true)
     try {
       // a drug always has a primary name: the English one fills it when only that was typed
@@ -30,6 +33,7 @@ export default function DrugFormModal({ drug, onClose, onSaved, forms }: { drug?
       onSaved?.(id)
       onClose()
     } catch {
+      saving.current = false
       toast.error(t('error'), t('tryAgain'))
     } finally { setBusy(false) }
   }

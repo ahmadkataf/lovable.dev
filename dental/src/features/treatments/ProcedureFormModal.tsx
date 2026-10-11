@@ -29,6 +29,7 @@ export default function ProcedureFormModal({ open, onClose, procedure, copyOf, d
   const [tried, setTried] = useState(false)
   const [saving, setSaving] = useState(false)
   const busy = useRef(false)
+  useEffect(() => { if (open) busy.current = false }, [open])   // a save that worked keeps the lock until the dialog closes: a second Enter handled before it re-renders must not save again
 
   useEffect(() => {
     if (!open) return
@@ -72,9 +73,9 @@ export default function ProcedureFormModal({ open, onClose, procedure, copyOf, d
       void logActivity({ type: 'system', action: procedure ? 'update' : 'create', entityId: rec.id, by: user?.id, message: t(procedure ? 'treatments.log.procUpdated' : 'treatments.log.procCreated', { name: rec.name }) })
       toast.success(t(procedure ? 'treatments.toast.procUpdated' : 'treatments.toast.procCreated'), pick(rec.name, rec.nameEn))
       onClose()
-    } catch (err) {
+    } catch (err) { busy.current = false;
       toast.error(t('error'), String((err as Error)?.message ?? err))
-    } finally { busy.current = false; setSaving(false) }
+    } finally { setSaving(false) }
   }
 
   return (

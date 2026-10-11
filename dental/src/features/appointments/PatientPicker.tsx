@@ -42,6 +42,10 @@ export default function PatientPicker({ value, onChange, error, disabled, autoFo
   const wrapRef = useRef<HTMLDivElement>(null)
   const nameRef = useRef<HTMLInputElement>(null)
   const busyRef = useRef(false)   // a repeated Enter / double click must not create the patient twice
+  // a patient that was created keeps the lock until the quick form closes (a second Enter handled before the
+  // re-render must not create a twin); opening the quick form again releases it
+  const quickOpen = quick !== null
+  useEffect(() => { if (quickOpen) busyRef.current = false }, [quickOpen])
 
   // Thousands of files: the dropdown never reads the whole table on open. Index queries answer at once (newest files,
   // file number, start of the phone or of the name); the shared patient index, read once in the background, then adds
@@ -122,8 +126,9 @@ export default function PatientPicker({ value, onChange, error, disabled, autoFo
       setQuick(null); setQ('')
       onChange(p)
     } catch {
+      busyRef.current = false
       toast.error(t('error'), t('tryAgain'))
-    } finally { busyRef.current = false; setBusy(false) }
+    } finally { setBusy(false) }
   }
   const quickKey = (e: KeyboardEvent) => {
     if (e.key === 'Enter') { e.preventDefault(); void createQuick() }

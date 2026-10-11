@@ -25,6 +25,7 @@ export default function BulkPriceModal({ open, onClose, procedures, category }: 
   const [round, setRound] = useState(0)
   const [saving, setSaving] = useState(false)
   const busy = useRef(false)          // applying twice would raise the prices twice
+  useEffect(() => { if (open) busy.current = false }, [open])   // a save that worked keeps the lock until the dialog closes: a second Enter handled before it re-renders must not save again
   useEffect(() => { if (open) { setMode('percent'); setDir('up'); setValue(10); setRound(0) } }, [open])
 
   const scope = useMemo(() => sortProcedures(procedures), [procedures])
@@ -45,7 +46,7 @@ export default function BulkPriceModal({ open, onClose, procedures, category }: 
       void logActivity({ type: 'system', action: 'update', by: user?.id, message: t('treatments.log.bulk', { n, scope: scopeLabel, change: describe() }) })
       toast.success(t('treatments.toast.bulkDone'), t('treatments.bulk.changedN', { n }))
       onClose()
-    } catch (e) { toast.error(t('error'), String((e as Error)?.message ?? e)) } finally { busy.current = false; setSaving(false) }
+    } catch (e) { busy.current = false; toast.error(t('error'), String((e as Error)?.message ?? e)) } finally { setSaving(false) }
   }
   const describe = () => `${dir === 'down' ? '−' : '+'}${mode === 'percent' ? `${value ?? 0}%` : money(value ?? 0)}`
 

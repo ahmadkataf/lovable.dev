@@ -33,6 +33,7 @@ export default function ExpenseFormModal({ open, onClose, expense, onSaved }: Ex
   const [tried, setTried] = useState(false)
   const [busy, setBusy] = useState(false)
   const saving = useRef(false)   // a second Enter or click before the first write ends must not save twice
+  useEffect(() => { if (open) saving.current = false }, [open])   // a save that worked keeps the lock until the dialog closes: a second Enter handled before it re-renders must not save again
   useEffect(() => {
     if (!open) return
     setTried(false); setBusy(false)
@@ -80,9 +81,9 @@ export default function ExpenseFormModal({ open, onClose, expense, onSaved }: Ex
       }
       onSaved?.(id)
       onClose()
-    } catch {
+    } catch { saving.current = false;
       toast.error(t('error'), t('tryAgain'))
-    } finally { saving.current = false; setBusy(false) }
+    } finally { setBusy(false) }
   }
 
   const formId = `${uid}-form`
