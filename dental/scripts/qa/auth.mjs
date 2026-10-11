@@ -445,7 +445,7 @@ try {
     await page.click('[data-qa=save-member]')
     await page.waitForSelector('#au-staff-form', { state: 'detached' })
     const edited = await db(page, id => window.__dentora.db.users.get(id), added.id)
-    ok(edited.role === 'receptionist' && edited.specialty === 'استقبال ومواعيد' && edited.pinHash === added.pinHash, 'db: member edited, PIN untouched')
+    ok(edited.role === 'receptionist' && edited.specialty === 'استقبال ومواعيد' && edited.pinHash === added.pinHash, `db: member edited, PIN untouched (${edited.role} · ${edited.specialty} · pin ${edited.pinHash === added.pinHash ? 'same' : 'changed'})`)
 
     // reset PIN
     await card.locator('[data-qa=member-menu]').click()

@@ -1,6 +1,6 @@
 // The seller's contact details, shown in Settings → Licence under "How do I get an activation code?" and in the
 // privacy policy and terms. Leave a field '' to hide it. Codes are made with the private generator:
-//   node scripts/code-generator.mjs <device> <standard|pro> [YYYY-MM-DD | 1y | 2y | lifetime]
+//   node scripts/code-generator.mjs <device>   (a lifetime code; or <device> <standard|pro> [YYYY-MM-DD | 1y | 2y | lifetime])
 //   or the offline page built by: npx vite build --config vite.tools.config.ts  →  dist-tools/code-generator.html
 import { installSource } from '@/platform'
 
@@ -18,8 +18,8 @@ export const SELLER = {
   whatsapp: '+963 996 489 504',
   email: '',
   /** Shown as written; priceTextEn is used when the app is in English. '' = no price shown. */
-  priceText: '',
-  priceTextEn: '',
+  priceText: 'ترخيص مدى الحياة: \u206659$\u2069 فقط',   // \u2066…\u2069 keeps "59$" in that order inside Arabic text
+  priceTextEn: 'Lifetime licence: just $59',
 }
 
 /** Whether this copy may show the seller box (see showPurchaseInfo). */

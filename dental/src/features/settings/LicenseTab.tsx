@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
-import { BadgeCheck, CalendarClock, Copy, Crown, Infinity as InfinityIcon, KeyRound, Lock, Mail, MessageCircle, RefreshCw, ShieldAlert, ShieldCheck, Sparkles, Store } from 'lucide-react'
+import { BadgeCheck, CalendarClock, Copy, Crown, Infinity as InfinityIcon, KeyRound, Lock, Mail, MessageCircle, RefreshCw, ShieldAlert, ShieldCheck, Sparkles, Store, Tag } from 'lucide-react'
 import { Alert, Badge, Button, buttonClass, Card, CardBody, ProgressBar, useConfirm, useToast, Textarea } from '@/ui'
 import { useI18n } from '@/i18n'
 import { getSetting, logActivity } from '@/db'
@@ -104,6 +104,7 @@ export default function LicenseTab() {
               number) to the seller on WhatsApp */}
           {hasSeller && SELLER.whatsapp && !noDevice && status !== 'active' && (
             <div className="st-device-ask">
+              {(SELLER.priceText || SELLER.priceTextEn) && <div className="st-price-tag" data-qa="price-top"><Tag />{pick(SELLER.priceText, SELLER.priceTextEn)}</div>}
               <Button variant="success" block icon={<MessageCircle />} onClick={() => openExternal(whatsappLink(SELLER.whatsapp, request))} data-qa="ask-whatsapp">
                 {t('license.askWhatsapp')}
               </Button>
