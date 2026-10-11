@@ -82,6 +82,10 @@
 .pt-meta-item .avatar-xs { width: 22px; height: 22px; font-size: 9px; }
 .pt-link { color: var(--text-2); }
 .pt-link:hover { color: var(--primary); }
+/* contact items never push the header wider than the screen: a long e-mail shrinks and ends with an ellipsis */
+.pt-hero-contact > * { max-width: 100%; }
+.pt-email { min-width: 0; }
+.pt-email-text { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .pt-contact-pill { display: inline-flex; align-items: center; gap: 6px; padding-inline: 12px 4px; height: 36px; border-radius: var(--r-full); background: var(--surface-2); border: 1px solid var(--border); }
 .pt-contact-pill .pt-phone-text { color: var(--text); font-weight: 600; }
 .pt-hero-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; justify-content: flex-end; flex: none; }
@@ -120,6 +124,12 @@
 /* items as pills that stand off the tinted strip: allergies solid red (seen at a glance), the rest white with a tone outline */
 .pt-alert .badge { background: var(--surface); box-shadow: inset 0 0 0 1px color-mix(in srgb, currentColor 30%, transparent); }
 .pt-alert .badge-danger { background: var(--danger); color: var(--text-inverse); box-shadow: none; }
+/* a medical alert entry can be a long sentence ("Type 2 diabetes on insulin, HbA1c 9.1% — consult physician…"):
+   it wraps inside the strip instead of widening the page past the phone screen (and pushing the bottom nav away) */
+.pt-alert > .grow, .pt-alert-groups, .pt-alert-group { min-width: 0; max-width: 100%; }
+.pt-alert .badge, .pt-badges .badge { white-space: normal; height: auto; min-height: 24px; line-height: 1.45; padding-block: 3px; overflow-wrap: anywhere; text-align: start; max-width: 100%; border-radius: 12px; }
+.pt-alert .badge-lg { min-height: 28px; }
+.pt-alert-title { overflow-wrap: anywhere; }
 
 .pt-tabs { margin: 20px 0 18px; }
 .pt-tab-tooth { display: inline-flex; }
@@ -201,14 +211,27 @@
   .pt-kpi:nth-child(n+3) { border-top: 1px solid var(--divider); }
 }
 @media (max-width: 767px) {
-  .pt-stats { gap: 8px; margin-bottom: 14px; }
-  .pt-stats .stat-card { flex-direction: column; gap: 8px; padding: 12px; }
-  .pt-stats .stat-icon { width: 32px; height: 32px; border-radius: 10px; }
-  .pt-stats .stat-icon svg { width: 16px; height: 16px; }
-  .pt-stats .stat-label { font-size: var(--fs-xs); line-height: 1.35; }
-  .pt-stats .stat-value { font-size: var(--fs-xl); }
-  .pt-toolbar { gap: 10px; }
-  .pt-search { flex-basis: 100%; min-width: 0; }
+  /* phones: the key figures are a slim strip (value over label, no icon) so the first patient shows without scrolling */
+  .pt-stats { gap: 8px; margin-bottom: 12px; }
+  .pt-stats .stat-card { flex-direction: column; align-items: flex-start; gap: 2px; padding: 8px 10px; border-radius: var(--r-lg); }
+  .pt-stats .stat-icon { display: none; }
+  .pt-stats .stat-card > .grow { display: flex; flex-direction: column; min-width: 0; }
+  .pt-stats .stat-label { font-size: 11px; line-height: 1.3; order: 2; }
+  .pt-stats .stat-value { font-size: var(--fs-lg); line-height: 1.2; }
+  .pt-toolbar { gap: 8px; flex-wrap: nowrap; margin-bottom: 12px; }
+  .pt-search { flex: 1 1 auto; min-width: 0; }
+  .pt-filter-btn { flex: none; min-width: 44px; height: 44px; padding: 0 10px; gap: 4px; }
+  .pt-filter-btn .pt-count { margin: 0; }
+  .pt-sheet .segmented button { flex: 1; justify-content: center; }
+  .pt-sheet .pt-select { width: 100%; max-width: none; }
+  .pt-sheet .switch .pt-count { margin-inline-start: 8px; }
+  /* the floating "new patient" button, above the bottom bar; the list ends with room for it */
+  .pt-fab { position: fixed; z-index: 35; inset-inline-end: 16px; bottom: calc(var(--bottomnav-h) + var(--safe-bottom) + 14px); height: 52px; min-width: 52px; padding: 0 20px; gap: 8px; border-radius: var(--r-full); box-shadow: var(--sh-lg), var(--sh-primary); transition: padding var(--t-med) var(--ease), gap var(--t-med) var(--ease); }
+  .pt-fab svg { width: 22px; height: 22px; flex: none; }
+  .pt-fab-label { max-width: 220px; overflow: hidden; white-space: nowrap; transition: max-width var(--t-med) var(--ease), opacity var(--t-fast); }
+  .pt-fab.is-compact { padding: 0 15px; gap: 0; }
+  .pt-fab.is-compact .pt-fab-label { max-width: 0; opacity: 0; }
+  .pt-cards-footer { padding-bottom: 64px; }
   .pt-filters { flex-wrap: nowrap; overflow-x: auto; width: calc(100% + 2 * var(--gutter)); margin-inline: calc(-1 * var(--gutter)); padding: 2px var(--gutter) 4px; scrollbar-width: none; }
   .pt-filters::-webkit-scrollbar { display: none; }
   .pt-filters > * { flex: none; }

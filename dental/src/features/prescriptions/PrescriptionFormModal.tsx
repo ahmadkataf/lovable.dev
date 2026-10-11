@@ -9,10 +9,10 @@ import { todayISO } from '@/db/ids'
 import { useI18n } from '@/i18n'
 import { useDoctors, useUsers } from '@/app/hooks'
 import { useSession } from '@/app/session'
-import { Alert, Button, Field, IconButton, Input, Modal, Select, Textarea, useToast } from '@/ui'
+import { Alert, Button, Field, IconButton, Input, Modal, Select, Textarea, revealFirstError, useConfirm, useToast } from '@/ui'
 import {
-  type ItemDraft, draftsToItems, durationPresets, emptyItem, FREQUENCY_PRESETS, hasErrors, INSTRUCTION_PRESETS, isBlankItem, itemFromDrug, itemToDraft, searchDrugs,
-  validatePrescription, type RxErrors,
+  type ItemDraft, allergyConflicts, draftsToItems, durationPresets, emptyItem, FREQUENCY_PRESETS, hasErrors, INSTRUCTION_PRESETS, isBlankItem, itemFromDrug, itemToDraft, searchDrugs,
+  validatePrescription, type AllergyConflict, type RxErrors,
 } from './lib'
 import { savePrescription } from './actions'
 import { ComboInput, PatientSelect, Popover } from './parts'
@@ -45,10 +45,13 @@ export default function PrescriptionFormModal({ open, onClose, prescription, def
 function RxForm({ onClose, prescription, defaults, lockPatient, onSaved }: Omit<Props, 'open' | 'showSheet' | 'onSaved'> & { onSaved: (id: string) => void }) {
   const { t, lang } = useI18n()
   const toast = useToast()
+  const confirm = useConfirm()
   const session = useSession()
   const doctors = useDoctors()
   const allUsers = useUsers(false)
   const editing = !!prescription
+  const drugs = useLiveQuery(() => db.drugs.toArray(), [])
+  const drugById = useMemo(() => new Map((drugs ?? []).map(d => [d.id, d])), [drugs])
   const duplicating = !editing && !!defaults?.items?.length
 
   const [patient, setPatient] = useState<Patient | undefined>()
@@ -100,7 +103,17 @@ function RxForm({ onClose, prescription, defaults, lockPatient, onSaved }: Omit<
     setErrors(errs)
     if (hasErrors(errs) || !patient) {
       if (errs.items) toast.error(t('prescriptions.form.needItems'))
+      revealFirstError()
       return
+    }
+    // a medicine that conflicts with an allergy on the patient's file needs a deliberate second look
+    const clashing = items.filter(i => !isBlankItem(i) && conflictsOf(i).length)
+    if (clashing.length) {
+      const ok = await confirm({
+        title: t('prescriptions.allergy.confirmTitle'), danger: true, confirmLabel: t('prescriptions.allergy.confirmSave'), cancelLabel: t('prescriptions.allergy.review'),
+        description: t('prescriptions.allergy.confirmDesc', { drugs: clashing.map(i => i.name.trim()).join(lang === 'ar' ? '، ' : ', ') }),
+      })
+      if (!ok) return
     }
     setBusy(true)
     try {
@@ -126,6 +139,9 @@ function RxForm({ onClose, prescription, defaults, lockPatient, onSaved }: Omit<
   const title = editing ? t('prescriptions.form.editTitle') : duplicating ? t('prescriptions.form.duplicateTitle') : t('prescriptions.form.newTitle')
   const allergies = patient?.allergies?.filter(Boolean) ?? []
   const filled = items.filter(i => !isBlankItem(i)).length
+  function conflictsOf(i: ItemDraft): AllergyConflict[] {
+    return allergyConflicts({ name: i.name, drug: i.drugId ? drugById.get(i.drugId) : undefined }, allergies)
+  }
 
   return (
     <Modal open onClose={onClose} size="xl" icon={<Pill />} title={title} subtitle={t('prescriptions.form.subtitle')} className="rx-form-modal" closeOnOverlay={false}
@@ -158,14 +174,14 @@ function RxForm({ onClose, prescription, defaults, lockPatient, onSaved }: Omit<
           <div className="rx-items-head">
             <div className="form-section-title"><Pill />{t('prescriptions.form.items')}{filled > 0 && <span className="rx-count num">{filled}</span>}</div>
           </div>
-          <DrugSearch onPick={addDrug} onFree={addFree} invalid={!!live?.items} />
+          <DrugSearch drugs={drugs} allergies={allergies} onPick={addDrug} onFree={addFree} invalid={!!live?.items} />
           {live?.items && <div className="field-error mt-1">{t('prescriptions.form.needItems')}</div>}
 
           <div className="rx-rows" ref={listRef}>
             {items.length === 0 ? (
               <div className="rx-rows-empty"><BookOpen />{t('prescriptions.form.noItems')}</div>
             ) : items.map((it, n) => (
-              <ItemRow key={it.key} n={n + 1} item={it} onChange={p => update(it.key, p)} onRemove={() => remove(it.key)} nameError={live?.names.includes(it.key)} />
+              <ItemRow key={it.key} n={n + 1} item={it} onChange={p => update(it.key, p)} onRemove={() => remove(it.key)} nameError={live?.names.includes(it.key)} conflicts={conflictsOf(it)} />
             ))}
           </div>
           <Button variant="ghost" size="sm" icon={<PlusCircle />} onClick={() => addFree('')} className="rx-add-row">{t('prescriptions.form.addRow')}</Button>
@@ -179,11 +195,13 @@ function RxForm({ onClose, prescription, defaults, lockPatient, onSaved }: Omit<
 }
 
 /** One medicine of the prescription. */
-function ItemRow({ n, item, onChange, onRemove, nameError }: { n: number; item: ItemDraft; onChange: (p: Partial<ItemDraft>) => void; onRemove: () => void; nameError?: boolean }) {
+function ItemRow({ n, item, onChange, onRemove, nameError, conflicts }: { n: number; item: ItemDraft; onChange: (p: Partial<ItemDraft>) => void; onRemove: () => void; nameError?: boolean; conflicts: AllergyConflict[] }) {
   const { t, lang } = useI18n()
   const freq = FREQUENCY_PRESETS[lang], dur = durationPresets(lang), instr = INSTRUCTION_PRESETS[lang]
+  const conflictText = (c: AllergyConflict) => c.related ? t('prescriptions.allergy.cross', { allergy: c.allergy, family: t(`prescriptions.family.${c.cls}`) })
+    : c.cls ? t('prescriptions.allergy.family', { allergy: c.allergy, family: t(`prescriptions.family.${c.cls}`) }) : t('prescriptions.allergy.same', { allergy: c.allergy })
   return (
-    <div className="rx-row" data-row={item.key}>
+    <div className={`rx-row${conflicts.length ? ' rx-row-danger' : ''}`} data-row={item.key}>
       <span className="rx-row-no">{n}</span>
       <div className="rx-row-grid">
         <Input className="rx-f-name" aria-label={t('prescriptions.item.name')} placeholder={t('prescriptions.item.name')} value={item.name} onChange={e => onChange({ name: e.target.value })}
@@ -195,19 +213,24 @@ function ItemRow({ n, item, onChange, onRemove, nameError }: { n: number; item: 
         <ComboInput className="rx-f-instr" aria-label={t('prescriptions.item.instructions')} placeholder={t('prescriptions.item.instructionsPh')} value={item.instructions} onChange={v => onChange({ instructions: v })} options={instr} />
       </div>
       <IconButton variant="ghost" size="sm" label={t('prescriptions.item.remove')} onClick={onRemove} className="rx-row-x"><Trash2 /></IconButton>
+      {conflicts.length > 0 && (
+        <div className="rx-row-warn" role="alert">
+          <AlertTriangle />
+          <span>{conflicts.map(c => conflictText(c)).join(' · ')}</span>
+        </div>
+      )}
     </div>
   )
 }
 
 /** Typeahead over the active drugs; Enter on free text adds an unlisted drug. */
-function DrugSearch({ onPick, onFree, invalid }: { onPick: (d: Drug) => void; onFree: (name: string) => void; invalid?: boolean }) {
+function DrugSearch({ drugs, allergies, onPick, onFree, invalid }: { drugs: Drug[] | undefined; allergies: string[]; onPick: (d: Drug) => void; onFree: (name: string) => void; invalid?: boolean }) {
   const { t, lang, pick: pickName } = useI18n()
   const wrap = useRef<HTMLDivElement>(null)
   const input = useRef<HTMLInputElement>(null)
   const [q, setQ] = useState('')
   const [open, setOpen] = useState(false)
   const [hi, setHi] = useState(0)
-  const drugs = useLiveQuery(() => db.drugs.toArray(), [])
   // the most prescribed drugs first when nothing is typed
   const usage = useLiveQuery(async () => {
     const m = new Map<string, number>()
@@ -252,10 +275,11 @@ function DrugSearch({ onPick, onFree, invalid }: { onPick: (d: Drug) => void; on
           {results.length > 0 && <div className="rx-pop-label">{free ? t('prescriptions.form.catalogue') : usage?.size ? t('prescriptions.form.mostUsed') : t('prescriptions.form.catalogue')}</div>}
           {results.map((d, i) => {
             const name = pickName(d.name, d.nameEn), alt = lang === 'en' ? d.name : d.nameEn
+            const clash = allergies.length > 0 && allergyConflicts({ name: d.name, drug: d }, allergies).length > 0
             return (
-              <button key={d.id} type="button" role="option" aria-selected={i === hi} className={`rx-opt rx-opt-drug${i === hi ? ' hi' : ''}`} tabIndex={-1}
-                onMouseEnter={() => setHi(i)} onClick={() => choose(i)}>
-                <span className="rx-opt-icon"><Pill /></span>
+              <button key={d.id} type="button" role="option" aria-selected={i === hi} className={`rx-opt rx-opt-drug${i === hi ? ' hi' : ''}${clash ? ' rx-opt-warn' : ''}`} tabIndex={-1}
+                onMouseEnter={() => setHi(i)} onClick={() => choose(i)} title={clash ? t('prescriptions.allergy.inList') : undefined}>
+                <span className="rx-opt-icon">{clash ? <AlertTriangle /> : <Pill />}</span>
                 <span className="grow" style={{ minWidth: 0 }}>
                   <span className="rx-opt-title"><span className="truncate" dir="auto">{name}</span>{d.strength && <span className="rx-opt-strength" dir="auto">{d.strength}</span>}</span>
                   <span className="rx-opt-sub truncate">{[alt !== name ? alt : '', d.form, d.defaultFrequency].filter(Boolean).join(' · ')}</span>

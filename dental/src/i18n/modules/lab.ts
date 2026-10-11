@@ -24,6 +24,7 @@ const lab: ModuleDict = {
     'stat.overdueSub': 'تجاوزت موعد التسليم',
     'stat.overdueNone': 'لا يوجد أي تأخير',
     'stat.cost': 'تكاليف المخبر هذا الشهر',
+    'stat.costSub': '{month} · كما في المصروفات',
 
     'col.type': 'نوع العمل',
     'col.lab': 'المخبر',
@@ -86,6 +87,8 @@ const lab: ModuleDict = {
     'form.dueBeforeSent': 'موعد التسليم يسبق تاريخ الإرسال',
     'form.received': 'تاريخ الاستلام',
     'form.cost': 'تكلفة المخبر',
+    'form.costHint': 'عند استلام العمل تُسجَّل التكلفة في المصروفات تلقائياً (فئة «مخبر»)',
+    'expense.desc': '{type} — {patient} ({ref})',
     'form.treatment': 'ربط بعمل من خطة العلاج',
     'form.noTreatment': 'بدون ربط',
     'form.notesPh': 'تعليمات للمخبر: الإطباق، شكل الحواف، الصور المرفقة…',
@@ -135,6 +138,7 @@ const lab: ModuleDict = {
     'stat.overdueSub': 'Past the due date',
     'stat.overdueNone': 'Nothing is late',
     'stat.cost': 'Lab costs this month',
+    'stat.costSub': '{month} · as in Expenses',
 
     'col.type': 'Work',
     'col.lab': 'Lab',
@@ -197,6 +201,8 @@ const lab: ModuleDict = {
     'form.dueBeforeSent': 'The due date is before the sent date',
     'form.received': 'Received on',
     'form.cost': 'Lab cost',
+    'form.costHint': 'When the work is received, the cost is recorded in Expenses automatically (category “Lab”)',
+    'expense.desc': '{type} — {patient} ({ref})',
     'form.treatment': 'Link to a treatment plan item',
     'form.noTreatment': 'Not linked',
     'form.notesPh': 'Instructions for the lab: occlusion, margins, attached photos…',

@@ -2,6 +2,7 @@
 // match highlighting, recent searches and plural phrases. No database or React here (tests/search.test.ts).
 import type { Invoice, Patient } from '@/db/types'
 import { normalizeText } from '@/lib/format'
+import { tn } from '@/i18n'
 
 // ---- normalisation ---------------------------------------------------------------------------------
 /** Digits only; Arabic-Indic (٠١٢) and Persian (۰۱۲) digits become Latin. */
@@ -374,10 +375,7 @@ export function saveRecent(list: string[]): void {
 
 // ---- plurals ----------------------------------------------------------------------------------------
 type T = (k: string, p?: Record<string, string | number>) => string
-/** Counted phrase with real plural forms: keys '<key>_<rule>' (Arabic has zero/one/two/few/many/other). */
+/** Counted phrase with real plural forms: keys '<key>_<rule>' (Arabic has zero/one/two/few/many/other). See tn() in src/i18n. */
 export function plural(t: T, lang: 'ar' | 'en', key: string, n: number): string {
-  const rule = new Intl.PluralRules(lang === 'ar' ? 'ar' : 'en').select(n)
-  const k = `${key}_${rule}`
-  const s = t(k, { n })
-  return s === k.slice(k.indexOf('.') + 1) || s === k ? t(`${key}_other`, { n }) : s
+  return tn(t, lang, key, n)
 }

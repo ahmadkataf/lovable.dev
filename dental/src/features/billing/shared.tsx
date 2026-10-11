@@ -5,7 +5,7 @@ import { useLiveQuery } from 'dexie-react-hooks'
 import { ArrowLeftRight, Banknote, CalendarRange, CircleDollarSign, CreditCard, Search, ShieldAlert, ShieldCheck, Smartphone, UserRound, type LucideIcon } from 'lucide-react'
 import { db } from '@/db'
 import { todayISO } from '@/db/ids'
-import type { Clinic, InvoiceStatus, Patient, PaymentMethod } from '@/db/types'
+import type { Clinic, InvoiceStatus, PaymentMethod } from '@/db/types'
 import { useI18n } from '@/i18n'
 import { useMoney } from '@/app/hooks'
 import { useSession } from '@/app/session'
@@ -13,7 +13,8 @@ import { ToothIcon } from '@/app/ToothIcon'
 import { fmtDate } from '@/lib/dates'
 import { formatPhone, matches } from '@/lib/format'
 import { print } from '@/platform'
-import { Avatar, Badge, Button, Card, EmptyState, Field, Input, Segmented, toneFor, type Tone } from '@/ui'
+import { Avatar, Badge, Button, Card, EmptyState, Field, Input, Segmented, Skeleton, Spinner, toneFor, type Tone } from '@/ui'
+import { usePatientIndex, usePatientPhotos, type SlimPatient } from './patientIndex'
 import { normalizePeriod, PERIOD_PRESETS, presetPeriod, type Period, type PeriodPreset } from './lib'
 import './billing.css'
 
@@ -121,24 +122,31 @@ export function PeriodBar({ value, onChange, end }: { value: Period; onChange: (
 
 // ---- patient picker ---------------------------------------------------------------------------
 
-/** Search-as-you-type patient field. Shows the chosen patient as a card with a "change" button. */
+/**
+ * Search-as-you-type patient field. Shows the chosen patient as a card with a "change" button. The list comes from
+ * the shared slim patient index (no photos, read once), and nothing is listed while a patient is chosen or locked.
+ */
 export function PatientPicker({ value, onChange, error, locked, label }: { value: string; onChange: (id: string) => void; error?: ReactNode; locked?: boolean; label?: ReactNode }) {
   const { t } = useI18n()
-  const patients = useLiveQuery(() => db.patients.toArray(), [])
+  const selected = useLiveQuery(async () => (value ? (await db.patients.get(value)) ?? null : null), [value])
+  const index = usePatientIndex(!value && !locked)
   const [q, setQ] = useState('')
   const [open, setOpen] = useState(false)
   const [active, setActive] = useState(0)
   const box = useRef<HTMLDivElement>(null)
   const input = useRef<HTMLInputElement>(null)
-  const selected = useMemo(() => patients?.find(p => p.id === value), [patients, value])
 
   const results = useMemo(() => {
-    const list = (patients ?? []).filter(p => !p.archived)
+    const list = (index?.list ?? []).filter(p => !p.archived)
     const s = q.trim()
-    if (!s) return [...list].sort((a, b) => (b.lastVisit || b.updatedAt || '').localeCompare(a.lastVisit || a.updatedAt || '')).slice(0, 6)
+    if (!s) {
+      const recent = (p: SlimPatient) => p.lastVisit || p.updatedAt || ''
+      return [...list].sort((a, b) => (recent(a) < recent(b) ? 1 : recent(a) > recent(b) ? -1 : 0)).slice(0, 6)
+    }
     const digits = s.replace(/\s+/g, '')
-    return list.filter(p => matches(p.name, s) || String(p.fileNo) === digits.replace(/^#/, '') || (!!p.phone && /\d{3,}/.test(digits) && p.phone.replace(/\s+/g, '').includes(digits))).slice(0, 8)
-  }, [patients, q])
+    return list.filter(p => matches(p.name, s) || String(p.fileNo) === digits.replace(/^#/, '') || (/\d{3,}/.test(digits) && [p.phone, p.phone2].some(ph => !!ph && ph.replace(/\s+/g, '').includes(digits)))).slice(0, 8)
+  }, [index, q])
+  const photos = usePatientPhotos(open ? results.filter(p => p.hasPhoto).map(p => p.id) : [])
   useEffect(() => { setActive(0) }, [q])
   useEffect(() => {
     if (!open) return
@@ -147,15 +155,16 @@ export function PatientPicker({ value, onChange, error, locked, label }: { value
     return () => { document.removeEventListener('mousedown', h); document.removeEventListener('touchstart', h) }
   }, [open])
 
-  const pick = (p: Patient) => { onChange(p.id); setQ(''); setOpen(false) }
+  const pick = (p: SlimPatient) => { onChange(p.id); setQ(''); setOpen(false) }
 
+  if (value && selected === undefined) return <Field label={label ?? t('patient')}><div className="bl-picked"><Skeleton w={32} h={32} r={16} /><div className="grow col gap-2"><Skeleton w="50%" /><Skeleton w="30%" h={10} /></div></div></Field>
   if (selected) {
     return (
       <Field label={label ?? t('patient')} error={error}>
         <div className="bl-picked">
           <Avatar name={selected.name} src={selected.photo} size="sm" />
           <div className="grow">
-            <div className="strong truncate">{selected.name}</div>
+            <div className="strong truncate" dir="auto">{selected.name}</div>
             <div className="text-xs muted row gap-2"><span>{t('fileNo')} <span className="num">{selected.fileNo}</span></span>{selected.phone && <><span className="subtle">·</span><span className="ltr">{formatPhone(selected.phone)}</span></>}</div>
           </div>
           {!locked && <Button size="sm" variant="ghost" onClick={() => { onChange(''); setTimeout(() => input.current?.focus(), 30) }}>{t('billing.changePatient')}</Button>}
@@ -174,20 +183,22 @@ export function PatientPicker({ value, onChange, error, locked, label }: { value
             else if (e.key === 'Enter') { e.preventDefault(); if (open && results[active]) pick(results[active]) }
             else if (e.key === 'Escape' && open) { e.stopPropagation(); setOpen(false) }
           }} />
-        {open && patients && (
+        {open && (
           <div className="bl-dropdown" role="listbox">
-            {!q.trim() && results.length > 0 && <div className="bl-dropdown-label">{t('billing.recentPatients')}</div>}
-            {results.length === 0 ? (
-              <div className="bl-dropdown-empty"><UserRound />{t('billing.noPatients')}</div>
-            ) : results.map((p, i) => (
-              <button key={p.id} type="button" role="option" aria-selected={i === active} className={`bl-option${i === active ? ' active' : ''}`}
-                onMouseEnter={() => setActive(i)} onMouseDown={e => e.preventDefault()} onClick={() => pick(p)}>
-                <Avatar name={p.name} src={p.photo} size="xs" />
-                <span className="grow truncate strong">{p.name}</span>
-                {p.phone && <span className="text-xs muted ltr hide-mobile">{formatPhone(p.phone)}</span>}
-                <span className="bl-fileno num">#{p.fileNo}</span>
-              </button>
-            ))}
+            {!index ? <div className="bl-dropdown-empty"><Spinner />{t('billing.loadingPatients')}</div> : <>
+              {!q.trim() && results.length > 0 && <div className="bl-dropdown-label">{t('billing.recentPatients')}</div>}
+              {results.length === 0 ? (
+                <div className="bl-dropdown-empty"><UserRound />{t('billing.noPatients')}</div>
+              ) : results.map((p, i) => (
+                <button key={p.id} type="button" role="option" aria-selected={i === active} className={`bl-option${i === active ? ' active' : ''}`}
+                  onMouseEnter={() => setActive(i)} onMouseDown={e => e.preventDefault()} onClick={() => pick(p)}>
+                  <Avatar name={p.name} src={photos.get(p.id)} size="xs" />
+                  <span className="grow truncate strong" dir="auto">{p.name}</span>
+                  {p.phone && <span className="text-xs muted ltr hide-mobile">{formatPhone(p.phone)}</span>}
+                  <span className="bl-fileno num">#{p.fileNo}</span>
+                </button>
+              ))}
+            </>}
           </div>
         )}
       </div>
@@ -197,8 +208,8 @@ export function PatientPicker({ value, onChange, error, locked, label }: { value
 
 // ---- printed sheets ---------------------------------------------------------------------------
 
-/** The clinic identity at the top of every printed sheet: logo, bilingual name, contact lines. */
-export function ClinicIdentity({ clinic }: { clinic: Clinic }) {
+/** The clinic identity at the top of every printed sheet: logo, bilingual name, contact lines (and the tax number on tax invoices). */
+export function ClinicIdentity({ clinic, taxNumber }: { clinic: Clinic; taxNumber?: string }) {
   const { t, lang } = useI18n()
   const primary = (lang === 'en' ? clinic.nameEn || clinic.name : clinic.name || clinic.nameEn) || t('appName')
   const secondary = lang === 'en' ? (clinic.nameEn && clinic.name !== clinic.nameEn ? clinic.name : '') : clinic.nameEn
@@ -214,6 +225,7 @@ export function ClinicIdentity({ clinic }: { clinic: Clinic }) {
           {(clinic.phone || clinic.phone2) && <span className="ltr">{[clinic.phone, clinic.phone2].filter(Boolean).map(p => formatPhone(p)).join(' · ')}</span>}
           {clinic.email && <span className="ltr">{clinic.email}</span>}
           {clinic.website && <span className="ltr">{clinic.website}</span>}
+          {taxNumber && <span className="bl-taxno">{t('billing.sheet.taxNumber')}: <span className="num">{taxNumber}</span></span>}
         </div>
       </div>
     </div>
@@ -221,10 +233,10 @@ export function ClinicIdentity({ clinic }: { clinic: Clinic }) {
 }
 
 /** Clinic identity on the start side, the document title, number and key facts on the end side. */
-export function SheetHeader({ clinic, title, number, facts }: { clinic: Clinic; title: ReactNode; number?: ReactNode; facts?: { label: ReactNode; value: ReactNode }[] }) {
+export function SheetHeader({ clinic, title, number, facts, taxNumber }: { clinic: Clinic; title: ReactNode; number?: ReactNode; facts?: { label: ReactNode; value: ReactNode }[]; taxNumber?: string }) {
   return (
     <header className="bl-sheet-head">
-      <ClinicIdentity clinic={clinic} />
+      <ClinicIdentity clinic={clinic} taxNumber={taxNumber} />
       <div className="bl-doc">
         <div className="bl-doc-title">{title}</div>
         {number && <div className="bl-doc-no">{number}</div>}
@@ -239,16 +251,49 @@ export function SheetHeader({ clinic, title, number, facts }: { clinic: Clinic; 
 }
 
 /**
+ * Prints with a document title (it names the PDF a user saves and the print job), restored afterwards.
+ * Electron and Android print asynchronously: the title comes back on afterprint, or after a minute at the latest.
+ */
+export function printTitled(title?: string, before?: () => void, after?: () => void) {
+  const prev = document.title
+  if (title) document.title = title
+  before?.()
+  let done = false
+  const finish = () => {
+    if (done) return
+    done = true
+    window.removeEventListener('afterprint', finish)
+    if (title) document.title = prev
+    after?.()
+  }
+  window.addEventListener('afterprint', finish)
+  window.setTimeout(finish, 60_000)
+  print()
+}
+/** A file-name friendly title: "فاتورة INV-000033 — أحمد الخطيب". */
+export const docTitle = (...parts: (string | undefined)[]) => parts.filter(Boolean).join(' — ').replace(/[\\/:*?"<>|]+/g, ' ').trim()
+
+/**
  * Prints the sheet of an open modal: the app behind it is hidden for the print and shown again afterwards.
  * (The invoice page prints directly: its sheet is the page.)
  */
-export function printModalSheet() {
+export function printModalSheet(title?: string) {
   const body = document.body
-  body.classList.add('bl-printing')
-  const done = () => { body.classList.remove('bl-printing'); window.removeEventListener('afterprint', done) }
-  window.addEventListener('afterprint', done)
-  print()
+  printTitled(title, () => body.classList.add('bl-printing'), () => body.classList.remove('bl-printing'))
 }
+/**
+ * Running footer on every printed page of a sheet that may run over several pages: the document's name and
+ * "page / pages", so loose pages can be matched up. It uses a named @page of its own, so it never shows on other
+ * documents printed while this one is on screen. Returns the style element and the inline style for the sheet.
+ */
+export function usePrintFooter(text: string): { style: React.CSSProperties; node: ReactNode } {
+  const name = useMemo(() => `blp${Math.random().toString(36).slice(2, 9)}`, [])
+  const quoted = `"${text.replace(/[\\"]/g, m => `\\${m}`).replace(/[\r\n]+/g, ' ')}"`
+  // the document name is a bidi isolate (\2068 … \2069) so an Arabic name never swallows the page numbers
+  const css = `@media print { @page ${name} { @bottom-center { content: "\\2068" ${quoted} "\\2069   " counter(page) " / " counter(pages); font-family: Inter, "Noto Kufi Arabic", system-ui, sans-serif; font-size: 8pt; color: #6b7280; } } }`
+  return { style: { page: name } as React.CSSProperties, node: <style>{css}</style> }
+}
+
 /** Clears the modal print mode when a printable modal closes. */
 export function usePrintCleanup(open: boolean) {
   useEffect(() => { if (!open) return; return () => document.body.classList.remove('bl-printing') }, [open])

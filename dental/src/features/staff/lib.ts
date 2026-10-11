@@ -1,9 +1,9 @@
 // Pure helpers of the staff module: the role/permission matrix and the guards that keep the clinic manageable
 // (someone must always be able to sign in as admin). Covered by tests/auth.test.ts.
-import type { Activity, Role, User } from '@/db/types'
+import type { Activity, Lang, Role, User } from '@/db/types'
 import type { Permission } from '@/app/session'
 import { normalizeText } from '@/lib/format'
-import { isEmail, isPhone, pinError, pinErrorKey, type Errors } from '@/features/auth/lib'
+import { isEmail, isPhone, ownerTitleFor, pinError, pinErrorKey, type Errors } from '@/features/auth/lib'
 
 export const ROLES: Role[] = ['admin', 'doctor', 'assistant', 'receptionist']
 /** Areas in the order the matrix lists them: daily work first, administration last. */
@@ -80,7 +80,16 @@ export function lastLoginMap(rows: Pick<Activity, 'by' | 'at' | 'action'>[]): Re
   return out
 }
 
+/** The newest sign-ins first (rows read by index may come in insertion order, which a restore can shuffle). */
+export function newestFirst<T extends Pick<Activity, 'at'>>(rows: T[]): T[] {
+  return [...rows].sort((a, b) => (a.at < b.at ? 1 : a.at > b.at ? -1 : 0))
+}
+
 // ---- form -------------------------------------------------------------------------------------
+/** The title a new member starts with: "د." (or "Dr." in an English clinic) for doctors, none for the other roles. */
+export function defaultTitleFor(role: Role, lang: Lang): string {
+  return role === 'doctor' ? ownerTitleFor(lang) : ''
+}
 export interface StaffDraft {
   name: string; title: string; role: Role; specialty: string; phone: string; email: string
   color: string; active: boolean; pin: string; pin2: string

@@ -2,8 +2,9 @@ import type { Appointment, Invoice, Patient, Payment } from '../src/db/types'
 import {
   addChips, allTags, balancesByPatient, cleanPhone, countByKind, DEFAULT_FILTERS, digitsOnly, fileShape, filterPatients, findDuplicatePhone, fullSearch, guessKind,
   hasActiveFilters, hasChip, isRealDate, isValidEmail, isValidPhone, isValidTooth, lastVisitsByPatient, latestOf, medicalFlags, monthStartISO, nextAppointment, owes,
-  patientBalance, patientStats, pluralForm, removeChip, sanitizePhoneInput, sortNotes, sortPatients, upcomingAppointments, validatePatient,
+  patientBalance, patientStats, pluralForm, previewShape, removeChip, sanitizePhoneInput, sortNotes, sortPatients, upcomingAppointments, validatePatient,
 } from '../src/features/patients/lib'
+import { sniffMime } from '../src/platform/filetype'
 
 const pt = (p: Partial<Patient>): Patient => ({
   id: 'p', fileNo: 1, name: 'مريض', gender: 'male', allergies: [], chronicDiseases: [], medications: [], tags: [], archived: false,
@@ -172,7 +173,10 @@ describe('patients: validation', () => {
   })
   it('the whole form', () => {
     expect(validatePatient({ name: 'سامر', phone: '0944123456' }, today)).toEqual({})
-    expect(validatePatient({ name: '', phone: '' }, today)).toEqual({ name: 'v.required', phone: 'v.required' })
+    expect(validatePatient({ name: '', phone: '' }, today)).toEqual({ name: 'v.required' })
+    // the phone is optional (audit #45): an elderly patient without a phone can be registered and later edited
+    expect(validatePatient({ name: 'حسن الشيخ علي', phone: '   ' }, today)).toEqual({})
+    expect(validatePatient({ name: 'حسن الشيخ علي', phone: '09' }, today)).toEqual({ phone: 'v.phone' })
     expect(validatePatient({ name: ' س ', phone: '12' }, today)).toEqual({ name: 'patients.v.nameShort', phone: 'v.phone' })
     expect(validatePatient({ name: 'سامر', phone: '0944123456', phone2: 'x', email: 'bad', birthDate: '2030-01-01' }, today))
       .toEqual({ phone2: 'v.phone', email: 'v.email', birthDate: 'patients.v.futureDate' })
@@ -232,6 +236,21 @@ describe('patients: files and notes', () => {
   })
 })
 
+describe('patients: file viewer safety (audit #123)', () => {
+  const bytes = (s: string) => new TextEncoder().encode(s)
+  it('shows a file by what its bytes prove, never by its name or stored type', () => {
+    // a web page stored as lab-report.pdf / application/pdf: only offered as a download
+    expect(previewShape(sniffMime(bytes('<!doctype html><script>alert(1)</script>')))).toBe('other')
+    expect(previewShape(sniffMime(bytes('<svg xmlns="http://www.w3.org/2000/svg" onload="alert(1)"/>')))).toBe('other')
+    expect(previewShape(sniffMime(bytes('%PDF-1.7\n1 0 obj')))).toBe('pdf')
+    expect(previewShape(sniffMime(new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 0, 0x10])))).toBe('image')
+    expect(previewShape(sniffMime(new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])))).toBe('image')
+    expect(previewShape(null)).toBe('other')
+    expect(previewShape(undefined)).toBe('other')
+    expect(previewShape('application/octet-stream')).toBe('other')
+  })
+})
+
 describe('patients: delete cascade (review)', () => {
   it('covers every table that is indexed by patientId, so no orphan rows survive a delete', async () => {
     const { db } = await import('../src/db')
@@ -245,14 +264,108 @@ describe('patients: delete cascade (review)', () => {
     const now = new Date().toISOString()
     for (const pid of ['casc-a', 'casc-b']) {
       await db.patients.add(pt({ id: pid, name: pid }))
-      for (const name of PATIENT_TABLES) await (db[name] as any).add({ id: `${name}-${pid}`, patientId: pid, createdAt: now, at: now, date: now.slice(0, 10), status: 'scheduled' })
+      // no money history: the only invoice is a draft and there is no payment, so the file may be deleted
+      for (const name of PATIENT_TABLES) {
+        if (name === 'payments') continue
+        await (db[name] as any).add({ id: `${name}-${pid}`, patientId: pid, createdAt: now, at: now, date: now.slice(0, 10), status: name === 'invoices' ? 'draft' : 'scheduled' })
+      }
     }
     await deletePatientCascade('casc-a')
     expect(await db.patients.get('casc-a')).toBeUndefined()
     expect(await db.patients.get('casc-b')).toBeDefined()
     for (const name of PATIENT_TABLES) {
+      if (name === 'payments') continue
       expect(await (db[name] as any).where('patientId').equals('casc-a').count()).toBe(0)
       expect(await (db[name] as any).where('patientId').equals('casc-b').count()).toBe(1)
     }
+  })
+  it('refuses to delete a patient with issued invoices or payments and deletes nothing (audit #38, #63)', async () => {
+    const { db } = await import('../src/db')
+    const { deletePatientCascade, moneyHistory, hasMoneyHistory, PatientHasMoneyHistory } = await import('../src/features/patients/data')
+    const now = new Date().toISOString()
+    const base = { createdAt: now, updatedAt: now, date: now.slice(0, 10), items: [], subtotal: 50, discount: 0, taxPercent: 0, tax: 0, total: 50, paid: 0 }
+    // an issued invoice (even a cancelled one took a real number)
+    await db.patients.add(pt({ id: 'money-inv' }))
+    await db.invoices.add({ ...base, id: 'inv-c', number: 'INV-000001', patientId: 'money-inv', status: 'cancelled' } as any)
+    await db.appointments.add({ id: 'apt-mi', patientId: 'money-inv', doctorId: 'd', date: now.slice(0, 10), start: now, end: now, durationMin: 30, type: 'checkup', status: 'completed', createdAt: now, updatedAt: now })
+    // a payment on account, no invoice at all
+    await db.patients.add(pt({ id: 'money-pay' }))
+    await db.payments.add({ id: 'pay-1', patientId: 'money-pay', amount: 42, method: 'cash', date: now.slice(0, 10), createdAt: now })
+    // only a draft: no money history
+    await db.patients.add(pt({ id: 'money-draft' }))
+    await db.invoices.add({ ...base, id: 'inv-d', number: 'DRAFT', patientId: 'money-draft', status: 'draft' } as any)
+
+    expect(await moneyHistory('money-inv')).toEqual({ invoices: 1, payments: 0 })
+    expect(await moneyHistory('money-pay')).toEqual({ invoices: 0, payments: 1 })
+    expect(hasMoneyHistory(await moneyHistory('money-draft'))).toBe(false)
+
+    await expect(deletePatientCascade('money-inv')).rejects.toBeInstanceOf(PatientHasMoneyHistory)
+    await expect(deletePatientCascade('money-pay')).rejects.toThrow('patient-has-money-history')
+    // nothing was touched: the patient, the invoice, the visit and the payment are all still there
+    expect(await db.patients.get('money-inv')).toBeDefined()
+    expect(await db.invoices.get('inv-c')).toBeDefined()
+    expect(await db.appointments.get('apt-mi')).toBeDefined()
+    expect(await db.payments.get('pay-1')).toBeDefined()
+    // a draft-only file can still go, with its draft
+    await deletePatientCascade('money-draft')
+    expect(await db.patients.get('money-draft')).toBeUndefined()
+    expect(await db.invoices.get('inv-d')).toBeUndefined()
+  })
+})
+
+describe('patients: directory and index search (audit #141)', () => {
+  it('builds the index prefixes for Arabic spelling variants and grouped phones', async () => {
+    const { namePrefixVariants, phonePrefixVariants } = await import('../src/features/patients/directory')
+    expect(namePrefixVariants('احمد').sort()).toEqual(['آحمد', 'أحمد', 'إحمد', 'احمد'].sort())
+    expect(namePrefixVariants('فاطمه').sort()).toEqual(['فاطمة', 'فاطمه'].sort())
+    expect(namePrefixVariants('  ')).toEqual([])
+    expect(namePrefixVariants('S')).toEqual(['S'])
+    expect(phonePrefixVariants('0944123')).toEqual(['0944123', '0944 123'])
+    expect(phonePrefixVariants('+963 944')).toEqual(['+963944', '+963 944'])
+    expect(phonePrefixVariants('09')).toEqual([])
+  })
+  it('answers from the indexes without reading every patient', async () => {
+    const { db } = await import('../src/db')
+    const { indexSearch, phoneOwner } = await import('../src/features/patients/directory')
+    await db.patients.bulkPut([
+      pt({ id: 'ix-1', fileNo: 501, name: 'أحمد الخطيب', phone: '0944 123 456', createdAt: '2026-05-01T00:00:00.000Z' }),
+      pt({ id: 'ix-2', fileNo: 5012, name: 'احمد سليم', phone: '0933111222', createdAt: '2026-05-02T00:00:00.000Z' }),
+      pt({ id: 'ix-3', fileNo: 77, name: 'فاطمة نور', phone: '0955000111', archived: true, createdAt: '2026-05-03T00:00:00.000Z' }),
+    ])
+    expect((await indexSearch('احمد')).map(p => p.id).sort()).toEqual(['ix-1', 'ix-2'])
+    expect((await indexSearch('501')).map(p => p.id)).toEqual(['ix-1', 'ix-2'])            // exact file number first, then 5010–5019
+    expect((await indexSearch('0944123')).map(p => p.id)).toEqual(['ix-1'])                 // grouped storage still found
+    expect(await indexSearch('فاطمه')).toEqual([])                                           // archived files are left out
+    expect((await indexSearch('فاطمه', 8, true)).map(p => p.id)).toEqual(['ix-3'])
+    expect((await phoneOwner('0944123456'))?.id).toBe('ix-1')
+    expect((await phoneOwner('0933 111 222'))?.id).toBe('ix-2')
+    expect(await phoneOwner('0933111222', 'ix-2')).toBeUndefined()
+  })
+})
+
+describe('patients: reading big tables in pages (audit #135)', () => {
+  it('returns exactly the rows of toArray(), page by page', async () => {
+    const { db } = await import('../src/db')
+    const { readAllChunked } = await import('../src/features/patients/chunked')
+    await db.payments.bulkPut(Array.from({ length: 25 }, (_, i) => ({ id: `chunk-${String(i).padStart(2, '0')}`, patientId: 'x', amount: i, method: 'cash' as const, date: '2026-10-01', createdAt: '' })))
+    const all = await db.payments.toArray()
+    for (const size of [1, 7, 25, 26, 1000]) expect((await readAllChunked(db.payments, size)).map(p => p.id)).toEqual(all.map(p => p.id))
+  })
+})
+
+describe('patients: balances kept for the session (audit #135)', () => {
+  it('reads once, answers from memory, and reads again after a payment changes', async () => {
+    const { db } = await import('../src/db')
+    const { loadBalances, resetBalances } = await import('../src/features/patients/balances')
+    resetBalances()
+    await db.invoices.put({ id: 'bal-inv', number: 'INV-1', patientId: 'bal-p', date: '2026-10-01', items: [], subtotal: 80, discount: 0, taxPercent: 0, tax: 0, total: 80, paid: 0, status: 'unpaid', createdAt: '', updatedAt: '' })
+    const first = await loadBalances()
+    expect(first.get('bal-p')).toBe(80)
+    expect(await loadBalances()).toBe(first)                                   // nothing changed: the same map, no read
+    await db.payments.put({ id: 'bal-pay', patientId: 'bal-p', amount: 30, method: 'cash', date: '2026-10-02', createdAt: '' })
+    await new Promise(r => setTimeout(r, 20))
+    const after = await loadBalances()
+    expect(after).not.toBe(first)
+    expect(after.get('bal-p')).toBe(50)
   })
 })

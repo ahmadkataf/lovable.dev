@@ -1,6 +1,7 @@
 // Building blocks shared by the reports page and the dashboard: KPI cards, chart cards with a table view,
 // plural-aware counts, period / bucket labels and the CSV download.
-import { useMemo, useState, type ReactNode } from 'react'
+import { useEffect, useMemo, useState, type ReactNode } from 'react'
+import { flushSync } from 'react-dom'
 import { Link } from 'react-router-dom'
 import { BarChart3, Minus, Table2, TrendingDown, TrendingUp } from 'lucide-react'
 import { Card, CardBody, CardHeader, DataTable, IconButton, Skeleton, type Column } from '@/ui'
@@ -183,3 +184,22 @@ export const iso = (s: string | number) => `\u2066${s}\u2069`
 /** Categorical slots in their fixed order. */
 export const SLOTS = ['var(--rp-c1)', 'var(--rp-c2)', 'var(--rp-c3)', 'var(--rp-c4)', 'var(--rp-c5)', 'var(--rp-c6)', 'var(--rp-c7)', 'var(--rp-c8)']
 export const ORDINAL = ['var(--rp-o1)', 'var(--rp-o2)', 'var(--rp-o3)', 'var(--rp-o4)', 'var(--rp-o5)']
+
+/** Dispatched just before the reports page prints (its print button), so print-only content can render first. */
+export const PRINT_PREP_EVENT = 'dentora:print-prep'
+/**
+ * True while the page is being printed: from the print button's prep event or the browser's beforeprint (rendered
+ * synchronously there, so Ctrl+P gets it too) until afterprint. Print-only tables mount only then.
+ */
+export function usePrinting(): boolean {
+  const [on, setOn] = useState(false)
+  useEffect(() => {
+    const start = () => flushSync(() => setOn(true))
+    const end = () => setOn(false)
+    window.addEventListener(PRINT_PREP_EVENT, start)
+    window.addEventListener('beforeprint', start)
+    window.addEventListener('afterprint', end)
+    return () => { window.removeEventListener(PRINT_PREP_EVENT, start); window.removeEventListener('beforeprint', start); window.removeEventListener('afterprint', end) }
+  }, [])
+  return on
+}

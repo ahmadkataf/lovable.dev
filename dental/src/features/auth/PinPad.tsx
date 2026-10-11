@@ -2,12 +2,14 @@ import { Delete } from 'lucide-react'
 import { useI18n } from '@/i18n'
 import { dotCount } from './lib'
 
-/** The PIN dots: filled for typed digits, red and shaking after a wrong attempt (shake = attempt counter). */
-export function PinDots({ length, error, shake }: { length: number; error?: boolean; shake: number }) {
-  const { t } = useI18n()
-  const n = dotCount(length)
+/**
+ * The PIN dots: filled for typed digits, red and shaking after a wrong attempt (shake = attempt counter).
+ * `total`: the user's PIN length when known (exactly that many dots), else 4–6 growing with the typing.
+ */
+export function PinDots({ length, total, label, error, shake }: { length: number; total?: number | null; label: string; error?: boolean; shake: number }) {
+  const n = total ?? dotCount(length)
   return (
-    <div key={shake} className={['pin-dots', error && 'au-dots-error', shake > 0 && 'au-shake'].filter(Boolean).join(' ')} role="status" aria-label={t('auth.login.dotsLabel', { n: length })}>
+    <div key={shake} className={['pin-dots', error && 'au-dots-error', shake > 0 && 'au-shake'].filter(Boolean).join(' ')} role="status" aria-label={label}>
       {Array.from({ length: n }, (_, i) => <span key={i} className={i < length ? 'on' : ''} />)}
     </div>
   )

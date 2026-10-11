@@ -1,6 +1,6 @@
 import type { Appointment, Expense, InventoryItem, Invoice, LabOrder, Patient, Payment, Procedure, TreatmentItem } from '../src/db/types'
 import {
-  ageBands, appointmentStats, appointmentsByDoctor, appointmentsSeries, avgInvoice, bucketKey, buckets, byCategory, byDoctor, byMethod, chooseUnit, comparablePeriod, csvCell, delta,
+  ageBands, appointmentStats, backupAgeDays, handoverCount, backupOverdue, appointmentsByDoctor, appointmentsSeries, avgInvoice, bucketKey, buckets, byCategory, byDoctor, byMethod, chooseUnit, comparablePeriod, csvCell, delta,
   expensesByCategory, foldOther, genderSplit, greetingKey, invoicedTotal, isISODate, labDue, lowStock, newPatientsByMonth, nextStatuses, normalizeRange, nowIndex,
   outstandingByPatient, outstandingTotal, overdueInvoices, patientsInScope, patientsSeen, periodDays, previousPeriod, profit, referralSources, resolvePeriod, revenueByDay,
   revenueByMonth, seriesBy, statusCounts, toCSV, topProcedures, topSpenders, totalOf, treatmentsOverTime, unconfirmedTomorrow, untilToday, wholeMonths, workingMinutes,
@@ -153,13 +153,30 @@ describe('reports: money', () => {
     expect(profit(1000, 700)).toEqual({ revenue: 1000, expenses: 700, profit: 300, margin: 30 })
     expect(profit(0, 50)).toEqual({ revenue: 0, expenses: 50, profit: -50, margin: null })
   })
-  it('outstanding per patient: issued invoices − all payments, debts only, largest first', () => {
-    const invoices = [inv({ patientId: 'a', total: 300 }), inv({ patientId: 'a', total: 100, status: 'draft' }), inv({ patientId: 'b', total: 50 }), inv({ patientId: 'c', total: 80 })]
+  it('outstanding per patient: the unpaid part of open invoices (credit is applied to them by billing), debts only, largest first', () => {
+    const invoices = [
+      inv({ patientId: 'a', total: 300, paid: 150, status: 'partial' }), inv({ patientId: 'a', total: 100, status: 'draft' }),
+      inv({ patientId: 'b', total: 50, paid: 50, status: 'paid' }),                 // b also holds 20 credit on account: it offsets nobody
+      inv({ patientId: 'c', total: 80 }), inv({ patientId: 'c', total: 40, paid: 40, status: 'cancelled' }),
+    ]
     const payments = [pay({ patientId: 'a', amount: 100, date: '2026-09-01' }), pay({ patientId: 'a', amount: 50, date: '2026-10-02' }), pay({ patientId: 'b', amount: 70, date: '2026-10-01' })]
     const rows = outstandingByPatient(invoices, payments)
     expect(rows.map(r => [r.patientId, r.invoiced, r.paid, r.due, r.lastPayment ?? null])).toEqual([['a', 300, 150, 150, '2026-10-02'], ['c', 80, 0, 80, null]])
-    expect(outstandingTotal(invoices, payments)).toEqual({ total: 230, patients: 2 })   // b's credit never offsets the others
+    expect(outstandingTotal(invoices)).toEqual({ total: 230, patients: 2 })
+    expect(outstandingTotal(invoices.filter(i => i.status === 'unpaid' || i.status === 'partial'))).toEqual({ total: 230, patients: 2 })   // the dashboard reads open invoices only
     expect(outstandingByPatient(invoices, payments, [{ id: 'c' }]).map(r => r.patientId)).toEqual(['c'])
+  })
+  it('sums keep the fils of 3-decimal currencies (KWD/BHD/OMR): revenue, expenses and profit', () => {
+    expect(totalOf([pay({ amount: 12.345 }), pay({ amount: 0.617 })])).toBe(12.962)
+    expect(totalOf([{ amount: 7.125 }, { amount: 0.001 }])).toBe(7.126)      // expenses go through the same sum
+    expect(profit(12.962, 7.126)).toMatchObject({ revenue: 12.962, expenses: 7.126, profit: 5.836 })
+  })
+  it('counts hand-overs, not rows: rows sharing a receipt number are one payment (audit: 2 payments for one hand-over)', () => {
+    const rows = [pay({ patientId: 'a', amount: 91.74, receiptNo: 'R-000002', invoiceId: 'i1' }), pay({ patientId: 'a', amount: 28.26, receiptNo: 'R-000002' }),
+      pay({ patientId: 'a', amount: 50, receiptNo: 'R-000001' }), pay({ patientId: 'b', amount: 10, method: 'card' }), pay({ patientId: 'b', amount: 5, method: 'card' })]
+    expect(handoverCount(rows)).toBe(4)
+    expect(byMethod(rows).map(m => [m.method, m.value, m.count])).toEqual([['cash', 170, 2], ['card', 15, 2]])
+    expect(topSpenders(rows)).toEqual([{ patientId: 'a', paid: 170, payments: 2 }, { patientId: 'b', paid: 15, payments: 2 }])
   })
   it('top spenders', () => {
     const s = topSpenders([pay({ patientId: 'a', amount: 10 }), pay({ patientId: 'b', amount: 50 }), pay({ patientId: 'a', amount: 15 }), pay({ patientId: 'c', amount: -5 })], 2)
@@ -247,6 +264,16 @@ describe('reports: treatments', () => {
 })
 
 describe('reports: dashboard helpers', () => {
+  it('backup alert: never backed up, or 7 days and more (audit: no reminder outside Settings)', () => {
+    const now = new Date('2026-10-11T10:00:00Z')
+    expect(backupAgeDays(null, now)).toBeNull()
+    expect(backupAgeDays('not a date', now)).toBeNull()
+    expect(backupAgeDays('2026-10-11T08:00:00Z', now)).toBe(0)
+    expect(backupAgeDays('2026-10-04T10:00:00Z', now)).toBe(7)
+    expect(backupOverdue(null)).toBe(true)
+    expect(backupOverdue(6)).toBe(false)
+    expect(backupOverdue(7)).toBe(true)
+  })
   it('overdue invoices: past the due date, or 30 days old without one', () => {
     const list = [
       inv({ total: 100, paid: 40, status: 'partial', dueDate: '2026-10-01' }), inv({ total: 50, status: 'unpaid', date: '2026-08-01' }),

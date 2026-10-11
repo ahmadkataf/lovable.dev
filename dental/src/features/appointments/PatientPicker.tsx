@@ -1,15 +1,20 @@
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react'
-import { useLiveQuery } from 'dexie-react-hooks'
 import { Search, UserPlus, UserRound, X } from 'lucide-react'
 import { db, logActivity, nextFileNumber } from '@/db'
 import type { Gender, Patient } from '@/db/types'
 import { newId, nowISO } from '@/db/ids'
 import { useI18n } from '@/i18n'
 import { useSession } from '@/app/session'
-import { Button, Field, Input, Segmented, Skeleton, useToast } from '@/ui'
+import { useDebounced } from '@/app/hooks'
+import { Alert, Button, Field, Input, Segmented, Skeleton, useToast } from '@/ui'
 import { formatPhone } from '@/lib/format'
+import { cleanPhone, isValidPhone } from '@/features/patients/lib'
+import { indexSearch, phoneOwner, usePatientIndex, usePatientPhotos } from '@/features/patients/directory'
 import { quickPatientFromQuery, searchPatients } from './lib'
 import { PatientAvatar } from './shared'
+
+/** A row of the dropdown: from the shared index (slim) or from an index query (a full record). */
+type Hit = Pick<Patient, 'id' | 'name' | 'fileNo' | 'phone' | 'phone2'> & { photo?: string }
 
 interface Props {
   value?: Patient
@@ -38,11 +43,23 @@ export default function PatientPicker({ value, onChange, error, disabled, autoFo
   const nameRef = useRef<HTMLInputElement>(null)
   const busyRef = useRef(false)   // a repeated Enter / double click must not create the patient twice
 
-  const all = useLiveQuery(async () => {
-    const list = await db.patients.filter(p => !p.archived).toArray()
-    return list.sort((a, b) => (b.updatedAt || '').localeCompare(a.updatedAt || ''))
-  }, [])
-  const results = useMemo(() => searchPatients(all ?? [], q, 8), [all, q])
+  // Thousands of files: the dropdown never reads the whole table on open. Index queries answer at once (newest files,
+  // file number, start of the phone or of the name); the shared patient index, read once in the background, then adds
+  // the Arabic-aware matches anywhere in the name and in second phones.
+  const index = usePatientIndex(open)
+  const active = useMemo(() => (index ? index.list.filter(p => !p.archived).sort((a, b) => (a.updatedAt < b.updatedAt ? 1 : a.updatedAt > b.updatedAt ? -1 : 0)) : undefined), [index])
+  const [fast, setFast] = useState<{ q: string; list: Hit[] }>()
+  useEffect(() => {
+    if (!open || active) return
+    let alive = true
+    void indexSearch(q, 8).then(list => { if (alive) setFast({ q, list }) }).catch(() => undefined)
+    return () => { alive = false }
+  }, [open, q, active])
+  const found: Hit[] = useMemo(() => (active ? searchPatients(active, q, 8) : fast?.list ?? []), [active, fast, q])
+  // photos only for the few rows on screen (the shared index carries none)
+  const photos = usePatientPhotos(open ? found.map(p => p.id) : [])
+  const results = useMemo(() => found.map(p => ({ ...p, photo: photos.get(p.id) ?? (p as { photo?: string }).photo })), [found, photos])
+  const ready = !!active || fast?.q === q
   useEffect(() => setHi(0), [q])
 
   useEffect(() => {
@@ -52,8 +69,18 @@ export default function PatientPicker({ value, onChange, error, disabled, autoFo
     return () => { document.removeEventListener('mousedown', h); document.removeEventListener('touchstart', h) }
   }, [open])
   useEffect(() => { if (quick) window.setTimeout(() => nameRef.current?.focus(), 30) }, [quick !== null]) // eslint-disable-line react-hooks/exhaustive-deps
+  // the same soft warning as the full form when the number already belongs to another file (families share phones)
+  const quickPhone = useDebounced(quick?.phone ?? '', 250)
+  const [dup, setDup] = useState<{ phone: string; name: string; fileNo: number } | null>(null)
+  useEffect(() => {
+    let alive = true
+    if (!quickPhone.trim()) { setDup(null); return }
+    void phoneOwner(quickPhone).then(p => { if (alive) setDup(p ? { phone: quickPhone, name: p.name, fileNo: p.fileNo } : null) }).catch(() => undefined)
+    return () => { alive = false }
+  }, [quickPhone])
 
-  const pick = (p: Patient) => { onChange(p); setQ(''); setOpen(false) }
+  // the shared index holds a slim copy: hand the form the full, current record
+  const pick = async (p: Hit) => { const full = await db.patients.get(p.id); if (full) { onChange(full); setQ(''); setOpen(false) } }
   const startQuick = () => { const f = quickPatientFromQuery(q); setQuick({ ...f, gender: 'male' }); setQErr({}); setOpen(false) }
 
   const onKey = (e: KeyboardEvent<HTMLInputElement>) => {
@@ -63,17 +90,18 @@ export default function PatientPicker({ value, onChange, error, disabled, autoFo
     else if (e.key === 'Enter') {
       e.preventDefault()
       if (!open) { setOpen(true); return }
-      if (hi < results.length) pick(results[hi]); else startQuick()
+      if (hi < results.length) void pick(results[hi]); else startQuick()
     } else if (e.key === 'Escape' && open) { e.stopPropagation(); setOpen(false) }
   }
 
   const createQuick = async () => {
     if (!quick || busyRef.current) return
     const name = quick.name.trim().replace(/\s+/g, ' ')
-    const phone = quick.phone.trim()
+    // the same rules as the full patient form: the phone is optional, and a real number when given
+    const phone = quick.phone.trim() ? cleanPhone(quick.phone) : ''
     const errs: { name?: string; phone?: string } = {}
     if (name.length < 2) errs.name = t('v.required')
-    if (phone && phone.replace(/\D/g, '').length < 6) errs.phone = t('v.phone')
+    if (quick.phone.trim() && !isValidPhone(quick.phone)) errs.phone = t('v.phone')
     setQErr(errs)
     if (errs.name || errs.phone) return
     busyRef.current = true
@@ -132,6 +160,7 @@ export default function PatientPicker({ value, onChange, error, disabled, autoFo
             onChange={e => { setQuick({ ...quick, name: e.target.value }); if (qErr.name) setQErr({ ...qErr, name: undefined }) }} />
           <Input label={t('phone')} type="tel" inputMode="tel" dir="ltr" className="num" value={quick.phone} error={qErr.phone} placeholder="09xx xxx xxx" autoComplete="off"
             onChange={e => { setQuick({ ...quick, phone: e.target.value.replace(/[^\d+\s()-]/g, '') }); if (qErr.phone) setQErr({ ...qErr, phone: undefined }) }} />
+          {dup && dup.phone === quick.phone && <Alert tone="warning" className="span-2">{t('patients.duplicatePhone', { name: dup.name, fileNo: dup.fileNo })}</Alert>}
           <Field label={t('gender')} className="span-2">
             <Segmented<Gender> value={quick.gender} onChange={g => setQuick({ ...quick, gender: g })}
               options={[{ value: 'male', label: t('male') }, { value: 'female', label: t('female') }]} />
@@ -154,14 +183,14 @@ export default function PatientPicker({ value, onChange, error, disabled, autoFo
           clearable onClear={() => { setQ(''); inputRef.current?.focus() }} />
         {open && !disabled && (
           <div className="apt-drop" role="listbox">
-            {all === undefined ? (
+            {!ready ? (
               <div className="apt-drop-pad col gap-2"><Skeleton h={36} /><Skeleton h={36} /></div>
             ) : (
               <>
                 {results.length > 0 && <div className="apt-drop-label">{q.trim() ? t('appointments.form.results') : t('appointments.form.recent')}</div>}
                 {results.map((p, i) => (
                   <button key={p.id} type="button" role="option" aria-selected={i === hi} className={`apt-drop-item${i === hi ? ' hi' : ''}`}
-                    onMouseEnter={() => setHi(i)} onMouseDown={e => e.preventDefault()} onClick={() => pick(p)}>
+                    onMouseEnter={() => setHi(i)} onMouseDown={e => e.preventDefault()} onClick={() => void pick(p)}>
                     <PatientAvatar patient={p} size="sm" />
                     <span className="grow">
                       <span className="apt-drop-name truncate" dir="auto">{p.name}</span>
@@ -170,7 +199,7 @@ export default function PatientPicker({ value, onChange, error, disabled, autoFo
                   </button>
                 ))}
                 {results.length === 0 && (
-                  <div className="apt-drop-empty"><UserRound />{all.length === 0 ? t('appointments.form.noPatientsYet') : t('appointments.form.noPatientFound')}</div>
+                  <div className="apt-drop-empty"><UserRound />{!q.trim() ? t('appointments.form.noPatientsYet') : t('appointments.form.noPatientFound')}</div>
                 )}
                 <button type="button" className={`apt-drop-item apt-drop-new${hi === results.length ? ' hi' : ''}`} onMouseEnter={() => setHi(results.length)}
                   onMouseDown={e => e.preventDefault()} onClick={startQuick}>

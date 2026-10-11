@@ -2,11 +2,12 @@
 // (tools/code-generator.html). Never imported by the app. Plain TypeScript that Node 22.18+ runs directly.
 // Codes are signed with the seller's PRIVATE key (license-private.jwk); the app only has the public key.
 import {
-  PUBLIC_KEY, checkCode, cleanCode, expiryDay, formatCode, packCode, signedMessage, PLANS, type CodeCheck, type Plan,
+  PUBLIC_KEY, RESET_VALID_DAYS, checkCode, checkResetCode, cleanCode, dayISO, dayNumber, expiryDay, formatCode, packCode, packResetCode, resetMessage, signedMessage, PLANS,
+  type CodeCheck, type Plan, type ResetCheck,
 } from '../src/license/core.ts'
 
-export { checkCode, formatCode, PLANS }
-export type { CodeCheck, Plan }
+export { checkCode, checkResetCode, formatCode, PLANS }
+export type { CodeCheck, Plan, ResetCheck }
 
 /** The private key file as written by `node scripts/code-generator.mjs keygen`. */
 export interface PrivateKeyFile extends JsonWebKey { product?: string; created?: string }
@@ -110,8 +111,48 @@ export function clinicMessage(i: Pick<Issued, 'code' | 'plan' | 'until' | 'devic
   ].join('\n')
 }
 
+// ---- admin PIN reset codes -------------------------------------------------------------------------
+/** A PIN reset code: works on that device, on `day` and the next day (`lastDay`), once. */
+export interface IssuedReset { code: string; device: string; day: string; lastDay: string }
+
+/** Seller side: a reset code for one device, dated today (UTC). */
+export async function makeResetCode(device: string, signingKey: CryptoKey, now: Date = new Date()): Promise<{ code: string; day: number }> {
+  const day = dayNumber(now)
+  const sig = new Uint8Array(await crypto.subtle.sign({ name: 'ECDSA', hash: 'SHA-256' }, signingKey, resetMessage(device, day)))
+  return { code: packResetCode(day, sig), day }
+}
+/** Makes a reset code and checks it back with the app's own verifier. */
+export async function issueResetCode(device: string, signingKey: CryptoKey, now: Date = new Date(), publicKey: JsonWebKey = PUBLIC_KEY): Promise<IssuedReset> {
+  if (!isDeviceNumber(device)) throw new Error('device')
+  const dev = formatDeviceInput(device)
+  const { code, day } = await makeResetCode(dev, signingKey, now)
+  const back = await checkResetCode(dev, code, now, publicKey)
+  if (!back.ok) throw new Error('self-check')
+  return { code, device: dev, day: dayISO(day), lastDay: dayISO(day + RESET_VALID_DAYS - 1) }
+}
+/** The ready-to-send message for a clinic whose admin forgot the PIN. */
+export function resetClinicMessage(i: IssuedReset, lang: 'ar' | 'en' = 'ar', clinic = ''): string {
+  if (lang === 'en') {
+    return [
+      `Hello${clinic ? ` ${clinic}` : ''},`,
+      'Here is your Dentora PIN reset code:',
+      i.code,
+      `Device number: ${i.device} — valid until ${i.lastDay}, once`,
+      'On the sign-in screen press “Forgot your PIN?”, then “I have a reset code”, paste this message and choose a new PIN.',
+    ].join('\n')
+  }
+  return [
+    `مرحباً${clinic ? ` ${clinic}` : ''}،`,
+    'هذا رمز إعادة تعيين رمز الدخول لبرنامج Dentora:',
+    ltr(i.code),
+    `رقم الجهاز: ${ltr(i.device)} — صالح حتى ${ltr(i.lastDay)} ولمرة واحدة`,
+    'في شاشة الدخول اضغطوا «نسيت رمز الدخول؟» ثم «لديّ رمز إعادة تعيين»، والصقوا هذه الرسالة واختاروا رمز دخول جديداً.',
+  ].join('\n')
+}
+
 // ---- the local log of issued codes ----------------------------------------------------------------
-export interface LogEntry extends Issued { at: string; note: string }
+/** One line of the log: an activation code (plan, until) or a PIN reset code (kind 'reset'; until = its last day). */
+export interface LogEntry { at: string; note: string; code: string; device: string; plan?: Plan; until: string | null; kind?: 'activation' | 'reset' }
 export const LOG_KEY = 'dentora.generator.log'
 
 export function parseLog(raw: string | null): LogEntry[] {
@@ -128,7 +169,7 @@ function csvCell(v: unknown): string {
 /** CSV with a BOM so Excel opens Arabic notes correctly. */
 export function toCSV(rows: LogEntry[]): string {
   const head = ['issued_at', 'device', 'plan', 'valid_until', 'code', 'note']
-  const lines = rows.map(r => [r.at, r.device, r.plan, r.until ?? 'lifetime', r.code, r.note].map(csvCell).join(','))
+  const lines = rows.map(r => [r.at, r.device, r.kind === 'reset' ? 'pin-reset' : r.plan ?? '', r.until ?? 'lifetime', r.code, r.note].map(csvCell).join(','))
   return '﻿' + [head.join(','), ...lines].join('\r\n')
 }
 

@@ -29,7 +29,8 @@ describe('signed licence codes', () => {
     expect(await checkCode(b, code, new Date(), k.pub)).toEqual({ ok: false, reason: 'device' })
     const ok = await checkCode(a, code, new Date(Date.UTC(2027, 5, 29)), k.pub)
     expect(ok.ok && ok.plan).toBe('standard')
-    expect(await checkCode(a, code, new Date(Date.UTC(2027, 7, 1)), k.pub)).toEqual({ ok: false, reason: 'expired' })
+    // past its last day the code still says which plan ran out and when, for "your licence ended on …"
+    expect(await checkCode(a, code, new Date(Date.UTC(2027, 7, 1)), k.pub)).toEqual({ ok: false, reason: 'expired', plan: 'standard', until: new Date(Date.UTC(2027, 5, 30)) })
   })
   it('tells a typo (format) from a forged or foreign code (device)', async () => {
     const k = await testKeys()

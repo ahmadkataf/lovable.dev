@@ -1,8 +1,9 @@
-import React, { lazy, Suspense, useEffect } from 'react'
+import React, { lazy, Suspense, useEffect, useLayoutEffect } from 'react'
 import { createHashRouter, Navigate, Outlet, RouterProvider, useLocation } from 'react-router-dom'
 import { I18nProvider, useI18n } from '@/i18n'
 import { ToastProvider, ConfirmProvider, Loading, EmptyState, Button } from '@/ui'
 import { SessionProvider, useSession, type Permission } from '@/app/session'
+import { LicenseProvider } from '@/license/useLicense'
 import { ShieldAlert } from 'lucide-react'
 import { useClinicMaybe } from '@/app/hooks'
 import Shell from '@/app/Shell'
@@ -35,6 +36,8 @@ function Gate() {
   const session = useSession()
   const { setLang } = useI18n()
   const location = useLocation()
+  // every screen opens at its top (the page scrolls, not an inner box); a tab change on the same screen (?tab=) keeps its place
+  useLayoutEffect(() => { window.scrollTo(0, 0) }, [location.pathname])
   useEffect(() => { if (clinic?.setupDone) setLang(clinic.lang) }, [clinic?.lang, clinic?.setupDone, setLang])
   useEffect(() => { document.documentElement.dataset.theme = clinic?.theme === 'dark' ? 'dark' : 'light' }, [clinic?.theme])
   // WhatsApp country code and Arabic month names follow the clinic's country (set in Settings, or derived from the currency)
@@ -97,9 +100,11 @@ export default function App() {
     <I18nProvider>
       <ToastProvider>
         <ConfirmProvider>
-          <SessionProvider>
-            <Suspense fallback={<Loading />}><RouterProvider router={router} /></Suspense>
-          </SessionProvider>
+          <LicenseProvider>
+            <SessionProvider>
+              <Suspense fallback={<Loading />}><RouterProvider router={router} /></Suspense>
+            </SessionProvider>
+          </LicenseProvider>
         </ConfirmProvider>
       </ToastProvider>
     </I18nProvider>

@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
-import { Banknote, Eye, FileSignature, FileText, Hash, Percent, Receipt } from 'lucide-react'
+import { Banknote, Eye, FileSignature, FileText, Hash, Landmark, Percent, Receipt } from 'lucide-react'
 import { Alert, Card, CardBody, Field, Input, NumberInput, Segmented, Select, Textarea, useToast } from '@/ui'
 import { useI18n } from '@/i18n'
 import { db, logActivity, updateClinic } from '@/db'
@@ -8,7 +8,7 @@ import { useClinicMaybe } from '@/app/hooks'
 import { formatMoney } from '@/lib/format'
 import { CURRENCIES, CUSTOM_CURRENCY, cleanCurrencyCode } from '@/features/auth/lib'
 import {
-  SAMPLE_LINES, billingDraftFrom, billingPatch, hasErrors, lastInvoiceSeq, previewInvoiceNumber, sampleTotals, validateBilling, withCurrency,
+  DECIMAL_CHOICES, SAMPLE_LINES, asDecimals, billingDraftFrom, billingPatch, hasErrors, lastInvoiceSeq, previewInvoiceNumber, sampleTotals, validateBilling, withCurrency,
   type BillingDraft, type FieldErrors,
 } from './lib'
 import { LockedNotice, SaveBar, SectionTitle, TabSkeleton, useAccess, useDraft, useErrText, useSingleFlight, useUnsavedGuard } from './parts'
@@ -58,7 +58,7 @@ export default function BillingTab() {
   const p = billingPatch(draft)
   const moneyOpts = { currency: p.currency || '', currencySymbol: draft.symbol.trim() || p.currency || '', currencyDecimals: draft.decimals }
   const fmt = (n: number) => formatMoney(n, moneyOpts, lang)
-  const totals = sampleTotals(draft.taxPercent)
+  const totals = sampleTotals(draft.taxPercent, draft.decimals)
   const currencyChanged = p.currency !== clinic.currency
   // Starting a new prefix at 1 is a new series, not a step back; warn only when the same series is lowered.
   const lowered = draft.invoicePrefix.trim() === (clinic.invoicePrefix ?? '') && (draft.nextInvoiceNumber ?? 0) < clinic.nextInvoiceNumber && !errors.nextInvoiceNumber
@@ -110,8 +110,9 @@ export default function BillingTab() {
               onChange={e => set('symbol', e.target.value)} error={errText(errors.symbol)} disabled={disabled} data-qa="currency-symbol" />
             <div className="field">
               <span className="field-label">{t('settings.bill.decimals')}</span>
-              <Segmented<'0' | '2'> block className={disabled ? 'st-inert' : undefined} value={String(draft.decimals) as '0' | '2'} onChange={v => !disabled && set('decimals', v === '0' ? 0 : 2)}
-                options={[{ value: '0', label: t('settings.bill.dec0') }, { value: '2', label: t('settings.bill.dec2') }]} />
+              <Segmented<'0' | '2' | '3'> block className={disabled ? 'st-inert' : undefined} value={String(draft.decimals) as '0' | '2' | '3'} onChange={v => !disabled && set('decimals', asDecimals(Number(v)))}
+                options={DECIMAL_CHOICES.map(d => ({ value: String(d) as '0' | '2' | '3', label: t(`settings.bill.dec${d}`) }))} />
+              {draft.decimals === 3 || ['KWD', 'BHD', 'OMR', 'JOD'].includes(p.currency || '') ? <div className="field-hint">{t('settings.bill.decimalsHint')}</div> : null}
             </div>
           </div>
           {currencyChanged && <Alert tone="warning" className="mt-4">{t('settings.bill.changeWarn')}</Alert>}
@@ -126,6 +127,8 @@ export default function BillingTab() {
               <NumberInput value={draft.taxPercent} onChange={v => set('taxPercent', v)} addon={<Percent size={16} />} invalid={!!errors.taxPercent}
                 disabled={disabled} min={0} max={100} aria-label={t('settings.bill.tax')} data-qa="tax" />
             </Field>
+            <Input label={t('settings.bill.taxNumber')} hint={errors.taxNumber ? undefined : t('settings.bill.taxNumberHint')} dir="ltr" iconStart={<Landmark />} value={draft.taxNumber} maxLength={30}
+              placeholder={t('settings.bill.taxNumberPh')} inputMode="text" onChange={e => set('taxNumber', e.target.value)} error={errText(errors.taxNumber)} disabled={disabled} data-qa="tax-number" />
             <Input label={t('settings.bill.prefix')} hint={errors.invoicePrefix ? undefined : t('settings.bill.prefixHint')} dir="ltr" value={draft.invoicePrefix} maxLength={10}
               onChange={e => set('invoicePrefix', e.target.value.toUpperCase())} error={errText(errors.invoicePrefix)} disabled={disabled} data-qa="prefix" />
             <NumberInput label={t('settings.bill.nextInvoice')} decimals={0} value={draft.nextInvoiceNumber} onChange={v => set('nextInvoiceNumber', v)}

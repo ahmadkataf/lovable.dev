@@ -93,7 +93,8 @@ export function validateMove(amount: number | null | undefined, direction: MoveD
 
 /** Newest first: by calendar date, then by the moment it was recorded. */
 export function sortMovements<T extends Pick<StockMovement, 'date' | 'createdAt'>>(list: T[]): T[] {
-  return [...list].sort((a, b) => b.date.localeCompare(a.date) || b.createdAt.localeCompare(a.createdAt))
+  // ISO dates and instants sort as plain strings: < and > (localeCompare is many times slower over 20,000 rows)
+  return [...list].sort((a, b) => (a.date === b.date ? (a.createdAt === b.createdAt ? 0 : a.createdAt < b.createdAt ? 1 : -1) : a.date < b.date ? 1 : -1))
 }
 
 export interface MovementRow extends StockMovement { after: number }

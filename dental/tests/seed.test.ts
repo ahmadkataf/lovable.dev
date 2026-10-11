@@ -6,7 +6,7 @@ import { hashPin, verifyPin } from '../src/lib/crypto'
 import { addDays, addMonths, startOfMonth, timeToMinutes, toISODate } from '../src/lib/dates'
 import { todayISO } from '../src/db/ids'
 import { round2 } from '../src/lib/format'
-import { DEFAULT_DRUGS, DEFAULT_INVENTORY, DEFAULT_PROCEDURES, priceScale, scalePrice, scalesPrices } from '../src/features/seed/catalog'
+import { DEFAULT_DRUGS, DEFAULT_INVENTORY, DEFAULT_PROCEDURES, catalogueEntry, priceScale, scalePrice, scalesPrices } from '../src/features/seed/catalog'
 import { DEMO_PIN, loadDemoData, seedDefaults, type DemoCounts } from '../src/features/seed/demo'
 import { mulberry32, Rng } from '../src/features/seed/rng'
 import { DEMO_STEPS } from '../src/features/seed/demo'
@@ -73,16 +73,27 @@ describe('seed: strings', () => {
 describe('seed: default catalogue', () => {
   beforeEach(async () => { await resetDatabase(); await ensureClinic() })
 
+  it('a real clinic starts with procedures and drugs only: no invented stock, no billing codes', async () => {
+    const out = await seedDefaults()
+    expect(out).toEqual({ procedures: DEFAULT_PROCEDURES.length, drugs: DEFAULT_DRUGS.length, inventory: 0 })
+    expect(await db.inventory.count()).toBe(0)
+    expect(await db.stock.count()).toBe(0)
+    const procs = await db.procedures.toArray()
+    // CDT codes are licensed by the ADA: the default list carries none (clinics may type their own)
+    expect(procs.every(p => p.code === undefined)).toBe(true)
+    expect(JSON.stringify(DEFAULT_PROCEDURES)).not.toMatch(/"D\d{4}/)
+  })
+
   it('seedDefaults twice yields no duplicates', async () => {
-    const first = await seedDefaults()
+    const first = await seedDefaults({ inventory: true })
     expect(first).toEqual({ procedures: DEFAULT_PROCEDURES.length, drugs: DEFAULT_DRUGS.length, inventory: DEFAULT_INVENTORY.length })
-    const second = await seedDefaults()
+    const second = await seedDefaults({ inventory: true })
     expect(second).toEqual({ procedures: 0, drugs: 0, inventory: 0 })
     const [procs, drugs, items, moves] = await Promise.all([db.procedures.toArray(), db.drugs.toArray(), db.inventory.toArray(), db.stock.toArray()])
     expect(procs).toHaveLength(DEFAULT_PROCEDURES.length)
     expect(drugs).toHaveLength(DEFAULT_DRUGS.length)
     expect(items).toHaveLength(DEFAULT_INVENTORY.length)
-    expect(new Set(procs.map(p => p.code)).size).toBe(procs.length)
+    expect(new Set(DEFAULT_PROCEDURES.map(p => p.key)).size).toBe(procs.length)
     expect(new Set(procs.map(p => p.name)).size).toBe(procs.length)
     expect(new Set(drugs.map(d => `${d.name}|${d.strength}`)).size).toBe(drugs.length)
     expect(new Set(items.map(i => i.name)).size).toBe(items.length)
@@ -112,22 +123,23 @@ describe('seed: default catalogue', () => {
       expect(typeof p.sortOrder).toBe('number')
     }
     for (const c of PROCEDURE_CATEGORIES) expect(procs.some(p => p.category === c)).toBe(true)
-    const price = (code: string) => procs.find(p => p.code === code)!.price
+    const byKey = (key: string) => procs.find(p => catalogueEntry(p)?.key === key)!
+    const price = (key: string) => byKey(key).price
     const within = (code: string, lo: number, hi: number) => { expect(price(code)).toBeGreaterThanOrEqual(lo); expect(price(code)).toBeLessThanOrEqual(hi) }
-    within('D9310', 10, 20); within('D0150', 10, 20)
-    within('D1110', 30, 60)
-    for (const c of ['D2391', 'D2392', 'D2393', 'D2394']) within(c, 30, 80)
-    expect(price('D2391')).toBeLessThan(price('D2393'))
-    within('D3310', 100, 250); within('D3330', 100, 250); expect(price('D3310')).toBeLessThan(price('D3330'))
-    within('D2740', 200, 400)
-    within('D7140', 25, 80); within('D7210', 25, 80)
-    within('D6010', 500, 900)
-    within('D9972', 150, 300)
-    within('D8090', 1000, 2000)
-    within('D2962', 250, 400)
+    within('consult', 10, 20); within('exam-full', 10, 20)
+    within('scaling', 30, 60)
+    for (const c of ['comp-1', 'comp-2', 'comp-3', 'comp-4']) within(c, 30, 80)
+    expect(price('comp-1')).toBeLessThan(price('comp-3'))
+    within('rct-anterior', 100, 250); within('rct-molar', 100, 250); expect(price('rct-anterior')).toBeLessThan(price('rct-molar'))
+    within('crown-zirconia', 200, 400)
+    within('ext-simple', 25, 80); within('ext-surgical', 25, 80)
+    within('implant', 500, 900)
+    within('whitening-office', 150, 300)
+    within('braces-metal', 1000, 2000)
+    within('veneer-porcelain', 250, 400)
     expect(procs.filter(p => p.category === 'pediatric').length).toBeGreaterThanOrEqual(5)
-    expect(procs.find(p => p.code === 'D2392')!.toothSpecific).toBe(true)
-    expect(procs.find(p => p.code === 'D1110')!.toothSpecific).toBe(false)
+    expect(byKey('comp-2').toothSpecific).toBe(true)
+    expect(byKey('scaling').toothSpecific).toBe(false)
   })
 
   it('drugs: dentists\' usual prescriptions with Arabic defaults', async () => {
@@ -140,12 +152,18 @@ describe('seed: default catalogue', () => {
       expect(d.strength).toBeTruthy()
     }
     for (const en of ['Amoxicillin', 'Metronidazole (Flagyl)', 'Clindamycin', 'Azithromycin', 'Ibuprofen', 'Paracetamol', 'Diclofenac sodium', 'Ketoprofen', 'Chlorhexidine mouthwash',
-      'Benzydamine mouthwash', 'Nystatin', 'Acyclovir', 'Dexamethasone', 'Hyaluronic acid gel', 'Fluoride gel', 'Sensitivity toothpaste']) expect(drugs.some(d => d.nameEn === en)).toBe(true)
+      'Benzydamine mouthwash', 'Nystatin', 'Acyclovir', 'Dexamethasone', 'Hyaluronic acid gel', 'Sodium fluoride gel (home use)', 'Sensitivity toothpaste']) expect(drugs.some(d => d.nameEn === en)).toBe(true)
+    // the home fluoride gel is the 1.1% (5000 ppm) one; 1.23% APF is an in-office gel, never a daily home product
+    const gel = drugs.find(d => d.nameEn === 'Sodium fluoride gel (home use)')!
+    expect(gel.strength).toContain('1.1%')
+    expect(drugs.some(d => /APF|1\.23/.test(d.strength ?? ''))).toBe(false)
+    // patient instructions only: no clinician notes printed on the prescription
+    expect(drugs.find(d => d.nameEn === 'Clindamycin')!.defaultInstructions).not.toContain('بنسلين')
     expect(drugs.find(d => d.nameEn === 'Amoxicillin' && d.strength === '500 mg')).toMatchObject({ defaultFrequency: 'كل 8 ساعات', defaultDuration: '5 أيام' })
   })
 
-  it('inventory: units, minimums, some low stock and one near expiry', async () => {
-    await seedDefaults()
+  it('demo stock: units, minimums, some low stock and one near expiry', async () => {
+    await seedDefaults({ inventory: true })
     const items = await db.inventory.toArray()
     expect(items.length).toBeGreaterThanOrEqual(25)
     const low = items.filter(i => i.quantity <= i.minQuantity)
@@ -169,13 +187,14 @@ describe('seed: default catalogue', () => {
     for (const c of ['MAD', 'DZD', 'TND', 'LYD', 'EGP', 'IQD', 'KWD', 'JOD']) expect(priceScale(c).factor).not.toBe(1)
     expect(priceScale('SYP').factor).toBe(1)
     expect(scalesPrices('SYP')).toBe(false); expect(scalesPrices('sar')).toBe(true)
-    expect(translate('ar', 'seed.pricesInUsd', { currency: 'SYP' })).toContain('SYP')
+    // the notice speaks of the clinic's currency in words, never an ISO code inside Arabic prose
+    expect(translate('ar', 'seed.pricesInUsd', { currency: 'SYP' })).not.toContain('SYP')
     expect(scalePrice(15, 'KWD')).toBe(4.5)
     expect(scalePrice(15, 'KWD', 0)).toBe(5)
     expect(Number.isInteger(scalePrice(15, 'JOD', 0))).toBe(true)
     await updateClinic({ currency: 'SAR', currencySymbol: 'ر.س' })
     await seedDefaults()
-    const consult = (await db.procedures.toArray()).find(p => p.code === 'D9310')!
+    const consult = (await db.procedures.toArray()).find(p => catalogueEntry(p)?.key === 'consult')!
     expect(consult.price).toBe(55)
   })
 })
@@ -537,7 +556,7 @@ describe('seed: demo data', () => {
     const proc = new Map(procedures.map(p => [p.id, p]))
     const hers = items.filter(t => t.doctorId === leila.id)
     expect(hers.length).toBeGreaterThan(10)
-    for (const t of hers) { const p = proc.get(t.procedureId!)!; expect(p.category === 'orthodontic' || p.code === 'D0330').toBe(true) }
+    for (const t of hers) { const p = proc.get(t.procedureId!)!; expect(p.category === 'orthodontic' || catalogueEntry(p)?.key === 'xray-opg').toBe(true) }
     for (const a of apts.filter(x => x.doctorId === leila.id)) expect(['orthodontic', 'consultation']).toContain(a.type)
     // her patients still see a general dentist for check-ups and fillings
     const others = new Set(apts.filter(a => a.doctorId !== leila.id).map(a => a.patientId))
@@ -553,7 +572,7 @@ describe('seed: demo data', () => {
       expect(p.gender).toBe('female')
       for (const t of items.filter(x => x.patientId === p.id && x.status !== 'cancelled' && (!x.completedAt || localDate(x.completedAt) >= since))) {
         const c = proc.get(t.procedureId!)!
-        expect(['surgical', 'implant', 'cosmetic'].includes(c.category) || /^D0[23]/.test(c.code!)).toBe(false)
+        expect(['surgical', 'implant', 'cosmetic'].includes(c.category) || /^(xray|cbct)/.test(catalogueEntry(c)?.key ?? '')).toBe(false)
       }
       expect(rx.filter(r => r.patientId === p.id && r.date >= since)).toHaveLength(0)
     }

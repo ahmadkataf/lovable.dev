@@ -34,13 +34,32 @@ export function formatPercent(n: number, lang: Lang = 'ar', decimals = 0): strin
   return `${numberFormat(lang, decimals).format(n)}%`
 }
 
-/** 0944123456 → 0944 123 456; keeps other formats as typed. */
-export function formatPhone(p?: string): string {
+/**
+ * A phone number for screens and printouts. Spacing the user typed is kept (only runs of spaces are collapsed), since
+ * nobody knows a local number's area code better than the clinic. Numbers stored without spaces are grouped the way
+ * the clinic's country writes them: Syrian mobiles 0944 123 456; other 10-digit numbers (landlines such as
+ * Damascus 011 222 3344 or Riyadh 011 456 7890, Gulf mobiles 055 123 4567) 3-3-4; Egyptian 11-digit numbers 3-4-4,
+ * Iraqi 4-3-4; international numbers after their country code.
+ */
+export function formatPhone(p?: string, country = defaultCountry): string {
   if (!p) return ''
-  const d = p.replace(/\s+/g, '')
-  if (/^0\d{9}$/.test(d)) return `${d.slice(0, 4)} ${d.slice(4, 7)} ${d.slice(7)}`
-  if (/^\+\d{10,13}$/.test(d)) return `${d.slice(0, 4)} ${d.slice(4, 7)} ${d.slice(7, 10)} ${d.slice(10)}`
-  return p
+  const typed = p.trim().replace(/\s+/g, ' ')
+  if (/[\s\-]/.test(typed)) return typed
+  const d = typed
+  if (/^0\d{9}$/.test(d)) {
+    return country === '963' && d.startsWith('09') ? `${d.slice(0, 4)} ${d.slice(4, 7)} ${d.slice(7)}` : `${d.slice(0, 3)} ${d.slice(3, 6)} ${d.slice(6)}`
+  }
+  if (/^0\d{10}$/.test(d)) {
+    return country === '20' || d.startsWith('01') ? `${d.slice(0, 3)} ${d.slice(3, 7)} ${d.slice(7)}` : `${d.slice(0, 4)} ${d.slice(4, 7)} ${d.slice(7)}`
+  }
+  const intl = /^(?:\+|00)(\d{8,14})$/.exec(d)
+  if (intl) {
+    const digits = intl[1]
+    const cc = KNOWN_CODES.find(c => digits.startsWith(c)) ?? digits.slice(0, 3)
+    const rest = digits.slice(cc.length)
+    return `+${cc} ${(rest.match(/\d{1,3}/g) ?? []).join(' ').replace(/ (\d)$/, '$1')}`
+  }
+  return typed
 }
 export function phoneDigits(p?: string): string { return (p || '').replace(/[^\d+]/g, '') }
 /** Phone country code (no +) usually matching a clinic currency; '' when unknown. */
@@ -49,6 +68,8 @@ export const COUNTRY_BY_CURRENCY: Record<string, string> = {
   LBP: '961', TRY: '90', MAD: '212', DZD: '213', TND: '216', LYD: '218', SDG: '249', YER: '967',
 }
 export const countryCodeFor = (currency?: string) => COUNTRY_BY_CURRENCY[(currency || '').toUpperCase()] ?? ''
+/** Country codes recognised at the start of an international number (longest first, so 963 wins over 9…). */
+const KNOWN_CODES = [...new Set([...Object.values(COUNTRY_BY_CURRENCY), '970', '44', '49', '33', '1'])].sort((a, b) => b.length - a.length)
 let defaultCountry = '963'
 /** Set once from the clinic (App): the country code added to local numbers (0944…) in WhatsApp links. */
 export function setDefaultCountryCode(cc: string) { if (/^\d{1,4}$/.test(cc)) defaultCountry = cc }

@@ -4,7 +4,7 @@
 // The renderer is the same Vite build the browser and Android use (dist/index.html, hash router, file://).
 // Everything the web app needs from the machine goes through the preload bridge (electron/preload.cjs) and the
 // IPC handlers below, typed in src/platform/index.ts:
-//   device-id · save-file · open-file · print · app-version · open-external
+//   device-id · save-begin/-chunk/-end/-abort · open-begin/-chunk/-end · print · app-version · open-external
 //
 // Patient data lives in IndexedDB under app.getPath('userData') (Windows: %APPDATA%\Dentora). The installer never
 // deletes that folder, so upgrades and reinstalls keep every record.
@@ -19,6 +19,7 @@ const path = require('node:path')
 const fs = require('node:fs')
 const os = require('node:os')
 const crypto = require('node:crypto')
+const zlib = require('node:zlib')
 const { execFile } = require('node:child_process')
 const { fileURLToPath } = require('node:url')
 
@@ -445,6 +446,67 @@ function dirOrDownloads(dir) {
   return app.getPath('downloads')
 }
 
+// ---- chunked saves and opens (see registerIpc) ----------------------------------------------------------------
+const MAX_CHUNK = 16 * 1024 * 1024
+const saves = new Map()   // id → { owner, fh, part, target, size, crc, quiet, lang, win }
+const opens = new Map()   // id → { owner, fh, file, size, lang, win }
+const watched = new Set()
+
+function ownSession(map, id, e) {
+  const sv = map.get(String(id))
+  return sv && sv.owner === e.sender.id ? sv : null
+}
+async function dropSave(id) {
+  const sv = saves.get(String(id))
+  if (!sv) return
+  saves.delete(String(id))
+  await sv.fh.close().catch(() => undefined)
+  await fs.promises.unlink(sv.part).catch(() => undefined)
+}
+async function dropOpen(id) {
+  const o = opens.get(String(id))
+  if (!o) return
+  opens.delete(String(id))
+  await o.fh.close().catch(() => undefined)
+}
+/** A window that goes away (closed, reloaded after a crash) leaves no open file and no half-written part behind. */
+function watchOwner(wc) {
+  if (watched.has(wc.id)) return
+  watched.add(wc.id)
+  const owner = wc.id
+  const drop = () => {
+    for (const [id, sv] of saves) if (sv.owner === owner) void dropSave(id)
+    for (const [id, o] of opens) if (o.owner === owner) void dropOpen(id)
+  }
+  wc.once('destroyed', () => { watched.delete(owner); drop() })
+  wc.on('did-start-navigation', (ev, _url, inPlace, isMainFrame) => {
+    // Electron passes the details on the event (newer) or as arguments (older): a reload or a new page drops them
+    const main = ev && typeof ev.isMainFrame === 'boolean' ? ev.isMainFrame : isMainFrame
+    const same = ev && typeof ev.isSameDocument === 'boolean' ? ev.isSameDocument : inPlace
+    if (main && !same) drop()
+  })
+}
+const failReason = err => (err && (err.code === 'ENOSPC' || err.code === 'EDQUOT') ? 'space' : 'io')
+async function saveFailed(win, s, err, quiet) {
+  if (quiet) return   // the page explains it in its own words
+  await dialog.showMessageBox(win, { type: 'error', title: 'Dentora', message: s.saveFailed, detail: String((err && err.message) || err) }).catch(() => undefined)
+}
+
+// CRC-32 as ZIP and the page compute it (zlib.crc32 in Node 22+; a table version otherwise)
+const CRC_TABLE = (() => { const t = new Int32Array(256); for (let n = 0; n < 256; n++) { let c = n; for (let k = 0; k < 8; k++) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1; t[n] = c } return t })()
+function crc32(buf, prev = 0) {
+  if (typeof zlib.crc32 === 'function') return zlib.crc32(buf, prev) >>> 0
+  let c = ~prev
+  for (let i = 0; i < buf.length; i++) c = CRC_TABLE[(c ^ buf[i]) & 0xff] ^ (c >>> 8)
+  return ~c >>> 0
+}
+/** Size and CRC-32 of a file as it is on disk. */
+async function fileCrc(file) {
+  let crc = 0, size = 0
+  for await (const chunk of fs.createReadStream(file, { highWaterMark: 4 * 1024 * 1024 })) { crc = crc32(chunk, crc); size += chunk.length }
+  return { crc, size }
+}
+
 function registerIpc() {
   // sent by the preload whenever <html lang> changes, so the menu and dialogs follow the app's language
   ipcMain.on('ui-lang', (e, lang) => {
@@ -455,7 +517,11 @@ function registerIpc() {
   ipcMain.handle('device-id', e => { assertTrusted(e); return deviceId() })
   ipcMain.handle('app-version', e => { assertTrusted(e); return app.getVersion() })
 
-  ipcMain.handle('save-file', async (e, name, mime, base64, lang) => {
+  // ---- files in chunks: saving (backups, CSV, PDFs) and opening (backups to restore, x-rays) ------------------
+  // A backup can hold gigabytes of x-rays, so files cross IPC in pieces (Uint8Array), never as one string.
+  // A save writes "<chosen name>.dentora-part" next to the chosen file, reads it back to check its size and CRC-32
+  // against what the page sent, and only then takes the chosen name: a failed save never replaces a good older file.
+  ipcMain.handle('save-begin', async (e, name, mime, quiet, lang) => {
     assertTrusted(e)
     const s = L(lang)
     const win = BrowserWindow.fromWebContents(e.sender) || mainWindow
@@ -468,19 +534,79 @@ function registerIpc() {
       filters,
       properties: ['createDirectory', 'showOverwriteConfirmation'],
     })
-    if (r.canceled || !r.filePath) return false
+    if (r.canceled || !r.filePath) return null
+    const target = r.filePath
+    const part = `${target}.dentora-part`
     try {
-      await fs.promises.writeFile(r.filePath, Buffer.from(String(base64 || ''), 'base64'))
-      state.saveDir = path.dirname(r.filePath); scheduleSave(mainWindow)
-      return true
+      const fh = await fs.promises.open(part, 'w')
+      const id = crypto.randomUUID()
+      saves.set(id, { owner: e.sender.id, fh, part, target, size: 0, crc: 0, quiet: !!quiet, lang, win })
+      watchOwner(e.sender)
+      return { id, name: path.basename(target) }
     } catch (err) {
-      log('save-file failed', r.filePath, err)
-      await dialog.showMessageBox(win, { type: 'error', title: 'Dentora', message: s.saveFailed, detail: String(err && err.message || err) })
-      return false
+      log('save-begin failed', part, err)
+      await saveFailed(win, s, err, !!quiet)
+      return { error: failReason(err) }
     }
   })
 
-  ipcMain.handle('open-file', async (e, accept, lang) => {
+  ipcMain.handle('save-chunk', async (e, id, bytes) => {
+    assertTrusted(e)
+    const sv = ownSession(saves, id, e)
+    if (!sv) return { ok: false, reason: 'io', detail: 'unknown save' }
+    if (!ArrayBuffer.isView(bytes) || bytes.byteLength > MAX_CHUNK) return { ok: false, reason: 'io', detail: 'bad chunk' }
+    const buf = Buffer.from(bytes.buffer, bytes.byteOffset, bytes.byteLength)
+    try {
+      for (let off = 0; off < buf.length;) {
+        const { bytesWritten } = await sv.fh.write(buf, off, buf.length - off)
+        if (!bytesWritten) throw new Error('write returned 0 bytes')
+        off += bytesWritten
+      }
+      sv.size += buf.length
+      sv.crc = crc32(buf, sv.crc)
+      return { ok: true }
+    } catch (err) {
+      log('save-chunk failed', sv.part, err)
+      await dropSave(id)
+      await saveFailed(sv.win, L(sv.lang), err, sv.quiet)
+      return { ok: false, reason: failReason(err), detail: String((err && err.message) || err) }
+    }
+  })
+
+  ipcMain.handle('save-end', async (e, id, size, crc) => {
+    assertTrusted(e)
+    const sv = ownSession(saves, id, e)
+    if (!sv) return { ok: false, reason: 'io', detail: 'unknown save' }
+    saves.delete(String(id))
+    try {
+      await sv.fh.sync()
+      await sv.fh.close()
+      // what arrived must be what the page sent, and what is on disk must be what arrived
+      if (sv.size !== Number(size) || sv.crc !== (Number(crc) >>> 0)) throw Object.assign(new Error(`received ${sv.size} bytes, page sent ${size}`), { code: 'EVERIFY' })
+      const disk = await fileCrc(sv.part)
+      if (disk.size !== sv.size || disk.crc !== sv.crc) throw Object.assign(new Error(`disk has ${disk.size} bytes, expected ${sv.size}`), { code: 'EVERIFY' })
+      try { await fs.promises.rename(sv.part, sv.target) } catch (err) {
+        // the old file is open in another program (Windows): copy over it instead
+        if (!['EPERM', 'EBUSY', 'EACCES', 'EXDEV'].includes(err && err.code)) throw err
+        await fs.promises.copyFile(sv.part, sv.target)
+        await fs.promises.unlink(sv.part).catch(() => undefined)
+      }
+      state.saveDir = path.dirname(sv.target); scheduleSave(mainWindow)
+      return { ok: true, name: path.basename(sv.target) }
+    } catch (err) {
+      log('save-end failed', sv.target, err)
+      await fs.promises.unlink(sv.part).catch(() => undefined)
+      await saveFailed(sv.win, L(sv.lang), err, sv.quiet)
+      return { ok: false, reason: err && err.code === 'EVERIFY' ? 'verify' : failReason(err), detail: String((err && err.message) || err) }
+    }
+  })
+
+  ipcMain.handle('save-abort', async (e, id) => {
+    assertTrusted(e)
+    if (ownSession(saves, id, e)) await dropSave(id)
+  })
+
+  ipcMain.handle('open-begin', async (e, accept, lang) => {
     assertTrusted(e)
     const s = L(lang)
     const win = BrowserWindow.fromWebContents(e.sender) || mainWindow
@@ -493,14 +619,47 @@ function registerIpc() {
     const file = !r.canceled && r.filePaths && r.filePaths[0]
     if (!file) return null
     try {
-      const buf = await fs.promises.readFile(file)
+      const fh = await fs.promises.open(file, 'r')
+      const { size } = await fh.stat()
+      const id = crypto.randomUUID()
+      opens.set(id, { owner: e.sender.id, fh, file, size, lang, win })
+      watchOwner(e.sender)
       state.openDir = path.dirname(file); scheduleSave(mainWindow)
-      return { name: path.basename(file), mime: mimeOf(file), base64: buf.toString('base64') }
+      return { id, name: path.basename(file), mime: mimeOf(file), size }
     } catch (err) {
-      log('open-file failed', file, err)
-      await dialog.showMessageBox(win, { type: 'error', title: 'Dentora', message: s.openFailed, detail: String(err && err.message || err) })
+      log('open-begin failed', file, err)
+      await dialog.showMessageBox(win, { type: 'error', title: 'Dentora', message: s.openFailed, detail: String((err && err.message) || err) })
       return null
     }
+  })
+
+  ipcMain.handle('open-chunk', async (e, id, offset, length) => {
+    assertTrusted(e)
+    const o = ownSession(opens, id, e)
+    if (!o) throw new Error('unknown file')
+    const at = Math.max(0, Math.floor(Number(offset) || 0))
+    const n = Math.max(0, Math.min(MAX_CHUNK, Math.floor(Number(length) || 0), o.size - at))
+    if (!n) return new Uint8Array(0)
+    try {
+      const buf = Buffer.allocUnsafe(n)
+      let got = 0
+      while (got < n) {
+        const { bytesRead } = await o.fh.read(buf, got, n - got, at + got)
+        if (!bytesRead) break
+        got += bytesRead
+      }
+      return buf.subarray(0, got)
+    } catch (err) {
+      log('open-chunk failed', o.file, err)
+      await dropOpen(id)
+      await dialog.showMessageBox(o.win, { type: 'error', title: 'Dentora', message: L(o.lang).openFailed, detail: String((err && err.message) || err) })
+      throw err
+    }
+  })
+
+  ipcMain.handle('open-end', async (e, id) => {
+    assertTrusted(e)
+    if (ownSession(opens, id, e)) await dropOpen(id)
   })
 
   ipcMain.handle('print', e => {

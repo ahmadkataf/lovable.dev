@@ -87,8 +87,10 @@
 /* the number is an LTR input: square the corner that meets the addon (left in RTL, right in LTR) */
 [dir="rtl"] .au-setup-form .input-group > .control .input { border-start-start-radius: 0; border-end-start-radius: 0; }
 [dir="ltr"] .au-setup-form .input-group > .control .input { border-start-end-radius: 0; border-end-end-radius: 0; }
-.au-dec .segmented { height: 44px; }
-.au-dec .segmented button { height: 36px; }
+.au-dec .segmented { height: auto; }
+/* three choices (none, 2, 3 decimals): the name above its sample amount, so they fit a half-width column and a phone */
+.au-dec .segmented button { height: auto; min-height: 44px; padding: 5px 6px; flex-direction: column; gap: 1px; line-height: 1.3; min-width: 0; }
+.au-dec .segmented button .num { font-size: var(--fs-xs); font-weight: 500; }
 
 /* owner step */
 .au-owner-hero { display: flex; align-items: center; gap: 14px; padding: 14px 16px; margin-bottom: 22px; border-radius: var(--r-lg); background: linear-gradient(135deg, var(--p-50), var(--surface)); border: 1px solid var(--p-100); }
@@ -194,6 +196,16 @@
 .au-kbd-hint svg { width: 14px; height: 14px; }
 .au-forgot { margin-top: 8px; }
 .au-forgot-box { margin-top: 8px; padding: 12px 14px; border-radius: var(--r-md); background: var(--surface-2); border: 1px solid var(--border); text-align: start; font-size: var(--fs-sm); color: var(--text-2); display: flex; flex-direction: column; gap: 6px; animation: rise-in var(--t-med) var(--ease) both; }
+.au-pin-who { display: flex; flex-direction: column; align-items: center; min-width: 0; }
+.au-device-row { display: flex; align-items: center; gap: 8px; padding: 6px 6px 6px 12px; border-radius: var(--r-md); background: var(--surface); border: 1px solid var(--border); }
+[dir="rtl"] .au-device-row { padding: 6px 12px 6px 6px; }
+.au-device-label { color: var(--text-3); font-size: var(--fs-xs); font-weight: 600; }
+.au-device-no { margin-inline-start: auto; font-weight: 700; font-size: var(--fs-md); letter-spacing: 1.5px; color: var(--text); font-variant-numeric: tabular-nums; }
+.au-forgot-box > .btn { align-self: stretch; }
+.au-reset-device { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 14px; border-radius: var(--r-md); background: var(--surface-2); border: 1px solid var(--border); font-size: var(--fs-sm); }
+.au-reset-device .ltr { letter-spacing: 1.5px; font-variant-numeric: tabular-nums; }
+.au-reset-input textarea, textarea.au-reset-input { font-family: ui-monospace, Consolas, 'SF Mono', Menlo, monospace; font-size: var(--fs-sm); letter-spacing: .4px; line-height: 1.7; }
+.au-login-card[data-mode="none"] .au-forgot-box { margin-top: 4px; }
 .au-login-foot { display: flex; align-items: center; justify-content: center; gap: 8px; color: var(--text-4); font-size: var(--fs-xs); font-weight: 500; }
 .au-login-foot svg { width: 14px; height: 14px; }
 .au-login-foot .au-dot { width: 3px; height: 3px; border-radius: 50%; background: var(--text-4); }
@@ -221,3 +233,49 @@
 @media (max-width: 767px) and (min-height: 760px) {
   .auth-screen.au-login { justify-content: center; }
 }
+
+/* phones with a short screen (360×640 and the like): the whole PIN pad and the sign-in button fit without scrolling */
+@media (max-width: 767px) and (max-height: 740px) {
+  .auth-screen.au-login { padding-top: calc(12px + var(--safe-top)); padding-bottom: calc(10px + var(--safe-bottom)); gap: 10px; }
+  .au-login-brand .auth-logo { display: none; }
+  .au-clinic-name { font-size: var(--fs-lg); line-height: 1.3; }
+  .au-today { font-size: var(--fs-xs); margin-top: 0; }
+  .auth-card.au-login-card { padding: 14px 14px 10px; }
+  .au-pin-user { flex-direction: row; justify-content: center; gap: 10px; flex-wrap: wrap; }
+  .au-pin-user .avatar { width: 40px; height: 40px; font-size: var(--fs-md); margin-bottom: 0; box-shadow: 0 0 0 3px var(--surface), 0 0 0 4px var(--p-100); }
+  .au-pin-who { align-items: flex-start; text-align: start; }
+  .au-pin-name { font-size: var(--fs-md); line-height: 1.3; }
+  .au-pin-role { font-size: var(--fs-xs); }
+  .au-pin-user .au-link { margin-top: 0; }
+  .au-pin-main { margin-top: 6px; }
+  .au-login-card .pin-dots { margin: 4px 0 0; }
+  .au-pin-msg { min-height: 30px; padding-bottom: 2px; }
+  .au-pad.pin-pad { gap: 8px; }
+  .au-pad.pin-pad button { height: 48px; }
+  .au-submit { margin-top: 8px; }
+  .au-submit.btn-lg { height: 44px; }
+  .au-forgot { margin-top: 2px; }
+  .au-login-foot { display: none; }
+}
+/* phones held sideways: the person beside the keypad, as on a desktop */
+@media (max-height: 520px) and (min-width: 560px) and (orientation: landscape) {
+  .auth-screen.au-login { padding: calc(8px + var(--safe-top)) 16px calc(8px + var(--safe-bottom)); gap: 6px; justify-content: flex-start; }
+  .au-login-brand .auth-logo, .au-today, .au-login-foot { display: none; }
+  .au-clinic-name { font-size: var(--fs-md); }
+  .auth-card.au-login-card { padding: 10px 14px; }
+  .auth-card.au-login-card[data-mode="pin"] { max-width: 620px; }
+  .au-pin-layout { grid-template-columns: minmax(0, 1fr) 260px; grid-template-rows: 1fr auto; grid-template-areas: "user main" "forgot main"; }
+  .au-pin-user { flex-direction: column; padding-inline-end: 16px; }
+  .au-pin-who { align-items: center; text-align: center; }
+  .au-pin-user .avatar { width: 44px; height: 44px; margin-bottom: 4px; }
+  .au-pin-main { margin-top: 0; padding-inline-start: 16px; border-inline-start: 1px solid var(--divider); }
+  .au-forgot-wrap { padding-inline-end: 16px; }
+  .au-pin-title { display: none; }
+  .au-login-card .pin-dots { margin: 0; }
+  .au-pin-msg { min-height: 24px; padding-bottom: 0; }
+  .au-pad.pin-pad { gap: 6px; }
+  .au-pad.pin-pad button { height: 40px; font-size: var(--fs-xl); }
+  .au-submit { margin-top: 6px; }
+  .au-submit.btn-lg { height: 40px; }
+}
+

@@ -1,9 +1,13 @@
-import { lazy, Suspense, useCallback, useEffect, useState, type ReactNode } from 'react'
+import { lazy, Suspense, useCallback, useEffect, useMemo, useState, type ReactNode } from 'react'
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { Bell, CalendarPlus, ChevronDown, ChevronLeft, LayoutGrid, Lock, LogOut, Plus, Search, Settings as SettingsIcon, UserPlus, Wallet } from 'lucide-react'
 import { useI18n } from '@/i18n'
 import { useSession } from './session'
 import { useClinic, useIsDesktop } from './hooks'
+import { useKeyboardOpen } from './keyboard'
+import { tPlural } from './plural'
+import { isApplePlatform, shortcutLabel } from './sessionLib'
+import { fmtDate } from '@/lib/dates'
 import { useLicense } from '@/license/useLicense'
 import { ALL_NAV_ITEMS, BOTTOM_NAV, NAV } from './nav'
 import { Avatar, Button, Kbd, Loading, Menu, Modal, type MenuItemDef } from '@/ui'
@@ -18,7 +22,7 @@ import NotificationsPanel, { useNotificationCount } from '@/features/search/Noti
 const COLLAPSE_KEY = 'dentora.sidebar'
 
 export default function Shell() {
-  const { t, pick } = useI18n()
+  const { t, pick, lang } = useI18n()
   const session = useSession()
   const clinic = useClinic()
   const license = useLicense()
@@ -30,6 +34,8 @@ export default function Shell() {
   const [search, setSearch] = useState(false)
   const [notifs, setNotifs] = useState(false)
   const [more, setMore] = useState(false)
+  const keyboardOpen = useKeyboardOpen()
+  const apple = useMemo(() => isApplePlatform(typeof navigator === 'undefined' ? undefined : navigator as never), [])
 
   const toggleCollapse = () => setCollapsed(c => { try { localStorage.setItem(COLLAPSE_KEY, c ? '0' : '1') } catch { /* ignore */ } return !c })
 
@@ -56,8 +62,8 @@ export default function Shell() {
   const roleLabel = t(`role.${user.role}`)
 
   const quickItems: MenuItemDef[] = [
-    { label: t('nav.newPatient'), icon: <UserPlus />, onClick: () => setQuick('patient'), shortcut: '⌘⇧N' },
-    { label: t('nav.newAppointment'), icon: <CalendarPlus />, onClick: () => setQuick('appointment'), shortcut: '⌘⇧A' },
+    { label: t('nav.newPatient'), icon: <UserPlus />, onClick: () => setQuick('patient'), shortcut: shortcutLabel(['mod', 'shift', 'n'], apple) },
+    { label: t('nav.newAppointment'), icon: <CalendarPlus />, onClick: () => setQuick('appointment'), shortcut: shortcutLabel(['mod', 'shift', 'a'], apple) },
     ...(session.can('billing') ? [{ label: t('nav.newPayment'), icon: <Wallet />, onClick: () => setQuick('payment') }] : []),
   ]
   const userItems: MenuItemDef[] = [
@@ -69,7 +75,7 @@ export default function Shell() {
   ]
 
   return (
-    <div className={`app${collapsed ? ' collapsed' : ''}`}>
+    <div className={`app${collapsed ? ' collapsed' : ''}${keyboardOpen ? ' kb-open' : ''}`}>
       {/* ---- sidebar (desktop) ---- */}
       <aside className="app-sidebar no-print">
         <div className="brand">
@@ -115,7 +121,7 @@ export default function Shell() {
             <span className="truncate" dir="auto" style={{ maxWidth: 160 }}>{pick(clinic.name, clinic.nameEn) || t('appName')}</span>
           </div>
           <button type="button" className="topbar-search" onClick={() => setSearch(true)} aria-label={t('quickSearch')}>
-            <Search /><span>{t('searchPlaceholder')}</span>{desktop && <Kbd>Ctrl K</Kbd>}
+            <Search /><span>{t('searchPlaceholder')}</span>{desktop && <Kbd>{shortcutLabel(['mod', 'k'], apple)}</Kbd>}
           </button>
           <div className="topbar-actions">
             {!license.readOnly && (
@@ -133,9 +139,13 @@ export default function Shell() {
         </header>
 
         {license.status !== 'active' && !license.loading && (
-          <div className={`trial-bar no-print${license.status === 'expired' ? ' expired' : ''}`}>
-            <span>{license.status === 'expired' ? t('trial.expired') : t('trial.banner', { days: license.daysLeft })}</span>
-            <Button size="sm" variant={license.status === 'expired' ? 'danger' : 'secondary'} onClick={() => navigate('/settings/license')}>{t('trial.activate')}</Button>
+          <div className={`trial-bar no-print${license.status === 'expired' ? ' expired' : ''}`} data-qa="trial-bar" data-ended={license.ended ?? undefined}>
+            <span>{license.ended === 'license' && license.until
+              ? t('license.banner.licenseEnded', { date: fmtDate(license.until.toISOString().slice(0, 10), lang, 'long') })
+              : license.status === 'expired' ? t('license.banner.trialEnded') : tPlural(t, lang, 'license.banner.trial', license.daysLeft)}</span>
+            <Button size="sm" variant={license.status === 'expired' ? 'danger' : 'secondary'} onClick={() => navigate('/settings/license')}>
+              {license.ended === 'license' ? t('license.banner.newCode') : t('license.banner.activate')}
+            </Button>
           </div>
         )}
 
@@ -155,8 +165,8 @@ export default function Shell() {
         <div className="more-user">
           <Avatar name={user.name} color={user.color} />
           <div className="grow truncate"><div className="strong truncate">{user.name}</div><div className="text-sm muted">{roleLabel}</div></div>
-          <Button variant="ghost" size="sm" icon={<Lock />} aria-label={t('nav.lock')} onClick={session.lock} />
-          <Button variant="ghost" size="sm" icon={<LogOut />} aria-label={t('nav.logout')} onClick={session.logout} />
+          <Button variant="ghost" icon={<Lock />} aria-label={t('nav.lock')} title={t('nav.lock')} onClick={session.lock} />
+          <Button variant="ghost" icon={<LogOut />} aria-label={t('nav.logout')} title={t('nav.logout')} onClick={session.logout} />
         </div>
         <div className="more-grid">
           {ALL_NAV_ITEMS.filter(i => visible(i.perm)).map(i => (

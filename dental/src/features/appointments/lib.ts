@@ -37,6 +37,18 @@ export function findConflicts<T extends Span & Pick<Appointment, 'id' | 'doctorI
     .sort((a, b) => ms(a.start) - ms(b.start))
 }
 
+/**
+ * The patient's own appointments that collide with `candidate`, with any doctor (the same patient cannot sit in two
+ * chairs at once). Cancelled / no-show visits and the edited appointment itself are skipped.
+ */
+export function findPatientOverlaps<T extends Span & Pick<Appointment, 'id' | 'patientId' | 'status'>>(
+  candidate: Span & { id?: string; patientId: string }, others: T[],
+): T[] {
+  return others
+    .filter(o => o.id !== candidate.id && o.patientId === candidate.patientId && blocksTime(o.status) && overlaps(candidate, o))
+    .sort((a, b) => ms(a.start) - ms(b.start))
+}
+
 /** start + minutes, as an ISO instant. */
 export function endFrom(startISO: string, minutes: number): string {
   return new Date(ms(startISO) + minutes * MIN).toISOString()
@@ -234,6 +246,14 @@ export function groupByDate<T extends Pick<Appointment, 'date' | 'start'>>(items
   const map = new Map<ISODate, T[]>()
   for (const a of sortByStart(items)) { const l = map.get(a.date); if (l) l.push(a); else map.set(a.date, [a]) }
   return [...map.entries()].sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0)).map(([date, list]) => ({ date, items: list }))
+}
+/** Rows the agenda renders at first and adds each time the end of the list comes into view (whole days at a time). */
+export const AGENDA_STEP = 40
+/** How many days of the agenda to render for a row budget: whole days only, and always at least one. */
+export function daysForBudget(sizes: number[], budget: number): number {
+  let n = 0, rows = 0
+  while (n < sizes.length && (n === 0 || rows + sizes[n] <= budget)) { rows += sizes[n]; n++ }
+  return n
 }
 export function countByDate<T extends Pick<Appointment, 'date'>>(items: T[]): Map<ISODate, number> {
   const m = new Map<ISODate, number>()

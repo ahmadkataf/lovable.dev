@@ -6,9 +6,14 @@
 // repository does not let anyone produce a valid code.
 //
 // Code layout (70 bytes → 112 characters of base32, shown in groups of 4):
-//   [version 2][plan][last day, 2 bytes][ECDSA P-256 / SHA-256 signature, 64 bytes][CRC-16 of the 68 bytes before]
+//   [kind][plan][day, 2 bytes][ECDSA P-256 / SHA-256 signature, 64 bytes][CRC-16 of the 68 bytes before]
 // The CRC tells a mistyped code (format) apart from a code made for another device (device).
-// Signed message: "dentora|2|<device 8 chars>|<plan byte>|<day>".
+// Two kinds of code share that layout:
+// - activation (kind 2 = CODE_VERSION): day = last valid day (0 = lifetime);
+//   signed message "dentora|2|<device 8 chars>|<plan byte>|<day>".
+// - admin PIN reset (kind RESET_KIND): day = the day it was issued, plan byte 0; it lets the clinic set a new
+//   admin PIN from the sign-in screen on that device, on that day and the next;
+//   signed message "dentora|reset|<device 8 chars>|<day>".
 
 const ALPHABET = '23456789ABCDEFGHJKLMNPQRSTUVWXYZ'   // no 0/O or 1/I
 export const CODE_VERSION = 2
@@ -63,6 +68,8 @@ export async function deviceNumber(rawId: string): Promise<string> {
 }
 export const expiryDay = (date: Date | null) => (date ? Math.max(1, Math.floor((date.getTime() - EPOCH) / DAY)) : 0)
 export const expiryDate = (day: number) => (day ? new Date(EPOCH + day * DAY) : null)
+/** The UTC midnight a code day stands for ('YYYY-MM-DD'). */
+export const dayISO = (day: number) => new Date(EPOCH + day * DAY).toISOString().slice(0, 10)
 
 /** The exact bytes the seller signs for one device, plan and last day. */
 export function signedMessage(device: string, plan: Plan, day: number): Uint8Array<ArrayBuffer> {
@@ -84,26 +91,119 @@ function importVerifyKey(jwk: JsonWebKey): Promise<CryptoKey> {
   return crypto.subtle.importKey('jwk', { kty: 'EC', crv: 'P-256', x: jwk.x, y: jwk.y, ext: true }, { name: 'ECDSA', namedCurve: 'P-256' }, false, ['verify'])
 }
 
-export type CodeCheck = { ok: true; plan: Plan; until: Date | null } | { ok: false; reason: 'format' | 'device' | 'expired' }
+export type CodeCheck =
+  | { ok: true; plan: Plan; until: Date | null }
+  | { ok: false; reason: 'format' | 'device' | 'kind' }
+  | { ok: false; reason: 'expired'; plan: Plan; until: Date }
 
-/** App side: does this code open Dentora on this device today? `publicKey` is only overridden by tests. */
-export async function checkCode(device: string, code: string, now = new Date(), publicKey: JsonWebKey = PUBLIC_KEY): Promise<CodeCheck> {
+/** The 70 bytes of a well-formed code (right length, alphabet and checksum), else null. */
+function codeBytes(code: string): Uint8Array<ArrayBuffer> | null {
   const c = cleanCode(code)
   const bytes = c.length === CODE_CHARS ? fromBase32(c) : null
-  if (!bytes || bytes.length !== CODE_BYTES || bytes[0] !== CODE_VERSION) return { ok: false, reason: 'format' }
+  if (!bytes || bytes.length !== CODE_BYTES) return null
   const crc = crc16(bytes.subarray(0, CODE_BYTES - 2))
-  if (bytes[CODE_BYTES - 2] !== crc >> 8 || bytes[CODE_BYTES - 1] !== (crc & 255)) return { ok: false, reason: 'format' }
+  if (bytes[CODE_BYTES - 2] !== crc >> 8 || bytes[CODE_BYTES - 1] !== (crc & 255)) return null
+  return bytes
+}
+/** What a well-formed code is for, without checking its signature: 'activation', 'reset', or null (not a code). */
+export function codeKind(code: string): 'activation' | 'reset' | null {
+  const bytes = codeBytes(code)
+  return !bytes ? null : bytes[0] === CODE_VERSION ? 'activation' : bytes[0] === RESET_KIND ? 'reset' : null
+}
+
+async function verifySignature(bytes: Uint8Array<ArrayBuffer>, message: Uint8Array<ArrayBuffer>, publicKey: JsonWebKey): Promise<boolean> {
+  const key = publicKey === PUBLIC_KEY ? (verifyKey ??= importVerifyKey(PUBLIC_KEY)) : importVerifyKey(publicKey)
+  try { return await crypto.subtle.verify({ name: 'ECDSA', hash: 'SHA-256' }, await key, bytes.slice(4, 68), message) }
+  catch { return false }
+}
+
+/**
+ * App side: does this code open Dentora on this device at `now`? `publicKey` is only overridden by tests.
+ * A code past its last day still reports its plan and last day, so the app can say "your licence ended on …".
+ */
+export async function checkCode(device: string, code: string, now = new Date(), publicKey: JsonWebKey = PUBLIC_KEY): Promise<CodeCheck> {
+  const bytes = codeBytes(extractCode(code))
+  if (!bytes) return { ok: false, reason: 'format' }
+  if (bytes[0] === RESET_KIND) return { ok: false, reason: 'kind' }
+  if (bytes[0] !== CODE_VERSION) return { ok: false, reason: 'format' }
   const plan = (Object.keys(PLAN_CODE) as Plan[]).find(p => PLAN_CODE[p] === bytes[1])
   if (!plan) return { ok: false, reason: 'format' }
   const day = (bytes[2] << 8) | bytes[3]
-  const key = publicKey === PUBLIC_KEY ? (verifyKey ??= importVerifyKey(PUBLIC_KEY)) : importVerifyKey(publicKey)
-  let valid = false
-  try { valid = await crypto.subtle.verify({ name: 'ECDSA', hash: 'SHA-256' }, await key, bytes.slice(4, 68), signedMessage(device, plan, day)) }
-  catch { valid = false }
-  if (!valid) return { ok: false, reason: 'device' }
+  if (!await verifySignature(bytes, signedMessage(device, plan, day), publicKey)) return { ok: false, reason: 'device' }
   const until = expiryDate(day)
-  if (until && now.getTime() > until.getTime() + DAY) return { ok: false, reason: 'expired' }
+  if (until && now.getTime() > until.getTime() + DAY) return { ok: false, reason: 'expired', plan, until }
   return { ok: true, plan, until }
+}
+
+// ---- admin PIN reset codes -------------------------------------------------------------------------------------
+/** First byte of a PIN reset code (an activation code starts with CODE_VERSION). */
+export const RESET_KIND = 0x52
+/** A reset code works on the day it was issued and the next one (UTC days, as the codes count them). */
+export const RESET_VALID_DAYS = 2
+
+/** Days since the codes' epoch (UTC), the unit codes are dated in. */
+export const dayNumber = (at: Date | number) => Math.floor(((typeof at === 'number' ? at : at.getTime()) - EPOCH) / DAY)
+
+/** The exact bytes the seller signs for a PIN reset on one device, issued on `day`. */
+export function resetMessage(device: string, day: number): Uint8Array<ArrayBuffer> {
+  return enc.encode(`${PRODUCT}|reset|${cleanDevice(device)}|${day}`)
+}
+/** Packs a reset signature into a code of the same shape as an activation code. */
+export function packResetCode(day: number, signature: Uint8Array): string {
+  if (signature.length !== 64) throw new Error('signature must be 64 bytes (r‖s)')
+  const bytes = new Uint8Array(CODE_BYTES)
+  bytes[0] = RESET_KIND; bytes[1] = 0; bytes[2] = day >> 8; bytes[3] = day & 255
+  bytes.set(signature, 4)
+  const crc = crc16(bytes.subarray(0, CODE_BYTES - 2))
+  bytes[CODE_BYTES - 2] = crc >> 8; bytes[CODE_BYTES - 1] = crc & 255
+  return formatCode(toBase32(bytes))
+}
+
+export type ResetCheck = { ok: true; day: number } | { ok: false; reason: 'format' | 'device' | 'expired' | 'kind' }
+
+/**
+ * Does this reset code let the clinic set a new admin PIN on this device at `now`? Valid on its day and the next;
+ * a device clock up to one day behind the seller's is tolerated.
+ */
+export async function checkResetCode(device: string, code: string, now = new Date(), publicKey: JsonWebKey = PUBLIC_KEY): Promise<ResetCheck> {
+  const bytes = codeBytes(extractCode(code))
+  if (!bytes) return { ok: false, reason: 'format' }
+  if (bytes[0] === CODE_VERSION) return { ok: false, reason: 'kind' }
+  if (bytes[0] !== RESET_KIND || bytes[1] !== 0) return { ok: false, reason: 'format' }
+  const day = (bytes[2] << 8) | bytes[3]
+  if (!await verifySignature(bytes, resetMessage(device, day), publicKey)) return { ok: false, reason: 'device' }
+  const today = dayNumber(now)
+  if (today > day + RESET_VALID_DAYS - 1 || today < day - 1) return { ok: false, reason: 'expired' }
+  return { ok: true, day }
+}
+
+// ---- reading a code out of a pasted message ---------------------------------------------------------------------
+/** Characters people (and messaging apps) put between the groups of a code. */
+const SEPARATORS = /[\s\-\u00A0\u200B-\u200F\u202A-\u202E\u2066-\u2069\u2010-\u2015\u2212.,:;|_'"`()\[\]{}<>«»]+/
+
+/**
+ * The code inside whatever was pasted: the code alone (in any shape), or the seller's whole message with the
+ * greeting, the plan, the device number and the instructions around it. The 112 characters of a valid code
+ * (right checksum) are returned cleaned; when no complete code is found, the pasted text is returned cleaned,
+ * so a code being typed by hand keeps every character.
+ */
+export function extractCode(text: string): string {
+  const all = cleanCode(text)
+  if (all.length === CODE_CHARS && codeBytes(all)) return all
+  const groups = (text || '').replace(/[٠-٩]/g, d => String('٠١٢٣٤٥٦٧٨٩'.indexOf(d))).toUpperCase().split(SEPARATORS).filter(Boolean)
+  const inAlphabet = (g: string) => /^[2-9A-HJ-NP-Z]+$/.test(g)
+  let fallback: string | null = null
+  for (let i = 0; i < groups.length; i++) {
+    let run = ''
+    for (let j = i; j < groups.length && inAlphabet(groups[j]) && run.length < CODE_CHARS; j++) {
+      run += groups[j]
+      if (run.length === CODE_CHARS) {
+        if (codeBytes(run)) return run
+        fallback ??= run
+      }
+    }
+  }
+  return fallback ?? all
 }
 
 export const TRIAL_DAYS = 7

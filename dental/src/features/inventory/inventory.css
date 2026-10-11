@@ -194,3 +194,5 @@
 
 /* ---- portal row menu ---- */
 .menu.inv-portal-menu { position: fixed; inset-inline-end: auto; z-index: 120; min-width: 210px; }
+/* phones: counts stay readable (12px or more) */
+@media (max-width: 767px) { .inv-chip-count, .inv-count { font-size: 12px; } }

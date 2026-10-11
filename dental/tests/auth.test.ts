@@ -1,13 +1,14 @@
 import {
-  CURRENCIES, CUSTOM_CURRENCY, FRESH_GUARD, LOCK_MS, MAX_ATTEMPTS, attemptsLeft, buildClinicPatch, cleanCurrencyCode, currencyPreset, defaultDecimals, displayName,
-  dotCount, formatCountdown, greetingKey, isEmail, isLocked, isPhone, lockRemaining, normalizeDigits, normalizeGuard, orderedDays, parseGuard, pinError, pinErrorKey,
-  ownerTitleFor, plainName, registerFailure, resolveCurrency, sanitizePin, toggleDay, validateClinicStep, validateMoneyStep, validateOwnerStep, type MoneyDraft, type OwnerDraft,
+  CURRENCIES, CUSTOM_CURRENCY, FRESH_GUARD, GUARD_FORGET_MS, LOCK_MS, LOCK_STEPS_MS, MAX_ATTEMPTS, attemptsLeft, autoSubmitLength, buildClinicPatch, cleanCurrencyCode, currencyPreset,
+  defaultDecimals, displayName, dotCount, formatCountdown, greetingKey, isEmail, isLocked, isPhone, lockDuration, lockRemaining, mergeGuards, normalizeDigits, normalizeGuard,
+  orderedDays, parseGuard, parseGuards, pinError, pinErrorKey, ownerTitleFor, plainName, registerFailure, resolveCurrency, sanitizePin, sortAdminsForReset, stricterGuard, toggleDay,
+  validateClinicStep, validateMoneyStep, validateOwnerStep, type LoginGuard, type MoneyDraft, type OwnerDraft,
 } from '../src/features/auth/lib'
 import {
-  AREAS, ROLES, ROLE_PERMS, STAFF_COLORS, activeAdmins, deactivateBlock, deleteBlock, filterStaff, lastLoginMap, nextFreeColor, roleAreas, roleCan, saveBlock, sortStaff,
-  validateStaff, type StaffDraft,
+  AREAS, ROLES, ROLE_PERMS, STAFF_COLORS, activeAdmins, deactivateBlock, defaultTitleFor, deleteBlock, filterStaff, lastLoginMap, newestFirst, nextFreeColor, roleAreas, roleCan,
+  saveBlock, sortStaff, validateStaff, type StaffDraft,
 } from '../src/features/staff/lib'
-import { hashPin, isValidPin, verifyPin } from '../src/lib/crypto'
+import { PIN_ITERATIONS, hashPin, isValidPin, needsRehash, pinLengthOf, sha256Hex, verifyPin } from '../src/lib/crypto'
 import { translate } from '../src/i18n'
 import auth from '../src/i18n/modules/auth'
 import staff from '../src/i18n/modules/staff'
@@ -30,9 +31,15 @@ describe('auth: currency presets', () => {
     expect(defaultDecimals('IQD')).toBe(0)
     expect(defaultDecimals('LBP')).toBe(0)
     expect(defaultDecimals('USD')).toBe(2)
-    expect(defaultDecimals('KWD')).toBe(2)
     expect(defaultDecimals('YER')).toBe(2)       // unknown → 2
-    for (const c of CURRENCIES) expect([0, 2]).toContain(c.decimals)
+    for (const c of CURRENCIES) expect([0, 2, 3]).toContain(c.decimals)
+  })
+  it('keeps the fils of the dinars and the Omani rial: 3 decimals', () => {
+    for (const code of ['KWD', 'BHD', 'OMR', 'JOD']) expect(defaultDecimals(code), code).toBe(3)
+    expect(CURRENCIES.filter(c => c.decimals === 3).map(c => c.code).sort()).toEqual(['BHD', 'JOD', 'KWD', 'OMR'])
+    expect(resolveCurrency({ currency: 'KWD', customCode: '', customSymbol: '', decimals: 3 })).toEqual({ currency: 'KWD', currencySymbol: 'د.ك', currencyDecimals: 3 })
+    expect(auth.ar['money.dec3']).toBeTruthy()
+    expect(auth.en['money.dec3']).toBeTruthy()
   })
   it('resolves presets and custom currencies into clinic fields', () => {
     const base = { customCode: '', customSymbol: '', decimals: 2 as const }
@@ -77,6 +84,34 @@ describe('auth: PIN validation', () => {
     expect(await verifyPin('2468', 'salt-a', h)).toBe(true)
     expect(await verifyPin('2469', 'salt-a', h)).toBe(false)
     expect(await verifyPin('2468', 'salt-b', h)).toBe(false)
+    expect(await verifyPin('24680', 'salt-a', h)).toBe(false)
+  })
+  it('stores PINs with PBKDF2 (≥ 150 000 rounds, per-user salt) and still accepts the older SHA-256 form', async () => {
+    expect(PIN_ITERATIONS).toBeGreaterThanOrEqual(150_000)
+    const h = await hashPin('135790', 'salt-x')
+    expect(h).toMatch(new RegExp(`^pbkdf2-sha256\\$${PIN_ITERATIONS}\\$6\\$[0-9a-f]{64}$`))
+    expect(await hashPin('135790', 'salt-y')).not.toBe(h)                       // the salt changes the hash
+    expect(pinLengthOf(h)).toBe(6)
+    expect(needsRehash(h)).toBe(false)
+    // a hash made with fewer rounds still verifies, and is marked for rewriting
+    const weak = await hashPin('1234', 's', 1000)
+    expect(await verifyPin('1234', 's', weak)).toBe(true)
+    expect(needsRehash(weak)).toBe(true)
+    // what earlier versions stored: SHA-256(salt:pin), 64 hex characters, no length
+    const legacy = await sha256Hex('qa-salt:1234')
+    expect(await verifyPin('1234', 'qa-salt', legacy)).toBe(true)
+    expect(await verifyPin('1235', 'qa-salt', legacy)).toBe(false)
+    expect(needsRehash(legacy)).toBe(true)
+    expect(pinLengthOf(legacy)).toBeNull()
+    expect(await verifyPin('1234', 'qa-salt', 'garbage')).toBe(false)
+    expect(await verifyPin('1234', 'qa-salt', '')).toBe(false)
+  })
+  it('signs in by itself once the user’s whole PIN is typed (6 digits when the length is unknown)', async () => {
+    expect(autoSubmitLength(4)).toBe(4)
+    expect(autoSubmitLength(5)).toBe(5)
+    expect(autoSubmitLength(null)).toBe(6)
+    expect(autoSubmitLength(9)).toBe(6)
+    expect(autoSubmitLength(pinLengthOf(await hashPin('1234', 'z')))).toBe(4)
   })
   it('shows 4 dots, one spare after the 4th digit, at most 6', () => {
     expect([0, 1, 3, 4, 5, 6, 9].map(dotCount)).toEqual([4, 4, 4, 5, 6, 6, 6])
@@ -84,7 +119,8 @@ describe('auth: PIN validation', () => {
 })
 
 describe('auth: lockout timing', () => {
-  const t0 = 1_000_000
+  const t0 = 1_000_000_000
+  const fail5 = (g: LoginGuard, at: number) => { for (let i = 0; i < MAX_ATTEMPTS; i++) g = registerFailure(g, at + i); return g }
   it('locks for 30 s after 5 wrong PINs in a row', () => {
     let g = FRESH_GUARD
     for (let i = 1; i < MAX_ATTEMPTS; i++) {
@@ -96,30 +132,65 @@ describe('auth: lockout timing', () => {
     expect(isLocked(g, t0 + 10)).toBe(true)
     expect(attemptsLeft(g, t0 + 10)).toBe(0)
     expect(lockRemaining(g, t0 + 10)).toBe(LOCK_MS)
+    expect(LOCK_MS).toBe(30_000)
     expect(lockRemaining(g, t0 + 10 + 5000)).toBe(LOCK_MS - 5000)
     expect(isLocked(g, t0 + 10 + LOCK_MS - 1)).toBe(true)
     expect(isLocked(g, t0 + 10 + LOCK_MS)).toBe(false)
   })
-  it('ignores attempts while locked and starts a fresh round afterwards', () => {
-    let g = FRESH_GUARD
-    for (let i = 0; i < MAX_ATTEMPTS; i++) g = registerFailure(g, t0)
+  it('ignores attempts while locked and starts a fresh round afterwards, remembering the lock', () => {
+    const g = fail5(FRESH_GUARD, t0)
     const locked = registerFailure(g, t0 + 1000)
     expect(locked).toEqual(g)                         // no extension while locked
-    const after = t0 + LOCK_MS + 1
-    expect(normalizeGuard(g, after)).toEqual(FRESH_GUARD)
+    const after = g.until + 1
+    expect(normalizeGuard(g, after)).toEqual({ fails: 0, until: 0, locks: 1, last: g.last })
     expect(attemptsLeft(g, after)).toBe(MAX_ATTEMPTS)
-    const next = registerFailure(g, after)
-    expect(next).toEqual({ fails: 1, until: 0 })
+    expect(registerFailure(g, after)).toEqual({ fails: 1, until: 0, locks: 1, last: after })
+  })
+  it('makes every further lock longer: 30 s, 1 min, 5 min, 15 min, 30 min, then an hour', () => {
+    let g = FRESH_GUARD
+    let at = t0
+    const seen: number[] = []
+    for (let round = 0; round < 8; round++) {
+      g = fail5(g, at)
+      seen.push(g.until - (at + MAX_ATTEMPTS - 1))
+      at = g.until + 1
+    }
+    expect(seen).toEqual([30_000, 60_000, 300_000, 900_000, 1_800_000, 3_600_000, 3_600_000, 3_600_000])
+    expect(LOCK_STEPS_MS.at(-1)).toBe(3_600_000)
+    expect(lockDuration(1)).toBe(30_000)
+    expect(lockDuration(99)).toBe(3_600_000)
+    // 4-digit PINs by brute force: at most 5 guesses an hour once escalated
+    expect(10_000 / MAX_ATTEMPTS * lockDuration(6) / 86_400_000).toBeGreaterThan(80)
+  })
+  it('forgets the escalation after a quiet day, but never while a lock runs', () => {
+    const g = fail5(fail5(FRESH_GUARD, t0), t0 + 31_000)
+    expect(g.locks).toBe(2)
+    expect(normalizeGuard(g, g.last + GUARD_FORGET_MS)).toEqual(FRESH_GUARD)
+    const long = { fails: 5, until: t0 + 2 * GUARD_FORGET_MS, locks: 6, last: t0 }
+    expect(normalizeGuard(long, t0 + GUARD_FORGET_MS + 1)).toBe(long)
   })
   it('reads the stored guard defensively and formats the countdown', () => {
     expect(parseGuard(null)).toEqual(FRESH_GUARD)
     expect(parseGuard('nonsense')).toEqual(FRESH_GUARD)
     expect(parseGuard('{"fails":-1,"until":0}')).toEqual(FRESH_GUARD)
-    expect(parseGuard('{"fails":3,"until":123}')).toEqual({ fails: 3, until: 123 })
+    expect(parseGuard('{"fails":3,"until":123}')).toEqual({ fails: 3, until: 123, locks: 0, last: 0 })   // the older format
+    expect(parseGuard({ fails: 2, until: 0, locks: 3, last: 9 })).toEqual({ fails: 2, until: 0, locks: 3, last: 9 })
     expect(formatCountdown(30_000)).toBe('0:30')
     expect(formatCountdown(25_100)).toBe('0:26')
     expect(formatCountdown(61_000)).toBe('1:01')
+    expect(formatCountdown(3_600_000)).toBe('60:00')
     expect(formatCountdown(-5)).toBe('0:00')
+  })
+  it('keeps one guard per user and the stricter of two stored copies wins', () => {
+    const a = { fails: 2, until: 0, locks: 1, last: 100 }
+    const b = { fails: 0, until: 5000, locks: 3, last: 50 }
+    expect(stricterGuard(a, b)).toEqual({ fails: 2, until: 5000, locks: 3, last: 100 })
+    expect(stricterGuard(undefined, b)).toBe(b)
+    expect(stricterGuard(a, undefined)).toBe(a)
+    expect(mergeGuards({ u1: a }, { u2: b })).toEqual({ u1: a, u2: b })
+    expect(parseGuards('{"u1":{"fails":1,"until":0},"bad":5}')).toEqual({ u1: { fails: 1, until: 0, locks: 0, last: 0 } })
+    expect(parseGuards('[1,2]')).toEqual({})
+    expect(parseGuards('{oops')).toEqual({})
   })
 })
 
@@ -223,6 +294,18 @@ describe('staff: roles and guards', () => {
       { action: 'create', by: 'rec', at: '2026-10-04T08:00:00.000Z' },
       { action: 'login', by: 'owner', at: '2026-10-02T08:00:00.000Z' },
     ])).toEqual({ doc: '2026-10-03T08:00:00.000Z', owner: '2026-10-02T08:00:00.000Z' })
+  })
+  it('lists sign-ins newest first and starts new doctors with the clinic language’s title', () => {
+    expect(newestFirst([{ at: '2026-10-01T08:00:00.000Z' }, { at: '2026-10-03T08:00:00.000Z' }, { at: '2026-10-02T08:00:00.000Z' }]).map(r => r.at.slice(8, 10))).toEqual(['03', '02', '01'])
+    expect(defaultTitleFor('doctor', 'ar')).toBe('د.')
+    expect(defaultTitleFor('doctor', 'en')).toBe('Dr.')
+    expect(defaultTitleFor('receptionist', 'ar')).toBe('')
+    expect(defaultTitleFor('assistant', 'ar')).toBe('')
+    expect(defaultTitleFor('doctor', 'ar')).toBe(staff.ar.titleAr)
+  })
+  it('offers admin accounts for a PIN reset, active ones first', () => {
+    const list = sortAdminsForReset([u('z', 'admin', false), u('doc', 'doctor'), u('b', 'admin'), u('a', 'admin')])
+    expect(list.map(x => x.id)).toEqual(['a', 'b', 'z'])
   })
   it('picks a colour nobody active uses', () => {
     expect(nextFreeColor([])).toBe(STAFF_COLORS[0])

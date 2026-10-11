@@ -5,15 +5,17 @@ import { db, logActivity, nextFileNumber } from '@/db'
 import type { BloodType, Gender, Patient } from '@/db/types'
 import { newId, nowISO, todayISO } from '@/db/ids'
 import { useI18n } from '@/i18n'
-import { useDoctors } from '@/app/hooks'
+import { useDebounced, useDoctors } from '@/app/hooks'
 import { useSession } from '@/app/session'
 import { useLicense } from '@/license/useLicense'
 import { Alert, Avatar, Button, Field, Input, Modal, Segmented, Select, Textarea, useToast } from '@/ui'
 import { ageFrom } from '@/lib/dates'
 import { colorFor, formatPhone } from '@/lib/format'
 import { imageToDataUrl, pickFile } from '@/platform'
-import { cleanPhone, findDuplicatePhone, sanitizePhoneInput, validatePatient, type PatientErrors, type PatientField } from './lib'
+import { cleanPhone, digitsOnly, findDuplicatePhone, sanitizePhoneInput, validatePatient, type PatientErrors, type PatientField } from './lib'
 import { ChipInput, useGuardedClose, usePlural } from './parts'
+import { phoneOwner, usePatientIndex } from './directory'
+import { revealFirstError } from './reveal'
 
 /** Create / edit a patient. onSaved receives the saved patient's id. */
 export interface PatientFormModalProps { open: boolean; onClose: () => void; patient?: Patient; onSaved?: (id: string) => void }
@@ -69,14 +71,20 @@ export default function PatientFormModal({ open, onClose, patient, onSaved }: Pa
   const show = (f: PatientField) => (submitted || touched[f]) && errors[f] ? t(errors[f]!) : undefined
   const blur = (f: PatientField) => () => setTouched(x => ({ ...x, [f]: true }))
 
-  const others = useLiveQuery(() => db.patients.toArray(), [])
-  const duplicate = useMemo(() => (others ? findDuplicatePhone(others, d.phone, patient?.id) : undefined), [others, d.phone, patient?.id])
+  // another file with this phone: the phone index answers at once; the shared patient index (read in the background
+  // only once a number is typed, then kept for the session) also catches second phones. Never a read of every
+  // patient when the form opens (thousands of files, photos included).
+  const typedPhone = useDebounced(d.phone, 250)
+  const index = usePatientIndex(open && digitsOnly(typedPhone).length >= 6)
+  const byIndex = useLiveQuery(async () => (open ? (await phoneOwner(typedPhone, patient?.id)) ?? null : null), [open, typedPhone, patient?.id])
+  const duplicate = useMemo(() => byIndex ?? (index ? findDuplicatePhone(index.list, typedPhone, patient?.id) : undefined), [byIndex, index, typedPhone, patient?.id])
+  const usedTags = useLiveQuery(() => (open ? db.patients.orderBy('tags').uniqueKeys() : []), [open])
   const tagSuggestions = useMemo(() => {
     const used = new Set<string>()
-    for (const p of others ?? []) for (const tg of p.tags ?? []) used.add(tg)
+    for (const tg of usedTags ?? []) used.add(String(tg))
     for (const s of t('patients.tagSuggestions').split('|')) used.add(s)
     return [...used].slice(0, 10)
-  }, [others, t])
+  }, [usedTags, t])
   const age = ageFrom(d.birthDate || undefined)
 
   const choosePhoto = async () => {
@@ -91,8 +99,8 @@ export default function PatientFormModal({ open, onClose, patient, onSaved }: Pa
     if (busy.current || readOnly) return
     setSubmitted(true)
     if (Object.keys(errors).length) {
-      // bring the first problem into view
-      window.setTimeout(() => formRef.current?.querySelector<HTMLElement>('.invalid')?.focus(), 0)
+      // bring the first problem into view (a tall bottom sheet on a phone may have it far above)
+      revealFirstError(() => formRef.current)
       return
     }
     busy.current = true
@@ -100,7 +108,7 @@ export default function PatientFormModal({ open, onClose, patient, onSaved }: Pa
     try {
       const now = nowISO()
       const fields = {
-        name: d.name.trim().replace(/\s+/g, ' '), gender: d.gender, birthDate: opt(d.birthDate), phone: cleanPhone(d.phone), phone2: d.phone2.trim() ? cleanPhone(d.phone2) : undefined,
+        name: d.name.trim().replace(/\s+/g, ' '), gender: d.gender, birthDate: opt(d.birthDate), phone: d.phone.trim() ? cleanPhone(d.phone) : undefined, phone2: d.phone2.trim() ? cleanPhone(d.phone2) : undefined,
         email: opt(d.email), address: opt(d.address), nationalId: opt(d.nationalId), occupation: opt(d.occupation), doctorId: d.doctorId || undefined,
         bloodType: (d.bloodType || undefined) as BloodType | undefined, allergies: d.allergies, chronicDiseases: d.chronicDiseases, medications: d.medications, medicalNotes: opt(d.medicalNotes),
         tags: d.tags, referredBy: opt(d.referredBy), insuranceCompany: opt(d.insuranceCompany), insuranceNumber: opt(d.insuranceNumber), notes: opt(d.notes), photo: d.photo || undefined,
@@ -163,7 +171,8 @@ export default function PatientFormModal({ open, onClose, patient, onSaved }: Pa
             </Field>
             <Input label={t('birthDate')} type="date" value={d.birthDate} max={todayISO()} onChange={e => set('birthDate', e.target.value)} onBlur={blur('birthDate')} error={show('birthDate')}
               hint={d.birthDate ? (age !== null ? <span className="pt-age">{t('patients.agePreview', { age: plural('age', age) })}</span> : undefined) : t('patients.birthHint')} />
-            <Input label={t('phone')} required type="tel" inputMode="tel" dir="ltr" className="pt-ltr-input" iconStart={<Phone />} value={d.phone} onChange={e => set('phone', sanitizePhoneInput(e.target.value))} onBlur={blur('phone')} error={show('phone')} placeholder={t('patients.ph.phone')} maxLength={20} />
+            <Input label={t('phone')} type="tel" inputMode="tel" dir="ltr" className="pt-ltr-input" iconStart={<Phone />} value={d.phone} onChange={e => set('phone', sanitizePhoneInput(e.target.value))} onBlur={blur('phone')} error={show('phone')} placeholder={t('patients.ph.phone')} maxLength={20}
+              hint={!d.phone.trim() ? t('patients.noPhoneHint') : undefined} />
             <Input label={t('phone2')} type="tel" inputMode="tel" dir="ltr" className="pt-ltr-input" iconStart={<Phone />} value={d.phone2} onChange={e => set('phone2', sanitizePhoneInput(e.target.value))} onBlur={blur('phone2')} error={show('phone2')} placeholder={t('optional')} maxLength={20} />
             {duplicate && (
               <Alert tone="warning" className="span-2 pt-dup">{t('patients.duplicatePhone', { name: duplicate.name, fileNo: duplicate.fileNo })}</Alert>

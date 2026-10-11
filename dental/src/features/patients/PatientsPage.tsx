@@ -1,7 +1,7 @@
 import { lazy, Suspense, useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useLiveQuery } from 'dexie-react-hooks'
-import { Archive, ArchiveRestore, ArrowUpDown, Check, ChevronDown, Eye, Pencil, Search, SearchX, Trash, UserPlus, Users, Wallet, X } from 'lucide-react'
+import { Archive, ArchiveRestore, ArrowUpDown, Check, ChevronDown, Eye, Pencil, Search, SearchX, SlidersHorizontal, Trash, UserPlus, Users, Wallet, X } from 'lucide-react'
 import { db, logActivity } from '@/db'
 import type { Patient } from '@/db/types'
 import { nowISO } from '@/db/ids'
@@ -9,14 +9,15 @@ import { useI18n } from '@/i18n'
 import { useDebounced, useDoctors, useIsMobile, useMoney } from '@/app/hooks'
 import { useSession } from '@/app/session'
 import { useLicense } from '@/license/useLicense'
-import { Badge, Button, DataTable, EmptyState, Input, Menu, PageHeader, Pagination, Segmented, Select, Skeleton, StatCard, usePagination, useConfirmDelete, useToast, type Column, type MenuItemDef } from '@/ui'
+import { Badge, Button, DataTable, EmptyState, Field, Input, Menu, Modal, PageHeader, Pagination, Segmented, Select, Skeleton, StatCard, Switch, usePagination, useToast, type Column, type MenuItemDef } from '@/ui'
 import { dateOf, diffDays, fmtDate, relativeDay, today } from '@/lib/dates'
 import {
-  allTags, balancesByPatient, DEFAULT_FILTERS, filterPatients, hasActiveFilters, lastVisitsByPatient, latestOf, monthStartISO, patientStats, sortPatients, SORTS,
+  allTags, DEFAULT_FILTERS, filterPatients, hasActiveFilters, lastVisitsByPatient, latestOf, monthStartISO, patientStats, searchKey, sortPatients, SORTS,
   type GenderFilter, type PatientFilters, type PatientSort, type QuickFilter,
 } from './lib'
-import { ContactButtons, MedicalBadges, PatientAvatar, PhoneText, RowMenu, TagList, useGenderAge, usePlural } from './parts'
-import { deletePatientCascade } from './data'
+import { ContactButtons, Fab, MedicalBadges, PatientAvatar, PhoneText, RowMenu, TagList, useGenderAge, usePlural } from './parts'
+import { usePatientDelete } from './usePatientDelete'
+import { useBalances } from './balances'
 
 const PatientFormModal = lazy(() => import('./PatientFormModal'))
 
@@ -39,7 +40,7 @@ export default function PatientsPage() {
   const session = useSession()
   const { readOnly } = useLicense()
   const toast = useToast()
-  const confirmDelete = useConfirmDelete()
+  const deletion = usePatientDelete()
   const plural = usePlural()
   const genderAge = useGenderAge()
 
@@ -52,21 +53,30 @@ export default function PatientsPage() {
   useEffect(() => { try { sessionStorage.setItem(STATE_KEY, JSON.stringify(view)) } catch { /* ignore */ } }, [view])
 
   const [form, setForm] = useState<{ patient?: Patient } | null>(null)
+  const [sheet, setSheet] = useState(false)          // phones: the filters and sort live in a bottom sheet
 
   const patients = useLiveQuery(() => db.patients.toArray(), [])
-  const money$ = useLiveQuery(async () => {
-    const [invoices, payments] = await Promise.all([db.invoices.toArray(), db.payments.toArray()])
-    return balancesByPatient(invoices, payments)
+  const listed = patients !== undefined
+  // exact balances of every patient: read after the list is on screen, in pages, and kept for the session
+  const money$ = useBalances(listed)
+  // Patient.lastVisit already holds every completed visit (kept by the appointments module); only patients who are in
+  // the clinic right now (arrived / in treatment) are added. Two small index reads, never a cursor over every
+  // appointment of the clinic's history (anyOf() walked ~50 000 rows one by one on each change).
+  const visits = useLiveQuery(async () => {
+    const [arrived, inChair] = await Promise.all([db.appointments.where('status').equals('arrived').toArray(), db.appointments.where('status').equals('in_progress').toArray()])
+    return lastVisitsByPatient([...arrived, ...inChair])
   }, [])
-  const visits = useLiveQuery(async () => lastVisitsByPatient(await db.appointments.where('status').anyOf('completed', 'arrived', 'in_progress').toArray()), [])
   const balances = useMemo(() => money$ ?? new Map<string, number>(), [money$])
   const lastVisits = useMemo(() => visits ?? new Map<string, string>(), [visits])
   const monthStart = useMemo(() => monthStartISO(), [])
 
   const stats = useMemo(() => patientStats(patients ?? [], balances, monthStart), [patients, balances, monthStart])
   const tags = useMemo(() => allTags(patients ?? [], lang), [patients, lang])
-  const rows = useMemo(() => sortPatients(filterPatients(patients ?? [], filters, { balances, monthStart }), sort, { balances, lastVisits }, lang),
-    [patients, filters, sort, balances, lastVisits, monthStart, lang])
+  // search text normalized once per list, not once per patient per keystroke
+  const searching = !!filters.q.trim()
+  const keys = useMemo(() => (searching && patients ? new Map(patients.map(p => [p.id, searchKey(p)])) : undefined), [patients, searching])
+  const rows = useMemo(() => sortPatients(filterPatients(patients ?? [], filters, { balances, monthStart, keys }), sort, { balances, lastVisits }, lang),
+    [patients, filters, sort, balances, lastVisits, monthStart, lang, keys])
   const archivedCount = useMemo(() => (patients ?? []).filter(p => p.archived).length, [patients])
   const pg = usePagination(rows, 25)
   useEffect(() => { pg.setPage(1) }, [filters, sort]) // eslint-disable-line react-hooks/exhaustive-deps
@@ -80,16 +90,7 @@ export default function PatientsPage() {
     void logActivity({ type: 'patient', action: 'status', entityId: p.id, patientId: p.id, message: `${p.name} — ${p.archived ? t('restore') : t('archive')}`, by: session.user?.id })
     toast.success(t(p.archived ? 'patients.restoredToast' : 'patients.archivedToast'), p.name)
   }
-  const remove = async (p: Patient) => {
-    if (!(await confirmDelete(t('patients.deleteConfirm')))) return
-    try {
-      await deletePatientCascade(p.id)
-      void logActivity({ type: 'patient', action: 'delete', entityId: p.id, message: p.name, by: session.user?.id })
-      toast.success(t('patients.deletedToast'), p.name)
-    } catch {
-      toast.error(t('patients.deleteFailed'))
-    }
-  }
+  const remove = (p: Patient) => deletion.remove(p)
   const rowItems = (p: Patient): MenuItemDef[] => [
     { label: t('open'), icon: <Eye />, onClick: () => open(p) },
     { label: t('edit'), icon: <Pencil />, onClick: () => setForm({ patient: p }), disabled: readOnly },
@@ -130,7 +131,8 @@ export default function PatientsPage() {
     { key: 'actions', header: <span className="sr-only">{t('actions')}</span>, className: 'actions', width: 56, render: p => <RowMenu items={rowItems(p)} label={t('actions')} /> },
   ]
 
-  const loading = patients === undefined
+  // a list filtered or sorted by balance waits for the balances; otherwise the list shows at once
+  const loading = patients === undefined || ((filters.quick === 'balance' || sort === 'balance') && money$ === undefined)
   const firstRun = !loading && patients.length === 0
   const filtered = hasActiveFilters(filters)
   const clearAll = () => { setQ(''); setView(v => ({ ...v, filters: { ...DEFAULT_FILTERS, archived: v.filters.archived } })) }
@@ -144,6 +146,16 @@ export default function PatientsPage() {
 
   const setQuick = (k: QuickFilter) => setFilters({ quick: filters.quick === k ? 'all' : k, archived: false })
   const genderOptions: { value: GenderFilter; label: string }[] = [{ value: 'all', label: t('all') }, { value: 'male', label: t('male') }, { value: 'female', label: t('female') }]
+  // phones: how many of the secondary filters (everything but the search box) are on, for the button badge
+  const sheetCount = (filters.gender !== 'all' ? 1 : 0) + (filters.doctorId ? 1 : 0) + (filters.tag ? 1 : 0) + (filters.archived ? 1 : 0) + (sort !== 'recent' ? 1 : 0)
+  const doctorSelect = doctors.length > 1 && (
+    <Select className="pt-select" value={filters.doctorId} onChange={e => setFilters({ doctorId: e.target.value })} aria-label={t('patients.usualDoctor')}
+      options={[{ value: '', label: t('patients.allDoctors') }, ...doctors.map(d => ({ value: d.id, label: d.name }))]} />
+  )
+  const tagSelect = tags.length > 0 && (
+    <Select className="pt-select" value={filters.tag} onChange={e => setFilters({ tag: e.target.value })} aria-label={t('patients.tags')}
+      options={[{ value: '', label: t('patients.allTags') }, ...tags.map(tg => ({ value: tg, label: tg }))]} />
+  )
   const sortItems: MenuItemDef[] = [
     { header: t('sort') },
     ...SORTS.map(s => ({ label: t(`patients.sort.${s}`), icon: s === sort ? <Check /> : <span className="pt-menu-blank" />, onClick: () => setView(v => ({ ...v, sort: s })) })),
@@ -154,7 +166,7 @@ export default function PatientsPage() {
       <PageHeader
         title={t('patients.title')}
         subtitle={loading ? <Skeleton w={120} h={14} /> : filters.archived && !firstRun ? plural('archivedCount', archivedCount) : plural('count', stats.total)}
-        actions={newBtn}
+        actions={mobile ? undefined : newBtn}
       />
 
       {/* first run (no files at all, not even archived): only the welcome state, no filters */}
@@ -167,7 +179,7 @@ export default function PatientsPage() {
           <StatCard tone="success" icon={<UserPlus />} label={t('patients.stat.newMonth')} value={loading ? <Skeleton w={48} h={24} /> : <span className="num">{stats.newThisMonth}</span>} onClick={() => setQuick('new')} />
         </div>
         <div className={`pt-stat${filters.quick === 'balance' ? ' active' : ''}`}>
-          <StatCard tone="danger" icon={<Wallet />} label={t('patients.stat.withBalance')} value={loading ? <Skeleton w={48} h={24} /> : <span className="num">{stats.withBalance}</span>} onClick={() => setQuick('balance')} />
+          <StatCard tone="danger" icon={<Wallet />} label={t('patients.stat.withBalance')} value={loading || money$ === undefined ? <Skeleton w={48} h={24} /> : <span className="num">{stats.withBalance}</span>} onClick={() => setQuick('balance')} />
         </div>
       </div>
 
@@ -175,21 +187,22 @@ export default function PatientsPage() {
         <div className="pt-search">
           <Input value={q} onChange={e => setQ(e.target.value)} placeholder={t('patients.searchPlaceholder')} iconStart={<Search />} clearable onClear={() => setQ('')} aria-label={t('search')} type="search" />
         </div>
-        <div className="pt-filters">
-          <Segmented value={filters.gender} onChange={g => setFilters({ gender: g })} options={genderOptions} />
-          {doctors.length > 1 && (
-            <Select className="pt-select" value={filters.doctorId} onChange={e => setFilters({ doctorId: e.target.value })} aria-label={t('patients.usualDoctor')}
-              options={[{ value: '', label: t('patients.allDoctors') }, ...doctors.map(d => ({ value: d.id, label: d.name }))]} />
-          )}
-          {tags.length > 0 && (
-            <Select className="pt-select" value={filters.tag} onChange={e => setFilters({ tag: e.target.value })} aria-label={t('patients.tags')}
-              options={[{ value: '', label: t('patients.allTags') }, ...tags.map(tg => ({ value: tg, label: tg }))]} />
-          )}
-          <Button variant={filters.archived ? 'soft' : 'secondary'} icon={<Archive />} onClick={() => setFilters({ archived: !filters.archived, quick: 'all' })} aria-pressed={filters.archived}>
-            {t('patients.showArchived')}{archivedCount > 0 && <span className="pt-count"><span className="num">{archivedCount}</span></span>}
+        {mobile ? (
+          // phones: one button instead of a sideways-scrolling row that hid the tags, archive and sort off-screen
+          <Button className="pt-filter-btn" variant={sheetCount ? 'soft' : 'secondary'} icon={<SlidersHorizontal />} onClick={() => setSheet(true)} aria-label={t('patients.filters')} title={t('patients.filters')}>
+            {sheetCount > 0 && <span className="pt-count"><span className="num">{sheetCount}</span></span>}
           </Button>
-          <Menu items={sortItems} trigger={() => <Button icon={<ArrowUpDown />} iconEnd={<ChevronDown />} aria-label={t('sort')}>{t(`patients.sort.${sort}`)}</Button>} />
-        </div>
+        ) : (
+          <div className="pt-filters">
+            <Segmented value={filters.gender} onChange={g => setFilters({ gender: g })} options={genderOptions} />
+            {doctorSelect}
+            {tagSelect}
+            <Button variant={filters.archived ? 'soft' : 'secondary'} icon={<Archive />} onClick={() => setFilters({ archived: !filters.archived, quick: 'all' })} aria-pressed={filters.archived}>
+              {t('patients.showArchived')}{archivedCount > 0 && <span className="pt-count"><span className="num">{archivedCount}</span></span>}
+            </Button>
+            <Menu items={sortItems} trigger={() => <Button icon={<ArrowUpDown />} iconEnd={<ChevronDown />} aria-label={t('sort')}>{t(`patients.sort.${sort}`)}</Button>} />
+          </div>
+        )}
       </div>
 
       {(filtered || filters.archived) && !loading && rows.length > 0 && (
@@ -238,6 +251,29 @@ export default function PatientsPage() {
         <Suspense fallback={null}>
           <PatientFormModal open patient={form.patient} onClose={() => setForm(null)} onSaved={id => { if (!form.patient) navigate(`/patients/${id}`) }} />
         </Suspense>
+      )}
+      {deletion.dialog}
+      {mobile && !firstRun && (
+        // phones: the "new patient" action floats above the bottom bar instead of a full-width header button
+        <Fab icon={<UserPlus />} label={t('patients.newPatient')} onClick={() => setForm({})} disabled={readOnly} title={readOnly ? t('trial.readonly') : undefined} />
+      )}
+      {mobile && sheet && (
+        <Modal open onClose={() => setSheet(false)} size="sm" icon={<SlidersHorizontal />} title={t('patients.filters')}
+          footer={<>
+            <Button variant="ghost" icon={<X />} onClick={() => { setView(v => ({ filters: { ...DEFAULT_FILTERS, q: v.filters.q, quick: v.filters.quick }, sort: 'recent' })) }} disabled={!sheetCount}>{t('patients.clearFilters')}</Button>
+            <Button variant="primary" onClick={() => setSheet(false)} data-autofocus>{loading ? t('close') : plural('showResults', rows.length)}</Button>
+          </>}>
+          <div className="col gap-4 pt-sheet">
+            <Field label={t('gender')}><Segmented block value={filters.gender} onChange={g => setFilters({ gender: g })} options={genderOptions} /></Field>
+            {doctors.length > 1 && <Field label={t('patients.usualDoctor')}>{doctorSelect}</Field>}
+            {tags.length > 0 && <Field label={t('patients.tags')}>{tagSelect}</Field>}
+            <Field label={t('sort')}>
+              <Select value={sort} onChange={e => setView(v => ({ ...v, sort: e.target.value as PatientSort }))} options={SORTS.map(x => ({ value: x, label: t(`patients.sort.${x}`) }))} />
+            </Field>
+            <Switch checked={filters.archived} onChange={e => setFilters({ archived: e.target.checked, quick: 'all' })}
+              label={<>{t('patients.showArchivedFull')}{archivedCount > 0 && <span className="pt-count"><span className="num">{archivedCount}</span></span>}</>} />
+          </div>
+        </Modal>
       )}
     </div>
   )

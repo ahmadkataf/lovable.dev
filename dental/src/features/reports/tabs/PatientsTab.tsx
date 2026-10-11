@@ -13,6 +13,7 @@ import {
   ageBands, chooseUnit, delta, genderSplit, inRange, newPatientsSeries, patientsInScope, patientsSeen, referralSources, topSpenders, untilToday, VISIT_STATUSES,
 } from '../queries'
 import { EmptyTab, rangeSlug, useExport, type TabProps } from './common'
+import { usePatientPhotos } from '@/features/billing/patientIndex'
 
 export default function PatientsTab({ period, data, setExport, onShowYear }: TabProps) {
   const { t, lang } = useI18n()
@@ -45,6 +46,7 @@ export default function PatientsTab({ period, data, setExport, onShowYear }: Tab
 
   const text = useBucketText(c?.series ?? [], c?.unit ?? 'week')
   const spendRows = c?.spenders ?? []
+  const photos = usePatientPhotos(spendRows.filter(s => data?.patientMap.get(s.patientId)?.hasPhoto).map(s => s.patientId))
   useExport(setExport, c && spendRows.length ? {
     name: `top-patients_${rangeSlug(period)}.csv`,
     rows: [[t('fileNo'), t('patient'), t('phone'), t('reports.pat.payments'), t('paid')], ...spendRows.map(s => { const p = data?.patientMap.get(s.patientId); return [p?.fileNo ?? '', p?.name ?? '', p?.phone ?? '', s.payments, s.paid] })],
@@ -67,7 +69,7 @@ export default function PatientsTab({ period, data, setExport, onShowYear }: Tab
   const spendCols: Column<(typeof spendRows)[number]>[] = [
     { key: 'p', header: t('patient'), render: s => { const p = data?.patientMap.get(s.patientId); return (
       <div className="row gap-3 rp-namecell">
-        <Avatar name={p?.name ?? '?'} src={p?.photo} size="sm" />
+        <Avatar name={p?.name ?? '?'} src={photos.get(s.patientId)} size="sm" />
         <div className="grow"><Link to={`/patients/${s.patientId}`} className="cell-main truncate" style={{ color: 'var(--text)' }}><bdi>{p?.name ?? t('unknown')}</bdi></Link>
           {p && <div className="cell-sub">{t('fileNo')} <span className="num">{p.fileNo}</span></div>}</div>
       </div>) } },

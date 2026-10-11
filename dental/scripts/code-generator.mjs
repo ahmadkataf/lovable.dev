@@ -4,6 +4,7 @@
 //
 //   node scripts/code-generator.mjs <device> <standard|pro> [YYYY-MM-DD | 1y | 2y | lifetime]   (default: 1y)
 //   node scripts/code-generator.mjs verify <device> <code>
+//   node scripts/code-generator.mjs reset <device>                (admin PIN reset code, valid today and tomorrow)
 //   node scripts/code-generator.mjs keygen <new-key-file>        (only to replace the key: see below)
 //
 // The private key is read from --key <file>, else $DENTORA_LICENSE_KEY, else ../secrets-for-user/dentora/license-private.jwk.
@@ -11,7 +12,9 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { checkCode, clinicMessage, formatDeviceInput, importSigningKey, isDeviceNumber, isPlan, issueCode, parsePrivateKey, parseUntil } from '../tools/generator-lib.ts'
+import {
+  checkCode, checkResetCode, clinicMessage, formatDeviceInput, importSigningKey, isDeviceNumber, isPlan, issueCode, issueResetCode, parsePrivateKey, parseUntil, resetClinicMessage,
+} from '../tools/generator-lib.ts'
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const DEFAULT_KEY = path.resolve(ROOT, '../secrets-for-user/dentora/license-private.jwk')
@@ -20,7 +23,10 @@ const USAGE = `Dentora activation codes
   node scripts/code-generator.mjs <device> <standard|pro> [YYYY-MM-DD | 1y | 2y | lifetime] [--key <file>]
       make a code for a device number (as shown in Settings → License); validity defaults to 1y
   node scripts/code-generator.mjs verify <device> <code>
-      check a code against a device number (needs no private key)
+      check an activation or PIN reset code against a device number (needs no private key)
+  node scripts/code-generator.mjs reset <device> [--en]
+      make an admin PIN reset code for a clinic whose only admin forgot the PIN. It works on that device,
+      today and tomorrow, once: on the sign-in screen, "Forgot your PIN?" → "I have a reset code".
   node scripts/code-generator.mjs keygen <new-key-file>
       create a NEW key pair. Only for replacing the key: put the printed public key in src/license/core.ts
       and release a new app version; every code issued with the old key stops working in that version.
@@ -30,10 +36,13 @@ The private key: --key <file>, or $DENTORA_LICENSE_KEY, or ${path.relative(proce
 Examples
   node scripts/code-generator.mjs 7KQ4-M2XD pro lifetime
   node scripts/code-generator.mjs 7KQ4-M2XD standard 2027-12-31
-  node scripts/code-generator.mjs verify 7KQ4-M2XD <code>`
+  node scripts/code-generator.mjs verify 7KQ4-M2XD <code>
+  node scripts/code-generator.mjs reset 7KQ4-M2XD`
 
 const fail = (msg, code = 2) => { process.stderr.write(`error: ${msg}\n\n${USAGE}\n`); process.exit(code) }
 let args = process.argv.slice(2)
+const english = args.includes('--en')
+args = args.filter(a => a !== '--en')
 let keyFile = process.env.DENTORA_LICENSE_KEY || DEFAULT_KEY
 const k = args.indexOf('--key')
 if (k >= 0) { keyFile = args[k + 1]; args = args.filter((_, i) => i !== k && i !== k + 1); if (!keyFile) fail('--key needs a file') }
@@ -60,8 +69,31 @@ if (args[0] === 'verify') {
     process.stdout.write(`valid · plan ${r.plan} · ${r.until ? `until ${r.until.toISOString().slice(0, 10)}` : 'lifetime'}\n`)
     process.exit(0)
   }
-  process.stdout.write(`invalid · ${r.reason}\n`)
+  if (r.reason === 'kind') {
+    const reset = await checkResetCode(formatDeviceInput(device), code)
+    process.stdout.write(reset.ok ? 'valid · PIN reset code · usable today\n' : `invalid PIN reset code · ${reset.reason}\n`)
+    process.exit(reset.ok ? 0 : 1)
+  }
+  process.stdout.write(`invalid · ${r.reason === 'expired' ? `expired on ${r.until.toISOString().slice(0, 10)}` : r.reason}\n`)
   process.exit(1)
+}
+
+/** The seller's private key, checked against the key built into the app. */
+function signingKeyFile() {
+  if (!fs.existsSync(keyFile)) fail(`the private key file was not found: ${keyFile}`, 3)
+  const parsed = parsePrivateKey(fs.readFileSync(keyFile, 'utf8'))
+  if (!parsed.ok) fail(parsed.reason === 'mismatch' ? `${keyFile} is not the key built into this version of the app` : `${keyFile} is not a Dentora private key`, 3)
+  return parsed.jwk
+}
+
+if (args[0] === 'reset') {
+  const device = args[1]
+  if (!device) fail('reset needs a device number')
+  if (!isDeviceNumber(device)) fail(`"${device}" is not a device number (8 characters, e.g. 7KQ4-M2XD)`)
+  const issued = await issueResetCode(device, await importSigningKey(signingKeyFile()))
+  process.stdout.write(issued.code + '\n')
+  process.stderr.write(`\n  PIN reset code\n  device  ${issued.device}\n  valid   ${issued.day} to ${issued.lastDay} (UTC), once\n  code    ${issued.code}\n\n--- message for the clinic ---\n${resetClinicMessage(issued, english ? 'en' : 'ar')}\n`)
+  process.exit(0)
 }
 
 const [device, plan, validity = '1y'] = args
@@ -70,10 +102,6 @@ if (!isDeviceNumber(device)) fail(`"${device}" is not a device number (8 charact
 if (!isPlan(plan)) fail(`plan must be "standard" or "pro", not "${plan}"`)
 const until = parseUntil(validity)
 if (until === undefined) fail(`validity must be YYYY-MM-DD (today or later), 1y, 2y or lifetime — not "${validity}"`)
-if (!fs.existsSync(keyFile)) fail(`the private key file was not found: ${keyFile}`, 3)
-const parsed = parsePrivateKey(fs.readFileSync(keyFile, 'utf8'))
-if (!parsed.ok) fail(parsed.reason === 'mismatch' ? `${keyFile} is not the key built into this version of the app` : `${keyFile} is not a Dentora private key`, 3)
-
-const issued = await issueCode(device, plan, until, await importSigningKey(parsed.jwk))
+const issued = await issueCode(device, plan, until, await importSigningKey(signingKeyFile()))
 process.stdout.write(issued.code + '\n')
-process.stderr.write(`\n  device  ${issued.device}\n  plan    ${issued.plan}\n  until   ${issued.until ?? 'lifetime'}\n  code    ${issued.code}\n\n--- message for the clinic ---\n${clinicMessage(issued)}\n`)
+process.stderr.write(`\n  device  ${issued.device}\n  plan    ${issued.plan}\n  until   ${issued.until ?? 'lifetime'}\n  code    ${issued.code}\n\n--- message for the clinic ---\n${clinicMessage(issued, english ? 'en' : 'ar')}\n`)

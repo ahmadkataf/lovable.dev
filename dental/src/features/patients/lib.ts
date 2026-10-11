@@ -1,7 +1,7 @@
 // Pure patients logic: balances, visits, search, filters, sorting, validation, plurals and file helpers.
 // No database or React here, so everything is covered by tests/patients.test.ts.
 import type { Appointment, FileKind, Gender, ISODate, Invoice, Patient, PatientFile, Payment } from '@/db/types'
-import { matches, normalizeText, round2 } from '@/lib/format'
+import { normalizeText, round2 } from '@/lib/format'
 
 // ---- money ---------------------------------------------------------------------------------------
 /** Invoices that count toward what the patient owes: everything except drafts and cancelled ones. */
@@ -61,26 +61,37 @@ export function digitsOnly(s?: string): string {
 }
 
 export type SearchablePatient = Pick<Patient, 'name' | 'fileNo'> & Partial<Pick<Patient, 'phone' | 'phone2' | 'nationalId' | 'email'>>
+
+/** What a search compares, normalized once per patient (lists keep these across keystrokes). */
+export interface SearchKey { name: string; numbers: string; file: string; nationalId: string; email: string }
+export function searchKey(p: SearchablePatient): SearchKey {
+  return {
+    name: normalizeText(p.name), numbers: [p.phone, p.phone2, p.nationalId].map(digitsOnly).join(' '), file: String(p.fileNo ?? ''),
+    nationalId: normalizeText(p.nationalId || ''), email: normalizeText(p.email || ''),
+  }
+}
+/** fullSearch() on a prepared key. */
+export function matchesKey(k: SearchKey, q: string): boolean {
+  const query = normalizeText(q)
+  if (!query) return true
+  return query.split(/\s+/).filter(Boolean).every(tok => {
+    if (k.name.includes(tok)) return true
+    const bare = tok.replace(/^[#+]/, '')
+    const d = digitsOnly(bare)
+    if (d && d.length === bare.length) {
+      if (k.file === d || k.file.startsWith(d)) return true
+      if (d.length >= 3 && k.numbers.includes(d)) return true
+    }
+    return k.nationalId.includes(tok) || k.email.includes(tok)
+  })
+}
 /**
  * Arabic-aware search over name, phone(s), file number, national id and email.
  * Every word of the query must match something: "أحمد 0944" finds Ahmad whose phone contains 0944.
  * A numeric word matches the file number (exactly or as a prefix) and, from 3 digits on, any phone / national id.
  */
 export function fullSearch(p: SearchablePatient, q: string): boolean {
-  const query = normalizeText(q)
-  if (!query) return true
-  const numbers = [p.phone, p.phone2, p.nationalId].map(digitsOnly).join(' ')
-  const file = String(p.fileNo ?? '')
-  return query.split(/\s+/).filter(Boolean).every(tok => {
-    if (matches(p.name, tok)) return true
-    const bare = tok.replace(/^[#+]/, '')
-    const d = digitsOnly(bare)
-    if (d && d.length === bare.length) {
-      if (file === d || file.startsWith(d)) return true
-      if (d.length >= 3 && numbers.includes(d)) return true
-    }
-    return matches(p.nationalId, tok) || matches(p.email, tok)
-  })
+  return matchesKey(searchKey(p), q)
 }
 
 export type GenderFilter = 'all' | Gender
@@ -102,7 +113,9 @@ export interface ListContext { balances: Map<string, number>; lastVisits: Map<st
 /** Start of the current local month as an ISO instant (comparable with createdAt). */
 export function monthStartISO(now: Date = new Date()): string { return new Date(now.getFullYear(), now.getMonth(), 1).toISOString() }
 
-export function filterPatients<T extends Patient>(list: T[], f: PatientFilters, ctx: Pick<ListContext, 'balances' | 'monthStart'>): T[] {
+export function filterPatients<T extends Patient>(list: T[], f: PatientFilters, ctx: Pick<ListContext, 'balances' | 'monthStart'> & { keys?: Map<string, SearchKey> }): T[] {
+  const q = f.q.trim()
+  const search = (p: T) => !q || matchesKey(ctx.keys?.get(p.id) ?? searchKey(p), q)
   return list.filter(p =>
     !!p.archived === f.archived
     && (f.gender === 'all' || p.gender === f.gender)
@@ -110,22 +123,33 @@ export function filterPatients<T extends Patient>(list: T[], f: PatientFilters, 
     && (!f.tag || (p.tags ?? []).includes(f.tag))
     && (f.quick !== 'new' || p.createdAt >= ctx.monthStart)
     && (f.quick !== 'balance' || owes(ctx.balances.get(p.id)))
-    && fullSearch(p, f.q))
+    && search(p))
 }
 
 export type PatientSort = 'recent' | 'name' | 'lastVisit' | 'balance'
 export const SORTS: PatientSort[] = ['recent', 'name', 'lastVisit', 'balance']
 
+const collators = new Map<string, Intl.Collator>()
+/** A cached collator: String.localeCompare(…, lang) builds one per call, far too slow for thousands of rows. */
+export function collator(lang: 'ar' | 'en'): Intl.Collator {
+  let c = collators.get(lang)
+  if (!c) { c = new Intl.Collator(lang); collators.set(lang, c) }
+  return c
+}
+/** Plain comparison for ISO dates and instants (they sort as text; no locale rules needed). */
+const cmp = (a: string, b: string) => (a < b ? -1 : a > b ? 1 : 0)
+
 export function sortPatients<T extends Patient>(list: T[], sort: PatientSort, ctx: Pick<ListContext, 'balances' | 'lastVisits'>, lang: 'ar' | 'en' = 'ar'): T[] {
   const out = [...list]
   const visit = (p: T) => latestOf(p.lastVisit, ctx.lastVisits.get(p.id)) ?? ''
   const bal = (p: T) => ctx.balances.get(p.id) ?? 0
-  const byName = (a: T, b: T) => a.name.localeCompare(b.name, lang)
+  const col = collator(lang)
+  const byName = (a: T, b: T) => col.compare(a.name, b.name)
   switch (sort) {
     case 'name': return out.sort(byName)
-    case 'lastVisit': return out.sort((a, b) => visit(b).localeCompare(visit(a)) || byName(a, b))
+    case 'lastVisit': return out.sort((a, b) => cmp(visit(b), visit(a)) || byName(a, b))
     case 'balance': return out.sort((a, b) => bal(b) - bal(a) || byName(a, b))
-    default: return out.sort((a, b) => b.createdAt.localeCompare(a.createdAt) || b.fileNo - a.fileNo)
+    default: return out.sort((a, b) => cmp(b.createdAt, a.createdAt) || b.fileNo - a.fileNo)
   }
 }
 
@@ -146,7 +170,7 @@ export function patientStats(list: Pick<Patient, 'id' | 'archived' | 'createdAt'
 export function allTags(list: Pick<Patient, 'tags'>[], lang: 'ar' | 'en' = 'ar'): string[] {
   const s = new Set<string>()
   for (const p of list) for (const t of p.tags ?? []) if (t.trim()) s.add(t.trim())
-  return [...s].sort((a, b) => a.localeCompare(b, lang))
+  return [...s].sort(collator(lang).compare)
 }
 
 export interface MedicalFlags { allergies: boolean; chronic: boolean; medications: boolean; any: boolean }
@@ -192,8 +216,8 @@ export function validatePatient(d: PatientDraftCore, todayDate: ISODate): Patien
   const name = d.name.trim()
   if (!name) e.name = 'v.required'
   else if (name.length < 2) e.name = 'patients.v.nameShort'
-  if (!d.phone.trim()) e.phone = 'v.required'
-  else if (!isValidPhone(d.phone)) e.phone = 'v.phone'
+  // the phone is optional (not every patient has one); when given it must be a real number
+  if (d.phone.trim() && !isValidPhone(d.phone)) e.phone = 'v.phone'
   if (d.phone2?.trim() && !isValidPhone(d.phone2)) e.phone2 = 'v.phone'
   if (d.email?.trim() && !isValidEmail(d.email)) e.email = 'v.email'
   if (d.birthDate) {
@@ -247,6 +271,15 @@ export function fileShape(mime?: string, name?: string): FileShape {
   if (m.startsWith('image/') || /\.(png|jpe?g|gif|webp|bmp|heic)$/.test(n)) return 'image'
   if (m === 'application/pdf' || n.endsWith('.pdf')) return 'pdf'
   return 'other'
+}
+/**
+ * How the viewer shows a stored file, from the type its bytes prove (sniffMime), never from its name or stored MIME:
+ * an HTML page renamed lab-report.pdf (e.g. from a crafted backup) is "other" and is only offered as a download.
+ */
+export function previewShape(sniffed: string | null | undefined): FileShape {
+  if (!sniffed) return 'other'
+  if (sniffed.startsWith('image/')) return 'image'
+  return sniffed === 'application/pdf' ? 'pdf' : 'other'
 }
 /** A sensible default kind for a new upload. */
 export function guessKind(mime?: string, name?: string): FileKind {

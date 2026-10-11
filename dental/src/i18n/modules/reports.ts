@@ -50,7 +50,7 @@ const reports: ModuleDict = {
     // outstanding
     'out.total': 'إجمالي المستحق', 'out.patients': 'مرضى عليهم رصيد', 'out.avg': 'متوسط الرصيد المستحق', 'out.max': 'أعلى رصيد',
     'out.tableTitle': 'الأرصدة المستحقة على المرضى', 'out.tableSub': 'الأرصدة الحالية لجميع الفترات، من الأعلى إلى الأدنى',
-    'out.invoiced': 'إجمالي الفواتير', 'out.paid': 'المدفوع', 'out.due': 'المستحق', 'out.lastPayment': 'آخر دفعة', 'out.never': 'لا توجد دفعات', 'out.remind': 'تذكير',
+    'out.invoiced': 'قيمة الفواتير المفتوحة', 'out.paid': 'المدفوع منها', 'out.due': 'المستحق', 'out.lastPayment': 'آخر دفعة', 'out.never': 'لا توجد دفعات', 'out.remind': 'تذكير',
     'out.remindTitle': 'إرسال تذكير عبر واتساب', 'out.noPhone': 'لا يوجد رقم هاتف',
     'out.message': 'مرحباً {name}، نودّ تذكيركم بأن الرصيد المستحق لدى {clinic} هو {amount}. يسعدنا استقبالكم في أي وقت، وشكراً لكم.',
     'out.emptyTitle': 'لا توجد ذمم مستحقة', 'out.emptyDesc': 'جميع المرضى سدّدوا ما عليهم بالكامل. عمل رائع!', 'out.goInvoices': 'الفواتير',
@@ -100,7 +100,7 @@ const reports: ModuleDict = {
     'tr.emptyTitle': 'No treatments in this period', 'tr.emptyDesc': 'No procedures were planned or completed during {range}.', 'tr.goTreatments': 'Treatments',
     'out.total': 'Total outstanding', 'out.patients': 'Patients with a balance', 'out.avg': 'Average balance', 'out.max': 'Largest balance',
     'out.tableTitle': 'Patient balances', 'out.tableSub': 'Current balances across all periods, largest first',
-    'out.invoiced': 'Invoiced', 'out.paid': 'Paid', 'out.due': 'Due', 'out.lastPayment': 'Last payment', 'out.never': 'No payments', 'out.remind': 'Remind',
+    'out.invoiced': 'Open invoices', 'out.paid': 'Paid on them', 'out.due': 'Due', 'out.lastPayment': 'Last payment', 'out.never': 'No payments', 'out.remind': 'Remind',
     'out.remindTitle': 'Send a WhatsApp reminder', 'out.noPhone': 'No phone number',
     'out.message': 'Hello {name}, a friendly reminder that your outstanding balance at {clinic} is {amount}. We look forward to seeing you. Thank you.',
     'out.emptyTitle': 'No outstanding balances', 'out.emptyDesc': 'Every patient is fully paid up. Great work!', 'out.goInvoices': 'Invoices',

@@ -83,7 +83,7 @@ export function Modal({ open, onClose, title, subtitle, icon, size = 'md', foote
   if (!open) return null
   return createPortal(
     <div className="overlay" onMouseDown={e => { if (closeOnOverlay && e.target === e.currentTarget) onClose() }}>
-      <div ref={ref} className={['modal', size !== 'md' && `modal-${size}`, className].filter(Boolean).join(' ')} role="dialog" aria-modal="true">
+      <div ref={ref} className={['modal', size !== 'md' && `modal-${size}`, !footer && 'no-footer', className].filter(Boolean).join(' ')} role="dialog" aria-modal="true">
         {(title || subtitle) && (
           <div className="modal-header">
             <div className="grow"><div className="modal-title">{icon}{title}</div>{subtitle && <div className="modal-sub">{subtitle}</div>}</div>
@@ -105,7 +105,7 @@ export function Drawer({ open, onClose, title, size = 'md', footer, children, ac
   return createPortal(
     <>
       <div className="drawer-overlay" onClick={onClose} />
-      <aside className={['drawer', size === 'lg' && 'drawer-lg'].filter(Boolean).join(' ')} role="dialog" aria-modal="true">
+      <aside className={['drawer', size === 'lg' && 'drawer-lg', !footer && 'no-footer'].filter(Boolean).join(' ')} role="dialog" aria-modal="true">
         <div className="drawer-header">
           <div className="drawer-title grow">{title}</div>
           {actions}
@@ -147,12 +147,17 @@ export function Menu({ trigger, items, align = 'end', vertical = 'bottom', child
       const n = e.target as Node
       if (!ref.current?.contains(n) && !menu.current?.contains(n)) setOpen(false)
     }
-    const close = () => setOpen(false)
+    // A rotation (the width changes) closes the menu. A height-only resize is the on-screen keyboard showing or hiding
+    // (tapping the trigger takes the focus off a field and the keyboard goes down): the menu stays and follows its trigger.
+    const width = window.innerWidth
+    const onResize = () => { if (Math.abs(window.innerWidth - width) > 1) setOpen(false); else place() }
     document.addEventListener('mousedown', h); document.addEventListener('touchstart', h)
-    window.addEventListener('resize', close); window.addEventListener('scroll', place, true)
+    window.addEventListener('resize', onResize); window.addEventListener('scroll', place, true)
+    window.visualViewport?.addEventListener('resize', onResize)
     return () => {
       document.removeEventListener('mousedown', h); document.removeEventListener('touchstart', h)
-      window.removeEventListener('resize', close); window.removeEventListener('scroll', place, true)
+      window.removeEventListener('resize', onResize); window.removeEventListener('scroll', place, true)
+      window.visualViewport?.removeEventListener('resize', onResize)
     }
   }, [open, place])
   useEscapeLayer(open ? () => setOpen(false) : undefined)

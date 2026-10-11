@@ -112,7 +112,12 @@ const staff: ModuleDict = {
     // delete
     deleteTitle: 'حذف {name}؟',
     deleteDesc: 'سيُحذف الحساب نهائياً ولن يتمكن صاحبه من الدخول.',
-    deleteHistory: 'هذا العضو مرتبط بـ {n} من السجلات (مواعيد وعلاجات ووصفات وفواتير ودفعات) ستبقى بلا اسمه بعد الحذف. إيقاف الحساب يحفظ هذا السجل واضحاً، وهو الخيار الأفضل غالباً.',
+    deleteHistory_zero: 'لا يرتبط هذا العضو بأي سجل.',
+    deleteHistory_one: 'هذا العضو مرتبط بسجل واحد (موعد أو علاج أو وصفة أو فاتورة أو دفعة) سيبقى بلا اسمه بعد الحذف. إيقاف الحساب يحفظ هذا السجل واضحاً، وهو الخيار الأفضل غالباً.',
+    deleteHistory_two: 'هذا العضو مرتبط بسجلّين (مواعيد وعلاجات ووصفات وفواتير ودفعات) سيبقيان بلا اسمه بعد الحذف. إيقاف الحساب يحفظ هذا السجل واضحاً، وهو الخيار الأفضل غالباً.',
+    deleteHistory_few: 'هذا العضو مرتبط بـ {n} سجلات (مواعيد وعلاجات ووصفات وفواتير ودفعات) ستبقى بلا اسمه بعد الحذف. إيقاف الحساب يحفظ هذا السجل واضحاً، وهو الخيار الأفضل غالباً.',
+    deleteHistory_many: 'هذا العضو مرتبط بـ {n} سجلاً (مواعيد وعلاجات ووصفات وفواتير ودفعات) ستبقى بلا اسمه بعد الحذف. إيقاف الحساب يحفظ هذا السجل واضحاً، وهو الخيار الأفضل غالباً.',
+    deleteHistory_other: 'هذا العضو مرتبط بـ {n} سجل (مواعيد وعلاجات ووصفات وفواتير ودفعات) ستبقى بلا اسمه بعد الحذف. إيقاف الحساب يحفظ هذا السجل واضحاً، وهو الخيار الأفضل غالباً.',
 
     // toasts & activity feed
     'toast.added': 'أُضيف {name} إلى الفريق',
@@ -234,7 +239,12 @@ const staff: ModuleDict = {
 
     deleteTitle: 'Delete {name}?',
     deleteDesc: 'The account will be removed for good and its owner will no longer be able to sign in.',
-    deleteHistory: 'This member is linked to {n} records (appointments, treatments, prescriptions, invoices and payments) that would lose their name. Deactivating keeps that history clear and is usually the better choice.',
+    deleteHistory_zero: 'This member is not linked to any record.',
+    deleteHistory_one: 'This member is linked to 1 record (an appointment, treatment, prescription, invoice or payment) that would lose their name. Deactivating keeps that history clear and is usually the better choice.',
+    deleteHistory_two: 'This member is linked to 2 records (appointments, treatments, prescriptions, invoices and payments) that would lose their name. Deactivating keeps that history clear and is usually the better choice.',
+    deleteHistory_few: 'This member is linked to {n} records (appointments, treatments, prescriptions, invoices and payments) that would lose their name. Deactivating keeps that history clear and is usually the better choice.',
+    deleteHistory_many: 'This member is linked to {n} records (appointments, treatments, prescriptions, invoices and payments) that would lose their name. Deactivating keeps that history clear and is usually the better choice.',
+    deleteHistory_other: 'This member is linked to {n} records (appointments, treatments, prescriptions, invoices and payments) that would lose their name. Deactivating keeps that history clear and is usually the better choice.',
 
     'toast.added': '{name} joined the team',
     'toast.updated': '{name} saved',

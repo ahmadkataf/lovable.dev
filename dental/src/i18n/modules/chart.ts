@@ -29,7 +29,7 @@ const chart: ModuleDict = {
     stopPaint: 'إنهاء الرسم',
     hiddenFindings: 'توجد حالات مسجلة على أسنان غير ظاهرة في هذا العرض.', showMixed: 'عرض الإطباق المختلط',
     // summary
-    'stat.caries': 'تسوس', 'stat.filled': 'حشوات', 'stat.crown': 'تيجان', 'stat.missing': 'مفقودة', 'stat.implant': 'زرعات', 'stat.root_canal': 'علاج عصب',
+    'stat.caries': 'تسوس', 'stat.filled': 'حشوات', 'stat.crown': 'تيجان', 'stat.missing': 'مفقودة', 'stat.implant': 'زرعات', 'stat.root_canal': 'معالجة لبية',
     dmft: 'مؤشر DMFT', 'dmft.d': 'مسوّسة', 'dmft.m': 'مفقودة', 'dmft.f': 'مرمّمة', 'dmft.hint': 'الأسنان المسوّسة والمفقودة والمرمّمة',
     // empty
     'empty.title': 'لم يُسجَّل أي تشخيص بعد', 'empty.desc': 'كل الأسنان تظهر سليمة. انقر على أي سن لتسجيل تسوس أو حشوة أو تاج، أو استخدم الرسم السريع لتعبئة المخطط في دقائق.',
@@ -39,7 +39,7 @@ const chart: ModuleDict = {
     addFinding: 'تسجيل تشخيص', condition: 'الحالة', surfaceGroup: 'على الأسطح', wholeGroup: 'على السن كاملاً', clearGroup: 'إعادة التعيين',
     surfaces: 'الأسطح', surfacesHint: 'انقر على الأسطح في الرسم أو اخترها من هنا', wholeHint: 'تُسجَّل هذه الحالة على السن كاملاً، فلا حاجة لاختيار أسطح.',
     healthyHint: 'اختر الأسطح التي عولجت لمسحها، أو اترك الاختيار فارغاً لإعادة السن كاملاً إلى سليم.',
-    note: 'ملاحظة', notePlaceholder: 'مثال: تسوس عميق قريب من العصب', saveFinding: 'حفظ التشخيص', treatTooth: 'علاج هذا السن',
+    note: 'ملاحظة', notePlaceholder: 'مثال: تسوس عميق قريب من اللب', saveFinding: 'حفظ التشخيص', treatTooth: 'علاج هذا السن',
     toothHistory: 'سجل السن', noToothHistory: 'لا توجد سجلات سابقة لهذا السن',
     recordedBy: 'بواسطة {name}', wholeTooth: 'السن كاملاً', markedHealthy: 'سُجّل سليماً', superseded: 'سابق', currentBadge: 'حالي',
     'v.condition': 'اختر الحالة أولاً', 'v.surfaces': 'اختر سطحاً واحداً على الأقل',

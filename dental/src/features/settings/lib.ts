@@ -3,7 +3,8 @@
 import type { BackupFile, Clinic } from '@/db/types'
 import { CODE_CHARS } from '@/license/core'
 import type { FontKey } from '@/app/theme'
-import { normalizeText, round2 } from '@/lib/format'
+import { countryCodeFor, normalizeText, round2, roundTo } from '@/lib/format'
+import { LEVANT_COUNTRIES } from '@/lib/dates'
 import {
   CUSTOM_CURRENCY, cleanCurrencyCode, currencyPreset, isEmail, isPhone, isValidCurrencyCode, normalizeDigits, timeToMin,
 } from '@/features/auth/lib'
@@ -82,17 +83,37 @@ export function hoursPerDay(start: string, end: string): number {
   return m > 0 ? Math.round((m / 60) * 2) / 2 : 0
 }
 
-// ---- clinic identity --------------------------------------------------------------------------
-export interface ClinicDraft { name: string; nameEn: string; tagline: string; phone: string; phone2: string; email: string; address: string; website: string; logo: string }
-export function clinicDraftFrom(c: Clinic): ClinicDraft {
-  return { name: c.name ?? '', nameEn: c.nameEn ?? '', tagline: c.tagline ?? '', phone: c.phone ?? '', phone2: c.phone2 ?? '', email: c.email ?? '', address: c.address ?? '', website: c.website ?? '', logo: c.logo ?? '' }
+// ---- clinic identity ----------------------------------------------------------------------------
+/**
+ * Countries a clinic can pick, by phone code. The code is added to local numbers (0944…) in WhatsApp links, and in
+ * Arabic it decides the month names (تشرين/كانون in the Levant and Iraq, يناير/فبراير elsewhere).
+ * Names: t(`settings.country.${code}`).
+ */
+export const COUNTRY_CODES = ['963', '961', '962', '970', '964', '966', '971', '965', '974', '973', '968', '967', '20', '249', '218', '216', '213', '212', '90', '49', '44', '33', '46', '31', '1'] as const
+export const isCountryCode = (s: string) => /^\d{1,4}$/.test(s)
+/** The country a clinic's phone numbers belong to: the one picked, else the one its currency suggests, else Syria. */
+export function effectiveCountry(c: Pick<Clinic, 'countryCode' | 'currency'>): string {
+  return (c.countryCode && isCountryCode(c.countryCode) ? c.countryCode : '') || countryCodeFor(c.currency) || '963'
 }
-/** The clinic fields to save: trimmed, empty optional fields removed. */
+export type ArabicMonths = 'levant' | 'standard'
+/** Month names the clinic prints in Arabic: the one picked, else the usual one of its country. */
+export function effectiveArabicMonths(c: Pick<Clinic, 'arabicMonths' | 'countryCode' | 'currency'>): ArabicMonths {
+  return c.arabicMonths ?? (LEVANT_COUNTRIES.has(effectiveCountry(c)) ? 'levant' : 'standard')
+}
+
+export interface ClinicDraft { name: string; nameEn: string; tagline: string; phone: string; phone2: string; email: string; address: string; website: string; logo: string; countryCode: string }
+export function clinicDraftFrom(c: Clinic): ClinicDraft {
+  return {
+    name: c.name ?? '', nameEn: c.nameEn ?? '', tagline: c.tagline ?? '', phone: c.phone ?? '', phone2: c.phone2 ?? '', email: c.email ?? '', address: c.address ?? '',
+    website: c.website ?? '', logo: c.logo ?? '', countryCode: c.countryCode && isCountryCode(c.countryCode) ? c.countryCode : '',
+  }
+}
+/** The clinic fields to save: trimmed, empty optional fields removed. An empty country means "from the currency". */
 export function clinicPatch(d: ClinicDraft): Partial<Clinic> {
   const opt = (s: string) => (s.trim() ? s.trim() : undefined)
   return {
     name: d.name.trim(), nameEn: opt(d.nameEn), tagline: opt(d.tagline), phone: opt(normalizeDigits(d.phone)), phone2: opt(normalizeDigits(d.phone2)),
-    email: opt(d.email), address: opt(d.address), website: opt(d.website), logo: d.logo || undefined,
+    email: opt(d.email), address: opt(d.address), website: opt(d.website), logo: d.logo || undefined, countryCode: isCountryCode(d.countryCode) ? d.countryCode : '',
   }
 }
 export function isWebsite(s: string): boolean {
@@ -114,19 +135,23 @@ export interface BillingDraft {
   currency: string            // preset code or CUSTOM_CURRENCY
   customCode: string
   symbol: string
-  decimals: 0 | 2
+  decimals: 0 | 2 | 3
   taxPercent: number | null
+  taxNumber: string
   invoicePrefix: string
   nextInvoiceNumber: number | null
   nextFileNumber: number | null
   invoiceFooter: string
   prescriptionFooter: string
 }
+/** 0, 2 or 3 decimals (fils and baisa need 3); anything else reads as 2. */
+export const asDecimals = (n: unknown): 0 | 2 | 3 => (n === 0 ? 0 : n === 3 ? 3 : 2)
+export const DECIMAL_CHOICES = [0, 2, 3] as const
 export function billingDraftFrom(c: Clinic): BillingDraft {
   const preset = currencyPreset(c.currency)
   return {
     currency: preset ? preset.code : CUSTOM_CURRENCY, customCode: preset ? '' : (c.currency || ''), symbol: c.currencySymbol ?? '',
-    decimals: c.currencyDecimals === 0 ? 0 : 2, taxPercent: c.taxPercent ?? 0, invoicePrefix: c.invoicePrefix ?? '',
+    decimals: asDecimals(c.currencyDecimals), taxPercent: c.taxPercent ?? 0, taxNumber: c.taxNumber ?? '', invoicePrefix: c.invoicePrefix ?? '',
     nextInvoiceNumber: c.nextInvoiceNumber ?? 1, nextFileNumber: c.nextFileNumber ?? 1, invoiceFooter: c.invoiceFooter ?? '', prescriptionFooter: c.prescriptionFooter ?? '',
   }
 }
@@ -134,12 +159,12 @@ export function billingDraftFrom(c: Clinic): BillingDraft {
 export function withCurrency(d: BillingDraft, code: string): BillingDraft {
   if (code === CUSTOM_CURRENCY) return { ...d, currency: code, symbol: d.currency === CUSTOM_CURRENCY ? d.symbol : '' }
   const p = currencyPreset(code)
-  return p ? { ...d, currency: p.code, symbol: p.symbol, decimals: p.decimals } : d
+  return p ? { ...d, currency: p.code, symbol: p.symbol, decimals: asDecimals(p.decimals) } : d
 }
 export function billingPatch(d: BillingDraft): Partial<Clinic> {
   const currency = d.currency === CUSTOM_CURRENCY ? cleanCurrencyCode(d.customCode) : d.currency
   return {
-    currency, currencySymbol: d.symbol.trim() || currency, currencyDecimals: d.decimals, taxPercent: round2(d.taxPercent ?? 0),
+    currency, currencySymbol: d.symbol.trim() || currency, currencyDecimals: d.decimals, taxPercent: round2(d.taxPercent ?? 0), taxNumber: normalizeDigits(d.taxNumber).trim().replace(/\s+/g, ' ') || undefined,
     invoicePrefix: d.invoicePrefix.trim(), nextInvoiceNumber: Math.floor(d.nextInvoiceNumber ?? 1), nextFileNumber: Math.floor(d.nextFileNumber ?? 1),
     invoiceFooter: d.invoiceFooter.trim() || undefined, prescriptionFooter: d.prescriptionFooter.trim() || undefined,
   }
@@ -162,6 +187,8 @@ export function lastInvoiceSeq(numbers: string[], prefix: string): number {
   return max
 }
 export const PREFIX_RE = /^[A-Za-z0-9\-/_.#]{0,10}$/
+/** A VAT / tax registration number: digits, Latin letters, spaces and dashes (Saudi VAT numbers are 15 digits). */
+export const TAX_NUMBER_RE = /^[A-Za-z0-9 \-/]{0,30}$/
 const isWhole = (n: number | null): n is number => n !== null && Number.isInteger(n) && n >= 1
 export function validateBilling(d: BillingDraft, used: { lastInvoiceSeq: number; lastFileNo: number }): FieldErrors {
   const e: FieldErrors = {}
@@ -169,19 +196,20 @@ export function validateBilling(d: BillingDraft, used: { lastInvoiceSeq: number;
   if (!d.symbol.trim()) e.symbol = { key: 'settings.bill.err.symbol' }
   if (d.taxPercent === null || !Number.isFinite(d.taxPercent) || d.taxPercent < 0 || d.taxPercent > 100) e.taxPercent = { key: 'settings.bill.err.tax' }
   if (!PREFIX_RE.test(d.invoicePrefix.trim())) e.invoicePrefix = { key: 'settings.bill.err.prefix' }
+  if (!TAX_NUMBER_RE.test(normalizeDigits(d.taxNumber).trim())) e.taxNumber = { key: 'settings.bill.err.taxNumber' }
   if (!isWhole(d.nextInvoiceNumber)) e.nextInvoiceNumber = { key: 'settings.bill.err.whole' }
   else if (d.nextInvoiceNumber <= used.lastInvoiceSeq) e.nextInvoiceNumber = { key: 'settings.bill.err.nextInvoice', params: { n: used.lastInvoiceSeq } }
   if (!isWhole(d.nextFileNumber)) e.nextFileNumber = { key: 'settings.bill.err.whole' }
   else if (d.nextFileNumber <= used.lastFileNo) e.nextFileNumber = { key: 'settings.bill.err.nextFile', params: { n: used.lastFileNo } }
   return e
 }
-/** A two-line invoice for the live preview, taxed at the draft rate. */
+/** A two-line invoice for the live preview, taxed at the draft rate and rounded to the draft's decimals. */
 export const SAMPLE_LINES = [650, 350]
-export function sampleTotals(taxPercent: number | null): { subtotal: number; tax: number; total: number } {
-  const subtotal = SAMPLE_LINES.reduce((a, b) => a + b, 0)
+export function sampleTotals(taxPercent: number | null, decimals: 0 | 2 | 3 = 2, lines: number[] = SAMPLE_LINES): { subtotal: number; tax: number; total: number } {
+  const subtotal = roundTo(lines.reduce((a, b) => a + b, 0), decimals)
   const rate = taxPercent && taxPercent > 0 && taxPercent <= 100 ? taxPercent : 0
-  const tax = round2((subtotal * rate) / 100)
-  return { subtotal, tax, total: round2(subtotal + tax) }
+  const tax = roundTo((subtotal * rate) / 100, decimals)
+  return { subtotal, tax, total: roundTo(subtotal + tax, decimals) }
 }
 
 // ---- backup -----------------------------------------------------------------------------------

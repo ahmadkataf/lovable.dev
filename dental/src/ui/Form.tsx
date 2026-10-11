@@ -105,14 +105,18 @@ export function Chip({ active, onClick, onRemove, children, icon, className }: {
   )
 }
 
-/** Number input that keeps '' while typing and reports a number (or null) upward. */
+/**
+ * Number input that keeps '' while typing and reports a number (or null) upward. `decimals` sets the arrow step
+ * (0 → whole numbers, 3 → 0.001 for fils); without it any number of decimals is accepted, so a 3-decimal currency
+ * (KWD, BHD, OMR, JOD) never gets a "step mismatch".
+ */
 export interface NumberInputProps extends Omit<InputProps, 'value' | 'onChange' | 'type'> { value: number | null | undefined; onChange: (n: number | null) => void; decimals?: number; addon?: ReactNode }
-export function NumberInput({ value, onChange, decimals = 2, addon, label, hint, error, required, ...rest }: NumberInputProps) {
+export function NumberInput({ value, onChange, decimals, addon, label, hint, error, required, ...rest }: NumberInputProps) {
   const auto = useId(); const nid = rest.id || auto
   // with an addon the label must sit above the group, not inside it
   const inner = addon ? { id: nid, required, invalid: !!error || rest.invalid } : { label, hint, error, required, id: nid }
   const input = (
-    <Input type="number" inputMode="decimal" step={decimals ? 1 / Math.pow(10, decimals) : 1} dir="ltr" value={value === null || value === undefined || Number.isNaN(value) ? '' : value}
+    <Input type="number" inputMode="decimal" step={decimals === undefined ? 'any' : decimals > 0 ? 1 / Math.pow(10, decimals) : 1} dir="ltr" value={value === null || value === undefined || Number.isNaN(value) ? '' : value}
       onChange={e => { const v = e.target.value; if (v === '') onChange(null); else { const n = Number(v); if (!Number.isNaN(n)) onChange(n) } }}
       onFocus={e => e.target.select()} {...rest} {...inner} />
   )
@@ -121,4 +125,27 @@ export function NumberInput({ value, onChange, decimals = 2, addon, label, hint,
   const group = <div className="input-group">{input}<span className="input-addon">{addon}</span></div>
   if (!label && !hint && !error) return group
   return <Field label={label} hint={hint} error={error} required={required} htmlFor={nid}>{group}</Field>
+}
+
+/**
+ * After a submit that failed validation: brings the first invalid field into view (centred) and focuses it, so the
+ * error is never left above or below the visible part of a tall dialog or bottom sheet. It waits for the re-render
+ * that shows the errors. `root` defaults to the top-most open dialog or drawer, else the page.
+ */
+export function revealFirstError(root?: HTMLElement | null): void {
+  if (typeof window === 'undefined') return
+  const run = () => {
+    const layers = document.querySelectorAll<HTMLElement>('.modal, .drawer')
+    const scope = root ?? layers[layers.length - 1] ?? document.body
+    const bad = scope.querySelector<HTMLElement>('.field-error, .invalid, [aria-invalid="true"]')
+    if (!bad) return
+    const field = bad.closest<HTMLElement>('.field') ?? bad
+    const control = bad.matches('input, select, textarea, button')
+      ? bad
+      : field.querySelector<HTMLElement>('input:not([type=hidden]):not([disabled]), select:not([disabled]), textarea:not([disabled]), button:not([disabled])')
+    const smooth = !window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
+    field.scrollIntoView({ block: 'center', behavior: smooth ? 'smooth' : 'auto' })
+    control?.focus({ preventScroll: true })
+  }
+  requestAnimationFrame(() => requestAnimationFrame(run))
 }

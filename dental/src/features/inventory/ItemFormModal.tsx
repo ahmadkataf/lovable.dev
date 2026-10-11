@@ -5,7 +5,7 @@ import { useLiveQuery } from 'dexie-react-hooks'
 import { Boxes, Info, PackagePlus, Pencil } from 'lucide-react'
 import { db, logActivity } from '@/db'
 import type { InventoryItem } from '@/db/types'
-import { Button, Chip, Field, Input, Modal, Select, Switch, Textarea, useToast } from '@/ui'
+import { Button, Chip, Field, Input, Modal, Select, Switch, Textarea, revealFirstError, useToast } from '@/ui'
 import { NumberField } from './fields'
 import { translate, useI18n } from '@/i18n'
 import { useClinic } from '@/app/hooks'
@@ -71,8 +71,8 @@ export default function ItemFormModal({ open, onClose, item, onSaved }: ItemForm
     e?.preventDefault()
     setTried(true)
     if (Object.keys(errors).length) {
-      const first = document.querySelector<HTMLElement>(`#${uid}-form .invalid`)
-      first?.focus()
+      // the errors show after this render: bring the first one into view in the (tall, on phones) sheet and focus it
+      revealFirstError(document.getElementById(`${uid}-form`))
       return
     }
     if (readOnly) { toast.warning(t('inventory.toast.readOnly')); return }

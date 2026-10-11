@@ -10,6 +10,8 @@ import { ageFrom, dateOf, fmtDate, fmtTime, today } from '@/lib/dates'
 import { CONDITION_META, type Dentition } from './teeth'
 import { chartSummary, findingsTable, surfaceCode, timeline } from './lib'
 import { ConditionSwatch, DentalChart } from './DentalChart'
+import { ClinicIdentity } from '@/features/billing/shared'
+import { usePlural } from '@/features/patients/parts'
 
 // ---- summary --------------------------------------------------------------------------------------
 const STAT_KEYS = ['caries', 'filled', 'crown', 'missing', 'implant', 'root_canal'] as const
@@ -38,7 +40,8 @@ export function ChartStats({ records }: { records: ToothRecord[] | undefined }) 
             <span className={['ch-stat-value num', s[k] === 0 && 'is-zero'].filter(Boolean).join(' ')}>{s[k]}</span>
             <span className="ch-stat-icon"><ConditionSwatch condition={k} size={20} /></span>
           </div>
-          <div className="ch-stat-label">{t(`chart.stat.${k}`)}</div>
+          {/* the root-canal figure uses the very word of the legend below it (the shared condition name) */}
+          <div className="ch-stat-label">{k === 'root_canal' ? t('cond.root_canal') : t(`chart.stat.${k}`)}</div>
         </div>
       ))}
       <div className="ch-dmft" title={t('chart.dmft.hint')} data-testid="ch-dmft">
@@ -136,8 +139,9 @@ export function HistoryCard({ records, tooth, onlyTooth, setOnlyTooth, canEdit, 
 // ---- print ----------------------------------------------------------------------------------------
 /** The printable sheet: rendered into <body> while printing, alone on the page (see .ch-printing in chart.css). */
 export function PrintSheet({ patient, records, dentition, onDone }: { patient: Patient | null | undefined; records: ToothRecord[]; dentition: Dentition; onDone: () => void }) {
-  const { t, lang, dir, pick } = useI18n()
+  const { t, lang, dir } = useI18n()
   const clinic = useClinic()
+  const plural = usePlural()
   const users = useUsers(false)
   const rows = useMemo(() => findingsTable(records), [records])
   useEffect(() => {
@@ -149,16 +153,17 @@ export function PrintSheet({ patient, records, dentition, onDone }: { patient: P
   const age = ageFrom(patient?.birthDate)
   return createPortal(
     <div className="ch-print-sheet print-area" dir={dir} lang={lang}>
+      {/* the same clinic block (logo, names, address, phones) as every other printed document */}
       <div className="ch-print-head">
-        <div>
-          <div className="ch-print-clinic">{pick(clinic.name, clinic.nameEn) || t('appName')}</div>
+        <ClinicIdentity clinic={clinic} />
+        <div className="ch-print-doc">
           <div className="ch-print-title">{t('chart.print.title')}</div>
+          <dl className="ch-print-meta">
+            {patient && <><dt>{t('patient')}</dt><dd dir="auto">{patient.name}</dd><dt>{t('fileNo')}</dt><dd><span className="num">{patient.fileNo}</span></dd></>}
+            {age !== null && <><dt>{t('chart.print.age')}</dt><dd>{plural('age', age)}</dd></>}
+            <dt>{t('chart.print.printedOn')}</dt><dd><bdi>{fmtDate(today(), lang)}</bdi></dd>
+          </dl>
         </div>
-        <dl className="ch-print-meta">
-          {patient && <><dt>{t('patient')}</dt><dd>{patient.name}</dd><dt>{t('fileNo')}</dt><dd className="num">{patient.fileNo}</dd></>}
-          {age !== null && <><dt>{t('chart.print.age')}</dt><dd className="num">{age}</dd></>}
-          <dt>{t('chart.print.printedOn')}</dt><dd>{fmtDate(today(), lang)}</dd>
-        </dl>
       </div>
       <div className="ch-print-chart"><DentalChart records={records} dentition={dentition} interactive={false} readOnly /></div>
       <div className="ch-print-h">{t('chart.print.findings')}</div>

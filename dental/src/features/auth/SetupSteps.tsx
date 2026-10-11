@@ -11,6 +11,7 @@ import { fmtTime, weekdayName } from '@/lib/dates'
 import { imageToDataUrl, pickFile } from '@/platform'
 import { ToothIcon } from '@/app/ToothIcon'
 import { TRIAL_DAYS } from '@/license/core'
+import { tPlural } from '@/app/plural'
 import {
   CURRENCIES, CUSTOM_CURRENCY, SLOT_OPTIONS, WEEK_ORDER, cleanCurrencyCode, currencyPreset, defaultDecimals, displayName, orderedDays, plainName, resolveCurrency, toggleDay,
   type ClinicDraft, type MoneyDraft, type OwnerDraft,
@@ -113,8 +114,12 @@ export function MoneyStep({ value, onChange, err }: { value: MoneyDraft; onChang
         <div className="form-grid">
           <Select label={t('auth.money.currency')} value={value.currency} onChange={e => onCurrency(e.target.value)} options={options} name="currency" />
           <Field label={t('auth.money.decimals')} className="au-dec">
-            <Segmented block value={String(value.decimals) as '0' | '2'} onChange={v => set('decimals', v === '0' ? 0 : 2)}
-              options={[{ value: '0', label: <><span>{t('auth.money.dec0')}</span><span className="num muted">1,250</span></> }, { value: '2', label: <><span>{t('auth.money.dec2')}</span><span className="num muted">1,250.00</span></> }]} />
+            <Segmented block value={String(value.decimals) as '0' | '2' | '3'} onChange={v => set('decimals', v === '0' ? 0 : v === '3' ? 3 : 2)}
+              options={[
+                { value: '0', label: <><span>{t('auth.money.dec0')}</span><span className="num muted">1,250</span></> },
+                { value: '2', label: <><span>{t('auth.money.dec2')}</span><span className="num muted">1,250.00</span></> },
+                { value: '3', label: <><span>{t('auth.money.dec3')}</span><span className="num muted">1,250.000</span></> },
+              ]} />
           </Field>
           {custom && <>
             <Input label={t('auth.money.customCode')} required value={value.customCode} onChange={e => set('customCode', cleanCurrencyCode(e.target.value))} placeholder={t('auth.money.customCodePh')}
@@ -231,7 +236,7 @@ export function ReviewStep({ lang, clinic, money, owner, onEdit }: { lang: Lang;
           </dl>
         </div>
       </div>
-      <Alert tone="info" className="au-trial">{t('auth.setup.trial', { days: TRIAL_DAYS })}</Alert>
+      <Alert tone="info" className="au-trial">{tPlural(t, lang, 'auth.setup.trial', TRIAL_DAYS)}</Alert>
     </>
   )
 }

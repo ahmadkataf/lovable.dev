@@ -24,7 +24,7 @@ export function useLabActions() {
 
   const move = async (o: LabOrder, status: LabOrderStatus, patientName: string) => {
     const type = t(`labType.${o.type}`)
-    const patch = await setLabStatus(o, status, { today: todayISO(), by, message: t('lab.act.status', { type, patient: patientName, status: t(`lab.${status}`) }) })
+    const patch = await setLabStatus(o, status, { today: todayISO(), by, message: t('lab.act.status', { type, patient: patientName, status: t(`lab.${status}`) }), expenseDesc: t('lab.expense.desc', { type, patient: patientName, ref: '{ref}' }) })
     if (status === 'remake') toast.success(t('lab.toast.remake'), patch.dueDate ?? o.dueDate ? t('lab.toast.newDue', { date: fmtDate((patch.dueDate ?? o.dueDate)!, lang) }) : undefined)
     else toast.success(t('lab.toast.status', { status: t(`lab.${status}`) }), `${type} · ${patientName}`)
   }

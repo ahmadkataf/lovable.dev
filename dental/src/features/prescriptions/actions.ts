@@ -2,6 +2,7 @@
 import { db, logActivity } from '@/db'
 import type { Drug, Prescription, PrescriptionItem } from '@/db/types'
 import { newId, nowISO } from '@/db/ids'
+import { ensureRefs, takeRef, type NumberedRx } from './numbers'
 
 export interface RxInput {
   patientId: string
@@ -12,7 +13,7 @@ export interface RxInput {
   items: PrescriptionItem[]
 }
 
-/** Creates (no id) or updates a prescription; returns its id. */
+/** Creates (no id) or updates a prescription; returns its id. A new prescription gets the next RX- reference. */
 export async function savePrescription(input: RxInput, opts: { id?: string; by?: string; message: string }): Promise<string> {
   const now = nowISO()
   const diagnosis = input.diagnosis?.trim() || undefined
@@ -27,10 +28,15 @@ export async function savePrescription(input: RxInput, opts: { id?: string; by?:
     void logActivity({ type: 'prescription', action: 'update', entityId: cur.id, patientId: input.patientId, message: opts.message, by: opts.by })
     return cur.id
   }
-  const rx: Prescription = { id: newId(), patientId: input.patientId, doctorId: input.doctorId, date: input.date, items: input.items, createdAt: now, updatedAt: now }
+  const rx: NumberedRx = { id: newId(), patientId: input.patientId, doctorId: input.doctorId, date: input.date, items: input.items, createdAt: now, updatedAt: now }
   if (diagnosis) rx.diagnosis = diagnosis
   if (notes) rx.notes = notes
-  await db.prescriptions.add(rx)
+  // older prescriptions are numbered first, so references follow the order prescriptions were written
+  await ensureRefs('rx')
+  await db.transaction('rw', db.prescriptions, db.settings, async () => {
+    rx.number = await takeRef('rx')
+    await db.prescriptions.add(rx)
+  })
   void logActivity({ type: 'prescription', action: 'create', entityId: rx.id, patientId: rx.patientId, message: opts.message, by: opts.by })
   return rx.id
 }

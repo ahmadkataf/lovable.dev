@@ -1,6 +1,6 @@
 // The prescription as the patient and the pharmacist receive it: a paper-white sheet that prints cleanly in Arabic
 // and English, inside a modal with print, WhatsApp, edit and duplicate actions.
-import { useMemo } from 'react'
+import { useEffect, useMemo } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { CalendarDays, Copy, MessageCircle, Pencil, Pill, Printer } from 'lucide-react'
 import { db } from '@/db'
@@ -12,20 +12,22 @@ import { Button, Loading, Modal } from '@/ui'
 import { ageFrom, fmtDate, fromISODate, weekdayName } from '@/lib/dates'
 import { formatPhone, whatsappLink } from '@/lib/format'
 import { openExternal } from '@/platform'
-import { buildRxText, dayHint } from './lib'
+import { buildRxText, dayHint, doctorLabel } from './lib'
+import { ensureRefs, type NumberedRx } from './numbers'
 import { RxMark, SheetClinic, printModalSheet, usePrintCleanup } from './parts'
 
 export function RxSheet({ rx, patient, doctor, clinic, drugs }: { rx: Prescription; patient?: Patient; doctor?: User; clinic: Clinic; drugs?: Map<string, Drug> }) {
   const { t, lang } = useI18n()
   const age = ageFrom(patient?.birthDate)
   const footer = clinic.prescriptionFooter?.trim() || t('prescriptions.sheet.defaultFooter')
+  const ref = (rx as NumberedRx).number
   return (
     <article className="print-area rx-sheet" aria-label={t('prescriptions.sheet.title')}>
       <header className="rx-sheet-head">
         <SheetClinic clinic={clinic} />
         {doctor && (
           <div className="rx-doctor">
-            <div className="rx-doctor-name">{doctor.name}</div>
+            <div className="rx-doctor-name">{doctorLabel(doctor)}</div>
             {doctor.specialty && <div className="rx-doctor-spec">{doctor.specialty}</div>}
             {doctor.phone && <div className="rx-doctor-meta ltr">{formatPhone(doctor.phone)}</div>}
           </div>
@@ -34,10 +36,11 @@ export function RxSheet({ rx, patient, doctor, clinic, drugs }: { rx: Prescripti
 
       <section className="rx-patient">
         <div className="rx-pf rx-pf-name"><span className="rx-k">{t('prescriptions.sheet.patient')}</span><span className="rx-v">{patient?.name ?? '—'}</span></div>
-        {age !== null && <div className="rx-pf"><span className="rx-k">{t('age')}</span><span className="rx-v"><span className="num">{age}</span> {t('years')}</span></div>}
+        {age !== null && <div className="rx-pf"><span className="rx-k">{t('age')}</span><span className="rx-v">{t('age.years', { n: age })}</span></div>}
         {patient && <div className="rx-pf"><span className="rx-k">{t('gender')}</span><span className="rx-v">{t(patient.gender)}</span></div>}
         {patient && <div className="rx-pf"><span className="rx-k">{t('fileNo')}</span><span className="rx-v num">{patient.fileNo}</span></div>}
         <div className="rx-pf"><span className="rx-k">{t('date')}</span><span className="rx-v">{fmtDate(rx.date, lang)}</span></div>
+        {ref && <div className="rx-pf"><span className="rx-k">{t('prescriptions.sheet.ref')}</span><span className="rx-v num">{ref}</span></div>}
       </section>
 
       <div className="rx-main">
@@ -86,7 +89,7 @@ export function RxSheet({ rx, patient, doctor, clinic, drugs }: { rx: Prescripti
         <div className="rx-sign">
           <div className="rx-sign-line" />
           <div className="rx-sign-label">{t('prescriptions.sheet.signature')}</div>
-          {doctor && <div className="rx-sign-name">{doctor.name}</div>}
+          {doctor && <div className="rx-sign-name">{doctorLabel(doctor)}</div>}
         </div>
       </footer>
     </article>
@@ -109,7 +112,7 @@ export function useRxText() {
   return (rx: Prescription, patient?: Patient, doctor?: User) => buildRxText({
     clinicName: (lang === 'en' ? clinic.nameEn || clinic.name : clinic.name || clinic.nameEn) || undefined,
     clinicPhone: clinic.phone ? formatPhone(clinic.phone) : undefined,
-    doctorName: doctor?.name, patientName: patient?.name, dateLabel: fmtDate(rx.date, lang, 'long'),
+    doctorName: doctorLabel(doctor), patientName: patient?.name, dateLabel: fmtDate(rx.date, lang, 'long'), ref: (rx as NumberedRx).number,
     diagnosis: rx.diagnosis, notes: rx.notes, footer: clinic.prescriptionFooter, items: rx.items,
     labels: { title: t('prescriptions.sheet.title'), patient: t('patient'), doctor: t('doctor'), diagnosis: t('prescriptions.sheet.diagnosis'), notes: t('notes') },
   })
@@ -122,6 +125,7 @@ export default function RxSheetModal({ id, onClose, onEdit, onDuplicate }: { id:
   const { readOnly } = useLicense()
   const rxText = useRxText()
   usePrintCleanup(true)
+  useEffect(() => { void ensureRefs('rx') }, [])
   const data = useLiveQuery(async () => {
     const rx = await db.prescriptions.get(id)
     if (!rx) return { rx: null }

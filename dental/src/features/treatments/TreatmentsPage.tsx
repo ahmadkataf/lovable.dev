@@ -1,10 +1,10 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { Activity, ArrowUpLeft, ArrowUpRight, CalendarClock, CheckCircle2, Download, Search, SearchX, Timer, Users, Wallet } from 'lucide-react'
 import { db } from '@/db'
 import { todayISO } from '@/db/ids'
-import type { Patient, ProcedureCategory, TreatmentItem, TreatmentStatus } from '@/db/types'
+import type { ProcedureCategory, TreatmentItem, TreatmentStatus } from '@/db/types'
 import { PROCEDURE_CATEGORIES } from '@/db/types'
 import { useI18n } from '@/i18n'
 import { useDebounced, useDoctors, useIsMobile, useMoney, useUsers } from '@/app/hooks'
@@ -13,6 +13,9 @@ import { fmtDate } from '@/lib/dates'
 import { matches } from '@/lib/format'
 import { saveText } from '@/platform'
 import { filterRegister, groupByPatient, itemDate, itemTotal, rangeFor, sortByDateDesc, summarize, surfaceCode, tn, toCSV, type RangePreset } from './lib'
+import { registerItems, registerStats, type RegisterStats } from './queries'
+import { usePagePatients, usePatientIndex } from '@/features/patients/directory'
+import type { Patient } from '@/db/types'
 import { CategoryDot, ItemStatusBadge, nameOf, ToothBadge } from './parts'
 import { NoPlanBadge } from './PlanBoard'
 import './treatments.css'
@@ -29,14 +32,6 @@ export default function TreatmentsPage() {
   const users = useUsers(false)
   const today = todayISO()
 
-  // the items and the patients they belong to, read together so names never lag behind rows
-  const data = useLiveQuery(async () => {
-    const items = await db.treatments.toArray()
-    const list = await db.patients.bulkGet([...new Set(items.map(i => i.patientId))])
-    return { items, patients: new Map(list.filter((p): p is Patient => !!p).map(p => [p.id, p])) }
-  }, [])
-  const items = data?.items
-  const patients = data?.patients
   const procedures = useLiveQuery(() => db.procedures.toArray(), [])
   const catOf = useMemo(() => { const m = new Map((procedures ?? []).map(p => [p.id, p.category])); return (i: TreatmentItem) => (i.procedureId ? m.get(i.procedureId) : undefined) }, [procedures])
 
@@ -50,9 +45,14 @@ export default function TreatmentsPage() {
   const [grouped, setGrouped] = useState(false)
 
   const range = rangeFor(preset, today, custom)
-  const patientName = (i: TreatmentItem) => patients?.get(i.patientId)?.name ?? ''
-  const base = useMemo(() => filterRegister(items ?? [], { doctorId, category, range, q: dq }, { categoryOf: catOf, patientName, match: matches }),
-    [items, doctorId, category, range?.from, range?.to, dq, catOf, patients]) // eslint-disable-line react-hooks/exhaustive-deps
+  // only the period on screen, through the status / completedAt indexes (not the whole table on every visit). The
+  // rows on the page get their patients by id; the shared patient index (names only) is needed for a search alone.
+  const items = useLiveQuery(() => registerItems(range), [range?.from, range?.to])
+  const total = useLiveQuery(() => db.treatments.count(), [])
+  const index = usePatientIndex(!!dq.trim())
+  const searchName = (i: TreatmentItem) => index?.byId.get(i.patientId)?.name ?? ''
+  const base = useMemo(() => filterRegister(items ?? [], { doctorId, category, range, q: dq }, { categoryOf: catOf, patientName: searchName, match: matches }),
+    [items, doctorId, category, range?.from, range?.to, dq, catOf, index]) // eslint-disable-line react-hooks/exhaustive-deps
   const statusCounts = useMemo(() => {
     const c: Record<StatusFilter, number> = { all: base.length, planned: 0, in_progress: 0, completed: 0, cancelled: 0 }
     for (const i of base) c[i.status]++
@@ -61,21 +61,38 @@ export default function TreatmentsPage() {
   const rows = useMemo(() => sortByDateDesc(status === 'all' ? base : base.filter(i => i.status === status)), [base, status])
   const pg = usePagination(rows, mobile ? 15 : 25)
   const groups = useMemo(() => groupByPatient(rows), [rows])
+  const gpg = usePagination(groups, 10)
+  // the patients of the rows on the current page only (names, file numbers, photos)
+  const onPage = grouped ? gpg.slice.map(g => g.patientId) : pg.slice.map(i => i.patientId)
+  const patients = usePagePatients(onPage)
+  const patientName = (i: TreatmentItem) => patients?.get(i.patientId)?.name ?? ''
+  const photos = useMemo(() => new Map([...(patients ?? new Map<string, Patient>()).values()].filter(p => p.photo).map(p => [p.id, p.photo!])), [patients])
 
-  // stats: open work, this month's completions, unbilled work (all-time, per doctor filter)
-  const scoped = useMemo(() => (items ?? []).filter(i => !doctorId || i.doctorId === doctorId), [items, doctorId])
+  // stats: open work, this month's completions, unbilled work (all-time, per doctor filter), from index reads only
+  // The key figures diff tens of thousands of keys. Inside a live query Dexie would also record every one of those
+  // keys to watch them (a second-long freeze on a phone), so the live query only watches the table cheaply (a count
+  // over the primary key) and the figures are recomputed outside it whenever treatments change.
+  const tick = useLiveQuery(async () => { await db.treatments.count(); return {} }, [])
+  const [statsData, setStatsData] = useState<RegisterStats>()
+  useEffect(() => {
+    if (!tick) return
+    let alive = true
+    void registerStats(today).then(s => { if (alive) setStatsData(s) }).catch(() => undefined)
+    return () => { alive = false }
+  }, [tick, today])
   const stats = useMemo(() => {
-    const s = summarize(scoped)
-    const month = rangeFor('month', today)!
-    const doneMonth = scoped.filter(i => i.status === 'completed' && i.completedAt && itemDate(i) >= month.from && itemDate(i) <= month.to)
+    const mine = (l: TreatmentItem[]) => l.filter(i => !doctorId || i.doctorId === doctorId)
+    const s = summarize(mine([...(statsData?.planned ?? []), ...(statsData?.inProgress ?? []), ...(statsData?.unbilled ?? [])]))
+    const doneMonth = mine(statsData?.doneMonth ?? [])
     return { s, doneMonth: { count: doneMonth.length, value: doneMonth.reduce((a, i) => a + itemTotal(i), 0) } }
-  }, [scoped, today])
+  }, [statsData, doctorId])
 
   const exportCsv = async () => {
+    const people = new Map((await db.patients.bulkGet([...new Set(rows.map(i => i.patientId))])).filter((p): p is Patient => !!p).map(p => [p.id, p]))
     const data = [
       [t('date'), t('fileNo'), t('patient'), t('tooth'), t('treatments.col.surfaces'), t('treatments.col.procedure'), t('category'), t('doctor'), t('status'), t('price'), t('discount'), t('total'), t('treatments.col.billed')],
       ...rows.map(i => {
-        const p = patients?.get(i.patientId); const c = catOf(i)
+        const p = people.get(i.patientId); const c = catOf(i)
         return [itemDate(i), p?.fileNo ?? '', p?.name ?? '', i.tooth ?? '', surfaceCode(i.surfaces), i.procedureName, c ? t(`cat.${c}`) : '', nameOf(users, i.doctorId), t(`tr.${i.status}`), i.price, i.discount || 0, itemTotal(i), i.invoiceId ? t('yes') : t('no')]
       }),
     ]
@@ -89,7 +106,7 @@ export default function TreatmentsPage() {
     const p = patients?.get(i.patientId)
     return (
       <Link to={`/patients/${i.patientId}?tab=treatments`} className="tr-patient" onClick={e => e.stopPropagation()}>
-        <Avatar name={p?.name ?? '?'} src={p?.photo} size="xs" />
+        <Avatar name={p?.name ?? '?'} src={photos.get(i.patientId)} size="xs" />
         <span className="truncate">{p?.name ?? t('unknown')}</span>
       </Link>
     )
@@ -132,8 +149,9 @@ export default function TreatmentsPage() {
     </div>
   )
 
-  const loading = data === undefined
-  const empty = !loading && (items ?? []).length === 0
+  const loading = items === undefined || (!!dq.trim() && index === undefined)
+  const statsLoading = statsData === undefined
+  const empty = total === 0
   const filtersOn = status !== 'all' || !!doctorId || !!category || preset !== 'all' || !!dq
   const clearFilters = () => { setStatus('all'); setDoctorId(''); setCategory(''); setPreset('all'); setQ('') }
   const statusOptions: StatusFilter[] = ['all', 'planned', 'in_progress', 'completed', 'cancelled']
@@ -147,7 +165,7 @@ export default function TreatmentsPage() {
       {/* stats */}
       {!empty && (
         <div className="tr-stats">
-          {loading ? [0, 1, 2, 3].map(i => <div key={i} className="card stat-card"><Skeleton w={46} h={46} r={14} /><div className="grow col gap-2"><Skeleton w="50%" /><Skeleton w="70%" h={22} /></div></div>) : <>
+          {statsLoading ? [0, 1, 2, 3].map(i => <div key={i} className="card stat-card"><Skeleton w={46} h={46} r={14} /><div className="grow col gap-2"><Skeleton w="50%" /><Skeleton w="70%" h={22} /></div></div>) : <>
             <StatCard tone="info" icon={<CalendarClock />} label={t('treatments.stat.plannedValue')} value={<span className="money">{money(stats.s.planned.value)}</span>} sub={tn(t, lang, 'treatments.n.items', stats.s.planned.count)}
               onClick={() => { setStatus('planned'); setPreset('all') }} />
             <StatCard tone="warning" icon={<Timer />} label={t('treatments.stat.inProgress')} value={<span className="money">{money(stats.s.inProgress.value)}</span>} sub={tn(t, lang, 'treatments.n.items', stats.s.inProgress.count)}
@@ -227,13 +245,13 @@ export default function TreatmentsPage() {
             </Card>
           ) : grouped ? (
             <div className="col gap-4">
-              {groups.map(g => {
+              {gpg.slice.map(g => {
                 const p = patients?.get(g.patientId)
                 const tot = g.items.filter(i => i.status !== 'cancelled').reduce((a, i) => a + itemTotal(i), 0)
                 return (
                   <Card key={g.patientId} className="tr-section">
                     <Link to={`/patients/${g.patientId}?tab=treatments`} className="tr-group-head">
-                      <Avatar name={p?.name ?? '?'} src={p?.photo} size="sm" />
+                      <Avatar name={p?.name ?? '?'} src={photos.get(g.patientId)} size="sm" />
                       <span className="grow">
                         <span className="tr-group-name">{p?.name ?? t('unknown')}</span>
                         <span className="text-xs muted">{p && <span className="num">#{p.fileNo}</span>} · {tn(t, lang, 'treatments.n.items', g.items.length)}</span>
@@ -246,6 +264,7 @@ export default function TreatmentsPage() {
                   </Card>
                 )
               })}
+              {gpg.pages > 1 && <Card className="tr-section"><Pagination {...gpg} /></Card>}
             </div>
           ) : mobile ? (
             <Card className="tr-section">

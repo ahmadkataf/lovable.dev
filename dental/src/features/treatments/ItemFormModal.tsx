@@ -14,6 +14,7 @@ import { CategoryBadge, CategoryDot, NumField, ProcedurePicker, SurfaceChips, To
 import { itemTotal, listSep, sortTeeth, surfacesForTeeth, tn, validateItem, type ItemErrors } from './lib'
 import { addItems, updateItem } from './actions'
 import { useDefaultDoctor, useDefaultPlanTitle } from './PlanFormModal'
+import { revealFirstError } from '@/features/patients/reveal'
 
 export const NEW_PLAN = '__new'
 export const NO_PLAN = '__none'
@@ -114,7 +115,8 @@ export default function ItemFormModal({ open, onClose, patientId, mode, item, ta
   const submit = async (e?: FormEvent) => {
     e?.preventDefault()
     setTried(true)
-    if (Object.keys(errs).length || busy.current) return
+    if (Object.keys(errs).length) { revealFirstError(() => document.querySelector('.tr-item-form')); return }
+    if (busy.current) return
     busy.current = true
     setSaving(true)
     try {

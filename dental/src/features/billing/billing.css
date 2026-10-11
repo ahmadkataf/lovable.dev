@@ -80,6 +80,11 @@
 .bl-mcard-sub { font-size: var(--fs-xs); color: var(--text-3); margin-top: 2px; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
 .bl-mcard-end { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; flex: none; }
 .bl-mcard-end .money { font-size: var(--fs-md); }
+/* the remaining amount on a phone card says what it is */
+.bl-mcard-due { display: inline-flex; align-items: baseline; gap: 4px; font-size: var(--fs-xs); color: var(--text-3); font-weight: 600; white-space: nowrap; }
+.bl-mcard-due .money { font-size: var(--fs-sm); }
+/* a receipt that settled several invoices lists them side by side */
+.bl-inv-list { display: inline-flex; align-items: center; gap: 4px 8px; flex-wrap: wrap; }
 
 /* ---- patient picker ---- */
 .bl-picker { position: relative; }
@@ -177,6 +182,11 @@
 .bl-amount .input-addon { font-size: var(--fs-md); }
 .bl-refund-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 14px; border-radius: var(--r-md); background: var(--surface-2); border: 1px solid var(--border); }
 .bl-refund-row.on { background: var(--warning-soft); border-color: transparent; }
+.bl-split-list { list-style: none; margin: 6px 0 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+.bl-split-list li { display: flex; justify-content: space-between; gap: 12px; }
+.bl-split-list .money { font-weight: 700; }
+.bl-credit-note { padding: 10px 14px; border-radius: var(--r-md); border: 1px solid var(--border); background: var(--surface-2); }
+.bl-credit-note .check { align-items: flex-start; }
 
 /* ---- invoice page ---- */
 .bl-invoice-page .page-header { margin-bottom: 18px; }
@@ -289,6 +299,13 @@
 .bl-receipt-amount.is-refund .money { color: var(--warning-text); }
 .bl-receipt .bl-kv { font-size: var(--fs-md); gap: 0; margin-top: 12px; }
 .bl-receipt .bl-kv dt, .bl-receipt .bl-kv dd { padding: 9px 0; border-bottom: 1px dashed var(--border-2); }
+.bl-receipt-split { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+.bl-receipt-split li { display: flex; justify-content: space-between; gap: 14px; }
+.bl-receipt-split li .money { font-weight: 700; }
+.bl-taxno { font-weight: 600; color: var(--text-2); }
+/* the stamp & signature space of an invoice sits beside the totals, so it costs no page height */
+.bl-inv-sign { margin-top: 30px; border-top: 1px solid var(--text-4); width: min(240px, 100%); padding-top: 5px; font-size: var(--fs-xs); color: var(--text-3); text-align: center; }
+.bl-cash .bl-name { white-space: nowrap; }
 .bl-modal-sheet { background: var(--bg); }
 .bl-modal-sheet .modal-body { padding-top: 12px; }
 .bl-modal-sheet .bl-sheet { box-shadow: var(--sh-sm); margin-inline: auto; }
@@ -403,10 +420,55 @@
   .bl-sheet, .bl-sheet * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
   .bl-invoice-page { padding: 0 !important; max-width: none !important; animation: none !important; }
   .bl-desk { padding: 0; display: block; }
-  .bl-sheet { max-width: none; border: 0 !important; border-radius: 0; box-shadow: none !important; padding: 18px 4px 0; overflow: visible; font-size: 12.5px; }
+  .bl-sheet { max-width: none; border: 0 !important; border-radius: 0; box-shadow: none !important; padding: 14px 2px 0; overflow: visible; font-size: 12px; line-height: 1.45; }
   .bl-sheet::before { height: 4px; }
-  .bl-items tr, .bl-totals, .bl-stamp-wrap, .bl-sheet-foot, .bl-sign { break-inside: avoid; }
+  /* an ordinary invoice (8 lines and a couple of payments) fits one A4 page: tighter vertical rhythm on paper */
+  .bl-sheet-head { padding-bottom: 12px; gap: 16px; }
+  .bl-clinic-logo { width: 48px; height: 48px; border-radius: 12px; }
+  .bl-clinic-name { font-size: 17px; }
+  .bl-clinic-meta { margin-top: 3px; font-size: 11px; }
+  .bl-doc-title { font-size: 22px; }
+  .bl-doc-no { font-size: 14px; margin-top: 2px; }
+  .bl-doc-facts { margin-top: 6px; font-size: 11px; }
+  .bl-parties { margin-top: 12px; gap: 12px; }
+  .bl-party { padding: 8px 12px; }
+  .bl-label { margin-bottom: 3px; }
+  .bl-party-name { font-size: 14px; }
+  .bl-kv { gap: 2px 12px; font-size: 11.5px; }
+  .bl-items { margin-top: 12px; font-size: 12px; }
+  .bl-items th { padding: 6px 8px; font-size: 10px; }
+  .bl-items td { padding: 6px 8px; }
+  .bl-items-sm { margin-top: 6px; font-size: 11px; }
+  .bl-items-sm th, .bl-items-sm td { padding: 4px 8px; }
+  .bl-sheet-bottom { margin-top: 10px; gap: 16px; grid-template-columns: minmax(0, 1fr) 290px; }
+  .bl-totals .bl-tr { padding: 3px 4px; font-size: 12px; }
+  .bl-totals .bl-grand { padding-top: 6px; margin-top: 2px; font-size: 14px; }
+  .bl-totals .bl-grand .money, .bl-totals .bl-balance .money { font-size: 16px; }
+  .bl-totals .bl-balance { margin-top: 4px; padding: 7px 12px; font-size: 12px; }
+  .bl-stamp-wrap { padding: 2px; }
+  .bl-stamp { font-size: 18px; padding: 5px 16px 4px; }
+  .bl-notes-block { gap: 8px; }
+  .bl-note { padding: 8px 10px; font-size: 11px; }
+  .bl-inv-sign { margin-top: 22px; }
+  .bl-section { margin-top: 12px; }
+  .bl-sheet-foot { margin-top: 10px; padding-top: 6px; gap: 2px; }
+  .bl-thanks { font-size: 12px; }
+  .bl-footer-text { font-size: 11px; }
+  .bl-sign { margin-top: 26px; }
+  .bl-watermark { font-size: 96px; }
+  /* no heading alone at the bottom of a page: a short payments block moves as one, a label sticks to its table */
+  .bl-items tr, .bl-totals, .bl-stamp-wrap, .bl-sign, .bl-sheet-bottom { break-inside: avoid; }
+  .bl-section-label { break-after: avoid; page-break-after: avoid; }
+  .bl-section.bl-keep { break-inside: avoid; }
+  .bl-items .bl-group { break-after: avoid; page-break-after: avoid; }
+  .bl-items .bl-group td { break-after: avoid; }
   .bl-items thead { display: table-header-group; }
+  /* the cash report: names stay on one line, the table reads a size smaller */
+  .bl-report .bl-items { font-size: 11px; }
+  .bl-report .bl-items td, .bl-report .bl-items th { padding: 5px 6px; }
+  .bl-report-summary { margin-top: 12px; gap: 8px; }
+  .bl-report-summary > div { padding: 6px 10px; }
+  .bl-report-summary .money, .bl-report-summary .num { font-size: 14px; }
   /* a sheet inside a modal: hide the app behind it and lay the modal flat on the page */
   body.bl-printing { overflow: visible !important; background: #fff; }
   body.bl-printing > *:not(.overlay) { display: none !important; }

@@ -53,7 +53,7 @@
   --safe-top: env(safe-area-inset-top, 0px); --safe-bottom: env(safe-area-inset-bottom, 0px);
   color-scheme: light;
 }
-@media (max-width: 767px) { :root { --gutter: 16px; } }
+@media (max-width: 767px) { :root { --gutter: 16px; --fs-xs: calc(12px * var(--font-scale, 1)); } }
 
 /* optional dark palette: only when the user picks it in Settings */
 :root[data-theme="dark"] {

@@ -97,11 +97,24 @@ describe('chart: saving rules', () => {
     expect(plan.add).toEqual([{ tooth: 16, surfaces: ['O', 'D'], condition: 'filled', active: true, note: undefined, treatmentItemId: undefined }])
     expect(state(apply(rows, plan), 16)).toEqual(['filled:M', 'filled:OD', 'sealant:B'])
   })
-  it('a surface finding never splits: the whole overlapping record is superseded', () => {
-    const rows = [rec(26, 'caries', ['M', 'O', 'D'])]
-    const after = apply(rows, planRecord(rows, { tooth: 26, condition: 'filled', surfaces: ['O'] }))
-    expect(state(after, 26)).toEqual(['filled:O'])
-    expect(after.find(r => r.id === rows[0].id)!.active).toBe(false)     // kept as history
+  it('a surface finding takes only its own surfaces: the rest of an older finding stays (audit #44)', () => {
+    const mor = rec(16, 'caries', ['M', 'O', 'R'], { note: 'deep', recordedBy: 'u-1', recordedAt: '2026-03-01T09:00:00.000Z' })
+    const plan = planRecord([mor], { tooth: 16, condition: 'filled', surfaces: ['O'] })
+    expect(plan.deactivate).toEqual([mor.id])
+    expect(plan.add[0]).toMatchObject({ condition: 'filled', surfaces: ['O'], active: true })          // the new finding first
+    expect(plan.add[1]).toEqual({ tooth: 16, surfaces: ['M', 'R'], condition: 'caries', active: true, note: 'deep', recordedBy: 'u-1', recordedAt: '2026-03-01T09:00:00.000Z' })
+    const after = apply([mor], plan)
+    expect(state(after, 16)).toEqual(['caries:MR', 'filled:O'])
+    expect(after.find(r => r.id === mor.id)!.active).toBe(false)     // the original row is kept as history
+    // a reset of some surfaces clears only those
+    expect(state(apply([mor], planRecord([mor], { tooth: 16, condition: 'healthy', surfaces: ['M'] })), 16)).toEqual(['caries:OR'])
+    // a crown covers the crown, not the root; a veneer only the buccal face
+    expect(state(apply([mor], planRecord([mor], { tooth: 16, condition: 'crown' })), 16)).toEqual(['caries:R', 'crown'])
+    const bm = rec(11, 'caries', ['B', 'M'])
+    expect(state(apply([bm], planRecord([bm], { tooth: 11, condition: 'veneer' })), 11)).toEqual(['caries:M', 'veneer'])
+    // missing / implant / a full reset still take the whole record
+    expect(state(apply([mor], planRecord([mor], { tooth: 16, condition: 'missing' })), 16)).toEqual(['missing'])
+    expect(state(apply([mor], planRecord([mor], { tooth: 16, condition: 'healthy' })), 16)).toEqual([])
   })
   it('a whole-tooth finding replaces the tooth state (missing / implant wipe everything)', () => {
     const rows = [rec(36, 'caries', ['O']), rec(36, 'root_canal'), rec(36, 'crown'), rec(36, 'mobile'), rec(37, 'caries', ['O'])]
@@ -186,7 +199,7 @@ describe('chart: quick paint and restore', () => {
   })
   it('a paint click changes only the clicked surface of a multi-surface finding', () => {
     const mod = rec(16, 'caries', ['M', 'O', 'D'], { note: 'deep', recordedBy: 'u-1', recordedAt: '2026-03-01T09:00:00.000Z' })
-    // a filling painted on O: caries stays on M and D (the panel form would supersede the whole MOD record)
+    // a filling painted on O: caries stays on M and D (the panel form follows the same rule)
     const fill = planPaint([mod], 16, ['O'], 'filled')
     expect(fill.deactivate).toEqual([mod.id])
     expect(state(apply([mod], fill), 16)).toEqual(['caries:MD', 'filled:O'])
@@ -223,6 +236,8 @@ describe('chart: quick paint and restore', () => {
     const plan = planRestore([old, cur, other], old.id)!
     expect(plan.activate).toEqual([old.id])
     expect(plan.deactivate).toEqual([cur.id])
+    // the filling keeps the surface the restored caries does not cover
+    expect(state(apply([old, cur, other], plan), 46)).toEqual(['caries:O', 'filled:M', 'sealant:B'])
     expect(planRestore([old, cur], cur.id)).toBeNull()                     // already active
     expect(planRestore([rec(46, 'healthy', [], { active: false })], `r${String(seq).padStart(4, '0')}`)).toBeNull()
   })

@@ -109,7 +109,9 @@ function PanelBody({ n, records, picked, setPicked, canEdit, actions, f, setForm
   const center: ToothSurface = info.anterior ? 'I' : 'O'
 
   return (
-    <div className="ch-panel">
+    // the dialog focuses [data-autofocus] first: the first condition when the user can chart, else the panel itself.
+    // Never the note box: on a phone that would scroll the sheet to its bottom and raise the keyboard on every tap.
+    <div className="ch-panel" tabIndex={-1} data-autofocus={canEdit ? undefined : true}>
       <div className="ch-hero">
         <ToothDiagram n={n} records={records} picked={picked} onToggle={canEdit ? toggleSurface : undefined} disabled={surfacesDisabled} />
         <div className="ch-hero-facts">
@@ -148,7 +150,7 @@ function PanelBody({ n, records, picked, setPicked, canEdit, actions, f, setForm
           <div>
             <div className="ch-group-label">{t('chart.surfaceGroup')}</div>
             <div className="ch-cond-grid" role="group" aria-label={`${t('chart.condition')} — ${t('chart.surfaceGroup')}`}>
-              {SURFACE_CONDITIONS.map(c => <CondButton key={c} c={c} active={f.condition === c} onClick={() => chooseCondition(c)} />)}
+              {SURFACE_CONDITIONS.map((c, i) => <CondButton key={c} c={c} active={f.condition === c} onClick={() => chooseCondition(c)} autoFocus={i === 0} />)}
             </div>
           </div>
           <div>
@@ -214,10 +216,10 @@ function PanelBody({ n, records, picked, setPicked, canEdit, actions, f, setForm
   )
 }
 
-function CondButton({ c, active, onClick, icon }: { c: ToothCondition; active: boolean; onClick: () => void; icon?: React.ReactNode }) {
+function CondButton({ c, active, onClick, icon, autoFocus }: { c: ToothCondition; active: boolean; onClick: () => void; icon?: React.ReactNode; autoFocus?: boolean }) {
   const { t } = useI18n()
   return (
-    <button type="button" className={['ch-cond', active && 'is-active'].filter(Boolean).join(' ')} style={{ '--ch-c': c === 'healthy' ? 'var(--success)' : CONDITION_META[c].color } as React.CSSProperties} aria-pressed={active} onClick={onClick} data-cond={c}>
+    <button type="button" data-autofocus={autoFocus || undefined} className={['ch-cond', active && 'is-active'].filter(Boolean).join(' ')} style={{ '--ch-c': c === 'healthy' ? 'var(--success)' : CONDITION_META[c].color } as React.CSSProperties} aria-pressed={active} onClick={onClick} data-cond={c}>
       {icon ?? <ConditionSwatch condition={c} size={18} />}<span>{t(`cond.${c}`)}</span>
     </button>
   )

@@ -1,16 +1,17 @@
-// The payment receipt: a small printable sheet. openReceipt(id) shows it from anywhere (a toast action, a table row),
+// The payment receipt: one hand-over (all the rows saved together: the part applied to each invoice and the part
+// kept as credit) on a small printable sheet. openReceipt(id) shows it from anywhere (a toast action, a table row),
 // even after the screen that recorded the payment has closed, so it mounts its own small root.
 import { createRoot, type Root } from 'react-dom/client'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { Printer, ReceiptText } from 'lucide-react'
 import { db } from '@/db'
-import type { Lang } from '@/db/types'
+import type { Invoice, Lang } from '@/db/types'
 import { I18nProvider, useI18n } from '@/i18n'
 import { useClinic } from '@/app/hooks'
 import { fmtDate } from '@/lib/dates'
 import { Button, Loading, Modal } from '@/ui'
-import { invoiceBalance, receiptNo } from './lib'
-import { Money, printModalSheet, SheetHeader, usePrintCleanup } from './shared'
+import { groupReceipts, invoiceBalance, receiptKey } from './lib'
+import { docTitle, Money, printModalSheet, SheetHeader, usePrintCleanup } from './shared'
 import './billing.css'
 
 export function ReceiptModal({ paymentId, onClose }: { paymentId: string; onClose: () => void }) {
@@ -20,40 +21,58 @@ export function ReceiptModal({ paymentId, onClose }: { paymentId: string; onClos
   const data = useLiveQuery(async () => {
     const payment = await db.payments.get(paymentId)
     if (!payment) return null
-    const [patient, invoice, user] = await Promise.all([
+    const key = receiptKey(payment)
+    const siblings = (await db.payments.where('patientId').equals(payment.patientId).toArray()).filter(p => receiptKey(p) === key)
+    const group = groupReceipts(siblings.length ? siblings : [payment])[0]
+    const [patient, invoices, user] = await Promise.all([
       db.patients.get(payment.patientId),
-      payment.invoiceId ? db.invoices.get(payment.invoiceId) : Promise.resolve(undefined),
-      payment.receivedBy ? db.users.get(payment.receivedBy) : Promise.resolve(undefined),
+      db.invoices.bulkGet(group.allocations.map(a => a.invoiceId)),
+      group.receivedBy ? db.users.get(group.receivedBy) : Promise.resolve(undefined),
     ])
-    return { payment, patient, invoice, user }
+    return { group, patient, invoices: new Map(invoices.filter((i): i is Invoice => !!i).map(i => [i.id, i])), user }
   }, [paymentId])
 
+  const refund = !!data && data.group.amount < 0
+  const title = refund ? t('billing.receipt.refundTitle') : t('billing.receipt.title')
   const footer = (
     <>
       <Button variant="ghost" className="start" onClick={onClose}>{t('close')}</Button>
-      <Button variant="primary" icon={<Printer />} disabled={!data} onClick={printModalSheet}>{t('print')}</Button>
+      <Button variant="primary" icon={<Printer />} disabled={!data} onClick={() => printModalSheet(data ? docTitle(`${title} ${data.group.label}`, data.patient?.name) : undefined)}>{t('print')}</Button>
     </>
   )
-  const refund = !!data && data.payment.amount < 0
+  const g = data?.group
+  const single = g && g.allocations.length === 1 && Math.abs(g.onAccount) < 0.0005 ? data!.invoices.get(g.allocations[0].invoiceId) : undefined
+  const parts = g ? g.allocations.length + (Math.abs(g.onAccount) >= 0.0005 ? 1 : 0) : 0
   return (
-    <Modal open onClose={onClose} size="md" title={refund ? t('billing.receipt.refundTitle') : t('billing.receipt.title')} icon={<ReceiptText />} footer={footer} className="bl-modal-sheet">
-      {data === undefined ? <Loading /> : data === null ? <div className="bl-muted-line">{t('billing.receipt.missing')}</div> : (
+    <Modal open onClose={onClose} size="md" title={title} icon={<ReceiptText />} footer={footer} className="bl-modal-sheet">
+      {data === undefined ? <Loading /> : data === null || !g ? <div className="bl-muted-line">{t('billing.receipt.missing')}</div> : (
         <article className="print-area bl-sheet bl-receipt">
-          <SheetHeader clinic={clinic} title={refund ? t('billing.receipt.refundTitle') : t('billing.receipt.title')}
-            facts={[{ label: t('billing.receipt.no'), value: <span className="num">{receiptNo(data.payment.id)}</span> }, { label: t('date'), value: fmtDate(data.payment.date, lang, 'long') }]} />
+          <SheetHeader clinic={clinic} title={title}
+            facts={[{ label: t('billing.receipt.no'), value: <span className="num">{g.label}</span> }, { label: t('date'), value: fmtDate(g.date, lang, 'long') }]} />
           <div className={`bl-receipt-amount${refund ? ' is-refund' : ''}`}>
             <div className="bl-label">{refund ? t('billing.receipt.refundAmount') : t('billing.receipt.amount')}</div>
-            <Money value={Math.abs(data.payment.amount)} />
+            <Money value={Math.abs(g.amount)} />
           </div>
           <dl className="bl-kv">
             <dt>{refund ? t('billing.receipt.refundedTo') : t('billing.receipt.receivedFrom')}</dt>
-            <dd>{data.patient?.name ?? t('unknown')}{data.patient && <div className="muted text-sm" style={{ fontWeight: 500 }}>{t('fileNo')} <span className="num">{data.patient.fileNo}</span></div>}</dd>
-            <dt>{t('billing.method')}</dt><dd>{t(`pay.${data.payment.method}`)}</dd>
-            <dt>{t('billing.receipt.for')}</dt>
-            <dd>{data.invoice ? <span>{t('billing.receipt.forInvoice', { number: '' })}<span className="num">{data.invoice.number}</span></span> : t('billing.receipt.onAccount')}</dd>
-            {data.invoice && <><dt>{t('billing.receipt.remaining')}</dt><dd><Money value={invoiceBalance(data.invoice)} /></dd></>}
-            {data.payment.reference && <><dt>{t('reference')}</dt><dd><span className="ltr">{data.payment.reference}</span></dd></>}
-            {data.payment.note && <><dt>{t('notes')}</dt><dd>{data.payment.note}</dd></>}
+            <dd><span dir="auto">{data.patient?.name ?? t('unknown')}</span>{data.patient && <div className="muted text-sm" style={{ fontWeight: 500 }}>{t('fileNo')} <span className="num">{data.patient.fileNo}</span></div>}</dd>
+            <dt>{t('billing.method')}</dt><dd>{t(`pay.${g.method}`)}</dd>
+            <dt>{refund ? t('billing.receipt.refundFor') : t('billing.receipt.for')}</dt>
+            <dd>
+              {single ? <span>{t('billing.receipt.forInvoice', { number: '' })}<span className="num">{single.number}</span></span>
+                : parts === 0 || (g.allocations.length === 0) ? (refund ? t('billing.receipt.fromCredit') : t('billing.receipt.onAccount'))
+                : (
+                  <ul className="bl-receipt-split">
+                    {[...g.allocations].sort((a, b) => ((data.invoices.get(a.invoiceId)?.number ?? '') < (data.invoices.get(b.invoiceId)?.number ?? '') ? -1 : 1)).map(a => (
+                      <li key={a.invoiceId}><span>{t('billing.receipt.forInvoice', { number: '' })}<span className="num">{data.invoices.get(a.invoiceId)?.number ?? '—'}</span></span><Money value={Math.abs(a.amount)} /></li>
+                    ))}
+                    {Math.abs(g.onAccount) >= 0.0005 && <li><span>{refund ? t('billing.receipt.fromCredit') : t('billing.receipt.keptCredit')}</span><Money value={Math.abs(g.onAccount)} /></li>}
+                  </ul>
+                )}
+            </dd>
+            {single && <><dt>{t('billing.receipt.remaining')}</dt><dd><Money value={invoiceBalance(single)} /></dd></>}
+            {g.reference && <><dt>{t('reference')}</dt><dd><span className="ltr">{g.reference}</span></dd></>}
+            {g.note && <><dt>{t('notes')}</dt><dd>{g.note}</dd></>}
             <dt>{t('billing.receipt.receivedBy')}</dt><dd>{data.user?.name ?? '—'}</dd>
           </dl>
           <div className="bl-sign">
@@ -71,7 +90,7 @@ export function ReceiptModal({ paymentId, onClose }: { paymentId: string; onClos
 }
 
 let host: { root: Root; el: HTMLElement } | null = null
-/** Shows the receipt of a payment on top of whatever is on screen. */
+/** Shows the receipt of a payment (its whole hand-over) on top of whatever is on screen. */
 export function openReceipt(paymentId: string) {
   closeReceipt()
   const el = document.createElement('div')

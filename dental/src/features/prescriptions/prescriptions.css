@@ -43,6 +43,8 @@
 .rx-nowrap { white-space: nowrap; }
 .rx-actions { display: inline-flex; align-items: center; gap: 2px; justify-content: flex-end; }
 .rx-actions .rx-del:hover { color: var(--danger); background: var(--danger-soft); }
+/* touch screens: Delete stands apart from Copy, so a finger meant for one never hits the other */
+@media (pointer: coarse) { .rx-actions { gap: 4px; } .rx-actions .rx-del { margin-inline-start: 12px; } }
 .rx-patient-link { display: flex; align-items: center; gap: 10px; color: inherit; min-width: 0; max-width: 280px; }
 .rx-patient-link > span { display: flex; flex-direction: column; max-width: 170px; }
 .rx-patient-link:hover .cell-main { color: var(--primary); text-decoration: underline; text-underline-offset: 3px; }
@@ -78,11 +80,11 @@
 .rx-datebox { flex: none; width: 54px; border-radius: 14px; border: 1px solid var(--border); background: var(--surface-2); display: flex; flex-direction: column; align-items: center; padding: 6px 0 5px; line-height: 1.1; }
 .rx-datebox-d { font-size: 20px; font-weight: 800; color: var(--p-700); }
 .rx-datebox-m { font-size: var(--fs-xs); font-weight: 700; color: var(--text-2); }
-.rx-datebox-y { font-size: 10px; color: var(--text-4); }
+.rx-datebox-y { font-size: 11px; color: var(--text-4); }
 .rx-pitem-head { display: flex; align-items: baseline; gap: 10px; justify-content: space-between; }
 .rx-pitem-when { font-size: var(--fs-xs); color: var(--text-4); white-space: nowrap; }
 .rx-more { display: flex; justify-content: center; padding: 10px; }
-@media (max-width: 767px) { .rx-plist .list-item { padding: 12px 14px; gap: 10px; } .rx-datebox { width: auto; min-width: 50px; padding-inline: 6px; } .rx-datebox-m { white-space: nowrap; font-size: 10.5px; } .rx-pitem-when { display: none; } .rx-toolbar-add, .rx-toolbar-add .btn { flex: 1 1 100%; width: 100%; } }
+@media (max-width: 767px) { .rx-plist .list-item { padding: 12px 14px; gap: 10px; } .rx-datebox { width: auto; min-width: 50px; padding-inline: 6px; } .rx-datebox-m { white-space: nowrap; font-size: 12px; } .rx-datebox-y { font-size: 12px; } .rx-pitem-when { display: none; } .rx-toolbar-add, .rx-toolbar-add .btn { flex: 1 1 100%; width: 100%; } }
 
 /* ---- form ---- */
 .rx-form { display: flex; flex-direction: column; gap: 18px; }
@@ -95,7 +97,7 @@
 .rx-row { display: flex; gap: 10px; align-items: flex-start; background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-lg); padding: 12px; box-shadow: var(--sh-xs); animation: rise-in var(--t-med) var(--ease) both; }
 .rx-row:focus-within { border-color: color-mix(in srgb, var(--primary) 45%, var(--border)); box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary) 10%, transparent); }
 .rx-row-no { flex: none; font-variant-numeric: tabular-nums; width: 28px; height: 28px; margin-top: 6px; border-radius: 9px; background: var(--primary-soft); color: var(--p-700); font-weight: 800; font-size: var(--fs-sm); display: flex; align-items: center; justify-content: center; }
-.rx-row-grid { flex: 1; min-width: 0; display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 8px; }
+.rx-row-grid { flex: 1 1 240px; min-width: 0; display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 8px; }
 .rx-row-grid > :nth-child(1) { grid-column: span 6; }
 .rx-row-grid > :nth-child(2), .rx-row-grid > :nth-child(3), .rx-row-grid > :nth-child(4), .rx-row-grid > :nth-child(5) { grid-column: span 3; }
 .rx-row-grid > :nth-child(6) { grid-column: span 6; }
@@ -104,6 +106,13 @@
    name in the other script never runs under the icon */
 .rx-row-grid .input.rx-f-name.has-start { padding-inline-end: 40px; }
 .rx-row-x { margin-top: 4px; color: var(--text-4); }
+/* a medicine that conflicts with an allergy on the patient's file */
+.rx-row { flex-wrap: wrap; }
+.rx-row.rx-row-danger { border-color: color-mix(in srgb, var(--danger) 55%, var(--border)); background: color-mix(in srgb, var(--danger-soft) 55%, var(--surface)); }
+.rx-row-warn { flex-basis: 100%; display: flex; align-items: flex-start; gap: 8px; padding: 8px 10px; border-radius: var(--r-md); background: var(--danger-soft); color: var(--danger-text); font-size: var(--fs-sm); font-weight: 600; }
+.rx-row-warn svg { width: 16px; height: 16px; flex: none; margin-top: 2px; }
+.rx-opt-warn .rx-opt-icon { background: var(--danger-soft); color: var(--danger); }
+.rx-opt-warn .rx-opt-title { color: var(--danger-text); }
 .rx-row-x:hover { color: var(--danger); background: var(--danger-soft); }
 .rx-rows-empty { display: flex; align-items: center; justify-content: center; gap: 10px; padding: 22px 16px; border: 1.5px dashed var(--border-2); border-radius: var(--r-lg); color: var(--text-3); font-size: var(--fs-sm); text-align: center; }
 .rx-rows-empty svg { width: 20px; height: 20px; color: var(--text-4); flex: none; }
@@ -114,6 +123,7 @@
   .rx-row { position: relative; padding: 10px; gap: 0; }
   .rx-row-no { position: absolute; top: 18px; inset-inline-start: 10px; width: 24px; height: 24px; margin: 0; font-size: var(--fs-xs); }
   .rx-row-x { position: absolute; top: 14px; inset-inline-end: 8px; margin: 0; }
+  .rx-row-warn { margin-top: 8px; }
   .rx-row-grid > :nth-child(1) { margin-inline: 32px 38px; }
   .rx-combo .input.has-end { padding-inline-end: 30px; }
   .rx-combo .control .icon-end { inset-inline-end: 8px; }
@@ -257,3 +267,8 @@
 
 /* a one-line text in its own direction (dir=auto: Latin text truncates at its end) but aligned like the page */
 .rx-auto { text-align: match-parent; }
+
+/* phones: no text under 12px on screen (the printed sheet keeps its own sizes in @media print) */
+@media screen and (max-width: 767px) {
+  .rx-seg-count, .rx-count, .rx-k, .rx-reg-k, .rx-sign-label, .rx-datebox-y { font-size: 12px; }
+}

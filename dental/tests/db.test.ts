@@ -124,14 +124,20 @@ describe('db: backup and reset', () => {
     expect(Object.values(await counts()).every(n => n === 0)).toBe(true)
 
     const res = await importBackup(json)
+    // a restore always records this device's trial start and the backup's date (the device had neither)
+    const after = { ...before, settings: before.settings + 2 }
     expect(res.tables).toBe(TABLE_NAMES.length)
-    expect(res.rows).toBe(Object.values(before).reduce((a, n) => a + n, 0))
-    expect(await counts()).toEqual(before)
+    expect(res.rows).toBe(Object.values(after).reduce((a, n) => a + n, 0))
+    expect(await counts()).toEqual(after)
+    expect(await getSetting('lastBackupAt', null)).toBe(backup.exportedAt)
+    expect(await getSetting<string | null>('installedAt', null)).toBeTruthy()
 
     const restored = await db.files.get('f1')
     expect(restored!.data).toBeInstanceOf(Blob)
     expect(restored!.data.size).toBe(11)
     expect(await blobText(restored!.data)).toBe('hello world')
+    // not a picture or a PDF: kept, as inert bytes (an HTML page labelled as a PDF could otherwise run in the viewer)
+    expect(restored!.data.type).toBe('application/octet-stream')
     expect(await getSetting('pref', null)).toEqual({ lang: 'ar' })
     expect((await getClinic()).name).toBe('عيادة الابتسامة')
     const inv = (await db.invoices.toArray()).find(i => i.items.length > 1)!

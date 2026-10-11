@@ -40,28 +40,39 @@ const common: ModuleDict = {
     'inv.draft': 'مسودة', 'inv.unpaid': 'غير مدفوعة', 'inv.partial': 'مدفوعة جزئياً', 'inv.paid': 'مدفوعة', 'inv.cancelled': 'ملغاة',
     'lab.draft': 'مسودة', 'lab.sent': 'مرسل', 'lab.in_progress': 'قيد العمل', 'lab.received': 'مستلم', 'lab.fitted': 'مركّب', 'lab.remake': 'إعادة عمل', 'lab.cancelled': 'ملغى',
     'labType.crown': 'تاج', 'labType.bridge': 'جسر', 'labType.veneer': 'قشرة (فينير)', 'labType.inlay_onlay': 'حشوة مخبرية', 'labType.denture_full': 'طقم كامل', 'labType.denture_partial': 'طقم جزئي',
-    'labType.implant_crown': 'تاج على زرعة', 'labType.night_guard': 'واقي ليلي', 'labType.retainer': 'مثبّت', 'labType.aligner': 'تقويم شفاف', 'labType.post_core': 'وتد ولبّ', 'labType.other': 'أخرى',
+    'labType.implant_crown': 'تاج على زرعة', 'labType.night_guard': 'واقٍ ليلي', 'labType.retainer': 'مثبّت', 'labType.aligner': 'تقويم شفاف', 'labType.post_core': 'وتد وقلب', 'labType.other': 'أخرى',
     // payment methods
     'pay.cash': 'نقداً', 'pay.card': 'بطاقة', 'pay.transfer': 'تحويل', 'pay.insurance': 'تأمين', 'pay.wallet': 'محفظة إلكترونية', 'pay.other': 'أخرى',
+    // the method as a noun, for headings and totals in reports ('مجموع الدفع النقدي', not 'مجموع نقداً')
+    'payNoun.cash': 'الدفع النقدي', 'payNoun.card': 'الدفع بالبطاقة', 'payNoun.transfer': 'التحويلات', 'payNoun.insurance': 'التأمين', 'payNoun.wallet': 'المحافظ الإلكترونية', 'payNoun.other': 'طرق الدفع الأخرى',
     // procedure categories
-    'cat.diagnostic': 'تشخيص', 'cat.preventive': 'وقاية', 'cat.restorative': 'ترميم وحشوات', 'cat.endodontic': 'علاج عصب', 'cat.periodontic': 'لثة', 'cat.prosthodontic': 'تعويضات',
+    'cat.diagnostic': 'تشخيص', 'cat.preventive': 'وقاية', 'cat.restorative': 'ترميم وحشوات', 'cat.endodontic': 'معالجة لبية', 'cat.periodontic': 'لثة', 'cat.prosthodontic': 'تعويضات',
     'cat.surgical': 'جراحة', 'cat.orthodontic': 'تقويم', 'cat.pediatric': 'أطفال', 'cat.cosmetic': 'تجميل', 'cat.implant': 'زراعة', 'cat.other': 'أخرى',
     // expense categories
     'exp.rent': 'إيجار', 'exp.salaries': 'رواتب', 'exp.materials': 'مواد', 'exp.lab': 'مخبر', 'exp.equipment': 'معدات', 'exp.utilities': 'كهرباء وماء وإنترنت', 'exp.marketing': 'تسويق', 'exp.maintenance': 'صيانة', 'exp.taxes': 'ضرائب ورسوم', 'exp.other': 'أخرى',
     // tooth conditions & surfaces
-    'cond.healthy': 'سليم', 'cond.caries': 'تسوس', 'cond.filled': 'حشوة', 'cond.crown': 'تاج', 'cond.missing': 'مفقود', 'cond.implant': 'زرعة', 'cond.root_canal': 'علاج عصب', 'cond.bridge': 'جسر',
-    'cond.veneer': 'فينير', 'cond.fracture': 'كسر', 'cond.to_extract': 'يحتاج قلع', 'cond.impacted': 'منطمر', 'cond.sealant': 'سادّ شقوق', 'cond.mobile': 'متحرك', 'cond.abscess': 'خراج', 'cond.attrition': 'تآكل', 'cond.other': 'أخرى',
-    'surf.M': 'أنسي (M)', 'surf.D': 'وحشي (D)', 'surf.O': 'طاحن (O)', 'surf.B': 'دهليزي (B)', 'surf.L': 'لساني (L)', 'surf.I': 'قاطع (I)', 'surf.R': 'جذر (R)',
+    'cond.healthy': 'سليم', 'cond.caries': 'تسوس', 'cond.filled': 'حشوة', 'cond.crown': 'تاج', 'cond.missing': 'مفقود', 'cond.implant': 'زرعة', 'cond.root_canal': 'معالجة لبية', 'cond.bridge': 'جسر',
+    'cond.veneer': 'فينير', 'cond.fracture': 'كسر', 'cond.to_extract': 'يحتاج إلى قلع', 'cond.impacted': 'منطمر', 'cond.sealant': 'سادّ شقوق', 'cond.mobile': 'متقلقل', 'cond.abscess': 'خراج', 'cond.attrition': 'سحل', 'cond.other': 'أخرى',
+    'surf.M': 'أنسي (M)', 'surf.D': 'وحشي (D)', 'surf.O': 'طاحن (O)', 'surf.B': 'دهليزي (B)', 'surf.L': 'لساني (L)', 'surf.I': 'حدّي (I)', 'surf.R': 'جذر (R)',
     'fileKind.xray': 'أشعة', 'fileKind.photo': 'صورة', 'fileKind.document': 'مستند', 'fileKind.consent': 'موافقة', 'fileKind.other': 'أخرى',
     // validation
     'v.required': 'هذا الحقل مطلوب', 'v.phone': 'رقم هاتف غير صالح', 'v.email': 'بريد إلكتروني غير صالح', 'v.number': 'أدخل رقماً صالحاً', 'v.positive': 'يجب أن يكون أكبر من صفر', 'v.date': 'تاريخ غير صالح', 'v.pin': 'رمز PIN من 4 إلى 6 أرقام',
     // misc
     noData: 'لا توجد بيانات', emptyList: 'القائمة فارغة', tryAgain: 'حاول مرة أخرى', readOnly: 'للقراءة فقط', version: 'الإصدار', of: 'من', items: 'عناصر', item: 'عنصر', results: 'نتيجة',
     showing: 'عرض {from}–{to} من {total}', perPage: 'لكل صفحة', page: 'صفحة', fileNo: 'رقم الملف', untitled: 'بدون عنوان', total_: 'الإجمالي',
-    'trial.banner': 'نسخة تجريبية — متبقٍ {days} يوماً', 'trial.expired': 'انتهت الفترة التجريبية. فعّل النظام لمتابعة العمل.', 'trial.activate': 'تفعيل الآن', 'trial.readonly': 'وضع القراءة فقط: الإضافة والتعديل متوقفان حتى التفعيل.',
+    'trial.banner': 'نسخة تجريبية — {days, plural, zero {انتهت المدة} one {متبقٍ يوم واحد} two {متبقٍ يومان} few {متبقية # أيام} many {متبقٍ # يوماً} other {متبقٍ # يوم}}', 'trial.expired': 'انتهت الفترة التجريبية. فعّل النظام لمتابعة العمل.', 'trial.activate': 'تفعيل الآن', 'trial.readonly': 'وضع القراءة فقط: الإضافة والتعديل متوقفان حتى التفعيل.',
     pressEnter: 'اضغط Enter', typeToSearch: 'اكتب للبحث…', searchPlaceholder: 'ابحث عن مريض، موعد، فاتورة…', quickSearch: 'بحث سريع', shortcuts: 'اختصارات',
     welcome: 'مرحباً', goodMorning: 'صباح الخير', goodEvening: 'مساء الخير', dr: 'د.',
     noPermission: 'هذه الصفحة غير متاحة لدورك', noPermissionDesc: 'اطلب من مدير العيادة منحك الصلاحية من صفحة الفريق إذا كنت تحتاجها.',
+    // counted phrases: tn('count.years', n) or t('count.years', { n }) — real Arabic plural forms
+    'count.years': '{n, plural, zero {# سنة} one {سنة واحدة} two {سنتان} few {# سنوات} many {# سنة} other {# سنة}}',
+    'count.months': '{n, plural, zero {# شهر} one {شهر واحد} two {شهران} few {# أشهر} many {# شهراً} other {# شهر}}',
+    'count.days': '{n, plural, zero {# يوم} one {يوم واحد} two {يومان} few {# أيام} many {# يوماً} other {# يوم}}',
+    'count.hours': '{n, plural, zero {# ساعة} one {ساعة واحدة} two {ساعتان} few {# ساعات} many {# ساعة} other {# ساعة}}',
+    'count.minutes': '{n, plural, zero {# دقيقة} one {دقيقة واحدة} two {دقيقتان} few {# دقائق} many {# دقيقة} other {# دقيقة}}',
+    'count.items': '{n, plural, zero {لا عناصر} one {عنصر واحد} two {عنصران} few {# عناصر} many {# عنصراً} other {# عنصر}}',
+    // an age on a document: 'العمر: 7 سنوات', 'سنتان', 'أقل من سنة'
+    'age.years': '{n, plural, zero {أقل من سنة} one {سنة واحدة} two {سنتان} few {# سنوات} many {# سنة} other {# سنة}}',
   },
   en: {
     appName: 'Dentora', appTagline: 'Dental clinic management',
@@ -83,7 +94,7 @@ const common: ModuleDict = {
     currency: 'Currency', language: 'Language', arabic: 'العربية', english: 'English', theme: 'Theme', light: 'Light', dark: 'Dark',
     'nav.dashboard': 'Dashboard', 'nav.patients': 'Patients', 'nav.appointments': 'Appointments', 'nav.treatments': 'Treatments', 'nav.procedures': 'Procedures', 'nav.billing': 'Invoices',
     'nav.payments': 'Payments', 'nav.prescriptions': 'Prescriptions', 'nav.lab': 'Lab', 'nav.inventory': 'Inventory', 'nav.expenses': 'Expenses', 'nav.reports': 'Reports',
-    'nav.staff': 'Staff', 'nav.settings': 'Settings', 'nav.more': 'More', 'nav.clinical': 'Clinical', 'nav.finance': 'Finance', 'nav.management': 'Management', 'nav.license': 'License', 'nav.search': 'Quick search',
+    'nav.staff': 'Staff', 'nav.settings': 'Settings', 'nav.more': 'More', 'nav.clinical': 'Clinical', 'nav.finance': 'Finance', 'nav.management': 'Management', 'nav.license': 'Licence', 'nav.search': 'Quick search',
     'nav.quickAdd': 'Quick add', 'nav.newPatient': 'New patient', 'nav.newAppointment': 'New appointment', 'nav.newInvoice': 'New invoice', 'nav.newPayment': 'New payment', 'nav.newExpense': 'New expense',
     'nav.lock': 'Lock screen', 'nav.logout': 'Sign out', 'nav.profile': 'My account', 'nav.notifications': 'Notifications', 'nav.collapse': 'Collapse menu', 'nav.expand': 'Expand menu',
     'role.admin': 'Admin', 'role.doctor': 'Doctor', 'role.assistant': 'Assistant', 'role.receptionist': 'Receptionist',
@@ -96,6 +107,7 @@ const common: ModuleDict = {
     'labType.crown': 'Crown', 'labType.bridge': 'Bridge', 'labType.veneer': 'Veneer', 'labType.inlay_onlay': 'Inlay / Onlay', 'labType.denture_full': 'Full denture', 'labType.denture_partial': 'Partial denture',
     'labType.implant_crown': 'Implant crown', 'labType.night_guard': 'Night guard', 'labType.retainer': 'Retainer', 'labType.aligner': 'Clear aligner', 'labType.post_core': 'Post & core', 'labType.other': 'Other',
     'pay.cash': 'Cash', 'pay.card': 'Card', 'pay.transfer': 'Transfer', 'pay.insurance': 'Insurance', 'pay.wallet': 'E-wallet', 'pay.other': 'Other',
+    'payNoun.cash': 'Cash', 'payNoun.card': 'Card', 'payNoun.transfer': 'Transfers', 'payNoun.insurance': 'Insurance', 'payNoun.wallet': 'E-wallets', 'payNoun.other': 'Other methods',
     'cat.diagnostic': 'Diagnostic', 'cat.preventive': 'Preventive', 'cat.restorative': 'Restorative', 'cat.endodontic': 'Endodontic', 'cat.periodontic': 'Periodontic', 'cat.prosthodontic': 'Prosthodontic',
     'cat.surgical': 'Surgical', 'cat.orthodontic': 'Orthodontic', 'cat.pediatric': 'Pediatric', 'cat.cosmetic': 'Cosmetic', 'cat.implant': 'Implant', 'cat.other': 'Other',
     'exp.rent': 'Rent', 'exp.salaries': 'Salaries', 'exp.materials': 'Materials', 'exp.lab': 'Lab', 'exp.equipment': 'Equipment', 'exp.utilities': 'Utilities', 'exp.marketing': 'Marketing', 'exp.maintenance': 'Maintenance', 'exp.taxes': 'Taxes & fees', 'exp.other': 'Other',
@@ -106,10 +118,17 @@ const common: ModuleDict = {
     'v.required': 'This field is required', 'v.phone': 'Invalid phone number', 'v.email': 'Invalid email', 'v.number': 'Enter a valid number', 'v.positive': 'Must be greater than zero', 'v.date': 'Invalid date', 'v.pin': 'PIN must be 4–6 digits',
     noData: 'No data', emptyList: 'The list is empty', tryAgain: 'Try again', readOnly: 'Read only', version: 'Version', of: 'of', items: 'items', item: 'item', results: 'results',
     showing: 'Showing {from}–{to} of {total}', perPage: 'per page', page: 'Page', fileNo: 'File #', untitled: 'Untitled', total_: 'Total',
-    'trial.banner': 'Trial version — {days} days left', 'trial.expired': 'The trial has ended. Activate to keep working.', 'trial.activate': 'Activate now', 'trial.readonly': 'Read-only mode: adding and editing are paused until activation.',
+    'trial.banner': 'Trial version — {days, plural, one {1 day} other {# days}} left', 'trial.expired': 'The trial has ended. Activate to keep working.', 'trial.activate': 'Activate now', 'trial.readonly': 'Read-only mode: adding and editing are paused until activation.',
     pressEnter: 'Press Enter', typeToSearch: 'Type to search…', searchPlaceholder: 'Search patients, appointments, invoices…', quickSearch: 'Quick search', shortcuts: 'Shortcuts',
     welcome: 'Welcome', goodMorning: 'Good morning', goodEvening: 'Good evening', dr: 'Dr.',
     noPermission: 'This page is not available for your role', noPermissionDesc: 'Ask the clinic admin to change your role on the Staff page if you need it.',
+    'count.years': '{n, plural, one {1 year} other {# years}}',
+    'count.months': '{n, plural, one {1 month} other {# months}}',
+    'count.days': '{n, plural, one {1 day} other {# days}}',
+    'count.hours': '{n, plural, one {1 hour} other {# hours}}',
+    'count.minutes': '{n, plural, one {1 minute} other {# minutes}}',
+    'count.items': '{n, plural, one {1 item} other {# items}}',
+    'age.years': '{n, plural, =0 {under 1 year} one {1 year} other {# years}}',
   },
 }
 export default common

@@ -5,7 +5,7 @@ import { useI18n } from '@/i18n'
 import { useMoney } from '@/app/hooks'
 import { PAYMENT_METHODS } from '@/db/types'
 import { today } from '@/lib/dates'
-import { formatNumber, round2, sum } from '@/lib/format'
+import { formatNumber } from '@/lib/format'
 import { AreaChart, BarChart, DonutChart, HorizontalBars } from '../charts'
 import { share } from '../chartMath'
 import { CardEmpty, ChartCard, KpiCard, SLOTS, fmtPeriod, iso, useBucketText, usePlural } from '../parts'
@@ -26,7 +26,7 @@ export default function FinancialTab({ period, data, setExport, onShowYear }: Ta
   const c = useMemo(() => {
     if (!data) return null
     const revenue = totalOf(data.payments), prevRevenue = totalOf(data.prevPayments)
-    const expenses = round2(sum(data.expenses, e => e.amount)), prevExpenses = round2(sum(data.prevExpenses, e => e.amount))
+    const expenses = totalOf(data.expenses), prevExpenses = totalOf(data.prevExpenses)
     const pr = profit(revenue, expenses), prevPr = profit(prevRevenue, prevExpenses)
     const issued = data.invoices.filter(isBillable).length
     const prevIssued = data.prevInvoices.filter(isBillable).length
@@ -34,8 +34,8 @@ export default function FinancialTab({ period, data, setExport, onShowYear }: Ta
     const upTo = <T extends { date: string }>(l: T[]) => (data.partial ? l.filter(x => x.date <= data.cmpTo) : l)
     const cPay = upTo(data.payments), cExp = upTo(data.expenses), cInv = upTo(data.invoices)
     const cmp = {
-      revenue: totalOf(cPay), expenses: round2(sum(cExp, e => e.amount)), invoiced: invoicedTotal(cInv), avg: avgInvoice(cInv), issued: cInv.filter(isBillable).length,
-      profit: profit(totalOf(cPay), round2(sum(cExp, e => e.amount))).profit,
+      revenue: totalOf(cPay), expenses: totalOf(cExp), invoiced: invoicedTotal(cInv), avg: avgInvoice(cInv), issued: cInv.filter(isBillable).length,
+      profit: profit(totalOf(cPay), totalOf(cExp)).profit,
     }
     const unit = chooseUnit(period, { dayUpTo: 62 })
     // the trend stops at today: days that have not happened yet are not "zero revenue"

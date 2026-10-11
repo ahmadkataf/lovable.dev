@@ -1,5 +1,5 @@
 // /prescriptions — every prescription of the clinic (search, date presets, print, duplicate) and the drug catalogue.
-import { useCallback, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { BookOpen, CalendarDays, ClipboardList, Copy, FilePlus2, Pill, Printer, Search, Trash2 } from 'lucide-react'
@@ -12,7 +12,8 @@ import { useSession } from '@/app/session'
 import { useLicense } from '@/license/useLicense'
 import { Alert, Avatar, Button, Card, DataTable, EmptyState, IconButton, Input, PageHeader, Pagination, Segmented, Skeleton, Tabs, useConfirmDelete, usePagination, useToast, type Column } from '@/ui'
 import { fmtDate } from '@/lib/dates'
-import { DATE_PRESETS, duplicateDefaults, filterPrescriptions, itemsSummary, sortPrescriptions, type DatePreset } from './lib'
+import { DATE_PRESETS, doctorLabel, duplicateDefaults, filterPrescriptions, itemsSummary, sortPrescriptions, type DatePreset } from './lib'
+import { ensureRefs } from './numbers'
 import { deletePrescription } from './actions'
 import PrescriptionFormModal, { type RxFormDefaults } from './PrescriptionFormModal'
 import RxSheetModal, { useDayHint } from './RxSheet'
@@ -30,6 +31,8 @@ export default function PrescriptionsPage() {
   const setTab = (id: TabId) => setParams(p => { const n = new URLSearchParams(p); if (id === 'prescriptions') n.delete('tab'); else n.set('tab', id); return n }, { replace: true })
   const { readOnly } = useLicense()
   const rxCount = useLiveQuery(() => db.prescriptions.count(), [])
+  // older prescriptions get their RX- reference once (printed on the sheet)
+  useEffect(() => { void ensureRefs('rx') }, [])
   const drugCount = useLiveQuery(() => db.drugs.count(), [])
   const [form, setForm] = useState<FormState>(null)
 
@@ -130,9 +133,9 @@ function RxList({ onNew, onEdit, onDuplicate }: { onNew: () => void; onEdit: (rx
   const columns: Column<Prescription>[] = [
     { key: 'date', header: t('date'), render: rx => <div><div className="cell-main rx-nowrap">{fmtDate(rx.date, lang)}</div>{dayHintOf(rx.date, today) && <div className="cell-sub">{dayHintOf(rx.date, today)}</div>}</div>, width: 150 },
     { key: 'patient', header: t('patient'), render: patientCell },
-    { key: 'doctor', header: t('doctor'), render: rx => <span className="rx-nowrap text-sm">{userMap.get(rx.doctorId)?.name ?? '—'}</span>, hideBelow: 'lg' },
+    { key: 'doctor', header: t('doctor'), render: rx => <span className="rx-nowrap text-sm">{doctorLabel(userMap.get(rx.doctorId)) || '—'}</span>, hideBelow: 'lg' },
     { key: 'items', header: t('prescriptions.col.items'), render: rx => <div>{summary(rx)}{rx.diagnosis && <div className="cell-sub truncate rx-diag-sub rx-auto" dir="auto">{rx.diagnosis}</div>}</div> },
-    { key: 'actions', header: <span className="sr-only">{t('actions')}</span>, render: actions, className: 'actions', width: 132 },
+    { key: 'actions', header: <span className="sr-only">{t('actions')}</span>, render: actions, className: 'actions', width: 144 },
   ]
 
   const loading = list === undefined || patients === undefined
@@ -166,7 +169,7 @@ function RxList({ onNew, onEdit, onDuplicate }: { onNew: () => void; onEdit: (rx
                   <Avatar name={p?.name ?? '?'} src={p?.photo} size="sm" />
                   <div className="grow" style={{ minWidth: 0 }}>
                     <div className="strong truncate">{p?.name ?? t('unknown')}</div>
-                    <div className="rx-mcard-sub"><CalendarDays size={12} /><span>{fmtDate(rx.date, lang)}</span><span className="truncate">· {userMap.get(rx.doctorId)?.name ?? '—'}</span></div>
+                    <div className="rx-mcard-sub"><CalendarDays size={12} /><span>{fmtDate(rx.date, lang)}</span><span className="truncate">· {doctorLabel(userMap.get(rx.doctorId)) || '—'}</span></div>
                   </div>
                   {actions(rx)}
                 </div>

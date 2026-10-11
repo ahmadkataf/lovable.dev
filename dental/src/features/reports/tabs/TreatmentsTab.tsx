@@ -4,7 +4,7 @@ import { Button } from '@/ui'
 import { useI18n } from '@/i18n'
 import { useMoney } from '@/app/hooks'
 import { dateOf, today } from '@/lib/dates'
-import { formatNumber, round2 } from '@/lib/format'
+import { formatNumber, roundTo } from '@/lib/format'
 import { BarChart, HorizontalBars } from '../charts'
 import { CardEmpty, ChartCard, KpiCard, fmtPeriod, useBucketText, usePlural } from '../parts'
 import { chooseUnit, delta, inRange, topProcedures, treatmentValue, treatmentsOverTime, untilToday, type Period } from '../queries'
@@ -26,7 +26,7 @@ export default function TreatmentsTab({ period, data, setExport, onShowYear }: T
     const done = completedIn(data.treatments, period), prevDone = completedIn(data.prevTreatments, data.prev)
     const added = createdIn(data.treatments, period), prevAdded = createdIn(data.prevTreatments, data.prev)
     const unit = chooseUnit(period, { dayUpTo: 31, weekUpTo: 190 })
-    const value = (l: TreatmentItem[]) => round2(l.reduce((a, x) => a + treatmentValue(x), 0))
+    const value = (l: TreatmentItem[]) => roundTo(l.reduce((a, x) => a + treatmentValue(x), 0), 3)
     const pending = added.filter(x => x.status === 'planned' || x.status === 'in_progress')
     return {
       done, prevDone, added, prevAdded, unit, pending,

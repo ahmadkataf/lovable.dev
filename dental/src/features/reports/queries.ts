@@ -6,7 +6,10 @@ import type {
   Procedure, ProcedureCategory, TreatmentItem, User,
 } from '@/db/types'
 import { addDays, addMonths, ageFrom, dateOf, diffDays, endOfMonth, fromISODate, startOfMonth, startOfWeek, timeToMinutes, toISODate } from '@/lib/dates'
-import { normalizeText, round2 } from '@/lib/format'
+import { normalizeText, roundTo } from '@/lib/format'
+
+/** Sums of stored amounts (at most 3 decimals: fils, cents or whole units), cleared of binary noise. */
+const r3 = (n: number) => roundTo(Number(n) || 0, 3)
 
 // ---- periods ------------------------------------------------------------------------------------------
 
@@ -124,7 +127,7 @@ export function seriesBy<T>(items: T[], dateOfItem: (x: T) => ISODate | undefine
     const i = index.get(bucketKey(d!, unit, weekStart))
     if (i !== undefined) values[i] += Number(valueOf(x)) || 0
   }
-  return bs.map((b, i) => ({ ...b, value: round2(values[i]) }))
+  return bs.map((b, i) => ({ ...b, value: r3(values[i]) }))
 }
 
 // ---- money --------------------------------------------------------------------------------------------
@@ -134,7 +137,7 @@ type InvLike = Pick<Invoice, 'id' | 'patientId' | 'date' | 'status' | 'total' | 
 
 export const isBillable = (inv: Pick<Invoice, 'status'>) => inv.status !== 'draft' && inv.status !== 'cancelled'
 /** Collected money (refunds are negative payments and reduce it). */
-export const totalOf = (payments: Pick<Payment, 'amount'>[]) => round2(payments.reduce((a, p) => a + (Number(p.amount) || 0), 0))
+export const totalOf = (payments: Pick<Payment, 'amount'>[]) => r3(payments.reduce((a, p) => a + (Number(p.amount) || 0), 0))
 
 export function revenueByDay(payments: PayLike[], from: ISODate, to: ISODate): Point[] {
   return seriesBy(payments, p => p.date, p => p.amount, { from, to }, 'day')
@@ -143,17 +146,25 @@ export function revenueByMonth(payments: PayLike[], from: ISODate, to: ISODate):
   return seriesBy(payments, p => p.date, p => p.amount, { from, to }, 'month')
 }
 
+/**
+ * Which hand-over a payment row belongs to, for counting payments: rows that share a receipt number are one payment
+ * (an overpayment spread over several invoices, credit later applied to an invoice). Older rows count one each.
+ */
+export const handoverKey = (p: Partial<Pick<Payment, 'receiptNo'>>, index: number) => (p.receiptNo ? `r:${p.receiptNo}` : `#${index}`)
+/** Number of hand-overs (receipts) among payment rows. */
+export const handoverCount = (payments: Partial<Pick<Payment, 'receiptNo'>>[]) => new Set(payments.map(handoverKey)).size
+
 export interface MethodSlice { method: PaymentMethod; value: number; count: number }
-/** Collected money per payment method, in the fixed method order (so colours follow the method). */
-export function byMethod(payments: Pick<Payment, 'amount' | 'method'>[]): MethodSlice[] {
-  const m = new Map<PaymentMethod, MethodSlice>()
-  for (const p of payments) {
+/** Collected money per payment method, in the fixed method order (so colours follow the method); count = hand-overs. */
+export function byMethod(payments: (Pick<Payment, 'amount' | 'method'> & Partial<Pick<Payment, 'receiptNo'>>)[]): MethodSlice[] {
+  const m = new Map<PaymentMethod, MethodSlice & { keys: Set<string> }>()
+  payments.forEach((p, i) => {
     const method = PAYMENT_METHODS.includes(p.method) ? p.method : 'other'
-    const s = m.get(method) ?? { method, value: 0, count: 0 }
-    s.value += Number(p.amount) || 0; s.count++
+    const s = m.get(method) ?? { method, value: 0, count: 0, keys: new Set<string>() }
+    s.value += Number(p.amount) || 0; s.keys.add(handoverKey(p, i))
     m.set(method, s)
-  }
-  return PAYMENT_METHODS.filter(k => m.has(k)).map(k => { const s = m.get(k)!; return { ...s, value: round2(s.value) } })
+  })
+  return PAYMENT_METHODS.filter(k => m.has(k)).map(k => { const { keys, ...s } = m.get(k)!; return { ...s, count: keys.size, value: r3(s.value) } })
 }
 
 /** invoiceId → doctorId, for attributing payments to the doctor of the invoice they settle. */
@@ -184,7 +195,7 @@ export function byDoctor(invoices: InvLike[], payments: Pick<Payment, 'amount' |
   const docs = invoiceDoctors(invoices)
   for (const p of payments) row(paymentDoctor(p, docs)).collected += Number(p.amount) || 0
   return [...rows.values()]
-    .map(r => ({ ...r, invoiced: round2(r.invoiced), collected: round2(r.collected) }))
+    .map(r => ({ ...r, invoiced: r3(r.invoiced), collected: r3(r.collected) }))
     .filter(r => Math.abs(r.collected) > 0.004 || r.invoices > 0)
     .sort((a, b) => b.collected - a.collected || b.invoiced - a.invoiced)
 }
@@ -211,16 +222,16 @@ export function byCategory(invoices: InvLike[], procedures: Pick<Procedure, 'id'
     }
   }
   return PROCEDURE_CATEGORIES.filter(c => (acc.get(c)?.value ?? 0) > 0.004)
-    .map(c => ({ category: c, value: round2(acc.get(c)!.value), count: acc.get(c)!.count }))
+    .map(c => ({ category: c, value: r3(acc.get(c)!.value), count: acc.get(c)!.count }))
     .sort((a, b) => b.value - a.value)
 }
 
 /** Average of the issued (non-draft, non-cancelled) invoices. */
 export function avgInvoice(invoices: Pick<Invoice, 'status' | 'total'>[]): number {
   const list = invoices.filter(isBillable)
-  return list.length ? round2(list.reduce((a, i) => a + (i.total || 0), 0) / list.length) : 0
+  return list.length ? r3(list.reduce((a, i) => a + (i.total || 0), 0) / list.length) : 0
 }
-export const invoicedTotal = (invoices: Pick<Invoice, 'status' | 'total'>[]) => round2(invoices.filter(isBillable).reduce((a, i) => a + (i.total || 0), 0))
+export const invoicedTotal = (invoices: Pick<Invoice, 'status' | 'total'>[]) => r3(invoices.filter(isBillable).reduce((a, i) => a + (i.total || 0), 0))
 
 export interface ExpenseSlice { category: ExpenseCategory; value: number; count: number }
 export function expensesByCategory(expenses: Pick<Expense, 'category' | 'amount'>[]): ExpenseSlice[] {
@@ -231,46 +242,56 @@ export function expensesByCategory(expenses: Pick<Expense, 'category' | 'amount'
     s.value += Number(e.amount) || 0; s.count++
     acc.set(c, s)
   }
-  return [...acc.values()].map(s => ({ ...s, value: round2(s.value) })).filter(s => s.value > 0.004).sort((a, b) => b.value - a.value)
+  return [...acc.values()].map(s => ({ ...s, value: r3(s.value) })).filter(s => s.value > 0.004).sort((a, b) => b.value - a.value)
 }
 
 export interface Profit { revenue: number; expenses: number; profit: number; margin: number | null }
 export function profit(revenue: number, expenses: number): Profit {
-  const p = round2(revenue - expenses)
-  return { revenue: round2(revenue), expenses: round2(expenses), profit: p, margin: revenue > 0.004 ? Math.round((p / revenue) * 1000) / 10 : null }
+  const p = r3(revenue - expenses)
+  return { revenue: r3(revenue), expenses: r3(expenses), profit: p, margin: revenue > 0.004 ? Math.round((p / revenue) * 1000) / 10 : null }
 }
 
 export interface OutstandingRow { patientId: string; invoiced: number; paid: number; due: number; lastPayment?: ISODate; invoices: number }
 /**
- * What every patient still owes: Σ issued invoices − Σ all their payments (on-account money included),
- * keeping only real debts, largest first. Patients with credit never offset anyone else.
+ * What every patient still owes, largest first: the unpaid part of their open invoices. Billing always applies money
+ * held on account to open invoices (oldest first), so this is also Σ issued − Σ paid for every patient who owes, and
+ * the same figure the invoices list, the patient page and the payment form show. A patient's credit never offsets
+ * anyone else. `invoiced` / `paid` sum the issued invoices passed in; `payments` (optional) give the last payment date.
  */
-export function outstandingByPatient(invoices: InvLike[], payments: Pick<Payment, 'patientId' | 'amount' | 'date'>[], patients?: Pick<Patient, 'id'>[]): OutstandingRow[] {
+export function outstandingByPatient(invoices: InvLike[], payments: Pick<Payment, 'patientId' | 'amount' | 'date'>[] = [], patients?: Pick<Patient, 'id'>[]): OutstandingRow[] {
   const rows = new Map<string, OutstandingRow>()
   const row = (id: string) => { let r = rows.get(id); if (!r) { r = { patientId: id, invoiced: 0, paid: 0, due: 0, invoices: 0 }; rows.set(id, r) } return r }
-  for (const inv of invoices) { if (!isBillable(inv)) continue; const r = row(inv.patientId); r.invoiced += inv.total || 0; r.invoices++ }
+  for (const inv of invoices) {
+    if (!isBillable(inv)) continue
+    const r = row(inv.patientId)
+    r.invoiced += inv.total || 0; r.paid += inv.paid || 0; r.invoices++
+    if (inv.status === 'unpaid' || inv.status === 'partial') r.due += Math.max(0, (inv.total || 0) - (inv.paid || 0))
+  }
   for (const p of payments) {
-    const r = row(p.patientId); r.paid += Number(p.amount) || 0
-    if ((p.amount || 0) > 0 && (!r.lastPayment || p.date > r.lastPayment)) r.lastPayment = p.date
+    const r = rows.get(p.patientId)
+    if (r && (p.amount || 0) > 0 && (!r.lastPayment || p.date > r.lastPayment)) r.lastPayment = p.date
   }
   const known = patients ? new Set(patients.map(p => p.id)) : null
   return [...rows.values()]
-    .map(r => ({ ...r, invoiced: round2(r.invoiced), paid: round2(r.paid), due: round2(r.invoiced - r.paid) }))
-    .filter(r => r.due > 0.004 && (!known || known.has(r.patientId)))
+    .map(r => ({ ...r, invoiced: r3(r.invoiced), paid: r3(r.paid), due: r3(r.due) }))
+    .filter(r => r.due > 0.0005 && (!known || known.has(r.patientId)))
     .sort((a, b) => b.due - a.due)
 }
-/** Σ of what patients owe (credits ignored). */
-export function outstandingTotal(invoices: InvLike[], payments: Pick<Payment, 'patientId' | 'amount' | 'date'>[]): { total: number; patients: number } {
-  const rows = outstandingByPatient(invoices, payments)
-  return { total: round2(rows.reduce((a, r) => a + r.due, 0)), patients: rows.length }
+/** Σ of what patients owe (credits ignored): the clinic's outstanding, from the open invoices alone. */
+export function outstandingTotal(invoices: InvLike[]): { total: number; patients: number } {
+  const rows = outstandingByPatient(invoices)
+  return { total: r3(rows.reduce((a, r) => a + r.due, 0)), patients: rows.length }
 }
 
 export interface Spender { patientId: string; paid: number; payments: number }
-/** Patients who paid the most in the given payments. */
-export function topSpenders(payments: Pick<Payment, 'patientId' | 'amount'>[], limit = 10): Spender[] {
-  const m = new Map<string, Spender>()
-  for (const p of payments) { const s = m.get(p.patientId) ?? { patientId: p.patientId, paid: 0, payments: 0 }; s.paid += Number(p.amount) || 0; s.payments++; m.set(p.patientId, s) }
-  return [...m.values()].map(s => ({ ...s, paid: round2(s.paid) })).filter(s => s.paid > 0.004).sort((a, b) => b.paid - a.paid).slice(0, limit)
+/** Patients who paid the most in the given payments (payments = hand-overs, see handoverKey). */
+export function topSpenders(payments: (Pick<Payment, 'patientId' | 'amount'> & Partial<Pick<Payment, 'receiptNo'>>)[], limit = 10): Spender[] {
+  const m = new Map<string, Spender & { keys: Set<string> }>()
+  payments.forEach((p, i) => {
+    const s = m.get(p.patientId) ?? { patientId: p.patientId, paid: 0, payments: 0, keys: new Set<string>() }
+    s.paid += Number(p.amount) || 0; s.keys.add(handoverKey(p, i)); m.set(p.patientId, s)
+  })
+  return [...m.values()].map(({ keys, ...s }) => ({ ...s, payments: keys.size, paid: r3(s.paid) })).filter(s => s.paid > 0.004).sort((a, b) => b.paid - a.paid).slice(0, limit)
 }
 
 // ---- patients -----------------------------------------------------------------------------------------
@@ -407,7 +428,7 @@ export function patientsSeen(apts: Pick<Appointment, 'patientId' | 'status'>[]):
 // ---- treatments ---------------------------------------------------------------------------------------
 
 type TrLike = Pick<TreatmentItem, 'id' | 'procedureName' | 'price' | 'discount' | 'status' | 'createdAt'> & Partial<Pick<TreatmentItem, 'procedureId' | 'completedAt' | 'doctorId'>>
-export const treatmentValue = (t: Pick<TreatmentItem, 'price' | 'discount'>) => round2(Math.max(0, (t.price || 0) - (t.discount || 0)))
+export const treatmentValue = (t: Pick<TreatmentItem, 'price' | 'discount'>) => r3(Math.max(0, (t.price || 0) - (t.discount || 0)))
 
 export interface ProcedureRank { key: string; procedureId?: string; name: string; count: number; value: number }
 /** Completed treatments grouped by procedure (or by name for free-text work), ranked by count or by value. */
@@ -420,7 +441,7 @@ export function topProcedures(treatments: TrLike[], { by = 'count', limit = 8 }:
     r.count++; r.value += treatmentValue(t)
     m.set(key, r)
   }
-  const list = [...m.values()].map(r => ({ ...r, value: round2(r.value) }))
+  const list = [...m.values()].map(r => ({ ...r, value: r3(r.value) }))
   list.sort(by === 'value' ? (a, b) => b.value - a.value || b.count - a.count : (a, b) => b.count - a.count || b.value - a.value)
   return list.slice(0, limit)
 }
@@ -441,12 +462,12 @@ export function overdueInvoices(invoices: InvLike[], today: ISODate, graceDays =
   let count = 0, total = 0
   for (const inv of invoices) {
     if (inv.status !== 'unpaid' && inv.status !== 'partial') continue
-    const due = round2((inv.total || 0) - (inv.paid || 0))
-    if (due <= 0.004) continue
+    const due = r3((inv.total || 0) - (inv.paid || 0))
+    if (due <= 0.0005) continue
     const late = inv.dueDate ? inv.dueDate < today : diffDays(inv.date, today) > graceDays
     if (late) { count++; total += due }
   }
-  return { count, total: round2(total) }
+  return { count, total: r3(total) }
 }
 export function lowStock<I extends Pick<InventoryItem, 'quantity' | 'minQuantity' | 'active'>>(items: I[]): I[] {
   return items.filter(i => i.active !== false && (i.quantity ?? 0) <= (i.minQuantity ?? 0))
@@ -464,6 +485,17 @@ export function unconfirmedTomorrow<A extends Pick<Appointment, 'date' | 'status
   const tomorrow = addDays(today, 1)
   return apts.filter(a => a.date === tomorrow && a.status === 'scheduled')
 }
+
+/** A backup older than this (or none at all) raises the dashboard alert, the same rule as Settings → Backup. */
+export const BACKUP_REMIND_DAYS = 7
+/** Whole days since the last backup; null = never backed up (or an unreadable date). */
+export function backupAgeDays(lastISO: string | null | undefined, now: Date): number | null {
+  if (!lastISO) return null
+  const at = new Date(lastISO).getTime()
+  return Number.isNaN(at) ? null : Math.max(0, Math.floor((now.getTime() - at) / 86_400_000))
+}
+/** Is a backup due? Never taken, or taken BACKUP_REMIND_DAYS or more days ago. */
+export const backupOverdue = (ageDays: number | null | undefined) => ageDays === null || (ageDays ?? 0) >= BACKUP_REMIND_DAYS
 
 /** The quick status steps offered on the dashboard for an appointment, most likely first. */
 export function nextStatuses(s: AppointmentStatus): AppointmentStatus[] {
@@ -490,7 +522,7 @@ export const greetingKey = (hour: number) => (hour >= 4 && hour < 12 ? 'goodMorn
 export function foldOther<T extends { value: number }>(list: T[], max: number, makeOther: (value: number, folded: T[]) => T): T[] {
   if (list.length <= max) return list
   const keep = list.slice(0, max - 1), rest = list.slice(max - 1)
-  return [...keep, makeOther(round2(rest.reduce((a, x) => a + x.value, 0)), rest)]
+  return [...keep, makeOther(r3(rest.reduce((a, x) => a + x.value, 0)), rest)]
 }
 
 // ---- CSV ----------------------------------------------------------------------------------------------

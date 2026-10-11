@@ -51,7 +51,9 @@ export interface CaseDef {
   /** Items of a plan that has no visits yet (a proposal, or one the patient turned down). */
   proposal?: StepItem[]
 }
-export interface CaseCtx { rng: Rng; age: number; gender: Gender; penicillinAllergy: boolean }
+export interface CaseCtx { rng: Rng; age: number; gender: Gender; penicillinAllergy: boolean; lang?: 'ar' | 'en' }
+/** The text of the clinic's language: the demo clinic writes its notes in the language it works in. */
+export const L = (c: Pick<CaseCtx, 'lang'>, ar: string, en: string) => (c.lang === 'en' ? en : ar)
 
 // ---- teeth ------------------------------------------------------------------------------------------
 export const MOLARS = [36, 46, 16, 26, 37, 47, 17, 27]
@@ -68,33 +70,34 @@ export function surfacesFor(rng: Rng, tooth: number): ToothSurface[] {
   return [...rng.pick(isAnterior(tooth) ? ANTERIOR_SURFACES : POSTERIOR_SURFACES)]
 }
 export function fillingCode(rng: Rng, tooth: number, surfaces: ToothSurface[]): string {
-  if (isPrimary(tooth)) return 'D2391P'
-  if (isAnterior(tooth)) return 'D2330'
-  if (surfaces.length === 1 && rng.chance(0.12)) return 'D2140'
-  return surfaces.length >= 4 ? 'D2394' : surfaces.length === 3 ? 'D2393' : surfaces.length === 2 ? 'D2392' : 'D2391'
+  if (isPrimary(tooth)) return 'child-filling'
+  if (isAnterior(tooth)) return 'comp-anterior'
+  if (surfaces.length === 1 && rng.chance(0.12)) return 'amalgam-1'
+  return surfaces.length >= 4 ? 'comp-4' : surfaces.length === 3 ? 'comp-3' : surfaces.length === 2 ? 'comp-2' : 'comp-1'
 }
-export const rctCode = (t: number) => (pos(t) >= 6 ? 'D3330' : pos(t) >= 4 ? 'D3320' : 'D3310')
-const listTeeth = (teeth: number[]) => teeth.join('، ')
+export const rctCode = (t: number) => (pos(t) >= 6 ? 'rct-molar' : pos(t) >= 4 ? 'rct-premolar' : 'rct-anterior')
+const listTeeth = (teeth: number[], c?: Pick<CaseCtx, 'lang'>) => teeth.join(c?.lang === 'en' ? ', ' : '، ')
 const g = (c: CaseCtx, male: string, female: string) => (c.gender === 'female' ? female : male)
-const child = (c: CaseCtx) => g(c, 'الطفل', 'الطفلة')
-const pt = (c: CaseCtx) => g(c, 'المريض', 'المريضة')
+const child = (c: CaseCtx) => L(c, g(c, 'الطفل', 'الطفلة'), 'The child')
+const pt = (c: CaseCtx) => L(c, g(c, 'المريض', 'المريضة'), 'The patient')
+const ptLow = (c: CaseCtx) => L(c, g(c, 'المريض', 'المريضة'), 'the patient')
 
 /** What a completed procedure leaves on the chart. */
 export function effectOf(code: string, tooth?: number, surfaces?: ToothSurface[]): Finding | null {
   if (!tooth) return null
   switch (code) {
-    case 'D2391': case 'D2392': case 'D2393': case 'D2394': case 'D2330': case 'D2140': case 'D2941': case 'D2391P': case 'D2335':
+    case 'comp-1': case 'comp-2': case 'comp-3': case 'comp-4': case 'comp-anterior': case 'amalgam-1': case 'gic': case 'child-filling': case 'diastema':
       return { tooth, condition: 'filled', surfaces: surfaces?.length ? surfaces : ['O'] }
-    case 'D3310': case 'D3320': case 'D3330': case 'D3348': case 'D3220': case 'D3240':
+    case 'rct-anterior': case 'rct-premolar': case 'rct-molar': case 'rct-retreat': case 'pulpotomy': case 'pulpectomy':
       return { tooth, condition: 'root_canal' }
-    case 'D2740': case 'D2740E': case 'D2750': case 'D2930': case 'D6058':
+    case 'crown-zirconia': case 'crown-emax': case 'crown-pfm': case 'ssc': case 'implant-crown':
       return { tooth, condition: 'crown' }
-    case 'D6245': return { tooth, condition: 'bridge' }
-    case 'D7140': case 'D7210': case 'D7240': case 'D7250': case 'D7111':
+    case 'bridge-zirconia': return { tooth, condition: 'bridge' }
+    case 'ext-simple': case 'ext-surgical': case 'ext-wisdom': case 'ext-root': case 'child-ext':
       return { tooth, condition: 'missing' }
-    case 'D6010': case 'D6010P': return { tooth, condition: 'implant' }
-    case 'D1351': return { tooth, condition: 'sealant', surfaces: ['O'] }
-    case 'D2962': case 'D2961': return { tooth, condition: 'veneer' }
+    case 'implant': case 'implant-premium': return { tooth, condition: 'implant' }
+    case 'sealant': return { tooth, condition: 'sealant', surfaces: ['O'] }
+    case 'veneer-porcelain': case 'veneer-composite': return { tooth, condition: 'veneer' }
     default: return null
   }
 }
@@ -104,17 +107,18 @@ export function effectOf(code: string, tooth?: number, surfaces?: ToothSurface[]
 /** A routine check-up and cleaning: one visit, no plan. */
 export function checkupCase(c: CaseCtx): CaseDef {
   const kid = c.age < 13
-  const items: StepItem[] = kid ? [{ code: 'D0145' }, { code: 'D1120' }, { code: 'D1206' }] : [{ code: 'D0120' }, { code: 'D1110' }]
-  if (!kid && c.rng.chance(0.35)) items.push({ code: 'D0274' })
+  const items: StepItem[] = kid ? [{ code: 'child-exam' }, { code: 'child-cleaning' }, { code: 'fluoride-varnish' }] : [{ code: 'exam-periodic' }, { code: 'scaling' }]
+  if (!kid && c.rng.chance(0.35)) items.push({ code: 'xray-bitewing' })
   const note = kid
-    ? `فحص دوري: ${child(c)} ${g(c, 'متعاون', 'متعاونة')}، لا توجد نخور جديدة. تنظيف وتطبيق فلورايد، وإرشادات للأهل حول التفريش والسكريات.`
-    : c.rng.pick([
-      'فحص دوري: لا توجد نخور جديدة. تقليح وتلميع وإرشادات للعناية الفموية.',
-      'فحص دوري: ترسبات قلحية خفيفة على الأسنان الأمامية السفلية. تقليح وتلميع. المراجعة بعد 6 أشهر.',
-      'فحص دوري وتنظيف. اللثة سليمة. يُنصح باستعمال الخيط يومياً.',
-    ])
+    ? L(c, `فحص دوري: ${child(c)} ${g(c, 'متعاون', 'متعاونة')}، لا توجد نخور جديدة. تنظيف وتطبيق فلورايد، وإرشادات للأهل حول التفريش والسكريات.`,
+      'Routine check-up: the child was cooperative, no new caries. Cleaning and fluoride varnish; brushing and sugar advice for the parents.')
+    : L(c, ...c.rng.pick<[string, string]>([
+      ['فحص دوري: لا توجد نخور جديدة. تقليح وتلميع وإرشادات للعناية الفموية.', 'Routine check-up: no new caries. Scaling, polishing and oral hygiene advice.'],
+      ['فحص دوري: ترسبات قلحية خفيفة على الأسنان الأمامية السفلية. تقليح وتلميع. المراجعة بعد 6 أشهر.', 'Routine check-up: light calculus on the lower front teeth. Scaling and polishing. Recall in 6 months.'],
+      ['فحص دوري وتنظيف. اللثة سليمة. يُنصح باستعمال الخيط يومياً.', 'Check-up and cleaning. Healthy gums. Daily flossing advised.'],
+    ]))
   const cleaning = !kid && c.rng.chance(0.4)
-  const reason = kid ? 'فحص دوري للطفل' : cleaning ? 'تنظيف وتلميع' : c.rng.pick(['فحص دوري وتنظيف', 'مراجعة دورية'])
+  const reason = kid ? L(c, 'فحص دوري للطفل', 'Child check-up') : cleaning ? L(c, 'تنظيف وتلميع', 'Scaling and polishing') : L(c, ...c.rng.pick<[string, string]>([['فحص دوري وتنظيف', 'Check-up and cleaning'], ['مراجعة دورية', 'Routine review']]))
   return { key: 'checkup', doctor: 'general', findings: [], steps: [{ type: cleaning ? 'cleaning' : 'checkup', reason, items, note }] }
 }
 
@@ -124,15 +128,15 @@ export function consultCase(c: CaseCtx): CaseDef {
   const v = c.rng.int(0, 2)
   if (v === 0) return {
     key: 'consult', doctor: 'general', findings: [],
-    steps: [{ type: 'consultation', reason: 'استشارة', items: [{ code: 'D9310' }, { code: 'D0330' }], note: `${pt(c)} ${g(c, 'يرغب', 'ترغب')} بتقييم عام للأسنان. أُخذت صورة بانورامية ونوقشت الخيارات العلاجية.` }],
+    steps: [{ type: 'consultation', reason: L(c, 'استشارة', 'Consultation'), items: [{ code: 'consult' }, { code: 'xray-opg' }], note: L(c, `${pt(c)} ${g(c, 'يرغب', 'ترغب')} بتقييم عام للأسنان. أُخذت صورة بانورامية ونوقشت الخيارات العلاجية.`, 'The patient asked for a general dental assessment. A panoramic X-ray was taken and the treatment options discussed.') }],
   }
   if (v === 1) return {
     key: 'consult', doctor: 'general', findings: [],
-    steps: [{ type: 'consultation', reason: `حساسية في السن ${t}`, items: [{ code: 'D0140' }, { code: 'D0220', tooth: t }, { code: 'D9910' }], rx: 'sensitivity', note: `حساسية على البارد في السن ${t} بسبب انحسار لثوي خفيف. طُبّق مزيل للحساسية ووُصف معجون مناسب.` }],
+    steps: [{ type: 'consultation', reason: L(c, `حساسية في السن ${t}`, `Sensitivity, tooth ${t}`), items: [{ code: 'exam-emergency' }, { code: 'xray-pa', tooth: t }, { code: 'desensitize' }], rx: 'sensitivity', note: L(c, `حساسية على البارد في السن ${t} بسبب انحسار لثوي خفيف. طُبّق مزيل للحساسية ووُصف معجون مناسب.`, `Cold sensitivity on tooth ${t} from mild gum recession. Desensitiser applied and a suitable toothpaste prescribed.`) }],
   }
   return {
     key: 'consult', doctor: 'general', findings: [],
-    steps: [{ type: 'emergency', reason: 'قرحة فموية مؤلمة', items: [{ code: 'D0140' }], rx: 'aphthous', diagnosis: 'قرحة قلاعية', note: 'قرحة قلاعية على الغشاء المخاطي للشفة السفلية. لا علامات خطورة. وُصف معجون موضعي وغسول.' }],
+    steps: [{ type: 'emergency', reason: L(c, 'قرحة فموية مؤلمة', 'Painful mouth ulcer'), items: [{ code: 'exam-emergency' }], rx: 'aphthous', diagnosis: L(c, 'قرحة قلاعية', 'Aphthous ulcer'), note: L(c, 'قرحة قلاعية على الغشاء المخاطي للشفة السفلية. لا علامات خطورة. وُصف معجون موضعي وغسول.', 'Aphthous ulcer on the lower lip mucosa. No warning signs. Topical paste and mouthwash prescribed.') }],
   }
 }
 
@@ -143,39 +147,41 @@ export function fillingsCase(c: CaseCtx): CaseDef {
   const plan = teeth.map(t => { const s = surfacesFor(c.rng, t); return { t, s, code: fillingCode(c.rng, t, s) } })
   const first = plan.slice(0, Math.ceil(n / 2)), second = plan.slice(Math.ceil(n / 2))
   const steps: StepDef[] = [
-    { type: 'checkup', reason: 'فحص شامل', items: [{ code: 'D0150' }, { code: 'D0274' }, ...(c.rng.chance(0.5) ? [{ code: 'D1110' }] : [])], gap: [3, 10],
-      note: `فحص شامل وصور مجنّحة: نخور على الأسنان ${listTeeth(teeth)}. الخطة: حشوات تجميلية على ${second.length ? 'جلستين' : 'جلسة واحدة'}.` },
-    { type: 'treatment', reason: `حشوات — ${listTeeth(first.map(x => x.t))}`, items: first.map(x => ({ code: x.code, tooth: x.t, surfaces: x.s })), gap: [5, 14],
-      note: `حشوات كومبوزيت للأسنان ${listTeeth(first.map(x => x.t))} مع عزل بالقطن ومادة رابطة. الإطباق مضبوط.` },
+    { type: 'checkup', reason: L(c, 'فحص شامل', 'Full examination'), items: [{ code: 'exam-full' }, { code: 'xray-bitewing' }, ...(c.rng.chance(0.5) ? [{ code: 'scaling' }] : [])], gap: [3, 10],
+      note: L(c, `فحص شامل وصور مجنّحة: نخور على الأسنان ${listTeeth(teeth)}. الخطة: حشوات تجميلية على ${second.length ? 'جلستين' : 'جلسة واحدة'}.`,
+        `Full examination and bitewings: caries on teeth ${listTeeth(teeth, c)}. Plan: composite fillings over ${second.length ? 'two visits' : 'one visit'}.`) },
+    { type: 'treatment', reason: L(c, `حشوات — ${listTeeth(first.map(x => x.t))}`, `Fillings — ${listTeeth(first.map(x => x.t), c)}`), items: first.map(x => ({ code: x.code, tooth: x.t, surfaces: x.s })), gap: [5, 14],
+      note: L(c, `حشوات كومبوزيت للأسنان ${listTeeth(first.map(x => x.t))} مع عزل بالقطن ومادة رابطة. الإطباق مضبوط.`, `Composite fillings on teeth ${listTeeth(first.map(x => x.t), c)} with cotton-roll isolation and bonding. Occlusion checked.`) },
   ]
-  if (second.length) steps.push({ type: 'treatment', reason: `حشوات — ${listTeeth(second.map(x => x.t))}`, items: second.map(x => ({ code: x.code, tooth: x.t, surfaces: x.s })),
-    note: `حشوات للأسنان ${listTeeth(second.map(x => x.t))}. اكتملت الخطة الترميمية.` })
-  return { key: 'fillings', title: 'خطة ترميمية — حشوات تجميلية', doctor: 'general', steps, findings: plan.map(x => ({ tooth: x.t, condition: 'caries', surfaces: x.s })) }
+  if (second.length) steps.push({ type: 'treatment', reason: L(c, `حشوات — ${listTeeth(second.map(x => x.t))}`, `Fillings — ${listTeeth(second.map(x => x.t), c)}`), items: second.map(x => ({ code: x.code, tooth: x.t, surfaces: x.s })),
+    note: L(c, `حشوات للأسنان ${listTeeth(second.map(x => x.t))}. اكتملت الخطة الترميمية.`, `Fillings on teeth ${listTeeth(second.map(x => x.t), c)}. Restorative plan completed.`) })
+  return { key: 'fillings', title: L(c, 'خطة ترميمية — حشوات تجميلية', 'Restorative plan — composite fillings'), doctor: 'general', steps, findings: plan.map(x => ({ tooth: x.t, condition: 'caries', surfaces: x.s })) }
 }
 
 /** Painful tooth → root canal over two visits → build-up and crown from the lab. */
 export function endoCrownCase(c: CaseCtx): CaseDef {
   const t = c.rng.weighted<number>([[36, 4], [46, 4], [16, 2], [26, 2], [37, 1], [47, 1], [14, 1], [25, 1], [35, 1]])
   const kind = c.rng.weighted<'zr' | 'emax' | 'pfm'>([['zr', 7], ['emax', 1.5], ['pfm', 1.5]])
-  const crown = kind === 'zr' ? 'D2740' : kind === 'emax' ? 'D2740E' : 'D2750'
-  const material = kind === 'zr' ? 'زيركون' : kind === 'emax' ? 'إيماكس' : 'خزف على معدن'
+  const crown = kind === 'zr' ? 'crown-zirconia' : kind === 'emax' ? 'crown-emax' : 'crown-pfm'
+  const material = kind === 'zr' ? L(c, 'زيركون', 'Zirconia') : kind === 'emax' ? L(c, 'إيماكس', 'e.max') : L(c, 'خزف على معدن', 'Porcelain fused to metal')
   const shade = c.rng.pick(['A1', 'A2', 'A2', 'A3', 'B1', 'A3.5'])
   const days = c.rng.int(2, 6)
   return {
-    key: 'endoCrown', title: `معالجة لبية وتاج للسن ${t}`, doctor: 'general',
+    key: 'endoCrown', title: L(c, `معالجة لبية وتاج للسن ${t}`, `Root canal and crown, tooth ${t}`), doctor: 'general',
     findings: [{ tooth: t, condition: 'caries', surfaces: ['O', 'D'] }, ...(c.rng.chance(0.35) ? [{ tooth: t, condition: 'abscess' as const }] : [])],
-    planNote: `التاج ${material}، اللون ${shade}.`,
+    planNote: L(c, `التاج ${material}، اللون ${shade}.`, `${material} crown, shade ${shade}.`),
     steps: [
-      { type: 'emergency', reason: `ألم شديد في السن ${t}`, items: [{ code: 'D0140' }, { code: 'D0220', tooth: t }, { code: rctCode(t), tooth: t, key: 'rct' }], gap: [4, 8], rx: 'endo',
-        diagnosis: `التهاب لب غير عكوس — السن ${t}`,
-        note: `${pt(c)} ${g(c, 'يشكو', 'تشكو')} من ألم ليلي نابض في السن ${t} منذ ${days} أيام يزداد مع البارد. الفحص: نخر عميق وألم على القرع. التشخيص: التهاب لب غير عكوس. فُتحت الحجرة اللبية ونُظّفت الأقنية ووُضع ضماد وحشوة مؤقتة.` },
-      { type: 'treatment', reason: `إكمال المعالجة اللبية — السن ${t}`, items: [{ code: rctCode(t), tooth: t, key: 'rct' }], gap: [5, 10],
-        note: `تحضير الأقنية آلياً وغسلها بالهيبوكلوريت وحشوها بالكوتا بيركا. الصورة الشعاعية النهائية مرضية. يحتاج السن ${t} إلى تاج.` },
-      { type: 'treatment', reason: `تحضير السن ${t} للتاج`, items: [{ code: 'D2950', tooth: t }, { code: crown, tooth: t, key: 'crown' }], gap: [7, 11],
+      { type: 'emergency', reason: L(c, `ألم شديد في السن ${t}`, `Severe pain, tooth ${t}`), items: [{ code: 'exam-emergency' }, { code: 'xray-pa', tooth: t }, { code: rctCode(t), tooth: t, key: 'rct' }], gap: [4, 8], rx: 'endo',
+        diagnosis: L(c, `التهاب لب غير عكوس — السن ${t}`, `Irreversible pulpitis — tooth ${t}`),
+        note: L(c, `${pt(c)} ${g(c, 'يشكو', 'تشكو')} من ألم ليلي نابض في السن ${t} منذ ${days} أيام يزداد مع البارد. الفحص: نخر عميق وألم على القرع. التشخيص: التهاب لب غير عكوس. فُتحت الحجرة اللبية ونُظّفت الأقنية ووُضع ضماد وحشوة مؤقتة.`,
+          `Throbbing night pain on tooth ${t} for ${days} days, worse with cold. Exam: deep caries, tender to percussion. Diagnosis: irreversible pulpitis. Access cavity, canals cleaned, dressing and temporary filling.`) },
+      { type: 'treatment', reason: L(c, `إكمال المعالجة اللبية — السن ${t}`, `Root canal completion — tooth ${t}`), items: [{ code: rctCode(t), tooth: t, key: 'rct' }], gap: [5, 10],
+        note: L(c, `تحضير الأقنية آلياً وغسلها بالهيبوكلوريت وحشوها بالكوتا بيركا. الصورة الشعاعية النهائية مرضية. يحتاج السن ${t} إلى تاج.`, `Rotary canal preparation, hypochlorite irrigation and gutta-percha obturation. Final X-ray satisfactory. Tooth ${t} needs a crown.`) },
+      { type: 'treatment', reason: L(c, `تحضير السن ${t} للتاج`, `Crown preparation, tooth ${t}`), items: [{ code: 'core-buildup', tooth: t }, { code: crown, tooth: t, key: 'crown' }], gap: [7, 11],
         lab: { type: 'crown', teeth: [t], fitStep: 3, item: 'crown', lab: kind === 'pfm' ? LABS.prosth : LABS.digital, material, shade, cost: kind === 'emax' ? 85 : kind === 'zr' ? 70 : 45, days: [6, 9] },
-        note: `بناء الجذع بالكومبوزيت وتحضير السن ${t} للتاج. طبعة سيليكون، اللون ${shade}. تاج مؤقت.` },
-      { type: 'treatment', reason: `تركيب التاج — السن ${t}`, items: [{ code: crown, tooth: t, key: 'crown' }],
-        note: `تجربة التاج: الحواف والتماسات جيدة والإطباق مضبوط. إلصاق نهائي بالإسمنت.` },
+        note: L(c, `بناء الجذع بالكومبوزيت وتحضير السن ${t} للتاج. طبعة سيليكون، اللون ${shade}. تاج مؤقت.`, `Composite core build-up and crown preparation on tooth ${t}. Silicone impression, shade ${shade}. Temporary crown.`) },
+      { type: 'treatment', reason: L(c, `تركيب التاج — السن ${t}`, `Crown fitting — tooth ${t}`), items: [{ code: crown, tooth: t, key: 'crown' }],
+        note: L(c, `تجربة التاج: الحواف والتماسات جيدة والإطباق مضبوط. إلصاق نهائي بالإسمنت.`, 'Crown try-in: margins and contacts good, occlusion adjusted. Final cementation.') },
     ],
   }
 }
@@ -184,20 +190,20 @@ export function endoCrownCase(c: CaseCtx): CaseDef {
 export function implantCase(c: CaseCtx): CaseDef {
   const t = c.rng.pick([36, 46, 46, 16, 26, 35, 45, 15, 25])
   const premium = c.rng.chance(0.3)
-  const brand = c.rng.pick(['Straumann ‏4.1×10 مم', 'Nobel ‏4.3×11.5 مم', 'Osstem ‏4.5×10 مم', 'MIS ‏4.2×11.5 مم'])
+  const brand = c.rng.pick(['Straumann ‏4.1×10 مم', 'Nobel ‏4.3×11.5 مم', 'Osstem ‏4.5×10 مم', 'MIS ‏4.2×11.5 مم']).replace(' مم', c.lang === 'en' ? ' mm' : ' مم')
   return {
-    key: 'implant', title: `زراعة سن مكان السن ${t}`, doctor: 'surgery', long: true,
+    key: 'implant', title: L(c, `زراعة سن مكان السن ${t}`, `Implant replacing tooth ${t}`), doctor: 'surgery', long: true,
     findings: [{ tooth: t, condition: 'missing' }],
-    planNote: 'الكلفة والمراحل مشروحة، والتاج بعد 3 أشهر من الزرع.',
+    planNote: L(c, 'الكلفة والمراحل مشروحة، والتاج بعد 3 أشهر من الزرع.', 'Cost and stages explained; the crown follows 3 months after placement.'),
     steps: [
-      { type: 'consultation', reason: 'استشارة زراعة', items: [{ code: 'D9310' }, { code: 'D0367' }], gap: [7, 20],
-        note: `فقد السن ${t} منذ سنوات. التصوير المقطعي: عرض العظم ${c.rng.pick(['6.5', '7', '7.5', '8'])} مم وارتفاعه كافٍ. الخطة: زرعة ثم تاج زيركون بعد 3 أشهر.` },
-      { type: 'surgery', reason: `زرع غرسة مكان السن ${t}`, items: [{ code: premium ? 'D6010P' : 'D6010', tooth: t }], gap: [75, 95], rx: 'implant', diagnosis: `فقد السن ${t}`,
-        note: `زرع غرسة ${brand} مكان السن ${t} تحت تخدير موضعي. ثبات أولي ممتاز. خياطة وإرشادات ما بعد الجراحة.` },
-      { type: 'treatment', reason: 'كشف الزرعة وأخذ الطبعة', items: [{ code: 'D6011', tooth: t }, { code: 'D6058', tooth: t, key: 'icrown' }], gap: [10, 14],
-        lab: { type: 'implant_crown', teeth: [t], fitStep: 3, item: 'icrown', lab: LABS.digital, material: 'زيركون على دعامة تيتانيوم', shade: c.rng.pick(['A2', 'A3']), cost: 110, days: [8, 11] },
-        note: 'الاندماج العظمي جيد. كشف الزرعة وتركيب دعامة الشفاء وأخذ طبعة بالنقل.' },
-      { type: 'treatment', reason: 'تركيب التاج على الزرعة', items: [{ code: 'D6058', tooth: t, key: 'icrown' }], note: 'تركيب التاج على الزرعة وشدّ البرغي 35 نيوتن.سم. الإطباق مضبوط.' },
+      { type: 'consultation', reason: L(c, 'استشارة زراعة', 'Implant consultation'), items: [{ code: 'consult' }, { code: 'cbct' }], gap: [7, 20],
+        note: ((w: string) => L(c, `فقد السن ${t} منذ سنوات. التصوير المقطعي: عرض العظم ${w} مم وارتفاعه كافٍ. الخطة: زرعة ثم تاج زيركون بعد 3 أشهر.`, `Tooth ${t} lost years ago. CBCT: bone width ${w} mm, height sufficient. Plan: implant, then a zirconia crown after 3 months.`))(c.rng.pick(['6.5', '7', '7.5', '8'])) },
+      { type: 'surgery', reason: L(c, `زرع غرسة مكان السن ${t}`, `Implant placement, tooth ${t}`), items: [{ code: premium ? 'implant-premium' : 'implant', tooth: t }], gap: [75, 95], rx: 'implant', diagnosis: L(c, `فقد السن ${t}`, `Missing tooth ${t}`),
+        note: L(c, `زرع غرسة ${brand} مكان السن ${t} تحت تخدير موضعي. ثبات أولي ممتاز. خياطة وإرشادات ما بعد الجراحة.`, `${brand} implant placed at tooth ${t} under local anaesthesia. Excellent primary stability. Sutures and post-operative instructions.`) },
+      { type: 'treatment', reason: L(c, 'كشف الزرعة وأخذ الطبعة', 'Implant uncovering and impression'), items: [{ code: 'implant-uncover', tooth: t }, { code: 'implant-crown', tooth: t, key: 'icrown' }], gap: [10, 14],
+        lab: { type: 'implant_crown', teeth: [t], fitStep: 3, item: 'icrown', lab: LABS.digital, material: L(c, 'زيركون على دعامة تيتانيوم', 'Zirconia on a titanium abutment'), shade: c.rng.pick(['A2', 'A3']), cost: 110, days: [8, 11] },
+        note: L(c, 'الاندماج العظمي جيد. كشف الزرعة وتركيب دعامة الشفاء وأخذ طبعة بالنقل.', 'Good osseointegration. Implant uncovered, healing abutment placed and transfer impression taken.') },
+      { type: 'treatment', reason: L(c, 'تركيب التاج على الزرعة', 'Implant crown fitting'), items: [{ code: 'implant-crown', tooth: t, key: 'icrown' }], note: L(c, 'تركيب التاج على الزرعة وشدّ البرغي 35 نيوتن.سم. الإطباق مضبوط.', 'Implant crown fitted, screw torqued to 35 Ncm. Occlusion adjusted.') },
     ],
   }
 }
@@ -206,14 +212,14 @@ export function implantCase(c: CaseCtx): CaseDef {
 export function wisdomCase(c: CaseCtx): CaseDef {
   const t = c.rng.pick([38, 48])
   return {
-    key: 'wisdom', title: `قلع جراحي لضرس العقل ${t}`, doctor: 'surgery',
+    key: 'wisdom', title: L(c, `قلع جراحي لضرس العقل ${t}`, `Surgical removal of wisdom tooth ${t}`), doctor: 'surgery',
     findings: [{ tooth: t, condition: 'impacted' }],
     steps: [
-      { type: 'consultation', reason: `ألم خلف الأضراس — السن ${t}`, items: [{ code: 'D9310' }, { code: 'D0330' }], gap: [3, 10],
-        note: `التهاب متكرر حول ضرس العقل ${t}. الصورة البانورامية: انطمار أفقي جزئي. الخطة: قلع جراحي.` },
-      { type: 'surgery', reason: `قلع ضرس العقل ${t}`, items: [{ code: 'D7240', tooth: t }], gap: [7, 8], rx: 'surgery', diagnosis: `ضرس عقل منطمر — السن ${t}`,
-        note: `قلع جراحي للسن ${t} مع إزالة عظم وتقسيم السن. خياطة بخيوط 3-0. وُصف مضاد حيوي ومسكن وكمادات باردة.` },
-      { type: 'followup', reason: 'مراجعة وفك القطب', items: [{ code: 'D9930' }], note: 'شفاء جيد دون علامات التهاب. فُكّت القطب.' },
+      { type: 'consultation', reason: L(c, `ألم خلف الأضراس — السن ${t}`, `Pain behind the molars — tooth ${t}`), items: [{ code: 'consult' }, { code: 'xray-opg' }], gap: [3, 10],
+        note: L(c, `التهاب متكرر حول ضرس العقل ${t}. الصورة البانورامية: انطمار أفقي جزئي. الخطة: قلع جراحي.`, `Recurrent pericoronitis around wisdom tooth ${t}. Panoramic X-ray: partial horizontal impaction. Plan: surgical removal.`) },
+      { type: 'surgery', reason: L(c, `قلع ضرس العقل ${t}`, `Wisdom tooth removal, ${t}`), items: [{ code: 'ext-wisdom', tooth: t }], gap: [7, 8], rx: 'surgery', diagnosis: L(c, `ضرس عقل منطمر — السن ${t}`, `Impacted wisdom tooth — ${t}`),
+        note: L(c, `قلع جراحي للسن ${t} مع إزالة عظم وتقسيم السن. خياطة بخيوط 3-0. وُصف مضاد حيوي ومسكن وكمادات باردة.`, `Surgical removal of tooth ${t} with bone removal and sectioning. 3-0 sutures. Antibiotic, painkiller and cold compresses prescribed.`) },
+      { type: 'followup', reason: L(c, 'مراجعة وفك القطب', 'Review and suture removal'), items: [{ code: 'postop-review' }], note: L(c, 'شفاء جيد دون علامات التهاب. فُكّت القطب.', 'Good healing, no sign of infection. Sutures removed.') },
     ],
   }
 }
@@ -221,31 +227,35 @@ export function wisdomCase(c: CaseCtx): CaseDef {
 /** Fixed braces with monthly adjustments (orthodontist). */
 export function bracesCase(c: CaseCtx): CaseDef {
   const ceramic = c.rng.chance(c.age >= 18 ? 0.5 : 0.2)
-  const wires = ['NiTi ‏0.016', 'NiTi ‏0.018', 'NiTi ‏0.016×0.022', 'ستانلس ‏0.017×0.025', 'ستانلس ‏0.019×0.025 مع مطاط صنف II', 'ستانلس ‏0.019×0.025']
-  const issue = c.rng.pick(['سوء إطباق صنف II مع ازدحام أمامي', 'ازدحام شديد في الفك السفلي', 'عضة عميقة مع بروز الثنايا العلوية', 'تباعد بين الأسنان الأمامية'])
+  const wires = c.lang === 'en'
+    ? ['NiTi 0.016', 'NiTi 0.018', 'NiTi 0.016×0.022', 'stainless steel 0.017×0.025', 'stainless steel 0.019×0.025 with class II elastics', 'stainless steel 0.019×0.025']
+    : ['NiTi ‏0.016', 'NiTi ‏0.018', 'NiTi ‏0.016×0.022', 'ستانلس ‏0.017×0.025', 'ستانلس ‏0.019×0.025 مع مطاط صنف II', 'ستانلس ‏0.019×0.025']
+  const issue = L(c, ...c.rng.pick<[string, string]>([['سوء إطباق صنف II مع ازدحام أمامي', 'Class II malocclusion with anterior crowding'], ['ازدحام شديد في الفك السفلي', 'Severe lower crowding'],
+    ['عضة عميقة مع بروز الثنايا العلوية', 'Deep bite with proclined upper incisors'], ['تباعد بين الأسنان الأمامية', 'Spacing between the front teeth']]))
   const steps: StepDef[] = [
-    { type: 'consultation', reason: 'استشارة تقويم', items: [{ code: 'D8660' }, { code: 'D0330' }], gap: [7, 14],
-      note: `${issue}. أُخذت الطبعات والصور. الخطة: تقويم ثابت ${ceramic ? 'خزفي' : 'معدني'} للفكين لمدة 18–24 شهراً.` },
-    { type: 'orthodontic', reason: 'تركيب التقويم الثابت', items: [{ code: ceramic ? 'D8090C' : 'D8090' }], gap: [26, 34],
-      note: 'إلصاق الحاصرات على الفكين وتركيب سلك NiTi ‏0.014. شُرحت طريقة العناية بالتقويم والأطعمة الممنوعة.' },
+    { type: 'consultation', reason: L(c, 'استشارة تقويم', 'Orthodontic consultation'), items: [{ code: 'ortho-consult' }, { code: 'xray-opg' }], gap: [7, 14],
+      note: L(c, `${issue}. أُخذت الطبعات والصور. الخطة: تقويم ثابت ${ceramic ? 'خزفي' : 'معدني'} للفكين لمدة 18–24 شهراً.`, `${issue}. Impressions and photos taken. Plan: ${ceramic ? 'ceramic' : 'metal'} fixed braces on both arches for 18–24 months.`) },
+    { type: 'orthodontic', reason: L(c, 'تركيب التقويم الثابت', 'Fixed braces bonding'), items: [{ code: ceramic ? 'braces-ceramic' : 'braces-metal' }], gap: [26, 34],
+      note: L(c, 'إلصاق الحاصرات على الفكين وتركيب سلك NiTi ‏0.014. شُرحت طريقة العناية بالتقويم والأطعمة الممنوعة.', 'Brackets bonded on both arches, NiTi 0.014 wire placed. Brace care and foods to avoid explained.') },
   ]
-  for (const w of wires) steps.push({ type: 'orthodontic', reason: 'جلسة شد التقويم', items: [{ code: 'D8670' }], gap: [26, 34],
-    note: `تبديل السلك إلى ${w}. ${c.rng.pick([`التعاون جيد والصحة الفموية ممتازة.`, `${pt(c)} ${g(c, 'ملتزم', 'ملتزمة')} بالمطاط.`, 'التهاب لثة خفيف — تأكيد على التفريش.', 'التقدم ممتاز.'])}` })
-  return { key: 'braces', title: 'تقويم ثابت للفكين', doctor: 'ortho', long: true, findings: [], steps, planNote: 'الدفع على أقساط شهرية.' }
+  for (const w of wires) steps.push({ type: 'orthodontic', reason: L(c, 'جلسة شد التقويم', 'Brace adjustment'), items: [{ code: 'ortho-adjust' }], gap: [26, 34],
+    note: L(c, 'تبديل السلك إلى ', 'Wire changed to ') + w + '. ' + L(c, ...c.rng.pick<[string, string]>([[`التعاون جيد والصحة الفموية ممتازة.`, 'Good cooperation and excellent oral hygiene.'], [`${pt(c)} ${g(c, 'ملتزم', 'ملتزمة')} بالمطاط.`, 'Wearing the elastics as asked.'],
+      ['التهاب لثة خفيف — تأكيد على التفريش.', 'Mild gingivitis — brushing reinforced.'], ['التقدم ممتاز.', 'Excellent progress.']])) })
+  return { key: 'braces', title: L(c, 'تقويم ثابت للفكين', 'Fixed braces, both arches'), doctor: 'ortho', long: true, findings: [], steps, planNote: L(c, 'الدفع على أقساط شهرية.', 'Paid in monthly instalments.') }
 }
 
 /** Clear aligners (orthodontist, lab-made). */
-export function alignersCase(_c: CaseCtx): CaseDef {
+export function alignersCase(c: CaseCtx): CaseDef {
   return {
-    key: 'aligners', title: 'تقويم شفاف (Aligners)', doctor: 'ortho', long: true, findings: [],
+    key: 'aligners', title: L(c, 'تقويم شفاف (Aligners)', 'Clear aligners'), doctor: 'ortho', long: true, findings: [],
     steps: [
-      { type: 'consultation', reason: 'استشارة تقويم شفاف', items: [{ code: 'D8660' }, { code: 'D8090A', key: 'aligners' }], gap: [18, 24],
-        lab: { type: 'aligner', teeth: [], fitStep: 1, item: 'aligners', lab: LABS.ortho, material: 'قوالب شفافة — 20 مرحلة', cost: 450, days: [14, 18] },
-        note: 'ازدحام خفيف في الفكين. مسح رقمي وصور، وأُرسلت الخطة الرقمية إلى المخبر.' },
-      { type: 'orthodontic', reason: 'تسليم القوالب الشفافة', items: [{ code: 'D8090A', key: 'aligners' }], gap: [40, 50],
-        note: 'تسليم المجموعة الأولى من القوالب وإلصاق الأزرار. ارتداء 22 ساعة يومياً وتبديل القالب كل أسبوعين.' },
-      { type: 'orthodontic', reason: 'متابعة التقويم الشفاف', items: [{ code: 'D8670' }], gap: [40, 50], note: 'التتبع جيد. تسليم المجموعة الثانية.' },
-      { type: 'orthodontic', reason: 'متابعة التقويم الشفاف', items: [{ code: 'D8670' }], note: 'تقدم ممتاز وفق الخطة.' },
+      { type: 'consultation', reason: L(c, 'استشارة تقويم شفاف', 'Clear aligner consultation'), items: [{ code: 'ortho-consult' }, { code: 'aligners', key: 'aligners' }], gap: [18, 24],
+        lab: { type: 'aligner', teeth: [], fitStep: 1, item: 'aligners', lab: LABS.ortho, material: L(c, 'قوالب شفافة — 20 مرحلة', 'Clear aligners — 20 stages'), cost: 450, days: [14, 18] },
+        note: L(c, 'ازدحام خفيف في الفكين. مسح رقمي وصور، وأُرسلت الخطة الرقمية إلى المخبر.', 'Mild crowding on both arches. Digital scan and photos; the digital plan was sent to the lab.') },
+      { type: 'orthodontic', reason: L(c, 'تسليم القوالب الشفافة', 'Aligner delivery'), items: [{ code: 'aligners', key: 'aligners' }], gap: [40, 50],
+        note: L(c, 'تسليم المجموعة الأولى من القوالب وإلصاق الأزرار. ارتداء 22 ساعة يومياً وتبديل القالب كل أسبوعين.', 'First set of aligners delivered and attachments bonded. Wear 22 hours a day, change aligners every two weeks.') },
+      { type: 'orthodontic', reason: L(c, 'متابعة التقويم الشفاف', 'Aligner review'), items: [{ code: 'ortho-adjust' }], gap: [40, 50], note: L(c, 'التتبع جيد. تسليم المجموعة الثانية.', 'Good tracking. Second set delivered.') },
+      { type: 'orthodontic', reason: L(c, 'متابعة التقويم الشفاف', 'Aligner review'), items: [{ code: 'ortho-adjust' }], note: L(c, 'تقدم ممتاز وفق الخطة.', 'Excellent progress, on plan.') },
     ],
   }
 }
@@ -253,17 +263,17 @@ export function alignersCase(_c: CaseCtx): CaseDef {
 /** Porcelain veneers on the upper front teeth. */
 export function veneersCase(c: CaseCtx): CaseDef {
   const teeth = c.rng.chance(0.35) ? [13, 12, 11, 21, 22, 23] : [12, 11, 21, 22]
-  const items = teeth.map(t => ({ code: 'D2962', tooth: t, key: `v${t}` }))
+  const items = teeth.map(t => ({ code: 'veneer-porcelain', tooth: t, key: `v${t}` }))
   return {
-    key: 'veneers', title: 'تجميل الابتسامة — قشور خزفية', doctor: 'general',
+    key: 'veneers', title: L(c, 'تجميل الابتسامة — قشور خزفية', 'Smile makeover — porcelain veneers'), doctor: 'general',
     findings: teeth.filter(() => c.rng.chance(0.4)).map(t => ({ tooth: t, condition: 'filled' as const, surfaces: ['M'] as ToothSurface[] })),
     steps: [
-      { type: 'consultation', reason: 'استشارة تجميلية', items: [{ code: 'D9310' }, { code: 'DSD' }], gap: [7, 14],
-        note: `تصميم ابتسامة رقمي ومعاينة النتيجة مع ${pt(c)}. اختير اللون BL2 وعدد القشور ${teeth.length}.` },
-      { type: 'treatment', reason: 'تحضير القشور الخزفية', items, gap: [10, 14],
-        lab: { type: 'veneer', teeth, fitStep: 2, item: `v${teeth[0]}`, lab: LABS.digital, material: 'إيماكس', shade: 'BL2', cost: 90 * teeth.length, days: [8, 11] },
-        note: `تحضير محافظ للأسنان ${listTeeth(teeth)} وطبعة رقمية. قشور مؤقتة.` },
-      { type: 'treatment', reason: 'إلصاق القشور الخزفية', items, note: 'إلصاق القشور بإسمنت راتنجي ضوئي. النتيجة ممتازة.' },
+      { type: 'consultation', reason: L(c, 'استشارة تجميلية', 'Cosmetic consultation'), items: [{ code: 'consult' }, { code: 'smile-design' }], gap: [7, 14],
+        note: L(c, `تصميم ابتسامة رقمي ومعاينة النتيجة مع ${ptLow(c)}. اختير اللون BL2 وعدد القشور ${teeth.length}.`, `Digital smile design reviewed with the patient. Shade BL2, ${teeth.length} veneers.`) },
+      { type: 'treatment', reason: L(c, 'تحضير القشور الخزفية', 'Veneer preparation'), items, gap: [10, 14],
+        lab: { type: 'veneer', teeth, fitStep: 2, item: `v${teeth[0]}`, lab: LABS.digital, material: L(c, 'إيماكس', 'e.max'), shade: 'BL2', cost: 90 * teeth.length, days: [8, 11] },
+        note: L(c, `تحضير محافظ للأسنان ${listTeeth(teeth)} وطبعة رقمية. قشور مؤقتة.`, `Conservative preparation of teeth ${listTeeth(teeth, c)} and a digital impression. Temporary veneers.`) },
+      { type: 'treatment', reason: L(c, 'إلصاق القشور الخزفية', 'Veneer bonding'), items, note: L(c, 'إلصاق القشور بإسمنت راتنجي ضوئي. النتيجة ممتازة.', 'Veneers bonded with light-cured resin cement. Excellent result.') },
     ],
   }
 }
@@ -271,11 +281,12 @@ export function veneersCase(c: CaseCtx): CaseDef {
 export function whiteningCase(c: CaseCtx): CaseDef {
   const home = c.rng.chance(0.4)
   return {
-    key: 'whitening', title: 'تبييض الأسنان', doctor: 'general', findings: [],
+    key: 'whitening', title: L(c, 'تبييض الأسنان', 'Teeth whitening'), doctor: 'general', findings: [],
     steps: [
-      { type: 'cleaning', reason: 'تنظيف قبل التبييض', items: [{ code: 'D1110' }], gap: [5, 10], note: 'تقليح وتلميع قبل التبييض. اللون الحالي A3.' },
-      { type: 'treatment', reason: 'تبييض الأسنان', items: [{ code: 'D9972' }, ...(home ? [{ code: 'D9975' }] : [])], rx: c.rng.chance(0.5) ? 'sensitivity' : undefined,
-        note: `تبييض في العيادة على 3 جلسات × 15 دقيقة، وتغيّر اللون من A3 إلى B1${home ? '، مع قوالب منزلية للمتابعة' : ''}. تجنّب المشروبات الملوّنة 48 ساعة.` },
+      { type: 'cleaning', reason: L(c, 'تنظيف قبل التبييض', 'Cleaning before whitening'), items: [{ code: 'scaling' }], gap: [5, 10], note: L(c, 'تقليح وتلميع قبل التبييض. اللون الحالي A3.', 'Scaling and polishing before whitening. Current shade A3.') },
+      { type: 'treatment', reason: L(c, 'تبييض الأسنان', 'Teeth whitening'), items: [{ code: 'whitening-office' }, ...(home ? [{ code: 'whitening-home' }] : [])], rx: c.rng.chance(0.5) ? 'sensitivity' : undefined,
+        note: L(c, `تبييض في العيادة على 3 جلسات × 15 دقيقة، وتغيّر اللون من A3 إلى B1${home ? '، مع قوالب منزلية للمتابعة' : ''}. تجنّب المشروبات الملوّنة 48 ساعة.`,
+          `In-office whitening, 3 × 15-minute cycles, shade A3 to B1${home ? ', with home trays to follow' : ''}. Avoid coloured drinks for 48 hours.`) },
     ],
   }
 }
@@ -288,35 +299,37 @@ export function pediatricCase(c: CaseCtx): CaseDef {
   const sealants = c.age >= 6 ? [36, 46].filter(() => c.rng.chance(0.8)) : []
   const kid = child(c)
   const steps: StepDef[] = [
-    { type: 'checkup', reason: 'فحص أسنان الطفل', items: [{ code: 'D0145' }, { code: 'D1120' }, { code: 'D1206' }], gap: [5, 12],
-      note: `${kid} ${g(c, 'متعاون', 'متعاونة')}. نخر عميق في السن ${deep} ونخور في ${listTeeth(others)}. تطبيق فلورايد. الخطة: بتر لب وتاج ستانلس ستيل ثم حشوات.` },
-    { type: 'treatment', reason: `بتر لب السن ${deep}`, items: [{ code: 'D3220', tooth: deep }, { code: 'D2930', tooth: deep }], gap: [7, 14],
-      note: `بتر لب السن ${deep} تحت تخدير موضعي وتغطيته بتاج ستانلس ستيل. ${kid} ${g(c, 'تحمّل', 'تحمّلت')} الجلسة جيداً.` },
-    { type: 'treatment', reason: 'حشوات أسنان لبنية', items: [...fills.map(f => ({ code: 'D2391P', tooth: f.t, surfaces: f.s })), ...sealants.map(t => ({ code: 'D1351', tooth: t }))],
-      note: `حشوات للأسنان ${listTeeth(others)}${sealants.length ? ` وسادّ شقوق للأرحاء ${listTeeth(sealants)}` : ''}.` },
+    { type: 'checkup', reason: L(c, 'فحص أسنان الطفل', "Child's dental exam"), items: [{ code: 'child-exam' }, { code: 'child-cleaning' }, { code: 'fluoride-varnish' }], gap: [5, 12],
+      note: L(c, `${kid} ${g(c, 'متعاون', 'متعاونة')}. نخر عميق في السن ${deep} ونخور في ${listTeeth(others)}. تطبيق فلورايد. الخطة: بتر لب وتاج ستانلس ستيل ثم حشوات.`,
+        `Cooperative child. Deep caries on tooth ${deep} and caries on ${listTeeth(others, c)}. Fluoride varnish. Plan: pulpotomy and a stainless steel crown, then fillings.`) },
+    { type: 'treatment', reason: L(c, `بتر لب السن ${deep}`, `Pulpotomy, tooth ${deep}`), items: [{ code: 'pulpotomy', tooth: deep }, { code: 'ssc', tooth: deep }], gap: [7, 14],
+      note: L(c, `بتر لب السن ${deep} تحت تخدير موضعي وتغطيته بتاج ستانلس ستيل. ${kid} ${g(c, 'تحمّل', 'تحمّلت')} الجلسة جيداً.`, `Pulpotomy on tooth ${deep} under local anaesthesia, covered with a stainless steel crown. The child coped well.`) },
+    { type: 'treatment', reason: L(c, 'حشوات أسنان لبنية', 'Primary tooth fillings'), items: [...fills.map(f => ({ code: 'child-filling', tooth: f.t, surfaces: f.s })), ...sealants.map(t => ({ code: 'sealant', tooth: t }))],
+      note: L(c, `حشوات للأسنان ${listTeeth(others)}${sealants.length ? ` وسادّ شقوق للأرحاء ${listTeeth(sealants)}` : ''}.`, `Fillings on teeth ${listTeeth(others, c)}${sealants.length ? ` and fissure sealants on molars ${listTeeth(sealants, c)}` : ''}.`) },
   ]
   const findings: Finding[] = [{ tooth: deep, condition: 'caries', surfaces: ['O', 'D'] }, ...fills.map(f => ({ tooth: f.t, condition: 'caries' as const, surfaces: f.s }))]
   if (c.age >= 7 && c.rng.chance(0.6)) {
     const loose = c.rng.pick([71, 81, 72, 82])
     findings.push({ tooth: loose, condition: 'mobile' })
     steps[2].gap = [10, 20]
-    steps.push({ type: 'treatment', reason: `قلع سن لبني متحرك — ${loose}`, items: [{ code: 'D7111', tooth: loose }], note: `قلع السن اللبني ${loose} المتحرك لإفساح المجال للسن الدائم.` })
+    steps.push({ type: 'treatment', reason: L(c, `قلع سن لبني متحرك — ${loose}`, `Loose primary tooth extraction — ${loose}`), items: [{ code: 'child-ext', tooth: loose }], note: L(c, `قلع السن اللبني ${loose} المتحرك لإفساح المجال للسن الدائم.`, `Loose primary tooth ${loose} extracted to make room for the permanent tooth.`) })
   }
-  return { key: 'pediatric', title: 'علاج أسنان الطفل', doctor: 'general', steps, findings }
+  return { key: 'pediatric', title: L(c, 'علاج أسنان الطفل', "Child's dental treatment"), doctor: 'general', steps, findings }
 }
 
 export function perioCase(c: CaseCtx): CaseDef {
   const findings: Finding[] = c.age > 50 ? [{ tooth: 31, condition: 'mobile' }, { tooth: 41, condition: 'mobile' }] : []
   return {
-    key: 'perio', title: 'علاج اللثة — تجريف وتسوية جذور', doctor: 'general', long: true, findings,
+    key: 'perio', title: L(c, 'علاج اللثة — تجريف وتسوية جذور', 'Gum treatment — scaling and root planing'), doctor: 'general', long: true, findings,
     steps: [
-      { type: 'checkup', reason: 'نزف لثوي', items: [{ code: 'D0150' }, { code: 'D0330' }], gap: [5, 10],
-        note: `نزف عند التفريش ورائحة فم. جيوب لثوية 4–6 مم في المناطق الخلفية. التشخيص: التهاب نسج داعمة مزمن. الخطة: تجريف وتسوية جذور على جلستين.` },
-      { type: 'treatment', reason: 'تجريف الفك العلوي', items: [{ code: 'D4341', label: 'الربع العلوي الأيمن' }, { code: 'D4341', label: 'الربع العلوي الأيسر' }], gap: [7, 14], rx: 'perio',
-        note: 'تجريف وتسوية جذور للربعين العلويين تحت تخدير موضعي. إرشادات التفريش والخيط.' },
-      { type: 'treatment', reason: 'تجريف الفك السفلي', items: [{ code: 'D4341', label: 'الربع السفلي الأيسر' }, { code: 'D4341', label: 'الربع السفلي الأيمن' }], gap: [60, 90],
-        note: 'تجريف وتسوية جذور للربعين السفليين. تحسّن واضح في الفك العلوي.' },
-      { type: 'checkup', reason: 'صيانة لثوية', items: [{ code: 'D4910' }], note: 'الجيوب تراجعت إلى 3 مم. صيانة لثوية كل 3 أشهر.' },
+      { type: 'checkup', reason: L(c, 'نزف لثوي', 'Bleeding gums'), items: [{ code: 'exam-full' }, { code: 'xray-opg' }], gap: [5, 10],
+        note: L(c, `نزف عند التفريش ورائحة فم. جيوب لثوية 4–6 مم في المناطق الخلفية. التشخيص: التهاب نسج داعمة مزمن. الخطة: تجريف وتسوية جذور على جلستين.`,
+          'Bleeding on brushing and bad breath. 4–6 mm pockets in the posterior areas. Diagnosis: chronic periodontitis. Plan: scaling and root planing over two visits.') },
+      { type: 'treatment', reason: L(c, 'تجريف الفك العلوي', 'Upper jaw root planing'), items: [{ code: 'srp-quadrant', label: L(c, 'الربع العلوي الأيمن', 'upper right quadrant') }, { code: 'srp-quadrant', label: L(c, 'الربع العلوي الأيسر', 'upper left quadrant') }], gap: [7, 14], rx: 'perio',
+        note: L(c, 'تجريف وتسوية جذور للربعين العلويين تحت تخدير موضعي. إرشادات التفريش والخيط.', 'Scaling and root planing of both upper quadrants under local anaesthesia. Brushing and flossing instructions.') },
+      { type: 'treatment', reason: L(c, 'تجريف الفك السفلي', 'Lower jaw root planing'), items: [{ code: 'srp-quadrant', label: L(c, 'الربع السفلي الأيسر', 'lower left quadrant') }, { code: 'srp-quadrant', label: L(c, 'الربع السفلي الأيمن', 'lower right quadrant') }], gap: [60, 90],
+        note: L(c, 'تجريف وتسوية جذور للربعين السفليين. تحسّن واضح في الفك العلوي.', 'Scaling and root planing of both lower quadrants. Clear improvement in the upper jaw.') },
+      { type: 'checkup', reason: L(c, 'صيانة لثوية', 'Periodontal maintenance'), items: [{ code: 'perio-maint' }], note: L(c, 'الجيوب تراجعت إلى 3 مم. صيانة لثوية كل 3 أشهر.', 'Pockets down to 3 mm. Periodontal maintenance every 3 months.') },
     ],
   }
 }
@@ -326,17 +339,17 @@ export function bridgeCase(c: CaseCtx): CaseDef {
   const pontic = c.rng.pick([36, 46, 25, 15, 35, 45])
   const units = [pontic - 1, pontic, pontic + 1]
   const shade = c.rng.pick(['A2', 'A3'])
-  const items = units.map(t => ({ code: 'D6245', tooth: t, key: `b${t}` }))
+  const items = units.map(t => ({ code: 'bridge-zirconia', tooth: t, key: `b${t}` }))
   return {
-    key: 'bridge', title: `جسر ثابت ${units[0]}–${units[2]}`, doctor: 'general',
+    key: 'bridge', title: L(c, `جسر ثابت ${units[0]}–${units[2]}`, `Fixed bridge ${units[0]}–${units[2]}`), doctor: 'general',
     findings: [{ tooth: pontic, condition: 'missing' }, { tooth: units[0], condition: 'filled', surfaces: ['O', 'D'] }],
     steps: [
-      { type: 'consultation', reason: `تعويض السن ${pontic}`, items: [{ code: 'D9310' }, { code: 'D0330' }], gap: [5, 12],
-        note: `فقد السن ${pontic} منذ سنوات. ${pt(c)} لا ${g(c, 'يرغب', 'ترغب')} بالزرع. الخطة: جسر زيركون ثلاثي الوحدات ${units[0]}–${units[2]}.` },
-      { type: 'treatment', reason: 'تحضير دعامتي الجسر', items, gap: [8, 12],
-        lab: { type: 'bridge', teeth: units, fitStep: 2, item: `b${units[0]}`, lab: LABS.digital, material: 'زيركون', shade, cost: 210, days: [8, 11] },
-        note: `تحضير السنين ${units[0]} و${units[2]} وطبعة سيليكون، اللون ${shade}. جسر مؤقت.` },
-      { type: 'treatment', reason: 'تركيب الجسر', items, note: 'تجربة الجسر وإلصاقه نهائياً. شُرح استعمال خيط الجسور.' },
+      { type: 'consultation', reason: L(c, `تعويض السن ${pontic}`, `Replacing tooth ${pontic}`), items: [{ code: 'consult' }, { code: 'xray-opg' }], gap: [5, 12],
+        note: L(c, `فقد السن ${pontic} منذ سنوات. ${pt(c)} لا ${g(c, 'يرغب', 'ترغب')} بالزرع. الخطة: جسر زيركون ثلاثي الوحدات ${units[0]}–${units[2]}.`, `Tooth ${pontic} lost years ago. The patient does not want an implant. Plan: three-unit zirconia bridge ${units[0]}–${units[2]}.`) },
+      { type: 'treatment', reason: L(c, 'تحضير دعامتي الجسر', 'Bridge abutment preparation'), items, gap: [8, 12],
+        lab: { type: 'bridge', teeth: units, fitStep: 2, item: `b${units[0]}`, lab: LABS.digital, material: L(c, 'زيركون', 'Zirconia'), shade, cost: 210, days: [8, 11] },
+        note: L(c, `تحضير السنين ${units[0]} و${units[2]} وطبعة سيليكون، اللون ${shade}. جسر مؤقت.`, `Teeth ${units[0]} and ${units[2]} prepared, silicone impression, shade ${shade}. Temporary bridge.`) },
+      { type: 'treatment', reason: L(c, 'تركيب الجسر', 'Bridge fitting'), items, note: L(c, 'تجربة الجسر وإلصاقه نهائياً. شُرح استعمال خيط الجسور.', 'Bridge tried in and permanently cemented. Use of bridge floss explained.') },
     ],
   }
 }
@@ -344,18 +357,18 @@ export function bridgeCase(c: CaseCtx): CaseDef {
 export function dentureCase(c: CaseCtx): CaseDef {
   const upper = c.rng.chance(0.6)
   const arch = upper ? [17, 16, 15, 14, 13, 12, 11, 21, 22, 23, 24, 25, 26, 27] : [47, 46, 45, 44, 43, 42, 41, 31, 32, 33, 34, 35, 36, 37]
-  const label = upper ? 'علوي' : 'سفلي'
+  const label = upper ? L(c, 'علوي', 'upper') : L(c, 'سفلي', 'lower')
   return {
-    key: 'denture', title: `طقم كامل ${label}`, doctor: 'general',
+    key: 'denture', title: L(c, `طقم كامل ${label}`, `Complete ${label} denture`), doctor: 'general',
     findings: arch.map(t => ({ tooth: t, condition: 'missing' as const })),
     steps: [
-      { type: 'consultation', reason: `طقم ${label}`, items: [{ code: 'D0150' }, { code: 'D0330' }], gap: [5, 10], note: `فقد كامل للأسنان في الفك ${label}. الخطة: طقم كامل أكريلي.` },
-      { type: 'treatment', reason: 'طبعات الطقم', items: [{ code: 'D5110', key: 'dent', label }], gap: [6, 9],
-        lab: { type: 'denture_full', teeth: [], fitStep: 3, item: 'dent', lab: LABS.prosth, material: 'أكريل حراري', shade: 'A3', cost: 120, days: [14, 18] },
-        note: 'طبعات أولية ونهائية بالحواف الوظيفية.' },
-      { type: 'treatment', reason: 'تجربة الأسنان', items: [{ code: 'D5110', key: 'dent', label }], gap: [6, 9], note: 'تسجيل العلاقة الفكية وتجربة الأسنان على الشمع. المظهر مقبول.' },
-      { type: 'treatment', reason: 'تسليم الطقم', items: [{ code: 'D5110', key: 'dent', label }], gap: [5, 8], note: 'تسليم الطقم وشرح طريقة الاستعمال والتنظيف.' },
-      { type: 'followup', reason: 'تعديل الطقم', items: [{ code: 'D5410' }], note: 'تعديل نقاط ضغط بسيطة. الثبات جيد.' },
+      { type: 'consultation', reason: L(c, `طقم ${label}`, `${upper ? 'Upper' : 'Lower'} denture`), items: [{ code: 'exam-full' }, { code: 'xray-opg' }], gap: [5, 10], note: L(c, `فقد كامل للأسنان في الفك ${label}. الخطة: طقم كامل أكريلي.`, `Fully edentulous ${label} jaw. Plan: complete acrylic denture.`) },
+      { type: 'treatment', reason: L(c, 'طبعات الطقم', 'Denture impressions'), items: [{ code: 'denture-full', key: 'dent', label }], gap: [6, 9],
+        lab: { type: 'denture_full', teeth: [], fitStep: 3, item: 'dent', lab: LABS.prosth, material: L(c, 'أكريل حراري', 'Heat-cured acrylic'), shade: 'A3', cost: 120, days: [14, 18] },
+        note: L(c, 'طبعات أولية ونهائية بالحواف الوظيفية.', 'Primary and final impressions with functional borders.') },
+      { type: 'treatment', reason: L(c, 'تجربة الأسنان', 'Teeth try-in'), items: [{ code: 'denture-full', key: 'dent', label }], gap: [6, 9], note: L(c, 'تسجيل العلاقة الفكية وتجربة الأسنان على الشمع. المظهر مقبول.', 'Jaw relation recorded and wax try-in. Appearance accepted.') },
+      { type: 'treatment', reason: L(c, 'تسليم الطقم', 'Denture delivery'), items: [{ code: 'denture-full', key: 'dent', label }], gap: [5, 8], note: L(c, 'تسليم الطقم وشرح طريقة الاستعمال والتنظيف.', 'Denture delivered; use and cleaning explained.') },
+      { type: 'followup', reason: L(c, 'تعديل الطقم', 'Denture adjustment'), items: [{ code: 'denture-adjust' }], note: L(c, 'تعديل نقاط ضغط بسيطة. الثبات جيد.', 'Minor pressure spots relieved. Good retention.') },
     ],
   }
 }
@@ -367,23 +380,23 @@ export function emergencyCase(c: CaseCtx): CaseDef {
     key: 'emergency', doctor: 'general',
     findings: [{ tooth: t, condition: 'abscess' }, { tooth: t, condition: 'to_extract' }],
     steps: [
-      { type: 'emergency', reason: `تورم وألم — السن ${t}`, items: [{ code: 'D0140' }, { code: 'D0220', tooth: t }, { code: 'D7510', tooth: t }], gap: [3, 6], rx: 'abscess',
-        diagnosis: `خراج ذروي حاد — السن ${t}`, note: `تورم مؤلم حول السن ${t} منذ يومين. السن غير قابل للترميم. شق وتفجير الخراج ووصف مضاد حيوي. القلع بعد زوال التورم.` },
-      { type: 'surgery', reason: `قلع السن ${t}`, items: [{ code: c.rng.chance(0.6) ? 'D7140' : 'D7210', tooth: t }], rx: 'postExtraction',
-        note: `قلع السن ${t} بعد زوال الالتهاب. إرشادات ما بعد القلع.` },
+      { type: 'emergency', reason: L(c, `تورم وألم — السن ${t}`, `Swelling and pain — tooth ${t}`), items: [{ code: 'exam-emergency' }, { code: 'xray-pa', tooth: t }, { code: 'abscess-drain', tooth: t }], gap: [3, 6], rx: 'abscess',
+        diagnosis: L(c, `خراج ذروي حاد — السن ${t}`, `Acute apical abscess — tooth ${t}`), note: L(c, `تورم مؤلم حول السن ${t} منذ يومين. السن غير قابل للترميم. شق وتفجير الخراج ووصف مضاد حيوي. القلع بعد زوال التورم.`, `Painful swelling around tooth ${t} for two days. The tooth cannot be restored. Incision and drainage, antibiotic prescribed. Extraction once the swelling settles.`) },
+      { type: 'surgery', reason: L(c, `قلع السن ${t}`, `Extraction, tooth ${t}`), items: [{ code: c.rng.chance(0.6) ? 'ext-simple' : 'ext-surgical', tooth: t }], rx: 'postExtraction',
+        note: L(c, `قلع السن ${t} بعد زوال الالتهاب. إرشادات ما بعد القلع.`, `Tooth ${t} extracted after the infection settled. Post-extraction instructions.`) },
     ],
   }
 }
 
 export function nightGuardCase(c: CaseCtx): CaseDef {
   return {
-    key: 'nightGuard', doctor: 'general', title: 'واقي ليلي للصرير',
+    key: 'nightGuard', doctor: 'general', title: L(c, 'واقٍ ليلي للصرير', 'Night guard for bruxism'),
     findings: [11, 21, 31, 41].map(t => ({ tooth: t, condition: 'attrition' as const })),
     steps: [
-      { type: 'checkup', reason: 'صرير ليلي وألم في الفك', items: [{ code: 'D0150' }, { code: 'D9944', key: 'ng' }], gap: [7, 10],
-        lab: { type: 'night_guard', teeth: [], fitStep: 1, item: 'ng', lab: LABS.prosth, material: 'أكريل صلب', cost: 35, days: [5, 8] },
-        note: `${pt(c)} ${g(c, 'يشكو', 'تشكو')} من ألم صباحي في عضلات المضغ. تآكل على الأسنان الأمامية. طبعات لواقٍ ليلي.` },
-      { type: 'followup', reason: 'تسليم الواقي الليلي', items: [{ code: 'D9944', key: 'ng' }], note: 'تسليم الواقي الليلي وضبط الإطباق.' },
+      { type: 'checkup', reason: L(c, 'صرير ليلي وألم في الفك', 'Night grinding and jaw pain'), items: [{ code: 'exam-full' }, { code: 'night-guard', key: 'ng' }], gap: [7, 10],
+        lab: { type: 'night_guard', teeth: [], fitStep: 1, item: 'ng', lab: LABS.prosth, material: L(c, 'أكريل صلب', 'Hard acrylic'), cost: 35, days: [5, 8] },
+        note: L(c, `${pt(c)} ${g(c, 'يشكو', 'تشكو')} من ألم صباحي في عضلات المضغ. سحل على الأسنان الأمامية. طبعات لواقٍ ليلي.`, 'Morning pain in the chewing muscles. Attrition on the front teeth. Impressions for a night guard.') },
+      { type: 'followup', reason: L(c, 'تسليم الواقي الليلي', 'Night guard delivery'), items: [{ code: 'night-guard', key: 'ng' }], note: L(c, 'تسليم الواقي الليلي وضبط الإطباق.', 'Night guard delivered and occlusion adjusted.') },
     ],
   }
 }
@@ -393,13 +406,13 @@ export function proposalCase(c: CaseCtx, declined: boolean): CaseDef {
   const v = c.rng.int(0, 2)
   if (v === 0) {
     const t = c.rng.pick([36, 46, 26])
-    return { key: declined ? 'declined' : 'proposal', title: `زراعة سن مكان السن ${t} (اقتراح)`, doctor: 'surgery', findings: [], steps: [], planNote: declined ? `${pt(c)} ${g(c, 'فضّل', 'فضّلت')} تأجيل الزراعة لأسباب مادية.` : `بانتظار موافقة ${pt(c)}.`,
-      proposal: [{ code: 'D0367' }, { code: 'D6010', tooth: t }, { code: 'D6058', tooth: t }] }
+    return { key: declined ? 'declined' : 'proposal', title: L(c, `زراعة سن مكان السن ${t} (اقتراح)`, `Implant replacing tooth ${t} (proposal)`), doctor: 'surgery', findings: [], steps: [], planNote: declined ? L(c, `${pt(c)} ${g(c, 'فضّل', 'فضّلت')} تأجيل الزراعة لأسباب مادية.`, 'The patient chose to postpone the implant for financial reasons.') : L(c, `بانتظار موافقة ${ptLow(c)}.`, 'Awaiting the patient’s approval.'),
+      proposal: [{ code: 'cbct' }, { code: 'implant', tooth: t }, { code: 'implant-crown', tooth: t }] }
   }
-  if (v === 1) return { key: declined ? 'declined' : 'proposal', title: 'تبييض وقشور تجميلية (اقتراح)', doctor: 'general', findings: [], steps: [], planNote: declined ? `أُلغيت الخطة بطلب ${pt(c)}.` : 'عُرضت الكلفة، والقرار بعد الأعياد.',
-    proposal: [{ code: 'D9972' }, { code: 'D2962', tooth: 11 }, { code: 'D2962', tooth: 21 }] }
-  return { key: declined ? 'declined' : 'proposal', title: 'تقويم شفاف (اقتراح)', doctor: 'ortho', findings: [], steps: [], planNote: declined ? `${pt(c)} ${g(c, 'اختار', 'اختارت')} التقويم الثابت في مكان آخر.` : 'بانتظار الموافقة على الكلفة.',
-    proposal: [{ code: 'D8660' }, { code: 'D8090A' }] }
+  if (v === 1) return { key: declined ? 'declined' : 'proposal', title: L(c, 'تبييض وقشور تجميلية (اقتراح)', 'Whitening and cosmetic veneers (proposal)'), doctor: 'general', findings: [], steps: [], planNote: declined ? L(c, `أُلغيت الخطة بطلب ${ptLow(c)}.`, 'Plan cancelled at the patient’s request.') : L(c, 'عُرضت الكلفة، والقرار بعد الأعياد.', 'Cost presented; decision after the holidays.'),
+    proposal: [{ code: 'whitening-office' }, { code: 'veneer-porcelain', tooth: 11 }, { code: 'veneer-porcelain', tooth: 21 }] }
+  return { key: declined ? 'declined' : 'proposal', title: L(c, 'تقويم شفاف (اقتراح)', 'Clear aligners (proposal)'), doctor: 'ortho', findings: [], steps: [], planNote: declined ? L(c, `${pt(c)} ${g(c, 'اختار', 'اختارت')} التقويم الثابت في مكان آخر.`, 'The patient chose fixed braces elsewhere.') : L(c, 'بانتظار الموافقة على الكلفة.', 'Awaiting approval of the cost.'),
+    proposal: [{ code: 'ortho-consult' }, { code: 'aligners' }] }
 }
 
 // ---- prescriptions ----------------------------------------------------------------------------------

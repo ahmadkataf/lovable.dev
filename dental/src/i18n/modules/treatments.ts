@@ -7,7 +7,7 @@ const treatments: ModuleDict = {
     // shared bits
     quick: 'علاج سريع', noDoctor: 'بدون طبيب محدد', noPlan: 'خارج الخطة', openPatient: 'فتح ملف المريض', clearFilters: 'مسح عوامل التصفية', exportCsv: 'تصدير CSV',
     keep: 'إبقاء الخطة', toothN: 'السن {n}', teethList: 'الأسنان: {list}',
-    'col.procedure': 'الإجراء', 'col.surfaces': 'السطوح', 'col.billed': 'مفوتر',
+    'col.procedure': 'الإجراء', 'col.surfaces': 'الأسطح', 'col.billed': 'مفوتر',
 
     // item workflow
     'act.start': 'بدء', 'act.complete': 'إنجاز', 'act.backToPlanned': 'إعادة إلى المخطط', 'act.reopen': 'إعادة فتح', 'act.cancel': 'إلغاء البند', 'act.restore': 'استعادة',
@@ -38,7 +38,7 @@ const treatments: ModuleDict = {
     'item.quickTitle': 'علاج سريع', 'item.quickSub': 'سجّل علاجاً منجزاً مباشرة دون خطة، كالفحص أو التنظيف.',
     'item.procedure': 'الإجراء', 'item.change': 'تغيير', 'item.teeth': 'الأسنان', 'item.pickTeeth': 'تحديد أسنان',
     'item.teethHint': 'اضغط على سن أو أكثر؛ يمكن إضافة الإجراء نفسه لعدة أسنان دفعة واحدة.',
-    'item.surfaces': 'السطوح', 'item.surfacesHint': 'اختياري، ويُطبَّق على كل الأسنان المحددة.',
+    'item.surfaces': 'الأسطح', 'item.surfacesHint': 'اختياري، ويُطبَّق على كل الأسنان المحددة.',
     'item.details': 'السعر والتفاصيل', 'item.pricePerTooth': 'السعر لكل سن', 'item.discountPerTooth': 'الخصم لكل سن',
     'item.plannedDate': 'التاريخ المخطط', 'item.doneDate': 'تاريخ التنفيذ', 'item.plan': 'ضمن الخطة',
     'item.newPlanOption': '+ خطة علاج جديدة', 'item.noPlanOption': 'بدون خطة', 'item.newPlanHint': 'ستُنشأ خطة جديدة بتاريخ اليوم.', 'item.noPlanHint': 'يظهر البند ضمن «علاجات خارج الخطط».',
@@ -70,7 +70,7 @@ const treatments: ModuleDict = {
     'proc.new': 'إجراء جديد', 'proc.newTitle': 'إجراء جديد', 'proc.editTitle': 'تعديل الإجراء', 'proc.copyTitle': 'نسخ الإجراء', 'proc.copySuffix': '(نسخة)',
     'proc.formSub': 'يظهر بهذا الاسم والسعر في خطط العلاج والفواتير.', 'proc.name': 'اسم الإجراء', 'proc.namePh': 'مثال: حشوة كومبوزيت — سطح واحد',
     'proc.nameEn': 'الاسم بالإنجليزية', 'proc.nameEnHint': 'يظهر عند استخدام الواجهة الإنجليزية', 'proc.duration': 'المدة المعتادة',
-    'proc.color': 'اللون', 'proc.colorAuto': 'لون الفئة', 'proc.toothSpecific': 'يتطلب تحديد سن', 'proc.toothSpecificHint': 'كالحشوات والتيجان وعلاج العصب والقلع',
+    'proc.color': 'اللون', 'proc.colorAuto': 'لون الفئة', 'proc.toothSpecific': 'يتطلب تحديد سن', 'proc.toothSpecificHint': 'كالحشوات والتيجان والمعالجة اللبية والقلع',
     'proc.activeLabel': 'مفعّل', 'proc.activeHint': 'الإجراءات الموقوفة لا تظهر عند إضافة علاج جديد', 'proc.perTooth': 'لكل سن',
     'proc.search': 'ابحث في القائمة بالاسم أو الرمز…', 'proc.showActive': 'المفعّلة', 'proc.showInactive': 'الموقوفة', 'proc.allCategories': 'كل الفئات', 'proc.results': 'نتائج البحث',
     'proc.noMatch': 'لا يوجد إجراء يطابق البحث أو التصفية الحالية.',

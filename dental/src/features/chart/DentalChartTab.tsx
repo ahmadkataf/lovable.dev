@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { Eraser, EyeOff, History, Info, Lock, MousePointer2, Paintbrush, Printer, Sparkles, UserX, ZoomIn, ZoomOut } from 'lucide-react'
@@ -21,6 +21,12 @@ import { useChartActions } from './useChartActions'
 import './chart.css'
 
 type Mode = 'select' | 'paint'
+
+/** Phones open the chart zoomed (teeth wide enough to tap); the choice is remembered on this device. */
+const ZOOM_KEY = 'dentora.chart.zoom'
+function readZoom(): boolean {
+  try { return localStorage.getItem(ZOOM_KEY) !== '0' } catch { return true }
+}
 
 /** A tab of the patient profile. Receives the patient id and renders its own data. */
 export default function DentalChartTab({ patientId }: { patientId: string }) {
@@ -54,7 +60,9 @@ function ChartTab({ patientId }: { patientId: string }) {
   const [picked, setPicked] = useState<ToothSurface[]>([])
   const [showHistory, setShowHistory] = useState(false)
   const [onlyTooth, setOnlyTooth] = useState(false)
-  const [zoom, setZoom] = useState(false)
+  const [zoom, setZoomState] = useState(readZoom)
+  const setZoom = (z: boolean) => { setZoomState(z); try { localStorage.setItem(ZOOM_KEY, z ? '1' : '0') } catch { /* private mode */ } }
+  const canvasRef = useRef<HTMLDivElement>(null)
   const [printing, setPrinting] = useState(0)          // 0 = idle, otherwise the number of the print request
 
   // deep link: #/patients/:id?tab=chart&tooth=16 opens that tooth once. The param is then dropped, otherwise it would
@@ -66,13 +74,25 @@ function ChartTab({ patientId }: { patientId: string }) {
     setParams(p => { const x = new URLSearchParams(p); x.delete('tooth'); return x }, { replace: true })
   }, [params, setParams])
   useEffect(() => { if (!canEdit && mode === 'paint') setMode('select') }, [canEdit, mode])
+  // zoomed on a phone, the drawing scrolls sideways: keep the selected tooth (a deep link, the history) in view
+  const zoomed = zoom && isMobile
+  useEffect(() => {
+    const box = canvasRef.current
+    if (!zoomed || selected === null || !box) return
+    const el = box.querySelector<SVGGraphicsElement>(`[data-tooth="${selected}"]`)
+    if (!el) return
+    const b = box.getBoundingClientRect(), r = el.getBoundingClientRect()
+    if (r.left < b.left || r.right > b.right) box.scrollLeft += r.left + r.width / 2 - (b.left + b.width / 2)
+  }, [selected, zoomed, records === undefined])
 
   const list = records ?? []
   const counts = useMemo(() => conditionCounts(list), [list])
   const active = useMemo(() => activeRecords(list), [list])
   const hidden = useMemo(() => active.some(r => !inDentition(r.tooth, shown)), [active, shown])
 
-  const openTooth = useCallback((n: number, s?: ToothSurface) => { setSelected(n); setPicked(s ? [s] : []) }, [])
+  // opening a tooth never pre-picks a surface: a tap anywhere on the drawing (often on the large root area) means
+  // "open this tooth"; surfaces are chosen in the panel, where they are big and clearly marked
+  const openTooth = useCallback((n: number) => { setSelected(n); setPicked([]) }, [])
   const closeTooth = useCallback(() => { setSelected(null); setPicked([]) }, [])
   const onPaint = useCallback(async (n: number, surfaces: ToothSurface[]) => {
     if (!paint || !canEdit) return
@@ -123,7 +143,7 @@ function ChartTab({ patientId }: { patientId: string }) {
                 {!isMobile && t('chart.history')}
               </Button>
               <Button variant="secondary" size="sm" icon={<Printer />} onClick={doPrint} disabled={loading} aria-label={t('chart.printChart')} title={t('chart.printChart')}>{!isMobile && t('print')}</Button>
-              {isMobile && <IconButton label={zoom ? t('chart.zoomOut') : t('chart.zoomIn')} variant={zoom ? 'soft' : 'secondary'} size="sm" onClick={() => setZoom(z => !z)}>{zoom ? <ZoomOut /> : <ZoomIn />}</IconButton>}
+              {isMobile && <IconButton label={zoom ? t('chart.zoomOut') : t('chart.zoomIn')} variant={zoom ? 'soft' : 'secondary'} size="sm" onClick={() => setZoom(!zoom)} aria-pressed={zoom}>{zoom ? <ZoomOut /> : <ZoomIn />}</IconButton>}
             </div>
           </div>
         </div>
@@ -155,10 +175,10 @@ function ChartTab({ patientId }: { patientId: string }) {
             <div className="ch-hint is-muted"><Info /><span className="grow">{t('chart.hiddenFindings')}</span><Button size="sm" variant="secondary" onClick={() => setDentition('mixed')}>{t('chart.showMixed')}</Button></div>
           )}
 
-          <div className={['ch-canvas', zoom && isMobile && 'is-zoomed'].filter(Boolean).join(' ')} dir="ltr">
+          <div ref={canvasRef} className={['ch-canvas', zoom && isMobile && 'is-zoomed'].filter(Boolean).join(' ')} dir="ltr">
             {loading ? <Skeleton className="ch-loading" /> : (
               <DentalChart records={list} dentition={shown} selected={selected ?? undefined} selectedSurfaces={picked}
-                onToothClick={n => openTooth(n)} onSurfaceClick={(n, s) => openTooth(n, s)}
+                onToothClick={n => openTooth(n)}
                 paintCondition={mode === 'paint' ? paint : null} onPaint={onPaint} readOnly={!canEdit} legend={false} />
             )}
           </div>

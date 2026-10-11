@@ -8,7 +8,7 @@ import { useDebounced, useIsMobile, useUsers } from '@/app/hooks'
 import { fmtDate, fmtTime } from '@/lib/dates'
 import { matches } from '@/lib/format'
 import { STOCK_REASONS, sortMovements } from './lib'
-import { ReasonBadge, qtyText, reasonLabel, unitLabel } from './parts'
+import { ReasonBadge, qtyText, reasonLabel, unitFor } from './parts'
 
 export default function MovementsTab({ movements, items, onOpenItem }: { movements: StockMovement[] | undefined; items: InventoryItem[] | undefined; onOpenItem: (id: string) => void }) {
   const { t, lang } = useI18n()
@@ -47,7 +47,7 @@ export default function MovementsTab({ movements, items, onOpenItem }: { movemen
   }
   const delta = (m: StockMovement) => {
     const it = byId.get(m.itemId)
-    return <span className={`inv-delta ${m.delta >= 0 ? 'pos' : 'neg'}`}><span className="num">{m.delta >= 0 ? '+' : '−'}{qtyText(Math.abs(m.delta), lang)}</span>{it && <span className="inv-delta-unit">{unitLabel(t, it.unit)}</span>}</span>
+    return <span className={`inv-delta ${m.delta >= 0 ? 'pos' : 'neg'}`}><span className="num">{m.delta >= 0 ? '+' : '−'}{qtyText(Math.abs(m.delta), lang)}</span>{it && <span className="inv-delta-unit">{unitFor(t, it.unit, Math.abs(m.delta))}</span>}</span>
   }
 
   const columns: Column<StockMovement>[] = [

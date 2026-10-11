@@ -74,15 +74,43 @@ export function supersedes(next: Pick<ToothRecord, 'condition' | 'surfaces'>, ol
   }
 }
 
-/** What saving a finding does: which active records of that tooth it deactivates and what it inserts. */
+/**
+ * The surfaces of an older surface finding that a new finding takes over (null = the whole old record goes).
+ * A surface finding or a surface reset takes its own surfaces; a crown or a bridge covers the crown (a root finding
+ * stays), a veneer only the buccal face. Anything else that supersedes a record (missing, implant, a full reset)
+ * takes all of it.
+ */
+export function takenSurfaces(next: Pick<ToothRecord, 'condition' | 'surfaces'>, old: Pick<ToothRecord, 'condition'>): readonly ToothSurface[] | null {
+  if (!isSurfaceRecord(old)) return null
+  const n = CONDITION_META[next.condition]
+  if (n.scope === 'surface') return next.surfaces
+  if (n.scope === 'clear') return next.surfaces.length ? next.surfaces : null
+  if (n.layer === 'restoration') return next.condition === 'veneer' ? ['B'] : CROWN_SURFACES
+  return null
+}
+
+/** Deactivates `old` for `next`, keeping what `next` does not cover as the same finding on the other surfaces. */
+function supersede(plan: WritePlan, next: Pick<ToothRecord, 'condition' | 'surfaces'>, old: ToothRecord): void {
+  plan.deactivate.push(old.id)
+  const taken = takenSurfaces(next, old)
+  const rest = taken ? remainder(old, taken) : null
+  if (rest) plan.add.push(rest)
+}
+
+/**
+ * What saving a finding does: which active records of that tooth it deactivates and what it inserts.
+ * A finding only replaces what it really covers: a filling on O over caries M-O-R leaves caries on M and R
+ * (as the same finding, with its date, author and note), a crown leaves root caries, a reset of O clears O only.
+ * The new record comes first in `add`; what is left of the superseded findings follows.
+ */
 export function planRecord(records: readonly ToothRecord[], draft: RecordDraft): WritePlan {
   const d = normalizeDraft(draft)
   const plan = EMPTY_PLAN()
   if (!isValidTooth(d.tooth)) return plan
   const next = { condition: d.condition, surfaces: d.surfaces }
-  for (const r of activeRecords(records, d.tooth)) if (supersedes(next, r)) plan.deactivate.push(r.id)
   // healthy is kept only as a history row, so the timeline shows when the tooth was cleared
   plan.add.push({ tooth: d.tooth, surfaces: d.surfaces, condition: d.condition, active: d.condition !== 'healthy', note: d.note, treatmentItemId: d.treatmentItemId })
+  for (const r of activeRecords(records, d.tooth)) if (supersedes(next, r)) supersede(plan, next, r)
   return plan
 }
 
@@ -111,8 +139,8 @@ function remainder(r: ToothRecord, taken: readonly ToothSurface[]): NewRecord | 
  *  - a surface showing something else (or nothing): this condition replaces it there;
  *  - the eraser on a surface clears that surface; on the tooth it resets the whole tooth (a "healthy" history row);
  *  - a whole-tooth condition toggles on the tooth.
- * Unlike the panel form (which supersedes overlapping findings whole), a paint click never wipes the other surfaces of a
- * multi-surface finding: caries MOD with O painted as a filling leaves caries MD + filling O.
+ * Like the panel form, a paint click never wipes the other surfaces of a multi-surface finding: caries MOD with O
+ * painted as a filling leaves caries MD + filling O.
  */
 export function planPaint(records: readonly ToothRecord[], tooth: number, surfaces: readonly ToothSurface[], condition: ToothCondition): WritePlan {
   const meta = CONDITION_META[condition]
@@ -139,14 +167,6 @@ export function planPaint(records: readonly ToothRecord[], tooth: number, surfac
   const plan = planRecord(records, { tooth, condition, surfaces: target })
   // the eraser on a clean tooth or surface changes nothing: do not fill the history with empty "healthy" rows
   if (meta.scope === 'clear' && plan.deactivate.length === 0) return EMPTY_PLAN()
-  // keep the untouched surfaces of every surface finding this click took over
-  if (target.length) {
-    for (const id of plan.deactivate) {
-      const r = active.find(x => x.id === id)
-      const rest = r && isSurfaceRecord(r) && overlaps(r.surfaces, target) ? remainder(r, target) : null
-      if (rest) plan.add.push(rest)
-    }
-  }
   return plan
 }
 
@@ -158,7 +178,7 @@ export function planRestore(records: readonly ToothRecord[], id: string): WriteP
   const rec = records.find(r => r.id === id)
   if (!rec || rec.active || rec.condition === 'healthy') return null
   const plan = EMPTY_PLAN()
-  for (const r of activeRecords(records, rec.tooth)) if (r.id !== rec.id && supersedes(rec, r)) plan.deactivate.push(r.id)
+  for (const r of activeRecords(records, rec.tooth)) if (r.id !== rec.id && supersedes(rec, r)) supersede(plan, rec, r)
   plan.activate.push(rec.id)
   return plan
 }

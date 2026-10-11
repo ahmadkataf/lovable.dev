@@ -10,6 +10,7 @@ import { Button, Field, Input, Modal, Select, Switch, useToast } from '@/ui'
 import { NumField } from './parts'
 import { PROCEDURE_COLORS } from './lib'
 import { saveProcedure } from './actions'
+import { revealFirstError } from '@/features/patients/reveal'
 
 interface Form {
   code: string; name: string; nameEn: string; category: ProcedureCategory | ''
@@ -60,7 +61,8 @@ export default function ProcedureFormModal({ open, onClose, procedure, copyOf, d
   const submit = async (e?: FormEvent) => {
     e?.preventDefault()
     setTried(true)
-    if (!valid || busy.current) return
+    if (!valid) { revealFirstError(() => document.querySelector('.tr-proc-form')); return }
+    if (busy.current) return
     busy.current = true
     setSaving(true)
     try {

@@ -2,7 +2,10 @@
 import type { Expense, ExpenseCategory, ISODate } from '@/db/types'
 import { EXPENSE_CATEGORIES } from '@/db/types'
 import { addDays, addMonths, diffDays, endOfMonth, startOfMonth } from '@/lib/dates'
-import { round2 } from '@/lib/format'
+import { roundTo } from '@/lib/format'
+
+/** Sums of stored amounts (at most 3 decimals), cleared of binary noise. */
+const r3 = (n: number) => roundTo(Number(n) || 0, 3)
 
 export interface Period { from: ISODate; to: ISODate }
 
@@ -21,7 +24,7 @@ export function previousPeriod(p: Period): Period {
 export const inPeriod = (date: ISODate, p: Period) => date >= p.from && date <= p.to
 export const isValidPeriod = (p: Period) => isRealDate(p.from) && isRealDate(p.to) && p.from <= p.to
 
-export const periodTotal = (expenses: Pick<Expense, 'amount'>[]) => round2(expenses.reduce((a, e) => a + (e.amount || 0), 0))
+export const periodTotal = (expenses: Pick<Expense, 'amount'>[]) => r3(expenses.reduce((a, e) => a + (e.amount || 0), 0))
 
 export interface CategoryShare { category: ExpenseCategory; total: number; count: number; pct: number }
 /** Totals per category, largest first; pct is the share of the grand total (0–100, one decimal). Empty categories are left out. */
@@ -35,7 +38,7 @@ export function categoryBreakdown(expenses: Pick<Expense, 'amount' | 'category'>
   }
   const grand = [...map.values()].reduce((a, v) => a + v.total, 0)
   return [...map.entries()]
-    .map(([category, v]) => ({ category, total: round2(v.total), count: v.count, pct: grand > 0 ? Math.round((v.total / grand) * 1000) / 10 : 0 }))
+    .map(([category, v]) => ({ category, total: r3(v.total), count: v.count, pct: grand > 0 ? Math.round((v.total / grand) * 1000) / 10 : 0 }))
     .sort((a, b) => b.total - a.total || a.category.localeCompare(b.category))
 }
 export const topCategory = (shares: CategoryShare[]): CategoryShare | null => shares[0] ?? null
@@ -77,11 +80,13 @@ export function isRealDate(s: string): boolean {
 }
 
 export type ExpenseErrors = Partial<Record<'category' | 'amount' | 'date' | 'description', 'required' | 'positive' | 'date'>>
-export function validateExpense(v: { category: string; amount: number | null; date: string; description: string }): ExpenseErrors {
+/** The amount as it is stored: rounded to the clinic currency's minor unit (0, 2 or 3 decimals). */
+export const expenseAmount = (amount: number, decimals = 2) => roundTo(Number(amount) || 0, Math.max(0, Math.min(3, Math.round(decimals))))
+export function validateExpense(v: { category: string; amount: number | null; date: string; description: string }, decimals = 2): ExpenseErrors {
   const e: ExpenseErrors = {}
   if (!v.category) e.category = 'required'
   if (v.amount === null || !Number.isFinite(v.amount)) e.amount = 'required'
-  else if (v.amount <= 0) e.amount = 'positive'
+  else if (expenseAmount(v.amount, decimals) <= 0) e.amount = 'positive'
   if (!v.date) e.date = 'required'
   else if (!isRealDate(v.date)) e.date = 'date'
   if (!v.description.trim()) e.description = 'required'

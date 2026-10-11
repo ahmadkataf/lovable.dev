@@ -1,17 +1,21 @@
 // /invoices — the invoice register: period cards, search, status and doctor filters, the list, and the invoice form.
+// The cards describe the invoices dated in the period (what they total, what has been paid on them, what is still due).
+// Names come from the shared patient index; only the rows on screen read their patients' photos.
 import { lazy, Suspense, useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { Ban, CheckCircle2, Eye, FileText, Hourglass, MoreVertical, Plus, Printer, Receipt, Search, Trash2, Wallet } from 'lucide-react'
 import { db, logActivity } from '@/db'
-import type { Invoice, Patient } from '@/db/types'
+import type { Invoice } from '@/db/types'
 import { useI18n } from '@/i18n'
 import { useDebounced, useDoctors, useIsMobile, useMoney, useUsers } from '@/app/hooks'
 import { useSession } from '@/app/session'
 import { useLicense } from '@/license/useLicense'
 import { fmtDate } from '@/lib/dates'
 import { Avatar, Button, Chip, DataTable, EmptyState, IconButton, Input, Menu, PageHeader, Pagination, Segmented, Skeleton, StatCard, useConfirm, useConfirmDelete, usePagination, useToast, type Column, type MenuItemDef } from '@/ui'
-import { cancelInvoice, deleteDraftInvoice } from './actions'
+import { cancelInvoice, deleteDraftInvoice, ensureReconciled } from './actions'
+import { usePagePatients, usePatientIndex } from './patientIndex'
+import { useSnapshot } from './snapshot'
 import { filterInvoices, invoiceBalance, invoiceStats, isDraftNumber, isOpen, pluralKey, sortInvoices, statusCounts, type StatusFilter } from './lib'
 import { BillingGate, Money, PeriodBar, StatusBadge, usePeriod, ltr, iso } from './shared'
 import InvoiceFormModal from './InvoiceFormModal'
@@ -54,25 +58,26 @@ function InvoicesPageScreen() {
     }
   }, [params, setParams, license.readOnly])
 
-  const data = useLiveQuery(async () => {
-    const list = await db.invoices.where('date').between(period.from, period.to, true, true).toArray()
-    const ids = [...new Set(list.map(i => i.patientId))]
-    const pats = await db.patients.bulkGet(ids)
-    return { list, patients: new Map(pats.filter((p): p is Patient => !!p).map(p => [p.id, p])) }
-  }, [period.from, period.to])
+  // a plain read, refreshed right after any invoice changes: a live query over years of invoices costs a long freeze
+  const list = useSnapshot(`${period.from}|${period.to}`, ['invoices'], () => db.transaction('r', db.invoices, () => db.invoices.where('date').between(period.from, period.to, true, true).toArray()), 60)
+  useEffect(() => { void ensureReconciled() }, [list])
   const anyInvoice = useLiveQuery(() => db.invoices.limit(1).count(), [])
+  // the patient index (every name) is read only to search; the rows on screen read their own patients
+  const index = usePatientIndex(!!dq)
+  const data = list && (index || !dq) ? { list } : undefined
 
   const userName = useMemo(() => new Map(users.map(u => [u.id, u.name])), [users])
-  const byDoctor = useMemo(() => (data ? data.list.filter(i => !doctorId || i.doctorId === doctorId) : []), [data, doctorId])
+  const byDoctor = useMemo(() => (list ? list.filter(i => !doctorId || i.doctorId === doctorId) : []), [list, doctorId])
   const stats = invoiceStats(byDoctor)
-  const searched = useMemo(() => (data ? filterInvoices(byDoctor, { q: dq }, data.patients) : []), [byDoctor, dq, data])
+  const searched = useMemo(() => (dq ? filterInvoices(byDoctor, { q: dq }, index?.byId ?? new Map()) : byDoctor), [byDoctor, dq, index])
   const counts = statusCounts(searched)
   const rows = useMemo(() => sortInvoices(status === 'all' ? searched : searched.filter(i => i.status === status)), [searched, status])
   const pg = usePagination(rows, 25)
   useEffect(() => { pg.setPage(1) }, [status, doctorId, dq, period.from, period.to])
+  const pagePatients = usePagePatients(pg.slice.map(i => i.patientId))
 
   const ro = license.readOnly
-  const patientOf = (i: Invoice) => data?.patients.get(i.patientId)
+  const patientOf = (i: Invoice) => pagePatients?.get(i.patientId)
   const numberOf = (i: Invoice) => (isDraftNumber(i.number) ? t('billing.draftNumber') : i.number)
 
   const doCancel = async (inv: Invoice) => {
@@ -118,7 +123,7 @@ function InvoicesPageScreen() {
           <div className="bl-patient-cell">
             <Avatar name={p?.name ?? '?'} src={p?.photo} size="xs" />
             <div className="grow">
-              {p ? <Link className="bl-link" title={p.name} to={`/patients/${p.id}`} onClick={e => e.stopPropagation()}>{p.name}</Link> : <span className="muted">{t('unknown')}</span>}
+              {p ? <Link className="bl-link" title={p.name} dir="auto" to={`/patients/${p.id}`} onClick={e => e.stopPropagation()}>{p.name}</Link> : <span className="muted">{pagePatients ? t('unknown') : '…'}</span>}
               {p && <div className="cell-sub">{t('fileNo')} <span className="num">{p.fileNo}</span></div>}
             </div>
           </div>
@@ -155,12 +160,12 @@ function InvoicesPageScreen() {
               <div key={i.id} className="bl-mcard" role="button" tabIndex={0} onClick={() => navigate(`/invoices/${i.id}`)} onKeyDown={e => { if (e.key === 'Enter') navigate(`/invoices/${i.id}`) }}>
                 <Avatar name={p?.name ?? '?'} src={p?.photo} size="sm" />
                 <div className="bl-mcard-main">
-                  <div className="bl-mcard-title">{p?.name ?? t('unknown')}</div>
+                  <div className="bl-mcard-title" dir="auto">{p?.name ?? (pagePatients ? t('unknown') : '…')}</div>
                   <div className="bl-mcard-sub"><span className={isDraftNumber(i.number) ? '' : 'num'}>{numberOf(i)}</span><span>·</span><span className="bl-date">{fmtDate(i.date, lang)}</span></div>
                 </div>
                 <div className="bl-mcard-end">
                   <Money value={i.total} strong />
-                  {due > 0 ? <span className="text-xs"><Money value={due} kind="due" /></span> : <StatusBadge status={i.status} size="sm" />}
+                  {due > 0 ? <span className="bl-mcard-due">{t('billing.dueLabel')} <Money value={due} kind="due" /></span> : <StatusBadge status={i.status} size="sm" />}
                 </div>
                 {rowMenu(i)}
               </div>
@@ -184,8 +189,8 @@ function InvoicesPageScreen() {
 
       <div className="grid grid-stats bl-stats">
         <StatCard tone="primary" icon={<FileText />} label={t('billing.stat.invoiced')} value={loading ? <Skeleton w={110} h={26} /> : <Money value={stats.invoiced} />} />
-        <StatCard tone="success" icon={<CheckCircle2 />} label={t('billing.stat.collected')} value={loading ? <Skeleton w={110} h={26} /> : <Money value={stats.collected} />} />
-        <StatCard tone="danger" icon={<Hourglass />} label={t('billing.stat.outstanding')} value={loading ? <Skeleton w={110} h={26} /> : <Money value={stats.outstanding} />} />
+        <StatCard tone="success" icon={<CheckCircle2 />} label={t('billing.stat.collected')} value={loading ? <Skeleton w={110} h={26} /> : <Money value={stats.collected} />} sub={t('billing.stat.ofTheseInvoices')} />
+        <StatCard tone="danger" icon={<Hourglass />} label={t('billing.stat.outstanding')} value={loading ? <Skeleton w={110} h={26} /> : <Money value={stats.outstanding} />} sub={t('billing.stat.ofTheseInvoices')} />
         <StatCard tone="info" icon={<Receipt />} label={t('billing.stat.count')} value={loading ? <Skeleton w={50} h={26} /> : <span className="num">{stats.count}</span>}
           sub={stats.drafts > 0 ? t(pluralKey('billing.draftsCount', stats.drafts, lang), { n: stats.drafts }) : undefined} />
       </div>

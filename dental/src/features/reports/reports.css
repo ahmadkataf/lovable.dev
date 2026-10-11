@@ -162,6 +162,7 @@ a.rp-kpi:hover { box-shadow: var(--sh-md); border-color: var(--border-2); transf
 .rp-table-total td:first-child { border-end-start-radius: var(--r-xl); }
 .rp-wa { color: var(--success-text) !important; }
 .rp-print-head { display: none; }
+.rp-print-only { display: none; }
 /* dates and times written in words ("4 تشرين الأول 2026", "3:30 م"): tabular digits but the text's own direction —
    .num would force LTR and scramble the Arabic word order */
 .rp-tnum { font-variant-numeric: tabular-nums; unicode-bidi: isolate; white-space: nowrap; }
@@ -205,4 +206,35 @@ a.rp-kpi:hover { box-shadow: var(--sh-md); border-color: var(--border-2); transf
   .rp-hb-track > span, .rp-key-rect, .rp-key-line, .rp-kpi-icon, .rp-delta, .progress > span, .status-dot { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
   .rp-svg { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
   .rp-mini-table .table-wrap { max-height: none; overflow: visible; }
+  /* printed figures are never cut: no ellipsis, a long amount wraps (IQD and the like run to 10+ digits) */
+  .rp-kpi { padding: 10px 12px; }
+  .rp-kpi-top { margin-bottom: 2px; gap: 8px; }
+  .rp-kpi-icon { width: 30px; height: 30px; border-radius: 9px; }
+  .rp-kpi-icon svg { width: 16px; height: 16px; }
+  .rp-kpi-value { font-size: 17px; white-space: normal; overflow: visible; text-overflow: clip; overflow-wrap: anywhere; letter-spacing: 0; }
+  .rp-kpi-label { font-size: 11px; }
+  .rp-dlegend li { grid-template-columns: auto minmax(0, 1fr) auto auto; gap: 6px; padding: 3px 4px; font-size: 11px; }
+  .rp-dl-label.truncate { white-space: normal; }
+  .rp-donut-val { font-size: 18px; }
+  /* a table longer than a page breaks between rows (only charts and short cards are kept whole) */
+  .rp-card:has(.table-wrap), .rp-card .table-wrap { break-inside: auto; }
+  .rp-card .table-wrap { overflow: visible !important; }
+  .rp-card .table tr { break-inside: avoid; }
+  .rp-card .table thead { display: table-header-group; }
+  .rp-wa, .rp-card .pagination { display: none !important; }
+  .rp-screen-only { display: none !important; }
+  .rp-print-only { display: block; }
+  table.rp-print-only { display: table; width: 100%; border-collapse: collapse; font-size: 10.5px; margin-top: 4px; }
+  .rp-print-table th { text-align: start; font-size: 9.5px; color: var(--text-3); font-weight: 700; padding: 5px 6px; border-bottom: 1.5px solid var(--border-2); background: var(--surface-2); white-space: nowrap; }
+  .rp-print-table td { padding: 4px 6px; border-bottom: 1px solid var(--divider); white-space: nowrap; }
+  .rp-print-table .n { text-align: end; }
+  .rp-print-table tr { break-inside: avoid; }
+  .rp-print-table tfoot td { border-top: 1.5px solid var(--text-3); border-bottom: 0; padding-top: 6px; }
+  .rp-print-table thead { display: table-header-group; }
 }
+/* Before printing, the reports page takes the printed width (A4 less the margins: 186 mm) for a moment, so every
+   chart re-measures itself and draws its axis labels at a readable size on paper instead of being scaled down. */
+body.rp-print-prep .rp-page { width: 703px !important; max-width: 703px !important; padding: 0 !important; margin: 0 !important; }
+body.rp-print-prep .rp-kpis { grid-template-columns: repeat(4, minmax(0, 1fr)) !important; gap: 8px; }
+body.rp-print-prep .rp-row, body.rp-print-prep .rp-row.even, body.rp-print-prep .rp-row.rev, body.rp-print-prep .rp-row.thirds { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
+body.rp-print-prep .rp-section { gap: 10px; }

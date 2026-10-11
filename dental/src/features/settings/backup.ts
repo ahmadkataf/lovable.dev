@@ -1,43 +1,60 @@
-// Backup, restore and reset with the database. The checks themselves are pure and live in ./lib.
-import { db, exportBackup, importBackup, logActivity, resetDatabase, setSetting } from '@/db'
+// Backup, restore and reset with the database. The archive format lives in ./backup/archive, the checks of the old
+// JSON format in ./lib. A backup is recorded as done only after the platform confirmed the whole file was written.
+import { importBackup, isQuotaError, logActivity, resetDatabase, setSetting, storageAvailable } from '@/db'
 import { nowISO } from '@/db/ids'
-import type { BackupFile, Setting } from '@/db/types'
-import { saveText } from '@/platform'
-import { backupFileName, DEVICE_SETTING_KEYS } from './lib'
+import type { BackupFile } from '@/db/types'
+import { saveStream, type SaveStreamOptions } from '@/platform'
+import { DEVICE_SETTING_KEYS } from './lib'
+import { archiveFileName, BACKUP_MIME, BackupError, estimateBackupSize, snapshotDatabase, writeBackup, type BackupProgress } from './backup/archive'
 
-/** Every table → a JSON file the user saves. Returns the file name, or null when the save dialog was cancelled. */
-export async function exportBackupFile(message: string, by?: string): Promise<string | null> {
-  const data = await exportBackup()
-  const name = backupFileName()
-  const ok = await saveText(name, JSON.stringify(data))
-  if (!ok) return null
+export interface ExportOptions {
+  password?: string
+  signal?: AbortSignal
+  onProgress?: (p: BackupProgress) => void
+  /** Every byte is written; the file is being put in place (Android: the "save as" screen is open). */
+  onFinishing?: () => void
+}
+export interface ExportResult { name: string; bytes: number; files: number }
+
+/**
+ * Writes the whole clinic to a backup file the user keeps. Returns the saved file's name and size, or null when the
+ * save dialog was cancelled. Throws SaveError (disk full, verification failed…) or the error that stopped it.
+ */
+export async function exportBackupFile(message: string, by?: string, opts: ExportOptions = {}): Promise<ExportResult | null> {
+  const snap = await snapshotDatabase()
+  let files = 0
+  const save: SaveStreamOptions = { sizeHint: estimateBackupSize(snap), signal: opts.signal, quiet: true, onFinishing: opts.onFinishing }
+  const r = await saveStream(archiveFileName(), BACKUP_MIME, async write => {
+    files = (await writeBackup(snap, write, { password: opts.password, signal: opts.signal, onProgress: opts.onProgress })).files
+  }, save)
+  if (r.status !== 'saved') return null
+  // only now, with the file confirmed on disk
   await setSetting('lastBackupAt', nowISO())
   void logActivity({ type: 'system', action: 'backup', message, by })
-  return name
+  return { name: r.name, bytes: r.bytes, files }
 }
 
-/** This installation's own settings (activation, trial start), so a restore or a reset never takes them away. */
-async function deviceSettings(extra: string[] = []): Promise<Setting[]> {
-  const rows = await db.settings.bulkGet([...DEVICE_SETTING_KEYS, ...extra])
-  return rows.filter((r): r is Setting => !!r)
-}
-async function putBack(rows: Setting[]): Promise<void> {
-  if (rows.length) await db.settings.bulkPut(rows)
+/**
+ * Replaces everything with a backup prepared by readBackup() (or an old in-memory one), all at once or not at all.
+ * Keeps this device's activation and never moves the trial start later (see mergeDeviceSettings in @/db).
+ * `neededBytes`: about how much the restore will store, checked against the free space first.
+ */
+export async function restoreBackup(data: BackupFile, opts: { neededBytes?: number } = {}): Promise<{ tables: number; rows: number; skippedFiles: number }> {
+  if (opts.neededBytes) {
+    const free = await storageAvailable()
+    if (free !== null && free < opts.neededBytes * 1.1 + 32 * 1024 * 1024) throw new BackupError('space')
+  }
+  try {
+    return await importBackup(data)
+  } catch (e) {
+    if (isQuotaError(e)) throw new BackupError('space')
+    throw e
+  }
 }
 
-/** Replaces everything with the backup, keeping this device's activation (and the date of its last export). */
-export async function restoreBackup(data: BackupFile): Promise<{ tables: number; rows: number }> {
-  const keep = await deviceSettings(['lastBackupAt'])
-  const r = await importBackup(data)
-  await putBack(keep)
-  return r
-}
-
-/** Wipes the clinic (keeping this device's activation) and signs out, ready for the setup wizard. */
+/** Wipes the clinic (keeping this device's activation and trial start, in the same transaction) and signs out. */
 export async function eraseEverything(): Promise<void> {
-  const keep = await deviceSettings()
-  await resetDatabase()
-  await putBack(keep)
+  await resetDatabase(DEVICE_SETTING_KEYS)
   try { localStorage.removeItem('dentora.session') } catch { /* ignore */ }
 }
 

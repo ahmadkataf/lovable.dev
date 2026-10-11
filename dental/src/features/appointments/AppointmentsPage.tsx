@@ -1,12 +1,12 @@
-import { lazy, Suspense, useCallback, useEffect, useMemo, useState, type CSSProperties } from 'react'
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { useLiveQuery } from 'dexie-react-hooks'
-import { Calendar, CalendarDays, CalendarPlus, CalendarRange, CalendarX2, Check, ChevronDown, ChevronLeft, ChevronRight, List, ListFilter, Moon, SearchX, Stethoscope, X } from 'lucide-react'
+import { Calendar, CalendarDays, CalendarPlus, CalendarRange, CalendarSearch, CalendarX2, Check, ChevronDown, ChevronLeft, ChevronRight, List, ListFilter, Moon, SearchX, Stethoscope, X } from 'lucide-react'
 import { db } from '@/db'
 import { APPOINTMENT_STATUSES, type Appointment, type AppointmentStatus, type Patient, type User } from '@/db/types'
 import { todayISO } from '@/db/ids'
 import { useI18n } from '@/i18n'
-import { useClinic, useDoctors, useIsMobile, useUsers } from '@/app/hooks'
+import { useClinic, useDoctors, useIsDesktop, useIsMobile, useUsers } from '@/app/hooks'
 import { useSession } from '@/app/session'
 import { useLicense } from '@/license/useLicense'
 import { Button, Chip, EmptyState, IconButton, Input, Menu, PageHeader, Segmented, Skeleton, type MenuItemDef } from '@/ui'
@@ -18,6 +18,7 @@ import {
 import { AgendaView, DayList, MonthView, TimeGrid, TimeStrip, WeekHead, WeekStrip, type GridColumn, type SlotLoad } from './CalendarViews'
 import { DocDot, PersonAvatar, doctorColor, fmtSpan, useAptActions, useCountLabel, useNow, type AptRow, type CalState } from './shared'
 import AppointmentFormModal from './AppointmentFormModal'
+import { Fab } from '@/features/patients/parts'
 
 const AppointmentDetailsModal = lazy(() => import('./AppointmentDetailsModal'))
 
@@ -44,6 +45,8 @@ export default function AppointmentsPage() {
   const doctors = useDoctors()
   const allUsers = useUsers(false)
   const mobile = useIsMobile()
+  // below desktop width (portrait tablets) the 7-column week grid is too narrow to read: the week uses the day strip + list
+  const narrowWeek = !useIsDesktop()
   const { readOnly } = useLicense()
   const actions = useAptActions()
   const countLabel = useCountLabel()
@@ -110,7 +113,7 @@ export default function AppointmentsPage() {
     }
     openNew({ date: d, time, doctorId: doc })
   }
-  const onOpen = (r: AptRow) => setDetailsId(r.id)
+  const onOpen = useCallback((r: AptRow) => setDetailsId(r.id), [])
   const onEdit = (r: AptRow) => {
     const { patient: _p, doctor: _d, ...a } = r as AptRow & { creator?: unknown }
     delete (a as { creator?: unknown }).creator
@@ -120,8 +123,11 @@ export default function AppointmentsPage() {
     const a = await db.appointments.get(id)
     if (a && (a.date < range.from || a.date > range.to)) patch({ date: a.date })
   }
-  const onStep = (r: AptRow, s: AppointmentStatus) => void actions.setStatus(r, s, r.patient?.name)
-  const onRemind = (r: AptRow) => actions.remind(r, r.patient)
+  // stable callbacks (they read the latest actions through a ref), so memoised agenda rows do not all re-render
+  const actionsRef = useRef(actions)
+  actionsRef.current = actions
+  const onStep = useCallback((r: AptRow, s: AppointmentStatus) => void actionsRef.current.setStatus(r, s, r.patient?.name), [])
+  const onRemind = useCallback((r: AptRow) => actionsRef.current.remind(r, r.patient), [])
 
   // ---- grid geometry ----
   const step = slotStep(clinic.slotMinutes)
@@ -216,7 +222,7 @@ export default function AppointmentsPage() {
     )
   } else if (view === 'week') {
     const dayRows = rows.filter(r => r.date === date)
-    body = mobile ? (
+    body = mobile || narrowWeek ? (
       <div className="apt-mobile-day">
         <WeekStrip days={week} selected={date} counts={counts} workingDays={clinic.workingDays} onPick={d => patch({ date: d })} />
         <div className="apt-mobile-dayhead">
@@ -232,7 +238,7 @@ export default function AppointmentsPage() {
   } else if (view === 'month') {
     body = <MonthView date={date} rows={rows} workingDays={clinic.workingDays} mobile={mobile} onDay={openDay} onOpen={onOpen} />
   } else {
-    body = rows.length ? <AgendaView rows={rows} mobile={mobile} readOnly={readOnly} onOpen={onOpen} onStep={onStep} onRemind={onRemind} />
+    body = rows.length ? <AgendaView key={`${range.from}|${docKey}|${status}`} rows={rows} mobile={mobile} readOnly={readOnly} onOpen={onOpen} onStep={onStep} onRemind={onRemind} />
       : filtered && byDoctor.length > 0 ? emptyFiltered
       : <EmptyState icon={<CalendarX2 />} title={t('appointments.empty.list.title')} description={t('appointments.empty.list.desc')} actions={readOnly ? undefined : newBtn} />
   }
@@ -246,9 +252,29 @@ export default function AppointmentsPage() {
 
   return (
     <div className="page apt-page">
-      <PageHeader title={t('appointments.title')} subtitle={loading ? <Skeleton w={180} h={14} /> : t(`appointments.sub.${view}`, { count: countLabel(visibleCount) })} actions={newBtn} />
+      <PageHeader title={t('appointments.title')} subtitle={loading ? <Skeleton w={180} h={14} /> : t(`appointments.sub.${view}`, { count: countLabel(visibleCount) })} actions={mobile ? undefined : newBtn} />
 
       <div className="card apt-cal">
+        {mobile ? (
+          // phones: the view switch, then one row with ‹ the date › and a calendar button, so the day's list starts
+          // high on the screen; "today" appears as a button once you move away from it
+          <div className="apt-bar apt-bar-m">
+            <Segmented<CalView> className="apt-views" value={view} onChange={v => patch({ view: v })} options={viewOptions} block />
+            <div className="apt-mnav">
+              <IconButton label={t('previous')} className="apt-flip" onClick={() => go(-1)}><ChevronLeft /></IconButton>
+              <div className="apt-mtitle">
+                <h2 className="apt-title-main">{title}</h2>
+                {rel ? <span className="apt-title-rel">{rel}</span>
+                  : (date !== today || view === 'list') && <button type="button" className="apt-today-chip" onClick={() => patch({ date: today })}>{t('today')}</button>}
+              </div>
+              <IconButton label={t('next')} className="apt-flip" onClick={() => go(1)}><ChevronRight /></IconButton>
+              <label className="btn btn-secondary btn-icon apt-mdate" title={t('appointments.goToDate')}>
+                <CalendarSearch />
+                <input type="date" value={date} aria-label={t('appointments.goToDate')} onChange={e => { if (isValidDate(e.target.value)) patch({ date: e.target.value }) }} />
+              </label>
+            </div>
+          </div>
+        ) : (
         <div className="apt-bar">
           <div className="apt-nav">
             <IconButton label={t('previous')} className="apt-flip" onClick={() => go(-1)}><ChevronLeft /></IconButton>
@@ -267,6 +293,7 @@ export default function AppointmentsPage() {
             <Segmented<CalView> className="apt-views" value={view} onChange={v => patch({ view: v })} options={viewOptions} block={mobile} />
           </div>
         </div>
+        )}
 
         <div className="apt-filters">
           <div className="apt-chips" role="group" aria-label={t('doctor')}>
@@ -287,6 +314,10 @@ export default function AppointmentsPage() {
         <div className={`apt-body apt-body-${view}`}>{body}</div>
       </div>
 
+      {mobile && !readOnly && (
+        // phones: the "new appointment" action floats above the bottom bar instead of a full-width header button
+        <Fab icon={<CalendarPlus />} label={t('nav.newAppointment')} onClick={() => openNew()} />
+      )}
       {form && <AppointmentFormModal open appointment={form.appointment} defaults={form.defaults} onClose={() => setForm(null)} onSaved={id => void onSaved(id)} />}
       {detailsId && <Suspense fallback={null}><AppointmentDetailsModal id={detailsId} onClose={() => setDetailsId(null)} onEdit={onEdit} /></Suspense>}
     </div>

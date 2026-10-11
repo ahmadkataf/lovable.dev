@@ -69,7 +69,7 @@ export default function PlanPrintModal({ open, onClose, plan, items, patient, us
 
         <section className="tr-sheet-facts">
           <div><span>{t('patient')}</span><strong>{patient?.name ?? '—'}</strong></div>
-          <div><span>{t('fileNo')}</span><strong>{patient ? <span className="num">#{patient.fileNo}</span> : '—'}</strong></div>
+          <div><span>{t('fileNo')}</span><strong>{patient ? <span className="num">{patient.fileNo}</span> : '—'}</strong></div>
           <div><span>{t('treatments.plan.titleLabel')}</span><strong>{plan.title}</strong></div>
           <div><span>{t('doctor')}</span><strong>{doctor || '—'}</strong></div>
         </section>

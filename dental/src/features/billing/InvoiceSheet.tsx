@@ -1,12 +1,22 @@
 // The invoice as the patient receives it: an A4-like sheet that prints cleanly in Arabic and English.
+// An invoice with tax prints as a tax invoice (with the clinic's tax number) only when the clinic has one; without tax
+// it is a plain invoice. Ordinary invoices fit one A4 page; longer ones carry the invoice number and page count on
+// every page.
 import { Wallet } from 'lucide-react'
 import type { Clinic, Invoice, Patient, Payment, User } from '@/db/types'
 import { useI18n } from '@/i18n'
 import { fmtDate } from '@/lib/dates'
 import { formatPhone } from '@/lib/format'
-import { invoiceBalance, isDraftNumber } from './lib'
-import { Money, SheetHeader } from './shared'
+import { invoiceBalance, isDraftNumber, legacyReceiptNo } from './lib'
+import { docTitle, Money, SheetHeader, usePrintFooter } from './shared'
 import './billing.css'
+
+/** The sheet's title and the tax number it prints: a tax invoice needs tax on it and the clinic's tax number. */
+export function invoiceKind(invoice: Pick<Invoice, 'taxPercent' | 'tax'>, clinic: Pick<Clinic, 'taxNumber'>): { tax: boolean; taxNumber?: string } {
+  const taxed = invoice.taxPercent > 0 && invoice.tax > 0
+  const taxNumber = clinic.taxNumber?.trim()
+  return taxed && taxNumber ? { tax: true, taxNumber } : { tax: false }
+}
 
 export function InvoiceSheet({ invoice, patient, doctor, payments, clinic }: { invoice: Invoice; patient?: Patient; doctor?: User; payments: Payment[]; clinic: Clinic }) {
   const { t, lang } = useI18n()
@@ -16,12 +26,17 @@ export function InvoiceSheet({ invoice, patient, doctor, payments, clinic }: { i
   const showTooth = invoice.items.some(i => i.tooth)
   const showDiscount = invoice.items.some(i => i.discount > 0)
   const lastPayment = payments.length ? payments[payments.length - 1].date : undefined
-  const title = invoice.taxPercent > 0 ? t('billing.sheet.taxInvoice') : t('billing.sheet.invoice')
+  const kind = invoiceKind(invoice, clinic)
+  const title = kind.tax ? t('billing.sheet.taxInvoice') : t('billing.sheet.invoice')
+  const number = draft ? t('billing.draftNumber') : invoice.number
+  const pageFoot = usePrintFooter(docTitle(`${title} ${number}`, patient?.name))
+  const issued = st !== 'draft' && st !== 'cancelled'
 
   return (
-    <article className={`print-area bl-sheet bl-status-${st}`} aria-label={title}>
+    <article className={`print-area bl-sheet bl-invoice bl-status-${st}`} aria-label={title} style={pageFoot.style}>
+      {pageFoot.node}
       {(st === 'cancelled' || st === 'draft') && <div className="bl-watermark" aria-hidden>{t(`billing.stamp.${st}`)}</div>}
-      <SheetHeader clinic={clinic} title={title} number={draft ? t('billing.draftNumber') : invoice.number}
+      <SheetHeader clinic={clinic} title={title} number={number} taxNumber={kind.taxNumber}
         facts={[
           { label: t('billing.issueDate'), value: fmtDate(invoice.date, lang, 'long') },
           ...(invoice.dueDate ? [{ label: t('billing.dueDate'), value: fmtDate(invoice.dueDate, lang, 'long') }] : []),
@@ -30,7 +45,7 @@ export function InvoiceSheet({ invoice, patient, doctor, payments, clinic }: { i
       <section className="bl-parties">
         <div className="bl-party">
           <div className="bl-label">{t('billing.sheet.billTo')}</div>
-          <div className="bl-party-name">{patient?.name ?? t('unknown')}</div>
+          <div className="bl-party-name" dir="auto">{patient?.name ?? t('unknown')}</div>
           <div className="bl-party-meta">
             {patient && <span>{t('fileNo')}: <span className="num">{patient.fileNo}</span></span>}
             {patient?.phone && <span className="ltr">{formatPhone(patient.phone)}</span>}
@@ -40,7 +55,7 @@ export function InvoiceSheet({ invoice, patient, doctor, payments, clinic }: { i
         <div className="bl-party">
           <div className="bl-label">{t('details')}</div>
           <dl className="bl-kv">
-            <dt>{t('billing.invoiceNo')}</dt><dd className="num">{draft ? t('billing.draftNumber') : invoice.number}</dd>
+            <dt>{t('billing.invoiceNo')}</dt><dd className={draft ? '' : 'num'}>{number}</dd>
             <dt>{t('date')}</dt><dd>{fmtDate(invoice.date, lang)}</dd>
             {doctor && <><dt>{t('billing.sheet.treatingDoctor')}</dt><dd>{doctor.name}</dd></>}
             <dt>{t('status')}</dt><dd>{t(`inv.${st}`)}</dd>
@@ -77,7 +92,7 @@ export function InvoiceSheet({ invoice, patient, doctor, payments, clinic }: { i
 
       <section className="bl-sheet-bottom">
         <div className="bl-notes-block">
-          {st !== 'draft' && st !== 'cancelled' && (
+          {issued && (
             <div className="bl-stamp-wrap">
               <div className={`bl-stamp ${st}`} role="img" aria-label={t(`billing.stamp.${st}`)}>
                 {t(`billing.stamp.${st}`)}
@@ -86,6 +101,7 @@ export function InvoiceSheet({ invoice, patient, doctor, payments, clinic }: { i
             </div>
           )}
           {invoice.notes && <div className="bl-note">{invoice.notes}</div>}
+          {issued && <div className="bl-inv-sign">{t('billing.sheet.stampSign')}</div>}
         </div>
         <div className="bl-totals">
           <div className="bl-tr"><span>{t('subtotal')}</span><Money value={invoice.subtotal} /></div>
@@ -93,22 +109,23 @@ export function InvoiceSheet({ invoice, patient, doctor, payments, clinic }: { i
           {invoice.tax > 0 && <div className="bl-tr"><span>{t('tax')} (<span className="num">{invoice.taxPercent}%</span>)</span><Money value={invoice.tax} /></div>}
           <div className="bl-tr bl-grand"><span>{t('total')}</span><Money value={invoice.total} /></div>
           {st !== 'draft' && <div className="bl-tr"><span>{t('paid')}</span><Money value={invoice.paid} /></div>}
-          {st !== 'draft' && st !== 'cancelled' && (
+          {issued && (
             <div className={`bl-tr bl-balance${balance <= 0 ? ' is-zero' : ''}`}><span>{t('billing.sheet.balanceDue')}</span><Money value={balance} /></div>
           )}
         </div>
       </section>
 
       {st !== 'draft' && (
-        <section className="bl-section">
+        <section className={`bl-section${payments.length <= 6 ? ' bl-keep' : ''}`}>
           <div className="bl-section-label"><Wallet />{t('billing.sheet.paymentsReceived')}</div>
           {payments.length === 0 ? <div className="bl-muted-line">{t('billing.sheet.noPayments')}</div> : (
             <table className="bl-items bl-items-sm">
-              <thead><tr><th>{t('date')}</th><th>{t('billing.method')}</th><th className="bl-hide-sm">{t('reference')}</th><th className="bl-n">{t('amount')}</th></tr></thead>
+              <thead><tr><th>{t('date')}</th><th className="bl-hide-sm">{t('billing.receipt.noShort')}</th><th>{t('billing.method')}</th><th className="bl-hide-sm">{t('reference')}</th><th className="bl-n">{t('amount')}</th></tr></thead>
               <tbody>
                 {payments.map(p => (
                   <tr key={p.id}>
                     <td className="bl-date">{fmtDate(p.date, lang)}</td>
+                    <td className="bl-hide-sm num">{p.receiptNo || legacyReceiptNo(p.id)}</td>
                     <td>{t(`pay.${p.method}`)}{p.amount < 0 && <> · {t('billing.payments.refund')}</>}</td>
                     <td className="bl-hide-sm">{p.reference ? <span className="ltr">{p.reference}</span> : '—'}</td>
                     <td className="bl-n bl-strong"><Money value={p.amount} kind="signed" /></td>
@@ -121,8 +138,7 @@ export function InvoiceSheet({ invoice, patient, doctor, payments, clinic }: { i
       )}
 
       <footer className="bl-sheet-foot">
-        {clinic.invoiceFooter && <div className="bl-footer-text">{clinic.invoiceFooter}</div>}
-        <div className="bl-thanks">{t('billing.sheet.thanks')}</div>
+        {clinic.invoiceFooter?.trim() ? <div className="bl-footer-text">{clinic.invoiceFooter}</div> : <div className="bl-thanks">{t('billing.sheet.thanks')}</div>}
         <div className="bl-generated">{t('billing.sheet.generatedBy')}</div>
       </footer>
     </article>

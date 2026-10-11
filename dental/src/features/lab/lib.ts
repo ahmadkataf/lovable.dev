@@ -1,6 +1,6 @@
 // Pure helpers of the lab module: the status flow, due-date math, filters and counts, the FDI picker layout,
 // shades and materials. No React, no database: everything here is unit-tested.
-import type { ISODate, Lang, LabOrder, LabOrderStatus } from '@/db/types'
+import type { Expense, ISODate, Lang, LabOrder, LabOrderStatus } from '@/db/types'
 import { LAB_ORDER_STATUSES } from '@/db/types'
 import { addDays, endOfMonth, startOfMonth } from '@/lib/dates'
 import { matches } from '@/lib/format'
@@ -87,6 +87,26 @@ export function labNames(orders: Pick<LabOrder, 'labName'>[]): string[] {
 /** Other values typed in a free-text field before (materials, shades), most used first. */
 export function usedValues<T>(rows: T[], pick: (r: T) => string | undefined): string[] {
   return labNames(rows.map(r => ({ labName: pick(r) ?? '' })))
+}
+
+// ---- the order's cost in the expenses ---------------------------------------------------------------
+/**
+ * Whether an order's cost belongs in the expenses now: the work came back (received or fitted) and has a cost.
+ * A remake keeps the expense it already has (the work was paid for); drafts, orders still at the lab and cancelled
+ * orders have none. One expense per order, linked both ways (LabOrder.expenseId, Expense.labOrderId).
+ */
+export function labExpenseDue(o: Pick<LabOrder, 'status' | 'cost' | 'expenseId'>): boolean {
+  if (!(Number(o.cost) > 0)) return false
+  return o.status === 'received' || o.status === 'fitted' || (o.status === 'remake' && !!o.expenseId)
+}
+/** The expense fields that follow the order (amount, day, lab, description). */
+export function labExpenseFields(o: Pick<LabOrder, 'cost' | 'receivedDate' | 'labName'>, description: string, today: ISODate): Pick<Expense, 'category' | 'amount' | 'date' | 'description'> & { vendor?: string } {
+  const out: Pick<Expense, 'category' | 'amount' | 'date' | 'description'> & { vendor?: string } = {
+    category: 'lab', amount: Math.round((Number(o.cost) || 0) * 1000) / 1000, date: o.receivedDate || today, description,
+  }
+  const lab = (o.labName || '').trim()
+  if (lab) out.vendor = lab
+  return out
 }
 
 /** The day an order's cost counts for: when it was sent, else when it was created. */

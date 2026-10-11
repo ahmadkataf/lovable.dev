@@ -2,21 +2,26 @@
 import type { Clinic, Lang } from '@/db/types'
 
 // ---- currencies -------------------------------------------------------------------------------
-export interface CurrencyPreset { code: string; symbol: string; decimals: 0 | 2 }
+export type Decimals = 0 | 2 | 3
+export interface CurrencyPreset { code: string; symbol: string; decimals: Decimals }
 
-/** The currencies clinics in the region use, with the symbol printed on invoices and the usual decimals. */
+/**
+ * The currencies clinics in the region use, with the symbol printed on invoices and the usual decimals.
+ * The Kuwaiti, Bahraini and Jordanian dinars and the Omani rial are divided into 1000 fils (baisa), so they keep
+ * 3 decimals: VAT invoices in Bahrain and Oman are kept in fils.
+ */
 export const CURRENCIES: CurrencyPreset[] = [
   { code: 'USD', symbol: '$', decimals: 2 },
   { code: 'SYP', symbol: 'ل.س', decimals: 0 },
   { code: 'SAR', symbol: 'ر.س', decimals: 2 },
   { code: 'AED', symbol: 'د.إ', decimals: 2 },
   { code: 'EGP', symbol: 'ج.م', decimals: 2 },
-  { code: 'JOD', symbol: 'د.أ', decimals: 2 },
+  { code: 'JOD', symbol: 'د.أ', decimals: 3 },
   { code: 'IQD', symbol: 'د.ع', decimals: 0 },
-  { code: 'KWD', symbol: 'د.ك', decimals: 2 },
+  { code: 'KWD', symbol: 'د.ك', decimals: 3 },
   { code: 'QAR', symbol: 'ر.ق', decimals: 2 },
-  { code: 'OMR', symbol: 'ر.ع', decimals: 2 },
-  { code: 'BHD', symbol: 'د.ب', decimals: 2 },
+  { code: 'OMR', symbol: 'ر.ع', decimals: 3 },
+  { code: 'BHD', symbol: 'د.ب', decimals: 3 },
   { code: 'LBP', symbol: 'ل.ل', decimals: 0 },
   { code: 'TRY', symbol: '₺', decimals: 2 },
   { code: 'EUR', symbol: '€', decimals: 2 },
@@ -34,7 +39,7 @@ export function currencyPreset(code: string): CurrencyPreset | undefined {
   return CURRENCIES.find(p => p.code === c)
 }
 /** Decimals a currency is usually written with: the preset's, else 2. */
-export function defaultDecimals(code: string): 0 | 2 {
+export function defaultDecimals(code: string): Decimals {
   return currencyPreset(code)?.decimals ?? 2
 }
 /** Custom codes are 2–4 Latin letters, upper-cased. */
@@ -86,15 +91,33 @@ export function dotCount(len: number): number {
 }
 
 // ---- login lockout ----------------------------------------------------------------------------
+// Five wrong PINs in a row lock that user's PIN pad. Each further lock lasts longer (30 s, 1 min, 5 min, 15 min,
+// 30 min, then an hour), until the right PIN is entered; a day without mistakes starts over. The guard is kept
+// per user, in the database and in localStorage (see guardStore.ts), so closing or reloading the app does not
+// reset it.
 export const MAX_ATTEMPTS = 5
-export const LOCK_MS = 30_000
-/** Failed attempts since the last success, and the instant (epoch ms) a lock ends (0 = not locked). */
-export interface LoginGuard { fails: number; until: number }
-export const FRESH_GUARD: LoginGuard = { fails: 0, until: 0 }
+export const LOCK_STEPS_MS = [30_000, 60_000, 5 * 60_000, 15 * 60_000, 30 * 60_000, 60 * 60_000]
+/** The first lock (30 seconds). */
+export const LOCK_MS = LOCK_STEPS_MS[0]
+/** After this long without a wrong PIN, the escalation starts over. */
+export const GUARD_FORGET_MS = 24 * 3_600_000
+/**
+ * Wrong attempts in the current round, the instant (epoch ms) a lock ends (0 = not locked), how many locks
+ * there have been since the last good PIN, and the instant of the last wrong PIN.
+ */
+export interface LoginGuard { fails: number; until: number; locks: number; last: number }
+export const FRESH_GUARD: LoginGuard = { fails: 0, until: 0, locks: 0, last: 0 }
 
-/** A lock that has run out starts a fresh round of attempts. */
+/** How long the n-th lock lasts (n ≥ 1). */
+export function lockDuration(n: number): number {
+  return LOCK_STEPS_MS[Math.min(Math.max(1, n), LOCK_STEPS_MS.length) - 1]
+}
+/** A lock that has run out starts a fresh round of attempts; a quiet day forgets the escalation too. */
 export function normalizeGuard(g: LoginGuard, now: number): LoginGuard {
-  return g.until && g.until <= now ? FRESH_GUARD : g
+  if (g.until > now) return g
+  if (g.last && now - g.last >= GUARD_FORGET_MS) return FRESH_GUARD
+  if (g.until && g.until <= now) return { fails: 0, until: 0, locks: g.locks, last: g.last }
+  return g
 }
 export function isLocked(g: LoginGuard, now: number): boolean {
   return g.until > now
@@ -107,20 +130,50 @@ export function attemptsLeft(g: LoginGuard, now: number): number {
   const n = normalizeGuard(g, now)
   return isLocked(n, now) ? 0 : Math.max(0, MAX_ATTEMPTS - n.fails)
 }
-/** One more wrong PIN. The fifth in a row locks the pad for 30 seconds. */
+/** One more wrong PIN. The fifth in a row locks the pad, each lock longer than the one before. */
 export function registerFailure(g: LoginGuard, now: number): LoginGuard {
   const n = normalizeGuard(g, now)
   if (isLocked(n, now)) return n
   const fails = n.fails + 1
-  return fails >= MAX_ATTEMPTS ? { fails, until: now + LOCK_MS } : { fails, until: 0 }
+  if (fails < MAX_ATTEMPTS) return { fails, until: 0, locks: n.locks, last: now }
+  const locks = n.locks + 1
+  return { fails, until: now + lockDuration(locks), locks, last: now }
 }
-/** Reads the guard kept in localStorage; anything unreadable is a fresh guard. */
-export function parseGuard(raw: string | null | undefined): LoginGuard {
+/** A stored guard (object or JSON text); anything unreadable is a fresh guard. Older guards had no locks/last. */
+export function parseGuard(raw: unknown): LoginGuard {
   try {
-    const v = JSON.parse(raw || 'null')
-    if (v && Number.isFinite(v.fails) && Number.isFinite(v.until) && v.fails >= 0) return { fails: Math.floor(v.fails), until: v.until }
+    const v = typeof raw === 'string' ? JSON.parse(raw || 'null') : raw
+    if (v && typeof v === 'object' && Number.isFinite(v.fails) && Number.isFinite(v.until) && v.fails >= 0) {
+      const locks = Number.isFinite(v.locks) && v.locks >= 0 ? Math.floor(v.locks) : 0
+      const last = Number.isFinite(v.last) && v.last >= 0 ? v.last : 0
+      return { fails: Math.floor(v.fails), until: v.until, locks, last }
+    }
   } catch { /* fall through */ }
   return FRESH_GUARD
+}
+/** userId → guard, from a stored map; entries that cannot be read are left out. */
+export function parseGuards(raw: unknown): Record<string, LoginGuard> {
+  let v: unknown = raw
+  try { if (typeof raw === 'string') v = JSON.parse(raw || 'null') } catch { return {} }
+  const out: Record<string, LoginGuard> = {}
+  if (!v || typeof v !== 'object' || Array.isArray(v)) return out
+  for (const [id, g] of Object.entries(v as Record<string, unknown>)) {
+    const p = parseGuard(g)
+    if (p !== FRESH_GUARD) out[id] = p
+  }
+  return out
+}
+/** The stricter of two copies of a user's guard (the database's and localStorage's): clearing one copy gains nothing. */
+export function stricterGuard(a: LoginGuard | undefined, b: LoginGuard | undefined): LoginGuard {
+  if (!a) return b ?? FRESH_GUARD
+  if (!b) return a
+  const newer = b.last > a.last ? b : a
+  return { fails: newer.fails, until: Math.max(a.until, b.until), locks: Math.max(a.locks, b.locks), last: Math.max(a.last, b.last) }
+}
+export function mergeGuards(a: Record<string, LoginGuard>, b: Record<string, LoginGuard>): Record<string, LoginGuard> {
+  const out: Record<string, LoginGuard> = {}
+  for (const id of new Set([...Object.keys(a), ...Object.keys(b)])) out[id] = stricterGuard(a[id], b[id])
+  return out
 }
 /** 25_000 → "0:25" (the lock countdown). */
 export function formatCountdown(ms: number): string {
@@ -134,7 +187,7 @@ export interface MoneyDraft {
   currency: string                 // preset code or CUSTOM_CURRENCY
   customCode: string
   customSymbol: string
-  decimals: 0 | 2
+  decimals: Decimals
   workingDays: number[]            // 0 = Sunday … 6 = Saturday
   workStart: string                // 'HH:MM'
   workEnd: string
@@ -242,4 +295,13 @@ export function plainName(name: string): string {
 /** Morning greeting until 12:00, evening after. */
 export function greetingKey(hour: number): 'goodMorning' | 'goodEvening' {
   return hour >= 4 && hour < 12 ? 'goodMorning' : 'goodEvening'
+}
+
+/** The accounts an admin PIN reset can be applied to: admins, active ones first, then by name. */
+export function sortAdminsForReset<T extends { role: string; active: boolean; name: string }>(users: T[]): T[] {
+  return users.filter(u => u.role === 'admin').sort((a, b) => Number(b.active) - Number(a.active) || a.name.localeCompare(b.name, 'ar'))
+}
+/** Digits after which the sign-in screen checks the PIN by itself: the user's PIN length when known, else 6. */
+export function autoSubmitLength(pinLength: number | null): number {
+  return pinLength && pinLength >= PIN_MIN && pinLength <= PIN_MAX ? pinLength : PIN_MAX
 }

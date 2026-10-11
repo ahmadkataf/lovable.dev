@@ -9,7 +9,7 @@ import { todayISO } from '@/db/ids'
 import { useI18n } from '@/i18n'
 import { useClinic, useDoctors, useUsers } from '@/app/hooks'
 import { useSession } from '@/app/session'
-import { Button, Field, Input, Modal, NumberInput, Select, Textarea, useToast } from '@/ui'
+import { Button, Field, Input, Modal, NumberInput, Select, Textarea, revealFirstError, useToast } from '@/ui'
 import { ComboInput, PatientSelect } from '@/features/prescriptions/parts'
 import { durationLabel } from '@/features/prescriptions/lib'
 import { LAB_MATERIALS, SHADE_SWATCH, VITA_SHADES, defaultDueDate, labNames, sortTeeth, usedValues } from './lib'
@@ -106,7 +106,8 @@ function LabForm({ onClose, order, defaults, lockPatient, onSaved }: Props) {
     ev?.preventDefault()
     const e = validate()
     setErrors(e ?? {})
-    if (e || !patient) return
+    // a tall sheet on a phone: bring the first error into view instead of failing silently
+    if (e || !patient) { revealFirstError(); return }
     setBusy(true)
     try {
       const received = status === 'received' || status === 'fitted' ? receivedDate || today : undefined
@@ -118,7 +119,8 @@ function LabForm({ onClose, order, defaults, lockPatient, onSaved }: Props) {
       const message = editing && order && order.status !== status
         ? t('lab.act.status', { type: typeLabel, patient: patient.name, status: t(`lab.${status}`) })
         : t(editing ? 'lab.act.updated' : 'lab.act.created', { type: typeLabel, patient: patient.name, lab: labName.trim() })
-      const id = await saveLabOrder(input, { id: order?.id, by: session.user?.id, message })
+      const expenseDesc = t('lab.expense.desc', { type: typeLabel, patient: patient.name, ref: '{ref}' })
+      const id = await saveLabOrder(input, { id: order?.id, by: session.user?.id, message, expenseDesc })
       toast.success(t(editing ? 'lab.toast.updated' : 'lab.toast.created'), `${typeLabel} · ${patient.name}`)
       onSaved?.(id)
       onClose()
@@ -179,7 +181,7 @@ function LabForm({ onClose, order, defaults, lockPatient, onSaved }: Props) {
             {(status === 'received' || status === 'fitted') && (
               <Input label={t('lab.form.received')} type="date" value={receivedDate} onChange={e => setReceivedDate(e.target.value)} />
             )}
-            <Field label={t('lab.form.cost')} error={live?.cost ? t('v.number') : undefined} className="lab-cost">
+            <Field label={t('lab.form.cost')} error={live?.cost ? t('v.number') : undefined} hint={t('lab.form.costHint')} className="lab-cost">
               <NumberInput value={cost} onChange={setCost} addon={clinic.currencySymbol || clinic.currency} decimals={clinic.currencyDecimals} min={0} invalid={!!live?.cost} placeholder="0" aria-label={t('lab.form.cost')} />
             </Field>
             <Select label={<span className="row gap-1"><Link2 size={14} />{t('lab.form.treatment')}</span>} value={treatmentItemId} onChange={e => pickTreatment(e.target.value)} disabled={!patient}

@@ -10,6 +10,7 @@ import { useSession } from '@/app/session'
 import { useLicense } from '@/license/useLicense'
 import { PinField } from '@/features/auth/PinField'
 import { displayName, pinError, pinErrorKey, plainName } from '@/features/auth/lib'
+import { saveGuard } from '@/features/auth/guardStore'
 import { ROLE_TONE } from './lib'
 import './staff.css'
 
@@ -40,6 +41,7 @@ export default function ResetPinModal({ user, onClose }: { user: User; onClose: 
     try {
       const salt = randomHex()
       await db.users.update(user.id, { pinSalt: salt, pinHash: await hashPin(pin, salt), updatedAt: nowISO() })
+      await saveGuard(user.id, null)          // a new PIN also lifts a sign-in lock from wrong guesses
       toast.success(t('staff.toast.pinReset', { name }))
       void logActivity({ type: 'system', action: 'update', entityId: user.id, by: session.user?.id, message: t('staff.act.pinReset', { name }) })
       onClose()

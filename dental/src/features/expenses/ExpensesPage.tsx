@@ -1,6 +1,6 @@
 import { useMemo, useRef, useState } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
-import { CalendarDays, CalendarRange, ChevronLeft, ChevronRight, Download, Hash, History, Pencil, Plus, ReceiptText, Search, ShieldAlert, Trash2, Wallet, X } from 'lucide-react'
+import { CalendarDays, CalendarRange, ChevronLeft, ChevronRight, Download, FlaskConical, Hash, History, Pencil, Plus, ReceiptText, Search, ShieldAlert, Trash2, Wallet, X } from 'lucide-react'
 import { db, logActivity } from '@/db'
 import { todayISO } from '@/db/ids'
 import type { Expense, ExpenseCategory } from '@/db/types'
@@ -115,7 +115,7 @@ function ExpensesView() {
   const columns: Column<Expense>[] = [
     { key: 'date', header: t('expenses.col.date'), render: e => <span className="inv-exp-date">{fmtDate(e.date, lang)}</span> },
     { key: 'category', header: t('expenses.col.category'), render: e => <ExpenseCategoryBadge category={e.category} /> },
-    { key: 'description', header: t('expenses.col.description'), render: e => <div className="inv-exp-desc"><div className="cell-main truncate inv-exp-auto" dir="auto" title={e.description}>{e.description}</div>{e.vendor && <div className="cell-sub truncate inv-exp-vendor-sub inv-exp-auto" dir="auto">{e.vendor}</div>}</div> },
+    { key: 'description', header: t('expenses.col.description'), render: e => <div className="inv-exp-desc"><div className="cell-main truncate inv-exp-auto" dir="auto" title={e.description}>{e.description}</div>{e.vendor && <div className="cell-sub truncate inv-exp-vendor-sub inv-exp-auto" dir="auto">{e.vendor}</div>}{e.labOrderId && <div className="cell-sub inv-exp-lab"><FlaskConical />{t('expenses.fromLab')}</div>}</div> },
     { key: 'vendor', header: t('expenses.col.vendor'), render: e => (e.vendor ? <span className="truncate inv-exp-vendor inv-exp-auto" dir="auto" title={e.vendor}>{e.vendor}</span> : <span className="muted">—</span>), className: 'inv-exp-col-vendor' },
     { key: 'method', header: t('expenses.col.method'), render: e => (e.method ? <span className="inv-exp-method inv-exp-nowrap">{t(`pay.${e.method}`)}</span> : <span className="muted">—</span>), hideBelow: 'lg' },
     { key: 'amount', header: t('expenses.col.amount'), render: e => <span className="money inv-exp-amount">{money(e.amount)}</span>, className: 'num' },
@@ -256,7 +256,7 @@ function ExpensesView() {
                           <span className={`inv-exp-item-icon cat-${e.category}`} style={{ color: CATEGORY_COLOR_VAR[e.category] }}><I /></span>
                           <div className="grow">
                             <div className="inv-exp-item-desc"><bdi>{e.description}</bdi></div>
-                            <div className="inv-exp-item-sub">{t(`exp.${e.category}`)}{e.vendor && <> · <bdi>{e.vendor}</bdi></>}{e.method && ` · ${t(`pay.${e.method}`)}`}</div>
+                            <div className="inv-exp-item-sub">{t(`exp.${e.category}`)}{e.vendor && <> · <bdi>{e.vendor}</bdi></>}{e.method && ` · ${t(`pay.${e.method}`)}`}{e.labOrderId && <> · {t('expenses.fromLab')}</>}</div>
                           </div>
                           <div className="inv-exp-item-end">
                             <span className="money inv-exp-item-amount">{money(e.amount)}</span>

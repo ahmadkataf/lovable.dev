@@ -99,8 +99,7 @@ export async function deleteItem(id: ID): Promise<void> {
   })
 }
 
-/** True when the item has movements other than its opening stock. Read-only. */
+/** True when the item has movements other than its opening stock. Read-only; reads that one item's movements by index and stops at the first. */
 export async function hasRealMovements(id: ID): Promise<boolean> {
-  const moves = await db.stock.where('itemId').equals(id).toArray()
-  return !canDeleteItem(moves)
+  return (await db.stock.where('itemId').equals(id).filter(m => m.reason !== 'initial').first()) !== undefined
 }

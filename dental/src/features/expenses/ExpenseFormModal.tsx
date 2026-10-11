@@ -1,18 +1,18 @@
 // New / edit expense. Opened from the expenses page and from quick-add elsewhere in the app.
 import { useEffect, useId, useMemo, useRef, useState, type FormEvent } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
-import { Pencil, ReceiptText } from 'lucide-react'
+import { FlaskConical, Pencil, ReceiptText } from 'lucide-react'
 import { db, logActivity } from '@/db'
 import { newId, nowISO, todayISO } from '@/db/ids'
 import type { Expense, ExpenseCategory, PaymentMethod } from '@/db/types'
 import { EXPENSE_CATEGORIES, PAYMENT_METHODS } from '@/db/types'
-import { Button, Input, Modal, Select, useToast } from '@/ui'
+import { Alert, Button, Input, Modal, Select, useToast } from '@/ui'
 import { NumberField } from '@/features/inventory/fields'
 import { useI18n } from '@/i18n'
 import { useClinic, useMoney } from '@/app/hooks'
 import { useSession } from '@/app/session'
 import { useLicense } from '@/license/useLicense'
-import { validateExpense, type ExpenseErrors } from './lib'
+import { expenseAmount, validateExpense, type ExpenseErrors } from './lib'
 import './expenses.css'
 
 export interface ExpenseFormModalProps { open: boolean; onClose: () => void; expense?: Expense; onSaved?: (id: string) => void }
@@ -46,7 +46,8 @@ export default function ExpenseFormModal({ open, onClose, expense, onSaved }: Ex
   const vendors = useMemo(() => [...new Set((recent ?? []).map(e => e.vendor?.trim()).filter(Boolean) as string[])].slice(0, 30), [recent])
 
   const set = <K extends keyof FormState>(k: K, v: FormState[K]) => setF(s => ({ ...s, [k]: v }))
-  const errors: ExpenseErrors = validateExpense({ category: f.category, amount: f.amount, date: f.date, description: f.description })
+  const decimals = clinic.currencyDecimals ?? 2
+  const errors: ExpenseErrors = validateExpense({ category: f.category, amount: f.amount, date: f.date, description: f.description }, decimals)
   const err = (k: keyof ExpenseErrors) => (tried && errors[k] ? (errors[k] === 'positive' ? t('v.positive') : errors[k] === 'date' ? t('v.date') : t('v.required')) : undefined)
 
   const submit = async (e?: FormEvent) => {
@@ -61,7 +62,7 @@ export default function ExpenseFormModal({ open, onClose, expense, onSaved }: Ex
     saving.current = true
     setBusy(true)
     const data = {
-      category: f.category as ExpenseCategory, amount: Math.round((f.amount ?? 0) * 100) / 100, date: f.date, description: f.description.trim(),
+      category: f.category as ExpenseCategory, amount: expenseAmount(f.amount ?? 0, decimals), date: f.date, description: f.description.trim(),
       vendor: f.vendor.trim() || undefined, method: (f.method || undefined) as PaymentMethod | undefined,
     }
     try {
@@ -93,6 +94,7 @@ export default function ExpenseFormModal({ open, onClose, expense, onSaved }: Ex
         <Button type="submit" form={formId} variant="primary" loading={busy} disabled={readOnly}>{editing ? t('saveChanges') : t('expenses.form.create')}</Button>
       </>}>
       <form id={formId} onSubmit={submit} noValidate className="inv-exp-form">
+        {expense?.labOrderId && <Alert tone="info" icon={<FlaskConical />} className="mb-4">{t('expenses.fromLabHint')}</Alert>}
         <div className="form-grid">
           <Select label={t('expenses.field.category')} required value={f.category} onChange={e => set('category', e.target.value as ExpenseCategory)} placeholder={t('expenses.field.categoryPlaceholder')}
             error={err('category')} options={EXPENSE_CATEGORIES.map(c => ({ value: c, label: t(`exp.${c}`) }))} />

@@ -4,7 +4,7 @@ import {
   blocksTime, ceilMinutes, countByDate, durationOf, endFrom, findConflicts, generateSlots, gridBounds, groupByDate, isUpcoming, isValidDate, isValidTime,
   isWorkingDay, layoutColumns, matchesDoctor, matchesStatus, minutesOfDay, monthGrid, nextFreeSlot, nextLastVisit, nextStep, overlaps, patientSummary, pluralForm,
   pxPerMinute, quickPatientFromQuery, searchPatients, shiftDate, slotIsBusy, snapMinutes, STATUS_ACTIONS, viewRange, weekDates, withinHours,
-  firstFreeDoctor, lastVisitAfter, safeDuration, slotLoad, slotStep,
+  firstFreeDoctor, lastVisitAfter, safeDuration, slotLoad, slotStep, findPatientOverlaps, daysForBudget, AGENDA_STEP,
 } from '../src/features/appointments/lib'
 
 const D = '2026-10-10' // a Saturday
@@ -288,5 +288,29 @@ describe('appointments: review fixes', () => {
     expect(slotLoad(['d1', 'd2'], items, D, '11:00', 30)).toBe('part')
     expect(slotLoad(['d1', 'd2'], items, D, '12:00', 30)).toBe('free')
     expect(slotLoad([], items, D, '11:00', 30)).toBe('busy')
+  })
+})
+
+describe('appointments: the same patient twice at once (audit #58)', () => {
+  it('finds the patient\'s overlapping visits with any doctor, skipping freed and edited ones', () => {
+    const samer = apt('15:00', '15:30', { patientId: 'mariam', doctorId: 'samer' })
+    const later = apt('15:30', '16:00', { patientId: 'mariam', doctorId: 'layla' })
+    const cancelled = apt('15:00', '15:30', { patientId: 'mariam', doctorId: 'layla', status: 'cancelled' })
+    const someoneElse = apt('15:00', '15:30', { patientId: 'other', doctorId: 'layla' })
+    const others = [samer, later, cancelled, someoneElse]
+    expect(findPatientOverlaps({ patientId: 'mariam', ...span('15:00', '15:30') }, others)).toEqual([samer])
+    expect(findPatientOverlaps({ patientId: 'mariam', ...span('15:15', '15:45') }, others)).toEqual([samer, later])
+    expect(findPatientOverlaps({ patientId: 'mariam', ...span('16:00', '16:30') }, others)).toEqual([])          // touching edges only
+    expect(findPatientOverlaps({ id: samer.id, patientId: 'mariam', ...span('15:00', '15:30') }, others)).toEqual([]) // editing itself
+  })
+})
+
+describe('appointments: agenda in steps (audit #137)', () => {
+  it('renders whole days up to a row budget, and always at least one day', () => {
+    expect(daysForBudget([], AGENDA_STEP)).toBe(0)
+    expect(daysForBudget([45, 44, 46], 40)).toBe(1)          // a busy day alone exceeds the budget: still shown
+    expect(daysForBudget([10, 12, 15, 9], 40)).toBe(3)       // 37 rows; the 4th day would exceed it
+    expect(daysForBudget([10, 12, 15, 9], 80)).toBe(4)
+    expect(daysForBudget([0, 0, 3], 2)).toBe(2)
   })
 })

@@ -39,6 +39,26 @@ export function useGuardedClose(dirty: boolean, onClose: () => void, busy?: { cu
   }, [dirty, onClose, busy, confirm, t])
 }
 
+/**
+ * The floating "new …" button of phone list screens, above the bottom bar. It carries its label at the top of the
+ * page and shrinks to its icon once the list is scrolled, so it hides as little of the list as possible.
+ */
+export function Fab({ icon, label, onClick, disabled, title, className }: { icon: ReactNode; label: string; onClick: () => void; disabled?: boolean; title?: string; className?: string }) {
+  const [compact, setCompact] = useState(false)
+  useEffect(() => {
+    const on = () => setCompact(window.scrollY > 48)
+    on()
+    window.addEventListener('scroll', on, { passive: true })
+    return () => window.removeEventListener('scroll', on)
+  }, [])
+  return (
+    <button type="button" className={['btn btn-primary pt-fab no-print', compact && 'is-compact', className].filter(Boolean).join(' ')} onClick={onClick} disabled={disabled}
+      aria-label={label} title={title ?? label}>
+      {icon}<span className="pt-fab-label">{label}</span>
+    </button>
+  )
+}
+
 /** "ذكر · 34 سنة" */
 export function useGenderAge() {
   const { t } = useI18n(); const plural = usePlural()

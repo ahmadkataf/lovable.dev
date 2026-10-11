@@ -217,3 +217,7 @@
 /* a one-line name in its own direction (dir=auto: a Latin lab name truncates at its end) but aligned like the page */
 .lab-auto { text-align: match-parent; }
 .lab-menu .menu-item:focus-visible { outline: none; background: var(--surface-3); color: var(--text); }
+/* phones: counts stay readable (12px or more) */
+@media screen and (max-width: 767px) {
+  .lab-seg-count, .lab-chip-n, .lab-tooth-badge, .lab-tooth-more, .lab-k, .lab-side, .lab-teeth.ro .lab-tooth, .lab-slip-facts dt, .lab-slip-sign > div { font-size: 12px; }
+}

@@ -21,7 +21,7 @@ import {
   CATEGORY_PRESETS, customCategories, expiryState, filterItems, inventoryStats, isLowStock, isOutOfStock, itemValue, sortItems, sortMovements, toCSV, type MoveDirection,
 } from './lib'
 import { deleteItem, hasRealMovements, setItemActive } from './actions'
-import { CategoryBadge, ExpiryBadge, StockBadge, catLabel, qtyText, reasonLabel, unitLabel, useUnitMoney } from './parts'
+import { CategoryBadge, ExpiryBadge, StockBadge, catLabel, qtyText, reasonLabel, unitFor, unitLabel, useUnitMoney } from './parts'
 import ItemFormModal from './ItemFormModal'
 import PurchaseModal from './PurchaseModal'
 import MovementsDrawer from './MovementsDrawer'
@@ -61,8 +61,8 @@ function InventoryView() {
 
   const items = useLiveQuery(() => db.inventory.toArray(), [])
   const movementCount = useLiveQuery(() => db.stock.count(), [])
-  // items with history beyond their opening stock: those are deactivated, not deleted (the menu hides "delete")
-  const withHistory = useLiveQuery(async () => new Set((await db.stock.where('reason').noneOf(['initial']).toArray()).map(m => m.itemId)), [])
+  // the movements count is an index count; whether one item has history beyond its opening stock is checked when its
+  // menu opens (items with history are deactivated, not deleted), never by reading every movement on each visit
   const [tab, setTab] = useState<TabId>('items')
   const movements = useLiveQuery<StockMovement[] | undefined>(async () => (tab === 'movements' ? db.stock.toArray() : undefined), [tab])
 
@@ -125,13 +125,17 @@ function InventoryView() {
     } catch { toast.error(t('error')) }
   }
 
-  const menuFor = (it: InventoryItem): MenuItemDef[] => [
+  const menuFor = (it: InventoryItem) => async (): Promise<MenuItemDef[]> => {
+    const history = readOnly ? true : await hasRealMovements(it.id)
+    return baseMenu(it, history)
+  }
+  const baseMenu = (it: InventoryItem, history: boolean): MenuItemDef[] => [
     { label: t('inventory.history'), icon: <History />, onClick: () => setHistoryId(it.id) },
     ...(readOnly ? [] : [
       { label: t('edit'), icon: <Pencil />, onClick: () => setForm({ open: true, item: it }) },
       ...(it.active ? [{ label: t('inventory.purchaseItem'), icon: <ShoppingCart />, onClick: () => setPurchase({ open: true, ids: [it.id] }) }] : []),
       { label: it.active ? t('inventory.deactivate') : t('inventory.activate'), icon: it.active ? <PowerOff /> : <Power />, onClick: () => void toggleActive(it) },
-      ...(withHistory && !withHistory.has(it.id) ? [
+      ...(!history ? [
         { sep: true },
         { label: t('inventory.deleteItem'), icon: <Trash2 />, danger: true, onClick: () => void remove(it) },
       ] : []),
@@ -163,7 +167,7 @@ function InventoryView() {
         {!readOnly && it.active && <button type="button" className="inv-step" aria-label={t('inventory.move.remove')} title={t('inventory.move.remove')} disabled={it.quantity <= 0} onClick={e => openMove(e, it.id, 'out')}><Minus /></button>}
         <div className="inv-qty-val">
           <span className={`inv-qty-num num${low ? ' low' : ''}`}>{qtyText(it.quantity, lang)}</span>
-          <span className="inv-qty-unit">{unitLabel(t, it.unit)}</span>
+          <span className="inv-qty-unit">{unitFor(t, it.unit, it.quantity)}</span>
         </div>
         {!readOnly && it.active && <button type="button" className="inv-step add" aria-label={t('inventory.move.add')} title={t('inventory.move.add')} onClick={e => openMove(e, it.id, 'in')}><Plus /></button>}
       </div>

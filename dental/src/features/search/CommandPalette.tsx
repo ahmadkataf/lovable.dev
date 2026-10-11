@@ -190,7 +190,7 @@ function Palette({ onClose }: { onClose: () => void }) {
             <span className="srch-sub">
               <span className="num"><Hl text={`#${p.fileNo}`} q={dq} /></span>
               {phone && <><Sep /><span className="num"><Hl text={formatPhone(phone)} q={dq} /></span></>}
-              {age !== null && <><Sep />{age} {t('years')}</>}
+              {age !== null && <><Sep /><bdi>{t('age.years', { n: age })}</bdi></>}
             </span>
           </span>
           <span className="srch-end">{p.archived && <Badge size="sm">{t('archived')}</Badge>}<Enter /></span>

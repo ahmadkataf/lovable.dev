@@ -6,7 +6,7 @@ import { useI18n } from '@/i18n'
 import { getSetting, logActivity } from '@/db'
 import { useClinic } from '@/app/hooks'
 import { useLicense } from '@/license/useLicense'
-import { checkCode, TRIAL_DAYS } from '@/license/core'
+import { checkCode, extractCode, TRIAL_DAYS } from '@/license/core'
 import { openExternal } from '@/platform'
 import { fmtDate } from '@/lib/dates'
 import { formatPhone, whatsappLink } from '@/lib/format'
@@ -30,6 +30,7 @@ export default function LicenseTab() {
 
   if (lic.loading || !lic.device) return <TabSkeleton cards={2} />
   const { status } = lic
+  const licenseEnded = status === 'expired' && lic.ended === 'license'
   const clinicName = pick(clinic.name, clinic.nameEn) || t('appName')
   const request = t('license.requestMsg', { clinic: clinicName, device: lic.device })
   const trialEnd = trialEndsAt(installedAt, TRIAL_DAYS)
@@ -51,7 +52,7 @@ export default function LicenseTab() {
       try {
         const r = await lic.activate(code)
         if (r !== 'ok') { setError(t(`license.err.${r}`)); return }
-        const c = await checkCode(lic.device, code)
+        const c = await checkCode(lic.device, code, new Date(lic.now()))
         const plan = c.ok ? t(`license.plan.${c.plan}`) : ''
         setCode(''); setError(null); setRenewing(false)
         toast.success(t('license.activated'), plan)
@@ -71,17 +72,17 @@ export default function LicenseTab() {
   return (
     <div className="st-form">
       {/* ---- status ---- */}
-      <Card className={`st-license-hero st-lic-${status}`} data-qa="license-status" data-status={status}>
+      <Card className={`st-license-hero st-lic-${status}`} data-qa="license-status" data-status={status} data-ended={lic.ended ?? undefined}>
         <CardBody>
           <div className="st-hero">
             <span className="st-hero-icon">{status === 'active' ? <ShieldCheck /> : status === 'expired' ? <ShieldAlert /> : <Sparkles />}</span>
             <div className="grow">
               <div className="row wrap gap-2">
-                <h2 className="st-hero-title">{t(`license.status.${status}`)}</h2>
+                <h2 className="st-hero-title">{licenseEnded ? t('license.status.licenseEnded') : t(`license.status.${status}`)}</h2>
                 {status === 'active' && lic.plan && <Badge tone={lic.plan === 'pro' ? 'accent' : 'primary'} icon={lic.plan === 'pro' ? <Crown /> : <BadgeCheck />}>{t(`license.plan.${lic.plan}`)}</Badge>}
                 {status === 'expired' && <Badge tone="danger" icon={<Lock />}>{t('license.readOnly')}</Badge>}
               </div>
-              <p className="st-hero-desc">{status === 'active' ? t('license.activeDesc') : status === 'expired' ? t('license.expiredDesc') : t('license.trialDesc')}</p>
+              <p className="st-hero-desc">{status === 'active' ? t('license.activeDesc') : licenseEnded ? t('license.licenseEndedDesc', { date: untilText }) : status === 'expired' ? t('license.expiredDesc') : t('license.trialDesc')}</p>
             </div>
           </div>
 
@@ -110,7 +111,8 @@ export default function LicenseTab() {
               )}
             </div>
           )}
-          {status === 'active' && renewSoon(lic.until) && lic.until && <Alert tone="warning" className="mt-4">{t('license.renewSoon', { date: untilText })}</Alert>}
+          {status === 'active' && renewSoon(lic.until, new Date(lic.now())) && lic.until && <Alert tone="warning" className="mt-4">{t('license.renewSoon', { date: untilText })}</Alert>}
+          {lic.clockBehind && <Alert tone="warning" className="mt-4">{t('license.clockBehind')}</Alert>}
         </CardBody>
       </Card>
 
@@ -132,7 +134,7 @@ export default function LicenseTab() {
             <SectionTitle icon={<BadgeCheck />} title={status === 'active' ? t('license.renew') : t('license.activateTitle')} sub={status === 'active' ? t('license.renewHint') : t('license.activateDesc')} tone="success" />
             {showForm ? (
               <form className="st-activate" onSubmit={activate} noValidate>
-                <Textarea label={t('license.codeLabel')} value={code} onChange={e => { setCode(formatCodeInput(e.target.value)); setError(null) }}
+                <Textarea label={t('license.codeLabel')} value={code} onChange={e => { setCode(formatCodeInput(extractCode(e.target.value))); setError(null) }}
                   placeholder={t('license.codePlaceholder')} dir="ltr" autoComplete="off" autoCapitalize="characters" spellCheck={false} rows={7}
                   onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); activate() } }}
                   className="st-code-input" error={error ?? undefined} hint={error ? undefined : t('license.codeHint')} data-qa="code-input" />

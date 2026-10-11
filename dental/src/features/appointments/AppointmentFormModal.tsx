@@ -11,10 +11,11 @@ import { useLicense } from '@/license/useLicense'
 import { Alert, Button, Field, Input, Modal, Select, Textarea, useToast } from '@/ui'
 import { combine, fmtDate, fmtTime, timeOf, minutesToTime, timeToMinutes, weekdayName } from '@/lib/dates'
 import {
-  blocksTime, DURATIONS, endFrom, findConflicts, generateSlots, isValidDate, isValidTime, isWorkingDay, nextFreeSlot, safeDuration, slotIsBusy, slotStep, weekdayOf, withinHours,
+  blocksTime, DURATIONS, endFrom, findConflicts, findPatientOverlaps, generateSlots, isValidDate, isValidTime, isWorkingDay, nextFreeSlot, safeDuration, slotIsBusy, slotStep, weekdayOf, withinHours,
 } from './lib'
 import PatientPicker from './PatientPicker'
 import { syncLastVisit, useAptActions, useDurationLabel } from './shared'
+import { revealFirstError } from '@/features/patients/reveal'
 
 /** Create / edit an appointment. `defaults` pre-fills a new one (from the calendar or a patient page). */
 export interface AppointmentFormModalProps { open: boolean; onClose: () => void; appointment?: Appointment; defaults?: { patientId?: string; date?: string; time?: string; doctorId?: string }; onSaved?: (id: string) => void }
@@ -98,6 +99,17 @@ function AppointmentForm({ onClose, appointment, defaults, onSaved }: Appointmen
     if (!conflicts.length || !day || !validDate) return null
     return nextFreeSlot(day.filter(a => blocksTime(a.status)), date, dur, clinic, time)
   }, [conflicts.length, day, date, dur, clinic, time, validDate])
+  // the same patient booked elsewhere at this time (another doctor or chair): a soft warning, like the doctor conflict
+  const patientId = patient?.id
+  const patientDay = useLiveQuery(async () => {
+    if (!patientId || !validDate) return { key: `${patientId}|${date}`, list: [] }
+    return { key: `${patientId}|${date}`, list: await db.appointments.where('[patientId+date]').equals([patientId, date]).toArray() }
+  }, [patientId, date, validDate])
+  const patientClash = useMemo(() => {
+    if (!start || !patientId || !patientDay || patientDay.key !== `${patientId}|${date}`) return []
+    // the same doctor's overlaps are already listed in the doctor conflict
+    return findPatientOverlaps({ id: appointment?.id, patientId, start, end }, patientDay.list).filter(a => a.doctorId !== doctorId)
+  }, [start, end, patientId, patientDay, date, doctorId, appointment?.id])
   const closedDay = validDate && !isWorkingDay(date, clinic.workingDays)
   const outside = validTime && !withinHours(time, dur, clinic.workStart, clinic.workEnd)
 
@@ -127,12 +139,16 @@ function AppointmentForm({ onClose, appointment, defaults, onSaved }: Appointmen
     e?.preventDefault()
     if (readOnly || saving || savingRef.current) return
     const errs: Errors = {}
-    if (!patient) errs.patient = t('v.required')
+    if (!patient) errs.patient = t('appointments.form.pickPatient')
     if (!doctorId) errs.doctor = t('v.required')
     if (!date) errs.date = t('v.required'); else if (!validDate) errs.date = t('v.date')
     if (!time) errs.time = t('v.required'); else if (!validTime) errs.time = t('appointments.form.badTime')
     setErrors(errs)
-    if (Object.values(errs).some(Boolean) || !patient) return
+    if (Object.values(errs).some(Boolean) || !patient) {
+      // the dialog is a tall bottom sheet on a phone: show the first problem instead of failing silently
+      revealFirstError(() => document.getElementById('apt-form'))
+      return
+    }
     savingRef.current = true
     setSaving(true)
     try {
@@ -218,6 +234,14 @@ function AppointmentForm({ onClose, appointment, defaults, onSaved }: Appointmen
             {t('appointments.form.conflictDesc', { doctor: doctorName })}
             <ul className="apt-conflict-list">
               {conflicts.slice(0, 3).map(c => <li key={c.id}><span className="apt-tm">{fmtTime(c.start, lang)} – {fmtTime(c.end, lang)}</span> · {c.patientName || t('unknown')}</li>)}
+            </ul>
+          </Alert>
+        )}
+        {patientClash.length > 0 && patient && (
+          <Alert tone="warning" title={t('appointments.form.patientBusyTitle')} className="apt-conflict">
+            {t('appointments.form.patientBusyDesc', { name: patient.name })}
+            <ul className="apt-conflict-list">
+              {patientClash.slice(0, 3).map(c => <li key={c.id}><span className="apt-tm">{fmtTime(c.start, lang)} – {fmtTime(c.end, lang)}</span> · <bdi>{allUsers.find(u => u.id === c.doctorId)?.name ?? t('appointments.formerDoctor')}</bdi></li>)}
             </ul>
           </Alert>
         )}

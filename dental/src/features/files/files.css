@@ -82,3 +82,6 @@
   .pt-note-actions .btn { width: 40px; height: 40px; }
   .pt-file-size { display: none; }
 }
+
+/* while the viewer reads the first bytes of a file to learn what it really is */
+.pt-stage-loading { position: absolute; inset: 0; width: 100%; height: 100%; }

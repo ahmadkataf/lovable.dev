@@ -3,7 +3,7 @@ import type { ModuleDict } from '../types'
 // Strings of the "seed" module (default catalogue + demo data). Keys are used as t('seed.<key>'). Keep ar and en in step.
 // Progress: t(`seed.step.${step}`) for each DemoStep of loadDemoData({ onProgress }).
 // Results:  t('seed.summary', counts) after loadDemoData(), t('seed.defaultsSummary', counts) after seedDefaults().
-// Prices:   t('seed.pricesInUsd', { currency }) when scalesPrices(currency) (catalog.ts) is false, e.g. SYP.
+// Prices:   t('seed.pricesInUsd') when scalesPrices(currency) (catalog.ts) is false, e.g. SYP.
 const seed: ModuleDict = {
   ar: {
     title: 'البيانات التجريبية',
@@ -25,7 +25,7 @@ const seed: ModuleDict = {
     summary: 'المرضى: {patients} · المواعيد: {appointments} · الفواتير: {invoices} · الدفعات: {payments}',
     failed: 'تعذّر إنشاء البيانات التجريبية، ولم يُضف أي مريض أو موعد.',
     defaultsTitle: 'القوائم الافتراضية',
-    defaultsDesc: 'إجراءات بأسعار مقترحة، والأدوية الأكثر وصفاً في طب الأسنان، والمواد الاستهلاكية الشائعة. يمكنك تعديلها في أي وقت.',
+    defaultsDesc: 'إجراءات بأسعار مقترحة والأدوية الأكثر وصفاً في طب الأسنان. يمكنك تعديلها في أي وقت، ويبدأ المخزون فارغاً لتسجّل فيه موادك الفعلية.',
     defaultsProcedures: 'قائمة الإجراءات والأسعار',
     defaultsDrugs: 'قائمة الأدوية',
     defaultsInventory: 'المواد والمستهلكات في المخزون',
@@ -33,7 +33,7 @@ const seed: ModuleDict = {
     defaultsSummary: 'الإجراءات: {procedures} · الأدوية: {drugs} · مواد المخزون: {inventory}',
     defaultsNone: 'القوائم موجودة مسبقاً، فلم يُضف شيء.',
     defaultsPrices: 'الأسعار المقترحة بالدولار وتُحوَّل تلقائياً للعملات المرتبطة به (ريال، درهم، دينار…). راجعها من قائمة الإجراءات.',
-    pricesInUsd: 'الأسعار المقترحة في قائمة الإجراءات مكتوبة بالدولار الأمريكي ولم تُحوَّل إلى {currency}. عدّلها قبل إصدار أول فاتورة.',
+    pricesInUsd: 'الأسعار المقترحة في قائمة الإجراءات مكتوبة بالدولار الأمريكي ولم تُحوَّل إلى عملة العيادة. عدّلها قبل إصدار أول فاتورة.',
     'count.users': 'الأطباء المضافون',
     'count.patients': 'المرضى',
     'count.appointments': 'المواعيد',
@@ -69,7 +69,7 @@ const seed: ModuleDict = {
     summary: 'Patients: {patients} · Appointments: {appointments} · Invoices: {invoices} · Payments: {payments}',
     failed: 'The demo data could not be created; no patients or appointments were added.',
     defaultsTitle: 'Default lists',
-    defaultsDesc: 'Procedures with suggested prices, the drugs dentists prescribe most and common supplies. You can edit them at any time.',
+    defaultsDesc: 'Procedures with suggested prices and the drugs dentists prescribe most. You can edit them at any time; the stock starts empty for your real supplies.',
     defaultsProcedures: 'Procedures and prices',
     defaultsDrugs: 'Drug list',
     defaultsInventory: 'Supplies in stock',
@@ -77,7 +77,7 @@ const seed: ModuleDict = {
     defaultsSummary: 'Procedures: {procedures} · Drugs: {drugs} · Stock items: {inventory}',
     defaultsNone: 'The lists already exist; nothing was added.',
     defaultsPrices: 'Suggested prices are in US dollars and converted automatically for currencies pegged to it (riyal, dirham, dinar…). Review them in the procedure list.',
-    pricesInUsd: 'The suggested prices in the procedure list are in US dollars and were not converted to {currency}. Adjust them before issuing your first invoice.',
+    pricesInUsd: 'The suggested prices in the procedure list are in US dollars and were not converted to the clinic’s currency. Adjust them before issuing your first invoice.',
     'count.users': 'Doctors added',
     'count.patients': 'Patients',
     'count.appointments': 'Appointments',

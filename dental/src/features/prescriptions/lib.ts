@@ -1,9 +1,9 @@
 // Pure helpers of the prescriptions module: presets for the item fields, item builders, the list filters and the
 // plain-text version of a prescription (WhatsApp). No React, no database: everything here is unit-tested.
-import type { Drug, ISODate, Lang, Patient, Prescription, PrescriptionItem } from '@/db/types'
+import type { Drug, ISODate, Lang, Patient, Prescription, PrescriptionItem, User } from '@/db/types'
 import { newId } from '@/db/ids'
 import { addDays, diffDays, startOfMonth } from '@/lib/dates'
-import { matches } from '@/lib/format'
+import { matches, normalizeText } from '@/lib/format'
 
 // ---- presets ------------------------------------------------------------------------------------
 
@@ -123,6 +123,93 @@ export function regimenLine(i: Pick<PrescriptionItem, 'dose' | 'frequency' | 'du
   return [i.dose, i.frequency, i.duration].map(s => (s ?? '').trim()).filter(Boolean).join(sep)
 }
 
+// ---- allergies -------------------------------------------------------------------------------------
+// A drug written on a prescription is checked against the allergies recorded on the patient's file. Both are matched
+// to drug families by keywords (generic and common brand names, Arabic and English, hamza and taa marbuta folded):
+// an allergy to "البنسلين" flags amoxicillin and Augmentin, one to aspirin or ibuprofen flags every NSAID, and a
+// penicillin allergy also flags the cephalosporins (cross-reaction). A keyword written '=word' only matches the whole
+// word ("سلفا" the sulfa drugs, not "سلفات" a sulfate salt).
+
+export type DrugClass =
+  | 'penicillin' | 'cephalosporin' | 'macrolide' | 'lincosamide' | 'tetracycline' | 'sulfonamide' | 'nitroimidazole' | 'quinolone'
+  | 'nsaid' | 'paracetamol' | 'opioid' | 'localAnaesthetic' | 'chlorhexidine' | 'iodine'
+export const DRUG_CLASS_KEYWORDS: Record<DrugClass, string[]> = {
+  penicillin: ['penicillin', 'amoxicillin', 'amoxycillin', 'amoxil', 'augmentin', 'amoxiclav', 'co-amoxiclav', 'clavulan', 'ampicillin', 'flucloxacillin', 'cloxacillin',
+    'dicloxacillin', 'piperacillin', 'unasyn', 'sultamicillin', 'بنسلين', 'بنيسيلين', 'اموكسي', 'اموكسيسيلين', 'اوغمنتين', 'اوجمنتين', 'اغمنتين', 'كلافولان', 'امبيسيلين',
+    'فلوكلوكساسيلين', 'كلوكساسيلين', 'يوناسين'],
+  cephalosporin: ['cephalosporin', 'cephalexin', 'cefalexin', 'cefadroxil', 'cefuroxime', 'cefixime', 'ceftriaxone', 'cefaclor', 'cefazolin', 'cefprozil', 'cefdinir', 'zinnat',
+    'سيفالوسبورين', 'سيفالكسين', 'سيفاليكسين', 'سيفادروكسيل', 'سيفوروكسيم', 'زينات', 'سيفيكسيم', 'سفترياكسون', 'سيفترياكسون', 'سيفاكلور'],
+  macrolide: ['macrolide', 'azithromycin', 'zithromax', 'clarithromycin', 'klacid', 'erythromycin', 'ماكروليد', 'ازيثرومايسين', 'ازيترومايسين', 'زيثروماكس', 'كلاريثرومايسين', 'كلاسيد', 'اريثرومايسين'],
+  lincosamide: ['clindamycin', 'dalacin', 'lincomycin', 'كليندامايسين', 'كلينداميسين', 'دالاسين', 'لينكومايسين'],
+  tetracycline: ['tetracycline', 'doxycycline', 'minocycline', 'تتراسيكلين', 'دوكسيسيكلين', 'دوكسي سيكلين', 'مينوسيكلين'],
+  sulfonamide: ['=sulfa', 'sulfonamide', 'sulphonamide', 'sulfamethoxazole', 'co-trimoxazole', 'cotrimoxazole', 'trimethoprim', 'septrin', 'bactrim', 'sulfadiazine',
+    '=سلفا', 'سلفوناميد', 'السلفوناميدات', 'سلفاميثوكسازول', 'سبترين', 'باكتريم', 'تريميثوبريم'],
+  nitroimidazole: ['metronidazole', 'flagyl', 'tinidazole', 'ornidazole', 'ميترونيدازول', 'مترونيدازول', 'فلاجيل', 'فلاجل', 'تينيدازول'],
+  quinolone: ['quinolone', 'ciprofloxacin', 'levofloxacin', 'moxifloxacin', 'ofloxacin', 'كينولون', 'سيبروفلوكساسين', 'ليفوفلوكساسين', 'موكسيفلوكساسين'],
+  nsaid: ['nsaid', 'anti-inflammator', 'ibuprofen', 'brufen', 'advil', 'diclofenac', 'voltaren', 'cataflam', 'ketoprofen', 'naproxen', 'mefenamic', 'ponstan', 'aspirin',
+    'acetylsalicylic', 'celecoxib', 'etoricoxib', 'meloxicam', 'piroxicam', 'ketorolac', 'nimesulide', 'indomethacin', 'flurbiprofen', 'dexketoprofen',
+    'مضادات الالتهاب', 'مضاد التهاب', 'مضادات الالتهاب غير الستيروئيدية', 'ايبوبروفين', 'ايبوبروفن', 'بروفين', 'ادفيل', 'ديكلوفيناك', 'فولتارين', 'كاتافلام',
+    'كيتوبروفين', 'نابروكسين', 'ميفيناميك', 'بونستان', 'اسبرين', 'اسبيرين', 'الاسبرين', 'سيليكوكسيب', 'ايتوريكوكسيب', 'ميلوكسيكام', 'بيروكسيكام', 'كيتورولاك', 'نيميسوليد'],
+  paracetamol: ['paracetamol', 'acetaminophen', 'panadol', 'tylenol', 'باراسيتامول', 'باراسيتامل', 'بنادول', 'سيتامول', 'تايلينول'],
+  opioid: ['opioid', 'codeine', 'tramadol', 'morphine', 'tapentadol', 'oxycodone', 'افيونات', 'كودئين', 'كودائين', 'كوديين', 'ترامادول', 'مورفين'],
+  localAnaesthetic: ['lidocaine', 'lignocaine', 'xylocaine', 'articaine', 'septocaine', 'mepivacaine', 'scandonest', 'prilocaine', 'bupivacaine', 'benzocaine', 'local anaesthe', 'local anesthe',
+    'ليدوكائين', 'ليدوكايين', 'ليدوكاين', 'زيلوكائين', 'كسيلوكائين', 'ارتيكائين', 'ارتيكايين', 'ميبيفاكائين', 'بريلوكائين', 'بوبيفاكائين', 'بنزوكائين', 'المخدر الموضعي', 'مخدر موضعي', 'البنج الموضعي', 'التخدير الموضعي'],
+  chlorhexidine: ['chlorhexidine', 'corsodyl', 'كلورهيكسيدين', 'كلورهكسيدين', 'كورسوديل'],
+  iodine: ['iodine', 'povidone', 'betadine', '=يود', 'اليود', 'بوفيدون', 'بيتادين'],
+}
+/** Families that cross-react: a patient allergic to the first may react to the second. */
+const CROSS_REACTIONS: [DrugClass, DrugClass][] = [['penicillin', 'cephalosporin']]
+
+/** The drug families a text names: drugClasses('أموكسيسيلين 500') → ['penicillin']. */
+export function drugClasses(text: string | undefined): DrugClass[] {
+  const t = normalizeText(text ?? '')
+  if (!t) return []
+  const words = new Set(t.split(/[^\p{L}\p{N}]+/u).filter(Boolean).flatMap(w => [w, w.replace(/^ال(?=\S{2,})/, '')]))
+  const out: DrugClass[] = []
+  for (const [cls, keys] of Object.entries(DRUG_CLASS_KEYWORDS) as [DrugClass, string[]][]) {
+    if (keys.some(k => (k.startsWith('=') ? words.has(normalizeText(k.slice(1))) : t.includes(normalizeText(k))))) out.push(cls)
+  }
+  return out
+}
+
+export interface AllergyConflict {
+  allergy: string               // the allergy as written on the file
+  drug: string                  // the medicine's name
+  cls?: DrugClass               // the shared family (none when the allergy names this very drug)
+  related?: boolean             // a cross-reaction (penicillin → cephalosporin), not the same family
+}
+/**
+ * The recorded allergies a prescription line conflicts with. The line's own name and, when it comes from the
+ * catalogue, the drug's Arabic and English names are checked.
+ */
+export function allergyConflicts(item: { name: string; drug?: Pick<Drug, 'name' | 'nameEn'> }, allergies: string[] | undefined): AllergyConflict[] {
+  const list = (allergies ?? []).map(a => a.trim()).filter(Boolean)
+  if (!list.length || !item.name.trim()) return []
+  const names = [item.name, item.drug?.name, item.drug?.nameEn].filter((x): x is string => !!x && !!x.trim())
+  const drugCls = new Set(names.flatMap(drugClasses))
+  const out: AllergyConflict[] = []
+  for (const allergy of list) {
+    const na = normalizeText(allergy).replace(/^ال(?=\S{2,})/, '')
+    const same = na.length >= 4 && names.some(n => normalizeText(n).includes(na))
+    const allergyCls = drugClasses(allergy)
+    const shared = allergyCls.find(c => drugCls.has(c))
+    if (shared || same) { out.push({ allergy, drug: item.name, cls: shared }); continue }
+    const cross = CROSS_REACTIONS.find(([a, b]) => allergyCls.includes(a) && drugCls.has(b))
+    if (cross) out.push({ allergy, drug: item.name, cls: cross[1], related: true })
+  }
+  return out
+}
+
+// ---- doctor --------------------------------------------------------------------------------------
+/** The doctor's name as printed: with the title ("د." / "Dr.") unless the name already carries it. */
+export function doctorLabel(u: Pick<User, 'name'> & Partial<Pick<User, 'title'>> | undefined): string {
+  if (!u) return ''
+  const name = u.name.trim(), title = (u.title ?? '').trim()
+  if (!title) return name
+  const bare = (s: string) => normalizeText(s).replace(/[.\s]/g, '')
+  return bare(name).startsWith(bare(title)) ? name : `${title} ${name}`
+}
+
 // ---- catalogue search ----------------------------------------------------------------------------
 
 /** Active drugs matching the query (name, English name, form or strength), best matches first. */
@@ -161,7 +248,9 @@ export function filterPrescriptions(list: Prescription[], f: { q: string; preset
     if (r && (p.date < r.from || p.date > r.to)) return false
     if (!q) return true
     const pt = f.patients.get(p.patientId)
+    const ref = (p as Prescription & { number?: string }).number
     return matches(pt?.name, q) || (pt ? String(pt.fileNo) === q.replace(/^#/, '') : false) || matches(p.diagnosis, q) || p.items.some(i => matches(i.name, q))
+      || (!!ref && (matches(ref, q) || (/^\d+$/.test(q) && Number(ref.replace(/\D/g, '')) === Number(q))))
   })
 }
 /**
@@ -192,6 +281,7 @@ export interface RxTextInput {
   doctorName?: string
   patientName?: string
   dateLabel: string    // already formatted for the language
+  ref?: string         // 'RX-000123'
   diagnosis?: string
   notes?: string
   footer?: string
@@ -202,7 +292,7 @@ export interface RxTextInput {
 export function buildRxText(x: RxTextInput): string {
   const lines: string[] = []
   if (x.clinicName?.trim()) lines.push(`*${x.clinicName.trim()}*`)
-  lines.push(`${x.labels.title} — ${x.dateLabel}`)
+  lines.push(`${x.labels.title}${x.ref ? ` ${x.ref}` : ''} — ${x.dateLabel}`)
   if (x.patientName?.trim()) lines.push(`${x.labels.patient}: ${x.patientName.trim()}`)
   if (x.doctorName?.trim()) lines.push(`${x.labels.doctor}: ${x.doctorName.trim()}`)
   if (x.diagnosis?.trim()) lines.push(`${x.labels.diagnosis}: ${x.diagnosis.trim()}`)

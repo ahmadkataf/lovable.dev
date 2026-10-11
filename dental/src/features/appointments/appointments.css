@@ -175,6 +175,7 @@ button.apt-slot:hover .apt-slot-hint, button.apt-slot:focus-visible .apt-slot-hi
 .apt-ag-month { font-size: var(--fs-xs); color: var(--text-3); }
 .apt-ag-count { font-size: var(--fs-xs); font-weight: 600; color: var(--text-3); background: var(--surface-3); border-radius: var(--r-full); padding: 3px 10px; flex: none; }
 .apt-ag-list { padding: 0 12px 12px; display: flex; flex-direction: column; gap: 6px; }
+.apt-ag-more { display: flex; justify-content: center; padding: 8px 12px 16px; border-top: 1px solid var(--border); }
 
 .apt-arow { display: grid; grid-template-columns: 96px minmax(0, 1.7fr) minmax(0, 1.1fr) minmax(0, 1fr) 120px minmax(150px, auto); align-items: center; gap: 16px;
   padding: 10px 12px; border-radius: var(--r-lg); border: 1px solid var(--border); border-inline-start: 4px solid var(--st); background: var(--surface); cursor: pointer; transition: box-shadow var(--t-fast), border-color var(--t-fast), background var(--t-fast); }
@@ -357,6 +358,24 @@ button.apt-det-name:hover { color: var(--primary); text-decoration: underline; t
 .apt-trow-sub .apt-dot { width: 7px; height: 7px; }
 .apt-trow-reason { font-size: var(--fs-xs); color: var(--text-2); }
 .apt-trow-status { flex: none; }
+
+/* ===== phone toolbar & floating action ===== */
+.apt-bar.apt-bar-m { display: flex; flex-direction: column; align-items: stretch; gap: 8px; padding: 10px 12px; }
+.apt-bar.apt-bar-m .apt-views button { height: 38px; }
+.apt-mnav { display: flex; align-items: center; gap: 6px; min-width: 0; }
+.apt-mnav .btn-icon { width: 40px; height: 40px; flex: none; }
+.apt-mtitle { flex: 1; min-width: 0; display: flex; align-items: center; justify-content: center; flex-wrap: wrap; gap: 2px 8px; text-align: center; }
+.apt-mtitle .apt-title-main { font-size: var(--fs-md); white-space: normal; line-height: 1.35; }
+.apt-mtitle .apt-title-rel { padding: 2px 9px; }
+.apt-today-chip { flex: none; font-size: var(--fs-xs); font-weight: 700; color: var(--p-700); background: var(--surface); border: 1px solid color-mix(in srgb, var(--primary) 40%, var(--border)); border-radius: var(--r-full); padding: 3px 10px; line-height: 1.4; }
+/* the calendar button holds a transparent date input over it: a tap opens the system date picker */
+.apt-mdate { position: relative; overflow: hidden; }
+.apt-mdate input { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; border: 0; padding: 0; margin: 0; }
+@media (max-width: 767px) {
+  .apt-page { padding-bottom: 72px; }        /* the last card stays clear of the floating button */
+  .apt-page .apt-strip-label { padding-bottom: 6px; }
+  .apt-page .apt-strip-wrap { padding-top: 8px; }
+}
 
 /* ===== responsive ===== */
 /* the title takes its own row before it gets squeezed (laptops with the sidebar open) */

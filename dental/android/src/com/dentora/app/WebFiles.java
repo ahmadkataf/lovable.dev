@@ -1,12 +1,18 @@
 package com.dentora.app;
 
 import java.io.ByteArrayOutputStream;
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.zip.CRC32;
 
 /**
  * The plain-Java decisions of the Android shell: which asset answers a URL, its MIME type, how a saved file is
@@ -287,21 +293,24 @@ final class WebFiles {
         + "}catch(e){}})()";
 
     /**
-     * Run on every page (with the print shim): wraps window.DentoraAndroid so that saveFile() answers with a Promise
-     * that settles when the save really ends (true = written, false = cancelled or failed), told by the
-     * 'dentora:saved' event. The Java method itself still returns true at once ("the save screen is shown"); the
-     * platform layer awaits whatever saveFile returns, so `await saveFile()` now means what it says: a cancelled
-     * backup is not recorded as done. If the wrapper cannot be installed the page keeps the plain bridge.
+     * Run on every page (with the print shim): wraps window.DentoraAndroid. Saving goes in pieces (the contract in
+     * src/platform/index.ts): saveBegin → saveChunk (base64, about 1 MB each) → saveEnd, which opens the system
+     * "save as" screen; the end of the save arrives as the window event 'dentora:saved' {id, ok, cancelled, name,
+     * reason}. whenSaved(id) gives a Promise for it. If the wrapper cannot be installed the page keeps the plain bridge.
      */
     static final String BRIDGE_JS =
-        "(function(){try{var real=window.DentoraAndroid;if(!real||real.__dentora)return;var waiting=[];"
-        + "window.addEventListener('dentora:saved',function(e){var r=waiting.shift();if(r)r(!!(e.detail&&e.detail.ok));});"
+        "(function(){try{var real=window.DentoraAndroid;if(!real||real.__dentora)return;"
         + "var w={__dentora:true,"
         + "deviceId:function(){return real.deviceId();},"
         + "appVersion:function(){return real.appVersion();},"
         + "print:function(){real.print();},"
         + "openExternal:function(u){real.openExternal(String(u));},"
-        + "saveFile:function(n,m,b){if(!real.saveFile(n,m,b))return false;return new Promise(function(r){waiting.push(r);});}};"
+        + "saveBegin:function(n,m,h,q){return real.saveBegin(String(n),String(m),String(h||0),q?'1':'');},"
+        + "saveChunk:function(id,b){return real.saveChunk(String(id),String(b));},"
+        + "saveEnd:function(id,s,c){return real.saveEnd(String(id),String(s),String(c));},"
+        + "saveAbort:function(id){real.saveAbort(String(id));},"
+        + "whenSaved:function(id){return new Promise(function(r){var on=function(e){var d=e.detail||{};if(d.id!==id)return;"
+        + "window.removeEventListener('dentora:saved',on);r(d);};window.addEventListener('dentora:saved',on);});}};"
         + "try{window.DentoraAndroid=w;}catch(x){}"
         + "if(window.DentoraAndroid!==w)Object.defineProperty(window,'DentoraAndroid',{value:w,configurable:true,writable:true});"
         + "}catch(e){}})()";
@@ -314,15 +323,15 @@ final class WebFiles {
         "(function(){try{if(!window.__dentoraPrinting)return;window.__dentoraPrinting=false;"
         + "var e=new Event('afterprint');e.__dentora=true;window.dispatchEvent(e);}catch(x){}})()";
 
-    /** After a cancelled file picker: the page may wait for the window to regain focus to notice it. */
-    static final String PICK_CANCELLED_JS = "window.dispatchEvent(new Event('focus'))";
+    /** After the file picker closed without a file: pickFile() (src/platform) stops waiting at once. A chosen file
+     *  may reach the page well after the window regained focus, so the page never guesses from focus on Android. */
+    static final String PICK_CANCELLED_JS = "window.dispatchEvent(new Event('dentora:pick-cancelled'))";
 
-    /** Reads a blob: URL inside the page (only the page can) and hands it to DentoraAndroid.saveFile. */
+    /** A blob: download the shell intercepted: only the page can read a blob: URL, so it saves it itself, in chunks
+     *  (window.__dentoraSaveBlob, installed by src/platform). */
     static String saveBlobJs(String blobUrl, String name) {
-        return "(function(u,n){fetch(u).then(function(r){return r.blob();}).then(function(b){"
-            + "var f=new FileReader();f.onload=function(){var s=String(f.result);"
-            + "window.DentoraAndroid.saveFile(n,b.type||'application/octet-stream',s.substring(s.indexOf(',')+1));};"
-            + "f.readAsDataURL(b);}).catch(function(){});})(" + jsString(blobUrl) + "," + jsString(name) + ")";
+        return "(function(u,n){try{if(typeof window.__dentoraSaveBlob==='function')window.__dentoraSaveBlob(u,n);}catch(e){}})("
+            + jsString(blobUrl) + "," + jsString(name) + ")";
     }
 
     /** Lets the page know how a save ended: window 'dentora:saved' event, detail { ok, cancelled, name }. */
@@ -331,12 +340,137 @@ final class WebFiles {
             + ",name:" + jsString(name) + "}}))";
     }
 
+    /** The same, for a save the page started (its id) and, when it failed, why: space, verify, io. */
+    static String savedEventJs(boolean ok, boolean cancelled, String name, String id, String reason) {
+        return "window.dispatchEvent(new CustomEvent('dentora:saved',{detail:{ok:" + ok + ",cancelled:" + cancelled
+            + ",name:" + jsString(name) + ",id:" + jsString(id) + ",reason:" + jsString(reason == null ? "" : reason) + "}}))";
+    }
+
+    // ---- saving in pieces (plain Java, so android/test can check it on a desktop JVM) ---------------------
+
+    private static final int[] B64 = new int[128];
+    static {
+        java.util.Arrays.fill(B64, -1);
+        String a = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+        for (int i = 0; i < a.length(); i++) B64[a.charAt(i)] = i;
+        B64['-'] = 62;
+        B64['_'] = 63;
+    }
+
+    /** Standard (or URL-safe) base64 to bytes; whitespace is skipped, anything else is refused. */
+    static byte[] decodeBase64(String s) {
+        if (s == null) return new byte[0];
+        int n = s.length();
+        byte[] out = new byte[n / 4 * 3 + 3];
+        int o = 0, acc = 0, bits = 0;
+        for (int i = 0; i < n; i++) {
+            char c = s.charAt(i);
+            if (c == '=') break;
+            if (c == ' ' || c == '\n' || c == '\r' || c == '\t') continue;
+            int v = c < 128 ? B64[c] : -1;
+            if (v < 0) throw new IllegalArgumentException("bad base64");
+            acc = (acc << 6) | v;
+            bits += 6;
+            if (bits >= 8) {
+                bits -= 8;
+                out[o++] = (byte) ((acc >> bits) & 0xff);
+            }
+        }
+        if (bits >= 6) throw new IllegalArgumentException("bad base64 length");
+        if (o == out.length) return out;
+        byte[] exact = new byte[o];
+        System.arraycopy(out, 0, exact, 0, o);
+        return exact;
+    }
+
+    /** "space" when the disk is full, otherwise "io": the reason the page shows for a failed write. */
+    static String ioReason(Throwable e) {
+        for (Throwable t = e; t != null; t = t.getCause()) {
+            String m = String.valueOf(t.getMessage());
+            if (m.contains("ENOSPC") || m.contains("No space left") || m.contains("EDQUOT")) return "space";
+        }
+        return "io";
+    }
+
+    /**
+     * A file written in pieces into the app's cache folder before it goes to the place the user picks: the page
+     * sends it in base64 chunks, and its size and CRC-32 are kept as it grows so the result can be checked.
+     */
+    static final class ChunkFile {
+        final File file;
+        private final OutputStream out;
+        private final CRC32 crc = new CRC32();
+        private long size;
+        private boolean closed;
+
+        ChunkFile(File file) throws IOException {
+            this.file = file;
+            this.out = new FileOutputStream(file);
+        }
+
+        void append(String base64) throws IOException { write(decodeBase64(base64)); }
+
+        void write(byte[] bytes) throws IOException {
+            if (closed) throw new IOException("closed");
+            out.write(bytes);
+            crc.update(bytes, 0, bytes.length);
+            size += bytes.length;
+        }
+
+        /** Flushes to the disk and closes; the bytes are then checked against what the page says it sent. */
+        void close() throws IOException {
+            if (closed) return;
+            closed = true;
+            out.flush();
+            if (out instanceof FileOutputStream) ((FileOutputStream) out).getFD().sync();
+            out.close();
+        }
+
+        void closeQuietly() {
+            try { close(); } catch (IOException ignored) { }
+        }
+
+        long size() { return size; }
+        long crc() { return crc.getValue(); }
+    }
+
+    /** Copies everything from in to out; returns the number of bytes. */
+    static long copy(InputStream in, OutputStream out) throws IOException {
+        byte[] buf = new byte[1024 * 1024];
+        long total = 0;
+        for (int n; (n = in.read(buf)) > 0; ) {
+            out.write(buf, 0, n);
+            total += n;
+        }
+        return total;
+    }
+
+    /** Size and CRC-32 of everything a stream holds: {size, crc}. Used to read a saved file back. */
+    static long[] measure(InputStream in) throws IOException {
+        CRC32 crc = new CRC32();
+        byte[] buf = new byte[1024 * 1024];
+        long size = 0;
+        for (int n; (n = in.read(buf)) > 0; ) {
+            crc.update(buf, 0, n);
+            size += n;
+        }
+        return new long[] {size, crc.getValue()};
+    }
+
+    /** "123" → 123; anything else → fallback. */
+    static long parseLong(String s, long fallback) {
+        try { return Long.parseLong(s == null ? "" : s.trim()); } catch (NumberFormatException e) { return fallback; }
+    }
+
     /** Messages the shell itself shows (toasts, the crash dialog), in the app's language: Arabic first. */
     static String text(String key, String lang) {
         boolean en = lang != null && lang.toLowerCase(Locale.ROOT).startsWith("en");
         switch (key) {
             case "saved_downloads": return en ? "Saved to Downloads: " : "حُفظ الملف في التنزيلات: ";
             case "save_failed": return en ? "Could not save the file" : "تعذّر حفظ الملف";
+            case "save_busy": return en ? "Another file is being saved; try again in a moment" : "يُحفظ ملف آخر الآن، أعد المحاولة بعد قليل";
+            case "save_space": return en ? "Not enough space to save the file" : "لا توجد مساحة كافية لحفظ الملف";
+            case "save_verify": return en ? "The saved file did not match; it was removed. Try another place" : "لم يطابق الملف المحفوظ البيانات فحُذف. جرّب مكاناً آخر";
             case "no_app": return en ? "No app on this phone can open this" : "لا يوجد على الهاتف تطبيق يفتح هذا الرابط";
             case "no_picker": return en ? "No app on this phone can pick files" : "لا يوجد على الهاتف تطبيق لاختيار الملفات";
             case "no_print": return en ? "Printing is not available on this phone" : "الطباعة غير متاحة على هذا الهاتف";

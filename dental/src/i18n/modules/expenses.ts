@@ -23,6 +23,7 @@ const expenses: ModuleDict = {
     entries_one: 'عملية واحدة', entries_two: 'عمليتان', entries_few: '{n} عمليات', entries_many: '{n} عملية', entries_other: '{n} عملية',
     'empty.descPeriod': 'لم يُسجَّل أي مصروف في هذه الفترة. جرّب فترة أخرى أو سجّل مصروفاً جديداً.', filteredTotal: 'إجمالي النتائج',
     'form.subtitle': 'سجّل أي مبلغ صرفته العيادة', 'form.create': 'تسجيل المصروف',
+    fromLab: 'من طلب مخبر', fromLabHint: 'سُجّل هذا المصروف تلقائياً عند استلام طلب مخبر. عدّل التكلفة من صفحة المخبر ليبقى الطلب ومصروفه متطابقين.',
     noPermission: 'المصروفات متاحة لمدير العيادة', noPermissionSub: 'سجل مصاريف العيادة وتحليلها من صلاحيات المدير فقط. اطلب من المدير تسجيل أي مصروف تحتاجه.', backHome: 'العودة إلى الرئيسية',
   },
   en: {
@@ -46,6 +47,7 @@ const expenses: ModuleDict = {
     entries_one: '1 entry', entries_two: '2 entries', entries_few: '{n} entries', entries_many: '{n} entries', entries_other: '{n} entries',
     'empty.descPeriod': 'Nothing was recorded in this period. Try another period or record a new expense.', filteredTotal: 'Total of results',
     'form.subtitle': 'Record money the clinic has spent', 'form.create': 'Save expense',
+    fromLab: 'From a lab order', fromLabHint: 'This expense was recorded automatically when a lab order was received. Change the cost on the Lab page so the order and its expense stay the same.',
     noPermission: 'Expenses are for the clinic admin', noPermissionSub: 'Recording and reviewing clinic spending is limited to admin accounts. Ask an admin to record any expense you need.', backHome: 'Back to dashboard',
   },
 }

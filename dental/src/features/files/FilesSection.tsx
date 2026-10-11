@@ -12,7 +12,8 @@ import { Badge, Button, Card, CardHeader, Chip, EmptyState, Field, IconButton, I
 import { fmtDate } from '@/lib/dates'
 import { formatBytes } from '@/lib/format'
 import { imageToDataUrl, pickFile, platform, saveFile } from '@/platform'
-import { countByKind, fileShape, guessKind, isValidTooth, MAX_FILE_MB } from '@/features/patients/lib'
+import { sniffMime, SNIFF_BYTES, type SafeFileType } from '@/platform/filetype'
+import { countByKind, fileShape, guessKind, isValidTooth, MAX_FILE_MB, previewShape } from '@/features/patients/lib'
 import './files.css'
 
 export const FILE_KINDS: FileKind[] = ['xray', 'photo', 'document', 'consent', 'other']
@@ -32,12 +33,28 @@ function useObjectUrl(blob?: Blob | null): string | undefined {
   return url
 }
 
+/** What a blob's first bytes prove it is (a picture type or PDF), or null; never its name or declared MIME type. */
+async function sniffBlob(blob: Blob): Promise<SafeFileType | null> {
+  try { return sniffMime(new Uint8Array(await blob.slice(0, SNIFF_BYTES).arrayBuffer())) } catch { return null }
+}
+/** The proven type of a stored file: undefined while reading, null when it is none of the shown types. */
+function useSniffed(blob?: Blob | null): SafeFileType | null | undefined {
+  const [state, setState] = useState<{ blob?: Blob | null; type: SafeFileType | null }>()
+  useEffect(() => {
+    let alive = true
+    if (!(blob instanceof Blob)) { setState({ blob, type: null }); return }
+    void sniffBlob(blob).then(type => { if (alive) setState({ blob, type }) })
+    return () => { alive = false }
+  }, [blob])
+  return state && state.blob === blob ? state.type : undefined
+}
+
 export default function FilesSection({ patientId }: { patientId: string }) {
   const { t, lang } = useI18n()
   const toast = useToast()
   const { readOnly } = useLicense()
   const [kind, setKind] = useState<FileKind | 'all'>('all')
-  const [pending, setPending] = useState<File | null>(null)
+  const [pending, setPending] = useState<{ file: File; type: SafeFileType } | null>(null)
   const [previewId, setPreviewId] = useState<string | null>(null)
   const [dragging, setDragging] = useState(false)
   const files = useLiveQuery(async () => (await db.files.where('patientId').equals(patientId).toArray()).sort((a, b) => b.createdAt.localeCompare(a.createdAt)), [patientId])
@@ -45,14 +62,16 @@ export default function FilesSection({ patientId }: { patientId: string }) {
   const shown = useMemo(() => (files ?? []).filter(f => kind === 'all' || f.kind === kind), [files, kind])
   useEffect(() => { if (kind !== 'all' && files && counts[kind] === 0) setKind('all') }, [counts, kind, files])
 
-  const accept = (f: File | null | undefined) => {
+  // the bytes decide what a file is: a picture or a PDF is accepted, anything else (an HTML page renamed .pdf…) is not
+  const accept = async (f: File | null | undefined) => {
     if (!f) return
-    if (fileShape(f.type, f.name) === 'other') { toast.error(t('patients.files.unsupported')); return }
     if (f.size > MAX_FILE_MB * 1024 * 1024) { toast.error(t('patients.files.tooLarge', { max: MAX_FILE_MB })); return }
-    setPending(f)
+    const type = await sniffBlob(f)
+    if (!type) { toast.error(t('patients.files.unsupported')); return }
+    setPending({ file: f, type })
   }
   const choose = async () => accept(await pickFile(ACCEPT))
-  const onDrop = (e: DragEvent) => { e.preventDefault(); setDragging(false); if (!readOnly) accept(e.dataTransfer.files?.[0]) }
+  const onDrop = (e: DragEvent) => { e.preventDefault(); setDragging(false); if (!readOnly) void accept(e.dataTransfer.files?.[0]) }
   const index = shown.findIndex(f => f.id === previewId)
 
   const uploadBtn = <Button variant="primary" size="sm" icon={<Upload />} onClick={choose} disabled={readOnly}>{t('patients.files.upload')}</Button>
@@ -92,7 +111,7 @@ export default function FilesSection({ patientId }: { patientId: string }) {
         </div>
       )}
 
-      {pending && <UploadModal file={pending} patientId={patientId} onClose={() => setPending(null)} onSaved={k => setKind(cur => (cur === 'all' || cur === k ? cur : 'all'))} />}
+      {pending && <UploadModal file={pending.file} type={pending.type} patientId={patientId} onClose={() => setPending(null)} onSaved={k => setKind(cur => (cur === 'all' || cur === k ? cur : 'all'))} />}
       {previewId && index >= 0 && (
         <PreviewModal file={shown[index]} onClose={() => setPreviewId(null)}
           onPrev={index > 0 ? () => setPreviewId(shown[index - 1].id) : undefined}
@@ -116,19 +135,20 @@ function KindPicker({ value, onChange }: { value: FileKind; onChange: (k: FileKi
   )
 }
 
-function UploadModal({ file, patientId, onClose, onSaved }: { file: File; patientId: string; onClose: () => void; onSaved?: (kind: FileKind) => void }) {
+function UploadModal({ file, type, patientId, onClose, onSaved }: { file: File; type: SafeFileType; patientId: string; onClose: () => void; onSaved?: (kind: FileKind) => void }) {
   const { t } = useI18n()
   const toast = useToast()
   const session = useSession()
-  const [kind, setKind] = useState<FileKind>(() => guessKind(file.type, file.name))
+  const [kind, setKind] = useState<FileKind>(() => guessKind(type, file.name))
   const [name, setName] = useState(file.name)
   const [note, setNote] = useState('')
   const [tooth, setTooth] = useState<number | null>(null)
   const [saving, setSaving] = useState(false)
   const busy = useRef(false) // clicks/Enter in the same frame must not store the file twice
   const [tried, setTried] = useState(false)
-  const image = fileShape(file.type, file.name) === 'image'
-  const url = useObjectUrl(image ? file : null)
+  const image = previewShape(type) === 'image'
+  const preview = useMemo(() => (image ? file.slice(0, file.size, type) : null), [file, type, image])
+  const url = useObjectUrl(preview)
   const toothError = tooth !== null && !isValidTooth(tooth) ? t('patients.files.toothInvalid') : undefined
   const nameError = tried && !name.trim() ? t('v.required') : undefined
 
@@ -140,8 +160,8 @@ function UploadModal({ file, patientId, onClose, onSaved }: { file: File; patien
     try {
       const thumb = image ? await imageToDataUrl(file, 240).catch(() => undefined) : undefined
       const id = newId()
-      const mime = file.type || (fileShape(file.type, file.name) === 'pdf' ? 'application/pdf' : 'application/octet-stream')
-      const rec: PatientFile = { id, patientId, kind, name: name.trim(), mime, size: file.size, data: file, thumb, note: note.trim() || undefined, tooth: tooth ?? undefined, createdAt: nowISO(), by: session.user?.id }
+      // stored with the type its bytes prove, whatever the name or the browser said
+      const rec: PatientFile = { id, patientId, kind, name: name.trim(), mime: type, size: file.size, data: file.slice(0, file.size, type), thumb, note: note.trim() || undefined, tooth: tooth ?? undefined, createdAt: nowISO(), by: session.user?.id }
       await db.files.add(rec)
       void logActivity({ type: 'file', action: 'create', entityId: id, patientId, message: t('patients.files.logUpload', { name: rec.name }), by: session.user?.id })
       toast.success(t('patients.files.uploaded'), rec.name)
@@ -181,8 +201,13 @@ function PreviewModal({ file, onClose, onPrev, onNext, position }: { file: Patie
   const users = useUsers(false)
   const confirmDelete = useConfirmDelete()
   const { readOnly } = useLicense()
-  const shape = fileShape(file.mime, file.name)
-  const url = useObjectUrl(file.data instanceof Blob ? file.data : null)
+  // shown by what the bytes are, never by the stored name or type: a file from a crafted backup that claims to be a
+  // PDF but holds a web page is only offered as a download. The viewer gets a copy typed as the proven picture or
+  // PDF type, so the browser can never run it as a page.
+  const sniffed = useSniffed(file.data)
+  const shape = previewShape(sniffed)
+  const safe = useMemo(() => (sniffed && file.data instanceof Blob ? new Blob([file.data], { type: sniffed }) : null), [sniffed, file.data])
+  const url = useObjectUrl(safe)
   const [kind, setKind] = useState<FileKind>(file.kind)
   const [note, setNote] = useState(file.note ?? '')
   const [tooth, setTooth] = useState<number | null>(file.tooth ?? null)
@@ -240,8 +265,9 @@ function PreviewModal({ file, onClose, onPrev, onNext, position }: { file: Patie
       </>}>
       <div className="pt-preview">
         <div className={`pt-stage shape-${shape}`}>
-          {shape === 'image' && url && !broken ? <img src={url} alt={file.name} onError={() => setBroken(true)} />
-            : canFrame && url ? <iframe src={url} title={file.name} />
+          {sniffed === undefined ? <Skeleton className="pt-stage-loading" w="100%" h="100%" r={0} />
+            : shape === 'image' && url && !broken ? <img src={url} alt={file.name} onError={() => setBroken(true)} />
+            : canFrame && url ? <iframe src={url} title={file.name} referrerPolicy="no-referrer" />
             : (
               <div className="pt-stage-fallback">
                 {broken ? <ImageOff /> : <FileText />}

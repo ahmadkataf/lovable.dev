@@ -1,11 +1,12 @@
-// /payments — the cash ledger: every payment in the period, filtered by method and by who received it,
-// with receipts, deletion (which re-balances the invoice) and a printable cash report.
+// /payments — the cash ledger: one line per hand-over (receipt) in the period, filtered by method and by who received
+// it, with receipts, deletion by the clinic admin (which re-balances the invoices) and a printable cash report.
+// Only the rows on screen read their patient photos and invoice numbers; names come from the shared patient index.
 import { lazy, Suspense, useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { ArrowLeftRight, Banknote, CreditCard, FileBarChart2, Plus, Printer, RotateCcw, Search, Trash2, Wallet } from 'lucide-react'
 import { db, logActivity } from '@/db'
-import { PAYMENT_METHODS, type Invoice, type Patient, type Payment, type PaymentMethod } from '@/db/types'
+import { PAYMENT_METHODS, type Invoice, type PaymentMethod } from '@/db/types'
 import { useI18n } from '@/i18n'
 import { useDebounced, useIsMobile, useMoney, useUsers } from '@/app/hooks'
 import { useSession } from '@/app/session'
@@ -13,8 +14,10 @@ import { useLicense } from '@/license/useLicense'
 import { fmtDate } from '@/lib/dates'
 import { matches } from '@/lib/format'
 import { Avatar, Badge, Button, Chip, DataTable, EmptyState, IconButton, Input, PageHeader, Pagination, Select, Skeleton, StatCard, useConfirmDelete, usePagination, useToast, type Column } from '@/ui'
-import { deletePayment } from './actions'
-import { paymentStats, pluralKey } from './lib'
+import { BillingError, deleteReceipt, ensureReconciled } from './actions'
+import { groupReceipts, paymentStats, pluralKey, type ReceiptGroup } from './lib'
+import { usePagePatients, usePatientIndex } from './patientIndex'
+import { useSnapshot } from './snapshot'
 import { BillingGate, MethodBadge, Money, PeriodBar, usePeriod, iso } from './shared'
 import { openReceipt } from './Receipt'
 import { CashReportModal } from './CashReport'
@@ -22,10 +25,31 @@ import './billing.css'
 
 const PaymentFormModal = lazy(() => import('./PaymentFormModal'))
 
-export interface LedgerRow extends Payment { patient?: Patient; invoice?: Invoice }
-
 export default function PaymentsPage() {
   return <BillingGate><PaymentsPageScreen /></BillingGate>
+}
+
+/**
+ * Every invoice's number by id, read from the invoices' number index alone (no invoice records): what a search by
+ * invoice number needs over a long period, without loading thousands of invoices. Nothing is read when off.
+ */
+function useAllInvoiceNumbers(enabled: boolean): Map<string, string> | undefined {
+  return useLiveQuery(async () => {
+    if (!enabled) return undefined
+    const [numbers, ids] = await Promise.all([db.invoices.orderBy('number').keys(), db.invoices.orderBy('number').primaryKeys()])
+    return new Map(ids.map((id, i) => [String(id), String(numbers[i])]))
+  }, [enabled])
+}
+
+/** Invoice numbers of the given ids (the rows on screen). */
+function useInvoiceNumbers(ids: string[]): Map<string, string> | undefined {
+  const key = [...new Set(ids)].sort().join(',')
+  const rows = useLiveQuery(async () => {
+    const list = key ? key.split(',') : []
+    const found = list.length ? await db.invoices.bulkGet(list) : []
+    return new Map(found.filter((i): i is Invoice => !!i).map(i => [i.id, i.number]))
+  }, [key])
+  return rows
 }
 
 function PaymentsPageScreen() {
@@ -42,72 +66,95 @@ function PaymentsPageScreen() {
   const [method, setMethod] = useState<PaymentMethod | ''>('')
   const [by, setBy] = useState('')
   const [q, setQ] = useState('')
-  const dq = useDebounced(q)
+  const dq = useDebounced(q).trim()
+  // every patient's name is read only to search; the rows on screen read their own patients
+  const patients = usePatientIndex(!!dq)
   const [adding, setAdding] = useState(false)
   const [report, setReport] = useState(false)
 
-  const data = useLiveQuery(async () => {
-    const list = await db.payments.where('date').between(period.from, period.to, true, true).toArray()
-    const pids = [...new Set(list.map(p => p.patientId))]
-    const iids = [...new Set(list.map(p => p.invoiceId).filter(Boolean) as string[])]
-    const [pats, invs] = await Promise.all([db.patients.bulkGet(pids), db.invoices.bulkGet(iids)])
-    const pm = new Map(pats.filter((p): p is Patient => !!p).map(p => [p.id, p]))
-    const im = new Map(invs.filter((i): i is Invoice => !!i).map(i => [i.id, i]))
-    const rows: LedgerRow[] = list.map(p => ({ ...p, patient: pm.get(p.patientId), invoice: p.invoiceId ? im.get(p.invoiceId) : undefined }))
-    rows.sort((a, b) => b.date.localeCompare(a.date) || b.createdAt.localeCompare(a.createdAt))
-    return rows
-  }, [period.from, period.to])
+  // a plain read, refreshed right after any payment changes: a live query over years of payments costs a long freeze
+  const list = useSnapshot(`${period.from}|${period.to}`, ['payments'], () => db.transaction('r', db.payments, () => db.payments.where('date').between(period.from, period.to, true, true).toArray()), 60)
+  useEffect(() => { void ensureReconciled() }, [list])
   const anyPayment = useLiveQuery(() => db.payments.limit(1).count(), [])
+  const groups = useMemo(() => (list ? groupReceipts(list) : undefined), [list])
+  const invIds = (gs: ReceiptGroup[]) => gs.flatMap(g => g.allocations.map(a => a.invoiceId))
 
   const userName = useMemo(() => new Map(users.map(u => [u.id, u.name])), [users])
   const receivers = useMemo(() => {
-    const ids = new Set((data ?? []).map(p => p.receivedBy).filter(Boolean) as string[])
+    const ids = new Set((groups ?? []).map(p => p.receivedBy).filter(Boolean) as string[])
     return users.filter(u => ids.has(u.id) || u.active)
-  }, [data, users])
-  const base = useMemo(() => (data ?? []).filter(p => (!by || p.receivedBy === by) && (!dq || matches(`${p.patient?.name ?? ''} ${p.reference ?? ''} ${p.invoice?.number ?? ''}`, dq))), [data, by, dq])
+  }, [groups, users])
+  // searching by invoice number reads every number from the index; otherwise only the rows on screen read theirs
+  const searchNumbers = useAllInvoiceNumbers(!!dq && /\d/.test(dq))
+  const base = useMemo(() => (groups ?? []).filter(g => {
+    if (by && g.receivedBy !== by) return false
+    if (!dq) return true
+    const p = patients?.byId.get(g.patientId)
+    const numbers = g.allocations.map(a => searchNumbers?.get(a.invoiceId) ?? '').join(' ')
+    return matches(`${p?.name ?? ''} ${p?.fileNo ?? ''} ${g.reference ?? ''} ${g.label} ${numbers}`, dq.replace(/^#/, ''))
+  }), [groups, by, dq, patients, searchNumbers])
   const stats = paymentStats(base)
   const rows = useMemo(() => (method ? base.filter(p => p.method === method) : base), [base, method])
   const methodsInUse = useMemo(() => PAYMENT_METHODS.filter(m => m === 'cash' || m === 'card' || m === 'transfer' || base.some(p => p.method === m)), [base])
   const pg = usePagination(rows, 25)
   useEffect(() => { pg.setPage(1) }, [method, by, dq, period.from, period.to]) // reset paging when the filters change
+  const numbers = useInvoiceNumbers(invIds(pg.slice))
+  const pagePatients = usePagePatients(pg.slice.map(g => g.patientId))
 
   const ro = license.readOnly
-  const remove = async (p: LedgerRow) => {
-    if (!(await confirmDelete(t('billing.payments.deleteDesc')))) return
-    await deletePayment(p.id)
-    void logActivity({ type: 'payment', action: 'delete', entityId: p.id, patientId: p.patientId, message: t('billing.act.paymentDeleted', { amount: iso(money(p.amount)), patient: p.patient?.name ?? '' }), by: session.user?.id })
-    toast.success(t('billing.payments.deleted'))
+  const canDelete = session.isAdmin && !ro
+  const deleteTitle = ro ? t('trial.readonly') : !session.isAdmin ? t('billing.payments.adminOnly') : t('delete')
+  const nameOf = (g: ReceiptGroup) => pagePatients?.get(g.patientId)?.name ?? patients?.byId.get(g.patientId)?.name
+  const remove = async (g: ReceiptGroup) => {
+    if (!canDelete) return
+    if (!(await confirmDelete(t('billing.payments.deleteDesc', { receipt: iso(g.label), amount: iso(money(g.amount)) })))) return
+    try {
+      await deleteReceipt(g.lead.id, session.user?.id)
+      void logActivity({ type: 'payment', action: 'delete', entityId: g.lead.id, patientId: g.patientId, message: t('billing.act.paymentDeleted', { amount: iso(money(g.amount)), patient: nameOf(g) ?? '', receipt: iso(g.label) }), by: session.user?.id })
+      toast.success(t('billing.payments.deleted'))
+    } catch (err) {
+      toast.error(t('error'), err instanceof BillingError ? t(`billing.err.${err.code}`) : t('tryAgain'))
+    }
   }
-  const rowActions = (p: LedgerRow) => (
+  const rowActions = (g: ReceiptGroup) => (
     <span className="row gap-1" style={{ justifyContent: 'flex-end' }} onClick={e => e.stopPropagation()}>
-      <IconButton label={t('billing.payment.printReceipt')} size="sm" variant="ghost" className="bl-menu-btn" onClick={() => openReceipt(p.id)}><Printer /></IconButton>
-      <IconButton label={t('delete')} size="sm" variant="ghost" className="bl-menu-btn" disabled={ro} onClick={() => void remove(p)}><Trash2 /></IconButton>
+      <IconButton label={t('billing.payment.printReceipt')} size="sm" variant="ghost" className="bl-menu-btn" onClick={() => openReceipt(g.lead.id)}><Printer /></IconButton>
+      <IconButton label={deleteTitle} title={deleteTitle} size="sm" variant="ghost" className="bl-menu-btn" disabled={!canDelete} onClick={() => void remove(g)}><Trash2 /></IconButton>
     </span>
   )
-  const invoiceCell = (p: LedgerRow) => p.invoice
-    ? <Link className="bl-num-link num" to={`/invoices/${p.invoice.id}`} onClick={e => e.stopPropagation()}>{p.invoice.number}</Link>
-    : <Badge tone="outline">{t('billing.payments.onAccount')}</Badge>
+  const invoiceCell = (g: ReceiptGroup) => {
+    if (!g.allocations.length) return <Badge tone="outline">{g.amount < 0 ? t('billing.payments.fromCredit') : t('billing.payments.onAccount')}</Badge>
+    const shown = g.allocations.slice(0, 2), more = g.allocations.length - shown.length
+    return (
+      <span className="bl-inv-list" title={g.allocations.map(a => numbers?.get(a.invoiceId) ?? '').join(' · ')}>
+        {shown.map(a => <Link key={a.invoiceId} className="bl-num-link num" to={`/invoices/${a.invoiceId}`} onClick={e => e.stopPropagation()}>{numbers?.get(a.invoiceId) ?? '…'}</Link>)}
+        {more > 0 && <Badge tone="outline" size="sm"><span className="num">+{more}</span></Badge>}
+        {Math.abs(g.onAccount) >= 0.0005 && <Badge tone="outline" size="sm">+ {t('billing.payments.onAccount')}</Badge>}
+      </span>
+    )
+  }
 
-  const columns: Column<LedgerRow>[] = [
-    { key: 'date', header: t('date'), render: p => <span className="bl-date">{fmtDate(p.date, lang)}</span> },
+  const columns: Column<ReceiptGroup>[] = [
+    { key: 'date', header: t('date'), render: g => <span className="bl-date">{fmtDate(g.date, lang)}</span> },
+    { key: 'receipt', header: t('billing.receipt.noShort'), className: 'bl-hide-1200', render: g => <span className={g.numbered ? 'num strong' : 'num muted'}>{g.label}</span> },
     {
-      key: 'patient', header: t('patient'), render: p => (
+      key: 'patient', header: t('patient'), render: g => (
         <div className="bl-patient-cell">
-          <Avatar name={p.patient?.name ?? '?'} src={p.patient?.photo} size="xs" />
-          {p.patient ? <Link className="bl-link" title={p.patient.name} to={`/patients/${p.patient.id}`} onClick={e => e.stopPropagation()}>{p.patient.name}</Link> : <span className="muted">{t('unknown')}</span>}
+          <Avatar name={nameOf(g) ?? '?'} src={pagePatients?.get(g.patientId)?.photo} size="xs" />
+          {nameOf(g) ? <Link className="bl-link" title={nameOf(g)} dir="auto" to={`/patients/${g.patientId}`} onClick={e => e.stopPropagation()}>{nameOf(g)}</Link> : <span className="muted">{pagePatients ? t('unknown') : '…'}</span>}
         </div>
       ),
     },
     { key: 'invoice', header: t('billing.invoice'), render: invoiceCell },
-    { key: 'method', header: t('billing.method'), render: p => <span className="row gap-2"><MethodBadge method={p.method} />{p.amount < 0 && <Badge tone="warning" icon={<RotateCcw />}>{t('billing.payments.refund')}</Badge>}</span> },
-    { key: 'amount', header: t('amount'), className: 'num', render: p => <Money value={p.amount} kind="signed" strong /> },
-    { key: 'by', header: t('billing.payments.receivedBy'), className: 'bl-hide-1200', render: p => (p.receivedBy ? userName.get(p.receivedBy) ?? '—' : <span className="bl-dash">—</span>) },
-    { key: 'ref', header: t('reference'), className: 'bl-hide-1200', render: p => (p.reference ? <span className="ltr truncate" style={{ maxWidth: 160, display: 'inline-block', verticalAlign: 'bottom' }}>{p.reference}</span> : <span className="bl-dash">—</span>) },
+    { key: 'method', header: t('billing.method'), render: g => <span className="row gap-2"><MethodBadge method={g.method} />{g.amount < 0 && <Badge tone="warning" icon={<RotateCcw />}>{t('billing.payments.refund')}</Badge>}</span> },
+    { key: 'amount', header: t('amount'), className: 'num', render: g => <Money value={g.amount} kind="signed" strong /> },
+    { key: 'by', header: t('billing.payments.receivedBy'), className: 'bl-hide-1200', render: g => (g.receivedBy ? userName.get(g.receivedBy) ?? '—' : <span className="bl-dash">—</span>) },
+    { key: 'ref', header: t('reference'), className: 'bl-hide-1440', render: g => (g.reference ? <span className="ltr truncate" style={{ maxWidth: 160, display: 'inline-block', verticalAlign: 'bottom' }}>{g.reference}</span> : <span className="bl-dash">—</span>) },
     { key: 'actions', header: '', className: 'actions', width: 96, render: rowActions },
   ]
 
   const newBtn = <Button variant="primary" icon={<Plus />} disabled={ro} title={ro ? t('trial.readonly') : undefined} onClick={() => setAdding(true)}>{t('nav.newPayment')}</Button>
-  const loading = data === undefined
+  const loading = groups === undefined
   const filtered = !!(method || by || dq)
 
   let body
@@ -119,16 +166,20 @@ function PaymentsPageScreen() {
     body = (
       <>
         <div className="bl-mlist">
-          {pg.slice.map(p => (
-            <div key={p.id} className="bl-mcard" role="button" tabIndex={0} onClick={() => openReceipt(p.id)} onKeyDown={e => { if (e.key === 'Enter') openReceipt(p.id) }}>
-              <Avatar name={p.patient?.name ?? '?'} src={p.patient?.photo} size="sm" />
+          {pg.slice.map(g => (
+            <div key={g.key} className="bl-mcard" role="button" tabIndex={0} onClick={() => openReceipt(g.lead.id)} onKeyDown={e => { if (e.key === 'Enter') openReceipt(g.lead.id) }}>
+              <Avatar name={nameOf(g) ?? '?'} src={pagePatients?.get(g.patientId)?.photo} size="sm" />
               <div className="bl-mcard-main">
-                <div className="bl-mcard-title">{p.patient?.name ?? t('unknown')}</div>
-                <div className="bl-mcard-sub"><span className="bl-date">{fmtDate(p.date, lang)}</span><span>·</span>{p.invoice ? <span className="num">{p.invoice.number}</span> : <span>{t('billing.payments.onAccount')}</span>}</div>
+                <div className="bl-mcard-title" dir="auto">{nameOf(g) ?? (pagePatients ? t('unknown') : '…')}</div>
+                <div className="bl-mcard-sub">
+                  <span className="bl-date">{fmtDate(g.date, lang)}</span><span>·</span>
+                  <span className="num">{g.label}</span><span>·</span>
+                  {g.allocations.length ? <span className="num">{g.allocations.map(a => numbers?.get(a.invoiceId) ?? '…').join(' + ')}</span> : <span>{g.amount < 0 ? t('billing.payments.fromCredit') : t('billing.payments.onAccount')}</span>}
+                </div>
               </div>
               <div className="bl-mcard-end">
-                <Money value={p.amount} kind="signed" strong />
-                <MethodBadge method={p.method} size="sm" />
+                <Money value={g.amount} kind="signed" strong />
+                <MethodBadge method={g.method} size="sm" />
               </div>
             </div>
           ))}
@@ -137,7 +188,7 @@ function PaymentsPageScreen() {
       </>
     )
   } else {
-    body = <DataTable className="bl-table" columns={columns} rows={pg.slice} rowKey={p => p.id} onRowClick={p => openReceipt(p.id)} footer={<Pagination {...pg} />} />
+    body = <DataTable className="bl-table" columns={columns} rows={pg.slice} rowKey={g => g.key} onRowClick={g => openReceipt(g.lead.id)} footer={<Pagination {...pg} />} />
   }
 
   return (
@@ -173,7 +224,7 @@ function PaymentsPageScreen() {
       {body}
 
       <Suspense fallback={null}>{adding && <PaymentFormModal open onClose={() => setAdding(false)} />}</Suspense>
-      {report && data && <CashReportModal rows={rows} period={period} filters={{ method, by: by ? userName.get(by) : undefined }} onClose={() => setReport(false)} />}
+      {report && groups && <CashReportModal rows={rows} period={period} filters={{ method, by: by ? userName.get(by) : undefined }} onClose={() => setReport(false)} />}
     </div>
   )
 }

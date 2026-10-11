@@ -2,7 +2,7 @@
 import { lazy, Suspense, useEffect, useRef, useState } from 'react'
 import { Link, useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { useLiveQuery } from 'dexie-react-hooks'
-import { ArrowLeft, ArrowRight, Ban, FileX2, MessageCircle, MoreVertical, Pencil, Printer, Receipt, Send, Trash2, Wallet } from 'lucide-react'
+import { ArrowLeft, ArrowRight, Ban, FileX2, MessageCircle, MoreVertical, Pencil, Printer, Receipt, RotateCcw, Send, Trash2, Wallet } from 'lucide-react'
 import { db, logActivity } from '@/db'
 import { useI18n } from '@/i18n'
 import { useClinic, useMoney } from '@/app/hooks'
@@ -10,12 +10,12 @@ import { useSession } from '@/app/session'
 import { useLicense } from '@/license/useLicense'
 import { fmtDate } from '@/lib/dates'
 import { whatsappLink } from '@/lib/format'
-import { openExternal, print } from '@/platform'
+import { openExternal } from '@/platform'
 import { Button, EmptyState, IconButton, Menu, PageHeader, ProgressBar, Skeleton, useConfirm, useConfirmDelete, useToast, type MenuItemDef } from '@/ui'
-import { cancelInvoice, deleteDraftInvoice } from './actions'
-import { invoiceBalance, isDraftNumber, isOpen } from './lib'
-import { InvoiceSheet } from './InvoiceSheet'
-import { BillingGate, Money, StatusBadge, ltr, iso } from './shared'
+import { cancelInvoice, deleteDraftInvoice, ensureReconciled } from './actions'
+import { EPS, invoiceBalance, isDraftNumber, isOpen } from './lib'
+import { InvoiceSheet, invoiceKind } from './InvoiceSheet'
+import { BillingGate, docTitle, Money, printTitled, StatusBadge, ltr, iso } from './shared'
 import InvoiceFormModal from './InvoiceFormModal'
 import './billing.css'
 
@@ -39,7 +39,8 @@ function InvoicePageScreen() {
   const confirm = useConfirm()
   const confirmDelete = useConfirmDelete()
   const [editing, setEditing] = useState(false)
-  const [paying, setPaying] = useState(false)
+  const [paying, setPaying] = useState<'payment' | 'refund' | null>(null)
+  useEffect(() => { void ensureReconciled() }, [])
 
   const data = useLiveQuery(async () => {
     const invoice = await db.invoices.get(id)
@@ -53,15 +54,20 @@ function InvoicePageScreen() {
     return { invoice, patient, payments, doctor }
   }, [id])
 
-  // /invoices/:id?print=1 prints as soon as the sheet is on screen (used by "print" in the list)
+  // the document title names the PDF a user saves and the print job: "فاتورة INV-000033 — أحمد الخطيب"
+  const titleRef = useRef('')
+  const printSheet = () => printTitled(titleRef.current || undefined)
+  // /invoices/:id?print=1 prints as soon as the sheet is on screen (used by "print" in the list). The query is
+  // cleared first; the timer lives in a ref so that clearing it (which re-runs this effect) cannot cancel the print.
   const printed = useRef(false)
+  const printTimer = useRef<number | undefined>(undefined)
   useEffect(() => {
     if (!data?.invoice || printed.current || params.get('print') !== '1') return
     printed.current = true
     setParams({}, { replace: true })
-    const tm = window.setTimeout(() => print(), 350)
-    return () => window.clearTimeout(tm)
-  }, [data, params, setParams])
+    printTimer.current = window.setTimeout(() => { printTimer.current = undefined; printSheet() }, 350)
+  }, [data, params, setParams]) // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => () => window.clearTimeout(printTimer.current), [])
 
   const goBack = () => (location.key !== 'default' ? navigate(-1) : navigate('/invoices'))
   const BackIcon = isRTL ? ArrowRight : ArrowLeft
@@ -90,6 +96,8 @@ function InvoicePageScreen() {
   const canEdit = !ro && !cancelled && payments.length === 0 && invoice.paid === 0
   const number = isDraftNumber(invoice.number) ? t('billing.draftNumber') : invoice.number
   const clinicName = (lang === 'en' ? clinic.nameEn || clinic.name : clinic.name || clinic.nameEn) || t('appName')
+  titleRef.current = docTitle(`${invoiceKind(invoice, clinic).tax ? t('billing.sheet.taxInvoice') : t('billing.sheet.invoice')} ${number}`, patient?.name)
+  const canRefund = !ro && !draft && !cancelled && invoice.paid > EPS
 
   const share = () => {
     if (!patient?.phone) { toast.warning(t('billing.noPhone')); return }
@@ -114,6 +122,7 @@ function InvoicePageScreen() {
   const more: MenuItemDef[] = [
     { label: t('edit'), icon: <Pencil />, disabled: !canEdit, onClick: () => setEditing(true) },
     { label: t('billing.shareWhatsapp'), icon: <MessageCircle />, disabled: !patient?.phone || draft || cancelled, onClick: share },
+    ...(!draft && !cancelled ? [{ label: t('billing.refundOnInvoice'), icon: <RotateCcw />, disabled: !canRefund, onClick: () => setPaying('refund') }] : []),
     ...(!cancelled && !draft ? [{ sep: true }, { label: t('billing.cancelInvoice'), icon: <Ban />, danger: true, disabled: ro, onClick: () => void doCancel() }] : []),
     ...(draft ? [{ sep: true }, { label: t('billing.deleteDraft'), icon: <Trash2 />, danger: true, disabled: ro, onClick: () => void doDelete() }] : []),
   ]
@@ -123,10 +132,10 @@ function InvoicePageScreen() {
       {draft ? (
         <Button variant="primary" icon={<Send />} disabled={ro} onClick={() => setEditing(true)}>{t('billing.reviewAndIssue')}</Button>
       ) : isOpen(invoice) && (
-        <Button variant="primary" icon={<Wallet />} disabled={ro} onClick={() => setPaying(true)}>{t('billing.recordPayment')}</Button>
+        <Button variant="primary" icon={<Wallet />} disabled={ro} onClick={() => setPaying('payment')}>{t('billing.recordPayment')}</Button>
       )}
-      <Button variant="secondary" icon={<Printer />} onClick={() => print()} className="hide-mobile">{t('print')}</Button>
-      <IconButton label={t('print')} variant="secondary" className="show-mobile" onClick={() => print()}><Printer /></IconButton>
+      <Button variant="secondary" icon={<Printer />} onClick={printSheet} className="hide-mobile">{t('print')}</Button>
+      <IconButton label={t('print')} variant="secondary" className="show-mobile" onClick={printSheet}><Printer /></IconButton>
       {!draft && !cancelled && <Button variant="secondary" icon={<MessageCircle />} onClick={share} disabled={!patient?.phone} title={!patient?.phone ? t('billing.noPhone') : undefined} className="hide-mobile">{t('whatsapp')}</Button>}
       <Menu items={more} trigger={() => <IconButton label={t('more')} variant="secondary"><MoreVertical /></IconButton>} />
     </>
@@ -140,7 +149,7 @@ function InvoicePageScreen() {
           title={<span className="bl-title-row"><IconButton label={t('back')} variant="ghost" size="sm" onClick={goBack}><BackIcon /></IconButton><span className={draft ? '' : 'num'}>{number}</span><StatusBadge status={invoice.status} size="lg" /></span>}
           subtitle={
             <span className="bl-head-sub">
-              {patient ? <Link className="bl-link" title={patient.name} to={`/patients/${patient.id}`}>{patient.name}</Link> : <span>{t('unknown')}</span>}
+              {patient ? <Link className="bl-link" title={patient.name} dir="auto" to={`/patients/${patient.id}`}>{patient.name}</Link> : <span>{t('unknown')}</span>}
               <span>·</span><span className="bl-date">{fmtDate(invoice.date, lang)}</span>
             </span>
           }
@@ -162,7 +171,7 @@ function InvoicePageScreen() {
 
       {editing && <InvoiceFormModal open invoiceId={invoice.id} onClose={() => setEditing(false)} />}
       <Suspense fallback={null}>
-        {paying && <PaymentFormModal open patientId={invoice.patientId} invoiceId={invoice.id} onClose={() => setPaying(false)} />}
+        {paying && <PaymentFormModal open patientId={invoice.patientId} invoiceId={invoice.id} refund={paying === 'refund'} onClose={() => setPaying(null)} />}
       </Suspense>
     </div>
   )

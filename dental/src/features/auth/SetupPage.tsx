@@ -1,16 +1,18 @@
 import { useMemo, useRef, useState, type FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { ArrowLeft, ArrowRight, Check, Rocket } from 'lucide-react'
-import { Button, useToast } from '@/ui'
+import { Button, useConfirm, useToast } from '@/ui'
 import { useI18n } from '@/i18n'
 import { useSession } from '@/app/session'
 import { ToothIcon } from '@/app/ToothIcon'
-import { db, importBackup, logActivity, updateClinic } from '@/db'
+import { db, logActivity, updateClinic } from '@/db'
 import { newId, nowISO } from '@/db/ids'
-import type { BackupFile, Lang, User } from '@/db/types'
+import type { Lang, User } from '@/db/types'
 import { hashPin, randomHex } from '@/lib/crypto'
-import { pickFile } from '@/platform'
 import { seedDefaults } from '@/features/seed/demo'
+import { restartApp, restoreBackup } from '@/features/settings/backup'
+import type { ReadResult } from '@/features/settings/backup/archive'
+import { BackupProgressModal, backupErrorText, namesLine, useBackupReader } from '@/features/settings/backup/ui'
 import {
   CURRENCIES, buildClinicPatch, ownerTitleFor, validateClinicStep, validateMoneyStep, validateOwnerStep,
   type ClinicDraft, type Errors, type MoneyDraft, type OwnerDraft,
@@ -33,6 +35,7 @@ export default function SetupPage() {
   const session = useSession()
   const navigate = useNavigate()
   const toast = useToast()
+  const confirm = useConfirm()
   const userId = useMemo(() => newId(), [])
   const bodyRef = useRef<HTMLDivElement>(null)
   const titleTouched = useRef(false)
@@ -116,21 +119,30 @@ export default function SetupPage() {
     }
   }
 
-  const restore = async () => {
-    const f = await pickFile('.json,application/json')
-    if (!f) return
+  // Restore from a backup (a reinstall or a new device): the same reading, checks and all-or-nothing restore as
+  // Settings → Backup, including password-protected backups. This device keeps its activation and its trial start.
+  const applyRestore = async (file: File, r: ReadResult) => {
+    const damaged = r.info.damaged
+    if (damaged.length) {
+      const ok = await confirm({
+        title: t('backup.damagedTitle', { n: damaged.length }),
+        description: t('backup.damagedDesc', { n: damaged.length, names: namesLine(damaged) }),
+        confirmLabel: t('backup.restoreRest'),
+      })
+      if (!ok) return
+    }
     setRestoring(true)
     try {
-      let data: BackupFile
-      try { data = JSON.parse(await f.text()) } catch { throw new Error('not-a-backup') }
-      await importBackup(data)
+      await restoreBackup(r.data, { neededBytes: Math.max(file.size, r.info.fileBytes) })
       toast.success(t('auth.restore.done'), t('auth.restore.doneSub'))
-      window.setTimeout(() => window.location.reload(), 1200)
+      window.setTimeout(() => restartApp('/'), 1200)
     } catch (e) {
-      toast.error((e as Error)?.message === 'not-a-backup' ? t('auth.restore.invalid') : t('auth.restore.failed'))
+      toast.error(backupErrorText(t, e) ?? t('backup.err.failed'))
       setRestoring(false)
     }
   }
+  const reader = useBackupReader({ onRead: (file, r) => void applyRestore(file, r), onError: message => toast.error(message) })
+  const restore = () => { if (!restoring) void reader.choose() }
 
   return (
     <div className="auth-screen au-setup-screen">
@@ -161,7 +173,7 @@ export default function SetupPage() {
             <h1 className="au-step-title">{t(TITLES[key][0])}</h1>
             <p className="au-step-desc">{t(TITLES[key][1])}</p>
             <div className="au-step-body">
-              {key === 'language' && <LanguageStep lang={lang} onPick={pickLang} onRestore={restore} restoring={restoring} />}
+              {key === 'language' && <LanguageStep lang={lang} onPick={pickLang} onRestore={restore} restoring={restoring || reader.busy} />}
               {key === 'clinic' && <ClinicStep value={clinic} onChange={setClinic} err={err} />}
               {key === 'money' && <MoneyStep value={money} onChange={setMoney} err={err} />}
               {key === 'owner' && <OwnerStep value={owner} onChange={setOwner} err={err} onTitleTouched={() => { titleTouched.current = true }} />}
@@ -177,6 +189,8 @@ export default function SetupPage() {
           </div>
         </form>
       </div>
+      {reader.element}
+      <BackupProgressModal open={restoring} title={t('backup.restoring')} state={{ stage: 'apply' }} />
     </div>
   )
 }

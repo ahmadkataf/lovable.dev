@@ -1,7 +1,7 @@
 import type { Expense } from '../src/db/types'
 import {
   categoryBreakdown, filterExpenses, inPeriod, isFullMonth, isRealDate, isValidPeriod, monthPeriod, periodDays, periodDelta, periodTotal, previousPeriod, shiftMonth, sortExpenses,
-  toCSV, topCategory, validateExpense,
+  expenseAmount, toCSV, topCategory, validateExpense,
 } from '../src/features/expenses/lib'
 import { matches } from '../src/lib/format'
 
@@ -91,6 +91,15 @@ describe('expenses: filters, sorting, validation', () => {
     expect(validateExpense({ category: '', amount: null, date: '', description: '  ' })).toEqual({ category: 'required', amount: 'required', date: 'required', description: 'required' })
     expect(validateExpense({ category: 'rent', amount: 0, date: '2026-13-01', description: 'x' })).toEqual({ amount: 'positive', date: 'date' })
     expect(validateExpense({ category: 'rent', amount: -5, date: 'abc', description: 'x' })).toEqual({ amount: 'positive', date: 'date' })
+    // amounts are stored in the currency's minor unit: 0.4 in a currency without decimals is nothing
+    expect(validateExpense({ category: 'rent', amount: 0.4, date: '2026-10-01', description: 'x' }, 0)).toEqual({ amount: 'positive' })
+    expect(validateExpense({ category: 'rent', amount: 0.4, date: '2026-10-01', description: 'x' }, 2)).toEqual({})
+  })
+  it('stores amounts at the clinic decimals, half-up (SYP 0, USD 2, KWD 3)', () => {
+    expect(expenseAmount(1337.5, 0)).toBe(1338)
+    expect(expenseAmount(10.075, 2)).toBe(10.08)
+    expect(expenseAmount(12.3456, 3)).toBe(12.346)
+    expect(periodTotal([exp({ amount: 0.1 }), exp({ amount: 0.2 }), exp({ amount: 0.005 })])).toBe(0.305)
   })
 })
 

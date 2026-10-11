@@ -7,9 +7,9 @@ import { useI18n } from '@/i18n'
 import { useUsers } from '@/app/hooks'
 import { useLicense } from '@/license/useLicense'
 import { Button, Card, CardHeader, EmptyState, IconButton, Skeleton } from '@/ui'
-import { fromISODate } from '@/lib/dates'
+import { dateFormat, fromISODate } from '@/lib/dates'
 import { todayISO } from '@/db/ids'
-import { duplicateDefaults, itemsSummary, sortPrescriptions } from './lib'
+import { doctorLabel, duplicateDefaults, itemsSummary, sortPrescriptions } from './lib'
 import PrescriptionFormModal, { type RxFormDefaults } from './PrescriptionFormModal'
 import RxSheetModal, { useDayHint } from './RxSheet'
 import './prescriptions.css'
@@ -28,7 +28,8 @@ export default function PatientPrescriptionsTab({ patientId }: { patientId: stri
   const [shown, setShown] = useState(PAGE)
   const dayHintOf = useDayHint()
   const today = todayISO()
-  const monthFmt = useMemo(() => new Intl.DateTimeFormat(lang === 'ar' ? 'ar-SY-u-nu-latn' : 'en-GB', { month: 'short' }), [lang])
+  // the clinic's Arabic month names (تشرين / أكتوبر), shared with every other date of the app
+  const monthFmt = dateFormat(lang, { month: 'short' })
 
   const newBtn = !readOnly && <Button variant="primary" size="sm" icon={<FilePlus2 />} onClick={() => setForm({ defaults: { patientId } })}>{t('prescriptions.new')}</Button>
 
@@ -55,7 +56,7 @@ export default function PatientPrescriptionsTab({ patientId }: { patientId: stri
                   {s.names.map((n, i) => <span key={i} className="rx-sum-pill" dir="auto">{n}</span>)}
                   {s.more > 0 && <span className="rx-sum-more num">+{s.more}</span>}
                 </div>
-                <div className="li-sub row gap-1 mt-1"><Stethoscope size={13} />{userMap.get(rx.doctorId)?.name ?? '—'}<span className="muted">·</span>{t('prescriptions.itemsN', { n: rx.items.length })}</div>
+                <div className="li-sub row gap-1 mt-1"><Stethoscope size={13} />{doctorLabel(userMap.get(rx.doctorId)) || '—'}<span className="muted">·</span>{t('prescriptions.itemsN', { n: rx.items.length })}</div>
               </div>
               <div className="li-end rx-actions" onClick={e => e.stopPropagation()}>
                 <IconButton variant="ghost" size="sm" label={t('prescriptions.openPrint')} onClick={() => setOpenId(rx.id)}><Printer /></IconButton>

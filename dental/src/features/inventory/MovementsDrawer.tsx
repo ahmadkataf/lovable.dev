@@ -11,7 +11,7 @@ import { useLicense } from '@/license/useLicense'
 import { fmtDate, fmtTime } from '@/lib/dates'
 import { isLowStock, itemValue, withRunningBalance, type MoveDirection } from './lib'
 import { QuickMoveForm } from './QuickMove'
-import { CategoryBadge, ExpiryBadge, ReasonBadge, StockBadge, qtyText, unitLabel, useUnitMoney } from './parts'
+import { CategoryBadge, ExpiryBadge, ReasonBadge, StockBadge, qtyText, unitFor, useUnitMoney } from './parts'
 
 export default function MovementsDrawer({ itemId, onClose, onEdit }: { itemId: string | null; onClose: () => void; onEdit?: (id: string) => void }) {
   const { t, lang } = useI18n()
@@ -29,7 +29,7 @@ export default function MovementsDrawer({ itemId, onClose, onEdit }: { itemId: s
 
   const close = () => { setDir(null); onClose() }
   if (!itemId) return null
-  const unit = item ? unitLabel(t, item.unit) : ''
+  const unit = item ? unitFor(t, item.unit, item.quantity) : ''
   return (
     <Drawer open={!!itemId} onClose={close} title={<span className="row gap-2"><History className="inv-drawer-icon" />{t('inventory.history')}</span>}
       footer={item && onEdit && !readOnly ? <><Button variant="ghost" onClick={close}>{t('close')}</Button><Button variant="secondary" icon={<Pencil />} onClick={() => onEdit(item.id)}>{t('inventory.editItem')}</Button></> : undefined}>

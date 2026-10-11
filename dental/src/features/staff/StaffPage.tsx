@@ -11,7 +11,8 @@ import { useLicense } from '@/license/useLicense'
 import { formatPhone } from '@/lib/format'
 import { timeAgo, fmtDateTime } from '@/lib/dates'
 import { displayName, plainName } from '@/features/auth/lib'
-import { ROLE_TONE, deactivateBlock, deleteBlock, filterStaff, lastLoginMap, sortStaff, type StaffFilter } from './lib'
+import { ROLE_TONE, deactivateBlock, deleteBlock, filterStaff, lastLoginMap, newestFirst, sortStaff, type StaffFilter } from './lib'
+import { tPlural } from '@/app/plural'
 import StaffFormModal from './StaffFormModal'
 import ResetPinModal from './ResetPinModal'
 import { PermissionsMatrix, SignInLog } from './StaffPanels'
@@ -39,7 +40,9 @@ function StaffManager() {
   const selfId = session.user?.id
 
   const users = useLiveQuery(() => db.users.toArray(), [])
-  const logins = useLiveQuery(() => db.activity.orderBy('at').reverse().filter(a => a.type === 'system' && a.action === 'login').limit(400).toArray(), [])
+  // sign-ins are 'system' rows: walk only those, newest first, through the type index (ids start with the time),
+  // instead of every activity row in the clinic's history
+  const logins = useLiveQuery(async () => newestFirst(await db.activity.where('type').equals('system').reverse().filter(a => a.action === 'login').limit(400).toArray()), [])
   const [filter, setFilter] = useState<StaffFilter>('all')
   const [form, setForm] = useState<{ user?: User } | null>(null)
   const [pinFor, setPinFor] = useState<User | null>(null)
@@ -77,7 +80,7 @@ function StaffManager() {
     const name = displayName(u)
     const ok = await confirm({
       title: t('staff.deleteTitle', { name }), danger: true,
-      description: <>{t('staff.deleteDesc')}{linked > 0 && <><br /><br />{t('staff.deleteHistory', { n: linked })}</>}</>,
+      description: <>{t('staff.deleteDesc')}{linked > 0 && <><br /><br />{tPlural(t, lang, 'staff.deleteHistory', linked)}</>}</>,
     })
     if (!ok) return
     await db.users.delete(u.id)

@@ -1,5 +1,5 @@
 // The "billing" tab of the patient profile: account cards, invoices, payments and a printable statement.
-import { lazy, Suspense, useMemo, useState } from 'react'
+import { lazy, Suspense, useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { BadgeCheck, ChevronLeft, ChevronRight, FileText, Printer, Receipt, ScrollText, Wallet } from 'lucide-react'
@@ -10,7 +10,8 @@ import { useIsMobile, useUsers } from '@/app/hooks'
 import { useLicense } from '@/license/useLicense'
 import { fmtDate } from '@/lib/dates'
 import { Badge, Button, Card, CardHeader, DataTable, EmptyState, IconButton, Skeleton, StatCard, type Column } from '@/ui'
-import { accountFrom, invoiceBalance, isBillable, isDraftNumber, pluralKey } from './lib'
+import { reconcilePatient } from './actions'
+import { accountFrom, groupReceipts, invoiceBalance, isBillable, isDraftNumber, pluralKey, type ReceiptGroup } from './lib'
 import { MethodBadge, Money, StatusBadge } from './shared'
 import { openReceipt } from './Receipt'
 import { StatementModal } from './Statement'
@@ -30,14 +31,15 @@ export default function PatientBillingTab({ patientId }: { patientId: string }) 
   const [newPayment, setNewPayment] = useState(false)
   const [statement, setStatement] = useState(false)
 
+  // records made outside billing (older versions, "bill completed work") are put in line before they are shown
+  useEffect(() => { void reconcilePatient(patientId).catch(() => {}) }, [patientId])
   const data = useLiveQuery(async () => {
     const [invoices, payments] = await Promise.all([
       db.invoices.where('patientId').equals(patientId).toArray(),
       db.payments.where('patientId').equals(patientId).toArray(),
     ])
-    invoices.sort((a, b) => b.date.localeCompare(a.date) || b.createdAt.localeCompare(a.createdAt))
-    payments.sort((a, b) => b.date.localeCompare(a.date) || b.createdAt.localeCompare(a.createdAt))
-    return { invoices, payments, account: accountFrom(invoices, payments) }
+    invoices.sort((a, b) => (a.date !== b.date ? (a.date < b.date ? 1 : -1) : a.createdAt < b.createdAt ? 1 : a.createdAt > b.createdAt ? -1 : 0))
+    return { invoices, payments: groupReceipts(payments), account: accountFrom(invoices, payments) }
   }, [patientId])
   const invNumber = useMemo(() => new Map((data?.invoices ?? []).map(i => [i.id, i])), [data])
   const userName = (id?: string) => (id ? users.find(u => u.id === id)?.name ?? '—' : '—')
@@ -65,13 +67,17 @@ export default function PatientBillingTab({ patientId }: { patientId: string }) 
     { key: 'status', header: t('status'), render: i => <StatusBadge status={i.status} /> },
     { key: 'open', header: '', className: 'actions', width: 48, render: () => <Chev size={18} className="muted" /> },
   ]
-  const payColumns: Column<(typeof payments)[number]>[] = [
+  const invoicesCell = (g: ReceiptGroup) => g.allocations.length
+    ? <span className="bl-inv-list">{g.allocations.map(a => { const inv = invNumber.get(a.invoiceId); return inv ? <Link key={a.invoiceId} className="bl-num-link num" to={`/invoices/${inv.id}`} onClick={e => e.stopPropagation()}>{inv.number}</Link> : null })}{Math.abs(g.onAccount) >= 0.0005 && <Badge tone="outline" size="sm">+ {t('billing.payments.onAccount')}</Badge>}</span>
+    : <Badge tone="outline">{g.amount < 0 ? t('billing.payments.fromCredit') : t('billing.payments.onAccount')}</Badge>
+  const payColumns: Column<ReceiptGroup>[] = [
     { key: 'date', header: t('date'), render: p => <span className="bl-date">{fmtDate(p.date, lang)}</span> },
-    { key: 'invoice', header: t('billing.invoice'), render: p => { const inv = p.invoiceId ? invNumber.get(p.invoiceId) : undefined; return inv ? <Link className="bl-num-link num" to={`/invoices/${inv.id}`} onClick={e => e.stopPropagation()}>{inv.number}</Link> : <Badge tone="outline">{t('billing.payments.onAccount')}</Badge> } },
+    { key: 'no', header: t('billing.receipt.noShort'), className: 'bl-hide-1200', render: p => <span className={p.numbered ? 'num strong' : 'num muted'}>{p.label}</span> },
+    { key: 'invoice', header: t('billing.invoice'), render: invoicesCell },
     { key: 'method', header: t('billing.method'), render: p => <MethodBadge method={p.method} /> },
     { key: 'by', header: t('billing.payments.receivedBy'), className: 'bl-hide-1200', render: p => userName(p.receivedBy) },
     { key: 'amount', header: t('amount'), className: 'num', render: p => <Money value={p.amount} kind="signed" strong /> },
-    { key: 'receipt', header: '', className: 'actions', width: 56, render: p => <IconButton label={t('billing.payment.printReceipt')} size="sm" variant="ghost" className="bl-menu-btn" onClick={e => { e.stopPropagation(); openReceipt(p.id) }}><Printer /></IconButton> },
+    { key: 'receipt', header: '', className: 'actions', width: 56, render: p => <IconButton label={t('billing.payment.printReceipt')} size="sm" variant="ghost" className="bl-menu-btn" onClick={e => { e.stopPropagation(); openReceipt(p.lead.id) }}><Printer /></IconButton> },
   ]
 
   return (
@@ -102,7 +108,7 @@ export default function PatientBillingTab({ patientId }: { patientId: string }) 
                   <div className="bl-mcard-title">{isDraftNumber(i.number) ? t('billing.draftNumber') : <span className="num">{i.number}</span>}</div>
                   <div className="bl-mcard-sub"><span className="bl-date">{fmtDate(i.date, lang)}</span><StatusBadge status={i.status} size="sm" /></div>
                 </div>
-                <div className="bl-mcard-end"><Money value={i.total} strong />{invoiceBalance(i) > 0 && <span className="text-xs"><Money value={invoiceBalance(i)} kind="due" /></span>}</div>
+                <div className="bl-mcard-end"><Money value={i.total} strong />{invoiceBalance(i) > 0 && <span className="bl-mcard-due">{t('billing.dueLabel')} <Money value={invoiceBalance(i)} kind="due" /></span>}</div>
               </div>
             ))}
           </div>
@@ -120,17 +126,17 @@ export default function PatientBillingTab({ patientId }: { patientId: string }) 
         ) : isMobile ? (
           <div className="bl-mlist">
             {payments.map(p => (
-              <div key={p.id} className="bl-mcard" role="button" tabIndex={0} onClick={() => openReceipt(p.id)}>
+              <div key={p.key} className="bl-mcard" role="button" tabIndex={0} onClick={() => openReceipt(p.lead.id)}>
                 <div className="bl-mcard-main">
                   <div className="bl-mcard-title"><span className="bl-date">{fmtDate(p.date, lang)}</span></div>
-                  <div className="bl-mcard-sub">{p.invoiceId && invNumber.get(p.invoiceId) ? <span className="num">{invNumber.get(p.invoiceId)!.number}</span> : t('billing.payments.onAccount')}</div>
+                  <div className="bl-mcard-sub"><span className="num">{p.label}</span><span>·</span>{p.allocations.length ? <span className="num">{p.allocations.map(a => invNumber.get(a.invoiceId)?.number ?? '…').join(' + ')}</span> : (p.amount < 0 ? t('billing.payments.fromCredit') : t('billing.payments.onAccount'))}</div>
                 </div>
                 <div className="bl-mcard-end"><Money value={p.amount} kind="signed" strong /><MethodBadge method={p.method} size="sm" /></div>
               </div>
             ))}
           </div>
         ) : (
-          <DataTable className="bl-table bl-flat" columns={payColumns} rows={payments} rowKey={p => p.id} onRowClick={p => openReceipt(p.id)} />
+          <DataTable className="bl-table bl-flat" columns={payColumns} rows={payments} rowKey={p => p.key} onRowClick={p => openReceipt(p.lead.id)} />
         )}
       </Card>
 

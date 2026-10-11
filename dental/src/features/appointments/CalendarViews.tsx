@@ -1,13 +1,13 @@
 // The calendar's views: the time grid (day columns per doctor, week columns per day), the month grid,
 // the agenda list, and the phone layouts (day list, time strip, week strip).
-import { useEffect, useLayoutEffect, useMemo, useRef, type CSSProperties, type KeyboardEvent, type ReactNode } from 'react'
+import { memo, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent, type ReactNode } from 'react'
 import { Activity, Ban, CheckCheck, ChevronRight, CircleCheck, MessageCircle, Plus, UserCheck, UserX } from 'lucide-react'
 import type { AppointmentStatus, Lang } from '@/db/types'
 import { useI18n } from '@/i18n'
 import { Button, IconButton } from '@/ui'
 import { formatPhone } from '@/lib/format'
 import { fmtDate, fmtTime, fromISODate, minutesToTime, relativeDay, diffDays, today as todayISO } from '@/lib/dates'
-import { groupByDate, layoutColumns, minutesOfDay, monthGrid, nextStep, durationOf, isWorkingDay, safeDuration } from './lib'
+import { AGENDA_STEP, daysForBudget, groupByDate, layoutColumns, minutesOfDay, monthGrid, nextStep, durationOf, isWorkingDay, safeDuration } from './lib'
 import { aptVars, DocDot, PatientAvatar, StatusBadge, useCountLabel, useDurationLabel, type AptRow } from './shared'
 
 const ST_ICON: Partial<Record<AppointmentStatus, ReactNode>> = {
@@ -23,6 +23,8 @@ export function dowName(date: string, lang: Lang, width: 'long' | 'short' | 'nar
   return f.format(fromISODate(date))
 }
 const dayNum = (d: string) => Number(d.slice(8))
+/** "10:30 ص" → "10:30": a narrow card has no room for the am/pm marker (its place on the time grid already says it). */
+const clockOnly = (s: string) => s.replace(/\s*[^\d:\s]+\.?$/, '')
 const onKeyActivate = (fn: () => void) => (e: KeyboardEvent) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); fn() } }
 
 // ===== time grid ==================================================================================
@@ -130,6 +132,8 @@ function EventCard({ row, top, height, col, cols, compact, onOpen }: { row: AptR
   const size = h < 30 ? 's' : h < 52 || (compact && cols > 1) ? 'm' : 'l'
   const narrow = compact && cols > 1
   const name = row.patient?.name ?? t('appointments.deletedPatient')
+  // a narrow card (week view, overlapping visits) shows the given name, which fits; the tooltip keeps the full name
+  const shown = narrow ? name.trim().split(/\s+/)[0] : name
   const title = `${fmtTime(row.start, lang)} – ${fmtTime(row.end, lang)} · ${name} · ${t(`aptType.${row.type}`)} · ${t(`apt.${row.status}`)}${row.doctor ? ` · ${row.doctor.name}` : ''}`
   const style = { top: top + 1, height: h, ['--c' as string]: col, ['--n' as string]: cols, ...aptVars(row) } as CSSProperties
   return (
@@ -138,8 +142,8 @@ function EventCard({ row, top, height, col, cols, compact, onOpen }: { row: AptR
         <span className="apt-ev-line"><span className="apt-ev-time apt-tm">{fmtTime(row.start, lang)}</span><span className="apt-ev-name" dir="auto">{name}</span></span>
       ) : size === 'm' ? (
         <>
-          <span className="apt-ev-name" dir="auto">{name}</span>
-          <span className="apt-ev-sub"><span className="apt-tm">{fmtTime(row.start, lang)}</span>{!compact && <> · {t(`aptType.${row.type}`)}</>}</span>
+          <span className="apt-ev-name" dir="auto">{shown}</span>
+          <span className="apt-ev-sub"><span className="apt-tm">{narrow ? clockOnly(fmtTime(row.start, lang)) : fmtTime(row.start, lang)}</span>{!compact && <> · {t(`aptType.${row.type}`)}</>}</span>
         </>
       ) : (
         <>
@@ -199,13 +203,28 @@ export function AgendaView({ rows, mobile, readOnly, onOpen, onStep, onRemind }:
   rows: AptRow[]; mobile: boolean; readOnly?: boolean
   onOpen: (r: AptRow) => void; onStep: (r: AptRow, s: AppointmentStatus) => void; onRemind: (r: AptRow) => void
 }) {
-  const { lang } = useI18n()
+  const { t, lang } = useI18n()
   const countLabel = useCountLabel()
   const groups = useMemo(() => groupByDate(rows), [rows])
   const todayStr = todayISO()
+  // fourteen busy days are hundreds of rows: render a few days, then more as the user scrolls (or taps "more")
+  const [budget, setBudget] = useState(AGENDA_STEP)
+  const days = useMemo(() => daysForBudget(groups.map(g => g.items.length), budget), [groups, budget])
+  const more = () => setBudget(b => Math.max(b + AGENDA_STEP, groups.slice(0, days + 1).reduce((a, g) => a + g.items.length, 0)))
+  const sentinel = useRef<HTMLDivElement>(null)
+  const moreRef = useRef(more)
+  moreRef.current = more
+  useEffect(() => {
+    const el = sentinel.current
+    if (!el || days >= groups.length || typeof IntersectionObserver === 'undefined') return
+    const io = new IntersectionObserver(entries => { if (entries.some(e => e.isIntersecting)) moreRef.current() }, { rootMargin: '600px 0px' })
+    io.observe(el)
+    return () => io.disconnect()
+  }, [days, groups.length])
+  const left = groups.length - days
   return (
     <div className="apt-agenda">
-      {groups.map(g => {
+      {groups.slice(0, days).map(g => {
         const rel = Math.abs(diffDays(todayStr, g.date)) <= 1 ? relativeDay(g.date, lang) : null
         return (
           <section key={g.date} className={`apt-ag-day${g.date === todayStr ? ' today' : ''}`}>
@@ -225,11 +244,16 @@ export function AgendaView({ rows, mobile, readOnly, onOpen, onStep, onRemind }:
           </section>
         )
       })}
+      {left > 0 && (
+        <div className="apt-ag-more" ref={sentinel}>
+          <Button variant="secondary" onClick={more}>{t('appointments.moreDays', { n: left })}</Button>
+        </div>
+      )}
     </div>
   )
 }
 
-function AgendaRow({ row, readOnly, onOpen, onStep, onRemind }: { row: AptRow; readOnly?: boolean; onOpen: (r: AptRow) => void; onStep: (r: AptRow, s: AppointmentStatus) => void; onRemind: (r: AptRow) => void }) {
+const AgendaRow = memo(function AgendaRow({ row, readOnly, onOpen, onStep, onRemind }: { row: AptRow; readOnly?: boolean; onOpen: (r: AptRow) => void; onStep: (r: AptRow, s: AppointmentStatus) => void; onRemind: (r: AptRow) => void }) {
   const { t, lang } = useI18n()
   const durLabel = useDurationLabel()
   const step = nextStep(row.status)
@@ -260,11 +284,11 @@ function AgendaRow({ row, readOnly, onOpen, onStep, onRemind }: { row: AptRow; r
       </div>
     </div>
   )
-}
+})
 
 // ===== phone ======================================================================================
 /** One appointment as a tappable card: the time on the start side, the patient and status on the card. */
-export function MobileItem({ row, onOpen, showDoctor = true }: { row: AptRow; onOpen: (r: AptRow) => void; showDoctor?: boolean }) {
+export const MobileItem = memo(function MobileItem({ row, onOpen, showDoctor = true }: { row: AptRow; onOpen: (r: AptRow) => void; showDoctor?: boolean }) {
   const { t, lang } = useI18n()
   const durLabel = useDurationLabel()
   return (
@@ -285,7 +309,7 @@ export function MobileItem({ row, onOpen, showDoctor = true }: { row: AptRow; on
       </span>
     </button>
   )
-}
+})
 
 export function DayList({ rows, onOpen, showDoctor }: { rows: AptRow[]; onOpen: (r: AptRow) => void; showDoctor?: boolean }) {
   return <div className="apt-daylist">{rows.map(r => <MobileItem key={r.id} row={r} onOpen={onOpen} showDoctor={showDoctor} />)}</div>

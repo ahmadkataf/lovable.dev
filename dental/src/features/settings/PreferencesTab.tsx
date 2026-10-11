@@ -1,16 +1,16 @@
 import { useState, type FormEvent } from 'react'
-import { CalendarClock, Check, Hash, Languages, LockKeyhole, Moon, Palette, Sun, Type } from 'lucide-react'
+import { CalendarClock, CalendarDays, Check, Hash, Languages, LockKeyhole, Moon, Palette, Sparkles, Sun, Type } from 'lucide-react'
 import { Alert, Badge, Button, Chip, Input, Select, Card, CardBody, CardFooter, useToast } from '@/ui'
 import { translate, useI18n } from '@/i18n'
 import { db, logActivity, updateClinic } from '@/db'
 import type { Lang } from '@/db/types'
 import { useClinicMaybe } from '@/app/hooks'
 import { applyFont, currentFont, FONT_OPTIONS, type FontKey } from '@/app/theme'
-import { weekdayName } from '@/lib/dates'
+import { arabicDateLocale, today, weekdayName, fromISODate } from '@/lib/dates'
 import { toggleDay, WEEK_ORDER } from '@/features/auth/lib'
 import {
   DEFAULT_FONT, DURATION_CHOICES, FONT_FAMILIES, FONT_SAMPLE_AMOUNT, LOCK_KEY, LOCK_OPTIONS, SLOT_CHOICES,
-  hasErrors, hoursDraftFrom, hoursPerDay, lockMinutes, lockMs, validateHours, type FieldErrors,
+  effectiveArabicMonths, effectiveCountry, hasErrors, type ArabicMonths, hoursDraftFrom, hoursPerDay, lockMinutes, lockMs, validateHours, type FieldErrors,
 } from './lib'
 import { LockedNotice, OptionCard, SectionTitle, TabSkeleton, useAccess, useDraft, useErrText, useSingleFlight, useUnsavedGuard } from './parts'
 
@@ -61,6 +61,13 @@ export default function PreferencesTab() {
     if (!clinicWide || theme === (clinic.theme === 'dark' ? 'dark' : 'light')) return
     await updateClinic({ theme })
     toast.success(t('settings.pref.themeChanged'))
+  }
+  const monthChoice: 'auto' | ArabicMonths = clinic.arabicMonths ?? 'auto'
+  const chooseMonths = async (v: 'auto' | ArabicMonths) => {
+    if (!clinicWide || v === monthChoice) return
+    await updateClinic({ arabicMonths: v === 'auto' ? undefined : v })
+    toast.success(t('settings.pref.monthsChanged'))
+    void logActivity({ type: 'system', action: 'update', message: t('settings.act.prefs'), by: access.userId })
   }
   const chooseFont = (key: FontKey) => {
     if (key === font) return
@@ -120,6 +127,34 @@ export default function PreferencesTab() {
               </OptionCard>
             ))}
           </div>
+        </CardBody>
+      </Card>
+
+      {/* ---- Arabic month names ---- */}
+      <Card>
+        <CardBody>
+          <SectionTitle icon={<CalendarDays />} title={t('settings.pref.months')} sub={t('settings.pref.monthsSub')} end={scope(false)} />
+          <div className="st-options st-options-3" role="radiogroup" aria-label={t('settings.pref.months')} data-qa="month-style">
+            {(['auto', 'levant', 'standard'] as const).map(v => {
+              const [samplePre = '', samplePost = ''] = t('settings.pref.monthsSample', { date: '{date}' }).split('{date}')
+              const style = v === 'auto' ? effectiveArabicMonths({ ...clinic, arabicMonths: undefined }) : v
+              const sample = new Intl.DateTimeFormat(arabicDateLocale(style), { day: 'numeric', month: 'long', year: 'numeric' }).format(fromISODate(today()))
+              return (
+                <OptionCard key={v} active={monthChoice === v} onClick={() => void chooseMonths(v)} disabled={!clinicWide} data-months={v}>
+                  <span className="st-glyph ar" aria-hidden>{v === 'auto' ? <Sparkles /> : v === 'levant' ? 'ك' : 'ي'}</span>
+                  <span className="st-option-text">
+                    <span className="st-option-title">{v === 'auto' ? t('settings.pref.monthsAuto') : <bdi lang="ar" dir="rtl">{t(v === 'levant' ? 'settings.pref.monthsLevant' : 'settings.pref.monthsStandard')}</bdi>}</span>
+                    <span className="st-option-desc">
+                      {v === 'auto' ? t('settings.clinic.countryOption', { country: t(`settings.country.${effectiveCountry(clinic)}`), code: effectiveCountry(clinic) }) : t(v === 'levant' ? 'settings.pref.monthsLevantDesc' : 'settings.pref.monthsStandardDesc')}
+                    </span>
+                    {/* the label in the interface language, the Arabic date isolated in its own direction */}
+                    <span className="st-option-desc">{samplePre}<bdi lang="ar" dir="rtl">{sample}</bdi>{samplePost}</span>
+                  </span>
+                </OptionCard>
+              )
+            })}
+          </div>
+          {lang !== 'ar' && <div className="text-sm muted mt-3">{t('settings.pref.monthsArOnly')}</div>}
         </CardBody>
       </Card>
 

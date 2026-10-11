@@ -4,6 +4,8 @@ import type {
   Prescription, Procedure, Setting, StockMovement, ToothRecord, TreatmentItem, TreatmentPlan, User,
 } from './types'
 import { newId, nowISO } from './ids'
+import { fromBase64 } from '@/platform/bytes'
+import { safeFileType, SNIFF_BYTES } from '@/platform/filetype'
 
 export const SCHEMA_VERSION = 1
 
@@ -133,14 +135,17 @@ export async function nextFileNumber(): Promise<number> {
 }
 
 // ---- backup / restore -------------------------------------------------------------------------
+// Real backups are written and read in chunks by src/features/settings/backup (a ZIP archive: table JSON plus one
+// entry per patient file). This part only puts a prepared backup into the database, all at once or not at all.
+
 async function blobToDataUrl(b: Blob): Promise<string> {
   return new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(String(r.result)); r.onerror = rej; r.readAsDataURL(b) })
 }
-async function dataUrlToBlob(u: string): Promise<Blob> {
-  const r = await fetch(u); return r.blob()
-}
 
-/** Every table as plain JSON (file blobs become data URLs). */
+/**
+ * The whole database as one object in the old single-JSON backup format (files as data: URLs). Kept for tests and
+ * small tools only: it holds every file in memory, so the app itself writes backups with writeBackup() instead.
+ */
 export async function exportBackup(): Promise<BackupFile> {
   const tables: Record<string, unknown[]> = {}
   for (const name of TABLE_NAMES) {
@@ -153,26 +158,177 @@ export async function exportBackup(): Promise<BackupFile> {
   return { app: 'dentora', version: SCHEMA_VERSION, exportedAt: nowISO(), tables }
 }
 
-/** Replaces everything with the backup's content. The caller confirms first. */
-export async function importBackup(data: BackupFile): Promise<{ tables: number; rows: number }> {
-  if (!data || data.app !== 'dentora' || !data.tables) throw new Error('not-a-backup')
-  let rows = 0, count = 0
-  await db.transaction('rw', TABLE_NAMES.map(n => (db as any)[n]), async () => {
-    for (const name of TABLE_NAMES) {
-      const table = (db as any)[name]
-      await table.clear()
-      const list = (data.tables[name] ?? []) as any[]
-      if (name === 'files') for (const f of list) if (typeof f.data === 'string') f.data = await dataUrlToBlob(f.data)
-      if (list.length) await table.bulkPut(list)
-      rows += list.length; count++
-    }
-  })
-  return { tables: count, rows }
+/**
+ * A data: URL from an old backup → a Blob, decoded here without fetch() (a backup must never make the app load an
+ * address). The type comes from the bytes, not from the URL: an HTML page labelled as a PDF stays inert bytes.
+ * Null when it is not a well-formed data: URL.
+ */
+export function dataUrlToBlob(url: string): Blob | null {
+  if (typeof url !== 'string' || !/^data:/i.test(url)) return null
+  const comma = url.indexOf(',')
+  if (comma < 0) return null
+  const meta = url.slice(5, comma)
+  let bytes: Uint8Array
+  try {
+    if (/;base64$/i.test(meta)) bytes = fromBase64(url.slice(comma + 1))
+    else bytes = new TextEncoder().encode(decodeURIComponent(url.slice(comma + 1)))
+  } catch { return null }
+  return new Blob([bytes as BlobPart], { type: safeFileType(bytes.subarray(0, SNIFF_BYTES)) })
 }
 
-/** Wipes the database (used by "start over" and by tests). */
-export async function resetDatabase(): Promise<void> {
+/** Settings rows that belong to this installation (its activation, its trial start, its last export), not to the clinic. */
+export const DEVICE_KEYS = ['license', 'installedAt', 'lastBackupAt'] as const
+const DAY = 86_400_000
+
+/** A past (or today's) instant, as milliseconds; NaN for anything else, including dates in the future. */
+function pastInstant(v: unknown, now: number): number {
+  if (typeof v !== 'string' || !v) return NaN
+  const t = new Date(v).getTime()
+  return Number.isFinite(t) && t <= now + DAY ? t : NaN
+}
+
+/**
+ * The settings a restore writes: the backup's own settings, plus this device's rows decided here.
+ * - license: this device's activation stays; without one, the backup's is taken (a code only works on the device it
+ *   was made for, so this only helps a clinic restoring its own device after a reinstall).
+ * - installedAt: the EARLIEST of this device's trial start, the backup's, the day the backed-up clinic was created and
+ *   the day the backup was made. Future dates are ignored. So restoring (or editing) a backup can never restart the trial.
+ * - lastBackupAt: this device's last export; on a device that never exported, the date of the restored backup.
+ */
+export function mergeDeviceSettings(backupRows: Setting[], deviceRows: Setting[], ctx: { exportedAt?: unknown; clinicCreatedAt?: unknown } = {}, now = Date.now()): Setting[] {
+  const fromBackup = new Map(backupRows.map(r => [r.key, r.value]))
+  const fromDevice = new Map(deviceRows.map(r => [r.key, r.value]))
+  const out = backupRows.filter(r => !(DEVICE_KEYS as readonly string[]).includes(r.key))
+  const license = fromDevice.get('license') ?? fromBackup.get('license')
+  if (license !== undefined && license !== null) out.push({ key: 'license', value: license })
+  // the backup's own date counts too: the clinic's trial had started by the time it was exported
+  const starts = [fromDevice.get('installedAt'), fromBackup.get('installedAt'), ctx.clinicCreatedAt, ctx.exportedAt].map(v => pastInstant(v, now)).filter(Number.isFinite)
+  out.push({ key: 'installedAt', value: new Date(starts.length ? Math.min(...starts) : now).toISOString() })
+  const device = fromDevice.get('lastBackupAt')
+  const last = typeof device === 'string' && device ? device : Number.isFinite(pastInstant(ctx.exportedAt, now)) ? String(ctx.exportedAt) : null
+  if (last) out.push({ key: 'lastBackupAt', value: last })
+  return out
+}
+
+const isRow = (r: unknown): r is Record<string, unknown> => !!r && typeof r === 'object' && !Array.isArray(r)
+const validKey = (k: unknown) => (typeof k === 'string' && k.length > 0) || (typeof k === 'number' && Number.isFinite(k))
+
+/** Picture fields the screens put in <img src>: the clinic's logo, a patient's photo, a file's thumbnail. */
+const IMAGE_FIELDS: Partial<Record<TableName, string>> = { clinic: 'logo', patients: 'photo', files: 'thumb' }
+/** Only an embedded picture (data:image/…) is kept: an address in a crafted backup would make the app load it. */
+export const isSafeImageUrl = (v: unknown): boolean => typeof v === 'string' && /^data:image\/[a-z0-9.+-]+[;,]/i.test(v)
+function withSafeImage(name: TableName, row: Record<string, unknown>): Record<string, unknown> {
+  const field = IMAGE_FIELDS[name]
+  if (!field || row[field] === undefined || row[field] === null || isSafeImageUrl(row[field])) return row
+  const copy = { ...row }
+  delete copy[field]
+  return copy
+}
+
+/** One table's rows, checked and ready for bulkPut. Patient files must already carry a Blob (or a data: URL from an old backup). */
+function prepareRows(name: TableName, list: unknown, skipped: { files: number }): Record<string, unknown>[] {
+  if (list === undefined) return []
+  if (!Array.isArray(list)) throw new Error('bad-table')
+  const pk = name === 'settings' ? 'key' : 'id'
+  const out: Record<string, unknown>[] = []
+  for (const raw of list) {
+    if (!isRow(raw) || !validKey(raw[pk])) throw new Error('bad-row')
+    if (name !== 'files') { out.push(withSafeImage(name, raw)); continue }
+    const row: Record<string, unknown> = { ...withSafeImage(name, raw) }
+    delete row.__entry; delete row.__bytes          // archive bookkeeping (src/features/settings/backup)
+    const data = row.data
+    const blob = data instanceof Blob ? data : typeof data === 'string' ? dataUrlToBlob(data) : null
+    if (!blob) { skipped.files++; continue }   // an unreadable file is left out rather than stored without its bytes
+    out.push({ ...row, data: blob, mime: blob.type || row.mime, size: blob.size })
+  }
+  return out
+}
+
+/** Puts `rows` in place of a table's content: new rows first, then the old ones that are gone, so the table is never empty in between. */
+async function replaceTable(name: TableName, rows: Record<string, unknown>[]): Promise<void> {
+  const table = (db as any)[name]
+  const pk = name === 'settings' ? 'key' : 'id'
+  if (rows.length) await table.bulkPut(rows)
+  const keep = new Set(rows.map(r => r[pk]))
+  const old: unknown[] = await table.toCollection().primaryKeys()
+  const gone = old.filter(k => !keep.has(k))
+  if (gone.length) await table.bulkDelete(gone)
+}
+
+/**
+ * Replaces everything with the backup's content, all at once or not at all. Every file is a Blob (or is decoded)
+ * BEFORE the transaction opens: awaiting anything but Dexie inside it (fetch, FileReader, timers) would let
+ * IndexedDB commit half a restore. This device's activation and the earliest trial start are kept (see
+ * mergeDeviceSettings). The caller confirms first.
+ */
+export async function importBackup(data: BackupFile): Promise<{ tables: number; rows: number; skippedFiles: number }> {
+  if (!data || data.app !== 'dentora' || !isRow(data.tables)) throw new Error('not-a-backup')
+  const skipped = { files: 0 }
+  const prepared = {} as Record<TableName, Record<string, unknown>[]>
+  for (const name of TABLE_NAMES) prepared[name] = prepareRows(name, (data.tables as Record<string, unknown>)[name], skipped)
+  const ctx = { exportedAt: data.exportedAt, clinicCreatedAt: prepared.clinic[0]?.createdAt }
+  let rows = 0
   await db.transaction('rw', TABLE_NAMES.map(n => (db as any)[n]), async () => {
-    for (const name of TABLE_NAMES) await (db as any)[name].clear()
+    for (const name of TABLE_NAMES) {
+      let list = prepared[name]
+      if (name === 'settings') {
+        const device = (await db.settings.bulkGet([...DEVICE_KEYS])).filter((r): r is Setting => !!r)
+        list = mergeDeviceSettings(list as unknown as Setting[], device, ctx) as unknown as Record<string, unknown>[]
+      }
+      await replaceTable(name, list)
+      rows += list.length
+    }
   })
+  return { tables: TABLE_NAMES.length, rows, skippedFiles: skipped.files }
+}
+
+/**
+ * Wipes the database in one transaction (used by "start over" and by tests). Settings rows named in `keepSettings`
+ * (this device's activation and trial start) stay, and never disappear even for a moment.
+ */
+export async function resetDatabase(keepSettings: readonly string[] = []): Promise<void> {
+  await db.transaction('rw', TABLE_NAMES.map(n => (db as any)[n]), async () => {
+    for (const name of TABLE_NAMES) {
+      if (name === 'settings' && keepSettings.length) {
+        const keys = (await db.settings.toCollection().primaryKeys()).filter(k => !keepSettings.includes(String(k)))
+        if (keys.length) await db.settings.bulkDelete(keys)
+      } else await (db as any)[name].clear()
+    }
+  })
+}
+
+// ---- storage ------------------------------------------------------------------------------------------------
+/** True for a write refused because the disk (or the browser's share of it) is full. */
+export function isQuotaError(e: unknown): boolean {
+  for (let x: any = e, depth = 0; x && depth < 5; x = x.inner ?? x.cause, depth++) {
+    const name = String(x.name || '')
+    const msg = String(x.message || '')
+    if (name === 'QuotaExceededError' || /quota|full disk|no space|ENOSPC/i.test(msg)) return true
+  }
+  return false
+}
+
+let persisted: boolean | null = null
+/**
+ * Asks the browser to keep this app's storage even when the disk runs low (otherwise it is "best effort" and may be
+ * evicted). Called once at start-up after setup. Resolves true/false, or null where the browser cannot tell.
+ */
+export async function requestPersistentStorage(): Promise<boolean | null> {
+  try {
+    const sm = typeof navigator !== 'undefined' ? navigator.storage : undefined
+    if (!sm?.persist) return (persisted = null)
+    persisted = (await sm.persisted?.()) || (await sm.persist())
+    return persisted
+  } catch { return (persisted = null) }
+}
+/** The answer of requestPersistentStorage() (null before it ran, or where unknown). */
+export const storagePersisted = () => persisted
+
+/** Bytes this app may still store, from the browser's estimate; null when the browser does not say. */
+export async function storageAvailable(): Promise<number | null> {
+  try {
+    const e = await navigator.storage?.estimate?.()
+    if (!e || typeof e.quota !== 'number' || typeof e.usage !== 'number') return null
+    return Math.max(0, e.quota - e.usage)
+  } catch { return null }
 }

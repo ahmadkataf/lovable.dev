@@ -56,13 +56,22 @@ export function setArabicMonthStyle(style: 'levant' | 'standard') {
 export const getArabicMonthStyle = () => arabicMonths
 /** Countries whose Arabic uses the Syriac month names. */
 export const LEVANT_COUNTRIES = new Set(['963', '961', '962', '964', '970'])
-const locale = (lang: Lang) => (lang === 'ar' ? (arabicMonths === 'levant' ? 'ar-SY-u-nu-latn' : 'ar-EG-u-nu-latn') : 'en-GB')
+/**
+ * The locale every date in the app is written with: Latin digits and the Gregorian calendar in both languages, and in
+ * Arabic the clinic's month names. Use it (or dateFormat) for any Intl.DateTimeFormat outside this file.
+ */
+export const dateLocale = (lang: Lang) => (lang === 'ar' ? arabicDateLocale(arabicMonths) : 'en-GB')
+/** The Arabic locale of a month style: ar-SY (تشرين الأول) or ar-EG (أكتوبر), both Gregorian with Latin digits. */
+export const arabicDateLocale = (style: 'levant' | 'standard') => (style === 'levant' ? 'ar-SY-u-ca-gregory-nu-latn' : 'ar-EG-u-ca-gregory-nu-latn')
+const locale = dateLocale
 function dtf(lang: Lang, opts: Intl.DateTimeFormatOptions): Intl.DateTimeFormat {
-  const key = lang + JSON.stringify(opts)
+  const key = `${lang}${arabicMonths}${JSON.stringify(opts)}`
   let f = cache.get(key)
   if (!f) { f = new Intl.DateTimeFormat(locale(lang), opts); cache.set(key, f) }
   return f
 }
+/** A cached Intl.DateTimeFormat in the app's locale (see dateLocale): dateFormat(lang, { month: 'short' }).format(d). */
+export function dateFormat(lang: Lang, opts: Intl.DateTimeFormatOptions): Intl.DateTimeFormat { return dtf(lang, opts) }
 export function fmtDate(d: ISODate | Date | string, lang: Lang, style: 'short' | 'medium' | 'long' | 'weekday' = 'medium'): string {
   const date = typeof d === 'string' ? (d.length === 10 ? fromISODate(d) : new Date(d)) : d
   if (Number.isNaN(date.getTime())) return ''

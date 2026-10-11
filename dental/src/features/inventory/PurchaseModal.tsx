@@ -14,7 +14,7 @@ import { useSession } from '@/app/session'
 import { useLicense } from '@/license/useLicense'
 import { isLowStock, purchaseTotal, suggestReorderQty, validatePurchase, type PurchaseLine } from './lib'
 import { recordPurchase } from './actions'
-import { qtyText, unitLabel } from './parts'
+import { qtyText, unitFor, unitLabel } from './parts'
 import { tn } from './plural'
 
 interface Row extends PurchaseLine { key: string }
@@ -150,7 +150,7 @@ export default function PurchaseModal({ open, onClose, initialItemIds }: { open:
                       invalid={tried && (check.errors[i] === 'item' || check.errors[i] === 'duplicate')}
                       // native <option> text cannot hold <bdi>: isolate the name (FSI…PDI) so an Arabic name keeps its order in the English UI and vice versa
                       options={sorted.map(o => ({ value: o.id, label: `\u2068${o.name}\u2069${o.sku ? ` · \u2066${o.sku}\u2069` : ''}` }))} />
-                    {it && <div className="inv-pl-meta">{t('inventory.move.current')}: <span className="num">{qtyText(it.quantity, lang)}</span> {unitLabel(t, it.unit)}{isLowStock(it) && <span className="inv-text-danger"> · {t('inventory.low')}</span>}</div>}
+                    {it && <div className="inv-pl-meta">{t('inventory.move.current')}: <span className="num">{qtyText(it.quantity, lang)}</span> {unitFor(t, it.unit, it.quantity)}{isLowStock(it) && <span className="inv-text-danger"> · {t('inventory.low')}</span>}</div>}
                   </div>
                   <div className="inv-pl-cell">
                     {mobile && <span className="inv-pl-label">{t('inventory.purchase.qty')}</span>}

@@ -339,6 +339,18 @@ describe('actions (database)', () => {
     expect((await db.teeth.get('r3'))?.active).toBe(false)
   })
 
+  it('completing a one-surface filling keeps the caries on the other surfaces (audit #44)', async () => {
+    await db.teeth.put({ id: 'c16', patientId: 'p1', tooth: 16, surfaces: ['M', 'O', 'R'], condition: 'caries', active: true, recordedAt: '2026-03-01T09:00:00.000Z', recordedBy: 'u-exam', note: 'deep' })
+    expect(await applyChartEntries('p1', [{ tooth: 16, condition: 'filled', surfaces: ['O'], treatmentItemId: 'tx-o' }], 'u1')).toBe(1)
+    const rows = await db.teeth.where('[patientId+tooth]').equals(['p1', 16]).toArray()
+    const active = rows.filter(r => r.active)
+    expect(active.map(r => `${r.condition}:${r.surfaces.join('')}`).sort()).toEqual(['caries:MR', 'filled:O'])
+    expect(active.find(r => r.condition === 'filled')).toMatchObject({ treatmentItemId: 'tx-o', recordedBy: 'u1' })
+    // what is left of the caries is the same finding: original date, author and note
+    expect(active.find(r => r.condition === 'caries')).toMatchObject({ recordedAt: '2026-03-01T09:00:00.000Z', recordedBy: 'u-exam', note: 'deep' })
+    expect((await db.teeth.get('c16'))?.active).toBe(false)
+  })
+
   it('restoring an item of a cancelled plan brings the plan back', async () => {
     const plan = await createPlan('p1', { title: 'خطة' })
     const { items } = await addItems('p1', { procedure: proc, procedureName: proc.name, teeth: [11, 12], price: 40, discount: 0 }, { id: plan.id })
@@ -389,5 +401,40 @@ describe('actions (database)', () => {
     expect(await deleteProcedure('pr-fill')).toBe(true)
     expect(await applyBulkPrice([p.id], { mode: 'percent', value: 10, round: 0 })).toBe(1)
     expect((await db.procedures.get(p.id))?.price).toBe(330)
+  })
+})
+
+describe('register reads through the indexes (audit #138)', () => {
+  beforeEach(async () => { await resetDatabase() })
+  it('reads only the period on screen and the key figures, with the same results as the whole table', async () => {
+    const { registerItems, registerStats, instantBounds } = await import('@/features/treatments/queries')
+    const { combine } = await import('@/lib/dates')
+    const today = '2026-10-10'
+    const rows = [
+      item({ id: 'planned-oct', status: 'planned', plannedDate: '2026-10-20', price: 100 }),
+      item({ id: 'planned-nov', status: 'planned', plannedDate: '2026-11-05', price: 70 }),
+      item({ id: 'started', status: 'in_progress', createdAt: combine('2026-10-02', '10:00'), price: 40 }),
+      item({ id: 'cancelled-oct', status: 'cancelled', createdAt: combine('2026-10-03', '10:00') }),
+      item({ id: 'done-oct-billed', status: 'completed', completedAt: combine('2026-10-01', '00:30'), invoiceId: 'inv1', price: 50 }),
+      item({ id: 'done-oct-open', status: 'completed', completedAt: combine('2026-10-31', '23:30'), price: 30, discount: 5 }),
+      item({ id: 'done-sep-open', status: 'completed', completedAt: combine('2026-09-30', '23:59'), price: 20 }),
+      item({ id: 'done-2024-billed', status: 'completed', completedAt: combine('2024-01-15', '12:00'), invoiceId: 'inv0', price: 999 }),
+    ]
+    await db.treatments.bulkPut(rows)
+    const month = rangeFor('month', today)!
+    const viaIndex = (await registerItems(month)).map(i => i.id).sort()
+    const viaScan = rows.filter(i => inRange(itemDate(i), month)).map(i => i.id).sort()
+    expect(viaIndex).toEqual(viaScan)
+    expect(viaIndex).toEqual(['cancelled-oct', 'done-oct-billed', 'done-oct-open', 'planned-oct', 'started'])
+    expect((await registerItems(null)).length).toBe(rows.length)
+    expect((await registerItems(rangeFor('custom', today, {}))).length).toBe(rows.length)       // open-ended custom range
+    expect(instantBounds({ from: '0000-01-01', to: '9999-12-31' })).toEqual(['', '\uffff'])
+
+    const st = await registerStats(today)
+    expect(st.planned.map(i => i.id).sort()).toEqual(['planned-nov', 'planned-oct'])
+    expect(st.inProgress.map(i => i.id)).toEqual(['started'])
+    expect(st.doneMonth.map(i => i.id).sort()).toEqual(['done-oct-billed', 'done-oct-open'])
+    expect(st.unbilled.map(i => i.id).sort()).toEqual(['done-oct-open', 'done-sep-open'])
+    expect(summarize([...st.planned, ...st.inProgress, ...st.unbilled]).unbilled).toEqual({ count: 2, value: 45 })
   })
 })

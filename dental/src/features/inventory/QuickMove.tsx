@@ -12,7 +12,7 @@ import { useSession } from '@/app/session'
 import { useIsMobile } from '@/app/hooks'
 import { REASONS_IN, REASONS_OUT, signedDelta, validateMove, type MoveDirection } from './lib'
 import { recordMovement, StockError } from './actions'
-import { qtyText, reasonLabel, unitLabel } from './parts'
+import { qtyText, reasonLabel, unitFor, unitLabel } from './parts'
 
 export function QuickMoveForm({ item, initialDir = 'in', onDone, onCancel, autoFocus = true }: {
   item: InventoryItem; initialDir?: MoveDirection; onDone: () => void; onCancel: () => void; autoFocus?: boolean
@@ -49,7 +49,7 @@ export function QuickMoveForm({ item, initialDir = 'in', onDone, onCancel, autoF
       const delta = signedDelta(amount, dir)
       const qty = await recordMovement(item.id, delta, reason, { note, by: user?.id })
       const d = `${delta > 0 ? '+' : '−'}${qtyText(Math.abs(delta), lang)}`
-      toast.success(t('inventory.toast.moved'), <><bdi className="inv-wrap">{item.name}</bdi>: <span className="num">{d}</span> {isRTL ? '←' : '→'} <span className="num">{qtyText(qty, lang)}</span> {unit}</>)
+      toast.success(t('inventory.toast.moved'), <><bdi className="inv-wrap">{item.name}</bdi>: <span className="num">{d}</span> {isRTL ? '←' : '→'} <span className="num">{qtyText(qty, lang)}</span> {unitFor(t, item.unit, qty)}</>)
       void logActivity({ type: 'inventory', action: 'update', entityId: item.id, by: user?.id, message: t('inventory.act.moved', { reason: reasonLabel(t, reason), name: item.name, delta: `\u2066${d}\u2069` }) })
       onDone()
     } catch (err) {
@@ -76,13 +76,13 @@ export function QuickMoveForm({ item, initialDir = 'in', onDone, onCancel, autoF
       <div className="inv-move-summary">
         <div className="inv-move-col">
           <span className="inv-move-label">{t('inventory.move.current')}</span>
-          <span className="inv-move-val"><span className="num">{qtyText(item.quantity, lang)}</span> <small>{unit}</small></span>
+          <span className="inv-move-val"><span className="num">{qtyText(item.quantity, lang)}</span> <small>{unitFor(t, item.unit, item.quantity)}</small></span>
         </div>
         <span className="inv-move-arrow" aria-hidden>→</span>
         <div className="inv-move-col">
           <span className="inv-move-label">{t('inventory.move.after')}</span>
           <span className={`inv-move-val${after === null || error === 'notEnough' ? ' muted' : dir === 'in' ? ' inv-text-success' : ' inv-text-warn'}`}>
-            {after === null || error === 'notEnough' ? '—' : <><span className="num">{qtyText(after, lang)}</span> <small>{unit}</small></>}
+            {after === null || error === 'notEnough' ? '—' : <><span className="num">{qtyText(after, lang)}</span> <small>{unitFor(t, item.unit, after)}</small></>}
           </span>
         </div>
       </div>

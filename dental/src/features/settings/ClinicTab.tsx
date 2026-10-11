@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from 'react'
-import { Building2, Eye, ImagePlus, Mail, MapPin, Phone, Globe, Trash2, Upload } from 'lucide-react'
-import { Button, Card, CardBody, Input, Textarea, useToast } from '@/ui'
+import { Building2, Eye, Flag, ImagePlus, Mail, MapPin, Phone, Globe, Trash2, Upload } from 'lucide-react'
+import { Button, Card, CardBody, Input, Select, Textarea, useToast } from '@/ui'
 import { useI18n } from '@/i18n'
 import { logActivity, updateClinic } from '@/db'
 import { useClinicMaybe } from '@/app/hooks'
@@ -9,7 +9,7 @@ import { imageToDataUrl, pickFile } from '@/platform'
 import { fmtDate } from '@/lib/dates'
 import { todayISO } from '@/db/ids'
 import { SheetHeader } from '@/features/billing/shared'
-import { clinicDraftFrom, clinicPatch, hasErrors, previewInvoiceNumber, validateClinic, type ClinicDraft, type FieldErrors } from './lib'
+import { COUNTRY_CODES, clinicDraftFrom, clinicPatch, effectiveCountry, hasErrors, previewInvoiceNumber, validateClinic, type ClinicDraft, type FieldErrors } from './lib'
 import { LockedNotice, SaveBar, SectionTitle, TabSkeleton, useAccess, useDraft, useErrText, useSingleFlight, useUnsavedGuard } from './parts'
 
 export default function ClinicTab() {
@@ -58,6 +58,12 @@ export default function ClinicTab() {
   const discard = () => { reset(); setErrors({}) }
 
   const preview = { ...clinic, ...clinicPatch(draft), name: draft.name.trim() || t('settings.clinic.name') }
+  const countryName = (code: string) => t(`settings.country.${code}`)
+  const autoCountry = effectiveCountry({ currency: clinic.currency })
+  const countryOptions = [
+    { value: '', label: t('settings.clinic.countryAuto', { country: t('settings.clinic.countryOption', { country: countryName(autoCountry), code: autoCountry }) }) },
+    ...[...COUNTRY_CODES].map(code => ({ value: code, label: t('settings.clinic.countryOption', { country: countryName(code), code }) })),
+  ]
 
   return (
     <form className="st-form" onSubmit={save} noValidate>
@@ -97,6 +103,10 @@ export default function ClinicTab() {
             <Input label={t('phone2')} type="tel" inputMode="tel" dir="ltr" iconStart={<Phone />} placeholder="011 234 5678" {...field('phone2')} />
             <Input label={t('email')} type="email" inputMode="email" dir="ltr" iconStart={<Mail />} placeholder="info@clinic.com" {...field('email')} data-qa="clinic-email" />
             <Input label={t('settings.clinic.website')} dir="ltr" iconStart={<Globe />} placeholder="www.clinic.com" {...field('website')} />
+            <div className="span-2">
+              <Select label={<span className="row gap-1"><Flag size={14} />{t('settings.clinic.country')}</span>} hint={t('settings.clinic.countryHint')} value={draft.countryCode}
+                onChange={e => set('countryCode', e.target.value)} options={countryOptions} disabled={disabled} data-qa="clinic-country" />
+            </div>
             <div className="span-2">
               <Textarea label={t('address')} rows={2} dir="auto" placeholder={t('settings.clinic.addressPh')} value={draft.address} onChange={e => set('address', e.target.value)} disabled={disabled} className="st-textarea-short" />
             </div>

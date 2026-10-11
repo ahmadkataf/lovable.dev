@@ -10,12 +10,13 @@ import { useSession } from '@/app/session'
 import { useLicense } from '@/license/useLicense'
 import { PinField } from '@/features/auth/PinField'
 import { displayName, plainName } from '@/features/auth/lib'
-import { ROLES, ROLE_TONE, STAFF_COLORS, nextFreeColor, roleAreas, saveBlock, validateStaff, type StaffDraft } from './lib'
+import { saveGuard } from '@/features/auth/guardStore'
+import { ROLES, ROLE_TONE, STAFF_COLORS, defaultTitleFor, nextFreeColor, roleAreas, saveBlock, validateStaff, type StaffDraft } from './lib'
 import './staff.css'
 
 /** Add (no `user`) or edit a team member. Admin-only page, so any PIN may be (re)set here. */
 export default function StaffFormModal({ open, onClose, user, users }: { open: boolean; onClose: () => void; user?: User; users: User[] }) {
-  const { t } = useI18n()
+  const { t, lang } = useI18n()
   const toast = useToast()
   const session = useSession()
   const { readOnly } = useLicense()
@@ -26,8 +27,12 @@ export default function StaffFormModal({ open, onClose, user, users }: { open: b
     name: user.name, title: user.title ?? '', role: user.role, specialty: user.specialty ?? '', phone: user.phone ?? '', email: user.email ?? '',
     color: user.color, active: user.active, pin: '', pin2: '',
   } : {
-    name: '', title: '', role: 'doctor', specialty: '', phone: '', email: '', color: nextFreeColor(users), active: true, pin: '', pin2: '',
+    name: '', title: defaultTitleFor('doctor', lang), role: 'doctor', specialty: '', phone: '', email: '', color: nextFreeColor(users), active: true, pin: '', pin2: '',
   })
+  // a new member's title follows the role (doctors get "د." in an Arabic clinic, "Dr." in an English one) until it is chosen by hand;
+  // the interface language is the clinic's (App.tsx applies it), and is known on the first render
+  const titleTouched = useRef(editing)
+  const setRole = (role: Role) => setD(x => ({ ...x, role, title: titleTouched.current ? x.title : defaultTitleFor(role, lang) }))
   const [setPin, setSetPin] = useState(!editing)
   const [tried, setTried] = useState(false)
   const [saving, setSaving] = useState(false)
@@ -65,6 +70,7 @@ export default function StaffFormModal({ open, onClose, user, users }: { open: b
         const patch: Partial<User> = { ...fields }
         if (setPin) { const salt = randomHex(); patch.pinSalt = salt; patch.pinHash = await hashPin(d.pin, salt) }
         await db.users.update(user.id, patch)
+        if (setPin) await saveGuard(user.id, null)
         toast.success(t('staff.toast.updated', { name }))
         void logActivity({ type: 'system', action: 'update', entityId: user.id, by: session.user?.id, message: t('staff.act.updated', { name }) })
       } else {
@@ -108,7 +114,7 @@ export default function StaffFormModal({ open, onClose, user, users }: { open: b
             {/* the name comes first in the DOM so the modal's initial focus (first field) lands on it; CSS shows the title first */}
             <div className="au-name-row">
               <Input label={t('staff.name')} required value={d.name} onChange={e => set('name', e.target.value)} placeholder={t('staff.namePh')} error={err('name')} name="name" maxLength={60} autoFocus />
-              <div className="au-title-cell"><Select label={t('staff.titleLabel')} value={d.title} onChange={e => set('title', e.target.value)} options={titles} name="title" /></div>
+              <div className="au-title-cell"><Select label={t('staff.titleLabel')} value={d.title} onChange={e => { titleTouched.current = true; set('title', e.target.value) }} options={titles} name="title" /></div>
             </div>
             <Input label={t('staff.specialty')} value={d.specialty} onChange={e => set('specialty', e.target.value)} placeholder={t('staff.specialtyPh')} iconStart={<Stethoscope />} name="specialty" maxLength={60} />
             <Input label={t('phone')} value={d.phone} onChange={e => set('phone', e.target.value)} placeholder={t('staff.phonePh')} iconStart={<Phone />} dir="ltr" type="tel" inputMode="tel" error={err('phone')} name="phone" maxLength={24} />
@@ -120,7 +126,7 @@ export default function StaffFormModal({ open, onClose, user, users }: { open: b
 
         <div className="form-section">
           <div className="form-section-title"><ShieldCheck />{t('staff.secRole')}</div>
-          <Select label={t('staff.role')} value={d.role} onChange={e => set('role', e.target.value as Role)} options={ROLES.map(r => ({ value: r, label: t(`role.${r}`) }))} name="role" />
+          <Select label={t('staff.role')} value={d.role} onChange={e => setRole(e.target.value as Role)} options={ROLES.map(r => ({ value: r, label: t(`role.${r}`) }))} name="role" />
           <div className="au-role-box" data-qa="role-box">
             <div>{t(`staff.roleDesc.${d.role}`)}</div>
             <div className="au-can">{t('staff.canDo')}</div>

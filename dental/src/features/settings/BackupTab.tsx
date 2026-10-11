@@ -1,17 +1,23 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
-import { AlertTriangle, CalendarDays, CheckCircle2, DatabaseBackup, Download, FileJson, FolderOpen, HardDrive, Receipt, RotateCcw, ShieldCheck, Sparkles, Trash2, Users } from 'lucide-react'
-import { Alert, Button, Card, CardBody, Modal, ProgressBar, Skeleton, useConfirm, useToast } from '@/ui'
+import { AlertTriangle, CalendarDays, CheckCircle2, DatabaseBackup, Download, FileArchive, FolderOpen, HardDrive, LockKeyhole, Receipt, RotateCcw, ShieldCheck, Sparkles, Trash2, Users } from 'lucide-react'
+import { Alert, Badge, Button, Card, CardBody, Modal, ProgressBar, Skeleton, useConfirm, useToast } from '@/ui'
 import { useI18n } from '@/i18n'
-import { db, getSetting, logActivity, SCHEMA_VERSION } from '@/db'
-import type { BackupFile } from '@/db/types'
-import { pickFile } from '@/platform'
+import { db, getSetting, logActivity, requestPersistentStorage } from '@/db'
+import { isAndroid, platform } from '@/platform'
 import { fmtDate, fmtDateTime, timeAgo } from '@/lib/dates'
-import { formatNumber } from '@/lib/format'
+import { formatBytes, formatNumber } from '@/lib/format'
 import { DEMO_STEPS, loadDemoData, type DemoStep } from '@/features/seed/demo'
-import { backupAgeDays, backupHealth, parseBackup, type BackupSummary } from './lib'
+import { backupAgeDays, backupHealth } from './lib'
 import { eraseEverything, exportBackupFile, restartApp, restoreBackup } from './backup'
+import type { ReadResult } from './backup/archive'
+import { BackupProgressModal, backupErrorText, filesLine, isolate, ltr, namesLine, ProtectFields, protectErrors, useBackupReader, type ProgressState, type ProtectDraft } from './backup/ui'
 import { SectionTitle, TypeToConfirm, useAccess, useSingleFlight } from './parts'
+
+// remembers only whether the clinic protects its backups (never the password)
+const PROTECT_KEY = 'dentora.backup.protect'
+const readProtectPref = () => { try { return localStorage.getItem(PROTECT_KEY) === '1' } catch { return false } }
+const writeProtectPref = (on: boolean) => { try { localStorage.setItem(PROTECT_KEY, on ? '1' : '0') } catch { /* private mode */ } }
 
 export default function BackupTab() {
   const { t, lang } = useI18n()
@@ -24,46 +30,77 @@ export default function BackupTab() {
     return { patients, appointments, invoices }
   }, [])
   const [exporting, setExporting] = useState(false)
-  const [restore, setRestore] = useState<{ file: string; data: BackupFile; summary: BackupSummary } | null>(null)
+  const [exportState, setExportState] = useState<ProgressState | null>(null)
+  const exportAbort = useRef<AbortController | null>(null)
+  const [protect, setProtectState] = useState<ProtectDraft>(() => ({ on: readProtectPref(), password: '', repeat: '' }))
+  const [protectTried, setProtectTried] = useState(false)
+  const setProtect = (d: ProtectDraft) => { if (d.on !== protect.on) writeProtectPref(d.on); setProtectState(d) }
+  const [restore, setRestore] = useState<{ file: string; size: number; result: ReadResult } | null>(null)
   const [restoreError, setRestoreError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
+  const [applying, setApplying] = useState(false)
   const [resetOpen, setResetOpen] = useState(false)
   const [demo, setDemo] = useState<{ step: DemoStep; index: number } | null>(null)
+  const [persisted, setPersisted] = useState<boolean | null>(null)
   const once = useSingleFlight()
+  const reader = useBackupReader({
+    onRead: (file, result) => setRestore({ file: file.name, size: file.size, result }),
+    onError: message => setRestoreError(message),
+  })
+  useEffect(() => { if (platform() === 'web') void requestPersistentStorage().then(setPersisted) }, [])
 
   const health = lastBackup === undefined ? null : backupHealth(lastBackup)
   const age = backupAgeDays(lastBackup)
 
   const doExport = () => once(async () => {
+    const invalid = protectErrors(protect)
+    if (protect.on && (invalid.password || invalid.repeat)) {
+      setProtectTried(true)
+      if (resetOpen) toast.error(t(invalid.password ?? invalid.repeat ?? 'backup.passwordShort'))
+      return
+    }
+    const ctrl = new AbortController()
+    exportAbort.current = ctrl
     setExporting(true)
+    setExportState({ stage: 'start' })
     try {
-      const name = await exportBackupFile(t('settings.bk.act.backup'), access.userId)
-      if (name) toast.success(t('settings.bk.exported'), t('settings.bk.exportedDesc', { file: name }))
-    } catch { toast.error(t('settings.bk.exportFailed')) } finally { setExporting(false) }
+      const r = await exportBackupFile(t('settings.bk.act.backup'), access.userId, {
+        password: protect.on ? protect.password : undefined,
+        signal: ctrl.signal,
+        onProgress: p => setExportState({ stage: p.stage, done: p.done, total: p.total }),
+        onFinishing: () => setExportState({ stage: isAndroid() ? 'choose' : 'finishing' }),
+      })
+      if (r) {
+        toast.success(t('settings.bk.exported'), <><bdi>{t('backup.savedDesc', { file: isolate(r.name), size: ltr(formatBytes(r.bytes)) })}</bdi>{protect.on && <><br />{t('backup.savedEncrypted')}</>}</>)
+        setProtectState(p => ({ ...p, password: '', repeat: '' }))
+        setProtectTried(false)
+      }
+    } catch (e) {
+      const m = backupErrorText(t, e)
+      if (m) toast.error(t('settings.bk.exportFailed'), m)
+      else toast.info(t('backup.stopped'))
+    } finally {
+      exportAbort.current = null
+      setExportState(null)
+      setExporting(false)
+    }
   })
 
-  const chooseBackup = async () => {
-    setRestoreError(null)
-    const file = await pickFile('.json,application/json')
-    if (!file) return
-    let text = ''
-    try { text = await file.text() } catch { setRestoreError(t('settings.bk.err.json')); return }
-    const r = parseBackup(text, SCHEMA_VERSION)
-    if (!r.ok) { setRestoreError(t(`settings.bk.err.${r.reason}`)); return }
-    setRestore({ file: file.name, data: r.data, summary: r.summary })
-  }
+  const chooseBackup = () => { setRestoreError(null); void reader.choose() }
   // Restore and reset end with a reload, so after success they stay busy (and locked) until the page goes away.
   const doRestore = () => once(async () => {
     if (!restore || busy) return
     setBusy(true)
+    setApplying(true)
     try {
-      await restoreBackup(restore.data)
-      toast.success(t('settings.bk.restored'), t('settings.bk.restoredDesc'))
-      await new Promise<void>(r => window.setTimeout(r, 900))
+      const r = await restoreBackup(restore.result.data, { neededBytes: Math.max(restore.size, restore.result.info.fileBytes) })
+      toast.success(t('settings.bk.restored'), r.skippedFiles ? `${t('backup.restoredSkipped', { n: r.skippedFiles })} ${t('settings.bk.restoredDesc')}` : t('settings.bk.restoredDesc'))
+      await new Promise<void>(res => window.setTimeout(res, 900))
       restartApp('/')
-    } catch {
+    } catch (e) {
+      setApplying(false)
       setBusy(false)
-      toast.error(t('settings.bk.restoreFailed'))
+      toast.error(backupErrorText(t, e) ?? t('backup.err.failed'))
     }
   })
 
@@ -132,8 +169,10 @@ export default function BackupTab() {
           {health === 'never' && <Alert tone="warning" title={t('settings.bk.neverTitle')} className="mt-4">{t('settings.bk.neverDesc')}</Alert>}
           {health === 'old' && <Alert tone="warning" title={t('settings.bk.oldTitle', { n: age ?? 0 })} className="mt-4">{t('settings.bk.oldDesc')}</Alert>}
           {health === 'ok' && lastBackup && <Alert tone="success" title={t('settings.bk.okTitle')} className="mt-4">{t('settings.bk.okDesc', { when: timeAgo(lastBackup, lang) })}</Alert>}
+          {persisted === false && <Alert tone="info" className="mt-4">{t('backup.persistNote')}</Alert>}
+          <ProtectFields value={protect} onChange={setProtect} showErrors={protectTried} disabled={exporting} />
           <div className="st-actions">
-            <Button variant="primary" size="lg" icon={<Download />} loading={exporting} onClick={() => void doExport()} data-qa="export-backup">{t('settings.bk.export')}</Button>
+            <Button variant="primary" size="lg" icon={protect.on ? <LockKeyhole /> : <Download />} loading={exporting} onClick={() => void doExport()} data-qa="export-backup">{t('settings.bk.export')}</Button>
             {access.readOnly && <span className="text-sm muted">{t('settings.bk.readonlyExport')}</span>}
           </div>
         </CardBody>
@@ -144,7 +183,7 @@ export default function BackupTab() {
         <CardBody>
           <SectionTitle icon={<RotateCcw />} title={t('settings.bk.restore')} sub={t('settings.bk.restoreDesc')} tone="info" />
           {restoreError && <div className="mb-4" data-qa="restore-error"><Alert tone="danger">{restoreError}</Alert></div>}
-          <Button variant="secondary" icon={<FolderOpen />} onClick={chooseBackup} disabled={access.readOnly} title={access.readOnly ? t('trial.readonly') : undefined} data-qa="choose-backup">{t('settings.bk.chooseFile')}</Button>
+          <Button variant="secondary" icon={<FolderOpen />} onClick={chooseBackup} loading={reader.busy && !restore} disabled={access.readOnly} title={access.readOnly ? t('trial.readonly') : undefined} data-qa="choose-backup">{t('settings.bk.chooseFile')}</Button>
         </CardBody>
       </Card>
 
@@ -172,28 +211,39 @@ export default function BackupTab() {
       </Card>
 
       {/* ---- restore confirmation ---- */}
-      <TypeToConfirm open={!!restore} onClose={() => setRestore(null)} title={t('settings.bk.confirmTitle')} subtitle={t('settings.bk.confirmSub')} icon={<RotateCcw />}
+      <TypeToConfirm open={!!restore && !applying} onClose={() => setRestore(null)} title={t('settings.bk.confirmTitle')} subtitle={t('settings.bk.confirmSub')} icon={<RotateCcw />}
         word={t('settings.bk.replaceWord')} confirmLabel={t('settings.bk.restoreBtn')} busy={busy} onConfirm={() => void doRestore()}>
         {restore && (
           <>
             <div className="st-file-card">
-              <span className="st-file-icon"><FileJson /></span>
+              <span className="st-file-icon">{restore.result.info.encrypted ? <LockKeyhole /> : <FileArchive />}</span>
               <div className="grow">
                 <div className="strong truncate st-file-name"><span className="ltr">{restore.file}</span></div>
-                <div className="text-sm muted">{restore.summary.exportedAt ? fmtDateTime(restore.summary.exportedAt, lang) : t('unknown')}</div>
+                <div className="text-sm muted">{restore.result.summary.exportedAt ? <bdi>{fmtDateTime(restore.result.summary.exportedAt, lang)}</bdi> : t('unknown')}</div>
               </div>
+              {restore.result.info.encrypted && <Badge tone="success" icon={<LockKeyhole />}>{t('backup.encrypted')}</Badge>}
             </div>
             <dl className="st-summary" data-qa="restore-summary">
-              {restore.summary.clinicName && <div><dt>{t('settings.bk.clinic')}</dt><dd>{restore.summary.clinicName}</dd></div>}
-              <div><dt>{t('patients')}</dt><dd className="num">{formatNumber(restore.summary.patients, lang)}</dd></div>
-              <div><dt>{t('nav.appointments')}</dt><dd className="num">{formatNumber(restore.summary.appointments, lang)}</dd></div>
-              <div><dt>{t('nav.billing')}</dt><dd className="num">{formatNumber(restore.summary.invoices, lang)}</dd></div>
-              <div><dt>{t('settings.bk.totalRows')}</dt><dd className="num">{formatNumber(restore.summary.rows, lang)}</dd></div>
+              {restore.result.summary.clinicName && <div><dt>{t('settings.bk.clinic')}</dt><dd dir="auto">{restore.result.summary.clinicName}</dd></div>}
+              <div><dt>{t('patients')}</dt><dd className="num">{formatNumber(restore.result.summary.patients, lang)}</dd></div>
+              <div><dt>{t('nav.appointments')}</dt><dd className="num">{formatNumber(restore.result.summary.appointments, lang)}</dd></div>
+              <div><dt>{t('nav.billing')}</dt><dd className="num">{formatNumber(restore.result.summary.invoices, lang)}</dd></div>
+              <div><dt>{t('backup.files')}</dt><dd className="num" data-qa="restore-files">{filesLine(t, restore.result.info.files, restore.result.info.fileBytes)}</dd></div>
+              <div><dt>{t('settings.bk.totalRows')}</dt><dd className="num">{formatNumber(restore.result.summary.rows, lang)}</dd></div>
             </dl>
+            {restore.result.info.damaged.length > 0 && (
+              <Alert tone="warning" title={t('backup.damagedTitle', { n: restore.result.info.damaged.length })}>
+                {t('backup.damagedDesc', { n: restore.result.info.damaged.length, names: namesLine(restore.result.info.damaged) })}
+              </Alert>
+            )}
             <Alert tone="danger">{t('settings.bk.replaceWarn')}</Alert>
           </>
         )}
       </TypeToConfirm>
+      {reader.element}
+      <BackupProgressModal open={exportState !== null} title={t('backup.exporting')} state={exportState}
+        onStop={exportState && exportState.stage !== 'finishing' && exportState.stage !== 'choose' ? () => exportAbort.current?.abort() : undefined} />
+      <BackupProgressModal open={applying} title={t('backup.restoring')} state={{ stage: 'apply' }} />
 
       {/* ---- reset confirmation ---- */}
       <TypeToConfirm open={resetOpen} onClose={() => setResetOpen(false)} title={t('settings.bk.resetTitle')} icon={<AlertTriangle />}

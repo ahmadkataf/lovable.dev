@@ -4,11 +4,12 @@ import { Activity, CalendarDays, CalendarRange, Download, HandCoins, Printer, Us
 import { Button, Card, Input, PageHeader, Segmented, Select, Tabs, useToast, type TabItem } from '@/ui'
 import { useI18n } from '@/i18n'
 import { useClinic, useDoctors } from '@/app/hooks'
-import { print } from '@/platform'
 import { fmtDate, today } from '@/lib/dates'
-import { downloadCSV, fmtPeriod, ChartSkeleton } from './parts'
+import { downloadCSV, fmtPeriod, ChartSkeleton, PRINT_PREP_EVENT } from './parts'
 import { isISODate, PERIOD_PRESETS, resolvePeriod, type PeriodPreset } from './queries'
 import { useReportData } from './useReportData'
+import { ensureReconciled } from '@/features/billing/actions'
+import { docTitle, printTitled } from '@/features/billing/shared'
 import type { ExportSpec } from './tabs/common'
 import FinancialTab from './tabs/FinancialTab'
 import './reports.css'
@@ -49,7 +50,8 @@ export default function ReportsPage() {
   const toErr = preset === 'custom' && !isISODate(custom.to) ? t('v.date') : undefined
   const swapped = preset === 'custom' && !fromErr && !toErr && custom.from > custom.to
 
-  const data = useReportData(period, tab === 'outstanding' ? '' : doctorId)
+  useEffect(() => { void ensureReconciled() }, [])
+  const data = useReportData(period, tab === 'outstanding' ? '' : doctorId, tab)
   const [exp, setExp] = useState<ExportSpec | null>(null)
   const setExport = useCallback((e: ExportSpec | null) => setExp(e), [])
   const showYear = useCallback(() => setPreset('year'), [setPreset])
@@ -62,6 +64,15 @@ export default function ReportsPage() {
     if (el && strip && strip.scrollWidth > strip.clientWidth) el.scrollIntoView({ block: 'nearest', inline: 'center' })
   }, [tab])
   const doctor = doctors.find(d => d.id === doctorId)
+  // the page takes the printed width first so the charts redraw for paper (labels stay readable), then prints
+  const printReport = () => {
+    const body = document.body
+    body.classList.add('rp-print-prep')
+    window.dispatchEvent(new Event(PRINT_PREP_EVENT))
+    window.setTimeout(() => {
+      printTitled(docTitle(`${t('reports.title')}: ${t(`reports.tab.${tab}`)}`, tab === 'outstanding' ? fmtDate(today(), lang) : range), undefined, () => body.classList.remove('rp-print-prep'))
+    }, 300)
+  }
   const exportCsv = async () => {
     if (!exp) { toast.info(t('reports.csvNothing')); return }
     const ok = await downloadCSV(exp.name, exp.rows)
@@ -88,7 +99,7 @@ export default function ReportsPage() {
         title={t('reports.title')}
         subtitle={<span className="row gap-2" style={{ alignItems: 'flex-start' }} data-testid="rp-range"><CalendarRange size={16} className="muted" style={{ flex: 'none', marginTop: 3 }} /><strong style={{ color: 'var(--text)' }}>{periodless ? t('reports.out.asOf', { date: fmtDate(today(), lang, 'long') }) : range}</strong>{doctor && !periodless && <span className="muted">· <bdi>{doctor.name}</bdi></span>}</span>}
         actions={<>
-          <Button icon={<Printer />} onClick={() => print()}>{t('print')}</Button>
+          <Button icon={<Printer />} onClick={printReport}>{t('print')}</Button>
           <Button variant="primary" icon={<Download />} onClick={exportCsv} disabled={!exp} data-testid="rp-csv">{t('reports.exportCsv')}</Button>
         </>} />
 

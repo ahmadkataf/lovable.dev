@@ -6,9 +6,18 @@ import { MoreVertical } from 'lucide-react'
 import type { MenuItemDef } from '@/ui'
 import { useI18n } from '@/i18n'
 
-export function RowMenu({ items, label, size = 'sm' }: { items: MenuItemDef[]; label: string; size?: 'sm' | 'md' }) {
+/** `items` may be a function, called when the menu opens (e.g. to check one item's history then, not for every row). */
+export function RowMenu({ items: source, label, size = 'sm' }: { items: MenuItemDef[] | (() => MenuItemDef[] | Promise<MenuItemDef[]>); label: string; size?: 'sm' | 'md' }) {
   const { isRTL } = useI18n()
   const [open, setOpen] = useState(false)
+  const [items, setItems] = useState<MenuItemDef[]>(() => (typeof source === 'function' ? [] : source))
+  useEffect(() => {
+    if (typeof source !== 'function') { setItems(source); return }
+    if (!open) return
+    let alive = true
+    void Promise.resolve(source()).then(list => { if (alive) setItems(list) })
+    return () => { alive = false }
+  }, [open, source])
   const [pos, setPos] = useState<{ top: number; left: number } | null>(null)
   const btn = useRef<HTMLButtonElement>(null)
   const menu = useRef<HTMLDivElement>(null)
@@ -30,7 +39,7 @@ export function RowMenu({ items, label, size = 'sm' }: { items: MenuItemDef[]; l
     window.addEventListener('resize', place)
     window.addEventListener('scroll', place, true)
     return () => { window.removeEventListener('resize', place); window.removeEventListener('scroll', place, true) }
-  }, [open, isRTL])
+  }, [open, isRTL, items.length])
 
   useEffect(() => {
     if (!open) return

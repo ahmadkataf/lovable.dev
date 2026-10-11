@@ -35,21 +35,22 @@ async function syncPlan(planId?: ID): Promise<void> {
 /**
  * Other records that point at treatment items being deleted lose the link (they stay, as history): lab orders, the
  * planned work of appointments and the chart findings the treatment left. Call inside a transaction on those tables.
+ * Only that patient's rows are read (patientId index), never a walk over the whole clinic's appointments.
  */
-async function unlinkDeleted(ids: ID[]): Promise<void> {
+async function unlinkDeleted(patientId: ID, ids: ID[]): Promise<void> {
   if (!ids.length) return
   const gone = new Set(ids)
   const now = nowISO()
-  for (const o of await db.labOrders.filter(o => !!o.treatmentItemId && gone.has(o.treatmentItemId)).toArray()) {
+  for (const o of (await db.labOrders.where('patientId').equals(patientId).toArray()).filter(o => !!o.treatmentItemId && gone.has(o.treatmentItemId))) {
     const { treatmentItemId: _t, ...rest } = o
     await db.labOrders.put({ ...rest, updatedAt: now })
   }
-  for (const a of await db.appointments.filter(a => !!a.treatmentItemIds?.some(id => gone.has(id))).toArray()) {
+  for (const a of (await db.appointments.where('patientId').equals(patientId).toArray()).filter(a => !!a.treatmentItemIds?.some(id => gone.has(id)))) {
     const left = a.treatmentItemIds!.filter(id => !gone.has(id))
     const { treatmentItemIds: _t, ...rest } = a
     await db.appointments.put(left.length ? { ...rest, treatmentItemIds: left, updatedAt: now } : { ...rest, updatedAt: now })
   }
-  for (const r of await db.teeth.filter(r => !!r.treatmentItemId && gone.has(r.treatmentItemId)).toArray()) {
+  for (const r of (await db.teeth.where('patientId').equals(patientId).toArray()).filter(r => !!r.treatmentItemId && gone.has(r.treatmentItemId))) {
     const { treatmentItemId: _t, ...rest } = r
     await db.teeth.put(rest)
   }
@@ -110,7 +111,7 @@ export async function deletePlan(id: ID): Promise<{ deleted: number; kept: numbe
         await db.treatments.put({ ...rest, updatedAt: nowISO() }); kept++
       } else { await db.treatments.delete(i.id); removed.push(i.id) }
     }
-    await unlinkDeleted(removed)
+    await unlinkDeleted(items[0]?.patientId ?? '', removed)
     await db.plans.delete(id)
     return { deleted: removed.length, kept }
   })
@@ -188,7 +189,7 @@ export async function deleteItem(id: ID): Promise<boolean> {
     const cur = await db.treatments.get(id)
     if (!cur || cur.invoiceId) return false
     await db.treatments.delete(id)
-    await unlinkDeleted([id])
+    await unlinkDeleted(cur.patientId, [id])
     await syncPlan(cur.planId)
     return true
   })
@@ -199,7 +200,9 @@ export async function deleteItem(id: ID): Promise<boolean> {
 export interface ChartEntry { tooth: number; condition: ToothCondition; surfaces: ToothSurface[]; treatmentItemId?: ID }
 /**
  * Records what the treatment left on each tooth. The chart module decides what a new finding replaces (a crown hides
- * old fillings, an extraction clears the tooth…), so the chart and this module always agree.
+ * old fillings, an extraction clears the tooth…), so the chart and this module always agree. A treatment on some
+ * surfaces only supersedes those surfaces: what is left of an older finding stays active as that same finding, with
+ * its original date and author.
  */
 export async function applyChartEntries(patientId: ID, entries: ChartEntry[], userId?: ID): Promise<number> {
   return db.transaction('rw', db.teeth, async () => {
@@ -212,7 +215,9 @@ export async function applyChartEntries(patientId: ID, entries: ChartEntry[], us
       for (const id of plan.activate) await db.teeth.update(id, { active: true })
       const now = nowISO()
       for (const r of plan.add) {
-        await db.teeth.add(clean<ToothRecord>({ id: newId(), patientId, tooth: r.tooth, surfaces: r.surfaces, condition: r.condition, active: r.active, recordedAt: now, recordedBy: userId, treatmentItemId: r.treatmentItemId, note: r.note }))
+        // a kept remainder carries its own date and author; the new finding is recorded now, by this user
+        const recordedBy = r.recordedAt ? r.recordedBy : userId
+        await db.teeth.add(clean<ToothRecord>({ id: newId(), patientId, tooth: r.tooth, surfaces: r.surfaces, condition: r.condition, active: r.active, recordedAt: r.recordedAt ?? now, recordedBy, treatmentItemId: r.treatmentItemId, note: r.note }))
       }
       written++
     }
@@ -260,11 +265,9 @@ export async function saveProcedure(input: ProcedureInput, id?: ID): Promise<Pro
 }
 /** How many treatment items and invoice lines use a procedure (a used procedure is deactivated, not deleted). */
 export async function procedureUsage(id: ID): Promise<number> {
-  const [items, invoices] = await Promise.all([
-    db.treatments.filter(i => i.procedureId === id).count(),
-    db.invoices.filter(inv => inv.items.some(l => l.procedureId === id)).count(),
-  ])
-  return items + invoices
+  // one getAll per table and a filter here: a Collection.filter() would walk tens of thousands of rows with a cursor
+  const [items, invoices] = await Promise.all([db.treatments.toArray(), db.invoices.toArray()])
+  return items.filter(i => i.procedureId === id).length + invoices.filter(inv => inv.items.some(l => l.procedureId === id)).length
 }
 export async function setProcedureActive(id: ID, active: boolean): Promise<void> {
   await db.procedures.update(id, { active, updatedAt: nowISO() })

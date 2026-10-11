@@ -1,5 +1,5 @@
 // /lab — the lab board: every order by status, what is due, what is late and what the lab costs this month.
-import { useCallback, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { AlarmClock, CalendarClock, FlaskConical, Plus, Search, Wallet, X } from 'lucide-react'
@@ -9,8 +9,10 @@ import { todayISO } from '@/db/ids'
 import { useI18n } from '@/i18n'
 import { useDebounced, useDoctors, useIsMobile, useMoney, useUsers } from '@/app/hooks'
 import { useLicense } from '@/license/useLicense'
+import { useSession } from '@/app/session'
 import { Alert, Avatar, Button, Card, Chip, DataTable, EmptyState, Input, PageHeader, Pagination, Segmented, Select, Skeleton, StatCard, usePagination, type Column } from '@/ui'
-import { fmtDate, fmtMonth } from '@/lib/dates'
+import { endOfMonth, fmtDate, fmtMonth, startOfMonth } from '@/lib/dates'
+import { ensureRefs } from '@/features/prescriptions/numbers'
 import { STATUS_FILTERS, filterOrders, labNames, labStats, sortOrders, statusCounts, type DueFilter, type StatusFilter } from './lib'
 import { DueBadge, LabStatusBadge, TeethBadges } from './parts'
 import { useElementWidth } from '@/features/prescriptions/parts'
@@ -24,11 +26,20 @@ export default function LabPage() {
   const money = useMoney()
   const mobile = useIsMobile()
   const { readOnly } = useLicense()
+  const canExpenses = useSession().can('manage')
   const users = useUsers(false)
   const doctors = useDoctors()
   const today = todayISO()
 
   const orders = useLiveQuery(() => db.labOrders.toArray(), [])
+  // what the lab cost this month, as the expenses and the profit report count it: the lab expenses of the month
+  // (every received order records one; bills entered by hand under "Lab" count too)
+  const monthCost = useLiveQuery(async () => {
+    const rows = await db.expenses.where('date').between(startOfMonth(today), endOfMonth(today), true, true).toArray()
+    return rows.reduce((a, e) => a + (e.category === 'lab' ? Number(e.amount) || 0 : 0), 0)
+  }, [today])
+  // older orders get their LAB- reference once (it is printed on the slip)
+  useEffect(() => { void ensureRefs('lab') }, [])
   const patientIds = useMemo(() => [...new Set((orders ?? []).map(o => o.patientId))], [orders])
   const patients = useLiveQuery(async () => new Map((await db.patients.bulkGet(patientIds)).filter((p): p is Patient => !!p).map(p => [p.id, p])), [patientIds.join(',')])
   const userMap = useMemo(() => new Map<string, User>(users.map(u => [u.id, u])), [users])
@@ -133,7 +144,8 @@ export default function LabPage() {
               onClick={() => { setStatus('all'); setDue(d => (d === 'week' ? '' : 'week')) }} />
             <StatCard tone="danger" icon={<AlarmClock />} label={t('lab.stat.overdue')} value={<span className="num">{stats.overdue}</span>} sub={stats.overdue ? t('lab.stat.overdueSub') : t('lab.stat.overdueNone')}
               onClick={() => { setStatus('all'); setDue(d => (d === 'overdue' ? '' : 'overdue')) }} />
-            <StatCard tone="purple" icon={<Wallet />} label={t('lab.stat.cost')} value={<span className="money">{money(stats.monthCost)}</span>} sub={fmtMonth(today, lang)} />
+            <StatCard tone="purple" icon={<Wallet />} label={t('lab.stat.cost')} value={<span className="money">{money(monthCost ?? stats.monthCost)}</span>}
+              sub={t('lab.stat.costSub', { month: fmtMonth(today, lang) })} to={canExpenses ? '/expenses' : undefined} />
           </>}
         </div>
 

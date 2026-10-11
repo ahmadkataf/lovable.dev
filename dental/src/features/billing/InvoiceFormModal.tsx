@@ -1,5 +1,8 @@
 // Create or edit an invoice: patient, doctor, dates, lines (from completed treatments, from the procedure list, or free),
 // invoice discount and tax, live totals. A draft keeps the DRAFT number; issuing takes the next real number.
+// Amounts are typed and shown in the currency's minor unit (0, 2 or 3 decimals), exactly as they are stored.
+// The doctor of a new invoice follows the work billed (the doctor who did most of the treatment lines), else the
+// patient's usual doctor, else the signed-in doctor, until someone picks one by hand.
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { AlertCircle, Check, ClipboardList, FilePlus2, Link2, ListPlus, Plus, Receipt, Search, Stethoscope, Trash2, X } from 'lucide-react'
@@ -15,7 +18,7 @@ import { fmtDate } from '@/lib/dates'
 import { matches } from '@/lib/format'
 import { Alert, Badge, Button, Checkbox, IconButton, Input, Loading, Modal, NumberInput, Select, Textarea, useConfirm, useToast } from '@/ui'
 import { BillingError, saveInvoice } from './actions'
-import { computeTotals, hasErrors, lineTotal, toDraftLines, toInvoiceItems, validateInvoice, type DraftLine, type LineErrors } from './lib'
+import { computeTotals, hasErrors, lineTotal, moneyDecimals, toDraftLines, toInvoiceItems, validateInvoice, type DraftLine, type LineErrors } from './lib'
 import { Money, PatientPicker, iso } from './shared'
 import './billing.css'
 
@@ -51,9 +54,11 @@ function InvoiceForm({ onClose, patientId: initialPatient, existing, onSaved }: 
   const confirm = useConfirm()
   const isEdit = !!existing
   const isIssued = !!existing && existing.status !== 'draft'
+  const d = moneyDecimals(clinic.currencyDecimals)
 
   const [patientId, setPatientId] = useState(existing?.patientId ?? initialPatient ?? '')
-  const [doctorId, setDoctorId] = useState(existing?.doctorId ?? (session.user && (session.user.role === 'doctor' || session.user.role === 'admin') ? session.user.id : ''))
+  const [doctorId, setDoctorId] = useState(existing?.doctorId ?? '')
+  const doctorPicked = useRef(isEdit)                 // an existing invoice, or a doctor chosen by hand, is never overridden
   const [date, setDate] = useState(existing?.date ?? todayISO())
   const [dueDate, setDueDate] = useState(existing?.dueDate ?? '')
   const [lines, setLines] = useState<DraftLine[]>(() => (existing ? toDraftLines(existing.items) : []))
@@ -86,18 +91,29 @@ function InvoiceForm({ onClose, patientId: initialPatient, existing, onSaved }: 
   }
 
   const patient = useLiveQuery(() => (patientId ? db.patients.get(patientId) : undefined), [patientId])
-  // a new invoice follows the patient's usual doctor
-  useEffect(() => { if (!existing && patient?.doctorId && doctors.some(d => d.id === patient.doctorId)) setDoctorId(patient.doctorId) }, [patient?.id])
 
   const treatments = useLiveQuery(
-    () => (patientId ? db.treatments.where('patientId').equals(patientId).filter(tr => tr.status === 'completed' && (!tr.invoiceId || tr.invoiceId === existing?.id)).toArray() : Promise.resolve([] as TreatmentItem[])),
+    () => (patientId ? db.treatments.where('[patientId+status]').equals([patientId, 'completed']).filter(tr => !tr.invoiceId || tr.invoiceId === existing?.id).toArray() : Promise.resolve([] as TreatmentItem[])),
     [patientId, existing?.id],
   )
+  // the default doctor: who did most of the treatment lines, else the patient's usual doctor, else the signed-in doctor
+  useEffect(() => {
+    if (doctorPicked.current) return
+    const isDoctor = (id?: string) => !!id && doctors.some(x => x.id === id)
+    const count = new Map<string, number>()
+    for (const l of lines) {
+      const tr = l.treatmentItemId ? treatments?.find(x => x.id === l.treatmentItemId) : undefined
+      if (tr?.doctorId && isDoctor(tr.doctorId)) count.set(tr.doctorId, (count.get(tr.doctorId) ?? 0) + 1)
+    }
+    const fromWork = [...count].sort((a, b) => b[1] - a[1])[0]?.[0]
+    const me = session.user && isDoctor(session.user.id) ? session.user.id : ''
+    setDoctorId(fromWork ?? (isDoctor(patient?.doctorId) ? patient!.doctorId! : me))
+  }, [lines, treatments, patient?.doctorId, doctors, session.user])
   const usedTreatments = useMemo(() => new Set(lines.map(l => l.treatmentItemId).filter(Boolean)), [lines])
   const available = useMemo(() => (treatments ?? []).filter(tr => !usedTreatments.has(tr.id)).sort((a, b) => (a.completedAt || a.createdAt).localeCompare(b.completedAt || b.createdAt)), [treatments, usedTreatments])
 
-  const totals = computeTotals(lines.map(l => ({ qty: l.qty || 0, unitPrice: l.unitPrice || 0, discount: l.discount || 0 })), discount || 0, taxPercent || 0, clinic.currencyDecimals ?? 2)
-  const errors = validateInvoice({ patientId, date, dueDate, lines, discount, taxPercent })
+  const totals = computeTotals(lines.map(l => ({ qty: l.qty || 0, unitPrice: l.unitPrice || 0, discount: l.discount || 0 })), discount || 0, taxPercent || 0, d)
+  const errors = validateInvoice({ patientId, date, dueDate, lines, discount, taxPercent }, d)
   const show = submitted
 
   const changePatient = (id: string) => {
@@ -132,7 +148,7 @@ function InvoiceForm({ onClose, patientId: initialPatient, existing, onSaved }: 
     setSaving(mode)
     try {
       const inv = await saveInvoice(
-        { patientId, doctorId: doctorId || undefined, date, dueDate: dueDate || undefined, items: toInvoiceItems(lines, () => newId()), discount: discount || 0, taxPercent: taxPercent || 0, notes },
+        { patientId, doctorId: doctorId || undefined, date, dueDate: dueDate || undefined, items: toInvoiceItems(lines, () => newId(), d), discount: discount || 0, taxPercent: taxPercent || 0, notes },
         { id: existing?.id, mode, userId: session.user?.id },
       )
       const name = patient?.name ?? ''
@@ -144,8 +160,7 @@ function InvoiceForm({ onClose, patientId: initialPatient, existing, onSaved }: 
       onSaved?.(inv, mode)
       onClose()
     } catch (err) {
-      if (err instanceof BillingError && err.code === 'alreadyBilled') toast.error(t('error'), t('billing.v.alreadyBilled'))
-      else toast.error(t('error'), t('tryAgain'))
+      toast.error(t('error'), err instanceof BillingError ? t(`billing.err.${err.code}`) : t('tryAgain'))
     } finally { busy.current = false; setSaving(null) }
   }
 
@@ -165,8 +180,8 @@ function InvoiceForm({ onClose, patientId: initialPatient, existing, onSaved }: 
         {ro && <Alert tone="warning">{t('trial.readonly')}</Alert>}
         <div className="bl-form-top">
           <PatientPicker value={patientId} onChange={changePatient} error={show && errors.patient ? t('billing.v.patient') : undefined} locked={isIssued} />
-          <Select label={t('doctor')} value={doctorId} onChange={e => setDoctorId(e.target.value)} placeholder="—"
-            options={doctors.map(d => ({ value: d.id, label: d.name }))} />
+          <Select label={t('doctor')} value={doctorId} onChange={e => { doctorPicked.current = true; setDoctorId(e.target.value) }} placeholder="—"
+            options={doctors.map(doc => ({ value: doc.id, label: doc.name }))} />
           <Input type="date" label={t('billing.issueDate')} value={date} onChange={e => setDate(e.target.value)} required error={show && errors.date ? t('v.date') : undefined} />
           <Input type="date" label={t('billing.dueDate')} value={dueDate} min={date} onChange={e => setDueDate(e.target.value)} hint={!dueDate ? t('optional') : undefined}
             error={show && errors.dueDate ? (errors.dueDate === 'beforeIssue' ? t('billing.v.dueDate') : t('v.date')) : undefined} />
@@ -198,7 +213,7 @@ function InvoiceForm({ onClose, patientId: initialPatient, existing, onSaved }: 
                 ? <div className="bl-lines-empty is-error" role="alert"><AlertCircle />{t('billing.v.items')}<span className="text-xs muted">{t('billing.noItems')}</span></div>
                 : <div className="bl-lines-empty"><ClipboardList />{t('billing.noItems')}</div>
             ) : lines.map((l, i) => (
-              <LineRow key={l.key} index={i} line={l} errors={show ? errors.lines[l.key] : undefined} size={isMobile ? 'md' : 'sm'} currency={clinic.currencySymbol}
+              <LineRow key={l.key} index={i} line={l} errors={show ? errors.lines[l.key] : undefined} size={isMobile ? 'md' : 'sm'} currency={clinic.currencySymbol} decimals={d}
                 onChange={patch => update(l.key, patch)} onRemove={() => remove(l.key)} />
             ))}
           </div>
@@ -210,7 +225,7 @@ function InvoiceForm({ onClose, patientId: initialPatient, existing, onSaved }: 
             <div className="bl-tp-row"><span>{t('subtotal')}</span><Money value={totals.subtotal} /></div>
             <div className="bl-tp-row">
               <span>{t('billing.invoiceDiscount')}</span>
-              <div className="bl-tp-input"><NumberInput size="sm" value={discount} onChange={setDiscount} min={0} placeholder="0" invalid={show && !!errors.discount} aria-label={t('billing.invoiceDiscount')} /></div>
+              <div className="bl-tp-input"><NumberInput size="sm" value={discount} onChange={setDiscount} min={0} decimals={d} placeholder="0" invalid={show && !!errors.discount} aria-label={t('billing.invoiceDiscount')} /></div>
             </div>
             {show && errors.discount && <div className="bl-tp-err" role="alert">{errors.discount === 'number' ? t('billing.v.discountNegative') : t('billing.v.discount')}</div>}
             <div className="bl-tp-row">
@@ -227,9 +242,9 @@ function InvoiceForm({ onClose, patientId: initialPatient, existing, onSaved }: 
   )
 }
 
-function LineRow({ index, line, errors, size, currency, onChange, onRemove }: { index: number; line: DraftLine; errors?: LineErrors; size: 'sm' | 'md'; currency: string; onChange: (p: Partial<DraftLine>) => void; onRemove: () => void }) {
+function LineRow({ index, line, errors, size, currency, decimals, onChange, onRemove }: { index: number; line: DraftLine; errors?: LineErrors; size: 'sm' | 'md'; currency: string; decimals: number; onChange: (p: Partial<DraftLine>) => void; onRemove: () => void }) {
   const { t } = useI18n()
-  const total = lineTotal(line.qty || 0, line.unitPrice || 0, line.discount || 0)
+  const total = lineTotal(line.qty || 0, line.unitPrice || 0, line.discount || 0, decimals)
   const msgs = [
     errors?.description && t('billing.v.description'),
     errors?.qty && `${t('qty')}: ${t('v.positive')}`,
@@ -246,8 +261,8 @@ function LineRow({ index, line, errors, size, currency, onChange, onRemove }: { 
       </div>
       <div className="bl-a-tooth"><NumberInput size={size} label={t('tooth')} decimals={0} value={line.tooth} onChange={n => onChange({ tooth: n })} invalid={!!errors?.tooth} placeholder="—" /></div>
       <div className="bl-a-qty"><NumberInput size={size} label={t('qty')} decimals={0} min={1} value={line.qty} onChange={n => onChange({ qty: n })} invalid={!!errors?.qty} /></div>
-      <div className="bl-a-price"><NumberInput size={size} label={`${t('unitPrice')} (${currency})`} value={line.unitPrice} min={0} onChange={n => onChange({ unitPrice: n })} invalid={!!errors?.unitPrice} placeholder="0" /></div>
-      <div className="bl-a-disc"><NumberInput size={size} label={t('discount')} value={line.discount} min={0} onChange={n => onChange({ discount: n })} invalid={!!errors?.discount} placeholder="0" /></div>
+      <div className="bl-a-price"><NumberInput size={size} label={`${t('unitPrice')} (${currency})`} value={line.unitPrice} min={0} decimals={decimals} onChange={n => onChange({ unitPrice: n })} invalid={!!errors?.unitPrice} placeholder="0" /></div>
+      <div className="bl-a-disc"><NumberInput size={size} label={t('discount')} value={line.discount} min={0} decimals={decimals} onChange={n => onChange({ discount: n })} invalid={!!errors?.discount} placeholder="0" /></div>
       <div className="bl-line-total"><Money value={total} strong /></div>
       <div className="bl-a-rm"><IconButton label={t('billing.removeLine')} size={size === 'sm' ? 'sm' : 'md'} variant="ghost" className="bl-menu-btn" onClick={onRemove}><Trash2 /></IconButton></div>
       {msgs.length > 0 && <div className="bl-line-err" role="alert">{msgs.join(' · ')}</div>}

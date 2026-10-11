@@ -1,9 +1,13 @@
-import { Activity, BarChart3, Boxes, CalendarDays, CloudOff, Heart, Keyboard, Monitor, Pill, Receipt, Sparkles, Users } from 'lucide-react'
+import { useState } from 'react'
+import { useLiveQuery } from 'dexie-react-hooks'
+import { Activity, BarChart3, Boxes, CalendarDays, ChevronLeft, ChevronRight, CloudOff, FileText, Heart, Keyboard, Monitor, Pill, Receipt, Scale, ShieldCheck, Sparkles, Users } from 'lucide-react'
 import { Badge, Card, CardBody, Kbd } from '@/ui'
 import { useI18n } from '@/i18n'
 import { ToothIcon } from '@/app/ToothIcon'
 import { useLicense } from '@/license/useLicense'
 import { appVersion, platform } from '@/platform'
+import { fmtDate } from '@/lib/dates'
+import { LEGAL_DATE, LegalDialog, termsAcceptance, type LegalDoc } from '@/features/legal'
 import { SectionTitle } from './parts'
 
 const FEATURES = [
@@ -19,9 +23,17 @@ const SHORTCUTS: { keys: string[]; label: string }[] = [
 const CREDITS = ['React', 'Dexie.js', 'React Router', 'Lucide', 'Vite', 'Inter', 'Noto Kufi Arabic', 'Cairo', 'Tajawal', 'Almarai', 'Readex Pro', 'IBM Plex Sans Arabic']
 
 export default function AboutTab() {
-  const { t } = useI18n()
+  const { t, lang, isRTL } = useI18n()
   const { device } = useLicense()
   const p = platform()
+  const [doc, setDoc] = useState<LegalDoc | null>(null)
+  const accepted = useLiveQuery(() => termsAcceptance(), [])
+  const Chevron = isRTL ? ChevronLeft : ChevronRight
+  const legalRows: { id: LegalDoc; icon: React.ReactNode; sub: string }[] = [
+    { id: 'privacy', icon: <ShieldCheck />, sub: t('legal.updated', { date: fmtDate(LEGAL_DATE, lang, 'long') }) },
+    { id: 'terms', icon: <Scale />, sub: accepted ? t('legal.acceptedOn', { date: fmtDate(accepted.at, lang, 'long') }) : t('legal.updated', { date: fmtDate(LEGAL_DATE, lang, 'long') }) },
+    { id: 'notices', icon: <FileText />, sub: t('settings.about.noticesSub') },
+  ]
 
   return (
     <div className="st-form">
@@ -72,9 +84,26 @@ export default function AboutTab() {
 
       <Card>
         <CardBody>
+          <SectionTitle icon={<ShieldCheck />} title={t('legal.legalTitle')} sub={t('legal.legalSub')} />
+          <div className="st-legal" data-qa="about-legal">
+            {legalRows.map(r => (
+              <button key={r.id} type="button" className="st-legal-row" onClick={() => setDoc(r.id)} data-qa={`about-${r.id}`}>
+                <span className="st-feature-icon">{r.icon}</span>
+                <span className="grow st-legal-text"><span className="strong">{t(`legal.${r.id}`)}</span><span className="text-sm muted">{r.sub}</span></span>
+                <Chevron className="st-legal-chev" />
+              </button>
+            ))}
+          </div>
+        </CardBody>
+      </Card>
+      <LegalDialog open={!!doc} doc={doc ?? 'privacy'} onClose={() => setDoc(null)} />
+
+      <Card>
+        <CardBody>
           <SectionTitle icon={<Heart />} title={t('settings.about.credits')} />
           <p className="st-note">{t('settings.about.creditsDesc')}</p>
           <div className="st-credits">{CREDITS.map(c => <span key={c} className="st-credit ltr">{c}</span>)}</div>
+          <button type="button" className="st-link mt-3" onClick={() => setDoc('notices')}>{t('settings.about.noticesLink')}</button>
           <div className="st-copyright">{t('settings.about.copyright', { year: new Date().getFullYear() })}</div>
         </CardBody>
       </Card>

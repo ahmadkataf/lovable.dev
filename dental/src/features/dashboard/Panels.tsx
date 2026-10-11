@@ -7,7 +7,8 @@ import type { Activity, ActivityType, User } from '@/db/types'
 import { timeAgo } from '@/lib/dates'
 import { formatNumber } from '@/lib/format'
 
-export interface AlertItem { id: string; to: string; icon: LucideIcon; tone: 'danger' | 'warning' | 'info' | 'accent'; title: string; sub: string; count: number }
+/** An alert line; without `to` it is informational (no link), `hideCount` drops the number badge. */
+export interface AlertItem { id: string; to?: string; icon: LucideIcon; tone: 'danger' | 'warning' | 'info' | 'accent'; title: string; sub: string; count: number; hideCount?: boolean; wrap?: boolean }
 
 /** Things to act on today, each linking to its page; an "all clear" state when there is nothing. */
 export function AlertsCard({ items, loading, style }: { items: AlertItem[]; loading: boolean; style?: React.CSSProperties }) {
@@ -25,19 +26,26 @@ export function AlertsCard({ items, loading, style }: { items: AlertItem[]; load
         </div>
       ) : (
         <ul className="rp-alert-list">
-          {live.map(a => (
-            <li key={a.id}>
-              <Link to={a.to} className={`rp-alert rp-alert-${a.tone}`} data-testid={`alert-${a.id}`}>
+          {live.map(a => {
+            const body = (
+              <>
                 <span className="rp-alert-icon"><a.icon /></span>
                 <span className="grow" style={{ minWidth: 0 }}>
                   <span className="rp-alert-title">{a.title}</span>
-                  <span className="rp-alert-sub truncate">{a.sub}</span>
+                  <span className={`rp-alert-sub${a.wrap ? '' : ' truncate'}`}>{a.sub}</span>
                 </span>
-                <span className="rp-alert-count num">{formatNumber(a.count, lang)}</span>
-                <ChevronRight className="rp-chev" />
-              </Link>
-            </li>
-          ))}
+                {!a.hideCount && <span className="rp-alert-count num">{formatNumber(a.count, lang)}</span>}
+                {a.to && <ChevronRight className="rp-chev" />}
+              </>
+            )
+            return (
+              <li key={a.id}>
+                {a.to
+                  ? <Link to={a.to} className={`rp-alert rp-alert-${a.tone}`} data-testid={`alert-${a.id}`}>{body}</Link>
+                  : <div className={`rp-alert rp-alert-${a.tone} is-static`} data-testid={`alert-${a.id}`}>{body}</div>}
+              </li>
+            )
+          })}
         </ul>
       )}
     </Card>

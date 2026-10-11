@@ -1,6 +1,6 @@
 import { lazy, Suspense, useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Boxes, CalendarCheck2, CalendarDays, CalendarPlus, ChartPie, FlaskConical, HandCoins, Receipt, TrendingUp, Trophy, UserCheck, UserPlus, Wallet } from 'lucide-react'
+import { Boxes, CalendarCheck2, CalendarDays, CalendarPlus, ChartPie, DatabaseBackup, FlaskConical, HandCoins, Receipt, TrendingUp, Trophy, UserCheck, UserPlus, Wallet } from 'lucide-react'
 import { Button, PageHeader } from '@/ui'
 import { useI18n } from '@/i18n'
 import { useSession } from '@/app/session'
@@ -8,11 +8,13 @@ import { useMoney, useUsers } from '@/app/hooks'
 import { useLicense } from '@/license/useLicense'
 import { APPOINTMENT_STATUSES } from '@/db/types'
 import { addDays, addMonths, dateOf, daysInMonth, endOfMonth, fmtDate, fmtMonth, startOfMonth, toISODate } from '@/lib/dates'
+import { ensureReconciled } from '@/features/billing/actions'
 import { formatNumber } from '@/lib/format'
 import { AreaChart, DonutChart, HorizontalBars, Sparkline } from '@/features/reports/charts'
 import { CardEmpty, ChartCard, KpiCard, iso, useBucketText, usePlural } from '@/features/reports/parts'
 import {
-  delta, greetingKey, inRange, labDue, lowStock, outstandingTotal, overdueInvoices, patientsSeen, revenueByDay, topProcedures, totalOf, unconfirmedTomorrow,
+  backupAgeDays, backupOverdue, delta, greetingKey, handoverCount, inRange, labDue, lowStock, outstandingTotal, overdueInvoices, patientsSeen, revenueByDay, topProcedures, totalOf,
+  unconfirmedTomorrow,
 } from '@/features/reports/queries'
 import { useDashboardData } from './useDashboardData'
 import { Schedule } from './Schedule'
@@ -22,6 +24,8 @@ import './dashboard.css'
 const AppointmentFormModal = lazy(() => import('@/features/appointments/AppointmentFormModal'))
 const PatientFormModal = lazy(() => import('@/features/patients/PatientFormModal'))
 const PaymentFormModal = lazy(() => import('@/features/billing/PaymentFormModal'))
+
+const EMPTY = new Map<string, never>()
 
 /** Re-renders every minute so "now", greetings and today's date stay true on a screen left open all day. */
 function useClock(ms = 60_000) {
@@ -47,45 +51,51 @@ export default function DashboardPage() {
   const canApts = session.can('appointments')
   const canReports = session.can('reports')
   const raw = useDashboardData(today, canMoney)
+  // records made outside billing (older versions, a restored backup, the demo clinic) are put in line once
+  useEffect(() => { if (canMoney && raw.money) void ensureReconciled() }, [canMoney, raw.money])
 
   const c = useMemo(() => {
-    if (!raw) return null
+    const { schedule, month, money, stock } = raw
+    if (!schedule || !month || !money || !stock) return null
     const monthStart = startOfMonth(today)
     const lastStart = addMonths(monthStart, -1)
-    // compare month-to-date with the same days of last month
+    // the month's revenue is every payment dated in the calendar month, as Reports → this month counts it;
+    // the change compares the month so far with the same days of last month
     const sameDay = Math.min(Number(today.slice(8, 10)), daysInMonth(lastStart))
     const thisMtd = { from: monthStart, to: today }
     const lastMtd = { from: lastStart, to: addDays(lastStart, sameDay - 1) }
     const thisMonth = { from: monthStart, to: endOfMonth(today) }
-    const monthApts = raw.monthApts.filter(a => inRange(a.date, thisMonth))
-    const lastApts = raw.monthApts.filter(a => inRange(a.date, lastMtd))
+    const monthApts = month.monthApts.filter(a => inRange(a.date, thisMonth))
+    const lastApts = month.monthApts.filter(a => inRange(a.date, lastMtd))
     const from30 = addDays(today, -29)
-    const created = (p: { createdAt: string }, r: { from: string; to: string }) => inRange(p.createdAt ? dateOf(p.createdAt) : undefined, r)
-    const todayLive = raw.todayApts.filter(a => a.status !== 'cancelled')
-    const revMonth = totalOf(raw.payments.filter(p => inRange(p.date, thisMtd)))
-    const revLast = totalOf(raw.payments.filter(p => inRange(p.date, lastMtd)))
-    const revToday = raw.payments.filter(p => p.date === today)
+    const todayLive = schedule.todayApts.filter(a => a.status !== 'cancelled')
+    const revMonth = totalOf(money.payments.filter(p => inRange(p.date, thisMonth)))
+    const revMtd = totalOf(money.payments.filter(p => inRange(p.date, thisMtd)))
+    const revLast = totalOf(money.payments.filter(p => inRange(p.date, lastMtd)))
+    const revToday = money.payments.filter(p => p.date === today)
     const statusCounts = APPOINTMENT_STATUSES.map(s => ({ s, n: monthApts.filter(a => a.status === s).length }))
     return {
       todayCount: todayLive.length,
-      todayDone: raw.todayApts.filter(a => a.status === 'completed').length,
+      todayDone: schedule.todayApts.filter(a => a.status === 'completed').length,
       seen: patientsSeen(monthApts.filter(a => a.date <= today)),
       seenLast: patientsSeen(lastApts),
       seenDone: monthApts.filter(a => a.status === 'completed').length,
-      newNow: raw.newPatients.filter(p => created(p, thisMtd)).length,
-      newLast: raw.newPatients.filter(p => created(p, lastMtd)).length,
-      revToday: totalOf(revToday), revTodayCount: revToday.length,
-      revMonth, revLast,
-      rev30: revenueByDay(raw.payments, from30, today),
-      outstanding: outstandingTotal(raw.invoices, raw.allPayments),
-      overdue: overdueInvoices(raw.invoices, today),
-      low: lowStock(raw.inventory),
-      lab: labDue(raw.labs, today),
-      unconfirmed: unconfirmedTomorrow(raw.tomorrowApts, today).length,
+      newNow: month.newNow,
+      newLast: month.newLast,
+      revToday: totalOf(revToday), revTodayCount: handoverCount(revToday),
+      revMonth, revMtd, revLast,
+      rev30: revenueByDay(money.payments, from30, today),
+      outstanding: outstandingTotal(money.openInvoices),
+      overdue: overdueInvoices(money.openInvoices, today),
+      low: lowStock(stock.inventory),
+      lab: labDue(stock.labs, today),
+      unconfirmed: unconfirmedTomorrow(month.tomorrowApts, today).length,
       statusCounts, monthTotal: monthApts.length,
-      top: topProcedures(raw.doneThisMonth.filter(x => x.completedAt && inRange(dateOf(x.completedAt), thisMonth)), { by: 'count', limit: 6 }),
+      top: topProcedures(month.doneThisMonth.filter(x => x.completedAt && inRange(dateOf(x.completedAt), thisMonth)), { by: 'count', limit: 6 }),
     }
   }, [raw, today])
+  const backupAge = raw.backup ? backupAgeDays(raw.backup.at, clock) : undefined
+  const backupDue = raw.backup !== undefined && backupOverdue(backupAge)
 
   const revText = useBucketText(c?.rev30 ?? [], 'day')
   const user = session.user
@@ -95,7 +105,13 @@ export default function DashboardPage() {
   const readOnly = license.readOnly
   const monthName = fmtMonth(today, lang)
 
+  const backupAlert: AlertItem[] = backupDue ? [{
+    id: 'backup', to: session.isAdmin ? '/settings/backup' : undefined, icon: DatabaseBackup, tone: 'warning' as const,
+    title: backupAge === null ? t('dashboard.alerts.backupNever') : plural('dashboard.alerts.backupOld', backupAge ?? 0),
+    sub: session.isAdmin ? t('dashboard.alerts.backupSub') : t('dashboard.alerts.backupAskAdmin'), count: 1, hideCount: true, wrap: true,
+  }] : []
   const alerts: AlertItem[] = c ? [
+    ...backupAlert,
     ...(canMoney ? [{ id: 'overdue', to: '/invoices', icon: Receipt, tone: 'danger' as const, title: t('dashboard.alerts.overdue'), sub: t('dashboard.alerts.overdueSub', { amount: iso(money(c.overdue.total)) }), count: c.overdue.count }] : []),
     ...(session.can('inventory') ? [{ id: 'stock', to: '/inventory', icon: Boxes, tone: 'warning' as const, title: t('dashboard.alerts.lowStock'), sub: t('dashboard.alerts.lowStockSub'), count: c.low.length }] : []),
     ...(session.can('clinical') ? [{ id: 'lab', to: '/lab', icon: FlaskConical, tone: 'accent' as const, title: t('dashboard.alerts.lab'), sub: t('dashboard.alerts.labSub', { late: formatNumber(c.lab.late, lang), today: formatNumber(c.lab.today, lang) }), count: c.lab.late + c.lab.today }] : []),
@@ -130,7 +146,7 @@ export default function DashboardPage() {
           <KpiCard testId="stat-rev-today" loading={loading} to="/payments" tone="success" icon={<Wallet />} label={t('dashboard.stat.revenueToday')}
             value={c && <span className="money">{money(c.revToday)}</span>} sub={c ? (c.revTodayCount ? plural('dashboard.n.payments', c.revTodayCount) : t('dashboard.stat.noPaymentsToday')) : undefined} />
           <KpiCard testId="stat-rev-month" loading={loading} to={canReports ? '/reports' : '/payments'} tone="info" icon={<TrendingUp />} label={t('dashboard.stat.revenueMonth')}
-            value={c && <span className="money">{money(c.revMonth)}</span>} delta={c ? delta(c.revMonth, c.revLast) : undefined} deltaLabel={vsLast}
+            value={c && <span className="money">{money(c.revMonth)}</span>} delta={c ? delta(c.revMtd, c.revLast) : undefined} deltaLabel={vsLast}
             spark={c && c.rev30.some(p => p.value) && <Sparkline values={c.rev30.map(p => p.value)} labels={revText.map(x => x.title)} format={n => money(n)} title={t('dashboard.rev.title')} height={38} color="var(--rp-c5)" />} />
           <KpiCard testId="stat-outstanding" loading={loading} to={canReports ? '/reports?tab=outstanding' : '/invoices'} tone="danger" icon={<HandCoins />} label={t('dashboard.stat.outstanding')}
             value={c && <span className="money">{money(c.outstanding.total)}</span>} sub={c && c.outstanding.patients ? plural('dashboard.n.patients', c.outstanding.patients) : undefined} />
@@ -139,7 +155,7 @@ export default function DashboardPage() {
 
       <div className="rp-dash">
         <div className="rp-dash-main">
-          <Schedule apts={raw?.todayApts} patients={raw?.schedulePatients ?? new Map()} users={users} now={nowIso} readOnly={readOnly} canWrite={canApts}
+          <Schedule apts={raw.schedule?.todayApts} patients={raw.schedule?.schedulePatients ?? EMPTY} users={users} now={nowIso} readOnly={readOnly} canWrite={canApts}
             onAdd={() => setModal('appointment')} />
           {canMoney && (
             <div style={{ order: 3 }}>
@@ -166,7 +182,7 @@ export default function DashboardPage() {
               <DonutChart data={statusData} format={n => formatNumber(n, lang)} centerValue={c ? formatNumber(c.monthTotal, lang) : ''} centerLabel={t('dashboard.status.center')} title={t('dashboard.status.title')} size={156} />
             </ChartCard>
           </div>
-          <ActivityFeed items={raw?.activity} users={users} style={{ order: 6 }} />
+          <ActivityFeed items={raw.activity} users={users} style={{ order: 6 }} />
         </div>
       </div>
 

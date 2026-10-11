@@ -120,7 +120,7 @@
 .badge-accent { background: var(--accent-soft); color: var(--accent); }
 .badge-outline { background: transparent; border: 1px solid var(--border-2); color: var(--text-2); }
 .badge-lg { height: 28px; padding: 0 12px; font-size: var(--fs-sm); }
-.badge-sm { height: 20px; padding: 0 7px; font-size: 10.5px; }
+.badge-sm { height: 20px; padding: 0 7px; font-size: 11px; }
 .status-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; flex: none; }
 
 /* ===== Cards ===== */
@@ -207,7 +207,7 @@
 /* ===== Avatar ===== */
 .avatar { width: 40px; height: 40px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-weight: 700; font-size: var(--fs-md); color: #fff; flex: none; overflow: hidden; background: var(--primary); letter-spacing: 0; }
 .avatar img { width: 100%; height: 100%; object-fit: cover; }
-.avatar-sm { width: 32px; height: 32px; font-size: var(--fs-xs); } .avatar-xs { width: 26px; height: 26px; font-size: 10px; }
+.avatar-sm { width: 32px; height: 32px; font-size: var(--fs-xs); } .avatar-xs { width: 26px; height: 26px; font-size: 11px; }
 .avatar-lg { width: 56px; height: 56px; font-size: var(--fs-xl); } .avatar-xl { width: 80px; height: 80px; font-size: var(--fs-3xl); }
 .avatar-square { border-radius: var(--r-md); }
 .avatar-stack { display: flex; } .avatar-stack .avatar { border: 2px solid var(--surface); margin-inline-start: -8px; } .avatar-stack .avatar:first-child { margin-inline-start: 0; }
@@ -277,7 +277,8 @@
 .toast svg { width: 20px; height: 20px; flex: none; margin-top: 1px; }
 .toast .toast-title { font-weight: 600; overflow-wrap: anywhere; } .toast .toast-desc { opacity: .8; font-size: var(--fs-sm); margin-top: 2px; overflow-wrap: anywhere; }
 .modal-header .modal-sub, .modal-body p, .alert .alert-desc { overflow-wrap: anywhere; }
-.toast .toast-x { margin-inline-start: auto; opacity: .7; } .toast .toast-x:hover { opacity: 1; }
+.toast .toast-x { margin-inline-start: auto; margin-block: -6px; margin-inline-end: -6px; opacity: .7; width: 32px; height: 32px; flex: none; display: inline-flex; align-items: center; justify-content: center; border-radius: var(--r-sm); } .toast .toast-x:hover { opacity: 1; background: rgba(255, 255, 255, .12); }
+.toast .toast-x svg { width: 16px; height: 16px; margin: 0; }
 .toast-success svg { color: #4ADE80; } .toast-error svg { color: #F87171; } .toast-warning svg { color: #FBBF24; } .toast-info svg { color: #60A5FA; }
 :root[data-theme="dark"] .toast { background: var(--surface-3); border: 1px solid var(--border-2); }
 
@@ -319,23 +320,49 @@
 @media (max-width: 1023px) { .hide-below-lg { display: none !important; } }
 @media (max-width: 1279px) { .hide-below-xl { display: none !important; } }
 
-/* toasts never cover a dialog's buttons: on phones they move to the top while a dialog or drawer is open,
-   on desktop they step aside from an open drawer */
+/* Toasts on phones and tablets never cover the bottom navigation, nor a dialog's title, close button or main actions:
+   - no dialog open: they sit just above the bottom nav (which is hidden while the keyboard is up);
+   - a dialog or drawer open: they sit above its footer (bottom sheets keep their title and close button visible).
+   On desktop they step aside from an open drawer and rise above an open dialog's footer. */
 @media (max-width: 1023px) {
-  body:has(.overlay) .toast-stack, body:has(.drawer) .toast-stack { top: calc(12px + var(--safe-top)); bottom: auto; }
+  .toast-stack { bottom: calc(var(--bottomnav-h) + var(--safe-bottom) + 12px); }
+  body:has(.overlay) .toast-stack, body:has(.drawer) .toast-stack { top: auto; bottom: calc(88px + var(--safe-bottom)); }
+  body:has(.modal.no-footer) .toast-stack, body:has(.drawer.no-footer) .toast-stack { bottom: calc(16px + var(--safe-bottom)); }
 }
 @media (min-width: 1024px) {
+  /* a tall dialog reaches the bottom of the window: the toast sits above its footer buttons */
+  body:has(.modal:not(.no-footer)) .toast-stack { bottom: 104px; }
   body:has(.drawer) .toast-stack { inset-inline-end: calc(min(520px, 100%) + 24px); }
   body:has(.drawer-lg) .toast-stack { inset-inline-end: calc(min(720px, 100%) + 24px); }
 }
 
-/* touch screens: controls at least 40px tall */
+/* touch screens: every control answers a finger-sized area (40px or more) */
 @media (pointer: coarse) {
-  .segmented button { height: 38px; }
-  .chip { height: 38px; }
-  .btn-sm { height: 36px; }
+  /* min-height / min-width win over a module's own smaller height, whatever its selector */
+  .btn-sm { height: 40px; min-height: 40px; }
+  .btn-icon.btn-sm { width: 40px; min-width: 40px; }
+  .btn-icon.btn-xs { width: 32px; }
+  .btn-xs { height: 32px; }
+  /* xs buttons stay compact but take taps a few pixels around them */
+  .btn-xs::after { content: ''; position: absolute; inset: -4px; }
+  .segmented button { height: 40px; min-height: 40px; }
+  .chip { height: 40px; min-height: 40px; }
   .tabs .tab { height: 46px; }
-  .pagination button { min-width: 38px; height: 38px; }
+  .tabs-pills .tab { height: 40px; min-height: 40px; }
+  .pagination button { min-width: 40px; height: 40px; min-height: 40px; }
+  .toast .toast-x { width: 40px; height: 40px; margin-block: -10px; margin-inline-end: -10px; }
+  .menu-item { min-height: 44px; }
+  .check, .switch { min-height: 40px; }
+  /* text links in rows, lists and breadcrumbs (a name, an invoice number) take taps above and below the text */
+  .table td a:not(.btn), .list-item a:not(.btn), .breadcrumbs a, .cell-main a { position: relative; }
+  .table td a:not(.btn)::after, .list-item a:not(.btn)::after, .breadcrumbs a::after, .cell-main a::after { content: ''; position: absolute; inset: -10px -4px; }
+}
+
+/* phones: no text under 12px (badges, counts, hints, table headers, initials) */
+@media (max-width: 767px) {
+  .badge-sm { height: 22px; font-size: 12px; }
+  .tabs .tab .count, .kbd { font-size: 12px; }
+  .avatar-xs { font-size: 12px; }
 }
 
 /* a person's name in the other script truncates at its own end, not the UI's */

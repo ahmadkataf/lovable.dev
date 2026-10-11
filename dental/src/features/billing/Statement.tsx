@@ -8,8 +8,8 @@ import { useClinic } from '@/app/hooks'
 import { fmtDate } from '@/lib/dates'
 import { formatPhone } from '@/lib/format'
 import { Button, Loading, Modal } from '@/ui'
-import { accountFrom, buildStatement } from './lib'
-import { Money, printModalSheet, SheetHeader, shortDate, usePrintCleanup } from './shared'
+import { accountFrom, buildStatement, groupReceipts } from './lib'
+import { docTitle, Money, printModalSheet, SheetHeader, shortDate, usePrintCleanup, usePrintFooter } from './shared'
 import './billing.css'
 
 export function StatementModal({ patientId, onClose }: { patientId: string; onClose: () => void }) {
@@ -22,24 +22,32 @@ export function StatementModal({ patientId, onClose }: { patientId: string; onCl
       db.invoices.where('patientId').equals(patientId).toArray(),
       db.payments.where('patientId').equals(patientId).toArray(),
     ])
-    return { patient, rows: buildStatement(invoices, payments), account: accountFrom(invoices, payments), numbers: new Map(invoices.map(i => [i.id, i.number])) }
+    // one line per hand-over (a payment spread over several invoices is one receipt), with the invoices it paid
+    const groups = groupReceipts(payments)
+    const handovers = groups.map(g => ({ ...g.lead, amount: g.amount, invoiceId: undefined }))
+    const numbers = new Map(invoices.map(i => [i.id, i.number]))
+    const paidFor = new Map(groups.map(g => [g.lead.id, { label: g.label, invoices: g.allocations.map(a => numbers.get(a.invoiceId)).filter(Boolean) as string[] }]))
+    return { patient, rows: buildStatement(invoices, handovers), account: accountFrom(invoices, payments), paidFor }
   }, [patientId])
 
+  const docName = docTitle(t('billing.statement.title'), data?.patient?.name)
+  const pageFoot = usePrintFooter(docName)
   const footer = (
     <>
       <Button variant="ghost" className="start" onClick={onClose}>{t('close')}</Button>
-      <Button variant="primary" icon={<Printer />} disabled={!data} onClick={printModalSheet}>{t('print')}</Button>
+      <Button variant="primary" icon={<Printer />} disabled={!data} onClick={() => printModalSheet(docName)}>{t('print')}</Button>
     </>
   )
   return (
     <Modal open onClose={onClose} size="xl" title={t('billing.statement.title')} icon={<ScrollText />} footer={footer} className="bl-modal-sheet">
       {!data ? <Loading /> : (
-        <article className="print-area bl-sheet bl-statement">
+        <article className="print-area bl-sheet bl-statement" style={pageFoot.style}>
+          {pageFoot.node}
           <SheetHeader clinic={clinic} title={t('billing.statement.title')} facts={[{ label: t('billing.statement.asOf'), value: fmtDate(todayISO(), lang, 'long') }]} />
           <section className="bl-parties">
             <div className="bl-party">
               <div className="bl-label">{t('patient')}</div>
-              <div className="bl-party-name">{data.patient?.name ?? t('unknown')}</div>
+              <div className="bl-party-name" dir="auto">{data.patient?.name ?? t('unknown')}</div>
               <div className="bl-party-meta">
                 {data.patient && <span>{t('fileNo')}: <span className="num">{data.patient.fileNo}</span></span>}
                 {data.patient?.phone && <span className="ltr">{formatPhone(data.patient.phone)}</span>}
@@ -73,7 +81,7 @@ export function StatementModal({ patientId, onClose }: { patientId: string; onCl
                     <td className="num bl-hide-sm">{shortDate(r.date)}</td>
                     <td className="bl-desc">
                       {r.kind === 'invoice' ? <>{t('billing.invoice')} <span className="num">{r.number}</span></>
-                        : <>{r.kind === 'refund' ? t('billing.payments.refund') : t('billing.statement.paymentLabel')} · {t(`pay.${r.method}`)}{r.invoiceId && data.numbers.get(r.invoiceId) ? <span className="muted"> — <span className="num">{data.numbers.get(r.invoiceId)}</span></span> : null}</>}
+                        : <>{r.kind === 'refund' ? t('billing.payments.refund') : t('billing.statement.paymentLabel')} · {t(`pay.${r.method}`)}{(() => { const f = r.paymentId ? data.paidFor.get(r.paymentId) : undefined; return f ? <span className="muted"> — <span className="num">{[f.label, ...f.invoices].join(' · ')}</span></span> : null })()}</>}
                       <div className="bl-only-sm bl-row-date num">{shortDate(r.date)}</div>
                     </td>
                     <td className="bl-n bl-hide-sm">{r.debit ? <Money value={r.debit} /> : <span className="bl-dash">—</span>}</td>

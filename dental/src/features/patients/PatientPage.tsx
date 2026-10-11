@@ -12,12 +12,12 @@ import { useDoctors, useMoney } from '@/app/hooks'
 import { useSession } from '@/app/session'
 import { useLicense } from '@/license/useLicense'
 import { ToothIcon } from '@/app/ToothIcon'
-import { Avatar, Badge, Button, Card, EmptyState, Menu, Skeleton, Tabs, useConfirmDelete, useToast, type MenuItemDef, type TabItem } from '@/ui'
+import { Avatar, Badge, Button, Card, EmptyState, Menu, Skeleton, Tabs, useToast, type MenuItemDef, type TabItem } from '@/ui'
 import { dateOf, fmtDate, fmtTime, relativeDay, timeAgo } from '@/lib/dates'
 import { colorFor } from '@/lib/format'
 import { latestOf, lastVisitsByPatient, nextAppointment, patientBalance } from './lib'
 import { ContactButtons, PatientAvatar, PhoneText, useGenderAge, usePlural } from './parts'
-import { deletePatientCascade } from './data'
+import { usePatientDelete } from './usePatientDelete'
 import PatientOverview from './PatientOverview'
 
 const PatientFormModal = lazy(() => import('./PatientFormModal'))
@@ -43,7 +43,7 @@ export default function PatientPage() {
   const session = useSession()
   const { readOnly } = useLicense()
   const toast = useToast()
-  const confirmDelete = useConfirmDelete()
+  const deletion = usePatientDelete()
   const plural = usePlural()
   const genderAge = useGenderAge()
   const [modal, setModal] = useState<'edit' | 'appointment' | 'payment' | null>(null)
@@ -122,19 +122,9 @@ export default function PatientPage() {
     void logActivity({ type: 'patient', action: 'status', entityId: patient.id, patientId: patient.id, message: `${patient.name} — ${patient.archived ? t('restore') : t('archive')}`, by: session.user?.id })
     toast.success(t(patient.archived ? 'patients.restoredToast' : 'patients.archivedToast'), patient.name)
   }
-  const remove = async () => {
-    if (!(await confirmDelete(t('patients.deleteConfirm')))) return
-    const { id: pid, name } = patient
-    // leave first: the live query would otherwise flash "patient not found" between the delete and the navigation
-    navigate('/patients', { replace: true })
-    try {
-      await deletePatientCascade(pid)
-      void logActivity({ type: 'patient', action: 'delete', entityId: pid, message: name, by: session.user?.id })
-      toast.success(t('patients.deletedToast'), name)
-    } catch {
-      toast.error(t('patients.deleteFailed'))
-    }
-  }
+  // a file with invoices or payments is not deleted (the dialog offers archiving); otherwise leave first, so the live
+  // query does not flash "patient not found" between the delete and the navigation
+  const remove = () => deletion.remove(patient, { beforeDelete: () => navigate('/patients', { replace: true }) })
   const moreItems: MenuItemDef[] = [
     { label: patient.archived ? t('restore') : t('archive'), icon: patient.archived ? <ArchiveRestore /> : <Archive />, onClick: () => void toggleArchive(), disabled: readOnly },
     ...(can('manage') ? [{ sep: true }, { label: t('patients.deletePatient'), icon: <Trash />, danger: true, onClick: () => void remove(), disabled: readOnly }] : []),
@@ -175,7 +165,7 @@ export default function PatientPage() {
             <div className="pt-hero-contact">
               {patient.phone && <span className="pt-contact-pill"><PhoneText phone={patient.phone} /><ContactButtons phone={patient.phone} /></span>}
               {patient.phone2 && <span className="pt-contact-pill"><PhoneText phone={patient.phone2} /><ContactButtons phone={patient.phone2} /></span>}
-              {patient.email && <a className="pt-meta-item pt-link" href={`mailto:${patient.email}`}><Mail /><span className="ltr">{patient.email}</span></a>}
+              {patient.email && <a className="pt-meta-item pt-link pt-email" href={`mailto:${patient.email}`} title={patient.email}><Mail /><span className="ltr pt-email-text">{patient.email}</span></a>}
               {patient.address && <span className="pt-meta-item"><MapPin />{patient.address}</span>}
             </div>
             {(patient.tags ?? []).length > 0 && <div className="pt-tags">{patient.tags.map(tg => <Badge key={tg} tone="primary">{tg}</Badge>)}</div>}
@@ -228,6 +218,7 @@ export default function PatientPage() {
       {modal === 'edit' && <Suspense fallback={null}><PatientFormModal open patient={patient} onClose={() => setModal(null)} /></Suspense>}
       {modal === 'appointment' && <Suspense fallback={null}><AppointmentFormModal open defaults={{ patientId: patient.id }} onClose={() => setModal(null)} /></Suspense>}
       {modal === 'payment' && <Suspense fallback={null}><PaymentFormModal open patientId={patient.id} onClose={() => setModal(null)} /></Suspense>}
+      {deletion.dialog}
     </div>
   )
 }

@@ -2,7 +2,6 @@
 // input with presets, the patient picker, the clinic header of printed sheets and the modal print helper.
 import { useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
-import { useLiveQuery } from 'dexie-react-hooks'
 import { ChevronDown, Search, UserRound, X } from 'lucide-react'
 import { db } from '@/db'
 import type { Clinic, Patient } from '@/db/types'
@@ -10,6 +9,7 @@ import { useI18n } from '@/i18n'
 import { Avatar, Button, Field, Input, Skeleton } from '@/ui'
 import { formatPhone, matches } from '@/lib/format'
 import { print } from '@/platform'
+import { usePatientIndex, usePatientPhotos, type SlimPatient } from '@/features/billing/patientIndex'
 import { ToothIcon } from '@/app/ToothIcon'
 import './prescriptions.css'
 
@@ -162,17 +162,29 @@ export function ComboInput({ value, onChange, options, label, placeholder, error
 
 // ---- patient picker -----------------------------------------------------------------------------
 
-function searchPatients(list: Patient[], q: string, limit = 8): Patient[] {
+type PickPatient = Pick<SlimPatient, 'id' | 'name' | 'fileNo' | 'phone'>
+function searchPatients<P extends PickPatient>(list: P[], q: string, limit = 8): P[] {
   const s = q.trim()
   if (!s) return list.slice(0, limit)
   const num = s.replace(/^#/, '')
   const digits = s.replace(/\D/g, '')
-  return list.filter(p => matches(p.name, s) || String(p.fileNo) === num || (digits.length >= 3 && (p.phone || '').replace(/\D/g, '').includes(digits))).slice(0, limit)
+  const out: P[] = []
+  for (const p of list) {
+    if (matches(p.name, s) || String(p.fileNo) === num || (digits.length >= 3 && (p.phone || '').replace(/\D/g, '').includes(digits))) out.push(p)
+    if (out.length >= limit) break
+  }
+  return out
+}
+const recentFirst = (a: SlimPatient, b: SlimPatient) => {
+  const x = a.lastVisit || a.updatedAt || '', y = b.lastVisit || b.updatedAt || ''
+  return x === y ? 0 : x < y ? 1 : -1
 }
 
 /**
  * Patient field: search by name, file number or phone (Arabic-aware). Once chosen it shows a compact card;
- * `locked` hides the "change" action (forms opened from a patient's profile).
+ * `locked` hides the "change" action (forms opened from a patient's profile). The list comes from the shared
+ * in-memory patient index (no photos, read once per session); nothing is read while a patient is chosen, and the
+ * full record (allergies included) is fetched only for the one picked.
  */
 export function PatientSelect({ value, onChange, error, locked, autoFocus, pending }: { value?: Patient; onChange: (p?: Patient) => void; error?: string; locked?: boolean; autoFocus?: boolean; pending?: boolean }) {
   const { t } = useI18n()
@@ -181,14 +193,16 @@ export function PatientSelect({ value, onChange, error, locked, autoFocus, pendi
   const [hi, setHi] = useState(0)
   const wrap = useRef<HTMLDivElement>(null)
   const input = useRef<HTMLInputElement>(null)
-  const all = useLiveQuery(async () => {
-    const list = await db.patients.filter(p => !p.archived).toArray()
-    return list.sort((a, b) => (b.lastVisit || b.updatedAt || '').localeCompare(a.lastVisit || a.updatedAt || ''))
-  }, [])
+  const index = usePatientIndex(!value && !pending)
+  const all = useMemo(() => (index ? index.list.filter(p => !p.archived).sort(recentFirst) : undefined), [index])
   const results = useMemo(() => searchPatients(all ?? [], q), [all, q])
+  const photos = usePatientPhotos(open ? results.filter(p => p.hasPhoto).map(p => p.id) : [])
   useEffect(() => setHi(0), [q])
   const close = useCallback(() => setOpen(false), [])
-  const pick = (p: Patient) => { onChange(p); setQ(''); setOpen(false) }
+  const pick = (p: SlimPatient) => {
+    setQ(''); setOpen(false)
+    void db.patients.get(p.id).then(full => { if (full) onChange(full) })
+  }
   const onKey = (e: KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'ArrowDown') { e.preventDefault(); setOpen(true); setHi(h => Math.min(results.length - 1, h + 1)) }
     else if (e.key === 'ArrowUp') { e.preventDefault(); setHi(h => Math.max(0, h - 1)) }
@@ -228,8 +242,8 @@ export function PatientSelect({ value, onChange, error, locked, autoFocus, pendi
             {results.map((p, i) => (
               <button key={p.id} type="button" role="option" aria-selected={i === hi} className={`rx-opt rx-opt-patient${i === hi ? ' hi' : ''}`} tabIndex={-1}
                 onMouseEnter={() => setHi(i)} onClick={() => pick(p)}>
-                <Avatar name={p.name} src={p.photo} size="xs" />
-                <span className="grow truncate strong">{p.name}</span>
+                <Avatar name={p.name} src={photos.get(p.id)} size="xs" />
+                <span className="grow truncate strong" dir="auto">{p.name}</span>
                 {p.phone && <span className="rx-opt-hint ltr hide-mobile">{formatPhone(p.phone)}</span>}
                 <span className="rx-fileno num">#{p.fileNo}</span>
               </button>

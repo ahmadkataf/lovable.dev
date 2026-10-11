@@ -13,6 +13,18 @@ type T = (k: string, p?: Record<string, string | number>) => string
 
 export const catLabel = (t: T, c: string) => (isPresetCategory(c) ? t(`inventory.cat.${c}`) : c)
 export const unitLabel = (t: T, u: string) => ((UNITS as readonly string[]).includes(u) ? t(`inventory.unit.${u}`) : u)
+const COUNTED_UNITS = ['piece', 'box', 'pack', 'ml', 'g']
+/**
+ * The unit word that goes with a count shown next to it ("3" over "علب", "11" over "علبة", "2" over "علبتان"), in
+ * Arabic and English. Units typed by hand ("أنبوب") are shown as typed.
+ */
+export const unitFor = (t: T, u: string, n: number) => (COUNTED_UNITS.includes(u) ? t(`inventory.unitN.${u}`, { n }) : unitLabel(t, u))
+/** A quantity with its unit in one phrase: "3 علب", "علبتان", "11 علبة", "250 مل", "1 box", "3 boxes". */
+export function qtyWithUnit(t: T, lang: 'ar' | 'en', n: number, u?: string): string {
+  if (!u) return qtyText(n, lang)
+  if (COUNTED_UNITS.includes(u)) return t(`inventory.qty.${u}`, { n: qtyText(n, lang), count: n })
+  return `${qtyText(n, lang)} ${unitLabel(t, u)}`
+}
 export const reasonLabel = (t: T, r: StockReason) => t(`inventory.reason.${r}`)
 
 /** Every label a preset may be typed as, in both languages (for the category box). */

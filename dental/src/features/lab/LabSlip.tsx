@@ -1,5 +1,6 @@
 // The slip that travels with the impression to the lab: what to make, for which teeth, in which shade and by when.
 // Only the patient's name is printed (no phone, no medical data).
+import { useEffect } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { CalendarClock, FlaskConical, Printer } from 'lucide-react'
 import { db } from '@/db'
@@ -11,13 +12,16 @@ import { fmtDate } from '@/lib/dates'
 import { SheetClinic, printModalSheet, usePrintCleanup } from '@/features/prescriptions/parts'
 import { ShadeChip, TeethPicker } from './parts'
 import { teethLabel } from './lib'
+import { ensureRefs, type NumberedLab } from '@/features/prescriptions/numbers'
+import { doctorLabel } from '@/features/prescriptions/lib'
 
 export function LabSlip({ order, patient, doctor, clinic }: { order: LabOrder; patient?: Patient; doctor?: User; clinic: Clinic }) {
   const { t, lang } = useI18n()
-  const ref = order.id.slice(-6).toUpperCase()
+  // the order's LAB- reference (older orders get theirs when the lab page first opens)
+  const ref = (order as NumberedLab).number ?? '—'
   const facts: { k: string; v: React.ReactNode; strong?: boolean }[] = [
     { k: t('lab.slip.patient'), v: patient?.name ?? '—', strong: true },
-    { k: t('lab.slip.doctor'), v: doctor?.name ?? '—' },
+    { k: t('lab.slip.doctor'), v: doctor ? doctorLabel(doctor) : '—' },
     { k: t('lab.slip.type'), v: t(`labType.${order.type}`), strong: true },
     { k: t('lab.slip.shade'), v: <ShadeChip shade={order.shade} /> },
     { k: t('lab.slip.material'), v: order.material || '—' },
@@ -75,6 +79,7 @@ export default function LabSlipModal({ id, onClose }: { id: string; onClose: () 
   const { t } = useI18n()
   const clinic = useClinic()
   usePrintCleanup(true)
+  useEffect(() => { void ensureRefs('lab') }, [])
   const data = useLiveQuery(async () => {
     const order = await db.labOrders.get(id)
     if (!order) return { order: null }

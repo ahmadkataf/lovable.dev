@@ -29,7 +29,6 @@ import android.print.PrintManager;
 import android.provider.DocumentsContract;
 import android.provider.MediaStore;
 import android.provider.Settings;
-import android.util.Base64;
 import android.view.View;
 import android.view.Window;
 import android.view.WindowInsets;
@@ -61,13 +60,15 @@ import java.net.URISyntaxException;
 import java.util.HashMap;
 import java.util.Locale;
 import java.util.Map;
+import java.util.UUID;
 
 /**
  * Dentora on Android: one WebView showing the web app bundled in assets/www, served at https://dentora.app/
  * (a secure origin, so IndexedDB, crypto.subtle and module scripts behave exactly as in a browser).
  *
  * The page talks to the phone through window.DentoraAndroid (the contract in src/platform/index.ts):
- * deviceId · saveFile · print · appVersion · openExternal. File picking uses the WebView's own file chooser.
+ * deviceId · saveBegin/saveChunk/saveEnd/saveAbort · print · appVersion · openExternal. File picking uses the
+ * WebView's own file chooser.
  *
  * Every callback is a named class (no lambdas or anonymous classes) so that d8 handles it on every JDK.
  */
@@ -85,11 +86,20 @@ public class MainActivity extends Activity {
     /** The app's language as the page last reported it (html lang): native messages follow it. */
     private volatile String lang = "ar";
 
-    // saveFile: the bytes wait here while the system "save as" screen is open. They are also written to the
-    // cache folder, because Android may close the app behind that screen on a phone short of memory; a
-    // backup that silently came out empty would be the worst possible failure for a clinic.
-    private byte[] pendingBytes;
-    private String pendingName;
+    // Saving: the page writes the file in pieces into the cache folder (saveBegin/saveChunk/saveEnd), then the
+    // system "save as" screen opens and the file is copied to the chosen place and read back to check it. Only
+    // one save at a time. What the copy needs is also kept in the preferences, because Android may close the app
+    // behind that screen on a phone short of memory; a backup that silently came out empty or cut would be the
+    // worst possible failure for a clinic. All fields below are guarded by `this`.
+    private static final int SAVE_IDLE = 0, SAVE_WRITING = 1, SAVE_WAITING = 2, SAVE_COPYING = 3;
+    private static final long SAVE_STALE_MS = 60_000;
+    private int saveState = SAVE_IDLE;
+    private WebFiles.ChunkFile saving;
+    private String saveId;
+    private String saveName;
+    private String saveType;
+    private boolean saveQuiet;
+    private long saveTouched;
     /** The page's <input type=file> waiting for the system picker. */
     private ValueCallback<Uri[]> pendingPick;
 
@@ -105,6 +115,8 @@ public class MainActivity extends Activity {
         root.setOnApplyWindowInsetsListener(new BarPadding());
         setContentView(root);
         styleBars();
+        // a save left from a run that ended (not this one, recreated behind the save screen) is stale
+        if (savedInstanceState == null) dropPending();
         web = newWebView();
         if (!restore(savedInstanceState)) web.loadUrl(WebFiles.START_URL);
         showLastCrash();
@@ -284,6 +296,7 @@ public class MainActivity extends Activity {
         }
         root.removeView(dead);
         dead.destroy();
+        abandonWritingSave();      // the page that was sending a file is gone
         web = newWebView();
         web.loadUrl(WebFiles.START_URL);
     }
@@ -433,6 +446,7 @@ public class MainActivity extends Activity {
         }
         pendingPick = null;
         say("no_picker");
+        if (web != null) web.evaluateJavascript(WebFiles.PICK_CANCELLED_JS, null);
         return false;
     }
 
@@ -465,7 +479,7 @@ public class MainActivity extends Activity {
             Uri[] picked = resultCode == RESULT_OK ? pickedUris(data) : null;
             // always answer, even with null: an unanswered chooser stops <input type=file> from working
             if (cb != null) cb.onReceiveValue(picked);
-            // pickFile() (src/platform) learns that the picker was cancelled from the window's focus event
+            // pickFile() (src/platform) stops waiting when the picker closed without a file
             if (picked == null && web != null) web.evaluateJavascript(WebFiles.PICK_CANCELLED_JS, null);
             return;
         }
@@ -478,17 +492,97 @@ public class MainActivity extends Activity {
 
     // ---- saving files (backups, CSV, PDFs) through the system "save as" screen --------------------------
 
-    /** Keeps the bytes and opens the save screen. Any thread; returns at once (true = a dialog is shown). */
-    boolean startSave(String name, String mime, byte[] bytes) {
-        String type = WebFiles.baseMime(mime);
-        String fileName = WebFiles.safeFileName(name, type);
-        synchronized (this) {
-            pendingBytes = bytes;
-            pendingName = fileName;
+    private static String jsonError(String reason) { return "{\"error\":\"" + reason + "\"}"; }
+
+    /** saveBegin: opens the cache file for a new save. Answers {"id"} or {"error": busy | space | io}. Bridge thread. */
+    synchronized String beginSave(String name, String mime, long sizeHint, boolean quiet) {
+        if (saveState == SAVE_WRITING && System.currentTimeMillis() - saveTouched > SAVE_STALE_MS) abandonWritingSave();
+        if (saveState != SAVE_IDLE) return jsonError("busy");
+        File dir = getCacheDir();
+        if (sizeHint > 0 && dir.getUsableSpace() < sizeHint + 16L * 1024 * 1024) return jsonError("space");
+        try {
+            saving = new WebFiles.ChunkFile(new File(dir, PENDING_FILE));
+        } catch (IOException | RuntimeException e) {
+            return jsonError(WebFiles.ioReason(e));
         }
-        keepPendingOnDisk(bytes, fileName);
-        runOnUiThread(new LaunchSave(this, fileName, type));
-        return true;
+        saveType = WebFiles.baseMime(mime);
+        saveName = WebFiles.safeFileName(name, saveType);
+        saveId = UUID.randomUUID().toString();
+        saveQuiet = quiet;
+        saveTouched = System.currentTimeMillis();
+        saveState = SAVE_WRITING;
+        return "{\"id\":" + WebFiles.jsString(saveId) + "}";
+    }
+
+    /** saveChunk: appends a base64 piece. Answers "" or the reason it failed (the save is then dropped). */
+    synchronized String appendSave(String id, String base64) {
+        if (saveState != SAVE_WRITING || id == null || !id.equals(saveId)) return "io";
+        try {
+            saving.append(base64);
+            saveTouched = System.currentTimeMillis();
+            return "";
+        } catch (IOException e) {
+            abandonWritingSave();
+            return WebFiles.ioReason(e);
+        } catch (IllegalArgumentException | OutOfMemoryError e) {
+            abandonWritingSave();
+            return "io";
+        }
+    }
+
+    /** saveEnd: checks size + CRC-32 of what arrived, then opens the save screen. Answers "" or a reason. */
+    synchronized String endSave(String id, long size, long crc) {
+        if (saveState != SAVE_WRITING || id == null || !id.equals(saveId)) return "io";
+        try {
+            saving.close();
+        } catch (IOException e) {
+            abandonWritingSave();
+            return WebFiles.ioReason(e);
+        }
+        if (saving.size() != size || saving.crc() != crc) {
+            abandonWritingSave();
+            return "verify";
+        }
+        prefs.edit().putString("pendingName", saveName).putString("pendingId", saveId).putLong("pendingSize", size)
+            .putLong("pendingCrc", crc).putBoolean("pendingQuiet", saveQuiet).commit();
+        saveState = SAVE_WAITING;
+        runOnUiThread(new LaunchSave(this, saveName, saveType));
+        return "";
+    }
+
+    /** saveAbort: the page stopped (or failed) while writing. */
+    synchronized void abortSave(String id) {
+        if (saveState == SAVE_WRITING && id != null && id.equals(saveId)) abandonWritingSave();
+    }
+
+    synchronized void abandonWritingSave() {
+        if (saveState != SAVE_WRITING) return;
+        if (saving != null) saving.closeQuietly();
+        dropPending();
+    }
+
+    /** A data: URL the page tried to open or download, saved by the shell itself (no page waits for an answer). */
+    void saveBytes(String name, String mime, byte[] bytes) {
+        String begun = beginSave(name, mime, bytes.length, false);
+        if (!begun.startsWith("{\"id\"")) {
+            say(begun.contains("busy") ? "save_busy" : begun.contains("space") ? "save_space" : "save_failed");
+            return;
+        }
+        String id;
+        synchronized (this) {
+            id = saveId;
+            try {
+                saving.write(bytes);
+            } catch (IOException e) {
+                abandonWritingSave();
+                say("save_failed");
+                return;
+            }
+        }
+        java.util.zip.CRC32 crc = new java.util.zip.CRC32();
+        crc.update(bytes, 0, bytes.length);
+        String err = endSave(id, bytes.length, crc.getValue());
+        if (!err.isEmpty()) say("save_failed");
     }
 
     static final class LaunchSave implements Runnable {
@@ -511,167 +605,183 @@ public class MainActivity extends Activity {
             startActivityForResult(i, REQ_SAVE);
         } catch (ActivityNotFoundException e) {
             // no documents screen on this phone: put the file in Downloads/Dentora instead
-            new Thread(new DownloadsWriter(this, name, type), "dentora-save").start();
+            synchronized (this) { saveState = SAVE_COPYING; }
+            new Thread(new DownloadsWriter(this, pending(), type), "dentora-save").start();
         } catch (RuntimeException e) {
-            // the page waits for an answer (saveFile's Promise): always give one
+            // the page waits for an answer: always give one
+            Pending p = pending();
             dropPending();
-            say("save_failed");
-            notifySaved(false, false, name);
+            finished(p, false, false, "io", null);
         }
     }
 
-    private void keepPendingOnDisk(byte[] bytes, String name) {
-        File f = new File(getCacheDir(), PENDING_FILE);
-        try (FileOutputStream out = new FileOutputStream(f)) {
-            out.write(bytes);
-            prefs.edit().putString("pendingName", name).commit();
-        } catch (IOException | RuntimeException e) {
-            f.delete();
-        }
+    /** What a save waiting for (or being copied to) its place needs: from memory, or from the preferences after
+     *  Android recreated the app behind the save screen. Null when there is none. */
+    static final class Pending {
+        final String id, name;
+        final long size, crc;
+        final boolean quiet;
+        Pending(String id, String name, long size, long crc, boolean quiet) { this.id = id; this.name = name; this.size = size; this.crc = crc; this.quiet = quiet; }
     }
 
-    /** The bytes waiting to be saved: from memory, or from the cache folder after Android recreated the app. */
-    byte[] takePending() {
-        byte[] b;
-        synchronized (this) {
-            b = pendingBytes;
-            pendingBytes = null;
-        }
-        if (b != null) return b;
-        File f = new File(getCacheDir(), PENDING_FILE);
-        if (!f.isFile()) return null;
-        try (FileInputStream in = new FileInputStream(f)) {
-            byte[] data = new byte[(int) f.length()];
-            int off = 0;
-            while (off < data.length) {
-                int n = in.read(data, off, data.length - off);
-                if (n < 0) break;
-                off += n;
-            }
-            return off == data.length ? data : null;
-        } catch (IOException | RuntimeException | OutOfMemoryError e) {
-            return null;
-        }
+    Pending pending() {
+        String name = prefs.getString("pendingName", null);
+        if (name == null) return null;
+        return new Pending(prefs.getString("pendingId", ""), name, prefs.getLong("pendingSize", -1), prefs.getLong("pendingCrc", -1), prefs.getBoolean("pendingQuiet", false));
     }
 
-    String pendingName() {
-        synchronized (this) {
-            if (pendingName != null) return pendingName;
-        }
-        return prefs.getString("pendingName", "Dentora");
-    }
-
-    void dropPending() {
-        synchronized (this) {
-            pendingBytes = null;
-            pendingName = null;
-        }
+    synchronized void dropPending() {
+        saving = null;
+        saveId = null;
+        saveState = SAVE_IDLE;
         new File(getCacheDir(), PENDING_FILE).delete();
-        prefs.edit().remove("pendingName").apply();
+        prefs.edit().remove("pendingName").remove("pendingId").remove("pendingSize").remove("pendingCrc").remove("pendingQuiet").apply();
     }
 
-    /** The save screen closed: write the bytes to the chosen document (off the UI thread), or drop them. */
+    /** The save screen closed: copy the file to the chosen document (off the UI thread), or drop it. */
     void finishSave(Uri target) {
-        String name = pendingName();
+        Pending p = pending();
+        if (p == null) return;
         if (target == null) {
             dropPending();
-            notifySaved(false, true, name);
+            finished(p, false, true, "", null);
             return;
         }
-        new Thread(new WriteFile(this, target, name), "dentora-save").start();
+        synchronized (this) { saveState = SAVE_COPYING; }
+        new Thread(new WriteFile(this, target, p), "dentora-save").start();
+    }
+
+    /** Opens a document for writing from the start ("wt"; some providers only know "w"). */
+    OutputStream openForWrite(Uri target) throws IOException {
+        try {
+            OutputStream out = getContentResolver().openOutputStream(target, "wt");
+            if (out != null) return out;
+        } catch (IllegalArgumentException | UnsupportedOperationException | java.io.FileNotFoundException e) {
+            // fall back to "w" below
+        }
+        return getContentResolver().openOutputStream(target, "w");
+    }
+
+    /** Copies the cache file to the document and reads the document back: "" when size and CRC-32 match. Worker thread. */
+    String copyPending(Uri target, Pending p) {
+        File f = new File(getCacheDir(), PENDING_FILE);
+        if (!f.isFile() || f.length() != p.size) return "io";
+        boolean written = false;
+        try (InputStream in = new FileInputStream(f); OutputStream out = openForWrite(target)) {
+            if (out == null) return "io";
+            written = true;              // from here on the document holds part of this file
+            WebFiles.copy(in, out);
+            out.flush();
+            if (out instanceof FileOutputStream) ((FileOutputStream) out).getFD().sync();
+        } catch (IOException | RuntimeException e) {
+            // a cut copy must not stay behind looking like a backup
+            if (written) deleteDocument(target);
+            return WebFiles.ioReason(e);
+        }
+        try (InputStream back = getContentResolver().openInputStream(target)) {
+            if (back == null) return "verify";
+            long[] m = WebFiles.measure(back);
+            if (m[0] != p.size || m[1] != p.crc) {
+                deleteDocument(target);
+                return "verify";
+            }
+        } catch (IOException | RuntimeException e) {
+            return "verify";             // written, but it cannot be read back to confirm it
+        }
+        return "";
+    }
+
+    void deleteDocument(Uri target) {
+        try { DocumentsContract.deleteDocument(getContentResolver(), target); } catch (Exception ignored) { }
     }
 
     static final class WriteFile implements Runnable {
         private final MainActivity host;
         private final Uri target;
-        private final String name;
-        WriteFile(MainActivity host, Uri target, String name) { this.host = host; this.target = target; this.name = name; }
+        private final Pending p;
+        WriteFile(MainActivity host, Uri target, Pending p) { this.host = host; this.target = target; this.p = p; }
 
         @Override
         public void run() {
-            boolean ok = false;
-            byte[] data = host.takePending();
-            if (data != null) {
-                try (OutputStream out = host.getContentResolver().openOutputStream(target)) {
-                    if (out != null) {
-                        out.write(data);
-                        out.flush();
-                        ok = true;
-                    }
-                } catch (IOException | RuntimeException e) {
-                    ok = false;
-                }
-            }
-            if (!ok) {
-                // do not leave an empty file behind that looks like a backup
-                try { DocumentsContract.deleteDocument(host.getContentResolver(), target); } catch (Exception ignored) { }
-            }
+            String reason = host.copyPending(target, p);
             host.dropPending();
-            host.runOnUiThread(new Saved(host, ok, name, null));
+            host.runOnUiThread(new Saved(host, p, reason.isEmpty(), reason, null));
         }
     }
 
     /** Fallback when the phone has no "save as" screen: Downloads/Dentora (no permission needed). */
     static final class DownloadsWriter implements Runnable {
         private final MainActivity host;
-        private final String name;
+        private final Pending p;
         private final String type;
-        DownloadsWriter(MainActivity host, String name, String type) { this.host = host; this.name = name; this.type = type; }
+        DownloadsWriter(MainActivity host, Pending p, String type) { this.host = host; this.p = p; this.type = type; }
 
         @Override
         public void run() {
-            byte[] data = host.takePending();
-            boolean ok = data != null && host.writeToDownloads(name, type, data);
+            String reason = p == null ? "io" : host.writeToDownloads(p, type);
             host.dropPending();
-            host.runOnUiThread(new Saved(host, ok, name, ok ? "saved_downloads" : null));
+            host.runOnUiThread(new Saved(host, p, reason.isEmpty(), reason, reason.isEmpty() ? "saved_downloads" : null));
         }
     }
 
-    boolean writeToDownloads(String name, String type, byte[] data) {
-        try {
+    /** Copies the cache file into Downloads/Dentora and checks it there. "" or the reason it failed. */
+    String writeToDownloads(Pending p, String type) {
+        File f = new File(getCacheDir(), PENDING_FILE);
+        if (!f.isFile() || f.length() != p.size) return "io";
+        try (InputStream in = new FileInputStream(f)) {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
                 ContentValues v = new ContentValues();
-                v.put(MediaStore.MediaColumns.DISPLAY_NAME, name);
+                v.put(MediaStore.MediaColumns.DISPLAY_NAME, p.name);
                 v.put(MediaStore.MediaColumns.MIME_TYPE, type);
                 v.put(MediaStore.MediaColumns.RELATIVE_PATH, Environment.DIRECTORY_DOWNLOADS + "/Dentora");
                 Uri u = getContentResolver().insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, v);
-                if (u == null) return false;
+                if (u == null) return "io";
                 try (OutputStream out = getContentResolver().openOutputStream(u)) {
-                    if (out == null) return false;
-                    out.write(data);
+                    if (out == null) return "io";
+                    WebFiles.copy(in, out);
                 }
-                return true;
+                try (InputStream back = getContentResolver().openInputStream(u)) {
+                    long[] m = back == null ? new long[] {-1, -1} : WebFiles.measure(back);
+                    if (m[0] != p.size || m[1] != p.crc) { getContentResolver().delete(u, null, null); return "verify"; }
+                }
+                return "";
             }
             File dir = getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS);
-            if (dir == null) return false;
+            if (dir == null) return "io";
             dir.mkdirs();
-            try (FileOutputStream out = new FileOutputStream(new File(dir, name))) {
-                out.write(data);
+            File out = new File(dir, p.name);
+            try (FileOutputStream o = new FileOutputStream(out)) {
+                WebFiles.copy(in, o);
+                o.getFD().sync();
             }
-            return true;
+            try (InputStream back = new FileInputStream(out)) {
+                long[] m = WebFiles.measure(back);
+                if (m[0] != p.size || m[1] != p.crc) { out.delete(); return "verify"; }
+            }
+            return "";
         } catch (IOException | RuntimeException e) {
-            return false;
+            return WebFiles.ioReason(e);
         }
     }
 
     static final class Saved implements Runnable {
         private final MainActivity host;
+        private final Pending p;
         private final boolean ok;
-        private final String name;
+        private final String reason;
         private final String message;
-        Saved(MainActivity host, boolean ok, String name, String message) { this.host = host; this.ok = ok; this.name = name; this.message = message; }
+        Saved(MainActivity host, Pending p, boolean ok, String reason, String message) { this.host = host; this.p = p; this.ok = ok; this.reason = reason; this.message = message; }
 
         @Override
-        public void run() {
-            // success needs no toast of the shell's own: the page confirms it (saveFile's Promise answers now)
-            if (message != null) host.say(message, name);
-            else if (!ok) host.say("save_failed");
-            host.notifySaved(ok, false, name);
-        }
+        public void run() { host.finished(p, ok, false, reason, message); }
     }
 
-    void notifySaved(boolean ok, boolean cancelled, String name) {
-        if (web != null) web.evaluateJavascript(WebFiles.savedEventJs(ok, cancelled, name), null);
+    /** A save ended: tell the page (it confirms success itself), and explain a failure unless the page does. UI thread. */
+    void finished(Pending p, boolean ok, boolean cancelled, String reason, String message) {
+        String name = p == null ? "" : p.name;
+        if (message != null) say(message, name);
+        else if (!ok && !cancelled && (p == null || !p.quiet)) say("space".equals(reason) ? "save_space" : "verify".equals(reason) ? "save_verify" : "save_failed");
+        if (web != null && p != null) web.evaluateJavascript(WebFiles.savedEventJs(ok, cancelled, name, p.id, ok || cancelled ? "" : reason), null);
     }
 
     /** A data: URL the page tried to open or download: decode it here and save it like any other file. */
@@ -679,14 +789,14 @@ public class MainActivity extends Activity {
         WebFiles.DataUrl d = WebFiles.parseDataUrl(url);
         if (d == null) return;
         try {
-            byte[] bytes = d.base64 ? Base64.decode(d.payload, Base64.DEFAULT) : WebFiles.percentDecode(d.payload);
-            startSave(name, d.mime, bytes);
+            byte[] bytes = d.base64 ? WebFiles.decodeBase64(d.payload) : WebFiles.percentDecode(d.payload);
+            saveBytes(name, d.mime, bytes);
         } catch (IllegalArgumentException | OutOfMemoryError e) {
             say("save_failed");
         }
     }
 
-    /** A blob: URL only exists inside the page: ask the page to read it and call saveFile. */
+    /** A blob: URL only exists inside the page: ask the page to save it (in chunks, through the bridge). */
     void saveBlobUrl(String url, String name) {
         if (web != null) web.evaluateJavascript(WebFiles.saveBlobJs(url, name), null);
     }
@@ -797,17 +907,25 @@ public class MainActivity extends Activity {
             }
         }
 
-        /** Opens the system "save as" screen for the file; true = the screen is shown (the save ends later). */
+        /** Starts saving a file the page sends in pieces. {"id":"…"} or {"error":"busy"|"space"|"io"}. */
         @JavascriptInterface
-        public boolean saveFile(String name, String mime, String base64) {
-            try {
-                byte[] bytes = Base64.decode(base64 == null ? "" : base64, Base64.DEFAULT);
-                return host.startSave(name, mime, bytes);
-            } catch (IllegalArgumentException | OutOfMemoryError e) {
-                host.say("save_failed");
-                return false;
-            }
+        public String saveBegin(String name, String mime, String sizeHint, String quiet) {
+            return host.beginSave(name, mime, WebFiles.parseLong(sizeHint, 0), "1".equals(quiet));
         }
+
+        /** One base64 piece of the file (about 1 MB). "" or why it failed. */
+        @JavascriptInterface
+        public String saveChunk(String id, String base64) { return host.appendSave(id, base64); }
+
+        /** All pieces sent: checks size + CRC-32, then opens the "save as" screen. "" (the screen opens) or why not.
+         *  The end of the save arrives later as the page event 'dentora:saved' with this id. */
+        @JavascriptInterface
+        public String saveEnd(String id, String size, String crc) {
+            return host.endSave(id, WebFiles.parseLong(size, -1), WebFiles.parseLong(crc, -1));
+        }
+
+        @JavascriptInterface
+        public void saveAbort(String id) { host.abortSave(id); }
 
         @JavascriptInterface
         public void print() { host.runOnUiThread(new PrintPage(host)); }

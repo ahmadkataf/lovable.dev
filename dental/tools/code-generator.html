@@ -47,6 +47,12 @@
     .keybox.ok { border-color: #ABE9DD; background: #F4FCFA; }
     .keybox.missing { border-color: #FDE68A; background: #FFFBEB; }
     .keybox b { display: block; margin-bottom: 2px; }
+    .keybox .check { flex-direction: row; align-items: center; gap: 8px; margin-top: 8px; font-weight: 500; color: var(--text-2); }
+    .keybox .check input { width: auto; min-height: 0; accent-color: var(--p); }
+    .notice { margin-bottom: 16px; padding: 14px 16px; border-radius: 16px; background: var(--bad-soft); border: 1px solid #FECACA; color: #7F1D1D; font-size: 14px; }
+    .notice b { display: block; margin-bottom: 4px; }
+    .reset-card { margin-top: 16px; }
+    .pill.reset { background: var(--warn-soft); color: var(--warn); }
     textarea.codefield { min-height: 96px; font-size: 13px; letter-spacing: .3px; }
     form[aria-disabled="true"] { opacity: .5; pointer-events: none; }
     .meta { text-align: center; color: var(--text-2); font-size: 13.5px; margin: 8px 0 12px; }
@@ -85,15 +91,22 @@
       <span class="private">أداة خاصة بالبائع — لا تُرسلها لأي عيادة</span>
     </header>
 
+    <div class="notice hidden" id="key-legacy" role="alert">
+      <b>حُذف مفتاحك الخاص من ذاكرة المتصفح الدائمة.</b>
+      كانت نسخة سابقة من هذه الصفحة تحفظه هناك، حيث يستطيع أي ملف HTML آخر يُفتح على هذا الجهاز قراءته. هذه النسخة لا تحفظه إلا في ذاكرة الصفحة.
+      إن كنت قد حمّلت المفتاح في متصفحك اليومي، فأنشئ مفتاحاً جديداً بالأمر <span class="ltr mono">node scripts/code-generator.mjs keygen</span> قبل إصدار رموز للعملاء.
+    </div>
+
     <section class="card keybox missing" id="keybox">
       <div class="grow">
         <b id="key-title">حمّل مفتاحك الخاص أولاً</b>
-        <span class="sub" id="key-sub">الملف license-private.jwk الذي استلمته مع البرنامج. يُحفظ في هذا المتصفح فقط ولا يُرسل إلى أي مكان. بدونه لا يمكن إنشاء رموز، ولا يستطيع أحد صنعها من التطبيق نفسه.</span>
+        <span class="sub" id="key-sub">الملف license-private.jwk الذي استلمته مع البرنامج. يبقى في ذاكرة هذه الصفحة فقط ويُنسى عند إغلاقها، ولا يُرسل إلى أي مكان. بدونه لا يمكن إنشاء رموز، ولا يستطيع أحد صنعها من التطبيق نفسه.</span>
+        <label class="check" id="key-session-wrap"><input type="checkbox" id="key-session" /> احتفظ به حتى إغلاق هذا التبويب (لا تفتح ملفات أخرى في التبويب نفسه)</label>
         <span class="err" id="key-err"></span>
       </div>
       <input type="file" id="key-file" accept=".jwk,.json,application/json" class="hidden" />
       <button class="primary" type="button" id="key-load">تحميل المفتاح</button>
-      <button class="danger small hidden" type="button" id="key-remove">إزالة المفتاح من هذا المتصفح</button>
+      <button class="danger small hidden" type="button" id="key-remove">إزالة المفتاح من الصفحة</button>
     </section>
 
     <div class="grid">
@@ -161,6 +174,35 @@
       </section>
     </div>
 
+    <section class="card reset-card" id="reset-card">
+      <h2><span class="n">3</span>رمز إعادة تعيين رمز الدخول</h2>
+      <p class="sub" style="margin:-6px 0 14px">حين ينسى مدير العيادة الوحيد رمز دخوله: يرسل لك رقم الجهاز الظاهر في شاشة الدخول ← «نسيت رمز الدخول؟». يعمل الرمز على ذلك الجهاز فقط، اليوم وغداً، ولمرة واحدة، ولا يغيّر شيئاً في بيانات العيادة.</p>
+      <form id="reset" novalidate>
+        <div class="fields">
+          <label>رقم الجهاز
+            <input id="r-device" class="mono ltr" placeholder="XXXX-XXXX" autocomplete="off" spellcheck="false" />
+            <span class="err" id="r-device-err"></span>
+          </label>
+          <label>اسم العيادة / ملاحظة
+            <input id="r-note" placeholder="مثال: عيادة الابتسامة — دمشق" autocomplete="off" />
+          </label>
+        </div>
+        <div class="actions"><button class="primary" type="submit" id="reset-btn">إنشاء رمز إعادة التعيين</button></div>
+      </form>
+      <div class="result hidden" id="r-result">
+        <div class="code mono ltr" id="r-code"></div>
+        <div class="meta" id="r-meta"></div>
+        <label>رسالة جاهزة للعيادة
+          <textarea id="r-message" readonly></textarea>
+        </label>
+        <div class="actions">
+          <button class="secondary" type="button" id="r-copy-code">نسخ الرمز</button>
+          <button class="secondary" type="button" id="r-copy-msg">نسخ الرسالة</button>
+          <a class="btn wa" id="r-wa" href="#" target="_blank" rel="noopener">إرسال عبر واتساب</a>
+        </div>
+      </div>
+    </section>
+
     <section class="card log">
       <div class="log-head">
         <h2>سجل الرموز الصادرة <span class="sub" id="count"></span></h2>
@@ -175,7 +217,7 @@
         <div class="empty" id="empty">لم تُصدر أي رموز بعد. يُحفظ السجل في هذا المتصفح فقط؛ صدّره إلى CSV بين حين وآخر.</div>
       </div>
     </section>
-    <footer>Dentora · مولّد الرموز يعمل محلياً بالكامل ولا يرسل أي بيانات.</footer>
+    <footer>Dentora · مولّد الرموز يعمل محلياً بالكامل ولا يرسل أي بيانات. المفتاح الخاص لا يُحفظ في المتصفح.</footer>
   </div>
   <div class="toast" id="toast" role="status"></div>
   <script type="module" src="./code-generator.ts"></script>

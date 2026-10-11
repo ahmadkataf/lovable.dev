@@ -1,14 +1,15 @@
 /** Alerts: today's remaining appointments, unconfirmed ones for tomorrow, late lab work, overdue invoices, stock, birthdays, recalls. */
 import { useEffect, useState, type ReactNode } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { CalendarClock, CalendarX2, Cake, CheckCheck, ChevronRight, Clock, FlaskConical, Hourglass, MessageCircle, PackageMinus, PackageX, Receipt, RotateCcw, UserRoundCheck } from 'lucide-react'
+import { CalendarClock, CalendarX2, Cake, CheckCheck, ChevronRight, Clock, DatabaseBackup, FlaskConical, Hourglass, MessageCircle, PackageMinus, PackageX, Receipt, RotateCcw, UserRoundCheck } from 'lucide-react'
 import { useI18n } from '@/i18n'
 import { useClinic, useMoney, useUsers } from '@/app/hooks'
 import { Badge, Drawer, EmptyState, IconBox, IconButton, Skeleton, type Tone } from '@/ui'
 import { openExternal } from '@/platform'
 import { whatsappLink } from '@/lib/format'
 import { addDays, fmtDate, fmtTime } from '@/lib/dates'
-import { markSeen, RECALL_MONTHS, unseenCount, useAlertPerms, useAlerts, useImportantIds, useNow, useSeen, type Alerts } from './alerts'
+import { isSeen, markSeen, RECALL_MONTHS, unseenCount, useAlertPerms, useAlerts, useImportantIds, useNow, useSeen, type Alerts } from './alerts'
+import { qtyWithUnit } from '@/features/inventory/parts'
 import { plural } from './lib'
 import './search.css'
 
@@ -18,10 +19,13 @@ interface Row {
   icon: ReactNode
   title: ReactNode
   desc: ReactNode
-  to: string
+  /** where a tap leads; none = an information row */
+  to?: string
   end?: ReactNode
   isNew?: boolean
   action?: { label: string; icon: ReactNode; onClick: () => void }
+  /** a message rather than a record: its title wraps instead of being cut */
+  wrap?: boolean
 }
 interface Group { key: string; title: string; sub?: ReactNode; count: number; tone: Tone; rows: Row[]; more?: { to: string; n: number } }
 
@@ -62,9 +66,22 @@ function Panel({ onClose }: { onClose: () => void }) {
     const pname = (id: string) => a.patients.get(id)?.name ?? '—'
     const days = (n: number) => plural(t, lang, 'search.days', Math.abs(n))
     const clinicName = (lang === 'en' ? clinic.nameEn || clinic.name : clinic.name) || t('appName')
-    const unit = (u?: string) => { if (!u) return ''; const s = t(`inventory.unit.${u}`); return s === `unit.${u}` ? u : s }
     const out: Group[] = []
 
+    if (a.backup) {
+      const b = a.backup
+      out.push({
+        key: 'backup', title: t('search.g.backup'), count: 1, tone: b.kind === 'never' ? 'danger' : 'warning',
+        rows: [{
+          key: 'backup', tone: b.kind === 'never' ? 'danger' : 'warning', icon: <DatabaseBackup />, isNew: !isSeen(seenAtOpen, b.id),
+          title: b.kind === 'never' ? t('search.backup.never') : t('search.backup.old', { n: b.days ?? 0 }),
+          desc: perms.settings ? t('search.backup.desc') : t('search.backup.askAdmin'),
+          to: perms.settings ? '/settings/backup' : undefined,
+          end: perms.settings ? <span className="ntf-time soon">{t('search.backup.action')}</span> : undefined,
+          wrap: true,
+        }],
+      })
+    }
     if (perms.appointments && a.todayApts.length) {
       const nowIso = now.toISOString()
       out.push({
@@ -96,7 +113,7 @@ function Panel({ onClose }: { onClose: () => void }) {
           const doctor = doctors.get(apt.doctorId)
           const time = fmtTime(apt.start, lang)
           return {
-            key: `unconf:${apt.id}`, tone: 'warning', icon: <CalendarClock />, isNew: !seenAtOpen.has(`apt:${apt.id}`),
+            key: `unconf:${apt.id}`, tone: 'warning', icon: <CalendarClock />, isNew: !isSeen(seenAtOpen, `apt:${apt.id}`),
             title: <bdi>{pname(apt.patientId)}</bdi>,
             desc: <><bdi>{time}</bdi><Sep />{t(`aptType.${apt.type}`)}{doctor && <><Sep /><bdi>{doctor}</bdi></>}</>,
             to: `/appointments?date=${tomorrow}&view=day`,
@@ -110,7 +127,7 @@ function Panel({ onClose }: { onClose: () => void }) {
         key: 'lab', title: t('search.g.lab'), count: a.lab.length, tone: a.lab.some(l => l.kind === 'overdue') ? 'danger' : 'purple',
         more: a.lab.length > 4 ? { to: '/lab', n: a.lab.length } : undefined,
         rows: a.lab.slice(0, 4).map(({ order, kind, days: d }) => ({
-          key: `lab:${order.id}`, tone: kind === 'overdue' ? 'danger' : 'purple', icon: <FlaskConical />, isNew: kind === 'overdue' && !seenAtOpen.has(`lab:${order.id}`),
+          key: `lab:${order.id}`, tone: kind === 'overdue' ? 'danger' : 'purple', icon: <FlaskConical />, isNew: kind === 'overdue' && !isSeen(seenAtOpen, `lab:${order.id}`),
           title: <>{t(`labType.${order.type}`)}<Sep /><bdi>{pname(order.patientId)}</bdi></>,
           desc: <><bdi>{order.labName}</bdi><Sep />{kind === 'today' ? t('search.lab.dueToday') : t('search.lab.late', { d: days(d) })}</>,
           to: '/lab',
@@ -123,7 +140,7 @@ function Panel({ onClose }: { onClose: () => void }) {
         sub: <>{t('search.g.overdueSub')} <span className="money">{money(a.overdue.totalDue)}</span></>,
         more: a.overdue.list.length > 4 ? { to: '/invoices', n: a.overdue.list.length } : undefined,
         rows: a.overdue.list.slice(0, 4).map(({ invoice, due, days: d, basis }) => ({
-          key: `inv:${invoice.id}`, tone: 'danger', icon: <Receipt />, isNew: !seenAtOpen.has(`inv:${invoice.id}`),
+          key: `inv:${invoice.id}`, tone: 'danger', icon: <Receipt />, isNew: !isSeen(seenAtOpen, `inv:${invoice.id}`),
           title: <bdi>{pname(invoice.patientId)}</bdi>,
           desc: <><span className="ltr">{invoice.number}</span><Sep />{t(basis === 'dueDate' ? 'search.overdue.dueAgo' : 'search.overdue.issuedAgo', { d: days(d) })}</>,
           end: <span className="money neg">{money(due)}</span>,
@@ -141,9 +158,9 @@ function Panel({ onClose }: { onClose: () => void }) {
           const out = item.quantity <= 0
           const exp = expiryOf.get(item.id)
           return {
-            key: `stock:${item.id}`, tone: out || exp?.kind === 'expired' ? 'danger' : 'warning', icon: out ? <PackageX /> : <PackageMinus />, isNew: !seenAtOpen.has(`stock:${item.id}`),
+            key: `stock:${item.id}`, tone: out || exp?.kind === 'expired' ? 'danger' : 'warning', icon: out ? <PackageX /> : <PackageMinus />, isNew: !isSeen(seenAtOpen, `stock:${item.id}`),
             title: <bdi>{item.name}</bdi>,
-            desc: <>{out ? t('search.stock.out') : t('search.stock.low', { q: `${item.quantity} ${unit(item.unit)}`.trim(), min: item.minQuantity })}{exp && <><Sep />{expiryText(exp)}</>}</>,
+            desc: <>{out ? t('search.stock.out') : t('search.stock.low', { q: qtyWithUnit(t, lang, item.quantity, item.unit), min: qtyWithUnit(t, lang, item.minQuantity, item.unit) })}{exp && <><Sep />{expiryText(exp)}</>}</>,
             to: '/inventory',
           }
         }),
@@ -203,15 +220,18 @@ function Panel({ onClose }: { onClose: () => void }) {
             </div>
             <div className="ntf-list">
               {g.rows.map(r => (
-                <div key={r.key} className="ntf-row">
-                  <button type="button" className="ntf-main" onClick={() => go(r.to)}>
-                    <IconBox tone={r.tone}>{r.icon}</IconBox>
-                    <span className="ntf-text">
-                      <span className="ntf-title"><span className="t">{r.title}</span>{r.isNew && <span className="ntf-new" role="img" aria-label={t('search.notif.new')} title={t('search.notif.new')} />}</span>
-                      <span className="ntf-desc">{r.desc}</span>
-                    </span>
-                    {r.end && <span className="ntf-end">{r.end}</span>}
-                  </button>
+                <div key={r.key} className={`ntf-row${r.wrap ? ' ntf-row-wrap' : ''}`}>
+                  {(() => {
+                    const inner = <>
+                      <IconBox tone={r.tone}>{r.icon}</IconBox>
+                      <span className="ntf-text">
+                        <span className="ntf-title"><span className="t">{r.title}</span>{r.isNew && <span className="ntf-new" role="img" aria-label={t('search.notif.new')} title={t('search.notif.new')} />}</span>
+                        <span className="ntf-desc">{r.desc}</span>
+                      </span>
+                      {r.end && <span className="ntf-end">{r.end}</span>}
+                    </>
+                    return r.to ? <button type="button" className="ntf-main" onClick={() => go(r.to!)}>{inner}</button> : <div className="ntf-main ntf-info">{inner}</div>
+                  })()}
                   {r.action && <span className="ntf-action"><IconButton variant="ghost" size="sm" label={r.action.label} onClick={r.action.onClick}>{r.action.icon}</IconButton></span>}
                 </div>
               ))}

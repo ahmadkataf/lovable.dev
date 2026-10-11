@@ -1,20 +1,32 @@
-// Data for the command palette. Patients (without photos), upcoming appointments and a slim list of invoices
-// load once per opening and are searched in memory on every keystroke (no database work while typing).
-// The last load is kept in memory, so the next opening shows results at once while a fresh copy loads.
-import { useMemo } from 'react'
+// Data for the command palette, without reading whole tables on every opening:
+// - patients come from the shared in-memory patient index (read once per session, then patched from Dexie's change
+//   events; no photos, no medical text), turned into a search index that is kept as long as that list does not change;
+// - invoices: only the invoice-number index keys are read on opening (strings, no records); typing then fetches the
+//   few invoices whose number matches and those of the best-matching patients, by index;
+// - upcoming appointments (from today on) are read once per opening.
+import { useMemo, useRef } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '@/db'
-import type { Appointment } from '@/db/types'
-import { indexPatient, rankPatients, searchInvoices, tokens, type PatientIndex, type Ranked, type SearchInvoice, type SearchPatient } from './lib'
+import type { Appointment, Invoice } from '@/db/types'
+import { usePatientIndex, type SlimPatient as SharedPatient } from '@/features/billing/patientIndex'
+import { indexPatient, invoiceMatcher, looksLikeNumber, rankPatients, searchInvoices, tokens, type PatientIndex, type Ranked, type SearchInvoice } from './lib'
 import { useToday } from './alerts'
 
 export const LIMIT = { patients: 8, appointments: 5, invoices: 5 }
 
-export interface SlimPatient extends SearchPatient { hasPhoto: boolean }
-interface Base { index: PatientIndex<SlimPatient>[]; byId: Map<string, SlimPatient>; apts: Appointment[] }
+/** A patient of the shared index (national id included once the index carries it). */
+export type SlimPatient = SharedPatient & { nationalId?: string }
 export interface SearchPerms { patients: boolean; appointments: boolean; billing: boolean }
 
-// last result of each query, per signed-in role and day (module memory only: never persisted)
+// The search index of the last patient list seen (module memory only: never persisted). Rebuilt only when the shared
+// list changes (a patient added or edited), not on every opening of the palette.
+let prepared: { src: SharedPatient[]; index: PatientIndex<SlimPatient>[] } | null = null
+function searchIndexOf(list: SharedPatient[]): PatientIndex<SlimPatient>[] {
+  if (prepared?.src !== list) prepared = { src: list, index: list.map(p => indexPatient(p as SlimPatient)) }
+  return prepared.index
+}
+
+// last result of each query, per signed-in role and day (module memory only)
 const cache = new Map<string, unknown>()
 /** The live value, or the last one seen while it loads; `fresh` is false until this opening's own read lands. */
 function useCachedLiveQuery<T>(key: string, query: () => Promise<T>, deps: unknown[]): { value: T | undefined; fresh: boolean } {
@@ -23,35 +35,17 @@ function useCachedLiveQuery<T>(key: string, query: () => Promise<T>, deps: unkno
   return { value: live ?? (cache.get(key) as T | undefined), fresh: live !== undefined }
 }
 
-function useBase(perms: SearchPerms): { value: Base | undefined; fresh: boolean } {
-  const today = useToday()
-  const needPatients = perms.patients || perms.appointments || perms.billing
-  return useCachedLiveQuery(`base:${today}:${needPatients}:${perms.appointments}`, async () => {
-    const [patients, apts] = await Promise.all([
-      needPatients ? db.patients.toArray() : Promise.resolve([]),
-      perms.appointments ? db.appointments.where('date').aboveOrEqual(today).toArray() : Promise.resolve([] as Appointment[]),
-    ])
-    // keep the light fields only: photos are fetched for the few rows on screen
-    const slim: SlimPatient[] = patients.map(p => ({
-      id: p.id, name: p.name, fileNo: p.fileNo, phone: p.phone, phone2: p.phone2, nationalId: p.nationalId,
-      archived: p.archived, lastVisit: p.lastVisit, gender: p.gender, birthDate: p.birthDate, hasPhoto: !!p.photo,
-    }))
-    return {
-      index: slim.map(indexPatient),
-      byId: new Map(slim.map(p => [p.id, p])),
-      apts: apts.filter(a => a.status !== 'cancelled' && a.status !== 'no_show').sort((a, b) => (a.start < b.start ? -1 : a.start > b.start ? 1 : 0)),
-    }
-  }, [today, needPatients, perms.appointments])
+/** The best `limit` invoice numbers for a query (exact serial first), from the number index keys. */
+export function bestNumbers(numbers: string[], q: string, limit = 20): string[] {
+  const text = q.trim()
+  if (!text || !(looksLikeNumber(text) || text.length >= 3)) return []
+  const match = invoiceMatcher(text)
+  const hits: { n: string; s: number }[] = []
+  for (const n of numbers) { const s = match(n); if (s) hits.push({ n, s }) }
+  hits.sort((a, b) => b.s - a.s || (a.n < b.n ? 1 : -1))
+  return [...new Set(hits.slice(0, limit).map(h => h.n))]
 }
-
-/** Every invoice, light fields only (one getAll per opening: far cheaper than walking the number index per keystroke). */
-function useInvoices(billing: boolean): { value: SearchInvoice[] | undefined; fresh: boolean } {
-  return useCachedLiveQuery(`invoices:${billing}`, async () => {
-    if (!billing) return [] as SearchInvoice[]
-    const rows = await db.invoices.toArray()
-    return rows.map(({ id, number, patientId, date, total, status }) => ({ id, number, patientId, date, total, status }))
-  }, [billing])
-}
+const slimInvoice = ({ id, number, patientId, date, total, status }: Invoice): SearchInvoice => ({ id, number, patientId, date, total, status })
 
 export interface SearchResults {
   ready: boolean                                   // this opening's own data has loaded (results may show earlier, from the last opening)
@@ -63,28 +57,56 @@ export interface SearchResults {
 }
 
 export function useSearch(q: string, perms: SearchPerms, doctorNames: Map<string, string>): SearchResults {
-  const { value: base, fresh: baseFresh } = useBase(perms)
-  const { value: invoiceList, fresh: invoicesFresh } = useInvoices(perms.billing)
+  const today = useToday()
+  const needPatients = perms.patients || perms.appointments || perms.billing
+  const shared = usePatientIndex(needPatients)
+  const index = useMemo(() => (shared ? searchIndexOf(shared.list) : undefined), [shared])
+  const byId = (shared?.byId ?? NO_PATIENTS) as Map<string, SlimPatient>
+
+  const { value: apts, fresh: aptsFresh } = useCachedLiveQuery(`apts:${today}:${perms.appointments}`, async () => {
+    if (!perms.appointments) return [] as Appointment[]
+    const list = await db.appointments.where('date').aboveOrEqual(today).toArray()
+    return list.filter(a => a.status !== 'cancelled' && a.status !== 'no_show').sort((a, b) => (a.start < b.start ? -1 : a.start > b.start ? 1 : 0))
+  }, [today, perms.appointments])
+  // the invoice numbers only (index keys: no invoice is read until something matches)
+  const { value: numbers, fresh: numbersFresh } = useCachedLiveQuery(`invnums:${perms.billing}`, async () => (
+    perms.billing ? (await db.invoices.orderBy('number').keys()).map(String) : []
+  ), [perms.billing])
+
   const has = tokens(q).length > 0
   // every matching patient (for appointments / invoices), then the top ones for the list
-  const ranked = useMemo(() => (base && has ? rankPatients(base.index, q) : []), [base, q, has])
+  const ranked = useMemo(() => (index && has ? rankPatients(index, q) : []), [index, q, has])
   const patients = useMemo(() => (perms.patients ? ranked.slice(0, LIMIT.patients) : []), [ranked, perms.patients])
 
   const appointments = useMemo(() => {
-    if (!base || !has || !perms.appointments) return []
+    if (!apts || !has || !perms.appointments) return []
     const score = new Map(ranked.map(r => [r.item.id, r.score]))
     const docs = new Set<string>()
     for (const [id, name] of doctorNames) if (rankPatients([indexPatient({ id, name, fileNo: -1 })], q).length) docs.add(id)
     // the patient's own appointments first, then the doctor's (both by time)
-    const own = base.apts.filter(a => score.has(a.patientId))
-    const byDoctor = docs.size ? base.apts.filter(a => !score.has(a.patientId) && docs.has(a.doctorId)) : []
+    const own = apts.filter(a => score.has(a.patientId))
+    const byDoctor = docs.size ? apts.filter(a => !score.has(a.patientId) && docs.has(a.doctorId)) : []
     return [...own, ...byDoctor].slice(0, LIMIT.appointments)
-  }, [base, ranked, has, q, perms.appointments, doctorNames])
+  }, [apts, ranked, has, q, perms.appointments, doctorNames])
 
-  const invoices = useMemo(() => {
-    if (!invoiceList || !has || !perms.billing) return NO_INVOICES
-    return searchInvoices(invoiceList, q, ranked.slice(0, 10).map(r => r.item.id), LIMIT.invoices)
-  }, [invoiceList, has, perms.billing, q, ranked])
+  // invoices: the numbers that match and the invoices of the best-matching patients, fetched by index
+  const topIds = ranked.slice(0, 10).map(r => r.item.id).join(',')
+  const wanted = useMemo(() => (perms.billing && has && numbers ? bestNumbers(numbers, q) : []), [perms.billing, has, numbers, q])
+  const found = useLiveQuery(async () => {
+    if (!perms.billing || !has) return NO_INVOICES
+    const ids = topIds ? topIds.split(',') : []
+    const [byNumber, byPatient] = await Promise.all([
+      wanted.length ? db.invoices.where('number').anyOf(wanted).toArray() : Promise.resolve([] as Invoice[]),
+      ids.length ? db.invoices.where('patientId').anyOf(ids).toArray() : Promise.resolve([] as Invoice[]),
+    ])
+    const rows = new Map<string, SearchInvoice>()
+    for (const inv of [...byNumber, ...byPatient]) rows.set(inv.id, slimInvoice(inv))
+    return searchInvoices([...rows.values()], q, ids, LIMIT.invoices)
+  }, [perms.billing, has, q, topIds, wanted.join('|')])
+  // keep the last list while the next keystroke's invoices load, so the group does not blink
+  const lastInvoices = useRef(NO_INVOICES)
+  if (found !== undefined) lastInvoices.current = found
+  const invoices = !perms.billing || !has ? NO_INVOICES : found ?? lastInvoices.current
 
   const photoIds = useMemo(() => {
     const ids = new Set<string>()
@@ -99,12 +121,11 @@ export function useSearch(q: string, perms: SearchPerms, doctorNames: Map<string
     return m
   }, [photoIds])
 
-  const ready = baseFresh && invoicesFresh
+  const ready = (!needPatients || !!index) && aptsFresh && numbersFresh
   return useMemo(() => ({
-    ready, patients, appointments, invoices,
-    byId: base?.byId ?? NO_PATIENTS,
+    ready, patients, appointments, invoices, byId,
     photos: photos ?? NO_PHOTOS,
-  }), [ready, patients, appointments, invoices, base, photos])
+  }), [ready, patients, appointments, invoices, byId, photos])
 }
 const NO_INVOICES: { invoice: SearchInvoice; score: number }[] = []
 const NO_PATIENTS = new Map<string, SlimPatient>()

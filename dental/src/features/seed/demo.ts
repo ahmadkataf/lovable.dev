@@ -1,5 +1,6 @@
 // Default catalogue and realistic demo data.
-//   seedDefaults()  — procedures, drugs and inventory for a fresh clinic (idempotent: a table that has rows is skipped).
+//   seedDefaults()  — procedures and drugs for a fresh clinic (idempotent: a table that has rows is skipped). Stock items
+//                     only on request ({ inventory: true }, the demo clinic): a real clinic never starts with invented stock.
 //   loadDemoData()  — a living clinic: doctors, ~60 patients, ~300 appointments over the last 90 days and the next 21,
 //                     charts, treatment plans, invoices and payments, prescriptions, lab work, stock, expenses, notes
 //                     and the activity feed. Deterministic (seeded PRNG), so screenshots are reproducible.
@@ -15,15 +16,16 @@ import { hashPin, randomHex } from '@/lib/crypto'
 import { addDays, addMonths, combine, diffDays, endOfMonth, fromISODate, minutesToTime, startOfMonth, timeToMinutes, toISODate } from '@/lib/dates'
 import { formatMoney, round2 } from '@/lib/format'
 import common from '@/i18n/common'
-import { DEFAULT_DRUGS, DEFAULT_INVENTORY, DEFAULT_PROCEDURES, priceScale, scaleCost, scalePrice } from './catalog'
+import { DEFAULT_DRUGS, DEFAULT_INVENTORY, DEFAULT_PROCEDURES, INVENTORY_EN, catalogueEntry, priceScale, scaleCost, scalePrice } from './catalog'
+import { takeRef } from '@/features/prescriptions/numbers'
 import {
   alignersCase, bracesCase, bridgeCase, checkupCase, consultCase, dentureCase, effectOf, emergencyCase, endoCrownCase, fillingsCase, implantCase, nightGuardCase,
   pediatricCase, perioCase, proposalCase, rxFor, veneersCase, whiteningCase, wisdomCase,
   type CaseCtx, type CaseDef, type DoctorRole, type Finding, type StepDef, type StepItem,
 } from './cases'
 import {
-  ALLERGIES, ARABIC_MONTHS, BLOOD_TYPES, BOY_NAMES, CONDITIONS, DEMO_DOCTORS, FAMILY_NAMES, FEMALE_NAMES, GIRL_NAMES, INSURERS, MALE_NAMES, OCCUPATIONS_FEMALE,
-  OCCUPATIONS_MALE, PLACES, REFERRALS, type NameEntry,
+  ALLERGIES, ARABIC_MONTHS, BLOOD_TYPES, BOY_NAMES, CONDITIONS, DEMO_DOCTORS, DEMO_DOCTORS_EN, EN, ENGLISH_MONTHS, FAMILY_NAMES, FEMALE_NAMES, GIRL_NAMES, INSURERS,
+  MALE_NAMES, OCCUPATIONS_FEMALE, OCCUPATIONS_MALE, PLACES, REFERRALS, type NameEntry,
 } from './names'
 import { DEMO_SEED, Rng } from './rng'
 
@@ -32,43 +34,51 @@ import { DEMO_SEED, Rng } from './rng'
 // ================================================================================================
 
 export interface DefaultsCounts { procedures: number; drugs: number; inventory: number }
+/** procedures and drugs are added unless set to false; the sample stock list only with inventory: true (demo data). */
 export interface SeedDefaultsOptions { procedures?: boolean; drugs?: boolean; inventory?: boolean }
 
-/** Fills the procedure list, the drug list and the inventory of a fresh clinic. Tables that already have rows are left alone. */
+/**
+ * Fills the procedure list and the drug list of a fresh clinic (and, for the demo clinic only, a sample stock list).
+ * Tables that already have rows are left alone.
+ */
 export async function seedDefaults(opts: SeedDefaultsOptions = {}): Promise<DefaultsCounts> {
   const clinic = await getClinic()
   const cur = clinic.currency, dec = clinic.currencyDecimals
+  const en = clinic.lang === 'en'
   const now = nowISO(), today = todayISO()
   const out: DefaultsCounts = { procedures: 0, drugs: 0, inventory: 0 }
   await db.transaction('rw', [db.procedures, db.drugs, db.inventory, db.stock], async () => {
     if (opts.procedures !== false && (await db.procedures.count()) === 0) {
       const rows: Procedure[] = DEFAULT_PROCEDURES.map((p, i) => ({
-        id: newId(), code: p.code, name: p.name, nameEn: p.nameEn, category: p.category, price: scalePrice(p.price, cur, dec), durationMin: p.durationMin,
+        id: newId(), name: p.name, nameEn: p.nameEn, category: p.category, price: scalePrice(p.price, cur, dec), durationMin: p.durationMin,
         toothSpecific: p.toothSpecific, active: true, sortOrder: (i + 1) * 10, createdAt: now, updatedAt: now,
       }))
       await db.procedures.bulkAdd(rows)
       out.procedures = rows.length
     }
     if (opts.drugs !== false && (await db.drugs.count()) === 0) {
+      // the defaults print on prescriptions as they are: in the language the clinic works in
       const rows: Drug[] = DEFAULT_DRUGS.map(d => ({
-        id: newId(), name: d.name, nameEn: d.nameEn, form: d.form, strength: d.strength, defaultDose: d.dose, defaultFrequency: d.frequency,
-        defaultDuration: d.duration, defaultInstructions: d.instructions, active: true, createdAt: now,
+        id: newId(), name: d.name, nameEn: d.nameEn, form: en ? d.en.form : d.form, strength: en ? d.en.strength ?? d.strength : d.strength,
+        defaultDose: en ? d.en.dose : d.dose, defaultFrequency: en ? d.en.frequency : d.frequency, defaultDuration: en ? d.en.duration : d.duration,
+        defaultInstructions: en ? d.en.instructions : d.instructions, active: true, createdAt: now,
       }))
       await db.drugs.bulkAdd(rows)
       out.drugs = rows.length
     }
-    if (opts.inventory !== false && (await db.inventory.count()) === 0) {
+    if (opts.inventory === true && (await db.inventory.count()) === 0) {
       const items: InventoryItem[] = []
       const moves: StockMovement[] = []
       for (const d of DEFAULT_INVENTORY) {
+        const tr = (x?: string) => (x && en ? INVENTORY_EN[x] ?? EN[x] ?? x : x)
         const item: InventoryItem = {
-          id: newId(), name: d.name, category: d.category, sku: d.sku, unit: d.unit, quantity: d.quantity, minQuantity: d.minQuantity,
-          costPrice: scaleCost(d.costPrice, cur), supplier: d.supplier, location: d.location, notes: d.notes, active: true, createdAt: now, updatedAt: now,
+          id: newId(), name: tr(d.name)!, category: d.category, sku: d.sku, unit: d.unit, quantity: d.quantity, minQuantity: d.minQuantity,
+          costPrice: scaleCost(d.costPrice, cur), supplier: tr(d.supplier), location: tr(d.location), notes: tr(d.notes), active: true, createdAt: now, updatedAt: now,
         }
         if (d.expiryDays !== undefined) item.expiryDate = addDays(today, d.expiryDays)
         items.push(clean(item))
         // the opening quantity is recorded as an 'initial' movement, as the inventory screen does
-        moves.push({ id: newId(), itemId: item.id, delta: d.quantity, reason: 'initial', date: today, note: OPENING_NOTE, createdAt: now })
+        moves.push({ id: newId(), itemId: item.id, delta: d.quantity, reason: 'initial', date: today, note: en ? EN[OPENING_NOTE] : OPENING_NOTE, createdAt: now })
       }
       await db.inventory.bulkAdd(items)
       await db.stock.bulkAdd(moves)
@@ -78,6 +88,10 @@ export async function seedDefaults(opts: SeedDefaultsOptions = {}): Promise<Defa
   return out
 }
 const OPENING_NOTE = 'رصيد افتتاحي'
+/** Work postponed for the pregnant demo patient: X-rays, surgery, implants, gum surgery, whitening and veneers. */
+const PREGNANCY_AVOIDED = new Set(['xray-pa', 'xray-bitewing', 'xray-opg', 'cbct', 'ext-simple', 'ext-surgical', 'ext-wisdom', 'ext-root', 'child-ext', 'abscess-drain', 'socket-graft',
+  'sinus-lift', 'implant', 'implant-premium', 'implant-uncover', 'implant-crown', 'implant-maint', 'gingivectomy', 'crown-lengthening', 'whitening-office', 'whitening-home',
+  'veneer-porcelain', 'veneer-composite', 'smile-design'])
 
 // ================================================================================================
 // loadDemoData
@@ -114,13 +128,13 @@ export async function loadDemoData(opts: DemoOptions = {}): Promise<DemoCounts> 
 
   await progress('defaults')
   await ensureClinic()
-  const seeded = await seedDefaults()
+  const seeded = await seedDefaults({ inventory: true })
   const clinic = await getClinic()
 
   await progress('staff')
   const nowMs = opts.now ? opts.now.getTime() : Date.now()
   const existingUsers = await db.users.toArray()
-  const newUsers = await makeDoctors(existingUsers, nowMs)
+  const newUsers = await makeDoctors(existingUsers, nowMs, clinic.lang === 'en')
   const [procedures, drugs, inventory, stock] = await Promise.all([db.procedures.toArray(), db.drugs.toArray(), db.inventory.toArray(), db.stock.toArray()])
 
   await progress('patients')
@@ -139,7 +153,7 @@ export async function loadDemoData(opts: DemoOptions = {}): Promise<DemoCounts> 
 
   await progress('saving')
   const out = await db.transaction('rw', [db.clinic, db.users, db.patients, db.appointments, db.procedures, db.teeth, db.plans, db.treatments, db.invoices, db.payments,
-    db.drugs, db.prescriptions, db.labOrders, db.inventory, db.stock, db.expenses, db.notes, db.activity], async () => {
+    db.drugs, db.prescriptions, db.labOrders, db.inventory, db.stock, db.expenses, db.notes, db.activity, db.settings], async () => {
     if ((await db.patients.count()) >= 3) return null
     // file numbers continue the clinic's sequence
     const c0 = await getClinic()
@@ -148,6 +162,11 @@ export async function loadDemoData(opts: DemoOptions = {}): Promise<DemoCounts> 
     for (const p of [...g.patients].sort((a, b) => a.createdAt.localeCompare(b.createdAt) || a.name.localeCompare(b.name))) p.fileNo = fileNo++
     // issued invoice numbers in date order, through the clinic counter
     for (const inv of g.numbered()) inv.number = await nextInvoiceNumber()
+    // prescriptions and lab orders get their RX- / LAB- references in the order they were written
+    const byCreated = <T extends { createdAt: string }>(list: T[]) => [...list].sort((a, b) => (a.createdAt < b.createdAt ? -1 : a.createdAt > b.createdAt ? 1 : 0))
+    for (const rx of byCreated(g.prescriptions)) (rx as Prescription & { number?: string }).number = await takeRef('rx')
+    for (const o of byCreated(g.labOrders)) (o as LabOrder & { number?: string }).number = await takeRef('lab')
+    g.labExpenses()
     const c1 = await getClinic()
     await db.clinic.put({ ...c1, nextFileNumber: fileNo, updatedAt: nowISO() })
     const activity = g.activityRows()
@@ -181,11 +200,12 @@ export async function loadDemoData(opts: DemoOptions = {}): Promise<DemoCounts> 
 }
 
 /** Creates 'د. ليلى حداد' (orthodontist) and 'د. سامر عبود' when the clinic has fewer than two doctors. PIN 1234. */
-async function makeDoctors(users: User[], nowMs: number): Promise<User[]> {
+async function makeDoctors(users: User[], nowMs: number, en = false): Promise<User[]> {
   const doctors = users.filter(u => u.active && u.role === 'doctor')
   const out: User[] = []
   const at = new Date(nowMs - 400 * DAY).toISOString()
-  for (const d of DEMO_DOCTORS) {
+  for (const [i, d0] of DEMO_DOCTORS.entries()) {
+    const d = en ? { ...d0, ...DEMO_DOCTORS_EN[i] } : d0
     if (doctors.length + out.length >= 2) break
     if (users.some(u => u.name.trim() === d.name)) continue
     const salt = randomHex(8)
@@ -276,12 +296,14 @@ class Generator {
   readonly generalists: User[]
   readonly front: User           // books appointments and takes payments
   readonly admin: User
-  readonly procByCode = new Map<string, { id?: string; name: string; price: number; duration: number }>()
+  readonly procByCode = new Map<string, { id?: string; name: string; nameEn?: string; price: number; duration: number }>()
   readonly drugs: Drug[]
   readonly patientCount: number
   readonly cur: string
   readonly decimals: number
   readonly moneyStep: number
+  /** The clinic works in English: names, notes and messages are written in English. */
+  readonly en: boolean
 
   pcs: PCtx[] = []
   patients: Patient[] = []
@@ -306,6 +328,7 @@ class Generator {
   constructor(input: GenInput) {
     this.rng = new Rng(input.seed)
     this.clinic = input.clinic
+    this.en = input.clinic.lang === 'en'
     this.cur = input.clinic.currency
     this.decimals = input.clinic.currencyDecimals === 0 ? 0 : 2
     this.moneyStep = priceScale(this.cur, this.decimals).step
@@ -331,12 +354,22 @@ class Generator {
     this.generalists = gen.length ? gen : this.practitioners
     this.admin = active.find(u => u.role === 'admin') ?? this.practitioners[0]
     this.front = active.find(u => u.role === 'receptionist') ?? this.admin
-    this.practitioners.forEach((u, i) => this.chairs.set(u.id, `كرسي ${i + 1}`))
+    this.practitioners.forEach((u, i) => this.chairs.set(u.id, this.en ? `Chair ${i + 1}` : `كرسي ${i + 1}`))
 
-    for (const d of DEFAULT_PROCEDURES) this.procByCode.set(d.code, { name: d.name, price: this.price(d.price), duration: d.durationMin })
-    for (const p of input.procedures) if (p.code) this.procByCode.set(p.code, { id: p.id, name: p.name, price: p.price, duration: p.durationMin || this.procByCode.get(p.code)?.duration || 30 })
+    for (const d of DEFAULT_PROCEDURES) this.procByCode.set(d.key, { name: d.name, nameEn: d.nameEn, price: this.price(d.price), duration: d.durationMin })
+    // the clinic's own procedures (seeded from the same catalogue) are found by name
+    for (const p of input.procedures) {
+      const d = catalogueEntry(p)
+      if (d && !this.procByCode.get(d.key)?.id) this.procByCode.set(d.key, { id: p.id, name: p.name, nameEn: p.nameEn, price: p.price, duration: p.durationMin || d.durationMin || 30 })
+    }
     this.drugs = input.drugs
   }
+  /** A fixed Arabic phrase in the clinic's language (see names.ts EN). */
+  tx(ar: string): string { return this.en ? EN[ar] ?? ar : ar }
+  /** Arabic or English text, by the clinic's language. */
+  L(ar: string, en: string): string { return this.en ? en : ar }
+  dayLabel(date: string): string { return this.en ? dayLabelEn(date) : dayLabel(date) }
+  monthName(i: number): string { return (this.en ? ENGLISH_MONTHS : ARABIC_MONTHS)[i] }
 
   // ---- time helpers ---------------------------------------------------------------------------
   at(date: string, minutes: number): number { return new Date(combine(date, minutesToTime(minutes))).getTime() }
@@ -362,7 +395,7 @@ class Generator {
     return Math.max(this.at(date, 0), this.nowMs - this.rng.int(2, 30) * MIN)
   }
   isWorkDay(date: string): boolean { return date === this.today || this.workDays.has(fromISODate(date).getDay()) }
-  money(n: number): string { return formatMoney(n, this.clinic, 'ar') }
+  money(n: number): string { return formatMoney(n, this.clinic, this.en ? 'en' : 'ar') }
   price(usd: number): number { return scalePrice(usd, this.cur, this.decimals) }
   /** Rounded to the clinic's minor unit, as the billing screens do (0 or 2 decimals). */
   cents(n: number): number { return this.decimals === 0 ? Math.round(n) : round2(n) }
@@ -462,7 +495,7 @@ class Generator {
   }
 
   private buildCase(key: string, pc: PCtx): CaseDef {
-    const c: CaseCtx = { rng: this.rng, age: pc.age, gender: pc.p.gender, penicillinAllergy: pc.allergies.includes('البنسلين') }
+    const c: CaseCtx = { rng: this.rng, age: pc.age, gender: pc.p.gender, penicillinAllergy: pc.allergies.includes('البنسلين'), lang: this.en ? 'en' : 'ar' }
     switch (key) {
       case 'implant': return implantCase(c)
       case 'bridge': return bridgeCase(c)
@@ -523,6 +556,8 @@ class Generator {
       if (!usedNames.has(name) || tries > 20) break
     }
     usedNames.add(name)
+    // a clinic working in English writes its patients' names in Latin letters
+    if (this.en) name = [first[1], father?.[1], family[1]].filter(Boolean).map(w => w!.split(/([ -])/).map(x => x.charAt(0).toUpperCase() + x.slice(1)).join('')).join(' ')
     let phone = ''
     do { phone = `09${r.pick([3, 4, 5, 6, 8, 9])}${String(r.int(0, 9999999)).padStart(7, '0')}` } while (usedPhones.has(phone))
     usedPhones.add(phone)
@@ -530,7 +565,7 @@ class Generator {
     const birth = addDays(addMonths(this.today, -age * 12), -r.int(1, 360))
     const place = r.weighted(PLACES.map(p => [p, p.weight] as const))
     const area = r.pick(place.areas)
-    const address = r.chance(0.55) ? `${place.city} — ${area}، ${r.pick(place.streets)}` : `${place.city} — ${area}`
+    const address = r.chance(0.55) ? `${this.tx(place.city)} — ${this.tx(area)}${this.L('، ', ', ')}${this.tx(r.pick(place.streets))}` : `${this.tx(place.city)} — ${this.tx(area)}`
 
     const p: Patient = {
       id: newId(), fileNo: 0, name, gender, birthDate: birth, phone: fmt(phone), address, allergies: [], chronicDiseases: [], medications: [], tags: [], archived: false,
@@ -544,6 +579,7 @@ class Generator {
     else if (age >= 63) p.occupation = r.chance(0.7) ? (gender === 'female' ? 'متقاعدة' : 'متقاعد') : gender === 'female' ? 'ربة منزل' : 'تاجر'
     else if (age >= 24 && r.chance(0.8)) p.occupation = r.pick((gender === 'female' ? OCCUPATIONS_FEMALE : OCCUPATIONS_MALE).filter(o => !/متقاعد|طالب/.test(o)))
     if (r.chance(0.35)) p.bloodType = r.pick(BLOOD_TYPES)
+    if (p.occupation) p.occupation = this.tx(p.occupation)
 
     // medical history
     const allergies: string[] = []
@@ -552,10 +588,10 @@ class Generator {
     const chronic: typeof CONDITIONS = []
     if (diseases.length && r.chance(age >= 35 ? 0.3 : 0.07)) chronic.push(r.pick(diseases))
     if (age >= 50 && chronic.length && r.chance(0.3)) { const second = r.pick(diseases); if (!chronic.includes(second)) chronic.push(second) }
-    p.allergies = allergies
-    p.chronicDiseases = chronic.map(c => c.disease)
-    p.medications = chronic.flatMap(c => c.meds)
-    const medNotes = chronic.map(c => c.note).filter(Boolean) as string[]
+    p.allergies = allergies.map(a => this.tx(a))
+    p.chronicDiseases = chronic.map(c => this.tx(c.disease))
+    p.medications = chronic.flatMap(c => c.meds.map(m => this.tx(m)))
+    const medNotes = (chronic.map(c => c.note).filter(Boolean) as string[]).map(n => this.tx(n))
     if (medNotes.length) p.medicalNotes = medNotes.join('. ')
 
     // tags, insurance, referral, notes
@@ -563,18 +599,22 @@ class Generator {
     const insured = !kid && age >= 18 && r.chance(0.2)
     if (vip) p.tags.push('VIP')
     if (insured) {
-      p.tags.push('تأمين')
-      p.insuranceCompany = r.pick(INSURERS)
+      p.tags.push(this.tx('تأمين'))
+      p.insuranceCompany = this.tx(r.pick(INSURERS))
       p.insuranceNumber = `${r.pick(['AR', 'UI', 'TS', 'AQ'])}-${r.int(100000, 999999)}`
     }
-    if (kid) p.tags.push('أطفال')
-    if (r.chance(0.05)) p.tags.push('حساس للألم')
-    if (r.chance(0.05)) p.tags.push('قلق من العلاج')
-    if (!kid && r.chance(0.1)) p.tags.push('متابعة دورية')
-    if (r.chance(0.6)) p.referredBy = r.pick(REFERRALS)
-    if (kid) p.notes = `ولي الأمر: ${gender === 'female' ? 'والدها' : 'والده'} ${father?.[0] ?? ''}${r.chance(0.5) ? ' — رقم الهاتف للأم' : ''}`.trim()
-    else if (r.chance(0.15)) p.notes = r.pick(['يفضّل المواعيد المسائية', 'يفضّل التواصل عبر واتساب', 'يرجى الاتصال قبل الموعد بيوم', 'يأتي من خارج المدينة — تجميع الجلسات قدر الإمكان'])
+    if (kid) p.tags.push(this.tx('أطفال'))
+    if (r.chance(0.05)) p.tags.push(this.tx('حساس للألم'))
+    if (r.chance(0.05)) p.tags.push(this.tx('قلق من العلاج'))
+    if (!kid && r.chance(0.1)) p.tags.push(this.tx('متابعة دورية'))
+    if (r.chance(0.6)) p.referredBy = this.tx(r.pick(REFERRALS))
+    if (kid) {
+      const motherPhone = r.chance(0.5)
+      const dad = this.en ? (father?.[1] ? father[1].charAt(0).toUpperCase() + father[1].slice(1) : '') : father?.[0] ?? ''
+      p.notes = this.L(`ولي الأمر: ${gender === 'female' ? 'والدها' : 'والده'} ${dad}${motherPhone ? ' — رقم الهاتف للأم' : ''}`, `Guardian: father ${dad}${motherPhone ? ' — the phone is the mother’s' : ''}`).trim()
+    } else if (r.chance(0.15)) p.notes = r.pick(['يفضّل المواعيد المسائية', 'يفضّل التواصل عبر واتساب', 'يرجى الاتصال قبل الموعد بيوم', 'يأتي من خارج المدينة — تجميع الجلسات قدر الإمكان'])
     if (p.notes && gender === 'female' && !kid) p.notes = p.notes.replace('يفضّل', 'تفضّل').replace('يأتي', 'تأتي')
+    if (p.notes && !kid) p.notes = this.tx(p.notes)
 
     const usual = this.rng.weighted(this.generalists.map(u => [u.id, u === this.surgeon && this.generalists.length > 1 ? 0.5 : 1] as const))
     p.doctorId = usual
@@ -753,7 +793,7 @@ class Generator {
   }
 
   private runProposal(pc: PCtx, declined: boolean): void {
-    const c: CaseCtx = { rng: this.rng, age: pc.age, gender: pc.p.gender, penicillinAllergy: false }
+    const c: CaseCtx = { rng: this.rng, age: pc.age, gender: pc.p.gender, penicillinAllergy: false, lang: this.en ? 'en' : 'ar' }
     const def = proposalCase(c, declined)
     const run: CaseRun = { pc, def, doctorId: this.doctorFor(def.doctor, pc), items: new Map(), visits: [], done: new Map(), active: new Map(), declined }
     def.proposal!.forEach((it, i) => run.items.set(`p:${i}`, { key: `p:${i}`, steps: [], spec: it, id: newId() }))
@@ -764,7 +804,7 @@ class Generator {
   topUps(): void {
     const r = this.rng
     const quick = (pc: PCtx): CaseDef => {
-      const c: CaseCtx = { rng: r, age: pc.age, gender: pc.p.gender, penicillinAllergy: pc.allergies.includes('البنسلين') }
+      const c: CaseCtx = { rng: r, age: pc.age, gender: pc.p.gender, penicillinAllergy: pc.allergies.includes('البنسلين'), lang: this.en ? 'en' : 'ar' }
       if (pc.kid || !pc.charted) return pc.kid || r.chance(0.7) ? checkupCase(c) : consultCase(c)
       return r.weighted<() => CaseDef>([[() => checkupCase(c), 5], [() => consultCase(c), 2], [() => fillingsCase(c), 1.5], [() => emergencyCase(c), 1]])()
     }
@@ -820,7 +860,7 @@ class Generator {
       pc.createdMs = this.past(pc.createdMs, 60)
       pc.p.createdAt = iso(pc.createdMs)
       const p = pc.p
-      this.events.push({ at: pc.createdMs, type: 'patient', action: 'create', entityId: p.id, patientId: p.id, by: this.front.id, msg: () => `ملف جديد: ${p.name} — رقم الملف ${p.fileNo}` })
+      this.events.push({ at: pc.createdMs, type: 'patient', action: 'create', entityId: p.id, patientId: p.id, by: this.front.id, msg: () => this.L(`ملف جديد: ${p.name} — رقم الملف ${p.fileNo}`, `New file: ${p.name} — file no. ${p.fileNo}`) })
     }
     // referrals between patients: by an adult patient who registered earlier
     for (const pc of this.pcs) {
@@ -828,7 +868,7 @@ class Generator {
       const earlier = this.pcs.filter(o => o !== pc && !o.kid && o.createdMs < pc.createdMs - DAY)
       if (!earlier.length) continue
       const by = r.pick(earlier).p
-      pc.p.referredBy = `${by.gender === 'female' ? 'المريضة' : 'المريض'} ${by.name}`
+      pc.p.referredBy = this.L(`${by.gender === 'female' ? 'المريضة' : 'المريض'} ${by.name}`, `Patient ${by.name}`)
     }
     this.pregnancy()
     for (const pc of this.pcs) for (const run of pc.runs) this.materialise(run)
@@ -839,14 +879,14 @@ class Generator {
     for (const pc of this.pcs) {
       const done = this.appointments.filter(a => a.patientId === pc.p.id && a.status === 'completed').map(a => a.start).sort()
       if (done.length) pc.p.lastVisit = done[done.length - 1]
-      if (pc.runs.some(run => ['braces', 'aligners'].includes(run.def.key) && run.visits.length) && !pc.p.tags.includes('تقويم')) pc.p.tags.push('تقويم')
+      if (pc.runs.some(run => ['braces', 'aligners'].includes(run.def.key) && run.visits.length) && !pc.p.tags.includes(this.tx('تقويم'))) pc.p.tags.push(this.tx('تقويم'))
       pc.p.updatedAt = pc.p.lastVisit && pc.p.lastVisit > pc.p.createdAt ? pc.p.lastVisit : pc.p.createdAt
       if (pc.p.updatedAt > iso(this.nowMs)) pc.p.updatedAt = pc.p.createdAt
       this.patients.push(clean(pc.p))
     }
     // one old patient who moved away is archived
     const archive = this.pcs.find(pc => !pc.isNew && pc.age >= 25 && pc.runs.every(run => run.visits.every(v => v.date < addDays(this.today, -20)) && run.active.size === 0 && !run.def.proposal))
-    if (archive) { archive.p.archived = true; archive.p.notes = `${archive.p.gender === 'female' ? 'سافرت' : 'سافر'} خارج البلد — الملف مؤرشف` }
+    if (archive) { archive.p.archived = true; archive.p.notes = this.L(`${archive.p.gender === 'female' ? 'سافرت' : 'سافر'} خارج البلد — الملف مؤرشف`, 'Moved abroad — file archived') }
   }
 
   /**
@@ -855,7 +895,7 @@ class Generator {
    */
   private pregnancy(): void {
     const since = addDays(this.today, -150)
-    const avoided = (code: string) => /^D0[23]|^D7|^D60|^D42[14]|^D99(72|75)$|^D296[12]$|^DSD$/.test(code)
+    const avoided = (code: string) => PREGNANCY_AVOIDED.has(code)
     const clear = (pc: PCtx) => pc.runs.every(run => {
       if (run.def.proposal) return !run.def.proposal.some(it => avoided(it.code))
       return run.visits.every(v => v.date < since || v.status === 'cancelled' || v.status === 'no_show' ||
@@ -864,7 +904,7 @@ class Generator {
     const candidates = this.pcs.filter(pc => pc.p.gender === 'female' && pc.age >= 24 && pc.age <= 38 && !pc.p.medications.length && clear(pc))
     if (!candidates.length) return
     const pc = this.rng.pick(candidates)
-    pc.p.medicalNotes = [pc.p.medicalNotes, 'حامل في الشهر الخامس — تُؤجَّل الصور الشعاعية والإجراءات غير الضرورية إلى ما بعد الولادة'].filter(Boolean).join('. ')
+    pc.p.medicalNotes = [pc.p.medicalNotes, this.tx('حامل في الشهر الخامس — تُؤجَّل الصور الشعاعية والإجراءات غير الضرورية إلى ما بعد الولادة')].filter(Boolean).join('. ')
   }
 
   /** Turns a case run into appointments, plan, treatment items, notes and prescriptions. */
@@ -893,18 +933,18 @@ class Generator {
       const apt: Appointment = clean({
         id: newId(), patientId: pid, doctorId: v.doctorId, date: v.date, start: iso(v.startMs), end: iso(v.endMs), durationMin: v.dur, type: step.type as AppointmentType,
         status: v.status, reason: step.reason, chair: this.chairs.get(v.doctorId), treatmentItemIds: ids, createdAt: iso(created), updatedAt: iso(updated), createdBy: this.front.id,
-        notes: v.status === 'cancelled' ? r.pick([`اعتذر${pc.p.gender === 'female' ? 'ت' : ''} بسبب السفر`, 'طلب تأجيل الموعد', 'ظرف طارئ', undefined]) : undefined,
+        notes: v.status === 'cancelled' ? ((n?: string) => (n ? this.tx(n) : n))(r.pick([`اعتذر${pc.p.gender === 'female' ? 'ت' : ''} بسبب السفر`, 'طلب تأجيل الموعد', 'ظرف طارئ', undefined])) : undefined,
       })
       if (apt.notes === 'طلب تأجيل الموعد' && pc.p.gender === 'female') apt.notes = 'طلبت تأجيل الموعد'
       v.apt = apt
       this.appointments.push(apt)
-      const typeLabel = common.ar[`aptType.${apt.type}`] ?? ''
-      this.events.push({ at: created, type: 'appointment', action: 'create', entityId: apt.id, patientId: pid, by: this.front.id, msg: () => `موعد جديد: ${pc.p.name} — ${typeLabel}، ${dayLabel(apt.date)}` })
+      const typeLabel = common[this.en ? 'en' : 'ar'][`aptType.${apt.type}`] ?? ''
+      this.events.push({ at: created, type: 'appointment', action: 'create', entityId: apt.id, patientId: pid, by: this.front.id, msg: () => this.L(`موعد جديد: ${pc.p.name} — ${typeLabel}، ${dayLabel(apt.date)}`, `New appointment: ${pc.p.name} — ${typeLabel}, ${dayLabelEn(apt.date)}`) })
       const f = pc.p.gender === 'female'
-      if (v.status === 'completed') this.events.push({ at: updated, type: 'appointment', action: 'status', entityId: apt.id, patientId: pid, by: v.doctorId, msg: () => `انتهت زيارة ${pc.p.name} (${typeLabel})` })
-      if (v.status === 'arrived' || v.status === 'in_progress') this.events.push({ at: Math.min(v.startMs - r.int(3, 12) * MIN, this.nowMs - r.int(11, 20) * MIN), type: 'appointment', action: 'status', entityId: apt.id, patientId: pid, by: this.front.id, msg: () => `${f ? 'وصلت' : 'وصل'} ${pc.p.name} إلى العيادة` })
-      if (v.status === 'no_show') this.events.push({ at: updated, type: 'appointment', action: 'status', entityId: apt.id, patientId: pid, by: this.front.id, msg: () => `${f ? 'لم تحضر' : 'لم يحضر'} ${pc.p.name} إلى ${f ? 'موعدها' : 'موعده'}` })
-      if (v.status === 'cancelled') this.events.push({ at: updated, type: 'appointment', action: 'status', entityId: apt.id, patientId: pid, by: this.front.id, msg: () => `إلغاء موعد ${pc.p.name} — ${dayLabel(apt.date)}` })
+      if (v.status === 'completed') this.events.push({ at: updated, type: 'appointment', action: 'status', entityId: apt.id, patientId: pid, by: v.doctorId, msg: () => this.L(`انتهت زيارة ${pc.p.name} (${typeLabel})`, `Visit completed: ${pc.p.name} (${typeLabel})`) })
+      if (v.status === 'arrived' || v.status === 'in_progress') this.events.push({ at: Math.min(v.startMs - r.int(3, 12) * MIN, this.nowMs - r.int(11, 20) * MIN), type: 'appointment', action: 'status', entityId: apt.id, patientId: pid, by: this.front.id, msg: () => this.L(`${f ? 'وصلت' : 'وصل'} ${pc.p.name} إلى العيادة`, `${pc.p.name} arrived at the clinic`) })
+      if (v.status === 'no_show') this.events.push({ at: updated, type: 'appointment', action: 'status', entityId: apt.id, patientId: pid, by: this.front.id, msg: () => this.L(`${f ? 'لم تحضر' : 'لم يحضر'} ${pc.p.name} إلى ${f ? 'موعدها' : 'موعده'}`, `${pc.p.name} did not attend`) })
+      if (v.status === 'cancelled') this.events.push({ at: updated, type: 'appointment', action: 'status', entityId: apt.id, patientId: pid, by: this.front.id, msg: () => this.L(`إلغاء موعد ${pc.p.name} — ${dayLabel(apt.date)}`, `Appointment cancelled: ${pc.p.name} — ${dayLabelEn(apt.date)}`) })
     }
 
     // when the plan was made: at the first exam, or when the first visit was booked
@@ -921,7 +961,7 @@ class Generator {
     if (def.title) {
       const plan: TreatmentPlan = { id: newId(), patientId: pid, doctorId: run.doctorId, title: def.title, status: 'draft', notes: def.planNote, createdAt: iso(planMs), updatedAt: iso(planMs) }
       run.plan = plan
-      this.events.push({ at: planMs, type: 'treatment', action: 'create', entityId: plan.id, patientId: pid, by: run.doctorId, msg: () => `خطة علاج جديدة: ${plan.title} — ${pc.p.name}` })
+      this.events.push({ at: planMs, type: 'treatment', action: 'create', entityId: plan.id, patientId: pid, by: run.doctorId, msg: () => this.L(`خطة علاج جديدة: ${plan.title} — ${pc.p.name}`, `New treatment plan: ${plan.title} — ${pc.p.name}`) })
     }
 
     // treatment items
@@ -938,7 +978,7 @@ class Generator {
       }), planMs)
       if (!it.steps.length) created = planMs
       const row: TreatmentItem = {
-        id: it.id, patientId: pid, planId: run.plan?.id, procedureId: proc.id, procedureName: it.spec.label ? `${proc.name} — ${it.spec.label}` : proc.name,
+        id: it.id, patientId: pid, planId: run.plan?.id, procedureId: proc.id, procedureName: ((n: string) => (it.spec.label ? `${n} — ${it.spec.label}` : n))(this.en ? proc.nameEn || proc.name : proc.name),
         tooth: it.spec.tooth, surfaces: it.spec.surfaces?.length ? [...it.spec.surfaces] : undefined, price, discount, status: 'planned', doctorId: run.doctorId,
         createdAt: iso(created), updatedAt: iso(created),
       }
@@ -965,8 +1005,8 @@ class Generator {
       it.row = clean(row)
       this.treatments.push(it.row)
       if (row.status === 'completed') {
-        const label = `${row.procedureName}${row.tooth ? ` (السن ${row.tooth})` : ''}`
-        this.events.push({ at: Date.parse(row.completedAt!), type: 'treatment', action: 'status', entityId: row.id, patientId: pid, by: run.doctorId, msg: () => `إنجاز ${label} — ${pc.p.name}` })
+        const label = `${row.procedureName}${row.tooth ? this.L(` (السن ${row.tooth})`, ` (tooth ${row.tooth})`) : ''}`
+        this.events.push({ at: Date.parse(row.completedAt!), type: 'treatment', action: 'status', entityId: row.id, patientId: pid, by: run.doctorId, msg: () => this.L(`إنجاز ${label} — ${pc.p.name}`, `Done: ${label} — ${pc.p.name}`) })
       }
     }
     if (run.plan) {
@@ -1003,9 +1043,9 @@ class Generator {
         if (items.length) {
           const at = v.endMs - r.int(2, 6) * MIN
           const rx: Prescription = clean({ id: newId(), patientId: pid, doctorId: v.doctorId, date: v.date, items, diagnosis: step.diagnosis, createdAt: iso(at), updatedAt: iso(at),
-            notes: pc.allergies.length ? `تحسس من ${pc.allergies.join('، ')}` : undefined })
+            notes: pc.allergies.length ? this.L(`تحسس من ${pc.allergies.join('، ')}`, `Allergic to ${pc.allergies.map(a => this.tx(a)).join(', ')}`) : undefined })
           this.prescriptions.push(rx)
-          this.events.push({ at, type: 'prescription', action: 'create', entityId: rx.id, patientId: pid, by: v.doctorId, msg: () => `وصفة طبية: ${pc.p.name}${rx.diagnosis ? ` — ${rx.diagnosis}` : ''}` })
+          this.events.push({ at, type: 'prescription', action: 'create', entityId: rx.id, patientId: pid, by: v.doctorId, msg: () => this.L(`وصفة طبية: ${pc.p.name}${rx.diagnosis ? ` — ${rx.diagnosis}` : ''}`, `Prescription: ${pc.p.name}${rx.diagnosis ? ` — ${rx.diagnosis}` : ''}`) })
         }
       }
     }
@@ -1019,9 +1059,10 @@ class Generator {
       const def = DEFAULT_DRUGS.find(x => x.nameEn === nameEn && x.strength === strength)
       if (!d && !def) continue
       out.push(clean({
-        id: newId(), drugId: d?.id, name: d?.name ?? def!.name, strength: d?.strength ?? def!.strength,
-        dose: d?.defaultDose ?? def!.dose, frequency: d?.defaultFrequency ?? def!.frequency, duration: d?.defaultDuration ?? def!.duration,
-        instructions: d?.defaultInstructions ?? def!.instructions,
+        id: newId(), drugId: d?.id, name: this.en ? d?.nameEn || def?.nameEn || d?.name || def!.name : d?.name ?? def!.name,
+        strength: d?.strength ?? (this.en ? def!.en.strength ?? def!.strength : def!.strength),
+        dose: d?.defaultDose ?? (this.en ? def!.en.dose : def!.dose), frequency: d?.defaultFrequency ?? (this.en ? def!.en.frequency : def!.frequency),
+        duration: d?.defaultDuration ?? (this.en ? def!.en.duration : def!.duration), instructions: d?.defaultInstructions ?? (this.en ? def!.en.instructions : def!.instructions),
       }))
     }
     return out
@@ -1045,7 +1086,7 @@ class Generator {
     const n = pc.age >= 65 ? r.int(4, 7) : pc.age >= 40 ? r.int(2, 5) : r.int(1, 3)
     for (let i = 0; i < n; i++) {
       const kind = r.weighted<string>([['filled', 5], ['crownRct', 2], ['wisdom', pc.age >= 22 ? 2 : 0], ['missing', pc.age >= 40 ? 2 : 0.3], ['rct', 1], ['attrition', pc.age >= 50 ? 1.5 : 0]])
-      if (kind === 'wisdom') { const t = r.pick(free([18, 28, 38, 48])); if (t) add({ tooth: t, condition: 'missing', note: 'قُلع سابقاً' }) }
+      if (kind === 'wisdom') { const t = r.pick(free([18, 28, 38, 48])); if (t) add({ tooth: t, condition: 'missing', note: this.tx('قُلع سابقاً') }) }
       else if (kind === 'missing') { const t = r.pick(free([16, 26, 36, 46, 17, 27, 37, 47])); if (t) add({ tooth: t, condition: 'missing' }) }
       else if (kind === 'attrition') { for (const t of free([13, 23, 33, 43]).slice(0, 2)) add({ tooth: t, condition: 'attrition' }) }
       else {
@@ -1085,8 +1126,8 @@ class Generator {
           const booked = run.active.get(si)
           if (booked && booked.date > this.today && booked.date <= addDays(this.today, 7) && !this.labOrders.some(o => o.status === 'draft')) {
             const at = this.past(booked.bookedMs + 10 * MIN, 5)
-            this.labOrders.push(clean({ id: newId(), patientId: pc.p.id, doctorId: run.doctorId, labName: spec.lab, type: spec.type, teeth: [...spec.teeth], shade: spec.shade, material: spec.material,
-              dueDate: addDays(booked.date, spec.days[1]), status: 'draft' as LabOrderStatus, cost: this.price(spec.cost), notes: 'بانتظار أخذ الطبعة', treatmentItemId: item?.id, createdAt: iso(at), updatedAt: iso(at) }))
+            this.labOrders.push(clean({ id: newId(), patientId: pc.p.id, doctorId: run.doctorId, labName: this.tx(spec.lab), type: spec.type, teeth: [...spec.teeth], shade: spec.shade, material: spec.material,
+              dueDate: addDays(booked.date, spec.days[1]), status: 'draft' as LabOrderStatus, cost: this.price(spec.cost), notes: this.tx('بانتظار أخذ الطبعة'), treatmentItemId: item?.id, createdAt: iso(at), updatedAt: iso(at) }))
           }
           return
         }
@@ -1108,14 +1149,14 @@ class Generator {
         const createdAt = this.past(prep.endMs + r.int(5, 30) * MIN, 3)
         const updatedMs = received ? Math.max(createdAt, this.past(this.at(received, this.ws + r.int(2, this.nSlots - 2) * 30), 2)) : status === 'in_progress' ? Math.max(createdAt, this.past(this.at(addDays(sent, 1), this.ws + 120), 2)) : createdAt
         const o: LabOrder = clean({
-          id: newId(), patientId: pc.p.id, doctorId: run.doctorId, labName: spec.lab, type: spec.type, teeth: [...spec.teeth], shade: spec.shade, material: spec.material,
+          id: newId(), patientId: pc.p.id, doctorId: run.doctorId, labName: this.tx(spec.lab), type: spec.type, teeth: [...spec.teeth], shade: spec.shade, material: spec.material,
           sentDate: sent, dueDate: due, receivedDate: received, status, cost: this.price(spec.cost), notes: spec.notes, treatmentItemId: item?.id,
           createdAt: iso(createdAt), updatedAt: iso(updatedMs),
         })
         this.labOrders.push(o)
-        const typeLabel = common.ar[`labType.${o.type}`] ?? ''
-        this.events.push({ at: createdAt, type: 'lab', action: 'create', entityId: o.id, patientId: pc.p.id, by: run.doctorId, msg: () => `إرسال ${typeLabel} إلى ${o.labName} — ${pc.p.name}` })
-        if (received) this.events.push({ at: updatedMs, type: 'lab', action: 'status', entityId: o.id, patientId: pc.p.id, by: this.front.id, msg: () => `استلام ${typeLabel} من ${o.labName} — ${pc.p.name}` })
+        const typeLabel = common[this.en ? 'en' : 'ar'][`labType.${o.type}`] ?? ''
+        this.events.push({ at: createdAt, type: 'lab', action: 'create', entityId: o.id, patientId: pc.p.id, by: run.doctorId, msg: () => this.L(`إرسال ${typeLabel} إلى ${o.labName} — ${pc.p.name}`, `${typeLabel} sent to ${o.labName} — ${pc.p.name}`) })
+        if (received) this.events.push({ at: updatedMs, type: 'lab', action: 'status', entityId: o.id, patientId: pc.p.id, by: this.front.id, msg: () => this.L(`استلام ${typeLabel} من ${o.labName} — ${pc.p.name}`, `${typeLabel} received from ${o.labName} — ${pc.p.name}`) })
       })
     }
     // about a dozen orders: the oldest finished ones are left out
@@ -1129,7 +1170,7 @@ class Generator {
     const open = () => this.labOrders.filter(o => o.status === 'in_progress' && o.type !== 'aligner' && o.type !== 'denture_full')
     if (!this.labOrders.some(o => o.status === 'draft')) {
       const o = open().sort((a, b) => b.sentDate!.localeCompare(a.sentDate!))[0]
-      if (o) { o.status = 'draft'; delete o.sentDate; o.notes = 'جاهز للإرسال مع مندوب المخبر'; o.updatedAt = o.createdAt }
+      if (o) { o.status = 'draft'; delete o.sentDate; o.notes = this.tx('جاهز للإرسال مع مندوب المخبر'); o.updatedAt = o.createdAt }
     }
     if (!this.labOrders.some(o => o.status === 'received')) {
       const o = open().sort((a, b) => a.dueDate!.localeCompare(b.dueDate!))[0]
@@ -1142,7 +1183,7 @@ class Generator {
     const redo = open()[0] ?? this.labOrders.find(o => o.status === 'in_progress' || o.status === 'received')
     if (redo) {
       redo.status = 'remake'
-      redo.notes = 'اللون غير مطابق — أُعيد إلى المخبر لتعديل اللون'
+      redo.notes = this.tx('اللون غير مطابق — أُعيد إلى المخبر لتعديل اللون')
       redo.receivedDate = undefined
       delete redo.receivedDate
       if (redo.dueDate! <= this.today) redo.dueDate = addDays(this.today, r.int(2, 5))
@@ -1153,8 +1194,8 @@ class Generator {
       const upd = Math.max(at, this.before(at + 2 * DAY, at))
       const t = [...declined.run.items.values()].find(i => i.spec.tooth)?.spec.tooth
       const type = declined.run.def.doctor === 'ortho' ? 'aligner' : declined.run.def.doctor === 'surgery' ? 'implant_crown' : 'veneer'
-      this.labOrders.push(clean({ id: newId(), patientId: declined.pc.p.id, doctorId: declined.run.doctorId, labName: type === 'aligner' ? 'مخبر النخبة لأجهزة التقويم' : 'مخبر الشام الرقمي (CAD/CAM)', type,
-        teeth: t ? [t] : [], status: 'cancelled' as LabOrderStatus, cost: this.price(type === 'aligner' ? 450 : 110), notes: 'أُلغي الطلب قبل البدء بالعمل', createdAt: iso(at), updatedAt: iso(upd) }))
+      this.labOrders.push(clean({ id: newId(), patientId: declined.pc.p.id, doctorId: declined.run.doctorId, labName: this.tx(type === 'aligner' ? 'مخبر النخبة لأجهزة التقويم' : 'مخبر الشام الرقمي (CAD/CAM)'), type,
+        teeth: t ? [t] : [], status: 'cancelled' as LabOrderStatus, cost: this.price(type === 'aligner' ? 450 : 110), notes: this.tx('أُلغي الطلب قبل البدء بالعمل'), createdAt: iso(at), updatedAt: iso(upd) }))
     }
   }
 
@@ -1184,11 +1225,11 @@ class Generator {
       let issuedMs = createdMs
       if (gr === cancelAt) {
         // issued with a wrong line, cancelled, re-issued a few minutes later (all after the work was done)
-        const xray = this.procByCode.get('D0330')!
-        const wrong = [...lines.map(l => ({ ...l, id: newId() })), clean({ id: newId(), description: xray.name, procedureId: xray.id, qty: 1, unitPrice: xray.price, discount: 0, total: xray.price })]
+        const xray = this.procByCode.get('xray-opg')!
+        const wrong = [...lines.map(l => ({ ...l, id: newId() })), clean({ id: newId(), description: this.en ? xray.nameEn || xray.name : xray.name, procedureId: xray.id, qty: 1, unitPrice: xray.price, discount: 0, total: xray.price })]
         const bad = this.invoice(pc, v, wrong, createdMs, false)
         bad.status = 'cancelled'
-        bad.notes = 'أُلغيت لخطأ في البنود (صورة لم تُجرَ) وأُعيد إصدارها'
+        bad.notes = this.tx('أُلغيت لخطأ في البنود (صورة لم تُجرَ) وأُعيد إصدارها')
         bad.updatedAt = iso(Date.parse(bad.createdAt) + 4 * MIN)
         issuedMs = Date.parse(bad.createdAt) + 6 * MIN
       }
@@ -1205,9 +1246,9 @@ class Generator {
       const v = [...run.done.values()].sort((a, b) => a.endMs - b.endMs)[0]
       const at = this.past(v.endMs + r.int(5, 20) * MIN, 2)
       const amount = this.price(r.pick([100, 150, 200, 300]))
-      const p: Payment = { id: newId(), patientId: pc.p.id, amount, method: r.pick(['cash', 'cash', 'transfer'] as const), date: toISODate(new Date(at)), note: 'دفعة مقدمة على حساب العلاج', receivedBy: this.front.id, createdAt: iso(at) }
+      const p: Payment = { id: newId(), patientId: pc.p.id, amount, method: r.pick(['cash', 'cash', 'transfer'] as const), date: toISODate(new Date(at)), note: this.tx('دفعة مقدمة على حساب العلاج'), receivedBy: this.front.id, createdAt: iso(at) }
       this.payments.push(p)
-      this.events.push({ at, type: 'payment', action: 'create', entityId: p.id, patientId: pc.p.id, by: this.front.id, msg: () => `دفعة مقدمة ${this.money(amount)} من ${pc.p.name}` })
+      this.events.push({ at, type: 'payment', action: 'create', entityId: p.id, patientId: pc.p.id, by: this.front.id, msg: () => this.L(`دفعة مقدمة ${this.money(amount)} من ${pc.p.name}`, `Advance payment ${this.money(amount)} from ${pc.p.name}`) })
     }
   }
 
@@ -1224,13 +1265,13 @@ class Generator {
         const amount = this.cents(inv.total - inv.paid)
         if (amount <= 0) continue
         const method = r.weighted<PaymentMethod>([['cash', 70], ['card', 15], ['wallet', 10], ['transfer', 5]])
-        const pay: Payment = clean({ id: newId(), patientId: pc.p.id, invoiceId: inv.id, amount, method, date: toISODate(new Date(ms)), note: 'تسديد المتبقي من الفاتورة', receivedBy: this.front.id, createdAt: iso(ms),
-          reference: method === 'card' ? `**** ${r.int(1000, 9999)}` : method === 'wallet' ? `عملية ${r.int(10000000, 99999999)}` : method === 'transfer' ? `حوالة ${r.int(100000, 999999)}` : undefined })
+        const pay: Payment = clean({ id: newId(), patientId: pc.p.id, invoiceId: inv.id, amount, method, date: toISODate(new Date(ms)), note: this.tx('تسديد المتبقي من الفاتورة'), receivedBy: this.front.id, createdAt: iso(ms),
+          reference: method === 'card' ? `**** ${r.int(1000, 9999)}` : method === 'wallet' ? `${this.L('عملية', 'Txn')} ${r.int(10000000, 99999999)}` : method === 'transfer' ? `${this.L('حوالة', 'Transfer')} ${r.int(100000, 999999)}` : undefined })
         this.payments.push(pay)
         inv.paid = this.cents(inv.paid + amount)
         inv.status = 'paid'
         inv.updatedAt = iso(Math.max(Date.parse(inv.updatedAt), ms))
-        this.events.push({ at: ms, type: 'payment', action: 'create', entityId: pay.id, patientId: pc.p.id, by: this.front.id, msg: () => `استلام دفعة ${this.money(amount)} (${common.ar[`pay.${method}`] ?? ''}) من ${pc.p.name} — تسديد فاتورة ${inv.number}` })
+        this.events.push({ at: ms, type: 'payment', action: 'create', entityId: pay.id, patientId: pc.p.id, by: this.front.id, msg: () => this.L(`استلام دفعة ${this.money(amount)} (${common.ar[`pay.${method}`] ?? ''}) من ${pc.p.name} — تسديد فاتورة ${inv.number}`, `Payment ${this.money(amount)} (${common.en[`pay.${method}`] ?? ''}) from ${pc.p.name} — invoice ${inv.number}`) })
       }
     }
   }
@@ -1244,7 +1285,7 @@ class Generator {
     const at = this.past(createdMs, 1)
     const inv: Invoice = clean({
       id: newId(), number: '', patientId: pc.p.id, doctorId: v.doctorId, date: v.date, dueDate: total >= this.price(500) ? addDays(v.date, 30) : undefined, items: lines, subtotal, discount, taxPercent, tax, total,
-      paid: 0, status: 'unpaid', notes: vip ? 'خصم VIP ‏10%' : undefined, createdAt: iso(at), updatedAt: iso(at), createdBy: this.front.id,
+      paid: 0, status: 'unpaid', notes: vip ? this.tx('خصم VIP ‏10%') : undefined, createdAt: iso(at), updatedAt: iso(at), createdBy: this.front.id,
     })
     this.invoices.push(inv)
     return inv
@@ -1306,7 +1347,7 @@ class Generator {
       }
     }
     let last = createdMs
-    const refFor = (m: PaymentMethod) => m === 'transfer' ? `حوالة ${r.int(100000, 999999)}` : m === 'card' ? `**** ${r.int(1000, 9999)}` : m === 'wallet' ? `عملية ${r.int(10000000, 99999999)}` : m === 'insurance' ? `مطالبة ${r.int(1000, 9999)}` : undefined
+    const refFor = (m: PaymentMethod) => m === 'transfer' ? `${this.L('حوالة', 'Transfer')} ${r.int(100000, 999999)}` : m === 'card' ? `**** ${r.int(1000, 9999)}` : m === 'wallet' ? `${this.L('عملية', 'Txn')} ${r.int(10000000, 99999999)}` : m === 'insurance' ? `${this.L('مطالبة', 'Claim')} ${r.int(1000, 9999)}` : undefined
     for (const p of pays) {
       let ms = p.ms !== undefined ? this.before(p.ms, createdMs) : this.timeOn(p.date, createdMs + MIN)
       if (ms < createdMs) ms = createdMs
@@ -1316,16 +1357,37 @@ class Generator {
       })
       this.payments.push(pay)
       last = Math.max(last, ms)
-      const methodLabel = common.ar[`pay.${pay.method}`] ?? ''
-      this.events.push({ at: ms, type: 'payment', action: 'create', entityId: pay.id, patientId: pc.p.id, by: this.front.id, msg: () => `استلام دفعة ${this.money(pay.amount)} (${methodLabel}) من ${pc.p.name}` })
+      const methodLabel = common[this.en ? 'en' : 'ar'][`pay.${pay.method}`] ?? ''
+      this.events.push({ at: ms, type: 'payment', action: 'create', entityId: pay.id, patientId: pc.p.id, by: this.front.id, msg: () => this.L(`استلام دفعة ${this.money(pay.amount)} (${methodLabel}) من ${pc.p.name}`, `Payment ${this.money(pay.amount)} (${methodLabel}) from ${pc.p.name}`) })
     }
     inv.paid = round2(pays.reduce((a, p) => a + round2(p.amount), 0))
     inv.status = inv.paid >= inv.total - 0.005 ? 'paid' : inv.paid > 0.005 ? 'partial' : 'unpaid'
     inv.updatedAt = iso(Math.max(createdMs, last))
-    this.events.push({ at: Date.parse(inv.createdAt), type: 'invoice', action: 'create', entityId: inv.id, patientId: pc.p.id, by: this.front.id, msg: () => `فاتورة ${inv.number} بقيمة ${this.money(inv.total)} — ${pc.p.name}` })
+    this.events.push({ at: Date.parse(inv.createdAt), type: 'invoice', action: 'create', entityId: inv.id, patientId: pc.p.id, by: this.front.id, msg: () => this.L(`فاتورة ${inv.number} بقيمة ${this.money(inv.total)} — ${pc.p.name}`, `Invoice ${inv.number} for ${this.money(inv.total)} — ${pc.p.name}`) })
   }
 
   /** Issued (and cancelled) invoices in the order they were numbered. */
+  /**
+   * Every lab order received (or fitted) with a cost records it as one expense, linked both ways, as the lab screens
+   * do: the lab page, the expenses and the profit report agree. Call after the orders have their LAB- references.
+   */
+  labExpenses(): void {
+    const names = new Map(this.pcs.map(pc => [pc.p.id, pc.p.name]))
+    for (const o of this.labOrders) {
+      if (!(o.cost > 0) || !o.receivedDate || o.receivedDate > this.today || (o.status !== 'received' && o.status !== 'fitted')) continue
+      const ref = (o as LabOrder & { number?: string }).number
+      const type = common[this.en ? 'en' : 'ar'][`labType.${o.type}`] ?? o.type
+      const ms = this.onDay(o.receivedDate, this.ws + 60)
+      const e: Expense = clean({
+        id: newId(), category: 'lab' as ExpenseCategory, amount: o.cost, date: o.receivedDate, description: `${type} — ${names.get(o.patientId) ?? ''}${ref ? ` (${ref})` : ''}`,
+        vendor: o.labName, by: this.front.id, labOrderId: o.id, createdAt: iso(ms),
+      })
+      o.expenseId = e.id
+      this.expenses.push(e)
+    }
+    this.expenses.sort((a, b) => a.date.localeCompare(b.date))
+  }
+
   numbered(): Invoice[] {
     return this.invoices.filter(i => i.status !== 'draft').sort((a, b) => a.date.localeCompare(b.date) || a.createdAt.localeCompare(b.createdAt))
   }
@@ -1344,22 +1406,23 @@ class Generator {
     const add = (category: ExpenseCategory, date: string, usd: number, description: string, extra: Partial<Expense> = {}) => {
       if (date > this.today) return
       const ms = this.onDay(date, this.ws + r.int(2, this.nSlots - 2) * 30)
-      const e: Expense = clean({ id: newId(), category, amount: this.price(usd), date, description, method: 'cash' as PaymentMethod, by, createdAt: iso(ms), ...extra })
+      const e: Expense = clean({ id: newId(), category, amount: this.price(usd), date, description: this.tx(description), method: 'cash' as PaymentMethod, by, createdAt: iso(ms), ...extra,
+        ...(extra.vendor ? { vendor: this.tx(extra.vendor) } : {}) })
       this.expenses.push(e)
-      this.events.push({ at: ms, type: 'expense', action: 'create', entityId: e.id, by, msg: () => `مصروف: ${e.description} — ${this.money(e.amount)}` })
+      this.events.push({ at: ms, type: 'expense', action: 'create', entityId: e.id, by, msg: () => this.L(`مصروف: ${e.description} — ${this.money(e.amount)}`, `Expense: ${e.description} — ${this.money(e.amount)}`) })
     }
     const day = (month: string, d: number) => { const last = endOfMonth(month); const x = `${month.slice(0, 8)}${String(d).padStart(2, '0')}`; return x > last ? last : x }
-    const staff = this.front.role === 'receptionist' ? this.front.name : 'موظفة الاستقبال'
-    // lab bills: what each month's lab work cost
+    const staff = this.front.role === 'receptionist' ? this.front.name : this.tx('موظفة الاستقبال')
+    // lab work received in the window is recorded per order (labExpenses); older months get one settlement each
     const labByMonth = new Map<string, number>()
     for (const o of this.labOrders) if (o.receivedDate) labByMonth.set(startOfMonth(o.receivedDate), (labByMonth.get(startOfMonth(o.receivedDate)) ?? 0) + o.cost)
     for (let m = 5; m >= 0; m--) {
       const month = addMonths(startOfMonth(this.today), -m)
-      const name = ARABIC_MONTHS[fromISODate(month).getMonth()]
-      add('rent', day(month, 1), 400, `إيجار العيادة — ${name}`, { method: 'transfer', vendor: 'مالك العقار' })
-      add('utilities', day(month, 5), r.range(40, 70, 5), `اشتراك الأمبيرات (المولّدة) — ${name}`)
-      add('marketing', day(month, 3), r.range(30, 60, 5), `إعلان ممول على إنستغرام — ${name}`, { method: 'card', vendor: 'Meta' })
-      add('utilities', day(month, 10), 20, `اشتراك الإنترنت — ${name}`, { method: 'wallet' })
+      const name = this.monthName(fromISODate(month).getMonth())
+      add('rent', day(month, 1), 400, this.L(`إيجار العيادة — ${name}`, `Clinic rent — ${name}`), { method: 'transfer', vendor: 'مالك العقار' })
+      add('utilities', day(month, 5), r.range(40, 70, 5), this.L(`اشتراك الأمبيرات (المولّدة) — ${name}`, `Generator subscription — ${name}`))
+      add('marketing', day(month, 3), r.range(30, 60, 5), this.L(`إعلان ممول على إنستغرام — ${name}`, `Sponsored Instagram ad — ${name}`), { method: 'card', vendor: 'Meta' })
+      add('utilities', day(month, 10), 20, this.L(`اشتراك الإنترنت — ${name}`, `Internet subscription — ${name}`), { method: 'wallet' })
       if (m % 2 === 0) add('utilities', day(month, 15), r.range(25, 45, 1), 'فاتورة الكهرباء')
       else add('utilities', day(month, 18), r.range(6, 10, 1), 'فاتورة المياه')
       for (const d of [8, 22]) {
@@ -1371,12 +1434,12 @@ class Generator {
       add('other', day(month, 12), r.range(15, 25, 1), 'ضيافة (قهوة وماء ومحارم)')
       add('other', day(month, 19), r.range(10, 18, 1), 'مواد تنظيف وتعقيم للعيادة')
       const endM = endOfMonth(month)
-      add('salaries', endM, 180, `راتب المساعدة السنية — ${name}`)
-      add('salaries', endM, 150, `راتب ${staff} — ${name}`)
-      add('salaries', endM, 60, `أجور التنظيف — ${name}`)
-      const labCost = labByMonth.get(month)
-      const labUsd = labCost ? labCost / priceScale(this.cur).factor : (m >= 2 ? r.range(120, 320, 10) : 0)
-      if (labUsd > 0) add('lab', day(month, 28), labUsd, `تسوية حساب المخابر — ${name}`, { method: 'transfer', vendor: 'مخبر الدقة للتعويضات السنية' })
+      add('salaries', endM, 180, this.L(`راتب المساعدة السنية — ${name}`, `Dental assistant salary — ${name}`))
+      add('salaries', endM, 150, this.L(`راتب ${staff} — ${name}`, `Salary of ${staff} — ${name}`))
+      add('salaries', endM, 60, this.L(`أجور التنظيف — ${name}`, `Cleaning wages — ${name}`))
+      // the same random draw as before keeps the rest of the demo identical; months with lab orders need no settlement
+      const settle = labByMonth.get(month) ? 0 : (m >= 2 ? r.range(120, 320, 10) : 0)
+      if (settle > 0) add('lab', day(month, 28), settle, this.L(`تسوية حساب المخابر — ${name}`, `Lab account settlement — ${name}`), { method: 'transfer', vendor: 'مخبر الدقة للتعويضات السنية' })
     }
     const month = (m: number) => addMonths(startOfMonth(this.today), -m)
     add('maintenance', day(month(4), 14), 45, 'صيانة الكمبريسور', { vendor: 'ورشة أبو خليل للتجهيزات' })
@@ -1411,16 +1474,16 @@ class Generator {
       const evs: Ev[] = []
       for (let d = addDays(start, r.int(5, 14)); d < this.today; d = addDays(d, r.int(10, 20))) {
         const u = big ? r.range(100, 200, 50) : Math.max(1, Math.round(rate / 2 * r.range(0.5, 1.5, 0.5)))
-        evs.push({ date: d, delta: -u, reason: 'use', note: r.chance(0.3) ? 'صرف للعيادة' : undefined })
+        evs.push({ date: d, delta: -u, reason: 'use', note: r.chance(0.3) ? this.tx('صرف للعيادة') : undefined })
       }
       for (const d of r.sample(purchaseDates.filter(x => x < this.today && x > start), r.int(2, 4))) {
         const p = big ? r.range(1000, 2000, 500) : Math.max(1, Math.round(rate * r.range(1.5, 3, 0.5)))
-        evs.push({ date: d, delta: p, reason: 'purchase', note: item.supplier ? `فاتورة ${item.supplier}` : undefined })
+        evs.push({ date: d, delta: p, reason: 'purchase', note: item.supplier ? this.L(`فاتورة ${item.supplier}`, `Invoice from ${item.supplier}`) : undefined })
       }
       if (!expiredDone && item.expiryDate && item.expiryDate <= addDays(this.today, 60)) {
-        evs.push({ date: addDays(this.today, -r.int(10, 25)), delta: -1, reason: 'expired', note: 'عبوة مفتوحة انتهت صلاحيتها' }); expiredDone = true
+        evs.push({ date: addDays(this.today, -r.int(10, 25)), delta: -1, reason: 'expired', note: this.tx('عبوة مفتوحة انتهت صلاحيتها') }); expiredDone = true
       } else if (!adjustDone && item.unit === 'box' && item.category === 'consumables') {
-        evs.push({ date: addDays(this.today, -r.int(20, 40)), delta: -1, reason: 'adjust', note: 'تصحيح بعد الجرد' }); adjustDone = true
+        evs.push({ date: addDays(this.today, -r.int(20, 40)), delta: -1, reason: 'adjust', note: this.tx('تصحيح بعد الجرد') }); adjustDone = true
       }
       // walk back from today's quantity; a purchase that would make the past balance negative never happened
       evs.sort((a, b) => b.date.localeCompare(a.date))
@@ -1444,7 +1507,7 @@ class Generator {
         lastMs = Math.max(lastMs, ms)
         const m: StockMovement = clean({ id: newId(), itemId: item.id, delta: e.delta, reason: e.reason, date: e.date, note: e.note, by, createdAt: iso(ms) })
         this.stockPut.push(m)
-        if (e.reason === 'purchase' && e.date >= addDays(this.today, -14)) this.events.push({ at: ms, type: 'inventory', action: 'other', entityId: item.id, by, msg: () => `شراء مواد: ${item.name} (+${e.delta})` })
+        if (e.reason === 'purchase' && e.date >= addDays(this.today, -14)) this.events.push({ at: ms, type: 'inventory', action: 'other', entityId: item.id, by, msg: () => this.L(`شراء مواد: ${item.name} (+${e.delta})`, `Stock purchase: ${item.name} (+${e.delta})`) })
       }
       this.inventoryPut.push({ ...item, createdAt: iso(openMs), updatedAt: iso(Math.max(lastMs, openMs)) })
     }
@@ -1476,7 +1539,7 @@ function fits(key: string, pc: PCtx): boolean {
   if (key === 'implant' && pc.p.medications.some(m => BISPHOSPHONATE.test(m))) return false
   return true
 }
-const BISPHOSPHONATE = /أليندرونات|ريسيدرونات|زوليدرونات/
+const BISPHOSPHONATE = /أليندرونات|ريسيدرونات|زوليدرونات|alendronate|risedronate|zoledron/i
 
 function eligible(key: string, age: number): boolean {
   switch (key) {
@@ -1521,4 +1584,9 @@ function dayLabel(date: string): string {
   const d = fromISODate(date)
   const wd = ['الأحد', 'الاثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت'][d.getDay()]
   return `${wd} ${d.getDate()} ${ARABIC_MONTHS[d.getMonth()]}`
+}
+function dayLabelEn(date: string): string {
+  const d = fromISODate(date)
+  const wd = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][d.getDay()]
+  return `${wd} ${d.getDate()} ${ENGLISH_MONTHS[d.getMonth()]}`
 }

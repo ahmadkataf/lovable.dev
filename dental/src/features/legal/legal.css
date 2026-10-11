@@ -1,0 +1,46 @@
+/* Privacy policy, terms of use and open-source notices (LegalDialog, LegalLinks) */
+.lg-switch { position: sticky; top: -4px; z-index: 2; background: var(--surface); padding: 2px 0 12px; }
+.lg-sheet { color: var(--text); }
+.lg-title { font-size: var(--fs-xl); font-weight: 800; margin: 4px 0 2px; }
+.lg-date { color: var(--text-3); font-size: var(--fs-sm); margin-bottom: 12px; }
+.lg-doc { line-height: 1.75; }
+.lg-h { font-size: var(--fs-lg); font-weight: 700; margin: 18px 0 6px; display: flex; align-items: center; gap: 8px; }
+.lg-p { margin: 0 0 10px; color: var(--text-2); }
+.lg-ul { margin: 0 0 10px; padding-inline-start: 20px; color: var(--text-2); }
+.lg-ul li { margin-bottom: 4px; }
+.lg-ul li::marker { color: var(--primary); }
+
+.lg-notices .lg-group { margin-top: 8px; }
+.lg-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.lg-item { border: 1px solid var(--border); border-radius: var(--r-md); padding: 10px 12px; background: var(--surface); }
+.lg-item-head { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
+.lg-name { font-weight: 700; }
+.lg-version { color: var(--text-3); font-size: var(--fs-sm); font-variant-numeric: tabular-nums; }
+.lg-copy { color: var(--text-2); font-size: var(--fs-sm); margin-top: 4px; overflow-wrap: anywhere; text-align: start; }
+/* English notices inside the Arabic layout keep to the reading side of the card */
+[dir="rtl"] .lg-copy, [dir="rtl"] .lg-item-actions .lg-link.ltr { text-align: right; }
+.lg-item-actions { display: flex; flex-wrap: wrap; gap: 4px 14px; margin-top: 6px; }
+.lg-link { color: var(--primary); font-weight: 600; font-size: var(--fs-sm); padding: 6px 0; min-height: 32px; text-decoration: underline; text-underline-offset: 3px; text-decoration-color: color-mix(in srgb, var(--primary) 35%, transparent); overflow-wrap: anywhere; text-align: start; }
+.lg-link:hover { text-decoration-color: var(--primary); }
+.lg-sub { font-size: var(--fs-sm); font-weight: 700; color: var(--text-3); margin-top: 8px; }
+.lg-pre { direction: ltr; text-align: left; white-space: pre-wrap; overflow-wrap: anywhere; font-family: var(--font-mono); font-size: 12px; line-height: 1.55; color: var(--text-2); background: var(--surface-2); border: 1px solid var(--divider); border-radius: var(--r-sm); padding: 10px 12px; margin: 8px 0 0; max-height: 320px; overflow: auto; }
+
+/* links row (Settings → About, the setup wizard) */
+.lg-links { display: flex; flex-wrap: wrap; align-items: center; gap: 2px 6px; font-size: var(--fs-sm); color: var(--text-3); }
+.lg-links .lg-link { font-size: inherit; }
+.lg-links .sep { color: var(--text-4); }
+.lg-accept { display: flex; align-items: flex-start; gap: 10px; font-size: var(--fs-sm); color: var(--text-2); }
+.lg-accept input { margin-top: 3px; width: 18px; height: 18px; accent-color: var(--primary); flex: none; }
+@media (pointer: coarse) { .lg-link { min-height: 40px; } .lg-accept input { width: 22px; height: 22px; } }
+
+/* printing a document from the dialog: only the document */
+@media print {
+  body.lg-printing { overflow: visible !important; background: #fff; }
+  body.lg-printing > *:not(.overlay), body.lg-printing > .overlay:not(:has(.lg-sheet)) { display: none !important; }
+  body.lg-printing > .overlay { position: static; display: block; padding: 0; background: none; backdrop-filter: none; -webkit-backdrop-filter: none; animation: none; }
+  body.lg-printing .modal { max-width: none !important; max-height: none !important; width: auto; border-radius: 0; box-shadow: none; overflow: visible; animation: none; display: block; background: #fff; }
+  body.lg-printing .modal-header, body.lg-printing .modal-footer, body.lg-printing .lg-switch { display: none !important; }
+  body.lg-printing .modal-body { overflow: visible; padding: 0 !important; }
+  .lg-doc { font-size: 11pt; color: #000; }
+  .lg-p, .lg-ul { color: #000; }
+}
