@@ -4,21 +4,26 @@
 #   • التشغيل يدوياً: تبويب Actions ← "Dentora Windows" ← Run workflow (يمكن كتابة رقم الإصدار مثل 1.2.0، أو تركه فارغاً لاستخدام رقم package.json).
 #   • أو تلقائياً عند دفع وسم مثل dentora-v1.2.0  (git tag dentora-v1.2.0 && git push origin dentora-v1.2.0) — يُؤخذ الإصدار من الوسم.
 #   • أين أجد الملفات؟ Actions ← اختر التشغيل ← أسفل الصفحة قسم Artifacts ← "Dentora-windows" (ملف zip يحوي ملفات ‎.exe).
-#   • التوقيع الرقمي (اختياري): البرنامج غير الموقَّع يعمل بشكل طبيعي، لكن Windows SmartScreen يُظهر عند أول تشغيل
-#     "حمى Windows جهاز الكمبيوتر" ← "مزيد من المعلومات" ← "تشغيل على أي حال". لإزالة التحذير لاحقاً اشترِ شهادة توقيع برمجيات
-#     (Code Signing، ويفضّل EV) ثم أضف في Settings ← Secrets and variables ← Actions:
-#       CSC_LINK          = ملف الشهادة ‎.pfx مُرمَّزاً بـ base64  (PowerShell: [Convert]::ToBase64String([IO.File]::ReadAllBytes("cert.pfx")))
-#       CSC_KEY_PASSWORD  = كلمة مرور الشهادة
-#     وعدّل publisherName في dental/electron-builder.yml ليطابق اسم "Issued to" في الشهادة. لا حاجة لأي تعديل آخر.
+#   • التوقيع الرقمي (مهم قبل البيع): Windows 11 الجديد يفعّل Smart App Control الذي يمنع برامج التثبيت غير الموقَّعة تماماً،
+#     وفي غيره يُظهر SmartScreen تحذيراً. يوقّع هذا السير الملفات تلقائياً عند وجود الأسرار (التفاصيل في dental/docs/WINDOWS.md §7):
+#       Azure Trusted Signing (الأسهل والأرخص): AZURE_TENANT_ID و AZURE_CLIENT_ID و AZURE_CLIENT_SECRET
+#         و AZURE_TS_ENDPOINT و AZURE_TS_ACCOUNT و AZURE_TS_PROFILE و AZURE_TS_PUBLISHER (اسم الناشر كما في الشهادة)
+#       أو شهادة بملف ‎.pfx (إن أعطاك المُصدِر ملفاً): CSC_LINK (base64) و CSC_KEY_PASSWORD
 #
 # Builds the Windows installer (NSIS, Dentora-Setup-<version>.exe) and the portable exe (Dentora-Portable-<version>.exe).
 #   • Run it from Actions → "Dentora Windows" → Run workflow (optional version such as 1.2.0; empty = package.json version),
 #     or push a tag like dentora-v1.2.0 (the version is taken from the tag).
 #   • Where is the installer? Actions → open the run → "Artifacts" at the bottom → "Dentora-windows" (a zip with the .exe files).
 #     Artifacts are kept for 90 days; download and keep the ones you ship.
-#   • Code signing is optional. Unsigned builds work, but SmartScreen warns on first launch ("More info" → "Run anyway").
-#     To sign: add the repository secrets CSC_LINK (base64 of the .pfx) and CSC_KEY_PASSWORD, and set publisherName in
-#     dental/electron-builder.yml to the certificate's "Issued to" name. electron-builder signs automatically when they exist.
+#   • Code signing (needed to sell): Smart App Control, on by default on a clean Windows 11, blocks unsigned installers
+#     outright; elsewhere SmartScreen warns. The build signs Dentora.exe, the installer, the uninstaller and the portable
+#     exe, with a timestamp, when one of these sets of repository secrets exists (dental/docs/WINDOWS.md §7):
+#       Azure Trusted Signing:  AZURE_TENANT_ID, AZURE_CLIENT_ID, AZURE_CLIENT_SECRET (an app registration with the
+#                               "Trusted Signing Certificate Profile Signer" role), AZURE_TS_ENDPOINT (e.g.
+#                               https://weu.codesigning.azure.net), AZURE_TS_ACCOUNT, AZURE_TS_PROFILE, AZURE_TS_PUBLISHER
+#                               (the certificate's subject CN, e.g. "Dentora Ltd")
+#       a .pfx certificate:     CSC_LINK (base64 of the .pfx) and CSC_KEY_PASSWORD (only CAs that still issue exportable
+#                               keys; OV/EV keys bought since June 2023 live on a token or a cloud HSM: see the docs)
 #   • No GH_TOKEN is needed: nothing is published, the files are only uploaded as an artifact.
 name: Dentora Windows
 
@@ -90,13 +95,66 @@ jobs:
         env:
           CSC_LINK: ${{ secrets.CSC_LINK }}
           CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
+          AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+          AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+          AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
+          AZURE_TS_ENDPOINT: ${{ secrets.AZURE_TS_ENDPOINT }}
+          AZURE_TS_ACCOUNT: ${{ secrets.AZURE_TS_ACCOUNT }}
+          AZURE_TS_PROFILE: ${{ secrets.AZURE_TS_PROFILE }}
+          AZURE_TS_PUBLISHER: ${{ secrets.AZURE_TS_PUBLISHER }}
         run: |
-          if [ -z "$CSC_LINK" ]; then
+          SIGN=()
+          if [ -n "$AZURE_CLIENT_ID" ] && [ -n "$AZURE_TS_ENDPOINT" ] && [ -n "$AZURE_TS_ACCOUNT" ] && [ -n "$AZURE_TS_PROFILE" ] && [ -n "$AZURE_TS_PUBLISHER" ]; then
+            unset CSC_LINK CSC_KEY_PASSWORD
+            SIGN=(-c.win.azureSignOptions.endpoint="$AZURE_TS_ENDPOINT"
+                  -c.win.azureSignOptions.codeSigningAccountName="$AZURE_TS_ACCOUNT"
+                  -c.win.azureSignOptions.certificateProfileName="$AZURE_TS_PROFILE"
+                  -c.win.azureSignOptions.publisherName="$AZURE_TS_PUBLISHER")
+            echo "::notice::Signing with Azure Trusted Signing as \"$AZURE_TS_PUBLISHER\"."
+          elif [ -n "$CSC_LINK" ]; then
+            echo "::notice::Signing with the certificate in CSC_LINK."
+          else
             unset CSC_LINK CSC_KEY_PASSWORD
             export CSC_IDENTITY_AUTO_DISCOVERY=false
-            echo "::notice::No CSC_LINK secret: the installer is unsigned (SmartScreen will warn on first launch)."
+            echo "::warning::No signing secrets: the installer is UNSIGNED. Smart App Control blocks it on a new Windows 11 PC and SmartScreen warns elsewhere. Do not ship it to clinics."
           fi
-          npx electron-builder --win --publish never
+          npx electron-builder --win --publish never "${SIGN[@]}"
+
+      # The installed app itself: Dentora.exe (with its Electron fuses and the embedded app.asar hash) must start and
+      # load its page, must refuse a debugging port, and must refuse an app.asar changed after the build.
+      - name: Check the packaged Dentora.exe (starts; refuses a debugging port and a modified app.asar)
+        timeout-minutes: 6
+        run: |
+          T="$(cygpath -u "$RUNNER_TEMP")"
+          started() { for _ in $(seq 1 "$2"); do grep -q "started v" "$1/logs/main.log" 2>/dev/null && return 0; sleep 1; done; return 1; }
+          running() { tasklist //FI "IMAGENAME eq Dentora.exe" 2>/dev/null | grep -qi "dentora.exe"; }
+          stop() { taskkill //F //IM Dentora.exe >/dev/null 2>&1 || true; sleep 2; }
+          launch() { mkdir -p "$2"; DENTORA_USER_DATA="$(cygpath -w "$2")" "$1" "${@:3}" >/dev/null 2>&1 & }
+
+          # 1) the build as shipped starts and loads its page
+          launch release/win-unpacked/Dentora.exe "$T/ok"
+          if ! started "$T/ok" 60; then cat "$T/ok/logs/main.log" 2>/dev/null; stop; echo "::error::Dentora.exe did not start"; exit 1; fi
+          sleep 8
+          cat "$T/ok/logs/main.log"
+          if ! running; then echo "::error::Dentora.exe stopped right after starting"; exit 1; fi
+          if grep -Eq "load failed|renderer gone" "$T/ok/logs/main.log"; then stop; echo "::error::the page did not load"; exit 1; fi
+          stop
+
+          # 2) a debugging port is refused
+          launch release/win-unpacked/Dentora.exe "$T/dbg" --remote-debugging-port=9333
+          sleep 10
+          if curl -s -m 3 http://127.0.0.1:9333/json >/dev/null; then stop; echo "::error::the debugging port answered"; exit 1; fi
+          if running; then stop; echo "::error::Dentora.exe kept running with --remote-debugging-port"; exit 1; fi
+          grep "refused to start" "$T/dbg/logs/main.log"
+
+          # 3) a copy whose app.asar was changed after the build (one hex digit of a file hash in its header: still a valid
+          #    archive, but not the one whose hash is embedded in Dentora.exe) must not start
+          cp -r release/win-unpacked "$T/tampered"
+          node -e 'const a=require("@electron/asar"),fs=require("fs");const f=process.argv[1];const h=a.getRawHeader(f).headerString;const i=h.indexOf("\"hash\":\"")+8;const p=16+Buffer.byteLength(h.slice(0,i));const b=fs.readFileSync(f);b[p]=b[p]===0x61?0x62:0x61;fs.writeFileSync(f,b);JSON.parse(a.getRawHeader(f).headerString)' "$(cygpath -w "$T/tampered/resources/app.asar")"
+          launch "$T/tampered/Dentora.exe" "$T/tampered-data"
+          if started "$T/tampered-data" 25; then stop; echo "::error::Dentora.exe ran a modified app.asar: asar integrity validation is off"; exit 1; fi
+          stop
+          echo "packaged Dentora.exe: starts, refuses a debugging port, refuses a modified app.asar"
 
       - name: Smoke-test the app on Windows (window, bridge, MachineGuid device id, data survives restart)
         continue-on-error: true

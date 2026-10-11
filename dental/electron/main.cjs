@@ -6,7 +6,7 @@
 // IPC handlers below, typed in src/platform/index.ts:
 //   device-id · save-begin/-chunk/-end/-abort · open-begin/-chunk/-end · print · app-version · open-external
 // The plain decisions (window placement, the app's own URL, refused switches, the right-click menu, the device id)
-// are in electron/lib.cjs, which tests/electron-shell.test.ts checks.
+// are in electron/lib.cjs, which tests/native-shell.test.ts checks.
 //
 // Patient data lives in IndexedDB under app.getPath('userData') (Windows: %APPDATA%\Dentora). The installer never
 // deletes that folder, so upgrades and reinstalls keep every record.
@@ -389,13 +389,13 @@ function hostFingerprint() {
   return host || user || cpu ? `host:${host}|${user}|${cpu}` : null
 }
 
-/** This computer's id (hashed, never sent raw). On a first run reg.exe gets three tries with longer waits. */
+/** This computer's id (hashed, never sent raw). On a first run reg.exe gets a second, longer try (a slow antivirus). */
 async function machineId(firstRun) {
   if (process.platform !== 'win32') {
     const h = hostFingerprint()
     return h ? { kind: 'host', id: sha256(`dentora|${h}`) } : null
   }
-  for (const timeout of firstRun ? [10_000, 20_000, 30_000] : [10_000]) {
+  for (const timeout of firstRun ? [10_000, 20_000] : [10_000]) {
     const g = await windowsMachineGuid(timeout)
     if (g) return { kind: 'win', id: sha256(`dentora|win:${g}`) }
   }

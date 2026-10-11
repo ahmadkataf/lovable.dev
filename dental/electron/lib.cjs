@@ -1,5 +1,5 @@
 'use strict'
-// Dentora — the plain decisions of the Windows shell (no Electron in here), so that tests/electron-shell.test.ts can
+// Dentora — the plain decisions of the Windows shell (no Electron in here), so that tests/native-shell.test.ts can
 // check them on any machine: where the window opens, which file URL is the app's own page, which command-line
 // switches a packaged app refuses, the right-click menu, and how the device id stays the same for an installation.
 

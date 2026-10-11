@@ -17,12 +17,15 @@
 !macroend
 
 ; ---- Arabic for the few installer messages electron-builder has only in English ---------------------------------------
-; (the buttons and the standard pages come from NSIS's own Arabic language file). Each replaces the English fallback
-; electron-builder defined for Arabic (1025). NSIS reports a second definition (warning 6030) when it builds its string
-; tables at the end of the script, so the warning stays off from here on; it concerns only redefined LangStrings.
+; (the buttons and the standard pages come from NSIS's own Arabic language file). electron-builder defines an English
+; fallback for Arabic (1025) in a file it includes next to this one; NSIS keeps the LAST definition of a LangString, so
+; these are set in customHeader, which installer.nsi expands after every include. NSIS reports the second definition
+; (warning 6030, "set multiple times"), which is intended here.
 !pragma warning disable 6030
-LangString installing 1025 "جارٍ تثبيت ${PRODUCT_NAME}، يُرجى الانتظار…"
-LangString appClosing 1025 "جارٍ إغلاق ${PRODUCT_NAME}…"
-LangString areYouSureToUninstall 1025 "هل تريد إزالة ${PRODUCT_NAME} من هذا الحاسوب؟ بيانات العيادة لا تُحذف."
-LangString win7Required 1025 "يحتاج ${PRODUCT_NAME} إلى Windows 7 أو أحدث."
-LangString x64WinRequired 1025 "يحتاج ${PRODUCT_NAME} إلى نسخة Windows بنظام 64 بت."
+!macro customHeader
+  LangString installing 1025 "جارٍ تثبيت ${PRODUCT_NAME}، يُرجى الانتظار…"
+  LangString appClosing 1025 "جارٍ إغلاق ${PRODUCT_NAME}…"
+  LangString areYouSureToUninstall 1025 "هل تريد إزالة ${PRODUCT_NAME} من هذا الحاسوب؟ بيانات العيادة لا تُحذف."
+  LangString win7Required 1025 "يحتاج ${PRODUCT_NAME} إلى Windows 7 أو أحدث."
+  LangString x64WinRequired 1025 "يحتاج ${PRODUCT_NAME} إلى نسخة Windows بنظام 64 بت."
+!macroend

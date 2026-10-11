@@ -342,9 +342,27 @@ export function print(jobName?: string): void {
 
 // ---- the Android back button --------------------------------------------------------------------------------
 // The Android shell asks window.__dentoraBack() first on every press of the back key (or gesture): true means the
-// page handled it. It closes the top-most dialog, drawer or menu (the same one Escape closes), then lets a screen
-// with steps of its own (the setup wizard) go back a step; otherwise the shell goes back a page or leaves the app.
+// page handled it. A list open under the focused field (patient, drug or procedure picker) closes first and alone,
+// then the top-most dialog, drawer or menu (the same one Escape closes), then a screen with steps of its own (the
+// setup wizard) goes back a step; otherwise the shell goes back a page or leaves the app.
 const backHandlers: Array<() => boolean> = []
+/**
+ * Escape to the focused field while a list is open (a picker inside a form): true when something took it. A picker
+ * closes its own list and stops the key there, so the form around it stays open with what was typed; a field that
+ * does not handle it lets it reach the page, which closes the top-most layer as a keyboard's Escape does.
+ */
+function escapeOpenList(): boolean {
+  if (typeof document === 'undefined' || !document.querySelector('[role="listbox"]')) return false
+  const el = document.activeElement
+  if (!(el instanceof HTMLElement) || el === document.body) return false
+  let reachedWindow = false
+  const probe = () => { reachedWindow = true }
+  // after the page's own Escape listener on window (added earlier, so it runs first in the bubble phase)
+  window.addEventListener('keydown', probe)
+  const ev = new KeyboardEvent('keydown', { key: 'Escape', code: 'Escape', keyCode: 27, bubbles: true, cancelable: true })
+  try { el.dispatchEvent(ev) } finally { window.removeEventListener('keydown', probe) }
+  return !reachedWindow || ev.defaultPrevented
+}
 /**
  * Lets a screen take the back key while it is shown: `handler` returns true when it did something (a wizard went
  * back a step), false to let the key go on. Returns the function that removes it (use it as an effect's cleanup).
@@ -355,6 +373,7 @@ export function onBackButton(handler: () => boolean): () => void {
 }
 /** One press of the back key: true when the page used it. */
 export function handleBackButton(): boolean {
+  try { if (escapeOpenList()) return true } catch { /* never trap the back key */ }
   if (closeTopLayer()) return true
   for (let i = backHandlers.length - 1; i >= 0; i--) {
     try { if (backHandlers[i]()) return true } catch { /* a broken handler must not trap the back key */ }

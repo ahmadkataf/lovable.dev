@@ -12,9 +12,10 @@
 الملفات المعنية:
 
 ```
-android/AndroidManifest.xml                 تعريف التطبيق: com.dentora.app، الحد الأدنى Android 7.0 (SDK 24)، الهدف SDK 35، صلاحية الإنترنت فقط
-android/src/com/dentora/app/MainActivity.java   الغلاف: WebView، الجسر DentoraAndroid، الحفظ، الطباعة، اختيار الملفات، الروابط، زر الرجوع
-android/src/com/dentora/app/WebFiles.java       قرارات بلا Android (أنواع الملفات، المسارات، أسماء الحفظ…) مع اختبار JVM
+android/AndroidManifest.xml                 تعريف التطبيق: com.dentora.app، الحد الأدنى Android 7.0 (SDK 24)، الهدف SDK 36 (Android 16)، صلاحية الإنترنت فقط
+android/src/com/dentora/app/MainActivity.java   الغلاف: WebView، الجسر DentoraAndroid، الحفظ، الطباعة، اختيار الملفات والكاميرا، الروابط، زر الرجوع
+android/src/com/dentora/app/CaptureProvider.java   الملف الذي تكتب فيه كاميرا الهاتف صورة ملتقطة من منتقي الملفات (بلا صلاحية كاميرا)
+android/src/com/dentora/app/WebFiles.java       قرارات بلا Android (أنواع الملفات، المسارات، أسماء الحفظ، الطلبات المرفوضة، اسم مهمة الطباعة…) مع اختبار JVM
 android/test/                               WebFilesTest (يشغّله البناء)، webview-sim.mjs (يشغّل الـ APK المبني في Chromium)
 scripts/build-apk.sh                        البناء والتوقيع (APK + AAB)
 scripts/android-res.py                      اسم التطبيق والأيقونات (عادية + Adaptive) من public/icon.svg
@@ -29,12 +30,13 @@ scripts/android-res.py                      اسم التطبيق والأيقو
 - **Node.js 22** و`npm`.
 - **JDK 17** أو أحدث (`javac`، `keytool`، `jarsigner`).
 - **Python 3** مع **Pillow**: `pip install pillow`.
-- **Android SDK** (أدوات سطر الأوامر فقط، لا حاجة لـ Android Studio) وفيه `build-tools;35.0.0` و`platforms;android-35`:
+- **Android SDK** (أدوات سطر الأوامر فقط، لا حاجة لـ Android Studio) وفيه `build-tools;36.0.0` و`platforms;android-36`
+  (Google Play لا تقبل منذ 31 أغسطس 2026 تطبيقاً جديداً ولا تحديثاً يستهدف أقل من API 36):
   ```bash
   # بعد تنزيل "Command line tools only" من developer.android.com/studio وفكّها في $ANDROID_HOME/cmdline-tools/latest
   export ANDROID_HOME=$HOME/android-sdk
   yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses
-  $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager "build-tools;35.0.0" "platforms;android-35"
+  $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager "build-tools;36.0.0" "platforms;android-36"
   ```
 - **Chromium الخاص بـ Playwright** لرسم الأيقونة من `public/icon.svg`: `npx playwright install chromium`
   (إن لم يتوفر تُرسم الأيقونة بـ Pillow مع تحذير، والنتيجة شبه مطابقة).
@@ -60,17 +62,19 @@ npm run android:build          # = npm run build && ./scripts/build-apk.sh
 | `ANDROID_KEY_ALIAS` | `dentora` | اسم المفتاح داخل الملف |
 | `VERSION_NAME` | إصدار `package.json` | رقم الإصدار الظاهر للمستخدم، مثل `1.2.3` |
 | `VERSION_CODE` | `major*10000 + minor*100 + patch` | رقم الإصدار الداخلي (`1.2.3` ← `10203`) |
-| `TARGET_SDK` | `35` | مستوى الـ API المستهدف (يجب أن تكون المنصة نفسها مثبّتة) |
+| `TARGET_SDK` | `36` | مستوى الـ API المستهدف (يجب أن تكون المنصة نفسها مثبّتة). أقل من 36 يُبنى مع تحذير، ولا تقبله Google Play |
 | `BUNDLETOOL` | `$ANDROID_HOME/bundletool.jar` إن وُجد | لبناء ملف AAB |
 | `DIST` | `dist` | مجلد بناء الويب المراد تغليفه |
+| `OUT_DIR` | `android/build` | مجلد ملفي APK وAAB (ومجلد العمل) |
 
 ### التحقق من الناتج
 ```bash
-B=$ANDROID_HOME/build-tools/35.0.0
-$B/aapt2 dump badging android/build/Dentora.apk | head -4      # الحزمة، الإصدار، SDK، النشاط الرئيسي
+B=$ANDROID_HOME/build-tools/36.0.0
+$B/aapt2 dump badging android/build/Dentora.apk | grep -E "^(package|sdkVersion|targetSdkVersion)"   # targetSdkVersion:'36'
 $B/apksigner verify --verbose android/build/Dentora.apk        # التوقيع
 unzip -l android/build/Dentora.apk | grep www/index.html       # تطبيق الويب داخل الملف
-node android/test/webview-sim.mjs                              # تشغيل الـ APK المبني في Chromium كما يقدّمه الغلاف، بالعربية والإنجليزية على شاشة هاتف 390px (لقطات في qa-shots/android)
+node android/test/webview-sim.mjs                              # تشغيل الـ APK المبني في Chromium كما يقدّمه الغلاف (مع CSP)، بالعربية والإنجليزية على شاشة هاتف 390px:
+                                                               # الحفظ والاستعادة، الطباعة واسمها، زر الرجوع مع النوافذ والقوائم (لقطات في qa-shots/android)
 ```
 
 ---
@@ -149,15 +153,13 @@ adb install -r android/build/Dentora.apk
    - محلياً: `npm run android:build` ثم ارفع `android/build/Dentora.aab`.
    - على GitHub: Actions ← **Dentora – Android** ← Run workflow، أو ادفع وسماً (tag) مثل `dentora-v1.0.1`؛
      الملفات تظهر في **Artifacts** باسم `Dentora-android`.
-6. في Play Console املأ: نموذج **أمان البيانات** (التطبيق لا يجمع ولا يشارك أي بيانات؛ كل شيء على الجهاز)، و**رابط سياسة الخصوصية**
-   (مطلوب لتطبيق يتعامل مع بيانات صحية)، وبيان تطبيقات الصحة إن طُلب، والصلاحيات: الإنترنت فقط.
-7. **مستوى الـ API المستهدف:** ترفع Google الحد الأدنى كل سنة (عادة في آخر أغسطس). يبني السكربت افتراضياً على SDK 35؛
-   إن طلبت Play Console مستوى أعلى:
-   ```bash
-   sdkmanager "platforms;android-36"
-   TARGET_SDK=36 npm run android:build
-   ```
-   الغلاف جاهز لذلك (العرض من الحافة للحافة، وزر الرجوع مضبوط بـ `enableOnBackInvokedCallback=false`).
+6. في Play Console املأ: نموذج **أمان البيانات** (التطبيق لا يجمع ولا يشارك أي بيانات؛ كل شيء على الجهاز، ولا يدخل في نسخ Google
+   الاحتياطي)، و**رابط سياسة الخصوصية** (مطلوب لتطبيق يتعامل مع بيانات صحية)، وبيان تطبيقات الصحة إن طُلب، والصلاحيات: الإنترنت فقط.
+7. **مستوى الـ API المستهدف:** تشترط Google Play منذ **31 أغسطس 2026** أن يستهدف كل تطبيق جديد وكل تحديث **API 36 (Android 16)**
+   أو أعلى (مع مهلة بطلب من Play Console حتى 1 نوفمبر 2026). السكربت وسير العمل يبنيان على 36 افتراضياً، وسير العمل يفشل إن لم يكن
+   الهدف 36. الغلاف مهيّأ لـ Android 16: العرض من الحافة للحافة مع هوامش لأشرطة النظام ولوحة المفاتيح، وزر الرجوع وإيماءته عبر
+   `OnBackInvokedDispatcher` (Android 13+) و`onBackPressed` (الأقدم). ترفع Google الحد كل سنة (عادة آخر أغسطس): ثبّت المنصة الجديدة
+   وغيّر `TARGET_SDK` في `scripts/build-apk.sh` وسير العمل، وجرّب على هاتف بذلك الإصدار قبل الرفع.
 
 > **تنبيه مهم للبيع:** إذا تُركت Google تنشئ مفتاحها الخاص في الخطوة 3، فستكون نسخ المتجر موقّعة بمفتاح غير مفتاحك،
 > فلا تُحدِّث النسخةُ المشارَكة نسخةَ المتجر ولا العكس، و**يختلف رقم الجهاز** بينهما على Android 8+. لذلك نفّذ الخطوة 3 كما هي.
@@ -178,8 +180,9 @@ adb install -r android/build/Dentora.apk
   خارج الهاتف إن أمكن (Google Drive، أو أرسل الملف لنفسك على واتساب/البريد). انصح العيادة بنسخة يومية أو أسبوعية على الأقل.
 - **الانتقال إلى هاتف جديد:** خذ نسخة احتياطية ← ثبّت Dentora على الهاتف الجديد ← استعِد النسخة (تظهر كل أنواع الملفات في شاشة
   الاختيار لأن بعض التطبيقات تعرض ملف JSON كنص عادي) ← فعّل الترخيص بكود جديد (رقم الجهاز تغيّر).
-- قد يحفظ Android نسخة تلقائية من بيانات التطبيق في حساب Google إن كان النسخ الاحتياطي للهاتف مفعّلاً (حتى 25 ميغابايت)،
-  لكنها ليست مضمونة: **لا تعتمد عليها بدل النسخة الاحتياطية من داخل البرنامج**.
+- **بيانات المرضى لا تخرج من الهاتف وحدها:** التطبيق مستثنى من نسخ Google الاحتياطي التلقائي ومن `adb backup`
+  (`android:allowBackup="false"`) ومن النقل المباشر بين الهواتف عند إعداد هاتف جديد (قواعد `data_extraction_rules` على Android 12+).
+  لذلك **النسخة الاحتياطية من داخل البرنامج هي الطريقة الوحيدة** لحفظ البيانات أو نقلها إلى هاتف جديد.
 - لا تغيّر أبداً اسم الحزمة `com.dentora.app` أو العنوان `dentora.app` في الكود: البيانات مرتبطة بهما، وتغييرهما يجعلها تبدو مفقودة.
 
 ---
@@ -202,23 +205,35 @@ adb install -r android/build/Dentora.apk
   ولا يخرج أي طلب إلى الشبكة. الأصل آمن (secure context) فتعمل IndexedDB و`crypto.subtle` والوحدات (ES modules) كما في المتصفح.
   الموجّه `HashRouter` والمسارات النسبية (`base: './'`) تجعل كل صفحة هي `index.html#/…`.
 - **الجسر `window.DentoraAndroid`** (العقد في `src/platform/index.ts`):
-  `deviceId()` · `saveFile(name, mime, base64)` · `print()` · `appVersion()` · `openExternal(url)`.
-- **الحفظ:** `DentoraAndroid.saveFile` يفتح شاشة «حفظ باسم» من النظام (Storage Access Framework، بلا أي صلاحية تخزين) ويعيد `true` فوراً؛
-  عند اختيار المكان تُكتب البايتات في الخلفية ويُطلق الحدث `window` ← `dentora:saved` بالتفاصيل `{ ok, cancelled, name }`.
-  ويغلّف الغلاف `window.DentoraAndroid` في كل صفحة بحيث تعيد `saveFile` وعداً (Promise) لا يُحسم إلا عند انتهاء الحفظ فعلاً:
-  `true` إذا كُتب الملف و`false` إذا أُلغي أو فشل. لذلك `await saveFile()` في `src/platform` يعني ما يقوله: النسخة الاحتياطية
-  الملغاة لا تُسجَّل كنسخة مأخوذة، ورسالة النجاح تظهر بعد الحفظ لا قبله. رسالة النجاح من البرنامج نفسه؛ والغلاف يُظهر رسالة فقط عند الفشل
-  أو عند الحفظ في «التنزيلات/Dentora» (هاتف بلا شاشة «حفظ باسم»). تُحفظ نسخة مؤقتة في مجلد cache حتى لا تضيع النسخة الاحتياطية
-  إذا أغلق Android التطبيق خلف شاشة الحفظ.
+  `deviceId()` · `saveBegin(name, mime, sizeHint, quiet)` · `saveChunk(id, base64)` · `saveEnd(id, size, crc)` · `saveAbort(id)` ·
+  `print(jobName?)` · `appVersion()` · `openExternal(url)`.
+  يضع WebView الجسر في كل إطار (frame) من الصفحة، لذلك لا يسمح الغلاف لأي موقع آخر بالتحميل في أي إطار: كل طلب `http(s)` لغير
+  `dentora.app` يُرفض (403) والتنقل إليه في إطار داخلي يُلغى، فلا تصل إلى الجسر إلا صفحات التطبيق. ولا يجيب الجسر إن كانت الصفحة
+  الرئيسية ليست صفحة التطبيق. وتُرسل صفحة التطبيق مع سياسة **Content-Security-Policy** نفسها التي يضعها تطبيق ويندوز.
+- **الحفظ:** تُرسل الصفحة الملف قطعاً (base64 نحو 1 ميغابايت لكل قطعة) إلى ملف مؤقت في مجلد cache، ويتحقق `saveEnd` من الحجم وCRC-32
+  ثم يفتح شاشة «حفظ باسم» من النظام (Storage Access Framework، بلا أي صلاحية تخزين). عند اختيار المكان يُكتب الملف في الخلفية من أول بايت
+  (`"wt"`، وإن لم يعرفه مزوّد التخزين فـ`"w"` مع قصّ الملف عند نهاية ما كُتب، حتى لا يبقى ذيل نسخة أقدم أطول عند الكتابة فوقها)، ثم
+  يُقرأ ثانية ويُقارن حجمه وCRC-32، ويُطلق الحدث `window` ← `dentora:saved` بالتفاصيل `{ id, ok, cancelled, name, reason }`.
+  لذلك `await` في `src/platform` يعني ما يقوله: النسخة الاحتياطية الملغاة لا تُسجَّل كنسخة مأخوذة، ورسالة النجاح تظهر بعد الحفظ لا قبله.
+  والغلاف يُظهر رسالة فقط عند الفشل أو عند الحفظ في «التنزيلات/Dentora» (هاتف بلا شاشة «حفظ باسم»). يبقى ما يلزم الحفظ في التفضيلات
+  حتى لا تضيع النسخة الاحتياطية إذا أغلق Android التطبيق خلف شاشة الحفظ.
 - **الطباعة:** `print()` (وكذلك `window.print()`) تطبع الصفحة بأنماط الطباعة (`.print-area` فقط) على **A4** عبر خدمة الطباعة في الهاتف
   (طابعة، أو «حفظ كـ PDF»). على أندرويد تعود `print()` فوراً وتُرسم الصفحة لاحقاً، وتُعاد رسمها كلما غيّر المستخدم الورق أو الاتجاه؛
   لذلك يؤجّل الغلاف حدث `afterprint` الخاص بالصفحة حتى تُغلق شاشة الطباعة (`PrintDocumentAdapter.onFinish`) ثم يطلقه مرة واحدة،
-  فتبقى الوصفة/الفاتورة/مخطط الأسنان في وضع الطباعة طوال المهمة.
+  فتبقى الوصفة/الفاتورة/مخطط الأسنان في وضع الطباعة طوال المهمة. اسم مهمة الطباعة هو ما يقترحه «حفظ كـ PDF» اسماً للملف:
+  `print(jobName)` في `src/platform` يمرّره مع الاستدعاء (مثل «فاتورة INV-000034 - محمد العلي»)، وإلا فعنوان الصفحة، وإلا «Dentora».
 - **اختيار الملفات:** `<input type=file>` و`pickFile()` تفتح منتقي الملفات من النظام؛ الصور وPDF تُرشَّح حسب `accept`، وباقي الأنواع
-  (مثل ملف النسخة الاحتياطية) تُظهر كل الملفات.
+  (مثل ملف النسخة الاحتياطية) تُظهر كل الملفات. حين تقبل الصفحة صوراً (صورة المريض، الأشعة، صور الفم) يظهر **التقاط صورة** بكاميرا
+  الهاتف بجانب الملفات (ومع `<input capture>` تفتح الكاميرا مباشرة): تطبيق الكاميرا يكتب الصورة في ملف مؤقت للتطبيق عبر
+  `CaptureProvider` بإذن لذلك الملف وحده، فلا يحتاج التطبيق صلاحية الكاميرا. تُحذف الصور المؤقتة عند التشغيل التالي.
 - **الروابط:** صفحات التطبيق تبقى داخله؛ `tel:` يفتح الاتصال، `mailto:` البريد، `https://wa.me/…` واتساب، وأي موقع آخر المتصفح.
-- **زر الرجوع:** يغلق أولاً أي نافذة أو قائمة مفتوحة في الصفحة (بإرسال Escape)، ثم يعود صفحة، وفي الصفحة الرئيسية ينقل التطبيق
-  إلى الخلفية بدل إغلاقه. يمكن للصفحة التحكم به: `window.__dentoraBack = () => true` يعني «تعاملتُ معه».
+- **زر الرجوع (والإيماءة):** يسأل الغلاف الصفحة أولاً `window.__dentoraBack()` (من `src/platform`): قائمة مفتوحة تحت الحقل الذي يُكتب
+  فيه (منتقي المريض أو الدواء أو الإجراء داخل نموذج) تُغلق وحدها ويبقى النموذج بما كُتب فيه؛ وإلا يغلق أعلى نافذة أو درج أو قائمة
+  مفتوحة (ما يغلقه Escape)، ثم يعطي الشاشة فرصة الرجوع خطوة إن سجّلت ذلك بـ `onBackButton(handler)` (شاشة ذات خطوات مثل معالج
+  الإعداد؛ ما لم يسجّل المعالج ذلك فالرجوع فيه ينقل التطبيق إلى الخلفية). إن لم تستعمله الصفحة
+  وكانت فيها قائمة أو نافذة صغيرة غير مسجّلة (`role="menu"` أو `role="dialog"`) يرسل Escape مرة واحدة؛ وإلا يعود صفحة، وفي الصفحة الرئيسية
+  ينقل التطبيق إلى الخلفية بدل إغلاقه. على Android 13+ يصل الزر عبر `OnBackInvokedDispatcher` (`enableOnBackInvokedCallback="true"`)،
+  وهو ما يشترطه Android 16 للتطبيقات التي تستهدف API 36.
 - **الثبات:** حفظ آخر خطأ أغلق التطبيق وعرضه مرة واحدة مع زر نسخ للدعم الفني؛ إعادة فتح الصفحة تلقائياً إذا أوقف النظام عملية
   WebView لنقص الذاكرة؛ بقاء الصفحة (وأي نموذج نصف مكتمل) عند تدوير الشاشة أو ظهور لوحة المفاتيح أو تغيير الوضع الداكن أو لغة الهاتف
   أو حجم الخط؛ أشرطة نظام بيضاء بأيقونات داكنة وهوامش تلقائية للشريط العلوي والسفلي ولوحة المفاتيح (على Android 7 يبقى شريط التنقل
@@ -231,12 +246,12 @@ adb install -r android/build/Dentora.apk
 | المشكلة | الحل |
 |---|---|
 | `dist/index.html is missing` | نفّذ `npm run build` أولاً (أو استخدم `npm run android:build`) |
-| `no Android SDK at …` / `no build-tools` / `no platform` | اضبط `ANDROID_HOME` وثبّت `build-tools;35.0.0` و`platforms;android-35` |
-| `TARGET_SDK=36 needs platforms;android-36` | ثبّت المنصة المطلوبة بـ `sdkmanager` |
+| `no Android SDK at …` / `no build-tools` / `no platform` | اضبط `ANDROID_HOME` وثبّت `build-tools;36.0.0` و`platforms;android-36` |
+| `TARGET_SDK=36 needs platforms;android-36` | ثبّت المنصة المطلوبة بـ `sdkmanager` (الأمر مكتوب في الرسالة) |
 | `ANDROID_KEYSTORE=… does not exist` | صحّح مسار ملف المفتاح (أو احذف المتغير لاستخدام `android/release.keystore`) |
 | `minor and patch must be below 100` | استخدم أرقام إصدار أصغر من 100 أو مرّر `VERSION_CODE` |
 | تحذير رسم الأيقونة بـ Pillow | `npx playwright install chromium` لرسمها من SVG مباشرة |
 | شاشة بيضاء على الهاتف | حدّث **Android System WebView** وChrome من متجر Play |
 | «لم يتم تثبيت التطبيق» عند التحديث | النسخة المثبّتة موقّعة بمفتاح آخر أو رقم إصدارها أعلى؛ خذ نسخة احتياطية قبل أي حذف |
-| Play Console يرفض الملف لمستوى الـ API | ابنِ بـ `TARGET_SDK=36` (انظر القسم 4) |
+| Play Console يرفض الملف لمستوى الـ API | تأكد أن `aapt2 dump badging` يُظهر `targetSdkVersion:'36'` أو أعلى (انظر القسم 4) |
 | Play Console يرفض لأن `versionCode` مستخدم | ارفع الإصدار في `package.json` أو مرّر `VERSION_CODE` أكبر |

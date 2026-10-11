@@ -5,7 +5,8 @@
 //  - installs a stand-in window.DentoraAndroid that records the bridge calls (the chunked save contract of
 //    src/platform), and runs the page scripts the shell runs (print shim, the bridge wrapper, the afterprint hold),
 //  - and drives the app on a phone-sized Chromium in Arabic and English: start, sign-in, IndexedDB persistence,
-//    fonts, hash routes, no sideways scrolling, the back key (BACK_JS: dialogs, the kit menus, the lab row menu),
+//    fonts, hash routes, no sideways scrolling, the back key (BACK_JS: dialogs, the kit menus, the lab row menu, a
+//    picker list inside a form),
 //    print (and its job name), CSV export and backup through saveBegin/saveChunk/saveEnd (cancelled vs saved),
 //    restore through the file chooser, the device number from ANDROID_ID, WhatsApp, no CSP violation.
 //   cd dental && node android/test/webview-sim.mjs            (APK=…, QA_SHOTS=qa-shots/android)
@@ -219,6 +220,27 @@ try {
     await page.waitForTimeout(300)
     check(!opened2 || (b2 === 'handled' && await page.locator('.menu-portal').count() === 0), 'back closes a kit menu (window.__dentoraBack → closeTopLayer)', JSON.stringify({ opened2, b2 }))
   }
+  // a picker's list open inside a form (the drug or patient picker of a new prescription): back closes the list only,
+  // the form keeps what was typed
+  await go('#/prescriptions')
+  await page.locator('.page-header button.btn-primary').filter({ visible: true }).first().click().catch(() => {})
+  const formOpen = await page.waitForSelector('[aria-modal="true"]', { timeout: 8000 }).then(() => true, () => false)
+  const visibleCount = sel => page.evaluate(s => [...document.querySelectorAll(s)].filter(e => { const r = e.getBoundingClientRect(); return r.width > 0 && r.height > 0 }).length, sel)
+  let picked = null
+  const fields = page.locator('[aria-modal="true"] input').filter({ visible: true })
+  for (let i = 0; formOpen && i < await fields.count() && !picked; i++) {
+    await fields.nth(i).click().catch(() => {})
+    await page.waitForTimeout(250)
+    if (!(await visibleCount('[role="listbox"]'))) { await fields.nth(i).type('a').catch(() => {}); await page.waitForTimeout(250) }
+    if (await visibleCount('[role="listbox"]')) {
+      const b = await back()
+      await page.waitForTimeout(300)
+      picked = { b, list: await visibleCount('[role="listbox"]'), form: await visibleCount('[aria-modal="true"]') }
+    }
+  }
+  check(!!picked && picked.b === 'handled' && picked.list === 0 && picked.form > 0, 'back with a picker list open in a form closes the list, not the form', JSON.stringify(picked))
+  await page.keyboard.press('Escape').catch(() => {})
+  await go('#/patients/p-1')
   check(await page.evaluate(() => typeof window.__dentoraBack === 'function' && window.__dentoraBack() === false), 'nothing open: the page leaves the back key to the shell')
 
   // ---- print: window.print is routed to the bridge; afterprint waits for the end of the print job ----

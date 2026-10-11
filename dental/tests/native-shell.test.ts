@@ -3,7 +3,7 @@
 // holds, the debugging switches a packaged app refuses, the right-click menu, a device id that never changes by itself.
 import { createRequire } from 'node:module'
 import { pathToFileURL } from 'node:url'
-import { act, createElement } from 'react'
+import { act, createElement, useState } from 'react'
 import { createRoot } from 'react-dom/client'
 import { handleBackButton, onBackButton, print } from '../src/platform'
 import { Menu, Modal } from '../src/ui/Overlay'
@@ -130,7 +130,7 @@ describe('device id (resolveDeviceId)', () => {
     }
     return { st, deps }
   }
-  it('first run: the machine id, cached with its source (and three tries asked for)', async () => {
+  it('first run: the machine id, cached with its source (and the longer first-run tries asked for)', async () => {
     const { st, deps } = env({ machine: { kind: 'win', id: A } })
     expect(await lib.resolveDeviceId(deps)).toEqual({ id: A, source: 'win', changed: false })
     expect(st.cache).toMatchObject({ v: 1, id: A, source: 'win', machine: A })
@@ -197,6 +197,30 @@ describe('Android back key (window.__dentoraBack)', () => {
     expect(handleBackButton()).toBe(false)
     expect(closed).toEqual(['dialog', 'step'])
     off()
+  })
+  it('a list open under a field in a dialog (patient or drug picker) closes alone; the form stays', () => {
+    const closed: string[] = []
+    function Picker() {
+      const [open, setOpen] = useState(true)
+      return createElement('div', null,
+        createElement('input', { id: 'pick', role: 'combobox', 'aria-expanded': open, onKeyDown: (e: KeyboardEvent) => { if (e.key === 'Escape' && open) { e.stopPropagation(); setOpen(false); closed.push('list') } } }),
+        open ? createElement('div', { role: 'listbox' }, 'options') : null)
+    }
+    act(() => root.render(createElement(Modal, { open: true, onClose: () => closed.push('dialog'), title: 'x', children: createElement(Picker) })))
+    act(() => { (document.getElementById('pick') as HTMLInputElement).focus() })
+    act(() => { expect(handleBackButton()).toBe(true) })
+    expect(closed).toEqual(['list'])
+    expect(document.querySelector('[role="listbox"]')).toBeNull()
+    act(() => { expect(handleBackButton()).toBe(true) })
+    expect(closed).toEqual(['list', 'dialog'])
+  })
+  it('a field that ignores Escape over an open list: the dialog closes, as with a keyboard', () => {
+    const closed: string[] = []
+    act(() => root.render(createElement(Modal, { open: true, onClose: () => closed.push('dialog'), title: 'x',
+      children: createElement('div', null, createElement('input', { id: 'plain' }), createElement('div', { role: 'listbox' }, 'o')) })))
+    act(() => { (document.getElementById('plain') as HTMLInputElement).focus() })
+    act(() => { expect(handleBackButton()).toBe(true) })
+    expect(closed).toEqual(['dialog'])
   })
   it('closes an open kit menu', () => {
     act(() => root.render(createElement(Menu, { trigger: () => createElement('button', { id: 'trig' }, 'more'), items: [{ label: 'a' }] })))
