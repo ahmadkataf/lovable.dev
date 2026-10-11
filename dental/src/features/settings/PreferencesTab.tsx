@@ -88,7 +88,7 @@ export default function PreferencesTab() {
   }
   const saveHours = (e?: FormEvent) => {
     e?.preventDefault()
-    if (!access.canEdit || !hours.dirty) return
+    if (!access.canEdit || !hours.dirty || hours.isSaved(h)) return
     void once(async () => {
       const errs = validateHours(h)
       setErrors(errs)
@@ -96,7 +96,7 @@ export default function PreferencesTab() {
       setSavingHours(true)
       try {
         const next = await updateClinic({ ...h })
-        hours.reset(next)
+        hours.reset(next, h)
         toast.success(t('settings.savedToast'))
         void logActivity({ type: 'system', action: 'update', message: t('settings.act.hours'), by: access.userId })
       } catch { toast.error(t('settings.saveFailed')) } finally { setSavingHours(false) }

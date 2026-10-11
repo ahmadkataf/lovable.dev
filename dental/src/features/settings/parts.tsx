@@ -23,12 +23,24 @@ export function useAccess() {
  */
 export function useDraft<S, D>(source: S | undefined, from: (s: S) => D) {
   const [draft, setDraft] = useState<D | null>(null)
+  // What a save just wrote, kept in a ref until the form re-renders from the database: a second Enter handled in
+  // between still sees the old `dirty` and would save (and log) the same values again. See isSaved.
+  const saved = useRef<string[]>([])
   useEffect(() => { if (source !== undefined) setDraft(d => d ?? from(source)) }, [source]) // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { saved.current = [] }, [source])
   const base = source !== undefined ? from(source) : null
   const dirty = draft !== null && base !== null && JSON.stringify(draft) !== JSON.stringify(base)
-  const reset = useCallback((next?: S) => { const s = next ?? source; if (s !== undefined) setDraft(from(s)) }, [source]) // eslint-disable-line react-hooks/exhaustive-deps
+  /** reset(next, submitted) after a save: shows `next` and remembers both it and the submitted draft as saved. */
+  const reset = useCallback((next?: S, submitted?: D) => {
+    const s = next ?? source
+    if (s === undefined) return
+    if (next !== undefined) saved.current = [JSON.stringify(from(next)), ...(submitted !== undefined ? [JSON.stringify(submitted)] : [])]
+    setDraft(from(s))
+  }, [source]) // eslint-disable-line react-hooks/exhaustive-deps
+  /** True when `d` is what the last save wrote (before the form has caught up): saving it again would be a no-op. */
+  const isSaved = useCallback((d: D | null) => d !== null && saved.current.includes(JSON.stringify(d)), [])
   const patch = useCallback((p: Partial<D>) => setDraft(d => (d ? { ...d, ...p } : d)), [])
-  return { draft, setDraft, patch, dirty, reset }
+  return { draft, setDraft, patch, dirty, reset, isSaved }
 }
 
 /**

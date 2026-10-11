@@ -17,7 +17,7 @@ export default function ClinicTab() {
   const toast = useToast()
   const access = useAccess()
   const clinic = useClinicMaybe()
-  const { draft, patch, dirty, reset } = useDraft(clinic, clinicDraftFrom)
+  const { draft, patch, dirty, reset, isSaved } = useDraft(clinic, clinicDraftFrom)
   const [errors, setErrors] = useState<FieldErrors>({})
   const [saving, setSaving] = useState(false)
   const errText = useErrText()
@@ -41,7 +41,7 @@ export default function ClinicTab() {
 
   const save = (e?: FormEvent) => {
     e?.preventDefault()
-    if (disabled || !dirty) return
+    if (disabled || !dirty || isSaved(draft)) return
     void once(async () => {
       const errs = validateClinic(draft)
       setErrors(errs)
@@ -49,7 +49,7 @@ export default function ClinicTab() {
       setSaving(true)
       try {
         const next = await updateClinic(clinicPatch(draft))
-        reset(next)
+        reset(next, draft)
         toast.success(t('settings.savedToast'))
         void logActivity({ type: 'system', action: 'update', message: t('settings.act.clinic'), by: access.userId })
       } catch { toast.error(t('settings.saveFailed')) } finally { setSaving(false) }

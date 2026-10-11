@@ -18,7 +18,7 @@ export default function BillingTab() {
   const toast = useToast()
   const access = useAccess()
   const clinic = useClinicMaybe()
-  const { draft, setDraft, dirty, reset } = useDraft(clinic, billingDraftFrom)
+  const { draft, setDraft, dirty, reset, isSaved } = useDraft(clinic, billingDraftFrom)
   const numbers = useLiveQuery(() => db.invoices.orderBy('number').keys(), []) as string[] | undefined
   const lastFileNo = useLiveQuery(async () => (await db.patients.orderBy('fileNo').last())?.fileNo ?? 0, [])
   const [errors, setErrors] = useState<FieldErrors>({})
@@ -39,7 +39,7 @@ export default function BillingTab() {
 
   const save = (e?: FormEvent) => {
     e?.preventDefault()
-    if (disabled || !dirty) return
+    if (disabled || !dirty || isSaved(draft)) return
     void once(async () => {
       const errs = validateBilling(draft, used)
       setErrors(errs)
@@ -47,7 +47,7 @@ export default function BillingTab() {
       setSaving(true)
       try {
         const next = await updateClinic(billingPatch(draft))
-        reset(next)
+        reset(next, draft)
         toast.success(t('settings.savedToast'))
         void logActivity({ type: 'system', action: 'update', message: t('settings.act.billing'), by: access.userId })
       } catch { toast.error(t('settings.saveFailed')) } finally { setSaving(false) }
