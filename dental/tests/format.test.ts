@@ -30,3 +30,26 @@ describe('format', () => {
     expect(ageFrom('2000-10-10', new Date(2026, 9, 10))).toBe(26)
   })
 })
+
+describe('money rounding and countries', () => {
+  it('rounds half up exactly for 0–3 decimals', async () => {
+    const { roundTo, round2, countryCodeFor, whatsappLink, setDefaultCountryCode } = await import('../src/lib/format')
+    expect(roundTo(1.005, 2)).toBe(1.01)
+    expect(roundTo(2.675, 2)).toBe(2.68)
+    expect(roundTo(-1.005, 2)).toBe(-1.01)
+    expect(roundTo(0.1 + 0.2, 2)).toBe(0.3)
+    expect(roundTo(12.3456, 3)).toBe(12.346)
+    expect(roundTo(2.5, 0)).toBe(3)
+    expect(roundTo(99.995, 2)).toBe(100)
+    expect(round2(33.33 * 3 * 1.05)).toBe(104.99)
+    expect(countryCodeFor('sar')).toBe('966')
+    setDefaultCountryCode('966')
+    expect(whatsappLink('0501234567')).toBe('https://wa.me/966501234567')
+    setDefaultCountryCode('963')
+  })
+  it('switches Arabic month names by region', async () => {
+    const { fmtMonth, setArabicMonthStyle } = await import('../src/lib/dates')
+    setArabicMonthStyle('standard'); expect(fmtMonth('2026-10-01', 'ar')).toContain('أكتوبر')
+    setArabicMonthStyle('levant'); expect(fmtMonth('2026-10-01', 'ar')).toContain('تشرين')
+  })
+})

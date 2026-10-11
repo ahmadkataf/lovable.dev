@@ -114,6 +114,15 @@ export async function nextInvoiceNumber(): Promise<string> {
     return `${c.invoicePrefix || ''}${String(n).padStart(6, '0')}`
   })
 }
+/** Next receipt number ('R-000123'), atomically; used for every new payment. */
+export async function nextReceiptNumber(): Promise<string> {
+  return db.transaction('rw', db.clinic, async () => {
+    const c = await getClinic()
+    const n = c.nextReceiptNumber || 1
+    await db.clinic.put({ ...c, nextReceiptNumber: n + 1, updatedAt: nowISO() })
+    return `${c.receiptPrefix ?? 'R-'}${String(n).padStart(6, '0')}`
+  })
+}
 export async function nextFileNumber(): Promise<number> {
   return db.transaction('rw', db.clinic, async () => {
     const c = await getClinic()

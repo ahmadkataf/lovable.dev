@@ -19,9 +19,11 @@ import settings from './modules/settings'
 import license from './modules/license'
 import search from './modules/search'
 import seed from './modules/seed'
+import backup from './modules/backup'
+import legal from './modules/legal'
 
 export type { Dict, ModuleDict }
-const MODULES: Record<string, ModuleDict> = { common, patients, chart, appointments, treatments, prescriptions, lab, billing, inventory, expenses, reports, dashboard, auth, staff, settings, license, search, seed }
+const MODULES: Record<string, ModuleDict> = { common, patients, chart, appointments, treatments, prescriptions, lab, billing, inventory, expenses, reports, dashboard, auth, staff, settings, license, search, seed, backup, legal }
 
 const LANG_KEY = 'dentora.lang'
 export function storedLang(): Lang {

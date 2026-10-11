@@ -7,6 +7,8 @@ import { ShieldAlert } from 'lucide-react'
 import { useClinicMaybe } from '@/app/hooks'
 import Shell from '@/app/Shell'
 import { ensureClinic } from '@/db'
+import { countryCodeFor, setDefaultCountryCode } from '@/lib/format'
+import { LEVANT_COUNTRIES, setArabicMonthStyle } from '@/lib/dates'
 
 const DashboardPage = lazy(() => import('@/features/dashboard/DashboardPage'))
 const PatientsPage = lazy(() => import('@/features/patients/PatientsPage'))
@@ -35,6 +37,10 @@ function Gate() {
   const location = useLocation()
   useEffect(() => { if (clinic?.setupDone) setLang(clinic.lang) }, [clinic?.lang, clinic?.setupDone, setLang])
   useEffect(() => { document.documentElement.dataset.theme = clinic?.theme === 'dark' ? 'dark' : 'light' }, [clinic?.theme])
+  // WhatsApp country code and Arabic month names follow the clinic's country (set in Settings, or derived from the currency)
+  const cc = clinic ? (clinic.countryCode || countryCodeFor(clinic.currency) || '963') : '963'
+  setDefaultCountryCode(cc)
+  setArabicMonthStyle(clinic?.arabicMonths ?? (LEVANT_COUNTRIES.has(cc) ? 'levant' : 'standard'))
   if (!clinic || !session.ready) return <Loading />
   if (!clinic.setupDone || session.users.length === 0) return location.pathname === '/setup' ? <Outlet /> : <Navigate to="/setup" replace />
   if (location.pathname === '/setup') return <Navigate to="/" replace />

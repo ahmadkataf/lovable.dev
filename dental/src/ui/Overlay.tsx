@@ -31,6 +31,13 @@ function installEscape() {
     top.current()
   })
 }
+/** Closes the top-most layer (dialog, drawer, menu); false when none is open. Used by the Android Back button. */
+export function closeTopLayer(): boolean {
+  const top = escapeStack[escapeStack.length - 1]
+  if (!top) return false
+  top.current()
+  return true
+}
 /** Registers a layer that Escape closes while `onClose` is given. Use it for custom overlays too. */
 export function useEscapeLayer(onClose?: () => void) {
   const ref = useRef(onClose)

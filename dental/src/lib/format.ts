@@ -43,7 +43,18 @@ export function formatPhone(p?: string): string {
   return p
 }
 export function phoneDigits(p?: string): string { return (p || '').replace(/[^\d+]/g, '') }
-export function whatsappLink(phone: string, text?: string, defaultCountry = '963'): string {
+/** Phone country code (no +) usually matching a clinic currency; '' when unknown. */
+export const COUNTRY_BY_CURRENCY: Record<string, string> = {
+  SYP: '963', SAR: '966', AED: '971', EGP: '20', JOD: '962', IQD: '964', KWD: '965', QAR: '974', OMR: '968', BHD: '973',
+  LBP: '961', TRY: '90', MAD: '212', DZD: '213', TND: '216', LYD: '218', SDG: '249', YER: '967',
+}
+export const countryCodeFor = (currency?: string) => COUNTRY_BY_CURRENCY[(currency || '').toUpperCase()] ?? ''
+let defaultCountry = '963'
+/** Set once from the clinic (App): the country code added to local numbers (0944…) in WhatsApp links. */
+export function setDefaultCountryCode(cc: string) { if (/^\d{1,4}$/.test(cc)) defaultCountry = cc }
+export const getDefaultCountryCode = () => defaultCountry
+export function whatsappLink(phone: string, text?: string, country = defaultCountry): string {
+  const defaultCountry = country
   let d = phoneDigits(phone).replace(/^\+/, '').replace(/^00/, '')
   if (d.startsWith('0')) d = defaultCountry + d.slice(1)
   return `https://wa.me/${d}${text ? `?text=${encodeURIComponent(text)}` : ''}`
@@ -65,7 +76,17 @@ export function colorFor(key: string): string {
   return AVATAR_COLORS[h % AVATAR_COLORS.length]
 }
 
-export function round2(n: number): number { return Math.round((n + Number.EPSILON) * 100) / 100 }
+export function round2(n: number): number { return roundTo(n, 2) }
+/** Half-up rounding to 0–3 decimals that is exact for decimal inputs (1.005 → 1.01, 2.675 → 2.68, −1.005 → −1.01). */
+export function roundTo(n: number, decimals: number): number {
+  if (!Number.isFinite(n)) return 0
+  const d = Math.max(0, Math.min(3, Math.round(decimals)))
+  const sign = n < 0 ? -1 : 1
+  // toPrecision(15) removes binary noise (1.0049999999 → 1.005) before the decimal shift
+  const abs = Math.abs(Number(n.toPrecision(15)))
+  const shifted = Number(`${abs}e${d}`)
+  return sign * Number(`${Math.round(shifted)}e-${d}`) || 0
+}
 export function clamp(n: number, min: number, max: number): number { return Math.min(max, Math.max(min, n)) }
 export function sum<T>(list: T[], f: (x: T) => number): number { return list.reduce((a, x) => a + (f(x) || 0), 0) }
 

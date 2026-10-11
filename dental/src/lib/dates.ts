@@ -46,8 +46,17 @@ export function ageFrom(birth?: ISODate, at: Date = new Date()): number | null {
   return age >= 0 && age < 150 ? age : null
 }
 
-const locale = (lang: Lang) => (lang === 'ar' ? 'ar-SY-u-nu-latn' : 'en-GB')
 const cache = new Map<string, Intl.DateTimeFormat>()
+let arabicMonths: 'levant' | 'standard' = 'levant'
+/** تشرين/كانون (Levant, Iraq) or يناير/فبراير (Gulf, Egypt, Maghreb). Set once from the clinic (App). */
+export function setArabicMonthStyle(style: 'levant' | 'standard') {
+  if (style === arabicMonths) return
+  arabicMonths = style; cache.clear()
+}
+export const getArabicMonthStyle = () => arabicMonths
+/** Countries whose Arabic uses the Syriac month names. */
+export const LEVANT_COUNTRIES = new Set(['963', '961', '962', '964', '970'])
+const locale = (lang: Lang) => (lang === 'ar' ? (arabicMonths === 'levant' ? 'ar-SY-u-nu-latn' : 'ar-EG-u-nu-latn') : 'en-GB')
 function dtf(lang: Lang, opts: Intl.DateTimeFormatOptions): Intl.DateTimeFormat {
   const key = lang + JSON.stringify(opts)
   let f = cache.get(key)

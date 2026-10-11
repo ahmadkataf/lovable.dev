@@ -23,7 +23,7 @@ export interface Clinic {
   logo?: string                   // data URL (PNG/JPEG/SVG), small
   currency: string                // ISO code, e.g. 'USD', 'SYP', 'SAR'
   currencySymbol: string          // '$', 'ل.س', 'ر.س'
-  currencyDecimals: number        // 0 or 2
+  currencyDecimals: number        // 0, 2 or 3 (KWD, BHD, OMR, JOD)
   lang: Lang
   theme: 'light' | 'dark'
   workingDays: number[]           // 0 = Sunday … 6 = Saturday
@@ -32,8 +32,13 @@ export interface Clinic {
   slotMinutes: number             // calendar grid step: 15 | 20 | 30 | 60
   defaultAppointmentMinutes: number
   taxPercent: number              // 0 if none
+  taxNumber?: string              // the clinic's VAT / tax registration number, printed on tax invoices
+  countryCode?: string            // phone country code without + (963, 966…): default for WhatsApp links; '' = derived from the currency
+  arabicMonths?: 'levant' | 'standard'   // تشرين/كانون (Levant, Iraq) or يناير/فبراير (Gulf, Egypt, Maghreb); unset = derived from the country
   invoicePrefix: string           // 'INV-'
   nextInvoiceNumber: number
+  receiptPrefix?: string          // 'R-'
+  nextReceiptNumber?: number
   nextFileNumber: number          // next patient file number
   invoiceFooter?: string
   prescriptionFooter?: string
@@ -230,6 +235,7 @@ export interface Payment {
   reference?: string
   note?: string
   receivedBy?: ID
+  receiptNo?: string              // sequential, from nextReceiptNumber() (older payments may lack it)
   createdAt: ISOTime
 }
 
@@ -288,6 +294,7 @@ export interface LabOrder {
   cost: number
   notes?: string
   treatmentItemId?: ID
+  expenseId?: ID                  // the expense recorded for this order's cost, once received
   createdAt: ISOTime
   updatedAt: ISOTime
 }
@@ -332,6 +339,7 @@ export interface Expense {
   method?: PaymentMethod
   vendor?: string
   by?: ID
+  labOrderId?: ID                 // set when the expense was created from a received lab order
   createdAt: ISOTime
 }
 
