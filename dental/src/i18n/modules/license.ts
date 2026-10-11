@@ -70,6 +70,8 @@ const license: ModuleDict = {
     price: 'الأسعار',
     seller: 'البائع',
     whatsapp: 'طلب عبر واتساب',
+    askWhatsapp: 'اطلب كود التفعيل عبر واتساب',
+    askWhatsappHint: 'تُكتب الرسالة برقم جهازك واسم العيادة، فقط أرسلها ويصلك الكود على واتساب.',
     email: 'طلب عبر البريد',
     // \u200E keeps a device number such as 2345-ABCD from showing as ABCD-2345 inside Arabic text (WhatsApp, e-mail)
     requestMsg: 'مرحباً، أرغب في تفعيل برنامج Dentora.\nاسم العيادة: {clinic}\nرقم الجهاز: \u200E{device}',
@@ -147,6 +149,8 @@ const license: ModuleDict = {
     price: 'Pricing',
     seller: 'Seller',
     whatsapp: 'Request on WhatsApp',
+    askWhatsapp: 'Request your activation code on WhatsApp',
+    askWhatsappHint: 'The message is written with your device number and clinic name; just send it and the code comes back on WhatsApp.',
     email: 'Request by email',
     requestMsg: 'Hello, I would like to activate Dentora.\nClinic: {clinic}\nDevice number: {device}',
     requestSubject: 'Dentora activation request — {device}',

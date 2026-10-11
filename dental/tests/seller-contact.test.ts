@@ -1,6 +1,6 @@
-// The seller's WhatsApp on the licence screen: shown on Windows, the web build and an APK the seller shares; never in
-// a copy installed from Google Play (Play payments policy), nor on an Android install with no installer name (Play's
-// test devices install with adb). The legal texts list only the contacts that are set.
+// The seller's WhatsApp on the licence screen: shown on Windows, the web build and an APK the seller shares, also when
+// the phone does not report who installed the app (many phones, for an APK opened from a file); hidden only in a copy
+// installed from Google Play (Play payments policy). The legal texts list only the contacts that are set.
 import { installSource } from '../src/platform'
 import { SELLER, sellerShown } from '../src/features/settings/seller'
 import { whatsappLink } from '../src/lib/format'
@@ -31,14 +31,16 @@ describe('install source and the seller box', () => {
     }
   })
 
-  it('Android with no installer name (adb, Play test devices) or an older shell: hidden', () => {
-    setAndroid({ deviceId: () => 'x', installSource: () => '' })
-    expect(installSource()).toBe('unknown')
-    expect(sellerShown()).toBe(false)
-    setAndroid({ deviceId: () => 'x' })
-    expect(installSource()).toBe('unknown')
-    setAndroid({ deviceId: () => 'x', installSource: () => { throw new Error('bridge') } })
-    expect(installSource()).toBe('unknown')
+  it('Android where the phone does not say who installed it (a sideload on many phones, adb) or an older shell: shown', () => {
+    for (const bridge of [
+      { deviceId: () => 'x', installSource: () => '' },
+      { deviceId: () => 'x' },
+      { deviceId: () => 'x', installSource: () => { throw new Error('bridge') } },
+    ]) {
+      setAndroid(bridge)
+      expect(installSource()).toBe('unknown')
+      expect(sellerShown()).toBe(true)
+    }
   })
 })
 

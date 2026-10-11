@@ -1103,8 +1103,8 @@ public class MainActivity extends Activity {
         public String appVersion() { return host.versionName(); }
 
         /** The package that installed the app: "com.android.vending" for Google Play, a file manager's or the system
-         *  installer's package for a shared APK, "" when unknown (adb). The licence screen hides the seller's contact
-         *  on Play installs (Play payments policy). */
+         *  installer's package for a shared APK, "" when the phone does not say (adb, many sideloads). The licence
+         *  screen hides the seller's contact only on a Play install (Play payments policy). */
         @JavascriptInterface
         public String installSource() { return refused() ? "" : host.installer(); }
 
@@ -1116,9 +1116,14 @@ public class MainActivity extends Activity {
     String installer() {
         try {
             PackageManager pm = getPackageManager();
-            String p = Build.VERSION.SDK_INT >= 30
-                ? pm.getInstallSourceInfo(getPackageName()).getInstallingPackageName()
-                : pm.getInstallerPackageName(getPackageName());
+            String p;
+            if (Build.VERSION.SDK_INT >= 30) {
+                android.content.pm.InstallSourceInfo info = pm.getInstallSourceInfo(getPackageName());
+                p = info.getInstallingPackageName();
+                if (p == null) p = info.getInitiatingPackageName();
+            } else {
+                p = pm.getInstallerPackageName(getPackageName());
+            }
             return p == null ? "" : p;
         } catch (PackageManager.NameNotFoundException | RuntimeException e) {
             return "";

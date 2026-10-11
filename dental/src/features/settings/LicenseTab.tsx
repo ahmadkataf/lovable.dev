@@ -100,6 +100,17 @@ export default function LicenseTab() {
             </div>
           )}
 
+          {/* the shortest way to a code, at the top of the screen: one tap writes the request (clinic and device
+              number) to the seller on WhatsApp */}
+          {hasSeller && SELLER.whatsapp && !noDevice && status !== 'active' && (
+            <div className="st-device-ask">
+              <Button variant="success" block icon={<MessageCircle />} onClick={() => openExternal(whatsappLink(SELLER.whatsapp, request))} data-qa="ask-whatsapp">
+                {t('license.askWhatsapp')}
+              </Button>
+              <span className="text-sm muted">{t('license.askWhatsappHint')}</span>
+            </div>
+          )}
+
           {status === 'active' && (
             <div className="st-license-facts">
               <div className="st-fact">

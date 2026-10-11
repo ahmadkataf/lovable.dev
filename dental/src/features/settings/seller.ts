@@ -7,9 +7,9 @@ import { installSource } from '@/platform'
 export const SELLER = {
   /**
    * When the licence screen shows the seller box (contacts and the "Request on WhatsApp" button):
-   * 'outside-play' (default): on Windows, the web build and an APK the seller shares, never in a copy installed from
-   *   Google Play: Play does not allow steering users to pay outside its billing. Play's own test devices install
-   *   without an installer name and do not see it either.
+   * 'outside-play' (default): everywhere except a copy installed from Google Play (Play does not allow steering users
+   *   to pay outside its billing). An Android install whose installer the phone does not report (many phones, for an
+   *   APK opened from a file) shows it: only a positive "installed by Google Play" hides it.
    * 'always' / 'never'.
    */
   showPurchaseInfo: 'outside-play' as 'outside-play' | 'always' | 'never',
@@ -26,5 +26,5 @@ export const SELLER = {
 export function sellerShown(): boolean {
   if (SELLER.showPurchaseInfo === 'never') return false
   if (SELLER.showPurchaseInfo === 'always') return true
-  return installSource() === 'direct'
+  return installSource() !== 'play'
 }

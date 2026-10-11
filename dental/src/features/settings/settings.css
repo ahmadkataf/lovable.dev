@@ -233,6 +233,7 @@
 .st-grid-2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; align-items: stretch; }
 @media (max-width: 1199px) { .st-grid-2 { grid-template-columns: minmax(0, 1fr); } }
 .st-device { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; padding: 14px 16px; border-radius: var(--r-lg); background: var(--surface-2); border: 1.5px dashed var(--border-2); }
+.st-device-ask { display: flex; flex-direction: column; gap: 6px; margin-top: 12px; text-align: center; }
 .st-device-no, .st-mono { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
 .st-device-no { font-size: var(--fs-3xl); font-weight: 800; letter-spacing: 3px; color: var(--text); line-height: 1.2; }
 .st-activate { display: flex; flex-direction: column; gap: 12px; }
