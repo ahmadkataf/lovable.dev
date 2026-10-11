@@ -196,9 +196,15 @@ async function main() {
     await seedAndLogin(page, { lang: 'ar' })
     await page.evaluate(() => window.__dentora.db.activity.clear())
     await go(page, '/')
-    // a clinic that never exported a backup is reminded on the dashboard; one with a recent backup is all clear
+    // a brand-new clinic with no patients has nothing to back up: no reminder yet
     await page.waitForSelector('[data-testid="dash-schedule"]')
-    check(await page.getByText('لم تُؤخذ أي نسخة احتياطية بعد').count() === 1, 'dashboard: reminds about the first backup')
+    await page.waitForTimeout(300)
+    check(await page.getByText('لم تُؤخذ أي نسخة احتياطية بعد').count() === 0, 'dashboard: no backup reminder before the first patient')
+    // once it has patients, a clinic that never exported a backup is reminded; one with a recent backup is all clear
+    await page.evaluate(() => { const at = new Date().toISOString(); return window.__dentora.db.patients.put({ id: 'qa-backup-tmp', fileNo: 'QA-1', name: 'مريض مؤقت', phone: '', createdAt: at, updatedAt: at }) })
+    const reminded = await page.getByText('لم تُؤخذ أي نسخة احتياطية بعد').waitFor({ timeout: 5000 }).then(() => true, () => false)
+    check(reminded, 'dashboard: reminds about the first backup')
+    await page.evaluate(() => window.__dentora.db.patients.delete('qa-backup-tmp'))
     await page.evaluate(() => window.__dentora.db.settings.put({ key: 'lastBackupAt', value: new Date().toISOString() }))
     await page.waitForTimeout(500)
 
