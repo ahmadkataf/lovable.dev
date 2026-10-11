@@ -46,7 +46,8 @@
 :where(h1, h2, h3) { color: var(--ink); }
 :where(a) { color: var(--teal-700); }
 :where(img) { max-width: 100%; display: block; }
-:where(:focus-visible) { outline: 3px solid rgba(14, 143, 134, .55); outline-offset: 3px; border-radius: 6px; }
+/* solid teal-700 (5:1 on white, 3:1 is the minimum for a focus ring) with a soft halo around it */
+:where(:focus-visible) { outline: 2px solid var(--teal-700); outline-offset: 2px; box-shadow: 0 0 0 5px rgba(14, 143, 134, .22); border-radius: 6px; }
 :where(.sr-only) {
   position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
   overflow: hidden; clip-path: inset(50%); white-space: nowrap; border: 0;
@@ -212,7 +213,7 @@ h1:focus, h2:focus { outline: none; }
   position: fixed; inset-inline: 0; bottom: 0; z-index: 40;
   display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); align-items: end;
   height: calc(var(--p-tabbar) + env(safe-area-inset-bottom)); padding: 0 4px env(safe-area-inset-bottom);
-  background: rgba(255, 255, 255, .97); border-top: 1px solid var(--line);
+  background: #fff; border-top: 1px solid var(--line);
   box-shadow: 0 -8px 24px -16px rgba(15, 23, 42, .18);
 }
 .tab {
@@ -228,7 +229,8 @@ h1:focus, h2:focus { outline: none; }
 .tab:focus-visible { outline-offset: -4px; border-radius: 14px; }
 .tab-label { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .tab--new .tab-ico {
-  width: 50px; height: 50px; margin-top: -26px; margin-bottom: 1px; border-radius: 16px;
+  /* the margins add up to -20px: it takes the 30px of the other tabs' icons, so its label sits on their line */
+  width: 50px; height: 50px; margin-top: -24px; margin-bottom: 4px; border-radius: 16px;
   color: #fff; background: var(--brand-grad); box-shadow: var(--sh-teal); border: 3px solid #fff;
 }
 .tab--new .ic { width: 24px; height: 24px; stroke-width: 2.4; }
@@ -323,12 +325,15 @@ h1:focus, h2:focus { outline: none; }
 .kpi-ico .ic { width: 18px; height: 18px; }
 .kpi-value { margin-top: 8px; color: var(--ink); font-size: 1.75rem; font-weight: 750; line-height: 1.15; letter-spacing: -.02em; font-variant-numeric: tabular-nums; }
 .kpi-sub { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 4px; color: var(--ink-3); font-size: .8125rem; }
+/* what the figure covers, on a line of its own under the "this month" pill */
+.kpi-note { flex-basis: 100%; }
 .pill { display: inline-flex; align-items: center; gap: 4px; padding: 1px 8px; border-radius: 999px; background: var(--slate-100); color: var(--ink-2); font-weight: 650; font-variant-numeric: tabular-nums; }
-.kpi--hero { color: #fff; background: var(--brand-grad); border-color: transparent; box-shadow: var(--sh-teal); }
-.kpi--hero .kpi-label, .kpi--hero .kpi-sub { color: rgba(255, 255, 255, .88); }
+.kpi--hero { color: #fff; background: var(--btn-grad); border-color: transparent; box-shadow: var(--sh-teal); }
+/* the darker button gradient: white text on it is 4.5:1 or more (on the light brand gradient it was 2.5:1) */
+.kpi--hero .kpi-label, .kpi--hero .kpi-sub { color: #fff; }
 .kpi--hero .kpi-ico { background: rgba(255, 255, 255, .18); color: #fff; }
 .kpi--hero .kpi-value { color: #fff; font-size: 2rem; }
-.kpi--hero .pill { background: rgba(255, 255, 255, .2); color: #fff; }
+.kpi--hero .pill { background: rgba(0, 0, 0, .18); color: #fff; }
 .kpi-mark { position: absolute; inset-inline-end: -18px; bottom: -26px; width: 132px; height: 132px; color: rgba(255, 255, 255, .13); stroke-width: 1.4; pointer-events: none; }
 .dl-cols { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin-top: 10px; }
 .dl-col { padding: 10px 12px; border-radius: 12px; background: var(--slate-50); border: 1px solid var(--line); min-width: 0; }
@@ -434,7 +439,13 @@ textarea.input { min-height: 96px; resize: vertical; }
 /* a one-line left-to-right field (device, phone, link) lines up with its label; a pasted code stays left-aligned */
 [dir='rtl'] input.input[dir='ltr'] { text-align: right; }
 .input[type='search'] { padding-inline-start: 44px; }
-.input[type='search']::-webkit-search-cancel-button { cursor: pointer; }
+.input[type='search']::-webkit-search-cancel-button {
+  /* the browser's own clear button is a blue ×; this one is the panel's (lucide "x", drawn as a mask in --ink-3) */
+  -webkit-appearance: none; appearance: none; width: 18px; height: 18px; margin-inline-start: 6px; background: var(--ink-3); cursor: pointer;
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.4' stroke-linecap='round'%3E%3Cpath d='M18 6 6 18M6 6l12 12'/%3E%3C/svg%3E") center / 18px no-repeat;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.4' stroke-linecap='round'%3E%3Cpath d='M18 6 6 18M6 6l12 12'/%3E%3C/svg%3E") center / 18px no-repeat;
+}
+.input[type='search']::-webkit-search-cancel-button:hover { background: var(--ink); }
 .input-icon { position: relative; }
 .input-icon > .ic { position: absolute; inset-inline-start: 14px; top: 50%; translate: 0 -50%; width: 20px; height: 20px; color: var(--ink-4); pointer-events: none; }
 .select { position: relative; }
@@ -463,7 +474,7 @@ textarea.input { min-height: 96px; resize: vertical; }
 }
 .seg label:hover { color: var(--ink); }
 .seg input:checked + label { background: #fff; color: var(--teal-800); box-shadow: 0 1px 2px rgba(15, 23, 42, .08), 0 1px 4px rgba(15, 23, 42, .06); }
-.seg input:focus-visible + label { outline: 3px solid rgba(14, 143, 134, .55); outline-offset: 1px; }
+.seg input:focus-visible + label { outline: 2px solid var(--teal-700); outline-offset: 1px; box-shadow: 0 0 0 4px rgba(14, 143, 134, .22); }
 .seg input:disabled + label { opacity: .5; cursor: not-allowed; }
 .seg--sm label { min-height: 34px; padding: 4px 12px; font-size: .875rem; }
 .seg--status input[value='active']:checked + label { color: var(--ok-700); }

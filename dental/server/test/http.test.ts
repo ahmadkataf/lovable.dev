@@ -65,4 +65,16 @@ describe('readJson', () => {
     expect(await readJson(req('{oops'))).toBeNull()
     expect(await readJson(req(JSON.stringify({ a: 'x'.repeat(20_000) })))).toBeNull()
   })
+  it('stops reading a chunked body (no Content-Length) at the limit', async () => {
+    let pulled = 0
+    const endless = new ReadableStream<Uint8Array>({ pull(c) { pulled++; c.enqueue(new Uint8Array(4096).fill(32)) } })
+    const r = new Request('https://x/api', { method: 'POST', body: endless, duplex: 'half' } as RequestInit)
+    expect(r.headers.get('Content-Length')).toBeNull()
+    expect(await readJson(r)).toBeNull()
+    expect(pulled).toBeLessThan(10)
+  })
+  it('counts bytes, not characters', async () => {
+    expect(await readJson(req(JSON.stringify({ a: 'ع'.repeat(9000) })))).toBeNull()
+    expect(await readJson(req(JSON.stringify({ a: 'ع'.repeat(8000) })))).toEqual({ a: 'ع'.repeat(8000) })
+  })
 })

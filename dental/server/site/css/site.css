@@ -88,7 +88,8 @@ img { max-width: 100%; height: auto; display: block; }
 a { color: var(--teal-700); text-underline-offset: .2em; text-decoration-thickness: 1px; }
 a:hover { color: var(--teal-900); }
 bdi { unicode-bidi: isolate; }
-:focus-visible { outline: 3px solid rgba(14, 143, 134, .55); outline-offset: 3px; border-radius: 6px; }
+/* solid teal-700 (5:1 on white; a focus ring needs 3:1) with a soft halo around it */
+:focus-visible { outline: 2px solid var(--teal-700); outline-offset: 2px; box-shadow: 0 0 0 5px rgba(14, 143, 134, .22); border-radius: 6px; }
 ::selection { background: var(--teal-100); color: var(--ink); }
 
 .ic {

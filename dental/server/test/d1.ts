@@ -24,9 +24,9 @@ class Stmt {
     const r = this.db.prepare(this.sql).run(...this.args)
     return { results: [], success: true, meta: { changes: Number(r.changes) } }
   }
-  /** Inside a batch: a SELECT gives its rows, anything else runs. */
+  /** Inside a batch: a SELECT (or a write with RETURNING) gives its rows, anything else runs. */
   exec(): { results: unknown[]; success: true; meta: object } {
-    if (/^\s*(select|with)\b/i.test(this.sql)) return { results: this.rows(), success: true, meta: {} }
+    if (/^\s*(select|with)\b/i.test(this.sql) || /\breturning\b/i.test(this.sql)) return { results: this.rows(), success: true, meta: {} }
     this.db.prepare(this.sql).run(...this.args)
     return { results: [], success: true, meta: {} }
   }

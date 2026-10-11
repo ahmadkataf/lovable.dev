@@ -16,9 +16,9 @@ const SITE_PRICE_MAX = 100_000
 // ---- words ---------------------------------------------------------------------------------------------------------
 const T = {
   ar: {
-    'app.title': 'لوحة تحكم Dentora', 'app.panel': 'لوحة التحكم', skip: 'تخطٍّ إلى المحتوى',
+    'app.title': 'لوحة تحكم Dentora', 'app.panel': 'لوحة التحكم', skip: 'تخطَّ إلى المحتوى',
     'lang.other': 'English', 'lang.aria': 'Switch to English',
-    cancel: 'إلغاء', close: 'إغلاق', save: 'حفظ', saving: 'جارٍ الحفظ…', retry: 'إعادة المحاولة', loading: 'جارٍ التحميل…',
+    cancel: 'إلغاء', back: 'تراجع', close: 'إغلاق', save: 'حفظ', saving: 'جارٍ الحفظ…', retry: 'إعادة المحاولة', loading: 'جارٍ التحميل…',
     copy: 'نسخ', copied: 'تم النسخ', copyFailed: 'تعذّر النسخ. حدّدوا النص وانسخوه يدوياً.', justNow: 'الآن',
 
     'nav.menu': 'القائمة الرئيسية', 'nav.dashboard': 'الرئيسية', 'nav.new': 'ترخيص جديد', 'nav.newShort': 'جديد',
@@ -50,7 +50,7 @@ const T = {
 
     'dash.title': 'نظرة عامة', 'dash.lead': 'المبيعات والتنزيلات وآخر ما جرى في اللوحة.', 'dash.kpis': 'الأرقام الرئيسية',
     'dash.revenue': 'الإيرادات', 'dash.revenueNote': 'من التراخيص الفعّالة', 'dash.thisMonth': 'هذا الشهر',
-    'dash.licences': 'التراخيص', 'dash.licencesNote': 'دون الملغاة', 'dash.resets': 'رموز PIN', 'dash.allTime': 'منذ البداية',
+    'dash.licences': 'التراخيص', 'dash.licencesNote': 'دون الملغاة', 'dash.resets': 'إعادة تعيين PIN', 'dash.allTime': 'منذ البداية',
     'dash.downloads': 'التنزيلات', 'dash.android': 'أندرويد', 'dash.windows': 'ويندوز', 'dash.last30': 'آخر 30 يوماً',
     'dash.quick': 'إجراءات سريعة', 'dash.latest': 'أحدث التراخيص', 'dash.viewAll': 'عرض الكل',
     'dash.activity': 'آخر النشاطات', 'dash.fullLog': 'السجل الكامل', 'dash.noLicences': 'لم يُصدَر أي ترخيص بعد.',
@@ -99,17 +99,17 @@ const T = {
     'det.statusSaved': 'تغيّرت الحالة إلى «{status}».',
     'conf.refunded.title': 'تحويل الترخيص إلى «مسترد»؟',
     'conf.refunded.body': 'يخرج مبلغه من الإيرادات ويبقى ضمن عدد التراخيص. الرمز نفسه يبقى صالحاً في التطبيق.',
-    'conf.refunded.ok': 'نعم، مسترد',
+    'conf.refunded.ok': 'نعم، حوّله إلى «مسترد»',
     'conf.void.title': 'إلغاء هذا الترخيص؟',
     'conf.void.body': 'يخرج من عدد التراخيص ومن الإيرادات. الرمز نفسه يبقى صالحاً في التطبيق لأنه يعمل دون إنترنت.',
-    'conf.void.ok': 'نعم، إلغاء', 'conf.active.title': 'إعادة الترخيص إلى «فعّال»؟',
-    'conf.active.body': 'يُحتسب مجدداً في عدد التراخيص وفي الإيرادات.', 'conf.active.ok': 'نعم، فعّال',
+    'conf.void.ok': 'نعم، ألغِ الترخيص', 'conf.active.title': 'إعادة الترخيص إلى «فعّال»؟',
+    'conf.active.body': 'يُحتسب مجدداً في عدد التراخيص وفي الإيرادات.', 'conf.active.ok': 'نعم، أعِده «فعّالاً»',
 
-    'reset.title': 'إعادة تعيين رمز الدخول',
+    'reset.title': 'إعادة تعيين رمز الدخول (PIN)',
     'reset.lead': 'عندما ينسى مدير العيادة رمز الدخول (PIN): يضغط «نسيت رمز الدخول؟» في شاشة الدخول ويرسل لكم رقم الجهاز. الرمز يعمل مرة واحدة على ذلك الجهاز، اليوم وغداً (بتوقيت UTC).',
     'reset.submit': 'إنشاء رمز إعادة التعيين', 'reset.submitting': 'جارٍ الإنشاء…', 'reset.made': 'رمز إعادة التعيين جاهز',
     'reset.code': 'رمز إعادة التعيين', 'reset.validity': 'صالح من {from} حتى {to}، لمرة واحدة', 'reset.recent': 'آخر الرموز',
-    'reset.none': 'لم يُنشأ أي رمز بعد.', 'reset.valid': 'ساري', 'reset.expired': 'منتهٍ', 'reset.until': 'حتى {date}',
+    'reset.none': 'لم يُنشأ أي رمز بعد.', 'reset.valid': 'سارٍ', 'reset.expired': 'منتهٍ', 'reset.until': 'حتى {date}',
     'reset.another': 'رمز آخر', 'reset.toast': 'رمز إعادة التعيين جاهز للجهاز {device}', 'reset.copyCode': 'نسخ رمز {device}',
 
     'ver.title': 'التحقق من رمز',
@@ -120,7 +120,7 @@ const T = {
     'ver.kind': 'النوع', 'ver.kindAct': 'تفعيل', 'ver.kindReset': 'إعادة تعيين رمز الدخول', 'ver.kindNone': 'غير معروف',
     'ver.lastDay': 'آخر يوم', 'ver.device': 'الجهاز',
     'ver.r.format': 'ليس رمز Dentora كاملاً: ينقصه حرف أو فيه خطأ في الكتابة.',
-    'ver.r.device': 'الرمز صادر لجهاز آخر، أو أن رقم الجهاز مكتوب خطأ.', 'ver.r.kind': 'نوع الرمز لا يطابق.',
+    'ver.r.device': 'الرمز صادر لجهاز آخر، أو أن رقم الجهاز مكتوب خطأ.', 'ver.r.kind': 'نوع الرمز غير مطابق.',
     'ver.r.expired': 'انتهت صلاحية الرمز في {date}.', 'ver.r.expiredReset': 'انتهت صلاحية رمز إعادة التعيين.',
 
     'set.title': 'الإعدادات', 'set.lead': 'ما يظهر على الموقع وفي أزرار الشراء. تصل التغييرات إلى الموقع خلال 30 ثانية.',
@@ -147,13 +147,13 @@ const T = {
     'act.f.all': 'كل الأحداث', 'act.f.auth': 'الدخول والخروج', 'act.f.licence': 'التراخيص', 'act.f.reset': 'إعادة التعيين',
     'act.f.settings': 'الإعدادات', 'act.empty': 'لا أحداث هنا بعد.', 'act.today': 'اليوم', 'act.yesterday': 'أمس', 'act.count': 'الأحداث: {n}',
     'a.login.ok': 'تسجيل دخول', 'a.login.fail': 'محاولة دخول فاشلة', 'a.logout': 'تسجيل خروج', 'a.licence.create': 'إصدار ترخيص',
-    'a.licence.update': 'تعديل ترخيص', 'a.licences.csv': 'تصدير التراخيص (CSV)', 'a.reset.create': 'رمز إعادة تعيين PIN',
+    'a.licence.update': 'تعديل ترخيص', 'a.licences.csv': 'تصدير التراخيص (CSV)', 'a.reset.create': 'إنشاء رمز إعادة تعيين PIN',
     'a.settings.update': 'تعديل الإعدادات', 'a.rows': 'الصفوف: {n}', 'a.ip': 'IP {ip}',
   },
   en: {
     'app.title': 'Dentora control panel', 'app.panel': 'Control panel', skip: 'Skip to content',
     'lang.other': 'العربية', 'lang.aria': 'التبديل إلى العربية',
-    cancel: 'Cancel', close: 'Close', save: 'Save', saving: 'Saving…', retry: 'Try again', loading: 'Loading…',
+    cancel: 'Cancel', back: 'Cancel', close: 'Close', save: 'Save', saving: 'Saving…', retry: 'Try again', loading: 'Loading…',
     copy: 'Copy', copied: 'Copied', copyFailed: 'Could not copy. Select the text and copy it by hand.', justNow: 'just now',
 
     'nav.menu': 'Main menu', 'nav.dashboard': 'Dashboard', 'nav.new': 'New licence', 'nav.newShort': 'New',
@@ -329,11 +329,11 @@ const dateLocale = () => (state.lang === 'ar' ? 'ar-SY-u-ca-gregory-nu-latn' : '
 const numFmt = d => cached(`n${state.lang}${d}`, () => new Intl.NumberFormat(numLocale(), { minimumFractionDigits: d, maximumFractionDigits: d }))
 const dtf = opts => cached(`d${state.lang}${JSON.stringify(opts)}`, () => new Intl.DateTimeFormat(dateLocale(), opts))
 const fmtNum = n => numFmt(0).format(Number(n) || 0)
-/** "59 $" in Arabic, "$59" in English, as the app writes money. */
+/** "59$" in Arabic, "$59" in English: the website's convention (price line, FAQ, the big price figure). */
 function fmtMoney(n) {
   const v = Number(n) || 0
   const body = numFmt(Number.isInteger(v) ? 0 : 2).format(v)
-  return state.lang === 'ar' ? `${body} $` : `$${body}`
+  return state.lang === 'ar' ? `${body}$` : `$${body}`
 }
 /** A code's calendar day "YYYY-MM-DD": a UTC day, as the codes store them, so it is formatted in UTC. */
 function fmtDay(day) {
@@ -540,7 +540,8 @@ function confirmDialog({ title, body, confirm, tone = 'warn' }) {
     const titleId = nextId('cf'), bodyId = nextId('cf')
     dlg.setAttribute('aria-labelledby', titleId)
     dlg.setAttribute('aria-describedby', bodyId)
-    const cancel = h('button', { type: 'button', class: 'btn btn-outline', on: { click: () => dlg.close('cancel') } }, t('cancel'))
+    // Its own word: in Arabic «إلغاء» (cancel) is also "void", the very action a dialog may be asking about.
+    const cancel = h('button', { type: 'button', class: 'btn btn-outline', on: { click: () => dlg.close('cancel') } }, t('back'))
     const ok = h('button', {
       type: 'button', class: `btn ${tone === 'bad' ? 'btn-danger' : tone === 'warn' ? 'btn-warn' : 'btn-primary'}`,
       on: { click: () => dlg.close('ok') },
@@ -1194,9 +1195,9 @@ async function viewDashboard(ctx) {
   kpis.removeAttribute('aria-busy')
   kpis.replaceChildren(
     kpiTile({ hero: true, wide: true, ico: 'wallet', mark: 'tooth', label: t('dash.revenue'), value: fmtMoney(L.revenue),
-      sub: [...pill(t('dash.thisMonth'), fmtMoney(L.revenueMonth)), h('span', { text: `· ${t('dash.revenueNote')}` })] }),
+      sub: [...pill(t('dash.thisMonth'), fmtMoney(L.revenueMonth)), h('span', { class: 'kpi-note', text: t('dash.revenueNote') })] }),
     kpiTile({ ico: 'key-round', label: t('dash.licences'), value: fmtNum(L.total),
-      sub: [...pill(t('dash.thisMonth'), fmtNum(L.month)), h('span', { text: `· ${t('dash.licencesNote')}` })] }),
+      sub: [...pill(t('dash.thisMonth'), fmtNum(L.month)), h('span', { class: 'kpi-note', text: t('dash.licencesNote') })] }),
     kpiTile({ ico: 'rotate-ccw-key', label: t('dash.resets'), value: fmtNum(stats.resets.total), sub: h('span', { text: t('dash.allTime') }) }),
     h('article', { class: 'card kpi kpi--wide' },
       h('span', { class: 'kpi-label' }, h('span', { class: 'kpi-ico' }, icon('download')), h('span', { text: t('dash.downloads') })),

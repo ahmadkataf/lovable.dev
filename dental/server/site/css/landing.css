@@ -124,10 +124,15 @@ main h2 { font-size: clamp(1.75rem, 1.25rem + 2vw, 2.625rem); line-height: 1.15;
 .hero-lead { font-size: clamp(1.0625rem, 1rem + .35vw, 1.25rem); color: var(--ink-2); max-width: 36em; }
 .hero-ctas { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 30px; }
 .hero-ctas .btn { flex: 1 1 auto; }
+/* wide screens: the two labels do not fit side by side in the hero column, so stack them at one shared width
+   (the column is as wide as the longer button) instead of two ragged rows */
+@media (min-width: 1200px) {
+  .hero-ctas { display: grid; grid-template-columns: max-content; justify-content: start; }
+}
 .btn-text { display: flex; flex-direction: column; align-items: flex-start; line-height: 1.25; text-align: start; }
 .btn-text small { font-size: .75rem; font-weight: 500; opacity: .88; }
 .hero-wa {
-  display: inline-flex; align-items: center; gap: 8px; margin-top: 18px;
+  display: inline-flex; align-items: center; gap: 8px; min-height: 44px; margin-top: 8px;
   color: var(--wa); font-weight: 650; text-decoration: none;
 }
 .hero-wa:hover { color: var(--wa-hover); text-decoration: underline; }
@@ -255,6 +260,8 @@ main h2 { font-size: clamp(1.75rem, 1.25rem + 2vw, 2.625rem); line-height: 1.15;
 
 /* ---- screenshots ---- */
 .shots { background: linear-gradient(180deg, var(--bg-mint) 0%, #FFFFFF 70%); }
+/* it ends on white like the next section, so a full section gap on both sides read as an empty band */
+.section.shots { padding-bottom: clamp(32px, 4vw, 56px); }
 .desk { margin: 0; }
 .window {
   overflow: hidden; border: 1px solid var(--line-2); border-radius: 16px; background: #fff;
@@ -297,7 +304,10 @@ main h2 { font-size: clamp(1.75rem, 1.25rem + 2vw, 2.625rem); line-height: 1.15;
   padding: 8px; border-radius: 34px; background: #0F172A;
   box-shadow: 0 30px 50px -28px rgba(15, 23, 42, .55), inset 0 0 0 1.5px #334155;
 }
-.phone img { width: 100%; height: auto; border-radius: 27px; background: #F5F7FA; }
+.phone .screen { overflow: hidden; border-radius: 27px; background: #fff; }
+/* a home-indicator strip under the picture: the rounded corners clip it, not the app's bottom tab labels */
+.phone .screen::after { content: ''; display: block; width: 34%; height: 4px; margin: 5px auto; border-radius: 2px; background: #CBD5E1; }
+.phone img { width: 100%; height: auto; background: #F5F7FA; }
 .phone-card figcaption { margin-top: 16px; text-align: center; padding-inline: 4px; }
 .phone-card strong { display: block; color: var(--ink); font-size: .975rem; line-height: 1.4; }
 .phone-card figcaption span { display: block; margin-top: 4px; color: var(--ink-3); font-size: .875rem; line-height: 1.5; }
@@ -374,7 +384,7 @@ main h2 { font-size: clamp(1.75rem, 1.25rem + 2vw, 2.625rem); line-height: 1.15;
 .check-dot .ic { width: 14px; height: 14px; stroke-width: 3; }
 .price-card .btn { margin-top: 28px; }
 .price-trial {
-  display: flex; align-items: center; justify-content: center; gap: 6px; margin-top: 14px;
+  display: flex; align-items: center; justify-content: center; gap: 6px; min-height: 44px; margin-top: 4px;
   color: var(--teal-700); font-weight: 650; font-size: .9375rem; text-decoration: none;
 }
 .price-trial:hover { text-decoration: underline; }
@@ -413,6 +423,11 @@ main h2 { font-size: clamp(1.75rem, 1.25rem + 2vw, 2.625rem); line-height: 1.15;
 .req ul { list-style: none; display: flex; flex-wrap: wrap; justify-content: center; gap: 8px 22px; color: var(--ink-2); font-size: .9375rem; }
 .req li { display: inline-flex; align-items: center; gap: 8px; }
 .req .ic { width: 16px; height: 16px; color: var(--teal-600); stroke-width: 2.5; }
+/* phones: one item per line, so the ticks line up at the start instead of each centred line wandering */
+@media (max-width: 559px) {
+  .req { flex-direction: column; align-items: flex-start; text-align: start; }
+  .req ul { flex-direction: column; align-items: flex-start; }
+}
 @media (min-width: 820px) { .dl-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px; } }
 
 /* ---- FAQ ---- */
@@ -469,6 +484,9 @@ main h2 { font-size: clamp(1.75rem, 1.25rem + 2vw, 2.625rem); line-height: 1.15;
   .btn-lg { padding-inline: 1em; font-size: 1rem; }
   .price-card { padding-inline: 20px; }
 }
+@media (max-width: 380px) {
+  .btn-lg { font-size: .9375rem; gap: .5em; }
+}
 
 /* ---- footer ---- */
 .footer-grid { display: grid; gap: 32px; grid-template-columns: 1fr 1fr; }
@@ -477,8 +495,9 @@ main h2 { font-size: clamp(1.75rem, 1.25rem + 2vw, 2.625rem); line-height: 1.15;
 .footer-brand p { margin-top: 14px; max-width: 340px; }
 .footer-title { margin-bottom: 14px; color: var(--ink); font-size: .875rem; font-weight: 700; }
 :lang(en) .footer-title { text-transform: uppercase; letter-spacing: .08em; font-size: .75rem; }
-.footer-links { list-style: none; display: grid; gap: 10px; }
-.footer-links a { display: inline-flex; align-items: center; gap: 8px; }
+.footer-links { list-style: none; display: grid; gap: 0; }
+/* 44px rows: a comfortable tap on a phone (the gap they replace kept the column the same height) */
+.footer-links a { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; }
 .footer-links .ic { width: 18px; height: 18px; color: var(--teal-700); }
 .footer-col:last-child { grid-column: 1 / -1; }
 .footer-links bdi { white-space: nowrap; }

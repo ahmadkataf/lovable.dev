@@ -11,6 +11,7 @@
 // is where Playwright comes from (dental/package.json). The private key is read here only to prove that no response
 // and no log line ever contains it: it is never printed, and every printed detail is scrubbed of it.
 import { execFileSync, spawn } from 'node:child_process'
+import { request as httpRequest } from 'node:http'
 import { createHash } from 'node:crypto'
 import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import { dirname, join, resolve } from 'node:path'
@@ -151,10 +152,24 @@ async function req(method, path, { base = BASE, body, raw, cookie, headers = {},
   if (base === BASE) seen.push({ method, path, status: r.status, headers: res.headers })
   return r
 }
-async function login(ip = IP, base = BASE, password = PASSWORD) {
-  const r = await req('POST', '/api/login', { base, ip, body: { password } })
-  return { r, cookie: (r.headers.get('set-cookie') || '').split(';')[0] }
+const COOKIE = '__Host-dentora_admin', DEVICE_COOKIE = '__Host-dentora_device'
+/** name=value of one Set-Cookie of a response ('' when absent). */
+const setCookieOf = (r, name) => (r.headers.getSetCookie().find(c => c.startsWith(`${name}=`)) || '').split(';')[0]
+async function login(ip = IP, base = BASE, password = PASSWORD, headers = {}) {
+  const r = await req('POST', '/api/login', { base, ip, body: { password }, headers })
+  return { r, cookie: setCookieOf(r, COOKIE), device: setCookieOf(r, DEVICE_COOKIE) }
 }
+/**
+ * A GET with the path exactly as written (fetch would turn "\\" into "/" before sending) and only the headers given:
+ * no Sec-Fetch-Mode, as from curl or a download manager. Node's fetch always sends "Sec-Fetch-Mode: cors", which the
+ * Worker rightly does not count as a download (a page fetching the link), so counted downloads go through here.
+ */
+const rawGet = (path, { base = BASE, ip = IP, headers = {} } = {}) => new Promise((resolve, reject) => {
+  const u = new URL(base)
+  const rq = httpRequest({ host: u.hostname, port: u.port, path, method: 'GET', headers: { 'CF-Connecting-IP': ip, ...headers } }, res => { res.resume(); res.on('end', () => resolve({ status: res.statusCode, location: res.headers.location || '' })) })
+  rq.on('error', reject)
+  rq.end()
+})
 const b64url = bytes => Buffer.from(bytes).toString('base64url')
 /** A session token made the way src/auth.ts makes them (HKDF of the password and the stored salt, then HMAC). */
 async function forgeToken(password, salt, exp) {
@@ -163,8 +178,8 @@ async function forgeToken(password, salt, exp) {
   const key = await crypto.subtle.deriveKey(
     { name: 'HKDF', hash: 'SHA-256', salt: enc.encode(salt), info: enc.encode('dentora-admin-session-v1') },
     base, { name: 'HMAC', hash: 'SHA-256', length: 256 }, false, ['sign'])
-  const payload = b64url(enc.encode(JSON.stringify({ exp })))
-  return `${payload}.${b64url(new Uint8Array(await crypto.subtle.sign('HMAC', key, enc.encode(payload))))}`
+  const payload = b64url(enc.encode(JSON.stringify({ exp, sid: 'e2e-forged' })))
+  return `${payload}.${b64url(new Uint8Array(await crypto.subtle.sign('HMAC', key, enc.encode(`session.${payload}`))))}`
 }
 /** The session salt the Worker stored in its local D1 file. */
 async function readSalt(persist) {
@@ -270,6 +285,17 @@ async function siteBasics() {
   check('/en/ → 301 /en', r.status === 301 && r.headers.get('location') === '/en')
   r = await req('GET', '/privacy/?x=1')
   check('/privacy/?x=1 → 301 /privacy?x=1', r.status === 301 && r.headers.get('location') === '/privacy?x=1')
+  // Open-redirect guard: a path starting with two slashes (or a backslash) must never become a "//host" Location.
+  const sameSite = loc => !/^[/\\]{2}/.test(loc) && new URL(loc, BASE).origin === new URL(BASE).origin
+  const redirects = []
+  for (const path of ['//evil.example/', '/\\evil.example/', '/////evil.example//', '/\\/evil.example/', '//evil.example/?next=1']) {
+    const x = await rawGet(path)
+    redirects.push(`${path} → ${x.status} ${x.location}`)
+    if (x.status === 301 && !sameSite(x.location)) redirects.push('OFF-SITE')
+  }
+  check('trailing-slash redirect never leaves the site (//evil.example/, /\\evil.example/, /////evil.example//)', !redirects.includes('OFF-SITE'), redirects.join(' | '))
+  r = await req('GET', '//evil.example/')
+  check('//evil.example/ → 301 to /evil.example (then a 404 here)', r.status === 301 && r.headers.get('location') === '/evil.example', r.headers.get('location'))
   r = await req('POST', '/', { csrf: false })
   check('POST / → 405 with Allow', r.status === 405 && r.headers.get('allow') === 'GET, HEAD')
   r = await req('HEAD', '/')
@@ -485,7 +511,6 @@ async function site(browser, cookie) {
   for (const lang of ['ar', 'en']) await landingContent(browser, lang, changed, ' after the change', { shot: `settings-${lang}-390` })
   await legalPages(changed, ' (changed contact)')
   r = await req('GET', '/download/windows', { redirect: 'manual', headers: { Referer: `${BASE}/en` } })
-  counts.windows++
   check('/download/windows asks the new WhatsApp number', r.status === 302 && r.headers.get('location').startsWith('https://wa.me/963944111222?text='), r.headers.get('location'))
 
   section('settings values are shown escaped')
@@ -502,7 +527,9 @@ async function site(browser, cookie) {
 }
 
 // ==== API ==========================================================================================================
-const counts = { android: 0, windows: 0 }
+/** Who the Worker should have counted: one download per address (IPv6: /64), platform and day. */
+const counted = new Set()
+const countedOf = platform => [...counted].filter(k => k.startsWith(`${platform}|`)).length
 const DEV_A = 'AB2C-D3EF', DEV_B = 'XY7K-M4PQ', DEV_C = 'K9MN-P2QR', DEV_X = 'ZZZZ-9999'
 
 async function api(browser, mainWorker) {
@@ -528,11 +555,17 @@ async function api(browser, mainWorker) {
   check('POST /api/login wrong password → 401 password', r.status === 401 && r.json?.error === 'password')
   r = await req('POST', '/api/login', { raw: 'not json', headers: { 'Content-Type': 'application/json' } })
   check('POST /api/login with a body that is not JSON → 401 password (counted as a failure)', r.status === 401 && r.json?.error === 'password')
-  const { r: ok, cookie } = await login()
-  const setCookie = ok.headers.get('set-cookie') || ''
+  const { r: ok, cookie, device } = await login()
+  const [setCookie = '', setDevice = ''] = ok.headers.getSetCookie()
   check('POST /api/login right password → 200 {ok:true}', ok.status === 200 && ok.json?.ok === true)
-  check('session cookie: HttpOnly; Secure; SameSite=Strict; Path=/; Max-Age=43200', /^dentora_admin=[\w-]+\.[\w-]+; HttpOnly; Secure; SameSite=Strict; Path=\/; Max-Age=43200$/.test(setCookie),
+  check('session cookie: __Host- prefix; HttpOnly; Secure; SameSite=Strict; Path=/; Max-Age=43200 (no Domain)', /^__Host-dentora_admin=[\w-]+\.[\w-]+; HttpOnly; Secure; SameSite=Strict; Path=\/; Max-Age=43200$/.test(setCookie),
     setCookie.replace(/=[\w-]+\.[\w-]+;/, '=<token>;'))
+  check('device cookie: __Host-dentora_device, HttpOnly; Secure; SameSite=Strict; Path=/; one year', /^__Host-dentora_device=[\w-]+\.[\w-]+; HttpOnly; Secure; SameSite=Strict; Path=\/; Max-Age=31536000$/.test(setDevice),
+    setDevice.replace(/=[\w-]+\.[\w-]+;/, '=<token>;'))
+  r = await req('GET', '/api/me', { cookie: `${COOKIE}=${device.split('=')[1]}` })
+  check('the device token does not work as a session (401)', r.status === 401)
+  r = await req('GET', '/api/me', { cookie: `dentora_admin=planted; ${cookie}` })
+  check('a planted cookie under the old unprefixed name does not shadow the session (200)', r.status === 200)
   r = await req('PATCH', '/api/licences/abc', { cookie, body: { note: 'x' }, csrf: false })
   check('PATCH with a session but without X-Dentora → 403 origin', r.status === 403 && r.json?.error === 'origin')
   r = await req('PUT', '/api/settings', { cookie, body: { priceUsd: 1 }, origin: 'https://evil.example' })
@@ -549,14 +582,14 @@ async function api(browser, mainWorker) {
     ['a third part', `${token}.x`], ['an empty value', ''], ['garbage', 'not-a-token'],
   ]
   const accepted = []
-  for (const [what, t] of tampered) { const x = await req('GET', '/api/me', { cookie: `dentora_admin=${t}` }); if (x.status !== 401) accepted.push(`${what}: ${x.status}`) }
+  for (const [what, t] of tampered) { const x = await req('GET', '/api/me', { cookie: `${COOKIE}=${t}` }); if (x.status !== 401) accepted.push(`${what}: ${x.status}`) }
   check('tampered session cookies → 401 (signature, expiry, extra part, empty, garbage)', !accepted.length, accepted.join(' | '))
   const salt = await readSalt(mainWorker.persist)
   if (salt) {
     const now = Math.floor(Date.now() / 1000)
-    const fresh = await req('GET', '/api/me', { cookie: `dentora_admin=${await forgeToken(PASSWORD, salt, now + 600)}` })
-    const expired = await req('GET', '/api/me', { cookie: `dentora_admin=${await forgeToken(PASSWORD, salt, now - 5)}` })
-    const otherSalt = await req('GET', '/api/me', { cookie: `dentora_admin=${await forgeToken(PASSWORD, `${salt}x`, now + 600)}` })
+    const fresh = await req('GET', '/api/me', { cookie: `${COOKIE}=${await forgeToken(PASSWORD, salt, now + 600)}` })
+    const expired = await req('GET', '/api/me', { cookie: `${COOKIE}=${await forgeToken(PASSWORD, salt, now - 5)}` })
+    const otherSalt = await req('GET', '/api/me', { cookie: `${COOKIE}=${await forgeToken(PASSWORD, `${salt}x`, now + 600)}` })
     check('a session signed with the real key is accepted (control), the same token expired 5 s ago → 401, another salt → 401',
       fresh.status === 200 && expired.status === 401 && otherSalt.status === 401, `${fresh.status} ${expired.status} ${otherSalt.status}`)
   } else check('session salt readable from the local D1 file (for the expiry test)', false, mainWorker.persist)
@@ -572,6 +605,26 @@ async function api(browser, mainWorker) {
   check('the right password from the locked address → still 429 with retryAfter', r.status === 429 && r.json?.error === 'locked' && r.json.retryAfter > 0, JSON.stringify(r.json))
   r = await req('POST', '/api/login', { ip: '198.51.100.99', body: { password: PASSWORD } })
   check('another address can still sign in', r.status === 200)
+
+  section('API: login limits hold under parallel requests, per IPv6 /64, and for oversized bodies')
+  const RACE_IP = '203.0.113.40'
+  const burst = await Promise.all(Array.from({ length: 60 }, (_, i) => req('POST', '/api/login', { ip: RACE_IP, body: { password: `wrong-burst-${i}` } })))
+  const burstCodes = {}
+  for (const x of burst) burstCodes[x.status] = (burstCodes[x.status] || 0) + 1
+  let auditNow = (await req('GET', '/api/audit?limit=500', { cookie })).json?.items || []
+  const compared = auditNow.filter(i => i.action === 'login.fail' && i.ip === RACE_IP).length
+  check('60 wrong passwords at once from one address → only 5 compared (4×401, the rest 429)', compared === 5 && burstCodes[401] === 4 && burstCodes[429] === 56,
+    `${JSON.stringify(burstCodes)}, compared ${compared}`)
+  for (let i = 1; i <= 5; i++) await req('POST', '/api/login', { ip: `2001:db8:77:1::${i}`, body: { password: 'wrong-v6' } })
+  r = await req('POST', '/api/login', { ip: '2001:db8:77:1:abcd::99', body: { password: PASSWORD } })
+  check('5 wrong passwords from addresses in one IPv6 /64 lock the whole /64 (429 for a 6th address)', r.status === 429 && r.json?.error === 'locked', `${r.status}`)
+  r = await req('POST', '/api/login', { ip: '2001:db8:77:2::1', body: { password: PASSWORD } })
+  check('the next /64 can still sign in (200)', r.status === 200)
+  const big = new ReadableStream({ start(c) { const part = new Uint8Array(1 << 16).fill(97); for (let i = 0; i < 16; i++) c.enqueue(part); c.close() } })
+  const t0 = Date.now()
+  const bigRes = await fetch(`${BASE}/api/login`, { method: 'POST', body: big, duplex: 'half', headers: { 'X-Dentora': '1', 'CF-Connecting-IP': '203.0.113.41', 'Content-Type': 'application/json' } })
+  const bigBody = await bigRes.text()
+  check('a 1 MB chunked login body (no Content-Length) is cut at 16 KB → 401 password', bigRes.status === 401 && bigBody.includes('password'), `${bigRes.status} ${bigBody.slice(0, 60)} in ${Date.now() - t0} ms`)
 
   section('API: me, licences')
   r = await req('GET', '/api/me', { cookie })
@@ -733,7 +786,6 @@ async function api(browser, mainWorker) {
 
   section('downloads')
   r = await req('GET', '/download/android')
-  counts.android++
   check(`GET /download/android → 200, the bytes of releases/Dentora-${APK_VERSION}.apk`, r.status === 200 && Buffer.compare(r.buf, APK) === 0,
     `${r.buf.length} bytes, sha256 ${createHash('sha256').update(r.buf).digest('hex').slice(0, 16)}…`)
   check('/download/android headers: APK type, attachment with the version, length, no-store, security', r.headers.get('content-type') === 'application/vnd.android.package-archive'
@@ -742,25 +794,43 @@ async function api(browser, mainWorker) {
   r = await req('HEAD', '/download/android')
   check('HEAD /download/android → 200, no body (not counted)', r.status === 200 && r.buf.length === 0)
   r = await req('GET', '/download/android', { headers: { Range: 'bytes=100-199' } })
-  // the local asset server answers a range with the whole file (then it is a new download and counts)
-  if (r.status === 200) counts.android++
+  // the local asset server answers a range with the whole file
   check('resumed /download/android (Range) → 206 with that part, or the whole file', (r.status === 206 && Buffer.compare(r.buf, APK.subarray(100, 200)) === 0) || (r.status === 200 && Buffer.compare(r.buf, APK) === 0), `status ${r.status}`)
   r = await req('GET', '/download/windows')
-  counts.windows++
   const loc = decodeURIComponent(r.headers.get('location') || '')
   check('GET /download/windows, no installer URL → 302 to the seller\'s WhatsApp with an Arabic request', r.status === 302 && loc.startsWith('https://wa.me/963996489504?text=') && loc.includes('ويندوز'), loc)
   r = await req('GET', '/download/windows', { headers: { Referer: `${BASE}/en` } })
-  counts.windows++
   check('GET /download/windows from the English page → English request', r.status === 302 && decodeURIComponent(r.headers.get('location') || '').includes('Windows version'))
   r = await req('PUT', '/api/settings', { cookie, body: { windowsUrl: 'https://downloads.raqeem.dev/Dentora-Setup-1.0.0.exe' } })
   r = await req('GET', '/download/windows')
-  counts.windows++
   check('GET /download/windows with an installer URL in the settings → 302 there', r.status === 302 && r.headers.get('location') === 'https://downloads.raqeem.dev/Dentora-Setup-1.0.0.exe', r.headers.get('location'))
   r = await req('GET', '/en')
   check('the landing page names the Windows download once a URL is set', r.text.includes('Download for Windows'))
   await req('PUT', '/api/settings', { cookie, body: { windowsUrl: '' } })
   r = await req('HEAD', '/download/windows')
   check('HEAD /download/windows → 302 (not counted)', r.status === 302)
+
+  section('downloads are counted once per visitor and day')
+  await sleep(500)
+  const before = (await req('GET', '/api/stats', { cookie })).json.downloads
+  check('the fetch()es above (Sec-Fetch-Mode: cors, as a page fetching the link) were not counted', before.android === 0 && before.windows === 0, JSON.stringify(before))
+  const many = await Promise.all(Array.from({ length: 40 }, () => rawGet('/download/windows', { ip: '192.0.2.60' })))
+  counted.add('windows|192.0.2.60')
+  await rawGet('/download/windows', { ip: '192.0.2.61', headers: { 'Sec-Fetch-Mode': 'no-cors' } })
+  await rawGet('/download/windows', { ip: '192.0.2.62', headers: { 'Sec-Purpose': 'prefetch' } })
+  await rawGet('/download/windows', { ip: '192.0.2.63', headers: { 'Sec-Fetch-Mode': 'navigate' } })
+  counted.add('windows|192.0.2.63')
+  await rawGet('/download/windows', { ip: '2001:db8:99:1::1' })
+  await rawGet('/download/windows', { ip: '2001:db8:99:1::2' })
+  counted.add('windows|2001:db8:99:1::/64')
+  await rawGet('/download/android', { ip: '192.0.2.60', headers: { 'Sec-Fetch-Mode': 'navigate' } })
+  await rawGet('/download/android', { ip: '192.0.2.60' })
+  counted.add('android|192.0.2.60')
+  await sleep(800)
+  const after = (await req('GET', '/api/stats', { cookie })).json.downloads
+  check('40 GETs from one address count once; a no-cors fetch and a prefetch do not; a navigation does; one IPv6 /64 counts once; Android apart (+3 Windows, +1 Android)',
+    many.every(x => x.status === 302) && after.windows - before.windows === 3 && after.windows30 - before.windows30 === 3 && after.android - before.android === 1,
+    `windows ${before.windows} → ${after.windows}, android ${before.android} → ${after.android}`)
 
   section('API: stats, audit, logout')
   await sleep(500)   // downloads are counted after the response (waitUntil)
@@ -769,7 +839,7 @@ async function api(browser, mainWorker) {
   // L1 59 + L3 45.5 + L4 30 active; L2 refunded (counted, no revenue); L5 void (neither)
   const expected = {
     licences: { total: 4, month: 4, revenue: 134.5, revenueMonth: 134.5 }, resets: { total: 1 },
-    downloads: { android: counts.android, windows: counts.windows, android30: counts.android, windows30: counts.windows },
+    downloads: { android: countedOf('android'), windows: countedOf('windows'), android30: countedOf('android'), windows30: countedOf('windows') },
   }
   check('GET /api/stats matches what was done (void excluded; revenue = active only; downloads GET only)',
     JSON.stringify({ licences: st?.licences, resets: st?.resets, downloads: st?.downloads }) === JSON.stringify(expected), JSON.stringify({ got: { l: st?.licences, d: st?.downloads }, expected }))
@@ -791,7 +861,10 @@ async function api(browser, mainWorker) {
   check('DELETE /api/licences/:id → 404 (codes are never deleted)', r.status === 404)
   const { cookie: c2 } = await login()
   r = await req('POST', '/api/logout', { cookie: c2 })
-  check('POST /api/logout → 200, cookie cleared (Max-Age=0), audited', r.status === 200 && r.json?.ok && /^dentora_admin=; .*Max-Age=0$/.test(r.headers.get('set-cookie') || ''))
+  check('POST /api/logout → 200, cookie cleared (Max-Age=0), audited', r.status === 200 && r.json?.ok && /^__Host-dentora_admin=; .*Max-Age=0$/.test(r.headers.get('set-cookie') || ''))
+  r = await req('GET', '/api/me', { cookie: c2 })
+  const other = await req('GET', '/api/me', { cookie })
+  check('after logout the old cookie no longer works (401), another session still does (200)', r.status === 401 && other.status === 200, `${r.status} ${other.status}`)
   r = await req('POST', '/api/logout')
   check('POST /api/logout without a cookie → 401', r.status === 401)
   return { cookie, L1 }
@@ -828,6 +901,7 @@ async function otherWorkers(browser, setupW, keyW, codeFromMain) {
   check('sign-in works without a usable key', lr.status === 200)
   r = await req('GET', '/api/me', { base: keyW.base, cookie })
   check('GET /api/me → signing false, signingError "mismatch"', r.json?.signing === false && r.json.signingError === 'mismatch', JSON.stringify(r.json))
+
   r = await req('POST', '/api/licences', { base: keyW.base, cookie, body: { device: DEV_A, plan: 'pro', validity: 'lifetime' } })
   check('POST /api/licences → 503 signing (no code from a wrong key)', r.status === 503 && r.json?.error === 'signing')
   r = await req('POST', '/api/resets', { base: keyW.base, cookie, body: { device: DEV_A } })
@@ -849,6 +923,17 @@ async function otherWorkers(browser, setupW, keyW, codeFromMain) {
     check(`panel (${lang}) shows the signing banner and disables issuing`, banner && disabled && !csp.length && !p.console.length, [...csp, ...p.console].join(' | '))
     await p.close()
   }
+
+  // Last on this Worker: it leaves new browsers locked out of it for 15 minutes.
+  section('strangers cannot lock the seller out (30 failures from 30 addresses, on that Worker)')
+  const { device } = await login('198.51.100.120', keyW.base)
+  for (let i = 0; i < 30; i++) await req('POST', '/api/login', { base: keyW.base, ip: `192.0.2.${100 + i}`, body: { password: `stranger-${i}` } })
+  r = await req('POST', '/api/login', { base: keyW.base, ip: '198.51.100.121', body: { password: PASSWORD } })
+  check('a browser that never signed in → 429 locked (even with the right password)', r.status === 429 && r.json?.error === 'locked' && r.json.retryAfter > 0, `${r.status} ${r.text}`)
+  r = await req('POST', '/api/login', { base: keyW.base, ip: '198.51.100.122', body: { password: PASSWORD }, headers: { Cookie: device } })
+  check('the seller\'s browser (device cookie from an earlier sign-in) still signs in (200)', r.status === 200, `${r.status} ${r.text}`)
+  r = await req('POST', '/api/login', { base: keyW.base, ip: '198.51.100.123', body: { password: 'wrong' }, headers: { Cookie: device } })
+  check('…and a wrong password from it is still only a wrong password (401)', r.status === 401)
 }
 
 // ==== control panel ================================================================================================

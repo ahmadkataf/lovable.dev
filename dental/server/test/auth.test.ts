@@ -1,7 +1,7 @@
 import { beforeAll, describe, expect, it } from 'vitest'
 import {
-  clearFailures, deriveSessionKey, lockedFor, MAX_OVERALL, MAX_PER_IP, passwordMatches, readCookie, recordFailure,
-  sameOriginWrite, sessionCookie, signSession, verifySession, WINDOW_MS,
+  addressKey, clearAttempts, deriveSessionKey, MAX_OVERALL, MAX_PER_IP, passwordMatches, readCookie, readToken,
+  sameOriginWrite, sessionCookie, signToken, takeAttempt, WINDOW_MS,
 } from '../src/auth'
 import { ensureSchema } from '../src/db'
 import { b64url } from '../src/http'
@@ -9,43 +9,51 @@ import { memoryD1 } from './d1'
 
 const now = Math.floor(Date.now() / 1000)
 
-describe('session tokens', () => {
+describe('tokens', () => {
   let key: CryptoKey
   beforeAll(async () => { key = await deriveSessionKey('a-long-admin-password', 'salt-1') })
-  it('verifies a fresh token', async () => {
-    const t = await signSession(key, now + 60)
+  it('verifies a fresh token and gives its claims', async () => {
+    const t = await signToken(key, 'session', now + 60, 'sid-1')
     expect(t).toMatch(/^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/)
-    expect(await verifySession(key, t, now)).toBe(true)
+    expect(await readToken(key, 'session', t, now)).toEqual({ exp: now + 60, sid: 'sid-1' })
+  })
+  it('gives each token its own id', async () => {
+    const [a, b] = await Promise.all([signToken(key, 'session', now + 60), signToken(key, 'session', now + 60)])
+    expect((await readToken(key, 'session', a, now))?.sid).not.toBe((await readToken(key, 'session', b, now))?.sid)
   })
   it('refuses an expired token', async () => {
-    const t = await signSession(key, now + 60)
-    expect(await verifySession(key, t, now + 61)).toBe(false)
-    expect(await verifySession(key, await signSession(key, now - 1), now)).toBe(false)
+    const t = await signToken(key, 'session', now + 60)
+    expect(await readToken(key, 'session', t, now + 61)).toBeNull()
+    expect(await readToken(key, 'session', await signToken(key, 'session', now - 1), now)).toBeNull()
+  })
+  it('refuses a device token as a session, and the other way round', async () => {
+    expect(await readToken(key, 'session', await signToken(key, 'device', now + 60), now)).toBeNull()
+    expect(await readToken(key, 'device', await signToken(key, 'session', now + 60), now)).toBeNull()
   })
   it('refuses a token with a changed payload or signature', async () => {
-    const t = await signSession(key, now + 60)
+    const t = await signToken(key, 'session', now + 60, 'sid-1')
     const [, sig] = t.split('.')
-    const forged = `${b64url(new TextEncoder().encode(JSON.stringify({ exp: now + 999_999 })))}.${sig}`
-    expect(await verifySession(key, forged, now)).toBe(false)
+    const forged = `${b64url(new TextEncoder().encode(JSON.stringify({ exp: now + 999_999, sid: 'sid-1' })))}.${sig}`
+    expect(await readToken(key, 'session', forged, now)).toBeNull()
     const flipped = t.slice(0, -2) + (t.endsWith('AA') ? 'BB' : 'AA')
-    expect(await verifySession(key, flipped, now)).toBe(false)
-    expect(await verifySession(key, `${t}.extra`, now)).toBe(false)
-    expect(await verifySession(key, '', now)).toBe(false)
-    expect(await verifySession(key, 'garbage', now)).toBe(false)
+    expect(await readToken(key, 'session', flipped, now)).toBeNull()
+    expect(await readToken(key, 'session', `${t}.extra`, now)).toBeNull()
+    expect(await readToken(key, 'session', '', now)).toBeNull()
+    expect(await readToken(key, 'session', 'garbage', now)).toBeNull()
   })
   it('refuses a token made with another password or salt (a new password signs everyone out)', async () => {
-    const t = await signSession(key, now + 60)
-    expect(await verifySession(await deriveSessionKey('another-long-password', 'salt-1'), t, now)).toBe(false)
-    expect(await verifySession(await deriveSessionKey('a-long-admin-password', 'salt-2'), t, now)).toBe(false)
+    const t = await signToken(key, 'session', now + 60)
+    expect(await readToken(await deriveSessionKey('another-long-password', 'salt-1'), 'session', t, now)).toBeNull()
+    expect(await readToken(await deriveSessionKey('a-long-admin-password', 'salt-2'), 'session', t, now)).toBeNull()
   })
 })
 
 describe('cookies', () => {
-  it('sets the flags of SPEC.md', () => {
-    expect(sessionCookie('abc')).toBe('dentora_admin=abc; HttpOnly; Secure; SameSite=Strict; Path=/; Max-Age=43200')
+  it('sets the flags of SPEC.md, with the __Host- prefix', () => {
+    expect(sessionCookie('abc')).toBe('__Host-dentora_admin=abc; HttpOnly; Secure; SameSite=Strict; Path=/; Max-Age=43200')
   })
-  it('reads the session cookie among others', () => {
-    const r = new Request('https://x/', { headers: { Cookie: 'a=1; dentora_admin=tok.sig; b=2' } })
+  it('reads the session cookie among others, and not the old unprefixed name', () => {
+    const r = new Request('https://x/', { headers: { Cookie: 'a=1; dentora_admin=planted; __Host-dentora_admin=tok.sig; b=2' } })
     expect(readCookie(r)).toBe('tok.sig')
     expect(readCookie(new Request('https://x/'))).toBeNull()
   })
@@ -61,31 +69,42 @@ describe('password', () => {
 })
 
 describe('login rate limit', () => {
-  it(`locks an address after ${MAX_PER_IP} failures for the rest of the window`, async () => {
+  const t0 = 1_800_000_000_000
+  it(`lets ${MAX_PER_IP} attempts through per address, the last one already saying how long to wait`, async () => {
     const db = memoryD1(); await ensureSchema(db)
-    const t0 = 1_800_000_000_000
-    for (let i = 0; i < MAX_PER_IP - 1; i++) await recordFailure(db, '1.1.1.1', t0 + i * 1000)
-    expect(await lockedFor(db, '1.1.1.1', t0 + 10_000)).toBe(0)
-    await recordFailure(db, '1.1.1.1', t0 + 10_000)
-    const wait = await lockedFor(db, '1.1.1.1', t0 + 10_000)
-    expect(wait).toBe(Math.ceil((t0 + WINDOW_MS - (t0 + 10_000)) / 1000))
-    expect(await lockedFor(db, '2.2.2.2', t0 + 10_000)).toBe(0)
-    // Open again once the first failure leaves the window.
-    expect(await lockedFor(db, '1.1.1.1', t0 + WINDOW_MS + 1)).toBe(0)
+    for (let i = 0; i < MAX_PER_IP - 1; i++) expect(await takeAttempt(db, '1.1.1.1', false, t0 + i * 1000)).toEqual({ allowed: true, retryAfter: 0 })
+    expect(await takeAttempt(db, '1.1.1.1', false, t0 + 10_000)).toEqual({ allowed: true, retryAfter: Math.ceil((WINDOW_MS - 10_000) / 1000) })
+    const refused = await takeAttempt(db, '1.1.1.1', false, t0 + 20_000)
+    expect(refused.allowed).toBe(false)
+    expect(refused.retryAfter).toBe(Math.ceil((WINDOW_MS - 20_000) / 1000))
+    expect((await takeAttempt(db, '2.2.2.2', false, t0 + 20_000)).allowed).toBe(true)
+    // Refused attempts are not recorded: the lock ends when the first attempt leaves the window.
+    expect((await takeAttempt(db, '1.1.1.1', false, t0 + WINDOW_MS + 1)).allowed).toBe(true)
   })
-  it(`locks everyone after ${MAX_OVERALL} failures from anywhere`, async () => {
+  it(`pauses browsers that never signed in after ${MAX_OVERALL} attempts from anywhere, not a known device`, async () => {
     const db = memoryD1(); await ensureSchema(db)
-    const t0 = 1_800_000_000_000
-    for (let i = 0; i < MAX_OVERALL; i++) await recordFailure(db, `10.0.0.${i}`, t0 + i)
-    expect(await lockedFor(db, '9.9.9.9', t0 + 100)).toBeGreaterThan(0)
+    for (let i = 0; i < MAX_OVERALL; i++) expect((await takeAttempt(db, `10.0.0.${i}`, false, t0 + i)).allowed).toBe(true)
+    const stranger = await takeAttempt(db, '9.9.9.9', false, t0 + 100)
+    expect(stranger.allowed).toBe(false)
+    expect(stranger.retryAfter).toBeGreaterThan(0)
+    expect(await takeAttempt(db, '9.9.9.10', true, t0 + 100)).toEqual({ allowed: true, retryAfter: 0 })
   })
   it('forgets an address after a successful login', async () => {
     const db = memoryD1(); await ensureSchema(db)
-    const t0 = Date.now()
-    for (let i = 0; i < MAX_PER_IP; i++) await recordFailure(db, '3.3.3.3', t0)
-    expect(await lockedFor(db, '3.3.3.3', t0)).toBeGreaterThan(0)
-    await clearFailures(db, '3.3.3.3')
-    expect(await lockedFor(db, '3.3.3.3', t0)).toBe(0)
+    for (let i = 0; i < MAX_PER_IP; i++) await takeAttempt(db, '3.3.3.3', false, t0)
+    expect((await takeAttempt(db, '3.3.3.3', false, t0)).allowed).toBe(false)
+    await clearAttempts(db, '3.3.3.3')
+    expect((await takeAttempt(db, '3.3.3.3', false, t0)).allowed).toBe(true)
+  })
+  it('counts IPv6 per /64 and IPv4 per address', () => {
+    expect(addressKey('2001:db8:1:2::1')).toBe('2001:db8:1:2::/64')
+    expect(addressKey('2001:0db8:0001:0002:ffff:eeee:dddd:cccc')).toBe('2001:db8:1:2::/64')
+    expect(addressKey('2001:DB8:1:2:3::')).toBe('2001:db8:1:2::/64')
+    expect(addressKey('2001:db8::5')).toBe('2001:db8:0:0::/64')
+    expect(addressKey('::1')).toBe('0:0:0:0::/64')
+    expect(addressKey('::ffff:192.0.2.1')).toBe('192.0.2.1')
+    expect(addressKey('192.0.2.1')).toBe('192.0.2.1')
+    expect(addressKey('')).toBe('')
   })
 })
 

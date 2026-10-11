@@ -1,7 +1,8 @@
 // The control panel's JSON API (/api/*): routes, validation and audit. The contract is SPEC.md → Control panel API.
 import {
-  clearFailures, clearedCookie, isSignedIn, lockedFor, passwordMatches, passwordReady, recordFailure, sameOriginWrite,
-  SESSION_SECONDS, sessionCookie, sessionKey, signSession,
+  addressKey, clearAttempts, clearedCookie, currentSession, DEVICE_SECONDS, deviceCookie, knownDevice, passwordMatches,
+  passwordReady, revokeSession, sameOriginWrite, SESSION_SECONDS, sessionCookie, sessionKey, signToken, takeAttempt,
+  type Claims,
 } from './auth'
 import {
   activeLicencesOf, allLicences, audit, ensureSchema, getLicence, getSettings, insertLicence, insertReset, listAudit,
@@ -127,6 +128,7 @@ const fail = (c: { error: string; field?: string }) => apiError(c.error, 400, c.
 
 // ---- routes ------------------------------------------------------------------------------------------------------
 interface Ctx { request: Request; env: Env; url: URL; ip: string; db: D1Database }
+interface SignedIn extends Ctx { session: Claims }
 
 /** Everything under /api/. HEAD is answered like GET (index.ts drops the body). */
 export async function handleApi(request: Request, env: Env, url: URL): Promise<Response> {
@@ -138,11 +140,12 @@ export async function handleApi(request: Request, env: Env, url: URL): Promise<R
 
   if (path === '/login') return method === 'POST' ? login(c) : apiError('not_found', 404)
   // Signed in before anything else, so the API's shape is not visible to strangers.
-  if (!(await isSignedIn(request, env))) return apiError('auth', 401)
+  const session = await currentSession(request, env)
+  if (!session) return apiError('auth', 401)
 
   const route = `${method} ${path}`
   switch (route) {
-    case 'POST /logout': return logout(c)
+    case 'POST /logout': return logout({ ...c, session })
     case 'GET /me': return me(c)
     case 'GET /stats': return json(await stats(c.db))
     case 'GET /licences': return licencesList(c)
@@ -163,24 +166,30 @@ export async function handleApi(request: Request, env: Env, url: URL): Promise<R
 
 async function login(c: Ctx): Promise<Response> {
   if (!passwordReady(c.env)) return apiError('setup', 503)
-  const wait = await lockedFor(c.db, c.ip)
-  if (wait > 0) return apiError('locked', 429, { retryAfter: wait })
+  // The attempt is counted before the password is compared (takeAttempt), so parallel guesses cannot pass the limit.
+  const key = addressKey(c.ip)
+  const gate = await takeAttempt(c.db, key, await knownDevice(c.request, c.env))
+  if (!gate.allowed) return apiError('locked', 429, { retryAfter: gate.retryAfter })
   const body = await readJson(c.request)
   const given = body && typeof body.password === 'string' ? body.password.slice(0, 512) : ''
   if (!(await passwordMatches(given, c.env.ADMIN_PASSWORD as string))) {
-    await recordFailure(c.db, c.ip)
     await audit(c.db, 'login.fail', '', c.ip)
     // The failure that reaches the limit already answers "locked", so the panel can say for how long.
-    const now = await lockedFor(c.db, c.ip)
-    return now > 0 ? apiError('locked', 429, { retryAfter: now }) : apiError('password', 401)
+    return gate.retryAfter > 0 ? apiError('locked', 429, { retryAfter: gate.retryAfter }) : apiError('password', 401)
   }
-  await clearFailures(c.db, c.ip)
+  await clearAttempts(c.db, key)
   await audit(c.db, 'login.ok', '', c.ip)
-  const token = await signSession(await sessionKey(c.env), Math.floor(Date.now() / 1000) + SESSION_SECONDS)
-  return json({ ok: true }, 200, { 'Set-Cookie': sessionCookie(token) })
+  const cookieKey = await sessionKey(c.env)
+  const now = Math.floor(Date.now() / 1000)
+  const res = json({ ok: true })
+  res.headers.append('Set-Cookie', sessionCookie(await signToken(cookieKey, 'session', now + SESSION_SECONDS)))
+  res.headers.append('Set-Cookie', deviceCookie(await signToken(cookieKey, 'device', now + DEVICE_SECONDS)))
+  return res
 }
 
-async function logout(c: Ctx): Promise<Response> {
+async function logout(c: SignedIn): Promise<Response> {
+  // Revoked, not only cleared: a copy of the cookie (another browser, a synced profile) stops working as well.
+  await revokeSession(c.db, c.session)
   await audit(c.db, 'logout', '', c.ip)
   return json({ ok: true }, 200, { 'Set-Cookie': clearedCookie() })
 }

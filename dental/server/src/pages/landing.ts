@@ -386,7 +386,7 @@ function screenshots(v: View): string {
   const chart = `/img/shot-${lang}-chart`
   const phones = sh.phones.map(p => {
     const b = `/img/phone-${lang}-${p.key}`
-    return `<li><figure class="phone-card"><div class="phone"><img src="${b}-480.webp" srcset="${srcset(b, PHONE_W, 'webp')}" sizes="(min-width: 1100px) 220px, 232px" width="480" height="853" alt="${escapeHtml(p.alt)}" loading="lazy" decoding="async"></div><figcaption><strong>${escapeHtml(p.title)}</strong><span>${escapeHtml(p.text)}</span></figcaption></figure></li>`
+    return `<li><figure class="phone-card"><div class="phone"><div class="screen"><img src="${b}-480.webp" srcset="${srcset(b, PHONE_W, 'webp')}" sizes="(min-width: 1100px) 220px, 232px" width="480" height="853" alt="${escapeHtml(p.alt)}" loading="lazy" decoding="async"></div></div><figcaption><strong>${escapeHtml(p.title)}</strong><span>${escapeHtml(p.text)}</span></figcaption></figure></li>`
   }).join('\n')
   return `<section class="section shots" id="screenshots" aria-labelledby="screenshots-title">
 <div class="container">
@@ -431,7 +431,10 @@ ${sectionHead('pricing', p.eyebrow, p.title, p.lead, 'pricing-head')}
 </div>
 <div class="price-card">
 <p class="price-label">${icon('infinity')}${escapeHtml(p.label)}</p>
-<p class="price-amount"><span class="price-figure" dir="ltr"><span class="price-cur">$</span><span class="price-num">${escapeHtml(v.price)}</span></span></p>
+<p class="price-amount"><span class="price-figure" dir="ltr">${lang === 'ar'
+    // Arabic writes the sign after the number (59$), as the price line, the FAQ and the panel do.
+    ? `<span class="price-num">${escapeHtml(v.price)}</span><span class="price-cur">$</span>`
+    : `<span class="price-cur">$</span><span class="price-num">${escapeHtml(v.price)}</span>`}</span></p>
 ${priceText ? `<p class="price-text">${escapeHtml(priceText)}</p>` : ''}
 <p class="price-terms">${escapeHtml(p.terms)}</p>
 <p class="price-incl">${escapeHtml(p.includedTitle)}</p>

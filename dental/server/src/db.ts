@@ -1,5 +1,6 @@
 // The D1 database: the schema (created by the Worker itself, once per isolate) and every query the Worker runs.
 // Rows are mapped to the shapes of types.ts here, so nothing else knows the column names.
+import { b64url } from './http'
 import { DEFAULT_SETTINGS, type AuditEntry, type Licence, type LicenceStatus, type Plan, type ResetCode, type SiteSettings, type Stats } from './types'
 
 const SCHEMA = [
@@ -21,6 +22,11 @@ const SCHEMA = [
   'CREATE TABLE IF NOT EXISTS login_attempts (id INTEGER PRIMARY KEY AUTOINCREMENT, ip TEXT NOT NULL, at INTEGER NOT NULL)',
   'CREATE INDEX IF NOT EXISTS login_attempts_ip ON login_attempts (ip, at)',
   'CREATE INDEX IF NOT EXISTS login_attempts_at ON login_attempts (at)',
+  // Logged-out sessions until their tokens expire (auth.ts revokeSession).
+  'CREATE TABLE IF NOT EXISTS revoked_sessions (sid TEXT PRIMARY KEY, exp INTEGER NOT NULL)',
+  // Who was already counted today (a salted hash of the address, never the address): one download per visitor a day.
+  `CREATE TABLE IF NOT EXISTS download_seen (
+    day TEXT NOT NULL, platform TEXT NOT NULL, who TEXT NOT NULL, PRIMARY KEY (day, platform, who))`,
   `CREATE TABLE IF NOT EXISTS audit (
     id INTEGER PRIMARY KEY AUTOINCREMENT, at TEXT NOT NULL, action TEXT NOT NULL, detail TEXT NOT NULL DEFAULT '',
     ip TEXT NOT NULL DEFAULT '')`,
@@ -53,6 +59,19 @@ export async function getOrInitValue(db: D1Database, key: string, make: () => st
   if (v !== null) return v
   await db.prepare('INSERT OR IGNORE INTO settings (key, value) VALUES (?, ?)').bind(key, make()).run()
   return (await getValue(db, key)) as string
+}
+
+// Per isolate: the salt never changes once stored.
+const salts = new WeakMap<D1Database, Promise<string>>()
+/** This deployment's random salt (made and stored on first use): keys the cookies and hashes the download counter's addresses. */
+export function deploymentSalt(db: D1Database): Promise<string> {
+  let p = salts.get(db)
+  if (!p) {
+    p = getOrInitValue(db, 'session_salt', () => b64url(crypto.getRandomValues(new Uint8Array(16))))
+    p.catch(() => salts.delete(db))
+    salts.set(db, p)
+  }
+  return p
 }
 
 /** The stored settings over the defaults; a stored value of the wrong type is ignored. */
@@ -184,9 +203,20 @@ export async function listResets(db: D1Database, limit: number): Promise<ResetCo
 
 // ---- downloads ---------------------------------------------------------------------------------------------------
 export type Platform = 'android' | 'windows'
-export async function countDownload(db: D1Database, platform: Platform): Promise<void> {
-  await db.prepare('INSERT INTO downloads (day, platform, count) VALUES (?, ?, 1) ON CONFLICT (day, platform) DO UPDATE SET count = count + 1')
-    .bind(dayOf(), platform).run()
+/**
+ * Counts a download unless this visitor (`who`, a salted hash of the address) was already counted for this platform
+ * today: reloading or scripting the link does not inflate the numbers, and a repeat costs no D1 write. Answers
+ * whether it counted.
+ */
+export async function countDownload(db: D1Database, platform: Platform, who: string, now = Date.now()): Promise<boolean> {
+  const day = dayOf(now)
+  const seen = await db.prepare('INSERT OR IGNORE INTO download_seen (day, platform, who) VALUES (?, ?, ?) RETURNING who').bind(day, platform, who).all()
+  if (!seen.results.length) return false
+  await db.batch([
+    db.prepare('INSERT INTO downloads (day, platform, count) VALUES (?, ?, 1) ON CONFLICT (day, platform) DO UPDATE SET count = count + 1').bind(day, platform),
+    db.prepare('DELETE FROM download_seen WHERE day < ?').bind(dayOf(now - 86_400_000)),
+  ])
+  return true
 }
 
 // ---- stats -------------------------------------------------------------------------------------------------------

@@ -3,8 +3,9 @@
 // legal pages, counts downloads, serves the control panel page and its API, and answers everything else with a 404
 // page. Routes and rules: SPEC.md.
 import { handleApi } from './api'
-import { countDownload, ensureSchema, getSettingsCached, type Platform } from './db'
-import { apiError, CACHE_PAGE, html, NO_STORE, secure, text } from './http'
+import { addressKey } from './auth'
+import { countDownload, deploymentSalt, ensureSchema, getSettingsCached, type Platform } from './db'
+import { apiError, b64url, CACHE_PAGE, clientIp, html, NO_STORE, secure, text } from './http'
 import { renderLanding } from './pages/landing'
 import { LEGAL_DATE, langPath, renderLegal, sellerWa, type LegalDoc, type PageAssets } from './pages/legal'
 import { renderNotFound } from './pages/notfound'
@@ -52,10 +53,19 @@ async function settingsOrDefault(env: Env): Promise<SiteSettings> {
     return { ...DEFAULT_SETTINGS }
   }
 }
-async function count(env: Env, platform: Platform): Promise<void> {
+/**
+ * Counts a download once per visitor, platform and day. Not counted: a request the browser itself marks as not a
+ * visit (a prefetch, or a fetch/image from another page: Sec-Fetch-Mode other than navigate). The visitor is a salted
+ * hash of the address (its /64 for IPv6), so the database never holds the address itself.
+ */
+async function count(request: Request, env: Env, platform: Platform): Promise<void> {
+  const mode = request.headers.get('Sec-Fetch-Mode')
+  if ((mode && mode !== 'navigate') || /prefetch/i.test(request.headers.get('Sec-Purpose') || request.headers.get('Purpose') || '')) return
   try {
     await ensureSchema(env.DB)
-    await countDownload(env.DB, platform)
+    const salt = await deploymentSalt(env.DB)
+    const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(`download|${salt}|${addressKey(clientIp(request))}`))
+    await countDownload(env.DB, platform, b64url(new Uint8Array(digest).subarray(0, 16)))
   } catch (e) { console.error('download not counted:', e instanceof Error ? e.message : String(e)) }
 }
 
@@ -94,7 +104,7 @@ async function downloadAndroid(request: Request, env: Env, ctx: ExecutionContext
   // A download is a GET answered from the first byte: not a HEAD, not the rest of an interrupted download (judged
   // by what is served, as the static file layer may answer a range request with the whole file).
   const fromStart = asset.status === 200 || /^bytes 0-/.test(asset.headers.get('Content-Range') || '')
-  if (request.method === 'GET' && fromStart) ctx.waitUntil(count(env, 'android'))
+  if (request.method === 'GET' && fromStart) ctx.waitUntil(count(request, env, 'android'))
   const headers = new Headers({
     'Content-Type': 'application/vnd.android.package-archive',
     'Content-Disposition': `attachment; filename="Dentora-${pub.apk.version}.apk"`,
@@ -113,7 +123,7 @@ const WINDOWS_ASK: Record<Lang, string> = {
 }
 async function downloadWindows(request: Request, env: Env, ctx: ExecutionContext, url: URL): Promise<Response> {
   const s = await settingsOrDefault(env)
-  if (request.method === 'GET') ctx.waitUntil(count(env, 'windows'))
+  if (request.method === 'GET') ctx.waitUntil(count(request, env, 'windows'))
   // The English page's link (?lang=en, or the referring /en page) asks in English.
   let lang: Lang = url.searchParams.get('lang') === 'en' ? 'en' : 'ar'
   try { if (new URL(request.headers.get('Referer') || '').pathname.startsWith('/en')) lang = 'en' } catch { /* no referrer */ }
@@ -137,9 +147,11 @@ async function route(request: Request, env: Env, ctx: ExecutionContext): Promise
   if (request.method !== 'GET' && request.method !== 'HEAD') {
     return new Response('Method not allowed', { status: 405, headers: { Allow: 'GET, HEAD', 'Content-Type': 'text/plain; charset=utf-8', 'Cache-Control': NO_STORE } })
   }
-  // One address per page: /en/ → /en, /privacy/ → /privacy (the panel keeps both /admin and /admin/).
+  // One address per page: /en/ → /en, /privacy/ → /privacy (the panel keeps both /admin and /admin/). The target
+  // starts with exactly one slash: "//evil.example/" must not turn into "//evil.example", a link to another site.
   if (path.length > 1 && path.endsWith('/') && path !== '/admin/') {
-    return new Response(null, { status: 301, headers: { Location: path.replace(/\/+$/, '') + url.search, 'Cache-Control': CACHE_PAGE } })
+    const clean = '/' + path.replace(/^[/\\]+/, '').replace(/[/\\]+$/, '')
+    return new Response(null, { status: 301, headers: { Location: clean + url.search, 'Cache-Control': CACHE_PAGE } })
   }
 
   if (path === '/' || path === '/en') {

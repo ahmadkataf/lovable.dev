@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it } from 'vitest'
-import { MAX_PER_IP } from '../src/auth'
+import { MAX_OVERALL, MAX_PER_IP } from '../src/auth'
 import { checkLicenceInput, checkLicencePatch, checkSettingsPatch, handleApi, isHttpsUrl, priceOf } from '../src/api'
-import { ensureSchema, insertLicence, listLicences, stats } from '../src/db'
+import { countDownload, ensureSchema, insertLicence, listLicences, stats } from '../src/db'
 import { DEFAULT_SETTINGS, type Env, type Licence } from '../src/types'
 import { memoryD1 } from './d1'
 
@@ -113,6 +113,16 @@ describe('licence search and stats', () => {
     expect(s.licences).toEqual({ total: 3, month: 2, revenue: 99, revenueMonth: 59 })
     expect(s.downloads).toEqual({ android: 0, windows: 0, android30: 0, windows30: 0 })
   })
+  it('counts a download once per visitor, platform and day', async () => {
+    const db = memoryD1(); await ensureSchema(db)
+    const day1 = Date.UTC(2026, 9, 10, 12), day2 = day1 + 86_400_000
+    const got = []
+    for (let i = 0; i < 5; i++) got.push(await countDownload(db, 'windows', 'visitor-a', day1))
+    got.push(await countDownload(db, 'android', 'visitor-a', day1), await countDownload(db, 'windows', 'visitor-b', day1), await countDownload(db, 'windows', 'visitor-a', day2))
+    expect(got).toEqual([true, false, false, false, false, true, true, true])
+    const s = await stats(db, new Date(day2))
+    expect(s.downloads).toEqual({ android: 1, windows: 3, android30: 1, windows30: 3 })
+  })
 })
 
 describe('the API end to end (in-memory D1, no signing key)', () => {
@@ -127,11 +137,14 @@ describe('the API end to end (in-memory D1, no signing key)', () => {
     const req = new Request(ORIGIN + path, { method, headers, body: opts.body === undefined ? undefined : JSON.stringify(opts.body) })
     return handleApi(req, env, new URL(req.url))
   }
-  const login = async () => {
-    const r = await call('POST', '/api/login', { body: { password: 'qa-dentora-pass-2026' } })
+  /** Signs in; the session cookie, plus the device cookie as `device`. */
+  const signIn = async (headers: Record<string, string> = {}) => {
+    const r = await call('POST', '/api/login', { body: { password: 'qa-dentora-pass-2026' }, headers })
     expect(r.status).toBe(200)
-    return (r.headers.get('Set-Cookie') || '').split(';')[0]
+    const [session = '', device = ''] = r.headers.getSetCookie().map(c => c.split(';')[0])
+    return { session, device }
   }
+  const login = async () => (await signIn()).session
 
   it('refuses writes without the header or from another origin', async () => {
     expect((await call('POST', '/api/login', { body: {}, headers: { 'X-Dentora': '' } })).status).toBe(403)
@@ -161,7 +174,7 @@ describe('the API end to end (in-memory D1, no signing key)', () => {
   it('signs in, serves the routes, and needs the cookie for each', async () => {
     expect((await call('GET', '/api/me')).status).toBe(401)
     const cookie = await login()
-    expect(cookie).toMatch(/^dentora_admin=/)
+    expect(cookie).toMatch(/^__Host-dentora_admin=/)
     const me = await call('GET', '/api/me', { cookie })
     expect(me.headers.get('Cache-Control')).toBe('no-store')
     expect(me.headers.get('Content-Type')).toBe('application/json; charset=utf-8')
@@ -199,6 +212,48 @@ describe('the API end to end (in-memory D1, no signing key)', () => {
     expect(out.headers.get('Set-Cookie')).toContain('Max-Age=0')
   })
   it('refuses a forged cookie', async () => {
-    expect((await call('GET', '/api/stats', { cookie: 'dentora_admin=eyJleHAiOjk5OTk5OTk5OTl9.AAAA' })).status).toBe(401)
+    expect((await call('GET', '/api/stats', { cookie: '__Host-dentora_admin=eyJleHAiOjk5OTk5OTk5OTl9.AAAA' })).status).toBe(401)
+  })
+  it('sets a session cookie and a device cookie, and a device token is no session', async () => {
+    const { session, device } = await signIn()
+    expect(session).toMatch(/^__Host-dentora_admin=[\w-]+\.[\w-]+$/)
+    expect(device).toMatch(/^__Host-dentora_device=[\w-]+\.[\w-]+$/)
+    expect((await call('GET', '/api/me', { cookie: session })).status).toBe(200)
+    expect((await call('GET', '/api/me', { cookie: `__Host-dentora_admin=${device.split('=')[1]}` })).status).toBe(401)
+  })
+  it('logging out ends the session for every copy of the cookie', async () => {
+    const one = await login(), two = await login()
+    expect((await call('POST', '/api/logout', { cookie: one })).status).toBe(200)
+    expect((await call('GET', '/api/me', { cookie: one })).status).toBe(401)
+    expect((await call('POST', '/api/logout', { cookie: one })).status).toBe(401)
+    expect((await call('GET', '/api/me', { cookie: two })).status).toBe(200)
+  })
+  it('compares at most MAX_PER_IP passwords from one address, however many arrive at once', async () => {
+    const all = await Promise.all(Array.from({ length: 40 }, (_, i) => call('POST', '/api/login', { body: { password: `wrong-${i}` }, headers: { 'CF-Connecting-IP': '7.7.7.7' } })))
+    expect(all.filter(r => r.status === 401)).toHaveLength(MAX_PER_IP - 1)
+    expect(all.filter(r => r.status === 429)).toHaveLength(40 - (MAX_PER_IP - 1))
+    const cookie = await login()
+    const audit = await (await call('GET', '/api/audit?limit=500', { cookie })).json() as { items: { action: string; ip: string }[] }
+    expect(audit.items.filter(a => a.action === 'login.fail' && a.ip === '7.7.7.7')).toHaveLength(MAX_PER_IP)
+  })
+  it('counts IPv6 addresses per /64', async () => {
+    for (let i = 1; i <= MAX_PER_IP; i++) await call('POST', '/api/login', { body: { password: 'wrong' }, headers: { 'CF-Connecting-IP': `2001:db8:1:2::${i}` } })
+    const r = await call('POST', '/api/login', { body: { password: 'qa-dentora-pass-2026' }, headers: { 'CF-Connecting-IP': '2001:db8:1:2:ffff::9' } })
+    expect(r.status).toBe(429)
+    expect((await call('POST', '/api/login', { body: { password: 'qa-dentora-pass-2026' }, headers: { 'CF-Connecting-IP': '2001:db8:1:3::1' } })).status).toBe(200)
+  })
+  it(`strangers' failures (${MAX_OVERALL} from anywhere) pause new browsers, never one that signed in before`, async () => {
+    const { device } = await signIn({ 'CF-Connecting-IP': '8.8.8.8' })
+    for (let i = 0; i < MAX_OVERALL; i++) await call('POST', '/api/login', { body: { password: 'wrong' }, headers: { 'CF-Connecting-IP': `10.0.${i}.1` } })
+    const stranger = await call('POST', '/api/login', { body: { password: 'qa-dentora-pass-2026' }, headers: { 'CF-Connecting-IP': '9.9.9.9' } })
+    expect(stranger.status).toBe(429)
+    const seller = await call('POST', '/api/login', { body: { password: 'qa-dentora-pass-2026' }, headers: { 'CF-Connecting-IP': '9.9.9.10', Cookie: device } })
+    expect(seller.status).toBe(200)
+  })
+  it('stops reading a body past 16 KB, with or without Content-Length', async () => {
+    const big = new ReadableStream({ start(c) { for (let i = 0; i < 64; i++) c.enqueue(new Uint8Array(1024).fill(97)); c.close() } })
+    const req = new Request('https://dentora.raqeem.dev/api/login', { method: 'POST', body: big, duplex: 'half', headers: { 'X-Dentora': '1', 'CF-Connecting-IP': '6.6.6.6' } } as RequestInit)
+    const r = await handleApi(req, env, new URL(req.url))
+    expect(r.status).toBe(401)
   })
 })

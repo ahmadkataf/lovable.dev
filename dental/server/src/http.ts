@@ -51,14 +51,37 @@ export function escapeHtml(v: unknown): string {
 
 /** The JSON body as an object, or null (not JSON, not an object, or larger than `max` bytes). */
 export async function readJson(request: Request, max = 16_384): Promise<Record<string, unknown> | null> {
-  const declared = Number(request.headers.get('Content-Length') || 0)
-  if (declared > max) return null
-  const raw = await request.text()
-  if (raw.length > max) return null
+  const raw = await readLimited(request, max)
+  if (raw === null) return null
   try {
     const v = JSON.parse(raw || '{}')
     return v && typeof v === 'object' && !Array.isArray(v) ? v as Record<string, unknown> : null
   } catch { return null }
+}
+/**
+ * The body as text, or null past `max` bytes. Read as a stream and stopped at the limit: a chunked upload has no
+ * Content-Length to check first, and reading it whole would let a stranger fill the isolate's memory.
+ */
+export async function readLimited(request: Request, max: number): Promise<string | null> {
+  if (Number(request.headers.get('Content-Length') || 0) > max) return null
+  if (!request.body) return ''
+  const reader = request.body.getReader()
+  const parts: Uint8Array[] = []
+  let size = 0
+  for (;;) {
+    const { done, value } = await reader.read()
+    if (done) break
+    size += value.byteLength
+    if (size > max) {
+      await reader.cancel().catch(() => {})
+      return null
+    }
+    parts.push(value)
+  }
+  const all = new Uint8Array(size)
+  let at = 0
+  for (const p of parts) { all.set(p, at); at += p.byteLength }
+  return new TextDecoder().decode(all)
 }
 
 /** The visitor's address as Cloudflare reports it ('' locally, where there is no such header). */
