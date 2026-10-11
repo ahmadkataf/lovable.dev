@@ -42,7 +42,8 @@ export interface Copy {
   steps: { eyebrow: string; title: string; lead: string; items: { title: string; text: string }[] }
   pricing: {
     eyebrow: string; title: string; lead: string; label: string; terms: string; includedTitle: string; included: string[]
-    cta: string; trial: string; note: string
+    cta: string; trial: string
+    points: { icon: IconName; title: string; text: string }[]
   }
   download: {
     eyebrow: string; title: string; lead: string; free: string
@@ -177,7 +178,11 @@ const ar: Copy = {
     included: ['كل المزايا دون استثناء', 'عدد غير محدود من المرضى والمواعيد والفواتير', 'الواجهة العربية والإنجليزية', 'يعمل دون إنترنت وبياناتك على جهازك', 'مساعدة عبر واتساب'],
     cta: 'اطلب الترخيص عبر واتساب',
     trial: 'جرّبه مجاناً 7 أيام أولاً',
-    note: 'بعد انتهاء التجربة لا يُحذف شيء: تبقى بياناتك متاحة للعرض والطباعة والنسخ الاحتياطي حتى التفعيل.',
+    points: [
+      { icon: 'infinity', title: 'دفعة واحدة فقط', text: 'لا اشتراك ولا تجديد سنوي، والترخيص لك مدى الحياة.' },
+      { icon: 'badgeCheck', title: 'جرّب قبل أن تدفع', text: 'سبعة أيام مجانية بكل المزايا، دون تسجيل أو حساب.' },
+      { icon: 'shieldCheck', title: 'لا يُحذف شيء بعد التجربة', text: 'تبقى بياناتك متاحة للعرض والطباعة والنسخ الاحتياطي حتى التفعيل.' },
+    ],
   },
   download: {
     eyebrow: 'التحميل',
@@ -353,7 +358,11 @@ const en: Copy = {
     included: ['Every feature, nothing held back', 'Unlimited patients, appointments and invoices', 'Arabic and English interface', 'Works offline, data on your device', 'Help on WhatsApp'],
     cta: 'Get your licence on WhatsApp',
     trial: 'Try it free for 7 days first',
-    note: 'When the trial ends, nothing is deleted: your data stays available to view, print and back up until you activate.',
+    points: [
+      { icon: 'infinity', title: "One payment, that's it", text: 'No subscription and no yearly renewal: the licence is yours for life.' },
+      { icon: 'badgeCheck', title: 'Try before you pay', text: 'Seven days free with every feature, no sign-up.' },
+      { icon: 'shieldCheck', title: 'Nothing is deleted after the trial', text: 'Your data stays available to view, print and back up until you activate.' },
+    ],
   },
   download: {
     eyebrow: 'Download',

@@ -75,6 +75,18 @@ export async function getSettings(db: D1Database): Promise<SiteSettings> {
 export async function saveSettings(db: D1Database, s: SiteSettings): Promise<void> {
   await db.prepare('INSERT INTO settings (key, value) VALUES (?, ?) ON CONFLICT (key) DO UPDATE SET value = excluded.value')
     .bind('site', JSON.stringify(s)).run()
+  memo = { db, at: Date.now(), value: s }
+}
+
+// Public pages read the settings at most every 30 s per isolate: D1 answers from one region and the visitor may be
+// far from it. A save writes through, so the isolate that saved shows the change at once (others within 30 s).
+const SETTINGS_TTL = 30_000
+let memo: { db: D1Database; at: number; value: SiteSettings } | null = null
+export async function getSettingsCached(db: D1Database, now = Date.now()): Promise<SiteSettings> {
+  if (memo && memo.db === db && now - memo.at < SETTINGS_TTL) return memo.value
+  const value = await getSettings(db)
+  memo = { db, at: now, value }
+  return value
 }
 
 // ---- audit -------------------------------------------------------------------------------------------------------

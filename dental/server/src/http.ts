@@ -97,5 +97,5 @@ export function csvCell(v: unknown): string {
 }
 /** A whole CSV file: UTF-8 BOM (Excel then reads Arabic correctly) and CRLF line ends. */
 export function toCsv(head: string[], rows: unknown[][]): string {
-  return '﻿' + [head, ...rows].map(r => r.map(csvCell).join(',')).join('\r\n') + '\r\n'
+  return '\uFEFF' + [head, ...rows].map(r => r.map(csvCell).join(',')).join('\r\n') + '\r\n'
 }

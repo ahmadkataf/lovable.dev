@@ -3,15 +3,16 @@
 // legal pages, counts downloads, serves the control panel page and its API, and answers everything else with a 404
 // page. Routes and rules: SPEC.md.
 import { handleApi } from './api'
-import { countDownload, ensureSchema, getSettings, type Platform } from './db'
+import { countDownload, ensureSchema, getSettingsCached, type Platform } from './db'
 import { apiError, CACHE_PAGE, html, NO_STORE, secure, text } from './http'
 import { renderLanding } from './pages/landing'
 import { LEGAL_DATE, langPath, renderLegal, sellerWa, type LegalDoc, type PageAssets } from './pages/legal'
 import { renderNotFound } from './pages/notfound'
 import { DEFAULT_SETTINGS, type Env, type LandingContext, type Lang, type SiteSettings } from './types'
 
-/** The canonical address (canonical, hreflang, sitemap): the workers.dev copy points search engines here. */
-export const ORIGIN = 'https://dentora.raqeem.dev'
+/** The canonical address (canonical, hreflang, sitemap): the workers.dev copy points search engines here. Not exported:
+ * the main module may only export handlers. */
+const ORIGIN = 'https://dentora.raqeem.dev'
 
 // ---- what build-public.mjs published (fixed for a deployment, so read once per isolate) --------------------------
 interface Published { files: Set<string>; apk: LandingContext['apk'] }
@@ -26,12 +27,16 @@ async function readPublished(env: Env, base: string): Promise<Published> {
   const meta = files.has('/files/meta.json') ? await get<{ version: string; sizeBytes: number }>('/files/meta.json') : null
   return { files, apk: meta && files.has('/files/dentora.apk') ? { version: String(meta.version), sizeBytes: Number(meta.sizeBytes) } : null }
 }
-function getPublished(env: Env, base: string): Promise<Published> {
-  if (!published) {
-    published = readPublished(env, base)
-    published.catch(() => { published = null })
+/** Never fails a page: on an error it answers "nothing published" and the next request reads again. */
+async function getPublished(env: Env, base: string): Promise<Published> {
+  published ??= readPublished(env, base)
+  try {
+    return await published
+  } catch (e) {
+    published = null
+    console.error('published files unavailable:', e instanceof Error ? e.message : String(e))
+    return { files: new Set(), apk: null }
   }
-  return published
 }
 const pageAssets = (p: Published): PageAssets => ({
   siteCss: p.files.has('/css/site.css'), favicon: p.files.has('/favicon.svg'), manifest: p.files.has('/site.webmanifest'),
@@ -41,7 +46,7 @@ const pageAssets = (p: Published): PageAssets => ({
 async function settingsOrDefault(env: Env): Promise<SiteSettings> {
   try {
     await ensureSchema(env.DB)
-    return await getSettings(env.DB)
+    return await getSettingsCached(env.DB)
   } catch (e) {
     console.error('settings unavailable, using defaults:', e instanceof Error ? e.message : String(e))
     return { ...DEFAULT_SETTINGS }
@@ -56,9 +61,7 @@ async function count(env: Env, platform: Platform): Promise<void> {
 
 // ---- pages -------------------------------------------------------------------------------------------------------
 async function notFound(env: Env, base: string): Promise<Response> {
-  let assets: PageAssets = { siteCss: false, favicon: false, manifest: false }
-  try { assets = pageAssets(await getPublished(env, base)) } catch { /* the page works without them */ }
-  return html(renderNotFound(ORIGIN, assets), 404, 'public, max-age=60')
+  return html(renderNotFound(ORIGIN, pageAssets(await getPublished(env, base))), 404, 'public, max-age=60')
 }
 
 const LEGAL: Record<string, [LegalDoc, Lang]> = {
@@ -84,9 +87,14 @@ async function downloadAndroid(request: Request, env: Env, ctx: ExecutionContext
   if (!pub.apk) return notFound(env, url.href)
   const range = request.headers.get('Range')
   const asset = await env.ASSETS.fetch(new Request(new URL('/files/dentora.apk', url), { headers: range ? { Range: range } : {} }))
+  if (asset.status === 416) {
+    return new Response(null, { status: 416, headers: { 'Content-Range': asset.headers.get('Content-Range') || `bytes */${pub.apk.sizeBytes}`, 'Cache-Control': NO_STORE } })
+  }
   if (!asset.ok) return notFound(env, url.href)
-  // A download is a GET from the first byte: not a HEAD, not the rest of an interrupted download.
-  if (request.method === 'GET' && (!range || /^bytes=0-/.test(range))) ctx.waitUntil(count(env, 'android'))
+  // A download is a GET answered from the first byte: not a HEAD, not the rest of an interrupted download (judged
+  // by what is served, as the static file layer may answer a range request with the whole file).
+  const fromStart = asset.status === 200 || /^bytes 0-/.test(asset.headers.get('Content-Range') || '')
+  if (request.method === 'GET' && fromStart) ctx.waitUntil(count(env, 'android'))
   const headers = new Headers({
     'Content-Type': 'application/vnd.android.package-archive',
     'Content-Disposition': `attachment; filename="Dentora-${pub.apk.version}.apk"`,
@@ -117,7 +125,7 @@ async function adminPage(env: Env, url: URL): Promise<Response> {
   const res = await env.ASSETS.fetch(new Request(new URL('/admin/index.html', url)))
   if (!res.ok) return notFound(env, url.href)
   return new Response(res.body, {
-    headers: { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': NO_STORE, 'X-Robots-Tag': 'noindex, nofollow' },
+    headers: { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': NO_STORE, 'X-Robots-Tag': 'noindex' },
   })
 }
 

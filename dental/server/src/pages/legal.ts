@@ -1,6 +1,6 @@
 // /privacy and /terms (and /en/…): the app's own documents (src/features/legal/docs.ts), so the site and the app
-// never say different things. A plain, readable page on /css/legal.css (with /css/site.css under it when the
-// landing page publishes one): no script, nothing inline, per the CSP.
+// never say different things. The header and footer use the landing page's classes from /css/site.css, the rest is
+// /css/legal.css (which also stands in for site.css when a build has none). No script, nothing inline, per the CSP.
 import docs from '../../../src/features/legal/docs.ts'
 import legalStrings from '../../../src/i18n/modules/legal.ts'
 import { escapeHtml } from '../http'
@@ -72,8 +72,8 @@ export function parseLegal(src: string): Block[] {
   return out
 }
 
-/** wa.me link of the seller's number (digits only). */
-export const sellerWa = (whatsapp: string) => `https://wa.me/${(whatsapp || '').replace(/\D/g, '')}`
+/** wa.me link of the seller's number: digits only, without a leading 00 ("00963…" is typed for "+963…"). */
+export const sellerWa = (whatsapp: string) => `https://wa.me/${(whatsapp || '').replace(/\D/g, '').replace(/^00/, '')}`
 
 /** The seller's contacts as the documents' {contact}: the name, WhatsApp and, when set, e-mail. */
 function contactHtml(lang: Lang, s: SiteSettings): string {
@@ -106,7 +106,8 @@ export function renderDoc(doc: LegalDoc, lang: Lang, s: SiteSettings): { html: s
   return { html, toc }
 }
 
-const LOGO = '<svg class="legal-logo" viewBox="0 0 256 256" aria-hidden="true" focusable="false"><defs><linearGradient id="lg-g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#14B8A6"/><stop offset="1" stop-color="#0E8F86"/></linearGradient></defs><rect width="256" height="256" rx="60" fill="url(#lg-g)"/><path d="M120 60C108 46 92 42.5 76 54C58 67 54 92 62 114C71 139 76 170 84 188C87 195 96 195 99 188C104 176 107 158 112 146C115 138 125 138 128 146C133 158 136 176 141 188C144 195 153 195 156 188C164 170 169 139 178 114C186 92 182 67 164 54C148 42.5 132 46 120 60Z" fill="#fff"/><circle cx="178" cy="78" r="14" fill="#fff" opacity=".9"/></svg>'
+const LOGO_SVG = '<svg class="legal-logo" width="36" height="36" viewBox="0 0 256 256" aria-hidden="true" focusable="false"><defs><linearGradient id="lg-g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#14B8A6"/><stop offset="1" stop-color="#0E8F86"/></linearGradient></defs><rect width="256" height="256" rx="60" fill="url(#lg-g)"/><path d="M120 60C108 46 92 42.5 76 54C58 67 54 92 62 114C71 139 76 170 84 188C87 195 96 195 99 188C104 176 107 158 112 146C115 138 125 138 128 146C133 158 136 176 141 188C144 195 153 195 156 188C164 170 169 139 178 114C186 92 182 67 164 54C148 42.5 132 46 120 60Z" fill="#fff"/><circle cx="178" cy="78" r="14" fill="#fff" opacity=".9"/></svg>'
+const LANGUAGES_ICON = '<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="m5 8 6 6"/><path d="m4 14 6-6 2-3"/><path d="M2 5h12"/><path d="M7 2h1"/><path d="m22 22-5-10-5 10"/><path d="M14 18h6"/></svg>'
 
 export interface Shell {
   lang: Lang; title: string; description: string; origin: string; assets: PageAssets
@@ -126,34 +127,39 @@ export function shell(p: Shell): string {
     `<title>${escapeHtml(p.title)}</title>`,
     `<meta name="description" content="${escapeHtml(p.description)}">`,
     '<meta name="theme-color" content="#0E8F86">',
+    '<meta name="color-scheme" content="light">',
     p.path ? `<link rel="canonical" href="${url(p.lang)}">` : '<meta name="robots" content="noindex">',
     p.path ? `<link rel="alternate" hreflang="ar" href="${url('ar')}"><link rel="alternate" hreflang="en" href="${url('en')}"><link rel="alternate" hreflang="x-default" href="${url('ar')}">` : '',
-    p.assets.favicon ? '<link rel="icon" href="/favicon.svg" type="image/svg+xml"><link rel="icon" href="/favicon.ico" sizes="32x32"><link rel="apple-touch-icon" href="/apple-touch-icon.png">' : '',
+    p.assets.favicon ? '<link rel="icon" href="/favicon.ico" sizes="48x48"><link rel="icon" href="/favicon.svg" type="image/svg+xml"><link rel="apple-touch-icon" href="/apple-touch-icon.png">' : '',
     p.assets.manifest ? '<link rel="manifest" href="/site.webmanifest">' : '',
-    '<link rel="preload" href="/fonts/inter-latin-wght.woff2" as="font" type="font/woff2" crossorigin>',
     p.lang === 'ar' ? '<link rel="preload" href="/fonts/noto-kufi-arabic-wght.woff2" as="font" type="font/woff2" crossorigin>' : '',
+    '<link rel="preload" href="/fonts/inter-latin-wght.woff2" as="font" type="font/woff2" crossorigin>',
     p.assets.siteCss ? '<link rel="stylesheet" href="/css/site.css">' : '',
     '<link rel="stylesheet" href="/css/legal.css">',
   ].filter(Boolean).join('\n')
   const home = langPath('/', p.lang)
   const switcher = p.langSwitch !== false && p.path
-    ? `<a class="legal-lang" href="${langPath(p.path, other)}" hreflang="${other}" lang="${other}" title="${escapeHtml(t.otherLangName)}">${t.otherLang}</a>`
+    ? `<a class="lang-link legal-lang" href="${langPath(p.path, other)}" hreflang="${other}" lang="${other}" title="${escapeHtml(t.otherLangName)}">${LANGUAGES_ICON}<span>${t.otherLang}</span></a>`
     : ''
+  // The landing page's logo file when published (cached already), else the same mark inline.
+  const logo = p.assets.favicon ? '<img class="legal-logo" src="/favicon.svg" width="36" height="36" alt="">' : LOGO_SVG
   const year = new Date().getUTCFullYear()
+  // Each piece carries site.css's class (the landing page's header and footer) and legal.css's own, which only
+  // styles it when site.css is missing (see legal.css).
   return `<!doctype html>
 <html lang="${p.lang}" dir="${p.lang === 'ar' ? 'rtl' : 'ltr'}">
 <head>
 ${head}
 </head>
 <body class="legal-page">
-<a class="legal-skip" href="#main">${t.skip}</a>
-<header class="legal-top"><div class="legal-wrap legal-top-in">
-<a class="legal-brand" href="${home}" aria-label="Dentora — ${escapeHtml(t.home)}">${LOGO}<span>Dentora</span></a>
-${switcher}
+<a class="skip-link legal-skip" href="#main">${t.skip}</a>
+<header class="site-header legal-top"><div class="container header-inner legal-wrap legal-top-in">
+<a class="brand legal-brand" href="${home}" aria-label="Dentora — ${escapeHtml(t.home)}">${logo}<span>Dentora</span></a>
+<div class="header-actions legal-actions">${switcher}</div>
 </div></header>
 ${p.body}
-<footer class="legal-foot"><div class="legal-wrap legal-foot-in">
-<p>© ${year} Dentora · ${t.rights}</p>
+<footer class="site-footer legal-foot"><div class="container footer-bottom legal-wrap legal-foot-in">
+<p>© ${year} Dentora. ${t.rights}.</p>
 <nav aria-label="${escapeHtml(t.docs)}"><a href="${home}">${t.home}</a><a href="${langPath('/privacy', p.lang)}">${escapeHtml(docTitle('privacy', p.lang))}</a><a href="${langPath('/terms', p.lang)}">${escapeHtml(docTitle('terms', p.lang))}</a></nav>
 </div></footer>
 </body>
@@ -171,13 +177,13 @@ export function renderLegal(doc: LegalDoc, lang: Lang, s: SiteSettings, origin: 
   const tabs = (['privacy', 'terms'] as LegalDoc[]).map(d =>
     `<a href="${langPath(DOC_PATH[d], lang)}"${d === doc ? ' aria-current="page"' : ''}>${escapeHtml(docTitle(d, lang))}</a>`).join('')
   const body = `<main id="main" class="legal-main">
-<div class="legal-hero"><div class="legal-wrap">
+<div class="legal-hero"><div class="container legal-wrap">
 <p class="legal-kicker">${t.kicker}</p>
 <h1>${escapeHtml(title)}</h1>
 <p class="legal-date">${escapeHtml(updated)}</p>
 <nav class="legal-tabs" aria-label="${escapeHtml(t.docs)}">${tabs}</nav>
 </div></div>
-<div class="legal-wrap legal-grid">
+<div class="container legal-wrap legal-grid">
 <aside class="legal-aside"><nav class="legal-toc" aria-label="${escapeHtml(t.toc)}"><p class="legal-toc-title">${t.toc}</p>${tocList}</nav></aside>
 <article class="legal-doc">
 <details class="legal-toc-m"><summary>${t.toc}</summary><nav aria-label="${escapeHtml(t.toc)}">${tocList}</nav></details>

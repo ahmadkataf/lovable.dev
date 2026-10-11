@@ -66,6 +66,21 @@ Field rules: `device` is 8 base32 characters, shown as `XXXX-XXXX` (typed with o
 ignored); `plan` is `standard` or `pro`; `validity` is `lifetime`, `1y`, `2y` or `date` (then `until` = `YYYY-MM-DD`, today or
 later); `price` 0–100000; text fields ≤ 200 characters; `note` ≤ 1000.
 
+Details the table leaves open (as the backend implements them):
+- A body that is not a JSON object, or is over 16 KB: 400 `{ error: 'field', field: 'body' }`. An unexpected failure: 500 `{ error: 'server' }`.
+- `PATCH /api/licences/:id` errors: 400 `price`, or `field` + `{ field: 'customer' | 'clinic' | 'phone' | 'note' | 'status' }`; other keys are ignored.
+  `PUT /api/settings` ignores unknown keys too. `POST /api/licences` without `price` uses the settings' `priceUsd`.
+- `GET /api/licences?status=` other than `active`/`refunded`/`void`: 400 `field` + `{ field: 'status' }`. `limit` is 1–200, `/api/resets` 1–200, `/api/audit` 1–500.
+- `Stats.licences`: `total`/`month` count every licence except `void` ones (a refunded code still opens the app: codes
+  work offline); `revenue`/`revenueMonth` sum `active` licences only; `month` = since the 1st of the current month (UTC).
+  `downloads.*30` = the last 30 days including today.
+- `POST /api/verify` answers `until` as `YYYY-MM-DD` (null = lifetime); for a reset code it is the code's last valid day.
+- Audit actions: `login.ok`, `login.fail`, `logout`, `licence.create`, `licence.update`, `licences.csv`, `reset.create`, `settings.update`.
+- `/download/android` counts a GET answered from the first byte (not HEAD, not the rest of a resumed download). robots.txt also
+  disallows `/download/`, so crawlers do not inflate the counts. `/files/*` is not served directly (404).
+- Public pages read the settings at most every 30 s per Worker isolate; the isolate that saved them shows the change at once.
+- The panel page is served at both `/admin` and `/admin/`: it must reference its files with absolute paths (`/admin/admin.js`).
+
 Codes are made with the shared seller library `../tools/generator-lib.ts` (`issueCode`, `issueResetCode`,
 `clinicMessage`, `resetClinicMessage`, `waLink`), so they are byte-for-byte what the app accepts. Every code issued, every
 settings change, login success/failure and CSV export is written to `audit`.
