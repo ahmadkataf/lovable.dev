@@ -6,6 +6,14 @@
 export const CSP = "default-src 'self'; img-src 'self' data:; style-src 'self'; font-src 'self'; script-src 'self'; " +
   "connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'"
 
+/**
+ * The public pages (landing, privacy, terms, 404) also allow Cloudflare Web Analytics: when it is on for the zone,
+ * Cloudflare injects its beacon into every HTML page. The control panel, the API and the static files keep CSP.
+ */
+export const PUBLIC_CSP = CSP
+  .replace("script-src 'self'", "script-src 'self' https://static.cloudflareinsights.com")
+  .replace("connect-src 'self'", "connect-src 'self' https://cloudflareinsights.com")
+
 export const SECURITY_HEADERS: Readonly<Record<string, string>> = {
   'Strict-Transport-Security': 'max-age=31536000; includeSubDomains',
   'X-Content-Type-Options': 'nosniff',
@@ -21,7 +29,8 @@ export const NO_STORE = 'no-store'
 /** A copy of the response with the security headers set (responses from fetch/ASSETS have immutable headers). */
 export function secure(res: Response): Response {
   const out = new Response(res.body, res)
-  for (const [k, v] of Object.entries(SECURITY_HEADERS)) out.headers.set(k, v)
+  // a page that set its own policy (PUBLIC_CSP) keeps it; everything else gets the strict one
+  for (const [k, v] of Object.entries(SECURITY_HEADERS)) if (!(k === 'Content-Security-Policy' && res.headers.get(k) === PUBLIC_CSP)) out.headers.set(k, v)
   return out
 }
 

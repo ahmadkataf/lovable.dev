@@ -43,7 +43,13 @@ const SECURITY = {
   'permissions-policy': 'camera=(), microphone=(), geolocation=()',
   'content-security-policy': CSP,
 }
-const missingSecurity = headers => Object.entries(SECURITY).filter(([k, v]) => headers.get(k) !== v).map(([k]) => k)
+// the public pages may also allow Cloudflare Web Analytics; the panel, the API and the files never
+const PUBLIC_CSP = CSP.replace("script-src 'self'", "script-src 'self' https://static.cloudflareinsights.com")
+  .replace("connect-src 'self'", "connect-src 'self' https://cloudflareinsights.com")
+const publicPage = (headers, path) => !!path && (headers.get('content-type') || '').startsWith('text/html') && !path.startsWith('/admin') && !path.startsWith('/api/')
+const missingSecurity = (headers, path = '') => Object.entries(SECURITY)
+  .filter(([k, v]) => !(headers.get(k) === v || (k === 'content-security-policy' && publicPage(headers, path) && headers.get(k) === PUBLIC_CSP)))
+  .map(([k]) => k)
 
 // ---- secrets (.dev.vars) -----------------------------------------------------------------------------------------
 function readDevVars() {
@@ -305,11 +311,11 @@ async function siteBasics() {
   for (const path of ['/admin', '/admin/']) {
     r = await req('GET', path)
     check(`GET ${path} → panel page, no-store, noindex`, r.status === 200 && r.headers.get('content-type') === 'text/html; charset=utf-8'
-      && r.headers.get('cache-control') === 'no-store' && /noindex/.test(r.headers.get('x-robots-tag') || '') && r.text.includes('src="/admin/admin.js"'),
+      && r.headers.get('cache-control') === 'no-store, no-transform' && /noindex/.test(r.headers.get('x-robots-tag') || '') && r.text.includes('src="/admin/admin.js"'),
     `${r.status} ${r.headers.get('cache-control')} ${r.headers.get('x-robots-tag')}`)
   }
   r = await req('GET', '/admin/index.html')
-  check('static /admin/index.html → no-cache + noindex (public/_headers)', r.status === 200 && r.headers.get('cache-control') === 'no-cache' && /noindex/.test(r.headers.get('x-robots-tag') || ''),
+  check('static /admin/index.html → no-cache + noindex (public/_headers)', r.status === 200 && r.headers.get('cache-control') === 'no-cache, no-transform' && /noindex/.test(r.headers.get('x-robots-tag') || ''),
     `${r.status} ${r.headers.get('cache-control')} ${r.headers.get('x-robots-tag')}`)
   for (const path of ['/admin/admin.js', '/admin/admin.css', '/admin/logo.svg']) {
     r = await req('GET', path)
@@ -1375,10 +1381,10 @@ async function main() {
   const apiSeen = seen.filter(x => x.path.startsWith('/api/'))
   const apiBad = apiSeen.filter(x => x.path !== '/api/licences.csv' || x.status !== 200).filter(x => x.headers.get('content-type') !== 'application/json; charset=utf-8' || x.headers.get('cache-control') !== 'no-store')
   check(`all ${apiSeen.length} API responses: JSON (CSV aside) and no-store`, apiSeen.length > 0 && !apiBad.length, apiBad.slice(0, 5).map(x => `${x.method} ${x.path} ${x.status} ${x.headers.get('content-type')} ${x.headers.get('cache-control')}`).join(' | '))
-  const insecure = seen.filter(x => missingSecurity(x.headers).length)
+  const insecure = seen.filter(x => missingSecurity(x.headers, x.path).length)
   const html = seen.filter(x => (x.headers.get('content-type') || '').startsWith('text/html'))
   check(`security headers on all ${seen.length} responses (${html.length} HTML, ${apiSeen.length} API, the rest files, redirects, downloads)`, seen.length > 0 && !insecure.length,
-    insecure.slice(0, 5).map(x => `${x.method} ${x.path} ${x.status}: ${missingSecurity(x.headers)}`).join(' | '))
+    insecure.slice(0, 5).map(x => `${x.method} ${x.path} ${x.status}: ${missingSecurity(x.headers, x.path)}`).join(' | '))
 
   section('the private key stays in the Worker')
   // the local trace store keeps the Worker's console lines (offered by recent wranglers only)

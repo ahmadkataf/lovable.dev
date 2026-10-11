@@ -9,6 +9,8 @@ account_id = "c79a8e91efac74d2e119e7e406c4db43"
 # Production: the custom domain dentora.raqeem.dev (zone raqeem.dev). The workers.dev address stays on as well:
 # https://dentora-api.almutafawiqin.workers.dev
 workers_dev = true
+# no per-version preview addresses: the panel and the API live only at the two addresses above
+preview_urls = false
 routes = [
   { pattern = "dentora.raqeem.dev", custom_domain = true },
 ]

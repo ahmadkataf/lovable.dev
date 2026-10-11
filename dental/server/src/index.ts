@@ -5,7 +5,7 @@
 import { handleApi } from './api'
 import { addressKey } from './auth'
 import { countDownload, deploymentSalt, ensureSchema, getSettingsCached, type Platform } from './db'
-import { apiError, b64url, CACHE_PAGE, clientIp, html, NO_STORE, secure, text } from './http'
+import { apiError, b64url, CACHE_PAGE, clientIp, html, NO_STORE, secure, text, PUBLIC_CSP } from './http'
 import { renderLanding } from './pages/landing'
 import { LEGAL_DATE, langPath, renderLegal, sellerWa, type LegalDoc, type PageAssets } from './pages/legal'
 import { renderNotFound } from './pages/notfound'
@@ -71,7 +71,7 @@ async function count(request: Request, env: Env, platform: Platform): Promise<vo
 
 // ---- pages -------------------------------------------------------------------------------------------------------
 async function notFound(env: Env, base: string): Promise<Response> {
-  return html(renderNotFound(ORIGIN, pageAssets(await getPublished(env, base))), 404, 'public, max-age=60')
+  return html(renderNotFound(ORIGIN, pageAssets(await getPublished(env, base))), 404, 'public, max-age=60', { 'Content-Security-Policy': PUBLIC_CSP })
 }
 
 const LEGAL: Record<string, [LegalDoc, Lang]> = {
@@ -135,7 +135,8 @@ async function adminPage(env: Env, url: URL): Promise<Response> {
   const res = await env.ASSETS.fetch(new Request(new URL('/admin/index.html', url)))
   if (!res.ok) return notFound(env, url.href)
   return new Response(res.body, {
-    headers: { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': NO_STORE, 'X-Robots-Tag': 'noindex' },
+    // no-transform: Cloudflare injects nothing (Web Analytics' beacon) into the panel; its CSP would refuse it anyway
+    headers: { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': `${NO_STORE}, no-transform`, 'X-Robots-Tag': 'noindex' },
   })
 }
 
@@ -157,12 +158,12 @@ async function route(request: Request, env: Env, ctx: ExecutionContext): Promise
   if (path === '/' || path === '/en') {
     const lang: Lang = path === '/en' ? 'en' : 'ar'
     const [s, pub] = await Promise.all([settingsOrDefault(env), getPublished(env, url.href)])
-    return html(renderLanding(lang, s, { apk: pub.apk, origin: ORIGIN }), 200, CACHE_PAGE, { 'Content-Language': lang })
+    return html(renderLanding(lang, s, { apk: pub.apk, origin: ORIGIN }), 200, CACHE_PAGE, { 'Content-Language': lang, 'Content-Security-Policy': PUBLIC_CSP })
   }
   const legal = LEGAL[path]
   if (legal) {
     const [s, pub] = await Promise.all([settingsOrDefault(env), getPublished(env, url.href)])
-    return html(renderLegal(legal[0], legal[1], s, ORIGIN, pageAssets(pub)), 200, CACHE_PAGE, { 'Content-Language': legal[1] })
+    return html(renderLegal(legal[0], legal[1], s, ORIGIN, pageAssets(pub)), 200, CACHE_PAGE, { 'Content-Language': legal[1], 'Content-Security-Policy': PUBLIC_CSP })
   }
   switch (path) {
     case '/healthz': return text('ok', 200, 'text/plain', NO_STORE)

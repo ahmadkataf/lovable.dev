@@ -46,7 +46,7 @@ const rules = [
   '/img/*\n  Cache-Control: public, max-age=86400',
   '/css/*\n  Cache-Control: public, max-age=600',
   '/js/*\n  Cache-Control: public, max-age=600',
-  '/admin/*\n  Cache-Control: no-cache\n  X-Robots-Tag: noindex',
+  '/admin/*\n  Cache-Control: no-cache, no-transform\n  X-Robots-Tag: noindex',
 ]
 // A site/_headers of the landing page, if any, comes after (its rules add to these).
 const own = join(site, '_headers')
