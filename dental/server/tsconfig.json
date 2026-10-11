@@ -1,7 +1,13 @@
 {
   "compilerOptions": {
     "target": "ES2022", "module": "ES2022", "moduleResolution": "Bundler", "strict": true, "noEmit": true,
-    "lib": ["ES2022"], "types": ["@cloudflare/workers-types"], "skipLibCheck": true
+    // DOM next to the Workers types: the app's src/license/core.ts (imported through tools/generator-lib.ts) is
+    // typed against the DOM lib, whose TextEncoder returns Uint8Array<ArrayBuffer>.
+    "lib": ["ES2022", "DOM"], "types": ["@cloudflare/workers-types"], "skipLibCheck": true,
+    "noUnusedLocals": true, "noUnusedParameters": true,
+    // The app's files are imported with their .ts extension (as Node runs them), and docs.ts uses the app's "@/" alias.
+    "allowImportingTsExtensions": true,
+    "baseUrl": ".", "paths": { "@/*": ["../src/*"] }
   },
   "include": ["src"]
 }
