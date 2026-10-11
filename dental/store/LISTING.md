@@ -170,10 +170,11 @@ administration.
 الصحة وسياسة الخصوصية مطلوبان في الحالتين؛ أما «الأعمال» فيضعه بين أدوات المكاتب العامة.
 
 **Privacy policy / سياسة الخصوصية:** publish `docs/PRIVACY.md` (Arabic and English in one page) on a public HTTPS
-address you control, after putting the seller's real name, e-mail and WhatsApp in it and in
-`src/features/settings/seller.ts` (the file's header says so), then paste that address in Play Console → App content →
-Privacy policy, and use the same e-mail as the listing's contact e-mail.
-انشر `docs/PRIVACY.md` على عنوان HTTPS عام تملكه بعد وضع اسم البائع وبريده وواتسابه الحقيقية فيه وفي `seller.ts`.
+address you control (its seller contact, WhatsApp +963 996 489 504, matches `src/features/settings/seller.ts`; add an
+e-mail to both if you want one shown), then paste that address in Play Console → App content → Privacy policy. Play also
+asks a contact e-mail for the listing itself.
+انشر `docs/PRIVACY.md` على عنوان HTTPS عام تملكه (فيه واتساب البائع ‎+963 996 489 504‎ كما في `seller.ts`، وأضف بريداً إلى
+الملفين إن أردت إظهاره). Play تطلب أيضاً بريداً للتواصل في بطاقة المتجر نفسها.
 
 ---
 

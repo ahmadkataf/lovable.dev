@@ -3,7 +3,7 @@ import type { ModuleDict } from '@/i18n/types'
 // The privacy policy and the terms of use, read as t('legal.privacy.body') / t('legal.terms.body') once this file is
 // loaded (features/legal/lib.ts loadLegalDocs() registers it into the "legal" strings). It is loaded only when a
 // document is opened, so these pages never weigh on the start of the app. The markup: '## ' a heading, '- ' a
-// bullet, an empty line between paragraphs. Placeholders: {seller}, {email}, {whatsapp} (features/settings/seller.ts).
+// bullet, an empty line between paragraphs. Placeholders: {seller} and {contact} (the seller's name and the contacts that are set in features/settings/seller.ts).
 // The same text is published as docs/PRIVACY.md and docs/TERMS.md for the store listing: change both together.
 const docs: ModuleDict = {
   ar: {
@@ -53,7 +53,7 @@ Dentora برنامج تبيعه {seller} ("نحن"). العيادة التي ت�
 قد نحدّث هذه السياسة مع إصدارات البرنامج، ويبيّن التاريخ في أعلاها آخر تحديث.
 
 ## التواصل
-{seller} — البريد الإلكتروني: {email} — واتساب: {whatsapp}`,
+{contact}`,
 
     'terms.body': `هذه شروط استخدام برنامج Dentora (اتفاقية ترخيص المستخدم النهائي). باستخدام البرنامج أو تثبيته توافق عليها نيابةً عن العيادة.
 
@@ -93,7 +93,7 @@ Dentora أداة إدارية لحفظ السجلات، ولا يقدّم است
 تخضع هذه الشروط لقوانين البلد الذي يمارس فيه البائع نشاطه، ما لم تفرض القوانين الآمرة في بلد العيادة غير ذلك.
 
 ## التواصل
-{seller} — البريد الإلكتروني: {email} — واتساب: {whatsapp}`,
+{contact}`,
   },
   en: {
     'privacy.body': `This document explains how Dentora, dental clinic management software, handles data. In short: all the data of the clinic and its patients stays on the device the app runs on, and we receive none of it.
@@ -142,7 +142,7 @@ The app is meant for clinic staff, not for children. It may hold records of chil
 We may update this policy with new versions of the app; the date at the top shows the latest version.
 
 ## Contact
-{seller} — email: {email} — WhatsApp: {whatsapp}`,
+{contact}`,
 
     'terms.body': `These are the terms of use of Dentora (the end-user licence agreement). By installing or using the app you accept them on behalf of the clinic.
 
@@ -182,7 +182,7 @@ The licence ends when the code’s period ends or if these terms are breached. T
 These terms are governed by the laws of the country where the seller is established, unless the mandatory laws of the clinic’s country provide otherwise.
 
 ## Contact
-{seller} — email: {email} — WhatsApp: {whatsapp}`,
+{contact}`,
   },
 }
 export default docs

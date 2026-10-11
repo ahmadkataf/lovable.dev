@@ -1,5 +1,5 @@
 <!-- Generated from src/features/legal/docs.ts (the text shown in the app: Settings → About). Edit both together.
-     Before publishing: put the seller's real name, e-mail and WhatsApp in src/features/settings/seller.ts and here. -->
+     Before publishing: the seller's name and contacts here must match src/features/settings/seller.ts. -->
 
 # Dentora — سياسة الخصوصية | Privacy policy
 
@@ -57,7 +57,7 @@ Dentora برنامج تبيعه Dentora ("نحن"). العيادة التي تس
 قد نحدّث هذه السياسة مع إصدارات البرنامج، ويبيّن التاريخ في أعلاها آخر تحديث.
 
 ## التواصل
-Dentora — البريد الإلكتروني: sales@dentora.app — واتساب: +963 944 000 000
+Dentora — واتساب: +963 996 489 504
 
 </div>
 
@@ -115,6 +115,6 @@ The app is meant for clinic staff, not for children. It may hold records of chil
 We may update this policy with new versions of the app; the date at the top shows the latest version.
 
 ## Contact
-Dentora — email: sales@dentora.app — WhatsApp: +963 944 000 000
+Dentora — WhatsApp: +963 996 489 504
 
 </div>

@@ -1102,8 +1102,27 @@ public class MainActivity extends Activity {
         @JavascriptInterface
         public String appVersion() { return host.versionName(); }
 
+        /** The package that installed the app: "com.android.vending" for Google Play, a file manager's or the system
+         *  installer's package for a shared APK, "" when unknown (adb). The licence screen hides the seller's contact
+         *  on Play installs (Play payments policy). */
+        @JavascriptInterface
+        public String installSource() { return refused() ? "" : host.installer(); }
+
         @JavascriptInterface
         public void openExternal(String url) { if (!refused()) host.runOnUiThread(new OpenLink(host, url)); }
+    }
+
+    @SuppressWarnings("deprecation")
+    String installer() {
+        try {
+            PackageManager pm = getPackageManager();
+            String p = Build.VERSION.SDK_INT >= 30
+                ? pm.getInstallSourceInfo(getPackageName()).getInstallingPackageName()
+                : pm.getInstallerPackageName(getPackageName());
+            return p == null ? "" : p;
+        } catch (PackageManager.NameNotFoundException | RuntimeException e) {
+            return "";
+        }
     }
 
     @SuppressWarnings("deprecation")

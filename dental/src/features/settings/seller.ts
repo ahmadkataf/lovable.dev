@@ -1,21 +1,30 @@
-// The seller's contact details, shown in Settings → License under "How do I get an activation code?".
-// EDIT BEFORE SELLING: put your own name, WhatsApp number (international format, with the country code),
-// email and prices. Nothing else in the app needs to change. Codes are made with the private generator:
+// The seller's contact details, shown in Settings → Licence under "How do I get an activation code?" and in the
+// privacy policy and terms. Leave a field '' to hide it. Codes are made with the private generator:
 //   node scripts/code-generator.mjs <device> <standard|pro> [YYYY-MM-DD | 1y | 2y | lifetime]
 //   or the offline page built by: npx vite build --config vite.tools.config.ts  →  dist-tools/code-generator.html
+import { installSource } from '@/platform'
+
 export const SELLER = {
   /**
-   * false (default): the app shows no price and no buy/contact buttons, only the device number and the code field.
-   * Keep it false for any build that goes to Google Play: Play does not allow steering users to pay outside
-   * Google Play billing, and the APK you share is the same build as the Play one. Sell through your own
-   * channels (website, WhatsApp, visits) and send the code there.
-   * true: shows the seller box below with prices and WhatsApp/e-mail buttons (direct sales only, never on Play).
+   * When the licence screen shows the seller box (contacts and the "Request on WhatsApp" button):
+   * 'outside-play' (default): on Windows, the web build and an APK the seller shares, never in a copy installed from
+   *   Google Play: Play does not allow steering users to pay outside its billing. Play's own test devices install
+   *   without an installer name and do not see it either.
+   * 'always' / 'never'.
    */
-  showPurchaseInfo: false,
+  showPurchaseInfo: 'outside-play' as 'outside-play' | 'always' | 'never',
   name: 'Dentora',
-  whatsapp: '+963 944 000 000',
-  email: 'sales@dentora.app',
-  /** Shown as written; priceTextEn is used when the app is in English. */
-  priceText: 'الباقة الأساسية 99$ سنوياً · الباقة الاحترافية 149$ سنوياً · ترخيص دائم 299$',
-  priceTextEn: 'Standard $99 / year · Pro $149 / year · Lifetime $299',
+  /** International format, with the country code. */
+  whatsapp: '+963 996 489 504',
+  email: '',
+  /** Shown as written; priceTextEn is used when the app is in English. '' = no price shown. */
+  priceText: '',
+  priceTextEn: '',
+}
+
+/** Whether this copy may show the seller box (see showPurchaseInfo). */
+export function sellerShown(): boolean {
+  if (SELLER.showPurchaseInfo === 'never') return false
+  if (SELLER.showPurchaseInfo === 'always') return true
+  return installSource() === 'direct'
 }

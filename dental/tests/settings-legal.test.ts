@@ -18,9 +18,11 @@ describe('privacy policy and terms of use', () => {
     for (const lang of ['ar', 'en'] as const) {
       const privacy = legalText('privacy', lang), terms = legalText('terms', lang)
       for (const s of [privacy, terms]) {
-        expect(s).toContain(SELLER.email)
-        expect(s).toContain(SELLER.whatsapp)
-        expect(s).not.toMatch(/\{(seller|email|whatsapp)\}/)
+        if (SELLER.email) expect(s).toContain(SELLER.email)
+        if (SELLER.whatsapp) expect(s).toContain(SELLER.whatsapp)
+        expect(s).not.toMatch(/\{(seller|contact|email|whatsapp)\}/)
+        // a contact left empty is left out, not shown as an empty label
+        expect(s).not.toMatch(/(البريد الإلكتروني|email|واتساب|WhatsApp): ?(\u2066\u2069|—|$)/m)
         expect(parseLegal(s).filter(b => b.kind === 'h').length).toBeGreaterThanOrEqual(8)
       }
     }

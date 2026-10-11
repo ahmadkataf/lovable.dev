@@ -34,7 +34,16 @@ export function loadLegalDocs(): Promise<void> {
   docsLoading ??= import('./docs').then(m => registerStrings('legal', m.default))
   return docsLoading
 }
+/** The seller's contact line: the name and whichever contacts are set (an empty one is left out). */
+export function sellerContact(lang: Lang): string {
+  const ar = lang === 'ar'
+  return [
+    SELLER.name,
+    SELLER.email && `${ar ? 'البريد الإلكتروني' : 'email'}: \u2066${SELLER.email}\u2069`,
+    SELLER.whatsapp && `${ar ? 'واتساب' : 'WhatsApp'}: \u2066${SELLER.whatsapp}\u2069`,
+  ].filter(Boolean).join(' — ')
+}
 /** A legal document's text in a language, with the seller's contact details filled in (after loadLegalDocs). */
 export function legalText(doc: 'privacy' | 'terms', lang: Lang): string {
-  return translate(lang, `legal.${doc}.body`, { seller: SELLER.name, email: SELLER.email, whatsapp: SELLER.whatsapp })
+  return translate(lang, `legal.${doc}.body`, { seller: SELLER.name, contact: sellerContact(lang) })
 }

@@ -48,6 +48,8 @@ interface AndroidBridge {
   print(jobName?: string): void
   appVersion(): string
   openExternal(url: string): void
+  /** The installing package ("com.android.vending" = Google Play), '' when unknown. Absent in shells before 1.0.0's. */
+  installSource?(): string
 }
 declare global {
   interface Window { dentora?: ElectronBridge; DentoraAndroid?: AndroidBridge; __dentoraBack?: () => boolean }
@@ -63,6 +65,23 @@ export function platform(): Platform {
 export const isElectron = () => platform() === 'electron'
 export const isAndroid = () => platform() === 'android'
 export const isTouch = () => typeof window !== 'undefined' && (window.matchMedia?.('(pointer: coarse)').matches || isAndroid())
+
+// ---- install source ---------------------------------------------------------------------------------------------
+/**
+ * Where this copy came from, for what the licence screen may show: 'play' (installed from Google Play), 'direct' (an
+ * APK shared by the seller, the Windows app, the web build) or 'unknown' (an Android install with no installer name,
+ * e.g. adb, as on Play's own test devices, or an older shell).
+ */
+export function installSource(): 'play' | 'direct' | 'unknown' {
+  if (!isAndroid()) return 'direct'
+  try {
+    const pkg = window.DentoraAndroid?.installSource?.() ?? ''
+    if (!pkg) return 'unknown'
+    return pkg === 'com.android.vending' ? 'play' : 'direct'
+  } catch {
+    return 'unknown'
+  }
+}
 
 // ---- version --------------------------------------------------------------------------------------------------
 let shellVersion = ''
