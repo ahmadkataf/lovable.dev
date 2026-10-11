@@ -1,0 +1,24 @@
+/* Bundled fonts (offline). The default pairing is Inter (Latin, digits) + Noto Kufi Arabic (Arabic);
+   the others are selectable in Settings → Preferences. Browsers fetch only the faces actually used. */
+@import '@fontsource-variable/inter';
+@import '@fontsource-variable/noto-kufi-arabic';
+@import '@fontsource-variable/noto-sans-arabic';
+@import '@fontsource-variable/cairo';
+@import '@fontsource-variable/readex-pro';
+@import '@fontsource/almarai/400.css';
+@import '@fontsource/almarai/700.css';
+@import '@fontsource/tajawal/400.css';
+@import '@fontsource/tajawal/500.css';
+@import '@fontsource/tajawal/700.css';
+@import '@fontsource/ibm-plex-sans-arabic/400.css';
+@import '@fontsource/ibm-plex-sans-arabic/500.css';
+@import '@fontsource/ibm-plex-sans-arabic/600.css';
+@import '@fontsource/ibm-plex-sans-arabic/700.css';
+
+:root, :root[data-font="kufi"] { --font: 'Inter Variable', 'Noto Kufi Arabic Variable', 'Segoe UI', Tahoma, system-ui, sans-serif; --font-scale: 1; }
+:root[data-font="sans"] { --font: 'Inter Variable', 'Noto Sans Arabic Variable', 'Segoe UI', Tahoma, system-ui, sans-serif; --font-scale: 1; }
+:root[data-font="cairo"] { --font: 'Cairo Variable', 'Inter Variable', 'Segoe UI', Tahoma, system-ui, sans-serif; --font-scale: 1; }
+:root[data-font="readex"] { --font: 'Readex Pro Variable', 'Inter Variable', 'Segoe UI', Tahoma, system-ui, sans-serif; --font-scale: 1; }
+:root[data-font="almarai"] { --font: 'Inter Variable', 'Almarai', 'Segoe UI', Tahoma, system-ui, sans-serif; --font-scale: 1.04; }
+:root[data-font="tajawal"] { --font: 'Inter Variable', 'Tajawal', 'Segoe UI', Tahoma, system-ui, sans-serif; --font-scale: 1.06; }
+:root[data-font="plex"] { --font: 'IBM Plex Sans Arabic', 'Segoe UI', Tahoma, system-ui, sans-serif; --font-scale: 1.02; }

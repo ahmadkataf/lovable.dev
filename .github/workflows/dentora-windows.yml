@@ -1,0 +1,137 @@
+# Dentora — Windows installer (Electron + electron-builder)
+#
+# بناء نسخة ويندوز من Dentora: برنامج التثبيت Dentora-Setup-<الإصدار>.exe والنسخة المحمولة Dentora-Portable-<الإصدار>.exe
+#   • التشغيل يدوياً: تبويب Actions ← "Dentora Windows" ← Run workflow (يمكن كتابة رقم الإصدار مثل 1.2.0، أو تركه فارغاً لاستخدام رقم package.json).
+#   • أو تلقائياً عند دفع وسم مثل dentora-v1.2.0  (git tag dentora-v1.2.0 && git push origin dentora-v1.2.0) — يُؤخذ الإصدار من الوسم.
+#   • أين أجد الملفات؟ Actions ← اختر التشغيل ← أسفل الصفحة قسم Artifacts ← "Dentora-windows" (ملف zip يحوي ملفات ‎.exe).
+#   • التوقيع الرقمي (اختياري): البرنامج غير الموقَّع يعمل بشكل طبيعي، لكن Windows SmartScreen يُظهر عند أول تشغيل
+#     "حمى Windows جهاز الكمبيوتر" ← "مزيد من المعلومات" ← "تشغيل على أي حال". لإزالة التحذير لاحقاً اشترِ شهادة توقيع برمجيات
+#     (Code Signing، ويفضّل EV) ثم أضف في Settings ← Secrets and variables ← Actions:
+#       CSC_LINK          = ملف الشهادة ‎.pfx مُرمَّزاً بـ base64  (PowerShell: [Convert]::ToBase64String([IO.File]::ReadAllBytes("cert.pfx")))
+#       CSC_KEY_PASSWORD  = كلمة مرور الشهادة
+#     وعدّل publisherName في dental/electron-builder.yml ليطابق اسم "Issued to" في الشهادة. لا حاجة لأي تعديل آخر.
+#
+# Builds the Windows installer (NSIS, Dentora-Setup-<version>.exe) and the portable exe (Dentora-Portable-<version>.exe).
+#   • Run it from Actions → "Dentora Windows" → Run workflow (optional version such as 1.2.0; empty = package.json version),
+#     or push a tag like dentora-v1.2.0 (the version is taken from the tag).
+#   • Where is the installer? Actions → open the run → "Artifacts" at the bottom → "Dentora-windows" (a zip with the .exe files).
+#     Artifacts are kept for 90 days; download and keep the ones you ship.
+#   • Code signing is optional. Unsigned builds work, but SmartScreen warns on first launch ("More info" → "Run anyway").
+#     To sign: add the repository secrets CSC_LINK (base64 of the .pfx) and CSC_KEY_PASSWORD, and set publisherName in
+#     dental/electron-builder.yml to the certificate's "Issued to" name. electron-builder signs automatically when they exist.
+#   • No GH_TOKEN is needed: nothing is published, the files are only uploaded as an artifact.
+name: Dentora Windows
+
+on:
+  workflow_dispatch:
+    inputs:
+      version_name:
+        description: 'Version (e.g. 1.2.0). Empty = the version in dental/package.json'
+        required: false
+        default: ''
+  push:
+    tags:
+      - 'dentora-v*'
+
+permissions:
+  contents: read
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    timeout-minutes: 45
+    defaults:
+      run:
+        working-directory: dental
+        shell: bash
+    env:
+      PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: '1'
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: dental/package-lock.json
+
+      - name: Cache Electron downloads
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~\AppData\Local\electron\Cache
+            ~\AppData\Local\electron-builder\Cache
+          key: electron-win-${{ hashFiles('dental/package-lock.json') }}
+          restore-keys: electron-win-
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Set the version
+        id: version
+        env:
+          INPUT_VERSION: ${{ inputs.version_name }}
+        run: |
+          V="${INPUT_VERSION// /}"
+          if [ -z "$V" ] && [[ "$GITHUB_REF" == refs/tags/dentora-v* ]]; then V="${GITHUB_REF#refs/tags/dentora-v}"; fi
+          if [ -n "$V" ]; then
+            [[ "$V" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$ ]] || { echo "::error::The version must look like 1.2.0 (got '$V')."; exit 1; }
+            # only in this run's checkout: the web app (__APP_VERSION__), the exe and the file names all use it
+            npm version "$V" --no-git-tag-version --allow-same-version >/dev/null
+          fi
+          V="$(node -p "require('./package.json').version")"
+          echo "version=$V" >> "$GITHUB_OUTPUT"
+          echo "Building Dentora $V"
+
+      - name: Build the web app
+        run: npm run build
+
+      - name: Build the Windows installer and the portable exe
+        env:
+          CSC_LINK: ${{ secrets.CSC_LINK }}
+          CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
+        run: |
+          if [ -z "$CSC_LINK" ]; then
+            unset CSC_LINK CSC_KEY_PASSWORD
+            export CSC_IDENTITY_AUTO_DISCOVERY=false
+            echo "::notice::No CSC_LINK secret: the installer is unsigned (SmartScreen will warn on first launch)."
+          fi
+          npx electron-builder --win --publish never
+
+      - name: Smoke-test the app on Windows (window, bridge, MachineGuid device id, data survives restart)
+        continue-on-error: true
+        timeout-minutes: 6
+        run: node scripts/qa/electron.mjs
+
+      - name: List the files
+        run: |
+          ls -la release
+          {
+            echo "### Dentora ${{ steps.version.outputs.version }} for Windows"
+            echo ""
+            echo "| File | Size | SHA-256 |"
+            echo "|---|---|---|"
+            for f in release/*.exe; do
+              echo "| $(basename "$f") | $(( $(stat -c %s "$f") / 1048576 )) MB | \`$(sha256sum "$f" | cut -d' ' -f1)\` |"
+            done
+            echo ""
+            echo "Download: this run → Artifacts → **Dentora-windows**."
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Dentora-windows
+          path: |
+            dental/release/*.exe
+            dental/release/*.blockmap
+          if-no-files-found: error
+          retention-days: 90
+
+      # screenshots of the Windows smoke test (window, signed-in shell, English, a PDF), for checking a failed run
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: Dentora-windows-qa
+          path: dental/qa-shots/electron
+          if-no-files-found: ignore
+          retention-days: 14

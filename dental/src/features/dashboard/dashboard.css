@@ -1,0 +1,94 @@
+/* Dashboard. Class names are prefixed rp- (the dashboard shares the reports chart kit). Tokens only. */
+.rp-dash-kpis { margin-bottom: 18px; grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.rp-dash-kpis.cols-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+@media (max-width: 767px) { .rp-dash-kpis, .rp-dash-kpis.cols-3 { grid-template-columns: repeat(2, minmax(0, 1fr)); } .rp-dash-kpis.cols-3 > :last-child { grid-column: 1 / -1; } }
+
+.rp-dash { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); gap: 16px; align-items: start; }
+.rp-dash-main, .rp-dash-side { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+@media (max-width: 1100px) {
+  .rp-dash { grid-template-columns: minmax(0, 1fr); }
+  .rp-dash-main, .rp-dash-side { display: contents; }
+}
+
+/* icons that point "forward" follow the reading direction */
+[dir="rtl"] .rp-flip, [dir="rtl"] .rp-chev { transform: scaleX(-1); }
+
+/* ===== today's schedule ===== */
+.rp-sched-list { list-style: none; margin: 0; padding: 6px 0; }
+.rp-apt { display: grid; grid-template-columns: 74px 3px auto minmax(0, 1fr) auto auto; align-items: center; gap: 12px; padding: 10px 20px; border-bottom: 1px solid var(--divider); transition: background var(--t-fast); }
+.rp-apt:last-child { border-bottom: 0; }
+.rp-apt:hover { background: var(--surface-2); }
+.rp-apt.live { background: var(--warning-soft); }
+.rp-apt.past .rp-apt-name, .rp-apt.past .rp-apt-time .strong { color: var(--text-3); }
+.rp-apt-time { display: flex; flex-direction: column; line-height: 1.3; font-size: var(--fs-sm); white-space: nowrap; }
+.rp-apt-time .muted { font-size: var(--fs-xs); }
+.rp-apt-bar { width: 3px; height: 34px; border-radius: 3px; }
+.rp-apt-main { min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+.rp-apt-name { font-weight: 600; color: var(--text); }
+a.rp-apt-name:hover { color: var(--primary); }
+.rp-apt-sub { display: flex; align-items: center; gap: 6px; font-size: var(--fs-xs); color: var(--text-3); min-width: 0; }
+.rp-apt-actions { display: flex; align-items: center; gap: 6px; justify-content: flex-start; width: 252px; }
+@media (max-width: 1280px) and (min-width: 768px) { .rp-apt-actions { width: auto; } .rp-apt-actions .rp-apt-secondary { display: none; } }
+.rp-now { list-style: none; position: relative; height: 26px; margin: 2px 0; display: flex; align-items: center; padding-inline-start: 20px; }
+.rp-now::before { content: ''; position: absolute; inset-inline: 20px; top: 50%; height: 2px; background: var(--danger); opacity: .7; border-radius: 2px; }
+.rp-now-pill { position: relative; display: inline-flex; align-items: center; gap: 6px; height: 22px; padding: 0 10px; border-radius: var(--r-full); background: var(--danger); color: var(--text-inverse); font-size: var(--fs-xs); font-weight: 700; box-shadow: var(--sh-sm); }
+.rp-now-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--text-inverse); animation: rp-pulse 1.6s ease-in-out infinite; }
+@keyframes rp-pulse { 50% { opacity: .35; } }
+@media (max-width: 767px) {
+  .rp-apt { grid-template-columns: 60px 3px minmax(0, 1fr) auto; grid-template-areas: 'time bar main badge' 'time bar acts acts'; row-gap: 8px; padding: 12px 16px; column-gap: 10px; }
+  .rp-apt > .avatar { display: none; }
+  .rp-apt-time { grid-area: time; align-self: start; }
+  .rp-apt-bar { grid-area: bar; height: 100%; min-height: 34px; align-self: stretch; }
+  .rp-apt-main { grid-area: main; }
+  .rp-apt-badge { grid-area: badge; }
+  .rp-apt-actions { grid-area: acts; justify-content: flex-start; width: auto; }
+  .rp-apt-actions.none { display: none; }
+  .rp-apt-actions .btn { height: 40px; flex: 1; }
+  .rp-apt-actions .rp-apt-secondary { display: none; }
+  .rp-now { padding-inline-start: 16px; }
+  .rp-now::before { inset-inline: 16px; }
+}
+
+/* ===== alerts ===== */
+.rp-alert-list { list-style: none; margin: 0; padding: 8px; display: flex; flex-direction: column; gap: 4px; }
+.rp-alert { display: flex; align-items: center; gap: 12px; padding: 10px 12px; border-radius: var(--r-lg); color: var(--text); transition: background var(--t-fast); min-height: 56px; }
+.rp-alert:hover { background: var(--surface-2); }
+.rp-alert-icon { width: 38px; height: 38px; border-radius: 11px; display: inline-flex; align-items: center; justify-content: center; flex: none; }
+.rp-alert-icon svg { width: 19px; height: 19px; }
+.rp-alert-title { display: block; font-weight: 600; font-size: var(--fs-md); line-height: 1.35; }
+.rp-alert-sub { display: block; font-size: var(--fs-xs); color: var(--text-3); }
+.rp-alert-count { min-width: 30px; height: 26px; padding: 0 8px; border-radius: var(--r-full); display: inline-flex; align-items: center; justify-content: center; font-weight: 700; font-size: var(--fs-sm); }
+.rp-alert .rp-chev { width: 16px; height: 16px; color: var(--text-4); flex: none; }
+.rp-alert-danger .rp-alert-icon, .rp-alert-danger .rp-alert-count { background: var(--danger-soft); color: var(--danger-text); }
+.rp-alert-warning .rp-alert-icon, .rp-alert-warning .rp-alert-count { background: var(--warning-soft); color: var(--warning-text); }
+.rp-alert-info .rp-alert-icon, .rp-alert-info .rp-alert-count { background: var(--info-soft); color: var(--info-text); }
+.rp-alert-accent .rp-alert-icon, .rp-alert-accent .rp-alert-count { background: var(--accent-soft); color: var(--accent); }
+.rp-clear { display: flex; align-items: center; gap: 14px; padding: 18px 20px; }
+.rp-clear-icon { width: 44px; height: 44px; border-radius: 14px; background: var(--success-soft); color: var(--success); display: inline-flex; align-items: center; justify-content: center; flex: none; }
+.rp-clear-icon svg { width: 22px; height: 22px; }
+
+/* ===== activity feed ===== */
+.rp-feed { list-style: none; margin: 0; padding: 6px 8px 8px; }
+.rp-feed-row { display: flex; align-items: center; gap: 12px; padding: 9px 10px; border-radius: var(--r-md); color: var(--text); transition: background var(--t-fast); }
+a.rp-feed-row:hover { background: var(--surface-2); }
+.rp-feed-icon { width: 32px; height: 32px; border-radius: 10px; display: inline-flex; align-items: center; justify-content: center; flex: none; background: var(--gray-soft); color: var(--gray-text); }
+.rp-feed-icon svg { width: 16px; height: 16px; }
+.rp-feed-icon.tone-primary { background: var(--primary-soft); color: var(--primary); }
+.rp-feed-icon.tone-info { background: var(--info-soft); color: var(--info); }
+.rp-feed-icon.tone-purple { background: var(--purple-soft); color: var(--purple); }
+.rp-feed-icon.tone-accent { background: var(--accent-soft); color: var(--accent); }
+.rp-feed-icon.tone-success { background: var(--success-soft); color: var(--success); }
+.rp-feed-icon.tone-pink { background: var(--pink-soft); color: var(--pink); }
+.rp-feed-icon.tone-orange { background: var(--orange-soft); color: var(--orange); }
+.rp-feed-icon.tone-warning { background: var(--warning-soft); color: var(--warning-text); }
+.rp-feed-title { display: block; font-weight: 600; font-size: var(--fs-sm); line-height: 1.35; }
+.rp-feed-msg { display: block; font-size: var(--fs-xs); color: var(--text-3); }
+.rp-feed-time { font-size: var(--fs-xs); color: var(--text-4); white-space: nowrap; flex: none; }
+
+@media (max-width: 767px) {
+  .rp-dashboard .page-header .page-actions { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+  .rp-dashboard .page-header .page-actions .btn { padding: 0 8px; font-size: var(--fs-sm); gap: 6px; height: 44px; }
+}
+@media print { .rp-dashboard .page-actions, .rp-apt-actions { display: none !important; } }
+/* the revenue card's "Reports" link: on a phone the revenue stat card already opens the reports, and the title needs the room */
+@media (max-width: 767px) { .rp-dashboard .rp-hide-phone { display: none !important; } }

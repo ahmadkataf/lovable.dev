@@ -1,0 +1,84 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Dentora for Android: a WebView that serves the bundled web app (assets/www) at https://dentora.app/.
+     Built without Gradle by scripts/build-apk.sh, which replaces versionCode/versionName with the
+     package.json version (or VERSION_CODE / VERSION_NAME) and the SDK versions with the installed platform.
+     Never change the package name or the host dentora.app after the first release: the clinic's data lives
+     in this app's WebView storage under that origin, and Google Play identifies the app by the package. -->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="com.dentora.app"
+    android:versionCode="10000"
+    android:versionName="1.0.0"
+    android:installLocation="internalOnly">
+
+    <uses-sdk android:minSdkVersion="24" android:targetSdkVersion="35" />
+
+    <!-- The only permission. Saving files goes through the Storage Access Framework (the system "save as"
+         screen), printing through PrintManager, picking files through the system picker: none of them
+         needs a storage permission. -->
+    <uses-permission android:name="android.permission.INTERNET" />
+
+    <!-- Android 11+ package visibility: lets WhatsApp, the dialer, e-mail apps and the browser be found
+         when the app hands them a link (patient reminders, invoices, support contact). -->
+    <queries>
+        <package android:name="com.whatsapp" />
+        <package android:name="com.whatsapp.w4b" />
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="https" />
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="whatsapp" />
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.DIAL" />
+            <data android:scheme="tel" />
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="tel" />
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.SENDTO" />
+            <data android:scheme="mailto" />
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.SENDTO" />
+            <data android:scheme="smsto" />
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.CREATE_DOCUMENT" />
+            <data android:mimeType="*/*" />
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.GET_CONTENT" />
+            <data android:mimeType="*/*" />
+        </intent>
+    </queries>
+
+    <!-- enableOnBackInvokedCallback=false keeps onBackPressed() working when the target SDK is raised to 36+
+         (Android 16 otherwise stops calling it): the back key first closes the page's open dialog. -->
+    <application
+        android:label="@string/app_name"
+        android:icon="@mipmap/ic_launcher"
+        android:allowBackup="true"
+        android:supportsRtl="true"
+        android:hardwareAccelerated="true"
+        android:usesCleartextTraffic="false"
+        android:enableOnBackInvokedCallback="false"
+        android:theme="@android:style/Theme.DeviceDefault.Light.NoActionBar">
+        <!-- configChanges: rotation, the keyboard, dark mode, the phone's language or font size never recreate the
+             activity, so the WebView keeps the open page and any half-filled form. -->
+        <activity
+            android:name=".MainActivity"
+            android:exported="true"
+            android:launchMode="singleTask"
+            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboard|keyboardHidden|navigation|uiMode|locale|layoutDirection|fontScale"
+            android:windowSoftInputMode="adjustResize">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+    </application>
+</manifest>

@@ -1,0 +1,147 @@
+# Dentora – Android: builds the dental-clinic app for Android from dental/:
+#   Dentora.apk  to install directly on a phone      Dentora.aab  to upload to Google Play
+# Start it from Actions → "Dentora – Android" → Run workflow, or push a tag such as dentora-v1.2.0
+# (the tag gives the version name; the version code is then 1*10000 + 2*100 + 0 = 10200).
+# The files appear under the run's Artifacts as "Dentora-android".
+#
+# Signing uses the upload key kept in the repository secrets (Settings → Secrets and variables → Actions):
+#   ANDROID_KEYSTORE_BASE64    the keystore file, base64-encoded:  base64 -w0 dental/android/release.keystore
+#   ANDROID_KEYSTORE_PASSWORD  its password
+#   ANDROID_KEY_ALIAS          the key alias inside it (dentora for a key made by scripts/build-apk.sh)
+# A tag build, or a manual run without "test_key", FAILS when the secrets are missing or hold another key:
+# every shared APK and every Google Play upload must carry the release key (its SHA-256 is checked below).
+# Tick "test_key" on a manual run to build a throwaway-signed copy for testing only.
+name: Dentora – Android
+
+on:
+  workflow_dispatch:
+    inputs:
+      version_name:
+        description: 'Version name shown to users, e.g. 1.2.0 (empty = the version in dental/package.json)'
+        required: false
+        default: ''
+      version_code:
+        description: 'Version code: must be higher than every earlier Google Play upload (empty = major*10000 + minor*100 + patch)'
+        required: false
+        default: ''
+      test_key:
+        description: 'Test build: sign with a throwaway key when the release key secrets are missing (never share or upload it)'
+        type: boolean
+        required: false
+        default: false
+  push:
+    tags: ['dentora-v*']
+
+permissions:
+  contents: read
+
+concurrency:
+  group: dentora-android-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    defaults:
+      run:
+        shell: bash
+        working-directory: dental
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: dental/package-lock.json
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Android SDK (build-tools 35, platform 35)
+        run: |
+          SDK="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-/usr/local/lib/android/sdk}}"
+          echo "ANDROID_HOME=$SDK" >> "$GITHUB_ENV"
+          if [ ! -x "$SDK/build-tools/35.0.0/aapt2" ] || [ ! -f "$SDK/platforms/android-35/android.jar" ]; then
+            SDKMANAGER="$SDK/cmdline-tools/latest/bin/sdkmanager"
+            yes | "$SDKMANAGER" --licenses > /dev/null || true
+            "$SDKMANAGER" --install "build-tools;35.0.0" "platforms;android-35" > /dev/null
+          fi
+          echo "build-tools:" "$SDK"/build-tools/*/
+          echo "platforms:  " "$SDK"/platforms/*/
+
+      - name: Pillow and bundletool
+        run: |
+          python -m pip install --quiet pillow
+          curl -fsSL --retry 3 -o "$RUNNER_TEMP/bundletool.jar" \
+            https://github.com/google/bundletool/releases/download/1.18.3/bundletool-all-1.18.3.jar
+          java -jar "$RUNNER_TEMP/bundletool.jar" version
+
+      - name: Build the web app
+        run: |
+          npm ci
+          # the launcher icon is rendered from public/icon.svg by Chromium (scripts/make-icons.mjs)
+          npx playwright install --with-deps chromium
+          npm run build
+
+      - name: Get the signing key
+        env:
+          KS_B64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          TEST_KEY: ${{ inputs.test_key }}
+        run: |
+          if [ -n "$KS_B64" ]; then
+            echo "$KS_B64" | base64 -d > "$RUNNER_TEMP/upload.keystore"
+            echo "ANDROID_KEYSTORE=$RUNNER_TEMP/upload.keystore" >> "$GITHUB_ENV"
+            # the release key's public fingerprint: build-apk.sh fails if the secret holds any other key
+            echo "DENTORA_EXPECTED_CERT_SHA256=4368dd147837a1b25ebd8e6efed1cb5a378a749aa3024cf1b643516cf4b9820b" >> "$GITHUB_ENV"
+            echo "Using the release key from the repository secrets."
+          elif [ "$TEST_KEY" = "true" ] && [ "$GITHUB_REF_TYPE" != "tag" ]; then
+            # build-apk.sh then makes a throwaway android/release.keystore on this runner (and warns again)
+            echo "::warning::Test build: signed with a throwaway key. Never share it or upload it to Google Play."
+          else
+            echo "::error::The release key secrets are missing (ANDROID_KEYSTORE_BASE64, ANDROID_KEYSTORE_PASSWORD, ANDROID_KEY_ALIAS). Add them, or tick test_key on a manual run for a throwaway test build."
+            exit 1
+          fi
+
+      - name: Build the APK and the App Bundle
+        env:
+          BUNDLETOOL: ${{ runner.temp }}/bundletool.jar
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD || 'dentora-release' }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS || 'dentora' }}
+          INPUT_VERSION_NAME: ${{ inputs.version_name }}
+          INPUT_VERSION_CODE: ${{ inputs.version_code }}
+        run: |
+          if [ -n "$INPUT_VERSION_NAME" ]; then
+            export VERSION_NAME="$INPUT_VERSION_NAME"
+          elif [ "$GITHUB_REF_TYPE" = "tag" ]; then
+            export VERSION_NAME="${GITHUB_REF_NAME#dentora-v}"
+          fi
+          if [ -n "$INPUT_VERSION_CODE" ]; then
+            export VERSION_CODE="$INPUT_VERSION_CODE"
+          fi
+          ./scripts/build-apk.sh
+          {
+            echo "### Dentora for Android"
+            echo '```'
+            AAPT2="$(find "$ANDROID_HOME/build-tools" -mindepth 2 -maxdepth 2 -name aapt2 | sort -V | tail -1)"
+            # (no "| head": under pipefail an early-closing pipe would fail the step)
+            "$AAPT2" dump badging android/build/Dentora.apk > "$RUNNER_TEMP/badging.txt"
+            grep -E "^(package|minSdkVersion|targetSdkVersion|uses-permission|application-label|launchable-activity):" "$RUNNER_TEMP/badging.txt"
+            (cd android/build && ls -la Dentora.apk Dentora.aab && sha256sum Dentora.apk Dentora.aab)
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Dentora-android
+          path: |
+            dental/android/build/*.apk
+            dental/android/build/*.aab
+          if-no-files-found: error

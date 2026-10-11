@@ -1,0 +1,223 @@
+/* ===== Auth module: first-run setup wizard, sign-in screen, PIN field. Classes are prefixed au-. ===== */
+
+[dir="rtl"] .au-flip { transform: scaleX(-1); }
+.au-link { display: inline-flex; align-items: center; gap: 6px; color: var(--primary); font-weight: 600; font-size: var(--fs-sm); border-radius: var(--r-sm); padding: 4px 6px; min-height: 32px; transition: color var(--t-fast), background var(--t-fast); }
+.au-link:hover:not(:disabled) { color: var(--primary-hover); background: var(--primary-soft); }
+.au-link svg { width: 16px; height: 16px; flex: none; }
+.au-link:disabled { opacity: .6; }
+
+/* An LTR field (phone, email) inside an RTL form keeps its start icon on the reading start (right):
+   pad that side and sit the text next to the icon. */
+[dir="rtl"] .au-setup-form .input[dir="ltr"].has-start:not(.has-end),
+[dir="rtl"] .au-staff-form .input[dir="ltr"].has-start:not(.has-end) { padding-inline: 14px 40px; text-align: end; }
+
+/* ---- PIN field (setup + staff forms) ---- */
+.input.au-pin-input { text-align: center; letter-spacing: 6px; font-weight: 700; font-size: var(--fs-lg); font-variant-numeric: tabular-nums; }
+.input.au-pin-input::placeholder { letter-spacing: 6px; font-weight: 400; }
+
+/* ---- setup wizard ---- */
+.au-setup-screen { align-items: flex-start; padding-block: 40px; }
+@media (min-height: 860px) { .au-setup-screen { align-items: center; } }
+.auth-card.au-setup { max-width: 760px; padding: 0; display: flex; flex-direction: column; overflow: hidden; }
+.au-setup-head { display: flex; align-items: center; gap: 12px; padding: 22px 28px 0; }
+.au-brand-mark { width: 40px; height: 40px; border-radius: 12px; background: linear-gradient(135deg, var(--p-400), var(--p-600)); color: var(--on-primary); display: flex; align-items: center; justify-content: center; box-shadow: var(--sh-primary); flex: none; }
+.au-brand-mark svg { width: 22px; height: 22px; }
+.au-brand-name { font-weight: 800; font-size: var(--fs-lg); letter-spacing: -.2px; line-height: 1.2; }
+.au-brand-sub { font-size: var(--fs-xs); color: var(--text-3); }
+.au-step-count { margin-inline-start: auto; font-size: var(--fs-xs); font-weight: 700; color: var(--p-700); background: var(--primary-soft); border-radius: var(--r-full); padding: 5px 12px; white-space: nowrap; }
+
+.au-steps { list-style: none; margin: 0; padding: 26px 20px 0; display: flex; align-items: flex-start; }
+.au-steps li { flex: 1; min-width: 0; position: relative; display: flex; justify-content: center; }
+.au-steps li::before { content: ''; position: absolute; top: 16px; inset-inline-end: 50%; width: 100%; height: 2px; background: var(--border); transition: background var(--t-med); }
+.au-steps li:first-child::before { display: none; }
+.au-steps li.done::before, .au-steps li.current::before { background: var(--primary); }
+.au-steps button { position: relative; z-index: 1; display: flex; flex-direction: column; align-items: center; gap: 8px; min-width: 0; max-width: 100%; padding: 0 4px; border-radius: var(--r-sm); }
+.au-steps button:disabled { cursor: default; }
+.au-step-dot { width: 34px; height: 34px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: var(--fs-sm); background: var(--surface); border: 2px solid var(--border-2); color: var(--text-3); transition: all var(--t-med) var(--ease); }
+.au-step-dot svg { width: 16px; height: 16px; }
+.au-steps li.current .au-step-dot { border-color: var(--primary); color: var(--primary); box-shadow: 0 0 0 5px var(--primary-soft); }
+.au-steps li.done .au-step-dot { background: var(--primary); border-color: var(--primary); color: var(--on-primary); }
+.au-steps li.done button:hover .au-step-dot { box-shadow: 0 0 0 5px var(--primary-soft-2); }
+.au-step-label { font-size: var(--fs-xs); font-weight: 600; color: var(--text-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+.au-steps li.current .au-step-label { color: var(--text); }
+.au-steps li.done .au-step-label { color: var(--p-700); }
+
+.au-setup-form { display: flex; flex-direction: column; flex: 1; min-height: 0; }
+.au-step { padding: 30px 28px 8px; flex: 1; animation: rise-in var(--t-slow) var(--ease) both; }
+.au-step-title { font-size: var(--fs-2xl); font-weight: 800; letter-spacing: -.3px; line-height: 1.35; }
+.au-step-desc { color: var(--text-3); margin-top: 6px; max-width: 580px; }
+.au-step-body { margin-top: 24px; }
+.au-step-sub { font-size: var(--fs-md); font-weight: 700; margin-bottom: 12px; color: var(--text-2); }
+.au-setup-foot { display: flex; align-items: center; gap: 12px; padding: 16px 28px; margin-top: 22px; border-top: 1px solid var(--divider); background: var(--surface-2); }
+.au-setup-foot .au-next { margin-inline-start: auto; min-width: 160px; }
+
+/* language cards */
+.au-lang-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+.au-lang-card { position: relative; display: flex; flex-direction: column; align-items: flex-start; gap: 4px; padding: 22px; min-height: 168px; border-radius: var(--r-xl); border: 1.5px solid var(--border); background: var(--surface); text-align: start; transition: border-color var(--t-fast), box-shadow var(--t-med), background var(--t-med), transform var(--t-med); }
+.au-lang-card:hover { border-color: var(--p-300); box-shadow: var(--sh-md); transform: translateY(-1px); }
+.au-lang-card[aria-pressed="true"] { border-color: var(--primary); background: var(--primary-soft); box-shadow: 0 0 0 4px var(--primary-soft-2); }
+.au-lang-mark { width: 54px; height: 54px; border-radius: 16px; background: var(--surface-3); color: var(--text-2); display: flex; align-items: center; justify-content: center; font-size: var(--fs-2xl); font-weight: 800; margin-bottom: 12px; transition: background var(--t-med), color var(--t-med); }
+.au-lang-card[aria-pressed="true"] .au-lang-mark { background: var(--primary); color: var(--on-primary); box-shadow: var(--sh-primary); }
+.au-lang-name { font-size: var(--fs-xl); font-weight: 700; line-height: 1.4; }
+.au-lang-sub { font-size: var(--fs-sm); color: var(--text-3); }
+.au-lang-check { position: absolute; top: 16px; inset-inline-end: 16px; width: 26px; height: 26px; border-radius: 50%; background: var(--primary); color: var(--on-primary); display: flex; align-items: center; justify-content: center; animation: pop-in var(--t-med) var(--ease) both; }
+.au-lang-check svg { width: 15px; height: 15px; }
+.au-restore { margin-top: 22px; display: flex; align-items: center; gap: 4px 10px; flex-wrap: wrap; padding: 12px 16px; border-radius: var(--r-lg); background: var(--surface-2); border: 1px dashed var(--border-2); color: var(--text-3); font-size: var(--fs-sm); }
+.au-restore > svg { width: 18px; height: 18px; color: var(--text-4); flex: none; }
+
+/* clinic step */
+.au-logo-field { display: flex; align-items: center; gap: 16px; padding: 14px; border: 1px dashed var(--border-2); border-radius: var(--r-lg); background: var(--surface-2); }
+.au-logo-preview { width: 64px; height: 64px; border-radius: 16px; background: var(--surface); border: 1px solid var(--border); display: flex; align-items: center; justify-content: center; color: var(--text-4); overflow: hidden; flex: none; }
+.au-logo-preview img { width: 100%; height: 100%; object-fit: contain; }
+.au-logo-preview svg { width: 28px; height: 28px; }
+.au-logo-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+
+/* money & time step: the week as a strip of toggles, Saturday first */
+.au-days { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 6px; }
+.au-days .chip { height: 44px; padding: 0 4px; justify-content: center; border-radius: var(--r-md); font-weight: 600; color: var(--text-3); background: var(--surface); }
+.au-days .chip:hover { border-color: var(--p-300); color: var(--text); }
+.au-days .chip.active { background: var(--primary); border-color: var(--primary); color: var(--on-primary); box-shadow: var(--sh-primary); }
+.au-days .chip span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.au-day-short { display: none; }
+.au-money-preview { display: flex; align-items: center; gap: 8px; padding: 10px 14px; border-radius: var(--r-md); background: var(--surface-2); border: 1px solid var(--border); color: var(--text-3); font-size: var(--fs-sm); }
+.au-money-preview svg { width: 16px; height: 16px; color: var(--primary); flex: none; }
+.au-money-preview strong { color: var(--text); font-weight: 700; }
+.au-setup-form .input-group { display: flex; width: 100%; }
+.au-setup-form .input-group > .control { flex: 1; min-width: 0; }
+/* the number is an LTR input: square the corner that meets the addon (left in RTL, right in LTR) */
+[dir="rtl"] .au-setup-form .input-group > .control .input { border-start-start-radius: 0; border-end-start-radius: 0; }
+[dir="ltr"] .au-setup-form .input-group > .control .input { border-start-end-radius: 0; border-end-end-radius: 0; }
+.au-dec .segmented { height: 44px; }
+.au-dec .segmented button { height: 36px; }
+
+/* owner step */
+.au-owner-hero { display: flex; align-items: center; gap: 14px; padding: 14px 16px; margin-bottom: 22px; border-radius: var(--r-lg); background: linear-gradient(135deg, var(--p-50), var(--surface)); border: 1px solid var(--p-100); }
+.au-owner-name { font-weight: 700; font-size: var(--fs-lg); line-height: 1.35; }
+.au-owner-placeholder { color: var(--text-4); }
+.au-name-row { grid-column: 1 / -1; display: grid; grid-template-columns: 150px minmax(0, 1fr); gap: 16px 20px; }
+
+/* review step */
+.au-review { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+.au-review-card { border: 1px solid var(--border); border-radius: var(--r-lg); padding: 16px 18px; background: var(--surface); min-width: 0; }
+.au-review-card.wide { grid-column: 1 / -1; }
+.au-review-head { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; font-weight: 700; }
+.au-review-head .icon-box { width: 32px; height: 32px; border-radius: 10px; }
+.au-review-head .icon-box svg { width: 16px; height: 16px; }
+.au-review-head .au-link { margin-inline-start: auto; }
+.au-review .kv { font-size: var(--fs-sm); gap: 8px 14px; }
+.au-review .kv dd { min-width: 0; overflow-wrap: anywhere; }
+.au-review-who { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
+.au-review-who .au-wrap { overflow-wrap: anywhere; line-height: 1.45; }
+.au-review-logo { width: 44px; height: 44px; border-radius: 12px; border: 1px solid var(--border); background: var(--surface); overflow: hidden; display: flex; align-items: center; justify-content: center; flex: none; color: var(--primary); }
+.au-review-logo img { width: 100%; height: 100%; object-fit: contain; }
+.au-review-logo svg { width: 22px; height: 22px; }
+.au-day-list { display: flex; flex-wrap: wrap; gap: 4px; }
+.au-trial { margin-top: 16px; }
+
+@media (max-width: 767px) {
+  .auth-screen.au-setup-screen { padding: 0; align-items: stretch; }
+  /* overflow must stay visible here: a clipping card becomes the footer's scroll container and the sticky footer stops sticking */
+  .auth-card.au-setup { border-radius: 0; border: 0; box-shadow: none; min-height: 100vh; min-height: 100dvh; overflow: visible; animation: fade-in var(--t-med) both; }
+  .au-setup-head { padding: calc(16px + var(--safe-top)) 16px 0; }
+  .au-steps { padding: 20px 8px 0; }
+  .au-step-label { display: none; }
+  .au-step-dot { width: 30px; height: 30px; }
+  .au-steps li::before { top: 14px; }
+  .au-step { padding: 22px 16px 8px; }
+  .au-step-title { font-size: var(--fs-xl); }
+  .au-setup-foot { position: sticky; bottom: 0; z-index: 2; padding: 12px 16px calc(12px + var(--safe-bottom)); margin-top: 16px; }
+  .au-setup-foot .btn { flex: 1; min-width: 0; }
+  .au-setup-foot .au-next { min-width: 0; flex: 2; }
+  .au-lang-grid { gap: 10px; }
+  .au-lang-card { padding: 16px; min-height: 0; }
+  .au-lang-mark { width: 46px; height: 46px; border-radius: 14px; margin-bottom: 8px; }
+  .au-lang-name { font-size: var(--fs-lg); }
+  .au-review { grid-template-columns: minmax(0, 1fr); }
+  .au-name-row { grid-template-columns: 120px minmax(0, 1fr); gap: 16px 12px; }
+  .au-logo-field { flex-wrap: wrap; }
+  .au-days { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+}
+@media (max-width: 767px) { .au-day-long { display: none; } .au-day-short { display: inline; } }
+
+/* ---- sign-in screen ---- */
+.au-login { flex-direction: column; gap: 20px; }
+.au-login-brand { display: flex; flex-direction: column; align-items: center; text-align: center; animation: fade-in var(--t-slow) var(--ease) both; }
+.au-login-brand .auth-logo { margin-bottom: 12px; width: 60px; height: 60px; border-radius: 18px; }
+.auth-logo.au-logo-img { background: var(--surface); border: 1px solid var(--border); box-shadow: var(--sh-md); overflow: hidden; padding: 6px; }
+.auth-logo.au-logo-img img { width: 100%; height: 100%; object-fit: contain; border-radius: 12px; }
+.au-clinic-name { font-size: var(--fs-2xl); font-weight: 800; letter-spacing: -.3px; line-height: 1.35; max-width: 560px; }
+.au-today { color: var(--text-3); font-size: var(--fs-sm); margin-top: 2px; }
+.auth-card.au-login-card { max-width: 400px; padding: 28px; text-align: center; }
+
+/* who is signing in */
+.auth-card.au-login-card[data-mode="users"] { max-width: max(400px, calc(var(--cols, 2) * 150px + (var(--cols, 2) - 1) * 12px + 56px)); }
+.au-login-card .user-pick { grid-template-columns: repeat(var(--cols, 2), minmax(0, 1fr)); }
+.au-who-title { font-size: var(--fs-xl); font-weight: 700; }
+.au-who-sub { color: var(--text-3); font-size: var(--fs-sm); margin: 2px 0 20px; }
+.user-pick .au-tile { position: relative; min-height: 132px; justify-content: center; gap: 4px; }
+.user-pick .au-tile .avatar { margin-bottom: 8px; }
+.user-pick .au-tile .u-name { display: block; line-height: 1.4; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.user-pick .au-tile:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+.user-pick .au-tile.au-last { border-color: var(--p-200); background: var(--p-50); }
+
+/* the PIN: the person on one side, the keypad on the other (stacked on phones) */
+.auth-card.au-login-card[data-mode="pin"] { max-width: 720px; }
+.au-pin-layout { display: grid; grid-template-columns: minmax(0, 1fr) 300px; grid-template-rows: 1fr auto; grid-template-areas: "user main" "forgot main"; column-gap: 0; }
+.au-pin-user { grid-area: user; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; padding-inline-end: 28px; }
+.au-pin-main { grid-area: main; padding-inline-start: 28px; border-inline-start: 1px solid var(--divider); }
+.au-forgot-wrap { grid-area: forgot; padding-inline-end: 28px; display: flex; flex-direction: column; align-items: center; }
+.au-pin-user .avatar { box-shadow: 0 0 0 4px var(--surface), 0 0 0 6px var(--p-100); margin-bottom: 12px; }
+.au-pin-name { font-weight: 700; font-size: var(--fs-xl); line-height: 1.35; }
+.au-pin-role { color: var(--text-3); font-size: var(--fs-sm); }
+.au-pin-user .au-link { margin-top: 8px; }
+.au-pin-title { font-size: var(--fs-sm); font-weight: 600; color: var(--text-2); }
+.au-login-card .pin-dots { margin: 12px 0 4px; min-height: 18px; align-items: center; }
+.pin-dots.au-dots-error span { border-color: var(--danger); }
+.pin-dots.au-dots-error span.on { background: var(--danger); }
+.pin-dots.au-shake { animation: au-shake .42s var(--ease) both; }
+@keyframes au-shake { 0%, 100% { transform: translateX(0); } 18% { transform: translateX(-9px); } 36% { transform: translateX(8px); } 54% { transform: translateX(-6px); } 72% { transform: translateX(4px); } 88% { transform: translateX(-2px); } }
+.au-pin-msg { min-height: 48px; display: flex; flex-direction: column; align-items: center; justify-content: center; font-size: var(--fs-sm); line-height: 1.45; padding-bottom: 6px; }
+.au-pin-msg .au-err { color: var(--danger-text); font-weight: 600; }
+.au-pin-msg .au-sub { color: var(--text-3); font-size: var(--fs-xs); }
+.au-lock { display: inline-flex; align-items: center; gap: 10px; padding-block: 5px; padding-inline: 5px 14px; border-radius: var(--r-full); background: var(--warning-soft); color: var(--warning-text); font-weight: 600; font-size: var(--fs-sm); text-align: start; line-height: 1.35; }
+.au-lock .icon-box { width: 30px; height: 30px; border-radius: 50%; background: var(--surface); color: var(--warning-text); }
+.au-lock .icon-box svg { width: 16px; height: 16px; }
+.au-lock .au-sub { display: block; font-weight: 500; font-size: var(--fs-xs); color: var(--warning-text); opacity: .85; }
+.au-pad.pin-pad { gap: 10px; max-width: 300px; }
+.au-pad.pin-pad button { height: 56px; display: flex; align-items: center; justify-content: center; color: var(--text); }
+.au-pad.pin-pad button svg { width: 22px; height: 22px; }
+.au-pad.pin-pad button.au-key-text { font-size: var(--fs-sm); font-weight: 600; color: var(--text-3); }
+.au-pad.pin-pad button:disabled { opacity: .45; cursor: not-allowed; transform: none; }
+[dir="rtl"] .au-pad .au-key-back svg { transform: scaleX(-1); }
+.au-submit { margin-top: 14px; max-width: 300px; margin-inline: auto; }
+.au-kbd-hint { display: inline-flex; align-items: center; gap: 6px; color: var(--text-4); font-size: var(--fs-xs); }
+.au-kbd-hint svg { width: 14px; height: 14px; }
+.au-forgot { margin-top: 8px; }
+.au-forgot-box { margin-top: 8px; padding: 12px 14px; border-radius: var(--r-md); background: var(--surface-2); border: 1px solid var(--border); text-align: start; font-size: var(--fs-sm); color: var(--text-2); display: flex; flex-direction: column; gap: 6px; animation: rise-in var(--t-med) var(--ease) both; }
+.au-login-foot { display: flex; align-items: center; justify-content: center; gap: 8px; color: var(--text-4); font-size: var(--fs-xs); font-weight: 500; }
+.au-login-foot svg { width: 14px; height: 14px; }
+.au-login-foot .au-dot { width: 3px; height: 3px; border-radius: 50%; background: var(--text-4); }
+
+@media (max-width: 767px) {
+  .auth-screen.au-login { padding: calc(20px + var(--safe-top)) 16px calc(16px + var(--safe-bottom)); gap: 16px; justify-content: flex-start; }
+  .au-login-brand .auth-logo { width: 48px; height: 48px; border-radius: 15px; margin-bottom: 8px; }
+  .au-login-brand .auth-logo svg { width: 24px; height: 24px; }
+  .au-clinic-name { font-size: var(--fs-xl); }
+  .auth-card.au-login-card { padding: 20px 18px 16px; border-radius: var(--r-xl); }
+  .auth-card.au-login-card[data-mode="users"] { max-width: 440px; }
+  .au-login-card .user-pick { display: flex; flex-wrap: wrap; justify-content: center; }
+  .au-login-card .user-pick .au-tile { width: calc(50% - 6px); min-height: 124px; }
+  .au-pin-layout { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto; grid-template-areas: "user" "main" "forgot"; }
+  .au-pin-user, .au-forgot-wrap { padding-inline-end: 0; }
+  .au-pin-main { padding-inline-start: 0; border-inline-start: 0; margin-top: 14px; }
+  .au-pin-user .avatar { width: 56px; height: 56px; font-size: var(--fs-xl); margin-bottom: 8px; }
+  .au-pin-user .au-link { margin-top: 2px; }
+  .au-pin-title { display: none; }
+  .au-login-card .pin-dots { margin-top: 4px; }
+  .au-pin-msg { min-height: 40px; }
+  .au-pad.pin-pad button { height: 54px; }
+  .au-forgot { margin-top: 6px; }
+}
+@media (max-width: 767px) and (min-height: 760px) {
+  .auth-screen.au-login { justify-content: center; }
+}

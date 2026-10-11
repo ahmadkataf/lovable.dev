@@ -1,0 +1,259 @@
+/* ===== Prescriptions (rx-) — also hosts the popover / combo / patient picker shared with the lab module ===== */
+
+/* ---- popover & options ---- */
+.rx-pop { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-lg); box-shadow: var(--sh-lg); padding: 6px; overflow-y: auto; overscroll-behavior: contain; animation: pop-in var(--t-fast) var(--ease) both; }
+.rx-opt-list { display: flex; flex-direction: column; gap: 1px; }
+.rx-opt { display: flex; align-items: center; gap: 10px; width: 100%; min-height: 38px; padding: 7px 10px; border-radius: var(--r-sm); text-align: start; font-size: var(--fs-md); color: var(--text); }
+.rx-opt.hi { background: var(--surface-3); }
+.rx-opt.sel { color: var(--p-700); font-weight: 600; background: var(--primary-soft); }
+.rx-opt-hint { font-size: var(--fs-xs); color: var(--text-3); flex: none; }
+.rx-pop-label { font-size: var(--fs-xs); font-weight: 700; color: var(--text-4); letter-spacing: .3px; padding: 6px 10px 4px; }
+.rx-pop-empty { display: flex; align-items: center; gap: 8px; padding: 14px 10px; color: var(--text-3); font-size: var(--fs-sm); }
+.rx-pop-empty svg { width: 18px; height: 18px; flex: none; }
+.rx-opt-grid { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 4px; }
+.rx-opt-grid .rx-opt { flex-direction: column; justify-content: center; gap: 5px; min-height: 58px; padding: 6px 4px; text-align: center; font-weight: 700; font-size: var(--fs-sm); }
+.rx-opt-grid .rx-opt .grow { flex: none; }
+.rx-swatch { width: 24px; height: 24px; border-radius: 8px; border: 1px solid rgba(15, 23, 42, .14); flex: none; box-shadow: inset 0 -4px 7px rgba(140, 100, 40, .16); }
+.rx-combo .icon-end svg { transition: transform var(--t-fast); }
+.rx-flip { transform: rotate(180deg); }
+.rx-fileno { font-size: var(--fs-xs); color: var(--text-3); background: var(--surface-3); border-radius: var(--r-full); padding: 1px 8px; flex: none; }
+.rx-opt-patient { min-height: 44px; }
+.rx-opt-icon { width: 32px; height: 32px; border-radius: 10px; flex: none; display: inline-flex; align-items: center; justify-content: center; background: var(--primary-soft); color: var(--primary); }
+.rx-opt-icon svg { width: 16px; height: 16px; }
+.rx-opt-drug { min-height: 50px; }
+.rx-opt-title { display: flex; align-items: center; gap: 8px; font-weight: 600; min-width: 0; }
+.rx-opt-strength { flex: none; font-size: var(--fs-xs); font-weight: 700; color: var(--p-700); background: var(--primary-soft); border-radius: var(--r-full); padding: 1px 8px; }
+.rx-opt-sub { display: block; font-size: var(--fs-xs); color: var(--text-3); margin-top: 1px; }
+.rx-opt-free { color: var(--p-700); font-weight: 600; border-top: 1px dashed var(--border); border-radius: 0 0 var(--r-sm) var(--r-sm); margin-top: 4px; }
+.rx-opt-free .rx-opt-icon { background: transparent; border: 1px dashed var(--p-300); }
+
+/* ---- patient picker ---- */
+.rx-picked { display: flex; align-items: center; gap: 12px; padding: 10px 12px; border-radius: var(--r-lg); border: 1px solid color-mix(in srgb, var(--primary) 35%, var(--border)); background: var(--primary-soft); min-width: 0; min-height: 56px; }
+.rx-picked > .grow { min-width: 0; }
+.rx-picked-name { font-weight: 700; }
+.rx-picked-sub { display: flex; gap: 10px; font-size: var(--fs-xs); color: var(--text-3); }
+
+/* ---- page ---- */
+.rx-tabs { margin-bottom: 16px; }
+.rx-toolbar .rx-search { min-width: 220px; }
+.rx-seg-scroll { max-width: 100%; overflow-x: auto; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
+.rx-seg-scroll::-webkit-scrollbar { display: none; }
+.rx-seg-count { margin-inline-start: 6px; font-size: 11px; font-weight: 700; color: var(--text-4); }
+.segmented button.active .rx-seg-count { color: var(--p-700); }
+.rx-nowrap { white-space: nowrap; }
+.rx-actions { display: inline-flex; align-items: center; gap: 2px; justify-content: flex-end; }
+.rx-actions .rx-del:hover { color: var(--danger); background: var(--danger-soft); }
+.rx-patient-link { display: flex; align-items: center; gap: 10px; color: inherit; min-width: 0; max-width: 280px; }
+.rx-patient-link > span { display: flex; flex-direction: column; max-width: 170px; }
+.rx-patient-link:hover .cell-main { color: var(--primary); text-decoration: underline; text-underline-offset: 3px; }
+.rx-sum { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; min-width: 0; }
+.rx-sum-pill { display: inline-flex; align-items: center; max-width: 180px; height: 24px; padding: 0 10px; border-radius: var(--r-full); background: var(--surface-3); color: var(--text-2); font-size: var(--fs-xs); font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rx-sum-more { font-size: var(--fs-xs); font-weight: 700; color: var(--p-700); background: var(--primary-soft); border-radius: var(--r-full); padding: 2px 8px; }
+/* truncates to the column instead of widening the table */
+.rx-diag-sub { width: 0; min-width: 100%; margin-top: 4px; }
+.table tr.rx-row-off td { color: var(--text-3); }
+.table tr.rx-row-off .cell-main { color: var(--text-3); }
+.rx-drug-cell { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.rx-drug-icon { width: 34px; height: 34px; border-radius: 10px; flex: none; display: inline-flex; align-items: center; justify-content: center; background: var(--primary-soft); color: var(--primary); }
+.rx-drug-icon svg { width: 17px; height: 17px; }
+.rx-row-off .rx-drug-icon, .rx-mcard.off .rx-drug-icon { background: var(--surface-3); color: var(--text-4); }
+.rx-defaults { font-size: var(--fs-sm); color: var(--text-2); max-width: 360px; }
+
+/* phone card lists */
+.rx-mlist { overflow: hidden; }
+.rx-mcard { display: flex; flex-direction: column; gap: 10px; padding: 14px 16px; border-bottom: 1px solid var(--divider); cursor: pointer; }
+.rx-mcard:active { background: var(--surface-2); }
+.rx-mcard:last-of-type { border-bottom: 0; }
+.rx-mcard-top { display: flex; align-items: center; gap: 12px; min-width: 0; justify-content: space-between; }
+.rx-mcard-meta { display: flex; flex-wrap: wrap; gap: 6px 12px; align-items: center; font-size: var(--fs-xs); color: var(--text-3); }
+.rx-mcard.off { opacity: .7; }
+.rx-mcard .cell-main { font-weight: 600; color: var(--text); }
+.rx-mcard .cell-sub { font-size: var(--fs-xs); color: var(--text-3); margin-top: 1px; }
+.rx-mcard-sub { display: flex; align-items: center; gap: 4px; min-width: 0; font-size: var(--fs-xs); color: var(--text-3); white-space: nowrap; }
+.rx-mcard-sub svg { flex: none; }
+.rx-mlist .table-footer { border-top: 1px solid var(--border); }
+
+/* patient tab */
+.rx-plist .list-item { align-items: flex-start; padding: 14px 20px; }
+.rx-datebox { flex: none; width: 54px; border-radius: 14px; border: 1px solid var(--border); background: var(--surface-2); display: flex; flex-direction: column; align-items: center; padding: 6px 0 5px; line-height: 1.1; }
+.rx-datebox-d { font-size: 20px; font-weight: 800; color: var(--p-700); }
+.rx-datebox-m { font-size: var(--fs-xs); font-weight: 700; color: var(--text-2); }
+.rx-datebox-y { font-size: 10px; color: var(--text-4); }
+.rx-pitem-head { display: flex; align-items: baseline; gap: 10px; justify-content: space-between; }
+.rx-pitem-when { font-size: var(--fs-xs); color: var(--text-4); white-space: nowrap; }
+.rx-more { display: flex; justify-content: center; padding: 10px; }
+@media (max-width: 767px) { .rx-plist .list-item { padding: 12px 14px; gap: 10px; } .rx-datebox { width: auto; min-width: 50px; padding-inline: 6px; } .rx-datebox-m { white-space: nowrap; font-size: 10.5px; } .rx-pitem-when { display: none; } .rx-toolbar-add, .rx-toolbar-add .btn { flex: 1 1 100%; width: 100%; } }
+
+/* ---- form ---- */
+.rx-form { display: flex; flex-direction: column; gap: 18px; }
+.rx-allergy { margin: 0; }
+.rx-items-ed { border: 1px solid var(--border); border-radius: var(--r-xl); padding: 16px; background: var(--surface-2); }
+.rx-items-ed .form-section-title { margin-bottom: 10px; }
+.rx-count { display: inline-flex; align-items: center; height: 20px; padding: 0 8px; border-radius: var(--r-full); background: var(--primary); color: var(--on-primary); font-size: 11px; letter-spacing: 0; }
+.rx-drug-search .input { background: var(--surface); }
+.rx-rows { display: flex; flex-direction: column; gap: 10px; margin-top: 12px; }
+.rx-row { display: flex; gap: 10px; align-items: flex-start; background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-lg); padding: 12px; box-shadow: var(--sh-xs); animation: rise-in var(--t-med) var(--ease) both; }
+.rx-row:focus-within { border-color: color-mix(in srgb, var(--primary) 45%, var(--border)); box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary) 10%, transparent); }
+.rx-row-no { flex: none; font-variant-numeric: tabular-nums; width: 28px; height: 28px; margin-top: 6px; border-radius: 9px; background: var(--primary-soft); color: var(--p-700); font-weight: 800; font-size: var(--fs-sm); display: flex; align-items: center; justify-content: center; }
+.rx-row-grid { flex: 1; min-width: 0; display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 8px; }
+.rx-row-grid > :nth-child(1) { grid-column: span 6; }
+.rx-row-grid > :nth-child(2), .rx-row-grid > :nth-child(3), .rx-row-grid > :nth-child(4), .rx-row-grid > :nth-child(5) { grid-column: span 3; }
+.rx-row-grid > :nth-child(6) { grid-column: span 6; }
+.rx-row-grid .rx-f-name { font-weight: 700; }
+/* the name follows its own text direction (dir=auto) while the pill icon follows the page: pad both sides so a
+   name in the other script never runs under the icon */
+.rx-row-grid .input.rx-f-name.has-start { padding-inline-end: 40px; }
+.rx-row-x { margin-top: 4px; color: var(--text-4); }
+.rx-row-x:hover { color: var(--danger); background: var(--danger-soft); }
+.rx-rows-empty { display: flex; align-items: center; justify-content: center; gap: 10px; padding: 22px 16px; border: 1.5px dashed var(--border-2); border-radius: var(--r-lg); color: var(--text-3); font-size: var(--fs-sm); text-align: center; }
+.rx-rows-empty svg { width: 20px; height: 20px; color: var(--text-4); flex: none; }
+.rx-add-row { margin-top: 10px; }
+@media (max-width: 639px) {
+  .rx-items-ed { padding: 12px; margin-inline: -4px; }
+  /* the number and the remove button sit on the name line, so the fields get the full width */
+  .rx-row { position: relative; padding: 10px; gap: 0; }
+  .rx-row-no { position: absolute; top: 18px; inset-inline-start: 10px; width: 24px; height: 24px; margin: 0; font-size: var(--fs-xs); }
+  .rx-row-x { position: absolute; top: 14px; inset-inline-end: 8px; margin: 0; }
+  .rx-row-grid > :nth-child(1) { margin-inline: 32px 38px; }
+  .rx-combo .input.has-end { padding-inline-end: 30px; }
+  .rx-combo .control .icon-end { inset-inline-end: 8px; }
+  .rx-row-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .rx-row-grid > :nth-child(1), .rx-row-grid > :nth-child(6) { grid-column: 1 / -1; }
+  .rx-row-grid > :nth-child(2), .rx-row-grid > :nth-child(3), .rx-row-grid > :nth-child(4), .rx-row-grid > :nth-child(5) { grid-column: span 1; }
+}
+
+/* ===== the sheet ===== */
+.rx-sheet-modal .modal-body { background: var(--bg); padding-top: 14px; padding-bottom: 18px; }
+.rx-sheet {
+  --rx-ink: #0F172A; --rx-ink-2: #334155; --rx-muted: #64748B; --rx-line: #E2E8F0; --rx-soft: #F8FAFC; --rx-accent: var(--p-700); --rx-accent-soft: #EEFBF8;
+  position: relative; width: 100%; max-width: 720px; margin-inline: auto; min-height: 860px; display: flex; flex-direction: column;
+  background: #fff; color: var(--rx-ink); border: 1px solid var(--border); border-radius: var(--r-lg); box-shadow: var(--sh-md);
+  padding: 40px 44px 30px; overflow: hidden; font-size: 13.5px; line-height: 1.6;
+}
+.rx-sheet::before { content: ''; position: absolute; top: 0; inset-inline: 0; height: 6px; background: linear-gradient(90deg, var(--p-700), var(--p-400)); }
+[dir="rtl"] .rx-sheet::before { background: linear-gradient(-90deg, var(--p-700), var(--p-400)); }
+.rx-sheet-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 24px; padding-bottom: 20px; border-bottom: 2px solid var(--rx-ink); }
+.rx-clinic { display: flex; align-items: flex-start; gap: 14px; min-width: 0; }
+.rx-clinic-logo { width: 58px; height: 58px; border-radius: 16px; flex: none; display: flex; align-items: center; justify-content: center; background: var(--rx-accent-soft); color: var(--rx-accent); overflow: hidden; border: 1px solid var(--p-100); }
+.rx-clinic-logo img { width: 100%; height: 100%; object-fit: contain; }
+.rx-clinic-text { min-width: 0; }
+.rx-clinic-name { font-size: 19px; font-weight: 800; letter-spacing: -.2px; line-height: 1.3; color: var(--rx-ink); }
+.rx-clinic-alt { font-size: 12px; font-weight: 600; color: var(--rx-muted); }
+.rx-clinic-tag { font-size: 12px; color: var(--rx-accent); font-weight: 600; margin-top: 2px; }
+.rx-clinic-meta { display: flex; flex-direction: column; gap: 0; margin-top: 6px; font-size: 12px; color: var(--rx-muted); }
+.rx-clinic-meta > span { align-self: flex-start; }
+.rx-clinic.compact .rx-clinic-logo { width: 46px; height: 46px; border-radius: 13px; }
+.rx-clinic.compact .rx-clinic-name { font-size: 16px; }
+.rx-doctor { text-align: end; flex: none; max-width: 46%; display: flex; flex-direction: column; align-items: flex-end; padding-top: 4px; }
+.rx-doctor-name { font-size: 17px; font-weight: 800; color: var(--rx-accent); line-height: 1.3; }
+.rx-doctor-spec { font-size: 12.5px; font-weight: 600; color: var(--rx-ink-2); }
+.rx-doctor-meta { font-size: 12px; color: var(--rx-muted); }
+
+.rx-patient { display: flex; flex-wrap: wrap; gap: 4px 0; margin-top: 16px; border: 1px solid var(--rx-line); border-radius: 12px; background: var(--rx-soft); overflow: hidden; }
+.rx-pf { display: flex; flex-direction: column; padding: 8px 14px; border-inline-end: 1px solid var(--rx-line); min-width: 0; }
+.rx-pf:last-child { border-inline-end: 0; margin-inline-start: auto; }
+.rx-pf-name { flex: 1 1 200px; }
+.rx-k { font-size: 10.5px; font-weight: 700; color: var(--rx-muted); letter-spacing: .3px; text-transform: uppercase; }
+/* tracking pulls joined Arabic letters apart */
+[dir="rtl"] .rx-k, [dir="rtl"] .rx-pop-label { letter-spacing: 0; }
+.rx-v { font-size: 13.5px; font-weight: 700; color: var(--rx-ink); white-space: nowrap; }
+.rx-pf-name .rx-v { white-space: normal; }
+
+.rx-main { flex: 1; display: flex; flex-direction: column; padding-top: 18px; }
+.rx-lead { display: flex; align-items: center; gap: 16px; margin-bottom: 8px; }
+.rx-mark { color: var(--rx-accent); flex: none; }
+.rx-diagnosis { display: flex; flex-direction: column; min-width: 0; border-inline-start: 2px solid var(--p-200); padding-inline-start: 14px; }
+.rx-diagnosis .rx-v { white-space: normal; font-weight: 600; }
+.rx-items { list-style: none; margin: 4px 0 0; padding: 0; display: flex; flex-direction: column; }
+.rx-item { display: flex; gap: 14px; padding: 13px 2px; border-bottom: 1px dashed var(--rx-line); break-inside: avoid; }
+.rx-item:last-child { border-bottom: 0; }
+.rx-item-no { flex: none; width: 26px; height: 26px; border-radius: 50%; border: 1.5px solid var(--rx-accent); color: var(--rx-accent); font-weight: 800; font-size: 12.5px; display: flex; align-items: center; justify-content: center; margin-top: 1px; }
+.rx-item-body { flex: 1; min-width: 0; }
+.rx-item-title { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; }
+.rx-item-name { font-size: 15.5px; font-weight: 800; color: var(--rx-ink); }
+.rx-item-strength { font-size: 13px; font-weight: 700; color: var(--rx-accent); direction: ltr; unicode-bidi: isolate; }
+.rx-item-alt { font-size: 12px; color: var(--rx-muted); font-weight: 500; }
+.rx-item-reg { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 0; margin-top: 3px; font-size: 13px; color: var(--rx-ink-2); }
+.rx-reg { display: inline-flex; gap: 5px; align-items: baseline; }
+.rx-reg + .rx-reg::before { content: ''; display: inline-block; width: 4px; height: 4px; border-radius: 50%; background: var(--p-300); margin-inline: 10px; align-self: center; }
+.rx-reg-k { font-size: 11px; color: var(--rx-muted); font-weight: 600; }
+.rx-reg-v { font-weight: 600; color: var(--rx-ink); }
+/* no italics: Arabic has none (browsers fake a slant), and the line already stands apart by its rule and colour */
+.rx-item-instr { flex-basis: 100%; font-size: 12.5px; color: var(--rx-ink-2); margin-top: 2px; padding-inline-start: 10px; border-inline-start: 2px solid var(--p-100); }
+.rx-notes { margin-top: 16px; padding: 10px 14px; border-radius: 10px; background: var(--rx-soft); border-inline-start: 3px solid var(--p-300); break-inside: avoid; }
+.rx-notes p { white-space: pre-wrap; font-size: 13px; color: var(--rx-ink-2); }
+
+.rx-sheet-foot { display: flex; align-items: flex-end; justify-content: space-between; gap: 24px; margin-top: 28px; padding-top: 14px; border-top: 1px solid var(--rx-line); break-inside: avoid; }
+.rx-foot-text { font-size: 12px; color: var(--rx-ink-2); white-space: pre-wrap; max-width: 360px; }
+.rx-sign { width: 210px; flex: none; text-align: center; }
+.rx-sign-line { height: 46px; border-bottom: 1.5px solid var(--rx-ink-2); margin-bottom: 6px; }
+.rx-sign-label { font-size: 11px; color: var(--rx-muted); font-weight: 600; }
+.rx-sign-name { font-size: 12.5px; font-weight: 700; color: var(--rx-ink); }
+
+@media screen and (max-width: 639px) {
+  .rx-sheet-modal .modal-body { padding-inline: 10px; }
+  .rx-sheet { padding: 24px 16px 18px; min-height: 0; font-size: 13px; }
+  .rx-sheet-head { flex-direction: column; gap: 12px; }
+  .rx-doctor { align-items: flex-start; text-align: start; max-width: none; }
+  .rx-pf { padding: 6px 10px; }
+  .rx-pf:last-child { margin-inline-start: 0; }
+  .rx-sheet-foot { flex-direction: column; align-items: stretch; }
+  .rx-sign { align-self: flex-end; }
+}
+
+/* ===== printing ===== */
+@media print {
+  .rx-sheet, .rx-sheet * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .rx-sheet { max-width: none; min-height: calc(100vh - 2px); border: 0 !important; border-radius: 0; box-shadow: none !important; padding: 16px 6px 0; overflow: visible; }
+  .rx-sheet::before { height: 4px; }
+  /* a sheet inside a modal: hide the app (and any other dialog) and lay the modal flat on the page */
+  body.rx-printing { overflow: visible !important; background: #fff; }
+  body.rx-printing > *:not(.overlay), body.rx-printing > .overlay:not(:has(.print-area)) { display: none !important; }
+  body.rx-printing > .overlay { position: static; display: block; padding: 0; background: none; backdrop-filter: none; -webkit-backdrop-filter: none; animation: none; }
+  body.rx-printing .modal { max-width: none !important; max-height: none !important; width: auto; border-radius: 0; box-shadow: none; overflow: visible; animation: none; display: block; background: #fff; }
+  body.rx-printing .modal-header, body.rx-printing .modal-footer { display: none !important; }
+  body.rx-printing .modal-body { overflow: visible; padding: 0 !important; background: #fff; }
+}
+/* narrow paper (A5 and smaller: the printable width is under ~600px) — the same sheet, tighter */
+@media print and (max-width: 600px) {
+  .rx-sheet { padding: 8px 0 0; font-size: 11.5px; line-height: 1.45; }
+  .rx-sheet::before { height: 3px; }
+  .rx-sheet-head { gap: 12px; padding-bottom: 10px; border-bottom-width: 1.5px; }
+  .rx-clinic { gap: 10px; }
+  .rx-clinic-logo { width: 40px; height: 40px; border-radius: 11px; }
+  .rx-clinic-logo svg { width: 22px; height: 22px; }
+  .rx-clinic-name { font-size: 14.5px; }
+  .rx-clinic-alt, .rx-clinic-tag, .rx-clinic-meta { font-size: 10px; }
+  .rx-clinic-meta { margin-top: 3px; }
+  .rx-doctor-name { font-size: 13.5px; }
+  .rx-doctor-spec, .rx-doctor-meta { font-size: 10.5px; }
+  .rx-patient { margin-top: 10px; border-radius: 9px; }
+  .rx-pf { padding: 5px 9px; }
+  .rx-pf-name { flex-basis: 120px; }
+  .rx-k { font-size: 8.5px; }
+  .rx-v { font-size: 11.5px; }
+  .rx-main { padding-top: 10px; }
+  .rx-lead { gap: 10px; margin-bottom: 2px; }
+  .rx-mark { width: 30px; height: 30px; }
+  .rx-diagnosis { padding-inline-start: 10px; }
+  .rx-item { gap: 9px; padding: 7px 0; }
+  .rx-item-no { width: 20px; height: 20px; font-size: 10.5px; border-width: 1.2px; }
+  .rx-item-name { font-size: 12.5px; }
+  .rx-item-strength { font-size: 11px; }
+  .rx-item-alt { font-size: 10px; }
+  .rx-item-reg { font-size: 11px; margin-top: 1px; }
+  .rx-reg-k { font-size: 9.5px; }
+  .rx-reg + .rx-reg::before { margin-inline: 6px; width: 3px; height: 3px; }
+  .rx-item-instr { font-size: 10.5px; padding-inline-start: 7px; }
+  .rx-notes { margin-top: 8px; padding: 6px 10px; }
+  .rx-notes p { font-size: 11px; }
+  .rx-sheet-foot { margin-top: 12px; padding-top: 8px; gap: 14px; }
+  .rx-foot-text { font-size: 9.5px; max-width: 240px; }
+  .rx-sign { width: 140px; }
+  .rx-sign-line { height: 30px; }
+  .rx-sign-label { font-size: 9px; }
+  .rx-sign-name { font-size: 10.5px; }
+}
+
+/* a one-line text in its own direction (dir=auto: Latin text truncates at its end) but aligned like the page */
+.rx-auto { text-align: match-parent; }
