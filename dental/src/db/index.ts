@@ -204,7 +204,9 @@ function pastInstant(v: unknown, now: number): number {
  * - license: this device's activation stays; without one, the backup's is taken (a code only works on the device it
  *   was made for, so this only helps a clinic restoring its own device after a reinstall).
  * - installedAt: the EARLIEST of this device's trial start, the backup's, the day the backed-up clinic was created and
- *   the day the backup was made. Future dates are ignored. So restoring (or editing) a backup can never restart the trial.
+ *   the day the backup was made. Future dates are ignored. So restoring a backup never restarts the trial. (A backup
+ *   hand-edited to remove all four dates, restored after wiping the app's data, does: like wiping the data itself, a
+ *   limit of a licence that works offline. Record dates are not used: the demo data dates its records months back.)
  * - lastBackupAt: this device's last export; on a device that never exported, the date of the restored backup.
  * - lastSeen: the LATER of this device's licence clock and the backup's, so a restore never turns the clock back.
  */

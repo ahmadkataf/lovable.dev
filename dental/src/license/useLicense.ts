@@ -3,7 +3,7 @@ import { useLiveQuery } from 'dexie-react-hooks'
 import { db, getSetting, setSetting } from '@/db'
 import { rawDeviceId } from '@/platform'
 import { checkCode, deviceNumber, extractCode, formatCode, type CodeCheck, type Plan } from './core'
-import { clockBehindBy, LAST_SEEN_SETTING, markPersisted, noteTime, shouldPersist, trustedNow } from './clock'
+import { clockBehindBy, LAST_SEEN_SETTING, markPersisted, noteTime, shouldPersist, trustedNow, latestOf } from './clock'
 import { evaluateLicense, type EndedReason, type LicenseStatus } from './state'
 import { installTrialStartGuard, setReadOnlyGuard } from './guard'
 
@@ -78,11 +78,11 @@ export function LicenseProvider({ children }: { children: ReactNode }) {
   // the stored code, checked against this device and the licence clock (re-checked each tick: a code can run out while open)
   useEffect(() => {
     let alive = true
-    if (!device || stored === undefined) return
+    if (!device || stored === undefined || lastSeen === undefined) return
     if (!stored) { setChecked(null); return }
-    checkCode(device, stored.code, new Date(trustedNow())).then(r => { if (alive) setChecked(r) }).catch(() => { if (alive) setChecked(null) })
+    checkCode(device, stored.code, new Date(licenceNow(lastSeen))).then(r => { if (alive) setChecked(r) }).catch(() => { if (alive) setChecked(null) })
     return () => { alive = false }
-  }, [device, stored, tick])
+  }, [device, stored, lastSeen, tick])
 
   const activate = useCallback(async (code: string): Promise<ActivateResult> => {
     if (!device) return 'device'
@@ -98,8 +98,10 @@ export function LicenseProvider({ children }: { children: ReactNode }) {
   const value = useMemo<LicenseState>(() => {
     // without a device id no code can be checked: the trial clock alone decides until the id is back
     const noDevice = !device && deviceError
-    const loading = (!device && !deviceError) || installedAt === undefined || stored === undefined || (!noDevice && checked === undefined)
-    const e = evaluateLicense(installedAt, noDevice ? null : checked ?? null, trustedNow())
+    // the stored licence clock counts in this very render: until it is read the state is loading, and once read a
+    // device clock set back cannot win (not even for one tick, with the localStorage copy deleted)
+    const loading = (!device && !deviceError) || installedAt === undefined || stored === undefined || lastSeen === undefined || (!noDevice && checked === undefined)
+    const e = evaluateLicense(installedAt, noDevice ? null : checked ?? null, licenceNow(lastSeen))
     const next: LicenseState = {
       loading, ...e, device, deviceError: noDevice, retryDevice, readOnly: !loading && e.status === 'expired',
       clockBehind: clockBehindBy() > DAY, now: () => trustedNow(), activate, deactivate,
@@ -108,13 +110,15 @@ export function LicenseProvider({ children }: { children: ReactNode }) {
     if (last.current && last.current.key === key && last.current.value.activate === activate && last.current.value.deactivate === deactivate) return last.current.value
     last.current = { key, value: next }
     return next
-  }, [device, deviceError, installedAt, stored, checked, activate, deactivate, retryDevice, tick])
+  }, [device, deviceError, installedAt, stored, lastSeen, checked, activate, deactivate, retryDevice, tick])
 
   useEffect(() => { setReadOnlyGuard(value.readOnly) }, [value.readOnly])
   return createElement(Ctx.Provider, { value }, children)
 }
 
 const isInstant = (v: unknown) => typeof v === 'string' && v !== '' && Number.isFinite(new Date(v).getTime())
+/** The licence's "now" with the stored licence clock taken in, even before the clock effect has noted it. */
+const licenceNow = (lastSeen: unknown) => Math.max(trustedNow(), latestOf([lastSeen]))
 
 /**
  * Records the trial start (the licence clock's "now") unless one is already stored. Reads and writes in one

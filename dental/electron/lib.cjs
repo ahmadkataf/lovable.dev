@@ -117,14 +117,13 @@ function contextMenuItems(params, s) {
 /**
  * The device id of this installation, stable from the first run on. The activation code is made for it, so it must
  * never change by itself.
- *   - The first id is cached in userData (device-id.json) with where it came from: the machine (Windows MachineGuid,
- *     hashed), or, when the machine id cannot be read on that first run, the id of Dentora 1.0's fallback file or a
- *     new random one.
- *   - Every later run uses the cached id. A machine id that cannot be read (reg.exe blocked by a policy, an antivirus,
- *     a timeout) changes nothing.
- *   - The machine id is read again each run, only to notice that the data folder was copied to another computer (or
- *     Windows was reinstalled and the folder restored): then that computer's own id is used from then on, so one
- *     code cannot be used on two computers by copying the folder.
+ *   - Whenever the Windows machine id (MachineGuid, hashed) can be read, it IS the device id. The cached file never
+ *     overrides it: device-id.json lives in the clinic's data folder, which can be copied to another computer and
+ *     edited, so trusting a cached id there would let one code work on many computers.
+ *   - The id is cached in userData (device-id.json) only for runs where the machine id cannot be read (reg.exe blocked
+ *     by a policy, an antivirus, a timeout): those runs use the cached id.
+ *   - A first run that cannot read the machine id at all uses the id of Dentora 1.0's fallback file or a new random
+ *     one; once the machine id can be read, it takes over (changed: the clinic asks for a new code once).
  * deps: readCache() → {id, source, machine} | null · writeCache(obj) · readLegacy() → hex | null ·
  *       machineId(firstRun) → Promise<{ kind: 'win' | 'host', id } | null> (already hashed) · randomId() → hex · log(...)
  * Resolves { id, source, changed } (changed: the id differs from the cached one, logged).
@@ -142,13 +141,15 @@ async function resolveDeviceId(deps) {
     return obj
   }
   if (cache) {
-    const bindable = machine && machine.kind === 'win'
-    if (bindable && valid(cache.machine) && cache.machine !== machine.id) {
-      deps.log('device id: this data folder belongs to another computer; using this computer\'s id')
-      const next = save({ id: machine.id, source: 'win', machine: machine.id })
-      return { id: next.id, source: next.source, changed: true }
+    if (machine && machine.kind === 'win') {
+      if (cache.id !== machine.id) {
+        deps.log('device id: the cached id is not this computer\'s (a copied data folder, or a first run without the machine id); using this computer\'s id')
+        const next = save({ id: machine.id, source: 'win', machine: machine.id })
+        return { id: next.id, source: next.source, changed: true }
+      }
+      if (cache.machine !== machine.id || cache.source !== 'win') save({ id: machine.id, source: 'win', machine: machine.id })
+      return { id: machine.id, source: 'win', changed: false }
     }
-    if (bindable && !valid(cache.machine)) save({ id: cache.id, source: cache.source || 'win', machine: machine.id })
     if (!machine) deps.log(`device id: machine id unavailable, using the cached id (${cache.source || 'unknown'})`)
     return { id: cache.id, source: cache.source || 'win', changed: false }
   }

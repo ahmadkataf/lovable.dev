@@ -147,14 +147,27 @@ describe('device id (resolveDeviceId)', () => {
     expect(await lib.resolveDeviceId(deps)).toEqual({ id: B, source: 'win', changed: true })
     expect(st.cache.id).toBe(B)
   })
-  it('first run without a machine id: a random id that stays, even when reg.exe works later', async () => {
+  it('first run without a machine id: a random id until the machine id can be read, then the machine id', async () => {
     const first = env({ machine: null })
     expect(await lib.resolveDeviceId(first.deps)).toEqual({ id: R, source: 'random', changed: false })
+    const blocked = env({ cache: first.st.cache, machine: null })
+    expect((await lib.resolveDeviceId(blocked.deps)).id).toBe(R)
     const later = env({ cache: first.st.cache, machine: { kind: 'win', id: A } })
-    expect((await lib.resolveDeviceId(later.deps)).id).toBe(R)
-    expect(later.st.cache).toMatchObject({ id: R, source: 'random', machine: A })      // now bound to this computer
-    const copied = env({ cache: later.st.cache, machine: { kind: 'win', id: B } })
-    expect((await lib.resolveDeviceId(copied.deps)).id).toBe(B)
+    expect(await lib.resolveDeviceId(later.deps)).toEqual({ id: A, source: 'win', changed: true })
+    expect(later.st.cache).toMatchObject({ id: A, source: 'win', machine: A })
+  })
+  it('a data folder copied to another computer cannot keep the old id by editing device-id.json', async () => {
+    // the copy unchanged, its "machine" field deleted, set to the new computer's hash, or its source changed
+    for (const cache of [{ id: A, source: 'win', machine: A }, { id: A, source: 'win' }, { id: A, source: 'win', machine: B }, { id: A, source: 'random' }, { id: A, source: 'legacy', machine: B }]) {
+      const { st, deps } = env({ cache, machine: { kind: 'win', id: B } })
+      expect(await lib.resolveDeviceId(deps), JSON.stringify(cache)).toEqual({ id: B, source: 'win', changed: true })
+      expect(st.cache).toMatchObject({ id: B, source: 'win', machine: B })
+    }
+  })
+  it("this computer's own cache: the same id, nothing rewritten", async () => {
+    const { st, deps } = env({ cache: { id: A, source: 'win', machine: A }, machine: { kind: 'win', id: A } })
+    expect(await lib.resolveDeviceId(deps)).toEqual({ id: A, source: 'win', changed: false })
+    expect(st.writes).toBe(0)
   })
   it("Dentora 1.0's fallback id is kept when the machine id cannot be read on the first run after the update", async () => {
     const { deps } = env({ machine: null, legacy: L })
