@@ -139,7 +139,7 @@ public final class WebFilesTest {
         eq("block", WebFiles.requestAction("wss", "evil.com"), "websocket refused");
         eq("pass", WebFiles.requestAction("data", null), "data: stays in the WebView");
         eq("pass", WebFiles.requestAction("blob", null), "blob: stays in the WebView");
-        eq(true, WebFiles.CSP.contains("script-src 'self';") && WebFiles.CSP.contains("default-src 'self'") && WebFiles.CSP.contains("object-src 'none'"), "csp");
+        eq(true, WebFiles.CSP.contains("script-src 'self';") && WebFiles.CSP.contains("default-src 'self'") && WebFiles.CSP.contains("object-src 'none'") && WebFiles.CSP.contains("form-action 'none'"), "csp");
 
         eq("android.intent.action.DIAL", WebFiles.externalAction("tel"), "tel action");
         eq("android.intent.action.SENDTO", WebFiles.externalAction("mailto"), "mailto action");
@@ -205,6 +205,16 @@ public final class WebFilesTest {
         } finally {
             f.delete();
         }
+
+        // text size: the phone's font scale, from 85 % up to 130 %
+        eq(100, WebFiles.textZoomFor(1f), "normal font size");
+        eq(115, WebFiles.textZoomFor(1.15f), "large font size");
+        eq(130, WebFiles.textZoomFor(1.3f), "larger font size");
+        eq(130, WebFiles.textZoomFor(2f), "the largest font size is capped at 130 %");
+        eq(85, WebFiles.textZoomFor(0.85f), "small font size");
+        eq(85, WebFiles.textZoomFor(0.5f), "never below 85 %");
+        eq(100, WebFiles.textZoomFor(0f), "an unknown scale is 100 %");
+        eq(100, WebFiles.textZoomFor(Float.NaN), "an unreadable scale is 100 %");
 
         // messages
         eq("تعذّر حفظ الملف", WebFiles.text("save_failed", "ar"), "arabic message");

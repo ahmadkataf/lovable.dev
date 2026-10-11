@@ -429,3 +429,12 @@ button.apt-det-name:hover { color: var(--primary); text-decoration: underline; t
   .apt-trow-status { width: 100%; padding-inline-start: 70px; margin-top: -4px; }
   .apt-trow-status:empty { display: none; }
 }
+/* phones: no text under 12px (finding 79) */
+@media screen and (max-width: 767px) {
+  .apt-mitem-time small, .apt-wday-count, .apt-mcount, .apt-mchip, .apt-mmore, .apt-ptab-count, .apt-trow-mon, .apt-trow-year, .apt-trow-next,
+  .apt-tg-hour, .apt-tg-nowlabel, .apt-ev-time, .apt-ev-sub, .apt-whead-sub { font-size: 12px; }
+  /* the week strip keeps whole Arabic weekday names at 12px: a little less padding around the seven days */
+  .apt-wstrip { padding-inline: 4px; gap: 2px; }
+  .apt-wday-dow { font-size: 12px; letter-spacing: -.2px; }
+  .apt-wday-count { min-width: 20px; height: 20px; }
+}

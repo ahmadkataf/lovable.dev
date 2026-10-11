@@ -9,7 +9,7 @@ import type { Activity, Appointment, Patient } from '@/db/types'
 import { useI18n } from '@/i18n'
 import { useUsers } from '@/app/hooks'
 import { Badge, Button, Card, CardBody, CardHeader, EmptyState, Skeleton, toneFor } from '@/ui'
-import { dateOf, diffDays, fmtDate, fmtTime, relativeDay, timeAgo, today } from '@/lib/dates'
+import { dateFormat, dateOf, diffDays, fmtDate, fmtTime, relativeDay, timeAgo, today } from '@/lib/dates'
 import { formatPhone } from '@/lib/format'
 import { upcomingAppointments } from './lib'
 
@@ -123,11 +123,9 @@ export default function PatientOverview({ patient, appointments, onEdit, onBook 
   )
 }
 
-const weekdayFmt = new Map<string, Intl.DateTimeFormat>()
+/** "السبت" / "Sat", in the app's date locale. */
 function weekdayShort(d: Date, lang: 'ar' | 'en'): string {
-  let f = weekdayFmt.get(lang)
-  if (!f) { f = new Intl.DateTimeFormat(lang === 'ar' ? 'ar-SY-u-nu-latn' : 'en-GB', { weekday: 'short' }); weekdayFmt.set(lang, f) }
-  return f.format(d)
+  return dateFormat(lang, { weekday: 'short' }).format(d)
 }
 /** "Today" / "Tomorrow" when that close, otherwise undefined. */
 function nearDay(iso: string, lang: 'ar' | 'en'): string | undefined {

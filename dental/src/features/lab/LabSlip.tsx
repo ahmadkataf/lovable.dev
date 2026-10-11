@@ -9,7 +9,7 @@ import { useI18n } from '@/i18n'
 import { useClinic } from '@/app/hooks'
 import { Button, Loading, Modal } from '@/ui'
 import { fmtDate } from '@/lib/dates'
-import { SheetClinic, printModalSheet, usePrintCleanup } from '@/features/prescriptions/parts'
+import { jobName, SheetClinic, printModalSheet, usePrintCleanup } from '@/features/prescriptions/parts'
 import { ShadeChip, TeethPicker } from './parts'
 import { teethLabel } from './lib'
 import { ensureRefs, type NumberedLab } from '@/features/prescriptions/numbers'
@@ -91,7 +91,7 @@ export default function LabSlipModal({ id, onClose }: { id: string; onClose: () 
       subtitle={data?.order ? `${t(`labType.${data.order.type}`)} · ${data.order.labName}` : undefined}
       footer={data?.order ? <>
         <Button variant="ghost" onClick={onClose}>{t('close')}</Button>
-        <Button variant="primary" icon={<Printer />} onClick={printModalSheet}>{t('print')}</Button>
+        <Button variant="primary" icon={<Printer />} onClick={() => { const o = data.order!; printModalSheet(jobName(`${t('lab.slip.title')}${(o as NumberedLab).number ? ` ${(o as NumberedLab).number}` : ''}`, data.patient?.name, o.labName)) }}>{t('print')}</Button>
       </> : undefined}>
       {data === undefined ? <Loading /> : !data.order ? <div className="muted text-center" style={{ padding: 32 }}>{t('lab.notFound')}</div>
         : <LabSlip order={data.order} patient={data.patient} doctor={data.doctor} clinic={clinic} />}

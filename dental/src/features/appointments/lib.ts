@@ -312,8 +312,9 @@ export function lastVisitAfter(current: string | undefined, latestCompleted: str
 
 // ---- patient tab ---------------------------------------------------------------------------------
 const CLOSED: AppointmentStatus[] = ['completed', 'cancelled', 'no_show']
-/** Upcoming = a later day, or today and not closed yet. */
+/** Upcoming = a later day, or today and not closed yet. A cancelled or no-show visit is history whatever its date. */
 export function isUpcoming(a: Pick<Appointment, 'date' | 'status'>, todayISO: ISODate): boolean {
+  if (a.status === 'cancelled' || a.status === 'no_show') return false
   if (a.date > todayISO) return true
   return a.date === todayISO && !CLOSED.includes(a.status)
 }
@@ -331,15 +332,19 @@ export function patientSummary<T extends Pick<Appointment, 'date' | 'start' | 's
 }
 
 // ---- text ----------------------------------------------------------------------------------------
-/** Arabic plural class (0, 1, 2, 3–10, 11+ and 101–102 back to "many"); English uses the same keys. */
-export function pluralForm(n: number): 'zero' | 'one' | 'two' | 'few' | 'many' {
+/**
+ * The Arabic (CLDR) plural class of a count: zero (0), one (1), two (2), few (3–10, 103–110…), many (11–99,
+ * 111–199…) and other (100–102, 200–202, 1000…: "100 موعد", not "100 موعداً"). English uses the same keys.
+ */
+export function pluralForm(n: number): 'zero' | 'one' | 'two' | 'few' | 'many' | 'other' {
   const a = Math.abs(Math.trunc(n))
   if (a === 0) return 'zero'
   if (a === 1) return 'one'
   if (a === 2) return 'two'
   const r = a % 100
   if (r >= 3 && r <= 10) return 'few'
-  return 'many'
+  if (r >= 11) return 'many'
+  return 'other'
 }
 
 // ---- patient picker ------------------------------------------------------------------------------

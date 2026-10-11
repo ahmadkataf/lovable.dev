@@ -1,8 +1,10 @@
 // QA for the appointments module: screenshots of every view and dialog (desktop RTL, desktop EN, phone) and the real flows
 // (create from a slot → validate → conflict → save; quick-create patient; details → status chain → lastVisit; edit; delete;
 // filters; empty states; patient tab; read-only), asserting on the DB and on horizontal overflow, with zero console errors.
-// Usage: npx vite build --outDir /tmp/dist-appointments && QA_DIST=/tmp/dist-appointments QA_PORT=4303 QA_SHOTS=qa-shots/appointments node scripts/qa/appointments.mjs
-import { startServer, openBrowser, seedAndLogin, shot, BASE } from './lib.mjs'
+// Usage: VITE_QA=1 npx vite build --outDir /tmp/dist-appointments && QA_DIST=/tmp/dist-appointments QA_PORT=4303 QA_SHOTS=qa-shots/appointments node scripts/qa/appointments.mjs
+import { startServer, openBrowser, seedAndLogin, shot, BASE, setTrialStart } from './lib.mjs'
+// "new appointment": the header button on a desktop, the floating button on a phone
+const newButton = page => page.locator('.page-header .btn-primary:visible, .pt-fab:visible').first()
 
 const PART = process.env.QA_PART || 'all'   // all | desktop | en | mobile | flows
 const problems = []
@@ -115,7 +117,7 @@ async function desktopRTL(server) {
   const seeded = await seedClinic(page)
   console.log('seeded', seeded)
   await go(page, '/appointments')
-  try { await page.evaluate(() => sessionStorage.clear()) } catch {}
+  try { await page.evaluate(() => sessionStorage.removeItem('dentora.appointments.view')) } catch {}
   await go(page, '/appointments')
   await page.waitForSelector('.apt-tg-col')
   await wait(page, 500)
@@ -226,13 +228,13 @@ async function flows() {
   const errors = watchErrors(page, 'flows')
   await seedAndLogin(page)
   await seedClinic(page)
-  await page.evaluate(() => sessionStorage.clear())
+  await page.evaluate(() => sessionStorage.removeItem('dentora.appointments.view'))
   await go(page, '/appointments')
   await page.waitForSelector('.apt-tg-col')
   const before = await db(page, () => window.__dentora.db.appointments.count())
 
   // --- validation: open "new" from the header, clear nothing, submit without a patient
-  await page.locator('.page-header .btn-primary').click(); await page.waitForSelector('.apt-form'); await wait(page, 300)
+  await newButton(page).click(); await page.waitForSelector('.apt-form'); await wait(page, 300)
   await page.locator('.modal-footer .btn-primary').click(); await wait(page, 300)
   check(await page.locator('.apt-form .field-error').count() >= 1, 'validation: patient required')
   await shot(page, '20-form-validation-ar')
@@ -244,7 +246,8 @@ async function flows() {
   await page.locator('.apt-quick .segmented button').nth(0).click()
   await page.locator('.apt-quick .btn-primary').click(); await wait(page, 600)
   const qp = await db(page, () => window.__dentora.db.patients.filter(p => p.name === 'سامر عادل').first())
-  check(!!qp && qp.fileNo > 0 && qp.phone === '0999 111 222' && qp.gender === 'male', `quick-create patient saved with file #${qp?.fileNo}`)
+  // phone numbers are stored as digits only (shown grouped): 0999 111 222 → 0999111222
+  check(!!qp && qp.fileNo > 0 && qp.phone === '0999111222' && qp.gender === 'male', `quick-create patient saved with file #${qp?.fileNo} (${qp?.phone})`)
   check(await page.locator('.apt-picked').count() === 1, 'the new patient is selected as a chip')
 
   // --- book it at 16:30 with doctor 2, 45 min, Enter submits
@@ -278,7 +281,7 @@ async function flows() {
   check(!!fromSlot && fromSlot.status === 'scheduled', 'slot booking saved')
 
   // --- conflict: allowed with a warning
-  await page.locator('.page-header .btn-primary').click(); await page.waitForSelector('.apt-form'); await wait(page, 300)
+  await newButton(page).click(); await page.waitForSelector('.apt-form'); await wait(page, 300)
   await page.locator('.apt-picker input').fill('يوسف'); await wait(page, 250); await page.locator('.apt-drop-item').first().click()
   await page.locator('.apt-form select').first().selectOption('u-admin')
   await page.locator('.apt-time-row input[type="time"]').fill('11:15'); await wait(page, 400)
@@ -350,7 +353,7 @@ async function flows() {
   await page.locator('.apt-ev').first().click(); await page.waitForSelector('.apt-det'); await wait(page, 300)
   check(await page.locator('.apt-det-btns').count() === 0 && await page.locator('.modal-footer .btn-danger-soft').count() === 0, 'read-only: no status/edit/delete in details')
   await page.keyboard.press('Escape')
-  await db(page, async () => { await window.__dentora.db.settings.put({ key: 'installedAt', value: new Date().toISOString() }) })
+  await setTrialStart(page, new Date().toISOString())     // back on a fresh trial (a later start needs a whole-database write)
 
   check(errors.length === 0, `no console errors (flows) ${errors.slice(0, 5).join(' | ')}`)
   await browser.close()
@@ -361,7 +364,7 @@ async function desktopEN() {
   const errors = watchErrors(page, 'desktop-en')
   await seedAndLogin(page, { lang: 'en' })
   await seedClinic(page)
-  await page.evaluate(() => sessionStorage.clear())
+  await page.evaluate(() => sessionStorage.removeItem('dentora.appointments.view'))
   await go(page, '/appointments'); await page.waitForSelector('.apt-tg-col'); await wait(page, 400)
   await shot(page, '30-day-en'); await noOverflow(page, 'day en')
   await setView(page, 'Week'); await shot(page, '31-week-en'); await noOverflow(page, 'week en')
@@ -370,7 +373,7 @@ async function desktopEN() {
   await page.locator('.apt-arow').first().click(); await page.waitForSelector('.apt-det'); await wait(page, 300)
   await shot(page, '34-details-en')
   await page.keyboard.press('Escape'); await wait(page)
-  await page.locator('.page-header .btn-primary').click(); await page.waitForSelector('.apt-form'); await wait(page, 300)
+  await newButton(page).click(); await page.waitForSelector('.apt-form'); await wait(page, 300)
   await page.locator('.apt-picker input').fill('a'); await wait(page, 200)
   await page.locator('.apt-picker input').fill(''); await page.keyboard.press('Escape'); await wait(page, 150)
   await shot(page, '35-form-en')
@@ -387,7 +390,7 @@ async function mobile() {
   const errors = watchErrors(page, 'mobile')
   await seedAndLogin(page)
   await seedClinic(page)
-  await page.evaluate(() => sessionStorage.clear())
+  await page.evaluate(() => sessionStorage.removeItem('dentora.appointments.view'))
   await go(page, '/appointments'); await page.waitForSelector('.apt-mitem'); await wait(page, 400)
   await shot(page, '40-m-day'); await noOverflow(page, 'm day')
   await shot(page, '40b-m-day-full', { full: true })

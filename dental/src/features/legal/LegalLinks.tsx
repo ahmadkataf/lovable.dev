@@ -11,12 +11,16 @@ export function LegalLinks({ docs = ['privacy', 'terms', 'notices'], className }
   const [open, setOpen] = useState<LegalDoc | null>(null)
   return (
     <span className={['lg-links', className].filter(Boolean).join(' ')}>
-      {docs.map((d, i) => (
-        <span key={d} className="row gap-1">
-          {i > 0 && <span className="sep" aria-hidden>·</span>}
-          <button type="button" className="lg-link" onClick={() => setOpen(d)} data-qa={`legal-link-${d}`}>{t(`legal.${d}`)}</button>
-        </span>
-      ))}
+      {/* every link carries its separator in front; the row is pulled back by one separator and clipped, so a line
+          that wraps never starts with a dangling "·" */}
+      <span className="lg-links-row">
+        {docs.map(d => (
+          <span key={d} className="lg-links-item">
+            <span className="sep" aria-hidden>·</span>
+            <button type="button" className="lg-link" onClick={() => setOpen(d)} data-qa={`legal-link-${d}`}>{t(`legal.${d}`)}</button>
+          </span>
+        ))}
+      </span>
       <LegalDialog open={!!open} doc={open ?? 'privacy'} onClose={() => setOpen(null)} />
     </span>
   )
@@ -26,15 +30,19 @@ export function LegalLinks({ docs = ['privacy', 'terms', 'notices'], className }
  * "I have read and accept the terms of use and the privacy policy", with both documents one tap away. The setup
  * wizard keeps its own state (checked) and calls acceptTerms() when the clinic is created.
  */
-export function AcceptTerms({ checked, onChange, error }: { checked: boolean; onChange: (v: boolean) => void; error?: ReactNode }) {
+export function AcceptTerms({ checked, onChange, error, links = ['terms', 'privacy'] }: {
+  checked: boolean; onChange: (v: boolean) => void; error?: ReactNode
+  /** The documents linked under the box (the setup wizard adds the open-source notices). */
+  links?: LegalDoc[]
+}) {
   const { t } = useI18n()
   return (
-    <div className="col gap-2">
+    <div className="col gap-2 lg-accept-box">
       <label className="lg-accept">
-        <input type="checkbox" checked={checked} onChange={e => onChange(e.target.checked)} data-qa="accept-terms" />
+        <input type="checkbox" checked={checked} onChange={e => onChange(e.target.checked)} aria-invalid={!!error || undefined} data-qa="accept-terms" />
         <span>{t('legal.acceptLabel')}</span>
       </label>
-      <LegalLinks docs={['terms', 'privacy']} />
+      <LegalLinks docs={links} />
       {error && <div className="field-error" role="alert">{error}</div>}
     </div>
   )

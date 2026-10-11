@@ -214,8 +214,8 @@ export function sampleTotals(taxPercent: number | null, decimals: 0 | 2 | 3 = 2,
 
 // ---- backup -----------------------------------------------------------------------------------
 export const BACKUP_REMIND_DAYS = 7
-/** Settings rows that belong to this installation (its activation and trial start): kept through restore and reset. */
-export const DEVICE_SETTING_KEYS = ['license', 'installedAt'] as const
+/** Settings rows that belong to this installation (its activation, trial start and licence clock): kept through restore and reset. */
+export const DEVICE_SETTING_KEYS = ['license', 'installedAt', 'lastSeen'] as const
 /** Tables a backup must contain to be restorable. */
 export const REQUIRED_TABLES = ['clinic', 'users', 'patients'] as const
 

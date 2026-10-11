@@ -1,13 +1,13 @@
 // Adversarial review of Settings: edge cases on top of scripts/qa/settings.mjs (long names, zero / negative numbers,
 // double submits, Escape / Enter, unsaved changes, pasted codes with spaces, receptionist, phone, English, auto-lock).
-//   npx vite build --outDir /tmp/dist-settings-r && npx vite build --config vite.tools.config.ts
+//   VITE_QA=1 npx vite build --outDir /tmp/dist-settings-r && npx vite build --config vite.tools.config.ts
 //   QA_DIST=/tmp/dist-settings-r QA_PORT=4359 QA_SHOTS=qa-shots/settings-review node scripts/qa/settings-review.mjs
 import { execFileSync } from 'node:child_process'
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
-import { startServer, openBrowser, seedAndLogin, shot, BASE } from './lib.mjs'
+import { startServer, openBrowser, seedAndLogin, setSession, sessionUser, readArchive, BACKUP_NAME, shot, BASE } from './lib.mjs'
 import { makeCode as signCode, importSigningKey, parsePrivateKey } from '../../tools/generator-lib.ts'
 import { checkCode } from '../../src/license/core.ts'
 
@@ -241,16 +241,20 @@ try {
     await page.click('[data-qa=activate]')
     await page.waitForSelector('[data-qa=license-status][data-status=active]')
     ok((await page.textContent('[data-qa=license-until]')).includes('لا ينتهي'), 'licence: lifetime activation from the expired state')
-    await q(page, async () => { await window.__dentora.db.settings.put({ key: 'installedAt', value: new Date().toISOString() }) })
+    // the trial start can only move earlier (outside a whole restore): it stays 40 days back
+    ok(await q(page, async () => {
+      try { await window.__dentora.db.settings.put({ key: 'installedAt', value: new Date().toISOString() }); return false } catch { return true }
+    }), 'licence: the trial start cannot be moved later')
 
     // ---- backup: export, bad files, restore with Escape / wrong word / Enter ----
     await tab(page, 'backup')
     const dl = page.waitForEvent('download')
     await page.click('[data-qa=export-backup]')
     const download = await dl
+    ok(BACKUP_NAME.test(download.suggestedFilename()), `backup: file name ${download.suggestedFilename()}`)
     const file = path.join(TMP, download.suggestedFilename())
     await download.saveAs(file)
-    const data = JSON.parse(fs.readFileSync(file, 'utf8'))
+    const data = readArchive(file)        // the .dentora archive, read back as the old one-JSON shape (old .json backups still restore)
     ok(data.app === 'dentora' && Array.isArray(data.tables.patients) && data.tables.patients.length === 1, 'backup: the export holds every table')
     await page.waitForTimeout(400)
     const lastAt = await setting(page, 'lastBackupAt')
@@ -263,7 +267,10 @@ try {
       await page.waitForTimeout(500)
     }
     await pick('notes.json', 'hello')
-    ok((await page.textContent('[data-qa=restore-error]'))?.includes('تالف'), 'restore: non-JSON refused')
+    ok((await page.textContent('[data-qa=restore-error]'))?.includes('ليس نسخة'), 'restore: a file that is neither an archive nor JSON is refused')
+    await pick('cut-short.dentora', fs.readFileSync(file).subarray(0, 300))
+    await page.waitForTimeout(500)
+    ok((await page.textContent('[data-qa=restore-error]'))?.includes('تالف'), 'restore: a .dentora cut short is reported as damaged')
     await pick('other.json', JSON.stringify({ app: 'other', tables: {} }))
     ok((await page.textContent('[data-qa=restore-error]'))?.includes('ليس نسخة'), 'restore: foreign JSON refused')
     await pick('newer.json', JSON.stringify({ ...data, version: 99 }))
@@ -314,7 +321,7 @@ try {
     await page.waitForFunction(() => location.hash.startsWith('#/setup'))
     await page.waitForTimeout(600)
     ok(await q(page, async () => (await window.__dentora.db.patients.count()) === 0 && (await window.__dentora.db.users.count()) === 0), 'reset: patients and users erased')
-    ok((await setting(page, 'license'))?.plan === 'pro' && !(await q(page, () => localStorage.getItem('dentora.session'))), 'reset: activation kept, signed out')
+    ok((await setting(page, 'license'))?.plan === 'pro' && !(await sessionUser(page)), 'reset: activation kept, signed out')
     await browser.close()
   }
 
@@ -322,7 +329,7 @@ try {
   {
     const { browser, page } = await open()
     await seedAndLogin(page)
-    await q(page, () => localStorage.setItem('dentora.session', 'u-rec'))
+    await setSession(page, 'u-rec')
     await page.goto(BASE + '/index.html#/settings/backup')
     await page.reload()
     await page.waitForSelector('[data-qa=tab-clinic]')
@@ -421,6 +428,9 @@ try {
     page.on('pageerror', e => errors.push(`generator pageerror: ${e.message}`))
     await page.goto(pathToFileURL(toolFile).href)
     await page.waitForFunction(() => window.__generatorReady)
+    // the page makes codes only once the seller's private key is loaded (it is never inside the page)
+    await page.setInputFiles('#key-file', KEY_FILE)
+    await page.waitForFunction(() => document.getElementById('make').getAttribute('aria-disabled') === 'false')
     await page.click('#device')
     await page.keyboard.insertText(`  ${device.toLowerCase().replace('-', ' ')}  `)
     ok(await page.inputValue('#device') === device, `generator: a pasted device number with spaces is cleaned (${await page.inputValue('#device')})`)

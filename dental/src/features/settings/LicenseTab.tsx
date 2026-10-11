@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
-import { BadgeCheck, CalendarClock, Copy, Crown, Infinity as InfinityIcon, KeyRound, Lock, Mail, MessageCircle, ShieldAlert, ShieldCheck, Sparkles, Store } from 'lucide-react'
+import { BadgeCheck, CalendarClock, Copy, Crown, Infinity as InfinityIcon, KeyRound, Lock, Mail, MessageCircle, RefreshCw, ShieldAlert, ShieldCheck, Sparkles, Store } from 'lucide-react'
 import { Alert, Badge, Button, buttonClass, Card, CardBody, ProgressBar, useConfirm, useToast, Textarea } from '@/ui'
 import { useI18n } from '@/i18n'
 import { getSetting, logActivity } from '@/db'
@@ -28,7 +28,8 @@ export default function LicenseTab() {
   const [renewing, setRenewing] = useState(false)
   const once = useSingleFlight()
 
-  if (lic.loading || !lic.device) return <TabSkeleton cards={2} />
+  if (lic.loading || (!lic.device && !lic.deviceError)) return <TabSkeleton cards={2} />
+  const noDevice = !lic.device
   const { status } = lic
   const licenseEnded = status === 'expired' && lic.ended === 'license'
   const clinicName = pick(clinic.name, clinic.nameEn) || t('appName')
@@ -46,6 +47,7 @@ export default function LicenseTab() {
 
   const activate = (e?: FormEvent) => {
     e?.preventDefault()
+    if (noDevice) { setError(t('license.deviceError')); return }
     if (!isCodeComplete(code)) { setError(t('license.err.format')); return }
     void once(async () => {
       setBusy(true)
@@ -121,10 +123,19 @@ export default function LicenseTab() {
         <Card>
           <CardBody>
             <SectionTitle icon={<KeyRound />} title={t('license.device')} sub={t('license.deviceDesc')} />
-            <div className="st-device">
-              <span className="st-device-no ltr" data-qa="device-number">{lic.device}</span>
-              <Button variant="secondary" icon={<Copy />} onClick={copyDevice} data-qa="copy-device">{t('license.copyDevice')}</Button>
-            </div>
+            {noDevice ? (
+              <div data-qa="device-error">
+                <Alert tone="danger" title={t('license.deviceError')}>
+                  {t('license.deviceErrorDesc')}
+                  <div className="mt-3"><Button variant="secondary" size="sm" icon={<RefreshCw />} onClick={lic.retryDevice} data-qa="device-retry">{t('license.deviceRetry')}</Button></div>
+                </Alert>
+              </div>
+            ) : (
+              <div className="st-device">
+                <span className="st-device-no ltr" data-qa="device-number">{lic.device}</span>
+                <Button variant="secondary" icon={<Copy />} onClick={copyDevice} data-qa="copy-device">{t('license.copyDevice')}</Button>
+              </div>
+            )}
           </CardBody>
         </Card>
 
@@ -141,7 +152,7 @@ export default function LicenseTab() {
                 <div className="st-activate-foot">
                   <span className="st-code-count num" aria-live="polite">{codeChars(code)}/{CODE_CHARS}</span>
                   {status === 'active' && <Button variant="ghost" onClick={() => { setRenewing(false); setCode(''); setError(null) }}>{t('cancel')}</Button>}
-                  <Button type="submit" variant="primary" icon={<KeyRound />} loading={busy} data-qa="activate">{t('license.activate')}</Button>
+                  <Button type="submit" variant="primary" icon={<KeyRound />} loading={busy} disabled={noDevice} data-qa="activate">{t('license.activate')}</Button>
                 </div>
               </form>
             ) : (

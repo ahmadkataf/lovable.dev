@@ -1,20 +1,21 @@
 // The five steps of the first-run wizard. Each step is a controlled view of the wizard's drafts; validation lives in ./lib.
 import { useState } from 'react'
 import {
-  Building2, CalendarDays, Check, Coins, History, ImagePlus, Mail, MapPin, Pencil, Phone, ShieldCheck, Stethoscope, Trash2, UploadCloud, UserRound,
+  Building2, CalendarDays, Check, Coins, Globe2, History, ImagePlus, Mail, MapPin, Pencil, Phone, ShieldCheck, Stethoscope, Trash2, UploadCloud, UserRound,
 } from 'lucide-react'
 import { Alert, Avatar, Badge, Chip, Field, IconBox, Input, NumberInput, Segmented, Select, useToast } from '@/ui'
 import { useI18n } from '@/i18n'
 import type { Lang } from '@/db/types'
 import { formatMoney } from '@/lib/format'
-import { fmtTime, weekdayName } from '@/lib/dates'
+import { arabicDateLocale, fmtTime, fromISODate, today, weekdayName } from '@/lib/dates'
 import { imageToDataUrl, pickFile } from '@/platform'
 import { ToothIcon } from '@/app/ToothIcon'
 import { TRIAL_DAYS } from '@/license/core'
 import { tPlural } from '@/app/plural'
+import { COUNTRY_CODES } from '@/features/settings/lib'
 import {
-  CURRENCIES, CUSTOM_CURRENCY, SLOT_OPTIONS, WEEK_ORDER, cleanCurrencyCode, currencyPreset, defaultDecimals, displayName, orderedDays, plainName, resolveCurrency, toggleDay,
-  type ClinicDraft, type MoneyDraft, type OwnerDraft,
+  CURRENCIES, CUSTOM_CURRENCY, SLOT_OPTIONS, WEEK_ORDER, cleanCurrencyCode, currencyPreset, defaultDecimals, displayName, orderedDays, plainName, resolveCurrency,
+  setupCountry, setupMonths, toggleDay, type ClinicDraft, type MoneyDraft, type OwnerDraft,
 } from './lib'
 import { PinField } from './PinField'
 
@@ -94,6 +95,15 @@ export function ClinicStep({ value, onChange, err }: { value: ClinicDraft; onCha
   )
 }
 
+/** "Syria (+963)" in the interface language. */
+function countryLabel(t: (k: string, p?: Record<string, string | number>) => string, code: string): string {
+  return t('settings.clinic.countryOption', { country: t(`settings.country.${code}`), code })
+}
+/** Today's date as the clinic will print it in Arabic with the chosen month names. */
+function arabicSample(style: 'levant' | 'standard'): string {
+  try { return new Intl.DateTimeFormat(arabicDateLocale(style), { day: 'numeric', month: 'long', year: 'numeric' }).format(fromISODate(today())) } catch { return '' }
+}
+
 // ---- 3. money & time --------------------------------------------------------------------------
 export function MoneyStep({ value, onChange, err }: { value: MoneyDraft; onChange: (v: MoneyDraft) => void; err: ErrFn }) {
   const { t, lang } = useI18n()
@@ -106,6 +116,9 @@ export function MoneyStep({ value, onChange, err }: { value: MoneyDraft; onChang
   const onCurrency = (code: string) => onChange({ ...value, currency: code, decimals: code === CUSTOM_CURRENCY ? value.decimals : defaultDecimals(code) })
   const resolved = resolveCurrency(value)
   const sample = formatMoney(1250, { ...resolved, currencySymbol: resolved.currencySymbol || '¤', currency: resolved.currency || '' }, lang)
+  const country = setupCountry(value)
+  const months = setupMonths(value)
+  const [monthsHintPre = '', monthsHintPost = ''] = t('auth.money.monthsHint', { date: '{date}' }).split('{date}')
 
   return (
     <>
@@ -128,6 +141,23 @@ export function MoneyStep({ value, onChange, err }: { value: MoneyDraft; onChang
               error={err('customSymbol')} name="customSymbol" />
           </>}
           <div className="span-2 au-money-preview"><Coins /><span>{t('auth.money.preview')}</span><strong className="num">{sample}</strong></div>
+        </div>
+      </div>
+      <div className="form-section">
+        <div className="form-section-title"><Globe2 />{t('auth.money.secRegion')}</div>
+        <div className="form-grid">
+          {/* the country follows the currency until it is picked here (Settings → Clinic can change it later) */}
+          <Select label={t('auth.money.country')} hint={t('auth.money.countryHint')} value={country} onChange={e => set('countryCode', e.target.value)}
+            options={COUNTRY_CODES.map(code => ({ value: code, label: countryLabel(t, code) }))} name="country" data-qa="setup-country" />
+          <Field label={t('auth.money.months')} hint={<>{monthsHintPre}<bdi lang="ar" dir="rtl">{arabicSample(months)}</bdi>{monthsHintPost}</>}>
+            <div data-qa="setup-months">
+              <Segmented block value={months} onChange={v => set('arabicMonths', v)}
+                options={[
+                  { value: 'levant', label: <bdi lang="ar" dir="rtl">{t('settings.pref.monthsLevant')}</bdi> },
+                  { value: 'standard', label: <bdi lang="ar" dir="rtl">{t('settings.pref.monthsStandard')}</bdi> },
+                ]} />
+            </div>
+          </Field>
         </div>
       </div>
       <div className="form-section">
@@ -233,6 +263,8 @@ export function ReviewStep({ lang, clinic, money, owner, onEdit }: { lang: Lang;
             <dt>{t('auth.review.hours')}</dt><dd><bdi>{fmtTime(money.workStart, lang)}</bdi> – <bdi>{fmtTime(money.workEnd, lang)}</bdi></dd>
             <dt>{t('auth.review.slot')}</dt><dd>{t('auth.money.slotN', { n: money.slotMinutes })}</dd>
             <dt>{t('tax')}</dt><dd>{money.taxPercent ? <span className="num">{money.taxPercent}%</span> : t('auth.review.noTax')}</dd>
+            <dt>{t('auth.review.country')}</dt><dd>{countryLabel(t, setupCountry(money))}</dd>
+            <dt>{t('auth.review.months')}</dt><dd><bdi lang="ar" dir="rtl">{t(setupMonths(money) === 'levant' ? 'settings.pref.monthsLevant' : 'settings.pref.monthsStandard')}</bdi></dd>
           </dl>
         </div>
       </div>

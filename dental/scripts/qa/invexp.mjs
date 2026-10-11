@@ -1,4 +1,5 @@
-// QA for inventory + expenses (flows, DB assertions, screenshots in RTL/EN/phone). From dental/: npx vite build --outDir /tmp/dist-invexp && QA_DIST=/tmp/dist-invexp QA_PORT=4306 QA_SHOTS=qa-shots/invexp node scripts/qa/invexp.mjs
+// QA for inventory + expenses (flows, DB assertions, screenshots in RTL/EN/phone). From dental/ (a QA build, it has window.__dentora):
+//   VITE_QA=1 npx vite build --outDir /tmp/dist-invexp && QA_DIST=/tmp/dist-invexp QA_PORT=4306 QA_SHOTS=qa-shots/invexp node scripts/qa/invexp.mjs
 import { startServer, openBrowser, seedAndLogin, shot, BASE } from './lib.mjs'
 
 const errors = []
@@ -270,7 +271,8 @@ try {
     await page.getByLabel('الوصف').press('Enter')
     await page.waitForTimeout(500)
     const ex = await dbq(page, async () => (await window.__dentora.db.expenses.toArray())[0])
-    ok(ex && ex.amount === 45.5 && ex.category === 'utilities' && ex.by === 'u-admin' && ex.method === 'cash' && ex.vendor === 'مؤسسة المياه', 'expense created via Enter')
+    // the QA clinic counts in whole dollars (currencyDecimals 0): amounts are stored rounded to the currency, 45.5 → 46
+    ok(ex && ex.amount === 46 && ex.category === 'utilities' && ex.by === 'u-admin' && ex.method === 'cash' && ex.vendor === 'مؤسسة المياه', `expense created via Enter, stored in whole units (${ex?.amount})`)
     const act = await dbq(page, async () => (await window.__dentora.db.activity.where('type').equals('expense').toArray()).length)
     ok(act >= 1, 'expense activity logged')
 

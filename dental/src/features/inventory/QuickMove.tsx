@@ -5,7 +5,7 @@ import { createPortal } from 'react-dom'
 import { ArrowDownToLine, ArrowUpFromLine, X } from 'lucide-react'
 import { logActivity } from '@/db'
 import type { InventoryItem, StockReason } from '@/db/types'
-import { Button, Chip, Input, Modal, Segmented, useToast } from '@/ui'
+import { Button, Chip, Input, Modal, Segmented, useEscapeLayer, useToast } from '@/ui'
 import { NumberField } from './fields'
 import { useI18n } from '@/i18n'
 import { useSession } from '@/app/session'
@@ -120,6 +120,8 @@ export function QuickMovePopover({ item, dir, anchor, onClose }: { item: Invento
     return () => { window.removeEventListener('resize', place); window.removeEventListener('scroll', place, true) }
   }, [anchor, mobile, isRTL])
 
+  // desktop panel: Escape closes it through the kit's layer stack (on a phone the bottom sheet's Modal registers itself)
+  useEscapeLayer(mobile ? undefined : onClose)
   useEffect(() => {
     if (mobile) return
     const down = (e: MouseEvent) => {
@@ -127,10 +129,8 @@ export function QuickMovePopover({ item, dir, anchor, onClose }: { item: Invento
       if (ref.current?.contains(n) || anchor?.contains(n)) return
       onClose()
     }
-    const key = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
     document.addEventListener('mousedown', down)
-    window.addEventListener('keydown', key)
-    return () => { document.removeEventListener('mousedown', down); window.removeEventListener('keydown', key) }
+    return () => { document.removeEventListener('mousedown', down) }
   }, [anchor, mobile, onClose])
 
   const title = <span className="truncate inv-auto" dir="auto">{item.name}</span>

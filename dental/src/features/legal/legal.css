@@ -26,9 +26,11 @@
 .lg-pre { direction: ltr; text-align: left; white-space: pre-wrap; overflow-wrap: anywhere; font-family: var(--font-mono); font-size: 12px; line-height: 1.55; color: var(--text-2); background: var(--surface-2); border: 1px solid var(--divider); border-radius: var(--r-sm); padding: 10px 12px; margin: 8px 0 0; max-height: 320px; overflow: auto; }
 
 /* links row (Settings → About, the setup wizard) */
-.lg-links { display: flex; flex-wrap: wrap; align-items: center; gap: 2px 6px; font-size: var(--fs-sm); color: var(--text-3); }
+.lg-links { display: block; overflow: hidden; padding: 2px; margin: -2px; font-size: var(--fs-sm); color: var(--text-3); }
+.lg-links-row { display: flex; flex-wrap: wrap; align-items: center; row-gap: 2px; margin-inline-start: -16px; }
+.lg-links-item { display: inline-flex; align-items: center; }
 .lg-links .lg-link { font-size: inherit; }
-.lg-links .sep { color: var(--text-4); }
+.lg-links .sep { color: var(--text-4); width: 16px; flex: none; text-align: center; }
 .lg-accept { display: flex; align-items: flex-start; gap: 10px; font-size: var(--fs-sm); color: var(--text-2); }
 .lg-accept input { margin-top: 3px; width: 18px; height: 18px; accent-color: var(--primary); flex: none; }
 @media (pointer: coarse) { .lg-link { min-height: 40px; } .lg-accept input { width: 22px; height: 22px; } }

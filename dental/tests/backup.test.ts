@@ -183,6 +183,16 @@ describe('device settings through a restore', () => {
     expect(get(mergeDeviceSettings([], [], { exportedAt: '2026-10-01T00:00:00.000Z' }, now), 'lastBackupAt')).toBe('2026-10-01T00:00:00.000Z')
     expect(get(mergeDeviceSettings(rows({ pref: 1 }), [], {}, now), 'pref')).toBe(1)
   })
+  it('keeps the later licence clock of the device and the backup, so a restore never turns it back', () => {
+    const seen = (b: unknown, d: unknown) => get(mergeDeviceSettings(rows(b === undefined ? {} : { lastSeen: b }), rows(d === undefined ? {} : { lastSeen: d }), {}, now), 'lastSeen')
+    expect(seen('2026-09-01T00:00:00.000Z', '2026-10-11T08:00:00.000Z')).toBe('2026-10-11T08:00:00.000Z')   // an old backup
+    expect(seen('2026-10-20T00:00:00.000Z', '2026-10-11T08:00:00.000Z')).toBe('2026-10-20T00:00:00.000Z')   // a clock set back before the restore
+    expect(seen(undefined, '2026-10-11T08:00:00.000Z')).toBe('2026-10-11T08:00:00.000Z')
+    expect(seen('2026-10-01T00:00:00.000Z', undefined)).toBe('2026-10-01T00:00:00.000Z')
+    expect(seen('garbage', '2026-10-11T08:00:00.000Z')).toBe('2026-10-11T08:00:00.000Z')
+    expect(seen('2150-01-01T00:00:00.000Z', '2026-10-11T08:00:00.000Z')).toBe('2026-10-11T08:00:00.000Z')   // not a plausible date
+    expect(seen(undefined, undefined)).toBeUndefined()
+  })
 })
 
 describe('backup archive round trip', () => {
@@ -325,7 +335,9 @@ describe('backup archive round trip', () => {
   it('erase keeps the activation and trial start in the same transaction', async () => {
     await seedClinic(1)
     await setSetting('lastBackupAt', at)
+    await setSetting('lastSeen', '2026-10-11T08:00:00.000Z')
     await eraseEverything()
+    expect(await getSetting('lastSeen', null)).toBe('2026-10-11T08:00:00.000Z')     // the licence clock stays too
     expect(await db.patients.count()).toBe(0)
     expect(await db.files.count()).toBe(0)
     expect(await getSetting('installedAt', null)).toBe('2026-09-01T00:00:00.000Z')

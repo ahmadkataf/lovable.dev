@@ -14,6 +14,7 @@ import android.content.pm.ApplicationInfo;
 import android.content.pm.PackageInfo;
 import android.content.pm.PackageManager;
 import android.content.pm.ResolveInfo;
+import android.content.res.Configuration;
 import android.graphics.Color;
 import android.net.Uri;
 import android.os.Build;
@@ -248,7 +249,7 @@ public class MainActivity extends Activity {
         s.setDatabaseEnabled(true);
         s.setAllowFileAccess(false);           // the app is served from assets, never from file://
         s.setMediaPlaybackRequiresUserGesture(false);
-        s.setTextZoom(100);                    // the layout is designed for 100%; the phone's font size must not break it
+        s.setTextZoom(textZoom());             // the phone's font size, up to 130 % (WebFiles.textZoomFor)
         s.setMixedContentMode(WebSettings.MIXED_CONTENT_NEVER_ALLOW);
         s.setLoadWithOverviewMode(true);
         s.setUseWideViewPort(true);
@@ -275,6 +276,19 @@ public class MainActivity extends Activity {
         if (!WebFiles.isAppUrl(u.getScheme(), u.getHost())) return false;
         web.loadUrl(url);
         return true;
+    }
+
+    /** The text zoom for the phone's current font size (Settings → Display → Font size), capped at 130 %. */
+    private int textZoom() {
+        Configuration c = getResources().getConfiguration();
+        return WebFiles.textZoomFor(c == null ? 1f : c.fontScale);
+    }
+
+    /** fontScale is in configChanges: the activity stays, so a new font size is applied to the page here. */
+    @Override
+    public void onConfigurationChanged(Configuration newConfig) {
+        super.onConfigurationChanged(newConfig);
+        if (web != null && newConfig != null) web.getSettings().setTextZoom(WebFiles.textZoomFor(newConfig.fontScale));
     }
 
     @Override

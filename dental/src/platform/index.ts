@@ -389,13 +389,47 @@ export function openExternal(url: string): void {
   window.open(url, '_blank', 'noopener')
 }
 
-/** A stable id for this installation: the machine on Windows, ANDROID_ID on Android, a stored random id on the web. */
+/** The Windows or Android shell could not tell this device's id (and none was read before on this device). */
+export class DeviceIdError extends Error {
+  constructor() { super('device-id-unavailable'); this.name = 'DeviceIdError' }
+}
+export const isDeviceIdError = (e: unknown) => !!e && typeof e === 'object' && (e as { name?: string }).name === 'DeviceIdError'
+
+/** The last id a shell gave (the activation is bound to it): used when the shell does not answer for a moment. */
+const SHELL_ID_KEY = 'dentora.device.shell'
+/** How long to wait before asking the shell a second time. */
+export const DEVICE_ID_RETRY_MS = 400
+
+async function askShell(p: Platform): Promise<string> {
+  const id = p === 'electron' ? await window.dentora!.deviceId() : window.DentoraAndroid!.deviceId()
+  return typeof id === 'string' ? id.trim() : ''
+}
+
+/**
+ * A stable id for this installation: the machine on Windows, ANDROID_ID on Android, a stored random id on the web.
+ * In the Windows and Android apps the id always comes from the shell, never from a random one: a different id would
+ * make a different device number and void the clinic's activation. When the shell fails (throws or answers empty),
+ * it is asked once more; then the id it gave last time on this device is used, and without one this rejects with
+ * DeviceIdError, which the licence screen explains.
+ */
 export async function rawDeviceId(): Promise<string> {
   const p = platform()
-  try {
-    if (p === 'electron' && window.dentora) { const id = await window.dentora.deviceId(); if (id) return id }
-    if (p === 'android' && window.DentoraAndroid) { const id = window.DentoraAndroid.deviceId(); if (id) return id }
-  } catch { /* fall through to the stored id */ }
+  if (p === 'electron' || p === 'android') {
+    for (let attempt = 0; attempt < 2; attempt++) {
+      if (attempt) await new Promise(r => setTimeout(r, DEVICE_ID_RETRY_MS))
+      try {
+        const id = await askShell(p)
+        if (id) {
+          try { if (localStorage.getItem(SHELL_ID_KEY) !== id) localStorage.setItem(SHELL_ID_KEY, id) } catch { /* private mode */ }
+          return id
+        }
+      } catch { /* asked again below */ }
+    }
+    let cached = ''
+    try { cached = localStorage.getItem(SHELL_ID_KEY) || '' } catch { /* private mode */ }
+    if (cached) return cached
+    throw new DeviceIdError()
+  }
   const KEY = 'dentora.device'
   let id = ''
   try { id = localStorage.getItem(KEY) || '' } catch { /* private mode */ }

@@ -46,7 +46,8 @@ npm run electron:build
 npm run electron:dev                       # build the web app and open it in Electron (no installer)
 npx electron-builder --win --dir           # unpacked app only: release\win-unpacked\Dentora.exe
 $env:DENTORA_DEV=1; npm run electron:dev   # same, with Developer Tools (F12) in the View menu (development only)
-node scripts/qa/electron.mjs               # automated checks of the desktop shell (window, bridge, data after restart)
+$env:VITE_QA=1; npx vite build --outDir $env:TEMP\dist-qa; $env:VITE_QA=$null
+$env:QA_DIST="$env:TEMP\dist-qa"; node scripts/qa/electron.mjs   # automated checks of the desktop shell (a QA build: window, bridge, data after restart)
 ```
 
 لتغيير رقم الإصدار: عدّل `"version"` في `dental/package.json` (يظهر في البرنامج وفي أسماء الملفات).
@@ -57,6 +58,7 @@ node scripts/qa/electron.mjs               # automated checks of the desktop she
 ## 3. التثبيت في العيادة
 
 1. شغّل `Dentora-Setup-<الإصدار>.exe`. تظهر واجهة التثبيت بالإنجليزية إن كانت لغة ويندوز الإنجليزية، وبالعربية في غير ذلك.
+   أول صفحة فيها **شروط الاستخدام** (بالعربية ثم الإنجليزية، من `build/license.txt`) ويجب قبولها للمتابعة.
 2. **إن كان البرنامج غير موقَّع رقمياً**:
    - على حاسوب Windows 11 جديد يكون **Smart App Control** مفعّلاً غالباً، وهو **يمنع** تشغيل برنامج التثبيت غير الموقَّع
      ولا يقدّم زر «تشغيل على أي حال». الحل هو التوقيع (القسم 7). لا تطلب من العيادة إيقاف Smart App Control من «أمن Windows»:
@@ -64,8 +66,10 @@ node scripts/qa/electron.mjs               # automated checks of the desktop she
    - في غير ذلك يُظهر **SmartScreen** رسالة «حمى Windows جهاز الكمبيوتر»: **مزيد من المعلومات** ثم **تشغيل على أي حال**.
 3. يظهر مباشرة اختيار مجلد التثبيت (الافتراضي `%LOCALAPPDATA%\Programs\Dentora` داخل حساب المستخدم، فلا حاجة لصلاحيات المدير)،
    ثم يفتح Dentora تلقائياً. إن كانت نسخة قديمة مثبّتة «لكل المستخدمين» فيُحدَّث البرنامج في مكانه نفسه.
-4. في أول تشغيل يظهر معالج الإعداد: اللغة، بيانات العيادة، العملة والدوام، ثم حساب المدير ورمز PIN.
+4. في أول تشغيل يظهر معالج الإعداد: اللغة، بيانات العيادة، العملة والدوام والبلد وأسماء الأشهر، ثم حساب المدير ورمز PIN،
+   ثم المراجعة والموافقة على شروط الاستخدام وسياسة الخصوصية.
    إن كانت لديك نسخة احتياطية سابقة فاضغط في الخطوة الأولى **«استعد بياناتك من نسخة احتياطية»**.
+5. يُطلب رمز PIN عند **كل** فتح للبرنامج (الدخول محفوظ لهذا التشغيل فقط)، ويُقفل تلقائياً بعد مدة الخمول المختارة في الإعدادات.
 
 **التحديث إلى إصدار أحدث:** خذ نسخة احتياطية، ثم شغّل برنامج التثبيت الجديد فوق القديم. البيانات تبقى كما هي.
 
@@ -109,8 +113,13 @@ node scripts/qa/electron.mjs               # automated checks of the desktop she
 البيانات موجودة على هذا الحاسوب فقط؛ إن تعطل القرص أو سُرق الجهاز ضاعت معه. لذلك:
 
 1. **من داخل البرنامج** (الطريقة الأساسية): الإعدادات ← **النسخ الاحتياطي** ← **«تصدير نسخة احتياطية»**، ثم اختر مكان الحفظ
-   (فلاشة USB مثلاً). يُحفظ ملف ‎`.json` واحد يحوي كل الجداول والملفات المرفقة.
-   والاستعادة من الشاشة نفسها: **«استعادة نسخة احتياطية»** (تحلّ محل البيانات الحالية بعد التأكيد).
+   (فلاشة USB مثلاً). يُحفظ ملف واحد مثل `dentora-backup-2026-10-11-0930.dentora`: أرشيف ZIP فيه كل جداول البيانات، وكل صورة
+   أو أشعة أو PDF في ملف مستقل بحجمه الأصلي، وملف وصف (manifest) بالأعداد. يمكن **حمايته بكلمة مرور** (تشفير AES-256-GCM؛
+   من دونها لا يُفتح الملف أبداً، فاحفظها). بعد الكتابة يقرأ البرنامج الملف من القرص ويتحقق من حجمه وبصمته قبل أن يقول «تم الحفظ»؛
+   وإن امتلأ القرص أو فشلت الكتابة يقول ذلك صراحة.
+   والاستعادة من الشاشة نفسها: **«استعادة نسخة احتياطية»**: يُفحص الملف كله أولاً (يُطلب كلمة المرور إن كان محمياً)، ثم يحلّ محل
+   البيانات الحالية دفعة واحدة بعد التأكيد، أو لا يتغير شيء. النسخ القديمة بصيغة `.json` ما زالت تُستعاد. يبقى تفعيل هذا الجهاز
+   وتاريخ بداية تجربته كما هما.
 2. **وتيرة مقترحة**: نسخة يومية في نهاية الدوام، ونسخة أسبوعية على وسيط خارجي.
 3. **قاعدة 3-2-1**: ثلاث نسخ، على وسيطين مختلفين (مثلاً فلاشة USB وقرص خارجي)، وواحدة خارج العيادة (Google Drive أو OneDrive أو في المنزل).
 4. **جرّب الاستعادة** مرة كل بضعة أشهر على حاسوب آخر للتأكد من أن النسخ سليمة.
@@ -137,6 +146,9 @@ node scripts/qa/electron.mjs               # automated checks of the desktop she
   لا تهم. التحقق يتم داخل البرنامج دون إنترنت. الرمز مرتبط بهذا الجهاز فقط، وقد يكون لمدة محددة أو مدى الحياة (الخطة Standard أو Pro).
 - رمز التفعيل لا يعمل على حاسوب آخر؛ لكل حاسوب رقم جهاز ورمز خاص به.
 - عند إعادة تثبيت ويندوز أو تبديل الحاسوب: صدّر نسخة احتياطية أولاً، ثم أرسل رقم الجهاز الجديد إلى البائع لتحصل على رمز جديد.
+- **نسيان رمز الدخول (PIN):** إن نسي المدير الوحيد رمزه يرسل رقم الجهاز إلى البائع، فيصنع له **رمز إعادة تعيين**
+  (`node scripts/code-generator.mjs reset <رقم-الجهاز>` أو قسم الإعادة في صفحة المولّد) يعمل على هذا الجهاز اليوم وغداً ولمرة واحدة:
+  شاشة الدخول ← «نسيت رمز الدخول؟» ← «لدي رمز إعادة تعيين»، ثم رمز جديد. لا تُمس بيانات المرضى.
 
 ## 7. التوقيع الرقمي (ضروري قبل البيع)
 
@@ -197,7 +209,8 @@ node scripts/qa/electron.mjs               # automated checks of the desktop she
 | `electron/main.cjs` | العملية الرئيسية: النافذة وحفظ حالتها، القائمة وقائمة الزر الأيمن، CSP، حماية التنقل والروابط الخارجية، معالجات IPC، رفض خيارات التصحيح |
 | `electron/lib.cjs` | قرارات بلا Electron (مكان النافذة، عنوان صفحة البرنامج، خيارات التصحيح المرفوضة، قائمة الزر الأيمن، رقم الجهاز الثابت)، تختبرها `tests/native-shell.test.ts` |
 | `electron/preload.cjs` | الجسر `window.dentora` (مطابق لـ `ElectronBridge` في `src/platform/index.ts`) |
-| `electron-builder.yml` | إعدادات الحزم: NSIS + Portable، اللغات، الأيقونات، Electron fuses، عدم حذف البيانات عند الإلغاء |
+| `electron-builder.yml` | إعدادات الحزم: NSIS + Portable، اللغات، الأيقونات، Electron fuses، صفحة شروط الاستخدام (`nsis.license`)، عدم حذف البيانات عند الإلغاء |
+| `build/license.txt` | شروط الاستخدام في برنامج التثبيت (عربي ثم إنجليزي، UTF-8 مع BOM)، يولّدها `node scripts/make-license-txt.mjs` من `docs/TERMS.md`؛ يتأكد `tests/release-files.test.ts` أنها محدّثة |
 | `build/` | الأيقونات: `icon.png` (512) و `icon.ico` (16–256)؛ `installer.nsh` (تثبيت للمستخدم الحالي دون صفحة الاختيار، ورسائل عربية)؛ `installerSidebar.bmp` و`uninstallerSidebar.bmp` (صورة صفحات الترحيب والإنهاء، يرسمها `make-installer-art.mjs`) |
 | `scripts/qa/electron.mjs` | فحص آلي بـ Playwright لنافذة Electron والجسر واستمرار البيانات |
 | `.github/workflows/dentora-windows.yml` | البناء على `windows-latest` والتوقيع (إن وُجدت الأسرار)، ثم فحص `Dentora.exe` المبني: يعمل، يرفض منفذ التصحيح، ويرفض `app.asar` معدّلاً؛ ورفع الملفات كـ Artifact |
@@ -213,20 +226,25 @@ python3 build/make-ico.py
 الفحص الآلي على Linux (يحتاج شاشة افتراضية) وعلى الحزمة المبنية:
 
 ```bash
-npm run build && xvfb-run -a node scripts/qa/electron.mjs
-# a private build in a staged app folder (safe while other builds rewrite dist/)
-npx vite build --outDir /tmp/dist-x && QA_DIST=/tmp/dist-x QA_SHOTS=qa-shots/electron-x xvfb-run -a node scripts/qa/electron.mjs
-npx electron-builder --win --dir && QA_APP=release/win-unpacked/resources/app.asar xvfb-run -a node scripts/qa/electron.mjs
+VITE_QA=1 npx vite build && xvfb-run -a node scripts/qa/electron.mjs
+# a private QA build in a staged app folder (safe while other builds rewrite dist/)
+VITE_QA=1 npx vite build --outDir /tmp/dist-x && QA_DIST=/tmp/dist-x QA_SHOTS=qa-shots/electron-x xvfb-run -a node scripts/qa/electron.mjs
+VITE_QA=1 npx vite build && npx electron-builder --win --dir && QA_APP=release/win-unpacked/resources/app.asar xvfb-run -a node scripts/qa/electron.mjs
+# then rebuild dist/ without VITE_QA (npm run build) before any build you hand to a clinic
 ```
 
 يفحص النافذة والجسر والعزل وCSP والروابط الخارجية والحوار الأصلي للحفظ والفتح والطباعة (`Ctrl P`) وعرض PDF داخل البرنامج
 والحافظة والواجهة الإنجليزية وكل الشاشات دون أخطاء، ومنع تشغيل نسخة ثانية، وبقاء البيانات وحجم النافذة بعد إعادة التشغيل.
 على ويندوز يتأكد أيضاً أن رقم الجهاز مشتق من MachineGuid. الصور في `qa-shots/electron/`.
 
+`scripts/qa/electron.mjs` يحتاج بناءً للفحص (`VITE_QA=1 npx vite build …`، فيه `window.__dentora`)؛ `npm run build` لا يضبط
+`VITE_QA`، فالبرنامج المبني للبيع لا يعطي الصفحة أي وصول إلى قاعدة البيانات.
+
 متغيرات البيئة: `DENTORA_DEV=1` (أدوات المطوّر، **في التطوير فقط**: `npm run electron:dev`؛ البرنامج المثبّت يتجاهله)،
 `DENTORA_USER_DATA=<dir>` (مجلد بيانات منفصل للتجارب)، `DENTORA_DISABLE_GPU=1` أو الخيار `--disable-gpu` (رسم برمجي دون كرت الشاشة).
 
-قواعد الأمان المطبقة: `contextIsolation` و`sandbox` مفعّلان و`nodeIntegration` معطّل؛ سياسة CSP صارمة (`script-src 'self'`)؛ أي رابط
+قواعد الأمان المطبقة: `contextIsolation` و`sandbox` مفعّلان و`nodeIntegration` معطّل؛ سياسة CSP صارمة (`script-src 'self'`،
+`object-src 'none'`، `form-action 'none'`) يرسلها `main.cjs` (من `lib.cjs`) وهي نفسها في `index.html`؛ أي رابط
 `http(s)`/`mailto`/`tel` يفتح في المتصفح أو التطبيق الافتراضي؛ لا يمكن للصفحة مغادرة `dist/index.html` (يُقارن العنوان بالمسار بعد فك
 ترميزه، فيعمل الجسر ولو كان في مسار التثبيت أو اسم المستخدم `%` أو `#` أو حروف عربية)؛ ونوافذ العرض (`blob:`) لا تصل إلى الجسر.
 والبرنامج المثبّت (لا نسخة التطوير):
@@ -236,6 +254,10 @@ npx electron-builder --win --dir && QA_APP=release/win-unpacked/resources/app.as
   `app.asar` المضمّنة في `Dentora.exe` (أي تعديل على الأرشيف بعد البناء يمنع التشغيل). للتحقق:
   `npx @electron/fuses read --app release/win-unpacked/Dentora.exe`.
 - لا يُحمّل قاموس التدقيق الإملائي من الإنترنت (التدقيق معطّل)، ولا يتصل بأي عنوان خارجي.
+- يمنح الصفحة إذن `persistent-storage` (مع الحافظة وملء الشاشة والإشعارات والكاميرا): `navigator.storage.persist()` عند البدء يجعل
+  Chromium لا يحذف بيانات العيادة حين تقل مساحة القرص، وتظهر حالته في الإعدادات ← النسخ الاحتياطي.
+- رقم الجهاز يأتي دائماً من `device-id.json`/MachineGuid عبر الجسر؛ إن لم يُجب الجسر لحظةً يُسأل مرة ثانية ثم يُستخدم آخر رقم
+  قرأه البرنامج على هذا الجهاز، ولا يُخترع رقم عشوائي أبداً (يبطل التفعيل). إن لم يُقرأ من قبل تقول شاشة الترخيص ذلك مع «إعادة المحاولة».
 - الطباعة على خلفية بيضاء (هوامش الفاتورة والوصفة لا تخرج رمادية).
 
 لإعادة رسم صورة برنامج التثبيت بعد تغيير الشعار: `node build/make-installer-art.mjs`.

@@ -95,7 +95,8 @@ export default function DashboardPage() {
     }
   }, [raw, today])
   const backupAge = raw.backup ? backupAgeDays(raw.backup.at, clock) : undefined
-  const backupDue = raw.backup !== undefined && backupOverdue(backupAge)
+  // a brand-new clinic with nothing in it has nothing to back up yet
+  const backupDue = raw.backup !== undefined && raw.backup.hasData && backupOverdue(backupAge)
 
   const revText = useBucketText(c?.rev30 ?? [], 'day')
   const user = session.user

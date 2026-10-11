@@ -9,6 +9,7 @@ import type { Invoice, Lang } from '@/db/types'
 import { I18nProvider, useI18n } from '@/i18n'
 import { useClinic } from '@/app/hooks'
 import { fmtDate } from '@/lib/dates'
+import { displayName } from '@/features/auth/lib'
 import { Button, Loading, Modal } from '@/ui'
 import { groupReceipts, invoiceBalance, receiptKey } from './lib'
 import { docTitle, Money, printModalSheet, SheetHeader, usePrintCleanup } from './shared'
@@ -73,7 +74,7 @@ export function ReceiptModal({ paymentId, onClose }: { paymentId: string; onClos
             {single && <><dt>{t('billing.receipt.remaining')}</dt><dd><Money value={invoiceBalance(single)} /></dd></>}
             {g.reference && <><dt>{t('reference')}</dt><dd><span className="ltr">{g.reference}</span></dd></>}
             {g.note && <><dt>{t('notes')}</dt><dd>{g.note}</dd></>}
-            <dt>{t('billing.receipt.receivedBy')}</dt><dd>{data.user?.name ?? '—'}</dd>
+            <dt>{t('billing.receipt.receivedBy')}</dt><dd dir="auto">{data.user ? displayName(data.user) : '—'}</dd>
           </dl>
           <div className="bl-sign">
             <div>{t('billing.receipt.receivedBy')}</div>

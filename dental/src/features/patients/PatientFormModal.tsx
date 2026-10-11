@@ -8,14 +8,13 @@ import { useI18n } from '@/i18n'
 import { useDebounced, useDoctors } from '@/app/hooks'
 import { useSession } from '@/app/session'
 import { useLicense } from '@/license/useLicense'
-import { Alert, Avatar, Button, Field, Input, Modal, Segmented, Select, Textarea, useToast } from '@/ui'
+import { Alert, Avatar, Button, Field, Input, Modal, Segmented, Select, Textarea, revealFirstError, useToast } from '@/ui'
 import { ageFrom } from '@/lib/dates'
 import { colorFor, formatPhone } from '@/lib/format'
 import { imageToDataUrl, pickFile } from '@/platform'
 import { cleanPhone, digitsOnly, findDuplicatePhone, sanitizePhoneInput, validatePatient, type PatientErrors, type PatientField } from './lib'
 import { ChipInput, useGuardedClose, usePlural } from './parts'
 import { phoneOwner, usePatientIndex } from './directory'
-import { revealFirstError } from './reveal'
 
 /** Create / edit a patient. onSaved receives the saved patient's id. */
 export interface PatientFormModalProps { open: boolean; onClose: () => void; patient?: Patient; onSaved?: (id: string) => void }
@@ -100,7 +99,7 @@ export default function PatientFormModal({ open, onClose, patient, onSaved }: Pa
     setSubmitted(true)
     if (Object.keys(errors).length) {
       // bring the first problem into view (a tall bottom sheet on a phone may have it far above)
-      revealFirstError(() => formRef.current)
+      revealFirstError(formRef.current)
       return
     }
     busy.current = true

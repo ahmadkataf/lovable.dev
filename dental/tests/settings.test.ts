@@ -153,13 +153,15 @@ describe('restore and reset keep this device’s activation', () => {
     await setSetting('license', { code: 'X', plan: 'pro', until: null })
     await setSetting('installedAt', '2026-10-01T00:00:00.000Z')
     await setSetting('lastBackupAt', '2026-10-02T00:00:00.000Z')
-    localStorage.setItem('dentora.session', 'u-admin')
+    sessionStorage.setItem('dentora.session', JSON.stringify({ id: 'u-admin', at: Date.now() }))
+    localStorage.setItem('dentora.session', 'u-admin')     // an older version's copy
     await eraseEverything()
     expect(await db.patients.count()).toBe(0)
     expect(await db.clinic.count()).toBe(0)
     expect(await getSetting('license', null)).toEqual({ code: 'X', plan: 'pro', until: null })
     expect(await getSetting('installedAt', null)).toBe('2026-10-01T00:00:00.000Z')
     expect(await getSetting('lastBackupAt', null)).toBeNull()
+    expect(sessionStorage.getItem('dentora.session')).toBeNull()
     expect(localStorage.getItem('dentora.session')).toBeNull()
   })
   it('restores another device’s backup without taking over its licence', async () => {
@@ -249,7 +251,7 @@ describe('seller code generator', () => {
     const i = { code: 'ABCD-EFGH-JKLM-NPQR', plan: 'pro' as const, until: '2027-10-10', device: '7KQ4-M2XD' }
     expect(clinicMessage(i, 'ar', 'عيادة النور')).toContain('ABCD-EFGH-JKLM-NPQR')
     expect(clinicMessage(i, 'ar')).toContain('صالح حتى \u200E2027-10-10')
-    expect(clinicMessage({ ...i, until: null }, 'en')).toContain('lifetime license')
+    expect(clinicMessage({ ...i, until: null }, 'en')).toContain('lifetime licence')
     expect(waLink('0944 123 456', 'hi')).toBe('https://wa.me/963944123456?text=hi')
     expect(waLink('+966 50 000 0000', 'hi')).toBe('https://wa.me/966500000000?text=hi')
     const csv = toCSV([{ ...i, at: '2026-10-10T10:00:00Z', note: 'عيادة "النور", دمشق' }])

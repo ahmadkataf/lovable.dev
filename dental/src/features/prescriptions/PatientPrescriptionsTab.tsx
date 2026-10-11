@@ -56,7 +56,7 @@ export default function PatientPrescriptionsTab({ patientId }: { patientId: stri
                   {s.names.map((n, i) => <span key={i} className="rx-sum-pill" dir="auto">{n}</span>)}
                   {s.more > 0 && <span className="rx-sum-more num">+{s.more}</span>}
                 </div>
-                <div className="li-sub row gap-1 mt-1"><Stethoscope size={13} />{doctorLabel(userMap.get(rx.doctorId)) || '—'}<span className="muted">·</span>{t('prescriptions.itemsN', { n: rx.items.length })}</div>
+                <div className="li-sub rx-pitem-meta mt-1"><Stethoscope size={13} /><span className="truncate">{doctorLabel(userMap.get(rx.doctorId)) || '—'}</span><span className="muted">·</span><span className="nowrap">{t('prescriptions.itemsN', { n: rx.items.length })}</span></div>
               </div>
               <div className="li-end rx-actions" onClick={e => e.stopPropagation()}>
                 <IconButton variant="ghost" size="sm" label={t('prescriptions.openPrint')} onClick={() => setOpenId(rx.id)}><Printer /></IconButton>

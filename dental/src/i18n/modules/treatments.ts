@@ -53,7 +53,9 @@ const treatments: ModuleDict = {
     'teeth.upper': 'الفك العلوي', 'teeth.lower': 'الفك السفلي', 'teeth.primary': 'أسنان لبنية', 'teeth.clear': 'إلغاء التحديد', 'teeth.right': 'يمين', 'teeth.left': 'يسار',
 
     // chart update
-    'chart.title': 'تحديث مخطط الأسنان؟', 'chart.sub': 'أُنجز «{name}». سجّل ما تركه العلاج على السن ليبقى المخطط محدّثاً.', 'chart.condition': 'الحالة المسجّلة',
+    'chart.title': 'تحديث مخطط الأسنان؟', 'chart.sub': 'أُنجز «{name}». سجّل ما تركه العلاج على السن ليبقى المخطط محدّثاً.',
+    'chart.subTeeth': 'أُنجز «{name}» على الأسنان {teeth}. سجّل ما تركه العلاج على كل سن ليبقى المخطط محدّثاً.',
+    'chart.subMany': 'أُنجزت {n, plural, two {معالجتان} few {# معالجات} many {# معالجةً} other {# معالجة}}. سجّل ما تركه العلاج على كل سن ليبقى المخطط محدّثاً.', 'chart.condition': 'الحالة المسجّلة',
     'chart.apply': 'تحديث المخطط', 'chart.skip': 'ليس الآن', 'chart.needSurface': 'اختر سطحاً واحداً على الأقل',
 
     // billing
@@ -168,7 +170,9 @@ const treatments: ModuleDict = {
     'picker.search': 'Search by name or code…', 'picker.noMatch': 'Try another word or category.', 'picker.noProcedures': 'Add procedures to the price list first.',
     'teeth.upper': 'Upper jaw', 'teeth.lower': 'Lower jaw', 'teeth.primary': 'Primary teeth', 'teeth.clear': 'Clear', 'teeth.right': 'Right', 'teeth.left': 'Left',
 
-    'chart.title': 'Update the dental chart?', 'chart.sub': '“{name}” is done. Record what it left on the tooth so the chart stays current.', 'chart.condition': 'Condition to record',
+    'chart.title': 'Update the dental chart?', 'chart.sub': '“{name}” is done. Record what it left on the tooth so the chart stays current.',
+    'chart.subTeeth': '“{name}” is done on teeth {teeth}. Record what it left on each tooth so the chart stays current.',
+    'chart.subMany': '{n, plural, one {# treatment is} other {# treatments are}} done. Record what each left on its tooth so the chart stays current.', 'chart.condition': 'Condition to record',
     'chart.apply': 'Update chart', 'chart.skip': 'Not now', 'chart.needSurface': 'Pick at least one surface',
 
     'bill.button': 'Bill completed', 'bill.title': 'Bill completed treatments', 'bill.sub': 'Choose the items to include in the invoice.', 'bill.create': 'Create invoice',

@@ -3,7 +3,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { MoreVertical } from 'lucide-react'
-import type { MenuItemDef } from '@/ui'
+import { useEscapeLayer, type MenuItemDef } from '@/ui'
 import { useI18n } from '@/i18n'
 
 /** `items` may be a function, called when the menu opens (e.g. to check one item's history then, not for every row). */
@@ -43,6 +43,8 @@ export function RowMenu({ items: source, label, size = 'sm' }: { items: MenuItem
     return () => { window.removeEventListener('resize', place); window.removeEventListener('scroll', place, true) }
   }, [open, isRTL, items.length, ready])
 
+  // Escape and the Android Back key close the menu first (the kit's layer stack), never the dialog or drawer under it
+  useEscapeLayer(open ? () => setOpen(false) : undefined)
   useEffect(() => {
     if (!open) return
     const down = (e: MouseEvent | TouchEvent) => {
@@ -50,9 +52,8 @@ export function RowMenu({ items: source, label, size = 'sm' }: { items: MenuItem
       if (menu.current?.contains(n) || btn.current?.contains(n)) return
       setOpen(false)
     }
-    const key = (e: KeyboardEvent) => { if (e.key === 'Escape') setOpen(false) }
-    document.addEventListener('mousedown', down); document.addEventListener('touchstart', down); window.addEventListener('keydown', key)
-    return () => { document.removeEventListener('mousedown', down); document.removeEventListener('touchstart', down); window.removeEventListener('keydown', key) }
+    document.addEventListener('mousedown', down); document.addEventListener('touchstart', down)
+    return () => { document.removeEventListener('mousedown', down); document.removeEventListener('touchstart', down) }
   }, [open])
 
   return (

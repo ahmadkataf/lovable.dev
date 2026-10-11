@@ -2,7 +2,7 @@ import {
   CURRENCIES, CUSTOM_CURRENCY, FRESH_GUARD, GUARD_FORGET_MS, LOCK_MS, LOCK_STEPS_MS, MAX_ATTEMPTS, attemptsLeft, autoSubmitLength, buildClinicPatch, cleanCurrencyCode, currencyPreset,
   defaultDecimals, displayName, dotCount, formatCountdown, greetingKey, isEmail, isLocked, isPhone, lockDuration, lockRemaining, mergeGuards, normalizeDigits, normalizeGuard,
   orderedDays, parseGuard, parseGuards, pinError, pinErrorKey, ownerTitleFor, plainName, registerFailure, resolveCurrency, sanitizePin, sortAdminsForReset, stricterGuard, toggleDay,
-  validateClinicStep, validateMoneyStep, validateOwnerStep, type LoginGuard, type MoneyDraft, type OwnerDraft,
+  setupCountry, setupMonths, validateClinicStep, validateMoneyStep, validateOwnerStep, type LoginGuard, type MoneyDraft, type OwnerDraft,
 } from '../src/features/auth/lib'
 import {
   AREAS, ROLES, ROLE_PERMS, STAFF_COLORS, activeAdmins, deactivateBlock, defaultTitleFor, deleteBlock, filterStaff, lastLoginMap, newestFirst, nextFreeColor, roleAreas, roleCan,
@@ -35,8 +35,8 @@ describe('auth: currency presets', () => {
     for (const c of CURRENCIES) expect([0, 2, 3]).toContain(c.decimals)
   })
   it('keeps the fils of the dinars and the Omani rial: 3 decimals', () => {
-    for (const code of ['KWD', 'BHD', 'OMR', 'JOD']) expect(defaultDecimals(code), code).toBe(3)
-    expect(CURRENCIES.filter(c => c.decimals === 3).map(c => c.code).sort()).toEqual(['BHD', 'JOD', 'KWD', 'OMR'])
+    for (const code of ['KWD', 'BHD', 'OMR', 'JOD', 'TND', 'LYD']) expect(defaultDecimals(code), code).toBe(3)
+    expect(CURRENCIES.filter(c => c.decimals === 3).map(c => c.code).sort()).toEqual(['BHD', 'JOD', 'KWD', 'LYD', 'OMR', 'TND'])
     expect(resolveCurrency({ currency: 'KWD', customCode: '', customSymbol: '', decimals: 3 })).toEqual({ currency: 'KWD', currencySymbol: 'د.ك', currencyDecimals: 3 })
     expect(auth.ar['money.dec3']).toBeTruthy()
     expect(auth.en['money.dec3']).toBeTruthy()
@@ -236,6 +236,28 @@ describe('auth: setup wizard steps', () => {
     expect(p.phone).toBeUndefined()
     expect(buildClinicPatch('en', { name: 'A', phone: '', address: '', email: '' }, { ...money, slotMinutes: 60 }).defaultAppointmentMinutes).toBe(60)
     expect(buildClinicPatch('en', { name: 'A', phone: '', address: '', email: '' }, { ...money, taxPercent: null }).taxPercent).toBe(0)
+  })
+  it('the country follows the currency until picked, and the Arabic months follow the country until picked', () => {
+    expect(setupCountry({ ...money, currency: 'SAR' })).toBe('966')
+    expect(setupCountry({ ...money, currency: 'SYP' })).toBe('963')
+    expect(setupCountry({ ...money, currency: CUSTOM_CURRENCY, customCode: 'YER', customSymbol: 'ر.ي' })).toBe('967')   // a typed code counts too
+    expect(setupCountry({ ...money, currency: CUSTOM_CURRENCY, customCode: 'XAF', customSymbol: 'F' })).toBe('963')     // unknown: Syria
+    expect(setupCountry({ ...money, currency: 'SAR', countryCode: '20' })).toBe('20')
+    expect(setupCountry({ ...money, currency: 'SAR', countryCode: 'x1' })).toBe('966')                                // not a code: ignored
+    expect(setupMonths({ ...money, currency: 'SYP' })).toBe('levant')
+    expect(setupMonths({ ...money, currency: 'SAR' })).toBe('standard')
+    expect(setupMonths({ ...money, currency: 'SAR', countryCode: '962' })).toBe('levant')
+    expect(setupMonths({ ...money, currency: 'SYP', arabicMonths: 'standard' })).toBe('standard')
+    expect(setupMonths({ ...money, currency: 'SAR', arabicMonths: 'auto' })).toBe('standard')
+  })
+  it('stores automatic choices as automatic, picked ones as picked', () => {
+    const c = { name: 'A', phone: '', address: '', email: '' }
+    const auto = buildClinicPatch('ar', c, { ...money, currency: 'SAR' })
+    expect(auto.countryCode).toBe('')
+    expect('arabicMonths' in auto).toBe(false)
+    const picked = buildClinicPatch('ar', c, { ...money, currency: 'SAR', countryCode: '962', arabicMonths: 'levant' })
+    expect(picked).toMatchObject({ countryCode: '962', arabicMonths: 'levant' })
+    expect(buildClinicPatch('ar', c, { ...money, countryCode: '12345', arabicMonths: 'auto' })).toMatchObject({ countryCode: '' })
   })
   it('names and greetings', () => {
     expect(displayName({ name: 'أحمد الخطيب', title: 'د.' })).toBe('د. أحمد الخطيب')

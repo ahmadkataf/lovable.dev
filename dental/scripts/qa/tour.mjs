@@ -1,32 +1,25 @@
 // Screenshots every screen of the app in three viewports (desktop Arabic, desktop English, phone 390×844),
-// optionally after loading the demo clinic, and reports horizontal overflow and page errors.
-//   npx vite build --outDir /tmp/dist-tour
+// optionally after loading the demo clinic, and reports horizontal overflow, untranslated keys, page errors and
+// Content-Security-Policy violations (the build's own index.html policy is in force, as in the shipped apps).
+// It needs a QA build (one with window.__dentora):
+//   VITE_QA=1 npx vite build --outDir /tmp/dist-tour
 //   QA_DIST=/tmp/dist-tour QA_PORT=4420 QA_SHOTS=qa-shots/tour node scripts/qa/tour.mjs [--demo] [--only=desktop-ar,mobile-ar]
-import path from 'node:path'
-import os from 'node:os'
-import fs from 'node:fs'
-import { fileURLToPath } from 'node:url'
-import { startServer, openBrowser, seedAndLogin, shot, BASE } from './lib.mjs'
+import { startServer, openBrowser, seedAndLogin, requireQaHandle, loadDemo, shot, BASE, DIST, NO_QA_HANDLE } from './lib.mjs'
 
-const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const DEMO = process.argv.includes('--demo')
 const only = (process.argv.find(a => a.startsWith('--only=')) || '').slice(7).split(',').filter(Boolean)
 const ROUTES = ['/', '/appointments', '/patients', '/treatments', '/prescriptions', '/lab', '/invoices', '/payments', '/expenses', '/reports', '/inventory', '/procedures', '/staff', '/settings', '/settings/preferences', '/settings/backup', '/settings/license']
 
-async function demoBundle() {
-  const { build } = await import('vite')
-  const out = fs.mkdtempSync(path.join(os.tmpdir(), 'dentora-tour-seed-'))
-  await build({
-    configFile: false, root: ROOT, logLevel: 'warn',
-    resolve: { alias: { '@': path.join(ROOT, 'src') } },
-    define: { __APP_VERSION__: '"qa"', 'process.env.NODE_ENV': '"production"' },
-    build: { outDir: out, emptyOutDir: true, minify: false, lib: { entry: path.join(ROOT, 'src/features/seed/demo.ts'), name: 'DentoraSeed', formats: ['iife'], fileName: () => 'seed.js' } },
-  })
-  return path.join(out, 'seed.js')
-}
-
-const bundle = DEMO ? await demoBundle() : null
 const server = await startServer()
+// a release build has no database handle: refuse at once, with the command that makes a QA build
+{
+  const { browser, page } = await openBrowser()
+  await page.goto(`${BASE}/index.html#/`)
+  const ready = await requireQaHandle(page, 15000).then(() => true, () => false)
+  await browser.close()
+  if (!ready) { server.kill(); console.error(`tour: ${NO_QA_HANDLE}`); process.exit(2) }
+}
+console.log(`tour of ${DIST}${DEMO ? ' with the demo clinic' : ''}`)
 let problems = 0
 try {
   const views = [['desktop-ar', { lang: 'ar' }], ['desktop-en', { lang: 'en' }], ['mobile-ar', { lang: 'ar', mobile: true, width: 390, height: 844 }]]
@@ -38,10 +31,10 @@ try {
     page.on('console', m => { if (m.type() === 'error') errors.push(m.text()) })
     await seedAndLogin(page, { lang: opts.lang })
     const extra = []
-    if (bundle) {
-      await page.addScriptTag({ path: bundle })
-      const counts = await page.evaluate(async () => { const r = await window.DentoraSeed.loadDemoData(); return r })
-      console.log(name, 'demo data:', JSON.stringify(counts).slice(0, 200))
+    if (DEMO) {
+      // through Settings → Backup → "Load demo data", as a clinic does (no script is injected: the CSP stays in force)
+      const counts = await loadDemo(page)
+      console.log(name, 'demo data:', JSON.stringify(counts))
       await page.reload(); await page.waitForTimeout(800)
       const ids = await page.evaluate(async () => {
         const db = window.__dentora.db

@@ -14,7 +14,7 @@ import { formatPhone, whatsappLink } from '@/lib/format'
 import { openExternal } from '@/platform'
 import { buildRxText, dayHint, doctorLabel } from './lib'
 import { ensureRefs, type NumberedRx } from './numbers'
-import { RxMark, SheetClinic, printModalSheet, usePrintCleanup } from './parts'
+import { jobName, RxMark, SheetClinic, printModalSheet, usePrintCleanup } from './parts'
 
 export function RxSheet({ rx, patient, doctor, clinic, drugs }: { rx: Prescription; patient?: Patient; doctor?: User; clinic: Clinic; drugs?: Map<string, Drug> }) {
   const { t, lang } = useI18n()
@@ -143,7 +143,7 @@ export default function RxSheetModal({ id, onClose, onEdit, onDuplicate }: { id:
     <Button variant="ghost" className="start" icon={<MessageCircle />} onClick={share} disabled={!phone} title={phone ? undefined : t('prescriptions.sheet.noPhone')}>{t('whatsapp')}</Button>
     {onDuplicate && !readOnly && <Button variant="ghost" icon={<Copy />} onClick={() => onDuplicate(rx)} className="hide-mobile">{t('duplicate')}</Button>}
     {onEdit && !readOnly && <Button variant="secondary" icon={<Pencil />} onClick={() => onEdit(rx)}>{t('edit')}</Button>}
-    <Button variant="primary" icon={<Printer />} onClick={printModalSheet}>{t('print')}</Button>
+    <Button variant="primary" icon={<Printer />} onClick={() => printModalSheet(jobName(`${t('prescriptions.sheet.title')}${(rx as NumberedRx).number ? ` ${(rx as NumberedRx).number}` : ''}`, data?.patient?.name, fmtDate(rx.date, lang)))}>{t('print')}</Button>
   </> : undefined
 
   return (

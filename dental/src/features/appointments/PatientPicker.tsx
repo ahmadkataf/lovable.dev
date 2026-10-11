@@ -6,7 +6,7 @@ import { newId, nowISO } from '@/db/ids'
 import { useI18n } from '@/i18n'
 import { useSession } from '@/app/session'
 import { useDebounced } from '@/app/hooks'
-import { Alert, Button, Field, Input, Segmented, Skeleton, useToast } from '@/ui'
+import { Alert, Button, Field, Input, Segmented, Skeleton, useEscapeLayer, useToast } from '@/ui'
 import { formatPhone } from '@/lib/format'
 import { cleanPhone, isValidPhone } from '@/features/patients/lib'
 import { indexSearch, phoneOwner, usePatientIndex, usePatientPhotos } from '@/features/patients/directory'
@@ -62,6 +62,9 @@ export default function PatientPicker({ value, onChange, error, disabled, autoFo
   const ready = !!active || fast?.q === q
   useEffect(() => setHi(0), [q])
 
+  // the Android Back key (and Escape from outside the field) closes the list or the quick-add card first, not the dialog
+  useEscapeLayer(open && !value ? () => setOpen(false) : undefined)
+  useEscapeLayer(quick ? () => setQuick(null) : undefined)
   useEffect(() => {
     if (!open) return
     const h = (e: MouseEvent | TouchEvent) => { if (wrapRef.current && !wrapRef.current.contains(e.target as Node)) setOpen(false) }

@@ -112,7 +112,7 @@ export default function BillingTab() {
               <span className="field-label">{t('settings.bill.decimals')}</span>
               <Segmented<'0' | '2' | '3'> block className={disabled ? 'st-inert' : undefined} value={String(draft.decimals) as '0' | '2' | '3'} onChange={v => !disabled && set('decimals', asDecimals(Number(v)))}
                 options={DECIMAL_CHOICES.map(d => ({ value: String(d) as '0' | '2' | '3', label: t(`settings.bill.dec${d}`) }))} />
-              {draft.decimals === 3 || ['KWD', 'BHD', 'OMR', 'JOD'].includes(p.currency || '') ? <div className="field-hint">{t('settings.bill.decimalsHint')}</div> : null}
+              {draft.decimals === 3 || ['KWD', 'BHD', 'OMR', 'JOD', 'TND', 'LYD'].includes(p.currency || '') ? <div className="field-hint">{t('settings.bill.decimalsHint')}</div> : null}
             </div>
           </div>
           {currencyChanged && <Alert tone="warning" className="mt-4">{t('settings.bill.changeWarn')}</Alert>}

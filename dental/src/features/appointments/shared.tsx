@@ -9,7 +9,7 @@ import { useClinic } from '@/app/hooks'
 import { useSession } from '@/app/session'
 import { Badge, toneFor, useConfirmDelete, useToast } from '@/ui'
 import { colorFor, whatsappLink } from '@/lib/format'
-import { fmtDate, fmtTime, fromISODate } from '@/lib/dates'
+import { dateFormat, fmtDate, fmtTime, fromISODate } from '@/lib/dates'
 import { openExternal, platform } from '@/platform'
 import { lastVisitAfter, pluralForm, type CalView } from './lib'
 import './appointments.css'
@@ -84,20 +84,14 @@ export function ContactButtons({ phone, size = 'md', className }: { phone?: stri
 }
 
 // ---- time & text ---------------------------------------------------------------------------------
-const LOCALE = (lang: Lang) => (lang === 'ar' ? 'ar-SY-u-nu-latn' : 'en-GB')
-const dayMonth = new Map<Lang, Intl.DateTimeFormat>()
+// dateFormat() writes Arabic months in the clinic's style (تشرين الأول or أكتوبر) and caches the formatters
 /** "16 تشرين الأول" / "16 October" (no year). */
 export function fmtDayMonth(d: string, lang: Lang): string {
-  let f = dayMonth.get(lang)
-  if (!f) { f = new Intl.DateTimeFormat(LOCALE(lang), { day: 'numeric', month: 'long' }); dayMonth.set(lang, f) }
-  return f.format(fromISODate(d))
+  return dateFormat(lang, { day: 'numeric', month: 'long' }).format(fromISODate(d))
 }
-const monShort = new Map<Lang, Intl.DateTimeFormat>()
 /** Short month name for date blocks ("تشرين الأول" is long in Arabic; English gets "Oct"). */
 export function fmtMonthShort(d: string, lang: Lang): string {
-  let f = monShort.get(lang)
-  if (!f) { f = new Intl.DateTimeFormat(LOCALE(lang), { month: 'short' }); monShort.set(lang, f) }
-  return f.format(fromISODate(d))
+  return dateFormat(lang, { month: 'short' }).format(fromISODate(d))
 }
 /** "10 – 16 تشرين الأول 2026", or "28 أيلول – 4 تشرين الأول 2026" across months. */
 export function fmtSpan(from: string, to: string, lang: Lang): string {

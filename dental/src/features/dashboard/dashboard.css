@@ -88,7 +88,8 @@ a.rp-feed-row:hover { background: var(--surface-2); }
 
 @media (max-width: 767px) {
   .rp-dashboard .page-header .page-actions { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
-  .rp-dashboard .page-header .page-actions .btn { padding: 0 8px; font-size: var(--fs-sm); gap: 6px; height: 44px; }
+  /* icon above the label so long labels ("New appointment") wrap inside their cell instead of overflowing it */
+  .rp-dashboard .page-header .page-actions .btn { flex-direction: column; height: auto; min-height: 60px; padding: 8px 6px; font-size: var(--fs-sm); gap: 4px; line-height: 1.2; white-space: normal; text-align: center; min-width: 0; overflow-wrap: anywhere; }
 }
 @media print { .rp-dashboard .page-actions, .rp-apt-actions { display: none !important; } }
 /* the revenue card's "Reports" link: on a phone the revenue stat card already opens the reports, and the title needs the room */

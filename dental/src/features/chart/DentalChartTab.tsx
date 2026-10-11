@@ -105,7 +105,11 @@ function ChartTab({ patientId }: { patientId: string }) {
   // a counter rather than a flag: a host that never fires 'afterprint' (the Android print adapter) must still print again
   const doPrint = useCallback(() => setPrinting(n => n + 1), [])
   const printDone = useCallback(() => setPrinting(0), [])
-  useEffect(() => { if (printing) { const id = window.setTimeout(() => print(), 120); return () => window.clearTimeout(id) } }, [printing])
+  // the job (and the PDF a user saves) is named after the chart and the patient: "مخطط الأسنان - محمد العلي"
+  const printName = [t('chart.print.title'), patient?.name].filter(Boolean).join(' - ')
+  const printNameRef = useRef(printName)
+  printNameRef.current = printName
+  useEffect(() => { if (printing) { const id = window.setTimeout(() => print(printNameRef.current), 120); return () => window.clearTimeout(id) } }, [printing])
 
   if (patient === null) {
     return <Card><EmptyState icon={<UserX />} title={t('chart.notFound')} description={t('chart.notFoundDesc')} actions={<Button variant="primary" to="/patients">{t('nav.patients')}</Button>} /></Card>

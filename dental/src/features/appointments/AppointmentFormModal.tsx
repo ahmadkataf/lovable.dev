@@ -8,14 +8,13 @@ import { useI18n } from '@/i18n'
 import { useClinic, useDoctors, useUsers } from '@/app/hooks'
 import { useSession } from '@/app/session'
 import { useLicense } from '@/license/useLicense'
-import { Alert, Button, Field, Input, Modal, Select, Textarea, useToast } from '@/ui'
+import { Alert, Button, Field, Input, Modal, Select, Textarea, revealFirstError, useToast } from '@/ui'
 import { combine, fmtDate, fmtTime, timeOf, minutesToTime, timeToMinutes, weekdayName } from '@/lib/dates'
 import {
   blocksTime, DURATIONS, endFrom, findConflicts, findPatientOverlaps, generateSlots, isValidDate, isValidTime, isWorkingDay, nextFreeSlot, safeDuration, slotIsBusy, slotStep, weekdayOf, withinHours,
 } from './lib'
 import PatientPicker from './PatientPicker'
 import { syncLastVisit, useAptActions, useDurationLabel } from './shared'
-import { revealFirstError } from '@/features/patients/reveal'
 
 /** Create / edit an appointment. `defaults` pre-fills a new one (from the calendar or a patient page). */
 export interface AppointmentFormModalProps { open: boolean; onClose: () => void; appointment?: Appointment; defaults?: { patientId?: string; date?: string; time?: string; doctorId?: string }; onSaved?: (id: string) => void }
@@ -146,7 +145,7 @@ function AppointmentForm({ onClose, appointment, defaults, onSaved }: Appointmen
     setErrors(errs)
     if (Object.values(errs).some(Boolean) || !patient) {
       // the dialog is a tall bottom sheet on a phone: show the first problem instead of failing silently
-      revealFirstError(() => document.getElementById('apt-form'))
+      revealFirstError(document.getElementById('apt-form'))
       return
     }
     savingRef.current = true

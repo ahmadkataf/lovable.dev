@@ -7,14 +7,13 @@ import type { Procedure, ToothSurface, TreatmentItem, TreatmentPlan } from '@/db
 import { useI18n } from '@/i18n'
 import { useClinic, useDoctors, useMoney } from '@/app/hooks'
 import { useSession } from '@/app/session'
-import { Alert, Button, Field, Input, Modal, Select, useToast } from '@/ui'
+import { Alert, Button, Field, Input, Modal, Select, revealFirstError, useToast } from '@/ui'
 import { round2 } from '@/lib/format'
 import { combine, timeOf } from '@/lib/dates'
 import { CategoryBadge, CategoryDot, NumField, ProcedurePicker, SurfaceChips, ToothGrid } from './parts'
 import { itemTotal, listSep, sortTeeth, surfacesForTeeth, tn, validateItem, type ItemErrors } from './lib'
 import { addItems, updateItem } from './actions'
 import { useDefaultDoctor, useDefaultPlanTitle } from './PlanFormModal'
-import { revealFirstError } from '@/features/patients/reveal'
 
 export const NEW_PLAN = '__new'
 export const NO_PLAN = '__none'
@@ -115,7 +114,7 @@ export default function ItemFormModal({ open, onClose, patientId, mode, item, ta
   const submit = async (e?: FormEvent) => {
     e?.preventDefault()
     setTried(true)
-    if (Object.keys(errs).length) { revealFirstError(() => document.querySelector('.tr-item-form')); return }
+    if (Object.keys(errs).length) { revealFirstError(document.querySelector<HTMLElement>('.tr-item-form')); return }
     if (busy.current) return
     busy.current = true
     setSaving(true)

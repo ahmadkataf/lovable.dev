@@ -20,7 +20,7 @@ Dentora برنامج تبيعه {seller} ("نحن"). العيادة التي ت�
 - إعدادات العيادة وبيانات الترخيص (رقم الجهاز ورمز التفعيل) وسجل النشاط داخل البرنامج.
 
 ## أين تُحفظ
-تُحفظ البيانات على الجهاز نفسه فقط، في مساحة التخزين الخاصة بالبرنامج. لا يوجد خادم ولا حساب سحابي، ولا يحتاج البرنامج إلى الإنترنت ليعمل. إذا كان النسخ الاحتياطي الخاص بنظام الجهاز مفعّلاً (مثل نسخ أندرويد الاحتياطي في حساب Google)، فقد يضمّن نظام التشغيل بيانات البرنامج في تلك النسخة وفق إعدادات صاحب الجهاز وحسابه، ويمكن إيقافه من إعدادات الجهاز.
+تُحفظ البيانات على الجهاز نفسه فقط، في مساحة التخزين الخاصة بالبرنامج. لا يوجد خادم ولا حساب سحابي، ولا يحتاج البرنامج إلى الإنترنت ليعمل. تطبيق أندرويد مستثنى من النسخ الاحتياطي لنظام أندرويد (في حساب Google) ومن نقل البيانات إلى هاتف جديد، لذلك فملف النسخة الاحتياطية الذي تصدّره العيادة من داخل البرنامج هو النسخة الوحيدة من البيانات خارج البرنامج. وعلى ويندوز تبقى البيانات في مجلد البرنامج داخل حساب المستخدم، ولا تدخل في أي نسخة احتياطية إلا إذا نسخت العيادة ذلك المجلد بنفسها.
 
 ## ما الذي يخرج من الجهاز
 لا يرسل البرنامج أي بيانات تلقائياً: لا إحصاءات استخدام ولا إعلانات ولا تقارير أعطال ولا تتبّع. لا يخرج شيء إلا بفعل يقوم به مستخدم في العيادة:
@@ -109,7 +109,7 @@ Dentora is sold by {seller} ("we"). The clinic that uses the app ("the clinic") 
 - Clinic settings, licence details (device number and activation code) and the in-app activity log.
 
 ## Where it is stored
-Data is stored only on the device itself, in the app’s private storage. There is no server and no cloud account, and the app needs no internet connection to work. If the device’s own system backup is turned on (for example Android backup to a Google account), the operating system may include the app’s data in that backup, under the device owner’s account and settings; it can be turned off in the device settings.
+Data is stored only on the device itself, in the app’s private storage. There is no server and no cloud account, and the app needs no internet connection to work. The Android app is excluded from Android’s system backup (to a Google account) and from device-to-device transfer, so the backup file the clinic exports from inside the app is the only copy of the data outside the app. On Windows the data stays in the app’s folder in the user’s profile and goes into a backup only if the clinic itself backs up that folder.
 
 ## What leaves the device
 The app sends no data on its own: no usage statistics, no advertising, no crash reports, no tracking. Nothing leaves the device except through an action taken by someone at the clinic:

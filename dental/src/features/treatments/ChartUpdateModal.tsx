@@ -6,7 +6,7 @@ import { useI18n } from '@/i18n'
 import { useSession } from '@/app/session'
 import { ToothIcon } from '@/app/ToothIcon'
 import { Button, Field, Modal, Select, useToast } from '@/ui'
-import { CHART_CHOICES, chartSurfaces, isSurfaceCondition, listSep, sortTeeth, surfaceCode, tn } from './lib'
+import { CHART_CHOICES, chartSurfaces, isSurfaceCondition, listSep, sortTeeth, surfaceCode } from './lib'
 import { SurfaceChips, ToothBadge } from './parts'
 import { applyChartEntries } from './actions'
 
@@ -47,6 +47,10 @@ export default function ChartUpdateModal({ prompt, onClose, patientId }: { promp
   const surfaceCond = isSurfaceCondition(condition)
   const surfOf = (i: TreatmentItem) => (surfaceCond ? (surfaces[i.id]?.length ? surfaces[i.id] : chartSurfaces(condition, i.tooth!, i.surfaces)) : [])
   const missing = surfaceCond && items.some(i => (surfaces[i.id] ?? []).length === 0)
+  // one treatment: its name; several of the same procedure: the name and the teeth; different ones: how many, counted properly
+  const subtitle = items.length <= 1 ? t('treatments.chart.sub', { name: items[0]?.procedureName ?? '' })
+    : new Set(items.map(i => i.procedureName)).size === 1 ? t('treatments.chart.subTeeth', { name: items[0].procedureName, teeth: sortTeeth(items.map(i => i.tooth!)).join(listSep(lang)) })
+    : t('treatments.chart.subMany', { n: items.length })
 
   const apply = async () => {
     if (missing || busy.current) return
@@ -63,7 +67,7 @@ export default function ChartUpdateModal({ prompt, onClose, patientId }: { promp
   }
 
   return (
-    <Modal open={!!prompt && items.length > 0} onClose={onClose} size="sm" className="tr-modal" icon={<ToothIcon size={20} />} title={t('treatments.chart.title')} subtitle={t('treatments.chart.sub', { name: items.length === 1 ? items[0].procedureName : tn(t, lang, 'treatments.n.items', items.length) })}
+    <Modal open={!!prompt && items.length > 0} onClose={onClose} size="sm" className="tr-modal" icon={<ToothIcon size={20} />} title={t('treatments.chart.title')} subtitle={subtitle}
       footer={<>
         <Button variant="ghost" onClick={onClose}>{t('treatments.chart.skip')}</Button>
         <Button variant="primary" icon={<Check />} loading={saving} disabled={missing} onClick={() => void apply()}>{t('treatments.chart.apply')}</Button>

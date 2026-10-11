@@ -12,7 +12,7 @@ import { useDoctors, useMoney } from '@/app/hooks'
 import { useSession } from '@/app/session'
 import { useLicense } from '@/license/useLicense'
 import { ToothIcon } from '@/app/ToothIcon'
-import { Avatar, Badge, Button, Card, EmptyState, Menu, Skeleton, Tabs, useToast, type MenuItemDef, type TabItem } from '@/ui'
+import { Badge, Button, Card, EmptyState, Menu, Skeleton, Tabs, useToast, type MenuItemDef, type TabItem } from '@/ui'
 import { dateOf, fmtDate, fmtTime, relativeDay, timeAgo } from '@/lib/dates'
 import { colorFor } from '@/lib/format'
 import { latestOf, lastVisitsByPatient, nextAppointment, patientBalance } from './lib'
@@ -160,7 +160,7 @@ export default function PatientPage() {
               <span className="pt-meta-item">{age}</span>
               {patient.birthDate && <span className="pt-meta-item"><Cake />{fmtDate(patient.birthDate, lang, 'long')}</span>}
               {patient.bloodType && <span className="pt-meta-item"><HeartPulse /><span className="ltr">{patient.bloodType}</span></span>}
-              {doctor && <span className="pt-meta-item"><Stethoscope /><Avatar name={doctor.name} size="xs" color={doctor.color || colorFor(doctor.name)} />{doctor.name}</span>}
+              {doctor && <span className="pt-meta-item"><Stethoscope /><span className="pt-doc-dot" style={{ background: doctor.color || colorFor(doctor.name) }} aria-hidden="true" /><span dir="auto">{doctor.name}</span></span>}
             </div>
             <div className="pt-hero-contact">
               {patient.phone && <span className="pt-contact-pill"><PhoneText phone={patient.phone} /><ContactButtons phone={patient.phone} /></span>}

@@ -1,6 +1,6 @@
 // QA for the Windows app shell (Electron). Runs on Linux under a virtual display:
 //   npm run build && xvfb-run -a node scripts/qa/electron.mjs
-//   npx vite build --outDir /tmp/dist-x && QA_DIST=/tmp/dist-x QA_SHOTS=qa-shots/electron-x xvfb-run -a node scripts/qa/electron.mjs
+//   VITE_QA=1 npx vite build --outDir /tmp/dist-x && QA_DIST=/tmp/dist-x QA_SHOTS=qa-shots/electron-x xvfb-run -a node scripts/qa/electron.mjs
 //   QA_APP=release/win-unpacked/resources/app.asar xvfb-run -a node scripts/qa/electron.mjs      (the packaged archive)
 // QA_DIST stages electron/, the icons, package.json and that build in a temporary app folder, so a parallel
 // `npm run build` cannot swap dist/ under a running check. A throwaway data folder (DENTORA_USER_DATA) keeps real
@@ -21,7 +21,7 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
-const SHOTS = path.join(ROOT, process.env.QA_SHOTS || 'qa-shots/electron')
+const SHOTS = path.resolve(ROOT, process.env.QA_SHOTS || 'qa-shots/electron')
 const pkg = JSON.parse(fs.readFileSync(path.join(ROOT, 'package.json'), 'utf8'))
 const electronPath = createRequire(import.meta.url)('electron')
 const DIST = process.env.QA_DIST ? path.resolve(ROOT, process.env.QA_DIST) : path.join(ROOT, 'dist')
@@ -64,7 +64,12 @@ async function launch() {
   page.on('pageerror', e => { pageErrors.push(e.message); console.error('PAGE ERROR:', e.message) })
   page.on('console', m => { if (m.type() === 'error') { console.error('CONSOLE:', m.text()); if (!/example\.com|inline script/i.test(m.text())) pageErrors.push(m.text()) } })
   await page.waitForLoadState('domcontentloaded')
-  await page.waitForFunction(() => window.__dentora?.db, null, { timeout: 30_000 })
+  // the checks reach the database through window.__dentora, which only a QA build has (src/main.tsx)
+  if (!(await page.waitForFunction(() => window.__dentora?.db, null, { timeout: 30_000 }).then(() => true, () => false))) {
+    await app.close().catch(() => {})
+    console.error(`The app's page has no window.__dentora: it is a release build. Build a QA build first:\n  VITE_QA=1 npx vite build${process.env.QA_DIST ? ` --outDir ${process.env.QA_DIST}` : ''}${process.env.QA_APP ? ' && npx electron-builder --win --dir' : ''}`)
+    process.exit(2)
+  }
   // the window is shown on ready-to-show
   for (let i = 0; i < 50 && !(await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0]?.isVisible())); i++) await page.waitForTimeout(100)
   return { app, page }
@@ -115,7 +120,7 @@ const bridge = await page.evaluate(async () => {
 })
 check('window.dentora exists', !!bridge)
 check('platform === "electron"', bridge?.platform === 'electron')
-check('bridge has exactly the typed members', JSON.stringify(bridge?.keys) === JSON.stringify(['appVersion', 'deviceId', 'openExternal', 'openFile', 'platform', 'print', 'saveFile']), bridge?.keys.join(','))
+check('bridge has exactly the typed members', JSON.stringify(bridge?.keys) === JSON.stringify(['appVersion', 'deviceId', 'openBegin', 'openChunk', 'openEnd', 'openExternal', 'platform', 'print', 'saveAbort', 'saveBegin', 'saveChunk', 'saveEnd']), bridge?.keys.join(','))
 check('methods return Promises', bridge?.promises)
 check('deviceId is a non-empty string', typeof bridge?.id1 === 'string' && bridge.id1.length >= 16, bridge?.id1)
 check('deviceId is stable across calls', bridge?.id1 === bridge?.id2)
@@ -180,13 +185,25 @@ await app.evaluate(({ dialog }, target) => {
   globalThis.__saveOpts = null
   dialog.showSaveDialog = async (_w, opts) => { globalThis.__saveOpts = opts; return globalThis.__cancel ? { canceled: true } : { canceled: false, filePath: target } }
 }, saveTarget)
-const saved = await page.evaluate(async () => window.dentora.saveFile('نسخة احتياطية/dentora:backup.json', 'application/json', btoa(JSON.stringify({ app: 'dentora', ok: 1 }))))
+// the chunked save of src/platform: saveBegin (the dialog) → saveChunk → saveEnd (size + CRC-32 checked by the shell)
+const saved = await page.evaluate(async () => {
+  const d = window.dentora
+  const bytes = new TextEncoder().encode(JSON.stringify({ app: 'dentora', ok: 1 }))
+  // CRC-32 (IEEE) of the bytes, as src/platform/bytes.ts computes it
+  let c = ~0; for (const x of bytes) { c ^= x; for (let k = 0; k < 8; k++) c = (c >>> 1) ^ (0xEDB88320 & -(c & 1)) }
+  const crc = (~c) >>> 0
+  const h = await d.saveBegin('نسخة احتياطية/dentora:backup.json', 'application/json', true)
+  if (!h || h.error) return h
+  const r1 = await d.saveChunk(h.id, bytes)
+  const r2 = await d.saveEnd(h.id, bytes.length, crc)
+  return { r1, r2 }
+})
 const saveOpts = await app.evaluate(() => globalThis.__saveOpts)
-check('saveFile resolves true and writes the bytes', saved === true && fs.existsSync(saveTarget) && JSON.parse(fs.readFileSync(saveTarget, 'utf8')).ok === 1)
+check('chunked save writes the bytes', !!saved && !saved.error && saved.r2?.ok === true && fs.existsSync(saveTarget) && JSON.parse(fs.readFileSync(saveTarget, 'utf8')).ok === 1, JSON.stringify(saved))
 check('save dialog: safe default name in Downloads/last folder, filter from extension', /dentora-backup\.json$/.test(saveOpts?.defaultPath || '') && saveOpts?.filters?.[0]?.extensions?.[0] === 'json', `${saveOpts?.defaultPath} ${JSON.stringify(saveOpts?.filters)}`)
 check('save dialog speaks Arabic by default', saveOpts?.title === 'حفظ الملف', saveOpts?.title)
 await app.evaluate(() => { globalThis.__cancel = true })
-check('saveFile resolves false when cancelled', (await page.evaluate(() => window.dentora.saveFile('x.pdf', 'application/pdf', 'AA=='))) === false)
+check('saveBegin resolves null when cancelled', (await page.evaluate(() => window.dentora.saveBegin('x.pdf', 'application/pdf', true))) === null)
 
 // open-file: stub the dialog, read a PNG back
 const pickPath = path.join(tmp, 'xray.png')
@@ -195,13 +212,21 @@ await app.evaluate(({ dialog }, target) => {
   globalThis.__openOpts = null
   dialog.showOpenDialog = async (_w, opts) => { globalThis.__openOpts = opts; return { canceled: false, filePaths: [target] } }
 }, pickPath)
-const picked = await page.evaluate(async () => { const r = await window.dentora.openFile('image/*,.pdf'); return r && { name: r.name, mime: r.mime, size: atob(r.base64).length } })
+const picked = await page.evaluate(async () => {
+  const d = window.dentora
+  const h = await d.openBegin('image/*,.pdf')
+  if (!h) return null
+  let n = 0
+  for (let off = 0; ; ) { const c = await d.openChunk(h.id, off, 65536); if (!c || !c.length) break; n += c.length; off += c.length }
+  await d.openEnd(h.id)
+  return { name: h.name, mime: h.mime, size: n }
+})
 const openOpts = await app.evaluate(() => globalThis.__openOpts)
-check('openFile returns name, mime and base64', picked?.name === 'xray.png' && picked?.mime === 'image/png' && picked?.size === fs.statSync(pickPath).size, JSON.stringify(picked))
+check('chunked open returns name, mime and every byte', picked?.name === 'xray.png' && picked?.mime === 'image/png' && picked?.size === fs.statSync(pickPath).size, JSON.stringify(picked))
 const exts = openOpts?.filters?.[0]?.extensions || []
 check('open dialog filters from accept (image/*,.pdf)', ['png', 'jpg', 'jpeg', 'pdf'].every(e => exts.includes(e)), exts.join(','))
 await app.evaluate(({ dialog }) => { dialog.showOpenDialog = async () => ({ canceled: true, filePaths: [] }) })
-check('openFile resolves null when cancelled', (await page.evaluate(() => window.dentora.openFile('*/*'))) === null)
+check('openBegin resolves null when cancelled', (await page.evaluate(() => window.dentora.openBegin('*/*'))) === null)
 
 // a blob: viewer window may open, but it gets no access to the bridge
 const viewerResult = await (async () => {
@@ -305,7 +330,8 @@ await page.evaluate(async () => {
     workingDays: [0, 1, 2, 3, 4, 6], workStart: '09:00', workEnd: '18:00', slotMinutes: 30, defaultAppointmentMinutes: 30, taxPercent: 0, invoicePrefix: 'INV-', nextInvoiceNumber: 1, nextFileNumber: 2, setupDone: true, createdAt: now, updatedAt: now })
   await db.users.put({ id: 'u-admin', name: 'د. أحمد الخطيب', role: 'admin', pinHash: await sha(`${salt}:1234`), pinSalt: salt, color: '#0E8F86', active: true, createdAt: now, updatedAt: now })
   await db.patients.put({ id: 'qa-electron-patient', fileNo: 1, name: 'مريض اختبار الحفظ', gender: 'male', allergies: [], chronicDiseases: [], medications: [], tags: [], archived: false, createdAt: now, updatedAt: now })
-  localStorage.setItem('dentora.session', 'u-admin')
+  // signed in for this run of the app, as after a PIN (src/app/session.tsx); a new launch asks for the PIN again
+  sessionStorage.setItem('dentora.session', JSON.stringify({ id: 'u-admin', at: Date.now() }))
   localStorage.setItem('dentora.lang', 'ar')
 })
 await page.evaluate(() => { location.hash = '#/' })
@@ -315,6 +341,11 @@ await page.waitForTimeout(1500)
 await page.screenshot({ path: path.join(SHOTS, 'shell.png') })
 console.log('shot', path.relative(ROOT, path.join(SHOTS, 'shell.png')))
 check('signed-in shell renders after reload', (await page.locator('.app-sidebar').count()) > 0 && page.url().endsWith('#/'), page.url())
+// the clinic's records are kept even when the disk runs low: main.tsx asks for persistent storage once set up, and
+// the shell grants the 'persistent-storage' permission
+const persisted = await page.evaluate(async () => { for (let i = 0; i < 20; i++) { if (await navigator.storage.persisted()) return true; await new Promise(r => setTimeout(r, 150)) } return false })
+check('persistent storage is granted (navigator.storage.persisted())', persisted === true)
+check('the page carries the same Content-Security-Policy as the shell', (await page.evaluate(() => document.querySelector('meta[http-equiv="Content-Security-Policy"]')?.getAttribute('content') || '')).includes("object-src 'none'"))
 
 // English: the menu, the dialogs and the page follow the clinic's language
 await page.evaluate(async () => { await window.__dentora.db.clinic.update('clinic', { lang: 'en' }); localStorage.setItem('dentora.lang', 'en') })
@@ -325,7 +356,7 @@ await page.screenshot({ path: path.join(SHOTS, 'shell-en.png') })
 console.log('shot', path.relative(ROOT, path.join(SHOTS, 'shell-en.png')))
 const menuEn = await app.evaluate(({ Menu }) => Menu.getApplicationMenu()?.items.map(i => i.label))
 await app.evaluate(() => { globalThis.__cancel = true })
-await page.evaluate(() => window.dentora.saveFile('report.csv', 'text/csv', 'AA=='))
+await page.evaluate(() => window.dentora.saveBegin('report.csv', 'text/csv', true))
 const saveEn = await app.evaluate(() => globalThis.__saveOpts)
 check('English: menu and save dialog in English, page left-to-right', menuEn?.[0] === 'View' && saveEn?.title === 'Save file' && saveEn?.filters?.[0]?.name === 'CSV file' && (await page.evaluate(() => document.documentElement.dir)) === 'ltr', `${menuEn} / ${saveEn?.title}`)
 const enOverflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)
@@ -376,6 +407,9 @@ check('window-state.json written on quit', !!saved1 && saved1.width === target.w
 info = await winInfo(app)
 const after = await page.evaluate(async () => ({ id: await window.dentora.deviceId(), patient: await window.__dentora.db.patients.get('qa-electron-patient') }))
 check('deviceId is stable across restarts', after.id === id1)
+await page.waitForSelector('.au-login-card', { timeout: 15_000 }).catch(() => {})
+check('a new launch asks for the PIN (the sign-in is kept for one run only)', (await page.locator('.au-login-card').count()) === 1 && (await page.locator('.app-sidebar').count()) === 0)
+check('persistent storage is still granted after a restart', await page.evaluate(() => navigator.storage.persisted()) === true)
 check('window bounds restored after restart', info.bounds.width === target.width && info.bounds.height === target.height && !info.maximized, `${JSON.stringify(info.bounds)} want ${target.width}×${target.height}`)
 check('IndexedDB data survives a restart', after.patient?.name === 'مريض اختبار الحفظ')
 await app.close()

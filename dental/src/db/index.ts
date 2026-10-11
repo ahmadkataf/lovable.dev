@@ -176,9 +176,21 @@ export function dataUrlToBlob(url: string): Blob | null {
   return new Blob([bytes as BlobPart], { type: safeFileType(bytes.subarray(0, SNIFF_BYTES)) })
 }
 
-/** Settings rows that belong to this installation (its activation, its trial start, its last export), not to the clinic. */
-export const DEVICE_KEYS = ['license', 'installedAt', 'lastBackupAt'] as const
+/**
+ * Settings rows that belong to this installation (its activation, its trial start, its last export, the latest
+ * time its licence clock has seen), not to the clinic.
+ */
+export const DEVICE_KEYS = ['license', 'installedAt', 'lastBackupAt', 'lastSeen'] as const
 const DAY = 86_400_000
+/** Later than this is not a plausible clock reading (the licence clock ignores it too: src/license/clock.ts). */
+const MAX_PLAUSIBLE = Date.UTC(2100, 0, 1)
+/** The latest plausible instant among the values (ISO text or epoch ms), or NaN when none can be read. */
+function latestInstant(values: unknown[]): number {
+  const times = values
+    .map(v => (typeof v === 'number' ? v : typeof v === 'string' && v ? new Date(v).getTime() : NaN))
+    .filter(t => Number.isFinite(t) && t > 0 && t < MAX_PLAUSIBLE)
+  return times.length ? Math.max(...times) : NaN
+}
 
 /** A past (or today's) instant, as milliseconds; NaN for anything else, including dates in the future. */
 function pastInstant(v: unknown, now: number): number {
@@ -194,6 +206,7 @@ function pastInstant(v: unknown, now: number): number {
  * - installedAt: the EARLIEST of this device's trial start, the backup's, the day the backed-up clinic was created and
  *   the day the backup was made. Future dates are ignored. So restoring (or editing) a backup can never restart the trial.
  * - lastBackupAt: this device's last export; on a device that never exported, the date of the restored backup.
+ * - lastSeen: the LATER of this device's licence clock and the backup's, so a restore never turns the clock back.
  */
 export function mergeDeviceSettings(backupRows: Setting[], deviceRows: Setting[], ctx: { exportedAt?: unknown; clinicCreatedAt?: unknown } = {}, now = Date.now()): Setting[] {
   const fromBackup = new Map(backupRows.map(r => [r.key, r.value]))
@@ -207,6 +220,8 @@ export function mergeDeviceSettings(backupRows: Setting[], deviceRows: Setting[]
   const device = fromDevice.get('lastBackupAt')
   const last = typeof device === 'string' && device ? device : Number.isFinite(pastInstant(ctx.exportedAt, now)) ? String(ctx.exportedAt) : null
   if (last) out.push({ key: 'lastBackupAt', value: last })
+  const seen = latestInstant([fromDevice.get('lastSeen'), fromBackup.get('lastSeen')])
+  if (Number.isFinite(seen)) out.push({ key: 'lastSeen', value: new Date(seen).toISOString() })
   return out
 }
 

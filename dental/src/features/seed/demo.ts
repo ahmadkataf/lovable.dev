@@ -167,8 +167,19 @@ export async function loadDemoData(opts: DemoOptions = {}): Promise<DemoCounts> 
     for (const rx of byCreated(g.prescriptions)) (rx as Prescription & { number?: string }).number = await takeRef('rx')
     for (const o of byCreated(g.labOrders)) (o as LabOrder & { number?: string }).number = await takeRef('lab')
     g.labExpenses()
+    // receipts: one sequential number per hand-over, in the order the money was received; the rows saved together
+    // (the same patient, moment and method, e.g. two invoices settled at one visit) share it, as recordPayment() does
     const c1 = await getClinic()
-    await db.clinic.put({ ...c1, nextFileNumber: fileNo, updatedAt: nowISO() })
+    let receipt = Math.max(1, c1.nextReceiptNumber || 1)
+    const receiptPrefix = c1.receiptPrefix ?? 'R-'
+    const handOvers = new Map<string, string>()
+    for (const p of byCreated(g.payments)) {
+      const key = `${p.patientId}|${p.createdAt}|${p.method}`
+      let no = handOvers.get(key)
+      if (!no) { no = `${receiptPrefix}${String(receipt++).padStart(6, '0')}`; handOvers.set(key, no) }
+      p.receiptNo = no
+    }
+    await db.clinic.put({ ...c1, nextFileNumber: fileNo, nextReceiptNumber: receipt, updatedAt: nowISO() })
     const activity = g.activityRows()
 
     if (newUsers.length) await db.users.bulkAdd(newUsers)
@@ -207,7 +218,8 @@ async function makeDoctors(users: User[], nowMs: number, en = false): Promise<Us
   for (const [i, d0] of DEMO_DOCTORS.entries()) {
     const d = en ? { ...d0, ...DEMO_DOCTORS_EN[i] } : d0
     if (doctors.length + out.length >= 2) break
-    if (users.some(u => u.name.trim() === d.name)) continue
+    // either language's name counts, so loading the demo again after switching language adds no twin
+    if (users.some(u => u.name.trim() === d0.name || u.name.trim() === DEMO_DOCTORS_EN[i]?.name)) continue
     const salt = randomHex(8)
     out.push({ id: newId(), name: d.name, role: 'doctor', pinHash: await hashPin(DEMO_PIN, salt), pinSalt: salt, color: d.color, specialty: d.specialty, phone: d.phone, email: d.email, active: true, createdAt: at, updatedAt: at })
   }
@@ -1252,21 +1264,29 @@ class Generator {
     }
   }
 
-  /** Most patients clear what they still owe on a small invoice when they next come in (a week or more later). */
+  /**
+   * Most patients clear what they still owe on a small invoice when they next come in (a week or more later). What
+   * one patient settles at one visit is one hand-over (one receipt), however many invoices it clears.
+   */
   private settleAtNextVisit(): void {
     const r = this.rng
     for (const pc of this.pcs) {
       const visits = pc.runs.flatMap(run => [...run.done.values()]).sort((a, b) => a.endMs - b.endMs)
+      const atVisit = new Map<Visit, { ms: number; method: PaymentMethod; reference?: string }>()
       for (const inv of this.invoices) {
         if (inv.patientId !== pc.p.id || (inv.status !== 'unpaid' && inv.status !== 'partial') || inv.total >= this.price(600)) continue
         const next = visits.find(v => v.date >= addDays(inv.date, 7) && v.endMs > Date.parse(inv.updatedAt))
         if (!next || !r.chance(0.8)) continue
-        const ms = this.before(next.endMs + r.int(2, 12) * MIN, next.endMs)
+        const drawnMs = this.before(next.endMs + r.int(2, 12) * MIN, next.endMs)
         const amount = this.cents(inv.total - inv.paid)
         if (amount <= 0) continue
-        const method = r.weighted<PaymentMethod>([['cash', 70], ['card', 15], ['wallet', 10], ['transfer', 5]])
-        const pay: Payment = clean({ id: newId(), patientId: pc.p.id, invoiceId: inv.id, amount, method, date: toISODate(new Date(ms)), note: this.tx('تسديد المتبقي من الفاتورة'), receivedBy: this.front.id, createdAt: iso(ms),
-          reference: method === 'card' ? `**** ${r.int(1000, 9999)}` : method === 'wallet' ? `${this.L('عملية', 'Txn')} ${r.int(10000000, 99999999)}` : method === 'transfer' ? `${this.L('حوالة', 'Transfer')} ${r.int(100000, 999999)}` : undefined })
+        const drawnMethod = r.weighted<PaymentMethod>([['cash', 70], ['card', 15], ['wallet', 10], ['transfer', 5]])
+        const drawnRef = drawnMethod === 'card' ? `**** ${r.int(1000, 9999)}` : drawnMethod === 'wallet' ? `${this.L('عملية', 'Txn')} ${r.int(10000000, 99999999)}` : drawnMethod === 'transfer' ? `${this.L('حوالة', 'Transfer')} ${r.int(100000, 999999)}` : undefined
+        // a second invoice cleared at the same visit joins that hand-over: same moment, method and reference
+        const handOver = atVisit.get(next) ?? { ms: drawnMs, method: drawnMethod, reference: drawnRef }
+        atVisit.set(next, handOver)
+        const { ms, method, reference } = handOver
+        const pay: Payment = clean({ id: newId(), patientId: pc.p.id, invoiceId: inv.id, amount, method, date: toISODate(new Date(ms)), note: this.tx('تسديد المتبقي من الفاتورة'), receivedBy: this.front.id, createdAt: iso(ms), reference })
         this.payments.push(pay)
         inv.paid = this.cents(inv.paid + amount)
         inv.status = 'paid'

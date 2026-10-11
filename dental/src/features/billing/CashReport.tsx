@@ -8,6 +8,7 @@ import { useI18n } from '@/i18n'
 import { useClinic, useUsers } from '@/app/hooks'
 import { useSession } from '@/app/session'
 import { fmtDate, fmtDateTime } from '@/lib/dates'
+import { displayName } from '@/features/auth/lib'
 import { Button, Modal } from '@/ui'
 import { groupByMethod, paymentStats, type Period, type ReceiptGroup } from './lib'
 import { usePagePatients } from './patientIndex'
@@ -27,7 +28,7 @@ export function CashReportModal({ rows, period, filters, onClose }: { rows: Rece
     const found = list.length ? await db.invoices.bulkGet(list) : []
     return new Map(found.filter((i): i is Invoice => !!i).map(i => [i.id, i.number]))
   }, [ids])
-  const name = (id?: string) => (id ? users.find(u => u.id === id)?.name ?? '—' : '—')
+  const name = (id?: string) => { const u = id ? users.find(x => x.id === id) : undefined; return u ? displayName(u) : '—' }
   const chronological = [...rows].sort((a, b) => (a.date !== b.date ? (a.date < b.date ? -1 : 1) : a.createdAt < b.createdAt ? -1 : a.createdAt > b.createdAt ? 1 : 0))
   const groups = groupByMethod(chronological)
   const stats = paymentStats(rows)
@@ -76,7 +77,7 @@ export function CashReportModal({ rows, period, filters, onClose }: { rows: Rece
             </thead>
             {groups.map(g => (
               <tbody key={g.method}>
-                <tr className="bl-group"><td colSpan={2}>{t(`billing.method.${g.method}`)} <span className="muted num">({g.count})</span></td><td colSpan={3} className="bl-hide-sm" /><td /></tr>
+                <tr className="bl-group"><td colSpan={2}>{t(`payNoun.${g.method}`)} <span className="muted num">({g.count})</span></td><td colSpan={3} className="bl-hide-sm" /><td /></tr>
                 {g.items.map(p => (
                   <tr key={p.key}>
                     <td className="num">{shortDate(p.date)}</td>
@@ -87,7 +88,7 @@ export function CashReportModal({ rows, period, filters, onClose }: { rows: Rece
                     <td className="bl-n bl-strong"><Money value={p.amount} kind="signed" /></td>
                   </tr>
                 ))}
-                <tr className="bl-subtotal"><td colSpan={2}>{t('billing.report.subtotal', { method: t(`billing.method.${g.method}`) })}</td><td colSpan={3} className="bl-hide-sm" /><td className="bl-n"><Money value={g.total} kind="signed" /></td></tr>
+                <tr className="bl-subtotal"><td colSpan={2}>{t('billing.report.subtotal', { method: t(`payNoun.${g.method}`) })}</td><td colSpan={3} className="bl-hide-sm" /><td className="bl-n"><Money value={g.total} kind="signed" /></td></tr>
               </tbody>
             ))}
           </table></div>
@@ -101,7 +102,7 @@ export function CashReportModal({ rows, period, filters, onClose }: { rows: Rece
         </div>
 
         <div className="bl-report-foot">
-          <span>{t('billing.report.preparedBy')}: <strong>{session.user?.name ?? '—'}</strong></span>
+          <span>{t('billing.report.preparedBy')}: <strong dir="auto">{session.user ? displayName(session.user) : '—'}</strong></span>
           <span>{t('billing.report.printedAt')}: <strong className="bl-date">{fmtDateTime(new Date(), lang)}</strong></span>
         </div>
         <div className="bl-sign">

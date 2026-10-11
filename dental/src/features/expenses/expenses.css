@@ -114,3 +114,5 @@
 /* an expense recorded from a received lab order (the lab module keeps its amount in step with the order's cost) */
 .inv-exp-lab { display: inline-flex; align-items: center; gap: 4px; color: var(--pink); font-weight: 600; }
 .inv-exp-lab svg { width: 12px; height: 12px; }
+/* phones: counts stay readable (12px or more) */
+@media screen and (max-width: 767px) { .inv-exp-count { font-size: 12px; } }

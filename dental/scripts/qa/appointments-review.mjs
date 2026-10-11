@@ -1,8 +1,10 @@
 // Adversarial QA of the appointments module (review pass): edge data (very long names, a patient without a phone,
 // deleted patient / doctor, zero and negative lengths, out-of-hours bookings), double submits and double clicks,
 // Escape on stacked dialogs, cascades on delete, an empty clinic, phone 390×844 and English. Asserts the DB.
-// Usage: npx vite build --outDir /tmp/dist-appointments-r && QA_DIST=/tmp/dist-appointments-r QA_PORT=4353 QA_SHOTS=qa-shots/appointments-review node scripts/qa/appointments-review.mjs
+// Usage: VITE_QA=1 npx vite build --outDir /tmp/dist-appointments-r && QA_DIST=/tmp/dist-appointments-r QA_PORT=4353 QA_SHOTS=qa-shots/appointments-review node scripts/qa/appointments-review.mjs
 import { startServer, openBrowser, seedAndLogin, shot, BASE } from './lib.mjs'
+// "new appointment": the header button on a desktop, the floating button on a phone
+const newButton = page => page.locator('.page-header .btn-primary:visible, .pt-fab:visible').first()
 
 const PART = process.env.QA_PART || 'all'   // all | edge | empty | phone | en
 const problems = []
@@ -65,7 +67,7 @@ async function desktopEdge() {
   const errors = watchErrors(page, 'edge-ar')
   await seedAndLogin(page)
   await seedEdge(page)
-  await page.evaluate(() => sessionStorage.clear())
+  await page.evaluate(() => sessionStorage.removeItem('dentora.appointments.view'))
   await go(page, '/appointments'); await page.waitForSelector('.apt-tg-col'); await wait(page, 500)
   await page.evaluate(() => { document.querySelector('.apt-tg-scroll').scrollTop = 0 }); await wait(page, 200)
   await shot(page, 'r01-day-edge-ar')
@@ -152,7 +154,7 @@ async function desktopEdge() {
   // double submit of the form
   await setView(page, 'يوم')
   const before = await db(page, () => window.__dentora.db.appointments.count())
-  await page.locator('.page-header .btn-primary').click(); await page.waitForSelector('.apt-form'); await wait(page, 300)
+  await newButton(page).click(); await page.waitForSelector('.apt-form'); await wait(page, 300)
   await page.locator('.apt-picker input').fill('سامي'); await wait(page, 250); await page.keyboard.press('Enter'); await wait(page, 200)
   await page.locator('.apt-time-row input[type="time"]').fill('15:30')
   await page.locator('.modal-footer .btn-primary').dblclick(); await wait(page, 800)
@@ -161,7 +163,7 @@ async function desktopEdge() {
   check(nw && nw.id && nw.createdAt && nw.updatedAt && nw.createdBy === 'u-admin' && nw.date.length === 10 && nw.durationMin === 30 && (new Date(nw.end) - new Date(nw.start)) === 30 * 60000, 'new appointment: id, timestamps, createdBy, date, end = start + duration')
   check(await db(page, id => window.__dentora.db.activity.filter(a => a.entityId === id && a.action === 'create').count(), nw?.id) === 1, 'one create activity')
   const b2 = await db(page, () => window.__dentora.db.appointments.count())
-  await page.locator('.page-header .btn-primary').click(); await page.waitForSelector('.apt-form'); await wait(page, 300)
+  await newButton(page).click(); await page.waitForSelector('.apt-form'); await wait(page, 300)
   await page.locator('.apt-picker input').fill('Jonathan'); await wait(page, 250); await page.keyboard.press('Enter'); await wait(page, 200)
   await page.locator('.apt-time-row input[type="time"]').fill('16:30')
   await page.locator('.apt-form input[maxlength="160"]').fill('x')
@@ -169,14 +171,14 @@ async function desktopEdge() {
   check(await db(page, () => window.__dentora.db.appointments.count()) === b2 + 1, 'Enter twice creates one appointment')
 
   // Escape closes the form
-  await page.locator('.page-header .btn-primary').click(); await page.waitForSelector('.apt-form'); await wait(page, 300)
+  await newButton(page).click(); await page.waitForSelector('.apt-form'); await wait(page, 300)
   await page.locator('.apt-form select').first().focus()
   await page.keyboard.press('Escape'); await wait(page, 300)
   check(await page.locator('.apt-form').count() === 0, 'Escape closes the form')
 
   // quick-create: Enter twice in the name field
   const pc = await db(page, () => window.__dentora.db.patients.count())
-  await page.locator('.page-header .btn-primary').click(); await page.waitForSelector('.apt-form'); await wait(page, 300)
+  await newButton(page).click(); await page.waitForSelector('.apt-form'); await wait(page, 300)
   await page.locator('.apt-picker input').fill('مريض سريع'); await wait(page, 250)
   await page.locator('.apt-drop-new').click(); await wait(page, 300)
   await page.locator('.apt-quick input').first().press('Enter'); await page.keyboard.press('Enter'); await wait(page, 700)
@@ -188,7 +190,7 @@ async function desktopEdge() {
   await page.keyboard.press('Escape'); await wait(page, 300)
 
   // quick-create validation, then Escape twice: quick form, then the dialog
-  await page.locator('.page-header .btn-primary').click(); await page.waitForSelector('.apt-form'); await wait(page, 300)
+  await newButton(page).click(); await page.waitForSelector('.apt-form'); await wait(page, 300)
   await page.locator('.apt-picker input').fill('12'); await wait(page, 250)
   await page.locator('.apt-drop-new').click(); await wait(page, 300)
   await page.locator('.apt-quick input').first().fill('ا')
@@ -241,14 +243,14 @@ async function emptyClinic() {
     const errors = watchErrors(page, `empty-${k}`)
     await seedAndLogin(page)
     await db(page, async () => { const d = window.__dentora.db; await d.appointments.clear(); await d.patients.clear() })
-    await page.evaluate(() => sessionStorage.clear())
+    await page.evaluate(() => sessionStorage.removeItem('dentora.appointments.view'))
     await go(page, '/appointments'); await wait(page, 500)
     await shot(page, `r20-${k}-empty-day`); await noOverflow(page, `${k} empty day`)
     await setView(page, 'أسبوع'); await shot(page, `r21-${k}-empty-week`); await noOverflow(page, `${k} empty week`)
     await setView(page, 'شهر'); await shot(page, `r22-${k}-empty-month`); await noOverflow(page, `${k} empty month`)
     await setView(page, 'قائمة'); await shot(page, `r23-${k}-empty-list`); await noOverflow(page, `${k} empty list`)
     check(await page.locator('.empty').count() === 1, `${k}: empty agenda state`)
-    await page.locator('.page-header .btn-primary').click(); await page.waitForSelector('.apt-form'); await wait(page, 300)
+    await newButton(page).click(); await page.waitForSelector('.apt-form'); await wait(page, 300)
     await page.locator('.apt-picker input').click(); await wait(page, 300)
     check(await page.locator('.apt-drop-empty').count() === 1, `${k}: "no patients yet" in the picker`)
     await shot(page, `r24-${k}-empty-form`); await noOverflow(page, `${k} empty form`)
@@ -262,7 +264,7 @@ async function phoneEdge() {
   const errors = watchErrors(page, 'phone-edge')
   await seedAndLogin(page)
   await seedEdge(page)
-  await page.evaluate(() => sessionStorage.clear())
+  await page.evaluate(() => sessionStorage.removeItem('dentora.appointments.view'))
   await go(page, '/appointments'); await page.waitForSelector('.apt-mitem'); await wait(page, 400)
   await shot(page, 'r30-m-day-edge'); await noOverflow(page, 'm day edge')
   check(await page.locator('.apt-mitem').count() === 9, `phone day list shows all 9 (${await page.locator('.apt-mitem').count()})`)
@@ -295,7 +297,7 @@ async function enEdge() {
   const errors = watchErrors(page, 'en-edge')
   await seedAndLogin(page, { lang: 'en' })
   await seedEdge(page)
-  await page.evaluate(() => sessionStorage.clear())
+  await page.evaluate(() => sessionStorage.removeItem('dentora.appointments.view'))
   await go(page, '/appointments'); await page.waitForSelector('.apt-tg-col'); await wait(page, 400)
   await page.evaluate(() => { document.querySelector('.apt-tg-scroll').scrollTop = 0 }); await wait(page, 200)
   await shot(page, 'r40-en-day-edge'); await noOverflow(page, 'en day edge')
@@ -304,7 +306,7 @@ async function enEdge() {
   check(aligns.every(x => x <= 2), `EN: Arabic names keep the LTR alignment (${aligns.join(',')})`)
   const cut = await page.evaluate(() => { const e = [...document.querySelectorAll('.apt-arow-name')].find(x => x.textContent.startsWith('عبد الرحمن')); return e ? getComputedStyle(e).direction : '' })
   check(cut === 'rtl', `EN: an Arabic name is laid out RTL so the ellipsis cuts its end (${cut})`)
-  await page.locator('.page-header .btn-primary').click(); await page.waitForSelector('.apt-form'); await wait(page, 300)
+  await newButton(page).click(); await page.waitForSelector('.apt-form'); await wait(page, 300)
   await page.locator('.apt-picker input').fill('Jon'); await wait(page, 250); await page.keyboard.press('Enter'); await wait(page, 200)
   const friday = await page.evaluate(() => { const x = new Date(); x.setDate(x.getDate() + ((5 - x.getDay() + 7) % 7 || 7)); return `${x.getFullYear()}-${String(x.getMonth() + 1).padStart(2, '0')}-${String(x.getDate()).padStart(2, '0')}` })
   await page.locator('.apt-form input[type="date"]').fill(friday)

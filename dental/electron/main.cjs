@@ -28,7 +28,7 @@ const crypto = require('node:crypto')
 const zlib = require('node:zlib')
 const { execFile } = require('node:child_process')
 const { pathToFileURL } = require('node:url')
-const { fitBounds, sameFileUrl, debugSwitch, contextMenuItems, resolveDeviceId } = require('./lib.cjs')
+const { fitBounds, sameFileUrl, debugSwitch, contextMenuItems, resolveDeviceId, CSP } = require('./lib.cjs')
 
 const APP_ID = 'com.dentora.app'
 // Developer Tools only in a development run (electron .), never in the installed app, whatever the environment says
@@ -45,23 +45,6 @@ const DEFAULT_W = 1360
 const DEFAULT_H = 860
 const ZOOM_STEPS = [0.67, 0.75, 0.8, 0.9, 1, 1.1, 1.25, 1.5, 1.75, 2]
 const EXTERNAL_PROTOCOLS = new Set(['http:', 'https:', 'mailto:', 'tel:'])
-
-// The page's own CSP: everything comes from the app folder; data:/blob: for logos, photos, x-rays and backups.
-// 'unsafe-inline' only for styles (style attributes); scripts are strictly 'self'.
-const CSP = [
-  "default-src 'self'",
-  "script-src 'self'",
-  "style-src 'self' 'unsafe-inline'",
-  "img-src 'self' data: blob:",
-  "font-src 'self' data:",
-  "connect-src 'self' data: blob:",
-  "media-src 'self' data: blob:",
-  "worker-src 'self' blob:",
-  "frame-src 'self' data: blob:",
-  "object-src 'none'",
-  "base-uri 'self'",
-  "form-action 'self'",
-].join('; ')
 
 // ---- early setup (before 'ready') ----------------------------------------------------------------------------
 if (process.env.DENTORA_USER_DATA) app.setPath('userData', path.resolve(process.env.DENTORA_USER_DATA))
@@ -279,14 +262,15 @@ function hardenContents(contents) {
 
 function setupSession() {
   const ses = session.defaultSession
-  // strict CSP for the app's own pages (file://); the bundled index.html carries none of its own
+  // strict CSP for the app's own pages (file://), the same one index.html carries in its <meta> tag (lib.cjs CSP)
   ses.webRequest.onHeadersReceived({ urls: ['file:///*', 'file://*/*'] }, (details, cb) => {
     const headers = { ...(details.responseHeaders || {}) }
     for (const k of Object.keys(headers)) if (k.toLowerCase() === 'content-security-policy') delete headers[k]
     headers['Content-Security-Policy'] = [CSP]
     cb({ responseHeaders: headers })
   })
-  const ALLOWED = new Set(['clipboard-sanitized-write', 'clipboard-read', 'fullscreen', 'notifications', 'media', 'pointerLock'])
+  // persistent-storage: navigator.storage.persist() at start-up keeps Chromium from evicting the clinic's records
+  const ALLOWED = new Set(['clipboard-sanitized-write', 'clipboard-read', 'fullscreen', 'notifications', 'media', 'pointerLock', 'persistent-storage'])
   ses.setPermissionRequestHandler((wc, permission, cb, details) => {
     const from = (details && (details.requestingUrl || details.securityOrigin)) || wc.getURL()
     cb(ALLOWED.has(permission) && (isAppUrl(from) || String(from).startsWith('file://')))

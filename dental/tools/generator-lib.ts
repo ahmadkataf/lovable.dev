@@ -96,9 +96,9 @@ export function clinicMessage(i: Pick<Issued, 'code' | 'plan' | 'until' | 'devic
       `Hello${clinic ? ` ${clinic}` : ''},`,
       'Here is your Dentora activation code:',
       i.code,
-      `${PLAN_NAME.en[i.plan]} — ${i.until ? `valid until ${i.until}` : 'lifetime license'}`,
+      `${PLAN_NAME.en[i.plan]} — ${i.until ? `valid until ${i.until}` : 'lifetime licence'}`,
       `Device number: ${i.device}`,
-      'Open Settings → License, enter the code and press “Activate”. Thank you!',
+      'Open Settings → Licence, enter the code and press “Activate”. Thank you!',
     ].join('\n')
   }
   return [

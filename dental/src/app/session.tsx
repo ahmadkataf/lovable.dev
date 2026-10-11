@@ -40,7 +40,16 @@ const SAVE_EVERY_MS = 5_000
 
 const readLockAfter = () => { try { return lockAfterMs(localStorage.getItem(LOCK_AFTER_KEY)) } catch { return lockAfterMs(null) } }
 function readRun(): RunSession | null { try { return parseRunSession(sessionStorage.getItem(SESSION_KEY)) } catch { return null } }
-function writeRun(s: RunSession | null): void {
+/**
+ * Set by clearSession() (the database was wiped, the app is about to reload): from then on only a new sign-in may
+ * store a session, so the provider's own saves (on a touch, when the page is hidden or unloaded) cannot bring the
+ * previous user back without a PIN.
+ */
+let cleared = false
+const CLEARED_EVENT = 'dentora:session-cleared'
+function writeRun(s: RunSession | null, signIn = false): void {
+  if (signIn) cleared = false
+  else if (s && cleared) return
   try { if (s) sessionStorage.setItem(SESSION_KEY, serializeRunSession(s)); else sessionStorage.removeItem(SESSION_KEY) } catch { /* storage blocked: the session stays in memory */ }
 }
 
@@ -74,7 +83,13 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   const start = useCallback((id: string | null) => {
     const s = id ? { id, at: Date.now() } : null
     lastRef.current = { wall: Date.now(), mono: performance.now() }
-    writeRun(s); setRun(s)
+    writeRun(s, !!s); setRun(s)
+  }, [])
+  // clearSession() from outside React (after "Delete all data"): sign out here too, at once
+  useEffect(() => {
+    const h = () => setRun(null)
+    window.addEventListener(CLEARED_EVENT, h)
+    return () => window.removeEventListener(CLEARED_EVENT, h)
   }, [])
 
   const attempt = useCallback(async (id: string, pin: string) => {
@@ -158,5 +173,10 @@ export function useSession(): Session {
   if (!v) throw new Error('useSession outside SessionProvider')
   return v
 }
-/** Signs out of this run (for code outside React, e.g. after wiping the database). */
-export function clearSession(): void { writeRun(null) }
+/** Signs out of this run (for code outside React, e.g. after wiping the database), including an old version's stored copy. */
+export function clearSession(): void {
+  cleared = true
+  writeRun(null)
+  try { localStorage.removeItem(SESSION_KEY) } catch { /* storage blocked */ }
+  try { window.dispatchEvent(new Event(CLEARED_EVENT)) } catch { /* no window (tests) */ }
+}

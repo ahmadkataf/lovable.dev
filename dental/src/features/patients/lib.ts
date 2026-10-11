@@ -265,6 +265,17 @@ export function pluralForm(n: number): PluralForm {
 
 // ---- files ---------------------------------------------------------------------------------------
 export const MAX_FILE_MB = 25
+/** Room kept free after an upload, so the clinic's next appointments and invoices can still be saved. */
+export const UPLOAD_HEADROOM = 20 * 1024 * 1024
+/**
+ * Whether a file of `bytes` can be stored with `free` bytes left on the device (storageAvailable()): the file, its
+ * thumbnail and the database's own overhead, plus some headroom. null (the browser does not say) lets it through;
+ * a quota error on the write is caught then.
+ */
+export function uploadFits(bytes: number, free: number | null): boolean {
+  if (free === null || !Number.isFinite(free)) return true
+  return free >= Math.max(0, bytes) * 1.1 + 64 * 1024 + UPLOAD_HEADROOM
+}
 export type FileShape = 'image' | 'pdf' | 'other'
 export function fileShape(mime?: string, name?: string): FileShape {
   const m = (mime || '').toLowerCase(), n = (name || '').toLowerCase()

@@ -2,7 +2,7 @@ import type { Appointment, Invoice, Patient, Payment } from '../src/db/types'
 import {
   addChips, allTags, balancesByPatient, cleanPhone, countByKind, DEFAULT_FILTERS, digitsOnly, fileShape, filterPatients, findDuplicatePhone, fullSearch, guessKind,
   hasActiveFilters, hasChip, isRealDate, isValidEmail, isValidPhone, isValidTooth, lastVisitsByPatient, latestOf, medicalFlags, monthStartISO, nextAppointment, owes,
-  patientBalance, patientStats, pluralForm, previewShape, removeChip, sanitizePhoneInput, sortNotes, sortPatients, upcomingAppointments, validatePatient,
+  patientBalance, patientStats, pluralForm, previewShape, removeChip, sanitizePhoneInput, sortNotes, sortPatients, upcomingAppointments, uploadFits, UPLOAD_HEADROOM, validatePatient,
 } from '../src/features/patients/lib'
 import { sniffMime } from '../src/platform/filetype'
 
@@ -248,6 +248,18 @@ describe('patients: file viewer safety (audit #123)', () => {
     expect(previewShape(null)).toBe('other')
     expect(previewShape(undefined)).toBe('other')
     expect(previewShape('application/octet-stream')).toBe('other')
+  })
+})
+
+describe('patients: upload space (audit #31)', () => {
+  it('refuses a file the device has no room for, and lets it through when the browser cannot tell', () => {
+    const MB = 1024 * 1024
+    expect(uploadFits(5 * MB, null)).toBe(true)
+    expect(uploadFits(5 * MB, 1024 * MB)).toBe(true)
+    expect(uploadFits(5 * MB, 5 * MB)).toBe(false)                                  // the file alone would fill the disk
+    expect(uploadFits(5 * MB, 5.5 * MB + 64 * 1024 + UPLOAD_HEADROOM)).toBe(true)  // the file, its overhead and the headroom
+    expect(uploadFits(5 * MB, 5.5 * MB + UPLOAD_HEADROOM)).toBe(false)
+    expect(uploadFits(0, 0)).toBe(false)
   })
 })
 

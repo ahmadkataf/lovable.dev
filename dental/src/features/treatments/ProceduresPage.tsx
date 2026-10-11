@@ -173,7 +173,7 @@ export default function ProceduresPage() {
       {expired && <Alert tone="warning" className="mb-4">{t('trial.readonly')}</Alert>}
       {!loading && !empty && !scalesPrices(clinic.currency) && reviewed !== clinic.currency && (
         <Alert tone="info" className="mb-4" action={<Button size="sm" variant="secondary" onClick={markReviewed}>{t('treatments.proc.pricesReviewed')}</Button>}>
-          {t('seed.pricesInUsd', { currency: clinic.currency })}
+          {t('seed.pricesInUsd')}
         </Alert>
       )}
 

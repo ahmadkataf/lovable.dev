@@ -6,21 +6,16 @@ import type { AppointmentStatus, Lang } from '@/db/types'
 import { useI18n } from '@/i18n'
 import { Button, IconButton } from '@/ui'
 import { formatPhone } from '@/lib/format'
-import { fmtDate, fmtTime, fromISODate, minutesToTime, relativeDay, diffDays, today as todayISO } from '@/lib/dates'
+import { dateFormat, fmtDate, fmtTime, fromISODate, minutesToTime, relativeDay, diffDays, today as todayISO } from '@/lib/dates'
 import { AGENDA_STEP, daysForBudget, groupByDate, layoutColumns, minutesOfDay, monthGrid, nextStep, durationOf, isWorkingDay, safeDuration } from './lib'
 import { aptVars, DocDot, PatientAvatar, StatusBadge, useCountLabel, useDurationLabel, type AptRow } from './shared'
 
 const ST_ICON: Partial<Record<AppointmentStatus, ReactNode>> = {
   confirmed: <CheckCheck />, arrived: <UserCheck />, in_progress: <Activity />, completed: <CircleCheck />, cancelled: <Ban />, no_show: <UserX />,
 }
-const LOCALE = (lang: Lang) => (lang === 'ar' ? 'ar-SY-u-nu-latn' : 'en-GB')
-const dowCache = new Map<string, Intl.DateTimeFormat>()
-/** Weekday of a date: long, short or narrow ("السبت" / "Sat" / "S"). */
+/** Weekday of a date: long, short or narrow ("السبت" / "Sat" / "S"), in the app's date locale. */
 export function dowName(date: string, lang: Lang, width: 'long' | 'short' | 'narrow' = 'short'): string {
-  const k = lang + width
-  let f = dowCache.get(k)
-  if (!f) { f = new Intl.DateTimeFormat(LOCALE(lang), { weekday: width }); dowCache.set(k, f) }
-  return f.format(fromISODate(date))
+  return dateFormat(lang, { weekday: width }).format(fromISODate(date))
 }
 const dayNum = (d: string) => Number(d.slice(8))
 /** "10:30 ص" → "10:30": a narrow card has no room for the am/pm marker (its place on the time grid already says it). */

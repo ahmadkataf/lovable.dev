@@ -13,7 +13,7 @@ import { ToothIcon } from '@/app/ToothIcon'
 import { fmtDate } from '@/lib/dates'
 import { formatPhone, matches } from '@/lib/format'
 import { print } from '@/platform'
-import { Avatar, Badge, Button, Card, EmptyState, Field, Input, Segmented, Skeleton, Spinner, toneFor, type Tone } from '@/ui'
+import { Avatar, Badge, Button, Card, EmptyState, Field, Input, Segmented, Skeleton, Spinner, toneFor, useEscapeLayer, type Tone } from '@/ui'
 import { usePatientIndex, usePatientPhotos, type SlimPatient } from './patientIndex'
 import { normalizePeriod, PERIOD_PRESETS, presetPeriod, type Period, type PeriodPreset } from './lib'
 import './billing.css'
@@ -148,6 +148,8 @@ export function PatientPicker({ value, onChange, error, locked, label }: { value
   }, [index, q])
   const photos = usePatientPhotos(open ? results.filter(p => p.hasPhoto).map(p => p.id) : [])
   useEffect(() => { setActive(0) }, [q])
+  // the Android Back key (and Escape from outside the field) closes the list first, not the dialog under it
+  useEscapeLayer(open && !value && !locked ? () => setOpen(false) : undefined)
   useEffect(() => {
     if (!open) return
     const h = (e: MouseEvent | TouchEvent) => { if (box.current && !box.current.contains(e.target as Node)) setOpen(false) }
@@ -251,24 +253,22 @@ export function SheetHeader({ clinic, title, number, facts, taxNumber }: { clini
 }
 
 /**
- * Prints with a document title (it names the PDF a user saves and the print job), restored afterwards.
- * Electron and Android print asynchronously: the title comes back on afterprint, or after a minute at the latest.
+ * Prints with a job name (it names the print job and the PDF a user saves, on every platform: the Android shell
+ * reads it from the call, Electron and browsers from the page title, which print() sets and restores).
+ * `after` runs on afterprint, or after a minute at the latest (a host that never fires it).
  */
 export function printTitled(title?: string, before?: () => void, after?: () => void) {
-  const prev = document.title
-  if (title) document.title = title
   before?.()
   let done = false
   const finish = () => {
     if (done) return
     done = true
     window.removeEventListener('afterprint', finish)
-    if (title) document.title = prev
     after?.()
   }
   window.addEventListener('afterprint', finish)
   window.setTimeout(finish, 60_000)
-  print()
+  print(title)
 }
 /** A file-name friendly title: "فاتورة INV-000033 — أحمد الخطيب". */
 export const docTitle = (...parts: (string | undefined)[]) => parts.filter(Boolean).join(' — ').replace(/[\\/:*?"<>|]+/g, ' ').trim()

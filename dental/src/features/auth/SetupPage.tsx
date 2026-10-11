@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState, type FormEvent } from 'react'
+import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { ArrowLeft, ArrowRight, Check, Rocket } from 'lucide-react'
 import { Button, useConfirm, useToast } from '@/ui'
@@ -9,6 +9,8 @@ import { db, logActivity, updateClinic } from '@/db'
 import { newId, nowISO } from '@/db/ids'
 import type { Lang, User } from '@/db/types'
 import { hashPin, randomHex } from '@/lib/crypto'
+import { onBackButton } from '@/platform'
+import { AcceptTerms, acceptTerms } from '@/features/legal'
 import { seedDefaults } from '@/features/seed/demo'
 import { restartApp, restoreBackup } from '@/features/settings/backup'
 import type { ReadResult } from '@/features/settings/backup/archive'
@@ -29,7 +31,10 @@ const TITLES: Record<(typeof STEPS)[number], [string, string]> = {
   review: ['auth.review.title', 'auth.review.desc'],
 }
 
-/** First-run wizard: clinic name, currency, language, the admin user and PIN. Sets clinic.setupDone = true. */
+/**
+ * First-run wizard: language, clinic, currency/hours/country, the admin user and PIN, then a review where the terms of
+ * use and the privacy policy are accepted. Sets clinic.setupDone = true. The Android Back key steps back through it.
+ */
 export default function SetupPage() {
   const { t, lang, setLang } = useI18n()
   const session = useSession()
@@ -52,8 +57,11 @@ export default function SetupPage() {
     workingDays: [0, 1, 2, 3, 4, 6], workStart: '09:00', workEnd: '18:00', slotMinutes: 30, taxPercent: null,
   })
   const [owner, setOwner] = useState<OwnerDraft>(() => ({ name: '', title: ownerTitleFor(lang), specialty: '', phone: '', pin: '', pin2: '' }))
+  const [accepted, setAccepted] = useState(false)
 
-  const errorsOf = (i: number): Errors => (i === 1 ? validateClinicStep(clinic) : i === 2 ? validateMoneyStep(money) : i === 3 ? validateOwnerStep(owner) : {})
+  const errorsOf = (i: number): Errors => (
+    i === 1 ? validateClinicStep(clinic) : i === 2 ? validateMoneyStep(money) : i === 3 ? validateOwnerStep(owner)
+      : i === STEPS.length - 1 && !accepted ? { terms: 'auth.v.terms' } : {})
   const validUpTo = (i: number) => { for (let s = 0; s < i; s++) if (Object.keys(errorsOf(s)).length) return false; return true }
   const errors = errorsOf(step)
   const err = (f: string) => (tried[step] && errors[f] ? t(errors[f]) : undefined)
@@ -71,6 +79,13 @@ export default function SetupPage() {
       body.querySelector<HTMLElement>('input:not([type=hidden]), select')?.focus({ preventScroll: true })
     })
   }
+  // the Android Back key goes back a step (after closing any open dialog); on the first step it leaves the app
+  useEffect(() => onBackButton(() => {
+    if (busy || finishing.current) return true
+    if (step > 0) { go(step - 1); return true }
+    return false
+  }), [step, busy])  // eslint-disable-line react-hooks/exhaustive-deps
+
   const pickLang = (l: Lang) => {
     setLang(l)
     // the owner's title follows the language until it is chosen by hand
@@ -82,7 +97,7 @@ export default function SetupPage() {
     if (busy || finishing.current) return
     if (Object.keys(errors).length) {
       setTried(m => ({ ...m, [step]: true }))
-      requestAnimationFrame(() => bodyRef.current?.querySelector<HTMLElement>('.invalid')?.focus())
+      requestAnimationFrame(() => bodyRef.current?.querySelector<HTMLElement>('.invalid, [aria-invalid="true"]')?.focus())
       return
     }
     if (last) void finish()
@@ -107,6 +122,8 @@ export default function SetupPage() {
         await updateClinic({ ...buildClinicPatch(lang, clinic, money), setupDone: false })
         await db.users.put(user)
       })
+      // the terms of use and the privacy policy the owner accepted on the review step (version and date, by whom)
+      await acceptTerms(userId)
       try { await seedDefaults() } catch { /* default procedures/drugs are a convenience; the clinic works without them */ }
       const ok = await session.login(userId, owner.pin)
       await updateClinic({ setupDone: true })
@@ -177,7 +194,12 @@ export default function SetupPage() {
               {key === 'clinic' && <ClinicStep value={clinic} onChange={setClinic} err={err} />}
               {key === 'money' && <MoneyStep value={money} onChange={setMoney} err={err} />}
               {key === 'owner' && <OwnerStep value={owner} onChange={setOwner} err={err} onTitleTouched={() => { titleTouched.current = true }} />}
-              {key === 'review' && <ReviewStep lang={lang} clinic={clinic} money={money} owner={owner} onEdit={go} />}
+              {key === 'review' && <>
+                <ReviewStep lang={lang} clinic={clinic} money={money} owner={owner} onEdit={go} />
+                <div className="au-terms" data-qa="setup-terms">
+                  <AcceptTerms checked={accepted} onChange={setAccepted} error={err('terms')} links={['terms', 'privacy', 'notices']} />
+                </div>
+              </>}
             </div>
           </div>
           <div className="au-setup-foot">

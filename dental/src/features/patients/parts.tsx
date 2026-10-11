@@ -4,7 +4,7 @@ import { createPortal } from 'react-dom'
 import { EllipsisVertical, HeartPulse, MessageCircle, Phone, Pill, Plus, TriangleAlert, X } from 'lucide-react'
 import type { Patient } from '@/db/types'
 import { useI18n } from '@/i18n'
-import { Badge, useConfirm, type MenuItemDef } from '@/ui'
+import { Badge, useConfirm, useEscapeLayer, type MenuItemDef } from '@/ui'
 import { colorFor, formatPhone, whatsappLink } from '@/lib/format'
 import { ageFrom } from '@/lib/dates'
 import { openExternal, platform } from '@/platform'
@@ -158,10 +158,11 @@ export function RowMenu({ items, label }: { items: MenuItemDef[]; label: string 
     setPos({ top, left })
   }, [anchor, isRTL])
 
+  // Escape and the Android Back key close the menu through the kit's layer stack (top-most layer first)
+  useEscapeLayer(anchor ? close : undefined)
   useEffect(() => {
     if (!anchor) return
     const outside = (e: Event) => { const n = e.target as Node; if (!menu.current?.contains(n) && !btn.current?.contains(n)) close() }
-    const key = (e: globalThis.KeyboardEvent) => { if (e.key === 'Escape') close() }
     // follow the trigger while the page scrolls; close once it leaves the screen
     const follow = () => {
       const r = btn.current?.getBoundingClientRect()
@@ -169,10 +170,10 @@ export function RowMenu({ items, label }: { items: MenuItemDef[]; label: string 
       else setAnchor(prev => (prev && prev.top === r.top && prev.left === r.left ? prev : r))
     }
     document.addEventListener('mousedown', outside); document.addEventListener('touchstart', outside)
-    window.addEventListener('keydown', key); window.addEventListener('resize', close); window.addEventListener('scroll', follow, true)
+    window.addEventListener('resize', close); window.addEventListener('scroll', follow, true)
     return () => {
       document.removeEventListener('mousedown', outside); document.removeEventListener('touchstart', outside)
-      window.removeEventListener('keydown', key); window.removeEventListener('resize', close); window.removeEventListener('scroll', follow, true)
+      window.removeEventListener('resize', close); window.removeEventListener('scroll', follow, true)
     }
   }, [anchor, close])
 

@@ -101,7 +101,7 @@ final class WebFiles {
      */
     static final String CSP = "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; "
         + "font-src 'self' data:; connect-src 'self' data: blob:; media-src 'self' data: blob:; worker-src 'self' blob:; "
-        + "frame-src 'self' data: blob:; object-src 'none'; base-uri 'self'; form-action 'self'";
+        + "frame-src 'self' data: blob:; object-src 'none'; base-uri 'self'; form-action 'none'";
 
     /**
      * What the shell does with a request the page makes (shouldInterceptRequest): "app" answered from the assets,
@@ -500,6 +500,21 @@ final class WebFiles {
         } catch (SyncFailedException e) {
             // nothing to sync on a pipe; the provider stores the file when it is closed
         }
+    }
+
+    /** The largest text size the app follows from the phone's font-size setting (130 %); larger ones would break the layout. */
+    static final int MAX_TEXT_ZOOM = 130;
+    /** The smallest (Android's "small" font size is 85 %). */
+    static final int MIN_TEXT_ZOOM = 85;
+
+    /**
+     * The WebView's text zoom for the phone's font scale (Settings → Display → Font size): the clinic's own choice,
+     * so the app's text grows with it, up to 130 % (the layouts are checked at that size). 1.0 → 100.
+     */
+    static int textZoomFor(float fontScale) {
+        if (Float.isNaN(fontScale) || fontScale <= 0f) return 100;
+        int zoom = Math.round(fontScale * 100f);
+        return Math.max(MIN_TEXT_ZOOM, Math.min(MAX_TEXT_ZOOM, zoom));
     }
 
     /**

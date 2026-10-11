@@ -1,7 +1,7 @@
 // Adversarial review QA of the treatments module (edge cases, data integrity, phone, English).
-// Usage: npx vite build --outDir /tmp/dist-treatments-r && QA_DIST=/tmp/dist-treatments-r QA_PORT=4354 QA_SHOTS=qa-shots/treatments-review node scripts/qa/treatments-review.mjs [ar|en|phone]
+// Usage: VITE_QA=1 npx vite build --outDir /tmp/dist-treatments-r && QA_DIST=/tmp/dist-treatments-r QA_PORT=4354 QA_SHOTS=qa-shots/treatments-review node scripts/qa/treatments-review.mjs [ar|en|phone]
 import fs from 'node:fs'
-import { startServer, openBrowser, seedAndLogin, shot, BASE } from './lib.mjs'
+import { startServer, openBrowser, seedAndLogin, shot, BASE, setSession } from './lib.mjs'
 
 const parts = process.argv.slice(2)
 const want = p => !parts.length || parts.includes(p)
@@ -343,15 +343,14 @@ async function english() {
   await page.getByRole('menuitem', { name: 'Cancel item' }).click(); await wait(page, 500)
   const c38 = await q(page, () => window.__dentora.db.treatments.filter(i => i.tooth === 38).first())
   check(c38.status === 'cancelled' && !c38.completedAt, 'en: completed item cancelled (completedAt cleared)')
-  // a doctor sees the price list read-only
-  await q(page, () => localStorage.setItem('dentora.session', 'u-doc2'))
+  // the price list belongs to the clinic's administrators: the route guard (App.tsx, 'manage') shows a doctor the
+  // no-permission page, with nothing to add or change
+  await setSession(page, 'u-doc2')
   await page.reload(); await page.waitForLoadState('networkidle'); await wait(page, 500)
   await go(page, '/procedures')
-  check(await page.getByRole('button', { name: 'New procedure' }).isDisabled(), 'en: doctor cannot add procedures')
-  check(await page.getByRole('button', { name: 'Adjust prices' }).isDisabled(), 'en: doctor cannot bulk-change prices')
-  await page.getByRole('row').nth(1).click(); await wait(page, 300)
-  check(await modalCount(page) === 0, 'en: doctor row click opens no editor')
-  await snap(page, 'en-12-doctor-readonly')
+  check(await page.getByText('This page is not available for your role').count() === 1, 'en: a doctor gets the no-permission page for the price list')
+  check(await page.getByRole('button', { name: 'New procedure' }).count() === 0 && await page.getByRole('button', { name: 'Adjust prices' }).count() === 0, 'en: doctor cannot add procedures or bulk-change prices')
+  await snap(page, 'en-12-doctor-no-access')
   await browser.close()
 }
 

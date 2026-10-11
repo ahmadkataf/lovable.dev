@@ -79,7 +79,7 @@
 .pt-hero-meta, .pt-hero-contact { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 18px; color: var(--text-3); font-size: var(--fs-md); }
 .pt-meta-item { display: inline-flex; align-items: center; gap: 6px; min-width: 0; }
 .pt-meta-item > svg { width: 16px; height: 16px; color: var(--text-4); flex: none; }
-.pt-meta-item .avatar-xs { width: 22px; height: 22px; font-size: 9px; }
+.pt-doc-dot { width: 10px; height: 10px; border-radius: 50%; flex: none; box-shadow: 0 0 0 2px var(--surface), 0 0 0 3px color-mix(in srgb, currentColor 18%, transparent); }
 .pt-link { color: var(--text-2); }
 .pt-link:hover { color: var(--primary); }
 /* contact items never push the header wider than the screen: a long e-mail shrinks and ends with an ellipsis */
@@ -276,4 +276,9 @@
   .pt-photo-row .grow { flex: 1 1 calc(100% - 80px); }
   .pt-photo-row > .row { width: 100%; }
   .pt-photo-row > .row .btn { flex: 1; height: 40px; }
+}
+/* phones: no text under 12px (finding 79) */
+@media screen and (max-width: 767px) {
+  .pt-count, .pt-apt-mon { font-size: 12px; }
+  .pt-stats .stat-label { font-size: 12px; }
 }

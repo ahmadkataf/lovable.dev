@@ -230,6 +230,8 @@
 /* ===== Modal / Drawer ===== */
 .overlay { position: fixed; inset: 0; background: rgba(15, 23, 42, .45); backdrop-filter: blur(3px); -webkit-backdrop-filter: blur(3px); z-index: 100; display: flex; align-items: center; justify-content: center; padding: 20px; animation: fade-in var(--t-med) both; }
 .modal { background: var(--surface); border-radius: var(--r-2xl); box-shadow: var(--sh-xl); width: 100%; max-width: 560px; max-height: calc(100vh - 40px); max-height: calc(100dvh - 40px); display: flex; flex-direction: column; animation: pop-in var(--t-slow) var(--ease) both; overflow: hidden; }
+/* a dialog takes the focus itself on touch screens (no keyboard on open): no ring around the whole dialog */
+.modal:focus { outline: none; }
 .modal-sm { max-width: 420px; } .modal-lg { max-width: 760px; } .modal-xl { max-width: 1000px; } .modal-full { max-width: 1200px; }
 .modal-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 18px 22px 14px; }
 .modal-header .modal-title { font-size: var(--fs-xl); font-weight: 700; display: flex; align-items: center; gap: 10px; }

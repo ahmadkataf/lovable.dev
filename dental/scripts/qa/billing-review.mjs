@@ -1,7 +1,7 @@
 // Adversarial QA of the billing module (review pass): validation edge cases, double submit, Escape/Enter, refunds,
 // long names, deleted references, permissions, read-only, phone 390×844, English, and laptop widths with SYP amounts.
-// Usage: npx vite build --outDir /tmp/dist-billing-r && QA_DIST=/tmp/dist-billing-r QA_PORT=4355 QA_SHOTS=qa-shots/billing-review node scripts/qa/billing-review.mjs [a|b|c|d]
-import { startServer, openBrowser, seedAndLogin, shot, BASE } from './lib.mjs'
+// Usage: VITE_QA=1 npx vite build --outDir /tmp/dist-billing-r && QA_DIST=/tmp/dist-billing-r QA_PORT=4355 QA_SHOTS=qa-shots/billing-review node scripts/qa/billing-review.mjs [a|b|c|d]
+import { startServer, openBrowser, seedAndLogin, shot, BASE, setSession } from './lib.mjs'
 
 const only = process.argv.slice(2)
 const want = s => !only.length || only.includes(s)
@@ -174,7 +174,7 @@ try {
     await wait(page, 400)
     check(await page.locator('.bl-pay').count() === 0, 'payment: Escape closes the modal')
 
-    // --- refund on the invoice → back to unpaid, the rest off the account ---
+    // --- refund on the invoice: never more than was paid on it plus the patient's credit (no phantom debt) ---
     await page.getByRole('button', { name: 'تسجيل دفعة' }).first().click()
     await wait(page, 600)
     await page.locator('.bl-refund-row .track').click()
@@ -183,9 +183,13 @@ try {
     await snap(page, 'a-07-refund-split')
     await page.getByRole('button', { name: 'حفظ الاسترداد' }).click()
     await wait(page, 800)
+    check((await payments(page)).length === 1 && await page.locator('.bl-pay').count() === 1, 'refund: 150 is refused when only 100 was paid and there is no credit')
+    await page.locator('.bl-amount input').fill('100')
+    await page.getByRole('button', { name: 'حفظ الاسترداد' }).click()
+    await wait(page, 800)
     pays = await payments(page)
     const onInv = pays.filter(p => p.invoiceId === i1.id).reduce((a, p) => a + p.amount, 0)
-    check(onInv === 0 && pays.some(p => !p.invoiceId && p.amount === -50), `refund: 100 back off the invoice, 50 off the account (${JSON.stringify(pays.map(p => [p.invoiceId ? 'inv' : 'acc', p.amount]))})`)
+    check(onInv === 0 && !pays.some(p => !p.invoiceId), `refund: the 100 comes back off the invoice, nothing off the account (${JSON.stringify(pays.map(p => [p.invoiceId ? 'inv' : 'acc', p.amount]))})`)
     i1b = (await invoices(page))[0]
     check(i1b.paid === 0 && i1b.status === 'unpaid', `refund: invoice back to unpaid (${i1b.paid} ${i1b.status})`)
     const toastBtn = page.getByRole('button', { name: 'طباعة الإيصال' })
@@ -279,7 +283,9 @@ try {
     const pc = (await payments(page)).length
     await page.getByRole('button', { name: 'حفظ الدفعة' }).click()
     await wait(page, 700)
-    check((await payments(page)).length === pc + 1, 'orphan: a payment can still be recorded on the invoice')
+    // a patient with money history cannot be deleted from the app; one removed behind its back takes no new payment
+    check((await payments(page)).length === pc && (await page.locator('.toast').last().textContent().catch(() => '')).includes('لم يعد موجوداً'), 'orphan: a payment for a patient that no longer exists is refused with a clear message')
+    await page.keyboard.press('Escape'); await wait(page, 300)
     await go(page, '/payments')
     await page.getByRole('tab', { name: 'هذا الشهر' }).click()
     await wait(page)
@@ -304,14 +310,15 @@ try {
     await page.getByRole('tab', { name: 'هذا الشهر' }).click()
 
     // --- assistant (no billing permission) ---
-    await q(page, async () => { const db = window.__dentora.db; const now = new Date().toISOString(); const u = await db.users.get('u-admin'); await db.users.put({ ...u, id: 'u-asst', name: 'مساعدة', role: 'assistant', createdAt: now, updatedAt: now }); localStorage.setItem('dentora.session', 'u-asst') })
+    await q(page, async () => { const db = window.__dentora.db; const now = new Date().toISOString(); const u = await db.users.get('u-admin'); await db.users.put({ ...u, id: 'u-asst', name: 'مساعدة', role: 'assistant', createdAt: now, updatedAt: now }) })
+    await setSession(page, 'u-asst')
     await go(page, '/invoices')
     await page.reload(); await wait(page, 800)
     await snap(page, 'a-19-assistant')
-    check(await page.getByRole('button', { name: 'فاتورة جديدة' }).count() === 0 && await page.getByText('لا تملك صلاحية الوصول إلى الفواتير').count() > 0, 'permissions: an assistant sees the no-access screen')
+    check(await page.getByRole('button', { name: 'فاتورة جديدة' }).count() === 0 && await page.getByText('هذه الصفحة غير متاحة لدورك').count() > 0, 'permissions: an assistant sees the no-access screen (the route guard)')
     await go(page, `/invoices/${draft.id}`)
     check(await page.locator('.bl-sheet').count() === 0, 'permissions: an assistant cannot open an invoice')
-    await q(page, () => localStorage.setItem('dentora.session', 'u-admin'))
+    await setSession(page, 'u-admin')
 
     // --- read-only (expired trial): Enter in the payment form must not save ---
     await go(page, '/invoices')

@@ -1,12 +1,12 @@
 // QA for the settings module (clinic, preferences, billing, backup/restore, licence, about) and the seller's code
 // generator (CLI + offline page): screenshots in desktop RTL / desktop EN / phone, real flows asserted on the database.
-//   npx vite build --outDir /tmp/dist-settings && npx vite build --config vite.tools.config.ts
+//   VITE_QA=1 npx vite build --outDir /tmp/dist-settings && npx vite build --config vite.tools.config.ts
 //   QA_DIST=/tmp/dist-settings QA_PORT=4309 QA_SHOTS=qa-shots/settings node scripts/qa/settings.mjs
 import { execFileSync } from 'node:child_process'
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
-import { startServer, openBrowser, seedAndLogin, shot, BASE } from './lib.mjs'
+import { startServer, openBrowser, seedAndLogin, setSession, sessionUser, readArchive, BACKUP_NAME, shot, BASE } from './lib.mjs'
 import { makeCode as signCode, importSigningKey, parsePrivateKey } from '../../tools/generator-lib.ts'
 import { checkCode } from '../../src/license/core.ts'
 
@@ -199,7 +199,10 @@ try {
     await page.click('[data-qa=activate]')
     await page.waitForSelector('[data-qa=license-status][data-status=active]')
     ok((await page.textContent('[data-qa=license-until]')).length > 0, 'licence: lifetime activation works from the expired state')
-    await q(page, async () => { await window.__dentora.db.settings.put({ key: 'installedAt', value: new Date().toISOString() }) })
+    // (the trial start stays where it is: it can only move earlier, and the clinic is activated now)
+    ok(await q(page, async () => {
+      try { await window.__dentora.db.settings.put({ key: 'installedAt', value: new Date().toISOString() }); return false } catch { return true }
+    }), 'licence: the trial start cannot be moved later')
 
     // ---- about ----
     await tab(page, 'about')
@@ -211,10 +214,11 @@ try {
     const dl = page.waitForEvent('download')
     await page.click('[data-qa=export-backup]')
     const download = await dl
-    ok(/^dentora-backup-\d{4}-\d{2}-\d{2}\.json$/.test(download.suggestedFilename()), `backup: file name ${download.suggestedFilename()}`)
+    ok(BACKUP_NAME.test(download.suggestedFilename()), `backup: file name ${download.suggestedFilename()}`)
     const backupPath = await download.path()
-    const backup = JSON.parse(fs.readFileSync(backupPath, 'utf8'))
-    ok(backup.app === 'dentora' && Array.isArray(backup.tables.patients) && backup.tables.clinic[0].name === 'عيادة الابتسامة لطب الأسنان', 'backup: JSON holds every table')
+    ok(fs.readFileSync(backupPath).subarray(0, 2).toString('latin1') === 'PK', 'backup: a ZIP archive')
+    const backup = readArchive(backupPath)
+    ok(backup.app === 'dentora' && backup.format === 2 && Array.isArray(backup.tables.patients) && backup.tables.clinic[0].name === 'عيادة الابتسامة لطب الأسنان', 'backup: the archive holds every table')
     await page.waitForFunction(async () => !!(await window.__dentora.db.settings.get('lastBackupAt')))
     ok(await q(page, async () => (await window.__dentora.db.activity.toArray()).some(a => a.type === 'system' && a.action === 'backup')), 'backup: activity logged')
     await page.waitForTimeout(300)
@@ -266,7 +270,7 @@ try {
     ok(page.url().includes('#/setup'), `reset: the setup wizard opens (${page.url()})`)
     ok((await q(page, async () => window.__dentora.db.patients.count())) === 0, 'reset: patients erased')
     ok((await q(page, async () => (await window.__dentora.db.settings.get('license'))?.value?.plan)) === 'standard', 'reset: activation kept')
-    ok((await q(page, () => localStorage.getItem('dentora.session'))) === null, 'reset: signed out')
+    ok((await sessionUser(page)) === null, 'reset: signed out')
     await browser.close()
   }
 
@@ -274,7 +278,7 @@ try {
   {
     const { browser, page } = await open()
     await seedAndLogin(page)
-    await q(page, () => localStorage.setItem('dentora.session', 'u-rec'))
+    await setSession(page, 'u-rec')
     await page.goto(BASE + '/index.html#/settings/backup')
     await page.reload()
     await page.waitForSelector('[data-qa=tab-clinic]')

@@ -85,3 +85,5 @@
 
 /* while the viewer reads the first bytes of a file to learn what it really is */
 .pt-stage-loading { position: absolute; inset: 0; width: 100%; height: 100%; }
+/* phones: counts stay readable (12px or more) */
+@media screen and (max-width: 767px) { .pt-chip-count { font-size: 12px; } }

@@ -204,20 +204,26 @@ describe('appointments: patient tab', () => {
       apt('10:00', '10:30', { id: 'future-cancelled', date: '2026-10-12', status: 'cancelled' }),
     ]
     const s = patientSummary(list, D)
-    expect(s.upcoming.map(a => a.id)).toEqual(['today-open', 'future-cancelled', 'future'])
-    expect(s.past.map(a => a.id)).toEqual(['today-done', 'missed', 'old'])
+    expect(s.upcoming.map(a => a.id)).toEqual(['today-open', 'future'])
+    expect(s.past.map(a => a.id)).toEqual(['future-cancelled', 'today-done', 'missed', 'old'])
     expect(s.visits).toBe(2)
     expect(s.noShows).toBe(1)
     expect(s.cancelled).toBe(1)
     expect(s.total).toBe(6)
     expect(s.next?.id).toBe('today-open')
     expect(isUpcoming({ date: '2026-10-09', status: 'scheduled' }, D)).toBe(false)
+    expect(isUpcoming({ date: '2099-01-01', status: 'cancelled' }, D)).toBe(false)
+    expect(isUpcoming({ date: '2099-01-01', status: 'no_show' }, D)).toBe(false)
+    expect(isUpcoming({ date: '2099-01-01', status: 'confirmed' }, D)).toBe(true)
   })
 })
 
 describe('appointments: text', () => {
   it('picks the Arabic plural class', () => {
-    expect([0, 1, 2, 3, 10, 11, 16, 99, 100, 103, 111].map(pluralForm)).toEqual(['zero', 'one', 'two', 'few', 'few', 'many', 'many', 'many', 'many', 'few', 'many'])
+    expect([0, 1, 2, 3, 10, 11, 16, 99, 100, 101, 102, 103, 111, 200, 1000].map(pluralForm)).toEqual(['zero', 'one', 'two', 'few', 'few', 'many', 'many', 'many', 'other', 'other', 'other', 'few', 'many', 'other', 'other'])
+    // the same classes as the CLDR rules the rest of the app uses (Intl.PluralRules), for every count up to 1000
+    const cldr = new Intl.PluralRules('ar')
+    for (let n = 0; n <= 1000; n++) expect(pluralForm(n)).toBe(cldr.select(n))
   })
 })
 

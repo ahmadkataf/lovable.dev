@@ -85,6 +85,30 @@ jobs:
             https://github.com/google/bundletool/releases/download/1.18.3/bundletool-all-1.18.3.jar
           java -jar "$RUNNER_TEMP/bundletool.jar" version
 
+      # The version is decided before anything is built: vite.config.ts bakes VERSION_NAME into the web app (Settings →
+      # About), and build-apk.sh puts the same one in the APK, so a tag build shows the tag's version everywhere.
+      - name: Version
+        env:
+          INPUT_VERSION_NAME: ${{ inputs.version_name }}
+          INPUT_VERSION_CODE: ${{ inputs.version_code }}
+        run: |
+          NAME=""
+          if [ -n "$INPUT_VERSION_NAME" ]; then
+            NAME="$INPUT_VERSION_NAME"
+          elif [ "$GITHUB_REF_TYPE" = "tag" ]; then
+            NAME="${GITHUB_REF_NAME#dentora-v}"
+          fi
+          if [ -n "$NAME" ]; then
+            # only a plain version goes into the environment (no spaces or line breaks from a typed input)
+            [[ "$NAME" =~ ^v?[0-9]+(\.[0-9]+){0,2}([-+][0-9A-Za-z.]+)?$ ]] || { echo "::error::'$NAME' is not a version name like 1.2.0"; exit 1; }
+            echo "VERSION_NAME=$NAME" >> "$GITHUB_ENV"
+          fi
+          if [ -n "$INPUT_VERSION_CODE" ]; then
+            [[ "$INPUT_VERSION_CODE" =~ ^[0-9]{1,9}$ ]] || { echo "::error::'$INPUT_VERSION_CODE' is not a version code (a whole number)"; exit 1; }
+            echo "VERSION_CODE=$INPUT_VERSION_CODE" >> "$GITHUB_ENV"
+          fi
+          echo "version name: ${NAME:-(package.json)}  version code: ${INPUT_VERSION_CODE:-(from the name)}"
+
       - name: Build the web app
         run: |
           npm ci
@@ -116,17 +140,8 @@ jobs:
           BUNDLETOOL: ${{ runner.temp }}/bundletool.jar
           ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD || 'dentora-release' }}
           ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS || 'dentora' }}
-          INPUT_VERSION_NAME: ${{ inputs.version_name }}
-          INPUT_VERSION_CODE: ${{ inputs.version_code }}
         run: |
-          if [ -n "$INPUT_VERSION_NAME" ]; then
-            export VERSION_NAME="$INPUT_VERSION_NAME"
-          elif [ "$GITHUB_REF_TYPE" = "tag" ]; then
-            export VERSION_NAME="${GITHUB_REF_NAME#dentora-v}"
-          fi
-          if [ -n "$INPUT_VERSION_CODE" ]; then
-            export VERSION_CODE="$INPUT_VERSION_CODE"
-          fi
+          # VERSION_NAME / VERSION_CODE come from the Version step (the same ones the web app was built with)
           export TARGET_SDK=36
           ./scripts/build-apk.sh
           {

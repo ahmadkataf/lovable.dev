@@ -1,6 +1,6 @@
 // QA of the billing module: flows (create → issue → pay → receipt → cancel / draft → delete, ledger, statement),
 // database assertions, console errors, overflow checks, and screenshots in Arabic, English and on a phone.
-// Usage: npx vite build --outDir /tmp/dist-billing && QA_DIST=/tmp/dist-billing QA_PORT=4305 QA_SHOTS=qa-shots/billing node scripts/qa/billing.mjs
+// Usage: VITE_QA=1 npx vite build --outDir /tmp/dist-billing && QA_DIST=/tmp/dist-billing QA_PORT=4305 QA_SHOTS=qa-shots/billing node scripts/qa/billing.mjs
 import { startServer, openBrowser, seedAndLogin, shot, BASE } from './lib.mjs'
 
 const failures = []
@@ -176,16 +176,19 @@ try {
     const prefilled = await page.locator('.bl-amount input').inputValue()
     check(prefilled === '278', `payment: amount pre-filled with the balance (${prefilled})`)
     await page.locator('.bl-amount input').fill('300')
-    await page.getByLabel('المرجع / رقم الإيصال').fill('A-1001')
+    await page.getByLabel('المرجع', { exact: true }).fill('A-1001')     // the receipt number itself is given by the app (R-000001)
     await wait(page)
-    check(await page.getByText('المبلغ أكبر من المتبقي على الفاتورة').count() > 0, 'payment: split hint shown when paying more than the balance')
+    // the breakdown: the invoice's balance on the invoice, the rest kept as credit on the patient's account
+    const split = (await page.locator('.bl-split-list li').allInnerTexts()).map(l => l.replace(/[\u2060\u2066-\u2069\u200e\u200f]/g, ''))   // without the bidi isolates and word joiners
+    check(split.length === 2 && split.some(l => l.includes('INV-') && l.includes('278')) && split.some(l => l.includes('رصيد') && l.includes('22')), `payment: split breakdown shown when paying more than the balance (${split.map(l => l.replace(/\s+/g, ' ')).join(' | ')})`)
     await snap(page, 'ar-13-payment-split-hint')
     await page.getByRole('button', { name: 'حفظ الدفعة' }).click()
     await wait(page, 700)
     await snap(page, 'ar-14-payment-toast')
-    const pays1 = await db(page, async id => (await window.__dentora.db.payments.toArray()).map(p => ({ inv: p.invoiceId === id, amount: p.amount, by: p.receivedBy, ref: p.reference })), inv1?.id)
+    const pays1 = await db(page, async id => (await window.__dentora.db.payments.toArray()).map(p => ({ inv: p.invoiceId === id, amount: p.amount, by: p.receivedBy, ref: p.reference, receipt: p.receiptNo })), inv1?.id)
     check(pays1.length === 2 && pays1.some(p => p.inv && p.amount === 278) && pays1.some(p => !p.inv && p.amount === 22), `payment: split into 278 + 22 on account (${JSON.stringify(pays1)})`)
     check(pays1.every(p => p.by === 'u-admin' && p.ref === 'A-1001'), 'payment: received by the signed-in user, reference kept')
+    check(pays1.every(p => /^R-\d{6}$/.test(p.receipt || '')) && new Set(pays1.map(p => p.receipt)).size === 1, `payment: one sequential receipt number for the hand-over (${pays1.map(p => p.receipt).join(', ')})`)
     const inv1b = await db(page, async id => window.__dentora.db.invoices.get(id), inv1?.id)
     check(inv1b.paid === 278 && inv1b.status === 'paid', `payment: invoice recomputed to paid (${inv1b.paid} ${inv1b.status})`)
     await page.getByRole('button', { name: 'طباعة الإيصال' }).click()
@@ -287,8 +290,9 @@ try {
     await page.getByRole('tab', { name: 'هذا الشهر' }).click()
     await wait(page, 500)
     await snap(page, 'ar-27-payments')
-    const ledger = await db(page, async () => { const d = new Date(); const pad = n => String(n).padStart(2, '0'); const from = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-01`; return (await window.__dentora.db.payments.where('date').aboveOrEqual(from).toArray()).length })
-    check(await page.locator('.bl-table tbody tr').count() === Math.min(25, ledger), `ledger: shows this month's payments (${ledger})`)
+    // one row per hand-over (receipt): a payment split between an invoice and the account is one receipt, one row
+    const ledger = await db(page, async () => { const d = new Date(); const pad = n => String(n).padStart(2, '0'); const from = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-01`; return new Set((await window.__dentora.db.payments.where('date').aboveOrEqual(from).toArray()).map(p => (p.receiptNo ? `r:${p.receiptNo}` : `t:${p.patientId}|${p.createdAt}`))).size })
+    check(await page.locator('.bl-table tbody tr').count() === Math.min(25, ledger), `ledger: shows this month's receipts (${ledger}, rows ${await page.locator('.bl-table tbody tr').count()})`)
     await page.locator('.chip', { hasText: 'بطاقة' }).click()
     await wait(page)
     check(await page.locator('.bl-table tbody tr').count() === 1, 'ledger: method chip filters')

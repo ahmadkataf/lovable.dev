@@ -73,6 +73,9 @@ nsis:
   installerIcon: build/icon.ico
   uninstallerIcon: build/icon.ico
   installerHeaderIcon: build/icon.ico
+  # the terms of use (EULA) the installer asks to accept: build/license.txt, Arabic then English, made from
+  # docs/TERMS.md by scripts/make-license-txt.mjs (UTF-8 with a byte-order mark; a test keeps it in step)
+  license: build/license.txt
   # the side picture of the welcome and finish pages (build/make-installer-art.mjs draws it)
   installerSidebar: build/installerSidebar.bmp
   uninstallerSidebar: build/uninstallerSidebar.bmp

@@ -7,6 +7,7 @@ import type { Clinic, Invoice, Patient, Payment, User } from '@/db/types'
 import { useI18n } from '@/i18n'
 import { fmtDate } from '@/lib/dates'
 import { formatPhone } from '@/lib/format'
+import { displayName } from '@/features/auth/lib'
 import { invoiceBalance, isDraftNumber, legacyReceiptNo } from './lib'
 import { docTitle, Money, SheetHeader, usePrintFooter } from './shared'
 import './billing.css'
@@ -57,7 +58,7 @@ export function InvoiceSheet({ invoice, patient, doctor, payments, clinic }: { i
           <dl className="bl-kv">
             <dt>{t('billing.invoiceNo')}</dt><dd className={draft ? '' : 'num'}>{number}</dd>
             <dt>{t('date')}</dt><dd>{fmtDate(invoice.date, lang)}</dd>
-            {doctor && <><dt>{t('billing.sheet.treatingDoctor')}</dt><dd>{doctor.name}</dd></>}
+            {doctor && <><dt>{t('billing.sheet.treatingDoctor')}</dt><dd dir="auto">{displayName(doctor)}</dd></>}
             <dt>{t('status')}</dt><dd>{t(`inv.${st}`)}</dd>
           </dl>
         </div>

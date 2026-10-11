@@ -4,6 +4,7 @@ import { importBackup, isQuotaError, logActivity, resetDatabase, setSetting, sto
 import { nowISO } from '@/db/ids'
 import type { BackupFile } from '@/db/types'
 import { saveStream, type SaveStreamOptions } from '@/platform'
+import { clearSession } from '@/app/session'
 import { DEVICE_SETTING_KEYS } from './lib'
 import { archiveFileName, BACKUP_MIME, BackupError, estimateBackupSize, snapshotDatabase, writeBackup, type BackupProgress } from './backup/archive'
 
@@ -52,10 +53,10 @@ export async function restoreBackup(data: BackupFile, opts: { neededBytes?: numb
   }
 }
 
-/** Wipes the clinic (keeping this device's activation and trial start, in the same transaction) and signs out. */
+/** Wipes the clinic (keeping this device's activation, trial start and licence clock, in the same transaction) and signs out. */
 export async function eraseEverything(): Promise<void> {
   await resetDatabase(DEVICE_SETTING_KEYS)
-  try { localStorage.removeItem('dentora.session') } catch { /* ignore */ }
+  clearSession()
 }
 
 /** Reloads the app on the given route (after a restore or a reset nothing in memory is valid any more). */

@@ -1,5 +1,7 @@
 // Pure helpers of the auth module (setup wizard + login). No React, no database: covered by tests/auth.test.ts.
 import type { Clinic, Lang } from '@/db/types'
+import { countryCodeFor } from '@/lib/format'
+import { LEVANT_COUNTRIES } from '@/lib/dates'
 
 // ---- currencies -------------------------------------------------------------------------------
 export type Decimals = 0 | 2 | 3
@@ -28,8 +30,8 @@ export const CURRENCIES: CurrencyPreset[] = [
   { code: 'GBP', symbol: '£', decimals: 2 },
   { code: 'MAD', symbol: 'د.م', decimals: 2 },
   { code: 'DZD', symbol: 'د.ج', decimals: 2 },
-  { code: 'TND', symbol: 'د.ت', decimals: 2 },
-  { code: 'LYD', symbol: 'د.ل', decimals: 2 },
+  { code: 'TND', symbol: 'د.ت', decimals: 3 },
+  { code: 'LYD', symbol: 'د.ل', decimals: 3 },
 ]
 /** Select value for "another currency" (code and symbol typed by hand). */
 export const CUSTOM_CURRENCY = 'custom'
@@ -193,7 +195,11 @@ export interface MoneyDraft {
   workEnd: string
   slotMinutes: number
   taxPercent: number | null
+  countryCode?: string             // phone country code without + (963…); '' or missing = the one the currency suggests
+  arabicMonths?: MonthChoice       // Arabic month names; 'auto' or missing = the usual ones of the country
 }
+/** Arabic month names: كانون الثاني/شباط (Levant, Iraq), يناير/فبراير (elsewhere), or the country's usual ones. */
+export type MonthChoice = 'auto' | 'levant' | 'standard'
 export interface OwnerDraft { name: string; title: string; specialty: string; phone: string; pin: string; pin2: string }
 /** Field → i18n key of its error. Empty object = the step is valid. */
 export type Errors = Record<string, string>
@@ -255,7 +261,21 @@ export function orderedDays(days: number[]): number[] {
   return WEEK_ORDER.filter(d => days.includes(d))
 }
 
-/** Everything the wizard writes into the clinic record (setupDone is set separately). */
+const isCountryCode = (s: unknown): s is string => typeof s === 'string' && /^\d{1,4}$/.test(s)
+/** The country the wizard shows and the clinic will use: the one picked, else the one its currency suggests, else Syria. */
+export function setupCountry(m: Pick<MoneyDraft, 'currency' | 'customCode' | 'customSymbol' | 'decimals' | 'countryCode'>): string {
+  return (isCountryCode(m.countryCode) ? m.countryCode : '') || countryCodeFor(resolveCurrency(m).currency) || '963'
+}
+/** The Arabic month names the clinic will print: the ones picked, else the usual ones of its country. */
+export function setupMonths(m: Pick<MoneyDraft, 'currency' | 'customCode' | 'customSymbol' | 'decimals' | 'countryCode' | 'arabicMonths'>): 'levant' | 'standard' {
+  if (m.arabicMonths === 'levant' || m.arabicMonths === 'standard') return m.arabicMonths
+  return LEVANT_COUNTRIES.has(setupCountry(m)) ? 'levant' : 'standard'
+}
+
+/**
+ * Everything the wizard writes into the clinic record (setupDone is set separately). A country or month style left
+ * on automatic is stored as such (countryCode '', no arabicMonths), so it keeps following the currency as in Settings.
+ */
 export function buildClinicPatch(lang: Lang, c: ClinicDraft, m: MoneyDraft): Partial<Clinic> {
   const slot = SLOT_OPTIONS.includes(m.slotMinutes) ? m.slotMinutes : 30
   return {
@@ -272,6 +292,8 @@ export function buildClinicPatch(lang: Lang, c: ClinicDraft, m: MoneyDraft): Par
     slotMinutes: slot,
     defaultAppointmentMinutes: Math.max(30, slot),
     taxPercent: m.taxPercent && m.taxPercent > 0 ? Math.round(m.taxPercent * 100) / 100 : 0,
+    countryCode: isCountryCode(m.countryCode) ? m.countryCode : '',
+    ...(m.arabicMonths === 'levant' || m.arabicMonths === 'standard' ? { arabicMonths: m.arabicMonths } : {}),
   }
 }
 

@@ -93,6 +93,8 @@
 .st-option-check { position: absolute; top: 10px; inset-inline-end: 10px; width: 22px; height: 22px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; background: var(--primary); color: var(--on-primary); box-shadow: var(--sh-sm); }
 .st-option-check svg { width: 14px; height: 14px; }
 .st-option-text { display: flex; flex-direction: column; min-width: 0; }
+/* keeps the title clear of the corner check badge */
+.st-option.active .st-option-text { padding-inline-end: 22px; }
 .st-option-title { font-weight: 700; font-size: var(--fs-lg); line-height: 1.35; }
 .st-option-desc { font-size: var(--fs-sm); color: var(--text-3); }
 .st-glyph { width: 52px; height: 52px; border-radius: 16px; flex: none; display: inline-flex; align-items: center; justify-content: center; font-weight: 800; font-size: var(--fs-xl); background: var(--surface-3); color: var(--text-2); transition: all var(--t-fast); }

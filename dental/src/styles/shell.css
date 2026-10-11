@@ -110,8 +110,11 @@
 .bn-item.active::before { content: ''; position: absolute; top: 0; width: 28px; height: 3px; border-radius: 0 0 3px 3px; background: var(--primary); }
 .bn-item:active svg { transform: scale(.92); }
 .bn-item .nav-label { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; padding: 0 2px; }
-/* narrow phones: items share the width by their label, so "Appointments" is never cut */
-@media (max-width: 380px) { .bn-item { flex: 1 1 auto; } .bn-item .nav-label { padding: 0 1px; } }
+/* phones and tablets: the bottom bar's labels (and any menu headings or counts shown there) are at least 12px */
+@media (max-width: 1023px) { .bn-item, .nav-group, .nav-item .nav-badge { font-size: 12px; } }
+/* phones: items share the width by their label, so a long one ("Appointments") is never cut */
+@media (max-width: 480px) { .bn-item { flex: 1 1 auto; } }
+@media (max-width: 380px) { .bn-item { gap: 2px; } .bn-item .nav-label { padding: 0 1px; } }
 /* the on-screen keyboard is up: the bottom bar steps aside so it never covers the field being typed in */
 @media (max-width: 1023px) {
   .app.kb-open { --bottomnav-h: 0px; }

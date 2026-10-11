@@ -3,6 +3,7 @@ import { db, importBackup, resetDatabase } from '../src/db'
 import { TRIAL_DAYS, type CodeCheck } from '../src/license/core'
 import { clockBehindBy, instantOf, latestOf, noteTime, resetClockForTests, trustedNow } from '../src/license/clock'
 import { evaluateLicense, trialDaysLeft } from '../src/license/state'
+import { startTrialOnce } from '../src/license/useLicense'
 import { GUARDED_TABLES, installTrialStartGuard, isReadOnlyError, setReadOnlyGuard, trialStartChangeAllowed } from '../src/license/guard'
 import { tPlural } from '../src/app/plural'
 import { translate } from '../src/i18n'
@@ -154,5 +155,35 @@ describe('read-only mode is enforced by the database', () => {
     // a restore keeps the earliest start (db.mergeDeviceSettings) and is allowed to rewrite the row
     await importBackup({ app: 'dentora', version: 1, exportedAt: iso(T0), tables: { settings: [{ key: 'installedAt', value: '2099-01-01T00:00:00.000Z' }] } } as any)
     expect((await db.settings.get('installedAt'))?.value).toBe(iso(T0 - DAY))
+  })
+})
+
+describe('the trial start is written once', () => {
+  beforeEach(async () => { resetClockForTests(); localStorage.clear(); await resetDatabase() })
+  afterEach(() => { vi.useRealTimers(); resetClockForTests(); localStorage.clear() })
+  it('writes the licence clock’s "now" only when a fresh read finds no start', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] }); vi.setSystemTime(T0)
+    expect(await startTrialOnce()).toBe(true)
+    expect((await db.settings.get('installedAt'))?.value).toBe(iso(T0))
+    vi.setSystemTime(T0 + 3 * DAY)
+    expect(await startTrialOnce()).toBe(false)                                    // a second render, a second window
+    expect((await db.settings.get('installedAt'))?.value).toBe(iso(T0))
+    await Promise.all([startTrialOnce(), startTrialOnce(), startTrialOnce()])     // racing calls never move it
+    expect((await db.settings.get('installedAt'))?.value).toBe(iso(T0))
+  })
+  it('replaces only a start that cannot be read; a future one stays (it counts as no trial left)', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] }); vi.setSystemTime(T0)
+    await db.settings.put({ key: 'installedAt', value: 'garbage' })
+    expect(await startTrialOnce()).toBe(true)
+    expect((await db.settings.get('installedAt'))?.value).toBe(iso(T0))
+    await db.transaction('rw', db.tables, () => db.settings.put({ key: 'installedAt', value: '2099-01-01T00:00:00.000Z' }))
+    expect(await startTrialOnce()).toBe(false)
+    expect(trialDaysLeft('2099-01-01T00:00:00.000Z', T0)).toBe(0)
+  })
+  it('caps the days left at the trial length and stays expired when the clock is set back', () => {
+    expect(trialDaysLeft(iso(T0 + 2 * 3_600_000), T0)).toBe(TRIAL_DAYS)           // a start a little ahead (time zones)
+    expect(trialDaysLeft(iso(T0 + 2 * DAY), T0)).toBe(0)                          // more than a day ahead: expired
+    noteTime(iso(T0 + 30 * DAY))                                                 // seen 30 days later
+    expect(trialDaysLeft(iso(T0), trustedNow(T0))).toBe(0)                        // the device clock back at T0: still expired
   })
 })

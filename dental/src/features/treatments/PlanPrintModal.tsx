@@ -12,13 +12,13 @@ import { print } from '@/platform'
 import { itemTotal, planTotals, surfaceCode } from './lib'
 import { nameOf } from './parts'
 
-/** Prints only the sheet of this modal: everything else on the page is hidden for the print. */
-function printSheet() {
+/** Prints only the sheet of this modal (everything else on the page is hidden for the print); `jobName` names the job and the saved PDF. */
+function printSheet(jobName: string) {
   const body = document.body
   body.classList.add('tr-printing')
   const done = () => { body.classList.remove('tr-printing'); window.removeEventListener('afterprint', done) }
   window.addEventListener('afterprint', done)
-  print()
+  print(jobName)
 }
 
 /** The plan as a printable estimate the patient can take home and sign. */
@@ -45,7 +45,7 @@ export default function PlanPrintModal({ open, onClose, plan, items, patient, us
     <Modal open={open} onClose={onClose} size="lg" icon={<Printer />} title={t('treatments.print.title')} subtitle={plan.title} className="tr-modal tr-print-modal"
       footer={<>
         <Button variant="ghost" onClick={onClose}>{t('close')}</Button>
-        <Button variant="primary" icon={<Printer />} onClick={printSheet}>{t('print')}</Button>
+        <Button variant="primary" icon={<Printer />} onClick={() => printSheet([t('treatments.print.docTitle'), patient?.name, plan.title].filter(Boolean).join(' - '))}>{t('print')}</Button>
       </>}>
       <article className="tr-sheet print-area">
         <header className="tr-sheet-head">

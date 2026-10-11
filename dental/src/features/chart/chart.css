@@ -307,3 +307,5 @@ body:has(.ch-panel) .toast-stack { bottom: calc(92px + var(--safe-bottom)); }
 .ch-print-table td { padding: 6px 8px; border-bottom: 1px solid var(--border); vertical-align: top; }
 .ch-print-table tr { break-inside: avoid; }
 .ch-print-cond { display: inline-flex; align-items: center; gap: 6px; }
+/* phones: counts stay readable (12px or more); the drawn chart scales its own labels above */
+@media screen and (max-width: 767px) { .ch-chip .ch-count { font-size: 12px; } }

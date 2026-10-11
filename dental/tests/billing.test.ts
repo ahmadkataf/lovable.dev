@@ -561,3 +561,25 @@ describe('billing: database flows', () => {
     await screensAgree()
   })
 })
+
+describe('billing: shared patient index', () => {
+  beforeEach(async () => { await resetDatabase() })
+  it('keeps the national ID for search and never the photo; the first read goes through the table in pages', async () => {
+    const { readSlimPatients, slimPatient } = await import('../src/features/billing/patientIndex')
+    const now = '2026-10-01T08:00:00.000Z'
+    const rows = Array.from({ length: 23 }, (_, i) => ({
+      id: `p${String(i).padStart(3, '0')}`, fileNo: i + 1, name: `مريض ${i + 1}`, gender: 'male' as const, allergies: [], chronicDiseases: [], medications: [], tags: [], archived: false,
+      createdAt: now, updatedAt: now, nationalId: i % 2 ? `0${i}123456789` : undefined, photo: i % 3 ? 'data:image/jpeg;base64,AAAA' : undefined,
+    }))
+    await db.patients.bulkAdd(rows)
+    const slim = slimPatient(rows[1])
+    expect(slim.nationalId).toBe('01123456789')
+    expect(slim.hasPhoto).toBe(true)
+    expect('photo' in slim).toBe(false)
+    const all = await readSlimPatients(5)                                   // 5 pages of 5, 5, 5, 5, 3
+    expect(all.map(p => p.id)).toEqual(rows.map(r => r.id))
+    expect(all.some(p => 'photo' in p)).toBe(false)
+    expect(all.filter(p => p.nationalId).length).toBe(11)
+    expect(await readSlimPatients(23)).toHaveLength(23)                    // a last page that is exactly full
+  })
+})

@@ -6,7 +6,7 @@ const appointments: ModuleDict = {
   ar: {
     title: 'المواعيد',
     'sub.day': '{count} في هذا اليوم', 'sub.week': '{count} في هذا الأسبوع', 'sub.month': '{count} في هذا الشهر', 'sub.list': '{count} خلال 14 يوماً',
-    'count.zero': 'لا مواعيد', 'count.one': 'موعد واحد', 'count.two': 'موعدان', 'count.few': '{n} مواعيد', 'count.many': '{n} موعداً',
+    'count.zero': 'لا مواعيد', 'count.one': 'موعد واحد', 'count.two': 'موعدان', 'count.few': '{n} مواعيد', 'count.many': '{n} موعداً', 'count.other': '{n} موعد',
     'dur.15': '15 دقيقة', 'dur.20': '20 دقيقة', 'dur.30': '30 دقيقة', 'dur.45': '45 دقيقة', 'dur.60': 'ساعة', 'dur.90': 'ساعة ونصف', 'dur.120': 'ساعتان', 'dur.n': '{n} دقيقة',
 
     // calendar
@@ -66,7 +66,7 @@ const appointments: ModuleDict = {
   en: {
     title: 'Appointments',
     'sub.day': '{count} on this day', 'sub.week': '{count} this week', 'sub.month': '{count} this month', 'sub.list': '{count} over 14 days',
-    'count.zero': 'No appointments', 'count.one': '1 appointment', 'count.two': '2 appointments', 'count.few': '{n} appointments', 'count.many': '{n} appointments',
+    'count.zero': 'No appointments', 'count.one': '1 appointment', 'count.two': '2 appointments', 'count.few': '{n} appointments', 'count.many': '{n} appointments', 'count.other': '{n} appointments',
     'dur.15': '15 min', 'dur.20': '20 min', 'dur.30': '30 min', 'dur.45': '45 min', 'dur.60': '1 hour', 'dur.90': '1 h 30 min', 'dur.120': '2 hours', 'dur.n': '{n} min',
 
     'view.day': 'Day', 'view.week': 'Week', 'view.month': 'Month', 'view.list': 'Agenda',

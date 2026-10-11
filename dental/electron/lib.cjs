@@ -168,4 +168,26 @@ async function resolveDeviceId(deps) {
   return { id: next.id, source: next.source, changed: false }
 }
 
-module.exports = { fitBounds, decodePercent, fileUrlKey, sameFileUrl, DEBUG_SWITCHES, debugSwitch, contextMenuItems, resolveDeviceId }
+// ---- content security policy -----------------------------------------------------------------------------------
+/**
+ * The page's Content-Security-Policy: everything comes from the app folder; data:/blob: for logos, photos, x-rays and
+ * backups; 'unsafe-inline' only for styles (style attributes); scripts are strictly 'self'; no form ever posts anywhere.
+ * index.html carries the same policy in a <meta> tag, and the Android shell sends it too (WebFiles.CSP); a test keeps
+ * the three identical.
+ */
+const CSP = [
+  "default-src 'self'",
+  "script-src 'self'",
+  "style-src 'self' 'unsafe-inline'",
+  "img-src 'self' data: blob:",
+  "font-src 'self' data:",
+  "connect-src 'self' data: blob:",
+  "media-src 'self' data: blob:",
+  "worker-src 'self' blob:",
+  "frame-src 'self' data: blob:",
+  "object-src 'none'",
+  "base-uri 'self'",
+  "form-action 'none'",
+].join('; ')
+
+module.exports = { fitBounds, decodePercent, fileUrlKey, sameFileUrl, DEBUG_SWITCHES, debugSwitch, contextMenuItems, resolveDeviceId, CSP }

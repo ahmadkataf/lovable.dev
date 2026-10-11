@@ -1,9 +1,9 @@
 // QA of the dashboard and the reports module: real flows (quick status changes, period presets, custom range,
 // doctor filter, table view, CSV export, WhatsApp reminder, print), database assertions, console errors, overflow
 // checks and screenshots in Arabic, English and on a phone.
-// Usage: npx vite build --outDir /tmp/dist-reports && QA_DIST=/tmp/dist-reports QA_PORT=4307 QA_SHOTS=qa-shots/reports node scripts/qa/reports.mjs
+// Usage: VITE_QA=1 npx vite build --outDir /tmp/dist-reports && QA_DIST=/tmp/dist-reports QA_PORT=4307 QA_SHOTS=qa-shots/reports node scripts/qa/reports.mjs
 import fs from 'node:fs'
-import { startServer, openBrowser, seedAndLogin, shot, BASE } from './lib.mjs'
+import { startServer, openBrowser, seedAndLogin, shot, BASE, setTrialStart } from './lib.mjs'
 
 const failures = []
 const consoleErrors = []
@@ -196,6 +196,11 @@ async function main() {
     await seedAndLogin(page, { lang: 'ar' })
     await page.evaluate(() => window.__dentora.db.activity.clear())
     await go(page, '/')
+    // a clinic that never exported a backup is reminded on the dashboard; one with a recent backup is all clear
+    await page.waitForSelector('[data-testid="dash-schedule"]')
+    check(await page.getByText('لم تُؤخذ أي نسخة احتياطية بعد').count() === 1, 'dashboard: reminds about the first backup')
+    await page.evaluate(() => window.__dentora.db.settings.put({ key: 'lastBackupAt', value: new Date().toISOString() }))
+    await page.waitForTimeout(500)
 
     // --- empty dashboard
     await page.waitForSelector('[data-testid="dash-schedule"]')
@@ -390,7 +395,7 @@ async function main() {
     const btns = page.locator('[data-testid^="apt-do-"]')
     check((await btns.count()) > 0 && await btns.first().isDisabled(), 'read-only: status buttons disabled')
     await snap(page, '23-dashboard-readonly-ar')
-    await page.evaluate(async () => { await window.__dentora.db.settings.put({ key: 'installedAt', value: new Date().toISOString() }) })
+    await setTrialStart(page, new Date().toISOString())     // back on a fresh trial (a later start needs a whole-database write)
     await browser.close()
 
     // ================= English desktop =================

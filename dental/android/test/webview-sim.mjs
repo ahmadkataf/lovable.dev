@@ -9,7 +9,9 @@
 //    picker list inside a form),
 //    print (and its job name), CSV export and backup through saveBegin/saveChunk/saveEnd (cancelled vs saved),
 //    restore through the file chooser, the device number from ANDROID_ID, WhatsApp, no CSP violation.
-//   cd dental && node android/test/webview-sim.mjs            (APK=…, QA_SHOTS=qa-shots/android)
+//   cd dental && APK=/tmp/apk-qa/Dentora.apk node android/test/webview-sim.mjs     (QA_SHOTS=qa-shots/android)
+// The APK must be a QA build (VITE_QA=1 npx vite build …, packaged by scripts/build-apk.sh with DIST=…): the checks read
+// the database through window.__dentora, which release builds never have. docs/ANDROID.md has the commands.
 import { chromium } from 'playwright'
 import { execFileSync } from 'node:child_process'
 import fs from 'node:fs'
@@ -121,7 +123,12 @@ const everyPage = async label => {
 try {
   // ---- first start: the setup screen, from the asset server ----
   await page.goto(js.startUrl)
-  await page.waitForFunction(() => window.__dentora?.db, null, { timeout: 20000 })
+  // the scripts reach the database through window.__dentora, which only a QA build has (src/main.tsx)
+  if (!(await page.waitForFunction(() => window.__dentora?.db, null, { timeout: 20000 }).then(() => true, () => false))) {
+    throw new Error(`${APK} is a release build (no window.__dentora). Build a QA APK into /tmp (docs/ANDROID.md):\n` +
+      '  VITE_QA=1 npx vite build --outDir /tmp/dist-apk-qa && DIST=/tmp/dist-apk-qa OUT_DIR=/tmp/apk-qa ANDROID_KEYSTORE=<throwaway> ./scripts/build-apk.sh\n' +
+      '  APK=/tmp/apk-qa/Dentora.apk node android/test/webview-sim.mjs')
+  }
   await onPageFinished()
   await settle()
   check(page.url().endsWith('#/setup'), 'first start routes to #/setup', page.url())
@@ -141,7 +148,8 @@ try {
     const today = now.slice(0, 10)
     await db.expenses.put({ id: 'e-1', category: 'rent', amount: 400, date: today, description: 'إيجار العيادة', method: 'cash', by: 'u-admin', createdAt: now })
     await db.labOrders.put({ id: 'l-1', patientId: 'p-1', type: 'crown', teeth: [16], labName: 'مخبر النور', status: 'sent', sentDate: today, dueDate: today, cost: 50, createdAt: now, updatedAt: now })
-    localStorage.setItem('dentora.session', 'u-admin')
+    // signed in for this run, as after a PIN (src/app/session.tsx: sessionStorage, asked again at every launch)
+    sessionStorage.setItem('dentora.session', JSON.stringify({ id: 'u-admin', at: Date.now() }))
     localStorage.setItem('dentora.lang', 'ar')
   })
   await page.goto(js.startUrl + '#/')

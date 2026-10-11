@@ -115,6 +115,9 @@
 .au-review-logo svg { width: 22px; height: 22px; }
 .au-day-list { display: flex; flex-wrap: wrap; gap: 4px; }
 .au-trial { margin-top: 16px; }
+/* review step: accepting the terms of use and the privacy policy (with the documents one tap away) */
+.au-terms { margin-top: 14px; padding: 14px 16px; border: 1px solid var(--border); border-radius: var(--r-lg); background: var(--surface-2); }
+.au-terms .lg-accept { font-size: var(--fs-md); color: var(--text); font-weight: 600; }
 
 @media (max-width: 767px) {
   .auth-screen.au-setup-screen { padding: 0; align-items: stretch; }

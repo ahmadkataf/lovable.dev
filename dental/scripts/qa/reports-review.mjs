@@ -1,8 +1,8 @@
 // Adversarial review QA for the dashboard + reports module: edge data (very long names, zero and negative amounts, a huge
 // balance), double clicks, Escape / Enter in the quick-action forms, deleted doctors / procedures / patients, permissions,
-// like-for-like deltas, phone tables. Usage: npx vite build --outDir /tmp/dist-reports-r && QA_DIST=/tmp/dist-reports-r QA_PORT=4357 QA_SHOTS=qa-shots/reports-review node scripts/qa/reports-review.mjs
+// like-for-like deltas, phone tables. Usage: VITE_QA=1 npx vite build --outDir /tmp/dist-reports-r && QA_DIST=/tmp/dist-reports-r QA_PORT=4357 QA_SHOTS=qa-shots/reports-review node scripts/qa/reports-review.mjs
 import fs from 'node:fs'
-import { startServer, openBrowser, seedAndLogin, shot, BASE } from './lib.mjs'
+import { startServer, openBrowser, seedAndLogin, shot, BASE, setSession } from './lib.mjs'
 
 const failures = []
 const consoleErrors = []
@@ -388,7 +388,7 @@ async function main() {
     check(/view=day&date=\d{4}-\d{2}-\d{2}/.test(unHref || ''), `dashboard: the unconfirmed alert opens tomorrow in the calendar (${unHref})`)
 
     // ---- receptionist: dashboard works, finances stay out of reach
-    await page.evaluate(() => localStorage.setItem('dentora.session', 'u-rec'))
+    await setSession(page, 'u-rec')
     await go(page, '/'); await page.reload(); await page.waitForLoadState('networkidle'); await wait(page, 900)
     await page.waitForSelector('[data-testid="dash-schedule"]')
     await sane(page, 'receptionist dashboard')
@@ -400,7 +400,7 @@ async function main() {
     await go(page, '/reports'); await wait(page, 600)
     check(await page.locator('[data-testid="reports-page"]').count() === 0 && await page.locator('.empty').count() >= 1, 'receptionist: /reports shows a no-permission state, no figures')
     await snap(page, 'r08-reports-denied-ar')
-    await page.evaluate(() => localStorage.setItem('dentora.session', 'u-doc2'))
+    await setSession(page, 'u-doc2')
     await go(page, '/reports'); await page.reload(); await page.waitForLoadState('networkidle'); await wait(page, 900)
     check(await page.locator('[data-testid="rp-financial"]').count() === 1, 'doctor: can open the reports')
     await browser.close()

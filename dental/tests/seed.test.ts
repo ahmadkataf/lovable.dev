@@ -332,6 +332,27 @@ describe('seed: demo data', () => {
     expect((await getClinic()).nextInvoiceNumber).toBe(issued.length + 1)
   })
 
+  it('every hand-over has a sequential receipt number through the clinic counter; its rows share it', async () => {
+    expect(payments.every(p => /^R-\d{6}$/.test(p.receiptNo ?? ''))).toBe(true)
+    const byNo = new Map<string, Payment[]>()
+    for (const p of payments) byNo.set(p.receiptNo!, [...(byNo.get(p.receiptNo!) ?? []), p])
+    const numbers = [...byNo.keys()].sort()
+    numbers.forEach((no, i) => expect(no).toBe(`R-${String(i + 1).padStart(6, '0')}`))
+    expect((await getClinic()).nextReceiptNumber).toBe(numbers.length + 1)
+    // one receipt = one hand-over: the same patient, moment, method and date
+    for (const rows of byNo.values()) {
+      expect(new Set(rows.map(p => `${p.patientId}|${p.createdAt}|${p.method}|${p.date}`)).size).toBe(1)
+    }
+    // and the other way round: rows saved together (one patient, one moment, one method) never get two numbers
+    const handOvers = new Set(payments.map(p => `${p.patientId}|${p.createdAt}|${p.method}`))
+    expect(handOvers.size).toBe(numbers.length)
+    // the demo shows a receipt that settled several invoices at once
+    expect([...byNo.values()].some(rows => new Set(rows.map(p => p.invoiceId)).size > 1)).toBe(true)
+    // numbered in the order the money was received
+    const first = numbers.map(no => byNo.get(no)![0].createdAt)
+    for (let i = 1; i < first.length; i++) expect(first[i] >= first[i - 1]).toBe(true)
+  })
+
   it('payments come after their invoice, on or before today; some are on account', () => {
     const inv = new Map(invoices.map(i => [i.id, i]))
     for (const p of payments) {

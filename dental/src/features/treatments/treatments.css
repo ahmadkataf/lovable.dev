@@ -347,3 +347,8 @@ button.tr-section-head:hover { background: var(--surface-2); }
   .tr-side-labels { display: none; }
 }
 .tr-bill-title { line-height: 1.4; overflow-wrap: anywhere; }
+/* phones: no text under 12px (finding 79) */
+@media screen and (max-width: 767px) {
+  .tr-seg-count { font-size: 12px; line-height: 18px; }
+  .tr-chip-count, .tr-btn-count, .tr-tooth-surf, .tr-side-labels { font-size: 12px; }
+}

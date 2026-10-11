@@ -1,6 +1,9 @@
 // A small in-memory index of every patient (no photos, no medical text) shared by the billing pickers, the invoice
-// and payment searches and the reports. It is read from the patients table once, then patched from Dexie's change
-// events: a status click that updates one patient's last visit re-reads that one row, not all six thousand files.
+// and payment searches, the global search and the reports. It is read from the patients table once, then patched
+// from Dexie's change events: a status click that updates one patient's last visit re-reads that one row, not all
+// six thousand files. Photos are never kept here: the first read goes through the table in pages and keeps only the
+// slim fields of each page, so the photo data URLs of thousands of files are never held in memory together.
+// Screens that show photos read them for the rows on screen (usePatientPhotos / usePagePatients).
 import { useEffect, useSyncExternalStore } from 'react'
 import Dexie, { type IntervalTree } from 'dexie'
 import { useLiveQuery } from 'dexie-react-hooks'
@@ -8,7 +11,7 @@ import { db } from '@/db'
 import type { Patient } from '@/db/types'
 
 export type SlimPatient = Pick<Patient, 'id' | 'name' | 'fileNo' | 'archived' | 'createdAt' | 'updatedAt' | 'gender'>
-  & Partial<Pick<Patient, 'phone' | 'phone2' | 'doctorId' | 'lastVisit' | 'birthDate' | 'referredBy'>>
+  & Partial<Pick<Patient, 'phone' | 'phone2' | 'nationalId' | 'doctorId' | 'lastVisit' | 'birthDate' | 'referredBy'>>
   & { hasPhoto: boolean }
 export interface PatientIndex { list: SlimPatient[]; byId: Map<string, SlimPatient> }
 
@@ -16,6 +19,7 @@ export function slimPatient(p: Patient): SlimPatient {
   const s: SlimPatient = { id: p.id, name: p.name, fileNo: p.fileNo, archived: !!p.archived, createdAt: p.createdAt, updatedAt: p.updatedAt, gender: p.gender, hasPhoto: !!p.photo }
   if (p.phone) s.phone = p.phone
   if (p.phone2) s.phone2 = p.phone2
+  if (p.nationalId) s.nationalId = p.nationalId
   if (p.doctorId) s.doctorId = p.doctorId
   if (p.lastVisit) s.lastVisit = p.lastVisit
   if (p.birthDate) s.birthDate = p.birthDate
@@ -36,12 +40,26 @@ function publish(list: SlimPatient[]) {
   listeners.forEach(l => l())
 }
 
+/** Rows per page of the first read: small enough that one page of photos is cheap, large enough to stay fast. */
+const PAGE = 500
+/** Every patient as a slim record, read in primary-key pages; each page's full rows (photos included) are dropped before the next is read. */
+export async function readSlimPatients(page = PAGE): Promise<SlimPatient[]> {
+  const out: SlimPatient[] = []
+  let last: string | undefined
+  for (;;) {
+    const rows = await (last === undefined ? db.patients.orderBy(':id') : db.patients.where(':id').above(last)).limit(page).toArray()
+    for (const r of rows) out.push(slimPatient(r))
+    if (rows.length < page) return out
+    last = rows[rows.length - 1].id
+  }
+}
+
 async function refresh(): Promise<void> {
   const ids = changed
   stale = false
   changed = new Set()
   if (!current || ids === null) {
-    publish((await db.patients.toArray()).map(slimPatient))
+    publish(await readSlimPatients())
   } else if (ids.size) {
     const keys = [...ids]
     const rows = await db.patients.bulkGet(keys)

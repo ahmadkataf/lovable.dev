@@ -2,8 +2,8 @@
 // the patient plan board (plan → items on several teeth → approve → start → complete → chart update → quick treatment
 // → print → bill → invoice), the ?tooth= deep link, and the clinic register (filters, grouping, CSV). Asserts on the
 // database, watches the console, checks overflow, and takes screenshots in Arabic, English and on a phone.
-// Usage: npx vite build --outDir /tmp/dist-treatments && QA_DIST=/tmp/dist-treatments QA_PORT=4304 QA_SHOTS=qa-shots/treatments node scripts/qa/treatments.mjs
-import { startServer, openBrowser, seedAndLogin, shot, BASE } from './lib.mjs'
+// Usage: VITE_QA=1 npx vite build --outDir /tmp/dist-treatments && QA_DIST=/tmp/dist-treatments QA_PORT=4304 QA_SHOTS=qa-shots/treatments node scripts/qa/treatments.mjs
+import { startServer, openBrowser, seedAndLogin, shot, BASE, setTrialStart } from './lib.mjs'
 
 const failures = []
 const consoleErrors = []
@@ -357,7 +357,7 @@ async function arabicDesktop() {
   await snap(page, 'ar-readonly')
   await go(page, '/procedures')
   check(await page.getByRole('button', { name: 'إجراء جديد' }).isDisabled(), 'read-only: new procedure disabled')
-  await db(page, () => window.__dentora.db.settings.put({ key: 'installedAt', value: new Date().toISOString() }))
+  await setTrialStart(page, new Date().toISOString())     // back on a fresh trial (a later start needs a whole-database write)
   await browser.close()
 }
 

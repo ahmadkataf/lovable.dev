@@ -103,6 +103,19 @@ describe('invoices', () => {
     const cents = invoiceFromItems(items, { taxPercent: 5, currencyDecimals: 2 }, { date: '2026-10-10', makeId: () => 'x' })
     expect(cents).toMatchObject({ subtotal: 68, tax: 3.4, total: 71.4 })
   })
+  it('invoiceFromItems stores prices, discounts and line totals in the currency\'s minor unit (finding 68)', () => {
+    const items = [item({ price: 33.333, discount: 3.336, status: 'completed' }), item({ price: 12.5, discount: 0, status: 'completed' })]
+    const whole = invoiceFromItems(items, { taxPercent: 0, currencyDecimals: 0 }, { date: '2026-10-10', makeId: () => 'x' })
+    expect(whole.items.map(l => [l.unitPrice, l.discount, l.total])).toEqual([[33, 3, 30], [13, 0, 13]])
+    expect(whole).toMatchObject({ subtotal: 43, total: 43 })
+    const fils = invoiceFromItems(items, { taxPercent: 0, currencyDecimals: 3 }, { date: '2026-10-10', makeId: () => 'x' })
+    expect(fils.items.map(l => [l.unitPrice, l.discount, l.total])).toEqual([[33.333, 3.336, 29.997], [12.5, 0, 12.5]])
+    expect(fils.total).toBe(42.497)
+    // every line adds up as printed: qty × unit price − discount
+    for (const inv of [whole, fils]) for (const l of inv.items) expect(l.total).toBeCloseTo(l.qty * l.unitPrice - l.discount, 6)
+    // a discount larger than the price is capped at the price
+    expect(invoiceFromItems([item({ price: 10, discount: 25, status: 'completed' })], { taxPercent: 0, currencyDecimals: 2 }, { date: '2026-10-10', makeId: () => 'x' }).items[0]).toMatchObject({ unitPrice: 10, discount: 10, total: 0 })
+  })
   it('unbilledItems', () => {
     expect(unbilledItems([item({ status: 'completed' }), item({ status: 'completed', invoiceId: 'i' }), item()]).length).toBe(1)
   })
@@ -171,6 +184,12 @@ describe('forms and price list', () => {
     expect(bulkPrice(33, { mode: 'percent', value: 10, round: 5 })).toBe(35)
     expect(bulkPrice(50, { mode: 'fixed', value: 7.5, round: 0 })).toBe(57.5)
     expect(bulkPrice(5, { mode: 'fixed', value: -20, round: 0 })).toBe(0)
+  })
+  it('bulkPrice rounds to the currency\'s minor unit when no step is chosen (finding 68)', () => {
+    expect(bulkPrice(33, { mode: 'percent', value: 7, round: 0 }, 0)).toBe(35)          // 35.31 → 35 in a currency without cents
+    expect(bulkPrice(33, { mode: 'percent', value: 7, round: 0 }, 2)).toBe(35.31)
+    expect(bulkPrice(12.345, { mode: 'percent', value: 10, round: 0 }, 3)).toBe(13.58)    // 13.5795 → 13.580 with fils
+    expect(bulkPrice(1000, { mode: 'percent', value: 2.5, round: 0 }, 0)).toBe(1025)
   })
   it('groupByCategory follows the catalogue order and sorts inside', () => {
     const p = (name: string, category: Procedure['category'], code?: string, sortOrder?: number) => ({ name, category, code, sortOrder })
@@ -259,6 +278,18 @@ describe('i18n', () => {
     expect(tn(te, 'en', 'treatments.n.items', 1)).toBe('1 item')
     expect(tn(te, 'en', 'treatments.n.items', 3)).toBe('3 items')
   })
+  it('the chart-update dialog names the work, never a quoted count', () => {
+    const t = (k: string, p?: Record<string, string | number>) => translate('ar', k, p)
+    const te = (k: string, p?: Record<string, string | number>) => translate('en', k, p)
+    expect(t('treatments.chart.sub', { name: 'حشوة' })).toContain('«حشوة»')
+    expect(t('treatments.chart.subTeeth', { name: 'حشوة', teeth: '16، 26' })).toContain('«حشوة» على الأسنان 16، 26')
+    expect(t('treatments.chart.subMany', { n: 2 })).toMatch(/^أُنجزت معالجتان\./)
+    expect(t('treatments.chart.subMany', { n: 3 })).toMatch(/^أُنجزت 3 معالجات\./)
+    expect(t('treatments.chart.subMany', { n: 11 })).toMatch(/^أُنجزت 11 معالجةً\./)
+    expect(t('treatments.chart.subMany', { n: 100 })).toMatch(/^أُنجزت 100 معالجة\./)
+    for (const n of [2, 3, 11, 100]) expect(t('treatments.chart.subMany', { n })).not.toMatch(/[«»{}]/)
+    expect(te('treatments.chart.subMany', { n: 3 })).toMatch(/^3 treatments are done\./)
+  })
 })
 
 // ---- database actions ---------------------------------------------------------------------------
@@ -307,6 +338,23 @@ describe('actions (database)', () => {
     expect(edited?.price).toBe(100)
     expect(edited?.notes).toBe('ملاحظة')
     await expect(billItems('p1', items.map(i => i.id))).rejects.toThrow('nothing-to-bill')
+  })
+
+  it('billing completed work settles the new invoice from the patient\'s money on account at once', async () => {
+    await db.patients.put({ id: 'p1', fileNo: 1, name: 'مريض', gender: 'female', allergies: [], chronicDiseases: [], medications: [], tags: [], archived: false, createdAt: NOW, updatedAt: NOW })
+    await db.payments.add({ id: 'dep1', patientId: 'p1', amount: 120, method: 'cash', date: '2026-10-01', receiptNo: 'R-000001', createdAt: NOW })
+    const { items } = await addItems('p1', { procedure: proc, procedureName: proc.name, teeth: [36, 46], price: 100, discount: 0, status: 'completed' })
+    const inv = await billItems('p1', items.map(i => i.id), 'u1')
+    expect(inv).toMatchObject({ total: 200, paid: 120, status: 'partial' })
+    expect(await db.invoices.get(inv.id)).toMatchObject({ paid: 120, status: 'partial' })
+    const pays = await db.payments.where('patientId').equals('p1').toArray()
+    expect(pays.filter(p => p.invoiceId === inv.id).reduce((a, p) => a + p.amount, 0)).toBe(120)
+    expect(pays.reduce((a, p) => a + p.amount, 0)).toBe(120)                 // money is moved onto the invoice, never created
+    // a deposit larger than the work pays it in full and the rest stays as credit
+    await db.payments.add({ id: 'dep2', patientId: 'p1', amount: 500, method: 'cash', date: '2026-10-02', receiptNo: 'R-000002', createdAt: NOW })
+    const more = await addItems('p1', { procedure: proc, procedureName: proc.name, teeth: [11], price: 60, discount: 0, status: 'completed' })
+    const inv2 = await billItems('p1', more.items.map(i => i.id))
+    expect(inv2).toMatchObject({ total: 60, paid: 60, status: 'paid' })
   })
 
   it('cancelling and deleting plans keeps completed work', async () => {

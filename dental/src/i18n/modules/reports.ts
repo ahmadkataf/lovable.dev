@@ -100,7 +100,7 @@ const reports: ModuleDict = {
     'tr.emptyTitle': 'No treatments in this period', 'tr.emptyDesc': 'No procedures were planned or completed during {range}.', 'tr.goTreatments': 'Treatments',
     'out.total': 'Total outstanding', 'out.patients': 'Patients with a balance', 'out.avg': 'Average balance', 'out.max': 'Largest balance',
     'out.tableTitle': 'Patient balances', 'out.tableSub': 'Current balances across all periods, largest first',
-    'out.invoiced': 'Open invoices', 'out.paid': 'Paid on them', 'out.due': 'Due', 'out.lastPayment': 'Last payment', 'out.never': 'No payments', 'out.remind': 'Remind',
+    'out.invoiced': 'Open invoices', 'out.paid': 'Paid', 'out.due': 'Due', 'out.lastPayment': 'Last payment', 'out.never': 'No payments', 'out.remind': 'Remind',
     'out.remindTitle': 'Send a WhatsApp reminder', 'out.noPhone': 'No phone number',
     'out.message': 'Hello {name}, a friendly reminder that your outstanding balance at {clinic} is {amount}. We look forward to seeing you. Thank you.',
     'out.emptyTitle': 'No outstanding balances', 'out.emptyDesc': 'Every patient is fully paid up. Great work!', 'out.goInvoices': 'Invoices',

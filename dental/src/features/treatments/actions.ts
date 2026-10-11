@@ -6,6 +6,7 @@ import type { ID, Invoice, Procedure, ToothCondition, ToothRecord, ToothSurface,
 import { DEFAULT_PROCEDURES, scalePrice } from '@/features/seed/catalog'
 import { seedDefaults } from '@/features/seed/demo'
 import { isEmptyPlan, planRecord } from '@/features/chart/lib'
+import { reconcilePatient } from '@/features/billing/actions'
 import { bulkPrice, invoiceFromItems, planStatusFrom, statusPatch, unbilledItems, type BulkChange } from './lib'
 
 /** Drops undefined / empty-string fields so stored records stay tidy. */
@@ -227,9 +228,13 @@ export async function applyChartEntries(patientId: ID, entries: ChartEntry[], us
 
 // ---- billing --------------------------------------------------------------------------------------
 
-/** Invoices completed, unbilled items of one patient and links them to the new invoice. */
+/**
+ * Invoices completed, unbilled items of one patient and links them to the new invoice. Money the patient holds on
+ * account settles the new invoice at once (the billing module's reconcile, in the same transaction), so the invoice
+ * returned already shows what is paid and what is still due.
+ */
 export async function billItems(patientId: ID, itemIds: ID[], userId?: ID): Promise<Invoice> {
-  return db.transaction('rw', [db.invoices, db.treatments, db.clinic], async () => {
+  return db.transaction('rw', [db.invoices, db.treatments, db.clinic, db.payments], async () => {
     const found = (await db.treatments.bulkGet(itemIds)).filter((i): i is TreatmentItem => !!i && i.patientId === patientId)
     const items = unbilledItems(found)
     if (!items.length) throw new Error('nothing-to-bill')
@@ -240,7 +245,8 @@ export async function billItems(patientId: ID, itemIds: ID[], userId?: ID): Prom
     const invoice = clean<Invoice>({ ...draft, id: newId(), number, createdAt: now, updatedAt: now, createdBy: userId })
     await db.invoices.add(invoice)
     for (const i of items) await db.treatments.update(i.id, { invoiceId: invoice.id, updatedAt: now })
-    return invoice
+    await reconcilePatient(patientId)
+    return (await db.invoices.get(invoice.id)) ?? invoice
   })
 }
 
@@ -280,14 +286,15 @@ export async function deleteProcedure(id: ID): Promise<boolean> {
     return true
   })
 }
-/** Applies a bulk price change to the given procedures; returns how many prices changed. */
+/** Applies a bulk price change to the given procedures (in the clinic currency's minor unit); returns how many prices changed. */
 export async function applyBulkPrice(ids: ID[], change: BulkChange): Promise<number> {
-  return db.transaction('rw', db.procedures, async () => {
+  return db.transaction('rw', db.procedures, db.clinic, async () => {
+    const decimals = (await getClinic()).currencyDecimals
     const now = nowISO()
     let n = 0
     for (const p of await db.procedures.bulkGet(ids)) {
       if (!p) continue
-      const price = bulkPrice(p.price, change)
+      const price = bulkPrice(p.price, change, decimals)
       if (price !== p.price) { await db.procedures.update(p.id, { price, updatedAt: now }); n++ }
     }
     return n
@@ -305,7 +312,7 @@ export async function loadDefaultCatalogue(): Promise<number> {
     const clinic = await getClinic()
     const now = nowISO()
     await db.procedures.bulkAdd(DEFAULT_PROCEDURES.map((p, i): Procedure => ({
-      id: newId(), code: p.code, name: p.name, nameEn: p.nameEn, category: p.category, price: scalePrice(p.price, clinic.currency),
+      id: newId(), name: p.name, nameEn: p.nameEn, category: p.category, price: scalePrice(p.price, clinic.currency),
       durationMin: p.durationMin, toothSpecific: p.toothSpecific, active: true, sortOrder: i + 1, createdAt: now, updatedAt: now,
     })))
   }

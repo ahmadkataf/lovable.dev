@@ -3,6 +3,10 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <!-- The same Content-Security-Policy the Windows app (electron/lib.cjs CSP) and the Android app (WebFiles.CSP) send:
+         scripts only from the app itself, pictures and files only from the app or data:/blob:, nothing from the internet.
+         (npm run dev leaves it out: Vite's development page needs inline scripts. vite.config.ts) -->
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self' data: blob:; media-src 'self' data: blob:; worker-src 'self' blob:; frame-src 'self' data: blob:; object-src 'none'; base-uri 'self'; form-action 'none'" />
     <meta name="theme-color" content="#0E8F86" />
     <meta name="color-scheme" content="light" />
     <title>Dentora — نظام إدارة عيادات الأسنان</title>

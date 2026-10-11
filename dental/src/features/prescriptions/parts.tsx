@@ -6,7 +6,7 @@ import { ChevronDown, Search, UserRound, X } from 'lucide-react'
 import { db } from '@/db'
 import type { Clinic, Patient } from '@/db/types'
 import { useI18n } from '@/i18n'
-import { Avatar, Button, Field, Input, Skeleton } from '@/ui'
+import { Avatar, Button, Field, Input, Skeleton, useEscapeLayer } from '@/ui'
 import { formatPhone, matches } from '@/lib/format'
 import { print } from '@/platform'
 import { usePatientIndex, usePatientPhotos, type SlimPatient } from '@/features/billing/patientIndex'
@@ -46,6 +46,8 @@ export function Popover({ anchor, open, onClose, children, className, maxHeight 
     })
   }, [anchor, maxHeight, minWidth, align])
   useLayoutEffect(() => { if (open) place() }, [open, place])
+  // Escape (and the Android Back key) closes the list first, then the dialog under it: the kit's layer stack
+  useEscapeLayer(open ? onClose : undefined)
   useEffect(() => {
     if (!open) return
     // the boxes that clip the anchor (a modal body, a table's scroll box): once the field has scrolled out of one of
@@ -133,7 +135,6 @@ export function ComboInput({ value, onChange, options, label, placeholder, error
     if (e.key === 'ArrowDown') { e.preventDefault(); if (!open) { setTyped(false); setOpen(true) } setHi(h => Math.min(shown.length - 1, h + 1)) }
     else if (e.key === 'ArrowUp') { e.preventDefault(); setHi(h => Math.max(0, h - 1)) }
     else if (e.key === 'Enter' && visible && hi >= 0 && shown[hi]) { e.preventDefault(); pick(shown[hi].value) }
-    else if (e.key === 'Escape' && visible) { e.stopPropagation(); close() }
     else if (e.key === 'Tab') close()
   }
   const control = (
@@ -207,7 +208,6 @@ export function PatientSelect({ value, onChange, error, locked, autoFocus, pendi
     if (e.key === 'ArrowDown') { e.preventDefault(); setOpen(true); setHi(h => Math.min(results.length - 1, h + 1)) }
     else if (e.key === 'ArrowUp') { e.preventDefault(); setHi(h => Math.max(0, h - 1)) }
     else if (e.key === 'Enter') { e.preventDefault(); if (open && results[hi]) pick(results[hi]); else setOpen(true) }
-    else if (e.key === 'Escape' && open) { e.stopPropagation(); setOpen(false) }
   }
 
   // the pre-filled patient is still loading: a placeholder, so the search box (and its list) never flashes open
@@ -297,15 +297,18 @@ export function RxMark({ size = 44 }: { size?: number }) {
 
 /**
  * Prints the sheet shown in the open modal: everything else is hidden for the print (see body.rx-printing in
- * prescriptions.css) and shown again afterwards.
+ * prescriptions.css) and shown again afterwards. `jobName` names the print job and the PDF a user saves
+ * ("وصفة طبية RX-000012 - محمد العلي").
  */
-export function printModalSheet() {
+export function printModalSheet(jobName?: string) {
   const body = document.body
   body.classList.add('rx-printing')
   const done = () => { body.classList.remove('rx-printing'); window.removeEventListener('afterprint', done) }
   window.addEventListener('afterprint', done)
-  print()
+  print(jobName)
 }
+/** A print job name from its parts: "وصفة طبية RX-000012 - محمد العلي" (empty parts are left out). */
+export const jobName = (title: string, ...rest: (string | undefined)[]) => [title, ...rest.filter(Boolean)].join(' - ')
 /** Clears the print mode when a printable modal closes. */
 export function usePrintCleanup(open: boolean) {
   useEffect(() => { if (!open) return; return () => document.body.classList.remove('rx-printing') }, [open])

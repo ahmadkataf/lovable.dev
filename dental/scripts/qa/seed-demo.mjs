@@ -1,7 +1,7 @@
 // Loads the demo data into the built app in real Chromium through Settings → Data → "Load demo data" (the button the
 // clinic uses), checks it through window.__dentora.db and takes screenshots of the main screens with it: desktop Arabic,
 // desktop English and a phone (390×844, where no screen may scroll sideways).
-//   npx vite build --outDir /tmp/dist-seed
+//   VITE_QA=1 npx vite build --outDir /tmp/dist-seed
 //   QA_DIST=/tmp/dist-seed QA_PORT=4322 QA_SHOTS=qa-shots/seed node scripts/qa/seed-demo.mjs
 // If the settings screen has no such button (it is being reworked), the demo module is bundled on its own (IIFE →
 // window.DentoraSeed) and injected instead; it opens the same IndexedDB database as the app.
@@ -39,7 +39,8 @@ async function loadThroughSettings(page, name) {
   try { await button.waitFor({ state: 'visible', timeout: 8000 }) } catch { /* no button */ }
   if (!(await button.count()) || !(await button.isEnabled())) {
     console.log('  (no usable "load demo data" button in Settings; injecting the demo module instead)')
-    await page.addScriptTag({ path: await injectedBundle() })
+    // evaluated through DevTools: an injected <script> would be refused by the page's Content-Security-Policy
+    await page.evaluate(fs.readFileSync(await injectedBundle(), 'utf8'))
     const t = Date.now()
     await page.evaluate(() => window.DentoraSeed.loadDemoData())
     return { ms: Date.now() - t, via: 'bundle' }

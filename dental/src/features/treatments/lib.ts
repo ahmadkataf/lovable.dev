@@ -6,9 +6,9 @@ import type {
 } from '@/db/types'
 import { PROCEDURE_CATEGORIES } from '@/db/types'
 import { addDays, dateOf, endOfMonth, startOfMonth, startOfWeek } from '@/lib/dates'
-import { round2 } from '@/lib/format'
-// the billing module's own totals and status rules, so an invoice made here adds up exactly as one made there
-import { computeTotals, invoiceStatus } from '@/features/billing/lib'
+import { round2, roundTo } from '@/lib/format'
+// the billing module's own rounding, totals and status rules, so an invoice made here adds up exactly as one made there
+import { computeTotals, invoiceStatus, lineTotal, moneyDecimals } from '@/features/billing/lib'
 
 export type PlanStatus = TreatmentPlan['status']
 export const ITEM_STATUSES: TreatmentStatus[] = ['planned', 'in_progress', 'completed', 'cancelled']
@@ -111,28 +111,32 @@ export function mainDoctor(items: readonly Pick<TreatmentItem, 'doctorId'>[]): I
 export type InvoiceDraft = Omit<Invoice, 'id' | 'number' | 'createdAt' | 'updatedAt' | 'createdBy'>
 /**
  * The invoice for a set of completed treatment items: one line per item (qty 1, the item's price and discount),
- * no invoice-level discount, the clinic's tax on the subtotal (rounded to the currency's minor unit, as billing
- * does), nothing paid yet.
+ * no invoice-level discount, the clinic's tax on the subtotal, nothing paid yet. Every amount is stored in the
+ * currency's minor unit (0, 2 or 3 decimals) exactly as the billing module stores the lines it writes.
  */
 export function invoiceFromItems(
   items: readonly TreatmentItem[],
   clinic: Pick<Clinic, 'taxPercent'> & Partial<Pick<Clinic, 'currencyDecimals'>>,
   opts: { date: ISODate; patientId?: ID; doctorId?: ID; makeId: () => string; describe?: (i: TreatmentItem) => string },
 ): InvoiceDraft {
+  const d = moneyDecimals(clinic.currencyDecimals)
   const lines: InvoiceItem[] = items.map(i => {
+    const price = Math.max(0, Number(i.price) || 0)
+    const unitPrice = roundTo(price, d)
+    const discount = roundTo(Math.min(Math.max(0, Number(i.discount) || 0), price), d)
     const line: InvoiceItem = {
       id: opts.makeId(), treatmentItemId: i.id, description: opts.describe ? opts.describe(i) : i.procedureName,
-      qty: 1, unitPrice: round2(Number(i.price) || 0), discount: round2(Math.min(Number(i.discount) || 0, Number(i.price) || 0)), total: itemTotal(i),
+      qty: 1, unitPrice, discount, total: lineTotal(1, unitPrice, discount, d),
     }
     if (i.procedureId) line.procedureId = i.procedureId
     if (i.tooth) line.tooth = i.tooth
     return line
   })
   const taxPercent = Math.max(0, Number(clinic.taxPercent) || 0)
-  const { subtotal, tax, total } = computeTotals(lines, 0, taxPercent, clinic.currencyDecimals ?? 2)
+  const { subtotal, tax, total } = computeTotals(lines, 0, taxPercent, d)
   const draft: InvoiceDraft = {
     patientId: opts.patientId ?? items[0]?.patientId ?? '', date: opts.date, items: lines,
-    subtotal, discount: 0, taxPercent, tax, total, paid: 0, status: invoiceStatus(total, 0, 'unpaid'),
+    subtotal, discount: 0, taxPercent, tax, total, paid: 0, status: invoiceStatus(total, 0, 'unpaid', d),
   }
   const doctorId = opts.doctorId ?? mainDoctor(items)
   if (doctorId) draft.doctorId = doctorId
@@ -236,13 +240,17 @@ export function groupByCategory<T extends Pick<Procedure, 'category' | 'sortOrde
 }
 
 export interface BulkChange { mode: 'percent' | 'fixed'; value: number; round: number }
-/** New price after a bulk change: ± percent or ± a fixed amount, rounded to the step (0 = cents), never negative. */
-export function bulkPrice(price: number, c: BulkChange): number {
+/**
+ * New price after a bulk change: ± percent or ± a fixed amount, rounded to the step (0 = the currency's minor unit:
+ * whole units, cents or fils, from `decimals`), never negative.
+ */
+export function bulkPrice(price: number, c: BulkChange, decimals = 2): number {
+  const d = moneyDecimals(decimals)
   const base = Number(price) || 0
   let next = c.mode === 'percent' ? base * (1 + (Number(c.value) || 0) / 100) : base + (Number(c.value) || 0)
   next = Math.max(0, next)
   if (c.round > 0) next = Math.round(next / c.round) * c.round
-  return round2(Math.max(0, next))
+  return roundTo(Math.max(0, next), d)
 }
 /** A code that is not taken yet: D2391 → D2391-2 → D2391-3… */
 export function uniqueCode(code: string | undefined, taken: readonly (string | undefined)[]): string | undefined {

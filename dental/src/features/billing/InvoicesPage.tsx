@@ -18,6 +18,7 @@ import { usePagePatients, usePatientIndex } from './patientIndex'
 import { useSnapshot } from './snapshot'
 import { filterInvoices, invoiceBalance, invoiceStats, isDraftNumber, isOpen, pluralKey, sortInvoices, statusCounts, type StatusFilter } from './lib'
 import { BillingGate, Money, PeriodBar, StatusBadge, usePeriod, ltr, iso } from './shared'
+import { Fab } from '@/features/patients/parts'
 import InvoiceFormModal from './InvoiceFormModal'
 import './billing.css'
 
@@ -151,7 +152,7 @@ function InvoicesPageScreen() {
     body = <div className="card"><EmptyState icon={<Search />} title={t('billing.noMatch')} description={t('billing.noMatchDesc')} actions={filtered ? <Button onClick={clearFilters}>{t('billing.clearFilters')}</Button> : newBtn} /></div>
   } else if (isMobile) {
     body = (
-      <>
+      <div className="bl-fab-room">
         <div className="bl-mlist">
           {pg.slice.map(i => {
             const p = patientOf(i)
@@ -173,7 +174,7 @@ function InvoicesPageScreen() {
           })}
         </div>
         <Pagination {...pg} />
-      </>
+      </div>
     )
   } else {
     body = <DataTable className="bl-table" columns={columns} rows={pg.slice} rowKey={i => i.id} onRowClick={i => navigate(`/invoices/${i.id}`)}
@@ -182,12 +183,13 @@ function InvoicesPageScreen() {
 
   return (
     <div className="page">
+      {/* phones: "new invoice" floats above the bottom bar (as on the patients page) instead of a full-width header button */}
       <PageHeader title={t('billing.title')} subtitle={t('billing.subtitle')}
-        actions={<><Button variant="secondary" icon={<Wallet />} to="/payments" className="hide-mobile">{t('nav.payments')}</Button>{newBtn}</>} />
+        actions={isMobile ? undefined : <><Button variant="secondary" icon={<Wallet />} to="/payments">{t('nav.payments')}</Button>{newBtn}</>} />
 
       <PeriodBar value={rawPeriod} onChange={setPeriod} />
 
-      <div className="grid grid-stats bl-stats">
+      <div className="grid grid-stats bl-stats bl-stats-slim">
         <StatCard tone="primary" icon={<FileText />} label={t('billing.stat.invoiced')} value={loading ? <Skeleton w={110} h={26} /> : <Money value={stats.invoiced} />} />
         <StatCard tone="success" icon={<CheckCircle2 />} label={t('billing.stat.collected')} value={loading ? <Skeleton w={110} h={26} /> : <Money value={stats.collected} />} sub={t('billing.stat.ofTheseInvoices')} />
         <StatCard tone="danger" icon={<Hourglass />} label={t('billing.stat.outstanding')} value={loading ? <Skeleton w={110} h={26} /> : <Money value={stats.outstanding} />} sub={t('billing.stat.ofTheseInvoices')} />
@@ -215,6 +217,9 @@ function InvoicesPageScreen() {
 
       {body}
 
+      {isMobile && anyInvoice !== 0 && (
+        <Fab icon={<Plus />} label={t('billing.newInvoice')} onClick={() => setForm({})} disabled={ro} title={ro ? t('trial.readonly') : undefined} />
+      )}
       {form && (
         <InvoiceFormModal open patientId={form.patientId} invoiceId={form.invoiceId} onClose={() => setForm(null)}
           onSaved={(inv, mode) => { if (mode === 'issue') navigate(`/invoices/${inv.id}`) }} />

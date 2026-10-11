@@ -69,6 +69,11 @@ const auth: ModuleDict = {
     'money.slotN': 'كل {n} دقيقة',
     'money.tax': 'ضريبة على الفواتير',
     'money.taxHint': 'اتركها فارغة إن كانت فواتيرك بلا ضريبة',
+    'money.secRegion': 'البلد والتاريخ',
+    'money.country': 'بلد العيادة',
+    'money.countryHint': 'يُضاف رمزه إلى أرقام الهواتف المحلية في رسائل واتساب',
+    'money.months': 'أسماء الأشهر بالعربية',
+    'money.monthsHint': 'هكذا يُكتب التاريخ على المواعيد والفواتير: {date}',
     'cur.USD': 'دولار أمريكي', 'cur.SYP': 'ليرة سورية', 'cur.SAR': 'ريال سعودي', 'cur.AED': 'درهم إماراتي', 'cur.EGP': 'جنيه مصري',
     'cur.JOD': 'دينار أردني', 'cur.IQD': 'دينار عراقي', 'cur.KWD': 'دينار كويتي', 'cur.QAR': 'ريال قطري', 'cur.OMR': 'ريال عماني',
     'cur.BHD': 'دينار بحريني', 'cur.LBP': 'ليرة لبنانية', 'cur.TRY': 'ليرة تركية', 'cur.EUR': 'يورو', 'cur.GBP': 'جنيه إسترليني',
@@ -102,6 +107,8 @@ const auth: ModuleDict = {
     'review.hours': 'الدوام',
     'review.slot': 'التقويم',
     'review.noTax': 'بدون ضريبة',
+    'review.country': 'البلد',
+    'review.months': 'الأشهر',
     'review.pinSet': 'رمز الدخول',
     'review.pinDigits': '{n} أرقام',
 
@@ -110,6 +117,7 @@ const auth: ModuleDict = {
     'v.hours': 'وقت الانتهاء يجب أن يكون بعد وقت البدء',
     'v.tax': 'أدخل نسبة بين 0 و100',
     'v.code': 'من 2 إلى 4 أحرف لاتينية، مثل YER',
+    'v.terms': 'للمتابعة وافق على شروط الاستخدام وسياسة الخصوصية',
 
     // ---- sign-in screen
     'login.whoTitle': 'من يبدأ العمل الآن؟',
@@ -231,6 +239,11 @@ const auth: ModuleDict = {
     'money.slotN': 'Every {n} minutes',
     'money.tax': 'Tax on invoices',
     'money.taxHint': 'Leave empty if your invoices carry no tax',
+    'money.secRegion': 'Country and dates',
+    'money.country': 'Clinic country',
+    'money.countryHint': 'Its code is added to local phone numbers in WhatsApp messages',
+    'money.months': 'Arabic month names',
+    'money.monthsHint': 'Used when the app is in Arabic: {date}',
     'cur.USD': 'US dollar', 'cur.SYP': 'Syrian pound', 'cur.SAR': 'Saudi riyal', 'cur.AED': 'UAE dirham', 'cur.EGP': 'Egyptian pound',
     'cur.JOD': 'Jordanian dinar', 'cur.IQD': 'Iraqi dinar', 'cur.KWD': 'Kuwaiti dinar', 'cur.QAR': 'Qatari riyal', 'cur.OMR': 'Omani rial',
     'cur.BHD': 'Bahraini dinar', 'cur.LBP': 'Lebanese pound', 'cur.TRY': 'Turkish lira', 'cur.EUR': 'Euro', 'cur.GBP': 'British pound',
@@ -264,6 +277,8 @@ const auth: ModuleDict = {
     'review.hours': 'Hours',
     'review.slot': 'Calendar',
     'review.noTax': 'No tax',
+    'review.country': 'Country',
+    'review.months': 'Months',
     'review.pinSet': 'Sign-in PIN',
     'review.pinDigits': '{n} digits',
 
@@ -272,6 +287,7 @@ const auth: ModuleDict = {
     'v.hours': 'Closing time must be after opening time',
     'v.tax': 'Enter a percentage between 0 and 100',
     'v.code': '2 to 4 Latin letters, like YER',
+    'v.terms': 'To continue, accept the terms of use and the privacy policy',
 
     'login.whoTitle': 'Who is starting now?',
     'login.whoSub': 'Choose your account to continue',

@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom'
 import { AlertTriangle, X } from 'lucide-react'
 import { Button, type ButtonVariant } from './Button'
 import { useI18n, useTSafe } from '@/i18n'
+import { isTextEntry } from '@/app/keyboard'
 
 let openCount = 0
 function useScrollLock(active: boolean) {
@@ -66,24 +67,54 @@ export interface ModalProps {
   className?: string
   bodyClassName?: string
 }
+/** True on a touch screen (a phone or a tablet), where focusing a text field raises the on-screen keyboard. */
+export function isCoarsePointer(): boolean {
+  try { return typeof window !== 'undefined' && !!window.matchMedia?.('(pointer: coarse)').matches } catch { return false }
+}
+/**
+ * What a dialog focuses when it opens. An element marked [data-autofocus] always wins. On a touch screen nothing
+ * else is focused for the user: a control that already took the focus (a confirm button) keeps it, and otherwise
+ * the dialog itself takes it, so opening a dialog never raises the on-screen keyboard. With a mouse and a keyboard,
+ * the first text field gets it (else the first control), ready for typing.
+ */
+export function dialogFocusTarget(root: HTMLElement | null, touch: boolean): HTMLElement | null {
+  if (!root) return null
+  const chosen = root.querySelector<HTMLElement>('[data-autofocus]')
+  if (chosen) return chosen
+  if (touch) {
+    const active = document.activeElement
+    return active instanceof HTMLElement && active !== root && root.contains(active) && !isTextEntry(active) ? active : root
+  }
+  return root.querySelector<HTMLElement>('[autofocus]')
+    ?? root.querySelector<HTMLElement>('input:not([type=hidden]):not([type=checkbox]):not([type=radio]):not([disabled]), textarea:not([disabled])')
+    ?? root.querySelector<HTMLElement>('select:not([disabled]), input:not([type=hidden]), button:not(.modal-x)')
+}
+
 export function Modal({ open, onClose, title, subtitle, icon, size = 'md', footer, children, closeOnOverlay = true, className, bodyClassName }: ModalProps) {
   useScrollLock(open)
   useEscape(open ? onClose : undefined)
   const ref = useRef<HTMLDivElement>(null)
   const t = useTSafe()
+  // A field with React's autoFocus is focused while the dialog is put on the screen. On a touch screen that would
+  // raise the keyboard over the dialog, so the focus moves to the dialog in the same task, before the keyboard shows.
+  useLayoutEffect(() => {
+    if (!open || !isCoarsePointer()) return
+    const root = ref.current, active = document.activeElement
+    if (root && active && root.contains(active) && isTextEntry(active) && !active.closest('[data-autofocus]')) root.focus({ preventScroll: true })
+  }, [open])
   useEffect(() => {
     if (!open) return
-    const root = ref.current
-    const first = root?.querySelector<HTMLElement>('[data-autofocus], [autofocus]')
-      ?? root?.querySelector<HTMLElement>('input:not([type=hidden]):not([type=checkbox]):not([type=radio]):not([disabled]), textarea:not([disabled])')
-      ?? root?.querySelector<HTMLElement>('select:not([disabled]), input:not([type=hidden]), button:not(.modal-x)')
-    const t = window.setTimeout(() => first?.focus(), 50)
-    return () => window.clearTimeout(t)
+    const touch = isCoarsePointer()
+    const timer = window.setTimeout(() => {
+      const target = dialogFocusTarget(ref.current, touch)
+      if (target && target !== document.activeElement) target.focus({ preventScroll: touch && target === ref.current })
+    }, 50)
+    return () => window.clearTimeout(timer)
   }, [open])
   if (!open) return null
   return createPortal(
     <div className="overlay" onMouseDown={e => { if (closeOnOverlay && e.target === e.currentTarget) onClose() }}>
-      <div ref={ref} className={['modal', size !== 'md' && `modal-${size}`, !footer && 'no-footer', className].filter(Boolean).join(' ')} role="dialog" aria-modal="true">
+      <div ref={ref} className={['modal', size !== 'md' && `modal-${size}`, !footer && 'no-footer', className].filter(Boolean).join(' ')} role="dialog" aria-modal="true" tabIndex={-1}>
         {(title || subtitle) && (
           <div className="modal-header">
             <div className="grow"><div className="modal-title">{icon}{title}</div>{subtitle && <div className="modal-sub">{subtitle}</div>}</div>

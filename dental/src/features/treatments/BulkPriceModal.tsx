@@ -29,7 +29,7 @@ export default function BulkPriceModal({ open, onClose, procedures, category }: 
 
   const scope = useMemo(() => sortProcedures(procedures), [procedures])
   const change: BulkChange = { mode, value: (dir === 'down' ? -1 : 1) * (value ?? 0), round }
-  const preview = useMemo(() => scope.map(p => ({ p, next: bulkPrice(p.price, change) })), [scope, mode, dir, value, round]) // eslint-disable-line react-hooks/exhaustive-deps
+  const preview = useMemo(() => scope.map(p => ({ p, next: bulkPrice(p.price, change, clinic.currencyDecimals) })), [scope, mode, dir, value, round, clinic.currencyDecimals]) // eslint-disable-line react-hooks/exhaustive-deps
   const changed = preview.filter(x => x.next !== x.p.price)
   const zeroed = changed.filter(x => x.next === 0).length       // a decrease that wipes prices out is almost always a typo
   const error = value === null ? t('v.required') : value <= 0 ? t('v.positive') : mode === 'percent' && dir === 'down' && value >= 100 ? t('treatments.bulk.tooMuch') : undefined

@@ -7,7 +7,7 @@ import { BarChart3, Minus, Table2, TrendingDown, TrendingUp } from 'lucide-react
 import { Card, CardBody, CardHeader, DataTable, IconButton, Skeleton, type Column } from '@/ui'
 import { useI18n } from '@/i18n'
 import type { Lang } from '@/db/types'
-import { fmtDate, fmtMonth, fromISODate } from '@/lib/dates'
+import { dateFormat, fmtDate, fmtMonth, fromISODate } from '@/lib/dates'
 import { formatNumber } from '@/lib/format'
 import { saveText } from '@/platform'
 import { toCSV, type Bucket, type Period, type Unit } from './queries'
@@ -131,26 +131,20 @@ export function usePlural() {
   }
 }
 
-const LOCALE = (lang: Lang) => (lang === 'ar' ? 'ar-SY-u-nu-latn' : 'en-GB')
 /** "1–31 Oct 2026", "28 Sep – 4 Oct 2026", a whole month as "October 2026". */
 export function fmtRange(from: string, to: string, lang: Lang): string {
   if (from === to) return fmtDate(from, lang, 'long')
   const a = fromISODate(from), b = fromISODate(to)
   const lastDay = new Date(b.getFullYear(), b.getMonth() + 1, 0).getDate()
   if (a.getDate() === 1 && b.getDate() === lastDay && a.getMonth() === b.getMonth() && a.getFullYear() === b.getFullYear()) return fmtMonth(from, lang)
-  const f = new Intl.DateTimeFormat(LOCALE(lang), { day: 'numeric', month: 'short', year: 'numeric' }) as Intl.DateTimeFormat & { formatRange?: (x: Date, y: Date) => string }
+  // the app's date locale: Latin digits, and Arabic months in the clinic's style (تشرين الأول or أكتوبر)
+  const f = dateFormat(lang, { day: 'numeric', month: 'short', year: 'numeric' }) as Intl.DateTimeFormat & { formatRange?: (x: Date, y: Date) => string }
   if (typeof f.formatRange === 'function') return f.formatRange(a, b)
   return `${fmtDate(from, lang)} – ${fmtDate(to, lang)}`
 }
 export const fmtPeriod = (p: Period, lang: Lang) => fmtRange(p.from, p.to, lang)
 
-const dtfCache = new Map<string, Intl.DateTimeFormat>()
-function dtf(lang: Lang, o: Intl.DateTimeFormatOptions) {
-  const k = lang + JSON.stringify(o)
-  let f = dtfCache.get(k)
-  if (!f) { f = new Intl.DateTimeFormat(LOCALE(lang), o); dtfCache.set(k, f) }
-  return f
-}
+const dtf = (lang: Lang, o: Intl.DateTimeFormatOptions) => dateFormat(lang, o)
 /** Short x-axis label for a bucket (Latin digits). */
 export function bucketLabel(b: Bucket, unit: Unit, lang: Lang, multiYear = false): string {
   const d = fromISODate(b.from)

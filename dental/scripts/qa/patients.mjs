@@ -1,7 +1,7 @@
 // QA for the patients module: screenshots of every screen/state (desktop RTL, desktop EN, phone) and the real flows
 // (create → validate → edit → archive → delete with cascade, files upload/preview/edit/delete, clinical notes), asserting on the DB.
-// Usage: npx vite build --outDir /tmp/dist-patients && QA_DIST=/tmp/dist-patients QA_PORT=4301 QA_SHOTS=qa-shots/patients node scripts/qa/patients.mjs
-import { startServer, openBrowser, seedAndLogin, shot, BASE } from './lib.mjs'
+// Usage: VITE_QA=1 npx vite build --outDir /tmp/dist-patients && QA_DIST=/tmp/dist-patients QA_PORT=4301 QA_SHOTS=qa-shots/patients node scripts/qa/patients.mjs
+import { startServer, openBrowser, seedAndLogin, setSession, shot, BASE } from './lib.mjs'
 
 const problems = []
 const check = (cond, msg) => { if (!cond) { problems.push(msg); console.log('FAIL:', msg) } else console.log('ok:', msg) }
@@ -126,7 +126,7 @@ try {
     await wait(page)
     await page.getByRole('button', { name: 'حفظ المريض' }).click()
     await wait(page, 300)
-    check(await page.locator('.modal .field-error').count() === 2, 'two inline errors on an empty submit (name, phone)')
+    check(await page.locator('.modal .field-error').count() === 1, 'one inline error on an empty submit (the name; the phone is optional)')
     await shot(page, 'ar-02-form-validation')
     await page.getByLabel(/^الاسم الكامل/).fill('سلمى عادل الحسيني')
     await page.getByLabel(/^الهاتف/).fill('٠٩٤٤ abc 987 654')       // Arabic digits and letters: letters dropped, digits converted
@@ -409,11 +409,22 @@ try {
     await page.locator('.menu-item', { hasText: 'استعادة' }).click()
     await wait(page, 400)
 
-    // delete with cascade (from the profile)
+    // a patient with invoices or payments is never deleted: the dialog explains why and offers to archive the file
+    await page.locator('.pt-hero-actions .menu-anchor .btn').click()
+    await page.locator('.menu-item', { hasText: 'حذف المريض' }).click()
+    await page.waitForSelector('[data-testid=pt-delete-blocked]')
+    await wait(page, 300)
+    check(await page.locator('[data-testid=pt-delete-blocked]').textContent().then(x => x.includes('أحمد محمود الخطيب')), 'delete blocked: the dialog names the patient and the money records')
+    check(await page.evaluate(() => document.activeElement?.textContent?.includes('أرشفة') ?? false), 'delete blocked: "archive" is the focused choice')
+    await shot(page, 'ar-26-delete-blocked')
+    await page.keyboard.press('Escape'); await wait(page, 300)
+    check(!!(await db(page, id => window.__dentora.db.patients.get(id), ids[0])), 'delete blocked: the patient with money history stays')
+    // delete with cascade (from the profile) for a patient without money history: appointments go with the file
+    await go(page, `/patients/${ids[3]}`)
     await page.locator('.pt-hero-actions .menu-anchor .btn').click()
     await page.locator('.menu-item', { hasText: 'حذف المريض' }).click()
     await wait(page, 300)
-    await shot(page, 'ar-26-confirm-delete-patient')
+    await shot(page, 'ar-26b-confirm-delete-patient')
     await page.locator('.modal-sm').getByRole('button', { name: 'حذف' }).click()
     await page.waitForURL(/#\/patients$/)
     await wait(page, 600)
@@ -422,16 +433,24 @@ try {
       const counts = {}
       for (const n of ['appointments', 'treatments', 'invoices', 'payments', 'activity']) counts[n] = await d[n].where('patientId').equals(id).count()
       return { patient: await d.patients.get(id), counts }
-    }, ids[0])
+    }, ids[3])
     check(!left.patient && Object.values(left.counts).every(c => c === 0), `cascade delete leaves nothing behind ${JSON.stringify(left.counts)}`)
-    // delete from the list row menu
+    // delete from the list row menu: a patient whose only invoice is a draft (no money history) goes, with the draft
     const before = await db(page, () => window.__dentora.db.patients.count())
-    await page.locator('tr', { hasText: 'رنا خالد المصري' }).locator('.pt-rowmenu .btn').click()
+    await page.locator('tr', { hasText: 'مازن جورج عيسى' }).locator('.pt-rowmenu .btn').click()
     await page.locator('.pt-popmenu .menu-item', { hasText: 'حذف' }).click()
     await page.locator('.modal-sm').getByRole('button', { name: 'حذف' }).click()
     await wait(page, 600)
     check(await db(page, () => window.__dentora.db.patients.count()) === before - 1, 'delete from the list')
-    check(await db(page, id => window.__dentora.db.invoices.where('patientId').equals(id).count(), ids[5]) === 0, 'list delete cascades invoices')
+    check(await db(page, id => window.__dentora.db.invoices.where('patientId').equals(id).count(), ids[10]) === 0, 'list delete removes the draft invoice')
+    // the list row menu on a patient with payments: blocked, and "archive" archives the file instead
+    await page.locator('tr', { hasText: 'رنا خالد المصري' }).locator('.pt-rowmenu .btn').click()
+    await page.locator('.pt-popmenu .menu-item', { hasText: 'حذف' }).click()
+    await page.waitForSelector('[data-testid=pt-delete-blocked]')
+    await page.locator('.modal .btn-primary', { hasText: 'أرشفة' }).click()
+    await wait(page, 600)
+    const rana = await db(page, id => window.__dentora.db.patients.get(id), ids[5])
+    check(!!rana && rana.archived === true && await db(page, id => window.__dentora.db.invoices.where('patientId').equals(id).count(), ids[5]) === 1, 'delete blocked from the list: archived instead, invoices kept')
 
     // not found
     await go(page, '/patients/does-not-exist')
@@ -482,7 +501,7 @@ try {
     await page.keyboard.press('Escape')
 
     // a receptionist sees no clinical tabs and cannot delete
-    await page.evaluate(() => localStorage.setItem('dentora.session', 'u-rec'))
+    await setSession(page, 'u-rec')
     await go(page, `/patients/${ids[0]}`)
     await page.reload(); await wait(page, 1200)
     const tabNames = await page.locator('.pt-tabs .tab').allTextContents()
@@ -493,7 +512,8 @@ try {
     await shot(page, 'en-07-profile-receptionist')
 
     // expired trial: read-only, nothing can be created or changed
-    await page.evaluate(async () => { await window.__dentora.db.settings.put({ key: 'installedAt', value: '2026-01-01T00:00:00.000Z' }); localStorage.setItem('dentora.session', 'u-admin') })
+    await page.evaluate(async () => { await window.__dentora.db.settings.put({ key: 'installedAt', value: '2026-01-01T00:00:00.000Z' }) })
+    await setSession(page, 'u-admin')
     await go(page, '/patients')
     await page.reload(); await wait(page, 1500)
     check(await page.locator('.page-header .btn-primary').isDisabled(), 'read-only: new patient disabled')
@@ -526,8 +546,10 @@ try {
     await wait(page, 300)
     await shot(page, 'm-03-list-scrolled')
     await go(page, '/patients')
-    await page.locator('.page-header .btn-primary').click()
+    check(await page.locator('.pt-fab').isVisible(), 'phone: "new patient" is the floating button')
+    await page.locator('.pt-fab').click()
     await wait(page, 600)
+    check(await page.evaluate(() => document.activeElement?.classList.contains('modal') ?? false), 'phone: the form opens without raising the keyboard')
     await shot(page, 'm-04-form')
     await page.getByRole('button', { name: 'حفظ المريض' }).click()
     await wait(page, 300)

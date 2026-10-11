@@ -21,7 +21,7 @@ const DEFAULT_KEY = path.resolve(ROOT, '../secrets-for-user/dentora/license-priv
 const USAGE = `Dentora activation codes
 
   node scripts/code-generator.mjs <device> <standard|pro> [YYYY-MM-DD | 1y | 2y | lifetime] [--key <file>]
-      make a code for a device number (as shown in Settings → License); validity defaults to 1y
+      make a code for a device number (as shown in Settings → Licence); validity defaults to 1y
   node scripts/code-generator.mjs verify <device> <code>
       check an activation or PIN reset code against a device number (needs no private key)
   node scripts/code-generator.mjs reset <device> [--en]

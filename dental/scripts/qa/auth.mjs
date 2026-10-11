@@ -1,7 +1,7 @@
 // QA for the auth module (setup wizard, sign-in screen) and staff management: screenshots in desktop RTL / desktop EN / phone,
-// real flows asserted on the database. Usage:
-//   npx vite build --outDir /tmp/dist-auth && QA_DIST=/tmp/dist-auth QA_PORT=4308 QA_SHOTS=qa-shots/auth node scripts/qa/auth.mjs
-import { startServer, openBrowser, seedAndLogin, shot, BASE } from './lib.mjs'
+// real flows asserted on the database. Usage (a QA build: it has window.__dentora):
+//   VITE_QA=1 npx vite build --outDir /tmp/dist-auth && QA_DIST=/tmp/dist-auth QA_PORT=4308 QA_SHOTS=qa-shots/auth node scripts/qa/auth.mjs
+import { startServer, openBrowser, seedAndLogin, requireQaHandle, setSession, sessionUser, shot, BASE } from './lib.mjs'
 
 const errors = []
 let failures = 0
@@ -22,11 +22,17 @@ const db = (page, fn, arg) => page.evaluate(fn, arg)
 const next = page => page.click('[data-qa=next]')
 const stepIs = async (page, key) => { await page.waitForSelector(`.au-step[data-step=${key}]`); await page.waitForTimeout(350) }
 const toastText = async page => (await page.locator('.toast').last().textContent({ timeout: 4000 }).catch(() => '')) || ''
+// signs out from the next load on (the app keeps its session through a reload: lib.mjs setSession)
+const signOut = page => setSession(page, null)
+// the Android Back key (the shell calls window.__dentoraBack(); true = the page used it)
+const backKey = page => page.evaluate(() => window.__dentoraBack())
+// one user's sign-in guard, as stored in localStorage (a per-user map; the database keeps the same map)
+const guardOf = (page, id) => page.evaluate(id => JSON.parse(localStorage.getItem('dentora.loginGuard') || '{}')[id] ?? null, id)
 
 async function freshSetup(page) {
   await page.goto(BASE + '/index.html#/setup')
-  await page.waitForFunction(() => window.__dentora?.db)
-  await page.evaluate(async () => { const d = window.__dentora.db; await Promise.all(d.tables.map(t => t.clear())); localStorage.clear() })
+  await requireQaHandle(page)
+  await page.evaluate(async () => { const d = window.__dentora.db; await d.transaction('rw', d.tables, () => Promise.all(d.tables.map(t => t.clear()))); localStorage.clear(); sessionStorage.clear() })
   await page.reload()
   await page.waitForSelector('.au-setup')
 }
@@ -72,6 +78,8 @@ try {
     await next(page)
     ok((await page.locator('.field-error').first().textContent()).length > 3, 'money: short code rejected')
     await page.selectOption('select[name=currency]', 'SAR')
+    ok(await page.inputValue('select[name=country]') === '966', 'money: the country follows the currency (SAR → Saudi Arabia)')
+    ok(await page.locator('[data-qa=setup-months] .segmented button.active').textContent().then(s => s.includes('يناير')), 'money: Saudi Arabia writes يناير/فبراير')
     await page.locator('.au-days .chip').nth(6).click()               // Friday on
     await page.fill('input[name=workStart]', '10:00')
     await page.fill('input[name=workEnd]', '09:00')
@@ -101,6 +109,7 @@ try {
     await page.fill('#owner-pin2', '1357')
     await snap(page, 'setup-4-owner-ar')
     await next(page); await stepIs(page, 'review')
+    ok((await page.textContent('.au-review')).includes('السعودية'), 'review: shows the country')
     await snap(page, 'setup-5-review-ar')
     await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight)); await snap(page, 'setup-5-review-ar-bottom')
 
@@ -109,14 +118,35 @@ try {
     ok(await page.inputValue('input[name=clinicName]') === 'عيادة النخبة لطب الأسنان', 'stepper: values kept when going back')
     await page.locator('.au-steps li').nth(4).locator('button').click(); await stepIs(page, 'review')
 
+    // the Android Back key steps back through the wizard
+    ok(await backKey(page) === true, 'back key: used by the wizard'); await stepIs(page, 'owner')
+    ok(await page.inputValue('input[name=ownerName]') === 'سامر العلي', 'back key: one step back, values kept')
+    await backKey(page); await stepIs(page, 'money')
+    await next(page); await stepIs(page, 'owner'); await next(page); await stepIs(page, 'review')
+
+    // the terms of use and the privacy policy must be accepted
+    await next(page)
+    await page.waitForTimeout(300)
+    ok(await page.locator('[data-qa=setup-terms] .field-error').count() === 1 && await page.locator('.app-sidebar').count() === 0, 'terms: finishing without accepting them is refused')
+    ok(await page.evaluate(() => document.activeElement?.getAttribute('data-qa')) === 'accept-terms', 'terms: the box takes the focus')
+    await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight)); await snap(page, 'setup-5-review-terms-error')
+    await page.click('[data-qa=setup-terms] [data-qa=legal-link-terms]')
+    await page.waitForSelector('.modal .lg-doc', { timeout: 8000 })
+    await snap(page, 'setup-5-terms-dialog')
+    ok(await backKey(page) === true && await page.locator('.modal .lg-doc').count() === 0, 'back key: closes the terms dialog first, the wizard stays')
+    await stepIs(page, 'review')
+    await page.check('[data-qa=accept-terms]')
+    ok(await page.locator('[data-qa=setup-terms] .field-error').count() === 0, 'terms: the error goes once the box is ticked')
+
     await next(page)
     await page.waitForSelector('.app-sidebar', { timeout: 15000 })
     await page.waitForTimeout(600)
     ok(await page.evaluate(() => location.hash) === '#/', 'setup: lands on the dashboard, signed in')
     const state = await db(page, async () => {
       const d = window.__dentora.db
-      return { clinic: await d.clinic.get('clinic'), users: await d.users.toArray(), act: await d.activity.toArray(), session: localStorage.getItem('dentora.session') }
+      return { clinic: await d.clinic.get('clinic'), users: await d.users.toArray(), act: await d.activity.toArray(), terms: (await d.settings.get('termsAccepted'))?.value }
     })
+    state.session = await sessionUser(page)
     ok(state.clinic.setupDone === true && state.clinic.name === 'عيادة النخبة لطب الأسنان', 'db: clinic saved with setupDone')
     ok(state.clinic.currency === 'SAR' && state.clinic.currencySymbol === 'ر.س' && state.clinic.currencyDecimals === 2, 'db: currency SAR / ر.س / 2')
     ok(JSON.stringify(state.clinic.workingDays) === '[0,1,2,3,4,5,6]' && state.clinic.workStart === '10:00' && state.clinic.workEnd === '20:00' && state.clinic.slotMinutes === 20 && state.clinic.taxPercent === 5, 'db: hours, slot and tax')
@@ -124,6 +154,8 @@ try {
     ok(state.users.length === 1 && state.users[0].role === 'admin' && state.users[0].name === 'سامر العلي' && state.users[0].title === 'د.' && state.users[0].active && state.users[0].color === '#0E8F86', 'db: owner admin created')
     ok(state.session === state.users[0].id, 'session: owner signed in')
     ok(state.act.some(a => a.type === 'system' && a.action === 'login' && a.by === state.users[0].id), 'db: login logged')
+    ok(state.clinic.countryCode === '' && !('arabicMonths' in state.clinic), 'db: country and month names left on automatic (from the currency)')
+    ok(state.terms && state.terms.version >= 1 && state.terms.by === state.users[0].id && Date.now() - Date.parse(state.terms.at) < 120000, `db: terms accepted by the owner (${JSON.stringify(state.terms)})`)
     await snap(page, 'setup-6-dashboard-after')
     await browser.close()
   }
@@ -140,7 +172,14 @@ try {
     await page.fill('input[name=clinicName]', 'Bright Smile Dental')
     await snap(page, 'setup-2-clinic-en')
     await next(page); await stepIs(page, 'money')
+    ok(await page.inputValue('select[name=country]') === '963', 'money: USD suggests Syria by default')
+    await page.selectOption('select[name=country]', '962')
+    await page.selectOption('select[name=currency]', 'EUR')
+    ok(await page.inputValue('select[name=country]') === '962', 'money: a picked country stays when the currency changes')
+    ok(await page.locator('[data-qa=setup-months] .segmented button.active').textContent().then(s => s.includes('كانون')), 'money: Jordan writes كانون/شباط')
+    await page.locator('[data-qa=setup-months] .segmented button').nth(1).click()
     await snap(page, 'setup-3-money-en')
+    await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight)); await snap(page, 'setup-3-money-en-bottom')
     await next(page); await stepIs(page, 'owner')
     ok(await page.inputValue('select[name=ownerTitle]') === 'Dr.', 'owner: title follows the language (Dr.)')
     await page.fill('input[name=ownerName]', 'Omar Haddad')
@@ -148,11 +187,13 @@ try {
     await page.fill('#owner-pin2', '246810')
     await snap(page, 'setup-4-owner-en')
     await next(page); await stepIs(page, 'review')
+    await page.check('[data-qa=accept-terms]')
     await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight)); await snap(page, 'setup-5-review-en')
     await next(page)
     await page.waitForSelector('.app-sidebar', { timeout: 15000 })
     const c = await db(page, () => window.__dentora.db.clinic.get('clinic'))
-    ok(c.lang === 'en' && c.currency === 'USD' && c.currencyDecimals === 2, 'db: English clinic with USD')
+    ok(c.lang === 'en' && c.currency === 'EUR' && c.currencyDecimals === 2, 'db: English clinic with EUR')
+    ok(c.countryCode === '962' && c.arabicMonths === 'standard', `db: the picked country and month names are kept (${c.countryCode}, ${c.arabicMonths})`)
     await browser.close()
   }
 
@@ -176,6 +217,33 @@ try {
     await snap(page, 'setup-5-review-phone', { full: true })
     const btn = await page.locator('[data-qa=next]').boundingBox()
     ok(btn && btn.height >= 40, 'phone: footer buttons are touch-sized')
+    await next(page); await page.waitForTimeout(300)
+    await snap(page, 'setup-5-review-phone-terms-error', { full: true })
+    await page.tap('[data-qa=accept-terms]')
+    await next(page)
+    await page.waitForSelector('.app-bottomnav', { timeout: 15000 })
+    ok(!!(await db(page, () => window.__dentora.db.settings.get('termsAccepted'))), 'phone: terms accepted and the clinic is set up')
+    await browser.close()
+  }
+  {
+    // English phone: every step, then Back from the first step leaves the wizard (the shell then closes the app)
+    const { browser, page } = await open({ mobile: true, width: 390, height: 844, lang: 'en' })
+    await freshSetup(page)
+    await page.click('.au-lang-card[data-lang=en]'); await page.waitForTimeout(300)
+    await snap(page, 'setup-1-language-phone-en', { full: true })
+    ok(await backKey(page) === false, 'back key: on the first step it is not used (the app closes)')
+    await next(page); await stepIs(page, 'clinic')
+    await page.fill('input[name=clinicName]', 'Bright Smile Dental')
+    await snap(page, 'setup-2-clinic-phone-en', { full: true })
+    await next(page); await stepIs(page, 'money')
+    await snap(page, 'setup-3-money-phone-en', { full: true })
+    await next(page); await stepIs(page, 'owner')
+    await page.fill('input[name=ownerName]', 'Omar Haddad')
+    await page.fill('#owner-pin', '2468'); await page.fill('#owner-pin2', '2468')
+    await snap(page, 'setup-4-owner-phone-en', { full: true })
+    await next(page); await stepIs(page, 'review')
+    await page.tap('[data-qa=accept-terms]')
+    await snap(page, 'setup-5-review-phone-en', { full: true })
     await browser.close()
   }
 
@@ -193,6 +261,7 @@ try {
     const backup = { app: 'dentora', version: 1, exportedAt: now, tables: {
       clinic: [{ id: 'clinic', name: 'عيادة مستعادة', currency: 'USD', currencySymbol: '$', currencyDecimals: 2, lang: 'ar', theme: 'light', workingDays: [0, 1, 2, 3, 4, 6], workStart: '09:00', workEnd: '17:00', slotMinutes: 30, defaultAppointmentMinutes: 30, taxPercent: 0, invoicePrefix: 'INV-', nextInvoiceNumber: 1, nextFileNumber: 1, setupDone: true, createdAt: now, updatedAt: now }],
       users: [{ id: 'r-admin', name: 'مدير مستعاد', role: 'admin', pinHash: 'x', pinSalt: 'y', color: '#2563EB', active: true, createdAt: now, updatedAt: now }],
+      patients: [],
     } }
     const fc2 = page.waitForEvent('filechooser')
     await page.click('[data-qa=restore]')
@@ -208,7 +277,8 @@ try {
   {
     const { browser, page } = await open()
     await seedAndLogin(page)
-    await page.evaluate(() => { localStorage.removeItem('dentora.session'); localStorage.removeItem('dentora.lastUser'); localStorage.removeItem('dentora.loginGuard') })
+    await signOut(page)
+    await page.evaluate(() => { localStorage.removeItem('dentora.lastUser'); localStorage.removeItem('dentora.loginGuard') })
     await page.reload(); await page.waitForSelector('.au-login-card')
     ok(await page.locator('.user-pick .au-tile').count() === 3, 'login: three user tiles')
     await snap(page, 'login-1-users-ar')
@@ -227,13 +297,18 @@ try {
     await page.keyboard.type('2222'); await page.keyboard.press('Enter')
     await page.waitForSelector('.au-lock')
     ok(await page.locator('.au-pad button:disabled').count() === 12, 'login: pad locked after 5 failures')
-    const g = await page.evaluate(() => JSON.parse(localStorage.getItem('dentora.loginGuard')))
-    ok(g.fails === 5 && g.until - Date.now() > 25000 && g.until - Date.now() <= 30000, 'login: 30 s lock stored')
+    const g = await guardOf(page, 'u-admin')
+    ok(g && g.fails === 5 && g.until - Date.now() > 25000 && g.until - Date.now() <= 30000, `login: 30 s lock stored (${JSON.stringify(g)})`)
+    ok(!!(await db(page, () => window.__dentora.db.settings.get('loginGuard')))?.value?.['u-admin'], 'login: the lock is kept in the database too')
     await page.keyboard.type('1234'); await page.keyboard.press('Enter'); await page.waitForTimeout(300)
-    ok(await page.evaluate(() => !localStorage.getItem('dentora.session')), 'login: typing is ignored while locked')
+    ok(!(await sessionUser(page)), 'login: typing is ignored while locked')
     await snap(page, 'login-4-locked-ar')
-    // the lock survives a reload, then expires
-    await page.evaluate(() => localStorage.setItem('dentora.loginGuard', JSON.stringify({ fails: 5, until: Date.now() + 1500 })))
+    // the lock survives a reload, then expires (both copies shortened: the stricter one wins)
+    await page.evaluate(async () => {
+      const map = { 'u-admin': { fails: 5, until: Date.now() + 1500, locks: 1, last: Date.now() } }
+      localStorage.setItem('dentora.loginGuard', JSON.stringify(map))
+      await window.__dentora.db.settings.put({ key: 'loginGuard', value: map })
+    })
     await page.reload(); await page.waitForSelector('.au-tile')
     await page.click('.au-tile[data-user=u-admin]')
     ok(await page.locator('.au-lock').count() === 1, 'login: lock survives a reload')
@@ -248,13 +323,14 @@ try {
     await page.click('.au-pad .au-key-back'); await page.click('.au-pad button:text-is("3")'); await page.click('.au-pad button:text-is("4")')
     await page.click('[data-qa=submit]')
     await page.waitForSelector('.app-sidebar')
-    ok(await page.evaluate(() => localStorage.getItem('dentora.session')) === 'u-admin', 'login: correct PIN signs in')
+    ok(await sessionUser(page) === 'u-admin', 'login: correct PIN signs in')
+    ok(await page.evaluate(() => localStorage.getItem('dentora.session')) === null, 'login: the session is never kept in localStorage')
     ok(await page.evaluate(() => localStorage.getItem('dentora.lastUser')) === 'u-admin' && await page.evaluate(() => !localStorage.getItem('dentora.loginGuard')), 'login: remembers the user, clears the guard')
     const logins = await db(page, () => window.__dentora.db.activity.filter(a => a.action === 'login' && a.by === 'u-admin').count())
     ok(logins >= 1, 'db: sign-in logged')
     // lock screen: the remembered user goes straight to the PIN
     await page.goto(BASE + '/index.html#/patients')
-    await page.evaluate(() => localStorage.removeItem('dentora.session')); await page.reload()
+    await signOut(page); await page.reload()
     await page.waitForSelector('.pin-pad')
     ok(await page.locator('.au-pin-name').textContent().then(s => s.includes('أحمد')), 'login: remembered user preselected')
     await snap(page, 'login-6-remembered-ar')
@@ -271,7 +347,7 @@ try {
   {
     const { browser, page } = await open({ lang: 'en' })
     await seedAndLogin(page, { lang: 'en' })
-    await page.evaluate(() => { localStorage.removeItem('dentora.session'); localStorage.removeItem('dentora.lastUser') })
+    await signOut(page); await page.evaluate(() => localStorage.removeItem('dentora.lastUser'))
     await page.reload(); await page.waitForSelector('.au-tile')
     await snap(page, 'login-1-users-en')
     await page.click('.au-tile[data-user=u-doc2]')
@@ -285,8 +361,9 @@ try {
     await page.evaluate(async () => {
       const sha = async s => Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(s))), b => b.toString(16).padStart(2, '0')).join('')
       await window.__dentora.db.users.update('u-doc2', { pinSalt: 's6', pinHash: await sha('s6:135790') })
-      localStorage.removeItem('dentora.session'); localStorage.removeItem('dentora.lastUser')
+      localStorage.removeItem('dentora.lastUser')
     })
+    await signOut(page)
     await page.reload(); await page.waitForSelector('.au-tile')
     await snap(page, 'login-1-users-phone')
     await page.click('.au-tile[data-user=u-doc2]')
@@ -299,7 +376,7 @@ try {
     await snap(page, 'login-3-typing-phone')
     await page.tap('.au-pad button:text-is("0")')                    // 6th digit submits by itself
     await page.waitForSelector('.app-bottomnav', { timeout: 5000 })
-    ok(await page.evaluate(() => localStorage.getItem('dentora.session')) === 'u-doc2', 'phone: 6-digit PIN signs in automatically')
+    ok(await sessionUser(page) === 'u-doc2', 'phone: 6-digit PIN signs in automatically')
     await browser.close()
   }
 
@@ -344,11 +421,16 @@ try {
     await page.waitForSelector('#au-staff-form', { state: 'detached' })
     const added = await db(page, () => window.__dentora.db.users.filter(u => u.name === 'نور الحسن').first())
     ok(added && added.role === 'assistant' && added.color === '#DB2777' && added.active && added.phone === '0988 777 666', `db: member added with role, colour and phone ${JSON.stringify(added && { role: added.role, color: added.color, active: added.active, phone: added.phone })}`)
+    // PINs are stored as PBKDF2-SHA-256 over the user's salt: "pbkdf2-sha256$<iterations>$<length>$<hex>" (src/lib/crypto.ts)
     const pinOk = await page.evaluate(async u => {
-      const sha = async s => Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(s))), b => b.toString(16).padStart(2, '0')).join('')
-      return (await sha(`${u.pinSalt}:4321`)) === u.pinHash
+      const m = /^pbkdf2-sha256\$(\d+)\$(\d)\$([0-9a-f]{64})$/.exec(u.pinHash)
+      if (!m || Number(m[1]) < 150000 || m[2] !== '4') return false
+      const enc = new TextEncoder()
+      const key = await crypto.subtle.importKey('raw', enc.encode('4321'), 'PBKDF2', false, ['deriveBits'])
+      const bits = await crypto.subtle.deriveBits({ name: 'PBKDF2', hash: 'SHA-256', salt: enc.encode(u.pinSalt), iterations: Number(m[1]) }, key, 256)
+      return Array.from(new Uint8Array(bits), b => b.toString(16).padStart(2, '0')).join('') === m[3]
     }, added)
-    ok(pinOk, 'db: new member PIN hashed with its salt')
+    ok(pinOk, 'db: new member PIN hashed (PBKDF2) with its salt')
     ok(await page.locator('.au-member').count() === 4, 'staff: list shows the new member')
 
     // edit
@@ -406,7 +488,7 @@ try {
     await page.locator('.au-member[data-user="u-doc2"] [data-qa=member-menu]').click()
     await page.click('.menu .menu-item:has-text("حذف العضو")')
     await page.waitForSelector('.modal:has-text("حذف")')
-    ok((await page.textContent('.modal-body')).includes('1 من السجلات'), 'delete: warns about linked records')
+    ok((await page.textContent('.modal-body')).includes('مرتبط بسجل واحد'), 'delete: warns about linked records')
     await snap(page, 'staff-9-delete-confirm')
     await page.click('.modal-footer .btn-danger')
     await page.waitForTimeout(400)
@@ -439,7 +521,7 @@ try {
     await snap(page, 'staff-2-add-phone-bottom')
     await page.keyboard.press('Escape')
     // receptionist sees the no-permission state
-    await page.evaluate(() => localStorage.setItem('dentora.session', 'u-rec')); await page.reload()
+    await setSession(page, 'u-rec'); await page.reload()
     await page.goto(BASE + '/index.html#/staff'); await page.waitForTimeout(600)
     ok(await page.locator('.empty-title').count() === 1 && await page.locator('[data-qa=staff-grid]').count() === 0, 'staff: receptionist gets the no-permission state')
     await snap(page, 'staff-11-no-permission-phone')

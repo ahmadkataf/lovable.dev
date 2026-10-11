@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type DragEvent, type ReactNode } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { Camera, ChevronLeft, ChevronRight, Download, FileText, FolderOpen, ImageOff, Paperclip, ScanLine, Signature, Trash, Upload, File as FileIcon } from 'lucide-react'
-import { db, logActivity } from '@/db'
+import { db, isQuotaError, logActivity, storageAvailable } from '@/db'
 import type { FileKind, PatientFile } from '@/db/types'
 import { newId, nowISO } from '@/db/ids'
 import { useI18n } from '@/i18n'
@@ -13,7 +13,7 @@ import { fmtDate } from '@/lib/dates'
 import { formatBytes } from '@/lib/format'
 import { imageToDataUrl, pickFile, platform, saveFile } from '@/platform'
 import { sniffMime, SNIFF_BYTES, type SafeFileType } from '@/platform/filetype'
-import { countByKind, fileShape, guessKind, isValidTooth, MAX_FILE_MB, previewShape } from '@/features/patients/lib'
+import { countByKind, fileShape, guessKind, isValidTooth, MAX_FILE_MB, previewShape, uploadFits } from '@/features/patients/lib'
 import './files.css'
 
 export const FILE_KINDS: FileKind[] = ['xray', 'photo', 'document', 'consent', 'other']
@@ -62,12 +62,14 @@ export default function FilesSection({ patientId }: { patientId: string }) {
   const shown = useMemo(() => (files ?? []).filter(f => kind === 'all' || f.kind === kind), [files, kind])
   useEffect(() => { if (kind !== 'all' && files && counts[kind] === 0) setKind('all') }, [counts, kind, files])
 
-  // the bytes decide what a file is: a picture or a PDF is accepted, anything else (an HTML page renamed .pdf…) is not
+  // the bytes decide what a file is: a picture or a PDF is accepted, anything else (an HTML page renamed .pdf…) is not;
+  // a device without room for it says so before the details are filled in
   const accept = async (f: File | null | undefined) => {
     if (!f) return
     if (f.size > MAX_FILE_MB * 1024 * 1024) { toast.error(t('patients.files.tooLarge', { max: MAX_FILE_MB })); return }
     const type = await sniffBlob(f)
     if (!type) { toast.error(t('patients.files.unsupported')); return }
+    if (!uploadFits(f.size, await storageAvailable())) { toast.error(t('patients.files.noSpace')); return }
     setPending({ file: f, type })
   }
   const choose = async () => accept(await pickFile(ACCEPT))
@@ -158,6 +160,8 @@ function UploadModal({ file, type, patientId, onClose, onSaved }: { file: File; 
     busy.current = true
     setSaving(true)
     try {
+      // checked again here: the space may have gone while the details were filled in
+      if (!uploadFits(file.size, await storageAvailable())) { toast.error(t('patients.files.noSpace')); busy.current = false; setSaving(false); return }
       const thumb = image ? await imageToDataUrl(file, 240).catch(() => undefined) : undefined
       const id = newId()
       // stored with the type its bytes prove, whatever the name or the browser said
@@ -167,8 +171,8 @@ function UploadModal({ file, type, patientId, onClose, onSaved }: { file: File; 
       toast.success(t('patients.files.uploaded'), rec.name)
       onSaved?.(kind) // a new x-ray must not stay hidden behind a "photos" filter
       onClose()
-    } catch {
-      toast.error(t('patients.files.uploadFailed'))
+    } catch (e) {
+      toast.error(isQuotaError(e) ? t('patients.files.noSpace') : t('patients.files.uploadFailed'))
       busy.current = false
       setSaving(false)
     }

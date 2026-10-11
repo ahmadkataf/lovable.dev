@@ -46,7 +46,7 @@ const common: ModuleDict = {
     // the method as a noun, for headings and totals in reports ('مجموع الدفع النقدي', not 'مجموع نقداً')
     'payNoun.cash': 'الدفع النقدي', 'payNoun.card': 'الدفع بالبطاقة', 'payNoun.transfer': 'التحويلات', 'payNoun.insurance': 'التأمين', 'payNoun.wallet': 'المحافظ الإلكترونية', 'payNoun.other': 'طرق الدفع الأخرى',
     // procedure categories
-    'cat.diagnostic': 'تشخيص', 'cat.preventive': 'وقاية', 'cat.restorative': 'ترميم وحشوات', 'cat.endodontic': 'معالجة لبية', 'cat.periodontic': 'لثة', 'cat.prosthodontic': 'تعويضات',
+    'cat.diagnostic': 'تشخيص', 'cat.preventive': 'وقاية', 'cat.restorative': 'ترميم وحشوات', 'cat.endodontic': 'المعالجة اللبية', 'cat.periodontic': 'لثة', 'cat.prosthodontic': 'تعويضات',
     'cat.surgical': 'جراحة', 'cat.orthodontic': 'تقويم', 'cat.pediatric': 'أطفال', 'cat.cosmetic': 'تجميل', 'cat.implant': 'زراعة', 'cat.other': 'أخرى',
     // expense categories
     'exp.rent': 'إيجار', 'exp.salaries': 'رواتب', 'exp.materials': 'مواد', 'exp.lab': 'مخبر', 'exp.equipment': 'معدات', 'exp.utilities': 'كهرباء وماء وإنترنت', 'exp.marketing': 'تسويق', 'exp.maintenance': 'صيانة', 'exp.taxes': 'ضرائب ورسوم', 'exp.other': 'أخرى',
@@ -60,7 +60,7 @@ const common: ModuleDict = {
     // misc
     noData: 'لا توجد بيانات', emptyList: 'القائمة فارغة', tryAgain: 'حاول مرة أخرى', readOnly: 'للقراءة فقط', version: 'الإصدار', of: 'من', items: 'عناصر', item: 'عنصر', results: 'نتيجة',
     showing: 'عرض {from}–{to} من {total}', perPage: 'لكل صفحة', page: 'صفحة', fileNo: 'رقم الملف', untitled: 'بدون عنوان', total_: 'الإجمالي',
-    'trial.banner': 'نسخة تجريبية — {days, plural, zero {انتهت المدة} one {متبقٍ يوم واحد} two {متبقٍ يومان} few {متبقية # أيام} many {متبقٍ # يوماً} other {متبقٍ # يوم}}', 'trial.expired': 'انتهت الفترة التجريبية. فعّل النظام لمتابعة العمل.', 'trial.activate': 'تفعيل الآن', 'trial.readonly': 'وضع القراءة فقط: الإضافة والتعديل متوقفان حتى التفعيل.',
+    'trial.readonly': 'وضع القراءة فقط: الإضافة والتعديل متوقفان حتى التفعيل.',
     pressEnter: 'اضغط Enter', typeToSearch: 'اكتب للبحث…', searchPlaceholder: 'ابحث عن مريض، موعد، فاتورة…', quickSearch: 'بحث سريع', shortcuts: 'اختصارات',
     welcome: 'مرحباً', goodMorning: 'صباح الخير', goodEvening: 'مساء الخير', dr: 'د.',
     noPermission: 'هذه الصفحة غير متاحة لدورك', noPermissionDesc: 'اطلب من مدير العيادة منحك الصلاحية من صفحة الفريق إذا كنت تحتاجها.',
@@ -118,7 +118,7 @@ const common: ModuleDict = {
     'v.required': 'This field is required', 'v.phone': 'Invalid phone number', 'v.email': 'Invalid email', 'v.number': 'Enter a valid number', 'v.positive': 'Must be greater than zero', 'v.date': 'Invalid date', 'v.pin': 'PIN must be 4–6 digits',
     noData: 'No data', emptyList: 'The list is empty', tryAgain: 'Try again', readOnly: 'Read only', version: 'Version', of: 'of', items: 'items', item: 'item', results: 'results',
     showing: 'Showing {from}–{to} of {total}', perPage: 'per page', page: 'Page', fileNo: 'File #', untitled: 'Untitled', total_: 'Total',
-    'trial.banner': 'Trial version — {days, plural, one {1 day} other {# days}} left', 'trial.expired': 'The trial has ended. Activate to keep working.', 'trial.activate': 'Activate now', 'trial.readonly': 'Read-only mode: adding and editing are paused until activation.',
+    'trial.readonly': 'Read-only mode: adding and editing are paused until activation.',
     pressEnter: 'Press Enter', typeToSearch: 'Type to search…', searchPlaceholder: 'Search patients, appointments, invoices…', quickSearch: 'Quick search', shortcuts: 'Shortcuts',
     welcome: 'Welcome', goodMorning: 'Good morning', goodEvening: 'Good evening', dr: 'Dr.',
     noPermission: 'This page is not available for your role', noPermissionDesc: 'Ask the clinic admin to change your role on the Staff page if you need it.',

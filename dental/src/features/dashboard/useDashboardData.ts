@@ -33,8 +33,8 @@ export interface DashboardRaw {
   }
   stock?: { inventory: InventoryItem[]; labs: LabOrder[] }
   activity?: Activity[]
-  /** when the last backup was taken (null = never) */
-  backup?: { at: string | null }
+  /** when the last backup was taken (null = never), and whether there is anything to back up yet */
+  backup?: { at: string | null; hasData: boolean }
 }
 
 export function useDashboardData(today: string, withMoney: boolean): DashboardRaw {
@@ -82,7 +82,7 @@ export function useDashboardData(today: string, withMoney: boolean): DashboardRa
     return { inventory, labs: [...sent, ...inProgress] }
   }, [])
   const activity = useLiveQuery(() => db.activity.orderBy('at').reverse().limit(12).toArray(), [])
-  const backup = useLiveQuery(async () => ({ at: await getSetting<string | null>('lastBackupAt', null) }), [])
+  const backup = useLiveQuery(async () => ({ at: await getSetting<string | null>('lastBackupAt', null), hasData: (await db.patients.count()) > 0 }), [])
 
   return { schedule, month, money, stock, activity, backup }
 }
