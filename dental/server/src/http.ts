@@ -45,6 +45,24 @@ export function apiError(code: string, status: number, extra: Record<string, unk
   return json({ error: code, ...extra }, status)
 }
 
+/**
+ * CORS of the one public API route (POST /api/activate): any origin may call it and read the answer, since it reads
+ * no cookies and carries no authority (the key is the proof). Every other /api/* route answers no CORS at all.
+ */
+export const CORS_HEADERS: Readonly<Record<string, string>> = { 'Access-Control-Allow-Origin': '*' }
+export const PREFLIGHT_HEADERS: Readonly<Record<string, string>> = {
+  ...CORS_HEADERS,
+  'Access-Control-Allow-Methods': 'POST, OPTIONS',
+  'Access-Control-Allow-Headers': 'Content-Type',
+  'Access-Control-Max-Age': '86400',
+}
+/** A copy of the response with the CORS headers set. */
+export function withCors(res: Response): Response {
+  const out = new Response(res.body, res)
+  for (const [k, v] of Object.entries(CORS_HEADERS)) out.headers.set(k, v)
+  return out
+}
+
 export function html(body: string, status = 200, cache = CACHE_PAGE, headers: Record<string, string> = {}): Response {
   return new Response(body, { status, headers: { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': cache, ...headers } })
 }

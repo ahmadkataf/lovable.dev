@@ -330,6 +330,13 @@ main h2 { font-size: clamp(1.75rem, 1.25rem + 2vw, 2.625rem); line-height: 1.15;
 .step-icon { width: 28px; height: 28px; color: var(--teal-400); }
 .step h3 { font-size: 1.125rem; margin-bottom: 8px; }
 .step p { color: var(--ink-3); font-size: .975rem; }
+/* the last step's link to the activation page */
+.step-link {
+  display: inline-flex; align-items: center; gap: 6px; min-height: 44px; margin-top: 6px;
+  color: var(--teal-700); font-weight: 650; font-size: .9375rem; text-decoration: none;
+}
+.step-link:hover { text-decoration: underline; }
+.step-link .ic { width: 16px; height: 16px; }
 @media (min-width: 900px) {
   .step-list { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 28px; }
   /* dashed link between the cards, in reading order */

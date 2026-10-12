@@ -1,19 +1,17 @@
 // Dentora's Worker (dentora-api), served at https://dentora.raqeem.dev and https://dentora-api.almutafawiqin.workers.dev.
-// Static files (public/) are answered by Cloudflare before this runs; the Worker renders the landing page and the
-// legal pages, counts downloads, serves the control panel page and its API, and answers everything else with a 404
-// page. Routes and rules: SPEC.md.
+// Static files (public/) are answered by Cloudflare before this runs; the Worker renders the landing page, the legal
+// pages and the key activation page, counts downloads, serves the control panel page and the API, and answers
+// everything else with a 404 page. Routes and rules: SPEC.md.
 import { handleApi } from './api'
 import { addressKey } from './auth'
 import { countDownload, deploymentSalt, ensureSchema, getSettingsCached, type Platform } from './db'
 import { apiError, b64url, CACHE_PAGE, clientIp, html, NO_STORE, secure, text, PUBLIC_CSP } from './http'
+import { formatDeviceInput, isDeviceNumber } from './licence'
+import { renderActivate } from './pages/activate'
 import { renderLanding } from './pages/landing'
 import { LEGAL_DATE, langPath, renderLegal, sellerWa, type LegalDoc, type PageAssets } from './pages/legal'
 import { renderNotFound } from './pages/notfound'
-import { DEFAULT_SETTINGS, type Env, type LandingContext, type Lang, type SiteSettings } from './types'
-
-/** The canonical address (canonical, hreflang, sitemap): the workers.dev copy points search engines here. Not exported:
- * the main module may only export handlers. */
-const ORIGIN = 'https://dentora.raqeem.dev'
+import { DEFAULT_SETTINGS, ORIGIN, type Env, type LandingContext, type Lang, type SiteSettings } from './types'
 
 // ---- what build-public.mjs published (fixed for a deployment, so read once per isolate) --------------------------
 interface Published { files: Set<string>; apk: LandingContext['apk'] }
@@ -77,15 +75,19 @@ async function notFound(env: Env, base: string): Promise<Response> {
 const LEGAL: Record<string, [LegalDoc, Lang]> = {
   '/privacy': ['privacy', 'ar'], '/en/privacy': ['privacy', 'en'], '/terms': ['terms', 'ar'], '/en/terms': ['terms', 'en'],
 }
+const ACTIVATE: Record<string, Lang> = { '/activate': 'ar', '/en/activate': 'en' }
 
 function robots(): string {
   return ['User-agent: *', 'Allow: /', 'Disallow: /admin', 'Disallow: /api/', 'Disallow: /download/', '', `Sitemap: ${ORIGIN}/sitemap.xml`, ''].join('\n')
 }
 function sitemap(): string {
-  const pages: [string, string, string][] = [['/', 'weekly', '1.0'], ['/privacy', 'yearly', '0.3'], ['/terms', 'yearly', '0.3']]
-  const urls = pages.flatMap(([path, freq, priority]) => (['ar', 'en'] as Lang[]).map(lang => {
+  // [path, change frequency, priority, last change ('' = none given)]
+  const pages: [string, string, string, string][] = [
+    ['/', 'weekly', '1.0', ''], ['/activate', 'monthly', '0.5', ''], ['/privacy', 'yearly', '0.3', LEGAL_DATE], ['/terms', 'yearly', '0.3', LEGAL_DATE],
+  ]
+  const urls = pages.flatMap(([path, freq, priority, changed]) => (['ar', 'en'] as Lang[]).map(lang => {
     const alt = (['ar', 'en'] as Lang[]).map(l => `<xhtml:link rel="alternate" hreflang="${l}" href="${ORIGIN}${langPath(path, l)}"/>`).join('')
-    const lastmod = path === '/' ? '' : `<lastmod>${LEGAL_DATE}</lastmod>`
+    const lastmod = changed ? `<lastmod>${changed}</lastmod>` : ''
     return `<url><loc>${ORIGIN}${langPath(path, lang)}</loc>${alt}<xhtml:link rel="alternate" hreflang="x-default" href="${ORIGIN}${path}"/>${lastmod}<changefreq>${freq}</changefreq><priority>${priority}</priority></url>`
   }))
   return `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:xhtml="http://www.w3.org/1999/xhtml">\n${urls.join('\n')}\n</urlset>\n`
@@ -164,6 +166,14 @@ async function route(request: Request, env: Env, ctx: ExecutionContext): Promise
   if (legal) {
     const [s, pub] = await Promise.all([settingsOrDefault(env), getPublished(env, url.href)])
     return html(renderLegal(legal[0], legal[1], s, ORIGIN, pageAssets(pub)), 200, CACHE_PAGE, { 'Content-Language': legal[1], 'Content-Security-Policy': PUBLIC_CSP })
+  }
+  const activateLang = ACTIVATE[path]
+  if (activateLang) {
+    // ?device= (the app's "activate in the browser" link) fills in the device number, only when it is one.
+    const asked = url.searchParams.get('device') || ''
+    const device = isDeviceNumber(asked) ? formatDeviceInput(asked) : ''
+    const [s, pub] = await Promise.all([settingsOrDefault(env), getPublished(env, url.href)])
+    return html(renderActivate(activateLang, s, ORIGIN, pageAssets(pub), device), 200, CACHE_PAGE, { 'Content-Language': activateLang, 'Content-Security-Policy': PUBLIC_CSP })
   }
   switch (path) {
     case '/healthz': return text('ok', 200, 'text/plain', NO_STORE)

@@ -4,7 +4,7 @@
 شروط الاستخدام
 ══════════════
 
-آخر تحديث: 11 تشرين الأول (أكتوبر) 2026
+آخر تحديث: 12 تشرين الأول (أكتوبر) 2026
 
 هذه شروط استخدام برنامج Dentora (اتفاقية ترخيص المستخدم النهائي). باستخدام البرنامج أو تثبيته توافق عليها نيابةً عن العيادة.
 
@@ -12,6 +12,7 @@
 • نمنح العيادة ترخيصاً غير حصري وغير قابل للتحويل لاستخدام البرنامج على جهاز واحد لكل رمز تفعيل، للمدة والباقة المحددتين في الرمز.
 • يعمل البرنامج 7 أيام تجريبية بكل المزايا، ثم ينتقل إلى وضع القراءة فقط حتى التفعيل. تبقى البيانات متاحة للاطلاع والتصدير.
 • رمز التفعيل مرتبط بالجهاز. لنقل الترخيص إلى جهاز جديد تواصل مع البائع للحصول على رمز جديد.
+• يعمل مفتاح الترخيص على أول جهاز يُفعَّل عليه، ولا يعمل على غيره. يحتاج تفعيله إلى اتصال بالإنترنت مرة واحدة، ثم يرتبط رمز التفعيل الناتج عنه بذلك الجهاز كأي رمز آخر. والمفتاح المبيع لسنة أو سنتين تُحسب مدته من يوم تفعيله.
 • لا يجوز بيع البرنامج أو تأجيره أو إعادة توزيعه أو منح ترخيص فرعي به، ولا تعديله أو تفكيكه أو تجاوز آلية التفعيل، إلا في الحدود التي يسمح بها القانون صراحة.
 
 الملكية
@@ -51,7 +52,7 @@ Dentora — واتساب: +963 996 489 504
 Terms of use
 ════════════
 
-Last updated: 11 October 2026
+Last updated: 12 October 2026
 
 These are the terms of use of Dentora (the end-user licence agreement). By installing or using the app you accept them on behalf of the clinic.
 
@@ -59,6 +60,7 @@ Licence
 • We grant the clinic a non-exclusive, non-transferable licence to use the app on one device per activation code, for the period and plan stated in the code.
 • The app runs as a 7-day trial with every feature, then becomes read-only until it is activated. The data stays available to view and export.
 • An activation code is tied to its device. To move the licence to a new device, contact the seller for a new code.
+• A licence key works on the first device that activates it, and on no other. Activating it needs an internet connection once; the activation code it gives is then tied to that device like any other code. A key sold for one or two years counts that period from the day it is activated.
 • The app may not be sold, rented, redistributed or sublicensed, nor modified, reverse-engineered or used with its activation bypassed, except where the law expressly allows it.
 
 Ownership

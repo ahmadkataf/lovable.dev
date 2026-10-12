@@ -1,7 +1,8 @@
 // The control panel's sign-in: one password (the ADMIN_PASSWORD secret), a signed session cookie, login rate limits
-// and the CSRF rule of every write. Session tokens are `base64url({exp,sid}).base64url(HMAC-SHA256(key, 'session.' +
-// payload))`, the key derived from the password and a random salt kept in D1, so changing the password signs everyone
-// out; logging out puts the token's `sid` on a revoked list, so a copied cookie stops working too.
+// and the CSRF rule of every write; also the rate limit of the public key activation (POST /api/activate). Session
+// tokens are `base64url({exp,sid}).base64url(HMAC-SHA256(key, 'session.' + payload))`, the key derived from the
+// password and a random salt kept in D1, so changing the password signs everyone out; logging out puts the token's
+// `sid` on a revoked list, so a copied cookie stops working too.
 import { deploymentSalt } from './db'
 import { b64url, fromB64url, timingSafeEqual } from './http'
 import type { Env } from './types'
@@ -18,6 +19,8 @@ export const MIN_PASSWORD = 12
 export const WINDOW_MS = 15 * 60_000
 export const MAX_PER_IP = 5
 export const MAX_OVERALL = 30
+/** Key activation limit within the same 15 minutes: 10 failed attempts per address (IPv6: per /64). */
+export const MAX_ACTIVATION_FAILURES = 10
 
 const enc = new TextEncoder()
 
@@ -165,6 +168,34 @@ export async function takeAttempt(db: D1Database, key: string, known: boolean, n
 /** After a successful sign-in the address starts afresh. */
 export async function clearAttempts(db: D1Database, key: string): Promise<void> {
   await db.prepare('DELETE FROM login_attempts WHERE ip = ?').bind(key).run()
+}
+
+/** An activation attempt let through holds a slot (`id`); a refused one says how long to wait. */
+export type ActivationGate = { allowed: true; id: number } | { allowed: false; retryAfter: number }
+/**
+ * Takes a slot for a key activation before the key is looked up, in one transaction, the way takeAttempt does for
+ * sign-ins: let through only while the address has fewer than MAX_ACTIVATION_FAILURES attempts in the window, so
+ * parallel guesses cannot pass the limit. The caller gives the slot back (releaseActivationAttempt) unless the
+ * attempt failed, so only failures stay counted; refused attempts are not recorded. Rows leave as soon as they are
+ * out of the window: the addresses are kept no longer than they count.
+ */
+export async function takeActivationAttempt(db: D1Database, key: string, now = Date.now()): Promise<ActivationGate> {
+  const since = now - WINDOW_MS
+  const [ins, mine] = await db.batch([
+    db.prepare(`INSERT INTO activation_attempts (ip, at) SELECT ?1, ?2
+        WHERE (SELECT COUNT(*) FROM activation_attempts WHERE ip = ?1 AND at > ?3) < ?4
+        RETURNING id`).bind(key, now, since, MAX_ACTIVATION_FAILURES),
+    db.prepare('SELECT MIN(at) AS first FROM activation_attempts WHERE ip = ? AND at > ?').bind(key, since),
+    db.prepare('DELETE FROM activation_attempts WHERE at <= ?').bind(since),
+  ])
+  const taken = ins.results[0] as { id: number } | undefined
+  if (taken) return { allowed: true, id: Number(taken.id) }
+  const first = (mine.results[0] as { first: number | null } | undefined)?.first
+  return { allowed: false, retryAfter: Math.max(1, Math.ceil((Number(first ?? now) + WINDOW_MS - now) / 1000)) }
+}
+/** Gives back the slot of an attempt that did not fail (a success, a broken request, a server problem). */
+export async function releaseActivationAttempt(db: D1Database, id: number): Promise<void> {
+  await db.prepare('DELETE FROM activation_attempts WHERE id = ?').bind(id).run()
 }
 
 // ---- CSRF --------------------------------------------------------------------------------------------------------

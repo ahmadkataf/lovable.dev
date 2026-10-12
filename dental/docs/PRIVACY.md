@@ -9,7 +9,7 @@
 
 # سياسة الخصوصية
 
-آخر تحديث: 11 تشرين الأول (أكتوبر) 2026
+آخر تحديث: 12 تشرين الأول (أكتوبر) 2026
 
 يشرح هذا المستند كيف يتعامل برنامج Dentora لإدارة عيادات الأسنان مع البيانات. باختصار: كل بيانات العيادة ومرضاها تبقى على الجهاز الذي يعمل عليه البرنامج، ولا نتلقى منها شيئاً.
 
@@ -24,17 +24,21 @@ Dentora برنامج تبيعه Dentora ("نحن"). العيادة التي تس
 - إعدادات العيادة وبيانات الترخيص (رقم الجهاز ورمز التفعيل) وسجل النشاط داخل البرنامج.
 
 ## أين تُحفظ
-تُحفظ البيانات على الجهاز نفسه فقط، في مساحة التخزين الخاصة بالبرنامج. لا يوجد خادم ولا حساب سحابي، ولا يحتاج البرنامج إلى الإنترنت ليعمل. تطبيق أندرويد مستثنى من النسخ الاحتياطي لنظام أندرويد (في حساب Google) ومن نقل البيانات إلى هاتف جديد، لذلك فملف النسخة الاحتياطية الذي تصدّره العيادة من داخل البرنامج هو النسخة الوحيدة من البيانات خارج البرنامج. وعلى ويندوز تبقى البيانات في مجلد البرنامج داخل حساب المستخدم، ولا تدخل في أي نسخة احتياطية إلا إذا نسخت العيادة ذلك المجلد بنفسها.
+تُحفظ البيانات على الجهاز نفسه فقط، في مساحة التخزين الخاصة بالبرنامج. لا تُرسَل إلى أي خادم، ولا يوجد حساب سحابي، ولا يحتاج البرنامج إلى الإنترنت ليعمل، إلا مرة واحدة عند تفعيله بمفتاح ترخيص. تطبيق أندرويد مستثنى من النسخ الاحتياطي لنظام أندرويد (في حساب Google) ومن نقل البيانات إلى هاتف جديد، لذلك فملف النسخة الاحتياطية الذي تصدّره العيادة من داخل البرنامج هو النسخة الوحيدة من البيانات خارج البرنامج. وعلى ويندوز تبقى البيانات في مجلد البرنامج داخل حساب المستخدم، ولا تدخل في أي نسخة احتياطية إلا إذا نسخت العيادة ذلك المجلد بنفسها.
 
 ## ما الذي يخرج من الجهاز
 لا يرسل البرنامج أي بيانات تلقائياً: لا إحصاءات استخدام ولا إعلانات ولا تقارير أعطال ولا تتبّع. لا يخرج شيء إلا بفعل يقوم به مستخدم في العيادة:
 - رسائل واتساب (تذكير بموعد، وصفة، فاتورة): يفتح البرنامج واتساب والنص ظاهر قبل الإرسال، والإرسال قرار المستخدم.
 - الطباعة وحفظ ملفات PDF.
 - تصدير نسخة احتياطية أو ملفات CSV ومشاركة الملفات.
+- التفعيل بمفتاح ترخيص: يُرسَل المفتاح ورقم الجهاز فقط إلى خادم التفعيل (انظر «التفعيل بمفتاح ترخيص» أدناه).
 بعد أن يغادر الملف أو الرسالة البرنامج تصبح العيادة مسؤولة عنه.
 
 ## رقم الجهاز
-يحسب البرنامج رقماً قصيراً للجهاز من بصمة مشفّرة لمعرّف الجهاز (معرّف أندرويد أو MachineGuid في ويندوز)، ولا يُستخدم إلا لربط رمز التفعيل بهذا الجهاز. تراه العيادة في الإعدادات وترسله إلى البائع للحصول على رمز التفعيل، ولا يكشف شيئاً عن المرضى.
+يحسب البرنامج رقماً قصيراً للجهاز من بصمة مشفّرة لمعرّف الجهاز (معرّف أندرويد أو MachineGuid في ويندوز)، ولا يُستخدم إلا لربط رمز التفعيل بهذا الجهاز. تراه العيادة في الإعدادات وترسله إلى البائع للحصول على رمز التفعيل، أو يرسله البرنامج مع مفتاح الترخيص عند التفعيل به، ولا يكشف شيئاً عن العيادة أو مرضاها.
+
+## التفعيل بمفتاح ترخيص
+لا يرسل Dentora شيئاً من بيانات العيادة أو المرضى إلينا ولا إلى أي خادم. المرة الوحيدة التي يتصل فيها بخادم هي حين تفعّله العيادة بمفتاح ترخيص: يرسل حينها المفتاح ورقم الجهاز (رقم مشتق من الجهاز، وليس من بيانات العيادة) إلى dentora.raqeem.dev، مرة واحدة، لاستلام رمز التفعيل. وتتلقى صفحة التفعيل على ذلك الموقع القيمتين نفسيهما إن استخدمتها العيادة بدلاً من البرنامج. يحتفظ الخادم برقم الجهاز الذي فُعّل عليه المفتاح وبوقت التفعيل مع سجل البيع، ليرفض المفتاح على جهاز ثانٍ، ويَعُدّ المحاولات الفاشلة من كل عنوان إنترنت مدة 15 دقيقة لمنع تخمين المفاتيح. أما التفعيل برمز يرسله البائع فلا يحتاج إلى أي اتصال.
 
 ## النسخ الاحتياطية
 ملف النسخة الاحتياطية يحوي كل بيانات العيادة، بما فيها البيانات الصحية للمرضى. يمكن حمايته بكلمة مرور عند التصدير، ويجب حفظه في مكان آمن خارج الجهاز. العيادة وحدها تتحكم في هذه الملفات وفي مكان حفظها ومن يطّلع عليها.
@@ -67,7 +71,7 @@ Dentora — واتساب: +963 996 489 504
 
 # Privacy policy
 
-Last updated: 11 October 2026
+Last updated: 12 October 2026
 
 This document explains how Dentora, dental clinic management software, handles data. In short: all the data of the clinic and its patients stays on the device the app runs on, and we receive none of it.
 
@@ -82,17 +86,21 @@ Dentora is sold by Dentora ("we"). The clinic that uses the app ("the clinic") i
 - Clinic settings, licence details (device number and activation code) and the in-app activity log.
 
 ## Where it is stored
-Data is stored only on the device itself, in the app’s private storage. There is no server and no cloud account, and the app needs no internet connection to work. The Android app is excluded from Android’s system backup (to a Google account) and from device-to-device transfer, so the backup file the clinic exports from inside the app is the only copy of the data outside the app. On Windows the data stays in the app’s folder in the user’s profile and goes into a backup only if the clinic itself backs up that folder.
+Data is stored only on the device itself, in the app’s private storage. It is never sent to a server, there is no cloud account, and the app needs no internet connection to work, except once when it is activated with a licence key. The Android app is excluded from Android’s system backup (to a Google account) and from device-to-device transfer, so the backup file the clinic exports from inside the app is the only copy of the data outside the app. On Windows the data stays in the app’s folder in the user’s profile and goes into a backup only if the clinic itself backs up that folder.
 
 ## What leaves the device
 The app sends no data on its own: no usage statistics, no advertising, no crash reports, no tracking. Nothing leaves the device except through an action taken by someone at the clinic:
 - WhatsApp messages (an appointment reminder, a prescription, an invoice): the app opens WhatsApp with the text visible before it is sent, and sending is the user’s choice.
 - Printing and saving PDF files.
 - Exporting a backup or CSV files, and sharing files.
+- Activating with a licence key: only the key and the device number go to the activation server (see “Activation with a licence key” below).
 Once a file or message has left the app, the clinic is responsible for it.
 
 ## Device number
-The app derives a short device number from a hash of the device identifier (the Android ID, or the Windows MachineGuid). It is used only to match an activation code to this device. The clinic sees it in Settings and sends it to the seller to obtain an activation code; it reveals nothing about patients.
+The app derives a short device number from a hash of the device identifier (the Android ID, or the Windows MachineGuid). It is used only to match an activation code to this device. The clinic sees it in Settings and sends it to the seller to obtain an activation code, or the app sends it with a licence key when the clinic activates with one; it reveals nothing about the clinic or its patients.
+
+## Activation with a licence key
+Dentora never sends clinic or patient data to us or to any server. The only time it contacts a server is when the clinic activates it with a licence key: it then sends the key and the device number (a number derived from the device, not the clinic’s data) to dentora.raqeem.dev, once, to receive the activation code. The activation page on that website receives the same two values when the clinic uses it instead. The server keeps the key’s device number and activation time with the record of the sale, so that the key is refused on a second device, and counts failed attempts from each internet address for 15 minutes to stop anyone guessing keys. Activating with a code sent by the seller needs no connection at all.
 
 ## Backups
 A backup file contains all of the clinic’s data, including patients’ health data. It can be protected with a password when exported, and it should be kept somewhere safe away from the device. The clinic alone controls these files, where they are kept and who can see them.

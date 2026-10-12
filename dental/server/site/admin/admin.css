@@ -103,6 +103,8 @@ html:has(dialog[open]) { overflow: hidden; }
 }
 .num, .mono, .tnum { font-variant-numeric: tabular-nums; }
 .mono { font-family: var(--mono); letter-spacing: .02em; font-variant-ligatures: none; }
+/* a device number never breaks at its dash (a key breaks only between its halves: .keytext) */
+bdi.mono:not(.keytext) { white-space: nowrap; }
 .muted { color: var(--ink-3); }
 [hidden] { display: none !important; }
 h1:focus, h2:focus { outline: none; }
@@ -143,6 +145,7 @@ h1:focus, h2:focus { outline: none; }
   font: inherit; font-size: .875rem; font-weight: 600; cursor: pointer; white-space: nowrap;
 }
 .chip-btn:hover { border-color: var(--teal-300); color: var(--teal-800); }
+a.chip-btn { text-decoration: none; }
 .chip-btn .ic { width: 16px; height: 16px; }
 .chip-btn.is-done { border-color: var(--ok-600); color: var(--ok-700); background: var(--ok-50); }
 
@@ -334,6 +337,14 @@ h1:focus, h2:focus { outline: none; }
 .kpi--hero .kpi-ico { background: rgba(255, 255, 255, .18); color: #fff; }
 .kpi--hero .kpi-value { color: #fff; font-size: 2rem; }
 .kpi--hero .pill { background: rgba(0, 0, 0, .18); color: #fff; }
+/* keys sold and not activated yet, under the licence count: a link to them in the list */
+.kpi-link {
+  flex-basis: 100%; display: flex; align-items: flex-start; gap: 6px; width: fit-content; margin-top: 4px;
+  color: var(--teal-800); font-weight: 650; text-decoration: none;
+}
+.kpi-link .ic { width: 15px; height: 15px; margin-top: .2em; }
+.kpi-link:hover .kpi-link-text { text-decoration: underline; text-underline-offset: 3px; }
+.kpi-link .pill { background: #E0F2FE; color: #075985; }
 .kpi-mark { position: absolute; inset-inline-end: -18px; bottom: -26px; width: 132px; height: 132px; color: rgba(255, 255, 255, .13); stroke-width: 1.4; pointer-events: none; }
 .dl-cols { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin-top: 10px; }
 .dl-col { padding: 10px 12px; border-radius: 12px; background: var(--slate-50); border: 1px solid var(--line); min-width: 0; }
@@ -483,6 +494,32 @@ textarea.input { min-height: 96px; resize: vertical; }
 .validity-note { display: flex; align-items: center; gap: 6px; color: var(--ink-3); font-size: .8125rem; }
 .validity-note .ic { width: 16px; height: 16px; color: var(--teal-700); }
 
+/* a choice between ways (a sale for a device number, or a licence key): real radios drawn as cards */
+.choice { display: grid; gap: 10px; }
+@media (min-width: 560px) { .choice { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.choice input { position: absolute; opacity: 0; width: 1px; height: 1px; margin: 0; pointer-events: none; }
+.choice label {
+  display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 2px 12px; height: 100%; padding: 14px;
+  border: 1px solid var(--line-2); border-radius: 14px; background: #fff; cursor: pointer;
+  transition: border-color .15s var(--ease), background .15s var(--ease), box-shadow .15s var(--ease);
+}
+.choice label:hover { border-color: var(--teal-300); }
+.choice .kpi-ico { grid-row: 1 / span 2; align-self: start; width: 38px; height: 38px; border-radius: 12px; }
+.choice strong { color: var(--ink); font-size: .9375rem; font-weight: 700; line-height: 1.4; }
+.choice small { grid-column: 2; color: var(--ink-3); font-size: .8125rem; line-height: 1.5; }
+.choice-mark { grid-column: 3; grid-row: 1; width: 20px; height: 20px; border-radius: 50%; border: 2px solid var(--line-2); background: #fff; transition: border .15s var(--ease); }
+.choice input:checked + label { border-color: var(--teal-600); background: var(--teal-50); box-shadow: 0 0 0 1px var(--teal-600); }
+.choice input:checked + label .kpi-ico { background: var(--teal-600); color: #fff; }
+.choice input:checked + label .choice-mark { border: 6px solid var(--teal-600); }
+.choice input:focus-visible + label { outline: 2px solid var(--teal-700); outline-offset: 2px; }
+
+/* the number of keys: − [n] + (the buttons are 48px, like the field) */
+.stepper { display: flex; gap: 8px; max-width: 220px; }
+.stepper .input { text-align: center; font-size: 1.125rem; font-weight: 650; }
+[dir='rtl'] .stepper input.input[dir='ltr'] { text-align: center; }
+.step-btn { width: 48px; height: 48px; border-color: var(--line-2); background: #fff; color: var(--teal-800); box-shadow: var(--sh-sm); }
+.step-btn:hover { border-color: var(--teal-300); background: var(--teal-50); color: var(--teal-900); }
+
 /* ---- new licence / reset / verify layouts ------------------------------------------------------------------------ */
 .two-col { display: grid; gap: 16px; }
 @media (min-width: 1100px) { .two-col { grid-template-columns: minmax(0, 1.55fr) minmax(0, 1fr); gap: 20px; align-items: start; } }
@@ -514,6 +551,21 @@ h3.block-label { margin: 0 0 4px; }
 .codebox span { white-space: nowrap; }
 .codebox--sm { font-size: .8125rem; padding: 10px 12px; }
 
+/* a licence key, large: its two halves wrap as wholes on a narrow screen */
+.keytext span { display: inline-block; white-space: nowrap; }
+.keybox {
+  display: block; padding: 16px; border: 1px dashed #B9C6D6; border-radius: 14px; background: var(--slate-50); text-align: center;
+  font-family: var(--mono); font-size: 1.375rem; font-weight: 650; line-height: 1.5; letter-spacing: .06em; color: var(--ink);
+  font-variant-ligatures: none; user-select: all;
+}
+.keybox--sm { padding: 8px 12px; font-size: 1rem; letter-spacing: .04em; text-align: start; }
+@media (min-width: 640px) { .keybox { font-size: 1.625rem; } .keybox--sm { font-size: 1.0625rem; } }
+.key-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.key-list li { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 10px; }
+.key-num { min-width: 1.6em; color: var(--ink-3); font-size: .8125rem; font-weight: 700; text-align: center; font-variant-numeric: tabular-nums; }
+/* on a phone the copy buttons keep only their icon (named by aria-label), so each key stays on one line */
+@media (max-width: 479px) { .key-list .chip-btn { padding-inline: 10px; } .key-list .chip-btn span { display: none; } }
+
 .bubble {
   padding: 14px 16px; border-radius: 16px; border-start-start-radius: 4px;
   background: var(--wa-bubble); border: 1px solid var(--wa-bubble-line); color: var(--ink);
@@ -527,6 +579,8 @@ h3.block-label { margin: 0 0 4px; }
 .facts dt { color: var(--ink-3); font-size: .75rem; font-weight: 650; }
 .facts dd { margin: 2px 0 0; color: var(--ink); font-weight: 650; font-size: .9375rem; overflow-wrap: anywhere; }
 .facts .wide { grid-column: 1 / -1; }
+.facts .fact-sub { display: block; color: var(--ink-3); font-size: .8125rem; font-weight: 500; }
+.facts .keytext { font-size: 1rem; }
 
 /* ---- badges ------------------------------------------------------------------------------------------------------ */
 .badge {
@@ -540,6 +594,11 @@ h3.block-label { margin: 0 0 4px; }
 .badge--pro { background: var(--teal-50); color: var(--teal-800); border-color: var(--teal-200); }
 .badge--standard { background: #EEF2FF; color: #4338CA; border-color: #C7D2FE; }
 .badge--expired { background: var(--slate-100); color: var(--slate-600); }
+/* a key sold and not activated yet; "activated on 7KQ4-M2XD" (may wrap in a narrow column) */
+.badge--pending { background: #F0F9FF; color: #075985; border-color: #BAE6FD; }
+.badge--on { background: #fff; color: var(--ok-700); border-color: #BBEBD3; white-space: normal; line-height: 1.5; padding-block: 2px; gap: 4px; flex-wrap: wrap; }
+.badge--on .ic { width: 13px; height: 13px; stroke-width: 2.6; }
+.badge--on .mono { color: var(--ink-2); letter-spacing: .03em; }
 .badge--valid { background: var(--ok-50); color: var(--ok-700); }
 
 /* ---- licence list ------------------------------------------------------------------------------------------------ */
@@ -569,22 +628,33 @@ h3.block-label { margin: 0 0 4px; }
 .c-name small { display: block; color: var(--ink-3); font-size: .8125rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .c-name .noname { color: var(--ink-3); font-style: italic; font-weight: 500; }
 .c-device { grid-area: device; font-family: var(--mono); font-size: .875rem; color: var(--ink-2); letter-spacing: .04em; }
+.c-device--key { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; min-width: 0; font-family: inherit; letter-spacing: 0; }
+.key-line { display: inline-flex; align-items: center; gap: 6px; min-width: 0; }
+.key-line .ic { width: 15px; height: 15px; color: var(--teal-700); }
+.key-line .keytext { font-family: var(--mono); font-size: .8125rem; letter-spacing: .03em; }
 .c-valid { grid-area: valid; display: flex; flex-wrap: wrap; align-items: center; gap: 6px; font-size: .8125rem; color: var(--ink-2); min-width: 0; }
 .c-price { grid-area: price; color: var(--ink); font-weight: 700; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .c-status { grid-area: status; flex: none; }
 .c-date { grid-area: date; color: var(--ink-3); font-size: .8125rem; white-space: nowrap; font-variant-numeric: tabular-nums; }
 .c-status .badge--void + .strike, .lic-row.is-void .c-price { text-decoration: line-through; color: var(--ink-4); }
-@media (min-width: 900px) {
+/* a table once six columns fit beside the sidebar (a key and its "activated on" badge, an Arabic month name);
+   narrower, the rows keep their three lines */
+@media (min-width: 1360px) {
   .lic-line { display: contents; }
   .lic-head, .lic-row {
-    grid-template-columns: minmax(0, 1.9fr) minmax(0, 1fr) minmax(0, 1.9fr) minmax(0, .75fr) minmax(0, .9fr) minmax(0, 1.1fr);
+    grid-template-columns: minmax(0, 1.5fr) minmax(0, 1.45fr) minmax(0, 1.6fr) minmax(0, .6fr) minmax(0, 1.25fr) minmax(0, .9fr);
     grid-template-areas: 'name device valid price status date';
     align-items: center; gap: 12px 16px; padding: 12px 24px;
   }
   .lic-head { display: grid; padding-block: 12px; background: var(--slate-50); border-bottom: 1px solid var(--line); color: var(--ink-3); font-size: .75rem; font-weight: 700; letter-spacing: .03em; text-transform: uppercase; }
   .lic-head .end, .c-price, .c-status, .c-date { justify-self: end; text-align: end; }
   .lic-row { min-height: 64px; }
-  .c-valid { flex-wrap: nowrap; white-space: nowrap; }
+  /* at the narrowest a cell wraps rather than run into the next column */
+  .c-valid { row-gap: 4px; }
+  .c-date { white-space: normal; }
+  .c-device--key { flex-direction: column; align-items: flex-start; }
+  .c-status { min-width: 0; }
+  .c-status .badge--pending { white-space: normal; line-height: 1.4; padding-block: 3px; }
 }
 .pager { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; padding: 12px 16px; border-top: 1px solid var(--line); background: #fff; }
 .pager-info { color: var(--ink-3); font-size: .875rem; font-variant-numeric: tabular-nums; }
@@ -725,6 +795,7 @@ dialog .toasts { bottom: calc(16px + env(safe-area-inset-bottom)); }
 .sys-row p { color: var(--ink-3); font-size: .875rem; margin-top: 2px; }
 .sys-row .cmd { margin-top: 8px; }
 .link-row { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+.stack > .link-row { margin-top: 0; }
 
 /* ---- activity ---------------------------------------------------------------------------------------------------- */
 .act-tools { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 16px; }
@@ -733,5 +804,5 @@ dialog .toasts { bottom: calc(16px + env(safe-area-inset-bottom)); }
 
 @media (forced-colors: active) {
   .badge, .seg label, .tab-ico, .card { border: 1px solid CanvasText; }
-  .seg input:checked + label { outline: 2px solid Highlight; }
+  .seg input:checked + label, .choice input:checked + label { outline: 2px solid Highlight; }
 }

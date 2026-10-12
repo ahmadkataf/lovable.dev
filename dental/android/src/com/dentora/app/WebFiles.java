@@ -97,22 +97,41 @@ final class WebFiles {
 
     /**
      * The Content-Security-Policy the shell sends with the app's HTML (the same one the Windows app sets): scripts only
-     * from the app itself, pictures, x-rays and backups from data:/blob:, and nothing from any other site.
+     * from the app itself, pictures, x-rays and backups from data:/blob:, and nothing from any other site but the
+     * activation server, which the page may only send a request to (connect-src; see isActivation).
      */
     static final String CSP = "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; "
-        + "font-src 'self' data:; connect-src 'self' data: blob:; media-src 'self' data: blob:; worker-src 'self' blob:; "
-        + "frame-src 'self' data: blob:; object-src 'none'; base-uri 'self'; form-action 'none'";
+        + "font-src 'self' data:; connect-src 'self' data: blob: https://dentora.raqeem.dev; media-src 'self' data: blob:; "
+        + "worker-src 'self' blob:; frame-src 'self' data: blob:; object-src 'none'; base-uri 'self'; form-action 'none'";
+
+    /** The activation server and the one address on it the app calls (docs/LICENCE-KEYS.md, src/license/online.ts). */
+    static final String ACTIVATION_HOST = "dentora.raqeem.dev";
+    static final String ACTIVATION_PATH = "/api/activate";
 
     /**
      * What the shell does with a request the page makes (shouldInterceptRequest): "app" answered from the assets,
-     * "block" refused (a page or frame of any other http(s) site: the app never loads anything from the internet),
-     * "pass" left to the WebView (data:, blob: and the like never reach the network).
+     * "block" refused (a page, frame, picture or call of any other http(s) site: the app loads nothing from the
+     * internet), "pass" left to the WebView: data:, blob: and the like, which never reach the network, and the one
+     * request that does, the licence-key activation (isActivation). `path` is the path as sent (Uri.getEncodedPath()).
      */
-    static String requestAction(String scheme, String host) {
+    static String requestAction(String scheme, String host, String path) {
         String s = scheme == null ? "" : scheme.toLowerCase(Locale.ROOT);
         if (isAppUrl(s, host)) return "app";
+        if (isActivation(s, host, path)) return "pass";
         if (s.equals("http") || s.equals("https") || s.equals("ws") || s.equals("wss") || s.equals("ftp")) return "block";
         return "pass";
+    }
+
+    /**
+     * The licence-key activation: the page posts the key and the device number to https://dentora.raqeem.dev/api/activate,
+     * once, when the clinic activates with a key: the only request the page ever sends to the internet. Exactly that
+     * address: https (never http), that host and no other (not dentora.raqeem.dev.evil.com, not
+     * evil.com/dentora.raqeem.dev), that path as sent (not /api/activate/, /API/activate or a percent-escaped spelling).
+     * The query is not looked at: the app sends none, and the server reads only the JSON body, which could carry anything
+     * a query could, so refusing one would protect nothing. The port is left to the CSP, which allows only 443.
+     */
+    static boolean isActivation(String scheme, String host, String path) {
+        return "https".equalsIgnoreCase(scheme) && ACTIVATION_HOST.equalsIgnoreCase(host) && ACTIVATION_PATH.equals(path);
     }
 
     /** "text/csv;charset=utf-8" → "text/csv"; anything that is not type/subtype → application/octet-stream. */

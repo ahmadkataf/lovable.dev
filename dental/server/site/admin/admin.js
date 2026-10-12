@@ -11,7 +11,13 @@ const SESSION_MS = 43_200_000
 const PAGE = 20
 /** The device number's alphabet (base32 without 0/O and 1/I), as the app makes it. */
 const DEVICE_RE = /^[2-9A-HJ-NP-Z]{8}$/
+/** A licence key: 16 characters of the same alphabet, shown XXXX-XXXX-XXXX-XXXX (docs/LICENCE-KEYS.md). */
+const KEY_RE = /^[2-9A-HJ-NP-Z]{16}$/
+/** A key written out with its dashes inside other text (a pasted key message); the groups of a code never match. */
+const KEY_IN_TEXT = /(?:^|[^0-9A-Z-])([2-9A-HJ-NP-Z]{4}(?:-[2-9A-HJ-NP-Z]{4}){3})(?![0-9A-Z-])/g
 const SITE_PRICE_MAX = 100_000
+/** Keys made at once (POST /api/keys). */
+const KEYS_MAX = 50
 
 // ---- words ---------------------------------------------------------------------------------------------------------
 const T = {
@@ -22,7 +28,7 @@ const T = {
     copy: 'نسخ', copied: 'تم النسخ', copyFailed: 'تعذّر النسخ. حدّدوا النص وانسخوه يدوياً.', justNow: 'الآن',
 
     'nav.menu': 'القائمة الرئيسية', 'nav.dashboard': 'الرئيسية', 'nav.new': 'ترخيص جديد', 'nav.newShort': 'جديد',
-    'nav.licences': 'التراخيص', 'nav.reset': 'إعادة تعيين PIN', 'nav.resetShort': 'رمز PIN', 'nav.verify': 'التحقق من رمز',
+    'nav.licences': 'التراخيص', 'nav.reset': 'إعادة تعيين PIN', 'nav.resetShort': 'رمز PIN', 'nav.verify': 'التحقق من رمز أو مفتاح',
     'nav.settings': 'الإعدادات', 'nav.activity': 'سجل النشاط', 'nav.more': 'المزيد', 'nav.site': 'عرض الموقع',
     'nav.logout': 'تسجيل الخروج', 'nav.moreTitle': 'المزيد من الصفحات',
 
@@ -47,17 +53,27 @@ const T = {
     'sign.format': 'السر LICENSE_PRIVATE_JWK ليس مفتاحاً خاصاً صالحاً (JWK من نوع P-256). أعيدوا ضبطه بسطر JSON الكامل من الملف license-private.jwk:',
     'sign.mismatch': 'السر LICENSE_PRIVATE_JWK ليس المفتاح المدمج في التطبيق، أي أنه من ملف مفتاح خاطئ. اضبطوه من ملف license-private.jwk الصحيح:',
     'sign.after': 'ثم أعيدوا تحميل هذه الصفحة.', 'sign.blocked': 'الإصدار غير متاح حتى يُضبط المفتاح الخاص (انظروا التنبيه في الأعلى).',
+    'sign.keys': 'يمكنكم إصدار المفاتيح الآن، لكن الزبائن لن يستطيعوا تفعيلها قبل ضبط المفتاح الخاص (انظروا التنبيه في الأعلى).',
 
     'dash.title': 'نظرة عامة', 'dash.lead': 'المبيعات والتنزيلات وآخر ما جرى في اللوحة.', 'dash.kpis': 'الأرقام الرئيسية',
     'dash.revenue': 'الإيرادات', 'dash.revenueNote': 'من التراخيص الفعّالة', 'dash.thisMonth': 'هذا الشهر',
     'dash.licences': 'التراخيص', 'dash.licencesNote': 'دون الملغاة', 'dash.resets': 'إعادة تعيين PIN', 'dash.allTime': 'منذ البداية',
+    'dash.pending': 'مفاتيح بانتظار التفعيل',
     'dash.downloads': 'التنزيلات', 'dash.android': 'أندرويد', 'dash.windows': 'ويندوز', 'dash.last30': 'آخر 30 يوماً',
     'dash.quick': 'إجراءات سريعة', 'dash.latest': 'أحدث التراخيص', 'dash.viewAll': 'عرض الكل',
     'dash.activity': 'آخر النشاطات', 'dash.fullLog': 'السجل الكامل', 'dash.noLicences': 'لم يُصدَر أي ترخيص بعد.',
     'dash.noActivity': 'لا نشاط بعد.',
 
-    'new.title': 'ترخيص جديد', 'new.lead': 'أدخلوا رقم الجهاز الظاهر في التطبيق، ثم اختاروا الباقة والمدة.',
+    'new.title': 'ترخيص جديد', 'new.lead': 'بيعوا الترخيص لجهاز محدد برقمه، أو على شكل مفتاح ترخيص يفعّله الزبون بنفسه دون أن يرسل لكم رقم جهازه.',
+    'new.mode': 'طريقة البيع', 'mode.device': 'برقم الجهاز', 'mode.deviceB': 'يصدر رمز التفعيل الآن للجهاز الذي أرسل لكم الزبون رقمه.',
+    'mode.key': 'مفتاح ترخيص', 'mode.keyB': 'دون رقم الجهاز: يفعّله الزبون بنفسه مرة واحدة عبر الإنترنت.',
     'new.submit': 'إصدار الرمز', 'new.submitting': 'جارٍ الإصدار…', 'new.issued': 'تم إصدار الترخيص',
+    'new.submitKey.one': 'إصدار المفتاح', 'new.submitKey.two': 'إصدار مفتاحين', 'new.submitKey.few': 'إصدار {n} مفاتيح',
+    'new.submitKey.other': 'إصدار {n} مفتاحاً',
+    'keys.issued.one': 'تم إصدار مفتاح الترخيص', 'keys.issued.two': 'تم إصدار مفتاحَي ترخيص', 'keys.issued.few': 'تم إصدار {n} مفاتيح ترخيص',
+    'keys.issued.other': 'تم إصدار {n} مفتاح ترخيص',
+    'keys.batchNote': 'كل مفتاح يعمل على جهاز واحد. أرسلوا لكل عيادة مفتاحها برسالته، أو انسخوها كلها للموزّع (مفتاح في كل سطر).',
+    'keys.msgFor': 'رسالة أي مفتاح؟', 'keys.msgOption': 'المفتاح {n}', 'keys.openList': 'عرضها في التراخيص',
     'new.issuedToast': 'تم إصدار الترخيص للجهاز {device}', 'new.another': 'ترخيص آخر', 'new.openList': 'فتح في التراخيص',
     'new.existingTitle': 'لهذا الجهاز تراخيص فعّالة أخرى: {n}',
     'new.existingBody': 'إن كان هذا الرمز بديلاً عنها، غيّروا حالة القديم إلى «ملغى» أو «مسترد» لتبقى الأرقام دقيقة.',
@@ -65,15 +81,25 @@ const T = {
     'tips.2': 'إصدار الرمز', 'tips.2b': 'اختاروا الباقة والمدة، وسجّلوا المبلغ المدفوع.',
     'tips.3': 'الإرسال', 'tips.3b': 'أرسلوا الرسالة الجاهزة على واتساب؛ يلصقها الزبون كاملة في التطبيق ويضغط «تفعيل».',
     'tips.note': 'الرموز تعمل دون إنترنت ولا يمكن سحبها بعد إرسالها، فتأكدوا من رقم الجهاز.',
+    'tipsK.1': 'إصدار المفتاح', 'tipsK.1b': 'اختاروا الباقة والمدة وعدد المفاتيح، وسجّلوا المبلغ المدفوع. لا حاجة إلى رقم الجهاز.',
+    'tipsK.2': 'الإرسال', 'tipsK.2b': 'أرسلوا الرسالة الجاهزة على واتساب، ففيها المفتاح وطريقتا التفعيل.',
+    'tipsK.3': 'التفعيل', 'tipsK.3b': 'في التطبيق (الإصدار 1.1.0 فما بعده): الإعدادات ← الترخيص، يلصق الزبون المفتاح ويضغط «تفعيل» وهو متصل بالإنترنت. أو من صفحة التفعيل على الموقع برقم جهازه، مع أي إصدار.',
+    'tipsK.note': 'كل مفتاح يعمل على جهاز واحد فقط. ما دام المفتاح لم يُفعَّل يمكنكم إلغاؤه فيُرفض تفعيله؛ أما بعد التفعيل فرمزه يعمل دون إنترنت ولا يمكن سحبه.',
+    'tipsK.page': 'صفحة التفعيل',
 
     'f.device': 'رقم الجهاز', 'f.deviceHint': '8 أحرف وأرقام، مثل 7KQ4-M2XD. لا يحتوي على 0 أو 1 أو O أو I.',
     'f.plan': 'الباقة', 'plan.pro': 'احترافية', 'plan.standard': 'أساسية', 'f.validity': 'المدة',
     'val.lifetime': 'مدى الحياة', 'val.1y': 'سنة', 'val.2y': 'سنتان', 'val.date': 'حتى تاريخ', 'f.until': 'آخر يوم صالح',
     'val.preview': 'صالح حتى {date}', 'val.previewLife': 'لا ينتهي أبداً',
+    'val.key1y': 'سنة من التفعيل', 'val.key2y': 'سنتان من التفعيل',
+    'val.previewKey1y': 'سنة كاملة تبدأ من يوم تفعيل المفتاح', 'val.previewKey2y': 'سنتان كاملتان تبدآن من يوم تفعيل المفتاح',
+    'val.previewKeyDate': 'صالح حتى {date}، ولا يُقبل تفعيل المفتاح بعد هذا اليوم',
+    'f.count': 'عدد المفاتيح', 'f.countHint': 'من 1 إلى 50، ولكلٍّ منها بيانات البيع نفسها.', 'f.countLess': 'مفتاح أقل', 'f.countMore': 'مفتاح إضافي',
     'f.customer': 'اسم الزبون', 'f.clinic': 'اسم العيادة', 'f.phone': 'واتساب الزبون',
     'f.phoneHint': 'مع رمز الدولة، أو رقم محلي يبدأ بـ 0 (يُضاف 963). يُستخدم لزر الإرسال على واتساب.',
-    'f.price': 'المبلغ المدفوع ($)', 'f.priceHint': 'السعر الافتراضي من الإعدادات: {price}', 'f.note': 'ملاحظة',
+    'f.price': 'المبلغ المدفوع ($)', 'f.priceKey': 'المبلغ المدفوع لكل مفتاح ($)', 'f.priceHint': 'السعر الافتراضي من الإعدادات: {price}', 'f.note': 'ملاحظة',
     'f.noteHint': 'لكم فقط، لا يراها الزبون.', 'f.optional': 'اختياري',
+    'e.count': 'أدخلوا عدداً صحيحاً من 1 إلى 50.',
     'e.device': 'أدخلوا رقم الجهاز كاملاً: 8 أحرف وأرقام كما يظهر في التطبيق.',
     'e.deviceChars': 'رقم الجهاز لا يحتوي على 0 أو 1 أو O أو I. تحقّقوا منه.', 'e.until': 'اختاروا تاريخاً من اليوم فصاعداً.',
     'e.price': 'أدخلوا مبلغاً من 0 إلى 100000.', 'e.text': 'النص طويل جداً (200 حرف كحد أقصى).',
@@ -82,20 +108,26 @@ const T = {
     'code.label': 'رمز التفعيل', 'code.copy': 'نسخ الرمز', 'msg.label': 'رسالة الزبون', 'msg.copy': 'نسخ الرسالة',
     'msg.lang': 'لغة الرسالة', 'wa.send': 'إرسال على واتساب', 'wa.resend': 'إعادة الإرسال على واتساب',
     'wa.noPhone': 'لا يوجد رقم للزبون، فسيطلب واتساب اختيار المحادثة.',
+    'key.label': 'مفتاح الترخيص', 'key.copy': 'نسخ المفتاح', 'keys.label': 'المفاتيح', 'keys.copyAll': 'نسخ الكل',
+    'keys.copyN': 'نسخ المفتاح {n}', 'key.activatedOn': 'مفعّل على',
 
-    'lic.title': 'التراخيص', 'lic.lead': 'كل رمز تفعيل صدر من اللوحة، الأحدث أولاً.', 'lic.search': 'بحث في التراخيص',
-    'lic.searchPh': 'رقم الجهاز، الاسم، العيادة أو الهاتف', 'lic.status': 'الحالة', 'lic.all': 'كل الحالات', 'lic.csv': 'تصدير CSV',
-    'st.active': 'فعّال', 'st.refunded': 'مسترد', 'st.void': 'ملغى',
-    'col.customer': 'الزبون', 'col.device': 'الجهاز', 'col.validity': 'الباقة والصلاحية', 'col.price': 'المبلغ',
+    'lic.title': 'التراخيص', 'lic.lead': 'كل المبيعات من اللوحة، برقم الجهاز أو بمفتاح ترخيص، الأحدث أولاً.', 'lic.search': 'بحث في التراخيص',
+    'lic.searchPh': 'رقم الجهاز أو المفتاح، الاسم أو الهاتف', 'lic.status': 'الحالة', 'lic.all': 'كل الحالات', 'lic.csv': 'تصدير CSV',
+    'st.active': 'فعّال', 'st.refunded': 'مسترد', 'st.void': 'ملغى', 'st.pending': 'بانتظار التفعيل',
+    'col.customer': 'الزبون', 'col.device': 'الجهاز أو المفتاح', 'col.validity': 'الباقة والصلاحية', 'col.price': 'المبلغ',
     'col.status': 'الحالة', 'col.issued': 'تاريخ الإصدار', 'col.until': 'الصلاحية',
     'lic.noName': 'بلا اسم', 'lic.until': 'حتى {date}', 'lic.ended': 'انتهى في {date}', 'lic.range': '{from}–{to} من {total}',
     'lic.prev': 'السابق', 'lic.next': 'التالي', 'lic.empty': 'لا توجد تراخيص بعد',
     'lic.emptyBody': 'أصدروا أول ترخيص وسيظهر هنا مع بيانات الزبون.', 'lic.noMatch': 'لا نتائج مطابقة',
-    'lic.noMatchBody': 'جرّبوا جزءاً من رقم الجهاز أو الهاتف، أو حالة أخرى.', 'lic.clear': 'مسح البحث',
+    'lic.noMatchBody': 'جرّبوا جزءاً من رقم الجهاز أو المفتاح أو الهاتف، أو حالة أخرى.', 'lic.clear': 'مسح البحث',
 
     'det.title': 'تفاصيل الترخيص', 'det.issued': 'تاريخ الإصدار', 'det.edit': 'بيانات الزبون', 'det.save': 'حفظ التعديلات',
-    'det.saved': 'تم حفظ التعديلات.', 'det.status': 'حالة الترخيص',
+    'det.saved': 'تم حفظ التعديلات.', 'det.status': 'حالة الترخيص', 'det.activated': 'تاريخ التفعيل', 'det.device': 'الجهاز', 'det.deviceLater': 'يُحدَّد عند التفعيل',
     'det.statusHint': 'الحالة لسجلاتكم وأرقامكم فقط: الرمز يعمل دون إنترنت، فلا يتوقف في التطبيق بتغييرها.',
+    'det.statusHintKey': 'المفتاح المسترد أو الملغى لا يُقبل تفعيله، وإن أعدتموه «فعّالاً» أمكن تفعيله من جديد.',
+    'confK.refunded.body': 'يخرج مبلغه من الإيرادات ويبقى ضمن عدد التراخيص، ولن يُقبل تفعيل المفتاح بعد ذلك.',
+    'confK.void.body': 'يخرج من عدد التراخيص ومن الإيرادات، ولن يُقبل تفعيل المفتاح بعد ذلك.',
+    'confK.active.body': 'يُحتسب مجدداً في عدد التراخيص وفي الإيرادات، ويمكن تفعيل المفتاح من جديد.',
     'det.statusSaved': 'تغيّرت الحالة إلى «{status}».',
     'conf.refunded.title': 'تحويل الترخيص إلى «مسترد»؟',
     'conf.refunded.body': 'يخرج مبلغه من الإيرادات ويبقى ضمن عدد التراخيص. الرمز نفسه يبقى صالحاً في التطبيق.',
@@ -112,10 +144,21 @@ const T = {
     'reset.none': 'لم يُنشأ أي رمز بعد.', 'reset.valid': 'سارٍ', 'reset.expired': 'منتهٍ', 'reset.until': 'حتى {date}',
     'reset.another': 'رمز آخر', 'reset.toast': 'رمز إعادة التعيين جاهز للجهاز {device}', 'reset.copyCode': 'نسخ رمز {device}',
 
-    'ver.title': 'التحقق من رمز',
-    'ver.lead': 'الصقوا رمزاً أو رسالة كاملة لمعرفة نوعه وهل يعمل على جهاز معيّن، بالمدقق نفسه الذي يستخدمه التطبيق.',
-    'ver.code': 'الرمز أو الرسالة', 'ver.codeHint': 'يُقرأ الرمز من داخل الرسالة تلقائياً.', 'ver.submit': 'تحقّق',
-    'ver.checking': 'جارٍ التحقق…', 'ver.placeholder': 'ستظهر النتيجة هنا', 'ver.placeholderBody': 'أدخلوا رقم الجهاز والرمز ثم اضغطوا «تحقّق».',
+    'ver.title': 'التحقق من رمز أو مفتاح',
+    'ver.lead': 'الصقوا رمزاً أو رسالة كاملة لمعرفة نوعه وهل يعمل على جهاز معيّن، بالمدقق نفسه الذي يستخدمه التطبيق. والصقوا مفتاح ترخيص لمعرفة حالته.',
+    'ver.code': 'الرمز أو المفتاح أو الرسالة', 'ver.codeHint': 'يُقرأ الرمز أو المفتاح من داخل الرسالة تلقائياً.', 'ver.submit': 'تحقّق',
+    'ver.deviceHint': 'لا حاجة إليه عند التحقق من مفتاح ترخيص.',
+    'ver.checking': 'جارٍ التحقق…', 'ver.placeholder': 'ستظهر النتيجة هنا', 'ver.placeholderBody': 'أدخلوا رقم الجهاز والرمز، أو مفتاح الترخيص وحده، ثم اضغطوا «تحقّق».',
+    'ver.kindKey': 'مفتاح ترخيص',
+    'ver.k.pending': 'مفتاح صالح بانتظار التفعيل', 'ver.k.pendingB': 'لم يُفعَّل على أي جهاز بعد.',
+    'ver.k.activated': 'مفتاح مفعّل', 'ver.k.activatedB': 'فُعِّل على الجهاز {device} في {date}.',
+    'ver.k.lapsed': 'انتهت مهلة تفعيل هذا المفتاح', 'ver.k.lapsedB': 'كان آخر يوم لتفعيله {date}، ولم يُفعَّل.',
+    'ver.k.expired': 'انتهت صلاحية رمز هذا المفتاح', 'ver.k.expiredB': 'فُعِّل على الجهاز {device}، وانتهت صلاحيته في {date}.',
+    'ver.k.refunded': 'مفتاح مسترد', 'ver.k.void': 'مفتاح ملغى',
+    'ver.k.offB': 'لم يكن قد فُعِّل، فلا يُقبل تفعيله الآن.',
+    'ver.k.offActB': 'كان قد فُعِّل على الجهاز {device} في {date}، ورمزه يبقى صالحاً في التطبيق لأنه يعمل دون إنترنت.',
+    'ver.k.unknown': 'مفتاح غير معروف', 'ver.k.unknownB': 'لا يوجد مفتاح ترخيص بهذا الرقم. تحقّقوا من كتابته.',
+    'ver.k.other': 'المفتاح مفعّل على جهاز غير الجهاز {device} الذي أدخلتموه.',
     'ver.okAct': 'رمز تفعيل صالح', 'ver.okReset': 'رمز إعادة تعيين صالح', 'ver.bad': 'الرمز لا يعمل على هذا الجهاز',
     'ver.kind': 'النوع', 'ver.kindAct': 'تفعيل', 'ver.kindReset': 'إعادة تعيين رمز الدخول', 'ver.kindNone': 'غير معروف',
     'ver.lastDay': 'آخر يوم', 'ver.device': 'الجهاز',
@@ -149,6 +192,8 @@ const T = {
     'a.login.ok': 'تسجيل دخول', 'a.login.fail': 'محاولة دخول فاشلة', 'a.logout': 'تسجيل خروج', 'a.licence.create': 'إصدار ترخيص',
     'a.licence.update': 'تعديل ترخيص', 'a.licences.csv': 'تصدير التراخيص (CSV)', 'a.reset.create': 'إنشاء رمز إعادة تعيين PIN',
     'a.settings.update': 'تعديل الإعدادات', 'a.rows': 'الصفوف: {n}', 'a.ip': 'IP {ip}',
+    'a.keys.create': 'إصدار مفاتيح ترخيص', 'a.key.activate': 'تفعيل مفتاح ترخيص', 'a.key.used': 'محاولة تفعيل مفتاح مستعمل على جهاز آخر',
+    'a.keys.one': 'مفتاح واحد', 'a.keys.two': 'مفتاحان', 'a.keys.few': '{n} مفاتيح', 'a.keys.other': '{n} مفتاحاً', 'a.key': 'المفتاح {key}',
   },
   en: {
     'app.title': 'Dentora control panel', 'app.panel': 'Control panel', skip: 'Skip to content',
@@ -157,7 +202,7 @@ const T = {
     copy: 'Copy', copied: 'Copied', copyFailed: 'Could not copy. Select the text and copy it by hand.', justNow: 'just now',
 
     'nav.menu': 'Main menu', 'nav.dashboard': 'Dashboard', 'nav.new': 'New licence', 'nav.newShort': 'New',
-    'nav.licences': 'Licences', 'nav.reset': 'PIN reset', 'nav.resetShort': 'PIN reset', 'nav.verify': 'Verify a code',
+    'nav.licences': 'Licences', 'nav.reset': 'PIN reset', 'nav.resetShort': 'PIN reset', 'nav.verify': 'Verify a code or key',
     'nav.settings': 'Settings', 'nav.activity': 'Activity log', 'nav.more': 'More', 'nav.site': 'View website',
     'nav.logout': 'Log out', 'nav.moreTitle': 'More pages',
 
@@ -182,17 +227,25 @@ const T = {
     'sign.format': 'The LICENSE_PRIVATE_JWK secret is not a valid private key (a P-256 JWK). Set it again with the whole one-line JSON of license-private.jwk:',
     'sign.mismatch': 'The LICENSE_PRIVATE_JWK secret is not the key built into the app: it comes from the wrong key file. Set it from the right license-private.jwk:',
     'sign.after': 'Then reload this page.', 'sign.blocked': 'Issuing is unavailable until the private key is set (see the notice above).',
+    'sign.keys': 'You can issue keys now, but customers cannot activate them until the private key is set (see the notice above).',
 
     'dash.title': 'Overview', 'dash.lead': 'Sales, downloads and the latest activity in the panel.', 'dash.kpis': 'Key figures',
     'dash.revenue': 'Revenue', 'dash.revenueNote': 'From active licences', 'dash.thisMonth': 'This month',
     'dash.licences': 'Licences', 'dash.licencesNote': 'Excluding void', 'dash.resets': 'PIN resets', 'dash.allTime': 'All time',
+    'dash.pending': 'Keys waiting for activation',
     'dash.downloads': 'Downloads', 'dash.android': 'Android', 'dash.windows': 'Windows', 'dash.last30': 'Last 30 days',
     'dash.quick': 'Quick actions', 'dash.latest': 'Latest licences', 'dash.viewAll': 'View all',
     'dash.activity': 'Recent activity', 'dash.fullLog': 'Full log', 'dash.noLicences': 'No licences issued yet.',
     'dash.noActivity': 'No activity yet.',
 
-    'new.title': 'New licence', 'new.lead': 'Enter the device number the app shows, then pick the plan and validity.',
+    'new.title': 'New licence', 'new.lead': 'Sell a licence for one device by its number, or as a licence key the customer activates without sending you the device number.',
+    'new.mode': 'How to sell', 'mode.device': 'For a device number', 'mode.deviceB': 'The activation code is made now, for the device whose number the customer sent you.',
+    'mode.key': 'Licence key', 'mode.keyB': 'No device number needed: the customer activates it once, online.',
     'new.submit': 'Issue code', 'new.submitting': 'Issuing…', 'new.issued': 'Licence issued',
+    'new.submitKey.one': 'Issue key', 'new.submitKey.other': 'Issue {n} keys',
+    'keys.issued.one': 'Licence key issued', 'keys.issued.other': '{n} licence keys issued',
+    'keys.batchNote': 'Each key works on one device. Send each clinic its own key and message, or copy them all for a reseller (one key per line).',
+    'keys.msgFor': 'Message for which key?', 'keys.msgOption': 'Key {n}', 'keys.openList': 'Show them in Licences',
     'new.issuedToast': 'Licence issued for device {device}', 'new.another': 'Issue another', 'new.openList': 'Open in Licences',
     'new.existingTitle': 'This device has other active licences: {n}',
     'new.existingBody': 'If this code replaces them, set the old one to Void or Refunded so your numbers stay right.',
@@ -200,15 +253,25 @@ const T = {
     'tips.2': 'Issue the code', 'tips.2b': 'Pick the plan and validity, and record the amount paid.',
     'tips.3': 'Send it', 'tips.3b': 'Send the ready message on WhatsApp; the customer pastes all of it into the app and presses Activate.',
     'tips.note': 'Codes work offline and cannot be taken back once sent, so double-check the device number.',
+    'tipsK.1': 'Issue the key', 'tipsK.1b': 'Pick the plan, the validity and how many keys, and record the amount paid. No device number needed.',
+    'tipsK.2': 'Send it', 'tipsK.2b': 'Send the ready message on WhatsApp: it has the key and both ways to activate it.',
+    'tipsK.3': 'Activation', 'tipsK.3b': 'In the app (version 1.1.0 or later): Settings → Licence, the customer pastes the key and presses Activate while online. Or on the website’s activation page with the device number, with any version.',
+    'tipsK.note': 'Each key works on one device only. Until it is activated you can void it, and it is then refused; once activated, its code works offline and cannot be taken back.',
+    'tipsK.page': 'Activation page',
 
     'f.device': 'Device number', 'f.deviceHint': '8 letters and digits, like 7KQ4-M2XD. It never contains 0, 1, O or I.',
     'f.plan': 'Plan', 'plan.pro': 'Pro', 'plan.standard': 'Standard', 'f.validity': 'Validity',
     'val.lifetime': 'Lifetime', 'val.1y': '1 year', 'val.2y': '2 years', 'val.date': 'Until a date', 'f.until': 'Last valid day',
     'val.preview': 'Valid until {date}', 'val.previewLife': 'Never expires',
+    'val.key1y': '1 year from activation', 'val.key2y': '2 years from activation',
+    'val.previewKey1y': 'One full year, counted from the day the key is activated', 'val.previewKey2y': 'Two full years, counted from the day the key is activated',
+    'val.previewKeyDate': 'Valid until {date}; the key cannot be activated after that day',
+    'f.count': 'Number of keys', 'f.countHint': 'From 1 to 50, all with the same sale details.', 'f.countLess': 'One key fewer', 'f.countMore': 'One more key',
     'f.customer': 'Customer name', 'f.clinic': 'Clinic name', 'f.phone': 'Customer WhatsApp',
     'f.phoneHint': 'With the country code, or a local number starting with 0 (963 is added). Used for the WhatsApp button.',
-    'f.price': 'Amount paid ($)', 'f.priceHint': 'Default from Settings: {price}', 'f.note': 'Note',
+    'f.price': 'Amount paid ($)', 'f.priceKey': 'Amount paid per key ($)', 'f.priceHint': 'Default from Settings: {price}', 'f.note': 'Note',
     'f.noteHint': 'Only for you; the customer never sees it.', 'f.optional': 'optional',
+    'e.count': 'Enter a whole number from 1 to 50.',
     'e.device': 'Enter the full device number: 8 letters and digits, as the app shows it.',
     'e.deviceChars': 'Device numbers never contain 0, 1, O or I. Check it again.', 'e.until': 'Pick a date from today on.',
     'e.price': 'Enter an amount from 0 to 100000.', 'e.text': 'Too long (200 characters at most).',
@@ -217,20 +280,26 @@ const T = {
     'code.label': 'Activation code', 'code.copy': 'Copy code', 'msg.label': 'Message for the customer', 'msg.copy': 'Copy message',
     'msg.lang': 'Message language', 'wa.send': 'Send on WhatsApp', 'wa.resend': 'Resend on WhatsApp',
     'wa.noPhone': 'No customer number, so WhatsApp will ask which chat to use.',
+    'key.label': 'Licence key', 'key.copy': 'Copy key', 'keys.label': 'Keys', 'keys.copyAll': 'Copy all',
+    'keys.copyN': 'Copy key {n}', 'key.activatedOn': 'Activated on',
 
-    'lic.title': 'Licences', 'lic.lead': 'Every activation code issued from the panel, newest first.', 'lic.search': 'Search licences',
-    'lic.searchPh': 'Device, name, clinic or phone', 'lic.status': 'Status', 'lic.all': 'All statuses', 'lic.csv': 'Export CSV',
-    'st.active': 'Active', 'st.refunded': 'Refunded', 'st.void': 'Void',
-    'col.customer': 'Customer', 'col.device': 'Device', 'col.validity': 'Plan & validity', 'col.price': 'Amount',
+    'lic.title': 'Licences', 'lic.lead': 'Every sale made in the panel, for a device number or as a licence key, newest first.', 'lic.search': 'Search licences',
+    'lic.searchPh': 'Device, key, name, clinic or phone', 'lic.status': 'Status', 'lic.all': 'All statuses', 'lic.csv': 'Export CSV',
+    'st.active': 'Active', 'st.refunded': 'Refunded', 'st.void': 'Void', 'st.pending': 'Waiting for activation',
+    'col.customer': 'Customer', 'col.device': 'Device or key', 'col.validity': 'Plan & validity', 'col.price': 'Amount',
     'col.status': 'Status', 'col.issued': 'Issued', 'col.until': 'Validity',
     'lic.noName': 'No name', 'lic.until': 'Until {date}', 'lic.ended': 'Ended {date}', 'lic.range': '{from}–{to} of {total}',
     'lic.prev': 'Previous', 'lic.next': 'Next', 'lic.empty': 'No licences yet',
     'lic.emptyBody': 'Issue the first one and it will appear here with the customer’s details.', 'lic.noMatch': 'No matches',
-    'lic.noMatchBody': 'Try part of the device number or phone, or another status.', 'lic.clear': 'Clear search',
+    'lic.noMatchBody': 'Try part of the device number, key or phone, or another status.', 'lic.clear': 'Clear search',
 
     'det.title': 'Licence details', 'det.issued': 'Issued', 'det.edit': 'Customer details', 'det.save': 'Save changes',
-    'det.saved': 'Changes saved.', 'det.status': 'Licence status',
+    'det.saved': 'Changes saved.', 'det.status': 'Licence status', 'det.activated': 'Activated', 'det.device': 'Device', 'det.deviceLater': 'Set on activation',
     'det.statusHint': 'The status is for your records and numbers only: codes work offline, so changing it does not switch the code off in the app.',
+    'det.statusHintKey': 'A refunded or void key is refused if anyone tries to activate it; set it back to Active and it can be activated again.',
+    'confK.refunded.body': 'Its amount leaves the revenue; it still counts as a licence. The key will no longer be accepted for activation.',
+    'confK.void.body': 'It leaves both the licence count and the revenue, and the key will no longer be accepted for activation.',
+    'confK.active.body': 'It counts again in licences and in revenue, and the key can be activated again.',
     'det.statusSaved': 'Status changed to {status}.',
     'conf.refunded.title': 'Mark this licence as refunded?',
     'conf.refunded.body': 'Its amount leaves the revenue; it still counts as a licence. The code itself keeps working in the app.',
@@ -247,10 +316,21 @@ const T = {
     'reset.none': 'No reset codes yet.', 'reset.valid': 'Valid', 'reset.expired': 'Expired', 'reset.until': 'until {date}',
     'reset.another': 'Another code', 'reset.toast': 'Reset code ready for device {device}', 'reset.copyCode': 'Copy the code for {device}',
 
-    'ver.title': 'Verify a code',
-    'ver.lead': 'Paste a code, or a whole message, to see what it is and whether it works on a device, with the same checker the app uses.',
-    'ver.code': 'Code or message', 'ver.codeHint': 'The code is found inside a message automatically.', 'ver.submit': 'Verify',
-    'ver.checking': 'Checking…', 'ver.placeholder': 'The result appears here', 'ver.placeholderBody': 'Enter the device number and the code, then press Verify.',
+    'ver.title': 'Verify a code or key',
+    'ver.lead': 'Paste a code, or a whole message, to see what it is and whether it works on a device, with the same checker the app uses. Paste a licence key to see where it stands.',
+    'ver.code': 'Code, key or message', 'ver.codeHint': 'A code or key is found inside a message automatically.', 'ver.submit': 'Verify',
+    'ver.deviceHint': 'Not needed to check a licence key.',
+    'ver.checking': 'Checking…', 'ver.placeholder': 'The result appears here', 'ver.placeholderBody': 'Enter the device number and the code, or a licence key on its own, then press Verify.',
+    'ver.kindKey': 'Licence key',
+    'ver.k.pending': 'Valid key, waiting for activation', 'ver.k.pendingB': 'It has not been activated on any device yet.',
+    'ver.k.activated': 'Activated key', 'ver.k.activatedB': 'Activated on device {device} on {date}.',
+    'ver.k.lapsed': 'This key can no longer be activated', 'ver.k.lapsedB': 'The last day to activate it was {date}, and it was not activated.',
+    'ver.k.expired': 'The code made from this key has expired', 'ver.k.expiredB': 'It was activated on device {device} and expired on {date}.',
+    'ver.k.refunded': 'Refunded key', 'ver.k.void': 'Void key',
+    'ver.k.offB': 'It had not been activated, so it is now refused.',
+    'ver.k.offActB': 'It was activated on device {device} on {date}; its code keeps working in the app, since codes work offline.',
+    'ver.k.unknown': 'Unknown key', 'ver.k.unknownB': 'No licence key matches this. Check how it was typed.',
+    'ver.k.other': 'The key is activated on a device other than {device}, the one you entered.',
     'ver.okAct': 'Valid activation code', 'ver.okReset': 'Valid PIN reset code', 'ver.bad': 'This code does not work on this device',
     'ver.kind': 'Type', 'ver.kindAct': 'Activation', 'ver.kindReset': 'PIN reset', 'ver.kindNone': 'Unknown',
     'ver.lastDay': 'Last day', 'ver.device': 'Device',
@@ -284,6 +364,8 @@ const T = {
     'a.login.ok': 'Signed in', 'a.login.fail': 'Failed sign-in', 'a.logout': 'Signed out', 'a.licence.create': 'Licence issued',
     'a.licence.update': 'Licence changed', 'a.licences.csv': 'Licences exported (CSV)', 'a.reset.create': 'PIN reset code made',
     'a.settings.update': 'Settings changed', 'a.rows': '{n} rows', 'a.ip': 'IP {ip}',
+    'a.keys.create': 'Licence keys issued', 'a.key.activate': 'Licence key activated', 'a.key.used': 'Used key tried on another device',
+    'a.keys.one': '1 key', 'a.keys.other': '{n} keys', 'a.key': 'key {key}',
   },
 }
 
@@ -306,6 +388,8 @@ const state = {
   /** The last result of a form, shown again only when the language is switched. */
   results: {},
   lic: { q: '', status: '', offset: 0, items: [], total: 0 },
+  /** How the last sale was made ('device' or 'key'): the next new-licence form opens the same way. */
+  saleMode: 'device',
   actFilter: 'all',
   /** Whether the open licence panel added a history entry (closing it then goes back instead of replacing). */
   sheetPushed: false,
@@ -315,6 +399,15 @@ function t(key, vars) {
   let s = T[state.lang][key] ?? T.en[key] ?? key
   if (vars) s = s.replace(/\{(\w+)\}/g, (m, k) => (k in vars ? String(vars[k]) : m))
   return s
+}
+/** A counted phrase: `key.one`, `key.two`, `key.few`… as the language's plural rules pick for n (Arabic has six), else `key.other`. */
+function tp(key, n, vars) {
+  const form = `${key}.${cached(`p${state.lang}`, () => new Intl.PluralRules(state.lang)).select(n)}`
+  return t(T[state.lang][form] !== undefined ? form : `${key}.other`, { n: fmtNum(n), ...vars })
+}
+/** t() for a sentence with elements in it (an isolated device number): the words around them, then the elements. */
+function tx(key, vars) {
+  return t(key).split(/\{(\w+)\}/).map((part, i) => (i % 2 ? vars[part] ?? '' : part)).filter(part => part !== '')
 }
 
 // ---- formatting (Latin digits and the Gregorian calendar in both languages, as the app writes them) ---------------
@@ -374,6 +467,23 @@ function deviceProblem(v) {
   const c = cleanDevice(v)
   if (c.length < 8) return 'e.device'
   return DEVICE_RE.test(c) ? null : 'e.deviceChars'
+}
+/**
+ * The licence key in what was pasted, "XXXX-XXXX-XXXX-XXXX", or null: the key alone (any case, dashes and spaces
+ * optional, as the server cleans it), or the one key written out in a longer text such as the key message.
+ */
+function keyIn(text) {
+  const c = latinDigits(text).toUpperCase().replace(/[^0-9A-Z]/g, '')
+  if (KEY_RE.test(c)) return c.match(/.{4}/g).join('-')
+  const found = [...latinDigits(text).toUpperCase().matchAll(KEY_IN_TEXT)].map(m => m[1])
+  return found.length === 1 ? found[0] : null
+}
+/** "1"…"50" (any digits) → the number of keys; null when it is not one. */
+function parseCount(v) {
+  const s = latinDigits(v).trim()
+  if (!/^\d{1,3}$/.test(s)) return null
+  const n = Number(s)
+  return n >= 1 && n <= KEYS_MAX ? n : null
 }
 /** "59", "59.5", "٥٩", "1,000" → a number; null when it is not an amount the API takes. */
 function parseAmount(v) {
@@ -599,6 +709,27 @@ const licName = l => l.clinic || l.customer
 /** The phone as typed, kept left-to-right inside Arabic text (a leading + would otherwise jump to the end). */
 const ltrText = (text, cls) => h('bdi', { dir: 'ltr', class: cls, text })
 
+// A sale is a code made for a device, or a licence key (key set) that waits, with no device and no code, until the
+// clinic activates it (docs/LICENCE-KEYS.md).
+const isWaitingKey = l => !!l.key && !l.device
+/** A key's rule for its last day, before it is known: "1 year from activation", or as validityText for the others. */
+function keyRule(l) {
+  if (l.validity === '1y' || l.validity === '2y') return t(`val.key${l.validity}`)
+  return validityText(l.until)
+}
+/** The validity a list shows: the last day once there is a code; a waiting 1y/2y key has none yet, only its rule. */
+const saleValidity = l => (isWaitingKey(l) ? keyRule(l) : validityText(l.until))
+/** The status badge, where a key that is active but not activated yet reads "waiting for activation". */
+const saleBadge = l => statusBadge(isWaitingKey(l) && l.status === 'active' ? 'pending' : l.status)
+/** A key kept left-to-right in its two halves, which wrap as a whole when the space is narrow. */
+function keyText(key, cls) {
+  const k = String(key)
+  return h('bdi', { dir: 'ltr', class: cls ? `keytext ${cls}` : 'keytext', translate: 'no' },
+    h('span', { text: k.slice(0, 10) }), h('span', { text: k.slice(10) }))
+}
+/** "Activated on 7KQ4-M2XD", the device kept left-to-right in either language. */
+const activatedBadge = device => h('span', { class: 'badge badge--on' }, icon('check'), h('span', { text: t('key.activatedOn') }), ltrText(device, 'mono'))
+
 /** A labelled input with its hint and an error line that screen readers read with it. */
 function field({ label, hint, input, control, optional }) {
   const id = input.id || (input.id = nextId('f'))
@@ -635,6 +766,21 @@ function segField({ legend, options, value, cls = '', onChange, hideLegend, disa
     set value(v) { for (const r of seg.querySelectorAll('input')) r.checked = r.value === v },
     setError(msg) { err.hidden = !msg; err.replaceChildren(...(msg ? [icon('circle-x'), h('span', { text: msg })] : [])) },
   }
+}
+/** A choice between ways of doing something, each a card with an icon, a title and what it means (real radios too). */
+function choiceField({ legend, options, value, onChange }) {
+  const name = nextId('rg')
+  const box = h('div', { class: 'choice' })
+  for (const [val, ico, title, body] of options) {
+    const id = nextId('o')
+    box.append(
+      h('input', { type: 'radio', name, id, value: val, checked: val === value, on: { change: () => onChange?.(val) } }),
+      h('label', { for: id },
+        h('span', { class: 'kpi-ico' }, icon(ico)), h('strong', { text: title }), h('small', { text: body }),
+        h('span', { class: 'choice-mark', 'aria-hidden': 'true' })))
+  }
+  const wrap = h('fieldset', { class: 'field' }, h('legend', { text: legend }), box)
+  return { wrap, get value() { return box.querySelector('input:checked')?.value } }
 }
 async function copyText(text) {
   try {
@@ -677,6 +823,13 @@ function codeBlock(code, labelKey) {
   return h('div', null,
     h('div', { class: 'block-label' }, h('span', { text: t(labelKey) }), copyButton(() => code, t('code.copy'))),
     codeBox(code))
+}
+/** A licence key, large, in its two halves; copies with its dashes. */
+const keyBox = (key, small) => h('div', { class: `keybox${small ? ' keybox--sm' : ''}`, translate: 'no' }, keyText(key))
+function keyBlock(key) {
+  return h('div', null,
+    h('div', { class: 'block-label' }, h('span', { text: t('key.label') }), copyButton(() => key, t('key.copy'))),
+    keyBox(key))
 }
 /** wa.me with the message in the chosen language: to the customer's number, or (no number) letting WhatsApp ask for the chat. */
 function waHref(message, lang) {
@@ -1086,6 +1239,9 @@ const ACTIONS = {
   'licence.create': { icon: 'key-round', tone: 'ok', group: 'licence' },
   'licence.update': { icon: 'pencil', tone: '', group: 'licence' },
   'licences.csv': { icon: 'file-spreadsheet', tone: '', group: 'licence' },
+  'keys.create': { icon: 'key-round', tone: 'ok', group: 'licence' },
+  'key.activate': { icon: 'badge-check', tone: 'ok', group: 'licence' },
+  'key.used': { icon: 'shield-alert', tone: 'warn', group: 'licence' },
   'reset.create': { icon: 'rotate-ccw-key', tone: 'warn', group: 'reset' },
   'settings.update': { icon: 'sliders-horizontal', tone: '', group: 'settings' },
 }
@@ -1095,22 +1251,36 @@ function auditTokens(e) {
   const d = String(e.detail || '')
   if (!d) return []
   const arrow = rtl() ? ' ← ' : ' → '
+  // a key is logged by its last 4 characters ("…QRST"), never in full; kept left-to-right inside the Arabic words
+  const sale = tok => (/^…[2-9A-HJ-NP-Z]{4}$/.test(tok) ? t('a.key', { key: `\u2066${tok}\u2069` }) : tok)
   const word = tok => {
     if (tok === 'pro' || tok === 'standard') return t(`plan.${tok}`)
     if (tok === 'lifetime') return t('val.lifetime')
+    if (tok === '1y' || tok === '2y') return t(`val.key${tok}`)
     if (/^\d{4}-\d{2}-\d{2}$/.test(tok)) return t('lic.until', { date: fmtDay(tok) })
     const money = /^\$(\d+(?:\.\d+)?)$/.exec(tok)
     if (money) return fmtMoney(Number(money[1]))
     const until = /^→ (\d{4}-\d{2}-\d{2})$/.exec(tok)
     if (until) return t('reset.until', { date: fmtDay(until[1]) })
-    return tok
+    return sale(tok)
   }
   switch (e.action) {
     case 'licences.csv': return [t('a.rows', { n: fmtNum(Number(d) || 0) })]
     case 'settings.update': return d.split(', ').map(k => (T.en[`s.${k}`] ? t(`s.${k}`) : k))
+    // "3 × pro lifetime · $59 · Al Noor"
+    case 'keys.create': {
+      const [what = '', ...rest] = d.split(' · ')
+      const m = /^(\d+) × (\S+) (\S+)$/.exec(what)
+      return [...(m ? [tp('a.keys', Number(m[1])), word(m[2]), word(m[3])] : [what]), ...rest.map(word)]
+    }
+    // "…QRST · 7KQ4-M2XD": the device the key is activated on (the one that tried is not recorded)
+    case 'key.used': {
+      const [key, device] = d.split(' · ')
+      return [sale(key), ...(device ? [`${t('key.activatedOn')} \u2066${device}\u2069`] : [])]
+    }
     case 'licence.update': {
       const [device, rest = ''] = d.split(' · ')
-      return [device, ...rest.split(', ').filter(Boolean).map(part => {
+      return [sale(device), ...rest.split(', ').filter(Boolean).map(part => {
         const m = /^(status|price): (.+) → (.+)$/.exec(part)
         if (!m) return FIELD_LABEL[part] ? t(FIELD_LABEL[part]) : part
         const v = x => (m[1] === 'status' ? (T.en[`st.${x}`] ? t(`st.${x}`) : x) : fmtMoney(Number(x)))
@@ -1140,8 +1310,8 @@ function miniLicenceRow(l) {
   const name = licName(l)
   return h('li', null, h('a', { class: 'mini-row', href: `#/licences/${encodeURIComponent(l.id)}` },
     h('span', { class: `mini-name${name ? '' : ' muted'}`, text: name || t('lic.noName') }),
-    h('span', { class: 'mini-meta' }, ltrText(l.device, 'mono'), h('span', { text: validityText(l.until) }), h('span', { text: timeAgo(l.createdAt) })),
-    h('span', { class: 'mini-side' }, h('span', { class: 'num', text: fmtMoney(l.price) }), statusBadge(l.status))))
+    h('span', { class: 'mini-meta' }, isWaitingKey(l) ? keyText(l.key, 'mono') : ltrText(l.device, 'mono'), h('span', { text: saleValidity(l) }), h('span', { text: timeAgo(l.createdAt) })),
+    h('span', { class: 'mini-side' }, h('span', { class: 'num', text: fmtMoney(l.price) }), saleBadge(l))))
 }
 function kpiTile({ ico, label, value, sub, hero, wide, mark }) {
   return h('article', { class: `card kpi${hero ? ' kpi--hero' : ''}${wide ? ' kpi--wide' : ''}` },
@@ -1192,12 +1362,17 @@ async function viewDashboard(ctx) {
   if (!ctx.alive()) return
   const L = stats.licences, D = stats.downloads
   const pill = (label, value) => [h('span', { text: `${label}:` }), h('span', { class: 'pill', text: value })]
+  // Keys sold and not activated yet: a link to exactly those in the list.
+  const pending = Number.isFinite(L.pending) ? h('a', {
+    class: 'kpi-link', href: '#/licences',
+    on: { click: () => { Object.assign(state.lic, { q: '', status: 'pending', offset: 0 }) } },
+  }, icon('clock-3'), h('span', null, h('span', { class: 'kpi-link-text', text: `${t('dash.pending')}:` }), ' ', h('span', { class: 'pill', text: fmtNum(L.pending) }))) : null
   kpis.removeAttribute('aria-busy')
   kpis.replaceChildren(
     kpiTile({ hero: true, wide: true, ico: 'wallet', mark: 'tooth', label: t('dash.revenue'), value: fmtMoney(L.revenue),
       sub: [...pill(t('dash.thisMonth'), fmtMoney(L.revenueMonth)), h('span', { class: 'kpi-note', text: t('dash.revenueNote') })] }),
     kpiTile({ ico: 'key-round', label: t('dash.licences'), value: fmtNum(L.total),
-      sub: [...pill(t('dash.thisMonth'), fmtNum(L.month)), h('span', { class: 'kpi-note', text: t('dash.licencesNote') })] }),
+      sub: [...pill(t('dash.thisMonth'), fmtNum(L.month)), h('span', { class: 'kpi-note', text: t('dash.licencesNote') }), pending] }),
     kpiTile({ ico: 'rotate-ccw-key', label: t('dash.resets'), value: fmtNum(stats.resets.total), sub: h('span', { text: t('dash.allTime') }) }),
     h('article', { class: 'card kpi kpi--wide' },
       h('span', { class: 'kpi-label' }, h('span', { class: 'kpi-ico' }, icon('download')), h('span', { text: t('dash.downloads') })),
@@ -1214,12 +1389,18 @@ async function viewDashboard(ctx) {
 }
 
 // ---- new licence -----------------------------------------------------------------------------------------------------
-function tipsCard() {
+/** The steps of a sale made the way the form is set to: a code for a device number, or a licence key. */
+function tipsCard(mode) {
+  const p = mode === 'key' ? 'tipsK' : 'tips'
   return card('tips.title', 'info', null, h('div', { class: 'card-body stack' },
     h('ol', { class: 'steps' },
-      ['1', '2', '3'].map(n => h('li', null, h('span', null, h('strong', { text: t(`tips.${n}`) }), t(`tips.${n}b`))))),
-    h('div', { class: 'callout callout--info' }, icon('info'), h('p', { text: t('tips.note') }))))
+      ['1', '2', '3'].map(n => h('li', null, h('span', null, h('strong', { text: t(`${p}.${n}`) }), t(`${p}.${n}b`))))),
+    h('div', { class: 'callout callout--info' }, icon('info'), h('p', { text: t(`${p}.note`) })),
+    mode === 'key' ? h('div', { class: 'link-row' }, h('a', { class: 'chip-btn', href: rtl() ? '/activate' : '/en/activate', target: '_blank', rel: 'noopener' },
+      icon('external-link'), t('tipsK.page'))) : null))
 }
+/** The tips beside the form follow the way of selling chosen in it, and the result shown. */
+const showTips = mode => document.getElementById('new-tips')?.replaceChildren(tipsCard(mode))
 const signingBlocked = () => state.me && !state.me.signing
 function blockedNote() {
   return signingBlocked() ? h('p', { class: 'err' }, icon('triangle-alert'), h('span', { text: t('sign.blocked') })) : null
@@ -1229,8 +1410,9 @@ async function viewNew(ctx) {
   const { root } = ctx
   root.append(pageHead('new.title', 'new.lead'))
   const slot = h('div', { 'data-slot': '' })
-  root.append(h('div', { class: 'two-col' }, slot, tipsCard()))
-  if (ctx.keep && state.results.new) showLicenceResult(slot, state.results.new, false)
+  root.append(h('div', { class: 'two-col' }, slot, h('div', { id: 'new-tips' })))
+  const last = ctx.keep && state.results.new
+  if (last) (last.items ? showKeysResult : showLicenceResult)(slot, last, false)
   else {
     state.results.new = null
     slot.append(licenceForm(slot))
@@ -1238,7 +1420,15 @@ async function viewNew(ctx) {
 }
 
 function licenceForm(slot) {
-  const d = state.drafts.new ??= { device: '', plan: 'pro', validity: 'lifetime', until: '', customer: '', clinic: '', phone: '', price: '', note: '' }
+  const d = state.drafts.new ??= {
+    mode: state.saleMode, device: '', count: '1', plan: 'pro', validity: 'lifetime', until: '', customer: '', clinic: '', phone: '', price: '', note: '',
+  }
+  // A code for a device number (signed now), or licence keys the clinics activate themselves (signed on activation).
+  const mode = choiceField({
+    legend: t('new.mode'), value: d.mode,
+    options: [['device', 'monitor-smartphone', t('mode.device'), t('mode.deviceB')], ['key', 'key-round', t('mode.key'), t('mode.keyB')]],
+    onChange: () => updateMode(),
+  })
   const dev = field({
     label: t('f.device'), hint: t('f.deviceHint'),
     input: h('input', {
@@ -1247,6 +1437,20 @@ function licenceForm(slot) {
     }),
   })
   bindDevice(dev.input)
+  const countInput = h('input', { class: 'input tnum', name: 'count', value: d.count, inputmode: 'numeric', dir: 'ltr', autocomplete: 'off', maxlength: 3, enterkeyhint: 'next' })
+  const step = (delta, ico, label) => h('button', {
+    type: 'button', class: 'icon-btn step-btn', 'aria-label': t(label), on: {
+      click: () => {
+        const n = Math.round(Number(latinDigits(countInput.value).trim()))
+        countInput.value = String(Math.min(KEYS_MAX, Math.max(1, (Number.isFinite(n) ? n : 1) + delta)))
+        countInput.dispatchEvent(new Event('input', { bubbles: true }))
+      },
+    },
+  }, icon(ico))
+  const count = field({
+    label: t('f.count'), hint: t('f.countHint'), input: countInput,
+    control: h('div', { class: 'stepper' }, step(-1, 'minus', 'f.countLess'), countInput, step(1, 'plus', 'f.countMore')),
+  })
   const plan = segField({ legend: t('f.plan'), value: d.plan, options: [['pro', t('plan.pro')], ['standard', t('plan.standard')]] })
   const preview = h('p', { class: 'validity-note', 'aria-live': 'polite' })
   const until = field({ label: t('f.until'), input: h('input', { class: 'input', type: 'date', name: 'until', value: d.until, min: todayUtc(), dir: 'ltr' }) })
@@ -1255,17 +1459,20 @@ function licenceForm(slot) {
     options: [['lifetime', t('val.lifetime')], ['1y', t('val.1y')], ['2y', t('val.2y')], ['date', t('val.date')]],
     onChange: () => updateValidity(),
   })
+  // A code's last day is known now; a key's 1 or 2 years start on the day the clinic activates it.
   const updateValidity = () => {
     const v = validity.value
+    const key = mode.value === 'key'
     until.wrap.hidden = v !== 'date'
-    const day = v === '1y' ? plusYears(1) : v === '2y' ? plusYears(2) : v === 'date' ? until.input.value : null
-    preview.replaceChildren(icon(v === 'lifetime' ? 'badge-check' : 'calendar'),
-      h('span', { text: v === 'lifetime' ? t('val.previewLife') : day ? t('val.preview', { date: fmtDay(day) }) : '' }))
-    preview.hidden = v === 'date' && !day
+    const day = v === 'date' ? until.input.value : key ? null : v === '1y' ? plusYears(1) : v === '2y' ? plusYears(2) : null
+    const text = v === 'lifetime' ? t('val.previewLife')
+      : key && v !== 'date' ? t(`val.previewKey${v}`)
+      : day ? t(key ? 'val.previewKeyDate' : 'val.preview', { date: fmtDay(day) }) : ''
+    preview.replaceChildren(icon(v === 'lifetime' ? 'badge-check' : 'calendar'), h('span', { text }))
+    preview.hidden = !text
   }
   until.input.addEventListener('change', updateValidity)
   validity.wrap.append(preview)
-  updateValidity()
 
   const customer = field({ label: t('f.customer'), optional: true, input: h('input', { class: 'input', name: 'customer', value: d.customer, maxlength: 200, autocomplete: 'off' }) })
   const clinic = field({ label: t('f.clinic'), optional: true, input: h('input', { class: 'input', name: 'clinic', value: d.clinic, maxlength: 200, autocomplete: 'off' }) })
@@ -1286,51 +1493,85 @@ function licenceForm(slot) {
     if (!price.input.value) price.input.value = String(s.priceUsd)
   }, () => { price.wrap.querySelector('.hint').hidden = true })
 
-  const submit = h('button', { type: 'submit', class: 'btn btn-primary btn-lg btn-block', disabled: signingBlocked() }, icon('key-round'), t('new.submit'))
+  // Codes need the signing key now; keys only when a clinic activates one, so they can be issued meanwhile.
+  const signNote = h('div', { hidden: true })
+  const submit = h('button', { type: 'submit', class: 'btn btn-primary btn-lg btn-block' })
+  const updateSubmit = () => {
+    const key = mode.value === 'key'
+    submit.replaceChildren(icon('key-round'), key ? tp('new.submitKey', parseCount(countInput.value) ?? 1) : t('new.submit'))
+    submit.disabled = !key && signingBlocked()
+    signNote.replaceChildren(...(!signingBlocked() ? [] : key
+      ? [h('div', { class: 'callout callout--warn' }, icon('triangle-alert'), h('p', { text: t('sign.keys') }))]
+      : [blockedNote()]))
+    signNote.hidden = !signingBlocked()
+  }
+  countInput.addEventListener('input', updateSubmit)
+  const updateMode = () => {
+    const key = mode.value === 'key'
+    dev.wrap.hidden = key
+    count.wrap.hidden = !key
+    price.wrap.querySelector('label').textContent = t(key ? 'f.priceKey' : 'f.price')
+    updateValidity()
+    updateSubmit()
+    showTips(mode.value)
+  }
+  updateMode()
+
   const form = h('form', { class: 'card card-body form', novalidate: true, 'aria-label': t('new.title') },
-    h('div', { class: 'form-section' }, dev.wrap, h('div', { class: 'grid-2' }, plan.wrap), validity.wrap, until.wrap),
+    h('div', { class: 'form-section' }, mode.wrap),
+    h('div', { class: 'form-section' }, dev.wrap, count.wrap, h('div', { class: 'grid-2' }, plan.wrap), validity.wrap, until.wrap),
     h('div', { class: 'form-section' }, h('div', { class: 'grid-2' }, customer.wrap, clinic.wrap), h('div', { class: 'grid-2' }, phone.wrap, price.wrap), note.wrap),
-    h('div', { class: 'form-section' }, blockedNote(), submit))
+    h('div', { class: 'form-section' }, signNote, submit))
 
   const collect = () => ({
-    device: dev.input.value, plan: plan.value, validity: validity.value, until: until.input.value, customer: customer.input.value,
-    clinic: clinic.input.value, phone: phone.input.value, price: price.input.value, note: note.input.value,
+    mode: mode.value, device: dev.input.value, count: countInput.value, plan: plan.value, validity: validity.value, until: until.input.value,
+    customer: customer.input.value, clinic: clinic.input.value, phone: phone.input.value, price: price.input.value, note: note.input.value,
   })
   form.addEventListener('input', () => { state.drafts.new = collect() })
   form.addEventListener('change', () => { state.drafts.new = collect() })
 
-  const fields = { device: dev, until, price, customer, clinic, phone, note }
+  const fields = { device: dev, count, until, price, customer, clinic, phone, note }
   form.addEventListener('submit', async e => {
     e.preventDefault()
     if (submit.disabled) return
     const v = collect()
+    const key = v.mode === 'key'
     const errors = []
-    const devErr = deviceProblem(v.device)
+    const devErr = key ? null : deviceProblem(v.device)
     if (devErr) errors.push(['device', t(devErr)])
+    const n = key ? parseCount(v.count) : 1
+    if (n === null) errors.push(['count', t('e.count')])
     if (v.validity === 'date' && !(v.until && v.until >= todayUtc())) errors.push(['until', t('e.until')])
     const amount = v.price.trim() === '' ? undefined : parseAmount(v.price)
     if (amount === null) errors.push(['price', t('e.price')])
     for (const [k, msg] of errors) fields[k].setError(msg)
     if (errors.length) { fields[errors[0][0]].input.focus(); return }
     setBusy(submit, true, t('new.submitting'))
+    const sale = {
+      plan: v.plan, validity: v.validity, until: v.validity === 'date' ? v.until : undefined,
+      customer: v.customer, clinic: v.clinic, phone: v.phone, price: amount, note: v.note,
+    }
     try {
-      const res = await api('POST', '/api/licences', {
-        device: formatDevice(v.device), plan: v.plan, validity: v.validity, until: v.validity === 'date' ? v.until : undefined,
-        customer: v.customer, clinic: v.clinic, phone: v.phone, price: amount, note: v.note,
-      })
+      const res = key ? await api('POST', '/api/keys', { count: n, ...sale }) : await api('POST', '/api/licences', { device: formatDevice(v.device), ...sale })
       state.drafts.new = null
+      state.saleMode = v.mode
       state.results.new = res
-      toast(t('new.issuedToast', { device: res.licence.device }))
-      showLicenceResult(slot, res, true)
+      if (key) {
+        toast(tp('keys.issued', res.items.length))
+        showKeysResult(slot, res, true)
+      } else {
+        toast(t('new.issuedToast', { device: res.licence.device }))
+        showLicenceResult(slot, res, true)
+      }
     } catch (err) {
       setBusy(submit, false)
-      const key = err.code === 'field' ? err.field : err.code
-      const msgs = { device: 'e.device', until: 'e.until', price: 'e.price', customer: 'e.text', clinic: 'e.text', phone: 'e.text', note: 'e.note' }
-      if (err.status === 400 && fields[key]) { fields[key].setError(t(msgs[key])); fields[key].input.focus() }
-      else if (err.status === 400 && (key === 'plan' || key === 'validity')) (key === 'plan' ? plan : validity).setError(t('e.choice'))
+      const name = err.code === 'field' ? err.field : err.code
+      const msgs = { device: 'e.device', count: 'e.count', until: 'e.until', price: 'e.price', customer: 'e.text', clinic: 'e.text', phone: 'e.text', note: 'e.note' }
+      if (err.status === 400 && fields[name]) { fields[name].setError(t(msgs[name])); fields[name].input.focus() }
+      else if (err.status === 400 && (name === 'plan' || name === 'validity')) (name === 'plan' ? plan : validity).setError(t('e.choice'))
       else {
         fail(err)
-        if (err.code === 'signing') refreshMe().then(() => { submit.disabled = signingBlocked() })
+        if (err.code === 'signing') refreshMe().then(updateSubmit)
       }
     }
   })
@@ -1343,17 +1584,22 @@ function existingNotice(existing) {
     h('strong', { text: t('new.existingTitle', { n: fmtNum(existing.length) }) }),
     h('p', { text: t('new.existingBody') }),
     h('ul', null, existing.map(l => h('li', null, h('a', { href: `#/licences/${encodeURIComponent(l.id)}` },
-      [fmtDate(l.createdAt), t(`plan.${l.plan}`), validityText(l.until), licName(l)].filter(Boolean).join(' · ')))))))
+      [fmtDate(l.createdAt), t(`plan.${l.plan}`), saleValidity(l), licName(l)].filter(Boolean).join(' · ')))))))
 }
-function showLicenceResult(slot, res, focus) {
-  const { licence: l, message, existing } = res
-  const titleId = nextId('r')
+/** "Issue another": the form again, the way the last sale was made. */
+function anotherButton(slot, focusName) {
   const another = h('button', { type: 'button', class: 'btn btn-outline' }, icon('plus'), t('new.another'))
   another.addEventListener('click', () => {
     state.results.new = null
     slot.replaceChildren(licenceForm(slot))
-    slot.querySelector('input[name="device"]')?.focus()
+    slot.querySelector(`input[name="${focusName}"]`)?.focus()
   })
+  return another
+}
+function showLicenceResult(slot, res, focus) {
+  const { licence: l, message, existing } = res
+  showTips('device')
+  const titleId = nextId('r')
   const title = h('h2', { id: titleId, tabindex: '-1', text: t('new.issued') })
   slot.replaceChildren(h('section', { class: 'card card-body stack', 'aria-labelledby': titleId },
     h('div', { class: 'result-head' }, h('span', { class: 'result-ico' }, icon('circle-check')), h('div', null,
@@ -1362,12 +1608,64 @@ function showLicenceResult(slot, res, focus) {
     existingNotice(existing),
     codeBlock(l.code, 'code.label'),
     messageBlock(message),
-    h('div', { class: 'form-actions' }, another,
+    h('div', { class: 'form-actions' }, anotherButton(slot, 'device'),
       h('a', { class: 'btn btn-ghost', href: `#/licences/${encodeURIComponent(l.id)}` }, t('new.openList'), icon('chevron-right', 'flip-rtl')))))
+  if (focus) { title.focus({ preventScroll: true }); title.scrollIntoView({ block: 'start', behavior: 'smooth' }) }
+}
+/** Keys just issued: each large with its own copy button, all of them at once (one per line) for a reseller, and the
+ * ready message of each (it names its own key), to copy or send on WhatsApp. */
+function showKeysResult(slot, res, focus) {
+  const { items } = res
+  const n = items.length
+  const first = items[0].licence
+  const keys = items.map(x => x.licence.key)
+  showTips('key')
+  const titleId = nextId('r')
+  const title = h('h2', { id: titleId, tabindex: '-1', text: tp('keys.issued', n) })
+  const keysEl = n === 1 ? keyBlock(keys[0]) : h('div', null,
+    h('div', { class: 'block-label' },
+      h('span', null, t('keys.label'), ' ', h('span', { class: 'pill', text: fmtNum(n) })),
+      copyButton(() => keys.join('\n'), t('keys.copyAll'))),
+    h('ol', { class: 'key-list' }, keys.map((k, i) => {
+      const copy = copyButton(() => k, t('copy'))
+      copy.setAttribute('aria-label', t('keys.copyN', { n: fmtNum(i + 1) }))
+      return h('li', null, h('span', { class: 'key-num', 'aria-hidden': 'true', text: fmtNum(i + 1) }), keyBox(k, true), copy)
+    })))
+  const msgSlot = h('div')
+  const showMessage = i => msgSlot.replaceChildren(messageBlock(items[i].message))
+  let picker = null
+  if (n > 1) {
+    const sel = h('select', { class: 'input', id: nextId('f') },
+      // numbered as in the list above, with the key's last 4 characters (the whole key is too long for a phone)
+      keys.map((k, i) => h('option', { value: String(i), text: `${t('keys.msgOption', { n: fmtNum(i + 1) })} · \u2066…${k.slice(-4)}\u2069` })))
+    sel.addEventListener('change', () => showMessage(Number(sel.value)))
+    picker = h('div', { class: 'field' }, h('label', { for: sel.id, text: t('keys.msgFor') }), h('div', { class: 'select' }, sel, icon('chevron-down')))
+  }
+  showMessage(0)
+  const open = n === 1
+    ? h('a', { class: 'btn btn-ghost', href: `#/licences/${encodeURIComponent(first.id)}` }, t('new.openList'), icon('chevron-right', 'flip-rtl'))
+    : h('a', { class: 'btn btn-ghost', href: '#/licences', on: { click: () => { Object.assign(state.lic, { q: '', status: 'pending', offset: 0 }) } } },
+      t('keys.openList'), icon('chevron-right', 'flip-rtl'))
+  slot.replaceChildren(h('section', { class: 'card card-body stack', 'aria-labelledby': titleId },
+    h('div', { class: 'result-head' }, h('span', { class: 'result-ico' }, icon('circle-check')), h('div', null,
+      title,
+      h('p', { text: [t(`plan.${first.plan}`), keyRule(first), licName(first)].filter(Boolean).join(' · ') }))),
+    keysEl,
+    n > 1 ? h('div', { class: 'callout callout--info' }, icon('info'), h('p', { text: t('keys.batchNote') })) : null,
+    picker,
+    msgSlot,
+    h('div', { class: 'form-actions' }, anotherButton(slot, 'count'), open)))
   if (focus) { title.focus({ preventScroll: true }); title.scrollIntoView({ block: 'start', behavior: 'smooth' }) }
 }
 
 // ---- licences --------------------------------------------------------------------------------------------------------
+/** The device column: the device number, or for a key the key and, once activated, the device it went to. */
+function deviceCell(l) {
+  if (!l.key) return h('span', { class: 'c-device', dir: 'ltr', text: l.device })
+  return h('span', { class: 'c-device c-device--key' },
+    h('span', { class: 'key-line' }, icon('key-round'), keyText(l.key)),
+    l.device ? activatedBadge(l.device) : null)
+}
 function licRow(l) {
   const name = licName(l)
   const sub = [l.clinic && l.customer ? l.customer : null, l.phone ? ltrText(l.phone) : null].filter(Boolean)
@@ -1377,10 +1675,10 @@ function licRow(l) {
       h('span', { class: 'c-name' },
         name ? h('strong', { text: name }) : h('strong', { class: 'noname', text: t('lic.noName') }),
         sub.length ? h('small', null, sub.flatMap((s, i) => (i ? [' · ', s] : [s]))) : null),
-      h('span', { class: 'c-status' }, statusBadge(l.status))),
+      h('span', { class: 'c-status' }, saleBadge(l))),
     h('span', { class: 'lic-line lic-line--meta' },
-      h('span', { class: 'c-device', dir: 'ltr', text: l.device }),
-      h('span', { class: 'c-valid' }, planBadge(l.plan), h('span', { text: validityText(l.until) }))),
+      deviceCell(l),
+      h('span', { class: 'c-valid' }, planBadge(l.plan), h('span', { text: saleValidity(l) }))),
     h('span', { class: 'lic-line' },
       h('span', { class: 'c-date' }, h('time', { datetime: l.createdAt, title: fmtDateTime(l.createdAt), text: fmtDate(l.createdAt) })),
       h('span', { class: 'c-price', text: fmtMoney(l.price) }))))
@@ -1396,7 +1694,7 @@ async function viewLicences(ctx) {
     autocomplete: 'off', spellcheck: 'false', enterkeyhint: 'search',
   })
   const status = h('select', { class: 'input', 'aria-label': t('lic.status') },
-    h('option', { value: '', text: t('lic.all') }), ['active', 'refunded', 'void'].map(s => h('option', { value: s, text: t(`st.${s}`) })))
+    h('option', { value: '', text: t('lic.all') }), ['active', 'pending', 'refunded', 'void'].map(s => h('option', { value: s, text: t(`st.${s}`) })))
   status.value = L.status
   const list = h('ul', { class: 'lic-list', 'aria-label': t('lic.title') })
   const head = h('div', { class: 'lic-head', 'aria-hidden': 'true' },
@@ -1531,27 +1829,35 @@ async function fillSheet(current, els) {
   const facts = h('dl', { class: 'facts' })
   const drawHead = () => {
     title.textContent = licName(licence) || t('lic.noName')
-    sub.replaceChildren(ltrText(licence.device, 'mono'), ` · ${fmtDate(licence.createdAt)}`)
-    badge.replaceChildren(statusBadge(licence.status))
+    sub.replaceChildren(isWaitingKey(licence) ? keyText(licence.key, 'mono') : ltrText(licence.device, 'mono'), ` · ${fmtDate(licence.createdAt)}`)
+    badge.replaceChildren(saleBadge(licence))
     const fact = (label, value, cls) => h('div', { class: cls }, h('dt', { text: label }), h('dd', null, value))
-    facts.replaceChildren(
-      fact(t('col.device'), ltrText(licence.device, 'mono')),
+    // A key: no device until it is activated; a 1y/2y key's last day counts from that day, so its rule stays shown.
+    const keyYears = licence.key && (licence.validity === '1y' || licence.validity === '2y')
+    facts.replaceChildren(...[
+      fact(t('det.device'), licence.device ? ltrText(licence.device, 'mono') : h('span', { class: 'muted', text: t('det.deviceLater') })),
       fact(t('f.plan'), t(`plan.${licence.plan}`)),
-      fact(t('col.until'), validityText(licence.until)),
+      fact(t('col.until'), keyYears && licence.until
+        ? [h('span', { text: validityText(licence.until) }), h('small', { class: 'fact-sub', text: keyRule(licence) })]
+        : saleValidity(licence)),
       fact(t('col.price'), h('span', { class: 'tnum', text: fmtMoney(licence.price) })),
-      fact(t('det.issued'), fmtDateTime(licence.createdAt), 'wide'))
+      fact(t('det.issued'), fmtDateTime(licence.createdAt), 'wide'),
+      licence.activatedAt ? fact(t('det.activated'), fmtDateTime(licence.activatedAt), 'wide') : null,
+    ].filter(Boolean))
   }
   const drawMessage = () => msgSlot.replaceChildren(messageBlock(message, { resend: true }))
   drawHead()
   drawMessage()
 
-  // Status: every change is confirmed, since it moves the licence in or out of the numbers.
+  // Status: every change is confirmed, since it moves the licence in or out of the numbers (and for a key that is not
+  // activated yet, decides whether it can still be activated; an activated key's code works offline, as any code).
+  const waiting = isWaitingKey(licence)
   const statusSeg = segField({
     legend: t('det.status'), value: licence.status, cls: 'seg--block seg--status',
     options: ['active', 'refunded', 'void'].map(s => [s, t(`st.${s}`)]),
     onChange: async next => {
       const ok = await confirmDialog({
-        title: t(`conf.${next}.title`), body: t(`conf.${next}.body`), confirm: t(`conf.${next}.ok`),
+        title: t(`conf.${next}.title`), body: t(`${waiting ? 'confK' : 'conf'}.${next}.body`), confirm: t(`conf.${next}.ok`),
         tone: next === 'void' ? 'bad' : next === 'refunded' ? 'warn' : 'ok',
       })
       if (!ok || sheet !== current) { statusSeg.value = licence.status; return }
@@ -1625,12 +1931,14 @@ async function fillSheet(current, els) {
     }
   })
 
-  body.replaceChildren(
+  body.replaceChildren(...[
     facts,
-    h('section', { class: 'card card-body', 'aria-label': t('code.label') }, codeBlock(licence.code, 'code.label')),
+    licence.key ? h('section', { class: 'card card-body', 'aria-label': t('key.label') }, keyBlock(licence.key)) : null,
+    licence.code ? h('section', { class: 'card card-body', 'aria-label': t('code.label') }, codeBlock(licence.code, 'code.label')) : null,
     h('section', { class: 'card card-body', 'aria-label': t('msg.label') }, msgSlot),
-    h('section', { class: 'card card-body stack' }, statusSeg.wrap, h('p', { class: 'hint', text: t('det.statusHint') })),
-    h('section', { class: 'card card-body stack', 'aria-label': t('det.edit') }, h('h3', { class: 'block-label', text: t('det.edit') }), form))
+    h('section', { class: 'card card-body stack' }, statusSeg.wrap, h('p', { class: 'hint', text: t(waiting ? 'det.statusHintKey' : 'det.statusHint') })),
+    h('section', { class: 'card card-body stack', 'aria-label': t('det.edit') }, h('h3', { class: 'block-label', text: t('det.edit') }), form),
+  ].filter(Boolean))
 }
 
 // ---- PIN reset -------------------------------------------------------------------------------------------------------
@@ -1727,12 +2035,18 @@ async function viewVerify(ctx) {
   root.append(pageHead('ver.title', 'ver.lead'))
   const d = state.drafts.verify ??= { device: '', code: '' }
   const dev = field({
-    label: t('f.device'), hint: t('f.deviceHint'),
+    label: t('f.device'), hint: `${t('f.deviceHint')} ${t('ver.deviceHint')}`,
     input: h('input', { class: 'input input--device', name: 'device', value: d.device, dir: 'ltr', autocomplete: 'off', autocapitalize: 'characters', spellcheck: 'false', placeholder: 'XXXX-XXXX' }),
   })
   bindDevice(dev.input)
   const code = field({ label: t('ver.code'), hint: t('ver.codeHint'), input: h('textarea', { class: 'input input--code', name: 'code', dir: 'ltr', spellcheck: 'false', autocomplete: 'off', autocapitalize: 'off', rows: 5 }) })
   code.input.value = d.code
+  // A licence key says where it stands on its own: the device number is then optional, and the label says so.
+  const devOpt = h('span', { class: 'opt', text: ` (${t('f.optional')})` })
+  dev.wrap.querySelector('label').append(devOpt)
+  const markKey = () => { devOpt.hidden = !keyIn(code.input.value) }
+  code.input.addEventListener('input', markKey)
+  markKey()
   const submit = h('button', { type: 'submit', class: 'btn btn-primary btn-lg btn-block' }, icon('shield-check'), t('ver.submit'))
   const form = h('form', { class: 'card card-body form', novalidate: true, 'aria-label': t('ver.title') }, dev.wrap, code.wrap, submit)
   const result = h('div', { 'aria-live': 'polite' })
@@ -1743,14 +2057,17 @@ async function viewVerify(ctx) {
   form.addEventListener('input', () => { state.drafts.verify = { device: dev.input.value, code: code.input.value } })
   form.addEventListener('submit', async e => {
     e.preventDefault()
+    const key = keyIn(code.input.value)
     const devErr = deviceProblem(dev.input.value)
-    if (devErr) { dev.setError(t(devErr)); dev.input.focus(); return }
+    if (devErr && !key) { dev.setError(t(devErr)); dev.input.focus(); return }
     if (!code.input.value.trim()) { code.setError(t('e.code')); code.input.focus(); return }
+    // With a key the server ignores the device; a complete one is kept to compare with the device the key went to.
+    const device = devErr ? '' : formatDevice(dev.input.value)
     setBusy(submit, true, t('ver.checking'))
     try {
-      const r = await api('POST', '/api/verify', { device: formatDevice(dev.input.value), code: code.input.value })
+      const r = await api('POST', '/api/verify', { device, code: key || code.input.value })
       if (!ctx.alive()) return
-      state.results.verify = { ...r, device: formatDevice(dev.input.value) }
+      state.results.verify = r.kind === 'key' ? { ...r, key, entered: device } : { ...r, device }
       showVerifyResult(result, state.results.verify, true)
     } catch (err) {
       if (err.status === 400 && err.code === 'device') dev.setError(t('e.device'))
@@ -1759,6 +2076,7 @@ async function viewVerify(ctx) {
   })
 }
 function showVerifyResult(slot, r, focus) {
+  if (r.kind === 'key') { showKeyResult(slot, r, focus); return }
   const titleId = nextId('v')
   const fact = (label, value) => h('div', null, h('dt', { text: label }), h('dd', null, value))
   const kind = r.kind === 'activation' ? t('ver.kindAct') : r.kind === 'reset' ? t('ver.kindReset') : t('ver.kindNone')
@@ -1775,6 +2093,49 @@ function showVerifyResult(slot, r, focus) {
     h('div', { class: 'result-head' }, h('span', { class: `result-ico${r.ok ? '' : ' result-ico--bad'}` }, icon(r.ok ? 'circle-check' : 'circle-x')),
       h('div', null, title, reason ? h('p', { text: reason }) : null)),
     h('dl', { class: 'facts' }, facts)))
+  if (focus) { title.focus({ preventScroll: true }); if (matchMedia('(max-width: 1099px)').matches) title.scrollIntoView({ block: 'start', behavior: 'smooth' }) }
+}
+/**
+ * A licence key's answer (SPEC.md → POST /api/verify): waiting, activated (on which device, when), refunded or void
+ * by the seller, or unknown; `reason: 'expired'` = a waiting 'date' key past its day, or an activated key's code ended.
+ */
+function showKeyResult(slot, r, focus) {
+  const titleId = nextId('v')
+  const st = r.status || 'unknown'
+  const device = r.device ? ltrText(r.device, 'mono') : null
+  const on = { device, date: r.activatedAt ? fmtDate(r.activatedAt) : '' }
+  const [titleKey, body] =
+    st === 'unknown' ? ['ver.k.unknown', t('ver.k.unknownB')]
+    : st === 'refunded' || st === 'void' ? [`ver.k.${st}`, device ? tx('ver.k.offActB', on) : t('ver.k.offB')]
+    : r.reason === 'expired' && st === 'pending' ? ['ver.k.lapsed', t('ver.k.lapsedB', { date: fmtDay(r.until) })]
+    : r.reason === 'expired' ? ['ver.k.expired', tx('ver.k.expiredB', { device, date: fmtDay(r.until) })]
+    : st === 'pending' ? ['ver.k.pending', t('ver.k.pendingB')]
+    : ['ver.k.activated', device ? tx('ver.k.activatedB', on) : null]
+  const fact = (label, value, cls) => h('div', { class: cls }, h('dt', { text: label }), h('dd', null, value))
+  const facts = [fact(t('key.label'), keyText(r.key, 'mono'), 'wide'), fact(t('ver.kind'), t('ver.kindKey'))]
+  if (st !== 'unknown') {
+    facts.push(
+      fact(t('col.status'), statusBadge(st === 'activated' ? 'active' : st)),
+      fact(t('f.plan'), t(`plan.${r.plan}`)),
+      // the last day once it is known; before a 1y/2y key is activated, only how it will be counted
+      fact(t('col.until'), r.until !== undefined ? validityText(r.until) : keyRule({ validity: r.validity, until: null })))
+    if (device) facts.push(fact(t('ver.device'), device.cloneNode(true)))
+    if (r.activatedAt) facts.push(fact(t('det.activated'), fmtDateTime(r.activatedAt), device ? null : 'wide'))
+  }
+  // the device typed in the form is only compared with the one the key went to
+  const other = r.entered && r.device && r.entered !== r.device
+    ? h('div', { class: 'callout callout--warn' }, icon('triangle-alert'), h('p', null, tx('ver.k.other', { device: ltrText(r.entered, 'mono') })))
+    : null
+  const open = st === 'unknown' ? null : h('a', {
+    class: 'btn btn-ghost', href: '#/licences', on: { click: () => { Object.assign(state.lic, { q: r.key, status: '', offset: 0 }) } },
+  }, t('new.openList'), icon('chevron-right', 'flip-rtl'))
+  const title = h('h2', { id: titleId, tabindex: '-1', text: t(titleKey) })
+  slot.replaceChildren(h('section', { class: 'card card-body stack', 'aria-labelledby': titleId },
+    h('div', { class: 'result-head' }, h('span', { class: `result-ico${r.ok ? '' : ' result-ico--bad'}` }, icon(r.ok ? 'circle-check' : 'circle-x')),
+      h('div', null, title, body ? h('p', null, body) : null)),
+    other,
+    h('dl', { class: 'facts' }, facts),
+    open ? h('div', { class: 'form-actions' }, open) : null))
   if (focus) { title.focus({ preventScroll: true }); if (matchMedia('(max-width: 1099px)').matches) title.scrollIntoView({ block: 'start', behavior: 'smooth' }) }
 }
 

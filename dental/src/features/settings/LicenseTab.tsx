@@ -1,12 +1,13 @@
 import { useState, type FormEvent } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
-import { BadgeCheck, CalendarClock, Copy, Crown, Infinity as InfinityIcon, KeyRound, Lock, Mail, MessageCircle, RefreshCw, ShieldAlert, ShieldCheck, Sparkles, Store, Tag } from 'lucide-react'
-import { Alert, Badge, Button, buttonClass, Card, CardBody, ProgressBar, useConfirm, useToast, Textarea } from '@/ui'
+import { BadgeCheck, CalendarClock, Copy, Crown, ExternalLink, Globe, Infinity as InfinityIcon, KeyRound, Lock, Mail, MessageCircle, RefreshCw, ShieldAlert, ShieldCheck, Sparkles, Store, Tag } from 'lucide-react'
+import { Alert, Badge, Button, buttonClass, Card, CardBody, ProgressBar, Spinner, useConfirm, useToast, Textarea } from '@/ui'
 import { useI18n } from '@/i18n'
 import { getSetting, logActivity } from '@/db'
 import { useClinic } from '@/app/hooks'
-import { useLicense } from '@/license/useLicense'
-import { checkCode, extractCode, TRIAL_DAYS } from '@/license/core'
+import { useLicense, type ActivateResult } from '@/license/useLicense'
+import { checkCode, codeKind, extractCode, TRIAL_DAYS } from '@/license/core'
+import { activationPageUrl, extractKey, isLicenceKey, redeemKey, type RedeemResult } from '@/license/online'
 import { openExternal } from '@/platform'
 import { fmtDate } from '@/lib/dates'
 import { formatPhone, whatsappLink } from '@/lib/format'
@@ -25,6 +26,8 @@ export default function LicenseTab() {
   const [code, setCode] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
+  const [contacting, setContacting] = useState(false)    // a licence key is on its way to the activation server
+  const [offerBrowser, setOfferBrowser] = useState(false) // the server could not be reached: offer the activation page
   const [renewing, setRenewing] = useState(false)
   const once = useSingleFlight()
 
@@ -41,27 +44,52 @@ export default function LicenseTab() {
   // only WhatsApp: the button below writes the message (device number and clinic) for them
   const step2 = !hasSeller ? 'license.buy.step2Neutral' : SELLER.email ? 'license.buy.step2' : 'license.buy.step2Wa'
   const showForm = status !== 'active' || renewing
+  const isKey = isLicenceKey(code)
 
   const copyDevice = async () => {
     if (await copyText(lic.device)) toast.success(t('license.deviceCopied'))
     else toast.error(t('license.copyFailed'))
   }
 
+  // the field takes a code or a key: a pasted message gives whichever it holds (a complete code wins)
+  const onCodeChange = (value: string) => {
+    const pasted = extractCode(value)
+    setCode((!codeKind(pasted) && extractKey(value)) || formatCodeInput(pasted))
+    setError(null); setOfferBrowser(false)
+  }
+  const keyError = (r: Extract<RedeemResult, { ok: false }>) =>
+    r.reason === 'locked' ? (r.retryAfter ? t('license.key.err.locked', { n: Math.ceil(r.retryAfter / 60) }) : t('license.key.err.lockedSoon')) : t(`license.key.err.${r.reason}`)
+  // what the server answered is not trusted: lic.activate() refuses a code for another device, a damaged one, or one
+  // whose term is already over (a key activated long ago on this same device gets its old code back)
+  const keyCheckError = async (activation: string, r: ActivateResult) => {
+    const c = r === 'expired' ? await checkCode(lic.device, activation, new Date(lic.now())) : null
+    return c && !c.ok && c.reason === 'expired' ? t('license.key.err.ended', { date: fmtDate(codeDay(c.until), lang, 'long') }) : t('license.key.err.check')
+  }
+
   const activate = (e?: FormEvent) => {
     e?.preventDefault()
     if (noDevice) { setError(t('license.deviceError')); return }
-    if (!isCodeComplete(code)) { setError(t('license.err.format')); return }
+    const withKey = isLicenceKey(code)
+    if (!withKey && !isCodeComplete(code)) { setError(t('license.err.incomplete')); return }
     void once(async () => {
-      setBusy(true)
+      setBusy(true); setOfferBrowser(false)
       try {
-        const r = await lic.activate(code)
-        if (r !== 'ok') { setError(t(`license.err.${r}`)); return }
-        const c = await checkCode(lic.device, code, new Date(lic.now()))
+        // a key is exchanged online for an ordinary code, which then goes through the same local check as any code
+        let activation = code
+        if (withKey) {
+          setContacting(true)
+          const got = await redeemKey(code, lic.device).finally(() => setContacting(false))
+          if (!got.ok) { setError(keyError(got)); setOfferBrowser(got.reason === 'offline' || got.reason === 'server'); return }
+          activation = got.code
+        }
+        const r = await lic.activate(activation)
+        if (r !== 'ok') { setError(withKey ? await keyCheckError(activation, r) : t(`license.err.${r}`)); return }
+        const c = await checkCode(lic.device, activation, new Date(lic.now()))
         const plan = c.ok ? t(`license.plan.${c.plan}`) : ''
         setCode(''); setError(null); setRenewing(false)
         toast.success(t('license.activated'), plan)
-        void logActivity({ type: 'system', action: 'other', message: t('license.act.activated', { plan }), by: access.userId })
-      } catch { setError(t('license.err.format')) } finally { setBusy(false) }
+        void logActivity({ type: 'system', action: 'other', message: t(withKey ? 'license.act.activatedKey' : 'license.act.activated', { plan }), by: access.userId })
+      } catch { setError(t(withKey ? 'license.key.err.check' : 'license.err.format')) } finally { setBusy(false) }
     })
   }
 
@@ -159,15 +187,24 @@ export default function LicenseTab() {
             <SectionTitle icon={<BadgeCheck />} title={status === 'active' ? t('license.renew') : t('license.activateTitle')} sub={status === 'active' ? t('license.renewHint') : t('license.activateDesc')} tone="success" />
             {showForm ? (
               <form className="st-activate" onSubmit={activate} noValidate>
-                <Textarea label={t('license.codeLabel')} value={code} onChange={e => { setCode(formatCodeInput(extractCode(e.target.value))); setError(null) }}
+                <Textarea label={t('license.codeLabel')} value={code} onChange={e => onCodeChange(e.target.value)} readOnly={contacting}
                   placeholder={t('license.codePlaceholder')} dir="ltr" autoComplete="off" autoCapitalize="characters" spellCheck={false} rows={7}
                   onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); activate() } }}
-                  className="st-code-input" error={error ?? undefined} hint={error ? undefined : t('license.codeHint')} data-qa="code-input" />
+                  className="st-code-input" error={error ?? undefined} hint={error ? undefined : t(isKey ? 'license.key.hint' : 'license.codeHint')} data-qa="code-input" />
                 <div className="st-activate-foot">
-                  <span className="st-code-count num" aria-live="polite">{codeChars(code)}/{CODE_CHARS}</span>
-                  {status === 'active' && <Button variant="ghost" onClick={() => { setRenewing(false); setCode(''); setError(null) }}>{t('cancel')}</Button>}
+                  {isKey
+                    ? <span className="st-code-kind" data-qa="key-detected"><Globe />{t('license.key.detected')}</span>
+                    : <span className="st-code-count num" aria-live="polite">{codeChars(code)}/{CODE_CHARS}</span>}
+                  {status === 'active' && <Button variant="ghost" disabled={busy} onClick={() => { setRenewing(false); setCode(''); setError(null); setOfferBrowser(false) }}>{t('cancel')}</Button>}
                   <Button type="submit" variant="primary" icon={<KeyRound />} loading={busy} disabled={noDevice} data-qa="activate">{t('license.activate')}</Button>
                 </div>
+                {contacting && <div className="st-key-progress" role="status" data-qa="key-contacting"><Spinner />{t('license.key.contacting')}</div>}
+                {offerBrowser && (
+                  <div className="st-key-browser" data-qa="key-browser-offer">
+                    <Button variant="secondary" icon={<ExternalLink />} onClick={() => openExternal(activationPageUrl(lic.device, lang))} data-qa="key-browser">{t('license.key.browser')}</Button>
+                    <span className="text-sm muted">{t('license.key.browserHint', { url: activationPageUrl('', lang).replace('https://', '') })}</span>
+                  </div>
+                )}
               </form>
             ) : (
               <Button variant="secondary" icon={<KeyRound />} onClick={() => setRenewing(true)} data-qa="renew">{t('license.renew')}</Button>

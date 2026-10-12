@@ -32,8 +32,8 @@ class Stmt {
   }
 }
 
-export function memoryD1(): D1Database {
-  const db = new DatabaseSync(':memory:')
+/** A fresh in-memory database; pass one to have several D1 objects (isolates) share it. */
+export function memoryD1(db = new DatabaseSync(':memory:')): D1Database {
   const d1 = {
     prepare: (sql: string) => new Stmt(db, sql),
     async batch(stmts: Stmt[]) {

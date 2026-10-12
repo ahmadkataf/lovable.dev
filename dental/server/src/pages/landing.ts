@@ -21,15 +21,15 @@ function fillText(template: string, vars: Record<string, string>): string {
 }
 
 /** JSON for a <script type="application/ld+json"> block: nothing in it can close the element. */
-function jsonForScript(value: unknown): string {
+export function jsonForScript(value: unknown): string {
   return JSON.stringify(value)
     .replace(/</g, '\\u003c').replace(/>/g, '\\u003e').replace(/&/g, '\\u0026')
     .replace(/\u2028/g, '\\u2028').replace(/\u2029/g, '\\u2029')
 }
 
 // Lucide icons (ISC licence, the set the app itself uses), inner markup of a 24×24 stroke icon. The tooth is the
-// brand mark from public/icon.svg redrawn as a stroke icon, since Lucide has none.
-const ICONS: Record<IconName, string> = {
+// brand mark from public/icon.svg redrawn as a stroke icon, since Lucide has none. The activation page uses them too.
+export const ICONS: Record<IconName, string> = {
   wifiOff: '<path d="M12 20h.01"/><path d="M8.5 16.429a5 5 0 0 1 7 0"/><path d="M5 12.859a10 10 0 0 1 5.17-2.69"/><path d="M19 12.859a10 10 0 0 0-2.007-1.523"/><path d="M2 8.82a15 15 0 0 1 4.177-2.643"/><path d="M22 8.82a15 15 0 0 0-11.288-3.764"/><path d="m2 2 20 20"/>',
   languages: '<path d="m5 8 6 6"/><path d="m4 14 6-6 2-3"/><path d="M2 5h12"/><path d="M7 2h1"/><path d="m22 22-5-10-5 10"/><path d="M14 18h6"/>',
   monitorSmartphone: '<path d="M18 8V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v7a2 2 0 0 0 2 2h8"/><path d="M10 19v-3.96 3.15"/><path d="M7 19h5"/><rect width="6" height="10" x="16" y="12" rx="2"/>',
@@ -61,6 +61,11 @@ const ICONS: Record<IconName, string> = {
   arrowLeft: '<path d="m12 19-7-7 7-7"/><path d="M19 12H5"/>',
   arrowRight: '<path d="M5 12h14"/><path d="m12 5 7 7-7 7"/>',
   lifeBuoy: '<circle cx="12" cy="12" r="10"/><path d="m4.93 4.93 4.24 4.24"/><path d="m14.83 9.17 4.24-4.24"/><path d="m14.83 14.83 4.24 4.24"/><path d="m9.17 14.83-4.24 4.24"/><circle cx="12" cy="12" r="4"/>',
+  copy: '<rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/>',
+  circleAlert: '<circle cx="12" cy="12" r="10"/><line x1="12" x2="12" y1="8" y2="12"/><line x1="12" x2="12.01" y1="16" y2="16"/>',
+  loaderCircle: '<path d="M21 12a9 9 0 1 1-6.219-8.56"/>',
+  info: '<circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/>',
+  settings: '<path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/>',
 }
 
 // Each page carries the icons it uses once, as <symbol>s in a hidden sprite, and every icon is a <use> of one.
@@ -238,20 +243,24 @@ function structuredData(v: View, url: string, image: string) {
   return { '@context': 'https://schema.org', '@graph': [app, faqPage] }
 }
 
+/** The activation page's address as written in a sentence: "dentora.raqeem.dev/activate" ("…/en/activate"). */
+const activateAddress = (v: View) => `${v.origin.replace(/^https?:\/\//, '')}${v.base}/activate`
+
 /** FAQ answer as plain text (for the structured data). */
 function faqText(v: View, a: string): string {
-  const phone = v.lang === 'ar' ? `\u2066${v.waDisplay}\u2069` : v.waDisplay
+  const ltr = (s: string) => (v.lang === 'ar' ? `\u2066${s}\u2069` : s)
   const email = v.s.email ? fillText(v.t.faq.emailPart, { email: v.s.email }) : ''
-  return fillText(a, { price: v.priceInline, whatsapp: phone, email })
+  return fillText(a, { price: v.priceInline, whatsapp: ltr(v.waDisplay), email, activate: ltr(activateAddress(v)) })
 }
 
-/** FAQ answer as HTML: the phone number and e-mail become links. */
+/** FAQ answer as HTML: the phone number, the e-mail and the activation page's address become links. */
 function faqHtml(v: View, a: string): string {
   const phone = `<a href="${escapeHtml(waLink(v, v.t.wa.general))}" rel="noopener" target="_blank"><bdi dir="ltr">${escapeHtml(v.waDisplay)}</bdi></a>`
   const email = v.s.email
     ? fillHtml(v.t.faq.emailPart, { email: `<a href="mailto:${escapeHtml(v.s.email)}"><bdi dir="ltr">${escapeHtml(v.s.email)}</bdi></a>` })
     : ''
-  return fillHtml(a, { price: escapeHtml(v.priceInline), whatsapp: phone, email })
+  const activate = `<a href="${v.base}/activate"><bdi dir="ltr">${escapeHtml(activateAddress(v))}</bdi></a>`
+  return fillHtml(a, { price: escapeHtml(v.priceInline), whatsapp: phone, email, activate })
 }
 
 function announcement(v: View): string {
@@ -414,7 +423,7 @@ function steps(v: View): string {
   return `<section class="section steps" id="how" aria-labelledby="how-title">
 <div class="container">
 ${sectionHead('how', st.eyebrow, st.title, st.lead)}
-<ol class="step-list">${st.items.map((x, i) => `<li class="step"><div class="step-top"><span class="step-num" aria-hidden="true">${i + 1}</span>${icon(icons[i], 'step-icon')}</div><h3>${escapeHtml(x.title)}</h3><p>${escapeHtml(x.text)}</p></li>`).join('')}</ol>
+<ol class="step-list">${st.items.map((x, i) => `<li class="step"><div class="step-top"><span class="step-num" aria-hidden="true">${i + 1}</span>${icon(icons[i], 'step-icon')}</div><h3>${escapeHtml(x.title)}</h3><p>${escapeHtml(x.text)}</p>${x.link ? `<a class="step-link" href="${v.base}/activate">${escapeHtml(x.link)}${forward(v.lang)}</a>` : ''}</li>`).join('')}</ol>
 </div>
 </section>`
 }
@@ -525,7 +534,7 @@ function footer(v: View): string {
 <a class="brand" href="${base || '/'}">${brand()}</a>
 <p>${escapeHtml(f.tagline)}</p>
 </div>
-<nav class="footer-col" aria-labelledby="ft-product"><h2 class="footer-title" id="ft-product">${escapeHtml(f.product)}</h2><ul class="footer-links">${navItems(v)}</ul></nav>
+<nav class="footer-col" aria-labelledby="ft-product"><h2 class="footer-title" id="ft-product">${escapeHtml(f.product)}</h2><ul class="footer-links">${navItems(v)}<li><a href="${base}/activate">${escapeHtml(f.activate)}</a></li></ul></nav>
 <nav class="footer-col" aria-labelledby="ft-legal"><h2 class="footer-title" id="ft-legal">${escapeHtml(f.legal)}</h2><ul class="footer-links"><li><a href="${base}/privacy">${escapeHtml(f.privacy)}</a></li><li><a href="${base}/terms">${escapeHtml(f.terms)}</a></li></ul></nav>
 <div class="footer-col"><h2 class="footer-title">${escapeHtml(f.contact)}</h2><ul class="footer-links">
 <li><a href="${escapeHtml(waLink(v, t.wa.general))}" rel="noopener" target="_blank">${icon('messageCircle')}<bdi dir="ltr">${escapeHtml(v.waDisplay)}</bdi></a></li>

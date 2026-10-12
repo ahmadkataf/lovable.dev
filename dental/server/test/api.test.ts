@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 import { MAX_OVERALL, MAX_PER_IP } from '../src/auth'
-import { checkLicenceInput, checkLicencePatch, checkSettingsPatch, handleApi, isHttpsUrl, priceOf } from '../src/api'
+import { checkKeysInput, checkLicenceInput, checkLicencePatch, checkSettingsPatch, handleApi, isHttpsUrl, priceOf } from '../src/api'
 import { countDownload, ensureSchema, insertLicence, listLicences, stats } from '../src/db'
 import { DEFAULT_SETTINGS, type Env, type Licence } from '../src/types'
 import { memoryD1 } from './d1'
@@ -46,6 +46,29 @@ describe('licence input', () => {
   })
 })
 
+describe('keys input', () => {
+  const keys = { plan: 'pro', validity: 'lifetime', customer: 'Reseller', clinic: '', phone: '', note: '' }
+  it('makes one key by default, at the settings price; a date key keeps its day, 1y/2y wait for activation', () => {
+    expect(checkKeysInput(keys, 59, NOW)).toEqual({ ok: true, value: { ...keys, count: 1, price: 59, until: null } })
+    const y1 = checkKeysInput({ ...keys, validity: '1y', count: 5, price: '40' }, 59, NOW)
+    expect(y1.ok && [y1.value.count, y1.value.price, y1.value.validity, y1.value.until]).toEqual([5, 40, '1y', null])
+    const d = checkKeysInput({ ...keys, validity: 'date', until: '2027-03-31', count: '3' }, 59, NOW)
+    expect(d.ok && [d.value.count, d.value.until?.toISOString().slice(0, 10)]).toEqual([3, '2027-03-31'])
+  })
+  it('takes 1 to 50 keys, whole numbers only', () => {
+    for (const count of [0, 51, 2.5, -1, 'many', '3x', true, [2]]) expect(checkKeysInput({ ...keys, count }, 59, NOW)).toEqual({ ok: false, error: 'count' })
+    expect(checkKeysInput({ ...keys, count: 50 }, 59, NOW).ok).toBe(true)
+  })
+  it('checks the sale like a licence, without a device', () => {
+    expect(checkKeysInput({ ...keys, plan: 'gold' }, 59, NOW)).toEqual({ ok: false, error: 'plan' })
+    expect(checkKeysInput({ ...keys, validity: '3y' }, 59, NOW)).toEqual({ ok: false, error: 'validity' })
+    expect(checkKeysInput({ ...keys, validity: 'date', until: '2026-10-10' }, 59, NOW)).toEqual({ ok: false, error: 'until' })
+    expect(checkKeysInput({ ...keys, price: -1 }, 59, NOW)).toEqual({ ok: false, error: 'price' })
+    expect(checkKeysInput({ ...keys, note: 'x'.repeat(1001) }, 59, NOW)).toEqual({ ok: false, error: 'field', field: 'note' })
+    expect(checkKeysInput({ ...keys, count: 0, plan: 'gold' }, 59, NOW)).toEqual({ ok: false, error: 'count' })
+  })
+})
+
 describe('licence patch', () => {
   it('keeps only known fields and checks them', () => {
     expect(checkLicencePatch({ status: 'refunded', price: 0, device: 'ignored' })).toEqual({ ok: true, value: { status: 'refunded', price: 0 } })
@@ -84,9 +107,11 @@ describe('settings', () => {
 
 describe('licence search and stats', () => {
   const lic = (over: Partial<Licence>): Licence => ({
-    id: crypto.randomUUID(), device: 'AB2C-D3EF', plan: 'pro', until: null, code: 'C', customer: '', clinic: '', phone: '',
-    price: 59, note: '', status: 'active', createdAt: new Date().toISOString(), ...over,
+    id: crypto.randomUUID(), device: 'AB2C-D3EF', plan: 'pro', until: null, code: 'C', key: null, validity: null, activatedAt: null,
+    customer: '', clinic: '', phone: '', price: 59, note: '', status: 'active', createdAt: new Date().toISOString(), ...over,
   })
+  /** A key sold and not activated yet. */
+  const waiting = (key: string, over: Partial<Licence> = {}) => lic({ device: '', code: '', key, validity: 'lifetime', ...over })
   it('finds by device with or without the dash, by name and by phone', async () => {
     const db = memoryD1(); await ensureSchema(db)
     await insertLicence(db, lic({ device: 'AB2C-D3EF', customer: 'سامي', clinic: 'Al Noor', phone: '+963 996 489 504', createdAt: '2026-10-01T00:00:00.000Z' }))
@@ -102,6 +127,26 @@ describe('licence search and stats', () => {
     expect(await q('', 'refunded')).toEqual(['ZZZZ-9999'])
     expect(await q('%')).toEqual([])
   })
+  it('finds a key with or without its dashes, and lists the keys still waiting', async () => {
+    const db = memoryD1(); await ensureSchema(db)
+    await insertLicence(db, lic({ device: 'AB2C-D3EF', createdAt: '2026-10-01T00:00:00.000Z' }))
+    await insertLicence(db, waiting('K2M4-P6R8-T9V3-X5Z7', { clinic: 'Al Noor', createdAt: '2026-10-02T00:00:00.000Z' }))
+    await insertLicence(db, waiting('ABCD-EFGH-JKLM-NPQR', { status: 'void', createdAt: '2026-10-03T00:00:00.000Z' }))
+    await insertLicence(db, lic({ device: 'ZZZZ-9999', key: 'WXYZ-2345-6789-ABCD', validity: '1y', activatedAt: '2026-10-05T00:00:00.000Z', createdAt: '2026-10-04T00:00:00.000Z' }))
+    const q = (s: string, status: '' | 'pending' | 'void' = '') => listLicences(db, { q: s, status, limit: 50, offset: 0 }).then(r => r.items.map(i => i.key ?? i.device))
+    expect(await q('K2M4-P6R8-T9V3-X5Z7')).toEqual(['K2M4-P6R8-T9V3-X5Z7'])
+    expect(await q('k2m4p6r8t9v3x5z7')).toEqual(['K2M4-P6R8-T9V3-X5Z7'])
+    expect(await q('T9V3-X5')).toEqual(['K2M4-P6R8-T9V3-X5Z7'])
+    expect(await q('WXYZ2345')).toEqual(['WXYZ-2345-6789-ABCD'])
+    expect(await q('zzzz9999')).toEqual(['WXYZ-2345-6789-ABCD'])
+    expect(await q('', 'pending')).toEqual(['K2M4-P6R8-T9V3-X5Z7'])
+    expect(await q('al noor', 'pending')).toEqual(['K2M4-P6R8-T9V3-X5Z7'])
+    expect(await q('', 'void')).toEqual(['ABCD-EFGH-JKLM-NPQR'])
+    const all = await listLicences(db, { q: '', status: '', limit: 50, offset: 0 })
+    expect(all.total).toBe(4)
+    expect(all.items.find(i => i.key === 'K2M4-P6R8-T9V3-X5Z7')).toMatchObject({ device: '', code: '', validity: 'lifetime', activatedAt: null })
+    expect(all.items.find(i => i.device === 'AB2C-D3EF')).toMatchObject({ key: null, validity: null, activatedAt: null })
+  })
   it('counts sales and revenue', async () => {
     const db = memoryD1(); await ensureSchema(db)
     const now = new Date(Date.UTC(2026, 9, 11))
@@ -109,8 +154,12 @@ describe('licence search and stats', () => {
     await insertLicence(db, lic({ price: 40, createdAt: '2026-09-05T00:00:00.000Z' }))
     await insertLicence(db, lic({ price: 59, status: 'refunded', createdAt: '2026-10-06T00:00:00.000Z' }))
     await insertLicence(db, lic({ price: 59, status: 'void', createdAt: '2026-10-07T00:00:00.000Z' }))
+    // Keys are sales too: counted and summed like licences; pending = active keys not activated yet.
+    await insertLicence(db, waiting('K2M4-P6R8-T9V3-X5Z7', { price: 30, createdAt: '2026-10-08T00:00:00.000Z' }))
+    await insertLicence(db, waiting('ABCD-EFGH-JKLM-NPQR', { price: 30, status: 'refunded', createdAt: '2026-10-08T00:00:00.000Z' }))
+    await insertLicence(db, lic({ key: 'WXYZ-2345-6789-ABCD', validity: '1y', activatedAt: '2026-10-09T00:00:00.000Z', price: 30, createdAt: '2026-10-08T00:00:00.000Z' }))
     const s = await stats(db, now)
-    expect(s.licences).toEqual({ total: 3, month: 2, revenue: 99, revenueMonth: 59 })
+    expect(s.licences).toEqual({ total: 6, month: 5, revenue: 159, revenueMonth: 119, pending: 1 })
     expect(s.downloads).toEqual({ android: 0, windows: 0, android30: 0, windows30: 0 })
   })
   it('counts a download once per visitor, platform and day', async () => {

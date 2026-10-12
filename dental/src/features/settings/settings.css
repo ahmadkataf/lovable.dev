@@ -243,6 +243,11 @@
 .st-code-input.textarea::placeholder { letter-spacing: 0; font-weight: 500; font-family: var(--font); }
 .st-activate-foot { display: flex; align-items: center; justify-content: flex-end; gap: 8px; }
 .st-code-count { margin-inline-end: auto; font-size: var(--fs-xs); font-weight: 700; color: var(--text-4); }
+/* a licence key in the field: it goes online once (src/license/online.ts) */
+.st-code-kind { margin-inline-end: auto; display: inline-flex; align-items: center; gap: 6px; padding: 3px 10px; border-radius: var(--r-full); background: var(--primary-soft); color: var(--p-700); font-size: var(--fs-xs); font-weight: 700; }
+.st-code-kind svg { width: 14px; height: 14px; flex: none; }
+.st-key-progress { display: flex; align-items: center; gap: 10px; font-size: var(--fs-sm); color: var(--text-2); }
+.st-key-browser { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; padding: 12px 14px; border-radius: var(--r-lg); background: var(--surface-2); border: 1.5px dashed var(--border-2); line-height: 1.6; }
 .st-buy-steps { list-style: none; margin: 0 0 18px; padding: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
 .st-buy-steps li { display: flex; align-items: flex-start; gap: 10px; padding: 14px; border-radius: var(--r-lg); background: var(--surface-2); border: 1px solid var(--divider); font-size: var(--fs-sm); color: var(--text-2); line-height: 1.6; }
 .st-step-no { width: 26px; height: 26px; border-radius: 50%; flex: none; display: inline-flex; align-items: center; justify-content: center; background: var(--primary); color: var(--on-primary); font-weight: 800; font-size: var(--fs-sm); }
@@ -309,6 +314,7 @@
   .st-summary { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
   .st-days .chip { flex: 1 1 calc(33% - 8px); justify-content: center; }
   .st-activate-foot .btn-primary { flex: 1; }
+  .st-key-browser { align-items: stretch; }
 }
 
 /* while a form is unsaved, focusing a field keeps it clear of the pinned bar */
@@ -322,4 +328,5 @@ html:has(.st-savebar.dirty) { scroll-padding-bottom: calc(var(--bottomnav-h, 0px
 :root[data-theme="dark"] .st-nav-item.active .st-nav-desc,
 :root[data-theme="dark"] .st-font-current,
 :root[data-theme="dark"] .st-money-label,
-:root[data-theme="dark"] .st-mini-row.total .money { color: var(--p-300); }
+:root[data-theme="dark"] .st-mini-row.total .money,
+:root[data-theme="dark"] .st-code-kind { color: var(--p-300); }

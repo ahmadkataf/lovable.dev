@@ -173,6 +173,9 @@ async function resolveDeviceId(deps) {
 /**
  * The page's Content-Security-Policy: everything comes from the app folder; data:/blob: for logos, photos, x-rays and
  * backups; 'unsafe-inline' only for styles (style attributes); scripts are strictly 'self'; no form ever posts anywhere.
+ * The one address on the internet the page may reach is the activation server (connect-src https://dentora.raqeem.dev):
+ * activating with a licence key posts the key and the device number there, once (docs/LICENCE-KEYS.md). The page is
+ * file://, so that request carries Origin: null, which the server's Access-Control-Allow-Origin: * accepts.
  * index.html carries the same policy in a <meta> tag, and the Android shell sends it too (WebFiles.CSP); a test keeps
  * the three identical.
  */
@@ -182,7 +185,7 @@ const CSP = [
   "style-src 'self' 'unsafe-inline'",
   "img-src 'self' data: blob:",
   "font-src 'self' data:",
-  "connect-src 'self' data: blob:",
+  "connect-src 'self' data: blob: https://dentora.raqeem.dev",
   "media-src 'self' data: blob:",
   "worker-src 'self' blob:",
   "frame-src 'self' data: blob:",

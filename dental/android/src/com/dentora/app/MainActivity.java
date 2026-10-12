@@ -74,7 +74,9 @@ import java.util.UUID;
  * The page talks to the phone through window.DentoraAndroid (the contract in src/platform/index.ts):
  * deviceId · saveBegin/saveChunk/saveEnd/saveAbort · print(jobName) · appVersion · openExternal. File picking uses the
  * WebView's own file chooser (with the camera next to the files for photos). Nothing is ever loaded from the internet:
- * every request for another site is refused, so no page or frame but the app's own can reach the bridge.
+ * every request for another site is refused, so no page or frame but the app's own can reach the bridge. The one
+ * request the page sends to the internet is the licence-key activation (WebFiles.isActivation), only when the clinic
+ * activates with a key; its answer is data the page checks, never a page.
  *
  * Every callback is a named class (no lambdas or anonymous classes) so that d8 handles it on every JDK.
  */
@@ -426,10 +428,14 @@ public class MainActivity extends Activity {
         private final MainActivity host;
         AppClient(MainActivity host) { this.host = host; }
 
+        // Called for every request of the page, fetch() included: for the activation it sees the POST, and on WebView
+        // versions that route the CORS preflight through it, the OPTIONS too. Both have the same address and get
+        // "pass": null lets the WebView send the request itself, body and CORS included, as a browser would. It is not
+        // called again for a redirect; the CSP (connect-src) checks where a redirect goes.
         @Override
         public WebResourceResponse shouldInterceptRequest(WebView view, WebResourceRequest request) {
             Uri u = request.getUrl();
-            switch (WebFiles.requestAction(u.getScheme(), u.getHost())) {
+            switch (WebFiles.requestAction(u.getScheme(), u.getHost(), u.getEncodedPath())) {
                 case "app": return host.serve(u.getPath());
                 case "block": return MainActivity.refused();
                 default: return null;

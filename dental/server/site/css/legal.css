@@ -1,9 +1,11 @@
-/* The Worker's own pages: /privacy, /terms (and /en/…) and the 404 page (src/pages/legal.ts, src/pages/notfound.ts).
-   Owned by the backend; loaded after /css/site.css (the landing page's tokens, header, footer and buttons).
+/* The Worker's own pages: /privacy, /terms, /activate (and /en/…) and the 404 page (src/pages/legal.ts,
+   src/pages/activate.ts, src/pages/notfound.ts). Loaded after /css/site.css (the landing page's tokens, header,
+   footer and buttons).
    The pages carry site.css's classes (.site-header, .brand, .lang-link, .container, .btn, .site-footer) next to
    their own. The fallbacks below are wrapped in :where() (no specificity), so with site.css the pages look exactly
    like the landing page, and without it (a build before the landing page existed) they still look finished.
-   Everything else here is the documents' own layout: title band, table of contents, lead, contact card, 404. */
+   Everything else here is the pages' own layout: title band, table of contents, lead, contact card, 404, and the
+   activation page's form and code. */
 
 @font-face {
   font-family: "Dentora Inter";
@@ -178,6 +180,184 @@
 .legal-page .legal-404 h1, .legal-page .legal-404 h2 { margin: 0 0 8px; color: var(--lg-ink); font-size: 1.375rem; font-weight: 750; line-height: 1.45; letter-spacing: 0; }
 .legal-404 p { margin: 0 0 20px; color: var(--lg-muted); }
 
+/* ---- activation page (/activate; the form and the code are driven by /js/activate.js) ------------------------ */
+.act {
+  --act-mono: ui-monospace, "SF Mono", "Cascadia Mono", "Segoe UI Mono", "Roboto Mono", Menlo, Consolas, monospace;
+  --act-bad: #b91c1c; --act-bad-ink: #7f1d1d; --act-bad-bg: #fef2f2; --act-bad-line: #fecaca;
+  --act-warn: #b45309; --act-warn-bg: #fffbeb; --act-warn-line: #fde68a;
+}
+/* the script shows and hides whole blocks with [hidden]; a display set below must not override it */
+.act [hidden] { display: none !important; }
+.act .ic { fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+/* visually hidden (site.css's .sr-only, repeated for a page without it; also the copy fallback's textarea) */
+.act-sr {
+  position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+  overflow: hidden; clip-path: inset(50%); white-space: nowrap; border: 0;
+}
+
+/* the title band runs under the first card */
+.act-hero { border-bottom: 0; padding-bottom: clamp(60px, 8vw, 96px); }
+.act-lead { max-width: 64ch; margin: 14px 0 0; color: var(--lg-text); font-size: clamp(1rem, .96rem + .25vw, 1.125rem); }
+.act-grid { position: relative; display: grid; gap: 20px; margin-top: clamp(-64px, -6vw, -36px); padding-bottom: 72px; }
+.act-primary, .act-aside { display: grid; gap: 20px; align-content: start; }
+@media (min-width: 960px) { .act-aside { gap: 16px; } }
+@media (min-width: 960px) {
+  .act-grid { grid-template-columns: minmax(0, 1fr) minmax(0, 380px); gap: 28px; align-items: start; }
+}
+
+.act-card {
+  container-type: inline-size;
+  padding: clamp(18px, 4.5vw, 36px); background: #fff; border: 1px solid var(--lg-line); border-radius: 20px;
+  box-shadow: 0 30px 60px -36px rgba(15, 23, 42, .28), 0 2px 6px -2px rgba(15, 23, 42, .06);
+}
+.legal-page .act-card h2 { margin: 0; color: var(--lg-ink); font-size: 1.375rem; font-weight: 750; line-height: 1.35; letter-spacing: -.01em; }
+.legal-page:lang(ar) .act-card h2 { font-weight: 700; line-height: 1.6; letter-spacing: 0; }
+.legal-page .act-card h3 { color: var(--lg-ink); font-size: 1.0625rem; font-weight: 700; line-height: 1.5; }
+
+/* ---- the form ---- */
+.act-form { margin-top: 4px; }
+.act-form > * { margin: 22px 0 0; }
+.act-form > .act-alert-region { margin: 0; }
+.act-field label { display: block; margin-bottom: 8px; color: var(--lg-ink); font-weight: 700; }
+.act-input {
+  display: block; width: 100%; min-height: 56px; margin: 0; padding: 10px 16px;
+  border: 1px solid var(--line-2, #d7dee8); border-radius: 14px; background: #fff; color: var(--lg-ink);
+  font-family: var(--act-mono); font-size: 1.25rem; font-weight: 600; line-height: 1.4; letter-spacing: .08em;
+  font-variant-ligatures: none; transition: border-color .15s, box-shadow .15s;
+}
+/* 19 characters of key fit a 360 px phone */
+.act-input-key { font-size: 1.0625rem; letter-spacing: .05em; }
+@container (min-width: 380px) { .act-input-key { font-size: 1.25rem; letter-spacing: .08em; } }
+.act-input::placeholder { color: var(--ink-4, #94a3b8); font-weight: 500; opacity: 1; }
+.act-input:hover { border-color: #c4cedb; }
+.act-input:focus { outline: none; border-color: var(--lg-brand-strong); box-shadow: 0 0 0 4px rgba(14, 143, 134, .2); }
+.act-input[aria-invalid="true"] { border-color: var(--act-bad); }
+.act-input[aria-invalid="true"]:focus { box-shadow: 0 0 0 4px rgba(220, 38, 38, .16); }
+.act-input[readonly] { background: var(--lg-soft); color: var(--lg-muted); }
+/* a left-to-right field lines up with its label in Arabic */
+[dir="rtl"] .act-input { text-align: right; }
+.act-hint { margin: 8px 0 0; color: var(--lg-muted); font-size: .875rem; line-height: 1.6; }
+.legal-page:lang(ar) .act-hint { line-height: 1.8; }
+.act-hint a { font-weight: 650; white-space: nowrap; }
+.act-err { display: flex; align-items: flex-start; gap: 6px; margin: 8px 0 0; color: var(--act-bad); font-size: .875rem; font-weight: 650; line-height: 1.6; }
+.act-err .ic { width: 18px; height: 18px; flex: none; margin-top: .1em; }
+.legal-page:lang(ar) .act-err .ic { margin-top: .3em; }
+
+.act-note, .act-alert {
+  display: flex; align-items: flex-start; gap: 10px; padding: 12px 14px; border-radius: 14px; font-size: .9375rem; line-height: 1.65;
+}
+.act-note { background: var(--act-warn-bg); border: 1px solid var(--act-warn-line); color: var(--lg-text); }
+.act-note .ic { width: 20px; height: 20px; flex: none; margin-top: .15em; color: var(--act-warn); }
+.act-alert { margin: 22px 0 0; background: var(--act-bad-bg); border: 1px solid var(--act-bad-line); color: var(--act-bad-ink); font-weight: 600; }
+.act-alert .ic { width: 20px; height: 20px; flex: none; margin-top: .15em; color: var(--act-bad); }
+.legal-page:lang(ar) .act-note .ic, .legal-page:lang(ar) .act-alert .ic { margin-top: .3em; }
+.act-noscript { margin-top: 18px; }
+
+.act-submit { position: relative; }
+.act-submit .act-spin { display: none; }
+.act-submit.is-busy .act-spin { display: inline-block; animation: act-spin .9s linear infinite; }
+.act-submit[aria-disabled="true"] { cursor: progress; }
+@keyframes act-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .act-submit.is-busy .act-spin { animation: none; } }
+.act-sent { display: flex; align-items: flex-start; justify-content: center; gap: 8px; color: var(--lg-muted); font-size: .875rem; line-height: 1.6; text-align: center; }
+.act-sent .ic { width: 16px; height: 16px; flex: none; margin-top: .2em; color: var(--lg-brand-strong); }
+.act-form > .act-sent { margin-top: 14px; }
+
+/* ---- the answer: the code and what to do with it ---- */
+.act-done-head { display: flex; align-items: flex-start; gap: 16px; }
+.act-done-icon {
+  display: grid; place-items: center; flex: none; width: 52px; height: 52px; border-radius: 16px;
+  background: var(--btn-grad, var(--lg-brand-strong)); color: #fff; box-shadow: var(--sh-teal, none);
+}
+.act-done-icon .ic { width: 28px; height: 28px; }
+/* the heading takes the focus when the code appears (for screen readers); it is not a control, so no ring */
+.act-done-head h2:focus { outline: none; box-shadow: none; }
+.act-done-head p { margin: 4px 0 0; color: var(--lg-muted); }
+/* plan, validity, device: one list with a row each on a phone, three tiles when there is room */
+.act-facts { display: grid; margin: 24px 0 0; border: 1px solid var(--lg-line); border-radius: 14px; background: var(--lg-soft); }
+.act-facts div { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 2px 12px; padding: 10px 14px; }
+.act-facts div + div { border-top: 1px solid var(--lg-line); }
+.act-facts dt { color: var(--lg-muted); font-size: .8125rem; font-weight: 600; }
+.act-facts dd { margin: 0; color: var(--lg-ink); font-weight: 700; }
+@container (min-width: 540px) {
+  .act-facts { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; border: 0; background: none; }
+  .act-facts div { display: block; padding: 12px 14px; border: 1px solid var(--lg-line); border-radius: 14px; background: var(--lg-soft); }
+  .act-facts dd { margin-top: 2px; }
+}
+#act-done-device { font-family: var(--act-mono); letter-spacing: .06em; }
+
+.legal-page .act-code-title { margin: 26px 0 10px; }
+/* the 112-character code in its 28 groups of four: 7 rows of 4 on a phone, 4 rows of 7 when there is room; a group
+   never splits, and a selection (or a click: user-select all) copies it with its dashes */
+.act-code {
+  display: grid; grid-template-columns: repeat(4, max-content); justify-content: center; gap: 4px 12px;
+  padding: 16px 12px; border: 1px dashed #b9c6d6; border-radius: 16px; background: var(--lg-soft);
+  font-family: var(--act-mono); font-size: 1.0625rem; font-weight: 650; line-height: 1.6; letter-spacing: .05em;
+  color: var(--lg-ink); font-variant-ligatures: none; -webkit-user-select: all; user-select: all;
+}
+.act-code > span { white-space: nowrap; }
+.act-dash { color: var(--ink-4, #94a3b8); }
+@container (min-width: 340px) { .act-code { font-size: 1.1875rem; gap: 6px 16px; } }
+@container (min-width: 600px) { .act-code { grid-template-columns: repeat(7, max-content); padding: 20px 16px; } }
+@container (min-width: 700px) { .act-code { font-size: 1.375rem; gap: 8px 18px; } }
+.act-copy-row { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; margin-top: 16px; }
+.act-copy { min-width: min(100%, 240px); }
+.act-copy .act-copied-icon, .act-copy.is-done .act-copy-icon { display: none; }
+.act-copy.is-done .act-copied-icon { display: inline-block; }
+.act-copy-note { flex-basis: 100%; margin: 0; color: var(--act-bad); font-size: .875rem; font-weight: 650; text-align: center; }
+@media (max-width: 559px) { .act-copy { width: 100%; } }
+
+.legal-page .act-steps-title { margin: 30px 0 14px; }
+.act-steps { list-style: none; display: grid; gap: 12px; margin: 0; padding: 0; counter-reset: act-step; }
+.act-steps li { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: start; gap: 12px; color: var(--lg-text); }
+.act-steps li::before {
+  counter-increment: act-step; content: counter(act-step);
+  display: grid; place-items: center; width: 30px; height: 30px; border-radius: 50%;
+  background: var(--btn-grad, var(--lg-brand-strong)); color: #fff;
+  font-family: "Inter", "Dentora Inter", sans-serif; font-weight: 800; font-size: .875rem; line-height: 1;
+}
+.legal-page:lang(ar) .act-steps li::before { margin-top: .1em; }
+.act-tip { display: flex; align-items: flex-start; gap: 10px; margin: 12px 0 0; color: var(--lg-muted); font-size: .9375rem; }
+.act-steps + .act-tip { margin-top: 22px; }
+.act-tip .ic { width: 20px; height: 20px; flex: none; margin-top: .15em; color: var(--lg-brand-strong); }
+.legal-page:lang(ar) .act-tip .ic { margin-top: .35em; }
+.act-again { margin-top: 26px; }
+
+/* ---- the side cards: where the device number is, the app, what is sent, help ---- */
+.act-side { padding: 20px 22px 22px; background: #fff; border: 1px solid var(--lg-line); border-radius: 18px; }
+.legal-page .act-side h2 {
+  display: flex; align-items: center; gap: 12px; margin: 0 0 12px;
+  color: var(--lg-ink); font-size: 1.0625rem; font-weight: 700; line-height: 1.45; letter-spacing: 0;
+}
+.act-side-icon { display: grid; place-items: center; flex: none; width: 38px; height: 38px; border-radius: 11px; background: var(--lg-tint); color: var(--lg-brand-strong); }
+.act-side-icon .ic { width: 20px; height: 20px; }
+.act-side p { margin: 0; color: var(--lg-text); font-size: .9375rem; line-height: 1.7; }
+.legal-page:lang(ar) .act-side p { line-height: 1.85; }
+.legal-page .act-side .act-side-note { margin-top: 14px; color: var(--lg-muted); font-size: .875rem; }
+.act-help { background: var(--lg-mint); }
+.act-wa { margin-top: 16px; }
+.act-steps-sm { gap: 8px; margin-top: 4px; }
+.act-steps-sm li { gap: 10px; font-size: .9375rem; }
+.act-steps-sm li::before { width: 24px; height: 24px; font-size: .75rem; background: var(--lg-tint); color: var(--lg-brand-strong); }
+.legal-page:lang(ar) .act-steps-sm li::before { margin-top: .25em; }
+
+/* a sketch of Settings → Licence in the app (decorative: the steps under it say the same) */
+.act-mock { margin: 0 0 16px; padding: 12px; border: 1px solid var(--lg-line); border-radius: 14px; background: var(--lg-soft); }
+.act-mock-path { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 0 0 10px; color: var(--lg-muted); font-size: .8125rem; font-weight: 600; line-height: 1.5; }
+.act-mock-path .ic { width: 14px; height: 14px; color: var(--ink-4, #94a3b8); }
+.act-mock-path span:last-child { color: var(--lg-brand-strong); }
+.act-mock-row {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; padding: 10px 12px;
+  border: 1px solid var(--lg-line); border-radius: 10px; background: #fff; box-shadow: 0 1px 2px rgba(15, 23, 42, .05);
+}
+.act-mock-k { flex-basis: 100%; color: var(--lg-muted); font-size: .8125rem; line-height: 1.5; }
+.act-mock-v { color: var(--lg-ink); font-family: var(--act-mono); font-size: 1.125rem; font-weight: 700; letter-spacing: .08em; }
+.act-mock-btn {
+  display: inline-flex; align-items: center; gap: 6px; margin-inline-start: auto; padding: 3px 10px;
+  border: 1px solid var(--line-2, #d7dee8); border-radius: 8px; color: var(--lg-brand-strong); font-size: .8125rem; font-weight: 650;
+}
+.act-mock-btn .ic { width: 14px; height: 14px; }
+
 /* ---- print: the document only ---------------------------------------------------------------------------------- */
 @media print {
   .legal-page { display: block; color: #000; font-size: 11pt; }
@@ -187,4 +367,8 @@
   .legal-doc { max-width: none; }
   .legal-page .legal-doc .legal-lead { background: none; border: 1px solid #999; }
   .legal-page .legal-doc h2 { break-after: avoid; }
+  /* the activation page: the code and the steps */
+  .act-aside, .act-copy-row, .act-again { display: none !important; }
+  .act-grid { margin: 0; }
+  .act-card { box-shadow: none; }
 }

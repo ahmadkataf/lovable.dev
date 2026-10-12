@@ -1,7 +1,7 @@
-// The D1 database: the schema (created by the Worker itself, once per isolate) and every query the Worker runs.
-// Rows are mapped to the shapes of types.ts here, so nothing else knows the column names.
+// The D1 database: the schema (created and migrated by the Worker itself, once per isolate) and every query the
+// Worker runs. Rows are mapped to the shapes of types.ts here, so nothing else knows the column names.
 import { b64url } from './http'
-import { DEFAULT_SETTINGS, type AuditEntry, type Licence, type LicenceStatus, type Plan, type ResetCode, type SiteSettings, type Stats } from './types'
+import { DEFAULT_SETTINGS, type AuditEntry, type Licence, type LicenceStatus, type Plan, type ResetCode, type SiteSettings, type Stats, type Validity } from './types'
 
 const SCHEMA = [
   'CREATE TABLE IF NOT EXISTS settings (key TEXT PRIMARY KEY, value TEXT NOT NULL)',
@@ -22,6 +22,10 @@ const SCHEMA = [
   'CREATE TABLE IF NOT EXISTS login_attempts (id INTEGER PRIMARY KEY AUTOINCREMENT, ip TEXT NOT NULL, at INTEGER NOT NULL)',
   'CREATE INDEX IF NOT EXISTS login_attempts_ip ON login_attempts (ip, at)',
   'CREATE INDEX IF NOT EXISTS login_attempts_at ON login_attempts (at)',
+  // Failed public key activations (POST /api/activate), per address, for the rate limit (auth.ts takeActivationAttempt).
+  'CREATE TABLE IF NOT EXISTS activation_attempts (id INTEGER PRIMARY KEY AUTOINCREMENT, ip TEXT NOT NULL, at INTEGER NOT NULL)',
+  'CREATE INDEX IF NOT EXISTS activation_attempts_ip ON activation_attempts (ip, at)',
+  'CREATE INDEX IF NOT EXISTS activation_attempts_at ON activation_attempts (at)',
   // Logged-out sessions until their tokens expire (auth.ts revokeSession).
   'CREATE TABLE IF NOT EXISTS revoked_sessions (sid TEXT PRIMARY KEY, exp INTEGER NOT NULL)',
   // Who was already counted today (a salted hash of the address, never the address): one download per visitor a day.
@@ -32,16 +36,47 @@ const SCHEMA = [
     ip TEXT NOT NULL DEFAULT '')`,
 ]
 
+/**
+ * Columns added to `licences` for licence keys (docs/LICENCE-KEYS.md). Added when missing, on a new database as on
+ * one made before keys existed, so both end with the same table. A key waiting for activation has device = '' and
+ * code = '' (both NOT NULL); `validity` stays '' for a licence made for a device.
+ */
+const LICENCE_COLUMNS: [name: string, type: string][] = [['key', 'TEXT'], ['validity', "TEXT NOT NULL DEFAULT ''"], ['activated_at', 'TEXT']]
+const AFTER_COLUMNS = ['CREATE UNIQUE INDEX IF NOT EXISTS licences_key ON licences (key) WHERE key IS NOT NULL']
+
+async function columnsOf(db: D1Database, table: string): Promise<Set<string>> {
+  const { results } = await db.prepare(`PRAGMA table_info(${table})`).all<{ name: string }>()
+  return new Set(results.map(c => c.name))
+}
+/** Adds the columns a table lacks, all in one transaction. */
+async function addColumns(db: D1Database, table: string, columns: [string, string][]): Promise<void> {
+  const have = await columnsOf(db, table)
+  const missing = columns.filter(([name]) => !have.has(name))
+  if (!missing.length) return
+  try {
+    await db.batch(missing.map(([name, type]) => db.prepare(`ALTER TABLE ${table} ADD COLUMN ${name} ${type}`)))
+  } catch (e) {
+    // Another isolate migrating at the same moment added them first ("duplicate column"): fine once all are there.
+    const now = await columnsOf(db, table)
+    if (columns.some(([name]) => !now.has(name))) throw e
+  }
+}
+
 // Keyed by the database object: one Worker isolate has one DB binding, tests create several.
 const ready = new WeakMap<D1Database, Promise<void>>()
-/** Creates the tables on the first request of an isolate; a failure is retried by the next request. */
+/** Creates and migrates the tables on the first request of an isolate; a failure is retried by the next request. */
 export function ensureSchema(db: D1Database): Promise<void> {
   let p = ready.get(db)
   if (!p) {
-    p = db.batch(SCHEMA.map(s => db.prepare(s))).then(() => undefined, e => { ready.delete(db); throw e })
+    p = createSchema(db).then(() => undefined, e => { ready.delete(db); throw e })
     ready.set(db, p)
   }
   return p
+}
+async function createSchema(db: D1Database): Promise<void> {
+  await db.batch(SCHEMA.map(s => db.prepare(s)))
+  await addColumns(db, 'licences', LICENCE_COLUMNS)
+  await db.batch(AFTER_COLUMNS.map(s => db.prepare(s)))
 }
 
 const nowIso = () => new Date().toISOString()
@@ -122,36 +157,67 @@ export async function listAudit(db: D1Database, limit: number): Promise<AuditEnt
 interface LicenceRow {
   id: string; device: string; plan: string; until: string | null; code: string; customer: string; clinic: string
   phone: string; price: number; note: string; status: string; created_at: string
+  key: string | null; validity: string; activated_at: string | null
 }
-const LICENCE_COLS = 'id, device, plan, until, code, customer, clinic, phone, price, note, status, created_at'
+const LICENCE_COLS = 'id, device, plan, until, code, customer, clinic, phone, price, note, status, created_at, key, validity, activated_at'
 function toLicence(r: LicenceRow): Licence {
   return {
     id: r.id, device: r.device, plan: r.plan as Plan, until: r.until, code: r.code, customer: r.customer, clinic: r.clinic,
     phone: r.phone, price: Number(r.price), note: r.note, status: r.status as LicenceStatus, createdAt: r.created_at,
+    key: r.key, validity: (r.validity || null) as Validity | null, activatedAt: r.activated_at,
   }
 }
-/** What the licence list searches: the device with and without its dash, the names, the phone as typed and as digits only. Lower case, as the query is. */
-export function searchText(l: Pick<Licence, 'device' | 'customer' | 'clinic' | 'phone'>): string {
-  return [l.device, l.device.replace(/-/g, ''), l.customer, l.clinic, l.phone, l.phone.replace(/\D/g, '')].join('\n').toLowerCase()
+/** A key the seller sold that no device has activated yet (whatever its status). */
+const WAITING_KEY = "key IS NOT NULL AND device = ''"
+/**
+ * What the licence list searches: the device with and without its dash, the names, the phone as typed and as digits
+ * only, the key with and without its dashes. Lower case, as the query is.
+ */
+export function searchText(l: Pick<Licence, 'device' | 'customer' | 'clinic' | 'phone' | 'key'>): string {
+  const key = l.key ?? ''
+  return [l.device, l.device.replace(/-/g, ''), l.customer, l.clinic, l.phone, l.phone.replace(/\D/g, ''), key, key.replace(/-/g, '')].join('\n').toLowerCase()
 }
 /** A LIKE pattern matching `s` anywhere, with LIKE's own wildcards taken literally (ESCAPE '\'). */
 export const likeAny = (s: string) => `%${s.replace(/[\\%_]/g, c => `\\${c}`)}%`
 
+const insertStatement = (db: D1Database, l: Licence) =>
+  db.prepare(`INSERT INTO licences (${LICENCE_COLS}, search) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
+    .bind(l.id, l.device, l.plan, l.until, l.code, l.customer, l.clinic, l.phone, l.price, l.note, l.status, l.createdAt,
+      l.key, l.validity ?? '', l.activatedAt, searchText(l))
 export async function insertLicence(db: D1Database, l: Licence): Promise<void> {
-  await db.prepare(`INSERT INTO licences (${LICENCE_COLS}, search) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
-    .bind(l.id, l.device, l.plan, l.until, l.code, l.customer, l.clinic, l.phone, l.price, l.note, l.status, l.createdAt, searchText(l))
-    .run()
+  await insertStatement(db, l).run()
+}
+/** Several at once, all or none (a batch of keys). */
+export async function insertLicences(db: D1Database, ls: Licence[]): Promise<void> {
+  await db.batch(ls.map(l => insertStatement(db, l)))
 }
 export async function getLicence(db: D1Database, id: string): Promise<Licence | null> {
   const r = await db.prepare(`SELECT ${LICENCE_COLS} FROM licences WHERE id = ?`).bind(id).first<LicenceRow>()
   return r ? toLicence(r) : null
+}
+/** The sale of a key, given as stored ("XXXX-XXXX-XXXX-XXXX"). */
+export async function getLicenceByKey(db: D1Database, key: string): Promise<Licence | null> {
+  const r = await db.prepare(`SELECT ${LICENCE_COLS} FROM licences WHERE key = ?`).bind(key).first<LicenceRow>()
+  return r ? toLicence(r) : null
+}
+/**
+ * Binds a waiting key to a device with its code, last day and activation time, in one statement: it changes the row
+ * only while the key is still waiting and active, so of two devices racing for one key exactly one wins. False when
+ * nothing changed (activated meanwhile, or refunded or void): the caller reads the row again.
+ */
+export async function bindKey(db: D1Database, l: Licence): Promise<boolean> {
+  const { results } = await db.prepare(`UPDATE licences SET device = ?, code = ?, until = ?, activated_at = ?, search = ?
+      WHERE key = ? AND device = '' AND status = 'active' RETURNING id`)
+    .bind(l.device, l.code, l.until, l.activatedAt, searchText(l), l.key).all()
+  return results.length > 0
 }
 export async function updateLicence(db: D1Database, l: Licence): Promise<void> {
   await db.prepare('UPDATE licences SET customer = ?, clinic = ?, phone = ?, price = ?, note = ?, status = ?, search = ? WHERE id = ?')
     .bind(l.customer, l.clinic, l.phone, l.price, l.note, l.status, searchText(l), l.id).run()
 }
 
-export interface LicenceQuery { q: string; status: LicenceStatus | ''; limit: number; offset: number }
+/** `status` 'pending': active keys not activated yet. */
+export interface LicenceQuery { q: string; status: LicenceStatus | 'pending' | ''; limit: number; offset: number }
 export async function listLicences(db: D1Database, f: LicenceQuery): Promise<{ items: Licence[]; total: number }> {
   const where: string[] = [], args: unknown[] = []
   const q = f.q.trim().toLowerCase()
@@ -164,7 +230,8 @@ export async function listLicences(db: D1Database, f: LicenceQuery): Promise<{ i
     where.push(`(${[...alt].map(() => "search LIKE ? ESCAPE '\\'").join(' OR ')})`)
     args.push(...[...alt].map(likeAny))
   }
-  if (f.status) { where.push('status = ?'); args.push(f.status) }
+  if (f.status === 'pending') where.push(`status = 'active' AND ${WAITING_KEY}`)
+  else if (f.status) { where.push('status = ?'); args.push(f.status) }
   const w = where.length ? `WHERE ${where.join(' AND ')}` : ''
   const [rows, count] = await db.batch([
     db.prepare(`SELECT ${LICENCE_COLS} FROM licences ${w} ORDER BY created_at DESC, rowid DESC LIMIT ? OFFSET ?`).bind(...args, f.limit, f.offset),
@@ -221,9 +288,9 @@ export async function countDownload(db: D1Database, platform: Platform, who: str
 
 // ---- stats -------------------------------------------------------------------------------------------------------
 /**
- * The dashboard's numbers. Licences: total/month count every code handed out except void ones (a refunded code
- * still opens the app, since codes work offline); revenue counts active licences only. "month" = since the 1st of
- * the current month (UTC); downloads "30" = the last 30 days including today.
+ * The dashboard's numbers. Licences: total/month count every sale (code or key) except void ones (a refunded code
+ * still opens the app, since codes work offline); revenue counts active licences only; pending = active keys not
+ * activated yet. "month" = since the 1st of the current month (UTC); downloads "30" = the last 30 days including today.
  */
 export async function stats(db: D1Database, now = new Date()): Promise<Stats> {
   const monthStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1)).toISOString()
@@ -233,7 +300,8 @@ export async function stats(db: D1Database, now = new Date()): Promise<Stats> {
         COUNT(*) AS total,
         COALESCE(SUM(created_at >= ?1), 0) AS month,
         COALESCE(SUM(CASE WHEN status = 'active' THEN price END), 0) AS revenue,
-        COALESCE(SUM(CASE WHEN status = 'active' AND created_at >= ?1 THEN price END), 0) AS revenue_month
+        COALESCE(SUM(CASE WHEN status = 'active' AND created_at >= ?1 THEN price END), 0) AS revenue_month,
+        COALESCE(SUM(status = 'active' AND ${WAITING_KEY}), 0) AS pending
       FROM licences WHERE status != 'void'`).bind(monthStart),
     db.prepare('SELECT COUNT(*) AS total FROM resets'),
     db.prepare(`SELECT
@@ -247,7 +315,7 @@ export async function stats(db: D1Database, now = new Date()): Promise<Stats> {
   const l = lic.results[0] as Record<string, number>, d = dl.results[0] as Record<string, number>
   const money = (v: unknown) => Math.round(Number(v || 0) * 100) / 100
   return {
-    licences: { total: Number(l.total), month: Number(l.month), revenue: money(l.revenue), revenueMonth: money(l.revenue_month) },
+    licences: { total: Number(l.total), month: Number(l.month), revenue: money(l.revenue), revenueMonth: money(l.revenue_month), pending: Number(l.pending) },
     resets: { total: Number((res.results[0] as { total: number }).total) },
     downloads: { android: Number(d.android), windows: Number(d.windows), android30: Number(d.android30), windows30: Number(d.windows30) },
     recent: (recent.results as AuditRow[]).map(r => ({ id: r.id, at: r.at, action: r.action, detail: r.detail, ip: r.ip })),

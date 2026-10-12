@@ -1,7 +1,8 @@
 // The landing page's words, Arabic and English side by side (rendered by landing.ts).
 // Every claim here must stay true of the app: the facts come from store/LISTING.md, README.md and docs/*.md.
 // Plain text only: landing.ts escapes everything. {price}, {whatsapp}, {email}, {version} and {size} are filled
-// from the seller's settings and the published APK at render time.
+// from the seller's settings and the published APK at render time; {activate} is the activation page's address.
+// Activation and privacy follow docs/LICENCE-KEYS.md (licence keys, and what activation sends).
 import type { Lang } from '../types'
 
 export type IconName =
@@ -9,6 +10,7 @@ export type IconName =
   | 'tooth' | 'calendarCheck' | 'clipboardList' | 'receipt' | 'pill' | 'package' | 'chartColumn' | 'userCog' | 'download'
   | 'messageCircle' | 'check' | 'chevronDown' | 'menu' | 'x' | 'smartphone' | 'monitor' | 'infinity' | 'badgeCheck'
   | 'keyRound' | 'mail' | 'eyeOff' | 'arrowLeft' | 'arrowRight' | 'lifeBuoy'
+  | 'copy' | 'circleAlert' | 'loaderCircle' | 'info' | 'settings'
 
 /** The dental chart chips borrow the app's own condition colours (src/styles/tokens.css). */
 export type ChipTone = 'caries' | 'filled' | 'crown' | 'rootCanal' | 'implant' | 'bridge'
@@ -39,7 +41,8 @@ export interface Copy {
     featured: { title: string; text: string; alt: string }
     phones: { key: 'dashboard' | 'patient' | 'treatments' | 'invoice' | 'reports'; title: string; text: string; alt: string }[]
   }
-  steps: { eyebrow: string; title: string; lead: string; items: { title: string; text: string }[] }
+  /** A step's `link` is the label of a link to the activation page under its text. */
+  steps: { eyebrow: string; title: string; lead: string; items: { title: string; text: string; link?: string }[] }
   pricing: {
     eyebrow: string; title: string; lead: string; label: string; terms: string; includedTitle: string; included: string[]
     cta: string; trial: string
@@ -53,7 +56,7 @@ export interface Copy {
   }
   faq: { eyebrow: string; title: string; more: string; moreLink: string; emailPart: string; items: Faq[] }
   cta: { title: string; lead: string; download: string; whatsapp: string }
-  footer: { tagline: string; product: string; legal: string; contact: string; privacy: string; terms: string; rights: string; email: string }
+  footer: { tagline: string; product: string; activate: string; legal: string; contact: string; privacy: string; terms: string; rights: string; email: string }
   /** Pre-filled WhatsApp messages (the seller reads them first). */
   wa: { general: string; buy: string; android: string }
   mb: string
@@ -131,10 +134,10 @@ const ar: Copy = {
   privacy: {
     eyebrow: 'الخصوصية أولاً',
     title: 'بيانات مرضاك تبقى عندك',
-    lead: 'لا خادم ولا حساب ولا مزامنة سحابية. يحفظ Dentora كل شيء على جهاز العيادة نفسه، ولا يخرج منه شيء إلا حين تختار أنت ذلك.',
+    lead: 'لا حساب ولا مزامنة سحابية. يحفظ Dentora كل شيء على جهاز العيادة نفسه، ولا يخرج منه شيء من بيانات العيادة أو المرضى إلا حين تختار أنت ذلك.',
     points: [
       { icon: 'wifiOff', title: 'يعمل دون إنترنت', text: 'استقبل المرضى واكتب الفواتير حتى لو انقطع الاتصال، فالبرنامج لا يحتاج الإنترنت ليعمل.' },
-      { icon: 'eyeOff', title: 'لا نطّلع على بياناتك', text: 'لا نجمع أي بيانات ولا نستلمها، ولا إعلانات ولا تتبّع ولا إحصاءات استخدام.' },
+      { icon: 'eyeOff', title: 'لا نطّلع على بياناتك', text: 'لا نجمع بيانات عيادتك أو مرضاك ولا نستلمها، ولا إعلانات ولا تتبّع ولا إحصاءات استخدام. تفعيل المفتاح يرسل المفتاح ورقم الجهاز فقط، مرة واحدة.' },
       { icon: 'lockKeyhole', title: 'نسختك في يدك', text: 'نسخة احتياطية كاملة في ملف واحد، تحميها بكلمة مرور إن شئت، وتنقلها إلى جهاز جديد متى احتجت.' },
     ],
   },
@@ -164,8 +167,12 @@ const ar: Copy = {
     lead: 'جرّب كل شيء أولاً، وادفع فقط حين تقتنع.',
     items: [
       { title: 'حمّل البرنامج وجرّبه 7 أيام مجاناً', text: 'ثبّت Dentora على حاسوب ويندوز أو جهاز أندرويد، وكل المزايا مفتوحة طوال التجربة دون تسجيل.' },
-      { title: 'أرسل رقم جهازك عبر واتساب', text: 'تجد رقم الجهاز في الإعدادات ← الترخيص، ومعه زر يكتب لك رسالة الطلب جاهزة.' },
-      { title: 'استلم رمز التفعيل، والترخيص لك مدى الحياة', text: 'الصق الرمز في الشاشة نفسها فيُفعَّل البرنامج فوراً دون إنترنت، وكل ما أدخلته خلال التجربة يبقى كما هو.' },
+      { title: 'اشترِ الترخيص واستلم مفتاحك', text: 'اطلب الترخيص عبر واتساب، وبعد الدفع يصلك مفتاح ترخيص من 16 خانة، دون أن ترسل رقم جهازك.' },
+      {
+        title: 'فعّل مرة واحدة، والترخيص لك مدى الحياة',
+        text: 'الصق المفتاح في الإعدادات ← الترخيص والجهاز متصل بالإنترنت، أو فعّله من صفحة التفعيل على موقعنا. بعدها يعمل البرنامج دون إنترنت، وكل ما أدخلته خلال التجربة يبقى كما هو.',
+        link: 'افتح صفحة التفعيل',
+      },
     ],
   },
   pricing: {
@@ -201,7 +208,7 @@ const ar: Copy = {
       requestText: 'نرسل لك رابط التثبيت عبر واتساب.', requestBtn: 'اطلب نسخة ويندوز',
     },
     reqTitle: 'المتطلبات',
-    reqs: ['ويندوز 10 أو 11 (64-بت)', 'أندرويد 7 أو أحدث', 'لا حاجة للإنترنت بعد التثبيت'],
+    reqs: ['ويندوز 10 أو 11 (64-بت)', 'أندرويد 7 أو أحدث', 'الإنترنت مرة واحدة فقط لتفعيل المفتاح'],
   },
   faq: {
     eyebrow: 'الأسئلة الشائعة',
@@ -210,12 +217,13 @@ const ar: Copy = {
     moreLink: 'راسلنا على واتساب',
     emailPart: '، أو على البريد {email}،',
     items: [
-      { q: 'هل يحتاج Dentora إلى الإنترنت؟', a: 'لا. يعمل Dentora بالكامل دون إنترنت على الحاسوب والهاتف. تحتاج الإنترنت فقط لتحميله ولمراسلتنا للحصول على رمز التفعيل، أما التفعيل نفسه فيتم داخل البرنامج دون اتصال.' },
-      { q: 'أين تُحفظ بياناتي؟ وهل يطّلع عليها أحد؟', a: 'تُحفظ على جهازك فقط. لا يوجد حساب ولا خادم، فلا نستلم بيانات عيادتك أو مرضاك ولا نطّلع عليها، ولا يحتوي البرنامج على إعلانات أو تتبّع.' },
+      { q: 'هل يحتاج Dentora إلى الإنترنت؟', a: 'لا. يعمل Dentora بالكامل دون إنترنت على الحاسوب والهاتف. تحتاج الإنترنت لتحميله، ومرة واحدة لتفعيل مفتاح الترخيص. وإن لم يكن جهاز العيادة متصلاً، ففعّل المفتاح من أي جهاز آخر على {activate}، ثم الصق رمز التفعيل الذي تحصل عليه في البرنامج دون اتصال.' },
+      { q: 'كيف أفعّل Dentora بعد الشراء؟', a: 'بعد الدفع يصلك مفتاح ترخيص من 16 خانة. افتح Dentora ← الإعدادات ← الترخيص، والصق المفتاح واضغط «تفعيل» والجهاز متصل بالإنترنت. أو افتح {activate} من أي جهاز، وأدخل رقم جهازك (تجده في الشاشة نفسها) مع المفتاح، ثم الصق رمز التفعيل الذي يظهر لك في البرنامج. يكفي ذلك مرة واحدة.' },
+      { q: 'أين تُحفظ بياناتي؟ وهل يطّلع عليها أحد؟', a: 'تُحفظ على جهازك فقط. لا يوجد حساب ولا مزامنة سحابية، فلا نستلم بيانات عيادتك أو مرضاك ولا نطّلع عليها، ولا يحتوي البرنامج على إعلانات أو تتبّع. والاتصال الوحيد بخادمنا هو تفعيل المفتاح مرة واحدة، ولا يُرسل فيه إلا المفتاح ورقم الجهاز.' },
       { q: 'كيف آخذ نسخة احتياطية؟', a: 'من الإعدادات ← النسخ الاحتياطي احفظ نسخة كاملة في ملف واحد حيث تشاء: ذاكرة USB أو Google Drive أو بريدك. يمكنك حمايتها بكلمة مرور (تشفير AES-256)، واستعادتها على الجهاز نفسه أو على جهاز جديد.' },
-      { q: 'هل يمكنني استخدامه على أكثر من جهاز؟', a: 'كل ترخيص يفعّل جهازاً واحداً، فيحتاج كل جهاز إضافي ترخيصاً خاصاً به. ولأن البرنامج لا يستخدم خادماً، يحتفظ كل جهاز ببياناته ولا تتزامن الأجهزة فيما بينها.' },
-      { q: 'ماذا لو أعدت التثبيت أو غيّرت جهازي؟', a: 'تحديث البرنامج أو إعادة تثبيته على الجهاز نفسه يُبقي رقم الجهاز كما هو، فيبقى رمز التفعيل صالحاً. أما الجهاز الجديد أو إعادة ضبط ويندوز أو الهاتف فتعطي رقم جهاز جديداً يحتاج رمزاً جديداً. خذ نسخة احتياطية دائماً قبل ذلك، فحذف التطبيق من أندرويد يحذف بياناته.' },
-      { q: 'كم سعر Dentora؟', a: '{price} تُدفع مرة واحدة، لترخيص مدى الحياة على جهاز واحد بكل المزايا ودون اشتراك. جرّبه أولاً مجاناً 7 أيام؛ وإن انتهت التجربة قبل التفعيل فلا يُحذف شيء، وتتوقف الإضافة والتعديل فقط حتى تُدخل الرمز.' },
+      { q: 'هل يمكنني استخدامه على أكثر من جهاز؟', a: 'كل ترخيص يفعّل جهازاً واحداً، فيحتاج كل جهاز إضافي ترخيصاً خاصاً به. ولأن Dentora لا يزامن البيانات عبر الإنترنت، يحتفظ كل جهاز ببياناته ولا تتزامن الأجهزة فيما بينها.' },
+      { q: 'هل يمكنني نقل الترخيص إلى جهاز آخر؟', a: 'يعمل المفتاح على جهاز واحد، إذ يرتبط برقم الجهاز الذي فُعّل عليه أول مرة. تحديث البرنامج أو إعادة تثبيته على الجهاز نفسه يُبقي رقم الجهاز كما هو، فيبقى رمز التفعيل صالحاً، ويعطيك المفتاح الرمز نفسه إن احتجت إليه من جديد. أما الجهاز الجديد أو إعادة ضبط ويندوز أو الهاتف فتعطي رقم جهاز جديداً، فراسلنا على واتساب بشأن نقل الترخيص. خذ نسخة احتياطية دائماً قبل ذلك، فحذف التطبيق من أندرويد يحذف بياناته.' },
+      { q: 'كم سعر Dentora؟', a: '{price} تُدفع مرة واحدة، لترخيص مدى الحياة على جهاز واحد بكل المزايا ودون اشتراك. جرّبه أولاً مجاناً 7 أيام؛ وإن انتهت التجربة قبل التفعيل فلا يُحذف شيء، وتتوقف الإضافة والتعديل فقط حتى تفعّل البرنامج.' },
       { q: 'كيف أحصل على المساعدة؟', a: 'راسلنا على واتساب على الرقم {whatsapp}{email} ونجيبك عن أسئلة التثبيت والتفعيل والنسخ الاحتياطي ونقل العيادة إلى جهاز جديد.' },
       { q: 'ما اللغات المتاحة؟', a: 'العربية والإنجليزية، وتبدّل بينهما في أي وقت من الإعدادات. الواجهة العربية كاملة من اليمين إلى اليسار مع بحث عربي ذكي، وتختار عملة عيادتك وطريقة كتابة أسماء الأشهر.' },
     ],
@@ -228,12 +236,12 @@ const ar: Copy = {
   },
   footer: {
     tagline: 'برنامج متكامل لإدارة عيادة الأسنان، يعمل دون إنترنت على ويندوز وأندرويد.',
-    product: 'البرنامج', legal: 'معلومات قانونية', contact: 'تواصل معنا',
+    product: 'البرنامج', activate: 'تفعيل الترخيص', legal: 'معلومات قانونية', contact: 'تواصل معنا',
     privacy: 'سياسة الخصوصية', terms: 'شروط الاستخدام', rights: 'جميع الحقوق محفوظة.', email: 'البريد الإلكتروني',
   },
   wa: {
     general: 'مرحباً، أودّ الاستفسار عن برنامج Dentora لإدارة عيادة الأسنان.',
-    buy: 'مرحباً، أريد شراء ترخيص Dentora مدى الحياة. رقم جهازي (من الإعدادات ← الترخيص): ',
+    buy: 'مرحباً، أريد شراء ترخيص Dentora مدى الحياة.',
     android: 'مرحباً، أريد ملف تثبيت Dentora لأندرويد.',
   },
   mb: 'ميغابايت',
@@ -311,10 +319,10 @@ const en: Copy = {
   privacy: {
     eyebrow: 'Privacy first',
     title: "Your patients' data stays with you",
-    lead: "No server, no account, no cloud sync. Dentora keeps everything on the clinic's own device, and nothing leaves it unless you choose to send it.",
+    lead: "No account, no cloud sync. Dentora keeps everything on the clinic's own device, and no clinic or patient data leaves it unless you choose to send it.",
     points: [
       { icon: 'wifiOff', title: 'Works without internet', text: 'See patients and write invoices even when the connection drops: Dentora never needs the internet to run.' },
-      { icon: 'eyeOff', title: 'We never see your data', text: 'We collect nothing and receive nothing. No ads, no tracking, no usage statistics.' },
+      { icon: 'eyeOff', title: 'We never see your data', text: "We never collect or receive your clinic's or patients' data. No ads, no tracking, no usage statistics. Activating a key sends only the key and the device number, once." },
       { icon: 'lockKeyhole', title: 'Your backup, in your hands', text: 'A complete backup in one file, password-protected if you like, ready to move to a new device whenever you need.' },
     ],
   },
@@ -344,8 +352,12 @@ const en: Copy = {
     lead: "Try everything first, and pay only when you're convinced.",
     items: [
       { title: 'Download it and try it free for 7 days', text: 'Install Dentora on a Windows computer or an Android device. Every feature is open during the trial, with no sign-up.' },
-      { title: 'Send us your device number on WhatsApp', text: "You'll find it in Settings → Licence, next to a button that writes the request for you." },
-      { title: 'Receive your code, activated for life', text: 'Paste the code on the same screen and Dentora activates instantly, offline. Everything you entered during the trial stays.' },
+      { title: 'Buy a licence and receive your key', text: 'Order on WhatsApp, and once you have paid you receive a 16‑character licence key. No need to send your device number.' },
+      {
+        title: 'Activate once, yours for life',
+        text: 'Paste the key in Settings → Licence while the device is online, or activate it on our activation page. From then on Dentora works offline, and everything you entered during the trial stays.',
+        link: 'Open the activation page',
+      },
     ],
   },
   pricing: {
@@ -381,7 +393,7 @@ const en: Copy = {
       requestText: "We'll send you the download link on WhatsApp.", requestBtn: 'Request Windows version',
     },
     reqTitle: 'Requirements',
-    reqs: ['Windows 10 or 11, 64-bit', 'Android 7.0 or later', 'No internet needed after installing'],
+    reqs: ['Windows 10 or 11, 64-bit', 'Android 7.0 or later', 'Internet only once, to activate your key'],
   },
   faq: {
     eyebrow: 'FAQ',
@@ -390,12 +402,13 @@ const en: Copy = {
     moreLink: 'Message us on WhatsApp',
     emailPart: ', or e-mail {email},',
     items: [
-      { q: 'Does Dentora need the internet?', a: 'No. Dentora works fully offline on your computer or phone. You only need the internet to download it and to message us for your activation code; the activation itself happens inside the app, offline.' },
-      { q: 'Where is my data stored? Can anyone see it?', a: "On your device only. There is no account and no server, so we never receive or see your clinic's or patients' data, and the app has no ads or tracking." },
+      { q: 'Does Dentora need the internet?', a: "No. Dentora works fully offline on your computer or phone. You need the internet to download it, and once to activate your licence key. If the clinic's device is not online, activate the key from any other device at {activate}, then paste the activation code you get into Dentora, offline." },
+      { q: 'How do I activate Dentora after buying?', a: 'Once you have paid, you receive a 16‑character licence key. Open Dentora → Settings → Licence, paste the key and press “Activate” while the device is online. Or open {activate} on any device, enter your device number (shown on that same screen) and the key, then paste the activation code you get into Dentora. You only do this once.' },
+      { q: 'Where is my data stored? Can anyone see it?', a: "On your device only. There is no account and no cloud sync, so we never receive or see your clinic's or patients' data, and the app has no ads or tracking. The only contact with our server is activating your key, once, and it sends nothing but the key and the device number." },
       { q: 'How do I back up my data?', a: 'In Settings → Backup & data, save a complete backup in one file wherever you like: a USB stick, Google Drive or your e-mail. You can protect it with a password (AES-256 encryption) and restore it on the same device or a new one.' },
-      { q: 'Can I use Dentora on more than one device?', a: "Each licence activates one device, so every additional device needs its own licence. Because there is no server, each device keeps its own records and devices don't sync with each other." },
-      { q: 'What if I reinstall, or change my computer or phone?', a: 'Updating or reinstalling Dentora on the same device keeps the same device number, so your code keeps working. A new device, or a reset Windows or phone, gets a new device number that needs a new code. Always save a backup first: uninstalling the app on Android erases its data.' },
-      { q: 'How much does Dentora cost?', a: '{price}, paid once, for a lifetime licence on one device with every feature and no subscription. Try it free for 7 days first; if the trial ends before you activate, nothing is deleted, and only adding and editing pause until you enter your code.' },
+      { q: 'Can I use Dentora on more than one device?', a: "Each licence activates one device, so every additional device needs its own licence. Because Dentora does not sync over the internet, each device keeps its own records and devices don't sync with each other." },
+      { q: 'Can I move my licence to another device?', a: 'A key works on one device: it is tied to the device number it was first activated on. Updating or reinstalling Dentora on the same device keeps the same device number, so your code keeps working, and your key gives you the same code again if you need it. A new device, or a reset Windows or phone, gets a new device number, so message us on WhatsApp about moving your licence. Always save a backup first: uninstalling the app on Android erases its data.' },
+      { q: 'How much does Dentora cost?', a: '{price}, paid once, for a lifetime licence on one device with every feature and no subscription. Try it free for 7 days first; if the trial ends before you activate, nothing is deleted, and only adding and editing pause until you activate.' },
       { q: 'How do I get help?', a: "Message us on WhatsApp at {whatsapp}{email} and we'll answer your questions about installing, activating, backups and moving your clinic to a new device." },
       { q: 'Which languages does it support?', a: "Arabic and English, and you can switch at any time in Settings. The Arabic interface is fully right-to-left with Arabic-aware search, and you choose your clinic's currency and how Arabic month names are written." },
     ],
@@ -408,12 +421,12 @@ const en: Copy = {
   },
   footer: {
     tagline: 'Complete dental clinic management that works offline on Windows and Android.',
-    product: 'Product', legal: 'Legal', contact: 'Contact',
+    product: 'Product', activate: 'Activate a licence', legal: 'Legal', contact: 'Contact',
     privacy: 'Privacy policy', terms: 'Terms of use', rights: 'All rights reserved.', email: 'E-mail',
   },
   wa: {
     general: "Hello, I'd like to ask about Dentora, the dental clinic app.",
-    buy: "Hello, I'd like to buy a lifetime Dentora licence. My device number (from Settings → Licence) is: ",
+    buy: "Hello, I'd like to buy a lifetime Dentora licence.",
     android: "Hello, I'd like the Dentora installer for Android.",
   },
   mb: 'MB',

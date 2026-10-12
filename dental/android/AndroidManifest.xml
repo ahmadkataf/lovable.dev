@@ -13,7 +13,9 @@
     <uses-sdk android:minSdkVersion="24" android:targetSdkVersion="36" />
 
     <!-- The only permission (the WebView needs it to run at all). The shell answers every request for the app from
-         its own files and refuses every other site, so nothing is ever loaded from or sent to the internet.
+         its own files and refuses every other site, so nothing is ever loaded from the internet, and nothing is sent
+         there but one request: activating with a licence key posts the key and the device number to
+         https://dentora.raqeem.dev/api/activate (WebFiles.isActivation; docs/LICENCE-KEYS.md).
          Saving files goes through the Storage Access Framework (the system "save as" screen), printing through
          PrintManager, picking files through the system picker, photos through the phone's camera app: none of them
          needs a storage or camera permission. -->
