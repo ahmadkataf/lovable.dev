@@ -3,6 +3,9 @@
 // every time and is git-ignored. Works with an incomplete site/ (or none): whatever is there is published.
 //   files/dentora.apk      the APK (served only through /download/android, which counts it)
 //   files/meta.json        { version, sizeBytes, sha256 } of that APK (the landing page shows version and size)
+//   files/windows/setup.NNN  the Windows installer in parts of 20 MiB (one static file may not exceed 25 MiB);
+//                          /download/windows streams them back to back as one file and counts the download
+//   files/windows.json     { version, sizeBytes, sha256, parts: [{ path, size }] } of that installer
 //   files/manifest.json    { files } every published path, so the Worker knows e.g. whether /css/site.css exists
 //   _headers               security and cache headers of the static files (the Worker sets its own)
 import { createHash } from 'node:crypto'
@@ -36,6 +39,27 @@ if (existsSync(apk)) {
   console.log(`build-public: APK ${version}, ${(bytes.length / 1048576).toFixed(1)} MB, sha256 ${meta.sha256.slice(0, 12)}…`)
 } else {
   console.warn(`build-public: ${relative(root, apk)} not found; /download/android answers 404 until it exists`)
+}
+
+// The Windows installer is too large for git (and for one static file): it comes from WINDOWS_SETUP, or from
+// ../releases/Dentora-Setup-<version>.exe, which is git-ignored. Built from the same package.json, so same version.
+const PART = 20 * 1024 * 1024
+const setup = process.env.WINDOWS_SETUP || join(app, 'releases', `Dentora-Setup-${version}.exe`)
+if (existsSync(setup) && statSync(setup).size > 0) {
+  const bytes = readFileSync(setup)
+  mkdirSync(join(out, 'files', 'windows'), { recursive: true })
+  const parts = []
+  for (let i = 0, at = 0; at < bytes.length; i++, at += PART) {
+    const path = `/files/windows/setup.${String(i).padStart(3, '0')}`
+    const part = bytes.subarray(at, at + PART)
+    writeFileSync(join(out, path), part)
+    parts.push({ path, size: part.length })
+  }
+  const meta = { version, sizeBytes: bytes.length, sha256: createHash('sha256').update(bytes).digest('hex'), parts }
+  writeFileSync(join(out, 'files', 'windows.json'), JSON.stringify(meta, null, 2) + '\n')
+  console.log(`build-public: Windows installer ${version}, ${(bytes.length / 1048576).toFixed(1)} MB in ${parts.length} parts, sha256 ${meta.sha256.slice(0, 12)}…`)
+} else {
+  console.warn(`build-public: ${relative(root, setup)} not found; /download/windows goes to the settings' link or WhatsApp`)
 }
 
 const security = Object.entries(SECURITY_HEADERS).map(([k, v]) => `  ${k}: ${v}`).join('\n')

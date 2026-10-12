@@ -51,7 +51,7 @@ export interface Copy {
   download: {
     eyebrow: string; title: string; lead: string; free: string
     android: { name: string; for: string; req: string; btn: string; meta: string; note: string; requestText: string; requestBtn: string }
-    windows: { name: string; for: string; req: string; btn: string; meta: string; requestText: string; requestBtn: string }
+    windows: { name: string; for: string; req: string; btn: string; meta: string; file: string; note: string; requestText: string; requestBtn: string }
     reqTitle: string; reqs: string[]
   }
   faq: { eyebrow: string; title: string; more: string; moreLink: string; emailPart: string; items: Faq[] }
@@ -205,6 +205,8 @@ const ar: Copy = {
     windows: {
       name: 'ويندوز', for: 'للحواسيب المكتبية والمحمولة', req: 'ويندوز 10 أو 11 (64-بت)', btn: 'تحميل لويندوز',
       meta: 'برنامج تثبيت مع اختصار على سطح المكتب وقائمة ابدأ',
+      file: 'برنامج التثبيت · الإصدار {version} · {size}',
+      note: 'لأن البرنامج جديد، قد يعرض ويندوز عند التثبيت شاشة «حماية Windows»: اضغط «مزيد من المعلومات» ثم «تشغيل على أي حال».',
       requestText: 'نرسل لك رابط التثبيت عبر واتساب.', requestBtn: 'اطلب نسخة ويندوز',
     },
     reqTitle: 'المتطلبات',
@@ -390,6 +392,8 @@ const en: Copy = {
     windows: {
       name: 'Windows', for: 'For desktops and laptops', req: 'Windows 10 or 11 (64-bit)', btn: 'Download for Windows',
       meta: 'Installer with desktop and Start menu shortcuts',
+      file: 'Installer · version {version} · {size}',
+      note: 'Because the app is new, Windows may show a "Windows protected your PC" screen: click "More info", then "Run anyway".',
       requestText: "We'll send you the download link on WhatsApp.", requestBtn: 'Request Windows version',
     },
     reqTitle: 'Requirements',

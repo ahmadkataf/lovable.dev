@@ -54,6 +54,8 @@ export const DEFAULT_SETTINGS: SiteSettings = {
 export interface LandingContext {
   /** The Android APK is published on this Worker (public/files/meta.json exists). */
   apk: { version: string; sizeBytes: number } | null
+  /** The Windows installer is published on this Worker (public/files/windows.json and its parts exist). */
+  windows: { version: string; sizeBytes: number } | null
   /** The canonical origin, e.g. "https://dentora.raqeem.dev" (for canonical/OG/hreflang URLs). */
   origin: string
 }

@@ -1,14 +1,17 @@
 // Runs the BUILT APK's web app the way the Android shell serves it, without a phone or an emulator:
 //  - unpacks assets/ from android/build/Dentora.apk,
 //  - answers every https://dentora.app/… request with the decisions of WebFiles.java (via ServeTable.java),
-//    with the shell's Content-Security-Policy on the HTML, and refuses every other host (the shell answers 403),
+//    with the shell's Content-Security-Policy on the HTML, and every other address as AppClient.shouldInterceptRequest
+//    does (WebFiles.requestAction): 403 for every other site, the network only for the licence-key activation, which
+//    is answered here as the server would answer it,
 //  - installs a stand-in window.DentoraAndroid that records the bridge calls (the chunked save contract of
 //    src/platform), and runs the page scripts the shell runs (print shim, the bridge wrapper, the afterprint hold),
 //  - and drives the app on a phone-sized Chromium in Arabic and English: start, sign-in, IndexedDB persistence,
 //    fonts, hash routes, no sideways scrolling, the back key (BACK_JS: dialogs, the kit menus, the lab row menu, a
 //    picker list inside a form),
 //    print (and its job name), CSV export and backup through saveBegin/saveChunk/saveEnd (cancelled vs saved),
-//    restore through the file chooser, the device number from ANDROID_ID, WhatsApp, no CSP violation.
+//    restore through the file chooser, the device number from ANDROID_ID, WhatsApp, the activation request (and no
+//    other request to the internet), no CSP violation.
 //   cd dental && APK=/tmp/apk-qa/Dentora.apk node android/test/webview-sim.mjs     (QA_SHOTS=qa-shots/android)
 // The APK must be a QA build (VITE_QA=1 npx vite build …, packaged by scripts/build-apk.sh with DIST=…): the checks read
 // the database through window.__dentora, which release builds never have. docs/ANDROID.md has the commands.
@@ -23,6 +26,7 @@ const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const APK = path.resolve(ROOT, process.env.APK || 'android/build/Dentora.apk')
 const SHOTS = path.resolve(ROOT, process.env.QA_SHOTS || 'qa-shots/android')
 const ANDROID_ID = 'a1b2c3d4e5f60789'
+const ACTIVATION_URL = 'https://dentora.raqeem.dev/api/activate'          // src/license/online.ts
 const failures = []
 const check = (ok, what, detail = '') => { console.log(`${ok ? 'ok  ' : 'FAIL'} ${what}${detail ? ' — ' + detail : ''}`); if (!ok) failures.push(what) }
 // every page a clinic uses, checked for sideways scrolling on a 390 px phone
@@ -42,7 +46,9 @@ const serveTable = (...paths) => JSON.parse(execFileSync('java', ['-cp', cls, 'c
 const table = serveTable()
 const js = table.js
 const decide = p => table.routes[p] ?? (table.routes[p] = serveTable(p).routes[p])
-const served = [], notFound = [], outside = [], consoleErrors = []
+// what the shell does with an address of another site: "pass" (to the network) or "block" (403)
+const requestAction = href => table.requests[href] ?? (table.requests[href] = serveTable(href).requests[href])
+const served = [], notFound = [], outside = [], activations = [], consoleErrors = []
 
 const browser = await chromium.launch()
 const ctx = await browser.newContext({
@@ -61,8 +67,13 @@ await ctx.route('**/*', route => {
         ...(d.mime === 'text/html' ? { 'content-security-policy': js.csp } : {}) },
     })
   }
+  if (requestAction(u.href) === 'pass') {
+    // the activation server, as docs/LICENCE-KEYS.md describes its answers (CORS for any origin); nothing is sent anywhere
+    activations.push({ url: u.href, method: route.request().method(), body: route.request().postData() })
+    return route.fulfill({ status: 404, contentType: 'application/json', headers: { 'access-control-allow-origin': '*' }, body: JSON.stringify({ error: 'unknown' }) })
+  }
   outside.push(u.href)
-  return route.abort()
+  return route.fulfill({ status: 403, contentType: 'text/plain', body: '' })      // MainActivity.refused()
 })
 // the Java bridge (MainActivity.Bridge): saveBegin → saveChunk (base64) → saveEnd opens the "save as" screen, whose
 // end the test reports with the shell's 'dentora:saved' event (nativeSaved below)
@@ -357,6 +368,40 @@ try {
   check(expectedDevice ? device === expectedDevice : /^[0-9A-Z]{4}-[0-9A-Z]{4}$/.test(device), 'the license screen shows the device number made from ANDROID_ID', `${device}${expectedDevice ? ' (expected ' + expectedDevice + ')' : ''}`)
   await shot('10-license')
 
+  // ---- licence keys: the activation request reaches the network, and nothing else does ----
+  // (redeemKey in src/license/online.ts; the CSP lets the page reach dentora.raqeem.dev, the shell only /api/activate)
+  const errorsBefore = consoleErrors.length
+  const probe = await page.evaluate(async url => {
+    const violations = []
+    const onViolation = e => violations.push(`${e.violatedDirective} ${e.blockedURI}`)
+    document.addEventListener('securitypolicyviolation', onViolation)
+    const post = to => fetch(to, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ key: '7QW3-HK9P-M2XD-R4TN', device: '7KQ2-M9XD' }),
+      credentials: 'omit', cache: 'no-store', referrerPolicy: 'no-referrer',
+    }).then(async r => ({ status: r.status, body: await r.json().catch(() => null) }), e => ({ error: String(e) }))
+    const r = {
+      activation: await post(url),
+      otherPath: await post(url.replace('/api/activate', '/api/licences')),      // the allowed host, another address
+      otherSite: await post('https://example.com/api/activate'),
+    }
+    await new Promise(res => setTimeout(res, 200))
+    document.removeEventListener('securitypolicyviolation', onViolation)
+    return { ...r, violations }
+  }, ACTIVATION_URL)
+  const sent = activations.filter(a => a.url === ACTIVATION_URL && a.method === 'POST')
+  check(probe.activation.status === 404 && probe.activation.body?.error === 'unknown' && sent.length === 1 && JSON.parse(sent[0].body || '{}').device === '7KQ2-M9XD'
+    && !probe.violations.some(v => v.includes('dentora.raqeem.dev')), 'the activation request leaves the phone and its answer is read (requestAction → pass, CSP connect-src)', JSON.stringify({ probe, activations }))
+  // (Playwright adds CORS headers to the answers it fulfils, so the page reads the 403 here; on a phone the refused()
+  // answer has none, and the fetch fails)
+  check((!!probe.otherPath.error || probe.otherPath.status === 403) && outside.includes('https://dentora.raqeem.dev/api/licences') && activations.length === 1,
+    'another address on the activation server is refused by the shell (403, never sent)', JSON.stringify(probe.otherPath))
+  check(!!probe.otherSite.error && !outside.some(u => u.includes('example.com')) && probe.violations.some(v => v.startsWith('connect-src') && v.includes('example.com')),
+    'a request to any other site is refused by the CSP before it reaches the shell', JSON.stringify({ otherSite: probe.otherSite, violations: probe.violations }))
+  // the probe's own refusals and their console messages are expected; everything after them still counts
+  const refusedProbe = outside.indexOf('https://dentora.raqeem.dev/api/licences')
+  if (refusedProbe >= 0) outside.splice(refusedProbe, 1)
+  consoleErrors.splice(errorsBefore)
+
   await everyPage('Arabic')
 
   // ---- English ----
@@ -386,6 +431,7 @@ try {
   // ---- nothing failed to load, nothing left the phone ----
   check(notFound.length === 0, 'no 404 from the asset server', notFound.join(' '))
   check(outside.length === 0, 'no request to any other host (works offline)', outside.join(' '))
+  check(activations.length === 1, 'the activation request was sent only by the probe above, never by the app by itself', JSON.stringify(activations))
   const mimes = [...new Set(served.map(s => s.split(' ')[1]))]
   check(mimes.includes('application/javascript') && mimes.includes('text/css') && mimes.includes('font/woff2'), 'served types', mimes.join(', '))
   check(consoleErrors.length === 0, 'no console errors', consoleErrors.slice(0, 5).join(' | '))

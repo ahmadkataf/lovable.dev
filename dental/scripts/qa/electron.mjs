@@ -6,7 +6,8 @@
 // `npm run build` cannot swap dist/ under a running check. A throwaway data folder (DENTORA_USER_DATA) keeps real
 // clinic data out of it.
 // Checks: window + title, the preload bridge (platform, deviceId, appVersion, saveFile, openFile, openExternal, print),
-// isolation (no Node in the page, CSP, untrusted windows get no IPC), navigation guards, zoom keys, Ctrl+P,
+// isolation (no Node in the page, CSP, untrusted windows get no IPC), the licence-key activation request (allowed, and
+// only to its server), navigation guards (the activation page opens in the browser), zoom keys, Ctrl+P,
 // PDFs in an iframe, the clipboard, English menu/dialogs, every route with no CSP violation or page error,
 // the single-instance lock, window-state.json, and that IndexedDB data, the device id and the window size survive
 // a restart. Screenshots (QA_SHOTS, default qa-shots/electron): window.png (first run), shell.png (signed in),
@@ -150,6 +151,42 @@ check('no Node globals in the page', iso.require === 'undefined' && iso.process 
 console.log('      (the two CSP console errors above are this test\'s own probes)')
 check('CSP is enforced (inline script and remote image blocked)', iso.inlineBlocked && iso.violations.some(v => v.startsWith('script-src')) && iso.violations.some(v => v.startsWith('img-src')), iso.violations.join(','))
 
+// licence keys (docs/LICENCE-KEYS.md): the activation request is the one request the page may send to the internet.
+// Both addresses are answered here as the server would answer (Access-Control-Allow-Origin: *, which lets the file://
+// page, Origin: null, read it), so the check needs no connection: whatever does not come back was stopped by the
+// page's own CSP or by the shell.
+const ACTIVATION_URL = 'https://dentora.raqeem.dev/api/activate'          // src/license/online.ts
+const OTHER_URL = 'https://example.com/api/activate'
+const reached = []
+const answer = route => {
+  reached.push({ url: route.request().url(), method: route.request().method(), cookie: route.request().headers().cookie ?? null })
+  return route.fulfill({ status: 200, contentType: 'application/json', headers: { 'access-control-allow-origin': '*' }, body: JSON.stringify({ code: 'QA', device: '7KQ2-M9XD', plan: 'pro', until: null }) })
+}
+await app.context().route(ACTIVATION_URL, answer)
+await app.context().route(OTHER_URL, answer)
+const activation = await page.evaluate(async ([url, other]) => {
+  const violations = []
+  const onViolation = e => violations.push(`${e.violatedDirective} ${e.blockedURI}`)
+  document.addEventListener('securitypolicyviolation', onViolation)
+  // the request redeemKey() sends (src/license/online.ts)
+  const post = to => fetch(to, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ key: '7QW3-HK9P-M2XD-R4TN', device: '7KQ2-M9XD' }),
+    credentials: 'omit', cache: 'no-store', referrerPolicy: 'no-referrer',
+  }).then(async r => ({ status: r.status, body: await r.json() }), e => ({ error: String(e) }))
+  const result = { activation: await post(url), other: await post(other) }
+  await new Promise(r => setTimeout(r, 200))
+  document.removeEventListener('securitypolicyviolation', onViolation)
+  return { ...result, violations }
+}, [ACTIVATION_URL, OTHER_URL])
+await app.context().unroute(ACTIVATION_URL, answer)
+await app.context().unroute(OTHER_URL, answer)
+const sent = reached.filter(r => r.url === ACTIVATION_URL && r.method === 'POST')
+check('the activation request leaves the page, without cookies, and its answer is read (CSP connect-src, CORS)',
+  activation.activation.status === 200 && activation.activation.body?.code === 'QA' && sent.length === 1 && !sent[0].cookie
+    && !activation.violations.some(v => v.includes('dentora.raqeem.dev')), JSON.stringify({ ...activation, reached }))
+check('the same request to any other site is refused by the CSP', !!activation.other.error && !reached.some(r => r.url === OTHER_URL)
+  && activation.violations.some(v => v.startsWith('connect-src') && v.includes('example.com')), JSON.stringify({ other: activation.other, violations: activation.violations }))
+
 // external links: record instead of launching a browser
 await app.evaluate(({ shell }) => {
   globalThis.__opened = []
@@ -177,6 +214,11 @@ if (stubbed) {
   await page.waitForTimeout(500)
   check('navigation away from the app is blocked', page.url().split('#')[0] === before.split('#')[0], page.url())
   check('…and opened externally instead', (await app.evaluate(() => globalThis.__opened)).includes('https://example.com/navigate-away'))
+  // the activation page (licence keys) is never shown inside the app's window either: it opens in the browser
+  await page.evaluate(() => { location.href = 'https://dentora.raqeem.dev/activate?device=7KQ2-M9XD' })
+  await page.waitForTimeout(500)
+  check('the activation page opens in the browser, not in the app window', page.url().split('#')[0] === before.split('#')[0]
+    && (await app.evaluate(() => globalThis.__opened)).includes('https://dentora.raqeem.dev/activate?device=7KQ2-M9XD'), page.url())
 } else check('shell.openExternal can be stubbed for the test', false)
 
 // save-file: stub the dialog, write a file, then cancel

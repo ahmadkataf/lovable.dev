@@ -1,6 +1,7 @@
 package com.dentora.app;
 
 import java.io.File;
+import java.net.URI;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -8,16 +9,18 @@ import java.util.Map;
 
 /**
  * Prints, as JSON, how MainActivity.serve() answers URL paths of https://dentora.app, using the very same WebFiles
- * rules, for the files unpacked from an APK. android/test/webview-sim.mjs uses it to serve the packaged app to
- * Chromium exactly as the Android shell would (with the shell's Content-Security-Policy on the HTML).
- *   java -cp <classes> com.dentora.app.ServeTable <unpacked-apk>/assets [extra url paths…]
+ * rules, for the files unpacked from an APK, and what AppClient.shouldInterceptRequest does with any other address
+ * (WebFiles.requestAction: "pass" to the network, or "block"). android/test/webview-sim.mjs uses it to serve the
+ * packaged app to Chromium exactly as the Android shell would (with the shell's Content-Security-Policy on the HTML).
+ *   java -cp <classes> com.dentora.app.ServeTable <unpacked-apk>/assets [extra url paths or whole addresses…]
  */
 public final class ServeTable {
     public static void main(String[] args) {
         File assets = new File(args[0]);
         List<String> paths = new ArrayList<>();
+        List<String> urls = new ArrayList<>();
         if (args.length > 1) {
-            for (int i = 1; i < args.length; i++) paths.add(args[i]);
+            for (int i = 1; i < args.length; i++) (args[i].contains("://") ? urls : paths).add(args[i]);
         } else {
             paths.add("/");
             collect(new File(assets, "www"), "", paths);
@@ -41,6 +44,13 @@ public final class ServeTable {
             first = false;
             b.append(WebFiles.jsString(e.getKey())).append(':').append(e.getValue());
         }
+        b.append("},\"requests\":{");
+        first = true;
+        for (String u : urls) {
+            if (!first) b.append(',');
+            first = false;
+            b.append(WebFiles.jsString(u)).append(':').append(WebFiles.jsString(requestAction(u)));
+        }
         b.append("},\"js\":{\"back\":").append(WebFiles.jsString(WebFiles.BACK_JS))
             .append(",\"printShim\":").append(WebFiles.jsString(WebFiles.PRINT_SHIM_JS))
             .append(",\"bridge\":").append(WebFiles.jsString(WebFiles.BRIDGE_JS))
@@ -53,6 +63,16 @@ public final class ServeTable {
             .append(",\"saveBlob\":").append(WebFiles.jsString(WebFiles.saveBlobJs("__URL__", "__NAME__")))
             .append(",\"startUrl\":").append(WebFiles.jsString(WebFiles.START_URL)).append("}}");
         System.out.println(b);
+    }
+
+    /** The address split as MainActivity hands it to WebFiles (android.net.Uri: scheme, host, encoded path). */
+    private static String requestAction(String url) {
+        try {
+            URI u = URI.create(url);
+            return WebFiles.requestAction(u.getScheme(), u.getHost(), u.getRawPath());
+        } catch (IllegalArgumentException e) {
+            return "block";      // not an address java.net.URI reads: never let the simulation pass it
+        }
     }
 
     private static void collect(File dir, String prefix, List<String> out) {

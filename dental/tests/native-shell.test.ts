@@ -80,6 +80,8 @@ describe("the app's own page (sameFileUrl)", () => {
     expect(lib.sameFileUrl(app.replace('index.html', 'other.html'), app, false)).toBe(false)
     expect(lib.sameFileUrl(app.replace('/dist/', '/dist/x/'), app, false)).toBe(false)
     expect(lib.sameFileUrl('https://evil.example/dist/index.html', app, false)).toBe(false)
+    // the activation page of licence keys opens in the browser, never inside the app's window
+    expect(lib.sameFileUrl('https://dentora.raqeem.dev/activate?device=7KQ2-M9XD', app, false)).toBe(false)
     expect(lib.sameFileUrl('blob:file:///abc', app, false)).toBe(false)
     expect(lib.sameFileUrl('not a url', app, false)).toBe(false)
     expect(lib.sameFileUrl(app, app.replace('file:///', 'file://server/'), false)).toBe(false)

@@ -5,6 +5,7 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.RandomAccessFile;
+import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.util.Arrays;
@@ -27,6 +28,12 @@ public final class WebFilesTest {
             String a = actual instanceof Object[] ? Arrays.toString((Object[]) actual) : String.valueOf(actual);
             throw new AssertionError(what + ": expected <" + e + "> but was <" + a + ">");
         }
+    }
+
+    /** requestAction for an address split as android.net.Uri splits it for MainActivity: scheme, host, encoded path. */
+    private static String action(String url) {
+        URI u = URI.create(url);
+        return WebFiles.requestAction(u.getScheme(), u.getHost(), u.getRawPath());
     }
 
     public static void main(String[] args) throws IOException {
@@ -132,14 +139,47 @@ public final class WebFilesTest {
         eq("data", WebFiles.linkAction("data", null, true), "data: is saved");
         eq("blob", WebFiles.linkAction("blob", null, true), "blob: is saved");
 
-        // shouldInterceptRequest: the app's files, nothing from the internet
-        eq("app", WebFiles.requestAction("https", "dentora.app"), "own files served");
-        eq("block", WebFiles.requestAction("https", "evil.com"), "another site refused");
-        eq("block", WebFiles.requestAction("http", "dentora.app.evil.com"), "look-alike refused");
-        eq("block", WebFiles.requestAction("wss", "evil.com"), "websocket refused");
-        eq("pass", WebFiles.requestAction("data", null), "data: stays in the WebView");
-        eq("pass", WebFiles.requestAction("blob", null), "blob: stays in the WebView");
+        // shouldInterceptRequest: the app's files, nothing from the internet but the licence-key activation
+        eq("app", WebFiles.requestAction("https", "dentora.app", "/index.html"), "own files served");
+        eq("block", WebFiles.requestAction("https", "evil.com", "/"), "another site refused");
+        eq("block", WebFiles.requestAction("http", "dentora.app.evil.com", "/"), "look-alike refused");
+        eq("block", WebFiles.requestAction("wss", "evil.com", "/"), "websocket refused");
+        eq("pass", WebFiles.requestAction("data", null, null), "data: stays in the WebView");
+        eq("pass", WebFiles.requestAction("blob", null, null), "blob: stays in the WebView");
         eq(true, WebFiles.CSP.contains("script-src 'self';") && WebFiles.CSP.contains("default-src 'self'") && WebFiles.CSP.contains("object-src 'none'") && WebFiles.CSP.contains("form-action 'none'"), "csp");
+
+        // the activation (docs/LICENCE-KEYS.md): exactly https://dentora.raqeem.dev/api/activate reaches the network
+        eq("pass", WebFiles.requestAction("https", "dentora.raqeem.dev", "/api/activate"), "activation goes to the network");
+        eq("pass", WebFiles.requestAction("HTTPS", "Dentora.Raqeem.Dev", "/api/activate"), "scheme and host in any case");
+        eq("block", WebFiles.requestAction("http", "dentora.raqeem.dev", "/api/activate"), "activation over http refused");
+        eq("block", WebFiles.requestAction("wss", "dentora.raqeem.dev", "/api/activate"), "websocket to the server refused");
+        eq("block", WebFiles.requestAction("https", "dentora.raqeem.dev", "/activate"), "the activation page is not loaded inside");
+        eq("block", WebFiles.requestAction("https", "dentora.raqeem.dev", "/"), "the website is not loaded inside");
+        eq("block", WebFiles.requestAction("https", "dentora.raqeem.dev", "/api/licences"), "the seller's panel API refused");
+        eq("block", WebFiles.requestAction("https", "dentora.raqeem.dev", "/api/activate/"), "another path (trailing slash) refused");
+        eq("block", WebFiles.requestAction("https", "dentora.raqeem.dev", "/api/activate/x"), "a longer path refused");
+        eq("block", WebFiles.requestAction("https", "dentora.raqeem.dev", "/API/activate"), "paths are exact (case)");
+        eq("block", WebFiles.requestAction("https", "dentora.raqeem.dev", "/api/%61ctivate"), "a percent-escaped spelling refused");
+        eq("block", WebFiles.requestAction("https", "dentora.raqeem.dev", "/api/activate;x"), "path parameters refused");
+        eq("block", WebFiles.requestAction("https", "dentora.raqeem.dev", ""), "empty path refused");
+        eq("block", WebFiles.requestAction("https", "dentora.raqeem.dev", null), "no path refused");
+        eq("block", WebFiles.requestAction("https", "dentora.raqeem.dev.evil.com", "/api/activate"), "look-alike host (suffix) refused");
+        eq("block", WebFiles.requestAction("https", "evil-dentora.raqeem.dev", "/api/activate"), "another subdomain refused");
+        eq("block", WebFiles.requestAction("https", "raqeem.dev", "/api/activate"), "the parent domain refused");
+        eq("block", WebFiles.requestAction("https", "dentora.raqeem.dev.", "/api/activate"), "the host with a trailing dot refused");
+        eq("block", WebFiles.requestAction("https", "evil.com", "/dentora.raqeem.dev/api/activate"), "the host inside another site's path refused");
+        eq("block", WebFiles.requestAction("https", "evil.com", "/api/activate"), "the same path on another site refused");
+        eq("block", WebFiles.requestAction("https", null, "/api/activate"), "no host refused");
+        // what android.net.Uri gives MainActivity for real addresses (host, getEncodedPath(); the query is not part of it)
+        eq("pass", action("https://dentora.raqeem.dev/api/activate"), "the app's request");
+        eq("pass", action("https://dentora.raqeem.dev/api/activate?lang=ar"), "a query is not looked at (the server reads only the body)");
+        eq("block", action("https://dentora.raqeem.dev.evil.com/api/activate"), "uri: look-alike host");
+        eq("block", action("https://evil.com/dentora.raqeem.dev/api/activate"), "uri: host in the path");
+        eq("block", action("https://dentora.raqeem.dev@evil.com/api/activate"), "uri: the host as a user name");
+        eq("block", action("https://evil.com/api/activate?https://dentora.raqeem.dev/api/activate"), "uri: the address in a query");
+        eq("block", action("http://dentora.raqeem.dev/api/activate"), "uri: http");
+        eq("block", action("https://dentora.raqeem.dev/api/activate/../licences"), "uri: dot segments are not the activation");
+        eq(true, WebFiles.CSP.contains("connect-src 'self' data: blob: https://dentora.raqeem.dev;"), "csp: the page may send requests to the activation server");
 
         eq("android.intent.action.DIAL", WebFiles.externalAction("tel"), "tel action");
         eq("android.intent.action.SENDTO", WebFiles.externalAction("mailto"), "mailto action");

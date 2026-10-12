@@ -321,7 +321,7 @@ function androidButton(v: View, cls: string, withMeta: boolean): string {
 
 /** The Windows button: /download/windows counts the download, then goes to the installer or to WhatsApp. */
 function windowsLabel(v: View): string {
-  return v.s.windowsUrl ? v.t.hero.windows : v.t.hero.windowsRequest
+  return v.ctx.windows || v.s.windowsUrl ? v.t.hero.windows : v.t.hero.windowsRequest
 }
 
 function hero(v: View): string {
@@ -466,8 +466,12 @@ function downloads(v: View): string {
   const androidBtn = ctx.apk
     ? `<a class="btn btn-primary btn-lg btn-block" href="/download/android" rel="nofollow">${icon('download')}<span>${escapeHtml(a.btn)}</span></a>`
     : `<a class="btn btn-wa btn-lg btn-block" href="${escapeHtml(waLink(v, t.wa.android))}" rel="noopener" target="_blank">${icon('messageCircle')}<span>${escapeHtml(a.requestBtn)}</span></a>`
-  const winFacts = `<li>${icon('check')}<span>${escapeHtml(w.req)}</span></li><li>${icon('check')}<span>${escapeHtml(s.windowsUrl ? w.meta : w.requestText)}</span></li>`
-  const winBtn = s.windowsUrl
+  // The installer published on this Worker first (its version and size), else the settings' link, else WhatsApp.
+  const winFile = ctx.windows
+    ? fillHtml(w.file, { version: `<bdi dir="ltr">${escapeHtml(ctx.windows.version)}</bdi>`, size: escapeHtml(formatSize(ctx.windows.sizeBytes, v)) })
+    : escapeHtml(s.windowsUrl ? w.meta : w.requestText)
+  const winFacts = `<li>${icon('check')}<span>${escapeHtml(w.req)}</span></li><li>${icon('check')}<span>${winFile}</span></li>`
+  const winBtn = ctx.windows || s.windowsUrl
     ? `<a class="btn btn-primary btn-lg btn-block" href="/download/windows" rel="nofollow">${icon('download')}<span>${escapeHtml(w.btn)}</span></a>`
     : `<a class="btn btn-wa btn-lg btn-block" href="/download/windows" rel="nofollow">${icon('messageCircle')}<span>${escapeHtml(w.requestBtn)}</span></a>`
   return `<section class="section download" id="download" aria-labelledby="download-title">
@@ -483,6 +487,7 @@ ${androidBtn}
 <article class="dl-card" aria-labelledby="dl-windows">
 <div class="dl-head"><span class="dl-icon">${icon('monitor')}</span><div><div class="dl-title"><h3 id="dl-windows">${escapeHtml(w.name)}</h3><span class="tag dl-free">${escapeHtml(d.free)}</span></div><p>${escapeHtml(w.for)}</p></div></div>
 <ul class="dl-facts">${winFacts}</ul>
+${ctx.windows ? `<p class="dl-note">${escapeHtml(w.note)}</p>` : ''}
 ${winBtn}
 </article>
 </div>

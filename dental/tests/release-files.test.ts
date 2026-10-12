@@ -1,6 +1,7 @@
 // Files that ship with the release builds and must stay in step with each other: the page's Content-Security-Policy
-// (index.html, the Windows shell, the Android shell), the installer's terms of use (build/license.txt from
-// docs/TERMS.md), the Windows hardening switches, and the QA-only database handle that release builds never carry.
+// (index.html, the Windows shell, the Android shell; its one address outside the app is the activation server), the
+// installer's terms of use (build/license.txt from docs/TERMS.md), the Windows hardening switches, and the QA-only
+// database handle that release builds never carry.
 import { describe, expect, it } from 'vitest'
 import fs from 'node:fs'
 import path from 'node:path'
@@ -22,14 +23,28 @@ describe('Content-Security-Policy', () => {
     expect(directives(meta)).toEqual(directives(electron))
     expect(directives(meta)).toEqual(directives(android))
   })
-  it('allows scripts only from the app and nothing from the internet', () => {
+  it('allows scripts only from the app and nothing from the internet but the activation request', () => {
     const d = directives(meta)
     expect(d).toContain("script-src 'self'")
     expect(d).toContain("object-src 'none'")
     expect(d).toContain("form-action 'none'")
     expect(d).toContain("img-src 'self' data: blob:")
-    expect(meta).not.toMatch(/https?:|unsafe-eval|\*/)
+    expect(meta).not.toMatch(/unsafe-eval|\*/)
     expect(d.find(x => x.startsWith('script-src'))).not.toMatch(/unsafe-inline/)
+    // licence keys (docs/LICENCE-KEYS.md): the one source outside the app is the activation server, and the page may
+    // only send it a request (connect-src): no script, style, picture, font, frame or form from it or anywhere else
+    const outside = d.flatMap(x => {
+      const [name, ...sources] = x.split(' ')
+      return sources.filter(s => !/^'[a-z-]+'$|^(data|blob):$/.test(s)).map(s => `${name} ${s}`)
+    })
+    expect(outside).toEqual(['connect-src https://dentora.raqeem.dev'])
+  })
+  it('names the same activation server as the app', () => {
+    const online = read('src/license/online.ts')
+    expect(online).toContain("ACTIVATION_ORIGIN = 'https://dentora.raqeem.dev'")
+    expect(online).toContain('ACTIVATION_URL = `${ACTIVATION_ORIGIN}/api/activate`')
+    expect(java).toMatch(/ACTIVATION_HOST = "dentora\.raqeem\.dev";/)
+    expect(java).toMatch(/ACTIVATION_PATH = "\/api\/activate";/)
   })
   it('is left out only by the development server (React Fast Refresh needs inline scripts)', () => {
     expect(read('vite.config.ts')).toMatch(/apply: 'serve'[\s\S]*Content-Security-Policy/)

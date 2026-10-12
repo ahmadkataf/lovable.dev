@@ -1,6 +1,7 @@
 // QA for the shared shell and platform behaviour (needs a QA build: it has window.__dentora):
 //   - the page's Content-Security-Policy is in force and nothing violates it: a clinic logo, a patient photo, an x-ray,
-//     a PDF (shown in the viewer when the browser has one), the dental chart, an invoice and a printout;
+//     a PDF (shown in the viewer when the browser has one), the dental chart, an invoice and a printout; the one request
+//     it lets out is the licence-key activation;
 //   - dialogs on a touch screen focus themselves (no on-screen keyboard), with a mouse the first field;
 //   - the licence screen when the Windows/Android shell cannot tell the device id (an error and "Try again");
 //   - the phone's bottom bar: labels of 12px or more, never cut, at 360 and 390 px, Arabic and English;
@@ -88,7 +89,15 @@ try {
     // a blocked inline script really is blocked (the policy is in force, not just present)
     const inlineRan = await page.evaluate(() => new Promise(res => { const s = document.createElement('script'); s.textContent = 'window.__inlineRan = true'; document.head.appendChild(s); setTimeout(() => res(!!window.__inlineRan), 50) }))
     ok(!inlineRan, 'an inline script is refused by the policy')
-    errors.splice(0)       // that refusal is the expected violation; every one after it is a failure
+    // licence keys: the one request the policy lets out is the activation (answered here, as the server would answer)
+    const answer = route => route.fulfill({ status: 200, contentType: 'application/json', headers: { 'access-control-allow-origin': '*' }, body: '{"code":"QA"}' })
+    await ctx.route('https://dentora.raqeem.dev/api/activate', answer)
+    await ctx.route('https://example.com/api/activate', answer)
+    const reach = await page.evaluate(() => Promise.all(['https://dentora.raqeem.dev/api/activate', 'https://example.com/api/activate'].map(url =>
+      fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}', credentials: 'omit' }).then(r => r.json()).then(b => b.code, () => 'refused'))))
+    ok(reach[0] === 'QA' && reach[1] === 'refused', `the policy lets the activation request out and refuses the same request to another site (${reach.join(', ')})`)
+    await ctx.unrouteAll()
+    errors.splice(0)       // those refusals are the expected violations; every one after them is a failure
 
     await page.goto(`${BASE}/index.html#/patients/qa-p1?tab=files`)
     await settle(page)

@@ -14,7 +14,9 @@ import { renderNotFound } from './pages/notfound'
 import { DEFAULT_SETTINGS, ORIGIN, type Env, type LandingContext, type Lang, type SiteSettings } from './types'
 
 // ---- what build-public.mjs published (fixed for a deployment, so read once per isolate) --------------------------
-interface Published { files: Set<string>; apk: LandingContext['apk'] }
+/** The Windows installer, published in parts (scripts/build-public.mjs): streamed back to back as one file. */
+interface WindowsSetup { version: string; sizeBytes: number; parts: { path: string; size: number }[] }
+interface Published { files: Set<string>; apk: LandingContext['apk']; windows: WindowsSetup | null }
 let published: Promise<Published> | null = null
 async function readPublished(env: Env, base: string): Promise<Published> {
   const get = async <T>(path: string): Promise<T | null> => {
@@ -24,7 +26,22 @@ async function readPublished(env: Env, base: string): Promise<Published> {
   const manifest = await get<{ files: string[] }>('/files/manifest.json')
   const files = new Set(manifest?.files ?? [])
   const meta = files.has('/files/meta.json') ? await get<{ version: string; sizeBytes: number }>('/files/meta.json') : null
-  return { files, apk: meta && files.has('/files/dentora.apk') ? { version: String(meta.version), sizeBytes: Number(meta.sizeBytes) } : null }
+  const win = files.has('/files/windows.json') ? await get<WindowsSetup>('/files/windows.json') : null
+  return {
+    files,
+    apk: meta && files.has('/files/dentora.apk') ? { version: String(meta.version), sizeBytes: Number(meta.sizeBytes) } : null,
+    windows: win && isWholeSetup(win, files) ? { version: String(win.version), sizeBytes: win.sizeBytes, parts: win.parts } : null,
+  }
+}
+/** Every part is published and the parts add up to the installer: never serve a file with a piece missing. */
+function isWholeSetup(w: WindowsSetup, files: Set<string>): boolean {
+  if (!Array.isArray(w.parts) || !w.parts.length || !(w.sizeBytes > 0)) return false
+  let total = 0
+  for (const p of w.parts) {
+    if (typeof p?.path !== 'string' || !files.has(p.path) || !(p.size > 0)) return false
+    total += p.size
+  }
+  return total === w.sizeBytes
 }
 /** Never fails a page: on an error it answers "nothing published" and the next request reads again. */
 async function getPublished(env: Env, base: string): Promise<Published> {
@@ -34,7 +51,7 @@ async function getPublished(env: Env, base: string): Promise<Published> {
   } catch (e) {
     published = null
     console.error('published files unavailable:', e instanceof Error ? e.message : String(e))
-    return { files: new Set(), apk: null }
+    return { files: new Set(), apk: null, windows: null }
   }
 }
 const pageAssets = (p: Published): PageAssets => ({
@@ -123,7 +140,14 @@ const WINDOWS_ASK: Record<Lang, string> = {
   ar: 'مرحباً، أريد نسخة ويندوز من برنامج Dentora لإدارة عيادة الأسنان.',
   en: 'Hello, I would like the Windows version of Dentora, the dental clinic software.',
 }
+/**
+ * The installer published on this Worker when there is one, else the settings' link, else WhatsApp. The installer's
+ * parts are piped one after the other into a FixedLengthStream (its Content-Length is the whole file), which the
+ * runtime streams without running JavaScript per chunk. No ranges: a resumed download starts again from the start.
+ */
 async function downloadWindows(request: Request, env: Env, ctx: ExecutionContext, url: URL): Promise<Response> {
+  const pub = await getPublished(env, url.href)
+  if (pub.windows) return windowsSetup(request, env, ctx, url, pub.windows)
   const s = await settingsOrDefault(env)
   if (request.method === 'GET') ctx.waitUntil(count(request, env, 'windows'))
   // The English page's link (?lang=en, or the referring /en page) asks in English.
@@ -131,6 +155,34 @@ async function downloadWindows(request: Request, env: Env, ctx: ExecutionContext
   try { if (new URL(request.headers.get('Referer') || '').pathname.startsWith('/en')) lang = 'en' } catch { /* no referrer */ }
   const target = s.windowsUrl || `${sellerWa(s.whatsapp)}?text=${encodeURIComponent(WINDOWS_ASK[lang])}`
   return new Response(null, { status: 302, headers: { Location: target, 'Cache-Control': NO_STORE } })
+}
+
+function windowsSetup(request: Request, env: Env, ctx: ExecutionContext, url: URL, w: WindowsSetup): Response {
+  const headers = new Headers({
+    'Content-Type': 'application/vnd.microsoft.portable-executable',
+    'Content-Disposition': `attachment; filename="Dentora-Setup-${w.version}.exe"`,
+    'Content-Length': String(w.sizeBytes),
+    'Accept-Ranges': 'none',
+    'Cache-Control': NO_STORE,
+  })
+  if (request.method !== 'GET') return new Response(null, { status: 200, headers })
+  // Only a download from the first byte counts (a download manager resuming sends a Range; it gets the whole file).
+  if (!request.headers.has('Range')) ctx.waitUntil(count(request, env, 'windows'))
+  const { readable, writable } = typeof FixedLengthStream === 'function' ? new FixedLengthStream(w.sizeBytes) : new TransformStream<Uint8Array, Uint8Array>()
+  ctx.waitUntil((async () => {
+    try {
+      for (const part of w.parts) {
+        const res = await env.ASSETS.fetch(new Request(new URL(part.path, url)))
+        if (!res.ok || !res.body) throw new Error(`${part.path}: ${res.status}`)
+        await res.body.pipeTo(writable, { preventClose: true })
+      }
+      await writable.close()
+    } catch (e) {
+      console.error('windows download failed:', e instanceof Error ? e.message : String(e))
+      await writable.abort(e).catch(() => {})
+    }
+  })())
+  return new Response(readable, { status: 200, headers })
 }
 
 async function adminPage(env: Env, url: URL): Promise<Response> {
@@ -160,7 +212,8 @@ async function route(request: Request, env: Env, ctx: ExecutionContext): Promise
   if (path === '/' || path === '/en') {
     const lang: Lang = path === '/en' ? 'en' : 'ar'
     const [s, pub] = await Promise.all([settingsOrDefault(env), getPublished(env, url.href)])
-    return html(renderLanding(lang, s, { apk: pub.apk, origin: ORIGIN }), 200, CACHE_PAGE, { 'Content-Language': lang, 'Content-Security-Policy': PUBLIC_CSP })
+    const windows = pub.windows && { version: pub.windows.version, sizeBytes: pub.windows.sizeBytes }
+    return html(renderLanding(lang, s, { apk: pub.apk, windows, origin: ORIGIN }), 200, CACHE_PAGE, { 'Content-Language': lang, 'Content-Security-Policy': PUBLIC_CSP })
   }
   const legal = LEGAL[path]
   if (legal) {
