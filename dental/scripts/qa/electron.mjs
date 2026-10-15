@@ -154,7 +154,7 @@ check('CSP is enforced (inline script and remote image blocked)', iso.inlineBloc
 // licence keys (docs/LICENCE-KEYS.md): the activation request is the one request the page may send to the internet.
 // Both addresses are answered here as the server would answer (Access-Control-Allow-Origin: *, which lets the file://
 // page, Origin: null, read it), so the check needs no connection: whatever does not come back was stopped by the
-// page's own CSP or by the shell.
+// page's own CSP, the only filter the Windows shell has (main.cjs adds none for requests).
 const ACTIVATION_URL = 'https://dentora.raqeem.dev/api/activate'          // src/license/online.ts
 const OTHER_URL = 'https://example.com/api/activate'
 const reached = []

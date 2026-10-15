@@ -118,10 +118,9 @@ before it is returned. Audit: `key.activate` on success (detail: the key's last 
 page, cacheable 5 minutes) with a form: device number (pre-filled from `?device=` when it is a valid device number)
 and key, posting to `/api/activate` from `/js/activate.js` (no inline script). On success it shows the code large,
 with a copy button and the steps to paste it in Dentora → Settings → Licence; every error code has its own sentence;
-a WhatsApp link to the seller for help. The router calls `renderActivate(lang, settings, origin, assets, device)` from `server/src/pages/activate.ts`
-(`assets`: the `PageAssets` the legal pages get; `device`: the validated `?device=` or `''`); the page escapes
-everything. Linked from the landing
-page (steps, FAQ, footer) and in the sitemap.
+a WhatsApp link to the seller for help. The router calls `renderActivate(lang, settings, origin, assets, device)`
+from `server/src/pages/activate.ts` (`assets`: the `PageAssets` the legal pages get; `device`: the validated `?device=`
+or `''`); the page escapes everything. Linked from the landing page (steps, FAQ, footer) and in the sitemap.
 
 ## App (1.1.0)
 

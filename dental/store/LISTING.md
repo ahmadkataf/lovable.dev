@@ -5,9 +5,9 @@ with the pictures in this folder. Character counts were checked against Play's l
 
 كل ما يلزم لملء بطاقة التطبيق في Play Console: النصوص بالعربية (اللغة الافتراضية) والإنجليزية، والصور الموجودة في هذا المجلد.
 
-> **Payments policy / سياسة الدفع:** the texts mention the trial and the activation code neutrally: no price, no
-> "buy" wording, no website or WhatsApp link for purchase. Keep it that way in every language and in "What's new".
-> النصوص تذكر التجربة ورمز التفعيل دون سعر أو دعوة للشراء أو رابط للشراء. حافظ على ذلك في كل لغة وفي «ما الجديد».
+> **Payments policy / سياسة الدفع:** the texts mention the trial, the activation code and the licence key neutrally: no
+> price, no "buy" wording, no website or WhatsApp link for purchase. Keep it that way in every language and in "What's new".
+> النصوص تذكر التجربة ورمز التفعيل ومفتاح الترخيص دون سعر أو دعوة للشراء أو رابط للشراء. حافظ على ذلك في كل لغة وفي «ما الجديد».
 
 ---
 
@@ -25,7 +25,7 @@ Dentora - إدارة عيادة الأسنان
 إدارة عيادة الأسنان كاملة: مرضى ومواعيد ومخطط أسنان وفواتير، وتعمل دون إنترنت
 ```
 
-**Full description / الوصف الكامل** (1,961/4,000)
+**Full description / الوصف الكامل** (2,173/4,000)
 
 ```
 Dentora نظام متكامل لإدارة عيادة الأسنان، بواجهة عربية حديثة (ومعها الإنجليزية)، يعمل على الهاتف والجهاز اللوحي دون اتصال بالإنترنت. كل بيانات العيادة ومرضاها تبقى على جهازك.
@@ -60,13 +60,14 @@ Dentora نظام متكامل لإدارة عيادة الأسنان، بواج�
 • فريق بأدوار وصلاحيات: مدير، طبيب، مساعد، استقبال، ودخول برمز PIN وقفل تلقائي.
 
 خصوصيتك أولاً
-• يعمل دون إنترنت ودون حساب أو خادم: لا نجمع أي بيانات ولا نطّلع عليها.
+• يعمل دون إنترنت ودون حساب، ولا يرسل Dentora شيئاً من بيانات العيادة أو المرضى إلى أي مكان، فلا نطّلع عليها.
 • لا إعلانات ولا تتبّع ولا إحصاءات استخدام.
+• الاتصال الوحيد بالإنترنت عند التفعيل بمفتاح ترخيص: يُرسَل المفتاح ورقم الجهاز فقط، مرة واحدة.
 • نسخة احتياطية كاملة في ملف واحد تحفظه حيث تشاء، مع حماية اختيارية بكلمة مرور (تشفير AES-256)، لنقل العيادة إلى جهاز جديد أو استعادتها.
 
 التجربة والتفعيل
 • يعمل Dentora بكل مزاياه 7 أيام للتجربة.
-• بعد التجربة يحتاج إلى رمز تفعيل خاص بجهاز العيادة، يُدخَل من الإعدادات ← الترخيص حيث يظهر رقم الجهاز.
+• بعد التجربة يُفعَّل من الإعدادات ← الترخيص، حيث يظهر رقم الجهاز: برمز تفعيل خاص بجهاز العيادة يعمل دون إنترنت، أو بمفتاح ترخيص يحوّله البرنامج إلى هذا الرمز باتصال واحد بالإنترنت.
 • من دون تفعيل تبقى كل البيانات متاحة للعرض والطباعة والنسخ الاحتياطي، وتتوقف الإضافة والتعديل فقط.
 ```
 
@@ -92,7 +93,7 @@ Dentora: Dental Clinic Manager
 Run your dental clinic: patients, appointments, chart and invoices. No internet.
 ```
 
-**Full description** (2,452/4,000)
+**Full description** (2,691/4,000)
 
 ```
 Dentora is complete dental clinic management with a modern interface in Arabic and English. It runs on your phone or tablet with no internet connection, and all of your clinic's and patients' data stays on your device.
@@ -127,13 +128,14 @@ And more
 • Team roles and permissions (admin, doctor, assistant, reception), PIN sign-in and automatic lock.
 
 Privacy first
-• Works offline, with no account and no server: we collect no data and never see your data.
+• Works offline with no account, and Dentora never sends your clinic's or patients' data anywhere, so we never see it.
 • No ads, no tracking, no usage statistics.
+• The only connection is activating with a licence key: just the key and the device number are sent, once.
 • A complete backup in one file you keep wherever you like, with optional password protection (AES-256 encryption), to move your clinic to a new device or restore it.
 
 Trial and activation
 • Dentora runs with every feature for a 7-day trial.
-• After the trial it needs an activation code made for the clinic's device, entered in Settings → Licence, where the device number is shown.
+• After the trial, activate it in Settings → Licence, where the device number is shown: with an activation code made for the clinic's device, which works offline, or with a licence key, which the app turns into that code over the internet, once.
 • Without activation, all data stays available to view, print and back up; only adding and editing are paused.
 ```
 
@@ -180,27 +182,52 @@ asks a contact e-mail for the listing itself.
 
 ## 4. Data safety — أمان البيانات
 
-What the app does (checked in the code): all data is stored in the app's private storage on the device (IndexedDB in
-the WebView); there is no server, account, analytics, ads, crash reporting or tracking; the Android shell refuses every
-network request (the INTERNET permission is only there because a WebView needs it); `allowBackup="false"` and
-`data_extraction_rules` keep the data out of Google's backup and device-to-device transfer. Data leaves the device only
-when someone at the clinic chooses to: a WhatsApp message they review in WhatsApp, a printed page or PDF, an exported
-backup or CSV file they save or share.
+What the app does (checked in the code): all clinic and patient data is stored in the app's private storage on the
+device (IndexedDB in the WebView), and the app never sends it anywhere; there is no account, analytics, ads, crash
+reporting or tracking; `allowBackup="false"` and `data_extraction_rules` keep the data out of Google's backup and
+device-to-device transfer. The app contacts a server in one case only: when someone at the clinic activates it with a
+**licence key** (Settings → Licence), it sends the key and the **device number** (a short number derived from a hash of
+the Android ID, not the clinic's data) over HTTPS to the developer's activation server,
+`https://dentora.raqeem.dev/api/activate`, once, and receives the activation code. The server keeps that device number
+and the time of activation with the record of the sale, so that the key is refused on a second device. The Android
+shell refuses every other network request: that one HTTPS address is the only one the app can reach (the INTERNET
+permission is there because a WebView needs it, and for that request). Activating with an activation code from the
+seller needs no connection. Apart from that, data leaves the device only when someone at the clinic chooses to: a
+WhatsApp message they review in WhatsApp, a printed page or PDF, an exported backup or CSV file they save or share.
+
+ما يرسله التطبيق: مفتاح الترخيص ورقم الجهاز فقط، إلى خادمنا عبر HTTPS، وعند التفعيل بمفتاح فقط. بيانات العيادة والمرضى لا
+تخرج من التطبيق إلا بفعل يقوم به المستخدم (رسالة واتساب، طباعة، نسخة احتياطية أو ملف CSV).
 
 | Play Console question | Answer | Why / السبب |
 |---|---|---|
-| Does your app collect or share any of the required user data types? | **No** | Play counts data as *collected* only when it is sent off the device; Dentora processes everything on the device. Transfers the user starts and expects (sharing a file, sending a WhatsApp message) are not *sharing*. لا يُرسل شيء خارج الجهاز تلقائياً |
-| Data types collected / shared | None | لا شيء |
-| Is all user data encrypted in transit? | Not asked (nothing is collected) | لا يُطرح عند الإجابة «لا» |
-| Do you provide a way for users to request that their data be deleted? | Not asked (nothing is collected) | On the device: Settings → Backup & data → Erase all data, or uninstalling. على الجهاز: الإعدادات ← النسخ الاحتياطي ← «حذف كل البيانات»، أو إزالة التطبيق |
+| Does your app collect or share any of the required user data types? | **Yes** | Play counts data as *collected* when the app sends it off the device. Activating with a licence key sends the device number and the key to the developer's server, which keeps the device number with the sale. Nothing else is collected: clinic and patient data never leave the device through the app, and transfers the user starts and expects (sharing a file, sending a WhatsApp message) are neither *collection* nor *sharing*. يُرسَل رقم الجهاز والمفتاح إلى خادمنا عند التفعيل بمفتاح، ولا شيء غيرهما |
+| Is all of the user data collected by your app encrypted in transit? | **Yes** | HTTPS only: the shell lets through `https://dentora.raqeem.dev/api/activate` and nothing else, and the app's CSP allows no other server. عبر HTTPS فقط |
+| Do you provide a way for users to request that their data be deleted? | **No** | The device number bound to a key is the record that the key has been used: deleting it would free the key for another device, and the control panel cannot delete a sale (it would take a manual change in the D1 database). Answer *Yes* only if you will handle such requests that way. The data on the device: Settings → Backup & data → Erase all data, or uninstalling. رقم الجهاز المرتبط بالمفتاح هو سجل استعماله، ولوحة التحكم لا تحذف سجلات البيع |
 | Does your app allow users to create an account? | **No** | Staff profiles (name, role, PIN) exist only on the clinic's device; there is no account with us or any service. حسابات الفريق محلية على الجهاز فقط |
 | Independent security review | No | |
 
-Resulting store label / ما سيظهر في المتجر: **No data collected · No data shared with third parties**.
+The one data type to declare / نوع البيانات الوحيد:
+
+| Form field | Answer | Why / السبب |
+|---|---|---|
+| Data type | **Device or other IDs**, and no other | The device number, and the licence key (an identifier issued for the sale). No name, contact, health data, location, photos, files or app activity is sent. رقم الجهاز ومفتاح الترخيص فقط |
+| Collected or shared | **Collected**, not shared | The server is the developer's own (a Cloudflare Worker); Play does not count a service provider that processes data on the developer's behalf as sharing. خادمنا نحن، ولا نعطيه لأحد |
+| Is this data processed ephemerally? | **No** | The server keeps the device number and the time of activation with the record of the sale. يحفظه الخادم مع سجل البيع |
+| Is this data required for your app, or can users choose whether it's collected? | **Users can choose** (optional) | It is sent only when the clinic activates with a licence key; an activation code made for the device works without any connection. يُرسَل فقط عند التفعيل بمفتاح |
+| Why is this data collected? | **App functionality** | To sign the activation code for that device, and to refuse the key on a second device. لإصدار رمز التفعيل لهذا الجهاز ورفض المفتاح على غيره |
+
+Resulting store label / ما سيظهر في المتجر: **No data shared with third parties · Data collected: Device or other IDs ·
+Data is encrypted in transit · Data can't be deleted**.
+
+**Internet address:** like any web request, the activation request reaches the server from an internet address. The
+server keeps it only for a failed attempt, for 15 minutes, on its own (not with the key or the device number), to stop
+anyone guessing keys; it is not used to locate anyone, so it is not declared as a separate data type.
+/ يحتفظ الخادم بعنوان الإنترنت عند المحاولة الفاشلة فقط، مدة 15 دقيقة، وحده دون المفتاح أو رقم الجهاز، لمنع تخمين المفاتيح.
 
 **Encrypted backups (optional):** the backup file can be protected with a password (AES-256-GCM). That is an app
-feature for the clinic's own copies, not an "encrypted in transit" answer: mention it in the description (done above),
-not in the Data safety form. / حماية النسخة الاحتياطية بكلمة مرور ميزة تُذكر في الوصف، لا إجابة في نموذج أمان البيانات.
+feature for the clinic's own copies, not part of the Data safety form (its "encrypted in transit" answer is about the
+HTTPS activation request): mention it in the description (done above). / حماية النسخة الاحتياطية بكلمة مرور ميزة تُذكر في
+الوصف، لا إجابة في نموذج أمان البيانات.
 
 ---
 
@@ -208,7 +235,7 @@ not in the Data safety form. / حماية النسخة الاحتياطية بك
 
 | Section | Answer |
 |---|---|
-| App access | All functionality is available without special access: on first launch the setup wizard creates the clinic and an administrator PIN chosen by the reviewer; Settings → Backup & data → **Load demo data** fills a sample clinic. The 7-day trial starts on the reviewer's device, so nothing is locked during review. / عند أول تشغيل ينشئ المراجع العيادة ورمز المدير بنفسه، والتجربة تبدأ على جهازه. |
+| App access | All functionality is available without special access: on first launch the setup wizard creates the clinic and an administrator PIN chosen by the reviewer; Settings → Backup & data → **Load demo data** fills a sample clinic. The 7-day trial starts on the reviewer's device, so nothing is locked during review and no activation code or licence key is needed. / عند أول تشغيل ينشئ المراجع العيادة ورمز المدير بنفسه، والتجربة تبدأ على جهازه فلا يحتاج إلى رمز تفعيل أو مفتاح. |
 | Ads | No ads |
 | Content rating | Questionnaire type "All other app types"; no violence, sexual content, gambling, user-to-user communication, location sharing or in-app purchases → expected rating Everyone / PEGI 3 |
 | Target audience | 18 and over (clinic staff); not designed for children |

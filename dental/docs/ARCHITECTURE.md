@@ -2,7 +2,11 @@
 
 Dentora is a dental-clinic management system: one React web app that ships as a Windows desktop app (Electron),
 an Android app (WebView wrapper) and a plain web app. All data lives on the device in IndexedDB (Dexie); a backup
-is one `.dentora` file (a ZIP archive, optionally password-protected) the clinic keeps elsewhere. There is no server.
+is one `.dentora` file (a ZIP archive, optionally password-protected) the clinic keeps elsewhere. The app needs no
+server: clinic and patient data never leave the device. Its one request to the internet is the licence-key activation
+(`src/license/online.ts`, `docs/LICENCE-KEYS.md`): only when a clinic activates with a key, it sends the key and the
+device number to `https://dentora.raqeem.dev/api/activate` (the seller's Worker, `server/`) and checks the code that
+comes back itself.
 
 ## Stack
 - Vite 7 · React 19 · TypeScript (strict) · react-router-dom 7 (HashRouter: works from file:// and the Android asset server)
@@ -113,9 +117,13 @@ Status colours: appointment statuses `var(--st-<status>)`, tooth conditions `var
 
 ## Security of the page
 - `index.html` carries a Content-Security-Policy (scripts only from the app, pictures and files from the app or
-  `data:`/`blob:`, nothing from the internet, no form posts). The Windows shell (`electron/lib.cjs` CSP) and the Android
-  shell (`WebFiles.CSP`) send the same policy; `tests/release-files.test.ts` keeps the three identical. `npm run dev`
-  serves the page without it (Vite's development page needs inline scripts). Never add inline scripts or remote URLs.
+  `data:`/`blob:`, nothing from the internet, no form posts). Its one remote source is `https://dentora.raqeem.dev` in
+  `connect-src`, for the activation request alone. The Windows shell (`electron/lib.cjs` CSP) and the Android shell
+  (`WebFiles.CSP`) send the same policy; `tests/release-files.test.ts` keeps the three identical and the activation
+  server the only remote source. The Android shell also refuses every request to another site except exactly
+  `https://dentora.raqeem.dev/api/activate` (`WebFiles.requestAction`/`isActivation`); the Windows shell relies on the CSP.
+  Neither ever shows the website inside the app: links to it open in the browser. `npm run dev` serves the page
+  without the policy (Vite's development page needs inline scripts). Never add inline scripts or other remote URLs.
 - `window.__dentora` (the live database) exists only in development and in QA builds (`VITE_QA=1`, `src/main.tsx`).
   Release builds (`npm run build`, the Windows and Android packages) never have it.
 

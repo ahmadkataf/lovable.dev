@@ -225,6 +225,11 @@ function handleShortcuts(wc, event, input) {
 }
 
 // ---- security: navigation, new windows, permissions, CSP -----------------------------------------------------
+// The page reaches the internet in one case only: activating with a licence key posts the key and the device number
+// to https://dentora.raqeem.dev/api/activate (CSP connect-src in lib.cjs). That fetch needs nothing here: webRequest
+// below only sets the CSP of file:// pages, the permission handlers do not apply to requests, and the navigation guards
+// do not apply to fetch(). The website itself never opens inside the app: a link or a navigation to it goes to the
+// browser like any other (guard, setWindowOpenHandler).
 const VIEWER_ALLOWED = url => url === 'about:blank' || url.startsWith('blob:')
 
 function viewerWindowOptions() {
