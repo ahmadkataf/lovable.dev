@@ -1,7 +1,7 @@
 // /activate and /en/activate: a clinic turns its licence key into the activation code of its device, once, online
 // (docs/LICENCE-KEYS.md → Public activation). The page is the legal pages' shell (header, footer, fonts, colours)
 // around a form that /js/activate.js posts to /api/activate. Nothing inline, per the CSP: the words the script needs
-// travel in a JSON block the browser never runs. Styles: the activation section of /css/legal.css.
+// travel in a JSON block the browser never runs. Styles: /css/activate.css (after legal.css).
 import { escapeHtml } from '../http'
 import { formatDeviceInput, isDeviceNumber } from '../licence'
 import { DEFAULT_SETTINGS, type Lang, type SiteSettings } from '../types'
@@ -307,7 +307,7 @@ ${field('key', 'key', t.key, t.keyHint, '', 'XXXX-XXXX-XXXX-XXXX')}
 </div>
 <p class="sr-only act-sr" id="act-status" role="status"></p>
 </main>
-<script type="application/json" id="act-text">${jsonForScript({ ...t.script, chat })}</script>
-<script src="/js/activate.js" defer></script>`
-  return shell({ lang, title: t.title, description: t.description, origin, assets, path: '/activate', body })
+<script type="application/json" id="act-text">${jsonForScript({ ...t.script, chat })}</script>`
+  const head = '<link rel="stylesheet" href="/css/activate.css">\n<script src="/js/activate.js" defer></script>'
+  return shell({ lang, title: t.title, description: t.description, origin, assets, path: '/activate', head, body })
 }

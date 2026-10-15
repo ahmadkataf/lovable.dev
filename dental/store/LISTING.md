@@ -193,9 +193,9 @@ the Android ID, not the clinic's data) over HTTPS to the developer's activation 
 `https://dentora.raqeem.dev/api/activate`, once, and receives the activation code. The server keeps that device number
 and the time of activation with the record of the sale, so that the key is refused on a second device. The Android
 shell refuses every other network request: that one HTTPS address is the only one the app can reach (the INTERNET
-permission is there because a WebView needs it, and for that request). When that request cannot get through, the app
-offers to open the activation page (`https://dentora.raqeem.dev/activate`) in the browser with the device number in its
-address; the clinic types the key there, so the same two values reach the same server, by the clinic's choice.
+permission is there because a WebView needs it, and for that request). When that request cannot get through, a copy
+installed from Google Play only says so and asks to try again: it shows no link to the website, where the price is
+(copies installed outside Play also offer the activation page in the browser).
 Activating with an activation code from the seller needs no connection. Apart from that, data leaves the device only
 when someone at the clinic chooses to: a WhatsApp message they review in WhatsApp, a printed page or PDF, an exported
 backup or CSV file they save or share.

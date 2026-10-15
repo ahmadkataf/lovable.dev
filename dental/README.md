@@ -97,6 +97,7 @@ QA_DIST=/tmp/dist-tour QA_PORT=4420 QA_SHOTS=qa-shots/tour node scripts/qa/tour.
 QA_DIST=/tmp/dist-tour QA_PORT=4420 QA_SHOTS=qa-shots/shell node scripts/qa/shell.mjs         # CSP والصور وPDF والحوارات على اللمس
 QA_DIST=/tmp/dist-tour xvfb-run -a node scripts/qa/electron.mjs                                # فحص تطبيق ويندوز (Electron)
 QA_DIST=/tmp/dist-tour QA_PORT=4311 QA_SHOTS=qa-shots/licence-key node scripts/qa/licence-key.mjs   # التفعيل بمفتاح ترخيص (يحتاج license-private.jwk)
+QA_DIST=/tmp/dist-tour QA_PORT=4312 QA_SHOTS=qa-shots/licence-key-live node scripts/qa/licence-key-live.mjs   # المفتاح نفسه مع الـ Worker الحقيقي محلياً (يحتاج server/.dev.vars)
 ```
 > نسخ البيع (`npm run build` وبرنامج ويندوز وملف أندرويد) **لا** تضبط `VITE_QA` أبداً، فلا يصل أحد إلى قاعدة البيانات من الصفحة.
 > سكربتات الفحص ترفض أي بناء ليس فيه `window.__dentora` وتطبع الأمر الصحيح.

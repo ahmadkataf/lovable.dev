@@ -1,11 +1,18 @@
 // End-to-end test of the whole Worker as Cloudflare runs it: builds public/, starts `wrangler dev --local` on an empty
-// database and checks the landing page, the legal pages, the downloads, every API route and the control panel, with
-// fetch and with Chromium (Playwright). One "ok"/"FAIL" line per check; the exit code is 1 when any check failed.
+// database and checks the landing page, the legal pages, the downloads, every API route, the control panel, licence
+// keys (issued in the panel, activated on the public page /activate and through POST /api/activate, with its CORS and
+// its limit) and the Windows installer served in parts, with fetch and with Chromium (Playwright). One "ok"/"FAIL"
+// line per check; the exit code is 1 when any check failed.
 //
 //   npm run e2e                  the main Worker on E2E_PORT (default 8831); the next two ports run a Worker whose
-//                                password is too short (setup screen) and one with the wrong signing key
+//                                password is too short (setup screen) and one with the wrong signing key; the third
+//                                one, at the end, serves a 45 MiB stand-in installer
 //   E2E_OUT=<dir>                screenshots, Worker logs and results.json (default .wrangler/e2e, git-ignored)
-//   E2E_ONLY=site,api,admin      run some parts only (the Workers start anyway)
+//   E2E_ONLY=site,api,admin,keys,windows   run some parts only (the Workers start anyway)
+//
+// public/ is built without the Windows installer (WINDOWS_SETUP=none), so /download/windows falls back to the
+// settings' link or WhatsApp, which the main run checks; the "windows" part then publishes the stand-in and checks
+// that /download/windows gives back exactly its bytes, and leaves public/ built without an installer again.
 //
 // Needs .dev.vars (ADMIN_PASSWORD and LICENSE_PRIVATE_JWK, see .dev.vars.example) and the app's node_modules, which
 // is where Playwright comes from (dental/package.json). The private key is read here only to prove that no response
@@ -26,7 +33,7 @@ const PORT = Number(process.env.E2E_PORT || 8831)
 const BASE = `http://localhost:${PORT}`
 const OUT = resolve(process.env.E2E_OUT || join(SERVER, '.wrangler', 'e2e'))
 const SHOTS = join(OUT, 'shots')
-const ONLY = new Set((process.env.E2E_ONLY || 'site,api,admin').split(',').map(s => s.trim()))
+const ONLY = new Set((process.env.E2E_ONLY || 'site,api,admin,keys,windows').split(',').map(s => s.trim()))
 /** The canonical address the pages point search engines to (src/index.ts). */
 const ORIGIN = 'https://dentora.raqeem.dev'
 const APK_VERSION = JSON.parse(readFileSync(join(APP, 'package.json'), 'utf8')).version
@@ -94,6 +101,10 @@ function scan(where, data) {
 }
 
 // ---- Workers -----------------------------------------------------------------------------------------------------
+/** Builds public/ with scripts/build-public.mjs; `setup` is its WINDOWS_SETUP: 'none' (no installer) or a file. */
+function buildPublic(setup) {
+  execFileSync(process.execPath, [join(SERVER, 'scripts', 'build-public.mjs')], { cwd: SERVER, stdio: 'inherit', env: { ...process.env, WINDOWS_SETUP: setup } })
+}
 const workers = []
 /** `wrangler dev --local` on its own empty database; resolves once /healthz answers. */
 async function startWorker(name, port, extra = []) {
@@ -187,16 +198,20 @@ async function forgeToken(password, salt, exp) {
   const payload = b64url(enc.encode(JSON.stringify({ exp, sid: 'e2e-forged' })))
   return `${payload}.${b64url(new Uint8Array(await crypto.subtle.sign('HMAC', key, enc.encode(`session.${payload}`))))}`
 }
-/** The session salt the Worker stored in its local D1 file. */
-async function readSalt(persist) {
+/** The rows of a read-only query on the Worker's local D1 file (null when no database file answers it). */
+async function queryD1(persist, sql) {
   const { DatabaseSync } = await import('node:sqlite')
   const dir = join(persist, 'v3', 'd1', 'miniflare-D1DatabaseObject')
   for (const f of existsSync(dir) ? readdirSync(dir) : []) {
     if (!f.endsWith('.sqlite') || f === 'metadata.sqlite') continue
     const db = new DatabaseSync(join(dir, f), { readOnly: true })
-    try { const row = db.prepare("SELECT value FROM settings WHERE key = 'session_salt'").get(); if (row) return row.value } catch { /* another file */ } finally { db.close() }
+    try { return db.prepare(sql).all() } catch { /* another file */ } finally { db.close() }
   }
   return null
+}
+/** The session salt the Worker stored in its local D1 file. */
+async function readSalt(persist) {
+  return (await queryD1(persist, "SELECT value FROM settings WHERE key = 'session_salt'"))?.[0]?.value ?? null
 }
 
 /** RFC 4180: quoted cells with doubled quotes, commas and line breaks inside; CRLF between records. */
@@ -275,8 +290,9 @@ async function siteBasics() {
     && r.text.includes(`Sitemap: ${ORIGIN}/sitemap.xml`), r.text.replace(/\n/g, ' | '))
   r = await req('GET', '/sitemap.xml')
   const locs = [...r.text.matchAll(/<loc>([^<]+)<\/loc>/g)].map(m => m[1])
-  check('GET /sitemap.xml → 6 pages, each with ar/en/x-default alternates', r.status === 200 && r.headers.get('content-type') === 'application/xml; charset=utf-8'
-    && locs.length === 6 && (r.text.match(/hreflang="x-default"/g) || []).length === 6 && (r.text.match(/hreflang="ar"/g) || []).length === 6, locs.join(' '))
+  check('GET /sitemap.xml → 8 pages (home, activation, privacy, terms × ar/en), each with ar/en/x-default alternates', r.status === 200 && r.headers.get('content-type') === 'application/xml; charset=utf-8'
+    && locs.length === 8 && locs.includes(`${ORIGIN}/activate`) && locs.includes(`${ORIGIN}/en/activate`)
+    && (r.text.match(/hreflang="x-default"/g) || []).length === 8 && (r.text.match(/hreflang="ar"/g) || []).length === 8, locs.join(' '))
   const locStatus = []
   for (const loc of locs) locStatus.push(`${loc.replace(ORIGIN, '')}:${(await req('GET', loc.replace(ORIGIN, '') || '/')).status}`)
   check('every sitemap URL answers 200 here', locStatus.every(s => s.endsWith(':200')), locStatus.join(' '))
@@ -544,6 +560,7 @@ async function api(browser, mainWorker) {
     ['POST', '/api/logout'], ['GET', '/api/me'], ['GET', '/api/stats'], ['GET', '/api/licences'], ['POST', '/api/licences', { device: DEV_A, plan: 'pro', validity: 'lifetime' }],
     ['GET', '/api/licences.csv'], ['GET', '/api/licences/abc'], ['PATCH', '/api/licences/abc', { note: 'x' }], ['POST', '/api/resets', { device: DEV_A }],
     ['GET', '/api/resets'], ['POST', '/api/verify', { device: DEV_A, code: 'x' }], ['GET', '/api/settings'], ['PUT', '/api/settings', { priceUsd: 1 }], ['GET', '/api/audit'],
+    ['POST', '/api/keys', { plan: 'pro', validity: 'lifetime' }],
   ]
   const no401 = []
   for (const [m, path, body] of PROTECTED) {
@@ -844,7 +861,7 @@ async function api(browser, mainWorker) {
   const st = r.json
   // L1 59 + L3 45.5 + L4 30 active; L2 refunded (counted, no revenue); L5 void (neither)
   const expected = {
-    licences: { total: 4, month: 4, revenue: 134.5, revenueMonth: 134.5 }, resets: { total: 1 },
+    licences: { total: 4, month: 4, revenue: 134.5, revenueMonth: 134.5, pending: 0 }, resets: { total: 1 },
     downloads: { android: countedOf('android'), windows: countedOf('windows'), android30: countedOf('android'), windows30: countedOf('windows') },
   }
   check('GET /api/stats matches what was done (void excluded; revenue = active only; downloads GET only)',
@@ -929,6 +946,20 @@ async function otherWorkers(browser, setupW, keyW, codeFromMain) {
     check(`panel (${lang}) shows the signing banner and disables issuing`, banner && disabled && !csp.length && !p.console.length, [...csp, ...p.console].join(' | '))
     await p.close()
   }
+
+  section('licence keys on that Worker: sold without signing, refused at activation (503 signing)')
+  r = await req('POST', '/api/keys', { base: keyW.base, cookie, body: { plan: 'pro', validity: 'lifetime', clinic: 'Signing test' } })
+  const waiting = r.json?.items?.[0]?.licence
+  check('POST /api/keys → 201 (a key needs no signing until it is activated)', r.status === 201 && KEY_RE.test(waiting?.key || ''), `${r.status}`)
+  const unsigned = []
+  for (let i = 0; i < 11; i++) {
+    const x = await activateReq({ key: waiting?.key, device: 'H7KQ-2MXD' }, { base: keyW.base, ip: '198.51.100.40' })
+    unsigned.push(`${x.status} ${x.json?.error}${x.headers.get('access-control-allow-origin') === '*' ? '' : ' (no CORS)'}`)
+  }
+  check('POST /api/activate ×11 → 503 signing every time (with CORS), never 429: a fault on the server is not counted against the clinic',
+    unsigned.every(x => x === '503 signing'), [...new Set(unsigned)].join(' | '))
+  r = await req('POST', '/api/verify', { base: keyW.base, cookie, body: { code: waiting?.key } })
+  check('…and the key is still waiting (verify → pending)', r.json?.status === 'pending' && r.json.ok === true, JSON.stringify(r.json))
 
   // Last on this Worker: it leaves new browsers locked out of it for 15 minutes.
   section('strangers cannot lock the seller out (30 failures from 30 addresses, on that Worker)')
@@ -1315,7 +1346,10 @@ async function panelNarrow(browser) {
       await page.waitForTimeout(600)
       const o = await overflowOf(page)
       if (o.sw > o.cw) wide.push(`${r || 'dashboard'} ${o.sw}`)
-      await page.screenshot({ path: join(dir, `${lang}-360-${r || 'dashboard'}.png`), fullPage: true })
+      // the top 6000 px at most: the activity log grows with the run, and a picture tens of thousands of pixels tall
+      // can bring the headless browser down
+      const hgt = await page.evaluate(() => document.documentElement.scrollHeight)
+      await page.screenshot({ path: join(dir, `${lang}-360-${r || 'dashboard'}.png`), fullPage: true, clip: { x: 0, y: 0, width: 360, height: Math.min(hgt, 6000) } })
     }
     await page.goto(`${BASE}/admin#/licences`)
     await page.waitForSelector('.lic-row')
@@ -1330,6 +1364,624 @@ async function panelNarrow(browser) {
   }
 }
 
+// ==== licence keys (docs/LICENCE-KEYS.md) ==========================================================================
+const KEY_RE = /^[2-9A-HJ-NP-Z]{4}(-[2-9A-HJ-NP-Z]{4}){3}$/
+const CODE_RE = /^[\dA-Z]{4}(-[\dA-Z]{4}){27}$/
+const ALPHABET = '23456789ABCDEFGHJKLMNPQRSTUVWXYZ'
+const randomChars = n => Array.from(crypto.getRandomValues(new Uint8Array(n)), b => ALPHABET[b % 32]).join('')
+/** A key in the right shape that was never issued (80 random bits: it cannot be one of the Worker's). */
+const randomKey = () => [4, 4, 4, 4].map(randomChars).join('-')
+const randomDevice = () => `${randomChars(4)}-${randomChars(4)}`
+const arabicDigits = s => s.replace(/\d/g, d => '٠١٢٣٤٥٦٧٨٩'[d])
+/**
+ * POST /api/activate as the app or another site's page sends it: no session, no X-Dentora, its own Origin
+ * (`origin: 'null'` as the Windows app's file:// page, null for none). `raw` sends a body as it is.
+ */
+function activateReq(body, { base = BASE, ip = '198.51.100.30', origin = 'https://clinic.example', cookie, raw } = {}) {
+  return raw === undefined
+    ? req('POST', '/api/activate', { base, ip, origin, cookie, csrf: false, body })
+    : req('POST', '/api/activate', { base, ip, origin, cookie, csrf: false, raw, headers: { 'Content-Type': 'application/json' } })
+}
+const cors = r => r.headers.get('access-control-allow-origin') === '*'
+
+/** Selling keys through the API, then the public activation: answers, CORS, cookies, audit, and its limit. */
+async function keysApi(mainWorker) {
+  const { cookie } = await login()
+  const priceNow = (await req('GET', '/api/settings', { cookie })).json.priceUsd
+  const statsOf = async () => (await req('GET', '/api/stats', { cookie })).json.licences
+  const before = await statsOf()
+
+  section('licence keys: issuing (POST /api/keys)')
+  const invalid = []
+  for (const [bad, code, field] of [
+    [{ count: 0 }, 'count'], [{ count: 51 }, 'count'], [{ count: 1.5 }, 'count'], [{ count: 'three' }, 'count'], [{ count: -2 }, 'count'],
+    [{ plan: 'gold' }, 'plan'], [{ validity: '3y' }, 'validity'], [{ validity: 'date', until: '2020-01-01' }, 'until'], [{ validity: 'date' }, 'until'],
+    [{ price: -1 }, 'price'], [{ customer: 'x'.repeat(201) }, 'field', 'customer'], [{ note: 7 }, 'field', 'note'],
+  ]) {
+    const r = await req('POST', '/api/keys', { cookie, body: { plan: 'pro', validity: 'lifetime', ...bad } })
+    if (r.status !== 400 || r.json?.error !== code || (field && r.json.field !== field)) invalid.push(`${JSON.stringify(bad).slice(0, 40)} → ${r.status} ${r.text}`)
+  }
+  let r = await req('POST', '/api/keys', { cookie, raw: '[1]', headers: { 'Content-Type': 'application/json' } })
+  if (r.status !== 400 || r.json?.field !== 'body') invalid.push(`array body → ${r.status} ${r.text}`)
+  check('POST /api/keys validation: 400 count (0, 51, 1.5, text, negative) | plan | validity | until | price | field (+field), body', !invalid.length, invalid.join(' | '))
+  r = await req('POST', '/api/keys', { cookie, body: { plan: 'pro', validity: 'lifetime' }, csrf: false })
+  const foreign = await req('POST', '/api/keys', { cookie, body: { plan: 'pro', validity: 'lifetime' }, origin: 'https://evil.example' })
+  check('POST /api/keys without X-Dentora, or from a foreign Origin → 403 origin, nothing made', r.status === 403 && foreign.status === 403 && foreign.json?.error === 'origin'
+    && (await statsOf()).total === before.total)
+
+  const sale = { plan: 'pro', validity: 'lifetime', customer: 'د. هالة الشامي', clinic: 'عيادة الشفاء', phone: '0944 765 432', note: 'دفع نقداً' }
+  r = await req('POST', '/api/keys', { cookie, body: sale })
+  const K1 = r.json?.items?.[0]?.licence, m1 = r.json?.items?.[0]?.message
+  check(`one key (no count) → 201 {items:[{licence, message}]}: XXXX-XXXX-XXXX-XXXX, waiting (device and code ''), pro, lifetime, $${priceNow} from the settings`,
+    r.status === 201 && r.json.items.length === 1 && KEY_RE.test(K1?.key || '') && K1.device === '' && K1.code === '' && K1.plan === 'pro' && K1.validity === 'lifetime'
+    && K1.until === null && K1.activatedAt === null && K1.status === 'active' && K1.price === priceNow, `${r.status} ${JSON.stringify(K1 && { ...K1, key: KEY_RE.test(K1.key) })}`)
+  check('its message: the key, Settings → Licence, the activation page (/activate in Arabic, /en/activate in English), wa.me to the customer',
+    !!m1 && m1.ar.includes(K1.key) && m1.ar.includes('الإعدادات ← الترخيص') && m1.ar.includes(`${ORIGIN}/activate`) && m1.en.includes(K1.key)
+    && m1.en.includes('Settings → Licence') && m1.en.includes(`${ORIGIN}/en/activate`) && /^https:\/\/wa\.me\/963944765432\?text=/.test(m1.whatsappUrl), m1?.whatsappUrl?.slice(0, 40))
+  r = await req('POST', '/api/keys', { cookie, body: { count: 3, plan: 'standard', validity: '1y', customer: 'Homs reseller', price: 40 } })
+  const batch = (r.json?.items || []).map(x => x.licence)
+  check('a batch of 3 (standard, 1 year, $40 each) → 3 different keys, waiting, no last day yet (it counts from activation), no wa.me without a phone',
+    r.status === 201 && batch.length === 3 && new Set(batch.map(l => l.key)).size === 3
+    && batch.every(l => KEY_RE.test(l.key) && l.plan === 'standard' && l.validity === '1y' && l.until === null && l.price === 40 && l.device === '')
+    && r.json.items.every(x => x.message.whatsappUrl === null && x.message.ar.includes(x.licence.key)), `${r.status} ${batch.length}`)
+  r = await req('POST', '/api/keys', { cookie, body: { count: '2', plan: 'pro', validity: 'date', until: '2031-12-31', customer: 'Dr. Lina Haddad', price: '45.5' } })
+  const dated = (r.json?.items || []).map(x => x.licence)
+  check('2 dated keys (count and price as text) → until 2031-12-31 already, $45.5 each', r.status === 201 && dated.length === 2
+    && dated.every(l => l.until === '2031-12-31' && l.validity === 'date' && l.price === 45.5), `${r.status}`)
+  r = await req('POST', '/api/keys', { cookie, body: { plan: 'pro', validity: '2y', clinic: 'Two-year clinic' } })
+  const K2y = r.json?.items?.[0]?.licence
+  check('a 2-year key → 201, no last day yet', r.status === 201 && K2y?.validity === '2y' && K2y.until === null)
+  const keys = [K1, ...batch, ...dated, K2y]
+
+  section('licence keys: list, search, verify, stats, CSV, audit while they wait')
+  r = await req('GET', '/api/licences?status=pending&limit=200', { cookie })
+  check(`?status=pending → the ${keys.length} keys among ${before.pending + keys.length}, every one a waiting active key`, r.json?.total === before.pending + keys.length
+    && keys.every(k => r.json.items.some(i => i.id === k.id)) && r.json.items.every(i => i.key && i.device === '' && i.status === 'active'), `${r.json?.total}`)
+  const search = async q => (await req('GET', `/api/licences?q=${encodeURIComponent(q)}`, { cookie })).json
+  const s1 = await search(batch[1].key.replace(/-/g, '').toLowerCase()), s2 = await search(batch[1].key.slice(5, 14))
+  check('search finds a key without its dashes in lower case, and by a part with a dash', s1.total === 1 && s1.items[0].id === batch[1].id && s2.total === 1 && s2.items[0].id === batch[1].id,
+    `${s1.total} ${s2.total}`)
+  r = await req('GET', `/api/licences/${K1.id}`, { cookie })
+  check('GET /api/licences/:id of a waiting key → its key message', r.status === 200 && r.json.licence.key === K1.key && r.json.licence.code === '' && r.json.message.ar.includes(K1.key))
+  let st = await statsOf()
+  const sold = priceNow + 3 * 40 + 2 * 45.5 + priceNow
+  check(`stats: pending +${keys.length}, total +${keys.length}, revenue +$${sold}`, st.pending === before.pending + keys.length && st.total === before.total + keys.length
+    && Math.abs(st.revenue - before.revenue - sold) < 0.001, JSON.stringify({ before, now: st }))
+  const verify = async code => (await req('POST', '/api/verify', { cookie, body: { code, device: '' } })).json
+  let v = await verify(K1.key.toLowerCase().replace(/-/g, ' '))
+  check('verify a waiting key (lower case, spaces, no device) → kind key, ok, pending, pro, lifetime', v?.kind === 'key' && v.ok === true && v.status === 'pending' && v.plan === 'pro'
+    && v.validity === 'lifetime' && v.until === null && !('device' in v), JSON.stringify(v))
+  v = await verify(batch[0].key)
+  check('verify a waiting 1-year key → pending, validity 1y, no last day', v?.status === 'pending' && v.validity === '1y' && !('until' in v), JSON.stringify(v))
+  v = await verify(dated[0].key)
+  check('verify a waiting dated key → pending, until 2031-12-31', v?.status === 'pending' && v.ok && v.until === '2031-12-31', JSON.stringify(v))
+  v = await verify(randomKey())
+  check('verify a key never issued → kind key, unknown, not ok', v?.kind === 'key' && v.status === 'unknown' && v.ok === false, JSON.stringify(v))
+  r = await req('GET', '/api/licences.csv', { cookie })
+  const { rows } = parseCsv(r.buf.subarray(3).toString('utf8'))
+  const head = rows[0] || [], col = name => head.indexOf(name), row = id => rows.find(x => x[col('id')] === id) || []
+  check('CSV: key, validity, activated_at as the last three columns', head.slice(-3).join() === 'key,validity,activated_at', head.join())
+  check('CSV: a waiting key: no device, its key and rule; valid_until lifetime, empty for 1 year (set on activation), or its day',
+    row(K1.id)[col('key')] === K1.key && row(K1.id)[col('device')] === '' && row(K1.id)[col('valid_until')] === 'lifetime' && row(K1.id)[col('activated_at')] === ''
+    && row(batch[0].id)[col('valid_until')] === '' && row(batch[0].id)[col('validity')] === '1y' && row(dated[0].id)[col('valid_until')] === '2031-12-31',
+    JSON.stringify([row(K1.id)[col('valid_until')], row(batch[0].id)[col('valid_until')], row(dated[0].id)[col('valid_until')]]))
+
+  section('licence keys: public activation (POST /api/activate)')
+  const DEV_K = 'H7KQ-2MXD', DEV_K2 = 'P3RT-9WZC'
+  r = await req('OPTIONS', '/api/activate', { csrf: false, origin: 'https://clinic.example', headers: { 'Access-Control-Request-Method': 'POST', 'Access-Control-Request-Headers': 'content-type' } })
+  check('CORS preflight from another site → 204: Allow-Origin *, Allow-Methods "POST, OPTIONS", Allow-Headers Content-Type, Max-Age 86400, no-store, no cookie',
+    r.status === 204 && r.buf.length === 0 && cors(r) && r.headers.get('access-control-allow-methods') === 'POST, OPTIONS' && r.headers.get('access-control-allow-headers') === 'Content-Type'
+    && r.headers.get('access-control-max-age') === '86400' && r.headers.get('cache-control') === 'no-store' && !r.headers.get('set-cookie'),
+    [...r.headers].filter(([k]) => /^access-control|^cache|^set-cookie/.test(k)).map(([k, x]) => `${k}: ${x}`).join(' | '))
+  r = await activateReq({ key: K1.key, device: DEV_K }, { cookie })
+  const act1 = r.json
+  check('a lifetime key from another site (no X-Dentora, foreign Origin, the panel\'s session cookie sent along) → 200 {code, device, plan, until}',
+    r.status === 200 && CODE_RE.test(act1?.code || '') && act1.device === DEV_K && act1.plan === 'pro' && act1.until === null && JSON.stringify(Object.keys(act1).sort()) === '["code","device","plan","until"]',
+    `${r.status} ${r.text.slice(0, 80)}`)
+  check('…with Access-Control-Allow-Origin: *, JSON, no-store, and no Set-Cookie', cors(r) && r.headers.get('content-type') === 'application/json; charset=utf-8'
+    && r.headers.get('cache-control') === 'no-store' && !r.headers.get('set-cookie'))
+  let c = await checkCode(DEV_K, act1?.code || '')
+  check(`…the code passes the app's own checkCode (src/license/core.ts, the app's public key) for ${DEV_K}: pro, lifetime`, c.ok && c.plan === 'pro' && c.until === null, JSON.stringify(c))
+  c = await checkCode(DEV_K2, act1?.code || '')
+  check('…and is refused for any other device (reason "device")', !c.ok && c.reason === 'device', JSON.stringify(c))
+  const again = []
+  for (const [what, key, device, origin] of [
+    ['the same key and device', K1.key, DEV_K, 'https://clinic.example'],
+    ['lower case without dashes, the device too', K1.key.toLowerCase().replace(/-/g, ''), DEV_K.toLowerCase().replace('-', ''), 'https://clinic.example'],
+    ['spaces and Arabic-Indic digits', arabicDigits(K1.key.replace(/-/g, ' ')), arabicDigits(DEV_K), 'https://clinic.example'],
+    ['from the Windows app (Origin: null)', K1.key, DEV_K, 'null'],
+    ['with no Origin', K1.key, DEV_K, null],
+  ]) {
+    const x = await activateReq({ key, device }, { origin })
+    if (x.status !== 200 || x.json?.code !== act1?.code || !cors(x)) again.push(`${what}: ${x.status} ${x.text.slice(0, 60)}`)
+  }
+  check('the same device again (a reinstall): the same code, however the key and the number are typed, from any origin', !again.length, again.join(' | '))
+  r = await activateReq({ key: K1.key, device: DEV_K2 }, { ip: '198.51.100.31' })
+  check('another device → 409 used (with CORS)', r.status === 409 && r.json?.error === 'used' && cors(r), `${r.status} ${r.text}`)
+  r = await req('GET', `/api/licences/${K1.id}`, { cookie })
+  const bound = r.json?.licence
+  check('the sale now holds the device, the code and the activation time; its message is the code\'s', bound?.device === DEV_K && bound.code === act1?.code && bound.until === null
+    && Math.abs(Date.now() - Date.parse(bound.activatedAt)) < 600_000 && r.json.message.ar.includes(act1.code), JSON.stringify({ device: bound?.device, activatedAt: bound?.activatedAt }))
+  v = await verify(K1.key)
+  check('verify → activated, ok, on that device, at that time', v?.status === 'activated' && v.ok && v.device === DEV_K && v.activatedAt === bound?.activatedAt, JSON.stringify(v))
+
+  const terms = []
+  for (const [l, device, until] of [[batch[0], 'Q8WE-R4TY', plusYears(1)], [K2y, 'Z5XC-V7BN', plusYears(2)], [dated[0], 'M2NB-V3CX', '2031-12-31']]) {
+    const x = await activateReq({ key: l.key, device })
+    const cc = await checkCode(device, x.json?.code || '')
+    if (x.status !== 200 || x.json.until !== until || x.json.plan !== l.plan || !cc.ok || cc.plan !== l.plan || isoDay(cc.until) !== until) terms.push(`${l.validity}: ${x.status} ${x.json?.until} ${JSON.stringify(cc)}`)
+  }
+  check(`1 year → until ${plusYears(1)}, 2 years → ${plusYears(2)} (counted from the activation day), a dated key → its day; checkCode agrees`, !terms.length, terms.join(' | '))
+
+  await req('PATCH', `/api/licences/${batch[1].id}`, { cookie, body: { status: 'void' } })
+  await req('PATCH', `/api/licences/${batch[2].id}`, { cookie, body: { status: 'refunded' } })
+  const voided = await activateReq({ key: batch[1].key, device: 'J4KL-5MNP' }, { ip: '198.51.100.32' })
+  const refunded = await activateReq({ key: batch[2].key, device: 'J4KL-5MNP' }, { ip: '198.51.100.32' })
+  check('a waiting key the seller voided, or refunded → 410 void', voided.status === 410 && voided.json?.error === 'void' && refunded.status === 410 && refunded.json?.error === 'void' && cors(voided),
+    `${voided.status} ${voided.text} | ${refunded.status} ${refunded.text}`)
+  v = await verify(batch[1].key)
+  check('…verify says void, and the key is bound to no device', v?.status === 'void' && !v.ok && !('device' in v), JSON.stringify(v))
+  await req('PATCH', `/api/licences/${batch[2].id}`, { cookie, body: { status: 'active' } })
+  r = await activateReq({ key: batch[2].key, device: 'J4KL-5MNP' }, { ip: '198.51.100.32' })
+  check('…set back to active, the refunded key activates (200)', r.status === 200 && (await checkCode('J4KL-5MNP', r.json?.code || '')).ok, `${r.status}`)
+  await req('PATCH', `/api/licences/${K1.id}`, { cookie, body: { status: 'void' } })
+  const own = await activateReq({ key: K1.key, device: DEV_K }), other = await activateReq({ key: K1.key, device: DEV_K2 }, { ip: '198.51.100.31' })
+  check('a key voided after activation: its own device still gets its code (it works offline anyway), another device 409 used',
+    own.status === 200 && own.json?.code === act1?.code && other.status === 409, `${own.status} ${other.status}`)
+  await req('PATCH', `/api/licences/${K1.id}`, { cookie, body: { status: 'active' } })
+
+  const wrong = []
+  for (const [what, body, status, error] of [
+    ['a key never issued', { key: randomKey(), device: DEV_K }, 404, 'unknown'],
+    ['a key of 15 characters', { key: K2y.key.slice(0, -1), device: DEV_K }, 400, 'key'],
+    ['a key with O and 1', { key: 'O1O1-O1O1-O1O1-O1O1', device: DEV_K }, 400, 'key'],
+    ['no key', { device: DEV_K }, 400, 'key'],
+    ['a device number of 7 characters', { key: K2y.key, device: 'Z5XC-V7B' }, 400, 'device'],
+    ['no device number', { key: K2y.key }, 400, 'device'],
+  ]) {
+    const x = await activateReq(body, { ip: '198.51.100.33' })
+    if (x.status !== status || x.json?.error !== error || !cors(x)) wrong.push(`${what}: ${x.status} ${x.text}`)
+  }
+  r = await activateReq(null, { ip: '198.51.100.33', raw: 'not json' })
+  if (r.status !== 400 || r.json?.error !== 'field' || r.json.field !== 'body' || !cors(r)) wrong.push(`not JSON: ${r.status} ${r.text}`)
+  for (const m of ['GET', 'PUT', 'DELETE']) {
+    const x = await req(m, '/api/activate', { csrf: false, origin: 'https://clinic.example', ip: '198.51.100.33' })
+    if (x.status !== 404 || x.json?.error !== 'not_found' || !cors(x)) wrong.push(`${m}: ${x.status} ${x.text}`)
+  }
+  check('errors, each with CORS: 404 unknown, 400 key (short, O/1, missing), 400 device (short, missing), 400 field body; GET/PUT/DELETE → 404 not_found', !wrong.length, wrong.join(' | '))
+  const noCors = []
+  for (const [m, path, o] of [
+    ['GET', '/api/me', {}], ['GET', '/api/me', { cookie }], ['POST', '/api/login', { body: { password: 'x' }, origin: 'https://clinic.example' }],
+    ['OPTIONS', '/api/licences', { csrf: false, origin: 'https://clinic.example', headers: { 'Access-Control-Request-Method': 'GET' } }],
+    ['GET', '/api/licences', { cookie, origin: 'https://clinic.example' }], ['GET', '/activate', {}], ['GET', '/', {}],
+  ]) {
+    const x = await req(m, path, o)
+    if ([...x.headers.keys()].some(k => k.startsWith('access-control-'))) noCors.push(`${m} ${path} ${x.status}`)
+  }
+  check('no other route answers with CORS headers (/api/me, /api/login, a preflight of /api/licences, the pages)', !noCors.length, noCors.join(' | '))
+
+  const audit = (await req('GET', '/api/audit?limit=500', { cookie })).json.items
+  const made = audit.filter(i => i.action === 'keys.create'), activated = audit.filter(i => i.action === 'key.activate'), used = audit.filter(i => i.action === 'key.used')
+  check('audit: keys.create per sale ("3 × standard 1y · $40 · Homs reseller"), with the seller\'s address', made.some(i => i.detail === '3 × standard 1y · $40 · Homs reseller' && i.ip === IP)
+    && made.some(i => i.detail === '2 × pro 2031-12-31 · $45.5 · Dr. Lina Haddad') && made.some(i => i.detail === `1 × pro lifetime · $${priceNow} · عيادة الشفاء`), made.map(i => i.detail).join(' | '))
+  check('audit: key.activate "…<last 4> · <device>" once per key (a repeat by the same device is not logged), with no address',
+    activated.filter(i => i.detail === `…${K1.key.slice(-4)} · ${DEV_K}`).length === 1 && activated.some(i => i.detail === `…${batch[0].key.slice(-4)} · Q8WE-R4TY`) && activated.every(i => i.ip === ''),
+    activated.map(i => `${i.detail} [${i.ip}]`).join(' | '))
+  check('audit: key.used names the key\'s own device, never the device that tried, and no address', used.length >= 2 && used.every(i => i.ip === '' && !i.detail.includes(DEV_K2))
+    && used.some(i => i.detail === `…${K1.key.slice(-4)} · ${DEV_K}`), used.map(i => i.detail).join(' | '))
+  check('audit: a waiting key is named by its last 4 characters ("…XXXX · status: active → void")', audit.some(i => i.action === 'licence.update' && i.detail === `…${batch[1].key.slice(-4)} · status: active → void`))
+  check('audit: no entry holds a whole key', !audit.some(i => keys.some(k => i.detail.includes(k.key) || i.detail.includes(k.key.replace(/-/g, '')))))
+  st = await statsOf()
+  check('stats: pending counts the active keys still waiting (5 activated, 1 void)', st.pending === before.pending + keys.length - 6, JSON.stringify(st))
+
+  section('licence keys: the activation limit (10 failures per address in 15 minutes)')
+  const RL = '203.0.113.80'
+  const statuses = []
+  let last
+  for (let i = 0; i < 11; i++) { last = await activateReq({ key: randomKey(), device: DEV_K }, { ip: RL }); statuses.push(last.status) }
+  check('11 unknown keys from one address → 404 ×10, then 429 locked with retryAfter (seconds, at most 15 minutes), with CORS',
+    statuses.join() === '404,404,404,404,404,404,404,404,404,404,429' && last.json?.error === 'locked' && last.json.retryAfter > 850 && last.json.retryAfter <= 900 && cors(last),
+    `${statuses.join()} ${JSON.stringify(last.json)}`)
+  r = await activateReq({ key: dated[1].key, device: 'N6MP-Q2RS' }, { ip: RL })
+  v = await verify(dated[1].key)
+  check('…a real key from that address is refused before it is looked up (429), and stays waiting', r.status === 429 && v?.status === 'pending', `${r.status} ${v?.status}`)
+  r = await activateReq({ key: dated[1].key, device: 'N6MP-Q2RS' }, { ip: '203.0.113.81' })
+  check('…another address activates it (200)', r.status === 200)
+  const burst = await Promise.all(Array.from({ length: 30 }, () => activateReq({ key: randomKey(), device: DEV_K }, { ip: '203.0.113.82' })))
+  const n = {}
+  for (const x of burst) n[x.status] = (n[x.status] || 0) + 1
+  check('30 guesses at once from one address → exactly 10 looked up (404), 20 refused (429)', n[404] === 10 && n[429] === 20, JSON.stringify(n))
+  const OK_IP = '203.0.113.83', oks = []
+  for (let i = 0; i < 12; i++) oks.push((await activateReq({ key: K1.key, device: DEV_K }, { ip: OK_IP })).status)
+  for (let i = 0; i < 12; i++) oks.push((await activateReq(null, { ip: OK_IP, raw: '{oops' })).status)
+  r = await activateReq({ key: randomKey(), device: DEV_K }, { ip: OK_IP })
+  check('12 successes and 12 broken bodies from one address are not counted: its next failure is still a 404', oks.slice(0, 12).every(x => x === 200) && oks.slice(12).every(x => x === 400) && r.status === 404,
+    `${[...new Set(oks)].join()} → ${r.status}`)
+  for (let i = 1; i <= 10; i++) await activateReq({ key: randomKey(), device: DEV_K }, { ip: `2001:db8:aa:1::${i}` })
+  const v6a = await activateReq({ key: randomKey(), device: DEV_K }, { ip: '2001:db8:aa:1:ffff::9' }), v6b = await activateReq({ key: randomKey(), device: DEV_K }, { ip: '2001:db8:aa:2::1' })
+  check('IPv6: 10 failures across one /64 lock the whole /64 (429); the next /64 is not locked (404)', v6a.status === 429 && v6b.status === 404, `${v6a.status} ${v6b.status}`)
+  const attempts = await queryD1(mainWorker.persist, 'SELECT * FROM activation_attempts')
+  const columns = attempts?.length ? Object.keys(attempts[0]).sort().join() : ''
+  const per = ip => (attempts || []).filter(a => a.ip === ip).length
+  check('D1 activation_attempts: only id, ip (IPv6 as its /64) and time; the failures alone (10 per locked address, 1 after the successes)',
+    columns === 'at,id,ip' && per(RL) === 10 && per('203.0.113.82') === 10 && per(OK_IP) === 1 && per('2001:db8:aa:1::/64') === 10 && per('203.0.113.81') === 0,
+    `${columns} ${RL}:${per(RL)} ok:${per(OK_IP)} v6:${per('2001:db8:aa:1::/64')}`)
+  return { cookie }
+}
+
+/** The landing page's links to the activation page and the legal pages' footer link. */
+async function keyLinks() {
+  section('licence keys: links to the activation page')
+  for (const [path, base] of [['/', ''], ['/en', '/en']]) {
+    const r = await req('GET', path)
+    const n = (r.text.match(new RegExp(`href="${base}/activate"`, 'g')) || []).length
+    check(`${path}: links to ${base}/activate from step 3, the FAQ and the footer`, r.text.includes(`class="step-link" href="${base}/activate"`) && n >= 3, `${n} links`)
+  }
+  for (const path of ['/privacy', '/en/terms', '/no-such-page']) {
+    const r = await req('GET', path)
+    const base = path.startsWith('/en') ? '/en' : ''
+    check(`${path}: the footer links to ${base}/activate`, r.text.includes(`<a href="${base}/activate">`))
+  }
+  for (const [path, lang] of [['/activate', 'ar'], ['/en/activate', 'en'], ['/activate?device=h7kq2mxd', 'ar']]) {
+    const r = await req('GET', path)
+    check(`GET ${path} → 200 HTML, Content-Language ${lang}, PUBLIC_CSP, security headers, cacheable 5 minutes, no inline style or script`,
+      r.status === 200 && r.headers.get('content-language') === lang && r.headers.get('content-security-policy') === PUBLIC_CSP && !missingSecurity(r.headers, path).length
+      && r.headers.get('cache-control') === 'public, max-age=300' && !/\sstyle="|<style|\son[a-z]+=/i.test(r.text)
+      && (r.text.match(/<script\b[^>]*>/g) || []).join() === '<script src="/js/activate.js" defer>,<script type="application/json" id="act-text">', `${r.status}`)
+  }
+  let r = await req('GET', '/activate?device=h7kq2mxd')
+  const r2 = await req('GET', `/en/activate?device=${encodeURIComponent('"><script>alert(1)</script>')}`)
+  check('?device= fills in a valid device number (formatted), and nothing else', r.text.includes('value="H7KQ-2MXD"') && r2.text.includes('id="act-device" name="device" type="text" dir="ltr" value=""') && !r2.text.includes('<script>alert'))
+  for (const path of ['/js/activate.js', '/css/activate.css']) {
+    r = await req('GET', path)
+    check(`GET ${path} → 200, cached 10 minutes, security headers`, r.status === 200 && r.headers.get('cache-control') === 'public, max-age=600' && !missingSecurity(r.headers).length, `${r.status} ${r.headers.get('content-type')}`)
+  }
+  r = await req('GET', '/robots.txt')
+  check('robots.txt does not block /activate', !/^Disallow: \/(en\/)?activate/m.test(r.text))
+}
+
+const ACT_WORDS = {
+  ar: { done: 'رمز التفعيل جاهز', keyErr: 'المفتاح غير مكتمل', used: 'مُفعَّل على جهاز آخر', unknown: 'لم نجد هذا المفتاح', void: 'مُلغى أو استُرِدّ ثمنه',
+    plans: { pro: 'الباقة الاحترافية', standard: 'الباقة الأساسية' }, lifetime: 'ترخيص دائم', until: 'صالح حتى' },
+  en: { done: 'Your activation code is ready', keyErr: 'incomplete or has a typo', used: 'already activated on another device', unknown: 'could not find this key', void: 'cancelled or refunded',
+    plans: { pro: 'Pro plan', standard: 'Standard plan' }, lifetime: 'Lifetime licence', until: 'Valid until' },
+}
+/** Signs in to the panel in this page's browser (its session cookie then sits in the same cookie store). */
+async function panelLogin(page) {
+  await page.goto(`${BASE}/admin`)
+  await page.waitForSelector('.login-card')
+  await page.fill('#login-pw', PASSWORD)
+  await page.click('.login-form button[type=submit]')
+  await page.waitForSelector('.kpis:not([aria-busy])')
+}
+
+/**
+ * The public activation page as a clinic uses it, at one size: the device number from ?device=, a key typed loosely,
+ * the code checked with the app's own checkCode, copy, the same key again, then a used, an unknown and a voided key.
+ */
+async function activationPage(browser, cookie, lang, sizeName, ip) {
+  const size = SIZES[sizeName], w = ACT_WORDS[lang], tag = `/activate ${lang} ${sizeName}`
+  const plan = lang === 'ar' ? 'pro' : 'standard', validity = lang === 'ar' ? 'lifetime' : '1y'
+  const made = (await req('POST', '/api/keys', { cookie, body: { count: 2, plan, validity, clinic: `Activation page ${lang} ${sizeName}` } })).json.items.map(x => x.licence)
+  const [good, gone] = made
+  await req('PATCH', `/api/licences/${gone.id}`, { cookie, body: { status: 'void' } })
+  const device = randomDevice(), otherDevice = randomDevice()
+  const p = await newPage(browser, { width: size.width, height: size.height, dsf: size.dsf, mobile: size.mobile, lang })
+  const { page, ctx } = p
+  await ctx.setExtraHTTPHeaders({ 'CF-Connecting-IP': ip })
+  const dir = shotDir('activate')
+  const shot = async name => {
+    // from the top: a full-page picture of a scrolled page draws the sticky header halfway down
+    await page.evaluate(() => window.scrollTo(0, 0))
+    await page.waitForTimeout(150)
+    await page.screenshot({ path: join(dir, `${lang}-${sizeName}-${name}.png`), fullPage: true })
+    const o = await overflowOf(page)
+    check(`${tag} ${name}: no horizontal overflow`, o.sw <= o.cw, `${o.sw}/${o.cw}px`)
+  }
+  await panelLogin(page)
+  const hasSession = (await ctx.cookies()).some(x => x.name === COOKIE)
+  const sent = [], answered = []
+  page.on('request', rq => { if (rq.url().endsWith('/api/activate')) sent.push(rq) })
+  page.on('response', rs => { if (rs.url().endsWith('/api/activate')) answered.push(rs) })
+  const path = lang === 'ar' ? '/activate' : '/en/activate'
+  const res = await page.goto(`${BASE}${path}?device=${device.toLowerCase().replace('-', '')}`, { waitUntil: 'networkidle' })
+  const d = await page.evaluate(() => ({
+    lang: document.documentElement.lang, dir: document.documentElement.dir, h1: document.querySelectorAll('h1').length,
+    device: document.querySelector('#act-device')?.value, title: document.title, script: !!document.querySelector('script[src="/js/activate.js"]'),
+  }))
+  check(`${tag}: 200 with PUBLIC_CSP, lang/dir, one h1, the device number from ?device= (formatted)`, res.status() === 200 && res.headers()['content-security-policy'] === PUBLIC_CSP
+    && d.lang === lang && d.dir === (lang === 'ar' ? 'rtl' : 'ltr') && d.h1 === 1 && d.device === device && d.script, JSON.stringify(d))
+  await shot('1-form')
+
+  await page.fill('#act-key', good.key.slice(0, 17))
+  await page.click('.act-submit')
+  const keyErr = await page.locator('#act-key-err:not([hidden])').textContent({ timeout: 4000 }).catch(() => '')
+  check(`${tag}: a short key → its sentence under the field, focus there, nothing sent`, keyErr.includes(w.keyErr) && sent.length === 0
+    && await page.evaluate(() => document.activeElement?.id === 'act-key' && document.querySelector('#act-key').getAttribute('aria-invalid') === 'true'), keyErr)
+  await shot('2-key-error')
+
+  await page.fill('#act-key', good.key.toLowerCase().replace(/-/g, ' '))
+  await page.click('.act-submit')
+  await page.waitForSelector('#act-done:not([hidden])', { timeout: 20_000 })
+  const code = (await page.locator('#act-code').textContent()).replace(/\s+/g, '')
+  const verdict = await checkCode(device, code)
+  const lastDay = validity === '1y' ? plusYears(1) : null
+  check(`${tag}: the code shown passes the app's checkCode for ${device} (${plan}, ${validity})`, CODE_RE.test(code) && verdict.ok && verdict.plan === plan
+    && (lastDay ? isoDay(verdict.until) === lastDay : verdict.until === null), JSON.stringify(verdict))
+  const facts = await page.evaluate(() => ({ plan: document.querySelector('#act-plan')?.textContent, validity: document.querySelector('#act-validity')?.textContent, device: document.querySelector('#act-done-device')?.textContent, focus: document.activeElement?.id }))
+  check(`${tag}: plan, validity and device shown; focus on the result`, facts.plan === w.plans[plan] && (lastDay ? facts.validity.includes(w.until) && facts.validity.includes(lastDay.slice(0, 4)) : facts.validity === w.lifetime)
+    && facts.device === device && facts.focus === 'act-done-title', JSON.stringify(facts))
+  await page.click('#act-copy')
+  const clip = await page.evaluate(() => navigator.clipboard.readText()).catch(() => '')
+  check(`${tag}: "copy" copies the code`, clip === code, `${clip.length} characters`)
+  await shot('3-code')
+  const first = sent[0]
+  const firstBody = first ? JSON.parse(first.postData() || '{}') : {}
+  const firstHeaders = first ? await first.allHeaders() : {}
+  const firstAnswer = answered[0] ? await answered[0].allHeaders() : {}
+  check(`${tag}: one POST with JSON {key, device} only, and no cookie although the panel's session cookie is in this browser; none set back`,
+    hasSession && sent.length === 1 && first.method() === 'POST' && JSON.stringify(Object.keys(firstBody).sort()) === '["device","key"]' && firstBody.device === device.replace('-', '')
+    && !firstHeaders.cookie && !firstAnswer['set-cookie'], `${sent.length} ${JSON.stringify(Object.keys(firstHeaders))}`)
+
+  await page.click('#act-again')
+  await page.waitForSelector('#act-start:not([hidden])')
+  check(`${tag}: "activate another key": the form again, the device number kept, the key emptied`, (await page.inputValue('#act-device')) === device && (await page.inputValue('#act-key')) === '')
+  await page.fill('#act-key', good.key)
+  await page.click('.act-submit')
+  await page.waitForSelector('#act-done:not([hidden])', { timeout: 20_000 })
+  check(`${tag}: the same key and device again → the same code`, (await page.locator('#act-code').textContent()).replace(/\s+/g, '') === code)
+  await page.click('#act-again')
+  await page.waitForSelector('#act-start:not([hidden])')
+
+  const alertFor = async (key, dev, word) => {
+    await page.fill('#act-device', dev)
+    await page.fill('#act-key', key)
+    await page.click('.act-submit')
+    return page.waitForFunction(t => (document.querySelector('#act-alert .act-alert:not([hidden]) span')?.textContent || '').includes(t), word, { timeout: 20_000 })
+      .then(async () => (await page.locator('#act-alert .act-alert span').textContent()) || '', () => page.locator('#act-alert').textContent())
+  }
+  let msg = await alertFor(good.key, otherDevice, w.used)
+  check(`${tag}: the key on another device → the "used" sentence`, msg.includes(w.used), msg)
+  await shot('4-used')
+  msg = await alertFor(randomKey(), device, w.unknown)
+  check(`${tag}: a key never issued → the "unknown" sentence`, msg.includes(w.unknown), msg)
+  msg = await alertFor(gone.key, device, w.void)
+  check(`${tag}: a key the seller voided → the "void" sentence`, msg.includes(w.void), msg)
+  const help = decodeURIComponent(await page.getAttribute('#act-wa', 'href'))
+  check(`${tag}: the WhatsApp help link names the device number and the key typed`, help.startsWith('https://wa.me/963996489504?text=') && help.includes(device) && help.includes(gone.key))
+
+  const expected4xx = x => /\/api\/activate$/.test(x.split(' ').slice(1).join(' ')) && /^(404|409|410) /.test(x)
+  const consoleIssues = p.console.filter(x => !/^error: Failed to load resource: the server responded with a status of (404|409|410)/.test(x))
+  const csp = await p.csp()
+  check(`${tag}: no console errors or CSP violations; no failed requests; 4xx only the refusals asked for`, !consoleIssues.length && !csp.length && !p.failed.length && p.http.every(expected4xx),
+    [...consoleIssues, ...csp, ...p.failed, ...p.http.filter(x => !expected4xx(x))].join(' | '))
+  await p.close()
+}
+
+/** The narrowest phone: the form and a code fit at 360 px. */
+async function activationNarrow(browser, cookie, lang, ip) {
+  const [key] = (await req('POST', '/api/keys', { cookie, body: { plan: 'pro', validity: 'date', until: '2031-12-31', clinic: `360 ${lang}` } })).json.items.map(x => x.licence)
+  const p = await newPage(browser, { width: 360, height: 740, dsf: 2, mobile: true, lang })
+  await p.ctx.setExtraHTTPHeaders({ 'CF-Connecting-IP': ip })
+  const { page } = p
+  const device = randomDevice()
+  await page.goto(`${BASE}${lang === 'ar' ? '/activate' : '/en/activate'}?device=${device}`, { waitUntil: 'networkidle' })
+  const form = await overflowOf(page)
+  await page.screenshot({ path: join(shotDir('activate'), `${lang}-360-form.png`), fullPage: true })
+  await page.fill('#act-key', key.key)
+  await page.click('.act-submit')
+  await page.waitForSelector('#act-done:not([hidden])', { timeout: 20_000 })
+  const done = await overflowOf(page)
+  await page.evaluate(() => window.scrollTo(0, 0))
+  const rows = await page.evaluate(() => { const g = [...document.querySelectorAll('#act-code > span')].map(s => Math.round(s.getBoundingClientRect().top)); return new Set(g).size })
+  await page.screenshot({ path: join(shotDir('activate'), `${lang}-360-code.png`), fullPage: true })
+  const verdict = await checkCode(device, (await page.locator('#act-code').textContent()).replace(/\s+/g, ''))
+  check(`/activate ${lang} at 360px: form and code fit (no sideways scroll), the code in 7 rows of 4, a dated key → until 2031-12-31`, form.sw <= form.cw && done.sw <= done.cw && rows === 7
+    && verdict.ok && isoDay(verdict.until) === '2031-12-31' && !p.console.length && !(await p.csp()).length, `${form.sw}/${done.sw}/${done.cw}px, ${rows} rows ${JSON.stringify(verdict)} ${p.console.join(' | ')}`)
+  await p.close()
+}
+
+const PANEL_WORDS = {
+  ar: { keyMode: 'مفتاح ترخيص', oneYear: 'سنة', issue3: 'إصدار 3 مفاتيح', vPending: 'مفتاح صالح بانتظار التفعيل', vActive: 'مفتاح مفعّل', keysCreate: 'إصدار مفاتيح ترخيص', keyActivate: 'تفعيل مفتاح ترخيص', copyAll: 'نسخ الكل' },
+  en: { keyMode: 'Licence key', oneYear: '1 year', issue3: 'Issue 3 keys', vPending: 'Valid key, waiting for activation', vActive: 'Activated key', keysCreate: 'Licence keys issued', keyActivate: 'Licence key activated', copyAll: 'Copy all' },
+}
+/**
+ * The seller sells keys in the panel against the real Worker: one key, then a batch of 3; the list shows them
+ * waiting; a clinic activates one (POST /api/activate) and the list, the licence and verify follow; a waiting key
+ * voided in the panel is then refused; the activity log names it all.
+ */
+async function panelKeys(browser, lang, sizeName) {
+  const size = SIZES[sizeName], w = PANEL_WORDS[lang], tag = `panel keys ${lang} ${sizeName}`
+  const p = await newPage(browser, { width: size.width, height: size.height, dsf: size.dsf, mobile: size.mobile, lang })
+  const { page } = p
+  const dir = shotDir('keys')
+  const unexpected4xx = []
+  page.on('response', r => { if (r.status() >= 400 && !(r.url().endsWith('/api/login') && r.status() === 401)) unexpected4xx.push(`${r.status()} ${r.url().replace(BASE, '')}`) })
+  const shot = async (name, full = true) => {
+    await page.waitForTimeout(150)
+    const file = join(dir, `${lang}-${sizeName}-${name}.png`)
+    if (full) {
+      // as tall as the page (the sticky bars where a phone shows them), up to 5000 px: the activity log grows with the run
+      const hgt = await page.evaluate(() => document.documentElement.scrollHeight)
+      await page.setViewportSize({ width: size.width, height: Math.min(5000, Math.max(size.height, hgt)) })
+      await page.waitForTimeout(120)
+      await page.screenshot({ path: file })
+      await page.setViewportSize({ width: size.width, height: size.height })
+    } else await page.screenshot({ path: file })
+    const o = await overflowOf(page)
+    const missing = await page.evaluate(() => [...document.querySelectorAll('use')].map(u => u.getAttribute('href')).filter(h => !document.querySelector(h)))
+    check(`${tag} ${name}: no horizontal overflow, icons resolve`, o.sw <= o.cw && !missing.length, `${o.sw}/${o.cw}px ${missing.join(' ')}`)
+  }
+  const api = (path, init) => page.evaluate(async ([path, init]) => (await fetch(path, { credentials: 'same-origin', ...init })).json(), [path, init || {}])
+  const text = sel => page.locator(sel).first().textContent().then(s => (s || '').replace(/\s+/g, ' ').trim())
+  const clipboard = () => page.evaluate(() => navigator.clipboard.readText()).catch(() => '')
+
+  await panelLogin(page)
+  const st = (await api('/api/stats')).licences
+  const pill = await page.locator('.kpi-link .pill').textContent().catch(() => '')
+  check(`${tag} dashboard: "keys waiting for activation: ${st.pending}"`, pill === String(st.pending), pill)
+
+  // ---- one key
+  await page.goto(`${BASE}/admin#/new`)
+  await page.waitForSelector('input[name=device]')
+  await page.locator('.choice label', { hasText: w.keyMode }).click()
+  check(`${tag} new: key mode hides the device number and asks how many (1)`, !(await page.locator('input[name=device]').isVisible()) && (await page.inputValue('input[name=count]')) === '1')
+  const clinic = lang === 'ar' ? 'عيادة الياسمين' : 'Jasmine Dental'
+  await page.fill('input[name=customer]', lang === 'ar' ? 'د. ليلى حداد' : 'Dr. Layla Haddad')
+  await page.fill('input[name=clinic]', clinic)
+  await page.fill('input[name=phone]', '0944 765 432')
+  await shot('01-new-key')
+  await page.click('form button[type=submit]')
+  await page.waitForSelector('.keybox')
+  const key1 = (await page.locator('.keybox').first().textContent()).trim()
+  const listed = await api(`/api/licences?q=${encodeURIComponent(key1)}`)
+  check(`${tag} the key shown is the one stored, waiting (no device, no code), pro, lifetime`, KEY_RE.test(key1) && listed.total === 1 && listed.items[0].device === ''
+    && listed.items[0].code === '' && listed.items[0].plan === 'pro' && listed.items[0].validity === 'lifetime' && listed.items[0].clinic === clinic, key1)
+  await page.locator('.block-label .chip-btn').first().click()
+  check(`${tag} copy copies the key`, (await clipboard()) === key1)
+  check(`${tag} the key message and WhatsApp to the customer`, (await page.locator('.bubble').textContent()).includes(key1) && (await page.getAttribute('a.btn-wa', 'href')).startsWith('https://wa.me/963944765432?text='))
+  await shot('02-key-result')
+
+  // ---- a batch of 3, one year
+  await page.locator('.form-actions .btn-outline').last().click()
+  await page.waitForSelector('input[name=count]')
+  await page.click('.step-btn >> nth=1')
+  await page.click('.step-btn >> nth=1')
+  await page.locator('label', { hasText: w.oneYear }).first().click()
+  check(`${tag} batch: the stepper counts to 3, the button says so`, (await page.inputValue('input[name=count]')) === '3' && (await text('form button[type=submit]')) === w.issue3, await text('form button[type=submit]'))
+  await page.fill('input[name=customer]', lang === 'ar' ? 'موزّع حمص' : 'Homs reseller')
+  await page.fill('input[name=clinic]', '')
+  await page.fill('input[name=phone]', '')
+  await page.fill('input[name=price]', '40')
+  await page.click('form button[type=submit]')
+  await page.waitForSelector('.key-list')
+  const three = (await page.locator('.key-list .keybox').allTextContents()).map(x => x.trim())
+  const stored = await Promise.all(three.map(k => api(`/api/licences?q=${encodeURIComponent(k)}`)))
+  check(`${tag} batch: 3 different keys shown, each stored waiting (pro, 1 year, $40)`, three.length === 3 && new Set(three).size === 3 && three.every(k => KEY_RE.test(k))
+    && stored.every(x => x.total === 1 && x.items[0].device === '' && x.items[0].plan === 'pro' && x.items[0].validity === '1y' && x.items[0].price === 40), three.join(' '))
+  await page.locator('.block-label .chip-btn', { hasText: w.copyAll }).click()
+  check(`${tag} batch: "copy all" = one key per line`, (await clipboard()) === three.join('\n'))
+  await shot('03-batch')
+
+  // ---- the list: waiting keys
+  await page.goto(`${BASE}/admin#/licences`)
+  await page.waitForSelector('.lic-row')
+  await page.selectOption('.toolbar select', 'pending')
+  await page.waitForFunction(() => document.querySelectorAll('.lic-row').length && [...document.querySelectorAll('.lic-row')].every(r => r.querySelector('.badge--pending')), null, { timeout: 8000 }).catch(() => {})
+  const pendingRows = await page.locator('.lic-row').allTextContents()
+  check(`${tag} list "waiting for activation": only waiting keys, ours among them`, (await page.locator('.lic-row').count()) === (await page.locator('.lic-row .badge--pending').count())
+    && [key1, ...three].every(k => pendingRows.some(r => r.includes(k))), `${pendingRows.length} rows`)
+  await shot('04-list-pending')
+  await page.locator('.lic-row', { hasText: three[0] }).click()
+  await page.waitForSelector('dialog.sheet .keybox')
+  check(`${tag} a waiting key's sheet: the key, its message, no code yet`, (await page.locator('dialog.sheet .codebox').count()) === 0 && (await page.locator('dialog.sheet .bubble').textContent()).includes(three[0]))
+  await shot('05-sheet-waiting', false)
+  await page.keyboard.press('Escape')
+  await page.waitForFunction(() => !document.querySelector('dialog.sheet'))
+
+  // ---- a clinic activates one of them
+  const device = randomDevice()
+  const act = await activateReq({ key: three[0], device }, { ip: '198.51.100.50' })
+  check(`${tag} the clinic activates a key of the batch (200)`, act.status === 200, `${act.status} ${act.text.slice(0, 60)}`)
+  await page.selectOption('.toolbar select', '')
+  await page.fill('#lic-q', three[0])
+  await page.waitForFunction(k => document.querySelectorAll('.lic-row').length === 1 && document.querySelector('.lic-row').textContent.includes(k), three[0], { timeout: 8000 }).catch(() => {})
+  check(`${tag} the list shows it "activated on" ${device}`, (await page.locator('.lic-row .badge--on').textContent().catch(() => '')).includes(device))
+  await page.locator('.lic-row').first().click()
+  await page.waitForSelector('dialog.sheet .codebox')
+  check(`${tag} its sheet now holds the device and the code the clinic received`, (await page.locator('dialog.sheet .codebox').textContent()).replace(/\s+/g, '') === act.json?.code
+    && (await page.locator('dialog.sheet .facts').textContent()).includes(device))
+  await shot('06-sheet-activated', false)
+  await page.keyboard.press('Escape')
+  await page.waitForFunction(() => !document.querySelector('dialog.sheet'))
+  await page.fill('#lic-q', '')
+
+  // ---- verify
+  await page.goto(`${BASE}/admin#/verify`)
+  await page.waitForSelector('textarea[name=code]')
+  await page.fill('textarea[name=code]', key1.toLowerCase())
+  await page.click('form button[type=submit]')
+  const vp = await page.waitForFunction(t => document.querySelector('.result-head h2')?.textContent === t, w.vPending, { timeout: 8000 }).then(() => true, () => false)
+  check(`${tag} verify a waiting key → "${w.vPending}"`, vp, await text('.result-head'))
+  await shot('07-verify-pending')
+  await page.fill('textarea[name=code]', three[0])
+  await page.click('form button[type=submit]')
+  const va = await page.waitForFunction(t => document.querySelector('.result-head h2')?.textContent === t, w.vActive, { timeout: 8000 }).then(() => true, () => false)
+  check(`${tag} verify the activated key → "${w.vActive}" on ${device}`, va && (await text('.result-head')).includes(device), await text('.result-head'))
+  await shot('08-verify-activated')
+
+  // ---- void a waiting key in its sheet: activation is then refused
+  await page.goto(`${BASE}/admin#/licences`)
+  await page.waitForSelector('.lic-row')
+  await page.fill('#lic-q', three[1])
+  await page.waitForFunction(k => document.querySelectorAll('.lic-row').length === 1 && document.querySelector('.lic-row').textContent.includes(k), three[1], { timeout: 8000 }).catch(() => {})
+  await page.locator('.lic-row').first().click()
+  await page.waitForSelector('dialog.sheet .keybox')
+  await page.locator('dialog.sheet .seg--status label').nth(2).click()
+  await page.waitForSelector('dialog.confirm[open]')
+  await shot('09-confirm-void', false)
+  await page.locator('dialog.confirm .btn-danger').click()
+  const isVoid = await page.waitForFunction(() => document.querySelector('dialog.sheet .sheet-head .badge')?.className.includes('void'), null, { timeout: 6000 }).then(() => true, () => false)
+  const refused = await activateReq({ key: three[1], device: randomDevice() }, { ip: '198.51.100.51' })
+  check(`${tag} a waiting key voided in the panel → its activation is refused (410 void)`, isVoid && refused.status === 410 && refused.json?.error === 'void', `${isVoid} ${refused.status}`)
+  await page.keyboard.press('Escape')
+  await page.waitForFunction(() => !document.querySelector('dialog.sheet'))
+
+  // ---- activity, dashboard
+  await page.goto(`${BASE}/admin#/activity`)
+  await page.waitForSelector('.feed-item')
+  const feed = await page.locator('.feed-item').allTextContents()
+  check(`${tag} activity: keys issued and activated in words, a key by its last 4 characters only`, feed.some(x => x.includes(w.keysCreate)) && feed.some(x => x.includes(w.keyActivate) && x.includes(three[0].slice(-4)) && x.includes(device))
+    && !feed.some(x => /keys\.create|key\.activate/.test(x) || [key1, ...three].some(k => x.includes(k))), feed.slice(0, 3).join(' | '))
+  await shot('10-activity')
+  await page.goto(`${BASE}/admin#/`)
+  await page.waitForSelector('.kpis:not([aria-busy])')
+  await shot('11-dashboard')
+
+  const csp = await p.csp()
+  check(`${tag} no CSP violations, no console errors or warnings, no 4xx/5xx or failed requests`, !csp.length && !p.console.length && !unexpected4xx.length && !p.failed.filter(x => !/net::ERR_ABORTED/.test(x)).length,
+    [...csp, ...p.console, ...unexpected4xx, ...p.failed].join(' | '))
+  await p.close()
+}
+
+/** /download/windows with an installer published: a 45 MiB stand-in in 3 parts on a Worker of its own. */
+async function windowsInstaller() {
+  section('/download/windows with an installer published (a 45 MiB stand-in, 3 parts)')
+  const size = 45 * 1024 * 1024
+  const bytes = Buffer.alloc(size)
+  for (let at = 0; at < size; at += 65_536) crypto.getRandomValues(bytes.subarray(at, at + 65_536))
+  const file = join(OUT, 'stand-in-setup.exe')
+  writeFileSync(file, bytes)
+  const sha = createHash('sha256').update(bytes).digest('hex')
+  buildPublic(file)
+  const meta = JSON.parse(readFileSync(join(SERVER, 'public', 'files', 'windows.json'), 'utf8'))
+  check('build-public: 3 parts of at most 20 MiB adding up to the file, its sha256 and the app\'s version', meta.parts.length === 3 && meta.parts.every(x => x.size <= 20 * 1024 * 1024)
+    && meta.parts.reduce((a, x) => a + x.size, 0) === size && meta.sizeBytes === size && meta.sha256 === sha && meta.version === APK_VERSION, JSON.stringify(meta.parts))
+  const w = await startWorker('windows', PORT + 3)
+  try {
+    let r = await req('GET', '/download/windows', { base: w.base, ip: '192.0.2.90' })
+    const got = createHash('sha256').update(r.buf).digest('hex')
+    check('GET /download/windows → 200, exactly the installer\'s bytes (sha256), streamed from its parts', r.status === 200 && r.buf.length === size && got === sha,
+      `${r.status} ${r.buf.length} bytes, sha256 ${got.slice(0, 16)}… (the file: ${sha.slice(0, 16)}…)`)
+    check('…as Dentora-Setup-<version>.exe: exe type, the whole length, no ranges, no-store, security headers', r.headers.get('content-type') === 'application/vnd.microsoft.portable-executable'
+      && r.headers.get('content-disposition') === `attachment; filename="Dentora-Setup-${APK_VERSION}.exe"` && r.headers.get('content-length') === String(size)
+      && r.headers.get('accept-ranges') === 'none' && r.headers.get('cache-control') === 'no-store' && !missingSecurity(r.headers).length,
+    `${r.headers.get('content-type')} | ${r.headers.get('content-disposition')} | ${r.headers.get('content-length')}`)
+    r = await req('GET', '/download/windows', { base: w.base, headers: { Range: 'bytes=100-199' } })
+    check('a Range request gets the whole file from the start (200, same sha256)', r.status === 200 && createHash('sha256').update(r.buf).digest('hex') === sha, `${r.status} ${r.buf.length}`)
+    r = await req('HEAD', '/download/windows', { base: w.base })
+    check('HEAD → 200 with the length, no body', r.status === 200 && r.buf.length === 0 && r.headers.get('content-length') === String(size))
+    const [en, ar] = [await req('GET', '/en', { base: w.base }), await req('GET', '/', { base: w.base })]
+    check('the landing page offers the installer with its version and size (45 MB)', en.text.includes('Download for Windows') && en.text.includes(`Installer · version <bdi dir="ltr">${APK_VERSION}</bdi> · 45 MB`)
+      && ar.text.includes('تحميل لويندوز') && ar.text.includes(`<bdi dir="ltr">${APK_VERSION}</bdi>`))
+  } finally {
+    await stopWorker(w)
+    // public/ as the rest of the run had it
+    buildPublic('none')
+    rmSync(file, { force: true })
+  }
+}
+
 // ==== run ==========================================================================================================
 async function main() {
   mkdirSync(OUT, { recursive: true })
@@ -1339,7 +1991,7 @@ async function main() {
     return
   }
   section('build and start')
-  execFileSync(process.execPath, [join(SERVER, 'scripts', 'build-public.mjs')], { cwd: SERVER, stdio: 'inherit' })
+  buildPublic('none')
   // A throwaway P-256 key: well-formed, but not the key the app trusts.
   const { privateKey } = await crypto.subtle.generateKey({ name: 'ECDSA', namedCurve: 'P-256' }, true, ['sign', 'verify'])
   const wrongKey = JSON.stringify(await crypto.subtle.exportKey('jwk', privateKey))
@@ -1364,14 +2016,32 @@ async function main() {
       }
       section('control panel at 360 px')
       await panelNarrow(browser)
+    }
+    if (ONLY.has('keys')) {
+      const { cookie: c } = await keysApi(main)
+      await keyLinks()
+      section('the activation page in Chromium: Arabic and English, phone and desktop, then 360 px')
+      let n = 0
+      for (const lang of ['ar', 'en']) for (const size of ['phone', 'desktop']) {
+        try { await activationPage(browser, c, lang, size, `198.51.100.${60 + n++}`) } catch (e) { check(`/activate ${lang} ${size}`, false, e.message.split('\n')[0]) }
+      }
+      for (const lang of ['ar', 'en']) await activationNarrow(browser, c, lang, `198.51.100.${60 + n++}`)
+      section('licence keys in the control panel: Arabic and English, phone and desktop')
+      for (const lang of ['ar', 'en']) for (const size of ['phone', 'desktop']) {
+        try { await panelKeys(browser, lang, size) } catch (e) { check(`panel keys ${lang} ${size}`, false, e.message.split('\n')[0]) }
+      }
+    }
+    if (ONLY.has('admin') || ONLY.has('keys')) {
       section('stats after everything')
       const { cookie: c } = await login()
       const st = (await req('GET', '/api/stats', { cookie: c })).json
       const all = (await req('GET', '/api/licences?limit=200', { cookie: c })).json.items
       const live = all.filter(l => l.status !== 'void'), active = all.filter(l => l.status === 'active')
       const revenue = Math.round(active.reduce((a, l) => a + l.price, 0) * 100) / 100
-      check('stats agree with the licences list (total = not void, revenue = active)', st.licences.total === live.length && st.licences.revenue === revenue && st.licences.revenueMonth === revenue,
-        `${st.licences.total}/${live.length} ${st.licences.revenue}/${revenue}`)
+      const pending = all.filter(l => l.status === 'active' && l.key && !l.device).length
+      check('stats agree with the licences list (total = not void, revenue = active, pending = active keys not activated)', st.licences.total === live.length
+        && st.licences.revenue === revenue && st.licences.revenueMonth === revenue && st.licences.pending === pending,
+        `${st.licences.total}/${live.length} ${st.licences.revenue}/${revenue} ${st.licences.pending}/${pending}`)
     }
   } finally {
     await browser.close()
@@ -1379,14 +2049,15 @@ async function main() {
 
   section('headers on every response')
   const apiSeen = seen.filter(x => x.path.startsWith('/api/'))
-  const apiBad = apiSeen.filter(x => x.path !== '/api/licences.csv' || x.status !== 200).filter(x => x.headers.get('content-type') !== 'application/json; charset=utf-8' || x.headers.get('cache-control') !== 'no-store')
-  check(`all ${apiSeen.length} API responses: JSON (CSV aside) and no-store`, apiSeen.length > 0 && !apiBad.length, apiBad.slice(0, 5).map(x => `${x.method} ${x.path} ${x.status} ${x.headers.get('content-type')} ${x.headers.get('cache-control')}`).join(' | '))
+  // the CSV and the CORS preflight of /api/activate (204, no body) are the API answers that are not JSON
+  const apiBad = apiSeen.filter(x => !(x.path === '/api/licences.csv' && x.status === 200) && !(x.method === 'OPTIONS' && x.status === 204))
+    .filter(x => x.headers.get('content-type') !== 'application/json; charset=utf-8' || x.headers.get('cache-control') !== 'no-store')
+  check(`all ${apiSeen.length} API responses: JSON (CSV and the preflight aside) and no-store`, apiSeen.length > 0 && !apiBad.length, apiBad.slice(0, 5).map(x => `${x.method} ${x.path} ${x.status} ${x.headers.get('content-type')} ${x.headers.get('cache-control')}`).join(' | '))
   const insecure = seen.filter(x => missingSecurity(x.headers, x.path).length)
   const html = seen.filter(x => (x.headers.get('content-type') || '').startsWith('text/html'))
   check(`security headers on all ${seen.length} responses (${html.length} HTML, ${apiSeen.length} API, the rest files, redirects, downloads)`, seen.length > 0 && !insecure.length,
     insecure.slice(0, 5).map(x => `${x.method} ${x.path} ${x.status}: ${missingSecurity(x.headers, x.path)}`).join(' | '))
 
-  section('the private key stays in the Worker')
   // the local trace store keeps the Worker's console lines (offered by recent wranglers only)
   let logStore = 'not offered by this wrangler'
   try {
@@ -1394,6 +2065,10 @@ async function main() {
     if (r.ok) { const t = await r.text(); scan('local Worker console log store', t); logStore = `searched, ${t.length} bytes` }
   } catch { /* not offered */ }
   for (const w of workers) await stopWorker(w)
+  // after the main Workers stopped: it rebuilds public/ and runs a Worker of its own
+  if (ONLY.has('windows')) await windowsInstaller()
+
+  section('the private key stays in the Worker')
   for (const w of workers) scan(`wrangler output (${w.name})`, w.log)
   const walk = dir => existsSync(dir) ? readdirSync(dir).flatMap(f => { const p = join(dir, f); return statSync(p).isDirectory() ? walk(p) : [p] }) : []
   const files = [...workers.flatMap(w => walk(w.persist)), ...walk(join(SERVER, 'public'))]

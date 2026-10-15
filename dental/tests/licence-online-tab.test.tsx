@@ -17,6 +17,13 @@ import { importSigningKey, makeCode, parsePrivateKey } from '../tools/generator-
 
 ;(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true
 
+// a copy installed from Google Play hides the seller box (sellerShown() false), and with it any link to the website
+const seller = vi.hoisted(() => ({ play: false }))
+vi.mock('../src/features/settings/seller', async importOriginal => ({
+  ...(await importOriginal<typeof import('../src/features/settings/seller')>()),
+  sellerShown: () => !seller.play,
+}))
+
 const KEY_FILE = process.env.DENTORA_LICENSE_KEY || path.resolve(__dirname, '../../secrets-for-user/dentora/license-private.jwk')
 const keyText = fs.existsSync(KEY_FILE) ? fs.readFileSync(KEY_FILE, 'utf8') : ''
 const KEY = 'ABCD-EFGH-JKLM-NPQR'
@@ -73,6 +80,7 @@ describe.skipIf(!keyText)('Settings → Licence with a licence key', () => {
     await act(async () => { root.unmount() })
     host.remove()
     vi.unstubAllGlobals(); vi.restoreAllMocks()
+    seller.play = false
   })
 
   it('recognises a key pasted inside the seller’s message and says what will be sent', async () => {
@@ -145,6 +153,17 @@ describe.skipIf(!keyText)('Settings → Licence with a licence key', () => {
     // editing the field takes the offer away until the next failure
     await type(`${KEY}-`)
     expect($('[data-qa=key-browser-offer]')).toBeNull()
+  })
+
+  it('a copy installed from Google Play says the same but offers no link to the website (it shows the price)', async () => {
+    seller.play = true
+    server(() => { throw new TypeError('Failed to fetch') })
+    await type(KEY)
+    await pressActivate()
+    await until(() => !!fieldError(), 'the error')
+    expect(fieldError()).toBe(en('license.key.err.offline'))
+    expect($('[data-qa=key-browser-offer]')).toBeNull()
+    expect(host.textContent).not.toContain('dentora.raqeem.dev/en/activate')
   })
 
   it('gives each refusal its own sentence, and offers the browser only when the server failed', async () => {

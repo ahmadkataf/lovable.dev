@@ -2,7 +2,8 @@
 // https://dentora.raqeem.dev/api/activate, which this script routes to each answer the server can give (a real code
 // signed for the page's device number, a code for another device, every refusal, no connection), and only a code the
 // app's own check accepts activates it. Screenshots: Arabic and English, desktop and phone, and a Play-installed
-// Android copy (no seller box, the key field still there).
+// Android copy (no seller box and no link to the website, the key field still there). The same against the real
+// Worker: licence-key-live.mjs.
 //   VITE_QA=1 npx vite build --outDir /tmp/dist-licence-key
 //   QA_DIST=/tmp/dist-licence-key QA_PORT=4311 QA_SHOTS=qa-shots/licence-key node scripts/qa/licence-key.mjs
 import fs from 'node:fs'
@@ -255,15 +256,17 @@ try {
       }
     })
     await seedAndLogin(page)
-    const device = await licenceTab(page)
+    await licenceTab(page)
     ok(await page.locator('[data-qa=ask-whatsapp], [data-qa=buy-whatsapp], [data-qa=price-top]').count() === 0, 'Play copy: no seller box, no price')
     ok(await page.locator('[data-qa=code-input]').count() === 1, 'Play copy: the code/key field is there')
-    const err = await attempt(page, api, refusal(503, { error: 'signing' }))
+    let err = await attempt(page, api, refusal(503, { error: 'signing' }))
     ok(err === license.ar['key.err.server'], `Play copy: server failure → its sentence (${err})`)
-    await page.click('[data-qa=key-browser]')
-    ok(JSON.stringify(await page.evaluate(() => window.__opened)) === JSON.stringify([`${PAGE.ar}?device=${device}`]), 'Play copy: the activation page opens through the shell (openExternal)')
-    await page.locator('[data-qa=key-browser-offer]').scrollIntoViewIfNeeded()
-    await snap(page, 'm-ar-4-play-server')
+    err = await attempt(page, api, () => 'abort')
+    ok(err === license.ar['key.err.offline'], `Play copy: offline → its sentence (${err})`)
+    // the website shows the price and buying on WhatsApp: a Play copy links to it nowhere, as with the seller box
+    ok(await page.locator('[data-qa=key-browser-offer]').count() === 0 && JSON.stringify(await page.evaluate(() => window.__opened)) === '[]', 'Play copy: no "activate in the browser" offer, nothing opened')
+    await page.locator('.st-activate').scrollIntoViewIfNeeded()
+    await snap(page, 'm-ar-4-play-offline')
     await attempt(page, api, signed('standard'))
     await page.waitForSelector('[data-qa=license-status][data-status=active]', { timeout: 25000 })
     ok((await stored(page))?.plan === 'standard', 'Play copy: activated with the key')

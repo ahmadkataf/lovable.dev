@@ -79,7 +79,9 @@ export default function LicenseTab() {
         if (withKey) {
           setContacting(true)
           const got = await redeemKey(code, lic.device).finally(() => setContacting(false))
-          if (!got.ok) { setError(keyError(got)); setOfferBrowser(got.reason === 'offline' || got.reason === 'server'); return }
+          // the website links to the price and to buying on WhatsApp, so a copy that hides the seller box (installed
+          // from Google Play) does not offer it either
+          if (!got.ok) { setError(keyError(got)); setOfferBrowser(sellerShown() && (got.reason === 'offline' || got.reason === 'server')); return }
           activation = got.code
         }
         const r = await lic.activate(activation)

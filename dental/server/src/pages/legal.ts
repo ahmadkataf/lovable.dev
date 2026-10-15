@@ -19,7 +19,7 @@ const T = {
   ar: {
     skip: 'تخطَّ إلى المحتوى', home: 'الصفحة الرئيسية', kicker: 'Dentora · معلومات قانونية', toc: 'محتويات الصفحة',
     docs: 'المستندات القانونية', whatsapp: 'واتساب', email: 'البريد الإلكتروني', rights: 'جميع الحقوق محفوظة',
-    otherLang: 'English', otherLangName: 'Read in English',
+    activate: 'تفعيل الترخيص', otherLang: 'English', otherLangName: 'Read in English',
     desc: {
       privacy: 'سياسة خصوصية Dentora لإدارة عيادات الأسنان: بيانات العيادة ومرضاها تبقى على جهازها، ولا نتلقى منها شيئاً.',
       terms: 'شروط استخدام برنامج Dentora لإدارة عيادات الأسنان (اتفاقية ترخيص المستخدم النهائي).',
@@ -28,7 +28,7 @@ const T = {
   en: {
     skip: 'Skip to content', home: 'Home', kicker: 'Dentora · Legal', toc: 'On this page',
     docs: 'Legal documents', whatsapp: 'WhatsApp', email: 'Email', rights: 'All rights reserved',
-    otherLang: 'العربية', otherLangName: 'اقرأ بالعربية',
+    activate: 'Activate a licence', otherLang: 'العربية', otherLangName: 'اقرأ بالعربية',
     desc: {
       privacy: 'Privacy policy of Dentora dental clinic software: clinic and patient data stays on the clinic’s device, and we receive none of it.',
       terms: 'Terms of use of Dentora dental clinic software (the end-user licence agreement).',
@@ -115,6 +115,8 @@ export interface Shell {
   path: string | null
   /** The language switch in the header; false hides it. */
   langSwitch?: boolean
+  /** The page's own stylesheets and scripts, after the shared ones (markup, already escaped). */
+  head?: string
   body: string
 }
 /** The document around a page's content: head, header with the logo and language switch, footer. */
@@ -128,6 +130,8 @@ export function shell(p: Shell): string {
     `<meta name="description" content="${escapeHtml(p.description)}">`,
     '<meta name="theme-color" content="#0E8F86">',
     '<meta name="color-scheme" content="light">',
+    // device numbers and keys are not phone numbers (iOS would make links of them)
+    '<meta name="format-detection" content="telephone=no">',
     p.path ? `<link rel="canonical" href="${url(p.lang)}">` : '<meta name="robots" content="noindex">',
     p.path ? `<link rel="alternate" hreflang="ar" href="${url('ar')}"><link rel="alternate" hreflang="en" href="${url('en')}"><link rel="alternate" hreflang="x-default" href="${url('ar')}">` : '',
     p.assets.favicon ? '<link rel="icon" href="/favicon.ico" sizes="48x48"><link rel="icon" href="/favicon.svg" type="image/svg+xml"><link rel="apple-touch-icon" href="/apple-touch-icon.png">' : '',
@@ -136,6 +140,7 @@ export function shell(p: Shell): string {
     '<link rel="preload" href="/fonts/inter-latin-wght.woff2" as="font" type="font/woff2" crossorigin>',
     p.assets.siteCss ? '<link rel="stylesheet" href="/css/site.css">' : '',
     '<link rel="stylesheet" href="/css/legal.css">',
+    p.head ?? '',
   ].filter(Boolean).join('\n')
   const home = langPath('/', p.lang)
   const switcher = p.langSwitch !== false && p.path
@@ -160,7 +165,7 @@ ${head}
 ${p.body}
 <footer class="site-footer legal-foot"><div class="container footer-bottom legal-wrap legal-foot-in">
 <p>© ${year} Dentora. ${t.rights}.</p>
-<nav aria-label="${escapeHtml(t.docs)}"><a href="${home}">${t.home}</a><a href="${langPath('/privacy', p.lang)}">${escapeHtml(docTitle('privacy', p.lang))}</a><a href="${langPath('/terms', p.lang)}">${escapeHtml(docTitle('terms', p.lang))}</a></nav>
+<nav aria-label="${escapeHtml(t.docs)}"><a href="${home}">${t.home}</a><a href="${langPath('/activate', p.lang)}">${t.activate}</a><a href="${langPath('/privacy', p.lang)}">${escapeHtml(docTitle('privacy', p.lang))}</a><a href="${langPath('/terms', p.lang)}">${escapeHtml(docTitle('terms', p.lang))}</a></nav>
 </div></footer>
 </body>
 </html>

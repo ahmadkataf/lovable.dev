@@ -43,9 +43,12 @@ if (existsSync(apk)) {
 
 // The Windows installer is too large for git (and for one static file): it comes from WINDOWS_SETUP, or from
 // ../releases/Dentora-Setup-<version>.exe, which is git-ignored. Built from the same package.json, so same version.
+// WINDOWS_SETUP=none publishes no installer (the end-to-end test checks the fallback that way).
 const PART = 20 * 1024 * 1024
 const setup = process.env.WINDOWS_SETUP || join(app, 'releases', `Dentora-Setup-${version}.exe`)
-if (existsSync(setup) && statSync(setup).size > 0) {
+if (setup === 'none') {
+  console.log('build-public: WINDOWS_SETUP=none, no Windows installer published')
+} else if (existsSync(setup) && statSync(setup).size > 0) {
   const bytes = readFileSync(setup)
   mkdirSync(join(out, 'files', 'windows'), { recursive: true })
   const parts = []

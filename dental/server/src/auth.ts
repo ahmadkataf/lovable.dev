@@ -176,8 +176,9 @@ export type ActivationGate = { allowed: true; id: number } | { allowed: false; r
  * Takes a slot for a key activation before the key is looked up, in one transaction, the way takeAttempt does for
  * sign-ins: let through only while the address has fewer than MAX_ACTIVATION_FAILURES attempts in the window, so
  * parallel guesses cannot pass the limit. The caller gives the slot back (releaseActivationAttempt) unless the
- * attempt failed, so only failures stay counted; refused attempts are not recorded. Rows leave as soon as they are
- * out of the window: the addresses are kept no longer than they count.
+ * attempt failed, so only failures stay counted; refused attempts are not recorded. Rows out of the window are deleted
+ * by the next attempt (from any address): an address stops counting after 15 minutes, and its row goes with the next
+ * activation request after that.
  */
 export async function takeActivationAttempt(db: D1Database, key: string, now = Date.now()): Promise<ActivationGate> {
   const since = now - WINDOW_MS

@@ -131,8 +131,10 @@ or `''`); the page escapes everything. Linked from the landing page (steps, FAQ,
 - Settings → Licence: the code field also takes a key. A key is redeemed online, then the returned code goes through
   `lic.activate(code)` (the app's own check: signature, device, plan, last day); nothing the server says is trusted
   without that check. Offline or a server failure: say so, and offer "activate in the browser", opening
-  `ACTIVATION_PAGE?device=<device>` (English page for the English UI) with the platform's `openExternal`. Every
-  reason has its own sentence (Arabic and English). The device-number + WhatsApp flow stays.
+  `ACTIVATION_PAGE?device=<device>` (English page for the English UI) with the platform's `openExternal`; not in a
+  copy installed from Google Play, which shows no link to the website (it shows the price), like the seller box
+  (`sellerShown()` in `src/features/settings/seller.ts`). Every reason has its own sentence (Arabic and English). The
+  device-number + WhatsApp flow stays.
 - The app's Content-Security-Policy adds `https://dentora.raqeem.dev` to `connect-src` (index.html, `electron/lib.cjs`
   CSP and `WebFiles.CSP`; a test keeps them identical). The Android shell lets exactly
   `https://dentora.raqeem.dev/api/activate` reach the network (`WebFiles.requestAction` gets the path); every other
