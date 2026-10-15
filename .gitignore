@@ -17,6 +17,7 @@ dental/dist-*
 dental/qa-shots
 dental/release
 dental/releases/*.exe
+dental/server/site/videos
 dental/android/build
 dental/android/release.keystore
 dental/server/node_modules
