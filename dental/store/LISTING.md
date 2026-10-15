@@ -25,7 +25,7 @@ Dentora - إدارة عيادة الأسنان
 إدارة عيادة الأسنان كاملة: مرضى ومواعيد ومخطط أسنان وفواتير، وتعمل دون إنترنت
 ```
 
-**Full description / الوصف الكامل** (2,173/4,000)
+**Full description / الوصف الكامل** (2,183/4,000)
 
 ```
 Dentora نظام متكامل لإدارة عيادة الأسنان، بواجهة عربية حديثة (ومعها الإنجليزية)، يعمل على الهاتف والجهاز اللوحي دون اتصال بالإنترنت. كل بيانات العيادة ومرضاها تبقى على جهازك.
@@ -62,16 +62,16 @@ Dentora نظام متكامل لإدارة عيادة الأسنان، بواج�
 خصوصيتك أولاً
 • يعمل دون إنترنت ودون حساب، ولا يرسل Dentora شيئاً من بيانات العيادة أو المرضى إلى أي مكان، فلا نطّلع عليها.
 • لا إعلانات ولا تتبّع ولا إحصاءات استخدام.
-• الاتصال الوحيد بالإنترنت عند التفعيل بمفتاح ترخيص: يُرسَل المفتاح ورقم الجهاز فقط، مرة واحدة.
+• لا يتصل بالإنترنت إلا مرة واحدة عند التفعيل بمفتاح ترخيص، ولا يرسل حينها إلا المفتاح ورقم الجهاز.
 • نسخة احتياطية كاملة في ملف واحد تحفظه حيث تشاء، مع حماية اختيارية بكلمة مرور (تشفير AES-256)، لنقل العيادة إلى جهاز جديد أو استعادتها.
 
 التجربة والتفعيل
 • يعمل Dentora بكل مزاياه 7 أيام للتجربة.
-• بعد التجربة يُفعَّل من الإعدادات ← الترخيص، حيث يظهر رقم الجهاز: برمز تفعيل خاص بجهاز العيادة يعمل دون إنترنت، أو بمفتاح ترخيص يحوّله البرنامج إلى هذا الرمز باتصال واحد بالإنترنت.
+• بعد التجربة يُفعَّل من الإعدادات ← الترخيص، حيث يظهر رقم الجهاز: إما برمز تفعيل خاص بجهاز العيادة يعمل دون إنترنت، وإما بمفتاح ترخيص يحوّله التطبيق إلى هذا الرمز عبر الإنترنت مرة واحدة.
 • من دون تفعيل تبقى كل البيانات متاحة للعرض والطباعة والنسخ الاحتياطي، وتتوقف الإضافة والتعديل فقط.
 ```
 
-**What's new (1.0.0) / ما الجديد** (101/500)
+**What's new (first release on Play) / ما الجديد** (101/500)
 
 ```
 الإصدار الأول من Dentora: المرضى والمواعيد ومخطط الأسنان وخطط العلاج والفواتير والتقارير، دون إنترنت.
@@ -93,7 +93,7 @@ Dentora: Dental Clinic Manager
 Run your dental clinic: patients, appointments, chart and invoices. No internet.
 ```
 
-**Full description** (2,691/4,000)
+**Full description** (2,688/4,000)
 
 ```
 Dentora is complete dental clinic management with a modern interface in Arabic and English. It runs on your phone or tablet with no internet connection, and all of your clinic's and patients' data stays on your device.
@@ -130,7 +130,7 @@ And more
 Privacy first
 • Works offline with no account, and Dentora never sends your clinic's or patients' data anywhere, so we never see it.
 • No ads, no tracking, no usage statistics.
-• The only connection is activating with a licence key: just the key and the device number are sent, once.
+• It goes online only to activate with a licence key, once, sending just the key and the device number.
 • A complete backup in one file you keep wherever you like, with optional password protection (AES-256 encryption), to move your clinic to a new device or restore it.
 
 Trial and activation
@@ -139,7 +139,7 @@ Trial and activation
 • Without activation, all data stays available to view, print and back up; only adding and editing are paused.
 ```
 
-**What's new (1.0.0)** (115/500)
+**What's new (first release on Play)** (115/500)
 
 ```
 First release of Dentora: patients, appointments, dental chart, treatment plans, invoices and reports, all offline.
@@ -157,7 +157,7 @@ First release of Dentora: patients, appointments, dental chart, treatment plans,
 | Contact email | `[support e-mail — البريد الإلكتروني للدعم]` | يظهر للعموم؛ يجب أن يكون صندوقاً تتابعه |
 | Website (optional) | `[website — الموقع]` | اختياري |
 | Phone (optional) | leave empty | اختياري |
-| Privacy policy URL | `[https://<your-domain>/privacy]` — the published `docs/PRIVACY.md` | صفحة ويب عامة (ليست PDF) |
+| Privacy policy URL | `https://dentora.raqeem.dev/privacy` (English: `/en/privacy`) | صفحة ويب عامة (ليست PDF)، انظر أدناه |
 | Ads | No, the app has no ads | لا إعلانات |
 
 **Why Medical / لماذا «طبي»:** Dentora keeps clinical records (dental chart, medical alerts, treatment plans,
@@ -171,12 +171,14 @@ administration.
 تصنيف «طبي» في المتجر، وفيه يبحث أطباء الأسنان عن برامج العيادات. والتطبيق يتعامل مع بيانات صحية في أي تصنيف، فإقرار تطبيقات
 الصحة وسياسة الخصوصية مطلوبان في الحالتين؛ أما «الأعمال» فيضعه بين أدوات المكاتب العامة.
 
-**Privacy policy / سياسة الخصوصية:** publish `docs/PRIVACY.md` (Arabic and English in one page) on a public HTTPS
-address you control (its seller contact, WhatsApp +963 996 489 504, matches `src/features/settings/seller.ts`; add an
-e-mail to both if you want one shown), then paste that address in Play Console → App content → Privacy policy. Play also
-asks a contact e-mail for the listing itself.
-انشر `docs/PRIVACY.md` على عنوان HTTPS عام تملكه (فيه واتساب البائع ‎+963 996 489 504‎ كما في `seller.ts`، وأضف بريداً إلى
-الملفين إن أردت إظهاره). Play تطلب أيضاً بريداً للتواصل في بطاقة المتجر نفسها.
+**Privacy policy / سياسة الخصوصية:** the website publishes the app's own policy (`src/features/legal/docs.ts`, the
+same text as `docs/PRIVACY.md`) at `https://dentora.raqeem.dev/privacy`, with a link to the English page `/en/privacy`;
+its contact lines (WhatsApp, e-mail) come from the control panel's settings. Paste that address in Play Console → App
+content → Privacy policy once the Worker with licence keys is deployed, so that the page describes the key activation
+declared below. Play also asks a contact e-mail for the listing itself.
+الموقع ينشر سياسة الخصوصية نفسها التي في التطبيق على `https://dentora.raqeem.dev/privacy` (وبالإنجليزية `/en/privacy`)، وبيانات
+التواصل فيها من إعدادات لوحة التحكم. الصق هذا العنوان في Play Console بعد نشر الـ Worker الذي فيه مفاتيح الترخيص، لتصف الصفحةُ
+التفعيلَ بالمفتاح كما في نموذج أمان البيانات. وتطلب Play أيضاً بريداً للتواصل في بطاقة المتجر نفسها.
 
 ---
 
@@ -191,9 +193,12 @@ the Android ID, not the clinic's data) over HTTPS to the developer's activation 
 `https://dentora.raqeem.dev/api/activate`, once, and receives the activation code. The server keeps that device number
 and the time of activation with the record of the sale, so that the key is refused on a second device. The Android
 shell refuses every other network request: that one HTTPS address is the only one the app can reach (the INTERNET
-permission is there because a WebView needs it, and for that request). Activating with an activation code from the
-seller needs no connection. Apart from that, data leaves the device only when someone at the clinic chooses to: a
-WhatsApp message they review in WhatsApp, a printed page or PDF, an exported backup or CSV file they save or share.
+permission is there because a WebView needs it, and for that request). When that request cannot get through, the app
+offers to open the activation page (`https://dentora.raqeem.dev/activate`) in the browser with the device number in its
+address; the clinic types the key there, so the same two values reach the same server, by the clinic's choice.
+Activating with an activation code from the seller needs no connection. Apart from that, data leaves the device only
+when someone at the clinic chooses to: a WhatsApp message they review in WhatsApp, a printed page or PDF, an exported
+backup or CSV file they save or share.
 
 ما يرسله التطبيق: مفتاح الترخيص ورقم الجهاز فقط، إلى خادمنا عبر HTTPS، وعند التفعيل بمفتاح فقط. بيانات العيادة والمرضى لا
 تخرج من التطبيق إلا بفعل يقوم به المستخدم (رسالة واتساب، طباعة، نسخة احتياطية أو ملف CSV).
@@ -220,9 +225,11 @@ Resulting store label / ما سيظهر في المتجر: **No data shared with
 Data is encrypted in transit · Data can't be deleted**.
 
 **Internet address:** like any web request, the activation request reaches the server from an internet address. The
-server keeps it only for a failed attempt, for 15 minutes, on its own (not with the key or the device number), to stop
-anyone guessing keys; it is not used to locate anyone, so it is not declared as a separate data type.
-/ يحتفظ الخادم بعنوان الإنترنت عند المحاولة الفاشلة فقط، مدة 15 دقيقة، وحده دون المفتاح أو رقم الجهاز، لمنع تخمين المفاتيح.
+server's database records it only for a failed attempt, on its own (not with the key or the device number), counts it
+for 15 minutes to stop anyone guessing keys, and deletes it with the next activation request after that; it is not
+used to locate anyone, so it is not declared as a separate data type.
+/ لا تسجّل قاعدة بيانات الخادم عنوان الإنترنت إلا عند المحاولة الفاشلة، وحده دون المفتاح أو رقم الجهاز، وتَعُدّه 15 دقيقة لمنع
+تخمين المفاتيح، ثم تحذفه مع أول طلب تفعيل بعد ذلك.
 
 **Encrypted backups (optional):** the backup file can be protected with a password (AES-256-GCM). That is an app
 feature for the clinic's own copies, not part of the Data safety form (its "encrypted in transit" answer is about the

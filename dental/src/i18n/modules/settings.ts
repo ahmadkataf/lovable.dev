@@ -176,7 +176,7 @@ const settings: ModuleDict = {
 
     // ---- backup
     'bk.heroTitle': 'بياناتك محفوظة على هذا الجهاز فقط',
-    'bk.heroDesc': 'لا يرسل Dentora أي بيانات إلى الإنترنت، وهذا يحمي خصوصية مرضاك. لكنه يعني أن تعطّل الجهاز أو ضياعه قد يُفقدك كل شيء، لذلك صدّر نسخة احتياطية أسبوعياً على الأقل واحفظها على فلاشة أو في بريدك.',
+    'bk.heroDesc': 'لا يرسل Dentora شيئاً من بيانات عيادتك إلى الإنترنت، وهذا يحمي خصوصية مرضاك. لكنه يعني أن تعطّل الجهاز أو ضياعه قد يُفقدك كل شيء، لذلك صدّر نسخة احتياطية أسبوعياً على الأقل واحفظها على فلاشة أو في بريدك.',
     'bk.export': 'تصدير نسخة احتياطية',
     'bk.exported': 'حُفظت النسخة الاحتياطية',
     'bk.exportedDesc': 'اسم الملف: {file}',
@@ -425,7 +425,7 @@ const settings: ModuleDict = {
     'bill.previewTax': 'Tax ({n}%)',
 
     'bk.heroTitle': 'Your data lives on this device only',
-    'bk.heroDesc': 'Dentora sends nothing to the internet, which keeps your patients’ data private. It also means a broken or lost device could take everything with it, so export a backup at least once a week and keep it on a USB stick or in your email.',
+    'bk.heroDesc': 'Dentora sends none of your clinic’s data to the internet, which keeps your patients’ data private. It also means a broken or lost device could take everything with it, so export a backup at least once a week and keep it on a USB stick or in your email.',
     'bk.export': 'Export backup',
     'bk.exported': 'Backup saved',
     'bk.exportedDesc': 'File name: {file}',
