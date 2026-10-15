@@ -10,7 +10,7 @@ import type { GuideTopic } from '../types'
 const DESK = 'Desktop 1600×900, demo clinic, clock fixed to Sunday 11 Oct 2026 11:40 (Asia/Damascus), trial bar hidden, signed in as the admin, as in store/scripts/shoot.mjs.'
 const PHONE = 'Phone 405×720 (isMobile, hasTouch), demo clinic, same clock, trial bar hidden, signed in as the admin.'
 const file = (n: number, ar: string, en: string) => `patient file #${n} (${ar} / ${en})`
-const INV287 = 'Route #/invoices and reload, click the period **This month** (هذا الشهر), type “000287” in the search box and click the row INV-000287 (مريم يوسف البيطار / Mariam Youssef Bitar, 4 Oct 2026, $1,280, Partially paid). The invoice page opens at its top.'
+const INV287 = 'Route #/invoices and reload, click the period **This month** (هذا الشهر), type “000287” in the search box and click the invoice number INV-000287 in its row (مريم يوسف البيطار / Mariam Youssef Bitar, 4 Oct 2026, $1,280, Partially paid). The invoice page opens at its top.'
 
 const topic: GuideTopic = {
   slug: 'billing',
@@ -42,14 +42,14 @@ const topic: GuideTopic = {
           'يتذكر البرنامج الفترة التي اخترتها على هذا الجهاز.',
           'في قائمة النقاط الثلاث لكل فاتورة: **فتح الفاتورة** و**تسجيل دفعة** و**طباعة الفاتورة**، ثم **إلغاء الفاتورة** أو **حذف المسودة**.',
           'تظهر الفاتورة غير المسددة في [التنبيهات](interface#notifications) بعد تاريخ استحقاقها، أو بعد 30 يوماً من تاريخها إن لم يكن لها تاريخ استحقاق.',
-          'الفواتير والمدفوعات متاحة للمدير والأطباء وموظفي الاستقبال، ولا يراها المساعد. انظر [الفريق والصلاحيات](staff).',
+          'الفواتير والمدفوعات متاحة للمدير والأطباء وموظفي الاستقبال، ولا يراها المساعد. انظر [الفريق والصلاحيات](staff#roles).',
           'في وضع القراءة فقط تستطيع فتح الفواتير وطباعتها، لكن لا يمكنك إصدار فاتورة أو تسجيل دفعة. انظر [الترخيص](licence).',
         ],
         en: [
           'The app remembers the period you chose on this device.',
           'Each invoice’s ⋮ menu has **Open invoice**, **Record payment** and **Print invoice**, then **Cancel invoice** or **Delete draft**.',
           'An unpaid invoice shows in [Notifications](interface#notifications) once its due date has passed, or 30 days after its date when it has no due date.',
-          'Invoices and payments are open to the admin, doctors and reception; assistants do not see them. See [Staff and permissions](staff).',
+          'Invoices and payments are open to the admin, doctors and reception; assistants do not see them. See [Staff and permissions](staff#roles).',
           'In read-only mode you can still open and print invoices, but you cannot issue one or record a payment. See [Licence](licence).',
         ],
       },
@@ -66,7 +66,7 @@ const topic: GuideTopic = {
         ar: [
           'انقر على **فاتورة جديدة** في صفحة الفواتير، أو في تبويب **الحساب** في ملف المريض.',
           'ابحث عن **المريض** بالاسم أو رقم الملف أو الهاتف واختره. يُختار **الطبيب** تلقائياً، ويمكنك تغييره.',
-          'تنفتح لوحة **من العلاجات** وفيها علاجات المريض المنجزة غير المفوترة، محددةً كلها. انقر على **إضافة المحدد**.',
+          'تنفتح لوحة **من العلاجات** وفيها علاجات المريض المنجزة غير المفوترة، محددةً كلها. انقر على **إضافة المحدد**، وبجانبه عدد البنود المحددة.',
           'أضف بنوداً أخرى إن شئت: **من قائمة الإجراءات** بنقرة على الإجراء، أو **سطر حر** تكتب وصفه وسعره بنفسك.',
           'عدّل في كل سطر **السن** و**الكمية** و**سعر الوحدة** و**الخصم** إن لزم. وأضف **خصم على الفاتورة** و**ملاحظات** تُطبع عليها.',
           'انقر على **إصدار الفاتورة**، فتأخذ رقمها التالي وتنفتح أمامك. أو انقر على **حفظ كمسودة** لتكملها لاحقاً.',
@@ -74,7 +74,7 @@ const topic: GuideTopic = {
         en: [
           'Click **New invoice** on the Invoices page, or in the **Account** tab of the patient’s file.',
           'Search for the **Patient** by name, file number or phone and pick them. The **Doctor** is chosen for you; you can change it.',
-          'The **From treatments** panel opens with the patient’s completed, unbilled treatments, all ticked. Click **Add selected**.',
+          'The **From treatments** panel opens with the patient’s completed, unbilled treatments, all ticked. Click **Add selected**, which shows how many are ticked.',
           'Add other lines if needed: **From procedures** with one click on a procedure, or a **Free line** where you type the description and price yourself.',
           'Adjust each line’s **Tooth**, **Qty**, **Unit price** and **Discount** if needed. Add an **Invoice discount** and **Notes** to print on it.',
           'Click **Issue invoice**: it takes the next number and opens. Or click **Save as draft** to finish it later.',
@@ -223,20 +223,20 @@ const topic: GuideTopic = {
       id: 'payments',
       title: { ar: 'المدفوعات وتقرير الصندوق', en: 'Payments and the cash report' },
       text: {
-        ar: ['صفحة **المدفوعات** سجل الصندوق: كل دفعة مستلمة في سطر، مع رقم إيصالها والفاتورة التي سددتها وطريقة الدفع ومن استلمها. تفتح على دفعات **اليوم**.'],
-        en: ['The **Payments** page is the cash ledger: one row per payment received, with its receipt number, the invoice it paid, the method and who received it. It opens on **Today**.'],
+        ar: ['صفحة **المدفوعات** سجل الصندوق: كل دفعة مستلمة في سطر، مع رقم إيصالها والفاتورة التي سددتها وطريقة الدفع ومن استلمها. تفتح أول مرة على دفعات **اليوم**، ثم تتذكر الفترة التي تختارها.'],
+        en: ['The **Payments** page is the cash ledger: one row per payment received, with its receipt number, the invoice it paid, the method and who received it. It first opens on **Today**, then remembers the period you choose.'],
       },
       steps: {
         ar: [
           'افتح **المدفوعات** من القائمة الجانبية، أو من زر **المدفوعات** في صفحة الفواتير.',
           'اختر الفترة، ثم صفِّ بالموظف المستلم أو بطريقة الدفع، أو ابحث باسم المريض أو رقم الإيصال أو رقم الفاتورة.',
-          'انقر على أي سطر لتفتح إيصاله وتطبعه.',
+          'انقر على أي سطر، أو على زر الطابعة في آخره، لتفتح إيصاله وتطبعه. أما رقم الفاتورة واسم المريض في السطر فيفتحان الفاتورة وملف المريض.',
           'في نهاية اليوم انقر على **تقرير الصندوق**، ثم على **طباعة**.',
         ],
         en: [
           'Open **Payments** in the sidebar, or with the **Payments** button on the Invoices page.',
           'Choose the period, then filter by the staff member who received the money or by payment method, or search by patient, receipt or invoice number.',
-          'Click any row to open its receipt and print it.',
+          'Click any row, or the printer button at its end, to open its receipt and print it. The invoice number and the patient’s name in the row open the invoice and the patient file instead.',
           'At the end of the day click **Daily cash report**, then **Print**.',
         ],
       },
@@ -283,12 +283,14 @@ const topic: GuideTopic = {
           'انقر على دفعة في القائمة لتفتح إيصالها.',
           'يظهر المبلغ المستحق أيضاً في رأس ملف المريض وفي قائمة المرضى. انظر [ملف المريض](patients#profile).',
           'على الهاتف يجمع الكشف المدين والدائن في عمود واحد.',
+          'لترى كل المرضى الذين عليهم مبالغ معاً افتح تقرير [الذمم المستحقة](reports#outstanding).',
         ],
         en: [
           'Drafts and cancelled invoices do not count in the balance. When everything is paid, the tab says “Account fully settled”.',
           'Click a payment in the list to open its receipt.',
           'The balance also shows at the top of the patient’s file and in the patients list. See [The patient file](patients#profile).',
           'On a phone, the statement merges debit and credit into one column.',
+          'To see every patient who owes money in one list, open the [Outstanding balances](reports#outstanding) report.',
         ],
       },
       shots: ['billing-account', 'billing-statement'],
@@ -312,14 +314,14 @@ const topic: GuideTopic = {
           'على أندرويد تُفتح شاشة الطباعة في النظام: اختر طابعة يصل إليها الهاتف، أو خيار الحفظ بصيغة PDF.',
           'يحمل ملف PDF اسماً واضحاً، مثل «فاتورة INV-000287 — مريم يوسف البيطار».',
           'على أندرويد يفتح زر واتساب محادثة المريض في تطبيق واتساب. وعلى ويندوز يُفتح الرابط في المتصفح لتكمل في واتساب ويب أو تطبيق واتساب على الحاسوب.',
-          'يُرسل واتساب إلى رقم المريض مع رمز الدولة المحدد في إعدادات العيادة.',
+          'تُرسل رسالة واتساب إلى رقم المريض، ويُضاف إلى الأرقام المحلية رمز **الدولة** المختارة في [بيانات العيادة](settings#clinic-details).',
         ],
         en: [
           'On Windows the Windows print dialog opens: choose your printer, or “Microsoft Print to PDF” to save a PDF file.',
           'On Android the system print screen opens: choose a printer the phone can reach, or the save-as-PDF option.',
           'The PDF gets a clear name, such as “Invoice INV-000287 — Mariam Youssef Bitar”.',
           'On Android the WhatsApp button opens the patient’s chat in the WhatsApp app. On Windows the link opens in the browser, where you continue in WhatsApp Web or the WhatsApp desktop app.',
-          'WhatsApp messages go to the patient’s number with the country code set in the clinic settings.',
+          'The WhatsApp message goes to the patient’s number; local numbers get the code of the **Country** chosen in the [clinic details](settings#clinic-details).',
         ],
       },
       shots: ['billing-phone'],
@@ -361,7 +363,7 @@ const topic: GuideTopic = {
       id: 'billing-receipt',
       device: 'desktop',
       alt: { ar: 'إيصال استلام: رقم الإيصال والمبلغ ومن استلمه وطريقة الدفع والفاتورة', en: 'A payment receipt: receipt number, amount, who paid, method and invoice' },
-      recipe: `${DESK} Route #/payments and reload; click the period **Today** (اليوم). Click the row of receipt R-000378 (سامر يوسف شهاب / Samer Youssef Shehab, INV-000305, cash). Crop to the receipt dialog. Markers: 6 on **Print**. Close afterwards.`,
+      recipe: `${DESK} Route #/payments and reload; click the period **Today** (اليوم). On the row of receipt R-000378 (سامر يوسف شهاب / Samer Youssef Shehab, INV-000305, cash) click the printer button at the end of the row (Print receipt; a click on the invoice number would open the invoice instead). Crop to the receipt dialog. Markers: 6 on **Print**. Close afterwards.`,
     },
     {
       id: 'billing-refund',
@@ -373,7 +375,7 @@ const topic: GuideTopic = {
       id: 'billing-payments',
       device: 'desktop',
       alt: { ar: 'صفحة المدفوعات لليوم: البطاقات وتصفية الموظف وطريقة الدفع وجدول الإيصالات', en: 'The Payments page for today: the cards, staff and method filters, and the table of receipts' },
-      recipe: `${DESK} Route #/payments and reload; click the period **Today** (اليوم). No search, All staff, All methods. Page at its top. Capture the whole window. Markers: 2 on the search box, the All staff list and the method chips, 3 on the first row, 4 on **Daily cash report** (تقرير الصندوق).`,
+      recipe: `${DESK} Route #/payments and reload; click the period **Today** (اليوم). No search, All staff, All methods. Page at its top. Capture the whole window. Markers: 2 on the search box, the All staff list and the method chips, 3 on the printer button of the first row, 4 on **Daily cash report** (تقرير الصندوق).`,
     },
     {
       id: 'billing-cash-report',

@@ -7,7 +7,7 @@ import { escapeHtml } from '../http'
 import type { Lang, SiteSettings } from '../types'
 
 /** Date of the documents' text. Keep in step with LEGAL_DATE in src/features/legal/lib.ts (a test checks it). */
-export const LEGAL_DATE = '2026-10-12'
+export const LEGAL_DATE = '2026-10-15'
 export const SELLER_NAME = 'Dentora'
 
 export type LegalDoc = 'privacy' | 'terms'

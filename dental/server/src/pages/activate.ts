@@ -97,7 +97,7 @@ const T: Record<Lang, ActivateCopy> = {
     },
     privacy: {
       title: 'ما الذي يُرسل؟',
-      text: 'المفتاح ورقم الجهاز فقط، مرة واحدة، لإصدار رمز التفعيل. يحفظ الخادم رقم الجهاز ووقت التفعيل مع الترخيص كي لا يُستخدم المفتاح على جهاز آخر، ويعدّ المحاولات الخاطئة من كل عنوان مدة 15 دقيقة لمنع التخمين. أما بيانات العيادة والمرضى فلا يرسلها Dentora إلى أي مكان.',
+      text: 'المفتاح ورقم الجهاز فقط، مرة واحدة، لإصدار رمز التفعيل. يحفظ الخادم رقم الجهاز ووقت التفعيل مع الترخيص كي لا يُستخدم المفتاح على جهاز آخر، ويعدّ المحاولات الخاطئة من كل عنوان مدة 15 دقيقة لمنع التخمين (ويُحذف ذلك السجل مع أول طلب تفعيل بعد ذلك). أما بيانات العيادة والمرضى فلا يرسلها Dentora إلى أي مكان.',
     },
     help: {
       title: 'تحتاج مساعدة؟',
@@ -116,7 +116,7 @@ const T: Record<Lang, ActivateCopy> = {
         unknown: 'لم نجد هذا المفتاح. قارنه خانةً خانة برسالة البائع، أو راسلنا على واتساب.',
         used: 'هذا المفتاح مُفعَّل على جهاز آخر، وكل مفتاح يفعّل جهازاً واحداً فقط. إن أدخلت رقم الجهاز خطأً في المرة الأولى أو غيّرت جهازك، فراسلنا على واتساب.',
         void: 'هذا المفتاح مُلغى أو استُرِدّ ثمنه، فلا يمكن التفعيل به. إن كنت تظن أن في ذلك خطأً فراسلنا على واتساب.',
-        expired: 'انتهت صلاحية هذا المفتاح قبل أن يُفعَّل. راسلنا على واتساب لتجديده.',
+        expired: 'لم يعد يمكن استخدام هذا المفتاح: إما أن مهلة تفعيله انقضت، أو أن الترخيص الذي أعطاه لهذا الجهاز قد انتهى. راسلنا على واتساب لتجديده.',
         locked: 'محاولات خاطئة كثيرة من هذا الاتصال. انتظر {time} ثم حاول مرة أخرى.',
         signing: 'تعذّر إصدار رمز التفعيل الآن بسبب عطل مؤقت لدينا. حاول مرة أخرى بعد قليل، وإن تكرر ذلك فراسلنا على واتساب.',
         network: 'تعذّر الاتصال بالخادم. تأكد من اتصال الإنترنت ثم حاول مرة أخرى.',
@@ -173,7 +173,7 @@ const T: Record<Lang, ActivateCopy> = {
     },
     privacy: {
       title: 'What is sent?',
-      text: 'Only the key and the device number, once, to issue the activation code. The server keeps the device number and the activation time with your licence so the key cannot be used on another device, and counts wrong attempts from each address for 15 minutes to stop guessing. Dentora never sends clinic or patient data anywhere.',
+      text: 'Only the key and the device number, once, to issue the activation code. The server keeps the device number and the activation time with your licence so the key cannot be used on another device, and counts wrong attempts from each address for 15 minutes to stop guessing (that entry is deleted with the next activation request after that). Dentora never sends clinic or patient data anywhere.',
     },
     help: {
       title: 'Need help?',
@@ -192,7 +192,7 @@ const T: Record<Lang, ActivateCopy> = {
         unknown: 'We could not find this key. Check it character by character against the seller’s message, or message us on WhatsApp.',
         used: 'This key is already activated on another device, and each key activates one device only. If you mistyped the device number the first time, or changed your device, message us on WhatsApp.',
         void: 'This key has been cancelled or refunded, so it cannot be used. If you think this is a mistake, message us on WhatsApp.',
-        expired: 'This key expired before it was activated. Message us on WhatsApp to renew it.',
+        expired: 'This key can no longer be used: either its activation deadline has passed, or the licence it gave this device has already ended. Message us on WhatsApp to renew it.',
         locked: 'Too many wrong attempts from this connection. Wait {time}, then try again.',
         signing: 'The activation code cannot be issued right now because of a temporary fault on our side. Try again shortly; if it keeps happening, message us on WhatsApp.',
         network: 'Could not reach the server. Check your internet connection and try again.',

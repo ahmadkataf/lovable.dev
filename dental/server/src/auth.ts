@@ -19,8 +19,12 @@ export const MIN_PASSWORD = 12
 export const WINDOW_MS = 15 * 60_000
 export const MAX_PER_IP = 5
 export const MAX_OVERALL = 30
-/** Key activation limit within the same 15 minutes: 10 failed attempts per address (IPv6: per /64). */
-export const MAX_ACTIVATION_FAILURES = 10
+/**
+ * Key activation limit within the same 15 minutes: 50 failed attempts per address (IPv6: per /64). Keys carry 80 random
+ * bits, so the number adds nothing against guessing: it bounds the load and the unknown/used oracle, and it is loose
+ * because many clinics share one IPv4 behind a mobile carrier's NAT (ten failures there would lock them all out).
+ */
+export const MAX_ACTIVATION_FAILURES = 50
 
 const enc = new TextEncoder()
 

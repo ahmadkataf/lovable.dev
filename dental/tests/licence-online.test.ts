@@ -1,6 +1,6 @@
 // Licence keys in the app (src/license/online.ts, docs/LICENCE-KEYS.md): reading a key out of whatever the clinic
 // pastes, the one request to the activation server, and the reason the screen shows for every answer it can get.
-import { ACTIVATION_PAGE, ACTIVATION_PAGE_EN, ACTIVATION_URL, REDEEM_TIMEOUT_MS, activationPageUrl, extractKey, formatKey, isLicenceKey, redeemKey } from '../src/license/online'
+import { ACTIVATION_PAGE, ACTIVATION_PAGE_EN, ACTIVATION_URL, REDEEM_TIMEOUT_MS, activationPageUrl, extractKey, findKeys, formatKey, isLicenceKey, redeemKey } from '../src/license/online'
 import { translate } from '../src/i18n'
 import license from '../src/i18n/modules/license'
 
@@ -32,6 +32,9 @@ describe('reading a licence key', () => {
     expect(extractKey(en)).toBe(KEY)
     expect(extractKey(`${KEY}\n${KEY}`)).toBe(KEY)                                // the same key twice
     expect(extractKey(`${KEY}\n2345-6789-ABCD-EFGH`)).toBeNull()                   // two keys: the clinic must choose
+    expect(findKeys(`${KEY}\n2345-6789-ABCD-EFGH\n${KEY.toLowerCase()}`)).toEqual([KEY, '2345-6789-ABCD-EFGH'])   // … and is told which
+    expect(findKeys(` abcd efgh\njklm npqr `)).toEqual([KEY])
+    expect(findKeys('ABCD-EF')).toEqual([])
     expect(extractKey(`Here is your activation code:\n${CODE}`)).toBeNull()        // groups of a code are not a key
     expect(extractKey('ABCD-EF')).toBeNull()
   })
@@ -106,6 +109,11 @@ describe('redeeming a key', () => {
     expect(await redeemKey(KEY, DEVICE)).toEqual({ ok: false, reason: 'offline' })
   })
 
+  it('calls an answer cut off before its body arrived offline (the connection dropped), not a server failure', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => ({ ok: true, status: 200, headers: new Headers(), json: () => Promise.reject(new TypeError('network error')) }) as unknown as Response))
+    expect(await redeemKey(KEY, DEVICE)).toEqual({ ok: false, reason: 'offline' })
+  })
+
   it('gives up after 20 seconds without an answer, or without the rest of it', async () => {
     vi.useFakeTimers()
     // no answer at all
@@ -133,7 +141,7 @@ describe('redeeming a key', () => {
   })
 
   it('has a sentence for every reason, in Arabic and English', () => {
-    for (const reason of ['offline', 'key', 'device', 'unknown', 'used', 'void', 'expired', 'locked', 'server', 'lockedSoon', 'check', 'ended']) {
+    for (const reason of ['offline', 'key', 'device', 'unknown', 'used', 'void', 'expired', 'locked', 'server', 'lockedSoon', 'check', 'ended', 'many']) {
       for (const lang of ['ar', 'en'] as const) expect(license[lang][`key.err.${reason}`], `${lang} key.err.${reason}`).toBeTruthy()
     }
     expect(translate('ar', 'license.key.err.locked', { n: 1 })).toContain('دقيقة واحدة')

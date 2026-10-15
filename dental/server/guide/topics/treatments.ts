@@ -39,14 +39,14 @@ const topic: GuideTopic = {
         ar: [
           'انقر على أي بند في الجدول لتعديله، وعلى رأس الخطة لطيّها أو فتحها. تبدأ الخطط الجارية مفتوحة، والمكتملة والملغاة مطوية.',
           'شريط التقدم محسوب بقيمة البنود المنجزة من قيمة الخطة، لا بعددها.',
-          'التبويب متاح للمدير والأطباء والمساعدين، ولا يراه موظف الاستقبال. أما زر **فوترة المنجز** فيظهر لمن يملك صلاحية الفواتير فقط. انظر [الفريق والصلاحيات](staff).',
+          'التبويب متاح للمدير والأطباء والمساعدين، ولا يراه موظف الاستقبال. أما زر **فوترة المنجز** فيظهر لمن يملك صلاحية الفواتير فقط. انظر [الفريق والصلاحيات](staff#roles).',
           'على الهاتف تظهر البنود بطاقاتٍ تحت بعضها، ويكون زر **بدء** وأمر **طباعة التقدير** داخل قوائم النقاط الثلاث.',
           'إذا انتهت الفترة التجريبية دون تفعيل تبقى الخطط ظاهرة وتستطيع طباعتها، لكن الإضافة والتعديل يتوقفان. انظر [الترخيص](licence).',
         ],
         en: [
           'Click any item in the table to edit it, and a plan’s header to fold or unfold it. Open plans start unfolded; completed and cancelled ones start folded.',
           'The progress bar is measured by the value of the completed items against the plan value, not by their number.',
-          'The tab is available to the admin, doctors and assistants; reception does not see it. The **Bill completed** button shows only for people allowed to use billing. See [Staff and permissions](staff).',
+          'The tab is available to the admin, doctors and assistants; reception does not see it. The **Bill completed** button shows only for people allowed to use billing. See [Staff and permissions](staff#roles).',
           'On a phone the items are stacked as cards, and **Start** and **Print estimate** move into the ⋮ menus.',
           'If the trial ends without activation, plans stay visible and printable, but adding and editing stop. See [Licence](licence).',
         ],
@@ -135,7 +135,7 @@ const topic: GuideTopic = {
           'إذا بدأ العمل في خطة لم تُعتمد بعد تنتقل إلى **قيد التنفيذ** تلقائياً، لأن البدء يعني أن المريض وافق. وحين يُنجز آخر بنودها تظهر رسالة «اكتملت خطة العلاج بالكامل».',
           'لا يظهر سؤال تحديث المخطط لكل الإجراءات، فلا يظهر مثلاً بعد الفحوص والصور الشعاعية والتقويم وعلاجات اللثة.',
           'البند المفوتر يحمل شارة **مفوتر** تفتح فاتورته. لا يمكن إلغاؤه أو إعادة فتحه أو حذفه، وفي تعديله يبقى الإجراء والسن والسعر مقفلة، وتستطيع تغيير الطبيب والتاريخ والملاحظات.',
-          'كل إجراء على البنود يُسجَّل في سجل النشاطات مع اسم من قام به.',
+          'كل تغيير على البنود يُسجَّل في سجل النشاطات مع اسم من قام به.',
         ],
         en: [
           'You can click **Complete** without **Start**; starting only helps with longer work.',
@@ -365,8 +365,8 @@ const topic: GuideTopic = {
     {
       id: 'treatments-phone',
       device: 'phone',
-      alt: { ar: 'خطة علاج على الهاتف: البنود بطاقات تحت بعضها مع حالاتها', en: 'A treatment plan on a phone: the items stacked as cards with their statuses' },
-      recipe: `${PHONE} Open ${file(55, 'أنس مازن ديب', 'Anas Mazen Deeb')} at #/patients/<id>?tab=treatments and reload; scroll so the top of the first plan card (section.tr-plan) sits just under the top bar. Capture the whole screen. No markers.`,
+      alt: { ar: 'خطة علاج على الهاتف: البنود بطاقات تحت بعضها مع حالاتها وزر الإنجاز، وإجماليات الخطة في الأسفل', en: 'A treatment plan on a phone: the items stacked as cards with their statuses and the Complete button, and the plan totals at the bottom' },
+      recipe: `${PHONE} Open ${file(55, 'أنس مازن ديب', 'Anas Mazen Deeb')} at #/patients/<id>?tab=treatments and reload; scroll so the bottom of the first plan card (section.tr-plan) sits 16 px above the bottom bar (.app-bottomnav): the last items, the Complete button of the zirconia crown and the plan totals show. Capture the whole screen. No markers.`,
     },
     {
       id: 'treatments-new-plan',

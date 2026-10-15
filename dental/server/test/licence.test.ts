@@ -147,6 +147,11 @@ describe('licence keys', () => {
     expect(m.ar).toContain('جهاز واحد فقط')
     expect(m.en).toContain('Pro plan — lifetime licence')
     expect(m.en).toContain('Settings → Licence')
+    // the in-app route needs 1.1.0 (1.0.0 takes no key in that field); the page is for any version
+    expect(m.en).toContain('To activate (Dentora 1.1.0 or later)')
+    expect(m.en).toContain('Or, with any version,')
+    expect(m.ar).toContain('في الإصدار 1.1.0 فما بعده')
+    expect(m.ar).toContain('مع أي إصدار')
     expect(m.en).toContain('https://dentora.raqeem.dev/en/activate')
     expect(m.en).toContain('one device only')
     expect(m.en).not.toContain('undefined')

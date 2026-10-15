@@ -246,8 +246,8 @@ try {
 
   const audit = (await api('GET', '/api/audit?limit=100')).json?.items || []
   const keyEvents = audit.filter(a => a.action === 'key.activate' || a.action === 'key.used')
-  ok(audit.filter(a => a.action === 'key.activate').length === 3 && audit.filter(a => a.action === 'key.used').length === 2 && keyEvents.every(a => a.ip === ''),
-    'the Worker logged 3 activations and 2 attempts of a used key, with no address')
+  ok(audit.filter(a => a.action === 'key.activate').length === 3 && audit.filter(a => a.action === 'key.used').length === 1 && keyEvents.every(a => a.ip === ''),
+    'the Worker logged 3 activations and the used key once (tried twice the same day: one line per key and day), with no address')
 } catch (e) {
   failures++
   console.error('FAIL:', scrub(e.stack || e.message))

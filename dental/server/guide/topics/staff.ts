@@ -150,11 +150,11 @@ const topic: GuideTopic = {
       title: { ar: 'الدخول والقفل والخروج', en: 'Signing in, locking and signing out' },
       text: {
         ar: [
-          'يدخل كل عضو باسمه ورمزه، فيرى ما يسمح به دوره، ويُسجَّل باسمه كل ما يفعله. وتجد طريقة الدخول خطوة بخطوة في [تسجيل الدخول كل يوم](getting-started#sign-in).',
+          'يدخل كل عضو باسمه ورمزه، فيرى ما يسمح به دوره، ويُحفظ اسمه مع ما يسجّله، مثل الدفعات والمصروفات وحركات المخزون. وتجد طريقة الدخول خطوة بخطوة في [تسجيل الدخول كل يوم](getting-started#sign-in).',
           'حين تبتعد عن الجهاز اقفل الشاشة، حتى لا يطّلع أحد على ملفات المرضى.',
         ],
         en: [
-          'Each member signs in with their own name and PIN, sees what their role allows, and everything they record carries their name. Signing in step by step is in [Signing in every day](getting-started#sign-in).',
+          'Each member signs in with their own name and PIN, sees what their role allows, and their name is kept with what they record, such as payments, expenses and stock movements. Signing in step by step is in [Signing in every day](getting-started#sign-in).',
           'When you step away from the device, lock the screen so nobody can see patient files.',
         ],
       },

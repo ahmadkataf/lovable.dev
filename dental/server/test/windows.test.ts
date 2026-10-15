@@ -65,6 +65,18 @@ describe('/download/windows with the installer published', () => {
     expect(body!.length).toBe(SIZE)
     expect(await downloads(env.DB)).toBe(0)
   })
+
+  it('a download manager’s first request (Range from byte 0) gets the whole file and is counted, once', async () => {
+    const env = { DB: memoryD1(), ASSETS: assets() } as Env
+    const { res, body } = await call(env, { headers: { Range: 'bytes=0-' } })
+    expect(res.status).toBe(200)
+    expect(body!.length).toBe(SIZE)
+    expect(await downloads(env.DB)).toBe(1)
+    // its resume later the same day is the same visitor: still one
+    await call(env, { headers: { Range: 'bytes=4-' } })
+    await call(env, { headers: { Range: 'bytes=0-' } })
+    expect(await downloads(env.DB)).toBe(1)
+  })
 })
 
 describe('/download/windows without a whole installer', () => {

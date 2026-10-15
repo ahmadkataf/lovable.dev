@@ -129,8 +129,8 @@ export function keyClinicMessage(l: Pick<Licence, 'key' | 'plan' | 'validity' | 
       'Here is your Dentora licence key:',
       key,
       `${PLAN_NAME.en[l.plan]} — ${keyTerm(l, 'en')}`,
-      'To activate: open Dentora, go to Settings → Licence, paste the key and press “Activate”. This needs an internet connection once, and only the key and the device number are sent.',
-      'Or activate it from any device connected to the internet on the page below: enter the key and the device number shown in Settings → Licence, then paste the activation code the page gives you into Dentora.',
+      'To activate (Dentora 1.1.0 or later): open Dentora, go to Settings → Licence, paste the key and press “Activate”. This needs an internet connection once, and only the key and the device number are sent.',
+      'Or, with any version, activate it from any device connected to the internet on the page below: enter the key and the device number shown in Settings → Licence, then paste the activation code the page gives you into Dentora.',
       `${ORIGIN}/en/activate`,
       'The key works on one device only. Thank you!',
     ].join('\n')
@@ -140,8 +140,8 @@ export function keyClinicMessage(l: Pick<Licence, 'key' | 'plan' | 'validity' | 
     'هذا مفتاح ترخيص برنامج Dentora الخاص بكم:',
     ltr(key),
     `${PLAN_NAME.ar[l.plan]} — ${keyTerm(l, 'ar')}`,
-    'للتفعيل: افتحوا Dentora ثم الإعدادات ← الترخيص، والصقوا المفتاح واضغطوا «تفعيل». يتطلب ذلك اتصالاً بالإنترنت مرة واحدة فقط، ولا يُرسَل سوى المفتاح ورقم الجهاز.',
-    'أو فعّلوه من أي جهاز متصل بالإنترنت عبر الصفحة التالية: أدخلوا المفتاح ورقم الجهاز الظاهر في الإعدادات ← الترخيص، ثم الصقوا في البرنامج رمز التفعيل الذي تعرضه الصفحة.',
+    'للتفعيل (في الإصدار 1.1.0 فما بعده): افتحوا Dentora ثم الإعدادات ← الترخيص، والصقوا المفتاح واضغطوا «تفعيل». يتطلب ذلك اتصالاً بالإنترنت مرة واحدة فقط، ولا يُرسَل سوى المفتاح ورقم الجهاز.',
+    'أو، مع أي إصدار، فعّلوه من أي جهاز متصل بالإنترنت عبر الصفحة التالية: أدخلوا المفتاح ورقم الجهاز الظاهر في الإعدادات ← الترخيص، ثم الصقوا في البرنامج رمز التفعيل الذي تعرضه الصفحة.',
     `${ORIGIN}/activate`,
     'يعمل المفتاح على جهاز واحد فقط. شكراً لثقتكم!',
   ].join('\n')

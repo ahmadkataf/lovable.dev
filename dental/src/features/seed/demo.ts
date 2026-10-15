@@ -1282,8 +1282,9 @@ class Generator {
         if (amount <= 0) continue
         const drawnMethod = r.weighted<PaymentMethod>([['cash', 70], ['card', 15], ['wallet', 10], ['transfer', 5]])
         const drawnRef = drawnMethod === 'card' ? `**** ${r.int(1000, 9999)}` : drawnMethod === 'wallet' ? `${this.L('عملية', 'Txn')} ${r.int(10000000, 99999999)}` : drawnMethod === 'transfer' ? `${this.L('حوالة', 'Transfer')} ${r.int(100000, 999999)}` : undefined
-        // a second invoice cleared at the same visit joins that hand-over: same moment, method and reference
-        const handOver = atVisit.get(next) ?? { ms: drawnMs, method: drawnMethod, reference: drawnRef }
+        // a second invoice cleared at the same visit joins that hand-over: same moment, method and reference; and when the
+        // patient paid that day's own invoice the same way at the desk (collect), the old one is settled in that hand-over
+        const handOver = atVisit.get(next) ?? this.sameDayHandOver(pc, drawnMs, drawnMethod) ?? { ms: drawnMs, method: drawnMethod, reference: drawnRef }
         atVisit.set(next, handOver)
         const { ms, method, reference } = handOver
         const pay: Payment = clean({ id: newId(), patientId: pc.p.id, invoiceId: inv.id, amount, method, date: toISODate(new Date(ms)), note: this.tx('تسديد المتبقي من الفاتورة'), receivedBy: this.front.id, createdAt: iso(ms), reference })
@@ -1294,6 +1295,13 @@ class Generator {
         this.events.push({ at: ms, type: 'payment', action: 'create', entityId: pay.id, patientId: pc.p.id, by: this.front.id, msg: () => this.L(`استلام دفعة ${this.money(amount)} (${common.ar[`pay.${method}`] ?? ''}) من ${pc.p.name} — تسديد فاتورة ${inv.number}`, `Payment ${this.money(amount)} (${common.en[`pay.${method}`] ?? ''}) from ${pc.p.name} — invoice ${inv.number}`) })
       }
     }
+  }
+
+  /** A payment this patient already made that day by that method (the day's own invoice, paid at the desk): its moment and reference. */
+  private sameDayHandOver(pc: PCtx, ms: number, method: PaymentMethod): { ms: number; method: PaymentMethod; reference?: string } | undefined {
+    const date = toISODate(new Date(ms))
+    const p = this.payments.find(x => x.patientId === pc.p.id && x.method === method && x.date === date && toISODate(new Date(x.createdAt)) === date)
+    return p ? { ms: Date.parse(p.createdAt), method, reference: p.reference } : undefined
   }
 
   private invoice(pc: PCtx, v: Visit, lines: InvoiceItem[], createdMs: number, vip: boolean): Invoice {

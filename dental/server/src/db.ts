@@ -147,6 +147,16 @@ export async function getSettingsCached(db: D1Database, now = Date.now()): Promi
 export async function audit(db: D1Database, action: string, detail: string, ip: string): Promise<void> {
   await db.prepare('INSERT INTO audit (at, action, detail, ip) VALUES (?, ?, ?, ?)').bind(nowIso(), action, detail.slice(0, 500), ip).run()
 }
+/**
+ * Writes the entry (with no address) only when none with the same action and detail was written since `since` (ISO
+ * time): for a line that an unauthenticated request can cause (api.ts answerBound), where one per key and day says what
+ * the seller needs to know and one per attempt would let whoever holds a used key fill the log.
+ */
+export async function auditOnce(db: D1Database, action: string, detail: string, since: string): Promise<void> {
+  await db.prepare(`INSERT INTO audit (at, action, detail, ip) SELECT ?1, ?2, ?3, ''
+      WHERE NOT EXISTS (SELECT 1 FROM audit WHERE action = ?2 AND detail = ?3 AND at > ?4)`)
+    .bind(nowIso(), action, detail.slice(0, 500), since).run()
+}
 interface AuditRow { id: number; at: string; action: string; detail: string; ip: string }
 export async function listAudit(db: D1Database, limit: number): Promise<AuditEntry[]> {
   const { results } = await db.prepare('SELECT id, at, action, detail, ip FROM audit ORDER BY id DESC LIMIT ?').bind(limit).all<AuditRow>()
@@ -170,15 +180,31 @@ function toLicence(r: LicenceRow): Licence {
 /** A key the seller sold that no device has activated yet (whatever its status). */
 const WAITING_KEY = "key IS NOT NULL AND device = ''"
 /**
- * What the licence list searches: the device with and without its dash, the names, the phone as typed and as digits
- * only, the key with and without its dashes. Lower case, as the query is.
+ * What the licence list searches: the device with and without its dash (the head), then the names, the phone as typed
+ * and as digits only, the key with and without its dashes (the tail). Lower case, as the query is. In two halves so
+ * that a statement which changes one half keeps the row's own other half (bindKey, updateLicence) instead of writing
+ * it again from a row read moments earlier: the SQL of both builds the head as searchHead does.
  */
-export function searchText(l: Pick<Licence, 'device' | 'customer' | 'clinic' | 'phone' | 'key'>): string {
+export const searchHead = (device: string) => `${device}\n${device.replace(/-/g, '')}\n`.toLowerCase()
+export function searchTail(l: Pick<Licence, 'customer' | 'clinic' | 'phone' | 'key'>): string {
   const key = l.key ?? ''
-  return [l.device, l.device.replace(/-/g, ''), l.customer, l.clinic, l.phone, l.phone.replace(/\D/g, ''), key, key.replace(/-/g, '')].join('\n').toLowerCase()
+  return [l.customer, l.clinic, l.phone, l.phone.replace(/\D/g, ''), key, key.replace(/-/g, '')].join('\n').toLowerCase()
 }
+export const searchText = (l: Pick<Licence, 'device' | 'customer' | 'clinic' | 'phone' | 'key'>) => searchHead(l.device) + searchTail(l)
 /** A LIKE pattern matching `s` anywhere, with LIKE's own wildcards taken literally (ESCAPE '\'). */
 export const likeAny = (s: string) => `%${s.replace(/[\\%_]/g, c => `\\${c}`)}%`
+/**
+ * D1 (workerd, in production as under `wrangler dev`) refuses a LIKE pattern over 50 bytes ("LIKE or GLOB pattern too
+ * complex"), which 24 Arabic letters reach; node:sqlite allows 50,000, so only the e2e sees it. The term is shortened,
+ * by code points, until its escaped pattern fits (every \ % _ costs a byte more): a prefix still finds the row.
+ */
+const LIKE_MAX_BYTES = 50
+const utf8 = new TextEncoder()
+function fitLike(s: string): string {
+  const cps = [...s]
+  while (cps.length && utf8.encode(likeAny(cps.join(''))).length > LIKE_MAX_BYTES) cps.pop()
+  return cps.join('')
+}
 
 const insertStatement = (db: D1Database, l: Licence) =>
   db.prepare(`INSERT INTO licences (${LICENCE_COLS}, search) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
@@ -206,21 +232,27 @@ export async function getLicenceByKey(db: D1Database, key: string): Promise<Lice
  * nothing changed (activated meanwhile, or refunded or void): the caller reads the row again.
  */
 export async function bindKey(db: D1Database, l: Licence): Promise<boolean> {
-  const { results } = await db.prepare(`UPDATE licences SET device = ?, code = ?, until = ?, activated_at = ?, search = ?
-      WHERE key = ? AND device = '' AND status = 'active' RETURNING id`)
-    .bind(l.device, l.code, l.until, l.activatedAt, searchText(l), l.key).all()
+  // `search`: the head from the new device, the tail the row's own (a waiting key's search starts with the two empty
+  // device fields, "\n\n"), so names or a phone the seller saved since the row was read stay searchable.
+  const { results } = await db.prepare(`UPDATE licences SET device = ?1, code = ?2, until = ?3, activated_at = ?4,
+      search = lower(?1 || char(10) || replace(?1, '-', '') || char(10)) || substr(search, 3)
+      WHERE key = ?5 AND device = '' AND status = 'active' RETURNING id`)
+    .bind(l.device, l.code, l.until, l.activatedAt, l.key).all()
   return results.length > 0
 }
 export async function updateLicence(db: D1Database, l: Licence): Promise<void> {
-  await db.prepare('UPDATE licences SET customer = ?, clinic = ?, phone = ?, price = ?, note = ?, status = ?, search = ? WHERE id = ?')
-    .bind(l.customer, l.clinic, l.phone, l.price, l.note, l.status, searchText(l), l.id).run()
+  // `search`: the head from the row's own device column (a key bound since the row was read keeps its device
+  // searchable), the tail from the values written.
+  await db.prepare(`UPDATE licences SET customer = ?, clinic = ?, phone = ?, price = ?, note = ?, status = ?,
+      search = lower(device || char(10) || replace(device, '-', '') || char(10)) || ? WHERE id = ?`)
+    .bind(l.customer, l.clinic, l.phone, l.price, l.note, l.status, searchTail(l), l.id).run()
 }
 
 /** `status` 'pending': active keys not activated yet. */
 export interface LicenceQuery { q: string; status: LicenceStatus | 'pending' | ''; limit: number; offset: number }
 export async function listLicences(db: D1Database, f: LicenceQuery): Promise<{ items: Licence[]; total: number }> {
   const where: string[] = [], args: unknown[] = []
-  const q = f.q.trim().toLowerCase()
+  const q = fitLike(f.q.trim().toLowerCase())
   if (q) {
     // The query as typed; for a phone number also its digits alone, and without a leading 0 (a local number typed
     // as 0996… finds the licence saved as +963 996…).

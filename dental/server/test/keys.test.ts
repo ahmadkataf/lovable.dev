@@ -7,7 +7,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { checkCode } from '../../src/license/core.ts'
 import { handleApi } from '../src/api'
 import { MAX_ACTIVATION_FAILURES } from '../src/auth'
-import { ensureSchema, getLicence, getLicenceByKey, insertLicence, listLicences, stats } from '../src/db'
+import { bindKey, ensureSchema, getLicence, getLicenceByKey, insertLicence, listLicences, stats, updateLicence } from '../src/db'
 import { DEFAULT_SETTINGS, type Env, type Licence } from '../src/types'
 import { memoryD1 } from './d1'
 
@@ -25,6 +25,9 @@ const ORIGIN = 'https://dentora.raqeem.dev'
 const PASSWORD = 'qa-dentora-pass-2026'
 const KEY_FORMAT = /^[2-9A-HJ-NP-Z]{4}(-[2-9A-HJ-NP-Z]{4}){3}$/
 const DEV_A = 'AB2C-D3EF', DEV_B = 'ZZZZ-9999'
+const ALPHABET = '23456789ABCDEFGHJKLMNPQRSTUVWXYZ'
+/** A key nobody sold, a different one for every i under 1024. */
+const unknownKey = (i: number) => `2345-6789-ABCD-EF${ALPHABET[i >> 5]}${ALPHABET[i & 31]}`
 const today = () => new Date().toISOString().slice(0, 10)
 const plusYears = (n: number) => { const d = new Date(); return new Date(Date.UTC(d.getUTCFullYear() + n, d.getUTCMonth(), d.getUTCDate())).toISOString().slice(0, 10) }
 const dayBefore = (day: string) => new Date(Date.parse(`${day}T00:00:00Z`) - 86_400_000).toISOString().slice(0, 10)
@@ -119,6 +122,43 @@ describe('licence keys through the API', () => {
       customer: '', clinic: '', phone: '', price: 59, note: '', status: 'active', createdAt: new Date().toISOString(), ...over,
     })
   }
+
+  describe('the search text of a sale', () => {
+    const waiting = (key: string): Licence => ({
+      id: crypto.randomUUID(), device: '', plan: 'pro', until: null, code: '', key, validity: 'lifetime', activatedAt: null,
+      customer: 'Sami', clinic: 'Al Noor', phone: '+963 996 489 504', price: 59, note: '', status: 'active', createdAt: new Date().toISOString(),
+    })
+    const bound = (l: Licence): Licence => ({ ...l, device: DEV_A, code: 'C', until: null, activatedAt: new Date().toISOString() })
+    const found = async (q: string) => (await listLicences(env.DB, { q, status: '', limit: 50, offset: 0 })).total
+    // The panel's PATCH reads the row, then writes it; a key bound between the two (the clinic activating at that moment)
+    // must stay searchable by its device, and the other way round an edit committed while the key was being bound must
+    // stay searchable: each statement takes the half of `search` it does not own from the row itself.
+    it('keeps the device a key got while the seller was saving an edit of that sale', async () => {
+      await ensureSchema(env.DB)
+      const sale = waiting('K2M4-P6R8-T9V3-X5Z7')
+      await insertLicence(env.DB, sale)
+      const before = (await getLicence(env.DB, sale.id))!
+      expect(await bindKey(env.DB, bound(sale))).toBe(true)
+      await updateLicence(env.DB, { ...before, note: 'paid cash' })
+      expect(await getLicence(env.DB, sale.id)).toMatchObject({ device: DEV_A, code: 'C', note: 'paid cash' })
+      expect([await found(DEV_A), await found('ab2cd3ef'), await found('al noor'), await found('X5Z7')]).toEqual([1, 1, 1, 1])
+    })
+    it('keeps an edit the seller saved while a key was being bound', async () => {
+      await ensureSchema(env.DB)
+      const sale = waiting('K2M4-P6R8-T9V3-X5Z7')
+      await insertLicence(env.DB, sale)
+      await updateLicence(env.DB, { ...sale, clinic: 'New Clinic', phone: '+963 955 777 888' })
+      expect(await bindKey(env.DB, bound(sale))).toBe(true)
+      expect(await getLicence(env.DB, sale.id)).toMatchObject({ device: DEV_A, clinic: 'New Clinic', phone: '+963 955 777 888' })
+      expect([await found(DEV_A), await found('new clinic'), await found('0955777888'), await found('al noor')]).toEqual([1, 1, 1, 0])
+    })
+    it('finds a sale by a name longer than D1’s 50-byte LIKE limit, by its prefix', async () => {
+      await ensureSchema(env.DB)
+      await insertLicence(env.DB, { ...waiting('K2M4-P6R8-T9V3-X5Z7'), clinic: 'عيادة الدكتور محمد الأحمد للأسنان' })
+      expect(await found('عيادة الدكتور محمد الأحمد للأسنان')).toBe(1)
+      expect(await found('عيادة الدكتورة سلمى الأحمد للأسنان')).toBe(0)
+    })
+  })
 
   describe('in the control panel', () => {
     it('POST /api/keys makes waiting keys at the settings price, and logs them without the keys', async () => {
@@ -288,6 +328,31 @@ describe('licence keys through the API', () => {
       expect(activation).toMatchObject({ action: 'key.activate', detail: `…${licence.key!.slice(-4)} · ${DEV_A}` })
       expect(await getLicenceByKey(env.DB, licence.key!)).toMatchObject({ device: DEV_A, code: first.code })
     })
+    it('logs a used key tried elsewhere once per key and day, however often and from wherever it is tried', async () => {
+      const cookie = await login()
+      const [{ licence }] = await sell(cookie)
+      expect((await activate({ key: licence.key, device: DEV_A })).status).toBe(200)
+      for (const ip of ['7.7.7.1', '7.7.7.2', '7.7.7.1']) expect((await activate({ key: licence.key, device: DEV_B }, { ip })).status).toBe(409)
+      expect((await auditOf(cookie)).filter(e => e.action === 'key.used')).toHaveLength(1)
+      // the next day it is written again: the seller sees the key is still being passed around
+      vi.setSystemTime(Date.now() + 86_400_000)
+      try {
+        expect((await activate({ key: licence.key, device: DEV_B })).status).toBe(409)
+        expect((await auditOf(await login())).filter(e => e.action === 'key.used')).toHaveLength(2)
+      } finally { vi.useRealTimers() }
+    })
+    it('refuses the device’s own code, asked for again, once its last day has passed (410 expired)', async () => {
+      await insertKey('K2M4-P6R8-T9V3-X5Z7', { validity: 'date', until: today() })
+      const first = await activate({ key: 'K2M4-P6R8-T9V3-X5Z7', device: DEV_A })
+      expect(first.status).toBe(200)
+      vi.setSystemTime(Date.now() + 3 * 86_400_000)
+      try {
+        const late = await activate({ key: 'K2M4-P6R8-T9V3-X5Z7', device: DEV_A })
+        expect([late.status, await late.json()]).toEqual([410, { error: 'expired' }])
+        // the key stays bound: another device is still refused as used
+        expect((await activate({ key: 'K2M4-P6R8-T9V3-X5Z7', device: DEV_B })).status).toBe(409)
+      } finally { vi.useRealTimers() }
+    })
     it('refuses a date key after its day (410 expired), and takes it on the day itself', async () => {
       await insertKey('K2M4-P6R8-T9V3-X5Z7', { validity: 'date', until: dayBefore(today()) })
       await insertKey('WXYZ-2345-6789-ABCD', { validity: 'date', until: today() })
@@ -352,7 +417,7 @@ describe('licence keys through the API', () => {
     it(`locks an address after ${MAX_ACTIVATION_FAILURES} failures, for the rest of the 15 minutes`, async () => {
       await insertKey('K2M4-P6R8-T9V3-X5Z7', {})
       for (let i = 0; i < MAX_ACTIVATION_FAILURES; i++) {
-        const r = await activate({ key: `2345-6789-ABCD-EF${'GHJKLMNPQR'[i]}${'GHJKLMNPQR'[i]}`, device: DEV_A }, { ip: '9.9.9.9' })
+        const r = await activate({ key: unknownKey(i), device: DEV_A }, { ip: '9.9.9.9' })
         expect(r.status).toBe(404)
       }
       const locked = await activate({ key: '2345-6789-ABCD-EFGH', device: DEV_A }, { ip: '9.9.9.9' })
@@ -367,9 +432,9 @@ describe('licence keys through the API', () => {
       expect((await activate({ key: 'K2M4-P6R8-T9V3-X5Z7', device: DEV_A }, { ip: '9.9.9.8' })).status).toBe(200)
     })
     it(`looks up at most ${MAX_ACTIVATION_FAILURES} keys from one address, however many arrive at once`, async () => {
-      const all = await Promise.all(Array.from({ length: 30 }, () => activate({ key: '2345-6789-ABCD-EFGH', device: DEV_A }, { ip: '9.9.9.7' })))
+      const all = await Promise.all(Array.from({ length: MAX_ACTIVATION_FAILURES + 20 }, () => activate({ key: '2345-6789-ABCD-EFGH', device: DEV_A }, { ip: '9.9.9.7' })))
       expect(all.filter(r => r.status === 404)).toHaveLength(MAX_ACTIVATION_FAILURES)
-      expect(all.filter(r => r.status === 429)).toHaveLength(30 - MAX_ACTIVATION_FAILURES)
+      expect(all.filter(r => r.status === 429)).toHaveLength(20)
     })
     it('counts IPv6 addresses per /64', async () => {
       for (let i = 1; i <= MAX_ACTIVATION_FAILURES; i++) await activate({ key: '2345-6789-ABCD-EFGH', device: DEV_A }, { ip: `2001:db8:1:2::${i}` })

@@ -199,4 +199,23 @@ describe.skipIf(!keyText)('Settings → Licence with a licence key', () => {
     await pressActivate()
     expect(fieldError()).toBe(en('license.err.incomplete'))
   })
+
+  it('tells a typed key with a look-alike character (0 for O) apart from an incomplete entry, and asks for one key when a list was pasted', async () => {
+    const fetch = server(() => json(500, {}))
+    await type('ABCD-EFGH-JKLM-NPQ0')
+    expect(host.textContent).toContain('16/112')
+    await pressActivate()
+    expect(fieldError()).toBe(en('license.key.err.key'))
+    // a reseller's list of keys: shown one per line, with the ask to keep one
+    await type(`Two keys, one per device:\n${KEY}\n2345-6789-ABCD-EFGH`)
+    expect($<HTMLTextAreaElement>('[data-qa=code-input]')!.value).toBe(`${KEY}\n2345-6789-ABCD-EFGH`)
+    expect(fieldError()).toBe(en('license.key.err.many'))
+    await pressActivate()
+    expect(fieldError()).toBe(en('license.key.err.many'))
+    await type('2345-6789-ABCD-EFGH')
+    expect($<HTMLTextAreaElement>('[data-qa=code-input]')!.value).toBe('2345-6789-ABCD-EFGH')
+    expect(fieldError()).toBe('')
+    expect($('[data-qa=key-detected]')).toBeTruthy()
+    expect(fetch).not.toHaveBeenCalled()
+  })
 })

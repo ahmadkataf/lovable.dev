@@ -719,6 +719,11 @@ async function api(browser, mainWorker) {
   check('search by a local phone number finds the +963 one', s.total === 1 && s.items[0].id === L4.id)
   s = await search('100%_')
   check('search treats % and _ literally', s.total === 0)
+  // workerd's D1 refuses a LIKE pattern over 50 bytes (node:sqlite, under the unit tests, does not): the Worker shortens the term
+  s = await search('عيادة الدكتور محمد الأحمد للأسنان')
+  check('a search of 34 Arabic letters (D1 LIKE limit: 50 bytes) answers 200, not a 500', typeof s?.total === 'number', JSON.stringify(s))
+  s = await search('%'.repeat(25))
+  check('… and so does one that only its escaping pushes over the limit (25 × %)', typeof s?.total === 'number' && s.total === 0, JSON.stringify(s))
   r = await req('GET', '/api/licences?status=bogus', { cookie })
   check('?status=bogus → 400 field status', r.status === 400 && r.json?.error === 'field' && r.json.field === 'status')
   r = await req('GET', `/api/licences/${L1.id}`, { cookie })
@@ -1567,44 +1572,47 @@ async function keysApi(mainWorker) {
   check('audit: key.activate "…<last 4> · <device>" once per key (a repeat by the same device is not logged), with no address',
     activated.filter(i => i.detail === `…${K1.key.slice(-4)} · ${DEV_K}`).length === 1 && activated.some(i => i.detail === `…${batch[0].key.slice(-4)} · Q8WE-R4TY`) && activated.every(i => i.ip === ''),
     activated.map(i => `${i.detail} [${i.ip}]`).join(' | '))
-  check('audit: key.used names the key\'s own device, never the device that tried, and no address', used.length >= 2 && used.every(i => i.ip === '' && !i.detail.includes(DEV_K2))
+  check('audit: key.used once per key and day (K1 was tried twice from another device), names the key\'s own device, never the device that tried, and no address',
+    used.filter(i => i.detail === `…${K1.key.slice(-4)} · ${DEV_K}`).length === 1 && used.every(i => i.ip === '' && !i.detail.includes(DEV_K2))
     && used.some(i => i.detail === `…${K1.key.slice(-4)} · ${DEV_K}`), used.map(i => i.detail).join(' | '))
   check('audit: a waiting key is named by its last 4 characters ("…XXXX · status: active → void")', audit.some(i => i.action === 'licence.update' && i.detail === `…${batch[1].key.slice(-4)} · status: active → void`))
   check('audit: no entry holds a whole key', !audit.some(i => keys.some(k => i.detail.includes(k.key) || i.detail.includes(k.key.replace(/-/g, '')))))
   st = await statsOf()
   check('stats: pending counts the active keys still waiting (5 activated, 1 void)', st.pending === before.pending + keys.length - 6, JSON.stringify(st))
 
-  section('licence keys: the activation limit (10 failures per address in 15 minutes)')
+  // auth.ts MAX_ACTIVATION_FAILURES, written out here so a change there is noticed (SPEC.md → Public activation)
+  const FAILURES = 50
+  section(`licence keys: the activation limit (${FAILURES} failures per address in 15 minutes)`)
   const RL = '203.0.113.80'
   const statuses = []
   let last
-  for (let i = 0; i < 11; i++) { last = await activateReq({ key: randomKey(), device: DEV_K }, { ip: RL }); statuses.push(last.status) }
-  check('11 unknown keys from one address → 404 ×10, then 429 locked with retryAfter (seconds, at most 15 minutes), with CORS',
-    statuses.join() === '404,404,404,404,404,404,404,404,404,404,429' && last.json?.error === 'locked' && last.json.retryAfter > 850 && last.json.retryAfter <= 900 && cors(last),
-    `${statuses.join()} ${JSON.stringify(last.json)}`)
+  for (let i = 0; i <= FAILURES; i++) { last = await activateReq({ key: randomKey(), device: DEV_K }, { ip: RL }); statuses.push(last.status) }
+  check(`${FAILURES + 1} unknown keys from one address → 404 ×${FAILURES}, then 429 locked with retryAfter (seconds, at most 15 minutes), with CORS`,
+    statuses.join() === [...Array(FAILURES).fill(404), 429].join() && last.json?.error === 'locked' && last.json.retryAfter > 850 && last.json.retryAfter <= 900 && cors(last),
+    `${[...new Set(statuses)].join()} (${statuses.filter(s => s === 404).length} × 404) ${JSON.stringify(last.json)}`)
   r = await activateReq({ key: dated[1].key, device: 'N6MP-Q2RS' }, { ip: RL })
   v = await verify(dated[1].key)
   check('…a real key from that address is refused before it is looked up (429), and stays waiting', r.status === 429 && v?.status === 'pending', `${r.status} ${v?.status}`)
   r = await activateReq({ key: dated[1].key, device: 'N6MP-Q2RS' }, { ip: '203.0.113.81' })
   check('…another address activates it (200)', r.status === 200)
-  const burst = await Promise.all(Array.from({ length: 30 }, () => activateReq({ key: randomKey(), device: DEV_K }, { ip: '203.0.113.82' })))
+  const burst = await Promise.all(Array.from({ length: FAILURES + 20 }, () => activateReq({ key: randomKey(), device: DEV_K }, { ip: '203.0.113.82' })))
   const n = {}
   for (const x of burst) n[x.status] = (n[x.status] || 0) + 1
-  check('30 guesses at once from one address → exactly 10 looked up (404), 20 refused (429)', n[404] === 10 && n[429] === 20, JSON.stringify(n))
+  check(`${FAILURES + 20} guesses at once from one address → exactly ${FAILURES} looked up (404), 20 refused (429)`, n[404] === FAILURES && n[429] === 20, JSON.stringify(n))
   const OK_IP = '203.0.113.83', oks = []
   for (let i = 0; i < 12; i++) oks.push((await activateReq({ key: K1.key, device: DEV_K }, { ip: OK_IP })).status)
   for (let i = 0; i < 12; i++) oks.push((await activateReq(null, { ip: OK_IP, raw: '{oops' })).status)
   r = await activateReq({ key: randomKey(), device: DEV_K }, { ip: OK_IP })
   check('12 successes and 12 broken bodies from one address are not counted: its next failure is still a 404', oks.slice(0, 12).every(x => x === 200) && oks.slice(12).every(x => x === 400) && r.status === 404,
     `${[...new Set(oks)].join()} → ${r.status}`)
-  for (let i = 1; i <= 10; i++) await activateReq({ key: randomKey(), device: DEV_K }, { ip: `2001:db8:aa:1::${i}` })
+  for (let i = 1; i <= FAILURES; i++) await activateReq({ key: randomKey(), device: DEV_K }, { ip: `2001:db8:aa:1::${i.toString(16)}` })
   const v6a = await activateReq({ key: randomKey(), device: DEV_K }, { ip: '2001:db8:aa:1:ffff::9' }), v6b = await activateReq({ key: randomKey(), device: DEV_K }, { ip: '2001:db8:aa:2::1' })
-  check('IPv6: 10 failures across one /64 lock the whole /64 (429); the next /64 is not locked (404)', v6a.status === 429 && v6b.status === 404, `${v6a.status} ${v6b.status}`)
+  check(`IPv6: ${FAILURES} failures across one /64 lock the whole /64 (429); the next /64 is not locked (404)`, v6a.status === 429 && v6b.status === 404, `${v6a.status} ${v6b.status}`)
   const attempts = await queryD1(mainWorker.persist, 'SELECT * FROM activation_attempts')
   const columns = attempts?.length ? Object.keys(attempts[0]).sort().join() : ''
   const per = ip => (attempts || []).filter(a => a.ip === ip).length
-  check('D1 activation_attempts: only id, ip (IPv6 as its /64) and time; the failures alone (10 per locked address, 1 after the successes)',
-    columns === 'at,id,ip' && per(RL) === 10 && per('203.0.113.82') === 10 && per(OK_IP) === 1 && per('2001:db8:aa:1::/64') === 10 && per('203.0.113.81') === 0,
+  check(`D1 activation_attempts: only id, ip (IPv6 as its /64) and time; the failures alone (${FAILURES} per locked address, 1 after the successes)`,
+    columns === 'at,id,ip' && per(RL) === FAILURES && per('203.0.113.82') === FAILURES && per(OK_IP) === 1 && per('2001:db8:aa:1::/64') === FAILURES && per('203.0.113.81') === 0,
     `${columns} ${RL}:${per(RL)} ok:${per(OK_IP)} v6:${per('2001:db8:aa:1::/64')}`)
   return { cookie }
 }

@@ -7,7 +7,7 @@ import type { GuideTopic } from '../types'
 // erase in a shot: close those dialogs with Cancel.
 const DESK = 'Desktop 1600×900, demo clinic as store/scripts/shoot.mjs makes it (seedAndLogin + Settings → Backup → Load demo data; English shots use its englishClinic() names), signed in as the admin (Dr. Ahmad Al-Khatib), clock fixed at Sunday 11 Oct 2026 11:40 Asia/Damascus, trial bar hidden ([data-qa="trial-bar"]{display:none}), the browser-only storage note hidden (.st-backup-hero .alert-info{display:none}), downloads accepted, page scrolled to the top and held there (page.goto() reads as Back to the app, which restores an old scroll position).'
 const PHONE = 'Phone 405×720 (isMobile, hasTouch, deviceScaleFactor 8/3 as shoot.mjs), same demo clinic, clock, hidden trial bar and hidden storage note.'
-const EXPORT = 'Route #/settings/backup, click **Export backup** ([data-qa="export-backup"]) and keep the downloaded file (dentora-backup-2026-10-11-1140.dentora).'
+const EXPORT = 'Route #/settings/backup, click **Export backup** ([data-qa="export-backup"]) and keep the downloaded file (named dentora-backup-2026-10-11-HHMM.dentora, with the time of the export).'
 
 const topic: GuideTopic = {
   slug: 'backup',
@@ -245,10 +245,12 @@ const topic: GuideTopic = {
         ar: [
           'يحذف هذا المرضى والمواعيد والفواتير والمستخدمين وكل الإعدادات من هذا الجهاز، ولا يُسترجع شيء منها إلا من نسخة احتياطية.',
           'يبقى تفعيل الترخيص على الجهاز كما هو.',
+          'إن كان في العيادة أقل من طبيبين تضيف البيانات التجريبية د. ليلى حداد ود. سامر عبود، ورمز الدخول لكل منهما 1234.',
         ],
         en: [
           'This deletes patients, appointments, invoices, users and every setting from this device, and nothing comes back except from a backup.',
           'The licence activation on the device is kept.',
+          'If the clinic has fewer than two doctors, the demo data adds Dr. Laila Haddad and Dr. Samer Abboud, both with PIN 1234.',
         ],
       },
       shots: ['backup-erase'],

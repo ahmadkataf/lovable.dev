@@ -94,11 +94,11 @@ const topic: GuideTopic = {
       tips: {
         ar: [
           'مرّر المؤشر فوق نقطة في الرسم، أو المسها على الهاتف، لترى قيمتها وتاريخها.',
-          'على الهاتف تصطف البطاقات والرسوم تحت بعضها، ويُسحب شريط التبويبات والفترات جانبياً.',
+          'على الهاتف تصطف البطاقات والرسوم تحت بعضها، وتنتقل أزرار الفترات إلى سطرين، ويُسحب شريط التبويبات جانبياً لتصل إلى **الذمم المستحقة**.',
         ],
         en: [
           'Hover over a point on a chart, or tap it on a phone, to see its value and date.',
-          'On a phone the cards and charts stack one under another, and the tab and period strips slide sideways.',
+          'On a phone the cards and charts stack one under another, the period buttons wrap onto two lines, and the tab strip slides sideways to reach **Outstanding**.',
         ],
       },
       shots: ['reports-expenses-table', 'reports-phone'],
@@ -237,8 +237,8 @@ const topic: GuideTopic = {
       id: 'reports-phone',
       device: 'phone',
       alt: {
-        ar: 'التقارير على الهاتف: شريطا التبويبات والفترات يُسحبان جانبياً، والبطاقات تحت بعضها',
-        en: 'Reports on a phone: the tab and period strips slide sideways, and the cards stack one under another',
+        ar: 'التقارير على الهاتف: أزرار الفترات في سطرين، وشريط التبويبات يُسحب جانبياً، والبطاقات تحت بعضها',
+        en: 'Reports on a phone: the period buttons on two lines, the tab strip sliding sideways, and the cards stacked one under another',
       },
       recipe: `${PHONE} Route #/reports (Financial, Last month). Page at its top. Capture the screen. No markers.`,
     },

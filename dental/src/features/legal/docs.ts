@@ -31,10 +31,10 @@ Dentora برنامج تبيعه {seller} ("نحن"). العيادة التي ت�
 بعد أن يغادر الملف أو الرسالة البرنامج تصبح العيادة مسؤولة عنه.
 
 ## رقم الجهاز
-يحسب البرنامج رقماً قصيراً للجهاز من بصمة مشفّرة لمعرّف الجهاز (معرّف أندرويد أو MachineGuid في ويندوز)، ولا يُستخدم إلا لربط رمز التفعيل بهذا الجهاز. تراه العيادة في الإعدادات وترسله إلى البائع للحصول على رمز التفعيل، أو يرسله البرنامج مع مفتاح الترخيص عند التفعيل به، ولا يكشف شيئاً عن العيادة أو مرضاها.
+يحسب البرنامج رقماً قصيراً للجهاز من بصمة مشفّرة لمعرّف الجهاز (معرّف أندرويد، أو MachineGuid في ويندوز؛ وإن تعذّرت قراءته عند أول تشغيل فمعرّف عشوائي يُنشأ لذلك التثبيت)، ولا يُستخدم إلا لربط رمز التفعيل بهذا الجهاز. تراه العيادة في الإعدادات وترسله إلى البائع للحصول على رمز التفعيل، أو يرسله البرنامج مع مفتاح الترخيص عند التفعيل به، ولا يكشف شيئاً عن العيادة أو مرضاها.
 
 ## التفعيل بمفتاح ترخيص
-لا يرسل Dentora شيئاً من بيانات العيادة أو المرضى إلينا ولا إلى أي خادم. المرة الوحيدة التي يتصل فيها بخادم هي حين تفعّله العيادة بمفتاح ترخيص: يرسل حينها المفتاح ورقم الجهاز (رقم مشتق من الجهاز، وليس من بيانات العيادة) إلى dentora.raqeem.dev، مرة واحدة، لاستلام رمز التفعيل. وتتلقى صفحة التفعيل على ذلك الموقع القيمتين نفسيهما إن استخدمتها العيادة بدلاً من البرنامج. يحتفظ الخادم برقم الجهاز الذي فُعّل عليه المفتاح وبوقت التفعيل مع سجل البيع، ليرفض المفتاح على جهاز ثانٍ، ويَعُدّ المحاولات الفاشلة من كل عنوان إنترنت مدة 15 دقيقة لمنع تخمين المفاتيح. أما التفعيل برمز يرسله البائع فلا يحتاج إلى أي اتصال.
+لا يرسل Dentora شيئاً من بيانات العيادة أو المرضى إلينا ولا إلى أي خادم. المرة الوحيدة التي يتصل فيها بخادم هي حين تفعّله العيادة بمفتاح ترخيص: يرسل حينها المفتاح ورقم الجهاز (رقم مشتق من الجهاز، وليس من بيانات العيادة) إلى dentora.raqeem.dev، مرة واحدة، لاستلام رمز التفعيل. وتتلقى صفحة التفعيل على ذلك الموقع القيمتين نفسيهما إن استخدمتها العيادة بدلاً من البرنامج. ويُظهر هذا الاتصال للخادم، كأي طلب ويب، عنوان الإنترنت الخاص بالجهاز وتعريف المتصفح المعتاد (إصدار البرنامج والنظام والمتصفح)؛ ولا يقرأ الخادم هذا التعريف، ولا يستخدم العنوان إلا لعدّ المحاولات الفاشلة كما يأتي. يحتفظ الخادم برقم الجهاز الذي فُعّل عليه المفتاح ورمز التفعيل الصادر ووقت التفعيل مع سجل البيع ما دام هذا السجل محفوظاً (فهو الدليل على استعمال المفتاح)، ليرفض المفتاح على جهاز ثانٍ، ويسجّل عنوان الإنترنت عند المحاولة الفاشلة وحده (دون المفتاح أو رقم الجهاز) لعدّ المحاولات مدة 15 دقيقة ومنع تخمين المفاتيح، ويُحذف ذلك السجل مع أول طلب تفعيل بعد ذلك. أما التفعيل برمز يرسله البائع فلا يحتاج إلى أي اتصال.
 
 ## النسخ الاحتياطية
 ملف النسخة الاحتياطية يحوي كل بيانات العيادة، بما فيها البيانات الصحية للمرضى. يمكن حمايته بكلمة مرور عند التصدير، ويجب حفظه في مكان آمن خارج الجهاز. العيادة وحدها تتحكم في هذه الملفات وفي مكان حفظها ومن يطّلع عليها.
@@ -45,7 +45,7 @@ Dentora برنامج تبيعه {seller} ("نحن"). العيادة التي ت�
 - ننصح العيادة بقفل الجهاز بكلمة مرور وتشفير قرصه، وتحديث نظامه، وحماية النسخ الاحتياطية بكلمة مرور.
 
 ## مدة الحفظ والحذف
-تبقى البيانات حتى تحذفها العيادة. يمكن حذف أي سجل أو أرشفته، ويحذف الأمر «حذف كل البيانات» في الإعدادات ← النسخ الاحتياطي كل البيانات من الجهاز. إزالة التطبيق على أندرويد تحذف بياناته، وعلى ويندوز يُنصح باستخدام «حذف كل البيانات» قبل إزالة البرنامج. على العيادة الالتزام بالمدد التي يفرضها القانون في بلدها لحفظ السجلات الطبية.
+تبقى البيانات التي على الجهاز حتى تحذفها العيادة. يمكن حذف أي سجل أو أرشفته، ويحذف الأمر «حذف كل البيانات» في الإعدادات ← النسخ الاحتياطي كل البيانات من الجهاز. إزالة التطبيق على أندرويد تحذف بياناته، وعلى ويندوز يُنصح باستخدام «حذف كل البيانات» قبل إزالة البرنامج. على العيادة الالتزام بالمدد التي يفرضها القانون في بلدها لحفظ السجلات الطبية. وما يحتفظ به خادم التفعيل مذكور في «التفعيل بمفتاح ترخيص».
 
 ## حقوق المرضى
 تتولى العيادة طلبات المرضى للاطلاع على بياناتهم أو تصحيحها أو الحصول على نسخة منها أو حذفها، ويتيح البرنامج عرض أي سجل وتعديله وطباعته وحذفه. لا نستطيع نحن تنفيذ هذه الطلبات لأننا لا نملك أي نسخة من البيانات، فيُرجى أن يتوجه المريض إلى عيادته.
@@ -125,10 +125,10 @@ The app sends no data on its own: no usage statistics, no advertising, no crash 
 Once a file or message has left the app, the clinic is responsible for it.
 
 ## Device number
-The app derives a short device number from a hash of the device identifier (the Android ID, or the Windows MachineGuid). It is used only to match an activation code to this device. The clinic sees it in Settings and sends it to the seller to obtain an activation code, or the app sends it with a licence key when the clinic activates with one; it reveals nothing about the clinic or its patients.
+The app derives a short device number from a hash of the device identifier (the Android ID, or on Windows the MachineGuid; if Windows cannot be asked for it on the first run, a random identifier made for that installation). It is used only to match an activation code to this device. The clinic sees it in Settings and sends it to the seller to obtain an activation code, or the app sends it with a licence key when the clinic activates with one; it reveals nothing about the clinic or its patients.
 
 ## Activation with a licence key
-Dentora never sends clinic or patient data to us or to any server. The only time it contacts a server is when the clinic activates it with a licence key: it then sends the key and the device number (a number derived from the device, not the clinic’s data) to dentora.raqeem.dev, once, to receive the activation code. The activation page on that website receives the same two values when the clinic uses it instead. The server keeps the key’s device number and activation time with the record of the sale, so that the key is refused on a second device, and counts failed attempts from each internet address for 15 minutes to stop anyone guessing keys. Activating with a code sent by the seller needs no connection at all.
+Dentora never sends clinic or patient data to us or to any server. The only time it contacts a server is when the clinic activates it with a licence key: it then sends the key and the device number (a number derived from the device, not the clinic’s data) to dentora.raqeem.dev, once, to receive the activation code. The activation page on that website receives the same two values when the clinic uses it instead. Like any web request, that connection also shows the server the device’s internet address and the app’s standard browser identification (app, system and browser versions); the server does not read that identification, and uses the address only to count failed attempts, as follows. The server keeps the key’s device number, the activation code it issued and the activation time with the record of the sale, for as long as that record is kept (it is the proof that the key has been used), so that the key is refused on a second device, and records the internet address of a failed attempt, on its own (without the key or the device number), to count attempts for 15 minutes and stop anyone guessing keys; that entry is deleted with the next activation request after that. Activating with a code sent by the seller needs no connection at all.
 
 ## Backups
 A backup file contains all of the clinic’s data, including patients’ health data. It can be protected with a password when exported, and it should be kept somewhere safe away from the device. The clinic alone controls these files, where they are kept and who can see them.
@@ -139,7 +139,7 @@ A backup file contains all of the clinic’s data, including patients’ health 
 - We recommend that the clinic locks the device with a password, encrypts its disk, keeps its system updated and protects backups with a password.
 
 ## Retention and deletion
-Data stays until the clinic deletes it. Any record can be deleted or archived, and “Delete all data” in Settings → Backup erases everything on the device. Uninstalling the app on Android deletes its data; on Windows, use “Delete all data” before uninstalling. The clinic must keep medical records for as long as the law of its country requires.
+The data on the device stays until the clinic deletes it. Any record can be deleted or archived, and “Delete all data” in Settings → Backup erases everything on the device. Uninstalling the app on Android deletes its data; on Windows, use “Delete all data” before uninstalling. The clinic must keep medical records for as long as the law of its country requires. What the activation server keeps is described under “Activation with a licence key”.
 
 ## Patients’ rights
 Patients’ requests to see, correct, receive a copy of or delete their information are handled by the clinic, and the app lets it view, edit, print and delete any record. We cannot act on such requests because we hold no copy of the data, so patients should contact their clinic.

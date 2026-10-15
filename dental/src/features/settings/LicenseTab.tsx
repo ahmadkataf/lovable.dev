@@ -7,7 +7,7 @@ import { getSetting, logActivity } from '@/db'
 import { useClinic } from '@/app/hooks'
 import { useLicense, type ActivateResult } from '@/license/useLicense'
 import { checkCode, codeKind, extractCode, TRIAL_DAYS } from '@/license/core'
-import { activationPageUrl, extractKey, isLicenceKey, redeemKey, type RedeemResult } from '@/license/online'
+import { activationPageUrl, findKeys, isLicenceKey, redeemKey, type RedeemResult } from '@/license/online'
 import { openExternal } from '@/platform'
 import { fmtDate } from '@/lib/dates'
 import { formatPhone, whatsappLink } from '@/lib/format'
@@ -51,16 +51,21 @@ export default function LicenseTab() {
     else toast.error(t('license.copyFailed'))
   }
 
-  // the field takes a code or a key: a pasted message gives whichever it holds (a complete code wins)
+  // the field takes a code or a key: a pasted message gives whichever it holds (a complete code wins); a text holding
+  // several keys (a reseller's list) is shown as those keys, one per line, for the clinic to keep one
   const onCodeChange = (value: string) => {
     const pasted = extractCode(value)
-    setCode((!codeKind(pasted) && extractKey(value)) || formatCodeInput(pasted))
-    setError(null); setOfferBrowser(false)
+    const keys = codeKind(pasted) ? [] : findKeys(value)
+    setOfferBrowser(false)
+    if (keys.length > 1) { setCode(keys.join('\n')); setError(t('license.key.err.many')); return }
+    setCode(keys[0] || formatCodeInput(pasted))
+    setError(null)
   }
   const keyError = (r: Extract<RedeemResult, { ok: false }>) =>
     r.reason === 'locked' ? (r.retryAfter ? t('license.key.err.locked', { n: Math.ceil(r.retryAfter / 60) }) : t('license.key.err.lockedSoon')) : t(`license.key.err.${r.reason}`)
   // what the server answered is not trusted: lic.activate() refuses a code for another device, a damaged one, or one
-  // whose term is already over (a key activated long ago on this same device gets its old code back)
+  // whose term is already over (the server refuses an ended code itself with 410 expired, so that last case only shows
+  // when this device's clock is ahead of the server's)
   const keyCheckError = async (activation: string, r: ActivateResult) => {
     const c = r === 'expired' ? await checkCode(lic.device, activation, new Date(lic.now())) : null
     return c && !c.ok && c.reason === 'expired' ? t('license.key.err.ended', { date: fmtDate(codeDay(c.until), lang, 'long') }) : t('license.key.err.check')
@@ -70,6 +75,9 @@ export default function LicenseTab() {
     e?.preventDefault()
     if (noDevice) { setError(t('license.deviceError')); return }
     const withKey = isLicenceKey(code)
+    if (!withKey && findKeys(code).length > 1) { setError(t('license.key.err.many')); return }
+    // 16 characters that are not a key hold a look-alike (0/O/1/I), which neither codes nor keys use: not "incomplete"
+    if (!withKey && codeChars(code) === 16) { setError(t('license.key.err.key')); return }
     if (!withKey && !isCodeComplete(code)) { setError(t('license.err.incomplete')); return }
     void once(async () => {
       setBusy(true); setOfferBrowser(false)

@@ -166,8 +166,10 @@ function windowsSetup(request: Request, env: Env, ctx: ExecutionContext, url: UR
     'Cache-Control': NO_STORE,
   })
   if (request.method !== 'GET') return new Response(null, { status: 200, headers })
-  // Only a download from the first byte counts (a download manager resuming sends a Range; it gets the whole file).
-  if (!request.headers.has('Range')) ctx.waitUntil(count(request, env, 'windows'))
+  // Only a download from the first byte counts: no Range, or one that starts at byte 0 (download managers send that on
+  // their first request). A resume (a Range from a later byte) gets the whole file but is not counted again.
+  const range = request.headers.get('Range')
+  if (!range || /^bytes=0-/.test(range)) ctx.waitUntil(count(request, env, 'windows'))
   const { readable, writable } = typeof FixedLengthStream === 'function' ? new FixedLengthStream(w.sizeBytes) : new TransformStream<Uint8Array, Uint8Array>()
   ctx.waitUntil((async () => {
     try {

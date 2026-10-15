@@ -7,7 +7,7 @@ import {
   signToken, takeActivationAttempt, takeAttempt, type Claims,
 } from './auth'
 import {
-  activeLicencesOf, allLicences, audit, bindKey, dayOf, ensureSchema, getLicence, getLicenceByKey, getSettings,
+  activeLicencesOf, allLicences, audit, auditOnce, bindKey, dayOf, ensureSchema, getLicence, getLicenceByKey, getSettings,
   insertLicence, insertLicences, insertReset, listAudit, listLicences, listResets, saveSettings, stats, updateLicence,
 } from './db'
 import { apiError, clientIp, json, NO_STORE, PREFLIGHT_HEADERS, readJson, toCsv, withCors } from './http'
@@ -446,12 +446,15 @@ async function redeem(c: Ctx, body: Body): Promise<Response> {
 async function answerBound(c: Ctx, l: Licence, key: string, device: string, now: Date): Promise<Response> {
   if (!l.device) return apiError('void', 410)
   if (l.device !== device) {
-    // The device that tried is not written down: only the key's own device is kept with the sale.
-    await audit(c.db, 'key.used', `…${key.slice(-4)} · ${l.device}`, '')
+    // The device that tried is not written down: only the key's own device is kept with the sale. One line per key and
+    // UTC day: it tells the seller the key is being passed around; one per attempt would let whoever holds a used key
+    // fill the log (this route needs no session).
+    await auditOnce(c.db, 'key.used', `…${key.slice(-4)} · ${l.device}`, `${now.toISOString().slice(0, 10)}T00:00:00.000Z`)
     return apiError('used', 409)
   }
-  // The same device again (reinstalled, data cleared): the same code, checked again with the app's verifier. Not
-  // logged: successes are not rate limited, so a repeat must cost no write.
+  // The same device again (reinstalled, data cleared): the same code, checked again with the app's verifier; once its
+  // last day has passed it is refused like a date key past its day (410 expired: the app and the page say the key can
+  // no longer be used). Not logged: successes are not rate limited, so a repeat must cost no write.
   const check = await verifyCode(device, l.code, now)
   if (check.kind === 'activation' && check.reason === 'expired') return apiError('expired', 410)
   if (!check.ok || check.kind !== 'activation') throw new Error(`stored code of key …${key.slice(-4)} does not verify: ${check.reason}`)

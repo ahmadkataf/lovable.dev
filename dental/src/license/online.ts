@@ -26,14 +26,18 @@ export const isLicenceKey = (input: string) => KEY_RE.test(cleanCode(input))
 export const formatKey = (input: string) => formatCode(cleanCode(input))
 
 /**
- * The key inside whatever was pasted: the key alone (in any shape), or the seller's whole message around it, where
- * the key stands in four dashed groups. Null when there is none, or when the text holds two different keys.
+ * The distinct keys inside whatever was pasted: the key alone (in any shape), or the seller's whole message around it,
+ * where a key stands in four dashed groups; several when a reseller's list of keys was pasted whole.
  */
-export function extractKey(text: string): string | null {
-  if (isLicenceKey(text)) return formatKey(text)
+export function findKeys(text: string): string[] {
+  if (isLicenceKey(text)) return [formatKey(text)]
   const upper = (text || '').replace(/[٠-٩]/g, d => String('٠١٢٣٤٥٦٧٨٩'.indexOf(d))).toUpperCase()
-  const found = new Set(upper.match(KEY_IN_TEXT) ?? [])
-  return found.size === 1 ? [...found][0] : null
+  return [...new Set(upper.match(KEY_IN_TEXT) ?? [])]
+}
+/** The one key in the text; null when there is none, or more than one (the clinic must choose: findKeys says which). */
+export function extractKey(text: string): string | null {
+  const keys = findKeys(text)
+  return keys.length === 1 ? keys[0] : null
 }
 
 /** The activation page for this device in the interface language; the page fills the device number in. */
@@ -45,10 +49,10 @@ export function activationPageUrl(device: string, lang: 'ar' | 'en'): string {
 
 // ---- redeeming a key ----------------------------------------------------------------------------------------------
 /**
- * Why a key gave no code: no connection or no answer in time (offline), the server refused the key or the device
- * (key, device), no such key (unknown), already activated on another device (used), refunded or cancelled (void),
- * a dated key past its day (expired), too many failed attempts from this address (locked, retryAfter in seconds),
- * or anything else the server answered (server).
+ * Why a key gave no code: no connection, no answer in time or an answer cut off (offline), the server refused the key
+ * or the device (key, device), no such key (unknown), already activated on another device (used), refunded or
+ * cancelled (void), a dated key past its day or this device's own code past its last day (expired), too many failed
+ * attempts from this address (locked, retryAfter in seconds), or anything else the server answered (server).
  */
 export type RedeemFailure = 'offline' | 'key' | 'device' | 'unknown' | 'used' | 'void' | 'expired' | 'locked' | 'server'
 export type RedeemResult = { ok: true; code: string } | { ok: false; reason: RedeemFailure; retryAfter?: number }
@@ -76,7 +80,9 @@ export async function redeemKey(key: string, device: string): Promise<RedeemResu
       return { ok: false, reason: 'offline' }        // no connection, a blocked request, or the time ran out
     }
     let body: { code?: unknown; error?: unknown; retryAfter?: unknown } | null = null
-    try { body = await res.json() } catch { if (ctrl.signal.aborted) return { ok: false, reason: 'offline' } }
+    // the answer cut off before its body arrived (the time ran out, or the stream failed: a TypeError) is the connection's
+    // doing; a body that is not JSON (a SyntaxError) is the server's, read below as 'server'
+    try { body = await res.json() } catch (e) { if (ctrl.signal.aborted || e instanceof TypeError) return { ok: false, reason: 'offline' } }
     if (!body || typeof body !== 'object') body = null
     if (res.ok) return typeof body?.code === 'string' && body.code ? { ok: true, code: body.code } : { ok: false, reason: 'server' }
     if (res.status === 429) {

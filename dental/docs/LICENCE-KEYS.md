@@ -23,8 +23,8 @@ This file is the contract between the parts that implement it: the Worker (`serv
    leaves the Worker. The app checks that code with its own verifier and public key exactly like a code the seller
    sent, and stores it as today: from then on the app works offline as before.
 4. One key = one device. The same device entering the same key again (reinstall, cleared data) gets the same code
-   back. Another device is refused (`used`). A key the seller marked refunded or void before it was used is refused
-   (`void`); a code already issued from a key keeps working offline (codes cannot be revoked offline, as today).
+   back while that code's last day has not passed (after it: `expired`). Another device is refused (`used`). A key the
+   seller marked refunded or void before it was used is refused (`void`); a code already issued from a key keeps working offline (codes cannot be revoked offline, as today).
 
 The last day of the code made from a key:
 - `lifetime`: none (lifetime code);
@@ -84,9 +84,10 @@ exported from types.ts. `Stats.licences` gains `pending: number`: active keys no
   (`ok` = pending or activated, and status active).
 
 The key message (`CustomerMessage`, Arabic and English), written for the clinic: the key on its own line, then:
-open Dentora → Settings → Licence, paste the key and press Activate (needs the internet once, the device only); or
-activate it on `https://dentora.raqeem.dev/activate` with the device number; one key works on one device; plan and
-validity (`1y`/`2y`: "one year / two years from activation"). The wa.me link goes to the customer's phone as today.
+open Dentora → Settings → Licence, paste the key and press Activate (needs the internet once, the device only), stated
+for Dentora 1.1.0 and later, since 1.0.0 takes no key in that field; or, with any version, activate it on
+`https://dentora.raqeem.dev/activate` with the device number; one key works on one device; plan and validity
+(`1y`/`2y`: "one year / two years from activation"). The wa.me link goes to the customer's phone as today.
 
 ## Public activation
 
@@ -105,14 +106,16 @@ like `cleanCode` in `src/license/core.ts`); the device like `formatDeviceInput`.
 | 400 | `{ error: 'key' }` not 16 alphabet characters; `{ error: 'device' }`; `{ error: 'field', field: 'body' }` |
 | 404 | `{ error: 'unknown' }` no such key |
 | 409 | `{ error: 'used' }` already activated on another device |
-| 410 | `{ error: 'void' }` refunded or void; `{ error: 'expired' }` a `date` key after its day |
+| 410 | `{ error: 'void' }` refunded or void; `{ error: 'expired' }` a `date` key after its day, or the device's own code (asked for again) past its last day |
 | 429 | `{ error: 'locked', retryAfter: seconds }` |
 | 503 | `{ error: 'signing' }` the Worker cannot sign (secret missing or wrong) |
 
-Rate limit: an address with 10 failed attempts (400 key/device, 404, 409, 410) in the last 15 minutes gets 429
-(refused attempts are not recorded; successes are not counted). The answer is checked with the app's own verifier
+Rate limit: an address with 50 failed attempts (400 key/device, 404, 409, 410) in the last 15 minutes gets 429
+(refused attempts are not recorded; successes are not counted; loose on purpose: keys carry 80 random bits, and many
+clinics share one IPv4 behind a mobile carrier's NAT). The answer is checked with the app's own verifier
 before it is returned. Audit: `key.activate` on success (detail: the key's last 4 characters and the device) and
-`key.used` when another device tries a used key.
+`key.used` the first time per key and UTC day that another device tries a used key (never per attempt: that would let
+whoever holds a used key fill the log from this public route).
 
 `GET /activate` and `GET /en/activate`: a public page (same look, header, footer and `PUBLIC_CSP` as the landing
 page, cacheable 5 minutes) with a form: device number (pre-filled from `?device=` when it is a valid device number)
@@ -146,5 +149,7 @@ or `''`); the page escapes everything. Linked from the landing page (steps, FAQ,
 Dentora never sends clinic or patient data anywhere. The only time it contacts a server is when the clinic activates
 it with a licence key: it then sends the key and the device number (a number derived from the device, not the
 clinic's data) to dentora.raqeem.dev, once, to receive the activation code. The activation page receives the same
-two values. The server keeps the key's device number and activation time with the sale (to refuse the key on a second
-device), and counts failed attempts per address for 15 minutes to stop guessing.
+two values. The server keeps the key's device number, the code it issued and the activation time with the sale, for as
+long as that sale record is kept (it is the proof the key was used, and refuses the key on a second device), and records
+the address of a failed attempt, on its own, to count attempts for 15 minutes and stop guessing (that entry is deleted
+with the next activation request after that).
