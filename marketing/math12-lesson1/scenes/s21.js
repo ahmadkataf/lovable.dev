@@ -217,10 +217,13 @@
       const outG = S.p(lt, L.exam, 0, .45)
       const gi = S.p(lt, L.sub, .3, .6)
       op(this.given, Math.min(gi, 1 - outG)); this.given.style.transform = `translateX(${(1 - gi) * -40}px)`
-      const tA1 = S.at(L.sub) + .55, tA2 = Math.max(T(L.sub, .6), tA1 + 1.5)
-      const a1 = pr(tA1, 1.2), a2 = pr(tA2, 1)
+      // the substitution is written while «نضع n+1 مكان n: u_{n+1} = 2^{n+1} …» is said; the simplified
+      // fraction comes with «… على ثلاثة أُس، إنْ زائد اثنين» (its 3^{n+2} glows blue as it is named)
+      const tA1 = S.at(L.sub) + .55, dA1 = clamp(T(L.sub, .38) - tA1, 1.2, 3.2)
+      const tA2 = Math.max(T(L.sub, .6), tA1 + dA1 + .4)
+      const a1 = pr(tA1, dA1), a2 = pr(tA2, 1)
       wipeF(this.rA, lerp(0, this.rAcut, a1) + (1 - this.rAcut) * a2)
-      const nbP = env(lt, tA1 + 1.2, tA2 + 1.2, .5, .6) * (1 - out3)
+      const nbP = env(lt, tA1 + .4, tA2 + 1.2, .5, .6) * (1 - out3)
       this.nbs.forEach((e, i) => { e.style.textShadow = nbP > .01 ? `0 0 ${(12 + 8 * Math.sin(lt * 3 + i)) * nbP}px ${B}` : '' })
       // num: the hunt begins — row A glides up (it sat centred while alone) to make room for the lenses
       const tH = Math.max(S.at(L.num) + .2, tA2 + 1.1)
@@ -242,7 +245,8 @@
       const tD = Math.max(S.at(L.den) + .25, tN + .9)
       const dP = pr(tD + .1, .7)
       this.arD.set(Math.min(pr(tD, .6), 1 - out3 > .5 ? 1 : 0)); this.arD.path.style.opacity = 1 - out3
-      $('dA').style.color = mixColor('#eef2ff', Y, env(lt, tD - .1, S.at(L.res), .4, .5))
+      const dSub = env(lt, Math.max(T(L.sub, .76), tA2 + .7), S.at(L.num) + .3, .4, .5), dDen = env(lt, tD - .1, S.at(L.res), .4, .5)
+      $('dA').style.color = dDen > 0 ? mixColor('#eef2ff', Y, dDen) : mixColor('#eef2ff', B, dSub)
       rise(this.lD, Math.min(dP, 1 - out3), 26)
       glow($('ld'), pr(tD + .6, .5) * (.75 + .25 * Math.sin(lt * 3.2 + 1)) * (1 - out3))
       const tR = Math.max(T(L.den, .55), tD + 1.6)

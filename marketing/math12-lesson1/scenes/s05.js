@@ -218,18 +218,18 @@
 
       // ---------- L0 ----------
       const out0 = S.p(lt, 1, 0, .55)
-      const cIn = S.p(lt, 0, .3, .7, E.out)
+      const cIn = pp(lt, Math.max(S.at(0) + 1, T(S, 0, .22)), .7, E.out)
       rise(this.card, cIn * (1 - out0))
       this.card.style.transform += ` scale(${lerp(1, .94, out0)})`
-      typeWords(this.c1, S.f(lt, 0, .02, .3))
-      typeWords(this.c2, S.f(lt, 0, .3, .85))
-      const hl = pp(lt, T(S, 0, .72), .5)
+      typeWords(this.c1, S.f(lt, 0, .27, .5))
+      typeWords(this.c2, S.f(lt, 0, .5, .88))
+      const hl = pp(lt, T(S, 0, .7), .5)
       this.hlSpan.forEach(w => { w.style.color = mixColor(C.ink, C.yel, hl); w.style.fontWeight = hl > .5 ? 700 : 500 })
       const chipIn = S.p(lt, 1, .3, .6, E.out)
       slide(this.chip, chipIn, -30)
 
       // ---------- machine state ----------
-      const mIn = pp(lt, Math.max(S.at(0) + 1.2, T(S, 0, .3)), .7, E.out)
+      const mIn = pp(lt, Math.max(S.at(0) + .5, T(S, 0, .05)), .7, E.out)
       let work = 0, winGlow = 0
       // window views
       const sT = [null, a1 + .1, a2 + .1, T(S, 3, .1) + K(1.5), Infinity]
@@ -246,12 +246,14 @@
       const out1 = pp(lt, lab2T - .7, .6)
       // as soon as line 2 starts (window switches to u_n = f(n)) the first example recedes, then leaves
       const dim1 = 1 - .6 * S.p(lt, 2, .1, .5)
-      const tIn = S.p(lt, 1, .4, .6, E.out)
+      const tIn = pp(lt, Math.max(S.at(1) + .4, T(S, 1, .22)), .6, E.out)     // empty table + plot frame the coming values
       rise(this.tb, tIn * (1 - out1)); op(this.tb, +this.tb.style.opacity * dim1)
-      const t0 = T(S, 1, .36), step = Math.max(.55, .12 * d1), cy = clamp(step / 1.25, .45, 1)
+      const LT = [.68, .75, .83, .9].map(f => T(S, 1, f))          // landing = the moment the value is said
+      const step = .075 * d1, cy = clamp(step / 1.1, .45, 1)
+      const tkOf = k => LT[k] - 1.4 * cy
       const QY = HOPY - 52
       this.balls1.forEach((b, k) => {
-        const tk = t0 + k * step
+        const tk = tkOf(k)
         const ap = pp(lt, tk - .5 * cy, .4 * cy, E.out)
         const dp = pp(lt, tk, .4 * cy, E.in)
         putBall(b, MX, QY + 150 * dp, ap * (dp < 1 ? 1 : 0), lerp(.5, 1, ap))
@@ -269,23 +271,23 @@
         const dq = pp(lt, ce + .85 * cy, .4, E.back)
         this.dots[k].style.opacity = clamp(dq * 3); this.dots[k].style.transform = `scale(${Math.max(0, dq)})`
       })
-      const lastLand = t0 + 3 * step + 1.4 * cy
+      const lastLand = LT[3]
       for (let n = 4; n <= 9; n++) {
-        const dq = pp(lt, lastLand + (n - 4) * .14, .35, E.back)
+        const dq = pp(lt, lastLand + .1 + (n - 4) * .1, .35, E.back)
         this.dots[n].style.opacity = clamp(dq * 3); this.dots[n].style.transform = `scale(${Math.max(0, dq)})`
       }
       // zig-zag follows the dots
       {
         let shownTo = 0
         for (let n = 1; n <= 9; n++) {
-          const tl = n <= 3 ? t0 + n * step + .55 * cy + .85 * cy : lastLand + (n - 4) * .14
+          const tl = n <= 3 ? LT[n] : lastLand + .1 + (n - 4) * .1
           shownTo += pp(lt, tl - .25, .3, E.lin)
         }
         draw(this.zz, shownTo / 9)
       }
-      this.env.forEach(e => { e.style.opacity = .7 * pp(lt, lastLand + .6, .6) })
-      op(this.to0, pp(lt, lastLand + .9, .5))
-      const pIn = S.p(lt, 1, .7, .6)
+      this.env.forEach(e => { e.style.opacity = .7 * pp(lt, lastLand + .4, .6) })
+      op(this.to0, pp(lt, lastLand + .6, .5))
+      const pIn = pp(lt, Math.max(S.at(1) + .7, T(S, 1, .28)), .6)
       op(this.P.box, pIn * (1 - out1) * dim1)
       draw(this.P.xAxis, pIn); draw(this.P.yAxis, pIn)
 
@@ -294,10 +296,10 @@
       rise(this.lab2, pp(lt, lab2T, .6))
       { const rp = pp(lt, lab2T + .4, .9); draw(this.ray, rp); this.rayBase.style.opacity = clamp(rp * 3); op(this.ray0, clamp(rp * 4)); op(this.rayInf, pp(lt, lab2T + 1.1, .4)); op(this.rayLbl0, clamp(rp * 4))
         this.rayTicks.forEach((c, k) => { c.style.opacity = pp(lt, lab2T + .9 + k * .12, .3) }); op(this.rayN, pp(lt, lab2T + 1.6, .5)) }
-      const fxIn = pp(lt, Math.max(a2 + 3, T(S, 2, .56)), .7)
+      const fxIn = pp(lt, Math.max(a2 + 3, T(S, 2, .62)), .7)
       rise(this.fx, fxIn); rise(this.ex2, fxIn)
       if (fxIn > 0) this.fx.style.textShadow = lt > a3 + .3 ? `0 0 ${12 + 8 * Math.sin(lt * 3)}px rgba(167,139,250,.5)` : ''
-      const t2 = Math.max(a2 + 4.2, T(S, 2, .66)), st2 = clamp(.085 * d2, .6, 1.4), cy2 = clamp(st2 / 1.25, .45, 1)
+      const t2 = Math.max(a2 + 4.2, T(S, 2, .7)), st2 = clamp(.085 * d2, .6, 1.4), cy2 = clamp(st2 / 1.25, .45, 1)
       this.balls2.forEach((b, k) => {
         const tk = t2 + k * st2
         const ap = pp(lt, tk - .5 * cy2, .4 * cy2, E.out)

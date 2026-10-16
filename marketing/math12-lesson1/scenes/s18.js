@@ -2,6 +2,8 @@
 // difference) on the book's example u_n = (n²+1)/(2n), with every step the book skips: common denominator,
 // the two expansions (green / pink), the subtraction that covers the whole second bracket, the n³ cancellation,
 // the sign argument with braces, and finally a model answer + a small green staircase of the real values.
+// Cued to the 7 lines of the final script.json (0 methods · 1 example · 2 common denominator · 3 expansions ·
+// 4 subtraction/result · 5 sign argument · 6 model answer).
 // The derivation "scrolls": each new row arrives in the lower slot while the previous one moves up.
 ;(() => {
   const Y = C.yel, G = C.grn, R = C.red, B = C.blu
@@ -87,7 +89,7 @@
       this.note.appendChild(nt)
       place(this.note, 960, 760, { anchor: 'tc' })
 
-      // ---------------- line 2: common denominator + the two expansions
+      // ---------------- line 2: common denominator · line 3: the two expansions
       this.given = el('div', '', null, root)
       this.given.style.cssText += `display:flex;align-items:center;gap:22px;direction:rtl;padding:10px 26px;border-radius:18px;border:2px solid ${R}66;background:rgba(255,92,138,.07)`
       const gl = el('div', '', 'مثال', this.given); gl.style.cssText = `font-size:26px;font-weight:800;color:${R}`
@@ -112,7 +114,7 @@
       this.pG = panel(`n\\left[(n+1)^2+1\\right] = n(n^2+2n+2) = \\boldsymbol{n^3+2n^2+2n}`, G)
       this.pR = panel(`(n+1)(n^2+1) = \\boldsymbol{n^3+n^2+n+1}`, R)
 
-      // ---------------- line 3: the subtraction, the cancellation, the result
+      // ---------------- line 4: the subtraction, the cancellation, the result
       this.rD = mk(`${id('ld', lhs)} ${id('ed', '=')} \\dfrac{${tc(G, `(${id('c1', 'n^3')}+2n^2+2n)`)} \\; ${id('mn', '-')} ${id('pk', tc(R, `(${id('c2', 'n^3')}+n^2+n+1)`))}}{2n(n+1)}`)
       this.rE = mk(`${id('ee', '=')} \\dfrac{n^2+n-1}{2n(n+1)}`)
       this.pkBox = el('div', 'hlbox', null, root); this.pkBox.style.borderColor = R; this.pkBox.style.boxShadow = `0 0 30px ${R}55`
@@ -132,7 +134,7 @@
       this.bookLine = rich(`إشارة $u_{n+1}-u_n$ تماثل إشارة $${tc(Y, 'n^2+n-1')}$`, 'h3')
       root.appendChild(this.bookLine); place(this.bookLine, 960, 800, { anchor: 'tc' }); this.bookLine.style.whiteSpace = 'nowrap'
 
-      // ---------------- line 4: sign argument (its own layer, so row + braces + labels move together)
+      // ---------------- line 5: sign argument (its own layer, so row + braces + labels move together)
       this.g4 = el('div', '', null, root); this.g4.style.cssText += 'position:absolute;left:0;top:0;width:1920px;height:1080px;transform-origin:960px 640px'
       this.sRow = el('div', '', null, this.g4)
       this.sRow.style.cssText += 'display:flex;align-items:center;gap:40px;direction:rtl'
@@ -145,8 +147,14 @@
       const bs = svg(this.g4, 0, 0, W, H)
       this.br = [0, 1].map(() => sv(bs, 'path', { fill: 'none', stroke: G, 'stroke-width': 4, 'stroke-linecap': 'round', 'stroke-linejoin': 'round' }))
       this.brL = [tc(G, '> 0'), tc(G, '\\ge 0')].map(s => { const f = tex(s, 'mm'); this.g4.appendChild(f); return f })
+      // the conclusion under the sign argument (leaves when the model answer takes over)
+      this.co = el('div', '', null, root)
+      this.co.style.cssText += `padding:10px 38px;border-radius:999px;border:2px solid ${G}88;background:rgba(110,224,90,.08)`
+      const cot = rich(`إذن $(u_n)_{n\\ge1}$ متتالية <b>متزايدة تماماً</b>`, 'h3'); cot.style.color = G; cot.style.whiteSpace = 'nowrap'
+      this.co.appendChild(cot)
+      place(this.co, 960, 800, { anchor: 'tc' })
 
-      // ---------------- line 4: model answer card + staircase (right column)
+      // ---------------- line 6: model answer card + staircase (right column)
       const mc = card(root, 'exam', 1800, 292, 790, { anchor: 'tr', tag: '✍️ نموذج الكتابة', h: 690 })
       this.mcEl = mc.el
       this.m1 = rich('أيّاً كان $n \\ge 1$:', 'p'); mc.body.appendChild(this.m1)
@@ -295,38 +303,45 @@
       const nP = pr(Math.max(T(1, .72), S.at(1) + 1.6) + .3, .6)
       rise(this.note, nP, 24); op(this.note, Math.min(nP, 1 - out2))
 
-      // ================= line 2: common denominator, expansions
+      // ================= line 2: common denominator (Step 1)
       const gi = S.p(lt, 2, .3, .6)
       slide(this.given, gi, -40)
-      const tA = S.at(2) + .35, tB = Math.max(T(2, .2), tA + 1.2), tG = Math.max(T(2, .5), tB + 1.3), tR = tG + .55
-      // line 3 timings (needed for the scrolling rows). Minimum gaps shrink when the spoken line is short,
-      // so every beat (book line included) still lands inside line 3.
-      const k3 = clamp(d(3) / 12, .55, 1)
-      const tD = S.at(3) + .45
-      const tO = Math.max(T(3, .07), tD + 1.1 * k3), tW = tO + .35
-      const tS = Math.max(T(3, .3), tW + .8 * k3)
-      const tUp = Math.max(T(3, .43), tS + 1 * k3)                  // scroll: D → slot 1, E written in slot 2
-      const tK = Math.max(T(3, .6), tUp + 1.5 * k3)                 // clear → boxed result
-      const outK = pr(tK, .45)
-      const up3 = S.p(lt, 3, 0, .7)                                 // A leaves, B → slot 1
-      const sk = pr(Math.max(T(2, .72), S.at(2) + 1.2), .6)
-      const skOut = S.p(lt, 4, 0, .5)
+      const tA = S.at(2) + .35, tB = Math.max(T(2, .3), tA + 1.2)
+      const sk = pr(Math.max(T(2, .62), tB + 1.1), .6)
+      const skOut = S.p(lt, 5, 0, .5)
       op(this.skip, Math.min(sk, 1 - skOut)); this.skip.style.transform = `translateY(${(1 - sk) * -16}px)`
+      const up3 = S.p(lt, 4, 0, .7)                                 // line 4: A leaves, B → slot 1
       wipe(this.rA, pr(tA, 1.1)); op(this.rA, 1 - up3); this.rA.style.transform = `translateY(${-up3 * 50}px)`
+      const lb = pr(tB + .6, .6), lbOut = S.p(lt, 4, 0, .4)
+      op(this.labB, Math.min(lb, 1 - lbOut)); this.labB.style.transform = `translateX(${(1 - lb) * 20}px)`
+      $('bd').style.color = mixColor(INK, Y, env(lt, tB + .7, S.at(3) + .4, .4, .5))
+
+      // ================= line 3: the two expansions — each product takes its colour, then green, then pink
+      const cG = S.p(lt, 3, .15, .5), cR = S.p(lt, 3, .5, .5)
+      $('bg').style.color = mixColor(INK, G, cG * (1 - up3)); $('bp').style.color = mixColor(INK, R, cR * (1 - up3))
+      const tG = Math.max(T(3, .55), S.at(3) + 1.2), tR = Math.max(T(3, .78), tG + 1)
+      const gP = pr(tG, .6), rP = pr(tR, .6)
+      const pOut = S.p(lt, 4, 0, .45)
+      const gG = env(lt, tG + .45, tR + .2, .3, .5), gR = env(lt, tR + .45, S.at(4) - .2, .3, .6)   // glow as each is named
+      ;[[this.pG, gP, gG, G], [this.pR, rP, gR, R]].forEach(([e, p, g, c]) => {
+        op(e, Math.min(p, 1 - pOut)); e.style.transform = `translateY(${(1 - p) * 30 + pOut * 20}px) scale(${1 + .025 * g})`
+        e.style.boxShadow = `0 0 ${30 + 26 * g}px ${c}${Math.round(24 + 80 * g).toString(16).padStart(2, '0')}`
+      })
+      op(this.labC, Math.min(gP, 1 - pOut))
+
+      // ================= line 4: subtraction, cancellation, result
+      // Minimum gaps shrink when the spoken line is short, so every beat (book line included) lands inside line 4.
+      const k4 = clamp(d(4) / 12, .55, 1)
+      const tD = S.at(4) + .45
+      const tO = Math.max(T(4, .07), tD + 1.1 * k4), tW = tO + .35
+      const tS = Math.max(T(4, .33), tW + .8 * k4)
+      const tUp = Math.max(T(4, .45), tS + 1 * k4)                  // scroll: D → slot 1, E written in slot 2
+      const tK = Math.max(T(4, .62), tUp + 1.5 * k4)                // clear → boxed result
+      const outK = pr(tK, .45)
       wipe(this.rB, pr(tB, 1.1))
       const bOut = pr(tUp - .1, .35)                                // B clears slot 1 before D moves in
       op(this.rB, 1 - bOut); this.rB.style.transform = `translateY(${(S1 - S2) * up3 - bOut * 60}px)`
       op($('lb'), up3)
-      const lb = pr(tB + .6, .6), lbOut = S.p(lt, 3, 0, .4)
-      op(this.labB, Math.min(lb, 1 - lbOut)); this.labB.style.transform = `translateX(${(1 - lb) * 20}px)`
-      $('bd').style.color = mixColor(INK, Y, env(lt, tB + .7, tG, .4, .5))
-      const gP = pr(tG, .6), rP = pr(tR, .6)
-      $('bg').style.color = mixColor(INK, G, gP * (1 - up3)); $('bp').style.color = mixColor(INK, R, rP * (1 - up3))
-      const pOut = S.p(lt, 3, 0, .45)
-      ;[[this.pG, gP], [this.pR, rP]].forEach(([e, p]) => { op(e, Math.min(p, 1 - pOut)); e.style.transform = `translateY(${(1 - p) * 30 + pOut * 20}px)` })
-      op(this.labC, Math.min(gP, 1 - pOut))
-
-      // ================= line 3: subtraction, cancellation, result
       const dUp = pr(tUp + .15, .7)
       wipe(this.rD, pr(tD, 1.1)); op(this.rD, 1 - outK); this.rD.style.transform = `translateY(${(S1 - S2) * dUp - outK * 30}px)`
       op($('ld'), dUp)
@@ -344,29 +359,31 @@
       ;['c1', 'c2'].forEach((k, i) => (op($(k), 1 - .6 * pr(tS + i * .3 + .3, .5))))
       // the result in its box, then the denominator and the book line
       const kbIn = pr(tK + .35, .7)                                 // after the derivation rows have cleared
-      const up4 = S.p(lt, 4, 0, .9)
-      const tSl = Math.max(T(4, .62), S.at(4) + 5.4)               // slide left + model answer
+      const up5 = S.p(lt, 5, 0, .9)
+      const coOut = S.p(lt, 6, 0, .35)                              // line 6: the conclusion clears first,
+      const tSl = S.at(6) + .2                                      // then the algebra slides left + model answer
       const sl = pr(tSl, .9)
       // keyBox: centre (960,520) → (960,392)·0.82 → (545,548)·0.66
-      const kx = lerp(0, -402, sl), ky = lerp(0, -128, up4) + lerp(0, 156, sl)
-      const ks = lerp(1, .82, up4) * lerp(1, .8, sl)
+      const kx = lerp(0, -402, sl), ky = lerp(0, -128, up5) + lerp(0, 156, sl)
+      const ks = lerp(1, .82, up5) * lerp(1, .8, sl)
       op(this.kb.el, clamp(kbIn * 2.5))
       this.kb.el.style.transform = `translate(${kx}px, ${ky}px) scale(${lerp(.85, 1, E.back(kbIn)) * ks})`
       if (kbIn > 0) this.kb.el.style.boxShadow = `0 0 ${46 + 14 * Math.sin(lt * 1.8)}px ${Y}${kbIn >= 1 ? '3a' : '22'}`
-      const out4 = S.p(lt, 4, 0, .45)
-      const tU = Math.max(T(3, .74), tK + 1.2 * k3)
+      const out5 = S.p(lt, 5, 0, .45)
+      const tU = Math.max(T(4, .72), tK + 1.2 * k4)
       const uP = pr(tU, .6)
-      op(this.kdU, Math.min(uP > 0 ? 1 : 0, 1 - out4)); this.kdU.style.transform = `scaleX(${E.out(uP)})`
-      $('kd').style.color = mixColor(INK, G, Math.min(uP, 1 - out4))
-      rise(this.kdL, Math.min(pr(tU + .3, .5), 1 - out4), 16); op(this.kdT, Math.min(pr(tU + .5, .5), 1 - out4))
-      const tL = Math.max(T(3, .86), tU + 1 * k3)
-      rise(this.bookLine, pr(tL, .6), 24); op(this.bookLine, Math.min(pr(tL, .6), 1 - out4))
+      op(this.kdU, Math.min(uP > 0 ? 1 : 0, 1 - out5)); this.kdU.style.transform = `scaleX(${E.out(uP)})`
+      $('kd').style.color = mixColor(INK, G, Math.min(uP, 1 - out5))
+      rise(this.kdL, Math.min(pr(tU + .3, .5), 1 - out5), 16); op(this.kdT, Math.min(pr(tU + .5, .5), 1 - out5))
+      const tL = Math.max(T(4, .86), tU + 1 * k4)
+      rise(this.bookLine, pr(tL, .6), 24); op(this.bookLine, Math.min(pr(tL, .6), 1 - out5))
 
-      // ================= line 4: sign argument, conclusion, model answer
-      $('kn').style.color = mixColor(INK, Y, Math.max(pr(tL + .2, .6) * (1 - out4), up4))
-      const tF = S.at(4) + .45
-      const tC = Math.max(T(4, .05), tF + .7), tB2 = Math.max(T(4, .2), tC + .6), tB1 = Math.max(T(4, .42), tB2 + .9)
-      const tGt = Math.max(T(4, .56), tB1 + .9)
+      // ================= line 5: sign argument, conclusion
+      $('kn').style.color = mixColor(INK, Y, Math.max(pr(tL + .2, .6) * (1 - out5), up5))
+      const tF = S.at(5) + .45
+      const tC = Math.max(T(5, .08), tF + .7), tB2 = Math.max(T(5, .3), tC + .6), tB1 = Math.max(T(5, .5), tB2 + .9)
+      const tGt = Math.max(T(5, .66), tB1 + .9)
+      const tCo5 = Math.max(T(5, .8), tGt + .8)
       const fI = pr(tF, .9)
       wipe(this.sF, fI)
       op(this.sRow, fI > 0 ? 1 : 0)
@@ -377,16 +394,20 @@
         $(i ? 's2' : 's1').style.color = mixColor(INK, G, p)
       })
       const gtP = pr(tGt, .5); op($('gt'), gtP); $('gt').style.display = 'inline-block'; $('gt').style.transform = `scale(${lerp(1.5, 1, E.out(gtP))})`
-      // sign layer: centre (960,640) → (545,770)·0.74
+      const coP = pr(tCo5, .6)
+      rise(this.co, Math.min(coP, 1 - coOut), 20)
+      if (coP >= 1 && coOut <= 0) this.co.style.boxShadow = `0 0 ${26 + 10 * Math.sin(lt * 2)}px ${G}33`
+
+      // ================= line 6: the algebra slides left, model answer + staircase
+      // sign layer: centre (960,640) → (545,770)·0.72
       this.g4.style.transform = `translate(${-402 * sl}px, ${124 * sl}px) scale(${lerp(1, .72, sl)})`
-      // model answer card
-      const mI = pr(tSl + .2, .8)
+      const mI = pr(tSl + .5, .7)                                   // the card comes in once the left column has made room
       op(this.mcEl, mI); this.mcEl.style.transform = `translateX(${(1 - mI) * 70}px)`
-      typeWords(this.m1, pr(tSl + .5, .5, E.lin))
-      wipe(this.mF, pr(tSl + .8, 1))
-      const tCo = Math.max(T(4, .8), tSl + 1.6)
+      typeWords(this.m1, pr(tSl + .75, .5, E.lin))
+      wipe(this.mF, pr(tSl + 1, 1))
+      const tCo = Math.max(T(6, .3), tSl + 1.75)
       typeWords(this.m3, pr(tCo, .8, E.lin))
-      const tP = tSl + 1.5
+      const tP = Math.max(T(6, .42), tSl + 1.6)                     // «والحدود تصعد فعلاً»
       const ax = pr(tP, .5)
       this.plAx.forEach(a => draw(a, ax))
       this.nl.forEach(e => op(e, ax))

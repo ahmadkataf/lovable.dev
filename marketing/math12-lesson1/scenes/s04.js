@@ -85,6 +85,12 @@
       // ---- headings ----
       this.hA = heading(root, 'حدودٌ لا نهائيّة')
       this.hB = heading(root, 'من أين يبدأ الدليل؟')
+      // the two open questions stay pinned in the top-left corner (same compact form as s03)
+      this.pins = ['🤔 سؤال مفتوح ①', '🔒 سؤال مفتوح ②'].map((t, i) => {
+        const c = chip(root, t, 120, 158 + i * 54, { color: C.pur })
+        c.style.cssText += 'font-size:22px;padding:6px 18px;white-space:nowrap'
+        return c
+      })
 
       // ================= L0: the quick question =================
       this.f0 = tex(`\\textcolor{${C.yel}}{u_n} = (-1)^{\\textcolor{${C.blu}}{n}}`, 'mxl')
@@ -94,6 +100,10 @@
       root.appendChild(this.not0); place(this.not0, 960, 528, { anchor: 'c' }); this.not0.style.color = C.mut
       this.q = rich('كم حدّاً لها؟', 'h2 yel ctr')
       root.appendChild(this.q); place(this.q, 960, 652, { anchor: 'c' }); this.q.style.whiteSpace = 'nowrap'
+      // L1 opens with the answer «عددٌ لا نهائيّ» in place of the question
+      this.ans = rich('عددٌ لا نهائيّ $\\infty$', 'h2 yel ctr')
+      root.appendChild(this.ans); place(this.ans, 960, 652, { anchor: 'c' }); this.ans.style.whiteSpace = 'nowrap'
+      this.ans.style.textShadow = '0 0 26px rgba(255,210,63,.35)'
       this.ring = countdown(root, 960, 838, 54)
       this.ringEl = root.lastElementChild
       { const lb = this.ringEl.lastElementChild; lb.style.cssText += 'position:absolute;left:50%;top:138px;translate:-50% 0;white-space:nowrap;margin:0' }
@@ -180,7 +190,7 @@
 
       // ================= L3–L4: index number line for 1/(n^2-1) =================
       this.f3 = tex(`\\left(\\dfrac{1}{n^2-1}\\right)_{\\htmlId{${ID}-sub2}{n\\ge 2}}`, 'mx')
-      root.appendChild(this.f3); place(this.f3, 150, 168, { anchor: 'tl' })
+      root.appendChild(this.f3); place(this.f3, 780, 160, { anchor: 'tc' })
       this.f3sub = this.f3.querySelector(`#${ID}-sub2`)
       const NX = this.NX = n => 320 + 220 * n, NY = this.NY = 620   // block lifted 30 px so the closing book line fits above y 990
       const s = this.ns = svg(root, 0, 0, W, H)
@@ -204,7 +214,7 @@
         const r = rich(lab, 's ctr'); b.appendChild(r); r.style.color = col; r.style.marginTop = '4px'
         return b
       }
-      this.bub0 = bubble(NX(0) - 10, 548, C.mut, `\\dfrac{1}{0^2-1} = -1`, 'معرّف')
+      this.bub0 = bubble(NX(0) - 10, 548, C.mut, `\\dfrac{1}{0-1} = -1`, 'معرّف')
       this.tail0 = sv(s, 'line', { x1: NX(0), y1: 552, x2: NX(0), y2: NY - 18, stroke: C.mut, 'stroke-width': 2.5, 'stroke-dasharray': '6 7' })
       this.bub1 = bubble(NX(1) + 110, 548, C.red, `\\dfrac{1}{1^2-1} = \\dfrac{1}{0}`, 'المقام $=0$')
       this.tail1 = sv(s, 'line', { x1: NX(1) + 110, y1: 552, x2: NX(1), y2: NY - 18, stroke: C.red, 'stroke-width': 2.5, 'stroke-dasharray': '6 7' })
@@ -244,21 +254,36 @@
       const hx = S.p(lt, 2, 0, .6)
       this.hA.set(Math.min(S.p(lt, 0, 0, .7), 1 - hx))
       this.hB.set(S.p(lt, 2, .35, .7))
+      this.pins.forEach((c, i) => {
+        const a = prog(lt, .15 + i * .12, .5)
+        op(c, a * (.85 + .15 * Math.sin(lt * 1.4 + i)))
+        c.style.transform = `translateY(${(1 - a) * -10}px)`
+      })
 
       // ================= L0 =================
       const out1 = S.p(lt, 2, 0, .5)          // L1 content leaves when L2 starts
-      const mv = S.p(lt, 1, 0, .9)
+      // L1 opens with the answer «عددٌ لا نهائيّ» (swapped in for the question); only then does the board rebuild
+      const mvT = Math.max(a1 + 1, T(S, 1, .11))
+      const mv = pp(lt, mvT, .9)
       const fIn = S.p(lt, 0, .1, .8, E.out)
       {
-        const s = lerp(.82, 1, fIn) * lerp(1, .48, mv)
-        const glow = lt < a1 ? 10 + 8 * Math.sin(lt * 2.2) : 0
+        const s = lerp(.82, 1, fIn) * lerp(1, .5, mv)
+        const glow = lt < mvT ? 10 + 8 * Math.sin(lt * 2.2) : 0
         op(this.f0, fIn * (1 - out1))
-        this.f0.style.transform = `translate(${-668 * mv}px,${-196 * mv}px) scale(${s})`
+        // formula moves to the top, centred over the plot (the top-left corner holds the pinned cards)
+        this.f0.style.transform = `translate(${-276 * mv}px,${-196 * mv}px) scale(${s})`
         this.f0.style.textShadow = glow ? `0 0 ${glow}px rgba(255,210,63,.35)` : ''
       }
-      rise(this.not0, S.p(lt, 0, .7, .6) * (1 - S.p(lt, 1, 0, .4)))
+      rise(this.not0, S.p(lt, 0, .7, .6) * (1 - pp(lt, mvT, .4)))
       const qIn = pp(lt, T(S, 0, .62), .6)
-      rise(this.q, qIn * (1 - S.p(lt, 1, 0, .4)))
+      {
+        // the question leaves first, then the answer pops in at the same place (no text over text)
+        const qo = S.p(lt, 1, 0, .28)
+        op(this.q, qIn * (1 - qo)); this.q.style.transform = `translateY(${(1 - qIn) * 36 - qo * 30}px)`
+        const ai = S.p(lt, 1, .28, .5, E.out), ao = pp(lt, mvT, .35)
+        pop(this.ans, ai); op(this.ans, clamp(ai * 2.5) * (1 - ao))
+        if (ao > 0) this.ans.style.transform = `translateY(${-24 * ao}px) scale(${lerp(1, .9, ao)})`
+      }
       {
         const e0 = S.end(0), hold = Math.max(.5, a1 - e0)
         const pr = clamp((lt - e0) / hold)
@@ -269,23 +294,24 @@
       }
 
       // ================= L1 =================
-      const d1 = S.end(1) - a1
       const P = this.P
-      const ax = S.p(lt, 1, .3, .8)
+      const ax = pp(lt, mvT + .35, .8)
       op(P.box, (ax > 0 ? 1 : 0) * (1 - out1))
       draw(P.xAxis, ax); draw(P.yAxis, ax)
-      this.ticks.forEach(([t, l], n) => { const q = S.p(lt, 1, .5 + n * .05, .4); t.style.opacity = q; op(l, q) })
-      op(this.dotsLbl, S.p(lt, 1, 1, .4))
-      const axLbl = S.p(lt, 1, .95, .4)          // axis names appear once their axis has been drawn
+      this.ticks.forEach(([t, l], n) => { const q = pp(lt, mvT + .55 + n * .05, .4); t.style.opacity = q; op(l, q) })
+      op(this.dotsLbl, pp(lt, mvT + 1.05, .4))
+      const axLbl = pp(lt, mvT + 1, .4)          // axis names appear once their axis has been drawn
       op(this.nLbl, axLbl); op(this.unLbl, axLbl)
-      const gIn = S.p(lt, 1, .55, .6)
-      const gGlow = pp(lt, a1 + .6, .5) * (1 - pp(lt, T(S, 1, .35), .6))
+      // «قيمتين فقط، واحداً وسالب واحد»: the ±1 guides glow while the two values are named
+      const gIn = pp(lt, mvT + .6, .6)
+      const gGlow = pp(lt, Math.max(mvT + 1.2, T(S, 1, .35)), .5) * (1 - pp(lt, T(S, 1, .5), .6))
       this.guides.forEach(({ g, l }) => {
         g.style.opacity = gIn * (.75 + .25 * gGlow); op(l, gIn)
         g.setAttribute('stroke-width', 2.5 + 2 * gGlow)
         g.style.filter = gGlow > 0 ? `drop-shadow(0 0 ${8 * gGlow}px ${C.org})` : ''
       })
-      const t0 = a1 + .9, step = clamp((d1 * .5 - .9) / 10, .12, .45)
+      // dots (= terms) keep coming; the term counter follows them and turns into ∞ on «لا نهائيّاً»
+      const t0 = mvT + 1, step = clamp((T(S, 1, .6) - t0) / 9, .12, .6)
       let shown = 0
       this.dots.forEach((c, n) => {
         const q = pp(lt, t0 + n * step, .45, E.back)
@@ -296,24 +322,24 @@
       })
       draw(this.zz, clamp((lt - t0) / (step * 10.7)))
       // tiles
-      const tvIn = S.p(lt, 1, .7, .6, E.out)
+      const tvIn = pp(lt, Math.max(mvT + .8, T(S, 1, .18)), .6, E.out)
       slide(this.tV.t, tvIn * (1 - out1), -40)
-      const tvGlow = pp(lt, a1 + 1, .4) * (1 - pp(lt, T(S, 1, .35), .6))
+      const tvGlow = pp(lt, Math.max(mvT + 1, T(S, 1, .25)), .4) * (1 - pp(lt, T(S, 1, .5), .6))
       this.tV.t.style.borderColor = mixColor('#25305a', C.org, tvGlow)
       this.tV.num.style.transform = `scale(${1 + .12 * tvGlow})`
-      const tnIn = S.p(lt, 1, .9, .6, E.out)
+      const tnIn = pp(lt, t0 - .35, .6, E.out)
       slide(this.tN.t, tnIn * (1 - out1), -40)
-      const infT = t0 + 10 * step + .25, infP = pp(lt, infT, .55, E.back)
+      const infT = Math.max(t0 + 9 * step + .4, T(S, 1, .66)), infP = pp(lt, infT, .55, E.back)
       this.tN.num.textContent = String(Math.max(1, shown))
       op(this.tN.num, 1 - clamp(infP * 3))
       op(this.inf, clamp(infP * 2)); this.inf.style.transform = `scale(${lerp(.4, 1, infP)})`
-      const tnGlow = pp(lt, infT, .4) * (1 - pp(lt, T(S, 1, .8), .6))
+      const tnGlow = pp(lt, infT, .4) * (1 - pp(lt, T(S, 1, .9), .6))
       this.tN.t.style.borderColor = mixColor('#25305a', C.yel, tnGlow)
-      // book sentence + chip
-      const bIn = pp(lt, Math.max(infT + .3, T(S, 1, .55)), .7)
+      // book sentence («… عددٌ لا نهائيٌّ من الحدود …») + chip on «مهما كانت قيمها»
+      const bIn = pp(lt, Math.max(infT + .4, T(S, 1, .74)), .7)
       rise(this.book, bIn * (1 - out1))
       if (bIn > 0) this.book.style.boxShadow = `0 0 ${40 + 14 * Math.sin(lt * 2)}px rgba(255,210,63,.18)`
-      const wIn = pp(lt, Math.max(infT + .9, T(S, 1, .78)), .6, E.out)
+      const wIn = pp(lt, Math.max(infT + 1, T(S, 1, .86)), .6, E.out)
       pop(this.warn, wIn); op(this.warn, clamp(wIn * 2.5) * (1 - out1))
 
       // ================= L2 =================
@@ -380,23 +406,23 @@
       // ================= L3 =================
       const d3 = S.end(3) - a3
       rise(this.f3, S.p(lt, 3, .4, .7))
-      if (this.f3sub) this.f3sub.style.color = mixColor(C.mut, C.yel, pp(lt, T(S, 4, .5), .5))
+      if (this.f3sub) this.f3sub.style.color = mixColor(C.mut, C.yel, pp(lt, T(S, 4, .76), .5))
       const nl = S.p(lt, 3, .5, 1)
       this.axis.set(nl)
       this.nTicks.forEach(({ t, l }, n) => {
         const q = S.p(lt, 3, .6 + n * .1, .4)
-        const fade0 = n === 0 ? pp(lt, T(S, 4, .32), .6) : 0
+        const fade0 = n === 0 ? pp(lt, T(S, 4, .54), .6) : 0
         t.style.opacity = q * (1 - .8 * fade0); op(l, q * (1 - .75 * fade0))
       })
-      const b0t = Math.max(a3 + 1.6, T(S, 3, .3))
+      const b0t = Math.max(a3 + 1.6, T(S, 3, .38))
       const b0 = pp(lt, b0t, .55, E.out)
-      const fade0 = pp(lt, T(S, 4, .32), .6)
+      const fade0 = pp(lt, T(S, 4, .54), .6)
       pop(this.bub0, b0); op(this.bub0, clamp(b0 * 2.5) * (1 - fade0))
       this.tail0.style.opacity = pp(lt, b0t + .2, .4) * (1 - fade0)
       this.dot0.style.opacity = pp(lt, b0t + .3, .3) * (1 - fade0)
-      const b1t = Math.max(b0t + 1.2, T(S, 3, .64))
+      const b1t = Math.max(b0t + 1.2, T(S, 3, .74))
       const b1 = pp(lt, b1t, .55, E.out)
-      const shrink = pp(lt, T(S, 4, .34), .7)
+      const shrink = pp(lt, T(S, 4, .56), .7)
       const shift = -150 * shrink
       pop(this.bub1, b1)
       this.bub1.style.transform = `translateX(${shift}px) scale(${b1 <= 0 ? .6 : lerp(.6, 1, E.back(clamp(b1)))})`
@@ -416,14 +442,14 @@
       // the bracket from 0 leaves with index 0, but the red break mark stays at the hole under «ثغرة!»
       draw(this.brk, brk); this.brk.style.opacity = 1 - .3 * fade0
       pop(this.gap, brk)
-      const gb = pp(lt, T(S, 4, .42), .9)
+      const gb = pp(lt, T(S, 4, .64), .9)
       draw(this.brB0, clamp(gb * 4)); this.brB.set(gb)
-      op(this.infB, pp(lt, T(S, 4, .42) + .8, .4))
-      this.gDots.forEach((c, i) => { c.style.opacity = pp(lt, T(S, 4, .42) + i * .12, .3) })
-      const c2 = pp(lt, T(S, 4, .5), .6, E.out)
+      op(this.infB, pp(lt, T(S, 4, .64) + .8, .4))
+      this.gDots.forEach((c, i) => { c.style.opacity = pp(lt, T(S, 4, .64) + i * .12, .3) })
+      const c2 = pp(lt, T(S, 4, .76), .6, E.out)
       pop(this.chip2, c2)
-      this.vals.forEach((e, i) => rise(e, pp(lt, T(S, 4, .58) + i * .25, .5)))
-      rise(this.fin, pp(lt, T(S, 4, .7), .7))
+      this.vals.forEach((e, i) => rise(e, pp(lt, T(S, 4, .8) + i * .25, .5)))
+      rise(this.fin, pp(lt, Math.min(T(S, 4, .84), S.dur - 2.6), .7))
     },
   })
 })()

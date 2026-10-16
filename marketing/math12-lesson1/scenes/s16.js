@@ -1,7 +1,7 @@
 // s16 · مطابقة مفيدة — from x²−a² and x³−a³ to the book's identity for any n.
 // Under the bracket, every term is decoded as x^α a^β and gets a little seesaw: α (green) on the left end,
 // β (blue) on the right end, pivot fixed at the same height → the sum α+β never changes (= n−1).
-// Then the book's example x⁵−a⁵ (the seesaws settle on (4,0)…(0,4)) and a numeric check giving 31.
+// Then the book's example x⁵−a⁵: the seesaws settle on (4,0)…(0,4) and the five exponent pairs flash in turn.
 scene('s16', {
   build(root, S) {
     const G = C.grn, B = C.blu
@@ -96,35 +96,6 @@ scene('s16', {
     this.sentBar = el('div', '', null, root)
     this.sentBar.style.cssText += `border-radius:3px;background:${C.yel}88;transform-origin:50% 0`
     this._layout()
-
-    // ---------- numeric check (line 2): a row laid out right → left ----------
-    const box = el('div', '', null, root)
-    place(box, 960, 810, { anchor: 'tc' })
-    box.style.cssText += `display:flex;flex-direction:row;align-items:center;gap:34px;direction:rtl;padding:12px 40px;height:172px;border-radius:26px;border:2.5px solid ${G}88;background:rgba(110,224,90,.07);box-shadow:0 0 40px rgba(110,224,90,.12)`
-    this.ck = box
-    const lab = rich(`تحقّق: $x = 2,\\ a = 1$`, 'p grn b'); box.appendChild(lab); lab.style.whiteSpace = 'nowrap'
-    this.tick = el('div', 'h2 grn', '✓', box); this.tick.style.fontWeight = 900
-    this.ckF = tex(`2^5 - 1^5 = (2-1)(${id('n0', '16')} + ${id('n1', '8')} + ${id('n2', '4')} + ${id('n3', '2')} + ${id('n4', '1')}) = ${id('r', `\\textcolor{${G}}{\\mathbf{31}}`)}`, 'mm')
-    box.appendChild(this.ckF)
-    this.ckN = [0, 1, 2, 3, 4].map(k => $('n' + k))
-    this.ckR = $('r'); this.ckR.style.display = 'inline-block'
-    // the tower of bars 16 + 8 + 4 + 2 + 1 = 31
-    const tw = el('div', '', null, box)
-    tw.style.cssText = 'position:relative;width:150px;height:140px;direction:ltr;flex:none'
-    const ts = svg(tw, 0, 0, 150, 140)
-    // same look as the bars of the previous scene (green gradient, green outline)
-    const gr = sv(sv(ts, 'defs'), 'linearGradient', { id: 's16-gg', x1: 0, y1: 0, x2: 1, y2: 0 })
-    sv(gr, 'stop', { offset: 0, 'stop-color': G, 'stop-opacity': .95 }); sv(gr, 'stop', { offset: 1, 'stop-color': G, 'stop-opacity': .55 })
-    const U = 4.1, TX = 112, TB = 138
-    this.bars = []
-    let acc = 0
-    ;[16, 8, 4, 2, 1].forEach(v => {
-      const h = v * U
-      this.bars.push(sv(ts, 'rect', { x: TX - 27, y: TB - acc - h + 1, width: 54, height: Math.max(2.2, h - 2), rx: Math.min(4, h / 3), fill: 'url(#s16-gg)', stroke: G, 'stroke-width': h > 6 ? 2 : 1 }))
-      acc += h
-    })
-    this.tower31 = el('div', '', '31', tw); place(this.tower31, 66, TB - acc / 2, { anchor: 'cr' })
-    this.tower31.style.cssText += `font-family:KaTeX_Main;font-weight:700;font-size:48px;color:${G};text-shadow:0 0 18px ${G}66`
   },
 
   // Everything that depends on measured text sizes. KaTeX fonts are still loading while build() runs,
@@ -158,15 +129,9 @@ scene('s16', {
     place(this.sentBar, 1794, 828, { w: 6, h: this.sent.offsetHeight - 12 })
   },
 
-  // The script has four lines: ① familiar identities ② the general identity ③ x^α a^β and the seesaws ④ x⁵ + check.
-  // Beats are cued to those lines. (An older timeline merged ① and ② into one line: then they split it 60/40.)
-  _beats(S) {
-    if (this._B) return this._B
-    let B
-    if (S.lines.length >= 4) B = [0, 1, 2, 3].map(i => [S.at(i), S.end(i)])
-    else { const a = S.at(0), e = S.end(0), m = a + .6 * (e - a); B = [[a, m], [m, e], [S.at(1), S.end(1)], [S.at(2), S.end(2)]] }
-    return (this._B = B)
-  },
+  // The script has four lines: ① familiar identities ② the general identity ③ x^α a^β and the seesaws ④ the x⁵ example.
+  // Beat b is line b.
+  _beats(S) { if (!this._B) this._B = [0, 1, 2, 3].map(i => [S.at(i), S.end(i)]); return this._B },
 
   render(lt, S) {
     if (this._sig !== this.gen.offsetWidth + '|' + this.sent.offsetHeight) this._layout()
@@ -220,12 +185,12 @@ scene('s16', {
     // ---- beat 3 transitions «مثلاً، x⁵−a⁵ = (x−a) × مجموعِ خمسة حدود، من x⁴ إلى a⁴»
     const sw = P(3, 0, .4), swIn = P(3, .3, .55)                  // card: general → x^5 (out, then in)
     const sw2 = P(3, .4, .4), sw2In = P(3, .75, .55)              // decoded terms / sums → n = 5
-    const w5 = F(3, .03, .42)                             // written on as the narrator reads it
+    const w5 = F(3, .03, .6)                              // written on as the narrator reads it (x⁵ − a⁵ = (x − a) × …)
     op(this.gen, Math.min(clamp(wA * 14), 1 - sw)); op(this.five, swIn > 0 ? clamp(w5 * 14) : 0)
     wipe(this.five, w5, 'ltr')
     this.gen.style.transform = `translateY(${-sw * 16}px)`
-    const tCheck = end(3) - clamp(.3 * dur(3), 2.4, 4)
-    const flashT0 = Math.min(atf(3, .5), tCheck - 2.2), flashStep = Math.max(.35, (tCheck - .1 - flashT0) / 5)
+    // «… مجموعِ خمسة حدود، من x⁴ إلى a⁴»: the five exponent pairs flash in turn, the last one on «a⁴»
+    const flashT0 = atf(3, .62), flashStep = Math.max(.35, (atf(3, .98) - flashT0) / 5)
     const flash = k => env(lt, flashT0 + k * flashStep, flashT0 + (k + 1) * flashStep + .15, .2, .3)
 
     this.saws.forEach((s, k) => {
@@ -274,23 +239,5 @@ scene('s16', {
     op(this.sent, Math.min(sIn, 1 - sOut))
     typeWords(this.sent, F(2, .02, .85))
     op(this.sentBar, Math.min(sIn, 1 - sOut)); this.sentBar.style.transform = `scaleY(${E.out(sIn)})`
-
-    // ---- the numeric check, as beat 3 ends
-    const ck = prog(lt, tCheck, .6)
-    rise(this.ck, ck, 24)
-    const T = tCheck + .35
-    const wF = prog(lt, T, 1.1); wipe(this.ckF, wF, 'ltr'); op(this.ckF, clamp(wF * 14))
-    this.bars.forEach((r, k) => {
-      const p = prog(lt, T + .3 + k * .22, .55, E.out)
-      r.style.opacity = clamp(p * 3)
-      r.style.transform = `translate(${(1 - p) * -140}px, ${(1 - p) * -170}px)`
-      const lit = env(lt, T + .5 + k * .22, T + 1.2 + k * .22, .1, .3)
-      this.ckN[k].style.color = mixColor(C.ink, G, lit)
-    })
-    op(this.tower31, prog(lt, T + 1.6, .5))
-    pop(this.tick, prog(lt, T + 1.9, .5))
-    this.ckR.style.transform = `scale(${1 + .15 * env(lt, T + 1.5, T + 2.4, .2, .4)})`
-    // gentle life in the final hold
-    this.ck.style.boxShadow = `0 0 ${36 + 12 * Math.sin(lt * 1.8)}px rgba(110,224,90,${.1 + .05 * Math.sin(lt * 1.8)})`
   },
 })

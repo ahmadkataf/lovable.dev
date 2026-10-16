@@ -1,5 +1,5 @@
-// s10 · مطّردة أم لا؟ — the word «مطّردة», the (-1)^n counter-example, the 💡 tip (difference / ratio),
-// and why the ratio test needs strictly positive terms (-1, -2, -4, -8 has ratio 2 yet goes down).
+// s10 · مطّردة أم لا؟ — line 0: the word «مطّردة» and the (-1)^n counter-example (غير مطّردة);
+// line 1: the 💡 tip (sign of the difference / ratio vs 1, strictly positive terms).
 ;(() => {
   const ID = 's10'
   // progress of an animation that starts at fraction `fr` of line i (follows the speech, any line length)
@@ -140,50 +140,7 @@
       this.pRn.style.cssText += `position:absolute;left:36px;top:26px;font-size:27px;color:${C.ink};padding:4px 18px 6px;border-radius:999px;border:2px solid ${C.yel}99;background:rgba(255,210,63,.10);white-space:nowrap`
       this.pR.appendChild(this.pRn)
 
-      // ---------- line 2: ⚠️ illustrative example u_n = -2^n ----------
-      const c2 = card(root, 'warn', 960, 300, 1560, { anchor: 'tc', tag: '⚠️ مثال توضيحي <span style="font-weight:600;opacity:.72">(من خارج الكتاب)</span>', h: 672 })
-      this.c2 = c2.el
-      // staircase plot (left half of the card)
-      const bx = n => 300 + n * 125, BW = 125, A0 = 380, U = 46
-      this.st = svg(root, 0, 0, W, H)
-      this.stAxis = sv(this.st, 'path', { d: `M262,${A0} L860,${A0}`, stroke: C.mut, 'stroke-width': 3, fill: 'none' })
-      this.stBar = [1, 2, 4, 8].map((v, n) => {
-        const r = sv(this.st, 'rect', { x: bx(n), y: A0, width: BW, height: v * U, fill: 'rgba(255,92,138,.16)', stroke: 'none' })
-        const e = sv(this.st, 'path', { d: `M${bx(n)},${A0 + v * U} L${bx(n) + BW},${A0 + v * U}`, stroke: C.red, 'stroke-width': 6, 'stroke-linecap': 'round', fill: 'none' })
-        return { r, e, v }
-      })
-      this.stRiser = [1, 2, 4].map((v, n) => sv(this.st, 'path', { d: `M${bx(n + 1)},${A0 + v * U} L${bx(n + 1)},${A0 + [2, 4, 8][n] * U}`, stroke: C.red, 'stroke-width': 6, 'stroke-linecap': 'round', fill: 'none' }))
-      this.stVal = [1, 2, 4, 8].map((v, n) => { const t = tex(`-${v}`, 'mm'); t.style.color = C.red; root.appendChild(t); place(t, bx(n) + BW / 2, A0 + v * U + 12, { anchor: 'tc' }); return t })
-      this.stIdx = [0, 1, 2, 3].map(n => { const t = el('div', 's blu', String(n), root); t.style.fontWeight = 700; place(t, bx(n) + BW / 2, A0 - 12, { anchor: 'bc' }); return t })
-      this.stArrow = arrow(this.st, 322, 545, 636, 800, { color: C.red, width: 7, bend: .08 })
-      this.stDown = rich('<span class="red b">تنزل!</span>', 'h3'); root.appendChild(this.stDown); place(this.stDown, 420, 752, { anchor: 'c' }); this.stDown.style.whiteSpace = 'nowrap'
-      // right column: formula, terms with ×2 hops, ratio, verdict
-      this.wF = tex('u_n = -2^{n}', 'mx'); root.appendChild(this.wF); place(this.wF, 1640, 380, { anchor: 'cr' })
-      this.wT = []
-      const vals = ['-1', '-2', '-4', '-8']
-      const row2 = el('div', '', null, root)
-      row2.style.cssText = 'display:flex;align-items:baseline;gap:6px;direction:ltr;white-space:nowrap'
-      this.wCom = []
-      vals.forEach((v, k) => {
-        const t = tex(v, 'mx'); t.style.color = C.red; row2.appendChild(t); this.wT.push(t)
-        const cm = tex(',', 'mx'); cm.style.color = C.mut; cm.style.marginRight = '30px'; row2.appendChild(cm); this.wCom.push(cm)
-      })
-      this.wDots = tex('\\dots', 'mx'); this.wDots.style.color = C.mut; row2.appendChild(this.wDots)
-      place(row2, 1650, 548, { anchor: 'cr' })
-      this.row2 = row2
-      // ×2 hops above the terms (arcs are drawn in layout(), once fonts are loaded)
-      this.hopS = svg(root, 0, 0, W, H)
-      this.hops = [0, 1, 2].map(() => { const lab = tex('\\times 2', 'ms'); lab.style.color = C.yel; root.appendChild(lab); op(lab, 0); return { lab } })
       this.root = root
-      this.wR = tex('\\dfrac{u_{n+1}}{u_n} = \\textcolor{#ffd23f}{2 > 1}', 'mx'); root.appendChild(this.wR); place(this.wR, 1650, 698, { anchor: 'cr' })
-      this.wX = rich('<span class="red b">✗ لا نستنتج التزايد</span>', 'h3'); this.wX.style.whiteSpace = 'nowrap'; root.appendChild(this.wX); place(this.wX, 1650, 828, { anchor: 'cr' })
-      this.wSep = el('div', '', null, root); place(this.wSep, 960, 893, { anchor: 'c', w: 1420, h: 2 }); this.wSep.style.background = 'rgba(255,159,67,.35)'
-      this.wC = rich('مقارنة النسبة بـ $1$ تشترط حدوداً <span class="yel b">موجبة تماماً</span>', 'h3'); this.wC.style.fontSize = '42px'
-      root.appendChild(this.wC); place(this.wC, 960, 930, { anchor: 'c' }); this.wC.style.whiteSpace = 'nowrap'
-      this.wCk = this.wC.querySelector('.yel')
-      this.wQ = rich('لماذا <span class="yel b">موجبة تماماً</span>؟', 'h3'); this.wQ.style.fontSize = '42px'; this.wQ.style.whiteSpace = 'nowrap'
-      root.appendChild(this.wQ); place(this.wQ, 960, 930, { anchor: 'c' })
-      this.bx = bx; this.A0 = A0; this.U = U; this.BW = BW
     },
 
     // measured placement: run on the first rendered frame (KaTeX fonts are loaded by then)
@@ -192,25 +149,18 @@
       const cr = rectIn(this.c1, root), py = cr.y + cr.h + 44
       place(this.pD, 1800, py, { w: 810, h: 970 - py, anchor: 'tr' })
       place(this.pR, 930, py, { w: 810, h: 970 - py, anchor: 'tr' })
-      this.hopS.innerHTML = ''
-      this.hops.forEach((h, k) => {
-        const a = rectIn(this.wT[k], root), b = rectIn(this.wT[k + 1], root)
-        const x1 = a.cx + 6, x2 = b.cx - 6, y = a.y - 6
-        h.ar = arrow(this.hopS, x1, y, x2, y, { color: C.yel, width: 4, bend: -.32 })
-        place(h.lab, (x1 + x2) / 2, y - (x2 - x1) * .32 / 2 - 8, { anchor: 'bc' })
-      })
     },
 
     render(lt, S) {
       if (!this._laid) { this.layout(); this._laid = document.fonts.check('20px KaTeX_Main') }
-      const out0 = S.p(lt, 1, 0, .45), out1 = S.p(lt, 2, 0, .45)
+      const out0 = S.p(lt, 1, 0, .45)
       this.head.set(S.p(lt, 0, 0, .7))
 
       // ===== line 0 =====
       vis(this.c0, S.p(lt, 0, .25, .6), out0)
       typeWords(this.c0t, clamp((lt - S.at(0) - .4) / Math.max(1.2, .36 * (S.end(0) - S.at(0)))))
       this.icons.forEach((b, k) => { const p = pf(S, lt, 0, .1 + k * .05, .5, E.out); op(b, p); b.style.transform = `translateY(${(1 - p) * 16}px) scale(${lerp(.7, 1, E.back(p))})` })
-      this.mark0(pf(S, lt, 0, .38, .6))
+      this.mark0(pf(S, lt, 0, .33, .6))   // «مُطَّرِدة»
       // zig-zag
       const z = pf(S, lt, 0, .47, .6), zo = 1 - out0
       svgOp(this.zAxis, .7 * z * zo); this.zGuide.forEach(g => svgOp(g, z * zo))
@@ -235,58 +185,27 @@
       this.zRun.setAttribute('cx', lerp(this.X(n0), this.X(n0 + 1), fr))
       this.zRun.setAttribute('cy', lerp(n0 % 2 ? this.YM : this.YP, n0 % 2 ? this.YP : this.YM, E.sine(fr)))
       svgOp(this.zRun, .9 * runOn * zo)
-      vis(this.zUp, pf(S, lt, 0, .7, .5), out0, 0, ` translateX(${(1 - pf(S, lt, 0, .7, .5)) * 20}px)`)   // «فتصعد»
-      vis(this.zDn, pf(S, lt, 0, .75, .5), out0, 0, ` translateX(${(1 - pf(S, lt, 0, .75, .5)) * 20}px)`)   // «وتنزل»
-      const st = pf(S, lt, 0, .86, .45, E.out)   // «غير مطّردة»
+      vis(this.zUp, pf(S, lt, 0, .74, .5), out0, 0, ` translateX(${(1 - pf(S, lt, 0, .74, .5)) * 20}px)`)   // «فتصعد»
+      vis(this.zDn, pf(S, lt, 0, .79, .5), out0, 0, ` translateX(${(1 - pf(S, lt, 0, .79, .5)) * 20}px)`)   // «وتنزل»
+      const st = pf(S, lt, 0, .87, .45, E.out)   // «غير مطّردة»
       op(this.stamp, clamp(st * 3) * zo)
       this.stamp.style.transform = `rotate(-8deg) scale(${lerp(1.9, 1, st) * (1 + .015 * Math.sin(lt * 2))})`
 
       // ===== line 1 =====
-      vis(this.c1, S.p(lt, 1, .3, .6), out1)
-      const ks = [[.0, .36], [.36, .5], [.5, .74], [.74, .9]]
+      // «فكيف ندرس الاطّراد؟ بإشارة الفرق … أو بمقارنة النسبة … بالواحد، إذا كانت الحدود موجبةً تماماً»
+      vis(this.c1, S.p(lt, 1, .3, .6))
+      const ks = [[.0, .15], [.14, .3], [.42, .62], [.8, .95]]
       this.k.forEach((e, i) => typeWords(e, clamp((S.f(lt, 1) - ks[i][0]) / (ks[i][1] - ks[i][0])) * (lt > S.at(1) + .45 ? 1 : 0)))
-      vis(this.pD, pf(S, lt, 1, .4, .6), out1)
-      this.pDr.forEach((r, i) => vis(r, pf(S, lt, 1, .44 + i * .05, .5), 0, 18))
-      vis(this.pR, pf(S, lt, 1, .56, .6), out1)
-      this.pRr.forEach((r, i) => vis(r, pf(S, lt, 1, .6 + i * .05, .5), 0, 18))
-      this.posU(pf(S, lt, 1, .84, .6))
-      const pn = pf(S, lt, 1, .88, .5)
+      vis(this.pD, pf(S, lt, 1, .2, .6))
+      this.pDr.forEach((r, i) => vis(r, pf(S, lt, 1, .25 + i * .07, .5), 0, 18))
+      vis(this.pR, pf(S, lt, 1, .5, .6))
+      this.pRr.forEach((r, i) => vis(r, pf(S, lt, 1, .6 + i * .07, .5), 0, 18))
+      this.posU(pf(S, lt, 1, .9, .6))
+      const pn = pf(S, lt, 1, .91, .5)
       op(this.pRn, pn); this.pRn.style.transform = `translateY(${(1 - pn) * 12}px)`
       // gentle life in the hold: the condition chip breathes
       const gl = pn * (.5 + .5 * Math.sin((lt - S.at(1)) * 2.4))
       this.pRn.style.boxShadow = `0 0 ${8 + 16 * gl}px rgba(255,210,63,${.12 + .22 * gl})`
-
-      // ===== line 2 =====
-      const c2 = S.p(lt, 2, .3, .6)
-      vis(this.c2, c2, 0)
-      svgOp(this.stAxis, Math.min(c2, pf(S, lt, 2, .05, .5)))
-      vis(this.wF, pf(S, lt, 2, .06, .5), 0, 20)
-      const vT = [.16, .26, .36, .46]
-      this.stBar.forEach((b, n) => {
-        const p = pf(S, lt, 2, vT[n], .55, E.out)
-        b.r.setAttribute('height', b.v * this.U * p); svgOp(b.r, p > 0 ? 1 : 0)
-        b.e.setAttribute('d', `M${this.bx(n)},${this.A0 + b.v * this.U * p} L${this.bx(n) + this.BW},${this.A0 + b.v * this.U * p}`); svgOp(b.e, p > 0 ? 1 : 0)
-        op(this.stVal[n], clamp(p * 2 - 1)); op(this.stIdx[n], clamp(p * 2))
-        vis(this.wT[n], pf(S, lt, 2, vT[n], .45), 0, 16)
-      })
-      this.stRiser.forEach((r, n) => { svgOp(r, pf(S, lt, 2, vT[n + 1] + .02, .3) > 0 ? 1 : 0); draw(r, pf(S, lt, 2, vT[n + 1] + .02, .4)) })
-      op(this.wDots, pf(S, lt, 2, .5, .4)); this.wCom.forEach((c, n) => op(c, n < 3 ? pf(S, lt, 2, vT[n + 1], .4) : pf(S, lt, 2, .5, .4)))
-      this.hops.forEach((h, k) => { const p = pf(S, lt, 2, .54 + k * .04, .45); h.ar.set(p); op(h.lab, clamp(p * 2 - .6)) })
-      const r = pf(S, lt, 2, .62, .55)
-      vis(this.wR, r, 0, 20)
-      this.stArrow.set(pf(S, lt, 2, .76, .7))
-      const dn = pf(S, lt, 2, .8, .5)
-      op(this.stDown, dn); this.stDown.style.transform = `scale(${lerp(.6, 1, E.back(dn))})`
-      const x = pf(S, lt, 2, .8, .5)
-      op(this.wX, x); this.wX.style.transform = `translateX(${(1 - x) * -30}px)`
-      const cc = pf(S, lt, 2, .86, .6)
-      const sp = pf(S, lt, 2, .02, .7); op(this.wSep, sp * c2); this.wSep.style.transform = `scaleX(${sp})`
-      vis(this.wQ, pf(S, lt, 2, 0, .5) * c2, 0, 16)
-      vis(this.wC, cc, 0, 16)
-      if (cc > 0) swap(this.wQ, this.wC, cc)
-      // gentle life in the hold: the key condition glows softly
-      const g2 = cc * (.5 + .5 * Math.sin((lt - S.at(2)) * 2.4))
-      this.wCk.style.textShadow = `0 0 ${6 + 14 * g2}px rgba(255,210,63,${.2 + .4 * g2})`
     },
   })
 })()

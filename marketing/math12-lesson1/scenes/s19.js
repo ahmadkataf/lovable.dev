@@ -2,8 +2,8 @@
 // a generic rising curve whose integer points are the terms u_n = f(n); then the book's example
 // v_n = (n−1)², f'(x) = 2(x−1) with its sign table, the parabola with the dots n = 0..4, a 3-second
 // pause-and-think, and the answer: the first step goes down (pink), every later step goes up (green) → n₀ = 1.
-// Written for the 6 lines of script.json; if the timeline still has the older 5-line version (example and
-// derivative in one line), the cues are mapped onto it.
+// Cued to the 7 lines of the final script.json (0 card ② · 1 interval + n<n+1 · 2 example v_n · 3 f named + parabola ·
+// 4 f' + sign table · 5 conclusion + question + pause · 6 answer, n₀ = 1, and why).
 ;(() => {
   const Y = C.yel, G = C.grn, R = C.red, B = C.blu, P = C.pur
   const INK = '#eef2ff'
@@ -42,16 +42,6 @@
     }
   }
   const badge = (n, bg = Y) => `<span style="display:inline-flex;align-items:center;justify-content:center;width:1.05em;height:1.05em;border-radius:50%;background:${bg};color:#0b1020;font-size:.78em;font-weight:900;vertical-align:.08em;margin-left:.28em">${n}</span>`
-
-  // logical lines (script.json has 6). Old 5-line timeline: line 2 = example + derivative.
-  function cues(S) {
-    if (S.lines.length >= 6) return { at: S.at, end: S.end }
-    const a2 = S.at(2), e2 = S.end(2), m = a2 + .42 * (e2 - a2)
-    return {
-      at: i => (i < 3 ? S.at(i) : i === 3 ? m : S.at(i - 1)),
-      end: i => (i < 2 ? S.end(i) : i === 2 ? m - .1 : i === 3 ? e2 : S.end(i - 1)),
-    }
-  }
 
   scene('s19', {
     build(root, S) {
@@ -114,14 +104,15 @@
       impT.style.whiteSpace = 'nowrap'; impT.style.fontSize = '36px'; this.imp.appendChild(impT)
       place(this.imp, 1390, 300 + this.cardH + 38, { anchor: 'tc' })
 
-      // ---------------- line 2: the example
+      // ---------------- line 2: the example (line 3: the book line about f)
       const ex = card(root, 'ex', 1800, 300, 820, { anchor: 'tr', tag: 'مثال' })
       this.ex = ex.el
-      this.e1 = rich(`$(v_n)_{n\\ge0}$ المعرّفة بالصيغة $v_n = (n-1)^2$ في حالة $n\\ge0$`, 'p')
+      this.e1 = rich(`$(\\htmlId{s19-v}{v}_n)_{n\\ge0}$ المعرّفة بالصيغة $\\htmlId{s19-vdef}{v_n = (n-1)^2}$ في حالة $n\\ge0$`, 'p')
       ex.body.appendChild(this.e1)
       this.e2 = rich(`نرمز بالرمز $${tc(P, 'f')}$ إلى التابع المعرّف على $\\mathbb{R}$ وفق $${tc(P, 'x\\mapsto (x-1)^2')}$`, 'p')
-      this.e2.style.marginTop = '14px'
-      ex.body.appendChild(this.e2)
+      this.e2.style.paddingTop = '14px'
+      this.e2w = el('div', '', null, ex.body); this.e2w.style.overflow = 'hidden'   // grows open in line 3
+      this.e2w.appendChild(this.e2)
       splitWords(this.e2)
 
       // parabola plot (left)
@@ -177,13 +168,14 @@
       this.braceHead = sv(pp.s, 'path', { d: `M${bx2 - 16},${by - 9} L${bx2},${by} L${bx2 - 16},${by + 9} Z`, fill: B })
       this.braceL = pp.label(K(tc(B, 'n_0 = 1')), 1.0, 0, 'tl', 'mm'); this.braceL.style.marginTop = '88px'; this.braceL.style.marginLeft = '-6px'; this.braceL.style.fontSize = '36px'
 
-      // ---------------- line 3: derivative + sign table (right column)
+      // ---------------- line 4: derivative + sign table (right column)
       this.rc = el('div', '', null, root); this.rc.style.cssText += 'position:absolute;left:0;top:0;width:1920px;height:1080px'
       this.fd = tex(`f'(x) = 2(x-1)`, 'mx'); this.rc.appendChild(this.fd); place(this.fd, 1390, 708, { anchor: 'c' })
       this.tb = this._table(this.rc, 1040, 772)
-      // ---------------- line 4: conclusion, question, countdown
+      // ---------------- line 5: conclusion, question, countdown
       this.concl = rich(`$f$ متزايد تماماً على $[1,+\\infty[$`, 'h3'); this.concl.style.color = G; this.concl.style.whiteSpace = 'nowrap'
-      root.appendChild(this.concl); place(this.concl, 1390, 632, { anchor: 'tc' })
+      this.concl.style.cssText += ';padding:4px 24px;border-radius:16px;border:2px solid transparent'
+      root.appendChild(this.concl); place(this.concl, 1390, 626, { anchor: 'tc' })
       this.q = el('div', '', null, root)
       this.q.style.cssText += `display:flex;align-items:center;gap:18px;direction:rtl;padding:14px 30px;border-radius:22px;border:2.5px solid ${Y}99;background:rgba(255,210,63,.08)`
       this.qT = rich(`هل $(v_n)_{n\\ge0}$ متزايدة؟`, 'h3'); this.qT.style.color = Y; this.qT.style.whiteSpace = 'nowrap'; this.q.appendChild(this.qT)
@@ -193,7 +185,7 @@
       this.cdw.style.cssText += 'position:absolute;left:0;top:0;width:1920px;height:1080px'
       this.cd = countdown(this.cdw, 1090, 812, 54)
       const cdl = this.cdw.querySelector('.s'); if (cdl) { cdl.style.whiteSpace = 'nowrap'; cdl.style.fontSize = '28px' }
-      // ---------------- line 5: the result
+      // ---------------- line 6: the result
       this.kb = keyBox(root, 'x', 1390, 830, { color: G })
       this.kb.el.removeChild(this.kb.f)
       this.kb.el.style.background = 'rgba(110,224,90,.08)'
@@ -222,19 +214,18 @@
     },
 
     render(lt, S) {
-      const Lc = cues(S)
-      const at = Lc.at, end = Lc.end
+      const at = S.at, end = S.end
       const dd = i => end(i) - at(i)
       const T = (i, f) => at(i) + f * dd(i)
       const pr = (t0, dur = .6, e = E.io) => prog(lt, t0, dur, e)
-      const Fr = (i, a, b) => clamp(((lt - at(i)) / Math.max(.01, dd(i)) - a) / (b - a))
+      const Fr = (i, a, b) => S.f(lt, i, a, b)
 
       this.head.set(pr(at(0), .8))
       this.trk.set(pr(at(0) + .1, .7), lt, .2)
 
       // ================= lines 0–1: card ② and the generic curve
       const out2 = pr(at(2), .55)
-      const gOut = pr(Math.max(T(2, .33), at(2) + 1.2), .6)          // the generic picture stays until the parabola comes
+      const gOut = pr(at(3) + .1, .6)                        // the generic picture stays until f is named (line 3)
       const cg = pr(at(0) + .5, .9, E.io)                   // the card grows out of tracker circle 2
       const tk = TRK(2), cx = 1800 - 410, cy = 300 + this.card.offsetHeight / 2
       this.card.style.transform = `translate(${(tk.x - cx) * (1 - cg)}px, ${(tk.y - cy) * (1 - cg) - out2 * 30}px) scale(${lerp(.08, 1, cg)})`
@@ -250,8 +241,8 @@
       draw(this.gCurve, pr(Math.max(T(0, .25), at(0) + 1.6), 1.4)); this.gCurve.style.opacity = 1 - gOut
       op(this.gLab, Math.min(pr(Math.max(T(0, .25), at(0) + 1.6) + 1.1, .5), 1 - gOut))
       const tD = Math.max(T(0, .45), at(0) + 3)
-      // second half of line 1 ("لأنّ العددين n و n+1 يقعان في المجال"): two consecutive terms take the stage
-      const tNn = Math.max(T(1, .52), at(1) + 3.6)
+      // second half of line 1 («لأنّ إنْ، وإنْ زائد واحد، يقعان فيه»): two consecutive terms take the stage
+      const tNn = Math.max(T(1, .74), at(1) + 3.6)
       const nn = pr(tNn, .6)
       this.gD.forEach((dot, k) => {
         const p = pr(tD + k * .22, .5, E.back)
@@ -268,7 +259,7 @@
       // the panel sits under card ② (card height measured live: KaTeX fonts may load after build)
       const fullH = this.card.offsetHeight - this.c2w.offsetHeight + this.c2.offsetHeight + 22
       if (fullH !== this._fullH) { this._fullH = fullH; place(this.imp, 1390, 300 + fullH + 38, { anchor: 'tc' }) }
-      const ip = pr(Math.max(T(1, .7), tNn + 1), .6)
+      const ip = pr(Math.max(T(1, .8), tNn + .8), .6)
       op(this.imp, Math.min(ip, 1 - out2)); this.imp.style.transform = `translateY(${(1 - ip) * 24 - out2 * 30}px)`
       const tg = pr(tD + 1.4, .6)
       op(this.gTag, Math.min(tg, 1 - pr(at(1), .4), 1 - gOut)); this.gTag.style.transform = `translateY(${(1 - tg) * 14}px)`
@@ -278,82 +269,103 @@
       this.gBand.style.opacity = band > 0 ? .35 * (1 - gOut) : 0
       op(this.gBandL, Math.min(pr(at(1) + .6, .5), 1 - gOut)); op(this.gN0, Math.min(Math.max(pr(tD, .5), 0), 1 - gOut))
       this.gA.forEach((a, k) => { a.set(pr(at(1) + 1.1 + k * .45, .5)); a.path.style.opacity = (1 - gOut) * (k === 1 ? 1 : 1 - .6 * nn) })
+      this.gp.box.style.opacity = 1 - .45 * pr(at(2) + .2, .6)       // line 2: the generic picture steps back
 
-      // ================= line 2: the example and the parabola
-      const out4 = pr(at(4), .4)                         // the example card leaves to make room
+      // ================= line 2: the example — the letter v glows as it is named, then its formula
+      const out5 = pr(at(5), .4)                         // the example card leaves to make room (line 5)
       const ei = pr(at(2) + .35, .7)
-      op(this.ex, Math.min(ei, 1 - out4)); this.ex.style.transform = `translateY(${(1 - ei) * 36 - out4 * 40}px)`
-      typeWords(this.e2, Fr(2, .4, .92))
-      const pa = pr(Math.max(T(2, .33), at(2) + 1.2) + .35, .8)
+      op(this.ex, Math.min(ei, 1 - out5)); this.ex.style.transform = `translateY(${(1 - ei) * 36 - out5 * 40}px)`
+      const vG = env(lt, Math.max(T(2, .3), at(2) + 1), T(2, .62), .3, .5)
+      const vD = env(lt, Math.max(T(2, .6), at(2) + 1.5), at(3) + .3, .4, .5)
+      $('v').style.color = mixColor(INK, Y, vG); $('v').style.textShadow = vG > .01 ? `0 0 ${18 * vG}px ${Y}` : ''
+      $('vdef').style.color = mixColor(INK, Y, vD)
+
+      // ================= line 3: f is named — the book line types in, the parabola is drawn
+      typeWords(this.e2, Fr(3, .05, .9))
+      this.e2w.style.height = this.e2.offsetHeight * pr(at(3) - .1, .6) + 'px'
+      const pa = pr(at(3) + .35, .8)
       this.pAx.forEach(a => draw(a, pa))
       this.pTicks.forEach(({ t, l }) => { t.style.opacity = pa; op(l, pa) })
       this.pyl.forEach(({ t, l }) => { t.style.opacity = pa; op(l, pa) })
-      const tPar = Math.max(T(2, .5), at(2) + 2.2)
+      const tPar = Math.max(T(3, .48), at(3) + 1.6)                 // «يربط إكس بالمقدار، إكس ناقص واحد، الكلّ تربيع»
       const pd = pr(tPar, 1.6, E.io)
       draw(this.pL, clamp(pd * 1.9)); draw(this.pR, clamp(pd * 1.9 - .9))
       op(this.pLab, pr(tPar + 1.2, .6))
 
-      // ================= line 3: derivative, sign table, arrows on the graph
-      const fdI = pr(at(3) + .3, .8)
-      const up = pr(at(4) + .15, .8)                      // derivative + table move up in line 4
+      // ================= line 4: derivative, sign table, arrows on the graph
+      const fdI = pr(at(4) + .3, .8)
+      const up = pr(at(5) + .15, .8)                      // derivative + table move up in line 5
       wipe(this.fd, fdI)
       this.rc.style.transform = `translateY(${-382 * up}px)`
       const tb = this.tb
-      const r0 = pr(Math.max(T(3, .25), at(3) + 1.2), .5), r1 = pr(Math.max(T(3, .5), at(3) + 1.9), .5), r2 = pr(Math.max(T(3, .75), at(3) + 2.6), .5)
+      const r0 = pr(Math.max(T(4, .25), at(4) + 1.2), .5), r1 = pr(Math.max(T(4, .5), at(4) + 1.9), .5), r2 = pr(Math.max(T(4, .75), at(4) + 2.6), .5)
       op(tb.box, r0); tb.box.style.transform = `translateY(${(1 - r0) * 20}px)`
       tb.rows[0].forEach(e => op(e, r0))
-      tb.rows[1].forEach((e, i) => op(e, i === 0 ? r0 : i === 2 ? r1 : r1))
+      tb.rows[1].forEach((e, i) => op(e, i === 0 ? r0 : r1))
       tb.dash.style.opacity = r1
       tb.rows[2].forEach((e, i) => op(e, i === 0 ? r0 : r2))
-      const aOut = pr(at(5), .5)
+      const aOut = pr(at(6), .5)
       this.pArr.forEach(e => { pop(e, r2); if (r2 >= 1) op(e, 1 - aOut) })
 
-      // ================= line 4: conclusion, the dots, the question
-      const coI = pr(at(4) + .5, .6)
+      // ================= line 5: conclusion, the dots, the question, the 3-second pause
+      const coI = pr(at(5) + .5, .6)
       rise(this.concl, coI, 24)
       // the terms v_0..v_4 sit on the parabola
-      const tDots = Math.max(T(4, .45), at(4) + 1.6)
-      const hold0 = end(4), hold1 = at(5)
+      const tDots = Math.max(T(5, .45), at(5) + 1.6)
+      const hold0 = end(5), hold1 = at(6)
       this.pDots.forEach((d, n) => {
         const p = pr(tDots + n * .2, .5, E.back)
         d.g.style.opacity = clamp(p * 3); d.g.style.transform = `scale(${Math.max(0, p)})`
         // n = 0 and n = 1 blink during the question and the pause
-        const bl = n < 2 ? env(lt, Math.max(T(4, .7), tDots + 1), hold1 + .2, .3, .4) * (.5 + .5 * Math.sin((lt - hold0) * 7)) : 0
+        const bl = n < 2 ? env(lt, Math.max(T(5, .7), tDots + 1), hold1 + .2, .3, .4) * (.5 + .5 * Math.sin((lt - hold0) * 7)) : 0
         d.halo.setAttribute('opacity', (.45 * bl).toFixed(3))
         d.c.setAttribute('r', 13 + 4 * bl)
       })
-      const qI = pr(Math.max(T(4, .68), tDots + .8), .6)
-      const qOut = pr(Math.max(T(5, .45), at(5) + 3.2), .5)
-      op(this.q, Math.min(qI, 1 - qOut)); this.q.style.transform = `translateY(${(1 - qI) * 20 - qOut * 20}px)`
-      // "لا ✗" when the answer starts
-      const no = pr(at(5), .45)
+      const qI = pr(Math.max(T(5, .64), tDots + .8), .6)
+      const tQo = Math.max(T(6, .45), at(6) + 3.2)
+      const qOut = pr(tQo, .5)
+      // «فهي ليست متزايدة من الصفر»: the answered question pulses once more
+      const qP = env(lt, Math.max(T(6, .3), at(6) + 1.2), tQo, .3, .4)
+      op(this.q, Math.min(qI, 1 - qOut)); this.q.style.transform = `translateY(${(1 - qI) * 20 - qOut * 20}px) scale(${1 + .04 * qP})`
+      // «لا ✗» when the answer starts
+      const no = pr(at(6), .45)
       op(this.qX, no); this.qX.style.transform = `scale(${lerp(1.6, 1, E.out(no))})`
       this.qT.style.color = mixColor(Y, '#ff9fbb', no)
       this.q.style.borderColor = mixColor(Y, R, no)
+      this.q.style.boxShadow = qP > .01 ? `0 0 ${34 * qP}px ${R}66` : ''
       // countdown during the pause (shows 3 while the question is asked)
       const cdIn = Math.min(qI, 1 - pr(hold1 - .1, .4))
       op(this.cdw, cdIn)
       this.cd(clamp((lt - hold0) / Math.max(.5, hold1 - hold0)) || 0.0001, Math.min(3, Math.max(0, hold1 - lt)))
 
-      // ================= line 5: labels, coloured steps, n₀ = 1
-      const l0 = pr(at(5) + .5, .5), l1 = pr(Math.max(T(5, .14), at(5) + 1.1), .5)
+      // ================= line 6: labels, coloured steps, n₀ = 1, and why (f increases on [1,+∞[)
+      const l0 = pr(at(6) + .5, .5), l1 = pr(Math.max(T(6, .15), at(6) + 1.1), .5)
       ;[l0, l1].forEach((p, n) => rise(this.pLabs[n], p, 12))
-      this.chords[0].set(pr(Math.max(T(5, .26), at(5) + 1.6), .6))
-      const vn = pr(Math.max(T(5, .3), at(5) + 2), .6)
+      this.chords[0].set(pr(Math.max(T(6, .26), at(6) + 1.6), .6))
+      const vn = pr(Math.max(T(6, .29), at(6) + 2), .6)
       op(this.vNote, vn); this.vNote.style.transform = `scale(${lerp(.85, 1, E.out(vn))})`
       draw(this.vLead, vn)
-      const tG = Math.max(T(5, .42), at(5) + 2.8)
+      const tG = Math.max(T(6, .44), at(6) + 2.8)                    // «لكنّها متزايدة تماماً»
       ;[1, 2, 3].forEach(k => {
         const p = pr(tG + (k - 1) * .45, .5)
         this.chords[k].set(p)
         rise(this.pLabs[k + 1], pr(tG + (k - 1) * .45 + .25, .45), 12)
       })
-      const tBr = Math.max(T(5, .62), tG + 1.6)
+      const tBr = Math.max(T(6, .55), tG + 1.4)                     // «بدءاً من إنْ صفر يساوي واحداً»
       const br = pr(tBr, .8)
       draw(this.brace, br); op(this.braceHead, br >= .95 ? 1 : 0); rise(this.braceL, pr(tBr + .3, .5), 12)
-      const kbI = pr(Math.max(T(5, .5), at(5) + 3.6), .7)
+      const tKb = Math.max(T(6, .58), tQo + .5)
+      const kbI = pr(tKb, .7)
       this.kb.set(kbI)
       if (kbI >= 1) this.kb.el.style.boxShadow = `0 0 ${40 + 14 * Math.sin(lt * 1.8)}px ${G}38`
+      // «لأنّ التابع إف متزايدٌ تماماً على المجال من واحد إلى زائد اللانهاية»: the reason lights up,
+      // and so does the branch of the parabola it describes
+      const why = pr(Math.max(T(6, .7), tKb + 1), .6)
+      this.concl.style.borderColor = `rgba(110,224,90,${(.75 * why).toFixed(3)})`
+      this.concl.style.background = `rgba(110,224,90,${(.1 * why).toFixed(3)})`
+      this.concl.style.boxShadow = why > .01 ? `0 0 ${(22 + 8 * Math.sin(lt * 2)) * why}px ${G}44` : ''
+      this.pR.setAttribute('stroke-width', 6 + 3 * why)
+      this.pR.style.filter = why > .01 ? `drop-shadow(0 0 ${10 * why}px ${P})` : ''
     },
   })
 })()

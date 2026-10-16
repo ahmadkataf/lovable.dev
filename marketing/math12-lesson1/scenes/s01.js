@@ -164,7 +164,7 @@ scene('s01', (() => {
       for (let k = 5; k <= 7; k++) T.set[k] = Math.min(T.arr[k] + .85, k < 7 ? T.arr[k + 1] : Infinity)
       T.conj = Math.max(T.set[7] + .3, cue(S, 1, ['فمجموع'], .46))
       T.nLab = Math.max(T.conj + .8, cue(S, 1, ['أول إن'], .55))
-      T.q = Math.max(S.at(2) + 1.2, cue(S, 2, ['فكيف', 'كيف'], .37))
+      T.q = Math.max(S.at(2) + .8, cue(S, 2, ['فكيف', 'كيف'], .37))
       // card ①: big while the question is asked; pinned when the bridge starts (or near the end of line 2)
       T.pin = BR >= 0 ? Math.max(T.q + 1.8, S.end(2) - .3)
         : Math.min(Math.max(cue(S, 2, ['حتى لو'], .78) + .3, T.q + 2.4), S.end(2) - .3)
@@ -445,7 +445,7 @@ scene('s01', (() => {
         op(this.tbTag, tg); this.tbTag.style.transform = `translateY(${(1 - tg) * 10}px)`
         const cp = prog(lt, T.conj, 1.1, E.io), cOut = S.p(lt, 2, .1, .6)
         wipe(this.conj, cp, 'ltr')
-        op(this.conj, 1 - cOut)
+        op(this.conj, cp > 0 ? 1 - cOut : 0)       // hidden until it is written (no clip-margin sliver)
         const qm = .5 + .5 * Math.sin(lt * 3)
         this.conj.style.transform = `translateY(${-cOut * 20}px) scale(${1 + .012 * qm * clamp(cp)})`
         this.conj.style.textShadow = `0 0 ${30 + 20 * qm}px rgba(255,210,63,.45)`

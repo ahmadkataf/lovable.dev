@@ -65,7 +65,7 @@
         const pl = tex(`u_n ${k === 'sinc' ? '<' : '>'} u_{n+1}`, 'mm'); pl.style.color = C.yel; root.appendChild(pl); place(pl, 0, 0, { anchor: 'bc' })
         const box = el('div', '', null, root)
         place(box, cx, 625, { anchor: 'tc', w: 780 })
-        const t1 = rich(`نقول إنّ المتتالية $(u_n)_{n\\ge n_0}$ <b style="color:${COL[k]}">${NAME[k]}</b> <span class="iff">إذا وفقط إذا</span> تحقّق الشرط:`, 'p')
+        const t1 = rich(`${k === 'sdec' ? 'ونقول' : 'نقول'} إنّ المتتالية $(u_n)_{n\\ge n_0}$ <b style="color:${COL[k]}">${NAME[k]}</b> <span class="iff">إذا وفقط إذا</span> تحقّق الشرط:`, 'p')
         t1.style.textAlign = 'center'
         box.appendChild(t1)
         const iff = t1.querySelector('.iff'); iff.style.cssText = 'position:relative;display:inline-block'
@@ -92,7 +92,7 @@
         const tx = el('div', 'ar', null, p)
         tx.style.cssText = 'position:absolute;left:0;right:0;top:182px;text-align:center'
         const nm = el('div', 'b', NAME[k], tx); nm.style.cssText = `font-size:36px;line-height:1.3;color:${COL[k]};font-weight:800`
-        const iff = el('div', '', 'إذا وفقط إذا', tx); iff.style.cssText = 'font-size:30px;line-height:1.45;font-weight:600;margin-top:6px;display:inline-block;padding:0 10px;border-radius:10px'
+        const iff = el('div', '', 'إذا وفقط إذا:', tx); iff.style.cssText = 'font-size:30px;line-height:1.45;font-weight:600;margin-top:6px;display:inline-block;padding:0 10px;border-radius:10px'
         const mh = el('div', '', null, tx); mh.style.cssText = 'position:relative;display:inline-block;margin-top:2px;padding:0 10px;isolation:isolate'
         mh.appendChild(rich('مهما تكن $n_0 \\le n$', ''))
         mh.firstChild.style.cssText = 'font-size:30px;line-height:1.45;font-weight:600'
@@ -108,10 +108,10 @@
       })
 
       // ---------- line 3: exam card ----------
-      const ex = card(root, 'exam', 960, 858, 1240, { anchor: 'tc' })
+      const ex = card(root, 'exam', 960, 858, 1420, { anchor: 'tc' })
       this.exam = ex.el
       ex.body.style.cssText = 'display:flex;align-items:center;justify-content:center;gap:40px;direction:rtl'
-      this.bad = rich('حساب $u_0,\\ u_1,\\ u_2$ <b>✗</b> ليس برهاناً', 'p red b')
+      this.bad = rich('حساب $u_0,\\ u_1,\\ u_2$ <b>✗</b> لا يكفي لإثبات الاطّراد', 'p red b')
       this.good = rich('إثبات لكلّ $n \\ge n_0$ <b>✓</b>', 'p grn b')
       this.bad.style.whiteSpace = this.good.style.whiteSpace = 'nowrap'
       this.bad.style.fontSize = this.good.style.fontSize = '36px'
@@ -190,10 +190,11 @@
       })
 
       // ---------- line 3: exam card ----------
-      rise(this.exam, prog(lt, F(3, .48), .6), 24)
-      slide(this.bad, prog(lt, F(3, .5), .6), -30)
-      op(this.vs, prog(lt, F(3, .62), .4))
-      slide(this.good, prog(lt, F(3, .68), .6), -30)
+      // «حساب ثلاثة حدود قد ينفي الاطّراد» → the pink side; «لكنّه لا يثبته» → the green side
+      rise(this.exam, prog(lt, F(3, .46), .6), 24)
+      slide(this.bad, prog(lt, F(3, .48), .6), -30)
+      op(this.vs, prog(lt, F(3, .7), .4))
+      slide(this.good, prog(lt, F(3, .78), .6), -30)
     },
   })
 })()

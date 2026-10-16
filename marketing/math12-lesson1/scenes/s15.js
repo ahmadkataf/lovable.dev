@@ -1,4 +1,5 @@
-// s15 · مجموع حدود هندسيّة — shift-and-subtract, the division by 1-q, the q = 1 case, "n counts the terms", and a 31-tower check.
+// s15 · مجموع حدود هندسيّة — the book's formula, shift-and-subtract, the division by 1-q (allowed: q ≠ 1),
+// "n counts the terms" and the book's special case (a = 1).
 (() => {
   const ID = 's15'
   const G = C.grn, B = C.blu, Y = C.yel, R = C.red, PU = C.pur
@@ -21,9 +22,10 @@
       this.book.querySelector('#' + id('qn1')).closest('bdi.m').style.margin = '0 4px 0 16px'
       root.appendChild(this.book); place(this.book, 1800, 290, { anchor: 'tr', w: 1680 }); splitWords(this.book)
       this.qHl = el('div', 'hlbox', null, root); this.qHl.style.borderColor = R; this.qHl.style.boxShadow = `0 0 26px ${R}55`; op(this.qHl, 0)
-      this.kb = keyBox(root, `S = a\\,\\dfrac{1-q^{\\htmlId{${id('kn')}}{n}}}{1-q}`, GB.x, GB.y, { cls: 'ml' })
+      this.kb = keyBox(root, `\\htmlId{${id('kS')}}{S} = \\htmlId{${id('ka')}}{a}\\,\\dfrac{\\htmlId{${id('knum')}}{1-q^{\\htmlId{${id('kn')}}{n}}}}{\\htmlId{${id('kden')}}{1-q}}`, GB.x, GB.y, { cls: 'ml' })
       this.kb.el.style.transformOrigin = '50% 50%'
       this.kb.el.style.zIndex = 3
+      this.kRead = ['kS', 'ka', 'knum', 'kden'].map(k => this.kb.el.querySelector('#' + id(k)))
       this.ask = chip(root, 'فمن أين يأتي هذا القانون؟', 960, 820, { anchor: 'c', color: Y })
       this.ask.style.cssText += ';font-size:34px;white-space:nowrap'
 
@@ -52,30 +54,21 @@
       const tagStyle = e => { e.style.cssText += `font-size:28px;font-weight:800;color:${Y};white-space:nowrap;padding:2px 16px;border-radius:999px;background:rgba(255,210,63,.12);border:1.5px solid rgba(255,210,63,.45)` }
       this.tagA = rich('أوّل السطر الأوّل', 's'); tagStyle(this.tagA); root.appendChild(this.tagA); place(this.tagA, colX(0) + Tw / 2, y1 + 66, { anchor: 'c' })
       this.tagN = rich('آخر السطر الثاني', 's'); tagStyle(this.tagN); root.appendChild(this.tagN); place(this.tagN, colX(8) + Tw + Pw + Tw / 2, y2 + 62, { anchor: 'c' })
-      // S(1-q) = a(1-q^n): natural place = its line-2 spot (left column); during line 1 it sits under the subtraction
-      this.res2 = mtex(`${tc(Y, 'S')}\\,\\htmlId{${id('omq')}}{(1-q)}\\,= a(1-q^n)`, 60); root.appendChild(this.res2); place(this.res2, 540, 350, { anchor: 'c' })
+      // S(1-q) = a(1-q^n): natural place = its line-2 spot (top of the centred column); during line 1 it sits under the subtraction
+      this.res2 = mtex(`${tc(Y, 'S')}\\,\\htmlId{${id('omq')}}{(1-q)}\\,= a(1-q^n)`, 60); root.appendChild(this.res2); place(this.res2, 960, 350, { anchor: 'c' })
       this.res2b = rich('أي', 's'); root.appendChild(this.res2b); place(this.res2b, 0, 0, { anchor: 'cr' })
 
-      // ---------------- line 2: divide by 1-q; the q = 1 case ----------------
+      // ---------------- line 2: divide by 1-q (allowed because q ≠ 1) — centred column ----------------
       const es = svg(root, 0, 0, W, H)
       this.ring = sv(es, 'rect', { x: 0, y: 0, width: 10, height: 10, rx: 14, stroke: R, 'stroke-width': 4, fill: 'none' })
       this.down = el('div', '', null, root)
       this.down.style.cssText += 'display:flex;align-items:center;gap:22px;direction:ltr'
       this.down.appendChild(mtex('\\Big\\Downarrow', 52))
       this.down.appendChild(mtex(`\\div\\,${tc(R, '(1-q)')}`, 44))
-      place(this.down, 520, 468, { anchor: 'cl' })
+      place(this.down, 940, 468, { anchor: 'cl' })
       this.down.style.marginLeft = '-26px'
       this.note = rich(`مسموح لأنّ: $${tc(R, 'q \\ne 1 \\Rightarrow 1-q \\ne 0')}$`, 'p'); root.appendChild(this.note)
-      this.note.style.whiteSpace = 'nowrap'; place(this.note, 540, 872, { anchor: 'c' })
-      const wc = card(root, 'warn', 1800, 360, 690, { tag: '⚠️ انتبه' })
-      this.wcard = wc.el
-      wc.el.style.translate = '-100% 0'
-      wc.body.style.cssText += 'display:flex;flex-direction:column;align-items:center;gap:26px'
-      this.w1 = rich(`إذا كان $${tc(R, 'q = 1')}$:`, 'h3'); wc.body.appendChild(this.w1)
-      this.w2 = mtex('', 52); wc.body.appendChild(this.w2)
-      this.w2.innerHTML = katex.renderToString(`S = \\underbrace{a + a + \\cdots + a}_{${tc(B, 'n')}}`, KOPT)
-      this.w3 = mtex(`S = ${tc(G, 'n\\,a')}`, 62); wc.body.appendChild(this.w3)
-
+      this.note.style.whiteSpace = 'nowrap'; place(this.note, 960, 872, { anchor: 'c' })
       // ---------------- line 3: n counts the terms ----------------
       const ac = card(root, 'warn', 960, 302, 1620, { anchor: 'tc', h: 372, tag: '⚠️ انتبه' })
       this.acard = ac.el; ac.el.style.transformOrigin = '50% 0'
@@ -100,39 +93,6 @@
       this.a1 = chip(root, rich(`مع $a = 1$`, 's').innerHTML, 1480, 818, { anchor: 'cl', color: PU })
       this.a1.style.cssText += ';font-size:32px;white-space:nowrap'
 
-      // ---------------- line 4: check with q = 2, n = 5 ----------------
-      const s4 = svg(root, 0, 0, W, H)
-      this.towerSvg = s4
-      const vals = [1, 2, 4, 8, 16], unit = 17, base = 900, bw = 62, pitch = 84, bx0 = 170, tx = 680, tw = 100
-      Object.assign(this, { vals, unit, base, bw, pitch, bx0, tx, tw })
-      const defs = sv(s4, 'defs'), gr = sv(defs, 'linearGradient', { id: id('gg'), x1: 0, y1: 0, x2: 1, y2: 0 })
-      sv(gr, 'stop', { offset: 0, 'stop-color': G, 'stop-opacity': .95 }); sv(gr, 'stop', { offset: 1, 'stop-color': G, 'stop-opacity': .55 })
-      this.axis4 = sv(s4, 'path', { d: `M${bx0 - 30},${base} L${tx + tw + 150},${base}`, stroke: C.mut, 'stroke-width': 3, fill: 'none' })
-      this.bars = vals.map(() => sv(s4, 'rect', { x: 0, y: 0, width: bw, height: 0, rx: 6, fill: `url(#${id('gg')})`, stroke: G, 'stroke-width': 3 }))
-      this.bl = vals.map((v, k) => { const t = mtex(String(v), 36); root.appendChild(t); place(t, bx0 + k * pitch + bw / 2, base - v * unit - 28, { anchor: 'c' }); return t })
-      // stacking order: 16 (nearest the tower) first, at the bottom, then 8, 4, 2, 1 — no bar ever crosses another
-      this.order = [4, 3, 2, 1, 0]
-      this.below = []
-      this.segL = []
-      let acc = 0, yPrev = base + 12
-      this.order.forEach(k => {
-        const v = vals[k]
-        const t = mtex(tc(C.mut, String(v)), 28); root.appendChild(t)
-        const y = Math.min(base - (acc + v / 2) * unit, yPrev - 27); yPrev = y
-        place(t, tx + tw + 18, y, { anchor: 'cl' })
-        this.below[k] = acc; this.segL[k] = t; acc += v
-      })
-      this.total = el('div', '', '0', root)
-      this.total.style.cssText += `font-family:KaTeX_Main;font-weight:700;font-size:60px;color:${Y}`
-      place(this.total, tx + tw / 2, 0, { anchor: 'bc' })
-      this.qn = chip(root, rich('$q = 2,\\ \\ n = 5$', 's').innerHTML, 1290, 470, { anchor: 'c', color: B })
-      this.qn.style.cssText += ';font-size:34px;white-space:nowrap'
-      this.sum4 = mtex(`1 + 2 + 4 + 8 + 16 = ${tc(G, '31')}`, 56); root.appendChild(this.sum4); place(this.sum4, 1290, 600, { anchor: 'c' })
-      this.chk = el('div', '', null, root)
-      this.chk.style.cssText += 'display:flex;align-items:center;gap:22px;direction:ltr'
-      this.chkF = mtex(`\\dfrac{1-2^5}{1-2} = \\dfrac{-31}{-1} = ${tc(G, '\\mathbf{31}')}`, 60); this.chk.appendChild(this.chkF)
-      this.tick = el('div', '', '✓', this.chk); this.tick.style.cssText = `font-size:76px;font-weight:900;color:${G};text-shadow:0 0 24px ${G}88`
-      place(this.chk, 1290, 790, { anchor: 'c' })
     },
 
     // glyph-dependent geometry, measured once the KaTeX fonts are in (with transforms neutralised)
@@ -186,31 +146,34 @@
       const parkOut = S.p(lt, 2, 0, .4), tLand = Math.max(T(S, 2, .24), S.at(2) + 1.6), landIn = prog(lt, tLand, .7)
       const land = lt >= tLand ? 1 : 0
       const to3 = S.p(lt, 3, .1, .9)                 // line 3: moves into the warning card
-      const outK = 1 - S.p(lt, 4, 0, .5)
-      let kx = GB.x, ky = GB.y, ks = 1
       const lerpP = (a, b, p) => ({ x: lerp(a.x, b.x, p), y: lerp(a.y, b.y, p), s: lerp(a.s, b.s, p) })
       let k = { x: GB.x, y: GB.y, s: 1 }
       k = lerpP(k, { x: 300, y: 262, s: .5 }, park)
-      k = lerpP(k, { x: 540, y: 662, s: 1 }, land)
+      k = lerpP(k, { x: 960, y: 662, s: 1 }, land)
       k = lerpP(k, this.K3 ? { x: this.K3.x, y: this.K3.y, s: this.K3.s } : k, to3)
       const kpop = (pk <= 0 ? .85 : lerp(.85, 1, E.back(clamp(pk)))) * (land ? lerp(.85, 1, E.back(landIn)) : 1)
       this.kb.el.style.transform = `translate(${k.x - GB.x}px,${k.y - GB.y}px) scale(${kpop * k.s})`
-      op(this.kb.el, clamp(pk * 2.5) * outK * (land ? clamp(landIn * 2.5) : 1 - parkOut))
+      op(this.kb.el, clamp(pk * 2.5) * (land ? clamp(landIn * 2.5) : 1 - parkOut))
       this.kb.el.style.boxShadow = `0 0 ${42 + 16 * Math.sin(lt * 1.6)}px ${Y}3a`
+      // line 0: the formula is lit part by part as it is read («إس يساوي إيه ضرب، واحد ناقص كيو أُس إنْ، على، واحد ناقص كيو»)
+      ;[[.44, .5], [.5, .57], [.57, .73], [.76, .9]].forEach(([a, b], j) => {
+        const q = env(lt, T(S, 0, a), T(S, 0, b) + .25, .25, .35)
+        this.kRead[j].style.color = q > 0 ? mixColor(C.ink, Y, q) : ''
+      })
 
       // ======== line 1: shift and subtract ========
       const out2 = 1 - S.p(lt, 2, 0, .5)
       const g1 = clamp((L(1) - 1) / 8, .5, 1)          // compresses the minimum gaps when the voice is fast
       const t1 = T(S, 1, .02)
-      const t2 = Math.max(T(S, 1, .1), t1 + .9 * g1)       // qS row
-      const tS = Math.max(T(S, 1, .2), t2 + .6 * g1)       // "every term creeps one step"
-      const tM = Math.max(T(S, 1, .36), tS + 1.0 * g1)     // subtract: minus sign + rule
+      const t2 = Math.max(T(S, 1, .12), t1 + .9 * g1)      // «واضربه بالأساس كيو»: the qS row
+      const tS = Math.max(T(S, 1, .31), t2 + .6 * g1)      // «فيزحف كلّ حدٍّ خطوة»
+      const tM = Math.max(T(S, 1, .49), tS + 1.0 * g1)     // «اطرح السطرين»: minus sign + rule
       const tC = tM + .35 * g1                             // matching terms connect…
-      const tV = Math.max(T(S, 1, .44), tC + .8 * g1)      // …and vanish in pairs
-      const tA = Math.max(T(S, 1, .56), tV + 1.3 * g1)     // survivor a
-      const tN = Math.max(T(S, 1, .72), tA + 1.0 * g1)     // survivor aq^n
-      const tR = Math.min(Math.max(T(S, 1, .86), tN + .9 * g1), S.end(1) - 1.0)
-      const tR2 = Math.min(Math.max(T(S, 1, .93), tR + .6), S.end(1) - .4)
+      const tV = Math.max(T(S, 1, .55), tC + .8 * g1)      // …and vanish in pairs
+      const tA = Math.max(T(S, 1, .68), tV + 1.3 * g1)     // «فلا يبقى إلّا إيه»: survivor a
+      const tN = Math.max(T(S, 1, .8), tA + 1.0 * g1)      // «ناقص إيه ضرب كيو أُس إنْ»: survivor aq^n
+      const tR = Math.min(Math.max(T(S, 1, .88), tN + .9 * g1), S.end(1) - 1.0)
+      const tR2 = Math.min(Math.max(T(S, 1, .94), tR + .6), S.end(1) - .4)
       op(this.l1, prog(lt, t1, .6) * out2)
       const p2 = prog(lt, t2, .5)
       const shift = prog(lt, tS, .8) * (this.Tw + this.Pw)
@@ -241,91 +204,46 @@
       glow(this.r1[0], sa); glow(this.r2[8], sn)
       show(this.tagA, sa, out2, 12); show(this.tagN, sn, out2, 12)
       show(this.res1, prog(lt, tR, .6), out2, 20)
-      // S(1-q) = a(1-q^n): appears under the subtraction, then (line 2) rises to the left column
+      // S(1-q) = a(1-q^n): appears under the subtraction, then (line 2) rises to the top of the centred column
       const pR2 = prog(lt, tR2, .6)
       const up = S.p(lt, 2, .1, .9)
       const out3 = 1 - S.p(lt, 3, 0, .5)
-      const h = this.res2Home || { x: 540, y: 350 }
+      const h = this.res2Home || { x: 960, y: 350 }
       this.res2.style.transform = `translate(${lerp(960 - h.x, 0, up)}px,${lerp(860 - h.y, 0, up) + (1 - pR2) * 20}px)`
       op(this.res2, pR2 * out3)
       op(this.res2b, Math.min(pR2, 1 - up) * out2)
       this.res2b.style.transform = `translate(${960 - h.x}px,${860 - h.y}px)`
 
-      // ======== line 2: divide by 1-q, q = 1 ========
+      // ======== line 2 «ثمّ نقسم على 1−q، وهذا مسموح لأنّ q لا يساوي واحداً» ========
       const pRing = P(lt, S, 2, .14, .6)
       draw(this.ring, pRing); this.ring.style.opacity = out3
       show(this.down, P(lt, S, 2, .18, .5), out3, -16)
-      show(this.note, P(lt, S, 2, .36, .6), out3, 16)
-      const pw = P(lt, S, 2, .62, .7)
-      show(this.wcard, pw, out3, 40)
-      show(this.w1, P(lt, S, 2, .66, .5), 1, 12)
-      show(this.w2, P(lt, S, 2, .76, .5), 1, 12)
-      show(this.w3, P(lt, S, 2, .86, .5), 1, 12)
-
-      // ======== line 3: n = number of terms ========
-      const out4 = 1 - S.p(lt, 4, 0, .4)
+      show(this.note, P(lt, S, 2, .46, .6), out3, 16)                 // «وهذا مسموح لأنّ …»
+      // ======== line 3 (last line): n = number of terms, then the special case a = 1 ========
       const pc = S.p(lt, 3, .35, .6)
-      op(this.acard, pc * out4); this.acard.style.transform = `scale(${lerp(.97, 1, pc)})`
-      show(this.terms, S.p(lt, 3, .6, .6), out4, 20)
+      op(this.acard, pc); this.acard.style.transform = `scale(${lerp(.97, 1, pc)})`
+      show(this.terms, S.p(lt, 3, .6, .6), 1, 20)
       const tCn = Math.max(T(S, 3, .2), S.at(3) + 1.4)
-      this.cnt.forEach((c, j) => { const p = prog(lt, tCn + j * .3, .45); pop(c, p); op(c, clamp(p * 2.5) * out4) })
+      this.cnt.forEach((c, j) => { const p = prog(lt, tCn + j * .3, .45); pop(c, p); op(c, clamp(p * 2.5)) })
       const tAr = Math.max(T(S, 3, .3), tCn + 1.3)
       const pa = prog(lt, tAr, .8)
-      draw(this.nArrow, pa); this.nArrow.style.opacity = out4
-      op(this.nHead, pa >= .98 ? out4 : 0)
-      const pkn = prog(lt, Math.max(T(S, 3, .1), S.at(3) + .9), .5) * out4
+      draw(this.nArrow, pa)
+      op(this.nHead, pa >= .98 ? 1 : 0)
+      const pkn = prog(lt, Math.max(T(S, 3, .1), S.at(3) + .9), .5)
       this.knEl.style.color = pkn > 0 ? mixColor(C.ink, Y, pkn) : ''
       this.knEl.style.textShadow = pkn > 0 ? `0 0 ${18 * pkn}px ${Y}` : ''
       const tNote = Math.max(T(S, 3, .4), tAr + .6)
       const p3h = prog(lt, tNote, .5)
       this.t3eEl.style.color = p3h > 0 ? mixColor(C.ink, R, p3h) : ''
       this.t3eEl.style.textShadow = p3h > 0 ? `0 0 ${16 * p3h}px ${R}` : ''
-      show(this.note3, prog(lt, tNote, .6), out4, 16)
+      show(this.note3, prog(lt, tNote, .6), 1, 16)
       const pSp = P(lt, S, 3, .72, .7)
-      const kSpMove = S.p(lt, 4, .2, .9)
       this.kSp.set(pSp)
       const kspPop = pSp <= 0 ? .85 : lerp(.85, 1, E.back(clamp(pSp)))
-      this.kSp.el.style.transform = `translate(${lerp(0, 1290 - 900, kSpMove)}px,${lerp(0, 330 - 818, kSpMove)}px) scale(${kspPop * lerp(1, .72, kSpMove)})`
+      this.kSp.el.style.transform = `scale(${kspPop})`
       op(this.kSp.el, clamp(pSp * 2.5))
       this.kSp.el.style.boxShadow = `0 0 ${42 + 16 * Math.sin(lt * 1.6 + 1)}px ${Y}3a`
-      show(this.a1, P(lt, S, 3, .6, .6), out4, 16)
-
-      // ======== line 4: 1+2+4+8+16 = 31 ========
-      const L4 = L(4)
-      const g4 = clamp((L(4) - 1) / 6.4, .5, 1)
-      const t4 = S.at(4) + .5
-      const axL = lerp(this.bx0 - 30, this.tx - 70, prog(lt, Math.max(T(S, 4, .22), t4 + 1.6 * g4) + 4 * Math.min(.55, .07 * L4 + .1) + .5, .8))
-      this.axis4.setAttribute('d', `M${axL},${this.base} L${this.tx + this.tw + 150},${this.base}`); this.axis4._len = 0
-      draw(this.axis4, prog(lt, t4 - .1, .5))
-      const tStack = Math.max(T(S, 4, .22), t4 + 1.6 * g4)
-      const dStack = Math.min(.55, .07 * L4 + .1)
-      let shown = 0, nIn = 0
-      this.bars.forEach((r, j) => {
-        const v = this.vals[j], slot = this.order.indexOf(j)
-        const pin = prog(lt, t4 + j * .18, .45, E.out)
-        const pm2 = prog(lt, tStack + slot * dStack, dStack * 1.1)
-        const x = lerp(this.bx0 + j * this.pitch, this.tx, pm2), w = lerp(this.bw, this.tw, pm2)
-        const hgt = v * this.unit * pin
-        // rise first, then slide in: the flying bar never dips into the tower
-        const yBottom = lerp(this.base, this.base - this.below[j] * this.unit, E.out(clamp(pm2 * 1.4))) - Math.sin(Math.PI * pm2) * 40
-        r.setAttribute('x', x); r.setAttribute('width', w); r.setAttribute('height', Math.max(0, hgt)); r.setAttribute('y', yBottom - hgt)
-        r.style.opacity = pin > 0 ? 1 : 0
-        op(this.bl[j], Math.min(prog(lt, t4 + j * .18 + .25, .4), 1 - prog(lt, tStack + slot * dStack, .3)))
-        show(this.segL[j], prog(lt, tStack + slot * dStack + dStack * .9, .4), 1, 0)
-        if (pm2 >= 1) { shown += v; nIn++ }
-      })
-      op(this.towerSvg, 1)
-      this.total.textContent = shown
-      this.total.style.top = (this.base - shown * this.unit - 14) + 'px'
-      op(this.total, nIn > 0 ? 1 : 0)
-      const done = prog(lt, tStack + 4 * dStack + dStack * 1.1, .5)
-      this.total.style.color = mixColor(Y, G, done)
-      this.total.style.textShadow = done > 0 ? `0 0 ${26 * done}px ${G}88` : ''
-      show(this.qn, prog(lt, t4 + .2, .5), 1, 16)
-      show(this.sum4, prog(lt, Math.min(Math.max(T(S, 4, .5), tStack + 4 * dStack + .4 * g4), S.end(4) - 1.6), .6), 1, 16)
-      const tChk = Math.min(Math.max(T(S, 4, .66), tStack + 4 * dStack + 1.1 * g4), S.end(4) - 1.0)
-      wipe(this.chkF, prog(lt, tChk, .9), 'ltr')
-      pop(this.tick, prog(lt, tChk + 1.0, .5))
+      show(this.a1, P(lt, S, 3, .6, .6), 1, 16)
     },
   })
 })()

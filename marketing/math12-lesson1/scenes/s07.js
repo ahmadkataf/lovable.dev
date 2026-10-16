@@ -1,6 +1,17 @@
 // s07 · بوجه عام — the general recursive definition u_{n+1} = f(u_n) and why f must map D into D
 (() => {
   // ---------- local helpers (no globals) ----------
+  // scene time at which a phrase of line i is spoken (character position in the narration ≈ time); def = fallback fraction
+  const strip = t => t.replace(/[\u064B-\u0652\u0640]/g, '')
+  function cue(S, i, needles, def = 0, lead = .15) {
+    const L = S.lines[i]
+    if (!L) return Infinity
+    const txt = strip(L.text || '')
+    let k = -1
+    for (const n of [].concat(needles || [])) { k = txt.indexOf(strip(n)); if (k >= 0) break }
+    const f = k >= 0 ? k / Math.max(1, txt.length) : def
+    return Math.max(S.at(i), S.at(i) + f * (S.end(i) - S.at(i)) - lead)
+  }
   // smooth closed blob around (cx, cy); t makes it breathe
   function blobPath(cx, cy, rx, ry, t) {
     const n = 14, pts = []
@@ -59,6 +70,13 @@
   scene('s07', {
     build(root, S) {
       this.F = (i, fr) => S.at(i) + fr * (S.end(i) - S.at(i))   // scene time at a fraction of line i
+      // beats of lines 2–3, cued to the words of the final narration
+      this.T = {
+        take: cue(S, 2, 'خذ التابع', .38), root: cue(S, 2, 'جذر إكس', .47), minus: cue(S, 2, 'منه واحد', .62),
+        let0: cue(S, 2, 'وليكن', .71), start: cue(S, 2, 'حد البدء', .76), u0: cue(S, 2, ['يو صفر يساوي', 'يو صفر'], .84), zero: cue(S, 2, 'يساوي صفرا', .9),
+        neg: cue(S, 3, 'سالب واحد', .14), out: cue(S, 3, 'وهو خارج', .31), noRoot: cue(S, 3, 'فلا جذر', .51), real: cue(S, 3, 'حقيقيا', .63),
+        jam: cue(S, 3, 'وتتعطل', .8),
+      }
       this.head = heading(root, 'العلاقة التدريجيّة $u_{n+1} = f(u_n)$')
 
       // ================= phase 1: the general statement (lines 0–1) =================
@@ -192,8 +210,11 @@
       this.wu = rich('حدّ البدء: $u_0 = 0$', 'p ctr'); w.body.appendChild(this.wu)
       this.wu.querySelector('bdi').style.color = C.yel
 
-      this.st1 = tex(`u_1 = \\sqrt{0} - 1 = \\textcolor{${C.red}}{-1 \\notin D}`, 'mx')
-      root.appendChild(this.st1); place(this.st1, 1430, 642, { anchor: 'c' })
+      this.st1w = el('div', '', null, root)
+      place(this.st1w, 1430, 642, { anchor: 'c' })
+      this.st1w.style.cssText += 'direction:ltr;display:flex;align-items:baseline;white-space:nowrap'
+      this.st1 = tex(`u_1 = \\sqrt{0} - 1 = \\textcolor{${C.red}}{-1}`, 'mx'); this.st1w.appendChild(this.st1)
+      this.st1b = tex(`\\textcolor{${C.red}}{\\;\\notin D}`, 'mx'); this.st1w.appendChild(this.st1b)
       this.st2w = el('div', '', null, root)
       place(this.st2w, 1430, 738, { anchor: 'c' })
       this.st2w.style.position = 'absolute'
@@ -272,48 +293,52 @@
       rise(this.never, prog(lt, ht[4] + 1, .6) * out1, 16)
 
       // ---------- phase 2 ----------
-      const mIn = S.p(lt, 2, .35, .7)
+      const T = this.T
+      const mIn = S.p(lt, 2, .35, .7)                     // «ولماذا هذا الشرط؟» the machine
       this.mach.style.opacity = mIn
-      const tj = F(3, .44)                                // the −1 reaches the input: the machine jams
+      const tj = T.jam                                    // «وتتعطّل الآلة»: the machine jams
       const sk = lt > tj ? Math.exp(-(lt - tj) * 3.2) * Math.sin((lt - tj) * 55) * 12 * (1 - prog(lt, tj + 1.4, .1)) : 0
       this.mach.style.transformOrigin = `${this.M.x}px ${this.M.y}px`
       this.mach.style.transform = `translate(${sk}px, 0) scale(${lerp(.9, 1, E.out(mIn))})`
-      const pd = S.p(lt, 2, .6, 1.1)
+      // «لأنّ كلّ مُخرَجٍ يعود مُدخَلاً»: the output → input pipe is drawn, then glows
+      const tPipe = Math.max(S.at(2) + .6, cue(S, 2, 'كل مخرج', .2, .3))
+      const pd = prog(lt, tPipe, 1.1)
       this.pipes.forEach(p => draw(p, pd))
-      // the pipe glows: light pulses flow from output to input
-      const gOn = S.p(lt, 2, 1.4, .6)
+      const gOn = prog(lt, tPipe + .8, .6)
       this.pipeGlow.style.opacity = gOn * (.8 + .2 * Math.sin(lt * 3))
       this.pipeGlow.style.strokeDashoffset = -lt * 150
-      const bad = prog(lt, F(3, .05), .4)
+      const bad = prog(lt, S.at(3) + .2, .4)
       this.pipeGlow.style.stroke = mixColor(C.yel, C.red, bad)
       this.pipeGlow.style.filter = `drop-shadow(0 0 8px ${bad > .5 ? 'rgba(255,92,138,.9)' : 'rgba(255,210,63,.9)'})`
-      rise(this.pipeLab, S.p(lt, 2, 1.3, .6) * (1 - prog(lt, F(3, .2), .4)), 12)
+      rise(this.pipeLab, prog(lt, tPipe + .3, .6) * (1 - prog(lt, T.out, .4)), 12)
 
-      // window: f → f(x) = √x − 1, then red when jammed
-      const wsw = prog(lt, F(2, .55), .6)
+      // window: f → f(x) = √x − 1 («جذر إكس، مطروحاً منه واحد»), then red when jammed
+      const wsw = prog(lt, T.root + .4, .6)
       op(this.winF, mIn * (1 - wsw))
       op(this.winX, mIn * wsw)
       this.redWin.style.opacity = prog(lt, tj, .35) * (.28 + .1 * Math.sin(lt * 6))
       this.winX.style.transform = `translate(${sk}px,0)`
-      pop(this.xBadge, prog(lt, tj + .15, .5))
+      pop(this.xBadge, prog(lt, tj + .1, .5))
       this.xBadge.style.translate = `calc(-50% + ${sk}px) -50%`
-      rise(this.jam, prog(lt, tj + .35, .5), 14)
+      rise(this.jam, prog(lt, tj + .3, .5), 14)
 
-      // u0 = 0 rides the last stretch of the pipe into the funnel and sinks in
+      // u0 = 0 («وليكن حدّ البدء يو صفر يساوي صفراً») rides the last stretch of the pipe into the funnel and sinks in
       const L = this.pipeLen
-      const c0t = prog(lt, F(2, .88), .9, E.io)
-      const c0in = prog(lt, F(2, .88) + .9, .5, E.in)
-      if (lt < F(2, .84) || c0in >= 1) this.card0.style.opacity = 0
+      const c0s = Math.min(T.u0, S.at(3) - 1.5)
+      const c0t = prog(lt, c0s + .1, .9, E.io)
+      const c0in = prog(lt, c0s + 1, .5, E.in)
+      if (lt < c0s || c0in >= 1) this.card0.style.opacity = 0
       else {
         const p = this.pipeIn.getPointAtLength(lerp(L - 300, L, c0t))
-        this.card0.style.opacity = prog(lt, F(2, .84), .3)
+        this.card0.style.opacity = prog(lt, c0s, .3)
         this.card0.setAttribute('transform', `translate(${p.x},${p.y + c0in * 110})`)
       }
-      // −1 comes out, rides the pipe all the way round, and gets stuck in the input
-      const cOut = prog(lt, F(3, 0), .5, E.out)
-      const cRide = prog(lt, F(3, .12), F(3, .4) - F(3, .12), E.io)
-      const cIn = prog(lt, F(3, .4), tj - F(3, .4), E.in)
-      if (lt < F(3, 0)) this.cardM.style.opacity = 0
+      // −1 comes out («تحصل على سالب واحد»), rides the pipe all the way round and gets stuck in the input («فلا جذر…»)
+      const r0 = S.at(3) + .55, r1 = Math.max(r0 + .8, T.noRoot - .1)
+      const cOut = prog(lt, S.at(3), .5, E.out)
+      const cRide = prog(lt, r0, r1 - r0, E.io)
+      const cIn = prog(lt, r1, .4, E.in)
+      if (lt < S.at(3)) this.cardM.style.opacity = 0
       else {
         let x, y
         if (cRide <= 0) { x = this.M.x; y = lerp(560, 690, cOut) }
@@ -323,31 +348,32 @@
       }
 
       // number line D = [0,+∞[ and the escaping hop
-      const nlp = prog(lt, F(2, .68), .7)
+      const nlp = prog(lt, T.let0, .7)
       this.nl.style.opacity = nlp
       this.nlab.forEach(e => op(e, nlp))
-      this.band.style.opacity = prog(lt, F(2, .74), .6)
-      rise(this.bandLab, prog(lt, F(2, .74), .6), 12)
-      setDot(this.n0, prog(lt, F(2, .88), .5), this.nx(0), this.NY)
-      rise(this.nu0, prog(lt, F(2, .9), .5), 10)
-      const th = F(3, .03)
+      this.band.style.opacity = prog(lt, T.let0 + .3, .6)
+      rise(this.bandLab, prog(lt, T.let0 + .3, .6), 12)
+      setDot(this.n0, prog(lt, T.zero, .5), this.nx(0), this.NY)
+      rise(this.nu0, prog(lt, T.zero + .1, .5), 10)
+      const th = T.neg                                    // «سالب واحد»: the hop lands on −1
       this.nh.set(prog(lt, th, .7))
       setDot(this.n1, prog(lt, th + .6, .4), this.nx(-1), this.NY)
       rise(this.nu1, prog(lt, th + .7, .4), 10)
-      rise(this.outLab, prog(lt, th + .8, .4), 10)
-      this.outside.setAttribute('opacity', prog(lt, th + .6, .4) * (.22 + .1 * Math.sin(lt * 5)))
+      rise(this.outLab, prog(lt, T.out, .4), 10)          // «وهو خارج دي»
+      this.outside.setAttribute('opacity', prog(lt, T.out, .4) * (.22 + .1 * Math.sin(lt * 5)))
 
       // right column
-      rise(this.warn, prog(lt, F(2, .4), .6))
-      wipe(this.wf, prog(lt, F(2, .48), .8), 'ltr')
-      rise(this.wD, prog(lt, F(2, .7), .5), 12)
-      rise(this.wu, prog(lt, F(2, .86), .5), 12)
-      wipe(this.st1, prog(lt, F(3, .02), .9), 'ltr')
-      wipe(this.st2, prog(lt, F(3, .36), .7), 'ltr')
-      const stP = prog(lt, F(3, .56), .45)
+      rise(this.warn, prog(lt, T.take, .6))               // «خذ التابع»
+      wipe(this.wf, prog(lt, T.root, .9), 'ltr')
+      rise(this.wD, prog(lt, T.minus + .4, .5), 12)
+      rise(this.wu, prog(lt, T.start, .5), 12)            // «وليكن حدّ البدء يو صفر يساوي صفراً»
+      wipe(this.st1, prog(lt, S.at(3) + .05, .9), 'ltr')
+      pop(this.st1b, prog(lt, T.out, .5))
+      wipe(this.st2, prog(lt, T.noRoot, .7), 'ltr')       // «فلا جذرَ حقيقيّاً له»
+      const stP = prog(lt, T.real, .45)
       op(this.strike, stP > 0 ? 1 : 0); this.strike.style.transform = `scaleX(${stP})`
-      rise(this.st2x, prog(lt, F(3, .62), .5), 14)
-      pop(this.cap, prog(lt, F(3, .78), .6))
+      rise(this.st2x, prog(lt, T.real + .3, .5), 14)
+      pop(this.cap, prog(lt, tj + .6, .6))
     },
   })
 })()

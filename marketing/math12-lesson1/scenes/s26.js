@@ -315,9 +315,9 @@
       // ================= L1 timings =================
       const tUse = Math.max(F(1, .02), T.at(1) + .3)
       const tS0 = Math.max(F(1, .05), tUse + .3), tS1 = Math.max(F(1, .46), tS0 + 1.2)
-      const tSr = Math.max(F(1, .5), tS1 + .1), tFly = Math.max(F(1, .62), tSr + .7)
-      const tSwap = Math.max(F(1, .72), tFly + .8)
-      const tD1 = tSwap + .35, tD2 = Math.max(F(1, .82), tD1 + .9), tRes = Math.max(F(1, .92), tD2 + .9), tOk = tRes + .5
+      const tSr = Math.max(F(1, .5), tS1 + .1), tFly = Math.max(F(1, .6), tSr + .5)
+      const tSwap = Math.max(F(1, .68), tFly + .45)
+      const tD1 = tSwap + .15, tD2 = Math.max(F(1, .8), tD1 + .6), tRes = Math.max(F(1, .9), tD2 + .6), tOk = tRes + .4
       const out1 = T.p(lt, 3, 0, .6)                      // everything under card ① leaves when the step begins
       const dimD = lerp(1, .45, f2)                        // and steps back while ② is discussed
       // frame on the sum: from «بقانون المجموع» until the sum is settled
@@ -338,15 +338,15 @@
       const srP = prog(lt, tSr, .5)
       op(this.sr, srP); this.sr.style.transform = `translateX(${(1 - E.out(srP)) * -20}px)`
       this.sr.style.textShadow = srP > 0 ? `0 0 ${16 * (1 - prog(lt, tFly + .6, .6))}px rgba(56,189,248,.8)` : ''
-      const fl = prog(lt, tFly, .8, E.io), fly = this.flyL
+      const fl = prog(lt, tFly, .6, E.io), fly = this.flyL
       op(this.chL, clamp(fl * 3))
       this.chL.style.transform = `translate(${fly.dx * (1 - fl)}px, ${fly.dy * (1 - fl)}px) scale(${lerp(.75, 1, fl)})`
       // S = n(a+ℓ)/2 = n(1+(2n−1))/2 = n²
       op(this.der, (1 - out1) * dimD)
-      wipe(this.d.d1, prog(lt, tD1, .8), 'ltr')
+      wipe(this.d.d1, prog(lt, tD1, .6), 'ltr')
       this.d.da.style.color = mixColor(C.ink, B, prog(lt, tD1 + .5, .4))
       this.d.dl.style.color = mixColor(C.ink, B, prog(lt, tD1 + .7, .4))
-      wipe(this.d.d2, prog(lt, tD2, .8), 'ltr')
+      wipe(this.d.d2, prog(lt, tD2, .6), 'ltr')
       const pRes = prog(lt, tRes, .5)
       op(this.d.d3, clamp(pRes * 2.5)); this.d.d3.style.transform = `scale(${pRes <= 0 ? .6 : lerp(.6, 1, E.back(pRes))})`
       this.d.d3.style.textShadow = pRes > 0 ? `0 0 ${14 + 8 * Math.sin(lt * 2.4)}px rgba(110,224,90,.55)` : ''

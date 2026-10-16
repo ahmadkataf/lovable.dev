@@ -27,17 +27,18 @@
       cd.body.appendChild(this.def); splitWords(this.def)
       this.baseHl = el('div', 'hlbg', null, root); this.baseHl.style.background = 'rgba(167,139,250,.22)'; op(this.baseHl, 0)
       this.xqHl = el('div', 'hlbox', null, root); this.xqHl.style.borderColor = G; this.xqHl.style.boxShadow = `0 0 26px ${G}55`; op(this.xqHl, 0)
-      this.book = rich(`إذن في متتالية هندسيّة ننتقل من حدٍّ إلى الحدّ الذي يليه <span class="grn b">بالضرب</span> بالعدد الحقيقي ذاته.`, 'p')
+      // ---------------- line 1 (first half): the book sentence under the card, and the ×q chain ----------------
+      this.book = rich(`ننتقل من حدٍّ إلى الحدّ الذي يليه <span class="grn b">بالضرب</span> بالعدد الحقيقي ذاته.`, 'p')
       this.book.style.cssText += `border-right:6px solid ${PU};padding-right:26px;color:${C.ink}`
-      root.appendChild(this.book); place(this.book, 1800, 668, { anchor: 'tr', w: 1620 })
+      root.appendChild(this.book); place(this.book, 1770, 664, { anchor: 'tr', w: 1590 }); splitWords(this.book)
       // little chain u0 → u1 → u2 → u3 → …
       this.ch0 = el('div', '', null, root)
       this.ch0.style.cssText += 'display:flex;align-items:center;gap:10px;direction:ltr'
       const ch0 = ['u_0', `\\xrightarrow{${tc(G, '\\times q')}}`, 'u_1', `\\xrightarrow{${tc(G, '\\times q')}}`, 'u_2', `\\xrightarrow{${tc(G, '\\times q')}}`, 'u_3', `\\xrightarrow{${tc(G, '\\times q')}}`, '\\cdots']
       this.ch0p = ch0.map(s => { const t = mtex(s, 54); this.ch0.appendChild(t); return t })
-      place(this.ch0, 960, 860, { anchor: 'c' })
+      place(this.ch0, 960, 818, { anchor: 'c' })
 
-      // ---------------- line 1: bars ----------------
+      // ---------------- line 1 (second half): bars ----------------
       const bw = 84, gap = 56, unit = 24, base = 790
       Object.assign(this, { bw, gap, unit, base })
       const s = svg(root, 0, 0, W, H)
@@ -81,9 +82,9 @@
       this.arF = tex(`\\htmlId{${id('ab')}}{u_m = u_p} \\htmlId{${id('ap')}}{${tc(Y, '+')}} \\htmlId{${id('am')}}{${tc(B, '(m-p)')}}\\,\\htmlId{${id('ar')}}{r}`, 'mx')
       this.ar.appendChild(this.arF)
       const at = el('div', '', 'حسابيّة', this.ar); at.style.cssText = `position:absolute;top:-22px;right:30px;padding:6px 18px;border-radius:999px;font-size:24px;font-weight:800;color:#0b1020;background:${C.mut}`
-      place(this.ar, 1370, 650, { anchor: 'c' })
+      place(this.ar, 1370, 632, { anchor: 'c' })
       // geometric law (left), the key box
-      this.kb = keyBox(root, `\\htmlId{${id('gb')}}{u_m = u_p}\\,\\htmlId{${id('gq')}}{q}^{\\htmlId{${id('ge')}}{${tc(B, 'm-p')}}}`, 560, 650, { cls: 'mx', label: 'هندسيّة' })
+      this.kb = keyBox(root, `\\htmlId{${id('gb')}}{u_m = u_p}\\,\\htmlId{${id('gq')}}{q}^{\\htmlId{${id('ge')}}{${tc(B, 'm-p')}}}`, 560, 632, { cls: 'mx', label: 'هندسيّة' })
       this.kb.el.style.transformOrigin = '50% 50%'
       // flying copy (pieces carry an id'd core so they land exactly on the key-box glyphs)
       const piece = (src, core) => { const t = mtex(src, 64); root.appendChild(t); place(t, 0, 0); t.style.transformOrigin = '0 0'; op(t, 0); return { el: t, core } }
@@ -95,10 +96,17 @@
       this.fQ = piece(`\\htmlId{${id('fq')}}{q}`, 'fq')
       this.pieces = [this.fB, this.fP, this.fM, this.fS, this.fR, this.fQ]
       this.phrase = rich('أيّاً كان العددان الطبيعيان $m$ و $p$', 'p'); root.appendChild(this.phrase)
-      this.phrase.style.whiteSpace = 'nowrap'; place(this.phrase, 560, 805, { anchor: 'c' })
-      this.leg1 = chip(root, rich(`الجمع $${tc(Y, '+')}$ ← الضرب $${tc(Y, '\\times')}$`, 's').innerHTML, 1370, 800, { anchor: 'c' })
-      this.leg2 = chip(root, rich(`الجداء $${tc(B, '(m-p)')}\\,r$ ← القوّة $q^{${tc(B, 'm-p')}}$`, 's').innerHTML, 1370, 885, { anchor: 'c' })
+      this.phrase.style.whiteSpace = 'nowrap'; place(this.phrase, 560, 762, { anchor: 'c' })
+      this.leg1 = chip(root, rich(`الجمع $${tc(Y, '+')}$ ← الضرب $${tc(Y, '\\times')}$`, 's').innerHTML, 1370, 764, { anchor: 'c' })
+      this.leg2 = chip(root, rich(`الجداء $${tc(B, '(m-p)')}\\,r$ ← القوّة $q^{${tc(B, 'm-p')}}$`, 's').innerHTML, 1370, 850, { anchor: 'c' })
       ;[this.leg1, this.leg2].forEach(c => { c.style.whiteSpace = 'nowrap'; c.style.fontSize = '30px'; c.style.color = C.ink })
+      // small blue note under the box: m < p → divide by q instead (chain going left)
+      this.note = el('div', '', null, root)
+      this.note.style.cssText += `display:flex;flex-direction:column;align-items:flex-start;gap:4px;padding:10px 28px 12px;border-radius:18px;border:2px solid ${B}77;background:rgba(56,189,248,.07);direction:rtl;color:${B}`
+      const n1 = rich(`إذا كان $m<p$ (و $q\\ne0$): &nbsp;$q^{m-p}=\\dfrac{1}{q^{p-m}}$`, 's'); this.note.appendChild(n1)
+      const n2 = rich(`— نقسم على $q$ بدل الضرب &nbsp; $u_m \\xleftarrow{\\;\\div q\\;} \\cdots \\xleftarrow{\\;\\div q\\;} u_p$`, 's'); this.note.appendChild(n2)
+      ;[n1, n2].forEach(r => { r.style.whiteSpace = 'nowrap'; r.style.color = B; r.style.fontSize = '30px' })
+      place(this.note, 560, 806, { anchor: 'tc' })
     },
 
     // glyph-dependent geometry, measured once the KaTeX fonts are loaded (transforms neutralised first)
@@ -134,22 +142,28 @@
       this.measure()
       this.head.set(S.p(lt, 0, 0, .7))
 
-      // ======== line 0: definition card ========
-      const out1 = 1 - S.p(lt, 1, 0, .5)
+      // ======== line 0: definition card (it stays while line 1 reads the book sentence under it) ========
+      const out1 = 1 - P(lt, S, 1, .38, .5)
       show(this.card, S.p(lt, 0, .15, .7), out1, 40)
-      const tType = Math.max(1.5, .3 * (S.end(0) - S.at(0)))
-      typeWords(this.def, clamp((lt - S.at(0) - .4) / tType))
+      // typed along the narration: the recurrence is on screen when it is read (≈30–50 % of the line),
+      // «أيّاً كان … n» around 55–70 %, «نسمّي … أساس» in the last third
+      const f0 = S.f(lt, 0), K0 = [[.03, 0], [.29, .52], [.52, .55], [.68, .7], [.72, .74], [.92, 1]]
+      let pt = 0
+      for (let k = 1; k < K0.length; k++) if (f0 >= K0[k - 1][0]) pt = lerp(K0[k - 1][1], K0[k][1], clamp((f0 - K0[k - 1][0]) / (K0[k][0] - K0[k - 1][0])))
+      typeWords(this.def, pt)
       // "q × u_n" is framed when the narrator reads it (and only once it has been typed)
-      const pxq = prog(lt, Math.max(T(S, 0, .28), S.at(0) + .4 + tType * .6), .5)
+      const pxq = P(lt, S, 0, .41, .5)
       op(this.xqHl, clamp(pxq * 1.5) * out1 * (1 - .4 * P(lt, S, 0, .8, .6)))
       this.xqHl.style.transform = `scale(${lerp(1.15, 1, E.out(pxq))})`
       const pb = P(lt, S, 0, .88, .6)
       op(this.baseHl, (pb > 0 ? 1 : 0) * out1); this.baseHl.style.transform = `scaleX(${E.out(pb)})`
-      show(this.book, P(lt, S, 0, .54, .7), out1, 24)
-      const t0 = T(S, 0, .62)
-      this.ch0p.forEach((e, k) => { const p = prog(lt, t0 + k * .22, .45); op(e, p * out1); e.style.transform = `translateX(${(1 - p) * -20}px)` })
+      // ======== line 1 «أي ننتقل من حدٍّ إلى الذي يليه بالضرب بالعدد الحقيقيّ ذاته»: book sentence + ×q chain ========
+      show(this.book, S.p(lt, 1, 0, .5), out1, 24)
+      typeWords(this.book, S.f(lt, 1, .0, .34))
+      const t0 = T(S, 1, .12)
+      this.ch0p.forEach((e, k) => { const p = prog(lt, t0 + k * .2, .45); op(e, p * out1); e.style.transform = `translateX(${(1 - p) * -20}px)` })
 
-      // ======== line 1: bars ========
+      // ======== line 1 «تخيّلها أعمدةً تتضاعف … أو تنكمش …»: bars ========
       const out2 = 1 - S.p(lt, 2, 0, .5)
       op(this.barSvg, out2)
       const L1 = S.end(1) - S.at(1)
@@ -177,9 +191,9 @@
           if (k > 0) { arcs[k - 1].set(prog(lt, tk + step * .3, .5)); arcs[k - 1].path.style.opacity = 1; show(arcL[k - 1], prog(lt, tk + step * .4, .4), out2, 10) }
         })
       }
-      runPanel(this.pG, .05, .38)
-      runPanel(this.pR, .5, .82)
-      show(this.vs, P(lt, S, 1, .86, .6), out2, 20)
+      runPanel(this.pG, .43, .66)
+      runPanel(this.pR, .72, .93)
+      show(this.vs, P(lt, S, 1, .22, .6), out2, 20)                 // «بالضرب»: + r ↔ × q (stays under the bars)
 
       // ======== line 2: u_m = u_p q^(m-p) ========
       this.chp.forEach((e, k) => {
@@ -215,9 +229,11 @@
         put(this.fR, g.r, 40, 1, vis * (1 - rq))
         put(this.fQ, g.r, 40, 1, vis * rq)
       }
-      show(this.phrase, P(lt, S, 2, .74, .6), 1, 16)
-      show(this.leg1, P(lt, S, 2, .8, .5), 1, 16)
-      show(this.leg2, P(lt, S, 2, .86, .5), 1, 16)
+      // the legend follows the morph: «+ → ×» as the plus turns, «product → power» as (m−p) climbs into the exponent
+      show(this.leg1, prog(lt, tF + .5, .5), 1, 16)
+      show(this.leg2, prog(lt, tF + 1.1, .5), 1, 16)
+      show(this.phrase, P(lt, S, 2, .72, .6), 1, 16)
+      show(this.note, P(lt, S, 2, .82, .6), 1, 16)
     },
   })
 })()

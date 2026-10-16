@@ -8,7 +8,7 @@
   const Y = C.yel, P = C.pur, G = C.grn, B = C.blu, R = C.red
   const col = (c, s) => `\\textcolor{${c}}{${s}}`
   const rgba = (hex, a) => { const h = [1, 3, 5].map(i => parseInt(hex.slice(i, i + 2), 16)); return `rgba(${h.join(',')},${a})` }
-  const DIM = .2
+  const DIM = .27
 
   scene(ID, {
     build(root, S) {
@@ -47,11 +47,10 @@
       // ================= block 1: what a sequence is (purple) =================
       this.b1 = block(940, 860, P, 1, 'المتتالية')
       const r1a = line(this.b1.el, 'تابعٌ على $\\mathbb{N}$ أو على $\\{n_0,\\, n_0+1,\\, \\dots\\}$')
-      const g1 = grid(this.b1.el, 'auto 1fr', 44, 'align-items:start;margin-top:2px')
-      const r1b = line(g1, `<b style="color:${P}">صريح:</b> $u_n = f(n)$`)
-      const c1 = el('div', '', null, g1)
-      line(c1, `<b style="color:${P}">تدريجي:</b> $u_0\\in D$ و $u_{n+1} = f(u_n)$،`)
-      line(c1, `حيث $f(x)\\in D$ مهما يكن $x\\in D$`, { color: C.mut, css: 'margin-inline-start:12px' })
+      const r1b = line(this.b1.el, `<b style="color:${P}">صريح:</b> $u_n = f(n)$`)
+      const c1 = el('div', '', null, this.b1.el)
+      line(c1, `<b style="color:${P}">تدريجي:</b> حدّ البدء $u_0$ وعلاقة تدريجيّة تحسب كلّ حدّ بدلالة ما سبقه`, { fs: 26 })
+      line(c1, `مثلاً $u_{n+1} = f(u_n)$ مع $u_0\\in D$ و $f(x)\\in D$ مهما يكن $x\\in D$`, { fs: 26, color: C.mut, css: 'margin-inline-start:26px' })
       this.r1 = [r1a, r1b, c1]
 
       // ================= block 2: monotonicity (green / pink) =================
@@ -65,32 +64,39 @@
         cell('ثابتة:|$u_n = u_{n+1}$', B),
       ]
       this.r2.push(line(g2, `<span style="color:${C.mut}">وتسمّى</span> <b style="color:${Y}">مطّردة</b>`, { fs: 28 }))
-      sub(this.b2.el, 'ثلاث طرائق لدراسة الاطّراد:')
+      const gm = grid(this.b2.el, 'auto 1fr', 26, 'align-items:center;margin-top:10px;padding-top:10px;border-top:1.5px solid rgba(255,255,255,.08)')
+      const ml = el('div', '', 'ثلاث طرائق<br>لدراسة<br>الاطّراد', gm)
+      ml.style.cssText = `font-size:25px;font-weight:800;line-height:1.35;color:${C.mut};padding-inline-end:20px;border-inline-end:2px solid ${rgba(Y, .35)}`
+      const mc = el('div', '', null, gm)
       this.m2 = [
-        line(this.b2.el, `<b style="color:${Y}">①</b> إشارة الفرق $u_{n+1}-u_n$`, { fs: 28 }),
-        line(this.b2.el, `<b style="color:${Y}">②</b> $u_n = f(n)$ ودراسة اطّراد $f$ على $[n_0,+\\infty[$`, { fs: 28 }),
-        line(this.b2.el, `<b style="color:${Y}">③</b> $\\dfrac{u_{n+1}}{u_n}$ مقابل $1$ <span style="color:${C.mut}">(حدود موجبة تماماً)</span>`, { fs: 28, lh: 1.2, css: 'margin-top:2px' }),
+        line(mc, `<b style="color:${Y}">①</b> إشارة الفرق $u_{n+1}-u_n$`, { fs: 28 }),
+        line(mc, `<b style="color:${Y}">②</b> $u_n = f(n)$ ودراسة اطّراد $f$ على $[n_0,+\\infty[$`, { fs: 28 }),
+        line(mc, `<b style="color:${Y}">③</b> $\\dfrac{u_{n+1}}{u_n}$ مقابل $1$ <span style="color:${C.mut}">(حدود موجبة تماماً)</span>`, { fs: 28, lh: 1.2, css: 'margin-top:2px' }),
       ]
+      this.mLab = ml
 
       // ================= block 3: arithmetic (blue) =================
       const mt = (parent, latex, fs = 33) => { const e = tex(latex, 'mm'); e.style.fontSize = fs + 'px'; parent.appendChild(e); return e }
       this.b3 = block(120, 800, B, 3, 'المتتالية الحسابيّة')
-      const g3 = grid(this.b3.el, 'auto auto', 40, 'justify-content:space-between;row-gap:14px;margin-top:4px')
+      const g3 = grid(this.b3.el, 'auto auto', 40, 'justify-content:space-between;row-gap:14px;margin-top:4px;flex:1;align-content:space-evenly')
       this.f3 = [
         mt(g3, `u_{n+1} = u_n \\htmlId{${ID}-plr}{+ r}`), mt(g3, 'u_m = u_p + (m-p)\\,r'),
         mt(g3, 'S = \\dfrac{n(a+\\ell)}{2}'), mt(g3, '1+2+\\cdots+n = \\dfrac{n(n+1)}{2}'),
       ]
       // ================= block 4: geometric + identity (yellow) =================
       this.b4 = block(120, 800, Y, 4, 'المتتالية الهندسيّة')
-      const g4 = grid(this.b4.el, 'auto auto', 40, 'justify-content:space-between;row-gap:14px;margin-top:4px')
+      const g4 = grid(this.b4.el, 'auto auto', 40, 'justify-content:space-between;row-gap:14px;margin-top:4px;flex:1;align-content:space-evenly')
       this.f4 = [
         mt(g4, `u_{n+1} = \\htmlId{${ID}-tq}{q\\,} u_n`), mt(g4, 'u_m = u_p\\,q^{m-p}'),
-        mt(g4, 'S = a\\,\\dfrac{1-q^n}{1-q}\\ \\ (q\\ne1)'), mt(g4, '1+q+\\cdots+q^{n-1} = \\dfrac{1-q^n}{1-q}'),
+        mt(g4, 'S = a\\,\\dfrac{1-q^n}{1-q}\\ \\ (q\\ne1)'), mt(g4, '1+q+\\cdots+q^{n-1} = \\dfrac{1-q^n}{1-q}\\ \\ (q\\ne1)'),
       ]
+      // both sums carry (q ≠ 1): too wide to sit side by side, so each takes its own full-width row
+      ;[this.f4[2], this.f4[3]].forEach(e => { e.style.gridColumn = '1 / -1'; e.style.justifySelf = 'start' })
       this.idRow = el('div', '', null, this.b4.el)
       this.idRow.style.cssText = `display:flex;align-items:center;gap:12px;direction:rtl;margin-top:16px;padding:8px 16px;border-radius:16px;border:2px dashed ${rgba(Y, .45)};background:rgba(255,210,63,.05)`
       const il = el('span', '', '💡 مطابقة:', this.idRow); il.style.cssText = `font-size:26px;font-weight:800;color:${Y};white-space:nowrap`
       this.idF = mt(this.idRow, 'x^n - a^n = (x-a)\\left(x^{n-1} + x^{n-2}a + \\cdots + a^{n-1}\\right)', 27)
+      ;[this.b3, this.b4].forEach(b => (b.el.style.cssText += 'display:flex;flex-direction:column'))
       this.plr = document.getElementById(`${ID}-plr`); this.tq = document.getElementById(`${ID}-tq`)
       ;[this.plr, this.tq].forEach(e => (e.style.display = 'inline-block'))
 
@@ -109,20 +115,25 @@
 
     _sigNow() { return [this.b1, this.b2, this.b3, this.b4].map(b => b.el.offsetWidth + 'x' + b.el.offsetHeight).join('|') },
     _layout() {
-      this._sig = this._sigNow()
-      const top = 266, gap = 20
-      const h1 = this.b1.el.offsetHeight, h2 = this.b2.el.offsetHeight, h3 = this.b3.el.offsetHeight, h4 = this.b4.el.offsetHeight
-      // right column: 1 then 2; left column: 3 then 4 (bottoms aligned with the right column when there is room)
+      const top = 262, gap = 18
+      ;[this.b3, this.b4].forEach(b => (b.el.style.minHeight = ''))
+      const h1 = this.b1.el.offsetHeight, h2 = this.b2.el.offsetHeight
+      let h3 = this.b3.el.offsetHeight, h4 = this.b4.el.offsetHeight
+      // right column: 1 then 2; left column: 3 then 4, stretched so both columns end at the same height
       this.b1.el.style.top = top + 'px'
       this.b2.el.style.top = (top + h1 + gap) + 'px'
       const rightBottom = top + h1 + gap + h2
-      const leftTop = Math.max(top, rightBottom - (h3 + gap + h4) - 0)
+      const extra = rightBottom - (top + h3 + gap + h4)
+      if (extra > 0) { h3 += extra / 2; h4 += extra / 2; this.b3.el.style.minHeight = h3 + 'px'; this.b4.el.style.minHeight = h4 + 'px' }
       this.b3.el.style.top = top + 'px'
       this.b4.el.style.top = (top + h3 + gap) + 'px'
       const lb = top + h3 + gap + h4
-      place(this.cam, 120 + 800 / 2, Math.min(985, (lb + Math.max(rightBottom, lb + 110)) / 2 + 20), { anchor: 'c' })
+      // 📸 «صوّر الشاشة»: small chip in the free top-left corner, level with the title
+      place(this.cam, 120, 196, { anchor: 'cl' })
       this.leftBottom = lb; this.rightBottom = rightBottom
-      this.sweep.style.height = (Math.max(lb, rightBottom) - 240 + 20) + 'px'
+      this.sweep.style.top = (top - 20) + 'px'
+      this.sweep.style.height = (Math.max(lb, rightBottom) - top + 40) + 'px'
+      this._sig = this._sigNow()
     },
 
     render(lt, S) {
@@ -132,12 +143,12 @@
       const boardIn = S.p(lt, 0, 0, .9)
       // light-up times
       const t1 = Math.max(F(0, .22), S.at(0) + .9)
-      const t1b = Math.max(F(0, .42), t1 + .8), t1c = Math.max(F(0, .56), t1b + .7)
-      const t2 = Math.max(F(0, .68), t1c + .8)
+      const t1b = Math.max(F(0, .42), t1 + .8), t1c = Math.max(F(0, .52), t1b + .7)
+      const t2 = Math.max(F(0, .6), t1c + .7)
       const t3 = S.at(1) + .15
       const t4 = Math.max(F(1, .22), t3 + 1.2)
-      const tTerm = Math.max(F(1, .44), t4 + 1.2), tSum = Math.max(F(1, .54), tTerm + .9)
-      const tId = Math.max(F(1, .68), tSum + 1)
+      const tTerm = Math.max(F(1, .52), t4 + 1.2), tSum = Math.max(F(1, .63), tTerm + .9)
+      const tId = Math.max(F(1, .72), tSum + 1)
       const tShot = Math.max(F(1, .84), tId + 1)
       const setBlock = (b, lit, k) => {
         const a = boardIn * lerp(DIM, 1, lit)
@@ -155,7 +166,9 @@
       // block 2 rows tick in
       const st = Math.min(.22, Math.max(.12, (S.end(0) + 1.4 - t2) / 10))
       this.r2.forEach((e, k) => rowLit(e, t2 + .3 + k * st))
-      this.m2.forEach((e, k) => rowLit(e, t2 + .3 + 6 * st + .25 + k * (st + .08)))
+      const tM = Math.max(F(0, .8), t2 + .3 + 6 * st + .2)          // «وثلاث طرائق لدراسته»
+      rowLit(this.mLab, tM - .1)
+      this.m2.forEach((e, k) => rowLit(e, tM + k * (st + .08)))
       // blocks 3 / 4 formulas
       const fLit = (e, t) => { const p = prog(lt, t, .5); e.style.opacity = lerp(.35, 1, p) }
       this.f3.forEach((e, k) => fLit(e, t3 + .2 + k * .15))

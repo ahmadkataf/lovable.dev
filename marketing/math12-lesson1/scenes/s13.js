@@ -1,4 +1,5 @@
-// s13 · مجموع حدود حسابيّة — Gauss pairing as a picture, then the book's formulas and a counting warning.
+// s13 · مجموع حدود حسابيّة — Gauss pairing as a picture (staircase + its upside-down copy = 5×6 rectangle),
+// the same trick with symbols (S + reversed S), then S = n(a+ℓ)/2 and 1+2+…+n = n(n+1)/2.
 (() => {
   const ID = 's13'
   const G = C.grn, B = C.blu, Y = C.yel, R = C.red
@@ -62,7 +63,6 @@
       place(this.rowA, 1800, 345, { anchor: 'cr' })
       this.rowB = rich('المستطيل: $5\\times 6 = 30$', 'h3'); root.appendChild(this.rowB); place(this.rowB, 1800, 490, { anchor: 'cr', w: 960 })
       this.rowC = rich(`الدرج نصفه: $\\dfrac{30}{2} = ${tc(G, '15')}$`, 'h3'); root.appendChild(this.rowC); place(this.rowC, 1800, 640, { anchor: 'cr', w: 960 })
-      this.rowD = rich(`كلّ عمودٍ = <span class="grn b">حدٌّ من البداية</span> + <span class="blu b">حدٌّ من النهاية</span>`, 'p'); root.appendChild(this.rowD); place(this.rowD, 1800, 800, { anchor: 'cr', w: 960 })
 
       // ---------------- line 2: S and its reverse (the same trick, with symbols) ----------------
       const R1 = 460, R2 = 560, R3 = 770
@@ -138,7 +138,8 @@
       this.mnem.style.fontSize = '32px'; this.mnem.style.whiteSpace = 'nowrap'
 
       // ---------------- line 4: 1+2+…+n ----------------
-      this.kSp = keyBox(root, '1+2+3+\\cdots+n = \\dfrac{n(n+1)}{2}', 1260, 545, { cls: 'mx', label: 'وبوجه خاصّ' })
+      this.kSp = keyBox(root, '1+2+3+\\cdots+n = \\htmlId{s13-nn}{\\dfrac{n(n+1)}{2}}', 1260, 545, { cls: 'mx', label: 'وبوجه خاصّ' })
+      this.kSpF = this.kSp.el.querySelector('#s13-nn')
       this.spNote = mtex(`${tc(G, 'a')} = 1,\\quad ${tc(B, '\\ell')} = n`, 40); root.appendChild(this.spNote); place(this.spNote, 470, 470, { anchor: 'c' })
       const as = svg(root, 0, 0, W, H)
       this.spArrow = arrow(as, 470, 510, 700, 560, { color: C.mut, width: 4, bend: -.25 })
@@ -150,53 +151,10 @@
       place(this.ex, 860, 815, { anchor: 'c' })
       this.gauss = chip(root, 'حيلة غاوس', 1800, 815, { anchor: 'cr', color: C.pur }); this.gauss.style.whiteSpace = 'nowrap'
 
-      // ---------------- line 5: counting terms ----------------
-      const cd = card(root, 'warn', 960, 335, 1300, { anchor: 'tc', tag: '⚠️ عدد الحدود' })
-      this.card = cd.el
-      cd.body.style.cssText += 'display:flex;flex-direction:column;align-items:center;gap:34px;padding-top:58px'
-      this.terms = tex(`\\htmlId{${ID}-t0}{u_{30}} \\;+\\; \\htmlId{${ID}-t1}{u_{31}} \\;+\\; \\htmlId{${ID}-t2}{u_{32}}`, 'ml')
-      cd.body.appendChild(this.terms)
-      this.rule4 = rich('عدد الحدود = <span class="blu">الدليل الأخير</span> − <span class="blu">الدليل الأوّل</span> + 1', 'h3')
-      cd.body.appendChild(this.rule4)
-      const row = el('div', '', null, cd.body)
-      row.style.cssText = 'display:flex;align-items:center;gap:64px;direction:ltr'
-      this.res4 = tex(`${tc(B, '32')} - ${tc(B, '30')} + 1 = ${tc(G, '\\mathbf{3}')}`, 'mx'); row.appendChild(this.res4)
-      const wrong = el('div', '', null, row)
-      wrong.style.cssText = 'display:flex;flex-direction:column;align-items:center;gap:2px'
-      const w2box = el('div', '', null, wrong); w2box.style.cssText = 'position:relative;display:inline-block'
-      this.w2 = tex(tc(R, '2'), 'mx'); w2box.appendChild(this.w2)
-      const ws = document.createElementNS(NS, 'svg'); w2box.appendChild(ws)
-      ws.setAttribute('viewBox', '0 0 60 70'); ws.style.cssText = 'position:absolute;left:50%;top:50%;width:60px;height:70px;translate:-50% -50%;overflow:visible'
-      this.strike = sv(ws, 'path', { d: 'M6,64 L54,6', stroke: R, 'stroke-width': 6, 'stroke-linecap': 'round', fill: 'none' })
-      this.w2cap = el('div', 's', 'خطأ شائع', wrong); this.w2cap.style.cssText += `color:${R};font-size:24px;font-weight:700;white-space:nowrap`
-      this.wrong = wrong
-      // boxes + counters over u30, u31, u32: positioned in measure() once KaTeX fonts are in
-      this.tBox = [0, 1, 2].map(() => { const b = el('div', 'hlbox', null, root); op(b, 0); return b })
-      this.tNum = [0, 1, 2].map(k => {
-        const d = el('div', '', String(k + 1), root)
-        d.style.cssText += `width:50px;height:50px;border-radius:50%;background:${B};color:#0b1020;font-weight:900;font-size:30px;display:flex;align-items:center;justify-content:center`
-        place(d, 0, 0, { anchor: 'c' })
-        return d
-      })
       this.root = root
     },
 
-    // geometry that depends on KaTeX glyph metrics: measured once, after the KaTeX fonts have loaded
-    measure() {
-      if (this._m || document.fonts.status !== 'loaded') return
-      this._m = true
-      const keep = this.card.style.transform
-      this.card.style.transform = 'none'
-      ;[0, 1, 2].forEach(k => {
-        const r = rectIn(document.getElementById(`${ID}-t${k}`), this.root)
-        place(this.tBox[k], r.x - 14, r.y - 8, { w: r.w + 28, h: r.h + 16 })
-        place(this.tNum[k], r.cx, r.y - 44, { anchor: 'c' })
-      })
-      this.card.style.transform = keep
-    },
-
     render(lt, S) {
-      this.measure()
       const { u, x0, yb } = this
       this.head.set(S.p(lt, 0, 0, .7))
 
@@ -204,13 +162,13 @@
       const out2 = 1 - S.p(lt, 2, 0, .5)
       op(this.stairSvg, out2)
       // green columns, square by square, bottom-up
-      const tG = T(S, 0, .28)
+      const tG = T(S, 0, .42)                    // «نرسم الأعداد درجاً»
       this.green.forEach((col, i) => col.forEach((r, j) => {
         const p = prog(lt, tG + i * .32 + j * .07, .42, E.back)
         r.style.opacity = clamp(p * 3); r.style.transform = `scale(${Math.max(0, p)})`
       }))
       // column numbers 1..5 (become pairs during line 1)
-      const tPair = i => T(S, 1, .56) + i * Math.min(.55, .07 * (S.end(1) - S.at(1)))
+      const tPair = i => T(S, 1, .04) + i * Math.min(.5, .07 * (S.end(1) - S.at(1)))
       this.num.forEach((n, i) => {
         const pin = prog(lt, tG + i * .32 + .1, .45)
         const sw = prog(lt, tPair(i), .5)
@@ -220,7 +178,7 @@
       this.eq6.forEach((e, i) => { const p = prog(lt, tPair(i) + .25, .45, E.back); pop(e, p); op(e, clamp(p * 2.5) * out2) })
       this.colHl.forEach((r, i) => { r.style.opacity = env(lt, tPair(i), tPair(i) + 1.1, .25, .45) * .9 })
       // blue copy: appears on the right, turns 180°, docks on top
-      const tB = Math.max(T(S, 0, .6), tG + 1.9)
+      const tB = Math.max(T(S, 0, .66), tG + 1.9)   // «ونضع فوقه نسخةً مقلوبةً منه»
       const a = prog(lt, tB, .45, E.out), rot = prog(lt, tB + .45, .9), dk = prog(lt, tB + 1.45, .95)
       const D = 530
       const lift = E.io(clamp(dk / .5)), slideL = E.io(clamp((dk - .25) / .75))
@@ -237,32 +195,31 @@
       const p1 = S.p(lt, 1, 0, .9)
       draw(this.rectOut, p1); this.rectOut.style.opacity = .85
       draw(this.dimV, S.p(lt, 1, .2, .6)); draw(this.dimH, S.p(lt, 1, .2, .6))
-      show(this.d5, S.p(lt, 1, .5, .5), out2, 12); show(this.d6, S.p(lt, 1, .5, .5), out2, 12)
-      const pHalf = P(lt, S, 1, .3, .6)
+      show(this.d5, P(lt, S, 1, .34, .5), out2, 12); show(this.d6, P(lt, S, 1, .4, .5), out2, 12)   // «خمسة ضرب ستّة»
+      const pHalf = P(lt, S, 1, .78, .6)                                                            // «خمسة عشر»
       pop(this.t15, pHalf); op(this.t15, clamp(pHalf * 2.5) * out2)
-      const gGlow = env(lt, T(S, 1, .3), T(S, 1, .3) + 1.6, .35, .6)
+      const gGlow = env(lt, T(S, 1, .61), T(S, 1, .61) + 1.6, .35, .6)                             // «والدرج نصفه»
       this.green.flat().forEach(r => r.setAttribute('fill', `rgba(110,224,90,${(.30 + .32 * gGlow).toFixed(3)})`))
       // right panel
       show(this.rowA, S.p(lt, 0, .5, .7), out2)
-      const qsw = P(lt, S, 1, .32, .5)
+      const qsw = P(lt, S, 1, .84, .5)
       op(this.qm, 1 - qsw); pop(this.q15, qsw)
-      show(this.rowB, P(lt, S, 1, .06, .6), out2)
-      show(this.rowC, P(lt, S, 1, .3, .6), out2)
-      show(this.rowD, P(lt, S, 1, .55, .6), out2)
+      show(this.rowB, P(lt, S, 1, .34, .6), out2)
+      show(this.rowC, P(lt, S, 1, .61, .6), out2)
 
       // ======== line 2: S + reversed S, column by column ========
       const L = i => S.end(i) - S.at(i)
-      const outRows = 1 - P(lt, S, 3, .58, .55)            // rows leave during line 3, once the counting is done
-      const pr1 = P(lt, S, 2, .05, 1.3)
+      const outRows = 1 - P(lt, S, 3, .38, .55)            // rows leave during line 3, once «فضعفُ إس …» is said
+      const pr1 = P(lt, S, 2, .02, Math.max(1.3, .17 * L(2)), E.lin)   // written term by term until «نكتب المجموع مرّتين»
       wipe(this.r1.el, pr1, 'ltr'); op(this.r1.el, (pr1 > 0 ? 1 : 0) * outRows)
-      const pr2 = P(lt, S, 2, .3, .8)
+      const pr2 = P(lt, S, 2, .35, .8)                     // «والثانية بترتيبٍ معكوس»
       op(this.r2.el, pr2 * outRows); this.r2.el.style.transform = `translateX(${(1 - pr2) * 60}px)`
-      op(this.plusL, P(lt, S, 2, .38, .5) * outRows)
-      const pRule = P(lt, S, 2, .38, .6)
+      op(this.plusL, P(lt, S, 2, .44, .5) * outRows)
+      const pRule = P(lt, S, 2, .44, .6)
       this.rule.style.transform = `scaleX(${pRule})`; op(this.rule, (pRule > 0 ? .8 : 0) * outRows)
       // each vertical pair glows in turn; its sum (a+ℓ) drops into the 2S row
       const step = Math.min(.7, .045 * L(2))
-      const tPairK = j => T(S, 2, .46) + [0, 1, 2, 2.6, 3.2][j] * step
+      const tPairK = j => T(S, 2, .48) + [0, 1, 2, 2.6, 3.2][j] * step   // «فمجموع كلّ عمودٍ يساوي الحدَّ الأوّل زائد الحدِّ الأخير»
       this.pairBox.forEach((bx, j) => {
         const t0 = tPairK(j), e = env(lt, t0, t0 + 1.25, .3, .5)
         op(bx, e * outRows * (j === 3 ? .7 : 1)); bx.style.transform = `scale(${lerp(1.08, 1, E.out(prog(lt, t0, .4)))})`
@@ -275,64 +232,52 @@
       }
       // "because we add r in one row and subtract it in the other"
       const outArc = 1 - S.p(lt, 3, 0, .5)
-      this.arcP.forEach((a, j) => { a.set(prog(lt, T(S, 2, .7) + j * .16, .45)); a.path.style.opacity = outArc })
-      this.labP.forEach((e, j) => show(e, prog(lt, T(S, 2, .7) + j * .16 + .2, .4), outArc, 10))
-      this.arcM.forEach((a, j) => { a.set(prog(lt, T(S, 2, .84) + j * .16, .45)); a.path.style.opacity = outArc })
-      this.labM.forEach((e, j) => show(e, prog(lt, T(S, 2, .84) + j * .16 + .2, .4), outArc, -10))
+      this.arcP.forEach((a, j) => { a.set(prog(lt, T(S, 2, .8) + j * .16, .45)); a.path.style.opacity = outArc })        // «نضيف آر في سطرٍ»
+      this.labP.forEach((e, j) => show(e, prog(lt, T(S, 2, .8) + j * .16 + .2, .4), outArc, 10))
+      this.arcM.forEach((a, j) => { a.set(prog(lt, T(S, 2, .9) + j * .16, .45)); a.path.style.opacity = outArc })        // «ونطرحه في الآخر»
+      this.labM.forEach((e, j) => show(e, prog(lt, T(S, 2, .9) + j * .16 + .2, .4), outArc, -10))
 
-      // ======== line 3: count the n columns → 2S = n(a+ℓ) → S = n(a+ℓ)/2 ========
-      op(this.book2, S.p(lt, 3, .1, .3) * (1 - S.p(lt, 4, 0, .5)))
-      typeWords(this.book2, clamp((lt - S.at(3) - .1) / Math.max(1.5, .4 * L(3))))
-      const tCnt = j => T(S, 3, .16) + j * Math.min(.38, .04 * L(3))
+      // ======== line 3: «وعددُ الأعمدة إنْ» → «فضعفُ إس يساوي إنْ ضرب، إيه زائد إل» → «إذن مجموعُ إنْ حدّاً … هو …» ========
+      op(this.book2, P(lt, S, 3, .39, .3) * (1 - S.p(lt, 4, 0, .5)))
+      typeWords(this.book2, clamp((lt - T(S, 3, .39)) / Math.max(1.5, .34 * L(3))))
+      const tCnt = j => T(S, 3, 0) + .15 + j * Math.min(.38, .025 * L(3))
       this.colBox.forEach((bx, j) => { const p = prog(lt, tCnt(j), .4); op(bx, clamp(p * 1.5) * outRows * (j === 3 ? .7 : 1)); bx.style.transform = `scale(${lerp(1.06, 1, E.out(p))})` })
       this.cnt.forEach((d, j) => { const p = prog(lt, tCnt(j) + .1, .45); pop(d, p); op(d, clamp(p * 2.5) * outRows) })
       // 2S = n(a+ℓ): appears under the counted columns, then moves up beside the boxed formula
-      const p2s = P(lt, S, 3, .44, .6), mv = P(lt, S, 3, .6, .9)
+      const p2s = P(lt, S, 3, .14, .6), mv = P(lt, S, 3, .4, .9)
       const out2s = 1 - S.p(lt, 4, 0, .45)
       this.twoS.style.left = lerp(960, 520, mv) + 'px'; this.twoS.style.top = lerp(930, 610, mv) + 'px'
       op(this.twoS, p2s * out2s); this.twoS.style.transform = `scale(${lerp(.92, 1, p2s)})`
-      op(this.impl, P(lt, S, 3, .68, .5) * out2s)
+      op(this.impl, P(lt, S, 3, .74, .5) * out2s)
       // the boxed formula (stays, moves to the corner in line 4)
-      const pk = P(lt, S, 3, .7, .7)
+      const pk = P(lt, S, 3, .76, .7)                     // «هو إنْ ضرب، إيه زائد إل، على اثنين»
       const park = S.p(lt, 4, 0, .9)
-      const outK = 1 - S.p(lt, 5, 0, .5)
       this.kGen.set(pk)
       const kx = lerp(0, 470 - 1290, park), ky = lerp(0, 330 - 610, park), ks = lerp(1, .6, park)
       const kpop = pk <= 0 ? .85 : lerp(.85, 1, E.back(clamp(pk)))
       this.kGen.el.style.transform = `translate(${kx}px,${ky}px) scale(${kpop * ks})`
-      op(this.kGen.el, clamp(pk * 2.5) * outK)
+      op(this.kGen.el, clamp(pk * 2.5))
       this.kGen.el.style.boxShadow = `0 0 ${42 + 16 * Math.sin(lt * 1.6)}px ${Y}3a`
-      show(this.mnem, P(lt, S, 3, .86, .6), out2s, 20)
+      show(this.mnem, P(lt, S, 3, .9, .6), out2s, 20)
 
       // ======== line 4: 1+2+…+n ========
       const tSp = Math.max(T(S, 4, .14), S.at(4) + 1)
       const pn = prog(lt, tSp - .4, .6)
-      show(this.spNote, pn, outK, 12)
-      this.spArrow.set(prog(lt, tSp - .2, .6)); this.spArrow.path.style.opacity = outK
+      show(this.spNote, pn, 1, 12)
+      this.spArrow.set(prog(lt, tSp - .2, .6))
       const psp = prog(lt, tSp, .7)
-      this.kSp.set(psp); op(this.kSp.el, clamp(psp * 2.5) * outK)
+      this.kSp.set(psp)
+      const nn = P(lt, S, 4, .27, .6)                                       // «المجموع إنْ ضرب، إنْ زائد واحد، على اثنين»
+      this.kSpF.style.color = mixColor(C.ink, Y, nn)
+      this.kSpF.style.textShadow = nn > 0 ? `0 0 ${14 * nn}px rgba(255,210,63,.7)` : ''
       this.kSp.el.style.boxShadow = `0 0 ${42 + 16 * Math.sin(lt * 1.6 + 1)}px ${Y}3a`
       const tEx = Math.max(T(S, 4, .6), tSp + 1.2)
-      show(this.ex, prog(lt, tEx, .6), outK)
+      show(this.ex, prog(lt, tEx, .6))
       counter(this.cnt5050, 0, 5050, prog(lt, tEx + .5, 1.8, E.out))
       const done = prog(lt, tEx + 2.3, .5)
       this.cnt5050.style.color = mixColor(Y, G, done)
       this.cnt5050.style.textShadow = done > 0 ? `0 0 ${24 * done}px ${G}88` : ''
-      show(this.gauss, prog(lt, tEx + .2, .6), outK, 16)
-
-      // ======== line 5: counting terms ========
-      const pc = S.p(lt, 5, .35, .7)
-      rise(this.card, pc, 40)
-      const kk = k => Math.max(T(S, 5, .2 + k * .1), S.at(5) + 1.1 + k * .5)
-      this.tBox.forEach((b, k) => { const p = prog(lt, kk(k), .45); op(b, clamp(p * 1.5)); b.style.transform = `scale(${lerp(1.15, 1, E.out(p))})` })
-      this.tNum.forEach((d, k) => pop(d, prog(lt, kk(k) + .1, .45)))
-      rise(this.rule4, prog(lt, Math.max(T(S, 5, .6), kk(2) + .8), .6), 20)
-      const tRes = Math.max(T(S, 5, .74), kk(2) + 1.6)
-      wipe(this.res4, prog(lt, tRes, .7), 'ltr')
-      const tW = tRes + .9
-      op(this.wrong, prog(lt, tW, .35))
-      draw(this.strike, prog(lt, tW + .1, .35))
-      op(this.w2cap, prog(lt, tW + .35, .4))
+      show(this.gauss, prog(lt, tEx + .2, .6), 1, 16)
     },
   })
 })()

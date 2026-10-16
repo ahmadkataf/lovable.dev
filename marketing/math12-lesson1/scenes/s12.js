@@ -80,29 +80,37 @@
       // ---------- line 1: formula, book sentence, example, thumbnail ----------
       this.sent = rich('أيّاً كان العددان الطبيعيان $m$ و $p$', 'h3'); this.sent.style.whiteSpace = 'nowrap'
       root.appendChild(this.sent); place(this.sent, 960, 548, { anchor: 'c' })
-      this.box = keyBox(root, `u_m = u_{\\htmlId{s12-p1}{p}} + \\textcolor{${C.blu}}{(m-\\htmlId{s12-p2}{p})}\\,r`, 960, 668, { color: C.pur })
+      this.box = keyBox(root, `u_{\\htmlId{s12-m1}{m}} = u_{\\htmlId{s12-p1}{p}} + \\textcolor{${C.blu}}{(\\htmlId{s12-m2}{m}-\\htmlId{s12-p2}{p})}\\,r`, 960, 668, { color: C.pur })
       this.box.el.style.background = 'rgba(167,139,250,.10)'
       this.pp = ['#s12-p1', '#s12-p2'].map(q => this.box.el.querySelector(q))
+      this.mm = ['#s12-m1', '#s12-m2'].map(q => this.box.el.querySelector(q))
       this.ex = el('div', '', null, root)
       this.ex.style.cssText = 'display:flex;align-items:center;gap:26px;direction:rtl;white-space:nowrap'
       const chipEx = el('div', 'chip', 'مثلاً', this.ex); chipEx.style.cssText += `color:${C.red};border-color:${C.red}88;background:${C.red}1f`
       this.ex.appendChild(tex(`u_7 = u_2 + \\textcolor{${C.blu}}{5}\\,r`, 'mx'))
       place(this.ex, 960, 866, { anchor: 'c' })
+      // side note (blue): the formula also holds for m < p — hops backwards
+      this.note = el('div', '', null, root)
+      this.note.style.cssText += `display:flex;flex-direction:column;align-items:flex-start;direction:rtl;gap:6px;padding:14px 26px 16px;border-radius:18px;border:2px solid ${C.blu}77;background:rgba(56,189,248,.08);color:${C.blu};white-space:nowrap`
+      const n1 = rich('ويصحّ إذا كان $m<p$:', 's'); n1.style.color = C.blu; n1.style.fontSize = '30px'; this.note.appendChild(n1)
+      const n2 = tex('u_2 = u_7 + (2-7)\\,r = u_7 - 5r', 'ms'); n2.style.fontSize = '34px'; n2.style.color = C.ink; n2.style.alignSelf = 'center'; this.note.appendChild(n2)
+      const n3 = rich('— قفزات إلى الوراء', 's'); n3.style.color = C.blu; n3.style.fontSize = '30px'; n3.style.fontWeight = 700; this.note.appendChild(n3)
+      place(this.note, 650, 866, { anchor: 'cr' })
       this.thumb = bookThumb(root, 9, 1590, 610, 200, { x: .35, y: .082, w: .48, h: .064 })
       this.thumbL = el('div', 's', '📖 الكتاب ص 9', root); this.thumbL.style.whiteSpace = 'nowrap'; this.thumbL.style.fontSize = '26px'
       place(this.thumbL, 1690, 590, { anchor: 'bc' })
 
-      // ---------- line 2: p = 0 ----------
-      this.p0 = chip(root, '$p = 0$', 0, 0, {})
-      this.p0.innerHTML = ''; this.p0.appendChild(tex('p = 0', 'mm'))
-      this.p0.style.cssText += `color:${C.yel};border-color:${C.yel}aa;background:rgba(255,210,63,.12);padding:8px 26px`
+      // ---------- line 2: the substitution p = 0, m = n (blue, above the box, in place of the book sentence) ----------
+      this.sub = tex(`\\htmlId{s12-s0}{p = 0}\\htmlId{s12-s1}{,\\quad m = n}`, 'mx')
+      this.sub.style.color = C.blu; this.sub.style.fontSize = '54px'
+      root.appendChild(this.sub); place(this.sub, 960, 548, { anchor: 'c' })
+      this.subP = this.sub.querySelector('#s12-s0'); this.subM = this.sub.querySelector('#s12-s1')
       this.sp = keyBox(root, 'u_n = u_0 + n\\,r', 960, 872, { color: C.yel, label: '🎯 سنحتاجها' })
       this.sp.el.style.zIndex = 2
     },
 
     layout() {
       const b = rectIn(this.box.el, this.root)
-      place(this.p0, b.x - 36, b.cy, { anchor: 'cr' })
       this.boxY = b.cy
     },
 
@@ -118,12 +126,12 @@
       // ---------- line 0: build the picture ----------
       const L = pf(S, lt, 0, .02, .9)
       draw(this.line, L); svgOp(this.lhead, L >= .98 ? 1 : 0)
-      const pA = pf(S, lt, 0, .18, .5, E.out), pB = pf(S, lt, 0, .36, .5, E.out)   // «من يو بي» … «إلى يو إم»
+      const pA = pf(S, lt, 0, .22, .5, E.out), pB = pf(S, lt, 0, .37, .5, E.out)   // «من يو بي» … «إلى يو إم»
       // hop windows for line 0
       const hw = [.46, .53, .6, .67, .74].map(f => [f, Math.min(.5, .07 * (S.end(0) - S.at(0)))])  // hops never overlap
       const hp = hw.map(([f, d]) => pf(S, lt, 0, f, d, E.lin))
-      // variant weights
-      const a = pf(S, lt, 1, .58, .6), bb = pf(S, lt, 2, .05, .6)
+      // label variants: generic → example (line 1, «مثلاً») → p = 0, m = n (line 2, once «وإم يساوي إنْ» is said)
+      const a = pf(S, lt, 1, .58, .6), bb = pf(S, lt, 2, .3, .6)
       const wv = [clamp(1 - 2 * a), clamp(2 * a - 1) * clamp(1 - 2 * bb), clamp(2 * bb - 1)]
       // ticks & points
       this.ticks.forEach((t, k) => {
@@ -170,10 +178,11 @@
         ps.forEach((q, k) => { if (q > 0) { const e = E.io(q); x = lerp(XS[k], XS[k + 1], e); y = Y - 12 - 4 * AH * e * (1 - e) } })
         return [x, Math.min(Y, y + (y < Y ? 0 : 0))]
       }
-      const h2 = [.3, .37, .44, .51, .58].map(f => pf(S, lt, 2, f, Math.min(.5, .07 * (S.end(2) - S.at(2)))))
+      // line 2: u_0 → u_n while «يو إنْ يساوي يو صفر، زائد إنْ ضرب آر» is said
+      const h2 = [.55, .62, .69, .76, .83].map(f => pf(S, lt, 2, f, Math.min(.5, .07 * (S.end(2) - S.at(2)))))
       if (lt < S.at(1) + .56 * (S.end(1) - S.at(1))) { [rx, ry] = hopPos(hp); ro = pA * (1 - pf(S, lt, 1, .5, .4)) }
-      else if (lt < S.at(2) + .2 * (S.end(2) - S.at(2))) { [rx, ry] = hopPos(hl.map(h => clamp(h))); ro = pf(S, lt, 1, .62, .3) * (1 - pf(S, lt, 2, .02, .4)) }
-      else { [rx, ry] = hopPos(h2); ro = pf(S, lt, 2, .24, .35) }
+      else if (lt < S.at(2) + .48 * (S.end(2) - S.at(2))) { [rx, ry] = hopPos(hl.map(h => clamp(h))); ro = pf(S, lt, 1, .62, .3) * (1 - pf(S, lt, 2, .02, .4)) }
+      else { [rx, ry] = hopPos(h2); ro = pf(S, lt, 2, .5, .35) }
       if (ry !== Y && ry > Y - 12) ry = Y
       this.run.setAttribute('cx', rx); this.run.setAttribute('cy', ry)
       svgOp(this.run, ro * .95)
@@ -183,29 +192,31 @@
       this.bL.forEach((t, v) => { const p = v === 0 ? pf(S, lt, 0, .84, .6) : 1; op(t, p * wv[v]); t.style.transform = `translateY(${(1 - p) * 16 + (1 - wv[v]) * 10}px)` })
 
       // ---------- line 1: formula etc. ----------
-      vis(this.sent, pf(S, lt, 1, .06, .6), 0, 20)
-      const bp = pf(S, lt, 1, .14, .7)
+      vis(this.sent, pf(S, lt, 1, .06, .6), pf(S, lt, 2, 0, .45), 20)
+      const bp = pf(S, lt, 1, .19, .7)
       this.box.set(bp)
       const breathe = lt > S.at(1) + 2 ? .5 + .5 * Math.sin(lt * 2.2) : 0
       this.box.el.style.boxShadow = `0 0 ${40 + 30 * breathe}px rgba(167,139,250,${.22 + .18 * breathe})`
       const exP = pf(S, lt, 1, .62, .6)
       vis(this.ex, exP, pf(S, lt, 2, 0, .45), 24)
+      vis(this.note, pf(S, lt, 1, .72, .6), pf(S, lt, 2, .3, .45), 20)
       const th = pf(S, lt, 1, .3, .7)
       vis(this.thumb.el, th, 0, 30, ` rotate(${lerp(4, 0, th)}deg)`)
       vis(this.thumbL, th, 0, 20)
       this.thumb.mark.style.opacity = .6 + .4 * (lt > S.at(1) + 3 ? .5 + .5 * Math.sin(lt * 3) : 1)
 
-      // ---------- line 2: p = 0 ----------
-      const pc = pf(S, lt, 2, .04, .5)
-      op(this.p0, pc); this.p0.style.transform = `scale(${lerp(.6, 1, E.back(pc))})`
-      const pg = pf(S, lt, 2, .08, .5)
+      // ---------- line 2: «وبوضع بي يساوي صفراً، وإم يساوي إنْ: يو إنْ يساوي يو صفر، زائد إنْ ضرب آر» ----------
+      const s0 = pf(S, lt, 2, .04, .5), s1 = pf(S, lt, 2, .3, .5)
+      vis(this.sub, s0, 0, 20); op(this.subM, s1)
+      const pg = pf(S, lt, 2, .06, .5), mg = pf(S, lt, 2, .32, .5)
       this.pp.forEach(e => { e.style.color = mixColor(C.ink, C.yel, pg); e.style.textShadow = `0 0 ${16 * pg}px rgba(255,210,63,.9)` })
-      const sp = pf(S, lt, 2, .22, .9, E.out)
-      op(this.sp.el, clamp(sp * 2.5))
+      this.mm.forEach(e => { e.style.color = mixColor(C.ink, C.yel, mg); e.style.textShadow = `0 0 ${16 * mg}px rgba(255,210,63,.9)` })
+      const sp = pf(S, lt, 2, .5, .9, E.out)
+      op(this.sp.el, clamp(sp * 2.5 - .5))   // shows once it is mostly out of the box
       const dy = lerp((this.boxY || 668) - 872, 0, sp)
-      const tag = pf(S, lt, 2, .82, .5)
+      const tag = pf(S, lt, 2, .88, .5)
       this.sp.el.style.transform = `translateY(${dy}px) scale(${lerp(.85, 1, sp) * (1 + .03 * Math.sin(Math.PI * tag))})`
-      const life = lt > S.at(2) + .5 * (S.end(2) - S.at(2)) ? .5 + .5 * Math.sin(lt * 2.6) : 0
+      const life = lt > S.at(2) + .62 * (S.end(2) - S.at(2)) ? .5 + .5 * Math.sin(lt * 2.6) : 0
       this.sp.el.style.boxShadow = `0 0 ${50 + 30 * life * sp}px rgba(255,210,63,${.2 + .2 * life * sp})`
     },
   })

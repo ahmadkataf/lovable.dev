@@ -1,7 +1,8 @@
 // s20 · ③ مقارنة النسبة — ratio = scaling factor. Card ③ grows out of the tracker while a live demo shows
 // u_{n+1} as u_n scaled by the ratio (green above 1, pink below). Then the book's example w_n = (2/3)^n:
 // five bars, each born at the height of the previous one (dashed ghost) and shrinking to two thirds of it;
-// the ratio computed, compared with 1, the conclusion; finally the exam tip on choosing among the three methods.
+// the ratio computed, compared with 1, the conclusion (3 lines of the final script.json); circle ③ of the tracker
+// then turns green like ① and ②.
 ;(() => {
   const Y = C.yel, G = C.grn, R = C.red, B = C.blu, P = C.pur
   const INK = '#eef2ff'
@@ -49,7 +50,6 @@
     build(root, S) {
       this.root = root
       this.head = heading(root, `${badge(3)}مقارنة النسبة $\\frac{u_{n+1}}{u_n}$ والعدد $1$`)
-      this.head2 = heading(root, '🎯 أيّ طريقة نختار؟')
       this.trk = tracker(root, 3)
 
       // ---------------- line 0: card ③ + the scaling-factor demo
@@ -119,24 +119,6 @@
       this.concl.el.appendChild(cc)
       this.geo = chip(root, `هندسيّة أساسها <span style="font-size:28px">${K('q = \\dfrac23')}</span>`, 532, 322, { anchor: 'c', color: Y })
       this.geo.style.fontSize = '30px'; this.geo.style.direction = 'rtl'; this.geo.style.whiteSpace = 'nowrap'
-
-      // ---------------- line 3: exam tip card
-      const xc = card(root, 'exam', 960, 352, 1500, { anchor: 'tc', tag: '🎯 نصيحة للامتحان' })
-      this.xc = xc.el
-      const rows = [
-        ['الفرق $u_{n+1}-u_n$', 'كسور وكثيرات حدود'],
-        ['التابع $f$', 'صيغة سهلة الاشتقاق'],
-        ['النسبة $\\dfrac{u_{n+1}}{u_n}$', 'قوى وجداءات، والحدود موجبة تماماً'],
-      ]
-      this.rows = rows.map(([a, b], i) => {
-        const r = el('div', '', null, xc.body)
-        r.style.cssText = `display:flex;align-items:center;gap:30px;direction:rtl;padding:${i === 2 ? 18 : 30}px 10px;${i ? `border-top:2px solid ${C.line};` : ''}`
-        const n = el('div', '', String(i + 1), r)
-        n.style.cssText = `flex:none;width:58px;height:58px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:30px;font-weight:900;background:${Y};color:#0b1020`
-        const t = rich(`<span class="b" style="color:${Y}">${a}</span><span class="mute">:</span> ${b}`, 'h3')
-        t.style.whiteSpace = 'nowrap'; t.style.fontSize = '50px'; r.appendChild(t)
-        return r
-      })
     },
 
     render(lt, S) {
@@ -144,9 +126,8 @@
       const T = (i, f) => S.at(i) + f * d(i)
       const pr = (t0, dur = .6, e = E.io) => prog(lt, t0, dur, e)
 
-      const out3 = S.p(lt, 3, 0, .5)
-      this.head.set(S.p(lt, 0, 0, .8)); op(this.head.el, 1 - out3)
-      this.head2.set(S.p(lt, 3, .3, .8))
+      this.head.set(S.p(lt, 0, 0, .8))
+      this.trk.circ[2].style.boxShadow = `0 0 26px ${Y}88`          // (reset: frames render out of order)
       this.trk.set(S.p(lt, 0, .1, .7), lt, .2)
 
       // ================= line 0: card ③ and the demo
@@ -182,63 +163,54 @@
       const ra = pr(tRa, 1.1)
       wipe(this.ratio, ra)
       const up2 = S.p(lt, 2, .3, .8)                         // moves up once the example card has gone
-      const out3b = out3
-      op(this.ratio, 1 - out3b); this.ratio.style.transform = `translateY(${-372 * up2}px) scale(${lerp(1, .86, up2)})`
+      this.ratio.style.transform = `translateY(${-372 * up2}px) scale(${lerp(1, .86, up2)})`
       // bars: each is born at the previous height (ghost) and shrinks to two thirds of it
       const tB0 = Math.max(T(1, .22), S.at(1) + 1.2)
       const step = clamp((tRa + .6 - tB0) / 4.6, .45, 1.2)
-      const bOut = out3
-      op(this.bBase, 1); this.bBase.style.opacity = pr(tB0 - .3, .5) * (1 - bOut)
+      this.bBase.style.opacity = pr(tB0 - .3, .5)
       for (let k = 0; k < 5; k++) {
         const t0 = tB0 + k * step
         const born = pr(t0, .35, E.out), shrink = k ? pr(t0 + .35, .55, E.io) : 1
         const h = k ? lerp(hk(k - 1), hk(k), shrink) : hk(0) * E.out(pr(t0, .6))
         const bar = this.bars[k]
         bar.setAttribute('y', BASE - h); bar.setAttribute('height', Math.max(0, h))
-        bar.style.opacity = born * (1 - bOut)
+        bar.style.opacity = born
         // the ghost (previous height) shows the "two thirds of the previous one", then clears for the value label
-        if (k) this.ghost[k].style.opacity = .55 * born * (1 - bOut) * (1 - pr(t0 + .85, .45))
+        if (k) this.ghost[k].style.opacity = .55 * born * (1 - pr(t0 + .85, .45))
         const vI = pr(t0 + (k ? 1.05 : .45), .4)
-        op(this.vals[k], vI * (1 - bOut)); this.vals[k].style.transform = `translateY(${(1 - vI) * 10}px)`
-        op(this.idx[k], born * (1 - bOut))
+        op(this.vals[k], vI); this.vals[k].style.transform = `translateY(${(1 - vI) * 10}px)`
+        op(this.idx[k], born)
         if (k) {
-          this.arrs[k - 1].set(pr(t0 + .15, .5)); this.arrs[k - 1].path.style.opacity = 1 - bOut
-          op(this.xl[k - 1], pr(t0 + .45, .4) * (1 - bOut))
+          this.arrs[k - 1].set(pr(t0 + .15, .5))
+          op(this.xl[k - 1], pr(t0 + .45, .4))
         }
       }
       // gentle life while the bars hold: a soft glow runs along them, step after step
       const runT = lt - (tB0 + 5 * step + .6)
       this.bars.forEach((bar, k) => {
         const ph = runT > 0 ? Math.max(0, Math.sin((runT * 1.3 - k * .55))) : 0
-        const q = Math.pow(ph, 6) * (1 - bOut)
+        const q = Math.pow(ph, 6)
         bar.style.filter = q > .01 ? `brightness(${1 + .22 * q}) drop-shadow(0 0 ${10 * q}px ${R})` : ''
       })
       // ================= line 2: compare with 1, conclusion
       const tI = S.at(2) + .7
-      wipe(this.imp, pr(tI, 1.1)); op(this.imp, 1 - out3)
+      wipe(this.imp, pr(tI, 1.1))
       const nI = pr(Math.max(T(2, .45), tI + 1.4), .6)
-      op(this.note, Math.min(nI, 1 - out3)); this.note.style.transform = `translateY(${(1 - nI) * 14}px)`
-      const kI = pr(Math.max(T(2, .74), tI + 2.4), .7)
-      this.concl.set(Math.min(kI, 1 - out3))
-      if (kI >= 1 && out3 <= 0) this.concl.el.style.boxShadow = `0 0 ${40 + 14 * Math.sin(lt * 1.8)}px ${R}40`
+      op(this.note, nI); this.note.style.transform = `translateY(${(1 - nI) * 14}px)`
+      // keep the box inside the safe area (measured live: the bold Arabic font may load after build)
+      const cw = this.concl.el.offsetWidth
+      if (cw !== this._cw) { this._cw = cw; place(this.concl.el, Math.min(1390, 1796 - cw / 2), 795, { anchor: 'c' }) }
+      const tK = Math.max(T(2, .74), tI + 2.4)
+      const kI = pr(tK, .7)
+      this.concl.set(kI)
+      if (kI >= 1) this.concl.el.style.boxShadow = `0 0 ${40 + 14 * Math.sin(lt * 1.8)}px ${R}40`
       const gI = pr(Math.max(T(2, .86), tI + 3), .6)
-      pop(this.geo, Math.min(gI, 1 - out3)); if (out3 > 0) op(this.geo, Math.min(gI, 1 - out3))
+      pop(this.geo, gI)
 
-      // ================= line 3: the exam tip
-      const xI = S.p(lt, 3, .35, .7)
-      op(this.xc, xI); this.xc.style.transform = `translateY(${(1 - xI) * 40}px)`
-      // all three methods covered: circle 3 turns green like 1 and 2
-      const dn = S.p(lt, 3, .2, .6), c3 = this.trk.circ[2]
-      if (dn > 0) { c3.style.background = mixColor(Y, '#14241f', dn); c3.style.color = mixColor('#0b1020', G, dn); c3.style.boxShadow = `0 0 0 3px ${G}${Math.round(dn * 255).toString(16).padStart(2, '0')}` }
-      // each row arrives as it is spoken; the row being spoken carries a soft yellow marker
-      const tR = [0, 1, 2].map(i => Math.max(T(3, [.08, .38, .64][i]), S.at(3) + .6 + i * .55))
-      this.rows.forEach((r, i) => {
-        const p = pr(tR[i], .55)
-        op(r, p); r.style.transform = `translateX(${(1 - p) * 40}px)`
-        const on = Math.min(pr(tR[i], .4), i < 2 ? 1 - pr(tR[i + 1], .4) : 1)
-        r.style.borderRadius = '18px'
-        r.style.background = on > .01 ? `rgba(255,210,63,${(.09 * on).toFixed(3)})` : ''
-      })
+      // all three methods covered: circle ③ of the tracker turns green like ① and ②, once the conclusion is in
+      const dn = pr(tK + .9, .6), c3 = this.trk.circ[2]
+      c3.style.background = mixColor(Y, '#14241f', dn); c3.style.color = mixColor('#0b1020', G, dn)
+      if (dn > 0) c3.style.boxShadow = `0 0 0 3px ${G}${Math.round(dn * 255).toString(16).padStart(2, '0')}`
     },
   })
 })()

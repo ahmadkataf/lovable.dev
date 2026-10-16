@@ -4,8 +4,8 @@
 //     u_5 = u_2 + (5-2) r ⇒ -13 = 41 + 3r.
 // L2: 3r = -54 ⇒ r = -18 (boxed); every hop labelled -18; sanity chip «41 → -13 نزول ⇒ r < 0 ✓».
 // L3: the line zooms out; fifteen small hops run left from u_5 to u_20; u_20 = u_5 + (20-5) r = -13 + 15 × (-18).
-// L4: = -13 - 270 = -283; yellow key box u_20 = -283; the point u_20 lights up.
-// L5: green check: eighteen hops from u_2 give the same value.
+// L4 (short line + 1 s tail): = -13 - 270 = -283; the point u_20 lights up; yellow key box u_20 = -283;
+//     under it the green check line: eighteen hops from u_2 give the same value.
 ;(() => {
   const ID = 's22'
   const Y = C.yel, G = C.grn, R = C.red, B = C.blu, P = C.pur
@@ -22,7 +22,7 @@
     return d
   }
 
-  // the number line: u_k = 77 - 18k ; zoom A (L1–L2): 41 → 1450, -13 → 700 ; zoom B (L3–L5): 41 → 1700, -283 → 260
+  // the number line: u_k = 77 - 18k ; zoom A (L1–L2): 41 → 1450, -13 → 700 ; zoom B (L3–L4): 41 → 1700, -283 → 260
   const AX = 560
   const U = k => 77 - 18 * k
   const XA = v => 1450 + (v - 41) * (750 / 54)
@@ -192,7 +192,10 @@
       // L3/L4 formula cues (each waits for the previous one, whatever the line lengths)
       const tBr = tH3 + 14 * gap3 + .4
       const tF3 = Math.max(T(3, .45), tBr + .4), dF3 = clamp(T(3, .95) - tF3, 1.1, 2.6)
-      const tF4 = Math.max(S.at(4) + .3, tF3 + dF3 + .1)
+      const tF4 = Math.max(S.at(4) + .2, tF3 + dF3 + .1)
+      // L4 is short: result, key box, then the check route all land before the scene fades out
+      const tKB = Math.max(T(4, .4), tF4 + 1.1)
+      const tC = Math.max(T(4, .55), tKB + .5)
       this.hops.forEach(h => {
         const x1 = X(U(h.k)), x2 = X(U(h.k + 1)), len = x1 - x2
         const hh = clamp(len * .42, 16, 120)
@@ -220,7 +223,7 @@
       })
       // dots
       const gq = pr(Math.max(T(3, .1), S.at(3) + 1.3), .5)
-      const lit20 = pr(Math.max(T(4, .62), tF4 + 1.1), .5, E.out)
+      const lit20 = pr(Math.max(T(4, .3), tF4 + 1), .5, E.out)
       this.dots.forEach(dd => {
         const x = X(U(dd.k))
         dd.c.setAttribute('cx', x)
@@ -247,7 +250,7 @@
       putL(this.L4, 5, Math.min(pr(tH + hopGap + hopDur + .1, .4), 1 - zoom) * .85, 24)
       putL(this.L20q, -283, gq * (1 - lit20))
       putL(this.L20, -283, lit20)
-      // braces above the hops: 15 (L3, pink) and 18 (L5, green)
+      // braces above the hops: 15 (L3, pink) and 18 (L4 check, green)
       const brace = (path, lab, xa, xb, yb, dd, p) => {
         const x1 = Math.min(xa, xb), x2 = Math.max(xa, xb), xm = (x1 + x2) / 2, h = dd / 2
         // drawn right → left, the way the hops run
@@ -258,10 +261,9 @@
       const b15 = pr(tBr, .6)
       brace(this.brace[0], this.braceL[0], X(-13) - 4, X(-283) + 4, AX - 62, 22, b15)
       rise(this.braceL[0], pr(tBr + .3, .5), 12)
-      const tC = S.at(5) + .3
-      const b18 = pr(tC, .8)
+      const b18 = pr(tC - .1, .7)
       brace(this.brace[1], this.braceL[1], X(41), X(-283), AX - 150, 24, b18)
-      rise(this.braceL[1], pr(tC + .4, .5), 12)
+      rise(this.braceL[1], pr(tC + .25, .5), 12)
 
       // ================= L1: F1
       const out3 = S.p(lt, 3, 0, .5)
@@ -283,20 +285,17 @@
       op(this.rChip, rc); this.rChip.style.transform = `translateY(${(1 - rc) * 16}px)`
 
       // ================= L3: F3
-      const out5 = S.p(lt, 5, 0, .5)
       wipeF(this.F3, pr(tF3, dF3))
 
       // ================= L4: F4 + key box
-      wipeF(this.F4, pr(tF4, 1.3))
-      const tKB = Math.max(T(4, .5), tF4 + 1.4)
+      wipeF(this.F4, pr(tF4, 1.1))
       const kbP = pr(tKB, .7)
       this.kb.set(kbP)
       if (kbP > 0) this.kb.el.style.boxShadow = `0 0 ${46 + 16 * Math.sin(lt * 1.8)}px ${Y}${kbP >= 1 ? '44' : '22'}`
-      // L5: check line
-      const tCk = Math.max(T(5, .2), tC + .9, tKB + .6)
-      const ck = pr(tCk, .6)
+      // check line (second route): fades in under the result while the 18-hop brace is drawn
+      const ck = pr(tC, .5)
       op(this.chk, ck); this.chk.style.transform = `translateY(${(1 - ck) * 20}px)`
-      wipeF(this.chkF, pr(tCk + .2, clamp(T(5, .92) - tCk, 1.2, 2.4)))
+      wipeF(this.chkF, pr(tC + .15, clamp(S.dur - 1.1 - tC, 1, 1.6)))
     },
   })
 })()

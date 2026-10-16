@@ -20,7 +20,7 @@ scene('s03', (() => {
   const NX0 = 250, NDX = 146, NY = 890
   const nx = v => NX0 + v * NDX
   // index/term boxes
-  const BX = i => 150 + i * 150, BW = 136
+  const BX = i => 140 + i * 144, BW = 128
 
   return {
     build(root, S) {
@@ -190,9 +190,9 @@ scene('s03', (() => {
       }
       this.rDots = tex('\\cdots', 'mx'); this.rDots.style.color = C.mut; this.row.appendChild(this.rDots); place(this.rDots, BX(8) + 40, 505, { anchor: 'c' })
       this.iDots = tex('\\cdots', 'mx'); this.iDots.style.color = C.mut; this.row.appendChild(this.iDots); place(this.iDots, BX(8) + 40, 622, { anchor: 'c' })
-      this.labV = rich('الحدّ = القيمة', 'h3'); this.labV.style.cssText += `color:${C.yel};font-weight:800;white-space:nowrap;font-size:40px`
+      this.labV = rich('الحدّ = القيمة', 'h3'); this.labV.style.cssText += `color:${C.yel};font-weight:800;white-space:nowrap;font-size:38px`
       this.row.appendChild(this.labV); place(this.labV, 1800, 505, { anchor: 'cr' })
-      this.labI = rich('الدليل: رقم الموقع', 'h3'); this.labI.style.cssText += `color:${C.blu};font-weight:800;white-space:nowrap;font-size:40px`
+      this.labI = rich('الدليل: رقم الموقع', 'h3'); this.labI.style.cssText += `color:${C.blu};font-weight:800;white-space:nowrap;font-size:38px`
       this.row.appendChild(this.labI); place(this.labI, 1800, 622, { anchor: 'cr' })
       // highlight of box 7
       this.hl7 = el('div', 'hlbox', null, this.row)
@@ -453,7 +453,7 @@ scene('s03', (() => {
         // «— وهو الحدّ الثامن لأنّ العدّ بدأ من u0»: box 0 flashes while it comes in
         const ob = prog(lt, T.ord, .5)
         op(this.cap7b, ob); this.cap7b.style.transform = `translateY(${(1 - ob) * 12}px)`
-        const h0 = env(lt, T.ord + .2, T.val - .1, .3, .4)
+        const h0 = env(lt, T.ord + .2, T.ord + 2.1, .3, .5)
         op(this.hl0, h0 * .9); this.hl0.style.transform = `scale(${lerp(1.12, 1, E.out(clamp(h0)))})`
         // its value: ?
         const qp = prog(lt, T.q, .5, E.back)

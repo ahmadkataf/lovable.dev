@@ -184,34 +184,43 @@
       rise(this.card, S.p(lt, 0, .3, .7, E.out) * (1 - out0))
       this.card.style.transform += ` scale(${lerp(1, .95, out0)})`
       typeWords(this.c1, S.f(lt, 0, .02, .1))
-      typeWords(this.c1b, S.f(lt, 0, .1, .3))
-      typeWords(this.c2, S.f(lt, 0, .32, .9))
-      const u0g = pp(lt, T(S, 0, .34), .5) * (1 - pp(lt, T(S, 0, .62), .6))
+      typeWords(this.c1b, S.f(lt, 0, .06, .22))
+      typeWords(this.c2, S.f(lt, 0, .22, .9))
+      const u0g = pp(lt, T(S, 0, .28), .5) * (1 - pp(lt, T(S, 0, .62), .6))
       if (this.u0w) { this.u0w.style.color = mixColor(C.ink, C.yel, Math.max(u0g, .0)); this.u0w.style.textShadow = u0g > 0 ? `0 0 ${14 * u0g}px rgba(255,210,63,.7)` : '' }
       const rh = pp(lt, T(S, 0, .86), .6)
       this.relHL(rh * (1 - out0))
       // preview row
       const pvOut = S.p(lt, 1, 0, .5)
-      const pv0 = pp(lt, T(S, 0, .4), .5, E.out)
+      const pv0 = pp(lt, T(S, 0, .28), .5, E.out)
       this.pv.forEach((e, k) => rise(e, (k === 0 ? pv0 : pp(lt, T(S, 0, .52 + k * .1), .5, E.out)) * (1 - pvOut), 20))
       rise(this.pvGiven, pv0 * (1 - pvOut), 12)
       rise(this.pvDots, pp(lt, T(S, 0, .86), .5) * (1 - pvOut), 20)
       this.pvHops.forEach((h, k) => { h.set(pp(lt, T(S, 0, .47 + k * .1), .45)); h.path.style.opacity = 1 - pvOut })
 
       // ---------- L1: example + machine + pipe ----------
-      const outEx = pp(lt, T(S, 2, .66), .5)
+      // «حدّاً بعد حدّ، بلا قفز»: the machine + example leave first, then the contrast strip builds (never both at once)
+      const exT = T(S, 2, .63), outEx = pp(lt, exT, .45)
+      const stA = Math.max(T(S, 2, .69), exT + .5), stB = Math.max(T(S, 2, .78), stA + .6), stC = Math.max(T(S, 2, .8), stA + .8)
       const chipIn = S.p(lt, 1, .3, .6, E.out)
       slide(this.chip, chipIn, -30)
       rise(this.ex, S.p(lt, 1, .5, .7, E.out) * (1 - outEx))
       const r1 = pp(lt, Math.max(a1 + .9, T(S, 1, .14)), .5), r2 = pp(lt, Math.max(a1 + 1.4, T(S, 1, .3)), .5)
       rise(this.r1.r, r1, 16); rise(this.r2.r, r2, 16)
+      {
+        const g1 = r1 * (1 - pp(lt, Math.max(a1 + 1.4, T(S, 1, .3)), .5))
+        const g2 = r2 * (1 - pp(lt, T(S, 1, .72), .6))
+        this.r1.f.style.textShadow = g1 > 0 ? `0 0 ${18 * g1}px rgba(255,210,63,.75)` : ''
+        this.r2.f.style.textShadow = g2 > 0 ? `0 0 ${18 * g2}px rgba(255,210,63,.75)` : ''
+        this.r2.f.style.color = g2 > 0 ? mixColor(C.ink, C.yel, g2) : ''
+      }
       // machine: in during L1, out for the contrast strip, back in L3
       const mIn = S.p(lt, 1, .4, .7, E.out) * (1 - outEx) + pp(lt, a3 + .4, .7, E.out)
-      const pipeP = pp(lt, T(S, 1, .6), 1.1, E.io)
+      const pipeP = pp(lt, T(S, 1, .72), 1.1, E.io)
       this.pipes.forEach(p => { draw(p, pipeP); p.style.opacity = clamp(mIn) })
-      rise(this.eat, pp(lt, T(S, 1, .6) + .8, .5) * clamp(mIn), 12)
-      op(this.inL, pp(lt, T(S, 1, .6) + 1, .4) * clamp(mIn)); op(this.outL, pp(lt, T(S, 1, .6) + .6, .4) * clamp(mIn))
-      const flowOn = pp(lt, T(S, 1, .6) + 1.1, .5) * clamp(mIn)
+      rise(this.eat, pp(lt, T(S, 1, .72) + .8, .5) * clamp(mIn), 12)
+      op(this.inL, pp(lt, T(S, 1, .72) + 1, .4) * clamp(mIn)); op(this.outL, pp(lt, T(S, 1, .72) + .6, .4) * clamp(mIn))
+      const flowOn = pp(lt, T(S, 1, .72) + 1.1, .5) * clamp(mIn)
       this.flow.style.opacity = .55 * flowOn
       this.flow.style.strokeDashoffset = -lt * 120
       this.flow.style.filter = flowOn > 0 ? 'drop-shadow(0 0 6px rgba(255,210,63,.8))' : ''
@@ -255,7 +264,7 @@
         } else {
           c.style.zIndex = em < 1 ? 4 : 6
         }
-        putCard(c, x, y, a * (1 - pp(lt, T(S, 2, .66), .4)), 1)
+        putCard(c, x, y, a * (1 - pp(lt, exT, .4)), 1)
       }
       // chain items appear as each output emerges
       const outChain = pp(lt, T(S, 3, .62), .5)
@@ -270,18 +279,18 @@
         e.style.filter = q > 0 && q < 1 ? `blur(${(1 - q) * 6}px)` : ''
       })
       // contrast strip
-      const stIn = pp(lt, T(S, 2, .69), .6), stOut = S.p(lt, 3, 0, .5)
-      const A = pp(lt, T(S, 2, .69), .5, E.out), Bq = pp(lt, T(S, 2, .78), .5, E.out)
+      const stIn = pp(lt, stA, .6), stOut = S.p(lt, 3, 0, .5)
+      const A = pp(lt, stA, .5, E.out), Bq = pp(lt, stB, .5, E.out)
       ;[this.sA, this.sAn].forEach(e => rise(e, A * (1 - stOut), 16))
-      this.sArrow.set(pp(lt, T(S, 2, .69) + .3, .7)); this.sArrow.path.style.opacity = 1 - stOut
-      rise(this.sAu, pp(lt, T(S, 2, .69) + .8, .4, E.out) * (1 - stOut), 16)
-      rise(this.sAcap, pp(lt, T(S, 2, .69) + .7, .4) * (1 - stOut), 10)
+      this.sArrow.set(pp(lt, stA + .3, .7)); this.sArrow.path.style.opacity = 1 - stOut
+      rise(this.sAu, pp(lt, stA + .8, .4, E.out) * (1 - stOut), 16)
+      rise(this.sAcap, pp(lt, stA + .7, .4) * (1 - stOut), 10)
       ;[this.sB].forEach(e => rise(e, Bq * (1 - stOut), 16))
-      const hopStep = clamp((S.end(2) - T(S, 2, .8)) / 5.2, .22, .5)
-      this.sBt.forEach((e, k) => rise(e, pp(lt, T(S, 2, .8) + k * hopStep, .35, E.out) * (1 - stOut), 14))
-      this.sBhops.forEach((h, k) => { h.set(pp(lt, T(S, 2, .8) + (k + .45) * hopStep, .35)); h.path.style.opacity = 1 - stOut })
-      rise(this.sBdots, pp(lt, T(S, 2, .8) + 4 * hopStep, .35) * (1 - stOut), 14)
-      rise(this.sBcap, pp(lt, T(S, 2, .8) + 4.4 * hopStep, .4) * (1 - stOut), 10)
+      const hopStep = clamp((S.end(2) - stC) / 5.2, .22, .5)
+      this.sBt.forEach((e, k) => rise(e, pp(lt, stC + k * hopStep, .35, E.out) * (1 - stOut), 14))
+      this.sBhops.forEach((h, k) => { h.set(pp(lt, stC + (k + .45) * hopStep, .35)); h.path.style.opacity = 1 - stOut })
+      rise(this.sBdots, pp(lt, stC + 4 * hopStep, .35) * (1 - stOut), 14)
+      rise(this.sBcap, pp(lt, stC + 4.4 * hopStep, .4) * (1 - stOut), 10)
       op(this.sep, stIn * (1 - stOut) * .9)
 
       // ---------- L3 ----------

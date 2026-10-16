@@ -104,9 +104,9 @@
       const rchip = (html, c, ink) => { const e = el('div', 'chip', html, this.rail); e.style.cssText += `border-color:${c}88;background:${c}1c;color:${ink || c};font-size:28px;padding:6px 22px;white-space:nowrap`; return e }
       this.rGiven = rchip(`${kt('v_0 = 1')} &nbsp;،&nbsp; ${kt('v_{n+1} = \\dfrac{v_n}{1+v_n}')}`, P, C.ink)
       this.rOne = rchip(`${badge(1, G)}${kt('v_n > 0')} ✓`, G)
-      this.rTwo = rchip(`${badge(2, B)}${kt('u_n = \\dfrac{1}{v_n}')}<span id="${ID}-r2x" style="display:inline-block;overflow:hidden;white-space:nowrap;vertical-align:middle">&nbsp; ، &nbsp;${kt('u_0 = 1')} ، ${kt('r = 1')}</span>`, B)
+      this.rTwo = rchip(`${badge(2, B)}${kt('u_n = \\dfrac{1}{v_n}')}<span id="${ID}-r2x" style="display:inline-block;flex:none;overflow:hidden;white-space:nowrap;vertical-align:middle">&nbsp; ، &nbsp;${kt('u_0 = 1')} ، ${kt('r = 1')}</span>`, B)
       // the ❷ chip later grows to «u_0 = 1 ، r = 1» (as s24 opens with it)
-      this.r2x = document.getElementById(`${ID}-r2x`); this.r2xW = this.r2x.offsetWidth; this.r2x.style.maxWidth = '0px'
+      this.r2x = document.getElementById(`${ID}-r2x`); this.r2x.style.maxWidth = '0px'
 
       // ================= L0: the exercise =================
       const c0 = card(root, 'ex', 960, 318, 1680, { anchor: 'tc', tag: '✏️ تدرَّبْ · التمرين ③ · ص 11' })
@@ -531,7 +531,7 @@
       op(this.nmore, prog(lt, tN + 2, .5))
       // file the result in the rail: ❷ grows to «u_0 = 1 ، r = 1»
       const gx = E.io(prog(lt, Math.min(Math.max(F(5, .92), tN + 2.4), S.dur - 1.4), .7))
-      this.r2x.style.maxWidth = (this.r2xW * gx) + 'px'; this.r2x.style.opacity = gx
+      this.r2x.style.maxWidth = (this.r2x.scrollWidth * gx) + 'px'; this.r2x.style.opacity = gx   // scrollWidth = full width (fonts settled)
     },
   })
 })()
