@@ -125,7 +125,7 @@ def cmd_gen(a):
         if os.path.exists(out):
             print('SKIP (exists)', out); continue
         if not first:
-            time.sleep(22)
+            time.sleep(a.gap)
         first = False
         code, _ = run_tts(a.tts, P('voice', 'sections', m['name'] + '.txt'), out, a.voice, a.style, a.model)
         if code == 3:
@@ -346,6 +346,7 @@ def main():
         g.add_argument('--model', default='gemini-3.8-flash-tts')
         if name == 'gen':
             g.add_argument('--voice', default=VOICE); g.add_argument('--only')
+            g.add_argument('--gap', type=float, default=22, help='seconds between requests (free tier needs ≥21; paid tier can use 2)')
         else:
             g.add_argument('--voices', required=True); g.add_argument('--text')
     sub.add_parser('split')
