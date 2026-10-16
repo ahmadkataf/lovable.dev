@@ -30,11 +30,12 @@
       place(this.row, 960, 540, { anchor: 'c' })
       this.row.style.cssText += 'direction:ltr;display:flex;align-items:flex-start;gap:0'
       this.nums = [7, 47, 2207].map((n, k) => {
-        if (k) { const s = el('div', 'mute', '·', this.row); s.style.cssText += 'font-size:110px;line-height:1;margin:22px 60px 0;font-weight:900' }
+        let sep = null
+        if (k) { sep = el('div', 'mute', '·', this.row); sep.style.cssText += 'font-size:110px;line-height:1;margin:22px 60px 0;font-weight:900' }
         const b = el('div', '', null, this.row); b.style.cssText = 'display:flex;flex-direction:column;align-items:center'
         const t = numTex(n, 'mxl'); t.style.fontSize = '150px'; b.appendChild(t)
         const l = tex(`u_${k + 1}`, 'mm mute'); l.style.marginTop = '6px'; b.appendChild(l)
-        return { b, t, l, pre: q(t, 's08-pre'), u: q(t, 's08-u')[0] }
+        return { b, t, l, sep, pre: q(t, 's08-pre'), u: q(t, 's08-u')[0] }
       })
       this.nums[0].pre.forEach(e => (e.style.opacity = 0))
 
@@ -46,7 +47,7 @@
       this.thumb = bookThumb(root, 8, 140, 420, 330, { x: .1, y: .075, w: .82, h: .095 })
       this.thumbLab = chip(root, '📖 الكتاب ص 8', 305, 900, { anchor: 'c' })
       this.cdw = el('div', '', null, root); place(this.cdw, 0, 0, { w: W, h: H })
-      this.cd = countdown(this.cdw, 1190, 800, 70)
+      this.cd = countdown(this.cdw, 1190, 800, 70, 'أوقف وفكّر')
 
       // ---------- line 2: u4, odometer ----------
       this.comp = tex('u_4 = u_3^2 - 2 = 2207^2 - 2 = 4870849 - 2', 'mx')
@@ -85,8 +86,8 @@
       // cycle diagram (left half)
       const cy = svg(root, 0, 0, W, H); cy.style.direction = 'ltr'
       this.cy = cy
-      this.A = [250, 540]; this.B = [580, 540]; this.Cn = [900, 540]
-      const R = 64
+      this.A = [250, 590]; this.B = [640, 590]; this.Cn = [960, 590]
+      const R = 78
       this.R = R
       const node = (p, col) => {
         const g = sv(cy, 'g')
@@ -96,7 +97,7 @@
         return g
       }
       // arrow A → B (squaring), upper arc
-      const arcAB = `M${this.A[0] + 58},${this.A[1] - 34} Q${(this.A[0] + this.B[0]) / 2},${this.A[1] - 150} ${this.B[0] - 62},${this.B[1] - 30}`
+      const arcAB = `M${this.A[0] + 66},${this.A[1] - 46} Q${(this.A[0] + this.B[0]) / 2},${this.A[1] - 220} ${this.B[0] - 70},${this.B[1] - 44}`
       this.aAB = sv(cy, 'path', { d: arcAB, fill: 'none', stroke: C.yel, 'stroke-width': 5, 'stroke-linecap': 'round' })
       this.hAB = sv(cy, 'path', { d: 'M8,0 L-13,-10 L-13,10 Z', fill: C.yel })
       // arrow B → C (−2), later bent back to A
@@ -105,10 +106,10 @@
       this.nA = node(this.A, C.yel); this.nB = node(this.B, C.blu); this.nC = node(this.Cn, C.yel)
       this.runner = sv(cy, 'circle', { cx: 0, cy: 0, r: 9, fill: C.yel })
       this.runner.style.filter = `drop-shadow(0 0 10px ${C.yel})`
-      const nl = (latex, p, col) => { const e = tex(latex, 'mx'); root.appendChild(e); place(e, p[0], p[1], { anchor: 'c' }); e.style.color = col; return e }
+      const nl = (latex, p, col) => { const e = tex(latex, 'mm'); e.style.fontSize = '54px'; root.appendChild(e); place(e, p[0], p[1], { anchor: 'c' }); e.style.color = col; return e }
       this.lA = nl('\\ldots 7', this.A, C.yel); this.lB = nl('\\ldots 9', this.B, C.blu); this.lC = nl('\\ldots 7', this.Cn, C.yel)
-      this.labSq = rich('تربيع', 'h3 yel'); root.appendChild(this.labSq); place(this.labSq, (this.A[0] + this.B[0]) / 2, 418, { anchor: 'c' }); this.labSq.style.fontSize = '36px'
-      this.note = tex('7 \\times 7 = 4\\textcolor{' + C.yel + '}{9}', 'mm mute'); root.appendChild(this.note); place(this.note, (this.A[0] + this.B[0]) / 2, 352, { anchor: 'c' })
+      this.labSq = rich('تربيع', 'h3 yel'); root.appendChild(this.labSq); place(this.labSq, (this.A[0] + this.B[0]) / 2, 398, { anchor: 'c' }); this.labSq.style.fontSize = '40px'
+      this.note = tex('7 \\times 7 = 4\\textcolor{' + C.yel + '}{9}', 'mm mute'); root.appendChild(this.note); place(this.note, (this.A[0] + this.B[0]) / 2, 334, { anchor: 'c' })
       this.lab2 = tex('-2', 'mx'); root.appendChild(this.lab2); this.lab2.style.color = C.blu
       place(this.lab2, 0, 0, { anchor: 'c' })
 
@@ -116,7 +117,7 @@
       this.yes = rich('<span class="grn b">✓ نعم:</span> آحاد جميع الحدود بدءاً من $u_1$ تساوي <span class="yel b">7</span>', 'h3')
       root.appendChild(this.yes); place(this.yes, 960, 395, { anchor: 'c' }); this.yes.style.whiteSpace = 'nowrap'
       const ds = svg(root, 0, 0, W, H); ds.style.direction = 'ltr'
-      this.GY = 770; this.DW = 64; this.DH = 200; this.X0 = 470; this.SP = 160
+      this.GY = 790; this.DW = 76; this.DH = 220; this.X0 = 430; this.SP = 180
       sv(ds, 'path', { d: `M150,${this.GY + 2} L1700,${this.GY + 2}`, stroke: 'rgba(154,168,201,.35)', 'stroke-width': 3 })
       this.ground = ds.lastChild
       const tile = (x, txt, col, fill) => {
@@ -125,17 +126,19 @@
         sv(g, 'path', { d: `M${x + 12},${this.GY - this.DH / 2} L${x + this.DW - 12},${this.GY - this.DH / 2}`, stroke: col, 'stroke-width': 2, opacity: .5 })
         const t = sv(g, 'text', { x: x + this.DW / 2, y: this.GY - this.DH * .75 + 20, 'text-anchor': 'middle', 'font-family': 'KaTeX_Main', 'font-size': 56, 'font-weight': 700, fill: col })
         t.textContent = txt
-        return { g, t }
+        return { g, t, cx: x + this.DW / 2, cy: this.GY - this.DH * .75 }
       }
-      this.u0t = tile(230, '3', C.dim, 'rgba(93,106,143,.15)')
+      this.u0t = tile(200, '3', C.dim, 'rgba(93,106,143,.15)')
+      this.ghost = tile(this.X0 + 6 * this.SP, '7', 'rgba(255,210,63,.35)', 'rgba(26,35,80,.35)')
+      this.ghost.g.querySelector('rect').setAttribute('stroke-dasharray', '10 8')
       this.doms = [1, 2, 3, 4, 5, 6].map(k => tile(this.X0 + (k - 1) * this.SP, '7', C.yel, '#1a2350'))
-      this.u0l = tex('u_0 = 3', 'ms'); root.appendChild(this.u0l); place(this.u0l, 262, this.GY + 40, { anchor: 'c' }); this.u0l.style.color = C.dim
-      this.u0n = rich('حدّ البدء لا ينتهي بـ 7', 's'); root.appendChild(this.u0n); place(this.u0n, 262, this.GY + 100, { anchor: 'c' })
+      this.u0l = tex('u_0 = 3', 'ms'); root.appendChild(this.u0l); place(this.u0l, 238, this.GY + 40, { anchor: 'c' }); this.u0l.style.color = C.dim
+      this.u0n = rich('حدّ البدء لا ينتهي بـ 7', 's'); root.appendChild(this.u0n); place(this.u0n, 250, this.GY + 92, { anchor: 'c' })
       this.u0n.style.cssText += 'white-space:nowrap;font-size:28px'
       this.dl = [1, 2, 3, 4, 5, 6].map(k => { const e = tex(`u_${k}`, 'ms'); root.appendChild(e); place(e, this.X0 + (k - 1) * this.SP + this.DW / 2, this.GY + 40, { anchor: 'c' }); return e })
-      this.dmore = tex('\\cdots', 'mx mute'); root.appendChild(this.dmore); place(this.dmore, 1630, this.GY - 30, { anchor: 'c' })
+      this.dmore = tex('\\cdots', 'mx mute'); root.appendChild(this.dmore); place(this.dmore, 1720, this.GY - 40, { anchor: 'c' })
       this.dcap = rich('الخاصّة تنتقل من كلّ حدٍّ إلى الذي يليه', 's'); root.appendChild(this.dcap)
-      place(this.dcap, 940, this.GY + 110, { anchor: 'c' }); this.dcap.style.whiteSpace = 'nowrap'
+      place(this.dcap, 980, this.GY + 100, { anchor: 'c' }); this.dcap.style.whiteSpace = 'nowrap'
     },
 
     // angle (deg) at which domino k, pivoting on its bottom-right corner, rests on domino k+1 tilted by phi (deg)
@@ -177,6 +180,7 @@
       op(this.row, 1 - rowOut)
       this.nums.forEach((n, k) => {
         pop(n.b, prog(lt, ap[k], .5))
+        if (n.sep) op(n.sep, prog(lt, ap[k] - .15, .4))
         const lit = prog(lt, F(0, .68) + k * .4, .45)
         glow(n.u, lit)
         n.u.style.display = 'inline-block'
@@ -227,7 +231,7 @@
       const pBC = prog(lt, F(3, .78), .6), pC = prog(lt, F(3, .86), .4), close = prog(lt, F(3, .9), .9)
       const nodeSet = (g, lb, p) => { g.style.opacity = clamp(p * 2) * out3; g.style.transform = `scale(${p <= 0 ? .3 : lerp(.3, 1, E.back(p))})`; op(lb, clamp(p * 2) * out3) }
       nodeSet(this.nA, this.lA, pA); nodeSet(this.nB, this.lB, pB)
-      nodeSet(this.nC, this.lC, pC * (1 - prog(lt, F(3, .9) + .65, .25)))
+      nodeSet(this.nC, this.lC, pC * (1 - clamp((E.io(close) - .55) / .35)))
       draw(this.aAB, pAB); this.aAB.style.opacity = out3
       const LAB = this.aAB.getTotalLength(), tAB = this.aAB.getPointAtLength(LAB * pAB), tAB0 = this.aAB.getPointAtLength(Math.max(0, LAB * pAB - 3))
       this.hAB.setAttribute('transform', `translate(${tAB.x},${tAB.y}) rotate(${Math.atan2(tAB.y - tAB0.y, tAB.x - tAB0.x) * 180 / Math.PI})`)
@@ -236,13 +240,13 @@
       rise(this.note, prog(lt, F(3, .52), .5) * out3, 10)
       // B → C (straight) bending into B → A (lower arc) as C slides home onto A
       const ce = E.io(close)
-      const Cx = lerp(this.Cn[0], this.A[0], ce), Cy = this.Cn[1] + Math.sin(ce * Math.PI) * 190
+      const Cx = lerp(this.Cn[0], this.A[0], ce), Cy = this.Cn[1] + Math.sin(ce * Math.PI) * 230
       this.nC.style.translate = `${Cx - this.Cn[0]}px ${Cy - this.Cn[1]}px`
       this.lC.style.translate = `calc(-50% + ${Cx - this.Cn[0]}px) calc(-50% + ${Cy - this.Cn[1]}px)`
       const sx = lerp(this.B[0] + this.R + 2, this.B[0] - 20, ce), sy = lerp(this.B[1], this.B[1] + this.R - 4, ce)
       const dx = Cx - sx, dy = Cy - sy, dl = Math.hypot(dx, dy) || 1
-      const ex = Cx - dx / dl * (this.R + 14) * (1 - ce) + ce * (40), ey = Cy - dy / dl * (this.R + 14) * (1 - ce) + ce * (this.R - 2)
-      const qx = lerp((sx + ex) / 2, (this.A[0] + this.B[0]) / 2, ce), qy = lerp((sy + ey) / 2, this.B[1] + 210, ce)
+      const ex = Cx - dx / dl * (this.R + 14) * (1 - ce) + ce * (44), ey = Cy - dy / dl * (this.R + 14) * (1 - ce) + ce * (this.R + 2)
+      const qx = lerp((sx + ex) / 2, (this.A[0] + this.B[0]) / 2, ce), qy = lerp((sy + ey) / 2, this.B[1] + 250, ce)
       this.aBC.setAttribute('d', `M${sx},${sy} Q${qx},${qy} ${ex},${ey}`)
       this.aBC.style.visibility = pBC <= 0 ? 'hidden' : 'visible'
       const LBC = this.aBC.getTotalLength()
@@ -252,9 +256,9 @@
       this.hBC.setAttribute('transform', `translate(${tB.x},${tB.y}) rotate(${Math.atan2(tB.y - tB0.y, tB.x - tB0.x) * 180 / Math.PI})`)
       this.hBC.style.opacity = (pBC > .05 ? 1 : 0) * out3
       const lp = this.aBC.getPointAtLength(LBC / 2)
-      const lx = lp.x, ly = lp.y + lerp(-42, 46, ce)
+      const lx = lp.x, ly = lp.y + lerp(-46, 50, ce)
       this.lab2.style.left = lx + 'px'; this.lab2.style.top = ly + 'px'
-      op(this.lab2, prog(lt, F(3, .8), .5) * out3)
+      op(this.lab2, prog(lt, F(3, .8), .5) * out3 * (1 - Math.sin(ce * Math.PI)))
       // A pulses when the loop closes; then a light runs around the loop
       const hit = prog(lt, F(3, .9) + .8, .5)
       this.nA.style.filter = hit > 0 && hit < 1 ? `drop-shadow(0 0 ${30 * Math.sin(hit * Math.PI)}px ${C.yel})` : ''
@@ -277,7 +281,7 @@
       const T0 = F(4, .38), dt = .5, D = .72
       const free = this.doms.map((d, k) => 90 * E.in(clamp((lt - T0 - k * dt) / D)))
       const ang = new Array(6)
-      for (let k = 5; k >= 0; k--) ang[k] = Math.min(free[k], k === 5 ? 82 : this.contact(ang[k + 1]))
+      for (let k = 5; k >= 0; k--) ang[k] = Math.min(free[k], this.contact(k === 5 ? 0 : ang[k + 1]))
       this.doms.forEach((d, k) => {
         const x = this.X0 + k * this.SP
         const st = prog(lt, S.at(4) + .5 + k * .1, .45)
@@ -286,9 +290,12 @@
         const lit = clamp(ang[k] / 25)
         d.t.setAttribute('fill', mixColor(C.dim, C.yel, lit))
         d.t.style.filter = lit > .5 ? `drop-shadow(0 0 8px ${C.yel})` : ''
+        d.t.setAttribute('transform', `rotate(${-ang[k]} ${d.cx} ${d.cy})`)
         rise(this.dl[k], st, 10)
       })
-      op(this.dmore, prog(lt, T0 + 5 * dt + .6, .5))
+      const gp = prog(lt, S.at(4) + 1.1, .5)
+      this.ghost.g.style.opacity = gp
+      op(this.dmore, gp)
       rise(this.dcap, prog(lt, T0 + .4, .6), 10)
     },
   })

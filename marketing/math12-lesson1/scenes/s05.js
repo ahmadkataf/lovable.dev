@@ -145,7 +145,8 @@
       for (let n = 0; n <= 9; n++) this.pts.push([X(n), Y((n % 2 ? -1 : 1) / (n + 1))])
       // envelope ±1/(n+1)
       let e1 = '', e2 = ''
-      for (let k = 0; k <= 90; k++) { const x = k / 10; e1 += (k ? ' L' : 'M') + X(x) + ',' + Y(1 / (x + 1)); e2 += (k ? ' L' : 'M') + X(x) + ',' + Y(-1 / (x + 1)) }
+      for (let k = 0; k <= 90; k++) { const x = k / 10; e1 += (k ? ' L' : 'M') + X(x) + ',' + Y(1 / (x + 1)) }
+      for (let k = 5; k <= 90; k++) { const x = k / 10; e2 += (k > 5 ? ' L' : 'M') + X(x) + ',' + Y(-1 / (x + 1)) }
       this.env = [e1, e2].map(d => sv(P.s, 'path', { d, fill: 'none', stroke: C.pur, 'stroke-width': 2, 'stroke-dasharray': '7 9', opacity: 0 }))
       let zz = ''
       this.pts.forEach(([x, y], i) => { zz += (i ? ' L' : 'M') + x + ',' + y })
@@ -160,9 +161,9 @@
         sv(P.s, 'line', { x1: X(n), y1: Y(0) - 6, x2: X(n), y2: Y(0) + 6, stroke: C.mut, 'stroke-width': 2 })
       }
       this.pl = []
-      ;[0, 3, 6, 9].forEach(n => { const l = P.label('', n, -.08, 'tc'); const t = tex(String(n), 'ms'); t.style.fontSize = '30px'; l.appendChild(t); l.style.color = C.blu; this.pl.push(l) })
+      ;[0, 2, 4, 6, 8].forEach(n => { const l = P.label('', n, -.08, 'tc'); const t = tex(String(n), 'ms'); t.style.fontSize = '30px'; l.appendChild(t); l.style.color = C.blu; this.pl.push(l) })
       { const l = P.label('', 9.9, .02, 'bl'); l.appendChild(tex('n', 'ms')); l.style.color = C.blu; this.pl.push(l) }
-      { const l = P.label('', -.35, 1.18, 'cr'); l.appendChild(tex('u_n', 'ms')); l.style.color = C.yel; this.pl.push(l) }
+      { const l = P.label('', .12, 1.2, 'bl'); l.appendChild(tex('u_n', 'ms')); l.style.color = C.yel; this.pl.push(l) }
       { sv(P.s, 'line', { x1: X(0) - 6, y1: Y(1), x2: X(0) + 6, y2: Y(1), stroke: C.mut, 'stroke-width': 2 }); const l = P.label('', -.3, 1, 'cr'); const t = tex('1', 'ms'); t.style.fontSize = '30px'; l.appendChild(t); this.pl.push(l) }
       this.to0 = rich('تقترب من $0$', 's'); P.layer.appendChild(this.to0); place(this.to0, X(9.6), Y(-.45), { anchor: 'cr' }); this.to0.style.whiteSpace = 'nowrap'; this.to0.style.color = C.pur; this.to0.style.fontSize = '28px'
 
@@ -181,8 +182,9 @@
       this.rowTargets = this.rows2.map(e => { const r = rectIn(e, root); return { x: r.x + r.w - 40, y: r.cy } })
 
       // ---------- L3: u_100 ----------
-      this.kb = keyBox(root, 'u_{100} = \\sqrt{100^2+100+1} = \\sqrt{10101}', 1330, 668, { cls: 'mx' })
-      this.jump = chip(root, '⚡ قفزة مباشرة', 1330, 842, { anchor: 'c', color: C.grn })
+      this.kb = keyBox(root, 'u_{100} = \\sqrt{100^2+100+1} = \\sqrt{10101}', 1290, 668, { cls: 'mx' })
+      this.kb.f.style.fontSize = '56px'
+      this.jump = chip(root, '⚡ قفزة مباشرة', 1290, 842, { anchor: 'c', color: C.grn })
       this.jump.style.whiteSpace = 'nowrap'; this.jump.style.fontSize = '32px'
       this.B0 = [1180, 880]; this.B1 = [830, 60]; this.B2 = [MX, HOPY - 40]
       let d = ''
@@ -299,7 +301,7 @@
       winGlow = Math.max(winGlow, pp(lt, j0 + 1.6, .3) * (1 - pp(lt, j0 + 2.8, .6)))
       const ce = j0 + 2.25
       const em = pp(lt, ce, .35, E.out), fl = pp(lt, ce + .35, .6, E.io)
-      putCard(this.c100, lerp(MX, 1330, fl), lerp(CHY - 40 + 70 * em, 668, fl), em > 0 && fl < 1 ? 1 : 0, lerp(1, 1.3, fl))
+      putCard(this.c100, lerp(MX, 1290, fl), lerp(CHY - 40 + 70 * em, 668, fl), em > 0 && fl < 1 ? 1 : 0, lerp(1, 1.3, fl))
       this.kb.set(pp(lt, ce + .75, .7, E.out))
       if (lt > ce + 1.5) this.kb.el.style.boxShadow = `0 0 ${44 + 16 * Math.sin(lt * 2.4)}px rgba(255,210,63,.28)`
       const jIn = pp(lt, ce + 1.1, .6, E.out)
