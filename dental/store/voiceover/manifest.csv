@@ -1,0 +1,18 @@
+lesson,section,script,wav,start_sec,status
+L01-getting-started,s1,scripts/L01-getting-started_s1.txt,audio/L01-getting-started_s1.wav,,voice-test (3 voices in samples/)
+L02-interface,s1,scripts/L02-interface_s1.txt,audio/L02-interface_s1.wav,,script
+L03-dashboard,s1,scripts/L03-dashboard_s1.txt,audio/L03-dashboard_s1.wav,,script
+L04-patients,s1,scripts/L04-patients_s1.txt,audio/L04-patients_s1.wav,,script
+L05-chart,s1,scripts/L05-chart_s1.txt,audio/L05-chart_s1.wav,,script
+L06-appointments,s1,scripts/L06-appointments_s1.txt,audio/L06-appointments_s1.wav,,script
+L07-treatments,s1,scripts/L07-treatments_s1.txt,audio/L07-treatments_s1.wav,,script
+L08-billing,s1,scripts/L08-billing_s1.txt,audio/L08-billing_s1.wav,,script
+L09-prescriptions,s1,scripts/L09-prescriptions_s1.txt,audio/L09-prescriptions_s1.wav,,script
+L10-lab,s1,scripts/L10-lab_s1.txt,audio/L10-lab_s1.wav,,script
+L11-inventory,s1,scripts/L11-inventory_s1.txt,audio/L11-inventory_s1.wav,,script
+L12-expenses,s1,scripts/L12-expenses_s1.txt,audio/L12-expenses_s1.wav,,script
+L13-reports,s1,scripts/L13-reports_s1.txt,audio/L13-reports_s1.wav,,script
+L14-settings,s1,scripts/L14-settings_s1.txt,audio/L14-settings_s1.wav,,script
+L15-staff,s1,scripts/L15-staff_s1.txt,audio/L15-staff_s1.wav,,script
+L16-backup,s1,scripts/L16-backup_s1.txt,audio/L16-backup_s1.wav,,script
+L17-licence,s1,scripts/L17-licence_s1.txt,audio/L17-licence_s1.wav,,script

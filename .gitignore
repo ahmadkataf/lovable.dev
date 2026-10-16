@@ -24,3 +24,12 @@ dental/server/node_modules
 dental/server/.wrangler
 dental/server/.dev.vars
 dental/server/public
+
+# Gemini voice-over work files (published or regenerated, not committed): the generated speech, its scene clips,
+# the recordings and the final videos
+dental/store/voiceover/audio
+dental/store/voiceover/narration
+dental/store/voiceover/recorded
+dental/store/voiceover/final
+dental/store/voiceover/samples
+__pycache__/

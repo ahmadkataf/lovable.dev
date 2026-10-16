@@ -11,7 +11,9 @@
 // --keep-work  keeps the frames and the mixed narration in $VIDEO_WORK/rec/<lang>/<slug>/ after assembling
 // Environment: VIDEO_WORK (default /tmp/dentora-video-work: the narration cache tts/ and the recordings rec/),
 // VIDEO_OUT (default server/site/videos, git-ignored: published, not committed), VIDEO_VOICE_AR / VIDEO_VOICE_EN,
-// VIDEO_RATE_AR / VIDEO_RATE_EN (e.g. -5%), VIDEO_NOW (the fixed clock).
+// VIDEO_RATE_AR / VIDEO_RATE_EN (e.g. -5%), VIDEO_NOW (the fixed clock), VIDEO_NARRATION_DIR (pre-recorded narration
+// instead of edge-tts: <dir>/<lang>/<slug>/<scene-id>.wav and .json { duration, cues }, e.g. the Gemini voice-over cut
+// into scenes by store/scripts/voiceover/split.mjs; a missing clip stops the run, voices are never mixed).
 // Output per chapter and language: <lang>/<slug>.mp4 (H.264 30 fps 1920×1080 + AAC mono, a 3 s title card, a 2 s end
 // card), <lang>/<slug>.vtt (captions), <lang>/<slug>.jpg (poster) and the entry in manifest.json.
 // A chapter that fails does not stop the others; the exit code is 1 with the list of failures at the end. A narration
@@ -52,8 +54,21 @@ const started = Date.now()
 // ---- preflight: tools, chapter scripts, the course index --------------------------------------------------------
 const tool = async (name) => { try { await promisify(execFile)(name, ['-version']) } catch { throw new Error(`${name} is not installed (apt install ffmpeg)`) } }
 await tool('ffmpeg'); await tool('ffprobe')
-log(`edge-tts ${await checkTts()}; voices ${LANGS.map(l => `${l}: ${VOICES[l]}${RATES[l] === '+0%' ? '' : ` ${RATES[l]}`}`).join(', ')}`)
+const NARRATION = process.env.VIDEO_NARRATION_DIR || ''
+if (NARRATION) log(`narration: pre-recorded clips from ${NARRATION} (no synthesis)`)
+else log(`edge-tts ${await checkTts()}; voices ${LANGS.map(l => `${l}: ${VOICES[l]}${RATES[l] === '+0%' ? '' : ` ${RATES[l]}`}`).join(', ')}`)
 for (const lang of LANGS) if (!VOICES[lang]) { console.error(`make: no voice for language "${lang}" (ar or en)`); process.exit(2) }
+
+/** The pre-recorded narration of a chapter's scenes (VIDEO_NARRATION_DIR): { file, duration, cues, cached } each. */
+function narrationClips(slug, lang, scenes) {
+  return scenes.map(s => {
+    const base = path.join(NARRATION, lang, slug, s.id)
+    if (!fs.existsSync(`${base}.wav`) || !fs.existsSync(`${base}.json`)) throw new TtsError(`no pre-recorded narration for ${lang}/${slug}/${s.id} in ${NARRATION}`)
+    const { duration, cues } = JSON.parse(fs.readFileSync(`${base}.json`, 'utf8'))
+    if (!(duration > 0) || !Array.isArray(cues) || !cues.length) throw new TtsError(`${base}.json has no duration or cues`)
+    return { file: `${base}.wav`, duration, cues, cached: true }
+  })
+}
 const index = await loadIndex()
 log(index ? `chapter list: ${index.length} chapters in ${rel(INDEX_TS)}` : `no ${rel(INDEX_TS)} yet: titles from the scripts, next chapter unknown`)
 const slugs = CHAPTERS.length ? CHAPTERS : listChapterScripts()
@@ -74,7 +89,7 @@ try {
     for (const lang of LANGS) {
       const t = Date.now()
       const texts = scenes.map(s => s.say[lang].replace(/\s+/g, ' ').trim())
-      const audio = await synthesizeAll(texts.map(text => ({ text, lang })), { work: WORK })
+      const audio = NARRATION ? narrationClips(chapter.slug, lang, scenes) : await synthesizeAll(texts.map(text => ({ text, lang })), { work: WORK })
       const cached = audio.filter(a => a.cached).length
       const words = texts.reduce((n, x) => n + wordCount(x), 0), seconds = audio.reduce((n, a) => n + a.duration, 0)
       log(`${lang}/${chapter.slug}: narration ${scenes.length} scenes, ${seconds.toFixed(1)} s (${cached} cached, ${scenes.length - cached} new, ${since(t)}), ${(words / seconds).toFixed(2)} words/s`)
