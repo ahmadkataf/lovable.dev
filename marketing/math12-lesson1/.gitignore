@@ -1,0 +1,5 @@
+*.wav
+out/
+.seg-*/
+script-review.html
+__pycache__/
