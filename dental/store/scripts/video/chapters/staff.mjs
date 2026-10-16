@@ -14,6 +14,7 @@ const modal = page => page.locator('.modal')
 const card = (page, id) => page.locator(`[data-qa="staff-grid"] [data-user="${id}"]`)
 const newCard = page => page.locator('[data-qa="staff-grid"] .au-member').filter({ hasText: /رنا سليمان|Rana Suleiman/ }).first()
 const matrix = page => page.locator('[data-qa="matrix"]')
+// the active switch's input is hidden (width 0): the cursor points at its visible label and track
 
 async function dashboardShown(page) {
   await page.locator('[data-testid="dashboard"]').waitFor({ timeout: 30000 })
@@ -67,7 +68,7 @@ export const chapter = {
         en: 'At the bottom of each card a switch deactivates or activates the account in one click, and the options button sits at the top. Above the cards a filter shows All, Active or Deactivated members.',
       },
       run: async ({ page, ui }) => {
-        await ui.point(card(page, 'u-doc2').locator('[data-qa="active-switch"]'), 1100)
+        await ui.point(card(page, 'u-doc2').locator('.switch'), 1100)
         await ui.point(card(page, 'u-doc2').locator('[data-qa="member-menu"]'), 900)
         await ui.click(page.locator('.au-staff-toolbar').getByRole('tab', { name: /المفعّلون|Active/ }))
         await ui.pause(900)
@@ -231,8 +232,8 @@ export const chapter = {
       },
       run: async ({ page, ui }) => {
         await closeModal(page, ui)
-        await ui.point(card(page, 'u-doc2').locator('[data-qa="active-switch"]'), 1200)
-        await ui.point(card(page, 'u-admin').locator('[data-qa="active-switch"]'), 1200)
+        await ui.point(card(page, 'u-doc2').locator('.switch'), 1200)
+        await ui.point(card(page, 'u-admin').locator('.switch'), 1200)
       },
     },
     {

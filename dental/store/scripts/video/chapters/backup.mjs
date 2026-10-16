@@ -17,7 +17,7 @@ const hero = page => page.locator('.st-backup-hero')
 /** The settings card that holds `inner`. */
 const cardWith = (page, inner) => page.locator('.st-form .card').filter({ has: page.locator(inner) }).first()
 const PASSWORD = 'Smile-2026'
-/** Where the exported files go (the recorder's work folder), one per language. */
+/** The exported files (one folder each under DIR, so each keeps the app's own file name, which the restore dialog shows). */
 const files = { plain: '', protected: '' }
 const DIR = path.join(process.env.VIDEO_WORK || '/tmp/dentora-video-work', 'backup-demo')
 
@@ -26,13 +26,15 @@ async function dashboardShown(page) {
   await page.locator('[data-testid="dash-schedule"] [data-testid="dash-apt"]').first().waitFor({ timeout: 15000 })
   await page.waitForTimeout(600)
 }
-/** Clicks Export backup, keeps the downloaded file at `name` and waits for the "Backup saved" toast. */
+/** Clicks Export backup, keeps the downloaded file in DIR/`name`/ under its own name and waits for the "Backup saved" toast. */
 async function exportBackup(page, ui, name) {
   const download = page.waitForEvent('download', { timeout: 60000 })
   await ui.click(page.locator('[data-qa="export-backup"]'))
   const d = await download
-  fs.mkdirSync(DIR, { recursive: true })
-  const file = path.join(DIR, `${name}-${d.suggestedFilename()}`)
+  const dir = path.join(DIR, name)
+  fs.rmSync(dir, { recursive: true, force: true })
+  fs.mkdirSync(dir, { recursive: true })
+  const file = path.join(dir, d.suggestedFilename())
   await d.saveAs(file)
   await page.locator('.toast-success').first().waitFor({ timeout: 20000 })
   await page.waitForTimeout(400)
