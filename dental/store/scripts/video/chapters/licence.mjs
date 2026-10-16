@@ -25,7 +25,8 @@ async function dashboardShown(page) {
 export const chapter = {
   slug: 'licence',
   before: async ({ page }) => {
-    await page.addStyleTag({ content: '[data-qa="trial-bar"]{display:flex!important} [data-qa="price-top"],[data-qa="price"]{display:none!important}' })
+    // the price lines and the "Pricing" label over the second one (the seller card's own column)
+    await page.addStyleTag({ content: '[data-qa="trial-bar"]{display:flex!important} [data-qa="price-top"],[data-qa="price"],.st-seller-info>div:has(>[data-qa="price"]){display:none!important}' })
   },
   scenes: [
     {
