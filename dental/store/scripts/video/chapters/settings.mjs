@@ -110,7 +110,7 @@ export const chapter = {
     {
       id: 'currency',
       say: {
-        ar: 'اختر «عملة العيادة»، وإن لم تجدها فاختر «عملة أخرى…» واكتب رمزها. غيّر «الرمز على الفاتورة» إن أردت، واختر «الكسور العشرية». تغيير العملة لا يحوّل المبالغ المسجلة سابقاً، فاختر عملتك قبل أن تبدأ الفوترة.',
+        ar: 'اختر «عملة العيادة»، وإن لم تجدها فاختر «عملة أخرى» واكتب رمزها. غيّر «الرمز على الفاتورة» إن أردت، واختر «الكسور العشرية». تغيير العملة لا يحوّل المبالغ المسجلة سابقاً، فاختر عملتك قبل أن تبدأ الفوترة.',
         en: 'Choose the Clinic currency; if yours is not listed, choose Another currency and type its code. Change the Symbol on invoices if you like, and choose the Decimals. Changing the currency does not convert amounts already recorded, so pick your currency before you start billing.',
       },
       run: async ({ page, ui }) => {
@@ -181,7 +181,7 @@ export const chapter = {
     {
       id: 'months',
       say: {
-        ar: 'في «أسماء الأشهر بالعربية» اختر «تلقائياً حسب الدولة»، أو «كانون الثاني، شباط…»، أو «يناير، فبراير…». ويظهر تحت كل خيار مثال بتاريخ اليوم.',
+        ar: 'في «أسماء الأشهر بالعربية» اختر «تلقائياً حسب الدولة»، أو «كانون الثاني، شباط»، أو «يناير، فبراير». ويظهر تحت كل خيار مثال بتاريخ اليوم.',
         en: 'Under Arabic month names choose Automatic, from the country, or كانون الثاني، شباط, or يناير، فبراير. Each choice shows today’s date as an example.',
       },
       run: async ({ page, ui }) => {
@@ -275,7 +275,13 @@ export const chapter = {
       },
       run: async ({ page, ui }) => {
         await openTab(page, ui, 'about', '[data-qa="app-version"]')
-        await ui.highlight(page.locator('.st-about-hero'), 2600)
+        // the version badge and the device number, not the whole hero (a browser recording reads "Web browser" as
+        // its platform where a Windows or Android copy names its own)
+        await ui.moveTo(page.locator('[data-qa="app-version"]'))
+        await ui.highlight(page.locator('[data-qa="app-version"]'), 1600)
+        const device = page.locator('.st-about-kv .st-mono')
+        await ui.moveTo(device)
+        await ui.highlight(device, 2200)
       },
     },
     {
