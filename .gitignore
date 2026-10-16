@@ -39,3 +39,6 @@ dental/store/voiceover/deploy-*.log
 dental/store/ads/video/*.mp4
 dental/store/ads/video/*.jpg
 dental/store/ads/video/*.wav
+dental/store/ads/video2/*.mp4
+dental/store/ads/video2/*.jpg
+dental/store/ads/video2/*.wav

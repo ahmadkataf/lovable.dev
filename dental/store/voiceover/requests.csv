@@ -20,3 +20,7 @@ utc,quota_day,lesson,voice,out,exit,seconds,audio_seconds
 2026-10-16T12:21:59+00:00,2026-10-16,L16-backup,ar-001-training-2,audio/L16-backup_s1.wav,0,35,245.8
 2026-10-16T12:22:34+00:00,2026-10-16,L17-licence,ar-001-training-2,audio/L17-licence_s1.wav,0,29,163.0
 2026-10-16T13:53:10+00:00,2026-10-16,AD-promo,ar-001-training-2,audio/AD-promo_s1.wav,0,13,40.6
+2026-10-16T14:37:00+00:00,2026-10-16,AD2-promo,ar-001-training-2,audio/AD2-promo_take1.wav,0,18,58.9
+2026-10-16T14:37:22+00:00,2026-10-16,AD2-promo,ar-001-training-2,audio/AD2-promo_take2.wav,0,19,63.1
+2026-10-16T14:38:55+00:00,2026-10-16,AD2-promo,ar-001-training-2,audio/AD2-promo_take3.wav,0,16,53.8
+2026-10-16T14:39:57+00:00,2026-10-16,AD2-promo,ar-001-training-2,audio/AD2-promo_take4.wav,0,17,53.2
