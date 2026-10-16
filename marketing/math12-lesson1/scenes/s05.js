@@ -173,8 +173,8 @@
       this.lab2.querySelectorAll('bdi')[0].style.color = C.pur
       // domain [0,+inf[ as a purple ray; the indices n = 0, 1, 2, ... all live on it
       {
-        const s = svg(root, 0, 0, W, H), y = 452, x0 = 1150, x1 = 1745
-        sv(s, 'line', { x1: x0 - 40, y1: y, x2: x1 + 20, y2: y, stroke: 'rgba(154,168,201,.35)', 'stroke-width': 2 })
+        const s = svg(root, 0, 0, W, H), y = 446, x0 = 1110, x1 = 1690
+        this.rayBase = sv(s, 'line', { x1: x0 - 40, y1: y, x2: x1 + 20, y2: y, stroke: 'rgba(154,168,201,.35)', 'stroke-width': 2, opacity: 0 })
         this.ray = sv(s, 'path', { d: `M${x0},${y} L${x1},${y}`, fill: 'none', stroke: C.pur, 'stroke-width': 7, 'stroke-linecap': 'round' })
         this.ray0 = el('div', '', null, root); place(this.ray0, x0, y, { anchor: 'c', w: 18, h: 18 })
         this.ray0.style.cssText += `border-radius:50%;background:${C.pur};box-shadow:0 0 14px ${C.pur}`
@@ -184,22 +184,22 @@
         this.rayN = rich('$n = 0, 1, 2, \\dots$', 's'); root.appendChild(this.rayN); place(this.rayN, x0 + 300, y + 34, { anchor: 'c' }); this.rayN.style.whiteSpace = 'nowrap'; this.rayN.style.color = C.blu
       }
       this.fx = tex(`\\textcolor{${C.pur}}{f}(x) = \\sqrt{x^2+x+1}`, 'mx')
-      root.appendChild(this.fx); place(this.fx, 1440, 552, { anchor: 'c' })
-      this.ex2 = rich('مثلاً', 's'); root.appendChild(this.ex2); place(this.ex2, 1800, 552, { anchor: 'cr' }); this.ex2.style.whiteSpace = 'nowrap'
+      root.appendChild(this.fx); place(this.fx, 1430, 566, { anchor: 'c' })
+      this.ex2 = rich('مثلاً', 's'); root.appendChild(this.ex2); place(this.ex2, 1800, 566, { anchor: 'cr' }); this.ex2.style.whiteSpace = 'nowrap'
       this.rows2 = [
         'u_0 = f(0) = \\sqrt{0^2+0+1} = 1',
         'u_1 = f(1) = \\sqrt{1^2+1+1} = \\sqrt{3}',
         'u_2 = f(2) = \\sqrt{2^2+2+1} = \\sqrt{7}',
-      ].map((l, k) => { const e = tex(l, 'mm'); root.appendChild(e); place(e, 1040, 676 + k * 96, { anchor: 'cl' }); return e })
+      ].map((l, k) => { const e = tex(l, 'mm'); root.appendChild(e); place(e, 1040, 692 + k * 94, { anchor: 'cl' }); return e })
       this.rowTargets = this.rows2.map(e => { const r = rectIn(e, root); return { x: r.x + r.w - 40, y: r.cy } })
 
       // ---------- L3: u_100 ----------
-      this.kb = keyBox(root, 'u_{100} = \\sqrt{100^2+100+1} = \\sqrt{10101}', 1290, 668, { cls: 'mx' })
+      this.kb = keyBox(root, 'u_{100} = \\sqrt{100^2+100+1} = \\sqrt{10101}', 1290, 708, { cls: 'mx' })
       this.kb.f.style.fontSize = '56px'
-      this.jump = chip(root, '⚡ قفزة مباشرة', 1290, 842, { anchor: 'c', color: C.grn })
+      this.jump = chip(root, '⚡ قفزة مباشرة', 1290, 862, { anchor: 'c', color: C.grn })
       this.jump.style.whiteSpace = 'nowrap'; this.jump.style.fontSize = '32px'
-      this.skip = rich('دون حساب $u_3,\\ u_4,\\ \\dots,\\ u_{99}$', 's ctr'); root.appendChild(this.skip); place(this.skip, 1290, 925, { anchor: 'c' }); this.skip.style.whiteSpace = 'nowrap'
-      this.B0 = [1180, 880]; this.B1 = [830, 60]; this.B2 = [MX, HOPY - 40]
+      this.skip = rich('دون حساب $u_3,\\ u_4,\\ \\dots,\\ u_{99}$', 's ctr'); root.appendChild(this.skip); place(this.skip, 1290, 940, { anchor: 'c' }); this.skip.style.whiteSpace = 'nowrap'
+      this.B0 = [905, 895]; this.B1 = [700, 70]; this.B2 = [MX, HOPY - 40]
       let d = ''
       for (let k = 0; k <= 40; k++) { const t = k / 40; d += (k ? ' L' : 'M') + bez(this.B0[0], this.B1[0], this.B2[0], t) + ',' + bez(this.B0[1], this.B1[1], this.B2[1], t) }
       this.trail.setAttribute('d', d)
@@ -282,14 +282,14 @@
       draw(this.P.xAxis, pIn); draw(this.P.yAxis, pIn)
 
       // ---------- L2: u_n = f(n) ----------
-      const out2 = S.p(lt, 3, 0, .5)
+      const out2 = pp(lt, T(S, 3, .1) + .5, .5)
       rise(this.lab2, pp(lt, lab2T, .6))
-      { const rp = pp(lt, lab2T + .4, .9); draw(this.ray, rp); op(this.ray0, clamp(rp * 4)); op(this.rayInf, pp(lt, lab2T + 1.1, .4)); op(this.rayLbl0, clamp(rp * 4))
+      { const rp = pp(lt, lab2T + .4, .9); draw(this.ray, rp); this.rayBase.style.opacity = clamp(rp * 3); op(this.ray0, clamp(rp * 4)); op(this.rayInf, pp(lt, lab2T + 1.1, .4)); op(this.rayLbl0, clamp(rp * 4))
         this.rayTicks.forEach((c, k) => { c.style.opacity = pp(lt, lab2T + .9 + k * .12, .3) }); op(this.rayN, pp(lt, lab2T + 1.6, .5)) }
       const fxIn = pp(lt, Math.max(a2 + 3, T(S, 2, .56)), .7)
       rise(this.fx, fxIn); rise(this.ex2, fxIn)
       if (fxIn > 0) this.fx.style.textShadow = lt > a3 + .3 ? `0 0 ${12 + 8 * Math.sin(lt * 3)}px rgba(167,139,250,.5)` : ''
-      const t2 = Math.max(a2 + 4.2, T(S, 2, .7)), st2 = clamp(.095 * d2, .6, 1.5), cy2 = clamp(st2 / 1.25, .45, 1)
+      const t2 = Math.max(a2 + 4.2, T(S, 2, .66)), st2 = clamp(.085 * d2, .6, 1.4), cy2 = clamp(st2 / 1.25, .45, 1)
       this.balls2.forEach((b, k) => {
         const tk = t2 + k * st2
         const ap = pp(lt, tk - .5 * cy2, .4 * cy2, E.out)
@@ -320,7 +320,7 @@
       winGlow = Math.max(winGlow, pp(lt, j0 + 1.6, .3) * (1 - pp(lt, j0 + 2.8, .6)))
       const ce = j0 + 2.25
       const em = pp(lt, ce, .35, E.out), fl = pp(lt, ce + .35, .6, E.io)
-      putCard(this.c100, lerp(MX, 1290, fl), lerp(CHY - 40 + 70 * em, 668, fl), em > 0 && fl < 1 ? 1 : 0, lerp(1, 1.3, fl))
+      putCard(this.c100, lerp(MX, 1290, fl), lerp(CHY - 40 + 70 * em, 708, fl), em > 0 && fl < 1 ? 1 : 0, lerp(1, 1.3, fl))
       this.kb.set(pp(lt, ce + .75, .7, E.out))
       if (lt > ce + 1.5) this.kb.el.style.boxShadow = `0 0 ${44 + 16 * Math.sin(lt * 2.4)}px rgba(255,210,63,.28)`
       const jIn = pp(lt, ce + 1.1, .6, E.out)

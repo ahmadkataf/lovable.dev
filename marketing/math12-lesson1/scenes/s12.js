@@ -122,7 +122,7 @@
       const hw = [.4, .47, .54, .61, .68].map(f => [f, .5])
       const hp = hw.map(([f, d]) => pf(S, lt, 0, f, d, E.lin))
       // variant weights
-      const a = pf(S, lt, 1, .5, .6), bb = pf(S, lt, 2, .05, .6)
+      const a = pf(S, lt, 1, .58, .6), bb = pf(S, lt, 2, .05, .6)
       const wv = [clamp(1 - 2 * a), clamp(2 * a - 1) * clamp(1 - 2 * bb), clamp(2 * bb - 1)]
       // ticks & points
       this.ticks.forEach((t, k) => {
@@ -143,7 +143,7 @@
         vs.forEach((t, v) => { op(t, p * wv[v]); t.style.transform = `translateY(${(1 - p) * 16 + (1 - wv[v]) * 10}px)` })
       })
       // arcs + counters; in line 1 the five arcs light up one by one (u_2 → u_7)
-      const hl = [0, 1, 2, 3, 4].map(k => pf(S, lt, 1, .6 + k * .055, .45))
+      const hl = [0, 1, 2, 3, 4].map(k => pf(S, lt, 1, .66 + k * .05, .45))
       const hlOff = 1 - pf(S, lt, 2, 0, .6)
       this.arcs.forEach((r, k) => {
         const q = hp[k]
@@ -157,7 +157,7 @@
         r.cn.forEach((c, v) => {
           const cp = clamp(q * 2 - 1)
           op(c, cp * wv[v])
-          const pulse = v === 1 ? 1 + .25 * Math.sin(Math.PI * clamp((lt - (S.at(1) + (.6 + k * .055) * (S.end(1) - S.at(1)))) / .45)) : 1
+          const pulse = v === 1 ? 1 + .25 * Math.sin(Math.PI * clamp((lt - (S.at(1) + (.66 + k * .05) * (S.end(1) - S.at(1)))) / .45)) : 1
           c.style.transform = `scale(${lerp(.5, 1, E.back(cp)) * pulse})`
           c.style.borderColor = v === 1 ? mixColor('#6ee05a', '#ffd23f', glow) : C.grn + 'aa'
         })
@@ -169,8 +169,10 @@
         ps.forEach((q, k) => { if (q > 0) { const e = E.io(q); x = lerp(XS[k], XS[k + 1], e); y = Y - 12 - 4 * AH * e * (1 - e) } })
         return [x, Math.min(Y, y + (y < Y ? 0 : 0))]
       }
-      if (lt < S.at(1) + .5 * (S.end(1) - S.at(1))) { [rx, ry] = hopPos(hp); ro = pA * (1 - pf(S, lt, 1, .44, .4)) }
-      else { [rx, ry] = hopPos(hl.map(h => clamp(h))); ro = pf(S, lt, 1, .54, .3) * (1 - pf(S, lt, 2, .0, .5)) }
+      const h2 = [.3, .37, .44, .51, .58].map(f => pf(S, lt, 2, f, .5))
+      if (lt < S.at(1) + .56 * (S.end(1) - S.at(1))) { [rx, ry] = hopPos(hp); ro = pA * (1 - pf(S, lt, 1, .5, .4)) }
+      else if (lt < S.at(2) + .2 * (S.end(2) - S.at(2))) { [rx, ry] = hopPos(hl.map(h => clamp(h))); ro = pf(S, lt, 1, .62, .3) * (1 - pf(S, lt, 2, .02, .4)) }
+      else { [rx, ry] = hopPos(h2); ro = pf(S, lt, 2, .24, .35) }
       if (ry !== Y && ry > Y - 12) ry = Y
       this.run.setAttribute('cx', rx); this.run.setAttribute('cy', ry)
       svgOp(this.run, ro * .95)
@@ -185,7 +187,7 @@
       this.box.set(bp)
       const breathe = lt > S.at(1) + 2 ? .5 + .5 * Math.sin(lt * 2.2) : 0
       this.box.el.style.boxShadow = `0 0 ${40 + 30 * breathe}px rgba(167,139,250,${.22 + .18 * breathe})`
-      const exP = pf(S, lt, 1, .55, .6)
+      const exP = pf(S, lt, 1, .62, .6)
       vis(this.ex, exP, pf(S, lt, 2, 0, .45), 24)
       const th = pf(S, lt, 1, .3, .7)
       vis(this.thumb.el, th, 0, 30, ` rotate(${lerp(4, 0, th)}deg)`)

@@ -59,7 +59,7 @@
       this.odo = el('div', '', null, this.res)
       this.odo.style.cssText = 'display:flex;font-family:KaTeX_Main;font-size:130px;line-height:1.2em;height:1.2em;overflow:hidden'
       this.cols = '4870847'.split('').map((d, i) => {
-        const c = el('div', '', null, this.odo); c.style.cssText = 'height:1.2em;overflow:hidden'
+        const c = el('div', '', null, this.odo); c.style.cssText = 'height:1.2em;overflow:hidden;-webkit-mask-image:linear-gradient(180deg,transparent 0%,#000 22%,#000 78%,transparent 100%);mask-image:linear-gradient(180deg,transparent 0%,#000 22%,#000 78%,transparent 100%)'
         const strip = el('div', '', null, c)
         const spins = 2, tgt = +d, n = spins * 10 + tgt
         strip.innerHTML = Array.from({ length: n + 1 }, (_, j) => `<div style="height:1.2em;text-align:center">${j % 10}</div>`).join('')
@@ -209,7 +209,7 @@
         const p = E.out(clamp((lt - r0 - i * rd * .09) / (rd * .46)))
         const pos = p * c.n
         c.strip.style.transform = `translateY(${-pos * 1.2}em)`
-        c.c.style.filter = p > 0 && p < 1 ? `blur(${Math.min(3, (1 - p) * 4)}px)` : ''
+        c.strip.style.filter = p > 0 && p < 1 ? `blur(${Math.min(4, (1 - p) * 6)}px)` : ''
       })
       const u4p = prog(lt, F(2, .6), .5)
       glow(this.lastCol, u4p)

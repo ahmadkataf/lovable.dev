@@ -9,7 +9,7 @@
       "concept": "Navy background. The page-11 thumbnail («الكتاب ص 11») slides in; its four exercise blocks ①②③④ get a yellow outline one after another while a counter counts up to 21. Then the recurring layout of the video is previewed in miniature: statement card, 🎯 card «على ورقة الامتحان» filling line by line, pause-and-think countdown ring.",
       "lines": [
         {
-          "say": "في هذا الفيديو نحلّ كلّ تمارين تدرّب، في الصفحة الحادية عشرة، واحداً وعشرين سؤالاً بترتيب الكتاب، لا نترك منها شيئاً.",
+          "say": "في هذا الفيديو نحلّ كلّ تمارين فقرة تَدَرَّبْ، في الصفحة الحادية عشرة، واحداً وعشرين سؤالاً بترتيب الكتاب، لا نترك منها شيئاً.",
           "screen": "Title (purple): «حلول تدرَّبْ — الدرس الأول: عموميّات عن المتتاليات». Book thumbnail of p.11 with tag «الكتاب ص 11»; the blocks ①, ②, ③, ④ are outlined in yellow one after another. Counter counts $0\\to21$ with label «21 سؤالاً = ① + ② (8) + ③ (3) + ④ (9)»."
         },
         {
@@ -43,7 +43,7 @@
         },
         {
           "say": "ونختم بجملة الجواب. يو إنْ زائد واحد يساوي ثلثين ضرب يو إنْ، أيّاً كان إنْ، فالمتتالية هندسيّة أساسها ثلثان، وحدُّها الأوّل يو صفر يساوي ثلثاً.",
-          "screen": "Green box: «إذن $u_{n+1}=\\dfrac23\\,u_n$ أيّاً كان $n\\in\\mathbb{N}$، فالمتتالية $(u_n)_{n\\ge0}$ هندسيّة أساسها $q=\\dfrac23$». Below it: $u_0=\\dfrac{2^0}{3^{1}}=\\dfrac13$."
+          "screen": "Boxed green (keyBox-style frame around RTL rich text, not a KaTeX \\boxed): «إذن $u_{n+1}=\\dfrac23\\,u_n$ أيّاً كان $n\\in\\mathbb{N}$، فالمتتالية $(u_n)_{n\\ge0}$ هندسيّة أساسها $q=\\dfrac23$». Below it: $u_0=\\dfrac{2^0}{3^{1}}=\\dfrac13$."
         },
         {
           "say": "انتبه، حساب النسبة بين أوّل حدّين أو ثلاثة لا يُثبت شيئاً، فالعلاقة مطلوبة مهما يكن إنْ. وانتبه، يو صفر يساوي ثلثاً، لا واحداً.",
@@ -157,7 +157,7 @@
           "screen": "🎯 card: $u_{30}+u_{31}+u_{32}=\\dfrac{3\\,(85+91)}{2}=\\dfrac{3\\times176}{2}=264$; boxed $\\boxed{u_{30}+u_{31}+u_{32}=264}$."
         },
         {
-          "say": "وتحقّق سريع، الحدّ الأوسط يو واحد وثلاثين يساوي ثمانية وثمانين، وثلاثة أمثاله مئتان وأربعة وستّون.",
+          "say": "وتحقُّقٌ سريع، الحدّ الأوسط يو واحد وثلاثين يساوي ثمانية وثمانين، وثلاثة أمثاله مئتان وأربعة وستّون.",
           "screen": "Check line (green ✓): $u_{31}=88$ ، $85+88+91=3\\times88=264$."
         },
         {
@@ -343,7 +343,7 @@
         },
         {
           "say": "المفتاح، تعريف المتتالية الهندسيّة. اكتب الطرفين بدلالة الحدّ الأوسط بي والأساس كيو، إيه يساوي بي على كيو، وسي يساوي بي ضرب كيو.",
-          "screen": "Countdown ring (5 s). Hint chip (purple): «تعريف 3: $b=a\\,q$ و $c=b\\,q$». Three boxes $\\dfrac bq\\ \\xrightarrow{\\times q}\\ b\\ \\xrightarrow{\\times q}\\ bq$, the middle one yellow «الحدّ الأوسط».",
+          "screen": "Countdown ring (5 s). Hint chip (purple): «تعريف 3: $b=q\\times a$ و $c=q\\times b$». Three boxes $\\dfrac bq\\ \\xrightarrow{\\times q}\\ b\\ \\xrightarrow{\\times q}\\ bq$, the middle one yellow «الحدّ الأوسط».",
           "hold": 5
         },
         {
@@ -360,10 +360,10 @@
         },
         {
           "say": "إذا كان كيو أربعة، فالحدود سبعة أرباع، وسبعة، وثمانية وعشرون. وإذا كان ربعاً، فهي الأعداد نفسها بترتيب معاكس. اكتب الحلّين معاً، وتحقّق من الجداء والمجموع.",
-          "screen": "Two rows: «$q=4$: $a=\\frac74,\\ b=7,\\ c=28$» ، «$q=\\frac14$: $a=28,\\ b=7,\\ c=\\frac74$». Boxed: $\\boxed{(a,b,c)=\\left(\\tfrac74,\\,7,\\,28\\right)\\ \\text{أو}\\ \\left(28,\\,7,\\,\\tfrac74\\right)}$. Check line (green ✓): $\\frac74\\times7\\times28=343$ و $\\frac74+7+28=\\frac{147}{4}=36.75$."
+          "screen": "Two rows: «$q=4$: $a=\\frac74,\\ b=7,\\ c=28$» ، «$q=\\frac14$: $a=28,\\ b=7,\\ c=\\frac74$». Boxed green (keyBox-style frame around RTL rich text, not a KaTeX \\boxed): «$(a,b,c)=\\left(\\dfrac74,\\,7,\\,28\\right)$ أو $(a,b,c)=\\left(28,\\,7,\\,\\dfrac74\\right)$». Check line (green ✓): $\\frac74\\times7\\times28=343$ و $\\frac74+7+28=\\frac{147}{4}=36.75$."
         },
         {
-          "say": "انتبه، المفتاح دائماً هو الحدّ الأوسط، والجواب الذي يُسقط أحد الترتيبين ناقص.",
+          "say": "انتبه، المفتاح دائماً هو الحدّ الأوسط، والجواب الذي يُسقط أحد الترتيبين غير مكتمل.",
           "screen": "⚠️ card: «$ac=b^2$ ⇒ $abc=b^3$ — اكتب الحلّين: $q=4$ و $q=\\frac14$»."
         }
       ]
@@ -372,10 +372,10 @@
       "id": "s12",
       "section": "التمرين ③ · ❶",
       "bookPage": 11,
-      "concept": "Recurring exam layout: statement card pinned at the top (purple border, the book's exact Arabic + LaTeX); below it the 🎯 card «على ورقة الامتحان» where the model answer is written line by line (each line appears as it is spoken, previous lines stay); the final answer is boxed (green = increasing / correct, pink = decreasing); a ⚠️ «انتبه» card slides in at the bottom for the classic mistake; progress chip «k / 21» in the top corner; the pause-and-think countdown ring (with ⏸ icon) and the purple hint chip appear at the start of the hint line. Here: a function machine $f(x)=\\dfrac{x}{1+x}$ — first a quick run $1\\to\\frac12\\to\\frac13\\to\\frac14$ (outputs stacked, yellow, kept in a corner for ③-2 and ③-3); later its input/output zone $D=]0,+\\infty[$ is shaded green; then a chain of green tiles $v_0>0\\to v_1>0\\to v_2>0\\to\\cdots$ topples like dominoes.",
+      "concept": "Recurring exam layout: statement card pinned at the top (purple border, the book's exact Arabic + LaTeX); below it the 🎯 card «على ورقة الامتحان» where the model answer is written line by line (each line appears as it is spoken, previous lines stay); the final answer is boxed (green = increasing / correct, pink = decreasing); a ⚠️ «انتبه» card slides in at the bottom for the classic mistake; progress chip «k / 21» in the top corner; the pause-and-think countdown ring (with ⏸ icon) and the purple hint chip appear at the start of the hint line. Here: a function machine $f(x)=\\dfrac{x}{1+x}$ — first a quick run $1\\to\\frac12\\to\\frac13\\to\\frac14$ (outputs stacked, yellow, kept in a corner for ③-2 and ③-3); then a chain of green tiles $v_0>0\\to v_1>0\\to v_2>0\\to\\cdots$ topples like dominoes, and a purple chip recalls the lesson's condition on $D=]0,+\\infty[$.",
       "lines": [
         {
-          "say": "التمرين الثالث، متتالية معرّفة تدريجيّاً: في صفر يساوي واحداً، وفي إنْ زائد واحد يساوي في إنْ، على المقدار واحد زائد في إنْ. السؤال الأوّل، تحقّق أنّ في إنْ موجب تماماً، أيّاً كان إنْ.",
+          "say": "التمرين الثالث، المتتالية في إنْ معرّفة تدريجيّاً، حدُّها الأوّل في صفر يساوي واحداً، والحدّ في إنْ زائد واحد يساوي في إنْ، على المقدار واحد زائد في إنْ. السؤال الأوّل، تحقّق أنّ في إنْ موجب تماماً، أيّاً كان إنْ.",
           "screen": "Statement card: «③ $(v_n)_{n\\ge0}$ متتالية معرّفة تدريجيّاً وفق $v_0=1$ و $v_{n+1}=\\dfrac{v_n}{1+v_n}$.» Item: «❶ تحقّق أنّ $v_n>0$ أيّاً كان العدد الطبيعي $n$.» Progress «10 / 21»."
         },
         {
@@ -392,20 +392,16 @@
           "screen": "🎯 card, bullet 1: «$v_0=1>0$»."
         },
         {
-          "say": "ثانياً، إذا كان في إنْ موجباً تماماً، كان المقام واحد زائد في إنْ أكبر من واحد، فالكسر قسمة موجب تماماً على موجب تماماً، وفي إنْ زائد واحد موجب تماماً.",
+          "say": "ثانياً، إذا كان في إنْ موجباً تماماً، فالبسط والمقام موجبان تماماً، إذن في إنْ زائد واحد موجب تماماً.",
           "screen": "🎯 card, bullet 2: «إذا كان $v_n>0$ كان $1+v_n>1>0$، فالعدد $v_{n+1}=\\dfrac{v_n}{1+v_n}$ ناتج قسمة عدد موجب تماماً على عدد موجب تماماً، إذن $v_{n+1}>0$» (numerator and denominator tagged green «$>0$»)."
         },
         {
           "say": "وهكذا تنتقل الموجبيّة من كلّ حدٍّ إلى الذي يليه، انطلاقاً من في صفر، فكلّ الحدود موجبة تماماً.",
-          "screen": "Domino chain (green): $v_0>0\\to v_1>0\\to v_2>0\\to\\cdots$. Bullet 3: «وهكذا تنتقل الموجبيّة من كلّ حدٍّ إلى الذي يليه انطلاقاً من $v_0>0$». Boxed green (keyBox-style frame around RTL rich text, not a KaTeX \\boxed): «$v_n>0$ أيّاً كان $n\\in\\mathbb{N}$»."
-        },
-        {
-          "say": "وهذا شرط الدرس نفسه، التابع إف يحوّل كلّ عدد موجب تماماً إلى عدد موجب تماماً، ونبدأ من في صفر يساوي واحداً، وهو موجب تماماً.",
-          "screen": "Function machine $f(x)=\\dfrac{x}{1+x}$ with its zone shaded green: input in $D=]0,+\\infty[$ → output in $D$. Purple chip: «مهما يكن $x$ من $D=\\,]0,+\\infty[$ يكن $f(x)$ من $D$ ، و $v_0=1\\in D$»."
+          "screen": "Domino chain (green): $v_0>0\\to v_1>0\\to v_2>0\\to\\cdots$. Bullet 3: «وهكذا تنتقل الموجبيّة من كلّ حدٍّ إلى الذي يليه انطلاقاً من $v_0>0$». Boxed green (keyBox-style frame around RTL rich text, not a KaTeX \\boxed): «$v_n>0$ أيّاً كان $n\\in\\mathbb{N}$». Purple chip (no narration): «مهما يكن $x$ من $D=\\,]0,+\\infty[$ يكن $f(x)$ من $D$ ، و $v_0=1\\in D$»."
         },
         {
           "say": "انتبه، حساب الحدود الأولى، نصف وثلث وربع، ليس برهاناً لكلّ إنْ. والصياغة الرسميّة لهذا الانتقال هي البرهان بالتدريج، في الدرس الثاني.",
-          "screen": "⚠️ card: «$v_1=\\frac12,\\ v_2=\\frac13,\\ v_3=\\frac14$» in grey (not struck through), with a red tag «✗ حالات خاصّة — ليست برهاناً لكلّ $n$». 💡 card: «الصياغة الرسميّة لهذا الانتقال: البرهان بالتدريج — الدرس 2». Yellow chip parked for ❷: «$v_n>0\\ \\Rightarrow\\ v_n\\ne0$»."
+          "screen": "⚠️ card: «$v_1=\\frac12,\\ v_2=\\frac13,\\ v_3=\\frac14$» in grey (not struck through), with a red tag «✗ حالات خاصّة — ليست برهاناً لكلّ $n$». 💡 card: «الصياغة الرسميّة لهذا الانتقال: البرهان بالتدريج — الدرس 2»."
         }
       ]
     },
@@ -420,7 +416,7 @@
           "screen": "Statement card, item (small header «③ $(v_n)_{n\\ge0}$ متتالية معرّفة تدريجيّاً وفق $v_0=1$ و $v_{n+1}=\\dfrac{v_n}{1+v_n}$.»): «❷ أثبت أنّ المتتالية $(u_n)_{n\\ge0}$ المعرّفة بالعلاقة $u_n=\\dfrac{1}{v_n}$ متتالية حسابيّة.» Note chip: «$v_n\\ne0$ (من ❶)». Progress «11 / 21»."
         },
         {
-          "say": "الأداة، تعريف المتتالية الحسابيّة. وتذكّر النمط، مقلوبات واحد ونصف وثلث وربع هي واحد واثنان وثلاثة وأربعة، نضيف واحداً كلّ مرّة.",
+          "say": "الأداة، تعريف المتتالية الحسابيّة. ومقلوبات مخرجات الآلة واحد واثنان وثلاثة وأربعة.",
           "screen": "Countdown ring (4 s). Hint chip: «تعريف 2: $u_{n+1}=u_n+r$ أيّاً كان $n$». Two columns $v_n$: $1,\\ \\frac12,\\ \\frac13,\\ \\frac14$ and $\\frac1{v_n}$: $1,\\ 2,\\ 3,\\ 4$ with green arrows «$+1$» — «فلنثبت ذلك لكلّ $n$».",
           "hold": 4
         },
@@ -434,10 +430,10 @@
         },
         {
           "say": "إذن المتتالية يو إنْ حسابيّة أساسها واحد، وحدُّها الأوّل يو صفر يساوي واحداً.",
-          "screen": "Boxed green: «$(u_n)_{n\\ge0}$ حسابيّة أساسها $r=1$»، $u_0=\\dfrac{1}{v_0}=1$."
+          "screen": "Boxed green (keyBox-style frame around RTL rich text, not a KaTeX \\boxed): «$(u_n)_{n\\ge0}$ حسابيّة أساسها $r=1$»، $u_0=\\dfrac{1}{v_0}=1$."
         },
         {
-          "say": "انتبه، نقلب الكسر كلّه، ولا نقلب كلّ جزء منه وحده.",
+          "say": "انتبه، مقلوب الكسر نبدّل فيه البسط والمقام، ولا نكتبه مجموعَ مقلوبين.",
           "screen": "⚠️ card: «$\\dfrac{1}{v_{n+1}}=\\dfrac{1+v_n}{v_n}$ ✓ — $\\dfrac1{v_n}+\\dfrac1{1+v_n}$ ✗»."
         }
       ]
@@ -458,7 +454,7 @@
           "hold": 4
         },
         {
-          "say": "يو إنْ يساوي يو صفر زائد إنْ آر، أي واحداً زائد إنْ. وفي إنْ مقلوب يو إنْ، فيساوي واحداً على المقدار إنْ زائد واحد.",
+          "say": "يو إنْ يساوي يو صفر زائد إنْ آر، أي واحداً زائد إنْ. أمّا في إنْ فهو مقلوب يو إنْ، فيساوي واحداً على المقدار إنْ زائد واحد.",
           "screen": "🎯 card: $u_n=u_0+n\\,r=1+n\\ \\Rightarrow\\ v_n=\\dfrac{1}{u_n}=\\dfrac{1}{n+1}$; boxed green $\\boxed{v_n=\\dfrac{1}{n+1}}$."
         },
         {
@@ -556,11 +552,11 @@
           "screen": "🎯 card (same line continues): «، وهو تابع معرّف على $\\left[-\\frac13,+\\infty\\right[$ الذي يحوي $[0,+\\infty[$» — the interval $[0,+\\infty[$ highlighted yellow inside $\\left[-\\frac13,+\\infty\\right[$ on a small number line."
         },
         {
-          "say": "ومشتقّه ثلاثة على ضعف الجذر، وهو موجب تماماً. فالتابع إف متزايد تماماً، والمتتالية متزايدة تماماً.",
+          "say": "ومشتقّه ثلاثة على ضِعْفِ الجذر، وهو موجب تماماً. فالتابع إف متزايد تماماً، والمتتالية متزايدة تماماً.",
           "screen": "🎯 card: $f'(x)=\\dfrac{3}{2\\sqrt{3x+1}}>0$ على $\\left]-\\frac13,+\\infty\\right[$ ; «إذن $f$ متزايد تماماً على $[0,+\\infty[$». Boxed green (keyBox-style frame around RTL rich text, not a KaTeX \\boxed): «$(u_n)_{n\\ge0}$ متتالية متزايدة تماماً». Dots: $1,\\ 2,\\ \\sqrt7,\\ \\sqrt{10}$ rising on the curve."
         },
         {
-          "say": "انتبه، إن اخترت إشارة الفرق، ففرق الجذرين ليس جذر الفرق، بل اضرب بالمرافق.",
+          "say": "انتبه، إذا اخترت إشارة الفرق، ففرق الجذرين ليس جذر الفرق، بل اضرب بالمرافق.",
           "screen": "⚠️ card: «$\\sqrt{3n+4}-\\sqrt{3n+1}=\\sqrt3$ ✗ (فرق الجذرين ليس جذر الفرق)» ; «$\\sqrt{3n+4}-\\sqrt{3n+1}=\\dfrac{3}{\\sqrt{3n+4}+\\sqrt{3n+1}}>0$ ✓»."
         }
       ]
@@ -626,7 +622,7 @@
           "screen": "Square picture: side $n+1$ split into $n^2$, two strips $n$ (yellow) and $1$: $(n+1)^2=n^2+2n+1$."
         },
         {
-          "say": "فَيو إنْ زائد واحد يساوي واحداً على المقدار إنْ تربيع زائد اثنين إنْ زائد اثنين. نوحّد المقامات، فيبقى في البسط معاكس المقدار اثنين إنْ زائد واحد.",
+          "say": "فَيو إنْ زائد واحد يساوي واحداً على المقدار إنْ تربيع زائد اثنين إنْ زائد اثنين. نوحّد المقامات، فيبقى في البسط سالبُ المقدار اثنين إنْ زائد واحد.",
           "screen": "🎯 card: first $u_{n+1}=\\dfrac{1}{(n+1)^2+1}=\\dfrac{1}{n^2+2n+2}$, then $u_{n+1}-u_n=\\dfrac{1}{n^2+2n+2}-\\dfrac{1}{n^2+1}=\\dfrac{(n^2+1)-(n^2+2n+2)}{(n^2+1)(n^2+2n+2)}=\\dfrac{-(2n+1)}{(n^2+1)(n^2+2n+2)}$."
         },
         {
@@ -679,7 +675,7 @@
           "screen": "Blue side line: $f(x)=\\dfrac{3(x-2)+7}{x-2}=3+\\dfrac{7}{x-2}$. The dots $(n,u_n)$ for $n\\ge3$ slide down toward a dashed horizontal line $y=3$, staying above it."
         },
         {
-          "say": "انتبه، لا تقل إنّها متناقصة من البداية. فَيو واحد يساوي سالب أربعة، وهو أصغر من يو ثلاثة الذي يساوي عشرة.",
+          "say": "انتبه، لا تكتب أنّها متناقصة بدءاً من الصفر، فَيو واحد يساوي سالب أربعة، وهو أصغر من يو ثلاثة الذي يساوي عشرة. اكتب إنْ صفر يساوي ثلاثة صراحةً.",
           "screen": "⚠️ card: «$u_1=-4<u_3=10$: لا اطّراد عبر $n=2$ — اكتب $n_0=3$ صراحةً»."
         }
       ]
@@ -720,7 +716,7 @@
           "screen": "Boxed pink (keyBox-style frame around RTL rich text, not a KaTeX \\boxed): «$u_0<u_1$ ثمّ $(u_n)_{n\\ge1}$ متناقصة تماماً بدءاً من الحدّ ذي الدليل $n_0=1$» ; grey line: «أمّا $(u_n)_{n\\ge0}$ فليست مطّردة ($u_0<u_1$ و $u_1>u_2$)». Yellow flag at $n=1$ «$n_0=1$»."
         },
         {
-          "say": "وهي فكرة إنْ صفر نفسها، كما في مثال الكتاب: المتتالية في إنْ، التي حدّها العامّ مربّع المقدار إنْ ناقص واحد.",
+          "say": "وهي فكرة إنْ صفر نفسها، تماماً كمثال الكتاب، المتتالية في إنْ، التي حدُّها العامّ مربّع المقدار إنْ ناقص واحد.",
           "screen": "Mini callback (purple chip): «الكتاب ص 10: $v_n=(n-1)^2$ ، $v_0>v_1$ ، $(v_n)_{n\\ge1}$ متزايدة تماماً بدءاً من الحدّ ذي الدليل $n_0=1$» — its dot plot goes down once then up, mirrored next to ours."
         },
         {
@@ -828,7 +824,7 @@
       "lines": [
         {
           "say": "لنجمع أدوات الحلّ. لإثبات أنّ المتتالية هندسيّة أو حسابيّة، نستعمل التعريف أيّاً كان إنْ، لا بضعة حدود. ثمّ قانون الحدّ بين دليلين، وقانون المجموع، مع عدّ الحدود عدّاً صحيحاً.",
-          "screen": "Blue column «الحسابيّة والهندسيّة», first: «لإثبات أنّها هندسيّة: $u_{n+1}=q\\,u_n$ أيّاً كان $n$ ؛ حسابيّة: $u_{n+1}-u_n=r$ أيّاً كان $n$ (لا حالات خاصّة)»; then $u_m=u_p+(m-p)\\,r$ ، $u_m=u_p\\,q^{m-p}$ ، $S=\\dfrac{n(a+\\ell)}{2}$ ، $S=a\\,\\dfrac{1-q^n}{1-q}\\ (q\\ne1)$ ، «عدد الحدود $=$ الدليل الأخير $-$ الدليل الأوّل $+\\,1$»."
+          "screen": "Blue column «الحسابيّة والهندسيّة», first: «لإثبات أنّها هندسيّة: $u_{n+1}=q\\times u_n$ أيّاً كان $n$ ؛ حسابيّة: $u_{n+1}=u_n+r$ أيّاً كان $n$ (لا حالات خاصّة)»; then $u_m=u_p+(m-p)\\,r$ ، $u_m=u_p\\,q^{m-p}$ ، $S=\\dfrac{n(a+\\ell)}{2}$ ، $S=a\\,\\dfrac{1-q^n}{1-q}\\ (q\\ne1)$ ، «عدد الحدود $=$ الدليل الأخير $-$ الدليل الأوّل $+\\,1$»."
         },
         {
           "say": "وفي الاطّراد، ابدأ دائماً بسؤالين، من أين تبدأ المتتالية، ومن أين يبدأ اطّرادها؟ فالأولى تبدأ من إنْ صفر يساوي واحداً، والخامسة من ثلاثة، أمّا السادسة فتبدأ من الصفر، لكنّ تناقصها يبدأ من الواحد.",
@@ -843,7 +839,7 @@
           "screen": "🎯 chip: «جملة الجواب: فالمتتالية $(u_n)_{n\\ge n_0}$ متزايدة تماماً / متناقصة تماماً»; the whole board glows once; corner icon «📸 صوّر الشاشة»."
         },
         {
-          "say": "وفي التمرين الثالث، رأينا خاصّةً تنتقل من حدٍّ إلى الذي يليه، كقطع الدومينو.",
+          "say": "وفي التمرين الثالث، رأينا صفةً تنتقل من حدٍّ إلى الذي يليه، كقِطَعِ الدومينو.",
           "screen": "The board fades. Domino chain $v_0>0\\to v_1>0\\to v_2>0\\to\\cdots$ returns to the centre and topples again."
         },
         {

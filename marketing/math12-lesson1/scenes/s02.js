@@ -48,9 +48,10 @@ scene('s02', (() => {
       needles.forEach((n, i) => { T.stop[i] = Math.max(i ? T.stop[i - 1] + .4 : S.at(2) + .7, cue(S, 2, n, .1 + i * .12)) })
       // line 3
       T.seven = Math.max(S.at(3) + .25, cue(S, 3, 'لغز', .27))
-      T.chip = Math.max(T.seven + .7, cue(S, 3, 'بطله', .5))
-      T.fly = Math.min(Math.max(T.chip + .9, S.at(3) + 2.1), S.end(3) - .2)
-      T.shrink = T.fly + .25
+      T.chip = Math.max(T.seven + .6, cue(S, 3, 'بطله', .5) - .1)
+      T.glow = T.chip + .35
+      T.shrink = T.chip + .5
+      T.fly = T.chip + .7
 
       // ---------- pinned card ① (identical to s01's end state) ----------
       {
@@ -174,8 +175,9 @@ scene('s02', (() => {
       // ---------- line 3: the number 7 ----------
       this.seven = tex('7', 'mxl')
       this.seven.style.cssText += `font-size:210px;color:${C.yel}`
-      root.appendChild(this.seven); place(this.seven, 1500, 430, { anchor: 'c' })
-      this.lock = chip(root, '🔒 سؤال مفتوح ②', 1500, 566, { anchor: 'tc', color: C.pur })
+      this.sevenAt = { x: 462, y: 492 }
+      root.appendChild(this.seven); place(this.seven, this.sevenAt.x, this.sevenAt.y, { anchor: 'c' })
+      this.lock = chip(root, '🔒 سؤال مفتوح ②', this.sevenAt.x, this.sevenAt.y + 128, { anchor: 'tc', color: C.pur })
       this.lock.style.cssText += 'font-size:30px;white-space:nowrap;padding:10px 26px'
       // card ② (pinned next to card ①), built large and scaled like card ①
       {
@@ -185,6 +187,7 @@ scene('s02', (() => {
         c.el.style.transformOrigin = '0 0'
         const f = tex('7', 'mxl'); f.style.cssText += `font-size:170px;color:${C.yel};text-shadow:0 0 30px rgba(255,210,63,.45);display:block;text-align:center;line-height:1.05`
         c.body.appendChild(f)
+        this.card2seven = f
         c.body.style.textAlign = 'center'
         this.card2body = c.body
       }
@@ -198,9 +201,10 @@ scene('s02', (() => {
       this.card1.style.transform = 'none'
       const r1 = rectIn(this.card1, root)
       this.card1.style.transform = `translate(${PIN.x - 410}px, ${PIN.y - 196}px) scale(${PS})`
-      this.card2.style.height = r1.h + 'px'
-      this.card2.style.display = 'flex'; this.card2.style.alignItems = 'center'; this.card2.style.justifyContent = 'center'
-      this.c2 = { w: 420, h: r1.h, x: PIN.x + (r1.w + 40) * PS, y: PIN.y }
+      this.card2.style.transform = 'none'
+      const r2 = rectIn(this.card2, root)
+      const r7 = rectIn(this.card2seven, root)
+      this.c2 = { w: r2.w, h: r2.h, x: PIN.x, y: PIN.y + r1.h * PS + 30, ox: r7.cx - r2.x, oy: r7.cy - r2.y }
       place(this.card2, this.c2.x, this.c2.y)
       place(this.pin2, this.c2.x + 12, this.c2.y + 2, { anchor: 'c' })
       // title box
@@ -214,7 +218,7 @@ scene('s02', (() => {
     render(lt, S) {
       if (!this._ok) this.measure()
       const T = this.T
-      const clr1 = S.p(lt, 1, 0, .6)                 // line 1: board clears
+      const clr1 = S.p(lt, 1, 0, .45)                // line 1: board clears
 
       // ----- pinned cards (always) -----
       this.card1.style.boxShadow = `0 30px 80px rgba(0,0,0,.35), 0 0 ${30 + 14 * Math.sin(lt * 1.3)}px rgba(167,139,250,.2)`
@@ -284,7 +288,7 @@ scene('s02', (() => {
 
       // ----- line 1: title card -----
       {
-        const a = S.p(lt, 1, .25, .8, E.out)
+        const a = S.p(lt, 1, .4, .8, E.out)
         const up = S.p(lt, 2, 0, .9, E.io)              // line 2: title moves up into the heading slot
         const { w, h } = this.tt
         const big = 1.5
@@ -296,7 +300,7 @@ scene('s02', (() => {
         this.badge.style.transform = `scale(${lerp(.3, 1, E.back(bp))}) rotate(${(1 - bp) * -90}deg)`
         op(this.ttlBar, up > .95 ? 1 : 0)
         this.ttlBar.style.transform = `scaleX(${E.out(clamp(S.p(lt, 2, .7, .6)))})`
-        const o = S.p(lt, 1, 0, .6) * (1 - S.p(lt, 2, 0, .4))
+        const o = S.p(lt, 1, .3, .6) * (1 - S.p(lt, 2, 0, .4))
         op(this.over, o); this.over.style.transform = `translateY(${(1 - o) * 14}px)`
         const t7 = S.p(lt, 1, .6, .7, E.out) * (1 - S.p(lt, 2, 0, .5))
         op(this.th7, t7); this.th7.style.transform = `translateX(${(1 - t7) * 60}px)`
@@ -307,10 +311,10 @@ scene('s02', (() => {
       {
         const railP = S.p(lt, 2, .4, 1.2)
         draw(this.rail, railP)
-        const flash = env(lt, T.fly - .45, T.fly + .1, .15, .3)
-        const sh = prog(lt, T.shrink, .8, E.in)
+        const flash = env(lt, T.glow, T.glow + .45, .15, .25)
+        const sh = prog(lt, T.shrink, .75, E.in)
         this.rm.style.transform = `scale(${lerp(1, .04, sh)})`
-        this.rm.style.opacity = 1 - prog(lt, T.shrink + .3, .5)
+        this.rm.style.opacity = 1 - prog(lt, T.shrink + .25, .5)
         this.stops.forEach((st, i) => {
           const a = prog(lt, T.stop[i], .5, E.out)
           op(st.lab, a); st.lab.style.transform = `translateX(${(1 - a) * -30}px)`
@@ -327,31 +331,29 @@ scene('s02', (() => {
         })
       }
 
-      // ----- line 3: the 7 drops, gets a lock, a copy is pinned next to card ① -----
+      // ----- line 3: the 7 drops beside stop 1.1, gets a lock, then becomes card ② pinned under card ① -----
       {
-        const d = prog(lt, T.seven, .75, E.out)
-        const bounce = d < 1 ? (1 - E.back(d)) : 0
-        const sh = prog(lt, T.shrink, .8, E.in)
-        op(this.seven, Math.min(clamp(d * 3), 1 - prog(lt, T.shrink + .2, .5)))
+        const d = prog(lt, T.seven, .7, E.out)
+        const bounce = Math.sin(clamp(prog(lt, T.seven + .45, .45)) * Math.PI) * 10
+        const f = prog(lt, T.fly, .8, E.io)
+        const gone = clamp(f * 4)
+        op(this.seven, Math.min(clamp(d * 2.5), 1 - gone))
         const gl = .5 + .5 * Math.sin(lt * 3.2)
         this.seven.style.textShadow = `0 0 ${40 + 30 * gl}px rgba(255,210,63,.6)`
-        const sx = lerp(0, 1380 - 1500, sh), sy = lerp(0, 66 - 430, sh)
-        this.seven.style.transform = `translate(${sx}px, ${(d >= 1 ? 0 : -420 * (1 - E.out(d))) + sy}px) scale(${lerp(1, .1, sh) * (1 + .03 * gl * clamp(d))}) translateY(${bounce * -20}px)`
+        this.seven.style.transform = `translateY(${-110 * (1 - d) + bounce}px) scale(${1 + .03 * gl * d})`
         const c = prog(lt, T.chip, .5, E.back)
         const pulse = 1 + .05 * Math.sin((lt - T.chip) * 6) * clamp(prog(lt, T.chip + .4, .3))
-        op(this.lock, Math.min(clamp(c * 2), 1 - prog(lt, T.shrink + .2, .5)))
-        this.lock.style.transform = `translate(${lerp(0, 1380 - 1500, sh)}px, ${lerp(0, 66 - 566, sh)}px) scale(${lerp(.6, 1, c) * pulse * lerp(1, .1, sh)})`
-        this.lock.style.boxShadow = `0 0 ${20 * (pulse - .95) * 10}px rgba(167,139,250,.5)`
-        // the copy flies to the corner
-        const f = prog(lt, T.fly, .9, E.io)
-        const { w, h, x, y } = this.c2
-        const x0 = 1500 - w / 2, y0 = 470 - h / 2
-        const s = lerp(1, PS, f)
-        this.card2.style.transform = `translate(${lerp(x0 - x, 0, f)}px, ${lerp(y0 - y, 0, f)}px) scale(${s})`
-        op(this.card2, f > 0 ? Math.min(1, f * 3) : 0)
-        this.card2body.style.opacity = 1
+        op(this.lock, Math.min(clamp(c * 2), 1 - gone))
+        this.lock.style.transform = `translateY(${(1 - clamp(c)) * -16}px) scale(${lerp(.6, 1, c) * pulse})`
+        this.lock.style.boxShadow = `0 0 ${Math.max(0, 20 * (pulse - .95) * 10)}px rgba(167,139,250,.5)`
+        // the 7 turns into card ② and settles under card ①
+        const { x, y, ox, oy } = this.c2
+        const s0 = 210 / 170, s = lerp(s0, PS, f)
+        const tx = lerp(this.sevenAt.x - s0 * ox - x, 0, f), ty = lerp(this.sevenAt.y - s0 * oy - y, 0, f)
+        this.card2.style.transform = `translate(${tx}px, ${ty}px) scale(${s})`
+        op(this.card2, gone)
         this.card2.style.boxShadow = `0 30px 80px rgba(0,0,0,.35), 0 0 ${30 + 14 * Math.sin(lt * 1.3)}px rgba(167,139,250,.2)`
-        const pi = prog(lt, T.fly + .8, .45)
+        const pi = prog(lt, T.fly + .7, .45)
         op(this.pin2, pi)
         this.pin2.style.transform = `translateY(${(1 - E.back(pi)) * -30}px) rotate(${(1 - pi) * -30}deg)`
       }

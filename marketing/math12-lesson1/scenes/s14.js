@@ -23,6 +23,7 @@
       this.card = cd.el
       this.def = rich(`نقول إنّ المتتاليةَ $(u_n)_{n\\ge0}$ <span class="yel b">متتاليةٌ هندسيّةٌ</span> إذا وُجِدَ عدد حقيقي $q$ وتحقّقت العلاقة التدريجيّة $u_{n+1} = \\htmlId{${id('xq')}}{${tc(G, 'q\\times')}}\\, u_n$ أيّاً كان العدد الطبيعي $n$. نسمّي العدد $q$ <span class="pur b" id="${id('base')}">أساس</span> المتتالية الهندسيّة.`, 'p')
       this.def.style.lineHeight = '1.75'
+      this.def.querySelectorAll('bdi.m').forEach(m => { m.style.fontSize = '1.12em' })
       cd.body.appendChild(this.def); splitWords(this.def)
       this.baseHl = el('div', 'hlbg', null, root); this.baseHl.style.background = 'rgba(167,139,250,.22)'; op(this.baseHl, 0)
       this.xqHl = el('div', 'hlbox', null, root); this.xqHl.style.borderColor = G; this.xqHl.style.boxShadow = `0 0 26px ${G}55`; op(this.xqHl, 0)
@@ -84,15 +85,15 @@
       // geometric law (left), the key box
       this.kb = keyBox(root, `\\htmlId{${id('gb')}}{u_m = u_p}\\,\\htmlId{${id('gq')}}{q}^{\\htmlId{${id('ge')}}{${tc(B, 'm-p')}}}`, 560, 650, { cls: 'mx', label: 'هندسيّة' })
       this.kb.el.style.transformOrigin = '50% 50%'
-      // invisible intermediate layout u_m = u_p × q^{m-p}, aligned on the key box, only for measuring
-      this.mid = tex(`\\htmlId{${id('mb')}}{u_m = u_p} \\htmlId{${id('mx')}}{\\times} \\htmlId{${id('mq')}}{q}^{\\htmlId{${id('me')}}{m-p}}`, 'mx')
-      root.appendChild(this.mid); place(this.mid, 0, 0); this.mid.style.visibility = 'hidden'
-      // flying copy
-      this.fB = mtex('u_m = u_p', 64); this.fP = mtex(tc(Y, '+'), 64)
-      this.fM = mtex(`\\htmlId{${id('fl')}}{${tc(B, '(')}}\\htmlId{${id('fi')}}{${tc(B, 'm-p')}}\\htmlId{${id('fr')}}{${tc(B, ')')}}`, 64)
-      this.fR = mtex('r', 64); this.fQ = mtex('q', 64)
-      ;[this.fB, this.fP, this.fM, this.fR, this.fQ].forEach(e => { root.appendChild(e); place(e, 0, 0); e.style.transformOrigin = '0 0'; op(e, 0) })
-      this.fP.style.transformOrigin = '50% 50%'
+      // flying copy (pieces carry an id'd core so they land exactly on the key-box glyphs)
+      const piece = (src, core) => { const t = mtex(src, 64); root.appendChild(t); place(t, 0, 0); t.style.transformOrigin = '0 0'; op(t, 0); return { el: t, core } }
+      this.fB = piece(`\\htmlId{${id('fb')}}{u_m = u_p}`, 'fb')
+      this.fP = piece(`\\htmlId{${id('fp')}}{${tc(Y, '+')}}`, 'fp')
+      this.fM = piece(`${tc(B, '(')}\\htmlId{${id('fm')}}{${tc(B, 'm-p')}}${tc(B, ')')}`, 'fm')
+      this.fS = piece(`\\htmlId{${id('fs')}}{${tc(B, '\\scriptstyle m-p')}}`, 'fs')
+      this.fR = piece(`\\htmlId{${id('fr')}}{r}`, 'fr')
+      this.fQ = piece(`\\htmlId{${id('fq')}}{q}`, 'fq')
+      this.pieces = [this.fB, this.fP, this.fM, this.fS, this.fR, this.fQ]
       this.phrase = rich('أيّاً كان العددان الطبيعيان $m$ و $p$', 'p'); root.appendChild(this.phrase)
       this.phrase.style.whiteSpace = 'nowrap'; place(this.phrase, 560, 805, { anchor: 'c' })
       this.leg1 = chip(root, rich(`الجمع $${tc(Y, '+')}$ ← الضرب $${tc(Y, '\\times')}$`, 's').innerHTML, 1370, 800, { anchor: 'c' })
@@ -116,16 +117,16 @@
       const c0 = R_('cu0'), c1 = R_('cu1'), cr = R_(this.chain)
       this.brace.setAttribute('d', bracePath(c0.x + 4, c1.x + c1.w - 4, cr.y + cr.h + 8, 30))
       place(this.braceLab, (c0.x + c1.x + c1.w) / 2, cr.y + cr.h + 78, { anchor: 'c' })
-      // morph geometry: source (arithmetic), middle (u_m = u_p × q^{m-p}) aligned on the key box base, final (key box)
-      const gb = R_('gb'), mb0 = R_('mb')
-      place(this.mid, gb.x - mb0.x, gb.y - mb0.y)
-      const src = { b: R_('ab'), p: R_('ap'), m: R_('am'), r: R_('ar') }
-      const mid = { b: R_('mb'), x: R_('mx'), q: R_('mq'), e: R_('me') }
-      const fin = { b: R_('gb'), q: R_('gq'), e: R_('ge') }
-      place(this.fB, src.b.x, src.b.y); place(this.fP, src.p.x, src.p.y); place(this.fM, src.m.x, src.m.y)
-      place(this.fR, src.r.x, src.r.y); place(this.fQ, src.r.x, src.r.y)
-      const fi = R_('fi'), fm = R_(this.fM)
-      this.geo = { src, mid, fin, fiOff: { x: fi.x - fm.x, y: fi.y - fm.y, w: fi.w, h: fi.h }, qOff: R_(this.fQ) }
+      // morph geometry: centre of each piece's core, relative to the piece's top-left; sources and targets
+      const ctr = r => ({ x: r.x + r.w / 2, y: r.y + r.h / 2 })
+      this.pieces.forEach(pc => { const a = R_(pc.el), c = R_(pc.core); pc.off = { x: c.x + c.w / 2 - a.x, y: c.y + c.h / 2 - a.y } })
+      const gb = R_('gb'), gq = R_('gq')
+      this.geo = {
+        b: [ctr(R_('ab')), ctr(gb)],
+        p: [ctr(R_('ap')), { x: (gb.x + gb.w + gq.x) / 2, y: gq.y + gq.h * .45 }],
+        m: [ctr(R_('am')), ctr(R_('ge'))],
+        r: [ctr(R_('ar')), ctr(gq)],
+      }
       resets.forEach((e, k) => { e.style.transform = keep[k] })
     },
 
@@ -152,7 +153,7 @@
       const L1 = S.end(1) - S.at(1)
       const step = Math.min(.9, .085 * L1)
       const runPanel = (pn, f0, f1) => {
-        const tStart = T(S, 1, f0), dt = (T(S, 1, f1) - tStart) / 4
+        const tStart = Math.max(T(S, 1, f0), S.at(1) + .8), dt = Math.max(.55, (T(S, 1, f1) - tStart) / 4)
         const { xs, vals, bars, vl, arcs, arcL, axis, chip: ch } = pn
         const pAx = prog(lt, tStart - .3, .5)
         draw(axis, pAx)
@@ -189,41 +190,28 @@
       const pk = P(lt, S, 2, .5, .6)
       this.kb.set(pk)
       this.kb.el.style.boxShadow = `0 0 ${42 + 16 * Math.sin(lt * 1.6)}px ${Y}3a`
-      // flying copy: arithmetic → u_m = u_p × q^{m-p} → u_m = u_p q^{m-p}
+      // flying copy: a ghost of the arithmetic law peels off, + turns into ×, (m-p) climbs into the exponent, r becomes q
       const g = this.geo
       const tF = Math.max(T(S, 2, .54), T(S, 2, .5) + .5)
-      const f1 = prog(lt, tF, 1.0), f2 = prog(lt, tF + 1.35, .6), sw = prog(lt, tF + 1.9, .35)
-      const vis = (lt >= tF ? 1 : 0) * (1 - sw)
+      const tt = clamp((lt - tF) / 1.35), u = E.io(clamp((lt - tF - .15) / 1.2))
+      const sw = prog(lt, tF + 1.3, .35)
+      const vis = (lt >= tF ? clamp((lt - tF) / .15) : 0) * (1 - sw)
       op(this.kb.f, sw)
       if (g) {
-        const mv = (e, from, to1, to2, s1 = 1, s2 = s1) => {
-          const x = lerp(lerp(from.x, to1.x, f1), to2.x, f2) - from.x
-          const y = lerp(lerp(from.y, to1.y, f1), to2.y, f2) - from.y
-          const sc = lerp(lerp(1, s1, f1), s2, f2)
-          e.style.transform = `translate(${x}px,${y}px) scale(${sc})`
+        const lift = H => -H * Math.sin(Math.PI * Math.pow(tt, .6))
+        const put = (pc, path, H, sc, o, rot = 0) => {
+          const x = lerp(path[0].x, path[1].x, u), y = lerp(path[0].y, path[1].y, u) + lift(H)
+          pc.el.style.transform = `translate(${x - pc.off.x * sc}px,${y - pc.off.y * sc}px) scale(${sc})` + (rot ? ` translate(${pc.off.x}px,${pc.off.y}px) rotate(${rot}deg) translate(${-pc.off.x}px,${-pc.off.y}px)` : '')
+          op(pc.el, o)
         }
-        const arc = Math.sin(Math.PI * f1) * -60
-        // base
-        mv(this.fB, g.src.b, g.mid.b, g.fin.b); this.fB.style.translate = `0 ${arc}px`; op(this.fB, vis)
-        // + turns into × and fades as the factors close up
-        const px = g.src.p.x + g.src.p.w / 2, py = g.src.p.y + g.src.p.h / 2
-        const qx = g.mid.x.x + g.mid.x.w / 2, qy = g.mid.x.y + g.mid.x.h / 2
-        this.fP.style.transform = `translate(${lerp(0, qx - px, f1)}px,${lerp(0, qy - py, f1) + arc * 1.3}px) rotate(${45 * prog(lt, tF + .2, .7)}deg)`
-        op(this.fP, vis * (1 - f2))
-        // (m-p) → exponent m-p
-        const s1 = g.mid.e.h / g.fiOff.h, s2 = g.fin.e.h / g.fiOff.h
-        const fromM = { x: g.src.m.x, y: g.src.m.y }
-        const toMid = { x: g.mid.e.x - g.fiOff.x * s1, y: g.mid.e.y - g.fiOff.y * s1 }
-        const toFin = { x: g.fin.e.x - g.fiOff.x * s2, y: g.fin.e.y - g.fiOff.y * s2 }
-        mv(this.fM, fromM, toMid, toFin, s1, s2); this.fM.style.translate = `0 ${arc * .7}px`; op(this.fM, vis)
-        ;[id('fl'), id('fr')].forEach(k => { document.getElementById(k).style.opacity = 1 - prog(lt, tF + .1, .5) })
-        // r → q
-        const qOff = { x: g.src.r.x, y: g.src.r.y }
-        const toQm = { x: g.mid.q.x, y: g.mid.q.y }, toQf = { x: g.fin.q.x, y: g.fin.q.y }
-        mv(this.fR, qOff, toQm, toQf); mv(this.fQ, qOff, toQm, toQf)
-        this.fR.style.translate = `0 ${arc * 1.15}px`; this.fQ.style.translate = `0 ${arc * 1.15}px`
-        const rq = prog(lt, tF + .3, .5)
-        op(this.fR, vis * (1 - rq)); op(this.fQ, vis * rq)
+        put(this.fB, g.b, 70, 1, vis)
+        put(this.fP, g.p, 100, lerp(1, .55, u), vis * (1 - prog(lt, tF + .95, .35)), 45 * prog(lt, tF + .15, .6))
+        const ms = prog(lt, tF + .45, .4)
+        put(this.fM, g.m, 150, lerp(1, .7, u), vis * (1 - ms))
+        put(this.fS, g.m, 150, lerp(1 / .7, 1, u), vis * ms)
+        const rq = prog(lt, tF + .35, .45)
+        put(this.fR, g.r, 40, 1, vis * (1 - rq))
+        put(this.fQ, g.r, 40, 1, vis * rq)
       }
       show(this.phrase, P(lt, S, 2, .74, .6), 1, 16)
       show(this.leg1, P(lt, S, 2, .8, .5), 1, 16)
