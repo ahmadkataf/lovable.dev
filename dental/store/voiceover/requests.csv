@@ -11,3 +11,11 @@ utc,quota_day,lesson,voice,out,exit,seconds,audio_seconds
 2026-10-16T11:44:31+00:00,2026-10-16,L08-billing,ar-001-training-2,audio/L08-billing_s1.wav,0,34,229.1
 2026-10-16T11:45:04+00:00,2026-10-16,L09-prescriptions,ar-001-training-2,audio/L09-prescriptions_s1.wav,0,32,228.1
 2026-10-16T11:45:37+00:00,2026-10-16,L10-lab,ar-001-training-2,audio/L10-lab_s1.wav,3,0,
+2026-10-16T12:18:27+00:00,2026-10-16,L10-lab,ar-001-training-2,audio/L10-lab_s1.wav,0,33,219.6
+2026-10-16T12:19:00+00:00,2026-10-16,L11-inventory,ar-001-training-2,audio/L11-inventory_s1.wav,0,37,254.2
+2026-10-16T12:19:38+00:00,2026-10-16,L12-expenses,ar-001-training-2,audio/L12-expenses_s1.wav,0,33,202.5
+2026-10-16T12:20:10+00:00,2026-10-16,L13-reports,ar-001-training-2,audio/L13-reports_s1.wav,0,35,248.8
+2026-10-16T12:20:45+00:00,2026-10-16,L14-settings,ar-001-training-2,audio/L14-settings_s1.wav,0,38,274.6
+2026-10-16T12:21:23+00:00,2026-10-16,L15-staff,ar-001-training-2,audio/L15-staff_s1.wav,0,36,258.0
+2026-10-16T12:21:59+00:00,2026-10-16,L16-backup,ar-001-training-2,audio/L16-backup_s1.wav,0,35,245.8
+2026-10-16T12:22:34+00:00,2026-10-16,L17-licence,ar-001-training-2,audio/L17-licence_s1.wav,0,29,163.0

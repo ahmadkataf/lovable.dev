@@ -32,12 +32,34 @@ def load16k(path):
     return np.frombuffer(raw, dtype=np.int16).astype(np.float32) / 32768
 
 
-def transcribe(path):
+def _words(model, audio, offset=0.0):
+    segs, _ = model.transcribe(audio, language="ar", word_timestamps=True, beam_size=1, vad_filter=False,
+                               condition_on_previous_text=False)
+    return [{"w": w.word.strip(), "start": round(float(w.start) + offset, 3), "end": round(float(w.end) + offset, 3)}
+            for s in segs for w in s.words if w.word.strip()]
+
+
+def transcribe(path, hole=3.0):
+    """Words with times. The recogniser sometimes skips a stretch of a long file; every gap of more than `hole`
+    seconds between recognised words (and before the first or after the last) that holds speech is transcribed
+    again on its own and merged in."""
     from faster_whisper import WhisperModel
     model = WhisperModel(os.environ.get("ASR_MODEL", "small"), device="cpu", compute_type="int8", cpu_threads=os.cpu_count() or 4)
-    segs, _ = model.transcribe(load16k(path), language="ar", word_timestamps=True, beam_size=1, vad_filter=False,
-                               condition_on_previous_text=False)
-    return [{"w": w.word.strip(), "start": round(float(w.start), 3), "end": round(float(w.end), 3)} for s in segs for w in s.words if w.word.strip()]
+    audio = load16k(path)
+    total = len(audio) / 16000
+    words = _words(model, audio)
+    edges = [0.0] + [x for w in words for x in (w["start"], w["end"])] + [total]
+    gaps = [(edges[i], edges[i + 1]) for i in range(0, len(edges) - 1, 2) if edges[i + 1] - edges[i] > hole]
+    for a, b in gaps:
+        lo, hi = max(0.0, a - 0.3), min(total, b + 0.3)
+        part = audio[int(lo * 16000):int(hi * 16000)]
+        if np.sqrt(np.mean(part ** 2)) < 0.01:   # a real pause, not skipped speech
+            continue
+        extra = [w for w in _words(model, part, lo) if w["start"] >= a - 0.2 and w["end"] <= b + 0.2]
+        if extra:
+            print(f"asr: {len(extra)} words recovered in a {b - a:.1f} s gap at {a:.1f} s", file=sys.stderr)
+            words += extra
+    return sorted(words, key=lambda w: w["start"])
 
 
 def align(script, asr, band=80):
