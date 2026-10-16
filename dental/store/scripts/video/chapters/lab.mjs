@@ -5,7 +5,8 @@
 // buttons (Send to lab, Start work, Receive, Mark fitted) and the ⋯ menu, printing the lab slip, and the Lab tab
 // of the patient file.
 // Demo (11 Oct 2026): #36 Dima Mardini has a draft (crown 46), #55 Anas Mazen Deeb a sent crown, #7 Issam Mardini
-// aligners in progress due today, #20 Samer Maher Najjar a veneer remake; nothing is overdue, so the card scene uses
+// aligners in progress due today, #20 Samer Maher Najjar a veneer remake (the ⋯ menu and the slip use Anas's crown,
+// in progress by then, whose menu offers "Send back"); nothing is overdue, so the card scene uses
 // "Due this week" (3). At 1280 px the board is in its compact layout: the step buttons are icon-only, named by title. The new order is e.max veneers on 11 and
 // 21 for #11 Wassim Atassi, whose plan holds those two planned veneers; everything is saved for real on a fresh demo.
 const rx = (ar, en) => new RegExp(`^(${ar}|${en})$`)
@@ -204,6 +205,7 @@ export const chapter = {
       },
       run: async ({ page, ui, lang }) => {
         const row = rowOf(page, lang, 'dima')
+        await ui.scrollTo(row)
         await ui.click(row.getByRole('button', { name: rx('إرسال للمخبر', 'Send to lab') }))
         await row.locator('.lab-status', { hasText: rx('مرسل', 'Sent') }).waitFor()
         await ui.highlight(row.locator('.lab-status'), 1400)
@@ -214,6 +216,7 @@ export const chapter = {
       say: { ar: 'وحين يبدأ المخبر العمل انقر على «بدء العمل».', en: 'When the lab starts the work, click Start work.' },
       run: async ({ page, ui, lang }) => {
         const row = rowOf(page, lang, 'anas')
+        await ui.scrollTo(row)
         await ui.click(row.getByRole('button', { name: rx('بدء العمل', 'Start work') }))
         await row.locator('.lab-status', { hasText: rx('قيد العمل', 'In progress') }).waitFor()
         await ui.highlight(row.locator('.lab-status'), 1200)
@@ -227,6 +230,7 @@ export const chapter = {
       },
       run: async ({ page, ui, lang }) => {
         const row = rowOf(page, lang, 'issam')
+        await ui.scrollTo(row)
         await ui.click(row.getByRole('button', { name: rx('استلام', 'Receive') }))
         await row.locator('.lab-status', { hasText: rx('مستلم', 'Received') }).waitFor()
         await ui.highlight(row.locator('.lab-status'), 1300)
@@ -238,6 +242,7 @@ export const chapter = {
       say: { ar: 'وبعد تركيبه للمريض انقر على «تم التركيب».', en: 'Once it is fitted for the patient, click Mark fitted.' },
       run: async ({ page, ui, lang }) => {
         const row = rowOf(page, lang, 'issam')
+        await ui.scrollTo(row)
         await ui.click(row.getByRole('button', { name: rx('تم التركيب', 'Mark fitted') }))
         await row.locator('.lab-status', { hasText: rx('مركّب', 'Fitted') }).waitFor()
         await ui.highlight(row.locator('.lab-status'), 1300)
@@ -250,7 +255,8 @@ export const chapter = {
         en: 'If the work needs correcting, open the three-dot menu and choose Send back: a new due date is set and the Receive button comes back. The menu also has Print lab slip, Edit, Cancel order and Delete.',
       },
       run: async ({ page, ui, lang }) => {
-        await ui.click(rowOf(page, lang, 'samer').getByRole('button', { name: rx('المزيد', 'More') }))
+        await ui.scrollTo(rowOf(page, lang, 'anas'))
+        await ui.click(rowOf(page, lang, 'anas').getByRole('button', { name: rx('المزيد', 'More') }))
         await page.locator('.lab-menu [role="menu"]').waitFor()
         await ui.highlight(page.locator('.lab-menu'), 2400)
       },

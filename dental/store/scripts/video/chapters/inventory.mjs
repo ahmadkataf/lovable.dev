@@ -355,7 +355,7 @@ export const chapter = {
       },
       run: async ({ page, ui }) => {
         await closeModal(page, ui)
-        await ui.scrollTo(page.locator('.page-header'), { block: 'start' })
+        await ui.scrollTo(page.locator('.page-header'))
         await ui.moveTo(btn(page, 'تصدير CSV', 'Export CSV'))
         await ui.highlight(btn(page, 'تصدير CSV', 'Export CSV'), 1800)
       },

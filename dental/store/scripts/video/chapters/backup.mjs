@@ -277,7 +277,7 @@ export const chapter = {
         en: 'On Android, uninstalling the app erases all clinic data for good, and Google’s automatic backup does not carry it: the backup file made inside Dentora is the only way. The backup page is for the admin only.',
       },
       run: async ({ page, ui, lang }) => {
-        await ui.scrollTo(page.locator('.page-header'), { block: 'start' })
+        await ui.scrollTo(page.locator('.page-header'))
         await ui.moveTo(page.locator('[data-qa="export-backup"]'))
         await ui.callout(pick(lang, 'على أندرويد: ملف النسخة هو الطريقة الوحيدة', 'On Android: the backup file is the only way'), { ms: 2400 })
       },

@@ -208,10 +208,15 @@ export const chapter = {
     {
       id: 'sheet-actions',
       say: {
-        ar: 'انقر على «طباعة» واختر الطابعة أو الحفظ PDF، أو على «واتساب» لإرسالها للمريض رسالةً نصية. ولتغييرها انقر على «تعديل»، ولوصفة مشابهة لاحقاً انقر على «نسخ مكرر».',
-        en: 'Click Print and choose a printer or save as PDF, or WhatsApp to send it to the patient as a text message. To change it click Edit, and for a similar one at a new visit click Duplicate.',
+        ar: 'وتفتح أي وصفة بالنقر عليها في القائمة. انقر على «طباعة» واختر الطابعة أو الحفظ PDF، أو على «واتساب» لإرسالها للمريض رسالةً نصية. ولتغييرها انقر على «تعديل»، ولوصفة مشابهة لاحقاً انقر على «نسخ مكرر».',
+        en: 'Any prescription opens with a click on it in the list. Click Print and choose a printer or save as PDF, or WhatsApp to send it to the patient as a text message. To change it click Edit, and for a similar one at a new visit click Duplicate.',
       },
       run: async ({ page, ui }) => {
+        // the sheet shown right after saving has no Edit / Duplicate: those come with the sheet opened from the list
+        await ui.click(page.locator('.rx-sheet-modal .modal-x'))
+        await page.locator('.rx-sheet').waitFor({ state: 'hidden' })
+        await ui.click(page.locator('.rx-page tbody tr').first().locator('td').first())
+        await page.locator('.rx-sheet').waitFor()
         const footer = page.locator('.rx-sheet-modal .modal-footer')
         await ui.moveTo(footer.getByRole('button', { name: rx('طباعة', 'Print') }))
         await ui.highlight(footer.getByRole('button', { name: rx('طباعة', 'Print') }), 1200)

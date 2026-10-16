@@ -98,7 +98,7 @@ export const chapter = {
         en: 'The quickest way is the Request your activation code on WhatsApp button at the top of the page. The message is written with your device number and clinic name: just send it, and the code comes back on WhatsApp, usually the same day.',
       },
       run: async ({ page, ui }) => {
-        await ui.scrollTo(status(page), { block: 'start' })
+        await ui.scrollTo(status(page))
         await ui.moveTo(page.locator('[data-qa="ask-whatsapp"]'))
         await ui.highlight(page.locator('[data-qa="ask-whatsapp"]'), 1800)
       },
@@ -123,7 +123,7 @@ export const chapter = {
       },
       run: async ({ page, ui }) => {
         const card = cardWith(page, '[data-qa="code-input"]')
-        await ui.scrollTo(card, { block: 'start' })
+        await ui.scrollTo(card)
         await ui.highlight(page.locator('[data-qa="code-input"]'), 1400)
         await ui.highlight(card.locator('.field-hint'), 1300)
         await ui.highlight(page.locator('[data-qa="activate"]'), 900)
@@ -168,7 +168,7 @@ export const chapter = {
         en: 'One key works on one device only, and an activation code belongs to this device. After activation this card says Activated, with the plan and validity, and the activation stays after a backup is restored.',
       },
       run: async ({ page, ui }) => {
-        await ui.scrollTo(status(page), { block: 'start' })
+        await ui.scrollTo(status(page))
         await ui.moveTo(status(page).locator('.st-hero-title'))
         await ui.highlight(status(page).locator('.st-hero'), 2000)
       },

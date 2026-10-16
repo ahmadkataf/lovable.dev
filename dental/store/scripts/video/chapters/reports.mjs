@@ -136,7 +136,7 @@ export const chapter = {
         en: 'Then the charts: Daily revenue, Payment methods as a ring splitting the money collected, Revenue by doctor and Revenue by treatment category. Hover over a point on a chart to see its value.',
       },
       run: async ({ page, ui }) => {
-        await ui.scrollTo(tid(page, 'chart-revenue'), { block: 'start' })
+        await ui.scrollTo(tid(page, 'chart-revenue'))
         await ui.highlight(tid(page, 'chart-revenue'), 1000)
         await ui.moveTo(tid(page, 'chart-revenue').locator('svg').first())
         await ui.pause(900)
@@ -153,7 +153,7 @@ export const chapter = {
         en: 'Each chart has a Show as table button in its corner that shows the exact figures behind the chart; a second click brings the chart back.',
       },
       run: async ({ page, ui }) => {
-        await ui.scrollTo(tid(page, 'chart-revenue'), { block: 'start' })
+        await ui.scrollTo(tid(page, 'chart-revenue'))
         const toggle = tid(page, 'chart-revenue').locator('.card-header button')
         await ui.click(toggle)
         await ui.pause(1800)
@@ -168,7 +168,7 @@ export const chapter = {
         en: 'At the bottom, the Expenses vs revenue table lists every category with its amount and share of expenses and of revenue, then Total expenses, Revenue and Net profit.',
       },
       run: async ({ page, ui }) => {
-        await ui.scrollTo(tid(page, 'table-expenses'), { block: 'start' })
+        await ui.scrollTo(tid(page, 'table-expenses'))
         await ui.highlight(tid(page, 'table-expenses'), 1500)
         await ui.highlight(tid(page, 'table-expenses').locator('.rp-table-total').last(), 1100)
       },
@@ -180,11 +180,11 @@ export const chapter = {
         en: 'The Patients tab: New patients, Patients seen, Active patient files and Average age, then Gender, Age groups, Top referral sources and Highest-spending patients.',
       },
       run: async ({ page, ui }) => {
-        await ui.scrollTo(page.locator('.rp-tabs'), { block: 'start' })
+        await ui.scrollTo(page.locator('.rp-tabs'))
         await ui.click(tab(page, 'المرضى', 'Patients'))
         await tabShown(page, 'rp-patients')
         await ui.highlight(page.locator('.rp-kpis'), 1200)
-        await ui.scrollTo(tid(page, 'table-spenders'), { block: 'start' })
+        await ui.scrollTo(tid(page, 'table-spenders'))
         await ui.highlight(tid(page, 'table-spenders'), 1200)
       },
     },
@@ -195,7 +195,7 @@ export const chapter = {
         en: 'The Appointments tab: Appointments, Completed, Cancelled and the No-show rate, then the appointments day by day and Appointments by status.',
       },
       run: async ({ page, ui }) => {
-        await ui.scrollTo(page.locator('.rp-tabs'), { block: 'start' })
+        await ui.scrollTo(page.locator('.rp-tabs'))
         await ui.click(tab(page, 'المواعيد', 'Appointments'))
         await tabShown(page, 'rp-appointments')
         await ui.highlight(page.locator('.rp-kpis'), 1200)
@@ -209,7 +209,7 @@ export const chapter = {
         en: 'And the Doctor performance table: booked, completed, no-shows, booked hours and Utilisation, which is booked minutes divided by the working minutes set in Settings.',
       },
       run: async ({ page, ui }) => {
-        await ui.scrollTo(tid(page, 'table-doctors'), { block: 'start' })
+        await ui.scrollTo(tid(page, 'table-doctors'))
         await ui.highlight(tid(page, 'table-doctors'), 1800)
       },
     },
@@ -220,11 +220,11 @@ export const chapter = {
         en: 'The Treatments tab: Procedures completed, Value of completed work, Added to plans and Pending work value, then Most performed procedures, Top procedures by value and Planned vs completed.',
       },
       run: async ({ page, ui }) => {
-        await ui.scrollTo(page.locator('.rp-tabs'), { block: 'start' })
+        await ui.scrollTo(page.locator('.rp-tabs'))
         await ui.click(tab(page, 'العلاجات', 'Treatments'))
         await tabShown(page, 'rp-treatments')
         await ui.highlight(page.locator('.rp-kpis'), 1200)
-        await ui.scrollTo(tid(page, 'chart-top-count'), { block: 'start' })
+        await ui.scrollTo(tid(page, 'chart-top-count'))
         await ui.highlight(tid(page, 'chart-top-count'), 1100)
       },
     },
@@ -235,7 +235,7 @@ export const chapter = {
         en: 'The Outstanding tab shows what patients owe today, across all periods: Total outstanding, Patients with a balance, Average balance and Largest balance. It ignores the period and the doctor.',
       },
       run: async ({ page, ui }) => {
-        await ui.scrollTo(page.locator('.rp-tabs'), { block: 'start' })
+        await ui.scrollTo(page.locator('.rp-tabs'))
         await ui.click(tab(page, 'الذمم المستحقة', 'Outstanding'))
         await tabShown(page, 'rp-outstanding')
         await ui.highlight(page.locator('.rp-kpis'), 1600)
@@ -248,7 +248,7 @@ export const chapter = {
         en: 'Under them the Patient balances table runs from the largest down: Open invoices, Paid, Due and Last payment. Click a patient’s name to open their file.',
       },
       run: async ({ page, ui }) => {
-        await ui.scrollTo(tid(page, 'table-outstanding'), { block: 'start' })
+        await ui.scrollTo(tid(page, 'table-outstanding'))
         await ui.highlight(tid(page, 'table-outstanding').locator('thead'), 1300)
         const name = tid(page, 'table-outstanding').locator('tbody tr').first().locator('a.cell-main')
         await ui.moveTo(name)
@@ -274,7 +274,7 @@ export const chapter = {
         en: 'Click Print to print the open tab, headed with the clinic’s name, the period and the print date: on Windows the print dialog opens, on Android the system print screen. Export CSV saves the tab’s main table as a file Excel opens.',
       },
       run: async ({ page, ui }) => {
-        await ui.scrollTo(page.locator('.page-header'), { block: 'start' })
+        await ui.scrollTo(page.locator('.page-header'))
         const print = btn(page.locator('.page-actions'), 'طباعة', 'Print')
         await ui.moveTo(print)
         await ui.highlight(print, 1300)

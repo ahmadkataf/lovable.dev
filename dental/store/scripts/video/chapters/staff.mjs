@@ -82,7 +82,7 @@ export const chapter = {
         en: 'Under the cards is the Permissions by role panel. Every member has one of four roles, and the role decides which pages they see: Admin has every permission, including expenses, settings, backups and the team.',
       },
       run: async ({ page, ui }) => {
-        await ui.scrollTo(matrix(page), { block: 'start' })
+        await ui.scrollTo(matrix(page))
         await ui.highlight(matrix(page).locator('.card-header'), 1100)
         await ui.highlight(matrix(page).locator('thead th').nth(1), 1500)
       },
@@ -117,7 +117,7 @@ export const chapter = {
         en: 'To add a team member, click Add member at the top of the page.',
       },
       run: async ({ page, ui }) => {
-        await ui.scrollTo(page.locator('.page-header'), { block: 'start' })
+        await ui.scrollTo(page.locator('.page-header'))
         await ui.click(page.locator('[data-qa="add-member"]'))
         await modal(page).waitFor({ timeout: 10000 })
         await ui.pause(500)
@@ -333,7 +333,7 @@ export const chapter = {
       },
       run: async ({ page, ui }) => {
         const log = page.locator('[data-qa="signin-log"]')
-        await ui.scrollTo(log, { block: 'start' })
+        await ui.scrollTo(log)
         await log.locator('.list-item').first().waitFor({ timeout: 10000 })
         await ui.highlight(log.locator('.list-item').first(), 1800)
       },

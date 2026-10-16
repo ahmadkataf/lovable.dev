@@ -81,7 +81,7 @@ export const chapter = {
       run: async ({ page, ui }) => {
         await ui.scrollTo(page.locator('.inv-exp-breakdown'))
         await ui.highlight(page.locator('.inv-exp-breakdown'), 1200)
-        await ui.scrollTo(page.locator('.inv-exp-list-head'), { block: 'start' })
+        await ui.scrollTo(page.locator('.inv-exp-list-head'))
         await ui.highlight(page.locator('table thead'), 1300)
       },
     },
@@ -92,7 +92,7 @@ export const chapter = {
         en: 'To record an expense, click New expense at the top of the page.',
       },
       run: async ({ page, ui }) => {
-        await ui.scrollTo(page.locator('.page-header'), { block: 'start' })
+        await ui.scrollTo(page.locator('.page-header'))
         await ui.click(btn(page, 'مصروف جديد', 'New expense'))
         await modal(page).waitFor({ timeout: 10000 })
         await ui.pause(500)
@@ -145,7 +145,7 @@ export const chapter = {
       },
       run: async ({ page, ui }) => {
         await expensesShown(page)
-        await ui.scrollTo(page.locator('.inv-exp-list-head'), { block: 'start' })
+        await ui.scrollTo(page.locator('.inv-exp-list-head'))
         await ui.highlight(page.locator('table tbody tr').first(), 1600)
         await ui.highlight(page.locator('.inv-exp-count'), 900)
       },
@@ -157,7 +157,7 @@ export const chapter = {
         en: 'Click the arrows to move between months; the cards compare each month with the one before it. To come back, click This month.',
       },
       run: async ({ page, ui }) => {
-        await ui.scrollTo(page.locator('.page-header'), { block: 'start' })
+        await ui.scrollTo(page.locator('.page-header'))
         await ui.click(period(page).getByRole('button', { name: /الشهر السابق|Previous month/ }))
         await ui.pause(1800)
         await ui.click(btn(period(page), 'هذا الشهر', 'This month'))
@@ -185,7 +185,7 @@ export const chapter = {
         en: 'Breakdown by category starts with a coloured strip that splits the period total between the categories, then one line per category with its entries, amount and share, largest first.',
       },
       run: async ({ page, ui }) => {
-        await ui.scrollTo(page.locator('.inv-exp-breakdown'), { block: 'start' })
+        await ui.scrollTo(page.locator('.inv-exp-breakdown'))
         await ui.highlight(page.locator('.inv-exp-stack'), 1200)
         await ui.highlight(page.locator('.inv-exp-bars'), 1500)
       },
@@ -201,6 +201,7 @@ export const chapter = {
         await ui.pause(600)
         await ui.scrollTo(page.locator('.inv-exp-tfoot'))
         await ui.highlight(page.locator('.inv-exp-tfoot'), 1500)
+        await ui.pause(1500)
         await ui.click(page.locator('.inv-exp-bar').first())
         await ui.pause(400)
       },
@@ -212,7 +213,7 @@ export const chapter = {
         en: 'Type a word from the description or the vendor in the search box above the log, or choose a category from the All categories list next to it.',
       },
       run: async ({ page, ui, lang }) => {
-        await ui.scrollTo(page.locator('.inv-exp-list-head'), { block: 'start' })
+        await ui.scrollTo(page.locator('.inv-exp-list-head'))
         await ui.type(page.locator('.inv-exp-search input'), pick(lang, 'كهرباء', 'electric'), { delay: 90 })
         await ui.pause(1300)
         await ui.click(page.locator('.inv-exp-search .icon-end.clickable'))
@@ -255,7 +256,7 @@ export const chapter = {
         en: 'When you record a stock purchase with the expense switch on, its total is recorded under Materials. Export CSV saves the log as you see it, with its period, search and category, as a file Excel opens.',
       },
       run: async ({ page, ui }) => {
-        await ui.scrollTo(page.locator('.page-header'), { block: 'start' })
+        await ui.scrollTo(page.locator('.page-header'))
         await ui.moveTo(btn(page, 'تصدير CSV', 'Export CSV'))
         await ui.highlight(btn(page, 'تصدير CSV', 'Export CSV'), 1700)
       },
