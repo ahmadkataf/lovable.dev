@@ -1,12 +1,13 @@
 // The promo video ad, second cut: fast, in the Syrian (Damascene) dialect, showing the app's professional power, not
 // only appointments. Stories (1080×1920: Instagram, Facebook, WhatsApp status, TikTok) and the square feed (1080×1080).
-//   node store/scripts/ad-promo.mjs [--formats=story,square] [--stills=3.2,9.5] [--no-audio]
+//   node store/scripts/ad-promo.mjs [--formats=story,square] [--stills=3.2,9.5] [--no-audio] [--music]
 // Inputs (store/ads/video2/): script.json (the lines: text = the caption, spoken = what the voice read), narration.wav
 // and words.json (store/scripts/ad-words.py: the take with its long pauses shortened, every spoken word in time).
 // Footage: the course recordings (store/voiceover/final/<chapter>.mp4, scene starts in store/voiceover/recorded/
 // manifest.json) and a phone screenshot. Every frame is drawn by Chromium from store/scripts/ad-promo-page.js as a
-// function of time (titles, cuts, camera moves and highlights fall on the narration's words), piped into ffmpeg; the
-// soundtrack (original synthesised music, the cuts' sound effects, the voice) comes from store/scripts/ad-music.py.
+// function of time (titles, cuts, camera moves and highlights fall on the narration's words), piped into ffmpeg. The
+// sound is the voice alone, as the owner chose; --music adds the original synthesised music and the cuts' effects
+// (store/scripts/ad-music.py).
 // Output: store/ads/video2/dentora-ad2-<format>-ar.mp4 (H.264 30 fps, AAC 48 kHz, -14 LUFS) and a cover .jpg.
 // Every claim stays true of the app and the offer (server/src/pages/content.ts): one device per licence, 7-day trial.
 // Stories cover about 250 px at the top and the bottom with the platform's own bar: the text stays between them.
@@ -433,8 +434,14 @@ async function renderFormat(browser, fmt, data) {
   console.log(`made ${path.relative(ROOT, target)}: ${Number(j.format.duration).toFixed(1)} s, ${(j.format.size / 1048576).toFixed(1)} MiB, ${j.streams.map(s => s.codec_type + (s.width ? ` ${s.width}×${s.height}` : '')).join(' + ')}`)
 }
 
-/** The soundtrack: music and effects on the cuts (ad-music.py), the voice LEAD seconds in. */
+/** The soundtrack: the voice alone, LEAD seconds in (with --music: music and effects on the cuts, ad-music.py). */
 async function soundtrack() {
+  if (!process.argv.includes('--music')) {
+    await ffmpeg(['-i', path.join(DIR, 'narration.wav'), '-af', `adelay=${Math.round(LEAD * 1000)}:all=1,apad,atrim=0:${TOTAL.toFixed(3)},aresample=48000`,
+      '-ac', '2', '-c:a', 'pcm_s16le', path.join(TMP, 'mix.wav')])
+    console.log(`voice only: ${TOTAL.toFixed(1)} s`)
+    return
+  }
   const cuts = []
   for (const s of SCENES.slice(2)) {
     cuts.push(s.start)

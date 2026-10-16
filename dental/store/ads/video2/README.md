@@ -24,11 +24,13 @@ GEMINI_API_KEY=… python3 store/scripts/voiceover/gemini_tts.py --in store/ads/
   --out store/voiceover/audio/AD2-promo_take5.wav --voice ar-001-training-2 --style "<script.json style>"
 # 2. shorten the long pauses (the voice is never sped up) and time every word (speech recognition)
 $ASR_PYTHON store/scripts/ad-words.py store/voiceover/audio/AD2-promo_take5.wav store/ads/video2
-# 3. the videos: frames drawn by Chromium (store/scripts/ad-promo-page.js), music and mix by store/scripts/ad-music.py
-ASR_PYTHON=$ASR_PYTHON node store/scripts/ad-promo.mjs [--formats=story,square] [--stills=3.2,9.5]
+# 3. the videos: frames drawn by Chromium (store/scripts/ad-promo-page.js); the sound is the voice alone
+#    (--music adds the synthesised music and cut effects of store/scripts/ad-music.py)
+ASR_PYTHON=$ASR_PYTHON node store/scripts/ad-promo.mjs [--formats=story,square] [--stills=3.2,9.5] [--music]
 ```
 
 `ASR_PYTHON` is the voice-over venv (faster-whisper, numpy, scipy). The cuts, camera moves, highlights and titles are
 tied to the words in `words.json`, so a new take needs no retiming; the footage regions are in `ad-promo.mjs`.
-The music is synthesised from scratch (no samples or licences). Every claim stays true of the app and the offer
+The published cut has no music, at the owner's request (16 October 2026); the optional music is synthesised from
+scratch (no samples or licences). Every claim stays true of the app and the offer
 (`server/src/pages/content.ts`): 59$ once per device, a 7-day trial with every feature.
