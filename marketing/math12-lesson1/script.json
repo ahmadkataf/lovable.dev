@@ -1,0 +1,654 @@
+{
+ "title": "عموميّات عن المتتاليات",
+ "scenes": [
+  {
+   "id": "s01",
+   "section": "انطلاقة نشطة",
+   "bookPage": 6,
+   "concept": "Cold open, no title. Dark navy canvas, a square dot grid centre-left and a running-sum panel on the right. The odd numbers are built as L-shaped layers (gnomons) of dots that wrap around the previous square: every new L arrives in yellow (the thing to look at now) with its odd number flashing, then settles to purple, so the figure is always a perfect square; the side length is shown in blue. Seven layers build a 7×7 square while the book's table fills up to $n=7$ and the conjecture $S_n=n^2$ appears with a question mark. Last beat: the square zooms out into an endless field of dots and open question ① is pinned as a purple card in the top-left corner (it stays pinned until the end of the video).",
+   "lines": [
+    {
+     "say": "نقطةٌ واحدة. أضِف ثلاثاً على شكل زاوية، فتصير أربعاً. ثمّ خمساً، فتصير تسعاً. ثمّ سبعاً، فتصير ستَّ عشرة.",
+     "screen": "Centre-left: one yellow dot; right panel: $S_1 = 1$. An L of 3 dots (yellow) wraps the top and right side of it → 2×2 square, then settles to purple; panel: $S_2 = 1+3 = 4$. An L of 5 → 3×3; panel: $S_3 = 1+3+5 = 9$. An L of 7 → 4×4; panel: $S_4 = 1+3+5+7 = 16$. Each new L flashes its odd number (3, 5, 7) in yellow; the side length of the square is written in blue on the bottom edge (2, 3, 4). Small strip at the top: the odd numbers $\\{1, 3, 5, 7, 9, \\dots\\}$, each one lighting yellow when its layer is added."
+    },
+    {
+     "say": "ثمّ خمسةً وعشرين، وستّةً وثلاثين، وتسعةً وأربعين. فمجموعُ أوّلِ إنْ عدداً فرديّاً يبدو دائماً إنْ تربيع.",
+     "screen": "L-layers of 9, 11 and 13 snap in quickly (yellow on arrival, then purple) → 5×5, 6×6, 7×7. Top: the book's table fills cell by cell — row «$n$»: 1 2 3 4 5 6 7; row «$S_n$»: 1 4 9 16 25 36 49. Cells for $n = 1..4$ in white (printed in the book), cells for $n = 5, 6, 7$ in yellow with a tiny tag «استكمل الجدول». Under the table, large yellow: $S_n = n^2\\ ?$ while the blue side length of the 7×7 square reads $n$."
+    },
+    {
+     "say": "الرسمُ يُقنعك، لكنّه لا يُثبت. فكيف تُثبت صحّة استقرائك لكلّ إنْ، حتّى لو كان مليوناً؟",
+     "screen": "Camera zooms out: the square shrinks into an endless field of faint dots. A purple 🤔 card pins itself to the top-left corner: «سؤال مفتوح ①: كيف تُثبت صحّة استقرائك إثباتاً رياضياً؟» with $1+3+5+\\cdots+(2n-1) = n^2$ «مهما يكن $n$» under it, and a small blue note «العدد الفردي ذو الترتيب $n$ هو $2n-1$». Thumbnail bottom-right: «الكتاب ص 6 — انطلاقة نشطة»."
+    }
+   ]
+  },
+  {
+   "id": "s02",
+   "section": "عنوان الدرس",
+   "bookPage": 7,
+   "concept": "Bridge, then title. First the page-6 framing: the 7×7 dot square shrinks to the left and a purple card gives the book's definition of «الاستقراء», with three chips (ملاحظة، تجربة، استقراء) and a pencil-and-paper icon. Then the title card in brand purple with the yellow lesson badge «1», and a vertical roadmap whose stops light up yellow as they are named. Finally a big glowing yellow 7 drops in, gets a lock chip, and is pinned as open question ② next to card ①; the roadmap collapses into the corner chip.",
+   "lines": [
+    {
+     "say": "ما فعلتَه الآن اسمه الاستقراء: استخلاص نتائج عامة من النظر في حالات خاصة. فالرياضيات أيضاً ملاحظةٌ وتجربة، يكفيها قلمٌ وورقة. أمّا الإثبات، فموضوع هذه الوحدة.",
+     "screen": "Left: the small 7×7 dot square. Right: thumbnail «الكتاب ص 6» with the paragraph highlighted, then a purple definition card: «الاستقراء: استخلاص نتائج عامة من النظر في حالات خاصة». Three chips appear in a row as they are spoken: «ملاحظة» · «تجربة» · «استقراء». Then a pencil-and-paper icon with the caption «لا تتطلّب تجهيزات مكلفة… بل مجرّد قلم وورقة». Last, a yellow tag: «الإثبات؟ ← هذه الوحدة»."
+    },
+    {
+     "say": "أهلاً بك في الدرس الأوّل: عموميّاتٌ عن المتتاليات.",
+     "screen": "Board clears. Small purple overline: «الوحدة الأولى: تذكرة بالمتتاليات، والإثبات بالتدريج». Big title with the book's yellow lesson badge «1»: «عموميّات عن المتتاليات». Thumbnail of book page 7 slides in bottom-right: «الكتاب ص 7»."
+    },
+    {
+     "say": "سنرى ما المتتالية، وجهة اطّرادها، والحسابيّة والهندسيّة، ومطابقةً مفيدة، وثلاث طرائق للاطّراد، وثلاثة تمارين محلولة.",
+     "screen": "Title moves up; roadmap stops appear one by one (RTL list), each with a tiny icon: «1.1 ما المتتالية؟ وكيف نعرّفها» (machine icon) — «2.1 جهة الاطّراد» (staircase icon) — «3.1 المتتالية الحسابيّة» (equal-hops icon) — «4.1 المتتالية الهندسيّة» (growing-bars icon) — «💡 مطابقة مفيدة» (bracket icon) — «تكريساً للفهم: ثلاث طرائق» (three mini cards ① ② ③) — «تدرَّبْ: ثلاثة تمارين محلولة» (pencil icon). Each stop turns yellow while it is named."
+    },
+    {
+     "say": "وفي الطريق، لغزٌ ثانٍ بطلُه الرقم سبعة.",
+     "screen": "A big glowing yellow $7$ drops from above and lands beside stop «1.1»; a lock chip «🔒 سؤال مفتوح ②» attaches to it and pulses, then a copy flies to the top-left corner and is pinned next to card ①. The roadmap glows once and shrinks into the corner chip."
+    }
+   ]
+  },
+  {
+   "id": "s03",
+   "section": "ما المتتالية؟",
+   "bookPage": 7,
+   "concept": "The central metaphor of the video: a purple «function machine» box. Blue index balls 0, 1, 2, 3 drop into the top; yellow term cards $u_0, u_1, u_2, u_3$ come out the bottom. A number line of $\\mathbb{N}$ then shows that the index set may start at $n_0$ instead of 0 (an unbroken tail running to $+\\infty$), and the $n_0$ marker slides to show that it changes from one sequence to another. The notation $(u_n)_{n\\ge0}$ is built, and a row of numbered boxes separates the index (blue, the position) from the term (yellow, the value).",
+   "lines": [
+    {
+     "say": "تخيّل آلةً تُدخِل فيها عدداً طبيعيّاً، فتُخرج عدداً. هذه هي المتتالية: تابعٌ مجموعةُ تعريفه مجموعة الأعداد الطبيعيّة.",
+     "screen": "Purple machine box labelled «تابع». Blue balls 0, 1, 2, 3 drop in one by one; yellow cards $u_0$, $u_1$, $u_2$, $u_3$ pop out. Definition card (purple header «تعريف») types in: «المتتاليةُ هي تابعٌ مجموعة تعريفه هي مجموعة الأعداد الطبيعيّة $\\mathbb{N}$»."
+    },
+    {
+     "say": "أو مجموعةٌ جزئيّةٌ غير منتهية منها، تبدأ من عددٍ طبيعيٍّ معطى، إنْ صفر، وتستمرّ بلا توقّف، وقد يتغيّر إنْ صفر من متتاليةٍ إلى أخرى.",
+     "screen": "Card continues: «أو أيّة مجموعة جزئيّة غير منتهية منها من النمط $\\{n_0, n_0+1, n_0+2, \\dots\\}$ حيث $n_0$ عددٌ طبيعيٌّ معطى (يمكن أن يتغير من متتالية إلى أخرى)». Below: number line of $\\mathbb{N}$ (0 … 8). A blue bracket starts at a marker $n_0$ (on 3) and runs right with an arrow to $+\\infty$; the numbers before $n_0$ dim to grey. On «قد يتغيّر» the marker slides to 1, then to 5, the bracket following it, while «(يمكن أن يتغير من متتالية إلى أخرى)» glows yellow."
+    },
+    {
+     "say": "نرمز إليها بالرمز يو إنْ، حيث إنْ أكبر من أو يساوي الصفر، أو إنْ صفر. ونسمّي يو إنْ حدَّ المتتالية ذا الدليل إنْ.",
+     "screen": "Large, centred: $(u_n)_{n\\ge 0}$ «أو» $(u_n)_{n\\ge n_0}$. The subscript $n$ is circled in blue with the label «الدليل»; $u_n$ glows yellow with the book's term in purple bold: «حدّ المتتالية ذو الدليل $n$»."
+    },
+    {
+     "say": "انتبه، الدليل موقعُ الحدّ، والحدّ قيمته. فالحدّ يو سبعة دليله سبعة، وهو الثامن إذا بدأنا من الصفر، وقيمته ليست بالضرورة سبعة.",
+     "screen": "A row of boxes: blue indices 0 1 2 3 4 5 6 7 … underneath, yellow values $u_0, u_1, \\dots, u_7$ inside; labels «الدليل = الموقع» (blue) and «الحدّ = القيمة» (yellow). Box 7 is highlighted: blue «7» below it, a yellow «؟» for its value, caption «$u_7$: الحدّ ذو الدليل 7». Small grey ordinal tags above the boxes count «الأوّل، الثاني، …» and «الثامن» lights up above $u_7$. Pink chip: «⚠️ الدليل $n$ ليس قيمة الحدّ $u_n$»."
+    }
+   ]
+  },
+  {
+   "id": "s04",
+   "section": "حدود لا نهائيّة",
+   "bookPage": 7,
+   "concept": "Three quick examples from the book, each with its own visual. (1) A quick question with a 2-second ring, then the zig-zag dot plot of $(-1)^n$ bouncing between $+1$ and $-1$ forever, with two counters: number of terms → ∞, number of values = 2. (2) The machine fed 0 for $\\frac1n$ jams with a red flash, so the sequence starts at $n_0=1$. (3) An index number line for $\\frac{1}{n^2-1}$: index 0 is defined (grey bubble $-1$) but index 1 is a red hole; since the index set must be an unbroken tail $\\{n_0, n_0+1, \\dots\\}$, the bracket cannot jump over the hole, 0 is dropped and the green bracket starts at 2.",
+   "lines": [
+    {
+     "say": "سؤالٌ سريع: المتتالية يو إنْ يساوي سالب واحد أُس إنْ، كم حدّاً لها؟",
+     "screen": "Centre, large: $u_n = (-1)^n$ and $(u_n)_{n\\ge0}$. Under it, yellow «كم حدّاً لها؟» and a 2-second pause-and-think countdown ring.",
+     "hold": 2
+    },
+    {
+     "say": "قيمتان فقط، واحد وسالب واحد، لكنّ حدودها لا تنتهي: للمتتالية عددٌ لا نهائيٌّ من الحدود، مهما كانت قيمها.",
+     "screen": "Formula moves to the top. Axes: horizontal $n$ (blue ticks 0–9 then «…»), vertical $u_n$ with dashed guides at $+1$ and $-1$. Yellow dots at $(0,1), (1,-1), (2,1), (3,-1), \\dots$ joined by a thin zig-zag that runs off-screen right. Two counters: «عدد الحدود» runs $1, 2, 3, \\dots \\to \\infty$; «عدد القيم» stays at $2$. Book wording: «تأخذ فقط القيمتين $+1$ و $-1$» and «للمتتالية عددٌ لا نهائيٌّ من الحدود بقطع النظر عن قيم هذه الحدود». Pink chip: «لا تخلط بين الحدود والقيم»."
+    },
+    {
+     "say": "والمتتالية واحد على إنْ تبدأ من إنْ صفر يساوي واحداً، لأنّ الصفر يعدم المقام.",
+     "screen": "Board clears. Formula: $\\left(\\dfrac{1}{n}\\right)_{n\\ge1}$. The machine receives ball 0 → red flash and «$\\frac{1}{0}$ غير معرّف». Then balls 1, 2, 3 → $1,\\ \\frac12,\\ \\frac13$. Yellow chip: $n_0 = 1$."
+    },
+    {
+     "say": "أمّا المتتالية واحد على، إنْ تربيع ناقص واحد، فصيغتها معرّفةٌ عند الصفر، وتعطي سالب واحد، لكنّ مقامها ينعدم عند الواحد.",
+     "screen": "New formula: $\\left(\\dfrac{1}{n^2-1}\\right)_{n\\ge2}$. Index number line 0–6: at 0 a grey bubble $\\dfrac{1}{0-1} = -1$ «معرّف»; at 1 a red ✗ bubble $\\dfrac{1}{1^2-1} = \\dfrac{1}{0}$ «المقام $=0$»."
+    },
+    {
+     "say": "والأدلّة لا تقبل الثغرات، فلا نقفز فوق الواحد: نترك الصفر، ونبدأ من إنْ صفر يساوي اثنين.",
+     "screen": "Purple reminder above: «النمط $\\{n_0, n_0+1, n_0+2, \\dots\\}$». A bracket tries to start at 0 and breaks at the hole (pink label «ثغرة!»); index 0 fades out. A green bracket starts at 2 → $+\\infty$; yellow chip $n_0 = 2$. Values appear above: $u_2 = \\frac13,\\ u_3 = \\frac18,\\ u_4 = \\frac1{15}$. Bottom line (book): «متتاليتان فيهما $n_0 = 1$ و $n_0 = 2$ بالترتيب»."
+    }
+   ]
+  },
+  {
+   "id": "s05",
+   "section": "تعريف صريح",
+   "bookPage": 7,
+   "concept": "Section 1.1. The function machine gets a glass window that shows its formula. Inputs go in, outputs fill a table and a small dot plot. The punchline is the direct jump: the ball «100» is thrown straight in and $u_{100}$ comes out immediately, with no intermediate terms.",
+   "lines": [
+    {
+     "say": "الطريقة الأولى: تعريفٌ صريح، أي صيغةٌ تتبع العدد إنْ، تفيد في حساب الحدّ.",
+     "screen": "Heading «1.1 تعريف متتالية». Card ①: «بتعريف صريح للحدّ ذي الدليل $n$» and below it «أي يُعرّف الحدُّ ذو الدليل $n$ بصيغة تتبع العدد $n$ تفيد في حسابه». The machine reappears with a glass window."
+    },
+    {
+     "say": "مثلاً، يو إنْ يساوي سالب واحد أُس إنْ، على، إنْ زائد واحد: واحد، سالب نصف، ثلث، سالب ربع.",
+     "screen": "Machine window: $u_n = \\dfrac{(-1)^n}{n+1}$. Table fills cell by cell: $n$: 0, 1, 2, 3 → $u_n$: $1,\\ -\\frac12,\\ \\frac13,\\ -\\frac14$. Mini dot plot beside it: a zig-zag whose bounces shrink toward 0."
+    },
+    {
+     "say": "أو يو إنْ يساوي قيمة التابع إف عند إنْ، والتابع معرّفٌ على المجال من الصفر إلى زائد اللانهاية، مثل جذر المقدار، إكس تربيع زائد إكس زائد واحد.",
+     "screen": "Window switches: $u_n = f(n)$ with the label «حيث $f$ تابع معرّف على $[0,+\\infty[$» and the example $f(x) = \\sqrt{x^2+x+1}$. Values appear: $u_0 = 1,\\ u_1 = \\sqrt3,\\ u_2 = \\sqrt7$."
+    },
+    {
+     "say": "فتقفز إلى أيّ حدٍّ مباشرة: يو مئة؟ عوّض مئة، دون حساب ما قبله.",
+     "screen": "A blue ball «100» flies straight into the machine (no intermediate balls): output $u_{100} = \\sqrt{100^2+100+1} = \\sqrt{10101}$. Green chip: «قفزة مباشرة»."
+    }
+   ]
+  },
+  {
+   "id": "s06",
+   "section": "تعريف بالتدريج",
+   "bookPage": 7,
+   "concept": "Same machine, but now a loop pipe carries every output back to the input: the sequence «eats its own output». The book example $3 \\to 7 \\to 47 \\to 2207$ is computed step by step along a chain, then a contrast strip shows the explicit definition as one long jump arrow and the recursive one as a path of footsteps. Last beat: the recursion is rewritten as $u_{n+1}=f(u_n)$ with $f:x\\mapsto x^2-2$.",
+   "lines": [
+    {
+     "say": "الطريقة الثانية: بالتدريج. نُعطى حدَّ البدء يو صفر، وعلاقةً تحسب كلّ حدٍّ بدلالة الحدّ أو الحدود التي سبقته، تسمّى علاقةً تدريجيّة.",
+     "screen": "Card ②: «بالتدريج: أي أن يُحسب الحدُّ ذو الدليل $n$ بدلالة الحدود التي سبقته»؛ then «نُعطى الحدّ $u_0$ ثُمّ نعطى علاقة، تسمّى علاقة تدريجيّة، تفيد في حساب كلّ حدٍّ من حدود المتتالية بدلالة الحدّ أو الحدود التي سبقته» with «علاقة تدريجيّة» in purple bold."
+    },
+    {
+     "say": "مثال الكتاب: يو صفر يساوي ثلاثة، ويو إنْ زائد واحد يساوي يو إنْ تربيع ناقص اثنين. الآلة هنا تأكل مخرجها.",
+     "screen": "Example card «مثال»: $u_0 = 3$ (label «حدّ البدء») and $u_{n+1} = u_n^2 - 2$ (label «العلاقة التدريجيّة»). A loop pipe grows from the machine's output back to its input."
+    },
+    {
+     "say": "ثلاثة تعطي سبعة، وسبعة تعطي سبعةً وأربعين، ثمّ ألفين ومئتين وسبعة. حدّاً بعد حدّ، بلا قفز.",
+     "screen": "Chain builds left-to-right as each output card slides back through the pipe: $u_1 = u_0^2 - 2 = 7$, $u_2 = u_1^2 - 2 = 47$, $u_3 = u_2^2 - 2 = 2207,\\ \\dots$ (book line). Then a contrast strip: «صريح» = one long arrow $n \\to u_n$; «تدريجي» = footsteps $u_0 \\to u_1 \\to u_2 \\to \\cdots$."
+    },
+    {
+     "say": "ولاحظ أنّ يو إنْ زائد واحد يساوي قيمة التابع إف عند يو إنْ، والتابع إف يربط إكس بالعدد إكس تربيع ناقص اثنين.",
+     "screen": "Centre, yellow: $u_{n+1} = f(u_n)$ and the book line «والتابع $f$ هو التابع $x \\mapsto x^2 - 2$». The machine's window now reads $f : x \\mapsto x^2 - 2$."
+    }
+   ]
+  },
+  {
+   "id": "s07",
+   "section": "بوجه عام",
+   "bookPage": 7,
+   "concept": "A purple region labelled $D$. Arrows $u_0 \\to u_1 \\to u_2 \\to \\cdots$ hop from point to point and always land inside $D$, so the machine can run forever. Then a counter-example (clearly marked as ours, not the book's) in which one output escapes $D$ and the machine jams.",
+   "lines": [
+    {
+     "say": "بوجهٍ عام، ليكن التابع إف معرّفاً على مجموعةٍ دي، بحيث: مهما يكن إكس من دي، تكن قيمة التابع إف عند إكس من دي أيضاً.",
+     "screen": "Tip card 💡: «بوجه عام، إذا كان $f$ تابعاً معرّفاً على المجموعة $D$، وتحقّق الشرط:» then, emphasised in yellow: «مهما يكن العدد $x$ من $D$ يكن $f(x)$ عنصراً من $D$ أيضاً». Beside it: purple region $D$; an arrow from a point $x$ lands on $f(x)$ inside $D$."
+    },
+    {
+     "say": "فنختار حدّ البدء يو صفر من دي، ونعرّف المتتالية بالعلاقة: يو إنْ زائد واحد يساوي قيمة التابع إف عند يو إنْ.",
+     "screen": "Card continues: «أمكننا تعريف متتالية $(u_n)_{n\\ge0}$، بإعطاء حدّ البدء $u_0$ من المجموعة $D$، والعلاقة التدريجيّة $u_{n+1} = f(u_n)$». In the region: hops $u_0 \\to u_1 \\to u_2 \\to u_3$ that never leave $D$."
+    },
+    {
+     "say": "ولماذا هذا الشرط؟ لأنّ كلّ مخرَجٍ يعود مُدخَلاً. خذ التابع: جذر إكس، ثمّ ناقص واحد، وابدأ من الصفر.",
+     "screen": "Warning card ⚠️ «مثال توضيحي (من خارج الكتاب)»: $f(x) = \\sqrt{x} - 1$ on $D = [0,+\\infty[$, $u_0 = 0$. The output→input pipe glows."
+    },
+    {
+     "say": "تحصل على سالب واحد، فتتعطّل الآلة، إذ لا جذر لعددٍ سالب.",
+     "screen": "$u_1 = \\sqrt0 - 1 = -1 \\notin D$: the hop lands outside the purple region (pink). $u_2 = \\sqrt{-1} - 1$ is struck through in red; the machine shakes and a red «✗» appears. Caption: «الشرط يضمن أن يبقى كلّ حدٍّ في $D$»."
+    }
+   ]
+  },
+  {
+   "id": "s08",
+   "section": "فكّر",
+   "bookPage": 8,
+   "concept": "Only the units digit matters. The terms of the book example are shown large with their last digits lighting up; the think card and a countdown follow. Then $u_4$ rolls up like a counter, three rows of squares show that the units digit of a square depends only on the units digit, and a 3-node cycle $\\dots7 \\to \\dots9 \\to \\dots7$ shows why the 7 can never escape. Dominoes visualise the property passing from each term to the next; open question ② is confirmed in the corner.",
+   "lines": [
+    {
+     "say": "انظر الآن: سبعة، سبعة وأربعون، ألفان ومئتان وسبعة. هل لاحظت رقم الآحاد؟",
+     "screen": "Board clears. Centre, very large, in a row: $7$ · $47$ · $2207$. Their last digits light up yellow one by one (the rest of each number muted). The corner chip «🔒 سؤال مفتوح ②» pulses. Top-left reminder: $u_0 = 3$، $u_{n+1} = u_n^2 - 2$."
+    },
+    {
+     "say": "وهذا سؤال فكّر: أَصحيحٌ أنّ آحاد جميع الحدود التي دليلها أكبر من واحد تساوي سبعة؟ أوقف الفيديو، وفكّر.",
+     "screen": "Think card 🤔: «فكّر: أَصحيحٌ أنّ آحاد جميع حدود المتتالية التي دليلها أكبر من 1 تساوي 7 في المثال السابق؟». Pause-and-think countdown ring (5 s). Thumbnail «الكتاب ص 8» with the «فكّر» block highlighted.",
+     "hold": 5
+    },
+    {
+     "say": "الحدّ التالي: أربعة ملايين وثمانمئة وسبعون ألفاً وثمانمئة وسبعة وأربعون. آحاده سبعة أيضاً. لكنّ التجارب ليست برهاناً.",
+     "screen": "$u_4 = u_3^2 - 2 = 2207^2 - 2 = 4870849 - 2 = 4870847$ — the final number rolls up like a counter; its last digit $7$ pops in yellow. Pink chip: «التجارب ليست برهاناً»."
+    },
+    {
+     "say": "السرّ أنّ آحاد المربّع تتعلّق بآحاد العدد وحدها: سبعة ضرب سبعة تسعةٌ وأربعون، فآحاد المربّع تسعة، ونطرح اثنين فتعود سبعة.",
+     "screen": "Three rows: $7^2 = 49$, $47^2 = 2209$, $2207^2 = 4870849$ — the units digit 7 of each base and 9 of each square in yellow; caption «آحاد المربّع تتعلّق بآحاد العدد فقط». Then everything except the units column fades. Cycle diagram: «$\\dots7$» → arrow «تربيع» (side note $7\\times7 = 49$) → «$\\dots9$» → arrow «$-2$» → «$\\dots7$», and the arrow closes into a loop."
+    },
+    {
+     "say": "إذن الجواب نعم، بل ابتداءً من يو واحد. فالخاصّة تنتقل من حدٍّ إلى الذي يليه، كالدومينو: سؤالنا المفتوح الثاني، وبرهانه في الدرس القادم.",
+     "screen": "Green ✓: «نعم: آحاد جميع الحدود بدءاً من $u_1$ تساوي 7»; $u_0 = 3$ greyed with note «حدّ البدء لا ينتهي بـ 7». A row of dominoes labelled $u_1, u_2, u_3, u_4, \\dots$ topples left-to-right, each carrying a small «7». The corner card ② updates: «سؤال مفتوح ②: آحاد $u_n$ تساوي 7 مهما يكن $n \\ge 1$ — برهانه في الدرس 2»."
+    }
+   ]
+  },
+  {
+   "id": "s09",
+   "section": "جهة الاطّراد",
+   "bookPage": 8,
+   "concept": "Every sequence becomes a staircase: term $u_n$ is a step at height $u_n$ above index $n$. Five mini-staircases build the five cases of «تعريف 1» — strictly increasing (green, up every step), strictly decreasing (pink, down every step), increasing (green with some flat steps), decreasing (pink with some flat steps), constant (blue, all flat) — each paired with the book's exact sentence, «إذا وفقط إذا» and «مهما تكن $n_0 \\le n$» included. They end side by side as a 5-panel strip.",
+   "lines": [
+    {
+     "say": "نرسم كلّ حدٍّ درجةً فوق دليله. المتتالية متزايدة تماماً إذا وفقط إذا كان يو إنْ أصغر من يو إنْ زائد واحد، مهما يكن إنْ ابتداءً من إنْ صفر.",
+     "screen": "Heading «2.1 جهة اطراد متتالية», card «تعريف 1». Panel 1: green staircase rising at every step (indices in blue below). Text: «نقول إنّ المتتالية $(u_n)_{n\\ge n_0}$ متزايدة تماماً إذا وفقط إذا تحقّق الشرط: مهما تكن $n_0 \\le n$ يكن $u_n < u_{n+1}$»; keyword «متزايدة تماماً» in bold as in the book, «إذا وفقط إذا» underlined yellow."
+    },
+    {
+     "say": "ومتناقصة تماماً إذا وفقط إذا كان يو إنْ أكبر من يو إنْ زائد واحد.",
+     "screen": "Panel 2: pink staircase descending at every step. Text: «ونقول إنّ المتتالية $(u_n)_{n\\ge n_0}$ متناقصة تماماً إذا وفقط إذا تحقّق الشرط: مهما تكن $n_0 \\le n$ يكن $u_n > u_{n+1}$»."
+    },
+    {
+     "say": "ومع السماح بالمساواة نقول متزايدة، أو متناقصة، وإذا تساوت الحدود كلّها فالمتتالية ثابتة. وكلّ شرطٍ بصيغة: إذا وفقط إذا.",
+     "screen": "Panels 3–5, book wording on each: «متزايدة إذا وفقط إذا: مهما تكن $n_0 \\le n$ يكن $u_n \\le u_{n+1}$» (green staircase with some flat steps); «متناقصة إذا وفقط إذا: مهما تكن $n_0 \\le n$ يكن $u_n \\ge u_{n+1}$» (pink, some flat steps); «ثابتة إذا وفقط إذا: مهما تكن $n_0 \\le n$ يكن $u_n = u_{n+1}$» (blue flat row). $\\le$ and $\\ge$ highlighted yellow. On the last sentence, «إذا وفقط إذا» lights up yellow in all five panels, now side by side."
+    },
+    {
+     "say": "وانتبه، الشرط مطلوبٌ لكلّ إنْ ابتداءً من إنْ صفر. فحساب ثلاثة حدود لا يُثبت شيئاً.",
+     "screen": "A yellow highlight sweeps across «مهما تكن $n_0 \\le n$» in all five panels. 🎯 card: «حساب $u_0,\\ u_1,\\ u_2$ ✗ ليس برهاناً» (pink) vs «إثبات لكلّ $n \\ge n_0$ ✓» (green)."
+    }
+   ]
+  },
+  {
+   "id": "s10",
+   "section": "مطّردة أم لا؟",
+   "bookPage": 8,
+   "concept": "The word «مطّردة» is introduced, then the zig-zag of $(-1)^n$ returns as the counter-example, its segments alternately green (up) and pink (down). The book's 💡 tip gives the two tools (sign of the difference, ratio vs 1). A warning card shows why the ratio test needs strictly positive terms: $-1, -2, -4, -8$ has ratio 2 yet goes down.",
+   "lines": [
+    {
+     "say": "كلّ متتاليةٍ تحقّق أحد هذه الشروط نسمّيها مطّردة. أمّا سالب واحد أُس إنْ، فتصعد وتنزل: غير مطّردة.",
+     "screen": "Purple keyword «مطّردة» with the book sentence «نطلق على المتتاليات التي تحقّق أحد الشروط السابقة اسم متتاليات مطّردة». The zig-zag of $u_n = (-1)^n$ returns; segments alternate green (up) and pink (down). Red stamp: «غير مطّردة»."
+    },
+    {
+     "say": "فكيف ندرس الاطّراد؟ نقارن يو إنْ بالحدّ الذي يليه، بإشارة الفرق بينهما، أو بمقارنة نسبتهما بالواحد، إذا كانت الحدود موجبةً تماماً.",
+     "screen": "Tip card 💡: «لدراسة اطراد متتالية $(u_n)_{n\\ge0}$، نقارن، أيّاً كان العدد الطبيعي $n$، العددين $u_n$ و $u_{n+1}$ وذلك بدراسة إشارة الفرق $u_{n+1}-u_n$، أو بمقارنة النسبة $\\dfrac{u_{n+1}}{u_n}$ والعدد $1$ في حال كون حدود المتتالية موجبة تماماً». Two mini panels: «$u_{n+1}-u_n > 0$: صعود» (green) / «$u_{n+1}-u_n < 0$: نزول» (pink); «$\\frac{u_{n+1}}{u_n} > 1$: صعود» / «$\\frac{u_{n+1}}{u_n} < 1$: نزول»; «موجبة تماماً» underlined yellow."
+    },
+    {
+     "say": "ولماذا موجبة تماماً؟ خذ سالب واحد، سالب اثنين، سالب أربعة: النسبة اثنان، أكبر من الواحد، لكنّ المتتالية تنزل.",
+     "screen": "Warning card ⚠️ «مثال توضيحي»: $u_n = -2^n$: $-1, -2, -4, -8, \\dots$ drawn as a pink staircase going down below the axis; $\\dfrac{u_{n+1}}{u_n} = 2 > 1$ in yellow with a red «✗ لا نستنتج التزايد». Caption: «مقارنة النسبة بـ 1 تشترط حدوداً موجبة تماماً»."
+    }
+   ]
+  },
+  {
+   "id": "s11",
+   "section": "المتتالية الحسابيّة",
+   "bookPage": 8,
+   "concept": "Arithmetic = equal steps. A yellow point hops along a number line with identical green arcs, mirrored by a staircase with identical risers. Then the same with backward pink hops ($r<0$) and a still point ($r=0$). Ends with an exam card: to prove «arithmetic», show the difference is a constant.",
+   "lines": [
+    {
+     "say": "أوّل عائلة: المتتالية الحسابيّة. ننتقل فيها من حدٍّ إلى الذي يليه بإضافة العدد الحقيقيّ نفسه، آر، أساسِ المتتالية.",
+     "screen": "Heading «3.1 المتتالية الحسابيّة», card «تعريف 2»: «نقول إنّ المتتالية $(u_n)_{n\\ge0}$ متتالية حسابيّة إذا وُجِدَ عدد حقيقي $r$ وتحقّقت العلاقة التدريجيّة $u_{n+1} = u_n + r$ أيّاً كان العدد الطبيعي $n$. نسمّي العدد $r$ أساس المتتالية الحسابيّة»; «أساس» in purple, «$+\\,r$» in green."
+    },
+    {
+     "say": "تخيّلها قفزاتٍ متساويةً على مستقيم الأعداد: اثنان، خمسة، ثمانية، أحد عشر. كلّ قفزةٍ طولها ثلاثة.",
+     "screen": "Number line 0–14. A yellow point hops 2 → 5 → 8 → 11, each arc labelled $+3$ in green; beside it a staircase with four identical risers. Label: $u_0 = 2,\\ r = 3$. Book sentence underneath: «إذن في متتالية حسابيّة ننتقل من حدٍّ إلى الحدّ الذي يليه بإضافة العدد الحقيقي نفسه»."
+    },
+    {
+     "say": "وإذا كان آر سالباً، فالقفزات إلى الوراء، والمتتالية متناقصة تماماً. وإذا كان صفراً، فهي ثابتة.",
+     "screen": "Second row: hops 11 → 8 → 5 → 2 with pink arcs $-3$ and a descending staircase, label $r = -3$ «متناقصة تماماً». Third mini row: the point stays still, label $r = 0$ «ثابتة». The first row gets a small green tag $r = 3 > 0$ «متزايدة تماماً»."
+    },
+    {
+     "say": "ولتُثبت أنّها حسابيّة، بيّن أنّ الفرق بين كلّ حدٍّ وسابقه عددٌ ثابت، لا يتعلّق بالدليل.",
+     "screen": "🎯 card «كيف تُثبت أنّها حسابيّة؟»: $u_{n+1} - u_n = r$ «عدد ثابت لا يتعلّق بـ $n$»; «ثابت» boxed yellow."
+    }
+   ]
+  },
+  {
+   "id": "s12",
+   "section": "من حدٍّ إلى حدّ",
+   "bookPage": 9,
+   "concept": "Counting hops: between $u_p$ and $u_m$ there are exactly $m-p$ equal hops of length $r$, which IS the formula. A concrete instance ($u_7 = u_2 + 5r$) and the special case $u_n = u_0 + nr$, flagged for the exercises.",
+   "lines": [
+    {
+     "say": "ومن الصورة نفسها: من يو بي إلى يو إم، نقفز إم ناقص بي قفزة، طول كلّ منها آر.",
+     "screen": "Number line with yellow points $u_p$ and $u_m$ (blue index labels $p$ and $m$ underneath). Equal green arcs between them are counted 1, 2, 3, …; a brace reads «$m-p$ قفزة، كلّ منها $r$»."
+    },
+    {
+     "say": "إذن، أيّاً كان إم وبي، يو إم يساوي يو بي، زائد، إم ناقص بي، ضرب آر. مثلاً، يو سبعة يساوي يو اثنين، زائد خمسة آر.",
+     "screen": "Boxed (purple): $u_m = u_p + (m-p)\\,r$ with $(m-p)$ in blue; book sentence «أيّاً كان العددان الطبيعيان $m$ و $p$». Example underneath: $u_7 = u_2 + 5r$ with exactly 5 arcs highlighted. Thumbnail «الكتاب ص 9»."
+    },
+    {
+     "say": "وبوضع بي يساوي صفراً: يو إنْ يساوي يو صفر، زائد إنْ ضرب آر. سنحتاجها لاحقاً.",
+     "screen": "Special case slides out of the box: $u_n = u_0 + n\\,r$ (yellow) with a 🎯 marker «سنحتاجها»."
+    }
+   ]
+  },
+  {
+   "id": "s13",
+   "section": "مجموع حدود حسابيّة",
+   "bookPage": 9,
+   "concept": "Gauss pairing as a picture: a green staircase of unit squares (columns 1, 2, 3, 4, 5) plus a blue copy rotated 180° interlock into a 5×6 rectangle; every column pairs a term from the start with a term from the end and all columns have the same height. Then the same idea with symbols ($S$ and its reverse added column by column), the book's formulas, and a warning card on counting terms.",
+   "lines": [
+    {
+     "say": "والآن المجموع. لنجمع من واحد إلى خمسة: نرسم الأعداد درجاً، ونضع فوقه نسخةً مقلوبةً منه.",
+     "screen": "Green staircase of unit squares: columns of heights 1, 2, 3, 4, 5. A blue copy appears, rotates 180°, and docks on top so the two staircases interlock."
+    },
+    {
+     "say": "صار لدينا مستطيلٌ، خمسة ضرب ستّة، والدرج نصفه: خمسة عشر. فكلّ عمودٍ يجمع حدّاً من البداية وحدّاً من النهاية.",
+     "screen": "Result: a 5×6 rectangle with label $5\\times 6 = 30$; the green half is labelled $15$. Each column shows its pair: $1+5,\\ 2+4,\\ 3+3,\\ 4+2,\\ 5+1$, each «$=6$» in yellow."
+    },
+    {
+     "say": "وفي كلّ متتاليةٍ حسابيّة: إذا كان إس مجموعَ إنْ حدّاً متتالياً، أوّلها إيه وآخرها إل، كان إس يساوي إنْ ضرب، إيه زائد إل، على اثنين.",
+     "screen": "Two rows: $S = a + \\cdots + \\ell$ and under it the same sum reversed $S = \\ell + \\cdots + a$; vertical pairs glow, each $= a + \\ell$; then $2S = n(a+\\ell)$ → boxed $S = \\dfrac{n(a+\\ell)}{2}$. Book sentence: «وإذا كان $S$ مجموعَ $n$ حداً متتالياً أوّلها $a$ وآخرها $\\ell$ من حدود متتالية حسابيّة، كان». Mnemonic chip (yellow): «عدد الحدود × (الأول + الأخير) ÷ 2»."
+    },
+    {
+     "say": "وبوجهٍ خاص: من واحد إلى إنْ، المجموع إنْ ضرب، إنْ زائد واحد، على اثنين. ومن واحد إلى مئة: خمسة آلاف وخمسون.",
+     "screen": "Boxed: $1 + 2 + 3 + \\cdots + n = \\dfrac{n(n+1)}{2}$ (book: «وبوجه خاصّ»). Example: $1 + 2 + \\cdots + 100 = \\dfrac{100 \\times 101}{2} = 5050$ with a counter rolling up to 5050; small chip «حيلة غاوس»."
+    },
+    {
+     "say": "وانتبه في عدّ الحدود: من يو ثلاثين إلى يو اثنين وثلاثين ثلاثة حدود، أي الأخير ناقص الأوّل، زائد واحد.",
+     "screen": "⚠️ card «عدد الحدود»: $u_{30} + u_{31} + u_{32}$ → three boxes light up one by one; «عدد الحدود = الدليل الأخير − الدليل الأول + 1»: $32 - 30 + 1 = 3$, with a pink crossed-out $2$ beside it."
+    }
+   ]
+  },
+  {
+   "id": "s14",
+   "section": "المتتالية الهندسيّة",
+   "bookPage": 9,
+   "concept": "Geometric = repeated scaling. Bars where each new bar grows out of a copy of the previous one ($\\times2$, green), then shrinks by half ($\\times\\frac12$, pink). The general law $u_m = u_p q^{m-p}$ is shown side by side with the arithmetic law: addition ↔ multiplication, product ↔ power.",
+   "lines": [
+    {
+     "say": "العائلة الثانية: المتتالية الهندسيّة. ننتقل فيها من حدٍّ إلى الذي يليه بالضرب بالعدد الحقيقيّ ذاته، كيو، أساسِ المتتالية.",
+     "screen": "Heading «4.1 المتتالية الهندسيّة», card «تعريف 3»: «نقول إنّ المتتاليةَ $(u_n)_{n\\ge0}$ متتاليةٌ هندسيّةٌ إذا وُجِدَ عدد حقيقي $q$ وتحقّقت العلاقة التدريجيّة $u_{n+1} = q\\times u_n$ أيّاً كان العدد الطبيعي $n$. نسمّي العدد $q$ أساس المتتالية الهندسيّة»; «أساس» purple, «$\\times q$» green. Book sentence underneath: «ننتقل من حدٍّ إلى الحدّ الذي يليه بالضرب بالعدد الحقيقي ذاته»."
+    },
+    {
+     "say": "تخيّلها أعمدةً تتضاعف مع كيو يساوي اثنين، أو تنكمش إلى النصف مع كيو يساوي نصفاً.",
+     "screen": "Bar chart: green bars 1, 2, 4, 8, 16, each new bar grows out of a copy of the previous one with label «$\\times 2$». Then pink bars 16, 8, 4, 2, 1 each «$\\times\\frac12$». Contrast chip: «حسابيّة: $+\\,r$ — هندسيّة: $\\times\\,q$»."
+    },
+    {
+     "say": "ومن يو بي إلى يو إم، نضرب بالأساس كيو، إم ناقص بي مرّة: يو إم يساوي يو بي، ضرب كيو أُس، إم ناقص بي.",
+     "screen": "Chain $u_p \\xrightarrow{\\times q} \\cdots \\xrightarrow{\\times q} u_m$ with a blue brace «$m-p$ مرّة». Boxed: $u_m = u_p\\,q^{m-p}$ («أيّاً كان العددان الطبيعيان $m$ و $p$»). Side by side with $u_m = u_p + (m-p)\\,r$: the «+» morphs into «×» and the product $(m-p)r$ into the power $q^{m-p}$."
+    }
+   ]
+  },
+  {
+   "id": "s15",
+   "section": "مجموع حدود هندسيّة",
+   "bookPage": 9,
+   "concept": "Shift-and-subtract as an animation: the sum is written as a row of terms, multiplied by $q$ the row slides one slot, matching terms connect vertically and vanish in pairs, leaving only the first and the last. Then the division by $1-q$ (allowed because $q\\ne1$), the $q=1$ case, a warning that the $n$ in $q^n$ counts the terms, the book's special case, and a check with bars 1, 2, 4, 8, 16 stacking into 31.",
+   "lines": [
+    {
+     "say": "ولمجموع إنْ حدّاً متتالياً أوّلها إيه، يعطي الكتاب هذا القانون، بشرط أن يكون كيو لا يساوي واحداً. فمن أين يأتي؟",
+     "screen": "Book statement: «وإذا كان $S$ مجموعَ $n$ حداً متتالياً أوّلها $a$ من حدود متتالية هندسيّة أساسها $q \\ne 1$، كان» and boxed $S = a\\,\\dfrac{1-q^n}{1-q}$; «$q\\ne1$» in pink."
+    },
+    {
+     "say": "اكتب المجموع، واضربه بالأساس كيو، فيزحف كلّ حدٍّ خطوة. اطرح السطرين، فلا يبقى إلّا الأوّل والأخير.",
+     "screen": "Row 1: $S = a + aq + aq^2 + \\cdots + aq^{n-1}$. Row 2 slides in shifted one slot: $qS = aq + aq^2 + \\cdots + aq^{n-1} + aq^n$. Matching terms connect with vertical lines and fade out in pairs. Result: $S - qS = a - aq^n$, i.e. $S(1-q) = a(1-q^n)$."
+    },
+    {
+     "say": "ثمّ نقسم على، واحد ناقص كيو، وهذا مسموح لأنّ كيو لا يساوي واحداً. وإن كان واحداً، فالمجموع إنْ ضرب إيه.",
+     "screen": "$S(1-q) = a(1-q^n) \\;\\Rightarrow\\; S = a\\,\\dfrac{1-q^n}{1-q}$, the factor $(1-q)$ circled with the note «$q \\ne 1 \\Rightarrow 1-q \\ne 0$». ⚠️ side card: «إذا كان $q = 1$: $S = a + a + \\cdots + a = na$»."
+    },
+    {
+     "say": "وانتبه، الأُسّ إنْ داخل القانون هو عدد الحدود، لا آخر أُسٍّ في المجموع. ومع حدٍّ أوّل يساوي واحداً، نحصل على الحالة الخاصّة أمامك.",
+     "screen": "⚠️ card: arrow from the exponent $n$ in $q^n$ to small blue counters $1, 2, \\dots, n$ above the terms: «$n$ = عدد الحدود (آخر أُسّ هو $n-1$)». Then boxed (book's special case, «وبوجه خاصّ»): $1 + q + q^2 + \\cdots + q^{n-1} = \\dfrac{1-q^n}{1-q}$."
+    },
+    {
+     "say": "جرّب مع كيو يساوي اثنين وخمسة حدود: المجموع واحد وثلاثون، كما يعطي القانون.",
+     "screen": "Check with $q = 2,\\ n = 5$: bars 1, 2, 4, 8, 16 stack into one tower of height 31; beside it $\\dfrac{1-2^5}{1-2} = \\dfrac{-31}{-1} = 31$ ✓ (green)."
+    }
+   ]
+  },
+  {
+   "id": "s16",
+   "section": "مطابقة مفيدة",
+   "bookPage": 9,
+   "concept": "From familiar to general: $x^2-a^2$ and $x^3-a^3$ (known) grow into the book's identity for any $n$. Inside the big bracket the exponents move like a seesaw — the power of $x$ falls by one while the power of $a$ rises by one, their sum always $n-1$. A numeric check links back to the 31 of the previous scene.",
+   "lines": [
+    {
+     "say": "ومن هذا المجموع مطابقةٌ مفيدة. تعرف أنّ إكس تربيع ناقص إيه تربيع يساوي، إكس ناقص إيه، ضرب، إكس زائد إيه. والكتاب يعمّمها.",
+     "screen": "Tip card 💡 «مطابقة مفيدة». Familiar lines first (dim): $x^2 - a^2 = (x-a)(x+a)$ and $x^3 - a^3 = (x-a)(x^2 + xa + a^2)$. Then the general identity in large: $x^n - a^n = (x-a)\\left(x^{n-1} + x^{n-2}a + x^{n-3}a^2 + \\cdots + a^{n-1}\\right)$."
+    },
+    {
+     "say": "في القوس الثاني، كلّ الحدود إكس أُس ألفا، ضرب إيه أُس بيتا، حيث ألفا وبيتا عددان طبيعيّان مجموعهما إنْ ناقص واحد.",
+     "screen": "Book sentence: «أي إنّ $x^n - a^n$ هو جداء ضرب $(x-a)$ بمجموع جميع الأعداد $x^\\alpha a^\\beta$ حيث $\\alpha$ و $\\beta$ عددان طبيعيّان مجموعهما يساوي $n-1$». Exponents animate like a seesaw across the bracket: $\\alpha$ (green) $n-1, n-2, \\dots, 0$ falls while $\\beta$ (blue) $0, 1, \\dots, n-1$ rises; under each term a tiny «$\\alpha+\\beta = n-1$»."
+    },
+    {
+     "say": "مثلاً، إكس أُس خمسة ناقص إيه أُس خمسة، يساوي، إكس ناقص إيه، ضرب خمسة حدود، من إكس أُس أربعة إلى إيه أُس أربعة.",
+     "screen": "Book example: $x^5 - a^5 = (x-a)\\left(x^4 + x^3a + x^2a^2 + xa^3 + a^4\\right)$, exponent pairs (4,0), (3,1), (2,2), (1,3), (0,4) flash in turn. Small corner check (green) as the line ends: $x = 2,\\ a = 1$: $2^5 - 1^5 = (2-1)(16 + 8 + 4 + 2 + 1) = 31$, the 16, 8, 4, 2, 1 bars from the previous scene flying in."
+    }
+   ]
+  },
+  {
+   "id": "s17",
+   "section": "برهان المطابقة",
+   "bookPage": 9,
+   "concept": "The proof as a short algebra animation: two trivial cases ticked off, then $q = \\frac{a}{x}$ substituted (yellow) into the geometric sum with both exclusions justified ($x\\ne0$ so the fraction exists, $x\\ne a$ so $q\\ne1$), the right-hand side simplified step by step with a visible cancellation of one $x$, and finally both sides multiplied by $x^{n-1}(x-a)$ so every fraction loses its denominator and the identity appears.",
+   "lines": [
+    {
+     "say": "كيف نبرهنها؟ إذا كان إكس يساوي إيه، أو إكس يساوي صفراً، فالمساواة واضحة.",
+     "screen": "Two check boxes: «$x = a$»: both sides $= 0$ ✓; «$x = 0$»: left $= -a^n$, right $= (-a)\\cdot a^{n-1} = -a^n$ (only the last term $a^{n-1}$ survives in the bracket) ✓. Book line: «المساواة واضحة في حالة $x = a$ أو $x = 0$»."
+    },
+    {
+     "say": "وإلّا، نعوّض كيو يساوي إيه على إكس، داخل المجموع الهندسيّ. وهذا مسموح: إكس لا يساوي صفراً فالكسر معرّف، ولا يساوي إيه فالأساس لا يساوي واحداً.",
+     "screen": "$1 + q + q^2 + \\cdots + q^{n-1} = \\dfrac{1-q^n}{1-q}$ with every $q$ replaced by a yellow $\\dfrac{a}{x}$. Side notes: «$x \\ne 0$ ← الكسر $\\frac{a}{x}$ معرّف» (blue) and «$x \\ne a \\Rightarrow q = \\dfrac{a}{x} \\ne 1$» (yellow)."
+    },
+    {
+     "say": "فيصبح اليسار مجموع قوى إيه على إكس. وفي اليمين نوحّد المقامات ونختصر.",
+     "screen": "Left side: $1 + \\dfrac{a}{x} + \\dfrac{a^2}{x^2} + \\cdots + \\dfrac{a^{n-1}}{x^{n-1}}$. Right side step by step (steps the book skips): $\\dfrac{1-\\left(\\frac{a}{x}\\right)^n}{1-\\frac{a}{x}} = \\dfrac{\\;\\frac{x^n-a^n}{x^n}\\;}{\\frac{x-a}{x}} = \\dfrac{x^n-a^n}{x^n}\\times\\dfrac{x}{x-a} = \\dfrac{x^n-a^n}{x^{n-1}(x-a)}$ (the $x$ cancels one power of $x^n$, yellow strike). Result line (book p.10): $1 + \\dfrac{a}{x} + \\dfrac{a^2}{x^2} + \\cdots + \\dfrac{a^{n-1}}{x^{n-1}} = \\dfrac{x^n-a^n}{x^{n-1}(x-a)}$. Thumbnail «الكتاب ص 10»."
+    },
+    {
+     "say": "أخيراً نضرب الطرفين بالمقدار: إكس أُس، إنْ ناقص واحد، ضرب، إكس ناقص إيه. فيفقد كلّ كسرٍ مقامه، وتظهر المطابقة كاملة.",
+     "screen": "Both sides multiplied by $x^{n-1}(x-a)$ (purple). On the left each term transforms in place, $x^{n-1}\\cdot\\dfrac{a^k}{x^k} = x^{n-1-k}a^k$, giving $(x-a)\\left(x^{n-1} + x^{n-2}a + \\cdots + a^{n-1}\\right)$; on the right $x^n - a^n$. Final identity boxed with a green ✓; book line «ونجد المطابقة المرجوّة عندما نضرب طرفي المساواة الأخيرة بالعدد $x^{n-1}(x-a)$»."
+    }
+   ]
+  },
+  {
+   "id": "s18",
+   "section": "① إشارة الفرق",
+   "bookPage": 10,
+   "concept": "«تكريساً للفهم». Three method cards drop in; card ① takes the stage. The book's example is worked on screen with ALL the algebra the book skips: common denominator, two colour-coded expansions, the subtraction with the whole second bracket outlined, the $n^3$ cancellation, then a sign argument with underbraces. Ends with a model-answer card and a small green staircase of the actual values.",
+   "lines": [
+    {
+     "say": "تكريساً للفهم، ثلاث طرائق لدراسة جهة الاطّراد. الأولى: إشارة الفرق، يو إنْ زائد واحد، ناقص يو إنْ.",
+     "screen": "Heading «تكريساً للفهم» with subtitle «كيف ندرس جهة اطراد متتالية $(u_n)_{n\\ge0}$؟ ثمّة ثلاث طرائق». Three method cards drop in: ① «دراسة إشارة الفرق $u_{n+1}-u_n$» ② «كتابة $u_n = f(n)$ ثم دراسة اطّراد $f$» ③ «مقارنة $\\dfrac{u_{n+1}}{u_n}$ والعدد $1$». Card ① enlarges, the others dim. Thumbnail «الكتاب ص 10»."
+    },
+    {
+     "say": "مثال الكتاب: يو إنْ يساوي، إنْ تربيع زائد واحد، على اثنين إنْ، حيث إنْ أكبر من أو يساوي الواحد.",
+     "screen": "Example card «مثال»: «لنتأمّل المتتالية $(u_n)_{n\\ge1}$ المعرّفة وفق الصيغة $u_n = \\dfrac{n^2+1}{2n}$ في حالة $n\\ge1$». Blue note: «$n_0 = 1$ لأنّ المقام $2n$»."
+    },
+    {
+     "say": "نوحّد المقامين على اثنين إنْ ضرب، إنْ زائد واحد، وننشر البسط، وهي خطواتٌ يتجاوزها الكتاب.",
+     "screen": "$u_{n+1} - u_n = \\dfrac{(n+1)^2+1}{2(n+1)} - \\dfrac{n^2+1}{2n}$ with every $(n+1)$ in blue. Step 1: $= \\dfrac{n\\left[(n+1)^2+1\\right] - (n+1)(n^2+1)}{2n(n+1)}$. Step 2, two side computations: green $n\\left[(n+1)^2+1\\right] = n(n^2+2n+2) = n^3+2n^2+2n$; pink $(n+1)(n^2+1) = n^3+n^2+n+1$. Small label «خطوات لم يكتبها الكتاب»."
+    },
+    {
+     "say": "وانتبه، الناقص يشمل القوس الثاني كلّه. فيختفي إنْ تكعيب، ويبقى إنْ تربيع زائد إنْ ناقص واحد. والمقام موجب، فالإشارة إشارة البسط.",
+     "screen": "Numerator: $(n^3+2n^2+2n) - (n^3+n^2+n+1)$, the second parenthesis outlined pink with ⚠️ «الطرح يشمل الكلّ: $-n^3-n^2-n-1$». The $n^3$ terms strike out. Result: $u_{n+1}-u_n = \\dfrac{n^2+n-1}{2n(n+1)}$ boxed (book's result). Denominator underlined green «$2n(n+1) > 0$»; book line «إشارة $u_{n+1}-u_n$ تماثل إشارة $n^2+n-1$»."
+    },
+    {
+     "say": "ولأنّ إنْ أكبر من أو يساوي الواحد، فالمقدار إنْ ناقص واحد غير سالب، وإنْ تربيع موجبٌ تماماً: البسط موجبٌ تماماً، والمتتالية متزايدة تماماً.",
+     "screen": "$n^2 + n - 1 = \\underbrace{n^2}_{>0} + \\underbrace{(n-1)}_{\\ge 0} > 0$ «في حالة $n \\ge 1$». Conclusion (green): «إذن $(u_n)_{n\\ge1}$ متتالية متزايدة تماماً». As the line ends, the algebra slides left and a ✍️ card «نموذج الكتابة» settles on the right: «أيّاً كان $n \\ge 1$: $u_{n+1} - u_n = \\dfrac{n^2+n-1}{2n(n+1)} > 0$، إذن $(u_n)_{n\\ge1}$ متتالية متزايدة تماماً», with a mini dot plot below it: $u_1 = 1,\\ u_2 = \\frac54,\\ u_3 = \\frac53,\\ u_4 = \\frac{17}{8}$ climbing a green staircase (check chip «✓ الحدود تصعد فعلاً»)."
+    }
+   ]
+  },
+  {
+   "id": "s19",
+   "section": "② اطّراد التابع",
+   "bookPage": 10,
+   "concept": "Dots sitting on a curve inherit its direction. A smooth purple curve with yellow dots at integer abscissas; then the book's example: the parabola $y=(x-1)^2$ with dots at $n = 0,1,2,3,4$. A short pause-and-think asks whether the sequence increases from 0; the first step ($v_0=1$ down to $v_1=0$) turns pink, every later step green, which is exactly why the monotonicity starts at $n_0 = 1$.",
+   "lines": [
+    {
+     "say": "الطريقة الثانية: نكتب يو إنْ على شكل قيمة التابع إف عند إنْ، إن أمكن، وندرس اطّراد التابع.",
+     "screen": "Card ②: «كتابة $u_n = f(n)$، إن أمكن، ثم دراسة اطّراد التابع $f$»."
+    },
+    {
+     "say": "فإذا كان مطّرداً على المجال من إنْ صفر إلى زائد اللانهاية، كانت للمتتالية جهة اطّراده نفسها.",
+     "screen": "Card continues: «فإذا كان التابع $f$ مطّرداً على المجال $[n_0,+\\infty[$ كانت جهة اطّراد $(u_n)_{n\\ge n_0}$ هي نفسها جهة اطّراد $f$». Visual: a smooth rising purple curve; yellow dots placed on it at integer $x$ climb with it."
+    },
+    {
+     "say": "مثال الكتاب: الحدّ في إنْ يساوي، إنْ ناقص واحد، الكلّ تربيع. مشتقّ التابع إف هو اثنان ضرب، إكس ناقص واحد، موجبٌ تماماً عندما إكس أكبر من واحد.",
+     "screen": "Example card: «$(v_n)_{n\\ge0}$ المعرّفة بالصيغة $v_n = (n-1)^2$ في حالة $n\\ge0$». «نرمز بالرمز $f$ إلى التابع المعرّف على $\\mathbb{R}$ وفق $x\\mapsto (x-1)^2$»، $f'(x) = 2(x-1)$. Sign row: $x$ with a mark at 1; $f'(x)$: «$-$» before 1 (pink), «$+$» after (green); arrows ↘ ↗."
+    },
+    {
+     "say": "فالتابع إف متزايدٌ تماماً على المجال من واحد إلى زائد اللانهاية. لكن هل المتتالية متزايدة من الصفر؟",
+     "screen": "Conclusion line: «$f$ متزايد تماماً على $[1,+\\infty[$» (green). Graph of the parabola $y = (x-1)^2$ (purple) with dots at $n = 0..4$. Yellow question: «هل $(v_n)_{n\\ge0}$ متزايدة؟» with a 3-second countdown ring; the dots at $n = 0$ and $n = 1$ blink.",
+     "hold": 3
+    },
+    {
+     "say": "لا. الحدّ في صفر يساوي واحداً، ثمّ في واحد يساوي صفراً: نزول. لذلك هي متزايدة تماماً بدءاً من إنْ صفر يساوي واحداً.",
+     "screen": "Dots labelled $(0,1), (1,0), (2,1), (3,4), (4,9)$. First step coloured pink with label $v_0 = 1 > v_1 = 0$; the following steps green. Blue brace from $n_0 = 1$ onward: «فالمتتالية $(v_n)_{n\\ge1}$ متزايدة تماماً بدءاً من الحدّ ذي الدليل $n_0 = 1$»."
+    }
+   ]
+  },
+  {
+   "id": "s20",
+   "section": "③ مقارنة النسبة",
+   "bookPage": 10,
+   "concept": "Ratio = scaling factor. Bars of $w_n = (\\frac23)^n$ shrink, each one exactly two thirds of the previous; a ratio below 1 means every step shrinks. Ends with an exam-tip card on choosing among the three methods.",
+   "lines": [
+    {
+     "say": "الطريقة الثالثة: عندما تكون الحدود موجبةً تماماً، نقارن النسبة، يو إنْ زائد واحد على يو إنْ، بالعدد واحد.",
+     "screen": "Card ③: «عندما تكون المتتالية $(u_n)_{n\\ge0}$ ذات حدود موجبة تماماً، يمكن أن نقارن بين $\\dfrac{u_{n+1}}{u_n}$ والعدد $1$»."
+    },
+    {
+     "say": "مثال الكتاب: دبليو إنْ يساوي، اثنين على ثلاثة، الكلّ أُس إنْ. حدودها موجبة تماماً، ونسبة كلّ حدٍّ إلى سابقه اثنان على ثلاثة.",
+     "screen": "Example card: «$(w_n)_{n\\ge0}$ المعرّفة على $\\mathbb{N}$ وفق $w_n = \\left(\\dfrac23\\right)^n$»، «جميع حدودها $w_n$ موجبة تماماً». $\\dfrac{w_{n+1}}{w_n} = \\dfrac{\\left(\\frac23\\right)^{n+1}}{\\left(\\frac23\\right)^n} = \\dfrac23$. Bars shrinking: $1,\\ \\frac23,\\ \\frac49,\\ \\frac8{27},\\ \\frac{16}{81}$, each labelled «$\\times\\frac23$»."
+    },
+    {
+     "say": "واثنان على ثلاثة أصغر من واحد، إذن دبليو إنْ زائد واحد أصغر من دبليو إنْ مهما يكن إنْ. فالمتتالية متناقصة تماماً.",
+     "screen": "$\\dfrac{w_{n+1}}{w_n} = \\dfrac23 < 1 \\Rightarrow w_{n+1} < w_n$ (small note: «نضرب بـ $w_n > 0$ فلا تنقلب المتراجحة»). Pink conclusion: «فالمتتالية $(w_n)_{n\\ge0}$ متناقصة تماماً». Chip: «هندسيّة أساسها $q = \\frac23$»."
+    },
+    {
+     "say": "ونصيحة للامتحان: الفرق للكسور، والتابع لما يسهل اشتقاقه، والنسبة للقوى والجداءات.",
+     "screen": "🎯 exam-tip card, three rows: «الفرق $u_{n+1}-u_n$: كسور وكثيرات حدود» — «التابع $f$: صيغة سهلة الاشتقاق» — «النسبة $\\dfrac{u_{n+1}}{u_n}$: قوى وجداءات، والحدود موجبة تماماً»."
+    }
+   ]
+  },
+  {
+   "id": "s21",
+   "section": "تدرّب: التمرين ①",
+   "bookPage": 11,
+   "concept": "Practice. Book thumbnail of page 11 with exercise ① highlighted, a pause-and-think ring, then the solution as a hunt: inside $u_{n+1}$ the pieces of $u_n$ glow yellow and are pulled out, leaving the constant factor $\\frac23$. A model-answer card, then the link back to method ③: shrinking bars $\\frac13, \\frac29, \\frac4{27}$ show the sequence is also strictly decreasing.",
+   "lines": [
+    {
+     "say": "التمرين الأوّل من تدرّب: يو إنْ يساوي اثنين أُس إنْ، على ثلاثة أُس، إنْ زائد واحد. أثبت أنّها هندسيّة، وجِد أساسها. حاول أوّلاً.",
+     "screen": "Thumbnail «الكتاب ص 11 — تدرَّبْ» with exercise ① highlighted, then the card: «① ليكن $u_n = \\dfrac{2^n}{3^{n+1}}$ في حالة $n\\in\\mathbb{N}$. أثبت أنّ المتتالية $(u_n)_{n\\ge0}$ متتالية هندسية وجِدْ أساسها». Goal chip: «المطلوب: $u_{n+1} = q\\,u_n$؟». Pause-and-think countdown ring (5 s).",
+     "hold": 5
+    },
+    {
+     "say": "نبحث داخل يو إنْ زائد واحد عن يو إنْ: اثنان أُس، إنْ زائد واحد، هو اثنان ضرب اثنين أُس إنْ.",
+     "screen": "$u_{n+1} = \\dfrac{2^{n+1}}{3^{(n+1)+1}} = \\dfrac{2^{n+1}}{3^{n+2}}$; the numerator transforms: $2^{n+1} = 2\\times 2^n$, with $2^n$ glowing yellow."
+    },
+    {
+     "say": "وثلاثة أُس، إنْ زائد اثنين، هو ثلاثة ضرب ثلاثة أُس، إنْ زائد واحد.",
+     "screen": "The denominator transforms: $3^{n+2} = 3\\times 3^{n+1}$, with $3^{n+1}$ glowing yellow. Line now reads $u_{n+1} = \\dfrac{2\\times 2^n}{3\\times 3^{n+1}}$."
+    },
+    {
+     "say": "إذن يو إنْ زائد واحد يساوي اثنين على ثلاثة، ضرب يو إنْ، أيّاً كان إنْ: متتاليةٌ هندسيّة أساسها اثنان على ثلاثة، وحدُّها الأوّل ثلث.",
+     "screen": "$u_{n+1} = \\dfrac23\\times\\dfrac{2^n}{3^{n+1}} = \\dfrac23\\,u_n$ (the block $\\frac{2^n}{3^{n+1}}$ boxed and labelled $u_n$). Boxed green: «$(u_n)_{n\\ge0}$ متتالية هندسيّة أساسها $q = \\dfrac23$». Then $u_0 = \\dfrac{2^0}{3^1} = \\dfrac13$."
+    },
+    {
+     "say": "هكذا تكتبها في الامتحان. وإن استعملت النسبة، فاذكر أوّلاً أنّ يو إنْ لا يساوي الصفر.",
+     "screen": "✍️ card «نموذج الكتابة»: «أيّاً كان $n \\in \\mathbb{N}$: $u_{n+1} = \\dfrac{2^{n+1}}{3^{n+2}} = \\dfrac23\\cdot\\dfrac{2^n}{3^{n+1}} = \\dfrac23\\,u_n$، إذن $(u_n)_{n\\ge0}$ هندسيّة أساسها $\\dfrac23$ وحدّها الأول $u_0 = \\dfrac13$». 🎯 footnote: «لإثبات أنّها هندسيّة: أظهر $u_{n+1} = q\\,u_n$ حيث $q$ ثابت لا يتعلّق بـ $n$ — وبالنسبة $\\frac{u_{n+1}}{u_n}$: اذكر أوّلاً $u_n \\ne 0$»."
+    },
+    {
+     "say": "وحدودها موجبة وأساسها أصغر من واحد، فهي متناقصة تماماً، كالمتتالية دبليو إنْ.",
+     "screen": "Bars $\\frac13,\\ \\frac29,\\ \\frac4{27}$ each «$\\times\\frac23$». Pink line: «$u_n > 0$ و $\\dfrac{u_{n+1}}{u_n} = \\dfrac23 < 1$ ⟹ $(u_n)_{n\\ge0}$ متناقصة تماماً (الطريقة ③)», with a mini copy of the $w_n$ bars beside it."
+    }
+   ]
+  },
+  {
+   "id": "s22",
+   "section": "تدرّب: التمرين ②-1",
+   "bookPage": 11,
+   "concept": "Arithmetic hops do the work. On a number line $u_2 = 41$ sits on the right and $u_5 = -13$ on the left with three equal pink backward hops between them; the hop length is solved (with a sign sanity check), then 15 more hops land on $u_{20}$. A second route (18 hops from $u_2$) checks the answer.",
+   "lines": [
+    {
+     "say": "التمرين الثاني: متتاليةٌ حسابيّة فيها يو اثنين يساوي واحداً وأربعين، ويو خمسة يساوي سالب ثلاثة عشر. احسب يو عشرين. أيّ قانونٍ يربط حدّين معلومين؟",
+     "screen": "Card: «② ❶ $(u_n)_{n\\ge0}$ متتالية حسابيّة فيها $u_2 = 41$ و $u_5 = -13$. احسب $u_{20}$». Pause-and-think countdown ring (5 s) with the yellow question «أيّ قانون يربط حدّين معلومين؟» and a faded hint chip in the corner: «$u_m = u_p + \\dots$؟».",
+     "hold": 5
+    },
+    {
+     "say": "من يو اثنين إلى يو خمسة ثلاث قفزات، إذن سالب ثلاثة عشر يساوي واحداً وأربعين، زائد ثلاثة آر.",
+     "screen": "Hint chip completes: $u_m = u_p + (m-p)\\,r$. Number line: yellow points $u_2 = 41$ (right) and $u_5 = -13$ (left), index labels in blue; three equal pink arcs going left. Formula: $u_5 = u_2 + (5-2)\\,r \\;\\Rightarrow\\; -13 = 41 + 3r$."
+    },
+    {
+     "say": "فثلاثة آر يساوي سالب أربعة وخمسين، وآر يساوي سالب ثمانية عشر: إشارةٌ منطقيّة، فالحدود تنزل.",
+     "screen": "$3r = -13 - 41 = -54 \\;\\Rightarrow\\; r = -18$ (boxed). Each arc now labelled $-18$. 🎯 sanity chip: «$41 \\to -13$ نزول ⇒ $r < 0$ ✓»."
+    },
+    {
+     "say": "ومن يو خمسة إلى يو عشرين خمس عشرة قفزة: يو عشرين يساوي سالب ثلاثة عشر، زائد خمسة عشر ضرب سالب ثمانية عشر.",
+     "screen": "$u_{20} = u_5 + (20-5)\\,r = -13 + 15\\times(-18)$; fifteen small pink arcs run left from $u_5$."
+    },
+    {
+     "say": "أي سالب ثلاثة عشر ناقص مئتين وسبعين، والنتيجة سالب مئتين وثلاثة وثمانين.",
+     "screen": "$= -13 - 270 = -283$, final value boxed yellow: $u_{20} = -283$."
+    },
+    {
+     "say": "وللتحقّق، ثماني عشرة قفزة من يو اثنين تعطي النتيجة نفسها.",
+     "screen": "Green check line: $u_{20} = u_2 + (20-2)\\,r = 41 + 18\\times(-18) = 41 - 324 = -283$ ✓."
+    }
+   ]
+  },
+  {
+   "id": "s23",
+   "section": "تدرّب: التمرين ③",
+   "bookPage": 11,
+   "concept": "The machine $f(x)=\\frac{x}{1+x}$ maps positive numbers to positive numbers (callback to the 💡 «بوجه عام» card), so positivity passes from each term to the next like dominoes — tagged as the heart of proof by induction (lesson 2). Then the reciprocal trick: flipping $v_{n+1}$ turns an awkward recursion into $+1$ hops on a number line.",
+   "lines": [
+    {
+     "say": "التمرين الثالث: الحدّ في صفر يساوي واحداً، وكلّ حدٍّ يساوي سابقه، على، واحد زائد سابقه. أوّلاً، تحقّق أنّ كلّ الحدود موجبة تماماً.",
+     "screen": "Card: «③ $(v_n)_{n\\ge0}$ متتالية معرّفة تدريجيّاً وفق $v_0 = 1$ و $v_{n+1} = \\dfrac{v_n}{1+v_n}$». Item ❶: «تحقّق أنّ $v_n > 0$ أيّاً كان العدد الطبيعي $n$». Pause-and-think countdown ring (5 s).",
+     "hold": 5
+    },
+    {
+     "say": "الحدّ في صفر موجب. وإذا كان حدٌّ موجباً، فالبسط والمقام موجبان، فالحدّ التالي موجب.",
+     "screen": "Logic line: $v_0 = 1 > 0$; «إذا كان $v_n > 0$» ⟹ $1 + v_n > 0$ ⟹ $v_{n+1} = \\dfrac{v_n}{1+v_n} > 0$ (numerator and denominator tagged green «$>0$»)."
+    },
+    {
+     "say": "فالخاصّة تنتقل من حدٍّ إلى الذي يليه، كالدومينو. وهذا الانتقال قلب البرهان بالتدريج، موضوع الدرس القادم.",
+     "screen": "Function machine with $f(x) = \\dfrac{x}{1+x}$ and region $D = ]0,+\\infty[$ (callback to the 💡 card of p.7: every positive input gives a positive output). Dominoes topple: $v_0 = 1 > 0 \\to v_1 = \\frac12 > 0 \\to v_2 = \\frac13 > 0 \\to \\cdots$ (green). Purple tag on the row: «الصياغة الكاملة: البرهان بالتدريج — الدرس 2»."
+    },
+    {
+     "say": "ثانياً: يو إنْ يساوي واحداً على في إنْ، وهو معرّف لأنّ في إنْ موجب. أثبت أنّها حسابيّة.",
+     "screen": "Item ❷: «أثبت أنّ المتتالية $(u_n)_{n\\ge0}$ المعرّفة بالعلاقة $u_n = \\dfrac{1}{v_n}$ متتالية حسابيّة». Note: «$v_n > 0 \\Rightarrow v_n \\ne 0$ بحسب ❶». Pause-and-think countdown ring (5 s).",
+     "hold": 5
+    },
+    {
+     "say": "نقلب العلاقة: يو إنْ زائد واحد يساوي، واحد زائد في إنْ، على في إنْ، أي واحد على في إنْ، زائد واحد.",
+     "screen": "Step by step, the fraction flips then splits: $u_{n+1} = \\dfrac{1}{v_{n+1}} = \\dfrac{1}{\\ \\frac{v_n}{1+v_n}\\ } = \\dfrac{1+v_n}{v_n} = \\dfrac{1}{v_n} + \\dfrac{v_n}{v_n} = \\dfrac{1}{v_n} + 1$."
+    },
+    {
+     "say": "إذن يو إنْ زائد واحد يساوي يو إنْ، مضافاً إليه واحد: حسابيّة أساسها واحد، وحدُّها الأوّل يو صفر يساوي واحداً.",
+     "screen": "Boxed green: $u_{n+1} = u_n + 1$, i.e. $u_{n+1} - u_n = 1$ «ثابت» — «متتالية حسابيّة أساسها $r = 1$». $u_0 = \\dfrac{1}{v_0} = 1$. Number line hops $+1$: 1, 2, 3, 4."
+    }
+   ]
+  },
+  {
+   "id": "s24",
+   "section": "تدرّب: تتمّة ③",
+   "bookPage": 11,
+   "concept": "Closing the exercise with the formula $u_n = u_0 + nr$ flagged earlier, then flipping back to $v_n$. A two-row check table compares the recursion with the closed formula, column by column, with green ticks.",
+   "lines": [
+    {
+     "say": "أخيراً، استنتج عبارة في إنْ بدلالة إنْ.",
+     "screen": "Item ❸: «استنتج عبارة $v_n$ بدلالة $n$». Faded hint chip: «$u_n = u_0 + n\\,r$ 🎯». Pause-and-think countdown ring (4 s).",
+     "hold": 4
+    },
+    {
+     "say": "يو إنْ يساوي يو صفر، زائد إنْ ضرب آر، أي واحد زائد إنْ. والحدّ في إنْ مقلوبه: واحد على، إنْ زائد واحد.",
+     "screen": "$u_n = u_0 + n\\,r = 1 + n$ (the 🎯 formula from the arithmetic scene flashes). Then $v_n = \\dfrac{1}{u_n} = \\dfrac{1}{n+1}$ boxed purple."
+    },
+    {
+     "say": "تحقّق سريع: الحدّ في واحد يساوي نصفاً، ثمّ في اثنين يساوي ثلثاً، كما تعطي العلاقة. فالمقلوب جعل الصعب سهلاً.",
+     "screen": "Check table: $n$: 0, 1, 2, 3; row «من العلاقة التدريجيّة»: $1,\\ \\frac12,\\ \\frac13,\\ \\frac14$ (e.g. $v_2 = \\dfrac{\\frac12}{1+\\frac12} = \\dfrac13$); row «من الصيغة $\\dfrac{1}{n+1}$»: $1,\\ \\frac12,\\ \\frac13,\\ \\frac14$; green ✓ on each column. Chip 💡 «انظر إلى المقلوب»."
+    }
+   ]
+  },
+  {
+   "id": "s25",
+   "section": "الخلاصة",
+   "bookPage": null,
+   "concept": "One summary board on a single screen, four colour-coded blocks (purple: what a sequence is; green/pink: monotonicity; blue: arithmetic; yellow: geometric + identity). All blocks are visible from the start but dim; each lights up as the narrator names it, so the final frame is a screenshot-ready sheet of every key formula.",
+   "lines": [
+    {
+     "say": "لنجمع الدرس في شاشةٍ واحدة: المتتالية وطريقتا تعريفها، صريحةً أو بالتدريج، وثلاث طرائق لدراسة الاطّراد.",
+     "screen": "Board, block 1 (purple) lights: «المتتالية: تابع على $\\mathbb{N}$ أو على $\\{n_0, n_0+1, \\dots\\}$» — «صريح: $u_n = f(n)$» — «تدريجي: $u_0$ و $u_{n+1} = f(u_n)$». Then block 2 «الاطّراد» lights (green/pink accents), its rows ticking in: «تعريف 1: $u_n < u_{n+1}$ ، $u_n > u_{n+1}$ ، $\\le$ ، $\\ge$ ، $=$ مهما تكن $n_0 \\le n$» and ① إشارة $u_{n+1}-u_n$ ② $u_n = f(n)$ ودراسة $f$ على $[n_0,+\\infty[$ ③ $\\dfrac{u_{n+1}}{u_n}$ مقابل $1$ (حدود موجبة تماماً). Blocks 3 and 4 visible but dim."
+    },
+    {
+     "say": "ثمّ الحسابيّة، نضيف فيها آر، والهندسيّة، نضرب فيها بالأساس كيو، ولكلٍّ منهما قانونا الحدّ والمجموع، ومعهما المطابقة. صوّر هذه الشاشة.",
+     "screen": "Block 3 «حسابيّة» lights: $u_{n+1} = u_n + r$ ، $u_m = u_p + (m-p)\\,r$ ، $S = \\dfrac{n(a+\\ell)}{2}$ ، $1+2+\\cdots+n = \\dfrac{n(n+1)}{2}$. Block 4 «هندسيّة» lights: $u_{n+1} = q\\,u_n$ ، $u_m = u_p\\,q^{m-p}$ ، $S = a\\,\\dfrac{1-q^n}{1-q}\\ (q\\ne1)$ ، $1+q+\\cdots+q^{n-1} = \\dfrac{1-q^n}{1-q}$ ، and «مطابقة»: $x^n - a^n = (x-a)\\left(x^{n-1} + x^{n-2}a + \\cdots + a^{n-1}\\right)$. The whole board glows once; small corner icon «📸 صوّر الشاشة»."
+    }
+   ]
+  },
+  {
+   "id": "s26",
+   "section": "الدرس القادم",
+   "bookPage": null,
+   "concept": "The two open questions pinned since the hook and the «فكّر» scene return to centre. For each, the step from $n$ to $n+1$ is shown without closing the question: a purple $n\\times n$ dot square wrapped by a yellow L of $2n+1$ dots becomes $(n+1)\\times(n+1)$, beside the units-digit loop $\\dots7 \\to \\dots9 \\to \\dots7$. An endless row of dominoes topples into the Lesson 2 title, the question marks morph into grey tick outlines («قريباً»), then a calm outro card announces the solutions video and invites the student to practise.",
+   "lines": [
+    {
+     "say": "بقي سؤالان مفتوحان: هل مجموع أوّل إنْ عدداً فرديّاً يساوي إنْ تربيع دائماً؟ وهل آحاد كلّ الحدود سبعة؟",
+     "screen": "The two pinned cards return to centre: ① «$1+3+5+\\cdots+(2n-1) = n^2$ مهما يكن $n$؟»; ② «$u_0 = 3,\\ u_{n+1} = u_n^2-2$: آحاد $u_n$ تساوي 7 مهما يكن $n\\ge1$؟»."
+    },
+    {
+     "say": "في الحالتين تنتقل الخاصّة من خطوةٍ إلى التالية: مربّعٌ ضلعه إنْ، مع زاويةٍ جديدة، يصير ضلعه إنْ زائد واحد. والسبعة في الآحاد تعود سبعة.",
+     "screen": "Under card ①: purple $n \\times n$ dot square + a yellow L-layer of $2n+1$ dots = $(n+1) \\times (n+1)$ square; formula $n^2 + (2n+1) = (n+1)^2$ (blue «خطوة $n \\to n+1$»). Under card ②: the units-digit loop $\\dots7 \\to \\dots9 \\to \\dots7$ spins once."
+    },
+    {
+     "say": "وفي الدرس القادم، البرهان بالتدريج، نحوّل هذه الفكرة إلى برهانٍ كامل.",
+     "screen": "An endless row of dominoes topples; next-lesson title appears in purple: «2 البرهان بالتدريج أو بالاستقراء الرياضي». The two question marks morph into grey ✓ outlines labelled «قريباً»."
+    },
+    {
+     "say": "وقبل ذلك، في الفيديو التالي، نحلّ كلّ تمارين تدرّب خطوةً خطوة. فجرّبها أوّلاً بنفسك على المنصّة. أراك قريباً.",
+     "screen": "Outro card: «الفيديو التالي: حلّ جميع تمارين «تدرَّبْ» (ص 11) خطوةً خطوة» and «جرّب أوّلاً: ②-2 … ②-8 و ④» with a pencil-and-paper icon; end card «الدرس التالي: البرهان بالتدريج»; fade to navy.",
+     "hold": 1
+    }
+   ]
+  }
+ ]
+}
