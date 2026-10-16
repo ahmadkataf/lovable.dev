@@ -9,11 +9,13 @@ export function renderNotFound(origin: string, assets: PageAssets): string {
 <section class="legal-404-block" lang="ar" dir="rtl">
 <h1>الصفحة غير موجودة</h1>
 <p>ربما تغيّر الرابط أو كُتب بشكل خاطئ. يمكنك متابعة التصفح من الصفحة الرئيسية.</p>
+<p>وإن كنت تبحث عن شرح للبرنامج، فستجده في <a href="/guide">دليل الاستخدام</a> أو في <a href="/videos">الفيديوهات التعليمية</a>.</p>
 <a class="btn btn-primary legal-btn" href="/">الصفحة الرئيسية</a>
 </section>
 <section class="legal-404-block" lang="en" dir="ltr">
 <h2>Page not found</h2>
 <p>The link may have changed or been mistyped. You can carry on from the home page.</p>
+<p>Looking for help with the app? It is all in the <a href="/en/guide">user guide</a> and the <a href="/en/videos">video course</a>.</p>
 <a class="btn btn-outline legal-btn legal-btn-ghost" href="/en">Home page in English</a>
 </section>
 </div>

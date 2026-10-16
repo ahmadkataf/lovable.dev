@@ -66,6 +66,8 @@ export const ICONS: Record<IconName, string> = {
   loaderCircle: '<path d="M21 12a9 9 0 1 1-6.219-8.56"/>',
   info: '<circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/>',
   settings: '<path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/>',
+  bookOpen: '<path d="M12 7v14"/><path d="M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z"/>',
+  playCircle: '<circle cx="12" cy="12" r="10"/><path d="m10 8 6 4-6 4z"/>',
 }
 
 // Each page carries the icons it uses once, as <symbol>s in a hidden sprite, and every icon is a <use> of one.
@@ -269,10 +271,11 @@ function announcement(v: View): string {
   return `<aside class="announce" aria-label="${escapeHtml(v.t.announcement)}"><div class="container"><p>${escapeHtml(text)}</p></div></aside>\n`
 }
 
+/** The sections of this page, then the user guide and the video course (pages of their own, in the page's language). */
 function navItems(v: View): string {
   const n = v.t.nav
-  return [['features', n.features], ['screenshots', n.screenshots], ['pricing', n.pricing], ['download', n.download], ['faq', n.faq]]
-    .map(([id, label]) => `<li><a href="#${id}">${escapeHtml(label)}</a></li>`).join('')
+  return [['#features', n.features], ['#screenshots', n.screenshots], ['#pricing', n.pricing], ['#download', n.download], ['#faq', n.faq], [`${v.base}/guide`, n.guide], [`${v.base}/videos`, n.videos]]
+    .map(([href, label]) => `<li><a href="${href}">${escapeHtml(label)}</a></li>`).join('')
 }
 
 function langLink(v: View, cls: string): string {
@@ -423,7 +426,7 @@ function steps(v: View): string {
   return `<section class="section steps" id="how" aria-labelledby="how-title">
 <div class="container">
 ${sectionHead('how', st.eyebrow, st.title, st.lead)}
-<ol class="step-list">${st.items.map((x, i) => `<li class="step"><div class="step-top"><span class="step-num" aria-hidden="true">${i + 1}</span>${icon(icons[i], 'step-icon')}</div><h3>${escapeHtml(x.title)}</h3><p>${escapeHtml(x.text)}</p>${x.link ? `<a class="step-link" href="${v.base}/activate">${escapeHtml(x.link)}${forward(v.lang)}</a>` : ''}</li>`).join('')}</ol>
+<ol class="step-list">${st.items.map((x, i) => `<li class="step"><div class="step-top"><span class="step-num" aria-hidden="true">${i + 1}</span>${icon(icons[i], 'step-icon')}</div><h3>${escapeHtml(x.title)}</h3><p>${escapeHtml(x.text)}</p>${x.link ? `<a class="step-link" href="${v.base}${x.linkTo ?? '/activate'}">${escapeHtml(x.link)}${forward(v.lang)}</a>` : ''}</li>`).join('')}</ol>
 </div>
 </section>`
 }
@@ -505,6 +508,7 @@ function faq(v: View): string {
 <h2 id="faq-title">${escapeHtml(f.title)}</h2>
 <p class="lead">${escapeHtml(f.more)}</p>
 <a class="btn btn-wa" href="${escapeHtml(waLink(v, v.t.wa.general))}" rel="noopener" target="_blank">${icon('messageCircle')}<span>${escapeHtml(f.moreLink)}</span></a>
+<div class="faq-learn"><p>${escapeHtml(f.learn.text)}</p><ul><li><a href="${v.base}/guide">${icon('bookOpen')}<span>${escapeHtml(f.learn.guide)}</span></a></li><li><a href="${v.base}/videos">${icon('playCircle')}<span>${escapeHtml(f.learn.videos)}</span></a></li></ul></div>
 </div>
 <div class="faq-list">
 ${f.items.map((item, i) => `<details class="qa"${i === 0 ? ' open' : ''}><summary><span>${escapeHtml(item.q)}</span>${icon('chevronDown')}</summary><div class="qa-a"><p>${faqHtml(v, item.a)}</p></div></details>`).join('\n')}

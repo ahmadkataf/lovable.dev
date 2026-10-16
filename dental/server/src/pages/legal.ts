@@ -19,7 +19,7 @@ const T = {
   ar: {
     skip: 'تخطَّ إلى المحتوى', home: 'الصفحة الرئيسية', kicker: 'Dentora · معلومات قانونية', toc: 'محتويات الصفحة',
     docs: 'المستندات القانونية', whatsapp: 'واتساب', email: 'البريد الإلكتروني', rights: 'جميع الحقوق محفوظة',
-    activate: 'تفعيل الترخيص', otherLang: 'English', otherLangName: 'Read in English',
+    activate: 'تفعيل الترخيص', guide: 'دليل الاستخدام', videos: 'الفيديوهات', otherLang: 'English', otherLangName: 'Read in English',
     desc: {
       privacy: 'سياسة خصوصية Dentora لإدارة عيادات الأسنان: بيانات العيادة ومرضاها تبقى على جهازها، ولا نتلقى منها شيئاً.',
       terms: 'شروط استخدام برنامج Dentora لإدارة عيادات الأسنان (اتفاقية ترخيص المستخدم النهائي).',
@@ -28,7 +28,7 @@ const T = {
   en: {
     skip: 'Skip to content', home: 'Home', kicker: 'Dentora · Legal', toc: 'On this page',
     docs: 'Legal documents', whatsapp: 'WhatsApp', email: 'Email', rights: 'All rights reserved',
-    activate: 'Activate a licence', otherLang: 'العربية', otherLangName: 'اقرأ بالعربية',
+    activate: 'Activate a licence', guide: 'User guide', videos: 'Videos', otherLang: 'العربية', otherLangName: 'اقرأ بالعربية',
     desc: {
       privacy: 'Privacy policy of Dentora dental clinic software: clinic and patient data stays on the clinic’s device, and we receive none of it.',
       terms: 'Terms of use of Dentora dental clinic software (the end-user licence agreement).',
@@ -119,7 +119,11 @@ export interface Shell {
   head?: string
   body: string
 }
-/** The document around a page's content: head, header with the logo and language switch, footer. */
+/**
+ * The document around a page's content: head, header with the logo and language switch, footer. The footer links
+ * every page of the Worker in the page's language: home, the user guide, the video course, activation, privacy,
+ * terms (the guide and the course pages are built on this shell too, so each links the other).
+ */
 export function shell(p: Shell): string {
   const t = T[p.lang], other: Lang = p.lang === 'ar' ? 'en' : 'ar'
   const url = (lang: Lang) => (p.path ? `${p.origin}${langPath(p.path, lang)}` : '')
@@ -165,7 +169,7 @@ ${head}
 ${p.body}
 <footer class="site-footer legal-foot"><div class="container footer-bottom legal-wrap legal-foot-in">
 <p>© ${year} Dentora. ${t.rights}.</p>
-<nav aria-label="${escapeHtml(t.docs)}"><a href="${home}">${t.home}</a><a href="${langPath('/activate', p.lang)}">${t.activate}</a><a href="${langPath('/privacy', p.lang)}">${escapeHtml(docTitle('privacy', p.lang))}</a><a href="${langPath('/terms', p.lang)}">${escapeHtml(docTitle('terms', p.lang))}</a></nav>
+<nav aria-label="${escapeHtml(t.docs)}"><a href="${home}">${t.home}</a><a href="${langPath('/guide', p.lang)}">${t.guide}</a><a href="${langPath('/videos', p.lang)}">${t.videos}</a><a href="${langPath('/activate', p.lang)}">${t.activate}</a><a href="${langPath('/privacy', p.lang)}">${escapeHtml(docTitle('privacy', p.lang))}</a><a href="${langPath('/terms', p.lang)}">${escapeHtml(docTitle('terms', p.lang))}</a></nav>
 </div></footer>
 </body>
 </html>

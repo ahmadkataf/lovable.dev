@@ -10,7 +10,7 @@ export type IconName =
   | 'tooth' | 'calendarCheck' | 'clipboardList' | 'receipt' | 'pill' | 'package' | 'chartColumn' | 'userCog' | 'download'
   | 'messageCircle' | 'check' | 'chevronDown' | 'menu' | 'x' | 'smartphone' | 'monitor' | 'infinity' | 'badgeCheck'
   | 'keyRound' | 'mail' | 'eyeOff' | 'arrowLeft' | 'arrowRight' | 'lifeBuoy'
-  | 'copy' | 'circleAlert' | 'loaderCircle' | 'info' | 'settings'
+  | 'copy' | 'circleAlert' | 'loaderCircle' | 'info' | 'settings' | 'bookOpen' | 'playCircle'
 
 /** The dental chart chips borrow the app's own condition colours (src/styles/tokens.css). */
 export type ChipTone = 'caries' | 'filled' | 'crown' | 'rootCanal' | 'implant' | 'bridge'
@@ -21,7 +21,8 @@ export interface Faq { q: string; a: string }
 export interface Copy {
   meta: { title: string; description: string; ogTitle: string; ogLocale: string; ogAltLocale: string; ogImageAlt: string }
   skip: string
-  nav: { label: string; features: string; screenshots: string; pricing: string; download: string; faq: string }
+  /** `guide` and `videos` are pages of their own (/guide, /videos); the rest are sections of this page. */
+  nav: { label: string; features: string; screenshots: string; pricing: string; download: string; faq: string; guide: string; videos: string }
   menu: string
   /** The other language: its name (written in that language) and an accessible label. */
   other: { name: string; label: string }
@@ -41,8 +42,8 @@ export interface Copy {
     featured: { title: string; text: string; alt: string }
     phones: { key: 'dashboard' | 'patient' | 'treatments' | 'invoice' | 'reports'; title: string; text: string; alt: string }[]
   }
-  /** A step's `link` is the label of a link to the activation page under its text. */
-  steps: { eyebrow: string; title: string; lead: string; items: { title: string; text: string; link?: string }[] }
+  /** A step's `link` is the label of a link under its text, to `linkTo` (a page of the site; the activation page when absent). */
+  steps: { eyebrow: string; title: string; lead: string; items: { title: string; text: string; link?: string; linkTo?: '/activate' | '/guide' | '/videos' }[] }
   pricing: {
     eyebrow: string; title: string; lead: string; label: string; terms: string; includedTitle: string; included: string[]
     cta: string; trial: string
@@ -54,7 +55,8 @@ export interface Copy {
     windows: { name: string; for: string; req: string; btn: string; meta: string; file: string; note: string; requestText: string; requestBtn: string }
     reqTitle: string; reqs: string[]
   }
-  faq: { eyebrow: string; title: string; more: string; moreLink: string; emailPart: string; items: Faq[] }
+  /** `learn`: under the WhatsApp button, a line pointing to the user guide and the video course. */
+  faq: { eyebrow: string; title: string; more: string; moreLink: string; emailPart: string; learn: { text: string; guide: string; videos: string }; items: Faq[] }
   cta: { title: string; lead: string; download: string; whatsapp: string }
   footer: { tagline: string; product: string; activate: string; legal: string; contact: string; privacy: string; terms: string; rights: string; email: string }
   /** Pre-filled WhatsApp messages (the seller reads them first). */
@@ -72,7 +74,7 @@ const ar: Copy = {
     ogImageAlt: 'Dentora لإدارة عيادة الأسنان، يعمل دون إنترنت',
   },
   skip: 'تخطَّ إلى المحتوى',
-  nav: { label: 'التنقل الرئيسي', features: 'المزايا', screenshots: 'الشاشات', pricing: 'السعر', download: 'التحميل', faq: 'الأسئلة الشائعة' },
+  nav: { label: 'التنقل الرئيسي', features: 'المزايا', screenshots: 'الشاشات', pricing: 'السعر', download: 'التحميل', faq: 'الأسئلة الشائعة', guide: 'دليل الاستخدام', videos: 'الفيديوهات' },
   menu: 'القائمة',
   other: { name: 'English', label: 'English version' },
   whatsapp: { short: 'واتساب', header: 'تواصل عبر واتساب' },
@@ -166,7 +168,11 @@ const ar: Copy = {
     title: 'ابدأ خلال دقائق',
     lead: 'جرّب كل شيء أولاً، وادفع فقط حين تقتنع.',
     items: [
-      { title: 'حمّل البرنامج وجرّبه 7 أيام مجاناً', text: 'ثبّت Dentora على حاسوب ويندوز أو جهاز أندرويد، وكل المزايا مفتوحة طوال التجربة دون تسجيل.' },
+      {
+        title: 'حمّل البرنامج وجرّبه 7 أيام مجاناً',
+        text: 'ثبّت Dentora على حاسوب ويندوز أو جهاز أندرويد، وكل المزايا مفتوحة طوال التجربة دون تسجيل. ودليل الاستخدام يشرح لك كل شاشة بالصور خطوة بخطوة.',
+        link: 'افتح دليل الاستخدام', linkTo: '/guide',
+      },
       { title: 'اشترِ الترخيص واستلم مفتاحك', text: 'اطلب الترخيص عبر واتساب، وبعد الدفع يصلك مفتاح ترخيص من 16 خانة، دون أن ترسل رقم جهازك.' },
       {
         title: 'فعّل مرة واحدة، والترخيص لك مدى الحياة',
@@ -218,6 +224,7 @@ const ar: Copy = {
     more: 'لم تجد جواب سؤالك؟',
     moreLink: 'راسلنا على واتساب',
     emailPart: '، أو على البريد {email}،',
+    learn: { text: 'وتعلّم البرنامج بنفسك، بالصور أو بالفيديو:', guide: 'دليل الاستخدام', videos: 'الفيديوهات التعليمية' },
     items: [
       { q: 'هل يحتاج Dentora إلى الإنترنت؟', a: 'لا. يعمل Dentora بالكامل دون إنترنت على الحاسوب والهاتف. تحتاج الإنترنت لتحميله، ومرة واحدة لتفعيل مفتاح الترخيص. وإن لم يكن جهاز العيادة متصلاً، ففعّل المفتاح من أي جهاز آخر على {activate}، ثم الصق رمز التفعيل الذي تحصل عليه في البرنامج دون اتصال.' },
       { q: 'كيف أفعّل Dentora بعد الشراء؟', a: 'بعد الدفع يصلك مفتاح ترخيص من 16 خانة. افتح Dentora ← الإعدادات ← الترخيص، والصق المفتاح واضغط «تفعيل» والجهاز متصل بالإنترنت. أو افتح {activate} من أي جهاز، وأدخل رقم جهازك (تجده في الشاشة نفسها) مع المفتاح، ثم الصق رمز التفعيل الذي يظهر لك في البرنامج. يكفي ذلك مرة واحدة.' },
@@ -259,7 +266,7 @@ const en: Copy = {
     ogImageAlt: 'Dentora dental clinic management, works offline',
   },
   skip: 'Skip to content',
-  nav: { label: 'Main navigation', features: 'Features', screenshots: 'Screenshots', pricing: 'Pricing', download: 'Download', faq: 'FAQ' },
+  nav: { label: 'Main navigation', features: 'Features', screenshots: 'Screenshots', pricing: 'Pricing', download: 'Download', faq: 'FAQ', guide: 'User guide', videos: 'Videos' },
   menu: 'Menu',
   other: { name: 'العربية', label: 'النسخة العربية' },
   whatsapp: { short: 'WhatsApp', header: 'Chat on WhatsApp' },
@@ -353,7 +360,11 @@ const en: Copy = {
     title: 'Up and running in minutes',
     lead: "Try everything first, and pay only when you're convinced.",
     items: [
-      { title: 'Download it and try it free for 7 days', text: 'Install Dentora on a Windows computer or an Android device. Every feature is open during the trial, with no sign-up.' },
+      {
+        title: 'Download it and try it free for 7 days',
+        text: 'Install Dentora on a Windows computer or an Android device. Every feature is open during the trial, with no sign-up, and the user guide walks you through every screen with pictures.',
+        link: 'Open the user guide', linkTo: '/guide',
+      },
       { title: 'Buy a licence and receive your key', text: 'Order on WhatsApp, and once you have paid you receive a 16‑character licence key. No need to send your device number.' },
       {
         title: 'Activate once, yours for life',
@@ -405,6 +416,7 @@ const en: Copy = {
     more: 'Still have a question?',
     moreLink: 'Message us on WhatsApp',
     emailPart: ', or e-mail {email},',
+    learn: { text: 'Or learn the app at your own pace, in pictures or on video:', guide: 'User guide', videos: 'Video course' },
     items: [
       { q: 'Does Dentora need the internet?', a: "No. Dentora works fully offline on your computer or phone. You need the internet to download it, and once to activate your licence key. If the clinic's device is not online, activate the key from any other device at {activate}, then paste the activation code you get into Dentora, offline." },
       { q: 'How do I activate Dentora after buying?', a: 'Once you have paid, you receive a 16‑character licence key. Open Dentora → Settings → Licence, paste the key and press “Activate” while the device is online. Or open {activate} on any device, enter your device number (shown on that same screen) and the key, then paste the activation code you get into Dentora. You only do this once.' },

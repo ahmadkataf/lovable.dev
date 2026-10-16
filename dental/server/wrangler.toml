@@ -18,15 +18,22 @@ routes = [
 # Static files: public/ is assembled by `npm run build` (scripts/build-public.mjs) from site/ plus the release APK.
 # A request that matches a file is answered from it without running the Worker (headers from public/_headers);
 # everything else, and the paths below even if a file with that name appears one day, goes to the Worker.
-# /files/* is listed so the APK is only reachable through /download/android, which counts the download.
+# /files/* is listed so the APK is only reachable through /download/android, which counts the download (the Worker
+# lets /files/meta.json and /files/windows.json through, for scripts/fetch-published.mjs).
+# The guide (/guide, /guide/<topic>; its pictures live under /img/guide/) and the course home (/videos) are listed
+# like the other pages. /videos/* is NOT: the course's files (/videos/<lang>/<chapter>.mp4, .vtt, .jpg and
+# /videos/manifest.json, from site/videos/) must stay static files, served with Range requests and the cache
+# headers of public/_headers without running the Worker, and a chapter page /videos/<chapter> reaches the Worker
+# anyway because no file has that path (html_handling = "none": no directory or extension guessing;
+# build-public.mjs refuses to publish a file that would shadow a page).
 [assets]
 directory = "./public"
 binding = "ASSETS"
 html_handling = "none"
 not_found_handling = "none"
 run_worker_first = [
-  "/", "/en", "/en/*", "/privacy", "/terms", "/activate", "/admin", "/admin/", "/api/*", "/download/*", "/files/*",
-  "/robots.txt", "/sitemap.xml", "/healthz",
+  "/", "/en", "/en/*", "/privacy", "/terms", "/activate", "/guide", "/guide/*", "/videos", "/admin", "/admin/", "/api/*",
+  "/download/*", "/files/*", "/robots.txt", "/sitemap.xml", "/healthz",
 ]
 
 # Licences, PIN reset codes, download counts, settings and the audit log. No database_id on purpose: the first

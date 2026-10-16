@@ -62,6 +62,12 @@ const T = {
     'dash.downloads': 'التنزيلات', 'dash.android': 'أندرويد', 'dash.windows': 'ويندوز', 'dash.last30': 'آخر 30 يوماً',
     'dash.quick': 'إجراءات سريعة', 'dash.latest': 'أحدث التراخيص', 'dash.viewAll': 'عرض الكل',
     'dash.activity': 'آخر النشاطات', 'dash.fullLog': 'السجل الكامل', 'dash.noLicences': 'لم يُصدَر أي ترخيص بعد.',
+    'links.title': 'روابط للزبائن', 'links.lead': 'أرسلوا الرابط للزبون بضغطة واحدة: يفتح واتساب برسالة جاهزة فيها الرابط، وتختارون المحادثة.',
+    'links.guide': 'دليل الاستخدام', 'links.videos': 'الفيديوهات التعليمية', 'links.activate': 'صفحة التفعيل',
+    'links.copy': 'نسخ الرابط', 'links.send': 'إرسال على واتساب',
+    'links.guideMsg': 'مرحباً، هذا دليل استخدام برنامج Dentora: شرح بالصور خطوة بخطوة لكل أقسام البرنامج، من التثبيت إلى النسخ الاحتياطي:\n{url}',
+    'links.videosMsg': 'مرحباً، هذه الفيديوهات التعليمية لبرنامج Dentora: فصل قصير لكل قسم من البرنامج، بشرح صوتي وترجمة:\n{url}',
+    'links.activateMsg': 'مرحباً، هذه صفحة تفعيل برنامج Dentora: أدخل فيها رقم جهازك ومفتاح الترخيص لتحصل على رمز التفعيل الخاص بجهازك:\n{url}',
     'dash.noActivity': 'لا نشاط بعد.',
 
     'new.title': 'ترخيص جديد', 'new.lead': 'بيعوا الترخيص لجهاز محدد برقمه، أو على شكل مفتاح ترخيص يفعّله الزبون بنفسه دون أن يرسل لكم رقم جهازه.',
@@ -236,6 +242,12 @@ const T = {
     'dash.downloads': 'Downloads', 'dash.android': 'Android', 'dash.windows': 'Windows', 'dash.last30': 'Last 30 days',
     'dash.quick': 'Quick actions', 'dash.latest': 'Latest licences', 'dash.viewAll': 'View all',
     'dash.activity': 'Recent activity', 'dash.fullLog': 'Full log', 'dash.noLicences': 'No licences issued yet.',
+    'links.title': 'Links for customers', 'links.lead': 'Send a customer a link in one tap: WhatsApp opens with a ready message holding the link, and you pick the chat.',
+    'links.guide': 'User guide', 'links.videos': 'Video course', 'links.activate': 'Activation page',
+    'links.copy': 'Copy link', 'links.send': 'Send on WhatsApp',
+    'links.guideMsg': 'Hello, here is the Dentora user guide: every part of the app explained step by step with pictures, from installing to backups:\n{url}',
+    'links.videosMsg': 'Hello, here is the Dentora video course: a short narrated chapter for each part of the app, with captions:\n{url}',
+    'links.activateMsg': 'Hello, here is the Dentora activation page: enter your device number and your licence key to get the activation code for your device:\n{url}',
     'dash.noActivity': 'No activity yet.',
 
     'new.title': 'New licence', 'new.lead': 'Sell a licence for one device by its number, or as a licence key the customer activates without sending you the device number.',
@@ -1339,6 +1351,34 @@ function csvLink(cls = 'btn btn-outline btn-sm') {
   return h('a', { class: cls, href: '/api/licences.csv', download: '', on: { click: downloadCsv } }, icon('download'), t('lic.csv'))
 }
 
+/**
+ * Links the seller sends to customers: the user guide, the video course and the activation page, in the panel's
+ * language, each to copy or to share on WhatsApp with a ready message (wa.me without a number: WhatsApp asks which
+ * chat). Always the canonical address (ORIGIN in src/types.ts), whatever address the panel itself was opened on.
+ */
+const SITE = 'https://dentora.raqeem.dev'
+const CUSTOMER_LINKS = [
+  { id: 'guide', ico: 'book-open', path: '/guide', label: 'links.guide', msg: 'links.guideMsg' },
+  { id: 'videos', ico: 'video', path: '/videos', label: 'links.videos', msg: 'links.videosMsg' },
+  { id: 'activate', ico: 'key-round', path: '/activate', label: 'links.activate', msg: 'links.activateMsg' },
+]
+function linksCard() {
+  const base = rtl() ? '' : '/en'
+  const rows = CUSTOMER_LINKS.map(l => {
+    const url = `${SITE}${base}${l.path}`
+    return h('li', { class: 'link-item', 'data-link': l.id },
+      h('span', { class: 'kpi-ico' }, icon(l.ico)),
+      h('div', { class: 'link-main' },
+        h('span', { class: 'link-title', text: t(l.label) }),
+        h('a', { class: 'link-url', href: url, target: '_blank', rel: 'noopener', dir: 'ltr', text: url.replace(/^https:\/\//, '') })),
+      h('div', { class: 'link-actions' },
+        copyButton(() => url, t('links.copy')),
+        h('a', { class: 'chip-btn chip-btn--wa', href: `https://wa.me/?text=${encodeURIComponent(t(l.msg, { url }))}`, target: '_blank', rel: 'noopener' },
+          icon('message-circle'), h('span', { text: t('links.send') }))))
+  })
+  return card('links.title', 'link', null, h('div', { class: 'card-body links-body' }, h('p', { class: 'hint', text: t('links.lead') }), h('ul', { class: 'link-list' }, rows)))
+}
+
 async function viewDashboard(ctx) {
   const { root } = ctx
   root.append(pageHead('dash.title', 'dash.lead'))
@@ -1356,7 +1396,7 @@ async function viewDashboard(ctx) {
   const activity = h('div', null, skeletonRows(3))
   root.append(h('div', { class: 'stack', 'data-slot': '' }, kpis, quick, h('div', { class: 'dash-cols' },
     card('dash.latest', 'key-round', cardLink('#/licences', 'dash.viewAll'), latest),
-    card('dash.activity', 'history', cardLink('#/activity', 'dash.fullLog'), activity))))
+    card('dash.activity', 'history', cardLink('#/activity', 'dash.fullLog'), activity)), linksCard()))
 
   const [stats, recent] = await Promise.all([api('GET', '/api/stats'), api('GET', '/api/licences?limit=5')])
   if (!ctx.alive()) return

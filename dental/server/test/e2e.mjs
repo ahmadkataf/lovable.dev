@@ -1,18 +1,23 @@
 // End-to-end test of the whole Worker as Cloudflare runs it: builds public/, starts `wrangler dev --local` on an empty
-// database and checks the landing page, the legal pages, the downloads, every API route, the control panel, licence
-// keys (issued in the panel, activated on the public page /activate and through POST /api/activate, with its CORS and
-// its limit) and the Windows installer served in parts, with fetch and with Chromium (Playwright). One "ok"/"FAIL"
-// line per check; the exit code is 1 when any check failed.
+// database and checks the landing page, the legal pages, the user guide (every page, its pictures, search, table of
+// contents and lightbox), the video course (every page without recordings, then with fixture clips on a Worker of
+// its own), the downloads, every API route, the control panel, licence keys (issued in the panel, activated on the
+// public page /activate and through POST /api/activate, with its CORS and its limit) and the Windows installer
+// served in parts, with fetch and with Chromium (Playwright). One "ok"/"FAIL" line per check; the exit code is 1
+// when any check failed.
 //
 //   npm run e2e                  the main Worker on E2E_PORT (default 8831); the next two ports run a Worker whose
 //                                password is too short (setup screen) and one with the wrong signing key; the third
-//                                one, at the end, serves a 45 MiB stand-in installer
+//                                one, at the end, serves the course with fixture recordings, then a 45 MiB stand-in
+//                                installer
 //   E2E_OUT=<dir>                screenshots, Worker logs and results.json (default .wrangler/e2e, git-ignored)
-//   E2E_ONLY=site,api,admin,keys,windows   run some parts only (the Workers start anyway)
+//   E2E_ONLY=site,guide,videos,api,admin,keys,windows   run some parts only (the Workers start anyway)
 //
 // public/ is built without the Windows installer (WINDOWS_SETUP=none), so /download/windows falls back to the
-// settings' link or WhatsApp, which the main run checks; the "windows" part then publishes the stand-in and checks
-// that /download/windows gives back exactly its bytes, and leaves public/ built without an installer again.
+// settings' link or WhatsApp, which the main run checks, and without recordings (VIDEOS_DIR=none, whatever the
+// recorder has left in site/videos/), so every chapter is "coming"; the "videos" part then publishes fixture clips
+// (ffmpeg) and the "windows" part the stand-in, checking that /download/windows gives back exactly its bytes, and
+// public/ is left built without either again (npm run build restores it).
 //
 // Needs .dev.vars (ADMIN_PASSWORD and LICENSE_PRIVATE_JWK, see .dev.vars.example) and the app's node_modules, which
 // is where Playwright comes from (dental/package.json). The private key is read here only to prove that no response
@@ -33,7 +38,7 @@ const PORT = Number(process.env.E2E_PORT || 8831)
 const BASE = `http://localhost:${PORT}`
 const OUT = resolve(process.env.E2E_OUT || join(SERVER, '.wrangler', 'e2e'))
 const SHOTS = join(OUT, 'shots')
-const ONLY = new Set((process.env.E2E_ONLY || 'site,api,admin,keys,windows').split(',').map(s => s.trim()))
+const ONLY = new Set((process.env.E2E_ONLY || 'site,guide,videos,api,admin,keys,windows').split(',').map(s => s.trim()))
 /** The canonical address the pages point search engines to (src/index.ts). */
 const ORIGIN = 'https://dentora.raqeem.dev'
 const APK_VERSION = JSON.parse(readFileSync(join(APP, 'package.json'), 'utf8')).version
@@ -50,8 +55,10 @@ const SECURITY = {
   'permissions-policy': 'camera=(), microphone=(), geolocation=()',
   'content-security-policy': CSP,
 }
-// the public pages may also allow Cloudflare Web Analytics; the panel, the API and the files never
-const PUBLIC_CSP = CSP.replace("script-src 'self'", "script-src 'self' https://static.cloudflareinsights.com")
+// the public pages also name media-src (the course's recordings) and may allow Cloudflare Web Analytics; the panel,
+// the API and the files never
+const PUBLIC_CSP = CSP.replace("img-src 'self' data:;", "img-src 'self' data:; media-src 'self';")
+  .replace("script-src 'self'", "script-src 'self' https://static.cloudflareinsights.com")
   .replace("connect-src 'self'", "connect-src 'self' https://cloudflareinsights.com")
 const publicPage = (headers, path) => !!path && (headers.get('content-type') || '').startsWith('text/html') && !path.startsWith('/admin') && !path.startsWith('/api/')
 const missingSecurity = (headers, path = '') => Object.entries(SECURITY)
@@ -101,9 +108,12 @@ function scan(where, data) {
 }
 
 // ---- Workers -----------------------------------------------------------------------------------------------------
-/** Builds public/ with scripts/build-public.mjs; `setup` is its WINDOWS_SETUP: 'none' (no installer) or a file. */
-function buildPublic(setup) {
-  execFileSync(process.execPath, [join(SERVER, 'scripts', 'build-public.mjs')], { cwd: SERVER, stdio: 'inherit', env: { ...process.env, WINDOWS_SETUP: setup } })
+/**
+ * Builds public/ with scripts/build-public.mjs; `setup` is its WINDOWS_SETUP: 'none' (no installer) or a file;
+ * `videos` its VIDEOS_DIR: 'none' (no recording) or a folder laid out like site/videos.
+ */
+function buildPublic(setup, videos = 'none') {
+  execFileSync(process.execPath, [join(SERVER, 'scripts', 'build-public.mjs')], { cwd: SERVER, stdio: 'inherit', env: { ...process.env, WINDOWS_SETUP: setup, VIDEOS_DIR: videos } })
 }
 const workers = []
 /** `wrangler dev --local` on its own empty database; resolves once /healthz answers. */
@@ -240,10 +250,10 @@ const digits = s => String(s).replace(/\D/g, '')
 
 // ---- browser -----------------------------------------------------------------------------------------------------
 /** A page that records console errors and warnings, CSP violations, failed and 4xx/5xx requests, and dialogs. */
-async function newPage(browser, { width, height, mobile = false, dsf = 1, base = BASE, lang } = {}) {
+async function newPage(browser, { width, height, mobile = false, dsf = 1, base = BASE, lang, js = true } = {}) {
   const ctx = await browser.newContext({
     viewport: { width, height }, deviceScaleFactor: dsf, reducedMotion: 'reduce', isMobile: mobile, hasTouch: mobile,
-    acceptDownloads: true, permissions: ['clipboard-read', 'clipboard-write'],
+    acceptDownloads: true, permissions: ['clipboard-read', 'clipboard-write'], javaScriptEnabled: js,
   })
   await ctx.addInitScript(l => {
     window.__csp = []
@@ -289,20 +299,30 @@ async function siteBasics() {
     && /^Disallow: \/admin$/m.test(r.text) && /^Disallow: \/api\/$/m.test(r.text) && /^Disallow: \/download\/$/m.test(r.text)
     && r.text.includes(`Sitemap: ${ORIGIN}/sitemap.xml`), r.text.replace(/\n/g, ' | '))
   r = await req('GET', '/sitemap.xml')
-  const locs = [...r.text.matchAll(/<loc>([^<]+)<\/loc>/g)].map(m => m[1])
-  check('GET /sitemap.xml → 8 pages (home, activation, privacy, terms × ar/en), each with ar/en/x-default alternates', r.status === 200 && r.headers.get('content-type') === 'application/xml; charset=utf-8'
-    && locs.length === 8 && locs.includes(`${ORIGIN}/activate`) && locs.includes(`${ORIGIN}/en/activate`)
-    && (r.text.match(/hreflang="x-default"/g) || []).length === 8 && (r.text.match(/hreflang="ar"/g) || []).length === 8, locs.join(' '))
+  const locs = [...r.text.matchAll(/<loc>([^<]+)<\/loc>/g)].map(m => m[1].replace(ORIGIN, ''))
+  const guideAt = locs.indexOf('/guide'), videosAt = locs.indexOf('/videos')
+  check('GET /sitemap.xml → the 8 pages (home, activation, privacy, terms × ar/en), then the guide (its home and every topic), then the course (its home and every chapter), each with ar/en/x-default alternates',
+    r.status === 200 && r.headers.get('content-type') === 'application/xml; charset=utf-8'
+    && locs.slice(0, 8).join() === ['/', '/en', '/activate', '/en/activate', '/privacy', '/en/privacy', '/terms', '/en/terms'].join()
+    && guideAt === 8 && videosAt > guideAt + 2 && locs.slice(guideAt, videosAt).every(l => /^\/(en\/)?guide(\/|$)/.test(l)) && locs.slice(videosAt).every(l => /^\/(en\/)?videos(\/|$)/.test(l))
+    && locs.slice(guideAt, videosAt).length >= 2 * 17 && locs.slice(videosAt).length >= 2 * 17 && new Set(locs).size === locs.length
+    && (r.text.match(/hreflang="x-default"/g) || []).length === locs.length && (r.text.match(/hreflang="ar"/g) || []).length === locs.length, `${locs.length} pages: ${locs.join(' ')}`)
   const locStatus = []
-  for (const loc of locs) locStatus.push(`${loc.replace(ORIGIN, '')}:${(await req('GET', loc.replace(ORIGIN, '') || '/')).status}`)
-  check('every sitemap URL answers 200 here', locStatus.every(s => s.endsWith(':200')), locStatus.join(' '))
+  for (const loc of locs) locStatus.push(`${loc}:${(await req('GET', loc || '/')).status}`)
+  check(`every one of the ${locs.length} sitemap URLs answers 200 here`, locStatus.every(s => s.endsWith(':200')), locStatus.filter(s => !s.endsWith(':200')).join(' '))
   r = await req('GET', '/no-such-page')
   check('unknown path → 404 page in Arabic and English', r.status === 404 && /^text\/html/.test(r.headers.get('content-type'))
     && r.text.includes('الصفحة غير موجودة') && r.text.includes('Page not found') && r.text.includes('noindex'))
   r = await req('GET', '/files/dentora.apk')
   check('/files/dentora.apk is not served directly (404: only /download/android counts)', r.status === 404)
+  r = await req('GET', '/files/manifest.json')
+  check('/files/manifest.json is not served directly (404)', r.status === 404)
   r = await req('GET', '/files/meta.json')
-  check('/files/meta.json is not served directly (404)', r.status === 404)
+  check(`/files/meta.json → 200 JSON: version ${APK_VERSION}, size and sha256 of the APK (for fetch-published), cached a minute, security headers`, r.status === 200 && r.headers.get('content-type') === 'application/json; charset=utf-8'
+    && r.headers.get('cache-control') === 'public, max-age=60' && r.json?.version === APK_VERSION && r.json.sizeBytes === APK.length && r.json.sha256 === createHash('sha256').update(APK).digest('hex') && !missingSecurity(r.headers).length,
+  `${r.status} ${r.text.slice(0, 80)}`)
+  r = await req('GET', '/files/windows.json')
+  check('/files/windows.json → 404 while no installer is published', r.status === 404)
   r = await req('GET', '/en/')
   check('/en/ → 301 /en', r.status === 301 && r.headers.get('location') === '/en')
   r = await req('GET', '/privacy/?x=1')
@@ -546,6 +566,422 @@ async function site(browser, cookie) {
   }
   r = await req('PUT', '/api/settings', { cookie, body: DEFAULT_SETTINGS })
   check('settings back to the defaults', r.status === 200 && JSON.stringify(r.json) === JSON.stringify(DEFAULT_SETTINGS))
+}
+
+// ==== the user guide and the video course ==========================================================================
+const GUIDE_SCRIPTS = ['<script type="application/ld+json">', '<script src="/js/guide.js" defer>']
+const VIDEO_SCRIPTS = ['<script type="application/ld+json">', '<script src="/js/videos.js" defer>']
+/** What every page of the guide and the course must answer: the legal pages' headers, shell and policy. */
+function pageProblems(r, path, lang, scripts) {
+  const why = []
+  if (r.status !== 200) why.push(`status ${r.status}`)
+  if (r.headers.get('content-language') !== lang) why.push(`Content-Language ${r.headers.get('content-language')}`)
+  if (r.headers.get('content-security-policy') !== PUBLIC_CSP) why.push('not PUBLIC_CSP')
+  if (r.headers.get('cache-control') !== 'public, max-age=300') why.push(`cache ${r.headers.get('cache-control')}`)
+  const miss = missingSecurity(r.headers, path)
+  if (miss.length) why.push(`missing ${miss}`)
+  if (!r.text.includes(`<html lang="${lang}" dir="${lang === 'ar' ? 'rtl' : 'ltr'}">`)) why.push('lang/dir')
+  if (!r.text.includes(`<link rel="canonical" href="${ORIGIN}${path}">`)) why.push('canonical')
+  if ((r.text.match(/<h1[\s>]/g) || []).length !== 1) why.push('not one h1')
+  if (/\sstyle="|<style|\son[a-z]+=/i.test(r.text)) why.push('inline style or handler')
+  const found = r.text.match(/<script\b[^>]*>/g) || []
+  if (!found.length || !found.every(s => scripts.includes(s))) why.push(`scripts: ${found.join(' ')}`)
+  return why
+}
+/** The internal links of a page's HTML: absolute paths (with their fragment) and bare fragments. */
+function hrefsOf(html) {
+  const out = []
+  for (const m of html.matchAll(/\shref="([^"]*)"/g)) {
+    const h = m[1].replace(/&amp;/g, '&')
+    if ((h.startsWith('/') && !h.startsWith('//')) || h.startsWith('#')) out.push(h)
+  }
+  return out
+}
+/**
+ * Fetches every internal link of the pages given once (pictures and downloads with HEAD), follows the links into
+ * other pages whose path matches `follow`, and checks every #fragment against the ids of the page it points to.
+ */
+async function crawl(pages, follow) {
+  const seen = new Map(pages)   // path → HTML (null: not a page)
+  const bad = []
+  const queue = [...pages.keys()]
+  let links = 0
+  while (queue.length) {
+    const from = queue.shift()
+    const html = seen.get(from)
+    if (typeof html !== 'string') continue
+    for (const href of hrefsOf(html)) {
+      links++
+      const [pathPart, frag] = href.split('#')
+      const target = pathPart ? pathPart.split('?')[0] : from
+      if (!seen.has(target)) {
+        const file = /\.(webp|avif|jpg|png|svg|ico|woff2|mp4|vtt|json)$/.test(target)
+        const r = await req(file || target.startsWith('/download/') ? 'HEAD' : 'GET', target)
+        const want = target === '/download/windows' ? 302 : 200
+        if (r.status !== want) { bad.push(`${from} → ${href}: ${r.status}`); seen.set(target, null); continue }
+        if (/\.(webp|avif|jpg|png|svg|ico)$/.test(target) && !/^image\//.test(r.headers.get('content-type') || '')) bad.push(`${from} → ${href}: ${r.headers.get('content-type')}`)
+        seen.set(target, /^text\/html/.test(r.headers.get('content-type') || '') ? r.text : null)
+        if (follow.test(target)) queue.push(target)
+      }
+      if (frag) {
+        const page = seen.get(target)
+        if (typeof page === 'string' && !page.includes(`id="${frag}"`)) bad.push(`${from} → ${href}: no id="${frag}" on ${target}`)
+      }
+    }
+  }
+  return { links, pages: seen.size, bad }
+}
+const sitemapLocs = async () => [...(await req('GET', '/sitemap.xml')).text.matchAll(/<url><loc>([^<]+)<\/loc>(.*?)<\/url>/g)].map(m => ({ path: m[1].replace(ORIGIN, ''), dated: m[2].includes('<lastmod>') }))
+
+const GUIDE_WORDS = {
+  // "نسخه احتياطيه" with ه for ة finds "النسخة الاحتياطية" (the search normalises both); an upper-case English word too
+  ar: { query: 'نسخه احتياطيه', hit: 'backup', none: 'كلمةلاوجودلها' },
+  en: { query: 'BACKUP', hit: 'backup', none: 'nosuchwordanywhere' },
+}
+/** The guide's slugs as the home lists them (the suite never counts the topics itself: the index is theirs). */
+const guideSlugsOf = html => [...html.matchAll(/class="gd-card" data-slug="([a-z0-9-]+)"/g)].map(m => m[1])
+
+async function guidePages(browser) {
+  section('user guide: every page in both languages')
+  const home = await req('GET', '/guide')
+  const slugs = guideSlugsOf(home.text)
+  check('GET /guide → 200 with its topic cards (16 or more, each once, kebab-case)', home.status === 200 && slugs.length >= 16 && new Set(slugs).size === slugs.length, `${slugs.length}: ${slugs.join(' ')}`)
+  const paths = [['/guide', 'ar'], ['/en/guide', 'en'], ...slugs.flatMap(s => [[`/guide/${s}`, 'ar'], [`/en/guide/${s}`, 'en']])]
+  const pages = new Map()
+  const bad = []
+  for (const [path, lang] of paths) {
+    const r = await req('GET', path)
+    pages.set(path, r.text)
+    const why = pageProblems(r, path, lang, GUIDE_SCRIPTS)
+    if (!r.text.includes(`href="${lang === 'en' ? '/en' : ''}/videos"`)) why.push('no link to the videos')
+    if (path !== '/guide' && path !== '/en/guide' && !r.text.includes(`href="${lang === 'en' ? '/en' : ''}/guide"`)) why.push('no link to the guide home')
+    if (why.length) bad.push(`${path}: ${why.join(', ')}`)
+  }
+  check(`all ${paths.length} guide pages: 200, Content-Language, PUBLIC_CSP, cacheable 5 min, security headers, lang/dir, canonical, one h1, nothing inline, only JSON-LD + guide.js, links to the videos and the guide home`, !bad.length, bad.join(' | '))
+  const wrong = []
+  for (const path of ['/guide/no-such-topic', '/en/guide/no-such-topic', `/guide/${slugs[0].toUpperCase()}`, '/guide/manifest.json', `/guide/${slugs[0]}/extra`]) {
+    const r = await req('GET', path)
+    if (r.status !== 404 || !r.text.includes('Page not found') || !r.text.includes('href="/guide"')) wrong.push(`${path} → ${r.status}`)
+  }
+  check('an unknown topic, a slug in upper case, a file name or a deeper path under /guide → the 404 page, which names the guide', !wrong.length, wrong.join(' | '))
+  let r = await req('GET', `/en/guide/${slugs[0]}/`)
+  check(`/en/guide/${slugs[0]}/ → 301 without the slash`, r.status === 301 && r.headers.get('location') === `/en/guide/${slugs[0]}`, `${r.status} ${r.headers.get('location')}`)
+  r = await req('HEAD', '/guide')
+  check('HEAD /guide → 200 without a body', r.status === 200 && r.buf.length === 0)
+
+  // the pictures: the sizes on the pages are the manifest's, and every file the pages name is published
+  const manifest = JSON.parse(readFileSync(join(SERVER, 'public', 'img', 'guide', 'manifest.json'), 'utf8'))
+  const published = new Set(JSON.parse(readFileSync(join(SERVER, 'public', 'files', 'manifest.json'), 'utf8')).files)
+  let pics = 0
+  const sizeBad = [], fileBad = new Set()
+  for (const [path, html] of pages) {
+    for (const m of html.matchAll(/<a class="gd-zoom" href="(\/img\/guide\/(ar|en)\/([a-z0-9-]+)-(\d+)\.webp)" data-w="(\d+)" data-h="(\d+)">/g)) {
+      pics++
+      const img = manifest[`${m[2]}/${m[3]}`]
+      if (!img || String(img.width) !== m[5] || String(img.height) !== m[6]) sizeBad.push(`${path}: ${m[3]} ${m[5]}×${m[6]} vs ${img ? `${img.width}×${img.height}` : 'not in the manifest'}`)
+      if (!published.has(m[1])) fileBad.add(m[1])
+    }
+    for (const m of html.matchAll(/srcset="([^"]+)"/g)) for (const part of m[1].split(',')) { const f = part.trim().split(/\s+/)[0]; if (f.startsWith('/img/guide/') && !published.has(f)) fileBad.add(f) }
+    for (const m of html.matchAll(/<img src="(\/img\/guide\/[^"]+)"[^>]*>/g)) if (!/ width="\d+" height="\d+"/.test(m[0])) sizeBad.push(`${path}: ${m[1]} has no width/height`)
+  }
+  check(`the ${pics} pictures on the guide pages carry the manifest's width and height, and every file they name is in public/ (${published.size} files)`, pics > 0 && !sizeBad.length && !fileBad.size, [...sizeBad, ...fileBad].slice(0, 6).join(' | '))
+
+  const locs = await sitemapLocs()
+  const notListed = paths.map(([p]) => p).filter(p => !locs.some(l => l.path === p))
+  const extra = locs.filter(l => /^\/(en\/)?guide(\/|$)/.test(l.path) && !pages.has(l.path)).map(l => l.path)
+  const undated = locs.filter(l => /^\/(en\/)?guide(\/|$)/.test(l.path) && !l.dated).map(l => l.path)
+  check(`the sitemap lists every one of the ${paths.length} guide pages, each with a date, and no other guide page`, !notListed.length && !extra.length && !undated.length, [...notListed, ...extra, ...undated].slice(0, 6).join(' '))
+  const c = await crawl(pages, /^\/(en\/)?(guide|videos)(\/|$)/)
+  check(`every internal link on the ${c.pages} pages reached from the guide resolves (${c.links} links, fragments and pictures included)`, c.links > 100 && !c.bad.length, c.bad.slice(0, 8).join(' | '))
+
+  section('user guide in Chromium: search, a topic at 390 and 1440 px, the table of contents, the lightbox')
+  const dir = shotDir('guide')
+  // a topic with pictures and several sections, for the lightbox and the table of contents
+  const topic = slugs.find(s => (pages.get(`/guide/${s}`).match(/class="gd-zoom"/g) || []).length >= 2 && (pages.get(`/guide/${s}`).match(/class="gd-block" id="/g) || []).length >= 3) || slugs[0]
+  for (const lang of ['ar', 'en']) {
+    const base = lang === 'en' ? '/en' : '', w = GUIDE_WORDS[lang]
+    const p = await newPage(browser, { width: 1440, height: 900 })
+    await p.page.goto(`${BASE}${base}/guide`, { waitUntil: 'networkidle' })
+    const shownCards = () => p.page.evaluate(() => [...document.querySelectorAll('.gd-card')].filter(c => !c.hidden).map(c => c.dataset.slug))
+    const all = await shownCards()
+    check(`${base}/guide: the search box shows with JavaScript, all ${all.length} cards shown`, (await p.page.locator('.gd-search').isVisible()) && all.length === slugs.length, `${all.length}`)
+    await p.page.fill('#gd-q', w.query)
+    await p.page.waitForTimeout(250)
+    const hits = await shownCards()
+    const status = (await p.page.locator('#gd-status').textContent()) || ''
+    check(`${base}/guide: searching "${w.query}" keeps the ${w.hit} card and drops others; the status counts the matches`, hits.includes(w.hit) && hits.length < all.length && status.trim().length > 0, `${hits.join(' ')} | ${status}`)
+    await p.page.fill('#gd-q', w.none)
+    await p.page.waitForTimeout(250)
+    check(`${base}/guide: a word nowhere → no card, the empty state`, (await shownCards()).length === 0 && (await p.page.locator('.gd-empty').isVisible()))
+    await p.page.locator('.gd-search-clear').click()
+    await p.page.waitForTimeout(150)
+    check(`${base}/guide: "clear" shows every card again`, (await shownCards()).length === all.length && (await p.page.inputValue('#gd-q')) === '')
+    await loadAllImages(p.page)
+    await p.page.screenshot({ path: join(dir, `home-${lang}-desktop.png`), fullPage: true })
+    const csp = await p.csp()
+    check(`${base}/guide at 1440px: no console errors, CSP violations or failed requests`, !p.console.length && !csp.length && !p.http.length && !p.failed.length, [...p.console, ...csp, ...p.http, ...p.failed].join(' | '))
+    await p.close()
+    const ph = await newPage(browser, { width: 390, height: 844, mobile: true, dsf: 2 })
+    await ph.page.goto(`${BASE}${base}/guide`, { waitUntil: 'networkidle' })
+    await loadAllImages(ph.page)
+    const o = await overflowOf(ph.page)
+    check(`${base}/guide at 390px: no horizontal scroll, no console or CSP errors`, o.sw <= o.cw && !ph.console.length && !(await ph.csp()).length, `${o.sw}/${o.cw} ${ph.console.join(' | ')}`)
+    await ph.page.screenshot({ path: join(dir, `home-${lang}-phone.png`), fullPage: true })
+    await ph.close()
+
+    for (const width of [390, 1440]) {
+      const path = `${base}/guide/${topic}`
+      const size = width < 700 ? 'phone' : 'desktop'
+      const tag = `${path} at ${width}px`
+      const q = await newPage(browser, { width, height: width < 700 ? 844 : 900, mobile: width < 700, dsf: width < 700 ? 2 : 1 })
+      const res = await q.page.goto(`${BASE}${path}`, { waitUntil: 'networkidle' })
+      await loadAllImages(q.page)
+      const m = await q.page.evaluate(() => {
+        const imgs = [...document.querySelectorAll('img[src^="/img/guide/"]')]
+        return {
+          sw: document.documentElement.scrollWidth, cw: document.documentElement.clientWidth, pics: imgs.length,
+          broken: imgs.filter(i => !i.complete || i.naturalWidth === 0).map(i => i.currentSrc || i.src),
+          unsized: imgs.filter(i => !(Number(i.getAttribute('width')) > 0 && Number(i.getAttribute('height')) > 0)).map(i => i.src),
+          blocks: [...document.querySelectorAll('.gd-block[id]')].map(b => b.id),
+        }
+      })
+      check(`${tag}: 200, no horizontal scroll, ${m.pics} pictures load with width/height attributes`, res.status() === 200 && m.sw <= m.cw && m.pics > 0 && !m.broken.length && !m.unsized.length,
+        `${m.sw}/${m.cw} ${[...m.broken, ...m.unsized].slice(0, 4).join(' ')}`)
+      if (width === 1440 && m.blocks.length >= 3) {
+        // the table of contents follows the reading: the third section scrolled to the top is the active entry
+        const id = m.blocks[2]
+        await q.page.evaluate(id => document.getElementById(id).scrollIntoView(), id)
+        await q.page.waitForTimeout(400)
+        const active = await q.page.evaluate(() => [...document.querySelectorAll('.gd-toc-side .gd-toc-list a.is-active')].map(a => `${a.getAttribute('href')}:${a.getAttribute('aria-current')}`))
+        check(`${tag}: the table of contents marks the section being read (#${id})`, active.length === 1 && active[0] === `#${id}:location`, active.join(' '))
+        await q.page.evaluate(() => window.scrollTo(0, 0))
+      }
+      // the lightbox: the first picture opens in a dialog, the arrow keys move, Escape closes and returns the focus
+      const zooms = await q.page.locator('.gd-zoom').count()
+      await q.page.locator('.gd-zoom').first().scrollIntoViewIfNeeded()
+      await q.page.locator('.gd-zoom').first().click()
+      const opened = await q.page.waitForSelector('dialog.gd-lb[open]', { timeout: 4000 }).then(() => true, () => false)
+      const lb = await q.page.evaluate(() => ({
+        focus: document.activeElement?.className, count: document.querySelector('.gd-lb-count')?.textContent, src: document.querySelector('dialog.gd-lb img')?.getAttribute('src'),
+        w: document.querySelector('dialog.gd-lb img')?.getAttribute('width'),
+      }))
+      await q.page.keyboard.press(lang === 'ar' ? 'ArrowLeft' : 'ArrowRight')
+      await q.page.waitForTimeout(150)
+      const moved = await q.page.evaluate(() => document.querySelector('.gd-lb-count')?.textContent)
+      await q.page.keyboard.press('Escape')
+      await q.page.waitForTimeout(200)
+      const closed = await q.page.evaluate(() => ({ open: !!document.querySelector('dialog.gd-lb[open]'), focus: document.activeElement?.className }))
+      check(`${tag}: the lightbox opens on the first of ${zooms} pictures (focus on close, the large file, its width), the arrow key moves on, Escape closes and focuses the picture again`,
+        opened && lb.focus === 'gd-lb-close' && lb.count === `1 / ${zooms}` && /\/img\/guide\/.*\.webp$/.test(lb.src || '') && Number(lb.w) > 0 && (zooms < 2 || moved === `2 / ${zooms}`) && !closed.open && closed.focus === 'gd-zoom',
+        JSON.stringify({ opened, lb, moved, closed }))
+      const csp2 = await q.csp()
+      check(`${tag}: no console errors, CSP violations, 4xx or failed requests`, !q.console.length && !csp2.length && !q.http.length && !q.failed.length, [...q.console, ...csp2, ...q.http, ...q.failed].join(' | '))
+      await q.page.evaluate(() => window.scrollTo(0, 0))
+      await q.page.screenshot({ path: join(dir, `topic-${lang}-${size}.png`), fullPage: true })
+      await q.close()
+    }
+  }
+}
+
+/** The course's slugs as the home lists them (kept for the fixture recordings of videosRecorded()). */
+const videoSlugsOf = html => [...html.matchAll(/class="vc-card[^"]*" data-slug="([a-z0-9-]+)"/g)].map(m => m[1])
+let videoSlugs = []
+
+async function videoPages(browser) {
+  section('video course: every page in both languages, nothing recorded yet')
+  const home = await req('GET', '/videos')
+  const slugs = videoSlugsOf(home.text)
+  videoSlugs = slugs
+  check('GET /videos → 200 with its chapter cards (16 or more, each once), every one "coming"', home.status === 200 && slugs.length >= 16 && new Set(slugs).size === slugs.length
+    && (home.text.match(/class="vc-card vc-card-soon"/g) || []).length === slugs.length, `${slugs.length}: ${slugs.join(' ')}`)
+  const paths = [['/videos', 'ar'], ['/en/videos', 'en'], ...slugs.flatMap(s => [[`/videos/${s}`, 'ar'], [`/en/videos/${s}`, 'en']])]
+  const pages = new Map()
+  const bad = []
+  for (const [path, lang] of paths) {
+    const r = await req('GET', path)
+    pages.set(path, r.text)
+    const why = pageProblems(r, path, lang, VIDEO_SCRIPTS)
+    const base = lang === 'en' ? '/en' : ''
+    if (r.text.includes('<video')) why.push('a <video> although nothing is recorded')
+    if (path.split('/').length > 2 + (lang === 'en' ? 1 : 0) && !r.text.includes('vc-soon-panel')) why.push('no "coming" panel')
+    if (!new RegExp(`href="${base}/guide(/[a-z0-9-]+)?"`).test(r.text)) why.push('no link to the guide')
+    if (why.length) bad.push(`${path}: ${why.join(', ')}`)
+  }
+  check(`all ${paths.length} course pages: the same headers and shell as the guide, only JSON-LD + videos.js, "coming" on every chapter, a link to the guide`, !bad.length, bad.join(' | '))
+  const wrong = []
+  for (const path of ['/videos/no-such-chapter', '/en/videos/no-such-chapter', '/videos/ar', `/videos/ar/${slugs[0]}.mp4`, '/videos/manifest.json', `/videos/${slugs[0].toUpperCase()}`]) {
+    const r = await req('GET', path)
+    if (r.status !== 404 || !r.text.includes('Page not found')) wrong.push(`${path} → ${r.status}`)
+  }
+  check('an unknown chapter, a language folder, a recording or the manifest that are not published → the 404 page', !wrong.length, wrong.join(' | '))
+  let r = await req('GET', `/videos/${slugs[0]}/?t=3`)
+  check(`/videos/${slugs[0]}/?t=3 → 301 without the slash, ?t= kept`, r.status === 301 && r.headers.get('location') === `/videos/${slugs[0]}?t=3`, `${r.status} ${r.headers.get('location')}`)
+  const locs = await sitemapLocs()
+  const notListed = paths.map(([p]) => p).filter(p => !locs.some(l => l.path === p))
+  const extra = locs.filter(l => /^\/(en\/)?videos(\/|$)/.test(l.path) && !pages.has(l.path)).map(l => l.path)
+  check(`the sitemap lists every one of the ${paths.length} course pages and no other`, !notListed.length && !extra.length, [...notListed, ...extra].slice(0, 6).join(' '))
+  const c = await crawl(pages, /^\/(en\/)?videos(\/|$)/)
+  check(`every internal link on the ${c.pages} pages reached from the course resolves (${c.links} links)`, c.links > 50 && !c.bad.length, c.bad.slice(0, 8).join(' | '))
+
+  section('video course in Chromium: the home and a chapter at 390 and 1440 px, nothing recorded')
+  const dir = shotDir('videos')
+  for (const lang of ['ar', 'en']) {
+    const base = lang === 'en' ? '/en' : ''
+    for (const [path, kind] of [[`${base}/videos`, 'home'], [`${base}/videos/${slugs[1] || slugs[0]}`, 'chapter']]) {
+      for (const width of [390, 1440]) {
+        const size = width < 700 ? 'phone' : 'desktop'
+        const p = await newPage(browser, { width, height: width < 700 ? 844 : 900, mobile: width < 700, dsf: width < 700 ? 2 : 1 })
+        const res = await p.page.goto(`${BASE}${path}`, { waitUntil: 'networkidle' })
+        await loadAllImages(p.page)
+        const o = await overflowOf(p.page)
+        const csp = await p.csp()
+        check(`${path} at ${width}px: 200, no horizontal scroll, no console errors, CSP violations, 4xx or failed requests`, res.status() === 200 && o.sw <= o.cw && !p.console.length && !csp.length && !p.http.length && !p.failed.length,
+          `${o.sw}/${o.cw} ${[...p.console, ...csp, ...p.http, ...p.failed].join(' | ')}`)
+        await p.page.screenshot({ path: join(dir, `${kind}-${lang}-${size}-coming.png`), fullPage: true })
+        await p.close()
+      }
+    }
+  }
+}
+
+/**
+ * The course with recordings, on a Worker of its own (the Worker reads the manifest once per isolate): short clips
+ * made with ffmpeg as videos/preview.mjs makes them, VP9 and Opus in an .mp4 (what Playwright's Chromium decodes;
+ * the recorder's H.264 it cannot), captions, posters and a manifest, published through VIDEOS_DIR.
+ */
+async function videosRecorded() {
+  section('video course with recordings (fixture clips, a Worker of its own)')
+  let tools = true
+  try { execFileSync('ffmpeg', ['-version'], { stdio: 'ignore' }); execFileSync('ffprobe', ['-version'], { stdio: 'ignore' }) } catch { tools = false }
+  check('ffmpeg and ffprobe are installed (they make the fixture clips)', tools)
+  if (!tools) return
+  const slugs = videoSlugs.length ? videoSlugs : videoSlugsOf((await req('GET', '/videos').catch(() => ({ text: '' }))).text)
+  const [A, B, C, D] = slugs.length >= 4 ? [slugs[3], slugs[4] || slugs[2], slugs[0], slugs[1]] : ['patients', 'chart', 'getting-started', 'interface']
+  // A (both languages) and B (Arabic only) recorded; C has its transcript before its recording; D is untouched
+  const RECORDED = { ar: [A, B], en: [A] }
+  const fx = join(OUT, 'videos-fixture')
+  rmSync(fx, { recursive: true, force: true })
+  const SECONDS = 2.4, STARTS = [0, 1, 1.8]
+  const manifest = {}
+  const vtt = sc => `WEBVTT\n\n${sc.map((s, i) => { const at = t => `00:00:${t.toFixed(3).padStart(6, '0')}`; return `${at(s.start)} --> ${at(sc[i + 1]?.start ?? SECONDS)}\n${s.text}\n` }).join('\n')}`
+  const scenesOf = (lang, slug) => STARTS.map((start, i) => ({ id: ['open', 'show', 'done'][i], start, text: lang === 'ar' ? `الجملة ${i + 1} من فصل ${slug}.` : `Sentence ${i + 1} of chapter ${slug}.` }))
+  for (const lang of ['ar', 'en']) {
+    mkdirSync(join(fx, lang), { recursive: true })
+    for (const slug of RECORDED[lang]) {
+      const jpg = join(fx, lang, `${slug}.jpg`), mp4 = join(fx, lang, `${slug}.mp4`)
+      execFileSync('ffmpeg', ['-v', 'error', '-y', '-f', 'lavfi', '-i', 'gradients=s=640x360:c0=0x14B8A6:c1=0x0B4F4B:x0=0:y0=0:x1=640:y1=360:d=1', '-frames:v', '1', '-q:v', '5', jpg], { stdio: 'pipe' })
+      execFileSync('ffmpeg', ['-v', 'error', '-y', '-loop', '1', '-framerate', '30', '-i', jpg, '-f', 'lavfi', '-i', `sine=frequency=440:duration=${SECONDS}`, '-t', String(SECONDS),
+        '-c:v', 'libvpx-vp9', '-deadline', 'realtime', '-cpu-used', '8', '-b:v', '0', '-crf', '40', '-pix_fmt', 'yuv420p', '-c:a', 'libopus', '-b:a', '32k', '-strict', '-2', '-movflags', '+faststart', '-shortest', mp4], { stdio: 'pipe' })
+      const sc = scenesOf(lang, slug)
+      writeFileSync(join(fx, lang, `${slug}.vtt`), vtt(sc))
+      const bytes = readFileSync(mp4)
+      const duration = Number(execFileSync('ffprobe', ['-v', 'error', '-show_entries', 'format=duration', '-of', 'csv=p=0', mp4], { encoding: 'utf8' }).trim())
+      manifest[`${lang}/${slug}`] = { durationSeconds: duration, sizeBytes: bytes.length, width: 640, height: 360, sha256: createHash('sha256').update(bytes).digest('hex'), scenes: sc, recordedAt: '2026-10-15T09:00:00Z' }
+    }
+    manifest[`${lang}/${C}`] = { durationSeconds: 0, sizeBytes: 0, width: 0, height: 0, sha256: '', scenes: scenesOf(lang, C) }
+  }
+  writeFileSync(join(fx, 'manifest.json'), JSON.stringify(manifest, null, 2) + '\n')
+  check(`fixture clips made: ${Object.values(manifest).filter(m => m.sizeBytes).length} recordings of ${SECONDS} s (VP9/Opus), captions, posters, a manifest`, Object.values(manifest).every(m => !m.sizeBytes || m.durationSeconds > 1), JSON.stringify(Object.fromEntries(Object.entries(manifest).map(([k, v]) => [k, Math.round(v.durationSeconds * 10) / 10]))))
+  buildPublic('none', fx)
+  const w = await startWorker('videos', PORT + 3)
+  const sha = manifest[`ar/${A}`].sha256.slice(0, 12)
+  try {
+    let r = await req('GET', '/videos/manifest.json', { base: w.base })
+    check('GET /videos/manifest.json → 200 JSON (a static file), cached a week, security headers', r.status === 200 && /json/.test(r.headers.get('content-type') || '') && r.headers.get('cache-control') === 'public, max-age=604800'
+      && JSON.stringify(r.json) === JSON.stringify(manifest) && !missingSecurity(r.headers).length, `${r.status} ${r.headers.get('content-type')} ${r.headers.get('cache-control')}`)
+    for (const [file, type] of [[`/videos/ar/${A}.mp4`, 'video/mp4'], [`/videos/ar/${A}.vtt`, 'text/vtt'], [`/videos/ar/${A}.jpg`, 'image/jpeg']]) {
+      r = await req('GET', `${file}?v=${sha}`, { base: w.base })
+      check(`GET ${file}?v=… → 200 ${type}, cached a week, the file's bytes, security headers`, r.status === 200 && (r.headers.get('content-type') || '').startsWith(type) && r.headers.get('cache-control') === 'public, max-age=604800'
+        && Buffer.compare(r.buf, readFileSync(join(fx, file.replace('/videos/', '')))) === 0 && !missingSecurity(r.headers).length, `${r.status} ${r.headers.get('content-type')} ${r.headers.get('cache-control')} ${r.buf.length} bytes`)
+    }
+    r = await req('GET', `/videos/ar/${A}.mp4`, { base: w.base, headers: { Range: 'bytes=0-99' } })
+    // wrangler's local asset server answers a range with the whole file and no Accept-Ranges (Chromium then cannot
+    // seek: the seekable range stays empty); the platform answers 206, which seeking needs
+    const ranges = r.status === 206 && r.buf.length === 100 && /^bytes 0-99\//.test(r.headers.get('content-range') || '')
+    check('a Range request on a recording → 206 with that part (or the whole file, as the local asset server answers)', ranges || (r.status === 200 && r.buf.length === manifest[`ar/${A}`].sizeBytes), `${r.status} ${r.buf.length}`)
+    r = await req('GET', '/videos', { base: w.base })
+    check('the home shows the recorded chapters with a length and the others "coming", and the total', r.status === 200 && (r.text.match(/class="vc-card vc-card-soon"/g) || []).length === slugs.length - 2
+      && r.text.includes('0:02') && (r.text.match(/class="vc-card" data-slug="/g) || []).length === 2, `${(r.text.match(/vc-card-soon/g) || []).length} coming`)
+    r = await req('GET', `/videos/${A}`, { base: w.base })
+    const page = r.text
+    const ld = (() => { try { return JSON.parse(/<script type="application\/ld\+json">(.*?)<\/script>/s.exec(page)[1]) } catch { return null } })()
+    const video = JSON.stringify(ld).includes('"VideoObject"')
+    check(`/videos/${A} (recorded): the player with the Arabic captions on, its files with ?v=, Open Graph video, JSON-LD VideoObject, the transcript's time links, the guide link`,
+      r.status === 200 && /<video[^>]*controls[^>]*playsinline/.test(page) && page.includes(`src="/videos/ar/${A}.mp4?v=${sha}`) && new RegExp(`<track[^>]*src="/videos/ar/${A}\\.vtt\\?v=${sha}"[^>]*srclang="ar"[^>]*default`).test(page)
+      && page.includes(`<meta property="og:video" content="${ORIGIN}/videos/ar/${A}.mp4?v=${sha}">`) && video && (page.match(/class="vc-time"/g) || []).length === 3 && page.includes(`href="/guide/`), `${r.status}`)
+    r = await req('GET', `/videos/${A}?t=1`, { base: w.base })
+    check(`/videos/${A}?t=1 → the source starts at #t=1 (a time link without JavaScript)`, /<source[^>]*src="[^"]*#t=1"/.test(r.text))
+    r = await req('GET', `/en/videos/${B}`, { base: w.base })
+    check(`/en/videos/${B} (Arabic only): "coming" with a link to the Arabic recording`, r.status === 200 && r.text.includes('vc-soon-panel') && r.text.includes(`class="vc-soon-other" href="/videos/${B}"`))
+    r = await req('GET', `/videos/${C}`, { base: w.base })
+    check(`/videos/${C} (transcript before its recording): "coming" and the transcript`, r.status === 200 && r.text.includes('vc-soon-panel') && (r.text.match(/class="vc-line"/g) || []).length === 3, `${(r.text.match(/class="vc-line"/g) || []).length} lines`)
+    r = await req('GET', `/videos/${D}`, { base: w.base })
+    check(`/videos/${D} (nothing): "coming", no transcript`, r.status === 200 && r.text.includes('vc-soon-panel') && !r.text.includes('class="vc-line"'))
+
+    const browser = await chromium.launch({ args: ['--autoplay-policy=no-user-gesture-required'] })
+    const dir = shotDir('videos')
+    try {
+      for (const lang of ['ar', 'en']) {
+        const base = lang === 'en' ? '/en' : '', tag = `${base}/videos/${A} recorded`
+        const p = await newPage(browser, { width: 1440, height: 900, base: w.base })
+        await p.page.goto(`${w.base}${base}/videos/${A}`, { waitUntil: 'networkidle' })
+        // the player past its metadata (Chromium shows a spinner until then)
+        await p.page.evaluate(() => new Promise(done => { const v = document.querySelector('#player video'); if (!v || v.readyState >= 1) return done(); v.addEventListener('loadedmetadata', done, { once: true }); setTimeout(done, 4000) }))
+        const video = p.page.locator('#player video')
+        check(`${tag}: one player with a default ${lang} caption track; the play-all switch and the shortcuts show with JavaScript`, (await video.count()) === 1
+          && (await video.evaluate(v => v.querySelector('track')?.default && v.querySelector('track').srclang === document.documentElement.lang)) && (await p.page.locator('.vc-switch').isVisible()) && (await p.page.locator('.vc-keys').isVisible()))
+        await video.evaluate(v => v.play())
+        await p.page.waitForTimeout(900)
+        const t1 = await video.evaluate(v => v.currentTime)
+        check(`${tag}: the clip plays (${t1.toFixed(2)} s after 0.9 s)`, t1 > 0.3 && (await video.evaluate(v => !v.paused && v.readyState >= 2)))
+        await video.evaluate(v => v.pause())
+        await p.page.locator('.vc-time').nth(2).click()
+        await p.page.waitForTimeout(500)
+        const t2 = await video.evaluate(v => v.currentTime)
+        const activeLine = await p.page.evaluate(() => [...document.querySelectorAll('.vc-line')].findIndex(li => li.classList.contains('is-active')))
+        if (ranges) {
+          check(`${tag}: the third time link seeks to ${STARTS[2]} s and plays; its line is marked`, t2 >= STARTS[2] - 0.1 && t2 < SECONDS && (await video.evaluate(v => !v.paused)) && activeLine === 2, `${t2.toFixed(2)} line ${activeLine}`)
+        } else {
+          // without ranges Chromium clamps the seek to 0 and plays from there (videos/preview.mjs, whose server
+          // serves ranges, checks the seek itself); here: the link plays, and the line of the moment is marked
+          check(`${tag}: the third time link plays and the line of the moment is marked (the seek itself is not checkable on the local asset server: no ranges)`, (await video.evaluate(v => !v.paused)) && t2 > 0 && activeLine === (t2 >= STARTS[2] ? 2 : t2 >= STARTS[1] ? 1 : 0), `${t2.toFixed(2)} line ${activeLine}`)
+        }
+        await video.evaluate(v => v.pause())
+        await p.page.locator('.vc-switch').click()
+        check(`${tag}: "play all" is remembered`, (await p.page.evaluate(() => localStorage.getItem('dentora.videos.playAll'))) === '1')
+        await video.evaluate(v => { v.currentTime = Math.max(0, v.duration - 0.3); return v.play() })
+        const next = slugs[slugs.indexOf(A) + 1]
+        const moved = await p.page.waitForURL(new RegExp(`/videos/${next}$`), { timeout: 8000 }).then(() => true, () => false)
+        check(`${tag}: at the end, "play all" opens the next chapter (${next}) and the watched one is ticked`, moved && (await p.page.locator(`.vc-item[data-slug="${A}"]`).evaluate(li => li.classList.contains('is-watched')).catch(() => false)), p.page.url())
+        await p.page.screenshot({ path: join(dir, `chapter-${lang}-desktop-recorded.png`), fullPage: true })
+        const csp = await p.csp()
+        check(`${tag}: no console errors, CSP violations, 4xx or failed requests`, !p.console.length && !csp.length && !p.http.length && !p.failed.filter(x => !/ERR_ABORTED/.test(x)).length, [...p.console, ...csp, ...p.http, ...p.failed].join(' | '))
+        await p.close()
+        const ph = await newPage(browser, { width: 390, height: 844, mobile: true, dsf: 2, base: w.base })
+        await ph.page.goto(`${w.base}${base}/videos/${A}`, { waitUntil: 'networkidle' })
+        await ph.page.waitForTimeout(400)
+        const o = await overflowOf(ph.page)
+        check(`${tag} at 390px: no horizontal scroll, no console or CSP errors`, o.sw <= o.cw && !ph.console.length && !(await ph.csp()).length, `${o.sw}/${o.cw} ${ph.console.join(' | ')}`)
+        await ph.page.screenshot({ path: join(dir, `chapter-${lang}-phone-recorded.png`), fullPage: true })
+        await ph.close()
+      }
+      // without JavaScript: the native player, and a time link reloads the page at ?t=
+      const nj = await newPage(browser, { width: 1440, height: 900, base: w.base, js: false })
+      await nj.page.goto(`${w.base}/videos/${A}`)
+      check('no JS: the native player, the play-all switch hidden, a time link a plain link to ?t=', (await nj.page.locator('#player video[controls]').count()) === 1 && !(await nj.page.locator('.vc-switch').isVisible())
+        && (await nj.page.locator('.vc-time').nth(1).getAttribute('href')) === `?t=${STARTS[1]}#player`, await nj.page.locator('.vc-time').nth(1).getAttribute('href'))
+      await nj.page.locator('.vc-time').nth(1).click()
+      await nj.page.waitForLoadState('load')
+      check(`no JS: the time link reloaded the page and the server started the clip at ${STARTS[1]} s`, nj.page.url().endsWith(`/videos/${A}?t=${STARTS[1]}#player`) && ((await nj.page.locator('#player source').getAttribute('src')) || '').endsWith(`#t=${STARTS[1]}`), nj.page.url())
+      await nj.close()
+    } finally {
+      await browser.close()
+    }
+  } finally {
+    await stopWorker(w)
+    buildPublic('none')
+    rmSync(fx, { recursive: true, force: true })
+  }
 }
 
 // ==== API ==========================================================================================================
@@ -1037,6 +1473,12 @@ async function panelFlow(browser, lang, sizeName) {
   const want = [kpi.s.licences.revenue, kpi.s.licences.total, kpi.s.resets.total, kpi.s.downloads.android, kpi.s.downloads.windows]
   check(`${tag} dashboard shows the /api/stats numbers (revenue, licences, resets, downloads)`, JSON.stringify(kpi.shown) === JSON.stringify(want), `${kpi.shown} vs ${want}`)
   await shot('03-dashboard')
+  const links = await page.evaluate(() => [...document.querySelectorAll('.link-item')].map(li => ({ id: li.dataset.link, url: li.querySelector('.link-url')?.getAttribute('href'), wa: li.querySelector('.chip-btn--wa')?.getAttribute('href') || '' })))
+  const siteBase = lang === 'ar' ? '' : '/en'
+  check(`${tag} dashboard: links for customers (guide, videos, activation) at the canonical address, each with a WhatsApp share carrying it`,
+    links.map(l => l.id).join() === 'guide,videos,activate' && links.every(l => l.url === `${ORIGIN}${siteBase}/${l.id}` && l.wa.startsWith('https://wa.me/?text=') && decodeURIComponent(l.wa).includes(l.url)), JSON.stringify(links))
+  await page.locator('.link-item[data-link="videos"] .chip-btn').first().click()
+  check(`${tag} "copy link" copies the course link`, (await page.evaluate(() => navigator.clipboard.readText()).catch(() => '')) === `${ORIGIN}${siteBase}/videos`)
   await page.focus('#skip')
   await page.keyboard.press('Enter')
   const skip = await page.evaluate(() => ({ hash: location.hash, active: document.activeElement?.id }))
@@ -1979,6 +2421,11 @@ async function windowsInstaller() {
     check('a Range request gets the whole file from the start (200, same sha256)', r.status === 200 && createHash('sha256').update(r.buf).digest('hex') === sha, `${r.status} ${r.buf.length}`)
     r = await req('HEAD', '/download/windows', { base: w.base })
     check('HEAD → 200 with the length, no body', r.status === 200 && r.buf.length === 0 && r.headers.get('content-length') === String(size))
+    r = await req('GET', '/files/windows.json', { base: w.base })
+    check(`GET /files/windows.json → 200 JSON with version ${APK_VERSION}, size, sha256 and the 3 parts (fetch-published checks the download against it), cached a minute`, r.status === 200
+      && r.headers.get('content-type') === 'application/json; charset=utf-8' && r.headers.get('cache-control') === 'public, max-age=60' && r.json?.sha256 === sha && r.json.sizeBytes === size && r.json.version === APK_VERSION && r.json.parts?.length === 3, `${r.status} ${r.text.slice(0, 60)}`)
+    r = await req('GET', '/files/windows/setup.000', { base: w.base })
+    check('the parts themselves stay behind /download/windows (404)', r.status === 404)
     const [en, ar] = [await req('GET', '/en', { base: w.base }), await req('GET', '/', { base: w.base })]
     check('the landing page offers the installer with its version and size (45 MB)', en.text.includes('Download for Windows') && en.text.includes(`Installer · version <bdi dir="ltr">${APK_VERSION}</bdi> · 45 MB`)
       && ar.text.includes('تحميل لويندوز') && ar.text.includes(`<bdi dir="ltr">${APK_VERSION}</bdi>`))
@@ -2013,6 +2460,8 @@ async function main() {
   try {
     const { cookie } = await login()
     if (ONLY.has('site')) await site(browser, cookie)
+    if (ONLY.has('guide')) await guidePages(browser)
+    if (ONLY.has('videos')) await videoPages(browser)
     let firstCode = ''
     if (ONLY.has('api')) { const a = await api(browser, main); firstCode = a.L1.code }
     if (ONLY.has('api') && firstCode) await otherWorkers(browser, setupW, keyW, firstCode)
@@ -2073,7 +2522,8 @@ async function main() {
     if (r.ok) { const t = await r.text(); scan('local Worker console log store', t); logStore = `searched, ${t.length} bytes` }
   } catch { /* not offered */ }
   for (const w of workers) await stopWorker(w)
-  // after the main Workers stopped: it rebuilds public/ and runs a Worker of its own
+  // after the main Workers stopped: each rebuilds public/ and runs a Worker of its own
+  if (ONLY.has('videos')) await videosRecorded()
   if (ONLY.has('windows')) await windowsInstaller()
 
   section('the private key stays in the Worker')

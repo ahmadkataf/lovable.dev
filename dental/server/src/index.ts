@@ -1,7 +1,12 @@
 // Dentora's Worker (dentora-api), served at https://dentora.raqeem.dev and https://dentora-api.almutafawiqin.workers.dev.
 // Static files (public/) are answered by Cloudflare before this runs; the Worker renders the landing page, the legal
-// pages and the key activation page, counts downloads, serves the control panel page and the API, and answers
-// everything else with a 404 page. Routes and rules: SPEC.md.
+// pages, the key activation page, the user guide (guide/) and the video course pages (videos/), counts downloads,
+// serves the control panel page and the API, and answers everything else with a 404 page. Routes and rules: SPEC.md.
+import { TOPICS, topicBySlug } from '../guide/index'
+import { guideSitemapEntries, renderGuideHome, renderGuideTopic, type GuideImages } from '../guide/render'
+import { CHAPTERS, chapterBySlug } from '../videos/index'
+import { renderVideoChapter, renderVideosHome, videoSitemapXml } from '../videos/render'
+import type { VideoManifest } from '../videos/types'
 import { handleApi } from './api'
 import { addressKey } from './auth'
 import { countDownload, deploymentSalt, ensureSchema, getSettingsCached, type Platform } from './db'
@@ -16,21 +21,39 @@ import { DEFAULT_SETTINGS, ORIGIN, type Env, type LandingContext, type Lang, typ
 // ---- what build-public.mjs published (fixed for a deployment, so read once per isolate) --------------------------
 /** The Windows installer, published in parts (scripts/build-public.mjs): streamed back to back as one file. */
 interface WindowsSetup { version: string; sizeBytes: number; parts: { path: string; size: number }[] }
-interface Published { files: Set<string>; apk: LandingContext['apk']; windows: WindowsSetup | null }
+interface Published {
+  files: Set<string>
+  apk: LandingContext['apk']
+  windows: WindowsSetup | null
+  /** The guide's pictures and their sizes (site/img/guide/manifest.json); null when none are published. */
+  guideImages: GuideImages | null
+  /** The recorded chapters of the video course (site/videos/manifest.json); null until the first one is published. */
+  videos: VideoManifest | null
+}
 let published: Promise<Published> | null = null
 async function readPublished(env: Env, base: string): Promise<Published> {
-  const get = async <T>(path: string): Promise<T | null> => {
+  // A file that is not JSON, or not an object, counts as absent (the page then shows what it can); a failure to
+  // reach the files at all is thrown, so getPublished() reads again on the next request instead of caching it.
+  const get = async <T extends object>(path: string): Promise<T | null> => {
     const res = await env.ASSETS.fetch(new Request(new URL(path, base)))
-    return res.ok ? (await res.json()) as T : null
+    if (!res.ok) return null
+    try {
+      const v: unknown = await res.json()
+      return v && typeof v === 'object' && !Array.isArray(v) ? v as T : null
+    } catch { return null }
   }
   const manifest = await get<{ files: string[] }>('/files/manifest.json')
-  const files = new Set(manifest?.files ?? [])
+  const files = new Set(Array.isArray(manifest?.files) ? manifest.files : [])
   const meta = files.has('/files/meta.json') ? await get<{ version: string; sizeBytes: number }>('/files/meta.json') : null
   const win = files.has('/files/windows.json') ? await get<WindowsSetup>('/files/windows.json') : null
+  const guideImages = files.has('/img/guide/manifest.json') ? await get<GuideImages>('/img/guide/manifest.json') : null
+  const videos = files.has('/videos/manifest.json') ? await get<VideoManifest>('/videos/manifest.json') : null
   return {
     files,
     apk: meta && files.has('/files/dentora.apk') ? { version: String(meta.version), sizeBytes: Number(meta.sizeBytes) } : null,
     windows: win && isWholeSetup(win, files) ? { version: String(win.version), sizeBytes: win.sizeBytes, parts: win.parts } : null,
+    guideImages,
+    videos,
   }
 }
 /** Every part is published and the parts add up to the installer: never serve a file with a piece missing. */
@@ -51,7 +74,7 @@ async function getPublished(env: Env, base: string): Promise<Published> {
   } catch (e) {
     published = null
     console.error('published files unavailable:', e instanceof Error ? e.message : String(e))
-    return { files: new Set(), apk: null, windows: null }
+    return { files: new Set(), apk: null, windows: null, guideImages: null, videos: null }
   }
 }
 const pageAssets = (p: Published): PageAssets => ({
@@ -93,20 +116,37 @@ const LEGAL: Record<string, [LegalDoc, Lang]> = {
   '/privacy': ['privacy', 'ar'], '/en/privacy': ['privacy', 'en'], '/terms': ['terms', 'ar'], '/en/terms': ['terms', 'en'],
 }
 const ACTIVATE: Record<string, Lang> = { '/activate': 'ar', '/en/activate': 'en' }
+// /guide, /guide/<slug>, /videos, /videos/<slug>, each also under /en. A slug is kebab-case (guide/types.ts); anything
+// else under these paths (a file name, upper case) is no page and gets the 404 page.
+const GUIDE_RE = /^(\/en)?\/guide(?:\/([a-z0-9]+(?:-[a-z0-9]+)*))?$/
+const VIDEOS_RE = /^(\/en)?\/videos(?:\/([a-z0-9]+(?:-[a-z0-9]+)*))?$/
+/**
+ * The day the guide's text last changed (the <lastmod> of its pages in the sitemap): move it when a topic changes.
+ * Not exported: workerd accepts nothing but handlers as named exports of the entry module.
+ */
+const GUIDE_DATE = '2026-10-16'
 
 function robots(): string {
   return ['User-agent: *', 'Allow: /', 'Disallow: /admin', 'Disallow: /api/', 'Disallow: /download/', '', `Sitemap: ${ORIGIN}/sitemap.xml`, ''].join('\n')
+}
+/** One <url> of the sitemap: the page, its ar/en alternates (x-default = Arabic), the last change when known. */
+function sitemapUrl(loc: string, alternates: Record<Lang, string>, changefreq: string, priority: string, lastmod = ''): string {
+  const alt = (['ar', 'en'] as Lang[]).map(l => `<xhtml:link rel="alternate" hreflang="${l}" href="${alternates[l]}"/>`).join('')
+  return `<url><loc>${loc}</loc>${alt}<xhtml:link rel="alternate" hreflang="x-default" href="${alternates.ar}"/>${lastmod ? `<lastmod>${lastmod}</lastmod>` : ''}<changefreq>${changefreq}</changefreq><priority>${priority}</priority></url>`
 }
 function sitemap(): string {
   // [path, change frequency, priority, last change ('' = none given)]
   const pages: [string, string, string, string][] = [
     ['/', 'weekly', '1.0', ''], ['/activate', 'monthly', '0.5', ''], ['/privacy', 'yearly', '0.3', LEGAL_DATE], ['/terms', 'yearly', '0.3', LEGAL_DATE],
   ]
-  const urls = pages.flatMap(([path, freq, priority, changed]) => (['ar', 'en'] as Lang[]).map(lang => {
-    const alt = (['ar', 'en'] as Lang[]).map(l => `<xhtml:link rel="alternate" hreflang="${l}" href="${ORIGIN}${langPath(path, l)}"/>`).join('')
-    const lastmod = changed ? `<lastmod>${changed}</lastmod>` : ''
-    return `<url><loc>${ORIGIN}${langPath(path, lang)}</loc>${alt}<xhtml:link rel="alternate" hreflang="x-default" href="${ORIGIN}${path}"/>${lastmod}<changefreq>${freq}</changefreq><priority>${priority}</priority></url>`
-  }))
+  const both = (path: string): Record<Lang, string> => ({ ar: `${ORIGIN}${langPath(path, 'ar')}`, en: `${ORIGIN}${langPath(path, 'en')}` })
+  const urls = [
+    ...pages.flatMap(([path, freq, priority, changed]) => (['ar', 'en'] as Lang[]).map(lang => sitemapUrl(`${ORIGIN}${langPath(path, lang)}`, both(path), freq, priority, changed))),
+    // the guide's home and every topic (the renderer lists them in its order), dated by GUIDE_DATE
+    ...guideSitemapEntries(ORIGIN, TOPICS).map(e => sitemapUrl(e.loc, e.alternates, e.changefreq, e.priority, GUIDE_DATE)),
+    // the course home and every chapter, as the course renders them (no date: a chapter page changes with its recording)
+    videoSitemapXml(ORIGIN, CHAPTERS),
+  ]
   return `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:xhtml="http://www.w3.org/1999/xhtml">\n${urls.join('\n')}\n</urlset>\n`
 }
 
@@ -187,6 +227,20 @@ function windowsSetup(request: Request, env: Env, ctx: ExecutionContext, url: UR
   return new Response(readable, { status: 200, headers })
 }
 
+/**
+ * /files/meta.json and /files/windows.json: what is published of the APK and the Windows installer (version, size,
+ * sha256, the installer's parts), served only while the download they describe is served too, so
+ * scripts/fetch-published.mjs can check a downloaded installer against the advertised sha256. The files themselves
+ * (the APK, the installer's parts, the manifest of published paths) stay behind /download/* (404 here).
+ */
+async function publishedJson(env: Env, url: URL): Promise<Response> {
+  const pub = await getPublished(env, url.href)
+  const served = url.pathname === '/files/meta.json' ? !!pub.apk : !!pub.windows
+  const asset = served ? await env.ASSETS.fetch(new Request(new URL(url.pathname, url))) : null
+  if (!asset?.ok) return notFound(env, url.href)
+  return new Response(asset.body, { status: 200, headers: { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'public, max-age=60' } })
+}
+
 async function adminPage(env: Env, url: URL): Promise<Response> {
   const res = await env.ASSETS.fetch(new Request(new URL('/admin/index.html', url)))
   if (!res.ok) return notFound(env, url.href)
@@ -230,6 +284,30 @@ async function route(request: Request, env: Env, ctx: ExecutionContext): Promise
     const [s, pub] = await Promise.all([settingsOrDefault(env), getPublished(env, url.href)])
     return html(renderActivate(activateLang, s, ORIGIN, pageAssets(pub), device), 200, CACHE_PAGE, { 'Content-Language': activateLang, 'Content-Security-Policy': PUBLIC_CSP })
   }
+  const guide = GUIDE_RE.exec(path)
+  if (guide) {
+    const lang: Lang = guide[1] ? 'en' : 'ar'
+    const topic = guide[2] === undefined ? null : topicBySlug(guide[2])
+    if (guide[2] !== undefined && !topic) return notFound(env, url.href)
+    const [s, pub] = await Promise.all([settingsOrDefault(env), getPublished(env, url.href)])
+    const page = topic
+      ? renderGuideTopic(lang, s, ORIGIN, pageAssets(pub), topic, TOPICS, pub.guideImages)
+      : renderGuideHome(lang, s, ORIGIN, pageAssets(pub), TOPICS)
+    return html(page, 200, CACHE_PAGE, { 'Content-Language': lang, 'Content-Security-Policy': PUBLIC_CSP })
+  }
+  const videos = VIDEOS_RE.exec(path)
+  if (videos) {
+    const lang: Lang = videos[1] ? 'en' : 'ar'
+    const chapter = videos[2] === undefined ? null : chapterBySlug(videos[2])
+    if (videos[2] !== undefined && !chapter) return notFound(env, url.href)
+    const [s, pub] = await Promise.all([settingsOrDefault(env), getPublished(env, url.href)])
+    // ?t=<seconds> (a transcript's time link used without JavaScript, or a shared moment) starts the video there
+    const t = Number(url.searchParams.get('t'))
+    const page = chapter
+      ? renderVideoChapter(lang, s, ORIGIN, pageAssets(pub), chapter, CHAPTERS, pub.videos, Number.isFinite(t) && t > 0 ? { t } : {})
+      : renderVideosHome(lang, s, ORIGIN, pageAssets(pub), CHAPTERS, pub.videos)
+    return html(page, 200, CACHE_PAGE, { 'Content-Language': lang, 'Content-Security-Policy': PUBLIC_CSP })
+  }
   switch (path) {
     case '/healthz': return text('ok', 200, 'text/plain', NO_STORE)
     case '/robots.txt': return text(robots(), 200, 'text/plain', 'public, max-age=3600')
@@ -237,8 +315,10 @@ async function route(request: Request, env: Env, ctx: ExecutionContext): Promise
     case '/admin': case '/admin/': return adminPage(env, url)
     case '/download/android': return downloadAndroid(request, env, ctx, url)
     case '/download/windows': return downloadWindows(request, env, ctx, url)
+    case '/files/meta.json': case '/files/windows.json': return publishedJson(env, url)
   }
-  // Anything else that reached the Worker is not a file (or is /files/*, published only through /download/*).
+  // Anything else that reached the Worker is not a file (or is /files/*, published only through /download/*, and
+  // the two JSON files above), or /videos/<file> and /guide/<file> that do not exist.
   return notFound(env, url.href)
 }
 

@@ -61,6 +61,16 @@
   .nav-inline { display: block; margin-inline-start: 20px; }
   .menu { display: none; }
 }
+/* seven entries (the guide and the videos among them) next to the WhatsApp button: up to 1280 px the button keeps
+   its icon only (its label stays for screen readers, as on a phone) and the entries sit closer */
+@media (min-width: 1100px) and (max-width: 1279px) {
+  .nav-inline { margin-inline-start: 12px; }
+  .nav-inline ul { gap: 0; }
+  .nav-inline a { padding: 8px 9px; }
+  .header-wa { width: 44px; height: 44px; min-height: 44px; padding: 0; border-radius: 12px; }
+  .header-wa .label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+  .header-wa .ic { width: 22px; height: 22px; }
+}
 
 /* ---- section scaffolding ---- */
 .section { padding-block: clamp(64px, 8vw, 112px); }
@@ -441,6 +451,13 @@ main h2 { font-size: clamp(1.75rem, 1.25rem + 2vw, 2.625rem); line-height: 1.15;
 .faq { background: var(--bg-soft); }
 .faq-grid { display: grid; gap: 32px; }
 .faq-head .lead { margin-top: 12px; margin-bottom: 18px; }
+/* under the WhatsApp button: the user guide and the video course */
+.faq-learn { margin-top: 22px; padding-top: 18px; border-top: 1px solid var(--line); }
+.faq-learn p { color: var(--ink-3); font-size: .9375rem; }
+.faq-learn ul { list-style: none; display: flex; flex-wrap: wrap; gap: 8px 18px; margin-top: 10px; }
+.faq-learn a { display: inline-flex; align-items: center; gap: 8px; min-height: 40px; color: var(--teal-800); font-weight: 650; text-decoration: none; }
+.faq-learn a:hover { text-decoration: underline; }
+.faq-learn .ic { width: 20px; height: 20px; color: var(--teal-700); }
 .qa {
   background: #fff; border: 1px solid var(--line); border-radius: 16px;
   transition: border-color .2s var(--ease), box-shadow .2s var(--ease);

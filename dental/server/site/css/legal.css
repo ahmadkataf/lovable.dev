@@ -178,6 +178,9 @@
 }
 .legal-page .legal-404 h1, .legal-page .legal-404 h2 { margin: 0 0 8px; color: var(--lg-ink); font-size: 1.375rem; font-weight: 750; line-height: 1.45; letter-spacing: 0; }
 .legal-404 p { margin: 0 0 20px; color: var(--lg-muted); }
+.legal-404 p + p { margin-top: -8px; }
+.legal-page .legal-404 p a { color: var(--lg-brand-strong); font-weight: 600; text-decoration: underline; text-underline-offset: .2em; }
+.legal-page .legal-404 p a:hover { color: var(--lg-brand-deep); }
 
 /* ---- print: the document only ---------------------------------------------------------------------------------- */
 @media print {

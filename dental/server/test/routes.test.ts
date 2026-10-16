@@ -2,6 +2,8 @@
 // included). The page itself is replaced by a stub here (it has its own tests): what is checked is what the router
 // hands it and how the answer is served.
 import { describe, expect, it, vi } from 'vitest'
+import { TOPICS } from '../guide/index'
+import { CHAPTERS } from '../videos/index'
 import { CACHE_PAGE, PUBLIC_CSP } from '../src/http'
 import worker from '../src/index'
 import { renderActivate } from '../src/pages/activate'
@@ -50,12 +52,18 @@ describe('the activation page', () => {
     const head = await fetchPath('/en/activate', { method: 'HEAD' })
     expect([head.status, await head.text()]).toEqual([200, ''])
   })
-  it('is in the sitemap, in both languages, and robots.txt lets crawlers in', async () => {
+  it('is in the sitemap, in both languages, before the guide and the course; robots.txt lets crawlers in', async () => {
     const map = await (await fetchPath('/sitemap.xml')).text()
     const locs = [...map.matchAll(/<loc>([^<]+)<\/loc>/g)].map(m => m[1])
-    expect(locs).toEqual(['/', '/en', '/activate', '/en/activate', '/privacy', '/en/privacy', '/terms', '/en/terms'].map(p => ORIGIN + p))
+    const both = (path: string) => [path, `/en${path}`]
+    expect(locs).toEqual([
+      '/', '/en', ...both('/activate'), ...both('/privacy'), ...both('/terms'),
+      ...both('/guide'), ...TOPICS.flatMap(t => both(`/guide/${t.slug}`)),
+      ...both('/videos'), ...CHAPTERS.flatMap(c => both(`/videos/${c.slug}`)),
+    ].map(p => ORIGIN + p))
     expect(map).toContain(`<xhtml:link rel="alternate" hreflang="x-default" href="${ORIGIN}/activate"/>`)
-    expect((map.match(/<lastmod>/g) || []).length).toBe(4)
+    // the legal pages and every guide page carry a date; the course pages none
+    expect((map.match(/<lastmod>/g) || []).length).toBe(4 + 2 * (1 + TOPICS.length))
     const robots = await (await fetchPath('/robots.txt')).text()
     expect(robots.split('\n').filter(l => l.startsWith('Disallow:'))).toEqual(['Disallow: /admin', 'Disallow: /api/', 'Disallow: /download/'])
   })

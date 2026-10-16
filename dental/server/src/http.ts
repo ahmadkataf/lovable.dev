@@ -7,10 +7,14 @@ export const CSP = "default-src 'self'; img-src 'self' data:; style-src 'self'; 
   "connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'"
 
 /**
- * The public pages (landing, privacy, terms, 404) also allow Cloudflare Web Analytics: when it is on for the zone,
- * Cloudflare injects its beacon into every HTML page. The control panel, the API and the static files keep CSP.
+ * The public pages (landing, privacy, terms, activation, guide, videos, 404) also allow Cloudflare Web Analytics:
+ * when it is on for the zone, Cloudflare injects its beacon into every HTML page. They also name media-src
+ * explicitly (the video course plays /videos/<lang>/<slug>.mp4 and its captions from this origin; default-src
+ * would cover it, but a reader of the policy should not have to know that). The control panel, the API and the
+ * static files keep CSP.
  */
 export const PUBLIC_CSP = CSP
+  .replace("img-src 'self' data:;", "img-src 'self' data:; media-src 'self';")
   .replace("script-src 'self'", "script-src 'self' https://static.cloudflareinsights.com")
   .replace("connect-src 'self'", "connect-src 'self' https://cloudflareinsights.com")
 
