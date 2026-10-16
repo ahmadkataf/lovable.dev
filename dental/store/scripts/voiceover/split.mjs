@@ -131,7 +131,9 @@ export async function splitChapter(base, { force = false } = {}) {
   const allowed = script.scenes.slice(0, -1).map((_, i) => {
     const a = sceneSpan(i), b = sceneSpan(i + 1)
     if (!a || !b) return null
-    const lo = Math.min(a.last, b.first) - 0.35, hi = Math.max(a.last, b.first) + 0.35
+    // the recogniser often starts a scene's first word inside the pause before it (and a last word it could not
+    // match, such as a number it wrote in digits, ends after the last matched one): look a second past that start
+    const lo = Math.min(a.last, b.first) - 0.35, hi = Math.max(a.last, b.first) + 1.0
     const cand = inner.map((g, j) => ({ g, j })).filter(({ g }) => g.end > lo && g.start < hi)
     if (!cand.length) return null
     return [cand.reduce((x, y) => (y.g.end - y.g.start > x.g.end - x.g.start ? y : x)).j]
