@@ -111,8 +111,10 @@ def main():
     ap.add_argument('--bed-db', type=float, default=-30.0, help='bed level between lines (dBFS RMS)')
     ap.add_argument('--duck-db', type=float, default=-9.0, help='extra attenuation while the narrator speaks')
     ap.add_argument('--no-bed', action='store_true')
+    ap.add_argument('--video', default='')
     a = ap.parse_args()
-    tl = json.load(open(os.path.join(HERE, 'timeline.json'), encoding='utf-8'))
+    vdir = os.path.join(HERE, a.video)
+    tl = json.load(open(os.path.join(vdir, 'timeline.json'), encoding='utf-8'))
     total = tl['total'] + 2.0
     n = int(total * SR)
     L = np.zeros(n, np.float32); R = np.zeros(n, np.float32)
@@ -139,7 +141,7 @@ def main():
     peak = np.abs(y).max()
     if peak > .9:
         y *= .9 / peak
-    with wave.open(os.path.join(HERE, 'fx.wav'), 'wb') as w:
+    with wave.open(os.path.join(vdir, 'fx.wav'), 'wb') as w:
         w.setnchannels(2); w.setsampwidth(2); w.setframerate(SR)
         w.writeframes((y * 32767).astype('<i2').tobytes())
     print(f'fx.wav: {total:.1f} s')

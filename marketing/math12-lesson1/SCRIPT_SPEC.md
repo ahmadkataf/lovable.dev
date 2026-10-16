@@ -90,3 +90,52 @@ so split lines wherever the picture must change.
 6. Summary (one screen with the key formulas) + teaser of Lesson 2 (closing the two open questions) + a short
    outro inviting the student to practise the rest of «تدرّب» on the platform (do not name the platform).
 7. Total narration ≈ 1500–2000 words.
+
+## Completeness checklist — state curriculum, NOTHING may be dropped
+
+The owner's hard requirement: the student must get **every** part of the lesson. Each item below must be
+covered in `say` and shown in `screen`, faithfully (same notation, same conditions). Reviewers check this
+list item by item.
+
+**Page 6 (activity «التجربة والملاحظة والاستقراء»)**
+- [ ] mathematics also uses observation, experiment and induction; «الاستقراء: استخلاص نتائج عامة من النظر في حالات خاصة»; only pen and paper needed
+- [ ] odd numbers $\{1,3,5,7,9,\dots\}$, $S_n$ = sum of the first $n$ of them, the table for $n=1..4$ ($1, 4, 9, 16$)
+- [ ] continue for $n=5,6,7$ ($25, 36, 49$), notice the pattern, conjecture $S_n=n^2$
+- [ ] the question «كيف تُثبت صحّة استقرائك إثباتاً رياضياً؟» → answered in this unit (lesson 2)
+
+**Page 7**
+- [ ] definition: a sequence is a function whose domain is $\mathbb{N}$ or an infinite subset $\{n_0, n_0+1, n_0+2,\dots\}$, $n_0$ given and may change from one sequence to another
+- [ ] notation $(u_n)_{n\ge0}$ / $(u_n)_{n\ge n_0}$; «$u_n$ حدّ المتتالية ذو الدليل $n$»
+- [ ] a sequence has infinitely many terms whatever their values: $u_n=(-1)^n$ takes only $+1$ and $-1$
+- [ ] $\left(\frac1n\right)_{n\ge1}$ has $n_0=1$ and $\left(\frac{1}{n^2-1}\right)_{n\ge2}$ has $n_0=2$ (+ why)
+- [ ] 1.1 ① explicit definition: $u_n=\frac{(-1)^n}{n+1}$; $u_n=f(n)$ with $f$ defined on $[0,+\infty[$, e.g. $f(x)=\sqrt{x^2+x+1}$
+- [ ] 1.1 ② recursive definition: give $u_0$ and a «علاقة تدريجيّة» computing each term from the one(s) before
+- [ ] example $u_0=3$, $u_{n+1}=u_n^2-2$: $u_1=7$, $u_2=47$, $u_3=2207$; here $u_{n+1}=f(u_n)$ with $f:x\mapsto x^2-2$
+- [ ] general case: $f$ defined on $D$ with «مهما يكن $x$ من $D$ يكن $f(x)$ من $D$», $u_0\in D$, $u_{n+1}=f(u_n)$ (+ why the condition is needed)
+
+**Page 8**
+- [ ] «فكّر»: are the units digits of all terms with index > 1 equal to 7? (+ the answer and why; link to lesson 2)
+- [ ] تعريف 1, all five: strictly increasing ($u_n<u_{n+1}$), strictly decreasing ($u_n>u_{n+1}$), increasing ($\le$), decreasing ($\ge$), constant ($=$), each «مهما تكن $n_0\le n$», each «إذا وفقط إذا»
+- [ ] the word «مطّردة» for a sequence satisfying one of them; $(-1)^n$ is not monotonic
+- [ ] tip: compare $u_n$ and $u_{n+1}$ via the sign of $u_{n+1}-u_n$, or via $\frac{u_{n+1}}{u_n}$ vs $1$ **when all terms are strictly positive**
+- [ ] تعريف 2: arithmetic sequence, $u_{n+1}=u_n+r$ for every natural $n$, $r$ = «أساس»; «ننتقل من حدٍّ إلى الحدّ الذي يليه بإضافة العدد الحقيقي نفسه»
+
+**Page 9**
+- [ ] $u_m=u_p+(m-p)r$ for all naturals $m,p$
+- [ ] $S=\frac{n(a+\ell)}{2}$ for $n$ consecutive terms, first $a$, last $\ell$; special case $1+2+\cdots+n=\frac{n(n+1)}{2}$
+- [ ] تعريف 3: geometric sequence, $u_{n+1}=q\times u_n$, $q$ = «أساس»; «ننتقل … بالضرب بالعدد الحقيقي ذاته»
+- [ ] $u_m=u_p\,q^{m-p}$ for all naturals $m,p$
+- [ ] $S=a\,\frac{1-q^n}{1-q}$ for $n$ consecutive terms, first $a$, **$q\ne1$**; special case $1+q+\cdots+q^{n-1}=\frac{1-q^n}{1-q}$
+- [ ] «مطابقة مفيدة»: $x^n-a^n=(x-a)(x^{n-1}+x^{n-2}a+\cdots+a^{n-1})$; meaning: sum of all $x^\alpha a^\beta$ with $\alpha+\beta=n-1$; example $x^5-a^5$
+- [ ] its proof: obvious for $x=a$ or $x=0$; otherwise put $q=\frac{a}{x}$ in the geometric sum
+
+**Page 10**
+- [ ] proof end: $1+\frac ax+\cdots+\frac{a^{n-1}}{x^{n-1}}=\frac{x^n-a^n}{x^{n-1}(x-a)}$, then multiply both sides by $x^{n-1}(x-a)$
+- [ ] «تكريساً للفهم: كيف ندرس جهة اطراد متتالية؟» — three methods:
+- [ ] ① sign of $u_{n+1}-u_n$ with the full example $u_n=\frac{n^2+1}{2n}$, $n\ge1$ → $\frac{n^2+n-1}{2n(n+1)}$, sign of $n^2+n-1$, positive since $n-1\ge0$ and $n^2>0$ → strictly increasing
+- [ ] ② $u_n=f(n)$ and the monotonicity of $f$ on $[n_0,+\infty[$, example $v_n=(n-1)^2$, $f'(x)=2(x-1)>0$ for $x>1$ → strictly increasing from $n_0=1$
+- [ ] ③ strictly positive terms: compare $\frac{u_{n+1}}{u_n}$ with 1, example $w_n=\left(\frac23\right)^n$, ratio $\frac23<1$ → strictly decreasing
+
+**Page 11 «تدرّب»** — this video solves 3 representative exercises (e.g. ①, ②-1 and ③); a separate
+solutions video solves all of them. The outro must tell the student that every «تدرّب» exercise is solved
+step by step in the next video.

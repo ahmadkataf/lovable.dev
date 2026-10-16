@@ -15,7 +15,9 @@ import argparse, csv, json, os, re, subprocess, sys, time, wave
 import numpy as np
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-P = lambda *a: os.path.join(HERE, *a)
+VDIR = HERE                           # per-video folder (script.json, voice/, timeline.*); --video solutions
+P = lambda *a: os.path.join(VDIR, *a)
+PREFIX = 'L01'
 SR = 24000
 LEAD, GAP, TAIL = 0.8, 0.5, 1.0      # seconds: scene start → first line, between lines, after last line
 EST_WPS = 1.75                        # words/second used before real audio exists (ar-001-tutor-2 ≈ 1.74)
@@ -74,11 +76,11 @@ def cmd_sections(a):
     for k, group in enumerate(secs, 1):
         lines = [l for sc in group for l in sc['lines']]
         text = PAUSE.join(l['say'].strip() for l in lines)
-        name = f'L01_s{k}'
+        name = f'{PREFIX}_s{k}'
         open(P('voice', 'sections', name + '.txt'), 'w', encoding='utf-8').write(text + '\n')
         wc = sum(words(l['say']) for l in lines)
         meta.append({'name': name, 'scenes': [sc['id'] for sc in group], 'lines': [l['id'] for l in lines], 'words': wc})
-        rows.append({'lesson': 'L01', 'section': k, 'script': f'voice/sections/{name}.txt', 'wav': f'voice/sections/{name}.wav',
+        rows.append({'lesson': PREFIX, 'section': k, 'script': f'voice/sections/{name}.txt', 'wav': f'voice/sections/{name}.wav',
                      'start_sec': '', 'status': 'done' if os.path.exists(P('voice', 'sections', name + '.wav')) else 'todo'})
         print(f'{name}: scenes {group[0]["id"]}–{group[-1]["id"]}, {len(lines)} lines, {wc} words ≈ {wc / EST_WPS / 60:.1f} min')
     json.dump(meta, open(P('voice', 'sections.json'), 'w'), ensure_ascii=False, indent=1)
@@ -316,7 +318,7 @@ def cmd_timeline(a):
         t += TAIL + float(sc.get('tail', 0) or 0)
         scenes.append({'id': sc['id'], 'section': sc.get('section', ''), 'bookPage': sc.get('bookPage'),
                        'start': round(start, 3), 'end': round(t, 3), 'lines': lines})
-    tl = {'fps': 30, 'total': round(t, 3), 'audio': use_audio, 'scenes': scenes}
+    tl = {'fps': 30, 'total': round(t, 3), 'audio': use_audio, 'crumb': s.get('crumb', 'الوحدة الأولى · الدرس الأول'), 'scenes': scenes}
     json.dump(tl, open(P('timeline.json'), 'w', encoding='utf-8'), ensure_ascii=False, indent=1)
     open(P('timeline.js'), 'w', encoding='utf-8').write('window.TL = ' + json.dumps(tl, ensure_ascii=False) + '\n')
     with open(P('lesson.srt'), 'w', encoding='utf-8') as f:
@@ -334,6 +336,7 @@ def cmd_timeline(a):
 
 def main():
     ap = argparse.ArgumentParser()
+    ap.add_argument('--video', default='', help="'' = the lesson, 'solutions' = the exercises video")
     sub = ap.add_subparsers(dest='cmd', required=True)
     sub.add_parser('sections')
     for name in ('voicetest', 'gen'):
@@ -349,6 +352,9 @@ def main():
     sub.add_parser('restore')
     tl = sub.add_parser('timeline'); tl.add_argument('--estimate', action='store_true')
     a = ap.parse_args()
+    global VDIR, PREFIX
+    if a.video:
+        VDIR = os.path.join(HERE, a.video); PREFIX = 'L01' + a.video[:3].upper()
     {'sections': cmd_sections, 'voicetest': cmd_voicetest, 'gen': cmd_gen, 'split': cmd_split, 'timeline': cmd_timeline, 'restore': cmd_restore}[a.cmd](a)
 
 

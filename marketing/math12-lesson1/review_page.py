@@ -21,8 +21,8 @@ def screen_html(t):
     return ''.join(out)
 
 
-def main(out):
-    s = json.load(open(os.path.join(HERE, 'script.json'), encoding='utf-8'))
+def main(out, video=''):
+    s = json.load(open(os.path.join(HERE, video, 'script.json'), encoding='utf-8'))
     total_w = sum(len(l['say'].split()) for sc in s['scenes'] for l in sc['lines'])
     rows = []
     t = 0.0
@@ -63,4 +63,4 @@ code{{background:rgba(124,58,237,.08);border-radius:6px;padding:1px 6px;font-siz
 
 
 if __name__ == '__main__':
-    main(sys.argv[1] if len(sys.argv) > 1 else os.path.join(HERE, 'script-review.html'))
+    main(sys.argv[1] if len(sys.argv) > 1 else os.path.join(HERE, 'script-review.html'), sys.argv[2] if len(sys.argv) > 2 else '')

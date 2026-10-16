@@ -2,7 +2,9 @@
 const stage = document.getElementById('stage')
 const FADE_IN = .5, FADE_OUT = .4
 const BRAND = ''            // optional platform name shown bottom-left (empty = hidden)
-const SHOW_SUBS = new URLSearchParams(location.search).has('sub')
+const QS = new URLSearchParams(location.search)
+const SHOW_SUBS = QS.has('sub')
+const BASE = QS.get('v') ? QS.get('v') + '/' : ''   // '' = the lesson, 'solutions/' = the exercises video
 const built = []
 
 function loadScript(src) {
@@ -24,7 +26,8 @@ function ctx(sc) {
 
 window.READY = (async () => {
   await document.fonts.ready
-  for (const sc of TL.scenes) await loadScript(`scenes/${sc.id}.js`)
+  await loadScript(BASE + 'timeline.js')
+  for (const sc of TL.scenes) await loadScript(`${BASE}scenes/${sc.id}.js`)
   // chrome: progress ticks at scene boundaries where the section changes
   const bar = document.getElementById('bar')
   let prev = null
@@ -33,6 +36,7 @@ window.READY = (async () => {
     prev = sc.section
   }
   document.getElementById('brand').textContent = BRAND
+  if (TL.crumb) document.querySelector('#crumb .unit').textContent = TL.crumb
   for (const sc of TL.scenes) {
     const def = SCENES[sc.id]
     const root = el('div', 'scene', null, stage)
