@@ -142,17 +142,17 @@
       const F = (i, f) => S.at(i) + f * (S.end(i) - S.at(i))
       this.head.set(S.p(lt, 0, 0, .8))
       const boardIn = S.p(lt, 0, 0, .9)
-      // light-up times, on the words of the narration (real voice): L0 «المتتالية» .22 · «صريحاً» .42 · «بالتدريج» .54 ·
-      // «ثمّ حالات الاطّراد الخمس» .62 · «وثلاث طرائق» .79; L1 «الحسابيّة» .05 · «آر» .18 · «والهندسيّة» .22 · «كيو» .42 ·
-      // «قانونا الحدّ» .55 · «والمجموع» .64 · «المطابقة» .76 · «صوّر هذه الشاشة» .82
-      const t1 = Math.max(F(0, .21), S.at(0) + .9)
-      const t1b = Math.max(F(0, .41), t1 + .8), t1c = Math.max(F(0, .52), t1b + .7)
-      const t2 = Math.max(F(0, .62), t1c + .7)
-      const t3 = S.at(1) + .15
-      const t4 = Math.max(F(1, .21), t3 + 1.2)
-      const tTerm = Math.max(F(1, .55), t4 + 1.2), tSum = Math.max(F(1, .64), tTerm + .9)
-      const tId = Math.max(F(1, .75), tSum + 1)
-      const tShot = Math.max(F(1, .83), tId + .9)
+      // light-up times, on the words of the narration (real voice): L0 «المتتالية» .23 · «صريحاً» .44 · «بالتدريج» .56 ·
+      // «ثمّ حالات الاطّراد الخمس» .65 · «وثلاث طرائق» .83; L1 «الحسابيّة» .07 · «آر» .21 · «والهندسيّة» .25 · «كيو» .46 ·
+      // «قانونا الحدّ» .60 · «والمجموع» .69 · «المطابقة» .82 · «صوّر هذه الشاشة» .88
+      const t1 = Math.max(F(0, .22), S.at(0) + .9)
+      const t1b = Math.max(F(0, .43), t1 + .8), t1c = Math.max(F(0, .55), t1b + .7)
+      const t2 = Math.max(F(0, .64), t1c + .7)
+      const t3 = S.at(1) + .25
+      const t4 = Math.max(F(1, .24), t3 + 1.2)
+      const tTerm = Math.max(F(1, .6), t4 + 1.2), tSum = Math.max(F(1, .69), tTerm + .9)
+      const tId = Math.max(F(1, .8), tSum + 1)
+      const tShot = Math.max(F(1, .87), tId + .8)
       const setBlock = (b, lit, k) => {
         const a = boardIn * lerp(DIM, 1, lit)
         op(b.el, a)
@@ -169,7 +169,7 @@
       // block 2 rows tick in
       const st = Math.min(.22, Math.max(.12, (S.end(0) + 1.4 - t2) / 10))
       this.r2.forEach((e, k) => rowLit(e, t2 + .3 + k * st))
-      const tM = Math.max(F(0, .79), t2 + .3 + 6 * st + .2)          // «وثلاث طرائق لدراسته»
+      const tM = Math.max(F(0, .82), t2 + .3 + 6 * st + .2)          // «وثلاث طرائق لدراسته»
       rowLit(this.mLab, tM - .1)
       this.m2.forEach((e, k) => rowLit(e, tM + k * (st + .08)))
       // blocks 3 / 4 formulas
@@ -178,8 +178,8 @@
       this.f4.forEach((e, k) => fLit(e, t4 + .2 + k * .15))
       // +r / ×q accents
       const acc = (e, t, c) => { const g = env(lt, t, t + 2.2, .3, .6); e.style.color = g > 0 ? mixColor(C.ink, c, g) : ''; e.style.textShadow = g > 0 ? `0 0 ${18 * g}px ${rgba(c, .8)}` : '' }
-      acc(this.plr, Math.max(F(1, .14), t3 + .4), Y)
-      acc(this.tq, Math.max(F(1, .38), t4 + .5), Y)
+      acc(this.plr, Math.max(F(1, .18), t3 + .4), Y)
+      acc(this.tq, Math.max(F(1, .43), t4 + .5), Y)
       // term laws, then sum laws, pulse (both blocks)
       const pulse = (e, t) => { const g = env(lt, t, t + 1.4, .25, .5); if (g > 0) { e.style.textShadow = `0 0 ${16 * g}px rgba(255,210,63,.75)`; e.style.transform = `scale(${1 + .05 * g})` } else if (!e._keep) { e.style.textShadow = ''; e.style.transform = '' } }
       ;[this.f3[1], this.f4[1]].forEach(e => pulse(e, tTerm))

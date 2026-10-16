@@ -192,14 +192,14 @@
       const out1 = S.p(lt, 2, 0, .5)
       const f0In = prog(lt, S.at(1) + .95, .3)
       op(this.f0, f0In); op(this.row1, 1 - out1)
-      const fl = env(lt, S.at(1) + 1.05, Math.max(F(1, .3), S.at(1) + 2.6), .25, .5)
+      const fl = env(lt, S.at(1) + 1.05, Math.max(F(1, .4), S.at(1) + 2.6), .25, .5)
       op(this.flash, fl * (.75 + .25 * Math.sin(lt * 9))); this.flash.style.transform = `scale(${lerp(1.12, 1, E.out(clamp(fl)))})`
       op(this.flashTag, fl); this.flashTag.style.transform = `translateY(${(1 - E.out(clamp(fl))) * 10}px)`
-      const nP = prog(lt, Math.max(F(1, .3), S.at(1) + 2.2), .5)
-      ;[this.n0, this.nr].forEach((e, k) => rise(e, Math.min(prog(lt, Math.max(F(1, .3), S.at(1) + 2.2) + k * .2, .5), 1 - out1), 10))
-      const f1In = prog(lt, Math.max(F(1, .38), S.at(1) + 2.8), .7)
+      const nP = prog(lt, Math.max(F(1, .42), S.at(1) + 2.2), .5)
+      ;[this.n0, this.nr].forEach((e, k) => rise(e, Math.min(prog(lt, Math.max(F(1, .42), S.at(1) + 2.2) + k * .2, .5), 1 - out1), 10))
+      const f1In = prog(lt, Math.max(F(1, .46), S.at(1) + 2.8), .7)      // «أي واحداً زائد إنْ» (.46)
       wipe(this.f1, f1In, 'ltr')
-      const kbIn = prog(lt, Math.max(F(1, .58), S.at(1) + 3.8), .7)
+      const kbIn = prog(lt, Math.max(F(1, .63), S.at(1) + 3.8), .7)      // «ونقلبه» (.63)
       const kbMove = S.p(lt, 2, 0, .65)
       this.kb.set(kbIn)
       const k = this.kbTo

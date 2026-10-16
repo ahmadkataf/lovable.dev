@@ -291,11 +291,11 @@
       cardT(this.c1, this.pin1, tA1, 0, dim1); cardT(this.c2, this.pin2, tA2, 1, dim2)
 
       // ================= L0: «أوّل n عدداً فرديّاً» — arithmetic, r = 2, a = 1 =================
-      const tMk = Math.max(F(0, .24), tA2 + 1.3)
-      // «بقانون المجموع» .30 · «أوّل إنْ عدداً فرديّاً» .46 · «حدودٌ متتالية من متتالية حسابيّة» .63 · «أساسها اثنان» .83 ·
-      // «وأوّلها واحد» .92
-      const tCap = Math.max(F(0, .45), tMk + .7), tCap2 = Math.max(F(0, .62), tCap + .7)
-      const tR = Math.max(F(0, .84), tCap2 + .8), tA = Math.max(F(0, .92), tR + .5)
+      const tMk = Math.max(F(0, .27), tA2 + 1.3)
+      // «بقانون المجموع» .31 · «أوّل إنْ عدداً فرديّاً» .46 · «حدودٌ متتالية من متتالية حسابيّة» .62 · «أساسها اثنان» .80 ·
+      // «وأوّلها واحد» .89
+      const tCap = Math.max(F(0, .45), tMk + .7), tCap2 = Math.max(F(0, .61), tCap + .7)
+      const tR = Math.max(F(0, .82), tCap2 + .8), tA = Math.max(F(0, .9), tR + .5)
       // ================= L1 timings =================
       const tUse = Math.max(F(1, .02), T.at(1) + .3)
       const tS0 = Math.max(F(1, .05), tUse + .3), tS1 = Math.max(F(1, .46), tS0 + 1.2)
@@ -348,10 +348,10 @@
       this.okS.style.transform = `translate(${this.okD.dx * (1 - dk1)}px, ${this.okD.dy * (1 - dk1)}px) scale(${(okIn <= 0 ? .6 : lerp(.6, 1, E.back(okIn))) * lerp(1.15, 1, dk1)})`
 
       // ================= L2: card ② keeps its «؟» — no ready-made law =================
-      const g7 = Math.sin(clamp((lt - Math.max(F(2, .2), T.at(2) + .4)) / 1.6) * Math.PI)
+      const g7 = Math.sin(clamp((lt - Math.max(F(2, .25), T.at(2) + .4)) / 1.6) * Math.PI)
       this.seven.style.textShadow = g7 > 0 ? `0 0 ${22 * g7}px rgba(255,210,63,.9)` : ''
       this.seven.style.transform = `scale(${1 + .3 * Math.max(0, g7)})`
-      const tNo = Math.max(F(2, .68), T.at(2) + 1.2)
+      const tNo = Math.max(F(2, .7), T.at(2) + 1.2)
       const noIn = prog(lt, tNo, .5), dk2 = E.io(T.p(lt, 3, .1, .7))
       op(this.noS, Math.min(clamp(noIn * 2.5), 1 - out5))
       this.noS.style.transform = `translate(${this.noD.dx * (1 - dk2)}px, ${this.noD.dy * (1 - dk2)}px) scale(${(noIn <= 0 ? .6 : lerp(.6, 1, E.back(noIn))) * lerp(1.15, 1, dk2)})`
@@ -361,8 +361,8 @@
       const v3 = p => p * (1 - out3)
       pop(this.st1, v3(T.p(lt, 3, .75, .5))); pop(this.st2, v3(T.p(lt, 3, .9, .5)))
       // «تنتقل الخاصّة من خطوةٍ إلى التالية»: both step chips pulse until the pictures start
-      // «مربّعٌ ضلعه إنْ» .37 · «مع زاويةٍ جديدة» .53 · «يصير ضلعه إنْ زائد واحد» .65 · «والسبعة في الآحاد تعود سبعة» .83
-      const tSq = Math.max(F(3, .36), T.at(3) + 1.4), tL2 = Math.max(F(3, .52), tSq + 1.2), tBig = Math.max(F(3, .65), tL2 + 1.2)
+      // «مربّعٌ ضلعه إنْ» .37 · «مع زاويةٍ جديدة» .52 · «يصير ضلعه إنْ زائد واحد» .63 · «والسبعة في الآحاد تعود سبعة» .81
+      const tSq = Math.max(F(3, .36), T.at(3) + 1.4), tL2 = Math.max(F(3, .51), tSq + 1.2), tBig = Math.max(F(3, .63), tL2 + 1.2)
       const sg = env(lt, T.at(3) + 1.3, tSq + .4, .4, .6)
       ;[this.st1, this.st2].forEach((c, k) => { c.style.boxShadow = sg > 0 ? `0 0 ${(18 + 10 * Math.sin(lt * 4 + k * 1.5)) * sg}px ${B}aa` : '' })
       this.dots.forEach(d => {
@@ -384,7 +384,7 @@
       this.sqOut.setAttribute('stroke', big > 0 ? mixColor(C.ink, Y, Math.sin(Math.PI * big)) : C.ink)
       wipe(this.f1, prog(lt, Math.max(F(3, .62), tBig + .5), .9), 'ltr'); op(this.f1, 1 - out3)
       // the loop (drawn as «والسبعة في الآحاد» approaches, then the runner spins once)
-      const tLoop = Math.max(F(3, .74), tBig + .6)
+      const tLoop = Math.max(F(3, .72), tBig + .6)
       const pNA = prog(lt, tLoop, .45), pT = prog(lt, tLoop + .3, .6), pNB = prog(lt, tLoop + .6, .45), pB = prog(lt, tLoop + .95, .6)
       const nodeSet = (g, lb, p) => { g.style.opacity = v3(clamp(p * 2)); g.style.transform = `scale(${p <= 0 ? .3 : lerp(.3, 1, E.back(p))})`; op(lb, v3(clamp(p * 2))) }
       nodeSet(this.nA, this.lA, pNA); nodeSet(this.nB, this.lB, pNB)
@@ -396,7 +396,7 @@
       }
       arcHead(this.arcT, this.hT, pT); arcHead(this.arcB, this.hB, pB)
       op(this.labT, v3(prog(lt, tLoop + .45, .5))); op(this.labB, v3(prog(lt, tLoop + 1.1, .5)))
-      const tRun = Math.max(F(3, .86), tLoop + 1.1), runD = 1.6
+      const tRun = Math.max(F(3, .84), tLoop + 1.1), runD = 1.6
       const run = prog(lt, tRun, runD, E.io)
       if (run > 0 && run < 1) {
         const onT = run < .5, path = onT ? this.arcT : this.arcB, L = path.getTotalLength()
@@ -426,12 +426,12 @@
       const tp = prog(lt, tTitle, .7)
       op(this.l2, Math.min(tp, 1 - out5)); this.l2.style.transform = `scale(${lerp(.86, 1, E.back(tp))})`
       rise(this.l2tag, Math.min(prog(lt, tTitle + .3, .5), 1 - out5), 10)
-      const tFull = Math.max(F(4, .42), tTitle + 1)          // «وهو برهانٌ كامل، لا مجرّد ملاحظة» (.41–.66)
+      const tFull = Math.max(F(4, .44), tTitle + 1)          // «وهو برهانٌ كامل، لا مجرّد ملاحظة» (.44–.66)
       const fuP = prog(lt, tFull, .55)
       rise(this.full, Math.min(fuP, 1 - out5), 12)
       this.full.style.boxShadow = fuP > 0 ? `0 0 ${18 + 10 * Math.sin(lt * 2.2)}px rgba(167,139,250,.35)` : ''
       // ②'s badge: yellow «؟» breathes (stronger while ② is discussed), then → grey ✓ outline «قريباً»
-      const tM = Math.max(F(4, .68), tFull + 1)              // «به نحسم السؤال الثاني» (.67–.82)
+      const tM = Math.max(F(4, .7), tFull + 1)               // «به نحسم السؤال الثاني» (.69–.84)
       const mq = prog(lt, tM, .7)
       const c2 = this.c2
       const talk = env(lt, T.at(2), T.end(2) + .3, .4, .6)
@@ -442,7 +442,7 @@
       c2.ring.style.opacity = clamp(mq * 2)
       draw(c2.tick, prog(lt, tM + .3, .5))
       rise(c2.soon, prog(lt, tM + .5, .5), 10)
-      const tTag = Math.max(F(4, .83), tM + 1)               // «ونبرهن الأوّل من جديد» (.83–1)
+      const tTag = Math.max(F(4, .85), tM + 1)               // «ونبرهن الأوّل من جديد» (.85–1)
       const tagP = prog(lt, tTag, .5)
       op(this.l2S, Math.min(clamp(tagP * 2.5), 1 - out5)); this.l2S.style.transform = `translateY(${(1 - E.out(tagP)) * -26}px) scale(${tagP <= 0 ? .7 : lerp(.7, 1, E.back(tagP))})`
       this.l2S.style.boxShadow = `0 0 ${18 + 12 * Math.sin(lt * 2.2)}px rgba(167,139,250,${.35 * clamp(tagP)})`
@@ -450,13 +450,13 @@
       // ================= L5: outro =================
       const oIn = T.p(lt, 5, .35, .8)
       op(this.out, oIn * (1 - fadeAll)); this.out.style.transform = `translateY(${(1 - E.out(oIn)) * 40}px)`
-      typeWords(this.o1, T.f(lt, 5, .05, .56))
-      const o2p = prog(lt, Math.max(F(5, .58), T.at(5) + 2), .6)
+      typeWords(this.o1, T.f(lt, 5, .06, .58))
+      const o2p = prog(lt, Math.max(F(5, .61), T.at(5) + 2), .6)
       rise(this.o2, o2p, 16)
       op(this.sep, o2p)
       // pencil-and-paper: the sheet, its lines written one by one, the pencil following the pen tip
-      draw(this.icPaper, o2p); draw(this.icFold, prog(lt, Math.max(F(5, .58), T.at(5) + 2) + .3, .4))
-      const w0 = Math.max(F(5, .62), T.at(5) + 2.4)
+      draw(this.icPaper, o2p); draw(this.icFold, prog(lt, Math.max(F(5, .61), T.at(5) + 2) + .3, .4))
+      const w0 = Math.max(F(5, .65), T.at(5) + 2.4)
       let tipX = 48, tipY = 52
       this.icLines.forEach((l, k) => {
         const p = prog(lt, w0 + k * .55, .5, E.io)
@@ -465,7 +465,7 @@
       })
       this.pen.setAttribute('transform', `translate(${tipX + 4},${tipY - 2 + Math.sin(lt * 14) * (lt > w0 && lt < w0 + 2.2 ? 1.5 : 0)})`)
       this.pen.style.opacity = prog(lt, w0 - .3, .4)
-      const eP = prog(lt, Math.max(F(5, .84), T.at(5) + 4), .7)
+      const eP = prog(lt, Math.max(F(5, .86), T.at(5) + 4), .7)
       op(this.end, eP * (1 - fadeAll)); this.end.style.transform = `scale(${lerp(.9, 1, E.back(eP))})`
       this.end.style.boxShadow = `0 0 ${40 + 16 * Math.sin(lt * 2)}px rgba(124,58,237,${.3 * eP})`
     },

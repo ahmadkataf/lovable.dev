@@ -355,22 +355,22 @@
       const f0 = this.fly0
       this.card0.style.transform = `translate(${f0.dx * out0}px, ${f0.dy * out0 + (1 - cIn) * 36}px) scale(${lerp(1, f0.s, out0)})`
       // the statement is typed in step with the narration: «(v_n) … وفق» (متتاليةٌ) → «v_0 = 1» (حدُّها الأوّل في صفر
-      // يساوي واحداً, .30–.44) → «و» → «v_{n+1} = …» (وكلّ حدٍّ يساوي سابقه…, .50–.78)
+      // يساوي واحداً, .28–.44) → «و» → «v_{n+1} = …» (وكلّ حدٍّ يساوي سابقه…, .47–.74)
       const fl0 = S.f(lt, 0)
-      const pw = [[0, 0], [.02, 0], [.17, .5], [.3, .5], [.37, .6], [.45, .6], [.49, .7], [.56, .8]]
+      const pw = [[0, 0], [.02, 0], [.15, .5], [.28, .5], [.36, .6], [.43, .6], [.47, .7], [.54, .8]]
       let pst = 1
       for (let k = 1; k < pw.length; k++) if (fl0 < pw[k][0]) { const [a, va] = pw[k - 1], [b, vb] = pw[k]; pst = lerp(va, vb, (fl0 - a) / (b - a)); break }
       typeWords(this.st, lt < S.at(0) ? 0 : pst)
-      // «نرمز لحدودها بالحرف في» (.15–.30): the letter v glows
-      const vg = env(lt, F(0, .16), F(0, .36), .3, .5)
+      // «نرمز لحدودها بالحرف في» (.13–.28): the letter v glows
+      const vg = env(lt, F(0, .14), F(0, .33), .3, .5)
       this.vl.style.color = vg > 0 ? mixColor(C.ink, Y, vg) : ''
       this.vl.style.textShadow = vg > 0 ? `0 0 ${20 * vg}px rgba(255,210,63,.85)` : ''
       this.vl.style.transform = `scale(${1 + .25 * vg})`
-      const it1p = prog(lt, F(0, .78), .5)                 // «أوّلاً، تحقّق أنّ حدودها موجبةٌ تماماً»
-      op(this.it1, it1p > 0 ? 1 : 0); typeWords(this.it1, S.f(lt, 0, .78, .97))
+      const it1p = prog(lt, F(0, .74), .5)                 // «أوّلاً، تحقّق أنّ حدودها موجبةٌ تماماً»
+      op(this.it1, it1p > 0 ? 1 : 0); typeWords(this.it1, S.f(lt, 0, .74, .95))
       const mk = (m, p) => { op(m, clamp(p * 2.5)); m.style.transform = `scaleX(${E.out(clamp(p))})` }
-      mk(this.mkV0, Math.min(prog(lt, F(0, .31), .5), 1 - prog(lt, F(0, .48), .4)))
-      mk(this.mkRec, Math.min(prog(lt, F(0, .53), .5), 1 - prog(lt, F(0, .78), .4)))
+      mk(this.mkV0, Math.min(prog(lt, F(0, .29), .5), 1 - prog(lt, F(0, .46), .4)))
+      mk(this.mkRec, Math.min(prog(lt, F(0, .5), .5), 1 - prog(lt, F(0, .74), .4)))
       {
         const hs = S.end(0), he = Math.max(hs + .5, S.at(1) - .25)
         op(this.cdw, Math.min(prog(lt, Math.max(F(0, .9), S.end(0) - .8), .5), 1 - S.p(lt, 1, 0, .4)))
@@ -381,23 +381,23 @@
       // ================= L1 =================
       const out1 = S.p(lt, 2, 0, .5)
       const v1 = p => p * (1 - out1)
-      // «الحدّ الأوّل واحد، فهو موجبٌ تماماً» (0–.3) → «وإذا كان حدٌّ موجباً تماماً» (.33) → «فالبسط والمقام موجبان»
-      // (.53–.7): «فإنّ» + the chain, numerator / denominator tagged → «فالحدّ التالي موجبٌ تماماً» (.79): «> 0»
+      // «الحدّ الأوّل واحد، فهو موجبٌ تماماً» (0–.3) → «وإذا كان حدٌّ موجباً تماماً» (.31) → «فالبسط والمقام موجبان»
+      // (.50–.7): «فإنّ» + the chain, numerator / denominator tagged → «فالحدّ التالي موجبٌ تماماً» (.74): «> 0»
       const pA = prog(lt, F(1, .01), .55)
       rise(this.rowA, v1(pA), 24)
       pop(this.ckA, v1(prog(lt, F(1, .15), .5)))
       rise(this.rowB, v1(prog(lt, Math.max(F(1, .31), S.at(1) + .8), .55)), 24)
-      const tC = Math.max(F(1, .49), S.at(1) + 1.6)
+      const tC = Math.max(F(1, .47), S.at(1) + 1.6)
       const thenP = prog(lt, tC, .45)
       op(this.thenB, thenP); this.thenB.style.transform = `translateX(${(1 - thenP) * -24}px)`
       const cP = prog(lt, tC + .15, 1.1)
       wipe(this.rowC, cP, 'ltr'); op(this.rowC, 1 - out1)
       if (out1 >= 1) this.rowC.style.visibility = 'hidden'
-      const tP = [prog(lt, Math.max(F(1, .55), tC + .9), .5), prog(lt, Math.max(F(1, .61), tC + 1.3), .5)]
+      const tP = [prog(lt, Math.max(F(1, .52), tC + .9), .5), prog(lt, Math.max(F(1, .57), tC + 1.3), .5)]
       ;[[this.pNum, this.tNum, this.cN], [this.pDen, this.tDen, this.cD]].forEach(([p, t, c], k) => {
         pop(p, v1(tP[k])); op(t, v1(tP[k])); c.style.opacity = v1(tP[k])
       })
-      const gtP = prog(lt, Math.max(F(1, .82), tC + 2), .5)
+      const gtP = prog(lt, Math.max(F(1, .78), tC + 2), .5)
       op(this.gt, gtP); this.gt.style.transform = `scale(${lerp(1.5, 1, E.out(gtP))})`
       this.gt.style.textShadow = gtP > 0 ? `0 0 ${18 * (.6 + .4 * Math.sin(lt * 2.4))}px rgba(110,224,90,.6)` : ''
 
@@ -475,7 +475,7 @@
       const pc = (t, d = .6) => prog(lt, t, d)
       // «نقلب الكسر: u_{n+1} يساوي» (0–.34) → «واحداً زائد في إنْ، على في إنْ» (.44–.66): flip → «أي مقلوبَ في إنْ» (.72): split
       // → «مضافاً إليه واحد» (.86): cancel, + 1
-      const t4 = [Math.max(F(4, .02), S.at(4) + .5), Math.max(F(4, .14), S.at(4) + 1.4), Math.max(F(4, .42), S.at(4) + 2.6), Math.max(F(4, .68), S.at(4) + 4), Math.max(F(4, .85), S.at(4) + 5.4)]
+      const t4 = [Math.max(F(4, .02), S.at(4) + .5), Math.max(F(4, .14), S.at(4) + 1.4), Math.max(F(4, .42), S.at(4) + 2.6), Math.max(F(4, .68), S.at(4) + 4), Math.max(F(4, .82), S.at(4) + 5.4)]
       op(this.chain, (lt >= t4[0] ? 1 : 0) * (1 - chOut))
       this.chain.style.transform = `translateY(${-30 * E.io(chOut)}px)`
       const pa01 = pc(t4[0], .7)
