@@ -52,7 +52,7 @@ export const chapter = {
         en: 'The page opens on the current month. At the top is the period bar: the month’s name in the middle, the Previous month and Next month arrows on each side, and the number of days at the end.',
       },
       run: async ({ page, ui }) => {
-        await ui.highlight(period(page), 1300)
+        await ui.point(period(page), 1300)
         await ui.moveTo(period(page).getByRole('button', { name: /الشهر السابق|Previous month/ }))
         await ui.moveTo(period(page).locator('.inv-exp-month'))
         await ui.moveTo(period(page).getByRole('button', { name: /الشهر التالي|Next month/ }))
@@ -67,7 +67,7 @@ export const chapter = {
         en: 'Then four cards: Period total with its change vs previous period, Top category with its amount and share, Expenses with the Average expense, and the Previous period total.',
       },
       run: async ({ page, ui }) => {
-        await ui.highlight(page.locator('.inv-exp-stats'), 1200)
+        await ui.point(page.locator('.inv-exp-stats'), 1200)
         for (let i = 0; i < 4; i++) await ui.moveTo(page.locator('.inv-exp-stats .stat-card').nth(i), { ms: 380 })
         await ui.pause(400)
       },
@@ -80,9 +80,9 @@ export const chapter = {
       },
       run: async ({ page, ui }) => {
         await ui.scrollTo(page.locator('.inv-exp-breakdown'))
-        await ui.highlight(page.locator('.inv-exp-breakdown'), 1200)
+        await ui.point(page.locator('.inv-exp-breakdown'), 1200)
         await ui.scrollTo(page.locator('.inv-exp-list-head'))
-        await ui.highlight(page.locator('table thead'), 1300)
+        await ui.point(page.locator('table thead'), 1300)
       },
     },
     {
@@ -118,7 +118,7 @@ export const chapter = {
       run: async ({ page, ui, lang }) => {
         const m = modal(page)
         await ui.type(m.getByLabel(/^(المبلغ|Amount)/), '48', { delay: 90 })
-        await ui.highlight(m.getByLabel(/^(التاريخ|Date)/), 1000)
+        await ui.point(m.getByLabel(/^(التاريخ|Date)/), 1000)
         await ui.type(m.getByLabel(/^(الوصف|Description)/), pick(lang, 'فاتورة كهرباء شهر تشرين الأول', 'October electricity bill'), { delay: 55 })
       },
     },
@@ -131,7 +131,7 @@ export const chapter = {
       run: async ({ page, ui, lang }) => {
         const m = modal(page)
         await ui.type(m.getByLabel(/الجهة المستفيدة|^Vendor/), pick(lang, 'مؤسسة الكهرباء', 'Electricity company'), { delay: 60 })
-        await ui.highlight(m.getByLabel(/طريقة الدفع|Payment method/), 1000)
+        await ui.point(m.getByLabel(/طريقة الدفع|Payment method/), 1000)
         await ui.click(btn(page.locator('.modal-footer'), 'تسجيل المصروف', 'Save expense'))
         await modal(page).waitFor({ state: 'hidden', timeout: 10000 })
         await ui.pause(900)
@@ -146,8 +146,8 @@ export const chapter = {
       run: async ({ page, ui }) => {
         await expensesShown(page)
         await ui.scrollTo(page.locator('.inv-exp-list-head'))
-        await ui.highlight(page.locator('table tbody tr').first(), 1600)
-        await ui.highlight(page.locator('.inv-exp-count'), 900)
+        await ui.point(page.locator('table tbody tr').first(), 1600)
+        await ui.point(page.locator('.inv-exp-count'), 900)
       },
     },
     {
@@ -173,7 +173,7 @@ export const chapter = {
       run: async ({ page, ui }) => {
         await ui.click(period(page).getByRole('tab', { name: /فترة مخصصة|Custom range/ }))
         await period(page).locator('.inv-exp-range').waitFor({ timeout: 10000 })
-        await ui.highlight(period(page).locator('.inv-exp-range'), 1600)
+        await ui.point(period(page).locator('.inv-exp-range'), 1600)
         await ui.click(period(page).getByRole('tab', { name: /^(شهري|Monthly)$/ }))
         await ui.pause(400)
       },
@@ -186,8 +186,8 @@ export const chapter = {
       },
       run: async ({ page, ui }) => {
         await ui.scrollTo(page.locator('.inv-exp-breakdown'))
-        await ui.highlight(page.locator('.inv-exp-stack'), 1200)
-        await ui.highlight(page.locator('.inv-exp-bars'), 1500)
+        await ui.point(page.locator('.inv-exp-stack'), 1200)
+        await ui.point(page.locator('.inv-exp-bars'), 1500)
       },
     },
     {
@@ -200,7 +200,7 @@ export const chapter = {
         await ui.click(page.locator('.inv-exp-bar').first())
         await ui.pause(600)
         await ui.scrollTo(page.locator('.inv-exp-tfoot'))
-        await ui.highlight(page.locator('.inv-exp-tfoot'), 1500)
+        await ui.point(page.locator('.inv-exp-tfoot'), 1500)
         await ui.pause(1500)
         await ui.click(page.locator('.inv-exp-bar').first())
         await ui.pause(400)
@@ -217,7 +217,7 @@ export const chapter = {
         await ui.type(page.locator('.inv-exp-search input'), pick(lang, 'كهرباء', 'electric'), { delay: 90 })
         await ui.pause(1300)
         await ui.click(page.locator('.inv-exp-search .icon-end.clickable'))
-        await ui.highlight(page.locator('.inv-exp-catsel'), 1100)
+        await ui.point(page.locator('.inv-exp-catsel'), 1100)
       },
     },
     {
@@ -228,11 +228,11 @@ export const chapter = {
       },
       run: async ({ page, ui }) => {
         const labRow = page.locator('table tbody tr').filter({ has: page.locator('.inv-exp-lab') }).first()
-        await ui.highlight(labRow.locator('.inv-exp-lab'), 1000)
+        await ui.point(labRow.locator('.inv-exp-lab'), 1000)
         await ui.click(labRow.locator('.inv-exp-desc'))
         await modal(page).waitFor({ timeout: 10000 })
         await ui.pause(300)
-        await ui.highlight(modal(page).locator('.alert'), 1500)
+        await ui.point(modal(page).locator('.alert'), 1500)
       },
     },
     {
@@ -242,11 +242,10 @@ export const chapter = {
         en: 'Change its cost on the Lab page, so the order and its expense stay the same. For any other expense, change what you need and click Save changes. Deleting with the bin button is permanent.',
       },
       run: async ({ page, ui }) => {
-        await ui.highlight(btn(page.locator('.modal-footer'), 'حفظ التغييرات', 'Save changes'), 1100)
+        await ui.point(btn(page.locator('.modal-footer'), 'حفظ التغييرات', 'Save changes'), 1100)
         await ui.click(btn(page.locator('.modal-footer'), 'إلغاء', 'Cancel'))
         await modal(page).waitFor({ state: 'hidden', timeout: 10000 })
-        await ui.moveTo(page.locator('table tbody tr').first().locator('.inv-exp-del'))
-        await ui.highlight(page.locator('table tbody tr').first().locator('.inv-exp-del'), 1200)
+        await ui.point(page.locator('table tbody tr').first().locator('.inv-exp-del'), 1200)
       },
     },
     {
@@ -257,8 +256,7 @@ export const chapter = {
       },
       run: async ({ page, ui }) => {
         await ui.scrollTo(page.locator('.page-header'))
-        await ui.moveTo(btn(page, 'تصدير CSV', 'Export CSV'))
-        await ui.highlight(btn(page, 'تصدير CSV', 'Export CSV'), 1700)
+        await ui.point(btn(page, 'تصدير CSV', 'Export CSV'), 1700)
       },
     },
     {

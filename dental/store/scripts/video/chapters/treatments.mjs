@@ -124,8 +124,8 @@ export const chapter = {
     {
       id: 'surfaces',
       say: {
-        ar: 'اختر «الأسطح» إن احتجت، وعدّل «السعر لكل سن» و«الخصم» و«التاريخ المخطط» إن لزم.',
-        en: 'Pick Surfaces if needed, and adjust the Price per tooth, the Discount and the Planned date if you like.',
+        ar: 'اختر «الأسطح» إن احتجت، وعدّل «السعر لكل سن» و«الخصم لكل سن» و«التاريخ المخطط» إن لزم.',
+        en: 'Pick Surfaces if needed, and adjust the Price per tooth, the Discount per tooth and the Planned date if you like.',
       },
       run: async ({ page, ui }) => {
         await ui.click(dialog(page).locator('.tr-surfaces button', { hasText: /\(M\)/ }))

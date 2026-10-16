@@ -4,6 +4,7 @@
 // helper waits until its motion is over, so a chapter script reads like the steps a person takes:
 //   await ui.click(page.getByRole('link', { name: 'المرضى' }))
 //   await ui.type(page.locator('input[type="search"]'), 'أحمد')
+//   await ui.point(page.locator('.rp-dash-kpis'), 1800)      // the cursor glides onto it, then the teal outline
 // The real mouse follows the drawn cursor (hover states look natural) and the clicks are Playwright's own, so an
 // element that is covered or detached fails loudly instead of silently clicking something else.
 
@@ -186,6 +187,12 @@ export function createUi(page, { lang = 'ar' } = {}) {
     await sleep(ms + 320)
   }
 
+  /** moveTo then highlight: the cursor glides onto the element and stays there while the outline shows for `ms`. */
+  async function point(locator, ms = 1500) {
+    await moveTo(locator)
+    await highlight(locator, ms)
+  }
+
   /** Smooth-scrolls the element to the middle of its scroll container and waits until it stops moving. */
   async function scrollTo(locator, { block = 'center' } = {}) {
     const l = loc(locator).first()
@@ -211,7 +218,7 @@ export function createUi(page, { lang = 'ar' } = {}) {
     await sleep(ms + 320)
   }
 
-  return { ensure, moveTo, click, type, highlight, scrollTo, pause, callout, get position() { return pos }, lang }
+  return { ensure, moveTo, click, type, highlight, point, scrollTo, pause, callout, get position() { return pos }, lang }
 }
 
 /** The init-script argument for installOverlay(): the overlay's language, direction and the cursor's first position. */

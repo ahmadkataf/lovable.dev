@@ -37,7 +37,7 @@ export const chapter = {
       run: async ({ page, ui }) => {
         await dashboardShown(page)
         await ui.pause(2500)
-        await ui.highlight(page.locator('[data-qa="trial-bar"]'), 1600)
+        await ui.point(page.locator('[data-qa="trial-bar"]'), 1600)
         await ui.click(btn(page.locator('[data-qa="trial-bar"]'), 'تفعيل الآن', 'Activate now'))
         await status(page).waitFor({ timeout: 15000 })
         await page.locator('[data-qa="device-number"]').waitFor({ timeout: 15000 })
@@ -51,8 +51,7 @@ export const chapter = {
         en: 'You reach the same page from Settings, then Licence; the tab carries a Trial badge as long as the copy is not activated.',
       },
       run: async ({ page, ui }) => {
-        await ui.moveTo(page.locator('.st-nav [data-tab="license"]'))
-        await ui.highlight(page.locator('.st-nav [data-tab="license"]'), 1800)
+        await ui.point(page.locator('.st-nav [data-tab="license"]'), 1800)
       },
     },
     {
@@ -62,8 +61,8 @@ export const chapter = {
         en: 'At the top is your copy’s status: Trial version, with the days left and the date the trial ends. Every feature is available during the trial, so activate before it ends and your work is never interrupted.',
       },
       run: async ({ page, ui }) => {
-        await ui.highlight(status(page).locator('.st-hero'), 1300)
-        await ui.highlight(page.locator('[data-qa="trial-progress"]'), 1600)
+        await ui.point(status(page).locator('.st-hero'), 1300)
+        await ui.point(page.locator('[data-qa="trial-progress"]'), 1600)
       },
     },
     {
@@ -74,7 +73,7 @@ export const chapter = {
       },
       run: async ({ page, ui }) => {
         await ui.moveTo(status(page).locator('.st-hero-title'))
-        await ui.highlight(status(page).locator('.st-hero-desc'), 1800)
+        await ui.point(status(page).locator('.st-hero-desc'), 1800)
       },
     },
     {
@@ -85,7 +84,7 @@ export const chapter = {
       },
       run: async ({ page, ui }) => {
         await ui.scrollTo(cardWith(page, '[data-qa="device-number"]'))
-        await ui.highlight(page.locator('[data-qa="device-number"]'), 1400)
+        await ui.point(page.locator('[data-qa="device-number"]'), 1400)
         await ui.click(page.locator('[data-qa="copy-device"]'))
         await page.locator('.toast').first().waitFor({ timeout: 10000 })
         await ui.pause(1000)
@@ -99,8 +98,7 @@ export const chapter = {
       },
       run: async ({ page, ui }) => {
         await ui.scrollTo(status(page))
-        await ui.moveTo(page.locator('[data-qa="ask-whatsapp"]'))
-        await ui.highlight(page.locator('[data-qa="ask-whatsapp"]'), 1800)
+        await ui.point(page.locator('[data-qa="ask-whatsapp"]'), 1800)
       },
     },
     {
@@ -112,7 +110,7 @@ export const chapter = {
       run: async ({ page, ui }) => {
         const steps = page.locator('.st-buy-steps li')
         await ui.scrollTo(page.locator('.st-buy-steps'))
-        for (let i = 0; i < 3; i++) await ui.highlight(steps.nth(i), 900)
+        for (let i = 0; i < 3; i++) await ui.point(steps.nth(i), 900)
       },
     },
     {
@@ -124,9 +122,9 @@ export const chapter = {
       run: async ({ page, ui }) => {
         const card = cardWith(page, '[data-qa="code-input"]')
         await ui.scrollTo(card)
-        await ui.highlight(page.locator('[data-qa="code-input"]'), 1400)
-        await ui.highlight(card.locator('.field-hint'), 1300)
-        await ui.highlight(page.locator('[data-qa="activate"]'), 900)
+        await ui.point(page.locator('[data-qa="code-input"]'), 1400)
+        await ui.point(card.locator('.field-hint'), 1300)
+        await ui.point(page.locator('[data-qa="activate"]'), 900)
       },
     },
     {
@@ -139,8 +137,8 @@ export const chapter = {
         const card = cardWith(page, '[data-qa="code-input"]')
         await ui.type(page.locator('[data-qa="code-input"]'), EXAMPLE_KEY, { delay: 45 })
         await page.locator('[data-qa="key-detected"]').waitFor({ timeout: 10000 })
-        await ui.highlight(page.locator('[data-qa="key-detected"]'), 1300)
-        await ui.highlight(card.locator('.field-hint'), 1800)
+        await ui.point(page.locator('[data-qa="key-detected"]'), 1300)
+        await ui.point(card.locator('.field-hint'), 1800)
         await ui.moveTo(page.locator('[data-qa="activate"]'))
         await ui.pause(600)
       },
@@ -151,14 +149,14 @@ export const chapter = {
         ar: 'وإن لم يكن هذا الجهاز متصلاً بالإنترنت، افتح صفحة التفعيل على موقع دنتورا من أي جهاز آخر، كالهاتف، واكتب فيها رقم جهازك والمفتاح، ثم الصق هنا رمز التفعيل الذي تعرضه.',
         en: 'If this device has no internet, open the activation page on Dentora’s website from any other device, such as a phone, enter your device number and the key there, then paste here the activation code it shows.',
       },
-      run: async ({ page, ui }) => {
+      run: async ({ page, ui, lang }) => {
         // the example key goes away again: the field is left as it was
         await ui.click(page.locator('[data-qa="code-input"]'))
         await page.keyboard.press('Control+A')
         await page.keyboard.press('Backspace')
         await ui.pause(300)
         await ui.moveTo(page.locator('[data-qa="device-number"]'))
-        await ui.callout('dentora.raqeem.dev/activate', { ms: 3000 })
+        await ui.callout(pick(lang, 'dentora.raqeem.dev/activate', 'dentora.raqeem.dev/en/activate'), { ms: 3000 })
       },
     },
     {
@@ -170,7 +168,7 @@ export const chapter = {
       run: async ({ page, ui }) => {
         await ui.scrollTo(status(page))
         await ui.moveTo(status(page).locator('.st-hero-title'))
-        await ui.highlight(status(page).locator('.st-hero'), 2000)
+        await ui.point(status(page).locator('.st-hero'), 2000)
       },
     },
     {
@@ -181,7 +179,7 @@ export const chapter = {
       },
       run: async ({ page, ui }) => {
         await ui.moveTo(page.locator('[data-qa="device-number"]'))
-        await ui.highlight(cardWith(page, '[data-qa="device-number"]'), 1800)
+        await ui.point(cardWith(page, '[data-qa="device-number"]'), 1800)
       },
     },
     {

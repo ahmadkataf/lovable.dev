@@ -37,8 +37,8 @@ export const chapter = {
     {
       id: 'intro',
       say: {
-        ar: 'في هذا الفصل تضيف أعضاء فريقك في دنتورا، لكلٍّ منهم رمز دخول ودور يحدد ما يراه، وتعرف كيف تقفل الشاشة وما الحل إن نسي أحدكم رمزه. افتح «الفريق» من القائمة الجانبية، في قسم «الإدارة».',
-        en: 'In this chapter you add your team members in Dentora, each with their own PIN and a role that decides what they see, and learn how to lock the screen and what to do when someone forgets their PIN. Open Staff from the sidebar, in the Management section.',
+        ar: 'في هذا الفصل تضيف فريقك في دنتورا: لكل عضو رمز دخول ودور يحدد ما يراه. افتح «الفريق» من القائمة الجانبية، في قسم «الإدارة».',
+        en: 'In this chapter you add your team in Dentora: each member gets a PIN and a role that decides what they see. Open Staff from the sidebar, in the Management section.',
       },
       run: async ({ page, ui }) => {
         await dashboardShown(page)
@@ -50,14 +50,14 @@ export const chapter = {
     {
       id: 'cards',
       say: {
-        ar: 'لكل عضو بطاقة فيها صورته الرمزية بلونه، واسمه ولقبه، ودوره، والاختصاص والهاتف، ووقت «آخر دخول». وعلى بطاقتك أنت شارة «أنت».',
-        en: 'Each member has a card with their avatar in their colour, name and title, role, specialty and phone, and their Last sign-in. Your own card carries a You badge.',
+        ar: 'لكل عضو بطاقة فيها صورته بلونه، واسمه ودوره واختصاصه وهاتفه، ووقت «آخر دخول». وعلى بطاقتك أنت شارة «أنت».',
+        en: 'Each member has a card with their avatar in their colour, their name, role, specialty and phone, and their Last sign-in. Your own card carries a You badge.',
       },
       run: async ({ page, ui }) => {
-        await ui.highlight(page.locator('[data-qa="staff-grid"]'), 1200)
-        await ui.highlight(card(page, 'u-doc2').locator('.au-member-top'), 1100)
-        await ui.highlight(card(page, 'u-doc2').locator('.au-member-foot'), 900)
-        await ui.highlight(card(page, 'u-admin').locator('.au-member-name'), 1100)
+        await ui.point(page.locator('[data-qa="staff-grid"]'), 1200)
+        await ui.point(card(page, 'u-doc2').locator('.au-member-top'), 1100)
+        await ui.point(card(page, 'u-doc2').locator('.au-member-foot'), 900)
+        await ui.point(card(page, 'u-admin').locator('.au-member-name'), 1100)
       },
     },
     {
@@ -67,8 +67,8 @@ export const chapter = {
         en: 'At the bottom of each card a switch deactivates or activates the account in one click, and the options button sits at the top. Above the cards a filter shows All, Active or Deactivated members.',
       },
       run: async ({ page, ui }) => {
-        await ui.highlight(card(page, 'u-doc2').locator('[data-qa="active-switch"]'), 1100)
-        await ui.highlight(card(page, 'u-doc2').locator('[data-qa="member-menu"]'), 900)
+        await ui.point(card(page, 'u-doc2').locator('[data-qa="active-switch"]'), 1100)
+        await ui.point(card(page, 'u-doc2').locator('[data-qa="member-menu"]'), 900)
         await ui.click(page.locator('.au-staff-toolbar').getByRole('tab', { name: /المفعّلون|Active/ }))
         await ui.pause(900)
         await ui.click(page.locator('.au-staff-toolbar').getByRole('tab', { name: /^(الكل|All)/ }))
@@ -78,25 +78,25 @@ export const chapter = {
     {
       id: 'matrix',
       say: {
-        ar: 'تحت البطاقات لوحة «الصلاحيات حسب الدور». لكل عضو دور واحد من أربعة، والدور يحدد الصفحات التي تظهر له: «مدير» له كل الصلاحيات، ومنها المصروفات والإعدادات والنسخ الاحتياطي والفريق.',
-        en: 'Under the cards is the Permissions by role panel. Every member has one of four roles, and the role decides which pages they see: Admin has every permission, including expenses, settings, backups and the team.',
+        ar: 'تحت البطاقات لوحة «الصلاحيات حسب الدور»: لكل عضو دور واحد من أربعة يحدد الصفحات التي تظهر له. «مدير» له كل الصلاحيات، ومنها المصروفات والإعدادات والفريق.',
+        en: 'Under the cards is the Permissions by role panel: every member has one of four roles, which decides which pages they see. Admin has every permission, including expenses, settings and the team.',
       },
       run: async ({ page, ui }) => {
         await ui.scrollTo(matrix(page))
-        await ui.highlight(matrix(page).locator('.card-header'), 1100)
-        await ui.highlight(matrix(page).locator('thead th').nth(1), 1500)
+        await ui.point(matrix(page).locator('.card-header'), 1100)
+        await ui.point(matrix(page).locator('thead th').nth(1), 1500)
       },
     },
     {
       id: 'roles',
       say: {
-        ar: '«طبيب» يعالج المرضى ويكتب الوصفات ويصدر الفواتير ويطّلع على التقارير، دون الإعدادات. «مساعد»: المرضى والمواعيد والملف السريري والمخزون، دون الفواتير. «استقبال»: المرضى والمواعيد والفواتير والمخزون، دون الملف السريري.',
-        en: 'Doctor treats patients, writes prescriptions, issues invoices and sees reports, with no settings. Assistant: patients, appointments, the clinical record and inventory, no billing. Receptionist: patients, appointments, invoices and inventory, no clinical record.',
+        ar: '«طبيب» يعالج ويكتب الوصفات ويصدر الفواتير ويرى التقارير، دون الإعدادات. «مساعد»: المرضى والمواعيد والملف السريري والمخزون، دون الفواتير. «استقبال»: المرضى والمواعيد والفواتير والمخزون، دون الملف السريري.',
+        en: 'Doctor treats, writes prescriptions, issues invoices and sees reports, with no settings. Assistant: patients, appointments, the clinical record and inventory, no billing. Receptionist: patients, appointments, invoices and inventory, no clinical record.',
       },
       run: async ({ page, ui }) => {
-        await ui.highlight(matrix(page).locator('thead th').nth(2), 1400)
-        await ui.highlight(matrix(page).locator('thead th').nth(3), 1400)
-        await ui.highlight(matrix(page).locator('thead th').nth(4), 1400)
+        await ui.point(matrix(page).locator('thead th').nth(2), 1400)
+        await ui.point(matrix(page).locator('thead th').nth(3), 1400)
+        await ui.point(matrix(page).locator('thead th').nth(4), 1400)
       },
     },
     {
@@ -106,8 +106,8 @@ export const chapter = {
         en: 'A page the role has no permission for disappears from that member’s menu. The roles are fixed as in the table; to give someone more access, change their role.',
       },
       run: async ({ page, ui }) => {
-        await ui.highlight(matrix(page).locator('tbody tr').nth(6), 1500)
-        await ui.highlight(matrix(page).locator('tbody tr').nth(8), 1200)
+        await ui.point(matrix(page).locator('tbody tr').nth(6), 1500)
+        await ui.point(matrix(page).locator('tbody tr').nth(8), 1200)
       },
     },
     {
@@ -126,13 +126,13 @@ export const chapter = {
     {
       id: 'add-name',
       say: {
-        ar: 'اكتب «الاسم الكامل»، واختر «اللقب»: يضع البرنامج «د.» للطبيب و«بدون لقب» لبقية الأدوار. وأضف إن شئت «الاختصاص» و«الهاتف» و«البريد الإلكتروني».',
-        en: 'Type the Full name and choose the Title: Dentora sets Dr. for a doctor and No title for the other roles. Add the Specialty, Phone and Email if you like.',
+        ar: 'اكتب «الاسم الكامل»، واختر «اللقب»: «د.» للطبيب و«بدون لقب» لبقية الأدوار. وأضف إن شئت «الاختصاص» و«الهاتف» و«البريد الإلكتروني».',
+        en: 'Type the Full name and choose the Title: Dr. for a doctor, No title for the other roles. Add the Specialty, Phone and Email if you like.',
       },
       run: async ({ page, ui, lang }) => {
         const m = modal(page)
         await ui.type(m.locator('input[name="name"]'), pick(lang, 'رنا سليمان', 'Rana Suleiman'), { delay: 70 })
-        await ui.highlight(m.locator('select[name="title"]'), 900)
+        await ui.point(m.locator('select[name="title"]'), 900)
         await ui.type(m.locator('input[name="specialty"]'), pick(lang, 'مساعدة طبيب أسنان', 'Dental assistant'), { delay: 55 })
         await ui.type(m.locator('input[name="phone"]'), '0933 456 789', { delay: 55 })
       },
@@ -151,18 +151,18 @@ export const chapter = {
         await ui.pause(200)
         await page.keyboard.press('Enter')
         await ui.pause(500)
-        await ui.highlight(modal(page).locator('[data-qa="role-box"]'), 1600)
+        await ui.point(modal(page).locator('[data-qa="role-box"]'), 1600)
       },
     },
     {
       id: 'add-colour',
       say: {
-        ar: 'اختر لوناً للعضو: يميّز مواعيده في التقويم وصورته في البرنامج. ويقترح البرنامج لوناً لا يستخدمه أي عضو مفعّل.',
-        en: 'Pick a colour for the member: it marks their appointments in the calendar and their avatar in the app. Dentora suggests a colour no active member uses yet.',
+        ar: 'اختر لوناً للعضو: يميّز مواعيده في التقويم وصورته في البرنامج، ويقترح دنتورا لوناً لا يستخدمه أي عضو مفعّل.',
+        en: 'Pick a colour for the member: it marks their appointments in the calendar and their avatar in the app, and Dentora suggests one no active member uses yet.',
       },
       run: async ({ page, ui }) => {
         await ui.scrollTo(modal(page).locator('.au-colors'))
-        await ui.highlight(modal(page).locator('.au-colors'), 1000)
+        await ui.point(modal(page).locator('.au-colors'), 1000)
         await ui.click(modal(page).locator('.au-colors button').nth(5))
         await ui.pause(500)
       },
@@ -190,7 +190,7 @@ export const chapter = {
       run: async ({ page, ui }) => {
         await staffShown(page)
         await ui.moveTo(newCard(page).locator('.au-member-name'))
-        await ui.highlight(newCard(page), 1800)
+        await ui.point(newCard(page), 1800)
       },
     },
     {
@@ -220,7 +220,7 @@ export const chapter = {
         await ui.click(menuItem(page, 'حذف العضو', 'Delete member'))
         await modal(page).waitFor({ timeout: 10000 })
         await ui.pause(500)
-        await ui.highlight(modal(page).locator('.modal-body'), 1800)
+        await ui.point(modal(page).locator('.modal-body'), 1800)
       },
     },
     {
@@ -231,9 +231,8 @@ export const chapter = {
       },
       run: async ({ page, ui }) => {
         await closeModal(page, ui)
-        await ui.highlight(card(page, 'u-doc2').locator('[data-qa="active-switch"]'), 1200)
-        await ui.moveTo(card(page, 'u-admin').locator('[data-qa="active-switch"]'))
-        await ui.highlight(card(page, 'u-admin').locator('[data-qa="active-switch"]'), 1200)
+        await ui.point(card(page, 'u-doc2').locator('[data-qa="active-switch"]'), 1200)
+        await ui.point(card(page, 'u-admin').locator('[data-qa="active-switch"]'), 1200)
       },
     },
     {
@@ -258,8 +257,8 @@ export const chapter = {
     {
       id: 'lock',
       say: {
-        ar: 'حين تبتعد عن الجهاز اقفل الشاشة حتى لا يطّلع أحد على ملفات المرضى: انقر على اسمك في أسفل القائمة الجانبية واختر «قفل الشاشة». ويقفل البرنامج نفسه بعد 15 دقيقة من عدم الاستخدام ما لم يغيّرها المدير.',
-        en: 'When you step away from the device, lock the screen so nobody can see patient files: click your name at the bottom of the sidebar and choose Lock screen. Dentora also locks itself after 15 minutes without use, unless the admin changes that.',
+        ar: 'حين تبتعد عن الجهاز اقفل الشاشة: انقر على اسمك في أسفل القائمة الجانبية واختر «قفل الشاشة». ويقفل دنتورا نفسه بعد 15 دقيقة من عدم الاستخدام ما لم يغيّرها المدير.',
+        en: 'When you step away from the device, lock the screen: click your name at the bottom of the sidebar and choose Lock screen. Dentora also locks itself after 15 minutes without use, unless the admin changes that.',
       },
       run: async ({ page, ui }) => {
         await ui.click(page.locator('.sidebar-user'))
@@ -273,11 +272,13 @@ export const chapter = {
     {
       id: 'sign-in-screen',
       say: {
-        ar: 'هذه شاشة الدخول: يختار كل عضو اسمه ويدخل برمزه، فيرى ما يسمح به دوره، ويُحفظ اسمه مع ما يسجّله. وفي نهاية الدوام اختر «تسجيل الخروج» من القائمة نفسها. اختر اسمك.',
-        en: 'This is the sign-in screen: each member picks their name and signs in with their PIN, sees what their role allows, and their name is kept with what they record. At the end of your shift choose Sign out from the same menu. Pick your name.',
+        ar: 'هذه شاشة الدخول: يختار كل عضو اسمه ويدخل برمزه، فيرى ما يسمح به دوره. وفي نهاية الدوام اختر «تسجيل الخروج» من القائمة نفسها. اختر اسمك.',
+        en: 'This is the sign-in screen: each member picks their name and signs in with their PIN, and sees what their role allows. At the end of your shift choose Sign out from the same menu. Pick your name.',
       },
       run: async ({ page, ui }) => {
-        await ui.highlight(page.locator('.user-pick'), 1500)
+        // the screen remembers the last member who signed in here and opens on their keypad: back to the names first
+        if (await page.locator('[data-qa="change-user"]').isVisible()) await ui.click(page.locator('[data-qa="change-user"]'))
+        await ui.point(page.locator('.user-pick'), 1500)
         await ui.click(page.locator('.au-tile[data-user="u-admin"]'))
         await page.locator('.pin-pad').waitFor({ timeout: 10000 })
         await ui.pause(400)
@@ -293,23 +294,22 @@ export const chapter = {
         await ui.click(page.locator('[data-qa="forgot"]'))
         await page.locator('[data-qa="forgot-box"]').waitFor({ timeout: 10000 })
         await ui.pause(300)
-        await ui.highlight(page.locator('[data-qa="login-device"]'), 1400)
-        await ui.moveTo(page.locator('.au-device-row button'))
-        await ui.highlight(page.locator('.au-device-row button'), 900)
+        await ui.point(page.locator('[data-qa="login-device"]'), 1400)
+        await ui.point(page.locator('.au-device-row button'), 900)
       },
     },
     {
       id: 'reset-code',
       say: {
-        ar: 'حين يصلك رمز إعادة التعيين انقر على «لديّ رمز إعادة تعيين»، والصق الرسالة كما وصلتك، ثم «تحقق من الرمز»، واختر رمز دخول جديداً. يعمل الرمز على هذا الجهاز وحده ومرة واحدة، وبياناتك تبقى كما هي.',
-        en: 'When the reset code arrives, click I have a reset code, paste the message as you received it, then Check the code, and choose a new PIN. The code works on this device only and only once, and your data stays as it is.',
+        ar: 'حين يصلك رمز إعادة التعيين انقر على «لديّ رمز إعادة تعيين»، والصق الرسالة كما وصلتك، ثم «تحقق من الرمز»، واختر رمز دخول جديداً. يعمل الرمز على هذا الجهاز وحده ومرة واحدة.',
+        en: 'When the reset code arrives, click I have a reset code, paste the message as you received it, then Check the code, and choose a new PIN. The code works on this device only and only once.',
       },
       run: async ({ page, ui }) => {
         await ui.click(page.locator('[data-qa="have-reset-code"]'))
         await modal(page).waitFor({ timeout: 10000 })
         await ui.pause(400)
-        await ui.highlight(page.locator('[data-qa="reset-code"]'), 1400)
-        await ui.highlight(page.locator('[data-qa="reset-check"]'), 1000)
+        await ui.point(page.locator('[data-qa="reset-code"]'), 1400)
+        await ui.point(page.locator('[data-qa="reset-check"]'), 1000)
       },
     },
     {
@@ -335,7 +335,7 @@ export const chapter = {
         const log = page.locator('[data-qa="signin-log"]')
         await ui.scrollTo(log)
         await log.locator('.list-item').first().waitFor({ timeout: 10000 })
-        await ui.highlight(log.locator('.list-item').first(), 1800)
+        await ui.point(log.locator('.list-item').first(), 1800)
       },
     },
     {
@@ -352,8 +352,8 @@ export const chapter = {
     {
       id: 'recap',
       say: {
-        ar: 'هكذا تضيف فريقك وتضبط أدواره ورموز دخوله، وتقفل الشاشة، وتحل نسيان الرمز. التفاصيل كلها في دليل الاستخدام على الموقع.',
-        en: 'That is how you add your team, set their roles and PINs, lock the screen and handle a forgotten PIN. Every detail is in the user guide on the website.',
+        ar: 'هكذا تضيف فريقك وتضبط أدواره ورموز دخوله. التفاصيل كلها في دليل الاستخدام على الموقع.',
+        en: 'That is how you add your team and set their roles and PINs. Every detail is in the user guide on the website.',
       },
       run: async ({ page, ui }) => {
         await ui.click(home(page))

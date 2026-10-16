@@ -43,6 +43,7 @@ export const chapter = {
 - `run` gets `{ page, ui, lang, device }`. `ui` (from `lib/ui.mjs`) does what a person would see: `ui.moveTo(locator)`
   glides the visible cursor to the element, `ui.click(locator)` moves then clicks with a ripple, `ui.type(locator, text)`
   clicks then types at a human pace, `ui.highlight(locator, ms)` draws the brand-teal outline for a moment,
+  `ui.point(locator, ms)` glides the cursor onto the element and then outlines it (the cursor stays there),
   `ui.scrollTo(locator)`, `ui.pause(ms)`, `ui.callout(text)` shows a short label near the cursor for a moment. Nothing
   else should touch the page (no `page.click` directly: the viewer would not see the cursor move).
 - A chapter may add `before: async (ctx) => {}` (set-up done before recording starts, e.g. open a patient) and

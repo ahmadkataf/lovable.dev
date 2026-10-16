@@ -57,7 +57,7 @@ export const chapter = {
         en: 'The page has five tabs: Financial, Patients, Appointments, Treatments and Outstanding. Reports are for the admin and the doctors.',
       },
       run: async ({ page, ui }) => {
-        await ui.highlight(page.locator('.rp-tabs'), 1200)
+        await ui.point(page.locator('.rp-tabs'), 1200)
         const tabs = page.locator('.rp-tabs .tab')
         for (let i = 0; i < 5; i++) await ui.moveTo(tabs.nth(i), { ms: 320 })
         await ui.pause(300)
@@ -70,10 +70,10 @@ export const chapter = {
         en: 'Above the tabs are the period bar and the All doctors list, and at the top of the page the Print and Export CSV buttons. The chosen period always shows under the title.',
       },
       run: async ({ page, ui }) => {
-        await ui.highlight(tid(page, 'rp-periodbar'), 1200)
+        await ui.point(tid(page, 'rp-periodbar'), 1200)
         await ui.moveTo(tid(page, 'rp-doctor'))
-        await ui.highlight(page.locator('.page-actions'), 1100)
-        await ui.highlight(tid(page, 'rp-range'), 1100)
+        await ui.point(page.locator('.page-actions'), 1100)
+        await ui.point(tid(page, 'rp-range'), 1100)
       },
     },
     {
@@ -87,7 +87,7 @@ export const chapter = {
         await page.waitForTimeout(1600)
         await ui.click(preset(page, 'فترة مخصصة', 'Custom'))
         await page.locator('.rp-range').waitFor({ timeout: 10000 })
-        await ui.highlight(page.locator('.rp-range'), 1300)
+        await ui.point(page.locator('.rp-range'), 1300)
         await ui.click(preset(page, 'الشهر الماضي', 'Last month'))
         await page.waitForTimeout(1600)
       },
@@ -100,8 +100,8 @@ export const chapter = {
       },
       run: async ({ page, ui }) => {
         await pickDoctor(page, ui, 'ArrowDown', 1)
-        await ui.highlight(tid(page, 'rp-range'), 1000)
-        await ui.highlight(page.locator('.rp-kpis'), 1500)
+        await ui.point(tid(page, 'rp-range'), 1000)
+        await ui.point(page.locator('.rp-kpis'), 1500)
       },
     },
     {
@@ -112,7 +112,7 @@ export const chapter = {
       },
       run: async ({ page, ui }) => {
         await pickDoctor(page, ui, 'ArrowUp', 1)
-        await ui.highlight(page.locator('.rp-kpis'), 1100)
+        await ui.point(page.locator('.rp-kpis'), 1100)
         const cards = page.locator('.rp-kpis .rp-kpi')
         for (let i = 0; i < 4; i++) await ui.moveTo(cards.nth(i), { ms: 360 })
         await ui.pause(300)
@@ -125,8 +125,7 @@ export const chapter = {
         en: 'Under most figures is their change vs previous period. While the period is still running, Dentora compares the days gone so far with the same days of the period before.',
       },
       run: async ({ page, ui }) => {
-        await ui.moveTo(tid(page, 'kpi-revenue').locator('.rp-kpi-foot'))
-        await ui.highlight(tid(page, 'kpi-revenue').locator('.rp-kpi-foot'), 1800)
+        await ui.point(tid(page, 'kpi-revenue').locator('.rp-kpi-foot'), 1800)
       },
     },
     {
@@ -137,13 +136,13 @@ export const chapter = {
       },
       run: async ({ page, ui }) => {
         await ui.scrollTo(tid(page, 'chart-revenue'))
-        await ui.highlight(tid(page, 'chart-revenue'), 1000)
+        await ui.point(tid(page, 'chart-revenue'), 1000)
         await ui.moveTo(tid(page, 'chart-revenue').locator('svg').first())
         await ui.pause(900)
-        await ui.highlight(tid(page, 'chart-methods'), 900)
+        await ui.point(tid(page, 'chart-methods'), 900)
         await ui.scrollTo(tid(page, 'chart-doctors'))
-        await ui.highlight(tid(page, 'chart-doctors'), 800)
-        await ui.highlight(tid(page, 'chart-categories'), 800)
+        await ui.point(tid(page, 'chart-doctors'), 800)
+        await ui.point(tid(page, 'chart-categories'), 800)
       },
     },
     {
@@ -169,8 +168,8 @@ export const chapter = {
       },
       run: async ({ page, ui }) => {
         await ui.scrollTo(tid(page, 'table-expenses'))
-        await ui.highlight(tid(page, 'table-expenses'), 1500)
-        await ui.highlight(tid(page, 'table-expenses').locator('.rp-table-total').last(), 1100)
+        await ui.point(tid(page, 'table-expenses'), 1500)
+        await ui.point(tid(page, 'table-expenses').locator('.rp-table-total').last(), 1100)
       },
     },
     {
@@ -183,9 +182,9 @@ export const chapter = {
         await ui.scrollTo(page.locator('.rp-tabs'))
         await ui.click(tab(page, 'المرضى', 'Patients'))
         await tabShown(page, 'rp-patients')
-        await ui.highlight(page.locator('.rp-kpis'), 1200)
+        await ui.point(page.locator('.rp-kpis'), 1200)
         await ui.scrollTo(tid(page, 'table-spenders'))
-        await ui.highlight(tid(page, 'table-spenders'), 1200)
+        await ui.point(tid(page, 'table-spenders'), 1200)
       },
     },
     {
@@ -198,8 +197,8 @@ export const chapter = {
         await ui.scrollTo(page.locator('.rp-tabs'))
         await ui.click(tab(page, 'المواعيد', 'Appointments'))
         await tabShown(page, 'rp-appointments')
-        await ui.highlight(page.locator('.rp-kpis'), 1200)
-        await ui.highlight(tid(page, 'chart-apt-status'), 1000)
+        await ui.point(page.locator('.rp-kpis'), 1200)
+        await ui.point(tid(page, 'chart-apt-status'), 1000)
       },
     },
     {
@@ -210,7 +209,7 @@ export const chapter = {
       },
       run: async ({ page, ui }) => {
         await ui.scrollTo(tid(page, 'table-doctors'))
-        await ui.highlight(tid(page, 'table-doctors'), 1800)
+        await ui.point(tid(page, 'table-doctors'), 1800)
       },
     },
     {
@@ -223,9 +222,9 @@ export const chapter = {
         await ui.scrollTo(page.locator('.rp-tabs'))
         await ui.click(tab(page, 'العلاجات', 'Treatments'))
         await tabShown(page, 'rp-treatments')
-        await ui.highlight(page.locator('.rp-kpis'), 1200)
+        await ui.point(page.locator('.rp-kpis'), 1200)
         await ui.scrollTo(tid(page, 'chart-top-count'))
-        await ui.highlight(tid(page, 'chart-top-count'), 1100)
+        await ui.point(tid(page, 'chart-top-count'), 1100)
       },
     },
     {
@@ -238,7 +237,7 @@ export const chapter = {
         await ui.scrollTo(page.locator('.rp-tabs'))
         await ui.click(tab(page, 'الذمم المستحقة', 'Outstanding'))
         await tabShown(page, 'rp-outstanding')
-        await ui.highlight(page.locator('.rp-kpis'), 1600)
+        await ui.point(page.locator('.rp-kpis'), 1600)
       },
     },
     {
@@ -249,10 +248,9 @@ export const chapter = {
       },
       run: async ({ page, ui }) => {
         await ui.scrollTo(tid(page, 'table-outstanding'))
-        await ui.highlight(tid(page, 'table-outstanding').locator('thead'), 1300)
+        await ui.point(tid(page, 'table-outstanding').locator('thead'), 1300)
         const name = tid(page, 'table-outstanding').locator('tbody tr').first().locator('a.cell-main')
-        await ui.moveTo(name)
-        await ui.highlight(name, 1000)
+        await ui.point(name, 1000)
       },
     },
     {
@@ -263,8 +261,7 @@ export const chapter = {
       },
       run: async ({ page, ui }) => {
         const wa = tid(page, 'table-outstanding').locator('tbody tr').first().locator('.rp-wa')
-        await ui.moveTo(wa)
-        await ui.highlight(wa, 1600)
+        await ui.point(wa, 1600)
       },
     },
     {
@@ -276,10 +273,8 @@ export const chapter = {
       run: async ({ page, ui }) => {
         await ui.scrollTo(page.locator('.page-header'))
         const print = btn(page.locator('.page-actions'), 'طباعة', 'Print')
-        await ui.moveTo(print)
-        await ui.highlight(print, 1300)
-        await ui.moveTo(tid(page, 'rp-csv'))
-        await ui.highlight(tid(page, 'rp-csv'), 1300)
+        await ui.point(print, 1300)
+        await ui.point(tid(page, 'rp-csv'), 1300)
       },
     },
     {

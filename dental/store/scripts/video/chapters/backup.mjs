@@ -76,7 +76,7 @@ export const chapter = {
       },
       run: async ({ page, ui }) => {
         await ui.moveTo(hero(page).locator('.st-hero-title'))
-        await ui.highlight(hero(page).locator('.st-hero'), 2200)
+        await ui.point(hero(page).locator('.st-hero'), 2200)
       },
     },
     {
@@ -86,9 +86,9 @@ export const chapter = {
         en: 'At the top are the numbers of Patients, Appointments and Invoices, and the date of the Last backup. Under them a notice gives your backup’s state: yellow if you have never backed up or the last one is a week old, green when it is recent.',
       },
       run: async ({ page, ui }) => {
-        await ui.highlight(hero(page).locator('.st-backup-stats'), 1300)
-        await ui.highlight(hero(page).locator('[data-qa="last-backup"]'), 900)
-        await ui.highlight(hero(page).locator('.alert-warning'), 1500)
+        await ui.point(hero(page).locator('.st-backup-stats'), 1300)
+        await ui.point(hero(page).locator('[data-qa="last-backup"]'), 900)
+        await ui.point(hero(page).locator('.alert-warning'), 1500)
       },
     },
     {
@@ -99,18 +99,18 @@ export const chapter = {
       },
       run: async ({ page, ui, lang }) => {
         files.plain = await exportBackup(page, ui, `${lang}-plain`)
-        await ui.highlight(page.locator('.toast-success').first(), 1600)
+        await ui.point(page.locator('.toast-success').first(), 1600)
       },
     },
     {
       id: 'saved',
       say: {
-        ar: 'الملف واحد، اسمه dentora-backup مع التاريخ والساعة، وفيه كل شيء: المرضى والمواعيد والعلاجات والفواتير والمخزون والمصروفات والملفات المرفقة وحسابات الفريق والإعدادات. وصار التنبيه أخضر: «نسختك الاحتياطية حديثة».',
-        en: 'It is one file, named dentora-backup with the date and time, and it holds everything: patients, appointments, treatments, invoices, stock, expenses, attached files, the team accounts and the settings. The notice is now green: Your backup is up to date.',
+        ar: 'الملف واحد، اسمه dentora-backup مع التاريخ والساعة، وفيه كل شيء: المرضى والمواعيد والفواتير والملفات المرفقة وحسابات الفريق والإعدادات. وصار التنبيه أخضر: «نسختك الاحتياطية حديثة».',
+        en: 'It is one file, named dentora-backup with the date and time, and it holds everything: patients, appointments, invoices, attached files, the team accounts and the settings. The notice is now green: Your backup is up to date.',
       },
       run: async ({ page, ui }) => {
-        await ui.highlight(hero(page).locator('.alert-success'), 1600)
-        await ui.highlight(hero(page).locator('[data-qa="last-backup"]'), 1100)
+        await ui.point(hero(page).locator('.alert-success'), 1600)
+        await ui.point(hero(page).locator('[data-qa="last-backup"]'), 1100)
       },
     },
     {
@@ -133,20 +133,19 @@ export const chapter = {
         en: 'Write the password down somewhere safe: without it this backup can never be opened. Dentora remembers that you protect your backups but never stores the password, and asks for it when you restore. Then click Export backup as usual.',
       },
       run: async ({ page, ui, lang }) => {
-        await ui.highlight(hero(page).locator('.bk-protect .alert-warning'), 1800)
+        await ui.point(hero(page).locator('.bk-protect .alert-warning'), 1800)
         files.protected = await exportBackup(page, ui, `${lang}-protected`)
-        await ui.highlight(page.locator('.toast-success').first(), 1200)
+        await ui.point(page.locator('.toast-success').first(), 1200)
       },
     },
     {
       id: 'where',
       say: {
-        ar: 'احفظ نسختك دائماً خارج الجهاز: على فلاشة أو قرص خارجي، أو في Google Drive أو OneDrive، أو أرسلها لنفسك بالبريد أو واتساب، والأفضل أن تبقى نسخة خارج العيادة. ننصح بنسخة أسبوعية على الأقل، والأفضل في نهاية كل يوم عمل.',
-        en: 'Always keep your backup off the device: on a USB stick or an external disk, in Google Drive or OneDrive, or sent to yourself by email or WhatsApp, ideally with one copy outside the clinic. Back up at least once a week, and ideally at the end of every working day.',
+        ar: 'احفظ نسختك دائماً خارج الجهاز: على فلاشة أو قرص خارجي، أو في Google Drive، أو أرسلها لنفسك بالبريد أو واتساب، والأفضل أن تبقى نسخة خارج العيادة. ننصح بنسخة أسبوعية على الأقل، والأفضل في نهاية كل يوم عمل.',
+        en: 'Always keep your backup off the device: on a USB stick or an external disk, in Google Drive, or sent to yourself by email or WhatsApp, ideally with one copy outside the clinic. Back up at least once a week, and ideally at the end of every working day.',
       },
       run: async ({ page, ui, lang }) => {
-        await ui.moveTo(hero(page).locator('.st-hero-desc'))
-        await ui.highlight(hero(page).locator('.st-hero-desc'), 1600)
+        await ui.point(hero(page).locator('.st-hero-desc'), 1600)
         await ui.callout(pick(lang, 'نسخة أسبوعية على الأقل، خارج الجهاز', 'At least weekly, off this device'), { ms: 2400 })
       },
     },
@@ -159,7 +158,7 @@ export const chapter = {
       run: async ({ page, ui }) => {
         const restore = cardWith(page, '[data-qa="choose-backup"]')
         await ui.scrollTo(restore)
-        await ui.highlight(restore, 1200)
+        await ui.point(restore, 1200)
         const chooser = page.waitForEvent('filechooser', { timeout: 15000 })
         await ui.click(page.locator('[data-qa="choose-backup"]'))
         await (await chooser).setFiles(files.protected)
@@ -183,14 +182,14 @@ export const chapter = {
     {
       id: 'restore-summary',
       say: {
-        ar: 'راجع ما في الملف: تاريخ النسخة، واسم العيادة، وعدد المرضى والمواعيد والفواتير وملفات المرضى والسجلات. انتبه: بيانات الملف تحلّ محل كل البيانات الموجودة الآن على هذا الجهاز.',
-        en: 'Check what the file holds: the backup date, the clinic’s name, and the numbers of patients, appointments, invoices, patient files and records. Note: the file’s data replaces everything currently on this device.',
+        ar: 'راجع ما في الملف: تاريخ النسخة واسم العيادة وعدد المرضى والمواعيد والفواتير. انتبه: بيانات الملف تحلّ محل كل البيانات الموجودة الآن على هذا الجهاز.',
+        en: 'Check what the file holds: the backup date, the clinic’s name and the numbers of patients, appointments and invoices. Note: the file’s data replaces everything currently on this device.',
       },
       run: async ({ page, ui }) => {
         const m = modal(page)
-        await ui.highlight(m.locator('.st-file-card'), 1100)
-        await ui.highlight(m.locator('[data-qa="restore-summary"]'), 1600)
-        await ui.highlight(m.locator('.alert-danger'), 1300)
+        await ui.point(m.locator('.st-file-card'), 1100)
+        await ui.point(m.locator('[data-qa="restore-summary"]'), 1600)
+        await ui.point(m.locator('.alert-danger'), 1300)
       },
     },
     {
@@ -200,8 +199,8 @@ export const chapter = {
         en: 'To go on, type REPLACE in the confirmation box and click Restore and replace data; Dentora then restarts. A restore is all or nothing: if it fails for any reason, none of your data changes. We will not restore now: Cancel.',
       },
       run: async ({ page, ui }) => {
-        await ui.highlight(page.locator('[data-qa="confirm-word"]'), 1300)
-        await ui.highlight(page.locator('[data-qa="confirm-danger"]'), 1100)
+        await ui.point(page.locator('[data-qa="confirm-word"]'), 1300)
+        await ui.point(page.locator('[data-qa="confirm-danger"]'), 1100)
         await ui.pause(1200)
         await closeModal(page, ui)
       },
@@ -209,14 +208,14 @@ export const chapter = {
     {
       id: 'new-device',
       say: {
-        ar: 'لنقل العيادة إلى جهاز جديد: احفظ نسخة حديثة على الجهاز القديم وانقل الملف، وثبّت دنتورا على الجديد، وفي الشاشة الأولى من معالج الإعداد انقر على «استعد بياناتك من نسخة احتياطية». ثم ادخل باسمك ورمزك المعتادين، وفعّل الترخيص من جديد، لأن للجهاز الجديد رقم جهاز جديداً.',
-        en: 'To move the clinic to a new device: save a fresh backup on the old device and bring the file over, install Dentora on the new one, and on the setup wizard’s first screen click Restore your data from a backup. Then sign in with your usual name and PIN, and activate the licence again, because the new device has a new device number.',
+        ar: 'لنقل العيادة إلى جهاز جديد: احفظ نسخة حديثة على الجهاز القديم، وثبّت دنتورا على الجديد، وفي الشاشة الأولى من معالج الإعداد انقر على «استعد بياناتك من نسخة احتياطية». ثم ادخل باسمك ورمزك المعتادين، وفعّل الترخيص من جديد: للجهاز الجديد رقم جهاز جديد.',
+        en: 'To move the clinic to a new device: save a fresh backup on the old device, install Dentora on the new one, and on the setup wizard’s first screen click Restore your data from a backup. Then sign in with your usual name and PIN, and activate the licence again: the new device has a new device number.',
       },
       run: async ({ page, ui }) => {
         const restore = cardWith(page, '[data-qa="choose-backup"]')
         await ui.scrollTo(restore)
         await ui.moveTo(page.locator('[data-qa="choose-backup"]'))
-        await ui.highlight(restore, 1800)
+        await ui.point(restore, 1800)
       },
     },
     {
@@ -232,14 +231,14 @@ export const chapter = {
     {
       id: 'demo',
       say: {
-        ar: 'بطاقة «تجربة البرنامج ببيانات جاهزة»: زر «تحميل بيانات تجريبية» يضيف عيادة كاملة النشاط لتجرّب البرنامج، ويعمل ما دام في العيادة أقل من 3 مرضى، حتى لا تختلط البيانات التجريبية ببياناتك الحقيقية.',
-        en: 'The Try the app with ready-made data card: Load demo data adds a busy clinic so you can try Dentora, and works while the clinic has fewer than 3 patients, so demo data never mixes with your real records.',
+        ar: 'بطاقة «تجربة البرنامج ببيانات جاهزة»: زر «تحميل بيانات تجريبية» يضيف عيادة كاملة النشاط لتجرّب دنتورا، ويعمل ما دام في العيادة أقل من 3 مرضى، حتى لا تختلط البيانات التجريبية بالحقيقية.',
+        en: 'The Try the app with ready-made data card: Load demo data adds a busy clinic so you can try Dentora, and works while the clinic has fewer than 3 patients, so demo data never mixes with real records.',
       },
       run: async ({ page, ui }) => {
         const demo = cardWith(page, '[data-qa="load-demo"]')
         await ui.scrollTo(demo)
-        await ui.highlight(demo, 1300)
-        await ui.highlight(page.locator('[data-qa="demo-blocked"]'), 1400)
+        await ui.point(demo, 1300)
+        await ui.point(page.locator('[data-qa="demo-blocked"]'), 1400)
       },
     },
     {
@@ -250,7 +249,7 @@ export const chapter = {
       },
       run: async ({ page, ui }) => {
         await ui.scrollTo(page.locator('.st-danger-zone'))
-        await ui.highlight(page.locator('.st-danger-zone'), 1100)
+        await ui.point(page.locator('.st-danger-zone'), 1100)
         await ui.click(page.locator('[data-qa="reset-all"]'))
         await modal(page).waitFor({ timeout: 10000 })
         await ui.pause(500)
@@ -259,13 +258,13 @@ export const chapter = {
     {
       id: 'danger-dialog',
       say: {
-        ar: 'إن لم تكن لديك نسخة حديثة فانقر أولاً على «تصدير نسخة أولاً». ثم اكتب كلمة «حذف» في خانة التأكيد وانقر على «حذف كل البيانات»، فيُفتح معالج الإعداد من جديد، ويبقى تفعيل الترخيص كما هو. لن نحذف شيئاً الآن: «إلغاء».',
-        en: 'If you have no recent backup, first click Export a backup first. Then type ERASE in the confirmation box and click Erase all data; the setup wizard opens again, and the licence activation is kept. We will not erase anything now: Cancel.',
+        ar: 'إن لم تكن لديك نسخة حديثة فانقر أولاً على «تصدير نسخة أولاً». ثم اكتب كلمة «حذف» في خانة التأكيد وانقر على «حذف كل البيانات»، فيُفتح معالج الإعداد من جديد. لن نحذف شيئاً الآن: «إلغاء».',
+        en: 'If you have no recent backup, first click Export a backup first. Then type ERASE in the confirmation box and click Erase all data; the setup wizard opens again. We will not erase anything now: Cancel.',
       },
       run: async ({ page, ui }) => {
-        await ui.highlight(page.locator('.modal-footer .start button'), 1200)
-        await ui.highlight(page.locator('[data-qa="confirm-word"]'), 1100)
-        await ui.highlight(page.locator('[data-qa="confirm-danger"]'), 900)
+        await ui.point(page.locator('.modal-footer .start button'), 1200)
+        await ui.point(page.locator('[data-qa="confirm-word"]'), 1100)
+        await ui.point(page.locator('[data-qa="confirm-danger"]'), 900)
         await ui.pause(1500)
         await closeModal(page, ui)
       },
@@ -273,8 +272,8 @@ export const chapter = {
     {
       id: 'android',
       say: {
-        ar: 'على أندرويد يمسح حذف التطبيق كل بيانات العيادة نهائياً، ولا تنقلها نسخة Google التلقائية: ملف النسخة من داخل البرنامج هو الطريقة الوحيدة. وصفحة النسخ الاحتياطي للمدير وحده.',
-        en: 'On Android, uninstalling the app erases all clinic data for good, and Google’s automatic backup does not carry it: the backup file made inside Dentora is the only way. The backup page is for the admin only.',
+        ar: 'على أندرويد يمسح حذف التطبيق كل بيانات العيادة نهائياً، ولا تنقلها نسخة Google التلقائية: ملف النسخة من داخل دنتورا هو الطريقة الوحيدة.',
+        en: 'On Android, uninstalling the app erases all clinic data for good, and Google’s automatic backup does not carry it: the backup file made inside Dentora is the only way.',
       },
       run: async ({ page, ui, lang }) => {
         await ui.scrollTo(page.locator('.page-header'))

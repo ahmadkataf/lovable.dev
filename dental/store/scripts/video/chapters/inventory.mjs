@@ -53,11 +53,10 @@ export const chapter = {
         en: 'Four cards sit at the top: Items, Low stock, Expiring soon and Stock value. Under them a yellow bar names the low items, with a Restock button.',
       },
       run: async ({ page, ui }) => {
-        await ui.highlight(page.locator('.inv-stats'), 1200)
+        await ui.point(page.locator('.inv-stats'), 1200)
         for (let i = 0; i < 4; i++) await ui.moveTo(page.locator('.inv-stats .stat-card').nth(i), { ms: 350 })
-        await ui.highlight(page.locator('.inv-reorder'), 1400)
-        await ui.moveTo(page.locator('.inv-reorder button'))
-        await ui.highlight(page.locator('.inv-reorder button'), 900)
+        await ui.point(page.locator('.inv-reorder'), 1400)
+        await ui.point(page.locator('.inv-reorder button'), 900)
       },
     },
     {
@@ -67,7 +66,7 @@ export const chapter = {
         en: 'Then the Items and Movements tabs. In the table each item shows its SKU and category, its Quantity between a minus and a plus button, then Threshold, Cost price, Value, Supplier and Expiry.',
       },
       run: async ({ page, ui }) => {
-        await ui.highlight(page.locator('.inv-tabs'), 1100)
+        await ui.point(page.locator('.inv-tabs'), 1100)
         const heads = page.locator('table thead th')
         const n = Math.min(await heads.count(), 7)
         for (let i = 0; i < n; i++) await ui.moveTo(heads.nth(i), { ms: 320 })
@@ -81,9 +80,9 @@ export const chapter = {
         en: 'The list is sorted by urgency: out of stock first, then items at their alert level with a Low badge, then expiring ones, then the rest by name.',
       },
       run: async ({ page, ui }) => {
-        await ui.highlight(firstRow(page).locator('.inv-item-meta'), 1300)
-        await ui.highlight(page.locator('table tbody tr').nth(1).locator('.inv-item-meta'), 1000)
-        await ui.highlight(page.locator('table tbody tr').nth(2).locator('.inv-item-meta'), 1000)
+        await ui.point(firstRow(page).locator('.inv-item-meta'), 1300)
+        await ui.point(page.locator('table tbody tr').nth(1).locator('.inv-item-meta'), 1000)
+        await ui.point(page.locator('table tbody tr').nth(2).locator('.inv-item-meta'), 1000)
       },
     },
     {
@@ -119,11 +118,11 @@ export const chapter = {
       },
       run: async ({ page, ui }) => {
         const m = modal(page)
-        await ui.highlight(m.getByLabel(/^(الوحدة|Unit)$/), 1000)
+        await ui.point(m.getByLabel(/^(الوحدة|Unit)$/), 1000)
         await ui.type(m.getByLabel(/الكمية الابتدائية|Opening quantity/), '10', { delay: 90 })
         await ui.type(m.getByLabel(/حد التنبيه|Alert threshold/), '4', { delay: 90 })
         await ui.type(m.getByLabel(/سعر التكلفة|Cost price/), '6', { delay: 90 })
-        await ui.highlight(m.getByLabel(/تاريخ الانتهاء|Expiry date/), 1000)
+        await ui.point(m.getByLabel(/تاريخ الانتهاء|Expiry date/), 1000)
       },
     },
     {
@@ -135,7 +134,7 @@ export const chapter = {
       run: async ({ page, ui, lang }) => {
         const m = modal(page)
         await ui.type(m.getByLabel(/^(المورد|Supplier)$/), pick(lang, 'مستودع الشفاء للمواد السنية', 'Al-Shifa Dental Supplies'), { delay: 50 })
-        await ui.highlight(m.getByLabel(/مكان التخزين|Storage location/), 800)
+        await ui.point(m.getByLabel(/مكان التخزين|Storage location/), 800)
         await ui.click(btn(page.locator('.modal-footer'), 'إضافة الصنف', 'Add item'))
         await modal(page).waitFor({ state: 'hidden', timeout: 10000 })
         await ui.pause(900)
@@ -150,7 +149,7 @@ export const chapter = {
       run: async ({ page, ui }) => {
         await itemsShown(page)
         await ui.moveTo(firstRow(page).locator('.inv-step').first())
-        await ui.highlight(firstRow(page).locator('.inv-qty'), 1200)
+        await ui.point(firstRow(page).locator('.inv-qty'), 1200)
         await ui.click(firstRow(page).locator('.inv-step.add'))
         await page.locator('.inv-popover').waitFor({ timeout: 10000 })
         await ui.pause(400)
@@ -164,9 +163,9 @@ export const chapter = {
       },
       run: async ({ page, ui }) => {
         const p = page.locator('.inv-popover')
-        await ui.highlight(p.locator('.segmented'), 1100)
+        await ui.point(p.locator('.segmented'), 1100)
         await ui.type(p.locator('input[type="number"]').first(), '5', { delay: 90 })
-        await ui.highlight(p.locator('.inv-reasons'), 1000)
+        await ui.point(p.locator('.inv-reasons'), 1000)
         await ui.click(p.locator('.inv-reasons .chip', { hasText: /^(شراء|Purchase)$/ }))
       },
     },
@@ -178,7 +177,7 @@ export const chapter = {
       },
       run: async ({ page, ui }) => {
         const p = page.locator('.inv-popover')
-        await ui.highlight(p.locator('.inv-move-summary'), 1400)
+        await ui.point(p.locator('.inv-move-summary'), 1400)
         await ui.click(btn(p, 'تسجيل الحركة', 'Record movement'))
         await p.waitFor({ state: 'hidden', timeout: 10000 })
         await ui.pause(900)
@@ -195,7 +194,7 @@ export const chapter = {
         await modal(page).waitFor({ timeout: 10000 })
         await modal(page).locator('.inv-pl:not(.inv-pl-head)').first().waitFor({ timeout: 10000 })
         await ui.pause(500)
-        await ui.highlight(modal(page).locator('.inv-purchase-lines'), 1400)
+        await ui.point(modal(page).locator('.inv-purchase-lines'), 1400)
       },
     },
     {
@@ -206,10 +205,12 @@ export const chapter = {
       },
       run: async ({ page, ui, lang }) => {
         const m = modal(page)
-        await ui.highlight(m.getByLabel(/تاريخ الشراء|Purchase date/), 900)
+        // the scene before left the dialog scrolled to its lines: back up to the header fields first
+        await ui.scrollTo(m.getByLabel(/تاريخ الشراء|Purchase date/))
+        await ui.point(m.getByLabel(/تاريخ الشراء|Purchase date/), 900)
         await ui.type(m.getByLabel(/^(المورد|Supplier)$/), pick(lang, 'مستودع الشفاء للمواد السنية', 'Al-Shifa Dental Supplies'), { delay: 50 })
         await ui.type(m.getByLabel(/رقم الفاتورة|Invoice number/), 'F-2291', { delay: 70 })
-        await ui.highlight(m.locator('.inv-pl:not(.inv-pl-head)').first(), 1300)
+        await ui.point(m.locator('.inv-pl:not(.inv-pl-head)').first(), 1300)
       },
     },
     {
@@ -221,12 +222,12 @@ export const chapter = {
       run: async ({ page, ui }) => {
         const m = modal(page)
         await ui.scrollTo(m.locator('.inv-purchase-expense'))
-        await ui.highlight(m.locator('.inv-purchase-expense'), 1200)
-        await ui.highlight(page.locator('.modal-footer .inv-purchase-total'), 1000)
+        await ui.point(m.locator('.inv-purchase-expense'), 1200)
+        await ui.point(page.locator('.modal-footer .inv-purchase-total'), 1000)
         await ui.click(btn(page.locator('.modal-footer'), 'حفظ الشراء', 'Save purchase'))
         await modal(page).waitFor({ state: 'hidden', timeout: 15000 })
         await ui.pause(800)
-        await ui.highlight(page.locator('.inv-stats .stat-card').nth(1), 1500)
+        await ui.point(page.locator('.inv-stats .stat-card').nth(1), 1500)
       },
     },
     {
@@ -241,9 +242,9 @@ export const chapter = {
         await d.waitFor({ timeout: 10000 })
         await d.locator('.inv-summary').waitFor({ timeout: 10000 })
         await ui.pause(400)
-        await ui.highlight(d.locator('.inv-summary'), 1200)
-        await ui.highlight(d.locator('.inv-summary-stats'), 900)
-        await ui.highlight(d.locator('.inv-drawer-actions'), 1000)
+        await ui.point(d.locator('.inv-summary'), 1200)
+        await ui.point(d.locator('.inv-summary-stats'), 900)
+        await ui.point(d.locator('.inv-drawer-actions'), 1000)
       },
     },
     {
@@ -255,9 +256,9 @@ export const chapter = {
       run: async ({ page, ui }) => {
         const d = page.locator('.drawer')
         await ui.scrollTo(d.locator('.inv-timeline'), { block: 'start' })
-        await ui.highlight(d.locator('.inv-tl-row').nth(0), 1100)
-        await ui.highlight(d.locator('.inv-tl-row').nth(1), 800)
-        await ui.highlight(btn(d.locator('.drawer-footer'), 'تعديل الصنف', 'Edit item'), 1000)
+        await ui.point(d.locator('.inv-tl-row').nth(0), 1100)
+        await ui.point(d.locator('.inv-tl-row').nth(1), 800)
+        await ui.point(btn(d.locator('.drawer-footer'), 'تعديل الصنف', 'Edit item'), 1000)
       },
     },
     {
@@ -273,7 +274,7 @@ export const chapter = {
         await ui.click(page.locator('.inv-tabs').getByRole('tab', { name: /الحركات|Movements/ }))
         await firstRow(page).waitFor({ timeout: 15000 })
         await ui.pause(500)
-        await ui.highlight(page.locator('.inv-search'), 800)
+        await ui.point(page.locator('.inv-search'), 800)
         await ui.click(page.locator('.inv-chips .chip', { hasText: /^(شراء|Purchase)$/ }))
         await ui.pause(1500)
         await ui.click(page.locator('.inv-chips .chip', { hasText: /^(الكل|All)$/ }))
@@ -307,8 +308,8 @@ export const chapter = {
         await ui.click(page.locator('.inv-stats .stat-card').nth(2))
         await page.locator('.inv-chip-warn').waitFor({ timeout: 10000 })
         await ui.pause(400)
-        await ui.highlight(page.locator('.inv-chip-warn'), 1000)
-        await ui.highlight(firstRow(page).locator('.badge').last(), 1300)
+        await ui.point(page.locator('.inv-chip-warn'), 1000)
+        await ui.point(firstRow(page).locator('.badge').last(), 1300)
         await ui.pause(2200)
         await ui.click(btn(page, 'مسح التصفية', 'Clear filters'))
         await ui.pause(300)
@@ -343,8 +344,8 @@ export const chapter = {
       },
       run: async ({ page, ui }) => {
         const m = modal(page)
-        await ui.highlight(m.getByLabel(/الكمية الحالية|Current quantity/), 1600)
-        await ui.highlight(m.locator('.switch').first(), 1200)
+        await ui.point(m.getByLabel(/الكمية الحالية|Current quantity/), 1600)
+        await ui.point(m.locator('.switch').first(), 1200)
       },
     },
     {
@@ -356,8 +357,7 @@ export const chapter = {
       run: async ({ page, ui }) => {
         await closeModal(page, ui)
         await ui.scrollTo(page.locator('.page-header'))
-        await ui.moveTo(btn(page, 'تصدير CSV', 'Export CSV'))
-        await ui.highlight(btn(page, 'تصدير CSV', 'Export CSV'), 1800)
+        await ui.point(btn(page, 'تصدير CSV', 'Export CSV'), 1800)
       },
     },
     {

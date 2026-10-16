@@ -136,6 +136,9 @@ export const chapter = {
         await popover(page).waitFor()
         await ui.click(popover(page).getByRole('option', { name: /^A2$/ }))
         await ui.type(dialog(page).getByLabel(rx('المادة', 'Material')), L(lang, 'إيماكس', 'e.max'), { delay: 110 })
+        // pick the typed material from its suggestions, so the list is closed before the teeth are clicked
+        await ui.click(popover(page).getByRole('option').first())
+        await popover(page).waitFor({ state: 'hidden' })
       },
     },
     {
@@ -200,8 +203,8 @@ export const chapter = {
     {
       id: 'send',
       say: {
-        ar: 'حين ترسل المسودة انقر على «إرسال للمخبر»: يُسجَّل تاريخ اليوم للإرسال إن كان فارغاً، ويُحدَّد موعد التسليم بعد 7 أيام.',
-        en: 'When a draft goes out, click Send to lab: today is recorded as the sent date if it was empty, and the due date is set 7 days later.',
+        ar: 'حين ترسل المسودة انقر على «إرسال للمخبر»: إن كان تاريخ الإرسال فارغاً يُسجَّل اليوم، وإن كان موعد التسليم فارغاً يُحدَّد بعد 7 أيام.',
+        en: 'When a draft goes out, click Send to lab: if its sent date is empty, today is recorded, and an empty due date is set 7 days later.',
       },
       run: async ({ page, ui, lang }) => {
         const row = rowOf(page, lang, 'dima')
@@ -251,8 +254,8 @@ export const chapter = {
     {
       id: 'row-menu',
       say: {
-        ar: 'إذا احتاج العمل إلى تعديل افتح قائمة النقاط الثلاث واختر «إعادة للمخبر»: يُحدَّد موعد جديد ويعود زر «استلام». وفيها أيضاً «طباعة أمر العمل» و«تعديل» و«إلغاء الطلب» و«حذف».',
-        en: 'If the work needs correcting, open the three-dot menu and choose Send back: a new due date is set and the Receive button comes back. The menu also has Print lab slip, Edit, Cancel order and Delete.',
+        ar: 'إذا احتاج العمل إلى تعديل افتح قائمة النقاط الثلاث واختر «إعادة للمخبر (إعادة عمل)»: إن كان موعد التسليم قد حلّ يُحدَّد موعد جديد، ويعود زر «استلام» إلى السطر. وفي القائمة أيضاً «طباعة أمر العمل» و«تعديل» و«إلغاء الطلب» و«حذف».',
+        en: 'If the work needs correcting, open the three-dot menu and choose Send back (remake): if the due date has come, a new one is set, and the Receive button comes back on the row. The menu also has Print lab slip, Edit, Cancel order and Delete.',
       },
       run: async ({ page, ui, lang }) => {
         await ui.scrollTo(rowOf(page, lang, 'anas'))
@@ -312,8 +315,8 @@ export const chapter = {
     {
       id: 'recap',
       say: {
-        ar: 'الطلبات المتأخرة أو المستحقة اليوم تظهر أيضاً في التنبيهات وفي الشاشة الرئيسية. وعلى الهاتف تجد «المخبر» تحت «المزيد». هكذا تسجّل الطلب وتتابعه حتى التركيب. التفاصيل كلها في دليل الاستخدام على الموقع.',
-        en: 'Orders that are late or due today also show in Notifications and on the Dashboard. On a phone, Lab is under More. That is how you record an order and follow it to fitting. Every detail is in the user guide on the website.',
+        ar: 'الطلبات المرسلة أو قيد العمل التي تأخرت أو تستحق اليوم تظهر أيضاً في التنبيهات وفي الشاشة الرئيسية. وعلى الهاتف تجد «المخبر» تحت «المزيد». هكذا تسجّل الطلب وتتابعه حتى التركيب. التفاصيل كلها في دليل الاستخدام على الموقع.',
+        en: 'Sent or in-progress orders that are late or due today also show in Notifications and on the Dashboard. On a phone, Lab is under More. That is how you record an order and follow it to fitting. Every detail is in the user guide on the website.',
       },
       run: async ({ page, ui }) => {
         await ui.click(sidebar(page, 'المخبر', 'Lab'))

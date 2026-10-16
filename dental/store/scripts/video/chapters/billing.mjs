@@ -295,7 +295,8 @@ export const chapter = {
         en: 'Click any row, or the printer button at its end, to open its receipt and print it.',
       },
       run: async ({ page, ui }) => {
-        await ui.click(page.locator('.bl-table tbody tr').first().getByRole('button', { name: rx('طباعة الإيصال', 'Print receipt') }))
+        // the newest row is the refund of the scene before (a "Refund receipt"): the second row is the payment's receipt
+        await ui.click(page.locator('.bl-table tbody tr').nth(1).getByRole('button', { name: rx('طباعة الإيصال', 'Print receipt') }))
         await receipt(page).locator('.bl-receipt').waitFor()
         await ui.highlight(receipt(page).locator('.bl-receipt'), 1800)
         await ui.click(receipt(page).locator('.modal-footer').getByRole('button', { name: rx('إغلاق', 'Close') }))
