@@ -5,7 +5,9 @@
 
 - Never regenerates: an existing output is skipped (gemini_tts.py does the same).
 - At most 8 requests per quota day (midnight to midnight Pacific time), keeping 2 of the 10 for retakes
-  (--allow-reserve uses them). Every request is logged in store/voiceover/requests.csv.
+  (--allow-reserve uses them; VOICEOVER_LOCAL_BUDGET=off lifts this budget, e.g. when the project pays or when
+  Google's day starts earlier than the Pacific one: only Google's limits apply).
+  Every request is logged in store/voiceover/requests.csv.
 - At least 25 seconds between two requests.
 - Exit codes as gemini_tts.py: 0 saved or skipped, 3 daily quota used up (stop, resume after the reset),
   1 other error; 4 = this script's own daily budget is spent (not a request was sent).
@@ -78,6 +80,8 @@ def main():
     today = quota_day()
     sent = [r for r in rows if r["quota_day"] == today and r["exit"] != "skip"]
     budget = DAILY if a.allow_reserve else DAILY - RESERVE
+    if os.environ.get("VOICEOVER_LOCAL_BUDGET") == "off":
+        budget = float("inf")   # only Google's own limits apply (exit 3 still stops): the caller limits the lessons
     if len(sent) >= budget:
         print(f"BUDGET: {len(sent)} requests already sent on quota day {today} (budget {budget}); resume after midnight Pacific.")
         return 4

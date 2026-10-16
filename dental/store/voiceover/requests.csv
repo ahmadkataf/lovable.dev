@@ -7,3 +7,7 @@ utc,quota_day,lesson,voice,out,exit,seconds,audio_seconds
 2026-10-16T10:38:37+00:00,2026-10-16,L04-patients,ar-001-training-2,audio/L04-patients_s1.wav,0,35,229.7
 2026-10-16T10:39:12+00:00,2026-10-16,L05-chart,ar-001-training-2,audio/L05-chart_s1.wav,0,35,243.0
 2026-10-16T10:39:47+00:00,2026-10-16,L06-appointments,ar-001-training-2,audio/L06-appointments_s1.wav,0,32,220.6
+2026-10-16T11:43:55+00:00,2026-10-16,L07-treatments,ar-001-training-2,audio/L07-treatments_s1.wav,0,36,253.8
+2026-10-16T11:44:31+00:00,2026-10-16,L08-billing,ar-001-training-2,audio/L08-billing_s1.wav,0,34,229.1
+2026-10-16T11:45:04+00:00,2026-10-16,L09-prescriptions,ar-001-training-2,audio/L09-prescriptions_s1.wav,0,32,228.1
+2026-10-16T11:45:37+00:00,2026-10-16,L10-lab,ar-001-training-2,audio/L10-lab_s1.wav,3,0,
