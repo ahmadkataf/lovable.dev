@@ -299,9 +299,11 @@
       // ================= L1 timings =================
       const tUse = Math.max(F(1, .02), T.at(1) + .3)
       const tS0 = Math.max(F(1, .05), tUse + .3), tS1 = Math.max(F(1, .46), tS0 + 1.2)
-      const tSr = Math.max(F(1, .5), tS1 + .1), tFly = Math.max(F(1, .6), tSr + .5)
-      const tSwap = Math.max(F(1, .68), tFly + .45)
-      const tD1 = tSwap + .15, tD2 = Math.max(F(1, .8), tD1 + .6), tRes = Math.max(F(1, .9), tD2 + .6), tOk = tRes + .4
+      // «وآخرها: واحد، زائد، إنْ ناقص واحد، ضرب اثنين» (.05–.5) · «أي اثنان إنْ ناقص واحد» (.52–.75) · «فمجموعها» (.79) ·
+      // «إنْ تربيع» (.92)
+      const tSr = Math.max(F(1, .52), tS1 + .1), tFly = Math.max(F(1, .62), tSr + .5)
+      const tSwap = Math.max(F(1, .72), tFly + .45)
+      const tD1 = tSwap + .2, tD2 = Math.max(F(1, .83), tD1 + .6), tRes = Math.max(F(1, .91), tD2 + .6), tOk = tRes + .4
       const out1 = T.p(lt, 3, 0, .6)                      // everything under card ① leaves when the step begins
       const dimD = lerp(1, .45, f2)                        // and steps back while ② is discussed
       // frame on the sum: from «بقانون المجموع» until the sum is settled
