@@ -155,7 +155,7 @@ scene('s16', {
     this.wrap.style.translate = `calc(-50% + ${(1 - wB) * this.shift0}px) -50%`
     const qv = Math.min(prog(lt, at(0) + 1.2, .5), 1 - prog(lt, atf(1, .55) - .1, .3))
     pop(this.q, qv); if (qv >= 1) this.q.style.transform = `scale(${1 + .06 * Math.sin((lt - at(0)) * 3)})`
-    const famIn = [F(0, .3, .9), prog(lt, Math.max(atf(0, .8), at(0) + 2), .9)]
+    const famIn = [F(0, .4, .62), prog(lt, Math.max(atf(0, .62), at(0) + 2), 1)]   // «تعرف فرق مربّعين، وفرق مكعّبين»
     const famDim = P(1, 0, .7)                                     // beat 1: they shrink and dim further
     const famOut = P(2, 0, .5)
     this.fam.forEach((f, i) => {
@@ -169,7 +169,7 @@ scene('s16', {
     // «يعمّمها»: the common factor (x − a) lights up in the known rows, then in the general one as it is read
     const xaF = env(lt, atf(1, .05), at(2) + .3, .5, .5), xaG = env(lt, atf(1, .62), at(2) + .3, .4, .5)
     this.xa.forEach((e, i) => (e.style.color = mixColor(i === 2 ? C.ink : C.mut, C.yel, i === 2 ? xaG : xaF)))
-    this.lhs.style.color = mixColor(C.ink, C.yel, env(lt, atf(1, .2), atf(1, .52) + .3, .3, .4))
+    this.lhs.style.color = mixColor(C.ink, C.yel, env(lt, atf(1, .33), atf(1, .55) + .3, .3, .4))
     // «في قوسٍ ثانٍ»: the second bracket is underlined (it stays while beat 2 starts «في القوس الثاني …»)
     const ul = Math.min(prog(lt, atf(1, .9), .6, E.out), 1 - prog(lt, Math.max(atf(2, .2), at(2) + 1.4), .5))
     op(this.brk, ul > 0 ? Math.min(1, ul * 3) : 0); this.brk.style.transform = `scaleX(${ul})`

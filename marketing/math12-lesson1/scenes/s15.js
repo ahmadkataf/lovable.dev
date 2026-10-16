@@ -140,7 +140,7 @@
       show(this.ask, P(lt, S, 0, .86, .6), out1, 20)
 
       // the general key box travels through the whole scene
-      const pk = P(lt, S, 0, .42, .7)
+      const pk = P(lt, S, 0, .37, .7)
       const park = S.p(lt, 1, 0, .9)                 // line 1: parked top-left as the goal
       // line 2: the parked goal fades out, then the box re-appears where the derivation lands
       const parkOut = S.p(lt, 2, 0, .4), tLand = Math.max(T(S, 2, .24), S.at(2) + 1.6), landIn = prog(lt, tLand, .7)
@@ -156,7 +156,7 @@
       op(this.kb.el, clamp(pk * 2.5) * (land ? clamp(landIn * 2.5) : 1 - parkOut))
       this.kb.el.style.boxShadow = `0 0 ${42 + 16 * Math.sin(lt * 1.6)}px ${Y}3a`
       // line 0: the formula is lit part by part as it is read («إس يساوي إيه ضرب، واحد ناقص كيو أُس إنْ، على، واحد ناقص كيو»)
-      ;[[.44, .5], [.5, .57], [.57, .73], [.76, .9]].forEach(([a, b], j) => {
+      ;[[.42, .48], [.5, .56], [.57, .73], [.75, .88]].forEach(([a, b], j) => {
         const q = env(lt, T(S, 0, a), T(S, 0, b) + .25, .25, .35)
         this.kRead[j].style.color = q > 0 ? mixColor(C.ink, Y, q) : ''
       })
@@ -167,11 +167,11 @@
       const t1 = T(S, 1, .02)
       const t2 = Math.max(T(S, 1, .12), t1 + .9 * g1)      // «واضربه بالأساس كيو»: the qS row
       const tS = Math.max(T(S, 1, .31), t2 + .6 * g1)      // «فيزحف كلّ حدٍّ خطوة»
-      const tM = Math.max(T(S, 1, .49), tS + 1.0 * g1)     // «اطرح السطرين»: minus sign + rule
+      const tM = Math.max(T(S, 1, .54), tS + 1.0 * g1)     // «اطرح السطرين»: minus sign + rule
       const tC = tM + .35 * g1                             // matching terms connect…
-      const tV = Math.max(T(S, 1, .55), tC + .8 * g1)      // …and vanish in pairs
-      const tA = Math.max(T(S, 1, .68), tV + 1.3 * g1)     // «فلا يبقى إلّا إيه»: survivor a
-      const tN = Math.max(T(S, 1, .8), tA + 1.0 * g1)      // «ناقص إيه ضرب كيو أُس إنْ»: survivor aq^n
+      const tV = Math.max(T(S, 1, .6), tC + .8 * g1)      // …and vanish in pairs
+      const tA = Math.max(T(S, 1, .73), tV + 1.1 * g1)     // «فلا يبقى إلّا إيه»: survivor a
+      const tN = Math.max(T(S, 1, .81), tA + .8 * g1)      // «ناقص إيه ضرب كيو أُس إنْ»: survivor aq^n
       const tR = Math.min(Math.max(T(S, 1, .88), tN + .9 * g1), S.end(1) - 1.0)
       const tR2 = Math.min(Math.max(T(S, 1, .94), tR + .6), S.end(1) - .4)
       op(this.l1, prog(lt, t1, .6) * out2)
@@ -218,7 +218,7 @@
       const pRing = P(lt, S, 2, .14, .6)
       draw(this.ring, pRing); this.ring.style.opacity = out3
       show(this.down, P(lt, S, 2, .18, .5), out3, -16)
-      show(this.note, P(lt, S, 2, .46, .6), out3, 16)                 // «وهذا مسموح لأنّ …»
+      show(this.note, P(lt, S, 2, .42, .6), out3, 16)                 // «وهذا مسموح لأنّ …»
       // ======== line 3 (last line): n = number of terms, then the special case a = 1 ========
       const pc = S.p(lt, 3, .35, .6)
       op(this.acard, pc); this.acard.style.transform = `scale(${lerp(.97, 1, pc)})`
@@ -237,7 +237,7 @@
       this.t3eEl.style.color = p3h > 0 ? mixColor(C.ink, R, p3h) : ''
       this.t3eEl.style.textShadow = p3h > 0 ? `0 0 ${16 * p3h}px ${R}` : ''
       show(this.note3, prog(lt, tNote, .6), 1, 16)
-      const pSp = P(lt, S, 3, .72, .7)
+      const pSp = P(lt, S, 3, .76, .7)
       this.kSp.set(pSp)
       const kspPop = pSp <= 0 ? .85 : lerp(.85, 1, E.back(clamp(pSp)))
       this.kSp.el.style.transform = `scale(${kspPop})`

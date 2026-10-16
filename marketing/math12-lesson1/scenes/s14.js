@@ -155,7 +155,7 @@
       const pxq = P(lt, S, 0, .41, .5)
       op(this.xqHl, clamp(pxq * 1.5) * out1 * (1 - .4 * P(lt, S, 0, .8, .6)))
       this.xqHl.style.transform = `scale(${lerp(1.15, 1, E.out(pxq))})`
-      const pb = P(lt, S, 0, .88, .6)
+      const pb = P(lt, S, 0, .9, .6)
       op(this.baseHl, (pb > 0 ? 1 : 0) * out1); this.baseHl.style.transform = `scaleX(${E.out(pb)})`
       // ======== line 1 «أي ننتقل من حدٍّ إلى الذي يليه بالضرب بالعدد الحقيقيّ ذاته»: book sentence + ×q chain ========
       show(this.book, S.p(lt, 1, 0, .5), out1, 24)

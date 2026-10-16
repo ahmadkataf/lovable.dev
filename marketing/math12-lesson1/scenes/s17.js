@@ -237,19 +237,19 @@ scene('s17', {
     // ================= L0 =================
     const out0 = S.p(lt, 1, 0, .5)
     const wG = S.p(lt, 0, .2, 1); wipe(this.goal, wG, 'ltr'); op(this.goal, Math.min(clamp(wG * 14), 1 - S.p(lt, 1, 0, .5)))
-    const caseIn = [prog(lt, at(0, .14), .6), prog(lt, at(0, .42), .6)]
+    const caseIn = [prog(lt, at(0, .28), .6), prog(lt, at(0, .5), .6)]   // «إذا كان x = a» · «أو x = 0»
     ;[this.caseA, this.caseB].forEach((c, i) => {
       const p = caseIn[i]
       // collapse into the rail chips at the start of L1
       op(c.el, Math.min(p, 1 - out0))
       c.el.style.transform = `translateY(${(1 - p) * 30 - out0 * 26}px) scale(${1 - out0 * .05})`
-      const t0 = i === 0 ? [.22, .29, .36, .44] : [.5, .56, .62, .68, .78]
+      const t0 = i === 0 ? [.32, .37, .42, .47] : [.54, .59, .64, .69, .75]
       c.rows.forEach((r, k) => rise(r, prog(lt, at(0, t0[k]), .45), 18))
-      const ck = prog(lt, at(0, i === 0 ? .44 : .78), .5)
+      const ck = prog(lt, at(0, i === 0 ? .49 : .77), .5)
       pop(c.box, ck)
     })
-    op(this.q0.t, Math.min(prog(lt, at(0, .84), .6), 1 - S.p(lt, 1, 0, .5)))
-    op(this.q0.bar, +this.q0.t.style.opacity); this.q0.bar.style.transform = `scaleY(${E.out(prog(lt, at(0, .84), .6))})`
+    op(this.q0.t, Math.min(prog(lt, at(0, .8), .6), 1 - S.p(lt, 1, 0, .5)))
+    op(this.q0.bar, +this.q0.t.style.opacity); this.q0.bar.style.transform = `scaleY(${E.out(prog(lt, at(0, .8), .6))})`
 
     // ================= rail =================
     const railIn = [S.p(lt, 1, .4, .5), S.p(lt, 1, .55, .5), S.p(lt, 2, .35, .5), S.p(lt, 2, .5, .5)]
@@ -272,7 +272,7 @@ scene('s17', {
     const pBC = prog(lt, at(2, 0) + .3, 1.2, E.lin)
     // L2 «فيصبح الطرف الأيسر مجموعَ قُوى الكسر a/x …» (B → C at its start); the right side is rewritten in L2–L3:
     // L3 «والقسمة على كسرٍ ضربٌ بمقلوبه، فيُختصر x مع قوّةٍ واحدة من xⁿ، ونصل إلى سطر الكتاب.» → C → D (the book's line)
-    const tK6 = at(3, .7), tCD = Math.max(at(3, .8), tK6 + .6)
+    const tK6 = at(3, .72), tCD = Math.max(at(3, .8), tK6 + .6)
     const pCD = prog(lt, tCD, .9, E.lin)
     const s1 = pAB + pBC + pCD
     const st = Math.min(Math.floor(s1), 2), p1 = s1 - st
@@ -283,7 +283,7 @@ scene('s17', {
     const g4 = clamp(D(4) / 11.4, .6, 1)                       // shorter line → shorter holds
     const tClipOut = Math.max(at(4, .3), tCD + 2.6 * g4)        // the book clip (end of L3, held) leaves before the rule comes in
     const tRule = Math.max(at(4, .38), tClipOut + .35)
-    const tStrike = Math.max(at(4, .52), tRule + .5), tFly = Math.max(at(4, .64), tStrike + .6)
+    const tStrike = Math.max(at(4, .5), tRule + .5), tFly = Math.max(at(4, .6), tStrike + .6)
     const flyD = 1.6 * g4
     const pDF = prog(lt, tFly, flyD, E.lin)
     if (pDF <= 0) {
@@ -298,7 +298,7 @@ scene('s17', {
     // notes
     const nOut = S.p(lt, 2, 0, .45)
     ;[this.noteB, this.noteY].forEach((n, k) => {
-      const p = prog(lt, at(1, k ? .72 : .45), .6)
+      const p = prog(lt, at(1, k ? .72 : .52), .6)
       op(n, Math.min(p, 1 - nOut)); n.style.transform = `translateY(${(1 - p) * 24 - nOut * 30}px)`
     })
 
@@ -306,7 +306,7 @@ scene('s17', {
     // L2 «وفي الطرف الأيمن نوحّد المقامات: البسط يصير (xⁿ−aⁿ)/xⁿ، والمقام (x−a)/x»
     const tK0 = at(2, .28), tK2 = at(2, .43), tNum = at(2, .47), tDen = at(2, .8)
     // L3 «والقسمة على كسرٍ ضربٌ بمقلوبه» → × x/(x−a); «فيُختصر إكس مع قوّةٍ واحدة من إكس أُس إنْ» → strikes
-    const tK4 = at(3, .12), tSk = [at(3, .4), at(3, .58)]
+    const tK4 = at(3, .12), tSk = [at(3, .4), at(3, .64)]
     const kT = [tK0, tK2, tK2, tK4 - .1, tK4, tK6, tK6]
     const chainOut = prog(lt, tCD + .25, .5)
     this.kp.forEach((e, k) => { const p = prog(lt, kT[k] + (k % 2 ? 0 : .12), .55); e.style.opacity = Math.min(p, 1 - chainOut); e.style.transform = `translateY(${(1 - p) * 20}px)` })
@@ -336,7 +336,7 @@ scene('s17', {
 
     // ================= L4 =================
     const pc = S.p(lt, 4, .35, .6)
-    const tFin = Math.max(tFly + flyD + .1, Math.min(Math.max(at(4, .8), tFly + flyD + .4), S.dur - 2.4))   // the box must be complete before the scene ends
+    const tFin = Math.max(tFly + flyD + .1, Math.min(Math.max(at(4, .76), tFly + flyD + .4), S.dur - 2.4))   // the box must be complete before the scene ends
     const finOut = prog(lt, tFin, .5)
     pop(this.pcL, pDF > 0 ? 1 : pc); pop(this.pcR, Math.min(pc, 1 - prog(lt, tFly + .1, .45)))
     // right side: x^{n-1}(x-a) cancels with the denominator
