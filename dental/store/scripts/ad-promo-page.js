@@ -205,12 +205,12 @@ function offer(t, s) {
   const O = L.offer, a = s.at
   const glow = prog(t, a.price, 0.9)
   // until the price lands the free trial is the headline, in the middle; then it flies up into its pill
-  const hero = 1 - ease.inOut(prog(t, a.price - 0.3, 0.3))
+  const hero = 1 - ease.inOut(prog(t, a.price - 0.08, 0.14))   // gone as the price slams in, under its flash
   const pin = prog(t, a.trial, 0.34)
-  const thero = hero > 0 ? `<div class="thero" style="top:${O.trialHero}px;opacity:${f3(hero * Math.min(1, pin * 2.4))};transform:translateY(${f3(-(1 - hero) * 180)}px) scale(${f3(0.88 + 0.12 * ease.back(pin))})">
+  const thero = hero > 0 ? `<div class="thero" style="top:${O.trialHero}px;opacity:${f3(hero * Math.min(1, pin * 2.4))};transform:translateY(${f3((1 - hero) * (O.trial - O.trialHero))}px) scale(${f3((0.88 + 0.12 * ease.back(pin)) * (1 - 0.4 * (1 - hero)))})">
     <i class="gift">${icon('gift')}</i><b>جرّب <em>7</em> أيام ببلاش</b><small>بكل المزايا</small></div>` : ''
   return `${background(t)}${brand(t)}${thero}
-  <div class="trial" style="top:${O.trial}px;opacity:${f3(1 - hero)}"><span>${icon('gift')}جرّب <b>7</b> أيام ببلاش<small>بكل المزايا</small></span></div>
+  <div class="trial" style="top:${O.trial}px;opacity:${f3(prog(t, a.price + 0.1, 0.15))}"><span>${icon('gift')}جرّب <b>7</b> أيام ببلاش<small>بكل المزايا</small></span></div>
   ${t >= a.price ? `<div class="pring" style="top:${O.price + O.priceSize * 0.5}px;width:${f3(O.priceSize * (1.2 + 2.2 * ease.out(glow)))}px;height:${f3(O.priceSize * (1.2 + 2.2 * ease.out(glow)))}px;opacity:${f3(0.7 * (1 - glow))}"></div>` : ''}
   <div class="price" style="top:${O.price}px;font-size:${O.priceSize}px;${t >= a.price ? slam(t, a.price, 0.34, 2.4) : 'opacity:0'}"><b>59<sup>$</sup></b></div>
   <div class="once" style="top:${O.once}px;${pop(t, a.device, 0.32)}"><span>للجهاز</span><em></em><span>مرّة وحدة</span></div>

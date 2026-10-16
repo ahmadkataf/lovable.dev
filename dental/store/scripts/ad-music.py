@@ -147,7 +147,8 @@ def impact():
     boom = np.sin(2 * np.pi * np.cumsum(f) / SR) * np.exp(-t / 0.5)
     crack = lp(rng.standard_normal(n), 6000) * np.exp(-t / 0.03) * 0.5
     tail = lp(rng.standard_normal(n), 2500) * np.exp(-t / 0.35) * 0.12
-    return np.tanh(1.3 * (boom + crack + tail))
+    snap = bp(rng.standard_normal(n), 800, 6000) * np.exp(-t / 0.12) * 0.8   # what a phone speaker hears of it
+    return np.tanh(1.3 * (boom + crack + tail + snap))
 
 
 def riser(length=1.6):
@@ -182,7 +183,7 @@ def music(duration, drop, brk, end):
         in_break = brk and brk[0] <= t0 < brk[1]
         before_drop = t0 < drop - 1e-6
         # pad: always (softer before the drop)
-        add(pad, t0, pad_chord(chord, BAR + 0.2), 0.9 if before_drop else (0.8 if in_break else 0.6))
+        add(pad, t0, pad_chord(chord, BAR + 0.2), 0.7 if before_drop else (0.8 if in_break else 1.0))
         for b in range(4):
             tb = t0 + b * BEAT
             if tb >= end:
@@ -209,9 +210,11 @@ def music(duration, drop, brk, end):
                 tones = [chord[0], chord[1], chord[2], chord[0] + 12]
                 for s in range(4):
                     m = tones[ARP_STEPS[(b * 4 + s) % 16]] + 12
-                    add(arp, tb + s * BEAT / 4, pluck(m, 0.2), 0.32 if not in_break else 0.4)
+                    add(arp, tb + s * BEAT / 4, pluck(m, 0.2), (0.22 if before_drop else 0.45) if not in_break else 0.4)
         t0 += BAR
         bar_i += 1
+    # the last hit: clap, open hat and an A-minor stab on the final downbeat
+    add(drums, end, c, 1.0); add(drums, end, ho, 0.9); add(pad, end, pad_chord(PROG[0][1], 1.6), 1.4)
     # a snare roll into the drop
     for i in range(8):
         add(drums, drop - BEAT * 2 + i * BEAT / 4, c, 0.35 + 0.08 * i)
@@ -269,9 +272,8 @@ def main():
     vr = np.sqrt(np.mean(v[v != 0] ** 2)) if np.any(v) else 0.1
     # level the music on the band a phone speaker plays (above 250 Hz), well under the voice, then duck it
     mr = np.sqrt(np.mean(hp(m, 250) ** 2)) + 1e-9
-    m = m / mr * vr * 0.12
-    pre = t_axis(n) < cues['drop']   # the hook: no voice-over bed yet, so the intro is lifted (the impact masks the step)
-    m[pre] *= 2.5
+    m = m / mr * vr * 0.15
+    pre = t_axis(n) < cues['drop']   # the hook: a lighter duck, so the bed carries the question; the beat must be bigger after the drop
     # and lifted again (+9 dB over 0.3 s) once the last word is said: the call to action holds on the music
     spoken = np.nonzero(np.abs(v) > 0.02)[0]
     if len(spoken):

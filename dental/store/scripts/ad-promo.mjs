@@ -75,7 +75,7 @@ function scenes() {
     clips: [
       clip('plan-a', 'treatments', 'plans', 2.8, S('plan'), [{ r: [760, 500, 1440] }, { at: W('plan', 2) - 0.05, r: [1120, 600, 820] }],
         [{ at: W('plan', 2) + 0.15, r: [1319, 497, 158, 314] }]),
-      clip('plan-b', 'treatments', 'estimate', 2.4, W('plan', 4) - 0.08, [{ r: [960, 540, 1300] }, { at: W('plan', 6) - 0.05, r: [700, 640, 820] }],
+      clip('plan-b', 'treatments', 'estimate', 2.4, W('plan', 4) - 0.08, [{ r: [960, 540, 1300] }, { at: W('plan', 6) - 0.05, r: [925, 640, 1150] }],
         [{ at: W('plan', 6) + 0.15, r: [415, 638, 382, 116] }]),
     ],
     chips: [{ at: W('plan', 2), text: 'بنود سن بسن', icon: 'tooth' }, { at: W('plan', 6), text: 'تقدير تكلفة مطبوع', icon: 'printer' }],
@@ -92,11 +92,10 @@ function scenes() {
     cap: cap('allergy') })
   list.push({ id: 'billing', kind: 'feature', icon: 'receipt', kicker: 'الفواتير والدفعات', title: 'فاتورة بكبسة', split: 1,
     clips: [
-      clip('billing-a', 'billing', 'from-treatments', 0.4, S('billing'), [{ r: [985, 640, 1450] }, { at: W('billing', 1), r: [1290, 580, 820] }],
+      clip('billing-a', 'billing', 'from-treatments', 0.4, S('billing'), [{ r: [985, 640, 1450] }],
         [{ at: W('billing', 2), r: [1362, 466, 284, 250] }]),
       // "إضافة المحدد": the finished treatments become invoice lines right on "بكبسة"
-      clip('billing-b', 'billing', 'from-treatments', 3.75, W('billing', 4) - 0.08, [{ r: [960, 600, 1500] }],
-        [{ at: W('billing', 5) + 0.12, r: [244, 430, 1432, 316] }]),
+      clip('billing-b', 'billing', 'from-treatments', 3.75, W('billing', 4) - 0.08, [{ r: [960, 658, 1460] }]),
     ],
     chips: [{ at: W('billing', 2), text: 'من العلاج المنجز', icon: 'check' }, { at: W('billing', 4), text: 'دفعات وكشف حساب', icon: 'wallet' }],
     cap: cap('billing') })
@@ -237,7 +236,7 @@ const LAYOUT = {
     reveal: { askTop: 340, askUp: 64, askSize: 80, icon: 170, iconTop: 196, markTop: 386, tagTop: 600, t1: 56, t2: 82 },
     offline: { win: { left: 40, top: 200, width: 760, height: 470 }, phone: { left: 728, top: 222, width: 290, height: 516 },
       badge: { left: 62, top: 222 }, winTag: { left: 62, top: 712 }, phoneTag: { left: 760, top: 712 }, dataTag: { left: 300, top: 712 } },
-    offer: { trial: 200, trialHero: 300, price: 330, priceSize: 270, once: 700, life: 800 },
+    offer: { trial: 200, trialHero: 420, price: 330, priceSize: 270, once: 700, life: 800 },
     cta: { nosub: 250, nohead: 350, go: 470, goH: 118, num: 620, site: 740, recap: 840, nosubHero: 420, noheadHero: 520 } },
 }
 
@@ -444,7 +443,8 @@ async function soundtrack() {
   }
   const offer = SCENES.find(s => s.id === 'offer'), call = SCENES.find(s => s.id === 'cta'), rev = SCENES.find(s => s.id === 'reveal')
   const cues = { duration: TOTAL, lead: LEAD, drop: rev.drop, whoosh: cuts.filter(t => Math.abs(t - offer.at.price) > 0.3),
-    impact: [rev.drop, offer.at.price, call.at.go], riser: [rev.drop], break: [offer.at.trial - 0.1, offer.at.price], end: TOTAL - 1.4 }
+    impact: [rev.drop, offer.at.price, call.at.go], riser: [rev.drop], break: [offer.at.trial - 0.1, offer.at.price],
+    end: rev.drop + 2 * Math.floor((TOTAL - 1.4 - rev.drop) / 2) }
   const f = path.join(TMP, 'cues.json')
   fs.writeFileSync(f, JSON.stringify(cues))
   const { stdout } = await run(PY, [path.join(ROOT, 'store/scripts/ad-music.py'), f, path.join(DIR, 'narration.wav'), path.join(TMP, 'mix.wav')], { maxBuffer: 16 << 20 })
