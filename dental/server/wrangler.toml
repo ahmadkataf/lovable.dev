@@ -1,0 +1,53 @@
+# Dentora's Cloudflare Worker (details and deploy steps: server/README.md, the contract: server/SPEC.md).
+# The name must stay "dentora-api": it is the Worker already created in the Cloudflare account, so `wrangler deploy`
+# updates that same Worker instead of creating a new one.
+name = "dentora-api"
+main = "src/index.ts"
+compatibility_date = "2025-06-01"
+account_id = "c79a8e91efac74d2e119e7e406c4db43"
+
+# Production: the custom domain dentora.raqeem.dev (zone raqeem.dev). The workers.dev address stays on as well:
+# https://dentora-api.almutafawiqin.workers.dev
+workers_dev = true
+# no per-version preview addresses: the panel and the API live only at the two addresses above
+preview_urls = false
+routes = [
+  { pattern = "dentora.raqeem.dev", custom_domain = true },
+]
+
+# Static files: public/ is assembled by `npm run build` (scripts/build-public.mjs) from site/ plus the release APK.
+# A request that matches a file is answered from it without running the Worker (headers from public/_headers);
+# everything else, and the paths below even if a file with that name appears one day, goes to the Worker.
+# /files/* is listed so the APK is only reachable through /download/android, which counts the download (the Worker
+# lets /files/meta.json and /files/windows.json through, for scripts/fetch-published.mjs).
+# The guide (/guide, /guide/<topic>; its pictures live under /img/guide/) and the course home (/videos) are listed
+# like the other pages. /videos/* is NOT: the course's captions, posters and manifest (/videos/<lang>/<chapter>.vtt,
+# .jpg and /videos/manifest.json, from site/videos/) stay static files with the cache headers of public/_headers, and
+# a chapter page /videos/<chapter> reaches the Worker anyway because no file has that path. The videos themselves are
+# published under /files/videos/ (build-public.mjs), so /videos/<lang>/<chapter>.mp4 has no file either and reaches
+# the Worker, which answers it with Range requests from the edge cache (the static file layer ignores Range).
+# html_handling = "none": no directory or extension guessing; build-public.mjs refuses to publish a file that would
+# shadow a page.
+[assets]
+directory = "./public"
+binding = "ASSETS"
+html_handling = "none"
+not_found_handling = "none"
+run_worker_first = [
+  "/", "/en", "/en/*", "/privacy", "/terms", "/activate", "/guide", "/guide/*", "/videos", "/admin", "/admin/", "/api/*",
+  "/download/*", "/files/*", "/robots.txt", "/sitemap.xml", "/healthz",
+]
+
+# Licences, PIN reset codes, download counts, settings and the audit log. No database_id on purpose: the first
+# `wrangler deploy` creates the database and binds it (wrangler 4 provisioning); the Worker creates its own tables.
+[[d1_databases]]
+binding = "DB"
+database_name = "dentora"
+
+[observability]
+enabled = true
+
+# Secrets (set once with `npx wrangler secret put <NAME>`, never in this file or the repository):
+#   ADMIN_PASSWORD       the control panel password, at least 12 characters
+#   LICENSE_PRIVATE_JWK  the one-line JSON of secrets-for-user/dentora/license-private.jwk
+# Deploying needs CLOUDFLARE_API_TOKEN in the environment.

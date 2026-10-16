@@ -1,0 +1,249 @@
+# dentora-api — specification (contract between the backend, the landing page, the activation page and the control panel)
+
+Types: `src/types.ts`. Everything runs on one Cloudflare Worker (`dentora-api`) with a D1 database (`DB`, auto-provisioned
+on the first deploy, schema created by the Worker itself on first use) and static assets (`ASSETS`, the `public/` folder
+assembled by `scripts/build-public.mjs` from `site/` plus the release APK).
+
+## Files and owners
+
+| Path | What |
+|---|---|
+| `wrangler.toml`, `package.json`, `tsconfig.json`, `scripts/build-public.mjs`, `.dev.vars.example` | backend |
+| `src/index.ts` (router, security headers), `src/http.ts`, `src/db.ts`, `src/auth.ts`, `src/api.ts`, `src/licence.ts`, `src/pages/legal.ts`, `test/*.test.ts`, `test/d1.ts` | backend |
+| `src/pages/landing.ts`, `src/pages/content.ts`, `site/css/*`, `site/img/*`, `site/fonts/*`, `site/favicon*`, `site/*.webmanifest` | landing page |
+| `src/pages/activate.ts`, `site/js/activate.js`, `site/css/activate.css` | activation page (licence keys, `../docs/LICENCE-KEYS.md`) |
+| `guide/` (`types.ts`, `index.ts`, `topics/*.ts`, `render.ts`, `preview.mjs`, `render.test.ts`), `site/img/guide/` (the pictures and their `manifest.json`), `site/css/guide.css`, `site/js/guide.js` | user guide (`/guide`) |
+| `videos/` (`types.ts`, `index.ts`, `render.ts`, `preview.mjs`, `render.test.ts`), `site/videos/` (the recordings and their `manifest.json`: git-ignored, see `../docs/VIDEOS.md`), `site/css/videos.css`, `site/js/videos.js` | video course (`/videos`) |
+| `site/admin/index.html`, `site/admin/admin.css`, `site/admin/admin.js` | control panel |
+| `src/types.ts`, `SPEC.md` | shared contract: change only together |
+
+## Public routes (HTML, cacheable for 5 minutes, security headers on every response)
+
+| Route | Response |
+|---|---|
+| `GET /` | landing page, Arabic (`renderLanding('ar', settings, ctx)` from `src/pages/landing.ts`) |
+| `GET /en` | landing page, English |
+| `GET /privacy`, `GET /en/privacy` | privacy policy (text from `../src/features/legal/docs.ts`, `{seller}` = "Dentora", `{contact}` = the settings' WhatsApp and e-mail) |
+| `GET /terms`, `GET /en/terms` | terms of use (same source) |
+| `GET /activate`, `GET /en/activate` | the licence key activation page (`renderActivate(lang, settings, origin, assets, device)` from `src/pages/activate.ts`; `assets` as the legal pages get them; `device` = the `?device=` parameter formatted `XXXX-XXXX` when it is a device number, else `''`). Same caching and `PUBLIC_CSP` as the legal pages, and their shell (`shell()` in `src/pages/legal.ts`; the page adds `/css/activate.css` and `/js/activate.js` through its `head`); its form posts to `POST /api/activate` from `/js/activate.js` |
+| `GET /guide`, `GET /en/guide` | the user guide's home (`renderGuideHome(lang, settings, origin, assets, TOPICS)` from `guide/render.ts`; the topics are `TOPICS` of `guide/index.ts`, sorted by their own `order`, never counted anywhere else). Same caching, `Content-Language`, `PUBLIC_CSP` and shell as the legal pages |
+| `GET /guide/<slug>`, `GET /en/guide/<slug>` | one topic (`renderGuideTopic(lang, settings, origin, assets, topic, TOPICS, images)`); `<slug>` is kebab-case, a slug of no topic (or anything else under `/guide/`) gets the 404 page. `images` is `site/img/guide/manifest.json` read through `ASSETS` once per isolate with the other published files (below), so every picture carries its `width`/`height`; without it the pages show placeholders |
+| `GET /videos`, `GET /en/videos` | the video course's home (`renderVideosHome(lang, settings, origin, assets, CHAPTERS, manifest)` from `videos/render.ts`; `manifest` is `site/videos/manifest.json` read through `ASSETS` once per isolate, `null` while nothing is published: the pages then say every chapter is coming). Same headers and shell as above |
+| `GET /videos/<slug>`, `GET /en/videos/<slug>` | one chapter (`renderVideoChapter(…, chapter, CHAPTERS, manifest, { t })`); unknown slug (and `/videos/ar`, `/videos/manifest.json` when it is not published) → 404 page. `?t=<seconds>` (a positive number; its whole seconds) starts the video there: the transcript's time links without JavaScript, or a shared moment. The captions, posters and manifest, `/videos/<lang>/<slug>.vtt`, `.jpg` and `/videos/manifest.json`, are static files (never the Worker: `run_worker_first` lists `/videos` but not `/videos/*`, so the platform serves them with the cache headers below) |
+| `GET /videos/<lang>/<slug>.mp4` | a recorded chapter's video (`lang` `ar`\|`en`, a kebab-case slug in the manifest, its file published as `public/files/videos/<lang>/<slug>.mp4` by build-public.mjs); anything else → 404 page. The static file layer answers a `Range` request with the whole file, and Safari plays a video only from a server that answers ranges, so the Worker answers it from the edge cache (`caches.default`, key `<origin>/videos/<lang>/<slug>.mp4?sha256=<sha256 of the manifest>`): `Range`, `If-Range`, `If-None-Match` and `If-Modified-Since` are passed to `cache.match`, which answers 206/304/416 itself; on a miss the file is read from the assets (`FixedLengthStream`), put in the cache, and matched again. Headers: `Content-Type: video/mp4`, `Cache-Control: public, max-age=604800`, `ETag: "<sha256>"`, `Last-Modified` from `recordedAt` when known. Without a cache (workers.dev, the tests): the whole file, `Accept-Ranges: none` |
+| `GET /download/android` | counts a download (D1 `downloads`, see below), then streams `public/files/dentora.apk` with `Content-Type: application/vnd.android.package-archive` and `Content-Disposition: attachment; filename="Dentora-<version>.apk"` (version from `public/files/meta.json`); 404 page when no APK is published |
+| `GET /download/windows` | when the installer is published (`public/files/windows.json` and every part it lists): counts (same rule; a request with a `Range` counts only when it starts at byte 0, as download managers' first request does; a resume from a later byte is not counted again), then streams the parts back to back as one file (`FixedLengthStream`, `Content-Length` of the whole installer, `Content-Type: application/vnd.microsoft.portable-executable`, `Content-Disposition: attachment; filename="Dentora-Setup-<version>.exe"`, `Accept-Ranges: none`; HEAD: the headers only). Otherwise counts, then `302` to `settings.windowsUrl`, or, when empty, to a wa.me link asking the seller for the Windows version |
+| `GET /files/meta.json`, `GET /files/windows.json` | the published APK's and installer's `{ version, sizeBytes, sha256 }` (the installer's also its `parts`), `application/json`, `Cache-Control: public, max-age=60`, each served only while its download is (the APK published; the installer whole): `scripts/fetch-published.mjs` checks a downloaded installer against the advertised sha256. Everything else under `/files/` (the APK, the parts, `manifest.json`) answers the 404 page |
+| `GET /robots.txt`, `GET /sitemap.xml` | generated by the Worker (robots disallows `/admin`, `/api/` and `/download/`, nothing else; the sitemap lists `/`, `/activate`, `/privacy`, `/terms`, then the guide's home and every topic (`guideSitemapEntries`, dated `GUIDE_DATE` of `guide/index.ts`: move it when a topic's text changes), then the course's home and every chapter (`videoSitemapXml`), all with their `/en` pages and ar/en/x-default alternates) |
+| `GET /healthz` | `ok` |
+| `GET /admin`, `GET /admin/` | the control panel page (`public/admin/index.html`), `Cache-Control: no-store`, `X-Robots-Tag: noindex` |
+| a path ending in `/` (not `/admin/`) | `301` to the same path without the trailing slashes and with exactly one leading slash (`/en/` → `/en`, `//evil.example/` → `/evil.example`): the target is always on this site |
+| anything else | static asset if it exists, else a 404 page (Arabic + English) |
+
+Landing page links: download buttons → `/download/android`, `/download/windows`; WhatsApp buttons → `https://wa.me/<digits>?text=<prefilled Arabic or English request>`; language switch → `/` ↔ `/en`; footer → `/privacy`, `/terms` (or `/en/...`); key activation → `/activate` (or `/en/activate`); the user guide and the video course → `/guide`, `/videos` (or `/en/...`) from the header navigation, the phone menu, the footer's product column, the FAQ's "still have a question?" block and step 1 of "how to start" (the guide). The legal pages, the activation page, the guide, the course pages and the 404 page share one footer (`shell()`), which links home, `/guide`, `/videos`, `/activate`, `/privacy` and `/terms` in the page's language (so the guide and the course link each other; the course pages also link the matching guide topic, the guide's home has a strip for the course, and a topic that has a chapter links it under its title); the 404 page names the guide and the course in its text. The control panel's dashboard has a "links for customers" card: the guide, the course and the activation page at the canonical address, each with a copy button and a `https://wa.me/?text=<ready message with the link>` button.
+
+## Control panel API (JSON)
+
+Every `/api/*` response: `Content-Type: application/json; charset=utf-8`, `Cache-Control: no-store`.
+Errors: `{ "error": "<code>" }` with the status below. Unknown route: 404 `{ "error": "not_found" }`.
+
+The one exception to the session and CSRF rules below is the public `POST /api/activate` (see **Public key activation**).
+
+**Session:** cookie `__Host-dentora_admin` (HttpOnly; Secure; SameSite=Strict; Path=/; Max-Age=43200; the `__Host-` prefix
+means no other raqeem.dev subdomain can set or shadow it). Every route except `POST /api/login` needs it, else 401
+`{ "error": "auth" }`. `POST /api/logout` revokes that session on the server (D1 `revoked_sessions`), so a copy of the
+cookie stops working too. A successful login also sets `__Host-dentora_device` (same flags, Max-Age=31536000): it marks a
+browser that has signed in before (see the login limits) and is never accepted as a session.
+
+**CSRF:** every non-GET `/api/*` request must carry the header `X-Dentora: 1`, and when an `Origin` header is present it
+must equal the request's own origin; else 403 `{ "error": "origin" }`.
+
+**Setup:** when `ADMIN_PASSWORD` is missing or shorter than 12 characters, `POST /api/login` answers 503 `{ "error": "setup" }`.
+
+| Method & path | Body | Success | Errors |
+|---|---|---|---|
+| `POST /api/login` | `{ password }` | 200 `{ ok: true }` + session and device cookies | 401 `password`; 429 `locked` + `{ retryAfter: seconds }` (limits below); 503 `setup` |
+| `POST /api/logout` | – | 200 `{ ok: true }` (session revoked, cookie cleared) | |
+| `GET /api/me` | – | 200 `{ ok: true, signing: boolean, signingError: null \| 'missing' \| 'format' \| 'mismatch' }` | 401 |
+| `GET /api/stats` | – | 200 `Stats` | |
+| `GET /api/licences?q=&status=&limit=50&offset=0` | – | 200 `{ items: Licence[], total }` (newest first, device licences and keys together; `q` matches device, customer, clinic, phone, key; `status` is `active`, `refunded`, `void` or `pending`) | 400 `field` + `{ field: 'status' }` |
+| `POST /api/licences` | `{ device, plan, validity, until?, customer, clinic, phone, price, note }` | 201 `{ licence: Licence, message: CustomerMessage, existing: Licence[] }` (`existing` = other active licences of the same device) | 400 `device` \| `plan` \| `validity` \| `until` \| `price` \| `field`; 503 `signing` |
+| `POST /api/keys` | `{ count?, plan, validity, until?, customer, clinic, phone, price?, note }` | 201 `{ items: { licence: Licence, message: CustomerMessage }[] }`: `count` licence keys waiting for activation, with the same sale details | 400 `count` \| `plan` \| `validity` \| `until` \| `price` \| `field` |
+| `GET /api/licences/:id` | – | 200 `{ licence, message: CustomerMessage }` (a key waiting for activation: the key message; else the code message) | 404 |
+| `PATCH /api/licences/:id` | any of `{ customer, clinic, phone, price, note, status }` | 200 `{ licence }` | 400, 404 |
+| `GET /api/licences.csv` | – | 200 `text/csv` (UTF-8 with BOM, Excel-friendly), all licences and keys | |
+| `POST /api/resets` | `{ device, customer?, phone?, note? }` | 201 `{ reset: ResetCode, message: CustomerMessage }` | 400 `device`; 503 `signing` |
+| `GET /api/resets?limit=50` | – | 200 `{ items: ResetCode[] }` | |
+| `POST /api/verify` | `{ device, code }` | 200 `VerifyResult`: a code → `{ kind: 'activation' \| 'reset' \| null, ok, plan?, until?, reason? }` (uses the app's own checkers); a licence key in `code` → `{ kind: 'key', ok, status, plan?, validity?, until?, device?, activatedAt?, reason? }` (below) | 400 `device` (codes only) |
+| `GET /api/settings` | – | 200 `SiteSettings` | |
+| `PUT /api/settings` | partial `SiteSettings` | 200 `SiteSettings` (validated: price 0–100000, WhatsApp digits 8–15, URLs https only, texts ≤ 300 chars) | 400 `field` + `{ field }` |
+| `GET /api/audit?limit=100` | – | 200 `{ items: AuditEntry[] }` | |
+
+Field rules: `device` is 8 base32 characters, shown as `XXXX-XXXX` (typed with or without the dash, any case, spaces
+ignored); `plan` is `standard` or `pro`; `validity` is `lifetime`, `1y`, `2y` or `date` (then `until` = `YYYY-MM-DD`, today or
+later); `price` 0–100000; text fields ≤ 200 characters; `note` ≤ 1000. `POST /api/keys`: `count` is a whole number 1–50
+(a number or a numeric string; absent or empty = 1); `price` is per key (absent or empty = the settings' `priceUsd`).
+
+Login limits (per 15 minutes): every attempt is recorded before its password is compared, in one D1 transaction, and
+is let through only while (a) its address has fewer than 5 attempts (IPv4: the address; IPv6: its /64) and (b) for a
+browser without a valid device cookie, all addresses together have fewer than 30. Refused attempts are not recorded
+and answer 429 with the seconds until the oldest counted attempt leaves the window; the attempt that reaches a limit
+is still compared and, when wrong, already answers 429. A successful login clears its address's attempts. So parallel
+requests cannot get more than 5 comparisons per address, and strangers can pause sign-ins from new browsers but
+never from the seller's own browser.
+
+Details the table leaves open (as the backend implements them):
+- A body that is not a JSON object, or is over 16 KB: 400 `{ error: 'field', field: 'body' }` (`POST /api/login`: a wrong
+  password). The body is read as a stream and reading stops at 16 KB, with or without a Content-Length. An unexpected
+  failure: 500 `{ error: 'server' }`.
+- `PATCH /api/licences/:id` errors: 400 `price`, or `field` + `{ field: 'customer' | 'clinic' | 'phone' | 'note' | 'status' }`; other keys are ignored.
+  `PUT /api/settings` ignores unknown keys too. `POST /api/licences` without `price` uses the settings' `priceUsd`.
+  A waiting key set to `refunded` or `void` can no longer be activated (set back to `active`, it can).
+- `GET /api/licences?status=` other than `active`/`refunded`/`void`/`pending`: 400 `field` + `{ field: 'status' }`. `limit` is 1–200, `/api/resets` 1–200, `/api/audit` 1–500.
+  `q` is cut to 100 characters, then shortened (by code points) until its escaped LIKE pattern fits D1's 50-byte limit (24 Arabic
+  letters), which workerd would otherwise refuse with "LIKE or GLOB pattern too complex"; the prefix still finds the row.
+- `Stats.licences`: `total`/`month` count every sale (device licence or key, waiting or activated) except `void` ones (a
+  refunded code still opens the app: codes work offline); `revenue`/`revenueMonth` sum `active` sales only; `pending` =
+  active keys not activated yet; `month` = since the 1st of the current month (UTC). `downloads.*30` = the last 30 days
+  including today.
+- `POST /api/verify` answers `until` as `YYYY-MM-DD` (null = lifetime); for a reset code it is the code's last valid day.
+- Audit actions: `login.ok`, `login.fail`, `logout`, `licence.create`, `licence.update`, `licences.csv`, `reset.create`,
+  `settings.update`, `keys.create`, `key.activate`, `key.used` (keys: below).
+- Downloads count at most once per visitor, platform and UTC day: the visitor is a salted SHA-256 of the address (IPv6:
+  its /64), kept in D1 `download_seen` for two days, never the address itself; a repeat costs no D1 write. Not counted:
+  HEAD, a request the browser marks as not a visit (`Sec-Fetch-Mode` present and not `navigate`, or `Sec-Purpose`/`Purpose`
+  prefetch), and for `/download/android` the rest of a resumed download (only a GET answered from the first byte counts).
+  robots.txt also disallows `/download/`, so crawlers do not inflate the counts. `/files/*` is not served directly (404), except the two JSON files above.
+- Public pages read the settings at most every 30 s per Worker isolate; the isolate that saved them shows the change at once.
+- The panel page is served at both `/admin` and `/admin/`: it must reference its files with absolute paths (`/admin/admin.js`).
+
+Codes are made with the shared seller library `../tools/generator-lib.ts` (`issueCode`, `issueResetCode`,
+`clinicMessage`, `resetClinicMessage`, `waLink`), so they are byte-for-byte what the app accepts. Every code issued, every
+batch of keys, every key activation, every settings change, login success/failure and CSV export is written to `audit`.
+
+## Licence keys (`../docs/LICENCE-KEYS.md`)
+
+A licence key lets the seller sell without the clinic's device number: the clinic turns it into the ordinary signed
+activation code itself, once, online. A key is `XXXX-XXXX-XXXX-XXXX`: 16 characters of the codes' alphabet
+`23456789ABCDEFGHJKLMNPQRSTUVWXYZ` (80 random bits from `crypto.getRandomValues`); it is not signed and needs no signing
+secret to issue. Keys are rows of `licences` (`key` set), so the list, search, statuses, revenue and CSV cover both kinds
+of sale. In the API a `Licence` carries `key` (null for a device licence), `validity` (a key's rule for `until`; null for
+a device licence) and `activatedAt` (ISO time; null while a key waits, and for a device licence); a key waiting for
+activation has `device` and `code` `''`, and `until` = the day of a `date` key, else null.
+
+The last day of the code a key makes: `lifetime` none; `1y`/`2y` counted from the activation day (UTC) with
+`parseUntil(validity, activationDate)` of `tools/generator-lib.ts`; `date` the day chosen at sale (activation after that
+day: 410 `expired`; on the day itself it is accepted).
+
+- `POST /api/keys`: see the table. Audit `keys.create`, detail `<count> × <plan> <validity or day> · $<price> · <clinic or
+  customer>` (e.g. `3 × pro lifetime · $59 · Al Noor`), never the keys. `licence.update` names a waiting key by its last 4
+  characters (`…QRST`), never the whole key.
+- The key message (`CustomerMessage`, `keyMessage` in `src/licence.ts`): greeting, the key on its own line, plan and term
+  (`1y`/`2y`: "one year / two years from activation"), how to activate in the app (Settings → Licence, paste, Activate;
+  internet once, only the key and the device number are sent) or on `https://dentora.raqeem.dev/activate`
+  (`/en/activate` in English) with the device number, and that a key works on one device only. `whatsappUrl` goes to the
+  customer's phone, as for codes. Once the key is activated, the licence's message is the usual code message.
+- `GET /api/licences.csv` columns: `created_at, device, plan, valid_until, status, customer, clinic, phone, price_usd,
+  note, code, id, key, validity, activated_at` (the last three empty for device licences; `valid_until` is empty for a
+  waiting `1y`/`2y` key, whose last day is not known yet).
+- `POST /api/verify` with a key in `code` (it cleans to 16 alphabet characters, like `cleanCode`; `device` is then ignored
+  and may be empty or absent): `{ kind: 'key', ok, status: 'pending' | 'activated' | 'refunded' | 'void' | 'unknown',
+  plan?, validity?, until?, device?, activatedAt?, reason? }`. `status`: refunded/void as marked by the seller, else
+  pending (waiting) or activated; unknown = no such key (nothing else is returned). `device`/`activatedAt` once
+  activated; `until` once known (activated, or a waiting `lifetime` (null) or `date` key; absent for a waiting `1y`/`2y`
+  key). `ok` = pending or activated, and not past `until` (then `reason: 'expired'`: a waiting `date` key can no longer
+  be activated, an activated key's code has ended).
+
+## Public key activation
+
+`POST /api/activate` is the one public API route: no session, no cookie read or set, no `X-Dentora` or `Origin` check
+(it carries no ambient authority: the key is the proof). CORS: every response, errors and 500 included, has
+`Access-Control-Allow-Origin: *`; `OPTIONS /api/activate` answers 204 with `Access-Control-Allow-Origin: *`,
+`Access-Control-Allow-Methods: POST, OPTIONS`, `Access-Control-Allow-Headers: Content-Type`,
+`Access-Control-Max-Age: 86400` (and `Cache-Control: no-store`, no body). Other methods: 404 `not_found` (with CORS).
+Every other `/api/*` route answers without CORS (a preflight to one gets 403 `origin`). Callers: the app (1.1.0+, from
+Settings → Licence; Windows' `file://` page sends `Origin: null`), and the activation page (`/activate`).
+
+Body `{ key, device }`: the key in any case, with or without dashes or spaces, Arabic-Indic digits allowed; the device as
+in the panel (`XXXX-XXXX`, any case, spaces and dash ignored).
+
+| Status | Body |
+|---|---|
+| 200 | `Activation`: `{ code, device, plan, until }` (`code` grouped in fours with dashes, `device` `XXXX-XXXX`, `until` `YYYY-MM-DD` or null) |
+| 400 | `{ error: 'key' }` not 16 alphabet characters; `{ error: 'device' }` not a device number; `{ error: 'field', field: 'body' }` not a JSON object or over 16 KB |
+| 404 | `{ error: 'unknown' }` no such key |
+| 409 | `{ error: 'used' }` already activated on another device |
+| 410 | `{ error: 'void' }` refunded or void before activation; `{ error: 'expired' }` a `date` key after its day, or the device's own code (asked for again) past its last day |
+| 429 | `{ error: 'locked', retryAfter: seconds }` |
+| 503 | `{ error: 'signing' }` the Worker cannot sign (`LICENSE_PRIVATE_JWK` missing, malformed or not the app's key) |
+| 500 | `{ error: 'server' }` |
+
+How it answers, in order: a key that is waiting and `active` is signed for the device (`issueCode`, which checks the
+code back with the app's verifier before anything is stored) and bound in one statement,
+`UPDATE licences SET device, code, until, activated_at, search WHERE key = ? AND device = '' AND status = 'active'`;
+when that changes no row (another request bound it first, or it was voided meanwhile) the row is read again. A key that
+is already bound (or just lost the race): the same device gets its stored code again (reinstall, cleared data), checked
+again with the app's verifier first; another device gets 409 `used`. A key still waiting but `refunded`/`void`: 410 `void`.
+So two devices racing for one key: exactly one wins. A key refunded or voided after activation still answers its own
+device with its code (that code works offline anyway); any other device gets `used`.
+
+Rate limit: per address (IPv4: the address; IPv6: its /64), at most 50 failed attempts (400 `key`/`device`, 404, 409, 410)
+within 15 minutes (loose on purpose: keys carry 80 random bits, and many clinics share one IPv4 behind a carrier's NAT); past that, 429 with the seconds until the oldest counted failure leaves the window. Like the login
+limit, every attempt takes a slot in `activation_attempts` in one D1 transaction before the key is looked up (so
+parallel guesses cannot pass the limit), and gives it back unless it failed: successes, a broken body (400 `field`), 503
+and 500 are not counted; refused attempts (429) are not recorded. A row stops counting after 15 minutes and is deleted
+by the next activation attempt after that, from any address (there is no timer: with no further attempt it stays).
+
+Audit (with no address: `ip` is `''`): `key.activate` when a key is bound, detail `…<last 4 of the key> · <device>` (a
+repeat by the same device is not logged: successes are not rate limited, so they must cost no write); `key.used` the first time per key and UTC day that another device tries a used key (one line tells the seller the
+key is being passed around; one per attempt would let whoever holds a used key fill the log from this public route), detail
+`…<last 4> · <the device it is activated on>` (the device that tried is not recorded).
+
+What the server keeps (the facts the privacy texts state): for a key, its device number, the code it was given and its
+activation time with the sale, for as long as that sale record is kept (it is the proof the key was used, and refuses it
+on a second device); the address of a failed attempt, on its own, to count attempts for 15 minutes (the row goes with the
+next activation request after that). The activation page and the app send only the key and the device number.
+
+## Database (D1)
+
+Created and migrated by the Worker on the first request of each isolate (`ensureSchema` in `src/db.ts`): every table is
+`CREATE TABLE IF NOT EXISTS`, then the key columns are added to `licences` when `PRAGMA table_info(licences)` lacks them
+(`ALTER TABLE … ADD COLUMN`, all in one transaction; a "duplicate column" from another isolate migrating at the same
+moment is fine once all columns are there), then the key index. A database made before keys and an empty one end with the
+same tables.
+
+| Table | Columns | Notes |
+|---|---|---|
+| `settings` | `key` PK, `value` | `site` (SiteSettings JSON), `session_salt` |
+| `licences` | `id` PK, `device`, `plan`, `until`, `code`, `customer`, `clinic`, `phone`, `price`, `note`, `status`, `created_at`, `search`, `key`, `validity`, `activated_at` | one row per sale (device licence or key). `key` TEXT (NULL for device licences), unique when set (`licences_key`, partial index); `validity` TEXT NOT NULL DEFAULT `''` (keys: `lifetime`/`1y`/`2y`/`date`); `activated_at` TEXT (keys: ISO time; NULL while waiting). A waiting key: `device = ''`, `code = ''`. `search` = device (with and without dash), names, phone (as typed and digits), key (with and without dashes), lower case. Indexes on `created_at`, `device` |
+| `resets` | `id` PK, `device`, `code`, `day`, `last_day`, `customer`, `phone`, `note`, `created_at` | PIN reset codes |
+| `downloads` | (`day`, `platform`) PK, `count` | |
+| `download_seen` | (`day`, `platform`, `who`) PK | salted hash of the address, two days |
+| `login_attempts` | `id` PK, `ip`, `at` (ms) | login limit; indexes (`ip`, `at`), (`at`) |
+| `activation_attempts` | `id` PK, `ip`, `at` (ms) | key activation limit (address as for the login limit); indexes (`ip`, `at`), (`at`); a row out of the 15-minute window is deleted by the next activation attempt |
+| `revoked_sessions` | `sid` PK, `exp` | logged-out sessions until their tokens expire |
+| `audit` | `id` PK, `at`, `action`, `detail`, `ip` | |
+
+## Security
+
+- CORS: only `POST`/`OPTIONS /api/activate` (above); no other response has an `Access-Control-*` header.
+- Security headers on every response: `Strict-Transport-Security: max-age=31536000; includeSubDomains`,
+  `X-Content-Type-Options: nosniff`, `Referrer-Policy: strict-origin-when-cross-origin`, `X-Frame-Options: DENY`,
+  `Permissions-Policy: camera=(), microphone=(), geolocation=()`, and a CSP: `default-src 'self'; img-src 'self' data:;
+  style-src 'self'; font-src 'self'; script-src 'self'; connect-src 'self'; frame-ancestors 'none'; base-uri 'none';
+  form-action 'self'` (no inline scripts or styles anywhere: put JSON-LD in `<script type="application/ld+json">`, which
+  CSP does not execute, and everything else in files). The public HTML pages carry `PUBLIC_CSP` instead: the same with
+  `media-src 'self'` after `img-src` (the course's recordings and captions, from this origin only) and Cloudflare Web
+  Analytics allowed in `script-src` (`https://static.cloudflareinsights.com`) and `connect-src`
+  (`https://cloudflareinsights.com`).
+- Static files' cache headers (`public/_headers`, written by `scripts/build-public.mjs`): `/fonts/*` a year, immutable;
+  `/img/*` and `/img/guide/*` a day; `/videos/*` a week (`public, max-age=604800`: a chapter's files are linked with its
+  recording's hash, `?v=`); `/css/*`, `/js/*` ten minutes; `/admin/*` `no-cache, no-transform` + `X-Robots-Tag: noindex`.
+  The build refuses a file that would shadow a page (anything under `/guide/`, or directly in `/videos/` other than
+  `manifest.json`); `VIDEOS_DIR=<dir>|none` publishes another folder (or none) as `/videos/` instead of `site/videos/`.
+- Everything user-supplied is HTML-escaped when rendered (landing page settings, admin page renders via `textContent`).
+- Session and device tokens: `base64url(payload).base64url(HMAC-SHA256(key, kind + '.' + payload))`, kind `session` or
+  `device` (so one can never pass as the other), payload `{ exp, sid }` (`sid` random, for revoking), key derived from
+  `ADMIN_PASSWORD` and a random salt kept in D1 `settings` (changing the password signs everyone out and forgets every
+  device). Constant-time comparisons.
+- The private key never leaves the Worker: no endpoint returns it, logs never contain it.
