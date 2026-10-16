@@ -256,7 +256,7 @@
       place(this.c2.pin, PIN.x + 12, PIN.y + h * PS + 28, { anchor: 'c' })
       // yellow frame on the sum inside card ①
       const lr = inkBox(this.lhs, root)
-      place(this.mkL, lr.x - 12, lr.y - 10, { w: lr.w + 24, h: lr.h + 20 })
+      place(this.mkL, lr.x - 10, lr.y - 10, { w: lr.w + 16, h: lr.h + 20 })
       // ℓ chip flies from the result of the step into its slot
       const a = inkBox(this.sr, root), b = rectIn(this.chL, root)
       this.flyL = { dx: a.x + a.w * .62 - b.cx, dy: a.cy - b.cy }

@@ -39,24 +39,17 @@ scene('s03', (() => {
       T.to1 = T.chg + .2
       T.to5 = T.to1 + Math.max(1.4, (S.end(1) - T.to1) * .45)
       T.cond = Math.max(S.at(2) + 1.3, cue(S, 2, 'حيث', .25))
-      T.or = Math.max(T.cond + 1.5, cue(S, 2, ['أو أكبر', 'أو المتتالية', 'أو إن صفر'], .45))
+      T.or = Math.max(T.cond + 1.5, cue(S, 2, ['أو حيث'], .45))                // «أو حيث إنْ ≥ إنْ صفر»
       T.name = Math.max(T.or + 1.2, cue(S, 2, 'ونسمي', .58))
       T.term = Math.max(T.name + .6, cue(S, 2, 'حد المتتالية', .7))
       T.idx = Math.max(T.term + .7, cue(S, 2, 'ذا الدليل', .86))
-      T.pos = Math.max(S.at(3) + 1.0, cue(S, 3, ['الدليل هو موقع', 'الدليل موقع'], .07))
-      T.val = Math.max(T.pos + .9, cue(S, 3, ['فهو القيمة', 'والحد قيمته'], .2))
-      // older narration also walks through u7 («وهو الثامن…»); the current one stops at «…فهو القيمة»
-      this.hasOrd = /الثامن/.test(strip((S.lines[3] || {}).text || ''))
-      if (this.hasOrd) {
-        T.u7 = Math.max(T.val + 1, cue(S, 3, 'فالحد يو سبعة', .3))
-        T.ord = Math.max(T.u7 + 1.2, cue(S, 3, 'وهو الثامن', .55))
-        T.q = Math.max(T.ord + 1.6, cue(S, 3, 'وقيمته', .78))
-        T.warn = T.q + .4
-      } else {
-        T.u7 = T.pos + .5                       // position: box 7 and its index, caption «u7: الحدّ ذو الدليل 7»
-        T.q = T.val + .3                        // value: «؟»
-        T.warn = Math.max(T.u7 + 1, Math.min(T.q + .5, S.dur - 1.6))
-      }
+      // «الدليلُ يدلّ على موقع الحدّ» → index labels; «أمّا الحدّ فهو القيمة» → value labels
+      T.pos = Math.max(S.at(3) + 1.0, cue(S, 3, ['الدليل يدل', 'الدليل'], .07))
+      T.val = Math.max(T.pos + 1.9, cue(S, 3, ['أما الحد', 'فهو القيمة'], .55))
+      T.u7 = T.pos + .5                         // box 7, its index, caption «u7: الحدّ ذو الدليل 7»
+      T.ord = T.u7 + .9                         // «— وهو الحدّ الثامن لأنّ العدّ بدأ من u0» (box 0 flashes)
+      T.q = T.val + .3                          // value: «؟»
+      T.warn = Math.max(T.q + .4, Math.min(T.q + .6, S.dur - 1.6))
 
       this.h = heading(root, 'ما المتتالية؟')
       // the two open questions stay pinned in the corner (compact form)
@@ -186,10 +179,6 @@ scene('s03', (() => {
       // ================= line 3: index vs term =================
       this.row = el('div', '', null, root)
       place(this.row, 0, 0, { w: W, h: H })
-      this.ords = (this.hasOrd ? ['الأوّل', 'الثاني', 'الثالث', 'الرابع', 'الخامس', 'السادس', 'السابع', 'الثامن'] : []).map((t, i) => {
-        const e = el('div', 's', t, this.row); e.style.cssText += 'white-space:nowrap;font-size:28px'
-        place(e, BX(i) + BW / 2, 396, { anchor: 'c' }); return e
-      })
       this.boxes = []; this.vals = []; this.idxs = []
       for (let i = 0; i < 8; i++) {
         const b = el('div', '', null, this.row)
@@ -203,7 +192,7 @@ scene('s03', (() => {
       this.iDots = tex('\\cdots', 'mx'); this.iDots.style.color = C.mut; this.row.appendChild(this.iDots); place(this.iDots, BX(8) + 40, 622, { anchor: 'c' })
       this.labV = rich('الحدّ = القيمة', 'h3'); this.labV.style.cssText += `color:${C.yel};font-weight:800;white-space:nowrap;font-size:40px`
       this.row.appendChild(this.labV); place(this.labV, 1800, 505, { anchor: 'cr' })
-      this.labI = rich('الدليل = الموقع', 'h3'); this.labI.style.cssText += `color:${C.blu};font-weight:800;white-space:nowrap;font-size:40px`
+      this.labI = rich('الدليل: رقم الموقع', 'h3'); this.labI.style.cssText += `color:${C.blu};font-weight:800;white-space:nowrap;font-size:40px`
       this.row.appendChild(this.labI); place(this.labI, 1800, 622, { anchor: 'cr' })
       // highlight of box 7
       this.hl7 = el('div', 'hlbox', null, this.row)
@@ -214,10 +203,17 @@ scene('s03', (() => {
       this.cap7 = rich('$u_7$ : الحدّ ذو الدليل <span class="blu b">7</span>', 'h3')
       this.cap7.style.cssText += 'white-space:nowrap'
       this.cap7.querySelector('bdi').style.color = C.yel
-      this.row.appendChild(this.cap7); place(this.cap7, BX(7) + BW / 2, 742, { anchor: 'c' })
+      this.row.appendChild(this.cap7); place(this.cap7, BX(7) + BW / 2, 738, { anchor: 'c' })
+      this.cap7b = rich('— وهو <span class="yel b">الحدّ الثامن</span> لأنّ العدّ بدأ من $u_0$', 'p')
+      this.cap7b.style.cssText += `white-space:nowrap;font-size:36px;color:${C.mut}`
+      this.cap7b.querySelector('bdi').style.color = C.yel
+      this.row.appendChild(this.cap7b); place(this.cap7b, BX(7) + BW / 2, 800, { anchor: 'c' })
+      // box 0 flashes when the caption says the count starts at u0
+      this.hl0 = el('div', 'hlbox', null, this.row)
+      place(this.hl0, BX(0) - 14, 426, { w: BW + 28, h: 158 })
       const rs = svg(this.row, 0, 0, W, H)
       this.capArrow = arrow(rs, BX(7) + BW / 2, 702, BX(7) + BW / 2, 668, { color: C.blu, width: 4 })
-      this.warn = chip(this.row, '⚠️ الدليل $n$ ليس قيمة الحدّ $u_n$', W / 2, 880, { anchor: 'c', color: C.red })
+      this.warn = chip(this.row, '⚠️ الدليل $n$ ليس قيمة الحدّ $u_n$', W / 2, 904, { anchor: 'c', color: C.red })
       this.warn.innerHTML = rich('⚠️ الدليل $n$ ليس قيمة الحدّ $u_n$', 's').innerHTML
       this.warn.style.cssText += 'font-size:36px;padding:14px 36px;white-space:nowrap;direction:rtl'
     },
@@ -454,15 +450,11 @@ scene('s03', (() => {
         this.capArrow.set(prog(lt, T.u7 + .35, .4))
         const cp = prog(lt, T.u7 + .3, .5)
         op(this.cap7, cp); this.cap7.style.transform = `translateY(${(1 - cp) * 14}px)`
-        // ordinals count, "the eighth" lights up
-        if (this.hasOrd) this.ords.forEach((e, i) => {
-          const p = prog(lt, T.ord + i * .16, .3)
-          op(e, p)
-          const on = i === 7 ? prog(lt, T.ord + 7 * .16 + .2, .4) : 0
-          e.style.color = mixColor('#9aa8c9', C.yel, on)
-          e.style.fontWeight = i === 7 && on > .5 ? 800 : 500
-          e.style.transform = `scale(${1 + .3 * on})`
-        })
+        // «— وهو الحدّ الثامن لأنّ العدّ بدأ من u0»: box 0 flashes while it comes in
+        const ob = prog(lt, T.ord, .5)
+        op(this.cap7b, ob); this.cap7b.style.transform = `translateY(${(1 - ob) * 12}px)`
+        const h0 = env(lt, T.ord + .2, T.val - .1, .3, .4)
+        op(this.hl0, h0 * .9); this.hl0.style.transform = `scale(${lerp(1.12, 1, E.out(clamp(h0)))})`
         // its value: ?
         const qp = prog(lt, T.q, .5, E.back)
         this.vals[7].style.transform = `translateY(${-36 * clamp(qp)}px) scale(${lerp(1, .68, clamp(qp))})`

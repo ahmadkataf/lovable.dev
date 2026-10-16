@@ -104,19 +104,22 @@
       const rchip = (html, c, ink) => { const e = el('div', 'chip', html, this.rail); e.style.cssText += `border-color:${c}88;background:${c}1c;color:${ink || c};font-size:28px;padding:6px 22px;white-space:nowrap`; return e }
       this.rGiven = rchip(`${kt('v_0 = 1')} &nbsp;،&nbsp; ${kt('v_{n+1} = \\dfrac{v_n}{1+v_n}')}`, P, C.ink)
       this.rOne = rchip(`${badge(1, G)}${kt('v_n > 0')} ✓`, G)
-      this.rTwo = rchip(`${badge(2, B)}${kt('u_n = \\dfrac{1}{v_n}')}`, B)
+      this.rTwo = rchip(`${badge(2, B)}${kt('u_n = \\dfrac{1}{v_n}')}<span id="${ID}-r2x" style="display:inline-block;overflow:hidden;white-space:nowrap;vertical-align:middle">&nbsp; ، &nbsp;${kt('u_0 = 1')} ، ${kt('r = 1')}</span>`, B)
+      // the ❷ chip later grows to «u_0 = 1 ، r = 1» (as s24 opens with it)
+      this.r2x = document.getElementById(`${ID}-r2x`); this.r2xW = this.r2x.offsetWidth; this.r2x.style.maxWidth = '0px'
 
       // ================= L0: the exercise =================
       const c0 = card(root, 'ex', 960, 318, 1680, { anchor: 'tc', tag: '✏️ تدرَّبْ · التمرين ③ · ص 11' })
       this.card0 = c0.el
       c0.el.style.padding = '46px 56px 38px'
-      this.st = rich(`$(v_n)_{n\\ge0}$ متتالية معرّفة تدريجيّاً وفق $\\htmlId{${ID}-v0}{v_0 = 1}$ و $\\htmlId{${ID}-rec}{v_{n+1} = \\dfrac{v_n}{1+v_n}}$`, 'h3')
+      this.st = rich(`$(\\htmlId{${ID}-vl}{v}_n)_{n\\ge0}$ متتالية معرّفة تدريجيّاً وفق $\\htmlId{${ID}-v0}{v_0 = 1}$ و $\\htmlId{${ID}-rec}{v_{n+1} = \\dfrac{v_n}{1+v_n}}$`, 'h3')
       this.st.style.fontSize = '50px'
       c0.body.appendChild(this.st); splitWords(this.st)
       this.it1 = rich(`${badge(1)}تحقّق أنّ $v_n > 0$ أيّاً كان العدد الطبيعي $n$`, 'p')
       this.it1.style.cssText += 'margin-top:22px;font-size:44px'
       c0.body.appendChild(this.it1); splitWords(this.it1)
       this.mkV0 = marker(c0.el); this.mkRec = marker(c0.el)
+      this.vl = $('vl'); this.vl.style.display = 'inline-block'
       this.cdw = el('div', '', null, root); place(this.cdw, 0, 0, { w: W, h: H })
       this.cd = countdown(this.cdw, 960, 806, 70, 'أوقف وفكّر')
 
@@ -192,11 +195,18 @@
       const c3 = card(root, 'ex', 960, 318, 1680, { anchor: 'tc', tag: '✏️ التمرين ③ · السؤال الثاني' })
       this.card3 = c3.el
       c3.el.style.padding = '46px 56px 38px'
-      this.it2 = rich(`${badge(2)}أثبت أنّ المتتالية $(u_n)_{n\\ge0}$ المعرّفة بالعلاقة $\\htmlId{${ID}-udef}{u_n = \\dfrac{1}{v_n}}$ <span id="${ID}-ar" style="white-space:nowrap">متتالية حسابيّة</span>`, 'h3')
+      this.it2 = rich(`${badge(2)}أثبت أنّ المتتالية $\\htmlId{${ID}-un}{(u_n)_{n\\ge0}}$ المعرّفة بالعلاقة $\\htmlId{${ID}-udef}{u_n = \\dfrac{1}{v_n}}$ <span id="${ID}-ar" style="white-space:nowrap">متتالية حسابيّة</span>`, 'h3')
       this.it2.style.fontSize = '47px'
       c3.body.appendChild(this.it2)
       this.arSpan = $('ar')
       this.mkU = marker(c3.el); this.ulAr = el('div', 'uline', null, c3.el); op(this.ulAr, 0)
+      // «نعرّف متتاليةً جديدة»: a small purple tag points at (u_n)
+      this.mkNew = marker(c3.el, P); this.mkNew.style.background = 'rgba(167,139,250,.1)'; this.mkNew.style.boxShadow = `0 0 22px ${P}55`
+      this.newTag = el('div', '', null, root)
+      this.newTag.style.cssText = `position:absolute;display:flex;flex-direction:column;align-items:center;color:${P};z-index:3`
+      el('div', '', '▲', this.newTag).style.cssText = 'font-size:22px;line-height:1;margin-bottom:-2px'
+      const nt = el('div', '', 'متتالية جديدة', this.newTag)
+      nt.style.cssText = `padding:4px 20px;border-radius:999px;border:2.5px solid ${P};background:rgba(30,24,70,.96);font-size:28px;font-weight:800;white-space:nowrap;direction:rtl;box-shadow:0 0 20px ${P}55`
       this.note = rich(`$v_n > 0 \\;\\Rightarrow\\; v_n \\ne 0$ &nbsp;بحسب ${badge(1, B)}&nbsp; فالكسر $\\dfrac{1}{v_n}$ معرّف`, 'p'); root.appendChild(this.note)
       place(this.note, 960, 676, { anchor: 'c' })
       this.note.style.cssText += `white-space:nowrap;padding:12px 36px;border-radius:26px;border:2.5px solid ${B}99;background:${B}14`
@@ -264,7 +274,7 @@
       this._layout()
     },
 
-    _sigNow() { return [this.rowC, this.chain, this.st, this.it2, this.rail, this.note].map(e => e.offsetWidth + 'x' + e.offsetHeight).join('|') },
+    _sigNow() { return [this.rowC, this.chain, this.st, this.it2, this.rGiven, this.note].map(e => e.offsetWidth + 'x' + e.offsetHeight).join('|') },
     _layout() {
       this._sig = this._sigNow()
       const root = this.root
@@ -304,6 +314,8 @@
       this.cD.setAttribute('d', `M${this.pDenR.x - 4},${this.pDenR.cy} Q${rd.cx},${this.pDenR.cy} ${rd.cx},${rd.y + rd.h + 8}`)
       // L3 markers
       putMark(this.mkU, inkBox(document.getElementById(`${ID}-udef`), this.card3), 10)
+      putMark(this.mkNew, inkBox(document.getElementById(`${ID}-un`), this.card3), 8)
+      { const un = inkBox(document.getElementById(`${ID}-un`), root); place(this.newTag, un.cx, c3.y + c3.h + 6, { anchor: 'tc' }) }
       const ua = inCard(this.card3, this.arSpan)
       place(this.ulAr, ua.x - 4, ua.y + ua.h + 2, { w: ua.w + 8 })
       // L4 captions, flip arc, strikes
@@ -348,15 +360,25 @@
       op(this.card0, Math.min(cIn, 1 - clamp(out0 * 1.25 - .2)))
       const f0 = this.fly0
       this.card0.style.transform = `translate(${f0.dx * out0}px, ${f0.dy * out0 + (1 - cIn) * 36}px) scale(${lerp(1, f0.s, out0)})`
-      typeWords(this.st, S.f(lt, 0, .03, .5))
-      const it1p = prog(lt, F(0, .6), .5)
-      op(this.it1, it1p > 0 ? 1 : 0); typeWords(this.it1, S.f(lt, 0, .6, .85))
+      // the statement is typed in step with the narration: «(v_n) … وفق» → «v_0 = 1» → «v_{n+1} = …»
+      const fl0 = S.f(lt, 0)
+      const pw = [[0, 0], [.02, 0], [.2, .5], [.25, .6], [.3, .7], [.5, .8], [.56, 1]]
+      let pst = 1
+      for (let k = 1; k < pw.length; k++) if (fl0 < pw[k][0]) { const [a, va] = pw[k - 1], [b, vb] = pw[k]; pst = lerp(va, vb, (fl0 - a) / (b - a)); break }
+      typeWords(this.st, lt < S.at(0) ? 0 : pst)
+      // «نرمز لحدودها بالحرف في»: the letter v glows
+      const vg = env(lt, F(0, .09), F(0, .3), .3, .5)
+      this.vl.style.color = vg > 0 ? mixColor(C.ink, Y, vg) : ''
+      this.vl.style.textShadow = vg > 0 ? `0 0 ${20 * vg}px rgba(255,210,63,.85)` : ''
+      this.vl.style.transform = `scale(${1 + .25 * vg})`
+      const it1p = prog(lt, F(0, .8), .5)
+      op(this.it1, it1p > 0 ? 1 : 0); typeWords(this.it1, S.f(lt, 0, .8, .97))
       const mk = (m, p) => { op(m, p > 0 ? 1 : 0); m.style.transform = `scaleX(${E.out(clamp(p))})` }
-      mk(this.mkV0, Math.min(prog(lt, F(0, .2), .5), 1 - prog(lt, F(0, .34), .4)))
-      mk(this.mkRec, Math.min(prog(lt, F(0, .34), .5), 1 - prog(lt, F(0, .58), .4)))
+      mk(this.mkV0, Math.min(prog(lt, F(0, .26), .5), 1 - prog(lt, F(0, .46), .4)))
+      mk(this.mkRec, Math.min(prog(lt, F(0, .48), .5), 1 - prog(lt, F(0, .8), .4)))
       {
         const hs = S.end(0), he = Math.max(hs + .5, S.at(1) - .25)
-        op(this.cdw, Math.min(prog(lt, F(0, .84), .5), 1 - S.p(lt, 1, 0, .4)))
+        op(this.cdw, Math.min(prog(lt, Math.max(F(0, .9), S.end(0) - .8), .5), 1 - S.p(lt, 1, 0, .4)))
         const q = clamp((lt - hs) / (he - hs))
         this.cd(Math.max(.001, q), 5 * (1 - q))
       }
@@ -389,7 +411,7 @@
       const out2 = S.p(lt, 3, 0, .55)
       const v2 = p => p * (1 - out2)
       const mIn = S.p(lt, 2, .25, .7)
-      const tIn = Math.max(F(2, .06), S.at(2) + .9)       // the input card drops into the funnel
+      const tIn = Math.max(F(2, .04), S.at(2) + .6)       // the input card drops into the funnel
       const pDrop = prog(lt, tIn, .8, E.in)
       const pOut = prog(lt, tIn + 1.1, .7, E.out)
       const work = env(lt, tIn + .7, tIn + 1.6, .2, .3)
@@ -406,7 +428,7 @@
       rise(this.tip, v2(S.p(lt, 2, .5, .6)), 30)
       this.tipRows.forEach((r, k) => rise(r, v2(S.p(lt, 2, .6 + k * .22, .5)), 14))
       // dominoes: stand up, then topple left → right
-      const T0 = Math.max(F(2, .16), tIn + 1.4), dt = .42, D = .62
+      const T0 = Math.max(F(2, .14), tIn + 1.2), dt = .32, D = .55
       const free = this.doms.map((d, k) => 90 * E.in(clamp((lt - T0 - k * dt) / D)))
       const ang = new Array(6)
       for (let k = 5; k >= 0; k--) ang[k] = Math.min(free[k], this.contact(k === 5 ? 0 : ang[k + 1]))
@@ -426,7 +448,7 @@
       })
       const gp = v2(prog(lt, S.at(2) + 1.2, .5))
       this.ghost.g.style.opacity = gp; op(this.dmore, gp)
-      const l2p = prog(lt, Math.max(F(2, .56), T0 + 6 * dt + .1), .6)
+      const l2p = prog(lt, Math.max(F(2, .6), T0 + 5 * dt + .3), .6)
       op(this.l2, v2(l2p)); this.l2.style.transform = `translateX(${(1 - E.out(l2p)) * 40}px) scale(${lerp(.92, 1, E.out(l2p))})`
       this.l2.style.boxShadow = `0 0 ${40 + 16 * Math.sin(lt * 2)}px rgba(124,58,237,.38)`
 
@@ -436,11 +458,15 @@
       op(this.card3, Math.min(c3In, 1 - clamp(out3 * 1.25 - .2)))
       const f3 = this.fly3
       this.card3.style.transform = `translate(${f3.dx * out3}px, ${f3.dy * out3 + (1 - c3In) * 36}px) scale(${lerp(1, f3.s, out3)})`
-      mk(this.mkU, Math.min(prog(lt, Math.max(F(3, .1), S.at(3) + .9), .5), 1 - prog(lt, F(3, .7), .5)))
-      const ulP = prog(lt, F(3, .8), .6)
+      const tNew = Math.max(F(3, .07), S.at(3) + .8), tU = Math.max(F(3, .18), tNew + .9)
+      mk(this.mkNew, Math.min(prog(lt, tNew, .5), 1 - prog(lt, tU, .4)))
+      const ntP = Math.min(prog(lt, tNew + .15, .5), 1 - out3)
+      op(this.newTag, ntP); this.newTag.style.transform = `translateY(${(1 - E.out(clamp(ntP))) * 14}px)`
+      mk(this.mkU, Math.min(prog(lt, tU, .5), 1 - prog(lt, Math.max(F(3, .42), tU + 1.2), .5)))
+      const ulP = prog(lt, F(3, .88), .6)
       op(this.ulAr, ulP > 0 ? 1 : 0); this.ulAr.style.transform = `scaleX(${E.out(ulP)})`
       this.arSpan.style.color = mixColor(C.ink, Y, ulP)
-      const nP = prog(lt, Math.max(F(3, .32), S.at(3) + 1.6), .6)
+      const nP = prog(lt, Math.max(F(3, .42), tU + 1), .6)
       op(this.note, nP * (1 - S.p(lt, 4, 0, .45))); this.note.style.transform = `translateY(${(1 - nP) * 24}px)`
       {
         const hs = S.end(3), he = Math.max(hs + .5, S.at(4) - .25)
@@ -503,6 +529,9 @@
         draw(p, q); h.style.opacity = q > .95 ? 1 : 0; op(l, q)
       })
       op(this.nmore, prog(lt, tN + 2, .5))
+      // file the result in the rail: ❷ grows to «u_0 = 1 ، r = 1»
+      const gx = E.io(prog(lt, Math.min(Math.max(F(5, .92), tN + 2.4), S.dur - 1.4), .7))
+      this.r2x.style.maxWidth = (this.r2xW * gx) + 'px'; this.r2x.style.opacity = gx
     },
   })
 })()

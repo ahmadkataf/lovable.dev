@@ -32,6 +32,7 @@
       this.rail.style.cssText += 'display:flex;gap:16px;direction:rtl;align-items:center'
       const rchip = (html, c, ink) => { const e = el('div', 'chip', html, this.rail); e.style.cssText += `border-color:${c}88;background:${c}1c;color:${ink || c};font-size:28px;padding:6px 22px;white-space:nowrap`; return e }
       this.rGiven = rchip(`${kt('v_0 = 1')} &nbsp;،&nbsp; ${kt('v_{n+1} = \\dfrac{v_n}{1+v_n}')}`, P, C.ink)
+      this.rOne = rchip(`${badge(1, G)}${kt('v_n > 0')} ✓`, G)
       this.rTwo = rchip(`${badge(2, B)}${kt('u_n = \\dfrac{1}{v_n}')}&nbsp; ، &nbsp;${kt('u_0 = 1')} ، ${kt('r = 1')}`, B)
       this.rThree = rchip(`${badge(3, Y)}${kt('v_n = \\dfrac{1}{n+1}')}`, Y)
 
@@ -144,8 +145,7 @@
       this.head.set(S.p(lt, 0, 0, .8))
       // rail: carried over from s23; chip 3 arrives when item 3 is answered
       const r3 = prog(lt, Math.max(F(2, 0), S.at(2)) + .2, .5)
-      op(this.rGiven, 1); op(this.rTwo, 1)
-      ;[this.rGiven, this.rTwo].forEach(e => (e.style.transform = ''))
+      ;[this.rGiven, this.rOne, this.rTwo].forEach(e => { op(e, 1); e.style.transform = '' })
       pop(this.rThree, r3)
 
       // ================= L0 =================
@@ -181,45 +181,48 @@
       const f1In = prog(lt, Math.max(F(1, .38), S.at(1) + 2.8), .7)
       wipe(this.f1, f1In, 'ltr')
       const kbIn = prog(lt, Math.max(F(1, .58), S.at(1) + 3.8), .7)
-      const kbMove = S.p(lt, 2, 0, .9)
+      const kbMove = S.p(lt, 2, 0, .65)
       this.kb.set(kbIn)
       const k = this.kbTo
       if (kbIn >= 1) this.kb.el.style.transform = `translate(${k.dx * kbMove}px, ${k.dy * kbMove}px) scale(${lerp(1, k.s, kbMove)})`
       this.kb.el.style.boxShadow = `0 0 ${40 + 16 * Math.sin(lt * 2)}px rgba(167,139,250,${.3 * clamp(kbIn)})`
 
       // ================= L2 =================
-      const tIn = S.p(lt, 2, .35, .7)
+      const tIn = S.p(lt, 2, .12, .5)
       rise(this.tb.el, tIn, 30)
       const cells = this.rowEls
       // recursion row fills one column at a time (as the narrator computes), then the formula row
-      const tR = [Math.max(F(2, .06), S.at(2) + .7), Math.max(F(2, .2), S.at(2) + 1.3), Math.max(F(2, .36), S.at(2) + 1.9), Math.max(F(2, .46), S.at(2) + 2.5)]
-      const tF0 = Math.max(F(2, .56), tR[3] + .6)
-      const tFm = [0, 1, 2, 3].map(j => tF0 + j * .3)
-      const tT = [0, 1, 2, 3].map(j => Math.max(F(2, .66), tFm[3] + .5) + j * .22)
+      // «تحقّقْ في الجدول»: recursion row column by column, then the formula row, then the ticks;
+      // «فالمقلوب جعل الصعب سهلاً»: the 💡 chip. Fits a ~4 s line, spreads out on longer ones.
+      const a2 = S.at(2)
+      const tR = [Math.max(F(2, .05), a2 + .45), Math.max(F(2, .13), a2 + .75), Math.max(F(2, .21), a2 + 1.05), Math.max(F(2, .29), a2 + 1.35)]
+      const tF0 = Math.max(F(2, .37), tR[3] + .35)
+      const tFm = [0, 1, 2, 3].map(j => tF0 + j * .15)
+      const tT = [0, 1, 2, 3].map(j => Math.max(F(2, .47), tFm[3] + .3) + j * .12)
       for (let j = 1; j <= 4; j++) {
         op(cells[0][j].firstChild, 1)
-        const a = prog(lt, tR[j - 1], .45), b = prog(lt, tFm[j - 1], .45)
+        const a = prog(lt, tR[j - 1], .35), b = prog(lt, tFm[j - 1], .35)
         const ca = cells[1][j].firstChild, cb = cells[2][j].firstChild
         op(ca, a); ca.style.transform = `translateY(${(1 - a) * 16}px)`
         op(cb, b); cb.style.transform = `translateY(${(1 - b) * 16}px)`
       }
-      op(cells[1][0].firstChild, prog(lt, tR[0] - .4, .45)); op(cells[2][0].firstChild, prog(lt, tF0 - .4, .45))
+      op(cells[1][0].firstChild, prog(lt, tR[0] - .3, .35)); op(cells[2][0].firstChild, prog(lt, tF0 - .3, .35))
       // a moving yellow frame on the column being computed
       let cur = -1
       for (let j = 0; j < 4; j++) if (lt >= tR[j]) cur = j
-      const hlOn = Math.min(prog(lt, tR[0], .3), 1 - prog(lt, tF0 - .1, .4))
+      const hlOn = Math.min(prog(lt, tR[0] - .1, .25), 1 - prog(lt, tF0 - .1, .3))
       if (cur >= 0) {
-        const pj = cur > 0 ? E.io(prog(lt, tR[cur], .4)) : 1
+        const pj = cur > 0 ? E.io(prog(lt, tR[cur], .3)) : 1
         const a = this.colR[Math.max(0, cur - 1)], b = this.colR[cur]
         place(this.colHL, lerp(a.x, b.x, pj) + 4, a.y + 4, { w: b.w - 8, h: b.h - 8 })
       }
       op(this.colHL, cur >= 0 ? hlOn : 0)
-      this.ticks.forEach((t, j) => pop(t, prog(lt, tT[j], .5)))
-      rise(this.same, prog(lt, tT[3] + .3, .5), 14)
+      this.ticks.forEach((t, j) => pop(t, prog(lt, tT[j], .4)))
+      rise(this.same, prog(lt, tT[3] + .2, .45), 14)
       // example v2 next to the table (appears with column n = 2)
-      const exP = prog(lt, tR[2] + .2, .6)
+      const exP = prog(lt, tR[2] + .1, .5)
       rise(this.ex, exP, 24)
-      const tipP = prog(lt, Math.max(F(2, .8), tT[3] + .4), .6)
+      const tipP = prog(lt, Math.max(F(2, .6), tT[3] + .3), .55)
       pop(this.tip, tipP)
       this.tip.style.boxShadow = tipP >= 1 ? `0 0 ${24 + 14 * Math.sin(lt * 2.4)}px rgba(255,210,63,.35)` : ''
     },
