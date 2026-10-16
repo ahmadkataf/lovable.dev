@@ -232,6 +232,25 @@ function table(root, rows, x, y, o = {}) {
   return { el: t, cells }
 }
 
+// scene heading: same place and style in every scene (top-right, under the chrome). returns {el, set(p)}
+function heading(root, html, o = {}) {
+  const box = el('div', 'abs ar', null, root)
+  place(box, 1800, o.y ?? 150, { anchor: 'tr', w: o.w ?? 1500 })
+  const t = rich(html, o.cls || 'h2'); box.appendChild(t)
+  const bar = el('div', '', null, box)
+  bar.style.cssText = `height:6px;width:120px;border-radius:3px;margin:14px 0 0 auto;background:${o.color || C.pur};transform-origin:100% 50%`
+  return { el: box, set: p => { rise(t, p, 24); op(bar, p > 0 ? 1 : 0); bar.style.transform = `scaleX(${E.out(clamp(p * 1.4 - .2))})` } }
+}
+// the framed "key formula" box used for every result worth remembering. returns {el, set(p)}
+function keyBox(root, latex, x, y, o = {}) {
+  const b = el('div', '', null, root)
+  place(b, x, y, { anchor: o.anchor || 'c' })
+  b.style.cssText += `padding:26px 46px;border-radius:24px;border:3px solid ${o.color || C.yel};background:rgba(255,210,63,.07);box-shadow:0 0 50px ${(o.color || C.yel)}33`
+  const f = tex(latex, o.cls || 'ml'); b.appendChild(f)
+  if (o.label) { const l = el('div', 'tag', o.label, b); l.style.cssText = `position:absolute;top:-22px;right:30px;padding:6px 18px;border-radius:999px;font-size:24px;font-weight:800;color:#0b1020;background:${o.color || C.yel}` }
+  return { el: b, f, set: p => pop(b, p, .85) }
+}
+
 // ---------- SVG ----------
 const NS = 'http://www.w3.org/2000/svg'
 function svg(root, x, y, w, h) {

@@ -57,6 +57,9 @@ scene('s05', {
   to combine, set `e.style.transform` yourself.)
 - Measure (in build only): `rectIn(target, root)`, `hlBox(target, root, {pad,color})` → setter(p),
   `hlBg(target, root, {color})` → setter(p), `underline(target, root, {color, dir})` → setter(p).
+- Consistency helpers (use them — every scene must look like part of one video):
+  `heading(root, html, {y, cls, color})` → `{el, set(p)}`: the scene title, always top-right at y≈150;
+  `keyBox(root, latex, x, y, {anchor, color, label, cls})` → `{el, f, set(p)}`: framed box for every result worth remembering.
 - Components: `card(root, type, x, y, w, {anchor, tag, h})` → `{el, body}` with types `def tip think ex warn exam`;
   `chip(root, html, x, y, {anchor, color})`; `counter(e, a, b, p, fmt)`; `countdown(root, x, y, r, label)` →
   setter(p, secondsLeft); `bookThumb(root, page, x, y, w, {x,y,w,h})` (page 6–11, highlight in page fractions);
