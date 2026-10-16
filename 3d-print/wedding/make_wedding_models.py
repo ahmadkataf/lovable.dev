@@ -35,6 +35,7 @@ OUT = os.path.join(HERE, "stl")
 PREVIEW = os.path.join(HERE, "preview")
 
 W, H = 160, 200          # sign size (fits a 220 x 220 bed)
+XY = 1.0                 # overall X/Y scale (--scale); thicknesses stay unchanged
 DEPTH = 36               # light box depth – distance helps the LEDs diffuse
 WALL = 3.0               # box wall
 FACE = 0.8               # letter face thickness (thin = bright)
@@ -47,6 +48,10 @@ FIT = 0.25               # clearance between rim and box
 
 # ---------------------------------------------------------------- 2D shapes
 def arch():
+    return affinity.scale(_arch(), XY, XY, origin=(0, 0))
+
+
+def _arch():
     r = W / 2
     body = box(-r, -H / 2, r, H / 2 - r).buffer(-8).buffer(8)  # rounded bottom corners
     return unary_union([body, box(-r, 0, r, H / 2 - r), Point(0, H / 2 - r).buffer(r, 128)])
@@ -77,7 +82,7 @@ def text_shape(s, font, width, max_height, cy):
 
 def glow_shapes(arabic, names, date):
     """Everything that lights up, in front-view coordinates."""
-    outline = arch()
+    outline = _arch()
     border = outline.buffer(-6).difference(outline.buffer(-9.5))
 
     # Two linked hearts at the top of the arch.
@@ -90,11 +95,11 @@ def glow_shapes(arabic, names, date):
              text_shape(names, FONT_LATIN, 112, 30, -36).buffer(0.3)]
     if date:
         parts.append(text_shape(date, FONT_LATIN, 70, 13, -70).buffer(0.3))
-    return unary_union(parts)
+    return affinity.scale(unary_union(parts), XY, XY, origin=(0, 0))
 
 
 def cable_and_hangers():
-    cable = Point(0, -H / 2 + 16).buffer(4.5, 48)
+    cable = Point(0, -H * XY / 2 + 16).buffer(4.5, 48)
     keyholes = []
     for x in (-40, 40):
         keyholes += [Point(x, 40).buffer(4.5, 48), box(x - 2.2, 40, x + 2.2, 50),
@@ -188,14 +193,20 @@ def main():
     ap.add_argument("--arabic", default="زواج مبارك", help="main Arabic line")
     ap.add_argument("--names", default="Mr & Mrs", help="names line, e.g. 'Ahmad & Sara'")
     ap.add_argument("--date", default="", help="optional date line")
+    ap.add_argument("--scale", type=float, default=1.0,
+                    help="X/Y scale, e.g. 0.85 for a Bambu Lab A1 mini (180 x 180 bed)")
+    ap.add_argument("--out", default="stl", help="output folder (relative to this script)")
     a = ap.parse_args()
 
+    global XY, OUT
+    XY, OUT = a.scale, os.path.join(HERE, a.out)
     os.makedirs(OUT, exist_ok=True)
     os.makedirs(PREVIEW, exist_ok=True)
     glow = glow_shapes(a.arabic, a.names, a.date)
     check(light_box(), "sign_box.stl")
     check(front_panel(glow), "sign_front.stl")
-    preview(glow, os.path.join(PREVIEW, "sign_lit.png"))
+    if a.scale == 1.0:
+        preview(glow, os.path.join(PREVIEW, "sign_lit.png"))
 
 
 if __name__ == "__main__":

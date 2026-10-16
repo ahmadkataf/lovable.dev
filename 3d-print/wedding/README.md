@@ -20,6 +20,23 @@
 - **الصندوق** `sign_box.stl` يُطبع وظهره على السرير وفتحته للأعلى. يكفي Infill بنسبة 15%.
 - المقاسان يناسبان سريراً بحجم 220 × 220 مم مثل Ender 3 و Bambu A1 و Prusa MK4.
 
+## طابعات Bambu Lab
+
+| الطابعة | الملفات |
+|---|---|
+| X1 / P1S / P1P / A1 (سرير 256 مم) | `stl/` (160 × 200 مم) |
+| A1 mini (سرير 180 مم) | `stl/a1-mini/` (136 × 170 مم، الأحجام مصغّرة فقط والسماكات كما هي) |
+
+اطبع كل قطعة على Plate منفصل في Bambu Studio:
+
+1. افتح `sign_front.stl` واختر خيط **Bambu PLA Basic Jade White / PLA Translucent** أو PETG Translucent.
+2. اختر Process: **0.20mm Standard**، و Wall loops = 2، و Sparse infill = 15%. اترك الاتجاه كما هو، فالوجه على السرير.
+3. اضغط **Slice**. في شريط الطبقات على اليمين انزل إلى الطبقة التي ارتفاعها **7.00 مم** (الطبقة 35)، ثم اضغط عليها بزر الفأرة الأيمن:
+   - **مع AMS**: اختر *Add color change* ثم اختر الخيط المعتم، فتبدّل الطابعة الخيط تلقائياً.
+   - **بدون AMS**: اختر *Add pause*. عندما تتوقف الطابعة، بدّل الخيط يدوياً من الشاشة (Unload ثم Load) وتابع الطباعة.
+4. استخدم سطح **Textured PEI** للحصول على وجه حروف بملمس ناعم ومحبّب، أو **Smooth PEI** لوجه لامع.
+5. اطبع `sign_box.stl` على Plate ثانٍ بلون معتم، مع Supports = Off.
+
 ## الإضاءة والتركيب
 
 1. ألصق شريط LED أبيض دافئ (USB 5V، تقريباً 50–80 سم) على السطح الداخلي لظهر الصندوق بشكل حلزوني أو متعرّج.
@@ -32,6 +49,8 @@
 ```bash
 pip install trimesh manifold3d shapely scipy networkx "matplotlib>=3.11"
 python3 make_wedding_models.py --arabic "زواج مبارك" --names "Ahmad & Sara" --date "16.10.2026"
+# Bambu Lab A1 mini:
+python3 make_wedding_models.py --names "Ahmad & Sara" --scale 0.85 --out stl/a1-mini
 ```
 
 يعيد الأمر توليد ملفات STL وصورة المعاينة. يمكن تغيير المقاسات (عرض اللوحة وعمقها وبروز الحروف) من الثوابت في أعلى السكربت.
