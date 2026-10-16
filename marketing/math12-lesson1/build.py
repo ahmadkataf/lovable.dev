@@ -21,7 +21,7 @@ PREFIX = 'L01'
 SR = 24000
 LEAD, GAP, TAIL = 0.8, 0.5, 1.0      # seconds: scene start → first line, between lines, after last line
 EST_WPS = 1.75                        # words/second used before real audio exists (ar-001-tutor-2 ≈ 1.74)
-MAX_WORDS = 620                       # per TTS section (≈ 4–5 min)
+MAX_WORDS = 400                       # per TTS section (≈ 3–4 min; small sections = cheap retakes)
 PAUSE = ' <long pause> '              # between lines inside a section
 VOICE = 'ar-001-tutor-2'              # locked for the whole course (owner's choice after the voice test)
 STYLE = 'clear, friendly instructor, moderate pace'
