@@ -3,3 +3,4 @@ out/
 .seg-*/
 script-review.html
 __pycache__/
+*.lock
