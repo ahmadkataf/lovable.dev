@@ -53,7 +53,7 @@ function solution(id, D) {
           if (it.kind === 'box') {
             const w = el('div', '', null, stack)
             const col = C[it.r.c || 'grn']
-            w.style.cssText = `position:absolute;right:0;left:0;padding:18px 26px;border-radius:20px;border:3px solid ${col};background:${col}14;box-shadow:0 0 40px ${col}33`
+            w.style.cssText = `position:absolute;right:0;left:0;padding:18px 26px;border-radius:20px;border:3px solid ${col};background:${col}14;box-shadow:0 0 18px ${col}22`
             const e = rich(it.r.t, 'p'); e.style.fontWeight = 700; e.style.fontSize = '36px'; w.appendChild(e)
             R = { w, e, o: it.r, box: true }
           } else R = mkRow(it.r, stack)
@@ -105,7 +105,7 @@ function solution(id, D) {
       const D = this.D
       rise(this.qc, S.p(lt, 0, 0, .6))
       typeWords(this.q, clamp((lt - .2) / Math.max(1.5, (S.end(0) - S.at(0)) * .7)))
-      const exOn = this.rows.length ? S.at(this.rows[0].line) : Infinity
+      const exOn = this.rows.length ? Math.min(S.at(this.rows[0].line), S.at(1)) : Infinity
       rise(this.ex, prog(lt, exOn - .3, .6, E.out))
       // rows
       let bottom = 0
