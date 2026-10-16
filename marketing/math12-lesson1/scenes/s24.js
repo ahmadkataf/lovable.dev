@@ -62,6 +62,7 @@
       this.row1 = tex(`\\htmlId{${ID}-f0}{u_n = \\htmlId{${ID}-u0}{${col(Y, 'u_0')}} + n\\,\\htmlId{${ID}-r}{${col(Y, 'r')}}} \\htmlId{${ID}-f1}{{}= 1 + n}`, 'ml'); root.appendChild(this.row1)
       place(this.row1, 960, 400, { anchor: 'c' })
       this.f0 = $('f0'); this.f1 = $('f1'); this.f0.style.display = 'inline-block'; this.f1.style.display = 'inline-block'
+      this.u0 = $('u0'); this.rr = $('r'); [this.u0, this.rr].forEach(e => (e.style.display = 'inline-block'))
       this.flash = el('div', '', null, root)
       this.flash.style.cssText = `position:absolute;border-radius:18px;border:3px solid ${Y};box-shadow:0 0 34px ${Y}88;pointer-events:none`
       this.flashTag = el('div', '', '🎯 من درس المتتالية الحسابيّة', root)
@@ -69,7 +70,8 @@
       // u0 → 1 and r → 1 notes (from the rail)
       this.n0 = tex(`u_0 = 1`, 'ms'); this.nr = tex(`r = 1`, 'ms')
       ;[this.n0, this.nr].forEach(e => { root.appendChild(e); e.style.cssText += `color:${B};font-size:34px` })
-      this.kb = keyBox(root, `v_n = \\dfrac{1}{u_n} = \\dfrac{1}{n+1}`, 960, 712, { color: P, label: 'النتيجة' })
+      this.kb = keyBox(root, `v_n = \\dfrac{1}{u_n} \\htmlId{${ID}-kb2}{{}= \\dfrac{1}{n+1}}`, 960, 712, { color: P, label: 'النتيجة' })
+      this.kb2 = $('kb2'); this.kb2.style.display = 'inline-block'
       this.kb.el.style.background = 'rgba(167,139,250,.08)'
 
       // ================= L2: the check =================
@@ -195,6 +197,9 @@
       const fl = env(lt, S.at(1) + 1.05, Math.max(F(1, .4), S.at(1) + 2.6), .25, .5)
       op(this.flash, fl * (.75 + .25 * Math.sin(lt * 9))); this.flash.style.transform = `scale(${lerp(1.12, 1, E.out(clamp(fl)))})`
       op(this.flashTag, fl); this.flashTag.style.transform = `translateY(${(1 - E.out(clamp(fl))) * 10}px)`
+      // «يو صفر» (.24) and «آر» (.40) light up as they are named
+      const pulse = (e, t) => { const g = env(lt, t, t + 1.3, .25, .45); e.style.textShadow = g > 0 ? `0 0 ${20 * g}px rgba(255,210,63,.9)` : ''; e.style.transform = `scale(${1 + .18 * g})` }
+      pulse(this.u0, Math.max(F(1, .22), S.at(1) + 1.3)); pulse(this.rr, Math.max(F(1, .38), S.at(1) + 2))
       const nP = prog(lt, Math.max(F(1, .42), S.at(1) + 2.2), .5)
       ;[this.n0, this.nr].forEach((e, k) => rise(e, Math.min(prog(lt, Math.max(F(1, .42), S.at(1) + 2.2) + k * .2, .5), 1 - out1), 10))
       const f1In = prog(lt, Math.max(F(1, .46), S.at(1) + 2.8), .7)      // «أي واحداً زائد إنْ» (.46)
@@ -202,6 +207,7 @@
       const kbIn = prog(lt, Math.max(F(1, .63), S.at(1) + 3.8), .7)      // «ونقلبه» (.63)
       const kbMove = S.p(lt, 2, 0, .65)
       this.kb.set(kbIn)
+      wipe(this.kb2, prog(lt, Math.max(F(1, .78), S.at(1) + 4.6), .7), 'ltr')   // «في إنْ يساوي واحداً على، إنْ زائد واحد» (.79)
       const k = this.kbTo
       if (kbIn >= 1) this.kb.el.style.transform = `translate(${k.dx * kbMove}px, ${k.dy * kbMove}px) scale(${lerp(1, k.s, kbMove)})`
       this.kb.el.style.boxShadow = `0 0 ${40 + 16 * Math.sin(lt * 2)}px rgba(167,139,250,${.3 * clamp(kbIn)})`
