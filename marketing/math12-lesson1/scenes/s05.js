@@ -171,14 +171,26 @@
       this.lab2 = rich('حيث $f$ تابع معرّف على $[0,+\\infty[$', 'h3')
       root.appendChild(this.lab2); place(this.lab2, 1800, 352, { anchor: 'tr' }); this.lab2.style.whiteSpace = 'nowrap'
       this.lab2.querySelectorAll('bdi')[0].style.color = C.pur
+      // domain [0,+inf[ as a purple ray; the indices n = 0, 1, 2, ... all live on it
+      {
+        const s = svg(root, 0, 0, W, H), y = 452, x0 = 1150, x1 = 1745
+        sv(s, 'line', { x1: x0 - 40, y1: y, x2: x1 + 20, y2: y, stroke: 'rgba(154,168,201,.35)', 'stroke-width': 2 })
+        this.ray = sv(s, 'path', { d: `M${x0},${y} L${x1},${y}`, fill: 'none', stroke: C.pur, 'stroke-width': 7, 'stroke-linecap': 'round' })
+        this.ray0 = el('div', '', null, root); place(this.ray0, x0, y, { anchor: 'c', w: 18, h: 18 })
+        this.ray0.style.cssText += `border-radius:50%;background:${C.pur};box-shadow:0 0 14px ${C.pur}`
+        this.rayLbl0 = tex('0', 'ms'); root.appendChild(this.rayLbl0); place(this.rayLbl0, x0, y + 34, { anchor: 'c' }); this.rayLbl0.style.color = C.pur
+        this.rayInf = tex('+\\infty', 'ms'); root.appendChild(this.rayInf); place(this.rayInf, x1 + 34, y, { anchor: 'cl' }); this.rayInf.style.color = C.pur
+        this.rayTicks = [1, 2, 3, 4, 5].map(k => sv(s, 'circle', { cx: x0 + k * 100, cy: y, r: 6, fill: C.blu, opacity: 0 }))
+        this.rayN = rich('$n = 0, 1, 2, \\dots$', 's'); root.appendChild(this.rayN); place(this.rayN, x0 + 300, y + 34, { anchor: 'c' }); this.rayN.style.whiteSpace = 'nowrap'; this.rayN.style.color = C.blu
+      }
       this.fx = tex(`\\textcolor{${C.pur}}{f}(x) = \\sqrt{x^2+x+1}`, 'mx')
-      root.appendChild(this.fx); place(this.fx, 1440, 500, { anchor: 'c' })
-      this.ex2 = rich('مثلاً', 's'); root.appendChild(this.ex2); place(this.ex2, 1800, 500, { anchor: 'cr' }); this.ex2.style.whiteSpace = 'nowrap'
+      root.appendChild(this.fx); place(this.fx, 1440, 552, { anchor: 'c' })
+      this.ex2 = rich('مثلاً', 's'); root.appendChild(this.ex2); place(this.ex2, 1800, 552, { anchor: 'cr' }); this.ex2.style.whiteSpace = 'nowrap'
       this.rows2 = [
         'u_0 = f(0) = \\sqrt{0^2+0+1} = 1',
         'u_1 = f(1) = \\sqrt{1^2+1+1} = \\sqrt{3}',
         'u_2 = f(2) = \\sqrt{2^2+2+1} = \\sqrt{7}',
-      ].map((l, k) => { const e = tex(l, 'mm'); root.appendChild(e); place(e, 1040, 640 + k * 100, { anchor: 'cl' }); return e })
+      ].map((l, k) => { const e = tex(l, 'mm'); root.appendChild(e); place(e, 1040, 676 + k * 96, { anchor: 'cl' }); return e })
       this.rowTargets = this.rows2.map(e => { const r = rectIn(e, root); return { x: r.x + r.w - 40, y: r.cy } })
 
       // ---------- L3: u_100 ----------
@@ -186,6 +198,7 @@
       this.kb.f.style.fontSize = '56px'
       this.jump = chip(root, '⚡ قفزة مباشرة', 1290, 842, { anchor: 'c', color: C.grn })
       this.jump.style.whiteSpace = 'nowrap'; this.jump.style.fontSize = '32px'
+      this.skip = rich('دون حساب $u_3,\\ u_4,\\ \\dots,\\ u_{99}$', 's ctr'); root.appendChild(this.skip); place(this.skip, 1290, 925, { anchor: 'c' }); this.skip.style.whiteSpace = 'nowrap'
       this.B0 = [1180, 880]; this.B1 = [830, 60]; this.B2 = [MX, HOPY - 40]
       let d = ''
       for (let k = 0; k <= 40; k++) { const t = k / 40; d += (k ? ' L' : 'M') + bez(this.B0[0], this.B1[0], this.B2[0], t) + ',' + bez(this.B0[1], this.B1[1], this.B2[1], t) }
@@ -213,18 +226,18 @@
       const mIn = pp(lt, Math.max(S.at(0) + 1.2, T(S, 0, .3)), .7, E.out)
       let work = 0, winGlow = 0
       // window views
-      const sw1 = S.p(lt, 1, .1, .6), sw2 = S.p(lt, 2, .1, .6)
-      const ball100In = pp(lt, T(S, 3, .1) + 1.6, .1)
-      const sw3 = pp(lt, T(S, 3, .1) + 1.5, .5)
-      op(this.v0, mIn * (1 - sw1))
-      op(this.v1, sw1 * (1 - sw2))
-      op(this.v2, sw2 * (1 - sw3))
-      op(this.v3, sw3)
-      ;[[this.v1, sw1], [this.v2, sw2], [this.v3, sw3]].forEach(([v, q]) => { v.style.transform = `translateY(${(1 - q) * 26}px)` })
-      winGlow = Math.max(winGlow, pp(lt, a2 + .2, .4) * (1 - pp(lt, a2 + 1.4, .6)))
+      const sT = [null, a1 + .1, a2 + .1, T(S, 3, .1) + 1.5, Infinity]
+      ;[this.v0, this.v1, this.v2, this.v3].forEach((v, i) => {
+        const pin = i === 0 ? mIn : pp(lt, sT[i] + .22, .4, E.out), out = pp(lt, sT[i + 1], .28, E.in)
+        op(v, pin * (1 - out))
+        v.style.transform = `translateY(${(1 - pin) * 22 - out * 22}px)`
+      })
+      winGlow = Math.max(winGlow, pp(lt, a1 + .4, .4) * (1 - pp(lt, T(S, 1, .32), .6)) * .8)
+      winGlow = Math.max(winGlow, pp(lt, a2 + .4, .4) * (1 - pp(lt, a2 + 1.8, .6)))
 
       // ---------- L1: four balls → table cells + plot ----------
-      const out1 = S.p(lt, 2, Math.min(1.4, .12 * d2), .6)
+      const lab2T = Math.max(a2 + 1.5, T(S, 2, .24))
+      const out1 = pp(lt, lab2T - .7, .6)
       const tIn = S.p(lt, 1, .4, .6, E.out)
       rise(this.tb, tIn * (1 - out1))
       const t0 = T(S, 1, .36), step = Math.max(.55, .12 * d1), cy = clamp(step / 1.25, .45, 1)
@@ -255,7 +268,11 @@
       }
       // zig-zag follows the dots
       {
-        const shownTo = lt < t0 ? 0 : (lt < lastLand ? clamp((lt - t0 - .85 * cy) / step, 0, 3) : 3 + clamp((lt - lastLand) / .14, 0, 6))
+        let shownTo = 0
+        for (let n = 1; n <= 9; n++) {
+          const tl = n <= 3 ? t0 + n * step + .55 * cy + .85 * cy : lastLand + (n - 4) * .14
+          shownTo += pp(lt, tl - .25, .3, E.lin)
+        }
         draw(this.zz, shownTo / 9)
       }
       this.env.forEach(e => { e.style.opacity = .7 * pp(lt, lastLand + .6, .6) })
@@ -266,7 +283,9 @@
 
       // ---------- L2: u_n = f(n) ----------
       const out2 = S.p(lt, 3, 0, .5)
-      rise(this.lab2, pp(lt, Math.max(a2 + 1.8, T(S, 2, .26)), .6))
+      rise(this.lab2, pp(lt, lab2T, .6))
+      { const rp = pp(lt, lab2T + .4, .9); draw(this.ray, rp); op(this.ray0, clamp(rp * 4)); op(this.rayInf, pp(lt, lab2T + 1.1, .4)); op(this.rayLbl0, clamp(rp * 4))
+        this.rayTicks.forEach((c, k) => { c.style.opacity = pp(lt, lab2T + .9 + k * .12, .3) }); op(this.rayN, pp(lt, lab2T + 1.6, .5)) }
       const fxIn = pp(lt, Math.max(a2 + 3, T(S, 2, .56)), .7)
       rise(this.fx, fxIn); rise(this.ex2, fxIn)
       if (fxIn > 0) this.fx.style.textShadow = lt > a3 + .3 ? `0 0 ${12 + 8 * Math.sin(lt * 3)}px rgba(167,139,250,.5)` : ''
@@ -306,6 +325,7 @@
       if (lt > ce + 1.5) this.kb.el.style.boxShadow = `0 0 ${44 + 16 * Math.sin(lt * 2.4)}px rgba(255,210,63,.28)`
       const jIn = pp(lt, ce + 1.1, .6, E.out)
       pop(this.jump, jIn)
+      rise(this.skip, pp(lt, Math.max(ce + 1.6, T(S, 3, .72)), .6), 14)
       this.M.set(lt, { work, winGlow, a: mIn, s: lerp(.85, 1, mIn) })
     },
   })
