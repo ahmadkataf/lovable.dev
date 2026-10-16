@@ -1,0 +1,229 @@
+// s20 · ③ مقارنة النسبة — ratio = scaling factor. Card ③ grows out of the tracker while a live demo shows
+// u_{n+1} as u_n scaled by the ratio (green above 1, pink below). Then the book's example w_n = (2/3)^n:
+// five bars, each born at the height of the previous one (dashed ghost) and shrinking to two thirds of it;
+// the ratio computed, compared with 1, the conclusion; finally the exam tip on choosing among the three methods.
+;(() => {
+  const Y = C.yel, G = C.grn, R = C.red, B = C.blu, P = C.pur
+  const INK = '#eef2ff'
+  const tc = (c, s) => `\\textcolor{${c}}{${s}}`
+  const K = s => `<bdi class="m">${katex.renderToString(s, KOPT)}</bdi>`
+
+  // ---- the ① ② ③ tracker (same look in s18, s19, s20). circle k centre: (354 - 76(k-1), 220)
+  const TRK = k => ({ x: 354 - (k - 1) * 76, y: 220 })
+  function tracker(root, active) {
+    const box = el('div', '', null, root)
+    place(box, 380, 144, { anchor: 'tr', w: 260, h: 110 })
+    const lab = el('div', 'ar', 'تكريساً للفهم', box)
+    lab.style.cssText += `;position:absolute;right:0;top:0;font-size:24px;font-weight:700;color:${C.mut};white-space:nowrap`
+    const rail = el('div', '', null, box)
+    rail.style.cssText = `position:absolute;right:26px;top:74px;width:152px;height:4px;border-radius:2px;background:${C.line};transform-origin:100% 50%`
+    const circ = [1, 2, 3].map(k => {
+      const c = el('div', '', String(k), box)
+      const st = k < active ? `border:3px solid ${G};color:${G};background:#14241f`
+        : k === active ? `background:${Y};color:#0b1020;box-shadow:0 0 26px ${Y}88`
+          : `border:2.5px solid ${C.dim};color:${C.mut};background:${C.bg}`
+      c.style.cssText = `position:absolute;right:${(k - 1) * 76}px;top:50px;width:52px;height:52px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:28px;font-weight:900;${st}`
+      return c
+    })
+    return {
+      el: box, circ,
+      set(p, lt, stagger = 0) {
+        op(lab, clamp(p * 1.5)); op(rail, p > 0 ? 1 : 0); rail.style.transform = `scaleX(${E.out(clamp(p))})`
+        circ.forEach((c, i) => {
+          const q = clamp(p * 1.6 - i * stagger)
+          pop(c, q)
+          if (i + 1 === active && q >= 1) c.style.boxShadow = `0 0 ${20 + 10 * Math.sin(lt * 2.4)}px ${Y}99`
+        })
+      },
+    }
+  }
+  const badge = (n, bg = Y) => `<span style="display:inline-flex;align-items:center;justify-content:center;width:1.05em;height:1.05em;border-radius:50%;background:${bg};color:#0b1020;font-size:.78em;font-weight:900;vertical-align:.08em;margin-left:.28em">${n}</span>`
+
+  // bars of w_n = (2/3)^n
+  const BX = k => 232 + k * 148, BW = 92, BASE = 806, H0 = 380
+  const hk = k => H0 * Math.pow(2 / 3, k)
+  // demo bars (line 0)
+  const DA = 330, DB = 640, DH = 250, DBASE = 806
+
+  scene('s20', {
+    build(root, S) {
+      this.root = root
+      this.head = heading(root, `${badge(3)}مقارنة النسبة $\\frac{u_{n+1}}{u_n}$ والعدد $1$`)
+      this.head2 = heading(root, '🎯 أيّ طريقة نختار؟')
+      this.trk = tracker(root, 3)
+
+      // ---------------- line 0: card ③ + the scaling-factor demo
+      const c = card(root, 'def', 1800, 300, 820, { anchor: 'tr', tag: 'الطريقة 3' })
+      this.card = c.el; this.card.style.transformOrigin = '50% 50%'
+      const ct = rich(`عندما تكون المتتالية $(u_n)_{n\\ge0}$ ذات حدود <b>موجبة تماماً</b>، يمكن أن نقارن بين $${tc(Y, '\\dfrac{u_{n+1}}{u_n}')}$ والعدد $${tc(Y, '1')}$`, 'h3')
+      ct.style.fontSize = '44px'; ct.style.lineHeight = 1.75
+      c.body.appendChild(ct); splitWords(ct); this.ct = ct
+
+      const ds = svg(root, 0, 0, W, H)
+      this.dSvg = ds
+      const defs = sv(ds, 'defs')
+      const grad = (idn, c1, c2) => { const g = sv(defs, 'linearGradient', { id: idn, x1: 0, y1: 0, x2: 0, y2: 1 }); sv(g, 'stop', { offset: '0%', 'stop-color': c1 }); sv(g, 'stop', { offset: '100%', 'stop-color': c2 }) }
+      grad('s20gb', '#6d8dff', '#3a4f9c'); grad('s20gr', '#ff7ea3', '#8f2f55')
+      this.dBase = sv(ds, 'line', { x1: 200, y1: DBASE, x2: 780, y2: DBASE, stroke: C.mut, 'stroke-width': 3 })
+      this.dA = sv(ds, 'rect', { x: DA - 60, y: DBASE - DH, width: 120, height: DH, rx: 10, fill: 'url(#s20gb)' })
+      this.dB = sv(ds, 'rect', { x: DB - 60, y: DBASE - DH, width: 120, height: DH, rx: 10, fill: G })
+      this.dLine = sv(ds, 'line', { x1: DA - 70, y1: DBASE - DH, x2: DB + 90, y2: DBASE - DH, stroke: INK, 'stroke-width': 2.5, 'stroke-dasharray': '10 9', opacity: .6 })
+      this.dArr = arrow(ds, DA + 40, DBASE - DH - 40, DB - 40, DBASE - DH - 40, { color: Y, width: 4, bend: -.22 })
+      const lab = (html, x, y, a = 'c', cls = 'mm') => { const e = el('div', cls, html, root); place(e, x, y, { anchor: a }); e.style.whiteSpace = 'nowrap'; return e }
+      this.dLa = lab(K('u_n'), DA, DBASE + 34, 'c')
+      this.dLb = lab(K('u_{n+1}'), DB, DBASE + 34, 'c')
+      this.dX = lab(K(tc(Y, '\\times\\dfrac{u_{n+1}}{u_n}')), (DA + DB) / 2, DBASE - DH - 140, 'c')
+      this.dX.style.fontSize = '40px'
+      this.d1 = lab(K('\\times 1'), DB + 100, DBASE - DH, 'cl', 's')
+      this.dG = lab(K(tc(G, '\\dfrac{u_{n+1}}{u_n} > 1 \\;\\Rightarrow\\; u_{n+1} > u_n')), 490, 930, 'c')
+      this.dR = lab(K(tc(R, '\\dfrac{u_{n+1}}{u_n} < 1 \\;\\Rightarrow\\; u_{n+1} < u_n')), 490, 930, 'c')
+      this.dG.style.fontSize = this.dR.style.fontSize = '40px'
+
+      // ---------------- line 1: example + bars
+      const ex = card(root, 'ex', 1800, 300, 820, { anchor: 'tr', tag: 'مثال' })
+      this.ex = ex.el
+      this.e1 = rich(`$(w_n)_{n\\ge0}$ المعرّفة على $\\mathbb{N}$ وفق $w_n = \\left(\\dfrac23\\right)^n$`, 'p')
+      ex.body.appendChild(this.e1)
+      this.e2 = rich(`جميع حدودها $w_n$ <span class="grn b">موجبة تماماً</span>`, 'p')
+      this.e2.style.marginTop = '8px'
+      ex.body.appendChild(this.e2)
+      this.ratio = tex(`\\dfrac{w_{n+1}}{w_n} = \\dfrac{\\left(\\frac23\\right)^{n+1}}{\\left(\\frac23\\right)^n} = ${tc(Y, '\\dfrac23')}`, 'mx')
+      this.ratio.style.fontSize = '58px'
+      root.appendChild(this.ratio); place(this.ratio, 1390, 680, { anchor: 'c' })
+
+      const bs = svg(root, 0, 0, W, H)
+      this.bBase = sv(bs, 'line', { x1: 160, y1: BASE, x2: 910, y2: BASE, stroke: C.mut, 'stroke-width': 3 })
+      this.ghost = [], this.bars = [], this.vals = [], this.idx = [], this.arrs = [], this.xl = []
+      const vtex = ['1', '\\frac23', '\\frac49', '\\frac{8}{27}', '\\frac{16}{81}']
+      for (let k = 0; k < 5; k++) {
+        this.ghost.push(k ? sv(bs, 'rect', { x: BX(k) - BW / 2, y: BASE - hk(k - 1), width: BW, height: hk(k - 1), rx: 10, fill: 'none', stroke: '#ff9fbb', 'stroke-width': 2.5, 'stroke-dasharray': '8 7', opacity: .55 }) : null)
+        this.bars.push(sv(bs, 'rect', { x: BX(k) - BW / 2, y: BASE - hk(k), width: BW, height: hk(k), rx: 10, fill: 'url(#s20gr)' }))
+        const v = lab(K(vtex[k]), BX(k), BASE - hk(k) - 14, 'bc'); v.style.fontSize = '40px'; this.vals.push(v)
+        const ix = lab(K(`w_${k}`), BX(k), BASE + 30, 'c'); ix.style.fontSize = '32px'; ix.style.color = C.mut; this.idx.push(ix)
+        if (k < 4) {
+          this.arrs.push(arrow(bs, BX(k) + 16, BASE + 62, BX(k + 1) - 16, BASE + 62, { color: R, width: 3.5, bend: .26 }))
+          const xl = lab(K(tc(R, '\\times\\frac23')), (BX(k) + BX(k + 1)) / 2, BASE + 128, 'c'); xl.style.fontSize = '32px'; this.xl.push(xl)
+        }
+      }
+
+      // ---------------- line 2: compare with 1, conclusion, geometric chip
+      this.imp = tex(`\\dfrac{w_{n+1}}{w_n} = \\dfrac23 ${tc(R, '< 1')} \\;\\Longrightarrow\\; ${tc(R, 'w_{n+1} < w_n')}`, 'mx')
+      this.imp.style.fontSize = '56px'
+      root.appendChild(this.imp); place(this.imp, 1390, 500, { anchor: 'c' })
+      this.note = rich('نضرب بـ $w_n > 0$ فلا تنقلب المتراجحة', 's')
+      root.appendChild(this.note); place(this.note, 1390, 600, { anchor: 'c' }); this.note.style.whiteSpace = 'nowrap'
+      this.concl = keyBox(root, 'x', 1390, 740, { color: R })
+      this.concl.el.removeChild(this.concl.f)
+      this.concl.el.style.background = 'rgba(255,92,138,.08)'
+      const cc = rich(`فالمتتالية $(w_n)_{n\\ge0}$ <b>متناقصة تماماً</b>`, 'h3'); cc.style.color = R; cc.style.whiteSpace = 'nowrap'
+      this.concl.el.appendChild(cc)
+      this.geo = chip(root, `هندسيّة أساسها ${K('q = \\frac23')}`, 532, 330, { anchor: 'c', color: Y })
+      this.geo.style.fontSize = '30px'; this.geo.style.direction = 'rtl'; this.geo.style.whiteSpace = 'nowrap'
+
+      // ---------------- line 3: exam tip card
+      const xc = card(root, 'exam', 960, 318, 1460, { anchor: 'tc', tag: '🎯 نصيحة للامتحان' })
+      this.xc = xc.el
+      const rows = [
+        ['الفرق $u_{n+1}-u_n$', 'كسور وكثيرات حدود'],
+        ['التابع $f$', 'صيغة سهلة الاشتقاق'],
+        ['النسبة $\\dfrac{u_{n+1}}{u_n}$', 'قوى وجداءات، والحدود موجبة تماماً'],
+      ]
+      this.rows = rows.map(([a, b], i) => {
+        const r = el('div', '', null, xc.body)
+        r.style.cssText = `display:flex;align-items:center;gap:28px;direction:rtl;padding:${i === 2 ? 14 : 22}px 6px;${i ? `border-top:2px solid ${C.line};` : ''}`
+        const n = el('div', '', String(i + 1), r)
+        n.style.cssText = `flex:none;width:58px;height:58px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:30px;font-weight:900;background:${Y};color:#0b1020`
+        const t = rich(`<span class="b" style="color:${Y}">${a}</span><span class="mute">:</span> ${b}`, 'h3')
+        t.style.whiteSpace = 'nowrap'; r.appendChild(t)
+        return r
+      })
+    },
+
+    render(lt, S) {
+      const d = i => S.end(i) - S.at(i)
+      const T = (i, f) => S.at(i) + f * d(i)
+      const pr = (t0, dur = .6, e = E.io) => prog(lt, t0, dur, e)
+
+      const out3 = S.p(lt, 3, 0, .5)
+      this.head.set(S.p(lt, 0, 0, .8)); op(this.head.el, 1 - out3)
+      this.head2.set(S.p(lt, 3, .3, .8))
+      this.trk.set(S.p(lt, 0, .1, .7), lt, .2)
+
+      // ================= line 0: card ③ and the demo
+      const out1 = S.p(lt, 1, 0, .55)
+      const cg = S.p(lt, 0, .5, .9)
+      const tk = TRK(3), cx = 1800 - 410, cy = 300 + this.card.offsetHeight / 2
+      this.card.style.transform = `translate(${(tk.x - cx) * (1 - cg)}px, ${(tk.y - cy) * (1 - cg) - out1 * 30}px) scale(${lerp(.08, 1, cg)})`
+      op(this.card, Math.min(clamp(cg * 2), 1 - out1))
+      typeWords(this.ct, pr(S.at(0) + 1.2, Math.max(1.5, .55 * d(0)), E.lin))
+      // demo: u_{n+1} = r · u_n with r breathing around 1
+      const dIn = pr(Math.max(T(0, .3), S.at(0) + 2), .7)
+      const dOut = out1
+      const dv = Math.min(dIn, 1 - dOut)
+      const tr = Math.max(0, lt - (Math.max(T(0, .3), S.at(0) + 2) + .8))
+      const r = 1 + .36 * Math.sin(tr * 2 * Math.PI / 5.2 + Math.PI / 2) * clamp(tr / .8)
+      const hB = DH * r * E.out(dIn)
+      const g = clamp((r - 1) / .1 * .5 + .5)
+      this.dB.setAttribute('y', DBASE - hB); this.dB.setAttribute('height', Math.max(0, hB))
+      this.dB.setAttribute('fill', mixColor(R, G, g))
+      this.dA.setAttribute('y', DBASE - DH * E.out(dIn)); this.dA.setAttribute('height', DH * E.out(dIn))
+      ;[this.dA, this.dB, this.dBase].forEach(e => (e.style.opacity = dv))
+      this.dLine.style.opacity = .6 * dv
+      this.dArr.set(pr(Math.max(T(0, .3), S.at(0) + 2) + .5, .6)); this.dArr.path.style.opacity = dv
+      ;[this.dLa, this.dLb, this.dX, this.d1].forEach(e => op(e, dv))
+      op(this.dG, dv * g); op(this.dR, dv * (1 - g))
+
+      // ================= line 1: the example and the bars
+      const out2 = S.p(lt, 2, 0, .55)
+      const ei = S.p(lt, 1, .4, .7)
+      op(this.ex, Math.min(ei, 1 - out2)); this.ex.style.transform = `translateY(${(1 - ei) * 30 - out2 * 30}px)`
+      rise(this.e2, pr(Math.max(T(1, .45), S.at(1) + 1.6), .6), 16)
+      const tRa = Math.max(T(1, .66), S.at(1) + 2.6)
+      const ra = pr(tRa, 1.1)
+      wipe(this.ratio, ra)
+      const up2 = S.p(lt, 2, 0, .8)
+      const out3b = out3
+      op(this.ratio, 1 - out3b); this.ratio.style.transform = `translateY(${-325 * up2}px)`
+      // bars: each is born at the previous height (ghost) and shrinks to two thirds of it
+      const tB0 = Math.max(T(1, .22), S.at(1) + 1.2)
+      const step = clamp((tRa + .6 - tB0) / 4.6, .45, 1.2)
+      const bOut = out3
+      op(this.bBase, 1); this.bBase.style.opacity = pr(tB0 - .3, .5) * (1 - bOut)
+      for (let k = 0; k < 5; k++) {
+        const t0 = tB0 + k * step
+        const born = pr(t0, .35, E.out), shrink = k ? pr(t0 + .35, .55, E.io) : 1
+        const h = k ? lerp(hk(k - 1), hk(k), shrink) : hk(0) * E.out(pr(t0, .6))
+        const bar = this.bars[k]
+        bar.setAttribute('y', BASE - h); bar.setAttribute('height', Math.max(0, h))
+        bar.style.opacity = born * (1 - bOut)
+        if (k) this.ghost[k].style.opacity = .55 * born * (1 - bOut) * (1 - .5 * pr(t0 + 1.4, .6))
+        const vI = pr(t0 + (k ? .75 : .45), .4)
+        op(this.vals[k], vI * (1 - bOut)); this.vals[k].style.transform = `translateY(${(1 - vI) * 10}px)`
+        op(this.idx[k], born * (1 - bOut))
+        if (k) {
+          this.arrs[k - 1].set(pr(t0 + .15, .5)); this.arrs[k - 1].path.style.opacity = 1 - bOut
+          op(this.xl[k - 1], pr(t0 + .45, .4) * (1 - bOut))
+        }
+      }
+      // gentle life: the bars breathe very slightly once built
+      // ================= line 2: compare with 1, conclusion
+      const tI = S.at(2) + .5
+      wipe(this.imp, pr(tI, 1.1)); op(this.imp, 1 - out3)
+      const nI = pr(Math.max(T(2, .45), tI + 1.4), .6)
+      op(this.note, Math.min(nI, 1 - out3)); this.note.style.transform = `translateY(${(1 - nI) * 14}px)`
+      const kI = pr(Math.max(T(2, .74), tI + 2.4), .7)
+      this.concl.set(Math.min(kI, 1 - out3))
+      if (kI >= 1 && out3 <= 0) this.concl.el.style.boxShadow = `0 0 ${40 + 14 * Math.sin(lt * 1.8)}px ${R}40`
+      const gI = pr(Math.max(T(2, .86), tI + 3), .6)
+      pop(this.geo, Math.min(gI, 1 - out3)); if (out3 > 0) op(this.geo, Math.min(gI, 1 - out3))
+
+      // ================= line 3: the exam tip
+      const xI = S.p(lt, 3, .35, .7)
+      op(this.xc, xI); this.xc.style.transform = `translateY(${(1 - xI) * 40}px)`
+      this.rows.forEach((r, i) => {
+        const p = pr(Math.max(T(3, [.08, .38, .64][i]), S.at(3) + .6 + i * .55), .55)
+        op(r, p); r.style.transform = `translateX(${(1 - p) * 40}px)`
+      })
+    },
+  })
+})()

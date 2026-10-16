@@ -289,10 +289,10 @@
       rise(this.rule4, pr4, 20)
       const pres = prog(lt, Math.max(T(S, 4, .66), kk(2) + 1.4), .7)
       wipe(this.res4, pres, 'ltr')
-      const pw = prog(lt, Math.max(T(S, 4, .66), kk(2) + 1.4) + .9, .5)
-      op(this.wrong, pw)
-      draw(this.strike, prog(lt, Math.max(T(S, 4, .66), kk(2) + 1.4) + 1.3, .4))
-      op(this.w2cap, prog(lt, Math.max(T(S, 4, .66), kk(2) + 1.4) + 1.6, .4))
+      const tW = Math.max(T(S, 4, .66), kk(2) + 1.4) + .9
+      op(this.wrong, prog(lt, tW, .35))
+      draw(this.strike, prog(lt, tW + .1, .35))
+      op(this.w2cap, prog(lt, tW + .35, .4))
     },
   })
 })()

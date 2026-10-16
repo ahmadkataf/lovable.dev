@@ -98,7 +98,7 @@
         mh.firstChild.style.cssText = 'font-size:30px;line-height:1.45;font-weight:600'
         const mk = el('div', '', null, mh); mk.style.cssText = `position:absolute;inset:-2px 0;border-radius:10px;background:rgba(255,210,63,.24);box-shadow:0 0 0 2px ${C.yel}88;z-index:-1;transform-origin:100% 50%`
         const cond = rich(`يكن $u_n ${relOf[k]} u_{n+1}$`, '')
-        cond.style.cssText = 'font-size:32px;line-height:1.5;font-weight:600;margin-top:6px;white-space:nowrap'
+        cond.style.cssText = 'font-size:32px;line-height:1.5;font-weight:600;margin-top:6px;white-space:nowrap;text-align:center'
         tx.appendChild(cond)
         const relEl = cond.querySelector('bdi')
         const relNode = [...relEl.querySelectorAll('.mrel')][0]
@@ -136,21 +136,26 @@
       this.big.forEach((b, j) => {
         const T = bigT[j], i = T.line
         const a = j === 0 ? 1 : S.p(lt, 1, 0, .5)
-        const fade = (1 - E.in(toB)) * (j === 0 ? lerp(1, .55, S.p(lt, 1, 0, .6) * (1 - toB)) : 1)
+        // phase A leaves quickly at line 2 (no text over the incoming strip); it still drifts toward its slot
+        const fade = (1 - S.p(lt, 2, 0, .45)) * (j === 0 ? lerp(1, .55, S.p(lt, 1, 0, .6)) : 1)
+        // line 0: the first panel is centred on the card; it moves aside when the second one arrives
+        const c0 = j === 0 ? (960 - b.cx) * (1 - S.p(lt, 1, 0, .9)) : 0
         const sl = this.slotX[j] - b.cx, sc = lerp(1, .45, E.io(toB))
-        const tf = `translate(${sl * E.io(toB)}px, ${-40 * E.io(toB)}px) scale(${sc})`
+        const tf = `translate(${sl * E.io(toB) + c0}px, ${-40 * E.io(toB)}px) scale(${sc})`
         b.g.style.transformOrigin = `${b.cx}px 450px`; b.g.style.transform = tf; b.g.style.opacity = fade * a
         b.box.style.transformOrigin = '50% 0'; b.box.style.opacity = fade * a
-        b.box.style.transform = `translate(${sl * E.io(toB)}px, ${-120 * E.io(toB)}px) scale(${sc})`
-        b.st.set(clamp((lt - F(i, T.st[0])) / Math.max(.8, F(i, T.st[1]) - F(i, T.st[0]))))
-        b.idx.forEach((e, k) => op(e, fade * a * clamp((lt - F(i, T.st[0])) / Math.max(.8, F(i, T.st[1]) - F(i, T.st[0])) * 7.5 - k)))
-        typeWords(b.t1, clamp((lt - F(i, T.s1[0])) / (F(i, T.s1[1]) - F(i, T.s1[0]))))
-        const up = prog(lt, F(i, T.ul), .6)
+        b.box.style.transform = `translate(${sl * E.io(toB) + c0}px, ${-120 * E.io(toB)}px) scale(${sc})`
+        // the second panel waits until the first has slid out of its way
+        const G = fr => Math.max(F(i, fr), j === 1 ? S.at(1) + .75 : -1e9)
+        b.st.set(clamp((lt - G(T.st[0])) / Math.max(.8, G(T.st[1]) - G(T.st[0]))))
+        b.idx.forEach((e, k) => { op(e, fade * a * clamp((lt - G(T.st[0])) / Math.max(.8, G(T.st[1]) - G(T.st[0])) * 7.5 - k)); e.style.transform = `translateX(${c0}px)` })
+        typeWords(b.t1, clamp((lt - G(T.s1[0])) / Math.max(.6, G(T.s1[1]) - G(T.s1[0]))))
+        const up = prog(lt, G(T.ul), .6)
         op(b.ul, up > 0 ? 1 : 0); b.ul.style.transform = `scaleX(${up})`
-        typeWords(b.t2, clamp((lt - F(i, T.s2[0])) / (F(i, T.s2[1]) - F(i, T.s2[0]))))
+        typeWords(b.t2, clamp((lt - G(T.s2[0])) / Math.max(.6, G(T.s2[1]) - G(T.s2[0]))))
         // the comparison rides across every pair n, n+1 (n from n0 on)
-        const bandIn = prog(lt, F(i, T.s2[0]) + .3, .5)
-        const pos = 4 * E.io(clamp((lt - F(i, T.sw[0])) / Math.max(.8, F(i, T.sw[1]) - F(i, T.sw[0]))))
+        const bandIn = prog(lt, G(T.s2[0]) + .3, .5)
+        const pos = 4 * E.io(clamp((lt - G(T.sw[0])) / Math.max(.8, G(T.sw[1]) - G(T.sw[0]))))
         const k0 = Math.min(3, Math.floor(pos)), fr = pos - k0
         const it0 = b.st.items
         const topY = Math.min(lerp(it0[k0].top, it0[k0 + 1].top, fr), lerp(it0[k0 + 1].top, it0[Math.min(5, k0 + 2)].top, fr))
@@ -158,12 +163,12 @@
         b.band.setAttribute('y', topY - 12); b.band.setAttribute('height', b.st.base - topY + 16)
         b.band.style.opacity = bandIn
         const cxp = lerp(it0[k0].cx, it0[k0 + 1].cx, fr) + b.st.cw / 2
-        b.pl.style.left = cxp + 'px'; b.pl.style.top = (topY - 18) + 'px'
+        b.pl.style.left = (cxp + c0) + 'px'; b.pl.style.top = (topY - 18) + 'px'
         op(b.pl, bandIn * fade * a)
       })
 
       // ---------- phase B ----------
-      const smallIn = [S.at(2) + .2, S.at(2) + .32, F(2, .24), F(2, .38), F(2, .6)]
+      const smallIn = [S.at(2) + .42, S.at(2) + .56, Math.max(F(2, .24), S.at(2) + .9), Math.max(F(2, .38), S.at(2) + 1.4), Math.max(F(2, .6), S.at(2) + 2)]
       const iffLit = this.KEYS.map((_, j) => prog(lt, F(2, .8) + j * .12, .4) * (1 - prog(lt, S.at(3) + .2, .6)))
       this.small.forEach((m, j) => {
         const p = prog(lt, smallIn[j], .6)
@@ -179,7 +184,8 @@
         m.iff.style.textShadow = L > 0 ? `0 0 ${16 * L}px rgba(255,210,63,.7)` : ''
         // line 3: the sweep across «مهما تكن n0 ≤ n»
         const sw = prog(lt, F(3, .04) + j * .16, .55)
-        m.mk.style.opacity = sw > 0 ? 1 : 0
+        const breathe = prog(lt, F(3, .04) + j * .16 + .6, 1) * (.5 + .5 * Math.sin(lt * 2.2 - j * .7))
+        m.mk.style.opacity = sw > 0 ? 1 - .22 * breathe : 0
         m.mk.style.transform = `scaleX(${sw})`
       })
 

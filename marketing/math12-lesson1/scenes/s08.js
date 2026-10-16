@@ -19,10 +19,11 @@
       this.rem.style.whiteSpace = 'nowrap'
       // the updated corner card (line 4)
       this.qc = el('div', '', null, root)
-      place(this.qc, 120, 150, { w: 760 })
-      this.qc.style.cssText += `padding:16px 26px;border-radius:20px;border:2.5px solid ${C.pur};background:rgba(124,58,237,.16);box-shadow:0 0 40px rgba(124,58,237,.35);transform-origin:0 0`
-      const qt = rich('<b class="pur">🔒 سؤال مفتوح ②:</b> آحاد $u_n$ تساوي <b class="yel">7</b> مهما يكن $n \\ge 1$ — <span class="mute">برهانه في الدرس 2</span>', 'p')
-      qt.style.fontSize = '32px'; qt.style.lineHeight = '1.55'
+      place(this.qc, 120, 150)
+      this.qc.style.cssText += `padding:16px 30px;border-radius:20px;border:2.5px solid ${C.pur};background:rgba(124,58,237,.16);box-shadow:0 0 40px rgba(124,58,237,.35);transform-origin:0 0`
+      // two deliberate lines (no automatic wrap in the middle of the statement)
+      const qt = rich('<b class="pur">🔒 سؤال مفتوح ②:</b> آحاد $u_n$ تساوي <b class="yel">7</b> مهما يكن $n \\ge 1$<br><span class="mute">— برهانه في الدرس 2</span>', 'p')
+      qt.style.fontSize = '32px'; qt.style.lineHeight = '1.55'; qt.style.whiteSpace = 'nowrap'
       this.qc.appendChild(qt)
 
       // ---------- line 0: 7 · 47 · 2207, units digits light up ----------

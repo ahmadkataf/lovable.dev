@@ -14,7 +14,7 @@ scene('s16', {
     const c = card(root, 'tip', 960, 292, 1680, { anchor: 'tc', tag: '💡 مطابقة مفيدة' })
     this.card = c.el
     c.body.style.cssText += 'position:relative;direction:ltr;height:100px'
-    this.gen = tex(`x^n - a^n ${id('eq', '=')} ${id('xag', '(x-a)')}\\left(${id('g0', `x^{${id('a0', 'n-1')}}`)} + ${id('g1', `x^{${id('a1', 'n-2')}}a`)} + ${id('g2', `x^{${id('a2', 'n-3')}}a^{${id('b2', '2')}}`)} + ${id('g3', '\\cdots')} + ${id('g4', `a^{${id('b4', 'n-1')}}`)}\\right)`, 'mx')
+    this.gen = tex(`${id('lhs', 'x^n - a^n')} ${id('eq', '=')} ${id('xag', '(x-a)')}\\left(${id('g0', `x^{${id('a0', 'n-1')}}`)} + ${id('g1', `x^{${id('a1', 'n-2')}}a`)} + ${id('g2', `x^{${id('a2', 'n-3')}}a^{${id('b2', '2')}}`)} + ${id('g3', '\\cdots')} + ${id('g4', `a^{${id('b4', 'n-1')}}`)}\\right)`, 'mx')
     this.five = tex(`x^5 - a^5 = (x-a)\\left(${id('f0', `x^{${g(4)}}`)} + ${id('f1', `x^{${g(3)}}a`)} + ${id('f2', `x^{${g(2)}}a^{${b(2)}}`)} + ${id('f3', `xa^{${b(3)}}`)} + ${id('f4', `a^{${b(4)}}`)}\\right)`, 'mx')
     this.wrap = el('div', '', null, c.body); place(this.wrap, 796, 50, { anchor: 'c' })
     this.gen.style.fontSize = '60px'; this.wrap.appendChild(this.gen)
@@ -24,7 +24,7 @@ scene('s16', {
     this.fT = [0, 1, 2, 3, 4].map(k => $('f' + k))
     this.gA = [$('a0'), $('a1'), $('a2')]
     this.gB = [$('b2'), $('b4')]
-    this.eq = $('eq')
+    this.eq = $('eq'); this.lhs = $('lhs')
     for (const e of [...this.gT, ...this.fT]) e.style.display = 'inline-block'
     // "x^n − a^n = ؟" comes first (the right side is written later)
     this.q = el('div', 'h2 yel', '؟', this.wrap); this.q.style.fontWeight = 900
@@ -109,17 +109,19 @@ scene('s16', {
     const tw = el('div', '', null, box)
     tw.style.cssText = 'position:relative;width:150px;height:140px;direction:ltr;flex:none'
     const ts = svg(tw, 0, 0, 150, 140)
+    // same look as the bars of the previous scene (green gradient, green outline)
+    const gr = sv(sv(ts, 'defs'), 'linearGradient', { id: 's16-gg', x1: 0, y1: 0, x2: 1, y2: 0 })
+    sv(gr, 'stop', { offset: 0, 'stop-color': G, 'stop-opacity': .95 }); sv(gr, 'stop', { offset: 1, 'stop-color': G, 'stop-opacity': .55 })
     const U = 4.1, TX = 112, TB = 138
     this.bars = []
     let acc = 0
-    ;[16, 8, 4, 2, 1].forEach((v, k) => {
+    ;[16, 8, 4, 2, 1].forEach(v => {
       const h = v * U
-      const r = sv(ts, 'rect', { x: TX - 28, y: TB - acc - h + 1.5, width: 56, height: Math.max(2.5, h - 3), rx: 4, fill: ['#6ee05a', '#8be26f', '#5bc94a', '#a3ec8c', '#4bb83c'][k] })
-      this.bars.push(r)
+      this.bars.push(sv(ts, 'rect', { x: TX - 27, y: TB - acc - h + 1, width: 54, height: Math.max(2.2, h - 2), rx: Math.min(4, h / 3), fill: 'url(#s16-gg)', stroke: G, 'stroke-width': h > 6 ? 2 : 1 }))
       acc += h
     })
-    this.tower31 = el('div', 'h3 grn', '31', tw); place(this.tower31, 66, TB - acc / 2, { anchor: 'cr' })
-    this.tower31.style.fontWeight = 900
+    this.tower31 = el('div', '', '31', tw); place(this.tower31, 66, TB - acc / 2, { anchor: 'cr' })
+    this.tower31.style.cssText += `font-family:KaTeX_Main;font-weight:700;font-size:48px;color:${G};text-shadow:0 0 18px ${G}66`
   },
 
   // Everything that depends on measured text sizes. KaTeX fonts are still loading while build() runs,
@@ -162,28 +164,31 @@ scene('s16', {
     const up = S.p(lt, 1, .1, .9)
     op(this.card, pc)
     this.card.style.transform = `translateY(${(1 - up) * this.CARD_DY + (1 - pc) * 30}px)`
-    const tGen = S.at(0) + .84 * d0
-    const wA = prog(lt, S.at(0) + .7, .8), wB = prog(lt, tGen, 1.4)
+    // narration: «…مطابقةٌ مفيدة. تعرف أنّ x²−a² = (x−a)(x+a). والكتاب يعمّمها لكلّ n: xⁿ−aⁿ = (x−a) × مجموعٍ في قوسٍ ثانٍ»
+    const at0 = f => S.at(0) + f * d0
+    const tGen = at0(.5)                                                  // «والكتاب يعمّمها»
+    const wA = prog(lt, S.at(0) + .7, .8), wB = E.sine(S.f(lt, 0, .68, .97))   // the right side is written as it is read
     wipe(this.gen, wA * this.fEq + wB * (1 - this.fEq), 'ltr')
     this.wrap.style.translate = `calc(-50% + ${(1 - wB) * this.shift0}px) -50%`
-    const qv = Math.min(prog(lt, S.at(0) + 1.2, .5), 1 - prog(lt, tGen - .1, .3))
+    const qv = Math.min(prog(lt, S.at(0) + 1.2, .5), 1 - prog(lt, at0(.66) - .1, .3))
     pop(this.q, qv); if (qv >= 1) this.q.style.transform = `scale(${1 + .06 * Math.sin((lt - S.at(0)) * 3)})`
-    const famIn = [S.p(lt, 0, .2 * d0, 1), S.p(lt, 0, .56 * d0, 1)]
+    const famIn = [S.p(lt, 0, .14 * d0, 1), S.p(lt, 0, .36 * d0, 1)]
     const famOut = S.p(lt, 1, 0, .5)
     this.fam.forEach((f, i) => { wipe(f, famIn[i], 'ltr'); op(f, 1 - famOut); f.style.transform = `translateY(${-famOut * 30}px)` })
-    const tagIn = S.p(lt, 0, .56 * d0 + .6, .6)
+    const tagIn = S.p(lt, 0, .36 * d0 + .6, .6)
     draw(this.brace, tagIn); this.brace.style.opacity = 1 - famOut
     op(this.famTag, Math.min(tagIn, 1 - famOut))
-    // the common factor (x − a) lights up in all three when the general identity is written
-    const xa = env(lt, tGen + .9, S.at(1) + .3, .4, .5)
-    this.xa.forEach(e => (e.style.color = mixColor(e === this.xa[2] ? C.ink : C.mut, C.yel, xa)))
+    // «يعمّمها»: the common factor (x − a) lights up in the known rows, then in the general one as it is read
+    const xaF = env(lt, tGen, S.at(1) + .3, .5, .5), xaG = env(lt, at0(.74), S.at(1) + .3, .4, .5)
+    this.xa.forEach((e, i) => (e.style.color = mixColor(i === 2 ? C.ink : C.mut, C.yel, i === 2 ? xaG : xaF)))
+    this.lhs.style.color = mixColor(C.ink, C.yel, env(lt, at0(.58), at0(.7) + .3, .3, .4))
 
     // ---- line 1: bracket, decoded terms, seesaws, sums, book sentence
     const brk = Math.min(S.p(lt, 1, .9, .5), 1 - S.p(lt, 1, .9 + Math.max(2, .3 * d1), .6))
     op(this.brk, brk); this.brk.style.transform = `scale(${lerp(1.06, 1, E.out(clamp(brk)))})`
     const decIn = k => S.p(lt, 1, .16 * d1 + k * .22, .55)
     const tipAt = k => S.at(1) + .42 * d1 + Math.min(k, 3) * .45
-    const sumIn = k => S.p(lt, 1, .72 * d1 + Math.min(k, 3) * .15, .5)
+    const sumIn = k => S.p(lt, 1, .8 * d1 + Math.min(k, 3) * .15, .5)
     const cp = S.p(lt, 1, .16 * d1, .8)
     this.gA.forEach(e => (e.style.color = mixColor(C.ink, G, cp)))
     this.gB.forEach(e => (e.style.color = mixColor(C.ink, B, cp)))

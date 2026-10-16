@@ -6,7 +6,7 @@
     const n = 14, pts = []
     for (let i = 0; i < n; i++) {
       const a = i / n * Math.PI * 2
-      const k = 1 + .07 * Math.sin(3 * a + 1.3 + t * .45) + .045 * Math.cos(2 * a - .7 - t * .32) + .025 * Math.sin(5 * a + t * .27)
+      const k = 1 + .045 * Math.sin(3 * a + 1.3 + t * .3) + .03 * Math.cos(2 * a - .7 - t * .22) + .015 * Math.sin(5 * a + t * .18)
       pts.push([cx + Math.cos(a) * rx * k, cy + Math.sin(a) * ry * k])
     }
     const f = v => v.toFixed(1)
@@ -62,7 +62,7 @@
       this.head = heading(root, 'العلاقة التدريجيّة $u_{n+1} = f(u_n)$')
 
       // ================= phase 1: the general statement (lines 0–1) =================
-      const c = card(root, 'tip', 1800, 300, 920, { anchor: 'tr', tag: '💡 بوجه عام' })
+      const c = card(root, 'tip', 1800, 300, 920, { anchor: 'tr' })
       this.card = c.el
       this.t1 = rich('<span class="pur b">بوجه عام،</span> إذا كان $f$ تابعاً معرّفاً على المجموعة $D$، وتحقّق الشرط:', 'p')
       c.body.appendChild(this.t1); splitWords(this.t1)
@@ -84,7 +84,7 @@
       const s = svg(root, 0, 0, W, H)
       this.blobGlow = sv(s, 'path', { d: blobPath(480, 620, 330, 270, 0), fill: 'none', stroke: C.pur, 'stroke-width': 18 })
       this.blob = sv(s, 'path', { d: blobPath(480, 620, 330, 270, 0), fill: 'rgba(167,139,250,.13)', stroke: C.pur, 'stroke-width': 4 })
-      this.Dlab = lab(root, 'D', 205, 395, 'ml pur')
+      this.Dlab = lab(root, 'D', 182, 366, 'ml pur')
 
       // line 0: x ↦ f(x) inside D, then faint arrows for "whatever x"
       this.px = [330, 690]; this.pfx = [600, 520]
@@ -99,7 +99,7 @@
       this.lf = lab(root, 'f', this.hx.mid[0] - 30, this.hx.mid[1] - 26, 'ms mute')
 
       // line 1: u0 → u1 → u2 → u3 → u4 → … spiralling, never leaving D
-      this.U = [[255, 720], [370, 490], [610, 470], [720, 690], [500, 795]]
+      this.U = [[302, 700], [385, 498], [602, 478], [705, 685], [497, 782]]
       const LO = [[0, 50], [-6, -50], [10, -50], [52, 4], [0, 50]]
       this.ud = this.U.map(([x, y]) => dot(s, x, y, 13, C.yel))
       this.ul = this.U.map(([x, y], k) => lab(root, `u_${k}`, x + LO[k][0], y + LO[k][1], 'mm yel'))
@@ -116,7 +116,7 @@
       const s2 = svg(root, 0, 0, W, H)
       s2.style.direction = 'ltr'
       // number line with D = [0, +∞[
-      const nx = v => 420 + v * 105, NY = 868
+      const nx = v => 420 + v * 105, NY = 856
       this.nx = nx; this.NY = NY
       this.nl = sv(s2, 'g')
       sv(this.nl, 'path', { d: `M150,${NY} L980,${NY}`, stroke: C.mut, 'stroke-width': 3, fill: 'none' })
@@ -126,17 +126,18 @@
       this.band = sv(s2, 'g')
       sv(this.band, 'rect', { x: nx(0), y: NY - 16, width: 975 - nx(0), height: 32, rx: 6, fill: 'rgba(167,139,250,.28)' })
       sv(this.band, 'path', { d: `M${nx(0) + 12},${NY - 26} L${nx(0)},${NY - 26} L${nx(0)},${NY + 26} L${nx(0) + 12},${NY + 26}`, stroke: C.pur, 'stroke-width': 6, fill: 'none', 'stroke-linejoin': 'round' })
-      this.nlab = [-2, -1, 0, 1, 2, 3, 4, 5].map(v => lab(root, String(v), nx(v), NY + 44, 'ms mute'))
+      this.nlab = [-2, -1, 0, 1, 2, 3, 4, 5].map(v => lab(root, String(v), nx(v), NY + 42, 'ms mute'))
       this.nlab.forEach(e => (e.style.fontSize = '30px'))
-      this.bandLab = lab(root, 'D = [0,+\\infty[', 790, NY - 62, 'mm pur')
+      this.bandLab = lab(root, 'D = [0,+\\infty[', 770, NY - 60, 'mm pur')
       this.n0 = dot(s2, nx(0), NY, 13, C.yel)
       this.n1 = dot(s2, nx(-1), NY, 13, C.red)
       this.nh = hop(s2, [nx(0), NY], [nx(-1), NY], { color: C.red, width: 5, bend: .55, gap: 14 })
-      this.nu0 = lab(root, 'u_0', nx(0), NY + 96, 'mm yel')
-      this.nu1 = lab(root, 'u_1', nx(-1), NY + 96, 'mm red')
-      this.outLab = el('div', 's red b', 'خارج $D$', root)
-      this.outLab.innerHTML = ''; this.outLab.appendChild(rich('خارج $D$', ''))
-      place(this.outLab, 225, NY + 96, { anchor: 'c' }); this.outLab.style.whiteSpace = 'nowrap'; this.outLab.style.fontSize = '28px'
+      this.nu0 = lab(root, 'u_0', nx(0), NY + 88, 'mm yel')
+      this.nu1 = lab(root, 'u_1', nx(-1), NY + 88, 'mm red')
+      // «outside D» sits above the pink part of the line, clear of the u-labels
+      this.outLab = el('div', 's red b', null, root)
+      this.outLab.appendChild(rich('خارج $D$', ''))
+      place(this.outLab, 232, NY - 50, { anchor: 'c' }); this.outLab.style.whiteSpace = 'nowrap'; this.outLab.style.fontSize = '30px'
 
       // the machine and its output → input loop pipe
       const MX = 520, MY = 520
@@ -220,10 +221,14 @@
       this.t1.style.opacity = lerp(1, .5, S.p(lt, 1, 0, .6))
       const cg = prog(lt, F(0, .38), .6)
       this.cw.style.height = (cg * this.cwIn.offsetHeight) + 'px'
+      this.cw.style.overflow = cg >= 1 ? 'visible' : 'hidden'
       this.cond.style.opacity = cg
       typeWords(this.cond, S.f(lt, 0, .4, .92))
-      const grow = S.p(lt, 1, 0, .8)
-      this.more.style.height = (grow * this.moreIn.offsetHeight) + 'px'
+      // the card grows with the text: first the sentence, then the room for the framed relation
+      const grow = S.p(lt, 1, 0, .8), grow2 = prog(lt, F(1, .46), .7)
+      const hT = this.t2.offsetHeight + 20, hAll = this.moreIn.offsetHeight
+      this.more.style.height = (grow * hT + grow2 * (hAll - hT)) + 'px'
+      this.more.style.overflow = grow2 >= 1 ? 'visible' : 'hidden'   // so the framed relation's glow is not clipped
       typeWords(this.t2, S.f(lt, 1, .03, .5))
       wipe(this.rel, prog(lt, F(1, .5), .9), 'ltr')
       this.relBox(prog(lt, F(1, .78), .5))
@@ -253,7 +258,7 @@
       })
 
       // line 1: u0 → u1 → u2 → u3 → u4 → … (hops follow the words «يو إنْ زائد واحد يساوي…»)
-      const ht = [F(1, .28), F(1, .5), F(1, .63), F(1, .76), F(1, .88)]
+      const ht = [F(1, .2), F(1, .5), F(1, .63), F(1, .76), F(1, .88)]
       this.ud.forEach((d, k) => setDot(d, (k === 0 ? prog(lt, ht[0], .5) : prog(lt, ht[k] + .45, .35)) * out1, ...this.U[k]))
       this.ul.forEach((e, k) => rise(e, (k === 0 ? prog(lt, ht[0] + .1, .5) : prog(lt, ht[k] + .5, .4)) * out1, 12))
       this.uh.forEach((h, k) => h.set(prog(lt, ht[k + 1] - .1, .6), out1))

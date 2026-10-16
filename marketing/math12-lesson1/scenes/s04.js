@@ -65,12 +65,13 @@
     const b = el('div', '', null, root)
     b.style.cssText = `position:absolute;left:0;top:0;width:${d}px;height:${d}px;margin:${-d / 2}px 0 0 ${-d / 2}px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:${d * .46}px;color:#fff;direction:ltr;background:radial-gradient(circle at 34% 30%,#b9ecff 0%,#38bdf8 40%,#0369a1 100%);box-shadow:0 0 22px rgba(56,189,248,.55),inset 0 -6px 12px rgba(0,0,0,.25);z-index:4`
     b.textContent = txt
+    b._bg = b.style.background; b._sh = b.style.boxShadow   // restore these when a tint is removed
     return b
   }
   const putBall = (b, x, y, a = 1, s = 1) => { op(b, a); b.style.transform = `translate(${x}px,${y}px) scale(${s})` }
   function outCard(root, latex, cls = 'mm', col = C.yel) {
     const c = el('div', '', null, root)
-    c.style.cssText = `position:absolute;left:0;top:0;translate:-50% -50%;padding:8px 22px;border-radius:16px;border:2.5px solid ${col};background:#1d1a14;box-shadow:0 0 24px ${col}55;z-index:4;color:${col}`
+    c.style.cssText = `position:absolute;left:0;top:0;translate:-50% -50%;padding:8px 22px;border-radius:16px;border:2.5px solid ${col};background:#28261f;box-shadow:0 0 24px ${col}55;z-index:4;color:${col}`
     c.appendChild(tex(latex, cls))
     return c
   }
@@ -103,7 +104,9 @@
       this.ticks = []
       for (let n = 0; n <= 9; n++) {
         const t = sv(P.s, 'line', { x1: X(n), y1: Y(0) - 8, x2: X(n), y2: Y(0) + 8, stroke: C.mut, 'stroke-width': 3 })
-        const l = P.label('', n, -.14, 'tc', 'mm'); l.appendChild(tex(String(n), 'ms')); l.style.color = C.blu
+        // the origin label sits just left of the vertical axis so the axis line never crosses it
+        const l = n ? P.label('', n, -.14, 'tc', 'mm') : P.label('', -.12, -.14, 'tr', 'mm')
+        l.appendChild(tex(String(n), 'ms')); l.style.color = C.blu
         this.ticks.push([t, l])
       }
       this.dotsLbl = P.label('', 10.15, -.14, 'tc'); this.dotsLbl.appendChild(tex('\\cdots', 'ms')); this.dotsLbl.style.color = C.blu
@@ -218,7 +221,7 @@
       const BY = 762
       this.brA = sv(s, 'path', { d: `M${NX(0)},${BY - 26} L${NX(0)},${BY} L${NX(1) - 30},${BY}`, fill: 'none', stroke: C.blu, 'stroke-width': 6, 'stroke-linecap': 'round', 'stroke-linejoin': 'round' })
       this.brk = sv(s, 'path', { d: `M${NX(1) - 30},${BY} l10,-16 l10,30 l10,-28 l10,22`, fill: 'none', stroke: C.red, 'stroke-width': 5, 'stroke-linecap': 'round', 'stroke-linejoin': 'round' })
-      this.gap = rich('ثغرة!', 'h3 red ctr'); root.appendChild(this.gap); place(this.gap, NX(1) + 4, 820, { anchor: 'c' })
+      this.gap = rich('ثغرة!', 'h3 red ctr'); root.appendChild(this.gap); place(this.gap, NX(1) - 10, 822, { anchor: 'c' })
       // green bracket from 2 to +inf
       this.brB0 = sv(s, 'path', { d: `M${NX(2)},${BY - 26} L${NX(2)},${BY}`, fill: 'none', stroke: C.grn, 'stroke-width': 6, 'stroke-linecap': 'round' })
       this.brB = arrow(s, NX(2), BY, 1690, BY, { color: C.grn, width: 6 })
@@ -272,7 +275,9 @@
       op(P.box, (ax > 0 ? 1 : 0) * (1 - out1))
       draw(P.xAxis, ax); draw(P.yAxis, ax)
       this.ticks.forEach(([t, l], n) => { const q = S.p(lt, 1, .5 + n * .05, .4); t.style.opacity = q; op(l, q) })
-      op(this.dotsLbl, S.p(lt, 1, 1, .4)); op(this.nLbl, ax); op(this.unLbl, ax)
+      op(this.dotsLbl, S.p(lt, 1, 1, .4))
+      const axLbl = S.p(lt, 1, .95, .4)          // axis names appear once their axis has been drawn
+      op(this.nLbl, axLbl); op(this.unLbl, axLbl)
       const gIn = S.p(lt, 1, .55, .6)
       const gGlow = pp(lt, a1 + .6, .5) * (1 - pp(lt, T(S, 1, .35), .6))
       this.guides.forEach(({ g, l }) => {
@@ -316,36 +321,38 @@
       const out2 = S.p(lt, 3, 0, .5)
       rise(this.f2, S.p(lt, 2, .4, .7) * (1 - out2))
       const mIn = S.p(lt, 2, .5, .7, E.out)
-      // queue + timing of each ball
-      const T0 = a2 + 1.5
-      const st2 = clamp((d2 - 1.5 - 1.6 - 1.4) / 3, .55, 1.25)
-      const Tk = k => (k === 0 ? T0 : T0 + 1.7 + (k - 1) * st2)
+      // queue + timing of each ball. K compresses the whole sequence on a short line so the last card
+      // still lands before the line ends (nominal timings at ~8 s, never slower than that)
+      const K2 = clamp(d2 / 8, .5, 1), K = x => x * K2
+      const T0 = a2 + K(1.5)
+      const st2 = clamp((d2 - K(4.5)) / 3, .45, 1.25)
+      const Tk = k => (k === 0 ? T0 : T0 + K(1.7) + (k - 1) * st2)
       const QY = 318, HX = this.MX, DY = 190
       let A = 0
-      for (let j = 1; j < 4; j++) A += pp(lt, Tk(j) - .6, .45)
+      for (let j = 1; j < 4; j++) A += pp(lt, Tk(j) - K(.6), K(.45))
       let jam = 0, work = 0, shake = 0
       this.balls2.forEach((b, k) => {
-        const appear = S.p(lt, 2, .8 + k * .12, .45, E.out)
+        const appear = S.p(lt, 2, K(.8) + k * .12, .45, E.out)
         let x = HX + 104 * Math.max(0, k - A), y = QY, a = appear, s = lerp(.5, 1, appear)
-        const dp = pp(lt, Tk(k), .45, E.in)
+        const dp = pp(lt, Tk(k), K(.45), E.in)
         y = QY + DY * dp
         b.style.zIndex = 4
         if (k === 0) {
           // rejected: spat back out, turns red, crossed, rolls away
-          const rj = pp(lt, Tk(0) + .75, .5, E.out)
-          const gone = pp(lt, Tk(0) + 1.45, .6, E.in)
+          const rj = pp(lt, Tk(0) + K(.75), K(.5), E.out)
+          const gone = pp(lt, Tk(0) + K(1.45), K(.6), E.in)
           if (rj > 0) { y = lerp(QY + DY, QY - 40, rj) + gone * 200; x = HX - 170 * rj - 90 * gone }
           const red = clamp(rj * 2)
-          b.style.background = red > 0 ? `radial-gradient(circle at 34% 30%,#ffd0dc 0%,${C.red} 40%,#9d1745 100%)` : ''
-          b.style.boxShadow = red > 0 ? '0 0 26px rgba(255,92,138,.7)' : ''
+          b.style.background = red > 0 ? `radial-gradient(circle at 34% 30%,#ffd0dc 0%,${C.red} 40%,#9d1745 100%)` : b._bg
+          b.style.boxShadow = red > 0 ? '0 0 26px rgba(255,92,138,.7)' : b._sh
           if (rj > 0) b.style.zIndex = 7
           a = appear * (1 - gone)
           putBall(this.cross0, x, y, red * (1 - gone) * (1 - out2), 1)
           this.cross0.style.zIndex = 8
-          jam = Math.max(jam, pp(lt, Tk(0) + .4, .2) * (1 - pp(lt, Tk(0) + 1.6, .6)))
-          shake = Math.max(shake, pp(lt, Tk(0) + .4, .1) * (1 - pp(lt, Tk(0) + .95, .3)))
+          jam = Math.max(jam, pp(lt, Tk(0) + K(.4), .2) * (1 - pp(lt, Tk(0) + K(1.6), K(.6))))
+          shake = Math.max(shake, pp(lt, Tk(0) + K(.4), .1) * (1 - pp(lt, Tk(0) + K(.95), .3)))
         } else {
-          work = Math.max(work, pp(lt, Tk(k) + .35, .15) * (1 - pp(lt, Tk(k) + .95, .2)))
+          work = Math.max(work, pp(lt, Tk(k) + K(.35), .15) * (1 - pp(lt, Tk(k) + K(.95), .2)))
         }
         putBall(b, x, y, a * (1 - out2), s)
       })
@@ -354,18 +361,18 @@
       jam = Math.max(jam, rp * .8)
       this.m2.set(lt, { jam, work, shake, a: mIn * (1 - out2), s: lerp(.85, 1, mIn) })
       // error label
-      const eIn = pp(lt, Tk(0) + .6, .5, E.out)
+      const eIn = pp(lt, Tk(0) + K(.6), .5, E.out)
       slide(this.err, eIn * (1 - out2), -40)
       this.err.style.transform += ` scale(${1 + .08 * rp})`
       // outputs 1/1, 1/2, 1/3
       this.outs2.forEach((c, i) => {
-        const k = i + 1, t = Tk(k) + .55
-        const em = pp(lt, t, .4, E.out), mvp = pp(lt, t + .45, .5)
+        const k = i + 1, t = Tk(k) + K(.55)
+        const em = pp(lt, t, K(.4), E.out), mvp = pp(lt, t + K(.45), K(.5))
         const sx = this.MX - 215 + i * 215, sy = 852
         const x = lerp(this.MX, sx, mvp), y = lerp(this.MY + 60, this.MY + 196, em) + (sy - this.MY - 196) * mvp
         putCard(c, x, y, (em > 0 ? 1 : 0) * (1 - out2), 1)
       })
-      const c1 = pp(lt, Math.min(Tk(1) + 1.2, T(S, 2, .7)), .6, E.out)
+      const c1 = pp(lt, Math.min(Tk(1) + K(1.2), T(S, 2, .7)), .6, E.out)
       pop(this.chip1, c1); op(this.chip1, clamp(c1 * 2.5) * (1 - out2))
       if (this.f2sub) this.f2sub.style.color = c1 > 0 ? mixColor(C.ink, C.yel, c1) : ''
 
@@ -405,8 +412,9 @@
       const ba = pp(lt, T(S, 4, .06), Math.max(.6, .16 * (S.end(4) - a4)), E.io)
       draw(this.brA, ba); this.brA.style.opacity = 1 - fade0
       const brk = pp(lt, T(S, 4, .06) + Math.max(.6, .16 * (S.end(4) - a4)), .35, E.out)
-      draw(this.brk, brk); this.brk.style.opacity = 1 - fade0
-      pop(this.gap, brk); op(this.gap, clamp(brk * 2.5) * (1 - pp(lt, T(S, 4, .55), .5) * .0))
+      // the bracket from 0 leaves with index 0, but the red break mark stays at the hole under «ثغرة!»
+      draw(this.brk, brk); this.brk.style.opacity = 1 - .3 * fade0
+      pop(this.gap, brk)
       const gb = pp(lt, T(S, 4, .42), .9)
       draw(this.brB0, clamp(gb * 4)); this.brB.set(gb)
       op(this.infB, pp(lt, T(S, 4, .42) + .8, .4))

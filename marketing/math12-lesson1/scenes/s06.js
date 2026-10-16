@@ -60,7 +60,7 @@
   }
   function valCard(root, latex, cls = 'mm', col = C.yel) {
     const c = el('div', '', null, root)
-    c.style.cssText = `position:absolute;left:0;top:0;translate:-50% -50%;padding:6px 20px;border-radius:16px;border:2.5px solid ${col};background:#1d1a14;box-shadow:0 0 24px ${col}55;z-index:4;color:${col};white-space:nowrap`
+    c.style.cssText = `position:absolute;left:0;top:0;translate:-50% -50%;padding:6px 20px;border-radius:16px;border:2.5px solid ${col};background:#28261f;box-shadow:0 0 24px ${col}55;z-index:4;color:${col};white-space:nowrap`
     c.appendChild(tex(latex, cls))
     return c
   }
@@ -78,13 +78,15 @@
       // ---------- L0: card ② ----------
       const cd = card(root, 'def', 1800, 316, 1480, { anchor: 'tr', tag: 'الطريقة الثانية' })
       this.card = cd.el
-      this.c1 = rich('② بالتدريج: أي أن يُحسب الحدُّ ذو الدليل $n$ بدلالة الحدود التي سبقته', 'h3')
+      this.c1 = rich('② بالتدريج', 'h3')
       this.c1.style.color = C.pur; this.c1.style.fontWeight = 800
       cd.body.appendChild(this.c1)
-      this.c2 = rich('نُعطى الحدّ $u_0$ ثُمّ نعطى علاقة، تسمّى <span class="pur b">علاقة تدريجيّة</span>، تفيد في حساب كلّ حدٍّ من حدود المتتالية بدلالة الحدّ أو الحدود التي سبقته', 'p')
-      this.c2.style.marginTop = '18px'
+      this.c1b = rich('أي أن يُحسب الحدُّ ذو الدليل $n$ بدلالة الحدود التي سبقته.', 'p')
+      cd.body.appendChild(this.c1b)
+      this.c2 = rich('نُعطى الحدّ $u_0$ ثُمّ نعطى علاقة، تسمّى <span class="pur b">علاقة تدريجيّة</span>، تفيد في حساب كلّ حدٍّ من حدود المتتالية بدلالة الحدّ أو الحدود التي سبقته.', 'p')
+      this.c2.style.marginTop = '10px'
       cd.body.appendChild(this.c2)
-      splitWords(this.c1); splitWords(this.c2)
+      splitWords(this.c1); splitWords(this.c1b); splitWords(this.c2)
       this.u0w = this.c2.querySelector('bdi')
       this.relWords = [...this.c2.querySelectorAll('.pur .w')]
       this.relHL = hlBg(this.c2.querySelector('.pur'), root, { color: 'rgba(167,139,250,.22)' })
@@ -110,7 +112,7 @@
       this.pipes.push(this.pipeIn)
       this.flow = sv(ps, 'path', { d: pd, fill: 'none', stroke: C.yel, 'stroke-width': 6, 'stroke-linecap': 'round', 'stroke-dasharray': '30 120', opacity: 0 })
       this.pipeLen = this.pipeIn.getTotalLength()
-      this.eat = nw(rich('الآلة تأكل مخرجها', 's')); root.appendChild(this.eat); place(this.eat, MX + 190, HOPY - 112, { anchor: 'c' }); this.eat.style.color = C.pur
+      this.eat = nw(rich('الآلة تأكل مخرجها', 's')); root.appendChild(this.eat); place(this.eat, MX + 190, HOPY - 126, { anchor: 'c' }); this.eat.style.color = C.pur
       this.inL = tex('u_n', 'mm'); root.appendChild(this.inL); place(this.inL, MX - 118, HOPY + 8, { anchor: 'cr' }); this.inL.style.color = C.blu
       this.outL = tex('u_{n+1}', 'mm'); root.appendChild(this.outL); place(this.outL, MX - 84, CHY + 4, { anchor: 'cr' }); this.outL.style.color = C.yel
 
@@ -121,7 +123,8 @@
       this.vF = this.M.addView(`\\textcolor{${C.pur}}{f} : x \\longmapsto x^2 - 2`, 'mm')
 
       // ---------- L1: example card ----------
-      const ex = card(root, 'ex', 1800, 360, 760, { anchor: 'tr', tag: 'مثال' })
+      const ex = card(root, 'ex', 1800, 384, 760, { anchor: 'tr', tag: 'مثال' })
+      this.chip = nw(chip(root, '② بالتدريج', 1800, 268, { anchor: 'tr', color: C.pur }))
       this.ex = ex.el
       const row = (latex, lab, col) => {
         const r = el('div', '', null, ex.body)
@@ -137,23 +140,12 @@
 
       // ---------- L2: the chain + contrast strip ----------
       const chainY = 912
-      const items = ['u_0 = 3', 'u_1 = u_0^2 - 2 = 7', 'u_2 = u_1^2 - 2 = 47', 'u_3 = u_2^2 - 2 = 2207']
-      this.chain = []
-      let x = 150
-      const cw = []
-      items.forEach((l, k) => {
-        const e = tex(l, 'mm'); root.appendChild(e); place(e, x, chainY, { anchor: 'cl' })
-        const r = rectIn(e, root); cw.push(r)
-        this.chain.push(e)
-        x += r.w + 22
-        if (k < 3) { const a = tex('\\to', 'mm'); root.appendChild(a); place(a, x, chainY, { anchor: 'cl' }); a.style.color = C.mut; this.chain.push(a); x += rectIn(a, root).w + 22 }
-      })
-      this.chainEnd = tex(',\\ \\dots', 'mm'); root.appendChild(this.chainEnd); place(this.chainEnd, x - 16, chainY, { anchor: 'cl' })
-      this.chainW = x + 40 - 150
-      // keep the chain centred
-      const shift = (W - this.chainW) / 2 - 150
-      this.chain.concat([this.chainEnd]).forEach(e => { e.style.left = (parseFloat(e.style.left) + shift) + 'px' })
-      this.chain.forEach((e, i) => { if (i % 2 === 0) e.querySelectorAll('.mord').forEach(() => {}) })
+      const ids = ['k0', 'a0', 'k1', 'a1', 'k2', 'a2', 'k3', 'ke']
+      const H_ = (id, x) => `\\htmlId{${ID}-${id}}{${x}}`
+      const arr = `\\;\\textcolor{${C.mut}}{\\to}\\;`
+      this.chainTex = tex([H_('k0', 'u_0 = 3'), H_('a0', arr), H_('k1', 'u_1 = u_0^2 - 2 = 7'), H_('a1', arr), H_('k2', 'u_2 = u_1^2 - 2 = 47'), H_('a2', arr), H_('k3', 'u_3 = u_2^2 - 2 = 2207'), H_('ke', ',\\ \\dots')].join(''), 'mm')
+      root.appendChild(this.chainTex); place(this.chainTex, 960, chainY, { anchor: 'c' })
+      this.chain = ids.map(id => this.chainTex.querySelector(`#${ID}-${id}`))
       // contrast strip
       this.sA = nw(rich('صريح', 'h3')); root.appendChild(this.sA); place(this.sA, 1800, 440, { anchor: 'cr' }); this.sA.style.color = C.blu
       this.sB = nw(rich('تدريجي', 'h3')); root.appendChild(this.sB); place(this.sB, 1800, 660, { anchor: 'cr' }); this.sB.style.color = C.pur
@@ -162,21 +154,24 @@
       const ss = svg(root, 0, 0, W, H)
       this.sArrow = arrow(ss, 310, 430, 1400, 430, { color: C.blu, width: 5, bend: -.12 })
       this.sAcap = nw(rich('قفزة واحدة', 's')); root.appendChild(this.sAcap); place(this.sAcap, 855, 330, { anchor: 'c' }); this.sAcap.style.color = C.blu
-      const bx = [260, 500, 740, 980, 1220]
+      const bx = [260, 560, 860, 1160, 1460]
       this.sBt = ['u_0', 'u_1', 'u_2', 'u_3'].map((l, k) => { const e = tex(l, 'mx'); root.appendChild(e); place(e, bx[k], 660, { anchor: 'c' }); return e })
-      this.sBdots = tex('\\cdots', 'mx'); root.appendChild(this.sBdots); place(this.sBdots, 1460, 660, { anchor: 'c' })
-      this.sBhops = [0, 1, 2, 3].map(k => arrow(ss, bx[k] + 46, 626, (k < 3 ? bx[k + 1] : 1460) - 46, 626, { color: C.pur, width: 4, bend: -.4 }))
-      this.sBcap = nw(rich('خطوة بعد خطوة', 's')); root.appendChild(this.sBcap); place(this.sBcap, 855, 742, { anchor: 'c' }); this.sBcap.style.color = C.pur
+      this.sBdots = tex('\\cdots', 'mx'); root.appendChild(this.sBdots); place(this.sBdots, bx[4], 660, { anchor: 'c' })
+      this.sBhops = [0, 1, 2, 3].map(k => arrow(ss, bx[k] + 46, 626, bx[k + 1] - 46, 626, { color: C.pur, width: 4, bend: -.4 }))
+      this.sBcap = nw(rich('خطوة بعد خطوة', 's')); root.appendChild(this.sBcap); place(this.sBcap, 860, 742, { anchor: 'c' }); this.sBcap.style.color = C.pur
       this.sep = el('div', '', null, root); place(this.sep, 960, 550, { anchor: 'c', w: 1500, h: 2 }); this.sep.style.background = 'rgba(154,168,201,.18)'
 
       // ---------- L3: u_{n+1} = f(u_n) ----------
-      this.kb = keyBox(root, 'u_{n+1} = f(u_n)', 1350, 420, { cls: 'ml' })
+      this.kb = keyBox(root, `\\textcolor{${C.yel}}{\\htmlId{${ID}-ko}{u_{n+1}}} = \\textcolor{${C.pur}}{f}(\\textcolor{${C.blu}}{\\htmlId{${ID}-ki}{u_n}})`, 1350, 420, { cls: 'ml' })
+      this.kO = this.kb.f.querySelector(`#${ID}-ko`); this.kI = this.kb.f.querySelector(`#${ID}-ki`)
+      this.symIn = valCard(root, 'u_n', 'mm', C.blu)
+      this.symOut = valCard(root, 'u_{n+1}', 'mm', C.yel)
       this.book = rich('والتابع $f$ هو التابع $x \\mapsto x^2 - 2$', 'h3')
       root.appendChild(this.book); place(this.book, 1350, 610, { anchor: 'c' }); nw(this.book)
       this.book.querySelectorAll('bdi')[0].style.color = C.pur
       this.fchain = tex(`3 \\xrightarrow{\\;\\textcolor{${C.pur}}{f}\\;} 7 \\xrightarrow{\\;\\textcolor{${C.pur}}{f}\\;} 47 \\xrightarrow{\\;\\textcolor{${C.pur}}{f}\\;} 2207 \\xrightarrow{\\;\\textcolor{${C.pur}}{f}\\;} \\cdots`, 'mx')
-      root.appendChild(this.fchain); place(this.fchain, 1350, 800, { anchor: 'c' }); this.fchain.style.color = C.yel
-      this.fcap = nw(rich('كلّ حدّ = $f$ (الحدّ الذي سبقه)', 's')); root.appendChild(this.fcap); place(this.fcap, 1350, 900, { anchor: 'c' })
+      root.appendChild(this.fchain); place(this.fchain, 1370, 790, { anchor: 'c' }); this.fchain.style.color = C.yel; this.fchain.style.fontSize = '54px'
+      this.fcap = nw(rich('كلّ حدٍّ نحصل عليه بتطبيق $f$ على الحدّ الذي سبقه', 's')); root.appendChild(this.fcap); place(this.fcap, 1370, 880, { anchor: 'c' })
     },
 
     render(lt, S) {
@@ -188,8 +183,9 @@
       const out0 = S.p(lt, 1, 0, .55)
       rise(this.card, S.p(lt, 0, .3, .7, E.out) * (1 - out0))
       this.card.style.transform += ` scale(${lerp(1, .95, out0)})`
-      typeWords(this.c1, S.f(lt, 0, .02, .28))
-      typeWords(this.c2, S.f(lt, 0, .3, .9))
+      typeWords(this.c1, S.f(lt, 0, .02, .1))
+      typeWords(this.c1b, S.f(lt, 0, .1, .3))
+      typeWords(this.c2, S.f(lt, 0, .32, .9))
       const u0g = pp(lt, T(S, 0, .34), .5) * (1 - pp(lt, T(S, 0, .62), .6))
       if (this.u0w) { this.u0w.style.color = mixColor(C.ink, C.yel, Math.max(u0g, .0)); this.u0w.style.textShadow = u0g > 0 ? `0 0 ${14 * u0g}px rgba(255,210,63,.7)` : '' }
       const rh = pp(lt, T(S, 0, .86), .6)
@@ -203,10 +199,11 @@
       this.pvHops.forEach((h, k) => { h.set(pp(lt, T(S, 0, .47 + k * .1), .45)); h.path.style.opacity = 1 - pvOut })
 
       // ---------- L1: example + machine + pipe ----------
-      const outEx = pp(lt, T(S, 2, .6), .5)
+      const outEx = pp(lt, T(S, 2, .66), .5)
       const chipIn = S.p(lt, 1, .3, .6, E.out)
+      slide(this.chip, chipIn, -30)
       rise(this.ex, S.p(lt, 1, .5, .7, E.out) * (1 - outEx))
-      const r1 = pp(lt, T(S, 1, .22), .5), r2 = pp(lt, T(S, 1, .36), .5)
+      const r1 = pp(lt, Math.max(a1 + .9, T(S, 1, .14)), .5), r2 = pp(lt, Math.max(a1 + 1.4, T(S, 1, .3)), .5)
       rise(this.r1.r, r1, 16); rise(this.r2.r, r2, 16)
       // machine: in during L1, out for the contrast strip, back in L3
       const mIn = S.p(lt, 1, .4, .7, E.out) * (1 - outEx) + pp(lt, a3 + .4, .7, E.out)
@@ -223,16 +220,17 @@
       op(this.vRel, vIn * (1 - sw)); this.vRel.style.transform = `translateY(${(1 - vIn) * 20 - sw * 22}px)`
       op(this.vF, swIn); this.vF.style.transform = `translateY(${(1 - swIn) * 22}px)`
       let work = 0, winGlow = pp(lt, T(S, 3, .5) + .3, .4) * (1 - pp(lt, T(S, 3, .5) + 1.6, .6))
+      winGlow = Math.max(winGlow, pp(lt, Math.max(a1 + 1.4, T(S, 1, .3)), .4) * (1 - pp(lt, T(S, 1, .55), .6)) * .8)
 
       // ---------- L2: 3 → 7 → 47 → 2207 ----------
       const L = this.pipeLen, pipe = this.pipeIn
-      const cyc = clamp(d2 * .2, .9, 1.85), ride = .55 * cyc, dropD = .16 * cyc, workD = .16 * cyc, emD = .16 * cyc
+      const cyc = clamp(d2 * .17, .8, 1.6), ride = .55 * cyc, dropD = .16 * cyc, workD = .16 * cyc, emD = .16 * cyc
       const s0 = a2 + .25
       // token 0 ("3") flies from the example card into the hopper
       const tIn0 = s0 + .55 * cyc
       {
         const f = pp(lt, s0, .55 * cyc, E.io), dp = pp(lt, tIn0, dropD, E.in)
-        const x = lerp(this.ex3.cx, MX, f), y = lerp(this.ex3.cy, HOPY - 40, f) - Math.sin(Math.PI * f) * 160 + dp * 110
+        const x = lerp(this.ex3.cx, MX, f), y = lerp(this.ex3.cy, HOPY - 40, f) - Math.sin(Math.PI * f) * 50 + dp * 110
         putCard(this.tok[0], x, y, f > 0 && dp < 1 ? 1 : 0, 1)
         this.tok[0].style.zIndex = dp > 0 ? 4 : 6
       }
@@ -247,7 +245,8 @@
       for (let k = 1; k <= 3; k++) {
         const c = this.tok[k]
         const em = pp(lt, emT[k], emD, E.out)
-        let x = MX, y = CHY - 50 + em * 52, a = em > 0 ? 1 : 0
+        // slides out of the chute to the pipe's first point (length 30 → y = CHY + 26), fully clear of the chute
+        let x = MX, y = CHY - 40 + em * 66, a = em > 0 ? 1 : 0
         if (k < 3) {
           const rp = pp(lt, emT[k] + emD, ride, E.io), dp = pp(lt, inT[k], dropD, E.in)
           if (rp > 0) { const P = pipe.getPointAtLength(lerp(30, L - 8, rp)); x = P.x; y = P.y + dp * 110 }
@@ -256,31 +255,33 @@
         } else {
           c.style.zIndex = em < 1 ? 4 : 6
         }
-        putCard(c, x, y, a * (1 - pp(lt, T(S, 2, .6), .4)), 1)
+        putCard(c, x, y, a * (1 - pp(lt, T(S, 2, .66), .4)), 1)
       }
       // chain items appear as each output emerges
       const outChain = pp(lt, T(S, 3, .62), .5)
       const chainT = [s0, emT[1] + emD, emT[2] + emD, emT[3] + emD]
+      op(this.chainTex, 1 - outChain)
       this.chain.forEach((e, i) => {
+        if (!e) return
         const k = Math.floor(i / 2), isArrow = i % 2 === 1
-        const t = isArrow ? chainT[k + 1] - .15 : chainT[k]
-        const q = pp(lt, t, .45)
-        op(e, (q > 0 ? 1 : 0) * (1 - outChain)); wipe(e, q, 'ltr')
+        const t = i === 7 ? chainT[3] + .5 : (isArrow ? chainT[k + 1] - .2 : chainT[k])
+        const q = pp(lt, t, .5)
+        e.style.opacity = q
+        e.style.filter = q > 0 && q < 1 ? `blur(${(1 - q) * 6}px)` : ''
       })
-      op(this.chainEnd, pp(lt, chainT[3] + .5, .4) * (1 - outChain))
       // contrast strip
-      const stIn = pp(lt, T(S, 2, .64), .6), stOut = S.p(lt, 3, 0, .5)
-      const A = pp(lt, T(S, 2, .64), .5, E.out), Bq = pp(lt, T(S, 2, .74), .5, E.out)
+      const stIn = pp(lt, T(S, 2, .69), .6), stOut = S.p(lt, 3, 0, .5)
+      const A = pp(lt, T(S, 2, .69), .5, E.out), Bq = pp(lt, T(S, 2, .78), .5, E.out)
       ;[this.sA, this.sAn].forEach(e => rise(e, A * (1 - stOut), 16))
-      this.sArrow.set(pp(lt, T(S, 2, .64) + .3, .7)); this.sArrow.path.style.opacity = 1 - stOut
-      rise(this.sAu, pp(lt, T(S, 2, .64) + .8, .4, E.out) * (1 - stOut), 16)
-      rise(this.sAcap, pp(lt, T(S, 2, .64) + .7, .4) * (1 - stOut), 10)
+      this.sArrow.set(pp(lt, T(S, 2, .69) + .3, .7)); this.sArrow.path.style.opacity = 1 - stOut
+      rise(this.sAu, pp(lt, T(S, 2, .69) + .8, .4, E.out) * (1 - stOut), 16)
+      rise(this.sAcap, pp(lt, T(S, 2, .69) + .7, .4) * (1 - stOut), 10)
       ;[this.sB].forEach(e => rise(e, Bq * (1 - stOut), 16))
-      const hopStep = clamp((S.end(2) - T(S, 2, .76)) / 5.2, .22, .5)
-      this.sBt.forEach((e, k) => rise(e, pp(lt, T(S, 2, .76) + k * hopStep, .35, E.out) * (1 - stOut), 14))
-      this.sBhops.forEach((h, k) => { h.set(pp(lt, T(S, 2, .76) + (k + .45) * hopStep, .35)); h.path.style.opacity = 1 - stOut })
-      rise(this.sBdots, pp(lt, T(S, 2, .76) + 4 * hopStep, .35) * (1 - stOut), 14)
-      rise(this.sBcap, pp(lt, T(S, 2, .76) + 4.4 * hopStep, .4) * (1 - stOut), 10)
+      const hopStep = clamp((S.end(2) - T(S, 2, .8)) / 5.2, .22, .5)
+      this.sBt.forEach((e, k) => rise(e, pp(lt, T(S, 2, .8) + k * hopStep, .35, E.out) * (1 - stOut), 14))
+      this.sBhops.forEach((h, k) => { h.set(pp(lt, T(S, 2, .8) + (k + .45) * hopStep, .35)); h.path.style.opacity = 1 - stOut })
+      rise(this.sBdots, pp(lt, T(S, 2, .8) + 4 * hopStep, .35) * (1 - stOut), 14)
+      rise(this.sBcap, pp(lt, T(S, 2, .8) + 4.4 * hopStep, .4) * (1 - stOut), 10)
       op(this.sep, stIn * (1 - stOut) * .9)
 
       // ---------- L3 ----------
@@ -290,11 +291,27 @@
       const fc = pp(lt, T(S, 3, .66), .9)
       op(this.fchain, fc > 0 ? 1 : 0); wipe(this.fchain, fc, 'ltr')
       rise(this.fcap, pp(lt, T(S, 3, .66) + .9, .5), 12)
-      // a value keeps cycling through the loop in L3 (life): reuse the "47" card look on a ghost token
-      const loop = lt > a3 + 1.2 ? ((lt - a3 - 1.2) % 2.6) / 2.6 : -1
-      if (loop >= 0) work = Math.max(work, loop > .82 ? 1 : 0)
+      // symbolic pass: u_n goes in, u_{n+1} comes out and rides back to become the next input
+      {
+        // the pass takes ~3.8 s at nominal speed; on a short line it is compressed so it ends before the
+        // window switches to f : x ↦ x² − 2 (at 50 % of the line)
+        const K3 = clamp((S.end(3) - a3) / 10, .5, 1), K = x => x * K3
+        const t0 = Math.max(a3 + K(1.3), T(S, 3, .14))
+        const ap = pp(lt, t0, K(.35), E.out), dp = pp(lt, t0 + K(.45), K(.35), E.in)
+        putCard(this.symIn, MX, HOPY - 52 + dp * 110, ap * (dp < 1 ? 1 : 0), lerp(.6, 1, ap))
+        work = Math.max(work, pp(lt, t0 + K(.8), .1) * (1 - pp(lt, t0 + K(1.25), .15)))
+        const em = pp(lt, t0 + K(1.2), K(.35), E.out), rp = pp(lt, t0 + K(2.1), K(1.4), E.io), fin = pp(lt, t0 + K(3.4), .35)
+        let x = MX, y = CHY - 40 + em * 66
+        if (rp > 0) { const P = this.pipeIn.getPointAtLength(lerp(30, this.pipeLen - 8, rp)); x = P.x; y = P.y }
+        putCard(this.symOut, x, y, (em > 0 ? 1 : 0) * (1 - fin), 1)
+        this.symOut.style.zIndex = em < 1 ? 4 : 6
+        // the matching parts of the key formula light up
+        const gIn = pp(lt, t0, .3) * (1 - pp(lt, t0 + K(1), .4)), gOut = pp(lt, t0 + K(1.2), .3) * (1 - pp(lt, t0 + K(2.4), .5))
+        if (this.kI) this.kI.style.textShadow = gIn > 0 ? `0 0 ${20 * gIn}px rgba(56,189,248,.95)` : ''
+        if (this.kO) this.kO.style.textShadow = gOut > 0 ? `0 0 ${20 * gOut}px rgba(255,210,63,.95)` : ''
+        this.inL.style.transform = `scale(${1 + .25 * gIn})`; this.outL.style.transform = `scale(${1 + .25 * gOut})`
+      }
       this.M.set(lt, { work, winGlow, a: clamp(mIn), s: lerp(.88, 1, clamp(mIn)) })
-      // glow on the window when the narrator names f
     },
   })
 })()

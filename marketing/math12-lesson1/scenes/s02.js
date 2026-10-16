@@ -160,6 +160,7 @@ scene('s02', (() => {
       const RX = 1310, Y0 = 420, DY = 84
       this.RX = RX; this.Y0 = Y0
       const rs = svg(this.rm, 0, 0, W, H)
+      this.railGlow = sv(rs, 'circle', { cx: RX, cy: Y0, r: 14, fill: C.yel, opacity: 0 }); this.railGlow.style.filter = 'blur(5px)'
       this.rail = sv(rs, 'path', { d: `M${RX},${Y0} L${RX},${Y0 + 6 * DY}`, stroke: C.line, 'stroke-width': 4, 'stroke-linecap': 'round', fill: 'none' })
       this.stops = labels.map((h, i) => {
         const y = Y0 + i * DY
@@ -311,6 +312,13 @@ scene('s02', (() => {
       {
         const railP = S.p(lt, 2, .4, 1.2)
         draw(this.rail, railP)
+        // gentle life once every stop is on the map: a soft light travels down the rail
+        {
+          const t0 = T.stop[6] + 1.4, per = 2.6
+          const ph = lt > t0 ? ((lt - t0) % per) / per : 0
+          this.railGlow.setAttribute('cy', this.Y0 + 6 * 84 * E.sine(ph))
+          this.railGlow.setAttribute('opacity', lt > t0 ? (.55 * Math.sin(Math.PI * ph)) * (1 - prog(lt, T.glow - .3, .3)) : 0)
+        }
         const flash = env(lt, T.glow, T.glow + .45, .15, .25)
         const sh = prog(lt, T.shrink, .75, E.in)
         this.rm.style.transform = `scale(${lerp(1, .04, sh)})`

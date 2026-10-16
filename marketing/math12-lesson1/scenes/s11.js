@@ -16,8 +16,9 @@
 
   // number line 0..14 + staircase + right-hand labels, all inside one full-stage layer
   const NX = v => 190 + v * 58          // number line x
-  const SX = k => 1096 + k * 58         // staircase step k left edge
-  const KU = 10                         // staircase px per unit
+  const SW = 64                         // staircase step width
+  const SX = k => 1090 + k * SW         // staircase step k left edge
+  const KU = 13                         // staircase px per unit
   function makeRow(root, o) {
     const g = el('div', '', null, root)
     g.style.cssText = 'position:absolute;left:0;top:0;width:1920px;height:1080px'
@@ -46,18 +47,22 @@
     // staircase
     const steps = o.vals.map((v, k) => {
       const top = y - v * KU
-      const r = sv(s, 'rect', { x: SX(k), y: top, width: 58, height: v * KU, fill: o.col + '22' })
+      const r = sv(s, 'rect', { x: SX(k), y: top, width: SW, height: v * KU, fill: o.col + '22' })
       const t = sv(s, 'path', { d: `M${SX(k) + 2},${top} L${SX(k + 1) - 2},${top}`, stroke: C.ink, 'stroke-width': 5, 'stroke-linecap': 'round' })
-      const d = sv(s, 'circle', { cx: SX(k) + 29, cy: top, r: 6.5, fill: C.yel })
+      const d = sv(s, 'circle', { cx: SX(k) + SW / 2, cy: top, r: 6.5, fill: C.yel })
       const n = el('div', 's blu', String(k), g); n.style.fontSize = '24px'; n.style.fontWeight = 800
-      place(n, SX(k) + 29, y + 30, { anchor: 'c' })
+      place(n, SX(k) + SW / 2, y + 30, { anchor: 'c' })
       return { r, t, d, n }
     })
     const base = sv(s, 'path', { d: `M${SX(0) - 8},${y} L${SX(o.vals.length) + 8},${y}`, stroke: C.dim, 'stroke-width': 2.5 })
     const risers = []
     for (let k = 0; k < o.vals.length - 1; k++) {
       if (o.vals[k] === o.vals[k + 1]) continue
-      risers.push({ k, p: sv(s, 'path', { d: `M${SX(k + 1)},${y - o.vals[k] * KU} L${SX(k + 1)},${y - o.vals[k + 1] * KU}`, stroke: o.col, 'stroke-width': 6, 'stroke-linecap': 'round' }) })
+      const a = y - o.vals[k] * KU, b = y - o.vals[k + 1] * KU, upw = b < a
+      // every riser carries the same label (+3 / −3): in the empty corner beside it, never over a step
+      const lab = tex(o.hopLab, 'ms'); lab.style.color = o.col; lab.style.fontSize = '22px'; lab.style.fontWeight = 700; g.appendChild(lab)
+      place(lab, SX(k + 1) + (upw ? -7 : 7), (a + b) / 2 - 4, { anchor: upw ? 'cr' : 'cl' })
+      risers.push({ k, lab, p: sv(s, 'path', { d: `M${SX(k + 1)},${a} L${SX(k + 1)},${b}`, stroke: o.col, 'stroke-width': 6, 'stroke-linecap': 'round' }) })
     }
     // moving point
     const pt = sv(s, 'circle', { cx: NX(o.vals[0]), cy: y, r: 13, fill: C.yel })
@@ -95,7 +100,7 @@
       svgOp(s.r, p); svgOp(s.t, p); svgOp(s.d, p); op(s.n, p)
       s.d.setAttribute('r', 6.5 * lerp(.2, 1, E.back(clamp(p))))
     })
-    R.risers.forEach(r => { const p = clamp(hopP[r.k + 1] * 1.6 - .6); svgOp(r.p, p > 0 ? 1 : 0); draw(r.p, p) })
+    R.risers.forEach(r => { const p = clamp(hopP[r.k + 1] * 1.6 - .6); svgOp(r.p, p > 0 ? 1 : 0); draw(r.p, p); op(r.lab, clamp(p * 2 - 1)) })
   }
 
   scene(ID, {
@@ -151,6 +156,7 @@
       this.eT = rich('كيف تُثبت أنّها <span class="pur b">حسابيّة</span>؟', 'h2'); this.eT.style.fontSize = '54px'; this.eT.style.whiteSpace = 'nowrap'
       root.appendChild(this.eT); place(this.eT, 1560, 410, { anchor: 'cr' })
       this.eF = keyBox(root, `u_{n+1} - u_n = \\htmlId{s11-er}{r}`, 960, 560, { color: C.grn })
+      this.eF.el.style.background = 'rgba(110,224,90,.07)'
       this.eEx = rich('مثلاً: $5-2 = 8-5 = 11-8 = \\textcolor{#6ee05a}{3}$', 's'); this.eEx.style.whiteSpace = 'nowrap'
       root.appendChild(this.eEx); place(this.eEx, 960, 690, { anchor: 'c' })
       this.eTx = rich('عددٌ <span id="s11-thb" class="yel b" style="display:inline-block;margin:0 18px">ثابت</span> لا يتعلّق بـ <span id="s11-n">$n$</span>', 'h2'); this.eTx.style.fontSize = '58px'; this.eTx.style.whiteSpace = 'nowrap'
@@ -203,18 +209,19 @@
       const up = S.p(lt, 2, 0, .8)
       this.R1.g.style.translate = `0 ${lerp(100, 0, up)}px`
       const L1 = pf(S, lt, 1, .02, .9)
-      const h0 = pf(S, lt, 1, .22, .5, E.out), hk = [.32, .43, .54].map(f => pf(S, lt, 1, f, .7, E.lin))
+      const h0 = pf(S, lt, 1, .3, .5, E.out), hk = [.38, .47, .56].map(f => pf(S, lt, 1, f, Math.min(.7, .09 * (S.end(1) - S.at(1))), E.lin))  // hops never overlap, whatever the line length
       setRow(this.R1, L1, [h0, ...hk], out2)
       const pulse = lt > S.at(1) + .7 * (S.end(1) - S.at(1)) && lt < S.at(3) ? .5 + .5 * Math.sin((lt - S.at(1)) * 5) : 0
       this.R1.hops.forEach(h => { h.lab.style.textShadow = `0 0 ${18 * pulse}px rgba(110,224,90,.9)`; h.lab.style.transform = `scale(${1 + .12 * pulse * pf(S, lt, 1, .7, .4)})` })
+      this.R1.risers.forEach(r => { r.lab.style.textShadow = `0 0 ${14 * pulse}px rgba(110,224,90,.9)` })
       op(this.R1.par, L1 > 0 ? 1 : 0)
-      op(this.p1a, pf(S, lt, 1, .22, .5)); op(this.p1b, pf(S, lt, 1, .7, .5))
+      op(this.p1a, pf(S, lt, 1, .3, .5)); op(this.p1b, pf(S, lt, 1, .7, .5))
       vis(this.sent, pf(S, lt, 1, .74, .6), up, 24)
       vis(this.R1.tag, pf(S, lt, 2, .04, .6), 0, 0, ` translateX(${(1 - pf(S, lt, 2, .04, .6)) * 30}px)`)
 
       // ===== line 2: r = −3 and r = 0 =====
       const L2 = pf(S, lt, 2, .08, .9)
-      const g0 = pf(S, lt, 2, .14, .5, E.out), gk = [.2, .29, .38].map(f => pf(S, lt, 2, f, .65, E.lin))
+      const g0 = pf(S, lt, 2, .14, .5, E.out), gk = [.2, .29, .38].map(f => pf(S, lt, 2, f, Math.min(.65, .09 * (S.end(2) - S.at(2))), E.lin))
       setRow(this.R2, L2, [g0, ...gk], out2)
       op(this.R2.par, pf(S, lt, 2, .14, .5))
       vis(this.R2.tag, pf(S, lt, 2, .46, .6), 0, 0, ` translateX(${(1 - pf(S, lt, 2, .46, .6)) * 30}px)`)

@@ -75,7 +75,7 @@
   const putBall = (b, x, y, a = 1, s = 1) => { op(b, a); b.style.transform = `translate(${x}px,${y}px) scale(${s})` }
   function outCard(root, latex, cls = 'mm', col = C.yel) {
     const c = el('div', '', null, root)
-    c.style.cssText = `position:absolute;left:0;top:0;translate:-50% -50%;padding:8px 22px;border-radius:16px;border:2.5px solid ${col};background:#1d1a14;box-shadow:0 0 24px ${col}55;z-index:4;color:${col};white-space:nowrap`
+    c.style.cssText = `position:absolute;left:0;top:0;translate:-50% -50%;padding:8px 22px;border-radius:16px;border:2.5px solid ${col};background:#28261f;box-shadow:0 0 24px ${col}55;z-index:4;color:${col};white-space:nowrap`
     c.appendChild(tex(latex, cls))
     return c
   }
@@ -139,8 +139,10 @@
       this.tdTargets = this.tdU.map(td => rectIn(td, root))
       this.colHL = this.tdN.map(td => hlBg(td, root, { color: 'rgba(56,189,248,.22)', pad: 0 }))
 
-      const P = this.P = plot(root, 1010, 630, 780, 330, { xmin: -.7, xmax: 9.9, ymin: -.7, ymax: 1.18 })
+      const P = this.P = plot(root, 990, 630, 770, 330, { xmin: -.7, xmax: 9.9, ymin: -.7, ymax: 1.18 })
       const { X, Y } = P
+      // tick at u = 1 first, so the n = 0 dot is drawn over it (not crossed by it)
+      sv(P.s, 'line', { x1: X(0) - 6, y1: Y(1), x2: X(0) + 6, y2: Y(1), stroke: C.mut, 'stroke-width': 2 })
       this.pts = []
       for (let n = 0; n <= 9; n++) this.pts.push([X(n), Y((n % 2 ? -1 : 1) / (n + 1))])
       // envelope ±1/(n+1)
@@ -161,10 +163,11 @@
         sv(P.s, 'line', { x1: X(n), y1: Y(0) - 6, x2: X(n), y2: Y(0) + 6, stroke: C.mut, 'stroke-width': 2 })
       }
       this.pl = []
-      ;[0, 2, 4, 6, 8].forEach(n => { const l = P.label('', n, -.08, 'tc'); const t = tex(String(n), 'ms'); t.style.fontSize = '30px'; l.appendChild(t); l.style.color = C.blu; this.pl.push(l) })
+      // origin label just left of the vertical axis, so the axis line never crosses it
+      ;[0, 2, 4, 6, 8].forEach(n => { const l = n ? P.label('', n, -.08, 'tc') : P.label('', -.14, -.08, 'tr'); const t = tex(String(n), 'ms'); t.style.fontSize = '30px'; l.appendChild(t); l.style.color = C.blu; this.pl.push(l) })
       { const l = P.label('', 9.9, .02, 'bl'); l.appendChild(tex('n', 'ms')); l.style.color = C.blu; this.pl.push(l) }
       { const l = P.label('', .12, 1.2, 'bl'); l.appendChild(tex('u_n', 'ms')); l.style.color = C.yel; this.pl.push(l) }
-      { sv(P.s, 'line', { x1: X(0) - 6, y1: Y(1), x2: X(0) + 6, y2: Y(1), stroke: C.mut, 'stroke-width': 2 }); const l = P.label('', -.3, 1, 'cr'); const t = tex('1', 'ms'); t.style.fontSize = '30px'; l.appendChild(t); this.pl.push(l) }
+      { const l = P.label('', -.3, 1, 'cr'); const t = tex('1', 'ms'); t.style.fontSize = '30px'; l.appendChild(t); this.pl.push(l) }
       this.to0 = rich('تقترب من $0$', 's'); P.layer.appendChild(this.to0); place(this.to0, X(9.6), Y(-.45), { anchor: 'cr' }); this.to0.style.whiteSpace = 'nowrap'; this.to0.style.color = C.pur; this.to0.style.fontSize = '28px'
 
       // ---------- L2: u_n = f(n), f on [0,+inf[ ----------
@@ -198,7 +201,7 @@
       this.kb.f.style.fontSize = '56px'
       this.jump = chip(root, '⚡ قفزة مباشرة', 1290, 862, { anchor: 'c', color: C.grn })
       this.jump.style.whiteSpace = 'nowrap'; this.jump.style.fontSize = '32px'
-      this.skip = rich('دون حساب $u_3,\\ u_4,\\ \\dots,\\ u_{99}$', 's ctr'); root.appendChild(this.skip); place(this.skip, 1290, 940, { anchor: 'c' }); this.skip.style.whiteSpace = 'nowrap'
+      this.skip = rich('دون حساب ما قبله: $u_0,\\ u_1,\\ \\dots,\\ u_{99}$', 's ctr'); root.appendChild(this.skip); place(this.skip, 1290, 940, { anchor: 'c' }); this.skip.style.whiteSpace = 'nowrap'
       this.B0 = [905, 895]; this.B1 = [700, 70]; this.B2 = [MX, HOPY - 40]
       let d = ''
       for (let k = 0; k <= 40; k++) { const t = k / 40; d += (k ? ' L' : 'M') + bez(this.B0[0], this.B1[0], this.B2[0], t) + ',' + bez(this.B0[1], this.B1[1], this.B2[1], t) }
@@ -207,7 +210,10 @@
 
     render(lt, S) {
       const a1 = S.at(1), a2 = S.at(2), a3 = S.at(3)
-      const d1 = S.end(1) - a1, d2 = S.end(2) - a2
+      const d1 = S.end(1) - a1, d2 = S.end(2) - a2, d3 = S.end(3) - a3
+      // the jump to u_100 is the last beat of the scene: on a short line its whole sequence is compressed
+      // so the key box and chips land before the scene ends (nominal timings need ~4.6 s)
+      const K3 = clamp((d3 + .2) / 4.6, .6, 1), K = x => x * K3
       this.h.set(S.p(lt, 0, 0, .7))
 
       // ---------- L0 ----------
@@ -226,7 +232,7 @@
       const mIn = pp(lt, Math.max(S.at(0) + 1.2, T(S, 0, .3)), .7, E.out)
       let work = 0, winGlow = 0
       // window views
-      const sT = [null, a1 + .1, a2 + .1, T(S, 3, .1) + 1.5, Infinity]
+      const sT = [null, a1 + .1, a2 + .1, T(S, 3, .1) + K(1.5), Infinity]
       ;[this.v0, this.v1, this.v2, this.v3].forEach((v, i) => {
         const pin = i === 0 ? mIn : pp(lt, sT[i] + .22, .4, E.out), out = pp(lt, sT[i + 1], .28, E.in)
         op(v, pin * (1 - out))
@@ -307,25 +313,25 @@
 
       // ---------- L3: the direct jump to u_100 ----------
       const j0 = T(S, 3, .1)
-      const bIn = pp(lt, j0 - .3, .45, E.back)
-      const fly = pp(lt, j0 + .35, 1.1, E.io)
-      const drop = pp(lt, j0 + 1.45, .35, E.in)
+      const bIn = pp(lt, j0 - K(.3), .45, E.back)
+      const fly = pp(lt, j0 + K(.35), K(1.1), E.io)
+      const drop = pp(lt, j0 + K(1.45), K(.35), E.in)
       {
         let x = bez(this.B0[0], this.B1[0], this.B2[0], fly), y = bez(this.B0[1], this.B1[1], this.B2[1], fly) + drop * 150
         putBall(this.b100, x, y, clamp(bIn * 2) * (drop < 1 ? 1 : 0), Math.max(.2, bIn) * lerp(1, .8, fly))
         this.b100.style.zIndex = drop > 0 ? 4 : 6
       }
-      draw(this.trail, fly); this.trail.style.opacity = .5 * (1 - pp(lt, j0 + 2.6, .8))
-      work = Math.max(work, pp(lt, j0 + 1.7, .12) * (1 - pp(lt, j0 + 2.4, .2)))
-      winGlow = Math.max(winGlow, pp(lt, j0 + 1.6, .3) * (1 - pp(lt, j0 + 2.8, .6)))
-      const ce = j0 + 2.25
-      const em = pp(lt, ce, .35, E.out), fl = pp(lt, ce + .35, .6, E.io)
+      draw(this.trail, fly); this.trail.style.opacity = .5 * (1 - pp(lt, j0 + K(2.6), .8))
+      work = Math.max(work, pp(lt, j0 + K(1.7), .12) * (1 - pp(lt, j0 + K(2.4), .2)))
+      winGlow = Math.max(winGlow, pp(lt, j0 + K(1.6), .3) * (1 - pp(lt, j0 + K(2.8), .6)))
+      const ce = j0 + K(2.25)
+      const em = pp(lt, ce, K(.35), E.out), fl = pp(lt, ce + K(.35), K(.6), E.io)
       putCard(this.c100, lerp(MX, 1290, fl), lerp(CHY - 40 + 70 * em, 708, fl), em > 0 && fl < 1 ? 1 : 0, lerp(1, 1.3, fl))
-      this.kb.set(pp(lt, ce + .75, .7, E.out))
-      if (lt > ce + 1.5) this.kb.el.style.boxShadow = `0 0 ${44 + 16 * Math.sin(lt * 2.4)}px rgba(255,210,63,.28)`
-      const jIn = pp(lt, ce + 1.1, .6, E.out)
+      this.kb.set(pp(lt, ce + K(.75), K(.7), E.out))
+      if (lt > ce + K(1.5)) this.kb.el.style.boxShadow = `0 0 ${44 + 16 * Math.sin(lt * 2.4)}px rgba(255,210,63,.28)`
+      const jIn = pp(lt, ce + K(1.1), K(.6), E.out)
       pop(this.jump, jIn)
-      rise(this.skip, pp(lt, Math.max(ce + 1.6, T(S, 3, .72)), .6), 14)
+      rise(this.skip, pp(lt, Math.max(ce + K(1.6), T(S, 3, .72)), K(.6)), 14)
       this.M.set(lt, { work, winGlow, a: mIn, s: lerp(.85, 1, mIn) })
     },
   })

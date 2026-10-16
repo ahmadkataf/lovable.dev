@@ -88,7 +88,7 @@
       const chipEx = el('div', 'chip', 'مثلاً', this.ex); chipEx.style.cssText += `color:${C.red};border-color:${C.red}88;background:${C.red}1f`
       this.ex.appendChild(tex(`u_7 = u_2 + \\textcolor{${C.blu}}{5}\\,r`, 'mx'))
       place(this.ex, 960, 866, { anchor: 'c' })
-      this.thumb = bookThumb(root, 9, 1590, 610, 200, { x: .3, y: .075, w: .48, h: .075 })
+      this.thumb = bookThumb(root, 9, 1590, 610, 200, { x: .35, y: .082, w: .48, h: .064 })
       this.thumbL = el('div', 's', '📖 الكتاب ص 9', root); this.thumbL.style.whiteSpace = 'nowrap'; this.thumbL.style.fontSize = '26px'
       place(this.thumbL, 1690, 590, { anchor: 'bc' })
 
@@ -112,14 +112,15 @@
 
       // ---------- group motion (line 1: up and smaller) ----------
       const up = S.p(lt, 1, 0, .9)
-      this.g.style.transform = `translateY(${-175 * up}px) scale(${lerp(1, .75, up)})`
+      // up, smaller, and nudged left so its right end clears the heading (the book thumbnail balances the right side)
+      this.g.style.transform = `translate(${-50 * up}px, ${-165 * up}px) scale(${lerp(1, .73, up)})`
 
       // ---------- line 0: build the picture ----------
       const L = pf(S, lt, 0, .02, .9)
       draw(this.line, L); svgOp(this.lhead, L >= .98 ? 1 : 0)
-      const pA = pf(S, lt, 0, .12, .5, E.out), pB = pf(S, lt, 0, .28, .5, E.out)
+      const pA = pf(S, lt, 0, .18, .5, E.out), pB = pf(S, lt, 0, .36, .5, E.out)   // «من يو بي» … «إلى يو إم»
       // hop windows for line 0
-      const hw = [.4, .47, .54, .61, .68].map(f => [f, .5])
+      const hw = [.46, .53, .6, .67, .74].map(f => [f, Math.min(.5, .07 * (S.end(0) - S.at(0)))])  // hops never overlap
       const hp = hw.map(([f, d]) => pf(S, lt, 0, f, d, E.lin))
       // variant weights
       const a = pf(S, lt, 1, .58, .6), bb = pf(S, lt, 2, .05, .6)
@@ -143,7 +144,7 @@
         vs.forEach((t, v) => { op(t, p * wv[v]); t.style.transform = `translateY(${(1 - p) * 16 + (1 - wv[v]) * 10}px)` })
       })
       // arcs + counters; in line 1 the five arcs light up one by one (u_2 → u_7)
-      const hl = [0, 1, 2, 3, 4].map(k => pf(S, lt, 1, .66 + k * .05, .45))
+      const hl = [0, 1, 2, 3, 4].map(k => pf(S, lt, 1, .66 + k * .05, Math.min(.45, .05 * (S.end(1) - S.at(1)))))
       const hlOff = 1 - pf(S, lt, 2, 0, .6)
       this.arcs.forEach((r, k) => {
         const q = hp[k]
@@ -169,7 +170,7 @@
         ps.forEach((q, k) => { if (q > 0) { const e = E.io(q); x = lerp(XS[k], XS[k + 1], e); y = Y - 12 - 4 * AH * e * (1 - e) } })
         return [x, Math.min(Y, y + (y < Y ? 0 : 0))]
       }
-      const h2 = [.3, .37, .44, .51, .58].map(f => pf(S, lt, 2, f, .5))
+      const h2 = [.3, .37, .44, .51, .58].map(f => pf(S, lt, 2, f, Math.min(.5, .07 * (S.end(2) - S.at(2)))))
       if (lt < S.at(1) + .56 * (S.end(1) - S.at(1))) { [rx, ry] = hopPos(hp); ro = pA * (1 - pf(S, lt, 1, .5, .4)) }
       else if (lt < S.at(2) + .2 * (S.end(2) - S.at(2))) { [rx, ry] = hopPos(hl.map(h => clamp(h))); ro = pf(S, lt, 1, .62, .3) * (1 - pf(S, lt, 2, .02, .4)) }
       else { [rx, ry] = hopPos(h2); ro = pf(S, lt, 2, .24, .35) }
@@ -177,9 +178,9 @@
       this.run.setAttribute('cx', rx); this.run.setAttribute('cy', ry)
       svgOp(this.run, ro * .95)
       // brace + label
-      const br = pf(S, lt, 0, .76, .7)
+      const br = pf(S, lt, 0, .8, .6)
       draw(this.brace, br)
-      this.bL.forEach((t, v) => { const p = v === 0 ? pf(S, lt, 0, .8, .6) : 1; op(t, p * wv[v]); t.style.transform = `translateY(${(1 - p) * 16 + (1 - wv[v]) * 10}px)` })
+      this.bL.forEach((t, v) => { const p = v === 0 ? pf(S, lt, 0, .84, .6) : 1; op(t, p * wv[v]); t.style.transform = `translateY(${(1 - p) * 16 + (1 - wv[v]) * 10}px)` })
 
       // ---------- line 1: formula etc. ----------
       vis(this.sent, pf(S, lt, 1, .06, .6), 0, 20)

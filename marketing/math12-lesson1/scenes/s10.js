@@ -141,7 +141,7 @@
       this.pR.appendChild(this.pRn)
 
       // ---------- line 2: ⚠️ illustrative example u_n = -2^n ----------
-      const c2 = card(root, 'warn', 960, 300, 1560, { anchor: 'tc', tag: '⚠️ مثال توضيحي', h: 672 })
+      const c2 = card(root, 'warn', 960, 300, 1560, { anchor: 'tc', tag: '⚠️ مثال توضيحي <span style="font-weight:600;opacity:.72">(من خارج الكتاب)</span>', h: 672 })
       this.c2 = c2.el
       // staircase plot (left half of the card)
       const bx = n => 300 + n * 125, BW = 125, A0 = 380, U = 46
@@ -180,6 +180,7 @@
       this.wSep = el('div', '', null, root); place(this.wSep, 960, 893, { anchor: 'c', w: 1420, h: 2 }); this.wSep.style.background = 'rgba(255,159,67,.35)'
       this.wC = rich('مقارنة النسبة بـ $1$ تشترط حدوداً <span class="yel b">موجبة تماماً</span>', 'h3'); this.wC.style.fontSize = '42px'
       root.appendChild(this.wC); place(this.wC, 960, 930, { anchor: 'c' }); this.wC.style.whiteSpace = 'nowrap'
+      this.wCk = this.wC.querySelector('.yel')
       this.wQ = rich('لماذا <span class="yel b">موجبة تماماً</span>؟', 'h3'); this.wQ.style.fontSize = '42px'; this.wQ.style.whiteSpace = 'nowrap'
       root.appendChild(this.wQ); place(this.wQ, 960, 930, { anchor: 'c' })
       this.bx = bx; this.A0 = A0; this.U = U; this.BW = BW
@@ -195,7 +196,7 @@
       this.hops.forEach((h, k) => {
         const a = rectIn(this.wT[k], root), b = rectIn(this.wT[k + 1], root)
         const x1 = a.cx + 6, x2 = b.cx - 6, y = a.y - 6
-        h.ar = arrow(this.hopS, x1, y, x2, y, { color: C.yel, width: 4, bend: .32 })
+        h.ar = arrow(this.hopS, x1, y, x2, y, { color: C.yel, width: 4, bend: -.32 })
         place(h.lab, (x1 + x2) / 2, y - (x2 - x1) * .32 / 2 - 8, { anchor: 'bc' })
       })
     },
@@ -234,9 +235,9 @@
       this.zRun.setAttribute('cx', lerp(this.X(n0), this.X(n0 + 1), fr))
       this.zRun.setAttribute('cy', lerp(n0 % 2 ? this.YM : this.YP, n0 % 2 ? this.YP : this.YM, E.sine(fr)))
       svgOp(this.zRun, .9 * runOn * zo)
-      vis(this.zUp, pf(S, lt, 0, .62, .5), out0, 0, ` translateX(${(1 - pf(S, lt, 0, .62, .5)) * 20}px)`)
-      vis(this.zDn, pf(S, lt, 0, .67, .5), out0, 0, ` translateX(${(1 - pf(S, lt, 0, .67, .5)) * 20}px)`)
-      const st = pf(S, lt, 0, .8, .45, E.out)
+      vis(this.zUp, pf(S, lt, 0, .7, .5), out0, 0, ` translateX(${(1 - pf(S, lt, 0, .7, .5)) * 20}px)`)   // «فتصعد»
+      vis(this.zDn, pf(S, lt, 0, .75, .5), out0, 0, ` translateX(${(1 - pf(S, lt, 0, .75, .5)) * 20}px)`)   // «وتنزل»
+      const st = pf(S, lt, 0, .86, .45, E.out)   // «غير مطّردة»
       op(this.stamp, clamp(st * 3) * zo)
       this.stamp.style.transform = `rotate(-8deg) scale(${lerp(1.9, 1, st) * (1 + .015 * Math.sin(lt * 2))})`
 
@@ -251,6 +252,9 @@
       this.posU(pf(S, lt, 1, .84, .6))
       const pn = pf(S, lt, 1, .88, .5)
       op(this.pRn, pn); this.pRn.style.transform = `translateY(${(1 - pn) * 12}px)`
+      // gentle life in the hold: the condition chip breathes
+      const gl = pn * (.5 + .5 * Math.sin((lt - S.at(1)) * 2.4))
+      this.pRn.style.boxShadow = `0 0 ${8 + 16 * gl}px rgba(255,210,63,${.12 + .22 * gl})`
 
       // ===== line 2 =====
       const c2 = S.p(lt, 2, .3, .6)
@@ -280,6 +284,9 @@
       vis(this.wQ, pf(S, lt, 2, 0, .5) * c2, 0, 16)
       vis(this.wC, cc, 0, 16)
       if (cc > 0) swap(this.wQ, this.wC, cc)
+      // gentle life in the hold: the key condition glows softly
+      const g2 = cc * (.5 + .5 * Math.sin((lt - S.at(2)) * 2.4))
+      this.wCk.style.textShadow = `0 0 ${6 + 14 * g2}px rgba(255,210,63,${.2 + .4 * g2})`
     },
   })
 })()
