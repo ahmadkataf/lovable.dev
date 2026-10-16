@@ -28,6 +28,7 @@ async function openTab(page, ui, id, ready) {
 
 export const chapter = {
   slug: 'settings',
+  poster: 'sections',   // the scene whose last frame is the poster (the chapter's own page)
   scenes: [
     {
       id: 'intro',

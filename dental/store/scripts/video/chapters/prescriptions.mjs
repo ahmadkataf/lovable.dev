@@ -21,6 +21,7 @@ async function toTop(page, ui, locator) {
 
 export const chapter = {
   slug: 'prescriptions',
+  poster: 'page',   // the scene whose last frame is the poster (the chapter's own page)
   // set-up, not shown: the Prescriptions page (period All, no search)
   before: async ({ page }) => {
     await page.evaluate(() => { location.hash = '#/prescriptions' })

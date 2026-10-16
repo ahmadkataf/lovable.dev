@@ -24,6 +24,7 @@ async function dashboardShown(page) {
 
 export const chapter = {
   slug: 'licence',
+  poster: 'where',   // the scene whose last frame is the poster (the chapter's own page)
   before: async ({ page }) => {
     // the price lines and the "Pricing" label over the second one (the seller card's own column)
     await page.addStyleTag({ content: '[data-qa="trial-bar"]{display:flex!important} [data-qa="price-top"],[data-qa="price"],.st-seller-info>div:has(>[data-qa="price"]){display:none!important}' })

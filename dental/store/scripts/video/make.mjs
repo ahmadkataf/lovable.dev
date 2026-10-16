@@ -120,8 +120,12 @@ async function record(browser, { chapter, lang, setup, scenes }) {
     const now = () => Date.now() / 1000 - t0
     await sleep(TITLE_MS - FADE_MS - now() * 1000)
     await hideCard(page, FADE_MS)
-    const poster = path.join(work, 'poster.jpg')      // the first frame of the first scene, 1280×720
-    await page.screenshot({ path: poster, type: 'jpeg', quality: 88, scale: 'css' })
+    // The poster, 1280×720: the screen at the end of the scene the chapter names (chapter.poster), so each chapter's
+    // card shows its own page; without one, the first frame of the first scene.
+    const poster = path.join(work, 'poster.jpg')
+    const shoot = () => page.screenshot({ path: poster, type: 'jpeg', quality: 88, scale: 'css' })
+    if (chapter.poster && !scenes.some(s => s.id === chapter.poster)) log(`${tag}: poster scene ${chapter.poster} is not recorded here; the poster is the first frame`)
+    if (!chapter.poster || !scenes.some(s => s.id === chapter.poster)) await shoot()
     const timeline = []
     for (const s of scenes) {
       const start = now()
@@ -130,6 +134,7 @@ async function record(browser, { chapter, lang, setup, scenes }) {
       const narration = sleep(s.audio.duration * 1000 + TAIL_MS)
       const action = (async () => { await sleep(LEAD_MS); await s.run(sceneCtx) })().catch(e => { throw new Error(`scene ${s.id}: ${e.message.split('\n')[0]}`) })
       await Promise.all([narration, action])
+      if (s.id === chapter.poster) await shoot()
     }
     await showCard(page, endCardHtml({ lang, next: cards.next }))
     await sleep(END_MS)

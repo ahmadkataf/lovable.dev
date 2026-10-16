@@ -14,6 +14,7 @@ const toolbar = page => page.locator('.ch-toolbar')
 
 export const chapter = {
   slug: 'chart',
+  poster: 'layout',   // the scene whose last frame is the poster (the chapter's own page)
   before: async ({ page }) => {
     const id = await page.evaluate(async () => (await window.__dentora.db.patients.toArray()).find(p => p.fileNo === 19)?.id)
     if (!id) throw new Error('demo patient #19 not found')

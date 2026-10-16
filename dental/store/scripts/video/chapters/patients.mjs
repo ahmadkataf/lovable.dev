@@ -35,6 +35,7 @@ async function drawXray(page) {
 
 export const chapter = {
   slug: 'patients',
+  poster: 'open',   // the scene whose last frame is the poster (the chapter's own page)
   before: async ctx => { ctx.xray = await drawXray(ctx.page) },
   scenes: [
     {

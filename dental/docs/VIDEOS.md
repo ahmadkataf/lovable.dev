@@ -46,8 +46,9 @@ export const chapter = {
   `ui.point(locator, ms)` glides the cursor onto the element and then outlines it (the cursor stays there),
   `ui.scrollTo(locator)`, `ui.pause(ms)`, `ui.callout(text)` shows a short label near the cursor for a moment. Nothing
   else should touch the page (no `page.click` directly: the viewer would not see the cursor move).
-- A chapter may add `before: async (ctx) => {}` (set-up done before recording starts, e.g. open a patient) and
-  `title: { ar, en }` to override the chapter's title card.
+- A chapter may add `before: async (ctx) => {}` (set-up done before recording starts, e.g. open a patient),
+  `title: { ar, en }` to override the chapter's title card, and `poster: '<scene id>'`: the poster is then the screen at
+  the end of that scene (the chapter's own page), so the course home does not show the same dashboard on every card.
 - The recorder opens the app signed in with the demo clinic loaded, in the scene's language, at a 1280×720 layout
   rendered at 1920×1080 (device scale 1.5), the clock fixed to the same weekday as the store screenshots, the trial bar
   hidden, the fake cursor shown. Every chapter starts from a fresh demo clinic.
@@ -58,7 +59,8 @@ export const chapter = {
   lowers the bitrate and warns), AAC mono narration; starts with a 3 s title card (chapter number and title on the brand
   gradient, the logo), ends with a 2 s card naming the next chapter.
 - `<lang>/<slug>.vtt`: captions, one cue per sentence, from the synthesiser's sentence boundaries.
-- `<lang>/<slug>.jpg`: the poster (the first frame of the first scene, 1280×720).
+- `<lang>/<slug>.jpg`: the poster, 1280×720 (the screen at the end of the chapter's `poster` scene, else the first frame
+  of the first scene).
 - `manifest.json`: `{ "<lang>/<slug>": { durationSeconds, sizeBytes, width, height, sha256, scenes: [{ id, start, text }] } }`
   (scene starts in seconds, for the transcript with time links).
 
@@ -79,7 +81,10 @@ is unreachable the recorder says so and stops (no silent fallback to a worse voi
   (remembered in localStorage, with the watched chapters ticked).
 - SEO: title, description, canonical, hreflang, Open Graph `og:video`, JSON-LD `VideoObject` (name, description,
   thumbnailUrl, uploadDate, duration, contentUrl, inLanguage) and `BreadcrumbList`; all in the sitemap.
-- Strict CSP (`PUBLIC_CSP`): no inline script or style; `media-src 'self'`. The video files are static assets served
-  with `Accept-Ranges` by the platform (so seeking works); the Worker only renders the pages.
+- Strict CSP (`PUBLIC_CSP`): no inline script or style; `media-src 'self'`. The captions, posters and manifest are
+  static files. The `.mp4` files are not: Cloudflare's static file layer answers a `Range` request with the whole file,
+  and Safari (iPhone, Mac) plays a video only from a server that answers ranges (every browser also needs them to jump
+  ahead). So `build-public.mjs` publishes them under `/files/videos/`, and the Worker answers
+  `/videos/<lang>/<slug>.mp4` from the edge cache, which serves ranges itself (SPEC.md).
 - Same chrome as the guide and legal pages (header, footer, fonts, colours), RTL/LTR, phone 360 px, keyboard and screen
   reader friendly, print stylesheet that shows the transcript.

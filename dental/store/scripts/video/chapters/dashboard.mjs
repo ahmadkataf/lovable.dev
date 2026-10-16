@@ -29,6 +29,7 @@ async function visitRow(page) {
 
 export const chapter = {
   slug: 'dashboard',
+  poster: 'overview',   // the scene whose last frame is the poster (the chapter's own page)
   scenes: [
     {
       id: 'intro',

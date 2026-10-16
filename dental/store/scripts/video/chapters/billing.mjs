@@ -23,6 +23,7 @@ async function toTop(page, ui, locator) {
 
 export const chapter = {
   slug: 'billing',
+  poster: 'period',   // the scene whose last frame is the poster (the chapter's own page)
   // set-up, not shown: the Invoices page, on this month
   before: async ({ page }) => {
     await page.evaluate(() => { location.hash = '#/invoices' })

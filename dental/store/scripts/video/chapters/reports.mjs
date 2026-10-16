@@ -35,6 +35,7 @@ async function pickDoctor(page, ui, key, steps) {
 
 export const chapter = {
   slug: 'reports',
+  poster: 'tabs',   // the scene whose last frame is the poster (the chapter's own page)
   scenes: [
     {
       id: 'intro',

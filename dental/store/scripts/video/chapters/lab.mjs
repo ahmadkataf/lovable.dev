@@ -30,6 +30,7 @@ async function toTop(page, ui, locator) {
 
 export const chapter = {
   slug: 'lab',
+  poster: 'cards',   // the scene whose last frame is the poster (the chapter's own page)
   // set-up, not shown: the lab board (status All, no filters)
   before: async ({ page }) => {
     await page.evaluate(() => { location.hash = '#/lab' })

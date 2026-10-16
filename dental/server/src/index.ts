@@ -5,7 +5,7 @@
 import { GUIDE_DATE, TOPICS, topicBySlug } from '../guide/index'
 import { guideSitemapEntries, renderGuideHome, renderGuideTopic, type GuideImages } from '../guide/render'
 import { CHAPTERS, chapterBySlug } from '../videos/index'
-import { renderVideoChapter, renderVideosHome, videoSitemapXml } from '../videos/render'
+import { recordOf, renderVideoChapter, renderVideosHome, videoSitemapXml } from '../videos/render'
 import type { VideoManifest } from '../videos/types'
 import { handleApi } from './api'
 import { addressKey } from './auth'
@@ -120,6 +120,8 @@ const ACTIVATE: Record<string, Lang> = { '/activate': 'ar', '/en/activate': 'en'
 // else under these paths (a file name, upper case) is no page and gets the 404 page.
 const GUIDE_RE = /^(\/en)?\/guide(?:\/([a-z0-9]+(?:-[a-z0-9]+)*))?$/
 const VIDEOS_RE = /^(\/en)?\/videos(?:\/([a-z0-9]+(?:-[a-z0-9]+)*))?$/
+// /videos/<lang>/<chapter>.mp4: a recorded chapter's video, answered by videoFile() (the file is published under /files/).
+const VIDEO_FILE_RE = /^\/videos\/(ar|en)\/([a-z0-9]+(?:-[a-z0-9]+)*)\.mp4$/
 
 function robots(): string {
   return ['User-agent: *', 'Allow: /', 'Disallow: /admin', 'Disallow: /api/', 'Disallow: /download/', '', `Sitemap: ${ORIGIN}/sitemap.xml`, ''].join('\n')
@@ -222,6 +224,61 @@ function windowsSetup(request: Request, env: Env, ctx: ExecutionContext, url: UR
   return new Response(readable, { status: 200, headers })
 }
 
+/** The edge cache of this data centre (absent outside the Workers runtime, e.g. in the tests). */
+const edgeCache = (): Cache | undefined => (globalThis as { caches?: { default?: Cache } }).caches?.default
+/** The request headers the edge cache answers by itself: byte ranges (206) and revalidation (304). */
+const CACHE_ASKS = ['Range', 'If-Range', 'If-None-Match', 'If-Modified-Since']
+
+/**
+ * /videos/<lang>/<chapter>.mp4, a chapter of the video course that is in the manifest. The static file layer answers a
+ * Range request with the whole file, and Safari (iPhone, Mac) plays a video only from a server that answers ranges;
+ * every browser also needs them to jump ahead before the file has arrived. So build-public.mjs publishes the videos
+ * under /files/videos/ and this answers them from the edge cache, whose match() serves ranges and conditional requests
+ * itself, without JavaScript per byte. On a miss (the first request in a data centre, or an evicted file) the file is
+ * put in the cache first; the cache key carries the file's sha256, so a re-recorded chapter is never answered from the
+ * old one. Without a cache (workers.dev, the tests) the whole file is answered, without Accept-Ranges.
+ */
+async function videoFile(request: Request, env: Env, url: URL, lang: Lang, slug: string): Promise<Response> {
+  const pub = await getPublished(env, url.href)
+  const rec = recordOf(pub.videos, lang, slug)
+  const file = `/files/videos/${lang}/${slug}.mp4`
+  if (!rec || !pub.files.has(file)) return notFound(env, url.href)
+  const key = `${url.origin}/videos/${lang}/${slug}.mp4?sha256=${rec.sha256}`
+  const ask = () => {
+    const headers = new Headers()
+    for (const h of CACHE_ASKS) { const v = request.headers.get(h); if (v) headers.set(h, v) }
+    return new Request(key, { headers })
+  }
+  const whole = async (): Promise<Response | null> => {
+    const asset = await env.ASSETS.fetch(new Request(new URL(file, url)))
+    if (!asset.ok || !asset.body) return null
+    const size = Number(asset.headers.get('Content-Length')) || rec.sizeBytes
+    const body = typeof FixedLengthStream === 'function' ? asset.body.pipeThrough(new FixedLengthStream(size)) : asset.body
+    const headers = new Headers({ 'Content-Type': 'video/mp4', 'Content-Length': String(size), 'Cache-Control': 'public, max-age=604800', ETag: `"${rec.sha256}"` })
+    const recorded = Date.parse(rec.recordedAt ?? '')
+    if (Number.isFinite(recorded)) headers.set('Last-Modified', new Date(recorded).toUTCString())
+    return new Response(body, { status: 200, headers })
+  }
+  const cache = edgeCache()
+  if (cache) {
+    try {
+      const hit = await cache.match(ask())
+      if (hit) return hit
+      const res = await whole()
+      if (!res) return notFound(env, url.href)
+      await cache.put(key, res)
+      const put = await cache.match(ask())
+      if (put) return put
+    } catch (e) {
+      console.error('video cache failed:', e instanceof Error ? e.message : String(e))
+    }
+  }
+  const res = await whole()
+  if (!res) return notFound(env, url.href)
+  res.headers.set('Accept-Ranges', 'none')
+  return res
+}
+
 /**
  * /files/meta.json and /files/windows.json: what is published of the APK and the Windows installer (version, size,
  * sha256, the installer's parts), served only while the download they describe is served too, so
@@ -290,6 +347,8 @@ async function route(request: Request, env: Env, ctx: ExecutionContext): Promise
       : renderGuideHome(lang, s, ORIGIN, pageAssets(pub), TOPICS)
     return html(page, 200, CACHE_PAGE, { 'Content-Language': lang, 'Content-Security-Policy': PUBLIC_CSP })
   }
+  const video = VIDEO_FILE_RE.exec(path)
+  if (video) return videoFile(request, env, url, video[1] as Lang, video[2])
   const videos = VIDEOS_RE.exec(path)
   if (videos) {
     const lang: Lang = videos[1] ? 'en' : 'ar'

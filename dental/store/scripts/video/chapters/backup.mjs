@@ -49,6 +49,7 @@ async function closeModal(page, ui) {
 
 export const chapter = {
   slug: 'backup',
+  poster: 'why',   // the scene whose last frame is the poster (the chapter's own page)
   before: async ({ page }) => {
     await page.addStyleTag({ content: '.st-backup-hero .alert-info{display:none!important}' })
   },

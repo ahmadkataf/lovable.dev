@@ -31,6 +31,7 @@ async function pickOption(page, ui, select, steps) {
 
 export const chapter = {
   slug: 'expenses',
+  poster: 'period-bar',   // the scene whose last frame is the poster (the chapter's own page)
   scenes: [
     {
       id: 'intro',

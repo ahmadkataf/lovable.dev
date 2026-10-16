@@ -23,6 +23,7 @@ async function doctorColumn(page, re) {
 
 export const chapter = {
   slug: 'appointments',
+  poster: 'open',   // the scene whose last frame is the poster (the chapter's own page)
   scenes: [
     {
       id: 'intro',

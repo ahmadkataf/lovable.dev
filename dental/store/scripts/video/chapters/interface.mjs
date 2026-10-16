@@ -27,6 +27,7 @@ async function settingsTab(page, ui, id, ready) {
 
 export const chapter = {
   slug: 'interface',
+  poster: 'search-type',   // the scene whose last frame is the poster (the chapter's own page)
   scenes: [
     {
       id: 'intro',

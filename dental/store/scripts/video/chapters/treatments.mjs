@@ -25,6 +25,7 @@ async function toTop(page, ui, locator) {
 
 export const chapter = {
   slug: 'treatments',
+  poster: 'tab',   // the scene whose last frame is the poster (the chapter's own page)
   // set-up, not shown: the patient file open on the Treatments tab, the tab bar at the top of the screen
   before: async ({ page, ui }) => {
     const id = await page.evaluate(async n => (await window.__dentora.db.patients.toArray()).find(p => p.fileNo === n)?.id, FILE_NO)

@@ -32,6 +32,7 @@ async function closeModal(page, ui) {
 
 export const chapter = {
   slug: 'inventory',
+  poster: 'cards',   // the scene whose last frame is the poster (the chapter's own page)
   scenes: [
     {
       id: 'intro',

@@ -47,6 +47,7 @@ async function addTeam(page, lang) {
 
 export const chapter = {
   slug: 'getting-started',
+  poster: 'steps',   // the scene whose last frame is the poster (the chapter's own page)
 
   // a new installation: the clinic wiped (this device's licence, trial start and backup date kept, as "Erase all
   // data" keeps them), nobody signed in, the interface language of the recording, the page on the setup wizard

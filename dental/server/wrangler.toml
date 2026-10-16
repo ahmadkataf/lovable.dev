@@ -21,11 +21,13 @@ routes = [
 # /files/* is listed so the APK is only reachable through /download/android, which counts the download (the Worker
 # lets /files/meta.json and /files/windows.json through, for scripts/fetch-published.mjs).
 # The guide (/guide, /guide/<topic>; its pictures live under /img/guide/) and the course home (/videos) are listed
-# like the other pages. /videos/* is NOT: the course's files (/videos/<lang>/<chapter>.mp4, .vtt, .jpg and
-# /videos/manifest.json, from site/videos/) must stay static files, served with Range requests and the cache
-# headers of public/_headers without running the Worker, and a chapter page /videos/<chapter> reaches the Worker
-# anyway because no file has that path (html_handling = "none": no directory or extension guessing;
-# build-public.mjs refuses to publish a file that would shadow a page).
+# like the other pages. /videos/* is NOT: the course's captions, posters and manifest (/videos/<lang>/<chapter>.vtt,
+# .jpg and /videos/manifest.json, from site/videos/) stay static files with the cache headers of public/_headers, and
+# a chapter page /videos/<chapter> reaches the Worker anyway because no file has that path. The videos themselves are
+# published under /files/videos/ (build-public.mjs), so /videos/<lang>/<chapter>.mp4 has no file either and reaches
+# the Worker, which answers it with Range requests from the edge cache (the static file layer ignores Range).
+# html_handling = "none": no directory or extension guessing; build-public.mjs refuses to publish a file that would
+# shadow a page.
 [assets]
 directory = "./public"
 binding = "ASSETS"

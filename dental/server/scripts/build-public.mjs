@@ -8,13 +8,16 @@
 //                          /download/windows streams them back to back as one file and counts the download
 //   files/windows.json     { version, sizeBytes, sha256, parts: [{ path, size }] } of that installer
 //   files/manifest.json    { files } every published path, so the Worker knows e.g. whether /css/site.css exists
+//   files/videos/<lang>/<chapter>.mp4  the course's videos, moved out of videos/: the static file layer answers a
+//                          Range request with the whole file (Safari then plays nothing), so the Worker answers
+//                          /videos/<lang>/<chapter>.mp4 itself, with ranges, from the edge cache (src/index.ts)
 //   _headers               security and cache headers of the static files (the Worker sets its own)
 //   VIDEOS_DIR=<dir> | none  the course's recordings to publish as videos/ instead of site/videos (none = publish
 //                          no recording: the end-to-end test builds that way, then a fixture folder)
 // A published file must never take a page's path (/guide/…, or /videos/<name> other than manifest.json): with
 // html_handling "none" such a file would be served instead of the page, so the build refuses it.
 import { createHash } from 'node:crypto'
-import { copyFileSync, cpSync, existsSync, mkdirSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs'
+import { copyFileSync, cpSync, existsSync, mkdirSync, readdirSync, readFileSync, renameSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import { basename, dirname, join, relative, sep } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { SECURITY_HEADERS } from '../src/http.ts'
@@ -40,6 +43,18 @@ if (videosDir && videosDir !== siteVideos) {
 }
 const videosOut = join(out, 'videos')
 const recorded = existsSync(join(videosOut, 'manifest.json')) ? Object.keys(JSON.parse(readFileSync(join(videosOut, 'manifest.json'), 'utf8'))).length : 0
+// The .mp4 files go behind the Worker (files/* is run_worker_first): /videos/<lang>/<chapter>.mp4 then has no static
+// file and reaches the Worker, which serves ranges. The .vtt, .jpg and manifest.json stay static files.
+if (existsSync(videosOut)) {
+  for (const lang of readdirSync(videosOut)) {
+    const dir = join(videosOut, lang)
+    if (!statSync(dir).isDirectory()) continue
+    for (const name of readdirSync(dir).filter(n => n.endsWith('.mp4'))) {
+      mkdirSync(join(out, 'files', 'videos', lang), { recursive: true })
+      renameSync(join(dir, name), join(out, 'files', 'videos', lang, name))
+    }
+  }
+}
 console.log(!videosDir ? 'build-public: VIDEOS_DIR=none, no recording published'
   : !existsSync(videosOut) ? `build-public: no ${relative(root, videosDir)}/ yet (nothing recorded): every chapter of the course is "coming"`
   : `build-public: videos from ${relative(root, videosDir) || '.'}: ${recorded} recorded chapter(s) in the manifest`)
