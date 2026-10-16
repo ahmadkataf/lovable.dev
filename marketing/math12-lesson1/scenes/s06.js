@@ -185,14 +185,14 @@
       this.card.style.transform += ` scale(${lerp(1, .95, out0)})`
       typeWords(this.c1, S.f(lt, 0, .02, .1))
       typeWords(this.c1b, S.f(lt, 0, .06, .22))
-      typeWords(this.c2, S.f(lt, 0, .22, .9))
-      const u0g = pp(lt, T(S, 0, .28), .5) * (1 - pp(lt, T(S, 0, .62), .6))
+      typeWords(this.c2, S.f(lt, 0, .28, .92))
+      const u0g = pp(lt, T(S, 0, .36), .5) * (1 - pp(lt, T(S, 0, .62), .6))
       if (this.u0w) { this.u0w.style.color = mixColor(C.ink, C.yel, Math.max(u0g, .0)); this.u0w.style.textShadow = u0g > 0 ? `0 0 ${14 * u0g}px rgba(255,210,63,.7)` : '' }
       const rh = pp(lt, T(S, 0, .86), .6)
       this.relHL(rh * (1 - out0))
       // preview row
       const pvOut = S.p(lt, 1, 0, .5)
-      const pv0 = pp(lt, T(S, 0, .28), .5, E.out)
+      const pv0 = pp(lt, T(S, 0, .36), .5, E.out)
       this.pv.forEach((e, k) => rise(e, (k === 0 ? pv0 : pp(lt, T(S, 0, .52 + k * .1), .5, E.out)) * (1 - pvOut), 20))
       rise(this.pvGiven, pv0 * (1 - pvOut), 12)
       rise(this.pvDots, pp(lt, T(S, 0, .86), .5) * (1 - pvOut), 20)
@@ -205,10 +205,10 @@
       const chipIn = S.p(lt, 1, .3, .6, E.out)
       slide(this.chip, chipIn, -30)
       rise(this.ex, S.p(lt, 1, .5, .7, E.out) * (1 - outEx))
-      const r1 = pp(lt, Math.max(a1 + .9, T(S, 1, .14)), .5), r2 = pp(lt, Math.max(a1 + 1.4, T(S, 1, .3)), .5)
+      const r1 = pp(lt, Math.max(a1 + .9, T(S, 1, .14)), .5), r2 = pp(lt, Math.max(a1 + 1.4, T(S, 1, .33)), .5)
       rise(this.r1.r, r1, 16); rise(this.r2.r, r2, 16)
       {
-        const g1 = r1 * (1 - pp(lt, Math.max(a1 + 1.4, T(S, 1, .3)), .5))
+        const g1 = r1 * (1 - pp(lt, Math.max(a1 + 1.4, T(S, 1, .33)), .5))
         const g2 = r2 * (1 - pp(lt, T(S, 1, .72), .6))
         this.r1.f.style.textShadow = g1 > 0 ? `0 0 ${18 * g1}px rgba(255,210,63,.75)` : ''
         this.r2.f.style.textShadow = g2 > 0 ? `0 0 ${18 * g2}px rgba(255,210,63,.75)` : ''
@@ -216,11 +216,11 @@
       }
       // machine: in during L1, out for the contrast strip, back in L3
       const mIn = S.p(lt, 1, .4, .7, E.out) * (1 - outEx) + pp(lt, a3 + .4, .7, E.out)
-      const pipeP = pp(lt, T(S, 1, .72), 1.1, E.io)
+      const pipeP = pp(lt, T(S, 1, .75), 1.1, E.io)
       this.pipes.forEach(p => { draw(p, pipeP); p.style.opacity = clamp(mIn) })
-      rise(this.eat, pp(lt, T(S, 1, .72) + .8, .5) * clamp(mIn), 12)
-      op(this.inL, pp(lt, T(S, 1, .72) + 1, .4) * clamp(mIn)); op(this.outL, pp(lt, T(S, 1, .72) + .6, .4) * clamp(mIn))
-      const flowOn = pp(lt, T(S, 1, .72) + 1.1, .5) * clamp(mIn)
+      rise(this.eat, pp(lt, T(S, 1, .75) + 1.1, .5) * clamp(mIn), 12)
+      op(this.inL, pp(lt, T(S, 1, .75) + 1, .4) * clamp(mIn)); op(this.outL, pp(lt, T(S, 1, .75) + .6, .4) * clamp(mIn))
+      const flowOn = pp(lt, T(S, 1, .75) + 1.1, .5) * clamp(mIn)
       this.flow.style.opacity = .55 * flowOn
       this.flow.style.strokeDashoffset = -lt * 120
       this.flow.style.filter = flowOn > 0 ? 'drop-shadow(0 0 6px rgba(255,210,63,.8))' : ''
@@ -234,7 +234,7 @@
       // ---------- L2: 3 → 7 → 47 → 2207 ----------
       const L = this.pipeLen, pipe = this.pipeIn
       const cyc = clamp(d2 * .17, .8, 1.6), ride = .55 * cyc, dropD = .16 * cyc, workD = .16 * cyc, emD = .16 * cyc
-      const s0 = a2 + .25
+      const s0 = a2 + .05
       // token 0 ("3") flies from the example card into the hopper
       const tIn0 = s0 + .55 * cyc
       {

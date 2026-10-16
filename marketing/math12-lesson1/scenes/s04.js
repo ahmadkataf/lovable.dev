@@ -263,7 +263,7 @@
       // ================= L0 =================
       const out1 = S.p(lt, 2, 0, .5)          // L1 content leaves when L2 starts
       // L1 opens with the answer «عددٌ لا نهائيّ» (swapped in for the question); only then does the board rebuild
-      const mvT = Math.max(a1 + 1, T(S, 1, .11))
+      const mvT = Math.max(a1 + 1.3, T(S, 1, .15))
       const mv = pp(lt, mvT, .9)
       const fIn = S.p(lt, 0, .1, .8, E.out)
       {
@@ -304,14 +304,14 @@
       op(this.nLbl, axLbl); op(this.unLbl, axLbl)
       // «قيمتين فقط، واحداً وسالب واحد»: the ±1 guides glow while the two values are named
       const gIn = pp(lt, mvT + .6, .6)
-      const gGlow = pp(lt, Math.max(mvT + 1.2, T(S, 1, .35)), .5) * (1 - pp(lt, T(S, 1, .5), .6))
+      const gGlow = pp(lt, Math.max(mvT + 1.2, T(S, 1, .43)), .5) * (1 - pp(lt, T(S, 1, .58), .6))
       this.guides.forEach(({ g, l }) => {
         g.style.opacity = gIn * (.75 + .25 * gGlow); op(l, gIn)
         g.setAttribute('stroke-width', 2.5 + 2 * gGlow)
         g.style.filter = gGlow > 0 ? `drop-shadow(0 0 ${8 * gGlow}px ${C.org})` : ''
       })
       // dots (= terms) keep coming; the term counter follows them and turns into ∞ on «لا نهائيّاً»
-      const t0 = mvT + 1, step = clamp((T(S, 1, .6) - t0) / 9, .12, .6)
+      const t0 = mvT + 1, step = clamp((T(S, 1, .68) - t0) / 9, .12, .6)
       let shown = 0
       this.dots.forEach((c, n) => {
         const q = pp(lt, t0 + n * step, .45, E.back)
@@ -322,24 +322,24 @@
       })
       draw(this.zz, clamp((lt - t0) / (step * 10.7)))
       // tiles
-      const tvIn = pp(lt, Math.max(mvT + .8, T(S, 1, .18)), .6, E.out)
+      const tvIn = pp(lt, Math.max(mvT + .8, T(S, 1, .24)), .6, E.out)
       slide(this.tV.t, tvIn * (1 - out1), -40)
-      const tvGlow = pp(lt, Math.max(mvT + 1, T(S, 1, .25)), .4) * (1 - pp(lt, T(S, 1, .5), .6))
+      const tvGlow = pp(lt, Math.max(mvT + 1, T(S, 1, .35)), .4) * (1 - pp(lt, T(S, 1, .58), .6))
       this.tV.t.style.borderColor = mixColor('#25305a', C.org, tvGlow)
       this.tV.num.style.transform = `scale(${1 + .12 * tvGlow})`
-      const tnIn = pp(lt, t0 - .35, .6, E.out)
+      const tnIn = pp(lt, t0 - .15, .6, E.out)       // the counter arrives with the first dot
       slide(this.tN.t, tnIn * (1 - out1), -40)
-      const infT = Math.max(t0 + 9 * step + .4, T(S, 1, .66)), infP = pp(lt, infT, .55, E.back)
+      const infT = Math.max(t0 + 9 * step + .4, T(S, 1, .74)), infP = pp(lt, infT, .55, E.back)
       this.tN.num.textContent = String(Math.max(1, shown))
       op(this.tN.num, 1 - clamp(infP * 3))
       op(this.inf, clamp(infP * 2)); this.inf.style.transform = `scale(${lerp(.4, 1, infP)})`
       const tnGlow = pp(lt, infT, .4) * (1 - pp(lt, T(S, 1, .9), .6))
       this.tN.t.style.borderColor = mixColor('#25305a', C.yel, tnGlow)
       // book sentence («… عددٌ لا نهائيٌّ من الحدود …») + chip on «مهما كانت قيمها»
-      const bIn = pp(lt, Math.max(infT + .4, T(S, 1, .74)), .7)
+      const bIn = pp(lt, Math.max(infT + .4, T(S, 1, .8)), .7)
       rise(this.book, bIn * (1 - out1))
       if (bIn > 0) this.book.style.boxShadow = `0 0 ${40 + 14 * Math.sin(lt * 2)}px rgba(255,210,63,.18)`
-      const wIn = pp(lt, Math.max(infT + 1, T(S, 1, .86)), .6, E.out)
+      const wIn = pp(lt, Math.max(infT + 1, T(S, 1, .88)), .6, E.out)
       pop(this.warn, wIn); op(this.warn, clamp(wIn * 2.5) * (1 - out1))
 
       // ================= L2 =================
@@ -406,23 +406,23 @@
       // ================= L3 =================
       const d3 = S.end(3) - a3
       rise(this.f3, S.p(lt, 3, .4, .7))
-      if (this.f3sub) this.f3sub.style.color = mixColor(C.mut, C.yel, pp(lt, T(S, 4, .76), .5))
+      if (this.f3sub) this.f3sub.style.color = mixColor(C.mut, C.yel, pp(lt, T(S, 4, .8), .5))
       const nl = S.p(lt, 3, .5, 1)
       this.axis.set(nl)
       this.nTicks.forEach(({ t, l }, n) => {
         const q = S.p(lt, 3, .6 + n * .1, .4)
-        const fade0 = n === 0 ? pp(lt, T(S, 4, .54), .6) : 0
+        const fade0 = n === 0 ? pp(lt, T(S, 4, .58), .6) : 0
         t.style.opacity = q * (1 - .8 * fade0); op(l, q * (1 - .75 * fade0))
       })
-      const b0t = Math.max(a3 + 1.6, T(S, 3, .38))
+      const b0t = Math.max(a3 + 1.6, T(S, 3, .42))
       const b0 = pp(lt, b0t, .55, E.out)
-      const fade0 = pp(lt, T(S, 4, .54), .6)
+      const fade0 = pp(lt, T(S, 4, .58), .6)
       pop(this.bub0, b0); op(this.bub0, clamp(b0 * 2.5) * (1 - fade0))
       this.tail0.style.opacity = pp(lt, b0t + .2, .4) * (1 - fade0)
       this.dot0.style.opacity = pp(lt, b0t + .3, .3) * (1 - fade0)
       const b1t = Math.max(b0t + 1.2, T(S, 3, .74))
       const b1 = pp(lt, b1t, .55, E.out)
-      const shrink = pp(lt, T(S, 4, .56), .7)
+      const shrink = pp(lt, T(S, 4, .6), .7)
       const shift = -150 * shrink
       pop(this.bub1, b1)
       this.bub1.style.transform = `translateX(${shift}px) scale(${b1 <= 0 ? .6 : lerp(.6, 1, E.back(clamp(b1)))})`
@@ -442,14 +442,14 @@
       // the bracket from 0 leaves with index 0, but the red break mark stays at the hole under «ثغرة!»
       draw(this.brk, brk); this.brk.style.opacity = 1 - .3 * fade0
       pop(this.gap, brk)
-      const gb = pp(lt, T(S, 4, .64), .9)
+      const gb = pp(lt, T(S, 4, .7), .8)
       draw(this.brB0, clamp(gb * 4)); this.brB.set(gb)
-      op(this.infB, pp(lt, T(S, 4, .64) + .8, .4))
-      this.gDots.forEach((c, i) => { c.style.opacity = pp(lt, T(S, 4, .64) + i * .12, .3) })
-      const c2 = pp(lt, T(S, 4, .76), .6, E.out)
+      op(this.infB, pp(lt, T(S, 4, .7) + .7, .4))
+      this.gDots.forEach((c, i) => { c.style.opacity = pp(lt, T(S, 4, .7) + i * .12, .3) })
+      const c2 = pp(lt, T(S, 4, .8), .6, E.out)
       pop(this.chip2, c2)
-      this.vals.forEach((e, i) => rise(e, pp(lt, T(S, 4, .8) + i * .25, .5)))
-      rise(this.fin, pp(lt, Math.min(T(S, 4, .84), S.dur - 2.6), .7))
+      this.vals.forEach((e, i) => rise(e, pp(lt, T(S, 4, .84) + i * .2, .5)))
+      rise(this.fin, pp(lt, Math.min(T(S, 4, .86), S.dur - 2.4), .7))
     },
   })
 })()

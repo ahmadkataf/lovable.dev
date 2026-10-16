@@ -218,12 +218,12 @@
 
       // ---------- L0 ----------
       const out0 = S.p(lt, 1, 0, .55)
-      const cIn = pp(lt, Math.max(S.at(0) + 1, T(S, 0, .22)), .7, E.out)
+      const cIn = pp(lt, Math.max(S.at(0) + 1, T(S, 0, .33)), .7, E.out)
       rise(this.card, cIn * (1 - out0))
       this.card.style.transform += ` scale(${lerp(1, .94, out0)})`
-      typeWords(this.c1, S.f(lt, 0, .27, .5))
-      typeWords(this.c2, S.f(lt, 0, .5, .88))
-      const hl = pp(lt, T(S, 0, .7), .5)
+      typeWords(this.c1, S.f(lt, 0, .37, .6))
+      typeWords(this.c2, S.f(lt, 0, .58, .9))
+      const hl = pp(lt, T(S, 0, .71), .5)
       this.hlSpan.forEach(w => { w.style.color = mixColor(C.ink, C.yel, hl); w.style.fontWeight = hl > .5 ? 700 : 500 })
       const chipIn = S.p(lt, 1, .3, .6, E.out)
       slide(this.chip, chipIn, -30)
@@ -242,13 +242,13 @@
       winGlow = Math.max(winGlow, pp(lt, a2 + .4, .4) * (1 - pp(lt, a2 + 1.8, .6)))
 
       // ---------- L1: four balls → table cells + plot ----------
-      const lab2T = Math.max(a2 + 1.5, T(S, 2, .24))
+      const lab2T = Math.max(a2 + 1.5, T(S, 2, .3))
       const out1 = pp(lt, lab2T - .7, .6)
       // as soon as line 2 starts (window switches to u_n = f(n)) the first example recedes, then leaves
       const dim1 = 1 - .6 * S.p(lt, 2, .1, .5)
       const tIn = pp(lt, Math.max(S.at(1) + .4, T(S, 1, .22)), .6, E.out)     // empty table + plot frame the coming values
       rise(this.tb, tIn * (1 - out1)); op(this.tb, +this.tb.style.opacity * dim1)
-      const LT = [.68, .75, .83, .9].map(f => T(S, 1, f))          // landing = the moment the value is said
+      const LT = [.67, .76, .85, .93].map(f => T(S, 1, f))          // landing = the moment the value is said
       const step = .075 * d1, cy = clamp(step / 1.1, .45, 1)
       const tkOf = k => LT[k] - 1.4 * cy
       const QY = HOPY - 52

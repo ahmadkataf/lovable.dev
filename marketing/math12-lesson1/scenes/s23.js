@@ -1,6 +1,7 @@
 // s23 · تدرّب: التمرين ③ — positivity passes from each term to the next (machine + dominoes), then the reciprocal trick.
 // L0: the exercise card (statement + item 1), pause ring in the hold.
-// L1: v0 = 1 > 0; if v_n > 0 then 1 + v_n > 0; so v_{n+1} = v_n / (1 + v_n) > 0 (numerator & denominator tagged green).
+// L1: v0 = 1 > 0; if v_n > 0 then (one LTR chain) 1 + v_n > 0 ⇒ v_{n+1} = v_n / (1 + v_n) > 0 (numerator & denominator tagged green «> 0»).
+// Cue fractions follow the real narration (word timings of voice/sections/L01_s6).
 // L2: the machine f(x) = x/(1+x) sends positive to positive (callback to the «بوجه عام» card); dominoes topple → lesson 2.
 // L3: item 2 (u_n = 1/v_n), why it is defined, pause ring in the hold.
 // L4: u_{n+1} = 1/v_{n+1}: the fraction flips, then splits.
@@ -104,7 +105,7 @@
       const rchip = (html, c, ink) => { const e = el('div', 'chip', html, this.rail); e.style.cssText += `border-color:${c}88;background:${c}1c;color:${ink || c};font-size:28px;padding:6px 22px;white-space:nowrap`; return e }
       this.rGiven = rchip(`${kt('v_0 = 1')} &nbsp;،&nbsp; ${kt('v_{n+1} = \\dfrac{v_n}{1+v_n}')}`, P, C.ink)
       this.rOne = rchip(`${badge(1, G)}${kt('v_n > 0')} ✓`, G)
-      this.rTwo = rchip(`${badge(2, B)}${kt('u_n = \\dfrac{1}{v_n}')}<span id="${ID}-r2x" style="display:inline-block;flex:none;overflow:hidden;white-space:nowrap;vertical-align:middle">&nbsp; ، &nbsp;${kt('u_0 = 1')} ، ${kt('r = 1')}</span>`, B)
+      this.rTwo = rchip(`${badge(2, B)}${kt('u_n = \\dfrac{1}{v_n}')}<span id="${ID}-r2x" style="display:inline-block;flex:none;overflow:hidden;white-space:nowrap;vertical-align:middle">&nbsp;&nbsp;،&nbsp;&nbsp;${kt('u_0 = 1')}&nbsp;&nbsp;،&nbsp;&nbsp;${kt('r = 1')}</span>`, B)
       // the ❷ chip later grows to «u_0 = 1 ، r = 1» (as s24 opens with it)
       this.r2x = document.getElementById(`${ID}-r2x`); this.r2x.style.maxWidth = '0px'
 
@@ -128,17 +129,15 @@
       place(this.rowA, 960, 300, { anchor: 'tc' }); this.rowA.style.whiteSpace = 'nowrap'
       this.ckA = el('div', '', '✓', root)
       this.ckA.style.cssText = `position:absolute;width:52px;height:52px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:32px;font-weight:900;color:#0b1020;background:${G};box-shadow:0 0 24px ${G}88`
-      this.rowB = rich(`<b class="blu">الانتقال:</b>&nbsp; إذا كان $v_n > 0$ <span id="${ID}-then">فإنّ&nbsp; $1 + v_n ${col(G, '> 0')}$</span>`, 'h3'); root.appendChild(this.rowB)
+      this.rowB = rich(`<b class="blu">الانتقال:</b>&nbsp; إذا كان $v_n > 0$ <span id="${ID}-then">فإنّ</span>`, 'h3'); root.appendChild(this.rowB)
       place(this.rowB, 960, 408, { anchor: 'tc' }); this.rowB.style.whiteSpace = 'nowrap'
       this.thenB = $('then'); this.thenB.style.display = 'inline-block'
-      this.arw = svg(root, 0, 0, W, H)
-      this.arwP = sv(this.arw, 'path', { d: '', fill: 'none', stroke: G, 'stroke-width': 5, 'stroke-linecap': 'round' })
-      this.arwH = sv(this.arw, 'path', { d: '', fill: G })
-      this.arwL = rich('إذن', 's'); root.appendChild(this.arwL); this.arwL.style.cssText += `color:${G};font-weight:800;white-space:nowrap`
-      this.rowC = tex(`v_{n+1} = \\dfrac{\\htmlId{${ID}-num}{v_n}}{\\htmlId{${ID}-den}{1+v_n}} \\htmlId{${ID}-gt}{{} ${col(G, '> 0')}}`, 'ml'); root.appendChild(this.rowC)
-      place(this.rowC, 960, 680, { anchor: 'c' })
+      // the chain after «فإنّ» is one LTR KaTeX block (the Arabic stays outside it)
+      this.rowC = tex(`1 + v_n ${col(G, '> 0')} \\;\\Rightarrow\\; v_{n+1} = \\dfrac{\\htmlId{${ID}-num}{v_n}}{\\htmlId{${ID}-den}{1+v_n}} \\htmlId{${ID}-gt}{{} ${col(G, '> 0')}}`, 'ml'); root.appendChild(this.rowC)
+      this.rowC.style.fontSize = '74px'
+      place(this.rowC, 960, 690, { anchor: 'c' })
       this.gt = $('gt'); this.gt.style.display = 'inline-block'
-      this.pNum = pill(root, `${kt('v_n > 0')}`, G); this.pDen = pill(root, `${kt('1 + v_n > 0')}`, G)
+      this.pNum = pill(root, `${kt('> 0')}`, G); this.pDen = pill(root, `${kt('> 0')}`, G)
       this.tNum = rich('البسط موجب', 's'); this.tDen = rich('المقام موجب', 's')
       ;[this.tNum, this.tDen].forEach(e => { root.appendChild(e); e.style.cssText += `white-space:nowrap;color:${G};font-size:28px` })
 
@@ -293,11 +292,6 @@
       // L1
       const ra = R(this.rowA)
       place(this.ckA, ra.x - 76, ra.cy, { anchor: 'cl' })
-      const rb = R(this.rowB), rc = inkBox(this.rowC, root)
-      const ax = rc.x + 62, ay1 = rb.y + rb.h + 14, ay2 = rc.y - 18
-      this.arwP.setAttribute('d', `M${ax},${ay1} L${ax},${ay2 - 14}`); this.arwP._len = 0
-      this.arwH.setAttribute('d', `M${ax},${ay2 + 2} L${ax - 13},${ay2 - 18} L${ax + 13},${ay2 - 18} Z`)
-      place(this.arwL, ax - 26, (ay1 + ay2) / 2, { anchor: 'cr' })
       const rn = inkBox(document.getElementById(`${ID}-num`), root), rd = inkBox(document.getElementById(`${ID}-den`), root)
       place(this.pNum, rn.cx + 150, rn.y - 54, { anchor: 'c' })
       place(this.pDen, rd.cx + 150, rd.y + rd.h + 54, { anchor: 'c' })
@@ -360,22 +354,23 @@
       op(this.card0, Math.min(cIn, 1 - clamp(out0 * 1.25 - .2)))
       const f0 = this.fly0
       this.card0.style.transform = `translate(${f0.dx * out0}px, ${f0.dy * out0 + (1 - cIn) * 36}px) scale(${lerp(1, f0.s, out0)})`
-      // the statement is typed in step with the narration: «(v_n) … وفق» → «v_0 = 1» → «v_{n+1} = …»
+      // the statement is typed in step with the narration: «(v_n) … وفق» (متتاليةٌ) → «v_0 = 1» (حدُّها الأوّل في صفر
+      // يساوي واحداً, .30–.44) → «و» → «v_{n+1} = …» (وكلّ حدٍّ يساوي سابقه…, .50–.78)
       const fl0 = S.f(lt, 0)
-      const pw = [[0, 0], [.02, 0], [.2, .5], [.25, .6], [.3, .7], [.5, .8], [.56, 1]]
+      const pw = [[0, 0], [.02, 0], [.17, .5], [.3, .5], [.37, .6], [.45, .6], [.49, .7], [.56, .8]]
       let pst = 1
       for (let k = 1; k < pw.length; k++) if (fl0 < pw[k][0]) { const [a, va] = pw[k - 1], [b, vb] = pw[k]; pst = lerp(va, vb, (fl0 - a) / (b - a)); break }
       typeWords(this.st, lt < S.at(0) ? 0 : pst)
-      // «نرمز لحدودها بالحرف في»: the letter v glows
-      const vg = env(lt, F(0, .09), F(0, .3), .3, .5)
+      // «نرمز لحدودها بالحرف في» (.15–.30): the letter v glows
+      const vg = env(lt, F(0, .16), F(0, .36), .3, .5)
       this.vl.style.color = vg > 0 ? mixColor(C.ink, Y, vg) : ''
       this.vl.style.textShadow = vg > 0 ? `0 0 ${20 * vg}px rgba(255,210,63,.85)` : ''
       this.vl.style.transform = `scale(${1 + .25 * vg})`
-      const it1p = prog(lt, F(0, .8), .5)
-      op(this.it1, it1p > 0 ? 1 : 0); typeWords(this.it1, S.f(lt, 0, .8, .97))
-      const mk = (m, p) => { op(m, p > 0 ? 1 : 0); m.style.transform = `scaleX(${E.out(clamp(p))})` }
-      mk(this.mkV0, Math.min(prog(lt, F(0, .26), .5), 1 - prog(lt, F(0, .46), .4)))
-      mk(this.mkRec, Math.min(prog(lt, F(0, .48), .5), 1 - prog(lt, F(0, .8), .4)))
+      const it1p = prog(lt, F(0, .78), .5)                 // «أوّلاً، تحقّق أنّ حدودها موجبةٌ تماماً»
+      op(this.it1, it1p > 0 ? 1 : 0); typeWords(this.it1, S.f(lt, 0, .78, .97))
+      const mk = (m, p) => { op(m, clamp(p * 2.5)); m.style.transform = `scaleX(${E.out(clamp(p))})` }
+      mk(this.mkV0, Math.min(prog(lt, F(0, .31), .5), 1 - prog(lt, F(0, .48), .4)))
+      mk(this.mkRec, Math.min(prog(lt, F(0, .53), .5), 1 - prog(lt, F(0, .78), .4)))
       {
         const hs = S.end(0), he = Math.max(hs + .5, S.at(1) - .25)
         op(this.cdw, Math.min(prog(lt, Math.max(F(0, .9), S.end(0) - .8), .5), 1 - S.p(lt, 1, 0, .4)))
@@ -386,24 +381,23 @@
       // ================= L1 =================
       const out1 = S.p(lt, 2, 0, .5)
       const v1 = p => p * (1 - out1)
-      const pA = prog(lt, F(1, .02), .55)
+      // «الحدّ الأوّل واحد، فهو موجبٌ تماماً» (0–.3) → «وإذا كان حدٌّ موجباً تماماً» (.33) → «فالبسط والمقام موجبان»
+      // (.53–.7): «فإنّ» + the chain, numerator / denominator tagged → «فالحدّ التالي موجبٌ تماماً» (.79): «> 0»
+      const pA = prog(lt, F(1, .01), .55)
       rise(this.rowA, v1(pA), 24)
-      pop(this.ckA, v1(prog(lt, F(1, .2), .5)))
-      rise(this.rowB, v1(prog(lt, Math.max(F(1, .3), S.at(1) + .8), .55)), 24)
-      const thenP = prog(lt, Math.max(F(1, .5), S.at(1) + 1.6), .5)
+      pop(this.ckA, v1(prog(lt, F(1, .15), .5)))
+      rise(this.rowB, v1(prog(lt, Math.max(F(1, .31), S.at(1) + .8), .55)), 24)
+      const tC = Math.max(F(1, .49), S.at(1) + 1.6)
+      const thenP = prog(lt, tC, .45)
       op(this.thenB, thenP); this.thenB.style.transform = `translateX(${(1 - thenP) * -24}px)`
-      const arP = prog(lt, Math.max(F(1, .58), S.at(1) + 2.1), .5)
-      draw(this.arwP, arP); this.arwP.style.opacity = 1 - out1
-      this.arwH.style.opacity = (arP > .9 ? 1 : 0) * (1 - out1)
-      op(this.arwL, v1(arP))
-      const cP = prog(lt, Math.max(F(1, .62), S.at(1) + 2.4), .8)
+      const cP = prog(lt, tC + .15, 1.1)
       wipe(this.rowC, cP, 'ltr'); op(this.rowC, 1 - out1)
       if (out1 >= 1) this.rowC.style.visibility = 'hidden'
-      const tP = [prog(lt, Math.max(F(1, .68), S.at(1) + 2.9), .5), prog(lt, Math.max(F(1, .76), S.at(1) + 3.3), .5)]
+      const tP = [prog(lt, Math.max(F(1, .55), tC + .9), .5), prog(lt, Math.max(F(1, .61), tC + 1.3), .5)]
       ;[[this.pNum, this.tNum, this.cN], [this.pDen, this.tDen, this.cD]].forEach(([p, t, c], k) => {
         pop(p, v1(tP[k])); op(t, v1(tP[k])); c.style.opacity = v1(tP[k])
       })
-      const gtP = prog(lt, Math.max(F(1, .86), S.at(1) + 3.8), .5)
+      const gtP = prog(lt, Math.max(F(1, .82), tC + 2), .5)
       op(this.gt, gtP); this.gt.style.transform = `scale(${lerp(1.5, 1, E.out(gtP))})`
       this.gt.style.textShadow = gtP > 0 ? `0 0 ${18 * (.6 + .4 * Math.sin(lt * 2.4))}px rgba(110,224,90,.6)` : ''
 
@@ -476,10 +470,12 @@
       }
 
       // ================= L4 =================
-      const tOut5 = Math.max(F(5, .14), S.at(5) + 1.3)
+      const tOut5 = Math.max(F(5, .19), S.at(5) + 1.6)
       const chOut = prog(lt, tOut5, .6)
       const pc = (t, d = .6) => prog(lt, t, d)
-      const t4 = [Math.max(F(4, .02), S.at(4) + .5), Math.max(F(4, .14), S.at(4) + 1.4), Math.max(F(4, .36), S.at(4) + 2.6), Math.max(F(4, .6), S.at(4) + 4), Math.max(F(4, .84), S.at(4) + 5.4)]
+      // «نقلب الكسر: u_{n+1} يساوي» (0–.34) → «واحداً زائد في إنْ، على في إنْ» (.44–.66): flip → «أي مقلوبَ في إنْ» (.72): split
+      // → «مضافاً إليه واحد» (.86): cancel, + 1
+      const t4 = [Math.max(F(4, .02), S.at(4) + .5), Math.max(F(4, .14), S.at(4) + 1.4), Math.max(F(4, .42), S.at(4) + 2.6), Math.max(F(4, .68), S.at(4) + 4), Math.max(F(4, .85), S.at(4) + 5.4)]
       op(this.chain, (lt >= t4[0] ? 1 : 0) * (1 - chOut))
       this.chain.style.transform = `translateY(${-30 * E.io(chOut)}px)`
       const pa01 = pc(t4[0], .7)
@@ -510,12 +506,13 @@
       const kbP = prog(lt, tOut5 + .35, .7)
       this.kb.set(kbP)
       this.kb.el.style.boxShadow = `0 0 ${40 + 18 * Math.sin(lt * 2)}px rgba(110,224,90,${.25 * clamp(kbP)})`
-      const dP = prog(lt, Math.max(F(5, .32), tOut5 + 1), .6)
+      // «مضافاً إليه واحد» (.35) → «حسابيّة أساسها واحد» (.49) → «وحدُّها الأوّل يو صفر يساوي واحداً» (.68)
+      const dP = prog(lt, Math.max(F(5, .34), tOut5 + 1), .6)
       rise(this.diff, dP, 20)
-      rise(this.ar5, prog(lt, Math.max(F(5, .46), tOut5 + 1.6), .6), 20)
-      rise(this.u05, prog(lt, Math.max(F(5, .64), tOut5 + 2.2), .6), 20)
+      rise(this.ar5, prog(lt, Math.max(F(5, .48), tOut5 + 1.6), .6), 20)
+      rise(this.u05, prog(lt, Math.max(F(5, .67), tOut5 + 2.2), .6), 20)
       // number line
-      const tN = Math.min(Math.max(F(5, .7), tOut5 + 2.6), S.dur - 3.2)
+      const tN = Math.min(Math.max(F(5, .74), tOut5 + 2.6), S.dur - 3.2)
       const axP = prog(lt, tN, .7)
       draw(this.axis, axP); this.axHead.style.opacity = axP > .95 ? 1 : 0
       this.ticks.forEach(({ t, l }, v) => { const p = prog(lt, tN + .1 + v * .06, .4); t.style.opacity = p; op(l, p) })

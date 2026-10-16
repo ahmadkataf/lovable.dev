@@ -54,7 +54,7 @@
       this.r1 = [r1a, r1b, c1]
 
       // ================= block 2: monotonicity (green / pink) =================
-      this.b2 = block(940, 860, G, 2, 'الاطّراد', `<span style="color:${C.ink}">تعريف 1</span> — مهما تكن $n_0 \\le n$`)
+      this.b2 = block(940, 860, G, 2, 'الاطّراد', `<span style="color:${C.ink}">تعريف 1</span>`)
       { const ar = tex(`${col(G, '\\nearrow')}\\,${col(R, '\\searrow')}`, 'mm'); ar.style.fontSize = '34px'; this.b2.el.firstChild.insertBefore(ar, this.b2.el.firstChild.children[2]) }
       const g2 = grid(this.b2.el, '1fr 1fr', 34)
       const cell = (html, c) => line(g2, `<b style="color:${c}">${html.split('|')[0]}</b> ${html.split('|')[1]}`, { fs: 28 })
@@ -63,14 +63,15 @@
         cell('متزايدة:|$u_n \\le u_{n+1}$', G), cell('متناقصة:|$u_n \\ge u_{n+1}$', R),
         cell('ثابتة:|$u_n = u_{n+1}$', B),
       ]
-      this.r2.push(line(g2, `<span style="color:${C.mut}">وتسمّى</span> <b style="color:${Y}">مطّردة</b>`, { fs: 28 }))
+      // «تعريف 1» as five labelled rows, followed by «مهما تكن n_0 ≤ n — وتسمّى مطّردة»
+      this.r2.push(line(g2, `<span style="color:${C.mut}">مهما تكن</span> $n_0 \\le n$ <span style="color:${C.mut}">— وتسمّى</span> <b style="color:${Y}">مطّردة</b>`, { fs: 25 }))
       const gm = grid(this.b2.el, 'auto 1fr', 26, 'align-items:center;margin-top:10px;padding-top:10px;border-top:1.5px solid rgba(255,255,255,.08)')
       const ml = el('div', '', 'ثلاث طرائق<br>لدراسة<br>الاطّراد', gm)
       ml.style.cssText = `font-size:25px;font-weight:800;line-height:1.35;color:${C.mut};padding-inline-end:20px;border-inline-end:2px solid ${rgba(Y, .35)}`
       const mc = el('div', '', null, gm)
       this.m2 = [
-        line(mc, `<b style="color:${Y}">①</b> إشارة الفرق $u_{n+1}-u_n$`, { fs: 28 }),
-        line(mc, `<b style="color:${Y}">②</b> $u_n = f(n)$ ودراسة اطّراد $f$ على $[n_0,+\\infty[$`, { fs: 28 }),
+        line(mc, `<b style="color:${Y}">①</b> إشارة $u_{n+1}-u_n$`, { fs: 28 }),
+        line(mc, `<b style="color:${Y}">②</b> $u_n = f(n)$ ودراسة $f$ على $[n_0,+\\infty[$`, { fs: 28 }),
         line(mc, `<b style="color:${Y}">③</b> $\\dfrac{u_{n+1}}{u_n}$ مقابل $1$ <span style="color:${C.mut}">(حدود موجبة تماماً)</span>`, { fs: 28, lh: 1.2, css: 'margin-top:2px' }),
       ]
       this.mLab = ml
@@ -141,15 +142,17 @@
       const F = (i, f) => S.at(i) + f * (S.end(i) - S.at(i))
       this.head.set(S.p(lt, 0, 0, .8))
       const boardIn = S.p(lt, 0, 0, .9)
-      // light-up times
-      const t1 = Math.max(F(0, .22), S.at(0) + .9)
-      const t1b = Math.max(F(0, .42), t1 + .8), t1c = Math.max(F(0, .52), t1b + .7)
-      const t2 = Math.max(F(0, .6), t1c + .7)
+      // light-up times, on the words of the narration (real voice): L0 «المتتالية» .22 · «صريحاً» .42 · «بالتدريج» .54 ·
+      // «ثمّ حالات الاطّراد الخمس» .62 · «وثلاث طرائق» .79; L1 «الحسابيّة» .05 · «آر» .18 · «والهندسيّة» .22 · «كيو» .42 ·
+      // «قانونا الحدّ» .55 · «والمجموع» .64 · «المطابقة» .76 · «صوّر هذه الشاشة» .82
+      const t1 = Math.max(F(0, .21), S.at(0) + .9)
+      const t1b = Math.max(F(0, .41), t1 + .8), t1c = Math.max(F(0, .52), t1b + .7)
+      const t2 = Math.max(F(0, .62), t1c + .7)
       const t3 = S.at(1) + .15
-      const t4 = Math.max(F(1, .22), t3 + 1.2)
-      const tTerm = Math.max(F(1, .52), t4 + 1.2), tSum = Math.max(F(1, .63), tTerm + .9)
-      const tId = Math.max(F(1, .72), tSum + 1)
-      const tShot = Math.max(F(1, .84), tId + 1)
+      const t4 = Math.max(F(1, .21), t3 + 1.2)
+      const tTerm = Math.max(F(1, .55), t4 + 1.2), tSum = Math.max(F(1, .64), tTerm + .9)
+      const tId = Math.max(F(1, .75), tSum + 1)
+      const tShot = Math.max(F(1, .83), tId + .9)
       const setBlock = (b, lit, k) => {
         const a = boardIn * lerp(DIM, 1, lit)
         op(b.el, a)
@@ -166,7 +169,7 @@
       // block 2 rows tick in
       const st = Math.min(.22, Math.max(.12, (S.end(0) + 1.4 - t2) / 10))
       this.r2.forEach((e, k) => rowLit(e, t2 + .3 + k * st))
-      const tM = Math.max(F(0, .8), t2 + .3 + 6 * st + .2)          // «وثلاث طرائق لدراسته»
+      const tM = Math.max(F(0, .79), t2 + .3 + 6 * st + .2)          // «وثلاث طرائق لدراسته»
       rowLit(this.mLab, tM - .1)
       this.m2.forEach((e, k) => rowLit(e, tM + k * (st + .08)))
       // blocks 3 / 4 formulas
@@ -175,8 +178,8 @@
       this.f4.forEach((e, k) => fLit(e, t4 + .2 + k * .15))
       // +r / ×q accents
       const acc = (e, t, c) => { const g = env(lt, t, t + 2.2, .3, .6); e.style.color = g > 0 ? mixColor(C.ink, c, g) : ''; e.style.textShadow = g > 0 ? `0 0 ${18 * g}px ${rgba(c, .8)}` : '' }
-      acc(this.plr, Math.max(F(1, .1), t3 + .4), Y)
-      acc(this.tq, Math.max(F(1, .32), t4 + .5), Y)
+      acc(this.plr, Math.max(F(1, .14), t3 + .4), Y)
+      acc(this.tq, Math.max(F(1, .38), t4 + .5), Y)
       // term laws, then sum laws, pulse (both blocks)
       const pulse = (e, t) => { const g = env(lt, t, t + 1.4, .25, .5); if (g > 0) { e.style.textShadow = `0 0 ${16 * g}px rgba(255,210,63,.75)`; e.style.transform = `scale(${1 + .05 * g})` } else if (!e._keep) { e.style.textShadow = ''; e.style.transform = '' } }
       ;[this.f3[1], this.f4[1]].forEach(e => pulse(e, tTerm))

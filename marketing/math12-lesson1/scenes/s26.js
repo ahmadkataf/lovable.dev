@@ -6,6 +6,7 @@
 // L4: an endless row of dominoes topples into the lesson-2 title + «برهانٌ كامل — لا مجرّد ملاحظة»;
 //     ②'s «؟» → grey ✓ «قريباً»; ① gets «برهانٌ ثانٍ بالتدريج — الدرس 2».
 // L5: outro card (solutions video, try first), end card, fade to navy.
+// Cue fractions follow the real narration (word timings of voice/sections/L01_s6).
 (() => {
   const ID = 's26'
   const Y = C.yel, P = C.pur, G = C.grn, B = C.blu, R = C.red
@@ -15,24 +16,6 @@
   const CY = 300, CW = 800, X1 = 1000, X2 = 120     // card ① (right, read first), card ② (left)
   const M1 = X1 + CW / 2, M2 = X2 + CW / 2          // their centres: 1400, 520
 
-  // The script has 6 lines (beats). Older timelines merged the first beats into fewer lines:
-  // split those lines so the scene still plays (5 lines: L0 = beats 0+1; 4 lines: L0 = beats 0+1+2).
-  function timing(S) {
-    const N = S.lines.length
-    if (N >= 6) return S
-    const map = N === 5 ? [[0, 0, .55], [0, .55, 1], [1], [2], [3], [4]] : [[0, 0, .36], [0, .36, .72], [0, .72, 1], [1], [2], [3]]
-    const seg = k => {
-      const m = map[k]; if (!m) return [Infinity, Infinity]
-      const a = S.at(m[0]), e = S.end(m[0])
-      return m.length === 1 ? [a, e] : [a + m[1] * (e - a) + (m[1] > 0 ? .2 : 0), a + m[2] * (e - a) - (m[2] < 1 ? .2 : 0)]
-    }
-    const at = k => seg(k)[0], end = k => seg(k)[1]
-    return {
-      dur: S.dur, lines: S.lines, at, end,
-      p: (lt, i, d = 0, du = .6, ease = E.io) => prog(lt, at(i) + d, du, ease),
-      f: (lt, i, a = 0, b = 1) => clamp(((lt - at(i)) / Math.max(.01, end(i) - at(i)) - a) / (b - a)),
-    }
-  }
   // status sticker (sits on a card's bottom edge once docked)
   const sticker = (root, html, c, fs = 26) => {
     const e = el('div', '', html, root)
@@ -62,7 +45,6 @@
   scene(ID, {
     build(root, S) {
       this.root = root
-      this.T = timing(S)
       root.style.isolation = 'isolate'
       const $ = k => document.getElementById(`${ID}-${k}`)
       this.head = heading(root, 'سؤالان مفتوحان')
@@ -117,7 +99,7 @@
       root.appendChild(this.step); this.step.style.fontSize = '48px'; place(this.step, M1, 764, { anchor: 'c' })
       this.sr = $('sr'); this.sr.style.display = 'inline-block'
       this.der = tex(`\\htmlId{${ID}-d1}{S = \\dfrac{n(\\htmlId{${ID}-da}{a}+\\htmlId{${ID}-dl}{\\ell})}{2}} \\htmlId{${ID}-d2}{{}= \\dfrac{n\\big(${col(B, '1')}+${col(B, '(2n-1)')}\\big)}{2}} \\htmlId{${ID}-d3}{{}= ${col(G, 'n^2')}}`, 'mx')
-      root.appendChild(this.der); this.der.style.fontSize = '50px'; place(this.der, M1, 750, { anchor: 'c' })
+      root.appendChild(this.der); this.der.style.fontSize = '46px'; place(this.der, M1, 750, { anchor: 'c' })
       this.d = {}
       for (const k of ['d1', 'd2', 'd3', 'da', 'dl']) { this.d[k] = $(k); this.d[k].style.display = 'inline-block' }
       this.okS = sticker(root, '✓ بقانون المجموع الحسابي', G, 28)
@@ -142,7 +124,7 @@
       this.brace = sv(ds, 'path', { d: '', fill: 'none', stroke: B, 'stroke-width': 3, 'stroke-linecap': 'round' })
       const lab = (latex, c, fs) => { const e = tex(col(c, latex), 'mm'); e.style.fontSize = fs + 'px'; root.appendChild(e); return e }
       this.n2 = lab('n^2', P, 40); place(this.n2, OX - 38, OY - 1.5 * SPD, { anchor: 'cr' })
-      this.lL = lab('2n+1', Y, 36); place(this.lL, OX + 4 * SPD + 40, OY - 2 * SPD, { anchor: 'cl' })
+      this.lL = lab('2n+1', Y, 36); place(this.lL, OX + 4 * SPD + 50, OY - 2 * SPD, { anchor: 'cl' })
       this.lN = lab('n', B, 36); place(this.lN, OX + 1.5 * SPD, OY + 50, { anchor: 'c' })
       this.lN1 = lab('n+1', B, 36); place(this.lN1, OX + 2 * SPD, OY + 50, { anchor: 'c' })
       this.f1 = tex(`${col(P, 'n^2')} + ${col(Y, '(2n+1)')} = (n+1)^2`, 'mx'); root.appendChild(this.f1)
@@ -206,7 +188,7 @@
       this.out = el('div', '', null, root)
       place(this.out, 960, 300, { anchor: 'tc', w: 1500 })
       this.out.style.cssText += `padding:48px 60px 44px;border-radius:32px;border:2.5px solid ${P}99;background:linear-gradient(180deg,rgba(40,32,96,.92),rgba(20,29,56,.94));box-shadow:0 30px 90px rgba(0,0,0,.45),0 0 60px rgba(124,58,237,.25);direction:rtl;text-align:right`
-      this.o1 = rich(`<span class="pur b">الفيديو التالي:</span> حلّ جميع تمارين <span class="yel b">«تدرَّبْ»</span> (ص 11) خطوةً خطوة`, 'h3')
+      this.o1 = rich(`<span class="pur b">الفيديو التالي:</span> حلّ جميع تمارين <span class="yel b">‹تدرَّبْ›</span> (ص 11) خطوةً خطوة`, 'h3')
       this.o1.style.cssText += 'font-size:46px;white-space:nowrap'
       this.out.appendChild(this.o1); splitWords(this.o1)
       const sep = el('div', '', null, this.out); sep.style.cssText = 'height:2px;margin:30px 0 26px;background:linear-gradient(270deg,rgba(167,139,250,.5),rgba(167,139,250,0))'
@@ -284,7 +266,7 @@
 
     render(lt, S) {
       if (this._sig !== this._sigNow()) this._layout()
-      const T = this.T
+      const T = S
       const F = (i, f) => T.at(i) + f * (T.end(i) - T.at(i))
       const out5 = T.p(lt, 5, 0, .6)                       // the outro clears the board
       const fadeAll = prog(lt, S.dur - 1.5, 1.2, E.io)      // last scene: fade to navy ourselves
@@ -310,8 +292,10 @@
 
       // ================= L0: «أوّل n عدداً فرديّاً» — arithmetic, r = 2, a = 1 =================
       const tMk = Math.max(F(0, .24), tA2 + 1.3)
-      const tCap = Math.max(F(0, .4), tMk + .7), tCap2 = Math.max(F(0, .54), tCap + .7)
-      const tR = Math.max(F(0, .78), tCap2 + .8), tA = Math.max(F(0, .9), tR + .5)
+      // «بقانون المجموع» .30 · «أوّل إنْ عدداً فرديّاً» .46 · «حدودٌ متتالية من متتالية حسابيّة» .63 · «أساسها اثنان» .83 ·
+      // «وأوّلها واحد» .92
+      const tCap = Math.max(F(0, .45), tMk + .7), tCap2 = Math.max(F(0, .62), tCap + .7)
+      const tR = Math.max(F(0, .84), tCap2 + .8), tA = Math.max(F(0, .92), tR + .5)
       // ================= L1 timings =================
       const tUse = Math.max(F(1, .02), T.at(1) + .3)
       const tS0 = Math.max(F(1, .05), tUse + .3), tS1 = Math.max(F(1, .46), tS0 + 1.2)
@@ -377,7 +361,8 @@
       const v3 = p => p * (1 - out3)
       pop(this.st1, v3(T.p(lt, 3, .75, .5))); pop(this.st2, v3(T.p(lt, 3, .9, .5)))
       // «تنتقل الخاصّة من خطوةٍ إلى التالية»: both step chips pulse until the pictures start
-      const tSq = Math.max(F(3, .3), T.at(3) + 1.4), tL2 = Math.max(F(3, .44), tSq + 1.2), tBig = Math.max(F(3, .56), tL2 + 1.2)
+      // «مربّعٌ ضلعه إنْ» .37 · «مع زاويةٍ جديدة» .53 · «يصير ضلعه إنْ زائد واحد» .65 · «والسبعة في الآحاد تعود سبعة» .83
+      const tSq = Math.max(F(3, .36), T.at(3) + 1.4), tL2 = Math.max(F(3, .52), tSq + 1.2), tBig = Math.max(F(3, .65), tL2 + 1.2)
       const sg = env(lt, T.at(3) + 1.3, tSq + .4, .4, .6)
       ;[this.st1, this.st2].forEach((c, k) => { c.style.boxShadow = sg > 0 ? `0 0 ${(18 + 10 * Math.sin(lt * 4 + k * 1.5)) * sg}px ${B}aa` : '' })
       this.dots.forEach(d => {
@@ -399,7 +384,7 @@
       this.sqOut.setAttribute('stroke', big > 0 ? mixColor(C.ink, Y, Math.sin(Math.PI * big)) : C.ink)
       wipe(this.f1, prog(lt, Math.max(F(3, .62), tBig + .5), .9), 'ltr'); op(this.f1, 1 - out3)
       // the loop (drawn as «والسبعة في الآحاد» approaches, then the runner spins once)
-      const tLoop = Math.max(F(3, .68), tBig + 1.1)
+      const tLoop = Math.max(F(3, .74), tBig + .6)
       const pNA = prog(lt, tLoop, .45), pT = prog(lt, tLoop + .3, .6), pNB = prog(lt, tLoop + .6, .45), pB = prog(lt, tLoop + .95, .6)
       const nodeSet = (g, lb, p) => { g.style.opacity = v3(clamp(p * 2)); g.style.transform = `scale(${p <= 0 ? .3 : lerp(.3, 1, E.back(p))})`; op(lb, v3(clamp(p * 2))) }
       nodeSet(this.nA, this.lA, pNA); nodeSet(this.nB, this.lB, pNB)
@@ -411,7 +396,7 @@
       }
       arcHead(this.arcT, this.hT, pT); arcHead(this.arcB, this.hB, pB)
       op(this.labT, v3(prog(lt, tLoop + .45, .5))); op(this.labB, v3(prog(lt, tLoop + 1.1, .5)))
-      const tRun = Math.max(F(3, .8), tLoop + 1.6), runD = 2
+      const tRun = Math.max(F(3, .86), tLoop + 1.1), runD = 1.6
       const run = prog(lt, tRun, runD, E.io)
       if (run > 0 && run < 1) {
         const onT = run < .5, path = onT ? this.arcT : this.arcB, L = path.getTotalLength()
@@ -441,12 +426,12 @@
       const tp = prog(lt, tTitle, .7)
       op(this.l2, Math.min(tp, 1 - out5)); this.l2.style.transform = `scale(${lerp(.86, 1, E.back(tp))})`
       rise(this.l2tag, Math.min(prog(lt, tTitle + .3, .5), 1 - out5), 10)
-      const tFull = Math.max(F(4, .4), tTitle + 1)
+      const tFull = Math.max(F(4, .42), tTitle + 1)          // «وهو برهانٌ كامل، لا مجرّد ملاحظة» (.41–.66)
       const fuP = prog(lt, tFull, .55)
       rise(this.full, Math.min(fuP, 1 - out5), 12)
       this.full.style.boxShadow = fuP > 0 ? `0 0 ${18 + 10 * Math.sin(lt * 2.2)}px rgba(167,139,250,.35)` : ''
       // ②'s badge: yellow «؟» breathes (stronger while ② is discussed), then → grey ✓ outline «قريباً»
-      const tM = Math.max(F(4, .62), tFull + 1)
+      const tM = Math.max(F(4, .68), tFull + 1)              // «به نحسم السؤال الثاني» (.67–.82)
       const mq = prog(lt, tM, .7)
       const c2 = this.c2
       const talk = env(lt, T.at(2), T.end(2) + .3, .4, .6)
@@ -457,7 +442,7 @@
       c2.ring.style.opacity = clamp(mq * 2)
       draw(c2.tick, prog(lt, tM + .3, .5))
       rise(c2.soon, prog(lt, tM + .5, .5), 10)
-      const tTag = Math.max(F(4, .8), tM + 1)
+      const tTag = Math.max(F(4, .83), tM + 1)               // «ونبرهن الأوّل من جديد» (.83–1)
       const tagP = prog(lt, tTag, .5)
       op(this.l2S, Math.min(clamp(tagP * 2.5), 1 - out5)); this.l2S.style.transform = `translateY(${(1 - E.out(tagP)) * -26}px) scale(${tagP <= 0 ? .7 : lerp(.7, 1, E.back(tagP))})`
       this.l2S.style.boxShadow = `0 0 ${18 + 12 * Math.sin(lt * 2.2)}px rgba(167,139,250,${.35 * clamp(tagP)})`
@@ -465,13 +450,13 @@
       // ================= L5: outro =================
       const oIn = T.p(lt, 5, .35, .8)
       op(this.out, oIn * (1 - fadeAll)); this.out.style.transform = `translateY(${(1 - E.out(oIn)) * 40}px)`
-      typeWords(this.o1, T.f(lt, 5, .03, .42))
-      const o2p = prog(lt, Math.max(F(5, .46), T.at(5) + 2), .6)
+      typeWords(this.o1, T.f(lt, 5, .05, .56))
+      const o2p = prog(lt, Math.max(F(5, .58), T.at(5) + 2), .6)
       rise(this.o2, o2p, 16)
       op(this.sep, o2p)
       // pencil-and-paper: the sheet, its lines written one by one, the pencil following the pen tip
-      draw(this.icPaper, o2p); draw(this.icFold, prog(lt, Math.max(F(5, .46), T.at(5) + 2) + .3, .4))
-      const w0 = Math.max(F(5, .5), T.at(5) + 2.4)
+      draw(this.icPaper, o2p); draw(this.icFold, prog(lt, Math.max(F(5, .58), T.at(5) + 2) + .3, .4))
+      const w0 = Math.max(F(5, .62), T.at(5) + 2.4)
       let tipX = 48, tipY = 52
       this.icLines.forEach((l, k) => {
         const p = prog(lt, w0 + k * .55, .5, E.io)
@@ -480,7 +465,7 @@
       })
       this.pen.setAttribute('transform', `translate(${tipX + 4},${tipY - 2 + Math.sin(lt * 14) * (lt > w0 && lt < w0 + 2.2 ? 1.5 : 0)})`)
       this.pen.style.opacity = prog(lt, w0 - .3, .4)
-      const eP = prog(lt, Math.max(F(5, .76), T.at(5) + 4), .7)
+      const eP = prog(lt, Math.max(F(5, .84), T.at(5) + 4), .7)
       op(this.end, eP * (1 - fadeAll)); this.end.style.transform = `scale(${lerp(.9, 1, E.back(eP))})`
       this.end.style.boxShadow = `0 0 ${40 + 16 * Math.sin(lt * 2)}px rgba(124,58,237,${.3 * eP})`
     },

@@ -206,31 +206,63 @@ def asr_words(path):
 
 
 def align_bounds(line_texts, wds):
-    """Character alignment of script vs ASR. For each line: index of the first/last ASR word that matched it,
-    and how many of its characters are unmatched before the first / after the last match."""
+    """Global word alignment (Needleman–Wunsch) of the script against the ASR words. Monotonic and optimal, so
+    repeated phrases ("يساوي … زائد …") cannot be matched to the wrong line. ASR tokens in Latin letters/digits
+    (spoken maths transcribed as u_n, 47 …) act as near-wildcards. For each line returns the first/last ASR word
+    index matched to it, the characters left unmatched before the first / after the last match, and coverage."""
     import difflib
-    script, owner = '', []
+    sw, owner = [], []
     for k, t in enumerate(line_texts):
-        n = norm_chars(t); script += n; owner += [k] * len(n)
-    asr, wid = '', []
-    for j, (w, st, en) in enumerate(wds):
-        n = norm_chars(w); asr += n; wid += [j] * len(n)
-    sm = difflib.SequenceMatcher(None, script, asr, autojunk=False)
-    match = {}
-    for blk in sm.get_matching_blocks():
-        for j in range(blk.size):
-            match[blk.a + j] = wid[blk.b + j]
+        for w in re.findall(r'\S+', re.sub(r'<[^>]+>', ' ', t)):
+            n = norm_chars(w)
+            if n:
+                sw.append(n); owner.append(k)
+    aw = [norm_chars(w) for w, _, _ in wds]
+    latin = [bool(re.search(r'[A-Za-z0-9]', w)) for w, _, _ in wds]
+    N, M = len(sw), len(aw)
+
+    def sim(i, j):
+        if latin[j] and not re.search(r'[ء-ي]', aw[j]):
+            return 0.3
+        if not aw[j]:
+            return -0.5
+        if sw[i] == aw[j]:
+            return 2.0
+        r = difflib.SequenceMatcher(None, sw[i], aw[j]).ratio()
+        return 2.0 * r - 0.6 if r >= .6 else -1.0
+    G = -0.7
+    D = np.zeros((N + 1, M + 1)); T = np.zeros((N + 1, M + 1), np.int8)
+    D[1:, 0] = G * np.arange(1, N + 1); D[0, 1:] = G * np.arange(1, M + 1); T[1:, 0] = 1; T[0, 1:] = 2
+    for i in range(1, N + 1):
+        for j in range(1, M + 1):
+            d, u, l = D[i - 1, j - 1] + sim(i - 1, j - 1), D[i - 1, j] + G, D[i, j - 1] + G
+            if d >= u and d >= l:
+                D[i, j] = d; T[i, j] = 0
+            elif u >= l:
+                D[i, j] = u; T[i, j] = 1
+            else:
+                D[i, j] = l; T[i, j] = 2
+    pair = [None] * N
+    i, j = N, M
+    while i > 0 or j > 0:
+        t = T[i, j]
+        if i > 0 and j > 0 and t == 0:
+            if sim(i - 1, j - 1) > 0:
+                pair[i - 1] = j - 1
+            i -= 1; j -= 1
+        elif i > 0 and (t == 1 or j == 0):
+            i -= 1
+        else:
+            j -= 1
     L = len(line_texts)
     fw, lw, head, tail, cover = [None] * L, [None] * L, [0] * L, [0] * L, [0.0] * L
-    start = 0
     for k in range(L):
-        idx = [i for i in range(start, start + owner.count(k))]
-        m = [i for i in idx if i in match]
+        idx = [i for i in range(N) if owner[i] == k]
+        m = [i for i in idx if pair[i] is not None]
         if m:
-            fw[k], lw[k] = match[m[0]], match[m[-1]]
-            head[k], tail[k] = m[0] - idx[0], idx[-1] - m[-1]
+            fw[k], lw[k] = pair[m[0]], pair[m[-1]]
+            head[k] = sum(len(sw[i]) for i in idx if i < m[0]); tail[k] = sum(len(sw[i]) for i in idx if i > m[-1])
         cover[k] = len(m) / max(1, len(idx))
-        start += len(idx)
     return fw, lw, head, tail, cover
 
 

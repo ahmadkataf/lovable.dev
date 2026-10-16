@@ -65,7 +65,7 @@
         const pl = tex(`u_n ${k === 'sinc' ? '<' : '>'} u_{n+1}`, 'mm'); pl.style.color = C.yel; root.appendChild(pl); place(pl, 0, 0, { anchor: 'bc' })
         const box = el('div', '', null, root)
         place(box, cx, 625, { anchor: 'tc', w: 780 })
-        const t1 = rich(`${k === 'sdec' ? 'ونقول' : 'نقول'} إنّ المتتالية $(u_n)_{n\\ge n_0}$ <b style="color:${COL[k]}">${NAME[k]}</b> <span class="iff">إذا وفقط إذا</span> تحقّق الشرط:`, 'p')
+        const t1 = rich(`${k === 'sdec' ? 'ونقول' : 'نقول'} إنّ المتتالية $(u_n)_{n\\ge n_0}$ <b style="color:${COL[k]};white-space:nowrap">${NAME[k]}</b> <span class="iff">إذا وفقط إذا</span> تحقّق الشرط:`, 'p')
         t1.style.textAlign = 'center'
         box.appendChild(t1)
         const iff = t1.querySelector('.iff'); iff.style.cssText = 'position:relative;display:inline-block'
@@ -130,7 +130,7 @@
 
       // ---------- phase A ----------
       const bigT = [  // [build start, sentence start/end, condition start/end, sweep start/end] per panel
-        { line: 0, st: [.06, .22], s1: [.2, .48], s2: [.5, .74], sw: [.76, .98], ul: .36 },
+        { line: 0, st: [.02, .2], s1: [.2, .48], s2: [.5, .74], sw: [.76, .98], ul: .38 },
         { line: 1, st: [.0, .25], s1: [.02, .42], s2: [.45, .76], sw: [.76, .98], ul: .22 },
       ]
       this.big.forEach((b, j) => {

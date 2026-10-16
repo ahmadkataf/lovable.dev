@@ -54,7 +54,7 @@
       this.h1 = heading(root, `${badge(1)}دراسة إشارة الفرق $u_{n+1}-u_n$`)
       this.sub = rich(`كيف ندرس جهة اطّراد متتالية $(u_n)_{n\\ge0}$؟ <span class="mute">ثمّة ثلاث طرائق:</span>`, 'h3')
       root.appendChild(this.sub); place(this.sub, 1800, 292, { anchor: 'tr' }); this.sub.style.whiteSpace = 'nowrap'
-      this.thumb = bookThumb(root, 10, 120, 150, 168, { x: .06, y: .205, w: .9, h: .13 }).el
+      this.thumb = bookThumb(root, 10, 126, 150, 168, { x: .06, y: .205, w: .9, h: .13 }).el
 
       const mtxt = [
         null,

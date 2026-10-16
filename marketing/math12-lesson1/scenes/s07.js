@@ -313,9 +313,9 @@
       rise(this.pipeLab, prog(lt, tPipe + .3, .6) * (1 - prog(lt, T.out, .4)), 12)
 
       // window: f → f(x) = √x − 1 («جذر إكس، مطروحاً منه واحد»), then red when jammed
-      const wsw = prog(lt, T.root + .4, .6)
-      op(this.winF, mIn * (1 - wsw))
-      op(this.winX, mIn * wsw)
+      const wOut = prog(lt, T.root + .3, .3), wIn = prog(lt, T.root + .55, .45)   // f out, then the formula in (no text over text)
+      op(this.winF, mIn * (1 - wOut))
+      op(this.winX, mIn * wIn)
       this.redWin.style.opacity = prog(lt, tj, .35) * (.28 + .1 * Math.sin(lt * 6))
       this.winX.style.transform = `translate(${sk}px,0)`
       pop(this.xBadge, prog(lt, tj + .1, .5))
@@ -373,7 +373,7 @@
       const stP = prog(lt, T.real, .45)
       op(this.strike, stP > 0 ? 1 : 0); this.strike.style.transform = `scaleX(${stP})`
       rise(this.st2x, prog(lt, T.real + .3, .5), 14)
-      pop(this.cap, prog(lt, tj + .6, .6))
+      pop(this.cap, prog(lt, tj + .25, .6))
     },
   })
 })()
