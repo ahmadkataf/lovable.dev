@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
-import { Activity, BarChart3, Boxes, CalendarDays, ChevronLeft, ChevronRight, CloudOff, FileText, Heart, Keyboard, Monitor, Pill, Receipt, Scale, ShieldCheck, Sparkles, Users } from 'lucide-react'
+import { Activity, BarChart3, BookOpen, Boxes, CalendarDays, ChevronLeft, ChevronRight, CirclePlay, CloudOff, ExternalLink, FileText, Heart, Keyboard, LifeBuoy, Monitor, Pill, Receipt, Scale, ShieldCheck, Sparkles, Users } from 'lucide-react'
 import { Badge, Card, CardBody, Kbd } from '@/ui'
 import { useI18n } from '@/i18n'
 import { ToothIcon } from '@/app/ToothIcon'
@@ -9,6 +9,7 @@ import { appVersion, platform } from '@/platform'
 import { fmtDate } from '@/lib/dates'
 import { LEGAL_DATE, LegalDialog, termsAcceptance, type LegalDoc } from '@/features/legal'
 import { SectionTitle } from './parts'
+import { openHelp, type HelpPage } from './help'
 
 const FEATURES = [
   { key: 'patients', icon: <Users /> }, { key: 'appointments', icon: <CalendarDays /> }, { key: 'treatments', icon: <Activity /> }, { key: 'billing', icon: <Receipt /> },
@@ -20,6 +21,8 @@ const SHORTCUTS: { keys: string[]; label: string }[] = [
   { keys: ['Ctrl', 'Shift', 'A'], label: 'about.sc.appointment' },
   { keys: ['Esc'], label: 'about.sc.close' },
 ]
+/** Help on the website, in the app's language (help.ts): the guide and the video course. Neither sells anything. */
+const HELP: { page: HelpPage; icon: React.ReactNode }[] = [{ page: 'guide', icon: <BookOpen /> }, { page: 'videos', icon: <CirclePlay /> }]
 const CREDITS = ['React', 'Dexie.js', 'React Router', 'Lucide', 'Vite', 'Inter', 'Noto Kufi Arabic', 'Cairo', 'Tajawal', 'Almarai', 'Readex Pro', 'IBM Plex Sans Arabic']
 
 export default function AboutTab() {
@@ -55,6 +58,21 @@ export default function AboutTab() {
             <div><dt>{t('settings.about.storage')}</dt><dd>{t('settings.about.storageValue')}</dd></div>
             <div><dt>{t('settings.about.device')}</dt><dd><span className="ltr st-mono">{device || '—'}</span></dd></div>
           </dl>
+        </CardBody>
+      </Card>
+
+      <Card data-qa="about-help">
+        <CardBody>
+          <SectionTitle icon={<LifeBuoy />} title={t('settings.about.help')} sub={t('settings.about.helpSub')} />
+          <div className="st-help">
+            {HELP.map(h => (
+              <button key={h.page} type="button" className="st-help-tile" onClick={() => openHelp(h.page, lang)} data-qa={`about-${h.page}`}>
+                <span className="st-feature-icon">{h.icon}</span>
+                <span className="grow st-legal-text"><span className="strong">{t(`settings.about.${h.page}`)}</span><span className="text-sm muted">{t(`settings.about.${h.page}Sub`)}</span></span>
+                <ExternalLink className="st-legal-chev" aria-hidden="true" />
+              </button>
+            ))}
+          </div>
         </CardBody>
       </Card>
 

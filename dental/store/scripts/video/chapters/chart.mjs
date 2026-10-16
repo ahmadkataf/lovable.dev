@@ -53,8 +53,8 @@ export const chapter = {
     {
       id: 'layout',
       say: {
-        ar: 'تظهر الأسنان بترقيم FDI المعتاد: الفك العلوي في الأعلى والسفلي في الأسفل، وجهة المريض اليمنى على يسارك كما في المخططات الورقية، مع اسم كل ربع ورقمه.',
-        en: 'The teeth are drawn in the usual FDI numbering: upper jaw on top, lower jaw below, and the patient’s right on your left as on a paper chart, with each quadrant named and numbered.',
+        ar: 'تظهر الأسنان بترقيم FDI المعتاد: الفك العلوي في الأعلى، وجهة المريض اليمنى على يسارك كما في المخططات الورقية، مع اسم كل ربع ورقمه.',
+        en: 'The teeth are drawn in the usual FDI numbering: upper jaw on top, and the patient’s right on your left as on a paper chart, with each quadrant named and numbered.',
       },
       run: async ({ page, ui }) => {
         await ui.scrollTo(page.locator('.ch-canvas'))
@@ -85,8 +85,8 @@ export const chapter = {
     {
       id: 'select',
       say: {
-        ar: 'في وضع «تحديد» انقر على أي سن لتفتح لوحته، مثل السن 36: رسم كبير للسن وأسطحه، وحالته الحالية، ونموذج لتسجيل تشخيص جديد.',
-        en: 'In Select mode, click any tooth to open its panel, say tooth 36: a large drawing of the tooth and its surfaces, its current state, and a form to record a new finding.',
+        ar: 'في وضع «تحديد» انقر على أي سن، مثل السن 36، لتفتح لوحته: رسم كبير للسن وأسطحه، وحالته الحالية، ونموذج لتشخيص جديد.',
+        en: 'In Select mode, click any tooth, say tooth 36, to open its panel: a large drawing of the tooth and its surfaces, its current state, and a form for a new finding.',
       },
       run: async ({ page, ui }) => {
         await ui.click(page.locator('[data-tooth="36"]'))
@@ -105,8 +105,8 @@ export const chapter = {
     {
       id: 'close-open',
       say: {
-        ar: 'أغلق اللوحة بزر ✕ أو بمفتاح Esc. ولنسجّل تشخيصاً على سن سليم: انقر على السن 46.',
-        en: 'Close the panel with ✕ or Esc. Now let us record a finding on a healthy tooth: click tooth 46.',
+        ar: 'أغلق اللوحة بزر الإغلاق في أعلاها. ولنسجّل تشخيصاً على سن سليم: انقر على السن 46.',
+        en: 'Close the panel with the close button at its top. Now let us record a finding on a healthy tooth: click tooth 46.',
       },
       run: async ({ page, ui }) => {
         await ui.click(page.locator('.drawer-header').getByRole('button', { name: rx('إغلاق', 'Close') }))
@@ -118,8 +118,8 @@ export const chapter = {
     {
       id: 'condition',
       say: {
-        ar: 'تحت «تسجيل تشخيص» اختر الحالة: من «على الأسطح» مثل تسوس أو حشوة، أو من «على السن كاملاً» مثل تاج أو معالجة لبية أو مفقود.',
-        en: 'Under Record a finding, choose the condition: On surfaces, such as caries or a filling, or Whole tooth, such as a crown, a root canal or missing.',
+        ar: 'تحت «تسجيل تشخيص» اختر الحالة: من «على الأسطح» مثل تسوس أو حشوة، أو من «على السن كاملاً» مثل تاج أو مفقود.',
+        en: 'Under Record a finding, choose the condition: On surfaces, such as caries or a filling, or Whole tooth, such as a crown or missing.',
       },
       run: async ({ page, ui }) => {
         await ui.scrollTo(panel(page).locator('.ch-form'), { block: 'start' })
@@ -145,8 +145,8 @@ export const chapter = {
     {
       id: 'save',
       say: {
-        ar: 'انقر على «حفظ التشخيص»، أو اضغط Ctrl+Enter في خانة الملاحظة. يتلوّن السن في المخطط فوراً، وتبقى اللوحة مفتوحة لتشخيص آخر.',
-        en: 'Click Save finding, or press Ctrl+Enter in the note. The tooth changes colour on the chart at once, and the panel stays open for the next finding.',
+        ar: 'انقر على «حفظ التشخيص». يتلوّن السن في المخطط فوراً، وتبقى اللوحة مفتوحة لتشخيص آخر.',
+        en: 'Click Save finding. The tooth changes colour on the chart at once, and the panel stays open for the next finding.',
       },
       run: async ({ page, ui }) => {
         await ui.click(page.locator('#ch-save-finding'))
@@ -171,8 +171,8 @@ export const chapter = {
     {
       id: 'paint',
       say: {
-        ar: 'لتعبئة مخطط مريض جديد في دقائق أغلق اللوحة وانقر على «رسم سريع» أعلى المخطط، أو انقر مباشرة على حالة في دليل الحالات.',
-        en: 'To fill in a new patient’s chart in minutes, close the panel and click Quick paint above the chart, or click a condition in the Legend directly.',
+        ar: 'لتعبئة مخطط مريض جديد في دقائق، أغلق اللوحة وانقر على «رسم سريع» أعلى المخطط.',
+        en: 'To fill in a new patient’s chart in minutes, close the panel and click Quick paint above the chart.',
       },
       run: async ({ page, ui }) => {
         await ui.click(page.locator('.drawer-header').getByRole('button', { name: rx('إغلاق', 'Close') }))
@@ -184,8 +184,8 @@ export const chapter = {
     {
       id: 'pick',
       say: {
-        ar: 'اختر الحالة من «اختر حالة للرسم» تحت المخطط. يبدأ الرسم السريع وحالة «تسوس» مختارة، فتأكد من الحالة قبل أن تنقر على أي سن؛ ويذكّرك شريط فوق المخطط بما ترسم به.',
-        en: 'Choose the condition under Pick a condition to paint, below the chart. Quick paint starts with Caries already picked, so check the condition before you click a tooth; a bar above the chart reminds you what you are painting with.',
+        ar: 'اختر الحالة من «اختر حالة للرسم» تحت المخطط، هنا «حشوة». ويذكّرك شريط فوق المخطط بالحالة التي ترسم بها الآن.',
+        en: 'Choose the condition under Pick a condition to paint, below the chart: here, Filling. A bar above the chart reminds you what you are painting with.',
       },
       run: async ({ page, ui }) => {
         await ui.click(page.locator('.ch-chip[data-cond="filled"]'))
@@ -196,8 +196,8 @@ export const chapter = {
     {
       id: 'paint-surfaces',
       say: {
-        ar: 'انقر على السطح المطلوب لحالات الأسطح: حشوة على السطحين الطاحن والأنسي من السن 47. كل نقرة تُحفظ فوراً، فلا حاجة إلى زر حفظ.',
-        en: 'Click the surface for a surface condition: a filling on the occlusal and mesial surfaces of tooth 47. Every click is saved at once, so there is no Save button.',
+        ar: 'انقر على السطح المطلوب: حشوة على السطحين الطاحن والأنسي من السن 47. كل نقرة تُحفظ فوراً، فلا حاجة إلى زر حفظ.',
+        en: 'Click the surface you want: a filling on the occlusal and mesial surfaces of tooth 47. Every click is saved at once, so there is no Save button.',
       },
       run: async ({ page, ui }) => {
         await ui.click(page.locator('[data-tooth="47"] [data-s="O"]'))
@@ -208,8 +208,8 @@ export const chapter = {
     {
       id: 'paint-whole',
       say: {
-        ar: 'وللحالات الكاملة مثل «تاج» و«مفقود» انقر على أي مكان في السن: تاج على السن 45. والنقر مرة ثانية على المكان نفسه يزيل الحالة.',
-        en: 'For a whole-tooth condition such as Crown or Missing, click anywhere on the tooth: a crown on tooth 45. Clicking the same place again removes it.',
+        ar: 'وللحالات الكاملة مثل «تاج» انقر على أي مكان في السن: تاج على السن 45. والنقر مرة ثانية على المكان نفسه يزيل الحالة.',
+        en: 'For a whole-tooth condition such as Crown, click anywhere on the tooth: a crown on tooth 45. Clicking the same place again removes it.',
       },
       run: async ({ page, ui }) => {
         await ui.click(page.locator('.ch-chip[data-cond="crown"]'))
@@ -220,8 +220,8 @@ export const chapter = {
     {
       id: 'eraser-done',
       say: {
-        ar: 'لتصحيح خطأ اختر «ممحاة (سليم)»: انقر على سطح لتمسحه، أو على رقم السن ليعود سليماً. ثم انقر على «إنهاء الرسم» لتعود إلى وضع «تحديد».',
-        en: 'To fix a mistake choose Eraser (healthy): click a surface to clear it, or the tooth number to reset the tooth. Then click Done painting to go back to Select mode.',
+        ar: 'لتصحيح خطأ اختر «ممحاة (سليم)» وانقر على السطح لتمسحه. ثم انقر على «إنهاء الرسم» لتعود إلى وضع «تحديد».',
+        en: 'To fix a mistake choose Eraser (healthy) and click the surface to clear it. Then click Done painting to go back to Select mode.',
       },
       run: async ({ page, ui }) => {
         await ui.moveTo(page.locator('.ch-chip[data-cond="healthy"]'))
@@ -246,8 +246,8 @@ export const chapter = {
     {
       id: 'badges',
       say: {
-        ar: 'اقرأ الشارات: «حالي» للتشخيص القائم، و«سابق» لما حلّ محله غيره، و«سُجّل سليماً» حين أُعيد السن سليماً. فلا يضيع أي تشخيص ما لم تحذفه بنفسك.',
-        en: 'Read the badges: Current for a finding in place, Superseded for one that a newer finding replaced, and Marked healthy when the tooth was reset. No finding is lost unless you delete it yourself.',
+        ar: 'الشارة «حالي» للتشخيص القائم، و«سابق» لما حلّ محله غيره، و«سُجّل سليماً» حين أُعيد السن سليماً. فلا يضيع أي تشخيص ما لم تحذفه بنفسك.',
+        en: 'The badge Current marks a finding in place, Superseded one that a newer finding replaced, and Marked healthy a tooth that was reset. No finding is lost unless you delete it yourself.',
       },
       run: async ({ page, ui }) => {
         await ui.scrollTo(page.locator('[data-testid="ch-history"] .ch-tl.is-inactive').first())
@@ -257,8 +257,8 @@ export const chapter = {
     {
       id: 'restore-delete',
       say: {
-        ar: 'لإرجاع تشخيص «سابق» انقر على أيقونة الاستعادة بجانبه، ولحذف سطر نهائياً انقر على سلة المهملات، ويطلب دنتورا تأكيد الحذف.',
-        en: 'To bring back a Superseded finding click the restore icon next to it; to delete a line for good click the bin, and Dentora asks you to confirm.',
+        ar: 'لإرجاع تشخيص «سابق» انقر على أيقونة الاستعادة بجانبه، ولحذف سطر نهائياً انقر على سلة المهملات.',
+        en: 'To bring back a Superseded finding click the restore icon next to it; to delete a line for good click the bin.',
       },
       run: async ({ page, ui }) => {
         const row = page.locator('[data-testid="ch-history"] .ch-tl.is-inactive').first()
@@ -283,8 +283,8 @@ export const chapter = {
     {
       id: 'print',
       say: {
-        ar: 'للطباعة اختر الإطباق ثم انقر على «طباعة» أعلى المخطط. تحمل الورقة ترويسة العيادة وبيانات المريض والمخطط بألوانه و«ملخص الحالات»، وتختار في نافذة الطباعة الطابعة أو الحفظ بصيغة PDF.',
-        en: 'To print, choose the dentition and click Print above the chart. The page carries the clinic’s header, the patient’s details, the chart in colour and a Findings summary; in the print window you choose a printer or save as PDF.',
+        ar: 'للطباعة انقر على «طباعة» أعلى المخطط. تحمل الورقة ترويسة العيادة وبيانات المريض والمخطط بألوانه و«ملخص الحالات»، وتستطيع حفظها بصيغة PDF.',
+        en: 'To print, click Print above the chart. The page carries the clinic’s header, the patient’s details, the chart in colour and a Findings summary, and you can save it as a PDF.',
       },
       run: async ({ page, ui }) => {
         await ui.click(page.locator('.drawer-header').getByRole('button', { name: rx('إغلاق', 'Close') }))
@@ -297,8 +297,8 @@ export const chapter = {
     {
       id: 'phone',
       say: {
-        ar: 'على الهاتف يُفتح المخطط مكبّراً ليسهل النقر على الأسطح، تسحبه جانباً لتصل إلى بقية الأسنان، وتُفتح لوحة السن من أسفل الشاشة.',
-        en: 'On a phone the chart opens zoomed in so surfaces are easy to tap; you swipe it sideways to reach the other teeth, and the tooth panel slides up from the bottom.',
+        ar: 'على الهاتف يُفتح المخطط مكبّراً ليسهل النقر على الأسطح، وتسحبه جانباً لتصل إلى بقية الأسنان.',
+        en: 'On a phone the chart opens zoomed in so surfaces are easy to tap, and you swipe it sideways to reach the other teeth.',
       },
       run: async ({ page, ui }) => { await ui.moveTo(page.locator('[data-tooth="46"]')); await ui.highlight(page.locator('.ch-canvas'), 2400) },
     },

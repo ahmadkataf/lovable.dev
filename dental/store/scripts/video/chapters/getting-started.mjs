@@ -77,7 +77,7 @@ export const chapter = {
     {
       id: 'intro',
       say: {
-        ar: 'في هذا الفصل تتعلم كيف تجهّز عيادتك في دنتورا من أول تشغيل، وكيف تدخل إلى البرنامج كل يوم. بعد تنزيل دنتورا من الموقع أو من الرابط الذي يرسله لك البائع، وتثبيته على ويندوز أو أندرويد، يستقبلك معالج الإعداد الأول.',
+        ar: 'في هذا الفصل تتعلم كيف تجهّز عيادتك في دنتورا من أول تشغيل، وكيف تدخل إليه كل يوم. بعد تنزيل دنتورا من الموقع أو من الرابط الذي يرسله لك البائع، وتثبيته على ويندوز أو أندرويد، يستقبلك معالج الإعداد الأول.',
         en: 'In this chapter you will learn how to set up your clinic in Dentora on the first run, and how to sign in every day. Once you have downloaded Dentora from the website or from the link the seller sends you, and installed it on Windows or Android, the first-run setup wizard welcomes you.',
       },
       run: async ({ page, ui }) => { await ui.highlight(page.locator('.au-setup'), 2200) },
@@ -85,7 +85,7 @@ export const chapter = {
     {
       id: 'steps',
       say: {
-        ar: 'يرشدك المعالج في 5 خطوات: «اللغة»، ثم «العيادة»، ثم «العملة والدوام»، ثم «حسابك»، ثم «المراجعة». وكل ما تختاره هنا يمكن تعديله لاحقاً من الإعدادات.',
+        ar: 'يرشدك المعالج في 5 خطوات: «اللغة»، و«العيادة»، و«العملة والدوام»، و«حسابك»، و«المراجعة». وكل ما تختاره هنا تعدّله لاحقاً من الإعدادات.',
         en: 'The wizard guides you through 5 steps: Language, Clinic, Currency & hours, Your account and Review. Everything you choose here can be changed later in Settings.',
       },
       run: async ({ page, ui }) => { await ui.highlight(page.locator('.au-steps'), 2400) },
@@ -144,10 +144,12 @@ export const chapter = {
       run: async ({ page, ui }) => {
         await ui.click(page.locator(NEXT))
         await stepShown(page, 'money')
-        await ui.highlight(page.locator('select[name=currency]'), 1300)
-        await ui.highlight(page.locator('.au-dec'), 1100)
-        await ui.highlight(page.locator('[data-qa="setup-country"]'), 1300)
-        await ui.highlight(page.locator('[data-qa="setup-months"]'), 1300)
+        await ui.moveTo(page.locator('select[name=currency]'))
+        await ui.highlight(page.locator('select[name=currency]'), 1200)
+        await ui.highlight(page.locator('.au-dec'), 1000)
+        await ui.moveTo(page.locator('[data-qa="setup-country"]'))
+        await ui.highlight(page.locator('[data-qa="setup-country"]'), 1200)
+        await ui.highlight(page.locator('[data-qa="setup-months"]'), 1200)
       },
     },
     {
@@ -157,11 +159,13 @@ export const chapter = {
         en: 'Then set your Working days and hours, Opens at and Closes at, and the Calendar time slot. Fill in Tax on invoices if your clinic charges tax, or leave it empty.',
       },
       run: async ({ page, ui }) => {
-        await ui.highlight(page.locator('.au-days'), 1500)
+        await ui.moveTo(page.locator('.au-days'))
+        await ui.highlight(page.locator('.au-days'), 1400)
         await ui.highlight(page.locator('input[name=workStart]'), 900)
         await ui.highlight(page.locator('input[name=workEnd]'), 900)
         await ui.highlight(page.locator('select[name=slot]'), 1000)
-        await ui.highlight(page.locator('#setup-tax'), 1300)
+        await ui.moveTo(page.locator('#setup-tax'))
+        await ui.highlight(page.locator('#setup-tax'), 1200)
       },
     },
     {
@@ -230,8 +234,8 @@ export const chapter = {
     {
       id: 'sign-out',
       say: {
-        ar: 'يطلب دنتورا رمز الدخول في كل مرة تفتحه فيها وبعد كل قفل، فلا يطّلع أحد على ملفات المرضى. لنجرّب: انقر على اسمك أسفل القائمة، ثم على «تسجيل الخروج».',
-        en: 'Dentora asks for a PIN every time it opens and after every lock, so nobody sees patient files. Let’s try it: click your name at the bottom of the sidebar, then Sign out.',
+        ar: 'يطلب دنتورا رمز الدخول في كل مرة تفتحه فيها وبعد كل قفل. لنجرّب: انقر على اسمك أسفل القائمة، ثم على «تسجيل الخروج».',
+        en: 'Dentora asks for a PIN every time it opens and after every lock. Let’s try it: click your name at the bottom of the sidebar, then Sign out.',
       },
       run: async ({ page, ui, lang }) => {
         await addTeam(page, lang)
@@ -245,8 +249,8 @@ export const chapter = {
     {
       id: 'who',
       say: {
-        ar: 'حين يكون في العيادة أكثر من حساب تظهر شاشة «من يبدأ العمل الآن؟»: انقر على اسمك. ومع حساب واحد، أو إن كنت آخر من دخل من هذا الجهاز، تظهر لوحة الأرقام مباشرة.',
-        en: 'When the clinic has more than one account, the screen Who is starting now? appears: click your name. With one account, or if you were the last to sign in on this device, the keypad shows straight away.',
+        ar: 'في شاشة «من يبدأ العمل الآن؟» انقر على اسمك. ومع حساب واحد، أو إن كنت آخر من دخل من هذا الجهاز، تظهر لوحة الأرقام مباشرة.',
+        en: 'On Who is starting now? click your name. With one account, or if you were the last to sign in on this device, the keypad shows straight away.',
       },
       run: async ({ page, ui }) => {
         await ui.highlight(page.locator('.user-pick'), 1800)
@@ -339,8 +343,8 @@ export const chapter = {
     {
       id: 'first-backup',
       say: {
-        ar: 'وفي نهاية اليوم احفظ أول نسخة احتياطية من «الإعدادات» ← «النسخ الاحتياطي» بزر «تصدير نسخة احتياطية». ولتتجوّل في البرنامج أولاً، حمّل عيادة تجريبية كاملة بزر «تحميل بيانات تجريبية»، لكن جرّبها قبل العمل الحقيقي.',
-        en: 'At the end of the day save your first backup from Settings, Backup & data, with Export backup. To look around first, load a complete demo clinic with Load demo data, but try it before real work.',
+        ar: 'وفي نهاية اليوم احفظ أول نسخة احتياطية من «الإعدادات» ثم «النسخ الاحتياطي». ولتتجوّل في البرنامج أولاً، حمّل عيادة تجريبية كاملة بزر «تحميل بيانات تجريبية»، لكن جرّبها قبل العمل الحقيقي.',
+        en: 'At the end of the day save your first backup from Settings, then Backup & data. To look around first, load a complete demo clinic with Load demo data, but try it before real work.',
       },
       run: async ({ page, ui }) => {
         await ui.click(nav(page, '/settings'))

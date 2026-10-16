@@ -1,6 +1,6 @@
 import { lazy, Suspense, useCallback, useEffect, useMemo, useState, type ReactNode } from 'react'
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
-import { Bell, CalendarPlus, ChevronDown, ChevronLeft, LayoutGrid, Lock, LogOut, Plus, Search, Settings as SettingsIcon, UserPlus, Wallet } from 'lucide-react'
+import { Bell, CalendarPlus, ChevronDown, ChevronLeft, HelpCircle, LayoutGrid, Lock, LogOut, Plus, Search, Settings as SettingsIcon, UserPlus, Wallet } from 'lucide-react'
 import { useI18n } from '@/i18n'
 import { useSession } from './session'
 import { useClinic, useIsDesktop } from './hooks'
@@ -10,6 +10,7 @@ import { isApplePlatform, shortcutLabel } from './sessionLib'
 import { fmtDate } from '@/lib/dates'
 import { useLicense } from '@/license/useLicense'
 import { ALL_NAV_ITEMS, BOTTOM_NAV, NAV } from './nav'
+import { openHelp } from '@/features/settings/help'
 import { Avatar, Button, Kbd, Loading, Menu, Modal, type MenuItemDef } from '@/ui'
 import { ToothIcon } from './ToothIcon'
 
@@ -69,6 +70,7 @@ export default function Shell() {
   const userItems: MenuItemDef[] = [
     { header: user.name },
     { label: t('nav.settings'), icon: <SettingsIcon />, onClick: () => navigate('/settings') },
+    { label: t('nav.help'), icon: <HelpCircle />, onClick: () => openHelp('guide', lang) },
     { label: t('nav.lock'), icon: <Lock />, onClick: session.lock },
     { sep: true },
     { label: t('nav.logout'), icon: <LogOut />, onClick: session.logout, danger: true },
@@ -93,7 +95,8 @@ export default function Shell() {
               <div key={gi}>
                 {g.label && <div className="nav-group">{t(g.label)}</div>}
                 {items.map(i => (
-                  <NavLink key={i.to} to={i.to} end={i.end} className={({ isActive }) => `nav-item${isActive ? ' active' : ''}`} data-label={t(i.label)}>
+                  // collapsed: the icon alone, named by its title (the label is hidden, see shell.css)
+                  <NavLink key={i.to} to={i.to} end={i.end} className={({ isActive }) => `nav-item${isActive ? ' active' : ''}`} title={collapsed ? t(i.label) : undefined}>
                     <i.icon /><span className="nav-label">{t(i.label)}</span>
                   </NavLink>
                 ))}

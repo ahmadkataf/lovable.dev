@@ -2,11 +2,12 @@
 // (../releases/Dentora-Setup-<version>.exe) and the course videos (site/videos/) are git-ignored build outputs, and
 // `wrangler deploy` publishes exactly what public/ holds: a deploy from a machine without them would silently take
 // them off the site. `npm run deploy` runs this before the build; `npm run fetch-published` runs it alone.
-//   the installer   The Worker answers /files/* with 404 on purpose (downloads are counted through /download/*), so
-//                   what is published is read from /files/windows.json when the Worker serves it (version, size,
-//                   sha256), else from the headers of HEAD /download/windows (version and size, no checksum: the file
-//                   is then checked by size only and the line says so), and the file itself comes through
-//                   GET /download/windows, which streams the parts as one file. The version must be the one of
+//   the installer   The Worker answers /files/* with 404 on purpose (downloads are counted through /download/*),
+//                   except /files/windows.json and /files/meta.json, served while the download they describe is.
+//                   What is published is read from /files/windows.json (version, size, sha256), else (an older
+//                   Worker, or no installer) from the headers of HEAD /download/windows (version and size, no
+//                   checksum: the file is then checked by size only and the line says so), and the file itself
+//                   comes through GET /download/windows, which streams the parts as one file. The version must be the one of
 //                   ../package.json (the build publishes that one), else the installer is skipped with a warning.
 //   the videos      /videos/manifest.json (404 = none published yet) names <lang>/<slug>.mp4, .vtt and .jpg; the
 //                   .mp4 is checked against the manifest's sha256. The local manifest is written only once every file

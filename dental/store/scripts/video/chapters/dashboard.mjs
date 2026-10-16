@@ -44,7 +44,7 @@ export const chapter = {
     {
       id: 'overview',
       say: {
-        ar: '«الرئيسية» أول ما تراه حين تفتح البرنامج، وتعود إليها في أي وقت من أعلى القائمة الجانبية. في أعلاها تحية باسمك وتاريخ اليوم، وثلاثة أزرار للإضافة السريعة: «موعد جديد» و«مريض جديد» و«دفعة جديدة». وتتحدث الشاشة وحدها مع كل تغيير يجري في العيادة.',
+        ar: 'صفحة «الرئيسية» أول ما تراه حين تفتح البرنامج، وتعود إليها في أي وقت من أعلى القائمة الجانبية. في أعلاها تحية باسمك وتاريخ اليوم، وثلاثة أزرار للإضافة السريعة: «موعد جديد» و«مريض جديد» و«دفعة جديدة». وتتحدث الشاشة وحدها مع كل تغيير يجري في العيادة.',
         en: 'The Dashboard is the first screen you see when you open Dentora, and you get back to it any time from the top of the sidebar. At the top sit a greeting with your name and today’s date, and three quick-add buttons: New appointment, New patient and New payment. The screen updates by itself whenever something changes in the clinic.',
       },
       run: async ({ page, ui }) => {
@@ -59,25 +59,28 @@ export const chapter = {
     {
       id: 'stats-1',
       say: {
-        ar: 'ثم بطاقات الأرقام. «مواعيد اليوم»: عدد مواعيد اليوم دون الملغاة، وكم اكتمل منها. «مرضى راجعوا هذا الشهر»: من حضروا هذا الشهر حتى اليوم. و«مرضى جدد هذا الشهر»: الملفات التي فُتحت منذ أول الشهر.',
+        ar: 'ثم بطاقات الأرقام: بطاقة «مواعيد اليوم» تعدّ مواعيد اليوم دون الملغاة، وكم اكتمل منها. وبطاقة «مرضى راجعوا هذا الشهر» تعدّ من حضروا هذا الشهر حتى اليوم. و«مرضى جدد هذا الشهر» الملفات التي فُتحت منذ أول الشهر.',
         en: 'Then the figure cards. Today’s appointments: today’s appointments, not counting cancelled ones, and how many are completed. Patients seen this month: who came in this month so far. New patients this month: files opened since the first of the month.',
       },
       run: async ({ page, ui }) => {
-        await ui.highlight(card(page, 'stat-today'), 2200)
-        await ui.highlight(card(page, 'stat-seen'), 2000)
-        await ui.highlight(card(page, 'stat-new'), 2000)
+        // the cursor goes to each card while the narration describes it
+        for (const id of ['stat-today', 'stat-seen', 'stat-new']) {
+          await ui.moveTo(card(page, id))
+          await ui.highlight(card(page, id), 3600)
+        }
       },
     },
     {
       id: 'stats-2',
       say: {
-        ar: '«إيرادات اليوم»: مجموع الدفعات المسجلة اليوم. «إيرادات الشهر» مع خط صغير يرسم آخر 30 يوماً. و«الرصيد المستحق»: ما بقي على المرضى في الفواتير غير المدفوعة والمدفوعة جزئياً. وتظهر بطاقات المال لمن يسمح له دوره بالفواتير فقط.',
+        ar: 'وبطاقة «إيرادات اليوم» مجموع الدفعات المسجلة اليوم. وبطاقة «إيرادات الشهر» مع خط صغير يرسم آخر 30 يوماً. و«الرصيد المستحق» ما بقي على المرضى في الفواتير غير المدفوعة والمدفوعة جزئياً. وتظهر بطاقات المال لمن يسمح له دوره بالفواتير فقط.',
         en: 'Today’s revenue: the total of payments recorded today. Revenue this month, with a small line of the last 30 days. And Outstanding balance: what patients still owe on unpaid and partially paid invoices. The money cards show only for roles allowed to handle invoices.',
       },
       run: async ({ page, ui }) => {
-        await ui.highlight(card(page, 'stat-rev-today'), 2000)
-        await ui.highlight(card(page, 'stat-rev-month'), 2000)
-        await ui.highlight(card(page, 'stat-outstanding'), 2200)
+        for (const id of ['stat-rev-today', 'stat-rev-month', 'stat-outstanding']) {
+          await ui.moveTo(card(page, id))
+          await ui.highlight(card(page, id), 4200)
+        }
       },
     },
     {
@@ -102,8 +105,11 @@ export const chapter = {
       },
       run: async ({ page, ui }) => {
         await ui.scrollTo(card(page, 'dash-schedule'))
-        await ui.highlight(card(page, 'dash-schedule').locator('[data-testid="dash-apt"]').first(), 2000)
-        await ui.highlight(card(page, 'rp-now'), 1800)
+        const first = card(page, 'dash-schedule').locator('[data-testid="dash-apt"]').first()
+        await ui.moveTo(first)
+        await ui.highlight(first, 2200)
+        await ui.moveTo(card(page, 'rp-now'))
+        await ui.highlight(card(page, 'rp-now'), 2000)
       },
     },
     {
@@ -185,9 +191,12 @@ export const chapter = {
       },
       run: async ({ page, ui }) => {
         await ui.scrollTo(card(page, 'dash-alerts'))
+        await ui.moveTo(card(page, 'dash-alerts').locator('.card-header'))
         await ui.highlight(card(page, 'dash-alerts'), 1600)
         for (const id of ['alert-overdue', 'alert-stock', 'alert-lab', 'alert-unconfirmed']) {
-          if (await card(page, id).count()) await ui.highlight(card(page, id), 1000)
+          if (!(await card(page, id).count())) continue
+          await ui.moveTo(card(page, id))
+          await ui.highlight(card(page, id), 1000)
         }
       },
     },
@@ -208,7 +217,7 @@ export const chapter = {
     {
       id: 'revenue',
       say: {
-        ar: '«الإيرادات — آخر 30 يوماً»: الدفعات يوماً بيوم، ومجموعها تحت العنوان. مرّر المؤشر على الرسم، أو المسه على الهاتف، لترى مبلغ أي يوم.',
+        ar: 'بطاقة «الإيرادات — آخر 30 يوماً» ترسم الدفعات يوماً بيوم، ومجموعها تحت العنوان. مرّر المؤشر على الرسم، أو المسه على الهاتف، لترى مبلغ أي يوم.',
         en: 'Revenue, last 30 days: payments day by day, with the total under the title. Hover over the chart, or touch it on a phone, to see any day’s amount.',
       },
       run: async ({ page, ui }) => {
@@ -239,18 +248,19 @@ export const chapter = {
     {
       id: 'status',
       say: {
-        ar: '«المواعيد حسب الحالة»: مواعيد الشهر الحالي موزعة على حالاتها، مع عدد كل حالة ونسبتها، ومجموعها في الوسط.',
+        ar: 'وبطاقة «المواعيد حسب الحالة» توزّع مواعيد الشهر الحالي على حالاتها، مع عدد كل حالة ونسبتها، ومجموعها في الوسط.',
         en: 'Appointments by status: this month’s appointments split by status, with each status’s count and share, and the total in the middle.',
       },
       run: async ({ page, ui }) => {
         await ui.scrollTo(card(page, 'dash-status'))
-        await ui.highlight(card(page, 'dash-status'), 2400)
+        await ui.moveTo(card(page, 'dash-status').locator('.card-header'))
+        await ui.highlight(card(page, 'dash-status'), 2600)
       },
     },
     {
       id: 'top',
       say: {
-        ar: '«الإجراءات الأكثر تنفيذاً»: أكثر الإجراءات المنجزة هذا الشهر، مع عدد مرات تنفيذ كل منها. مرّر المؤشر على أي إجراء لترى نسبته من المجموع.',
+        ar: 'وبطاقة «الإجراءات الأكثر تنفيذاً» تعرض أكثر الإجراءات المنجزة هذا الشهر، مع عدد مرات تنفيذ كل منها. مرّر المؤشر على أي إجراء لترى نسبته من المجموع.',
         en: 'Top procedures: the procedures completed most often this month, with how many times each was done. Hover over a procedure to see its share of the total.',
       },
       run: async ({ page, ui }) => {

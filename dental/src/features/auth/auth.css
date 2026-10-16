@@ -208,6 +208,8 @@
 .au-reset-device { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 14px; border-radius: var(--r-md); background: var(--surface-2); border: 1px solid var(--border); font-size: var(--fs-sm); }
 .au-reset-device .ltr { letter-spacing: 1.5px; font-variant-numeric: tabular-nums; }
 .au-reset-input textarea, textarea.au-reset-input { font-family: ui-monospace, Consolas, 'SF Mono', Menlo, monospace; font-size: var(--fs-sm); letter-spacing: .4px; line-height: 1.7; }
+/* the placeholder is a sentence in the app's font: monospace and letter-spacing are for the Latin code only (spacing breaks the joins of Arabic letters) */
+.au-reset-input textarea::placeholder, textarea.au-reset-input::placeholder { font-family: var(--font); letter-spacing: 0; }
 .au-login-card[data-mode="none"] .au-forgot-box { margin-top: 4px; }
 .au-login-foot { display: flex; align-items: center; justify-content: center; gap: 8px; color: var(--text-4); font-size: var(--fs-xs); font-weight: 500; }
 .au-login-foot svg { width: 14px; height: 14px; }

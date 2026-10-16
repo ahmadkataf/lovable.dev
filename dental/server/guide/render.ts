@@ -9,12 +9,14 @@
 //
 // Text markup in every string of a topic (types.ts): **label** → <strong>, `key` → <kbd>, [text](slug#block) → a
 // link to that topic (and block) in the page's language. Everything is escaped first, then only these three are
-// turned into markup. A link to a topic that is not published (licence and faq come later) is shown as plain text,
-// and a link to a block the topic does not have goes to the top of that topic.
+// turned into markup. A link to a topic that is not published is shown as plain text, and a link to a block the
+// topic does not have goes to the top of that topic. A topic that has a chapter in the video course (videos/index.ts)
+// links it under its title, and the home has a strip for the course; the course pages link the guide back.
 import { escapeHtml } from '../src/http'
 import { ICONS as SITE_ICONS, jsonForScript } from '../src/pages/landing'
 import { langPath, sellerWa, shell, type PageAssets } from '../src/pages/legal'
 import { DEFAULT_SETTINGS, type Lang, type SiteSettings } from '../src/types'
+import { CHAPTERS } from '../videos/index'
 import type { BiList, GuideBlock, GuideShot, GuideTopic } from './types'
 
 export const GUIDE_PATH = '/guide'
@@ -69,6 +71,8 @@ const T = {
     soon: 'الصورة قيد الإعداد',
     help: 'تحتاج مساعدة؟', helpText: 'إن لم تجد جوابك هنا، راسلنا على واتساب وسنساعدك.', whatsapp: 'واتساب',
     helpHome: 'لم تجد ما تبحث عنه؟', helpHomeText: 'اكتب لنا سؤالك على واتساب، وسنرشدك خطوة بخطوة.',
+    watch: 'شاهد هذا الموضوع بالفيديو',
+    videosTitle: 'تفضّل المشاهدة؟', videosText: 'الفيديوهات التعليمية تشرح الموضوعات نفسها بتسجيلات من البرنامج، فصلاً فصلاً.', videosBtn: 'الفيديوهات التعليمية',
     wa: 'مرحباً، لدي سؤال عن Dentora بخصوص «{title}» في دليل الاستخدام.', waHome: 'مرحباً، لدي سؤال عن برنامج Dentora.',
     sectionsCount: ['قسم واحد', 'قسمان', 'أقسام', 'قسماً'],
   },
@@ -90,6 +94,8 @@ const T = {
     soon: 'Picture coming soon',
     help: 'Need help?', helpText: 'If you did not find your answer here, message us on WhatsApp and we will help.', whatsapp: 'WhatsApp',
     helpHome: 'Did not find what you need?', helpHomeText: 'Send us your question on WhatsApp and we will guide you step by step.',
+    watch: 'Watch this topic on video',
+    videosTitle: 'Prefer watching?', videosText: 'The video course covers the same topics with recordings of the app, chapter by chapter.', videosBtn: 'Video course',
     wa: 'Hello, I have a question about Dentora: “{title}” in the user guide.', waHome: 'Hello, I have a question about Dentora.',
     sectionsCount: ['1 section', '', '', '{n} sections'],
   },
@@ -160,6 +166,7 @@ const ICONS: Record<string, string> = {
   circleHelp: '<circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><path d="M12 17h.01"/>',
   messageCircleQuestion: '<path d="M2.992 16.342a2 2 0 0 1 .094 1.167l-1.065 3.29a1 1 0 0 0 1.236 1.168l3.413-.998a2 2 0 0 1 1.099.092 10 10 0 1 0-4.777-4.719"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><path d="M12 17h.01"/>',
   lifeBuoy: '<circle cx="12" cy="12" r="10"/><path d="m4.93 4.93 4.24 4.24"/><path d="m14.83 9.17 4.24-4.24"/><path d="m14.83 14.83 4.24 4.24"/><path d="m9.17 14.83-4.24 4.24"/><circle cx="12" cy="12" r="4"/>',
+  playCircle: '<circle cx="12" cy="12" r="10"/><path d="m10 8 6 4-6 4z"/>',
   bookOpen: '<path d="M12 5v16"/><path d="M20.001 19A2 2 0 0022 17V5a2 2 0 00-1.999-2L16 3.002A5 5 0 0012 5a5 5 0 00-4-2H4a2 2 0 00-2 2v12a2 2 0 001.999 2H8a5 5 0 014 2 5 5 0 014-2z"/>',
   info: '<circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/>',
   bell: '<path d="M10.268 21a2 2 0 0 0 3.464 0"/><path d="M3.262 15.326A1 1 0 0 0 4 17h16a1 1 0 0 0 .74-1.673C19.41 13.956 18 12.499 18 8A6 6 0 0 0 6 8c0 4.499-1.411 5.956-2.738 7.326"/>',
@@ -325,6 +332,8 @@ function breadcrumbs(origin: string, lang: Lang, items: { name: string; path: st
 const publisher = (origin: string) => ({ '@type': 'Organization', name: 'Dentora', url: `${origin}/`, logo: { '@type': 'ImageObject', url: `${origin}/icon-512.png` } })
 
 const byOrder = (topics: readonly GuideTopic[]) => [...topics].filter(t => t && typeof t.slug === 'string' && ID.test(t.slug)).sort((a, b) => a.order - b.order)
+/** The chapter of the video course that covers a topic, if the course has one (videos/index.ts). */
+const chapterOf = (slug: string) => CHAPTERS.find(c => c.guide === slug)
 const list = (l: BiList | undefined, lang: Lang): string[] => (Array.isArray(l?.[lang]) ? l[lang].filter(x => typeof x === 'string' && x.trim()) : [])
 
 // ---- the guide's home ----------------------------------------------------------------------------------------------
@@ -386,6 +395,11 @@ ${secs ? `<div class="gd-card-secs" hidden><p class="gd-card-secs-k">${t.matches
 ${cards}
 </ol>
 <p class="gd-empty" hidden>${icons.use('circleHelp')}<span>${t.noResults}</span></p>
+<aside class="gd-videos" aria-labelledby="gd-videos-title">
+<span class="gd-videos-icon">${icons.use('playCircle')}</span>
+<div class="gd-videos-body"><h2 id="gd-videos-title">${t.videosTitle}</h2><p>${t.videosText}</p></div>
+<a class="btn btn-outline legal-btn legal-btn-ghost gd-videos-btn" href="${escapeHtml(langPath('/videos', lang))}">${icons.use('playCircle')}<span>${t.videosBtn}</span></a>
+</aside>
 ${helpBox(lang, s, t.helpHome, t.helpHomeText, t.waHome, icons)}
 </div>
 </main>`
@@ -504,6 +518,7 @@ export function renderGuideTopic(
   const path = `${GUIDE_PATH}/${topic.slug}`
   const url = `${origin}${langPath(path, lang)}`
   const title = plainText(topic.title[lang]), summary = plainText(topic.summary[lang])
+  const chapter = chapterOf(topic.slug)
 
   const tocItems = blocks.map(b => `<li><a href="#${b.id}">${escapeHtml(plainText(b.title?.[lang] ?? ''))}</a></li>`).join('')
   const toc = `<ol class="gd-toc-list">${tocItems}</ol>`
@@ -543,6 +558,7 @@ export function renderGuideTopic(
 <span class="gd-head-icon">${icons.use(topic.icon)}</span>
 <h1>${escapeHtml(title)}</h1>
 <p class="gd-lead">${inlineMarkup(topic.summary[lang], lang, ctx.targets, ctx.slug)}</p>
+${chapter ? `<a class="gd-watch" href="${escapeHtml(langPath(`/videos/${chapter.slug}`, lang))}">${icons.use('playCircle')}<span>${t.watch}</span></a>` : ''}
 </header>
 ${blocks.length ? `<details class="gd-toc-m"><summary>${icons.use('list')}<span>${t.inPage}</span>${icons.use('chevronDown', 'gd-chev')}</summary><nav aria-label="${escapeHtml(t.inPage)}">${toc}</nav></details>` : ''}
 ${html}
@@ -579,10 +595,10 @@ export function guideSitemapXml(origin: string, topics: readonly GuideTopic[]): 
 }
 
 // ---- checks of the topics (the preview and the test print them; nothing here stops a page from rendering) ---------
-/** Topics that may be linked before they exist (written later). */
-export const PLANNED_TOPICS: readonly string[] = ['licence', 'faq']
+/** Topics that may be linked before they exist (written later); none today: every planned topic is written. */
+export const PLANNED_TOPICS: readonly string[] = []
 /** Ids the page itself uses: a block must not take one of them. */
-const RESERVED = new Set(['main', 'gd-q', 'gd-status', 'gd-cards', 'gd-topics-title', 'gd-help-title'])
+const RESERVED = new Set(['main', 'gd-q', 'gd-status', 'gd-cards', 'gd-topics-title', 'gd-help-title', 'gd-videos-title'])
 
 /** Problems in the topics' data: duplicate or bad ids, missing shots, links to nothing, ar/en lists of unequal length. */
 export function guideProblems(topics: readonly GuideTopic[], images?: GuideImages | null): string[] {

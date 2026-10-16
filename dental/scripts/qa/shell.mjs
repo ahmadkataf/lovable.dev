@@ -5,11 +5,14 @@
 //   - dialogs on a touch screen focus themselves (no on-screen keyboard), with a mouse the first field;
 //   - the licence screen when the Windows/Android shell cannot tell the device id (an error and "Try again");
 //   - the phone's bottom bar: labels of 12px or more, never cut, at 360 and 390 px, Arabic and English;
-//   - the phone's font size at 130 % (Android's largest setting the app follows): no sideways scrolling.
+//   - the phone's font size at 130 % (Android's largest setting the app follows): no sideways scrolling;
+//   - the collapsed sidebar names its icons with titles and clips nothing, the account menu offers Help (the guide on
+//     the website), the dental-chart toolbar fits a 390 px phone in both languages, and the reset-code box's Arabic
+//     placeholder keeps the app's font (the pasted code alone is monospace).
 //   VITE_QA=1 npx vite build --outDir /tmp/dist-shell
 //   QA_DIST=/tmp/dist-shell QA_PORT=4702 QA_SHOTS=qa-shots/shell node scripts/qa/shell.mjs
 import { chromium } from 'playwright'
-import { BASE, openBrowser, seedAndLogin, shot, startServer } from './lib.mjs'
+import { BASE, openBrowser, seedAndLogin, setSession, shot, startServer } from './lib.mjs'
 
 let failures = 0
 const errors = []
@@ -215,6 +218,64 @@ try {
     ok(/^[0-9A-Z]{4}-[0-9A-Z]{4}$/.test(number.trim()), `${label}: "Try again" reads it and shows the device number (${number.trim()})`)
     ok(await page.evaluate(() => localStorage.getItem('dentora.device.shell')) === 'machine-qa-42', `${label}: the id is remembered for a later failure`)
     await shot(page, `license-2-device-back-${label}`)
+    await browser.close()
+  }
+
+  // ============ the collapsed sidebar and Help in the account menu ============
+  for (const lang of ['ar', 'en']) {
+    const { browser, page } = await openBrowser({ lang })
+    watch(page)
+    await seedAndLogin(page, { lang })
+    await page.click('.collapse-btn'); await settle(page, 500)
+    const rail = await page.evaluate(() => {
+      const items = [...document.querySelectorAll('.app-sidebar .nav-item')]
+      const shown = [...document.querySelectorAll('.app-sidebar .nav-label')].filter(l => l.getClientRects().length > 0).length
+      return { width: Math.round(document.querySelector('.app-sidebar').getBoundingClientRect().width), shown, items: items.length, titled: items.filter(i => i.title).length, cut: items.filter(i => i.scrollWidth > i.clientWidth + 1).length }
+    })
+    ok(rail.shown === 0 && rail.cut === 0, `${lang}: the collapsed rail (${rail.width}px) shows no label and clips nothing`)
+    ok(rail.titled === rail.items, `${lang}: every collapsed item carries its name as a title (${rail.titled}/${rail.items})`)
+    await page.hover('.app-sidebar .nav-item >> nth=2'); await settle(page, 300)
+    await shot(page, `rail-${lang}-collapsed`)
+    await page.click('.collapse-btn'); await settle(page, 400)
+    ok(await page.evaluate(() => [...document.querySelectorAll('.app-sidebar .nav-item')].every(i => !i.title)), `${lang}: the expanded sidebar has no titles (the labels are back)`)
+    await page.click('.sidebar-user')
+    const help = page.locator('.menu[role=menu] [role=menuitem]', { hasText: lang === 'ar' ? 'مساعدة' : 'Help' })
+    ok(await help.count() === 1, `${lang}: the account menu offers Help`)
+    await shot(page, `menu-${lang}-help`)
+    await page.evaluate(() => { window.__qaOpened = []; window.open = u => { window.__qaOpened.push(String(u)); return null } })
+    await help.click(); await settle(page, 200)
+    const url = await page.evaluate(() => window.__qaOpened.join(' '))
+    ok(url === (lang === 'ar' ? 'https://dentora.raqeem.dev/guide' : 'https://dentora.raqeem.dev/en/guide'), `${lang}: Help opens the guide in the app's language (${url})`)
+    await browser.close()
+  }
+
+  // ============ a 390 px phone: the chart toolbar and the reset-code box ============
+  for (const lang of ['ar', 'en']) {
+    const { browser, page } = await openBrowser({ lang, mobile: true, width: 390, height: 844 })
+    watch(page)
+    await seedAndLogin(page, { lang })
+    await addPatient(page)
+    await page.goto(`${BASE}/index.html#/patients/qa-p1?tab=chart`); await settle(page, 1000)
+    const tb = await page.evaluate(() => {
+      const g = document.querySelector('.ch-toolbar-group'); const boxes = [...g.querySelectorAll('button')].map(b => b.getBoundingClientRect())
+      return { inside: boxes.every(b => b.left >= 0 && b.right <= innerWidth + 0.5), cut: [...g.querySelectorAll('.segmented button')].filter(b => b.scrollWidth > b.clientWidth + 1).length, rows: new Set(boxes.map(b => Math.round(b.top))).size }
+    })
+    ok(tb.inside && tb.cut === 0, `${lang} 390px: the chart toolbar fits, no button cut (${tb.rows} row(s) in the dentition group)`)
+    await shot(page, `chart-toolbar-${lang}-390`)
+    // the reset-code box, from the login screen
+    await setSession(page, null)
+    await page.goto(`${BASE}/index.html#/login`); await page.reload()
+    await page.waitForSelector('[data-user=u-admin], [data-qa=forgot]', { timeout: 15000 })
+    if (await page.locator('[data-user=u-admin]').count()) await page.click('[data-user=u-admin]')
+    await page.click('[data-qa=forgot]')
+    await page.click('[data-qa=have-reset-code]')
+    await page.waitForSelector('[data-qa=reset-code]'); await settle(page, 400)
+    const ph = await page.locator('[data-qa=reset-code]').evaluate(t => {
+      const ps = getComputedStyle(t, '::placeholder'), cs = getComputedStyle(t)
+      return { spacing: ps.letterSpacing, mono: /mono|Consolas|Menlo/i.test(ps.fontFamily), codeMono: /mono|Consolas|Menlo/i.test(cs.fontFamily) }
+    })
+    ok((ph.spacing === '0px' || ph.spacing === 'normal') && !ph.mono && ph.codeMono, `${lang} 390px: the reset-code placeholder keeps the app's font and joined letters, the code itself stays monospace (${JSON.stringify(ph)})`)
+    await shot(page, `reset-box-${lang}-390`)
     await browser.close()
   }
 

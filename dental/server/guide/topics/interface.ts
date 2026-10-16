@@ -65,13 +65,13 @@ const topic: GuideTopic = {
       },
       steps: {
         ar: [
-          "لتوسيع مساحة العمل انقر على زر السهم أسفل القائمة (**طيّ القائمة**). تبقى الأيقونات وحدها، وانقر على أي أيقونة لتفتح صفحتها. انقر على السهم مرة أخرى لتوسيع القائمة.",
-          "انقر على اسمك أسفل القائمة لتفتح قائمة حسابك، وفيها **الإعدادات**.",
+          "لتوسيع مساحة العمل انقر على زر السهم أسفل القائمة (**طيّ القائمة**). تبقى الأيقونات وحدها، ويظهر اسم الصفحة حين تمرّر المؤشر فوق أيقونتها، وانقر على أي أيقونة لتفتح صفحتها. انقر على السهم مرة أخرى لتوسيع القائمة.",
+          "انقر على اسمك أسفل القائمة لتفتح قائمة حسابك، وفيها **الإعدادات** و**مساعدة** (تفتح دليل الاستخدام هذا على موقع Dentora في المتصفح).",
           "اختر **قفل الشاشة** حين تبتعد عن الجهاز، أو **تسجيل الخروج** حين تنهي عملك. يعود البرنامج في الحالتين إلى شاشة الدخول، فيدخل كل شخص برمزه.",
         ],
         en: [
-          "For more room, click the arrow button at the bottom of the sidebar (**Collapse menu**). Only the icons stay; click an icon to open its page. Click the arrow again to expand the sidebar.",
-          "Click your name at the bottom of the sidebar to open your account menu, which also has **Settings**.",
+          "For more room, click the arrow button at the bottom of the sidebar (**Collapse menu**). Only the icons stay (hover one and its name appears); click an icon to open its page. Click the arrow again to expand the sidebar.",
+          "Click your name at the bottom of the sidebar to open your account menu, which also has **Settings** and **Help** (it opens this guide on Dentora’s website in your browser).",
           "Choose **Lock screen** when you step away, or **Sign out** when you finish. Either way Dentora returns to the sign-in screen, and each person signs in with their own PIN.",
         ],
       },
@@ -317,7 +317,7 @@ const topic: GuideTopic = {
     {
       id: 'interface-user-menu',
       device: 'desktop',
-      alt: { ar: 'قائمة الحساب مفتوحة أسفل القائمة الجانبية: الإعدادات وقفل الشاشة وتسجيل الخروج', en: 'The account menu open at the bottom of the sidebar: Settings, Lock screen and Sign out' },
+      alt: { ar: 'قائمة الحساب مفتوحة أسفل القائمة الجانبية: الإعدادات ومساعدة وقفل الشاشة وتسجيل الخروج', en: 'The account menu open at the bottom of the sidebar: Settings, Help, Lock screen and Sign out' },
       recipe: `${DEMO} Desktop window (1440×900). Open #/ and click the user card at the bottom of the sidebar (.sidebar-user): the menu opens above it. Crop: the sidebar (.app-sidebar) from the Management group down to its bottom edge. Markers: 1 on the collapse arrow (.collapse-btn), 2 on the user card, 3 on Lock screen in the menu.`,
     },
     {

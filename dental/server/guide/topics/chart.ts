@@ -273,7 +273,7 @@ const topic: GuideTopic = {
       id: 'chart-phone',
       device: 'phone',
       alt: { ar: 'مخطط الأسنان على الهاتف مكبّراً، مع أزرار التحديد والرسم السريع والإطباق والسجل والطباعة والعدسة', en: 'The dental chart on a phone, zoomed in, with the select, quick paint, dentition, history, print and zoom buttons' },
-      recipe: `${PHONE} Open ${P19} at #/patients/<id>?tab=chart (zoom left at its default, on). Scroll so the chart card (.ch-card) sits just under the top bar (as the phone "chart" screen of shoot.mjs). English shot: a 440×952 phone, because at 390 px the English toolbar cuts off the Fit to screen button (an app layout issue); Arabic fits at 390. Capture the whole screen. No markers.`,
+      recipe: `${PHONE} Open ${P19} at #/patients/<id>?tab=chart (zoom left at its default, on). Scroll so the chart card (.ch-card) sits just under the top bar (as the phone "chart" screen of shoot.mjs). Both languages at 390 px (in English the history, print and zoom buttons wrap to a row of their own under the dentition buttons). Capture the whole screen. No markers.`,
     },
     {
       id: 'chart-phone-tooth',

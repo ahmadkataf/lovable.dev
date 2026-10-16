@@ -27,16 +27,16 @@ export const chapter = {
     {
       id: 'intro',
       say: {
-        ar: 'في هذا الفصل ستتعلم كيف تحجز المواعيد بنقرة، وتتابع كل مريض من وصوله حتى نهاية زيارته، وتذكّره بموعده عبر واتساب.',
-        en: 'In this chapter you will learn to book appointments with a click, follow each patient from arrival to the end of the visit, and send WhatsApp reminders.',
+        ar: 'في هذا الفصل ستتعلم كيف تحجز المواعيد بنقرة، وتتابع كل زيارة خطوة بخطوة، وتذكّر المريض بموعده عبر واتساب.',
+        en: 'In this chapter you will learn to book appointments with a click, follow each visit step by step, and send WhatsApp reminders.',
       },
       run: async ({ page, ui }) => { await ui.moveTo(page.locator('.app-sidebar').getByRole('link', { name: rx('المواعيد', 'Appointments') })); await ui.pause(500) },
     },
     {
       id: 'open',
       say: {
-        ar: 'افتح «المواعيد» من القائمة الجانبية. يفتح التقويم على اليوم في عرض «يوم»: عمود لكل طبيب، والمواعيد بطاقات بطول مدتها، وخط أحمر عند الوقت الآن.',
-        en: 'Open Appointments from the sidebar. The calendar opens on today in Day view: a column for each doctor, appointments as cards as long as they last, and a red line at the current time.',
+        ar: 'افتح «المواعيد» من القائمة الجانبية. يفتح التقويم على اليوم في عرض «يوم»: عمود لكل طبيب، والمواعيد بطاقات، وخط أحمر عند الوقت الآن.',
+        en: 'Open Appointments from the sidebar. The calendar opens on today in Day view: a column for each doctor, appointments as cards, and a red line at the current time.',
       },
       run: async ({ page, ui }) => {
         await ui.click(page.locator('.app-sidebar').getByRole('link', { name: rx('المواعيد', 'Appointments') }))
@@ -49,16 +49,16 @@ export const chapter = {
     {
       id: 'card',
       say: {
-        ar: 'لون البطاقة الخفيف هو لون الطبيب، وشريطها الجانبي ورمزها الصغير يدلّان على حالة الموعد. وانقر على أي موعد لترى تفاصيله.',
-        en: 'A card is tinted in the doctor’s colour; its side stripe and small icon show the status. Click any appointment to see its details.',
+        ar: 'لون البطاقة هو لون الطبيب، وشريطها الجانبي ورمزها الصغير يدلّان على حالة الموعد.',
+        en: 'A card is tinted in the doctor’s colour; its side stripe and small icon show the status of the appointment.',
       },
       run: async ({ page, ui }) => { await ui.moveTo(card(page, /ريم مراد|Reem Murad/)); await ui.highlight(card(page, /ريم مراد|Reem Murad/), 2400) },
     },
     {
       id: 'views',
       say: {
-        ar: 'اختر العرض بالأزرار «يوم» و«أسبوع» و«شهر» و«قائمة». يعرض الأسبوع سبعة أيام تبدأ بالسبت، ويعرض الشهر أول ثلاثة مواعيد في كل يوم.',
-        en: 'Switch views with Day, Week, Month and Agenda. The week shows seven days starting on Saturday, and the month shows the first three appointments of each day.',
+        ar: 'اختر العرض بالأزرار «يوم» و«أسبوع» و«شهر» و«قائمة». يبدأ الأسبوع بالسبت، ويعرض الشهر أول ثلاثة مواعيد في كل يوم.',
+        en: 'Switch views with Day, Week, Month and Agenda. The week starts on Saturday, and the month shows the first three appointments of each day.',
       },
       run: async ({ page, ui }) => {
         await ui.click(page.locator('.apt-views').getByRole('tab', { name: rx('أسبوع', 'Week') }))
@@ -71,8 +71,8 @@ export const chapter = {
     {
       id: 'navigate',
       say: {
-        ar: 'تنقّل بالسهمين يوماً أو أسبوعاً أو شهراً، وعُد بزر «اليوم»، أو اختر أي تاريخ من خانة التاريخ. ولنعد إلى عرض «يوم».',
-        en: 'Move a day, week or month with the arrows, come back with Today, or pick any date in the date box. Let us go back to Day view.',
+        ar: 'تنقّل بالسهمين، وعُد بزر «اليوم»، أو اختر أي تاريخ من خانة التاريخ. ولنعد إلى عرض «يوم».',
+        en: 'Move with the arrows, come back with Today, or pick any date in the date box. Let us go back to Day view.',
       },
       run: async ({ page, ui }) => {
         await ui.click(page.locator('.apt-nav').getByRole('button', { name: rx('التالي', 'Next') }))
@@ -94,8 +94,8 @@ export const chapter = {
     {
       id: 'status-filter',
       say: {
-        ar: 'واعرض المواعيد حسب حالتها من زر «كل الحالات»: «الفعّالة فقط» تُخفي الملغاة ومواعيد من لم يحضر، أو اختر حالة واحدة.',
-        en: 'Filter by status from the All statuses button: Active only hides cancelled appointments and no-shows, or pick a single status.',
+        ar: 'واعرض المواعيد حسب حالتها من زر «كل الحالات»، فـ«الفعّالة فقط» تُخفي الملغاة ومواعيد من لم يحضر.',
+        en: 'Filter by status from the All statuses button: Active only hides cancelled appointments and no-shows.',
       },
       run: async ({ page, ui }) => {
         await ui.click(page.locator('.apt-filters').getByRole('button', { name: /كل الحالات|All statuses/ }))
@@ -105,8 +105,8 @@ export const chapter = {
     {
       id: 'slot',
       say: {
-        ar: 'أسرع طريقة للحجز أن تنقر على وقت فارغ في عمود الطبيب، فيُملأ الطبيب والتاريخ والوقت تلقائياً. أو انقر على «موعد جديد».',
-        en: 'The quickest way to book is to click a free time in the doctor’s column: the doctor, date and time are filled in for you. Or click New appointment.',
+        ar: 'أسرع طريقة للحجز أن تنقر على وقت فارغ في عمود الطبيب، فيُملأ الطبيب والتاريخ والوقت تلقائياً.',
+        en: 'The quickest way to book is to click a free time in the doctor’s column: the doctor, date and time are filled in for you.',
       },
       run: async ({ page, ui }) => {
         const col = await doctorColumn(page, /سامر عبود|Samer Abboud/)
@@ -118,8 +118,8 @@ export const chapter = {
     {
       id: 'patient',
       say: {
-        ar: 'في خانة «المريض» اكتب جزءاً من الاسم أو رقم الملف أو الهاتف. ولمريض جديد اختر «إضافة مريض جديد» في آخر القائمة: الاسم والهاتف يكفيان الآن.',
-        en: 'In Patient, type part of the name, file number or phone. For someone new choose Add a new patient at the end of the list: a name and phone are enough for now.',
+        ar: 'في خانة «المريض» اكتب جزءاً من الاسم أو رقم الملف أو الهاتف. ولمريض جديد اختر إضافة الاسم كمريض جديد من آخر القائمة: الاسم والهاتف يكفيان الآن.',
+        en: 'In Patient, type part of the name, file number or phone. For someone new, choose Add as a new patient at the end of the list: a name and phone are enough for now.',
       },
       run: async ({ page, ui, lang }) => {
         await ui.type(dialog(page).locator('.apt-picker input'), L(lang, 'لمى', 'Lama'), { delay: 130 })
@@ -131,8 +131,8 @@ export const chapter = {
     {
       id: 'pick',
       say: {
-        ar: 'اختر المريض من القائمة، ثم تحقق من «الطبيب» و«التاريخ» و«وقت البدء»، فقد مُلئت من الوقت الذي نقرت عليه.',
-        en: 'Pick the patient from the list, then check the Doctor, Date and Start time, filled in from the slot you clicked.',
+        ar: 'اختر المريض من القائمة، ثم تحقق من «الطبيب» و«التاريخ» و«وقت البدء».',
+        en: 'Pick the patient from the list, then check the Doctor, Date and Start time.',
       },
       run: async ({ page, ui }) => {
         await ui.click(page.getByRole('option', { name: /لمى مازن|Lama Mazen/ }))
@@ -144,8 +144,8 @@ export const chapter = {
     {
       id: 'reason',
       say: {
-        ar: 'اختر «المدة» فيظهر تحتها وقت الانتهاء، ثم «النوع»، واكتب «سبب الزيارة»، وأضف «ملاحظات» للطبيب أو للاستقبال إن شئت.',
-        en: 'Choose the Duration, the end time shows under it, then the Type, write the Reason for visit, and add Notes for the doctor or the front desk if you like.',
+        ar: 'اختر «المدة» فيظهر تحتها وقت الانتهاء، ثم «النوع»، واكتب «سبب الزيارة».',
+        en: 'Choose the Duration, the end time shows under it, then the Type, and write the Reason for visit.',
       },
       run: async ({ page, ui, lang }) => {
         await ui.highlight(dialog(page).getByLabel(rx('المدة', 'Duration')), 1200)
@@ -155,8 +155,8 @@ export const chapter = {
     {
       id: 'conflict',
       say: {
-        ar: 'تكتب قائمة الأوقات «محجوز» بجانب المشغول منها، وتستطيع كتابة أي وقت آخر في الخانة المجاورة. لو كتبت 11:30 وللطبيب موعد في ذلك الوقت ظهر تنبيه «تعارض في الجدول» مع المواعيد المتداخلة، دون أن يمنعك من الحفظ.',
-        en: 'The time list marks the taken slots as booked, and you can type any other time in the box next to it. Type 11:30 while the doctor already has an appointment then, and a Scheduling conflict warning lists the overlapping ones, without stopping you.',
+        ar: 'تستطيع كتابة أي وقت في الخانة المجاورة لقائمة الأوقات. لو كتبت 11:30 وللطبيب موعد آخر حينها، ظهر تنبيه «تعارض في الجدول» مع المواعيد المتداخلة، دون أن يمنعك من الحفظ.',
+        en: 'You can type any time in the box next to the time list. Type 11:30 while the doctor already has an appointment then, and a Scheduling conflict warning lists the overlapping ones, without stopping you.',
       },
       run: async ({ page, ui }) => {
         // the hours segment of the time box is at its start: a click there, then the digits (ui.type would click its
@@ -172,12 +172,13 @@ export const chapter = {
     {
       id: 'next-free',
       say: {
-        ar: 'انقر على «أقرب وقت متاح» لينقل دنتورا الموعد إلى أول وقت فارغ للطبيب في اليوم نفسه، أو اختر وقتاً آخر بنفسك، أو احفظ رغم التنبيه إن كان التداخل مقصوداً.',
-        en: 'Click Next free to move the appointment to the doctor’s first free time on the same day, choose another time yourself, or save anyway if the overlap is intended.',
+        ar: 'انقر على «أقرب وقت متاح» لينقل دنتورا الموعد إلى أول وقت فارغ للطبيب في اليوم نفسه، أو احفظ رغم التنبيه إن كان التداخل مقصوداً.',
+        en: 'Click Next free to move the appointment to the doctor’s first free time on the same day, or save anyway if the overlap is intended.',
       },
       run: async ({ page, ui }) => {
         await ui.click(dialog(page).locator('.apt-conflict').getByRole('button', { name: /أقرب وقت متاح|Next free/ }))
         await dialog(page).locator('.apt-conflict').waitFor({ state: 'hidden' })
+        await ui.moveTo(dialog(page).getByLabel(rx('وقت البدء', 'Start time')))
         await ui.highlight(dialog(page).getByLabel(rx('وقت البدء', 'Start time')), 1600)
       },
     },
@@ -194,8 +195,8 @@ export const chapter = {
     {
       id: 'details',
       say: {
-        ar: 'في يوم الزيارة انقر على الموعد لتفتح «تفاصيل الموعد»: المريض والطبيب والوقت والمدة والنوع والسبب، وزرّا الاتصال وواتساب.',
-        en: 'On the day, click the appointment to open Appointment details: patient, doctor, time, length, type and reason, with the call and WhatsApp buttons.',
+        ar: 'في يوم الزيارة انقر على الموعد لتفتح «تفاصيل الموعد»: المريض والطبيب والوقت والسبب، وزرّا الاتصال وواتساب.',
+        en: 'On the day, click the appointment to open Appointment details: patient, doctor, time and reason, with the call and WhatsApp buttons.',
       },
       run: async ({ page, ui }) => {
         await ui.click(card(page, /شربل غسان|Charbel Ghassan/))
@@ -206,8 +207,8 @@ export const chapter = {
     {
       id: 'status',
       say: {
-        ar: 'تحت «تحديث الحالة» انقر على الخطوة التالية: «تأكيد الموعد» بعد التواصل مع المريض، ثم «وصل المريض» عند حضوره، و«بدء المعالجة»، و«إنهاء الزيارة» في آخرها.',
-        en: 'Under Update status, click the next step: Confirm once you have spoken to the patient, then Mark arrived when they come in, Start treatment, and Complete visit at the end.',
+        ar: 'تحت «تحديث الحالة» انقر على الخطوة التالية: «تأكيد الموعد» بعد التواصل مع المريض، ثم «وصل المريض»، و«بدء المعالجة»، و«إنهاء الزيارة».',
+        en: 'Under Update status, click the next step: Confirm once you have spoken to the patient, then Mark arrived, Start treatment, and Complete visit.',
       },
       run: async ({ page, ui }) => {
         await ui.click(details(page).locator('.apt-act-confirmed'))
@@ -218,16 +219,16 @@ export const chapter = {
     {
       id: 'no-show',
       say: {
-        ar: 'وللمواعيد التي لم تتم اختر «إلغاء الموعد» أو «لم يحضر»، وإن غيّرت رأيك فاختر «إعادة فتح الموعد». وإنهاء الزيارة يحدّث «آخر زيارة» في ملف المريض.',
-        en: 'For appointments that did not happen choose Cancel appointment or No-show; if you change your mind, choose Reopen. Completing a visit updates the Last visit in the patient’s file.',
+        ar: 'وللمواعيد التي لم تتم اختر «إلغاء الموعد» أو «لم يحضر». وإنهاء الزيارة يحدّث «آخر زيارة» في ملف المريض.',
+        en: 'For appointments that did not happen choose Cancel appointment or No-show. Completing a visit updates the Last visit in the patient’s file.',
       },
       run: async ({ page, ui }) => { await ui.moveTo(details(page).locator('.apt-act-no_show')); await ui.highlight(details(page).locator('.apt-act-no_show'), 2000) },
     },
     {
       id: 'reminder',
       say: {
-        ar: 'لموعد قادم حالته مجدول أو مؤكد انقر على «تذكير عبر واتساب»: يُفتح واتساب على محادثة المريض والرسالة مكتوبة فيها اسمه واسم العيادة ويوم الموعد وساعته. راجعها ثم اضغط إرسال.',
-        en: 'For an upcoming appointment that is Scheduled or Confirmed, click WhatsApp reminder: WhatsApp opens on the patient’s chat with the message written, with their name, the clinic, the day and the time. Check it, then press send.',
+        ar: 'لموعد قادم انقر على «تذكير عبر واتساب»: يُفتح واتساب على محادثة المريض والرسالة مكتوبة فيها اسمه ويوم الموعد وساعته. راجعها ثم اضغط إرسال.',
+        en: 'For an upcoming appointment, click WhatsApp reminder: WhatsApp opens on the patient’s chat with the message written, with their name and the day and time. Check it, then press send.',
       },
       run: async ({ page, ui }) => {
         await ui.scrollTo(details(page).locator('.apt-remind'))
@@ -238,8 +239,8 @@ export const chapter = {
     {
       id: 'edit',
       say: {
-        ar: 'لتعديل الموعد أو نقله انقر على «تعديل»، غيّر التاريخ أو الوقت أو الطبيب، ثم «حفظ التغييرات». وللحذف انقر على «حذف» ثم أكّد، والحذف نهائي؛ فالأفضل تغيير الحالة إلى ملغى أو لم يحضر.',
-        en: 'To edit or move an appointment click Edit, change the date, time or doctor, then Save changes. To delete, click Delete and confirm; deleting is permanent, so setting the status to Cancelled or No-show is usually better.',
+        ar: 'لتعديل الموعد أو نقله انقر على «تعديل»، غيّر ما تشاء ثم «حفظ التغييرات». أما «حذف» فنهائي، فالأفضل تغيير الحالة إلى ملغى أو لم يحضر.',
+        en: 'To edit or move an appointment click Edit, change what you need, then Save changes. Delete is permanent, so setting the status to Cancelled or No-show is usually better.',
       },
       run: async ({ page, ui }) => {
         await ui.click(details(page).locator('.modal-footer').getByRole('button', { name: rx('تعديل', 'Edit') }))
@@ -255,8 +256,8 @@ export const chapter = {
     {
       id: 'agenda',
       say: {
-        ar: 'على الحاسوب يعرض عرض «قائمة» مواعيد 14 يوماً، وبجانب كل موعد لم ينتهِ زر خطوته التالية وزر واتساب، فتتابع يوم العمل كله من شاشة واحدة.',
-        en: 'On a computer, Agenda view lists 14 days, with the next-step button and the WhatsApp button next to every unfinished appointment, so you can run the whole working day from one screen.',
+        ar: 'يعرض عرض «قائمة» مواعيد 14 يوماً، وعلى الحاسوب يظهر بجانب كل موعد لم ينتهِ زر خطوته التالية وزر واتساب.',
+        en: 'Agenda view lists 14 days, and on a computer the next-step button and the WhatsApp button sit next to every unfinished appointment.',
       },
       run: async ({ page, ui }) => {
         await ui.click(page.locator('.apt-views').getByRole('tab', { name: rx('قائمة', 'Agenda') }))
@@ -289,11 +290,12 @@ export const chapter = {
     {
       id: 'patient-tab',
       say: {
-        ar: 'يعرض تبويب «المواعيد» في ملف المريض زياراته المكتملة والقادمة ومرات غيابه والملغاة، ثم المواعيد القادمة وأقربها يحمل شارة «الموعد القادم»، ثم «السجل السابق». ومن «موعد جديد» تحجز له مباشرة.',
-        en: 'The Appointments tab of the file shows the completed visits, upcoming ones, no-shows and cancelled ones, then the Upcoming list with the nearest marked Next, then the History. New appointment books for this patient directly.',
+        ar: 'يعرض تبويب «المواعيد» في ملف المريض زياراته المكتملة والقادمة ومرات غيابه، ثم «المواعيد القادمة» و«السجل السابق». ومن «موعد جديد» تحجز له مباشرة.',
+        en: 'The Appointments tab of the file shows the completed visits, upcoming ones and no-shows, then the Upcoming list and the History. New appointment books for this patient directly.',
       },
       run: async ({ page, ui }) => {
-        await ui.click(page.locator('.pt-tabs').getByRole('tab', { name: rx('المواعيد', 'Appointments') }))
+        // the tab's name carries its count ("المواعيد 7"), so no end anchor
+        await ui.click(page.locator('.pt-tabs').getByRole('tab', { name: /^(المواعيد|Appointments)/ }))
         await page.locator('.apt-ptab-stats').waitFor()
         await ui.scrollTo(page.locator('.apt-ptab'), { block: 'start' })
         await ui.highlight(page.locator('.apt-ptab-stats'), 1600)
@@ -303,8 +305,8 @@ export const chapter = {
     {
       id: 'phone',
       say: {
-        ar: 'على الهاتف تُعرض المواعيد بطاقاتٍ بدل الأعمدة، مع شريط أوقات تحت «اضغط على وقت لحجز موعد»، وزر «موعد جديد» عائم أسفل الشاشة.',
-        en: 'On a phone, appointments are shown as cards instead of columns, with a strip of times under Tap a time to book, and a floating New appointment button at the bottom.',
+        ar: 'على الهاتف تُعرض المواعيد بطاقاتٍ بدل الأعمدة، مع شريط أوقات للحجز وزر «موعد جديد» عائم أسفل الشاشة.',
+        en: 'On a phone, appointments are shown as cards instead of columns, with a strip of times to book and a floating New appointment button at the bottom.',
       },
       run: async ({ page, ui }) => { await ui.moveTo(page.locator('.apt-ptab').getByRole('button', { name: rx('موعد جديد', 'New appointment') })); await ui.highlight(page.locator('.apt-ptab-list').first(), 2200) },
     },

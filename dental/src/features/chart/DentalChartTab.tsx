@@ -143,11 +143,13 @@ function ChartTab({ patientId }: { patientId: string }) {
             <div className="ch-toolbar-group">
               <Segmented<Dentition> value={shown} onChange={setDentition}
                 options={(['adult', 'mixed', 'primary'] as Dentition[]).map(d => ({ value: d, label: <span title={d === suggested ? t('chart.suggestedForAge') : undefined}>{t(`chart.dent.${d}`)}{d === suggested && <span className="ch-suggested" aria-hidden="true" />}</span> }))} />
-              <Button variant={showHistory ? 'soft' : 'secondary'} size="sm" icon={<History />} onClick={() => setShowHistory(v => !v)} aria-pressed={showHistory} aria-label={t('chart.history')} title={t('chart.history')}>
-                {!isMobile && t('chart.history')}
-              </Button>
-              <Button variant="secondary" size="sm" icon={<Printer />} onClick={doPrint} disabled={loading} aria-label={t('chart.printChart')} title={t('chart.printChart')}>{!isMobile && t('print')}</Button>
-              {isMobile && <IconButton label={zoom ? t('chart.zoomOut') : t('chart.zoomIn')} variant={zoom ? 'soft' : 'secondary'} size="sm" onClick={() => setZoom(!zoom)} aria-pressed={zoom}>{zoom ? <ZoomOut /> : <ZoomIn />}</IconButton>}
+              <div className="ch-toolbar-btns">
+                <Button variant={showHistory ? 'soft' : 'secondary'} size="sm" icon={<History />} onClick={() => setShowHistory(v => !v)} aria-pressed={showHistory} aria-label={t('chart.history')} title={t('chart.history')}>
+                  {!isMobile && t('chart.history')}
+                </Button>
+                <Button variant="secondary" size="sm" icon={<Printer />} onClick={doPrint} disabled={loading} aria-label={t('chart.printChart')} title={t('chart.printChart')}>{!isMobile && t('print')}</Button>
+                {isMobile && <IconButton label={zoom ? t('chart.zoomOut') : t('chart.zoomIn')} variant={zoom ? 'soft' : 'secondary'} size="sm" onClick={() => setZoom(!zoom)} aria-pressed={zoom}>{zoom ? <ZoomOut /> : <ZoomIn />}</IconButton>}
+              </div>
             </div>
           </div>
         </div>

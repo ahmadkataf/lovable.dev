@@ -108,7 +108,7 @@ describe('text markup', () => {
     expect(inlineMarkup('[x](billing)', 'en', targets)).toBe('<a href="/en/guide/billing">x</a>')
     // a block the topic does not have: the top of the topic
     expect(inlineMarkup('[x](billing#nope)', 'en', targets)).toBe('<a href="/en/guide/billing">x</a>')
-    // a topic not published yet (licence, faq): plain text
+    // a topic not in the list (here the fixture has no licence topic): plain text
     expect(inlineMarkup('[Licence](licence)', 'en', targets)).toBe('<span class="gd-xref">Licence</span>')
     // the page's own topic: its anchor alone
     expect(inlineMarkup('[x](patients#add)', 'en', targets, 'patients')).toBe('<a href="#add">x</a>')
@@ -243,7 +243,8 @@ describe('the pages', () => {
   it('finds what is wrong in the data', () => {
     const p = guideProblems(topics, images)
     expect(p.some(x => x.includes('patients-missing') && x.includes('no ar picture'))).toBe(true)
-    expect(p.some(x => x.includes('licence'))).toBe(false)     // a planned topic may be linked
+    // every planned topic is written now (PLANNED_TOPICS is empty): a link to a topic not in the list is reported
+    expect(p.some(x => x.includes('[الترخيص](licence)') && x.includes('does not exist'))).toBe(true)
     const bad: GuideTopic = { ...billing, slug: 'bad', order: 8, icon: 'nope', blocks: [{ id: 'main', title: { ar: 'أ', en: 'a' }, text: { ar: ['[x](nowhere)', 'b'], en: ['a'] } }] }
     const q = guideProblems([billing, bad])
     for (const s of ["order 8 is also billing's", "unknown icon 'nope'", 'one the page uses itself', 'text has 2 Arabic and 1 English', 'goes to a topic that does not exist']) {

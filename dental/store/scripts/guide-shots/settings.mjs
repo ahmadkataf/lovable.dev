@@ -182,12 +182,19 @@ export const shots = atRest({
     }
   },
 
+  'settings-about-help': async ({ page, helpers }) => {
+    await open(page, helpers, 'about')
+    return {
+      el: page.locator('[data-qa="about-help"]'), pad: 0,
+      markers: [{ n: 2, target: page.locator('[data-qa="about-guide"]') }],
+    }
+  },
   'settings-about': async ({ page, helpers }) => {
     await open(page, helpers, 'about')
     const card = cardWith(page, '[data-qa="about-legal"]')
     return {
       el: card, pad: 0,
-      markers: [{ n: 2, target: page.locator('[data-qa="about-privacy"]') }],
+      markers: [{ n: 3, target: page.locator('[data-qa="about-privacy"]') }],
     }
   },
 })

@@ -157,7 +157,7 @@ const topic: GuideTopic = {
         ar: [
           "تُقترح نسبة الضريبة تلقائياً على كل فاتورة جديدة، ويمكن تغييرها في الفاتورة نفسها. ولا تتغير الفواتير الصادرة سابقاً.",
           "لا يقبل البرنامج رقماً للفاتورة التالية يساوي آخر فاتورة صادرة بالبادئة نفسها أو يقل عنها، حتى لا تتكرر الأرقام (البادئة الجديدة تبدأ سلسلة جديدة). والأمر نفسه لرقم ملف المريض.",
-          "البادئة أحرف لاتينية وأرقام والرموز - و/ و_ فقط، حتى 10 خانات.",
+          "البادئة أحرف لاتينية وأرقام والرموز - و/ و_ و. و# فقط، حتى 10 خانات.",
           "إن تركت تذييل الوصفة فارغاً يُطبع نص افتراضي يتمنى للمريض الشفاء ويذكّره بالالتزام بالجرعات.",
           "وإن تركت تذييل الفاتورة فارغاً يُطبع سطر شكر افتراضي: «شكراً لثقتكم بنا، نتمنى لكم دوام الصحة والابتسامة.» ويُطبع تذييل الفاتورة أيضاً أسفل كشف الحساب.",
           "تفاصيل الفواتير وطباعتها في [الفواتير والمدفوعات](billing).",
@@ -165,7 +165,7 @@ const topic: GuideTopic = {
         en: [
           "The tax rate is filled in on every new invoice and can still be changed on the invoice itself. Invoices already issued do not change.",
           "Dentora does not accept a next invoice number equal to or below the last invoice issued with the same prefix, so numbers never repeat (a new prefix starts a new series). The same goes for the patient file number.",
-          "The prefix takes Latin letters, digits and the signs - / _ only, up to 10 characters.",
+          "The prefix takes Latin letters, digits and the signs - / _ . # only, up to 10 characters.",
           "If you leave the prescription footer empty, a default text is printed wishing the patient a speedy recovery and reminding them to follow the doses.",
           "If you leave the invoice footer empty, a default thank-you line is printed: “Thank you for trusting us. We wish you lasting health and a bright smile.” The invoice footer is also printed on account statements.",
           "Invoices and how to print them: [Invoices and payments](billing).",
@@ -286,16 +286,18 @@ const topic: GuideTopic = {
       id: 'about',
       title: { ar: 'حول البرنامج', en: 'About' },
       text: {
-        ar: ["يعرض **حول البرنامج** رقم إصدار Dentora، والمنصة التي يعمل عليها (ويندوز أو أندرويد)، ومكان البيانات، و**رقم الجهاز**. وفيه أيضاً ملخص ميزات البرنامج و**اختصارات لوحة المفاتيح**."],
-        en: ["**About** shows your Dentora version, the platform it runs on (Windows or Android), where the data is kept, and the **Device number**. It also lists what Dentora does and the **Keyboard shortcuts**."],
+        ar: ["يعرض **حول البرنامج** رقم إصدار Dentora، والمنصة التي يعمل عليها (ويندوز أو أندرويد)، ومكان البيانات، و**رقم الجهاز**. وفيه بطاقة **مساعدة** تفتح **دليل الاستخدام** (هذا الدليل) و**الفيديوهات التعليمية** على موقع Dentora، وملخص ميزات البرنامج و**اختصارات لوحة المفاتيح**."],
+        en: ["**About** shows your Dentora version, the platform it runs on (Windows or Android), where the data is kept, and the **Device number**. Its **Help** card opens the **User guide** (this guide) and the **Video tutorials** on Dentora’s website, and it also lists what Dentora does and the **Keyboard shortcuts**."],
       },
       steps: {
         ar: [
           "افتح **الإعدادات** ← **حول البرنامج**.",
+          "في **مساعدة** انقر على **دليل الاستخدام** أو **الفيديوهات التعليمية**: تُفتح الصفحة في المتصفح، فيلزم اتصال بالإنترنت.",
           "في **الخصوصية والشروط** انقر على **سياسة الخصوصية** أو **شروط الاستخدام** أو **تراخيص المصادر المفتوحة** لقراءتها.",
         ],
         en: [
           "Open **Settings** → **About**.",
+          "Under **Help** click **User guide** or **Video tutorials**: the page opens in your browser, so you need the internet.",
           "Under **Privacy & terms** click **Privacy policy**, **Terms of use** or **Open-source licences** to read them.",
         ],
       },
@@ -311,7 +313,7 @@ const topic: GuideTopic = {
           "Under **Terms of use** you can see the date the clinic accepted them.",
         ],
       },
-      shots: ['settings-about'],
+      shots: ['settings-about-help', 'settings-about'],
     },
   ],
   shots: [
@@ -377,10 +379,16 @@ const topic: GuideTopic = {
       recipe: `${DEMO} Desktop window (1440×900). Open #/settings/preferences and scroll to the Auto-lock card. Crop: that card. Markers: 1 on Lock after inactivity ([data-qa="lock-select"]), 2 on Current setting ([data-qa="lock-current"]).`,
     },
     {
+      id: 'settings-about-help',
+      device: 'desktop',
+      alt: { ar: 'بطاقة المساعدة في حول البرنامج: دليل الاستخدام والفيديوهات التعليمية', en: 'The Help card in About: User guide and Video tutorials' },
+      recipe: `${DEMO} Desktop window (1440×900). Open #/settings/about. Crop: the Help card ([data-qa="about-help"]). Do not include the top card: in a browser build its platform reads “Web browser”. Markers: 2 on User guide ([data-qa="about-guide"]).`,
+    },
+    {
       id: 'settings-about',
       device: 'desktop',
       alt: { ar: 'الخصوصية والشروط في حول البرنامج', en: 'Privacy & terms in About' },
-      recipe: `${DEMO} Desktop window (1440×900). Open #/settings/about. Crop: the Privacy & terms card ([data-qa="about-legal"] is inside it). Do not include the top card: in a browser build its platform reads “Web browser”. Markers: 2 on Privacy policy ([data-qa="about-privacy"]).`,
+      recipe: `${DEMO} Desktop window (1440×900). Open #/settings/about. Crop: the Privacy & terms card ([data-qa="about-legal"] is inside it). Markers: 3 on Privacy policy ([data-qa="about-privacy"]).`,
     },
   ],
 }

@@ -42,6 +42,12 @@ const tab = async (page, id) => {
   await page.waitForSelector(`[data-qa=tab-${id}]`)
   await page.waitForTimeout(400)
 }
+/** What the page tried to open in the browser (the browser build opens the website through window.open). */
+async function opened(page, ...selectors) {
+  await page.evaluate(() => { window.__qaOpened = []; window.open = u => { window.__qaOpened.push(String(u)); return null } })
+  for (const sel of selectors) { await page.click(sel); await page.waitForTimeout(150) }
+  return page.evaluate(() => window.__qaOpened.join(' '))
+}
 const toastText = async page => (await page.locator('.toast').last().textContent({ timeout: 5000 }).catch(() => '')) || ''
 const cli = (...args) => execFileSync('node', ['scripts/code-generator.mjs', ...args], { cwd: ROOT, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim()
 
@@ -139,6 +145,13 @@ try {
     await page.click('[data-qa=save]')
     ok((await page.locator('.field-error').allTextContents()).some(s => s.includes('9')), 'billing: next invoice must pass the last issued (9)')
     await snap(page, 'd-ar-3b-billing-errors')
+    await page.fill('[data-qa=prefix]', 'inv@')
+    await page.click('[data-qa=save]')
+    ok((await page.locator('.field-error').allTextContents()).some(s => s.includes('- / _ . #')), 'billing: the prefix message lists every accepted sign (- / _ . #)')
+    await page.fill('[data-qa=prefix]', 'inv.#')
+    await page.click('[data-qa=save]')
+    ok(!(await page.locator('.field-error').allTextContents()).some(s => s.includes('- / _ . #')), 'billing: a prefix with . and # is accepted')
+    await page.fill('[data-qa=prefix]', 'sm-')
     await page.fill('[data-qa=next-invoice]', '10')
     ok((await page.textContent('[data-qa=preview-number]')) === 'SM-000010', 'billing: preview shows SM-000010')
     await page.selectOption('[data-qa=currency]', 'custom')
@@ -204,9 +217,12 @@ try {
       try { await window.__dentora.db.settings.put({ key: 'installedAt', value: new Date().toISOString() }); return false } catch { return true }
     }), 'licence: the trial start cannot be moved later')
 
-    // ---- about ----
+    // ---- about: the help card opens the guide and the videos on the website, in Arabic ----
     await tab(page, 'about')
+    ok(await page.locator('[data-qa=about-help]').count() === 1, 'about: the help card is there')
     await snap(page, 'd-ar-6-about')
+    const help = await opened(page, '[data-qa=about-guide]', '[data-qa=about-videos]')
+    ok(help === 'https://dentora.raqeem.dev/guide https://dentora.raqeem.dev/videos', `about: help opens the Arabic guide and videos (${help})`)
 
     // ---- backup: export → restore → demo → reset ----
     await tab(page, 'backup')
@@ -297,6 +313,8 @@ try {
       await tab(page, id)
       await snap(page, `d-en-${i + 1}-${id}`)
     }
+    const help = await opened(page, '[data-qa=about-guide]', '[data-qa=about-videos]')
+    ok(help === 'https://dentora.raqeem.dev/en/guide https://dentora.raqeem.dev/en/videos', `about: help opens the English guide and videos (${help})`)
     await browser.close()
   }
 

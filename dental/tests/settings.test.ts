@@ -91,6 +91,18 @@ describe('billing settings', () => {
     expect(validateBilling({ ...d, nextInvoiceNumber: 42, nextFileNumber: 121, invoicePrefix: 'فاتورة' }, used).invoicePrefix?.key).toBe('settings.bill.err.prefix')
     expect(validateBilling({ ...withCurrency(d, 'custom'), customCode: 'Y', symbol: 'x', nextInvoiceNumber: 42, nextFileNumber: 121 }, used).customCode?.key).toBe('settings.bill.err.code')
   })
+  it('accepts - / _ . # in the invoice prefix and says so in its message', () => {
+    const d = { ...billingDraftFrom(clinic()), nextInvoiceNumber: 1, nextFileNumber: 1 }
+    const used = { lastInvoiceSeq: 0, lastFileNo: 0 }
+    for (const fine of ['INV-', 'INV.#', 'A/B_C', 'ABCDEFGHIJ', '']) expect(validateBilling({ ...d, invoicePrefix: fine }, used).invoicePrefix, fine).toBeUndefined()
+    for (const bad of ['INV@', 'IN V', 'فاتورة', 'ABCDEFGHIJK']) expect(validateBilling({ ...d, invoicePrefix: bad }, used).invoicePrefix?.key, bad).toBe('settings.bill.err.prefix')
+    // the message (and so the user guide) lists every sign the rule accepts, in both languages
+    for (const lang of ['ar', 'en'] as const) {
+      const msg = translate(lang, 'settings.bill.err.prefix')
+      expect(msg, lang).toContain('- / _ . #')
+      expect(msg, lang).toContain('10')
+    }
+  })
   it('reads invoice sequences per prefix', () => {
     expect(invoiceSeq('INV-000123', 'INV-')).toBe(123)
     expect(invoiceSeq('A-000123', 'INV-')).toBeNull()

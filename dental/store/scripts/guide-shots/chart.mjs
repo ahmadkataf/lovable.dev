@@ -150,11 +150,8 @@ const shotList = {
     return { el: sheet, pad: 24 }
   },
 
-  'chart-phone': async ({ page, helpers, lang }) => {
-    // in English the toolbar (Permanent / Mixed / Primary, History, Print, zoom) needs 369 px where a 390 px phone has
-    // 324: the zoom button is cut off at the card's edge. The English picture is taken on a 440 px wide phone so the
-    // button the text describes shows whole (reported as an app layout issue).
-    if (lang === 'en') await helpers.viewport({ width: 440, height: 952 })
+  'chart-phone': async ({ page, helpers }) => {
+    // both languages on the 390 px phone: in English the history, print and zoom buttons wrap to their own row
     await openChart(page, helpers)
     await helpers.scrollTo(page.locator('.ch-card'))
     return {}

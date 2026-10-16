@@ -2,7 +2,7 @@
 // Static files (public/) are answered by Cloudflare before this runs; the Worker renders the landing page, the legal
 // pages, the key activation page, the user guide (guide/) and the video course pages (videos/), counts downloads,
 // serves the control panel page and the API, and answers everything else with a 404 page. Routes and rules: SPEC.md.
-import { TOPICS, topicBySlug } from '../guide/index'
+import { GUIDE_DATE, TOPICS, topicBySlug } from '../guide/index'
 import { guideSitemapEntries, renderGuideHome, renderGuideTopic, type GuideImages } from '../guide/render'
 import { CHAPTERS, chapterBySlug } from '../videos/index'
 import { renderVideoChapter, renderVideosHome, videoSitemapXml } from '../videos/render'
@@ -120,11 +120,6 @@ const ACTIVATE: Record<string, Lang> = { '/activate': 'ar', '/en/activate': 'en'
 // else under these paths (a file name, upper case) is no page and gets the 404 page.
 const GUIDE_RE = /^(\/en)?\/guide(?:\/([a-z0-9]+(?:-[a-z0-9]+)*))?$/
 const VIDEOS_RE = /^(\/en)?\/videos(?:\/([a-z0-9]+(?:-[a-z0-9]+)*))?$/
-/**
- * The day the guide's text last changed (the <lastmod> of its pages in the sitemap): move it when a topic changes.
- * Not exported: workerd accepts nothing but handlers as named exports of the entry module.
- */
-const GUIDE_DATE = '2026-10-16'
 
 function robots(): string {
   return ['User-agent: *', 'Allow: /', 'Disallow: /admin', 'Disallow: /api/', 'Disallow: /download/', '', `Sitemap: ${ORIGIN}/sitemap.xml`, ''].join('\n')
@@ -142,7 +137,7 @@ function sitemap(): string {
   const both = (path: string): Record<Lang, string> => ({ ar: `${ORIGIN}${langPath(path, 'ar')}`, en: `${ORIGIN}${langPath(path, 'en')}` })
   const urls = [
     ...pages.flatMap(([path, freq, priority, changed]) => (['ar', 'en'] as Lang[]).map(lang => sitemapUrl(`${ORIGIN}${langPath(path, lang)}`, both(path), freq, priority, changed))),
-    // the guide's home and every topic (the renderer lists them in its order), dated by GUIDE_DATE
+    // the guide's home and every topic (the renderer lists them in its order), dated by GUIDE_DATE (guide/index.ts)
     ...guideSitemapEntries(ORIGIN, TOPICS).map(e => sitemapUrl(e.loc, e.alternates, e.changefreq, e.priority, GUIDE_DATE)),
     // the course home and every chapter, as the course renders them (no date: a chapter page changes with its recording)
     videoSitemapXml(ORIGIN, CHAPTERS),

@@ -28,7 +28,7 @@ const common: ModuleDict = {
     'nav.payments': 'المدفوعات', 'nav.prescriptions': 'الوصفات', 'nav.lab': 'المخبر', 'nav.inventory': 'المخزون', 'nav.expenses': 'المصروفات', 'nav.reports': 'التقارير',
     'nav.staff': 'الفريق', 'nav.settings': 'الإعدادات', 'nav.more': 'المزيد', 'nav.clinical': 'العيادة', 'nav.finance': 'المالية', 'nav.management': 'الإدارة', 'nav.license': 'الترخيص', 'nav.search': 'بحث سريع',
     'nav.quickAdd': 'إضافة سريعة', 'nav.newPatient': 'مريض جديد', 'nav.newAppointment': 'موعد جديد', 'nav.newInvoice': 'فاتورة جديدة', 'nav.newPayment': 'دفعة جديدة', 'nav.newExpense': 'مصروف جديد',
-    'nav.lock': 'قفل الشاشة', 'nav.logout': 'تسجيل الخروج', 'nav.profile': 'حسابي', 'nav.notifications': 'التنبيهات', 'nav.collapse': 'طيّ القائمة', 'nav.expand': 'توسيع القائمة',
+    'nav.lock': 'قفل الشاشة', 'nav.logout': 'تسجيل الخروج', 'nav.help': 'مساعدة', 'nav.profile': 'حسابي', 'nav.notifications': 'التنبيهات', 'nav.collapse': 'طيّ القائمة', 'nav.expand': 'توسيع القائمة',
     // roles
     'role.admin': 'مدير', 'role.doctor': 'طبيب', 'role.assistant': 'مساعد', 'role.receptionist': 'استقبال',
     // appointment statuses & types
@@ -96,7 +96,7 @@ const common: ModuleDict = {
     'nav.payments': 'Payments', 'nav.prescriptions': 'Prescriptions', 'nav.lab': 'Lab', 'nav.inventory': 'Inventory', 'nav.expenses': 'Expenses', 'nav.reports': 'Reports',
     'nav.staff': 'Staff', 'nav.settings': 'Settings', 'nav.more': 'More', 'nav.clinical': 'Clinical', 'nav.finance': 'Finance', 'nav.management': 'Management', 'nav.license': 'Licence', 'nav.search': 'Quick search',
     'nav.quickAdd': 'Quick add', 'nav.newPatient': 'New patient', 'nav.newAppointment': 'New appointment', 'nav.newInvoice': 'New invoice', 'nav.newPayment': 'New payment', 'nav.newExpense': 'New expense',
-    'nav.lock': 'Lock screen', 'nav.logout': 'Sign out', 'nav.profile': 'My account', 'nav.notifications': 'Notifications', 'nav.collapse': 'Collapse menu', 'nav.expand': 'Expand menu',
+    'nav.lock': 'Lock screen', 'nav.logout': 'Sign out', 'nav.help': 'Help', 'nav.profile': 'My account', 'nav.notifications': 'Notifications', 'nav.collapse': 'Collapse menu', 'nav.expand': 'Expand menu',
     'role.admin': 'Admin', 'role.doctor': 'Doctor', 'role.assistant': 'Assistant', 'role.receptionist': 'Receptionist',
     'apt.scheduled': 'Scheduled', 'apt.confirmed': 'Confirmed', 'apt.arrived': 'Arrived', 'apt.in_progress': 'In progress', 'apt.completed': 'Completed', 'apt.cancelled': 'Cancelled', 'apt.no_show': 'No-show',
     'aptType.checkup': 'Check-up', 'aptType.consultation': 'Consultation', 'aptType.treatment': 'Treatment', 'aptType.followup': 'Follow-up', 'aptType.cleaning': 'Cleaning', 'aptType.emergency': 'Emergency', 'aptType.surgery': 'Surgery', 'aptType.orthodontic': 'Orthodontic', 'aptType.other': 'Other',

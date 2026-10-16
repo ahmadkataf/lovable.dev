@@ -124,9 +124,13 @@ export const chapter = {
         en: 'Before you type, the window shows Quick actions, and Go to with every page of the app.',
       },
       run: async ({ page, ui }) => {
-        // the group titles (a whole group can be taller than the panel, which would scroll the list away)
+        // the group titles (a whole group can be taller than the panel, which would scroll the list away); the
+        // "Go to" title is scrolled to the top of the list so its first pages stay in view
         const titles = page.locator('.srch-panel .srch-group-title')
+        await ui.moveTo(titles.first())
         await ui.highlight(titles.first(), 1400)
+        await ui.scrollTo(titles.last(), { block: 'start' })
+        await ui.moveTo(titles.last())
         await ui.highlight(titles.last(), 1400)
       },
     },
@@ -213,10 +217,14 @@ export const chapter = {
       run: async ({ page, ui }) => {
         const groups = page.locator('.ntf-group')
         const n = await groups.count()
-        for (let i = 0; i < Math.min(3, n); i++) await ui.highlight(groups.nth(i).locator('.ntf-head'), 1000)
+        for (let i = 0; i < Math.min(3, n); i++) {
+          await ui.moveTo(groups.nth(i).locator('.ntf-head'))
+          await ui.highlight(groups.nth(i).locator('.ntf-head'), 900)
+        }
         if (n > 3) {
           await ui.scrollTo(groups.last())
-          await ui.highlight(groups.last().locator('.ntf-head'), 1200)
+          await ui.moveTo(groups.last().locator('.ntf-head'))
+          await ui.highlight(groups.last().locator('.ntf-head'), 1100)
         }
       },
     },

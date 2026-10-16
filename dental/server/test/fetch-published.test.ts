@@ -30,7 +30,7 @@ const MANIFEST: Record<string, object> = { 'ar/patients': record('ar'), 'en/pati
 const videoFiles = (keys: string[]) => Object.fromEntries(keys.flatMap(k => [[`/videos/${k}.mp4`, MP4], [`/videos/${k}.vtt`, VTT], [`/videos/${k}.jpg`, JPG]]))
 
 interface Site {
-  /** The Worker serves /files/windows.json (today it does not: /files/* is 404 by design). */
+  /** The Worker serves /files/windows.json (it does while the installer is published; false = an older Worker). */
   windowsJson: boolean
   /** null = no installer published: /download/windows answers 302 to WhatsApp. */
   installer: Buffer | null

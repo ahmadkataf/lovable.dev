@@ -94,7 +94,7 @@ export const chapter = {
     {
       id: 'gender-birth',
       say: {
-        ar: '«ذكر» مختار مسبقاً، فانقر على «أنثى» للمريضات، ثم أدخل «تاريخ الميلاد» فيظهر العمر تحته.',
+        ar: 'يكون «ذكر» مختاراً مسبقاً، فانقر على «أنثى» للمريضات، ثم أدخل «تاريخ الميلاد» فيظهر العمر تحته.',
         en: 'Male is picked by default, so click Female for a female patient, then enter the Date of birth: the age appears under it.',
       },
       run: async ({ page, ui }) => {
