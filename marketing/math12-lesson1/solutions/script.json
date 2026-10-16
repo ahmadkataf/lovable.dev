@@ -1,0 +1,853 @@
+{
+  "title": "حلول «تدرّب» — عموميّات عن المتتاليات",
+  "crumb": "الوحدة الأولى · حلول «تدرّب» الدرس الأول",
+  "scenes": [
+    {
+      "id": "s01",
+      "section": "مقدمة",
+      "bookPage": 11,
+      "concept": "Navy background. The page-11 thumbnail («الكتاب ص 11») slides in; its four exercise blocks ①②③④ get a yellow outline one after another while a counter counts up to 21. Then the recurring layout of the video is previewed in miniature: statement card, 🎯 card «على ورقة الامتحان» filling line by line, pause-and-think countdown ring.",
+      "lines": [
+        {
+          "say": "في هذا الفيديو نحلّ كلّ تمارين تدرّب، في الصفحة الحادية عشرة، واحداً وعشرين سؤالاً بترتيب الكتاب، لا نترك منها شيئاً.",
+          "screen": "Title (purple): «حلول تدرَّبْ — الدرس الأول: عموميّات عن المتتاليات». Book thumbnail of p.11 with tag «الكتاب ص 11»; the blocks ①, ②, ③, ④ are outlined in yellow one after another. Counter counts $0\\to21$ with label «21 سؤالاً = ① + ② (8) + ③ (3) + ④ (9)»."
+        },
+        {
+          "say": "عند كلّ عدّاد، أوقف الفيديو وحاول بقلمك، ثمّ قارن بما نكتبه على ورقة الامتحان.",
+          "screen": "Miniature preview of the layout: statement card (top) + 🎯 card «على ورقة الامتحان» whose lines write in one by one + countdown ring with ⏸ icon. Three chips appear in sequence: «⏸ أوقف» ← «✍️ حاول» ← «✓ قارن»."
+        }
+      ]
+    },
+    {
+      "id": "s02",
+      "section": "التمرين ①",
+      "bookPage": 11,
+      "concept": "Recurring exam layout: statement card pinned at the top (purple border, the book's exact Arabic + LaTeX); below it the 🎯 card «على ورقة الامتحان» where the model answer is written line by line (each line appears as it is spoken, previous lines stay); the final answer is boxed (green = increasing / correct, pink = decreasing); a ⚠️ «انتبه» card slides in at the bottom for the classic mistake; progress chip «k / 21» in the top corner; the pause-and-think countdown ring (with ⏸ icon) and the purple hint chip appear at the start of the hint line. Here: in $u_{n+1}$ the factor $\\frac{2^n}{3^{n+1}}$ is lifted out and recolored blue with the label «$=u_n$»; the base $\\frac23$ glows yellow.",
+      "lines": [
+        {
+          "say": "التمرين الأوّل. يو إنْ يساوي اثنين أُس إنْ، على ثلاثة مرفوعاً إلى الأُس إنْ زائد واحد. أثبت أنّ المتتالية هندسيّة، وجِدْ أساسها.",
+          "screen": "Statement card: «① ليكن $u_n=\\dfrac{2^n}{3^{n+1}}$ في حالة $n\\in\\mathbb{N}$. أثبت أنّ المتتالية $(u_n)_{n\\ge0}$ متتالية هندسية وجِدْ أساسها.» Progress chip «1 / 21»."
+        },
+        {
+          "say": "الأداة، تعريف المتتالية الهندسيّة. نبحث عن عددٍ ثابت كيو، يحقّق يو إنْ زائد واحد يساوي كيو ضرب يو إنْ، أيّاً كان إنْ.",
+          "screen": "Countdown ring (4 s). Hint chip (purple): «تعريف 3: $u_{n+1}=q\\times u_n$ أيّاً كان $n$».",
+          "hold": 4
+        },
+        {
+          "say": "نكتب، أيّاً كان العدد الطبيعي إنْ. نضع إنْ زائد واحد مكان إنْ، فيصبح أُس الثلاثة إنْ زائد اثنين.",
+          "screen": "🎯 card, line 1: «أيّاً كان العدد الطبيعي $n$:». Line 2: $u_{n+1}=\\dfrac{2^{n+1}}{3^{(n+1)+1}}=\\dfrac{2^{n+1}}{3^{n+2}}$ — the exponent $n+2$ circled yellow."
+        },
+        {
+          "say": "نُخرج من البسط اثنين، ومن المقام ثلاثة، فيظهر يو إنْ نفسه، مضروباً بثلثين.",
+          "screen": "Line 3 transforms step by step: $u_{n+1}=\\dfrac{2\\times2^{n}}{3\\times3^{n+1}}=\\dfrac{2}{3}\\times\\dfrac{2^n}{3^{n+1}}=\\dfrac23\\,u_n$. The block $\\dfrac{2^n}{3^{n+1}}$ is boxed blue with an arrow label «$=u_n$»; $\\dfrac23$ yellow."
+        },
+        {
+          "say": "ونختم بجملة الجواب. يو إنْ زائد واحد يساوي ثلثين ضرب يو إنْ، أيّاً كان إنْ، فالمتتالية هندسيّة أساسها ثلثان، وحدُّها الأوّل يو صفر يساوي ثلثاً.",
+          "screen": "Green box: «إذن $u_{n+1}=\\dfrac23\\,u_n$ أيّاً كان $n\\in\\mathbb{N}$، فالمتتالية $(u_n)_{n\\ge0}$ هندسيّة أساسها $q=\\dfrac23$». Below it: $u_0=\\dfrac{2^0}{3^{1}}=\\dfrac13$."
+        },
+        {
+          "say": "انتبه، حساب النسبة بين أوّل حدّين أو ثلاثة لا يُثبت شيئاً، فالعلاقة مطلوبة مهما يكن إنْ. وانتبه، يو صفر يساوي ثلثاً، لا واحداً.",
+          "screen": "⚠️ card «انتبه»: $\\dfrac{u_1}{u_0}=\\dfrac{u_2}{u_1}=\\dfrac23$ crossed out in red with «✗ حالات خاصّة لا تكفي — المطلوب: أيّاً كان $n$»; second row «$u_0=\\dfrac{2^0}{3^{0+1}}=\\dfrac13$ وليس $1$»."
+        }
+      ]
+    },
+    {
+      "id": "s03",
+      "section": "التمرين ② · ❶",
+      "bookPage": 11,
+      "concept": "Recurring exam layout: statement card pinned at the top (purple border, the book's exact Arabic + LaTeX); below it the 🎯 card «على ورقة الامتحان» where the model answer is written line by line (each line appears as it is spoken, previous lines stay); the final answer is boxed (green = increasing / correct, pink = decreasing); a ⚠️ «انتبه» card slides in at the bottom for the classic mistake; progress chip «k / 21» in the top corner; the pause-and-think countdown ring (with ⏸ icon) and the purple hint chip appear at the start of the hint line. Here: an index number line $0\\dots20$ (blue) under the 🎯 card; jump arcs labeled $r$ show 3 steps from 2 to 5, then one long brace «15 خطوة» from 5 to 20.",
+      "lines": [
+        {
+          "say": "التمرين الثاني، ثمانية أسئلة عن متتاليات حسابيّة أو هندسيّة. الأوّل، متتالية حسابيّة فيها يو اثنين يساوي واحداً وأربعين، ويو خمسة يساوي سالب ثلاثة عشر. احسب يو عشرين.",
+          "screen": "Header: «② الأسئلة الآتية تتعلّق بمتتاليات حسابيّة أو هندسيّة:». Statement card: «❶ $(u_n)_{n\\ge0}$ متتالية حسابيّة فيها $u_2=41$ و $u_5=-13$. احسب $u_{20}$.» Progress «2 / 21»."
+        },
+        {
+          "say": "الأداة، العلاقة بين حدّين من متتالية حسابيّة. الحدّ يساوي الحدّ الآخر، زائد عدد الخطوات بينهما ضرب الأساس.",
+          "screen": "Countdown ring (4 s). Hint chip: $u_m=u_p+(m-p)\\,r$ with «$m-p$ = عدد الخطوات». Index number line $0\\dots20$ with dots at $2$, $5$, $20$.",
+          "hold": 4
+        },
+        {
+          "say": "من يو اثنين إلى يو خمسة ثلاث خطوات. إذن سالب ثلاثة عشر يساوي واحداً وأربعين زائد ثلاثة آر، ومنه آر يساوي سالب ثمانية عشر.",
+          "screen": "Three arcs $2\\to3\\to4\\to5$, each labeled $r$. 🎯 card: $u_5=u_2+(5-2)\\,r\\ \\Rightarrow\\ -13=41+3r\\ \\Rightarrow\\ 3r=-54\\ \\Rightarrow\\ r=-18$ ($r=-18$ yellow)."
+        },
+        {
+          "say": "ومن يو خمسة إلى يو عشرين خمس عشرة خطوة. يو عشرين يساوي سالب ثلاثة عشر، زائد خمسة عشر ضرب سالب ثمانية عشر، أي سالب مئتين وثلاثة وثمانين.",
+          "screen": "Brace from 5 to 20: «15 خطوة». 🎯 card: $u_{20}=u_5+(20-5)\\,r=-13+15\\times(-18)=-13-270=-283$; boxed: $\\boxed{u_{20}=-283}$."
+        },
+        {
+          "say": "انتبه، عدد الخطوات هو فرقُ الدليلين، ثلاثة لا خمسة. وللتحقّق، انطلق من يو اثنين بثماني عشرة خطوة، تجد النتيجة نفسها.",
+          "screen": "⚠️ card: «$u_5=u_2+3r$ ✓ — $u_5=u_2+5r$ ✗». Check line (green ✓): $u_{20}=u_2+18r=41-324=-283$."
+        }
+      ]
+    },
+    {
+      "id": "s04",
+      "section": "التمرين ② · ❷",
+      "bookPage": 11,
+      "concept": "Recurring exam layout: statement card pinned at the top (purple border, the book's exact Arabic + LaTeX); below it the 🎯 card «على ورقة الامتحان» where the model answer is written line by line (each line appears as it is spoken, previous lines stay); the final answer is boxed (green = increasing / correct, pink = decreasing); a ⚠️ «انتبه» card slides in at the bottom for the classic mistake; progress chip «k / 21» in the top corner; the pause-and-think countdown ring (with ⏸ icon) and the purple hint chip appear at the start of the hint line. Here: a row of index boxes $u_7\\to u_8\\to u_9\\to u_{10}$ joined by three purple «$\\times q$» arcs, then one long arc $u_{10}\\to u_{30}$ «$\\times q^{20}$»; the cube factorisations $27000=30^3$ and $2197=13^3$ pop out as two small yellow tags.",
+      "lines": [
+        {
+          "say": "الثاني، متتالية هندسيّة فيها يو سبعة يساوي واحداً على ألفٍ وثمانين، ويو عشرة يساوي خمسة وعشرين على ألفين ومئة وسبعة وتسعين. احسب يو ثلاثين.",
+          "screen": "Statement card (small header «② الأسئلة الآتية تتعلّق بمتتاليات حسابيّة أو هندسيّة:»): «❷ $(u_n)_{n\\ge0}$ متتالية هندسيّة فيها $u_7=\\dfrac{1}{1080}$ و $u_{10}=\\dfrac{25}{2197}$. احسب $u_{30}$.» Progress «3 / 21»."
+        },
+        {
+          "say": "الأداة، في الهندسيّة، الحدّ يساوي الحدّ الآخر، ضرب الأساس أُس عدد الخطوات. فنقسم الحدّين لنجد كيو تكعيب.",
+          "screen": "Countdown ring (4 s). Hint chip: $u_m=u_p\\,q^{m-p}$.",
+          "hold": 4
+        },
+        {
+          "say": "من يو سبعة إلى يو عشرة نضرب بكيو ثلاث مرّات. إذن كيو تكعيب يساوي يو عشرة على يو سبعة، أي سبعة وعشرين ألفاً على ألفين ومئة وسبعة وتسعين.",
+          "screen": "Index boxes $u_7\\to u_8\\to u_9\\to u_{10}$ with three arcs «$\\times q$». 🎯 card: $u_{10}=u_7\\,q^{10-7}\\ \\Rightarrow\\ q^3=\\dfrac{u_{10}}{u_7}=\\dfrac{25}{2197}\\times1080=\\dfrac{27000}{2197}$."
+        },
+        {
+          "say": "لكنّ سبعة وعشرين ألفاً هو ثلاثون تكعيب، وألفين ومئة وسبعة وتسعين هو ثلاثة عشر تكعيب. إذن كيو يساوي ثلاثين على ثلاثة عشر، وهو حلّ وحيد، لأنّ الأُس فرديّ.",
+          "screen": "Line: «ولكن $27000=30^3$ و $2197=13^3$، إذن» $q^3=\\left(\\dfrac{30}{13}\\right)^3\\ \\Rightarrow\\ q=\\dfrac{30}{13}$ ($q$ yellow). Small grey note: «الأُس $3$ فرديّ: حلّ حقيقي وحيد»."
+        },
+        {
+          "say": "ومن يو عشرة إلى يو ثلاثين عشرون خطوة، فيو ثلاثين يساوي يو عشرة، ضرب كيو أُس عشرين.",
+          "screen": "Long arc $u_{10}\\to u_{30}$ labeled «$\\times q^{20}$». 🎯 card: $u_{30}=u_{10}\\,q^{30-10}=\\dfrac{25}{2197}\\left(\\dfrac{30}{13}\\right)^{20}$."
+        },
+        {
+          "say": "وبما أنّ ألفين ومئة وسبعة وتسعين هو ثلاثة عشر تكعيب، نجمع أُسس الثلاثة عشر في المقام.",
+          "screen": "🎯 card: $=\\dfrac{25\\times30^{20}}{13^{3}\\times13^{20}}$ — the $2197$ turns into $13^3$ (yellow), then $13^{3}\\times13^{20}$ merges into $13^{23}$."
+        },
+        {
+          "say": "فيو ثلاثين كسرٌ بسطه خمسة وعشرون ضرب ثلاثين أُس عشرين، ومقامه ثلاثة عشر أُس ثلاثة وعشرين. ونترك الجواب بهذا الشكل الدقيق.",
+          "screen": "🎯 card: $=\\dfrac{25\\times30^{20}}{13^{23}}$; boxed: $\\boxed{u_{30}=\\dfrac{25}{2197}\\left(\\dfrac{30}{13}\\right)^{20}=\\dfrac{25\\times30^{20}}{13^{23}}}$. Small grey note: «للاطّلاع فقط: $u_{30}\\approx208\\,769.96$»."
+        },
+        {
+          "say": "انتبه، في الهندسيّة نقسم الحدّين ولا نطرحهما. والأُس عشرون، لأنّنا انطلقنا من يو عشرة، لا ثلاثون.",
+          "screen": "⚠️ card: «$q^3=\\dfrac{u_{10}}{u_7}$ ✓ — $u_{10}-u_7$ ✗» ; «الأُس $=30-10=20$ (لا $30$)»."
+        }
+      ]
+    },
+    {
+      "id": "s05",
+      "section": "التمرين ② · ❸",
+      "bookPage": 11,
+      "concept": "Recurring exam layout: statement card pinned at the top (purple border, the book's exact Arabic + LaTeX); below it the 🎯 card «على ورقة الامتحان» where the model answer is written line by line (each line appears as it is spoken, previous lines stay); the final answer is boxed (green = increasing / correct, pink = decreasing); a ⚠️ «انتبه» card slides in at the bottom for the classic mistake; progress chip «k / 21» in the top corner; the pause-and-think countdown ring (with ⏸ icon) and the purple hint chip appear at the start of the hint line. Here: a three-slot strip «عدد الحدود · الأوّل $a$ · الأخير $\\ell$» fills in for each of the two sums; for the first sum a Gauss-pairing picture: 20 bars $u_1\\dots u_{20}$ with yellow arcs pairing $u_1+u_{20}$, $u_2+u_{19}$, … each labeled «$=53$».",
+      "lines": [
+        {
+          "say": "الثالث، متتالية حسابيّة أساسها ثلاثة، فيها يو واحد يساوي سالب اثنين. احسب يو إنْ بدلالة إنْ، ثمّ مجموعين.",
+          "screen": "Statement card (small header «② الأسئلة الآتية تتعلّق بمتتاليات حسابيّة أو هندسيّة:»): «❸ $(u_n)_{n\\ge0}$ متتالية حسابيّة أساسها $3$ وفيها $u_1=-2$. احسب $u_n$ بدلالة $n$، واستنتج قيمة المجموعين $u_1+u_2+\\cdots+u_{20}$ و $u_{30}+u_{31}+u_{32}$.» Progress «4 / 21»."
+        },
+        {
+          "say": "الأداة، قانون الحدّ العامّ، ثمّ قانون المجموع، عدد الحدود ضرب الأوّل زائد الأخير، على اثنين.",
+          "screen": "Countdown ring (4 s). Hint chips: $u_n=u_p+(n-p)\\,r$ and $S=\\dfrac{n(a+\\ell)}{2}$ with legend «$n$: عدد الحدود، $a$: الأوّل، $\\ell$: الأخير».",
+          "hold": 4
+        },
+        {
+          "say": "الحدّ المعطى يو واحد. إذن يو إنْ يساوي سالب اثنين، زائد ثلاثة ضرب المقدار إنْ ناقص واحد، أي ثلاثة إنْ ناقص خمسة.",
+          "screen": "🎯 card: $u_n=u_1+(n-1)\\,r=-2+3(n-1)=3n-5$; boxed: $\\boxed{u_n=3n-5}$. $u_1$ highlighted yellow. Check chip (green): «$u_1=3\\times1-5=-2$ ✓»."
+        },
+        {
+          "say": "المجموع الأوّل عشرون حدّاً، أوّلها سالب اثنين، وآخرها يو عشرين يساوي خمسة وخمسين.",
+          "screen": "Slots fill: «عدد الحدود: $20-1+1=20$» · $a=u_1=-2$ · $\\ell=u_{20}=3\\times20-5=55$."
+        },
+        {
+          "say": "ولماذا هذا القانون؟ نجمع الأوّل مع الأخير، والثاني مع ما قبل الأخير، فكلّ زوج يساوي ثلاثة وخمسين. وعندنا عشرة أزواج، فالمجموع خمسمئة وثلاثون.",
+          "screen": "Gauss pairing: 20 bars $u_1\\dots u_{20}$; arcs $u_1+u_{20}=-2+55=53$ ، $u_2+u_{19}=1+52=53$ ، … caption «$10$ أزواج $\\times\\ 53$». 🎯 card: $u_1+u_2+\\cdots+u_{20}=\\dfrac{20\\,(-2+55)}{2}=10\\times53=530$; boxed $\\boxed{u_1+u_2+\\cdots+u_{20}=530}$."
+        },
+        {
+          "say": "والمجموع الثاني، ثلاثة حدود، أوّلها يو ثلاثين يساوي خمسة وثمانين، وآخرها يو اثنين وثلاثين يساوي واحداً وتسعين.",
+          "screen": "Slots refill: «عدد الحدود: $3$» · $a=u_{30}=3\\times30-5=85$ · $\\ell=u_{32}=3\\times32-5=91$."
+        },
+        {
+          "say": "فهو ثلاثة ضرب مئة وستّة وسبعين، على اثنين، أي مئتان وأربعة وستّون.",
+          "screen": "🎯 card: $u_{30}+u_{31}+u_{32}=\\dfrac{3\\,(85+91)}{2}=\\dfrac{3\\times176}{2}=264$; boxed $\\boxed{u_{30}+u_{31}+u_{32}=264}$."
+        },
+        {
+          "say": "وتحقّق سريع، الحدّ الأوسط يو واحد وثلاثين يساوي ثمانية وثمانين، وثلاثة أمثاله مئتان وأربعة وستّون.",
+          "screen": "Check line (green ✓): $u_{31}=88$ ، $85+88+91=3\\times88=264$."
+        },
+        {
+          "say": "انتبه، المعطى يو واحد لا يو صفر، فكتابة يو إنْ يساوي سالب اثنين زائد ثلاثة إنْ خطأ شائع. وعدد الحدود هو الأخير ناقص الأوّل، زائد واحد.",
+          "screen": "⚠️ card: «عدد الحدود $=$ الدليل الأخير $-$ الدليل الأوّل $+\\,1$» ; «$u_n=-2+3n$ ✗ (المعطى $u_1$ لا $u_0$)»."
+        }
+      ]
+    },
+    {
+      "id": "s06",
+      "section": "التمرين ② · ❹",
+      "bookPage": 11,
+      "concept": "Recurring exam layout: statement card pinned at the top (purple border, the book's exact Arabic + LaTeX); below it the 🎯 card «على ورقة الامتحان» where the model answer is written line by line (each line appears as it is spoken, previous lines stay); the final answer is boxed (green = increasing / correct, pink = decreasing); a ⚠️ «انتبه» card slides in at the bottom for the classic mistake; progress chip «k / 21» in the top corner; the pause-and-think countdown ring (with ⏸ icon) and the purple hint chip appear at the start of the hint line. The print of the book misses a «+» before the dots in the second sum; on screen it is written $u_2+u_4+u_6+\\cdots+u_{2n}$. Bars $u_1=-2$, $u_2=-6$, $u_3=-18$ hang below the axis (pink) with arcs «$\\times3$».",
+      "lines": [
+        {
+          "say": "الرابع، متتالية هندسيّة أساسها ثلاثة، فيها يو واحد يساوي سالب اثنين. احسب يو إنْ بدلالة إنْ، ثمّ مجموعين.",
+          "screen": "Statement card (small header «② الأسئلة الآتية تتعلّق بمتتاليات حسابيّة أو هندسيّة:»): «❹ $(u_n)_{n\\ge0}$ متتالية هندسيّة أساسها $3$ وفيها $u_1=-2$. احسب $u_n$ بدلالة $n$، واستنتج قيمة المجموعين $u_1+u_2+\\cdots+u_7$ و $u_2+u_4+u_6+\\cdots+u_{2n}$.» Progress «5 / 21»."
+        },
+        {
+          "say": "الأداة، الحدّ العامّ للهندسيّة، ثمّ مجموع حدودها، الحدّ الأوّل ضرب الكسر، واحد ناقص كيو أُس عدد الحدود، على واحد ناقص كيو، بشرط ألّا يساوي كيو واحداً.",
+          "screen": "Countdown ring (4 s). Hint chips: $u_n=u_p\\,q^{n-p}$ and $S=a\\,\\dfrac{1-q^n}{1-q}\\ \\ (q\\ne1)$ with legend «$a$: أوّل حدود المجموع، $n$: عدد حدوده».",
+          "hold": 4
+        },
+        {
+          "say": "يو إنْ يساوي يو واحد ضرب كيو مرفوعاً إلى الأُس إنْ ناقص واحد، أي سالب اثنين ضرب ثلاثة مرفوعاً إلى الأُس إنْ ناقص واحد.",
+          "screen": "Bars $u_1=-2$، $u_2=-6$، $u_3=-18$ with arcs «$\\times3$». 🎯 card: $u_n=u_1\\,q^{n-1}=-2\\times3^{\\,n-1}$; boxed $\\boxed{u_n=-2\\times3^{n-1}}$."
+        },
+        {
+          "say": "المجموع الأوّل سبعة حدود، أوّلها سالب اثنين، والأساس ثلاثة لا يساوي واحداً. وثلاثة أُس سبعة يساوي ألفين ومئة وسبعة وثمانين، فالمجموع سالب ألفين ومئة وستّة وثمانين.",
+          "screen": "Line: «عدد الحدود $7$، أوّلها $a=u_1=-2$، والأساس $q=3\\ne1$:» then $u_1+\\cdots+u_7=-2\\times\\dfrac{1-3^7}{1-3}=-2\\times\\dfrac{1-2187}{-2}=1-2187=-2186$ (the two $-2$ cancel, yellow strike-through); boxed $\\boxed{u_1+\\cdots+u_7=-2186}$."
+        }
+      ]
+    },
+    {
+      "id": "s07",
+      "section": "② · ❹ تتمّة",
+      "bookPage": 11,
+      "concept": "Recurring exam layout: statement card pinned at the top (purple border, the book's exact Arabic + LaTeX); below it the 🎯 card «على ورقة الامتحان» where the model answer is written line by line (each line appears as it is spoken, previous lines stay); the final answer is boxed (green = increasing / correct, pink = decreasing); a ⚠️ «انتبه» card slides in at the bottom for the classic mistake; progress chip «k / 21» in the top corner; the pause-and-think countdown ring (with ⏸ icon) and the purple hint chip appear at the start of the hint line. Here: a row of dots $u_1,u_2,\\dots,u_8$; the even-indexed dots light up yellow; during the pause only a «$\\times\\,?$» arc joins $u_2$ to $u_4$; on the next line it resolves into two small arcs «$\\times3$» that merge into one big arc «$\\times9$».",
+      "lines": [
+        {
+          "say": "والمجموع الثاني يأخذ الحدود ذات الأدلّة الزوجيّة فقط، يو اثنين، يو أربعة، حتّى يو اثنين إنْ. فكّر، بماذا نضرب لننتقل من حدٍّ منها إلى الذي يليه؟",
+          "screen": "Dot row $u_1,\\dots,u_8$; $u_2,u_4,u_6,u_8$ light up yellow, the odd ones fade. Between $u_2$ and $u_4$: one arc labeled «$\\times\\,?$». Countdown ring (3 s).",
+          "hold": 3
+        },
+        {
+          "say": "نقفز حدّين في كلّ مرّة، فنضرب بثلاثة ثمّ بثلاثة، أي بتسعة. ولأنّ إنْ هنا عدد ثابت، هو عدد الحدود، نرمز إلى الدليل المتحوّل بحرفٍ آخر.",
+          "screen": "The «$\\times\\,?$» arc splits into two arcs «$\\times3$» that merge into one arc «$\\times9$» (now on every pair of yellow dots). 🎯 card: «لنرمز بـ $k$ إلى الدليل المتحوّل:» $u_{2(k+1)}=-2\\times3^{2k+1}=9\\times\\left(-2\\times3^{2k-1}\\right)=9\\,u_{2k}$ ($k$ in blue)."
+        },
+        {
+          "say": "فهذه الحدود إنْ حدّاً متتالياً من متتالية هندسيّة جديدة، أساسها تسعة، وأوّلها يو اثنين يساوي سالب ستّة.",
+          "screen": "Index strip $2,4,6,\\dots,2n$ with a brace «$n$ حدّاً». 🎯 card: «فالحدود $u_2,u_4,\\dots,u_{2n}$ هي $n$ حدّاً متتالياً من متتالية هندسيّة أساسها $9\\ne1$ وأوّلها $u_2=-2\\times3=-6$»."
+        },
+        {
+          "say": "فالمجموع سالب ستّة، ضرب الكسر، واحد ناقص تسعة أُس إنْ، على سالب ثمانية، أي ثلاثة أرباع، ضرب المقدار واحد ناقص تسعة أُس إنْ.",
+          "screen": "🎯 card: $u_2+u_4+\\cdots+u_{2n}=-6\\times\\dfrac{1-9^n}{1-9}=-6\\times\\dfrac{1-9^n}{-8}=\\dfrac34\\left(1-9^n\\right)$; boxed $\\boxed{u_2+u_4+\\cdots+u_{2n}=\\dfrac34\\left(1-9^n\\right)}$."
+        },
+        {
+          "say": "تحقّق، عندما إنْ يساوي اثنين، المجموع سالب ستّة ناقص أربعة وخمسين، أي سالب ستّين، وهذا ما تعطيه الصيغة.",
+          "screen": "Check line (green ✓): $n=2:\\ u_2+u_4=-6-54=-60=\\dfrac34\\,(1-81)$."
+        },
+        {
+          "say": "وانتبه، الأساس الجديد تسعة لا ثلاثة، وعدد الحدود إنْ لا اثنان إنْ.",
+          "screen": "⚠️ card: «الأساس $q^2=9$ لا $3$ — عدد الحدود $n$ لا $2n$»."
+        }
+      ]
+    },
+    {
+      "id": "s08",
+      "section": "التمرين ② · ❺",
+      "bookPage": 11,
+      "concept": "Recurring exam layout: statement card pinned at the top (purple border, the book's exact Arabic + LaTeX); below it the 🎯 card «على ورقة الامتحان» where the model answer is written line by line (each line appears as it is spoken, previous lines stay); the final answer is boxed (green = increasing / correct, pink = decreasing); a ⚠️ «انتبه» card slides in at the bottom for the classic mistake; progress chip «k / 21» in the top corner; the pause-and-think countdown ring (with ⏸ icon) and the purple hint chip appear at the start of the hint line. Here: three empty slots «$a=\\,?$» «$\\ell=\\,?$» «عدد الحدود $=\\,?$» appear during the pause and fill in green; for the count, a fence picture: posts numbered $25,26,\\dots,125$ (compressed with «…»), counters «مسافات $=125-25=100$» (muted) and «أعمدة $=125-25+1=101$» (yellow).",
+      "lines": [
+        {
+          "say": "الخامس، متتالية حسابيّة أساسها سالب اثنين، ويو صفر يساوي سالب ثلاثة. احسب المجموع من يو خمسة وعشرين إلى يو مئة وخمسة وعشرين.",
+          "screen": "Statement card (small header «② الأسئلة الآتية تتعلّق بمتتاليات حسابيّة أو هندسيّة:»): «❺ $(u_n)_{n\\ge0}$ متتالية حسابيّة أساسها $-2$ وفيها $u_0=-3$. احسب $u_{25}+u_{26}+\\cdots+u_{125}$.» Progress «6 / 21»."
+        },
+        {
+          "say": "لأيّ مجموع حسابيّ نحتاج ثلاثة أشياء، الحدّ الأوّل، والحدّ الأخير، وعدد الحدود.",
+          "screen": "Countdown ring (4 s). Three empty slots: «$a=\\ ?$» · «$\\ell=\\ ?$» · «عدد الحدود $=\\ ?$»; hint chip $S=\\dfrac{n(a+\\ell)}{2}$.",
+          "hold": 4
+        },
+        {
+          "say": "يو إنْ يساوي يو صفر زائد إنْ آر، أي سالب ثلاثة ناقص اثنين إنْ.",
+          "screen": "🎯 card: $u_n=u_0+n\\,r=-3-2n$."
+        },
+        {
+          "say": "فالأوّل يو خمسة وعشرين يساوي سالب ثلاثة وخمسين، والأخير يو مئة وخمسة وعشرين يساوي سالب مئتين وثلاثة وخمسين.",
+          "screen": "🎯 card: $a=u_{25}=-3-50=-53$ ؛ $\\ell=u_{125}=-3-250=-253$. Slots $a$ and $\\ell$ fill green."
+        },
+        {
+          "say": "وعدد الحدود؟ تخيّل سياجاً، من العمود رقم خمسة وعشرين إلى العمود رقم مئة وخمسة وعشرين، مئة مسافة، لكنّ الأعمدة مئة وواحد.",
+          "screen": "Fence: posts $25,26,\\dots,125$; counter «مسافات $=125-25=100$» (muted), then «أعمدة $=125-25+1=101$» (yellow). Slot fills: «عدد الحدود: $125-25+1=101$»."
+        },
+        {
+          "say": "فالمجموع مئة وواحد، ضرب سالب ثلاثمئة وستّة، على اثنين، أي سالب خمسة عشر ألفاً وأربعمئة وثلاثة وخمسين.",
+          "screen": "🎯 card: $u_{25}+u_{26}+\\cdots+u_{125}=\\dfrac{101\\,(-53-253)}{2}=\\dfrac{101\\times(-306)}{2}=101\\times(-153)=-15453$; boxed $\\boxed{u_{25}+\\cdots+u_{125}=-15453}$."
+        },
+        {
+          "say": "انتبه، مئة وواحد حدّ لا مئة، لأنّ الطرفين كليهما داخل المجموع.",
+          "screen": "⚠️ card: «$101$ حدّاً لا $100$ — الطرفان $u_{25}$ و $u_{125}$ محسوبان»."
+        }
+      ]
+    },
+    {
+      "id": "s09",
+      "section": "التمرين ② · ❻",
+      "bookPage": 11,
+      "concept": "Recurring exam layout: statement card pinned at the top (purple border, the book's exact Arabic + LaTeX); below it the 🎯 card «على ورقة الامتحان» where the model answer is written line by line (each line appears as it is spoken, previous lines stay); the final answer is boxed (green = increasing / correct, pink = decreasing); a ⚠️ «انتبه» card slides in at the bottom for the classic mistake; progress chip «k / 21» in the top corner; the pause-and-think countdown ring (with ⏸ icon) and the purple hint chip appear at the start of the hint line. Here: a bar chart of $u_3\\dots u_{10}$ (8, 16, …, 1024) grows during the check line, each bar doubling the previous one.",
+      "lines": [
+        {
+          "say": "السادس، متتالية هندسيّة أساسها اثنان، ويو صفر يساوي واحداً. احسب المجموع من يو ثلاثة إلى يو عشرة.",
+          "screen": "Statement card (small header «② الأسئلة الآتية تتعلّق بمتتاليات حسابيّة أو هندسيّة:»): «❻ $(u_n)_{n\\ge0}$ متتالية هندسيّة أساسها $2$ وفيها $u_0=1$. احسب $u_3+u_4+\\cdots+u_{10}$.» Progress «7 / 21»."
+        },
+        {
+          "say": "الأداة، مجموع حدود متتالية هندسيّة. لكن انتبه، الحدّ الأوّل هو أوّل حدود المجموع، والأُس هو عدد الحدود.",
+          "screen": "Countdown ring (4 s). Hint chip: $S=a\\,\\dfrac{1-q^n}{1-q}$ with $a$ circled «أوّل حدود المجموع» and $n$ circled «عدد الحدود».",
+          "hold": 4
+        },
+        {
+          "say": "يو إنْ يساوي اثنين أُس إنْ. أوّل حدود المجموع يو ثلاثة يساوي ثمانية، وعدد الحدود عشرة ناقص ثلاثة زائد واحد، أي ثمانية.",
+          "screen": "🎯 card: $u_n=u_0\\,q^n=2^n$. «أوّل حدود المجموع $a=u_3=2^3=8$، وعدد حدوده $10-3+1=8$، والأساس $q=2\\ne1$:»"
+        },
+        {
+          "say": "فالمجموع ثمانية، ضرب الكسر، واحد ناقص اثنين أُس ثمانية، على واحد ناقص اثنين، أي ثمانية ضرب مئتين وخمسة وخمسين، ويساوي ألفين وأربعين.",
+          "screen": "🎯 card: $u_3+u_4+\\cdots+u_{10}=8\\times\\dfrac{1-2^8}{1-2}=8\\times\\dfrac{1-256}{-1}=8\\times255=2040$; boxed $\\boxed{u_3+\\cdots+u_{10}=2040}$."
+        },
+        {
+          "say": "انتبه، لا تبدأ من يو صفر، ولا تضع العشرة في الأُس. وللتحقّق، اجمع الحدود الثمانية من ثمانية إلى ألفٍ وأربعة وعشرين، تجد ألفين وأربعين.",
+          "screen": "⚠️ card: «$a=u_3=8$ لا $u_0$ — الأُس $8$ (عدد الحدود) لا $10$». Check (bar chart + green ✓): $8+16+32+64+128+256+512+1024=2040$."
+        }
+      ]
+    },
+    {
+      "id": "s10",
+      "section": "التمرين ② · ❼",
+      "bookPage": 11,
+      "concept": "Recurring exam layout: statement card pinned at the top (purple border, the book's exact Arabic + LaTeX); below it the 🎯 card «على ورقة الامتحان» where the model answer is written line by line (each line appears as it is spoken, previous lines stay); the final answer is boxed (green = increasing / correct, pink = decreasing); a ⚠️ «انتبه» card slides in at the bottom for the classic mistake; progress chip «k / 21» in the top corner; the pause-and-think countdown ring (with ⏸ icon) and the purple hint chip appear at the start of the hint line. Here: small «$+\\frac12$» arrows hop between successive terms; then every term is rewritten over 2 and the numerators $1,2,\\dots,20$ light up blue like a counter.",
+      "lines": [
+        {
+          "say": "السابع، احسب المجموع، نصف، زائد واحد، زائد ثلاثة أنصاف، زائد اثنين، وهكذا حتّى عشرة.",
+          "screen": "Statement card (small header «② الأسئلة الآتية تتعلّق بمتتاليات حسابيّة أو هندسيّة:»): «❼ احسب المجموع $S=\\frac12+1+\\frac32+2+\\frac52+3+\\cdots+10$.» Progress «8 / 21»."
+        },
+        {
+          "say": "كم نضيف في كلّ مرّة؟ إذا كانت الزيادة ثابتة، فهذه حدود متتالية حسابيّة.",
+          "screen": "Countdown ring (4 s). Arrows «$+\\frac12$» hop between successive terms of $S$. Hint chip: $S=\\dfrac{n(a+\\ell)}{2}$.",
+          "hold": 4
+        },
+        {
+          "say": "كلّ حدّ يزيد على سابقه بنصف، فهذه حدود متتالية من متتالية حسابيّة أساسها نصف، أوّلها نصف، وآخرها عشرة.",
+          "screen": "🎯 card: «كلّ حدّ يساوي سابقه مضافاً إليه $\\frac12$، فهذه حدود متتالية من متتالية حسابيّة أساسها $\\frac12$، أوّلها $a=\\frac12$ وآخرها $\\ell=10$»."
+        },
+        {
+          "say": "ولعدّها، نكتب كلّ حدّ كسراً مقامه اثنان، فتصبح البسوط من واحد إلى عشرين. إذن عدد الحدود عشرون.",
+          "screen": "🎯 card: $S=\\dfrac12+\\dfrac22+\\dfrac32+\\dfrac42+\\cdots+\\dfrac{20}{2}$ — numerators $1,2,3,\\dots,20$ light up blue; «عدد الحدود $=20$»."
+        },
+        {
+          "say": "فالمجموع عشرون، ضرب المقدار نصف زائد عشرة، على اثنين، أي عشرة ضرب واحد وعشرين على اثنين، ويساوي مئة وخمسة.",
+          "screen": "🎯 card: $S=\\dfrac{20\\left(\\frac12+10\\right)}{2}=10\\times\\dfrac{21}{2}=105$; boxed $\\boxed{S=105}$."
+        },
+        {
+          "say": "وبطريقة ثانية، نُخرج نصفاً عاملاً مشتركاً، فيبقى مجموع الأعداد من واحد إلى عشرين، أي مئتان وعشرة، ونصفها مئة وخمسة.",
+          "screen": "Second-method line (blue): $S=\\dfrac12\\,(1+2+\\cdots+20)=\\dfrac12\\times\\dfrac{20\\times21}{2}=\\dfrac12\\times210=105$ ✓ (callback chip $1+2+\\cdots+n=\\dfrac{n(n+1)}{2}$)."
+        },
+        {
+          "say": "وانتبه، عشرون حدّاً لا عشرة، فالأعداد الصحيحة من واحد إلى عشرة هي حدٌّ واحد من كلّ حدّين.",
+          "screen": "⚠️ card: «$20$ حدّاً لا $10$» — in $S$ the whole numbers $1,2,3,\\dots,10$ are underlined: every second term."
+        }
+      ]
+    },
+    {
+      "id": "s11",
+      "section": "التمرين ② · ❽",
+      "bookPage": 11,
+      "concept": "Recurring exam layout: statement card pinned at the top (purple border, the book's exact Arabic + LaTeX); below it the 🎯 card «على ورقة الامتحان» where the model answer is written line by line (each line appears as it is spoken, previous lines stay); the final answer is boxed (green = increasing / correct, pink = decreasing); a ⚠️ «انتبه» card slides in at the bottom for the classic mistake; progress chip «k / 21» in the top corner; the pause-and-think countdown ring (with ⏸ icon) and the purple hint chip appear at the start of the hint line. Here: three boxes $\\frac bq\\ \\xrightarrow{\\times q}\\ b\\ \\xrightarrow{\\times q}\\ bq$ (middle box yellow) stay above the 🎯 card; at the end the two solution rows appear side by side as mirror images.",
+      "lines": [
+        {
+          "say": "الثامن، إيه وبي وسي ثلاثة حدود متوالية من متتالية هندسيّة، جداؤها ثلاثمئة وثلاثة وأربعون، ومجموعها ستّة وثلاثون فاصلة خمسة وسبعون. احسبها.",
+          "screen": "Statement card (small header «② الأسئلة الآتية تتعلّق بمتتاليات حسابيّة أو هندسيّة:»): «❽ $a$ و $b$ و $c$ ثلاثة حدود متوالية من متتالية هندسيّة. احسبها علماً أن $abc=343$ و $a+b+c=36.75$» Progress «9 / 21»."
+        },
+        {
+          "say": "المفتاح، تعريف المتتالية الهندسيّة. اكتب الطرفين بدلالة الحدّ الأوسط بي والأساس كيو، إيه يساوي بي على كيو، وسي يساوي بي ضرب كيو.",
+          "screen": "Countdown ring (5 s). Hint chip (purple): «تعريف 3: $b=a\\,q$ و $c=b\\,q$». Three boxes $\\dfrac bq\\ \\xrightarrow{\\times q}\\ b\\ \\xrightarrow{\\times q}\\ bq$, the middle one yellow «الحدّ الأوسط».",
+          "hold": 5
+        },
+        {
+          "say": "الجداء لا يساوي الصفر، فلا حدّ منها معدوم، وكيو لا يساوي الصفر. والجداء يصبح بي تكعيب، يساوي ثلاثمئة وثلاثة وأربعين، أي سبعة تكعيب. إذن بي يساوي سبعة.",
+          "screen": "🎯 card: «بما أنّ $abc=343\\ne0$ فإنّ $q\\ne0$. نكتب $a=\\dfrac bq$ و $c=bq$:» then $abc=\\dfrac bq\\times b\\times bq=b^3=343=7^3\\ \\Rightarrow\\ b=7$ ($q$ cancels: the two $q$'s flash and vanish)."
+        },
+        {
+          "say": "نكتب ستّة وثلاثين فاصلة خمسة وسبعين كسراً، مئة وسبعة وأربعين على أربعة. نعوّض، ونقسم على سبعة، فنصل إلى معادلة من الدرجة الثانية في كيو.",
+          "screen": "🎯 card: $36.75=\\dfrac{147}{4}$ ; $\\dfrac7q+7+7q=\\dfrac{147}{4}\\ \\Rightarrow\\ \\dfrac1q+1+q=\\dfrac{21}{4}\\ \\Rightarrow\\ q+\\dfrac1q=\\dfrac{17}{4}\\ \\Rightarrow\\ 4q^2-17q+4=0$ (tags «$\\div7$» and «$\\times4q$»)."
+        },
+        {
+          "say": "مميّزها مئتان وخمسة وعشرون، أي خمسة عشر تربيع. فكيو يساوي أربعة، أو كيو يساوي ربعاً.",
+          "screen": "🎯 card: $\\Delta=17^2-4\\times4\\times4=289-64=225=15^2$ ، $q=\\dfrac{17\\pm15}{8}\\ \\Rightarrow\\ q=4$ أو $q=\\dfrac14$."
+        },
+        {
+          "say": "إذا كان كيو أربعة، فالحدود سبعة أرباع، وسبعة، وثمانية وعشرون. وإذا كان ربعاً، فهي الأعداد نفسها بترتيب معاكس. اكتب الحلّين معاً، وتحقّق من الجداء والمجموع.",
+          "screen": "Two rows: «$q=4$: $a=\\frac74,\\ b=7,\\ c=28$» ، «$q=\\frac14$: $a=28,\\ b=7,\\ c=\\frac74$». Boxed: $\\boxed{(a,b,c)=\\left(\\tfrac74,\\,7,\\,28\\right)\\ \\text{أو}\\ \\left(28,\\,7,\\,\\tfrac74\\right)}$. Check line (green ✓): $\\frac74\\times7\\times28=343$ و $\\frac74+7+28=\\frac{147}{4}=36.75$."
+        },
+        {
+          "say": "انتبه، المفتاح دائماً هو الحدّ الأوسط، والجواب الذي يُسقط أحد الترتيبين ناقص.",
+          "screen": "⚠️ card: «$ac=b^2$ ⇒ $abc=b^3$ — اكتب الحلّين: $q=4$ و $q=\\frac14$»."
+        }
+      ]
+    },
+    {
+      "id": "s12",
+      "section": "التمرين ③ · ❶",
+      "bookPage": 11,
+      "concept": "Recurring exam layout: statement card pinned at the top (purple border, the book's exact Arabic + LaTeX); below it the 🎯 card «على ورقة الامتحان» where the model answer is written line by line (each line appears as it is spoken, previous lines stay); the final answer is boxed (green = increasing / correct, pink = decreasing); a ⚠️ «انتبه» card slides in at the bottom for the classic mistake; progress chip «k / 21» in the top corner; the pause-and-think countdown ring (with ⏸ icon) and the purple hint chip appear at the start of the hint line. Here: a function machine $f(x)=\\dfrac{x}{1+x}$ — first a quick run $1\\to\\frac12\\to\\frac13\\to\\frac14$ (outputs stacked, yellow, kept in a corner for ③-2 and ③-3); later its input/output zone $D=]0,+\\infty[$ is shaded green; then a chain of green tiles $v_0>0\\to v_1>0\\to v_2>0\\to\\cdots$ topples like dominoes.",
+      "lines": [
+        {
+          "say": "التمرين الثالث. في صفر يساوي واحداً، وفي إنْ زائد واحد يساوي في إنْ، على المقدار واحد زائد في إنْ. أوّلاً، تحقّق أنّ في إنْ موجب تماماً، أيّاً كان إنْ.",
+          "screen": "Statement card: «③ $(v_n)_{n\\ge0}$ متتالية معرّفة تدريجيّاً وفق $v_0=1$ و $v_{n+1}=\\dfrac{v_n}{1+v_n}$.» Item: «❶ تحقّق أنّ $v_n>0$ أيّاً كان العدد الطبيعي $n$.» Progress «10 / 21»."
+        },
+        {
+          "say": "ضع الحدود في آلة التابع إف. من الواحد يخرج نصف، ثمّ ثلث، ثمّ ربع. احفظ هذا النمط.",
+          "screen": "Function machine «$f(x)=\\dfrac{x}{1+x}$»: input $v_0=1$ → output $v_1=\\dfrac12$ → fed back → $v_2=\\dfrac13$ → $v_3=\\dfrac14$ (outputs stacked, yellow; they shrink into a corner chip «$1,\\ \\frac12,\\ \\frac13,\\ \\frac14$»)."
+        },
+        {
+          "say": "فكّر، إذا كان حدٌّ ما موجباً تماماً، فهل يكون الحدّ الذي يليه موجباً تماماً؟",
+          "screen": "Countdown ring (4 s). 🤔 فكّر card: «$v_n>0\\ \\Rightarrow\\ v_{n+1}>0$ ؟». Hint chip: «التعريف بالتدريج: مهما يكن $x$ من $D$ يكن $f(x)$ من $D$».",
+          "hold": 4
+        },
+        {
+          "say": "نكتب. أوّلاً، في صفر يساوي واحداً، فهو موجب تماماً.",
+          "screen": "🎯 card, bullet 1: «$v_0=1>0$»."
+        },
+        {
+          "say": "ثانياً، إذا كان في إنْ موجباً تماماً، كان المقام واحد زائد في إنْ أكبر من واحد، فالكسر قسمة موجب على موجب، وفي إنْ زائد واحد موجب تماماً.",
+          "screen": "🎯 card, bullet 2: «إذا كان $v_n>0$ كان $1+v_n>1>0$، فالعدد $v_{n+1}=\\dfrac{v_n}{1+v_n}$ ناتج قسمة عدد موجب تماماً على عدد موجب تماماً، إذن $v_{n+1}>0$» (numerator and denominator tagged green «$>0$»)."
+        },
+        {
+          "say": "وهكذا تنتقل الموجبيّة من كلّ حدٍّ إلى الذي يليه، انطلاقاً من الحدّ في صفر، فكلّ الحدود موجبة تماماً.",
+          "screen": "Domino chain (green): $v_0>0\\to v_1>0\\to v_2>0\\to\\cdots$. Bullet 3: «وهكذا تنتقل الموجبيّة من كلّ حدٍّ إلى الذي يليه انطلاقاً من $v_0>0$». Boxed green: $\\boxed{v_n>0\\ \\text{أيّاً كان}\\ n\\in\\mathbb{N}}$."
+        },
+        {
+          "say": "وهذا شرط الدرس نفسه، التابع إف يحوّل كلّ عدد موجب تماماً إلى عدد موجب تماماً، والحدّ في صفر موجب تماماً.",
+          "screen": "Function machine $f(x)=\\dfrac{x}{1+x}$ with its zone shaded green: input in $D=]0,+\\infty[$ → output in $D$. Purple chip: «مهما يكن $x$ من $D=\\,]0,+\\infty[$ يكن $f(x)$ من $D$ ، و $v_0=1\\in D$»."
+        },
+        {
+          "say": "انتبه، حساب في واحد وفي اثنين وفي ثلاثة ليس برهاناً. والصياغة الرسميّة لهذا الانتقال هي البرهان بالتدريج، في الدرس الثاني.",
+          "screen": "⚠️ card: $v_1=\\frac12,\\ v_2=\\frac13,\\ v_3=\\frac14$ crossed in red «✗ حالات خاصّة — ليست برهاناً لكلّ $n$». 💡 card: «الصياغة الرسميّة لهذا الانتقال: البرهان بالتدريج — الدرس 2». Yellow chip parked for ❷: «$v_n>0\\ \\Rightarrow\\ v_n\\ne0$»."
+        }
+      ]
+    },
+    {
+      "id": "s13",
+      "section": "التمرين ③ · ❷",
+      "bookPage": 11,
+      "concept": "Recurring exam layout: statement card pinned at the top (purple border, the book's exact Arabic + LaTeX); below it the 🎯 card «على ورقة الامتحان» where the model answer is written line by line (each line appears as it is spoken, previous lines stay); the final answer is boxed (green = increasing / correct, pink = decreasing); a ⚠️ «انتبه» card slides in at the bottom for the classic mistake; progress chip «k / 21» in the top corner; the pause-and-think countdown ring (with ⏸ icon) and the purple hint chip appear at the start of the hint line. Here: two columns «$v_n$: $1,\\frac12,\\frac13,\\frac14$» (the machine outputs from ❶) and «$\\frac1{v_n}$: $1,2,3,4$» with green «$+1$» arrows; then the big fraction $\\dfrac{1}{\\frac{v_n}{1+v_n}}$ flips over (rotation animation) into $\\dfrac{1+v_n}{v_n}$ and splits into two fractions.",
+      "lines": [
+        {
+          "say": "ثانياً، يو إنْ يساوي واحداً على في إنْ، وهو معرّف لأنّ في إنْ لا يساوي الصفر. أثبت أنّ يو إنْ متتالية حسابيّة.",
+          "screen": "Statement card, item (small header «③ $(v_n)_{n\\ge0}$ متتالية معرّفة تدريجيّاً وفق $v_0=1$ و $v_{n+1}=\\dfrac{v_n}{1+v_n}$.»): «❷ أثبت أنّ المتتالية $(u_n)_{n\\ge0}$ المعرّفة بالعلاقة $u_n=\\dfrac{1}{v_n}$ متتالية حسابيّة.» Note chip: «$v_n\\ne0$ (من ❶)». Progress «11 / 21»."
+        },
+        {
+          "say": "الأداة، تعريف المتتالية الحسابيّة. وتذكّر النمط، مقلوبات واحد ونصف وثلث وربع هي واحد واثنان وثلاثة وأربعة، نضيف واحداً كلّ مرّة.",
+          "screen": "Countdown ring (4 s). Hint chip: «تعريف 2: $u_{n+1}=u_n+r$ أيّاً كان $n$». Two columns $v_n$: $1,\\ \\frac12,\\ \\frac13,\\ \\frac14$ and $\\frac1{v_n}$: $1,\\ 2,\\ 3,\\ 4$ with green arrows «$+1$» — «فلنثبت ذلك لكلّ $n$».",
+          "hold": 4
+        },
+        {
+          "say": "يو إنْ زائد واحد يساوي واحداً على الحدّ في إنْ زائد واحد، أي مقلوب الكسر، واحد زائد في إنْ، على في إنْ.",
+          "screen": "🎯 card: «الحدّ $u_n$ معرّف لأنّ $v_n\\ne0$. أيّاً كان العدد الطبيعي $n$:» $u_{n+1}=\\dfrac{1}{v_{n+1}}=\\dfrac{1}{\\dfrac{v_n}{1+v_n}}=\\dfrac{1+v_n}{v_n}$ (flip animation)."
+        },
+        {
+          "say": "نوزّع على المقام، فنجد واحداً على في إنْ، مضافاً إليه واحد، أي يو إنْ مضافاً إليه واحد. فالفرق يساوي واحداً أيّاً كان إنْ.",
+          "screen": "🎯 card: $=\\dfrac{1}{v_n}+\\dfrac{v_n}{v_n}=u_n+1$. «إذن $u_{n+1}-u_n=1$ أيّاً كان $n$» («ثابت» boxed yellow)."
+        },
+        {
+          "say": "إذن المتتالية يو إنْ حسابيّة أساسها واحد، وحدُّها الأوّل يو صفر يساوي واحداً.",
+          "screen": "Boxed green: «$(u_n)_{n\\ge0}$ حسابيّة أساسها $r=1$»، $u_0=\\dfrac{1}{v_0}=1$."
+        },
+        {
+          "say": "انتبه، نقلب الكسر كلّه، ولا نقلب كلّ جزء منه وحده.",
+          "screen": "⚠️ card: «$\\dfrac{1}{v_{n+1}}=\\dfrac{1+v_n}{v_n}$ ✓ — $\\dfrac1{v_n}+\\dfrac1{1+v_n}$ ✗»."
+        }
+      ]
+    },
+    {
+      "id": "s14",
+      "section": "التمرين ③ · ❸",
+      "bookPage": 11,
+      "concept": "Recurring exam layout: statement card pinned at the top (purple border, the book's exact Arabic + LaTeX); below it the 🎯 card «على ورقة الامتحان» where the model answer is written line by line (each line appears as it is spoken, previous lines stay); the final answer is boxed (green = increasing / correct, pink = decreasing); a ⚠️ «انتبه» card slides in at the bottom for the classic mistake; progress chip «k / 21» in the top corner; the pause-and-think countdown ring (with ⏸ icon) and the purple hint chip appear at the start of the hint line. Here: a check table (rows «من العلاقة التدريجيّة» = the machine outputs of ❶ / «من الصيغة $\\frac{1}{n+1}$», columns $n=0,1,2,3$) fills cell by cell with green ✓.",
+      "lines": [
+        {
+          "say": "ثالثاً، استنتج عبارة في إنْ بدلالة إنْ.",
+          "screen": "Statement card, item (small header «③ $(v_n)_{n\\ge0}$ متتالية معرّفة تدريجيّاً وفق $v_0=1$ و $v_{n+1}=\\dfrac{v_n}{1+v_n}$.»): «❸ استنتج عبارة $v_n$ بدلالة $n$.» Progress «12 / 21»."
+        },
+        {
+          "say": "الأداة، الحدّ العامّ للمتتالية الحسابيّة يو إنْ، ثمّ نقلب.",
+          "screen": "Countdown ring (4 s). Hint chip: $u_n=u_0+n\\,r$ ، $v_n=\\dfrac{1}{u_n}$.",
+          "hold": 4
+        },
+        {
+          "say": "يو إنْ يساوي يو صفر زائد إنْ آر، أي واحد زائد إنْ. وفي إنْ مقلوب يو إنْ، فيساوي واحداً على المقدار إنْ زائد واحد.",
+          "screen": "🎯 card: $u_n=u_0+n\\,r=1+n\\ \\Rightarrow\\ v_n=\\dfrac{1}{u_n}=\\dfrac{1}{n+1}$; boxed green $\\boxed{v_n=\\dfrac{1}{n+1}}$."
+        },
+        {
+          "say": "تحقّق، الصيغة تعطي نصفاً وثلثاً وربعاً، وهي نفسها مخرجات الآلة. وانتبه، المطلوب في إنْ، فلا تتوقّف عند يو إنْ.",
+          "screen": "Check table: $n$: $0,1,2,3$ ; «من العلاقة التدريجيّة»: $1,\\ \\frac12,\\ \\frac13,\\ \\frac14$ (e.g. $v_2=\\dfrac{\\frac12}{1+\\frac12}=\\dfrac13$) ; «من الصيغة»: $1,\\ \\frac12,\\ \\frac13,\\ \\frac14$ — green ✓ per column. ⚠️ chip: «المطلوب $v_n$ لا $u_n$»."
+        }
+      ]
+    },
+    {
+      "id": "s15",
+      "section": "التمرين ④",
+      "bookPage": 11,
+      "concept": "The 3×3 grid of the nine sequences exactly as laid out in the book (RTL). Two yellow question chips, then the three method cards of «تكريساً للفهم»; the method cards shrink into a legend in the corner that stays for all of ④ (the method in use lights up in each item). Then the 🎯 three-step exam template.",
+      "lines": [
+        {
+          "say": "التمرين الرابع، ادرس جهة اطّراد تسع متتاليات. وقبل أيّ حساب، سؤالان.",
+          "screen": "Title: «④ ادرس جهة اطّراد كلٍّ من المتتاليات الآتية.» Grid (RTL as in the book): row 1 ❶ $u_n=\\dfrac{3}{n^2}$ ، ❷ $u_n=\\sqrt{3n+1}$ ، ❸ $u_n=\\dfrac{2n-1}{n+4}$ ; row 2 ❹ $u_n=\\dfrac{1}{n^2+1}$ ، ❺ $u_n=\\dfrac{3n+1}{n-2}$ ، ❻ $u_n=\\dfrac{n}{10^n}$ ; row 3 ❼ $\\begin{cases}u_0=2,\\\\ u_{n+1}=u_n-3\\end{cases}$ ، ❽ $\\begin{cases}u_0=1,\\\\ u_{n+1}=\\frac12u_n\\end{cases}$ ، ❾ $\\begin{cases}u_0=1,\\\\ u_{n+1}=2u_n\\end{cases}$."
+        },
+        {
+          "say": "أين الصيغة معرّفة؟ فهذا يحدّد إنْ صفر. وهل الحدود موجبة تماماً؟ فهذا وحده يسمح بطريقة النسبة.",
+          "screen": "Two yellow chips appear under the grid: «① أين الصيغة معرّفة؟ ← $n_0$» ، «② هل الحدود موجبة تماماً؟ ← طريقة النسبة»."
+        },
+        {
+          "say": "ثمّ نختار الأنسب من طرائق الدرس الثلاث، إشارة الفرق، أو اطّراد التابع، أو مقارنة النسبة بالواحد.",
+          "screen": "Three method cards (purple), appearing one by one: «إشارة الفرق: $u_{n+1}-u_n$» ، «اطّراد التابع: $u_n=f(n)$ ودراسة $f$ على $[n_0,+\\infty[$» ، «مقارنة النسبة بالواحد: $\\dfrac{u_{n+1}}{u_n}$ و $1$ (حدود موجبة تماماً)». They shrink into a corner legend."
+        },
+        {
+          "say": "وعلى ورقة الامتحان، كلّ حلّ ثلاث خطوات، أين المتتالية معرّفة، ثمّ الحساب، ثمّ جملة الجواب مع إنْ صفر.",
+          "screen": "🎯 card «على ورقة الامتحان» with a three-step checklist: «① مجموعة التعريف ← $n_0$» ، «② الحساب (الفرق / المشتق / النسبة)» ، «③ جملة الجواب: فالمتتالية $(u_n)_{n\\ge n_0}$ …»."
+        }
+      ]
+    },
+    {
+      "id": "s16",
+      "section": "④ · ❶",
+      "bookPage": 11,
+      "concept": "Recurring exam layout: statement card pinned at the top (purple border, the book's exact Arabic + LaTeX); below it the 🎯 card «على ورقة الامتحان» where the model answer is written line by line (each line appears as it is spoken, previous lines stay); the final answer is boxed (green = increasing / correct, pink = decreasing); a ⚠️ «انتبه» card slides in at the bottom for the classic mistake; progress chip «k / 21» in the top corner; the pause-and-think countdown ring (with ⏸ icon) and the purple hint chip appear at the start of the hint line. Here: an index number line where $n=0$ is crossed out red and the bracket starts at $n_0=1$; at the end a dot plot of $(n,u_n)$ for $n=1..4$ falls (pink). Legend lights «اطّراد التابع».",
+      "lines": [
+        {
+          "say": "الأولى، يو إنْ يساوي ثلاثة على إنْ تربيع.",
+          "screen": "Statement card (small header «④ ادرس جهة اطّراد كلٍّ من المتتاليات الآتية.»): «❶ $u_n=\\dfrac{3}{n^2}$». Progress «13 / 21»."
+        },
+        {
+          "say": "فكّر أوّلاً، أين هي معرّفة؟ ثمّ استعمل اطّراد التابع.",
+          "screen": "Countdown ring (4 s). Hint chip: «أين المقام $=0$؟ ثمّ $u_n=f(n)$». Legend: «اطّراد التابع» lights up.",
+          "hold": 4
+        },
+        {
+          "say": "نكتب، الحدّ غير معرّف عند إنْ يساوي صفراً، فالمتتالية هي يو إنْ، حيث إنْ أكبر من أو يساوي الواحد، أي إنْ صفر يساوي واحداً.",
+          "screen": "Index line: $0$ crossed red, bracket from $1$ (green) labeled $n_0=1$. 🎯 card: «الحدّ $u_n$ غير معرّف عند $n=0$، فالمتتالية هي $(u_n)_{n\\ge1}$»."
+        },
+        {
+          "say": "ونكتب يو إنْ يساوي إف إنْ، حيث التابع إف معرّف على المجال من واحد إلى زائد ما لا نهاية، وفق إف إكس يساوي ثلاثة على إكس تربيع.",
+          "screen": "🎯 card: «نكتب $u_n=f(n)$ حيث $f(x)=\\dfrac{3}{x^2}$ على $[1,+\\infty[$:»"
+        },
+        {
+          "say": "مشتقّه سالب ستّة على إكس تكعيب. وإكس تكعيب موجب على هذا المجال، فالمشتقّ سالب تماماً.",
+          "screen": "🎯 card: $f'(x)=-3\\times\\dfrac{2x}{x^4}=-\\dfrac{6}{x^3}$ ; «وفي حالة $x\\ge1$ يكون $x^3>0$، إذن $f'(x)<0$»."
+        },
+        {
+          "say": "فالتابع إف متناقص تماماً على هذا المجال، والمتتالية يو إنْ، حيث إنْ أكبر من أو يساوي الواحد، متناقصة تماماً.",
+          "screen": "🎯 card: «فالتابع $f$ متناقص تماماً على $[1,+\\infty[$». Boxed pink: $\\boxed{(u_n)_{n\\ge1}\\ \\text{متناقصة تماماً}}$. Dot plot: $u_1=3,\\ u_2=\\frac34,\\ u_3=\\frac13,\\ u_4=\\frac{3}{16}$ (falling, pink)."
+        },
+        {
+          "say": "انتبه، اكتب إنْ أكبر من أو يساوي الواحد، لا الصفر، فيو صفر غير موجود.",
+          "screen": "⚠️ card: «$(u_n)_{n\\ge1}$ ✓ — $(u_n)_{n\\ge0}$ ✗ ($u_0$ غير موجود)»."
+        }
+      ]
+    },
+    {
+      "id": "s17",
+      "section": "④ · ❷",
+      "bookPage": 11,
+      "concept": "Recurring exam layout: statement card pinned at the top (purple border, the book's exact Arabic + LaTeX); below it the 🎯 card «على ورقة الامتحان» where the model answer is written line by line (each line appears as it is spoken, previous lines stay); the final answer is boxed (green = increasing / correct, pink = decreasing); a ⚠️ «انتبه» card slides in at the bottom for the classic mistake; progress chip «k / 21» in the top corner; the pause-and-think countdown ring (with ⏸ icon) and the purple hint chip appear at the start of the hint line. Here: the graph of $f(x)=\\sqrt{3x+1}$ on $[0,+\\infty[$ rises (green) with the dots $(n,u_n)$ sitting on it. Legend lights «اطّراد التابع».",
+      "lines": [
+        {
+          "say": "الثانية، يو إنْ يساوي جذر المقدار ثلاثة إنْ زائد واحد.",
+          "screen": "Statement card (small header «④ ادرس جهة اطّراد كلٍّ من المتتاليات الآتية.»): «❷ $u_n=\\sqrt{3n+1}$». Progress «14 / 21»."
+        },
+        {
+          "say": "الأداة، اطّراد التابع. فكّر، ما إشارة مشتقّه؟",
+          "screen": "Countdown ring (3 s). Hint chip: «$u_n=f(n)$ — إشارة $f'(x)$؟». Legend: «اطّراد التابع» lights up.",
+          "hold": 3
+        },
+        {
+          "say": "ما تحت الجذر موجب دائماً، فالمتتالية معرّفة لكلّ إنْ، وإنْ صفر يساوي صفراً.",
+          "screen": "🎯 card: «$3n+1\\ge1>0$ أيّاً كان $n$، إذن $n_0=0$»."
+        },
+        {
+          "say": "ونكتب يو إنْ يساوي إف إنْ، حيث إف إكس يساوي جذر المقدار ثلاثة إكس زائد واحد.",
+          "screen": "🎯 card: «نكتب $u_n=f(n)$ حيث $f(x)=\\sqrt{3x+1}$»."
+        },
+        {
+          "say": "وهذا التابع معرّف بدءاً من سالب ثلث، فهو معرّف على كلّ المجال من الصفر إلى زائد ما لا نهاية.",
+          "screen": "🎯 card (same line continues): «، وهو تابع معرّف على $\\left[-\\frac13,+\\infty\\right[$ الذي يحوي $[0,+\\infty[$» — the interval $[0,+\\infty[$ highlighted yellow inside $\\left[-\\frac13,+\\infty\\right[$ on a small number line."
+        },
+        {
+          "say": "ومشتقّه ثلاثة على ضعف الجذر، وهو موجب تماماً. فالتابع إف متزايد تماماً، والمتتالية متزايدة تماماً.",
+          "screen": "🎯 card: $f'(x)=\\dfrac{3}{2\\sqrt{3x+1}}>0$ على $\\left]-\\frac13,+\\infty\\right[$ ; «إذن $f$ متزايد تماماً على $[0,+\\infty[$». Boxed green: $\\boxed{(u_n)_{n\\ge0}\\ \\text{متزايدة تماماً}}$. Dots: $1,\\ 2,\\ \\sqrt7,\\ \\sqrt{10}$ rising on the curve."
+        },
+        {
+          "say": "انتبه، إن اخترت إشارة الفرق، ففرق الجذرين ليس جذر الفرق، بل اضرب بالمرافق.",
+          "screen": "⚠️ card: «$\\sqrt{3n+4}-\\sqrt{3n+1}\\ne\\sqrt3$ ✗» ; «$\\sqrt{3n+4}-\\sqrt{3n+1}=\\dfrac{3}{\\sqrt{3n+4}+\\sqrt{3n+1}}>0$ ✓»."
+        }
+      ]
+    },
+    {
+      "id": "s18",
+      "section": "④ · ❸",
+      "bookPage": 11,
+      "concept": "Recurring exam layout: statement card pinned at the top (purple border, the book's exact Arabic + LaTeX); below it the 🎯 card «على ورقة الامتحان» where the model answer is written line by line (each line appears as it is spoken, previous lines stay); the final answer is boxed (green = increasing / correct, pink = decreasing); a ⚠️ «انتبه» card slides in at the bottom for the classic mistake; progress chip «k / 21» in the top corner; the pause-and-think countdown ring (with ⏸ icon) and the purple hint chip appear at the start of the hint line. Here: a small dot plot $u_0=-\\frac14$ (below the axis, pink ring), $u_1=\\frac15,\\ u_2=\\frac12,\\ u_3=\\frac57$; in the expanded numerator the matching terms $2n^2$ (purple) and $9n$ (blue) are struck through in pairs, leaving $4+5=9$ glowing yellow. Legend lights «إشارة الفرق».",
+      "lines": [
+        {
+          "say": "الثالثة، يو إنْ يساوي اثنين إنْ ناقص واحد، على المقدار إنْ زائد أربعة.",
+          "screen": "Statement card (small header «④ ادرس جهة اطّراد كلٍّ من المتتاليات الآتية.»): «❸ $u_n=\\dfrac{2n-1}{n+4}$». Progress «15 / 21»."
+        },
+        {
+          "say": "الأداة، إشارة الفرق، كمثال الكتاب الأوّل. وفكّر، لماذا لا تصلح طريقة النسبة هنا؟",
+          "screen": "Countdown ring (5 s). Hint chip: «إشارة الفرق: $u_{n+1}-u_n$ — والنسبة؟ 🤔». Legend: «إشارة الفرق» lights up.",
+          "hold": 5
+        },
+        {
+          "say": "المقام لا ينعدم، فإنْ صفر يساوي صفراً. لكنّ يو صفر يساوي سالب ربع، فالحدود ليست كلّها موجبة تماماً، والنسبة ممنوعة. أمّا الفرق فيصلح دائماً.",
+          "screen": "🎯 card: «$n+4\\ge4>0$ ⇒ $n_0=0$». Dot $u_0=-\\frac14$ below the axis (pink ring); chip «$u_0=-\\frac14<0$: طريقة النسبة ممنوعة ✗»."
+        },
+        {
+          "say": "يو إنْ زائد واحد يساوي اثنين إنْ زائد واحد، على المقدار إنْ زائد خمسة. نطرح يو إنْ، ونوحّد المقامات.",
+          "screen": "🎯 card: $u_{n+1}=\\dfrac{2(n+1)-1}{(n+1)+4}=\\dfrac{2n+1}{n+5}$ ; $u_{n+1}-u_n=\\dfrac{2n+1}{n+5}-\\dfrac{2n-1}{n+4}=\\dfrac{(2n+1)(n+4)-(2n-1)(n+5)}{(n+4)(n+5)}$."
+        },
+        {
+          "say": "ننشر البسط، فتختفي الحدود المتشابهة، ويبقى تسعة. إذن الفرق تسعة، على جداء عددين موجبين تماماً.",
+          "screen": "🎯 card: $=\\dfrac{(2n^2+9n+4)-(2n^2+9n-5)}{(n+4)(n+5)}=\\dfrac{9}{(n+4)(n+5)}$ (strike-through animation on $2n^2$ and $9n$)."
+        },
+        {
+          "say": "البسط موجب، والمقام موجب، فالفرق موجب تماماً أيّاً كان إنْ، والمتتالية متزايدة تماماً.",
+          "screen": "🎯 card: «البسط $9>0$ والمقام جداء عددين موجبين تماماً، إذن $u_{n+1}-u_n>0$ أيّاً كان $n$». Boxed green: $\\boxed{(u_n)_{n\\ge0}\\ \\text{متزايدة تماماً}}$. Dots rise: $-\\frac14,\\ \\frac15,\\ \\frac12,\\ \\frac57$."
+        },
+        {
+          "say": "انتبه لإشارة الناقص قبل القوس، فهي تقلب سالب خمسة إلى زائد خمسة. ومن ينساها يجد سالب واحد بدل تسعة.",
+          "screen": "⚠️ card: «$-(2n^2+9n-5)=-2n^2-9n+5$» ; «$4+5=9$ ✓ — $4-5=-1$ ✗»."
+        }
+      ]
+    },
+    {
+      "id": "s19",
+      "section": "④ · ❹",
+      "bookPage": 11,
+      "concept": "Recurring exam layout: statement card pinned at the top (purple border, the book's exact Arabic + LaTeX); below it the 🎯 card «على ورقة الامتحان» where the model answer is written line by line (each line appears as it is spoken, previous lines stay); the final answer is boxed (green = increasing / correct, pink = decreasing); a ⚠️ «انتبه» card slides in at the bottom for the classic mistake; progress chip «k / 21» in the top corner; the pause-and-think countdown ring (with ⏸ icon) and the purple hint chip appear at the start of the hint line. Here: a predict-first dot plot $1,\\ \\frac12,\\ \\frac15,\\ \\frac1{10}$ falling (pink); then $(n+1)^2$ drawn as a square of side $n+1$ split into $n^2$, two strips $n\\times1$ (glowing yellow) and a unit square, before it enters the difference. Legend lights «إشارة الفرق».",
+      "lines": [
+        {
+          "say": "الرابعة، يو إنْ يساوي واحداً على المقدار إنْ تربيع زائد واحد.",
+          "screen": "Statement card (small header «④ ادرس جهة اطّراد كلٍّ من المتتاليات الآتية.»): «❹ $u_n=\\dfrac{1}{n^2+1}$». Progress «16 / 21»."
+        },
+        {
+          "say": "الأداة، إشارة الفرق. وقبل الحساب، توقّع، البسط ثابت والمقام يكبر، فماذا يحدث للحدود؟",
+          "screen": "Countdown ring (3 s). Hint chip: «إشارة الفرق — توقّع أوّلاً 🤔». Legend: «إشارة الفرق» lights up.",
+          "hold": 3
+        },
+        {
+          "say": "المقام لا ينعدم، فإنْ صفر يساوي صفراً. وتوقّعك صحيح، الحدود تصغر، واحد، نصف، خُمس، عُشر. والحساب سيؤكّد ذلك.",
+          "screen": "🎯 card: «$n^2+1\\ge1>0$ ⇒ $n_0=0$». Dots $1,\\ \\frac12,\\ \\frac15,\\ \\frac1{10}$ falling (pink); chip «توقّع: متناقصة؟»."
+        },
+        {
+          "say": "انشر بعناية. مربّع ضلعه إنْ زائد واحد، فيه مربّع مساحته إنْ تربيع، وشريطان مساحة كلٍّ منهما إنْ، ومربّع صغير مساحته واحد.",
+          "screen": "Square picture: side $n+1$ split into $n^2$, two strips $n$ (yellow) and $1$: $(n+1)^2=n^2+2n+1$. 🎯 card: $u_{n+1}=\\dfrac{1}{(n+1)^2+1}=\\dfrac{1}{n^2+2n+2}$."
+        },
+        {
+          "say": "فيو إنْ زائد واحد يساوي واحداً على المقدار إنْ تربيع زائد اثنين إنْ زائد اثنين. نوحّد المقامات، فيبقى في البسط معاكس المقدار اثنين إنْ زائد واحد.",
+          "screen": "🎯 card: $u_{n+1}-u_n=\\dfrac{1}{n^2+2n+2}-\\dfrac{1}{n^2+1}=\\dfrac{(n^2+1)-(n^2+2n+2)}{(n^2+1)(n^2+2n+2)}=\\dfrac{-(2n+1)}{(n^2+1)(n^2+2n+2)}$."
+        },
+        {
+          "say": "البسط سالب تماماً، والمقام موجب تماماً، فالفرق سالب، والمتتالية متناقصة تماماً.",
+          "screen": "🎯 card: «البسط $-(2n+1)<0$ والمقام موجب تماماً، إذن $u_{n+1}-u_n<0$ أيّاً كان $n$». Boxed pink: $\\boxed{(u_n)_{n\\ge0}\\ \\text{متناقصة تماماً}}$."
+        },
+        {
+          "say": "انتبه، لا تنسَ الحدّ الأوسط اثنين إنْ، فالمقدار ليس إنْ تربيع زائد اثنين.",
+          "screen": "⚠️ card: «$(n+1)^2+1=n^2+2n+2$ ✓ — $n^2+2$ ✗»."
+        }
+      ]
+    },
+    {
+      "id": "s20",
+      "section": "④ · ❺",
+      "bookPage": 11,
+      "concept": "Recurring exam layout: statement card pinned at the top (purple border, the book's exact Arabic + LaTeX); below it the 🎯 card «على ورقة الامتحان» where the model answer is written line by line (each line appears as it is spoken, previous lines stay); the final answer is boxed (green = increasing / correct, pink = decreasing); a ⚠️ «انتبه» card slides in at the bottom for the classic mistake; progress chip «k / 21» in the top corner; the pause-and-think countdown ring (with ⏸ icon) and the purple hint chip appear at the start of the hint line. Here: index number line $0,1,2,3,4,5,\\dots$; $n=2$ explodes red «$u_2$ غير معرّف», the chain breaks, and a green bracket starts at $n_0=3$ (callback to the definition: «$\\{n_0,n_0+1,n_0+2,\\dots\\}$»); later the dots $(n,u_n)$ for $n\\ge3$ slide down toward a dashed line $y=3$. Legend lights «اطّراد التابع».",
+      "lines": [
+        {
+          "say": "الخامسة، يو إنْ يساوي ثلاثة إنْ زائد واحد، على المقدار إنْ ناقص اثنين.",
+          "screen": "Statement card (small header «④ ادرس جهة اطّراد كلٍّ من المتتاليات الآتية.»): «❺ $u_n=\\dfrac{3n+1}{n-2}$». Progress «17 / 21»."
+        },
+        {
+          "say": "فكّر جيّداً، أين لا تكون معرّفة؟ ومن أين تبدأ المتتالية؟ ثمّ استعمل اطّراد التابع.",
+          "screen": "Countdown ring (5 s); 🤔 فكّر chip: «أين المقام $=0$؟ ومن أين تبدأ؟». Legend: «اطّراد التابع» lights up.",
+          "hold": 5
+        },
+        {
+          "say": "المقام ينعدم عند إنْ يساوي اثنين، فيو اثنين غير موجود.",
+          "screen": "Index line: $2$ explodes red «$u_2$ غير معرّف». 🎯 card: «الحدّ غير معرّف عند $n=2$»."
+        },
+        {
+          "say": "والمتتالية تُعرَّف على أعداد متتالية بلا ثغرة، فندرس يو إنْ، حيث إنْ أكبر من أو يساوي ثلاثة، أي إنْ صفر يساوي ثلاثة.",
+          "screen": "Green bracket from $3$: «$\\{n_0,n_0+1,n_0+2,\\dots\\}$ ، $n_0=3$». 🎯 card: «فندرس المتتالية $(u_n)_{n\\ge3}$»."
+        },
+        {
+          "say": "نكتب يو إنْ يساوي إف إنْ، بوضع إكس مكان إنْ، وندرس التابع إف على المجال من ثلاثة إلى زائد ما لا نهاية.",
+          "screen": "🎯 card: «نكتب $u_n=f(n)$ حيث $f(x)=\\dfrac{3x+1}{x-2}$ على $[3,+\\infty[$:»"
+        },
+        {
+          "say": "نشتقّ ناتج القسمة، فيختفي ثلاثة إكس، ويبقى المشتقّ سالب سبعة، على مربّع المقدار إكس ناقص اثنين.",
+          "screen": "🎯 card: $f'(x)=\\dfrac{3(x-2)-1\\times(3x+1)}{(x-2)^2}=\\dfrac{3x-6-3x-1}{(x-2)^2}=\\dfrac{-7}{(x-2)^2}<0$ ($3x$ and $-3x$ struck through)."
+        },
+        {
+          "say": "المشتقّ سالب تماماً، فالتابع إف متناقص تماماً على هذا المجال، والمتتالية يو إنْ، حيث إنْ أكبر من أو يساوي ثلاثة، متناقصة تماماً.",
+          "screen": "🎯 card: «إذن $f$ متناقص تماماً على $[3,+\\infty[$». Boxed pink: $\\boxed{(u_n)_{n\\ge3}\\ \\text{متناقصة تماماً}}$. Dots: $u_3=10,\\ u_4=\\frac{13}{2},\\ u_5=\\frac{16}{3}$ falling."
+        },
+        {
+          "say": "وللفهم، اكتب إف إكس على شكل ثلاثة، زائد سبعة على المقدار إكس ناقص اثنين. كلّما كبر إكس صغر هذا الكسر، فتنزل الحدود نحو ثلاثة.",
+          "screen": "Blue side line: $f(x)=\\dfrac{3(x-2)+7}{x-2}=3+\\dfrac{7}{x-2}$. The dots $(n,u_n)$ for $n\\ge3$ slide down toward a dashed horizontal line $y=3$, staying above it."
+        },
+        {
+          "say": "انتبه، لا تقل إنّها متناقصة من البداية. فيو واحد يساوي سالب أربعة، وهو أصغر من يو ثلاثة الذي يساوي عشرة.",
+          "screen": "⚠️ card: «$u_1=-4<u_3=10$: لا اطّراد عبر $n=2$ — اكتب $n_0=3$ صراحةً»."
+        }
+      ]
+    },
+    {
+      "id": "s21",
+      "section": "④ · ❻",
+      "bookPage": 11,
+      "concept": "Recurring exam layout: statement card pinned at the top (purple border, the book's exact Arabic + LaTeX); below it the 🎯 card «على ورقة الامتحان» where the model answer is written line by line (each line appears as it is spoken, previous lines stay); the final answer is boxed (green = increasing / correct, pink = decreasing); a ⚠️ «انتبه» card slides in at the bottom for the classic mistake; progress chip «k / 21» in the top corner; the pause-and-think countdown ring (with ⏸ icon) and the purple hint chip appear at the start of the hint line. Here: a race picture first — blue counter $n$: $0\\to1\\to2\\to3$ («$+1$») vs purple bars $10^n$: $1\\to10\\to100\\to1000$ («$\\times10$»); then a two-row sign table for $1-9n$ ($n=0$: green $+$ ; $n\\ge1$: pink $-$); then a dot plot $0,\\ \\frac1{10},\\ \\frac1{50},\\ \\frac3{1000}$ that goes up once then down (yellow flag at $n=1$), next to a mini replay of the book's $v_n=(n-1)^2$ (down once then up). Legend lights «إشارة الفرق».",
+      "lines": [
+        {
+          "say": "السادسة، يو إنْ يساوي إنْ على عشرة أُس إنْ.",
+          "screen": "Statement card (small header «④ ادرس جهة اطّراد كلٍّ من المتتاليات الآتية.»): «❻ $u_n=\\dfrac{n}{10^n}$». Progress «18 / 21»."
+        },
+        {
+          "say": "الأداة، إشارة الفرق، بمقام مشترك هو عشرة مرفوعاً إلى الأُس إنْ زائد واحد. وفكّر، هل الإشارة نفسها عند الصفر وبعده؟",
+          "screen": "Countdown ring (4 s). Hint chip: «إشارة الفرق — مقام مشترك $10^{n+1}$». Legend: «إشارة الفرق» lights up.",
+          "hold": 4
+        },
+        {
+          "say": "المتتالية معرّفة لكلّ إنْ. وتخيّل سباقاً، البسط يزيد واحداً في كلّ خطوة، والمقام يُضرب بعشرة. المقام يفوز بسرعة، لكن راقب البداية، يو صفر يساوي صفراً.",
+          "screen": "🎯 card: «$10^n>0$ ⇒ معرّفة على $\\mathbb{N}$». Race: $n$: $0\\to1\\to2\\to3$ («$+1$») vs $10^n$: $1\\to10\\to100\\to1000$ («$\\times10$»). Yellow chip: «$u_0=\\dfrac{0}{1}=0$»."
+        },
+        {
+          "say": "نضرب بسط يو إنْ ومقامه بعشرة، فيصبح الفرق كسراً بسطه واحد ناقص تسعة إنْ، ومقامه عشرة مرفوعاً إلى الأُس إنْ زائد واحد.",
+          "screen": "🎯 card: $u_{n+1}-u_n=\\dfrac{n+1}{10^{n+1}}-\\dfrac{n}{10^n}=\\dfrac{n+1}{10^{n+1}}-\\dfrac{10n}{10^{n+1}}=\\dfrac{1-9n}{10^{n+1}}$."
+        },
+        {
+          "say": "المقام موجب، فالإشارة من إشارة البسط. عند إنْ يساوي صفراً البسط واحد، موجب، فيو واحد أكبر من يو صفر.",
+          "screen": "🎯 card: «وبما أنّ $10^{n+1}>0$ فإشارة الفرق من إشارة $1-9n$:» Sign-table row 1: «عند $n=0$: $1-9n=1>0$ ، إذن $u_1>u_0$ ($u_0=0<u_1=\\frac1{10}$)» — green step up on the dot plot."
+        },
+        {
+          "say": "ومن إنْ يساوي واحداً فصاعداً، تسعة إنْ أكبر من واحد، فالبسط سالب، وكلّ حدّ أصغر من سابقه.",
+          "screen": "Sign-table row 2: «في حالة $n\\ge1$: $9n\\ge9>1$ ، إذن $1-9n<0$ ومنه $u_{n+1}<u_n$» — pink steps down $\\frac1{10}\\to\\frac1{50}\\to\\frac3{1000}$."
+        },
+        {
+          "say": "إذن المتتالية متناقصة تماماً بدءاً من الحدّ ذي الدليل إنْ صفر يساوي واحداً. أمّا من الصفر فليست مطّردة، فهي تصعد مرّة ثمّ تنزل.",
+          "screen": "Boxed pink: $\\boxed{u_0<u_1\\ \\text{ثمّ}\\ (u_n)_{n\\ge1}\\ \\text{متناقصة تماماً (بدءاً من}\\ n_0=1)}$ ; grey line: «أمّا $(u_n)_{n\\ge0}$ فليست مطّردة ($u_0<u_1$ و $u_1>u_2$)». Yellow flag at $n=1$ «$n_0=1$»."
+        },
+        {
+          "say": "وهي فكرة إنْ صفر نفسها في مثال الكتاب، في إنْ يساوي مربّع المقدار إنْ ناقص واحد.",
+          "screen": "Mini callback (purple chip): «الكتاب ص 10: $v_n=(n-1)^2$ ، $v_0>v_1$ ، متزايدة بدءاً من $n_0=1$» — its dot plot goes down once then up, mirrored next to ours."
+        },
+        {
+          "say": "انتبه، طريقة النسبة لا تُكتب عند إنْ يساوي صفراً، لأنّ يو صفر يساوي صفراً، ولا قسمة على الصفر.",
+          "screen": "⚠️ card: «$\\dfrac{u_1}{u_0}$ غير معرّفة: $u_0=0$ — النسبة تحتاج حدوداً موجبة تماماً»."
+        }
+      ]
+    },
+    {
+      "id": "s22",
+      "section": "④ · ❼",
+      "bookPage": 11,
+      "concept": "Recurring exam layout: statement card pinned at the top (purple border, the book's exact Arabic + LaTeX); below it the 🎯 card «على ورقة الامتحان» where the model answer is written line by line (each line appears as it is spoken, previous lines stay); the final answer is boxed (green = increasing / correct, pink = decreasing); a ⚠️ «انتبه» card slides in at the bottom for the classic mistake; progress chip «k / 21» in the top corner; the pause-and-think countdown ring (with ⏸ icon) and the purple hint chip appear at the start of the hint line. Here: a descending staircase $2,\\,-1,\\,-4,\\,-7$ (pink), each step labeled «$-3$». Legend lights «إشارة الفرق».",
+      "lines": [
+        {
+          "say": "السابعة، يو صفر يساوي اثنين، ويو إنْ زائد واحد يساوي يو إنْ ناقص ثلاثة.",
+          "screen": "Statement card (small header «④ ادرس جهة اطّراد كلٍّ من المتتاليات الآتية.»): «❼ $\\begin{cases}u_0=2,\\\\ u_{n+1}=u_n-3\\end{cases}$». Progress «19 / 21»."
+        },
+        {
+          "say": "الأداة، إشارة الفرق، فالعلاقة التدريجيّة تعطيه مباشرة.",
+          "screen": "Countdown ring (3 s). Hint chip: «إشارة الفرق: $u_{n+1}-u_n=\\ ?$». Legend: «إشارة الفرق» lights up.",
+          "hold": 3
+        },
+        {
+          "say": "تبدأ المتتالية من يو صفر، فإنْ صفر يساوي صفراً. ونكتب، أيّاً كان إنْ، الفرق يو إنْ زائد واحد ناقص يو إنْ يساوي سالب ثلاثة.",
+          "screen": "🎯 card: «المتتالية معرّفة بدءاً من $u_0$ ⇒ $n_0=0$». «أيّاً كان $n$: $u_{n+1}-u_n=-3$»."
+        },
+        {
+          "say": "الفرق سالب تماماً، فكلّ حدّ أصغر من سابقه، والمتتالية متناقصة تماماً.",
+          "screen": "🎯 card: «$u_{n+1}-u_n=-3<0$، إذن $u_{n+1}<u_n$». Boxed pink: $\\boxed{(u_n)_{n\\ge0}\\ \\text{متناقصة تماماً}}$. Staircase $2,\\,-1,\\,-4,\\,-7$."
+        },
+        {
+          "say": "وهي حسابيّة أساسها سالب ثلاثة. وقاعدة عامّة، الحسابيّة متزايدة تماماً إذا كان آر موجباً، ومتناقصة تماماً إذا كان سالباً، وثابتة إذا كان صفراً.",
+          "screen": "Grey line: «(وهي حسابيّة أساسها $r=-3$: $u_n=2-3n$)». 💡 card: «حسابيّة: $r>0$ ⇒ متزايدة تماماً ، $r<0$ ⇒ متناقصة تماماً ، $r=0$ ⇒ ثابتة»."
+        }
+      ]
+    },
+    {
+      "id": "s23",
+      "section": "④ · ❽",
+      "bookPage": 11,
+      "concept": "Recurring exam layout: statement card pinned at the top (purple border, the book's exact Arabic + LaTeX); below it the 🎯 card «على ورقة الامتحان» where the model answer is written line by line (each line appears as it is spoken, previous lines stay); the final answer is boxed (green = increasing / correct, pink = decreasing); a ⚠️ «انتبه» card slides in at the bottom for the classic mistake; progress chip «k / 21» in the top corner; the pause-and-think countdown ring (with ⏸ icon) and the purple hint chip appear at the start of the hint line. Here: bars $1,\\ \\frac12,\\ \\frac14,\\ \\frac18$ each half of the previous one (pink, above the axis = positive). In the ⚠️ beat a mirrored set of bars below the axis $-1,\\ -\\frac12,\\ -\\frac14$ rises toward $0$ (green arrow up, big «!») although the ratio is still $\\frac12$. Legend lights «مقارنة النسبة بالواحد».",
+      "lines": [
+        {
+          "say": "الثامنة، يو صفر يساوي واحداً، ويو إنْ زائد واحد يساوي نصف يو إنْ.",
+          "screen": "Statement card (small header «④ ادرس جهة اطّراد كلٍّ من المتتاليات الآتية.»): «❽ $\\begin{cases}u_0=1,\\\\ u_{n+1}=\\frac12u_n\\end{cases}$». Progress «20 / 21»."
+        },
+        {
+          "say": "إنّها هندسيّة. والأداة، مقارنة النسبة بالواحد، لكن بعد إثبات أنّ الحدود موجبة تماماً.",
+          "screen": "Countdown ring (4 s). Hint chip: «مقارنة النسبة بالواحد — بعد إثبات $u_n>0$». Legend: «مقارنة النسبة بالواحد» lights up.",
+          "hold": 4
+        },
+        {
+          "say": "تبدأ من يو صفر، فإنْ صفر يساوي صفراً. أساسها نصف، وحدُّها الأوّل واحد، فيو إنْ يساوي نصفاً أُس إنْ، وهو موجب تماماً أيّاً كان إنْ.",
+          "screen": "🎯 card: «$n_0=0$. المتتالية هندسيّة أساسها $q=\\frac12$ وحدّها الأوّل $u_0=1$، إذن» $u_n=u_0\\,q^n=\\left(\\dfrac12\\right)^n>0$ «أيّاً كان $n$» (green tag «$>0$ ✓»)."
+        },
+        {
+          "say": "فالنسبة يو إنْ زائد واحد على يو إنْ تساوي نصفاً، وهي أصغر من واحد. ولأنّ يو إنْ موجب، نضرب به الطرفين، فكلّ حدّ أصغر من سابقه.",
+          "screen": "🎯 card: $\\dfrac{u_{n+1}}{u_n}=\\dfrac12<1\\ \\Rightarrow\\ u_{n+1}<u_n$ «(بالضرب في $u_n>0$)» — the factor $u_n>0$ glows green."
+        },
+        {
+          "say": "إذن المتتالية متناقصة تماماً. ويمكنك أيضاً استعمال إشارة الفرق، فالفرق سالب نصف يو إنْ، وهو سالب تماماً.",
+          "screen": "Boxed pink: $\\boxed{(u_n)_{n\\ge0}\\ \\text{متناقصة تماماً}}$. Bars $1,\\ \\frac12,\\ \\frac14,\\ \\frac18$. Blue side line: «طريقة أخرى: $u_{n+1}-u_n=\\frac12u_n-u_n=-\\frac12u_n=-\\left(\\frac12\\right)^{n+1}<0$»."
+        },
+        {
+          "say": "انتبه، لماذا أثبتنا الموجبيّة أوّلاً؟ لو كان يو صفر سالب واحد، لكانت الحدود سالب واحد، سالب نصف، سالب ربع، وهي متزايدة، مع أنّ النسبة نصف.",
+          "screen": "⚠️ card: «لو كان $u_0=-1$: $-1,\\,-\\frac12,\\,-\\frac14,\\dots$ متزايدة رغم $\\dfrac{u_{n+1}}{u_n}=\\dfrac12<1$ — اكتب دائماً $u_n>0$ أوّلاً». Mirrored bars below the axis rising (green arrow up)."
+        }
+      ]
+    },
+    {
+      "id": "s24",
+      "section": "④ · ❾",
+      "bookPage": 11,
+      "concept": "Recurring exam layout: statement card pinned at the top (purple border, the book's exact Arabic + LaTeX); below it the 🎯 card «على ورقة الامتحان» where the model answer is written line by line (each line appears as it is spoken, previous lines stay); the final answer is boxed (green = increasing / correct, pink = decreasing); a ⚠️ «انتبه» card slides in at the bottom for the classic mistake; progress chip «k / 21» in the top corner; the pause-and-think countdown ring (with ⏸ icon) and the purple hint chip appear at the start of the hint line. Here: bars $1,2,4,8$ doubling (green). In the ⚠️ beat a mirrored set of bars below the axis $-1,-2,-4$ goes down (pink) although the ratio is still $2$. Legend lights «مقارنة النسبة بالواحد».",
+      "lines": [
+        {
+          "say": "التاسعة، يو صفر يساوي واحداً، ويو إنْ زائد واحد يساوي اثنين ضرب يو إنْ.",
+          "screen": "Statement card (small header «④ ادرس جهة اطّراد كلٍّ من المتتاليات الآتية.»): «❾ $\\begin{cases}u_0=1,\\\\ u_{n+1}=2u_n\\end{cases}$». Progress «21 / 21»."
+        },
+        {
+          "say": "والأداة نفسها، مقارنة النسبة بالواحد، بعد إثبات الموجبيّة.",
+          "screen": "Countdown ring (3 s). Hint chip: «مقارنة النسبة بالواحد — بعد إثبات $u_n>0$». Legend: «مقارنة النسبة بالواحد» lights up.",
+          "hold": 3
+        },
+        {
+          "say": "تبدأ من يو صفر، فإنْ صفر يساوي صفراً. هي هندسيّة أساسها اثنان، فيو إنْ يساوي اثنين أُس إنْ، موجب تماماً أيّاً كان إنْ.",
+          "screen": "🎯 card: «$n_0=0$. هندسيّة أساسها $q=2$ وحدّها الأوّل $u_0=1$، إذن $u_n=2^n>0$ أيّاً كان $n$»."
+        },
+        {
+          "say": "والنسبة تساوي اثنين، أكبر من واحد. ولأنّ الحدود موجبة، فكلّ حدّ أكبر من سابقه، والمتتالية متزايدة تماماً.",
+          "screen": "🎯 card: $\\dfrac{u_{n+1}}{u_n}=2>1\\ \\Rightarrow\\ u_{n+1}>u_n$ «(بالضرب في $u_n>0$)». Boxed green: $\\boxed{(u_n)_{n\\ge0}\\ \\text{متزايدة تماماً}}$. Bars $1,2,4,8$."
+        },
+        {
+          "say": "والفخّ نفسه هنا، لو كان يو صفر سالب واحد، لكانت الحدود سالب واحد، سالب اثنين، سالب أربعة، وهي متناقصة، مع أنّ النسبة اثنان.",
+          "screen": "⚠️ card: «لو كان $u_0=-1$: $-1,\\,-2,\\,-4,\\dots$ متناقصة رغم $\\dfrac{u_{n+1}}{u_n}=2>1$ — اكتب دائماً $u_n>0$ أوّلاً». Mirrored pink bars below the axis."
+        }
+      ]
+    },
+    {
+      "id": "s25",
+      "section": "الخلاصة والدرس القادم",
+      "bookPage": null,
+      "concept": "One recap board, two colour-coded columns lighting up in turn: blue column «الحسابيّة والهندسيّة» (term and sum formulas + counting rule), green/pink column «الاطّراد» (a yellow $n_0$ header chip, then the three methods, each tagged with the items of ④ that used it), then a 🎯 chip about the conclusion sentence. Last beats: the board fades, the domino chain of exercise ③ returns and keeps toppling, beside it the L-shaped dot squares of the lesson's page-6 activity ($1+3+5+\\cdots+(2n-1)=n^2$) with a yellow «؟»; the next-lesson title appears in purple, end card, fade to navy.",
+      "lines": [
+        {
+          "say": "لنجمع أدوات الحلّ. قانون الحدّ بين دليلين، وقانون المجموع، في الحسابيّة والهندسيّة، مع عدّ الحدود عدّاً صحيحاً.",
+          "screen": "Blue column «الحسابيّة والهندسيّة»: $u_m=u_p+(m-p)\\,r$ ، $u_m=u_p\\,q^{m-p}$ ، $S=\\dfrac{n(a+\\ell)}{2}$ ، $S=a\\,\\dfrac{1-q^n}{1-q}\\ (q\\ne1)$ ، «عدد الحدود $=$ الأخير $-$ الأوّل $+\\,1$»."
+        },
+        {
+          "say": "وفي الاطّراد، ابدأ دائماً بسؤال، من أين تبدأ المتتالية؟ فقد وجدنا إنْ صفر يساوي واحداً في الأولى والسادسة، وثلاثة في الخامسة.",
+          "screen": "Green/pink column «الاطّراد», yellow header chip: «أوّلاً: $n_0$؟ ($n_0=1$ في ④❶ و ④❻ ، $n_0=3$ في ④❺)»."
+        },
+        {
+          "say": "ثمّ اختر إشارة الفرق، أو اطّراد التابع، أو مقارنة النسبة بالواحد إذا كانت الحدود موجبة تماماً.",
+          "screen": "Under the chip: «إشارة الفرق: ④❸ ④❹ ④❻ ④❼» ، «اطّراد التابع: ④❶ ④❷ ④❺» ، «مقارنة النسبة بالواحد (حدود موجبة تماماً): ④❽ ④❾»."
+        },
+        {
+          "say": "واختم كلّ حلّ بجملة الجواب كاملة، مع مجموعة الأدلّة التي تبدأ منها المتتالية.",
+          "screen": "🎯 chip: «جملة الجواب: فالمتتالية $(u_n)_{n\\ge n_0}$ متزايدة تماماً / متناقصة تماماً»; the whole board glows once; corner icon «📸 صوّر الشاشة»."
+        },
+        {
+          "say": "وفي التمرين الثالث، رأينا خاصّةً تنتقل من حدٍّ إلى الذي يليه، كقطع الدومينو.",
+          "screen": "The board fades. Domino chain $v_0>0\\to v_1>0\\to v_2>0\\to\\cdots$ returns to the centre and topples again."
+        },
+        {
+          "say": "وفي الدرس القادم، البرهان بالتدريج، نحوّل هذا الانتقال إلى برهانٍ كامل، ونثبت أخيراً أنّ مجموع أوّل إنْ عدداً فرديّاً يساوي إنْ تربيع. أراك هناك.",
+          "screen": "Beside the dominoes: the L-shaped dot squares of the page-6 activity with $1+3+5+\\cdots+(2n-1)=n^2$ and a yellow «؟». Title (purple): «2 البرهان بالتدريج أو بالاستقراء الرياضي — الكتاب ص 12». End card «الدرس التالي: البرهان بالتدريج»; fade to navy.",
+          "hold": 2
+        }
+      ]
+    }
+  ]
+}
