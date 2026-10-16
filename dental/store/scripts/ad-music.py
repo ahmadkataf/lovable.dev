@@ -106,7 +106,7 @@ def bass_note(midi, length):
     t = t_axis(n)
     f = note_hz(midi)
     x = saw(f, n) + 0.5 * np.sin(2 * np.pi * f / 2 * t)
-    x = lp(x, 420, 4)
+    x = lp(x, 900, 4)
     e = np.clip(t / 0.005, 0, 1) * np.clip((length - t) / 0.02, 0, 1)
     return np.tanh(1.4 * x * e) * 0.55
 
@@ -182,15 +182,15 @@ def music(duration, drop, brk, end):
         in_break = brk and brk[0] <= t0 < brk[1]
         before_drop = t0 < drop - 1e-6
         # pad: always (softer before the drop)
-        add(pad, t0, pad_chord(chord, BAR + 0.2), 0.55 if before_drop else (0.8 if in_break else 0.6))
+        add(pad, t0, pad_chord(chord, BAR + 0.2), 0.9 if before_drop else (0.8 if in_break else 0.6))
         for b in range(4):
             tb = t0 + b * BEAT
             if tb >= end:
                 break
             if not before_drop and not in_break:
-                add(drums, tb, k, 0.9)
+                add(drums, tb, k, 0.6)
                 if b in (1, 3):
-                    add(drums, tb, c, 0.55)
+                    add(drums, tb, c, 0.8)
                 add(drums, tb + BEAT / 2, ho if b == 3 else h, 0.6)
                 add(drums, tb + BEAT / 4, h, 0.22)
                 add(drums, tb + 3 * BEAT / 4, h, 0.22)
@@ -214,8 +214,9 @@ def music(duration, drop, brk, end):
         bar_i += 1
     # a snare roll into the drop
     for i in range(8):
-        add(drums, drop - BEAT * 2 + i * BEAT / 4, c, 0.15 + 0.06 * i)
-    mix = 0.95 * drums + 0.8 * bass + 0.5 * pad + 0.55 * arp
+        add(drums, drop - BEAT * 2 + i * BEAT / 4, c, 0.35 + 0.08 * i)
+    # weighted to the mids: phones reproduce little below 250 Hz
+    mix = 0.95 * drums + 0.5 * bass + 1.2 * pad + 1.4 * arp
     # sidechain pump from the kick (not in the intro or the break)
     t = t_axis(n)
     phase = ((t - origin) % BEAT) / BEAT
@@ -255,6 +256,7 @@ def main():
         add(fx, s, impact(), 0.8)
     for s in cues.get('riser', []):
         add(fx, s - 1.6, riser(), 0.6)
+    add(fx, cues['end'], impact(), 0.8)   # the closing hit, ringing to the last frame
     # duck the music under the voice: a smoothed envelope of the speech
     e = np.abs(v)
     win = int(0.05 * SR)
@@ -264,10 +266,17 @@ def main():
     # release: hold the ducking a little after each word
     rel = int(0.25 * SR)
     gate = np.convolve(gate, np.ones(rel) / rel * 2, mode='full')[:n].clip(0, 1)
-    duck = 1 - 0.55 * gate
     vr = np.sqrt(np.mean(v[v != 0] ** 2)) if np.any(v) else 0.1
-    mr = np.sqrt(np.mean(m ** 2)) + 1e-9
-    m = m / mr * vr * 0.30   # the music about 10 dB under the voice, then ducked
+    # level the music on the band a phone speaker plays (above 250 Hz), well under the voice, then duck it
+    mr = np.sqrt(np.mean(hp(m, 250) ** 2)) + 1e-9
+    m = m / mr * vr * 0.12
+    pre = t_axis(n) < cues['drop']   # the hook: no voice-over bed yet, so the intro is lifted (the impact masks the step)
+    m[pre] *= 2.5
+    # and lifted again (+9 dB over 0.3 s) once the last word is said: the call to action holds on the music
+    spoken = np.nonzero(np.abs(v) > 0.02)[0]
+    if len(spoken):
+        m *= 1 + 1.8 * np.clip((t_axis(n) - spoken[-1] / SR) / 0.3, 0, 1)
+    duck = np.where(pre, 1 - 0.3 * gate, 1 - 0.45 * gate)
     fx = fx / (np.abs(fx).max() + 1e-9) * vr * 2.2
     left = v + m * duck + fx * 0.9
     d = int(0.012 * SR)   # a touch of width on the music: one side slightly later

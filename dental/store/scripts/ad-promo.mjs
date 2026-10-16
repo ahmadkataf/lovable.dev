@@ -38,11 +38,14 @@ const S = id => W(id, 0) - PRE
 const TOTAL = LEAD + timing.duration + HOLD
 /** The caption's words (as written) on the spoken words' times; when the counts differ, by position. */
 function cap(id) {
-  const shown = script.sentences.find(s => s.id === id).text.split(/\s+/).filter(Boolean)
+  // words joined by a no-break space (U+00A0) in script.json stay on one caption line (nb: the space after the word)
+  const parts = script.sentences.find(s => s.id === id).text.trim().split(/([ \u00A0]+)/)
+  const shown = []
+  for (let i = 0; i < parts.length; i += 2) shown.push({ text: parts[i], nb: (parts[i + 1] || '').includes('\u00A0') })
   const said = byId[id].words
-  return shown.map((text, i) => {
+  return shown.map(({ text, nb }, i) => {
     const k = shown.length === said.length ? i : Math.min(said.length - 1, Math.floor(i * said.length / shown.length))
-    return { text, a: LEAD + said[k].start, b: LEAD + said[k].end }
+    return { text, nb, a: LEAD + said[k].start, b: LEAD + said[k].end }
   })
 }
 
@@ -54,22 +57,24 @@ function scenes() {
   // the hook holds its question until the drop (the brand), with "you don't know?" under it
   list.push({ id: 'hook', kind: 'hook', start: 0, words: cap('hook'), ask: cap('reveal').slice(0, 2) })
   list.push({ id: 'reveal', kind: 'reveal', start: W('reveal', 2) - 0.04, words: cap('reveal'), drop: W('reveal', 2) - 0.04 })
+  // the last highlight of a list fires a little before its word, so it holds before the cut
+  const C = (k, dt = -0.12) => W('chart', k) + dt
   list.push({ id: 'chart', kind: 'feature', icon: 'tooth', kicker: 'مخطط الأسنان', title: 'كل سن… كل سطح', split: 2,
     clips: [
       clip('chart-a', 'chart', 'paint-surfaces', 0.3, S('chart'), [{ r: [760, 640, 1440] }, { at: W('chart', 0), r: [470, 850, 880] }]),
-      clip('chart-b', 'chart', 'paint-surfaces', 4.6, W('chart', 3) - 0.08, [{ r: [740, 720, 1340] }], [
-        { at: W('chart', 3), until: W('chart', 4), r: [905, 896, 164, 48] },
-        { at: W('chart', 4), until: W('chart', 5), r: [229, 896, 206, 48] },
-        { at: W('chart', 5), until: W('chart', 6), r: [449, 896, 93, 48] },
-        { at: W('chart', 6), r: [1178, 963, 115, 48] }]),
+      clip('chart-b', 'chart', 'paint-surfaces', 4.6, C(3) - 0.06, [{ r: [775, 720, 1400] }], [
+        { at: C(3), until: C(4), r: [905, 896, 164, 48] },
+        { at: C(4), until: C(5), r: [229, 896, 206, 48] },
+        { at: C(5), until: C(6), r: [449, 896, 93, 48] },
+        { at: C(6), r: [1178, 963, 115, 48] }]),
     ],
-    chips: [{ at: W('chart', 3), text: 'حشوة', dot: '#3B82F6' }, { at: W('chart', 4), text: 'عصب', dot: '#EC4899' },
-      { at: W('chart', 5), text: 'تاج', dot: '#F59E0B' }, { at: W('chart', 6), text: 'زرعة', dot: '#8B5CF6' }],
+    chips: [{ at: C(3), text: 'حشوة', dot: '#3B82F6' }, { at: C(4), text: 'عصب', dot: '#EC4899' },
+      { at: C(5), text: 'تاج', dot: '#F59E0B' }, { at: C(6), text: 'زرعة', dot: '#8B5CF6' }],
     cap: cap('chart') })
-  list.push({ id: 'plan', kind: 'feature', icon: 'clipboard', kicker: 'خطط العلاج', title: 'سن بسن… وعرض سعر', split: 2,
+  list.push({ id: 'plan', kind: 'feature', start: E('chart', 6) + 0.02, icon: 'clipboard', kicker: 'خطط العلاج', title: 'سن بسن… وعرض سعر', split: 2,
     clips: [
       clip('plan-a', 'treatments', 'plans', 2.8, S('plan'), [{ r: [760, 500, 1440] }, { at: W('plan', 2) - 0.05, r: [1120, 600, 820] }],
-        [{ at: W('plan', 2) + 0.15, r: [1322, 528, 152, 310] }]),
+        [{ at: W('plan', 2) + 0.15, r: [1319, 497, 158, 314] }]),
       clip('plan-b', 'treatments', 'estimate', 2.4, W('plan', 4) - 0.08, [{ r: [960, 540, 1300] }, { at: W('plan', 6) - 0.05, r: [700, 640, 820] }],
         [{ at: W('plan', 6) + 0.15, r: [415, 638, 382, 116] }]),
     ],
@@ -77,48 +82,51 @@ function scenes() {
     cap: cap('plan') })
   list.push({ id: 'allergy', kind: 'feature', icon: 'pill', kicker: 'الوصفات الطبية', title: 'تنبيه حساسية فوري', split: 1,
     clips: [
-      clip('allergy-a', 'prescriptions', 'allergy-warn', 0.6, S('allergy'), [{ r: [960, 500, 1300] }, { at: W('allergy', 2) - 0.05, r: [1250, 500, 820] }],
-        [{ at: W('allergy', 4), r: [1572, 345, 62, 318], tone: 'red' }], 0.6),
-      clip('allergy-b', 'prescriptions', 'allergy-warn', 5.3, W('allergy', 6) - 0.08, [{ r: [960, 470, 1240] }, { at: W('allergy', 7) - 0.1, r: [1180, 560, 1000] }],
-        [{ at: W('allergy', 7), r: [278, 551, 1364, 74], tone: 'red' }]),
+      clip('allergy-a', 'prescriptions', 'allergy-warn', 0.6, S('allergy'), [{ r: [1060, 500, 1300] }, { at: W('allergy', 2) - 0.05, r: [1250, 500, 820] }],
+        [{ at: W('allergy', 4), r: [1580, 345, 48, 318], tone: 'red' }]),
+      // the warning line itself, close enough to read on a phone
+      clip('allergy-b', 'prescriptions', 'allergy-warn', 5.3, W('allergy', 6) - 0.08, [{ r: [1180, 560, 1000] }, { at: W('allergy', 6) + 0.05, r: [1330, 560, 720], dur: 0.45 }],
+        [{ at: W('allergy', 7), r: [1050, 556, 590, 62], tone: 'red' }]),
     ],
-    chips: [{ at: W('allergy', 4), text: 'تحذير جنب الدوا', icon: 'alert', tone: 'red' }, { at: W('allergy', 8), text: 'قبل ما تحفظ الوصفة', icon: 'shield' }],
+    chips: [{ at: W('allergy', 4), text: 'تحذير جنب الدوا', icon: 'alert', tone: 'red' }, { at: W('allergy', 6) + 0.1, text: 'قبل ما تحفظ الوصفة', icon: 'shield' }],
     cap: cap('allergy') })
   list.push({ id: 'billing', kind: 'feature', icon: 'receipt', kicker: 'الفواتير والدفعات', title: 'فاتورة بكبسة', split: 1,
     clips: [
-      clip('billing-a', 'billing', 'from-treatments', 0.4, S('billing'), [{ r: [955, 560, 1340] }, { at: W('billing', 1), r: [1260, 580, 820] }],
-        [{ at: W('billing', 2), r: [1440, 455, 260, 250] }]),
-      clip('billing-b', 'billing', 'from-treatments', 5.3, W('billing', 4) - 0.08, [{ r: [955, 600, 1340] }, { at: W('billing', 5) - 0.05, r: [900, 620, 1100] }],
-        [{ at: W('billing', 5), r: [240, 458, 1450, 280] }]),
+      clip('billing-a', 'billing', 'from-treatments', 0.4, S('billing'), [{ r: [985, 640, 1450] }, { at: W('billing', 1), r: [1290, 580, 820] }],
+        [{ at: W('billing', 2), r: [1362, 466, 284, 250] }]),
+      // "إضافة المحدد": the finished treatments become invoice lines right on "بكبسة"
+      clip('billing-b', 'billing', 'from-treatments', 3.75, W('billing', 4) - 0.08, [{ r: [960, 600, 1500] }],
+        [{ at: W('billing', 5) + 0.12, r: [244, 430, 1432, 316] }]),
     ],
-    chips: [{ at: W('billing', 4), text: 'من العلاج المنجز', icon: 'check' }, { at: W('billing', 5), text: 'دفعات وكشف حساب', icon: 'wallet' }],
+    chips: [{ at: W('billing', 2), text: 'من العلاج المنجز', icon: 'check' }, { at: W('billing', 4), text: 'دفعات وكشف حساب', icon: 'wallet' }],
     cap: cap('billing') })
   list.push({ id: 'reports', kind: 'feature', icon: 'barChart', kicker: 'التقارير المالية', title: 'صافي ربحك… بالضبط', split: 2,
-    clips: [clip('reports', 'reports', 'kpis', 3.6, S('reports'), [
+    clips: [clip('reports', 'reports', 'kpis', 8.0, S('reports'), [
       { r: [760, 560, 1440] },
       { at: W('reports', 2) - 0.06, r: [1315, 592, 620] },
       { at: W('reports', 3) - 0.06, r: [946, 592, 620] },
       { at: W('reports', 4) - 0.06, r: [578, 592, 620] },
-      { at: W('reports', 6) - 0.06, r: [760, 600, 1240], dur: 0.7 }], [
+      { at: W('reports', 6) - 0.06, r: [900, 600, 1240], dur: 0.7 }], [
       { at: W('reports', 2), until: W('reports', 3), r: [1145, 470, 340, 245] },
       { at: W('reports', 3), until: W('reports', 4), r: [775, 470, 342, 245], tone: 'amber' },
       { at: W('reports', 4), r: [405, 470, 345, 245], tone: 'green' }])],
     chips: [{ at: W('reports', 6), text: 'وأداء كل طبيب', icon: 'users' }],
     cap: cap('reports') })
+  // each item settles on its detail fast (the items last under a second)
   const it = (k, label, sub, icon, key, slug, scene, offset, r0, r1, tone) => ({ at: W('montage', k) - 0.04, label, sub, icon, tone,
-    clip: clip(key, slug, scene, offset, W('montage', k) - 0.04, [{ r: r0 }, { at: W('montage', k) + 0.08, r: r1, dur: 0.5 }]) })
+    clip: clip(key, slug, scene, offset, W('montage', k) - 0.04, [{ r: r0 }, { at: W('montage', k) - 0.04, r: r1, dur: 0.3 }]) })
   list.push({ id: 'montage', kind: 'montage', icon: 'layout', kicker: 'وكمان', intro: 'وفوق هيك…',
     introClip: clip('dash-a', 'dashboard', 'overview', 1.0, S('montage'), [{ r: [760, 540, 1440] }]),
     items: [
       it(2, 'المخبر', 'مواعيد التسليم بالألوان', 'flask', 'lab', 'lab', 'due-colours', 1.6, [760, 620, 1300], [560, 830, 780]),
-      it(3, 'المخزون', 'تنبيه قبل انتهاء الصلاحية', 'package', 'inv', 'inventory', 'expiring', 5.0, [760, 600, 1300], [470, 800, 780]),
-      it(4, 'صلاحيات الموظفين', 'مدير · طبيب · مساعد · استقبال', 'key', 'staff', 'staff', 'matrix', 3.0, [1000, 560, 1300], [960, 420, 940]),
+      it(3, 'المخزون', 'تنبيه قبل انتهاء الصلاحية', 'package', 'inv', 'inventory', 'expiring', 1.15, [760, 600, 1300], [470, 800, 780]),
+      it(4, 'صلاحيات الموظفين', 'مدير · طبيب · مساعد · استقبال', 'key', 'staff', 'staff', 'matrix', 1.7, [1000, 560, 1300], [1030, 425, 940]),
       it(6, 'تذكير عالواتساب', 'رسالة جاهزة باسم المريض وموعده', 'whatsapp', 'wa', 'appointments', 'reminder', 2.4, [960, 560, 1300], [945, 820, 920]),
       it(8, 'نسخ احتياطي مشفّر', 'محمي بكلمة مرور', 'lock', 'backup', 'backup', 'protect', 4.2, [760, 600, 1300], [620, 800, 980]),
     ],
     cap: cap('montage') })
   list.push({ id: 'offline', kind: 'offline', icon: 'wifiOff', kicker: 'ويندوز أو أندرويد', title: 'بلا إنترنت', split: 1,
-    clip: clip('dash-b', 'dashboard', 'overview', 3.0, S('offline'), [{ r: [760, 430, 1460] }]),
+    clip: clip('dash-b', 'dashboard', 'overview', 10.5, S('offline'), [{ r: [760, 430, 1460] }]),
     at: { net: W('offline', 2), win: W('offline', 4), android: W('offline', 6), data: W('offline', 7) },
     cap: cap('offline') })
   list.push({ id: 'offer', kind: 'offer', start: S('offer'), at: { trial: W('offer', 0), price: W('offer', 5) - 0.03, device: W('offer', 9), life: W('offer', 12) } })
@@ -153,12 +161,12 @@ const ffmpeg = args => run('ffmpeg', ['-hide_banner', '-loglevel', 'error', '-y'
 async function extract(c) {
   const dir = path.join(TMP, 'frames', c.key)
   const dur = (c.until - c.from) * c.rate + 0.3
-  const stamp = `${c.slug}/${c.scene}/${c.offset}/${dur.toFixed(2)}/${c.rate}`
+  const stamp = `${c.slug}/${c.scene}/${c.offset}/${dur.toFixed(2)}/${c.rate}/v2`
   if (fs.existsSync(path.join(dir, 'stamp')) && fs.readFileSync(path.join(dir, 'stamp'), 'utf8') === stamp) return { dir, n: fs.readdirSync(dir).filter(f => f.endsWith('.jpg')).length }
   fs.rmSync(dir, { recursive: true, force: true }); fs.mkdirSync(dir, { recursive: true })
   const start = sceneStart(c.slug, c.scene) + c.offset
-  // at rate r the clip shows r seconds of the recording per second: frames sampled at FPS·r play back at FPS
-  await ffmpeg(['-ss', start.toFixed(3), '-t', dur.toFixed(3), '-i', path.join(VO, 'final', `${c.slug}.mp4`), '-vf', `fps=${(FPS * c.rate).toFixed(4)}`, '-q:v', '2', path.join(dir, '%05d.jpg')])
+  // at rate r the clip shows r seconds of the recording per second: frames sampled at FPS / r play back at FPS
+  await ffmpeg(['-ss', start.toFixed(3), '-t', dur.toFixed(3), '-i', path.join(VO, 'final', `${c.slug}.mp4`), '-vf', `fps=${(FPS / c.rate).toFixed(4)}`, '-q:v', '2', path.join(dir, '%05d.jpg')])
   fs.writeFileSync(path.join(dir, 'stamp'), stamp)
   return { dir, n: fs.readdirSync(dir).filter(f => f.endsWith('.jpg')).length }
 }
@@ -214,23 +222,23 @@ const ICONS = {   // lucide, the app's icon set
 
 const LAYOUT = {
   story: { W: 1080, H: 1920, brand: { top: 268, icon: 56, size: 36 }, kicker: { top: 352, size: 30 }, title: { top: 404, h: 132, size: 88 },
-    win: { left: 40, top: 578, width: 1000, bar: 36, height: 740 }, chips: { top: 1296, size: 30 }, cap: { top: 1410, h: 210, size: 48 },
-    steps: { top: 1372 }, strip: null, wall: { cols: 5, rows: 7, scale: 1.25 },
-    hook: { top: 560, h: 820, s1: 66, s2: 84, s3: 176, s4: 92 },
+    win: { left: 40, top: 578, width: 1000, bar: 36, height: 740 }, chips: { top: 1296, size: 30 }, cap: { top: 1396, h: 196, size: 48 },
+    steps: { top: 1372 }, strip: { top: 1604, size: 24 }, wall: { cols: 5, rows: 7, scale: 1.25 },
+    hook: { top: 560, h: 820, s1: 92, s2: 84, s3: 176, s4: 92 },
     reveal: { askTop: 650, askUp: 330, askSize: 110, icon: 230, iconTop: 520, markTop: 772, tagTop: 1040, t1: 78, t2: 112 },
     offline: { win: { left: 40, top: 578, width: 1000, height: 610 }, phone: { left: 650, top: 760, width: 350, height: 622 },
       badge: { left: 64, top: 604 }, winTag: { left: 64, top: 1240 }, phoneTag: { left: 700, top: 1300 }, dataTag: { left: 64, top: 1316 } },
-    offer: { trial: 470, price: 700, priceSize: 380, once: 1160, life: 1280 },
-    cta: { nosub: 470, nohead: 612, go: 790, goH: 150, num: 982, site: 1130, recap: 1262 } },
+    offer: { trial: 520, trialHero: 700, price: 750, priceSize: 380, once: 1210, life: 1330 },
+    cta: { nosub: 560, nohead: 702, go: 900, goH: 150, num: 1098, site: 1252, recap: 1392, nosubHero: 820, noheadHero: 962 } },
   square: { W: 1080, H: 1080, brand: { top: 20, icon: 42, size: 30 }, kicker: { top: 76, size: 22 }, title: { top: 112, h: 74, size: 56 },
     win: { left: 90, top: 200, width: 900, bar: 28, height: 520 }, chips: { top: 700, size: 22 }, cap: { top: 790, h: 140, size: 34 },
     steps: { top: 760 }, strip: { top: 958, size: 22 }, wall: { cols: 5, rows: 5, scale: 0.95 },
-    hook: { top: 190, h: 700, s1: 46, s2: 66, s3: 116, s4: 64 },
+    hook: { top: 190, h: 700, s1: 64, s2: 66, s3: 116, s4: 64 },
     reveal: { askTop: 340, askUp: 64, askSize: 80, icon: 170, iconTop: 196, markTop: 386, tagTop: 600, t1: 56, t2: 82 },
     offline: { win: { left: 40, top: 200, width: 760, height: 470 }, phone: { left: 728, top: 222, width: 290, height: 516 },
       badge: { left: 62, top: 222 }, winTag: { left: 62, top: 712 }, phoneTag: { left: 760, top: 712 }, dataTag: { left: 300, top: 712 } },
-    offer: { trial: 150, price: 280, priceSize: 250, once: 630, life: 730 },
-    cta: { nosub: 170, nohead: 270, go: 384, goH: 118, num: 534, site: 656, recap: 754 } },
+    offer: { trial: 200, trialHero: 300, price: 330, priceSize: 270, once: 700, life: 800 },
+    cta: { nosub: 250, nohead: 350, go: 470, goH: 118, num: 620, site: 740, recap: 840, nosubHero: 420, noheadHero: 520 } },
 }
 
 function css(L) {
@@ -263,13 +271,14 @@ body { font-family: Kufi, Inter, sans-serif; color: #fff; -webkit-font-smoothing
 .title h1 { font-size: ${L.title.size}px; font-weight: 800; line-height: 1.25; white-space: nowrap; text-shadow: 0 6px 30px rgba(0,0,0,.3) }
 .w { display: inline-block }
 .g, .title em { font-style: normal; background: linear-gradient(90deg, #A7F3E4 0%, #5EEAD4 45%, #2DD4BF 100%); -webkit-background-clip: text; background-clip: text; color: transparent }
-.title .g { display: inline-block; padding-bottom: .08em }
+.title .g { display: inline-block; padding-bottom: .42em; margin-bottom: -.34em }
 .win { border-radius: 18px; background: #fff; overflow: hidden; transform-origin: 50% 50%;
   box-shadow: 0 0 0 1.5px rgba(255,255,255,.2), 0 60px 110px -30px rgba(0,0,0,.7), 0 24px 50px -20px rgba(0,0,0,.5) }
 .win .bar { height: ${L.win.bar}px; display: flex; align-items: center; padding: 0 16px; background: #F8FAFC; border-bottom: 1px solid #E6EAF0; direction: ltr }
 .win .bar .ctl { margin-left: auto; display: flex; gap: 20px; padding-right: 6px }
 .win .bar .ctl i { display: block; width: 11px; height: 11px; border: 1.7px solid #64748B; border-width: 0 0 1.7px }
 .win .bar .ctl i.max { border-width: 1.7px; border-radius: 2px }
+.win .bar .ctl i.x { border: 0; width: 13px; height: 13px; display: grid; color: #64748B } .win .bar .ctl i.x .i { width: 100%; height: 100%; stroke-width: 2.6 }
 .win .screen { position: relative; overflow: hidden; background: #fff }
 .foot { position: absolute; left: 0; top: 0; width: 1920px; height: 1080px; transform-origin: 0 0; image-rendering: auto }
 .ring { position: absolute; border-radius: 14px; border: ${sq ? 3 : 4}px solid #14B8A6; transform-origin: 50% 50%;
@@ -301,7 +310,7 @@ body { font-family: Kufi, Inter, sans-serif; color: #fff; -webkit-font-smoothing
 .hook .l2 span { display: inline-block }
 .hook .l3 { font-size: ${L.hook.s3}px; font-weight: 900; line-height: 1.25 }
 .hook .l4 { font-size: ${L.hook.s4}px; font-weight: 800; line-height: 1.3; white-space: nowrap } .hook .l4 span { display: inline-block }
-.hook .l3 em { font-style: normal; background: linear-gradient(90deg, #A7F3E4 0%, #5EEAD4 45%, #2DD4BF 100%); -webkit-background-clip: text; background-clip: text; color: transparent; padding: 0 .1em .1em }
+.hook .l3 em { display: inline-block; font-style: normal; background: linear-gradient(90deg, #A7F3E4 0%, #5EEAD4 45%, #2DD4BF 100%); -webkit-background-clip: text; background-clip: text; color: transparent; padding: 0 .1em .42em; margin-bottom: -.32em }
 /* the reveal */
 .ask { left: 50%; translate: -50% 0; width: max-content; text-align: center; font-weight: 800; line-height: 1.3; white-space: nowrap }
 .ask span { display: inline-block }
@@ -315,7 +324,7 @@ body { font-family: Kufi, Inter, sans-serif; color: #fff; -webkit-font-smoothing
 .tag p { white-space: nowrap; font-weight: 800; line-height: 1.3 }
 .tag span { display: inline-block }
 .tag .t1 { font-size: ${L.reveal.t1}px } .tag .t2 { font-size: ${L.reveal.t2}px }
-.tag .t2 span { background: linear-gradient(90deg, #A7F3E4 0%, #5EEAD4 45%, #2DD4BF 100%); -webkit-background-clip: text; background-clip: text; color: transparent; padding-bottom: .1em }
+.tag .t2 span { background: linear-gradient(90deg, #A7F3E4 0%, #5EEAD4 45%, #2DD4BF 100%); -webkit-background-clip: text; background-clip: text; color: transparent; padding-bottom: .42em; margin-bottom: -.32em }
 /* offline */
 .phone { background: #0B1220; padding: ${sq ? 8 : 10}px; border-radius: ${sq ? 38 : 46}px; transform-origin: 50% 100%;
   box-shadow: 0 0 0 2px #273449 inset, 0 0 0 2.5px rgba(255,255,255,.22), 0 70px 120px -30px rgba(0,0,0,.8), 0 30px 60px -24px rgba(0,0,0,.6) }
@@ -335,8 +344,14 @@ body { font-family: Kufi, Inter, sans-serif; color: #fff; -webkit-font-smoothing
 .trial span { display: flex; align-items: center; gap: ${Math.round(18 * k)}px; padding: ${Math.round(20 * k)}px ${Math.round(40 * k)}px; border-radius: 999px; font-size: ${Math.round(56 * k)}px; font-weight: 800;
   background: rgba(20,184,166,.18); box-shadow: inset 0 0 0 2.5px rgba(94,234,212,.6), 0 30px 60px -30px rgba(0,0,0,.5) }
 .trial b { font-family: Inter, sans-serif; font-weight: 900; color: #5EEAD4 }
-.trial small { font-size: .5em; font-weight: 700; color: #A7F3E4; padding-inline-start: .4em; border-inline-start: 2px solid rgba(255,255,255,.25) }
+.trial small { font-size: .8em; font-weight: 700; color: #A7F3E4; padding-inline-start: .4em; border-inline-start: 2px solid rgba(255,255,255,.25) }
 .trial .i { color: #5EEAD4 }
+.thero { left: 0; right: 0; display: flex; flex-direction: column; align-items: center; gap: ${Math.round(14 * k)}px; text-align: center }
+.thero .gift { display: grid; place-items: center; width: ${Math.round(124 * k)}px; height: ${Math.round(124 * k)}px; border-radius: 50%; font-size: ${Math.round(62 * k)}px; color: #5EEAD4;
+  background: rgba(20,184,166,.2); box-shadow: inset 0 0 0 2.5px rgba(94,234,212,.6), 0 30px 60px -24px rgba(0,0,0,.5) }
+.thero b { font-size: ${Math.round(96 * k)}px; font-weight: 900; line-height: 1.25; white-space: nowrap }
+.thero b em { font-style: normal; font-family: Inter, sans-serif; color: #5EEAD4 }
+.thero small { font-size: ${Math.round(50 * k)}px; font-weight: 800; color: #A7F3E4 }
 .pring { left: 50%; border-radius: 50%; translate: -50% -50%; border: 5px solid rgba(94,234,212,.9) }
 .price { left: 0; right: 0; text-align: center; direction: ltr; line-height: 1 }
 .price b { font-family: Inter, sans-serif; font-weight: 900; letter-spacing: -.05em; background: linear-gradient(180deg, #FFFFFF 30%, #7EE3D2 100%); -webkit-background-clip: text; background-clip: text; color: transparent;
@@ -345,7 +360,7 @@ body { font-family: Kufi, Inter, sans-serif; color: #fff; -webkit-font-smoothing
 .once { left: 50%; translate: -50% 0; width: max-content; display: flex; justify-content: center; align-items: center; gap: ${Math.round(22 * k)}px; font-size: ${Math.round(58 * k)}px; font-weight: 800 }
 .once em { width: ${Math.round(12 * k)}px; height: ${Math.round(12 * k)}px; border-radius: 50%; background: #5EEAD4 }
 .life { left: 50%; translate: -50% 0; width: max-content; display: flex; justify-content: center; align-items: center; gap: ${Math.round(20 * k)}px; font-size: ${Math.round(88 * k)}px; font-weight: 900 }
-.life span { background: linear-gradient(90deg, #A7F3E4 0%, #5EEAD4 45%, #2DD4BF 100%); -webkit-background-clip: text; background-clip: text; color: transparent; padding-bottom: .1em }
+.life span { background: linear-gradient(90deg, #A7F3E4 0%, #5EEAD4 45%, #2DD4BF 100%); -webkit-background-clip: text; background-clip: text; color: transparent; padding-bottom: .42em; margin-bottom: -.32em }
 .life .i { color: #5EEAD4; stroke-width: 2.4 }
 /* the call to action */
 .nosub { left: 50%; translate: -50% 0; width: max-content; display: flex; justify-content: center; align-items: center; gap: ${Math.round(24 * k)}px; font-size: ${Math.round(92 * k)}px; font-weight: 900 }
@@ -413,7 +428,7 @@ async function renderFormat(browser, fmt, data) {
   enc.stdin.end()
   await done
   await page.close()
-  await ffmpeg(['-ss', '6.2', '-i', target, '-frames:v', '1', '-q:v', '2', target.replace(/\.mp4$/, '.jpg')])
+  await ffmpeg(['-ss', '7.6', '-i', target, '-frames:v', '1', '-q:v', '2', target.replace(/\.mp4$/, '.jpg')])
   const { stdout } = await run('ffprobe', ['-v', 'error', '-show_entries', 'stream=codec_type,width,height:format=duration,size', '-of', 'json', target])
   const j = JSON.parse(stdout)
   console.log(`made ${path.relative(ROOT, target)}: ${Number(j.format.duration).toFixed(1)} s, ${(j.format.size / 1048576).toFixed(1)} MiB, ${j.streams.map(s => s.codec_type + (s.width ? ` ${s.width}×${s.height}` : '')).join(' + ')}`)

@@ -46,7 +46,7 @@ function wall(t, { shade = 0.8, speed = 1, tilt = 1 } = {}) {
     <div class="shade" style="opacity:${f3(shade)}"></div></div>`
 }
 
-const strip = () => (L.strip ? '<div class="strip"><span>جرّبه ببلاش <b>7</b> أيام<em></em><b>dentora.raqeem.dev</b></span></div>' : '')
+const strip = () => (L.strip ? '<div class="strip"><span>جرّبه ببلاش <b>7</b> أيام<em></em><b>59$</b> مرّة وحدة<em></em><b>dentora.raqeem.dev</b></span></div>' : '')
 const brand = (t, a = -1) => `<header class="brand" style="${a >= 0 ? pop(t, a) : ''}">${D.appIcon}<b>Dentora</b></header>`
 
 /** A headline, word by word; the words after `split` in the brand gradient. */
@@ -57,10 +57,10 @@ function words(t, a, text, split = 99, stagger = 0.07) {
 /** The caption: the words of the sentence, lit as they are spoken. */
 function caption(t, cap) {
   if (!cap) return ''
-  const html = cap.map(w => {
+  const html = cap.map((w, i) => {
     const state = t >= w.a ? (t < w.b + 0.04 ? 'cur' : 'done') : 'next'
-    return `<span class="${state}">${esc(w.text)}</span>`
-  }).join(' ')
+    return `<span class="${state}">${esc(w.text)}</span>${i < cap.length - 1 ? (w.nb ? '&nbsp;' : ' ') : ''}`
+  }).join('')
   return `<section class="cap" style="${pop(t, cap[0].a - 0.25, 0.25, 12)}"><p>${html}</p></section>`
 }
 
@@ -106,20 +106,29 @@ function footage(t, clip, cw, ch) {
 function windowFrame(t, inner, enter, { left, top, width, height } = L.win) {
   const p = ease.out(prog(t, enter, 0.32))
   return `<div class="win" style="left:${left}px;top:${top}px;width:${width}px;height:${height + L.win.bar}px;opacity:${f3(Math.min(1, p * 1.6))};transform:translateX(${f3((1 - p) * -90)}px) scale(${f3(0.94 + 0.06 * p)})">
-    <div class="bar"><span class="ctl"><i></i><i class="max"></i><i></i></span></div><div class="screen" style="height:${height}px">${inner}</div></div>`
+    <div class="bar"><span class="ctl"><i></i><i class="max"></i><i class="x">${icon('x')}</i></span></div><div class="screen" style="height:${height}px">${inner}</div></div>`
 }
 
 const activeClip = (clips, t) => { let c = clips[0]; for (const k of clips) if (t >= k.from) c = k; return c }
 
 // ---- the scenes ------------------------------------------------------------------------------------------------------
+/** Shown dim from the first frame (so the question is there before the scroll), lit as each word is spoken. */
+function lit(t, a) {
+  if (t < a) return 'opacity:.3'
+  const p = prog(t, a, 0.3)
+  return `opacity:${f3(0.3 + 0.7 * Math.min(1, p * 2.4))};transform:scale(${f3(1 + 0.14 * (1 - ease.out(p)))})`
+}
+
 function hook(t, s) {
   const w = s.words, ask = s.ask
-  return `${wall(t, { shade: 0.82 })}
+  const p3 = prog(t, w[4].a, 0.32)
+  const l3 = t < w[4].a ? 'opacity:.25' : `opacity:${f3(0.25 + 0.75 * Math.min(1, p3 * 3))};transform:scale(${f3(1.7 - 0.7 * ease.back(p3))})`
+  return `${wall(t, { shade: 0.74, speed: 1.4 })}
   <section class="hook">
-    <p class="l1" style="${pop(t, w[0].a, 0.3)}">${esc(w[0].text)}</p>
-    <p class="l2">${[1, 2, 3].map(i => `<span style="${pop(t, w[i].a, 0.3, 30)}">${esc(w[i].text)}</span>`).join(' ')}</p>
-    <p class="l3" style="${slam(t, w[4].a, 0.34, 2.4)}"><em>${esc(w[4].text)}</em></p>
-    <p class="l4">${ask.map(x => `<span style="${pop(t, x.a, 0.3)}">${esc(x.text)}</span>`).join(' ')}</p>
+    <p class="l1"><span style="${lit(t, w[0].a)}">${esc(w[0].text)}</span></p>
+    <p class="l2">${[1, 2, 3].map(i => `<span style="${lit(t, w[i].a)}">${esc(w[i].text)}</span>`).join(' ')}</p>
+    <p class="l3" style="${l3}"><em>${esc(w[4].text)}</em></p>
+    <p class="l4">${ask.map(x => `<span style="${lit(t, x.a)}">${esc(x.text)}</span>`).join(' ')}</p>
   </section>`
 }
 
@@ -135,7 +144,7 @@ function reveal(t, s) {
   <div class="mark" style="top:${L.reveal.markTop}px;${pop(t, drop + 0.12, 0.34)}"><b>Dentora</b><small>لإدارة عيادات الأسنان</small></div>
   <section class="tag" style="top:${L.reveal.tagTop}px">
     <p class="t1">${[4, 5].map(i => `<span style="${pop(t, w[i].a, 0.3)}">${esc(w[i].text)}</span>`).join(' ')}</p>
-    <p class="t2">${[6, 7].map(i => `<span style="${pop(t, w[i].a, 0.3)}">${esc(w[i].text)}</span>`).join(' ')}</p>
+    <p class="t2">${[6, 7].map((i, j) => `<span style="${pop(t, w[6].a + j * 0.1, 0.3)}">${esc(w[i].text)}</span>`).join(' ')}</p>
   </section>`}
   <div class="flash" style="opacity:${f3(before ? 0 : 0.75 * (1 - prog(t, drop, 0.28)))}"></div>`
 }
@@ -170,7 +179,7 @@ function montage(t, s) {
   <div class="kicker" style="opacity:1"><span>${icon(it.icon)}${esc(it.sub)}</span></div>
   <section class="title"><h1 style="${slam(t, it.at, 0.26, 1.35)}"><span class="g">${esc(it.label)}</span></h1></section>
   <div class="win" style="left:${L.win.left}px;top:${L.win.top}px;width:${L.win.width}px;height:${L.win.height + L.win.bar}px;transform:scale(${f3(1 + 0.05 * punch)})">
-    <div class="bar"><span class="ctl"><i></i><i class="max"></i><i></i></span></div><div class="screen" style="height:${L.win.height}px">${footage(t, it.clip, L.win.width, L.win.height)}</div></div>
+    <div class="bar"><span class="ctl"><i></i><i class="max"></i><i class="x">${icon('x')}</i></span></div><div class="screen" style="height:${L.win.height}px">${footage(t, it.clip, L.win.width, L.win.height)}</div></div>
   <div class="steps">${dots}</div>${caption(t, s.cap)}${strip()}
   <div class="flash" style="opacity:${f3(0.45 * punch)}"></div>`
 }
@@ -195,8 +204,13 @@ function offline(t, s) {
 function offer(t, s) {
   const O = L.offer, a = s.at
   const glow = prog(t, a.price, 0.9)
-  return `${background(t)}${brand(t)}
-  <div class="trial" style="top:${O.trial}px;${pop(t, a.trial, 0.34)}"><span>${icon('gift')}جرّب <b>7</b> أيام ببلاش<small>بكل المزايا</small></span></div>
+  // until the price lands the free trial is the headline, in the middle; then it flies up into its pill
+  const hero = 1 - ease.inOut(prog(t, a.price - 0.3, 0.3))
+  const pin = prog(t, a.trial, 0.34)
+  const thero = hero > 0 ? `<div class="thero" style="top:${O.trialHero}px;opacity:${f3(hero * Math.min(1, pin * 2.4))};transform:translateY(${f3(-(1 - hero) * 180)}px) scale(${f3(0.88 + 0.12 * ease.back(pin))})">
+    <i class="gift">${icon('gift')}</i><b>جرّب <em>7</em> أيام ببلاش</b><small>بكل المزايا</small></div>` : ''
+  return `${background(t)}${brand(t)}${thero}
+  <div class="trial" style="top:${O.trial}px;opacity:${f3(1 - hero)}"><span>${icon('gift')}جرّب <b>7</b> أيام ببلاش<small>بكل المزايا</small></span></div>
   ${t >= a.price ? `<div class="pring" style="top:${O.price + O.priceSize * 0.5}px;width:${f3(O.priceSize * (1.2 + 2.2 * ease.out(glow)))}px;height:${f3(O.priceSize * (1.2 + 2.2 * ease.out(glow)))}px;opacity:${f3(0.7 * (1 - glow))}"></div>` : ''}
   <div class="price" style="top:${O.price}px;font-size:${O.priceSize}px;${t >= a.price ? slam(t, a.price, 0.34, 2.4) : 'opacity:0'}"><b>59<sup>$</sup></b></div>
   <div class="once" style="top:${O.once}px;${pop(t, a.device, 0.32)}"><span>للجهاز</span><em></em><span>مرّة وحدة</span></div>
@@ -209,14 +223,15 @@ function cta(t, s) {
   const strike = ease.inOut(prog(t, a.strike, 0.32))
   const beat = t >= a.go + 0.5 ? 0.5 + 0.5 * Math.sin((t - a.go) * 5.2) : 0
   const ripple = t >= a.go ? ((t - a.go) % 1.2) / 1.2 : 0
+  const hero = 1 - ease.inOut(prog(t, a.go - 0.3, 0.3))
   return `${background(t)}${brand(t)}
-  <div class="nosub" style="top:${C.nosub}px;${pop(t, a.no, 0.3)}"><span class="x">${icon('x')}</span><span class="txt">اشتراك شهري<i style="transform:scaleX(${f3(strike)})"></i></span></div>
-  <div class="nohead" style="top:${C.nohead}px;${pop(t, a.head, 0.3)}">ولا وجعة راس</div>
+  <div class="nosub" style="top:${f3(C.nosub + (C.nosubHero - C.nosub) * hero)}px;scale:${f3(1 + 0.2 * hero)};${pop(t, a.no, 0.3)}"><span class="x">${icon('x')}</span><span class="txt">اشتراك شهري<i style="transform:scaleX(${f3(strike)})"></i></span></div>
+  <div class="nohead" style="top:${f3(C.nohead + (C.noheadHero - C.nohead) * hero)}px;scale:${f3(1 + 0.2 * hero)};${pop(t, a.head, 0.3)}">ولا وجعة راس</div>
   ${t >= a.go ? `<div class="ripple" style="top:${C.go}px;height:${C.goH}px;opacity:${f3(0.5 * (1 - ripple))};transform:scale(${f3(1 + 0.12 * ripple)},${f3(1 + 0.5 * ripple)})"></div>` : ''}
   <div class="go" style="top:${C.go}px;height:${C.goH}px;${t >= a.go ? `${slam(t, a.go, 0.34, 1.5)};` : 'opacity:0;'}${beat ? `transform:scale(${f3(1 + 0.025 * beat)})` : ''}">${icon('whatsapp')}<span>اطلبه هلّق عالواتساب</span></div>
   <div class="num" style="top:${C.num}px;${pop(t, a.go + 0.22, 0.32)}"><span>+963 996 489 504</span></div>
   <div class="site" style="top:${C.site}px;${pop(t, a.go + 0.4, 0.32)}"><span>${icon('globe')}جرّبه ببلاش: <b>dentora.raqeem.dev</b></span></div>
-  <div class="recap" style="top:${C.recap}px;${pop(t, a.go + 0.58, 0.32)}"><span>${icon('check')}<b>7</b> أيام ببلاش</span><em></em><span>${icon('check')}59$ مرّة وحدة</span><em></em><span>${icon('check')}بلا إنترنت</span></div>
+  <div class="recap" style="top:${C.recap}px;${pop(t, a.go + 0.58, 0.32)}"><span>${icon('check')}<b>7</b> أيام ببلاش</span><em></em><span>${icon('check')}${esc('59$')} مرّة وحدة</span><em></em><span>${icon('check')}بلا إنترنت</span></div>
   <div class="flash" style="opacity:${f3(Math.max(0.3 * (1 - prog(t, s.start, 0.22)), t >= a.go ? 0.4 * (1 - prog(t, a.go, 0.22)) : 0))}"></div>`
 }
 
@@ -228,7 +243,7 @@ window.frame = async t => {
   const stage = document.getElementById('stage')
   stage.innerHTML = KINDS[s.kind](t, s)
   // a line that would not fit its width (or a caption its height) gets a smaller font, the same on every frame
-  for (const el of stage.querySelectorAll('.title h1, .hook .l2, .tag p, .ask, .nosub, .trial span, .once, .life')) {
+  for (const el of stage.querySelectorAll('.title h1, .hook .l2, .hook .l4, .tag p, .ask, .nosub, .trial span, .once, .life')) {
     // these shrink-wrap their content (offsetWidth ignores the animation's transform); the bound is their box
     const max = (el.parentElement === stage ? L.W : el.parentElement.clientWidth) - 48
     let size = parseFloat(getComputedStyle(el).fontSize)
