@@ -4,8 +4,8 @@ import type { GuideTopic } from '../types'
 // store/scripts/shoot.mjs. The chart patient is demo file #19 (the "chart" patient picked by shoot.mjs): look its id up
 // by fileNo in window.__dentora.db.patients. Its fresh demo chart has teeth 45, 46 and 47 healthy; take
 // chart-overview, chart-tooth-current and chart-history before the shots that write to the chart.
-const DESK = 'Desktop 1600×900, demo clinic, clock fixed to Sunday 11 Oct 2026 11:40 (Asia/Damascus), trial bar hidden, as in store/scripts/shoot.mjs, signed in as the admin.'
-const PHONE = 'Phone 405×720 (isMobile, hasTouch), demo clinic, same clock, trial bar hidden.'
+const DESK = 'Desktop 1440×900, demo clinic, clock fixed to Sunday 11 Oct 2026 11:40 (Asia/Damascus), trial bar hidden, as in store/scripts/shoot.mjs, signed in as the admin.'
+const PHONE = 'Phone 390×844 (isMobile, hasTouch), demo clinic, same clock, trial bar hidden.'
 const P19 = 'patient file #19 (مريم يوسف البيطار / Mariam Youssef Bitar)'
 const CHART = `Open ${P19} at #/patients/<id>?tab=chart and reload, so no tooth panel is left open.`
 
@@ -40,14 +40,14 @@ const topic: GuideTopic = {
           'إذا كانت هناك حالات على أسنان لا يُظهرها الإطباق المختار ينبّهك البرنامج ويعرض زر **عرض الإطباق المختلط**.',
           'على الحاسوب، مرّر المؤشر فوق أي سن لترى اسمه الكامل وحالاته، مثل «الرحى الأولى السفلية اليسرى».',
           'المخطط الفارغ يعني أن الأسنان كلها سليمة، ويعرض زر **ابدأ الرسم السريع** لتعبئته بسرعة.',
-          'يسجّل التشخيصات الأطباء والمساعدون والمدير. لا يظهر هذا التبويب لموظف الاستقبال. انظر [الفريق والصلاحيات](staff).',
+          'يسجّل التشخيصات الأطباء والمساعدون والمدير. لا يظهر هذا التبويب لموظف الاستقبال. انظر [الأدوار والصلاحيات](staff#roles).',
         ],
         en: [
-          'Choose the dentition with **Permanent**, **Mixed** and **Primary**. The app suggests the one that suits the patient’s age and marks it with a dot: primary under 6, mixed from 6 to 12, permanent after that.',
-          'If findings are recorded on teeth the chosen dentition does not show, the app says so and offers **Show mixed dentition**.',
+          'Choose the dentition with **Permanent**, **Mixed** and **Primary**. Dentora suggests the one that suits the patient’s age and marks it with a dot: primary under 6, mixed from 6 to 12, permanent after that.',
+          'If findings are recorded on teeth the chosen dentition does not show, Dentora says so and offers **Show mixed dentition**.',
           'On a computer, hover over a tooth to see its full name and findings, such as “Lower left first molar”.',
           'An empty chart means every tooth is healthy; it offers **Start quick paint** to fill it in quickly.',
-          'Doctors, assistants and admins record findings. Receptionists do not see this tab. See [Staff and permissions](staff).',
+          'Doctors, assistants and admins record findings. Receptionists do not see this tab. See [Roles and permissions](staff#roles).',
         ],
       },
       shots: ['chart-overview'],
@@ -82,14 +82,14 @@ const topic: GuideTopic = {
           'التشخيص الجديد يحلّ محل ما يغطيه فقط: حشوة على السطح O فوق تسوس على MOD تُبقي التسوس على M وD. والتاج يغطي الحشوات القديمة ويُبقي المعالجة اللبية، أما **يحتاج إلى قلع** و**متقلقل** و**خراج** و**سحل** و**أخرى** فتُضاف إلى ما على السن دون أن تمحوه.',
           'لمسح حالة بعد علاجها اختر **سليم** تحت **إعادة التعيين**: اختر الأسطح التي عولجت لتُمسح وحدها، أو لا تختر شيئاً ليعود السن كله سليماً.',
           'لحذف تشخيص سُجّل خطأً انقر على أيقونة سلة المهملات بجانبه في **الحالة الحالية**.',
-          'زر **علاج هذا السن** ينقلك إلى تبويب العلاجات ويفتح بنداً علاجياً جديداً لهذا السن. وحين تُنهي هناك علاجاً على سن، كحشوة أو تاج أو معالجة لبية، يسألك البرنامج **تحديث مخطط الأسنان؟** ليبقى المخطط مطابقاً لما تم. انظر [العلاجات](treatments).',
+          'زر **علاج هذا السن** ينقلك إلى تبويب العلاجات ويفتح بنداً علاجياً جديداً لهذا السن. وحين تُنهي هناك علاجاً على سن، كحشوة أو تاج أو معالجة لبية، يسألك البرنامج **تحديث مخطط الأسنان؟** ليبقى المخطط مطابقاً لما تم. انظر [العلاجات](treatments#progress).',
           'أغلق اللوحة بزر ✕ أو بمفتاح `Esc`. على الهاتف تُفتح اللوحة من أسفل الشاشة.',
         ],
         en: [
           'A new finding replaces only what it covers: a filling on O over caries on MOD leaves the caries on M and D. A crown covers old fillings but keeps the root canal, while **To extract**, **Mobile**, **Abscess**, **Attrition** and **Other** are added on top of whatever the tooth already has.',
           'To clear a condition after treatment, choose **Healthy** under **Reset**: pick the treated surfaces to clear only those, or pick none to make the whole tooth healthy again.',
           'To remove a finding recorded by mistake, click the bin icon next to it under **Current state**.',
-          '**Treat this tooth** takes you to the Treatments tab with a new treatment item for this tooth. When you mark treatment on a tooth done there, such as a filling, a crown or a root canal, the app asks **Update the dental chart?** so the chart matches what was done. See [Treatments](treatments).',
+          '**Treat this tooth** takes you to the Treatments tab with a new treatment item for this tooth. When you mark treatment on a tooth done there, such as a filling, a crown or a root canal, Dentora asks **Update the dental chart?** so the chart matches what was done. See [Treatments](treatments#progress).',
           'Close the panel with ✕ or `Esc`. On a phone the panel slides up from the bottom of the screen.',
         ],
       },
@@ -163,7 +163,7 @@ const topic: GuideTopic = {
         en: [
           'Click a tooth number in the history to open that tooth’s panel.',
           'Each tooth has its own history too: open **Tooth history** at the bottom of the tooth panel.',
-          'Deleting from the history is permanent, and the app asks you to confirm first.',
+          'Deleting from the history is permanent, and Dentora asks you to confirm first.',
           'Chart changes also appear under **Recent activity** in the **Overview** tab of the patient’s file.',
         ],
       },
@@ -223,7 +223,7 @@ const topic: GuideTopic = {
           'زر الرجوع في أندرويد يغلق لوحة السن أولاً قبل أن يغادر الشاشة.',
         ],
         en: [
-          'The chart opens zoomed in so the teeth are big enough to tap. Swipe it left and right, or tap the magnifier (**Fit to screen**) to see the whole mouth, and **Zoom chart** to go back. The app remembers your choice on this device.',
+          'The chart opens zoomed in so the teeth are big enough to tap. Swipe it left and right, or tap the magnifier (**Fit to screen**) to see the whole mouth, and **Zoom chart** to go back. Dentora remembers your choice on this device.',
           'The tooth panel slides up from the bottom, with **Treat this tooth** and **Save finding** always at its foot.',
           '**History** and **Print** appear as icons only, next to the dentition buttons.',
           'The Android Back button closes the tooth panel first, before leaving the screen.',
@@ -242,8 +242,8 @@ const topic: GuideTopic = {
     {
       id: 'chart-tooth-current',
       device: 'desktop',
-      alt: { ar: 'لوحة السن 36 مفتوحة بجانب المخطط: رسم السن وحالته الحالية (تاج ومعالجة لبية)', en: 'The panel of tooth 36 open beside the chart: the tooth drawing and its current state (crown and root canal)' },
-      recipe: `${DESK} ${CHART} Scroll as in chart-overview, then click tooth 36 ([data-tooth="36"]). Wait 600 ms for the side panel (.drawer), left at its top. Capture the whole window. Markers: 1 on tooth 36 in the chart (it is outlined as selected), 2 on the "Current state" section of the panel.`,
+      alt: { ar: 'لوحة السن 11 مفتوحة بجانب المخطط: رسم السن وحالته الحالية (فينير وحشوة)', en: 'The panel of tooth 11 open beside the chart: the tooth drawing and its current state (veneer and filling)' },
+      recipe: `${DESK} ${CHART} Scroll as in chart-overview, then click tooth 11 ([data-tooth="11"]; the panel covers the far half of the chart, and 11/21 are the teeth visible beside it in both languages). Wait 600 ms for the side panel (.drawer), left at its top. Capture the whole window. Markers: 1 on tooth 11 in the chart (it is outlined as selected), 2 on the "Current state" section of the panel.`,
     },
     {
       id: 'chart-tooth-form',
@@ -273,7 +273,7 @@ const topic: GuideTopic = {
       id: 'chart-phone',
       device: 'phone',
       alt: { ar: 'مخطط الأسنان على الهاتف مكبّراً، مع أزرار التحديد والرسم السريع والإطباق والسجل والطباعة والعدسة', en: 'The dental chart on a phone, zoomed in, with the select, quick paint, dentition, history, print and zoom buttons' },
-      recipe: `${PHONE} Open ${P19} at #/patients/<id>?tab=chart (zoom left at its default, on). Scroll so the chart card (.ch-card) sits just under the top bar (as the phone "chart" screen of shoot.mjs). Capture the whole screen. No markers.`,
+      recipe: `${PHONE} Open ${P19} at #/patients/<id>?tab=chart (zoom left at its default, on). Scroll so the chart card (.ch-card) sits just under the top bar (as the phone "chart" screen of shoot.mjs). English shot: a 440×952 phone, because at 390 px the English toolbar cuts off the Fit to screen button (an app layout issue); Arabic fits at 390. Capture the whole screen. No markers.`,
     },
     {
       id: 'chart-phone-tooth',

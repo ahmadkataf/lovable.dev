@@ -229,7 +229,7 @@ export const shots = restMouse({
       markers: [
         { n: 3, target: dlg.locator('.bl-amount .field-hint') },
         { n: 4, target: dlg.locator('.bl-credit-note') },
-        { n: 5, target: dlg.locator('.modal-footer .btn-primary'), place: 'top' },
+        { n: 5, target: dlg.locator('.modal-footer .btn-primary'), place: 'start' },   // the form runs on under the footer
       ],
     }
   },
@@ -263,12 +263,11 @@ export const shots = restMouse({
   },
 
   'billing-account': async ({ page, helpers }) => {
-    // a little of the patient's header above the tabs leaves room for the marker of the Account tab
-    await openTab(page, helpers, 19, 'billing', { offset: -56 })
+    await openTab(page, helpers, 19, 'billing')
     const acts = page.locator('.bl-tab-actions')
     return {
       markers: [
-        { n: 1, target: page.locator('.pt-tabs [role="tab"]').filter({ hasText: await helpers.t('patients.tab.billing') }).first(), place: 'top' },
+        { n: 1, target: page.locator('.pt-tabs [role="tab"]').filter({ hasText: await helpers.t('patients.tab.billing') }).first(), place: 'bottom' },   // on the blank top of the card under it
         { n: 2, target: button(acts, await helpers.t('billing.newInvoice')) },
         { n: 2, target: button(acts, await helpers.t('nav.newPayment')) },
         { n: 3, target: button(acts, await helpers.t('billing.account.statement')) },

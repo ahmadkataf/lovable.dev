@@ -6,8 +6,8 @@ import type { GuideTopic } from '../types'
 // window.__dentora.db.patients (fileNo). The demo has 13 lab orders (LAB-000001…LAB-000013): on 11 Oct 2026 one is
 // in progress (#7, due today), one is a remake (#20, due tomorrow), one is sent (#55), one is a draft (#36), the
 // others fitted or cancelled. No picture here saves anything.
-const DESK = 'Desktop 1600×900, demo clinic, clock fixed to Sunday 11 Oct 2026 11:40 (Asia/Damascus), trial bar hidden, signed in as the admin, as in store/scripts/shoot.mjs.'
-const PHONE = 'Phone 405×720 (isMobile, hasTouch), demo clinic, same clock, trial bar hidden, signed in as the admin.'
+const DESK = 'Desktop 1440×900, demo clinic, clock fixed to Sunday 11 Oct 2026 11:40 (Asia/Damascus), trial bar hidden, signed in as the admin, as in store/scripts/shoot.mjs.'
+const PHONE = 'Phone 390×844 (isMobile, hasTouch), demo clinic, same clock, trial bar hidden, signed in as the admin.'
 const file = (n: number, ar: string, en: string) => `patient file #${n} (${ar} / ${en})`
 const LAB = 'Route #/lab and reload (status All, all doctors, no due or lab filter, no search).'
 
@@ -40,15 +40,15 @@ const topic: GuideTopic = {
         ar: [
           'انقر على بطاقة **متأخرة عن موعدها** أو **مستحقة هذا الأسبوع** لعرض تلك الطلبات وحدها، وانقر عليها مرة أخرى لإلغاء التصفية.',
           'يظهر موعد التسليم بالأحمر حين يتأخر الطلب، وبالبرتقالي حين يحلّ خلال يومين، مع كلمة «اليوم» أو «غداً».',
-          'الأعمال المتأخرة والمستحقة اليوم تظهر أيضاً في [التنبيهات](interface#notifications) وفي [الصفحة الرئيسية](dashboard#alerts).',
-          'المخبر متاح للمدير والأطباء والمساعدين، ولا يراه موظف الاستقبال، انظر [الفريق والصلاحيات](staff#roles). وعلى الهاتف تظهر الطلبات بطاقات، وتجد **المخبر** تحت **المزيد** في الشريط السفلي.',
+          'الأعمال المتأخرة والمستحقة اليوم تظهر أيضاً في [التنبيهات](interface#notifications) وفي [الشاشة الرئيسية](dashboard#alerts).',
+          'المخبر متاح للمدير والأطباء والمساعدين، ولا يراه موظف الاستقبال، انظر [الأدوار والصلاحيات](staff#roles). وعلى الهاتف تظهر الطلبات بطاقات، وتجد **المخبر** تحت **المزيد** في الشريط السفلي.',
           'في وضع القراءة فقط تستطيع عرض الطلبات وطباعة أوامر العمل، لكن لا يمكنك إضافة طلب أو تغيير حالته. انظر [الترخيص](licence).',
         ],
         en: [
           'Click the **Overdue** or **Due this week** card to show only those orders, and click it again to clear the filter.',
           'A due date turns red when the order is late, and orange when it falls within two days, with “Today” or “Tomorrow”.',
           'Late work and work due today also show in [Notifications](interface#notifications) and on the [Dashboard](dashboard#alerts).',
-          'The lab is open to the admin, doctors and assistants; reception does not see it (see [Staff and permissions](staff#roles)). On a phone the orders show as cards, and **Lab** is under **More** in the bottom bar.',
+          'The lab is open to the admin, doctors and assistants; reception does not see it (see [Roles and permissions](staff#roles)). On a phone the orders show as cards, and **Lab** is under **More** in the bottom bar.',
           'In read-only mode you can still view the orders and print lab slips, but you cannot add an order or change its status. See [Licence](licence).',
         ],
       },
@@ -110,7 +110,7 @@ const topic: GuideTopic = {
           'حين يبدأ المخبر العمل انقر على **بدء العمل**.',
           'عند وصول العمل إلى العيادة انقر على **استلام**. يُسجَّل تاريخ الاستلام، وتدخل التكلفة في المصروفات.',
           'بعد تركيبه للمريض انقر على **تم التركيب**.',
-          'إذا احتاج العمل إلى تعديل افتح قائمة النقاط الثلاث واختر **إعادة للمخبر (إعادة عمل)**. إن كان موعد التسليم قد حلّ يُحدَّد موعد جديد بعد 7 أيام، ويعود زر **استلام** إلى السطر.',
+          'إذا احتاج العمل إلى تعديل افتح قائمة ⋮ واختر **إعادة للمخبر (إعادة عمل)**. إن كان موعد التسليم قد حلّ يُحدَّد موعد جديد بعد 7 أيام، ويعود زر **استلام** إلى السطر.',
           'لإيقاف طلب اختر **إلغاء الطلب** من القائمة نفسها، فيبقى في السجل بحالة **ملغى**.',
         ],
         en: [
@@ -124,7 +124,7 @@ const topic: GuideTopic = {
       },
       tips: {
         ar: [
-          'في قائمة النقاط الثلاث أيضاً **طباعة أمر العمل** و**تعديل** و**حذف**. وتستطيع تغيير الحالة مباشرة من خانة **الحالة** في نافذة التعديل.',
+          'في قائمة ⋮ أيضاً **طباعة أمر العمل** و**تعديل** و**حذف**. وتستطيع تغيير الحالة مباشرة من خانة **الحالة** في نافذة التعديل.',
           'عند الاستلام تُسجَّل **تكلفة المخبر** مصروفاً من فئة «مخبر» بتاريخ الاستلام، باسم المخبر ووصف العمل ورقم الطلب، فلا تكتب فاتورة المخبر مرتين. انظر [المصروفات](expenses#edit).',
           'عدّل التكلفة أو اسم المخبر من الطلب نفسه لا من صفحة المصروفات، فيتعدل المصروف معه. وإعادة العمل لا تضيف مصروفاً جديداً، أما إلغاء الطلب أو حذفه فيحذف مصروفه.',
           'بطاقة **تكاليف المخبر هذا الشهر** تجمع مصروفات فئة المخبر في الشهر، ومنها ما تسجله بيدك. وينتقل المدير إلى صفحة المصروفات بالنقر عليها.',
@@ -147,7 +147,7 @@ const topic: GuideTopic = {
       },
       steps: {
         ar: [
-          'في سطر الطلب افتح قائمة النقاط الثلاث واختر **طباعة أمر العمل**.',
+          'في سطر الطلب افتح قائمة ⋮ واختر **طباعة أمر العمل**.',
           'راجع الورقة: المخبر وموعد التسليم المطلوب، والمريض والطبيب، ونوع العمل واللون والمادة وتاريخ الإرسال، ورسم الأسنان المحددة، وملاحظاتك للمخبر.',
           'انقر على **طباعة**، ثم وقّع الورقة في مكان توقيع الطبيب.',
         ],

@@ -4,8 +4,8 @@ import type { GuideTopic } from '../types'
 // The demo stock is the same in every run: 28 active items, 7 of them at or below their alert level, 1 expiring within
 // 60 days. Rows are sorted by urgency then by name, so "the first row" is an item marked Low in both languages (its name
 // differs between the Arabic and the English clinic). Never save anything in a shot: close dialogs with Cancel / Escape.
-const DESK = 'Desktop 1600×900, demo clinic as store/scripts/shoot.mjs makes it (seedAndLogin + Settings → Backup → Load demo data; English shots use its englishClinic() names), signed in as the admin (Dr. Ahmad Al-Khatib), clock fixed at Sunday 11 Oct 2026 11:40 Asia/Damascus, trial bar hidden ([data-qa="trial-bar"]{display:none}), page scrolled to the top and held there (page.goto() reads as Back to the app, which restores an old scroll position).'
-const PHONE = 'Phone 405×720 (isMobile, hasTouch, deviceScaleFactor 8/3 as shoot.mjs), same demo clinic, clock and hidden trial bar.'
+const DESK = 'Desktop 1440×900, demo clinic as store/scripts/shoot.mjs makes it (seedAndLogin + Settings → Backup → Load demo data; English shots use its englishClinic() names), signed in as the admin (Dr. Ahmad Al-Khatib), clock fixed at Sunday 11 Oct 2026 11:40 Asia/Damascus, trial bar hidden ([data-qa="trial-bar"]{display:none}), page scrolled to the top and held there (page.goto() reads as Back to the app, which restores an old scroll position).'
+const PHONE = 'Phone 390×844 (isMobile, hasTouch, deviceScaleFactor 8/3 as shoot.mjs), same demo clinic, clock and hidden trial bar.'
 
 const topic: GuideTopic = {
   slug: 'inventory',
@@ -192,7 +192,7 @@ const topic: GuideTopic = {
       text: {
         ar: [
           'يحمل الصنف شارة **نقص** حين يبلغ حد التنبيه، وشارة **نفد** حين تصبح كميته صفراً. وفي عمود **الصلاحية** تظهر شارة مثل «ينتهي خلال 24 يوماً» أو **منتهي الصلاحية** لما قارب الانتهاء خلال 60 يوماً أو تجاوزه.',
-          'لا تحتاج إلى فتح المخزون لتعرف ذلك: يظهر النقص والانتهاء أيضاً في [التنبيهات](interface#notifications) تحت زر الجرس، ويظهر النقص في تنبيهات [الصفحة الرئيسية](dashboard#alerts).',
+          'لا تحتاج إلى فتح المخزون لتعرف ذلك: يظهر النقص والانتهاء أيضاً في [التنبيهات](interface#notifications) تحت زر الجرس، ويظهر النقص في تنبيهات [الشاشة الرئيسية](dashboard#alerts).',
         ],
         en: [
           'An item gets a **Low** badge when it reaches its alert threshold, and **Out of stock** when its quantity is zero. In the **Expiry** column a badge such as “Expires in 24 days” or **Expired** marks anything expiring within 60 days or already past it.',
@@ -259,11 +259,11 @@ const topic: GuideTopic = {
       title: { ar: 'المخزون على الهاتف', en: 'Inventory on the phone' },
       text: {
         ar: [
-          'على الهاتف يصبح كل صنف بطاقة: الاسم والرمز والفئة وشارة النقص، ثم الحد والقيمة والصلاحية، وفي أسفلها الكمية بين زرّين كبيرين − و+ يسهل الضغط عليهما.',
+          'على الهاتف يصبح كل صنف بطاقة: الاسم والرمز والفئة وشارة النقص، ثم الحد والقيمة، وشارة الصلاحية إن قارب الصنف على الانتهاء أو انتهى، وفي أسفلها الكمية بين زرّين كبيرين − و+ يسهل الضغط عليهما.',
           'المس البطاقة لتفتح سجل حركاتها، أو زر ⋮ لقائمة الخيارات. وتُفتح نافذة الحركة من أسفل الشاشة بالحقول نفسها.',
         ],
         en: [
-          'On a phone each item becomes a card: name, SKU, category and the low badge, then the threshold, value and expiry, with the quantity at the bottom between two large − and + buttons that are easy to tap.',
+          'On a phone each item becomes a card: name, SKU, category and the low badge, then the threshold and value (and an expiry badge when the item is expiring or expired), with the quantity at the bottom between two large − and + buttons that are easy to tap.',
           'Tap the card to open its movement history, or ⋮ for the options menu. The movement box opens from the bottom of the screen with the same fields.',
         ],
       },
@@ -291,7 +291,7 @@ const topic: GuideTopic = {
         ar: 'نافذة صنف جديد: اسم الصنف والفئة بأزرارها الجاهزة والرمز، ثم الوحدة والكمية الابتدائية وحد التنبيه وسعر التكلفة وتاريخ الانتهاء والمورد',
         en: 'The New item dialog: item name, category with its ready buttons and SKU, then unit, opening quantity, alert threshold, cost price, expiry date and supplier',
       },
-      recipe: `${DESK} Route #/inventory. Click the header button **New item** (صنف جديد). In the dialog type Item name "قفازات نتريل مقاس L" (EN: "Nitrile gloves, size L"), click the category chip **Consumables** (مستهلكات), leave Unit on piece, Opening quantity 10, Alert threshold 4, Cost price 6. Leave the dialog body scrolled to its top. Crop to the dialog (.modal). Markers: 2 on the Item name field, 3 on the category chips, 4 on the Unit select, 5 on the Opening quantity field, 6 on the **Add item** button in the footer. Close with **Cancel** (do not save).`,
+      recipe: `${DESK} Route #/inventory. Click the header button **New item** (صنف جديد). In the dialog type Item name "قفازات نتريل مقاس L" (EN: "Nitrile gloves, size L"), click the category chip **Consumables** (مستهلكات), leave Unit on piece, Opening quantity 10, Alert threshold 4, Cost price 6. Make the window tall enough for the whole dialog. Crop to the dialog (.modal). Markers: 2 on the Item name field, 3 on the category chips, 4 on the Unit select, 5 on the Opening quantity field, 6 on the **Add item** button in the footer. Close with **Cancel** (do not save).`,
     },
     {
       id: 'inventory-quick-move',
@@ -309,7 +309,7 @@ const topic: GuideTopic = {
         ar: 'نافذة تسجيل شراء مملوءة بالأصناف الناقصة: تاريخ الشراء والمورد ورقم الفاتورة، ثم سطر لكل صنف بكميته وسعر وحدته وإجماليه، وإجمالي الشراء أسفل النافذة',
         en: 'The Record purchase dialog filled with the low items: purchase date, supplier and invoice number, then a line per item with quantity, unit price and total, and the purchase total at the bottom',
       },
-      recipe: `${DESK} Route #/inventory, Items tab. Click **Restock** (تزويد المخزون) in the yellow bar (.inv-reorder button). The dialog opens with the 7 low items. Type Supplier "مستودع الشفاء للمواد السنية" (EN: "Al-Shifa Dental Supplies") and Invoice number "F-2291". Leave the dialog body scrolled to its top. Capture the whole window (the dialog fills most of it). Markers: 2 on the Purchase date field, 3 on the first line's Quantity field, 5 on **Save purchase** (حفظ الشراء). Close with **Cancel** (do not save).`,
+      recipe: `${DESK} Route #/inventory, Items tab. Click **Restock** (تزويد المخزون) in the yellow bar (.inv-reorder button). The dialog opens with the 7 low items. Type Supplier "مستودع الشفاء للمواد السنية" (EN: "Al-Shifa Dental Supplies") and Invoice number "F-2291". Make the window tall enough for the whole dialog. Crop to the dialog (.modal). Markers: 2 on the Purchase date field, 3 on the first line's Quantity field, 4 on the Record the purchase total as an expense switch, 5 on **Save purchase** (حفظ الشراء). Close with **Cancel** (do not save).`,
     },
     {
       id: 'inventory-history',

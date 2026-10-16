@@ -5,8 +5,8 @@ import type { GuideTopic } from '../types'
 // drug list is the same list in English. Demo patients are named by their file number, the same in every run and in
 // both languages: look the id up with window.__dentora.db.patients (fileNo). The demo has 55 prescriptions; the
 // newest is RX-000055 (8 Oct 2026, file #57). No picture here saves anything.
-const DESK = 'Desktop 1600×900, demo clinic, clock fixed to Sunday 11 Oct 2026 11:40 (Asia/Damascus), trial bar hidden, signed in as the admin, as in store/scripts/shoot.mjs.'
-const PHONE = 'Phone 405×720 (isMobile, hasTouch), demo clinic, same clock, trial bar hidden, signed in as the admin.'
+const DESK = 'Desktop 1440×900, demo clinic, clock fixed to Sunday 11 Oct 2026 11:40 (Asia/Damascus), trial bar hidden, signed in as the admin, as in store/scripts/shoot.mjs.'
+const PHONE = 'Phone 390×844 (isMobile, hasTouch), demo clinic, same clock, trial bar hidden, signed in as the admin.'
 const file = (n: number, ar: string, en: string) => `patient file #${n} (${ar} / ${en})`
 const NEW_RX = 'Route #/prescriptions and reload, then click **New prescription** (وصفة جديدة) in the page header.'
 
@@ -38,13 +38,13 @@ const topic: GuideTopic = {
       tips: {
         ar: [
           'تبويب **قائمة الأدوية** يحفظ أدويتك المعتادة بجرعاتها. انظر [قائمة الأدوية](prescriptions#drugs).',
-          'الوصفات متاحة للمدير والأطباء والمساعدين، ولا يراها موظف الاستقبال. انظر [الفريق والصلاحيات](staff#roles).',
+          'الوصفات متاحة للمدير والأطباء والمساعدين، ولا يراها موظف الاستقبال. انظر [الأدوار والصلاحيات](staff#roles).',
           'على الهاتف تظهر الوصفات بطاقات، وتجد **الوصفات** تحت **المزيد** في الشريط السفلي.',
           'في وضع القراءة فقط تستطيع عرض الوصفات وطباعتها، لكن لا يمكنك كتابة وصفة أو نسخها أو حذفها. انظر [الترخيص](licence).',
         ],
         en: [
           'The **Drug list** tab keeps your usual drugs with their doses. See [The drug list](prescriptions#drugs).',
-          'Prescriptions are open to the admin, doctors and assistants; reception does not see them. See [Staff and permissions](staff#roles).',
+          'Prescriptions are open to the admin, doctors and assistants; reception does not see them. See [Roles and permissions](staff#roles).',
           'On a phone the prescriptions show as cards, and **Prescriptions** is under **More** in the bottom bar.',
           'In read-only mode you can still view and print prescriptions, but you cannot write, copy or delete one. See [Licence](licence).',
         ],

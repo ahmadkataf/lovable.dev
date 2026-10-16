@@ -7,8 +7,8 @@ import type { GuideTopic } from '../types'
 // No picture here saves anything: every dialog is closed with Cancel / Close.
 // The invoices and payments pages remember their period per device (localStorage dentora.billing.period.*): the
 // recipes say which period to click.
-const DESK = 'Desktop 1600×900, demo clinic, clock fixed to Sunday 11 Oct 2026 11:40 (Asia/Damascus), trial bar hidden, signed in as the admin, as in store/scripts/shoot.mjs.'
-const PHONE = 'Phone 405×720 (isMobile, hasTouch), demo clinic, same clock, trial bar hidden, signed in as the admin.'
+const DESK = 'Desktop 1440×900, demo clinic, clock fixed to Sunday 11 Oct 2026 11:40 (Asia/Damascus), trial bar hidden, signed in as the admin, as in store/scripts/shoot.mjs.'
+const PHONE = 'Phone 390×844 (isMobile, hasTouch), demo clinic, same clock, trial bar hidden, signed in as the admin.'
 const file = (n: number, ar: string, en: string) => `patient file #${n} (${ar} / ${en})`
 const INV287 = 'Route #/invoices and reload, click the period **This month** (هذا الشهر), type “000287” in the search box and click the invoice number INV-000287 in its row (مريم يوسف البيطار / Mariam Youssef Bitar, 4 Oct 2026, $1,280, Partially paid). The invoice page opens at its top.'
 
@@ -40,16 +40,16 @@ const topic: GuideTopic = {
       tips: {
         ar: [
           'يتذكر البرنامج الفترة التي اخترتها على هذا الجهاز.',
-          'في قائمة النقاط الثلاث لكل فاتورة: **فتح الفاتورة** و**تسجيل دفعة** و**طباعة الفاتورة**، ثم **إلغاء الفاتورة** أو **حذف المسودة**.',
+          'في قائمة ⋮ لكل فاتورة: **فتح الفاتورة** و**تسجيل دفعة** و**طباعة الفاتورة**، ثم **إلغاء الفاتورة** أو **حذف المسودة**.',
           'تظهر الفاتورة غير المسددة في [التنبيهات](interface#notifications) بعد تاريخ استحقاقها، أو بعد 30 يوماً من تاريخها إن لم يكن لها تاريخ استحقاق.',
-          'الفواتير والمدفوعات متاحة للمدير والأطباء وموظفي الاستقبال، ولا يراها المساعد. انظر [الفريق والصلاحيات](staff#roles).',
+          'الفواتير والمدفوعات متاحة للمدير والأطباء وموظفي الاستقبال، ولا يراها المساعد. انظر [الأدوار والصلاحيات](staff#roles).',
           'في وضع القراءة فقط تستطيع فتح الفواتير وطباعتها، لكن لا يمكنك إصدار فاتورة أو تسجيل دفعة. انظر [الترخيص](licence).',
         ],
         en: [
-          'The app remembers the period you chose on this device.',
+          'Dentora remembers the period you chose on this device.',
           'Each invoice’s ⋮ menu has **Open invoice**, **Record payment** and **Print invoice**, then **Cancel invoice** or **Delete draft**.',
           'An unpaid invoice shows in [Notifications](interface#notifications) once its due date has passed, or 30 days after its date when it has no due date.',
-          'Invoices and payments are open to the admin, doctors and reception; assistants do not see them. See [Staff and permissions](staff#roles).',
+          'Invoices and payments are open to the admin, doctors and reception; assistants do not see them. See [Roles and permissions](staff#roles).',
           'In read-only mode you can still open and print invoices, but you cannot issue one or record a payment. See [Licence](licence).',
         ],
       },
@@ -112,7 +112,7 @@ const topic: GuideTopic = {
           'انقر على **تسجيل دفعة** لتسجيل ما دفعه المريض على هذه الفاتورة.',
           'انقر على **طباعة** لطباعة الفاتورة أو حفظها بصيغة PDF.',
           'انقر على **واتساب** لترسل للمريض رسالة فيها رقم الفاتورة وإجماليها والمبلغ المتبقي.',
-          'في قائمة النقاط الثلاث تجد **تعديل** و**إرسال عبر واتساب** و**استرداد مبلغ** و**إلغاء الفاتورة**.',
+          'في قائمة ⋮ تجد **تعديل** و**إرسال عبر واتساب** و**استرداد مبلغ** و**إلغاء الفاتورة**.',
         ],
         en: [
           'Click **Record payment** to record what the patient paid on this invoice.',
@@ -189,7 +189,7 @@ const topic: GuideTopic = {
       },
       steps: {
         ar: [
-          'في صفحة الفاتورة افتح قائمة النقاط الثلاث واختر **استرداد مبلغ**، أو فعّل **استرداد (مبلغ مُعاد للمريض)** في نافذة تسجيل الدفعة.',
+          'في صفحة الفاتورة افتح قائمة ⋮ واختر **استرداد مبلغ**، أو فعّل **استرداد (مبلغ مُعاد للمريض)** في نافذة تسجيل الدفعة.',
           'تحت **يُعاد من** اختر الفاتورة التي دُفع عليها المبلغ، أو **من رصيد المريض الدائن**.',
           'اكتب **المبلغ المُعاد**. يذكر البرنامج تحت الخانة أقصى ما يمكن إعادته.',
           'إذا كان المال يُعاد لأن العمل لم يُنجز أو لأن السعر خُفّض، فأبقِ خيار «خفض الفاتورة … (إشعار دائن)» محدداً، فلا يبقى على المريض شيء.',
@@ -301,7 +301,7 @@ const topic: GuideTopic = {
       text: {
         ar: [
           'تُطبع الفواتير والإيصالات وكشوف الحساب وتقرير الصندوق بتصميم مرتب يحمل ترويسة العيادة وشعارها من [الإعدادات](settings#clinic-details)، بالعربية أو الإنجليزية حسب لغة البرنامج.',
-          'وفي الهاتف تتغير بعض الأماكن: زر **فاتورة جديدة** عائم في أسفل قائمة الفواتير، وفي صفحة الفاتورة يصبح زر الطباعة أيقونة، وتجد **إرسال عبر واتساب** في قائمة النقاط الثلاث.',
+          'وفي الهاتف تتغير بعض الأماكن: زر **فاتورة جديدة** عائم في أسفل قائمة الفواتير، وفي صفحة الفاتورة يصبح زر الطباعة أيقونة، وتجد **إرسال عبر واتساب** في قائمة ⋮.',
         ],
         en: [
           'Invoices, receipts, statements and the cash report print as tidy sheets with the clinic letterhead and logo from [Settings](settings#clinic-details), in Arabic or English as the app is set.',
@@ -398,7 +398,7 @@ const topic: GuideTopic = {
     {
       id: 'billing-phone',
       device: 'phone',
-      alt: { ar: 'فاتورة على الهاتف: زر تسجيل دفعة وأيقونة الطباعة وقائمة النقاط الثلاث فوق الورقة', en: 'An invoice on a phone: Record payment, the print icon and the ⋮ menu above the sheet' },
+      alt: { ar: 'فاتورة على الهاتف: زر تسجيل دفعة وأيقونة الطباعة وقائمة ⋮ فوق الورقة', en: 'An invoice on a phone: Record payment, the print icon and the ⋮ menu above the sheet' },
       recipe: `${PHONE} Route #/invoices and reload, tap the period **This month**, type “000287” in the search box and tap the card INV-000287 (Mariam Youssef Bitar). Page at its top. Capture the whole screen. No markers.`,
     },
   ],

@@ -5,8 +5,8 @@ import type { GuideTopic } from '../types'
 // Android apps never show: hide it with .st-backup-hero .alert-info{display:none}. In a browser an export downloads the
 // file at once (accept downloads) instead of opening the Windows or Android save screen. Never confirm a restore or an
 // erase in a shot: close those dialogs with Cancel.
-const DESK = 'Desktop 1600×900, demo clinic as store/scripts/shoot.mjs makes it (seedAndLogin + Settings → Backup → Load demo data; English shots use its englishClinic() names), signed in as the admin (Dr. Ahmad Al-Khatib), clock fixed at Sunday 11 Oct 2026 11:40 Asia/Damascus, trial bar hidden ([data-qa="trial-bar"]{display:none}), the browser-only storage note hidden (.st-backup-hero .alert-info{display:none}), downloads accepted, page scrolled to the top and held there (page.goto() reads as Back to the app, which restores an old scroll position).'
-const PHONE = 'Phone 405×720 (isMobile, hasTouch, deviceScaleFactor 8/3 as shoot.mjs), same demo clinic, clock, hidden trial bar and hidden storage note.'
+const DESK = 'Desktop 1440×900, demo clinic as store/scripts/shoot.mjs makes it (seedAndLogin + Settings → Backup → Load demo data; English shots use its englishClinic() names), signed in as the admin (Dr. Ahmad Al-Khatib), clock fixed at Sunday 11 Oct 2026 11:40 Asia/Damascus, trial bar hidden ([data-qa="trial-bar"]{display:none}), the browser-only storage note hidden (.st-backup-hero .alert-info{display:none}), downloads accepted, page scrolled to the top and held there (page.goto() reads as Back to the app, which restores an old scroll position).'
+const PHONE = 'Phone 390×844 (isMobile, hasTouch, deviceScaleFactor 8/3 as shoot.mjs), same demo clinic, clock, hidden trial bar and hidden storage note.'
 const EXPORT = 'Route #/settings/backup, click **Export backup** ([data-qa="export-backup"]) and keep the downloaded file (named dentora-backup-2026-10-11-HHMM.dentora, with the time of the export).'
 
 const topic: GuideTopic = {
@@ -37,7 +37,7 @@ const topic: GuideTopic = {
       tips: {
         ar: [
           'صفحة النسخ الاحتياطي للمدير وحده، ولا تظهر في إعدادات الأدوار الأخرى.',
-          'لا تعتمد على ذاكرتك: إن لم تحفظ أي نسخة بعد، أو مضى على آخر نسخة سبعة أيام أو أكثر، يظهر تنبيه في [الصفحة الرئيسية](dashboard#alerts) وفي [التنبيهات](interface#notifications) (مع زر **نسخ الآن**)، ونقطة بجانب **النسخ الاحتياطي** في قائمة الإعدادات. وتعود النقطة الحمراء على الجرس كل أسبوع حتى تحفظ نسخة.',
+          'لا تعتمد على ذاكرتك: إن لم تحفظ أي نسخة بعد، أو مضى على آخر نسخة سبعة أيام أو أكثر، يظهر تنبيه في [الشاشة الرئيسية](dashboard#alerts) وفي [التنبيهات](interface#notifications) (مع زر **نسخ الآن**)، ونقطة بجانب **النسخ الاحتياطي** في قائمة الإعدادات. وتعود النقطة الحمراء على الجرس كل أسبوع حتى تحفظ نسخة.',
           'ننصح بنسخة أسبوعية على الأقل، والأفضل نسخة في نهاية كل يوم عمل.',
         ],
         en: [
@@ -192,7 +192,7 @@ const topic: GuideTopic = {
         ar: [
           'على الجهاز القديم احفظ نسخة احتياطية حديثة (ويُفضّل أن تحميها بكلمة مرور)، وانقل الملف إلى الجهاز الجديد: بفلاشة، أو عبر Google Drive، أو أرسله لنفسك.',
           'ثبّت Dentora على الجهاز الجديد. انظر [التثبيت على ويندوز](getting-started#install-windows) و[التثبيت على أندرويد](getting-started#install-android).',
-          'في الشاشة الأولى من معالج الإعداد اضغط **استعد بياناتك من نسخة احتياطية** واختر الملف. انظر [استعادة النسخة بدل الإعداد](getting-started#restore-backup). وإن كنت أعددت الجهاز الجديد من قبل فاستخدم **اختيار ملف النسخة** في صفحة النسخ الاحتياطي.',
+          'في الشاشة الأولى من معالج الإعداد انقر على **استعد بياناتك من نسخة احتياطية** واختر الملف. انظر [استعادة النسخة بدل الإعداد](getting-started#restore-backup). وإن كنت أعددت الجهاز الجديد من قبل فاستخدم **اختيار ملف النسخة** في صفحة النسخ الاحتياطي.',
           'ادخل باسمك ورمزك المعتادين: حسابات الفريق ورموزها في النسخة.',
           'فعّل الترخيص من جديد: الجهاز الجديد له رقم جهاز جديد، فاطلب رمز تفعيل له. انظر [الترخيص](licence).',
         ],
@@ -300,7 +300,7 @@ const topic: GuideTopic = {
         ar: 'نافذة نسخة محمية بكلمة مرور تطلب كلمة المرور قبل فتح النسخة، مع رسالة كلمة المرور غير صحيحة',
         en: 'The Password-protected backup dialog asking for the password before opening the backup, with a “Wrong password” message',
       },
-      recipe: `${DESK} Route #/settings/backup. Turn on [data-qa="backup-protect-switch"], type "Smile-2026" twice, click **Export backup** and keep the downloaded file; turn the switch off again. Click **Choose backup file** and give it that file. In the password dialog type "smile-2025" and click **Open backup** ([data-qa="backup-open"]); wait up to 6 s for "Wrong password" (كلمة المرور غير صحيحة). Crop to the dialog (.modal). Marker: 3 on the password box. Close with **Cancel**.`,
+      recipe: `${DESK} Route #/settings/backup. Turn on [data-qa="backup-protect-switch"], type "Smile-2026" twice, click **Export backup** and keep the downloaded file; turn the switch off again. Click **Choose backup file** and give it that file. In the password dialog type "smile-2025" and click **Open backup** ([data-qa="backup-open"]); wait up to 6 s for "Wrong password" (كلمة المرور غير صحيحة). Crop to the dialog (.modal). Markers: 3 on the password box, and a second 3 on **Open backup**. Close with **Cancel**.`,
     },
     {
       id: 'backup-phone',

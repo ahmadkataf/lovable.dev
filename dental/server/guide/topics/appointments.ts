@@ -6,8 +6,8 @@ import type { GuideTopic } from '../types'
 // (#17) confirmed at 2:00 pm, and Charbel Ghassan Taweel (#39) scheduled with Dr. Ahmad Al-Khatib at 3:30 pm;
 // Dr. Laila Haddad has no appointment that day. Patients are named by file number (same in every run and language);
 // look an id up by fileNo in window.__dentora.db.patients.
-const DESK = 'Desktop 1600×900, demo clinic, clock fixed to Sunday 11 Oct 2026 11:40 (Asia/Damascus), trial bar hidden, as in store/scripts/shoot.mjs, signed in as the admin.'
-const PHONE = 'Phone 405×720 (isMobile, hasTouch), demo clinic, same clock, trial bar hidden.'
+const DESK = 'Desktop 1440×900, demo clinic, clock fixed to Sunday 11 Oct 2026 11:40 (Asia/Damascus), trial bar hidden, as in store/scripts/shoot.mjs, signed in as the admin.'
+const PHONE = 'Phone 390×844 (isMobile, hasTouch), demo clinic, same clock, trial bar hidden.'
 const DAY = 'Route #/appointments?view=day (it opens on today, 11 Oct 2026, all doctors, all statuses) and reload so no dialog is left open.'
 const DETAILS = 'Route #/appointments?view=list, reload, and click the row of Charbel Ghassan Taweel / شربل غسان الطويل (#39, 3:30 pm, Scheduled) to open the details dialog.'
 
@@ -52,16 +52,16 @@ const topic: GuideTopic = {
         ar: [
           'لون الحافة الجانبية للبطاقة هو لون الطبيب، ولون البطاقة ورمزها الصغير يدلّان على حالة الموعد. والموعد الملغى يظهر مشطوباً.',
           'في عرض **أسبوع** انقر على اسم اليوم في أعلى العمود لتفتحه في عرض **يوم**. وفي عرض **شهر** انقر على أي يوم لتفتحه، وعبارة مثل **+3 أخرى** تعني مواعيد لم يتسع لها المربع.',
-          'يظهر في التقويم كل مستخدم مفعّل دوره **طبيب** أو **مدير**. تضيف الأطباء وتختار لون كل منهم من صفحة **الفريق**. انظر [الفريق والصلاحيات](staff).',
-          'تُبنى ساعات التقويم وأيام العطلة على **أيام وأوقات الدوام** في الإعدادات. اليوم المغلق يظهر مظللاً، وتستطيع الحجز فيه استثنائياً. انظر [الإعدادات](settings).',
+          'يظهر في التقويم كل مستخدم مفعّل دوره **طبيب** أو **مدير**. تضيف الأطباء وتختار لون كل منهم من صفحة **الفريق**. انظر [إضافة عضو جديد](staff#add-member).',
+          'تُبنى ساعات التقويم وأيام العطلة على **أيام وأوقات الدوام** في الإعدادات. اليوم المغلق يظهر مظللاً، وتستطيع الحجز فيه استثنائياً. انظر [أيام وأوقات الدوام](settings#working-hours).',
           'يتذكر البرنامج العرض والتاريخ والتصفية حين تنتقل إلى شاشة أخرى، حتى تغلقه.',
         ],
         en: [
           'A card’s side stripe has the doctor’s colour; the card’s colour and small icon show the status. A cancelled appointment is struck through.',
           'In **Week** view, click a day’s heading to open it in **Day** view. In **Month** view, click any day to open it; a label such as **+3 more** means appointments that did not fit in the box.',
-          'Every active user whose role is **Doctor** or **Admin** gets a place in the calendar. You add doctors and pick each one’s colour on the **Staff** page. See [Staff and permissions](staff).',
-          'The calendar’s hours and closed days come from **Working days & hours** in Settings. A closed day is shaded, and you can still book an exception. See [Settings](settings).',
-          'The app remembers the view, date and filters while you visit other screens, until you close it.',
+          'Every active user whose role is **Doctor** or **Admin** gets a place in the calendar. You add doctors and pick each one’s colour on the **Staff** page. See [Adding a team member](staff#add-member).',
+          'The calendar’s hours and closed days come from **Working days & hours** in Settings. A closed day is shaded, and you can still book an exception. See [Working days and hours](settings#working-hours).',
+          'Dentora remembers the view, date and filters while you visit other screens, until you close it.',
         ],
       },
       shots: ['appointments-day'],
@@ -98,7 +98,7 @@ const topic: GuideTopic = {
           'إذا حجزت في يوم غير معروض ينتقل التقويم إلى يوم الموعد بعد الحفظ.',
         ],
         en: [
-          'If you open the form without a time, the app picks the doctor’s first free slot. The suggested length is the **Default appointment length** from Settings; lengths go from 15 minutes to 2 hours.',
+          'If you open the form without a time, Dentora picks the doctor’s first free slot. The suggested length is the **Default appointment length** from Settings; lengths go from 15 minutes to 2 hours.',
           'The **Appointment** button in a patient’s file opens the same form with the patient already chosen.',
           'Move through the patient list with the arrow keys and pick with `Enter`. To change the patient after choosing, click **Change**.',
           'If the patient confirms while you are booking, set **Status** to **Confirmed** straight away.',
@@ -135,11 +135,11 @@ const topic: GuideTopic = {
       tips: {
         ar: [
           'المواعيد الملغاة ومواعيد من لم يحضر لا تُحسب في التعارض، فوقتها متاح للحجز من جديد.',
-          'غيّر أيام العمل وبداية الدوام ونهايته و**دقة شبكة التقويم** و**مدة الموعد الافتراضية** من **الإعدادات** ← **التفضيلات** ← **أيام وأوقات الدوام**. انظر [الإعدادات](settings).',
+          'غيّر أيام العمل وبداية الدوام ونهايته و**دقة شبكة التقويم** و**مدة الموعد الافتراضية** من **الإعدادات** ← **التفضيلات** ← **أيام وأوقات الدوام**. انظر [الإعدادات](settings#working-hours).',
         ],
         en: [
           'Cancelled appointments and no-shows do not count as conflicts, so their time is free to book again.',
-          'Change the working days, opening and closing times, the **Calendar grid step** and the **Default appointment length** in **Settings** → **Preferences** → **Working days & hours**. See [Settings](settings).',
+          'Change the working days, opening and closing times, the **Calendar grid step** and the **Default appointment length** in **Settings** → **Preferences** → **Working days & hours**. See [Settings](settings#working-hours).',
         ],
       },
       shots: ['appointments-conflict'],
@@ -156,25 +156,25 @@ const topic: GuideTopic = {
           'انقر على الموعد في التقويم لتفتح **تفاصيل الموعد**.',
           'تحت **تحديث الحالة** انقر على الخطوة التالية: **تأكيد الموعد** بعد التواصل مع المريض، و**وصل المريض** عند حضوره، و**بدء المعالجة** حين يدخل إلى الطبيب، و**إنهاء الزيارة** في آخرها.',
           'للمواعيد التي لم تتم اختر **إلغاء الموعد** أو **لم يحضر**، وإن غيّرت رأيك فاختر **إعادة فتح الموعد**.',
-          'في عرض **قائمة** يظهر زر الخطوة التالية بجانب كل موعد، فتتابع يوم العمل كله من شاشة واحدة.',
+          'في عرض **قائمة** يظهر زر الخطوة التالية بجانب كل موعد لم يكتمل ولم يُلغَ ولم يتغيّب صاحبه، فتتابع يوم العمل كله من شاشة واحدة.',
         ],
         en: [
           'Click the appointment in the calendar to open **Appointment details**.',
           'Under **Update status**, click the next step: **Confirm** once you have spoken to the patient, **Mark arrived** when the patient comes in, **Start treatment** when the patient goes in to the doctor, and **Complete visit** at the end.',
           'For appointments that did not happen choose **Cancel appointment** or **No-show**; if you change your mind, choose **Reopen**.',
-          'In **Agenda** view the next-step button sits next to every appointment, so you can run the whole working day from one screen.',
+          'In **Agenda** view the next-step button sits next to every appointment not yet completed, cancelled or marked no-show, so you can run the whole working day from one screen.',
         ],
       },
       tips: {
         ar: [
           'إنهاء الزيارة يحدّث **آخر زيارة** في ملف المريض.',
           'في التفاصيل أيضاً مدة الموعد ونوعه وسببه وملاحظاته، ومن حجزه ومتى، وزرّا الاتصال وواتساب. انقر على اسم المريض لتفتح ملفه.',
-          'تُظهر التنبيهات **مواعيد الغد غير المؤكدة** لتتصل بأصحابها، و**مرضى بحاجة لمراجعة دورية**: من مضى على آخر زيارة لهم أكثر من ستة أشهر وليس لهم موعد قادم. انظر [واجهة البرنامج](interface).',
+          'تُظهر التنبيهات **مواعيد الغد غير المؤكدة** لتتصل بأصحابها، و**مرضى بحاجة لمراجعة دورية**: من مضى على آخر زيارة لهم أكثر من ستة أشهر وليس لهم موعد قادم. انظر [التنبيهات](interface#notifications).',
         ],
         en: [
           'Completing a visit updates the **Last visit** in the patient’s file.',
           'The details also show the length, type, reason and notes, who booked it and when, and the call and WhatsApp buttons. Click the patient’s name to open the file.',
-          'Notifications list **Unconfirmed for tomorrow**, so you can call those patients, and **Due for a recall**: patients whose last visit was over six months ago with nothing booked. See [The interface](interface).',
+          'Notifications list **Unconfirmed for tomorrow**, so you can call those patients, and **Due for a recall**: patients whose last visit was over six months ago with nothing booked. See [Notifications](interface#notifications).',
         ],
       },
       shots: ['appointments-details', 'appointments-agenda'],
@@ -202,14 +202,14 @@ const topic: GuideTopic = {
         ar: [
           'في عرض **قائمة** يؤدي زر واتساب الصغير بجانب كل موعد قادم العمل نفسه.',
           'يحتاج التذكير إلى رقم هاتف في ملف المريض وإلى اتصال بالإنترنت. على أندرويد يُفتح تطبيق واتساب، وعلى ويندوز يُفتح الرابط في المتصفح لتكمل في واتساب ويب أو في تطبيق واتساب على الحاسوب.',
-          'الأرقام المحلية مثل 0944… تُكتب دون رمز الدولة، ويضيفه البرنامج من **الدولة** في **بيانات العيادة**. انظر [الإعدادات](settings).',
+          'الأرقام المحلية مثل 0944… تُكتب دون رمز الدولة، ويضيفه البرنامج من **الدولة** في **بيانات العيادة**. انظر [الإعدادات](settings#clinic-details).',
           'لا يرسل البرنامج أي رسالة وحده: أنت من يضغط إرسال في واتساب. ويُسجَّل التذكير في **آخر النشاطات** في ملف المريض.',
         ],
         en: [
           'In **Agenda** view, the small WhatsApp button next to each upcoming appointment does the same.',
           'A reminder needs a phone number in the patient’s file and an internet connection. On Android the WhatsApp app opens; on Windows the link opens in the browser, where you continue in WhatsApp Web or the WhatsApp desktop app.',
-          'Local numbers such as 0944… are stored without the country code; the app adds it from **Country** in the **Clinic** settings. See [Settings](settings).',
-          'The app never sends a message on its own: you press send in WhatsApp. The reminder is logged under **Recent activity** in the patient’s file.',
+          'Local numbers such as 0944… are stored without the country code; Dentora adds it from **Country** in the **Clinic** settings. See [Settings](settings#clinic-details).',
+          'Dentora never sends a message on its own: you press send in WhatsApp. The reminder is logged under **Recent activity** in the patient’s file.',
         ],
       },
       shots: ['appointments-reminder'],

@@ -101,7 +101,8 @@ export const shots = atRest({
     await helpers.settle(300)
     return {
       markers: [
-        { n: 1, target: add, place: 'bottom' },
+        // under the + in Arabic (the rows are tall there); in English the next row's + sits just below, so beside it
+        { n: 1, target: add, place: helpers.pick('bottom', 'end') },
         await label(pop, helpers, 'inventory.move.amount', 2),
         { n: 3, target: pop.locator('.inv-reasons') },
         { n: 4, target: pop.locator('.inv-move-actions .btn-primary') },

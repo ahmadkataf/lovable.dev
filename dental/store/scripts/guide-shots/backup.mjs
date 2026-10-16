@@ -62,8 +62,8 @@ async function snug(loc) {
   const x = Math.ceil(b.x), y = Math.ceil(b.y)
   return { el: { x, y, width: Math.floor(b.x + b.width) - x, height: Math.floor(b.y + b.height) - y }, pad: 0, round: radius, grow: false }
 }
-/** The label of the field that holds `control`, for a marker just after its text (on the field it would cover what is typed). */
-const labelOf = (page, control) => page.locator('.field', { has: control }).locator('.field-label').first()
+/** The label of the field that holds the control `selector`, for a marker just after its text (on the field it would cover what is typed). */
+const labelOf = (page, selector) => page.locator('.field', { has: page.locator(selector) }).locator('.field-label').first()
 
 /** Turns "Protect the backup with a password" on or off (the app remembers the choice on this device). */
 async function setProtect(page, on) {
@@ -112,9 +112,9 @@ export const shots = atRest({
     return {
       el: page.locator('.st-backup-hero'), pad: 12,
       markers: [
-        { n: 1, target: page.locator('label.switch', { has: page.locator('[data-qa="backup-protect-switch"]') }), place: 'after-content' },
-        { n: 2, target: labelOf(page, page.locator('[data-qa="backup-password"]')), place: 'after-content' },
-        { n: 2, target: labelOf(page, page.locator('[data-qa="backup-password2"]')), place: 'after-content' },
+        { n: 1, target: page.locator('.bk-protect-head'), place: 'after-content' },
+        { n: 2, target: labelOf(page, '[data-qa="backup-password"]'), place: 'after-content' },
+        { n: 2, target: labelOf(page, '[data-qa="backup-password2"]'), place: 'after-content' },
         { n: 3, target: page.locator('[data-qa="export-backup"]'), place: 'end' },
       ],
     }
@@ -136,7 +136,7 @@ export const shots = atRest({
       ...(await snug(dlg)),
       markers: [
         { n: 4, target: dlg.locator('[data-qa="restore-summary"]'), place: 'top-start' },
-        { n: 5, target: labelOf(page, dlg.locator('[data-qa="confirm-word"]')), place: 'after-content' },
+        { n: 5, target: labelOf(page, '[data-qa="confirm-word"]'), place: 'after-content' },
         { n: 5, target: dlg.locator('[data-qa="confirm-danger"]'), place: 'top' },
       ],
     }
@@ -163,7 +163,7 @@ export const shots = atRest({
     return {
       ...(await snug(dlg)),
       markers: [
-        { n: 3, target: labelOf(page, box), place: 'after-content' },
+        { n: 3, target: labelOf(page, '[data-qa="backup-unlock"]'), place: 'after-content' },
         { n: 3, target: dlg.locator('[data-qa="backup-open"]'), place: 'top' },
       ],
     }
@@ -194,7 +194,7 @@ export const shots = atRest({
       ...(await snug(dlg)),
       markers: [
         { n: 2, target: dlg.locator('.modal-footer .start button'), place: 'top' },
-        { n: 3, target: labelOf(page, dlg.locator('[data-qa="confirm-word"]')), place: 'after-content' },
+        { n: 3, target: labelOf(page, '[data-qa="confirm-word"]'), place: 'after-content' },
         { n: 3, target: dlg.locator('[data-qa="confirm-danger"]'), place: 'top' },
       ],
     }

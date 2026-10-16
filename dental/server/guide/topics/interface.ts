@@ -6,11 +6,11 @@ const DEMO = "Demo clinic as store/scripts/shoot.mjs makes it (seedAndLogin + Se
 const topic: GuideTopic = {
   slug: 'interface',
   order: 2,
-  icon: 'layoutGrid',
+  icon: 'panelsTopLeft',
   title: { ar: 'الواجهة والتنقل', en: 'Finding your way around' },
   summary: {
-    ar: 'تعرّف على أجزاء الشاشة: القائمة الجانبية، والبحث السريع، وزر جديد، والتنبيهات، واللغة والمظهر، والاختصارات، وشكل البرنامج على الهاتف.',
-    en: 'Get to know the screen: the sidebar, quick search, the New button, notifications, language and appearance, shortcuts, and how Dentora looks on a phone.',
+    ar: 'تعرّف على أجزاء الشاشة لتصل إلى أي شيء بسرعة: القائمة الجانبية، والبحث السريع، وزر جديد، والتنبيهات، واللغة والمظهر، والاختصارات، وشكل البرنامج على الهاتف.',
+    en: 'Get to know the screen and reach anything in seconds: the sidebar, quick search, the New button, notifications, language and appearance, shortcuts, and how Dentora looks on a phone.',
   },
   blocks: [
     {
@@ -32,7 +32,7 @@ const topic: GuideTopic = {
           "ابحث عن أي مريض أو موعد أو فاتورة من خانة البحث في الأعلى.",
           "أضف مريضاً أو موعداً أو دفعة من زر **جديد**.",
           "افتح **التنبيهات** من أيقونة الجرس.",
-          "اضغط اسمك أسفل القائمة لتفتح قائمة حسابك.",
+          "انقر على اسمك أسفل القائمة لتفتح قائمة حسابك.",
         ],
         en: [
           "Move between pages from the sidebar, for example **Patients** or **Appointments**.",
@@ -44,12 +44,12 @@ const topic: GuideTopic = {
       },
       tips: {
         ar: [
-          "ما تراه في القائمة يتبع دورك في العيادة: الصفحات التي لا يسمح بها دورك لا تظهر أصلاً. انظر [الفريق والصلاحيات](staff).",
+          "ما تراه في القائمة يتبع دورك في العيادة: الصفحات التي لا يسمح بها دورك لا تظهر أصلاً. انظر [الأدوار والصلاحيات](staff#roles).",
           "أثناء الفترة التجريبية يظهر أعلى الصفحة شريط بعدد الأيام المتبقية وزر **تفعيل الآن**. وإن انتهت التجربة يصبح البرنامج للقراءة فقط: ترى بياناتك كلها وتطبعها وتنسخها احتياطياً، لكن الإضافة والتعديل يتوقفان حتى التفعيل. انظر [الترخيص](licence).",
           "تُعرض الأرقام بالصيغة اللاتينية (0–9) في اللغتين.",
         ],
         en: [
-          "What you see in the sidebar follows your role in the clinic: pages your role may not open are simply not there. See [Staff and permissions](staff).",
+          "What you see in the sidebar follows your role in the clinic: pages your role may not open are simply not there. See [Roles and permissions](staff#roles).",
           "During the trial a bar at the top shows the days left and an **Activate now** button. When the trial is over Dentora becomes read-only: you still see, print and back up all your data, but adding and editing stop until you activate. See [Licence](licence).",
           "Numbers use Western digits (0–9) in both languages.",
         ],
@@ -61,16 +61,16 @@ const topic: GuideTopic = {
       title: { ar: 'القائمة الجانبية وقائمة حسابك', en: 'The sidebar and your account menu' },
       text: {
         ar: ["في أعلى القائمة اسم عيادتك وشعارها، ثم **الرئيسية**. وتحتها ثلاث مجموعات: **العيادة** (**المواعيد** و**المرضى** و**العلاجات** و**الوصفات** و**المخبر**)، و**المالية** (**الفواتير** و**المدفوعات** و**المصروفات** و**التقارير**)، و**الإدارة** (**المخزون** و**قائمة الإجراءات** و**الفريق** و**الإعدادات**)."],
-        en: ["The top of the sidebar shows your clinic's name and logo, then **Dashboard**. Below come three groups: **Clinical** (**Appointments**, **Patients**, **Treatments**, **Prescriptions**, **Lab**), **Finance** (**Invoices**, **Payments**, **Expenses**, **Reports**) and **Management** (**Inventory**, **Procedures**, **Staff**, **Settings**)."],
+        en: ["The top of the sidebar shows your clinic’s name and logo, then **Dashboard**. Below come three groups: **Clinical** (**Appointments**, **Patients**, **Treatments**, **Prescriptions**, **Lab**), **Finance** (**Invoices**, **Payments**, **Expenses**, **Reports**) and **Management** (**Inventory**, **Procedures**, **Staff**, **Settings**)."],
       },
       steps: {
         ar: [
-          "لتوسيع مساحة العمل اضغط زر السهم أسفل القائمة (**طيّ القائمة**). تبقى الأيقونات وحدها، ويظهر اسم كل صفحة حين تمرّر المؤشر فوقها. اضغطه مرة أخرى لتوسيعها.",
-          "اضغط اسمك أسفل القائمة لتفتح قائمة حسابك، وفيها **الإعدادات**.",
+          "لتوسيع مساحة العمل انقر على زر السهم أسفل القائمة (**طيّ القائمة**). تبقى الأيقونات وحدها، وانقر على أي أيقونة لتفتح صفحتها. انقر على السهم مرة أخرى لتوسيع القائمة.",
+          "انقر على اسمك أسفل القائمة لتفتح قائمة حسابك، وفيها **الإعدادات**.",
           "اختر **قفل الشاشة** حين تبتعد عن الجهاز، أو **تسجيل الخروج** حين تنهي عملك. يعود البرنامج في الحالتين إلى شاشة الدخول، فيدخل كل شخص برمزه.",
         ],
         en: [
-          "For more room, click the arrow button at the bottom of the sidebar (**Collapse menu**). Only the icons stay, and each page's name shows when you hover over it. Click it again to expand the sidebar.",
+          "For more room, click the arrow button at the bottom of the sidebar (**Collapse menu**). Only the icons stay; click an icon to open its page. Click the arrow again to expand the sidebar.",
           "Click your name at the bottom of the sidebar to open your account menu, which also has **Settings**.",
           "Choose **Lock screen** when you step away, or **Sign out** when you finish. Either way Dentora returns to the sign-in screen, and each person signs in with their own PIN.",
         ],
@@ -96,9 +96,9 @@ const topic: GuideTopic = {
       },
       steps: {
         ar: [
-          "اضغط خانة البحث في أعلى الشاشة، أو اضغط `Ctrl+K` من أي مكان.",
+          "انقر على خانة البحث في أعلى الشاشة، أو اضغط `Ctrl+K` من أي مكان.",
           "اكتب جزءاً من الاسم أو الرقم. تظهر النتائج مجمّعة تحت **المرضى** و**المواعيد القادمة** و**الفواتير** و**الانتقال إلى**.",
-          "تنقّل بين النتائج بالسهمين `↑` و`↓` واضغط `Enter` لفتح النتيجة المظللة، أو اضغط أي نتيجة بالمؤشر.",
+          "تنقّل بين النتائج بالسهمين `↑` و`↓` واضغط `Enter` لفتح النتيجة المظللة، أو انقر على أي نتيجة بالمؤشر.",
           "اضغط `Esc` لإغلاق البحث.",
         ],
         en: [
@@ -119,7 +119,7 @@ const topic: GuideTopic = {
         en: [
           "Before you type, the window offers **Quick actions** (**New patient**, **New appointment**, **New invoice**, **Lock screen**) and your **Recent searches**. **Clear history** empties the list.",
           "Search understands Arabic-Indic digits (٠–٩), and `Ctrl+K` works even with an Arabic keyboard layout.",
-          "Only appointments from today on are listed. For past visits, open the patient's file or [Appointments](appointments).",
+          "Only appointments from today on are listed. For past visits, open the patient’s file or [Appointments](appointments).",
           "Archived files show in the results with an **Archived** badge.",
           "Everyone searches only what their role allows.",
         ],
@@ -135,7 +135,7 @@ const topic: GuideTopic = {
       },
       steps: {
         ar: [
-          "اضغط **جديد**.",
+          "انقر على **جديد**.",
           "اختر **مريض جديد** أو **موعد جديد** أو **دفعة جديدة**.",
           "املأ النموذج واحفظه. بعد حفظ مريض جديد يُفتح ملفه مباشرة.",
         ],
@@ -176,14 +176,14 @@ const topic: GuideTopic = {
       },
       steps: {
         ar: [
-          "اضغط الجرس، فتنفتح لوحة **التنبيهات** في جانب الشاشة.",
-          "اضغط أي تنبيه لتنتقل إلى صفحته: الموعد في التقويم، أو الفاتورة، أو المخزون، أو ملف المريض.",
+          "انقر على الجرس، فتنفتح لوحة **التنبيهات** في جانب الشاشة.",
+          "انقر على أي تنبيه لتنتقل إلى صفحته: الموعد في التقويم، أو الفاتورة، أو المخزون، أو ملف المريض.",
           "بجانب كل موعد للغد غير مؤكد زر **تذكير عبر واتساب** يفتح رسالة جاهزة للمريض، إن كان رقم هاتفه مسجلاً. وبجانب أعياد الميلاد زر **إرسال تهنئة عبر واتساب**.",
-          "إن كانت المجموعة طويلة اضغط **عرض الكل** لفتح صفحتها كاملة.",
+          "إن كانت المجموعة طويلة انقر على **عرض الكل** لفتح صفحتها كاملة.",
         ],
         en: [
           "Click the bell: the **Notifications** panel opens at the side of the screen.",
-          "Click any alert to go to its page: the appointment in the calendar, the invoice, the inventory or the patient's file.",
+          "Click any alert to go to its page: the appointment in the calendar, the invoice, the inventory or the patient’s file.",
           "Each unconfirmed appointment for tomorrow has a **Remind on WhatsApp** button that opens a ready-made message to the patient, when their phone number is on file. Birthdays have **Send greetings on WhatsApp**.",
           "When a group is long, click **View all** to open its full page.",
         ],
@@ -193,13 +193,13 @@ const topic: GuideTopic = {
           "تختفي النقطة الحمراء حين تفتح اللوحة، وتعود حين يظهر أمر مهم جديد.",
           "تُعدّ الفاتورة متأخرة إذا فات تاريخ استحقاقها، أو مضى على إصدارها أكثر من 30 يوماً إن لم يكن لها تاريخ استحقاق.",
           "يظهر تذكير النسخ الاحتياطي إن لم تُحفظ نسخة قط، أو مضى على آخر نسخة 7 أيام. وزر **نسخ الآن** للمدير وحده.",
-          "تُفتح رسائل واتساب في تطبيق واتساب، ويُضاف رمز بلد العيادة إلى الأرقام المحلية تلقائياً. انظر [بيانات العيادة](settings#clinic-details).",
+          "تُفتح رسائل واتساب في تطبيق واتساب على أندرويد، وفي المتصفح على ويندوز لتكمل في واتساب ويب أو في تطبيق واتساب على الحاسوب. ويُضاف رمز بلد العيادة إلى الأرقام المحلية تلقائياً. انظر [بيانات العيادة](settings#clinic-details).",
         ],
         en: [
           "The red dot goes away once you open the panel, and comes back when something new and important appears.",
           "An invoice counts as overdue once its due date has passed or, without a due date, 30 days after it was issued.",
           "The backup reminder shows when no backup was ever saved or the last one is 7 days old. Only the admin gets the **Back up now** button.",
-          "WhatsApp messages open in the WhatsApp app, and your clinic's country code is added to local numbers for you. See [Clinic details](settings#clinic-details).",
+          "WhatsApp messages open in the WhatsApp app on Android, and in the browser on Windows, where you continue in WhatsApp Web or the WhatsApp desktop app. Your clinic’s country code is added to local numbers for you. See [Clinic details](settings#clinic-details).",
         ],
       },
       shots: ['interface-notifications'],
@@ -214,7 +214,7 @@ const topic: GuideTopic = {
       steps: {
         ar: [
           "انتقل من الشريط السفلي بين **الرئيسية** و**المواعيد** و**المرضى** و**الفواتير**.",
-          "اضغط **المزيد** لتصل إلى بقية الصفحات. وفي أعلى النافذة اسمك مع زرّي قفل الشاشة وتسجيل الخروج.",
+          "انقر على **المزيد** لتصل إلى بقية الصفحات. وفي أعلى النافذة اسمك مع زرّي قفل الشاشة وتسجيل الخروج.",
           "في الشريط العلوي: العدسة للبحث، وزر **+** لموعد جديد، والجرس للتنبيهات، وصورتك لقائمة حسابك.",
         ],
         en: [
@@ -231,7 +231,7 @@ const topic: GuideTopic = {
           "يعرض الشريط السفلي ونافذة **المزيد** الصفحات التي يسمح بها دورك فقط.",
         ],
         en: [
-          "Android's Back button first closes any open window or menu, then goes back a page. On the dashboard it sends the app to the background instead of closing it.",
+          "Android’s Back button first closes any open window or menu, then goes back a page. On the dashboard it sends the app to the background instead of closing it.",
           "The bottom bar hides while you type, to leave room for the keyboard.",
           "A tablet held sideways may show the computer layout, with the sidebar.",
           "The bottom bar and the **More** window only show the pages your role allows.",
@@ -322,7 +322,7 @@ const topic: GuideTopic = {
       id: 'interface-collapsed',
       device: 'desktop',
       alt: { ar: 'القائمة الجانبية مطوية لا تظهر فيها إلا الأيقونات', en: 'The sidebar collapsed to icons only' },
-      recipe: `${DEMO} Desktop window (1440×900). Open #/ and click the collapse arrow (.collapse-btn). Hover the Patients icon so its name tooltip shows. Crop: the whole window. No markers. Afterwards click the arrow again (the choice is remembered in localStorage 'dentora.sidebar').`,
+      recipe: `${DEMO} Desktop window (1440×900). Open #/ and click the collapse arrow (.collapse-btn). Crop: the whole window. No markers. Afterwards click the arrow again (the choice is remembered in localStorage 'dentora.sidebar').`,
     },
     {
       id: 'interface-search-start',
@@ -340,13 +340,13 @@ const topic: GuideTopic = {
       id: 'interface-new-menu',
       device: 'desktop',
       alt: { ar: 'قائمة زر جديد: مريض جديد وموعد جديد ودفعة جديدة', en: 'The New button menu: New patient, New appointment and New payment' },
-      recipe: `${DEMO} Desktop window (1440×900). Open #/ and click the New button in the top bar. Crop: the top bar region around the button and its open menu (about 520×240 px, menu fully inside). Markers: 1 on the New button, 2 on the menu (next to New patient).`,
+      recipe: `${DEMO} Desktop window (1440×900). Open #/settings/clinic and click the New button in the top bar (on the dashboard its own buttons show cut off around the menu). Crop: the top bar region around the button and its open menu (about 520×240 px, menu fully inside). Markers: 1 on the New button, 2 on the menu (next to New patient).`,
     },
     {
       id: 'interface-notifications',
       device: 'desktop',
       alt: { ar: 'لوحة التنبيهات مفتوحة: النسخ الاحتياطي ومواعيد اليوم ومواعيد الغد غير المؤكدة', en: 'The Notifications panel open: backup, today’s appointments and tomorrow’s unconfirmed ones' },
-      recipe: `${DEMO} Desktop window (1440×900). Open #/ and click the bell (the button labelled Notifications in .topbar-actions); wait 900 ms. Crop: the whole window (the panel covers one side). Markers: 1 on the bell, 2 on the first row of Remaining today, 3 on the WhatsApp button of the Unconfirmed for tomorrow row, 4 on View all.`,
+      recipe: `${DEMO} Desktop window (1440×900). Open #/ and click the bell (the button labelled Notifications in .topbar-actions); wait 900 ms. Crop: the whole window (the panel covers one side). Markers: 1 on the panel title (the open panel covers the bell), 2 on the first row of Remaining today, 3 on the WhatsApp button of the Unconfirmed for tomorrow row, 4 on View all.`,
     },
     {
       id: 'interface-phone-home',

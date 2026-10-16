@@ -9,8 +9,8 @@ const topic: GuideTopic = {
   icon: 'settings',
   title: { ar: 'الإعدادات', en: 'Settings' },
   summary: {
-    ar: 'اضبط بيانات عيادتك وشعارها، والعملة والضريبة وترقيم الفواتير، واللغة وأسماء الأشهر والخط والمظهر، وأوقات الدوام والقفل التلقائي.',
-    en: 'Set your clinic’s details and logo, the currency, tax and invoice numbering, the language, month names, font and appearance, the working hours and auto-lock.',
+    ar: 'اجعل البرنامج على مقاس عيادتك: بياناتها وشعارها على كل ورقة مطبوعة، والعملة والضريبة وترقيم الفواتير، واللغة والخط والمظهر، وأوقات الدوام والقفل التلقائي.',
+    en: 'Make Dentora fit your clinic: its details and logo on every printout, the currency, tax and invoice numbering, the language, font and appearance, the working hours and auto-lock.',
   },
   blocks: [
     {
@@ -30,7 +30,7 @@ const topic: GuideTopic = {
         ar: [
           "افتح **الإعدادات** من القائمة الجانبية.",
           "اختر القسم من قائمة الأقسام.",
-          "عدّل ما تريد. في **بيانات العيادة** و**الفوترة والعملة** يظهر أسفل الصفحة شريط **لديك تغييرات غير محفوظة**: اضغط **حفظ التغييرات**، أو **تراجع** لإلغاء تعديلاتك. أما **التفضيلات** فيُحفظ أغلبها فور الضغط.",
+          "عدّل ما تريد. في **بيانات العيادة** و**الفوترة والعملة** يظهر أسفل الصفحة شريط **لديك تغييرات غير محفوظة**: انقر على **حفظ التغييرات**، أو **تراجع** لإلغاء تعديلاتك. أما **التفضيلات** فيُحفظ أغلبها فور النقر.",
         ],
         en: [
           "Open **Settings** from the sidebar.",
@@ -61,21 +61,21 @@ const topic: GuideTopic = {
       title: { ar: 'بيانات العيادة', en: 'Clinic details' },
       text: {
         ar: ["هنا هوية عيادتك كما تظهر في رأس الفواتير والوصفات وخطط العلاج المطبوعة، وفي أعلى القائمة الجانبية، وفي شاشة الدخول."],
-        en: ["This is your clinic's identity as it appears at the top of printed invoices, prescriptions and treatment plans, at the top of the sidebar and on the sign-in screen."],
+        en: ["This is your clinic’s identity as it appears at the top of printed invoices, prescriptions and treatment plans, at the top of the sidebar and on the sign-in screen."],
       },
       steps: {
         ar: [
           "افتح **الإعدادات** ← **بيانات العيادة**.",
-          "اضغط **رفع شعار** واختر صورة الشعار. تستطيع لاحقاً **تغيير الشعار** أو **إزالة**.",
+          "انقر على **رفع شعار** واختر صورة الشعار. تستطيع لاحقاً **تغيير الشعار** أو **إزالة**.",
           "اكتب **اسم العيادة**، وإن أردت **الاسم بالإنجليزية** و**العبارة التعريفية**، مثل اختصاص العيادة أو اسم طبيبها.",
           "في **التواصل والعنوان** أضف **الهاتف** و**هاتف آخر** و**البريد الإلكتروني** و**الموقع الإلكتروني** و**العنوان**.",
           "تأكد من **الدولة**. يبقى الخيار التلقائي حسب العملة ما لم تختر غيره.",
-          "راقب **معاينة رأس الفاتورة** وهي تتحدث مع كل حرف تكتبه، ثم اضغط **حفظ التغييرات**.",
+          "راقب **معاينة رأس الفاتورة** وهي تتحدث مع كل حرف تكتبه، ثم انقر على **حفظ التغييرات**.",
         ],
         en: [
           "Open **Settings** → **Clinic**.",
           "Click **Upload logo** and choose your logo picture. Later you can **Change logo** or **Remove** it.",
-          "Type the **Clinic name** and, if you like, the **Name in English** and a **Tagline**, such as the clinic's specialty or its doctor's name.",
+          "Type the **Clinic name** and, if you like, the **Name in English** and a **Tagline**, such as the clinic’s specialty or its doctor’s name.",
           "Under **Contact & address** add the **Phone**, **Other phone**, **Email**, **Website** and **Address**.",
           "Check the **Country**. It stays on the automatic choice, from the currency, unless you pick another.",
           "Watch the **Invoice header preview** update as you type, then click **Save changes**.",
@@ -89,7 +89,7 @@ const topic: GuideTopic = {
           "**اسم العيادة** وحده مطلوب. ويتحقق البرنامج من صحة الهاتف والبريد والموقع قبل الحفظ، ويظلل الحقل الخاطئ بالأحمر.",
         ],
         en: [
-          "The logo is a square PNG or JPG picture, resized for you. Without a logo, the app's icon shows in its place.",
+          "The logo is a square PNG or JPG picture, resized for you. Without a logo, the app’s icon shows in its place.",
           "The English name is used when the interface is in English, and under the Arabic name on printouts.",
           "The **Country** sets the calling code added to local numbers (such as 0944…) in WhatsApp messages, and the Arabic month names when those are left on automatic.",
           "Only the **Clinic name** is required. Phone numbers, email and website are checked before saving, and a wrong field turns red.",
@@ -102,7 +102,7 @@ const topic: GuideTopic = {
       title: { ar: 'العملة وشكل المبالغ', en: 'Currency and how amounts look' },
       text: {
         ar: ["في **الفوترة والعملة** تختار عملة العيادة وطريقة كتابة المبالغ. وفي أعلى الصفحة **معاينة مباشرة** تتحدث مع كل تعديل قبل الحفظ: شكل المبالغ، ورقم الفاتورة التالية، ورقم ملف المريض التالي، وفاتورة نموذجية."],
-        en: ["In **Billing & currency** you choose the clinic's currency and how amounts are written. A **Live preview** at the top updates with every change, before you save: how amounts look, the next invoice number, the next patient file number and a sample invoice."],
+        en: ["In **Billing & currency** you choose the clinic’s currency and how amounts are written. A **Live preview** at the top updates with every change, before you save: how amounts look, the next invoice number, the next patient file number and a sample invoice."],
       },
       steps: {
         ar: [
@@ -110,7 +110,7 @@ const topic: GuideTopic = {
           "اختر **عملة العيادة**. وإن لم تجد عملتك فاختر **عملة أخرى…** واكتب **رمز العملة** باللاتينية.",
           "غيّر **الرمز على الفاتورة** إن أردت شكلاً آخر للرمز الذي يظهر بجانب كل مبلغ.",
           "اختر **الكسور العشرية**: **بدون كسور** أو **منزلتان (0.00)** أو **ثلاث منازل (0.000)**.",
-          "اضغط **حفظ التغييرات**.",
+          "انقر على **حفظ التغييرات**.",
         ],
         en: [
           "Open **Settings** → **Billing & currency**.",
@@ -142,13 +142,13 @@ const topic: GuideTopic = {
           "غيّر **بادئة رقم الفاتورة** إن أردت. يتكون رقم الفاتورة من البادئة ثم ستة أرقام، مثل INV-000306.",
           "عدّل **رقم الفاتورة التالية** و**رقم ملف المريض التالي** إن أردت أن يكمل الترقيم من دفاتر عيادتك السابقة.",
           "في **نصوص الطباعة** اكتب **تذييل الفاتورة** و**تذييل الوصفة الطبية**، وهما نصان قصيران يظهران أسفل المطبوعات.",
-          "اضغط **حفظ التغييرات**.",
+          "انقر على **حفظ التغييرات**.",
         ],
         en: [
           "Under **Invoices & numbering** type the **Tax rate**, or leave it at 0 if your clinic charges no tax.",
           "If the clinic is registered for VAT, type the **Clinic tax number**: it is printed on tax invoices.",
           "Change the **Invoice number prefix** if you like. An invoice number is the prefix followed by six digits, such as INV-000306.",
-          "Adjust the **Next invoice number** and **Next patient file number** if you want numbering to carry on from your clinic's old records.",
+          "Adjust the **Next invoice number** and **Next patient file number** if you want numbering to carry on from your clinic’s old records.",
           "Under **Printed notes** write the **Invoice footer** and the **Prescription footer**: short texts printed at the bottom.",
           "Click **Save changes**.",
         ],
@@ -175,7 +175,7 @@ const topic: GuideTopic = {
       id: 'language-appearance',
       title: { ar: 'اللغة وأسماء الأشهر والخط والمظهر', en: 'Language, month names, font and appearance' },
       text: {
-        ar: ["في **التفضيلات** تحمل كل بطاقة شارة تقول على من تسري: **لكل المستخدمين** أو **هذا الجهاز**. لا حاجة هنا إلى زر حفظ: يُحفظ اختيارك فور الضغط."],
+        ar: ["في **التفضيلات** تحمل كل بطاقة شارة تقول على من تسري: **لكل المستخدمين** أو **هذا الجهاز**. لا حاجة هنا إلى زر حفظ: يُحفظ اختيارك فور النقر."],
         en: ["In **Preferences** each card carries a badge saying who it applies to: **All users** or **This device**. There is no save button here: your choice is saved the moment you click."],
       },
       steps: {
@@ -183,13 +183,13 @@ const topic: GuideTopic = {
           "افتح **الإعدادات** ← **التفضيلات**.",
           "في **لغة الواجهة** اختر **العربية** أو **English**. تتغير الشاشات والمطبوعات فوراً.",
           "في **أسماء الأشهر بالعربية** اختر **تلقائياً حسب الدولة**، أو **كانون الثاني، شباط…**، أو **يناير، فبراير…**. يظهر تحت كل خيار مثال بتاريخ اليوم.",
-          "في **خط الواجهة** اضغط الخط الذي يريحك، فيتغير فوراً على هذا الجهاز.",
+          "في **خط الواجهة** انقر على الخط الذي يريحك، فيتغير فوراً على هذا الجهاز.",
           "في **المظهر** اختر **فاتح** أو **داكن**.",
         ],
         en: [
           "Open **Settings** → **Preferences**.",
           "Under **Interface language** choose **العربية** or **English**. Screens and printouts switch at once.",
-          "Under **Arabic month names** choose **Automatic, from the country**, **كانون الثاني، شباط…** or **يناير، فبراير…**. Each choice shows today's date as an example.",
+          "Under **Arabic month names** choose **Automatic, from the country**, **كانون الثاني، شباط…** or **يناير، فبراير…**. Each choice shows today’s date as an example.",
           "Under **Interface font** click the font you find most comfortable; it changes at once on this device.",
           "Under **Appearance** choose **Light** or **Dark**.",
         ],
@@ -217,11 +217,11 @@ const topic: GuideTopic = {
       },
       steps: {
         ar: [
-          "في **التفضيلات** ← **أيام وأوقات الدوام** اضغط على الأيام لتحديدها أو إلغائها في **أيام العمل**.",
+          "في **التفضيلات** ← **أيام وأوقات الدوام** انقر على الأيام لتحديدها أو إلغائها في **أيام العمل**.",
           "حدد **بداية الدوام** و**نهاية الدوام**.",
           "اختر **دقة شبكة التقويم**: المسافة الزمنية بين خطوط التقويم، 15 أو 20 أو 30 دقيقة أو ساعة.",
           "اختر **مدة الموعد الافتراضية** التي تُقترح عند حجز موعد جديد، من 15 دقيقة إلى ساعتين.",
-          "اضغط **حفظ أوقات الدوام**.",
+          "انقر على **حفظ أوقات الدوام**.",
         ],
         en: [
           "In **Preferences** → **Working days & hours**, click days under **Working days** to select or clear them.",
@@ -268,14 +268,14 @@ const topic: GuideTopic = {
           "الإعداد المبدئي 15 دقيقة.",
           "يُحسب أيضاً الوقت الذي يقضيه الجهاز نائماً: إن عدت إليه بعد المدة المحددة تجد البرنامج مقفلاً.",
           "دون قفل تلقائي قد يطّلع أي شخص على بيانات المرضى إن تُرك الجهاز مفتوحاً، فلا ننصح به.",
-          "الدخول ونسيان الرمز في [تسجيل الدخول](getting-started#sign-in) و[الفريق والصلاحيات](staff).",
+          "الدخول ونسيان الرمز في [تسجيل الدخول كل يوم](getting-started#sign-in) و[نسيت رمز الدخول؟](staff#forgot-pin).",
         ],
         en: [
           "The setting belongs to this device and the admin changes it. It applies at once, counting inactivity from the moment you change it.",
           "It starts at 15 minutes.",
           "Time the device spends asleep counts too: come back after the delay and Dentora is locked.",
           "Without auto-lock anyone could see patient data on a device left open, so we do not recommend it.",
-          "Signing in and forgotten PINs: [Signing in](getting-started#sign-in) and [Staff and permissions](staff).",
+          "Signing in and forgotten PINs: [Signing in every day](getting-started#sign-in) and [Forgot your PIN?](staff#forgot-pin).",
         ],
       },
       shots: ['settings-auto-lock'],
@@ -290,7 +290,7 @@ const topic: GuideTopic = {
       steps: {
         ar: [
           "افتح **الإعدادات** ← **حول البرنامج**.",
-          "في **الخصوصية والشروط** اضغط **سياسة الخصوصية** أو **شروط الاستخدام** أو **تراخيص المصادر المفتوحة** لقراءتها.",
+          "في **الخصوصية والشروط** انقر على **سياسة الخصوصية** أو **شروط الاستخدام** أو **تراخيص المصادر المفتوحة** لقراءتها.",
         ],
         en: [
           "Open **Settings** → **About**.",
@@ -300,12 +300,12 @@ const topic: GuideTopic = {
       tips: {
         ar: [
           "حين تراسل الدعم، أرسل معك رقم الإصدار ورقم الجهاز من هذه الصفحة.",
-          "يُستخدم رقم الجهاز في تفعيل الترخيص، وفي إعادة تعيين رمز المدير إن نسيه. انظر [الترخيص](licence).",
+          "يُستخدم رقم الجهاز في تفعيل الترخيص، وفي إعادة تعيين رمز المدير إن نسيه. انظر [الترخيص](licence) و[نسيت رمز الدخول؟](staff#forgot-pin).",
           "يظهر تحت **شروط الاستخدام** تاريخ موافقة العيادة عليها.",
         ],
         en: [
           "When you contact support, include the version and the device number from this page.",
-          "The device number is used when activating your licence and when resetting a forgotten admin PIN. See [Licence](licence).",
+          "The device number is used when activating your licence and when resetting a forgotten admin PIN. See [Licence](licence) and [Forgot your PIN?](staff#forgot-pin).",
           "Under **Terms of use** you can see the date the clinic accepted them.",
         ],
       },

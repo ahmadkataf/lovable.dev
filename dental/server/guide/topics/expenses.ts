@@ -3,13 +3,13 @@ import type { GuideTopic } from '../types'
 // Shots: the demo clinic (Settings → Backup → Load demo data) with the clock and the trial bar as in store/scripts/shoot.mjs.
 // With the clock on 11 Oct 2026 the page opens on October 2026: 10 expenses (5 of them from lab orders), September
 // for comparison. Never save anything in a shot: close dialogs with Cancel / Escape.
-const DESK = 'Desktop 1600×900, demo clinic as store/scripts/shoot.mjs makes it (seedAndLogin + Settings → Backup → Load demo data; English shots use its englishClinic() names), signed in as the admin (Dr. Ahmad Al-Khatib), clock fixed at Sunday 11 Oct 2026 11:40 Asia/Damascus, trial bar hidden ([data-qa="trial-bar"]{display:none}), page scrolled to the top and held there (page.goto() reads as Back to the app, which restores an old scroll position).'
-const PHONE = 'Phone 405×720 (isMobile, hasTouch, deviceScaleFactor 8/3 as shoot.mjs), same demo clinic, clock and hidden trial bar.'
+const DESK = 'Desktop 1440×900, demo clinic as store/scripts/shoot.mjs makes it (seedAndLogin + Settings → Backup → Load demo data; English shots use its englishClinic() names), signed in as the admin (Dr. Ahmad Al-Khatib), clock fixed at Sunday 11 Oct 2026 11:40 Asia/Damascus, trial bar hidden ([data-qa="trial-bar"]{display:none}), page scrolled to the top and held there (page.goto() reads as Back to the app, which restores an old scroll position).'
+const PHONE = 'Phone 390×844 (isMobile, hasTouch, deviceScaleFactor 8/3 as shoot.mjs), same demo clinic, clock and hidden trial bar.'
 
 const topic: GuideTopic = {
   slug: 'expenses',
   order: 12,
-  icon: 'fileText',
+  icon: 'wallet',
   title: { ar: 'المصروفات', en: 'Expenses' },
   summary: {
     ar: 'سجّل ما تصرفه العيادة من إيجار ورواتب ومواد وفواتير، واعرف أين يذهب المال شهراً بشهر، مقارنةً بالشهر السابق.',
@@ -33,7 +33,7 @@ const topic: GuideTopic = {
       },
       tips: {
         ar: [
-          'المصروفات لمدير العيادة وحده: لا تظهر في قائمة الأدوار الأخرى، ومن يفتح عنوانها يرى «المصروفات متاحة لمدير العيادة». انظر [الأدوار والصلاحيات](staff#roles).',
+          'المصروفات لمدير العيادة وحده: لا تظهر في القائمة الجانبية لبقية الأدوار، ومن يفتح عنوانها يرى «المصروفات متاحة لمدير العيادة». انظر [الأدوار والصلاحيات](staff#roles).',
           'من هذه المصروفات يحسب البرنامج المصروفات وصافي الربح في [التقارير المالية](reports#financial).',
           'في وضع القراءة فقط بعد انتهاء الفترة التجريبية تبقى المصروفات ظاهرة، ويتوقف التسجيل والتعديل. انظر [الترخيص](licence).',
         ],
@@ -236,7 +236,7 @@ const topic: GuideTopic = {
         ar: 'التوزيع حسب الفئة وفئة المخبر مختارة، والسجل تحته يعرض مصروفات المخبر وحدها مع إجمالي النتائج',
         en: 'The breakdown by category with Lab selected, and the log below showing only lab expenses with the total of results',
       },
-      recipe: `${DESK} Route #/expenses (October 2026). Click the first category line of the breakdown (.inv-exp-bar:first-child, Lab / مخبر, the largest). Wait 600 ms. Scroll so the breakdown card (.inv-exp-breakdown) sits just under the top bar. Capture the whole window. Markers: 1 on the selected Lab line, 2 on the log's search box, 3 on the category list next to it.`,
+      recipe: `${DESK} Route #/expenses (October 2026). Click the first category line of the breakdown (.inv-exp-bar:first-child, Lab / مخبر, the largest). Wait 600 ms. Crop from the breakdown card (.inv-exp-breakdown) down to the log's Total of results line. Markers: 1 on the selected Lab line, 2 on the log's search box, 3 on the category list next to it.`,
     },
     {
       id: 'expenses-lab-edit',

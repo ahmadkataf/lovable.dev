@@ -5,8 +5,8 @@ import type { GuideTopic } from '../types'
 // are named by their file number, the same in every run and in both languages: look the id up with
 // window.__dentora.db.patients (fileNo) and open #/patients/<id>?tab=treatments.
 // Only treatments-chart-update changes the demo data (it completes one item): shoot it last, or on a fresh demo.
-const DESK = 'Desktop 1600×900, demo clinic, clock fixed to Sunday 11 Oct 2026 11:40 (Asia/Damascus), trial bar hidden, signed in as the admin, as in store/scripts/shoot.mjs.'
-const PHONE = 'Phone 405×720 (isMobile, hasTouch), demo clinic, same clock, trial bar hidden, signed in as the admin.'
+const DESK = 'Desktop 1440×900, demo clinic, clock fixed to Sunday 11 Oct 2026 11:40 (Asia/Damascus), trial bar hidden, signed in as the admin, as in store/scripts/shoot.mjs.'
+const PHONE = 'Phone 390×844 (isMobile, hasTouch), demo clinic, same clock, trial bar hidden, signed in as the admin.'
 const file = (n: number, ar: string, en: string) => `patient file #${n} (${ar} / ${en})`
 const TAB = (n: number, ar: string, en: string) => `Open ${file(n, ar, en)} at #/patients/<id>?tab=treatments and reload; scroll so the tab bar (.pt-tabs) sits just under the top bar.`
 
@@ -37,16 +37,16 @@ const topic: GuideTopic = {
       },
       tips: {
         ar: [
-          'انقر على أي بند في الجدول لتعديله، وعلى رأس الخطة لطيّها أو فتحها. تبدأ الخطط الجارية مفتوحة، والمكتملة والملغاة مطوية.',
+          'انقر على أي بند في الجدول لتعديله، وعلى رأس الخطة لطيّها أو فتحها. تبدأ الخطط الجارية مفتوحة، والمكتملة والملغاة مطوية، إلا إن كانت الخطة الوحيدة للمريض.',
           'شريط التقدم محسوب بقيمة البنود المنجزة من قيمة الخطة، لا بعددها.',
-          'التبويب متاح للمدير والأطباء والمساعدين، ولا يراه موظف الاستقبال. أما زر **فوترة المنجز** فيظهر لمن يملك صلاحية الفواتير فقط. انظر [الفريق والصلاحيات](staff#roles).',
-          'على الهاتف تظهر البنود بطاقاتٍ تحت بعضها، ويكون زر **بدء** وأمر **طباعة التقدير** داخل قوائم النقاط الثلاث.',
+          'التبويب متاح للمدير والأطباء والمساعدين، ولا يراه موظف الاستقبال. أما زر **فوترة المنجز** فيظهر لمن يملك صلاحية الفواتير فقط. انظر [الأدوار والصلاحيات](staff#roles).',
+          'على الهاتف تظهر البنود بطاقاتٍ تحت بعضها، ويكون زر **بدء** وأمر **طباعة التقدير** داخل قوائم ⋮.',
           'إذا انتهت الفترة التجريبية دون تفعيل تبقى الخطط ظاهرة وتستطيع طباعتها، لكن الإضافة والتعديل يتوقفان. انظر [الترخيص](licence).',
         ],
         en: [
-          'Click any item in the table to edit it, and a plan’s header to fold or unfold it. Open plans start unfolded; completed and cancelled ones start folded.',
+          'Click any item in the table to edit it, and a plan’s header to fold or unfold it. Open plans start unfolded; completed and cancelled ones start folded, unless it is the patient’s only plan.',
           'The progress bar is measured by the value of the completed items against the plan value, not by their number.',
-          'The tab is available to the admin, doctors and assistants; reception does not see it. The **Bill completed** button shows only for people allowed to use billing. See [Staff and permissions](staff#roles).',
+          'The tab is available to the admin, doctors and assistants; reception does not see it. The **Bill completed** button shows only for people allowed to use billing. See [Roles and permissions](staff#roles).',
           'On a phone the items are stacked as cards, and **Start** and **Print estimate** move into the ⋮ menus.',
           'If the trial ends without activation, plans stay visible and printable, but adding and editing stop. See [Licence](licence).',
         ],
@@ -86,7 +86,7 @@ const topic: GuideTopic = {
           'يُعرض السطح الطاحن (O) للأسنان الخلفية فقط، والسطح الحدّي (I) للأسنان الأمامية فقط.',
           'في خانة **ضمن الخطة** تستطيع وضع البند في خطة مفتوحة أخرى، أو اختيار **+ خطة علاج جديدة**، أو **بدون خطة**.',
           'السعر الذي تكتبه هنا يخص هذا المريض وحده، ولا يغيّر [قائمة الأسعار](treatments#price-list).',
-          'من [مخطط الأسنان](chart) انقر على سن ثم على **علاج هذا السن**: ينتقل البرنامج إلى هذا التبويب ويفتح نافذة الإضافة والسن محدد، في أول خطة مفتوحة أو في خطة جديدة.',
+          'من [مخطط الأسنان](chart#record) انقر على سن ثم على **علاج هذا السن**: ينتقل البرنامج إلى هذا التبويب ويفتح نافذة الإضافة والسن محدد، في أول خطة مفتوحة أو في خطة جديدة.',
         ],
         en: [
           'In the search box, press `Enter` to pick the first procedure in the results.',
@@ -95,7 +95,7 @@ const topic: GuideTopic = {
           'Occlusal (O) is offered only for back teeth, and Incisal (I) only for front teeth.',
           'The **Plan** field lets you put the item in another open plan, choose **+ New treatment plan**, or **No plan**.',
           'The price you type here is for this patient only; it does not change the [price list](treatments#price-list).',
-          'From the [dental chart](chart), click a tooth and then **Treat this tooth**: Dentora opens this tab with the add window ready for that tooth, in the first open plan or a new one.',
+          'From the [dental chart](chart#record), click a tooth and then **Treat this tooth**: Dentora opens this tab with the add window ready for that tooth, in the first open plan or a new one.',
         ],
       },
       shots: ['treatments-new-plan', 'treatments-add-item'],
@@ -119,7 +119,7 @@ const topic: GuideTopic = {
           'إذا كان العمل يمتد على أكثر من جلسة، كالمعالجة اللبية، انقر على **بدء** في سطره.',
           'عند الانتهاء انقر على **إنجاز**. يُسجَّل تاريخ اليوم تاريخاً للتنفيذ.',
           'إذا كان البند على سن يسألك البرنامج **تحديث مخطط الأسنان؟** ويقترح الحالة المناسبة، مثل **حشوة** بعد الحشوات و**تاج** بعد التيجان. راجع **الحالة المسجّلة** والأسطح ثم انقر على **تحديث المخطط**، أو على **ليس الآن**.',
-          'لبقية الأوامر افتح قائمة النقاط الثلاث في سطر البند: **تعديل** و**إعادة إلى المخطط** و**إعادة فتح** و**إلغاء البند** و**حذف**. ويعيد زر **استعادة** البند الملغى إلى المخطط.',
+          'لبقية الأوامر افتح قائمة ⋮ في سطر البند: **تعديل** و**إعادة إلى المخطط** و**إعادة فتح** و**إلغاء البند** و**حذف**. ويعيد زر **استعادة** البند الملغى إلى المخطط.',
         ],
         en: [
           'When the patient agrees, click **Approve plan**. The button is on drafts and works once they have at least one item.',
@@ -196,13 +196,13 @@ const topic: GuideTopic = {
           'في تبويب **العلاجات** انقر على **فوترة المنجز**، أو على بطاقة **منجز غير مفوتر**.',
           'تظهر البنود كلها محددة. ألغِ تحديد ما لا تريد فوترته الآن.',
           'راجع الإجمالي، ثم انقر على **إصدار الفاتورة**.',
-          'تصدر الفاتورة برقمها التالي وتنفتح أمامك، فتسجّل الدفعة أو تطبعها. انظر [الفواتير والمدفوعات](billing#invoice-page).',
+          'تصدر الفاتورة برقمها التالي وتنفتح أمامك، فتسجّل الدفعة أو تطبعها. انظر [صفحة الفاتورة](billing#invoice-page).',
         ],
         en: [
           'In the **Treatments** tab click **Bill completed**, or the **Completed, not billed** card.',
           'All the items are ticked. Untick any you do not want to bill now.',
           'Check the total, then click **Create invoice**.',
-          'The invoice is issued with the next number and opens, ready for a payment or printing. See [Invoices and payments](billing#invoice-page).',
+          'The invoice is issued with the next number and opens, ready for a payment or printing. See [The invoice page](billing#invoice-page).',
         ],
       },
       tips: {
@@ -225,7 +225,7 @@ const topic: GuideTopic = {
       id: 'estimate',
       title: { ar: 'طباعة التقدير وإدارة الخطة', en: 'Printing the estimate and managing a plan' },
       text: {
-        ar: ['اطبع للمريض تقديراً لتكلفة الخطة يأخذه معه ويوقّعه. ومن قائمة النقاط الثلاث في شريط الخطة تعدّلها أو تلغيها أو تحذفها.'],
+        ar: ['اطبع للمريض تقديراً لتكلفة الخطة يأخذه معه ويوقّعه. ومن قائمة ⋮ في شريط الخطة تعدّلها أو تلغيها أو تحذفها.'],
         en: ['Print a cost estimate the patient can take home and sign. From the ⋮ menu in the plan’s bar you can edit, cancel or delete the plan.'],
       },
       steps: {
@@ -244,7 +244,7 @@ const topic: GuideTopic = {
         ar: [
           'تُطبع على التقدير ملاحظات الخطة، وعبارة تفيد بأنه تقدير مبدئي صالح لمدة 30 يوماً. وإذا حددت نسبة ضريبة في الإعدادات تُضاف إلى التكلفة التقديرية.',
           'يحمل ملف PDF اسم الورقة والمريض والخطة، مثل «خطة علاج وتقدير تكلفة - أنس مازن ديب - معالجة لبية وتاج للسن 16».',
-          'على ويندوز تُفتح نافذة الطباعة في ويندوز، ولحفظ ملف PDF اختر «Microsoft Print to PDF». وعلى أندرويد تُفتح شاشة الطباعة في النظام، وفيها خيار الحفظ بصيغة PDF. وعلى الهاتف تجد **طباعة التقدير** في قائمة النقاط الثلاث للخطة.',
+          'على ويندوز تُفتح نافذة الطباعة في ويندوز، ولحفظ ملف PDF اختر «Microsoft Print to PDF». وعلى أندرويد تُفتح شاشة الطباعة في النظام، وفيها خيار الحفظ بصيغة PDF. وعلى الهاتف تجد **طباعة التقدير** في قائمة ⋮ للخطة.',
           '**تعديل الخطة** يغيّر عنوانها وطبيبها وملاحظاتها.',
           '**إلغاء الخطة** يلغي البنود التي لم تُنجز ويُبقي المنجزة في سجل المريض. ويعيدها **إعادة تفعيل الخطة** متى شئت، ثم تستعيد البنود الملغاة واحداً واحداً.',
           '**حذف الخطة** يحذفها نهائياً مع بنودها غير المنجزة. أما البنود المنجزة أو المفوترة فتنتقل إلى **علاجات خارج الخطط**.',
@@ -320,7 +320,7 @@ const topic: GuideTopic = {
         ar: [
           'لإضافة إجراء انقر على **إجراء جديد**، واكتب **اسم الإجراء** واختر **الفئة** واكتب **السعر**، ثم انقر على **حفظ**.',
           'أكمل إن شئت **الاسم بالإنجليزية** و**الرمز** و**المدة المعتادة** و**اللون**، وفعّل **يتطلب تحديد سن** للأعمال التي تُجرى على سن بعينه.',
-          'لتعديل إجراء انقر على سطره. وفي قائمة النقاط الثلاث تجد **نسخ مكرر** و**إيقاف** و**حذف**.',
+          'لتعديل إجراء انقر على سطره. وفي قائمة ⋮ تجد **نسخ مكرر** و**إيقاف** و**حذف**.',
           'لرفع الأسعار أو خفضها دفعة واحدة اختر الفئة أولاً إن أردت، ثم انقر على **تعديل الأسعار**. اختر **زيادة** أو **تخفيض**، و**نسبة مئوية** أو **مبلغ ثابت**، واكتب **القيمة** واختر **التقريب**.',
           'راجع **معاينة الأسعار الجديدة**، ثم انقر على **تطبيق التعديل**.',
         ],
@@ -372,7 +372,7 @@ const topic: GuideTopic = {
       id: 'treatments-new-plan',
       device: 'desktop',
       alt: { ar: 'نافذة خطة علاج جديدة: عنوان الخطة المقترح والطبيب والملاحظات', en: 'The New treatment plan window: the suggested plan title, the doctor and the notes' },
-      recipe: `${DESK} ${TAB(23, 'كريم الدبّاغ', 'Karim Dabbagh')} Click **New treatment plan** (خطة علاج جديدة) in the bar above the plans. Leave the suggested title “خطة علاج — 11 تشرين الأول 2026 / Treatment plan — 11 October 2026”. Crop to the dialog ([role=dialog]). Markers: 2 on the Plan title field, 2 on **Create plan**. Close with Cancel (do not create the plan).`,
+      recipe: `${DESK} ${TAB(23, 'كريم الدبّاغ', 'Karim Dabbagh')} Click **New treatment plan** (خطة علاج جديدة) in the bar above the plans. Leave the suggested title “خطة علاج — 11 تشرين الأول 2026 / Treatment plan — 11 Oct 2026”. Crop to the dialog ([role=dialog]). Markers: 2 on the Plan title field, 2 on **Create plan**. Close with Cancel (do not create the plan).`,
     },
     {
       id: 'treatments-add-item',

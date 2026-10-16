@@ -4,19 +4,19 @@ import type { GuideTopic } from '../types'
 // The team: Dr. Ahmad Al-Khatib (admin, u-admin), Dr. Laila Haddad (doctor, u-doc2), Sara Youssef (receptionist, u-rec),
 // all with PIN 1234, plus the demo's Dr. Samer Abboud (doctor). Their PINs are stored the old way by seedAndLogin, so the
 // sign-in screen does not submit by itself after 4 digits: type 1234 then press Enter. Never save anything in a shot.
-const DESK = 'Desktop 1600×900, demo clinic as store/scripts/shoot.mjs makes it (seedAndLogin + Settings → Backup → Load demo data; English shots use its englishClinic() names), signed in as the admin (Dr. Ahmad Al-Khatib), clock fixed at Sunday 11 Oct 2026 11:40 Asia/Damascus, trial bar hidden ([data-qa="trial-bar"]{display:none}), page scrolled to the top and held there (page.goto() reads as Back to the app, which restores an old scroll position).'
-const PHONE = 'Phone 405×720 (isMobile, hasTouch, deviceScaleFactor 8/3 as shoot.mjs), same demo clinic, clock and hidden trial bar.'
+const DESK = 'Desktop 1440×900, demo clinic as store/scripts/shoot.mjs makes it (seedAndLogin + Settings → Backup → Load demo data; English shots use its englishClinic() names), signed in as the admin (Dr. Ahmad Al-Khatib), clock fixed at Sunday 11 Oct 2026 11:40 Asia/Damascus, trial bar hidden ([data-qa="trial-bar"]{display:none}), page scrolled to the top and held there (page.goto() reads as Back to the app, which restores an old scroll position).'
+const PHONE = 'Phone 390×844 (isMobile, hasTouch, deviceScaleFactor 8/3 as shoot.mjs), same demo clinic, clock and hidden trial bar.'
 const LOCK = 'Lock the screen: click the user button at the bottom of the sidebar (.sidebar-user) and choose **Lock screen** (قفل الشاشة); the sign-in screen (#/login) opens.'
 const SIGN_IN = (id: string) => `on the sign-in screen click **Switch user** ([data-qa="change-user"]) if it is shown, click the tile [data-user="${id}"], type 1234 on the keyboard and press Enter; wait for the dashboard.`
 
 const topic: GuideTopic = {
   slug: 'staff',
   order: 15,
-  icon: 'usersRound',
+  icon: 'userCog',
   title: { ar: 'الفريق والصلاحيات', en: 'Staff and permissions' },
   summary: {
-    ar: 'أضف أطباءك ومساعديك وموظفي الاستقبال، ولكلٍّ منهم رمز دخول ودور يحدد ما يراه. مع القفل التلقائي، وحلٍّ واضح لمن ينسى رمزه.',
-    en: 'Add your doctors, assistants and receptionists, each with their own PIN and a role that decides what they see. With auto-lock, and a clear way back for anyone who forgets their PIN.',
+    ar: 'أضف أطباءك ومساعديك وموظفي الاستقبال، ولكلٍّ منهم رمز دخول ودور يحدد ما يراه. واعرف كيف يقفل البرنامج نفسه، وما الحل إن نسي أحدكم رمزه.',
+    en: 'Add your doctors, assistants and receptionists, each with their own PIN and a role that decides what they see. See how the screen locks itself, and what to do when someone forgets their PIN.',
   },
   blocks: [
     {
@@ -89,7 +89,7 @@ const topic: GuideTopic = {
           'انقر على **إضافة عضو** أعلى الصفحة.',
           'اكتب **الاسم الكامل**، واختر **اللقب**: يضع البرنامج **د.** للطبيب و**بدون لقب** لبقية الأدوار، وتستطيع تغييره.',
           'أضف إن شئت **الاختصاص** و**الهاتف** و**البريد الإلكتروني**.',
-          'اختر **الدور**. يظهر تحته وصف الدور وما **يستطيع العمل على**ه.',
+          'اختر **الدور**. يظهر تحته وصف الدور، وبعد **يستطيع العمل على** الأقسام التي يفتحها.',
           'اختر لوناً للعضو: يميّز مواعيده في التقويم وصورته في البرنامج.',
           'اكتب **رمز الدخول (PIN)** من 4 إلى 6 أرقام، ثم **أعد كتابة الرمز**، وانقر على **إضافة العضو**. ثم أبلغ العضو برمزه.',
         ],
@@ -97,7 +97,7 @@ const topic: GuideTopic = {
           'Click **Add member** at the top of the page.',
           'Type the **Full name** and choose the **Title**: Dentora sets **Dr.** for a doctor and **No title** for the other roles, and you can change it.',
           'Add the **Specialty**, **Phone** and **Email** if you like.',
-          'Choose the **Role**. A box under it describes the role and what it **Can work on**.',
+          'Choose the **Role**. A box under it describes the role and lists, under **Can work on**, the areas it opens.',
           'Pick a colour for the member: it marks their appointments in the calendar and their avatar in the app.',
           'Type a **Sign-in PIN** of 4 to 6 digits, then **Repeat the PIN**, and click **Add member**. Then tell the member their PIN.',
         ],
@@ -236,7 +236,7 @@ const topic: GuideTopic = {
         ar: 'صفحة الفريق: بطاقة لكل عضو بدوره وآخر دخول ومفتاح التفعيل، ثم جدول الصلاحيات حسب الدور وسجل الدخول',
         en: 'The Staff page: a card per member with their role, last sign-in and active switch, then the permissions-by-role table and the sign-in log',
       },
-      recipe: `${DESK} First fill the sign-in log: ${LOCK} Then ${SIGN_IN('u-rec')} ${LOCK} Then ${SIGN_IN('u-admin')} Route #/staff, filter **All**. Capture the whole window (the sign-in log shows the two sign-ins of today). No markers.`,
+      recipe: `${DESK} First fill the sign-in log: ${LOCK} Then ${SIGN_IN('u-rec')} ${LOCK} Then ${SIGN_IN('u-admin')} Route #/staff, filter **All**, in a 1440×1000 window so the sign-in log shows both of today's sign-ins. Capture the whole window. No markers.`,
     },
     {
       id: 'staff-matrix',
@@ -254,7 +254,7 @@ const topic: GuideTopic = {
         ar: 'نافذة عضو جديد في الفريق مملوءة لمساعدة: الاسم واللقب، والدور مع وصفه وما يستطيع العمل عليه، والألوان، ورمز الدخول مرتين',
         en: 'The New team member dialog filled in for an assistant: name and title, the role with its description and what it can work on, the colours, and the PIN twice',
       },
-      recipe: `${DESK} Route #/staff. Click **Add member** ([data-qa="add-member"]). In the dialog type Full name "رنا سليمان" (EN: "Rana Suleiman"), choose Role **Assistant** (مساعد) in select[name=role] (the Title switches to No title by itself), type 2468 in #staff-pin and in #staff-pin2. Scroll the dialog body so the "Role and permissions" section title is at its top. Crop to the dialog (.modal). Markers: 4 on the Role select, 5 on the colour swatches, 6 on **Add member** ([data-qa="save-member"]) in the footer. Close with **Cancel** (do not save).`,
+      recipe: `${DESK} Route #/staff. Click **Add member** ([data-qa="add-member"]). In the dialog type Full name "رنا سليمان" (EN: "Rana Suleiman"), choose Role **Assistant** (مساعد) in select[name=role] (the Title switches to No title by itself), type 2468 in #staff-pin and in #staff-pin2. Make the window tall enough for the whole dialog to show. Crop to the dialog (.modal). Markers: 2 on the Full name field, 3 on the Specialty field, 4 on the Role select, 5 on the colour swatches, 6 on **Add member** ([data-qa="save-member"]) in the footer. Close with **Cancel** (do not save).`,
     },
     {
       id: 'staff-menu',
@@ -263,7 +263,7 @@ const topic: GuideTopic = {
         ar: 'قائمة خيارات عضو مفتوحة على بطاقته: تعديل، تعيين رمز دخول جديد، إيقاف الحساب، حذف العضو',
         en: 'A member’s options menu open on their card: Edit, Set a new PIN, Deactivate account, Delete member',
       },
-      recipe: `${DESK} Route #/staff. On the card [data-user="u-rec"] (Sara Youssef) click the ⋮ button ([data-qa="member-menu"]). Wait 400 ms. Crop to the staff grid ([data-qa="staff-grid"]) plus the open menu, 12 px margin. No markers. Close with Escape.`,
+      recipe: `${DESK} Route #/staff. On the card [data-user="u-doc2"] (Dr. Laila Haddad; on Sara Youssef's card, in the last row, the menu hangs over the panels below) click the ⋮ button ([data-qa="member-menu"]). Wait 400 ms. Crop to the staff grid ([data-qa="staff-grid"]) plus the open menu, 12 px margin. No markers. Close with Escape.`,
     },
     {
       id: 'staff-delete',
@@ -281,7 +281,7 @@ const topic: GuideTopic = {
         ar: 'شاشة الدخول بعد خمس محاولات خاطئة: لوحة الأرقام متوقفة ورسالة محاولات خاطئة كثيرة مع العدّ التنازلي',
         en: 'The sign-in screen after five wrong PINs: the keypad paused with a “Too many wrong attempts” message and a countdown',
       },
-      recipe: `${DESK} ${LOCK} Click **Switch user** ([data-qa="change-user"]) if it is shown, then the tile [data-user="u-doc2"] (Dr. Laila Haddad). Five times: type 9999, press Enter, wait 2.5 s. The message area (.au-pin-msg) shows the lock with "Try again in 0:2x". Capture the whole window at once. No markers.`,
+      recipe: `${DESK} ${LOCK} Click **Switch user** ([data-qa="change-user"]) if it is shown, then the tile [data-user="u-doc2"] (Dr. Laila Haddad). Five times: type 9999, press Enter, wait 2.5 s. The message area (.au-pin-msg) shows the lock with "Try again in 0:2x". Crop at once to the clinic name and the sign-in card (in the whole window the countdown is too small to read). No markers.`,
     },
     {
       id: 'staff-phone-more',

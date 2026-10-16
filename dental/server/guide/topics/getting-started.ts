@@ -29,7 +29,7 @@ const topic: GuideTopic = {
         ],
         en: [
           "Dentora runs your whole dental clinic: patients, appointments, treatments, invoices and reports. It works on a Windows computer or on an Android phone or tablet, and needs no internet for daily work.",
-          "Your clinic's data is kept on the device itself and is never sent to a server. Each device therefore has its own separate database, and devices do not sync with each other. Choose one main device for the clinic and back it up regularly.",
+          "Your clinic’s data is kept on the device itself and is never sent to a server. Each device therefore has its own separate database, and devices do not sync with each other. Choose one main device for the clinic and back it up regularly.",
           "The first launch starts a free 7-day trial with every feature, with no sign-up and no account. After that you activate Dentora with your licence, and everything you entered stays as it is.",
         ],
       },
@@ -57,7 +57,7 @@ const topic: GuideTopic = {
       steps: {
         ar: [
           "نزّل برنامج التثبيت من قسم التحميل في موقع Dentora (زر «تحميل لويندوز»)، أو من الرابط الذي يرسله لك البائع على واتساب.",
-          "افتح الملف الذي نزّلته. إن ظهرت شاشة «حماية Windows» فاضغط «مزيد من المعلومات» ثم «تشغيل على أي حال». تظهر هذه الشاشة لأن البرنامج جديد على ويندوز.",
+          "افتح الملف الذي نزّلته. إن ظهرت شاشة «حماية Windows» فانقر على «مزيد من المعلومات» ثم «تشغيل على أي حال». تظهر هذه الشاشة لأن البرنامج جديد على ويندوز.",
           "اقرأ شروط الاستخدام في الصفحة الأولى ووافق عليها، واترك مجلد التثبيت كما هو، وتابع حتى ينتهي التثبيت. لا يحتاج ذلك إلى صلاحيات مدير ويندوز.",
           "يفتح Dentora وحده عند انتهاء التثبيت، ويضع اختصاراً على سطح المكتب وفي قائمة ابدأ. تابع إلى [الإعداد الأول](getting-started#setup-clinic).",
         ],
@@ -78,7 +78,7 @@ const topic: GuideTopic = {
         ],
         en: [
           "To update to a newer version: take a backup first, then run the new installer over the old one. Your data stays as it is.",
-          "Uninstalling from Windows settings removes the program only, never the clinic's data.",
+          "Uninstalling from Windows settings removes the program only, never the clinic’s data.",
           "The data lives inside your Windows user account. Someone who opens Dentora under another Windows account sees an empty clinic, so use one Windows account on the clinic computer.",
           "Opening Dentora while it is already open brings up the same window instead of a second copy. The window keeps its size and position between sessions.",
           "If Windows blocks the file completely, with no “Run anyway” button, do not turn Windows security off: message the seller on WhatsApp.",
@@ -96,8 +96,8 @@ const topic: GuideTopic = {
         ar: [
           "نزّل الملف من قسم التحميل في موقع Dentora (زر «تحميل ملف APK»)، أو اطلبه من البائع فيصلك على واتساب.",
           "افتح الملف من إشعار التنزيل، أو من مدير الملفات، أو من محادثة واتساب.",
-          "إن طلب أندرويد السماح بـ«تثبيت التطبيقات غير المعروفة»، فاسمح بذلك للتطبيق الذي فتحت منه الملف، ثم ارجع واضغط «تثبيت».",
-          "إن ظهر تحذير Google Play Protect فاضغط «مزيد من التفاصيل» ثم «التثبيت على أي حال».",
+          "إن طلب أندرويد السماح بـ«تثبيت التطبيقات غير المعروفة»، فاسمح بذلك للتطبيق الذي فتحت منه الملف، ثم ارجع والمس «تثبيت».",
+          "إن ظهر تحذير Google Play Protect فالمس «مزيد من التفاصيل» ثم «التثبيت على أي حال».",
           "افتح Dentora من قائمة التطبيقات، فتظهر لك شاشة الترحيب. تابع إلى [الإعداد الأول](getting-started#setup-clinic).",
         ],
         en: [
@@ -117,9 +117,9 @@ const topic: GuideTopic = {
         ],
         en: [
           "To update, install the newer file straight over the installed app. Never uninstall the app to update it: uninstalling it, or “Clear storage” in the app info, erases all clinic data from the device.",
-          "Dentora's data is not part of Google's automatic backup and does not move to a new phone by itself. A backup made inside the app is the only way to keep it or move it. See [Backup](backup).",
+          "Dentora’s data is not part of Google’s automatic backup and does not move to a new phone by itself. A backup made inside the app is the only way to keep it or move it. See [Backup](backup).",
           "If the app opens on a white screen, update “Android System WebView” and Chrome from the Play Store.",
-          "Text size in Dentora follows your phone's font size setting, up to 130%.",
+          "Text size in Dentora follows your phone’s font size setting, up to 130%.",
         ],
       },
       shots: ['getting-started-android-welcome'],
@@ -133,10 +133,10 @@ const topic: GuideTopic = {
       },
       steps: {
         ar: [
-          "في خطوة **اللغة** اختر **العربية** أو **English**، ثم اضغط **التالي**. تتغير لغة المعالج فوراً.",
+          "في خطوة **اللغة** اختر **العربية** أو **English**، ثم انقر على **التالي**. تتغير لغة المعالج فوراً.",
           "في خطوة **العيادة** اكتب **اسم العيادة**، وهو الحقل الوحيد المطلوب. وأضف إن شئت **الهاتف** و**البريد الإلكتروني** و**العنوان**، وارفع شعارك بزر **رفع الشعار**. تظهر هذه البيانات في رأس الفواتير والوصفات المطبوعة.",
           "في خطوة **العملة والدوام** اختر **العملة** وعدد **الكسور**، وتأكد من **بلد العيادة** و**أسماء الأشهر بالعربية**.",
-          "حدّد **أيام الدوام** وساعاته (**من الساعة** و**إلى الساعة**) و**خانة المواعيد في التقويم**. اكتب **ضريبة على الفواتير** إن كانت عيادتك تفرض ضريبة، ثم اضغط **التالي**.",
+          "حدّد **أيام الدوام** وساعاته (**من الساعة** و**إلى الساعة**) و**خانة المواعيد في التقويم**. اكتب **ضريبة على الفواتير** إن كانت عيادتك تفرض ضريبة، ثم انقر على **التالي**.",
         ],
         en: [
           "On the **Language** step choose **العربية** or **English**, then click **Next**. The wizard switches language at once.",
@@ -149,16 +149,16 @@ const topic: GuideTopic = {
         ar: [
           "إن لم تجد عملتك في القائمة فاختر **عملة أخرى…**، واكتب **رمز العملة** اللاتيني (مثل YER) و**الرمز على الفاتورة**.",
           "يُضاف رمز البلد إلى أرقام الهواتف المحلية حين ترسل رسائل واتساب، فاختر بلد عيادتك بدقة.",
-          "أيام الدوام المختارة مسبقاً من السبت إلى الخميس، من 9 صباحاً حتى 6 مساءً. اضغط على أي يوم لتضيفه أو تزيله.",
+          "أيام الدوام المختارة مسبقاً من السبت إلى الخميس، من 9 صباحاً حتى 6 مساءً. انقر على أي يوم لتضيفه أو تزيله.",
           "إن نقص حقل مطلوب أو كان غير صحيح، يظهر الخطأ بالأحمر تحته ولا ينتقل المعالج إلى الخطوة التالية.",
-          "تستطيع العودة إلى أي خطوة سابقة بزر **رجوع**، أو بالضغط على رقمها في الأعلى. وعلى أندرويد يعيدك زر الرجوع في الهاتف خطوة إلى الوراء.",
+          "تستطيع العودة إلى أي خطوة سابقة بزر **رجوع**، أو بالنقر على رقمها في الأعلى. وعلى أندرويد يعيدك زر الرجوع في الهاتف خطوة إلى الوراء.",
         ],
         en: [
           "If your currency is not in the list, choose **Another currency…** and type its Latin **Currency code** (such as YER) and the **Symbol on invoices**.",
-          "The country's calling code is added to local phone numbers when you send WhatsApp messages, so pick your clinic's country carefully.",
+          "The country’s calling code is added to local phone numbers when you send WhatsApp messages, so pick your clinic’s country carefully.",
           "Saturday to Thursday, 9 am to 6 pm, are selected to begin with. Click any day to add or remove it.",
           "When a required field is missing or wrong, the error shows in red under it and the wizard does not move on.",
-          "You can go back to any earlier step with **Back**, or by clicking its number at the top. On Android, the phone's Back button also goes back one step.",
+          "You can go back to any earlier step with **Back**, or by clicking its number at the top. On Android, the phone’s Back button also goes back one step.",
         ],
       },
       shots: ['getting-started-setup-clinic', 'getting-started-setup-money'],
@@ -168,15 +168,15 @@ const topic: GuideTopic = {
       title: { ar: 'الإعداد الأول: حسابك والمراجعة', en: 'First-run setup: your account and review' },
       text: {
         ar: ["الحساب الذي تنشئه هنا هو حساب مدير العيادة، وله كل الصلاحيات. ومنه تضيف بقية الفريق لاحقاً."],
-        en: ["The account you create here is the clinic admin's account, with every permission. From it you add the rest of the team later."],
+        en: ["The account you create here is the clinic admin’s account, with every permission. From it you add the rest of the team later."],
       },
       steps: {
         ar: [
           "في خطوة **حسابك** اختر **اللقب** واكتب **اسمك الكامل**، وأضف إن شئت **الاختصاص** و**الهاتف**.",
-          "اختر **رمز الدخول (PIN)** من 4 إلى 6 أرقام، واكتبه مرة ثانية في **أعد كتابة الرمز**، ثم اضغط **التالي**.",
-          "في خطوة **المراجعة** راجع ما أدخلته. لتصحيح شيء اضغط **تعديل** في البطاقة التي تخصه.",
+          "اختر **رمز الدخول (PIN)** من 4 إلى 6 أرقام، واكتبه مرة ثانية في **أعد كتابة الرمز**، ثم انقر على **التالي**.",
+          "في خطوة **المراجعة** راجع ما أدخلته. لتصحيح شيء انقر على **تعديل** في البطاقة التي تخصه.",
           "ضع علامة على **قرأت شروط الاستخدام وسياسة الخصوصية وأوافق عليهما**. تستطيع قراءة النصين من الروابط تحت المربع.",
-          "اضغط **ابدأ العمل**. يجهّز Dentora عيادتك ويدخلك مباشرة إلى [الشاشة الرئيسية](dashboard).",
+          "انقر على **ابدأ العمل**. يجهّز Dentora عيادتك ويدخلك مباشرة إلى [الشاشة الرئيسية](dashboard).",
         ],
         en: [
           "On the **Your account** step choose your **Title** and type **Your full name**. Add your **Specialty** and **Phone** if you like.",
@@ -188,12 +188,12 @@ const topic: GuideTopic = {
       },
       tips: {
         ar: [
-          "احفظ رمزك جيداً، فستكتبه في كل مرة تفتح فيها البرنامج. وإن نسيه المدير الوحيد للعيادة فالحل في [الفريق والصلاحيات](staff).",
-          "تبدأ الفترة التجريبية لحظة الضغط على **ابدأ العمل**، ويظهر أعلى الشاشة شريط بعدد الأيام المتبقية وزر **تفعيل الآن**. انظر [الترخيص](licence).",
+          "احفظ رمزك جيداً، فستكتبه في كل مرة تفتح فيها البرنامج. وإن نسيه المدير الوحيد للعيادة فالحل في [نسيت رمز الدخول؟](staff#forgot-pin).",
+          "تبدأ الفترة التجريبية لحظة النقر على **ابدأ العمل**، ويظهر أعلى الشاشة شريط بعدد الأيام المتبقية وزر **تفعيل الآن**. انظر [الترخيص](licence).",
           "تُضاف تلقائياً قائمة بالإجراءات الشائعة بأسعار مقترحة، وقائمة بالأدوية الأكثر وصفاً. ويبدأ المخزون فارغاً لتسجّل فيه موادك الفعلية.",
         ],
         en: [
-          "Keep your PIN safe: you type it every time you open Dentora. If the clinic's only admin forgets it, see [Staff and permissions](staff).",
+          "Keep your PIN safe: you type it every time you open Dentora. If the clinic’s only admin forgets it, see [Forgot your PIN?](staff#forgot-pin).",
           "The trial starts the moment you click **Start working**. A bar at the top shows the days left with an **Activate now** button. See [Licence](licence).",
           "A list of common procedures with suggested prices and a list of commonly prescribed drugs are added for you. Inventory starts empty, ready for your real stock.",
         ],
@@ -205,18 +205,18 @@ const topic: GuideTopic = {
       title: { ar: 'لديك نسخة احتياطية؟ استعدها بدل الإعداد', en: 'Have a backup? Restore it instead' },
       text: {
         ar: ["إن أعدت تثبيت البرنامج أو انتقلت إلى جهاز جديد، فلا تُدخل بياناتك من جديد. استعد آخر نسخة احتياطية من الشاشة الأولى للمعالج، فتعود العيادة كما كانت بمرضاها ومواعيدها وفواتيرها وحسابات فريقها."],
-        en: ["If you reinstalled Dentora or moved to a new device, do not type everything in again. Restore your latest backup from the wizard's first screen, and the clinic comes back as it was, with its patients, appointments, invoices and team accounts."],
+        en: ["If you reinstalled Dentora or moved to a new device, do not type everything in again. Restore your latest backup from the wizard’s first screen, and the clinic comes back as it was, with its patients, appointments, invoices and team accounts."],
       },
       steps: {
         ar: [
           "ضع ملف النسخة الاحتياطية (امتداده ‎.dentora) في متناول الجهاز: على فلاشة، أو في مجلد التنزيلات، أو في Google Drive.",
-          "في الشاشة الأولى من المعالج، تحت **أعدت تثبيت البرنامج؟**، اضغط **استعد بياناتك من نسخة احتياطية**.",
+          "في الشاشة الأولى من المعالج، تحت **أعدت تثبيت البرنامج؟**، انقر على **استعد بياناتك من نسخة احتياطية**.",
           "اختر ملف النسخة. إن كانت محمية بكلمة مرور فاكتبها حين يطلبها البرنامج.",
           "انتظر حتى تكتمل الاستعادة، فيُعاد تشغيل البرنامج. ادخل بعدها باسمك ورمزك المعتادين.",
         ],
         en: [
           "Make the backup file (it ends in .dentora) reachable from the device: on a USB stick, in your Downloads folder, or in Google Drive.",
-          "On the wizard's first screen, under **Reinstalled the app?**, click **Restore your data from a backup**.",
+          "On the wizard’s first screen, under **Reinstalled the app?**, click **Restore your data from a backup**.",
           "Choose the backup file. If it is password-protected, type the password when asked.",
           "Wait for the restore to finish: Dentora restarts. Then sign in with your usual name and PIN.",
         ],
@@ -225,12 +225,12 @@ const topic: GuideTopic = {
         ar: [
           "تُستعاد أيضاً النسخ القديمة بصيغة ‎.json.",
           "على جهاز جديد يتغير رقم الجهاز، فتحتاج إلى تفعيل الترخيص من جديد. انظر [الترخيص](licence).",
-          "طريقة حفظ النسخ وحمايتها بكلمة مرور في [النسخ الاحتياطي ونقل العيادة](backup).",
+          "طريقة حفظ النسخ وحمايتها بكلمة مرور في [النسخ الاحتياطي ونقل العيادة](backup#export).",
         ],
         en: [
           "Older backups in .json format restore too.",
           "A new device has a new device number, so you need to activate your licence again. See [Licence](licence).",
-          "How to save backups and protect them with a password: [Backup and moving your clinic](backup).",
+          "How to save backups and protect them with a password: [Backup and moving your clinic](backup#export).",
         ],
       },
       shots: ['getting-started-restore-link'],
@@ -244,10 +244,10 @@ const topic: GuideTopic = {
       },
       steps: {
         ar: [
-          "في شاشة **من يبدأ العمل الآن؟** اضغط على اسمك. إن كان في العيادة حساب واحد، أو كنت آخر من دخل من هذا الجهاز، تظهر لوحة الأرقام مباشرة.",
-          "اكتب رمزك على لوحة الأرقام أو من لوحة المفاتيح. يدخل البرنامج وحده حين يكتمل الرمز، أو اضغط **دخول**.",
-          "ليدخل شخص آخر اضغط **تبديل المستخدم**.",
-          "إن نسيت رمزك اضغط **نسيت رمز الدخول؟** لترى ما تفعله.",
+          "في شاشة **من يبدأ العمل الآن؟** انقر على اسمك. إن كان في العيادة حساب واحد، أو كنت آخر من دخل من هذا الجهاز، تظهر لوحة الأرقام مباشرة.",
+          "اكتب رمزك على لوحة الأرقام أو من لوحة المفاتيح. يدخل البرنامج وحده حين يكتمل الرمز، أو انقر على **دخول**.",
+          "ليدخل شخص آخر انقر على **تبديل المستخدم**.",
+          "إن نسيت رمزك انقر على **نسيت رمز الدخول؟** لترى ما تفعله.",
         ],
         en: [
           "On **Who is starting now?** click your name. If the clinic has only one account, or you were the last to sign in on this device, the keypad shows straight away.",
@@ -260,12 +260,12 @@ const topic: GuideTopic = {
         ar: [
           "خمس محاولات خاطئة متتالية توقف لوحة الأرقام 30 ثانية، وتطول المدة إن تكررت الأخطاء.",
           "تُقبل الأرقام العربية (٠–٩) من لوحة المفاتيح كما تُقبل اللاتينية. و`Enter` للدخول، و`Esc` لمسح ما كتبت.",
-          "يستطيع المدير تعيين رمز جديد لأي مستخدم، وضبط مدة القفل التلقائي. انظر [الفريق والصلاحيات](staff) و[القفل التلقائي](settings#auto-lock).",
+          "يستطيع المدير تعيين رمز جديد لأي مستخدم، وضبط مدة القفل التلقائي. انظر [نسيت رمز الدخول؟](staff#forgot-pin) و[القفل التلقائي](settings#auto-lock).",
         ],
         en: [
           "Five wrong PINs in a row pause the keypad for 30 seconds, and longer if the mistakes go on.",
           "Arabic-Indic digits (٠–٩) typed on the keyboard work as well as Latin ones. `Enter` signs in and `Esc` clears what you typed.",
-          "The admin can set a new PIN for anyone and choose the auto-lock delay. See [Staff and permissions](staff) and [Auto-lock](settings#auto-lock).",
+          "The admin can set a new PIN for anyone and choose the auto-lock delay. See [Forgot your PIN?](staff#forgot-pin) and [Auto-lock](settings#auto-lock).",
         ],
       },
       shots: ['getting-started-signin-users', 'getting-started-signin-pin'],
@@ -280,29 +280,29 @@ const topic: GuideTopic = {
       steps: {
         ar: [
           "افتح **الإعدادات** وأكمل بيانات العيادة: الشعار، والاسم بالإنجليزية، ووسائل التواصل. انظر [بيانات العيادة](settings#clinic-details).",
-          "افتح **قائمة الإجراءات** وراجع الأسعار المقترحة، وعدّلها لتطابق أسعار عيادتك. انظر [العلاجات والإجراءات](treatments).",
-          "افتح **الفريق** وأضف الأطباء والمساعدين وموظفي الاستقبال، لكل منهم دوره ورمز دخوله. انظر [الفريق والصلاحيات](staff).",
-          "اضغط **مريض جديد** وافتح أول ملف. انظر [المرضى](patients).",
-          "اضغط **موعد جديد** واحجز أول موعد. انظر [المواعيد](appointments).",
-          "في نهاية اليوم احفظ أول نسخة احتياطية من **الإعدادات** ← **النسخ الاحتياطي**. انظر [النسخ الاحتياطي](backup).",
+          "افتح **قائمة الإجراءات** وراجع الأسعار المقترحة، وعدّلها لتطابق أسعار عيادتك. انظر [قائمة الإجراءات والأسعار](treatments#price-list).",
+          "افتح **الفريق** وأضف الأطباء والمساعدين وموظفي الاستقبال، لكل منهم دوره ورمز دخوله. انظر [إضافة عضو جديد](staff#add-member).",
+          "انقر على **مريض جديد** وافتح أول ملف. انظر [إضافة مريض جديد](patients#add-patient).",
+          "انقر على **موعد جديد** واحجز أول موعد. انظر [حجز موعد](appointments#book).",
+          "في نهاية اليوم احفظ أول نسخة احتياطية من **الإعدادات** ← **النسخ الاحتياطي**. انظر [حفظ نسخة احتياطية](backup#export).",
         ],
         en: [
           "Open **Settings** and complete the clinic details: logo, English name and contacts. See [Clinic details](settings#clinic-details).",
-          "Open **Procedures** and review the suggested prices; change them to match your clinic. See [Treatments and procedures](treatments).",
-          "Open **Staff** and add your doctors, assistants and receptionists, each with a role and a PIN. See [Staff and permissions](staff).",
-          "Click **New patient** to open your first patient file. See [Patients](patients).",
-          "Click **New appointment** to book your first appointment. See [Appointments](appointments).",
-          "At the end of the day save your first backup from **Settings** → **Backup & data**. See [Backup](backup).",
+          "Open **Procedures** and review the suggested prices; change them to match your clinic. See [Procedures and prices](treatments#price-list).",
+          "Open **Staff** and add your doctors, assistants and receptionists, each with a role and a PIN. See [Adding a team member](staff#add-member).",
+          "Click **New patient** to open your first patient file. See [Adding a new patient](patients#add-patient).",
+          "Click **New appointment** to book your first appointment. See [Booking an appointment](appointments#book).",
+          "At the end of the day save your first backup from **Settings** → **Backup & data**. See [Saving a backup](backup#export).",
         ],
       },
       tips: {
         ar: [
           "الأسعار المقترحة محسوبة بالدولار، وتُحوَّل تلقائياً إلى أغلب العملات (الريال والدرهم والدينار والجنيه واليورو وغيرها). أما مع الليرة السورية أو عملة كتبتها بنفسك فتبقى بأرقام الدولار، فعدّلها قبل أول فاتورة.",
-          "تريد أن تتجوّل في البرنامج أولاً؟ يستطيع المدير تحميل عيادة تجريبية كاملة من **الإعدادات** ← **النسخ الاحتياطي** ← **تحميل بيانات تجريبية** ما دام في العيادة أقل من ثلاثة مرضى. لكن هذه البيانات تختلط ببياناتك، ولا تُزال إلا بحذف كل البيانات، فجرّبها قبل أن تبدأ العمل الحقيقي.",
+          "تريد أن تتجوّل في البرنامج أولاً؟ يستطيع المدير تحميل عيادة تجريبية كاملة من **الإعدادات** ← **النسخ الاحتياطي** ← **تحميل بيانات تجريبية** ما دام في العيادة أقل من ثلاثة مرضى. لكن البيانات التجريبية لا تُزال وحدها، بل بحذف كل البيانات، فجرّبها قبل أن تبدأ العمل الحقيقي. انظر [البيانات التجريبية وحذف كل البيانات](backup#demo-erase).",
         ],
         en: [
           "The suggested prices are set in US dollars and converted for most currencies (riyal, dirham, dinar, pound, euro and others). With the Syrian pound, or a currency you typed in yourself, they stay as dollar figures: adjust them before your first invoice.",
-          "Want to look around first? The admin can load a complete demo clinic from **Settings** → **Backup & data** → **Load demo data** while the clinic has fewer than three patients. The demo data mixes with yours and only goes away by erasing all data, so try it before you start real work.",
+          "Want to look around first? The admin can load a complete demo clinic from **Settings** → **Backup & data** → **Load demo data** while the clinic has fewer than three patients. Demo data cannot be removed on its own, only by erasing all data, so try it before you start real work. See [Demo data and erasing everything](backup#demo-erase).",
         ],
       },
       shots: ['getting-started-first-steps'],

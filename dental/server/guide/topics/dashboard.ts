@@ -23,15 +23,15 @@ const topic: GuideTopic = {
           "تتحدث الشاشة وحدها مع كل تغيير يجري في العيادة، فلا حاجة إلى إعادة تحميلها. وفي أعلاها ثلاثة أزرار للإضافة السريعة.",
         ],
         en: [
-          "The **Dashboard** is the first screen you see when you open Dentora, and you can get back to it any time from the top of the sidebar. At the top you find a greeting with your name and today's date, then the figure cards, then **Today's schedule**, the alerts, the charts and **Recent activity**.",
+          "The **Dashboard** is the first screen you see when you open Dentora, and you can get back to it any time from the top of the sidebar. At the top you find a greeting with your name and today’s date, then the figure cards, then **Today's schedule**, the alerts, the charts and **Recent activity**.",
           "The screen updates by itself whenever something changes in the clinic, so there is no need to reload it. Three quick-add buttons sit at the top.",
         ],
       },
       steps: {
         ar: [
-          "اضغط **موعد جديد** لحجز موعد، وتاريخه اليوم ما لم تغيّره.",
-          "اضغط **مريض جديد** لفتح ملف جديد، فيُفتح الملف بعد الحفظ.",
-          "اضغط **دفعة جديدة** لتسجيل مبلغ استلمته من مريض.",
+          "انقر على **موعد جديد** لحجز موعد، وتاريخه اليوم ما لم تغيّره.",
+          "انقر على **مريض جديد** لفتح ملف جديد، فيُفتح الملف بعد الحفظ.",
+          "انقر على **دفعة جديدة** لتسجيل مبلغ استلمته من مريض.",
         ],
         en: [
           "Click **New appointment** to book an appointment, dated today unless you change it.",
@@ -41,12 +41,12 @@ const topic: GuideTopic = {
       },
       tips: {
         ar: [
-          "ما تراه يتبع دورك: من لا يسمح له دوره بالفواتير لا يرى بطاقات المال ولا رسم الإيرادات ولا زر **دفعة جديدة**. انظر [الفريق والصلاحيات](staff).",
+          "ما تراه يتبع دورك: من لا يسمح له دوره بالفواتير لا يرى بطاقات المال ولا رسم الإيرادات ولا زر **دفعة جديدة**. انظر [الأدوار والصلاحيات](staff#roles).",
           "حين يكون البرنامج للقراءة فقط تبقى الأرقام ظاهرة، وتتعطل أزرار الإضافة وأزرار الحالة. انظر [الترخيص](licence).",
           "إن تركت الشاشة مفتوحة طوال اليوم يبقى كل شيء صحيحاً: يتحرك خط **الآن** وتتحدث التحية والتاريخ كل دقيقة.",
         ],
         en: [
-          "What you see follows your role: roles that may not handle invoices see no money cards, no revenue chart and no **New payment** button. See [Staff and permissions](staff).",
+          "What you see follows your role: roles that may not handle invoices see no money cards, no revenue chart and no **New payment** button. See [Roles and permissions](staff#roles).",
           "While Dentora is read-only the figures stay visible, but the add buttons and the status buttons are disabled. See [Licence](licence).",
           "Left open all day, the screen stays right: the **Now** line moves and the greeting and date update every minute.",
         ],
@@ -66,11 +66,11 @@ const topic: GuideTopic = {
           "**الرصيد المستحق**: ما بقي على المرضى في الفواتير غير المدفوعة والمدفوعة جزئياً، وعدد هؤلاء المرضى.",
         ],
         en: [
-          "**Today's appointments**: today's appointments, not counting cancelled ones, and how many are completed.",
+          "**Today's appointments**: today’s appointments, not counting cancelled ones, and how many are completed.",
           "**Patients seen this month**: how many patients came in this month so far, meaning they were checked in, started or completed.",
           "**New patients this month**: files opened since the first of the month.",
           "**Today's revenue**: the total of payments recorded today, and how many there were.",
-          "**Revenue this month**: the total of this month's payments, with a small line of the last 30 days.",
+          "**Revenue this month**: the total of this month’s payments, with a small line of the last 30 days.",
           "**Outstanding balance**: what patients still owe on unpaid and partially paid invoices, and how many patients that is.",
         ],
       },
@@ -82,7 +82,7 @@ const topic: GuideTopic = {
         ],
         en: [
           "The green or red percentage under a figure compares this month so far with the same days of last month, next to **vs last month**.",
-          "Every card is a link: **Today's appointments** opens today's calendar, **Patients seen this month** and **New patients this month** open the patient list, **Today's revenue** opens Payments, and **Revenue this month** and **Outstanding balance** open [Reports](reports), or Payments and Invoices for those who cannot see reports.",
+          "Every card is a link: **Today's appointments** opens today’s calendar, **Patients seen this month** and **New patients this month** open the patient list, **Today's revenue** opens Payments, and **Revenue this month** and **Outstanding balance** open [Reports](reports), or Payments and Invoices for those who cannot see reports.",
           "The three money cards show only for roles allowed to handle invoices.",
         ],
       },
@@ -90,41 +90,41 @@ const topic: GuideTopic = {
     },
     {
       id: 'todays-schedule',
-      title: { ar: 'جدول اليوم', en: "Today's schedule" },
+      title: { ar: 'جدول اليوم', en: "Today’s schedule" },
       text: {
         ar: [
           "يعرض **جدول اليوم** مواعيد اليوم بالترتيب: الوقت، والمريض، ونوع الزيارة، والطبيب بلونه، والحالة. يفصل خط أحمر عنوانه **الآن** ما مضى عمّا هو قادم.",
           "تظهر الزيارات المنتهية باهتة، والجلسة الجارية مظللة، وفي عنوان البطاقة عدد مواعيد اليوم وكم بقي منها.",
         ],
         en: [
-          "**Today's schedule** lists today's appointments in order: time, patient, type of visit, the doctor with their colour, and the status. A red line labelled **Now** separates what is past from what is coming.",
-          "Finished visits are dimmed, the visit in progress is highlighted, and the card's heading shows how many appointments there are today and how many are still to come.",
+          "**Today's schedule** lists today’s appointments in order: time, patient, type of visit, the doctor with their colour, and the status. A red line labelled **Now** separates what is past from what is coming.",
+          "Finished visits are dimmed, the visit in progress is highlighted, and the card’s heading shows how many appointments there are today and how many are still to come.",
         ],
       },
       steps: {
         ar: [
-          "حين يصل المريض اضغط **تسجيل الوصول** في سطره.",
-          "حين يدخل إلى غرفة العلاج اضغط **بدء الجلسة**، وفي نهايتها **إنهاء الموعد**.",
-          "لتأكيد موعد لم يُؤكَّد بعد اضغط **تأكيد**.",
-          "اضغط اسم المريض لفتح ملفه، أو **فتح التقويم** لترى اليوم في صفحة المواعيد.",
+          "حين يصل المريض انقر على **تسجيل الوصول** في سطره.",
+          "حين يدخل إلى غرفة العلاج انقر على **بدء الجلسة**، وفي نهايتها **إنهاء الموعد**.",
+          "لتأكيد موعد لم يُؤكَّد بعد انقر على **تأكيد**.",
+          "انقر على اسم المريض لفتح ملفه، أو **فتح التقويم** لترى اليوم في صفحة المواعيد.",
         ],
         en: [
           "When the patient arrives, click **Check in** on their row.",
           "When they go into the treatment room click **Start**, and at the end **Complete**.",
           "To confirm an appointment that is not confirmed yet, click **Confirm**.",
-          "Click the patient's name to open their file, or **Open calendar** to see the day on the Appointments page.",
+          "Click the patient’s name to open their file, or **Open calendar** to see the day on the Appointments page.",
         ],
       },
       tips: {
         ar: [
           "يعرض كل سطر الزر المناسب لحالته فقط: **مجدول** ← **تأكيد** أو **تسجيل الوصول**، و**مؤكد** ← **تسجيل الوصول**، و**وصل** ← **بدء الجلسة**، و**قيد المعالجة** ← **إنهاء الموعد**.",
-          "لإلغاء موعد أو تسجيل عدم حضور المريض افتحه من [المواعيد](appointments).",
+          "لإلغاء موعد أو تسجيل عدم حضور المريض افتحه من [المواعيد](appointments#visit-day).",
           "يظهر كل تغيير في الحالة فوراً، ويُسجَّل في **آخر النشاطات**.",
           "على الهاتف تنزل أزرار الحالة تحت كل سطر لتسهل لمسها.",
         ],
         en: [
           "Each row only shows the buttons that fit its status: **Scheduled** → **Confirm** or **Check in**, **Confirmed** → **Check in**, **Arrived** → **Start**, **In progress** → **Complete**.",
-          "To cancel an appointment or mark a no-show, open it from [Appointments](appointments).",
+          "To cancel an appointment or mark a no-show, open it from [Appointments](appointments#visit-day).",
           "Each status change shows at once and is logged in **Recent activity**.",
           "On a phone the status buttons sit under each row, easy to tap.",
         ],
@@ -136,13 +136,13 @@ const topic: GuideTopic = {
       title: { ar: 'تنبيهات تحتاج انتباهك', en: 'Needs your attention' },
       text: {
         ar: [
-          "تجمع بطاقة **تنبيهات تحتاج انتباهك** ما ينبغي أن تتابعه اليوم، مع عدد كل نوع. اضغط أي سطر لتنتقل إلى صفحته:",
-          "**فواتير متأخرة السداد** مع مجموع المبالغ المستحقة، و**مواد قاربت على النفاد** (ما بلغ حدّه الأدنى أو نفد)، و**أعمال مخبر مستحقة** (المتأخرة والمستحقة اليوم)، و**مواعيد الغد غير المؤكدة** لتتصل بالمرضى.",
+          "تجمع بطاقة **تنبيهات تحتاج انتباهك** ما ينبغي أن تتابعه اليوم، مع عدد كل نوع. انقر على أي سطر لتنتقل إلى صفحته:",
+          "**فواتير متأخرة السداد** مع مجموع المبالغ المستحقة، و**مواد قاربت على النفاد** (ما بلغ حد التنبيه أو نفد)، و**أعمال مخبر مستحقة** (المتأخرة والمستحقة اليوم)، و**مواعيد الغد غير المؤكدة** لتتصل بالمرضى.",
           "ويظهر في أعلاها تذكير بالنسخ الاحتياطي إن لم تُحفظ نسخة قط، أو مضى على آخر نسخة 7 أيام.",
         ],
         en: [
           "The **Needs your attention** card gathers what you should follow up today, with a count for each kind. Click any row to go to its page:",
-          "**Overdue invoices** with the total due, **Low-stock items** (at or below their minimum, or out of stock), **Lab work due** (late or due today), and **Tomorrow's unconfirmed visits** so you can call the patients.",
+          "**Overdue invoices** with the total due, **Low-stock items** (at or below their alert threshold, or out of stock), **Lab work due** (late or due today), and **Tomorrow's unconfirmed visits** so you can call the patients.",
           "A backup reminder shows at the top when no backup was ever saved or the last one is 7 days old.",
         ],
       },
@@ -150,13 +150,13 @@ const topic: GuideTopic = {
         ar: [
           "إن لم يكن هناك ما يستدعي الانتباه تظهر رسالة **كل شيء على ما يرام**.",
           "تُعدّ الفاتورة متأخرة إذا فات تاريخ استحقاقها، أو مضى على إصدارها أكثر من 30 يوماً إن لم يكن لها تاريخ استحقاق.",
-          "يأخذك تذكير النسخ الاحتياطي إلى صفحة النسخ إن كنت المدير. أما غير المدير فيطلب منه التذكير أن يخبر مدير العيادة. انظر [النسخ الاحتياطي](backup).",
+          "يأخذك تذكير النسخ الاحتياطي إلى صفحة النسخ إن كنت المدير. أما غير المدير فيطلب منه التذكير أن يخبر مدير العيادة. انظر [حفظ نسخة احتياطية](backup#export).",
           "تفاصيل كل تنبيه، وأزرار التذكير عبر واتساب، في لوحة [التنبيهات](interface#notifications).",
         ],
         en: [
           "When nothing needs attention, the card says **All clear**.",
           "An invoice counts as overdue once its due date has passed or, without a due date, 30 days after it was issued.",
-          "The backup reminder takes the admin to the backup page. Everyone else is asked to tell the clinic admin. See [Backup](backup).",
+          "The backup reminder takes the admin to the backup page. Everyone else is asked to tell the clinic admin. See [Saving a backup](backup#export).",
           "The details of each alert, and the WhatsApp reminder buttons, are in the [Notifications](interface#notifications) panel.",
         ],
       },
@@ -172,15 +172,15 @@ const topic: GuideTopic = {
           "**الإجراءات الأكثر تنفيذاً**: أكثر الإجراءات المنجزة هذا الشهر، مع عدد مرات تنفيذ كل منها.",
         ],
         en: [
-          "**Revenue — last 30 days**: payments day by day, with the total under the title. Hover over the chart, or touch it on a phone, to see any day's amount.",
-          "**Appointments by status**: this month's appointments split by status, with each status's count and share, and the total in the middle.",
+          "**Revenue — last 30 days**: payments day by day, with the total under the title. Hover over the chart, or touch it on a phone, to see any day’s amount.",
+          "**Appointments by status**: this month’s appointments split by status, with each status’s count and share, and the total in the middle.",
           "**Top procedures**: the procedures completed most often this month, with how many times each was done.",
         ],
       },
       steps: {
         ar: [
-          "لترى الإيرادات أرقاماً اضغط زر **عرض كجدول** في زاوية بطاقة الإيرادات، واضغطه ثانية للعودة إلى الرسم.",
-          "اضغط **التقارير** في البطاقة نفسها لتحليل أعمق.",
+          "لترى الإيرادات أرقاماً انقر على زر **عرض كجدول** في زاوية بطاقة الإيرادات، وانقر عليه ثانية للعودة إلى الرسم.",
+          "انقر على **التقارير** في البطاقة نفسها لتحليل أعمق.",
         ],
         en: [
           "To see revenue as figures, click the **Show as table** button in the corner of the revenue card; click it again to go back to the chart.",
@@ -195,7 +195,7 @@ const topic: GuideTopic = {
         ],
         en: [
           "The revenue chart shows for roles allowed to handle invoices, and the **Reports** button for roles that can see reports; the button is hidden on phones.",
-          "Roles allowed to handle invoices also see each procedure's amount next to its count.",
+          "Roles allowed to handle invoices also see each procedure’s amount next to its count.",
           "For detailed figures over any period, see [Reports](reports).",
         ],
       },
@@ -209,7 +209,7 @@ const topic: GuideTopic = {
         en: ["**Recent activity** shows the last 12 actions in the clinic: an appointment booked, a status changed, a treatment done, a payment received, an invoice issued, a sign-in. Each one shows who did it and when."],
       },
       steps: {
-        ar: ["اضغط سطراً يخص مريضاً لفتح ملفه."],
+        ar: ["انقر على سطر يخص مريضاً لفتح ملفه."],
         en: ["Click a row about a patient to open their file."],
       },
       tips: {
@@ -226,8 +226,8 @@ const topic: GuideTopic = {
         en: ["On a phone the figure cards sit in two columns, followed by the other cards: **Today's schedule** first, then the alerts, revenue, appointments by status, top procedures and finally recent activity. Scroll down to see them all."],
       },
       tips: {
-        ar: ["أزرار الإضافة الثلاثة تبقى في أعلى الصفحة، وتمتد على عرض الشاشة. انظر أيضاً [Dentora على الهاتف](interface#phone-layout)."],
-        en: ["The three add buttons stay at the top of the page, across the width of the screen. See also [Dentora on a phone](interface#phone-layout)."],
+        ar: ["أزرار الإضافة الثلاثة تبقى في أعلى الصفحة، وتمتد على عرض الشاشة. انظر أيضاً [على الهاتف والجهاز اللوحي](interface#phone-layout)."],
+        en: ["The three add buttons stay at the top of the page, across the width of the screen. See also [On a phone or tablet](interface#phone-layout)."],
       },
       shots: ['dashboard-phone'],
     },

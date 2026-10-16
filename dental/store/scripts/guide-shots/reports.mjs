@@ -84,7 +84,8 @@ export const shots = atRest({
     return {
       markers: [
         { n: 1, target: page.locator('.rp-tabs .tab.active') },
-        { n: 2, target: row.locator('.rp-namecell a').first(), place: 'after-content' },
+        // just after the name and file number (on the name line it would cover the file number under it)
+        { n: 2, target: row.locator('.rp-namecell'), place: 'after-content' },
         { n: 3, target: row.locator('.rp-wa') },
       ],
     }

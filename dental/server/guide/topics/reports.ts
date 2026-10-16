@@ -3,8 +3,8 @@ import type { GuideTopic } from '../types'
 // Shots: the demo clinic (Settings → Backup → Load demo data) with the clock and the trial bar as in store/scripts/shoot.mjs.
 // Like shoot.mjs, every shot opens the reports on LAST MONTH (September 2026, a whole month of data): before the first
 // load set localStorage 'dentora.reports.preset' = 'lastMonth' (an init script), or click **Last month** once.
-const DESK = 'Desktop 1600×900, demo clinic as store/scripts/shoot.mjs makes it (seedAndLogin + Settings → Backup → Load demo data; English shots use its englishClinic() names), signed in as the admin (Dr. Ahmad Al-Khatib), clock fixed at Sunday 11 Oct 2026 11:40 Asia/Damascus, trial bar hidden ([data-qa="trial-bar"]{display:none}), reports period Last month (localStorage dentora.reports.preset = lastMonth, as shoot.mjs), page scrolled to the top and held there (page.goto() reads as Back to the app, which restores an old scroll position). Wait 1.6 s after opening a tab: the charts draw after the data.'
-const PHONE = 'Phone 405×720 (isMobile, hasTouch, deviceScaleFactor 8/3 as shoot.mjs), same demo clinic, clock, hidden trial bar and Last month period.'
+const DESK = 'Desktop 1440×900, demo clinic as store/scripts/shoot.mjs makes it (seedAndLogin + Settings → Backup → Load demo data; English shots use its englishClinic() names), signed in as the admin (Dr. Ahmad Al-Khatib), clock fixed at Sunday 11 Oct 2026 11:40 Asia/Damascus, trial bar hidden ([data-qa="trial-bar"]{display:none}), reports period Last month (localStorage dentora.reports.preset = lastMonth, as shoot.mjs), page scrolled to the top and held there (page.goto() reads as Back to the app, which restores an old scroll position). Wait 1.6 s after opening a tab: the charts draw after the data.'
+const PHONE = 'Phone 390×844 (isMobile, hasTouch, deviceScaleFactor 8/3 as shoot.mjs), same demo clinic, clock, hidden trial bar and Last month period.'
 
 const topic: GuideTopic = {
   slug: 'reports',
@@ -94,11 +94,11 @@ const topic: GuideTopic = {
       tips: {
         ar: [
           'مرّر المؤشر فوق نقطة في الرسم، أو المسها على الهاتف، لترى قيمتها وتاريخها.',
-          'على الهاتف تصطف البطاقات والرسوم تحت بعضها، وتنتقل أزرار الفترات إلى سطرين، ويُسحب شريط التبويبات جانبياً لتصل إلى **الذمم المستحقة**.',
+          'على الهاتف تصطف البطاقات اثنتين اثنتين والرسوم تحت بعضها، وتنتقل أزرار الفترات إلى سطرين، ويُسحب شريط التبويبات جانبياً لتصل إلى **الذمم المستحقة**.',
         ],
         en: [
           'Hover over a point on a chart, or tap it on a phone, to see its value and date.',
-          'On a phone the cards and charts stack one under another, the period buttons wrap onto two lines, and the tab strip slides sideways to reach **Outstanding**.',
+          'On a phone the cards sit two by two and the charts stack one under another, the period buttons wrap onto two lines, and the tab strip slides sideways to reach **Outstanding**.',
         ],
       },
       shots: ['reports-expenses-table', 'reports-phone'],
@@ -157,7 +157,7 @@ const topic: GuideTopic = {
       },
       tips: {
         ar: [
-          'الرقم نفسه الذي تراه في الصفحة الرئيسية وقائمة الفواتير. انظر [الفواتير والمدفوعات](billing).',
+          'الرقم نفسه الذي تراه في الشاشة الرئيسية وفي قائمة الفواتير. انظر [الفواتير والمدفوعات](billing).',
           'على أندرويد يفتح زر **تذكير** محادثة المريض في تطبيق واتساب. وعلى ويندوز يُفتح الرابط في المتصفح لتكمل في واتساب ويب أو تطبيق واتساب على الحاسوب. تراجع الرسالة قبل إرسالها.',
           'إن لم يكن للمريض رقم هاتف تجد مكان الزر «لا يوجد رقم هاتف».',
           'الطباعة من هذا التبويب تطبع كل المرضى المدينين في جدول واحد، لا الصفحة الظاهرة على الشاشة فقط.',
@@ -193,12 +193,12 @@ const topic: GuideTopic = {
       tips: {
         ar: [
           'ما يحفظه **تصدير CSV** في كل تبويب: المالية جدول المصروفات مقابل الإيرادات (أو الإيرادات حسب الطبيب إن اخترت طبيباً)، والمرضى قائمة المرضى الأعلى إنفاقاً، والمواعيد أداء الأطباء، والعلاجات الإجراءات بعدد مرات تنفيذها وقيمتها، والذمم المستحقة كل الأرصدة مع الإجمالي.',
-          'على ويندوز تُفتح نافذة الطباعة: اختر طابعتك، أو Microsoft Print to PDF لتحفظ التقرير ملف PDF. وعلى أندرويد تُفتح شاشة الطباعة في النظام، وفيها خيار الحفظ كملف PDF.',
+          'على ويندوز تُفتح نافذة الطباعة في ويندوز: اختر طابعتك، أو «Microsoft Print to PDF» لتحفظ التقرير ملف PDF. وعلى أندرويد تُفتح شاشة الطباعة في النظام، وفيها خيار الحفظ بصيغة PDF.',
           'يُعطَّل **تصدير CSV** حين لا يكون في التبويب جدول للفترة المختارة.',
         ],
         en: [
           'What **Export CSV** saves on each tab: Financial, the expenses vs revenue table (or revenue by doctor when a doctor is picked); Patients, the highest-spending patients; Appointments, doctor performance; Treatments, the procedures with how often they were done and their value; Outstanding, every balance with the total.',
-          'On Windows the print window opens: choose your printer, or Microsoft Print to PDF to keep the report as a PDF file. On Android the system’s print screen opens, with an option to save as PDF.',
+          'On Windows the Windows print dialog opens: choose your printer, or “Microsoft Print to PDF” to keep the report as a PDF file. On Android the system print screen opens, with a save-as-PDF option.',
           '**Export CSV** is disabled when the tab has no table for the chosen period.',
         ],
       },
@@ -237,8 +237,8 @@ const topic: GuideTopic = {
       id: 'reports-phone',
       device: 'phone',
       alt: {
-        ar: 'التقارير على الهاتف: أزرار الفترات في سطرين، وشريط التبويبات يُسحب جانبياً، والبطاقات تحت بعضها',
-        en: 'Reports on a phone: the period buttons on two lines, the tab strip sliding sideways, and the cards stacked one under another',
+        ar: 'التقارير على الهاتف: أزرار الفترات في سطرين، وشريط التبويبات يُسحب جانبياً، والبطاقات اثنتين اثنتين',
+        en: 'Reports on a phone: the period buttons on two lines, the tab strip sliding sideways, and the cards two by two',
       },
       recipe: `${PHONE} Route #/reports (Financial, Last month). Page at its top. Capture the screen. No markers.`,
     },

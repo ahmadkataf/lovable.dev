@@ -89,7 +89,7 @@ export const shots = atRest({
       clip: { x: stats.x - 12, y: title.y - 12, width: stats.width + 24, height: stats.y + stats.height + 12 - (title.y - 12) },
       markers: [
         { n: 2, target: page.locator('.inv-exp-range') },
-        { n: 3, target: bar.getByRole('tab', { name: await helpers.t('expenses.period.month') }), place: 'after-content' },
+        { n: 3, target: bar.getByRole('tab', { name: await helpers.t('expenses.period.month') }) },
       ],
     }
   },

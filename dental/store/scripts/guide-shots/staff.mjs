@@ -83,7 +83,8 @@ async function memberMenu(page, id) {
 }
 
 export const shots = atRest({
-  'staff-overview': async ({ page, helpers }) => {
+  // a slightly taller window, so the sign-in log under the cards shows both of today's sign-ins
+  'staff-overview': { viewport: { width: 1440, height: 1000 }, run: async ({ page, helpers }) => {
     // two sign-ins today, so the sign-in log shows how it reads
     await helpers.lock()
     await signInWithPin(page, helpers, 'u-rec')
@@ -92,7 +93,7 @@ export const shots = atRest({
     await open(page, helpers)
     await rest(page)
     return {}
-  },
+  } },
 
   'staff-matrix': async ({ page, helpers }) => {
     await open(page, helpers)
