@@ -33,3 +33,4 @@ dental/store/voiceover/recorded
 dental/store/voiceover/final
 dental/store/voiceover/samples
 __pycache__/
+dental/store/voiceover/deploy-*.log

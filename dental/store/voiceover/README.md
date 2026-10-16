@@ -4,6 +4,10 @@ The course videos (`/videos` on the site, recorded by `store/scripts/video/make.
 with Gemini TTS, following the owner's brief: one TTS request per chapter (one section of 3–5 minutes), one model,
 one voice and one style for the whole course, never a regenerated file, never a sped-up voice.
 
+Locked for the whole course (chosen by the owner on 16 October 2026 from three samples of chapter 1):
+model `gemini-3.8-flash-tts`, voice `ar-001-training-2` (Modern Standard Arabic, instructional video host),
+style "clear, friendly instructor". Each chapter is published on the site as soon as it is finished.
+
 ## Folders
 
 | Path | What | In git |
@@ -32,3 +36,8 @@ one voice and one style for the whole course, never a regenerated file, never a 
    chapter so every scene lasts as long as its own narration (the picture follows the words, nothing is stretched).
 5. `finalize.mjs <slug>`: `add_voice.py` puts every scene clip at its scene's start, the video stream untouched, and
    writes `final/<slug>.mp4`.
+6. `publish.mjs <slug>`: copies the final video, captions and poster into `server/site/videos/ar/` with its manifest
+   entry; `npm run deploy` in `server/` puts it online.
+
+`chapter.sh <lesson-slug> [--deploy]` runs steps 2–6 for one chapter (and the deploy), stopping on the first failure;
+its exit code 3 or 4 means the day's requests are used up.

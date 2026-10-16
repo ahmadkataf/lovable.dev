@@ -1,7 +1,7 @@
 lesson,section,script,wav,start_sec,status
-L01-getting-started,s1,scripts/L01-getting-started_s1.txt,audio/L01-getting-started_s1.wav,,voice-test (3 voices in samples/)
-L02-interface,s1,scripts/L02-interface_s1.txt,audio/L02-interface_s1.wav,,script
-L03-dashboard,s1,scripts/L03-dashboard_s1.txt,audio/L03-dashboard_s1.wav,,script
+L01-getting-started,s1,scripts/L01-getting-started_s1.txt,audio/L01-getting-started_s1.wav,3.084,final
+L02-interface,s1,scripts/L02-interface_s1.txt,audio/L02-interface_s1.wav,,generated
+L03-dashboard,s1,scripts/L03-dashboard_s1.txt,audio/L03-dashboard_s1.wav,,generated
 L04-patients,s1,scripts/L04-patients_s1.txt,audio/L04-patients_s1.wav,,script
 L05-chart,s1,scripts/L05-chart_s1.txt,audio/L05-chart_s1.wav,,script
 L06-appointments,s1,scripts/L06-appointments_s1.txt,audio/L06-appointments_s1.wav,,script

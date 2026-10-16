@@ -2,3 +2,5 @@ utc,quota_day,lesson,voice,out,exit,seconds,audio_seconds
 2026-10-16T10:16:57+00:00,2026-10-16,L01-getting-started,ar-001-training-2,samples/L01-getting-started_s1--ar-001-training-2.wav,0,35,243.8
 2026-10-16T10:17:37+00:00,2026-10-16,L01-getting-started,ar-001-tutor-1,samples/L01-getting-started_s1--ar-001-tutor-1.wav,0,40,277.0
 2026-10-16T10:18:17+00:00,2026-10-16,L01-getting-started,ar-001-training-12,samples/L01-getting-started_s1--ar-001-training-12.wav,0,40,281.0
+2026-10-16T10:37:33+00:00,2026-10-16,L02-interface,ar-001-training-2,audio/L02-interface_s1.wav,0,31,226.6
+2026-10-16T10:38:04+00:00,2026-10-16,L03-dashboard,ar-001-training-2,audio/L03-dashboard_s1.wav,0,33,233.6
