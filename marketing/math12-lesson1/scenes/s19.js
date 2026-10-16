@@ -96,6 +96,23 @@
       }
       this.gTag = gp.label(K(`u_n = f(n)`), 2.15, gf(3) + .78, 'c', 'mm')
       this.gTag.style.cssText += `;padding:6px 18px;border-radius:14px;background:rgba(255,210,63,.12);border:2px solid ${Y}88;color:${Y}`
+      // line 1, second half: two consecutive integers n < n+1 inside [n0,+∞[ → f(n) < f(n+1)
+      this.gNn = ['n', 'n+1'].map((s, i) => {
+        const e = gp.label(K(tc(B, s)), 2 + i, -.02, 'tc', 'mm'); e.style.marginTop = '14px'; return e
+      })
+      this.gHalo = [1, 2].map(k => {
+        const h = sv(gp.s, 'circle', { cx: gp.X(k + 1), cy: gp.Y(gf(k + 1)), r: 28, fill: Y, opacity: 0 })
+        gp.s.insertBefore(h, this.gD[0])
+        return h
+      })
+      this.cardH = this.card.offsetHeight                       // full height (line 1 text included)
+      this.imp = el('div', '', null, root)
+      this.imp.style.cssText += `display:flex;flex-direction:column;align-items:center;gap:4px;padding:16px 38px 12px;border-radius:22px;border:2.5px solid ${Y}99;background:rgba(255,210,63,.07)`
+      const impF = tex(`${tc(B, 'n')} < ${tc(B, 'n+1')} \\;\\Longrightarrow\\; f(${tc(B, 'n')}) < f(${tc(B, 'n+1')})`, 'mm')
+      impF.style.fontSize = '52px'; this.imp.appendChild(impF)
+      const impT = rich(`أي $u_n < u_{n+1}$ <span class="mute">(إذا كان $f$ متزايداً تماماً)</span>`, 'p')
+      impT.style.whiteSpace = 'nowrap'; impT.style.fontSize = '36px'; this.imp.appendChild(impT)
+      place(this.imp, 1390, 300 + this.cardH + 38, { anchor: 'tc' })
 
       // ---------------- line 2: the example
       const ex = card(root, 'ex', 1800, 300, 820, { anchor: 'tr', tag: 'مثال' })
@@ -155,15 +172,15 @@
       this.vNote.style.cssText += `;padding:6px 18px;border-radius:14px;background:rgba(255,92,138,.12);border:2px solid ${R}88;font-size:36px`
       this.vLead = sv(pp.s, 'path', { d: `M${pp.X(1.3)},${pp.Y(5.72)} Q${pp.X(.5)},${pp.Y(3.4)} ${pp.X(.4)},${pp.Y(.9)}`, fill: 'none', stroke: R, 'stroke-width': 2.5, 'stroke-dasharray': '6 7', opacity: .8 })
       // blue brace under the axis from n₀ = 1 onwards
-      const by = pp.Y(0) + 58, bx1 = pp.X(1), bx2 = pp.X(4.5)
-      this.brace = sv(pp.s, 'path', { d: `M${bx1},${by - 14} Q${bx1},${by} ${bx1 + 14},${by} L${bx2 - 14},${by}`, fill: 'none', stroke: B, 'stroke-width': 4, 'stroke-linecap': 'round' })
+      const by = pp.Y(0) + 74, bx1 = pp.X(1), bx2 = pp.X(4.5)       // clear of the tick labels 1..4
+      this.brace = sv(pp.s, 'path', { d: `M${bx1},${by - 12} Q${bx1},${by} ${bx1 + 14},${by} L${bx2 - 14},${by}`, fill: 'none', stroke: B, 'stroke-width': 4, 'stroke-linecap': 'round' })
       this.braceHead = sv(pp.s, 'path', { d: `M${bx2 - 16},${by - 9} L${bx2},${by} L${bx2 - 16},${by + 9} Z`, fill: B })
-      this.braceL = pp.label(K(tc(B, 'n_0 = 1')), 1.0, 0, 'tl', 'mm'); this.braceL.style.marginTop = '74px'; this.braceL.style.marginLeft = '-6px'; this.braceL.style.fontSize = '36px'
+      this.braceL = pp.label(K(tc(B, 'n_0 = 1')), 1.0, 0, 'tl', 'mm'); this.braceL.style.marginTop = '88px'; this.braceL.style.marginLeft = '-6px'; this.braceL.style.fontSize = '36px'
 
       // ---------------- line 3: derivative + sign table (right column)
       this.rc = el('div', '', null, root); this.rc.style.cssText += 'position:absolute;left:0;top:0;width:1920px;height:1080px'
-      this.fd = tex(`f'(x) = 2(x-1)`, 'mx'); this.rc.appendChild(this.fd); place(this.fd, 1390, 676, { anchor: 'c' })
-      this.tb = this._table(this.rc, 1040, 740)
+      this.fd = tex(`f'(x) = 2(x-1)`, 'mx'); this.rc.appendChild(this.fd); place(this.fd, 1390, 708, { anchor: 'c' })
+      this.tb = this._table(this.rc, 1040, 772)
       // ---------------- line 4: conclusion, question, countdown
       this.concl = rich(`$f$ متزايد تماماً على $[1,+\\infty[$`, 'h3'); this.concl.style.color = G; this.concl.style.whiteSpace = 'nowrap'
       root.appendChild(this.concl); place(this.concl, 1390, 632, { anchor: 'tc' })
@@ -174,7 +191,8 @@
       place(this.q, 1800, 800, { anchor: 'cr' })
       this.cdw = el('div', '', null, root)
       this.cdw.style.cssText += 'position:absolute;left:0;top:0;width:1920px;height:1080px'
-      this.cd = countdown(this.cdw, 1110, 812, 54)
+      this.cd = countdown(this.cdw, 1090, 812, 54)
+      const cdl = this.cdw.querySelector('.s'); if (cdl) { cdl.style.whiteSpace = 'nowrap'; cdl.style.fontSize = '28px' }
       // ---------------- line 5: the result
       this.kb = keyBox(root, 'x', 1390, 830, { color: G })
       this.kb.el.removeChild(this.kb.f)
@@ -197,8 +215,8 @@
       const L = c0 + 50, Rr = w - 50, M = mid - x, Lm = (c0 + M) / 2 + 10, Rm = (M + w) / 2
       const rows = [
         [cell('x', c0 / 2, h / 2), cell('-\\infty', L, h / 2), cell(tc(Y, '1'), M, h / 2), cell('+\\infty', Rr, h / 2)],
-        [cell("f'(x)", c0 / 2, 1.5 * h), cell(tc(R, '-'), Lm, 1.5 * h, 46), cell('0', M, 1.5 * h), cell(tc(G, '+'), Rm, 1.5 * h, 46)],
-        [cell('f(x)', c0 / 2, 2.5 * h), cell(tc(R, '\\searrow'), Lm, 2.5 * h, 48), cell('0', M, 2.5 * h + 12, 34), cell(tc(G, '\\nearrow'), Rm, 2.5 * h, 48)],
+        [cell("f'(x)", c0 / 2, 1.5 * h), cell(tc(R, '-'), Lm, 1.5 * h, 46), cell(tc(Y, '0'), M, 1.5 * h), cell(tc(G, '+'), Rm, 1.5 * h, 46)],
+        [cell('f(x)', c0 / 2, 2.5 * h), cell(tc(R, '\\searrow'), Lm, 2.5 * h - 3, 44), cell('0', M, 2.5 * h + 12, 34), cell(tc(G, '\\nearrow'), Rm, 2.5 * h - 3, 44)],
       ]
       return { box, rows, dash }
     },
@@ -216,6 +234,7 @@
 
       // ================= lines 0–1: card ② and the generic curve
       const out2 = pr(at(2), .55)
+      const gOut = pr(Math.max(T(2, .33), at(2) + 1.2), .6)          // the generic picture stays until the parabola comes
       const cg = pr(at(0) + .5, .9, E.io)                   // the card grows out of tracker circle 2
       const tk = TRK(2), cx = 1800 - 410, cy = 300 + this.card.offsetHeight / 2
       this.card.style.transform = `translate(${(tk.x - cx) * (1 - cg)}px, ${(tk.y - cy) * (1 - cg) - out2 * 30}px) scale(${lerp(.08, 1, cg)})`
@@ -225,21 +244,32 @@
       const grow = pr(at(1) - .1, .7)
       this.c2w.style.height = (this.c2.offsetHeight + 22) * grow + 'px'
       // generic plot
-      const gOut = out2
       const ax = pr(at(0) + 1.2, .7)
       this.gAx.forEach(a => { draw(a, ax); a.style.opacity = 1 - gOut })
       this.gT.forEach(t => (t.style.opacity = ax * (1 - gOut)))
       draw(this.gCurve, pr(Math.max(T(0, .25), at(0) + 1.6), 1.4)); this.gCurve.style.opacity = 1 - gOut
       op(this.gLab, Math.min(pr(Math.max(T(0, .25), at(0) + 1.6) + 1.1, .5), 1 - gOut))
       const tD = Math.max(T(0, .45), at(0) + 3)
+      // second half of line 1 ("لأنّ العددين n و n+1 يقعان في المجال"): two consecutive terms take the stage
+      const tNn = Math.max(T(1, .52), at(1) + 3.6)
+      const nn = pr(tNn, .6)
       this.gD.forEach((dot, k) => {
         const p = pr(tD + k * .22, .5, E.back)
         const pulse = env(lt, at(1) + .9 + k * .45, at(1) + 1.6 + k * .45, .2, .4)
-        dot.style.opacity = clamp(p * 3) * (1 - gOut)
-        dot.style.transform = `scale(${Math.max(0, p) * (1 + .35 * pulse)})`
+        const pair = k === 1 || k === 2
+        dot.style.opacity = clamp(p * 3) * (1 - gOut) * (pair ? 1 : 1 - .55 * nn)
+        dot.style.transform = `scale(${Math.max(0, p) * (1 + .35 * pulse + (pair ? .25 * nn : 0))})`
         dot.style.filter = pulse > .01 ? `drop-shadow(0 0 ${12 * pulse}px ${Y})` : ''
-        this.gV[k].style.opacity = .55 * clamp(pr(tD + k * .22 - .2, .4)) * (1 - gOut)
+        this.gV[k].style.opacity = (pair ? lerp(.55, 1, nn) : .55 * (1 - .5 * nn)) * clamp(pr(tD + k * .22 - .2, .4)) * (1 - gOut)
       })
+      const glow = nn * (.75 + .25 * Math.sin(lt * 3))
+      this.gHalo.forEach(h => h.setAttribute('opacity', (.3 * glow * (1 - gOut)).toFixed(3)))
+      this.gNn.forEach((e, i) => rise(e, Math.min(pr(tNn + i * .25, .5), 1 - gOut), 12))
+      // the panel sits under card ② (card height measured live: KaTeX fonts may load after build)
+      const fullH = this.card.offsetHeight - this.c2w.offsetHeight + this.c2.offsetHeight + 22
+      if (fullH !== this._fullH) { this._fullH = fullH; place(this.imp, 1390, 300 + fullH + 38, { anchor: 'tc' }) }
+      const ip = pr(Math.max(T(1, .7), tNn + 1), .6)
+      op(this.imp, Math.min(ip, 1 - out2)); this.imp.style.transform = `translateY(${(1 - ip) * 24 - out2 * 30}px)`
       const tg = pr(tD + 1.4, .6)
       op(this.gTag, Math.min(tg, 1 - pr(at(1), .4), 1 - gOut)); this.gTag.style.transform = `translateY(${(1 - tg) * 14}px)`
       // line 1: the interval [n0, +∞[ and the dots climbing with the curve
@@ -247,27 +277,27 @@
       this.gBand.setAttribute('width', Math.max(0, (this.gp.X(6.1) - this.gp.X(1) + 10) * E.out(band)))
       this.gBand.style.opacity = band > 0 ? .35 * (1 - gOut) : 0
       op(this.gBandL, Math.min(pr(at(1) + .6, .5), 1 - gOut)); op(this.gN0, Math.min(Math.max(pr(tD, .5), 0), 1 - gOut))
-      this.gA.forEach((a, k) => { a.set(pr(at(1) + 1.1 + k * .45, .5)); a.path.style.opacity = 1 - gOut })
+      this.gA.forEach((a, k) => { a.set(pr(at(1) + 1.1 + k * .45, .5)); a.path.style.opacity = (1 - gOut) * (k === 1 ? 1 : 1 - .6 * nn) })
 
       // ================= line 2: the example and the parabola
-      const out4 = pr(at(4), .6)                         // the example card leaves to make room
+      const out4 = pr(at(4), .4)                         // the example card leaves to make room
       const ei = pr(at(2) + .35, .7)
       op(this.ex, Math.min(ei, 1 - out4)); this.ex.style.transform = `translateY(${(1 - ei) * 36 - out4 * 40}px)`
       typeWords(this.e2, Fr(2, .4, .92))
-      const pa = pr(at(2) + 1.1, .8)
+      const pa = pr(Math.max(T(2, .33), at(2) + 1.2) + .35, .8)
       this.pAx.forEach(a => draw(a, pa))
       this.pTicks.forEach(({ t, l }) => { t.style.opacity = pa; op(l, pa) })
       this.pyl.forEach(({ t, l }) => { t.style.opacity = pa; op(l, pa) })
-      const tPar = Math.max(T(2, .6), at(2) + 2)
+      const tPar = Math.max(T(2, .5), at(2) + 2.2)
       const pd = pr(tPar, 1.6, E.io)
       draw(this.pL, clamp(pd * 1.9)); draw(this.pR, clamp(pd * 1.9 - .9))
       op(this.pLab, pr(tPar + 1.2, .6))
 
       // ================= line 3: derivative, sign table, arrows on the graph
       const fdI = pr(at(3) + .3, .8)
-      const up = pr(at(4), .8)                            // derivative + table move up in line 4
+      const up = pr(at(4) + .15, .8)                      // derivative + table move up in line 4
       wipe(this.fd, fdI)
-      this.rc.style.transform = `translateY(${-350 * up}px)`
+      this.rc.style.transform = `translateY(${-382 * up}px)`
       const tb = this.tb
       const r0 = pr(Math.max(T(3, .25), at(3) + 1.2), .5), r1 = pr(Math.max(T(3, .5), at(3) + 1.9), .5), r2 = pr(Math.max(T(3, .75), at(3) + 2.6), .5)
       op(tb.box, r0); tb.box.style.transform = `translateY(${(1 - r0) * 20}px)`

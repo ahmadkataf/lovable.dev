@@ -182,7 +182,7 @@
       this.f3 = tex(`\\left(\\dfrac{1}{n^2-1}\\right)_{\\htmlId{${ID}-sub2}{n\\ge 2}}`, 'mx')
       root.appendChild(this.f3); place(this.f3, 150, 168, { anchor: 'tl' })
       this.f3sub = this.f3.querySelector(`#${ID}-sub2`)
-      const NX = this.NX = n => 320 + 220 * n, NY = this.NY = 650
+      const NX = this.NX = n => 320 + 220 * n, NY = this.NY = 620   // block lifted 30 px so the closing book line fits above y 990
       const s = this.ns = svg(root, 0, 0, W, H)
       this.axis = arrow(s, 240, NY, 1748, NY, { color: C.mut, width: 4 })
       this.nTicks = []
@@ -204,10 +204,10 @@
         const r = rich(lab, 's ctr'); b.appendChild(r); r.style.color = col; r.style.marginTop = '4px'
         return b
       }
-      this.bub0 = bubble(NX(0) - 10, 578, C.mut, `\\dfrac{1}{0^2-1} = -1`, 'معرّف')
-      this.tail0 = sv(s, 'line', { x1: NX(0), y1: 582, x2: NX(0), y2: NY - 18, stroke: C.mut, 'stroke-width': 2.5, 'stroke-dasharray': '6 7' })
-      this.bub1 = bubble(NX(1) + 110, 578, C.red, `\\dfrac{1}{1^2-1} = \\dfrac{1}{0}`, 'المقام $=0$')
-      this.tail1 = sv(s, 'line', { x1: NX(1) + 110, y1: 582, x2: NX(1), y2: NY - 18, stroke: C.red, 'stroke-width': 2.5, 'stroke-dasharray': '6 7' })
+      this.bub0 = bubble(NX(0) - 10, 548, C.mut, `\\dfrac{1}{0^2-1} = -1`, 'معرّف')
+      this.tail0 = sv(s, 'line', { x1: NX(0), y1: 552, x2: NX(0), y2: NY - 18, stroke: C.mut, 'stroke-width': 2.5, 'stroke-dasharray': '6 7' })
+      this.bub1 = bubble(NX(1) + 110, 548, C.red, `\\dfrac{1}{1^2-1} = \\dfrac{1}{0}`, 'المقام $=0$')
+      this.tail1 = sv(s, 'line', { x1: NX(1) + 110, y1: 552, x2: NX(1), y2: NY - 18, stroke: C.red, 'stroke-width': 2.5, 'stroke-dasharray': '6 7' })
       this.x1 = el('div', '', null, root)
       place(this.x1, 0, 0)
       this.x1.style.cssText += `width:46px;height:46px;border-radius:50%;background:${C.red};box-shadow:0 0 20px rgba(255,92,138,.6)`
@@ -218,24 +218,24 @@
       root.appendChild(this.rem); place(this.rem, 1800, 268, { anchor: 'tr' })
       this.rem.style.cssText += `white-space:nowrap;color:${C.pur};padding:6px 26px;border-radius:18px;background:rgba(167,139,250,.10);border:2px solid rgba(167,139,250,.45)`
       // failed bracket from 0 that breaks at the hole
-      const BY = 762
+      const BY = 732
       this.brA = sv(s, 'path', { d: `M${NX(0)},${BY - 26} L${NX(0)},${BY} L${NX(1) - 30},${BY}`, fill: 'none', stroke: C.blu, 'stroke-width': 6, 'stroke-linecap': 'round', 'stroke-linejoin': 'round' })
       this.brk = sv(s, 'path', { d: `M${NX(1) - 30},${BY} l10,-16 l10,30 l10,-28 l10,22`, fill: 'none', stroke: C.red, 'stroke-width': 5, 'stroke-linecap': 'round', 'stroke-linejoin': 'round' })
-      this.gap = rich('ثغرة!', 'h3 red ctr'); root.appendChild(this.gap); place(this.gap, NX(1) - 10, 822, { anchor: 'c' })
+      this.gap = rich('ثغرة!', 'h3 red ctr'); root.appendChild(this.gap); place(this.gap, NX(1) - 10, 792, { anchor: 'c' })
       // green bracket from 2 to +inf
       this.brB0 = sv(s, 'path', { d: `M${NX(2)},${BY - 26} L${NX(2)},${BY}`, fill: 'none', stroke: C.grn, 'stroke-width': 6, 'stroke-linecap': 'round' })
       this.brB = arrow(s, NX(2), BY, 1690, BY, { color: C.grn, width: 6 })
       this.infB = tex('+\\infty', 'mm'); root.appendChild(this.infB); place(this.infB, 1708, BY, { anchor: 'cl' }); this.infB.style.color = C.grn
       this.chip2 = el('div', '', null, root)
       this.chip2.appendChild(tex('n_0 = 2', 'mm'))
-      place(this.chip2, NX(2) + 30, 826, { anchor: 'cl' })
+      place(this.chip2, NX(2) + 30, 796, { anchor: 'cl' })
       this.chip2.style.cssText += `padding:8px 28px;border-radius:999px;border:2.5px solid ${C.yel};background:rgba(255,210,63,.12);color:${C.yel};box-shadow:0 0 30px rgba(255,210,63,.25)`
       this.vals = [['u_2 = \\dfrac{1}{3}', 2], ['u_3 = \\dfrac{1}{8}', 3], ['u_4 = \\dfrac{1}{15}', 4]].map(([l, n]) => {
-        const e = tex(l, 'ms'); root.appendChild(e); place(e, NX(n), 560, { anchor: 'c' }); e.style.color = C.grn
+        const e = tex(l, 'ms'); root.appendChild(e); place(e, NX(n), 530, { anchor: 'c' }); e.style.color = C.grn
         return e
       })
       this.fin = rich('$\\left(\\dfrac{1}{n}\\right)_{n\\ge1}$ و $\\left(\\dfrac{1}{n^2-1}\\right)_{n\\ge2}$ متتاليتان فيهما $n_0 = 1$ و $n_0 = 2$ بالترتيب', 'p ctr')
-      root.appendChild(this.fin); place(this.fin, 960, 932, { anchor: 'c' }); this.fin.style.fontSize = '36px'; this.fin.style.whiteSpace = 'nowrap'
+      root.appendChild(this.fin); place(this.fin, 960, 900, { anchor: 'c' }); this.fin.style.fontSize = '36px'; this.fin.style.whiteSpace = 'nowrap'
     },
 
     render(lt, S) {
@@ -353,6 +353,7 @@
           shake = Math.max(shake, pp(lt, Tk(0) + K(.4), .1) * (1 - pp(lt, Tk(0) + K(.95), .3)))
         } else {
           work = Math.max(work, pp(lt, Tk(k) + K(.35), .15) * (1 - pp(lt, Tk(k) + K(.95), .2)))
+          if (dp >= 1) a = 0      // swallowed: never shows through the machine while it fades out
         }
         putBall(b, x, y, a * (1 - out2), s)
       })

@@ -1,10 +1,13 @@
 // s03 — what is a sequence: the function machine, the index set {n0, n0+1, …}, the notation (u_n), index vs term
 scene('s03', (() => {
   const strip = s => s.replace(/[ً-ْٰـ]/g, '')
-  function cue(S, i, needle, def = 0, lead = .15) {
+  // scene-local time at which the narrator reaches the first of `needles` found in line i (char-proportional estimate)
+  function cue(S, i, needles, def = 0, lead = .15) {
     const L = S.lines[i]
     if (!L) return Infinity
-    const txt = strip(L.text || ''), k = needle ? txt.indexOf(strip(needle)) : -1
+    const txt = strip(L.text || '')
+    let k = -1
+    for (const n of [].concat(needles || [])) { k = txt.indexOf(strip(n)); if (k >= 0) break }
     const f = k >= 0 ? k / Math.max(1, txt.length) : def
     return Math.max(S.at(i), S.at(i) + f * (S.end(i) - S.at(i)) - lead)
   }
@@ -29,21 +32,31 @@ scene('s03', (() => {
       for (let k = 0; k < 4; k++) T.ball[k] = b0 + k * .8
       T.def = Math.max(T.ball[3] + 1.2, cue(S, 0, 'هذه هي', .45))
       T.func = Math.max(T.def + .5, cue(S, 0, 'تابع', .62))
-      T.n0 = Math.max(S.at(1) + 1.6, cue(S, 1, 'تبدأ من', .27))
-      T.inf = Math.max(T.n0 + 1.2, cue(S, 1, 'وتستمر', .55))
-      T.chg = Math.max(T.inf + 1.2, cue(S, 1, 'وقد يتغير', .7))
+      T.n0 = Math.max(S.at(1) + 1.6, cue(S, 1, ['ابتداء من', 'تبدأ من'], .27))
+      T.inf = T.n0 + .9                                   // the bracket runs on to +∞ right away
+      T.gap = Math.max(T.inf + 1.1, cue(S, 1, ['دون ثغرات', 'بلا توقف', 'وتستمر'], .55))
+      T.chg = Math.max(T.gap + 1.6, cue(S, 1, ['وقد يتغير', 'يتغير'], .7))
       T.to1 = T.chg + .2
       T.to5 = T.to1 + Math.max(1.4, (S.end(1) - T.to1) * .45)
       T.cond = Math.max(S.at(2) + 1.3, cue(S, 2, 'حيث', .25))
-      T.or = Math.max(T.cond + 1.5, cue(S, 2, 'أو إن صفر', .45))
+      T.or = Math.max(T.cond + 1.5, cue(S, 2, ['أو أكبر', 'أو المتتالية', 'أو إن صفر'], .45))
       T.name = Math.max(T.or + 1.2, cue(S, 2, 'ونسمي', .58))
       T.term = Math.max(T.name + .6, cue(S, 2, 'حد المتتالية', .7))
       T.idx = Math.max(T.term + .7, cue(S, 2, 'ذا الدليل', .86))
-      T.pos = Math.max(S.at(3) + 1.2, cue(S, 3, 'الدليل موقع', .07))
-      T.val = Math.max(T.pos + .9, cue(S, 3, 'والحد قيمته', .2))
-      T.u7 = Math.max(T.val + 1, cue(S, 3, 'فالحد يو سبعة', .3))
-      T.ord = Math.max(T.u7 + 1.2, cue(S, 3, 'وهو الثامن', .55))
-      T.q = Math.max(T.ord + 1.6, cue(S, 3, 'وقيمته', .78))
+      T.pos = Math.max(S.at(3) + 1.0, cue(S, 3, ['الدليل هو موقع', 'الدليل موقع'], .07))
+      T.val = Math.max(T.pos + .9, cue(S, 3, ['فهو القيمة', 'والحد قيمته'], .2))
+      // older narration also walks through u7 («وهو الثامن…»); the current one stops at «…فهو القيمة»
+      this.hasOrd = /الثامن/.test(strip((S.lines[3] || {}).text || ''))
+      if (this.hasOrd) {
+        T.u7 = Math.max(T.val + 1, cue(S, 3, 'فالحد يو سبعة', .3))
+        T.ord = Math.max(T.u7 + 1.2, cue(S, 3, 'وهو الثامن', .55))
+        T.q = Math.max(T.ord + 1.6, cue(S, 3, 'وقيمته', .78))
+        T.warn = T.q + .4
+      } else {
+        T.u7 = T.pos + .5                       // position: box 7 and its index, caption «u7: الحدّ ذو الدليل 7»
+        T.q = T.val + .3                        // value: «؟»
+        T.warn = Math.max(T.u7 + 1, Math.min(T.q + .5, S.dur - 1.6))
+      }
 
       this.h = heading(root, 'ما المتتالية؟')
       // the two open questions stay pinned in the corner (compact form)
@@ -122,6 +135,10 @@ scene('s03', (() => {
       this.brkHead = sv(ns, 'path', { d: 'M0,-14 L22,0 L0,14 Z', fill: C.blu })
       this.inf = tex('+\\infty', 'mm'); this.inf.style.color = C.blu; this.nl.appendChild(this.inf)
       place(this.inf, 1755, NY - 52, { anchor: 'c' })
+      // «دون ثغرات»: n0, n0+1, n0+2 light up one after another inside the unbroken bracket
+      this.gapDots = [3, 4, 5].map(v => sv(ns, 'circle', { cx: nx(v), cy: NY - 22, r: 11, fill: C.yel, opacity: 0 }))
+      this.gapTag = chip(this.nl, 'دون ثغرات', nx(4.1), NY - 76, { anchor: 'c', color: C.yel })
+      this.gapTag.style.cssText += 'font-size:26px;padding:6px 20px;white-space:nowrap'
       // marker
       this.mk = el('div', '', null, this.nl)
       this.mk.style.cssText += 'position:absolute;width:0;height:0'
@@ -156,7 +173,8 @@ scene('s03', (() => {
         root.appendChild(e); return e
       })
       this.ns2 = svg(root, 0, 0, W, H)
-      this.subRing = sv(this.ns2, 'ellipse', { fill: 'none', stroke: C.blu, 'stroke-width': 5 })
+      root.insertBefore(this.ns2, this.nt)                  // the ring sits behind the glyphs
+      this.subRing = sv(this.ns2, 'ellipse', { fill: 'rgba(56,189,248,.12)', stroke: C.blu, 'stroke-width': 4 })
       this.subLine = sv(this.ns2, 'path', { fill: 'none', stroke: C.blu, 'stroke-width': 3, 'stroke-dasharray': '6 6' })
       this.subLab = el('div', 'h3 b', 'الدليل', root); this.subLab.style.cssText += `color:${C.blu};white-space:nowrap`
       this.term = rich('$u_n$ :&nbsp; <span class="pur b">حدّ المتتالية ذو الدليل $n$</span>', 'h2')
@@ -168,7 +186,7 @@ scene('s03', (() => {
       // ================= line 3: index vs term =================
       this.row = el('div', '', null, root)
       place(this.row, 0, 0, { w: W, h: H })
-      this.ords = ['الأوّل', 'الثاني', 'الثالث', 'الرابع', 'الخامس', 'السادس', 'السابع', 'الثامن'].map((t, i) => {
+      this.ords = (this.hasOrd ? ['الأوّل', 'الثاني', 'الثالث', 'الرابع', 'الخامس', 'السادس', 'السابع', 'الثامن'] : []).map((t, i) => {
         const e = el('div', 's', t, this.row); e.style.cssText += 'white-space:nowrap;font-size:28px'
         place(e, BX(i) + BW / 2, 396, { anchor: 'c' }); return e
       })
@@ -210,7 +228,7 @@ scene('s03', (() => {
       const r = rectIn(this.sub, root)
       this.subR = r
       this.subRing.setAttribute('cx', r.cx); this.subRing.setAttribute('cy', r.cy)
-      const rx = r.w / 2 + 12, ry = r.w / 2 + 20
+      const rx = r.w / 2 + 9, ry = r.w / 2 + 15
       const rn = rectIn(this.nt, root), ra = rectIn(this.ntA, root)
       this.ntShift = (rn.w - ra.w) / 2
       this.conds.forEach((c, i) => { const rc = rectIn(c, root); place(this.condLab[i], rc.cx, rc.y + rc.h + 46, { anchor: 'c' }) })
@@ -220,6 +238,17 @@ scene('s03', (() => {
       place(this.subLab, r.cx, y2 + 30, { anchor: 'c' })
       this.p2w.style.maxHeight = 'none'
       this.p2H = this.p2w.scrollHeight + 4
+      // the card grows line by line with the typed text: first word index + bottom of every text line
+      {
+        const top0 = rectIn(this.p2w, root).y
+        this.p2L = []
+        this.p2._words.forEach((w, i) => {
+          const rw = rectIn(w, root), t = rw.y - top0, b = rw.y + rw.h - top0
+          const last = this.p2L[this.p2L.length - 1]
+          if (!last || t > last.top + 24) this.p2L.push({ i, top: t, bot: b })
+          else last.bot = Math.max(last.bot, b)
+        })
+      }
       // the term caption sits below the label
       place(this.term, W / 2, Math.max(760, y2 + 150), { anchor: 'c' })
       this._ok = fontsOK()
@@ -290,8 +319,17 @@ scene('s03', (() => {
         op(this.defCard, a)
         this.defCard.style.transform = `translateY(${(1 - prog(lt, T.def, .6, E.out)) * 30 - out2 * 24}px)`
         typeWords(this.p1, prog(lt, T.def + .25, Math.max(1.6, S.end(0) - T.def - 1), E.lin))
-        typeWords(this.p2, S.f(lt, 1, .02, .8))
-        this.p2w.style.maxHeight = (this.p2H * S.p(lt, 1, 0, .7)) + 'px'
+        const tp = S.f(lt, 1, .02, .8)
+        typeWords(this.p2, tp)
+        {
+          const n = this.p2._words.length
+          let h = 0
+          for (let L = this.p2L.length - 1; L >= 0; L--) {
+            const q = clamp(tp * (n + 2) - this.p2L[L].i)
+            if (q > 0) { h = lerp(L ? this.p2L[L - 1].bot + 10 : 0, this.p2L[L].bot + 10, E.io(clamp(q * 1.6))); break }
+          }
+          this.p2w.style.maxHeight = Math.min(this.p2H, h) + 'px'
+        }
         const g = prog(lt, T.chg, .5) * (1 - out2)
         this.chg.style.color = mixColor('#eef2ff', C.yel, g)
         this.chg.style.background = `rgba(255,210,63,${(.14 * g * (.75 + .25 * Math.sin(lt * 3))).toFixed(3)})`
@@ -313,9 +351,14 @@ scene('s03', (() => {
         for (let v = 0; v <= 8; v++) {
           const dim = mk > 0 ? clamp(n0 - v + .5) * clamp(mk * 2) : 0
           const inSet = mk > 0 ? clamp(v - n0 + .5) * clamp(mk * 2) : 0
-          this.tnum[v].style.color = mixColor(mixColor('#eef2ff', '#5d6a8f', dim), C.blu, inSet * .85)
+          const gy = v >= 3 && v <= 5 ? env(lt, T.gap + (v - 3) * .35, T.to1 + .3, .25, .4) : 0
+          const base = dim > 0 ? mixColor('#eef2ff', '#5d6a8f', dim) : mixColor('#eef2ff', C.blu, inSet * .85)
+          this.tnum[v].style.color = gy > 0 ? mixColor('#ffffff', C.yel, gy) : base
+          this.tnum[v].style.transform = `scale(${1 + .25 * gy})`
+          this.tnum[v].style.textShadow = gy > 0 ? `0 0 ${20 * gy}px rgba(255,210,63,.7)` : 'none'
           op(this.tnum[v], prog(lt, S.at(1) + .7 + v * .06, .4) * (1 - .55 * dim))
-          this.ticks[v].setAttribute('stroke', dim > .5 ? C.dim : C.mut)
+          this.ticks[v].setAttribute('stroke', gy > .3 ? C.yel : dim > .5 ? C.dim : C.mut)
+          if (gy || (v >= 3 && v <= 5)) this.gapDots[v - 3].setAttribute('opacity', gy)
           this.ticks[v].style.opacity = prog(lt, S.at(1) + .7 + v * .06, .4)
         }
         op(this.ndots, prog(lt, S.at(1) + 1.3, .4)); op(this.nlab, prog(lt, S.at(1) + .6, .4))
@@ -330,6 +373,9 @@ scene('s03', (() => {
         this.brkHead.setAttribute('transform', `translate(${Math.max(xe, xt) + 4} ${by})`)
         this.brkHead.style.opacity = bp > .05 ? 1 : 0
         op(this.inf, tp)
+        const gt = env(lt, T.gap, T.to1 + .3, .4, .4), gi = prog(lt, T.gap, .45, E.out)
+        op(this.gapTag, gt)
+        this.gapTag.style.transform = `translateY(${(1 - gi) * 12}px) scale(${lerp(.85, 1, gi)})`
         // readout
         const ra = S.p(lt, 1, .9, .6) * (1 - out2)
         op(this.ro, ra)
@@ -348,7 +394,8 @@ scene('s03', (() => {
         const a = S.p(lt, 2, .35, .6) * (1 - out3)
         op(this.nt, a)
         const sh = prog(lt, T.or, .8, E.io)
-        this.nt.style.transform = `translate(${-this.ntShift * (1 - sh)}px, ${(1 - S.p(lt, 2, .35, .6)) * 24 - out3 * 30}px)`
+        const br = 1 + .006 * Math.sin(lt * 1.5)          // gentle breathing during the long hold
+        this.nt.style.transform = `translate(${-this.ntShift * (1 - sh)}px, ${(1 - S.p(lt, 2, .35, .6)) * 24 - out3 * 30}px) scale(${br})`
         ;[T.cond, T.or + .6].forEach((t, i) => {
           const c = prog(lt, t, .5), fl = env(lt, t, t + 1.6, .3, .6)
           const la = prog(lt, t + .2, .5) * (1 - prog(lt, T.name, .5)) * (1 - out3)
@@ -408,7 +455,7 @@ scene('s03', (() => {
         const cp = prog(lt, T.u7 + .3, .5)
         op(this.cap7, cp); this.cap7.style.transform = `translateY(${(1 - cp) * 14}px)`
         // ordinals count, "the eighth" lights up
-        this.ords.forEach((e, i) => {
+        if (this.hasOrd) this.ords.forEach((e, i) => {
           const p = prog(lt, T.ord + i * .16, .3)
           op(e, p)
           const on = i === 7 ? prog(lt, T.ord + 7 * .16 + .2, .4) : 0
@@ -420,7 +467,7 @@ scene('s03', (() => {
         const qp = prog(lt, T.q, .5, E.back)
         this.vals[7].style.transform = `translateY(${-36 * clamp(qp)}px) scale(${lerp(1, .68, clamp(qp))})`
         op(this.q7, clamp(qp * 2)); this.q7.style.transform = `translateY(8px) scale(${lerp(.4, 1, qp)})`
-        const wp = prog(lt, T.q + .4, .5)
+        const wp = prog(lt, T.warn, .5)
         op(this.warn, wp); this.warn.style.transform = `translateY(${(1 - wp) * 20}px)`
       }
     },

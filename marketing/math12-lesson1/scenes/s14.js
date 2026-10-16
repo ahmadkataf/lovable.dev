@@ -21,7 +21,7 @@
       // ---------------- line 0: definition ----------------
       const cd = card(root, 'def', 960, 300, 1620, { anchor: 'tc', tag: 'تعريف 3' })
       this.card = cd.el
-      this.def = rich(`نقول إنّ المتتاليةَ $(u_n)_{n\\ge0}$ <span class="yel b">متتاليةٌ هندسيّةٌ</span> إذا وُجِدَ عدد حقيقي $q$ وتحقّقت العلاقة التدريجيّة $u_{n+1} = \\htmlId{${id('xq')}}{${tc(G, 'q\\times')}}\\, u_n$ أيّاً كان العدد الطبيعي $n$. نسمّي العدد $q$ <span class="pur b" id="${id('base')}">أساس</span> المتتالية الهندسيّة.`, 'p')
+      this.def = rich(`نقول إنّ المتتاليةَ $(u_n)_{n\\ge0}$ <span class="yel b">متتاليةٌ هندسيّةٌ</span> إذا وُجِدَ عدد حقيقي $q$ وتحقّقت العلاقة التدريجيّة $u_{n+1} = \\;\\htmlId{${id('xq')}}{${tc(G, 'q\\times')}}\\, u_n$ أيّاً كان العدد الطبيعي $n$. نسمّي العدد $q$ <span class="pur b" id="${id('base')}">أساس</span> المتتالية الهندسيّة.`, 'p')
       this.def.style.lineHeight = '1.75'
       this.def.querySelectorAll('bdi.m').forEach(m => { m.style.fontSize = '1.12em' })
       cd.body.appendChild(this.def); splitWords(this.def)
@@ -112,7 +112,7 @@
       // definition highlights
       const b = R_(document.getElementById(id('base')))
       place(this.baseHl, b.x - 8, b.y + 4, { w: b.w + 16, h: b.h - 8 })
-      const xq = R_('xq'); place(this.xqHl, xq.x - 8, xq.y - 6, { w: xq.w + 16, h: xq.h + 12 })
+      const xq = R_('xq'); place(this.xqHl, xq.x - 7, xq.y - 6, { w: xq.w + 13, h: xq.h + 12 })
       // chain brace (blue) under u_p … u_m
       const c0 = R_('cu0'), c1 = R_('cu1'), cr = R_(this.chain)
       this.brace.setAttribute('d', bracePath(c0.x + 4, c1.x + c1.w - 4, cr.y + cr.h + 8, 30))
@@ -137,14 +137,16 @@
       // ======== line 0: definition card ========
       const out1 = 1 - S.p(lt, 1, 0, .5)
       show(this.card, S.p(lt, 0, .15, .7), out1, 40)
-      typeWords(this.def, clamp((lt - S.at(0) - .4) / Math.max(1.5, .4 * (S.end(0) - S.at(0)))))
-      const pxq = P(lt, S, 0, .5, .5)
+      const tType = Math.max(1.5, .3 * (S.end(0) - S.at(0)))
+      typeWords(this.def, clamp((lt - S.at(0) - .4) / tType))
+      // "q × u_n" is framed when the narrator reads it (and only once it has been typed)
+      const pxq = prog(lt, Math.max(T(S, 0, .28), S.at(0) + .4 + tType * .6), .5)
       op(this.xqHl, clamp(pxq * 1.5) * out1 * (1 - .4 * P(lt, S, 0, .8, .6)))
       this.xqHl.style.transform = `scale(${lerp(1.15, 1, E.out(pxq))})`
-      const pb = P(lt, S, 0, .84, .6)
+      const pb = P(lt, S, 0, .88, .6)
       op(this.baseHl, (pb > 0 ? 1 : 0) * out1); this.baseHl.style.transform = `scaleX(${E.out(pb)})`
-      show(this.book, P(lt, S, 0, .4, .7), out1, 24)
-      const t0 = T(S, 0, .52)
+      show(this.book, P(lt, S, 0, .54, .7), out1, 24)
+      const t0 = T(S, 0, .62)
       this.ch0p.forEach((e, k) => { const p = prog(lt, t0 + k * .22, .45); op(e, p * out1); e.style.transform = `translateX(${(1 - p) * -20}px)` })
 
       // ======== line 1: bars ========
@@ -184,9 +186,9 @@
         const p = P(lt, S, 2, .03 + k * .032, .5)
         op(e, p * lerp(1, .55, P(lt, S, 2, .5, .8))); e.style.transform = `translateX(${(1 - p) * -24}px)`
       })
-      draw(this.brace, P(lt, S, 2, .32, .7))
-      show(this.braceLab, P(lt, S, 2, .35, .6), 1, 14)
-      show(this.ar, P(lt, S, 2, .42, .7), 1, 30)
+      draw(this.brace, P(lt, S, 2, .36, .7))
+      show(this.braceLab, P(lt, S, 2, .39, .6), 1, 14)
+      show(this.ar, P(lt, S, 2, .44, .7), 1, 30)
       const pk = P(lt, S, 2, .5, .6)
       this.kb.set(pk)
       this.kb.el.style.boxShadow = `0 0 ${42 + 16 * Math.sin(lt * 1.6)}px ${Y}3a`

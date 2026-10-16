@@ -234,7 +234,7 @@
       // window views
       const sT = [null, a1 + .1, a2 + .1, T(S, 3, .1) + K(1.5), Infinity]
       ;[this.v0, this.v1, this.v2, this.v3].forEach((v, i) => {
-        const pin = i === 0 ? mIn : pp(lt, sT[i] + .22, .4, E.out), out = pp(lt, sT[i + 1], .28, E.in)
+        const pin = i === 0 ? mIn : pp(lt, sT[i] + .3, .4, E.out), out = pp(lt, sT[i + 1], .28, E.in)   // sequential: no text over text in the window
         op(v, pin * (1 - out))
         v.style.transform = `translateY(${(1 - pin) * 22 - out * 22}px)`
       })
@@ -244,8 +244,10 @@
       // ---------- L1: four balls → table cells + plot ----------
       const lab2T = Math.max(a2 + 1.5, T(S, 2, .24))
       const out1 = pp(lt, lab2T - .7, .6)
+      // as soon as line 2 starts (window switches to u_n = f(n)) the first example recedes, then leaves
+      const dim1 = 1 - .6 * S.p(lt, 2, .1, .5)
       const tIn = S.p(lt, 1, .4, .6, E.out)
-      rise(this.tb, tIn * (1 - out1))
+      rise(this.tb, tIn * (1 - out1)); op(this.tb, +this.tb.style.opacity * dim1)
       const t0 = T(S, 1, .36), step = Math.max(.55, .12 * d1), cy = clamp(step / 1.25, .45, 1)
       const QY = HOPY - 52
       this.balls1.forEach((b, k) => {
@@ -284,7 +286,7 @@
       this.env.forEach(e => { e.style.opacity = .7 * pp(lt, lastLand + .6, .6) })
       op(this.to0, pp(lt, lastLand + .9, .5))
       const pIn = S.p(lt, 1, .7, .6)
-      op(this.P.box, pIn * (1 - out1))
+      op(this.P.box, pIn * (1 - out1) * dim1)
       draw(this.P.xAxis, pIn); draw(this.P.yAxis, pIn)
 
       // ---------- L2: u_n = f(n) ----------

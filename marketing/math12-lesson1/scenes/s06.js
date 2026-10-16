@@ -114,7 +114,7 @@
       this.pipeLen = this.pipeIn.getTotalLength()
       this.eat = nw(rich('الآلة تأكل مخرجها', 's')); root.appendChild(this.eat); place(this.eat, MX + 190, HOPY - 126, { anchor: 'c' }); this.eat.style.color = C.pur
       this.inL = tex('u_n', 'mm'); root.appendChild(this.inL); place(this.inL, MX - 118, HOPY + 8, { anchor: 'cr' }); this.inL.style.color = C.blu
-      this.outL = tex('u_{n+1}', 'mm'); root.appendChild(this.outL); place(this.outL, MX - 84, CHY + 4, { anchor: 'cr' }); this.outL.style.color = C.yel
+      this.outL = tex('u_{n+1}', 'mm'); root.appendChild(this.outL); place(this.outL, MX - 100, CHY + 4, { anchor: 'cr' }); this.outL.style.color = C.yel
 
       // value cards riding the pipe
       this.tok = ['3', '7', '47', '2207'].map(v => valCard(root, v, 'mm'))
@@ -216,7 +216,7 @@
       this.flow.style.strokeDashoffset = -lt * 120
       this.flow.style.filter = flowOn > 0 ? 'drop-shadow(0 0 6px rgba(255,210,63,.8))' : ''
       // window views
-      const vIn = S.p(lt, 1, .7, .5, E.out), sw = pp(lt, T(S, 3, .5), .3, E.in), swIn = pp(lt, T(S, 3, .5) + .25, .45, E.out)
+      const vIn = S.p(lt, 1, .7, .5, E.out), sw = pp(lt, T(S, 3, .5), .3, E.in), swIn = pp(lt, T(S, 3, .5) + .32, .45, E.out)   // new view only after the old one has gone
       op(this.vRel, vIn * (1 - sw)); this.vRel.style.transform = `translateY(${(1 - vIn) * 20 - sw * 22}px)`
       op(this.vF, swIn); this.vF.style.transform = `translateY(${(1 - swIn) * 22}px)`
       let work = 0, winGlow = pp(lt, T(S, 3, .5) + .3, .4) * (1 - pp(lt, T(S, 3, .5) + 1.6, .6))

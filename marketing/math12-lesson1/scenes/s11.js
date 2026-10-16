@@ -220,12 +220,13 @@
       vis(this.R1.tag, pf(S, lt, 2, .04, .6), 0, 0, ` translateX(${(1 - pf(S, lt, 2, .04, .6)) * 30}px)`)
 
       // ===== line 2: r = −3 and r = 0 =====
-      const L2 = pf(S, lt, 2, .08, .9)
+      const len2 = S.end(2) - S.at(2)
+      const L2 = pf(S, lt, 2, .04, Math.min(.9, .1 * len2))   // the line is drawn before the point lands on it
       const g0 = pf(S, lt, 2, .14, .5, E.out), gk = [.2, .29, .38].map(f => pf(S, lt, 2, f, Math.min(.65, .09 * (S.end(2) - S.at(2))), E.lin))
       setRow(this.R2, L2, [g0, ...gk], out2)
       op(this.R2.par, pf(S, lt, 2, .14, .5))
       vis(this.R2.tag, pf(S, lt, 2, .46, .6), 0, 0, ` translateX(${(1 - pf(S, lt, 2, .46, .6)) * 30}px)`)
-      const L3 = pf(S, lt, 2, .6, .9)
+      const L3 = pf(S, lt, 2, .58, Math.min(.9, .08 * len2))
       const z0 = pf(S, lt, 2, .66, .5, E.out)
       setRow(this.R3, L3, [z0, z0, z0, z0], out2)
       this.R3.hops.forEach(h => { h.ar.set(0); op(h.lab, 0) })

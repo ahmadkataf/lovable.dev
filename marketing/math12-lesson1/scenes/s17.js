@@ -36,8 +36,10 @@ scene('s17', {
     this.caseA = mkCase(1800, 'tr', 'x = a', [
       ['اليسار: $a^n - a^n = 0$'],
       ['اليمين: $(a-a)\\,(\\cdots) = 0 \\times (\\cdots) = 0$'],
+      [`العامل $${col(Y, '(x-a)')}$ ينعدم، مهما كان القوس الثاني`, 's'],
       ['<span class="grn b">✓ الطرفان معدومان</span>'],
     ])
+    this.caseA.rows[2].style.color = C.mut
     this.caseB = mkCase(120, 'tl', 'x = 0', [
       ['اليسار: $0 - a^n = -a^n$'],
       [`اليمين: $(0-a)\\,(0 + 0 + \\cdots + ${col(Y, 'a^{n-1}')})$`],
@@ -92,21 +94,48 @@ scene('s17', {
     // the book's line: frame + thumbnail of p.10
     this.frame = el('div', '', null, this.r1)
     this.frame.style.cssText = `position:absolute;border-radius:22px;border:2px solid ${Y}66;background:rgba(255,210,63,.04)`
-    this.thumb = bookThumb(root, 10, 176, 268, 150, { x: .3, y: .095, w: .42, h: .065 })
-    const cap = el('div', '', 'الكتاب ص 10', this.thumb.el)
-    cap.style.cssText = 'position:absolute;left:0;right:0;bottom:0;padding:4px 0 6px;text-align:center;font-size:22px;font-weight:800;color:#fff;background:rgba(11,16,32,.82)'
+    // the book: bottom of p.9 (the substitution) + top of p.10 (the result line, highlighted)
+    this.thumb = { el: el('div', '', null, root) }
+    const CW = 720, PW = 888, X0 = .1, K = CW / (PW * (1 - 2 * X0))
+    place(this.thumb.el, 960, 562, { anchor: 'tc', w: CW })
+    const clip = el('div', '', null, this.thumb.el)
+    clip.style.cssText = 'border-radius:16px;overflow:hidden;background:#fff;box-shadow:0 30px 80px rgba(0,0,0,.55)'
+    let yAcc = 0
+    const slice = (page, y0, y1, hl) => {
+      const sl = el('div', '', null, clip), h = Math.round((y1 - y0) * K)
+      sl.style.cssText = `position:relative;overflow:hidden;height:${h}px`
+      const im = el('img', '', null, sl)
+      im.src = `assets/book/p${String(page).padStart(3, '0')}.jpg`
+      im.style.cssText = `position:absolute;display:block;width:${PW * K}px;left:${-X0 * PW * K}px;top:${-y0 * K}px`
+      // page tab outside the paper, on its left edge
+      const tag = el('div', '', `ص ${page}`, this.thumb.el)
+      tag.style.cssText = `position:absolute;right:${CW + 14}px;top:${yAcc + h / 2}px;translate:0 -50%;padding:4px 14px;border-radius:999px;font-size:22px;font-weight:800;white-space:nowrap;direction:rtl;color:#0b1020;background:${C.pur}`
+      yAcc += h + 3
+      if (hl) {
+        const m = el('div', '', null, sl)
+        m.style.cssText = `position:absolute;left:${(hl[0] - X0 * PW) * K}px;top:${(hl[1] - y0) * K}px;width:${(hl[2] - hl[0]) * K}px;height:${(hl[3] - hl[1]) * K}px;border:4px solid ${Y};border-radius:12px;background:rgba(255,210,63,.16)`
+        this.thumb.mark = m
+      }
+      return sl
+    }
+    slice(9, 978, 1084)
+    const tear = el('div', '', null, clip)
+    tear.style.cssText = 'height:0;border-top:3px dashed #9aa8c9'
+    slice(10, 92, 226, [272, 124, 626, 194])
+    const cap = el('div', '', '📖 الكتاب ص 9–10', clip)
+    cap.style.cssText = 'padding:4px 0 6px;text-align:center;font-size:22px;font-weight:800;color:#fff;background:rgba(11,16,32,.88);direction:rtl'
 
     // ================= L3: × x^{n-1}(x-a) =================
     const pchip = () => { const e = el('div', 'chip', kt(col(P, '\\times\\; x^{n-1}(x-a)')), this.r1); e.style.cssText += `position:absolute;direction:ltr;border-color:${P}99;background:${P}1f;color:${P};font-size:34px;padding:6px 22px`; return e }
     this.pcL = pchip(); this.pcR = pchip()
     this.skR = [strike(), strike()]
-    this.rule = rich(`لأنّ &nbsp;$${col(P, 'x^{n-1}')}\\cdot\\dfrac{a^k}{x^k} = x^{n-1-k}\\,a^k$`, 'p'); root.appendChild(this.rule)
+    this.rule = rich(`لأنّ &nbsp;$${col(P, 'x^{n-1}')}\\cdot\\dfrac{a^k}{x^k} = x^{n-1-k}\\,a^k$&nbsp; حيث $k = 0, 1, \\dots, n-1$`, 'p'); root.appendChild(this.rule)
     place(this.rule, 960, 614, { anchor: 'c' }); this.rule.style.whiteSpace = 'nowrap'
     const sF = ['(x-a)', '(', 'x^{n-1}', '{}+{}', 'x^{n-2}a', '{}+{}', 'x^{n-3}a^2', '{}+{}', '\\cdots', '{}+{}', 'a^{n-1}', ')', '{}={}', 'x^n-a^n']
     this.rowF = mk(pcs('F', sF), this.r1, 960, this.R1Y, 60); op(this.rowF, 0)
     this.fp = getP('F', sF.length)
     const sQ = ['x^n-a^n', '{}={}', '(x-a)', '(', 'x^{n-1}', '{}+{}', 'x^{n-2}a', '{}+{}', 'x^{n-3}a^2', '{}+{}', '\\cdots', '{}+{}', 'a^{n-1}', ')']
-    this.kb = keyBox(root, pcs('Q', sQ), 960, 590, { cls: 'mx', color: G, label: '✓ تمّ البرهان' })
+    this.kb = keyBox(root, pcs('Q', sQ), 960, 540, { cls: 'mx', color: G, label: '✓ تمّ البرهان' })
     this.kb.f.style.fontSize = '60px'
     this.qp = getP('Q', sQ.length)
     this.kbTag = this.kb.el.querySelector('.tag')
@@ -197,14 +226,14 @@ scene('s17', {
 
     // ================= L0 =================
     const out0 = S.p(lt, 1, 0, .5)
-    wipe(this.goal, S.p(lt, 0, .2, 1), 'ltr'); op(this.goal, 1 - S.p(lt, 1, 0, .5))
+    const wG = S.p(lt, 0, .2, 1); wipe(this.goal, wG, 'ltr'); op(this.goal, Math.min(clamp(wG * 14), 1 - S.p(lt, 1, 0, .5)))
     const caseIn = [prog(lt, at(0, .14), .6), prog(lt, at(0, .42), .6)]
     ;[this.caseA, this.caseB].forEach((c, i) => {
       const p = caseIn[i]
       // collapse into the rail chips at the start of L1
       op(c.el, Math.min(p, 1 - out0))
       c.el.style.transform = `translateY(${(1 - p) * 30 - out0 * 26}px) scale(${1 - out0 * .05})`
-      const t0 = i === 0 ? [.24, .32, .44] : [.5, .56, .62, .68, .78]
+      const t0 = i === 0 ? [.22, .29, .36, .44] : [.5, .56, .62, .68, .78]
       c.rows.forEach((r, k) => rise(r, prog(lt, at(0, t0[k]), .45), 18))
       const ck = prog(lt, at(0, i === 0 ? .44 : .78), .5)
       pop(c.box, ck)
@@ -231,15 +260,21 @@ scene('s17', {
     const pAB = prog(lt, tAB, 1.6, E.lin)
     const order = [0, 0, 1, 1, 2, 2, 3, 3, 4, 4, 5]          // stagger: q, q², …, then the right side
     const pBC = prog(lt, at(2, 0) + .3, 1.2, E.lin)
-    const tK6 = at(2, .86), tCD = Math.max(at(2, .93), tK6 + .7)
+    // L2 «فيصبح الطرف الأيسر مجموعَ قُوى الكسر a/x. وفي الطرف الأيمن نوحّد المقامات ونختصر.»
+    const tK6 = at(2, .88), tCD = Math.max(at(2, .97), tK6 + .6)
     const pCD = prog(lt, tCD, .9, E.lin)
     const s1 = pAB + pBC + pCD
     const st = Math.min(Math.floor(s1), 2), p1 = s1 - st
     const fl = [this.mAB, this.mBC, this.mCD][st]
     const stag = (p, k, n, w = .55) => E.io(clamp((p - k / n * (1 - w)) / w))
     // L3 timing (needed here: row 1 hands over to row F)
-    const tStrike = at(3, .48), tFly = Math.max(at(3, .54), tStrike + .6)
-    const pDF = prog(lt, tFly, 1.6, E.lin)
+    // L3 «أخيراً نضرب الطرفين بالمقدار x^{n-1}(x−a). فيفقد كلّ كسرٍ مقامه، وتظهر المطابقة كاملة.»
+    const g3 = clamp(D(3) / 11.4, .6, 1)                       // shorter line → shorter holds
+    const tClipOut = Math.max(at(3, .3), tCD + 2.6 * g3)        // the book clip (L2) leaves before the rule comes in
+    const tRule = Math.max(at(3, .38), tClipOut + .35)
+    const tStrike = Math.max(at(3, .52), tRule + .5), tFly = Math.max(at(3, .64), tStrike + .6)
+    const flyD = 1.6 * g3
+    const pDF = prog(lt, tFly, flyD, E.lin)
     if (pDF <= 0) {
       this.rows1.forEach((r, j) => op(r.el, j === st || j === st + 1 ? 1 : 0))
       if (st === 2) this._flip(fl, () => E.io(p1), k => clamp(p1 * 1.5 - (k === 10 ? .3 : 0)))
@@ -257,24 +292,27 @@ scene('s17', {
     })
 
     // ================= L2 =================
-    const kT = [at(2, .4), at(2, .52), at(2, .52), at(2, .64), at(2, .64), tK6, tK6]
-    const chainOut = prog(lt, tCD + .2, .5)
+    const kT = [at(2, .3), at(2, .5), at(2, .5), at(2, .66), at(2, .66), tK6, tK6]
+    const chainOut = prog(lt, tCD + .25, .5)
     this.kp.forEach((e, k) => { const p = prog(lt, kT[k] + (k % 2 ? 0 : .12), .55); e.style.opacity = Math.min(p, 1 - chainOut); e.style.transform = `translateY(${(1 - p) * 20}px)` })
     op(this.chain, prog(lt, kT[0], .01) > 0 ? 1 : 0)
-    op(this.steps, Math.min(prog(lt, at(2, .52), .6), 1 - chainOut))
-    const tS = at(2, .74)
+    op(this.steps, Math.min(prog(lt, at(2, .5), .6), 1 - chainOut))
+    const tS = at(2, .8)
     this.sk.forEach((s, k) => { const p = prog(lt, tS + k * .25, .35); op(s, Math.min(p > 0 ? 1 : 0, 1 - chainOut)); s.style.transform = `scaleX(${p})` })
     pop(this.kNew, Math.min(prog(lt, tS + .55, .5), 1 - chainOut))
     // the last step glows before it replaces the right side of row 1
     this.kp[6].style.textShadow = env(lt, tK6 + .3, tCD + .4, .3, .3) > 0 ? `0 0 ${16 * env(lt, tK6 + .3, tCD + .4, .3, .3)}px rgba(255,210,63,.7)` : ''
-    const fr = Math.min(prog(lt, tCD + .7, .6), 1 - S.p(lt, 3, .2, .5))
+    // the book's result line: framed in row 1, and shown in the book (bottom of p.9 + top of p.10)
+    const clipOut = prog(lt, tClipOut, .45)
+    const fr = Math.min(prog(lt, tCD + .7, .6), 1 - clipOut)
     op(this.frame, fr)
-    const th = Math.min(prog(lt, tCD + .8, .7), 1 - prog(lt, at(3, .48), .5))
-    op(this.thumb.el, th); this.thumb.el.style.transform = `translateY(${(1 - th) * 20}px)`
+    const th = Math.min(prog(lt, tCD + .45, .7), 1 - clipOut)
+    op(this.thumb.el, th); this.thumb.el.style.transform = `translateY(${(1 - th) * 24}px) scale(${lerp(.97, 1, th)})`
+    if (this.thumb.mark) this.thumb.mark.style.boxShadow = `0 0 ${10 + 8 * Math.sin(lt * 2.6)}px rgba(255,210,63,.6)`
 
     // ================= L3 =================
     const pc = S.p(lt, 3, .35, .6)
-    const tFin = Math.max(tFly + 1.7, Math.min(Math.max(at(3, .8), tFly + 2), S.dur - 2.4))   // the box must be complete before the scene ends
+    const tFin = Math.max(tFly + flyD + .1, Math.min(Math.max(at(3, .8), tFly + flyD + .4), S.dur - 2.4))   // the box must be complete before the scene ends
     const finOut = prog(lt, tFin, .5)
     pop(this.pcL, pDF > 0 ? 1 : pc); pop(this.pcR, Math.min(pc, 1 - prog(lt, tFly + .1, .45)))
     // right side: x^{n-1}(x-a) cancels with the denominator
@@ -290,11 +328,11 @@ scene('s17', {
     if (pDF > 0) this._flip(this.mDF, k => (k === 11 ? E.io(clamp((pDF - .3) / .7)) : E.io(pDF)), k => (k === 12 ? (pDF - .72) / .28 : k in fo ? (pDF - .08 - fo[k] * .12) / .3 : pDF >= 1 ? 1 : 0))
     else this.fp.forEach(e => (e.style.opacity = 0))
     // freshly multiplied terms arrive purple and settle to white
-    const settle = prog(lt, tFly + 1.5, .8)
+    const settle = prog(lt, tFly + flyD - .1, .8)
     ;[2, 4, 6, 10].forEach(k => (this.fp[k].style.color = mixColor(C.pur, C.ink, settle)))
     this.fp[0].style.color = mixColor(C.pur, C.ink, settle)
-    op(this.rule, Math.min(prog(lt, at(3, .36), .6), 1 - finOut))
-    this.rule.style.transform = `translateY(${(1 - prog(lt, at(3, .36), .6)) * 20}px)`
+    op(this.rule, Math.min(prog(lt, tRule, .6), 1 - finOut))
+    this.rule.style.transform = `translateY(${(1 - prog(lt, tRule, .6)) * 20}px)`
     // final: the two sides swap into the boxed identity
     const pSw = prog(lt, tFin + .25, 1.2, E.lin)
     if (pSw > 0) {
@@ -309,8 +347,8 @@ scene('s17', {
     b.style.boxShadow = `0 0 ${40 + 14 * Math.sin(lt * 2)}px rgba(110,224,90,${.22 * fa})`
     op(this.kbTag, fa); this.kbTag.style.transform = `scale(${lerp(.7, 1, E.back(fa))})`
     // book line (L3)
-    const q3 = prog(lt, at(3, .1), .6)
-    const q3up = prog(lt, tFin + .2, 1.1) * -112
+    const q3 = prog(lt, Math.max(at(3, .1), tClipOut + .3), .6)
+    const q3up = prog(lt, tFin + .2, 1.1) * -160
     op(this.q3.t, q3); op(this.q3.bar, q3); this.q3.bar.style.transform = `translateY(${q3up}px) scaleY(${E.out(q3)})`
     this.q3.t.style.transform = `translateY(${q3up}px)`
   },

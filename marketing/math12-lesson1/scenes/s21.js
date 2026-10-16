@@ -1,10 +1,12 @@
 // s21 · تدرّب: التمرين ① — u_n = 2^n / 3^(n+1) is geometric.
+// Lines (script.json, 7 lines; an older 6-line timeline merged L1+L2 — both are handled by the line map `L` below):
 // L0: book page 11 (exercise ① highlighted) → the exercise card, the goal chip, a 5 s pause ring.
-// L1: u_{n+1} = 2^{n+1}/3^{(n+1)+1} = 2^{n+1}/3^{n+2}; the hunt for u_n starts: 2^{n+1} = 2 × 2^n (2^n yellow).
-// L2: 3^{n+2} = 3 × 3^{n+1} (3^{n+1} yellow); the line now reads u_{n+1} = (2·2^n)/(3·3^{n+1}).
-// L3: the yellow pieces are pulled out → 2/3 × 2^n/3^{n+1} = 2/3 u_n; green result box q = 2/3; u_0 = 1/3.
-// L4: model answer card + exam footnote (u_n ≠ 0 before using the ratio).
-// L5: bars 1/3, 2/9, 4/27 (×2/3 each) → strictly decreasing (method ③), mini copy of the w_n bars.
+// L1 (sub): u_{n+1} = 2^{n+1}/3^{(n+1)+1} = 2^{n+1}/3^{n+2}, the substituted n+1 in blue.
+// L2 (num): the hunt for u_n starts (pieces of the given glow): 2^{n+1} = 2 × 2^n (2^n yellow).
+// L3 (den): 3^{n+2} = 3 × 3^{n+1} (3^{n+1} yellow); the line now reads u_{n+1} = (2·2^n)/(3·3^{n+1}).
+// L4 (res): the yellow pieces are pulled out → 2/3 × 2^n/3^{n+1} = 2/3 u_n; green result box q = 2/3; u_0 = 1/3.
+// L5 (exam): model answer card + exam footnote (u_n ≠ 0 before using the ratio).
+// L6 (bars): bars 1/3, 2/9, 4/27 (×2/3 each) → strictly decreasing (method ③), mini copy of the w_n bars.
 ;(() => {
   const ID = 's21'
   const Y = C.yel, G = C.grn, R = C.red, B = C.blu, P = C.pur
@@ -25,11 +27,11 @@
 
       // ================= L0: book page, exercise card, goal chip, pause ring
       this.thumb = bookThumb(root, 11, 150, 300, 330, { x: .135, y: .138, w: .735, h: .052 })
-      this.thumbLab = nowrap(chip(root, '📖 الكتاب ص 11 · تدرَّبْ', 315, 790, { anchor: 'tc' }))
+      this.thumbLab = nowrap(chip(root, '📖 الكتاب ص 11 — تدرَّبْ', 315, 790, { anchor: 'tc' }))
       this.thumbLab.style.fontSize = '26px'
       const c0 = card(root, 'ex', 1800, 330, 1180, { anchor: 'tr', tag: '✏️ تدرَّبْ · التمرين ① · ص 11' })
       this.card0 = c0.el
-      this.cardT = rich(`ليكن $${id('cu', 'u_n = \\dfrac{2^n}{3^{n+1}}')}$ في حالة $n\\in\\mathbb{N}$. أثبت أنّ المتتالية $(u_n)_{n\\ge0}$ متتالية هندسية <span class="yel b">وجِدْ أساسها</span>.`, 'h3')
+      this.cardT = rich(`<span style="color:${R};font-weight:900">①</span> ليكن $${id('cu', 'u_n = \\dfrac{2^n}{3^{n+1}}')}$ في حالة $n\\in\\mathbb{N}$. أثبت أنّ المتتالية $(u_n)_{n\\ge0}$ متتالية هندسية <span class="yel b">وجِدْ أساسها</span>.`, 'h3')
       this.cardT.style.lineHeight = '1.75'
       c0.body.appendChild(this.cardT); splitWords(this.cardT)
       // goal chip (moves to the top-left corner at L1)
@@ -37,7 +39,7 @@
       this.goal.style.fontSize = '30px'
       // pause ring
       this.cdw = el('div', '', null, root); place(this.cdw, 0, 0, { w: W, h: H })
-      this.cd = countdown(this.cdw, 1190, 820, 64, 'حاول أوّلاً')
+      this.cd = countdown(this.cdw, 1210, 820, 64, 'حاول أوّلاً')
       { const lb = this.cdw.lastElementChild.lastElementChild; lb.style.cssText += ';position:absolute;left:50%;top:150px;translate:-50% 0;white-space:nowrap;margin:0;color:' + C.mut }
 
       // ================= L1–L3: the given strip (top-left)
@@ -48,9 +50,10 @@
       place(this.given, 120, 150)
 
       // L1: substitution row
-      const nb = tc(B, 'n+1')
+      const nb = `\\htmlClass{${ID}-nb}{${tc(B, 'n+1')}}`
       this.rA = tex(`u_{${nb}} = \\dfrac{2^{${nb}}}{3^{(${nb})+1}} ${id('a2', `= \\dfrac{${id('nA', '2^{n+1}')}}{${id('dA', '3^{n+2}')}}`)}`, 'mx')
       root.appendChild(this.rA)
+      this.nbs = [...this.rA.querySelectorAll(`.${ID}-nb`)]   // the substituted n+1 (blue): they pulse while the line is spoken
       this.subL = nowrap(rich(`نضع $${tc(B, 'n+1')}$ مكان $${tc(B, 'n')}$`, 's')); root.appendChild(this.subL)
       this.subL.style.color = B
       // hunt label
@@ -110,27 +113,30 @@
       this.fc = fc.el
       fc.el.style.padding = '30px 44px 24px'
       this.f1 = nowrap(rich('لإثبات أنّها هندسيّة: أظهر $u_{n+1} = q\\,u_n$ حيث $q$ ثابت لا يتعلّق بـ $n$', 'p')); fc.body.appendChild(this.f1)
-      this.f2 = nowrap(rich('وبالنسبة $\\frac{u_{n+1}}{u_n}$: اذكر أوّلاً $u_n \\ne 0$', 'p')); fc.body.appendChild(this.f2)
+      this.f2 = nowrap(rich(`وإن استعملت النسبة $\\dfrac{u_{n+1}}{u_n}$ فاذكر أوّلاً أنّ $${id('ne0', 'u_n \\ne 0')}$`, 'p')); fc.body.appendChild(this.f2)
+      this.f2.querySelectorAll('bdi.m')[1].style.marginRight = '14px'   // air between «أنّ» and the framed u_n ≠ 0
       ;[this.f1, this.f2].forEach(e => { e.style.fontSize = '36px'; e.style.lineHeight = '1.7' })
       this.f2.style.display = 'inline-block'
       this.f2m = el('div', 'hlbg', null, this.f2); this.f2m.style.cssText += ';position:absolute;inset:-2px -14px;z-index:-1;transform-origin:100% 50%'
       this.f2.style.position = 'relative'; this.f2.style.isolation = 'isolate'
       const fw = el('div', 'ar', null, fc.body); fw.appendChild(this.f2)
+      // frame around «u_n ≠ 0» (placed in _layout, inside the footnote card so it moves with it)
+      this.neBox = el('div', 'hlbox', null, fc.el); this.neBox.style.borderRadius = '12px'; this.neBox.style.borderWidth = '3px'
 
       // ================= L5: bars
       const bs = svg(root, 0, 0, W, H)
       const defs = sv(bs, 'defs')
       const gr = (gid, c1, c2) => { const g = sv(defs, 'linearGradient', { id: gid, x1: 0, y1: 0, x2: 0, y2: 1 }); sv(g, 'stop', { offset: 0, 'stop-color': c1 }); sv(g, 'stop', { offset: 1, 'stop-color': c2 }) }
       gr(`${ID}-gb`, '#ff7fa6', '#b8325c'); gr(`${ID}-gw`, 'rgba(255,92,138,.55)', 'rgba(255,92,138,.18)')
-      this.BASE = 742
+      this.BASE = 708
       this.bars = [1 / 3, 2 / 9, 4 / 27].map((v, k) => {
-        const x = 1060 + k * 250, h = v * 3 * 372
+        const x = 1060 + k * 250, h = v * 3 * 350
         const r = sv(bs, 'rect', { x: x - 66, width: 132, rx: 12, fill: `url(#${ID}-gb)` })
         return { r, x, h, v }
       })
       this.baseL = sv(bs, 'path', { d: `M${930},${this.BASE} L${1700},${this.BASE}`, stroke: C.dim, 'stroke-width': 3, fill: 'none' })
-      this.bLab = ['u_0 = \\frac13', 'u_1 = \\frac29', 'u_2 = \\frac4{27}'].map((s, k) => {
-        const e = tex(s, 'ms'); root.appendChild(e); place(e, this.bars[k].x, this.BASE + 18, { anchor: 'tc' }); return e
+      this.bLab = ['u_0 = \\dfrac13', 'u_1 = \\dfrac29', 'u_2 = \\dfrac4{27}'].map((s, k) => {
+        const e = tex(s, 'ms'); e.style.fontSize = '34px'; root.appendChild(e); place(e, this.bars[k].x, this.BASE + 14, { anchor: 'tc' }); return e
       })
       this.bArc = [0, 1].map(k => {
         const a = this.bars[k], b = this.bars[k + 1]
@@ -138,33 +144,36 @@
         const bend = -.32, ar = arrow(bs, x1, y1, x2, y2, { color: R, width: 4, bend })
         const mx = (x1 + x2) / 2 - (y2 - y1) * bend, my = (y1 + y2) / 2 + (x2 - x1) * bend
         const ax = .25 * x1 + .5 * mx + .25 * x2, ay = .25 * y1 + .5 * my + .25 * y2
-        const l = tex(tc(R, '\\times\\frac23'), 'ms'); root.appendChild(l)
-        place(l, ax + 10, ay - 14, { anchor: 'bc' })
+        const l = tex(tc(R, '\\times\\tfrac23'), 'mm'); root.appendChild(l)
+        place(l, ax + 14, ay - 10, { anchor: 'bc' })
         return { ar, l }
       })
       // mini copy of the w_n bars (s20)
       this.wB = [1, 2 / 3, 4 / 9, 8 / 27, 16 / 81].map((v, k) => {
-        const x = 236 + k * 84, h = v * 250
+        const x = 236 + k * 84, h = v * 240
         const r = sv(bs, 'rect', { x: x - 26, width: 52, rx: 8, fill: `url(#${ID}-gw)`, stroke: 'rgba(255,92,138,.6)', 'stroke-width': 2 })
         return { r, x, h }
       })
+      this.wL = this.wB.map((b, k) => { const e = tex(`w_${k}`, 'ms'); e.style.fontSize = '28px'; e.style.color = C.mut; root.appendChild(e); place(e, b.x, this.BASE + 12, { anchor: 'tc' }); return e })
       this.wBase = sv(bs, 'path', { d: `M${180},${this.BASE} L${630},${this.BASE}`, stroke: C.dim, 'stroke-width': 2, fill: 'none' })
       this.wT = el('div', '', null, root)
       this.wT.style.cssText += 'display:flex;flex-direction:column;align-items:center;gap:4px'
       const wt1 = nowrap(rich('كالمتتالية', 's')); this.wT.appendChild(wt1)
       this.wT.appendChild(tex('w_n = \\left(\\frac23\\right)^n', 'mm'))
-      place(this.wT, 404, 300, { anchor: 'tc' })
+      place(this.wT, 404, 270, { anchor: 'tc' })
       this.div = el('div', '', null, root); this.div.style.cssText += `width:2px;height:420px;background:linear-gradient(180deg,rgba(154,168,201,0),rgba(154,168,201,.35),rgba(154,168,201,0))`
-      place(this.div, 780, 340)
-      // the pink conclusion line
+      place(this.div, 780, 306)
+      // the pink conclusion line (the spec's sentence: «بما أنّ … ، إذن … متناقصة تماماً (الطريقة ③)»)
       this.pl = el('div', '', null, root)
-      this.pl.style.cssText += `display:flex;align-items:center;gap:22px;direction:rtl;padding:10px 34px;border-radius:24px;border:2px solid ${R}88;background:rgba(255,92,138,.09)`
-      this.plA = nowrap(rich(`$u_n > 0$ و $\\dfrac{u_{n+1}}{u_n} = \\dfrac23 < 1$`, 'p')); this.pl.appendChild(this.plA)
-      this.plArr = tex(tc(R, '\\Longleftarrow'), 'mm'); this.pl.appendChild(this.plArr)
-      this.plB = nowrap(rich(`$(u_n)_{n\\ge0}$ <span class="b">متناقصة تماماً</span>`, 'p')); this.plB.style.color = R; this.pl.appendChild(this.plB)
+      this.pl.style.cssText += `display:flex;align-items:center;gap:20px;direction:rtl;padding:10px 34px;isolation:isolate`
+      // its frame is a separate layer so the box can grow right → left with the sentence and stay closed
+      this.plBg = el('div', '', null, this.pl)
+      this.plBg.style.cssText = `position:absolute;top:0;bottom:0;right:0;left:0;z-index:-1;border-radius:24px;border:2px solid ${R}88;background:rgba(255,92,138,.09)`
+      this.plA = nowrap(rich(`بما أنّ $u_n > 0$ و $\\dfrac{u_{n+1}}{u_n} = \\dfrac23 < 1$،`, 'p')); this.pl.appendChild(this.plA)
+      this.plB = nowrap(rich(`إذن $(u_n)_{n\\ge0}$ <span class="b">متناقصة تماماً</span>`, 'p')); this.plB.style.color = R; this.pl.appendChild(this.plB)
       this.plC = nowrap(chip(this.pl, 'الطريقة ③', 0, 0, { color: R })); this.plC.style.position = 'static'; this.plC.style.translate = 'none'; this.plC.style.fontSize = '24px'
       this.pl.appendChild(this.plC)
-      place(this.pl, 960, 900, { anchor: 'c' })
+      place(this.pl, 960, 896, { anchor: 'c' })
 
       this._layout()
     },
@@ -175,7 +184,7 @@
       const root = this.root
       this._sig = this._sigNow()
       if (!this.rC.offsetWidth) return
-      const moved = [this.rA, this.rC, this.lN, this.lD, this.goal, this.given, this.card0, ...this.fly.map(f => f.e)]
+      const moved = [this.rA, this.rC, this.lN, this.lD, this.goal, this.given, this.card0, this.fc, this.subL, this.pl, ...this.fly.map(f => f.e)]
       const saved = moved.map(e => [e.style.transform, e.style.clipPath])
       moved.forEach(e => { e.style.transform = 'none'; e.style.clipPath = '' })
       const R_ = e => rectIn(e, root)
@@ -218,6 +227,12 @@
       place(this.cbBox, cb.x - 9, cb.y - 8, { w: cb.w + 18, h: cb.h + 16 })
       place(this.cbStem, cb.cx - 1.5, cb.y + cb.h + 8, { h: 22 })
       place(this.cbLab, cb.cx, cb.y + cb.h + 30, { anchor: 'tc' })
+      // frame around «u_n ≠ 0» in the footnote (coordinates inside the card, minus its 2px border)
+      const ne = rectIn($('ne0'), this.fc)
+      place(this.neBox, ne.x - 2 - 10, ne.y - 2 - 6, { w: ne.w + 20, h: ne.h + 12 })
+      // pink line: fraction of its width (from the right) taken by «بما أنّ … ،» — it unrolls in two steps
+      const pl = R_(this.pl), pa = R_(this.plA)
+      this.plFracA = clamp((pl.x + pl.w - pa.x + 24) / pl.w); this.plW = pl.w
       moved.forEach((e, i) => { e.style.transform = saved[i][0]; e.style.clipPath = saved[i][1] })
     },
 
@@ -226,11 +241,15 @@
       const d = i => S.end(i) - S.at(i)
       const T = (i, f) => S.at(i) + f * d(i)
       const pr = (t0, dur = .6, e = E.io) => prog(lt, t0, dur, e)
+      // line map: script.json has 7 lines (substitution / numerator / denominator are separate lines);
+      // the older 6-line timeline merged substitution + numerator into line 1. Both cue correctly.
+      const N7 = S.lines.length >= 7
+      const L = N7 ? { sub: 1, num: 2, den: 3, res: 4, exam: 5, bars: 6 } : { sub: 1, num: 1, den: 2, res: 3, exam: 4, bars: 5 }
 
       this.head.set(S.p(lt, 0, 0, .8))
 
       // ================= L0
-      const out0 = S.p(lt, 1, 0, .5)
+      const out0 = S.p(lt, L.sub, 0, .5)
       const th = S.p(lt, 0, .3, .7)
       op(this.thumb.el, Math.min(th, 1 - out0))
       this.thumb.el.style.transform = `translateY(${(1 - th) * 30 - out0 * 20}px) rotate(-2deg)`
@@ -243,60 +262,62 @@
       $('cu').style.color = mixColor('#eef2ff', Y, env(lt, T(0, .14), T(0, .5), .4, .5))
       // goal chip: appears under the card, then glides to the corner
       const gI = pr(Math.max(T(0, .76), S.at(0) + 2.4), .6)
-      const gM = S.p(lt, 1, .2, .9)
+      const gM = S.p(lt, L.sub, .2, .9)
       const gx = this.goalD.x * (1 - gM), gy = this.goalD.y * (1 - gM)
-      op(this.goal, gI * (1 - S.p(lt, 4, 0, .45)))
+      op(this.goal, gI * (1 - S.p(lt, L.exam, 0, .45)))
       this.goal.style.transform = `translate(${gx}px, ${gy + (1 - gI) * 16}px)`
       // pause ring in the hold
-      const hs = S.end(0), he = Math.max(hs + .5, S.at(1) - .3)
+      const hs = S.end(0), he = Math.max(hs + .5, S.at(L.sub) - .3)
       op(this.cdw, prog(lt, Math.max(T(0, .9), S.at(0) + 3), .5) * (1 - out0))
       this.cd(Math.max(.001, clamp((lt - hs) / (he - hs))), 5 * (1 - clamp((lt - hs) / (he - hs))))
 
-      // ================= L1: substitution + numerator lens
-      const out3 = S.p(lt, 3, 0, .5)
-      const outG = S.p(lt, 4, 0, .45)
-      const gi = S.p(lt, 1, .3, .6)
+      // ================= sub: u_{n+1} = 2^{n+1}/3^{(n+1)+1} = 2^{n+1}/3^{n+2}
+      const out3 = S.p(lt, L.res, 0, .5)
+      const outG = S.p(lt, L.exam, 0, .45)
+      const gi = S.p(lt, L.sub, .3, .6)
       op(this.given, Math.min(gi, 1 - outG)); this.given.style.transform = `translateX(${(1 - gi) * -40}px)`
-      const tA1 = S.at(1) + .45, tA2 = Math.max(T(1, .3), tA1 + 1.4)
+      const tA1 = S.at(L.sub) + .55, tA2 = Math.max(T(L.sub, N7 ? .6 : .3), tA1 + 1.5)
       const a1 = pr(tA1, 1.2), a2 = pr(tA2, 1)
       wipeF(this.rA, lerp(0, this.rAcut, a1) + (1 - this.rAcut) * a2)
-      op(this.rA, 1 - out3); this.rA.style.transform = `translateY(${-out3 * 30}px)`
-      // the hunt begins
-      const tH = Math.max(T(1, .55), tA2 + 1.2)
-      const hP = pr(tH, .5)
-      const sl = pr(tA1 + .5, .5)
-      op(this.subL, Math.min(sl, 1 - pr(tH - .2, .5)))
-      pop(this.hunt, Math.min(hP, 1 - out3))
-      const gl = pr(tH + .2, .5) * (1 - out3)
+      const nbP = env(lt, tA1 + 1.2, tA2 + 1.2, .5, .6) * (1 - out3)
+      this.nbs.forEach((e, i) => { e.style.textShadow = nbP > .01 ? `0 0 ${(12 + 8 * Math.sin(lt * 3 + i)) * nbP}px ${B}` : '' })
+      // num: the hunt begins — row A glides up (it sat centred while alone) to make room for the lenses
+      const tH = N7 ? Math.max(S.at(L.num) + .2, tA2 + 1.1) : Math.max(T(1, .55), tA2 + 1.2)
+      const dyA = (N7 ? 80 : 0) * (1 - pr(tH - .1, .8))
+      op(this.rA, 1 - out3); this.rA.style.transform = `translateY(${dyA - out3 * 30}px)`
+      op(this.subL, Math.min(pr(S.at(L.sub) + .3, .5), 1 - pr(tH - .1, .4)))
+      this.subL.style.transform = `translateY(${dyA}px)`
+      pop(this.hunt, Math.min(pr(tH + .55, .5), 1 - out3))
+      const gl = pr(tH + .8, .5) * (1 - out3)
       glow($('g2n'), gl * (.8 + .2 * Math.sin(lt * 3))); glow($('g3n'), gl * (.8 + .2 * Math.sin(lt * 3 + 1)))
-      const tN = Math.max(T(1, .67), tH + .7)
+      const tN = N7 ? Math.max(T(L.num, .3), tH + 1.5) : Math.max(T(1, .67), tH + 1.3)
       const nP = pr(tN, .7)
       this.arN.set(Math.min(pr(tN - .1, .6), 1 - out3 > .5 ? 1 : 0)); this.arN.path.style.opacity = 1 - out3
-      $('nA').style.color = mixColor('#eef2ff', Y, env(lt, tN - .2, S.at(2), .4, .5))
+      $('nA').style.color = mixColor('#eef2ff', Y, env(lt, tN - .2, S.at(L.den), .4, .5))
       rise(this.lN, Math.min(nP, 1 - out3), 26)
       glow($('ln'), pr(tN + .5, .5) * (.75 + .25 * Math.sin(lt * 3.2)) * (1 - out3))
 
-      // ================= L2: denominator lens, the line now reads …
-      const tD = S.at(2) + .25
+      // ================= den: denominator lens, the line now reads …
+      const tD = Math.max(S.at(L.den) + .25, tN + .9)
       const dP = pr(tD + .1, .7)
       this.arD.set(Math.min(pr(tD, .6), 1 - out3 > .5 ? 1 : 0)); this.arD.path.style.opacity = 1 - out3
-      $('dA').style.color = mixColor('#eef2ff', Y, env(lt, tD - .1, S.at(3), .4, .5))
+      $('dA').style.color = mixColor('#eef2ff', Y, env(lt, tD - .1, S.at(L.res), .4, .5))
       rise(this.lD, Math.min(dP, 1 - out3), 26)
       glow($('ld'), pr(tD + .6, .5) * (.75 + .25 * Math.sin(lt * 3.2 + 1)) * (1 - out3))
-      const tR = Math.max(T(2, .55), tD + 1.6)
+      const tR = Math.max(T(L.den, .55), tD + 1.6)
       const rP = pr(tR, 1)
-      // row C: first part at y 850 (centred) → moves up to its final place at L3
-      const up = S.p(lt, 3, .35, .9)
+      // row C: first part at y 872 (centred) → moves up to its final place at the result line
+      const up = S.p(lt, L.res, .35, .9)
       this.rC.style.transform = `translate(${this.rCdx * (1 - up)}px, ${this.rCdy * (1 - up)}px)`
-      // L3 reveal of the rest
-      const tS = Math.max(T(3, .07), S.at(3) + 1.35)        // slots (=, bars, ×)
+      // res: reveal of the rest
+      const tS = Math.max(T(L.res, .07), S.at(L.res) + 1.35)  // slots (=, bars, ×)
       const tF = tS + .45                                      // yellow pieces fly
       const tK = tF + .75                                      // constants fly
-      const tBx = Math.max(T(3, .3), tK + 1)                   // box + u_n label
+      const tBx = Math.max(T(L.res, .3), tK + 1)               // box + u_n label
       const tC4 = tBx + .7
       const slot = pr(tS, .45)
       wipeF(this.rC, lt < tS ? this.rCcut1 * rP : lerp(this.rCcut1, this.rCcut2, slot) + (1 - this.rCcut2) * pr(tC4, .8))
-      const out4 = S.p(lt, 4, 0, .5)
+      const out4 = S.p(lt, L.exam, 0, .5)
       op(this.rC, rP > 0 ? 1 - out4 : 0)
       this.rC.style.transform += ` translateY(${-out4 * 30}px)`
       // pieces: hidden in the target until their copy lands
@@ -320,33 +341,37 @@
       op(this.cbStem, Math.min(lb, 1 - out4)); this.cbStem.style.transform = `scaleY(${lb})`; this.cbStem.style.transformOrigin = '50% 0'
       rise(this.cbLab, Math.min(lb, 1 - out4), -12)
       // green result + u_0
-      const tQ = Math.max(T(3, .5), tC4 + 1.1)
+      const tQ = Math.max(T(L.res, .5), tC4 + 1.1)
       const kq = pr(tQ, .7)
       this.kq.set(Math.min(kq, 1))
       op(this.kq.el, Math.min(clamp(kq * 2.5), 1 - out4))
       if (kq > 0) this.kq.el.style.boxShadow = `0 0 ${46 + 16 * Math.sin(lt * 1.8)}px ${G}${kq >= 1 ? '44' : '22'}`
-      const tU = Math.max(T(3, .8), tQ + 1.2)
+      const tU = Math.max(T(L.res, .8), tQ + 1.2)
       const u0 = pr(tU, .6)
       rise(this.u0, Math.min(u0, 1 - out4), 24)
       wipeF(this.u0F, pr(tU + .1, .9))
 
-      // ================= L4: model answer + footnote
-      const out5 = S.p(lt, 5, 0, .5)
-      const mI = S.p(lt, 4, .3, .6)
+      // ================= exam: model answer + footnote
+      const out5 = S.p(lt, L.bars, 0, .5)
+      const mI = S.p(lt, L.exam, .3, .6)
       op(this.mc, Math.min(mI, 1 - out5)); this.mc.style.transform = `translateY(${(1 - mI) * 40 - out5 * 30}px)`
-      const tM = S.at(4) + .55, mDur = Math.max(2.4, T(4, .5) - tM)
+      const tM = S.at(L.exam) + .55, mDur = Math.max(2.4, T(L.exam, .5) - tM)
       typeWords(this.m1, pr(tM, mDur * .2, E.lin))
       wipeF(this.mF, pr(tM + mDur * .2, mDur * .45, E.io))
       typeWords(this.m3, pr(tM + mDur * .62, mDur * .38, E.lin))
-      const tFn = Math.max(T(4, .45), tM + mDur * .7)
+      const tFn = Math.max(T(L.exam, .45), tM + mDur * .7)
       const fI = pr(tFn, .7)
       op(this.fc, Math.min(fI, 1 - out5)); this.fc.style.transform = `translateY(${(1 - fI) * 30 - out5 * 30}px)`
-      const hlF = pr(Math.max(T(4, .62), tFn + .8), .7)
+      const hlF = pr(Math.max(T(L.exam, .55), tFn + .8), .7)
       op(this.f2m, hlF > 0 ? 1 : 0); this.f2m.style.transform = `scaleX(${E.out(hlF)})`
       this.f2.style.color = mixColor('#eef2ff', Y, hlF)
+      // «u_n ≠ 0» framed as the narrator says it
+      const nb = pr(Math.max(T(L.exam, .78), tFn + 1.5), .5)
+      op(this.neBox, clamp(nb * 1.5)); this.neBox.style.transform = `scale(${lerp(1.18, 1, E.out(nb))})`
+      if (nb > 0) this.neBox.style.boxShadow = `0 0 ${22 + 10 * Math.sin(lt * 2.6)}px rgba(255,210,63,.45)`
 
-      // ================= L5: bars, conclusion, mini w_n bars
-      const tB = S.at(5) + .4
+      // ================= bars: conclusion, mini w_n bars
+      const tB = S.at(L.bars) + .4
       this.bars.forEach((b, k) => {
         const p = pr(tB + k * .3, .7, E.out)
         b.r.setAttribute('y', this.BASE - b.h * p); b.r.setAttribute('height', Math.max(0, b.h * p))
@@ -356,19 +381,23 @@
       })
       draw(this.baseL, pr(tB - .2, .6))
       this.bArc.forEach((a, k) => { a.ar.set(pr(tB + .6 + k * .3, .6)); rise(a.l, pr(tB + .9 + k * .3, .5), 12) })
-      const tP = Math.max(T(5, .2), tB + 1.4)
-      const pA = pr(tP, .6)
-      op(this.pl, pA); this.pl.style.transform = `translateY(${(1 - pA) * 24}px)`
-      op(this.plA, 1)
-      const pB = pr(Math.max(T(5, .45), tP + .9), .6)
-      op(this.plArr, pB); this.plArr.style.transform = `translateX(${(1 - pB) * 20}px)`
+      const tP = Math.max(T(L.bars, .2), tB + 1.4)
+      const pA = pr(tP, .7)
+      const pB = pr(Math.max(T(L.bars, .5), tP + .9), .7)
+      // the line unrolls right → left with the sentence: «بما أنّ …» first, then «إذن … متناقصة تماماً»
+      const vr = this.plFracA * pA + (1 - this.plFracA) * pB
+      op(this.pl, Math.min(1, pA * 3)); this.pl.style.transform = `translateY(${(1 - pA) * 16}px)`
+      this.plBg.style.left = `${(1 - vr) * 100}%`
+      // content never shows outside the growing frame
+      this.pl.style.clipPath = vr >= 1 ? '' : `inset(-30% -4% -30% ${Math.max(0, (1 - vr) * this.plW - 4)}px)`
       op(this.plB, pB); this.plB.style.transform = `translateX(${(1 - pB) * 30}px)`
-      pop(this.plC, pr(Math.max(T(5, .55), tP + 1.3), .5))
-      const tW = Math.max(T(5, .6), tP + 1.1)
+      pop(this.plC, pr(Math.max(T(L.bars, .6), tP + 1.3), .5))
+      const tW = Math.max(T(L.bars, .68), tP + 1.6)
       this.wB.forEach((b, k) => {
         const p = pr(tW + k * .14, .55, E.out)
         b.r.setAttribute('y', this.BASE - b.h * p); b.r.setAttribute('height', Math.max(0, b.h * p))
         op(b.r, p > 0 ? 1 : 0)
+        op(this.wL[k], pr(tW + k * .14 + .2, .4))
       })
       draw(this.wBase, pr(tW - .1, .5))
       rise(this.wT, pr(tW, .6), 16)

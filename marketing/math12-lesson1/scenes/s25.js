@@ -88,9 +88,9 @@
         mt(g4, 'S = a\\,\\dfrac{1-q^n}{1-q}\\ \\ (q\\ne1)'), mt(g4, '1+q+\\cdots+q^{n-1} = \\dfrac{1-q^n}{1-q}'),
       ]
       this.idRow = el('div', '', null, this.b4.el)
-      this.idRow.style.cssText = `display:flex;align-items:center;gap:16px;direction:rtl;margin-top:16px;padding:10px 18px;border-radius:16px;border:2px dashed ${rgba(Y, .45)};background:rgba(255,210,63,.05)`
-      const il = el('span', '', '💡 مطابقة:', this.idRow); il.style.cssText = `font-size:27px;font-weight:800;color:${Y};white-space:nowrap`
-      this.idF = mt(this.idRow, 'x^n - a^n = (x-a)\\left(x^{n-1} + x^{n-2}a + \\cdots + a^{n-1}\\right)', 30)
+      this.idRow.style.cssText = `display:flex;align-items:center;gap:12px;direction:rtl;margin-top:16px;padding:8px 16px;border-radius:16px;border:2px dashed ${rgba(Y, .45)};background:rgba(255,210,63,.05)`
+      const il = el('span', '', '💡 مطابقة:', this.idRow); il.style.cssText = `font-size:26px;font-weight:800;color:${Y};white-space:nowrap`
+      this.idF = mt(this.idRow, 'x^n - a^n = (x-a)\\left(x^{n-1} + x^{n-2}a + \\cdots + a^{n-1}\\right)', 27)
       this.plr = document.getElementById(`${ID}-plr`); this.tq = document.getElementById(`${ID}-tq`)
       ;[this.plr, this.tq].forEach(e => (e.style.display = 'inline-block'))
 

@@ -109,11 +109,11 @@
         const f = tex(src, 'mm'); f.style.fontSize = '42px'; f.style.color = c; d.appendChild(f)
         return d
       }
-      this.pG = panel(`n\\left[(n+1)^2+1\\right] = n(n^2+2n+2) = \\mathbf{n^3+2n^2+2n}`, G)
-      this.pR = panel(`(n+1)(n^2+1) = \\mathbf{n^3+n^2+n+1}`, R)
+      this.pG = panel(`n\\left[(n+1)^2+1\\right] = n(n^2+2n+2) = \\boldsymbol{n^3+2n^2+2n}`, G)
+      this.pR = panel(`(n+1)(n^2+1) = \\boldsymbol{n^3+n^2+n+1}`, R)
 
       // ---------------- line 3: the subtraction, the cancellation, the result
-      this.rD = mk(`${id('ld', lhs)} ${id('ed', '=')} \\dfrac{${tc(G, `(${id('c1', 'n^3')}+2n^2+2n)`)} ${id('mn', '-')} ${id('pk', tc(R, `(${id('c2', 'n^3')}+n^2+n+1)`))}}{2n(n+1)}`)
+      this.rD = mk(`${id('ld', lhs)} ${id('ed', '=')} \\dfrac{${tc(G, `(${id('c1', 'n^3')}+2n^2+2n)`)} \\; ${id('mn', '-')} ${id('pk', tc(R, `(${id('c2', 'n^3')}+n^2+n+1)`))}}{2n(n+1)}`)
       this.rE = mk(`${id('ee', '=')} \\dfrac{n^2+n-1}{2n(n+1)}`)
       this.pkBox = el('div', 'hlbox', null, root); this.pkBox.style.borderColor = R; this.pkBox.style.boxShadow = `0 0 30px ${R}55`
       this.warn = el('div', '', null, root)
@@ -156,7 +156,7 @@
       this.m3.style.color = G
       splitWords(this.m1); splitWords(this.m3)
       // mini plot of u_1..u_4 (inside the card, card-local coordinates)
-      const vals = [1, 5 / 4, 5 / 3, 17 / 8], labs = ['u_1 = 1', 'u_2 = \\frac54', 'u_3 = \\frac53', 'u_4 = \\frac{17}{8}']
+      const vals = [1, 5 / 4, 5 / 3, 17 / 8], labs = ['u_1 = 1', 'u_2 = \\dfrac54', 'u_3 = \\dfrac53', 'u_4 = \\dfrac{17}{8}']
       const pl = plot(this.mcEl, 70, 372, 640, 270, { xmin: .45, xmax: 4.55, ymin: .55, ymax: 2.35 })
       pl.xAxis.setAttribute('stroke', C.dim); pl.yAxis.setAttribute('stroke', C.dim)
       this.plAx = [pl.xAxis, pl.yAxis]
@@ -170,7 +170,7 @@
         c.style.transformOrigin = `${pl.X(k + 1)}px ${pl.Y(v)}px`
         return c
       })
-      this.vl = vals.map((v, k) => { const e = pl.label(`<bdi class="m">${katex.renderToString(labs[k], KOPT)}</bdi>`, k + 1, v, 'bc', 's'); e.style.marginTop = '-20px'; e.style.color = INK; e.style.fontSize = '28px'; return e })
+      this.vl = vals.map((v, k) => { const e = pl.label(`<bdi class="m">${katex.renderToString(labs[k], KOPT)}</bdi>`, k + 1, v, 'bc', 's'); e.style.marginTop = '-16px'; e.style.color = INK; e.style.fontSize = '25px'; e.style.lineHeight = 1; return e })
       this.nl = vals.map((v, k) => { const e = pl.label(`${k + 1}`, k + 1, .55, 'tc', 's'); e.style.marginTop = '8px'; e.style.fontSize = '24px'; return e })
       this.ok = chip(this.mcEl, '✓ الحدود تصعد فعلاً', 104, 382, { color: G })
       this.ok.style.fontSize = '26px'; this.ok.style.whiteSpace = 'nowrap'
@@ -206,16 +206,25 @@
       place(this.labC, 960 + gw / 2 + 40, S3 + 76, { anchor: 'cl' })
       // pink outline around "− ( … )" and the warning under it
       const pk = R_($('pk')), mn = R_($('mn'))
-      const ox = mn.x - 12, oy = Math.min(pk.y, mn.y) - 8, ow = pk.x + pk.w - ox + 12, oh = pk.h + 16
+      // keep the outline clear of the green ")" on the left and of the fraction bar below
+      const fl = this.rD.querySelector('.frac-line'), flY = fl ? R_(fl).y : pk.y + pk.h + 14
+      const ox = mn.x - 12, oy = Math.min(pk.y, mn.y) - 8, ow = pk.x + pk.w - ox + 12
+      const oh = Math.min(pk.y + pk.h + 6, flY - 5) - oy
       place(this.pkBox, ox, oy, { w: ow, h: oh })
       const pcx = ox + ow / 2
       const wr = this.warn.offsetWidth
       const wx = Math.min(1800 - wr / 2, Math.max(120 + wr / 2, pcx))
-      place(this.warn, wx, S3 + 10, { anchor: 'tc' })
-      this.wArrow.setAttribute('d', `M${pcx},${S3 + 4} L${pcx},${oy + oh + 16}`)
+      const wy = S3 - 46                                         // just under the denominator of the row
+      place(this.warn, wx, wy, { anchor: 'tc' })
+      this.wArrow.setAttribute('d', `M${pcx},${wy - 4} L${pcx},${oy + oh + 16}`)
       this.wHead.setAttribute('d', `M${pcx - 10},${oy + oh + 20} L${pcx + 10},${oy + oh + 20} L${pcx},${oy + oh + 6} Z`)
       this.wArrow._len = 0
-      ;[$('c1'), $('c2')].forEach((c, i) => { const r = R_(c); place(this.strikes[i], r.x - 6, r.cy + 2, { w: r.w + 12 }) })
+      // strikes: a clean diagonal through each n³ (bottom-left → top-right)
+      ;[$('c1'), $('c2')].forEach((c, i) => {
+        const r = R_(c), x1 = r.x - 4, y1 = r.y + r.h * .8, x2 = r.x + r.w + 4, y2 = r.y + r.h * .2
+        place(this.strikes[i], x1, y1 - 3, { w: Math.hypot(x2 - x1, y2 - y1) })
+        this.strikes[i]._ang = Math.atan2(y2 - y1, x2 - x1) * 180 / Math.PI
+      })
       // example card underline under 2n
       const dn = R_($('den'))
       place(this.exU, dn.x - 4, dn.y + dn.h + 2, { w: dn.w + 8 })
@@ -257,12 +266,15 @@
         const tgt = TRK(k + 1)
         const sc = (k === 0 ? 1 + .05 * emph : 1 - .04 * emph) * lerp(1, .09, col)
         const dx = k === 0 ? -14 * emph * (1 - col) : 0
-        m.el.style.transform = `translate(${(tgt.x - m.cx) * col + dx}px, ${(tgt.y - m.cy) * col + (1 - inP) * -40}px) scale(${sc})`
+        // gentle life while the three cards hold: a slow, out-of-phase float
+        const fl = Math.sin(lt * 1.1 + k * 1.9) * 5 * inP * (1 - col)
+        m.el.style.transform = `translate(${(tgt.x - m.cx) * col + dx}px, ${(tgt.y - m.cy) * col + (1 - inP) * -40 + fl}px) scale(${sc})`
         const dim = k === 0 ? 1 : 1 - .62 * emph
         op(m.el, Math.min(inP, dim, 1 - clamp((col - .25) / .45)))
         if (k === 0) {
+          const gl = emph * (1 + .3 * Math.sin(lt * 2.2))
           m.el.style.borderColor = mixColor('#a78bfa', Y, emph)
-          m.el.style.boxShadow = `0 30px 80px rgba(0,0,0,.35), 0 0 ${50 * emph}px rgba(255,210,63,${.35 * emph})`
+          m.el.style.boxShadow = `0 30px 80px rgba(0,0,0,.35), 0 0 ${50 * gl}px rgba(255,210,63,${.35 * gl})`
         }
       })
       this.trk.set(S.p(lt, 1, .45, .7), lt, .25)
@@ -271,13 +283,14 @@
       const out2 = S.p(lt, 2, 0, .5)
       const ei = S.p(lt, 1, .7, .7)
       op(this.ex, Math.min(ei, 1 - out2))
-      this.ex.style.transform = `translateY(${(1 - ei) * 36 - out2 * 30}px)`
+      const exF = Math.sin(lt * 1.2) * 4 * ei                    // slow float while the example holds
+      this.ex.style.transform = `translateY(${(1 - ei) * 36 - out2 * 30 + exF}px)`
       const rd = env(lt, T(1, .1), T(1, .62), .4, .5)
       $('def').style.color = mixColor(INK, Y, rd)
       const cd = env(lt, T(1, .66), S.at(2), .4, .4)
       $('cond').style.color = mixColor(INK, B, Math.max(cd, pr(T(1, .7), .5)))
       const nI = pr(Math.max(T(1, .72), S.at(1) + 1.6), .6)
-      op(this.exU, Math.min(nI > 0 ? 1 : 0, 1 - out2)); this.exU.style.transform = `scaleX(${E.out(nI)})`
+      op(this.exU, Math.min(nI > 0 ? 1 : 0, 1 - out2)); this.exU.style.transform = `translateY(${exF - out2 * 30}px) scaleX(${E.out(nI)})`
       $('den').style.color = mixColor(INK, B, nI)
       const nP = pr(Math.max(T(1, .72), S.at(1) + 1.6) + .3, .6)
       rise(this.note, nP, 24); op(this.note, Math.min(nP, 1 - out2))
@@ -286,21 +299,23 @@
       const gi = S.p(lt, 2, .3, .6)
       slide(this.given, gi, -40)
       const tA = S.at(2) + .35, tB = Math.max(T(2, .2), tA + 1.2), tG = Math.max(T(2, .5), tB + 1.3), tR = tG + .55
-      // line 3 timings (needed for the scrolling rows)
+      // line 3 timings (needed for the scrolling rows). Minimum gaps shrink when the spoken line is short,
+      // so every beat (book line included) still lands inside line 3.
+      const k3 = clamp(d(3) / 12, .55, 1)
       const tD = S.at(3) + .45
-      const tO = Math.max(T(3, .07), tD + 1.1), tW = tO + .35
-      const tS = Math.max(T(3, .3), tW + .8)
-      const tUp = Math.max(T(3, .43), tS + 1)                      // scroll: D → slot 1, E written in slot 2
-      const tK = Math.max(T(3, .6), tUp + 1.5)                     // clear → boxed result
-      const outK = pr(tK, .5)
+      const tO = Math.max(T(3, .07), tD + 1.1 * k3), tW = tO + .35
+      const tS = Math.max(T(3, .3), tW + .8 * k3)
+      const tUp = Math.max(T(3, .43), tS + 1 * k3)                  // scroll: D → slot 1, E written in slot 2
+      const tK = Math.max(T(3, .6), tUp + 1.5 * k3)                 // clear → boxed result
+      const outK = pr(tK, .45)
       const up3 = S.p(lt, 3, 0, .7)                                 // A leaves, B → slot 1
       const sk = pr(Math.max(T(2, .72), S.at(2) + 1.2), .6)
       const skOut = S.p(lt, 4, 0, .5)
       op(this.skip, Math.min(sk, 1 - skOut)); this.skip.style.transform = `translateY(${(1 - sk) * -16}px)`
       wipe(this.rA, pr(tA, 1.1)); op(this.rA, 1 - up3); this.rA.style.transform = `translateY(${-up3 * 50}px)`
       wipe(this.rB, pr(tB, 1.1))
-      const bOut = pr(tUp, .6)
-      op(this.rB, 1 - bOut); this.rB.style.transform = `translateY(${(S1 - S2) * up3 - bOut * 50}px)`
+      const bOut = pr(tUp - .1, .35)                                // B clears slot 1 before D moves in
+      op(this.rB, 1 - bOut); this.rB.style.transform = `translateY(${(S1 - S2) * up3 - bOut * 60}px)`
       op($('lb'), up3)
       const lb = pr(tB + .6, .6), lbOut = S.p(lt, 3, 0, .4)
       op(this.labB, Math.min(lb, 1 - lbOut)); this.labB.style.transform = `translateX(${(1 - lb) * 20}px)`
@@ -312,22 +327,23 @@
       op(this.labC, Math.min(gP, 1 - pOut))
 
       // ================= line 3: subtraction, cancellation, result
-      const dUp = pr(tUp, .7)
+      const dUp = pr(tUp + .15, .7)
       wipe(this.rD, pr(tD, 1.1)); op(this.rD, 1 - outK); this.rD.style.transform = `translateY(${(S1 - S2) * dUp - outK * 30}px)`
       op($('ld'), dUp)
-      wipe(this.rE, pr(tUp + .45, .9)); op(this.rE, 1 - outK); this.rE.style.transform = `translateY(${-outK * 30}px)`
-      const ob = pr(tO, .5), oOut = Math.max(dUp, outK)
+      wipe(this.rE, pr(tUp + .6, .9)); op(this.rE, 1 - outK); this.rE.style.transform = `translateY(${-outK * 30}px)`
+      // the pink outline + warning leave before the row scrolls up (no empty frame left behind)
+      const ob = pr(tO, .5), oOut = Math.max(pr(tUp - .45, .4), outK)
       op(this.pkBox, Math.min(clamp(ob * 1.5), 1 - oOut)); this.pkBox.style.transform = `scale(${lerp(1.12, 1, E.out(ob))})`
       const wv = pr(tW, .6)
       rise(this.warn, wv, 20); op(this.warn, Math.min(wv, 1 - oOut))
       draw(this.wArrow, wv); this.wArrow.style.opacity = 1 - oOut; op(this.wHead, Math.min(wv >= .95 ? 1 : 0, 1 - oOut))
       this.strikes.forEach((s, i) => {
         const p = pr(tS + i * .3, .45, E.out)
-        op(s, Math.min(p > 0 ? 1 : 0, 1 - outK)); s.style.transform = `translateY(${(S1 - S2) * dUp}px) rotate(-24deg) scaleX(${p})`
+        op(s, Math.min(p > .02 ? 1 : 0, 1 - outK)); s.style.transform = `translateY(${(S1 - S2) * dUp}px) rotate(${s._ang || -24}deg) scaleX(${p})`
       })
       ;['c1', 'c2'].forEach((k, i) => (op($(k), 1 - .6 * pr(tS + i * .3 + .3, .5))))
       // the result in its box, then the denominator and the book line
-      const kbIn = pr(tK + .25, .7)
+      const kbIn = pr(tK + .35, .7)                                 // after the derivation rows have cleared
       const up4 = S.p(lt, 4, 0, .9)
       const tSl = Math.max(T(4, .62), S.at(4) + 5.4)               // slide left + model answer
       const sl = pr(tSl, .9)
@@ -338,12 +354,12 @@
       this.kb.el.style.transform = `translate(${kx}px, ${ky}px) scale(${lerp(.85, 1, E.back(kbIn)) * ks})`
       if (kbIn > 0) this.kb.el.style.boxShadow = `0 0 ${46 + 14 * Math.sin(lt * 1.8)}px ${Y}${kbIn >= 1 ? '3a' : '22'}`
       const out4 = S.p(lt, 4, 0, .45)
-      const tU = Math.max(T(3, .74), tK + 1.1)
+      const tU = Math.max(T(3, .74), tK + 1.2 * k3)
       const uP = pr(tU, .6)
       op(this.kdU, Math.min(uP > 0 ? 1 : 0, 1 - out4)); this.kdU.style.transform = `scaleX(${E.out(uP)})`
       $('kd').style.color = mixColor(INK, G, Math.min(uP, 1 - out4))
       rise(this.kdL, Math.min(pr(tU + .3, .5), 1 - out4), 16); op(this.kdT, Math.min(pr(tU + .5, .5), 1 - out4))
-      const tL = Math.max(T(3, .86), tU + 1)
+      const tL = Math.max(T(3, .86), tU + 1 * k3)
       rise(this.bookLine, pr(tL, .6), 24); op(this.bookLine, Math.min(pr(tL, .6), 1 - out4))
 
       // ================= line 4: sign argument, conclusion, model answer
