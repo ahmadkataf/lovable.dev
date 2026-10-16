@@ -1,10 +1,10 @@
 lesson,section,script,wav,start_sec,status
-L01-getting-started,s1,scripts/L01-getting-started_s1.txt,audio/L01-getting-started_s1.wav,3.084,final
-L02-interface,s1,scripts/L02-interface_s1.txt,audio/L02-interface_s1.wav,,generated
-L03-dashboard,s1,scripts/L03-dashboard_s1.txt,audio/L03-dashboard_s1.wav,,generated
-L04-patients,s1,scripts/L04-patients_s1.txt,audio/L04-patients_s1.wav,,script
-L05-chart,s1,scripts/L05-chart_s1.txt,audio/L05-chart_s1.wav,,script
-L06-appointments,s1,scripts/L06-appointments_s1.txt,audio/L06-appointments_s1.wav,,script
+L01-getting-started,s1,scripts/L01-getting-started_s1.txt,audio/L01-getting-started_s1.wav,3.084,published
+L02-interface,s1,scripts/L02-interface_s1.txt,audio/L02-interface_s1.wav,3.083,published
+L03-dashboard,s1,scripts/L03-dashboard_s1.txt,audio/L03-dashboard_s1.wav,3.084,published
+L04-patients,s1,scripts/L04-patients_s1.txt,audio/L04-patients_s1.wav,3.083,published
+L05-chart,s1,scripts/L05-chart_s1.txt,audio/L05-chart_s1.wav,3.084,published
+L06-appointments,s1,scripts/L06-appointments_s1.txt,audio/L06-appointments_s1.wav,3.086,published
 L07-treatments,s1,scripts/L07-treatments_s1.txt,audio/L07-treatments_s1.wav,,script
 L08-billing,s1,scripts/L08-billing_s1.txt,audio/L08-billing_s1.wav,,script
 L09-prescriptions,s1,scripts/L09-prescriptions_s1.txt,audio/L09-prescriptions_s1.wav,,script

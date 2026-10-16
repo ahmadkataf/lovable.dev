@@ -4,3 +4,6 @@ utc,quota_day,lesson,voice,out,exit,seconds,audio_seconds
 2026-10-16T10:18:17+00:00,2026-10-16,L01-getting-started,ar-001-training-12,samples/L01-getting-started_s1--ar-001-training-12.wav,0,40,281.0
 2026-10-16T10:37:33+00:00,2026-10-16,L02-interface,ar-001-training-2,audio/L02-interface_s1.wav,0,31,226.6
 2026-10-16T10:38:04+00:00,2026-10-16,L03-dashboard,ar-001-training-2,audio/L03-dashboard_s1.wav,0,33,233.6
+2026-10-16T10:38:37+00:00,2026-10-16,L04-patients,ar-001-training-2,audio/L04-patients_s1.wav,0,35,229.7
+2026-10-16T10:39:12+00:00,2026-10-16,L05-chart,ar-001-training-2,audio/L05-chart_s1.wav,0,35,243.0
+2026-10-16T10:39:47+00:00,2026-10-16,L06-appointments,ar-001-training-2,audio/L06-appointments_s1.wav,0,32,220.6
