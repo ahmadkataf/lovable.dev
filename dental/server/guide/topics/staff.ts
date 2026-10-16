@@ -36,11 +36,11 @@ const topic: GuideTopic = {
       },
       tips: {
         ar: [
-          'صفحة الفريق لمدير العيادة وحده. من يفتحها بدور آخر يرى «هذه الصفحة لمدير العيادة».',
-          'على الهاتف رقم الهاتف في البطاقة رابط: المسه لتتصل بالعضو.',
+          'صفحة الفريق لمدير العيادة وحده: لا تظهر في القائمة الجانبية لبقية الأدوار، ومن يفتح عنوانها بدور آخر يرى «هذه الصفحة غير متاحة لدورك».',
+          'على الهاتف، رقم العضو في بطاقته رابط: المسه لتتصل به.',
         ],
         en: [
-          'The Staff page is for the clinic admin only. Anyone else who opens it sees “This page is for the clinic admin”.',
+          'The Staff page is for the clinic admin only: it is left out of the other roles’ menu, and anyone else who opens its address sees “This page is not available for your role”.',
           'On a phone the phone number on the card is a link: tap it to call the member.',
         ],
       },
@@ -105,12 +105,12 @@ const topic: GuideTopic = {
       tips: {
         ar: [
           'لا يتكرر الاسم نفسه لعضوين («يوجد عضو آخر بهذا الاسم»).',
-          'يختار البرنامج للعضو الجديد لوناً لا يستخدمه أحد بعد.',
+          'يختار البرنامج للعضو الجديد لوناً لا يستخدمه أي عضو مفعّل.',
           'يظهر العضو الجديد فوراً في شاشة الدخول، ويظهر الطبيب في قوائم الأطباء في المواعيد والتقارير.',
         ],
         en: [
           'Two members cannot have the same name (“Another member already has this name”).',
-          'Dentora gives a new member a colour nobody uses yet.',
+          'Dentora gives a new member a colour no active member uses yet.',
           'The new member shows on the sign-in screen at once, and a doctor shows in the doctor lists of appointments and reports.',
         ],
       },
@@ -134,7 +134,7 @@ const topic: GuideTopic = {
       tips: {
         ar: [
           'لا تستطيع إيقاف حسابك ولا حذفه وأنت تستخدمه.',
-          'لا بد من بقاء مدير مفعّل واحد على الأقل: لا يُغيَّر دور آخر مدير ولا يُوقف ولا يُحذف. أضف مديراً آخر أولاً.',
+          'لا بد من بقاء مدير مفعّل واحد على الأقل: المدير المفعّل الأخير لا يمكن تغيير دوره ولا إيقافه ولا حذفه. أضف مديراً آخر أولاً.',
           'في نافذة **تعديل** مفتاح **تعيين رمز دخول جديد** (اتركه مغلقاً ليبقى الرمز كما هو)، ومفتاح **الحساب مفعّل**.',
         ],
         en: [
@@ -160,28 +160,30 @@ const topic: GuideTopic = {
       },
       steps: {
         ar: [
-          'انقر على اسمك في أسفل القائمة الجانبية. على الهاتف المس صورتك أعلى الشاشة، أو افتح **المزيد** حيث زرّا القفل والخروج بجانب اسمك.',
+          'انقر على اسمك في أسفل القائمة الجانبية. على الهاتف المس الدائرة التي تحمل الحرفين الأولين من اسمك أعلى الشاشة، أو افتح **المزيد** حيث زرّا القفل والخروج بجانب اسمك.',
           'اختر **قفل الشاشة** حين تبتعد قليلاً: تظهر شاشة الدخول، وتعود برمزك.',
           'اختر **تسجيل الخروج** في نهاية دوامك. يعود البرنامج إلى شاشة الدخول، ومن يأتي بعدك ينقر على **تبديل المستخدم** ويختار اسمه.',
         ],
         en: [
-          'Click your name at the bottom of the sidebar. On a phone tap your picture at the top of the screen, or open **More**, where the lock and sign-out buttons sit next to your name.',
+          'Click your name at the bottom of the sidebar. On a phone tap the circle with your initials at the top of the screen, or open **More**, where the lock and sign-out buttons sit next to your name.',
           'Choose **Lock screen** when you step away for a while: the sign-in screen appears, and you come back with your PIN.',
           'Choose **Sign out** at the end of your shift. Dentora goes back to the sign-in screen, and the next person clicks **Switch user** and picks their name.',
         ],
       },
       tips: {
         ar: [
-          'يقفل البرنامج نفسه بعد مدة من عدم الاستخدام، 15 دقيقة مسبقاً، ويُحسب منها الوقت الذي ينام فيه الجهاز. يغيّر المدير المدة لهذا الجهاز من [القفل التلقائي](settings#auto-lock).',
+          'يقفل البرنامج نفسه بعد مدة من عدم الاستخدام، وهي 15 دقيقة ما لم يغيّرها المدير، ويُحسب منها الوقت الذي ينام فيه الجهاز. يغيّر المدير المدة لهذا الجهاز من [القفل التلقائي](settings#auto-lock).',
           'يطلب البرنامج رمز الدخول في كل مرة تشغّله من جديد، على ويندوز وأندرويد. أما العودة إليه من تطبيق آخر فلا تطلب الرمز ما لم تنقضِ مدة القفل التلقائي.',
           'خمس محاولات خاطئة متتالية توقف لوحة الأرقام لذلك الحساب 30 ثانية، ثم دقيقة، ثم 5 دقائق، ثم 15، ثم 30، ثم ساعة، حتى يُكتب الرمز الصحيح. ويبقى الإيقاف حتى لو أُغلق البرنامج، ويُنسى العدّ بعد يوم بلا أخطاء.',
           'قبل الإيقاف يحذّرك البرنامج: «بقيت محاولتان قبل القفل المؤقت».',
+          '**قفل الشاشة** و**تسجيل الخروج** والقفل التلقائي كلها تغلق ما هو مفتوح وتعود إلى شاشة الدخول، فاحفظ ما تكتبه قبل أن تبتعد. وبعد الدخول من جديد تعود إلى الصفحة التي كنت فيها.',
         ],
         en: [
           'Dentora locks itself after a period without use, 15 minutes to start with, and time the device spends asleep counts. The admin changes the delay for this device in [Auto-lock](settings#auto-lock).',
           'Dentora asks for a PIN every time it is started, on Windows and on Android. Coming back to it from another app does not, unless the auto-lock delay has passed.',
           'Five wrong PINs in a row pause that account’s keypad for 30 seconds, then 1 minute, 5 minutes, 15, 30 and an hour, until the right PIN is typed. The pause holds even if the app is closed, and the count is forgotten after a day without mistakes.',
           'Before the pause Dentora warns you: “2 attempts left before a short lock”.',
+          '**Lock screen**, **Sign out** and the auto-lock all close whatever is open and return to the sign-in screen, so save what you are typing before you step away. After signing in again you come back to the page you were on.',
         ],
       },
       shots: ['staff-locked', 'staff-phone-more'],
@@ -218,11 +220,13 @@ const topic: GuideTopic = {
           'رمز إعادة التعيين يعمل على هذا الجهاز وحده، يوم إصداره واليوم التالي، ومرة واحدة فقط. وبياناتك تبقى كما هي.',
           'رمز تفعيل الترخيص لا يصلح هنا: يُدخل من [الترخيص](licence) بعد الدخول.',
           'إن أُوقفت كل الحسابات تقول شاشة الدخول «لا يوجد حساب مفعّل»، ويعيد رمز إعادة التعيين نفسه حساب المدير إلى العمل.',
+          'في وضع القراءة فقط، بعد انتهاء الفترة التجريبية دون تفعيل، لا تقبل صفحة الفريق أي تغيير، ومنه **تعيين رمز دخول جديد**: فعّل الترخيص أولاً. أما رمز إعادة التعيين للمدير فيبقى يعمل. انظر [الترخيص](licence).',
         ],
         en: [
           'The reset code works on this device only, on the day it was issued and the next, and only once. Your data stays as it is.',
           'A licence activation code does not work here: it goes in [Licence](licence) after signing in.',
           'If every account has been deactivated, the sign-in screen says “No active account”, and the same reset code brings the admin account back.',
+          'In read-only mode, after the trial ends without activation, the Staff page cannot change anything, including **Set a new PIN**: activate the licence first. The admin’s reset code still works. See [Licence](licence).',
         ],
       },
       shots: ['staff-forgot', 'staff-reset-code'],

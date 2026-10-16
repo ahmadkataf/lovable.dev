@@ -26,13 +26,13 @@ const topic: GuideTopic = {
       text: {
         ar: [
           'افتح **الوصفات** من القائمة الجانبية. في تبويب **الوصفات** كل وصفات العيادة، الأحدث أولاً: التاريخ والمريض والطبيب والأدوية والتشخيص.',
-          'ابحث باسم المريض أو رقم الملف أو اسم الدواء، واختر الفترة: **الكل** أو **اليوم** أو **آخر 7 أيام** أو **آخر 30 يوماً** أو **هذا الشهر**.',
-          'انقر على أي وصفة لتعرضها وتطبعها. وفي آخر كل سطر ثلاثة أزرار: **عرض وطباعة** و**نسخ كوصفة جديدة** و**حذف**.',
+          'ابحث باسم المريض أو رقم الملف أو اسم الدواء أو التشخيص أو رقم الوصفة، واختر الفترة: **الكل** أو **اليوم** أو **آخر 7 أيام** أو **آخر 30 يوماً** أو **هذا الشهر**.',
+          'انقر على أي وصفة لتعرضها وتطبعها. وفي آخر كل سطر ثلاثة أزرار: الطابعة (**عرض وطباعة**) والنسخ (**نسخ كوصفة جديدة**) وسلة المهملات (**حذف**).',
         ],
         en: [
           'Open **Prescriptions** in the sidebar. The **Prescriptions** tab lists every prescription of the clinic, newest first: date, patient, doctor, medicines and diagnosis.',
-          'Search by patient name, file number or drug name, and pick the period: **All**, **Today**, **Last 7 days**, **Last 30 days** or **This month**.',
-          'Click any prescription to view and print it. Each row ends with three buttons: **View & print**, **Copy as new** and **Delete**.',
+          'Search by patient name, file number, drug, diagnosis or prescription number, and pick the period: **All**, **Today**, **Last 7 days**, **Last 30 days** or **This month**.',
+          'Click any prescription to view and print it. Each row ends with three icon buttons: the printer (**View & print**), copy (**Copy as new**) and the bin (**Delete**).',
         ],
       },
       tips: {
@@ -99,23 +99,23 @@ const topic: GuideTopic = {
       title: { ar: 'تنبيهات الحساسية', en: 'Allergy warnings' },
       text: {
         ar: [
-          'يقارن البرنامج كل دواء بالحساسية المسجلة في ملف المريض، فينبّهك قبل أن تصف دواءً قد يؤذيه.',
-          'إذا كان في ملف المريض حساسية يظهر في أعلى الوصفة شريط أحمر «تنبيه: المريض لديه تحسس من» وتحته ما سُجّل.',
+          'يقارن البرنامج اسم كل دواء بالحساسية المسجلة في ملف المريض، وينبّهك حين يتعرف على تعارض.',
+          'إذا كان في ملف المريض حساسية يظهر فوق قائمة الأدوية شريط أحمر «تنبيه: المريض لديه تحسس من» وتحته ما سُجّل.',
         ],
         en: [
-          'Dentora checks each drug against the allergies recorded in the patient’s file, and warns you before you prescribe something that could harm them.',
-          'If the file records an allergy, a red “Warning: the patient is allergic to” bar sits at the top of the prescription, with what was recorded.',
+          'Dentora compares each drug’s name with the allergies recorded in the patient’s file, and warns you when it recognises a clash.',
+          'If the file records an allergy, a red “Warning: the patient is allergic to” bar sits above the medicines, with what was recorded.',
         ],
       },
       steps: {
         ar: [
-          'راجع الشريط الأحمر في أعلى الوصفة قبل اختيار الأدوية.',
+          'راجع الشريط الأحمر فوق قائمة الأدوية قبل اختيارها.',
           'في قائمة البحث تظهر علامة تحذير بجانب الدواء الذي يتعارض مع الحساسية.',
           'إذا أضفته يتلوّن سطره بالأحمر ويظهر تحته سبب التعارض: الدواء نفسه، أو دواء من العائلة نفسها، أو تحسس متصالب محتمل.',
           'عند الحفظ يسألك البرنامج مرة أخرى. انقر على **مراجعة الأدوية** لتغيير الدواء، أو على **الحفظ رغم التحذير** إن كنت متأكداً من سلامته.',
         ],
         en: [
-          'Read the red bar at the top before choosing the medicines.',
+          'Read the red bar above the medicines before choosing them.',
           'In the search list, a warning sign shows next to any drug that clashes with the allergy.',
           'If you add it, its line turns red and the reason shows under it: the same drug, a drug of the same family, or a possible cross-reaction.',
           'When you save, Dentora asks once more. Click **Review medicines** to change the drug, or **Save anyway** if you are sure it is safe.',
@@ -126,13 +126,13 @@ const topic: GuideTopic = {
           'يعرف البرنامج عائلات الأدوية الشائعة في طب الأسنان، كالبنسلينات والسيفالوسبورينات والماكروليدات ومضادات الالتهاب غير الستيروئيدية والمخدرات الموضعية، ويتعرف على أسمائها العربية والأجنبية.',
           'المريض المتحسس من البنسلين يُنبَّه أيضاً عند وصف السيفالوسبورينات، لاحتمال التحسس المتصالب.',
           'سجّل الحساسية في ملف المريض أولاً ليعمل التنبيه. انظر [الحالة الصحية](patients#medical).',
-          'التنبيه عون لك، ولا يغني عن خبرة الطبيب وسؤال المريض.',
+          'يتعرف التنبيه على الأسماء العلمية والأسماء التجارية الشائعة فقط. فالدواء المكتوب باسم تجاري لا يعرفه البرنامج، والحساسية المكتوبة بعبارة عامة مثل «المضادات الحيوية»، لا يظهر لهما تنبيه على سطر الدواء. لذلك اقرأ الشريط الأحمر دائماً؛ فالتنبيه عون لك، ولا يغني عن خبرة الطبيب وسؤال المريض.',
         ],
         en: [
           'Dentora knows the drug families common in dentistry, such as penicillins, cephalosporins, macrolides, NSAIDs and local anaesthetics, by their Arabic and English names.',
           'A patient allergic to penicillin is also warned about cephalosporins, because of a possible cross-reaction.',
           'Record allergies in the patient’s file first for the warning to work. See [Medical status](patients#medical).',
-          'The warning is a help; it does not replace the doctor’s judgement or asking the patient.',
+          'The warning knows generic names and common brand names only. A drug typed under a brand it does not know, or an allergy written in general words such as “Antibiotics”, gets no warning on the medicine line. So always read the red bar: the warning is a help, and it does not replace the doctor’s judgement or asking the patient.',
         ],
       },
       shots: ['prescriptions-allergy', 'prescriptions-allergy-confirm'],
@@ -234,14 +234,14 @@ const topic: GuideTopic = {
           'لإضافة دواء انقر على **إضافة دواء**، واكتب **اسم الدواء** و**الاسم الأجنبي** و**الشكل الدوائي** و**التركيز**.',
           'في قسم **الجرعة الافتراضية** اكتب **الجرعة** واختر **التكرار** و**المدة** و**طريقة الاستعمال**، ثم انقر على **إضافة دواء**.',
           'لتعديل دواء انقر على سطره، ثم على **حفظ التغييرات**.',
-          'لإخفاء دواء من الوصفات الجديدة أطفئ مفتاح **نشط** في سطره. ولحذفه نهائياً انقر على سلة المهملات.',
+          'لإخفاء دواء من الوصفات الجديدة أطفئ مفتاح **نشط** في سطره. ولحذفه نهائياً انقر على سلة المهملات؛ ولا تظهر السلة على الهاتف، فاحذف من الحاسوب.',
         ],
         en: [
           'Open **Prescriptions**, then the **Drug list** tab.',
           'To add a drug click **Add drug**, and type the **Drug name**, **English name**, **Form** and **Strength**.',
           'Under **Default regimen** type the **Dose** and choose the **Frequency**, **Duration** and **Instructions**, then click **Add drug**.',
           'To edit a drug click its row, then **Save changes**.',
-          'To hide a drug from new prescriptions, turn off the **Active** switch on its row. To delete it for good, click the bin.',
+          'To hide a drug from new prescriptions, turn off the **Active** switch on its row. To delete it for good, click the bin; there is no bin on a phone, so delete from a computer.',
         ],
       },
       tips: {
@@ -271,8 +271,8 @@ const topic: GuideTopic = {
     {
       id: 'prescriptions-form',
       device: 'desktop',
-      alt: { ar: 'نافذة وصفة جديدة: المريض والطبيب والتاريخ والتشخيص، والبحث عن دواء مع اقتراحات من قائمة الأدوية', en: 'The New prescription window: patient, doctor, date and diagnosis, and the drug search with suggestions from the drug list' },
-      recipe: `${DESK} ${NEW_RX} In the patient search type “حسام مارديني” (EN: “Hussam Mardini”) and press Enter to pick ${file(18, 'حسام مارديني', 'Hussam Mardini')}. Type the diagnosis “خراج ذروي حاد — السن 37” (EN: “Acute apical abscess — tooth 37”). In the drug search type “أموكسيسيلين” (EN: “Amoxicillin”) and press Enter, then “إيبوبروفين” (EN: “Ibuprofen”) and press Enter, then type “كلورهي” (EN: “Chlorhex”) and wait 500 ms for the list (two chlorhexidine drugs and the “add as an unlisted drug” line). Crop to the dialog. Markers: 2 on the patient card, 3 on the Doctor, Date and Diagnosis fields, 4 on the drug search box, 5 on the first medicine line (partly under the list), 6 on **Save prescription**. Cancel afterwards (do not save).`,
+      alt: { ar: 'نافذة وصفة جديدة: المريض والطبيب والتاريخ والتشخيص، وخانة البحث عن دواء، ودواءان مضافان بجرعاتهما', en: 'The New prescription window: patient, doctor, date and diagnosis, the drug search box, and two medicines added with their doses' },
+      recipe: `${DESK} ${NEW_RX} In the patient search type “حسام مارديني” (EN: “Hussam Mardini”) and press Enter to pick ${file(18, 'حسام مارديني', 'Hussam Mardini')}. Type the diagnosis “خراج ذروي حاد — السن 37” (EN: “Acute apical abscess — tooth 37”). In the drug search type “أموكسيسيلين” (EN: “Amoxicillin”) and press Enter, then “إيبوبروفين” (EN: “Ibuprofen”) and press Enter; press Escape so the suggestion list is closed and both medicine lines show with their Strength, Dose, Frequency, Duration and Instructions. Crop to the dialog. Markers: 2 on the patient card, 3 on the Doctor, Date and Diagnosis fields, 4 on the drug search box, 5 on the first medicine line (away from the Medicines count badge), 6 on **Save prescription**. Cancel afterwards (do not save).`,
     },
     {
       id: 'prescriptions-allergy',

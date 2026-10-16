@@ -100,7 +100,8 @@ async function newOrder(page, helpers) {
   await combo(exactly(await helpers.t('lab.form.lab'))).fill(helpers.pick('مخبر الشام الرقمي (CAD/CAM)', 'Al-Sham Digital Lab (CAD/CAM)'))
   await combo(await helpers.t('lab.form.shade')).fill('A3')
   await combo(exactly(await helpers.t('lab.form.material'))).fill(helpers.pick('زيركون', 'Zirconia'))
-  await dlg.locator('.lab-tooth').filter({ hasText: /^\s*26\s*$/ }).click()
+  // tooth 16: the zirconia crown of this patient that lab-form-dates links the order to
+  await dlg.locator('.lab-tooth').filter({ hasText: /^\s*16\s*$/ }).click()
   await dlg.locator('.form-section-title').filter({ hasText: await helpers.t('lab.form.sectionWork') }).click()
   await blur(page)
   await page.waitForTimeout(250)
@@ -162,7 +163,7 @@ export const shots = restMouse({
         atLabel(3, dlg, await helpers.t('lab.form.type')),
         { n: 3, target: dlg.locator('label.field-label').filter({ hasText: await helpers.t('lab.form.shade') }).first(), place: 'after-content' },
         atLabel(3, dlg, await helpers.t('lab.form.material')),
-        { n: 4, target: dlg.locator('.lab-tooth').filter({ hasText: /^\s*26\s*$/ }), place: 'top' },
+        { n: 4, target: dlg.locator('.lab-tooth').filter({ hasText: /^\s*16\s*$/ }), place: 'top' },
         { n: 4, target: dlg.locator('.lab-teeth-tools .lab-chip-btn').first(), place: 'start' },
       ],
     }

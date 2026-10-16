@@ -39,14 +39,14 @@ const topic: GuideTopic = {
           'اختر نوع الإطباق بالأزرار **دائمة** و**مختلطة** و**لبنية**. يقترح البرنامج النوع المناسب لعمر المريض ويضع بجانبه نقطة: لبنية تحت 6 سنوات، ومختلطة من 6 إلى 12 سنة، ودائمة بعد ذلك.',
           'إذا كانت هناك حالات على أسنان لا يُظهرها الإطباق المختار ينبّهك البرنامج ويعرض زر **عرض الإطباق المختلط**.',
           'على الحاسوب، مرّر المؤشر فوق أي سن لترى اسمه الكامل وحالاته، مثل «الرحى الأولى السفلية اليسرى».',
-          'المخطط الفارغ يعني أن الأسنان كلها سليمة، ويعرض زر **ابدأ الرسم السريع** لتعبئته بسرعة.',
+          'المخطط الفارغ يعني أنه لم يُسجَّل أي تشخيص بعد، لذلك تظهر الأسنان كلها سليمة حتى تفحص المريض وتسجّل حالته. ويعرض زر **ابدأ الرسم السريع** لتعبئته بسرعة.',
           'يسجّل التشخيصات الأطباء والمساعدون والمدير. لا يظهر هذا التبويب لموظف الاستقبال. انظر [الأدوار والصلاحيات](staff#roles).',
         ],
         en: [
           'Choose the dentition with **Permanent**, **Mixed** and **Primary**. Dentora suggests the one that suits the patient’s age and marks it with a dot: primary under 6, mixed from 6 to 12, permanent after that.',
           'If findings are recorded on teeth the chosen dentition does not show, Dentora says so and offers **Show mixed dentition**.',
           'On a computer, hover over a tooth to see its full name and findings, such as “Lower left first molar”.',
-          'An empty chart means every tooth is healthy; it offers **Start quick paint** to fill it in quickly.',
+          'An empty chart means nothing has been recorded yet, so every tooth is drawn as healthy until you examine the patient and record findings. It offers **Start quick paint** to fill it in quickly.',
           'Doctors, assistants and admins record findings. Receptionists do not see this tab. See [Roles and permissions](staff#roles).',
         ],
       },
@@ -81,14 +81,16 @@ const topic: GuideTopic = {
         ar: [
           'التشخيص الجديد يحلّ محل ما يغطيه فقط: حشوة على السطح O فوق تسوس على MOD تُبقي التسوس على M وD. والتاج يغطي الحشوات القديمة ويُبقي المعالجة اللبية، أما **يحتاج إلى قلع** و**متقلقل** و**خراج** و**سحل** و**أخرى** فتُضاف إلى ما على السن دون أن تمحوه.',
           'لمسح حالة بعد علاجها اختر **سليم** تحت **إعادة التعيين**: اختر الأسطح التي عولجت لتُمسح وحدها، أو لا تختر شيئاً ليعود السن كله سليماً.',
-          'لحذف تشخيص سُجّل خطأً انقر على أيقونة سلة المهملات بجانبه في **الحالة الحالية**.',
+          'لحذف تشخيص سُجّل خطأً انقر على أيقونة سلة المهملات بجانبه في **الحالة الحالية**، ثم أكّد. يُحذف من المخطط ومن السجل نهائياً، لذلك لا تستخدمه لحالة عولجت: اختر **سليم** ليبقى أثرها في السجل.',
+          'للجسر سجّل **جسر** على كل سن من وحداته (الدعامات والسن البديل)، فيصل المخطط بين الأسنان المتجاورة التي تحمله بخط.',
           'زر **علاج هذا السن** ينقلك إلى تبويب العلاجات ويفتح بنداً علاجياً جديداً لهذا السن. وحين تُنهي هناك علاجاً على سن، كحشوة أو تاج أو معالجة لبية، يسألك البرنامج **تحديث مخطط الأسنان؟** ليبقى المخطط مطابقاً لما تم. انظر [العلاجات](treatments#progress).',
           'أغلق اللوحة بزر ✕ أو بمفتاح `Esc`. على الهاتف تُفتح اللوحة من أسفل الشاشة.',
         ],
         en: [
           'A new finding replaces only what it covers: a filling on O over caries on MOD leaves the caries on M and D. A crown covers old fillings but keeps the root canal, while **To extract**, **Mobile**, **Abscess**, **Attrition** and **Other** are added on top of whatever the tooth already has.',
           'To clear a condition after treatment, choose **Healthy** under **Reset**: pick the treated surfaces to clear only those, or pick none to make the whole tooth healthy again.',
-          'To remove a finding recorded by mistake, click the bin icon next to it under **Current state**.',
+          'To remove a finding recorded by mistake, click the bin icon next to it under **Current state** and confirm. It is removed from the chart and from the history for good, so do not use it for a condition that was treated: choose **Healthy**, which keeps it in the history.',
+          'For a bridge, record **Bridge** on every unit (abutments and pontic); the chart joins neighbouring bridged teeth with a bar.',
           '**Treat this tooth** takes you to the Treatments tab with a new treatment item for this tooth. When you mark treatment on a tooth done there, such as a filling, a crown or a root canal, Dentora asks **Update the dental chart?** so the chart matches what was done. See [Treatments](treatments#progress).',
           'Close the panel with ✕ or `Esc`. On a phone the panel slides up from the bottom of the screen.',
         ],
@@ -105,14 +107,14 @@ const topic: GuideTopic = {
       steps: {
         ar: [
           'انقر على **رسم سريع** أعلى المخطط، أو انقر مباشرة على حالة في **دليل الحالات**.',
-          'اختر الحالة من **اختر حالة للرسم** تحت المخطط. يذكّرك شريط فوق المخطط بالحالة التي ترسم بها الآن.',
+          'اختر الحالة من **اختر حالة للرسم** تحت المخطط. يبدأ الرسم السريع أول مرة وحالة **تسوس** مختارة، فتأكد من الحالة قبل أن تنقر على أي سن. يذكّرك شريط فوق المخطط بالحالة التي ترسم بها الآن.',
           'انقر على السطح المطلوب لحالات الأسطح، أو على أي مكان في السن للحالات الكاملة مثل **تاج** و**مفقود**. النقر مرة ثانية على المكان نفسه يزيل الحالة.',
           'لتصحيح خطأ اختر **ممحاة (سليم)**: انقر على سطح لتمسحه، أو على رقم السن ليعود سليماً بالكامل.',
           'انقر على **إنهاء الرسم** لتعود إلى وضع **تحديد**.',
         ],
         en: [
           'Click **Quick paint** above the chart, or click a condition in the **Legend** directly.',
-          'Choose the condition under **Pick a condition to paint** below the chart. A bar above the chart reminds you what you are painting with.',
+          'Choose the condition under **Pick a condition to paint** below the chart. Quick paint first starts with **Caries** already picked, so check the condition before you click a tooth. A bar above the chart reminds you what you are painting with.',
           'Click the surface for a surface condition, or anywhere on the tooth for a whole-tooth condition such as **Crown** or **Missing**. Clicking the same place again removes it.',
           'To fix a mistake choose **Eraser (healthy)**: click a surface to clear it, or the tooth number to make the whole tooth healthy.',
           'Click **Done painting** to go back to **Select** mode.',
@@ -120,12 +122,12 @@ const topic: GuideTopic = {
       },
       tips: {
         ar: [
-          'كل نقرة تُحفظ فوراً وتُسجَّل في سجل المخطط باسمك وتاريخها، فلا حاجة إلى زر حفظ.',
+          'كل نقرة تُحفظ فوراً، فلا حاجة إلى زر حفظ. ما تضيفه يظهر في سجل المخطط باسمك وتاريخه، وما تزيله بنقرة ثانية يبقى في السجل بشارة **سابق**، ويُسجَّل التغيير باسمك في **آخر النشاطات** في ملف المريض.',
           'الرسم السريع لا يضيف ملاحظات. لإضافة ملاحظة إلى تشخيص استخدم لوحة السن في وضع **تحديد**.',
           'على الهاتف يُفتح المخطط مكبّراً ليسهل النقر على الأسطح؛ اسحبه جانباً لتصل إلى بقية الأسنان.',
         ],
         en: [
-          'Every click is saved at once and logged in the chart history with your name and the date, so there is no Save button.',
+          'Every click is saved at once, so there is no Save button. What you add appears in the chart history with your name and the date; what you remove with a second click stays in the history marked **Superseded**, and the change is logged under your name in **Recent activity** in the patient’s file.',
           'Quick paint adds no notes. To add a note to a finding, use the tooth panel in **Select** mode.',
           'On a phone the chart opens zoomed in so surfaces are easy to tap; swipe it sideways to reach the other teeth.',
         ],
@@ -136,33 +138,31 @@ const topic: GuideTopic = {
       id: 'history',
       title: { ar: 'سجل المخطط', en: 'Chart history' },
       text: {
-        ar: ['لا يضيع أي تشخيص: حين يحلّ تشخيص محل آخر يبقى القديم في السجل، فتعرف متى تغيّرت حالة كل سن ومن سجّلها.'],
-        en: ['No finding is ever lost: when a new one replaces an older one, the older one stays in the history, so you know when each tooth changed and who recorded it.'],
+        ar: ['لا يضيع أي تشخيص ما لم تحذفه بنفسك: حين يحلّ تشخيص محل آخر يبقى القديم في السجل، فتعرف متى تغيّرت حالة كل سن ومن سجّلها.'],
+        en: ['No finding is lost unless you delete it yourself: when a new one replaces an older one, the older one stays in the history, so you know when each tooth changed and who recorded it.'],
       },
       steps: {
         ar: [
           'انقر على **السجل** أعلى المخطط. تظهر التشخيصات كلها من الأحدث إلى الأقدم، مجمّعة حسب اليوم، مع الوقت واسم من سجّلها.',
           'اقرأ الشارات: **حالي** للتشخيص القائم، و**سابق** لما حلّ محله غيره، و**سُجّل سليماً** حين أُعيد السن سليماً.',
-          'لترى سناً واحداً افتحه بالنقر عليه في المخطط، ثم اختر في أعلى السجل الزر الذي يحمل رقمه، مثل **السن 36 فقط**.',
+          'لترى سجل سن واحد، انقر عليه في المخطط لتفتح لوحته، ثم انقر على **سجل السن** في أسفلها.',
           'لإرجاع تشخيص **سابق** انقر على أيقونة الاستعادة بجانبه، ولحذف سطر نهائياً انقر على سلة المهملات.',
         ],
         en: [
           'Click **History** above the chart. Every finding is listed newest first, grouped by day, with the time and who recorded it.',
           'Read the badges: **Current** for a finding in place, **Superseded** for one that a newer finding replaced, and **Marked healthy** when the tooth was reset to healthy.',
-          'To see one tooth only, open it by clicking it on the chart, then choose the button with its number at the top of the history, such as **Tooth 36 only**.',
+          'To see the history of one tooth, click it on the chart to open its panel, then click **Tooth history** at the bottom of the panel.',
           'To bring back a **Superseded** finding click the restore icon next to it; to delete a line for good click the bin.',
         ],
       },
       tips: {
         ar: [
           'انقر على رقم السن في السجل لتفتح لوحته.',
-          'لكل سن سجله أيضاً: افتح **سجل السن** في أسفل لوحة السن.',
           'الحذف من السجل نهائي، ويطلب البرنامج تأكيده قبل التنفيذ.',
           'تظهر تغييرات المخطط أيضاً في **آخر النشاطات** في تبويب **نظرة عامة** من ملف المريض.',
         ],
         en: [
           'Click a tooth number in the history to open that tooth’s panel.',
-          'Each tooth has its own history too: open **Tooth history** at the bottom of the tooth panel.',
           'Deleting from the history is permanent, and Dentora asks you to confirm first.',
           'Chart changes also appear under **Recent activity** in the **Overview** tab of the patient’s file.',
         ],

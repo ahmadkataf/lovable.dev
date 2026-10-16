@@ -157,7 +157,7 @@ const topic: GuideTopic = {
         ar: [
           'الكمية المقترحة للصنف الناقص تعيده إلى ضعف حد التنبيه، ويُملأ سعر الوحدة من سعر تكلفته الحالي. عدّل الرقمين كما في فاتورتك.',
           'لا يُقبل تاريخ شراء بعد اليوم، ولا يتكرر الصنف نفسه في سطرين («الصنف مكرر»). ولا تظهر في القائمة الأصناف الموقوفة.',
-          'زر تسجيل الشراء في المصروفات يظهر للمدير وحده، لأن [المصروفات](expenses) من صلاحياته. شراء يسجّله غيره يحدّث المخزون فقط.',
+          'مفتاح **تسجيل قيمة الشراء في المصروفات** يظهر للمدير وحده، لأن [المصروفات](expenses) من صلاحياته. والشراء الذي يسجّله غيره يحدّث المخزون فقط.',
           'يُكتب المورد ورقم الفاتورة ملاحظةً على حركة كل صنف، فتجدهما لاحقاً في سجل الحركات.',
         ],
         en: [
@@ -176,12 +176,12 @@ const topic: GuideTopic = {
         ar: [
           'انقر على سطر أي صنف (أو اختر **سجل الحركات** من قائمة ⋮) لتفتح لوحة **سجل الحركات** على جانب الشاشة. في أعلاها الكمية الحالية بخط كبير مع الحد، ثم **سعر التكلفة** و**القيمة** و**الصلاحية**، ومكان التخزين والمورد. ومنها تضيف أو تسحب بزرّي **إضافة كمية** و**سحب كمية**، وتعدّل الصنف بزر **تعديل الصنف** في أسفلها.',
           'تحت **آخر الحركات** تجد كل حركة بسببها وتاريخها ووقتها ومن سجّلها وملاحظتها، والكمية التي أضافتها أو سحبتها، و**الرصيد بعدها**.',
-          'أما تبويب **الحركات** في أعلى الصفحة فيجمع حركات كل الأصناف، الأحدث أولاً. ابحث فيه باسم الصنف أو بالملاحظة، أو اختر سبباً واحداً (**شراء**، **استهلاك**، **تسوية**…) لتعرض حركاته وحدها. انقر على أي حركة لتفتح سجل صنفها.',
+          'أما تبويب **الحركات** في أعلى الصفحة فيجمع حركات كل الأصناف، الأحدث أولاً. ابحث فيه باسم الصنف أو رمزه أو بالملاحظة، أو اختر سبباً واحداً (**شراء**، **استهلاك**، **تسوية**…) لتعرض حركاته وحدها. انقر على أي حركة لتفتح سجل صنفها.',
         ],
         en: [
           'Click any item’s row (or choose **Movement history** from its ⋮ menu) to open the **Movement history** panel at the side of the screen. At the top it shows the current quantity in large type with the threshold, then **Cost price**, **Value** and **Expiry**, the storage location and the supplier. From here you add or take stock with **Add stock** and **Take stock**, and change the item with **Edit item** at the bottom.',
           'Under **Recent movements** each movement shows its reason, date, time, who recorded it and its note, the quantity it added or took, and the **Balance after**.',
-          'The **Movements** tab at the top of the page gathers the movements of every item, newest first. Search it by item name or note, or pick one reason (**Purchase**, **Used**, **Adjustment**…) to show only those. Click any movement to open its item’s history.',
+          'The **Movements** tab at the top of the page gathers the movements of every item, newest first. Search it by item name, SKU or note, or pick one reason (**Purchase**, **Used**, **Adjustment**…) to show only those. Click any movement to open its item’s history.',
         ],
       },
       shots: ['inventory-history', 'inventory-movements'],
@@ -203,7 +203,7 @@ const topic: GuideTopic = {
         ar: [
           'اكتب في مربع البحث اسم الصنف أو رمزه أو مورده أو فئته أو مكان تخزينه.',
           'انقر على فئة من الأزرار تحت البحث لتعرض أصنافها وحدها، أو على **كل الفئات** لتعود.',
-          'فعّل **النقص فقط**، أو انقر على بطاقة **نقص في المخزون**. ولما قارب الانتهاء انقر على بطاقة **قاربت على الانتهاء**، فيظهر زر **قريبة الانتهاء أو منتهية** ومعه × لإلغائه.',
+          'فعّل **النقص فقط**، أو انقر على بطاقة **نقص في المخزون**. ولعرض ما قارب الانتهاء انقر على بطاقة **قاربت على الانتهاء**، فيظهر زر **قريبة الانتهاء أو منتهية** ومعه × لإلغائه.',
           'انقر على **مسح التصفية** تحت الجدول لترى كل الأصناف من جديد.',
         ],
         en: [
@@ -240,14 +240,14 @@ const topic: GuideTopic = {
       },
       tips: {
         ar: [
-          'تعديل الصنف يغيّر اسمه وفئته وحده وسعره وصلاحيته وغيرها، ولا يغيّر كميته: تبقى خانة **الكمية الحالية** مقفلة، لأن الكمية تتغير بحركات المخزون فقط.',
-          'أوقف الصنف الذي لم تعد تستخدمه بدل حذفه: يختفي من القوائم والشراء والتنبيهات، ويبقى سجله محفوظاً. لتعيده فعّل **إظهار الموقوفة** ثم اختر **إعادة تفعيل** من قائمته.',
+          'تعديل الصنف يغيّر اسمه وفئته ووحدته وسعره وصلاحيته وغيرها، ولا يغيّر كميته: تبقى خانة **الكمية الحالية** مقفلة، لأن الكمية تتغير بحركات المخزون فقط.',
+          'أوقف الصنف الذي لم تعد تستخدمه بدل حذفه: يختفي من القوائم والشراء والتنبيهات، ويبقى سجله محفوظاً. لتعيده فعّل **إظهار الموقوفة** ثم اختر **إعادة تفعيل** من قائمته. ومفتاح **صنف نشط** في نافذة التعديل يفعل الشيء نفسه.',
           'الصنف الذي له حركات شراء أو استهلاك لا يُحذف، بل يُوقف، حتى لا يضيع سجله.',
           'على ويندوز تُفتح نافذة حفظ لتختار مكان الملف. وعلى أندرويد تُفتح شاشة الحفظ في النظام، فتختار مجلد التنزيلات أو Google Drive مثلاً. على الهاتف زر التصدير أيقونة سهم التنزيل.',
         ],
         en: [
           'Editing an item changes its name, category, unit, price, expiry and the rest, never its quantity: the **Current quantity** box stays locked, because the quantity moves only through stock movements.',
-          'Deactivate an item you no longer use instead of deleting it: it leaves the lists, purchases and alerts, and its history is kept. To bring it back, turn on **Show inactive** and choose **Reactivate** from its menu.',
+          'Deactivate an item you no longer use instead of deleting it: it leaves the lists, purchases and alerts, and its history is kept. To bring it back, turn on **Show inactive** and choose **Reactivate** from its menu. The **Active item** switch in the edit window does the same.',
           'An item with purchases or uses in its history cannot be deleted, only deactivated, so its history is never lost.',
           'On Windows a save window opens so you choose where the file goes. On Android the system’s save screen opens: choose Downloads or Google Drive, for example. On a phone the export button is the download-arrow icon.',
         ],

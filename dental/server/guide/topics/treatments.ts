@@ -37,10 +37,10 @@ const topic: GuideTopic = {
       },
       tips: {
         ar: [
-          'انقر على أي بند في الجدول لتعديله، وعلى رأس الخطة لطيّها أو فتحها. تبدأ الخطط الجارية مفتوحة، والمكتملة والملغاة مطوية، إلا إن كانت الخطة الوحيدة للمريض.',
+          'انقر على أي بند في الجدول لتعديله، وعلى رأس الخطة لطيّها أو بسطها. تظهر الخطط الجارية مبسوطةً ببنودها، وتظهر المكتملة والملغاة مطويّة، إلا إن كانت الخطة الوحيدة للمريض.',
           'شريط التقدم محسوب بقيمة البنود المنجزة من قيمة الخطة، لا بعددها.',
           'التبويب متاح للمدير والأطباء والمساعدين، ولا يراه موظف الاستقبال. أما زر **فوترة المنجز** فيظهر لمن يملك صلاحية الفواتير فقط. انظر [الأدوار والصلاحيات](staff#roles).',
-          'على الهاتف تظهر البنود بطاقاتٍ تحت بعضها، ويكون زر **بدء** وأمر **طباعة التقدير** داخل قوائم ⋮.',
+          'على الهاتف تظهر البنود بطاقاتٍ متتالية، ويكون زر **بدء** وأمر **طباعة التقدير** داخل قوائم ⋮.',
           'إذا انتهت الفترة التجريبية دون تفعيل تبقى الخطط ظاهرة وتستطيع طباعتها، لكن الإضافة والتعديل يتوقفان. انظر [الترخيص](licence).',
         ],
         en: [
@@ -66,7 +66,7 @@ const topic: GuideTopic = {
           'اقبل **عنوان الخطة** المقترح أو اكتب عنواناً أوضح، مثل «معالجة لبية وتاج للسن 16». اختر **الطبيب** وأضف **ملاحظات** إن شئت، ثم انقر على **إنشاء الخطة**.',
           'تنفتح نافذة **إضافة بند علاجي** مباشرة. ابحث عن الإجراء بالاسم أو الرمز، أو اختر فئته، ثم انقر عليه. يأتي سعره من قائمة الأسعار.',
           'انقر على الأسنان المعنية. تستطيع اختيار أكثر من سن، فيُنشأ لكل سن بند مستقل.',
-          'اختر **الأسطح** إن احتجت، وعدّل **السعر لكل سن** و**الخصم لكل سن** و**التاريخ المخطط** و**الطبيب** و**ملاحظات** البند.',
+          'اختر **الأسطح** إن احتجت، وعدّل **السعر** و**الخصم** (ويصبح اسمهما **السعر لكل سن** و**الخصم لكل سن** حين تحدد أكثر من سن)، و**التاريخ المخطط** و**الطبيب** و**ملاحظات** البند.',
           'انقر على **إضافة البند**. يتبع اسم الزر عدد الأسنان، مثل **إضافة بندين**. ولإضافة بنود أخرى لاحقاً انقر على **إضافة بند** في شريط الخطة.',
         ],
         en: [
@@ -74,15 +74,15 @@ const topic: GuideTopic = {
           'Keep the suggested **Plan title** or type a clearer one, such as “Root canal and crown, tooth 16”. Choose the **Doctor**, add **Notes** if you wish, then click **Create plan**.',
           'The **Add treatment** window opens straight away. Search for the procedure by name or code, or pick its category, then click it. Its price comes from your price list.',
           'Click the teeth involved. You can pick several: each tooth gets an item of its own.',
-          'Pick **Surfaces** if needed, and adjust the **Price per tooth**, **Discount per tooth**, **Planned date**, **Doctor** and the item’s **Notes**.',
+          'Pick **Surfaces** if needed, and adjust the **Price** and **Discount** (they read **Price per tooth** and **Discount per tooth** when you pick several teeth), the **Planned date**, **Doctor** and the item’s **Notes**.',
           'Click **Add item**. The button counts the teeth, such as **Add 2 items**. To add more later, click **Add item** in the plan’s bar.',
         ],
       },
       tips: {
         ar: [
           'في خانة البحث اضغط `Enter` لاختيار أول إجراء في النتائج.',
-          'الإجراءات التي تحمل أيقونة السن في القائمة تتطلب تحديد سن، كالحشوات والتيجان والقلع. أما الفحص والتنظيف فتُضاف دون سن.',
-          'النقطة الصغيرة على سنٍّ في الشبكة تعني أن له بنوداً علاجية سابقة. ولأسنان الأطفال فعّل **أسنان لبنية** فوق الشبكة.',
+          'الإجراءات التي تحمل أيقونة السن في القائمة تتطلب تحديد سن، كالحشوات والتيجان والقلع. أما الفحص والتنظيف فتُضاف دون سن، وإن أردت ربطها بسن فانقر على **تحديد أسنان**.',
+          'النقطة الصغيرة على سنٍّ في الشبكة تعني أن عليه بنوداً علاجية مسجّلة، مخططة أو منجزة. ولأسنان الأطفال فعّل **أسنان لبنية** فوق الشبكة.',
           'يُعرض السطح الطاحن (O) للأسنان الخلفية فقط، والسطح الحدّي (I) للأسنان الأمامية فقط.',
           'في خانة **ضمن الخطة** تستطيع وضع البند في خطة مفتوحة أخرى، أو اختيار **+ خطة علاج جديدة**، أو **بدون خطة**.',
           'السعر الذي تكتبه هنا يخص هذا المريض وحده، ولا يغيّر [قائمة الأسعار](treatments#price-list).',
@@ -90,7 +90,7 @@ const topic: GuideTopic = {
         ],
         en: [
           'In the search box, press `Enter` to pick the first procedure in the results.',
-          'Procedures with a tooth icon in the list need a tooth, such as fillings, crowns and extractions. Exams and cleanings are added without one.',
+          'Procedures with a tooth icon in the list need a tooth, such as fillings, crowns and extractions. Exams and cleanings are added without one; to tie one to a tooth anyway, click **Choose teeth**.',
           'A small dot on a tooth in the grid means it already has treatment items. For a child’s teeth, turn on **Primary teeth** above the grid.',
           'Occlusal (O) is offered only for back teeth, and Incisal (I) only for front teeth.',
           'The **Plan** field lets you put the item in another open plan, choose **+ New treatment plan**, or **No plan**.',
@@ -106,11 +106,11 @@ const topic: GuideTopic = {
       text: {
         ar: [
           'لكل بند أربع حالات: **مخطط** ثم **قيد التنفيذ** ثم **مكتمل**، أو **ملغى**.',
-          'وحالة الخطة تتبع بنودها تلقائياً: **مسودة** ثم **معتمدة** بعد موافقة المريض، ثم **قيد التنفيذ** حين يبدأ العمل، ثم **مكتملة** حين تُنجز كل بنودها.',
+          'تبدأ الخطة **مسودة**، وتصبح **معتمدة** حين تنقر على **اعتماد الخطة**. ثم تتبع حالتها بنودها تلقائياً: **قيد التنفيذ** حين يبدأ العمل على أحد بنودها (ولو لم تُعتمد بعد)، و**مكتملة** حين تُنجز كل بنودها. والخطة الملغاة تظهر بحالة **ملغاة**.',
         ],
         en: [
           'Each item has four statuses: **Planned**, then **In progress**, then **Completed**, or **Cancelled**.',
-          'The plan’s status follows its items by itself: **Draft**, **Approved** once the patient agrees, **In progress** when work starts, and **Completed** when every item is done.',
+          'A plan starts as **Draft** and becomes **Approved** when you click **Approve plan**. Its status then follows its items by itself: **In progress** as soon as work starts on one of them (even if the plan was never approved), and **Completed** when every item is done. A cancelled plan shows **Cancelled**.',
         ],
       },
       steps: {
@@ -118,14 +118,14 @@ const topic: GuideTopic = {
           'حين يوافق المريض انقر على **اعتماد الخطة**. يظهر الزر في المسودات، ويعمل حين يكون فيها بند واحد على الأقل.',
           'إذا كان العمل يمتد على أكثر من جلسة، كالمعالجة اللبية، انقر على **بدء** في سطره.',
           'عند الانتهاء انقر على **إنجاز**. يُسجَّل تاريخ اليوم تاريخاً للتنفيذ.',
-          'إذا كان البند على سن يسألك البرنامج **تحديث مخطط الأسنان؟** ويقترح الحالة المناسبة، مثل **حشوة** بعد الحشوات و**تاج** بعد التيجان. راجع **الحالة المسجّلة** والأسطح ثم انقر على **تحديث المخطط**، أو على **ليس الآن**.',
+          'إذا كان البند على سن ويترك أثراً في المخطط، كالحشوة أو التاج أو القلع، يسألك البرنامج **تحديث مخطط الأسنان؟** ويقترح الحالة المناسبة، مثل **حشوة** بعد الحشوات و**تاج** بعد التيجان. راجع **الحالة المسجّلة** والأسطح ثم انقر على **تحديث المخطط**، أو على **ليس الآن**.',
           'لبقية الأوامر افتح قائمة ⋮ في سطر البند: **تعديل** و**إعادة إلى المخطط** و**إعادة فتح** و**إلغاء البند** و**حذف**. ويعيد زر **استعادة** البند الملغى إلى المخطط.',
         ],
         en: [
           'When the patient agrees, click **Approve plan**. The button is on drafts and works once they have at least one item.',
           'When work takes more than one visit, such as a root canal, click **Start** on its row.',
           'When it is finished, click **Complete**. Today is recorded as the date done.',
-          'If the item is on a tooth, Dentora asks **Update the dental chart?** and suggests a finding, such as **Filling** after a filling or **Crown** after a crown. Check the **Condition to record** and the surfaces, then click **Update chart**, or **Not now**.',
+          'If the item is on a tooth and leaves a mark on the chart, such as a filling, a crown or an extraction, Dentora asks **Update the dental chart?** and suggests a finding, such as **Filling** after a filling or **Crown** after a crown. Check the **Condition to record** and the surfaces, then click **Update chart**, or **Not now**.',
           'For the other actions open the ⋮ menu on the item’s row: **Edit**, **Back to planned**, **Reopen**, **Cancel item** and **Delete**. **Restore** brings a cancelled item back to planned.',
         ],
       },
@@ -171,13 +171,13 @@ const topic: GuideTopic = {
       tips: {
         ar: [
           'لا يقبل **تاريخ التنفيذ** يوماً بعد اليوم.',
-          'إذا كان العلاج على سن يُعرض عليك تحديث مخطط الأسنان مباشرة بعد الحفظ.',
+          'إذا كان العلاج على سن ويترك أثراً في المخطط، كالحشوة أو التاج أو القلع، يُعرض عليك تحديث مخطط الأسنان مباشرة بعد الحفظ.',
           'تضم بطاقة **علاجات خارج الخطط** أيضاً البنود المنجزة من خطط حُذفت.',
           'العلاج السريع جاهز للفوترة فوراً. انظر [فوترة العمل المنجز](treatments#bill).',
         ],
         en: [
           'The **Date done** cannot be later than today.',
-          'If the treatment is on a tooth, you are offered the dental chart update right after saving.',
+          'If the treatment is on a tooth and leaves a mark on the chart, such as a filling, a crown or an extraction, you are offered the dental chart update right after saving.',
           'The **Treatments outside plans** card also holds completed items from deleted plans.',
           'A quick treatment is ready to bill at once. See [Billing completed work](treatments#bill).',
         ],
@@ -211,12 +211,14 @@ const topic: GuideTopic = {
           'إذا كان للمريض رصيد دائن في حسابه يُسدَّد به جزء من الفاتورة الجديدة أو كلها تلقائياً.',
           'تستطيع أيضاً إضافة العلاجات المنجزة من نافذة الفاتورة نفسها عبر **من العلاجات**. انظر [إصدار فاتورة](billing#new-invoice).',
           'إذا أُلغيت فاتورة تعود علاجاتها متاحة للفوترة من جديد.',
+          'العلاجات الموضوعة في مسودة فاتورة تُعدّ مفوترة ولا تظهر هنا حتى تُصدر المسودة أو تُحذف. انظر [إصدار فاتورة](billing#new-invoice).',
         ],
         en: [
           'Item discounts carry over to the invoice as they are, and the tax rate set in [Settings](settings#invoices-numbering), if any, is added.',
           'If the patient has credit on account, it settles part or all of the new invoice automatically.',
           'You can also add completed treatments from the invoice window itself with **From treatments**. See [Issuing an invoice](billing#new-invoice).',
           'If an invoice is cancelled, its treatments can be billed again.',
+          'Treatments placed on a draft invoice count as billed and do not show here until the draft is issued or deleted. See [Issuing an invoice](billing#new-invoice).',
         ],
       },
       shots: ['treatments-bill'],
@@ -246,7 +248,7 @@ const topic: GuideTopic = {
           'يحمل ملف PDF اسم الورقة والمريض والخطة، مثل «خطة علاج وتقدير تكلفة - أنس مازن ديب - معالجة لبية وتاج للسن 16».',
           'على ويندوز تُفتح نافذة الطباعة في ويندوز، ولحفظ ملف PDF اختر «Microsoft Print to PDF». وعلى أندرويد تُفتح شاشة الطباعة في النظام، وفيها خيار الحفظ بصيغة PDF. وعلى الهاتف تجد **طباعة التقدير** في قائمة ⋮ للخطة.',
           '**تعديل الخطة** يغيّر عنوانها وطبيبها وملاحظاتها.',
-          '**إلغاء الخطة** يلغي البنود التي لم تُنجز ويُبقي المنجزة في سجل المريض. ويعيدها **إعادة تفعيل الخطة** متى شئت، ثم تستعيد البنود الملغاة واحداً واحداً.',
+          '**إلغاء الخطة** يلغي البنود التي لم تُنجز ويُبقي المنجزة في سجل المريض، ولا يتاح للخطة المكتملة. وتستطيع إرجاع الخطة الملغاة متى شئت بـ**إعادة تفعيل الخطة**، ثم تستعيد بنودها الملغاة واحداً واحداً بزر **استعادة**.',
           '**حذف الخطة** يحذفها نهائياً مع بنودها غير المنجزة. أما البنود المنجزة أو المفوترة فتنتقل إلى **علاجات خارج الخطط**.',
         ],
         en: [
@@ -254,7 +256,7 @@ const topic: GuideTopic = {
           'The PDF is named after the sheet, the patient and the plan, such as “Treatment plan & estimate - Anas Mazen Deeb - Root canal and crown, tooth 16”.',
           'On Windows the Windows print dialog opens; to save a PDF choose “Microsoft Print to PDF”. On Android the system print screen opens, with a save-as-PDF option. On a phone, **Print estimate** is in the plan’s ⋮ menu.',
           '**Edit plan** changes its title, doctor and notes.',
-          '**Cancel plan** cancels the unfinished items and keeps the completed ones on the patient’s record. **Reopen plan** brings it back whenever you need; then restore the cancelled items one by one.',
+          '**Cancel plan** cancels the unfinished items and keeps the completed ones on the patient’s record; it is not offered for a completed plan. Bring a cancelled plan back whenever you need with **Reopen plan**, then restore its cancelled items one by one with **Restore**.',
           '**Delete plan** removes it for good with its unfinished items. Completed or billed items move to **Treatments outside plans**.',
         ],
       },
@@ -269,7 +271,7 @@ const topic: GuideTopic = {
       },
       steps: {
         ar: [
-          'افتح **العلاجات** من القائمة الجانبية. تُعرض علاجات **هذا الشهر** أولاً.',
+          'افتح **العلاجات** من القائمة الجانبية. تفتح الصفحة على علاجات **هذا الشهر**.',
           'ضيّق القائمة بالبحث باسم المريض أو الإجراء أو رقم السن، أو بالفئة أو الحالة أو الفترة أو الطبيب.',
           'فعّل **تجميع حسب المريض** لترى بنود كل مريض معاً مع مجموعها.',
           'انقر على **تصدير CSV** لتحفظ القائمة الظاهرة في ملف تفتحه في Excel.',
@@ -338,16 +340,16 @@ const topic: GuideTopic = {
           'الإجراءات الموقوفة لا تظهر عند إضافة علاج جديد. استعمل مفتاح **نشط** في السطر لإيقافها أو تفعيلها بسرعة.',
           'السعر الجديد يسري على البنود الجديدة فقط، وتبقى البنود المضافة والفواتير الصادرة بأسعارها.',
           'لا يقبل التخفيض بنسبة 100% أو أكثر، وينبهك البرنامج إن كان التعديل سيجعل بعض الأسعار صفراً. ولا يتكرر رمز واحد لإجراءين.',
-          'إذا كانت عملة العيادة لا تُحوَّل إليها الأسعار المقترحة، كالليرة السورية، تبقى بأرقام الدولار وتظهر رسالة تذكّرك بتعديلها. بعد تعديلها انقر على **راجعت الأسعار** لإخفاء الرسالة.',
+          'إذا كانت عملة العيادة لا تُحوَّل إليها الأسعار المقترحة، كالليرة السورية، تبقى بأرقام الدولار وتظهر رسالة تذكّرك بتعديلها. بعد تعديلها انقر على **راجعت الأسعار** لإخفاء الرسالة على هذا الجهاز.',
           'إذا أفرغت القائمة يظهر زر **تحميل القائمة الافتراضية** لإعادة القائمة الجاهزة.',
           'هذه الصفحة للمدير وحده؛ ويرى الأطباء والمساعدون الأسعار عند إضافة البنود.',
         ],
         en: [
-          'A procedure used in past treatments or invoices cannot be deleted. Dentora offers **Deactivate instead**: it leaves the pickers and old records stay as they are.',
+          'A procedure used in past treatments or invoices cannot be deleted. Dentora offers **Deactivate instead**: the procedure disappears from the pickers, and past records stay as they are.',
           'Inactive procedures do not show when adding treatments. Use the **Active** switch on the row to turn them off or on quickly.',
           'A new price applies to new items only; items already added and invoices already issued keep their prices.',
           'A percentage decrease must stay below 100%, and Dentora warns you if a change would bring prices down to zero. Two procedures cannot share a code.',
-          'If the suggested prices cannot be converted to the clinic currency (the Syrian pound, for example), they stay in dollar figures and a notice reminds you to adjust them. Once done, click **Prices reviewed** to hide it.',
+          'If the suggested prices cannot be converted to the clinic currency (the Syrian pound, for example), they stay in dollar figures and a notice reminds you to adjust them. Once done, click **Prices reviewed** to hide it on this device.',
           'If you empty the list, a **Load default catalogue** button brings the ready list back.',
           'Only the admin can open this page; doctors and assistants see the prices when adding items.',
         ],

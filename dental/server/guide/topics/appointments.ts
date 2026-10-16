@@ -27,18 +27,18 @@ const topic: GuideTopic = {
       text: {
         ar: [
           'افتح **المواعيد** من القائمة الجانبية. يفتح التقويم على اليوم الحالي في عرض **يوم**: عمود لكل طبيب، والمواعيد بطاقات بطول مدتها، وخط أحمر يدل على الوقت الآن.',
-          'اختر العرض بالأزرار **يوم** و**أسبوع** و**شهر** و**قائمة**. يعرض الأسبوع سبعة أيام تبدأ بالسبت، ويعرض الشهر أول ثلاثة مواعيد في كل يوم، أما **قائمة** فتعرض مواعيد 14 يوماً تبدأ من التاريخ المختار، مع زر سريع بجانب كل موعد.',
+          'اختر العرض بالأزرار **يوم** و**أسبوع** و**شهر** و**قائمة**. يعرض الأسبوع سبعة أيام تبدأ بالسبت، ويعرض الشهر أول ثلاثة مواعيد في كل يوم، أما **قائمة** فتعرض مواعيد 14 يوماً تبدأ من التاريخ المختار، وعلى الحاسوب يظهر بجانب كل موعد لم ينتهِ زر خطوته التالية.',
         ],
         en: [
           'Open **Appointments** from the sidebar. The calendar opens on today in **Day** view: a column for each doctor, appointments as cards as long as they last, and a red line at the current time.',
-          'Switch views with **Day**, **Week**, **Month** and **Agenda**. The week shows seven days starting on Saturday, the month shows the first three appointments of each day, and **Agenda** lists 14 days from the chosen date with a quick button next to each appointment.',
+          'Switch views with **Day**, **Week**, **Month** and **Agenda**. The week shows seven days starting on Saturday, the month shows the first three appointments of each day, and **Agenda** lists 14 days from the chosen date; on a computer each unfinished appointment has its next-step button.',
         ],
       },
       steps: {
         ar: [
           'تنقّل بالسهمين يوماً أو أسبوعاً أو شهراً، وعُد بزر **اليوم**، أو اختر أي تاريخ من خانة التاريخ.',
           'اعرض طبيباً أو أكثر بالنقر على أسمائهم، أو انقر على **كل الأطباء** لترى الجميع.',
-          'صفِّ المواعيد حسب حالتها من زر **كل الحالات**: **الفعّالة فقط** تُخفي الملغاة ومن لم يحضر، أو اختر حالة واحدة.',
+          'اعرض المواعيد حسب حالتها من زر **كل الحالات**: **الفعّالة فقط** تُخفي الملغاة ومواعيد من لم يحضر، أو اختر حالة واحدة.',
           'انقر على أي موعد لترى تفاصيله.',
         ],
         en: [
@@ -50,16 +50,16 @@ const topic: GuideTopic = {
       },
       tips: {
         ar: [
-          'لون الحافة الجانبية للبطاقة هو لون الطبيب، ولون البطاقة ورمزها الصغير يدلّان على حالة الموعد. والموعد الملغى يظهر مشطوباً.',
+          'لون البطاقة الخفيف هو لون الطبيب (وهو أيضاً الخط الملوّن أعلى عمود الطبيب)، أما الشريط الجانبي للبطاقة ورمزها الصغير فيدلّان على حالة الموعد. والموعد الملغى يظهر مشطوباً، وموعد من لم يحضر يظهر باهتاً.',
           'في عرض **أسبوع** انقر على اسم اليوم في أعلى العمود لتفتحه في عرض **يوم**. وفي عرض **شهر** انقر على أي يوم لتفتحه، وعبارة مثل **+3 أخرى** تعني مواعيد لم يتسع لها المربع.',
-          'يظهر في التقويم كل مستخدم مفعّل دوره **طبيب** أو **مدير**. تضيف الأطباء وتختار لون كل منهم من صفحة **الفريق**. انظر [إضافة عضو جديد](staff#add-member).',
+          'يظهر في التقويم كل مستخدم مفعّل دوره **طبيب** أو **مدير**. يضيف المدير الأطباء ويختار لون كل منهم من صفحة **الفريق**. انظر [إضافة عضو جديد](staff#add-member).',
           'تُبنى ساعات التقويم وأيام العطلة على **أيام وأوقات الدوام** في الإعدادات. اليوم المغلق يظهر مظللاً، وتستطيع الحجز فيه استثنائياً. انظر [أيام وأوقات الدوام](settings#working-hours).',
           'يتذكر البرنامج العرض والتاريخ والتصفية حين تنتقل إلى شاشة أخرى، حتى تغلقه.',
         ],
         en: [
-          'A card’s side stripe has the doctor’s colour; the card’s colour and small icon show the status. A cancelled appointment is struck through.',
+          'A card is tinted in the doctor’s colour (the same colour edges the top of the doctor’s column); its side stripe and small icon show the status. A cancelled appointment is struck through, and a no-show is greyed out.',
           'In **Week** view, click a day’s heading to open it in **Day** view. In **Month** view, click any day to open it; a label such as **+3 more** means appointments that did not fit in the box.',
-          'Every active user whose role is **Doctor** or **Admin** gets a place in the calendar. You add doctors and pick each one’s colour on the **Staff** page. See [Adding a team member](staff#add-member).',
+          'Every active user whose role is **Doctor** or **Admin** gets a place in the calendar. An admin adds doctors and picks each one’s colour on the **Staff** page. See [Adding a team member](staff#add-member).',
           'The calendar’s hours and closed days come from **Working days & hours** in Settings. A closed day is shaded, and you can still book an exception. See [Working days and hours](settings#working-hours).',
           'Dentora remembers the view, date and filters while you visit other screens, until you close it.',
         ],
@@ -77,14 +77,14 @@ const topic: GuideTopic = {
         ar: [
           'انقر على وقت فارغ في عرض **يوم** أو **أسبوع** (يظهر عليه + والوقت حين تمرّ فوقه)، أو انقر على **موعد جديد**، أو اضغط `Ctrl+Shift+A` من أي شاشة.',
           'في خانة **المريض** اكتب جزءاً من الاسم أو رقم الملف أو الهاتف، واختر المريض من القائمة. لمريض جديد اختر **إضافة مريض جديد** في آخر القائمة (أو **إضافة «الاسم» كمريض جديد** إن كتبت اسماً): الاسم والهاتف يكفيان الآن، ثم انقر على **إضافة واختيار**.',
-          'تحقق من **الطبيب** و**التاريخ** و**وقت البدء**. تعرض قائمة الأوقات الأوقات المتاحة وتكتب **محجوز** بجانب المشغولة، وتستطيع كتابة أي وقت آخر في الخانة المجاورة.',
+          'تحقق من **الطبيب** و**التاريخ** و**وقت البدء**. تعرض قائمة الأوقات كل أوقات الدوام وتكتب **محجوز** بجانب المشغول منها، وتستطيع كتابة أي وقت آخر في الخانة المجاورة.',
           'اختر **المدة** فيظهر تحتها وقت الانتهاء، ثم **النوع** (فحص، استشارة، علاج، متابعة، تنظيف، طارئ…)، واكتب **سبب الزيارة**، وأضف **ملاحظات** للطبيب أو للاستقبال إن شئت.',
           'انقر على **حجز الموعد**. يظهر الموعد في التقويم وفي ملف المريض.',
         ],
         en: [
           'Click a free time in **Day** or **Week** view (a + and the time appear as you hover), click **New appointment**, or press `Ctrl+Shift+A` on any screen.',
           'In **Patient**, type part of the name, file number or phone and pick the patient from the list. For someone new choose **Add a new patient** at the end of the list (or **Add “name” as a new patient** if you typed a name): a name and phone are enough for now; then click **Add and select**.',
-          'Check the **Doctor**, **Date** and **Start time**. The time list shows the free slots and marks the taken ones **booked**; you can also type any other time in the box next to it.',
+          'Check the **Doctor**, **Date** and **Start time**. The time list shows every slot of the working day and marks the taken ones **booked**; you can also type any other time in the box next to it.',
           'Choose the **Duration** (the end time shows under it), the **Type** (Check-up, Consultation, Treatment, Follow-up, Cleaning, Emergency…), write the **Reason for visit**, and add **Notes** for the doctor or the front desk if you like.',
           'Click **Book appointment**. It appears in the calendar and in the patient’s file.',
         ],
@@ -122,24 +122,24 @@ const topic: GuideTopic = {
       },
       steps: {
         ar: [
-          'اقرأ التنبيه الأصفر الذي يظهر تحت حقول الوقت.',
-          'انقر على **أقرب وقت متاح** ليضع البرنامج أول وقت فارغ لذلك الطبيب، أو اختر وقتاً آخر بنفسك.',
+          'اقرأ التنبيه الذي يظهر تحت حقول الموعد، فوق **سبب الزيارة**: أصفر للتعارض، وأزرق لـ**خارج أوقات الدوام**.',
+          'انقر على **أقرب وقت متاح** لينقل البرنامج الموعد إلى أول وقت فارغ للطبيب بعد الوقت الذي اخترته في اليوم نفسه، أو اختر وقتاً آخر بنفسك. يظهر هذا الزر مع تنبيه **تعارض في الجدول** فقط.',
           'أو احفظ رغم التنبيه إن كان التداخل مقصوداً، كمراجعة قصيرة بين موعدين.',
         ],
         en: [
-          'Read the yellow warning that appears under the time fields.',
-          'Click **Next free** to move the appointment to the doctor’s first free slot, or choose another time yourself.',
+          'Read the warning that appears under the appointment fields, above **Reason for visit**: yellow for a conflict, blue for **Outside working hours**.',
+          'Click **Next free** to move the appointment to the doctor’s first free time after the one you chose, on the same day, or choose another time yourself. This button comes only with the **Scheduling conflict** warning.',
           'Or save anyway if the overlap is intended, such as a short check between two appointments.',
         ],
       },
       tips: {
         ar: [
           'المواعيد الملغاة ومواعيد من لم يحضر لا تُحسب في التعارض، فوقتها متاح للحجز من جديد.',
-          'غيّر أيام العمل وبداية الدوام ونهايته و**دقة شبكة التقويم** و**مدة الموعد الافتراضية** من **الإعدادات** ← **التفضيلات** ← **أيام وأوقات الدوام**. انظر [الإعدادات](settings#working-hours).',
+          'يغيّر المدير أيام العمل وبداية الدوام ونهايته و**دقة شبكة التقويم** و**مدة الموعد الافتراضية** من **الإعدادات** ← **التفضيلات** ← **أيام وأوقات الدوام**. انظر [الإعدادات](settings#working-hours).',
         ],
         en: [
           'Cancelled appointments and no-shows do not count as conflicts, so their time is free to book again.',
-          'Change the working days, opening and closing times, the **Calendar grid step** and the **Default appointment length** in **Settings** → **Preferences** → **Working days & hours**. See [Settings](settings#working-hours).',
+          'An admin changes the working days, opening and closing times, the **Calendar grid step** and the **Default appointment length** in **Settings** → **Preferences** → **Working days & hours**. See [Settings](settings#working-hours).',
         ],
       },
       shots: ['appointments-conflict'],
@@ -156,13 +156,13 @@ const topic: GuideTopic = {
           'انقر على الموعد في التقويم لتفتح **تفاصيل الموعد**.',
           'تحت **تحديث الحالة** انقر على الخطوة التالية: **تأكيد الموعد** بعد التواصل مع المريض، و**وصل المريض** عند حضوره، و**بدء المعالجة** حين يدخل إلى الطبيب، و**إنهاء الزيارة** في آخرها.',
           'للمواعيد التي لم تتم اختر **إلغاء الموعد** أو **لم يحضر**، وإن غيّرت رأيك فاختر **إعادة فتح الموعد**.',
-          'في عرض **قائمة** يظهر زر الخطوة التالية بجانب كل موعد لم يكتمل ولم يُلغَ ولم يتغيّب صاحبه، فتتابع يوم العمل كله من شاشة واحدة.',
+          'على الحاسوب، يظهر في عرض **قائمة** زر الخطوة التالية بجانب كل موعد لم يكتمل ولم يُلغَ ولم يتغيّب صاحبه، فتتابع يوم العمل كله من شاشة واحدة. أما على الهاتف فتعرض **قائمة** بطاقات فقط: انقر على الموعد وغيّر حالته من التفاصيل.',
         ],
         en: [
           'Click the appointment in the calendar to open **Appointment details**.',
           'Under **Update status**, click the next step: **Confirm** once you have spoken to the patient, **Mark arrived** when the patient comes in, **Start treatment** when the patient goes in to the doctor, and **Complete visit** at the end.',
           'For appointments that did not happen choose **Cancel appointment** or **No-show**; if you change your mind, choose **Reopen**.',
-          'In **Agenda** view the next-step button sits next to every appointment not yet completed, cancelled or marked no-show, so you can run the whole working day from one screen.',
+          'On a computer, **Agenda** view puts the next-step button next to every appointment not yet completed, cancelled or marked no-show, so you can run the whole working day from one screen. On a phone the agenda shows cards only: tap an appointment and change its status in the details.',
         ],
       },
       tips: {
@@ -200,16 +200,18 @@ const topic: GuideTopic = {
       },
       tips: {
         ar: [
-          'في عرض **قائمة** يؤدي زر واتساب الصغير بجانب كل موعد قادم العمل نفسه.',
+          'على الحاسوب، يؤدي زر واتساب الصغير في عرض **قائمة** العمل نفسه، بجانب كل موعد **مجدول** أو **مؤكد** لمريضه رقم هاتف.',
           'يحتاج التذكير إلى رقم هاتف في ملف المريض وإلى اتصال بالإنترنت. على أندرويد يُفتح تطبيق واتساب، وعلى ويندوز يُفتح الرابط في المتصفح لتكمل في واتساب ويب أو في تطبيق واتساب على الحاسوب.',
           'الأرقام المحلية مثل 0944… تُكتب دون رمز الدولة، ويضيفه البرنامج من **الدولة** في **بيانات العيادة**. انظر [الإعدادات](settings#clinic-details).',
-          'لا يرسل البرنامج أي رسالة وحده: أنت من يضغط إرسال في واتساب. ويُسجَّل التذكير في **آخر النشاطات** في ملف المريض.',
+          'لا يرسل البرنامج أي رسالة وحده: أنت من يضغط إرسال في واتساب. ويُسجَّل في **آخر النشاطات** في ملف المريض أنك فتحت التذكير، حتى لو أغلقت واتساب دون إرسال.',
+          'تُكتب الرسالة بلغة واجهة البرنامج: بالعربية إن كان البرنامج بالعربية، وبالإنجليزية إن كان بالإنجليزية. وتستطيع تعديلها في واتساب قبل الإرسال.',
         ],
         en: [
-          'In **Agenda** view, the small WhatsApp button next to each upcoming appointment does the same.',
+          'On a computer, the small WhatsApp button in **Agenda** view does the same, next to each **Scheduled** or **Confirmed** appointment whose patient has a phone number.',
           'A reminder needs a phone number in the patient’s file and an internet connection. On Android the WhatsApp app opens; on Windows the link opens in the browser, where you continue in WhatsApp Web or the WhatsApp desktop app.',
           'Local numbers such as 0944… are stored without the country code; Dentora adds it from **Country** in the **Clinic** settings. See [Settings](settings#clinic-details).',
-          'Dentora never sends a message on its own: you press send in WhatsApp. The reminder is logged under **Recent activity** in the patient’s file.',
+          'Dentora never sends a message on its own: you press send in WhatsApp. Opening the reminder is logged under **Recent activity** in the patient’s file, even if you then close WhatsApp without sending.',
+          'The message is written in the app’s current language, Arabic or English. You can edit it in WhatsApp before sending.',
         ],
       },
       shots: ['appointments-reminder'],
@@ -247,7 +249,7 @@ const topic: GuideTopic = {
       id: 'patient-tab',
       title: { ar: 'مواعيد المريض في ملفه', en: 'A patient’s appointments' },
       text: {
-        ar: ['يعرض تبويب **المواعيد** في ملف المريض تاريخه مع العيادة: عدد **زيارات مكتملة** والمواعيد **قادمة** ومرات **غياب** والمواعيد **ملغاة**، ثم **المواعيد القادمة** وأقربها يحمل شارة **الموعد القادم**، ثم **السجل السابق**.'],
+        ar: ['يعرض تبويب **المواعيد** في ملف المريض تاريخه مع العيادة: عدد الزيارات المكتملة (**زيارات مكتملة**) والمواعيد القادمة (**قادمة**) ومرات الغياب (**غياب**) والمواعيد الملغاة (**ملغاة**)، ثم قائمة **المواعيد القادمة** وأقربها يحمل شارة **الموعد القادم**، ثم **السجل السابق**.'],
         en: ['The **Appointments** tab of a patient’s file shows their history with the clinic: the number of **completed visits**, **upcoming** appointments, **no-shows** and **cancelled** ones, then the **Upcoming** list with the nearest marked **Next**, then the **History**.'],
       },
       steps: {
@@ -286,14 +288,14 @@ const topic: GuideTopic = {
           'في عرض **يوم** يظهر شريط أوقات تحت عبارة **اضغط على وقت لحجز موعد**: الوقت الفارغ عليه +، والنقطة تعني أن بعض الأطباء أو جميعهم محجوزون فيه. وتحته مواعيد اليوم بطاقاتٍ تنقر عليها لتفتح تفاصيلها.',
           'زر **موعد جديد** العائم أسفل الشاشة يفتح نموذج الحجز، وكذلك زر + في الشريط العلوي.',
           'زر التقويم بجانب التاريخ ينقلك إلى أي يوم، ويظهر زر **اليوم** حين تبتعد عن اليوم الحالي.',
-          'في عرض **أسبوع** تظهر أيام الأسبوع شريطاً مع عدد المواعيد تحت كل يوم، وفي عرض **شهر** نقاط ملوّنة بعدد المواعيد.',
+          'في عرض **أسبوع** تظهر أيام الأسبوع شريطاً مع عدد المواعيد تحت كل يوم، وفي عرض **شهر** يظهر في كل يوم عدد مواعيده ونقاط ملوّنة (حتى أربع).',
           'زر الرجوع في أندرويد يغلق النافذة المفتوحة أولاً.',
         ],
         en: [
           'In **Day** view a strip of times sits under **Tap a time to book**: a free time shows a +, and a dot means some or all doctors are booked then. The day’s appointments follow as cards; tap one to open its details.',
           'The floating **New appointment** button at the bottom opens the booking form, and so does the + in the top bar.',
           'The calendar button next to the date jumps to any day, and a **Today** button appears once you move away from today.',
-          'In **Week** view the days appear as a strip with the number of appointments under each; in **Month** view coloured dots stand for the appointments.',
+          'In **Week** view the days appear as a strip with the number of appointments under each; in **Month** view each day shows its number of appointments and coloured dots (up to four).',
           'The Android Back button closes the open window first.',
         ],
       },

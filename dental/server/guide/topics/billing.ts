@@ -29,17 +29,18 @@ const topic: GuideTopic = {
         ar: [
           'افتح **الفواتير** من القائمة الجانبية، أو من الشريط السفلي على الهاتف. تعرض الصفحة فواتير الفترة المختارة: **اليوم** أو **هذا الأسبوع** أو **هذا الشهر** أو **الشهر الماضي** أو فترة **مخصص**.',
           'تلخص البطاقات الأربع فواتير الفترة: **إجمالي الفواتير**، و**المدفوع منها**، و**المستحق** عليها، و**عدد الفواتير** ومعه عدد المسودات.',
-          'تحتها تبحث برقم الفاتورة أو اسم المريض، وتصفّي بالحالة: **غير مدفوعة** و**مدفوعة جزئياً** و**مدفوعة** و**مسودة** و**ملغاة**، وبالطبيب. انقر على أي فاتورة لتفتحها.',
+          'تحتها تبحث برقم الفاتورة أو اسم المريض أو رقم ملفه أو هاتفه، وتصفّي بالحالة: **غير مدفوعة** و**مدفوعة جزئياً** و**مدفوعة** و**مسودة** و**ملغاة**، وبالطبيب. انقر على أي فاتورة لتفتحها.',
         ],
         en: [
           'Open **Invoices** in the sidebar, or in the bottom bar on a phone. The page lists the invoices of the chosen period: **Today**, **This week**, **This month**, **Last month** or a **Custom** range.',
           'The four cards sum up that period: **Invoiced**, **Collected**, **Outstanding** and the number of **Invoices**, with drafts counted apart.',
-          'Below them you can search by invoice number or patient name, and filter by status (**Unpaid**, **Partially paid**, **Paid**, **Draft**, **Cancelled**) and by doctor. Click any invoice to open it.',
+          'Below them you can search by invoice number or by the patient’s name, file number or phone, and filter by status (**Unpaid**, **Partially paid**, **Paid**, **Draft**, **Cancelled**) and by doctor. Click any invoice to open it.',
         ],
       },
       tips: {
         ar: [
           'يتذكر البرنامج الفترة التي اخترتها على هذا الجهاز.',
+          '**المدفوع منها** و**المستحق** يخصّان الفواتير المؤرخة في الفترة، أياً كان يوم دفعها؛ فدفعة اليوم على فاتورة الشهر الماضي لا تظهر هنا. ولمعرفة ما قبضته فعلاً في فترة ما افتح [المدفوعات](billing#payments).',
           'في قائمة ⋮ لكل فاتورة: **فتح الفاتورة** و**تسجيل دفعة** و**طباعة الفاتورة**، ثم **إلغاء الفاتورة** أو **حذف المسودة**.',
           'تظهر الفاتورة غير المسددة في [التنبيهات](interface#notifications) بعد تاريخ استحقاقها، أو بعد 30 يوماً من تاريخها إن لم يكن لها تاريخ استحقاق.',
           'الفواتير والمدفوعات متاحة للمدير والأطباء وموظفي الاستقبال، ولا يراها المساعد. انظر [الأدوار والصلاحيات](staff#roles).',
@@ -47,6 +48,7 @@ const topic: GuideTopic = {
         ],
         en: [
           'Dentora remembers the period you chose on this device.',
+          '**Collected** and **Outstanding** are about the invoices dated in the period, whatever day they were paid: a payment made today on last month’s invoice does not show here. For the money actually received in a period, open [Payments](billing#payments).',
           'Each invoice’s ⋮ menu has **Open invoice**, **Record payment** and **Print invoice**, then **Cancel invoice** or **Delete draft**.',
           'An unpaid invoice shows in [Notifications](interface#notifications) once its due date has passed, or 30 days after its date when it has no due date.',
           'Invoices and payments are open to the admin, doctors and reception; assistants do not see them. See [Roles and permissions](staff#roles).',
@@ -83,7 +85,7 @@ const topic: GuideTopic = {
       tips: {
         ar: [
           'تأخذ خانة **الضريبة %** نسبة العيادة من [الإعدادات](settings#invoices-numbering) تلقائياً، ويمكن تغييرها لهذه الفاتورة.',
-          'المسودة لا تأخذ رقماً، وتظهر بكلمة «مسودة» حتى تُصدرها، ولا تدخل في حساب المريض. افتحها وانقر على **مراجعة وإصدار**.',
+          'المسودة لا تأخذ رقماً، وتظهر بكلمة «مسودة» حتى تُصدرها، ولا تدخل في حساب المريض. لكن العلاجات التي تضعها فيها تُحجز لها: تظهر في تبويب العلاجات بشارة **مفوتر** وتخرج من **فوترة المنجز**. فلا تترك المسودة منسية: افتحها وانقر على **مراجعة وإصدار**، أو احذفها بـ**حذف المسودة** لتعود علاجاتها متاحة للفوترة.',
           'السطر المأخوذ من العلاجات يحمل إشارة «من خطة العلاج» ويرتبط بالعلاج، فلا يُفوتر مرتين.',
           '**تاريخ الاستحقاق** اختياري، ولا يسبق تاريخ الإصدار.',
           'إذا أغلقت النافذة وفيها بنود لم تُحفظ يسألك البرنامج **تجاهل هذه الفاتورة؟** فاختر **متابعة التعديل** للعودة إليها.',
@@ -91,7 +93,7 @@ const topic: GuideTopic = {
         ],
         en: [
           'The **Tax %** box takes the clinic’s rate from [Settings](settings#invoices-numbering) automatically; you can change it for this invoice.',
-          'A draft takes no number and shows as “Draft” until you issue it, and it does not count in the patient’s account. Open it and click **Review & issue**.',
+          'A draft takes no number, shows as “Draft” until you issue it, and does not count in the patient’s account. But the treatments you put on it are held by it: they show as **Billed** in the Treatments tab and leave **Bill completed**. Do not leave a draft forgotten: open it and click **Review & issue**, or remove it with **Delete draft** to free its treatments.',
           'A line taken from treatments carries a “From the treatment plan” tag and is linked to that treatment, so it cannot be billed twice.',
           'The **Due date** is optional and cannot be before the issue date.',
           'If you close the window with unsaved lines, Dentora asks **Discard this invoice?**; choose **Keep editing** to go back to it.',
@@ -148,20 +150,20 @@ const topic: GuideTopic = {
       },
       steps: {
         ar: [
-          'افتح نافذة **تسجيل دفعة** من صفحة الفاتورة، أو من زر **دفعة** في ملف المريض، أو من **دفعة جديدة** في زر **جديد** أعلى الشاشة أو في صفحة المدفوعات.',
+          'افتح نافذة **تسجيل دفعة** من صفحة الفاتورة، أو من زر **دفعة** في ملف المريض، أو من **دفعة جديدة** في زر **جديد** أعلى الشاشة على الحاسوب، أو في صفحة المدفوعات.',
           'اختر المريض إن لم يكن محدداً. يظهر **حساب المريض**: إجمالي فواتيره وما دفعه وما بقي عليه.',
           'تحت **تُسجَّل على** اختر الفاتورة المفتوحة، أو **دفعة على الحساب**. حين تختار فاتورة يُملأ **المبلغ** بالمتبقي عليها.',
           'عدّل **المبلغ** إن دفع المريض غيره، واختر **طريقة الدفع**: **نقداً** أو **بطاقة** أو **تحويل** أو **تأمين** أو **محفظة إلكترونية** أو **أخرى**.',
           'أضف **المرجع** إن وُجد، كرقم الحوالة أو آخر أرقام البطاقة، ثم انقر على **حفظ الدفعة**.',
-          'تظهر رسالة **تم تسجيل الدفعة** ومعها رقم الإيصال. انقر فيها على **طباعة الإيصال** لعرضه وطباعته.',
+          'تظهر لثوانٍ رسالة **تم تسجيل الدفعة** ومعها رقم الإيصال. انقر فيها على **طباعة الإيصال** لعرضه وطباعته، وإن فاتتك فالإيصال في صفحة **المدفوعات**.',
         ],
         en: [
-          'Open the **Record payment** window from the invoice page, from the **Payment** button in the patient’s file, or from **New payment** in the **New** button at the top or on the Payments page.',
+          'Open the **Record payment** window from the invoice page, from the **Payment** button in the patient’s file, or from **New payment** in the **New** button at the top on a computer, or on the Payments page.',
           'Pick the patient if none is set. The **Patient account** shows what they were invoiced, what they paid and what they owe.',
           'Under **Apply to**, choose the open invoice, or **Payment on account**. When you choose an invoice, the **Amount** is filled with its balance.',
           'Change the **Amount** if the patient paid something else, and choose the **Payment method**: **Cash**, **Card**, **Transfer**, **Insurance**, **E-wallet** or **Other**.',
           'Add a **Reference** if there is one, such as a transfer number or the last card digits, then click **Save payment**.',
-          'A **Payment recorded** message shows the receipt number. Click **Print receipt** in it to see and print the receipt.',
+          'A **Payment recorded** message shows the receipt number for a few seconds. Click **Print receipt** in it to see and print the receipt; if you miss it, the receipt is on the **Payments** page.',
         ],
       },
       tips: {
@@ -205,13 +207,13 @@ const topic: GuideTopic = {
       },
       tips: {
         ar: [
-          'إذا ألغيت تحديد الإشعار الدائن ينبهك البرنامج بأن الفاتورة ستعود غير مسدَّدة بالمبلغ المُعاد، ويصبح على المريض دفعه.',
+          'إذا ألغيت تحديد الإشعار الدائن ولم يكن للمريض رصيد دائن يغطي المبلغ، ينبهك البرنامج بأن الفاتورة ستعود غير مسدَّدة بالمبلغ المُعاد، ويصبح على المريض دفعه.',
           'لا يمكن إعادة أكثر مما دُفع على الفاتورة مضافاً إليه رصيد المريض الدائن.',
           'يُطبع للاسترداد إيصال خاص بعنوان «إيصال استرداد».',
           'تظهر المستردات في صفحة **المدفوعات** بشارة **استرداد**، وتُطرح من صافي المقبوضات.',
         ],
         en: [
-          'If you untick the credit note, Dentora warns that the invoice will show the refunded amount as due again, and the patient will owe it.',
+          'If you untick the credit note and the patient has no credit to cover the amount, Dentora warns that the invoice will show the refunded amount as due again, and the patient will owe it.',
           'You cannot refund more than was paid on the invoice plus the patient’s credit.',
           'A refund prints its own receipt, titled “Refund receipt”.',
           'Refunds show on the **Payments** page with a **Refund** badge and come off the net collected.',
@@ -244,13 +246,13 @@ const topic: GuideTopic = {
         ar: [
           'البطاقات: **صافي المقبوضات** بعد المستردات مع عدد الدفعات، و**نقداً**، و**بطاقة وتحويل**، و**المستردات**.',
           'يجمع تقرير الصندوق الإيصالات حسب طريقة الدفع، مع مجموع كل طريقة والإجمالي العام، ويتبع الفترة والتصفية الظاهرة. وفي أسفله اسم من أعدّه ووقت الطباعة وسطرا توقيع.',
-          'حذف الدفعة لمدير العيادة وحده، بزر سلة المهملات في سطرها. يُعاد بعدها احتساب الفواتير التي سددتها، ويبقى الحذف مسجلاً في سجل النشاطات.',
+          'حذف الدفعة لمدير العيادة وحده، بزر سلة المهملات في سطرها، ويُحذف الإيصال كاملاً. يُعاد بعدها احتساب الفواتير التي سددتها، ويبقى الحذف مسجلاً في سجل النشاطات. ولا يظهر زر الحذف على الهاتف، فاحذف من الحاسوب.',
           'الدفعة التي أُعيد جزء من رصيدها للمريض لا تُحذف قبل حذف إيصال الاسترداد.',
         ],
         en: [
           'The cards: **Net collected** after refunds with the number of payments, **Cash**, **Card & transfer** and **Refunds**.',
           'The cash report groups the receipts by payment method, with a subtotal per method and a grand total, and follows the period and filters on screen. At the bottom are who prepared it, when it was printed, and two signature lines.',
-          'Only the clinic admin can delete a payment, with the bin button on its row. The invoices it paid are then recalculated, and the deletion stays in the activity log.',
+          'Only the clinic admin can delete a payment, with the bin button on its row; the whole receipt is deleted. The invoices it paid are then recalculated, and the deletion stays in the activity log. There is no delete button on a phone: delete from a computer.',
           'A payment whose credit was partly refunded cannot be deleted before the refund receipt.',
         ],
       },

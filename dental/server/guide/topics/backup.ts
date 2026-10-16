@@ -245,12 +245,14 @@ const topic: GuideTopic = {
         ar: [
           'يحذف هذا المرضى والمواعيد والفواتير والمستخدمين وكل الإعدادات من هذا الجهاز، ولا يُسترجع شيء منها إلا من نسخة احتياطية.',
           'يبقى تفعيل الترخيص على الجهاز كما هو.',
-          'إن كان في العيادة أقل من طبيبين تضيف البيانات التجريبية د. ليلى حداد ود. سامر عبود، ورمز الدخول لكل منهما 1234.',
+          'في وضع القراءة فقط بعد انتهاء الفترة التجريبية يتوقف أيضاً **تحميل بيانات تجريبية** و**حذف كل البيانات**، ويبقى **تصدير نسخة احتياطية** متاحاً.',
+          'إن كان في العيادة أقل من طبيبين تضيف البيانات التجريبية أطباء حتى يصبحوا اثنين: د. ليلى حداد ثم د. سامر عبود، ورمز الدخول لكل منهما 1234. فلا تُبقِ هذه الحسابات على جهاز فيه بيانات مرضى حقيقيين.',
         ],
         en: [
           'This deletes patients, appointments, invoices, users and every setting from this device, and nothing comes back except from a backup.',
           'The licence activation on the device is kept.',
-          'If the clinic has fewer than two doctors, the demo data adds Dr. Laila Haddad and Dr. Samer Abboud, both with PIN 1234.',
+          'In read-only mode, after the trial ends, **Load demo data** and **Erase all data** are paused too; **Export backup** keeps working.',
+          'If the clinic has fewer than two doctors, the demo data adds doctors until it has two: Dr. Laila Haddad, then Dr. Samer Abboud, each with PIN 1234. Do not keep those accounts on a device that holds real patient data.',
         ],
       },
       shots: ['backup-erase'],

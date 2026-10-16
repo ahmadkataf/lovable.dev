@@ -65,6 +65,8 @@
 //   helpers   see store/scripts/guide-shots/_helpers.mjs (makeHelpers): pick, t, goto, settle, scrollTo, card,
 //             dialog, db, patient, ids, storage, css, noToasts, signOut, lock, signIn, viewport, changedData…
 //
+// Each language has its own browser, started in that language's locale (ar-SY, en-GB): the date and time fields
+// Chromium draws itself (input type=date / time) then read ١١/١٠/٢٠٢٦ in Arabic and 11/10/2026 in English.
 // The clock is fixed at Sunday 11 October 2026, 11:40, Asia/Damascus (a working day of the demo clinic) and set back
 // to it before every shot; the trial bar is hidden; reports open on last month (as store/scripts/shoot.mjs). The demo
 // clinic gets the same record ids at every run, so avatar colours (which follow the ids) match across pictures.
@@ -397,6 +399,8 @@ async function runLane(browser, lane) {
 }
 
 // ---- main --------------------------------------------------------------------------------------------------------
+/** The browser's own locale per language (see the browsers below). */
+const LOCALES = { ar: { tag: 'ar-SY', posix: 'ar_SY' }, en: { tag: 'en-GB', posix: 'en_GB' } }
 const lanes = new Map()
 for (const job of jobs) {
   const k = `${job.lang}|${job.shot.device}|${job.impl.state}`
@@ -407,15 +411,25 @@ const started = Date.now()
 console.log(`guide-shots: ${jobs.length} shot(s) in ${lanes.size} lane(s), ${problems.missing.length} without implementation · ${DIST} · ${await H.encoderName()} · out ${rel(OUT)}`)
 if (jobs.length) {
   const server = await startServer()
-  const browser = await chromium.launch({ executablePath: process.env.CHROMIUM_PATH || undefined })
+  // one browser per language, started in that language's locale: the date and time fields that Chromium draws itself
+  // (input type=date / time) follow the browser's locale, not the page's, so the Arabic pictures show ١١/١٠/٢٠٢٦ and
+  // the English ones 11/10/2026 (day first, like the app's own dates), never the American 10/11/2026
+  const browsers = {}
+  for (const lang of new Set([...lanes.values()].map(l => l.lang))) {
+    const loc = LOCALES[lang]
+    browsers[lang] = await chromium.launch({
+      executablePath: process.env.CHROMIUM_PATH || undefined, args: [`--lang=${loc.tag}`],
+      env: { ...process.env, LANG: `${loc.posix}.UTF-8`, LANGUAGE: loc.posix, LC_ALL: `${loc.posix}.UTF-8` },
+    })
+  }
   try {
     const queue = [...lanes.values()]
     await Promise.all(Array.from({ length: Math.min(JOBS, queue.length) }, async () => {
-      while (queue.length) await runLane(browser, queue.shift())
+      while (queue.length) { const lane = queue.shift(); await runLane(browsers[lane.lang], lane) }
     }))
     await encodeQueue
   } finally {
-    await browser.close().catch(() => {})
+    for (const b of Object.values(browsers)) await b.close().catch(() => {})
     server.kill()
   }
 }

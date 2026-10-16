@@ -41,12 +41,12 @@ const topic: GuideTopic = {
       },
       tips: {
         ar: [
-          "ما تراه يتبع دورك: من لا يسمح له دوره بالفواتير لا يرى بطاقات المال ولا رسم الإيرادات ولا زر **دفعة جديدة**. انظر [الأدوار والصلاحيات](staff#roles).",
+          "ما تراه يتبع دورك: من لا يسمح له دوره بالفواتير لا يرى بطاقات المال ولا رسم الإيرادات ولا زر **دفعة جديدة** ولا تنبيه **فواتير متأخرة السداد**، وموظف الاستقبال لا يرى تنبيه **أعمال مخبر مستحقة**. انظر [الأدوار والصلاحيات](staff#roles).",
           "حين يكون البرنامج للقراءة فقط تبقى الأرقام ظاهرة، وتتعطل أزرار الإضافة وأزرار الحالة. انظر [الترخيص](licence).",
           "إن تركت الشاشة مفتوحة طوال اليوم يبقى كل شيء صحيحاً: يتحرك خط **الآن** وتتحدث التحية والتاريخ كل دقيقة.",
         ],
         en: [
-          "What you see follows your role: roles that may not handle invoices see no money cards, no revenue chart and no **New payment** button. See [Roles and permissions](staff#roles).",
+          "What you see follows your role: roles that may not handle invoices see no money cards, no revenue chart, no **New payment** button and no **Overdue invoices** alert, and receptionists do not get the **Lab work due** alert. See [Roles and permissions](staff#roles).",
           "While Dentora is read-only the figures stay visible, but the add buttons and the status buttons are disabled. See [Licence](licence).",
           "Left open all day, the screen stays right: the **Now** line moves and the greeting and date update every minute.",
         ],
@@ -117,13 +117,13 @@ const topic: GuideTopic = {
       },
       tips: {
         ar: [
-          "يعرض كل سطر الزر المناسب لحالته فقط: **مجدول** ← **تأكيد** أو **تسجيل الوصول**، و**مؤكد** ← **تسجيل الوصول**، و**وصل** ← **بدء الجلسة**، و**قيد المعالجة** ← **إنهاء الموعد**.",
+          "يعرض كل سطر الزر المناسب لحالته فقط: **مجدول** ← **تأكيد** أو **تسجيل الوصول**، و**مؤكد** ← **تسجيل الوصول**، و**وصل** ← **بدء الجلسة**، و**قيد المعالجة** ← **إنهاء الموعد**. على الهاتف، وعلى الشاشات أو النوافذ التي لا يزيد عرضها على نحو 1280 بكسل، يظهر للموعد **المجدول** زر **تأكيد** وحده، ثم يظهر **تسجيل الوصول** بعد التأكيد.",
           "لإلغاء موعد أو تسجيل عدم حضور المريض افتحه من [المواعيد](appointments#visit-day).",
           "يظهر كل تغيير في الحالة فوراً، ويُسجَّل في **آخر النشاطات**.",
           "على الهاتف تنزل أزرار الحالة تحت كل سطر لتسهل لمسها.",
         ],
         en: [
-          "Each row only shows the buttons that fit its status: **Scheduled** → **Confirm** or **Check in**, **Confirmed** → **Check in**, **Arrived** → **Start**, **In progress** → **Complete**.",
+          "Each row only shows the buttons that fit its status: **Scheduled** → **Confirm** or **Check in**, **Confirmed** → **Check in**, **Arrived** → **Start**, **In progress** → **Complete**. On a phone, and on screens or windows up to about 1280 pixels wide, a **Scheduled** row shows only **Confirm**; **Check in** appears once it is confirmed.",
           "To cancel an appointment or mark a no-show, open it from [Appointments](appointments#visit-day).",
           "Each status change shows at once and is logged in **Recent activity**.",
           "On a phone the status buttons sit under each row, easy to tap.",
@@ -138,12 +138,12 @@ const topic: GuideTopic = {
         ar: [
           "تجمع بطاقة **تنبيهات تحتاج انتباهك** ما ينبغي أن تتابعه اليوم، مع عدد كل نوع. انقر على أي سطر لتنتقل إلى صفحته:",
           "**فواتير متأخرة السداد** مع مجموع المبالغ المستحقة، و**مواد قاربت على النفاد** (ما بلغ حد التنبيه أو نفد)، و**أعمال مخبر مستحقة** (المتأخرة والمستحقة اليوم)، و**مواعيد الغد غير المؤكدة** لتتصل بالمرضى.",
-          "ويظهر في أعلاها تذكير بالنسخ الاحتياطي إن لم تُحفظ نسخة قط، أو مضى على آخر نسخة 7 أيام.",
+          "وما إن يُسجَّل أول مريض حتى يظهر في أعلاها تذكير بالنسخ الاحتياطي إن لم تُحفظ نسخة قط، أو مضى على آخر نسخة 7 أيام أو أكثر.",
         ],
         en: [
           "The **Needs your attention** card gathers what you should follow up today, with a count for each kind. Click any row to go to its page:",
           "**Overdue invoices** with the total due, **Low-stock items** (at or below their alert threshold, or out of stock), **Lab work due** (late or due today), and **Tomorrow's unconfirmed visits** so you can call the patients.",
-          "A backup reminder shows at the top when no backup was ever saved or the last one is 7 days old.",
+          "Once the clinic has its first patient, a backup reminder shows at the top when no backup was ever saved or the last one is 7 or more days old.",
         ],
       },
       tips: {
@@ -190,12 +190,12 @@ const topic: GuideTopic = {
       tips: {
         ar: [
           "رسم الإيرادات لمن يسمح له دوره بالفواتير، وزر **التقارير** لمن يرى التقارير، ولا يظهر هذا الزر على الهاتف.",
-          "يظهر مبلغ كل إجراء بجانب عدده لمن يسمح له دوره بالفواتير.",
+          "مرّر المؤشر على أي إجراء، أو المسه على الهاتف، لترى نسبته من المجموع، ومعها قيمته المالية لمن يسمح له دوره بالفواتير.",
           "للأرقام المفصّلة على أي فترة انظر [التقارير](reports).",
         ],
         en: [
           "The revenue chart shows for roles allowed to handle invoices, and the **Reports** button for roles that can see reports; the button is hidden on phones.",
-          "Roles allowed to handle invoices also see each procedure’s amount next to its count.",
+          "Hover over a procedure, or touch it on a phone, to see its share of the total and, for roles allowed to handle invoices, its value.",
           "For detailed figures over any period, see [Reports](reports).",
         ],
       },

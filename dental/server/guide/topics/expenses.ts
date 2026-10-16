@@ -33,12 +33,12 @@ const topic: GuideTopic = {
       },
       tips: {
         ar: [
-          'المصروفات لمدير العيادة وحده: لا تظهر في القائمة الجانبية لبقية الأدوار، ومن يفتح عنوانها يرى «المصروفات متاحة لمدير العيادة». انظر [الأدوار والصلاحيات](staff#roles).',
+          'المصروفات لمدير العيادة وحده: لا تظهر في القائمة الجانبية لبقية الأدوار، ومن يفتح عنوانها بدور آخر يرى «هذه الصفحة غير متاحة لدورك». انظر [الأدوار والصلاحيات](staff#roles).',
           'من هذه المصروفات يحسب البرنامج المصروفات وصافي الربح في [التقارير المالية](reports#financial).',
           'في وضع القراءة فقط بعد انتهاء الفترة التجريبية تبقى المصروفات ظاهرة، ويتوقف التسجيل والتعديل. انظر [الترخيص](licence).',
         ],
         en: [
-          'Expenses are for the clinic admin only: the page is left out of the other roles’ menu, and anyone who opens its address sees “Expenses are for the clinic admin”. See [Roles and permissions](staff#roles).',
+          'Expenses are for the clinic admin only: the page is left out of the other roles’ menu, and anyone else who opens its address sees “This page is not available for your role”. See [Roles and permissions](staff#roles).',
           'Dentora takes the expenses and net profit in the [Financial reports](reports#financial) from these records.',
           'In read-only mode, after the trial ends, expenses stay visible but recording and editing stop. See [Licence](licence).',
         ],
@@ -52,9 +52,9 @@ const topic: GuideTopic = {
         ar: [
           'انقر على **مصروف جديد** أعلى الصفحة.',
           'اختر **الفئة**: إيجار، أو رواتب، أو مواد، أو مخبر، أو معدات، أو كهرباء وماء وإنترنت، أو تسويق، أو صيانة، أو ضرائب ورسوم، أو أخرى.',
-          'اكتب **المبلغ**، وتأكد من **التاريخ** (تاريخ اليوم مسبقاً).',
+          'اكتب **المبلغ**، وتأكد من **التاريخ** (يضع البرنامج تاريخ اليوم تلقائياً).',
           'اكتب **الوصف**، مثل: فاتورة كهرباء شهر أيلول.',
-          'أضف إن شئت **الجهة المستفيدة**، واختر **طريقة الدفع** (نقداً مسبقاً).',
+          'أضف إن شئت **الجهة المستفيدة**، واختر **طريقة الدفع** (وهي نقداً ما لم تغيّرها).',
           'انقر على **تسجيل المصروف**.',
         ],
         en: [
@@ -98,7 +98,7 @@ const topic: GuideTopic = {
       steps: {
         ar: [
           'انقر على السهمين لتنتقل بين الأشهر.',
-          'لفترة أخرى انقر على **فترة مخصصة**، واختر تاريخ البداية وتاريخ النهاية. تبدأ مسبقاً بآخر 30 يوماً.',
+          'لفترة أخرى انقر على **فترة مخصصة**، واختر تاريخ البداية وتاريخ النهاية. تُفتح أول مرة على آخر 30 يوماً.',
           'للعودة إلى الأشهر انقر على **شهري**، ثم على **هذا الشهر** إن كنت في شهر آخر.',
         ],
         en: [
@@ -147,11 +147,11 @@ const topic: GuideTopic = {
       tips: {
         ar: [
           'حين تبحث أو تصفّي يصبح سطر **الإجمالي** تحت السجل **إجمالي النتائج**، فتعرف مثلاً كم صرفت على المخبر هذا الشهر.',
-          'تعرض الصفحة 20 مصروفاً في كل صفحة، وأزرار الصفحات تحت السجل.',
+          'يعرض السجل 20 مصروفاً في الصفحة (15 على الهاتف)، وأزرار الصفحات تحته.',
         ],
         en: [
           'When you search or filter, the **Total** line under the log becomes **Total of results**, so you know at once, say, how much went to the lab this month.',
-          'The log shows 20 expenses a page, with the page buttons underneath.',
+          'The log shows 20 expenses a page (15 on a phone), with the page buttons underneath.',
         ],
       },
       shots: ['expenses-breakdown'],
@@ -162,12 +162,12 @@ const topic: GuideTopic = {
       text: {
         ar: [
           'انقر على سطر المصروف أو على زر القلم لتفتح **تعديل المصروف**، غيّر ما تريد ثم انقر على **حفظ التغييرات**. ولحذفه انقر على زر سلة المهملات وأكّد بـ **حذف**.',
-          'بعض المصروفات يسجّلها البرنامج وحده: حين يُستلم طلب مخبر له تكلفة يُسجَّل مصروف في فئة **مخبر** عليه علامة **من طلب مخبر**. وحين تسجّل شراءً للمخزون وزر المصروفات مفعّل يُسجَّل إجمالي الشراء في فئة **مواد**. انظر [المخبر](lab) و[تسجيل شراء](inventory#purchase).',
+          'بعض المصروفات يسجّلها البرنامج وحده: حين يُستلم طلب مخبر له تكلفة (أو يُركَّب) يُسجَّل مصروف في فئة **مخبر** عليه علامة **من طلب مخبر**، ويتبع تكلفة الطلب، ويُحذف إن أُلغي الطلب أو حُذف. وحين تسجّل شراءً للمخزون ومفتاح المصروفات مفعّل يُسجَّل إجمالي الشراء في فئة **مواد**. انظر [المخبر](lab) و[تسجيل شراء](inventory#purchase).',
           'زر **تصدير CSV** يحفظ السجل كما تراه، بالفترة والبحث والفئة المختارة، في ملف جدول يفتحه Excel والعربية فيه سليمة.',
         ],
         en: [
           'Click an expense’s row or its pencil button to open **Edit expense**, change what you need, then click **Save changes**. To delete it, click its bin button and confirm with **Delete**.',
-          'Some expenses are recorded by Dentora itself: when a lab order with a cost is received, an expense is recorded under **Lab** and marked **From a lab order**. When you record a stock purchase with the expense switch on, its total is recorded under **Materials**. See [Lab](lab) and [Recording a purchase](inventory#purchase).',
+          'Some expenses are recorded by Dentora itself: when a lab order with a cost is received (or fitted), an expense is recorded under **Lab** and marked **From a lab order**; it follows the order’s cost, and is removed if the order is cancelled or deleted. When you record a stock purchase with the expense switch on, its total is recorded under **Materials**. See [Lab](lab) and [Recording a purchase](inventory#purchase).',
           'The **Export CSV** button saves the log as you see it, with its period, search and category, as a spreadsheet file that Excel opens with Arabic intact.',
         ],
       },

@@ -127,19 +127,10 @@ export const shots = restMouse({
     await addDrug(page, dlg, helpers.pick('إيبوبروفين', 'Ibuprofen'))
     await blur(page)
     await fitDialog(page, helpers, 1250)
-    await dlg.locator('.rx-drug-search input').fill(helpers.pick('كلورهي', 'Chlorhex'))
-    await page.locator('.rx-opt-drug').first().waitFor()
-    await page.waitForTimeout(500)
-    // the suggestions cover the first medicine lines: marker 5 goes on the part of the lines still in view
-    const lines = await dlg.locator('.rx-rows').evaluate(rows => {
-      const r = rows.getBoundingClientRect()
-      // the open suggestion list (a layer of the drug search): its box, with its shadow's few pixels
-      const list = [...document.querySelectorAll('[role="listbox"].rx-opt-list')].find(l => l.querySelector('.rx-opt-drug'))
-      let box = list
-      while (box?.parentElement && box.parentElement !== document.body && getComputedStyle(box.parentElement).position !== 'static') box = box.parentElement
-      const top = Math.max(r.top, box ? box.getBoundingClientRect().bottom + 6 : r.top)
-      return { x: r.left, y: top, width: r.width, height: Math.max(8, r.bottom - top) }
-    })
+    // the suggestion list closed (blur), so both medicine lines show whole with their dose fields under marker 5
+    await page.locator('.rx-opt-drug').first().waitFor({ state: 'hidden', timeout: 3000 }).catch(() => {})
+    await dlg.locator('.rx-row').nth(1).waitFor()
+    await page.waitForTimeout(300)
     return {
       el: dlg, pad: 0,
       markers: [
@@ -148,7 +139,8 @@ export const shots = restMouse({
         atLabel(3, dlg, await helpers.t('date')),
         atLabel(3, dlg, await helpers.t('prescriptions.form.diagnosis')),
         { n: 4, target: dlg.locator('.rx-drug-search input') },
-        { n: 5, target: lines, place: 'start' },
+        // on the first line's grid of fields, not beside the Medicines count badge (it would read as a marker)
+        { n: 5, target: dlg.locator('.rx-row').first() },
         { n: 6, target: dlg.locator('.modal-footer .btn-primary'), place: 'top' },
       ],
     }

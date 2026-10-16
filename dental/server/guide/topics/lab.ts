@@ -40,14 +40,14 @@ const topic: GuideTopic = {
         ar: [
           'انقر على بطاقة **متأخرة عن موعدها** أو **مستحقة هذا الأسبوع** لعرض تلك الطلبات وحدها، وانقر عليها مرة أخرى لإلغاء التصفية.',
           'يظهر موعد التسليم بالأحمر حين يتأخر الطلب، وبالبرتقالي حين يحلّ خلال يومين، مع كلمة «اليوم» أو «غداً».',
-          'الأعمال المتأخرة والمستحقة اليوم تظهر أيضاً في [التنبيهات](interface#notifications) وفي [الشاشة الرئيسية](dashboard#alerts).',
+          'الطلبات التي حالتها **مرسل** أو **قيد العمل**، وقد تأخرت أو تستحق اليوم، تظهر أيضاً في [التنبيهات](interface#notifications) وفي [الشاشة الرئيسية](dashboard#alerts). أما طلبات **إعادة عمل** والمسودات فلا تظهر هناك، فتابعها من بطاقة **متأخرة عن موعدها** في هذه الصفحة.',
           'المخبر متاح للمدير والأطباء والمساعدين، ولا يراه موظف الاستقبال، انظر [الأدوار والصلاحيات](staff#roles). وعلى الهاتف تظهر الطلبات بطاقات، وتجد **المخبر** تحت **المزيد** في الشريط السفلي.',
           'في وضع القراءة فقط تستطيع عرض الطلبات وطباعة أوامر العمل، لكن لا يمكنك إضافة طلب أو تغيير حالته. انظر [الترخيص](licence).',
         ],
         en: [
           'Click the **Overdue** or **Due this week** card to show only those orders, and click it again to clear the filter.',
           'A due date turns red when the order is late, and orange when it falls within two days, with “Today” or “Tomorrow”.',
-          'Late work and work due today also show in [Notifications](interface#notifications) and on the [Dashboard](dashboard#alerts).',
+          'Orders that are **Sent** or **In progress** and are late or due today also show in [Notifications](interface#notifications) and on the [Dashboard](dashboard#alerts). **Remake** orders and drafts do not show there: follow them with the **Overdue** card on this page.',
           'The lab is open to the admin, doctors and assistants; reception does not see it (see [Roles and permissions](staff#roles)). On a phone the orders show as cards, and **Lab** is under **More** in the bottom bar.',
           'In read-only mode you can still view the orders and print lab slips, but you cannot add an order or change its status. See [Licence](licence).',
         ],
@@ -81,14 +81,14 @@ const topic: GuideTopic = {
       },
       tips: {
         ar: [
-          'تبدأ حالة الطلب الجديد **مرسل**. اختر **مسودة** في خانة **الحالة** إن لم ترسله بعد.',
+          'تبدأ حالة الطلب الجديد **مرسل**. إن لم ترسله بعد فاختر **مسودة** في خانة **الحالة**، وامسح **تاريخ الإرسال** و**موعد التسليم**؛ وإلا بقي تاريخ اليوم تاريخاً للإرسال وحُسب الموعد منه.',
           'إذا ربطت الطلب ببند على سن ولم تحدد أسناناً، يُحدَّد سن البند تلقائياً.',
           'لا يقبل البرنامج موعد تسليم قبل تاريخ الإرسال.',
           'يحصل كل طلب على رقم مرجعي متسلسل، مثل LAB-000014، يُطبع على أمر العمل.',
           'لا تدخل التكلفة في المصروفات حتى تستلم العمل. انظر [متابعة الطلب حتى التركيب](lab#status).',
         ],
         en: [
-          'A new order starts as **Sent**. Choose **Draft** in the **Status** field if it has not gone yet.',
+          'A new order starts as **Sent**. If it has not gone yet, choose **Draft** in the **Status** field and clear **Sent on** and **Due date**; otherwise today stays as the sent date and the due date counts from it.',
           'If you link the order to an item on a tooth and pick no teeth, the item’s tooth is selected for you.',
           'Dentora does not accept a due date before the sent date.',
           'Each order gets a running reference, such as LAB-000014, printed on the lab slip.',
@@ -106,33 +106,33 @@ const topic: GuideTopic = {
       },
       steps: {
         ar: [
-          'حين ترسل المسودة انقر على **إرسال للمخبر**. يُسجَّل تاريخ الإرسال اليوم إن لم يكن مسجلاً.',
+          'حين ترسل المسودة انقر على **إرسال للمخبر**. إن كان تاريخ الإرسال فارغاً يُسجَّل اليوم، وإن كان موعد التسليم فارغاً يُحدَّد بعد 7 أيام. أما التاريخ المكتوب من قبل فيبقى، فصحّحه من **تعديل** إن لزم.',
           'حين يبدأ المخبر العمل انقر على **بدء العمل**.',
-          'عند وصول العمل إلى العيادة انقر على **استلام**. يُسجَّل تاريخ الاستلام، وتدخل التكلفة في المصروفات.',
+          'عند وصول العمل إلى العيادة انقر على **استلام**. يُسجَّل تاريخ الاستلام، وتدخل التكلفة في المصروفات إن كانت للطلب تكلفة.',
           'بعد تركيبه للمريض انقر على **تم التركيب**.',
-          'إذا احتاج العمل إلى تعديل افتح قائمة ⋮ واختر **إعادة للمخبر (إعادة عمل)**. إن كان موعد التسليم قد حلّ يُحدَّد موعد جديد بعد 7 أيام، ويعود زر **استلام** إلى السطر.',
+          'إذا احتاج العمل إلى تعديل افتح قائمة ⋯ واختر **إعادة للمخبر (إعادة عمل)**. إن كان موعد التسليم قد حلّ يُحدَّد موعد جديد بعد 7 أيام، ويعود زر **استلام** إلى السطر.',
           'لإيقاف طلب اختر **إلغاء الطلب** من القائمة نفسها، فيبقى في السجل بحالة **ملغى**.',
         ],
         en: [
-          'When a draft goes out, click **Send to lab**. Today is recorded as the sent date if there is none.',
+          'When a draft goes out, click **Send to lab**. If its sent date is empty, today is recorded, and an empty due date is set 7 days later. Dates already filled in stay, so correct them with **Edit** if needed.',
           'When the lab starts the work, click **Start work**.',
-          'When the work arrives at the clinic, click **Receive**. The received date is recorded and the cost goes to your expenses.',
+          'When the work arrives at the clinic, click **Receive**. The received date is recorded and, if the order has a cost, the cost goes to your expenses.',
           'Once it is fitted for the patient, click **Mark fitted**.',
-          'If the work needs correcting, open the ⋮ menu and choose **Send back (remake)**. If the due date has come, a new one is set 7 days ahead, and the **Receive** button comes back on the row.',
+          'If the work needs correcting, open the ⋯ menu and choose **Send back (remake)**. If the due date has come, a new one is set 7 days ahead, and the **Receive** button comes back on the row.',
           'To stop an order, choose **Cancel order** in the same menu. It stays in the history as **Cancelled**.',
         ],
       },
       tips: {
         ar: [
-          'في قائمة ⋮ أيضاً **طباعة أمر العمل** و**تعديل** و**حذف**. وتستطيع تغيير الحالة مباشرة من خانة **الحالة** في نافذة التعديل.',
-          'عند الاستلام تُسجَّل **تكلفة المخبر** مصروفاً من فئة «مخبر» بتاريخ الاستلام، باسم المخبر ووصف العمل ورقم الطلب، فلا تكتب فاتورة المخبر مرتين. انظر [المصروفات](expenses#edit).',
-          'عدّل التكلفة أو اسم المخبر من الطلب نفسه لا من صفحة المصروفات، فيتعدل المصروف معه. وإعادة العمل لا تضيف مصروفاً جديداً، أما إلغاء الطلب أو حذفه فيحذف مصروفه.',
+          'في قائمة ⋯ أيضاً **طباعة أمر العمل** و**تعديل** و**حذف**. وتستطيع تغيير الحالة مباشرة من خانة **الحالة** في نافذة التعديل.',
+          'عند الاستلام تُسجَّل **تكلفة المخبر** مصروفاً من فئة «مخبر» بتاريخ الاستلام، باسم المخبر ووصف العمل واسم المريض ورقم الطلب، فلا تكتب فاتورة المخبر مرتين. انظر [المصروفات](expenses#edit).',
+          'عدّل التكلفة أو اسم المخبر من الطلب نفسه لا من صفحة المصروفات، فيتعدل المصروف معه. وإعادة العمل لا تضيف مصروفاً جديداً، أما إلغاء الطلب أو حذفه فيحذف مصروفه، حتى لو كان العمل قد استُلم؛ فإن دفعت للمخبر فلا تلغِ الطلب، أو سجّل المبلغ بيدك في المصروفات.',
           'بطاقة **تكاليف المخبر هذا الشهر** تجمع مصروفات فئة المخبر في الشهر، ومنها ما تسجله بيدك. وينتقل المدير إلى صفحة المصروفات بالنقر عليها.',
         ],
         en: [
           'The same menu also has **Print lab slip**, **Edit** and **Delete**. You can also change the status directly in the **Status** field of the edit window.',
-          'On receipt, the **Lab cost** is recorded as an expense in the “Lab” category, dated the day received, with the lab’s name, the work and the order reference, so you never type a lab bill twice. See [Expenses](expenses#edit).',
-          'Change the cost or the lab name on the order, not on the Expenses page, and the expense follows. A remake adds no second expense; cancelling or deleting the order removes its expense.',
+          'On receipt, the **Lab cost** is recorded as an expense in the “Lab” category, dated the day received, with the lab’s name, the work, the patient and the order reference, so you never type a lab bill twice. See [Expenses](expenses#edit).',
+          'Change the cost or the lab name on the order, not on the Expenses page, and the expense follows. A remake adds no second expense; cancelling or deleting the order removes its expense, even when the work was already received: if you paid the lab, do not cancel the order, or enter the amount by hand in Expenses.',
           'The **Lab costs this month** card adds up the month’s Lab expenses, including any you enter by hand. The admin can click it to open the Expenses page.',
         ],
       },
@@ -147,12 +147,12 @@ const topic: GuideTopic = {
       },
       steps: {
         ar: [
-          'في سطر الطلب افتح قائمة ⋮ واختر **طباعة أمر العمل**.',
+          'في سطر الطلب افتح قائمة ⋯ واختر **طباعة أمر العمل**.',
           'راجع الورقة: المخبر وموعد التسليم المطلوب، والمريض والطبيب، ونوع العمل واللون والمادة وتاريخ الإرسال، ورسم الأسنان المحددة، وملاحظاتك للمخبر.',
           'انقر على **طباعة**، ثم وقّع الورقة في مكان توقيع الطبيب.',
         ],
         en: [
-          'On the order’s row open the ⋮ menu and choose **Print lab slip**.',
+          'On the order’s row open the ⋯ menu and choose **Print lab slip**.',
           'Check the sheet: the lab and the required date, the patient and doctor, the type of work, shade, material and sent date, a drawing of the chosen teeth, and your notes for the lab.',
           'Click **Print**, then sign the sheet where the doctor’s signature goes.',
         ],
@@ -221,8 +221,8 @@ const topic: GuideTopic = {
     {
       id: 'lab-form',
       device: 'desktop',
-      alt: { ar: 'نافذة طلب مخبري جديد: المريض والطبيب واسم المخبر، ونوع العمل واللون والمادة، والسن 26 محدداً', en: 'The New lab order window: patient, doctor and lab name, type of work, shade and material, and tooth 26 selected' },
-      recipe: `${DESK} ${LAB} Click **New lab order** (طلب مخبري جديد). Type “أنس مازن” (EN: “Anas Mazen”) in the patient search and press Enter to pick ${file(55, 'أنس مازن ديب', 'Anas Mazen Deeb')}. Type the lab name “مخبر الشام الرقمي (CAD/CAM)” (EN: “Al-Sham Digital Lab (CAD/CAM)”). Keep Type of work = Crown; type the shade “A3” and the material “زيركون” (EN: “Zirconia”); click tooth 26 in the teeth grid. Click the section title “العمل المطلوب / Work requested” to close any open list. Leave the dialog body at its top. Crop to the dialog. Markers: 2 on the patient card and the Lab name field, 3 on Type of work, Shade and Material, 4 on tooth 26 and the **Upper arch** / **Lower arch** buttons. Keep the dialog open for lab-form-dates.`,
+      alt: { ar: 'نافذة طلب مخبري جديد: المريض والطبيب واسم المخبر، ونوع العمل واللون والمادة، والسن 16 محدداً', en: 'The New lab order window: patient, doctor and lab name, type of work, shade and material, and tooth 16 selected' },
+      recipe: `${DESK} ${LAB} Click **New lab order** (طلب مخبري جديد). Type “أنس مازن” (EN: “Anas Mazen”) in the patient search and press Enter to pick ${file(55, 'أنس مازن ديب', 'Anas Mazen Deeb')}. Type the lab name “مخبر الشام الرقمي (CAD/CAM)” (EN: “Al-Sham Digital Lab (CAD/CAM)”). Keep Type of work = Crown; type the shade “A3” and the material “زيركون” (EN: “Zirconia”); click tooth 16 in the teeth grid (the tooth of the zirconia crown the order is linked to in lab-form-dates). Click the section title “العمل المطلوب / Work requested” to close any open list. Leave the dialog body at its top. Crop to the dialog. Markers: 2 on the patient card and the Lab name field, 3 on Type of work, Shade and Material, 4 on tooth 16 and the **Upper arch** / **Lower arch** buttons. Keep the dialog open for lab-form-dates.`,
     },
     {
       id: 'lab-form-dates',

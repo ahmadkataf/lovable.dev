@@ -91,8 +91,8 @@ const topic: GuideTopic = {
       id: 'search',
       title: { ar: 'البحث السريع', en: 'Quick search' },
       text: {
-        ar: ["من خانة البحث تصل إلى أي شيء في ثوانٍ: مريض باسمه أو رقم هاتفه أو رقم ملفه أو رقمه الوطني، أو موعد قادم باسم المريض أو الطبيب، أو فاتورة برقمها، أو أي صفحة باسمها."],
-        en: ["The search box takes you anywhere in seconds: a patient by name, phone number, file number or national ID, an upcoming appointment by patient or doctor, an invoice by its number, or any page by its name."],
+        ar: ["من خانة البحث تصل إلى أي شيء في ثوانٍ: مريض باسمه أو رقم هاتفه أو رقم ملفه أو رقمه الوطني، أو موعد قادم باسم المريض أو الطبيب، أو فاتورة برقمها أو باسم المريض، أو أي صفحة باسمها."],
+        en: ["The search box takes you anywhere in seconds: a patient by name, phone number, file number or national ID, an upcoming appointment by patient or doctor, an invoice by its number or the patient’s name, or any page by its name."],
       },
       steps: {
         ar: [
@@ -110,14 +110,14 @@ const topic: GuideTopic = {
       },
       tips: {
         ar: [
-          "قبل أن تكتب شيئاً تعرض النافذة **إجراءات سريعة** (**مريض جديد** و**موعد جديد** و**فاتورة جديدة** و**قفل الشاشة**) و**عمليات البحث الأخيرة**. تمسح السجل من **مسح السجل**.",
+          "قبل أن تكتب شيئاً تعرض النافذة **عمليات البحث الأخيرة** (تمسحها من **مسح السجل**)، و**إجراءات سريعة** (**مريض جديد** و**موعد جديد** و**فاتورة جديدة** و**قفل الشاشة**، بحسب دورك)، و**الانتقال إلى** مع كل صفحات البرنامج. وفي وضع القراءة فقط لا يبقى من الإجراءات إلا **قفل الشاشة**.",
           "يفهم البحث الأرقام العربية (٠–٩)، ويعمل `Ctrl+K` حتى إن كانت لوحة المفاتيح على العربية.",
           "تظهر المواعيد من اليوم فصاعداً فقط. للمواعيد السابقة افتح ملف المريض أو [المواعيد](appointments).",
           "تظهر الملفات المؤرشفة في النتائج مع شارة **مؤرشف**.",
           "يبحث كل شخص فيما يسمح به دوره فقط.",
         ],
         en: [
-          "Before you type, the window offers **Quick actions** (**New patient**, **New appointment**, **New invoice**, **Lock screen**) and your **Recent searches**. **Clear history** empties the list.",
+          "Before you type, the window shows your **Recent searches** (**Clear history** empties them), **Quick actions** (**New patient**, **New appointment**, **New invoice**, **Lock screen**, as your role allows) and **Go to** with every page. While Dentora is read-only, **Lock screen** is the only quick action left.",
           "Search understands Arabic-Indic digits (٠–٩), and `Ctrl+K` works even with an Arabic keyboard layout.",
           "Only appointments from today on are listed. For past visits, open the patient’s file or [Appointments](appointments).",
           "Archived files show in the results with an **Archived** badge.",
@@ -167,24 +167,24 @@ const topic: GuideTopic = {
       text: {
         ar: [
           "أيقونة الجرس تجمع ما يحتاج إلى انتباهك اليوم. تظهر عليها نقطة حمراء حين يجدّ أمر مهم لم تره بعد: فاتورة متأخرة، أو مادة قاربت على النفاد، أو عمل مخبر متأخر، أو موعد للغد لم يُؤكَّد، أو نسخة احتياطية مستحقة.",
-          "في اللوحة، بحسب ما يسمح به دورك: **النسخ الاحتياطي**، و**مواعيد اليوم المتبقية**، و**مواعيد الغد غير المؤكدة**، و**أعمال المخبر**، و**فواتير متأخرة السداد**، و**المخزون** (النواقص والمواد القريبة من انتهاء صلاحيتها)، و**أعياد ميلاد اليوم**، و**مرضى بحاجة لمراجعة دورية** (آخر زيارة لهم قبل أكثر من 6 أشهر ولا موعد محجوزاً لهم).",
+          "في اللوحة، بحسب ما يسمح به دورك: **النسخ الاحتياطي**، و**مواعيد اليوم المتبقية**، و**مواعيد الغد غير المؤكدة**، و**أعمال المخبر**، و**فواتير متأخرة السداد**، و**المخزون** (النواقص، والمواد المنتهية صلاحيتها أو التي تنتهي خلال 60 يوماً)، و**أعياد ميلاد اليوم**، و**مرضى بحاجة لمراجعة دورية** (آخر زيارة لهم قبل أكثر من 6 أشهر ولا موعد محجوزاً لهم).",
         ],
         en: [
           "The bell gathers what needs your attention today. A red dot appears on it when something important comes up that you have not seen yet: an overdue invoice, an item running low, late lab work, an unconfirmed appointment for tomorrow, or a backup that is due.",
-          "Depending on your role, the panel lists **Backup**, **Remaining today**, **Unconfirmed for tomorrow**, **Lab work**, **Overdue invoices**, **Inventory** (shortages and items close to their expiry date), **Birthdays today** and **Due for a recall** (last visit over 6 months ago and nothing booked).",
+          "Depending on your role, the panel lists **Backup**, **Remaining today**, **Unconfirmed for tomorrow**, **Lab work**, **Overdue invoices**, **Inventory** (shortages, and items already expired or expiring within 60 days), **Birthdays today** and **Due for a recall** (last visit over 6 months ago and nothing booked).",
         ],
       },
       steps: {
         ar: [
           "انقر على الجرس، فتنفتح لوحة **التنبيهات** في جانب الشاشة.",
           "انقر على أي تنبيه لتنتقل إلى صفحته: الموعد في التقويم، أو الفاتورة، أو المخزون، أو ملف المريض.",
-          "بجانب كل موعد للغد غير مؤكد زر **تذكير عبر واتساب** يفتح رسالة جاهزة للمريض، إن كان رقم هاتفه مسجلاً. وبجانب أعياد الميلاد زر **إرسال تهنئة عبر واتساب**.",
+          "بجانب كل موعد للغد غير مؤكد أيقونة فقاعة رسالة (**تذكير عبر واتساب**) تفتح رسالة جاهزة للمريض، إن كان رقم هاتفه مسجلاً. وبجانب أعياد الميلاد أيقونة مثلها (**إرسال تهنئة عبر واتساب**).",
           "إن كانت المجموعة طويلة انقر على **عرض الكل** لفتح صفحتها كاملة.",
         ],
         en: [
           "Click the bell: the **Notifications** panel opens at the side of the screen.",
           "Click any alert to go to its page: the appointment in the calendar, the invoice, the inventory or the patient’s file.",
-          "Each unconfirmed appointment for tomorrow has a **Remind on WhatsApp** button that opens a ready-made message to the patient, when their phone number is on file. Birthdays have **Send greetings on WhatsApp**.",
+          "Each unconfirmed appointment for tomorrow has a speech-bubble icon (**Remind on WhatsApp**) that opens a ready-made message to the patient, when their phone number is on file. Birthdays have the same icon (**Send greetings on WhatsApp**).",
           "When a group is long, click **View all** to open its full page.",
         ],
       },
@@ -192,13 +192,13 @@ const topic: GuideTopic = {
         ar: [
           "تختفي النقطة الحمراء حين تفتح اللوحة، وتعود حين يظهر أمر مهم جديد.",
           "تُعدّ الفاتورة متأخرة إذا فات تاريخ استحقاقها، أو مضى على إصدارها أكثر من 30 يوماً إن لم يكن لها تاريخ استحقاق.",
-          "يظهر تذكير النسخ الاحتياطي إن لم تُحفظ نسخة قط، أو مضى على آخر نسخة 7 أيام. وزر **نسخ الآن** للمدير وحده.",
+          "يظهر تذكير النسخ الاحتياطي حين يكون في العيادة مريض واحد على الأقل، ولم تُحفظ نسخة قط أو مضى على آخر نسخة 7 أيام أو أكثر. يرى المدير وحده نقطته الحمراء، وتعود كل أسبوع حتى تُحفظ نسخة، والنقر على سطره الذي يحمل عبارة **نسخ الآن** ينقله إلى صفحة النسخ الاحتياطي. أما بقية الفريق فيطلب منهم التذكير إخبار المدير.",
           "تُفتح رسائل واتساب في تطبيق واتساب على أندرويد، وفي المتصفح على ويندوز لتكمل في واتساب ويب أو في تطبيق واتساب على الحاسوب. ويُضاف رمز بلد العيادة إلى الأرقام المحلية تلقائياً. انظر [بيانات العيادة](settings#clinic-details).",
         ],
         en: [
           "The red dot goes away once you open the panel, and comes back when something new and important appears.",
           "An invoice counts as overdue once its due date has passed or, without a due date, 30 days after it was issued.",
-          "The backup reminder shows when no backup was ever saved or the last one is 7 days old. Only the admin gets the **Back up now** button.",
+          "The backup reminder shows when the clinic has at least one patient and no backup was ever saved, or the last one is 7 or more days old. Only the admin gets its red dot, which comes back every week until a backup is saved; clicking its row, marked **Back up now**, takes the admin to the backup page. Everyone else is asked to tell the admin.",
           "WhatsApp messages open in the WhatsApp app on Android, and in the browser on Windows, where you continue in WhatsApp Web or the WhatsApp desktop app. Your clinic’s country code is added to local numbers for you. See [Clinic details](settings#clinic-details).",
         ],
       },
@@ -215,12 +215,12 @@ const topic: GuideTopic = {
         ar: [
           "انتقل من الشريط السفلي بين **الرئيسية** و**المواعيد** و**المرضى** و**الفواتير**.",
           "انقر على **المزيد** لتصل إلى بقية الصفحات. وفي أعلى النافذة اسمك مع زرّي قفل الشاشة وتسجيل الخروج.",
-          "في الشريط العلوي: العدسة للبحث، وزر **+** لموعد جديد، والجرس للتنبيهات، وصورتك لقائمة حسابك.",
+          "في الشريط العلوي: العدسة للبحث، وزر **+** لموعد جديد (وعلى الجهاز اللوحي يظهر بدلاً منه زر **جديد** بقائمته)، والجرس للتنبيهات، والدائرة التي تحمل الحرفين الأولين من اسمك لقائمة حسابك.",
         ],
         en: [
           "Use the bottom bar to move between **Dashboard**, **Appointments**, **Patients** and **Invoices**.",
           "Tap **More** to reach every other page. Its top row shows your name with buttons to lock the screen and sign out.",
-          "In the top bar: the magnifier searches, **+** books a new appointment, the bell opens notifications, and your picture opens your account menu.",
+          "In the top bar: the magnifier searches, **+** books a new appointment (on a tablet you get the full **New** button and its menu instead), the bell opens notifications, and the circle with your initials opens your account menu.",
         ],
       },
       tips: {
@@ -228,12 +228,14 @@ const topic: GuideTopic = {
           "زر الرجوع في أندرويد يغلق النافذة أو القائمة المفتوحة أولاً، ثم يعود صفحة إلى الوراء. وفي الشاشة الرئيسية ينقل التطبيق إلى الخلفية ولا يغلقه.",
           "يختفي الشريط السفلي أثناء الكتابة ليترك مكاناً للوحة المفاتيح.",
           "الجهاز اللوحي في الوضع الأفقي قد يعرض شكل الحاسوب بقائمته الجانبية.",
+          "وعلى ويندوز يظهر الشكل نفسه إن ضيّقت نافذة Dentora إلى أقل من نحو 1024 بكسل، مثلاً حين تضعها في نصف الشاشة. وسّع النافذة لتعود القائمة الجانبية.",
           "يعرض الشريط السفلي ونافذة **المزيد** الصفحات التي يسمح بها دورك فقط.",
         ],
         en: [
           "Android’s Back button first closes any open window or menu, then goes back a page. On the dashboard it sends the app to the background instead of closing it.",
           "The bottom bar hides while you type, to leave room for the keyboard.",
           "A tablet held sideways may show the computer layout, with the sidebar.",
+          "On Windows the same layout appears when the Dentora window is narrower than about 1024 pixels, for example when it is snapped to half the screen. Widen the window to get the sidebar back.",
           "The bottom bar and the **More** window only show the pages your role allows.",
         ],
       },

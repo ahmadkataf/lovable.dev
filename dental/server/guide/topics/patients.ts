@@ -22,12 +22,12 @@ const topic: GuideTopic = {
       title: { ar: 'قائمة المرضى', en: 'The patients list' },
       text: {
         ar: [
-          'افتح **المرضى** من القائمة الجانبية، أو من الشريط السفلي على الهاتف. تجد هنا كل ملفات العيادة: لكل مريض سطر فيه رقم ملفه واسمه وجنسه وعمره وطبيبه المعالج، ثم هاتفه مع زرّي الاتصال وواتساب، والتنبيهات الطبية، وتاريخ آخر زيارة، والمبلغ المستحق عليه، ووسومه.',
+          'افتح **المرضى** من القائمة الجانبية، أو من الشريط السفلي على الهاتف. تجد هنا كل ملفات العيادة: لكل مريض سطر فيه رقم ملفه واسمه وجنسه وعمره وطبيبه المعالج، ثم هاتفه مع زرّي الاتصال وواتساب، والتنبيهات الطبية، وتاريخ آخر زيارة، والمبلغ المستحق عليه، ووسومه. وعلى الهاتف يظهر كل مريض بطاقةً فيها اسمه ورقم ملفه وجنسه وعمره ومستحقه وهاتفه وتنبيهاته الطبية.',
           'في أعلى القائمة ثلاث بطاقات: **إجمالي المرضى** و**مرضى جدد هذا الشهر** و**عليهم مستحقات**. انقر على **مرضى جدد هذا الشهر** أو **عليهم مستحقات** لتعرض هؤلاء المرضى وحدهم، ثم انقر على البطاقة نفسها مرة أخرى، أو على **إجمالي المرضى**، لتعود إلى القائمة كاملة.',
           'انقر على أي سطر لتفتح ملف المريض.',
         ],
         en: [
-          'Open **Patients** from the sidebar, or from the bottom bar on a phone. Every file of the clinic is here: each patient has a row with the file number, name, gender, age and treating doctor, then the phone with call and WhatsApp buttons, medical alerts, last visit, balance and tags.',
+          'Open **Patients** from the sidebar, or from the bottom bar on a phone. Every file of the clinic is here: each patient has a row with the file number, name, gender, age and treating doctor, then the phone with call and WhatsApp buttons, medical alerts, last visit, balance and tags. On a phone each patient is a card with name, file number, gender, age, balance, phone and medical alerts.',
           'Three cards sit above the list: **Total patients**, **New this month** and **With a balance due**. Click **New this month** or **With a balance due** to show only those patients; click the same card again, or **Total patients**, to see everyone.',
           'Click any row to open the patient’s file.',
         ],
@@ -54,22 +54,22 @@ const topic: GuideTopic = {
       id: 'add-patient',
       title: { ar: 'إضافة مريض جديد', en: 'Adding a new patient' },
       text: {
-        ar: ['يكفي اسم المريض لفتح ملفه، وتستطيع إكمال بقية البيانات في أي وقت لاحقاً.'],
+        ar: ['يكفي اسم المريض لإنشاء ملفه، وتستطيع إكمال بقية البيانات في أي وقت لاحقاً.'],
         en: ['A name is all a new file needs; you can fill in the rest at any time later.'],
       },
       steps: {
         ar: [
-          'انقر على **مريض جديد** أعلى صفحة المرضى، أو اختره من زر **جديد** في الشريط العلوي، أو اضغط `Ctrl+Shift+N` من أي شاشة.',
+          'انقر على **مريض جديد** أعلى صفحة المرضى (على الهاتف: الزر العائم أسفل الشاشة)، أو اختره من زر **جديد** في الشريط العلوي على الحاسوب، أو اضغط `Ctrl+Shift+N` من أي شاشة.',
           'اكتب **الاسم الكامل**، وهو الحقل الوحيد المطلوب.',
-          'اختر **الجنس** وأدخل **تاريخ الميلاد**، فيظهر العمر تحته مباشرة.',
+          'اختر **الجنس** (يكون **ذكر** مختاراً مسبقاً، فغيّره للمريضات) وأدخل **تاريخ الميلاد**، فيظهر العمر تحته مباشرة.',
           'أدخل **الهاتف**. هو اختياري، لكن بدونه لا تستطيع تذكير المريض بمواعيده عبر واتساب. وإن كان له رقم ثانٍ فأضفه في **هاتف آخر**.',
           'أكمل ما تشاء من الحقول الأخرى: **صورة المريض** و**البريد الإلكتروني** و**الطبيب المعالج** و**العنوان** و**الرقم الوطني** و**المهنة**، ثم **الحالة الصحية** و**معلومات إضافية** في أسفل النموذج (الوسوم والتأمين وجهة الإحالة والملاحظات).',
           'انقر على **حفظ المريض**. يعطي البرنامج المريض رقم الملف التالي تلقائياً، ويفتح ملفه مباشرة.',
         ],
         en: [
-          'Click **New patient** at the top of the Patients page, pick it from the **New** button in the top bar, or press `Ctrl+Shift+N` on any screen.',
+          'Click **New patient** at the top of the Patients page (on a phone, the floating button at the bottom of the screen), pick it from the **New** button in the top bar on a computer, or press `Ctrl+Shift+N` on any screen.',
           'Type the **Full name**, the only required field.',
-          'Choose the **Gender** and enter the **Date of birth**; the age appears right under it.',
+          'Choose the **Gender** (**Male** is picked by default, so change it for a female patient) and enter the **Date of birth**; the age appears right under it.',
           'Enter the **Phone**. It is optional, but without it the patient cannot get WhatsApp appointment reminders. A second number goes in **Other phone**.',
           'Fill in whatever else you have: **Patient photo**, **Email**, **Treating doctor**, **Address**, **National ID** and **Occupation**, then **Medical status** and **Additional information** further down (tags, insurance, referral and notes).',
           'Click **Save patient**. Dentora gives the patient the next file number and opens the new file.',
@@ -120,10 +120,14 @@ const topic: GuideTopic = {
         ar: [
           'تظهر الحساسية والأمراض المزمنة والأدوية في شريط **تنبيه طبي** أعلى ملف المريض: أحمر إن كانت عنده حساسية، وبرتقالي إن لم تكن. وفي قائمة المرضى تظهر شارة **حساسية** أو **مرض مزمن** في عمود **تنبيهات طبية**، وعلى الهاتف تحت اسمه بجانب رقم الهاتف.',
           'لحذف عنصر انقر على ✕ بجانبه، أو اضغط `Backspace` في الخانة الفارغة ليُحذف آخر عنصر.',
+          'لا تظهر **ملاحظات طبية** في شريط التنبيه، بل في بطاقة **المعلومات الطبية** في تبويب **نظرة عامة** فقط. لذلك اكتب كل حساسية ومرض ودواء في خانته، لا في الملاحظات.',
+          'تُستخدم الحساسية المسجّلة هنا أيضاً لتنبيهك حين تكتب وصفة فيها دواء قد يتعارض معها. انظر [تنبيهات الحساسية](prescriptions#allergy).',
         ],
         en: [
           'Allergies, chronic diseases and medications appear in a **Medical alert** bar at the top of the file: red when there is an allergy, orange otherwise. In the patients list an **Allergy** or **Chronic** badge shows in the **Medical alerts** column (on a phone, under the name next to the phone number).',
           'To remove an item click the ✕ next to it, or press `Backspace` in the empty box to remove the last one.',
+          '**Medical notes** do not appear in the alert bar, only in the **Medical information** card of the **Overview** tab. Put every allergy, disease and medication in its own box, not in the notes.',
+          'The allergies recorded here also warn you when a prescription contains a drug that may clash with them. See [Allergy warnings](prescriptions#allergy).',
         ],
       },
       shots: ['patients-medical-form', 'patients-medical-alert'],
@@ -137,13 +141,13 @@ const topic: GuideTopic = {
       },
       steps: {
         ar: [
-          'اكتب في خانة البحث جزءاً من الاسم أو رقم الهاتف أو رقم الملف أو الرقم الوطني. تتغير النتائج مع كل حرف تكتبه.',
+          'اكتب في خانة البحث جزءاً من الاسم أو رقم الهاتف (الأول أو الآخر) أو رقم الملف أو الرقم الوطني أو البريد الإلكتروني. تتغير النتائج مع كل حرف تكتبه.',
           'ضيّق القائمة بالجنس (**الكل** أو **ذكر** أو **أنثى**)، وبالطبيب المعالج (**كل الأطباء**)، وبالوسم (**كل الوسوم**).',
           'اختر الترتيب من الزر الأخير: **الأحدث إضافة** أو **الاسم أبجدياً** أو **آخر زيارة** أو **الأعلى مستحقات**.',
           'يظهر فوق الجدول عدد النتائج، وانقر على **مسح التصفية** لتعود إلى القائمة كاملة.',
         ],
         en: [
-          'Type part of a name, a phone number, a file number or a national ID in the search box. The list updates as you type.',
+          'Type part of a name, a phone number (first or other), a file number, a national ID or an email in the search box. The list updates as you type.',
           'Narrow it by gender (**All**, **Male** or **Female**), by treating doctor (**All doctors**) and by tag (**All tags**).',
           'Pick the order from the last button: **Recently added**, **Name (A–Z)**, **Last visit** or **Highest balance**.',
           'The number of results shows above the table; click **Clear filters** to see everyone again.',
@@ -180,24 +184,24 @@ const topic: GuideTopic = {
         ar: [
           'افتح الملف بالنقر على سطر المريض في القائمة، أو ابحث عنه من الشريط العلوي.',
           'تابع الأرقام الأربعة تحت الاسم: **الرصيد المستحق** و**الموعد القادم** و**آخر زيارة** و**علاجات منجزة** مع عدد العلاجات المتبقية. انقر على الرصيد أو الموعد أو العلاجات لتنتقل إلى تبويبها.',
-          'استخدم الأزرار: **تعديل** لتغيير البيانات، و**موعد** لحجز موعد للمريض، و**دفعة** لتسجيل مبلغ دفعه، وزر النقاط الثلاث (⋯) لـ**أرشفة** الملف أو **حذف المريض**.',
+          'استخدم الأزرار: **تعديل** لتغيير البيانات (على الهاتف يظهر زر **تعديل** أيقونة قلم فقط)، و**موعد** لحجز موعد للمريض، و**دفعة** لتسجيل مبلغ دفعه، وزر النقاط الثلاث (⋯) لـ**أرشفة** الملف أو **حذف المريض**.',
           'تنقّل بين التبويبات. يعرض تبويب **نظرة عامة** المعلومات الطبية، والتواصل والتأمين، والملاحظات، و**المواعيد القادمة** مع زر **حجز موعد**، و**آخر النشاطات** على الملف مع اسم من قام بكل منها ووقته.',
         ],
         en: [
           'Open the file by clicking the patient’s row in the list, or find the patient from the top bar.',
           'Read the four figures under the name: **Balance due**, **Next appointment**, **Last visit** and **Completed treatments** with the number still to do. Click the balance, the appointment or the treatments to jump to their tab.',
-          'Use the buttons: **Edit** to change details, **Appointment** to book a visit, **Payment** to record money received, and the three dots (⋯) to **Archive** the file or **Delete patient**.',
+          'Use the buttons: **Edit** to change details (on a phone **Edit** is a pencil icon only), **Appointment** to book a visit, **Payment** to record money received, and the three dots (⋯) to **Archive** the file or **Delete patient**.',
           'Move between the tabs. **Overview** shows the medical information, contact and insurance, notes, **Upcoming appointments** with a **Book appointment** button, and **Recent activity** on the file with who did what and when.',
         ],
       },
       tips: {
         ar: [
-          'التبويبات الأخرى مشروحة في صفحاتها: [مخطط الأسنان](chart)، [العلاجات](treatments)، [المواعيد](appointments#patient-tab)، [الحساب](billing#account)، [الوصفات](prescriptions#patient-tab)، [المخبر](lab#patient-tab). ويظهر بجانب كل تبويب عدد ما فيه، ما عدا **نظرة عامة** و**مخطط الأسنان**.',
+          'التبويبات الأخرى مشروحة في صفحاتها: [مخطط الأسنان](chart)، [العلاجات](treatments)، [المواعيد](appointments#patient-tab)، [الحساب](billing#account)، [الوصفات](prescriptions#patient-tab)، [المخبر](lab#patient-tab). ويظهر بجانب كل تبويب منها، ما عدا **مخطط الأسنان**، عدد ما فيه حين لا يكون فارغاً، ويجمع عدد **الملفات والملاحظات** الملفات والملاحظات السريرية معاً.',
           'تختلف التبويبات والأزرار حسب دور المستخدم: موظف الاستقبال لا يرى **مخطط الأسنان** و**العلاجات** و**الوصفات** و**المخبر**، والمساعد لا يرى **الحساب** ولا زر **دفعة**، وحذف المريض للمدير وحده. انظر [الأدوار والصلاحيات](staff#roles).',
           'على الهاتف تتحرك التبويبات أفقياً: اسحبها جانباً لتصل إلى بقيتها.',
         ],
         en: [
-          'The other tabs have their own pages: [Dental chart](chart), [Treatments](treatments), [Appointments](appointments#patient-tab), [Account](billing#account), [Prescriptions](prescriptions#patient-tab), [Lab](lab#patient-tab). Every tab except **Overview** and **Dental chart** shows how many items it holds.',
+          'The other tabs have their own pages: [Dental chart](chart), [Treatments](treatments), [Appointments](appointments#patient-tab), [Account](billing#account), [Prescriptions](prescriptions#patient-tab), [Lab](lab#patient-tab). Each of these tabs except **Dental chart** shows how many items it holds when it is not empty; the **Files & notes** count adds files and clinical notes together.',
           'Tabs and buttons depend on the user’s role: a receptionist does not see **Dental chart**, **Treatments**, **Prescriptions** or **Lab**; an assistant does not see **Account** or the **Payment** button; only an admin can delete a patient. See [Roles and permissions](staff#roles).',
           'On a phone the tab bar scrolls sideways: swipe it to reach the other tabs.',
         ],
@@ -216,7 +220,7 @@ const topic: GuideTopic = {
           'افتح تبويب **الملفات والملاحظات** في ملف المريض.',
           'انقر على **رفع ملف** واختر صورة أو ملف PDF. على الحاسوب تستطيع أيضاً سحب الملف وإفلاته في المربع تحت الملفات.',
           'اختر **نوع الملف**: **أشعة** أو **صورة** أو **مستند** أو **موافقة** أو **أخرى**. يقترح البرنامج النوع من اسم الملف.',
-          'أضف **ملاحظة** تصف الملف، ورقم السن في **السن (اختياري)** بترقيم FDI، مثل 36.',
+          'غيّر **اسم الملف** إن شئت، وأضف **ملاحظة** تصف الملف (تظهر تحت صورته بدلاً من اسمه)، ورقم السن في **السن (اختياري)** بترقيم FDI، مثل 36.',
           'انقر على **حفظ الملف**.',
           'لكتابة ملاحظة سريرية انقر على **ملاحظة جديدة**، واختر التاريخ والطبيب، واكتب ما تم في الجلسة، ثم انقر على **حفظ** أو اضغط `Ctrl+Enter`.',
         ],
@@ -224,7 +228,7 @@ const topic: GuideTopic = {
           'Open the **Files & notes** tab of the patient’s file.',
           'Click **Upload file** and choose an image or a PDF. On a computer you can also drag the file onto the box under the files.',
           'Choose the **File type**: **X-ray**, **Photo**, **Document**, **Consent** or **Other**. Dentora suggests one from the file name.',
-          'Add a **Note** describing the file, and the tooth in **Tooth (optional)** in FDI numbering, such as 36.',
+          'Rename it in **File name** if you like, add a **Note** describing the file (it shows under the thumbnail instead of the name), and the tooth in **Tooth (optional)** in FDI numbering, such as 36.',
           'Click **Save file**.',
           'For a clinical note, click **New note**, pick the date and the doctor, write what was done, then click **Save** or press `Ctrl+Enter`.',
         ],
@@ -236,7 +240,7 @@ const topic: GuideTopic = {
           'على أندرويد يعرض زر **رفع ملف** كاميرا الهاتف إلى جانب الملفات، فتستطيع تصوير فيلم الأشعة أو فم المريض مباشرة.',
           'على ويندوز يُعرض ملف PDF داخل البرنامج. على أندرويد يظهر بدلاً منه زر **تنزيل** لتفتحه في تطبيق آخر.',
           'تُحفظ الملفات على هذا الجهاز وتدخل في النسخة الاحتياطية، وينبّهك البرنامج قبل الرفع إن لم تبقَ على الجهاز مساحة كافية. انظر [النسخ الاحتياطي](backup).',
-          'تُرتّب الملاحظات السريرية من الأحدث إلى الأقدم مع اسم الطبيب. يكتبها ويعدّلها الأطباء والمساعدون والمدير، ويقرؤها موظف الاستقبال فقط.',
+          'تُرتّب الملاحظات السريرية من الأحدث إلى الأقدم مع اسم الطبيب. يكتبها ويعدّلها ويحذفها الأطباء والمساعدون والمدير، ويقرؤها موظف الاستقبال فقط. أما الصور والملفات فيرفعها ويحذفها كل أعضاء الفريق، بمن فيهم موظف الاستقبال.',
         ],
         en: [
           'Click a file to see it large. Move between files with the arrows on screen or on the keyboard, change the type, tooth or note and click **Save changes**, or use **Download** and **Delete**. The buttons above the files filter them by type.',
@@ -244,7 +248,7 @@ const topic: GuideTopic = {
           'On Android, **Upload file** offers the phone’s camera next to your files, so you can photograph an X-ray film or the patient’s mouth directly.',
           'On Windows a PDF opens inside the app. On Android a **Download** button appears instead, so you can open it in another app.',
           'Files are stored on this device and are part of the backup; Dentora warns you before an upload if the device is short of space. See [Backup](backup).',
-          'Clinical notes are listed newest first with the doctor’s name. Doctors, assistants and admins write and edit them; receptionists can only read them.',
+          'Clinical notes are listed newest first with the doctor’s name. Doctors, assistants and admins write, edit and delete them; receptionists can only read them. Images and files can be uploaded and deleted by everyone on the team, receptionists included.',
         ],
       },
       shots: ['patients-files', 'patients-files-upload'],
@@ -273,13 +277,15 @@ const topic: GuideTopic = {
       tips: {
         ar: [
           'يحمل الملف المؤرشف شارة **ملف مؤرشف** بجانب الاسم، وتستطيع فتحه وقراءته كالمعتاد.',
-          'الحذف للمدير وحده. يحذف الملف نهائياً مع مواعيده وعلاجاته ومخطط أسنانه ووصفاته وملفاته ومسودات فواتيره، ولا يمكن التراجع عنه.',
+          'لا يظهر الملف المؤرشف عند اختيار المريض في نموذج الموعد، فلا تُضِفه مريضاً جديداً حتى لا يتكرر ملفه: احجز له من زر **موعد** في ملفه، أو استعِد الملف أولاً. ويبقى ظاهراً في البحث السريع (`Ctrl+K`) بشارة **مؤرشف**.',
+          'الحذف للمدير وحده. يحذف الملف نهائياً مع كل ما فيه: المواعيد وخطط العلاج والعلاجات ومخطط الأسنان والوصفات وطلبات المخبر والصور والملفات والملاحظات السريرية ومسودات الفواتير وسجل نشاطاته، ولا يمكن التراجع عنه.',
           'لا يُحذف ملف عليه فواتير أو دفعات، لأن حذفه يغيّر إيرادات أيام أُغلقت حساباتها. يظهر عندها **لا يمكن حذف ملف هذا المريض** مع زر **أرشفة الملف**.',
           'خذ نسخة احتياطية قبل أي حذف. انظر [حفظ نسخة احتياطية](backup#export).',
         ],
         en: [
           'An archived file carries an **Archived file** badge next to the name, and you can still open and read it.',
-          'Only an admin can delete. Deleting removes the file for good with its appointments, treatments, dental chart, prescriptions, files and draft invoices; it cannot be undone.',
+          'An archived file does not appear when you choose the patient in the appointment form, so do not add the patient again as new (that would make a second file): book from the **Appointment** button in the file, or restore it first. It still shows in quick search (`Ctrl+K`) with an **Archived** badge.',
+          'Only an admin can delete. Deleting removes the file for good with everything in it: appointments, treatment plans and treatments, dental chart, prescriptions, lab orders, images and files, clinical notes, draft invoices and its activity log; it cannot be undone.',
           'A file with invoices or payments is never deleted, because that would change the revenue of days already closed. You see **This patient file can’t be deleted** with an **Archive file** button instead.',
           'Make a backup before deleting anything. See [Saving a backup](backup#export).',
         ],

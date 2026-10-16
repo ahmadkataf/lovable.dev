@@ -59,13 +59,13 @@ const topic: GuideTopic = {
           "نزّل برنامج التثبيت من قسم التحميل في موقع Dentora (زر «تحميل لويندوز»)، أو من الرابط الذي يرسله لك البائع على واتساب.",
           "افتح الملف الذي نزّلته. إن ظهرت شاشة «حماية Windows» فانقر على «مزيد من المعلومات» ثم «تشغيل على أي حال». تظهر هذه الشاشة لأن البرنامج جديد على ويندوز.",
           "اقرأ شروط الاستخدام في الصفحة الأولى ووافق عليها، واترك مجلد التثبيت كما هو، وتابع حتى ينتهي التثبيت. لا يحتاج ذلك إلى صلاحيات مدير ويندوز.",
-          "يفتح Dentora وحده عند انتهاء التثبيت، ويضع اختصاراً على سطح المكتب وفي قائمة ابدأ. تابع إلى [الإعداد الأول](getting-started#setup-clinic).",
+          "في الصفحة الأخيرة اترك خيار تشغيل Dentora محدداً وأغلق برنامج التثبيت، فيفتح Dentora مباشرة. ويضع التثبيت اختصاراً على سطح المكتب وفي قائمة ابدأ. تابع إلى [الإعداد الأول](getting-started#setup-clinic).",
         ],
         en: [
           "Download the installer from the Download section of the Dentora website (the “Download for Windows” button), or from the link the seller sends you on WhatsApp.",
           "Open the file you downloaded. If a “Windows protected your PC” screen appears, click “More info”, then “Run anyway”. Windows shows it because the app is new to it.",
           "Read and accept the terms of use on the first page, keep the suggested folder, and continue until the installation finishes. No Windows administrator rights are needed.",
-          "Dentora opens by itself at the end and adds shortcuts on the desktop and in the Start menu. Continue with the [first-run setup](getting-started#setup-clinic).",
+          "On the last page leave the option to run Dentora ticked and close the installer: Dentora opens straight away. Shortcuts are added on the desktop and in the Start menu. Continue with the [first-run setup](getting-started#setup-clinic).",
         ],
       },
       tips: {
@@ -135,8 +135,8 @@ const topic: GuideTopic = {
         ar: [
           "في خطوة **اللغة** اختر **العربية** أو **English**، ثم انقر على **التالي**. تتغير لغة المعالج فوراً.",
           "في خطوة **العيادة** اكتب **اسم العيادة**، وهو الحقل الوحيد المطلوب. وأضف إن شئت **الهاتف** و**البريد الإلكتروني** و**العنوان**، وارفع شعارك بزر **رفع الشعار**. تظهر هذه البيانات في رأس الفواتير والوصفات المطبوعة.",
-          "في خطوة **العملة والدوام** اختر **العملة** وعدد **الكسور**، وتأكد من **بلد العيادة** و**أسماء الأشهر بالعربية**.",
-          "حدّد **أيام الدوام** وساعاته (**من الساعة** و**إلى الساعة**) و**خانة المواعيد في التقويم**. اكتب **ضريبة على الفواتير** إن كانت عيادتك تفرض ضريبة، ثم انقر على **التالي**.",
+          "في خطوة **العملة والدوام** اختر **العملة** و**الكسور** (بدون كسور، أو منزلتان، أو ثلاث منازل)، وتأكد من **بلد العيادة** و**أسماء الأشهر بالعربية**.",
+          "حدّد **أيام الدوام** وساعاته (**من الساعة** و**إلى الساعة**) و**خانة المواعيد في التقويم**. واكتب النسبة في **ضريبة على الفواتير** إن كانت عيادتك تفرض ضريبة، أو اتركها فارغة، ثم انقر على **التالي**.",
         ],
         en: [
           "On the **Language** step choose **العربية** or **English**, then click **Next**. The wizard switches language at once.",
@@ -175,26 +175,26 @@ const topic: GuideTopic = {
           "في خطوة **حسابك** اختر **اللقب** واكتب **اسمك الكامل**، وأضف إن شئت **الاختصاص** و**الهاتف**.",
           "اختر **رمز الدخول (PIN)** من 4 إلى 6 أرقام، واكتبه مرة ثانية في **أعد كتابة الرمز**، ثم انقر على **التالي**.",
           "في خطوة **المراجعة** راجع ما أدخلته. لتصحيح شيء انقر على **تعديل** في البطاقة التي تخصه.",
-          "ضع علامة على **قرأت شروط الاستخدام وسياسة الخصوصية وأوافق عليهما**. تستطيع قراءة النصين من الروابط تحت المربع.",
+          "ضع علامة على **قرأت شروط الاستخدام وسياسة الخصوصية وأوافق عليهما**، فلا يتابع المعالج دونها. وتحت المربع روابط **شروط الاستخدام** و**سياسة الخصوصية** و**تراخيص المصادر المفتوحة** لقراءتها.",
           "انقر على **ابدأ العمل**. يجهّز Dentora عيادتك ويدخلك مباشرة إلى [الشاشة الرئيسية](dashboard).",
         ],
         en: [
           "On the **Your account** step choose your **Title** and type **Your full name**. Add your **Specialty** and **Phone** if you like.",
           "Choose a **Sign-in PIN** of 4 to 6 digits, type it again in **Repeat the PIN**, then click **Next**.",
           "On the **Review** step check what you entered. To correct something, click **Edit** on its card.",
-          "Tick **I have read and accept the terms of use and the privacy policy**. The links under the box open both texts.",
+          "Tick **I have read and accept the terms of use and the privacy policy**: the wizard does not go on without it. The links under the box open the **Terms of use**, the **Privacy policy** and the **Open-source licences**.",
           "Click **Start working**. Dentora prepares your clinic and takes you straight to [the dashboard](dashboard).",
         ],
       },
       tips: {
         ar: [
           "احفظ رمزك جيداً، فستكتبه في كل مرة تفتح فيها البرنامج. وإن نسيه المدير الوحيد للعيادة فالحل في [نسيت رمز الدخول؟](staff#forgot-pin).",
-          "تبدأ الفترة التجريبية لحظة النقر على **ابدأ العمل**، ويظهر أعلى الشاشة شريط بعدد الأيام المتبقية وزر **تفعيل الآن**. انظر [الترخيص](licence).",
+          "تبدأ الفترة التجريبية (7 أيام) منذ أول فتح للبرنامج، لا من لحظة النقر على **ابدأ العمل**. بعد الإعداد يظهر أعلى الشاشة شريط بعدد الأيام المتبقية وزر **تفعيل الآن**. انظر [الترخيص](licence).",
           "تُضاف تلقائياً قائمة بالإجراءات الشائعة بأسعار مقترحة، وقائمة بالأدوية الأكثر وصفاً. ويبدأ المخزون فارغاً لتسجّل فيه موادك الفعلية.",
         ],
         en: [
           "Keep your PIN safe: you type it every time you open Dentora. If the clinic’s only admin forgets it, see [Forgot your PIN?](staff#forgot-pin).",
-          "The trial starts the moment you click **Start working**. A bar at the top shows the days left with an **Activate now** button. See [Licence](licence).",
+          "The 7-day trial starts the first time Dentora opens, not when you click **Start working**. After setup, a bar at the top shows the days left with an **Activate now** button. See [Licence](licence).",
           "A list of common procedures with suggested prices and a list of commonly prescribed drugs are added for you. Inventory starts empty, ready for your real stock.",
         ],
       },
@@ -298,11 +298,11 @@ const topic: GuideTopic = {
       tips: {
         ar: [
           "الأسعار المقترحة محسوبة بالدولار، وتُحوَّل تلقائياً إلى أغلب العملات (الريال والدرهم والدينار والجنيه واليورو وغيرها). أما مع الليرة السورية أو عملة كتبتها بنفسك فتبقى بأرقام الدولار، فعدّلها قبل أول فاتورة.",
-          "تريد أن تتجوّل في البرنامج أولاً؟ يستطيع المدير تحميل عيادة تجريبية كاملة من **الإعدادات** ← **النسخ الاحتياطي** ← **تحميل بيانات تجريبية** ما دام في العيادة أقل من ثلاثة مرضى. لكن البيانات التجريبية لا تُزال وحدها، بل بحذف كل البيانات، فجرّبها قبل أن تبدأ العمل الحقيقي. انظر [البيانات التجريبية وحذف كل البيانات](backup#demo-erase).",
+          "تريد أن تتجوّل في البرنامج أولاً؟ يستطيع المدير تحميل عيادة تجريبية كاملة من **الإعدادات** ← **النسخ الاحتياطي** ← **تحميل بيانات تجريبية** ما دام في العيادة أقل من ثلاثة مرضى. لكن البيانات التجريبية لا تُزال وحدها، بل بحذف كل البيانات، فجرّبها قبل أن تبدأ العمل الحقيقي. وإن كان في العيادة أقل من طبيبين تضيف البيانات التجريبية طبيباً أو طبيبين تجريبيين رمز دخول كل منهما 1234، فلا تُبقِ هذه الحسابات على جهاز فيه بيانات مرضى حقيقيين. انظر [البيانات التجريبية وحذف كل البيانات](backup#demo-erase).",
         ],
         en: [
           "The suggested prices are set in US dollars and converted for most currencies (riyal, dirham, dinar, pound, euro and others). With the Syrian pound, or a currency you typed in yourself, they stay as dollar figures: adjust them before your first invoice.",
-          "Want to look around first? The admin can load a complete demo clinic from **Settings** → **Backup & data** → **Load demo data** while the clinic has fewer than three patients. Demo data cannot be removed on its own, only by erasing all data, so try it before you start real work. See [Demo data and erasing everything](backup#demo-erase).",
+          "Want to look around first? The admin can load a complete demo clinic from **Settings** → **Backup & data** → **Load demo data** while the clinic has fewer than three patients. Demo data cannot be removed on its own, only by erasing all data, so try it before you start real work. If the clinic has fewer than two doctors, the demo also adds one or two demo doctors whose PIN is 1234: do not keep those accounts on a device that holds real patient data. See [Demo data and erasing everything](backup#demo-erase).",
         ],
       },
       shots: ['getting-started-first-steps'],

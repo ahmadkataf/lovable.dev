@@ -22,13 +22,13 @@ const topic: GuideTopic = {
       text: {
         ar: [
           'افتح **التقارير** من القائمة الجانبية، في قسم **المالية**. في الصفحة خمسة تبويبات: **المالية** و**المرضى** و**المواعيد** و**العلاجات** و**الذمم المستحقة**.',
-          'فوق التبويبات شريط الفترة وقائمة **جميع الأطباء**، وفي أعلى الصفحة زرّا **طباعة** و**تصدير CSV**. وتحت العنوان تظهر الفترة المختارة دائماً، واسم الطبيب إن اخترت طبيباً.',
-          'تحت كل رقم في البطاقات نسبة تغيّره **عن الفترة السابقة**. وإن كانت الفترة ما زالت جارية، مثل **هذا الشهر**، يقارن البرنامج الأيام التي مضت منها بالأيام نفسها من الفترة السابقة، ويكتب **عن المدة نفسها سابقاً**، فلا يبدو الشهر الجاري أضعف مما هو.',
+          'فوق التبويبات شريط الفترة وقائمة **جميع الأطباء** (ويختفيان في **الذمم المستحقة**)، وفي أعلى الصفحة زرّا **طباعة** و**تصدير CSV**. وتحت العنوان تظهر الفترة المختارة دائماً، واسم الطبيب إن اخترت طبيباً؛ وفي **الذمم المستحقة** يظهر اليوم الذي تُحسب حتى نهايته الأرصدة.',
+          'تحت معظم الأرقام في البطاقات نسبة تغيّرها **عن الفترة السابقة**. وإن كانت الفترة ما زالت جارية، مثل **هذا الشهر**، يقارن البرنامج الأيام التي مضت منها بالأيام نفسها من الفترة السابقة، ويكتب **عن المدة نفسها سابقاً**، فلا يبدو الشهر الجاري أضعف مما هو عليه.',
         ],
         en: [
           'Open **Reports** from the sidebar, in the **Finance** section. The page has five tabs: **Financial**, **Patients**, **Appointments**, **Treatments** and **Outstanding**.',
-          'Above the tabs are the period bar and the **All doctors** list, and at the top of the page the **Print** and **Export CSV** buttons. The chosen period always shows under the title, with the doctor’s name when you pick one.',
-          'Under each figure on the cards is its change **vs previous period**. While the period is still running, such as **This month**, Dentora compares the days gone so far with the same days of the period before and says **vs same days last period**, so the current month never looks weaker than it is.',
+          'Above the tabs are the period bar and the **All doctors** list (hidden on **Outstanding**), and at the top of the page the **Print** and **Export CSV** buttons. The chosen period always shows under the title, with the doctor’s name when you pick one; on **Outstanding** it says which day the balances are for.',
+          'Under most figures on the cards is their change **vs previous period**. While the period is still running, such as **This month**, Dentora compares the days gone so far with the same days of the period before and says **vs same days last period**, so the current month never looks weaker than it is.',
         ],
       },
       tips: {
@@ -109,12 +109,12 @@ const topic: GuideTopic = {
       text: {
         ar: [
           '**المرضى**: **المرضى الجدد** و**مرضى راجعوا العيادة** و**إجمالي الملفات النشطة** و**متوسط العمر**، ثم رسم المرضى الجدد عبر الفترة، و**توزيع الجنس**، و**الفئات العمرية**، و**أبرز مصادر الإحالة** (كيف عرف المرضى الجدد بالعيادة، من حقل الإحالة في ملف المريض)، و**المرضى الأعلى إنفاقاً**.',
-          '**المواعيد**: **إجمالي المواعيد** و**المواعيد المكتملة** مع نسبة الإنجاز و**المواعيد الملغاة** و**نسبة عدم الحضور**، ثم رسم المواعيد المحجوزة يوماً بيوم أو أسبوعاً بأسبوع، و**المواعيد حسب الحالة**، وجدول **أداء الأطباء**: المحجوزة والمكتملة ومن لم يحضروا والملغاة وساعات العمل المحجوزة و**نسبة الإشغال**.',
+          '**المواعيد**: **إجمالي المواعيد** و**المواعيد المكتملة** مع نسبة الإنجاز و**المواعيد الملغاة** و**نسبة عدم الحضور**، ثم رسم المواعيد المحجوزة يوماً بيوم أو أسبوعاً بأسبوع أو شهراً بشهر بحسب طول الفترة، و**المواعيد حسب الحالة**، وجدول **أداء الأطباء**: المحجوزة والمكتملة ومن لم يحضروا والملغاة والساعات المحجوزة و**نسبة الإشغال**.',
           '**العلاجات**: **إجراءات منجزة** و**قيمة العمل المنجز** و**أُضيف إلى الخطط** و**قيمة العمل المعلّق** (المخطط وقيد التنفيذ)، ثم **الإجراءات الأكثر تنفيذاً** و**الإجراءات الأعلى قيمة** و**المخطط مقابل المنجز**.',
         ],
         en: [
           '**Patients**: **New patients**, **Patients seen**, **Active patient files** and **Average age**, then new patients over the period, **Gender**, **Age groups**, **Top referral sources** (how new patients heard of the clinic, from the referral field in their file) and **Highest-spending patients**.',
-          '**Appointments**: **Appointments**, **Completed** with the completion rate, **Cancelled** and the **No-show rate**, then booked appointments day by day or week by week, **Appointments by status** and the **Doctor performance** table: booked, completed, no-shows, cancelled, booked hours and **Utilisation**.',
+          '**Appointments**: **Appointments**, **Completed** with the completion rate, **Cancelled** and the **No-show rate**, then booked appointments day by day, week by week or month by month (depending on the length of the period), **Appointments by status** and the **Doctor performance** table: booked, completed, no-shows, cancelled, booked hours and **Utilisation**.',
           '**Treatments**: **Procedures completed**, **Value of completed work**, **Added to plans** and **Pending work value** (planned or in progress), then **Most performed procedures**, **Top procedures by value** and **Planned vs completed**.',
         ],
       },
@@ -146,12 +146,12 @@ const topic: GuideTopic = {
       steps: {
         ar: [
           'افتح تبويب **الذمم المستحقة**.',
-          'انقر على اسم مريض لتفتح ملفه وحسابه.',
+          'انقر على اسم مريض لتفتح ملفه، ومن بطاقة رصيده تنتقل إلى حسابه.',
           'انقر على **تذكير** في سطره لترسل له عبر واتساب رسالة جاهزة فيها اسم العيادة والمبلغ المستحق.',
         ],
         en: [
           'Open the **Outstanding** tab.',
-          'Click a patient’s name to open their file and account.',
+          'Click a patient’s name to open their file; its balance card takes you to their account.',
           'Click **Remind** on their row to send them a ready WhatsApp message with the clinic’s name and the amount due.',
         ],
       },
@@ -159,13 +159,13 @@ const topic: GuideTopic = {
         ar: [
           'الرقم نفسه الذي تراه في الشاشة الرئيسية وفي قائمة الفواتير. انظر [الفواتير والمدفوعات](billing).',
           'على أندرويد يفتح زر **تذكير** محادثة المريض في تطبيق واتساب. وعلى ويندوز يُفتح الرابط في المتصفح لتكمل في واتساب ويب أو تطبيق واتساب على الحاسوب. تراجع الرسالة قبل إرسالها.',
-          'إن لم يكن للمريض رقم هاتف تجد مكان الزر «لا يوجد رقم هاتف».',
+          'إن لم يكن للمريض رقم هاتف تجد مكان الزر «لا يوجد رقم هاتف». وعلى الهاتف يظهر الزر أيقونة واتساب فقط، ولا يظهر شيء في سطر بلا رقم.',
           'الطباعة من هذا التبويب تطبع كل المرضى المدينين في جدول واحد، لا الصفحة الظاهرة على الشاشة فقط.',
         ],
         en: [
           'It is the same figure as on the dashboard and in the invoices list. See [Billing](billing).',
           'On Android **Remind** opens the patient’s chat in WhatsApp. On Windows the link opens in the browser, where you carry on in WhatsApp Web or the WhatsApp desktop app. You see the message before it is sent.',
-          'A patient with no phone number shows “No phone number” instead of the button.',
+          'A patient with no phone number shows “No phone number” instead of the button. On a phone the button is a WhatsApp icon only, and a row without a number has none.',
           'Printing from this tab prints every patient who owes money in one table, not only the page on screen.',
         ],
       },
@@ -193,7 +193,7 @@ const topic: GuideTopic = {
       tips: {
         ar: [
           'ما يحفظه **تصدير CSV** في كل تبويب: المالية جدول المصروفات مقابل الإيرادات (أو الإيرادات حسب الطبيب إن اخترت طبيباً)، والمرضى قائمة المرضى الأعلى إنفاقاً، والمواعيد أداء الأطباء، والعلاجات الإجراءات بعدد مرات تنفيذها وقيمتها، والذمم المستحقة كل الأرصدة مع الإجمالي.',
-          'على ويندوز تُفتح نافذة الطباعة في ويندوز: اختر طابعتك، أو «Microsoft Print to PDF» لتحفظ التقرير ملف PDF. وعلى أندرويد تُفتح شاشة الطباعة في النظام، وفيها خيار الحفظ بصيغة PDF.',
+          'على ويندوز تُفتح نافذة الطباعة في النظام: اختر طابعتك، أو «Microsoft Print to PDF» لتحفظ التقرير ملف PDF. وعلى أندرويد تُفتح شاشة الطباعة في النظام، وفيها خيار الحفظ بصيغة PDF.',
           'يُعطَّل **تصدير CSV** حين لا يكون في التبويب جدول للفترة المختارة.',
         ],
         en: [

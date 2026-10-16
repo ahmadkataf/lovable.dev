@@ -41,17 +41,17 @@ const topic: GuideTopic = {
       tips: {
         ar: [
           "يغيّر مدير العيادة وحده هذه الإعدادات. يرى بقية الفريق الصفحة مع رسالة «يمكن لمدير النظام فقط تعديل هذه الإعدادات.»، ويستطيعون تغيير خط الواجهة على أجهزتهم فقط.",
-          "قسم **النسخ الاحتياطي** يظهر للمدير وحده. والنقطة البرتقالية بجانبه تعني أن نسخة احتياطية مستحقة.",
+          "قسم **النسخ الاحتياطي** يظهر للمدير وحده. وعلى الحاسوب تعني النقطة البرتقالية بجانبه في قائمة الأقسام أن نسخة احتياطية مستحقة.",
           "إن حاولت مغادرة الصفحة وفيها تعديلات لم تُحفظ يسألك البرنامج **المغادرة دون حفظ؟**، فاختر **البقاء والمتابعة** أو **المغادرة وتجاهل التعديلات**.",
           "على الهاتف تظهر الأقسام أزراراً في أعلى الصفحة، تمرّرها بإصبعك يميناً ويساراً.",
-          "حين يكون البرنامج للقراءة فقط لا يُحفظ أي تغيير حتى التفعيل.",
+          "حين يكون البرنامج للقراءة فقط لا تُحفظ تعديلات **بيانات العيادة** و**الفوترة والعملة** و**أيام وأوقات الدوام** حتى التفعيل. أما اللغة وأسماء الأشهر والخط والمظهر والقفل التلقائي فتبقى قابلة للتغيير.",
         ],
         en: [
           "Only the clinic admin changes these settings. The rest of the team sees the page with the message “Only an administrator can change these settings.”, and can only change the interface font on their own device.",
-          "The **Backup & data** section shows for the admin only. An orange dot next to it means a backup is due.",
+          "The **Backup & data** section shows for the admin only. On a computer, an orange dot next to it in the section list means a backup is due.",
           "If you try to leave with unsaved changes, Dentora asks **Leave without saving?**: choose **Stay here** or **Leave and discard**.",
           "On a phone the sections become buttons across the top of the page; swipe them sideways.",
-          "While Dentora is read-only, no change can be saved until you activate.",
+          "While Dentora is read-only, changes to **Clinic**, **Billing & currency** and **Working days & hours** cannot be saved until you activate. Language, month names, font, appearance and auto-lock can still be changed.",
         ],
       },
       shots: ['settings-overview', 'settings-phone'],
@@ -66,7 +66,7 @@ const topic: GuideTopic = {
       steps: {
         ar: [
           "افتح **الإعدادات** ← **بيانات العيادة**.",
-          "انقر على **رفع شعار** واختر صورة الشعار. تستطيع لاحقاً **تغيير الشعار** أو **إزالة**.",
+          "انقر على **رفع شعار** واختر صورة الشعار. وتستطيع لاحقاً استبداله بزر **تغيير الشعار**، أو حذفه بزر **إزالة**.",
           "اكتب **اسم العيادة**، وإن أردت **الاسم بالإنجليزية** و**العبارة التعريفية**، مثل اختصاص العيادة أو اسم طبيبها.",
           "في **التواصل والعنوان** أضف **الهاتف** و**هاتف آخر** و**البريد الإلكتروني** و**الموقع الإلكتروني** و**العنوان**.",
           "تأكد من **الدولة**. يبقى الخيار التلقائي حسب العملة ما لم تختر غيره.",
@@ -156,16 +156,18 @@ const topic: GuideTopic = {
       tips: {
         ar: [
           "تُقترح نسبة الضريبة تلقائياً على كل فاتورة جديدة، ويمكن تغييرها في الفاتورة نفسها. ولا تتغير الفواتير الصادرة سابقاً.",
-          "لا يقبل البرنامج رقماً للفاتورة التالية يساوي آخر فاتورة صادرة أو يقل عنها، حتى لا تتكرر الأرقام. والأمر نفسه لرقم ملف المريض.",
+          "لا يقبل البرنامج رقماً للفاتورة التالية يساوي آخر فاتورة صادرة بالبادئة نفسها أو يقل عنها، حتى لا تتكرر الأرقام (البادئة الجديدة تبدأ سلسلة جديدة). والأمر نفسه لرقم ملف المريض.",
           "البادئة أحرف لاتينية وأرقام والرموز - و/ و_ فقط، حتى 10 خانات.",
           "إن تركت تذييل الوصفة فارغاً يُطبع نص افتراضي يتمنى للمريض الشفاء ويذكّره بالالتزام بالجرعات.",
+          "وإن تركت تذييل الفاتورة فارغاً يُطبع سطر شكر افتراضي: «شكراً لثقتكم بنا، نتمنى لكم دوام الصحة والابتسامة.» ويُطبع تذييل الفاتورة أيضاً أسفل كشف الحساب.",
           "تفاصيل الفواتير وطباعتها في [الفواتير والمدفوعات](billing).",
         ],
         en: [
           "The tax rate is filled in on every new invoice and can still be changed on the invoice itself. Invoices already issued do not change.",
-          "Dentora does not accept a next invoice number equal to or below the last invoice issued, so numbers never repeat. The same goes for the patient file number.",
+          "Dentora does not accept a next invoice number equal to or below the last invoice issued with the same prefix, so numbers never repeat (a new prefix starts a new series). The same goes for the patient file number.",
           "The prefix takes Latin letters, digits and the signs - / _ only, up to 10 characters.",
           "If you leave the prescription footer empty, a default text is printed wishing the patient a speedy recovery and reminding them to follow the doses.",
+          "If you leave the invoice footer empty, a default thank-you line is printed: “Thank you for trusting us. We wish you lasting health and a bright smile.” The invoice footer is also printed on account statements.",
           "Invoices and how to print them: [Invoices and payments](billing).",
         ],
       },
@@ -175,8 +177,8 @@ const topic: GuideTopic = {
       id: 'language-appearance',
       title: { ar: 'اللغة وأسماء الأشهر والخط والمظهر', en: 'Language, month names, font and appearance' },
       text: {
-        ar: ["في **التفضيلات** تحمل كل بطاقة شارة تقول على من تسري: **لكل المستخدمين** أو **هذا الجهاز**. لا حاجة هنا إلى زر حفظ: يُحفظ اختيارك فور النقر."],
-        en: ["In **Preferences** each card carries a badge saying who it applies to: **All users** or **This device**. There is no save button here: your choice is saved the moment you click."],
+        ar: ["في **التفضيلات** تحمل كل بطاقة إعداد شارة تقول على من تسري: **لكل المستخدمين** أو **هذا الجهاز**. اللغة وأسماء الأشهر والخط والمظهر والقفل التلقائي تُحفظ فور اختيارها دون زر حفظ؛ أما **أيام وأوقات الدوام** فلها زر حفظ خاص (انظر أدناه)."],
+        en: ["In **Preferences** each settings card carries a badge saying who it applies to: **All users** or **This device**. Language, month names, font, appearance and auto-lock are saved the moment you choose them, with no save button; **Working days & hours** has its own save button (see below)."],
       },
       steps: {
         ar: [
