@@ -27,6 +27,17 @@ function ctx(sc) {
 window.READY = (async () => {
   await document.fonts.ready
   await loadScript(BASE + 'timeline.js')
+  if (BASE) {
+    await loadScript(BASE + 'template.js')
+    // load every KaTeX font before any scene measures a formula
+    const warm = el('div', '', null, document.body)
+    warm.style.cssText = 'position:absolute;left:-9999px;top:0'
+    warm.innerHTML = katex.renderToString('\\mathbb{N}\\dfrac{a}{b}\\sqrt{x^2}\\left(\\dfrac{1}{2}\\right)\\Rightarrow\\textcolor{red}{q}\\boxed{1}\\infty\\text{أو}\\left[\\dfrac{\\dfrac{a}{b}}{c}\\right]\\mathcal{D}\\mathrm{d}\\ne\\le', KOPT) +
+      katex.renderToString('\\sum_{k=0}^{n} x^{\\alpha}', { ...KOPT, displayMode: true })
+    await new Promise(r => setTimeout(r, 50))
+    await document.fonts.ready
+    warm.remove()
+  }
   for (const sc of TL.scenes) await loadScript(`${BASE}scenes/${sc.id}.js`)
   // chrome: progress ticks at scene boundaries where the section changes
   const bar = document.getElementById('bar')

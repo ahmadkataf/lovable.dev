@@ -27,18 +27,20 @@ async function open(browser) {
   return p
 }
 
-if (args[0] === '--stills' || args[0] === '--scene') {
+const MODE = args.find(a => a === '--stills' || a === '--scene')
+if (MODE) {
+  const mi = args.indexOf(MODE)
   // --stills dir t1,t2,…   absolute seconds
   // --scene id dir [--every 0]   one still near the start, middle and end of every line of that scene
   //                               (or one every N seconds with --every N); file names say line + moment
   const tl = JSON.parse(fs.readFileSync(path.join(VDIR, 'timeline.json'), 'utf8'))
   let dir, shots
-  if (args[0] === '--stills') {
-    dir = args[1]; shots = args[2].split(',').map(Number).map(t => [t, `t${t.toFixed(2).padStart(7, '0')}`])
+  if (MODE === '--stills') {
+    dir = args[mi + 1]; shots = args[mi + 2].split(',').map(Number).map(t => [t, `t${t.toFixed(2).padStart(7, '0')}`])
   } else {
-    const sc = tl.scenes.find(s => s.id === args[1])
-    if (!sc) { console.error('no scene ' + args[1]); process.exit(1) }
-    dir = args[2]; shots = []
+    const sc = tl.scenes.find(s => s.id === args[mi + 1])
+    if (!sc) { console.error('no scene ' + args[mi + 1]); process.exit(1) }
+    dir = args[mi + 2]; shots = []
     const every = +opt('every', 0)
     if (every) for (let t = sc.start + .05; t < sc.end; t += every) shots.push([t, `${sc.id}_${(t - sc.start).toFixed(1).padStart(5, '0')}s`])
     else {
