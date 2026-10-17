@@ -60,7 +60,7 @@
   },
   {
    "id": "s04",
-   "section": "مثال: جيب إكس على إكس عند اللانهاية",
+   "section": "مثال: sin x / x عند اللانهاية",
    "bookPage": 33,
    "concept": "",
    "lines": [
@@ -125,7 +125,7 @@
   },
   {
    "id": "s07",
-   "section": "مثال: إكس زائد جيب تمام إكس",
+   "section": "مثال: x + cos x",
    "bookPage": 34,
    "concept": "",
    "lines": [
