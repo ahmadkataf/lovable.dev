@@ -24,6 +24,13 @@ function solution(id, D) {
         top = 290
       }
       this.top = top
+      if (D.skip) {
+        // for students who already know this skill: where the lesson continues
+        const sc = TL.scenes.find(x => x.id === id)
+        const t = Math.ceil(sc ? sc.end : 0), mm = Math.floor(t / 60), ss = String(t % 60).padStart(2, '0')
+        this.skip = chip(root, `⏭️ تعرف هذه المهارة؟ انتقل إلى <b dir="ltr">${mm}:${ss}</b>`, X0, 150, { color: C.blu })
+        this.skip.style.fontSize = '26px'
+      }
       const sideY = top + (Object.values(D.beats || {}).some(b => b.hint) ? 360 : 30)
       // ---- exam card (right)
       const ex = card(root, D.paperType || 'exam', X0 + LW + 60, top, X1 - X0 - LW - 60, { tag: D.paper || '🎯 على ورقة الامتحان', h: 990 - top })
@@ -109,6 +116,7 @@ function solution(id, D) {
       const D = this.D
       if (this.qc) { rise(this.qc, S.p(lt, 0, 0, .6)); typeWords(this.q, clamp((lt - .2) / Math.max(1.5, (S.end(0) - S.at(0)) * .7))) }
       if (this.hd) this.hd.set(S.p(lt, 0, 0, .7))
+      if (this.skip) op(this.skip, S.p(lt, 0, .8, .6) * (1 - S.p(lt, S.lines.length - 1, 0, .4) * .4))
       const exOn = this.rows.length ? Math.min(S.at(this.rows[0].line), S.at(1)) : Infinity
       rise(this.ex, prog(lt, exOn - .3, .6, E.out))
       // rows

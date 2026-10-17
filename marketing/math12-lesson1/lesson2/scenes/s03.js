@@ -1,5 +1,5 @@
 solution('s03', {
-  title: 'قبل أن نبدأ: $n$ و $E(n)$', paper: '🧰 مهارة سابقة', paperType: 'def',
+  title: 'قبل أن نبدأ: $n$ و $E(n)$', paper: '🧰 مهارة سابقة', paperType: 'def', skip: true,
   beats: {
     0: { rows: ['$\\mathbb{N}=\\{0,1,2,3,\\dots\\}$: الأعداد الطبيعيّة', '$n$ = صندوق نضع فيه أيّ عدد طبيعي'], side: [{ type: 'line', from: 0, to: 8, dots: [0, 1, 2, 3, 4, 5, 6, 7, 8] }] },
     1: { rows: ['$E(n)$: جملة رياضيّة تتعلّق بالعدد $n$'], box: { t: '$E(n)$: «$4^n+2$ مضاعفٌ للعدد $3$»', c: 'pur' } },
