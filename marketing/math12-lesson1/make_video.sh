@@ -22,3 +22,4 @@ node render.mjs "out/$NAME-silent.mp4" "${VF[@]}" --workers "$WORKERS"
 ffmpeg -loglevel error -y -i "out/$NAME-silent.mp4" -i "$DIR/fx.wav" -map 0:v -map 1:a -c:v copy -c:a aac -b:a 192k -shortest "out/$NAME-fx.mp4"
 python3 "$ADD_VOICE" --video "out/$NAME-fx.mp4" --clip "$DIR/voice/narration.wav" --mode mix --bg-volume 1.0 --out "out/$NAME.mp4"
 ffprobe -v error -show_entries format=duration:stream=codec_type,width,height -of compact "out/$NAME.mp4"
+rm -f "out/$NAME-fx.mp4"   # the -silent video + fx.wav can rebuild it
