@@ -299,7 +299,7 @@ function sideItem(root, it, x, y, w) {
       for (let i = 0; i <= n; i++) {
         const x = a + (b - a) * i / n, y = fn(x)
         const ok = Number.isFinite(y) && Math.abs(y - (it.ymin + it.ymax) / 2) < span * 4
-        if (ok && pen && prev != null && Math.abs(y - prev) > span * 1.5) pen = false
+        if (ok && pen && prev != null && Math.abs(y - prev) > span * (F.brk ?? 1.5)) pen = false
         if (ok) { d += (pen ? 'L' : 'M') + X(x).toFixed(1) + ',' + Y(y).toFixed(1); pen = true } else pen = false
         prev = ok ? y : null
       }
