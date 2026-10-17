@@ -1,0 +1,5 @@
+lesson,section,script,wav,start_sec,status
+L01EX1,1,voice/sections/L01EX1_s1.txt,voice/sections/L01EX1_s1.wav,,done
+L01EX1,2,voice/sections/L01EX1_s2.txt,voice/sections/L01EX1_s2.wav,,done
+L01EX1,3,voice/sections/L01EX1_s3.txt,voice/sections/L01EX1_s3.wav,,done
+L01EX1,4,voice/sections/L01EX1_s4.txt,voice/sections/L01EX1_s4.wav,,done
