@@ -296,6 +296,11 @@ def cmd_split(a):
             cand = [(abs((a0 + b0) / 2 - t_est) - .3 * min(b0 - a0, .8), (a0 + b0) / 2)
                     for a0, b0 in runs if lo - .1 <= (a0 + b0) / 2 <= hi + .1 and (a0 + b0) / 2 > prev]
             cuts.append(min(cand)[1] if cand else max(prev + .05, (lo + hi) / 2))
+        # manual fixes where Whisper skipped words: voice/cuts.json = {"<line id>": start time in its section WAV}
+        fix = json.load(open(P('voice', 'cuts.json'))) if os.path.exists(P('voice', 'cuts.json')) else {}
+        for k, lid in enumerate(m['lines'][1:]):
+            if lid in fix:
+                cuts[k] = float(fix[lid])
         bounds = [0.0] + cuts + [total]
         for k, lid in enumerate(m['lines']):
             a0, b0 = bounds[k], bounds[k + 1]
