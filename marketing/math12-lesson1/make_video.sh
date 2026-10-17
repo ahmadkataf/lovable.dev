@@ -9,7 +9,7 @@ set -euo pipefail
 cd "$(dirname "$0")"
 V="${1:-}"
 VF=(); [ -n "$V" ] && VF=(--video "$V")
-NAME="L01-${V:-lesson}"
+NAME="${PREFIX:-L01}-${V:-lesson}"
 DIR="${V:-.}"
 ADD_VOICE="${ADD_VOICE:-add_voice.py}"
 WORKERS="${WORKERS:-4}"
@@ -17,7 +17,7 @@ mkdir -p out
 python3 build.py "${VF[@]}" restore
 python3 build.py "${VF[@]}" split
 python3 build.py "${VF[@]}" timeline
-python3 sound.py "${VF[@]}"
+python3 sound.py "${VF[@]}" ${SOUND_ARGS:-}   # SOUND_ARGS=--no-music → voice + soft scene whooshes only
 node render.mjs "out/$NAME-silent.mp4" "${VF[@]}" --workers "$WORKERS"
 ffmpeg -loglevel error -y -i "out/$NAME-silent.mp4" -i "$DIR/fx.wav" -map 0:v -map 1:a -c:v copy -c:a aac -b:a 192k -shortest "out/$NAME-fx.mp4"
 python3 "$ADD_VOICE" --video "out/$NAME-fx.mp4" --clip "$DIR/voice/narration.wav" --mode mix --bg-volume 1.0 --out "out/$NAME.mp4"

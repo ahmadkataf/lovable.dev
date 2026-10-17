@@ -111,6 +111,7 @@ def main():
     ap.add_argument('--bed-db', type=float, default=-30.0, help='bed level between lines (dBFS RMS)')
     ap.add_argument('--duck-db', type=float, default=-9.0, help='extra attenuation while the narrator speaks')
     ap.add_argument('--no-bed', action='store_true')
+    ap.add_argument('--no-music', action='store_true', help='no bed and no swells: only the soft scene whooshes')
     ap.add_argument('--video', default='')
     a = ap.parse_args()
     vdir = os.path.join(HERE, a.video)
@@ -118,6 +119,8 @@ def main():
     total = tl['total'] + 2.0
     n = int(total * SR)
     L = np.zeros(n, np.float32); R = np.zeros(n, np.float32)
+    if a.no_music:
+        a.no_bed = True
     if not a.no_bed:
         bl, br = bed(total)
         rms = float(np.sqrt(np.mean(bl[:SR * 60] ** 2 + br[:SR * 60] ** 2) / 2) + 1e-9)
@@ -135,8 +138,9 @@ def main():
     for sc in tl['scenes'][1:]:
         w = whoosh(); i = int((sc['start'] - .45) * SR)
         L[i:i + len(w)] += w * .5; R[i:i + len(w)] += w * .45
-    s = swell(2.5); L[:len(s)] += s * .4; R[:len(s)] += s * .4
-    s = swell(3.0); i = int((tl['total'] - 3.2) * SR); L[i:i + len(s)] += s * .5; R[i:i + len(s)] += s * .5
+    if not a.no_music:
+        s = swell(2.5); L[:len(s)] += s * .4; R[:len(s)] += s * .4
+        s = swell(3.0); i = int((tl['total'] - 3.2) * SR); L[i:i + len(s)] += s * .5; R[i:i + len(s)] += s * .5
     y = np.stack([L, R], 1)
     peak = np.abs(y).max()
     if peak > .9:
