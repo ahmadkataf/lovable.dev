@@ -77,7 +77,7 @@ async function worker(k) {
   if (a >= z) return null
   const seg = path.join(tmp, `seg${k}.mp4`)
   const ff = spawn('ffmpeg', ['-y', '-loglevel', 'error', '-f', 'image2pipe', '-framerate', String(fps), '-c:v', 'mjpeg', '-i', '-',
-    '-c:v', 'libx264', '-preset', 'medium', '-crf', crf, '-pix_fmt', 'yuv420p', '-r', String(fps), seg], { stdio: ['pipe', 'inherit', 'inherit'] })
+    '-c:v', 'libx264', '-preset', opt('preset', 'veryfast'), '-crf', crf, '-pix_fmt', 'yuv420p', '-r', String(fps), seg], { stdio: ['pipe', 'inherit', 'inherit'] })
   const b = await chromium.launch()
   const p = await open(b)
   for (let f = a; f < z; f++) {
