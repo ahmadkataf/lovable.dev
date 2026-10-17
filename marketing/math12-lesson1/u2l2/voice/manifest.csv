@@ -1,6 +1,6 @@
 lesson,section,script,wav,start_sec,status
-L01U2L,1,voice/sections/L01U2L_s1.txt,voice/sections/L01U2L_s1.wav,,todo
-L01U2L,2,voice/sections/L01U2L_s2.txt,voice/sections/L01U2L_s2.wav,,todo
-L01U2L,3,voice/sections/L01U2L_s3.txt,voice/sections/L01U2L_s3.wav,,todo
-L01U2L,4,voice/sections/L01U2L_s4.txt,voice/sections/L01U2L_s4.wav,,todo
-L01U2L,5,voice/sections/L01U2L_s5.txt,voice/sections/L01U2L_s5.wav,,todo
+L01U2L,1,voice/sections/L01U2L_s1.txt,voice/sections/L01U2L_s1.wav,,done
+L01U2L,2,voice/sections/L01U2L_s2.txt,voice/sections/L01U2L_s2.wav,,done
+L01U2L,3,voice/sections/L01U2L_s3.txt,voice/sections/L01U2L_s3.wav,,done
+L01U2L,4,voice/sections/L01U2L_s4.txt,voice/sections/L01U2L_s4.wav,,done
+L01U2L,5,voice/sections/L01U2L_s5.txt,voice/sections/L01U2L_s5.wav,,done
