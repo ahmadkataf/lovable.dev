@@ -1,6 +1,6 @@
 lesson,section,script,wav,start_sec,status
-L01EX3,1,voice/sections/L01EX3_s1.txt,voice/sections/L01EX3_s1.wav,,todo
-L01EX3,2,voice/sections/L01EX3_s2.txt,voice/sections/L01EX3_s2.wav,,todo
-L01EX3,3,voice/sections/L01EX3_s3.txt,voice/sections/L01EX3_s3.wav,,todo
-L01EX3,4,voice/sections/L01EX3_s4.txt,voice/sections/L01EX3_s4.wav,,todo
-L01EX3,5,voice/sections/L01EX3_s5.txt,voice/sections/L01EX3_s5.wav,,todo
+L01EX3,1,voice/sections/L01EX3_s1.txt,voice/sections/L01EX3_s1.wav,,done
+L01EX3,2,voice/sections/L01EX3_s2.txt,voice/sections/L01EX3_s2.wav,,done
+L01EX3,3,voice/sections/L01EX3_s3.txt,voice/sections/L01EX3_s3.wav,,done
+L01EX3,4,voice/sections/L01EX3_s4.txt,voice/sections/L01EX3_s4.wav,,done
+L01EX3,5,voice/sections/L01EX3_s5.txt,voice/sections/L01EX3_s5.wav,,done

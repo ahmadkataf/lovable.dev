@@ -152,7 +152,8 @@ function solution(id, D) {
       this.hints.forEach(h => {
         const p = prog(lt, S.at(h.line) + .1, .5, E.out)
         const warn = this.warns.find(w => w.line >= h.line && lt >= S.at(w.line))
-        op(h.el, p * (lt > S.end(h.line) + 6 ? .55 : 1) * (warn ? 1 - prog(lt, S.at(warn.line), .4) : 1))
+        const nxt = this.hints.find(o => o.line > h.line)  // a newer hint replaces this one
+        op(h.el, p * (lt > S.end(h.line) + 6 ? .55 : 1) * (warn ? 1 - prog(lt, S.at(warn.line), .4) : 1) * (nxt ? 1 - prog(lt, S.at(nxt.line), .3) : 1))
       })
       this.rings.forEach(r => { const t0 = S.end(r.line); r.set(lt < t0 ? 0 : (lt - t0) / r.hold, r.hold - (lt - t0)) })
       // side items
