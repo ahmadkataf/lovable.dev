@@ -275,7 +275,7 @@ function sideItem(root, it, x, y, w) {
     })
   }
   // a tall statement card pushes the left column down: shrink the item so it stays inside the frame
-  const bh = box.offsetHeight, room = 1000 - (y + (it.dy || 0))
+  const bh = Math.max(box.offsetHeight, box.scrollHeight), room = 1000 - (y + (it.dy || 0))
   if (bh > room && room > 60) { box.style.transformOrigin = '50% 0'; box.style.scale = String(Math.max(.55, room / bh)) }
   op(box, 0)
   return { el: box, fa: it.fa, fb: it.fb, set: (p, lt, S, f) => { op(box, clamp(p * 2)); box.style.transform = `translateY(${(1 - E.out(clamp(p))) * 20}px)`; anim(it.follow ? clamp(f ?? p) : clamp(p)) } }
