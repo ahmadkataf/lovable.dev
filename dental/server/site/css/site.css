@@ -19,6 +19,15 @@
   src: url(/fonts/inter-latin-wght.woff2) format('woff2-variations'), url(/fonts/inter-latin-wght.woff2) format('woff2');
   unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
 }
+/* Latin Extended (Turkish ğ ş İ, and the like): fetched only by a page that has such a letter */
+@font-face {
+  font-family: 'Inter';
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+  src: url(/fonts/inter-latin-ext-wght.woff2) format('woff2-variations'), url(/fonts/inter-latin-ext-wght.woff2) format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
 @font-face {
   font-family: 'Noto Kufi Arabic';
   font-style: normal;
@@ -78,9 +87,9 @@ body {
   -moz-osx-font-smoothing: grayscale;
   text-rendering: optimizeLegibility;
 }
-:lang(ar) body, body:lang(ar) { line-height: 1.8; }
+:lang(ar) body, body:lang(ar), :lang(ur) body, body:lang(ur) { line-height: 1.8; }
 h1, h2, h3, h4 { margin: 0; color: var(--ink); font-weight: 750; line-height: 1.2; text-wrap: balance; }
-:lang(ar) h1, :lang(ar) h2, :lang(ar) h3, :lang(ar) h4 { line-height: 1.5; font-weight: 700; }
+:is(:lang(ar), :lang(ur)) :is(h1, h2, h3, h4) { line-height: 1.5; font-weight: 700; }
 p { margin: 0; }
 p, li { text-wrap: pretty; }
 ul, ol { margin: 0; padding: 0; }
@@ -167,7 +176,8 @@ bdi { unicode-bidi: isolate; }
 .lang-link .ic { width: 18px; height: 18px; color: var(--teal-700); }
 /* "العربية" on English pages: a system Arabic face, so that one word does not pull the 120 KB Arabic web font
    into a page that has no other Arabic text */
-.lang-link[lang="ar"], .menu-lang[lang="ar"] { font-family: 'Segoe UI', Tahoma, 'Geeza Pro', 'Noto Sans Arabic', 'Noto Naskh Arabic', system-ui, sans-serif; }
+.lang-link[lang="ar"], .menu-lang[lang="ar"], /* (the language menu's Arabic-script names likewise, on pages in a Latin-script language) */
+html:not(:lang(ar)):not(:lang(ur)) :is(.lang-list, .footer-langs) a:is([lang="ar"], [lang="ur"]) { font-family: 'Segoe UI', Tahoma, 'Geeza Pro', 'Noto Sans Arabic', 'Noto Naskh Arabic', system-ui, sans-serif; }
 
 /* the language menu (more than two languages): a <details> that opens a list under its button; in the phone menu
    (.menu-lang) the list opens in place */
@@ -199,7 +209,7 @@ bdi { unicode-bidi: isolate; }
 .page { padding-block: clamp(40px, 6vw, 80px); }
 .prose { max-width: 760px; margin-inline: auto; color: var(--ink-2); }
 .prose h1 { font-size: clamp(1.75rem, 1.3rem + 1.6vw, 2.5rem); margin-bottom: .6em; letter-spacing: -.02em; }
-:lang(ar) .prose h1 { letter-spacing: 0; }
+:is(:lang(ar), :lang(ur)) .prose h1 { letter-spacing: 0; }
 .prose h2 { font-size: 1.375rem; margin-top: 2em; margin-bottom: .6em; }
 .prose h3 { font-size: 1.125rem; margin-top: 1.6em; margin-bottom: .5em; }
 .prose p, .prose ul, .prose ol, .prose table { margin-bottom: 1em; }

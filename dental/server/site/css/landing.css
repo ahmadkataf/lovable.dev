@@ -80,9 +80,9 @@
   border: 1px solid var(--teal-100); border-radius: var(--r-full); background: var(--teal-50);
   color: var(--teal-800); font-size: .8125rem; font-weight: 700; line-height: 1.6;
 }
-:lang(en) .eyebrow { text-transform: uppercase; letter-spacing: .08em; font-size: .75rem; }
+html:not(:lang(ar)):not(:lang(ur)) .eyebrow { text-transform: uppercase; letter-spacing: .08em; font-size: .75rem; }
 main h2 { font-size: clamp(1.75rem, 1.25rem + 2vw, 2.625rem); line-height: 1.15; letter-spacing: -.025em; font-weight: 800; }
-:lang(ar) main h2 { font-size: clamp(1.55rem, 1.15rem + 1.6vw, 2.3rem); line-height: 1.5; letter-spacing: 0; font-weight: 750; }
+:is(:lang(ar), :lang(ur)) main h2 { font-size: clamp(1.55rem, 1.15rem + 1.6vw, 2.3rem); line-height: 1.5; letter-spacing: 0; font-weight: 750; }
 .lead { margin-top: 14px; font-size: clamp(1.0625rem, 1rem + .3vw, 1.1875rem); color: var(--ink-3); }
 .tag {
   display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 8px;
@@ -125,7 +125,7 @@ main h2 { font-size: clamp(1.75rem, 1.25rem + 2vw, 2.625rem); line-height: 1.15;
   margin-block: 20px 18px;
   font-size: clamp(2.2rem, 1.35rem + 3.6vw, 3.75rem); line-height: 1.07; letter-spacing: -.035em; font-weight: 820;
 }
-:lang(ar) .hero h1 { font-size: clamp(1.95rem, 1.25rem + 3vw, 3.3rem); line-height: 1.45; letter-spacing: 0; font-weight: 800; }
+:is(:lang(ar), :lang(ur)) .hero h1 { font-size: clamp(1.95rem, 1.25rem + 3vw, 3.3rem); line-height: 1.45; letter-spacing: 0; font-weight: 800; }
 .hl {
   background: linear-gradient(135deg, #0D9488 0%, #0B7C74 100%);
   -webkit-background-clip: text; background-clip: text; color: transparent;
@@ -404,11 +404,11 @@ main h2 { font-size: clamp(1.75rem, 1.25rem + 2vw, 2.625rem); line-height: 1.15;
   margin-top: 24px; padding-top: 22px; border-top: 1px dashed var(--line-2);
   color: var(--ink-3); font-size: .8125rem; font-weight: 700;
 }
-:lang(en) .price-incl { text-transform: uppercase; letter-spacing: .08em; font-size: .75rem; }
+html:not(:lang(ar)):not(:lang(ur)) .price-incl { text-transform: uppercase; letter-spacing: .08em; font-size: .75rem; }
 .checks { list-style: none; display: grid; gap: 10px; margin-top: 14px; }
 .checks li { display: flex; gap: 12px; align-items: flex-start; color: var(--ink-2); }
 .check-dot { display: grid; place-items: center; flex: none; width: 22px; height: 22px; margin-top: .2em; border-radius: 50%; background: var(--teal-100); color: var(--teal-800); }
-:lang(ar) .check-dot { margin-top: .35em; }
+:is(:lang(ar), :lang(ur)) .check-dot { margin-top: .35em; }
 .check-dot .ic { width: 14px; height: 14px; stroke-width: 3; }
 .price-card .btn { margin-top: 28px; }
 .price-trial {
@@ -439,7 +439,7 @@ main h2 { font-size: clamp(1.75rem, 1.25rem + 2vw, 2.625rem); line-height: 1.15;
 .dl-facts { list-style: none; display: grid; gap: 8px; color: var(--ink-2); }
 .dl-facts li { display: flex; gap: 10px; align-items: flex-start; }
 .dl-facts .ic { width: 18px; height: 18px; margin-top: .25em; color: var(--teal-600); stroke-width: 2.5; }
-:lang(ar) .dl-facts .ic { margin-top: .4em; }
+:is(:lang(ar), :lang(ur)) .dl-facts .ic { margin-top: .4em; }
 .dl-card .btn { margin-top: auto; }
 .dl-note { color: var(--ink-3); font-size: .875rem; }
 .req {
@@ -480,7 +480,7 @@ main h2 { font-size: clamp(1.75rem, 1.25rem + 2vw, 2.625rem); line-height: 1.15;
   min-height: 56px; padding: 16px 20px; cursor: pointer; border-radius: 16px;
   color: var(--ink); font-weight: 650; font-size: 1.0625rem; line-height: 1.45;
 }
-:lang(ar) .qa summary { line-height: 1.7; }
+:is(:lang(ar), :lang(ur)) .qa summary { line-height: 1.7; }
 .qa summary::-webkit-details-marker { display: none; }
 .qa summary:hover { color: var(--teal-800); }
 .qa summary .ic { width: 22px; height: 22px; padding: 3px; border-radius: 50%; background: var(--teal-50); color: var(--teal-700); transition: transform .2s var(--ease); }
@@ -529,7 +529,7 @@ main h2 { font-size: clamp(1.75rem, 1.25rem + 2vw, 2.625rem); line-height: 1.15;
 .site-footer .brand, .site-footer .brand:hover { color: var(--ink); }
 .footer-brand p { margin-top: 14px; max-width: 340px; }
 .footer-title { margin-bottom: 14px; color: var(--ink); font-size: .875rem; font-weight: 700; }
-:lang(en) .footer-title { text-transform: uppercase; letter-spacing: .08em; font-size: .75rem; }
+html:not(:lang(ar)):not(:lang(ur)) .footer-title { text-transform: uppercase; letter-spacing: .08em; font-size: .75rem; }
 .footer-links { list-style: none; display: grid; gap: 0; }
 /* 44px rows: a comfortable tap on a phone (the gap they replace kept the column the same height) */
 .footer-links a { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; }

@@ -25,7 +25,7 @@ Dentora - إدارة عيادة الأسنان
 إدارة عيادة الأسنان كاملة: مرضى ومواعيد ومخطط أسنان وفواتير، وتعمل دون إنترنت
 ```
 
-**Full description / الوصف الكامل** (2,183/4,000)
+**Full description / الوصف الكامل** (2,507/4,000)
 
 ```
 Dentora نظام متكامل لإدارة عيادة الأسنان، بواجهة عربية حديثة (ومعها الإنجليزية)، يعمل على الهاتف والجهاز اللوحي دون اتصال بالإنترنت. كل بيانات العيادة ومرضاها تبقى على جهازك.
@@ -66,9 +66,13 @@ Dentora نظام متكامل لإدارة عيادة الأسنان، بواج�
 • نسخة احتياطية كاملة في ملف واحد تحفظه حيث تشاء، مع حماية اختيارية بكلمة مرور (تشفير AES-256)، لنقل العيادة إلى جهاز جديد أو استعادتها.
 
 التجربة والتفعيل
-• يعمل Dentora بكل مزاياه 7 أيام للتجربة.
+• يعمل Dentora بكل مزاياه 7 أيام للتجربة، دون تسجيل.
+• بعد التجربة يلزم ترخيص مدفوع لمتابعة إضافة السجلات وتعديلها.
 • بعد التجربة يُفعَّل من الإعدادات ← الترخيص، حيث يظهر رقم الجهاز: إما برمز تفعيل خاص بجهاز العيادة يعمل دون إنترنت، وإما بمفتاح ترخيص يحوّله التطبيق إلى هذا الرمز عبر الإنترنت مرة واحدة.
 • من دون تفعيل تبقى كل البيانات متاحة للعرض والطباعة والنسخ الاحتياطي، وتتوقف الإضافة والتعديل فقط.
+
+تنبيه
+Dentora برنامج لإدارة عيادات الأسنان، وليس جهازاً طبياً، ولا يشخّص أي حالة طبية ولا يعالجها ولا يشفيها ولا يقي منها. تبقى القرارات السريرية لطبيب الأسنان المعالج، وعلى المرضى استشارة مختص رعاية صحية للحصول على المشورة الطبية والتشخيص والعلاج.
 ```
 
 **What's new (first release on Play) / ما الجديد** (101/500)
@@ -93,7 +97,7 @@ Dentora: Dental Clinic Manager
 Run your dental clinic: patients, appointments, chart and invoices. No internet.
 ```
 
-**Full description** (2,688/4,000)
+**Full description** (3,109/4,000)
 
 ```
 Dentora is complete dental clinic management with a modern interface in Arabic and English. It runs on your phone or tablet with no internet connection, and all of your clinic's and patients' data stays on your device.
@@ -134,9 +138,13 @@ Privacy first
 • A complete backup in one file you keep wherever you like, with optional password protection (AES-256 encryption), to move your clinic to a new device or restore it.
 
 Trial and activation
-• Dentora runs with every feature for a 7-day trial.
+• Dentora runs with every feature for a 7-day trial, with no sign-up.
+• After the trial, a paid licence is required to keep adding and editing records.
 • After the trial, activate it in Settings → Licence, where the device number is shown: with an activation code made for the clinic's device, which works offline, or with a licence key, which the app turns into that code over the internet, once.
 • Without activation, all data stays available to view, print and back up; only adding and editing are paused.
+
+Please note
+Dentora is practice-management software for dental clinics. It is not a medical device and does not diagnose, treat, cure, or prevent any medical condition. Clinical decisions remain with the treating dentist, and patients should consult a healthcare professional for medical advice, diagnosis and treatment.
 ```
 
 **What's new (first release on Play)** (115/500)
