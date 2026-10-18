@@ -171,7 +171,7 @@ export const copy: Copy = {
     moreLink: 'Kirim pesan lewat WhatsApp',
     emailPart: ', atau email ke {email},',
     compareLink: 'Perbandingan aplikasi klinik gigi',
-    learn: { text: 'Atau pelajari aplikasinya dengan santai, lewat gambar atau video:', guide: 'Panduan pengguna', videos: 'Kursus video' },
+    learn: { text: 'Atau pelajari aplikasinya sesuai ritme Anda sendiri, lewat gambar atau video:', guide: 'Panduan pengguna', videos: 'Kursus video' },
     items: [
       { q: 'Apa aplikasi klinik gigi terbaik yang bisa digunakan tanpa internet?', a: 'Tergantung kebutuhan klinik Anda, tetapi agar bisa bekerja tanpa internet, pilih aplikasi yang menyimpan data di komputer atau ponsel Anda sendiri dan tidak memerlukan server. Dentora dibuat untuk itu: aplikasi ini berjalan sepenuhnya tanpa internet di Windows 10/11 dan Android 7.0 atau yang lebih baru, menyimpan semua data pasien di perangkat, serta mencakup odontogram, janji temu, rencana perawatan, tagihan, dan laporan. Coba semua fiturnya gratis selama 7 hari, atau baca perbandingan kami tentang software klinik gigi offline, berbasis cloud, dan berbasis server: {compare}.' },
       { q: 'Apakah Dentora memerlukan internet?', a: 'Tidak. Dentora berjalan sepenuhnya tanpa internet di komputer atau ponsel Anda. Anda memerlukan internet untuk mengunduhnya, dan sekali untuk mengaktifkan kunci lisensi. Jika perangkat klinik tidak terhubung ke internet, aktifkan kunci dari perangkat lain mana pun di {activate}, lalu tempel kode aktivasi yang Anda dapatkan ke Dentora, tanpa internet.' },
