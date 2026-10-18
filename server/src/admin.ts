@@ -269,6 +269,7 @@ function describe(e) {
   if (e.kind === 'activate') return ['✅', 'تفعيل جديد', '']
   if (e.kind === 'activate-fail') return ['⚠️', 'محاولة تفعيل فاشلة', WHY[d] || esc(d)]
   if (e.kind === 'session') return ['📱', 'فتح التطبيق', '']
+  if (e.kind === 'download') return ['📥', 'تنزيل تطبيق أندرويد', esc(d)]
   if (e.kind === 'request') { const m = d.match(/^#(\\d+) (\\w+)$/); return ['📥', 'طلب اشتراك جديد' + (m ? ' #' + m[1] : ''), m ? bookName(m[2]) : ''] }
   if (e.kind === 'admin' && /^approve #/.test(d)) return ['✅', 'موافقة على طلب ' + esc(d.slice(8)), '']
   if (e.kind === 'admin' && /^reject #/.test(d)) return ['✖️', 'رفض طلب ' + esc(d.slice(7)), '']

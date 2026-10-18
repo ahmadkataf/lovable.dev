@@ -14,6 +14,7 @@
 //   /admin and /v1/admin/*          Bearer ADMIN_KEY                          the seller's control panel
 import { ADMIN_PAGE } from './admin'
 import { privacyPage } from './privacy'
+import { APK_FILES, landingPage } from './landing'
 
 export interface Env {
   DB: D1Database
@@ -405,7 +406,21 @@ export default {
       if (p === '/v1/ping') return json({ ok: true, service: 'emar' })
       // the web versions of the apps (for iPhone and computers): public, they hold the free unit only.
       // /app/ is the Baccalaureate app, /app<grade>/ the others (/app5/, /app8/, /app9/, /app11/).
-      if (p === '/') return Response.redirect(new URL('/app/', req.url).toString(), 302)
+      // the public home page: one link to share, with a button per grade
+      if (p === '/' && (req.method === 'GET' || req.method === 'HEAD'))
+        return new Response(req.method === 'HEAD' ? null : landingPage(url.origin), { headers: { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'public, max-age=300' } })
+      // the Android apps and the link-preview picture (server/downloads, copied into content/files at deploy)
+      const dl = p.match(/^\/dl\/([A-Za-z0-9]+\.apk)$/)
+      if (dl && APK_FILES.includes(dl[1]) && (req.method === 'GET' || req.method === 'HEAD')) {
+        const res = await env.ASSETS.fetch(new Request(new URL(`/files/${dl[1]}`, req.url), { method: req.method }))
+        if (!res.ok) return fail('not-found', 404)
+        if (req.method === 'GET') await log(env, 'download', req, null, null, dl[1])
+        return new Response(res.body, { headers: { 'content-type': 'application/vnd.android.package-archive', 'content-disposition': `attachment; filename="${dl[1]}"`, 'cache-control': 'no-cache' } })
+      }
+      if (p === '/files/og.png' && (req.method === 'GET' || req.method === 'HEAD')) {
+        const res = await env.ASSETS.fetch(new Request(new URL('/files/og.png', req.url), { method: req.method }))
+        return res.ok ? new Response(res.body, { headers: { 'content-type': 'image/png', 'cache-control': 'public, max-age=86400' } }) : fail('not-found', 404)
+      }
       if (/^\/app\d*$/.test(p)) return Response.redirect(new URL(`${p}/`, req.url).toString(), 302)
       // HEAD too: link previews (WhatsApp, Telegram) check a link with HEAD before opening it
       if (/^\/app\d*\//.test(p) && (req.method === 'GET' || req.method === 'HEAD')) {

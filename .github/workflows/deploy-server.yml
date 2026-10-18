@@ -34,7 +34,7 @@ jobs:
       - name: Install the server tools
         if: env.CLOUDFLARE_API_TOKEN != ''
         working-directory: server
-        run: npm ci
+        run: npm ci && mkdir -p content/files && cp downloads/* content/files/
       - name: Create the database the first time, and use its id
         if: env.CLOUDFLARE_API_TOKEN != ''
         working-directory: server
