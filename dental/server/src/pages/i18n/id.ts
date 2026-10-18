@@ -210,7 +210,7 @@ export const copy: Copy = {
 export const compare: CompareCopy = {
   meta: {
     title: 'Aplikasi Klinik Gigi Tanpa Internet Terbaik 2026: Perbandingan | Dentora',
-    description: 'Aplikasi klinik gigi offline vs langganan cloud vs sistem desktop berbasis server: internet, lokasi data, model harga, platform, bahasa Arab, dan instalasi.',
+    description: 'Aplikasi klinik gigi offline vs langganan cloud vs sistem desktop berbasis server: internet, lokasi data, model harga, platform, bahasa Arab, penyiapan.',
     h1: 'Aplikasi Klinik Gigi Tanpa Internet Terbaik 2026: Perbandingan',
   },
   topic: 'Software praktik dokter gigi yang berjalan tanpa internet',
