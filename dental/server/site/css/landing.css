@@ -72,6 +72,26 @@
   .header-wa .ic { width: 22px; height: 22px; }
 }
 
+/* With more than two languages the switch is a menu: on wide screens its button keeps the icon only (its name stays
+   for screen readers; the list names every language) */
+@media (min-width: 1100px) {
+  .header-actions > .lang-menu > summary > span { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+}
+/* French, Spanish, Portuguese, Turkish, Indonesian and Urdu have longer menu words: the inline navigation starts at
+   1440 px for them (the menu button serves below that), always with the WhatsApp button as an icon */
+@media (min-width: 1100px) and (max-width: 1439px) {
+  html:not(:lang(ar)):not(:lang(en)) .nav-inline { display: none; }
+  html:not(:lang(ar)):not(:lang(en)) .menu { display: block; }
+}
+@media (min-width: 1440px) {
+  html:not(:lang(ar)):not(:lang(en)) .nav-inline { margin-inline-start: 12px; }
+  html:not(:lang(ar)):not(:lang(en)) .nav-inline ul { gap: 0; }
+  html:not(:lang(ar)):not(:lang(en)) .nav-inline a { padding: 8px 9px; }
+  html:not(:lang(ar)):not(:lang(en)) .header-wa { width: 44px; height: 44px; min-height: 44px; padding: 0; border-radius: 12px; }
+  html:not(:lang(ar)):not(:lang(en)) .header-wa .label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+  html:not(:lang(ar)):not(:lang(en)) .header-wa .ic { width: 22px; height: 22px; }
+}
+
 /* ---- section scaffolding ---- */
 .section { padding-block: clamp(64px, 8vw, 112px); }
 .section-head { max-width: 760px; margin-inline: auto; margin-bottom: clamp(36px, 5vw, 60px); text-align: center; }

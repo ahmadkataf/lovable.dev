@@ -37,4 +37,4 @@ export const topicBySlug = (slug: string): GuideTopic | undefined => TOPICS.find
  * The day the guide's text last changed (the <lastmod> of its pages in the sitemap, src/index.ts): move it when a
  * topic's text changes (not for a new picture alone).
  */
-export const GUIDE_DATE = '2026-10-16'
+export const GUIDE_DATE = '2026-10-18'

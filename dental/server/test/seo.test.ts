@@ -6,6 +6,7 @@ import { TOPICS } from '../guide/index'
 import { CACHE_PAGE, PUBLIC_CSP } from '../src/http'
 import { COMPARE } from '../src/pages/compare-content'
 import { COPY } from '../src/pages/content'
+import { SITE_LANGS } from '../src/site-lang'
 import type { Env } from '../src/types'
 import { CHAPTERS } from '../videos/index'
 import { memoryD1 } from './d1'
@@ -165,7 +166,7 @@ describe('the sitemap', () => {
     expect(xml).toContain('xmlns:image="http://www.google.com/schemas/sitemap-image/1.1"')
     expect(xml).toContain('xmlns:video="http://www.google.com/schemas/sitemap-video/1.1"')
     const urls = xml.match(/<url>[\s\S]*?<\/url>/g) || []
-    expect(urls.length).toBe(4 + 6 + 2 * (1 + TOPICS.length) + 2 * (1 + CHAPTERS.length))
+    expect(urls.length).toBe(2 * SITE_LANGS.length + 6 + 2 * (1 + TOPICS.length) + 2 * (1 + CHAPTERS.length))
     for (const u of urls) {
       expect(u).toMatch(/<lastmod>\d{4}-\d{2}-\d{2}<\/lastmod>/)
       expect(u).toMatch(/hreflang="x-default" href="https:\/\/dentora\.raqeem\.dev\/en(\/|")/)

@@ -321,13 +321,13 @@ const topic: GuideTopic = {
           'لا يرسل Dentora بيانات العيادة أو المرضى إلى أي مكان، أبداً. المرة الوحيدة التي يتصل فيها بخادم هي تفعيل مفتاح ترخيص: يرسل حينها المفتاح ورقم الجهاز (رقم مشتق من الجهاز، لا من بياناتك) إلى dentora.raqeem.dev، مرة واحدة، ليستلم رمز التفعيل. وتستلم صفحة التفعيل في الموقع القيمتين نفسيهما.',
           'يحفظ الخادم مع سجل البيع رقم الجهاز الذي ارتبط بالمفتاح، والرمز الذي أصدره، ووقت التفعيل، ما دام سجل البيع محفوظاً: هو دليل استخدام المفتاح، وبه يُرفض على جهاز ثانٍ. ويسجّل عنوان الاتصال عند محاولة فاشلة، وحده، ليعدّ المحاولات 15 دقيقة ويمنع التخمين، ويُحذف ذلك السجل مع أول طلب تفعيل بعدها.',
           'رمز التفعيل المصنوع لرقم جهازك لا يحتاج إلى أي اتصال: يتحقق منه البرنامج على الجهاز نفسه.',
-          '**النسخة المثبتة من Google Play**: لا تعرض سعراً ولا زر طلب عبر واتساب ولا زر **التفعيل من المتصفح**، وتقول خطوات بطاقة الشراء فيها: أرسل رقم الجهاز مع اسم العيادة إلى الجهة التي اشتريت منها ترخيص Dentora. أما خانة الرمز والمفتاح وصفحة الموقع فتعمل فيها كما في غيرها.',
+          '**النسخة المثبتة من Google Play**: لا تعرض سعراً ولا زر طلب عبر واتساب ولا زر **التفعيل من المتصفح** ولا روابط إلى الموقع (ومنها روابط هذا الدليل)، وتقول خطوات بطاقة الشراء فيها: أرسل رقم الجهاز مع اسم العيادة إلى الجهة التي اشتريت منها ترخيص Dentora. أما خانة الرمز والمفتاح وصفحة الموقع فتعمل فيها كما في غيرها.',
         ],
         en: [
           'Dentora never sends clinic or patient data anywhere. The only time it contacts a server is when you activate a licence key: it then sends the key and the device number (a number derived from the device, not from your data) to dentora.raqeem.dev, once, to receive the activation code. The activation page on the website receives the same two values.',
           'The server keeps, with the sale record, the device number the key was tied to, the code it issued and the activation time, for as long as that sale record is kept: it is the proof the key was used, and what refuses it on a second device. It records the address of a failed attempt, on its own, to count attempts for 15 minutes and stop guessing, and that entry is deleted with the next activation request after that.',
           'An activation code made for your device number needs no connection at all: Dentora checks it on the device itself.',
-          '**A copy installed from Google Play** shows no price, no WhatsApp request button and no **Activate in the browser** button, and its buying card says: send the device number with the clinic name to whoever sold you the Dentora licence. The code and key field and the website page work in it like anywhere else.',
+          '**A copy installed from Google Play** shows no price, no WhatsApp request button, no **Activate in the browser** button and no links to the website (this guide’s included), and its buying card says: send the device number with the clinic name to whoever sold you the Dentora licence. The code and key field and the website page work in it like anywhere else.',
         ],
       },
       tips: {

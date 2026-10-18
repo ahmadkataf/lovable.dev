@@ -8,5 +8,7 @@
   document.addEventListener('keydown', e => {
     if (e.key === 'Escape' && menu.open) { close(); menu.querySelector('summary')?.focus() }
   })
-  window.matchMedia('(min-width: 1100px)').addEventListener('change', e => { if (e.matches) close() })
+  // the inline navigation replaces the menu from 1100 px (Arabic, English) or 1440 px (the languages with longer words)
+  const wide = /^(ar|en)\b/.test(document.documentElement.lang) ? 1100 : 1440
+  window.matchMedia(`(min-width: ${wide}px)`).addEventListener('change', e => { if (e.matches) close() })
 })()

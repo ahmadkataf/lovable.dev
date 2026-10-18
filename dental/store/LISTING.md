@@ -155,6 +155,228 @@ First release of Dentora: patients, appointments, dental chart, treatment plans,
 
 ---
 
+<!-- play-translations:start -->
+## 2b. More translations — fr, es, pt-BR, tr, id, ur
+
+Play Console → Main store listing → **Manage translations** → add each language and paste its texts. The app itself is in
+Arabic and English, so give these languages the **English** screenshots and feature graphic
+(`framed/<device>/en/`, `feature-graphic-1024x500-en.png`): without their own graphics Play would show the Arabic
+ones. Texts are the English listing translated (same facts, no price, no purchase route, the paid-licence and
+"not a medical device" notes kept), from `store/play/<lang>.json` (`node store/scripts/play-listings.mjs` writes them here).
+
+### Français — Play language: `fr-FR`
+
+**App name** (27/30)
+
+```
+Dentora : logiciel dentaire
+```
+
+**Short description** (80/80)
+
+```
+Gérez votre cabinet dentaire : patients, agenda, schéma, factures. Sans internet
+```
+
+**Full description** (3,925/4,000)
+
+```
+Dentora est un logiciel complet de gestion de cabinet dentaire, avec une interface moderne en arabe et en anglais. Il fonctionne sur votre téléphone ou votre tablette sans connexion internet, et toutes les données de votre cabinet et de vos patients restent sur votre appareil.
+
+Un tableau de bord clair
+• Les rendez-vous du jour, avec changement de statut d’un seul geste, les recettes du jour et du mois, et les soldes impayés.
+• Des alertes sur ce qui demande votre attention : impayés en retard, stock bas, travaux de laboratoire attendus.
+
+Patients
+• Un dossier complet pour chaque patient : informations, coordonnées, assurance et étiquettes.
+• Une alerte médicale bien visible avant tout acte pour les allergies, les maladies chroniques et les médicaments.
+• Recherche intelligente (adaptée à l’arabe), photos, radiographies et documents, et notes cliniques.
+
+Schéma dentaire
+• Dents permanentes et temporaires en numérotation FDI, et un état pour chaque face : carie, obturation, couronne, traitement canalaire, implant, bridge, extraction et plus encore.
+• Mode de marquage rapide, historique de chaque dent et schéma imprimable.
+
+Rendez-vous
+• Vues jour, semaine, mois et liste pour plusieurs praticiens, avec détection des chevauchements.
+• Rappels WhatsApp avec un message tout prêt que vous relisez avant l’envoi.
+
+Plans de traitement et facturation
+• Une liste d’actes et de tarifs modifiable, et un plan de traitement pour chaque patient, par dent et par face.
+• Transformez les soins réalisés en facture d’un seul geste ; paiements partiels, soldes des patients, reçus numérotés et relevés de compte.
+• Des factures et des ordonnances soignées, avec le logo de votre cabinet, prêtes à imprimer ou à enregistrer en PDF.
+
+Et aussi
+• Ordonnances à partir d’une liste de médicaments toute prête.
+• Commandes au laboratoire avec suivi de l’état et de la date de retour prévue.
+• Stock avec alertes de stock bas et de péremption, et dépenses par catégorie.
+• Rapports sur les recettes, les dépenses et le bénéfice par praticien, par acte et par mode de paiement, avec export CSV.
+• Rôles et droits d’accès de l’équipe (administrateur, praticien, assistant, accueil), connexion par code PIN et verrouillage automatique.
+
+La confidentialité avant tout
+• Fonctionne hors ligne, sans compte, et Dentora n’envoie jamais les données de votre cabinet ou de vos patients nulle part : nous ne les voyons donc jamais.
+• Aucune publicité, aucun pistage, aucune statistique d’utilisation.
+• L’application ne se connecte à internet que pour l’activation avec une clé de licence, une seule fois, et n’envoie que la clé et le numéro de l’appareil.
+• Une sauvegarde complète dans un seul fichier, que vous conservez où vous voulez, avec protection facultative par mot de passe (chiffrement AES-256), pour transférer votre cabinet sur un nouvel appareil ou le restaurer.
+
+Essai et activation
+• Dentora fonctionne avec toutes ses fonctionnalités pendant un essai de 7 jours, sans inscription.
+• Après l’essai, une licence payante est nécessaire pour continuer à ajouter et à modifier des dossiers.
+• Après l’essai, activez-le dans Settings → Licence (Paramètres → Licence), où le numéro de l’appareil est affiché : avec un code d’activation généré pour l’appareil du cabinet, qui fonctionne hors ligne, ou avec une clé de licence, que l’application convertit en ce code par internet, une seule fois.
+• Sans activation, toutes les données restent disponibles pour les consulter, les imprimer et les sauvegarder ; seuls l’ajout et la modification sont suspendus.
+
+À noter
+Dentora est un logiciel de gestion destiné aux cabinets dentaires. Ce n’est pas un dispositif médical : il ne diagnostique, ne traite, ne guérit ni ne prévient aucune affection. Les décisions cliniques restent du ressort du chirurgien-dentiste traitant, et les patients doivent consulter un professionnel de santé pour tout avis médical, diagnostic ou traitement.
+```
+
+**What's new** (132/500)
+
+```
+Première version de Dentora : patients, rendez-vous, schéma dentaire, plans de traitement, factures et rapports, le tout hors ligne.
+```
+
+### Español — Play languages: `es-ES`, `es-419`
+
+**App name** (23/30)
+
+```
+Dentora: Gestión Dental
+```
+
+**Short description** (80/80)
+
+```
+Lleve su clínica dental: pacientes, citas, odontograma y facturas. Sin internet.
+```
+
+**Full description** (3,713/4,000)
+
+```
+Dentora es un software completo de gestión para clínicas dentales, con una interfaz moderna en árabe e inglés. Funciona en su teléfono o tableta sin conexión a internet, y todos los datos de su clínica y de sus pacientes permanecen en su dispositivo.
+
+Un panel claro
+• Las citas de hoy, con cambios de estado en un toque, los ingresos de hoy y de este mes, y los saldos pendientes.
+• Alertas de lo que requiere atención: saldos vencidos, stock bajo, trabajos de laboratorio por entregar.
+
+Pacientes
+• Una ficha completa de cada paciente: datos, contactos, seguro y etiquetas.
+• Una alerta médica clara de alergias, enfermedades crónicas y medicamentos antes de cualquier procedimiento.
+• Búsqueda inteligente (adaptada al árabe), fotos, radiografías y documentos, y notas clínicas.
+
+Odontograma
+• Dentición permanente y temporal con numeración FDI, y un estado para cada superficie: caries, obturación, corona, endodoncia, implante, puente, extracción y más.
+• Modo de marcado rápido, historial de cada diente y odontograma imprimible.
+
+Citas
+• Vistas por día, semana, mes y agenda para varios odontólogos, con detección de conflictos de horario.
+• Recordatorios por WhatsApp con un mensaje ya redactado que usted revisa antes de enviarlo.
+
+Planes de tratamiento y facturación
+• Una lista editable de procedimientos y precios, y un plan de tratamiento para cada paciente por dientes y superficies.
+• Convierta el trabajo realizado en una factura con un toque; pagos parciales, saldos de los pacientes, recibos numerados y estados de cuenta.
+• Facturas y recetas impecables con el logotipo de su clínica, listas para imprimir o guardar en PDF.
+
+Y además
+• Recetas con un listado de medicamentos ya preparado.
+• Pedidos al laboratorio con seguimiento del estado y de la fecha de entrega.
+• Inventario con alertas de stock bajo y de caducidad, y gastos por categoría.
+• Informes de ingresos, gastos y ganancias por odontólogo, procedimiento y método de pago, con exportación a CSV.
+• Roles y permisos del personal (administrador, odontólogo, asistente, recepción), inicio de sesión con PIN y bloqueo automático.
+
+Privacidad ante todo
+• Funciona sin conexión y sin cuenta, y Dentora nunca envía a ningún sitio los datos de su clínica ni de sus pacientes, así que nunca los vemos.
+• Sin anuncios, sin rastreo, sin estadísticas de uso.
+• Solo se conecta a internet para activarse con una clave de licencia, una sola vez, y envía únicamente la clave y el número del dispositivo.
+• Una copia de seguridad completa en un solo archivo que puede guardar donde quiera, con protección opcional por contraseña (cifrado AES-256), para trasladar su clínica a un dispositivo nuevo o restaurarla.
+
+Prueba y activación
+• Dentora ofrece todas sus funciones durante una prueba de 7 días, sin registro.
+• Después de la prueba, se necesita una licencia de pago para seguir añadiendo y editando registros.
+• Después de la prueba, actívelo en Settings → Licence (Ajustes → Licencia), donde se muestra el número del dispositivo: con un código de activación generado para el dispositivo de la clínica, que funciona sin conexión, o con una clave de licencia, que la aplicación convierte en ese código por internet, una sola vez.
+• Sin activación, todos los datos siguen disponibles para consultarlos, imprimirlos y hacer copias de seguridad; solo se suspende la posibilidad de añadir y editar.
+
+Tenga en cuenta
+Dentora es un software de gestión para clínicas dentales. No es un dispositivo médico y no diagnostica, trata, cura ni previene ninguna afección médica. Las decisiones clínicas corresponden al odontólogo tratante, y los pacientes deben consultar a un profesional de la salud para obtener consejo médico, diagnóstico y tratamiento.
+```
+
+**What's new** (121/500)
+
+```
+Primera versión de Dentora: pacientes, citas, odontograma, planes de tratamiento, facturas e informes, todo sin conexión.
+```
+
+### Português (Brasil) — Play language: `pt-BR`
+
+**App name** (28/30)
+
+```
+Dentora: Gestão Odontológica
+```
+
+**Short description** (77/80)
+
+```
+Gerencie sua clínica: pacientes, agenda, odontograma e faturas. Sem internet.
+```
+
+**Full description** (3,611/4,000)
+
+```
+O Dentora é um sistema completo de gestão para clínicas odontológicas, com uma interface moderna em árabe e inglês. Ele funciona no seu celular ou tablet sem conexão com a internet, e todos os dados da sua clínica e dos seus pacientes ficam no seu dispositivo.
+
+Um painel claro
+• A agenda do dia com mudança de status em um toque, a receita do dia e do mês, e os saldos em aberto.
+• Alertas do que precisa de atenção: saldos vencidos, estoque baixo, trabalhos de laboratório com entrega prevista.
+
+Pacientes
+• Uma ficha completa de cada paciente: dados, contatos, convênio e etiquetas.
+• Um alerta médico claro de alergias, doenças crônicas e medicamentos antes de qualquer procedimento.
+• Busca inteligente (adaptada ao árabe), fotos, radiografias e documentos, e anotações clínicas.
+
+Odontograma
+• Dentes permanentes e decíduos com numeração FDI, e uma condição para cada face: cárie, restauração, coroa, tratamento de canal, implante, ponte, extração e mais.
+• Modo de marcação rápida, histórico de cada dente e odontograma para impressão.
+
+Agenda
+• Visualização por dia, semana, mês e em lista para vários dentistas, com detecção de conflitos de horário.
+• Lembretes por WhatsApp com uma mensagem pronta que você revisa antes de enviar.
+
+Planos de tratamento e faturamento
+• Uma lista editável de procedimentos e preços, e um plano de tratamento para cada paciente por dente e face.
+• Transforme o trabalho concluído em fatura com um toque; pagamentos parciais, saldos dos pacientes, recibos numerados e extratos.
+• Faturas e receitas bem-acabadas, com o logotipo da sua clínica, prontas para imprimir ou salvar em PDF.
+
+E mais
+• Receitas com uma lista de medicamentos pronta.
+• Pedidos ao laboratório com acompanhamento de status e prazo de entrega.
+• Estoque com alertas de estoque baixo e de validade, e despesas por categoria.
+• Relatórios de receita, despesas e lucro por dentista, procedimento e forma de pagamento, com exportação em CSV.
+• Funções e permissões da equipe (administrador, dentista, auxiliar, recepção), acesso com PIN e bloqueio automático.
+
+Privacidade em primeiro lugar
+• Funciona offline e sem conta, e o Dentora nunca envia os dados da sua clínica ou dos seus pacientes para lugar nenhum, então nunca os vemos.
+• Sem anúncios, sem rastreamento, sem estatísticas de uso.
+• Ele só se conecta à internet para a ativação com uma chave de licença, uma única vez, e envia apenas a chave e o número do dispositivo.
+• Um backup completo em um único arquivo que você guarda onde quiser, com proteção opcional por senha (criptografia AES-256), para levar sua clínica para um novo dispositivo ou restaurá-la.
+
+Teste e ativação
+• O Dentora funciona com todos os recursos durante um teste de 7 dias, sem cadastro.
+• Depois do teste, é necessária uma licença paga para continuar incluindo e editando registros.
+• Depois do teste, ative-o em Settings → Licence (Configurações → Licença), onde aparece o número do dispositivo: com um código de ativação gerado para o dispositivo da clínica, que funciona offline, ou com uma chave de licença, que o aplicativo converte nesse código pela internet, uma única vez.
+• Sem ativação, todos os dados continuam disponíveis para consultar, imprimir e fazer backup; só a inclusão e a edição ficam suspensas.
+
+Observação
+O Dentora é um software de gestão para clínicas odontológicas. Não é um dispositivo médico e não diagnostica, trata, cura nem previne nenhuma condição médica. As decisões clínicas cabem ao dentista responsável pelo tratamento, e os pacientes devem consultar um profissional de saúde para obter orientação médica, diagnóstico e tratamento.
+```
+
+**What's new** (122/500)
+
+```
+Primeira versão do Dentora: pacientes, agenda, odontograma, planos de tratamento, faturas e relatórios, tudo sem internet.
+```
+<!-- play-translations:end -->
+
+---
+
 ## 3. Category, contact and policy — التصنيف والتواصل والسياسة
 
 | Play Console field | Value | ملاحظات |

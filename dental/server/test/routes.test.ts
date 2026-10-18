@@ -5,6 +5,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { TOPICS } from '../guide/index'
 import { CHAPTERS } from '../videos/index'
 import { CACHE_PAGE, PUBLIC_CSP } from '../src/http'
+import { SITE_LANGS, sitePath } from '../src/site-lang'
 import worker from '../src/index'
 import { renderActivate } from '../src/pages/activate'
 import { DEFAULT_SETTINGS, type Env } from '../src/types'
@@ -57,7 +58,7 @@ describe('the activation page', () => {
     const locs = [...map.matchAll(/<loc>([^<]+)<\/loc>/g)].map(m => m[1])
     const both = (path: string) => [path, `/en${path}`]
     expect(locs).toEqual([
-      '/', '/en', '/compare', '/en/compare', ...both('/activate'), ...both('/privacy'), ...both('/terms'),
+      ...SITE_LANGS.map(l => sitePath('/', l)), ...SITE_LANGS.map(l => sitePath('/compare', l)), ...both('/activate'), ...both('/privacy'), ...both('/terms'),
       ...both('/guide'), ...TOPICS.flatMap(t => both(`/guide/${t.slug}`)),
       ...both('/videos'), ...CHAPTERS.flatMap(c => both(`/videos/${c.slug}`)),
     ].map(p => ORIGIN + p))

@@ -5,6 +5,7 @@
 // {compare} a link to the comparison page.
 // Activation and privacy follow docs/LICENCE-KEYS.md (licence keys, and what activation sends).
 import type { SiteLang } from '../site-lang'
+import { TRANSLATIONS } from './i18n/index'
 
 export type IconName =
   | 'wifiOff' | 'languages' | 'monitorSmartphone' | 'shieldCheck' | 'databaseBackup' | 'lockKeyhole' | 'heartPulse'
@@ -482,4 +483,7 @@ const en: Copy = {
 }
 
 /** The words of every language with pages (site-lang.ts → SITE_LANGS); the languages without pages yet are absent. */
-export const COPY: Partial<Record<SiteLang, Copy>> & Record<'ar' | 'en', Copy> = { ar, en }
+export const COPY: Partial<Record<SiteLang, Copy>> & Record<'ar' | 'en', Copy> = {
+  ar, en,
+  ...Object.fromEntries(Object.entries(TRANSLATIONS).map(([l, t]) => [l, t.copy])),
+}

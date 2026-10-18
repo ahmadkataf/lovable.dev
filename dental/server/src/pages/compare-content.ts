@@ -4,6 +4,7 @@
 // (the sources at the end, with the day they were read: COMPARE_DATE), never a competitor's price, and it compares
 // approaches, not a ranking. Plain text only (compare.ts escapes everything); {price} is the seller's price.
 import type { SiteLang } from '../site-lang'
+import { TRANSLATIONS } from './i18n/index'
 import { CURVE, DENTALLY, DENTRIX, EAGLESOFT, OPEN_DENTAL, SOURCES, type Example, type Source } from './compare-sources'
 
 export type { Example, Source }
@@ -309,4 +310,7 @@ const ar: CompareCopy = {
   },
 }
 
-export const COMPARE: Partial<Record<SiteLang, CompareCopy>> & Record<'ar' | 'en', CompareCopy> = { ar, en }
+export const COMPARE: Partial<Record<SiteLang, CompareCopy>> & Record<'ar' | 'en', CompareCopy> = {
+  ar, en,
+  ...Object.fromEntries(Object.entries(TRANSLATIONS).map(([l, t]) => [l, t.compare])),
+}
