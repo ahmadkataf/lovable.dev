@@ -10,7 +10,7 @@ import { isApplePlatform, shortcutLabel } from './sessionLib'
 import { fmtDate } from '@/lib/dates'
 import { useLicense } from '@/license/useLicense'
 import { ALL_NAV_ITEMS, BOTTOM_NAV, NAV } from './nav'
-import { openHelp } from '@/features/settings/help'
+import { helpShown, openHelp } from '@/features/settings/help'
 import { Avatar, Button, Kbd, Loading, Menu, Modal, type MenuItemDef } from '@/ui'
 import { ToothIcon } from './ToothIcon'
 
@@ -70,7 +70,7 @@ export default function Shell() {
   const userItems: MenuItemDef[] = [
     { header: user.name },
     { label: t('nav.settings'), icon: <SettingsIcon />, onClick: () => navigate('/settings') },
-    { label: t('nav.help'), icon: <HelpCircle />, onClick: () => openHelp('guide', lang) },
+    ...(helpShown() ? [{ label: t('nav.help'), icon: <HelpCircle />, onClick: () => openHelp('guide', lang) }] : []),
     { label: t('nav.lock'), icon: <Lock />, onClick: session.lock },
     { sep: true },
     { label: t('nav.logout'), icon: <LogOut />, onClick: session.logout, danger: true },

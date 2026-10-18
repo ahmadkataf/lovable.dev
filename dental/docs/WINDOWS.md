@@ -195,6 +195,25 @@ $env:QA_DIST="$env:TEMP\dist-qa"; node scripts/qa/electron.mjs   # automated che
 في كل الحالات: عدّل `publisherName` في `dental/electron-builder.yml` ليطابق اسم "Issued to" في الشهادة، وتحقق بعد البناء:
 خصائص الملف ← **التوقيعات الرقمية** يجب أن تُظهر اسمك وختماً زمنياً، أو `signtool verify /pa /v Dentora-Setup-<الإصدار>.exe`.
 
+## 7ب. متجر Microsoft (حزمة MSIX)
+
+النسخة المنشورة في متجر Microsoft حزمة **MSIX** يوقّعها المتجر نفسه بعد المراجعة، فلا تحتاج شهادة توقيع مدفوعة. البطاقة
+والإجابات وخطوات Partner Center في `store/MS-STORE.md`.
+
+```bash
+npx electron-builder --win --dir                 # release/win-unpacked/
+MSIX_IDENTITY_NAME='…' MSIX_PUBLISHER='CN=…' MSIX_PUBLISHER_DISPLAY_NAME='…' \
+MAKEMSIX=/path/to/makemsix node scripts/build-msix.mjs   # release/Dentora-<الإصدار>-x64.msix
+```
+
+- القيم الثلاث تُنسخ حرفياً من Partner Center ← المنتج ← Product management ← Product identity. من دونها يصنع السكربت حزمة
+  تجريبية `…-TEST.msix` لا يقبلها المتجر، لكن يمكن تجربتها على ويندوز 11: `Add-AppxPackage -Path <الملف> -AllowUnsigned`.
+- `makemsix` من مكتبة Microsoft مفتوحة المصدر `msix-packaging`: على لينكس `./makelinux.sh --pack --skip-samples --skip-tests`
+  (يحتاج CMake 3.29 أو أحدث وحزمة `libicu-dev`)، والملف في `.vs/bin/makemsix` ومكتبته في `.vs/lib` (`LD_LIBRARY_PATH`).
+- الحزمة تعلن `runFullTrust` (تطبيق سطح مكتب كامل)، ويسأل المتجر عن السبب عند الإرسال؛ الجواب في `store/MS-STORE.md`.
+- **البيانات:** ويندوز يحفظ AppData الخاص بتطبيق MSIX في مجلد الحزمة ويحذفه عند إزالة التطبيق؛ رقم الجهاز نفسه (من
+  MachineGuid) فالترخيص يعمل كما في نسخة المثبّت. انقل البيانات بين نسخة المثبّت ونسخة المتجر بملف نسخة احتياطية.
+
 ## 8. حل المشكلات
 
 | المشكلة | الحل |

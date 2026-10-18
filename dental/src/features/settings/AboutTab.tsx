@@ -9,7 +9,7 @@ import { appVersion, platform } from '@/platform'
 import { fmtDate } from '@/lib/dates'
 import { LEGAL_DATE, LegalDialog, termsAcceptance, type LegalDoc } from '@/features/legal'
 import { SectionTitle } from './parts'
-import { openHelp, type HelpPage } from './help'
+import { helpShown, openHelp, type HelpPage } from './help'
 
 const FEATURES = [
   { key: 'patients', icon: <Users /> }, { key: 'appointments', icon: <CalendarDays /> }, { key: 'treatments', icon: <Activity /> }, { key: 'billing', icon: <Receipt /> },
@@ -21,7 +21,7 @@ const SHORTCUTS: { keys: string[]; label: string }[] = [
   { keys: ['Ctrl', 'Shift', 'A'], label: 'about.sc.appointment' },
   { keys: ['Esc'], label: 'about.sc.close' },
 ]
-/** Help on the website, in the app's language (help.ts): the guide and the video course. Neither sells anything. */
+/** Help on the website, in the app's language (help.ts): the guide and the video course; not in a copy from Google Play. */
 const HELP: { page: HelpPage; icon: React.ReactNode }[] = [{ page: 'guide', icon: <BookOpen /> }, { page: 'videos', icon: <CirclePlay /> }]
 const CREDITS = ['React', 'Dexie.js', 'React Router', 'Lucide', 'Vite', 'Inter', 'Noto Kufi Arabic', 'Cairo', 'Tajawal', 'Almarai', 'Readex Pro', 'IBM Plex Sans Arabic']
 
@@ -61,7 +61,7 @@ export default function AboutTab() {
         </CardBody>
       </Card>
 
-      <Card data-qa="about-help">
+      {helpShown() && <Card data-qa="about-help">
         <CardBody>
           <SectionTitle icon={<LifeBuoy />} title={t('settings.about.help')} sub={t('settings.about.helpSub')} />
           <div className="st-help">
@@ -74,7 +74,7 @@ export default function AboutTab() {
             ))}
           </div>
         </CardBody>
-      </Card>
+      </Card>}
 
       <Card>
         <CardBody>

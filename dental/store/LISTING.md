@@ -190,6 +190,32 @@ declared below. Play also asks a contact e-mail for the listing itself.
 
 ---
 
+## 3b. Developer account and payments — حساب المطوّر والدفع
+
+**Account type: Organization.** Play Console Requirements §1.2: providers of health apps, including medical apps such as
+electronic health records, "must register as an Organization". An Organization account needs a D-U-N-S number (free from
+Dun & Bradstreet) and a verified organisation website (`raqeem.dev`). An existing personal account can be converted
+(Play Console → Developer account → About you), then wait 72 hours before submitting; an Organization account also skips
+the 12-tester / 14-day closed test that new personal accounts need.
+/ نوع الحساب: **مؤسسة** (إلزامي للتطبيقات الطبية، ومنها السجلات الصحية). يحتاج رقم D-U-N-S مجانياً وموقعاً موثّقاً، ويمكن تحويل
+الحساب الشخصي إليه ثم الانتظار 72 ساعة قبل الإرسال.
+
+**Payments: a free, consumption-only app.** Dentora is published on Play as a free app with no in-app products. The
+licence is sold outside Play (WhatsApp, the website), and the app only *unlocks* what was paid for elsewhere, by a licence
+key or an activation code. Google allows this ("Play allows any app to be consumption-only… a user could… access content
+paid for somewhere else", provided nothing "can be purchased from within the app"). What keeps it compliant:
+- A copy installed from Google Play shows no price, no WhatsApp or e-mail request button, no "activate in the browser"
+  button and no link to the website (help links included); it only says to send the device number to whoever sold the
+  licence (`src/features/settings/seller.ts`, `help.ts`). Copies installed from the website show the seller box.
+- The listing in every language mentions no price, no "buy" wording and no website or WhatsApp purchase route, but says
+  plainly that a paid licence is required after the 7-day trial (Payments policy §6).
+- Do not join Google's alternative-billing or external-links programs (US, EEA, billing choice): they need enrolment,
+  Google's APIs and fees, and Dentora needs none of them.
+/ **الدفع:** تطبيق مجاني «للاستهلاك فقط»: يُشترى الترخيص خارج Play ويفتحه التطبيق بالمفتاح أو الرمز. النسخة المثبتة من Play
+لا تعرض سعراً ولا زر شراء ولا رابطاً للموقع، وبطاقة المتجر تقول إن ترخيصاً مدفوعاً يلزم بعد التجربة دون ذكر طريقة الدفع.
+
+---
+
 ## 4. Data safety — أمان البيانات
 
 What the app does (checked in the code): all clinic and patient data is stored in the app's private storage on the
@@ -250,12 +276,13 @@ HTTPS activation request): mention it in the description (done above). / حما�
 
 | Section | Answer |
 |---|---|
-| App access | All functionality is available without special access: on first launch the setup wizard creates the clinic and an administrator PIN chosen by the reviewer; Settings → Backup & data → **Load demo data** fills a sample clinic. The 7-day trial starts on the reviewer's device, so nothing is locked during review and no activation code or licence key is needed. / عند أول تشغيل ينشئ المراجع العيادة ورمز المدير بنفسه، والتجربة تبدأ على جهازه فلا يحتاج إلى رمز تفعيل أو مفتاح. |
+| App access | All functionality is available without special access: on first launch the setup wizard creates the clinic and an administrator PIN chosen by the reviewer; Settings → Backup & data → **Load demo data** fills a sample clinic. Every installation starts its own 7-day trial with every feature, so nothing is locked during review and no activation code or licence key is needed. Write this in English in the "App access" instructions. / عند أول تشغيل ينشئ المراجع العيادة ورمز المدير بنفسه، وكل تثبيت يبدأ تجربته الخاصة 7 أيام بكل المزايا، فلا يحتاج إلى رمز تفعيل أو مفتاح. |
 | Ads | No ads |
 | Content rating | Questionnaire type "All other app types"; no violence, sexual content, gambling, user-to-user communication, location sharing or in-app purchases → expected rating Everyone / PEGI 3 |
 | Target audience | 18 and over (clinic staff); not designed for children |
 | News app | No |
-| Health apps declaration | Yes, the app has health features: pick the options for clinic or practice management and medical / patient records used by healthcare professionals. It is not a medical device and makes no diagnosis. |
+| Health apps declaration (required for every app) | Medical → **Healthcare Services and Management** (scheduling, health records, billing). Do **not** pick "Medical Device Apps": Dentora is not a regulated medical device and makes no diagnosis (the full description says so, as Play's Health policy asks). / طبي ← خدمات الرعاية الصحية وإدارتها، وليس «تطبيقات الأجهزة الطبية». |
+| Camera | The app has no CAMERA permission: a photo for a patient's file is taken by the phone's own camera app through the file picker, so no extra disclosure is needed. / لا صلاحية كاميرا في التطبيق. |
 | Financial features | None (invoices are the clinic's own records; no payments are processed) |
 | Government app | No |
 
