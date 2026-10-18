@@ -235,7 +235,7 @@ export const compare: CompareCopy = {
         'Sur l’appareil lui-même (ordinateur, téléphone ou tablette).',
         '{price} en paiement unique, pour une licence à vie sur un appareil. Sans abonnement.',
         'Windows 10 et 11 (64 bits) ; Android 7.0 ou version ultérieure.',
-        'Oui : une interface complète en arabe, de droite à gauche, et l’anglais.',
+        'Oui : une interface complète en arabe, de droite à gauche, et une interface en anglais.',
         'Installez l’application et commencez ; ni serveur, ni compte. Un essai gratuit de 7 jours avec toutes les fonctionnalités.',
       ],
       examples: [{ name: 'Dentora', url: 'https://dentora.raqeem.dev/fr' }],
@@ -243,7 +243,7 @@ export const compare: CompareCopy = {
     {
       key: 'cloud',
       name: 'Abonnement cloud (dans le navigateur)',
-      summary: 'Le logiciel tourne sur les serveurs de l’éditeur et vous l’utilisez dans un navigateur web. L’éditeur héberge vos données et s’occupe des serveurs et des mises à jour, et l’équipe peut se connecter depuis n’importe quel ordinateur, mais le logiciel a besoin d’une connexion internet : Curve Dental l’indique comme une exigence, et Dentally suggère les données mobiles comme solution de secours quand la ligne est coupée.',
+      summary: 'Le logiciel tourne sur les serveurs de l’éditeur et vous l’utilisez dans un navigateur web. L’éditeur héberge vos données et s’occupe des serveurs et des mises à jour, et l’équipe peut se connecter depuis n’importe quel ordinateur, mais le logiciel a besoin d’une connexion internet : Curve Dental la présente comme un prérequis, et Dentally suggère les données mobiles comme solution de secours quand la ligne est coupée.',
       cells: [
         'Non : les deux ont besoin d’une connexion internet pour faire fonctionner le logiciel du cabinet.',
         'Sur les serveurs de l’éditeur (les deux citent des centres de données Amazon Web Services).',
@@ -259,7 +259,7 @@ export const compare: CompareCopy = {
       name: 'Système de bureau sur serveur',
       summary: 'Un serveur de base de données au cabinet, avec le programme installé sur chaque poste de travail : plusieurs ordinateurs partagent ainsi une même liste de patients sur le réseau du cabinet. Les données restent au cabinet, mais quelqu’un doit installer, entretenir et sauvegarder le serveur, et les éditeurs divergent au sujet d’internet : Open Dental présente une connexion haut débit comme un prérequis, Dentrix en recommande une, et Patterson indique qu’Eaglesoft n’en a pas besoin pour fonctionner.',
       cells: [
-        'Variable : Open Dental présente l’internet haut débit comme une exigence, Dentrix le recommande, Eaglesoft n’en a pas besoin pour fonctionner.',
+        'Variable : Open Dental présente une connexion haut débit comme un prérequis, Dentrix la recommande, Eaglesoft n’en a pas besoin pour fonctionner.',
         'Sur un ordinateur serveur au cabinet, géré par le cabinet.',
         'Récurrent : une redevance mensuelle de licence et d’assistance (Open Dental), une licence avec un contrat d’assistance annuel (Dentrix), une formule d’adhésion (Eaglesoft).',
         'Windows uniquement : un serveur Windows et des postes Windows.',
@@ -299,7 +299,7 @@ export const compare: CompareCopy = {
     not: [
       'avez besoin que plusieurs ordinateurs partagent une même liste de patients en temps réel : chaque licence vaut pour un seul appareil et les appareils ne se synchronisent pas',
       'devez ouvrir les dossiers depuis chez vous ou depuis un autre site par internet : il n’y a pas d’accès dans le cloud',
-      'avez besoin de demandes de remboursement électroniques auprès des assurances (télétransmission), de prise de rendez-vous en ligne par les patients ou d’une connexion directe aux capteurs de radiographie : Dentora ne le fait pas',
+      'avez besoin de demandes de remboursement électroniques auprès des assurances (télétransmission), de prise de rendez-vous en ligne par les patients ou d’une connexion directe aux capteurs de radiographie : Dentora ne propose pas ces fonctions',
       'gérez un groupe de cabinets qui a besoin de rapports centralisés pour tous ses sites',
     ],
   },
@@ -311,7 +311,7 @@ export const compare: CompareCopy = {
     },
     {
       q: 'Les logiciels dentaires dans le cloud fonctionnent-ils sans internet ?',
-      a: 'Les produits cloud cités ici fonctionnent dans un navigateur web, sur les serveurs de l’éditeur, et ont besoin d’une connexion internet : Curve Dental l’indique comme une exigence, et Dentally suggère une connexion de données mobiles comme solution de secours quand la ligne est coupée. Si votre connexion n’est pas fiable, choisissez un logiciel qui fonctionne sur votre propre appareil.',
+      a: 'Les produits cloud cités ici fonctionnent dans un navigateur web, sur les serveurs de l’éditeur, et ont besoin d’une connexion internet : Curve Dental la présente comme un prérequis, et Dentally suggère une connexion de données mobiles comme solution de secours quand la ligne est coupée. Si votre connexion n’est pas fiable, choisissez un logiciel qui fonctionne sur votre propre appareil.',
     },
     {
       q: 'Un logiciel dentaire hors ligne est-il sûr pour les données des patients ?',

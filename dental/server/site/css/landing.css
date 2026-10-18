@@ -54,7 +54,7 @@
   .header-wa .ic { width: 22px; height: 22px; }
 }
 @media (max-width: 379px) {
-  .header-actions > .lang-link .ic { display: none; }
+  .header-actions > .lang-link:not(.lang-menu) .ic { display: none; }
   .header-actions { gap: 6px; }
 }
 @media (min-width: 1100px) {
@@ -72,11 +72,9 @@
   .header-wa .ic { width: 22px; height: 22px; }
 }
 
-/* With more than two languages the switch is a menu: on wide screens its button keeps the icon only (its name stays
-   for screen readers; the list names every language) */
-@media (min-width: 1100px) {
-  .header-actions > .lang-menu > summary > span { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
-}
+/* With more than two languages the switch is a menu: in the header its button is the language icon alone (its name
+   stays for screen readers; the list names every language, and the phone menu has the full names too) */
+.header-actions > .lang-menu > summary > span { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 /* French, Spanish, Portuguese, Turkish, Indonesian and Urdu have longer menu words: the inline navigation starts at
    1440 px for them (the menu button serves below that), always with the WhatsApp button as an icon */
 @media (min-width: 1100px) and (max-width: 1439px) {

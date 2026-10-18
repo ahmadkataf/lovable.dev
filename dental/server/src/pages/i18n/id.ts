@@ -63,13 +63,13 @@ export const copy: Copy = {
       },
       { icon: 'calendarCheck', title: 'Janji temu & pengingat WhatsApp', text: 'Tampilan harian, mingguan, bulanan, dan agenda untuk beberapa dokter, dengan deteksi jadwal bentrok dan pengingat WhatsApp siap kirim yang Anda periksa dulu sebelum dikirim.' },
       { icon: 'clipboardList', title: 'Tindakan & rencana perawatan', text: 'Daftar tindakan dan tarif yang dapat diubah, rencana perawatan untuk setiap pasien per gigi dan permukaan, serta estimasi biaya yang dapat dicetak.' },
-      { icon: 'receipt', title: 'Tagihan, pembayaran & kuitansi', text: 'Ubah pekerjaan yang sudah selesai menjadi tagihan dengan sekali ketuk. Pembayaran sebagian, saldo pasien, kuitansi bernomor, dan laporan rekening, dengan logo klinik Anda.' },
+      { icon: 'receipt', title: 'Tagihan, pembayaran & kuitansi', text: 'Ubah pekerjaan yang sudah selesai menjadi tagihan dengan sekali ketuk. Pembayaran sebagian, saldo pasien, kuitansi bernomor, dan rekap tagihan, dengan logo klinik Anda.' },
       { icon: 'pill', title: 'Resep & laboratorium', text: 'Resep dari daftar obat yang sudah tersedia, dicetak atau dibagikan lewat WhatsApp, serta pesanan laboratorium dengan pemantauan status dan tenggat.' },
       { icon: 'package', title: 'Stok & pengeluaran', text: 'Jumlah stok dengan peringatan stok menipis dan kedaluwarsa, serta pengeluaran per kategori yang dibandingkan dengan periode sebelumnya.' },
       { icon: 'chartColumn', title: 'Laporan', text: 'Pendapatan, pengeluaran, dan laba per dokter, tindakan, dan metode pembayaran, ditambah tingkat ketidakhadiran pasien dan tagihan yang belum lunas, dengan ekspor CSV.' },
       {
         icon: 'userCog', title: 'Staf & hak akses',
-        text: 'Setiap anggota tim mendapat peran dan hak akses, masuk dengan PIN setiap kali aplikasi dibuka, dan aplikasi terkunci sendiri saat dibiarkan tidak digunakan.',
+        text: 'Setiap anggota tim mendapat peran dan hak akses, masuk dengan PIN setiap kali aplikasi dibuka, dan aplikasi terkunci otomatis saat dibiarkan tidak digunakan.',
         chips: [{ label: 'Admin' }, { label: 'Dokter' }, { label: 'Asisten' }, { label: 'Resepsionis' }],
       },
       {
@@ -180,7 +180,7 @@ export const copy: Copy = {
       { q: 'Adakah software klinik gigi berbahasa Arab untuk Android dan Windows?', a: 'Ada. Dentora memiliki antarmuka bahasa Arab yang lengkap, dari kanan ke kiri dengan pencarian yang memahami teks Arab, serta antarmuka bahasa Inggris yang dapat Anda pilih kapan saja. Dentora berjalan tanpa internet di komputer Windows 10/11 (64-bit) serta di ponsel dan tablet Android 7.0 atau yang lebih baru.' },
       { q: 'Apakah data pasien terjaga kerahasiaannya? Di mana data disimpan?', a: 'Hanya di perangkat Anda. Tidak ada akun dan tidak ada sinkronisasi cloud, sehingga kami tidak pernah menerima atau melihat data klinik maupun pasien Anda, dan aplikasi ini tidak memiliki iklan atau pelacakan. Setiap anggota tim masuk dengan PIN masing-masing, dan cadangan dapat dilindungi dengan kata sandi (enkripsi AES-256). Satu-satunya kontak dengan server kami adalah saat mengaktifkan kunci, sekali saja, dan yang dikirim hanyalah kunci dan nomor perangkat.' },
       { q: 'Apa bedanya Dentora dengan software klinik gigi berbasis cloud?', a: 'Software klinik gigi berbasis cloud berjalan di browser web dan menyimpan data Anda di server milik penyedianya, sehingga memerlukan koneksi internet untuk bekerja, dan biasanya dibayar bulanan. Dentora diinstal di komputer atau ponsel Anda sendiri, berjalan tanpa internet, menyimpan semua data di perangkat tersebut, dan dibayar sekali. Konsekuensinya: tidak ada sinkronisasi antarperangkat, setiap perangkat memerlukan lisensinya sendiri, dan pencadangan ada di tangan Anda (fiturnya sudah tersedia di aplikasi: satu file, dengan kata sandi AES-256 opsional). Perbandingan lengkap: {compare}.' },
-      { q: 'Bisakah saya menggunakan Dentora di beberapa perangkat?', a: 'Bisa, dengan satu lisensi per perangkat: setiap lisensi mengaktifkan satu komputer atau ponsel, sehingga setiap perangkat tambahan memerlukan lisensinya sendiri. Karena Dentora tidak melakukan sinkronisasi lewat internet, setiap perangkat menyimpan datanya sendiri dan perangkat-perangkat itu tidak saling tersinkron.' },
+      { q: 'Bisakah saya menggunakan Dentora di beberapa perangkat?', a: 'Bisa, dengan satu lisensi per perangkat: setiap lisensi mengaktifkan satu komputer atau ponsel, sehingga setiap perangkat tambahan memerlukan lisensinya sendiri. Karena Dentora tidak melakukan sinkronisasi lewat internet, setiap perangkat menyimpan datanya sendiri dan tidak ada sinkronisasi antarperangkat.' },
       { q: 'Bagaimana cara mencadangkan data saya?', a: 'Di Settings → Backup & data (Pengaturan → Cadangan & data), simpan cadangan lengkap dalam satu file di mana pun Anda mau: flashdisk USB, Google Drive, atau email Anda. Anda dapat melindunginya dengan kata sandi (enkripsi AES-256) dan memulihkannya di perangkat yang sama atau di perangkat baru.' },
       { q: 'Bisakah saya memindahkan lisensi ke perangkat lain?', a: 'Satu kunci berlaku di satu perangkat: kunci terikat pada nomor perangkat tempat kunci itu pertama kali diaktifkan. Memperbarui atau menginstal ulang Dentora di perangkat yang sama tidak mengubah nomor perangkat, sehingga kode Anda tetap berlaku, dan kunci Anda akan memberikan kode yang sama lagi jika Anda membutuhkannya. Perangkat baru, atau Windows maupun ponsel yang diatur ulang (reset), mendapat nomor perangkat baru, jadi hubungi kami lewat WhatsApp terkait pemindahan lisensi Anda. Selalu simpan cadangan terlebih dahulu: menghapus instalan aplikasi di Android juga menghapus datanya.' },
       { q: 'Berapa harga Dentora?', a: '{price}, sekali bayar, untuk lisensi seumur hidup di satu perangkat dengan semua fitur dan tanpa langganan. Coba dulu gratis selama 7 hari; jika masa uji coba berakhir sebelum Anda melakukan aktivasi, tidak ada yang dihapus, dan hanya fungsi menambah dan mengubah data yang dihentikan sementara sampai Anda melakukan aktivasi.' },
@@ -213,7 +213,7 @@ export const compare: CompareCopy = {
     description: 'Aplikasi klinik gigi offline vs langganan cloud vs sistem desktop berbasis server: internet, lokasi data, model harga, platform, bahasa Arab, penyiapan.',
     h1: 'Aplikasi Klinik Gigi Tanpa Internet Terbaik 2026: Perbandingan',
   },
-  topic: 'Software praktik dokter gigi yang berjalan tanpa internet',
+  topic: 'Software manajemen praktik dokter gigi yang berjalan tanpa internet',
   crumbs: { label: 'Jejak navigasi', home: 'Dentora', here: 'Perbandingan' },
   eyebrow: 'Perbandingan',
   intro: [
@@ -222,7 +222,7 @@ export const compare: CompareCopy = {
   ],
   reviewedLabel: 'Terakhir ditinjau: {date}',
   tableTitle: 'Tiga cara menjalankan software klinik gigi',
-  tableLead: 'Apa arti setiap pendekatan bagi kerja tanpa internet, data Anda, model biaya, perangkat, bahasa Arab, dan penyiapan.',
+  tableLead: 'Apa arti setiap pendekatan dari sisi kerja tanpa internet, data Anda, model biaya, perangkat, bahasa Arab, dan penyiapan.',
   approachCol: 'Pendekatan',
   columns: ['Berjalan tanpa internet', 'Lokasi penyimpanan data', 'Model harga', 'Platform', 'Antarmuka bahasa Arab', 'Penyiapan'],
   approaches: [
@@ -243,7 +243,7 @@ export const compare: CompareCopy = {
     {
       key: 'cloud',
       name: 'Langganan cloud (berbasis web)',
-      summary: 'Software berjalan di server milik penyedia dan Anda menggunakannya lewat browser web. Penyedia menampung data Anda serta mengelola server dan pembaruannya, dan staf dapat masuk dari komputer mana pun, tetapi software ini memerlukan koneksi internet: Curve Dental mencantumkannya sebagai persyaratan, dan Dentally menyarankan data seluler sebagai koneksi cadangan saat jaringan terputus.',
+      summary: 'Software berjalan di server milik penyedia dan Anda menggunakannya lewat browser web. Penyedia menyimpan data Anda serta mengelola server dan pembaruannya, dan staf dapat masuk dari komputer mana pun, tetapi software ini memerlukan koneksi internet: Curve Dental mencantumkannya sebagai persyaratan, dan Dentally menyarankan data seluler sebagai koneksi cadangan saat jaringan terputus.',
       cells: [
         'Tidak: keduanya memerlukan koneksi internet untuk menjalankan software praktik.',
         'Di server milik penyedia (keduanya menyebut pusat data Amazon Web Services).',
@@ -297,7 +297,7 @@ export const compare: CompareCopy = {
     ],
     notTitle: 'Bukan pilihan yang tepat jika Anda',
     not: [
-      'memerlukan beberapa komputer yang berbagi satu daftar pasien secara langsung (real-time): setiap lisensi untuk satu perangkat dan perangkat tidak saling tersinkron',
+      'memerlukan beberapa komputer yang berbagi satu daftar pasien secara langsung (real-time): setiap lisensi untuk satu perangkat dan tidak ada sinkronisasi antarperangkat',
       'perlu membuka data pasien dari rumah atau cabang lain lewat internet: tidak ada akses cloud',
       'memerlukan klaim asuransi elektronik, pemesanan janji temu online oleh pasien, atau koneksi langsung ke sensor rontgen: Dentora tidak menyediakan fitur-fitur ini',
       'mengelola grup klinik yang memerlukan laporan terpusat untuk semua cabang',
@@ -315,7 +315,7 @@ export const compare: CompareCopy = {
     },
     {
       q: 'Apakah aplikasi klinik gigi offline aman untuk data pasien?',
-      a: 'Data tetap di tangan Anda: tidak ada yang dikirim ke server penyedia mana pun. Tugas Anda adalah melindungi perangkat dan menyimpan cadangan. Di Dentora, setiap anggota tim masuk dengan PIN, aplikasi terkunci sendiri saat tidak digunakan, dan cadangan berupa satu file yang dapat Anda enkripsi dengan AES-256 dan simpan di flashdisk USB atau di penyimpanan cloud Anda sendiri.',
+      a: 'Data tetap di tangan Anda: tidak ada yang dikirim ke server penyedia mana pun. Tugas Anda adalah melindungi perangkat dan menyimpan cadangan. Di Dentora, setiap anggota tim masuk dengan PIN, aplikasi terkunci otomatis saat tidak digunakan, dan cadangan berupa satu file yang dapat Anda enkripsi dengan AES-256 dan simpan di flashdisk USB atau di penyimpanan cloud Anda sendiri.',
     },
     {
       q: 'Adakah software klinik gigi tanpa langganan bulanan?',

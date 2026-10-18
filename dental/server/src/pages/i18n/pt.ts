@@ -35,7 +35,7 @@ export const copy: Copy = {
     apkMeta: 'APK · versão {version} · {size}',
     windows: 'Baixar para Windows',
     windowsRequest: 'Solicitar a versão para Windows',
-    whatsapp: 'Pergunte pelo WhatsApp',
+    whatsapp: 'Tire dúvidas pelo WhatsApp',
     points: ['Teste grátis de 7 dias, com todos os recursos', 'Sem cadastro', 'Um só pagamento, para sempre'],
     imageAlt: 'O painel do Dentora em um computador com Windows e a tela da agenda em um celular Android',
   },
@@ -69,7 +69,7 @@ export const copy: Copy = {
       { icon: 'chartColumn', title: 'Relatórios', text: 'Receita, despesas e lucro por dentista, procedimento e forma de pagamento, além da taxa de faltas e dos saldos em aberto, com exportação em CSV.' },
       {
         icon: 'userCog', title: 'Equipe e permissões',
-        text: 'Cada membro da equipe recebe uma função e permissões, entra com um PIN a cada abertura, e o aplicativo se bloqueia sozinho quando fica sem uso.',
+        text: 'Cada membro da equipe tem sua função e suas permissões e entra com um PIN toda vez que abre o aplicativo, que se bloqueia sozinho quando fica sem uso.',
         chips: [{ label: 'Administrador' }, { label: 'Dentista' }, { label: 'Auxiliar' }, { label: 'Recepção' }],
       },
       {
@@ -136,7 +136,7 @@ export const copy: Copy = {
     includedTitle: 'O que está incluído',
     included: ['Todos os recursos, sem exceção', 'Pacientes, agendamentos e faturas ilimitados', 'Interface em árabe e inglês', 'Funciona sem internet, dados no seu dispositivo', 'Ajuda pelo WhatsApp'],
     cta: 'Adquira uma licença pelo WhatsApp',
-    trial: 'Teste grátis por 7 dias antes',
+    trial: 'Antes, teste grátis por 7 dias',
     points: [
       { icon: 'infinity', title: 'Um pagamento, e pronto', text: 'Sem assinatura e sem renovação anual: a licença é sua para sempre.' },
       { icon: 'badgeCheck', title: 'Teste antes de pagar', text: 'Sete dias grátis com todos os recursos, sem cadastro.' },
@@ -179,13 +179,13 @@ export const copy: Copy = {
       { q: 'Existe software odontológico com pagamento único e sem assinatura?', a: 'Sim. O Dentora custa {price}, em pagamento único, por uma licença vitalícia para um dispositivo, com todos os recursos: sem assinatura mensal ou anual. Os softwares odontológicos na nuvem costumam ser vendidos por assinatura mensal. Você pode testar o Dentora grátis por 7 dias antes de pagar.' },
       { q: 'Existe software odontológico em árabe para Android e Windows?', a: 'Sim. O Dentora tem uma interface completa em árabe, da direita para a esquerda, com busca adaptada ao árabe, e uma em inglês, para a qual você pode mudar a qualquer momento. Ele funciona sem internet em computadores com Windows 10/11 (64 bits) e em celulares e tablets com Android 7.0 ou superior.' },
       { q: 'Os dados dos pacientes são privados? Onde ficam armazenados?', a: 'Somente no seu dispositivo. Não há conta nem sincronização na nuvem, então nunca recebemos nem vemos os dados da sua clínica ou dos seus pacientes, e o aplicativo não tem anúncios nem rastreamento. Cada membro da equipe entra com seu próprio PIN, e os backups podem ser protegidos por senha (criptografia AES-256). O único contato com nosso servidor é a ativação da sua chave, uma única vez, que não envia nada além da chave e do número do dispositivo.' },
-      { q: 'Qual a diferença entre o Dentora e um software odontológico na nuvem?', a: 'O software odontológico na nuvem funciona em um navegador e guarda seus dados nos servidores do fornecedor, então precisa de conexão com a internet para funcionar, e normalmente é pago todo mês. O Dentora é instalado no seu próprio computador ou celular, funciona sem internet, mantém todos os dados nesse dispositivo e é pago uma única vez. As contrapartidas: não há sincronização entre dispositivos, cada dispositivo precisa da sua própria licença, e os backups ficam por sua conta (o recurso já vem integrado: um único arquivo, com senha AES-256 opcional). Comparativo completo: {compare}.' },
+      { q: 'Qual a diferença entre o Dentora e um software odontológico na nuvem?', a: 'O software odontológico na nuvem funciona em um navegador e guarda seus dados nos servidores do fornecedor, então precisa de conexão com a internet para funcionar, e normalmente é pago todo mês. O Dentora é instalado no seu próprio computador ou celular, funciona sem internet, mantém todos os dados nesse dispositivo e é pago uma única vez. Em contrapartida: não há sincronização entre dispositivos, cada dispositivo precisa da sua própria licença, e os backups ficam por sua conta (o recurso já vem integrado: um único arquivo, com senha AES-256 opcional). Comparativo completo: {compare}.' },
       { q: 'Posso usar o Dentora em vários dispositivos?', a: 'Sim, com uma licença por dispositivo: cada licença ativa um computador ou celular, então cada dispositivo adicional precisa da sua própria licença. Como o Dentora não sincroniza pela internet, cada dispositivo mantém os próprios registros, e os dispositivos não se sincronizam entre si.' },
       { q: 'Como faço backup dos meus dados?', a: 'Em Settings → Backup & data (Configurações → Backup e dados), salve um backup completo em um único arquivo, onde quiser: um pen drive, o Google Drive ou o seu e-mail. Você pode protegê-lo com senha (criptografia AES-256) e restaurá-lo no mesmo dispositivo ou em um novo.' },
       { q: 'Posso transferir minha licença para outro dispositivo?', a: 'Uma chave funciona em um único dispositivo: ela fica vinculada ao número do dispositivo em que foi ativada pela primeira vez. Atualizar ou reinstalar o Dentora no mesmo dispositivo mantém o mesmo número de dispositivo, então seu código continua funcionando, e sua chave fornece o mesmo código de novo se você precisar. Um dispositivo novo, ou um Windows ou celular formatado, recebe um novo número de dispositivo; nesse caso, fale conosco pelo WhatsApp sobre a transferência da licença. Sempre salve um backup antes: desinstalar o aplicativo no Android apaga os dados dele.' },
       { q: 'Quanto custa o Dentora?', a: '{price}, em pagamento único, por uma licença vitalícia para um dispositivo, com todos os recursos e sem assinatura. Teste grátis por 7 dias antes; se o teste terminar antes de você ativar, nada é apagado: só a inclusão e a edição ficam suspensas até a ativação.' },
       { q: 'Como consigo ajuda?', a: 'Fale conosco pelo WhatsApp no número {whatsapp}{email} e responderemos às suas dúvidas sobre instalação, ativação, backups e a transferência da sua clínica para um novo dispositivo.' },
-      { q: 'Quais idiomas ele oferece?', a: 'Árabe e inglês, e você pode alternar entre eles a qualquer momento em Settings (Configurações). A interface em árabe é totalmente da direita para a esquerda, com busca adaptada ao árabe, e você escolhe a moeda da sua clínica e a forma como os nomes dos meses em árabe são escritos.' },
+      { q: 'Em quais idiomas o Dentora está disponível?', a: 'Árabe e inglês, e você pode alternar entre eles a qualquer momento em Settings (Configurações). A interface em árabe é totalmente da direita para a esquerda, com busca adaptada ao árabe, e você escolhe a moeda da sua clínica e a forma como os nomes dos meses em árabe são escritos.' },
     ],
   },
   cta: {
@@ -218,7 +218,7 @@ export const compare: CompareCopy = {
   eyebrow: 'Comparativo',
   intro: [
     'Se a sua clínica precisa continuar funcionando sem internet, escolha um software que rode no seu próprio dispositivo, e não na nuvem. Um aplicativo offline como o Dentora roda em um único computador com Windows ou dispositivo Android, sem servidor, sem conta e sem assinatura. Os sistemas na nuvem precisam de conexão para funcionar, e os sistemas desktop com servidor mantêm o banco de dados em um servidor na clínica, embora a maioria dos seus fornecedores exija ou recomende internet para atualizações e serviços online.',
-    'A seguir, as três abordagens lado a lado, com as páginas dos próprios fornecedores como fontes, uma lista para ajudar na escolha e uma avaliação franca de para quem o Dentora é indicado e para quem não é.',
+    'A seguir, as três abordagens lado a lado, com as páginas dos próprios fornecedores como fontes, uma lista para ajudar na escolha e, com franqueza, para quem o Dentora é indicado e para quem não é.',
   ],
   reviewedLabel: 'Última revisão: {date}',
   tableTitle: 'Três formas de usar software na clínica odontológica',
@@ -243,7 +243,7 @@ export const compare: CompareCopy = {
     {
       key: 'cloud',
       name: 'Assinatura na nuvem (via navegador)',
-      summary: 'O software roda nos servidores do fornecedor, e você o usa em um navegador. O fornecedor hospeda seus dados e cuida dos servidores e das atualizações, e a equipe pode entrar de qualquer computador, mas o software precisa de conexão com a internet: Curve Dental a lista como requisito, e Dentally sugere dados móveis como reserva quando a linha cai.',
+      summary: 'O software roda nos servidores do fornecedor, e você o usa em um navegador. O fornecedor hospeda seus dados e cuida dos servidores e das atualizações, e a equipe pode entrar de qualquer computador, mas o software precisa de conexão com a internet: Curve Dental a lista como requisito, e Dentally sugere dados móveis como alternativa quando a internet cai.',
       cells: [
         'Não: ambos precisam de conexão com a internet para rodar o software da clínica.',
         'Nos servidores do fornecedor (ambos citam data centers da Amazon Web Services).',
@@ -307,11 +307,11 @@ export const compare: CompareCopy = {
   faq: [
     {
       q: 'Qual é o melhor sistema para clínica odontológica que funciona sem internet?',
-      a: 'Não existe um único melhor para todas as clínicas. Para uma clínica que trabalha em um só dispositivo, um aplicativo offline como o Dentora é o mais simples: sem servidor, sem conta, sem assinatura, com os dados no dispositivo, no Windows ou no Android. Para várias estações de trabalho compartilhando uma lista de pacientes, um sistema desktop com servidor mantém o banco de dados na clínica; pergunte ao fornecedor o que ainda depende da internet. O software na nuvem não é a escolha certa se você precisa trabalhar offline.',
+      a: 'Não existe um software que seja o melhor para todas as clínicas. Para uma clínica que trabalha em um só dispositivo, um aplicativo offline como o Dentora é o mais simples: sem servidor, sem conta, sem assinatura, com os dados no dispositivo, no Windows ou no Android. Para várias estações de trabalho compartilhando uma lista de pacientes, um sistema desktop com servidor mantém o banco de dados na clínica; pergunte ao fornecedor o que ainda depende da internet. O software na nuvem não é a escolha certa se você precisa trabalhar offline.',
     },
     {
       q: 'Software odontológico na nuvem funciona sem internet?',
-      a: 'Os produtos na nuvem listados aqui rodam em um navegador, nos servidores do fornecedor, e precisam de conexão com a internet: Curve Dental a lista como requisito, e Dentally sugere uma conexão de dados móveis como reserva quando a linha cai. Se a sua conexão não é confiável, escolha um software que rode no seu próprio dispositivo.',
+      a: 'Os produtos na nuvem listados aqui rodam em um navegador, nos servidores do fornecedor, e precisam de conexão com a internet: Curve Dental a lista como requisito, e Dentally sugere uma conexão de dados móveis como alternativa quando a internet cai. Se a sua conexão não é confiável, escolha um software que rode no seu próprio dispositivo.',
     },
     {
       q: 'Software odontológico offline é seguro para os dados dos pacientes?',
@@ -319,7 +319,7 @@ export const compare: CompareCopy = {
     },
     {
       q: 'Existe software odontológico sem mensalidade?',
-      a: 'Sim. O Dentora custa {price}, em pagamento único, por uma licença vitalícia para um dispositivo, com todos os recursos. Os exemplos na nuvem e com servidor desta página listam, todos, planos recorrentes (assinaturas, planos de suporte ou associações), então compare o custo total ao longo de vários anos.',
+      a: 'Sim. O Dentora custa {price}, em pagamento único, por uma licença vitalícia para um dispositivo, com todos os recursos. Todos os exemplos na nuvem e com servidor citados nesta página trabalham com planos recorrentes (assinaturas, planos de suporte ou associações), então compare o custo total ao longo de vários anos.',
     },
     {
       q: 'Vários computadores podem compartilhar os dados do Dentora?',

@@ -6,5 +6,9 @@ import type { CompareCopy } from '../compare-content'
 import type { Copy } from '../content'
 import * as es from './es'
 import * as fr from './fr'
+import * as id from './id'
+import * as pt from './pt'
+import * as tr from './tr'
+import * as ur from './ur'
 
-export const TRANSLATIONS: Partial<Record<SiteLang, { copy: Copy; compare: CompareCopy }>> = { fr, es }
+export const TRANSLATIONS: Partial<Record<SiteLang, { copy: Copy; compare: CompareCopy }>> = { fr, es, pt, tr, id, ur }

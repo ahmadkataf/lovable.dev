@@ -175,10 +175,10 @@ Dentora : logiciel dentaire
 **Short description** (80/80)
 
 ```
-Gérez votre cabinet dentaire : patients, agenda, schéma, factures. Sans internet
+Gérez votre cabinet dentaire sans internet : patients, agenda, schéma, factures.
 ```
 
-**Full description** (3,925/4,000)
+**Full description** (3,926/4,000)
 
 ```
 Dentora est un logiciel complet de gestion de cabinet dentaire, avec une interface moderne en arabe et en anglais. Il fonctionne sur votre téléphone ou votre tablette sans connexion internet, et toutes les données de votre cabinet et de vos patients restent sur votre appareil.
@@ -189,7 +189,7 @@ Un tableau de bord clair
 
 Patients
 • Un dossier complet pour chaque patient : informations, coordonnées, assurance et étiquettes.
-• Une alerte médicale bien visible avant tout acte pour les allergies, les maladies chroniques et les médicaments.
+• Une alerte médicale bien visible pour les allergies, les maladies chroniques et les médicaments, avant tout acte.
 • Recherche intelligente (adaptée à l’arabe), photos, radiographies et documents, et notes cliniques.
 
 Schéma dentaire
@@ -239,16 +239,16 @@ Première version de Dentora : patients, rendez-vous, schéma dentaire, plans d
 **App name** (23/30)
 
 ```
-Dentora: Gestión Dental
+Dentora: gestión dental
 ```
 
-**Short description** (80/80)
+**Short description** (73/80)
 
 ```
-Lleve su clínica dental: pacientes, citas, odontograma y facturas. Sin internet.
+Su clínica dental sin internet: pacientes, citas, odontograma y facturas.
 ```
 
-**Full description** (3,713/4,000)
+**Full description** (3,714/4,000)
 
 ```
 Dentora es un software completo de gestión para clínicas dentales, con una interfaz moderna en árabe e inglés. Funciona en su teléfono o tableta sin conexión a internet, y todos los datos de su clínica y de sus pacientes permanecen en su dispositivo.
@@ -283,7 +283,7 @@ Y además
 • Roles y permisos del personal (administrador, odontólogo, asistente, recepción), inicio de sesión con PIN y bloqueo automático.
 
 Privacidad ante todo
-• Funciona sin conexión y sin cuenta, y Dentora nunca envía a ningún sitio los datos de su clínica ni de sus pacientes, así que nunca los vemos.
+• Funciona sin conexión y sin cuenta, y Dentora nunca envía a ninguna parte los datos de su clínica ni de sus pacientes, así que nunca los vemos.
 • Sin anuncios, sin rastreo, sin estadísticas de uso.
 • Solo se conecta a internet para activarse con una clave de licencia, una sola vez, y envía únicamente la clave y el número del dispositivo.
 • Una copia de seguridad completa en un solo archivo que puede guardar donde quiera, con protección opcional por contraseña (cifrado AES-256), para trasladar su clínica a un dispositivo nuevo o restaurarla.
@@ -318,14 +318,14 @@ Dentora: Gestão Odontológica
 Gerencie sua clínica: pacientes, agenda, odontograma e faturas. Sem internet.
 ```
 
-**Full description** (3,611/4,000)
+**Full description** (3,609/4,000)
 
 ```
 O Dentora é um sistema completo de gestão para clínicas odontológicas, com uma interface moderna em árabe e inglês. Ele funciona no seu celular ou tablet sem conexão com a internet, e todos os dados da sua clínica e dos seus pacientes ficam no seu dispositivo.
 
 Um painel claro
 • A agenda do dia com mudança de status em um toque, a receita do dia e do mês, e os saldos em aberto.
-• Alertas do que precisa de atenção: saldos vencidos, estoque baixo, trabalhos de laboratório com entrega prevista.
+• Alertas do que precisa de atenção: saldos vencidos, estoque baixo, trabalhos de laboratório com prazo vencendo.
 
 Pacientes
 • Uma ficha completa de cada paciente: dados, contatos, convênio e etiquetas.
@@ -372,6 +372,216 @@ O Dentora é um software de gestão para clínicas odontológicas. Não é um di
 
 ```
 Primeira versão do Dentora: pacientes, agenda, odontograma, planos de tratamento, faturas e relatórios, tudo sem internet.
+```
+
+### Türkçe — Play language: `tr-TR`
+
+**App name** (29/30)
+
+```
+Dentora: Diş Kliniği Programı
+```
+
+**Short description** (73/80)
+
+```
+Diş kliniğinizi yönetin: hasta, randevu, diş şeması, fatura. İnternetsiz.
+```
+
+**Full description** (3,407/4,000)
+
+```
+Dentora, Arapça ve İngilizce modern bir arayüze sahip, eksiksiz bir diş kliniği yönetim programıdır. İnternet bağlantısı olmadan telefonunuzda veya tabletinizde çalışır; kliniğinizin ve hastalarınızın tüm verileri cihazınızda kalır.
+
+Anlaşılır bir ana panel
+• Tek dokunuşla durumu değiştirilebilen bugünkü randevular, bugünün ve bu ayın geliri ve açık bakiyeler.
+• İlgilenmeniz gerekenler için uyarılar: vadesi geçmiş bakiyeler, azalan stok, teslim zamanı gelen laboratuvar işleri.
+
+Hastalar
+• Her hasta için eksiksiz bir dosya: kişisel bilgiler, iletişim bilgileri, sigorta ve etiketler.
+• Her işlemden önce alerjiler, kronik hastalıklar ve ilaçlar için açık bir tıbbi uyarı.
+• Akıllı arama (Arapça uyumlu), fotoğraflar, röntgenler ve belgeler, klinik notlar.
+
+Diş şeması
+• FDI numaralandırmasıyla daimi ve süt dişleri; her yüzey için bir durum: çürük, dolgu, kron, kanal tedavisi, implant, köprü, çekim ve daha fazlası.
+• Hızlı boyama modu, her dişin geçmişi ve yazdırılabilir şema.
+
+Randevular
+• Birden fazla hekim için gün, hafta, ay ve liste görünümleri, çakışma tespitiyle.
+• Göndermeden önce gözden geçirdiğiniz hazır bir mesajla WhatsApp hatırlatmaları.
+
+Tedavi planları ve faturalandırma
+• Düzenlenebilir bir işlem ve fiyat listesi; her hasta için diş ve yüzey bazında tedavi planı.
+• Tamamlanan işi tek dokunuşla faturaya dönüştürün; kısmi ödemeler, hasta bakiyeleri, numaralı makbuzlar ve hesap ekstreleri.
+• Kliniğinizin logosunu taşıyan, yazdırmaya ya da PDF olarak kaydetmeye hazır şık faturalar ve reçeteler.
+
+Dahası
+• Hazır ilaç listesiyle reçeteler.
+• Durum ve teslim tarihi takibiyle laboratuvar siparişleri.
+• Azalan stok ve son kullanma tarihi uyarılarıyla stok takibi; kategoriye göre giderler.
+• Hekime, işleme ve ödeme yöntemine göre gelir, gider ve kâr raporları, CSV dışa aktarımıyla.
+• Ekip rolleri ve yetkileri (yönetici, hekim, asistan, resepsiyon), PIN ile giriş ve otomatik kilit.
+
+Önce gizlilik
+• Hesap gerektirmeden internetsiz çalışır; Dentora kliniğinizin veya hastalarınızın verilerini hiçbir yere göndermez, bu yüzden biz bu verileri asla görmeyiz.
+• Reklam yok, izleme yok, kullanım istatistiği yok.
+• Lisans anahtarıyla etkinleştirme için yalnızca bir kez internete bağlanır ve sadece anahtarı ve cihaz numarasını gönderir.
+• Dilediğiniz yerde saklayacağınız tek bir dosyada eksiksiz yedek; isteğe bağlı parola korumasıyla (AES-256 şifreleme), kliniğinizi yeni bir cihaza taşımak ya da geri yüklemek için.
+
+Deneme ve etkinleştirme
+• Dentora, 7 günlük deneme süresince kayıt gerekmeden tüm özellikleriyle çalışır.
+• Deneme süresinden sonra kayıt eklemeye ve düzenlemeye devam etmek için ücretli bir lisans gerekir.
+• Deneme süresinden sonra, cihaz numarasının gösterildiği Settings → Licence (Ayarlar → Lisans) bölümünden etkinleştirin: kliniğin cihazı için oluşturulan ve internetsiz çalışan bir etkinleştirme koduyla ya da uygulamanın bir kez internet üzerinden bu koda dönüştürdüğü bir lisans anahtarıyla.
+• Etkinleştirme yapılmazsa tüm veriler görüntülenebilir, yazdırılabilir ve yedeklenebilir kalır; yalnızca ekleme ve düzenleme duraklatılır.
+
+Lütfen dikkat
+Dentora, diş klinikleri için bir muayenehane yönetim yazılımıdır. Tıbbi bir cihaz değildir ve herhangi bir tıbbi durumu teşhis etmez, tedavi etmez, iyileştirmez veya önlemez. Klinik kararlar tedaviyi yapan diş hekimine aittir; hastalar tıbbi tavsiye, teşhis ve tedavi için bir sağlık uzmanına danışmalıdır.
+```
+
+**What's new** (116/500)
+
+```
+Dentora'nın ilk sürümü: hastalar, randevular, diş şeması, tedavi planları, faturalar ve raporlar; hepsi internetsiz.
+```
+
+### Bahasa Indonesia — Play language: `id`
+
+**App name** (29/30)
+
+```
+Dentora: Aplikasi Klinik Gigi
+```
+
+**Short description** (80/80)
+
+```
+Kelola klinik gigi: pasien, janji temu, odontogram, dan tagihan. Tanpa internet.
+```
+
+**Full description** (3,732/4,000)
+
+```
+Dentora adalah aplikasi manajemen klinik gigi yang lengkap, dengan antarmuka modern dalam bahasa Arab dan Inggris. Aplikasi ini berjalan di ponsel atau tablet Anda tanpa koneksi internet, dan semua data klinik dan pasien Anda tetap tersimpan di perangkat Anda.
+
+Dasbor yang jelas
+• Janji temu hari ini dengan perubahan status sekali ketuk, pendapatan hari ini dan bulan ini, serta tagihan yang belum lunas.
+• Peringatan untuk hal yang perlu diperhatikan: tagihan yang lewat jatuh tempo, stok menipis, pekerjaan laboratorium yang jatuh tempo.
+
+Pasien
+• Berkas lengkap untuk setiap pasien: data diri, kontak, asuransi, dan label.
+• Peringatan medis yang jelas untuk alergi, penyakit kronis, dan obat-obatan sebelum tindakan apa pun.
+• Pencarian pintar (memahami teks Arab), foto, rontgen dan dokumen, serta catatan klinis.
+
+Odontogram
+• Gigi permanen dan gigi sulung dengan penomoran FDI, dan kondisi untuk setiap permukaan: karies, tambalan, mahkota, perawatan saluran akar, implan, jembatan, pencabutan, dan lainnya.
+• Mode tandai cepat, riwayat setiap gigi, dan odontogram yang siap dicetak.
+
+Janji temu
+• Tampilan harian, mingguan, bulanan, dan agenda untuk beberapa dokter, dengan deteksi jadwal bentrok.
+• Pengingat WhatsApp dengan pesan siap kirim yang Anda periksa dulu sebelum dikirim.
+
+Rencana perawatan dan penagihan
+• Daftar tindakan dan tarif yang dapat diubah, serta rencana perawatan untuk setiap pasien lengkap dengan gigi dan permukaannya.
+• Ubah pekerjaan yang sudah selesai menjadi tagihan dengan sekali ketuk; pembayaran sebagian, saldo pasien, kuitansi bernomor, dan rekap tagihan.
+• Tagihan dan resep yang rapi dengan logo klinik Anda, siap dicetak atau disimpan sebagai PDF.
+
+Fitur lainnya
+• Resep dengan daftar obat yang sudah tersedia.
+• Pesanan laboratorium dengan pemantauan status dan tenggat.
+• Stok dengan peringatan stok menipis dan kedaluwarsa, serta pengeluaran per kategori.
+• Laporan pendapatan, pengeluaran, dan laba per dokter, tindakan, dan metode pembayaran, dengan ekspor CSV.
+• Peran dan hak akses tim (admin, dokter, asisten, resepsionis), masuk dengan PIN, dan kunci otomatis.
+
+Privasi diutamakan
+• Berjalan tanpa internet dan tanpa akun, dan Dentora tidak pernah mengirim data klinik atau pasien Anda ke mana pun, sehingga kami tidak pernah melihatnya.
+• Tanpa iklan, tanpa pelacakan, tanpa statistik penggunaan.
+• Aplikasi hanya terhubung ke internet untuk aktivasi dengan kunci lisensi, sekali saja, dan hanya mengirim kunci serta nomor perangkat.
+• Cadangan lengkap dalam satu file yang dapat Anda simpan di mana saja, dengan perlindungan kata sandi opsional (enkripsi AES-256), untuk memindahkan klinik Anda ke perangkat baru atau memulihkannya.
+
+Uji coba dan aktivasi
+• Dentora dapat digunakan dengan semua fitur selama masa uji coba 7 hari, tanpa pendaftaran.
+• Setelah masa uji coba, diperlukan lisensi berbayar untuk terus menambah dan mengubah data.
+• Setelah masa uji coba, aktifkan di Settings → Licence (Pengaturan → Lisensi), tempat nomor perangkat ditampilkan: dengan kode aktivasi yang dibuat untuk perangkat klinik, yang berfungsi tanpa internet, atau dengan kunci lisensi, yang diubah aplikasi menjadi kode tersebut lewat internet, sekali saja.
+• Tanpa aktivasi, semua data tetap dapat dilihat, dicetak, dan dicadangkan; hanya fungsi menambah dan mengubah data yang dihentikan sementara.
+
+Harap diperhatikan
+Dentora adalah software manajemen praktik untuk klinik gigi. Dentora bukan alat kesehatan dan tidak mendiagnosis, mengobati, menyembuhkan, atau mencegah kondisi medis apa pun. Keputusan klinis tetap berada di tangan dokter gigi yang merawat, dan pasien harus berkonsultasi dengan tenaga kesehatan profesional untuk mendapatkan saran medis, diagnosis, dan perawatan.
+```
+
+**What's new** (120/500)
+
+```
+Rilis pertama Dentora: pasien, janji temu, odontogram, rencana perawatan, tagihan, dan laporan, semuanya tanpa internet.
+```
+
+### اردو — Play language: `ur`
+
+**App name** (27/30)
+
+```
+Dentora: ڈینٹل کلینک مینیجر
+```
+
+**Short description** (77/80)
+
+```
+اپنا ڈینٹل کلینک چلائیں: مریض، اپائنٹمنٹس، چارٹ اور انوائسز۔ انٹرنیٹ کے بغیر۔
+```
+
+**Full description** (3,143/4,000)
+
+```
+Dentora ایک مکمل ڈینٹل کلینک مینجمنٹ سافٹ ویئر ہے، عربی اور انگریزی میں جدید انٹرفیس کے ساتھ۔ یہ آپ کے فون یا ٹیبلٹ پر انٹرنیٹ کنکشن کے بغیر چلتا ہے، اور آپ کے کلینک اور مریضوں کا سارا ڈیٹا آپ کی ڈیوائس پر ہی رہتا ہے۔
+
+واضح ڈیش بورڈ
+• آج کی اپائنٹمنٹس، ایک ٹیپ میں اسٹیٹس کی تبدیلی کے ساتھ، آج اور اس مہینے کی آمدنی، اور واجب الادا بقایا جات۔
+• توجہ طلب چیزوں کے انتباہات: تاخیر شدہ بقایا جات، کم اسٹاک، اور لیب کا وہ کام جس کی تاریخ آ گئی ہو۔
+
+مریض
+• ہر مریض کی مکمل فائل: تفصیلات، رابطے، انشورنس اور ٹیگز۔
+• کسی بھی پروسیجر سے پہلے الرجی، دائمی بیماریوں اور ادویات کا واضح طبی انتباہ۔
+• اسمارٹ تلاش (عربی کو سمجھنے والی)، تصاویر، ایکسرے اور دستاویزات، اور کلینیکل نوٹس۔
+
+ڈینٹل چارٹ
+• FDI نمبرنگ کے ساتھ مستقل اور دودھ کے دانت، اور ہر سطح کی حالت: کیریز، فلنگ، کراؤن، روٹ کینال، امپلانٹ، برج، ایکسٹریکشن اور بہت کچھ۔
+• فوری پینٹ موڈ، ہر دانت کی ہسٹری، اور پرنٹ کے قابل چارٹ۔
+
+اپائنٹمنٹس
+• کئی ڈاکٹروں کے لیے دن، ہفتہ، مہینہ اور ایجنڈا ویو، اوقات کے ٹکراؤ کی نشاندہی کے ساتھ۔
+• WhatsApp یاددہانیاں، ایک تیار پیغام کے ساتھ جسے آپ بھیجنے سے پہلے دیکھ لیتے ہیں۔
+
+علاج کے پلان اور بلنگ
+• پروسیجرز اور قیمتوں کی قابلِ ترمیم فہرست، اور ہر مریض کے لیے دانتوں اور سطحوں کے ساتھ علاج کا پلان۔
+• مکمل شدہ کام کو ایک ٹیپ میں انوائس میں بدلیں؛ جزوی ادائیگیاں، مریضوں کے بقایا جات، نمبر والی رسیدیں اور اسٹیٹمنٹس۔
+• آپ کے کلینک کے لوگو کے ساتھ عمدہ انوائسز اور نسخے، پرنٹ کرنے یا PDF کے طور پر محفوظ کرنے کے لیے تیار۔
+
+مزید
+• ادویات کی تیار فہرست کے ساتھ نسخے۔
+• اسٹیٹس اور مقررہ تاریخ کی ٹریکنگ کے ساتھ لیب آرڈرز۔
+• کم اسٹاک اور میعاد ختم ہونے کے انتباہات کے ساتھ اسٹاک، اور زمرہ وار اخراجات۔
+• ڈاکٹر، پروسیجر اور ادائیگی کے طریقے کے لحاظ سے آمدنی، اخراجات اور منافع کی رپورٹس، CSV ایکسپورٹ کے ساتھ۔
+• ٹیم کے رول اور اجازتیں (ایڈمن، ڈاکٹر، اسسٹنٹ، ریسیپشن)، PIN سے سائن ان اور خودکار لاک۔
+
+پرائیویسی سب سے پہلے
+• اکاؤنٹ کے بغیر آف لائن کام کرتا ہے، اور Dentora آپ کے کلینک یا مریضوں کا ڈیٹا کبھی کہیں نہیں بھیجتا، اس لیے ہم اسے کبھی نہیں دیکھتے۔
+• نہ اشتہارات، نہ ٹریکنگ، نہ استعمال کے اعداد و شمار۔
+• یہ صرف لائسنس کلید سے ایکٹیویشن کے لیے، ایک بار، آن لائن ہوتا ہے، اور صرف کلید اور ڈیوائس نمبر بھیجتا ہے۔
+• ایک فائل میں مکمل بیک اپ جسے آپ جہاں چاہیں رکھیں، اختیاری پاس ورڈ تحفظ (AES-256 انکرپشن) کے ساتھ، تاکہ اپنا کلینک نئی ڈیوائس پر منتقل کر سکیں یا اسے بحال کر سکیں۔
+
+ٹرائل اور ایکٹیویشن
+• Dentora کا 7 دن کا ٹرائل ہر فیچر کے ساتھ چلتا ہے، سائن اپ کے بغیر۔
+• ٹرائل کے بعد ریکارڈز شامل کرتے رہنے اور ان میں ترمیم کرنے کے لیے ادا شدہ لائسنس ضروری ہے۔
+• ٹرائل کے بعد اسے Settings → Licence (سیٹنگز ← لائسنس) میں ایکٹیویٹ کریں، جہاں ڈیوائس نمبر دکھایا جاتا ہے: کلینک کی ڈیوائس کے لیے بنائے گئے ایکٹیویشن کوڈ سے، جو آف لائن کام کرتا ہے، یا لائسنس کلید سے، جسے ایپ ایک بار انٹرنیٹ کے ذریعے اسی کوڈ میں بدل دیتی ہے۔
+• ایکٹیویشن کے بغیر تمام ڈیٹا دیکھنے، پرنٹ کرنے اور بیک اپ لینے کے لیے دستیاب رہتا ہے؛ صرف نیا اندراج اور ترمیم رکی رہتی ہے۔
+
+براہِ کرم نوٹ کریں
+Dentora ڈینٹل کلینکس کے لیے پریکٹس مینجمنٹ سافٹ ویئر ہے۔ یہ کوئی طبی آلہ نہیں ہے اور کسی بھی طبی حالت کی تشخیص، علاج، شفا یا روک تھام نہیں کرتا۔ کلینیکل فیصلے علاج کرنے والے ڈینٹسٹ کے اختیار میں رہتے ہیں، اور مریضوں کو طبی مشورے، تشخیص اور علاج کے لیے کسی ہیلتھ کیئر پروفیشنل سے رجوع کرنا چاہیے۔
+```
+
+**What's new** (101/500)
+
+```
+Dentora کا پہلا ورژن: مریض، اپائنٹمنٹس، ڈینٹل چارٹ، علاج کے پلان، انوائسز اور رپورٹس، سب کچھ آف لائن۔
 ```
 <!-- play-translations:end -->
 

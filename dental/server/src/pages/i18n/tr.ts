@@ -64,12 +64,12 @@ export const copy: Copy = {
       { icon: 'calendarCheck', title: 'Randevular ve WhatsApp hatırlatmaları', text: 'Birden fazla hekim için gün, hafta, ay ve liste görünümleri; çakışma tespiti ve göndermeden önce gözden geçirdiğiniz hazır bir WhatsApp hatırlatması.' },
       { icon: 'clipboardList', title: 'Tedaviler ve planlar', text: 'Düzenlenebilir bir işlem ve fiyat listesi, her hasta için diş ve yüzey bazında tedavi planı ve yazdırılabilir fiyat teklifleri.' },
       { icon: 'receipt', title: 'Faturalar, ödemeler ve makbuzlar', text: 'Tamamlanan işi tek dokunuşla faturaya dönüştürün. Kısmi ödemeler, hasta bakiyeleri, numaralı makbuzlar ve hesap ekstreleri, kliniğinizin logosuyla.' },
-      { icon: 'pill', title: 'Reçeteler ve laboratuvar', text: "Hazır bir ilaç listesinden reçeteler, yazdırılır ya da WhatsApp'tan paylaşılır; durum ve teslim tarihi takibiyle laboratuvar siparişleri." },
+      { icon: 'pill', title: 'Reçeteler ve laboratuvar', text: "Hazır ilaç listesinden yazılan, yazdırılabilen ya da WhatsApp'tan paylaşılabilen reçeteler; durum ve teslim tarihi takibiyle laboratuvar siparişleri." },
       { icon: 'package', title: 'Stok ve giderler', text: 'Azalan stok ve son kullanma tarihi uyarılarıyla stok seviyeleri; önceki dönemle karşılaştırmalı, kategoriye göre giderler.' },
       { icon: 'chartColumn', title: 'Raporlar', text: 'Hekime, işleme ve ödeme yöntemine göre gelir, gider ve kâr; ayrıca randevuya gelmeme oranı ve açık bakiyeler, CSV dışa aktarımıyla.' },
       {
         icon: 'userCog', title: 'Personel ve yetkiler',
-        text: 'Her ekip üyesinin bir rolü ve yetkileri vardır, her açılışta PIN ile giriş yapar; uygulama boşta kaldığında kendini kilitler.',
+        text: 'Her ekip üyesine bir rol ve yetkiler verilir; her açılışta PIN ile giriş yapılır ve uygulama boşta kaldığında kendini kilitler.',
         chips: [{ label: 'Yönetici' }, { label: 'Hekim' }, { label: 'Asistan' }, { label: 'Resepsiyon' }],
       },
       {
@@ -85,7 +85,7 @@ export const copy: Copy = {
     lead: 'Hesap yok, bulut senkronizasyonu yok. Dentora her şeyi kliniğin kendi cihazında tutar; siz göndermeyi seçmedikçe hiçbir klinik veya hasta verisi cihazdan çıkmaz.',
     points: [
       { icon: 'wifiOff', title: 'İnternet olmadan çalışır', text: "Bağlantı kesilse bile hastalarınızı kabul edin ve fatura kesin: Dentora'nın çalışmak için internete hiçbir zaman ihtiyacı yoktur." },
-      { icon: 'eyeOff', title: 'Verilerinizi asla görmeyiz', text: 'Kliniğinizin veya hastalarınızın verilerini asla toplamayız ve almayız. Reklam yok, izleme yok, kullanım istatistiği yok. Bir anahtarı etkinleştirmek yalnızca anahtarı ve cihaz numarasını, bir kez gönderir.' },
+      { icon: 'eyeOff', title: 'Verilerinizi asla görmeyiz', text: 'Kliniğinizin veya hastalarınızın verilerini asla toplamayız ve almayız. Reklam yok, izleme yok, kullanım istatistiği yok. Anahtar etkinleştirilirken yalnızca anahtar ve cihaz numarası, bir kez gönderilir.' },
       { icon: 'lockKeyhole', title: 'Yedeğiniz sizin elinizde', text: 'Tek dosyada eksiksiz bir yedek; dilerseniz parolayla korunur ve gerektiğinde yeni bir cihaza taşınmaya hazırdır.' },
     ],
   },
@@ -99,7 +99,7 @@ export const copy: Copy = {
     featured: {
       title: 'Etkileşimli bir diş şeması',
       text: 'FDI numaralandırma, her yüzey, eksiksiz geçmiş',
-      alt: "Dentora'nın Windows'taki etkileşimli diş şeması: FDI numaralarıyla iki çene, her yüzeyin durumu ve renk açıklamaları",
+      alt: "Dentora'nın Windows'taki etkileşimli diş şeması: FDI numaralarıyla alt ve üst çene, her yüzeyin durumu ve renk açıklamaları",
     },
     phones: [
       { key: 'dashboard', title: 'Tüm kliniğiniz tek ekranda', text: 'Bugünün randevuları, gelir ve uyarılar', alt: 'Telefonda Dentora ana paneli: bugünün randevuları ve geliri' },
@@ -158,7 +158,7 @@ export const copy: Copy = {
       name: 'Windows', for: 'Masaüstü ve dizüstü bilgisayarlar için', req: 'Windows 10 veya 11 (64 bit)', btn: 'Windows için indir',
       meta: 'Masaüstü ve Başlat menüsü kısayollarıyla kurulum programı',
       file: 'Kurulum programı · sürüm {version} · {size}',
-      note: 'Uygulama yeni olduğu için Windows “Windows bilgisayarınızı korudu” ekranını gösterebilir: önce “Ek bilgi”, ardından “Yine de çalıştır” seçeneğine tıklayın.',
+      note: 'Uygulama yeni olduğu için Windows “Windows kişisel bilgisayarınızı korudu” ekranını gösterebilir: önce “Ek bilgi”, ardından “Yine de çalıştır” seçeneğine tıklayın.',
       requestText: "İndirme bağlantısını WhatsApp'tan göndeririz.", requestBtn: 'Windows sürümünü isteyin',
     },
     reqTitle: 'Sistem gereksinimleri',
@@ -173,19 +173,19 @@ export const copy: Copy = {
     compareLink: 'Diş kliniği yazılımları karşılaştırması',
     learn: { text: 'Ya da uygulamayı kendi hızınızda, resimlerle veya videoyla öğrenin:', guide: 'Kullanım kılavuzu', videos: 'Video eğitimi' },
     items: [
-      { q: 'İnternetsiz çalışan en iyi diş kliniği programı hangisi?', a: 'Bu, kliniğinize bağlıdır; ancak internet olmadan çalışmak için verileri kendi bilgisayarınızda veya telefonunuzda tutan ve sunucu gerektirmeyen bir yazılım seçin. Dentora tam da bunun için geliştirildi: Windows 10/11 ve Android 7.0 ve üzeri sürümlerde tamamen internetsiz çalışır, tüm hasta kayıtlarını cihazda tutar; diş şeması, randevular, tedavi planları, faturalar ve raporları kapsar. Tüm özellikleri 7 gün ücretsiz deneyin ya da internetsiz, bulut tabanlı ve sunucu tabanlı diş yazılımlarını karşılaştırdığımız sayfayı okuyun: {compare}.' },
+      { q: 'İnternetsiz çalışan en iyi diş kliniği programı hangisi?', a: 'Bu, kliniğinize bağlıdır; ancak internet olmadan çalışmak için verileri kendi bilgisayarınızda veya telefonunuzda tutan ve sunucu gerektirmeyen bir yazılım seçin. Dentora tam da bunun için geliştirildi: Windows 10/11 ve Android 7.0 ve üzeri sürümlerde tamamen internetsiz çalışır, tüm hasta kayıtlarını cihazda tutar; diş şeması, randevular, tedavi planları, faturalar ve raporları kapsar. Tüm özellikleri 7 gün ücretsiz deneyin ya da internetsiz, bulut tabanlı ve sunucu tabanlı diş kliniği yazılımlarını karşılaştırdığımız sayfayı okuyun: {compare}.' },
       { q: 'Dentora internet gerektirir mi?', a: "Hayır. Dentora bilgisayarınızda veya telefonunuzda tamamen internetsiz çalışır. İnternet yalnızca indirmek için ve lisans anahtarınızı etkinleştirmek için bir kez gerekir. Kliniğin cihazı internete bağlı değilse anahtarı başka herhangi bir cihazdan {activate} adresinde etkinleştirin, ardından aldığınız etkinleştirme kodunu internetsiz olarak Dentora'ya yapıştırın." },
       { q: "Satın aldıktan sonra Dentora'yı nasıl etkinleştiririm?", a: "Ödemeyi yaptıktan sonra 16 karakterli bir lisans anahtarı alırsınız. Dentora → Settings → Licence (Ayarlar → Lisans) bölümünü açın, cihaz internete bağlıyken anahtarı yapıştırın ve “Activate” (Etkinleştir) düğmesine basın. Ya da herhangi bir cihazda {activate} adresini açın, cihaz numaranızı (aynı ekranda görünür) ve anahtarı girin, ardından aldığınız etkinleştirme kodunu Dentora'ya yapıştırın. Bunu yalnızca bir kez yaparsınız." },
-      { q: 'Aboneliksiz, tek seferlik ödemeli bir diş hekimi programı var mı?', a: "Evet. Dentora'nın fiyatı {price}; bir kez ödenir ve tüm özellikleriyle bir cihaz için ömür boyu lisans sağlar: aylık ya da yıllık abonelik yoktur. Bulut tabanlı diş yazılımları genellikle aylık abonelikle satılır. Ödeme yapmadan önce Dentora'yı 7 gün ücretsiz deneyebilirsiniz." },
+      { q: 'Aboneliksiz, tek seferlik ödemeli bir diş hekimi programı var mı?', a: "Evet. Dentora'nın fiyatı {price}; bir kez ödenir ve tüm özellikleriyle bir cihaz için ömür boyu lisans sağlar: aylık ya da yıllık abonelik yoktur. Bulut tabanlı diş kliniği yazılımları genellikle aylık abonelikle satılır. Ödeme yapmadan önce Dentora'yı 7 gün ücretsiz deneyebilirsiniz." },
       { q: 'Android ve Windows için Arapça bir diş kliniği programı var mı?', a: "Evet. Dentora'da sağdan sola, Arapça uyumlu aramalı eksiksiz bir Arapça arayüz ve istediğiniz zaman geçebileceğiniz bir İngilizce arayüz bulunur. Windows 10/11 (64 bit) bilgisayarlarda ve Android 7.0 ve üzeri telefon ve tabletlerde internetsiz çalışır." },
       { q: 'Hasta verileri gizli mi? Nerede saklanır?', a: "Yalnızca sizin cihazınızda. Hesap ve bulut senkronizasyonu olmadığı için kliniğinizin veya hastalarınızın verilerini asla almayız ve görmeyiz; uygulamada reklam ya da izleme de yoktur. Her ekip üyesi kendi PIN'iyle giriş yapar ve yedekler parolayla korunabilir (AES-256 şifreleme). Sunucumuzla tek temas, anahtarınızın bir kez etkinleştirilmesidir ve bu sırada anahtar ve cihaz numarası dışında hiçbir şey gönderilmez." },
-      { q: "Dentora'nın bulut tabanlı diş yazılımlarından farkı nedir?", a: 'Bulut tabanlı diş yazılımları web tarayıcısında çalışır ve verilerinizi firmanın sunucularında tutar; bu yüzden çalışmak için internet bağlantısı gerekir ve genellikle aylık ödenir. Dentora ise kendi bilgisayarınıza veya telefonunuza kurulur, internet olmadan çalışır, tüm verileri o cihazda tutar ve bir kez ödenir. Bunun karşılığında: cihazlar arasında senkronizasyon yoktur, her cihazın kendi lisansı gerekir ve yedekler sizin elinizdedir (uygulamaya yerleşik: tek dosya, isteğe bağlı AES-256 parolasıyla). Ayrıntılı karşılaştırma: {compare}.' },
+      { q: "Dentora'nın bulut tabanlı diş kliniği yazılımlarından farkı nedir?", a: 'Bulut tabanlı diş kliniği yazılımları web tarayıcısında çalışır ve verilerinizi firmanın sunucularında tutar; bu yüzden çalışmak için internet bağlantısı gerekir ve genellikle aylık ödenir. Dentora ise kendi bilgisayarınıza veya telefonunuza kurulur, internet olmadan çalışır, tüm verileri o cihazda tutar ve bir kez ödenir. Buna karşılık: cihazlar arasında senkronizasyon yoktur, her cihazın kendi lisansı gerekir ve yedekler sizin elinizdedir (uygulamaya yerleşik: tek dosya, isteğe bağlı AES-256 parolasıyla). Ayrıntılı karşılaştırma: {compare}.' },
       { q: "Dentora'yı birden fazla cihazda kullanabilir miyim?", a: 'Evet, her cihaz için bir lisansla: her lisans bir bilgisayarı veya telefonu etkinleştirir, bu nedenle her ek cihazın kendi lisansı olmalıdır. Dentora internet üzerinden senkronizasyon yapmadığı için her cihaz kendi kayıtlarını tutar ve cihazlar birbiriyle senkronize olmaz.' },
       { q: 'Verilerimi nasıl yedeklerim?', a: 'Settings → Backup & data (Ayarlar → Yedekleme ve veriler) bölümünde eksiksiz bir yedeği tek dosya olarak dilediğiniz yere kaydedin: bir USB bellek, Google Drive ya da e-postanız. Yedeği parolayla koruyabilir (AES-256 şifreleme), aynı cihazda veya yeni bir cihazda geri yükleyebilirsiniz.' },
       { q: 'Lisansımı başka bir cihaza taşıyabilir miyim?', a: "Bir anahtar tek bir cihazda çalışır: ilk kez etkinleştirildiği cihazın numarasına bağlıdır. Dentora'yı aynı cihazda güncellemek veya yeniden kurmak cihaz numarasını değiştirmez, bu yüzden kodunuz çalışmaya devam eder; gerekirse anahtarınız size aynı kodu yeniden verir. Yeni bir cihaz ya da sıfırlanmış bir Windows veya telefon yeni bir cihaz numarası alır; lisansınızı taşımak için WhatsApp'tan bize yazın. Önce mutlaka yedek alın: Android'de uygulamayı kaldırmak verilerini siler." },
       { q: "Dentora'nın fiyatı nedir?", a: '{price}, tek seferlik ödeme: tüm özellikleri içeren, aboneliksiz, bir cihaz için ömür boyu lisans. Önce 7 gün ücretsiz deneyin; deneme süresi siz etkinleştirmeden biterse hiçbir şey silinmez, yalnızca ekleme ve düzenleme siz etkinleştirene kadar durur.' },
       { q: 'Nasıl yardım alabilirim?', a: 'WhatsApp üzerinden {whatsapp} numarasına yazın{email}; kurulum, etkinleştirme, yedekleme ve kliniğinizi yeni bir cihaza taşıma konusundaki sorularınızı yanıtlayalım.' },
-      { q: 'Hangi dilleri destekliyor?', a: 'Arapça ve İngilizce; ikisi arasında istediğiniz zaman Settings (Ayarlar) bölümünden geçiş yapabilirsiniz. Arapça arayüz tamamen sağdan soladır ve Arapça uyumlu arama içerir; kliniğinizin para birimini ve Arapça ay adlarının nasıl yazılacağını siz seçersiniz.' },
+      { q: 'Dentora hangi dilleri destekliyor?', a: 'Arapça ve İngilizce; ikisi arasında istediğiniz zaman Settings (Ayarlar) bölümünden geçiş yapabilirsiniz. Arapça arayüz tamamen sağdan soladır ve Arapça uyumlu arama içerir; kliniğinizin para birimini ve Arapça ay adlarının nasıl yazılacağını siz seçersiniz.' },
     ],
   },
   cta: {
@@ -210,14 +210,14 @@ export const copy: Copy = {
 export const compare: CompareCopy = {
   meta: {
     title: "2026'nın En İyi İnternetsiz Diş Kliniği Programları: Karşılaştırma | Dentora",
-    description: 'İnternetsiz diş yazılımı, bulut abonelikleri ve sunucu tabanlı masaüstü sistemler: internet, verilerin yeri, fiyatlandırma, platformlar, Arapça ve kurulum.',
+    description: 'İnternetsiz diş kliniği programı, bulut aboneliği, sunucu tabanlı masaüstü sistem: internet, verilerin yeri, fiyatlandırma, platformlar, Arapça, kurulum.',
     h1: "2026'nın En İyi İnternetsiz Diş Kliniği Programları: Karşılaştırma",
   },
   topic: 'İnternet olmadan çalışan diş kliniği yönetim yazılımları',
   crumbs: { label: 'Sayfa yolu', home: 'Dentora', here: 'Karşılaştırma' },
   eyebrow: 'Karşılaştırma',
   intro: [
-    'Kliniğinizin internet olmadan da çalışmaya devam etmesi gerekiyorsa bulutta değil, kendi cihazınızda çalışan bir yazılım seçin. Dentora gibi internetsiz bir uygulama; sunucu, hesap ve abonelik olmadan tek bir Windows bilgisayarda veya Android cihazda çalışır. Bulut sistemleri çalışmak için bağlantıya ihtiyaç duyar; sunucu tabanlı masaüstü sistemler ise veritabanını klinikteki bir sunucuda tutar, ancak bu sistemlerin firmalarının çoğu güncellemeler ve çevrimiçi hizmetler için interneti şart koşar ya da önerir.',
+    'Kliniğinizin internet olmadan da çalışmaya devam etmesi gerekiyorsa bulutta değil, kendi cihazınızda çalışan bir yazılım seçin. Dentora gibi internetsiz bir uygulama, tek bir Windows bilgisayarda veya Android cihazda sunucusuz, hesapsız ve aboneliksiz çalışır. Bulut sistemleri çalışmak için bağlantıya ihtiyaç duyar; sunucu tabanlı masaüstü sistemler ise veritabanını klinikteki bir sunucuda tutar, ancak bu sistemlerin firmalarının çoğu güncellemeler ve çevrimiçi hizmetler için interneti şart koşar ya da önerir.',
     "Aşağıda üç yaklaşımı yan yana, kaynak olarak firmaların kendi sayfalarıyla, seçim için bir kontrol listesiyle ve Dentora'nın kimler için uygun olduğuna, kimler için olmadığına dair dürüst bir notla bulacaksınız.",
   ],
   reviewedLabel: 'Son inceleme: {date}',
@@ -243,7 +243,7 @@ export const compare: CompareCopy = {
     {
       key: 'cloud',
       name: 'Bulut aboneliği (web tabanlı)',
-      summary: 'Yazılım firmanın sunucularında çalışır ve siz onu bir web tarayıcısında kullanırsınız. Verilerinizi firma barındırır, sunucuları ve güncellemeleri firma yürütür ve personel herhangi bir bilgisayardan giriş yapabilir; ancak yazılımın internet bağlantısına ihtiyacı vardır: Curve Dental bunu bir gereksinim olarak listeler, Dentally ise hat kesildiğinde yedek olarak mobil veri kullanılmasını önerir.',
+      summary: 'Yazılım firmanın sunucularında çalışır ve siz onu bir web tarayıcısında kullanırsınız. Verilerinizi firma barındırır, sunucuları ve güncellemeleri firma yürütür ve personel herhangi bir bilgisayardan giriş yapabilir; ancak yazılımın internet bağlantısına ihtiyacı vardır: Curve Dental bunu bir gereksinim olarak listeler, Dentally ise bağlantı kesildiğinde yedek olarak mobil veri kullanılmasını önerir.',
       cells: [
         'Hayır: ikisi de klinik yazılımını çalıştırmak için internet bağlantısı gerektirir.',
         'Firmanın sunucularında (ikisi de Amazon Web Services veri merkezlerini belirtir).',
@@ -257,7 +257,7 @@ export const compare: CompareCopy = {
     {
       key: 'server',
       name: 'Sunucu tabanlı masaüstü sistem',
-      summary: "Klinikte bir veritabanı sunucusu bulunur ve program her iş istasyonuna kurulur; böylece birkaç bilgisayar, kliniğin ağı üzerinden tek bir hasta listesini paylaşır. Veriler klinikte kalır, ancak sunucuyu birinin kurması, bakımını yapması ve yedeklemesi gerekir; firmalar internet konusunda farklıdır: Open Dental yüksek hızlı bağlantıyı bir gereksinim olarak tanımlar, Dentrix önerir, Patterson ise Eaglesoft'un çalışmak için internete ihtiyaç duymadığını belirtir.",
+      summary: "Klinikte bir veritabanı sunucusu bulunur ve program her iş istasyonuna kurulur; böylece birkaç bilgisayar, kliniğin ağı üzerinden tek bir hasta listesini paylaşır. Veriler klinikte kalır, ancak sunucuyu birinin kurması, bakımını yapması ve yedeklemesi gerekir; firmaların internet konusundaki tutumu farklıdır: Open Dental yüksek hızlı bağlantıyı bir gereksinim olarak tanımlar, Dentrix önerir, Patterson ise Eaglesoft'un çalışmak için internete ihtiyaç duymadığını belirtir.",
       cells: [
         "Değişir: Open Dental yüksek hızlı interneti bir gereksinim olarak tanımlar, Dentrix önerir, Eaglesoft'un çalışmak için internete ihtiyacı yoktur.",
         'Klinikteki bir sunucu bilgisayarda; klinik tarafından yönetilir.',
@@ -271,13 +271,13 @@ export const compare: CompareCopy = {
   ],
   examplesLabel: 'Örnekler:',
   listSep: ', ',
-  tableNote: 'Bu sayfa tek tek ürünleri değil, yaklaşımları karşılaştırır. Diğer yazılımlar hakkında söyledikleri, her firmanın inceleme tarihindeki kendi sayfalarından (Kaynaklar bölümünde listelenmiştir) alınmıştır; firmalar ürünlerini değiştirir, bu yüzden karar vermeden önce sitelerini kontrol edin.',
+  tableNote: 'Bu sayfa tek tek ürünleri değil, yaklaşımları karşılaştırır. Sayfada diğer yazılımlar hakkında söylenenler, her firmanın inceleme tarihindeki kendi sayfalarından (Kaynaklar bölümünde listelenmiştir) alınmıştır; firmalar ürünlerini değiştirir, bu yüzden karar vermeden önce sitelerini kontrol edin.',
   choose: {
     title: 'Nasıl seçmeli',
     lead: 'Özellikleri karşılaştırmadan önce şu soruları yanıtlayın:',
     items: [
-      'Kliniğinizdeki internet ne kadar güvenilir? Bulut yazılımı çalışmak için internete ihtiyaç duyar, internetsiz bir uygulama duymaz; sunucu tabanlı bir sistemde ise neyin hâlâ internet gerektirdiğini firmaya sorun.',
-      'Aynı hasta listesine aynı anda kaç bilgisayarın erişmesi gerekiyor? Tek cihaz: internetsiz bir uygulama yeterlidir. Kayıtları paylaşan birkaç iş istasyonu: sunucu tabanlı ya da bulut bir sisteme ihtiyacınız var.',
+      'Kliniğinizdeki internet ne kadar güvenilir? Bulut yazılımı çalışmak için internete ihtiyaç duyar, internetsiz bir uygulamanın ise buna ihtiyacı yoktur; sunucu tabanlı bir sistemde neyin hâlâ internet gerektirdiğini firmaya sorun.',
+      'Aynı hasta listesine aynı anda kaç bilgisayarın erişmesi gerekiyor? Tek cihaz: internetsiz bir uygulama yeterlidir. Kayıtları paylaşan birkaç iş istasyonu: sunucu tabanlı ya da bulut tabanlı bir sisteme ihtiyacınız var.',
       'Verilerle kim ilgilenecek? Veriler kendi cihazınızda veya sunucunuzdaysa yedekleri siz alırsınız (Dentora tek bir dosya kaydeder, isteğe bağlı olarak AES-256 ile şifrelenir). Bulutta ise verilerinizi firma tutar.',
       'Tek ödemeyi mi yoksa aboneliği mi tercih edersiniz? Yalnızca ilk ayı değil, birkaç yıllık toplam maliyeti karşılaştırın.',
       'Ekibiniz hangi dilde çalışıyor? Gerekiyorsa yalnızca web sitesinin değil, arayüzün kendisinin de Arapça olduğundan emin olun.',
@@ -303,30 +303,30 @@ export const compare: CompareCopy = {
       'şubeler genelinde merkezi raporlama gerektiren bir klinik grubu işletiyorsanız',
     ],
   },
-  faqTitle: 'İnternetsiz diş yazılımları hakkında sorular',
+  faqTitle: 'İnternetsiz diş kliniği programları hakkında sorular',
   faq: [
     {
       q: 'İnternetsiz çalışan en iyi diş kliniği programı hangisi?',
       a: "Her klinik için tek bir en iyi yazılım yoktur. Tek bir cihazla çalışan bir klinik için Dentora gibi internetsiz bir uygulama en basit seçenektir: sunucu yok, hesap yok, abonelik yok; veriler cihazda, Windows'ta veya Android'de. Tek bir hasta listesini paylaşan birkaç iş istasyonu için sunucu tabanlı bir masaüstü sistem veritabanını klinikte tutar; neyin hâlâ internet gerektirdiğini firmasına sorun. İnternetsiz çalışmanız gerekiyorsa bulut yazılımı doğru seçim değildir.",
     },
     {
-      q: 'Bulut tabanlı diş yazılımları internetsiz çalışır mı?',
-      a: 'Burada listelenen bulut ürünleri, firmanın sunucularında bir web tarayıcısı üzerinden çalışır ve internet bağlantısı gerektirir: Curve Dental bunu bir gereksinim olarak listeler, Dentally ise hat kesildiğinde yedek olarak mobil veri bağlantısı kullanılmasını önerir. Bağlantınız güvenilir değilse kendi cihazınızda çalışan bir yazılım seçin.',
+      q: 'Bulut tabanlı diş kliniği programları internetsiz çalışır mı?',
+      a: 'Burada listelenen bulut ürünleri, firmanın sunucularında bir web tarayıcısı üzerinden çalışır ve internet bağlantısı gerektirir: Curve Dental bunu bir gereksinim olarak listeler, Dentally ise bağlantı kesildiğinde yedek olarak mobil veri bağlantısı kullanılmasını önerir. Bağlantınız güvenilir değilse kendi cihazınızda çalışan bir yazılım seçin.',
     },
     {
-      q: 'İnternetsiz diş yazılımı hasta verileri için güvenli mi?',
+      q: 'İnternetsiz diş kliniği programı hasta verileri için güvenli mi?',
       a: "Verileri sizin elinizde tutar: hiçbir şey bir firmanın sunucularına gönderilmez. Size düşen, cihazı korumak ve yedek almaktır. Dentora'da her ekip üyesi PIN ile giriş yapar, uygulama boşta kaldığında kendini kilitler ve yedek, AES-256 ile şifreleyip bir USB bellekte ya da kendi bulut depolama alanınızda saklayabileceğiniz tek bir dosyadır.",
     },
     {
-      q: 'Aylık aboneliği olmayan bir diş yazılımı var mı?',
+      q: 'Aylık aboneliği olmayan bir diş hekimi programı var mı?',
       a: "Evet. Dentora'nın fiyatı {price}; bir kez ödenir ve tüm özellikleriyle bir cihaz için ömür boyu lisans sağlar. Bu sayfadaki bulut ve sunucu tabanlı örneklerin tümü yinelenen planlar (abonelikler, destek planları veya üyelikler) listeler; bu yüzden birkaç yıllık toplam maliyeti karşılaştırın.",
     },
     {
       q: "Birkaç bilgisayar Dentora'nın verilerini paylaşabilir mi?",
-      a: 'Hayır. Her lisans bir cihazı etkinleştirir ve her cihaz kendi kayıtlarını tutar: ağ veritabanı ve senkronizasyon yoktur. Tek bir ortak hasta listesinde birkaç iş istasyonuna ihtiyaç duyan bir klinik, sunucu tabanlı ya da bulut bir sisteme bakmalıdır.',
+      a: 'Hayır. Her lisans bir cihazı etkinleştirir ve her cihaz kendi kayıtlarını tutar: ağ veritabanı ve senkronizasyon yoktur. Tek bir ortak hasta listesinde birkaç iş istasyonuna ihtiyaç duyan bir klinik, sunucu tabanlı ya da bulut tabanlı bir sisteme bakmalıdır.',
     },
     {
-      q: 'İnternetsiz çalışan Arapça bir diş yazılımı var mı?',
+      q: 'İnternetsiz çalışan Arapça bir diş kliniği programı var mı?',
       a: "Evet. Dentora'da Arapça uyumlu aramalı, sağdan sola eksiksiz bir Arapça arayüz ve bir İngilizce arayüz bulunur; Windows 10/11 ve Android 7.0 ve üzeri sürümlerde internet olmadan çalışır. Tüm özellikleri kayıt olmadan 7 gün ücretsiz deneyebilirsiniz.",
     },
   ],

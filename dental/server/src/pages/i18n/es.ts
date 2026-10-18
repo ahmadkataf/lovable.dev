@@ -6,7 +6,7 @@ import type { Copy } from '../content'
 
 export const copy: Copy = {
   meta: {
-    title: 'Dentora | Software para clínica dental sin internet, Windows y Android',
+    title: 'Dentora | Software para clínica dental sin internet en Windows y Android',
     description: 'Software para clínica dental sin internet en Windows y Android: pacientes, odontograma, citas y facturas. En árabe e inglés. Pago único y prueba gratis.',
     ogTitle: 'Dentora — toda su clínica dental en una sola aplicación',
     ogLocale: 'es_ES',
@@ -20,7 +20,7 @@ export const copy: Copy = {
   langMenu: 'Idioma',
   summary: {
     title: '¿Qué es Dentora?',
-    text: 'Dentora es un software de gestión para clínicas dentales que funciona totalmente sin internet en Windows 10 y 11 (64 bits) y en Android 7.0 o posterior, con interfaz en árabe e inglés. Reúne las fichas de los pacientes, un odontograma con numeración FDI, las citas con recordatorios por WhatsApp, los planes de tratamiento, las facturas y los informes. Cuesta {price}, en un único pago, por una licencia de por vida para un dispositivo, con una prueba gratuita de 7 días de todas las funciones y sin registro. Solo se necesita internet una vez, para activar la licencia, y todos los datos de la clínica y de los pacientes permanecen en el dispositivo, con copias de seguridad que puede cifrar con AES-256.',
+    text: 'Dentora es un software de gestión para clínicas dentales que funciona totalmente sin internet en Windows 10 y 11 (64 bits) y en Android 7.0 o posterior, con interfaz en árabe e inglés. Reúne las fichas de los pacientes, un odontograma con numeración FDI, las citas con recordatorios por WhatsApp, los planes de tratamiento, las facturas y los informes. Cuesta {price}, en un único pago, por una licencia de por vida para un dispositivo, con una prueba gratuita de 7 días con todas las funciones y sin registro. Solo se necesita internet una vez, para activar la licencia, y todos los datos de la clínica y de los pacientes permanecen en el dispositivo, con copias de seguridad que puede cifrar con AES-256.',
     appLang: 'Por ahora, la interfaz de la aplicación está disponible en árabe e inglés.',
   },
   whatsapp: { short: 'WhatsApp', header: 'Escríbanos por WhatsApp' },
@@ -69,7 +69,7 @@ export const copy: Copy = {
       { icon: 'chartColumn', title: 'Informes', text: 'Ingresos, gastos y ganancias por odontólogo, procedimiento y método de pago, además de la tasa de inasistencia y los saldos pendientes, con exportación a CSV.' },
       {
         icon: 'userCog', title: 'Personal y permisos',
-        text: 'Cada miembro del personal tiene un rol y unos permisos, inicia sesión con un PIN cada vez que se abre la aplicación, y la aplicación se bloquea sola cuando queda inactiva.',
+        text: 'Cada miembro del personal tiene un rol y unos permisos, inicia sesión con un PIN cada vez que abre la aplicación, y esta se bloquea sola cuando queda inactiva.',
         chips: [{ label: 'Administrador' }, { label: 'Odontólogo' }, { label: 'Asistente' }, { label: 'Recepción' }],
       },
       {
@@ -106,7 +106,7 @@ export const copy: Copy = {
       { key: 'patient', title: 'Fichas completas y alertas médicas claras', text: 'Alergias y enfermedades a la vista antes de cualquier procedimiento', alt: 'Una ficha de paciente en Dentora en un teléfono, con una alerta de alergia' },
       { key: 'treatments', title: 'Planes de tratamiento, paso a paso', text: 'Convierta el trabajo realizado en una factura con un toque', alt: 'Un plan de tratamiento en Dentora en un teléfono, con el estado y el precio de cada procedimiento' },
       { key: 'invoice', title: 'Facturas impecables, listas para imprimir', text: 'Pagos parciales, saldos y recibos numerados', alt: 'Una factura en Dentora en un teléfono, con lo pagado y el saldo pendiente' },
-      { key: 'reports', title: 'Informes que explican su clínica', text: 'Ingresos, gastos y ganancias por odontólogo y procedimiento', alt: 'El informe de ingresos diarios y métodos de pago en Dentora en un teléfono' },
+      { key: 'reports', title: 'Informes para entender su clínica', text: 'Ingresos, gastos y ganancias por odontólogo y procedimiento', alt: 'El informe de ingresos diarios y métodos de pago en Dentora en un teléfono' },
     ],
   },
   steps: {
@@ -151,7 +151,7 @@ export const copy: Copy = {
     android: {
       name: 'Android', for: 'Para teléfonos y tabletas', req: 'Android 7.0 o posterior', btn: 'Descargar APK',
       meta: 'Versión {version} · {size}',
-      note: 'Al abrir el archivo, es posible que su teléfono le pida permitir la instalación de aplicaciones de este origen.',
+      note: 'Al abrir el archivo, es posible que su teléfono le pida permitir la instalación de aplicaciones de esta fuente.',
       requestText: 'Le enviaremos el instalador directamente por WhatsApp.', requestBtn: 'Solicitar la app para Android',
     },
     windows: {
@@ -173,16 +173,16 @@ export const copy: Copy = {
     compareLink: 'Comparación de software para clínicas dentales',
     learn: { text: 'O aprenda a usar la aplicación a su ritmo, con imágenes o en video:', guide: 'Guía de uso', videos: 'Curso en video' },
     items: [
-      { q: '¿Cuál es el mejor software para clínica dental que funciona sin internet?', a: 'Depende de su clínica, pero para trabajar sin internet, elija un software que guarde los datos en su propio equipo o teléfono y que no necesite servidor. Dentora está pensado para eso: funciona totalmente sin conexión en Windows 10 y 11 y en Android 7.0 o posterior, guarda todas las fichas de los pacientes en el dispositivo e incluye el odontograma, las citas, los planes de tratamiento, las facturas y los informes. Pruebe todas sus funciones gratis durante 7 días, o lea nuestra comparación entre el software dental sin internet, en la nube y basado en servidor: {compare}.' },
+      { q: '¿Cuál es el mejor software para clínica dental que funcione sin internet?', a: 'Depende de su clínica, pero para trabajar sin internet, elija un software que guarde los datos en su propio equipo o teléfono y que no necesite servidor. Dentora está pensado para eso: funciona totalmente sin conexión en Windows 10 y 11 y en Android 7.0 o posterior, guarda todas las fichas de los pacientes en el dispositivo e incluye el odontograma, las citas, los planes de tratamiento, las facturas y los informes. Pruebe todas sus funciones gratis durante 7 días, o lea nuestra comparación entre el software dental sin internet, en la nube y basado en servidor: {compare}.' },
       { q: '¿Dentora necesita internet?', a: 'No. Dentora funciona totalmente sin conexión en su equipo o teléfono. Necesita internet para descargarlo, y una vez para activar su clave de licencia. Si el dispositivo de la clínica no está conectado, active la clave desde cualquier otro dispositivo en {activate} y luego pegue en Dentora, sin conexión, el código de activación que obtenga.' },
       { q: '¿Cómo activo Dentora después de comprarlo?', a: 'Una vez realizado el pago, recibirá una clave de licencia de 16 caracteres. Abra Dentora → Settings → Licence (Ajustes → Licencia), pegue la clave y pulse «Activate» (Activar) con el dispositivo conectado a internet. O bien abra {activate} en cualquier dispositivo, escriba el número de su dispositivo (que aparece en esa misma pantalla) y la clave, y luego pegue en Dentora el código de activación que obtenga. Solo tiene que hacerlo una vez.' },
       { q: '¿Existe un software dental de pago único y sin suscripción?', a: 'Sí. Dentora cuesta {price}, en un único pago, por una licencia de por vida para un dispositivo con todas las funciones: sin suscripción mensual ni anual. El software dental en la nube suele venderse con una suscripción mensual. Puede probar Dentora gratis durante 7 días antes de pagar.' },
-      { q: '¿Existe un software para clínica dental en árabe para Android y Windows?', a: 'Sí. Dentora tiene una interfaz completa en árabe, de derecha a izquierda y con búsqueda adaptada al árabe, y otra en inglés a la que puede cambiar en cualquier momento. Funciona sin internet en equipos con Windows 10 y 11 (64 bits) y en teléfonos y tabletas con Android 7.0 o posterior.' },
+      { q: '¿Existe un software dental en árabe para Android y Windows?', a: 'Sí. Dentora tiene una interfaz completa en árabe, de derecha a izquierda y con búsqueda adaptada al árabe, y otra en inglés a la que puede cambiar en cualquier momento. Funciona sin internet en equipos con Windows 10 y 11 (64 bits) y en teléfonos y tabletas con Android 7.0 o posterior.' },
       { q: '¿Los datos de los pacientes son privados? ¿Dónde se guardan?', a: 'Solo en su dispositivo. No hay cuenta ni sincronización en la nube, así que nunca recibimos ni vemos los datos de su clínica ni de sus pacientes, y la aplicación no tiene anuncios ni rastreo. Cada miembro del personal inicia sesión con su propio PIN, y las copias de seguridad se pueden proteger con contraseña (cifrado AES-256). El único contacto con nuestro servidor es la activación de su clave, una sola vez, y solo envía la clave y el número del dispositivo.' },
       { q: '¿En qué se diferencia Dentora del software dental en la nube?', a: 'El software dental en la nube funciona en un navegador web y guarda sus datos en los servidores del proveedor, por lo que necesita conexión a internet para funcionar, y suele pagarse cada mes. Dentora se instala en su propio equipo o teléfono, funciona sin internet, guarda todos los datos en ese dispositivo y se paga una sola vez. Las contrapartidas: no hay sincronización entre dispositivos, cada dispositivo necesita su propia licencia y las copias de seguridad quedan en sus manos (integradas en la aplicación: un solo archivo, con contraseña AES-256 opcional). Comparación completa: {compare}.' },
       { q: '¿Puedo usar Dentora en varios dispositivos?', a: 'Sí, con una licencia por dispositivo: cada licencia activa un equipo o un teléfono, así que cada dispositivo adicional necesita su propia licencia. Como Dentora no sincroniza por internet, cada dispositivo conserva sus propios registros y los dispositivos no se sincronizan entre sí.' },
       { q: '¿Cómo hago una copia de seguridad de mis datos?', a: 'En Settings → Backup & data (Ajustes → Copia de seguridad y datos), guarde una copia de seguridad completa en un solo archivo donde quiera: una memoria USB, Google Drive o su correo electrónico. Puede protegerla con contraseña (cifrado AES-256) y restaurarla en el mismo dispositivo o en uno nuevo.' },
-      { q: '¿Puedo trasladar mi licencia a otro dispositivo?', a: 'Una clave funciona en un solo dispositivo: queda vinculada al número del dispositivo en el que se activó por primera vez. Actualizar o reinstalar Dentora en el mismo dispositivo conserva el mismo número de dispositivo, así que su código sigue funcionando, y su clave le vuelve a dar el mismo código si lo necesita. Un dispositivo nuevo, o un Windows o un teléfono restablecidos, reciben un número de dispositivo nuevo; en ese caso, escríbanos por WhatsApp para trasladar su licencia. Guarde siempre antes una copia de seguridad: al desinstalar la aplicación en Android se borran sus datos.' },
+      { q: '¿Puedo trasladar mi licencia a otro dispositivo?', a: 'Una clave funciona en un solo dispositivo: queda vinculada al número del dispositivo en el que se activó por primera vez. Actualizar o reinstalar Dentora en el mismo dispositivo conserva el mismo número de dispositivo, así que su código sigue funcionando, y su clave le vuelve a dar el mismo código si lo necesita. Un dispositivo nuevo, o un Windows o un teléfono restablecidos, reciben un número de dispositivo nuevo; en ese caso, escríbanos por WhatsApp sobre el traslado de su licencia. Haga siempre antes una copia de seguridad: al desinstalar la aplicación en Android se borran sus datos.' },
       { q: '¿Cuánto cuesta Dentora?', a: '{price}, en un único pago, por una licencia de por vida para un dispositivo, con todas las funciones y sin suscripción. Pruébelo primero gratis durante 7 días; si la prueba termina antes de que lo active, no se borra nada, y solo se suspende la posibilidad de añadir y editar hasta que lo active.' },
       { q: '¿Cómo obtengo ayuda?', a: 'Escríbanos por WhatsApp al {whatsapp}{email} y responderemos a sus preguntas sobre la instalación, la activación, las copias de seguridad y el traslado de su clínica a un dispositivo nuevo.' },
       { q: '¿Qué idiomas admite la aplicación?', a: 'Árabe e inglés, y puede cambiar de uno a otro en cualquier momento en Settings (Ajustes). La interfaz en árabe es completamente de derecha a izquierda, con búsqueda adaptada al árabe, y usted elige la moneda de su clínica y cómo se escriben los nombres de los meses en árabe.' },
@@ -210,7 +210,7 @@ export const copy: Copy = {
 export const compare: CompareCopy = {
   meta: {
     title: 'Mejor software para clínica dental sin internet en 2026: comparación | Dentora',
-    description: 'Software dental sin internet frente a suscripción en la nube y escritorio con servidor: internet, datos, modelo de pago, plataformas, árabe e instalación.',
+    description: 'Software dental sin internet, suscripción en la nube o sistema con servidor: internet, datos, modelo de pago, plataformas, árabe e instalación.',
     h1: 'Mejor software para clínica dental sin internet en 2026: comparación',
   },
   topic: 'Software de gestión para clínicas dentales que funciona sin internet',
@@ -306,7 +306,7 @@ export const compare: CompareCopy = {
   faqTitle: 'Preguntas sobre el software dental sin internet',
   faq: [
     {
-      q: '¿Cuál es el mejor software para clínica dental que funciona sin internet?',
+      q: '¿Cuál es el mejor software para clínica dental que funcione sin internet?',
       a: 'No hay uno que sea el mejor para todas las clínicas. Para una clínica que trabaja con un solo dispositivo, una aplicación sin conexión como Dentora es lo más sencillo: sin servidor, sin cuenta, sin suscripción, con los datos en el dispositivo, en Windows o Android. Para varios puestos de trabajo que comparten una misma lista de pacientes, un sistema de escritorio basado en servidor mantiene la base de datos en la clínica; pregunte a su proveedor qué sigue necesitando internet. El software en la nube no es la opción adecuada si necesita trabajar sin conexión.',
     },
     {

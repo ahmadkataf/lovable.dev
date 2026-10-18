@@ -8,7 +8,7 @@ import type { Lang } from './types'
 export type SiteLang = Lang | 'fr' | 'es' | 'pt' | 'tr' | 'id' | 'ur'
 
 /** Every language with published pages, in the order of the language menu (Arabic first, the site's home). */
-export const SITE_LANGS: readonly SiteLang[] = ['ar', 'en']
+export const SITE_LANGS: readonly SiteLang[] = ['ar', 'en', 'fr', 'es', 'pt', 'tr', 'id', 'ur']
 
 /** All languages the code knows (the ones not in SITE_LANGS yet have no pages). */
 export const ALL_SITE_LANGS: readonly SiteLang[] = ['ar', 'en', 'fr', 'es', 'pt', 'tr', 'id', 'ur']
