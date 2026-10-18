@@ -18,6 +18,10 @@ const topic: GuideTopic = {
     ar: 'سجّل التسوس والحشوات والتيجان وكل حالة على السن أو على أسطحه، بنقرة أو بالرسم السريع، واحتفظ بسجل كامل لكل تغيير، واطبع المخطط حين تحتاجه.',
     en: 'Record caries, fillings, crowns and every other finding on a tooth or its surfaces, with a click or with quick paint; keep a full history of every change, and print the chart when you need it.',
   },
+  metaDescription: {
+    ar: 'سجّل التسوس والحشوات والتيجان وكل حالة على السن أو على أسطحه، بنقرة أو بالرسم السريع، واحتفظ بسجل كامل لكل تغيير، واطبع المخطط حين تحتاجه.',
+    en: 'Record caries, fillings, crowns and other findings on each tooth and surface, by click or quick paint; keep every change and print the chart.',
+  },
   blocks: [
     {
       id: 'overview',

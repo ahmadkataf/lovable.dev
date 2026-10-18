@@ -18,6 +18,10 @@ const topic: GuideTopic = {
     ar: 'أضف أطباءك ومساعديك وموظفي الاستقبال، ولكلٍّ منهم رمز دخول ودور يحدد ما يراه. واعرف كيف يقفل البرنامج نفسه، وما الحل إن نسي أحدكم رمزه.',
     en: 'Add your doctors, assistants and receptionists, each with their own PIN and a role that decides what they see. See how the screen locks itself, and what to do when someone forgets their PIN.',
   },
+  metaDescription: {
+    ar: 'أضف أطباءك ومساعديك وموظفي الاستقبال، ولكلٍّ منهم رمز دخول ودور يحدد ما يراه. واعرف كيف يقفل البرنامج نفسه، وما الحل إن نسي أحدكم رمزه.',
+    en: 'Add doctors, assistants and receptionists, each with a PIN and a role that sets what they see; how the screen locks, and what to do about a forgotten PIN.',
+  },
   blocks: [
     {
       id: 'overview',

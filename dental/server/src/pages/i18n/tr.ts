@@ -41,7 +41,7 @@ export const copy: Copy = {
   },
   trust: {
     label: 'Neden Dentora',
-    items: ['İnternetsiz çalışır', 'Arapça ve İngilizce', 'Windows ve Android', 'Verileriniz cihazınızda kalır', 'Şifreli yedekler'],
+    items: ['İnternetsiz çalışır', 'Arapça ve İngilizce', 'Windows ve Android', 'Verileriniz cihazınızda kalır', 'Şifrelenebilir yedekler'],
   },
   features: {
     eyebrow: 'Özellikler',
@@ -65,15 +65,15 @@ export const copy: Copy = {
       { icon: 'clipboardList', title: 'Tedaviler ve planlar', text: 'Düzenlenebilir bir işlem ve fiyat listesi, her hasta için diş ve yüzey bazında tedavi planı ve yazdırılabilir fiyat teklifleri.' },
       { icon: 'receipt', title: 'Faturalar, ödemeler ve makbuzlar', text: 'Tamamlanan işi tek dokunuşla faturaya dönüştürün. Kısmi ödemeler, hasta bakiyeleri, numaralı makbuzlar ve hesap ekstreleri, kliniğinizin logosuyla.' },
       { icon: 'pill', title: 'Reçeteler ve laboratuvar', text: "Hazır ilaç listesinden yazılan, yazdırılabilen ya da WhatsApp'tan paylaşılabilen reçeteler; durum ve teslim tarihi takibiyle laboratuvar siparişleri." },
-      { icon: 'package', title: 'Stok ve giderler', text: 'Azalan stok ve son kullanma tarihi uyarılarıyla stok seviyeleri; önceki dönemle karşılaştırmalı, kategoriye göre giderler.' },
-      { icon: 'chartColumn', title: 'Raporlar', text: 'Hekime, işleme ve ödeme yöntemine göre gelir, gider ve kâr; ayrıca randevuya gelmeme oranı ve açık bakiyeler, CSV dışa aktarımıyla.' },
+      { icon: 'package', title: 'Stok ve giderler', text: 'Azalan stok ve son kullanma tarihi uyarılarıyla stok seviyeleri; kategoriye göre giderler ve önceki dönemle karşılaştırılan toplam gider.' },
+      { icon: 'chartColumn', title: 'Raporlar', text: 'Hekime, işleme ve ödeme yöntemine göre gelir; ayrıca gider ve net kâr, randevuya gelmeme oranı ve açık bakiyeler, CSV dışa aktarımıyla.' },
       {
         icon: 'userCog', title: 'Personel ve yetkiler',
         text: 'Her ekip üyesine bir rol ve yetkiler verilir; her açılışta PIN ile giriş yapılır ve uygulama boşta kaldığında kendini kilitler.',
         chips: [{ label: 'Yönetici' }, { label: 'Hekim' }, { label: 'Asistan' }, { label: 'Resepsiyon' }],
       },
       {
-        icon: 'databaseBackup', title: 'Şifreli yedekleme',
+        icon: 'databaseBackup', title: 'İsteğe bağlı şifrelemeli yedekleme',
         text: 'Tüm kliniğiniz, dilediğiniz yerde saklayacağınız tek bir dosyada; kaydettikten sonra doğrulanır, isterseniz parolayla korunur ve geri yüklemeye ya da yeni bir cihaza taşımaya hazırdır.',
         chips: [{ label: 'Tek dosya' }, { label: 'AES-256' }, { label: 'Tam geri yükleme' }],
       },
@@ -106,7 +106,7 @@ export const copy: Copy = {
       { key: 'patient', title: 'Eksiksiz hasta dosyaları, açık tıbbi uyarılar', text: 'Her işlemden önce alerjiler ve hastalıklar gözünüzün önünde', alt: "Telefonda Dentora'da alerji uyarısı içeren bir hasta dosyası" },
       { key: 'treatments', title: 'Adım adım tedavi planları', text: 'Tamamlanan işi tek dokunuşla faturaya dönüştürün', alt: "Telefonda Dentora'da her işlemin durumu ve fiyatıyla bir tedavi planı" },
       { key: 'invoice', title: 'Yazdırmaya hazır, şık faturalar', text: 'Kısmi ödemeler, bakiyeler ve numaralı makbuzlar', alt: "Telefonda Dentora'da ödenen tutar ve kalan bakiyeyle bir fatura" },
-      { key: 'reports', title: 'Kliniğinizi anlatan raporlar', text: 'Hekime ve işleme göre gelir, gider ve kâr', alt: "Telefonda Dentora'da günlük gelir ve ödeme yöntemleri raporu" },
+      { key: 'reports', title: 'Kliniğinizi anlatan raporlar', text: 'Hekime ve işleme göre gelir, ayrıca gider ve kâr', alt: "Telefonda Dentora'da günlük gelir ve ödeme yöntemleri raporu" },
     ],
   },
   steps: {
@@ -250,19 +250,19 @@ export const compare: CompareCopy = {
         'Aylık abonelik (Curve Dental fiyat teklifine göre; Dentally pakete ve tedavi odası sayısına göre).',
         "Windows veya Mac üzerinde bir web tarayıcısı; Curve Dental ayrıca Chromebook'ları, Dentally ise iPad'leri de listeler.",
         'İki firmanın sitesinde de belirtilmiyor; bu firmalar İngilizce konuşulan ülkelere hizmet veriyor.',
-        'Ana program için kurulacak bir şey yok; başlangıç sürecini, veri aktarımını ve eğitimi firma yürütür.',
+        'Ana program için kurulacak bir şey yok; başlangıç sürecini, veri aktarımını ve eğitimi Curve Dental yürütür.',
       ],
       examples: [CURVE, DENTALLY],
     },
     {
       key: 'server',
       name: 'Sunucu tabanlı masaüstü sistem',
-      summary: "Klinikte bir veritabanı sunucusu bulunur ve program her iş istasyonuna kurulur; böylece birkaç bilgisayar, kliniğin ağı üzerinden tek bir hasta listesini paylaşır. Veriler klinikte kalır, ancak sunucuyu birinin kurması, bakımını yapması ve yedeklemesi gerekir; firmaların internet konusundaki tutumu farklıdır: Open Dental yüksek hızlı bağlantıyı bir gereksinim olarak tanımlar, Dentrix önerir, Patterson ise Eaglesoft'un çalışmak için internete ihtiyaç duymadığını belirtir.",
+      summary: "Klinikte bir veritabanı sunucusu bulunur ve program her iş istasyonuna kurulur; böylece birkaç bilgisayar, kliniğin ağı üzerinden tek bir hasta listesini paylaşır. Veriler klinikte kalır, ancak sunucuyu birinin kurması, bakımını yapması ve yedeklemesi gerekir; firmaların internet konusundaki tutumu farklıdır: Open Dental yüksek hızlı bağlantıyı destek ve güncellemeler için bir gereksinim olarak tanımlar, Dentrix güncellemeler ve hizmetler için önerir, Patterson ise Eaglesoft'un çalışmak için internete ihtiyaç duymadığını belirtir.",
       cells: [
-        "Değişir: Open Dental yüksek hızlı interneti bir gereksinim olarak tanımlar, Dentrix önerir, Eaglesoft'un çalışmak için internete ihtiyacı yoktur.",
+        "Değişir: Open Dental yüksek hızlı interneti destek ve güncellemeler için bir gereksinim olarak tanımlar, Dentrix güncellemeler ve hizmetler için önerir, Eaglesoft'un çalışmak için internete ihtiyacı yoktur.",
         'Klinikteki bir sunucu bilgisayarda; klinik tarafından yönetilir.',
-        'Yinelenen ödeme: aylık lisans ve destek ücreti (Open Dental), yıllık destek planıyla birlikte lisans (Dentrix), üyelik planı (Eaglesoft).',
-        'Yalnızca Windows: bir Windows sunucu ve Windows iş istasyonları.',
+        'Yinelenen ödeme: aylık lisans ve destek ücreti (Open Dental, gelişmekte olan ülkelerde sınırlı destekle ücretsiz), yıllık destek planıyla birlikte lisans (Dentrix), üyelik planı (Eaglesoft).',
+        'Windows iş istasyonları ve bir Windows sunucu (Open Dental sunucusu Linux veya macOS üzerinde de çalışabilir).',
         'Sunulmuyor: Open Dental yalnızca İspanyolca ve Fransızca çeviri dosyaları sağlar; Dentrix ve Eaglesoft yalnızca İngilizceden söz eder.',
         'Bir sunucu, bir ağ ve her iş istasyonuna kurulum; firmalar bir ağ ya da BT uzmanıyla çalışmayı önerir.',
       ],
@@ -319,7 +319,7 @@ export const compare: CompareCopy = {
     },
     {
       q: 'Aylık aboneliği olmayan bir diş hekimi programı var mı?',
-      a: "Evet. Dentora'nın fiyatı {price}; bir kez ödenir ve tüm özellikleriyle bir cihaz için ömür boyu lisans sağlar. Bu sayfadaki bulut ve sunucu tabanlı örneklerin tümü yinelenen planlar (abonelikler, destek planları veya üyelikler) listeler; bu yüzden birkaç yıllık toplam maliyeti karşılaştırın.",
+      a: "Evet. Dentora'nın fiyatı {price}; bir kez ödenir ve tüm özellikleriyle bir cihaz için ömür boyu lisans sağlar. Bu sayfadaki bulut ve sunucu tabanlı örnekler yinelenen planlar (abonelikler, destek planları veya üyelikler) listeler; Open Dental ayrıca gelişmekte olan ülkeler için sınırlı destekli ücretsiz bir seçenek listeler. Birkaç yıllık toplam maliyeti karşılaştırın.",
     },
     {
       q: "Birkaç bilgisayar Dentora'nın verilerini paylaşabilir mi?",

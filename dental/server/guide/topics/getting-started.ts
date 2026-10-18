@@ -71,14 +71,14 @@ const topic: GuideTopic = {
       tips: {
         ar: [
           "للتحديث إلى إصدار أحدث: خذ نسخة احتياطية أولاً، ثم شغّل برنامج التثبيت الجديد فوق القديم. تبقى بياناتك كما هي.",
-          "إلغاء التثبيت من إعدادات ويندوز يحذف البرنامج فقط، ولا يحذف بيانات العيادة.",
+          "إلغاء تثبيت النسخة المنزَّلة من الموقع من إعدادات ويندوز يحذف البرنامج فقط، ولا يحذف بيانات العيادة. أما نسخة متجر Microsoft فإلغاء تثبيتها يحذف بياناتها أيضاً، فخذ نسخة احتياطية قبله.",
           "تُحفظ البيانات داخل حساب مستخدم ويندوز. إن فتح أحدٌ Dentora بحساب ويندوز آخر فسيرى عيادة فارغة، فاستخدموا حساب ويندوز واحداً على حاسوب العيادة.",
           "إن فتحت Dentora وهو مفتوح أصلاً، تظهر لك النافذة نفسها ولا تُفتح نسخة ثانية. ويتذكر البرنامج حجم النافذة ومكانها.",
           "إن منع ويندوز تشغيل الملف تماماً دون زر «تشغيل على أي حال»، فلا توقف حماية ويندوز، وراسل البائع على واتساب.",
         ],
         en: [
           "To update to a newer version: take a backup first, then run the new installer over the old one. Your data stays as it is.",
-          "Uninstalling from Windows settings removes the program only, never the clinic’s data.",
+          "Uninstalling the version from the website, in Windows settings, removes the program only, never the clinic’s data. The Microsoft Store version is different: uninstalling it erases its data too, so take a backup first.",
           "The data lives inside your Windows user account. Someone who opens Dentora under another Windows account sees an empty clinic, so use one Windows account on the clinic computer.",
           "Opening Dentora while it is already open brings up the same window instead of a second copy. The window keeps its size and position between sessions.",
           "If Windows blocks the file completely, with no “Run anyway” button, do not turn Windows security off: message the seller on WhatsApp.",

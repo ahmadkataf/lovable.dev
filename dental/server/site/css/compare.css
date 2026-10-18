@@ -1,6 +1,7 @@
-/* The comparison page (/compare, /en/compare). Builds on site.css and landing.css (header, footer, sections, FAQ,
-   call to action). The table is a real table from 900 px; below that every row is a card whose cells carry their
-   column's name (data-label), so nothing scrolls sideways on a phone. */
+/* The comparison page (/compare, /en/compare…). Builds on site.css and landing.css (header, footer, sections, FAQ,
+   call to action). The table is a real table from 1024 px; below that every row is a card whose cells carry their
+   column's name (data-label), so nothing scrolls sideways on a phone. The table needs about 1024 px in the longer
+   languages, so it starts at 1024; should a longer translation ever exceed it, the table scrolls in its frame. */
 
 .cmp-hero { padding-block: clamp(36px, 5vw, 64px) clamp(8px, 2vw, 16px); background: linear-gradient(180deg, var(--bg-mint), #fff); }
 .cmp-hero-inner { max-width: 880px; }
@@ -23,7 +24,7 @@
 
 /* ---- the table ---- */
 .cmp-table-section { padding-top: clamp(40px, 5vw, 64px); }
-.cmp-table-wrap { border: 1px solid var(--line); border-radius: var(--r-lg); background: #fff; box-shadow: var(--sh-md); overflow: hidden; }
+.cmp-table-wrap { border: 1px solid var(--line); border-radius: var(--r-lg); background: #fff; box-shadow: var(--sh-md); overflow-x: auto; }
 .cmp-table { width: 100%; border-collapse: collapse; font-size: .9375rem; line-height: 1.55; }
 .cmp-table thead th { background: var(--teal-900); color: #fff; font-weight: 650; text-align: start; padding: 14px 14px; vertical-align: bottom; }
 .cmp-table tbody th, .cmp-table td { padding: 16px 14px; text-align: start; vertical-align: top; border-top: 1px solid var(--line); color: var(--ink-2); }
@@ -33,7 +34,7 @@
 .cmp-examples { margin-top: 8px; font-weight: 500; font-size: .875rem; color: var(--ink-3); }
 .cmp-examples a { color: var(--teal-800); font-weight: 600; }
 
-@media (max-width: 899px) {
+@media (max-width: 1023px) {
   .cmp-table-wrap { border: 0; background: none; box-shadow: none; overflow: visible; }
   .cmp-table, .cmp-table tbody, .cmp-table tr, .cmp-table th, .cmp-table td { display: block; width: 100%; }
   .cmp-table thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }

@@ -12,7 +12,10 @@ export const SELLER = {
    *   APK opened from a file) shows it: only a positive "installed by Google Play" hides it.
    * 'always' / 'never'.
    */
-  showPurchaseInfo: 'outside-play' as 'outside-play' | 'always' | 'never',
+  // The Google Play build (VITE_DISTRIBUTION=play, scripts/build-play.sh) never shows it, whatever the phone reports:
+  // Google's own test devices install apps without an installer name, so a runtime check alone would show them the
+  // price. The other builds keep the runtime check.
+  showPurchaseInfo: (import.meta.env.VITE_DISTRIBUTION === 'play' ? 'never' : 'outside-play') as 'outside-play' | 'always' | 'never',
   name: 'Dentora',
   /** International format, with the country code. */
   whatsapp: '+963 996 489 504',

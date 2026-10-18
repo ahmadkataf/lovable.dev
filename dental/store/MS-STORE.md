@@ -18,12 +18,21 @@ Everything to submit Dentora for Windows to the Microsoft Store from Partner Cen
 | Version | `1.1.0.0` (the fourth number is the Store's and stays 0) | |
 | Architecture | x64 | |
 | Minimum Windows | Windows 10 version 2004 (build 19041) and Windows 11 | |
-| Payments | **Free** app; the licence is sold outside the Store | Policy 10.8.1: only games and Xbox products must use Microsoft's in-app purchase; a non-game app may sell through its own channel (WhatsApp, the website) and show that in the app. / التطبيقات غير الألعاب يُسمح لها بالبيع خارج المتجر |
+| Payments | **Free** app; the licence is sold outside the Store | Policy 10.8.1 (version 7.20): only games and products on Xbox must use Microsoft's in-product purchase API, and only they may not point users to another way to pay. Non-game products on PC may use a secure third-party purchase API or Microsoft's. Dentora takes no payment inside the app: the licence is bought from the developer (WhatsApp, the website) and entered in the app, which shows the price and how to get it. 10.8.2 is about physical goods, donations and gambling, so it does not apply. / الدفع داخل التطبيق عبر متجر Microsoft إلزامي للألعاب ومنتجات Xbox فقط؛ وDentora لا يقبض أي دفعة داخل البرنامج |
 
 **Data on uninstall / البيانات عند الإزالة:** a Store (MSIX) app keeps its AppData in its own package folder, and Windows
-deletes that folder when the app is uninstalled. The listing says so; clinics must save a backup (Settings → Backup &
-data) before uninstalling, exactly as on Android. A clinic moving from the website installer to the Store version moves
-its data with a backup file. / تطبيق المتجر يحفظ بياناته في مجلد الحزمة ويحذفه ويندوز عند الإزالة: احفظ نسخة احتياطية أولاً.
+deletes that folder when the app is uninstalled, the activation included. The listing, the guide and the privacy policy
+say so; clinics must save a backup (Settings → Backup & data) before uninstalling, exactly as on Android. After
+reinstalling they restore the backup and enter the licence key again (it gives the same code) or paste the code again:
+the device number comes from Windows (MachineGuid), so it does not change. A clinic moving from the website installer to
+the Store version moves its data with a backup file. / تطبيق المتجر يحفظ بياناته وتفعيله في مجلد الحزمة ويحذفه ويندوز عند
+الإزالة: احفظ نسخة احتياطية أولاً، وبعد إعادة التثبيت استعدها وأدخل المفتاح أو الرمز من جديد.
+
+**Windows in S mode / ويندوز في وضع S:** S mode runs only Store apps and blocks `reg.exe`, which Dentora uses to read the
+device number. There Dentora falls back to a random device number kept in its data folder, so it works, but uninstalling
+the Store version deletes that number with the data: after a reinstall the device number is new, the old code does not
+work and the key is refused as used on another device. Move the licence as for a new device. / في وضع S يكون رقم الجهاز
+عشوائياً محفوظاً مع البيانات، فإعادة تثبيت نسخة المتجر تعطي رقماً جديداً: يُنقل الترخيص كما لجهاز جديد.
 
 ---
 
@@ -72,7 +81,7 @@ And more
 • Prescriptions with a ready drug list.
 • Lab orders with status and due-date tracking.
 • Stock with low-stock and expiry alerts, and expenses by category.
-• Reports on revenue, expenses and profit by doctor, procedure and payment method, with CSV export.
+• Reports: revenue by doctor, procedure and payment method, expenses and net profit, plus no-show rate and outstanding balances, with CSV export.
 • Team roles and permissions (admin, doctor, assistant, reception), PIN sign-in and automatic lock.
 
 Privacy first
@@ -83,9 +92,9 @@ Privacy first
 
 Trial and licence
 • Dentora runs with every feature for a 7-day trial, with no sign-up.
-• After the trial, a licence is required to keep adding and editing records: one payment for a lifetime licence on one device, from the developer (Settings → Licence shows how to get it).
+• After the trial, a licence is required to keep adding and editing records: one payment of US$59 for a lifetime licence on one device, from the developer (Settings → Licence shows how to get it).
 • Without a licence, all data stays available to view, print and back up; nothing is deleted.
-• Uninstalling the app removes its data from this computer: save a backup first (Settings → Backup & data).
+• Uninstalling the app removes its data and its activation from this computer: save a backup first (Settings → Backup & data), and after reinstalling restore it and enter your licence key or code again.
 
 Dentora is also available for Android phones and tablets.
 
@@ -185,7 +194,7 @@ Dentora نظام متكامل لإدارة عيادة الأسنان، بواج�
 • الوصفات الطبية مع قاعدة أدوية جاهزة.
 • طلبات المخبر ومتابعة حالتها ومواعيد التسليم.
 • المخزون مع تنبيهات النقص وانتهاء الصلاحية، والمصروفات حسب الفئة.
-• تقارير الإيرادات والمصروفات والربح حسب الطبيب والإجراء وطريقة الدفع، مع تصدير CSV.
+• تقارير: الإيرادات حسب الطبيب والإجراء وطريقة الدفع، والمصروفات وصافي الربح، ونسبة عدم الحضور والذمم المستحقة، مع تصدير CSV.
 • فريق بأدوار وصلاحيات: مدير، طبيب، مساعد، استقبال، ودخول برمز PIN وقفل تلقائي.
 
 خصوصيتك أولاً
@@ -196,9 +205,9 @@ Dentora نظام متكامل لإدارة عيادة الأسنان، بواج�
 
 التجربة والترخيص
 • يعمل Dentora بكل مزاياه 7 أيام للتجربة، دون تسجيل.
-• بعد التجربة يلزم ترخيص لمتابعة إضافة السجلات وتعديلها: دفعة واحدة لترخيص مدى الحياة على جهاز واحد، من المطوّر (تشرح الإعدادات ← الترخيص طريقة الحصول عليه).
+• بعد التجربة يلزم ترخيص لمتابعة إضافة السجلات وتعديلها: دفعة واحدة قدرها 59 دولاراً أمريكياً لترخيص مدى الحياة على جهاز واحد، من المطوّر (تشرح الإعدادات ← الترخيص طريقة الحصول عليه).
 • من دون ترخيص تبقى كل البيانات متاحة للعرض والطباعة والنسخ الاحتياطي، ولا يُحذف شيء.
-• إزالة البرنامج تحذف بياناته من هذا الحاسوب: احفظ نسخة احتياطية أولاً (الإعدادات ← النسخ الاحتياطي والبيانات).
+• إزالة البرنامج تحذف بياناته وتفعيله من هذا الحاسوب: احفظ نسخة احتياطية أولاً (الإعدادات ← النسخ الاحتياطي)، وبعد إعادة التثبيت استعدها وأدخل مفتاح الترخيص أو الرمز من جديد.
 
 Dentora متوفر أيضاً لهواتف أندرويد وأجهزته اللوحية.
 
@@ -260,7 +269,7 @@ dental clinic software
 | Age ratings (IARC questionnaire) | Category "Productivity/utility"; no violence, sexual content, gambling, user-to-user communication or location sharing; no purchases through the Store → expected 3+ / Everyone |
 | Packages | Upload `Dentora-1.1.0-x64.msix` (the one built with your identity values), device family **Desktop** |
 | Submission options → restricted capability **runFullTrust** | `Dentora is an Electron desktop application packaged as MSIX. It needs runFullTrust to run as a normal Windows desktop program: its own window, printing invoices and prescriptions, and saving or opening backup files where the user chooses.` |
-| Notes for certification | `No sign-in is needed. On first launch the setup wizard creates the clinic and an administrator PIN of your choice. Settings → Backup & data → Load demo data fills a sample clinic. Every installation has a 7-day trial with every feature, so nothing is locked during certification. The app works offline; it contacts https://dentora.raqeem.dev only when a licence key is activated (Settings → Licence).` |
+| Notes for certification | `No sign-in is needed. On first launch the setup wizard creates the clinic and an administrator PIN of your choice. Settings → Backup & data → Load demo data fills a sample clinic. Every installation has a 7-day trial with every feature, so nothing is locked during certification. The app works offline; it contacts https://dentora.raqeem.dev only when a licence key is activated (Settings → Licence). There is no in-app purchase and the app takes no payment details: the licence is sold by the developer outside the app (WhatsApp or the website), and Settings → Licence shows its price and how to get it.` |
 
 ---
 

@@ -41,7 +41,7 @@ export const copy: Copy = {
   },
   trust: {
     label: 'Por que o Dentora',
-    items: ['Funciona sem internet', 'Árabe e inglês', 'Windows e Android', 'Seus dados ficam no seu dispositivo', 'Backups criptografados'],
+    items: ['Funciona sem internet', 'Árabe e inglês', 'Windows e Android', 'Seus dados ficam no seu dispositivo', 'Backups que você pode criptografar'],
   },
   features: {
     eyebrow: 'Recursos',
@@ -65,15 +65,15 @@ export const copy: Copy = {
       { icon: 'clipboardList', title: 'Tratamentos e planos', text: 'Uma lista editável de procedimentos e preços, um plano de tratamento para cada paciente por dente e face, e orçamentos para impressão.' },
       { icon: 'receipt', title: 'Faturas, pagamentos e recibos', text: 'Transforme o trabalho concluído em fatura com um toque. Pagamentos parciais, saldos dos pacientes, recibos numerados e extratos, com o logotipo da sua clínica.' },
       { icon: 'pill', title: 'Receitas e laboratório', text: 'Receitas a partir de uma lista de medicamentos pronta, impressas ou enviadas pelo WhatsApp, e pedidos ao laboratório com acompanhamento de status e prazo de entrega.' },
-      { icon: 'package', title: 'Estoque e despesas', text: 'Níveis de estoque com alertas de estoque baixo e de validade, e despesas por categoria comparadas com o período anterior.' },
-      { icon: 'chartColumn', title: 'Relatórios', text: 'Receita, despesas e lucro por dentista, procedimento e forma de pagamento, além da taxa de faltas e dos saldos em aberto, com exportação em CSV.' },
+      { icon: 'package', title: 'Estoque e despesas', text: 'Níveis de estoque com alertas de estoque baixo e de validade, e despesas por categoria, com o total comparado com o período anterior.' },
+      { icon: 'chartColumn', title: 'Relatórios', text: 'Receita por dentista, procedimento e forma de pagamento, despesas e lucro líquido, além da taxa de faltas e dos saldos em aberto, com exportação em CSV.' },
       {
         icon: 'userCog', title: 'Equipe e permissões',
         text: 'Cada membro da equipe tem sua função e suas permissões e entra com um PIN toda vez que abre o aplicativo, que se bloqueia sozinho quando fica sem uso.',
         chips: [{ label: 'Administrador' }, { label: 'Dentista' }, { label: 'Auxiliar' }, { label: 'Recepção' }],
       },
       {
-        icon: 'databaseBackup', title: 'Backup criptografado',
+        icon: 'databaseBackup', title: 'Backup com criptografia opcional',
         text: 'Toda a sua clínica em um único arquivo que você guarda onde quiser, verificado depois de salvo e, se quiser, protegido por senha, para restaurar ou passar para um novo dispositivo.',
         chips: [{ label: 'Um só arquivo' }, { label: 'AES-256' }, { label: 'Restauração completa' }],
       },
@@ -106,7 +106,7 @@ export const copy: Copy = {
       { key: 'patient', title: 'Fichas completas, alertas médicos claros', text: 'Alergias e doenças à vista antes de qualquer procedimento', alt: 'Uma ficha de paciente no Dentora em um celular, com alerta de alergia' },
       { key: 'treatments', title: 'Planos de tratamento, passo a passo', text: 'Transforme o trabalho concluído em fatura com um toque', alt: 'Um plano de tratamento no Dentora em um celular, com o status e o preço de cada procedimento' },
       { key: 'invoice', title: 'Faturas bem-acabadas, prontas para imprimir', text: 'Pagamentos parciais, saldos e recibos numerados', alt: 'Uma fatura no Dentora em um celular, com o valor pago e o saldo devedor' },
-      { key: 'reports', title: 'Relatórios que mostram como vai sua clínica', text: 'Receita, despesas e lucro por dentista e procedimento', alt: 'O relatório de receita diária e formas de pagamento no Dentora em um celular' },
+      { key: 'reports', title: 'Relatórios que mostram como vai sua clínica', text: 'Receita por dentista e procedimento, despesas e lucro', alt: 'O relatório de receita diária e formas de pagamento no Dentora em um celular' },
     ],
   },
   steps: {
@@ -250,19 +250,19 @@ export const compare: CompareCopy = {
         'Assinatura mensal (Curve Dental mediante orçamento; Dentally conforme o plano e o número de salas de atendimento).',
         'Um navegador no Windows ou no Mac; Curve Dental também lista Chromebooks, e Dentally, também iPads.',
         'Não é mencionada no site de nenhum dos dois fornecedores, que atendem países de língua inglesa.',
-        'Nada a instalar para o programa principal; o fornecedor cuida da implantação, da conversão de dados e do treinamento.',
+        'Nada a instalar para o programa principal; Curve Dental cuida da implantação, da conversão de dados e do treinamento.',
       ],
       examples: [CURVE, DENTALLY],
     },
     {
       key: 'server',
       name: 'Sistema desktop com servidor',
-      summary: 'Um servidor de banco de dados na clínica, com o programa instalado em cada estação de trabalho, para que vários computadores compartilhem uma única lista de pacientes pela rede da clínica. Os dados ficam no consultório, mas alguém precisa instalar, manter e fazer backup do servidor, e os fornecedores divergem quanto à internet: Open Dental classifica uma conexão de alta velocidade como requisito, Dentrix a recomenda, e a Patterson afirma que o Eaglesoft não precisa dela para funcionar.',
+      summary: 'Um servidor de banco de dados na clínica, com o programa instalado em cada estação de trabalho, para que vários computadores compartilhem uma única lista de pacientes pela rede da clínica. Os dados ficam no consultório, mas alguém precisa instalar, manter e fazer backup do servidor, e os fornecedores divergem quanto à internet: Open Dental classifica uma conexão de alta velocidade como requisito para suporte e atualizações, Dentrix a recomenda para atualizações e serviços, e a Patterson afirma que o Eaglesoft não precisa dela para funcionar.',
       cells: [
-        'Varia: Open Dental classifica a internet de alta velocidade como requisito, Dentrix a recomenda, e Eaglesoft não precisa dela para rodar.',
+        'Varia: Open Dental classifica a internet de alta velocidade como requisito para suporte e atualizações, Dentrix a recomenda para atualizações e serviços, e Eaglesoft não precisa dela para rodar.',
         'Em um computador servidor na clínica, gerenciado pelo próprio consultório.',
-        'Recorrente: uma taxa mensal de licença e suporte (Open Dental), uma licença com plano de suporte anual (Dentrix), um plano de associação (Eaglesoft).',
-        'Somente Windows: um servidor Windows e estações de trabalho Windows.',
+        'Recorrente: uma taxa mensal de licença e suporte (Open Dental, gratuito com suporte limitado em países em desenvolvimento), uma licença com plano de suporte anual (Dentrix), um plano de associação (Eaglesoft).',
+        'Estações de trabalho Windows e um servidor Windows (o servidor do Open Dental também pode rodar em Linux ou macOS).',
         'Não oferecida: Open Dental disponibiliza apenas arquivos de tradução para espanhol e francês; Dentrix e Eaglesoft mencionam apenas o inglês.',
         'Um servidor, uma rede e uma instalação em cada estação de trabalho; os fornecedores recomendam um profissional de redes ou de TI.',
       ],
@@ -319,7 +319,7 @@ export const compare: CompareCopy = {
     },
     {
       q: 'Existe software odontológico sem mensalidade?',
-      a: 'Sim. O Dentora custa {price}, em pagamento único, por uma licença vitalícia para um dispositivo, com todos os recursos. Todos os exemplos na nuvem e com servidor citados nesta página trabalham com planos recorrentes (assinaturas, planos de suporte ou associações), então compare o custo total ao longo de vários anos.',
+      a: 'Sim. O Dentora custa {price}, em pagamento único, por uma licença vitalícia para um dispositivo, com todos os recursos. Os exemplos na nuvem e com servidor citados nesta página trabalham com planos recorrentes (assinaturas, planos de suporte ou associações); Open Dental também lista um plano gratuito com suporte limitado para países em desenvolvimento. Compare o custo total ao longo de vários anos.',
     },
     {
       q: 'Vários computadores podem compartilhar os dados do Dentora?',

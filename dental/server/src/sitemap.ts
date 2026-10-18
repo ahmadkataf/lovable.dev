@@ -91,18 +91,24 @@ export function sitemapEntries({ origin, guideImages, videos }: SitemapInput): E
   // the video course: its home (newest recording in that language) and every chapter (its recording, when made)
   const chapters = [...CHAPTERS].sort((a, b) => a.order - b.order)
   doc('/videos', l => chapters.reduce((d, c) => later(d, recordOf(videos, l, c.slug)?.recordedAt), VIDEOS_DATE), 'weekly', '0.8')
+  // a chapter page is listed in the languages it is recorded in (the others are "coming" placeholders, not indexed)
   for (const c of chapters) {
-    doc(`/videos/${c.slug}`, l => later(VIDEOS_DATE, recordOf(videos, l, c.slug)?.recordedAt), 'monthly', '0.6', l => {
-      const rec = recordOf(videos, l, c.slug)
-      if (!rec) return {}
+    const path = `/videos/${c.slug}`
+    const langs = DOC_LANGS.filter(l => recordOf(videos, l, c.slug))
+    if (!langs.length) continue
+    const def: Lang = langs.includes(X_DEFAULT) ? X_DEFAULT : langs[0]
+    const alternates: [string, string][] = [...langs.map(l => [l, origin + langPath(path, l)] as [string, string]), ['x-default', origin + langPath(path, def)]]
+    for (const l of langs) {
+      const rec = recordOf(videos, l, c.slug)!
       const files = videoFiles(l, c.slug, rec)
-      return {
+      out.push({
+        loc: origin + langPath(path, l), alternates, lastmod: later(VIDEOS_DATE, rec.recordedAt), changefreq: 'monthly', priority: '0.6',
         videos: [{
           thumb: origin + files.jpg, title: c.title[l], description: c.summary[l], content: origin + files.mp4,
           duration: rec.durationSeconds, date: rec.recordedAt,
         }],
-      }
-    })
+      })
+    }
   }
   return out
 }

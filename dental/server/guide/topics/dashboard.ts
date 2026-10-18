@@ -13,6 +13,10 @@ const topic: GuideTopic = {
     ar: 'يومك كله في شاشة واحدة: مواعيد اليوم وحالاتها، وأرقام الشهر، وما يحتاج إلى انتباهك، والإيرادات، وآخر ما جرى في العيادة.',
     en: 'Your whole day on one screen: today’s appointments and their status, this month’s figures, what needs your attention, revenue and the latest activity in the clinic.',
   },
+  metaDescription: {
+    ar: 'يومك كله في شاشة واحدة: مواعيد اليوم وحالاتها، وأرقام الشهر، وما يحتاج إلى انتباهك، والإيرادات، وآخر ما جرى في العيادة.',
+    en: 'Your day on one screen: today’s appointments and their status, this month’s figures, alerts that need attention, revenue and recent activity.',
+  },
   blocks: [
     {
       id: 'overview',

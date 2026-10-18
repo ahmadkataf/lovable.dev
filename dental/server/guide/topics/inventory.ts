@@ -16,6 +16,10 @@ const topic: GuideTopic = {
     ar: 'تابع مواد العيادة وأدواتها: الكميات وحدود التنبيه وتواريخ الانتهاء. سجّل الشراء والاستهلاك بنقرة، ودع البرنامج ينبّهك قبل أن ينفد شيء.',
     en: 'Keep track of your clinic’s supplies and instruments: quantities, alert levels and expiry dates. Record purchases and use in a click, and let Dentora warn you before anything runs out.',
   },
+  metaDescription: {
+    ar: 'تابع مواد العيادة وأدواتها: الكميات وحدود التنبيه وتواريخ الانتهاء. سجّل الشراء والاستهلاك بنقرة، ودع البرنامج ينبّهك قبل أن ينفد شيء.',
+    en: 'Track supplies and instruments: quantities, alert levels and expiry dates. Record purchases and use in a click, and get warned before anything runs out.',
+  },
   blocks: [
     {
       id: 'overview',

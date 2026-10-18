@@ -3,7 +3,6 @@
 // hands it and how the answer is served.
 import { describe, expect, it, vi } from 'vitest'
 import { TOPICS } from '../guide/index'
-import { CHAPTERS } from '../videos/index'
 import { CACHE_PAGE, PUBLIC_CSP } from '../src/http'
 import { SITE_LANGS, sitePath } from '../src/site-lang'
 import worker from '../src/index'
@@ -60,7 +59,8 @@ describe('the activation page', () => {
     expect(locs).toEqual([
       ...SITE_LANGS.map(l => sitePath('/', l)), ...SITE_LANGS.map(l => sitePath('/compare', l)), ...both('/activate'), ...both('/privacy'), ...both('/terms'),
       ...both('/guide'), ...TOPICS.flatMap(t => both(`/guide/${t.slug}`)),
-      ...both('/videos'), ...CHAPTERS.flatMap(c => both(`/videos/${c.slug}`)),
+      // the course home; no chapter page, since nothing is recorded in this stand-in (chapters are listed once recorded)
+      ...both('/videos'),
     ].map(p => ORIGIN + p))
     expect(map).toContain(`<xhtml:link rel="alternate" hreflang="x-default" href="${ORIGIN}/en/activate"/>`)
     // every page carries the day its content last changed

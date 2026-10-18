@@ -13,7 +13,8 @@
 // topic does not have goes to the top of that topic. A topic that has a chapter in the video course (videos/index.ts)
 // links it under its title, and the home has a strip for the course; the course pages link the guide back.
 import { escapeHtml } from '../src/http'
-import { ICONS as SITE_ICONS, jsonForScript } from '../src/pages/landing'
+import { OG_LOCALE } from '../src/site-lang'
+import { APP_ID, ICONS as SITE_ICONS, jsonForScript, organization } from '../src/pages/landing'
 import { langPath, sellerWa, shell, type PageAssets } from '../src/pages/legal'
 import { DEFAULT_SETTINGS, type Lang, type SiteSettings } from '../src/types'
 import { CHAPTERS } from '../videos/index'
@@ -59,7 +60,7 @@ const T = {
     h1: 'دليل استخدام Dentora',
     lead: 'شرح مكتوب ومصوَّر لكل ما في البرنامج، من التثبيت وأول تشغيل حتى النسخ الاحتياطي. لكل قسم صفحة بخطوات مرقّمة وصور من البرنامج نفسه، فابدأ من الموضوع الذي تحتاجه.',
     metaTitle: 'دليل استخدام Dentora: شرح البرنامج خطوة بخطوة',
-    metaDesc: 'دليل استخدام برنامج Dentora لإدارة عيادات الأسنان في {n}: شرح بالصور خطوة بخطوة، من التثبيت إلى المرضى والمواعيد والفواتير والتقارير والنسخ الاحتياطي.',
+    metaDesc: 'دليل استخدام Dentora لإدارة عيادات الأسنان في {n}: شرح بالصور خطوة بخطوة، من التثبيت إلى المرضى والمواعيد والفواتير والتقارير والنسخ الاحتياطي.',
     topics: 'الموضوعات', allTopics: 'كل الموضوعات', startHere: 'ابدأ من هنا',
     search: 'ابحث في الدليل', searchPh: 'ابحث: فاتورة، موعد، نسخة احتياطية…', clear: 'مسح البحث',
     results: ['موضوع واحد', 'موضوعان', 'موضوعات', 'موضوعاً'], noResults: 'لا يوجد موضوع يطابق بحثك. جرّب كلمة أخرى، أو اسألنا على واتساب.',
@@ -83,7 +84,7 @@ const T = {
     h1: 'Dentora user guide',
     lead: 'Everything in the app, explained in words and pictures, from installing it to backing up your data. Each area has its own page with numbered steps and pictures of the app itself, so start with the topic you need.',
     metaTitle: 'Dentora user guide: the app explained step by step',
-    metaDesc: 'The user guide of Dentora, the dental clinic software: {n} explained step by step with pictures, from installing to patients, appointments, invoices, reports and backups.',
+    metaDesc: 'The Dentora user guide: {n} explained step by step with pictures, from installing to patients, appointments, invoices, reports and backups.',
     topics: 'Topics', allTopics: 'All topics', startHere: 'Start here',
     search: 'Search the guide', searchPh: 'Search: invoice, appointment, backup…', clear: 'Clear the search',
     results: ['1 topic', '', '', '{n} topics'], noResults: 'No topic matches your search. Try another word, or ask us on WhatsApp.',
@@ -315,8 +316,8 @@ function headExtra(h: HeadExtra): string {
     '<meta property="og:image:type" content="image/jpeg">',
     '<meta property="og:image:width" content="1200">',
     '<meta property="og:image:height" content="630">',
-    `<meta property="og:locale" content="${h.lang === 'ar' ? 'ar_SY' : 'en_US'}">`,
-    `<meta property="og:locale:alternate" content="${h.lang === 'ar' ? 'en_US' : 'ar_SY'}">`,
+    `<meta property="og:locale" content="${OG_LOCALE[h.lang]}">`,
+    `<meta property="og:locale:alternate" content="${OG_LOCALE[h.lang === 'ar' ? 'en' : 'ar']}">`,
     '<meta name="twitter:card" content="summary_large_image">',
     `<meta name="twitter:title" content="${escapeHtml(h.title)}">`,
     `<meta name="twitter:description" content="${escapeHtml(h.description)}">`,
@@ -331,7 +332,9 @@ function breadcrumbs(origin: string, lang: Lang, items: { name: string; path: st
     itemListElement: items.map((it, i) => ({ '@type': 'ListItem', position: i + 1, name: it.name, item: `${origin}${langPath(it.path, lang)}` })),
   }
 }
-const publisher = (origin: string) => ({ '@type': 'Organization', name: 'Dentora', url: `${origin}/`, logo: { '@type': 'ImageObject', url: `${origin}/icon-512.png` } })
+// The maker and the app as the home page describes them (same @ids), so every page names the same publisher.
+const publisher = (_origin: string) => organization()
+const aboutApp = { '@type': 'SoftwareApplication', '@id': APP_ID, name: 'Dentora', applicationCategory: 'BusinessApplication', operatingSystem: 'Windows 10, Windows 11, Android 7.0 or later' }
 
 const byOrder = (topics: readonly GuideTopic[]) => [...topics].filter(t => t && typeof t.slug === 'string' && ID.test(t.slug)).sort((a, b) => a.order - b.order)
 /** The chapter of the video course that covers a topic, if the course has one (videos/index.ts). */
@@ -368,7 +371,7 @@ ${secs ? `<div class="gd-card-secs" hidden><p class="gd-card-secs-k">${t.matches
     '@graph': [
       {
         '@type': 'CollectionPage', name: t.guideLong, description, url, inLanguage: lang, publisher: publisher(origin),
-        about: { '@type': 'SoftwareApplication', name: 'Dentora', applicationCategory: 'BusinessApplication', operatingSystem: 'Windows, Android' },
+        about: aboutApp,
         mainEntity: {
           '@type': 'ItemList', numberOfItems: all.length,
           itemListElement: all.map((topic, i) => ({ '@type': 'ListItem', position: i + 1, name: plainText(topic.title[lang]), url: `${origin}${topicPath(topic.slug, lang)}` })),
@@ -549,7 +552,7 @@ export function renderGuideTopic(
         ...(firstImage && firstImg ? { image: `${origin}${imageUrl(lang, firstImage.id, firstImg.widths[0])}` } : {}),
         proficiencyLevel: 'Beginner',
         articleSection: blocks.map(b => plainText(b.title?.[lang] ?? '')),
-        about: { '@type': 'SoftwareApplication', name: 'Dentora', applicationCategory: 'BusinessApplication', operatingSystem: 'Windows, Android' },
+        about: aboutApp,
         isPartOf: { '@type': 'CollectionPage', name: t.guideLong, url: `${origin}${guideHomePath(lang)}` },
         author: publisher(origin), publisher: publisher(origin),
       },
@@ -577,8 +580,9 @@ ${blocks.length ? `<aside class="gd-toc-side"><nav class="gd-toc" aria-label="${
 </div>
 <div class="gd-lb-strings" hidden data-close="${escapeHtml(t.close)}" data-prev="${escapeHtml(t.prevImg)}" data-next="${escapeHtml(t.nextImg)}" data-zoom="${escapeHtml(t.zoom)}"></div>
 </main>`
-  const page = shell({ lang, title: `${title} — ${t.guideLong}`, description: summary, origin, assets, path, body: `${icons.sprite()}\n${body}` })
-  return withHead(page, headExtra({ lang, origin, url, title: `${title} — ${t.guideLong}`, description: summary, type: 'article', ld }))
+  const metaDescription = topic.metaDescription?.[lang] ?? summary
+  const page = shell({ lang, title: `${title} — ${t.guideLong}`, description: metaDescription, origin, assets, path, body: `${icons.sprite()}\n${body}` })
+  return withHead(page, headExtra({ lang, origin, url, title: `${title} — ${t.guideLong}`, description: metaDescription, type: 'article', ld }))
 }
 
 // ---- checks of the topics (the preview and the test print them; nothing here stops a page from rendering) ---------

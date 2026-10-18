@@ -15,6 +15,10 @@ const topic: GuideTopic = {
     ar: 'الأسئلة التي تسألها العيادات أكثر من غيرها، عن البدء والبيانات والمال والطباعة والترخيص، وحلول المشكلات الشائعة، مع روابط إلى شرحها الكامل في الدليل.',
     en: 'The questions clinics ask most, about getting started, data, money, printing and the licence, and fixes for the usual problems, each with a link to its full explanation in the guide.',
   },
+  metaDescription: {
+    ar: 'الأسئلة التي تسألها العيادات أكثر من غيرها، عن البدء والبيانات والمال والطباعة والترخيص، وحلول المشكلات الشائعة، مع روابط إلى شرحها الكامل في الدليل.',
+    en: 'The questions clinics ask most, on getting started, data, money, printing and the licence, and fixes for common problems, each linked to its full topic.',
+  },
   blocks: [
     {
       id: 'start',
@@ -120,14 +124,14 @@ const topic: GuideTopic = {
           '**ماذا يحدث بعد الأيام السبعة؟** يعمل البرنامج للقراءة فقط: ترى كل شيء وتطبعه وتحفظ نسخة احتياطية، وتتوقف الإضافة والتعديل حتى تفعّل. لا يُحذف شيء، ويعود كل شيء بالتفعيل في أي يوم. انظر [الفترة التجريبية وما بعدها](licence#overview).',
           '**ما الفرق بين مفتاح الترخيص ورمز التفعيل؟** المفتاح 16 خانة يبيعه البائع دون رقم جهازك، ويُفعَّل عبر الإنترنت مرة واحدة من داخل البرنامج (الإصدار 1.1.0 فأحدث) أو من صفحة الموقع. والرمز 112 خانة يصنعه البائع لرقم جهازك ويعمل دون إنترنت. يُلصق الاثنان في الخانة نفسها في **الإعدادات** ← **الترخيص**. انظر [التفعيل بمفتاح الترخيص](licence#key) و[التفعيل برمز مصنوع لرقم جهازك](licence#code).',
           '**اشتريت حاسوباً جديداً، هل يعمل ترخيصي عليه؟** الترخيص لجهاز واحد، وللجهاز الجديد رقم جهاز جديد: انقل بياناتك بالنسخة الاحتياطية ثم تواصل مع البائع لنقل الترخيص. المفتاح المستخدم يُرفض على جهاز ثانٍ بعبارة «هذا المفتاح مفعّل على جهاز آخر». انظر [جهاز واحد](licence#coverage).',
-          '**أعدت تثبيت البرنامج، هل أحتاج إلى ترخيص جديد؟** لا. على ويندوز يبقى التفعيل كما هو بعد التحديث أو إعادة التثبيت. وعلى أندرويد، إن حُذف التطبيق، استعد نسختك ثم الصق رسالة البائع من جديد، أو أدخل مفتاحك فيعطيك الرمز نفسه، من البرنامج أو من صفحة الموقع. انظر [جهاز واحد](licence#coverage) و[التفعيل من صفحة الموقع](licence#website).',
+          '**أعدت تثبيت البرنامج، هل أحتاج إلى ترخيص جديد؟** لا. على ويندوز يبقى التفعيل كما هو بعد تحديث النسخة المنزَّلة من الموقع أو إعادة تثبيتها. أما تطبيق أندرويد ونسخة متجر Microsoft فيمسح حذفهما البيانات والتفعيل: استعد نسختك ثم الصق رسالة البائع من جديد، أو أدخل مفتاحك فيعطيك الرمز نفسه، من البرنامج أو من صفحة الموقع. انظر [جهاز واحد](licence#coverage) و[التفعيل من صفحة الموقع](licence#website).',
           '**ما الذي يُرسل إلى الإنترنت عند التفعيل؟** المفتاح ورقم الجهاز فقط، مرة واحدة، إلى dentora.raqeem.dev. لا تُرسل بيانات العيادة أو المرضى أبداً، ورمز التفعيل المصنوع لجهازك لا يحتاج إلى أي اتصال. انظر [ما الذي يُرسل إلى الإنترنت؟](licence#privacy).',
         ],
         en: [
           '**What happens after the seven days?** Dentora becomes read-only: you see and print everything and save a backup, but adding and editing stop until you activate. Nothing is deleted, and everything comes back when you activate, on any day. See [The trial and what comes after](licence#overview).',
           '**What is the difference between a licence key and an activation code?** A key is 16 characters the seller sells without your device number; it is activated online, once, inside Dentora (version 1.1.0 and later) or on the website page. A code is 112 characters the seller makes for your device number, and works offline. Both go in the same field in **Settings** → **Licence**. See [Activating with a licence key](licence#key) and [Activating with a code made for your device number](licence#code).',
           '**I bought a new computer. Does my licence work on it?** A licence is for one device, and the new device has a new device number: move your data with a backup, then contact the seller to move the licence. A used key is refused on a second device with “This key is already activated on another device”. See [One device](licence#coverage).',
-          '**I reinstalled Dentora. Do I need a new licence?** No. On Windows the activation stays as it is through an update or a reinstall. On Android, if the app was uninstalled, restore your backup, then paste the seller’s message again, or enter your key, which gives the same code, in Dentora or on the website page. See [One device](licence#coverage) and [Activating on the website](licence#website).',
+          '**I reinstalled Dentora. Do I need a new licence?** No. On Windows the activation stays as it is through an update or a reinstall of the version from the website. Uninstalling the Android app or the Microsoft Store version erases its data and the activation: restore your backup, then paste the seller’s message again, or enter your key, which gives the same code, in Dentora or on the website page. See [One device](licence#coverage) and [Activating on the website](licence#website).',
           '**What is sent to the internet when I activate?** Only the key and the device number, once, to dentora.raqeem.dev. Clinic and patient data are never sent, and an activation code made for your device needs no connection at all. See [What is sent to the internet?](licence#privacy).',
         ],
       },

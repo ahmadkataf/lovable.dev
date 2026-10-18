@@ -6,7 +6,7 @@ import type { Lang } from '@/db/types'
 import { SELLER } from '@/features/settings/seller'
 
 /** Date of the current privacy policy and terms (shown as "Last updated"). Change it with the text. */
-export const LEGAL_DATE = '2026-10-15'
+export const LEGAL_DATE = '2026-10-18'
 /** Version of the terms the clinic accepts; raise it when the terms change in substance. */
 export const TERMS_VERSION = 1
 export const TERMS_KEY = 'termsAccepted'

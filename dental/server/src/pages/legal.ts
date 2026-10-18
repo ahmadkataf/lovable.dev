@@ -7,7 +7,7 @@ import { escapeHtml } from '../http'
 import type { Lang, SiteSettings } from '../types'
 
 /** Date of the documents' text. Keep in step with LEGAL_DATE in src/features/legal/lib.ts (a test checks it). */
-export const LEGAL_DATE = '2026-10-15'
+export const LEGAL_DATE = '2026-10-18'
 export const SELLER_NAME = 'Dentora'
 
 export type LegalDoc = 'privacy' | 'terms'
@@ -117,6 +117,13 @@ export interface Shell {
   langSwitch?: boolean
   /** The page's own stylesheets and scripts, after the shared ones (markup, already escaped). */
   head?: string
+  /**
+   * The languages this page is published in, for its hreflang links (default both). A page that exists in one
+   * language only (a video chapter recorded in Arabic alone) names that one, and its x-default is that page.
+   */
+  alternates?: Lang[]
+  /** A page that should not be indexed (a placeholder such as a chapter not recorded yet in this language). */
+  noindex?: boolean
   body: string
 }
 /**
@@ -124,6 +131,12 @@ export interface Shell {
  * every page of the Worker in the page's language: home, the comparison, the user guide, the video course, activation, privacy,
  * terms (the guide and the course pages are built on this shell too, so each links the other).
  */
+/** hreflang links for the languages a page exists in, x-default = English when it has one, else its only language. */
+function alternateLinks(langs: Lang[], url: (lang: Lang) => string): string {
+  const def: Lang = langs.includes('en') ? 'en' : langs[0]
+  return langs.map(l => `<link rel="alternate" hreflang="${l}" href="${url(l)}">`).join('') + `<link rel="alternate" hreflang="x-default" href="${url(def)}">`
+}
+
 export function shell(p: Shell): string {
   const t = T[p.lang], other: Lang = p.lang === 'ar' ? 'en' : 'ar'
   const url = (lang: Lang) => (p.path ? `${p.origin}${langPath(p.path, lang)}` : '')
@@ -137,7 +150,8 @@ export function shell(p: Shell): string {
     // device numbers and keys are not phone numbers (iOS would make links of them)
     '<meta name="format-detection" content="telephone=no">',
     p.path ? `<link rel="canonical" href="${url(p.lang)}">` : '<meta name="robots" content="noindex">',
-    p.path ? `<link rel="alternate" hreflang="ar" href="${url('ar')}"><link rel="alternate" hreflang="en" href="${url('en')}"><link rel="alternate" hreflang="x-default" href="${url('en')}">` : '',
+    p.path && p.noindex ? '<meta name="robots" content="noindex">' : '',
+    p.path && !p.noindex ? alternateLinks(p.alternates ?? ['ar', 'en'], url) : '',
     p.assets.favicon ? '<link rel="icon" href="/favicon.ico" sizes="48x48"><link rel="icon" href="/favicon.svg" type="image/svg+xml"><link rel="apple-touch-icon" href="/apple-touch-icon.png">' : '',
     p.assets.manifest ? '<link rel="manifest" href="/site.webmanifest">' : '',
     p.lang === 'ar' ? '<link rel="preload" href="/fonts/noto-kufi-arabic-wght.woff2" as="font" type="font/woff2" crossorigin>' : '',

@@ -123,9 +123,10 @@ export function waLink(v: View, message: string): string {
   return `https://wa.me/${v.waDigits}?text=${encodeURIComponent(message)}`
 }
 
+/** Megabytes as the pages and the structured data both show them: one decimal under 10, whole above. */
+const mbNumber = (bytes: number) => { const mb = bytes / (1024 * 1024); return mb >= 10 ? mb.toFixed(0) : mb.toFixed(1) }
 function formatSize(bytes: number, v: View): string {
-  const mb = bytes / (1024 * 1024)
-  return `${mb >= 10 ? mb.toFixed(0) : mb.toFixed(1)} ${v.t.mb}`
+  return `${mbNumber(bytes)} ${v.t.mb}`
 }
 
 /** What every marketing page needs: the language, its words, the seller's settings, the published downloads. */
@@ -197,9 +198,11 @@ export interface HeadOptions {
   ld: unknown
 }
 
-/** The fonts a page in this language preloads: Arabic script pages the Arabic face too. */
+/** The fonts a page in this language preloads: Arabic script pages the Arabic face too, Turkish the Latin Extended one. */
 function fontsFor(lang: SiteLang): string[] {
-  return isRtl(lang) ? ['/fonts/noto-kufi-arabic-wght.woff2', '/fonts/inter-latin-wght.woff2'] : ['/fonts/inter-latin-wght.woff2']
+  if (isRtl(lang)) return ['/fonts/noto-kufi-arabic-wght.woff2', '/fonts/inter-latin-wght.woff2']
+  // Turkish needs ğ ş İ from the Latin Extended file on every page: preload it too, so headings do not reflow
+  return lang === 'tr' ? ['/fonts/inter-latin-wght.woff2', '/fonts/inter-latin-ext-wght.woff2'] : ['/fonts/inter-latin-wght.woff2']
 }
 
 /** The page's <head>: title, description, canonical and its hreflang cluster (every language, x-default English), icons, fonts, sharing card, structured data. */
@@ -297,7 +300,7 @@ export function screenshotPaths(lang: SiteLang): string[] {
   ]
 }
 
-const mbText = (bytes: number) => `${Math.round(bytes / (1024 * 1024) * 10) / 10} MB`
+const mbText = (bytes: number) => `${mbNumber(bytes)} MB`
 
 /** The app as schema.org SoftwareApplication: the same facts the page states (requirements, price, trial, languages, features). */
 export function softwareApplication(v: View): Record<string, unknown> {
@@ -373,11 +376,15 @@ function structuredData(v: View) {
 /** The activation page's address as written in a sentence: "dentora.raqeem.dev/activate" ("…/en/activate"). */
 const activateAddress = (v: View) => `${v.origin.replace(/^https?:\/\//, '')}${v.docBase}/activate`
 
-/** FAQ answer as plain text (for the structured data): {compare} becomes the link's text and the page's address. */
-export function faqText(v: View, a: string): string {
+/**
+ * FAQ answer as text: for the structured data ('ld': {compare} becomes the same link the page shows, as an <a>, which
+ * Google reads in FAQ answers, so the answer equals the visible one) or for Markdown ('md', llms-full.txt).
+ */
+export function faqText(v: View, a: string, mode: 'ld' | 'md' = 'ld'): string {
   const ltr = (s: string) => (isRtl(v.lang) ? `\u2066${s}\u2069` : s)
   const email = v.s.email ? fillText(v.t.faq.emailPart, { email: v.s.email }) : ''
-  const compare = `${v.t.faq.compareLink} (${ltr(`${v.origin}${sitePath('/compare', v.lang)}`)})`
+  const href = `${v.origin}${sitePath('/compare', v.lang)}`
+  const compare = mode === 'md' ? `[${v.t.faq.compareLink}](${href})` : `<a href="${escapeHtml(href)}">${escapeHtml(v.t.faq.compareLink)}</a>`
   return fillText(a, { price: v.priceInline, whatsapp: ltr(v.waDisplay), email, activate: ltr(activateAddress(v)), compare })
 }
 
@@ -421,7 +428,8 @@ function langLink(v: View, cls: string): string {
     return `<a class="${cls}" href="${sitePath(v.path, other)}" hreflang="${HREFLANG[other]}" lang="${HREFLANG[other]}" title="${escapeHtml(v.t.other.label)}">${icon('languages')}<span>${escapeHtml(LANG_NAME[other])}</span></a>`
   }
   const items = SITE_LANGS.map(l => `<li><a href="${sitePath(v.path, l)}" hreflang="${HREFLANG[l]}" lang="${HREFLANG[l]}"${l === v.lang ? ' aria-current="true"' : ''}>${escapeHtml(LANG_NAME[l])}</a></li>`).join('')
-  return `<details class="lang-menu ${cls}"><summary aria-label="${escapeHtml(v.t.langMenu)}">${icon('languages')}<span>${escapeHtml(LANG_NAME[v.lang])}</span>${icon('chevronDown', 'lang-chev')}</summary><ul class="lang-list">${items}</ul></details>`
+  // the name read out contains the visible language name (WCAG 2.5.3), e.g. "Langue : Français"
+  return `<details class="lang-menu ${cls}"><summary aria-label="${escapeHtml(`${v.t.langMenu}: ${LANG_NAME[v.lang]}`)}">${icon('languages')}<span>${escapeHtml(LANG_NAME[v.lang])}</span>${icon('chevronDown', 'lang-chev')}</summary><ul class="lang-list">${items}</ul></details>`
 }
 
 function brand(): string {
@@ -598,8 +606,8 @@ ${sectionHead('pricing', p.eyebrow, p.title, p.lead, 'pricing-head')}
 </div>
 <div class="price-card">
 <p class="price-label">${icon('infinity')}${escapeHtml(p.label)}</p>
-<p class="price-amount"><span class="price-figure" dir="ltr">${lang === 'ar'
-    // Arabic writes the sign after the number (59$), as the price line, the FAQ and the panel do.
+<p class="price-amount"><span class="price-figure" dir="ltr">${isRtl(lang)
+    // Arabic and Urdu write the sign after the number (59$), as the price line, the FAQ and the panel do.
     ? `<span class="price-num">${escapeHtml(v.price)}</span><span class="price-cur">$</span>`
     : `<span class="price-cur">$</span><span class="price-num">${escapeHtml(v.price)}</span>`}</span></p>
 ${priceText ? `<p class="price-text">${escapeHtml(priceText)}</p>` : ''}

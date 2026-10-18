@@ -21,6 +21,10 @@ const topic: GuideTopic = {
     ar: 'سبعة أيام تجريبية بكل الميزات، ثم تفعيل لجهاز واحد بمفتاح ترخيص عبر الإنترنت مرة واحدة، أو برمز مصنوع لرقم جهازك يعمل دون إنترنت. ما يُرسل وما لا يُرسل، وما يحدث إن انتهت التجربة أو الترخيص.',
     en: 'A 7-day trial with every feature, then activation for one device with a licence key (online, once) or a code made for your device number (no internet). What is sent and what is not, and what happens when the trial or the licence ends.',
   },
+  metaDescription: {
+    ar: 'تجربة 7 أيام بكل الميزات، ثم تفعيل لجهاز واحد بمفتاح ترخيص عبر الإنترنت مرة واحدة أو برمز لرقم جهازك دون إنترنت، وما يُرسَل وما يحدث عند انتهاء التجربة.',
+    en: 'A 7-day trial with every feature, then activation for one device by licence key (online, once) or by a code for your device (offline), and what is sent.',
+  },
   blocks: [
     {
       id: 'overview',
@@ -292,13 +296,13 @@ const topic: GuideTopic = {
         ar: [
           'الترخيص، رمزاً كان أو مفتاحاً، لجهاز واحد برقم جهاز واحد. ولا يزامن Dentora الأجهزة، فالعيادة التي تعمل على حاسوب وهاتف معاً تحتاج إلى ترخيص لكل منهما.',
           '**جهاز جديد**: للجهاز الجديد رقم جهاز جديد، فلا يعمل عليه رمزك القديم، ويرفض المفتاح المستخدم بعبارة «هذا المفتاح مفعّل على جهاز آخر». انقل بياناتك بالنسخة الاحتياطية، ثم تواصل مع البائع لنقل الترخيص. انظر [نقل العيادة إلى جهاز جديد](backup#new-device).',
-          '**إعادة التثبيت على الجهاز نفسه**: على ويندوز تبقى البيانات والتفعيل كما هما بعد التحديث أو إعادة التثبيت. وعلى أندرويد يمسح حذف التطبيق كل شيء ومنه التفعيل: بعد التثبيت من جديد استعد نسختك الاحتياطية، ثم الصق رسالة البائع (الرمز) مرة أخرى، أو أدخل مفتاحك فيعطيك الرمز نفسه.',
+          '**إعادة التثبيت على الجهاز نفسه**: على ويندوز تبقى البيانات والتفعيل كما هما بعد تحديث النسخة المنزَّلة من الموقع أو إعادة تثبيتها. أما على أندرويد، وفي نسخة متجر Microsoft، فيمسح حذف التطبيق كل شيء ومنه التفعيل: بعد التثبيت من جديد استعد نسختك الاحتياطية، ثم الصق رسالة البائع (الرمز) مرة أخرى، أو أدخل مفتاحك فيعطيك الرمز نفسه.',
           '**الاستعادة وحذف كل البيانات**: لا تحمل النسخة الاحتياطية التفعيل، ولا تمسحه الاستعادة ولا **حذف كل البيانات**: يبقى التفعيل على الجهاز.',
         ],
         en: [
           'A licence, code or key, is for one device with one device number. Dentora does not sync devices, so a clinic that works on a computer and a phone needs a licence for each.',
           '**A new device**: a new device has a new device number, so your old code does not work on it, and a used key is refused with “This key is already activated on another device”. Move your data with a backup, then contact the seller to move the licence. See [Moving the clinic to a new device](backup#new-device).',
-          '**Reinstalling on the same device**: on Windows your data and the activation stay as they are through an update or a reinstall. On Android, uninstalling the app erases everything, the activation included: after installing again, restore your backup, then paste the seller’s message (the code) again, or enter your key, which gives the same code.',
+          '**Reinstalling on the same device**: on Windows your data and the activation stay as they are through an update or a reinstall of the version from the website. On Android, and in the Microsoft Store version, uninstalling the app erases everything, the activation included: after installing again, restore your backup, then paste the seller’s message (the code) again, or enter your key, which gives the same code.',
           '**Restoring and erasing**: a backup does not carry the activation, and neither a restore nor **Erase all data** removes it: the activation stays on the device.',
         ],
       },

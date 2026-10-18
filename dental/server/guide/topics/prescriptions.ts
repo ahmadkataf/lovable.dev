@@ -19,6 +19,10 @@ const topic: GuideTopic = {
     ar: 'اكتب الوصفة في ثوانٍ من قائمة أدويتك بجرعاتها المعتادة، مع تنبيه فوري عند تعارض الدواء مع حساسية المريض، ثم اطبعها بترويسة العيادة أو أرسلها عبر واتساب.',
     en: 'Write a prescription in seconds from your own drug list with its usual doses, get warned at once when a drug clashes with the patient’s allergies, then print it on your letterhead or send it by WhatsApp.',
   },
+  metaDescription: {
+    ar: 'اكتب الوصفة في ثوانٍ من قائمة أدويتك بجرعاتها المعتادة، مع تنبيه فوري عند تعارض الدواء مع حساسية المريض، ثم اطبعها بترويسة العيادة أو أرسلها عبر واتساب.',
+    en: 'Write prescriptions from your own drug list with usual doses, get an instant allergy warning, then print on your letterhead or send by WhatsApp.',
+  },
   blocks: [
     {
       id: 'overview',

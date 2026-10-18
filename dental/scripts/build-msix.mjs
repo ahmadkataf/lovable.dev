@@ -18,7 +18,7 @@
 // "Dentora is an Electron desktop app; it needs full trust to run as a normal Windows program (its window, printing and
 // saving backup files where the user chooses)".
 // Windows keeps a packaged app's AppData in the package's own folder and deletes it when the app is uninstalled:
-// clinics must save a backup before uninstalling (the listing and the guide say so, as for Android).
+// clinics must save a backup before uninstalling (the listing, the guide and the privacy policy say so, as for Android).
 import { execFileSync } from 'node:child_process'
 import { cpSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { dirname, join, resolve } from 'node:path'

@@ -377,8 +377,19 @@ async function route(request: Request, env: Env, ctx: ExecutionContext): Promise
 
 const SERVER_ERROR = 'حدث خطأ مؤقت، حاولوا مرة أخرى بعد قليل.\nA temporary error occurred, please try again shortly.\n'
 
+// The site's own host; the Worker also answers on its workers.dev address (wrangler.toml), which search engines must
+// not index as a second copy of the site (the pages' canonical links already point here).
+const SITE_HOST = new URL(ORIGIN).hostname
+const LOCAL_HOST = /^(localhost|127\.0\.0\.1|\[::1\])$/
+
 export default {
   async fetch(request, env, ctx): Promise<Response> {
+    const url = new URL(request.url)
+    // Plain http:// on the site's own host goes to https:// (HSTS only applies once a browser has seen https).
+    if (url.protocol === 'http:' && url.hostname === SITE_HOST) {
+      url.protocol = 'https:'
+      return secure(new Response(null, { status: 301, headers: { Location: url.href, 'Cache-Control': CACHE_PAGE } }))
+    }
     let res: Response
     try {
       res = await route(request, env, ctx)
@@ -388,6 +399,8 @@ export default {
       res = new URL(request.url).pathname.startsWith('/api/') ? apiError('server', 500) : text(SERVER_ERROR, 500, 'text/plain', NO_STORE)
     }
     if (request.method === 'HEAD') res = new Response(null, res)
-    return secure(res)
+    const out = secure(res)
+    if (url.hostname !== SITE_HOST && !LOCAL_HOST.test(url.hostname)) out.headers.set('X-Robots-Tag', 'noindex')
+    return out
   },
 } satisfies ExportedHandler<Env>

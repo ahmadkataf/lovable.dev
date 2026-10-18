@@ -114,7 +114,7 @@ const ar: Copy = {
   },
   trust: {
     label: 'لماذا Dentora',
-    items: ['يعمل بدون إنترنت', 'عربي وإنجليزي', 'ويندوز وأندرويد', 'بياناتك تبقى على جهازك', 'نسخ احتياطي مشفّر'],
+    items: ['يعمل بدون إنترنت', 'عربي وإنجليزي', 'ويندوز وأندرويد', 'بياناتك تبقى على جهازك', 'نسخ احتياطي قابل للتشفير'],
   },
   features: {
     eyebrow: 'المزايا',
@@ -138,15 +138,15 @@ const ar: Copy = {
       { icon: 'clipboardList', title: 'العلاجات وخطط العلاج', text: 'قائمة إجراءات وأسعار قابلة للتعديل، وخطة علاج لكل مريض بالأسنان والأسطح، وطباعة عرض سعر.' },
       { icon: 'receipt', title: 'الفواتير والدفعات والإيصالات', text: 'حوّل العمل المنجز إلى فاتورة بلمسة. دفعات جزئية ورصيد المريض وإيصالات مرقّمة وكشف حساب، بشعار عيادتك.' },
       { icon: 'pill', title: 'الوصفات والمخبر', text: 'وصفات من قاعدة أدوية جاهزة تطبعها أو ترسلها عبر واتساب، وطلبات مخبر مع متابعة الحالة ومواعيد التسليم.' },
-      { icon: 'package', title: 'المخزون والمصروفات', text: 'كميات وحد أدنى مع تنبيهات النقص وانتهاء الصلاحية، ومصروفات حسب الفئة مقارنةً بالفترة السابقة.' },
-      { icon: 'chartColumn', title: 'التقارير', text: 'الإيرادات والمصروفات والربح حسب الطبيب والإجراء وطريقة الدفع، ونسبة عدم الحضور والذمم المستحقة، مع تصدير CSV.' },
+      { icon: 'package', title: 'المخزون والمصروفات', text: 'كميات وحد أدنى مع تنبيهات النقص وانتهاء الصلاحية، ومصروفات حسب الفئة، مع مقارنة مجموعها بالفترة السابقة.' },
+      { icon: 'chartColumn', title: 'التقارير', text: 'الإيرادات حسب الطبيب والإجراء وطريقة الدفع، والمصروفات وصافي الربح، ونسبة عدم الحضور والذمم المستحقة، مع تصدير CSV.' },
       {
         icon: 'userCog', title: 'الفريق والصلاحيات',
         text: 'لكل فرد في الفريق دوره وصلاحياته، ودخول برمز PIN عند كل تشغيل، وقفل تلقائي حين يُترك الجهاز دون استخدام.',
         chips: [{ label: 'مدير' }, { label: 'طبيب' }, { label: 'مساعد' }, { label: 'استقبال' }],
       },
       {
-        icon: 'databaseBackup', title: 'نسخ احتياطي مشفّر',
+        icon: 'databaseBackup', title: 'نسخ احتياطي مع تشفير اختياري',
         text: 'عيادتك كلها في ملف واحد تحفظه حيث تشاء، يُتحقق منه بعد الحفظ ويمكن حمايته بكلمة مرور، للاستعادة أو الانتقال إلى جهاز جديد.',
         chips: [{ label: 'ملف واحد' }, { label: 'AES-256' }, { label: 'استعادة كاملة' }],
       },
@@ -179,7 +179,7 @@ const ar: Copy = {
       { key: 'patient', title: 'ملف كامل وتنبيه طبي واضح', text: 'الحساسية والأمراض المزمنة أمامك قبل أي إجراء', alt: 'ملف مريض في Dentora على الهاتف مع تنبيه طبي بالحساسية' },
       { key: 'treatments', title: 'خطط علاج خطوة بخطوة', text: 'ومن العمل المنجز إلى الفاتورة بضغطة', alt: 'خطة علاج في Dentora على الهاتف مع حالة كل إجراء وسعره' },
       { key: 'invoice', title: 'فواتير أنيقة جاهزة للطباعة', text: 'دفعات جزئية ورصيد المريض وإيصالات مرقّمة', alt: 'فاتورة في Dentora على الهاتف مع المدفوع والرصيد المستحق' },
-      { key: 'reports', title: 'تقارير تكشف لك أداء عيادتك', text: 'الإيرادات والمصروفات والربح بالطبيب والإجراء', alt: 'تقرير الإيرادات اليومية وطرق الدفع في Dentora على الهاتف' },
+      { key: 'reports', title: 'تقارير تكشف لك أداء عيادتك', text: 'الإيرادات بالطبيب والإجراء، والمصروفات والربح', alt: 'تقرير الإيرادات اليومية وطرق الدفع في Dentora على الهاتف' },
     ],
   },
   steps: {
@@ -316,7 +316,7 @@ const en: Copy = {
   },
   trust: {
     label: 'Why Dentora',
-    items: ['Works offline', 'Arabic & English', 'Windows & Android', 'Your data stays on your device', 'Encrypted backups'],
+    items: ['Works offline', 'Arabic & English', 'Windows & Android', 'Your data stays on your device', 'Backups you can encrypt'],
   },
   features: {
     eyebrow: 'Features',
@@ -340,15 +340,15 @@ const en: Copy = {
       { icon: 'clipboardList', title: 'Treatments & plans', text: 'An editable procedure and price list, a treatment plan for every patient by tooth and surface, and printable estimates.' },
       { icon: 'receipt', title: 'Invoices, payments & receipts', text: "Turn finished work into an invoice in one tap. Part payments, patient balances, numbered receipts and statements, with your clinic's logo." },
       { icon: 'pill', title: 'Prescriptions & lab', text: 'Prescriptions from a ready drug list, printed or shared on WhatsApp, and lab orders with status and due-date tracking.' },
-      { icon: 'package', title: 'Inventory & expenses', text: 'Stock levels with low-stock and expiry alerts, and expenses by category compared with the previous period.' },
-      { icon: 'chartColumn', title: 'Reports', text: 'Revenue, expenses and profit by doctor, procedure and payment method, plus no-show rate and outstanding balances, with CSV export.' },
+      { icon: 'package', title: 'Inventory & expenses', text: 'Stock levels with low-stock and expiry alerts, and expenses by category, with the total compared with the previous period.' },
+      { icon: 'chartColumn', title: 'Reports', text: 'Revenue by doctor, procedure and payment method, expenses and net profit, plus no-show rate and outstanding balances, with CSV export.' },
       {
         icon: 'userCog', title: 'Staff & permissions',
         text: 'Every team member gets a role and permissions, signs in with a PIN on every launch, and the app locks itself when left idle.',
         chips: [{ label: 'Admin' }, { label: 'Doctor' }, { label: 'Assistant' }, { label: 'Reception' }],
       },
       {
-        icon: 'databaseBackup', title: 'Encrypted backup',
+        icon: 'databaseBackup', title: 'Backup with optional encryption',
         text: 'Your whole clinic in one file you keep wherever you like, verified after saving and optionally password-protected, to restore or move to a new device.',
         chips: [{ label: 'One file' }, { label: 'AES-256' }, { label: 'Full restore' }],
       },
@@ -381,7 +381,7 @@ const en: Copy = {
       { key: 'patient', title: 'Complete patient files, clear medical alerts', text: 'Allergies and conditions in view before any procedure', alt: 'A patient file in Dentora on a phone, with an allergy alert' },
       { key: 'treatments', title: 'Treatment plans, step by step', text: 'Turn finished work into an invoice in one tap', alt: "A treatment plan in Dentora on a phone, with each procedure's status and price" },
       { key: 'invoice', title: 'Polished invoices, ready to print', text: 'Part payments, balances and numbered receipts', alt: 'An invoice in Dentora on a phone, with the amount paid and the balance due' },
-      { key: 'reports', title: 'Reports that explain your clinic', text: 'Revenue, expenses and profit by doctor and procedure', alt: 'The daily revenue and payment methods report in Dentora on a phone' },
+      { key: 'reports', title: 'Reports that explain your clinic', text: 'Revenue by doctor and procedure, expenses and profit', alt: 'The daily revenue and payment methods report in Dentora on a phone' },
     ],
   },
   steps: {

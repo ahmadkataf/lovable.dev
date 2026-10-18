@@ -20,6 +20,10 @@ const topic: GuideTopic = {
     ar: 'سجّل كل عمل ترسله إلى المخبر، وتابع حالته من الإرسال حتى التركيب، واعرف المتأخر قبل موعد المريض، ودع تكلفته تدخل المصروفات تلقائياً.',
     en: 'Record every case you send to the lab, follow it from sending to fitting, spot late work before the patient’s visit, and let its cost reach your expenses by itself.',
   },
+  metaDescription: {
+    ar: 'سجّل كل عمل ترسله إلى المخبر، وتابع حالته من الإرسال حتى التركيب، واعرف المتأخر قبل موعد المريض، ودع تكلفته تدخل المصروفات تلقائياً.',
+    en: 'Record each lab case, follow it from sending to fitting, spot late work before the patient’s visit, and let its cost reach your expenses by itself.',
+  },
   blocks: [
     {
       id: 'overview',

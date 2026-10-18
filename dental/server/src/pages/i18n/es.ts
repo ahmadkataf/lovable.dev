@@ -41,7 +41,7 @@ export const copy: Copy = {
   },
   trust: {
     label: 'Por qué Dentora',
-    items: ['Funciona sin internet', 'Interfaz en árabe e inglés', 'Windows y Android', 'Sus datos permanecen en su dispositivo', 'Copias de seguridad cifradas'],
+    items: ['Funciona sin internet', 'Interfaz en árabe e inglés', 'Windows y Android', 'Sus datos permanecen en su dispositivo', 'Copias de seguridad que puede cifrar'],
   },
   features: {
     eyebrow: 'Funciones',
@@ -65,15 +65,15 @@ export const copy: Copy = {
       { icon: 'clipboardList', title: 'Tratamientos y planes', text: 'Una lista editable de procedimientos y precios, un plan de tratamiento para cada paciente por diente y superficie, y presupuestos imprimibles.' },
       { icon: 'receipt', title: 'Facturas, pagos y recibos', text: 'Convierta el trabajo realizado en una factura con un solo toque. Pagos parciales, saldos de los pacientes, recibos numerados y estados de cuenta, con el logotipo de su clínica.' },
       { icon: 'pill', title: 'Recetas y laboratorio', text: 'Recetas a partir de un listado de medicamentos ya preparado, impresas o enviadas por WhatsApp, y pedidos al laboratorio con seguimiento del estado y de la fecha de entrega.' },
-      { icon: 'package', title: 'Inventario y gastos', text: 'Existencias con alertas de stock bajo y de caducidad, y gastos por categoría comparados con el periodo anterior.' },
-      { icon: 'chartColumn', title: 'Informes', text: 'Ingresos, gastos y ganancias por odontólogo, procedimiento y método de pago, además de la tasa de inasistencia y los saldos pendientes, con exportación a CSV.' },
+      { icon: 'package', title: 'Inventario y gastos', text: 'Existencias con alertas de stock bajo y de caducidad, y gastos por categoría, con el total comparado con el periodo anterior.' },
+      { icon: 'chartColumn', title: 'Informes', text: 'Ingresos por odontólogo, procedimiento y método de pago, gastos y ganancias netas, además de la tasa de inasistencia y los saldos pendientes, con exportación a CSV.' },
       {
         icon: 'userCog', title: 'Personal y permisos',
         text: 'Cada miembro del personal tiene un rol y unos permisos, inicia sesión con un PIN cada vez que abre la aplicación, y esta se bloquea sola cuando queda inactiva.',
         chips: [{ label: 'Administrador' }, { label: 'Odontólogo' }, { label: 'Asistente' }, { label: 'Recepción' }],
       },
       {
-        icon: 'databaseBackup', title: 'Copia de seguridad cifrada',
+        icon: 'databaseBackup', title: 'Copia de seguridad con cifrado opcional',
         text: 'Toda su clínica en un solo archivo que puede guardar donde quiera, verificado después de guardarlo y, si lo desea, protegido con contraseña, para restaurarla o trasladarla a un dispositivo nuevo.',
         chips: [{ label: 'Un solo archivo' }, { label: 'AES-256' }, { label: 'Restauración completa' }],
       },
@@ -106,7 +106,7 @@ export const copy: Copy = {
       { key: 'patient', title: 'Fichas completas y alertas médicas claras', text: 'Alergias y enfermedades a la vista antes de cualquier procedimiento', alt: 'Una ficha de paciente en Dentora en un teléfono, con una alerta de alergia' },
       { key: 'treatments', title: 'Planes de tratamiento, paso a paso', text: 'Convierta el trabajo realizado en una factura con un toque', alt: 'Un plan de tratamiento en Dentora en un teléfono, con el estado y el precio de cada procedimiento' },
       { key: 'invoice', title: 'Facturas impecables, listas para imprimir', text: 'Pagos parciales, saldos y recibos numerados', alt: 'Una factura en Dentora en un teléfono, con lo pagado y el saldo pendiente' },
-      { key: 'reports', title: 'Informes para entender su clínica', text: 'Ingresos, gastos y ganancias por odontólogo y procedimiento', alt: 'El informe de ingresos diarios y métodos de pago en Dentora en un teléfono' },
+      { key: 'reports', title: 'Informes para entender su clínica', text: 'Ingresos por odontólogo y procedimiento, gastos y ganancias', alt: 'El informe de ingresos diarios y métodos de pago en Dentora en un teléfono' },
     ],
   },
   steps: {
@@ -250,19 +250,19 @@ export const compare: CompareCopy = {
         'Una suscripción mensual (Curve Dental, según presupuesto; Dentally, según el plan y el número de salas de tratamiento).',
         'Un navegador web en Windows o Mac; Curve Dental también menciona Chromebook, y Dentally, iPad.',
         'No se menciona en el sitio de ninguno de los dos proveedores, que atienden a países de habla inglesa.',
-        'Nada que instalar para el programa principal; el proveedor se encarga de la puesta en marcha, la migración de datos y la formación.',
+        'Nada que instalar para el programa principal; Curve Dental se encarga de la puesta en marcha, la migración de datos y la formación.',
       ],
       examples: [CURVE, DENTALLY],
     },
     {
       key: 'server',
       name: 'Sistema de escritorio basado en servidor',
-      summary: 'Un servidor de base de datos en la clínica, con el programa instalado en cada puesto de trabajo, de modo que varios equipos comparten una misma lista de pacientes a través de la red de la clínica. Los datos permanecen en la clínica, pero alguien tiene que instalar y mantener el servidor y hacer sus copias de seguridad, y los proveedores difieren en cuanto a internet: Open Dental indica que una conexión de alta velocidad es un requisito, Dentrix la recomienda y Patterson afirma que Eaglesoft no la necesita para funcionar.',
+      summary: 'Un servidor de base de datos en la clínica, con el programa instalado en cada puesto de trabajo, de modo que varios equipos comparten una misma lista de pacientes a través de la red de la clínica. Los datos permanecen en la clínica, pero alguien tiene que instalar y mantener el servidor y hacer sus copias de seguridad, y los proveedores difieren en cuanto a internet: Open Dental indica que una conexión de alta velocidad es un requisito para el soporte y las actualizaciones, Dentrix la recomienda para las actualizaciones y los servicios, y Patterson afirma que Eaglesoft no la necesita para funcionar.',
       cells: [
-        'Depende: Open Dental indica que internet de alta velocidad es un requisito, Dentrix lo recomienda y Eaglesoft no lo necesita para funcionar.',
+        'Depende: Open Dental indica que internet de alta velocidad es un requisito para el soporte y las actualizaciones, Dentrix lo recomienda para las actualizaciones y los servicios, y Eaglesoft no lo necesita para funcionar.',
         'En un equipo servidor de la clínica, gestionado por la propia clínica.',
-        'Recurrente: una cuota mensual de licencia y soporte (Open Dental), una licencia con un plan de soporte anual (Dentrix), un plan de membresía (Eaglesoft).',
-        'Solo Windows: un servidor Windows y puestos de trabajo con Windows.',
+        'Recurrente: una cuota mensual de licencia y soporte (Open Dental, gratuito con soporte limitado en los países en desarrollo), una licencia con un plan de soporte anual (Dentrix), un plan de membresía (Eaglesoft).',
+        'Puestos de trabajo con Windows y un servidor Windows (el servidor de Open Dental también puede funcionar en Linux o macOS).',
         'No se ofrece: Open Dental solo proporciona archivos de traducción al español y al francés; Dentrix y Eaglesoft solo mencionan el inglés.',
         'Un servidor, una red y una instalación en cada puesto de trabajo; los proveedores recomiendan recurrir a un profesional de redes o de informática.',
       ],
@@ -319,7 +319,7 @@ export const compare: CompareCopy = {
     },
     {
       q: '¿Existe un software dental sin suscripción mensual?',
-      a: 'Sí. Dentora cuesta {price}, en un único pago, por una licencia de por vida para un dispositivo, con todas las funciones. Todos los ejemplos de software en la nube y basado en servidor de esta página indican planes recurrentes (suscripciones, planes de soporte o membresías), así que compare el total a lo largo de varios años.',
+      a: 'Sí. Dentora cuesta {price}, en un único pago, por una licencia de por vida para un dispositivo, con todas las funciones. Los ejemplos de software en la nube y basado en servidor de esta página indican planes recurrentes (suscripciones, planes de soporte o membresías); Open Dental también indica un plan gratuito con soporte limitado para los países en desarrollo. Compare el total a lo largo de varios años.',
     },
     {
       q: '¿Pueden varios equipos compartir los datos de Dentora?',

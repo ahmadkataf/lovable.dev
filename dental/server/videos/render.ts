@@ -5,8 +5,9 @@
 // needs from data- attributes. Without the script the pages still work: native controls, plain links, and a time
 // link reloads the page at ?t=, which the router may pass on as the video's start.
 import { escapeHtml } from '../src/http'
+import { OG_LOCALE } from '../src/site-lang'
 import type { IconName } from '../src/pages/content'
-import { ICONS, jsonForScript } from '../src/pages/landing'
+import { APP_ID, ICONS, jsonForScript, organization } from '../src/pages/landing'
 import { langPath, sellerWa, shell, type PageAssets } from '../src/pages/legal'
 import { DEFAULT_SETTINGS, type Lang, type SiteSettings } from '../src/types'
 import { videoKey, type VideoChapter, type VideoManifest, type VideoRecord } from './types'
@@ -23,6 +24,7 @@ const T = {
     lead: 'شروحات مصوّرة قصيرة من داخل البرنامج نفسه، فصل لكل قسم، بالترتيب الذي تحتاجه: من التثبيت إلى النسخ الاحتياطي. شاهدها بالترتيب، أو اذهب مباشرة إلى ما يهمّك.',
     metaTitle: 'دورة الفيديو: تعلّم Dentora خطوة بخطوة',
     metaDesc: 'دورة فيديو مجانية لتعلّم برنامج Dentora لإدارة عيادات الأسنان: {n} بشرح صوتي وترجمة، من التثبيت إلى النسخ الاحتياطي.',
+    metaDescOther: 'دورة فيديو Dentora: {n} مسجّلة من داخل البرنامج بشرح صوتي بالإنجليزية وترجمة؛ والتسجيلات العربية قريباً.',
     chapters: 'الفصول', chapterN: 'الفصل {n}', chapterOf: 'الفصل {n} من {total}',
     inCourse: 'في الدورة', totalLength: 'المدة الإجمالية', published: 'منشور حتى الآن', allPublished: 'كل الفصول منشورة', of: '{a} من {n}',
     recording: 'الفصول الأولى قيد التسجيل وستُنشر هنا تباعاً.',
@@ -47,6 +49,7 @@ const T = {
     lead: 'Short narrated recordings from inside the app itself, one chapter per area, in the order you need them: from installing to backups. Watch them in order, or go straight to what you need.',
     metaTitle: 'Video course: learn Dentora step by step',
     metaDesc: 'A free video course for Dentora, the dental clinic software: {n} with narration and captions, from installing to backups.',
+    metaDescOther: 'The Dentora video course: {n} recorded inside the app, narrated in Arabic with captions; the English recordings are coming soon.',
     chapters: 'Chapters', chapterN: 'Chapter {n}', chapterOf: 'Chapter {n} of {total}',
     inCourse: 'in the course', totalLength: 'Total length', published: 'published so far', allPublished: 'All chapters published', of: '{a} of {n}',
     recording: 'The first chapters are being recorded and will appear here one by one.',
@@ -192,8 +195,8 @@ function headExtra(h: HeadExtra): string {
     `<meta property="og:description" content="${escapeHtml(h.description)}">`,
     `<meta property="og:url" content="${escapeHtml(h.url)}">`,
     `<meta property="og:image" content="${escapeHtml(h.image)}">`,
-    `<meta property="og:locale" content="${h.lang === 'ar' ? 'ar_SY' : 'en_US'}">`,
-    `<meta property="og:locale:alternate" content="${h.lang === 'ar' ? 'en_US' : 'ar_SY'}">`,
+    `<meta property="og:locale" content="${OG_LOCALE[h.lang]}">`,
+    `<meta property="og:locale:alternate" content="${OG_LOCALE[h.lang === 'ar' ? 'en' : 'ar']}">`,
     h.video ? `<meta property="og:video" content="${escapeHtml(h.video.url)}">` : '',
     h.video ? `<meta property="og:video:secure_url" content="${escapeHtml(h.video.url)}">` : '',
     h.video ? '<meta property="og:video:type" content="video/mp4">' : '',
@@ -215,7 +218,9 @@ function breadcrumbs(origin: string, lang: Lang, items: { name: string; path: st
     itemListElement: items.map((it, i) => ({ '@type': 'ListItem', position: i + 1, name: it.name, item: `${origin}${langPath(it.path, lang)}` })),
   }
 }
-const publisher = (origin: string) => ({ '@type': 'Organization', name: 'Dentora', url: `${origin}/`, logo: { '@type': 'ImageObject', url: `${origin}/icon-512.png` } })
+// The maker and the app as the home page describes them (same @ids), so every page names the same publisher.
+const publisher = (_origin: string) => organization()
+const aboutApp = { '@type': 'SoftwareApplication', '@id': APP_ID, name: 'Dentora', applicationCategory: 'BusinessApplication', operatingSystem: 'Windows 10, Windows 11, Android 7.0 or later' }
 
 // ---- the course home ------------------------------------------------------------------------------------------
 export function renderVideosHome(lang: Lang, s: SiteSettings, origin: string, assets: PageAssets, chapters: readonly VideoChapter[], manifest: VideoManifest | null | undefined): string {
@@ -228,7 +233,11 @@ export function renderVideosHome(lang: Lang, s: SiteSettings, origin: string, as
   const first = list[recorded.findIndex(Boolean)] ?? list[0]
   const url = `${origin}${langPath(VIDEOS_PATH, lang)}`
   const image = `${origin}/img/og-${lang}.jpg`
-  const description = fill(t.metaDesc, { n: chaptersCount(list.length, lang) })
+  // nothing recorded in this language yet, but in the other: say so (the chapters play in the other language)
+  const other: Lang = lang === 'ar' ? 'en' : 'ar'
+  const otherFirst = list.find(c => recordOf(manifest, other, c.slug))
+  const onlyOther = !published && !!otherFirst
+  const description = fill(onlyOther ? t.metaDescOther : t.metaDesc, { n: chaptersCount(list.length, lang) })
 
   const stats = [
     `<li><strong>${escapeHtml(chaptersCount(list.length, lang))}</strong><span>${t.inCourse}</span></li>`,
@@ -271,7 +280,7 @@ export function renderVideosHome(lang: Lang, s: SiteSettings, origin: string, as
 <h1>${t.h1}</h1>
 <p class="vc-lead">${t.lead}</p>
 <div class="vc-hero-actions">
-<a class="btn btn-primary legal-btn vc-btn" href="${escapeHtml(chapterPath(first.slug, lang))}">${icon('play')}<span>${t.start}</span></a>
+<a class="btn btn-primary legal-btn vc-btn" href="${escapeHtml(onlyOther ? chapterPath(otherFirst!.slug, other) : chapterPath(first.slug, lang))}"${onlyOther ? ` hreflang="${other}"` : ''}>${icon('play')}<span>${t.start}</span></a>
 <a class="btn btn-outline legal-btn legal-btn-ghost vc-btn" href="${escapeHtml(langPath('/guide', lang))}">${icon('bookOpen')}<span>${t.guide}</span></a>
 </div>
 ${published ? '' : `<p class="vc-recording">${icon('clock')}<span>${t.recording}</span></p>`}
@@ -378,6 +387,7 @@ ${lines}
     width: rec.width || 1920, height: rec.height || 1080,
     isFamilyFriendly: true,
     publisher: publisher(origin),
+    about: aboutApp,
     ...(scenes.length > 1 ? {
       hasPart: scenes.map((sc, i) => ({
         '@type': 'Clip', name: sc.text, startOffset: sc.start,
@@ -426,7 +436,12 @@ ${rec ? keys : ''}
 ${transcript}
 </div>
 </main>`
-  const page = shell({ lang, title: `${title} — ${t.courseLong}`, description: summary, origin, assets, path, body })
+  // a chapter not recorded in this language is a placeholder: not indexed; a recorded one lists the languages it
+  // is recorded in as its hreflang alternates
+  const page = shell({
+    lang, title: `${title} — ${t.courseLong}`, description: summary, origin, assets, path, body,
+    noindex: !rec, alternates: (['ar', 'en'] as Lang[]).filter(l => l === lang || (l === other && otherRec)),
+  })
   const video = rec ? { url: `${origin}${files.mp4}`, width: rec.width || 1920, height: rec.height || 1080, duration: rec.durationSeconds } : undefined
   return withHead(page, headExtra({ lang, url, title: `${title} — ${t.courseLong}`, description: summary, image, video, ld }))
 }

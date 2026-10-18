@@ -15,6 +15,7 @@
     "electron:dev": "npm run build && electron .",
     "electron:build": "npm run build && electron-builder --win",
     "android:build": "npm run build && ./scripts/build-apk.sh",
+    "android:play": "./scripts/build-play.sh",
     "qa:smoke": "npm run build && node scripts/qa/smoke.mjs"
   },
   "dependencies": {

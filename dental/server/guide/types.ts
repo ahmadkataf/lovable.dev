@@ -52,6 +52,8 @@ export interface GuideTopic {
   title: Bi
   /** One or two sentences: the card on the guide's home page and the page's meta description. */
   summary: Bi
+  /** The meta description when the summary is longer than search results show (155 characters); else the summary. */
+  metaDescription?: Bi
   blocks: GuideBlock[]
   shots: GuideShot[]
 }

@@ -41,7 +41,7 @@ export const copy: Copy = {
   },
   trust: {
     label: 'Mengapa Dentora',
-    items: ['Berjalan tanpa internet', 'Antarmuka Arab & Inggris', 'Windows & Android', 'Data Anda tetap di perangkat Anda', 'Cadangan terenkripsi'],
+    items: ['Berjalan tanpa internet', 'Antarmuka Arab & Inggris', 'Windows & Android', 'Data Anda tetap di perangkat Anda', 'Cadangan yang dapat dienkripsi'],
   },
   features: {
     eyebrow: 'Fitur',
@@ -65,15 +65,15 @@ export const copy: Copy = {
       { icon: 'clipboardList', title: 'Tindakan & rencana perawatan', text: 'Daftar tindakan dan tarif yang dapat diubah, rencana perawatan untuk setiap pasien per gigi dan permukaan, serta estimasi biaya yang dapat dicetak.' },
       { icon: 'receipt', title: 'Tagihan, pembayaran & kuitansi', text: 'Ubah pekerjaan yang sudah selesai menjadi tagihan dengan sekali ketuk. Pembayaran sebagian, saldo pasien, kuitansi bernomor, dan rekap tagihan, dengan logo klinik Anda.' },
       { icon: 'pill', title: 'Resep & laboratorium', text: 'Resep dari daftar obat yang sudah tersedia, dicetak atau dibagikan lewat WhatsApp, serta pesanan laboratorium dengan pemantauan status dan tenggat.' },
-      { icon: 'package', title: 'Stok & pengeluaran', text: 'Jumlah stok dengan peringatan stok menipis dan kedaluwarsa, serta pengeluaran per kategori yang dibandingkan dengan periode sebelumnya.' },
-      { icon: 'chartColumn', title: 'Laporan', text: 'Pendapatan, pengeluaran, dan laba per dokter, tindakan, dan metode pembayaran, ditambah tingkat ketidakhadiran pasien dan tagihan yang belum lunas, dengan ekspor CSV.' },
+      { icon: 'package', title: 'Stok & pengeluaran', text: 'Jumlah stok dengan peringatan stok menipis dan kedaluwarsa, serta pengeluaran per kategori, dengan totalnya dibandingkan dengan periode sebelumnya.' },
+      { icon: 'chartColumn', title: 'Laporan', text: 'Pendapatan per dokter, tindakan, dan metode pembayaran, serta pengeluaran dan laba bersih, ditambah tingkat ketidakhadiran pasien dan tagihan yang belum lunas, dengan ekspor CSV.' },
       {
         icon: 'userCog', title: 'Staf & hak akses',
         text: 'Setiap anggota tim mendapat peran dan hak akses, masuk dengan PIN setiap kali aplikasi dibuka, dan aplikasi terkunci otomatis saat dibiarkan tidak digunakan.',
         chips: [{ label: 'Admin' }, { label: 'Dokter' }, { label: 'Asisten' }, { label: 'Resepsionis' }],
       },
       {
-        icon: 'databaseBackup', title: 'Cadangan terenkripsi',
+        icon: 'databaseBackup', title: 'Cadangan dengan enkripsi opsional',
         text: 'Seluruh klinik Anda dalam satu file yang dapat Anda simpan di mana saja, diverifikasi setelah disimpan dan dapat dilindungi kata sandi, untuk dipulihkan atau dipindahkan ke perangkat baru.',
         chips: [{ label: 'Satu file' }, { label: 'AES-256' }, { label: 'Pemulihan penuh' }],
       },
@@ -106,7 +106,7 @@ export const copy: Copy = {
       { key: 'patient', title: 'Berkas pasien lengkap, peringatan medis jelas', text: 'Alergi dan penyakit terlihat sebelum tindakan apa pun', alt: 'Berkas pasien di Dentora pada ponsel, dengan peringatan alergi' },
       { key: 'treatments', title: 'Rencana perawatan, langkah demi langkah', text: 'Ubah pekerjaan yang sudah selesai menjadi tagihan dengan sekali ketuk', alt: 'Rencana perawatan di Dentora pada ponsel, dengan status dan harga setiap tindakan' },
       { key: 'invoice', title: 'Tagihan rapi, siap dicetak', text: 'Pembayaran sebagian, saldo, dan kuitansi bernomor', alt: 'Tagihan di Dentora pada ponsel, dengan jumlah yang sudah dibayar dan sisa tagihan' },
-      { key: 'reports', title: 'Laporan yang menjelaskan kondisi klinik Anda', text: 'Pendapatan, pengeluaran, dan laba per dokter dan tindakan', alt: 'Laporan pendapatan harian dan metode pembayaran di Dentora pada ponsel' },
+      { key: 'reports', title: 'Laporan yang menjelaskan kondisi klinik Anda', text: 'Pendapatan per dokter dan tindakan, serta pengeluaran dan laba', alt: 'Laporan pendapatan harian dan metode pembayaran di Dentora pada ponsel' },
     ],
   },
   steps: {
@@ -250,19 +250,19 @@ export const compare: CompareCopy = {
         'Langganan bulanan (Curve Dental berdasarkan penawaran harga; Dentally berdasarkan paket dan jumlah ruang perawatan).',
         'Browser web di Windows atau Mac; Curve Dental juga mencantumkan Chromebook, Dentally juga iPad.',
         'Tidak disebutkan di situs kedua penyedia, yang melayani negara-negara berbahasa Inggris.',
-        'Tidak ada yang perlu diinstal untuk program utamanya; penyedia menangani pendampingan awal, konversi data, dan pelatihan.',
+        'Tidak ada yang perlu diinstal untuk program utamanya; Curve Dental menangani pendampingan awal, konversi data, dan pelatihan.',
       ],
       examples: [CURVE, DENTALLY],
     },
     {
       key: 'server',
       name: 'Sistem desktop berbasis server',
-      summary: 'Server basis data di klinik, dengan program yang diinstal di setiap komputer kerja, sehingga beberapa komputer berbagi satu daftar pasien melalui jaringan klinik. Data tetap berada di klinik, tetapi harus ada yang menginstal, merawat, dan mencadangkan server, dan ketentuan para penyedia soal internet berbeda-beda: Open Dental menyebut koneksi berkecepatan tinggi sebagai persyaratan, Dentrix menyarankannya, dan Patterson menyatakan bahwa Eaglesoft tidak memerlukannya untuk berfungsi.',
+      summary: 'Server basis data di klinik, dengan program yang diinstal di setiap komputer kerja, sehingga beberapa komputer berbagi satu daftar pasien melalui jaringan klinik. Data tetap berada di klinik, tetapi harus ada yang menginstal, merawat, dan mencadangkan server, dan ketentuan para penyedia soal internet berbeda-beda: Open Dental menyebut koneksi berkecepatan tinggi sebagai persyaratan untuk dukungan dan pembaruan, Dentrix menyarankannya untuk pembaruan dan layanan, dan Patterson menyatakan bahwa Eaglesoft tidak memerlukannya untuk berfungsi.',
       cells: [
-        'Bervariasi: Open Dental menyebut internet berkecepatan tinggi sebagai persyaratan, Dentrix menyarankannya, Eaglesoft tidak memerlukannya untuk berjalan.',
+        'Bervariasi: Open Dental menyebut internet berkecepatan tinggi sebagai persyaratan untuk dukungan dan pembaruan, Dentrix menyarankannya untuk pembaruan dan layanan, Eaglesoft tidak memerlukannya untuk berjalan.',
         'Di komputer server di klinik, yang dikelola oleh klinik sendiri.',
-        'Berulang: biaya bulanan untuk lisensi dan dukungan (Open Dental), lisensi dengan paket dukungan tahunan (Dentrix), paket keanggotaan (Eaglesoft).',
-        'Hanya Windows: server Windows dan komputer kerja Windows.',
+        'Berulang: biaya bulanan untuk lisensi dan dukungan (Open Dental, gratis dengan dukungan terbatas di negara berkembang), lisensi dengan paket dukungan tahunan (Dentrix), paket keanggotaan (Eaglesoft).',
+        'Komputer kerja Windows dan server Windows (server Open Dental juga dapat berjalan di Linux atau macOS).',
         'Tidak tersedia: Open Dental hanya menyediakan file terjemahan bahasa Spanyol dan Prancis; Dentrix dan Eaglesoft hanya menyebut bahasa Inggris.',
         'Server, jaringan, dan instalasi di setiap komputer kerja; para penyedia menyarankan tenaga ahli jaringan atau TI.',
       ],
@@ -319,7 +319,7 @@ export const compare: CompareCopy = {
     },
     {
       q: 'Adakah software klinik gigi tanpa langganan bulanan?',
-      a: 'Ada. Harga Dentora {price}, sekali bayar, untuk lisensi seumur hidup di satu perangkat, dengan semua fitur. Contoh sistem cloud dan berbasis server di halaman ini semuanya mencantumkan paket berulang (langganan, paket dukungan, atau keanggotaan), jadi bandingkan total biayanya selama beberapa tahun.',
+      a: 'Ada. Harga Dentora {price}, sekali bayar, untuk lisensi seumur hidup di satu perangkat, dengan semua fitur. Contoh sistem cloud dan berbasis server di halaman ini mencantumkan paket berulang (langganan, paket dukungan, atau keanggotaan); Open Dental juga mencantumkan paket gratis dengan dukungan terbatas untuk negara berkembang. Bandingkan total biayanya selama beberapa tahun.',
     },
     {
       q: 'Bisakah beberapa komputer berbagi data Dentora?',

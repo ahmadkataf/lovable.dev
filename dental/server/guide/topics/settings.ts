@@ -12,6 +12,10 @@ const topic: GuideTopic = {
     ar: 'اجعل البرنامج على مقاس عيادتك: بياناتها وشعارها على كل ورقة مطبوعة، والعملة والضريبة وترقيم الفواتير، واللغة والخط والمظهر، وأوقات الدوام والقفل التلقائي.',
     en: 'Make Dentora fit your clinic: its details and logo on every printout, the currency, tax and invoice numbering, the language, font and appearance, the working hours and auto-lock.',
   },
+  metaDescription: {
+    ar: 'اجعل البرنامج على مقاس عيادتك: بياناتها وشعارها على كل ورقة مطبوعة، والعملة والضريبة وترقيم الفواتير، واللغة والخط والمظهر، وأوقات الدوام والقفل التلقائي.',
+    en: 'Fit Dentora to your clinic: details and logo on printouts, currency, tax and invoice numbering, language, font and appearance, working hours and auto-lock.',
+  },
   blocks: [
     {
       id: 'overview',

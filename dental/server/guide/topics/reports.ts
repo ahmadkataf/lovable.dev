@@ -15,6 +15,10 @@ const topic: GuideTopic = {
     ar: 'أرقام عيادتك في مكان واحد: الإيرادات والمصروفات وصافي الربح، والمرضى والمواعيد والعلاجات، والذمم المستحقة، لأي فترة ولكل طبيب، مع الطباعة والتصدير إلى Excel.',
     en: 'Your clinic in figures: revenue, expenses and net profit, patients, appointments, treatments and outstanding balances, for any period and any doctor, ready to print or export to Excel.',
   },
+  metaDescription: {
+    ar: 'أرقام عيادتك في مكان واحد: الإيرادات والمصروفات وصافي الربح، والمرضى والمواعيد والعلاجات، والذمم المستحقة، لأي فترة، مع الطباعة والتصدير إلى Excel.',
+    en: 'Your clinic in figures: revenue, expenses and net profit, patients, appointments, treatments and balances due for any period, ready to print or export.',
+  },
   blocks: [
     {
       id: 'overview',

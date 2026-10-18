@@ -1,5 +1,5 @@
-<!-- Generated from src/features/legal/docs.ts (the text shown in the app: Settings → About). Edit both together.
-     Before publishing: the seller's name and contacts here must match src/features/settings/seller.ts. -->
+<!-- Generated from src/features/legal/docs.ts (the text shown in the app: Settings → About) by scripts/make-legal-md.ts.
+     Do not edit by hand: edit docs.ts and run npx tsx scripts/make-legal-md.ts. -->
 
 # Dentora — شروط الاستخدام | Terms of use
 
@@ -9,7 +9,7 @@
 
 # شروط الاستخدام
 
-آخر تحديث: 12 تشرين الأول (أكتوبر) 2026
+آخر تحديث: 18 تشرين الأول (أكتوبر) 2026
 
 هذه شروط استخدام برنامج Dentora (اتفاقية ترخيص المستخدم النهائي). باستخدام البرنامج أو تثبيته توافق عليها نيابةً عن العيادة.
 
@@ -60,7 +60,7 @@ Dentora — واتساب: +963 996 489 504
 
 # Terms of use
 
-Last updated: 12 October 2026
+Last updated: 18 October 2026
 
 These are the terms of use of Dentora (the end-user licence agreement). By installing or using the app you accept them on behalf of the clinic.
 

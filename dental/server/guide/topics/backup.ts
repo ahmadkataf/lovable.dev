@@ -18,6 +18,10 @@ const topic: GuideTopic = {
     ar: 'بيانات عيادتك على جهازك وحده. احفظ نسخة احتياطية بانتظام، واحمها بكلمة مرور، واستعدها عند الحاجة، أو انقل بها العيادة إلى جهاز جديد.',
     en: 'Your clinic’s data lives on your device alone. Save a backup regularly, protect it with a password, restore it when you need to, or use it to move the clinic to a new device.',
   },
+  metaDescription: {
+    ar: 'بيانات عيادتك على جهازك وحده. احفظ نسخة احتياطية بانتظام، واحمها بكلمة مرور، واستعدها عند الحاجة، أو انقل بها العيادة إلى جهاز جديد.',
+    en: 'Your clinic’s data lives on your device alone: save backups regularly, protect them with a password, restore them, or move the clinic to a new device.',
+  },
   blocks: [
     {
       id: 'overview',
@@ -129,12 +133,12 @@ const topic: GuideTopic = {
       },
       tips: {
         ar: [
-          'على ويندوز تبقى البيانات في مجلد حساب ويندوز الحالي، فلا يمسحها إلغاء تثبيت البرنامج أو إعادة تثبيته. لكن تعطّل القرص أو سرقة الحاسوب يأخذها معه.',
+          'على ويندوز تبقى البيانات في مجلد حساب ويندوز الحالي، فلا يمسحها إلغاء تثبيت النسخة المنزَّلة من الموقع أو إعادة تثبيتها. أما إن ثبّتّ Dentora من متجر Microsoft فإلغاء تثبيته يمسح بياناته، فخذ نسخة احتياطية قبله. وفي الحالتين يأخذ تعطّل القرص أو سرقة الحاسوب البيانات معه.',
           'على أندرويد يمسح حذف التطبيق، أو «مسح البيانات» من معلومات التطبيق، كل بيانات العيادة نهائياً. ولا تنقلها نسخة Google التلقائية ولا نقل البيانات بين الهواتف: ملف النسخة من داخل البرنامج هو الطريقة الوحيدة.',
           'إن أرسلت النسخة عبر الإنترنت فاحمها بكلمة مرور أولاً.',
         ],
         en: [
-          'On Windows the data lives in the current Windows account’s folder, so uninstalling or reinstalling Dentora does not erase it. A broken disk or a stolen PC takes it all, though.',
+          'On Windows the data lives in the current Windows account’s folder, so uninstalling or reinstalling the version downloaded from the website does not erase it. If you installed Dentora from the Microsoft Store, uninstalling it erases its data, so save a backup first. Either way, a broken disk or a stolen PC takes it all.',
           'On Android, uninstalling the app, or “Clear storage” in the app’s info, erases all clinic data for good. Neither Google’s automatic backup nor a phone-to-phone transfer carries it: the backup file made inside Dentora is the only way.',
           'If you send a backup over the internet, protect it with a password first.',
         ],

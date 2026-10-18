@@ -12,6 +12,10 @@ const topic: GuideTopic = {
     ar: 'تعرّف على أجزاء الشاشة لتصل إلى أي شيء بسرعة: القائمة الجانبية، والبحث السريع، وزر جديد، والتنبيهات، واللغة والمظهر، والاختصارات، وشكل البرنامج على الهاتف.',
     en: 'Get to know the screen and reach anything in seconds: the sidebar, quick search, the New button, notifications, language and appearance, shortcuts, and how Dentora looks on a phone.',
   },
+  metaDescription: {
+    ar: 'تعرّف على أجزاء الشاشة لتصل إلى أي شيء بسرعة: القائمة الجانبية، والبحث السريع، وزر جديد، والتنبيهات، واللغة والمظهر، والاختصارات، وشكل البرنامج على الهاتف.',
+    en: 'The Dentora screen explained: the sidebar, quick search, the New button, notifications, language and appearance, shortcuts, and the phone layout.',
+  },
   blocks: [
     {
       id: 'overview',

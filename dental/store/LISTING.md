@@ -25,7 +25,7 @@ Dentora - إدارة عيادة الأسنان
 إدارة عيادة الأسنان كاملة: مرضى ومواعيد ومخطط أسنان وفواتير، وتعمل دون إنترنت
 ```
 
-**Full description / الوصف الكامل** (2,507/4,000)
+**Full description / الوصف الكامل** (2,548/4,000)
 
 ```
 Dentora نظام متكامل لإدارة عيادة الأسنان، بواجهة عربية حديثة (ومعها الإنجليزية)، يعمل على الهاتف والجهاز اللوحي دون اتصال بالإنترنت. كل بيانات العيادة ومرضاها تبقى على جهازك.
@@ -56,7 +56,7 @@ Dentora نظام متكامل لإدارة عيادة الأسنان، بواج�
 • الوصفات الطبية مع قاعدة أدوية جاهزة.
 • طلبات المخبر ومتابعة حالتها ومواعيد التسليم.
 • المخزون مع تنبيهات النقص وانتهاء الصلاحية، والمصروفات حسب الفئة.
-• تقارير الإيرادات والمصروفات والربح حسب الطبيب والإجراء وطريقة الدفع، مع تصدير CSV.
+• تقارير: الإيرادات حسب الطبيب والإجراء وطريقة الدفع، والمصروفات وصافي الربح، ونسبة عدم الحضور والذمم المستحقة، مع تصدير CSV.
 • فريق بأدوار وصلاحيات: مدير، طبيب، مساعد، استقبال، ودخول برمز PIN وقفل تلقائي.
 
 خصوصيتك أولاً
@@ -97,7 +97,7 @@ Dentora: Dental Clinic Manager
 Run your dental clinic: patients, appointments, chart and invoices. No internet.
 ```
 
-**Full description** (3,109/4,000)
+**Full description** (3,155/4,000)
 
 ```
 Dentora is complete dental clinic management with a modern interface in Arabic and English. It runs on your phone or tablet with no internet connection, and all of your clinic's and patients' data stays on your device.
@@ -128,7 +128,7 @@ And more
 • Prescriptions with a ready drug list.
 • Lab orders with status and due-date tracking.
 • Stock with low-stock and expiry alerts, and expenses by category.
-• Reports on revenue, expenses and profit by doctor, procedure and payment method, with CSV export.
+• Reports: revenue by doctor, procedure and payment method, expenses and net profit, plus no-show rate and outstanding balances, with CSV export.
 • Team roles and permissions (admin, doctor, assistant, reception), PIN sign-in and automatic lock.
 
 Privacy first
@@ -178,7 +178,7 @@ Dentora : logiciel dentaire
 Gérez votre cabinet dentaire sans internet : patients, agenda, schéma, factures.
 ```
 
-**Full description** (3,926/4,000)
+**Full description** (3,913/4,000)
 
 ```
 Dentora est un logiciel complet de gestion de cabinet dentaire, avec une interface moderne en arabe et en anglais. Il fonctionne sur votre téléphone ou votre tablette sans connexion internet, et toutes les données de votre cabinet et de vos patients restent sur votre appareil.
@@ -209,7 +209,7 @@ Et aussi
 • Ordonnances à partir d’une liste de médicaments toute prête.
 • Commandes au laboratoire avec suivi de l’état et de la date de retour prévue.
 • Stock avec alertes de stock bas et de péremption, et dépenses par catégorie.
-• Rapports sur les recettes, les dépenses et le bénéfice par praticien, par acte et par mode de paiement, avec export CSV.
+• Rapports : recettes par praticien, par acte et par mode de paiement, dépenses et bénéfice, avec export CSV.
 • Rôles et droits d’accès de l’équipe (administrateur, praticien, assistant, accueil), connexion par code PIN et verrouillage automatique.
 
 La confidentialité avant tout
@@ -248,7 +248,7 @@ Dentora: gestión dental
 Su clínica dental sin internet: pacientes, citas, odontograma y facturas.
 ```
 
-**Full description** (3,714/4,000)
+**Full description** (3,712/4,000)
 
 ```
 Dentora es un software completo de gestión para clínicas dentales, con una interfaz moderna en árabe e inglés. Funciona en su teléfono o tableta sin conexión a internet, y todos los datos de su clínica y de sus pacientes permanecen en su dispositivo.
@@ -279,7 +279,7 @@ Y además
 • Recetas con un listado de medicamentos ya preparado.
 • Pedidos al laboratorio con seguimiento del estado y de la fecha de entrega.
 • Inventario con alertas de stock bajo y de caducidad, y gastos por categoría.
-• Informes de ingresos, gastos y ganancias por odontólogo, procedimiento y método de pago, con exportación a CSV.
+• Informes: ingresos por odontólogo, procedimiento y método de pago, gastos y ganancias, con exportación a CSV.
 • Roles y permisos del personal (administrador, odontólogo, asistente, recepción), inicio de sesión con PIN y bloqueo automático.
 
 Privacidad ante todo
@@ -318,7 +318,7 @@ Dentora: Gestão Odontológica
 Gerencie sua clínica: pacientes, agenda, odontograma e faturas. Sem internet.
 ```
 
-**Full description** (3,609/4,000)
+**Full description** (3,607/4,000)
 
 ```
 O Dentora é um sistema completo de gestão para clínicas odontológicas, com uma interface moderna em árabe e inglês. Ele funciona no seu celular ou tablet sem conexão com a internet, e todos os dados da sua clínica e dos seus pacientes ficam no seu dispositivo.
@@ -349,7 +349,7 @@ E mais
 • Receitas com uma lista de medicamentos pronta.
 • Pedidos ao laboratório com acompanhamento de status e prazo de entrega.
 • Estoque com alertas de estoque baixo e de validade, e despesas por categoria.
-• Relatórios de receita, despesas e lucro por dentista, procedimento e forma de pagamento, com exportação em CSV.
+• Relatórios: receita por dentista, procedimento e forma de pagamento, despesas e lucro, com exportação em CSV.
 • Funções e permissões da equipe (administrador, dentista, auxiliar, recepção), acesso com PIN e bloqueio automático.
 
 Privacidade em primeiro lugar
@@ -388,7 +388,7 @@ Dentora: Diş Kliniği Programı
 Diş kliniğinizi yönetin: hasta, randevu, diş şeması, fatura. İnternetsiz.
 ```
 
-**Full description** (3,407/4,000)
+**Full description** (3,414/4,000)
 
 ```
 Dentora, Arapça ve İngilizce modern bir arayüze sahip, eksiksiz bir diş kliniği yönetim programıdır. İnternet bağlantısı olmadan telefonunuzda veya tabletinizde çalışır; kliniğinizin ve hastalarınızın tüm verileri cihazınızda kalır.
@@ -419,7 +419,7 @@ Dahası
 • Hazır ilaç listesiyle reçeteler.
 • Durum ve teslim tarihi takibiyle laboratuvar siparişleri.
 • Azalan stok ve son kullanma tarihi uyarılarıyla stok takibi; kategoriye göre giderler.
-• Hekime, işleme ve ödeme yöntemine göre gelir, gider ve kâr raporları, CSV dışa aktarımıyla.
+• Raporlar: hekime, işleme ve ödeme yöntemine göre gelir, ayrıca gider ve kâr, CSV dışa aktarımıyla.
 • Ekip rolleri ve yetkileri (yönetici, hekim, asistan, resepsiyon), PIN ile giriş ve otomatik kilit.
 
 Önce gizlilik
@@ -458,7 +458,7 @@ Dentora: Aplikasi Klinik Gigi
 Kelola klinik gigi: pasien, janji temu, odontogram, dan tagihan. Tanpa internet.
 ```
 
-**Full description** (3,732/4,000)
+**Full description** (3,738/4,000)
 
 ```
 Dentora adalah aplikasi manajemen klinik gigi yang lengkap, dengan antarmuka modern dalam bahasa Arab dan Inggris. Aplikasi ini berjalan di ponsel atau tablet Anda tanpa koneksi internet, dan semua data klinik dan pasien Anda tetap tersimpan di perangkat Anda.
@@ -489,7 +489,7 @@ Fitur lainnya
 • Resep dengan daftar obat yang sudah tersedia.
 • Pesanan laboratorium dengan pemantauan status dan tenggat.
 • Stok dengan peringatan stok menipis dan kedaluwarsa, serta pengeluaran per kategori.
-• Laporan pendapatan, pengeluaran, dan laba per dokter, tindakan, dan metode pembayaran, dengan ekspor CSV.
+• Laporan: pendapatan per dokter, tindakan, dan metode pembayaran, serta pengeluaran dan laba, dengan ekspor CSV.
 • Peran dan hak akses tim (admin, dokter, asisten, resepsionis), masuk dengan PIN, dan kunci otomatis.
 
 Privasi diutamakan
@@ -528,7 +528,7 @@ Dentora: ڈینٹل کلینک مینیجر
 اپنا ڈینٹل کلینک چلائیں: مریض، اپائنٹمنٹس، چارٹ اور انوائسز۔ انٹرنیٹ کے بغیر۔
 ```
 
-**Full description** (3,143/4,000)
+**Full description** (3,149/4,000)
 
 ```
 Dentora ایک مکمل ڈینٹل کلینک مینجمنٹ سافٹ ویئر ہے، عربی اور انگریزی میں جدید انٹرفیس کے ساتھ۔ یہ آپ کے فون یا ٹیبلٹ پر انٹرنیٹ کنکشن کے بغیر چلتا ہے، اور آپ کے کلینک اور مریضوں کا سارا ڈیٹا آپ کی ڈیوائس پر ہی رہتا ہے۔
@@ -559,7 +559,7 @@ Dentora ایک مکمل ڈینٹل کلینک مینجمنٹ سافٹ ویئر �
 • ادویات کی تیار فہرست کے ساتھ نسخے۔
 • اسٹیٹس اور مقررہ تاریخ کی ٹریکنگ کے ساتھ لیب آرڈرز۔
 • کم اسٹاک اور میعاد ختم ہونے کے انتباہات کے ساتھ اسٹاک، اور زمرہ وار اخراجات۔
-• ڈاکٹر، پروسیجر اور ادائیگی کے طریقے کے لحاظ سے آمدنی، اخراجات اور منافع کی رپورٹس، CSV ایکسپورٹ کے ساتھ۔
+• رپورٹس: ڈاکٹر، پروسیجر اور ادائیگی کے طریقے کے لحاظ سے آمدنی، ساتھ ہی اخراجات اور منافع، CSV ایکسپورٹ کے ساتھ۔
 • ٹیم کے رول اور اجازتیں (ایڈمن، ڈاکٹر، اسسٹنٹ، ریسیپشن)، PIN سے سائن ان اور خودکار لاک۔
 
 پرائیویسی سب سے پہلے

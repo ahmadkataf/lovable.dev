@@ -1,5 +1,5 @@
-<!-- Generated from src/features/legal/docs.ts (the text shown in the app: Settings → About). Edit both together.
-     Before publishing: the seller's name and contacts here must match src/features/settings/seller.ts. -->
+<!-- Generated from src/features/legal/docs.ts (the text shown in the app: Settings → About) by scripts/make-legal-md.ts.
+     Do not edit by hand: edit docs.ts and run npx tsx scripts/make-legal-md.ts. -->
 
 # Dentora — سياسة الخصوصية | Privacy policy
 
@@ -9,7 +9,7 @@
 
 # سياسة الخصوصية
 
-آخر تحديث: 12 تشرين الأول (أكتوبر) 2026
+آخر تحديث: 18 تشرين الأول (أكتوبر) 2026
 
 يشرح هذا المستند كيف يتعامل برنامج Dentora لإدارة عيادات الأسنان مع البيانات. باختصار: كل بيانات العيادة ومرضاها تبقى على الجهاز الذي يعمل عليه البرنامج، ولا نتلقى منها شيئاً.
 
@@ -49,7 +49,7 @@ Dentora برنامج تبيعه Dentora ("نحن"). العيادة التي تس
 - ننصح العيادة بقفل الجهاز بكلمة مرور وتشفير قرصه، وتحديث نظامه، وحماية النسخ الاحتياطية بكلمة مرور.
 
 ## مدة الحفظ والحذف
-تبقى البيانات التي على الجهاز حتى تحذفها العيادة. يمكن حذف أي سجل أو أرشفته، ويحذف الأمر «حذف كل البيانات» في الإعدادات ← النسخ الاحتياطي كل البيانات من الجهاز. إزالة التطبيق على أندرويد تحذف بياناته، وعلى ويندوز يُنصح باستخدام «حذف كل البيانات» قبل إزالة البرنامج. على العيادة الالتزام بالمدد التي يفرضها القانون في بلدها لحفظ السجلات الطبية. وما يحتفظ به خادم التفعيل مذكور في «التفعيل بمفتاح ترخيص».
+تبقى البيانات التي على الجهاز حتى تحذفها العيادة. يمكن حذف أي سجل أو أرشفته، ويحذف الأمر «حذف كل البيانات» في الإعدادات ← النسخ الاحتياطي كل البيانات من الجهاز. إزالة التطبيق على أندرويد، أو إزالة نسخة متجر Microsoft على ويندوز، تحذف بياناته معه، فاحفظ نسخة احتياطية قبلها؛ أما نسخة ويندوز المثبّتة من موقعنا فتبقى بياناتها بعد إزالة البرنامج، فاستخدم «حذف كل البيانات» قبل إزالته إن أردت حذفها. على العيادة الالتزام بالمدد التي يفرضها القانون في بلدها لحفظ السجلات الطبية. وما يحتفظ به خادم التفعيل مذكور في «التفعيل بمفتاح ترخيص».
 
 ## حقوق المرضى
 تتولى العيادة طلبات المرضى للاطلاع على بياناتهم أو تصحيحها أو الحصول على نسخة منها أو حذفها، ويتيح البرنامج عرض أي سجل وتعديله وطباعته وحذفه. لا نستطيع نحن تنفيذ هذه الطلبات لأننا لا نملك أي نسخة من البيانات، فيُرجى أن يتوجه المريض إلى عيادته.
@@ -71,7 +71,7 @@ Dentora — واتساب: +963 996 489 504
 
 # Privacy policy
 
-Last updated: 12 October 2026
+Last updated: 18 October 2026
 
 This document explains how Dentora, dental clinic management software, handles data. In short: all the data of the clinic and its patients stays on the device the app runs on, and we receive none of it.
 
@@ -111,7 +111,7 @@ A backup file contains all of the clinic’s data, including patients’ health 
 - We recommend that the clinic locks the device with a password, encrypts its disk, keeps its system updated and protects backups with a password.
 
 ## Retention and deletion
-The data on the device stays until the clinic deletes it. Any record can be deleted or archived, and “Delete all data” in Settings → Backup erases everything on the device. Uninstalling the app on Android deletes its data; on Windows, use “Delete all data” before uninstalling. The clinic must keep medical records for as long as the law of its country requires. What the activation server keeps is described under “Activation with a licence key”.
+The data on the device stays until the clinic deletes it. Any record can be deleted or archived, and “Erase all data” in Settings → Backup & data erases everything on the device. Uninstalling the app on Android, or the Microsoft Store version on Windows, deletes its data with it, so save a backup first; the Windows version installed from our website keeps its data after uninstalling, so use “Erase all data” before uninstalling if you want it gone. The clinic must keep medical records for as long as the law of its country requires. What the activation server keeps is described under “Activation with a licence key”.
 
 ## Patients’ rights
 Patients’ requests to see, correct, receive a copy of or delete their information are handled by the clinic, and the app lets it view, edit, print and delete any record. We cannot act on such requests because we hold no copy of the data, so patients should contact their clinic.

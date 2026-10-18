@@ -27,7 +27,7 @@ describe('privacy policy and terms of use', () => {
       }
     }
     const en = legalText('privacy', 'en')
-    for (const must of ['only on the device', 'no tracking', 'WhatsApp', 'Backups', 'Device number', 'Patients’ rights', 'Delete all data']) expect(en).toContain(must)
+    for (const must of ['only on the device', 'no tracking', 'WhatsApp', 'Backups', 'Device number', 'Patients’ rights', 'Erase all data']) expect(en).toContain(must)
     const terms = legalText('terms', 'en')
     for (const must of ['Medical disclaimer', 'Limitation of liability', 'No warranty', '7-day trial', 'one device per activation code', 'export a backup regularly']) expect(terms).toContain(must)
     expect(legalText('terms', 'ar')).toContain('إخلاء المسؤولية الطبية')

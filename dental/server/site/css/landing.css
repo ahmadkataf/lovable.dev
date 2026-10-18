@@ -54,7 +54,8 @@
   .header-wa .ic { width: 22px; height: 22px; }
 }
 @media (max-width: 379px) {
-  .header-actions > .lang-link:not(.lang-menu) .ic { display: none; }
+  /* the narrowest phones: the language button drops its arrow so the header row keeps its margins */
+  .header-actions > .lang-menu .lang-chev { display: none; }
   .header-actions { gap: 6px; }
 }
 @media (min-width: 1100px) {

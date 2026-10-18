@@ -78,8 +78,8 @@ describe('the home page', () => {
       const visible = [...html.matchAll(/<div class="qa-a"><p>([\s\S]*?)<\/p><\/div>/g)].map(m => textOf(m[1]).replace(/\s+/g, ' '))
       expect(visible).toHaveLength(faq.length)
       for (const [i, q] of faq.entries()) {
-        // the structured data writes links out as "label (address)"; the page shows the label as a link
-        const plain = q.acceptedAnswer.text.replace(/[⁦-⁩]/g, '').replace(/ \(https:\/\/[^)]+\)/g, '').replace(/\s+/g, ' ')
+        // the structured data carries the same link as the page (an <a>): equal once tags are stripped
+        const plain = textOf(q.acceptedAnswer.text).replace(/\s+/g, ' ')
         expect(visible[i]).toBe(plain)
       }
       // the new questions dentists ask assistants, and the link to the comparison
@@ -166,10 +166,12 @@ describe('the sitemap', () => {
     expect(xml).toContain('xmlns:image="http://www.google.com/schemas/sitemap-image/1.1"')
     expect(xml).toContain('xmlns:video="http://www.google.com/schemas/sitemap-video/1.1"')
     const urls = xml.match(/<url>[\s\S]*?<\/url>/g) || []
-    expect(urls.length).toBe(2 * SITE_LANGS.length + 6 + 2 * (1 + TOPICS.length) + 2 * (1 + CHAPTERS.length))
+    // chapter pages only in the languages they are recorded in (two Arabic recordings published here)
+    expect(urls.length).toBe(2 * SITE_LANGS.length + 6 + 2 * (1 + TOPICS.length) + 2 + 2)
     for (const u of urls) {
       expect(u).toMatch(/<lastmod>\d{4}-\d{2}-\d{2}<\/lastmod>/)
-      expect(u).toMatch(/hreflang="x-default" href="https:\/\/dentora\.raqeem\.dev\/en(\/|")/)
+      // x-default is English, except a video chapter recorded in Arabic alone (its only language)
+      if (!/<loc>[^<]*\/videos\/[a-z-]+<\/loc>/.test(u)) expect(u).toMatch(/hreflang="x-default" href="https:\/\/dentora\.raqeem\.dev\/en(\/|")/)
     }
     const url = (loc: string) => urls.find(u => u.startsWith(`<url><loc>${ORIGIN}${loc}</loc>`))!
     expect(url('/compare')).toContain('<lastmod>2026-10-18</lastmod>')
@@ -181,8 +183,10 @@ describe('the sitemap', () => {
     expect(patients).toContain(`<video:content_loc>${ORIGIN}/videos/ar/patients.mp4?v=abcdef012345</video:content_loc>`)
     expect(patients).toContain(`<video:thumbnail_loc>${ORIGIN}/videos/ar/patients.jpg?v=abcdef012345</video:thumbnail_loc>`)
     expect(patients).toContain('<video:duration>125</video:duration>')
-    expect(url('/en/videos/patients')).not.toContain('<video:video>')
-    expect(url('/videos/billing')).not.toContain('<video:video>')
+    expect(url('/en/videos/patients')).toBeUndefined()   // not recorded in English: a placeholder, not listed
+    expect(patients).not.toContain('hreflang="en"')
+    expect(patients).toContain(`hreflang="x-default" href="${ORIGIN}/videos/patients"`)
+    expect(url('/videos/billing')).toBeUndefined()
     // the course home: its newest recording
     expect(url('/videos')).toContain('<lastmod>2026-10-16</lastmod>')
     expect(url('/en/videos')).toContain('<lastmod>2026-10-15</lastmod>')
