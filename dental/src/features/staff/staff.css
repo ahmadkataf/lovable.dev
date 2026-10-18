@@ -1,0 +1,96 @@
+/* ===== Staff module (team cards, member form, permissions matrix, sign-in log). Classes are prefixed au-. ===== */
+
+.au-staff-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 16px; }
+.au-staff-toolbar .segmented button .count { font-size: var(--fs-xs); font-weight: 700; color: var(--text-4); }
+.au-staff-toolbar .segmented button.active .count { color: var(--primary); }
+
+.au-staff-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(290px, 1fr)); gap: 16px; }
+.au-member { position: relative; display: flex; flex-direction: column; gap: 14px; padding: 20px; overflow: visible; animation: rise-in var(--t-slow) var(--ease) both; }
+.au-member::before { content: ''; position: absolute; top: -1px; inset-inline: 18px; height: 3px; border-radius: 0 0 3px 3px; background: var(--member-color, var(--primary)); opacity: .9; }
+.au-member-top { display: flex; align-items: flex-start; gap: 14px; }
+.au-member-top .avatar { box-shadow: 0 0 0 3px var(--surface), 0 0 0 4px var(--border); }
+.au-member-id { flex: 1; min-width: 0; }
+.au-member-name { font-weight: 700; font-size: var(--fs-lg); line-height: 1.4; display: flex; align-items: center; gap: 8px; min-width: 0; }
+.au-member-name > span:first-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.au-member-badges { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+.au-member-menu { margin-inline-end: -8px; margin-top: -4px; }
+.au-member-menu .btn { width: 40px; height: 40px; }
+.au-member-meta { display: flex; flex-direction: column; gap: 8px; font-size: var(--fs-sm); color: var(--text-2); }
+.au-member-meta .row { gap: 8px; min-width: 0; }
+.au-member-meta svg { width: 16px; height: 16px; color: var(--text-4); flex: none; }
+.au-member-meta .au-empty-meta { color: var(--text-4); }
+.au-member-meta a { color: inherit; }
+.au-member-foot { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding-top: 14px; margin-top: auto; border-top: 1px solid var(--divider); font-size: var(--fs-xs); color: var(--text-3); min-height: 54px; }
+.au-member-foot .row { gap: 6px; min-width: 0; }
+.au-member-foot svg { width: 14px; height: 14px; flex: none; }
+.au-member-foot .switch { min-height: 40px; }
+.au-member.au-off { background: var(--surface-2); }
+.au-member.au-off::before { opacity: .3; }
+.au-member.au-off .avatar { filter: grayscale(1); opacity: .55; }
+.au-member.au-off .au-member-name { color: var(--text-3); }
+.au-member-skel { padding: 20px; display: flex; flex-direction: column; gap: 14px; }
+
+.au-staff-lower { display: grid; grid-template-columns: minmax(0, 1.55fr) minmax(0, 1fr); gap: 16px; margin-top: 24px; align-items: start; }
+@media (max-width: 1100px) { .au-staff-lower { grid-template-columns: minmax(0, 1fr); } }
+
+/* permissions matrix */
+.au-matrix { width: 100%; border-collapse: separate; border-spacing: 0; font-size: var(--fs-md); }
+.au-matrix th { font-size: var(--fs-xs); font-weight: 700; color: var(--text-3); padding: 10px 12px; background: var(--surface-2); border-bottom: 1px solid var(--border); text-align: start; white-space: nowrap; }
+.au-matrix th.au-role-col { text-align: center; width: 1%; }
+.au-matrix td { padding: 10px 12px; border-bottom: 1px solid var(--divider); vertical-align: middle; }
+.au-matrix tbody tr:last-child td { border-bottom: 0; }
+.au-matrix tbody tr:hover td { background: var(--surface-2); }
+.au-matrix td.au-cell { text-align: center; }
+.au-role-head { display: inline-flex; flex-direction: column; align-items: center; gap: 4px; }
+.au-area-name { font-weight: 600; color: var(--text); }
+.au-area-desc { font-size: var(--fs-xs); color: var(--text-3); margin-top: 1px; }
+.au-yes, .au-no { width: 28px; height: 28px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; vertical-align: middle; }
+.au-yes { background: var(--success-soft); color: var(--success); }
+.au-no { color: var(--text-4); }
+.au-yes svg { width: 16px; height: 16px; } .au-no svg { width: 14px; height: 14px; }
+.au-matrix-wrap { overflow-x: auto; border-radius: 0 0 var(--r-xl) var(--r-xl); }
+
+/* sign-in log */
+.au-log { max-height: 520px; overflow-y: auto; }
+.au-log-day { position: sticky; top: 0; z-index: 1; background: var(--surface); padding: 12px 20px 6px; font-size: var(--fs-xs); font-weight: 700; color: var(--text-3); }
+.au-log .list-item { padding: 10px 20px; gap: 12px; }
+.au-log .li-main { font-size: var(--fs-md); }
+.au-log .li-end { flex-direction: column; align-items: flex-end; gap: 0; font-size: var(--fs-xs); color: var(--text-3); }
+.au-log .li-end .au-log-time { color: var(--text-2); font-weight: 600; }
+
+/* member form */
+.au-preview + .form-section { border-top: 0; padding-top: 18px; }
+.au-preview { display: flex; align-items: center; gap: 14px; padding: 14px 16px; margin-bottom: 4px; border-radius: var(--r-lg); background: var(--surface-2); border: 1px solid var(--border); }
+.au-preview .avatar { box-shadow: 0 0 0 3px var(--surface), 0 0 0 4px var(--border); }
+.au-preview-name { font-weight: 700; font-size: var(--fs-lg); line-height: 1.35; }
+.au-preview-name.au-ph { color: var(--text-4); }
+.au-staff-form .au-name-row { grid-column: 1 / -1; display: grid; grid-template-columns: 130px minmax(0, 1fr); gap: 16px 20px; }
+.au-staff-form .au-name-row .au-title-cell { order: -1; min-width: 0; }
+.au-colors { display: flex; flex-wrap: wrap; gap: 10px; }
+.au-color { width: 40px; height: 40px; border-radius: 50%; background: var(--swatch); color: var(--on-primary); display: inline-flex; align-items: center; justify-content: center; transition: transform var(--t-fast), box-shadow var(--t-fast); }
+.au-color:hover { transform: scale(1.06); }
+.au-color[aria-checked="true"] { box-shadow: 0 0 0 3px var(--surface), 0 0 0 5px var(--swatch); }
+.au-color svg { width: 18px; height: 18px; }
+.au-role-box { margin-top: 12px; padding: 12px 14px; border-radius: var(--r-md); background: var(--primary-soft); border: 1px solid var(--p-100); font-size: var(--fs-sm); color: var(--text-2); }
+.au-role-box .au-can { font-weight: 700; color: var(--p-700); margin-top: 8px; font-size: var(--fs-xs); }
+.au-area-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+.au-area-chips .badge { background: var(--surface); color: var(--text-2); border: 1px solid var(--border); }
+.au-area-chips .badge svg { color: var(--success); }
+.au-switch-row { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; padding: 12px 14px; border-radius: var(--r-md); border: 1px solid var(--border); background: var(--surface); }
+.au-switch-row .switch { flex: none; min-height: 40px; }
+.au-switch-row .au-sw-title { font-weight: 600; }
+.au-switch-row .au-sw-hint { font-size: var(--fs-xs); color: var(--text-3); margin-top: 2px; }
+.au-pin-grid { margin-top: 14px; }
+
+@media (max-width: 767px) {
+  .au-staff-grid { grid-template-columns: minmax(0, 1fr); gap: 12px; }
+  .au-member { padding: 16px; gap: 12px; }
+  .au-staff-toolbar .segmented { width: 100%; display: flex; }
+  .au-staff-toolbar .segmented button { flex: 1; justify-content: center; height: 36px; }
+  .au-area-desc { display: none; }
+  .au-matrix th, .au-matrix td { padding: 9px 8px; }
+  .au-matrix th.au-role-col { font-size: 10.5px; }
+  .au-log .list-item { padding: 10px 16px; }
+  .au-log-day { padding: 12px 16px 6px; }
+  .au-staff-form .au-name-row { grid-template-columns: 112px minmax(0, 1fr); gap: 16px 12px; }
+}

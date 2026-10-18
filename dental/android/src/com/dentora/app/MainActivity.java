@@ -1,0 +1,1264 @@
+package com.dentora.app;
+
+import android.app.Activity;
+import android.app.AlertDialog;
+import android.content.ActivityNotFoundException;
+import android.content.ClipData;
+import android.content.ClipboardManager;
+import android.content.ContentValues;
+import android.content.Context;
+import android.content.DialogInterface;
+import android.content.Intent;
+import android.content.SharedPreferences;
+import android.content.pm.ApplicationInfo;
+import android.content.pm.PackageInfo;
+import android.content.pm.PackageManager;
+import android.content.pm.ResolveInfo;
+import android.content.res.Configuration;
+import android.graphics.Color;
+import android.net.Uri;
+import android.os.Build;
+import android.os.Bundle;
+import android.os.CancellationSignal;
+import android.os.Environment;
+import android.os.Looper;
+import android.os.Parcel;
+import android.os.ParcelFileDescriptor;
+import android.print.PageRange;
+import android.print.PrintAttributes;
+import android.print.PrintDocumentAdapter;
+import android.print.PrintManager;
+import android.provider.DocumentsContract;
+import android.provider.MediaStore;
+import android.provider.Settings;
+import android.view.View;
+import android.view.Window;
+import android.view.WindowInsets;
+import android.view.WindowInsetsController;
+import android.webkit.DownloadListener;
+import android.webkit.JavascriptInterface;
+import android.webkit.RenderProcessGoneDetail;
+import android.webkit.URLUtil;
+import android.webkit.ValueCallback;
+import android.webkit.WebChromeClient;
+import android.webkit.WebResourceRequest;
+import android.webkit.WebResourceResponse;
+import android.webkit.WebSettings;
+import android.webkit.WebView;
+import android.webkit.WebViewClient;
+import android.widget.FrameLayout;
+import android.widget.Toast;
+import android.window.OnBackInvokedCallback;
+import android.window.OnBackInvokedDispatcher;
+
+import java.io.ByteArrayInputStream;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.io.PrintWriter;
+import java.io.StringWriter;
+import java.net.URISyntaxException;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Locale;
+import java.util.Map;
+import java.util.UUID;
+
+/**
+ * Dentora on Android: one WebView showing the web app bundled in assets/www, served at https://dentora.app/
+ * (a secure origin, so IndexedDB, crypto.subtle and module scripts behave exactly as in a browser).
+ *
+ * The page talks to the phone through window.DentoraAndroid (the contract in src/platform/index.ts):
+ * deviceId · saveBegin/saveChunk/saveEnd/saveAbort · print(jobName) · appVersion · openExternal. File picking uses the
+ * WebView's own file chooser (with the camera next to the files for photos). Nothing is ever loaded from the internet:
+ * every request for another site is refused, so no page or frame but the app's own can reach the bridge. The one
+ * request the page sends to the internet is the licence-key activation (WebFiles.isActivation), only when the clinic
+ * activates with a key; its answer is data the page checks, never a page.
+ *
+ * Every callback is a named class (no lambdas or anonymous classes) so that d8 handles it on every JDK.
+ */
+public class MainActivity extends Activity {
+    private static final int REQ_SAVE = 4101;
+    private static final int REQ_PICK = 4102;
+    private static final String PREFS = "dentora.shell";
+    private static final String CRASHES = "crashes";
+    private static final String PENDING_FILE = "pending-save.bin";
+    private static final int MAX_SAVED_STATE = 256 * 1024;
+
+    private WebView web;
+    private FrameLayout root;
+    private SharedPreferences prefs;
+    /** The app's language as the page last reported it (html lang): native messages follow it. */
+    private volatile String lang = "ar";
+
+    // Saving: the page writes the file in pieces into the cache folder (saveBegin/saveChunk/saveEnd), then the
+    // system "save as" screen opens and the file is copied to the chosen place and read back to check it. Only
+    // one save at a time. What the copy needs is also kept in the preferences, because Android may close the app
+    // behind that screen on a phone short of memory; a backup that silently came out empty or cut would be the
+    // worst possible failure for a clinic. All fields below are guarded by `this`.
+    private static final int SAVE_IDLE = 0, SAVE_WRITING = 1, SAVE_WAITING = 2, SAVE_COPYING = 3;
+    private static final long SAVE_STALE_MS = 60_000;
+    private int saveState = SAVE_IDLE;
+    private WebFiles.ChunkFile saving;
+    private String saveId;
+    private String saveName;
+    private String saveType;
+    private boolean saveQuiet;
+    private long saveTouched;
+    /** The page's <input type=file> waiting for the system picker. */
+    private ValueCallback<Uri[]> pendingPick;
+    /** The photo the camera app was asked to write (offered next to the files), until the picker answers. */
+    private File captureFile;
+    private Uri captureUri;
+    /** The main frame shows a page that is not the app's own (about:blank, data:): the bridge answers nothing there. */
+    private volatile boolean foreignPage;
+
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        keepCrashReports();
+        prefs = getSharedPreferences(PREFS, MODE_PRIVATE);
+        lang = prefs.getString("lang", "ar");
+        if ((getApplicationInfo().flags & ApplicationInfo.FLAG_DEBUGGABLE) != 0) WebView.setWebContentsDebuggingEnabled(true);
+        root = new FrameLayout(this);
+        root.setBackgroundColor(Color.WHITE);
+        root.setOnApplyWindowInsetsListener(new BarPadding());
+        setContentView(root);
+        styleBars();
+        // a save left from a run that ended (not this one, recreated behind the save screen) is stale, and so are the
+        // photos taken for a page of that run (the page copied the ones it kept into its own storage)
+        if (savedInstanceState == null) {
+            dropPending();
+            CaptureProvider.clear(this);
+        }
+        web = newWebView();
+        if (!restore(savedInstanceState)) web.loadUrl(WebFiles.START_URL);
+        registerBack();
+        showLastCrash();
+    }
+
+    // ---- crashes ---------------------------------------------------------------------------------------
+
+    /** If the app ever stops on an error, the error is kept so that the next launch can show it. */
+    private void keepCrashReports() {
+        SharedPreferences crashes = getSharedPreferences(CRASHES, MODE_PRIVATE);
+        Thread.UncaughtExceptionHandler previous = Thread.getDefaultUncaughtExceptionHandler();
+        if (previous instanceof CrashKeeper) return;
+        Thread.setDefaultUncaughtExceptionHandler(new CrashKeeper(crashes, previous));
+    }
+
+    static final class CrashKeeper implements Thread.UncaughtExceptionHandler {
+        private final SharedPreferences prefs;
+        private final Thread.UncaughtExceptionHandler previous;
+        CrashKeeper(SharedPreferences prefs, Thread.UncaughtExceptionHandler previous) { this.prefs = prefs; this.previous = previous; }
+
+        @Override
+        public void uncaughtException(Thread t, Throwable e) {
+            try {
+                StringWriter trace = new StringWriter();
+                e.printStackTrace(new PrintWriter(trace));
+                String text = "Dentora · Android " + Build.VERSION.RELEASE + " (SDK " + Build.VERSION.SDK_INT + ") · "
+                    + Build.MANUFACTURER + " " + Build.MODEL + "\n" + trace;
+                prefs.edit().putString("last", text.length() > 4000 ? text.substring(0, 4000) : text).commit();
+            } catch (Throwable ignored) {
+                // never let the reporter itself hide the original error
+            }
+            if (previous != null) previous.uncaughtException(t, e);
+        }
+    }
+
+    /** Shows the error that closed the app last time, once, with a button to copy it for support. */
+    private void showLastCrash() {
+        SharedPreferences crashes = getSharedPreferences(CRASHES, MODE_PRIVATE);
+        String last = crashes.getString("last", null);
+        if (last == null) return;
+        crashes.edit().remove("last").apply();
+        new AlertDialog.Builder(this)
+            .setTitle(WebFiles.text("crash_title", lang))
+            .setMessage(WebFiles.text("crash_body", lang) + last)
+            .setPositiveButton(WebFiles.text("copy", lang), new CopyText(this, last))
+            .setNegativeButton(WebFiles.text("close", lang), null)
+            .show();
+    }
+
+    static final class CopyText implements DialogInterface.OnClickListener {
+        private final Activity host;
+        private final String text;
+        CopyText(Activity host, String text) { this.host = host; this.text = text; }
+
+        @Override
+        public void onClick(DialogInterface d, int which) {
+            ClipboardManager cm = (ClipboardManager) host.getSystemService(CLIPBOARD_SERVICE);
+            if (cm != null) cm.setPrimaryClip(ClipData.newPlainText("Dentora error", text));
+        }
+    }
+
+    // ---- window ----------------------------------------------------------------------------------------
+
+    /** White system bars with dark icons; from Android 15 the app draws behind them, so the container is
+     *  padded by their size (and by the keyboard's). Called after setContentView: before it the window has
+     *  no decor view, and on Android 11–14 getInsetsController() then throws and the app closes at launch. */
+    @SuppressWarnings("deprecation")
+    private void styleBars() {
+        try {
+            Window w = getWindow();
+            w.setStatusBarColor(Color.WHITE);
+            w.setNavigationBarColor(Color.WHITE);
+            View decor = w.getDecorView();
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                WindowInsetsController c = decor.getWindowInsetsController();
+                if (c != null) c.setSystemBarsAppearance(
+                    WindowInsetsController.APPEARANCE_LIGHT_STATUS_BARS | WindowInsetsController.APPEARANCE_LIGHT_NAVIGATION_BARS,
+                    WindowInsetsController.APPEARANCE_LIGHT_STATUS_BARS | WindowInsetsController.APPEARANCE_LIGHT_NAVIGATION_BARS);
+            } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                decor.setSystemUiVisibility(View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR | View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR);
+            } else {
+                // Android 7 cannot draw dark navigation buttons: on a white bar they would be invisible
+                w.setNavigationBarColor(Color.BLACK);
+                decor.setSystemUiVisibility(View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR);
+            }
+        } catch (RuntimeException ignored) {
+            // only the colour of the bars: never a reason to stop the app
+        }
+    }
+
+    /** Keeps the page clear of the status bar, the navigation bar, the camera cut-out and the keyboard. */
+    static final class BarPadding implements View.OnApplyWindowInsetsListener {
+        @Override
+        @SuppressWarnings("deprecation")
+        public WindowInsets onApplyWindowInsets(View v, WindowInsets in) {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                android.graphics.Insets bars = in.getInsets(WindowInsets.Type.systemBars() | WindowInsets.Type.ime() | WindowInsets.Type.displayCutout());
+                v.setPadding(bars.left, bars.top, bars.right, bars.bottom);
+                return WindowInsets.CONSUMED;
+            }
+            v.setPadding(in.getSystemWindowInsetLeft(), in.getSystemWindowInsetTop(), in.getSystemWindowInsetRight(), in.getSystemWindowInsetBottom());
+            return in.consumeSystemWindowInsets();
+        }
+    }
+
+    // ---- the WebView -----------------------------------------------------------------------------------
+
+    @SuppressWarnings("deprecation")
+    private WebView newWebView() {
+        WebView v = new WebView(this);
+        WebSettings s = v.getSettings();
+        s.setJavaScriptEnabled(true);
+        s.setDomStorageEnabled(true);          // localStorage (session, preferences)
+        s.setDatabaseEnabled(true);
+        s.setAllowFileAccess(false);           // the app is served from assets, never from file://
+        s.setMediaPlaybackRequiresUserGesture(false);
+        s.setTextZoom(textZoom());             // the phone's font size, up to 130 % (WebFiles.textZoomFor)
+        s.setMixedContentMode(WebSettings.MIXED_CONTENT_NEVER_ALLOW);
+        s.setLoadWithOverviewMode(true);
+        s.setUseWideViewPort(true);
+        s.setSupportMultipleWindows(false);    // target=_blank links come through shouldOverrideUrlLoading
+        s.setCacheMode(WebSettings.LOAD_DEFAULT);
+        s.setUserAgentString(s.getUserAgentString() + " Dentora/" + versionName());
+        v.setBackgroundColor(Color.WHITE);
+        v.setWebViewClient(new AppClient(this));
+        v.setWebChromeClient(new ChromeClient(this));
+        v.setDownloadListener(new Downloads(this));
+        v.addJavascriptInterface(new Bridge(this), "DentoraAndroid");
+        root.addView(v, new FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT));
+        return v;
+    }
+
+    /** After Android recreated the activity (the process was reclaimed in the background): reopen the same page. */
+    private boolean restore(Bundle state) {
+        if (state == null) return false;
+        Bundle saved = state.getBundle("web");
+        if (saved != null && web.restoreState(saved) != null) return true;
+        String url = state.getString("url");
+        if (url == null) return false;
+        Uri u = Uri.parse(url);
+        if (!WebFiles.isAppUrl(u.getScheme(), u.getHost())) return false;
+        web.loadUrl(url);
+        return true;
+    }
+
+    /** The text zoom for the phone's current font size (Settings → Display → Font size), capped at 130 %. */
+    private int textZoom() {
+        Configuration c = getResources().getConfiguration();
+        return WebFiles.textZoomFor(c == null ? 1f : c.fontScale);
+    }
+
+    /** fontScale is in configChanges: the activity stays, so a new font size is applied to the page here. */
+    @Override
+    public void onConfigurationChanged(Configuration newConfig) {
+        super.onConfigurationChanged(newConfig);
+        if (web != null && newConfig != null) web.getSettings().setTextZoom(WebFiles.textZoomFor(newConfig.fontScale));
+    }
+
+    @Override
+    protected void onSaveInstanceState(Bundle outState) {
+        super.onSaveInstanceState(outState);
+        if (web == null) return;
+        String url = web.getUrl();
+        if (url != null) outState.putString("url", url);
+        // the full history only when it is small: a saved state over ~1 MB makes Android stop the app
+        Bundle saved = new Bundle();
+        if (web.saveState(saved) != null && sizeOf(saved) < MAX_SAVED_STATE) outState.putBundle("web", saved);
+    }
+
+    private static int sizeOf(Bundle b) {
+        Parcel p = Parcel.obtain();
+        try {
+            p.writeBundle(b);
+            return p.dataSize();
+        } catch (RuntimeException e) {
+            return Integer.MAX_VALUE;
+        } finally {
+            p.recycle();
+        }
+    }
+
+    /** The page's process was stopped (usually the phone ran short of memory): open the app's page again
+     *  in a new WebView. Without this Android closes the whole app. */
+    void restartPage(WebView dead) {
+        if (dead != web) return;
+        ValueCallback<Uri[]> pick = pendingPick;
+        pendingPick = null;
+        if (pick != null) {
+            try { pick.onReceiveValue(null); } catch (RuntimeException ignored) { }
+        }
+        endCapture(false);
+        root.removeView(dead);
+        dead.destroy();
+        abandonWritingSave();      // the page that was sending a file is gone
+        web = newWebView();
+        web.loadUrl(WebFiles.START_URL);
+    }
+
+    /** Answers every request for https://dentora.app/… from assets/www. Never touches the network. */
+    WebResourceResponse serve(String path) {
+        Map<String, String> headers = new HashMap<>();
+        String asset = WebFiles.assetPath(path);
+        if (asset != null) {
+            try {
+                InputStream in = getAssets().open(asset);
+                String mime = WebFiles.mimeFor(asset);
+                headers.put("Cache-Control", WebFiles.cacheControl(asset));
+                headers.put("Access-Control-Allow-Origin", "*");
+                headers.put("X-Content-Type-Options", "nosniff");
+                if (mime.equals("text/html")) headers.put("Content-Security-Policy", WebFiles.CSP);
+                return new WebResourceResponse(mime, WebFiles.isText(mime) ? "utf-8" : null, 200, "OK", headers, in);
+            } catch (IOException ignored) {
+                // fall through to 404
+            }
+        }
+        return new WebResourceResponse("text/plain", "utf-8", 404, "Not Found", headers, new ByteArrayInputStream(new byte[0]));
+    }
+
+    /** The answer to any request for another site: the app works offline and shows nobody else's pages or frames. */
+    static WebResourceResponse refused() {
+        return new WebResourceResponse("text/plain", "utf-8", 403, "Forbidden", new HashMap<String, String>(), new ByteArrayInputStream(new byte[0]));
+    }
+
+    /** The main frame started loading a page: the bridge serves only the app's own pages. */
+    void pageStarted(String url) {
+        Uri u = url == null ? null : Uri.parse(url);
+        foreignPage = u == null || !WebFiles.isAppUrl(u.getScheme(), u.getHost());
+    }
+
+    /** Where a link goes: the app's own pages stay inside; tel:, mailto:, WhatsApp and the web go to the phone. */
+    boolean route(Uri u, boolean mainFrame) {
+        switch (WebFiles.linkAction(u.getScheme(), u.getHost(), mainFrame)) {
+            case "app":
+            case "allow":
+                return false;
+            case "data":
+                saveDataUrl(u.toString(), "");
+                return true;
+            case "blob":
+                saveBlobUrl(u.toString(), "");
+                return true;
+            case "block":
+                return true;             // a frame of another site: not loaded at all
+            default:
+                openOutside(u.toString());
+                return true;
+        }
+    }
+
+    /** What every page of the app gets from the shell: window.print → the phone's printing, and saveFile()
+     *  answering when the save really ends. Run as soon as the page is visible and again when it has loaded
+     *  (both scripts install themselves once per page). */
+    void setUpPage(WebView view) {
+        view.evaluateJavascript(WebFiles.PRINT_SHIM_JS, null);
+        view.evaluateJavascript(WebFiles.BRIDGE_JS, null);
+    }
+
+    /** Hands a link to the app that handles it (WhatsApp, the dialer, e-mail, the browser). UI thread. */
+    void openOutside(String url) {
+        if (url == null || url.trim().isEmpty()) return;
+        String clean = url.trim();
+        Uri u = Uri.parse(clean);
+        String scheme = u.getScheme() == null ? "" : u.getScheme().toLowerCase(Locale.ROOT);
+        if (WebFiles.isAppUrl(scheme, u.getHost())) { if (web != null) web.loadUrl(clean); return; }
+        if (scheme.isEmpty() || scheme.equals("javascript") || scheme.equals("file") || scheme.equals("content")) return;
+        try {
+            if (scheme.equals("intent")) {
+                Intent i = Intent.parseUri(clean, Intent.URI_INTENT_SCHEME);
+                i.addCategory(Intent.CATEGORY_BROWSABLE);
+                i.setComponent(null);
+                i.setSelector(null);
+                try {
+                    startActivity(i);
+                } catch (ActivityNotFoundException e) {
+                    String fallback = i.getStringExtra("browser_fallback_url");
+                    if (fallback != null && (fallback.startsWith("https://") || fallback.startsWith("http://"))) openOutside(fallback);
+                    else say("no_app");
+                }
+                return;
+            }
+            startActivity(new Intent(WebFiles.externalAction(scheme), u));
+        } catch (ActivityNotFoundException e) {
+            say("no_app");
+        } catch (URISyntaxException | RuntimeException e) {
+            say("no_app");
+        }
+    }
+
+    /** Named (not anonymous) so that d8 handles it on every JDK. */
+    static final class AppClient extends WebViewClient {
+        private final MainActivity host;
+        AppClient(MainActivity host) { this.host = host; }
+
+        // Called for every request of the page, fetch() included: for the activation it sees the POST, and on WebView
+        // versions that route the CORS preflight through it, the OPTIONS too. Both have the same address and get
+        // "pass": null lets the WebView send the request itself, body and CORS included, as a browser would. It is not
+        // called again for a redirect; the CSP (connect-src) checks where a redirect goes.
+        @Override
+        public WebResourceResponse shouldInterceptRequest(WebView view, WebResourceRequest request) {
+            Uri u = request.getUrl();
+            switch (WebFiles.requestAction(u.getScheme(), u.getHost(), u.getEncodedPath())) {
+                case "app": return host.serve(u.getPath());
+                case "block": return MainActivity.refused();
+                default: return null;
+            }
+        }
+
+        @Override
+        public void onPageStarted(WebView view, String url, android.graphics.Bitmap favicon) {
+            host.pageStarted(url);
+        }
+
+        @Override
+        public boolean shouldOverrideUrlLoading(WebView view, WebResourceRequest request) {
+            return host.route(request.getUrl(), request.isForMainFrame());
+        }
+
+        @Override
+        public void onPageCommitVisible(WebView view, String url) {
+            host.setUpPage(view);
+        }
+
+        @Override
+        public void onPageFinished(WebView view, String url) {
+            host.setUpPage(view);
+            host.refreshLang();
+        }
+
+        @Override
+        public boolean onRenderProcessGone(WebView view, RenderProcessGoneDetail detail) {
+            host.restartPage(view);
+            return true;
+        }
+    }
+
+    // ---- file picking (<input type=file> and pickFile()) ------------------------------------------------
+
+    static final class ChromeClient extends WebChromeClient {
+        private final MainActivity host;
+        ChromeClient(MainActivity host) { this.host = host; }
+
+        @Override
+        public boolean onShowFileChooser(WebView view, ValueCallback<Uri[]> callback, FileChooserParams params) {
+            return host.pickFiles(callback, params.getAcceptTypes(), params.getMode() == FileChooserParams.MODE_OPEN_MULTIPLE, params.isCaptureEnabled());
+        }
+    }
+
+    /**
+     * Opens the system picker for <input type=file>. When the page takes photos (patient photo, x-rays, intraoral
+     * pictures) the phone's camera app is offered next to the files; with <input capture> the camera opens directly.
+     */
+    @SuppressWarnings("deprecation")
+    boolean pickFiles(ValueCallback<Uri[]> callback, String[] accept, boolean multiple, boolean capture) {
+        if (pendingPick != null) {
+            try { pendingPick.onReceiveValue(null); } catch (RuntimeException ignored) { }
+        }
+        endCapture(false);
+        pendingPick = callback;
+        String[] mimes = WebFiles.pickerMimes(accept);
+        Intent camera = WebFiles.offersCamera(mimes) ? captureIntent() : null;
+        if (camera != null && capture) {
+            try {
+                startActivityForResult(camera, REQ_PICK);
+                return true;
+            } catch (ActivityNotFoundException | SecurityException e) {
+                // the camera app went away: the picker below
+            }
+        }
+        String[] actions = {Intent.ACTION_GET_CONTENT, Intent.ACTION_OPEN_DOCUMENT};
+        for (String action : actions) {
+            Intent i = new Intent(action);
+            i.addCategory(Intent.CATEGORY_OPENABLE);
+            i.setType(WebFiles.pickerType(mimes));
+            if (mimes.length > 1) i.putExtra(Intent.EXTRA_MIME_TYPES, mimes);
+            if (multiple) i.putExtra(Intent.EXTRA_ALLOW_MULTIPLE, true);
+            Intent launch = i;
+            // a chooser always opens, even with no app to pick files: only wrap a picker this phone has
+            if (camera != null && i.resolveActivity(getPackageManager()) != null) {
+                launch = Intent.createChooser(i, WebFiles.text("pick_title", lang));
+                launch.putExtra(Intent.EXTRA_INITIAL_INTENTS, new Intent[] {camera});
+            }
+            try {
+                startActivityForResult(launch, REQ_PICK);
+                return true;
+            } catch (ActivityNotFoundException e) {
+                // a trimmed-down phone without a GET_CONTENT handler: try the documents screen next
+            }
+        }
+        if (camera != null) {
+            try {
+                startActivityForResult(camera, REQ_PICK);
+                return true;
+            } catch (ActivityNotFoundException | SecurityException e) {
+                // nothing at all to pick with
+            }
+        }
+        endCapture(false);
+        pendingPick = null;
+        say("no_picker");
+        if (web != null) web.evaluateJavascript(WebFiles.PICK_CANCELLED_JS, null);
+        return false;
+    }
+
+    /**
+     * "Take a photo" for the picker: the phone's camera app writes the picture into a file of the app's cache, through
+     * CaptureProvider and a grant for that one file. Null when the phone has no camera app (or it cannot be offered).
+     */
+    @SuppressWarnings("deprecation")
+    Intent captureIntent() {
+        try {
+            Intent cam = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
+            List<ResolveInfo> apps = getPackageManager().queryIntentActivities(cam, PackageManager.MATCH_DEFAULT_ONLY);
+            if (apps == null || apps.isEmpty()) return null;
+            File f = CaptureProvider.newPhoto(this);
+            Uri u = CaptureProvider.uriFor(f);
+            int grant = Intent.FLAG_GRANT_WRITE_URI_PERMISSION | Intent.FLAG_GRANT_READ_URI_PERMISSION;
+            cam.putExtra(MediaStore.EXTRA_OUTPUT, u);
+            cam.setClipData(ClipData.newRawUri("", u));
+            cam.addFlags(grant);
+            // the camera is started by the chooser on the app's behalf: grant its app the file directly as well
+            for (ResolveInfo r : apps) {
+                if (r.activityInfo != null) grantUriPermission(r.activityInfo.packageName, u, grant);
+            }
+            captureFile = f;
+            captureUri = u;
+            return cam;
+        } catch (RuntimeException e) {
+            endCapture(false);
+            return null;
+        }
+    }
+
+    /** The picker answered: take back the camera's grant, and drop the photo file unless the page got it. */
+    void endCapture(boolean keep) {
+        if (captureUri != null) {
+            try { revokeUriPermission(captureUri, Intent.FLAG_GRANT_WRITE_URI_PERMISSION | Intent.FLAG_GRANT_READ_URI_PERMISSION); } catch (RuntimeException ignored) { }
+        }
+        if (!keep && captureFile != null) captureFile.delete();
+        captureFile = null;
+        captureUri = null;
+    }
+
+    private static Uri[] pickedUris(Intent data) {
+        if (data == null) return null;
+        ClipData clip = data.getClipData();
+        if (clip != null && clip.getItemCount() > 0) {
+            int n = 0;
+            Uri[] all = new Uri[clip.getItemCount()];
+            for (int i = 0; i < clip.getItemCount(); i++) {
+                Uri u = clip.getItemAt(i).getUri();
+                if (u != null) all[n++] = u;
+            }
+            if (n > 0) {
+                Uri[] out = new Uri[n];
+                System.arraycopy(all, 0, out, 0, n);
+                return out;
+            }
+        }
+        Uri u = data.getData();
+        return u == null ? null : new Uri[] {u};
+    }
+
+    @Override
+    @SuppressWarnings("deprecation")
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        if (requestCode == REQ_PICK) {
+            ValueCallback<Uri[]> cb = pendingPick;
+            pendingPick = null;
+            Uri[] picked = resultCode == RESULT_OK ? pickedUris(data) : null;
+            // the camera app answers without a file in the result: the photo is in the file it was given
+            boolean toPhoto = picked != null && captureUri != null && picked.length == 1 && picked[0].equals(captureUri);
+            boolean photo = resultCode == RESULT_OK && captureFile != null && captureFile.length() > 0 && (picked == null || toPhoto);
+            if (photo) picked = new Uri[] {captureUri};
+            else if (toPhoto) picked = null;     // the camera said OK but wrote nothing
+            endCapture(photo);
+            // always answer, even with null: an unanswered chooser stops <input type=file> from working
+            if (cb != null) cb.onReceiveValue(picked);
+            // pickFile() (src/platform) stops waiting when the picker closed without a file
+            if (picked == null && web != null) web.evaluateJavascript(WebFiles.PICK_CANCELLED_JS, null);
+            return;
+        }
+        if (requestCode == REQ_SAVE) {
+            finishSave(resultCode == RESULT_OK && data != null ? data.getData() : null);
+            return;
+        }
+        super.onActivityResult(requestCode, resultCode, data);
+    }
+
+    // ---- saving files (backups, CSV, PDFs) through the system "save as" screen --------------------------
+
+    private static String jsonError(String reason) { return "{\"error\":\"" + reason + "\"}"; }
+
+    /** saveBegin: opens the cache file for a new save. Answers {"id"} or {"error": busy | space | io}. Bridge thread. */
+    synchronized String beginSave(String name, String mime, long sizeHint, boolean quiet) {
+        if (saveState == SAVE_WRITING && System.currentTimeMillis() - saveTouched > SAVE_STALE_MS) abandonWritingSave();
+        if (saveState != SAVE_IDLE) return jsonError("busy");
+        File dir = getCacheDir();
+        if (sizeHint > 0 && dir.getUsableSpace() < sizeHint + 16L * 1024 * 1024) return jsonError("space");
+        try {
+            saving = new WebFiles.ChunkFile(new File(dir, PENDING_FILE));
+        } catch (IOException | RuntimeException e) {
+            return jsonError(WebFiles.ioReason(e));
+        }
+        saveType = WebFiles.baseMime(mime);
+        saveName = WebFiles.safeFileName(name, saveType);
+        saveId = UUID.randomUUID().toString();
+        saveQuiet = quiet;
+        saveTouched = System.currentTimeMillis();
+        saveState = SAVE_WRITING;
+        return "{\"id\":" + WebFiles.jsString(saveId) + "}";
+    }
+
+    /** saveChunk: appends a base64 piece. Answers "" or the reason it failed (the save is then dropped). */
+    synchronized String appendSave(String id, String base64) {
+        if (saveState != SAVE_WRITING || id == null || !id.equals(saveId)) return "io";
+        try {
+            saving.append(base64);
+            saveTouched = System.currentTimeMillis();
+            return "";
+        } catch (IOException e) {
+            abandonWritingSave();
+            return WebFiles.ioReason(e);
+        } catch (IllegalArgumentException | OutOfMemoryError e) {
+            abandonWritingSave();
+            return "io";
+        }
+    }
+
+    /** saveEnd: checks size + CRC-32 of what arrived, then opens the save screen. Answers "" or a reason. */
+    synchronized String endSave(String id, long size, long crc) {
+        if (saveState != SAVE_WRITING || id == null || !id.equals(saveId)) return "io";
+        try {
+            saving.close();
+        } catch (IOException e) {
+            abandonWritingSave();
+            return WebFiles.ioReason(e);
+        }
+        if (saving.size() != size || saving.crc() != crc) {
+            abandonWritingSave();
+            return "verify";
+        }
+        prefs.edit().putString("pendingName", saveName).putString("pendingId", saveId).putLong("pendingSize", size)
+            .putLong("pendingCrc", crc).putBoolean("pendingQuiet", saveQuiet).commit();
+        saveState = SAVE_WAITING;
+        runOnUiThread(new LaunchSave(this, saveName, saveType));
+        return "";
+    }
+
+    /** saveAbort: the page stopped (or failed) while writing. */
+    synchronized void abortSave(String id) {
+        if (saveState == SAVE_WRITING && id != null && id.equals(saveId)) abandonWritingSave();
+    }
+
+    synchronized void abandonWritingSave() {
+        if (saveState != SAVE_WRITING) return;
+        if (saving != null) saving.closeQuietly();
+        dropPending();
+    }
+
+    /** A data: URL the page tried to open or download, saved by the shell itself (no page waits for an answer). */
+    void saveBytes(String name, String mime, byte[] bytes) {
+        String begun = beginSave(name, mime, bytes.length, false);
+        if (!begun.startsWith("{\"id\"")) {
+            say(begun.contains("busy") ? "save_busy" : begun.contains("space") ? "save_space" : "save_failed");
+            return;
+        }
+        String id;
+        synchronized (this) {
+            id = saveId;
+            try {
+                saving.write(bytes);
+            } catch (IOException e) {
+                abandonWritingSave();
+                say("save_failed");
+                return;
+            }
+        }
+        java.util.zip.CRC32 crc = new java.util.zip.CRC32();
+        crc.update(bytes, 0, bytes.length);
+        String err = endSave(id, bytes.length, crc.getValue());
+        if (!err.isEmpty()) say("save_failed");
+    }
+
+    static final class LaunchSave implements Runnable {
+        private final MainActivity host;
+        private final String name;
+        private final String type;
+        LaunchSave(MainActivity host, String name, String type) { this.host = host; this.name = name; this.type = type; }
+
+        @Override
+        public void run() { host.launchSave(name, type); }
+    }
+
+    @SuppressWarnings("deprecation")
+    void launchSave(String name, String type) {
+        Intent i = new Intent(Intent.ACTION_CREATE_DOCUMENT);
+        i.addCategory(Intent.CATEGORY_OPENABLE);
+        i.setType(type);
+        i.putExtra(Intent.EXTRA_TITLE, name);
+        try {
+            startActivityForResult(i, REQ_SAVE);
+        } catch (ActivityNotFoundException e) {
+            // no documents screen on this phone: put the file in Downloads/Dentora instead
+            synchronized (this) { saveState = SAVE_COPYING; }
+            new Thread(new DownloadsWriter(this, pending(), type), "dentora-save").start();
+        } catch (RuntimeException e) {
+            // the page waits for an answer: always give one
+            Pending p = pending();
+            dropPending();
+            finished(p, false, false, "io", null);
+        }
+    }
+
+    /** What a save waiting for (or being copied to) its place needs: from memory, or from the preferences after
+     *  Android recreated the app behind the save screen. Null when there is none. */
+    static final class Pending {
+        final String id, name;
+        final long size, crc;
+        final boolean quiet;
+        Pending(String id, String name, long size, long crc, boolean quiet) { this.id = id; this.name = name; this.size = size; this.crc = crc; this.quiet = quiet; }
+    }
+
+    Pending pending() {
+        String name = prefs.getString("pendingName", null);
+        if (name == null) return null;
+        return new Pending(prefs.getString("pendingId", ""), name, prefs.getLong("pendingSize", -1), prefs.getLong("pendingCrc", -1), prefs.getBoolean("pendingQuiet", false));
+    }
+
+    synchronized void dropPending() {
+        saving = null;
+        saveId = null;
+        saveState = SAVE_IDLE;
+        new File(getCacheDir(), PENDING_FILE).delete();
+        prefs.edit().remove("pendingName").remove("pendingId").remove("pendingSize").remove("pendingCrc").remove("pendingQuiet").apply();
+    }
+
+    /** The save screen closed: copy the file to the chosen document (off the UI thread), or drop it. */
+    void finishSave(Uri target) {
+        Pending p = pending();
+        if (p == null) return;
+        if (target == null) {
+            dropPending();
+            finished(p, false, true, "", null);
+            return;
+        }
+        synchronized (this) { saveState = SAVE_COPYING; }
+        new Thread(new WriteFile(this, target, p), "dentora-save").start();
+    }
+
+    /**
+     * Opens the chosen document for writing from its first byte, as a file descriptor, so that whatever an older,
+     * longer file leaves behind can be cut off: "wt" (write and truncate) where the provider knows it, else "w" (which
+     * on Android 10+ providers may not truncate). Null when the provider only hands out streams.
+     */
+    ParcelFileDescriptor openDocumentFd(Uri target) {
+        for (String mode : new String[] {"wt", "w"}) {
+            try {
+                ParcelFileDescriptor fd = getContentResolver().openFileDescriptor(target, mode);
+                if (fd != null) return fd;
+            } catch (IOException | IllegalArgumentException | UnsupportedOperationException | SecurityException e) {
+                // the next mode, then a stream
+            }
+        }
+        return null;
+    }
+
+    /** A stream to the document when the provider offers no file descriptor ("wt"; some providers only know "w"). */
+    OutputStream openForWrite(Uri target) throws IOException {
+        try {
+            OutputStream out = getContentResolver().openOutputStream(target, "wt");
+            if (out != null) return out;
+        } catch (IllegalArgumentException | UnsupportedOperationException | java.io.FileNotFoundException e) {
+            // fall back to "w" below
+        }
+        return getContentResolver().openOutputStream(target, "w");
+    }
+
+    /** Copies the cache file to the document and reads the document back: "" when size and CRC-32 match. Worker thread. */
+    String copyPending(Uri target, Pending p) {
+        File f = new File(getCacheDir(), PENDING_FILE);
+        if (!f.isFile() || f.length() != p.size) return "io";
+        boolean written = false;
+        try (InputStream in = new FileInputStream(f)) {
+            ParcelFileDescriptor fd = openDocumentFd(target);
+            if (fd != null) {
+                written = true;          // from here on the document holds part of this file
+                try (FileOutputStream out = new ParcelFileDescriptor.AutoCloseOutputStream(fd)) {
+                    WebFiles.copyAndTruncate(in, out);
+                }
+            } else {
+                try (OutputStream out = openForWrite(target)) {
+                    if (out == null) return "io";
+                    written = true;
+                    WebFiles.copy(in, out);
+                    out.flush();
+                    if (out instanceof FileOutputStream) WebFiles.syncQuietly((FileOutputStream) out);
+                }
+            }
+        } catch (IOException | RuntimeException e) {
+            // a cut copy must not stay behind looking like a backup
+            if (written) deleteDocument(target);
+            return WebFiles.ioReason(e);
+        }
+        // what is there now must be exactly this file: no missing piece, and no tail of an older, longer one
+        try (InputStream back = getContentResolver().openInputStream(target)) {
+            if (back == null) return "verify";
+            long[] m = WebFiles.measure(back);
+            if (m[0] != p.size || m[1] != p.crc) {
+                deleteDocument(target);
+                return "verify";
+            }
+        } catch (IOException | RuntimeException e) {
+            return "verify";             // written, but it cannot be read back to confirm it
+        }
+        return "";
+    }
+
+    void deleteDocument(Uri target) {
+        try { DocumentsContract.deleteDocument(getContentResolver(), target); } catch (Exception ignored) { }
+    }
+
+    static final class WriteFile implements Runnable {
+        private final MainActivity host;
+        private final Uri target;
+        private final Pending p;
+        WriteFile(MainActivity host, Uri target, Pending p) { this.host = host; this.target = target; this.p = p; }
+
+        @Override
+        public void run() {
+            String reason = host.copyPending(target, p);
+            host.dropPending();
+            host.runOnUiThread(new Saved(host, p, reason.isEmpty(), reason, null));
+        }
+    }
+
+    /** Fallback when the phone has no "save as" screen: Downloads/Dentora (no permission needed). */
+    static final class DownloadsWriter implements Runnable {
+        private final MainActivity host;
+        private final Pending p;
+        private final String type;
+        DownloadsWriter(MainActivity host, Pending p, String type) { this.host = host; this.p = p; this.type = type; }
+
+        @Override
+        public void run() {
+            String reason = p == null ? "io" : host.writeToDownloads(p, type);
+            host.dropPending();
+            host.runOnUiThread(new Saved(host, p, reason.isEmpty(), reason, reason.isEmpty() ? "saved_downloads" : null));
+        }
+    }
+
+    /** Copies the cache file into Downloads/Dentora and checks it there. "" or the reason it failed. */
+    String writeToDownloads(Pending p, String type) {
+        File f = new File(getCacheDir(), PENDING_FILE);
+        if (!f.isFile() || f.length() != p.size) return "io";
+        try (InputStream in = new FileInputStream(f)) {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                ContentValues v = new ContentValues();
+                v.put(MediaStore.MediaColumns.DISPLAY_NAME, p.name);
+                v.put(MediaStore.MediaColumns.MIME_TYPE, type);
+                v.put(MediaStore.MediaColumns.RELATIVE_PATH, Environment.DIRECTORY_DOWNLOADS + "/Dentora");
+                Uri u = getContentResolver().insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, v);
+                if (u == null) return "io";
+                try (OutputStream out = getContentResolver().openOutputStream(u)) {
+                    if (out == null) return "io";
+                    WebFiles.copy(in, out);
+                }
+                try (InputStream back = getContentResolver().openInputStream(u)) {
+                    long[] m = back == null ? new long[] {-1, -1} : WebFiles.measure(back);
+                    if (m[0] != p.size || m[1] != p.crc) { getContentResolver().delete(u, null, null); return "verify"; }
+                }
+                return "";
+            }
+            File dir = getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS);
+            if (dir == null) return "io";
+            dir.mkdirs();
+            File out = new File(dir, p.name);
+            try (FileOutputStream o = new FileOutputStream(out)) {
+                WebFiles.copy(in, o);
+                o.getFD().sync();
+            }
+            try (InputStream back = new FileInputStream(out)) {
+                long[] m = WebFiles.measure(back);
+                if (m[0] != p.size || m[1] != p.crc) { out.delete(); return "verify"; }
+            }
+            return "";
+        } catch (IOException | RuntimeException e) {
+            return WebFiles.ioReason(e);
+        }
+    }
+
+    static final class Saved implements Runnable {
+        private final MainActivity host;
+        private final Pending p;
+        private final boolean ok;
+        private final String reason;
+        private final String message;
+        Saved(MainActivity host, Pending p, boolean ok, String reason, String message) { this.host = host; this.p = p; this.ok = ok; this.reason = reason; this.message = message; }
+
+        @Override
+        public void run() { host.finished(p, ok, false, reason, message); }
+    }
+
+    /** A save ended: tell the page (it confirms success itself), and explain a failure unless the page does. UI thread. */
+    void finished(Pending p, boolean ok, boolean cancelled, String reason, String message) {
+        String name = p == null ? "" : p.name;
+        if (message != null) say(message, name);
+        else if (!ok && !cancelled && (p == null || !p.quiet)) say("space".equals(reason) ? "save_space" : "verify".equals(reason) ? "save_verify" : "save_failed");
+        if (web != null && p != null) web.evaluateJavascript(WebFiles.savedEventJs(ok, cancelled, name, p.id, ok || cancelled ? "" : reason), null);
+    }
+
+    /** A data: URL the page tried to open or download: decode it here and save it like any other file. */
+    void saveDataUrl(String url, String name) {
+        WebFiles.DataUrl d = WebFiles.parseDataUrl(url);
+        if (d == null) return;
+        try {
+            byte[] bytes = d.base64 ? WebFiles.decodeBase64(d.payload) : WebFiles.percentDecode(d.payload);
+            saveBytes(name, d.mime, bytes);
+        } catch (IllegalArgumentException | OutOfMemoryError e) {
+            say("save_failed");
+        }
+    }
+
+    /** A blob: URL only exists inside the page: ask the page to save it (in chunks, through the bridge). */
+    void saveBlobUrl(String url, String name) {
+        if (web != null) web.evaluateJavascript(WebFiles.saveBlobJs(url, name), null);
+    }
+
+    static final class Downloads implements DownloadListener {
+        private final MainActivity host;
+        Downloads(MainActivity host) { this.host = host; }
+
+        @Override
+        public void onDownloadStart(String url, String userAgent, String contentDisposition, String mimetype, long contentLength) {
+            if (url == null) return;
+            String name = URLUtil.guessFileName(url, contentDisposition, mimetype);
+            if (url.regionMatches(true, 0, "data:", 0, 5)) host.saveDataUrl(url, name);
+            else if (url.regionMatches(true, 0, "blob:", 0, 5)) host.saveBlobUrl(url, name);
+            else host.openOutside(url);
+        }
+    }
+
+    // ---- printing --------------------------------------------------------------------------------------
+
+    /** Prints what the page shows with its print styles (only .print-area), on A4, through the phone's
+     *  print service (a printer, or "Save as PDF"). */
+    void printPage(String name) {
+        if (web == null) return;
+        // from here on the page's afterprint waits for printFinished(), which every path below reaches once
+        web.evaluateJavascript(WebFiles.PRINT_HOLD_JS, null);
+        try {
+            PrintManager pm = (PrintManager) getSystemService(Context.PRINT_SERVICE);
+            if (pm == null) { say("no_print"); printFinished(); return; }
+            // the job's name is the file name "Save as PDF" offers: the page's (invoice number and patient), else its title
+            String job = WebFiles.printJobName(name, web.getTitle());
+            PrintDocumentAdapter adapter = new PrintJobAdapter(this, web.createPrintDocumentAdapter(job));
+            PrintAttributes attrs = new PrintAttributes.Builder().setMediaSize(PrintAttributes.MediaSize.ISO_A4).build();
+            pm.print(job, adapter, attrs);
+        } catch (RuntimeException e) {
+            say("no_print");
+            printFinished();
+        }
+    }
+
+    /** The print screen closed (printed, saved as PDF or cancelled): the page may leave its print layout. */
+    void printFinished() {
+        if (web != null) web.evaluateJavascript(WebFiles.PRINT_DONE_JS, null);
+    }
+
+    /** The WebView's own print adapter, plus a call to printFinished() when the print screen is done with it. */
+    static final class PrintJobAdapter extends PrintDocumentAdapter {
+        private final MainActivity host;
+        private final PrintDocumentAdapter page;
+        PrintJobAdapter(MainActivity host, PrintDocumentAdapter page) { this.host = host; this.page = page; }
+
+        @Override
+        public void onStart() { page.onStart(); }
+
+        @Override
+        public void onLayout(PrintAttributes oldAttributes, PrintAttributes newAttributes, CancellationSignal cancel,
+                             LayoutResultCallback callback, Bundle extras) {
+            page.onLayout(oldAttributes, newAttributes, cancel, callback, extras);
+        }
+
+        @Override
+        public void onWrite(PageRange[] pages, ParcelFileDescriptor destination, CancellationSignal cancel, WriteResultCallback callback) {
+            page.onWrite(pages, destination, cancel, callback);
+        }
+
+        @Override
+        public void onFinish() {
+            try {
+                page.onFinish();
+            } finally {
+                host.printFinished();
+            }
+        }
+    }
+
+    static final class PrintPage implements Runnable {
+        private final MainActivity host;
+        private final String name;
+        PrintPage(MainActivity host, String name) { this.host = host; this.name = name; }
+
+        @Override
+        public void run() { host.printPage(name); }
+    }
+
+    static final class OpenLink implements Runnable {
+        private final MainActivity host;
+        private final String url;
+        OpenLink(MainActivity host, String url) { this.host = host; this.url = url; }
+
+        @Override
+        public void run() { host.openOutside(url); }
+    }
+
+    // ---- the bridge: window.DentoraAndroid --------------------------------------------------------------
+
+    /**
+     * What the web app may ask of the phone. Called on the WebView's bridge thread, never the UI thread. The WebView
+     * puts the bridge in every frame of the page, so the shell lets no other site load in any frame (see AppClient),
+     * and the bridge answers nothing while the main frame shows a page that is not the app's own.
+     */
+    static final class Bridge {
+        private final MainActivity host;
+        Bridge(MainActivity host) { this.host = host; }
+
+        private boolean refused() { return host.foreignPage; }
+
+        /** ANDROID_ID: survives reinstalling the app; on Android 8+ it is tied to the app's signing key. */
+        @JavascriptInterface
+        public String deviceId() {
+            if (refused()) return "";
+            try {
+                String id = Settings.Secure.getString(host.getContentResolver(), Settings.Secure.ANDROID_ID);
+                return id == null ? "" : id;
+            } catch (RuntimeException e) {
+                return "";
+            }
+        }
+
+        /** Starts saving a file the page sends in pieces. {"id":"…"} or {"error":"busy"|"space"|"io"}. */
+        @JavascriptInterface
+        public String saveBegin(String name, String mime, String sizeHint, String quiet) {
+            if (refused()) return "{\"error\":\"io\"}";
+            return host.beginSave(name, mime, WebFiles.parseLong(sizeHint, 0), "1".equals(quiet));
+        }
+
+        /** One base64 piece of the file (about 1 MB). "" or why it failed. */
+        @JavascriptInterface
+        public String saveChunk(String id, String base64) { return refused() ? "io" : host.appendSave(id, base64); }
+
+        /** All pieces sent: checks size + CRC-32, then opens the "save as" screen. "" (the screen opens) or why not.
+         *  The end of the save arrives later as the page event 'dentora:saved' with this id. */
+        @JavascriptInterface
+        public String saveEnd(String id, String size, String crc) {
+            if (refused()) return "io";
+            return host.endSave(id, WebFiles.parseLong(size, -1), WebFiles.parseLong(crc, -1));
+        }
+
+        @JavascriptInterface
+        public void saveAbort(String id) { host.abortSave(id); }
+
+        @JavascriptInterface
+        public void print() { if (!refused()) host.runOnUiThread(new PrintPage(host, null)); }
+
+        /** Prints with a name for the job ("فاتورة INV-000034 - محمد العلي"), which "Save as PDF" offers as the file name. */
+        @JavascriptInterface
+        public void print(String jobName) { if (!refused()) host.runOnUiThread(new PrintPage(host, jobName)); }
+
+        @JavascriptInterface
+        public String appVersion() { return host.versionName(); }
+
+        /** The package that installed the app: "com.android.vending" for Google Play, a file manager's or the system
+         *  installer's package for a shared APK, "" when the phone does not say (adb, many sideloads). The licence
+         *  screen hides the seller's contact only on a Play install (Play payments policy). */
+        @JavascriptInterface
+        public String installSource() { return refused() ? "" : host.installer(); }
+
+        @JavascriptInterface
+        public void openExternal(String url) { if (!refused()) host.runOnUiThread(new OpenLink(host, url)); }
+    }
+
+    @SuppressWarnings("deprecation")
+    String installer() {
+        try {
+            PackageManager pm = getPackageManager();
+            String p;
+            if (Build.VERSION.SDK_INT >= 30) {
+                android.content.pm.InstallSourceInfo info = pm.getInstallSourceInfo(getPackageName());
+                p = info.getInstallingPackageName();
+                if (p == null) p = info.getInitiatingPackageName();
+            } else {
+                p = pm.getInstallerPackageName(getPackageName());
+            }
+            return p == null ? "" : p;
+        } catch (PackageManager.NameNotFoundException | RuntimeException e) {
+            return "";
+        }
+    }
+
+    @SuppressWarnings("deprecation")
+    String versionName() {
+        try {
+            PackageInfo pi = getPackageManager().getPackageInfo(getPackageName(), 0);
+            return pi.versionName == null ? "" : pi.versionName;
+        } catch (PackageManager.NameNotFoundException | RuntimeException e) {
+            return "";
+        }
+    }
+
+    // ---- short messages in the app's language ------------------------------------------------------------
+
+    void say(String key) { say(key, ""); }
+
+    /** Shows a toast in the language the page is using (asked of the page first). Any thread. */
+    void say(String key, String suffix) {
+        if (Looper.myLooper() != Looper.getMainLooper()) { runOnUiThread(new Say(this, key, suffix)); return; }
+        if (web == null) { toast(WebFiles.text(key, lang) + suffix); return; }
+        web.evaluateJavascript("document.documentElement.lang", new Say(this, key, suffix));
+    }
+
+    /** Remembers the page's language (for messages shown before the page loads, like the crash dialog). */
+    void refreshLang() {
+        if (web != null) web.evaluateJavascript("document.documentElement.lang", new Say(this, null, ""));
+    }
+
+    void setLang(String value) {
+        String v = value == null ? "" : value.replace("\"", "").trim();
+        if (v.isEmpty() || v.equals("null")) return;
+        if (!v.equals(lang)) {
+            lang = v;
+            prefs.edit().putString("lang", v).apply();
+        }
+    }
+
+    void toast(String text) { Toast.makeText(this, text, Toast.LENGTH_LONG).show(); }
+
+    /** Runnable (to hop onto the UI thread) and the answer of evaluateJavascript (the page's language). */
+    static final class Say implements Runnable, ValueCallback<String> {
+        private final MainActivity host;
+        private final String key;
+        private final String suffix;
+        Say(MainActivity host, String key, String suffix) { this.host = host; this.key = key; this.suffix = suffix; }
+
+        @Override
+        public void run() { if (key != null) host.say(key, suffix); }
+
+        @Override
+        public void onReceiveValue(String value) {
+            host.setLang(value);
+            if (key != null) host.toast(WebFiles.text(key, host.lang) + suffix);
+        }
+    }
+
+    // ---- lifecycle --------------------------------------------------------------------------------------
+
+    /** Back: first closes an open dialog or menu in the page (or takes a step back in the setup wizard), then goes
+     *  back a page; on the start page the app goes to the background (like Home) instead of closing, so the session
+     *  and the page stay as they were. Android 13+ delivers the key and the gesture through the OnBackInvokedDispatcher
+     *  (registerBack); older versions through onBackPressed. */
+    void handleBack() {
+        if (web == null) { moveTaskToBack(true); return; }
+        web.evaluateJavascript(WebFiles.BACK_JS, new Back(this));
+    }
+
+    @Override
+    @SuppressWarnings("deprecation")
+    public void onBackPressed() { handleBack(); }
+
+    private void registerBack() {
+        if (Build.VERSION.SDK_INT >= 33) Api33.registerBack(this);
+    }
+
+    /** Android 13+ only (never loaded on older versions): the back key and gesture for the whole activity. */
+    static final class Api33 {
+        private Api33() { }
+        static void registerBack(MainActivity host) {
+            host.getOnBackInvokedDispatcher().registerOnBackInvokedCallback(OnBackInvokedDispatcher.PRIORITY_DEFAULT, new BackKey(host));
+        }
+    }
+
+    static final class BackKey implements OnBackInvokedCallback {
+        private final MainActivity host;
+        BackKey(MainActivity host) { this.host = host; }
+
+        @Override
+        public void onBackInvoked() { host.handleBack(); }
+    }
+
+    static final class Back implements ValueCallback<String> {
+        private final MainActivity host;
+        Back(MainActivity host) { this.host = host; }
+
+        @Override
+        public void onReceiveValue(String value) { host.afterBack(value); }
+    }
+
+    void afterBack(String answer) {
+        String a = answer == null ? "" : answer.replace("\"", "");
+        if (a.equals("handled")) return;
+        if (!a.equals("home") && web != null && web.canGoBack()) { web.goBack(); return; }
+        moveTaskToBack(true);
+    }
+
+    @Override
+    protected void onPause() {
+        super.onPause();
+        if (web != null) web.onPause();
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        if (web != null) web.onResume();
+    }
+
+    @Override
+    protected void onDestroy() {
+        if (web != null) {
+            root.removeView(web);
+            web.destroy();
+            web = null;
+        }
+        super.onDestroy();
+    }
+}

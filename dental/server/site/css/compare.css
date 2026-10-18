@@ -1,0 +1,81 @@
+/* The comparison page (/compare, /en/compare…). Builds on site.css and landing.css (header, footer, sections, FAQ,
+   call to action). The table is a real table from 1024 px; below that every row is a card whose cells carry their
+   column's name (data-label), so nothing scrolls sideways on a phone. The table needs about 1024 px in the longer
+   languages, so it starts at 1024; should a longer translation ever exceed it, the table scrolls in its frame. */
+
+.cmp-hero { padding-block: clamp(36px, 5vw, 64px) clamp(8px, 2vw, 16px); background: linear-gradient(180deg, var(--bg-mint), #fff); }
+.cmp-hero-inner { max-width: 880px; }
+.cmp-hero h1 { font-size: clamp(1.75rem, 1.2rem + 2.2vw, 2.75rem); line-height: 1.2; letter-spacing: -.02em; color: var(--ink); }
+:lang(ar) .cmp-hero h1, :lang(ur) .cmp-hero h1 { letter-spacing: 0; line-height: 1.45; }
+.cmp-answer { margin-top: 18px; display: grid; gap: 12px; }
+.cmp-answer p { color: var(--ink-2); font-size: clamp(1.0625rem, 1rem + .3vw, 1.1875rem); line-height: 1.75; }
+.cmp-answer p:first-child { color: var(--ink); font-weight: 520; }
+.cmp-reviewed { display: inline-flex; align-items: center; gap: 8px; margin-top: 18px; color: var(--ink-3); font-size: .9375rem; }
+.cmp-reviewed .ic { width: 18px; height: 18px; color: var(--teal-700); }
+
+.cmp-crumbs ol { list-style: none; display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 18px; font-size: .9375rem; color: var(--ink-3); }
+.cmp-crumbs li + li::before { content: '/'; margin-inline-end: 6px; color: var(--ink-4); }
+.cmp-crumbs a { color: var(--teal-800); text-decoration: none; }
+.cmp-crumbs a:hover { text-decoration: underline; }
+
+.cmp-narrow { max-width: 860px; }
+.cmp-narrow > h2 { margin-bottom: 10px; }
+.cmp-narrow > .lead { margin-top: 0; margin-bottom: 20px; }
+
+/* ---- the table ---- */
+.cmp-table-section { padding-top: clamp(40px, 5vw, 64px); }
+.cmp-table-wrap { border: 1px solid var(--line); border-radius: var(--r-lg); background: #fff; box-shadow: var(--sh-md); overflow-x: auto; }
+.cmp-table { width: 100%; border-collapse: collapse; font-size: .9375rem; line-height: 1.55; }
+.cmp-table thead th { background: var(--teal-900); color: #fff; font-weight: 650; text-align: start; padding: 14px 14px; vertical-align: bottom; }
+.cmp-table tbody th, .cmp-table td { padding: 16px 14px; text-align: start; vertical-align: top; border-top: 1px solid var(--line); color: var(--ink-2); }
+.cmp-table tbody th { color: var(--ink); font-weight: 700; min-width: 180px; }
+.cmp-table tr.cmp-ours th, .cmp-table tr.cmp-ours td { background: var(--teal-50); }
+.cmp-name { display: block; }
+.cmp-examples { margin-top: 8px; font-weight: 500; font-size: .875rem; color: var(--ink-3); }
+.cmp-examples a { color: var(--teal-800); font-weight: 600; }
+
+@media (max-width: 1023px) {
+  .cmp-table-wrap { border: 0; background: none; box-shadow: none; overflow: visible; }
+  .cmp-table, .cmp-table tbody, .cmp-table tr, .cmp-table th, .cmp-table td { display: block; width: 100%; }
+  .cmp-table thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+  .cmp-table tbody { display: grid; gap: 16px; }
+  .cmp-table tr { border: 1px solid var(--line); border-radius: var(--r-lg); background: #fff; box-shadow: var(--sh-sm); overflow: hidden; }
+  .cmp-table tbody th { min-width: 0; padding: 16px 18px; border-top: 0; background: var(--bg-soft); font-size: 1.0625rem; }
+  .cmp-table tr.cmp-ours { border-color: var(--teal-200); }
+  .cmp-table tr.cmp-ours th { background: var(--teal-100); }
+  .cmp-table tr.cmp-ours td { background: #fff; }
+  .cmp-table td { padding: 12px 18px; }
+  .cmp-table td::before { content: attr(data-label); display: block; margin-bottom: 2px; color: var(--ink); font-weight: 700; font-size: .875rem; }
+}
+
+.cmp-approach { max-width: 860px; margin-top: 28px; }
+.cmp-approach + .cmp-approach { margin-top: 18px; }
+.cmp-approach h3 { font-size: 1.125rem; color: var(--ink); margin-bottom: 6px; }
+.cmp-approach p { color: var(--ink-2); line-height: 1.75; }
+.cmp-note { display: flex; gap: 10px; align-items: flex-start; max-width: 860px; margin-top: 28px; padding: 14px 16px; border-radius: var(--r-md); background: var(--bg-soft); color: var(--ink-3); font-size: .9375rem; line-height: 1.65; }
+.cmp-note .ic { flex: none; width: 20px; height: 20px; margin-top: 2px; color: var(--teal-700); }
+
+/* ---- how to choose ---- */
+.cmp-choose { background: var(--bg-soft); }
+.cmp-checklist { list-style: none; display: grid; gap: 12px; counter-reset: none; }
+.cmp-checklist li { display: flex; gap: 12px; align-items: flex-start; padding: 14px 16px; border: 1px solid var(--line); border-radius: var(--r-md); background: #fff; color: var(--ink-2); line-height: 1.7; }
+.cmp-checklist .check-dot { flex: none; margin-top: 2px; }
+
+/* ---- who it is for ---- */
+.cmp-fit-grid { display: grid; gap: 20px; }
+@media (min-width: 820px) { .cmp-fit-grid { grid-template-columns: 1fr 1fr; } }
+.cmp-fit-card { padding: clamp(20px, 3vw, 28px); border: 1px solid var(--line); border-radius: var(--r-lg); background: #fff; }
+.cmp-fit-card h3 { margin-bottom: 14px; font-size: 1.125rem; color: var(--ink); }
+.cmp-fit-card ul { list-style: none; display: grid; gap: 12px; }
+.cmp-fit-card li { display: flex; gap: 10px; align-items: flex-start; color: var(--ink-2); line-height: 1.65; }
+.cmp-fit-card li .ic { flex: none; width: 20px; height: 20px; margin-top: 3px; padding: 2px; border-radius: 50%; }
+.cmp-fit-yes { border-color: var(--teal-200); }
+.cmp-fit-yes li .ic { background: var(--teal-50); color: var(--teal-700); }
+.cmp-fit-no li .ic { background: #FEF2F2; color: #B91C1C; }
+
+/* ---- FAQ (the home page's .qa) and sources ---- */
+.cmp-faq .faq-list { margin-top: 18px; }
+.cmp-sources p { color: var(--ink-3); }
+.cmp-source-list { margin-top: 14px; padding-inline-start: 22px; display: grid; gap: 10px; color: var(--ink-2); }
+.cmp-source-list a { color: var(--teal-800); font-weight: 600; }
+.cmp-source-url { display: block; color: var(--ink-4); font-size: .875rem; overflow-wrap: anywhere; }

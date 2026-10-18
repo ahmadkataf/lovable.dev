@@ -1,0 +1,135 @@
+// Assembles public/ — the static files Cloudflare serves (wrangler.toml → [assets]) — from site/ (landing page
+// assets, the control panel, the guide's pictures in img/guide/ with their manifest.json, the course's recordings
+// in videos/ with theirs) plus the release APK of the app's current version. public/ is rebuilt from scratch every
+// time and is git-ignored. Works with an incomplete site/ (or none): whatever is there is published.
+//   files/dentora.apk      the APK (served only through /download/android, which counts it)
+//   files/meta.json        { version, sizeBytes, sha256 } of that APK (the landing page shows version and size)
+//   files/windows/setup.NNN  the Windows installer in parts of 20 MiB (one static file may not exceed 25 MiB);
+//                          /download/windows streams them back to back as one file and counts the download
+//   files/windows.json     { version, sizeBytes, sha256, parts: [{ path, size }] } of that installer
+//   files/manifest.json    { files } every published path, so the Worker knows e.g. whether /css/site.css exists
+//   files/videos/<lang>/<chapter>.mp4  the course's videos, moved out of videos/: the static file layer answers a
+//                          Range request with the whole file (Safari then plays nothing), so the Worker answers
+//                          /videos/<lang>/<chapter>.mp4 itself, with ranges, from the edge cache (src/index.ts)
+//   _headers               security and cache headers of the static files (the Worker sets its own)
+//   VIDEOS_DIR=<dir> | none  the course's recordings to publish as videos/ instead of site/videos (none = publish
+//                          no recording: the end-to-end test builds that way, then a fixture folder)
+// A published file must never take a page's path (/guide/…, or /videos/<name> other than manifest.json): with
+// html_handling "none" such a file would be served instead of the page, so the build refuses it.
+import { createHash } from 'node:crypto'
+import { copyFileSync, cpSync, existsSync, mkdirSync, readdirSync, readFileSync, renameSync, rmSync, statSync, writeFileSync } from 'node:fs'
+import { basename, dirname, join, relative, sep } from 'node:path'
+import { fileURLToPath } from 'node:url'
+import { SECURITY_HEADERS } from '../src/http.ts'
+
+const root = join(dirname(fileURLToPath(import.meta.url)), '..')
+const app = join(root, '..')
+const site = join(root, 'site')
+const out = join(root, 'public')
+const MAX_ASSET = 25 * 1024 * 1024   // Workers static assets: 25 MiB per file
+
+rmSync(out, { recursive: true, force: true })
+mkdirSync(out, { recursive: true })
+
+// Dot files (.DS_Store, editor swap files) are never published. site/videos (the recorder's output, git-ignored)
+// goes in as it is unless VIDEOS_DIR names another folder, or none.
+const videosDir = process.env.VIDEOS_DIR ? (process.env.VIDEOS_DIR === 'none' ? null : process.env.VIDEOS_DIR) : join(site, 'videos')
+const siteVideos = join(site, 'videos')
+if (existsSync(site)) cpSync(site, out, { recursive: true, filter: src => !basename(src).startsWith('.') && !(src === siteVideos && videosDir !== siteVideos) })
+else console.warn('build-public: site/ does not exist yet, publishing the APK only')
+if (videosDir && videosDir !== siteVideos) {
+  if (!existsSync(videosDir)) throw new Error(`VIDEOS_DIR=${videosDir} does not exist`)
+  cpSync(videosDir, join(out, 'videos'), { recursive: true, filter: src => !basename(src).startsWith('.') })
+}
+const videosOut = join(out, 'videos')
+const recorded = existsSync(join(videosOut, 'manifest.json')) ? Object.keys(JSON.parse(readFileSync(join(videosOut, 'manifest.json'), 'utf8'))).length : 0
+// The .mp4 files go behind the Worker (files/* is run_worker_first): /videos/<lang>/<chapter>.mp4 then has no static
+// file and reaches the Worker, which serves ranges. The .vtt, .jpg and manifest.json stay static files.
+if (existsSync(videosOut)) {
+  for (const lang of readdirSync(videosOut)) {
+    const dir = join(videosOut, lang)
+    if (!statSync(dir).isDirectory()) continue
+    for (const name of readdirSync(dir).filter(n => n.endsWith('.mp4'))) {
+      mkdirSync(join(out, 'files', 'videos', lang), { recursive: true })
+      renameSync(join(dir, name), join(out, 'files', 'videos', lang, name))
+    }
+  }
+}
+console.log(!videosDir ? 'build-public: VIDEOS_DIR=none, no recording published'
+  : !existsSync(videosOut) ? `build-public: no ${relative(root, videosDir)}/ yet (nothing recorded): every chapter of the course is "coming"`
+  : `build-public: videos from ${relative(root, videosDir) || '.'}: ${recorded} recorded chapter(s) in the manifest`)
+
+const { version } = JSON.parse(readFileSync(join(app, 'package.json'), 'utf8'))
+const apk = join(app, 'releases', `Dentora-${version}.apk`)
+mkdirSync(join(out, 'files'), { recursive: true })
+if (existsSync(apk)) {
+  const bytes = readFileSync(apk)
+  if (bytes.length > MAX_ASSET) throw new Error(`${apk} is ${bytes.length} bytes, over the 25 MiB static file limit`)
+  copyFileSync(apk, join(out, 'files', 'dentora.apk'))
+  const meta = { version, sizeBytes: bytes.length, sha256: createHash('sha256').update(bytes).digest('hex') }
+  writeFileSync(join(out, 'files', 'meta.json'), JSON.stringify(meta, null, 2) + '\n')
+  console.log(`build-public: APK ${version}, ${(bytes.length / 1048576).toFixed(1)} MB, sha256 ${meta.sha256.slice(0, 12)}…`)
+} else {
+  console.warn(`build-public: ${relative(root, apk)} not found; /download/android answers 404 until it exists`)
+}
+
+// The Windows installer is too large for git (and for one static file): it comes from WINDOWS_SETUP, or from
+// ../releases/Dentora-Setup-<version>.exe, which is git-ignored. Built from the same package.json, so same version.
+// WINDOWS_SETUP=none publishes no installer (the end-to-end test checks the fallback that way).
+const PART = 20 * 1024 * 1024
+const setup = process.env.WINDOWS_SETUP || join(app, 'releases', `Dentora-Setup-${version}.exe`)
+if (setup === 'none') {
+  console.log('build-public: WINDOWS_SETUP=none, no Windows installer published')
+} else if (existsSync(setup) && statSync(setup).size > 0) {
+  const bytes = readFileSync(setup)
+  mkdirSync(join(out, 'files', 'windows'), { recursive: true })
+  const parts = []
+  for (let i = 0, at = 0; at < bytes.length; i++, at += PART) {
+    const path = `/files/windows/setup.${String(i).padStart(3, '0')}`
+    const part = bytes.subarray(at, at + PART)
+    writeFileSync(join(out, path), part)
+    parts.push({ path, size: part.length })
+  }
+  const meta = { version, sizeBytes: bytes.length, sha256: createHash('sha256').update(bytes).digest('hex'), parts }
+  writeFileSync(join(out, 'files', 'windows.json'), JSON.stringify(meta, null, 2) + '\n')
+  console.log(`build-public: Windows installer ${version}, ${(bytes.length / 1048576).toFixed(1)} MB in ${parts.length} parts, sha256 ${meta.sha256.slice(0, 12)}…`)
+} else {
+  console.warn(`build-public: ${relative(root, setup)} not found; /download/windows goes to the settings' link or WhatsApp`)
+}
+
+const security = Object.entries(SECURITY_HEADERS).map(([k, v]) => `  ${k}: ${v}`).join('\n')
+const rules = [
+  `/*\n${security}`,
+  // Fonts never change under the same name; images rarely; css/js are not fingerprinted, so keep them short.
+  '/fonts/*\n  Cache-Control: public, max-age=31536000, immutable',
+  '/img/*\n  Cache-Control: public, max-age=86400',
+  // the guide's pictures are re-shot under the same names (a day); a chapter's files carry its recording's hash in
+  // the page's links (?v=), so they can stay a week
+  '/img/guide/*\n  Cache-Control: public, max-age=86400',
+  '/videos/*\n  Cache-Control: public, max-age=604800',
+  '/css/*\n  Cache-Control: public, max-age=600',
+  '/js/*\n  Cache-Control: public, max-age=600',
+  '/admin/*\n  Cache-Control: no-cache, no-transform\n  X-Robots-Tag: noindex',
+]
+// A site/_headers of the landing page, if any, comes after (its rules add to these).
+const own = join(site, '_headers')
+writeFileSync(join(out, '_headers'), rules.join('\n\n') + '\n' + (existsSync(own) ? '\n' + readFileSync(own, 'utf8') : ''))
+
+const files = []
+const walk = dir => {
+  for (const name of readdirSync(dir)) {
+    const p = join(dir, name)
+    if (statSync(p).isDirectory()) walk(p)
+    else {
+      if (statSync(p).size > MAX_ASSET) throw new Error(`${relative(root, p)} is over the 25 MiB static file limit`)
+      files.push('/' + relative(out, p).split(sep).join('/'))
+    }
+  }
+}
+walk(out)
+// A file where a page lives would be served instead of it (wrangler.toml → [assets]).
+const shadowing = files.filter(f => /^\/guide(\/|$)/.test(f) || (/^\/videos\/[^/]+$/.test(f) && f !== '/videos/manifest.json'))
+if (shadowing.length) throw new Error(`these files would shadow a page of the Worker: ${shadowing.join(', ')}`)
+const published = files.filter(f => f !== '/_headers').concat('/files/manifest.json').sort()
+writeFileSync(join(out, 'files', 'manifest.json'), JSON.stringify({ files: published }) + '\n')
+console.log(`build-public: ${published.length} files in public/`)

@@ -1,0 +1,94 @@
+# Dentora — Windows packaging with electron-builder 26.
+#   npm run electron:build            → release/Dentora-Setup-<version>.exe and release/Dentora-Portable-<version>.exe
+#   npx electron-builder --win --dir  → release/win-unpacked/ (no installer; quick check)
+# The version comes from package.json. Build on Windows or in GitHub Actions (.github/workflows/dentora-windows.yml).
+
+appId: com.dentora.app
+productName: Dentora
+copyright: Copyright © 2026 Dentora
+# Publisher shown in "Apps & features" / the installer (package.json has no "author"; injected here only)
+extraMetadata:
+  author:
+    name: Dentora
+
+directories:
+  output: release
+  buildResources: build
+
+# The renderer is fully bundled by Vite into dist/, so the app needs no node_modules at run time.
+files:
+  - dist/**
+  - electron/**
+  - build/icon.png
+  - build/icon.ico
+  - package.json
+  - "!**/node_modules/**"
+asar: true
+# Electron fuses, flipped in Dentora.exe at build time (before signing). The installed app cannot be run as plain
+# Node.js (ELECTRON_RUN_AS_NODE), takes no NODE_OPTIONS and no --inspect, loads its code only from app.asar, and
+# refuses an app.asar changed after the build (its hash is embedded in Dentora.exe). main.cjs also refuses
+# --remote-debugging-port and never opens Developer Tools in the installed app.
+electronFuses:
+  runAsNode: false
+  enableNodeOptionsEnvironmentVariable: false
+  enableNodeCliInspectArguments: false
+  onlyLoadAppFromAsar: true
+  enableEmbeddedAsarIntegrityValidation: true
+# nothing is uploaded anywhere (the GitHub workflow keeps the files as an artifact)
+publish: null
+npmRebuild: false
+nodeGypRebuild: false
+# Chromium UI locales to keep (Arabic + English); the rest are dropped to save ~40 MB
+electronLanguages:
+  - ar
+  - en-US
+  - en-GB
+
+win:
+  target:
+    - target: nsis
+      arch: [x64]
+    - target: portable
+      arch: [x64]
+  icon: build/icon.ico
+  requestedExecutionLevel: asInvoker
+  # Code signing (docs/WINDOWS.md §7). Unsigned builds still work, but Smart App Control (on by default on a clean
+  # Windows 11) blocks unsigned installers and SmartScreen warns. The GitHub workflow signs when its secrets exist:
+  # Azure Trusted Signing (azureSignOptions, passed on the command line) or a certificate file (CSC_LINK).
+  signtoolOptions:
+    # Set to the certificate's subject ("Issued to") once you sign; used to check signed updates.
+    publisherName: Dentora
+    rfc3161TimeStampServer: http://timestamp.digicert.com
+
+nsis:
+  artifactName: Dentora-Setup-${version}.${ext}
+  oneClick: false
+  # for the current user only (no administrator rights): build/installer.nsh skips the install-mode page
+  perMachine: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: always
+  createStartMenuShortcut: true
+  shortcutName: Dentora
+  uninstallDisplayName: Dentora
+  installerIcon: build/icon.ico
+  uninstallerIcon: build/icon.ico
+  installerHeaderIcon: build/icon.ico
+  # the terms of use (EULA) the installer asks to accept: build/license.txt, Arabic then English, made from
+  # docs/TERMS.md by scripts/make-license-txt.mjs (UTF-8 with a byte-order mark; a test keeps it in step)
+  license: build/license.txt
+  # the side picture of the welcome and finish pages (build/make-installer-art.mjs draws it)
+  installerSidebar: build/installerSidebar.bmp
+  uninstallerSidebar: build/uninstallerSidebar.bmp
+  # per-user install with no "all users / only for me" page, and Arabic for the messages electron-builder lacks
+  include: build/installer.nsh
+  # Arabic first; the installer follows the Windows display language (Arabic or English)
+  installerLanguages:
+    - ar_SA
+    - en_US
+  language: "1025"
+  runAfterFinish: true
+  # NEVER delete %APPDATA%\Dentora: it holds the clinic's patients, invoices and files (IndexedDB).
+  deleteAppDataOnUninstall: false
+
+portable:
+  artifactName: Dentora-Portable-${version}.exe

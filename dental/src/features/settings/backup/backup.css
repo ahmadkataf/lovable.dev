@@ -1,0 +1,35 @@
+/* Backup: password protection, progress and the password prompt (Settings → Backup and the setup wizard, which does
+   not load the settings styles: everything shown in both places is styled here). */
+.bk-icon { width: 40px; height: 40px; border-radius: 12px; flex: none; display: inline-flex; align-items: center; justify-content: center; background: var(--info-soft); color: var(--info); }
+.bk-icon svg { width: 20px; height: 20px; }
+.bk-file { display: flex; align-items: center; gap: 12px; padding: 12px 14px; border-radius: var(--r-lg); background: var(--surface-2); border: 1px solid var(--border); min-width: 0; }
+.bk-file-name { font-weight: 700; min-width: 0; overflow-wrap: anywhere; text-align: start; }
+.bk-protect { margin-top: 20px; padding: 14px 16px; border-radius: var(--r-lg); border: 1px solid var(--border); background: var(--surface); display: flex; flex-direction: column; gap: 10px; }
+.bk-protect-head { display: flex; align-items: flex-start; gap: 12px; }
+.bk-protect-head .switch { font-weight: 700; }
+.bk-protect-hint { font-size: var(--fs-sm); color: var(--text-2); line-height: 1.7; margin-inline-start: 52px; }
+.bk-pass-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.bk-pass-grid .input { direction: ltr; text-align: start; }
+
+.bk-progress { display: flex; flex-direction: column; gap: 12px; padding: 4px 0; }
+.bk-progress-head { display: flex; align-items: center; gap: 12px; }
+.bk-progress-title { font-size: var(--fs-lg); font-weight: 800; }
+.bk-progress-stage { color: var(--text-2); font-size: var(--fs-sm); display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.bk-progress-amount { color: var(--text-3); unicode-bidi: isolate; font-variant-numeric: tabular-nums; }
+.bk-progress-note { color: var(--text-3); font-size: var(--fs-xs); }
+.bk-progress-actions { display: flex; justify-content: flex-end; }
+
+/* a bar for steps with no measurable progress (the database write, the save screen) */
+.bk-indet { position: relative; height: 8px; border-radius: var(--r-full); background: var(--surface-3); overflow: hidden; }
+.bk-indet::after { content: ''; position: absolute; inset-block: 0; inset-inline-start: -40%; width: 40%; border-radius: var(--r-full); background: var(--primary); animation: bk-slide 1.3s var(--ease, ease-in-out) infinite; }
+@keyframes bk-slide { from { inset-inline-start: -40%; } to { inset-inline-start: 100%; } }
+@media (prefers-reduced-motion: reduce) { .bk-indet::after { animation: none; inset-inline-start: 0; width: 100%; opacity: .5; } }
+
+.bk-prompt { display: flex; flex-direction: column; gap: 14px; }
+.bk-prompt .input { direction: ltr; text-align: start; }
+.bk-badges { display: flex; flex-wrap: wrap; gap: 6px; }
+
+@media (max-width: 767px) {
+  .bk-pass-grid { grid-template-columns: minmax(0, 1fr); }
+  .bk-protect-hint { margin-inline-start: 0; }
+}
