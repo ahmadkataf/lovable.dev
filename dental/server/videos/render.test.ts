@@ -4,7 +4,7 @@
 import { describe, expect, it } from 'vitest'
 import { DEFAULT_SETTINGS } from '../src/types'
 import { CHAPTERS, chapterBySlug } from './index'
-import { chaptersCount, clock, isoDuration, lengthText, recordOf, renderVideoChapter, renderVideosHome, sizeText, videoSitemapEntries, videoSitemapXml } from './render'
+import { chaptersCount, clock, isoDuration, lengthText, recordOf, renderVideoChapter, renderVideosHome, sizeText } from './render'
 import type { VideoChapter, VideoManifest, VideoRecord } from './types'
 
 const assets = { siteCss: true, favicon: true, manifest: true }
@@ -168,7 +168,7 @@ describe('a chapter page', () => {
   it('has canonical, hreflang, Open Graph video and the structured data', () => {
     expect(page).toContain(`<link rel="canonical" href="${ORIGIN}/videos/patients">`)
     expect(page).toContain(`<link rel="alternate" hreflang="en" href="${ORIGIN}/en/videos/patients">`)
-    expect(page).toContain(`<link rel="alternate" hreflang="x-default" href="${ORIGIN}/videos/patients">`)
+    expect(page).toContain(`<link rel="alternate" hreflang="x-default" href="${ORIGIN}/en/videos/patients">`)
     expect(page).toContain('<meta property="og:type" content="video.other">')
     expect(page).toContain(`<meta property="og:video" content="${ORIGIN}/videos/ar/patients.mp4?v=abcdef012345">`)
     expect(page).toContain(`<meta property="og:image" content="${ORIGIN}/videos/ar/patients.jpg?v=abcdef012345">`)
@@ -276,20 +276,5 @@ describe('every page', () => {
       expect(() => renderVideoChapter('ar', DEFAULT_SETTINGS, ORIGIN, assets, patients, CHAPTERS, m as VideoManifest)).not.toThrow()
       expect(() => renderVideosHome('ar', DEFAULT_SETTINGS, ORIGIN, assets, CHAPTERS, m as VideoManifest)).not.toThrow()
     }
-  })
-})
-
-describe('the sitemap', () => {
-  it('lists the home and every chapter in both languages, with alternates', () => {
-    const entries = videoSitemapEntries(ORIGIN)
-    expect(entries).toHaveLength(36)
-    expect(entries[0]).toEqual({ loc: `${ORIGIN}/videos`, lang: 'ar', alternates: { ar: `${ORIGIN}/videos`, en: `${ORIGIN}/en/videos` }, changefreq: 'weekly', priority: '0.8' })
-    expect(entries[1].loc).toBe(`${ORIGIN}/en/videos`)
-    expect(entries.find(e => e.loc === `${ORIGIN}/en/videos/licence`)).toMatchObject({ lang: 'en', changefreq: 'monthly', priority: '0.6' })
-    expect(new Set(entries.map(e => e.loc)).size).toBe(36)
-    expect(videoSitemapEntries(`${ORIGIN}/`)[0].loc).toBe(`${ORIGIN}/videos`)
-    const xml = videoSitemapXml(ORIGIN)
-    expect(xml.split('\n')).toHaveLength(36)
-    expect(xml).toContain(`<url><loc>${ORIGIN}/en/videos/patients</loc><xhtml:link rel="alternate" hreflang="ar" href="${ORIGIN}/videos/patients"/><xhtml:link rel="alternate" hreflang="en" href="${ORIGIN}/en/videos/patients"/><xhtml:link rel="alternate" hreflang="x-default" href="${ORIGIN}/videos/patients"/><changefreq>monthly</changefreq><priority>0.6</priority></url>`)
   })
 })

@@ -169,6 +169,32 @@ bdi { unicode-bidi: isolate; }
    into a page that has no other Arabic text */
 .lang-link[lang="ar"], .menu-lang[lang="ar"] { font-family: 'Segoe UI', Tahoma, 'Geeza Pro', 'Noto Sans Arabic', 'Noto Naskh Arabic', system-ui, sans-serif; }
 
+/* the language menu (more than two languages): a <details> that opens a list under its button; in the phone menu
+   (.menu-lang) the list opens in place */
+.lang-menu { position: relative; }
+.lang-menu > summary { list-style: none; display: inline-flex; align-items: center; gap: 6px; cursor: pointer; }
+.lang-menu > summary::-webkit-details-marker { display: none; }
+.lang-menu .lang-chev { width: 16px !important; height: 16px !important; transition: transform .2s; }
+.lang-menu[open] .lang-chev { transform: rotate(180deg); }
+.lang-link.lang-menu { padding: 0; }
+.lang-link.lang-menu > summary { min-height: 40px; padding: 6px 10px; border-radius: 10px; }
+.lang-link.lang-menu > summary:hover { background: var(--teal-50); color: var(--teal-800); }
+.lang-list {
+  list-style: none; position: absolute; z-index: 20; top: calc(100% + 6px); inset-inline-end: 0; min-width: 200px;
+  padding: 6px; background: #fff; border: 1px solid var(--line); border-radius: 14px; box-shadow: var(--sh-lg);
+}
+.lang-list a { display: block; padding: 9px 12px; border-radius: 10px; color: var(--ink); font-weight: 560; text-decoration: none; }
+.lang-list a:hover { background: var(--teal-50); color: var(--teal-800); }
+.lang-list a[aria-current] { color: var(--teal-800); font-weight: 700; }
+.menu-lang.lang-menu { display: block; padding: 0; }
+.menu-lang.lang-menu > summary { display: flex; min-height: 48px; padding: 10px 14px; }
+.menu-lang .lang-list { position: static; box-shadow: none; border: 0; padding: 0 0 6px; }
+/* the footer's list of languages */
+.footer-langs ul { list-style: none; display: flex; flex-wrap: wrap; gap: 4px 14px; }
+.footer-langs a { color: inherit; text-decoration: none; font-size: .9375rem; }
+.footer-langs a:hover { text-decoration: underline; }
+.footer-langs a[aria-current] { font-weight: 700; }
+
 /* ---- long text pages (privacy, terms) and short message pages (404) ---- */
 .page { padding-block: clamp(40px, 6vw, 80px); }
 .prose { max-width: 760px; margin-inline: auto; color: var(--ink-2); }

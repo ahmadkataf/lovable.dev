@@ -19,7 +19,7 @@ const T = {
   ar: {
     skip: 'تخطَّ إلى المحتوى', home: 'الصفحة الرئيسية', kicker: 'Dentora · معلومات قانونية', toc: 'محتويات الصفحة',
     docs: 'المستندات القانونية', whatsapp: 'واتساب', email: 'البريد الإلكتروني', rights: 'جميع الحقوق محفوظة',
-    activate: 'تفعيل الترخيص', guide: 'دليل الاستخدام', videos: 'الفيديوهات', otherLang: 'English', otherLangName: 'Read in English',
+    activate: 'تفعيل الترخيص', compare: 'مقارنة البرامج', guide: 'دليل الاستخدام', videos: 'الفيديوهات', otherLang: 'English', otherLangName: 'Read in English',
     desc: {
       privacy: 'سياسة خصوصية Dentora لإدارة عيادات الأسنان: بيانات العيادة ومرضاها تبقى على جهازها، ولا نتلقى منها شيئاً.',
       terms: 'شروط استخدام برنامج Dentora لإدارة عيادات الأسنان (اتفاقية ترخيص المستخدم النهائي).',
@@ -28,7 +28,7 @@ const T = {
   en: {
     skip: 'Skip to content', home: 'Home', kicker: 'Dentora · Legal', toc: 'On this page',
     docs: 'Legal documents', whatsapp: 'WhatsApp', email: 'Email', rights: 'All rights reserved',
-    activate: 'Activate a licence', guide: 'User guide', videos: 'Videos', otherLang: 'العربية', otherLangName: 'اقرأ بالعربية',
+    activate: 'Activate a licence', compare: 'Software comparison', guide: 'User guide', videos: 'Videos', otherLang: 'العربية', otherLangName: 'اقرأ بالعربية',
     desc: {
       privacy: 'Privacy policy of Dentora dental clinic software: clinic and patient data stays on the clinic’s device, and we receive none of it.',
       terms: 'Terms of use of Dentora dental clinic software (the end-user licence agreement).',
@@ -121,7 +121,7 @@ export interface Shell {
 }
 /**
  * The document around a page's content: head, header with the logo and language switch, footer. The footer links
- * every page of the Worker in the page's language: home, the user guide, the video course, activation, privacy,
+ * every page of the Worker in the page's language: home, the comparison, the user guide, the video course, activation, privacy,
  * terms (the guide and the course pages are built on this shell too, so each links the other).
  */
 export function shell(p: Shell): string {
@@ -137,7 +137,7 @@ export function shell(p: Shell): string {
     // device numbers and keys are not phone numbers (iOS would make links of them)
     '<meta name="format-detection" content="telephone=no">',
     p.path ? `<link rel="canonical" href="${url(p.lang)}">` : '<meta name="robots" content="noindex">',
-    p.path ? `<link rel="alternate" hreflang="ar" href="${url('ar')}"><link rel="alternate" hreflang="en" href="${url('en')}"><link rel="alternate" hreflang="x-default" href="${url('ar')}">` : '',
+    p.path ? `<link rel="alternate" hreflang="ar" href="${url('ar')}"><link rel="alternate" hreflang="en" href="${url('en')}"><link rel="alternate" hreflang="x-default" href="${url('en')}">` : '',
     p.assets.favicon ? '<link rel="icon" href="/favicon.ico" sizes="48x48"><link rel="icon" href="/favicon.svg" type="image/svg+xml"><link rel="apple-touch-icon" href="/apple-touch-icon.png">' : '',
     p.assets.manifest ? '<link rel="manifest" href="/site.webmanifest">' : '',
     p.lang === 'ar' ? '<link rel="preload" href="/fonts/noto-kufi-arabic-wght.woff2" as="font" type="font/woff2" crossorigin>' : '',
@@ -169,7 +169,7 @@ ${head}
 ${p.body}
 <footer class="site-footer legal-foot"><div class="container footer-bottom legal-wrap legal-foot-in">
 <p>© ${year} Dentora. ${t.rights}.</p>
-<nav aria-label="${escapeHtml(t.docs)}"><a href="${home}">${t.home}</a><a href="${langPath('/guide', p.lang)}">${t.guide}</a><a href="${langPath('/videos', p.lang)}">${t.videos}</a><a href="${langPath('/activate', p.lang)}">${t.activate}</a><a href="${langPath('/privacy', p.lang)}">${escapeHtml(docTitle('privacy', p.lang))}</a><a href="${langPath('/terms', p.lang)}">${escapeHtml(docTitle('terms', p.lang))}</a></nav>
+<nav aria-label="${escapeHtml(t.docs)}"><a href="${home}">${t.home}</a><a href="${langPath('/compare', p.lang)}">${t.compare}</a><a href="${langPath('/guide', p.lang)}">${t.guide}</a><a href="${langPath('/videos', p.lang)}">${t.videos}</a><a href="${langPath('/activate', p.lang)}">${t.activate}</a><a href="${langPath('/privacy', p.lang)}">${escapeHtml(docTitle('privacy', p.lang))}</a><a href="${langPath('/terms', p.lang)}">${escapeHtml(docTitle('terms', p.lang))}</a></nav>
 </div></footer>
 </body>
 </html>

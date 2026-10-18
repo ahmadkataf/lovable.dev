@@ -1,9 +1,10 @@
 // The landing page's words, Arabic and English side by side (rendered by landing.ts).
 // Every claim here must stay true of the app: the facts come from store/LISTING.md, README.md and docs/*.md.
 // Plain text only: landing.ts escapes everything. {price}, {whatsapp}, {email}, {version} and {size} are filled
-// from the seller's settings and the published APK at render time; {activate} is the activation page's address.
+// from the seller's settings and the published APK at render time; {activate} is the activation page's address and
+// {compare} a link to the comparison page.
 // Activation and privacy follow docs/LICENCE-KEYS.md (licence keys, and what activation sends).
-import type { Lang } from '../types'
+import type { SiteLang } from '../site-lang'
 
 export type IconName =
   | 'wifiOff' | 'languages' | 'monitorSmartphone' | 'shieldCheck' | 'databaseBackup' | 'lockKeyhole' | 'heartPulse'
@@ -22,10 +23,19 @@ export interface Copy {
   meta: { title: string; description: string; ogTitle: string; ogLocale: string; ogAltLocale: string; ogImageAlt: string }
   skip: string
   /** `guide` and `videos` are pages of their own (/guide, /videos); the rest are sections of this page. */
-  nav: { label: string; features: string; screenshots: string; pricing: string; download: string; faq: string; guide: string; videos: string }
+  /** `compare` is the comparison page (/compare). */
+  nav: { label: string; features: string; screenshots: string; pricing: string; download: string; faq: string; compare: string; guide: string; videos: string }
   menu: string
   /** The other language: its name (written in that language) and an accessible label. */
   other: { name: string; label: string }
+  /** The language menu (every language of the site): its label. */
+  langMenu: string
+  /**
+   * The short factual answer to "what is Dentora?" right under the hero: the paragraph search engines and AI
+   * assistants quote. {price} is the price. `appLang` (pages in a language the app does not have) says which
+   * languages the app's interface has.
+   */
+  summary: { title: string; text: string; appLang?: string }
   whatsapp: { short: string; header: string }
   announcement: string
   hero: {
@@ -55,8 +65,11 @@ export interface Copy {
     windows: { name: string; for: string; req: string; btn: string; meta: string; file: string; note: string; requestText: string; requestBtn: string }
     reqTitle: string; reqs: string[]
   }
-  /** `learn`: under the WhatsApp button, a line pointing to the user guide and the video course. */
-  faq: { eyebrow: string; title: string; more: string; moreLink: string; emailPart: string; learn: { text: string; guide: string; videos: string }; items: Faq[] }
+  /**
+   * `learn`: under the WhatsApp button, a line pointing to the user guide and the video course. `compareLink` is the
+   * text of the link an answer's {compare} becomes (the comparison page).
+   */
+  faq: { eyebrow: string; title: string; more: string; moreLink: string; emailPart: string; compareLink: string; learn: { text: string; guide: string; videos: string }; items: Faq[] }
   cta: { title: string; lead: string; download: string; whatsapp: string }
   footer: { tagline: string; product: string; activate: string; legal: string; contact: string; privacy: string; terms: string; rights: string; email: string }
   /** Pre-filled WhatsApp messages (the seller reads them first). */
@@ -66,24 +79,29 @@ export interface Copy {
 
 const ar: Copy = {
   meta: {
-    title: 'Dentora | برنامج إدارة عيادة الأسنان لويندوز وأندرويد، يعمل دون إنترنت',
-    description: 'أدِر عيادة الأسنان كاملة مع Dentora: ملفات المرضى ومخطط الأسنان والمواعيد مع تذكير واتساب وخطط العلاج والفواتير والتقارير. بالعربية والإنجليزية، يعمل دون إنترنت وبياناتك تبقى على جهازك. جرّبه مجاناً 7 أيام.',
+    title: 'Dentora | برنامج إدارة عيادة الأسنان بدون إنترنت لويندوز وأندرويد',
+    description: 'برنامج إدارة عيادة أسنان يعمل بدون إنترنت على ويندوز وأندرويد: المرضى ومخطط الأسنان والمواعيد والفواتير. عربي وإنجليزي، دفعة واحدة، وتجربة مجانية 7 أيام.',
     ogTitle: 'Dentora — عيادة الأسنان كلها في برنامج واحد',
     ogLocale: 'ar_AR',
     ogAltLocale: 'en_US',
-    ogImageAlt: 'Dentora لإدارة عيادة الأسنان، يعمل دون إنترنت',
+    ogImageAlt: 'Dentora لإدارة عيادة الأسنان، يعمل بدون إنترنت',
   },
   skip: 'تخطَّ إلى المحتوى',
-  nav: { label: 'التنقل الرئيسي', features: 'المزايا', screenshots: 'الشاشات', pricing: 'السعر', download: 'التحميل', faq: 'الأسئلة الشائعة', guide: 'دليل الاستخدام', videos: 'الفيديوهات' },
+  nav: { label: 'التنقل الرئيسي', features: 'المزايا', screenshots: 'الشاشات', pricing: 'السعر', download: 'التحميل', faq: 'الأسئلة الشائعة', compare: 'المقارنة', guide: 'دليل الاستخدام', videos: 'الفيديوهات' },
   menu: 'القائمة',
   other: { name: 'English', label: 'English version' },
+  langMenu: 'اللغة',
+  summary: {
+    title: 'ما هو Dentora؟',
+    text: 'Dentora برنامج لإدارة عيادات الأسنان يعمل بدون إنترنت على ويندوز 10 و11 (64-بت) وعلى أندرويد 7 أو أحدث، بواجهة عربية وإنجليزية. يجمع ملفات المرضى ومخطط الأسنان بترقيم FDI والمواعيد مع تذكير واتساب وخطط العلاج والفواتير والتقارير. سعره {price} تُدفع مرة واحدة لترخيص مدى الحياة على جهاز واحد، مع تجربة مجانية 7 أيام بكل المزايا ودون تسجيل. يحتاج الإنترنت مرة واحدة فقط لتفعيل الترخيص، وتبقى بيانات العيادة والمرضى على الجهاز نفسه، مع نسخ احتياطي يمكن تشفيره بـ AES-256.',
+  },
   whatsapp: { short: 'واتساب', header: 'تواصل عبر واتساب' },
   announcement: 'إعلان',
   hero: {
-    badge: 'يعمل دون إنترنت على ويندوز وأندرويد',
+    badge: 'يعمل بدون إنترنت على ويندوز وأندرويد',
     titleA: 'عيادة الأسنان كلها',
     titleB: 'في برنامج واحد',
-    lead: 'ملفات المرضى ومخطط الأسنان والمواعيد وخطط العلاج والفواتير والتقارير، بواجهة عربية حديثة، وبالإنجليزية أيضاً. يعمل دون إنترنت، وتبقى بيانات عيادتك ومرضاها على جهازك.',
+    lead: 'ملفات المرضى ومخطط الأسنان والمواعيد وخطط العلاج والفواتير والتقارير، بواجهة عربية حديثة، وبالإنجليزية أيضاً. يعمل بدون إنترنت، وتبقى بيانات عيادتك ومرضاها على جهازك.',
     android: 'حمّل لأندرويد',
     androidRequest: 'اطلب نسخة أندرويد',
     apkMeta: 'ملف APK · الإصدار {version} · {size}',
@@ -95,7 +113,7 @@ const ar: Copy = {
   },
   trust: {
     label: 'لماذا Dentora',
-    items: ['يعمل دون إنترنت', 'عربي وإنجليزي', 'ويندوز وأندرويد', 'بياناتك تبقى على جهازك', 'نسخ احتياطي مشفّر'],
+    items: ['يعمل بدون إنترنت', 'عربي وإنجليزي', 'ويندوز وأندرويد', 'بياناتك تبقى على جهازك', 'نسخ احتياطي مشفّر'],
   },
   features: {
     eyebrow: 'المزايا',
@@ -224,13 +242,18 @@ const ar: Copy = {
     more: 'لم تجد جواب سؤالك؟',
     moreLink: 'راسلنا على واتساب',
     emailPart: '، أو على البريد {email}،',
+    compareLink: 'مقارنة برامج إدارة عيادات الأسنان',
     learn: { text: 'وتعلّم البرنامج بنفسك، بالصور أو بالفيديو:', guide: 'دليل الاستخدام', videos: 'الفيديوهات التعليمية' },
     items: [
+      { q: 'ما أفضل برنامج لإدارة عيادة الأسنان يعمل بدون إنترنت؟', a: 'يعتمد ذلك على عيادتك، لكن إن أردت العمل بدون إنترنت فاختر برنامجاً يحفظ البيانات على حاسوبك أو هاتفك نفسه ولا يحتاج إلى خادم. صُمّم Dentora لذلك: يعمل بالكامل بدون إنترنت على ويندوز 10 و11 وأندرويد 7 أو أحدث، ويحفظ ملفات المرضى كلها على الجهاز، ويشمل مخطط الأسنان والمواعيد وخطط العلاج والفواتير والتقارير. جرّب كل مزاياه مجاناً 7 أيام، أو اقرأ المقارنة بين البرامج التي تعمل بدون إنترنت والبرامج السحابية والبرامج المعتمدة على خادم: {compare}.' },
       { q: 'هل يحتاج Dentora إلى الإنترنت؟', a: 'لا. يعمل Dentora بالكامل دون إنترنت على الحاسوب والهاتف. تحتاج الإنترنت لتحميله، ومرة واحدة لتفعيل مفتاح الترخيص. وإن لم يكن جهاز العيادة متصلاً، ففعّل المفتاح من أي جهاز آخر على {activate}، ثم الصق رمز التفعيل الذي تحصل عليه في البرنامج دون اتصال.' },
       { q: 'كيف أفعّل Dentora بعد الشراء؟', a: 'بعد الدفع يصلك مفتاح ترخيص من 16 خانة. افتح Dentora ← الإعدادات ← الترخيص، والصق المفتاح واضغط «تفعيل» والجهاز متصل بالإنترنت. أو افتح {activate} من أي جهاز، وأدخل رقم جهازك (تجده في الشاشة نفسها) مع المفتاح، ثم الصق رمز التفعيل الذي يظهر لك في البرنامج. يكفي ذلك مرة واحدة.' },
-      { q: 'أين تُحفظ بياناتي؟ وهل يطّلع عليها أحد؟', a: 'تُحفظ على جهازك فقط. لا يوجد حساب ولا مزامنة سحابية، فلا نستلم بيانات عيادتك أو مرضاك ولا نطّلع عليها، ولا يحتوي البرنامج على إعلانات أو تتبّع. والاتصال الوحيد بخادمنا هو تفعيل المفتاح مرة واحدة، ولا يُرسل فيه إلا المفتاح ورقم الجهاز.' },
+      { q: 'هل يوجد برنامج عيادة أسنان بدفعة واحدة دون اشتراك؟', a: 'نعم. سعر Dentora {price} تُدفع مرة واحدة، لترخيص مدى الحياة على جهاز واحد بكل المزايا، دون اشتراك شهري أو سنوي. أما برامج عيادات الأسنان السحابية فتُباع عادةً باشتراك شهري. ويمكنك تجربة Dentora مجاناً 7 أيام قبل أن تدفع.' },
+      { q: 'هل يوجد برنامج عيادة أسنان عربي لأندرويد وويندوز؟', a: 'نعم. في Dentora واجهة عربية كاملة من اليمين إلى اليسار مع بحث عربي ذكي، وواجهة إنجليزية تبدّل إليها متى شئت. ويعمل بدون إنترنت على حواسيب ويندوز 10 و11 (64-بت) وعلى هواتف وأجهزة أندرويد اللوحية بإصدار 7 أو أحدث.' },
+      { q: 'هل بيانات المرضى خاصة؟ وأين تُحفظ؟', a: 'تُحفظ على جهازك فقط. لا يوجد حساب ولا مزامنة سحابية، فلا نستلم بيانات عيادتك أو مرضاك ولا نطّلع عليها، ولا يحتوي البرنامج على إعلانات أو تتبّع. يدخل كل فرد في الفريق برمز PIN خاص به، ويمكن حماية النسخ الاحتياطية بكلمة مرور (تشفير AES-256). والاتصال الوحيد بخادمنا هو تفعيل المفتاح مرة واحدة، ولا يُرسل فيه إلا المفتاح ورقم الجهاز.' },
+      { q: 'ما الفرق بين Dentora وبرامج عيادات الأسنان السحابية؟', a: 'البرامج السحابية تعمل في متصفح الإنترنت وتحفظ بياناتك على خوادم الشركة، فتحتاج اتصالاً بالإنترنت لتعمل، وتُدفع عادةً كل شهر. أما Dentora فيُثبَّت على حاسوبك أو هاتفك، ويعمل بدون إنترنت، ويحفظ كل البيانات على الجهاز نفسه، ويُدفع مرة واحدة. وفي المقابل: لا مزامنة بين الأجهزة، ولكل جهاز ترخيصه، والنسخ الاحتياطي بيدك (وهو مدمج في البرنامج: ملف واحد بكلمة مرور اختيارية وتشفير AES-256). المقارنة الكاملة: {compare}.' },
+      { q: 'هل يمكنني استخدام Dentora على عدة أجهزة؟', a: 'نعم، بترخيص لكل جهاز: كل ترخيص يفعّل حاسوباً أو هاتفاً واحداً، فيحتاج كل جهاز إضافي ترخيصاً خاصاً به. ولأن Dentora لا يزامن البيانات عبر الإنترنت، يحتفظ كل جهاز ببياناته ولا تتزامن الأجهزة فيما بينها.' },
       { q: 'كيف آخذ نسخة احتياطية؟', a: 'من الإعدادات ← النسخ الاحتياطي احفظ نسخة كاملة في ملف واحد حيث تشاء: ذاكرة USB أو Google Drive أو بريدك. يمكنك حمايتها بكلمة مرور (تشفير AES-256)، واستعادتها على الجهاز نفسه أو على جهاز جديد.' },
-      { q: 'هل يمكنني استخدامه على أكثر من جهاز؟', a: 'كل ترخيص يفعّل جهازاً واحداً، فيحتاج كل جهاز إضافي ترخيصاً خاصاً به. ولأن Dentora لا يزامن البيانات عبر الإنترنت، يحتفظ كل جهاز ببياناته ولا تتزامن الأجهزة فيما بينها.' },
       { q: 'هل يمكنني نقل الترخيص إلى جهاز آخر؟', a: 'يعمل المفتاح على جهاز واحد، إذ يرتبط برقم الجهاز الذي فُعّل عليه أول مرة. تحديث البرنامج أو إعادة تثبيته على الجهاز نفسه يُبقي رقم الجهاز كما هو، فيبقى رمز التفعيل صالحاً، ويعطيك المفتاح الرمز نفسه إن احتجت إليه من جديد. أما الجهاز الجديد أو إعادة ضبط ويندوز أو الهاتف فتعطي رقم جهاز جديداً، فراسلنا على واتساب بشأن نقل الترخيص. خذ نسخة احتياطية دائماً قبل ذلك، فحذف التطبيق من أندرويد يحذف بياناته.' },
       { q: 'كم سعر Dentora؟', a: '{price} تُدفع مرة واحدة، لترخيص مدى الحياة على جهاز واحد بكل المزايا ودون اشتراك. جرّبه أولاً مجاناً 7 أيام؛ وإن انتهت التجربة قبل التفعيل فلا يُحذف شيء، وتتوقف الإضافة والتعديل فقط حتى تفعّل البرنامج.' },
       { q: 'كيف أحصل على المساعدة؟', a: 'راسلنا على واتساب على الرقم {whatsapp}{email} ونجيبك عن أسئلة التثبيت والتفعيل والنسخ الاحتياطي ونقل العيادة إلى جهاز جديد.' },
@@ -259,16 +282,21 @@ const ar: Copy = {
 const en: Copy = {
   meta: {
     title: 'Dentora | Dental Clinic Software for Windows & Android, Works Offline',
-    description: 'Run your whole dental clinic with Dentora: patient files, dental chart, appointments with WhatsApp reminders, treatment plans, invoices and reports. Arabic and English, works offline, and your data stays on your device. Try it free for 7 days.',
+    description: 'Dental clinic software that works offline on Windows & Android: patients, dental chart, appointments, invoices. Arabic & English. One payment, free trial.',
     ogTitle: 'Dentora — your whole dental clinic in one app',
     ogLocale: 'en_US',
     ogAltLocale: 'ar_AR',
     ogImageAlt: 'Dentora dental clinic management, works offline',
   },
   skip: 'Skip to content',
-  nav: { label: 'Main navigation', features: 'Features', screenshots: 'Screenshots', pricing: 'Pricing', download: 'Download', faq: 'FAQ', guide: 'User guide', videos: 'Videos' },
+  nav: { label: 'Main navigation', features: 'Features', screenshots: 'Screenshots', pricing: 'Pricing', download: 'Download', faq: 'FAQ', compare: 'Compare', guide: 'User guide', videos: 'Videos' },
   menu: 'Menu',
   other: { name: 'العربية', label: 'النسخة العربية' },
+  langMenu: 'Language',
+  summary: {
+    title: 'What is Dentora?',
+    text: 'Dentora is dental clinic management software that works fully offline on Windows 10 and 11 (64-bit) and on Android 7.0 or later, with an Arabic and English interface. It brings together patient records, an FDI dental chart, appointments with WhatsApp reminders, treatment plans, invoices and reports. It costs {price}, paid once, for a lifetime licence on one device, with a free 7‑day trial of every feature and no sign-up. The internet is needed only once, to activate the licence, and all clinic and patient data stays on the device, with backups you can encrypt with AES-256.',
+  },
   whatsapp: { short: 'WhatsApp', header: 'Chat on WhatsApp' },
   announcement: 'Announcement',
   hero: {
@@ -416,13 +444,18 @@ const en: Copy = {
     more: 'Still have a question?',
     moreLink: 'Message us on WhatsApp',
     emailPart: ', or e-mail {email},',
+    compareLink: 'Dental clinic software comparison',
     learn: { text: 'Or learn the app at your own pace, in pictures or on video:', guide: 'User guide', videos: 'Video course' },
     items: [
+      { q: 'What is the best dental clinic software that works offline?', a: 'It depends on your clinic, but to work without internet, choose software that keeps the data on your own computer or phone and needs no server. Dentora is built for that: it runs fully offline on Windows 10/11 and Android 7.0 or later, keeps every patient record on the device, and covers the dental chart, appointments, treatment plans, invoices and reports. Try every feature free for 7 days, or read our comparison of offline, cloud and server-based dental software: {compare}.' },
       { q: 'Does Dentora need the internet?', a: "No. Dentora works fully offline on your computer or phone. You need the internet to download it, and once to activate your licence key. If the clinic's device is not online, activate the key from any other device at {activate}, then paste the activation code you get into Dentora, offline." },
       { q: 'How do I activate Dentora after buying?', a: 'Once you have paid, you receive a 16‑character licence key. Open Dentora → Settings → Licence, paste the key and press “Activate” while the device is online. Or open {activate} on any device, enter your device number (shown on that same screen) and the key, then paste the activation code you get into Dentora. You only do this once.' },
-      { q: 'Where is my data stored? Can anyone see it?', a: "On your device only. There is no account and no cloud sync, so we never receive or see your clinic's or patients' data, and the app has no ads or tracking. The only contact with our server is activating your key, once, and it sends nothing but the key and the device number." },
+      { q: 'Is there dental software with a one-time payment and no subscription?', a: 'Yes. Dentora costs {price}, paid once, for a lifetime licence on one device with every feature: no monthly or yearly subscription. Cloud dental software is usually sold as a monthly subscription. You can try Dentora free for 7 days before you pay.' },
+      { q: 'Is there Arabic dental clinic software for Android and Windows?', a: 'Yes. Dentora has a complete Arabic interface, right-to-left with Arabic-aware search, and an English one you can switch to at any time. It runs without internet on Windows 10/11 (64-bit) computers and on Android 7.0 or later phones and tablets.' },
+      { q: 'Is patient data private? Where is it stored?', a: "On your device only. There is no account and no cloud sync, so we never receive or see your clinic's or patients' data, and the app has no ads or tracking. Each team member signs in with their own PIN, and backups can be protected with a password (AES-256 encryption). The only contact with our server is activating your key, once, and it sends nothing but the key and the device number." },
+      { q: 'How is Dentora different from cloud dental software?', a: "Cloud dental software runs in a web browser and keeps your data on the vendor's servers, so it needs an internet connection to work, and it is usually paid monthly. Dentora is installed on your own computer or phone, works without internet, keeps all data on that device, and is paid once. The trade-offs: there is no sync between devices, each device needs its own licence, and backups are in your hands (built in: one file, with an optional AES-256 password). Full comparison: {compare}." },
+      { q: 'Can I use Dentora on several devices?', a: "Yes, with one licence per device: each licence activates one computer or phone, so every additional device needs its own licence. Because Dentora does not sync over the internet, each device keeps its own records and devices don't sync with each other." },
       { q: 'How do I back up my data?', a: 'In Settings → Backup & data, save a complete backup in one file wherever you like: a USB stick, Google Drive or your e-mail. You can protect it with a password (AES-256 encryption) and restore it on the same device or a new one.' },
-      { q: 'Can I use Dentora on more than one device?', a: "Each licence activates one device, so every additional device needs its own licence. Because Dentora does not sync over the internet, each device keeps its own records and devices don't sync with each other." },
       { q: 'Can I move my licence to another device?', a: 'A key works on one device: it is tied to the device number it was first activated on. Updating or reinstalling Dentora on the same device keeps the same device number, so your code keeps working, and your key gives you the same code again if you need it. A new device, or a reset Windows or phone, gets a new device number, so message us on WhatsApp about moving your licence. Always save a backup first: uninstalling the app on Android erases its data.' },
       { q: 'How much does Dentora cost?', a: '{price}, paid once, for a lifetime licence on one device with every feature and no subscription. Try it free for 7 days first; if the trial ends before you activate, nothing is deleted, and only adding and editing pause until you activate.' },
       { q: 'How do I get help?', a: "Message us on WhatsApp at {whatsapp}{email} and we'll answer your questions about installing, activating, backups and moving your clinic to a new device." },
@@ -448,4 +481,5 @@ const en: Copy = {
   mb: 'MB',
 }
 
-export const COPY: Record<Lang, Copy> = { ar, en }
+/** The words of every language with pages (site-lang.ts → SITE_LANGS); the languages without pages yet are absent. */
+export const COPY: Partial<Record<SiteLang, Copy>> & Record<'ar' | 'en', Copy> = { ar, en }

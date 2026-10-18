@@ -20,6 +20,7 @@ routes = [
 # everything else, and the paths below even if a file with that name appears one day, goes to the Worker.
 # /files/* is listed so the APK is only reachable through /download/android, which counts the download (the Worker
 # lets /files/meta.json and /files/windows.json through, for scripts/fetch-published.mjs).
+# The comparison (/compare), /llms.txt and /llms-full.txt are pages of the Worker like the home page.
 # The guide (/guide, /guide/<topic>; its pictures live under /img/guide/) and the course home (/videos) are listed
 # like the other pages. /videos/* is NOT: the course's captions, posters and manifest (/videos/<lang>/<chapter>.vtt,
 # .jpg and /videos/manifest.json, from site/videos/) stay static files with the cache headers of public/_headers, and
@@ -34,8 +35,8 @@ binding = "ASSETS"
 html_handling = "none"
 not_found_handling = "none"
 run_worker_first = [
-  "/", "/en", "/en/*", "/privacy", "/terms", "/activate", "/guide", "/guide/*", "/videos", "/admin", "/admin/", "/api/*",
-  "/download/*", "/files/*", "/robots.txt", "/sitemap.xml", "/healthz",
+  "/", "/en", "/en/*", "/compare", "/privacy", "/terms", "/activate", "/guide", "/guide/*", "/videos", "/admin", "/admin/",
+  "/api/*", "/download/*", "/files/*", "/robots.txt", "/sitemap.xml", "/llms.txt", "/llms-full.txt", "/healthz",
 ]
 
 # Licences, PIN reset codes, download counts, settings and the audit log. No database_id on purpose: the first

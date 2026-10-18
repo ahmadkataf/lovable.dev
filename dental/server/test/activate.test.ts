@@ -22,7 +22,7 @@ describe('activation page', () => {
       expect(html).not.toMatch(/\sstyle=|<style|\son[a-z]+=/i)
       expect(html).toContain(`<html lang="${lang}" dir="${lang === 'ar' ? 'rtl' : 'ltr'}">`)
       expect(html).toContain(`<link rel="canonical" href="${ORIGIN}${lang === 'en' ? '/en' : ''}/activate">`)
-      expect(html).toContain(`<link rel="alternate" hreflang="x-default" href="${ORIGIN}/activate">`)
+      expect(html).toContain(`<link rel="alternate" hreflang="x-default" href="${ORIGIN}/en/activate">`)
       expect(html.match(/<h1>/g)).toHaveLength(1)
       const ids = [...html.matchAll(/\sid="([^"]+)"/g)].map(m => m[1])
       expect(new Set(ids).size).toBe(ids.length)

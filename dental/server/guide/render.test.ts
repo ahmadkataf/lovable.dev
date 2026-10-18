@@ -5,7 +5,7 @@ import { describe, expect, it } from 'vitest'
 import { DEFAULT_SETTINGS, type SiteSettings } from '../src/types'
 import { TOPICS, topicBySlug } from './index'
 import {
-  countText, guideProblems, guideSitemapEntries, guideSitemapXml, imageOf, inlineMarkup, linkTargets, plainText,
+  countText, guideProblems, imageOf, inlineMarkup, linkTargets, plainText,
   renderGuideHome, renderGuideTopic, type GuideImages,
 } from './render'
 import type { GuideTopic } from './types'
@@ -172,7 +172,7 @@ describe('addresses, head and structured data', () => {
       expect(html).toContain(`<link rel="canonical" href="${lang === 'ar' ? ar : en}">`)
       expect(html).toContain(`<link rel="alternate" hreflang="ar" href="${ar}">`)
       expect(html).toContain(`<link rel="alternate" hreflang="en" href="${en}">`)
-      expect(html).toContain(`<link rel="alternate" hreflang="x-default" href="${ar}">`)
+      expect(html).toContain(`<link rel="alternate" hreflang="x-default" href="${en}">`)
       expect(html).toContain(`<html lang="${lang}" dir="${lang === 'ar' ? 'rtl' : 'ltr'}">`)
       expect(html).toContain(`<meta property="og:url" content="${lang === 'ar' ? ar : en}">`)
       expect(html).toContain(`<meta property="og:image" content="${ORIGIN}/img/og-${lang}.jpg">`)
@@ -234,11 +234,6 @@ describe('the pages', () => {
     const f = ['قسم واحد', 'قسمان', 'أقسام', 'قسماً']
     expect([1, 2, 3, 10, 11, 16].map(n => countText(n, 'ar', f))).toEqual(['قسم واحد', 'قسمان', '3 أقسام', '10 أقسام', '11 قسماً', '16 قسماً'])
     expect([1, 4].map(n => countText(n, 'en', ['1 section', '', '', '{n} sections']))).toEqual(['1 section', '4 sections'])
-  })
-  it('the sitemap: the home and every topic in both languages', () => {
-    const e = guideSitemapEntries(ORIGIN, topics)
-    expect(e.map(x => x.loc)).toEqual([`${ORIGIN}/guide`, `${ORIGIN}/en/guide`, `${ORIGIN}/guide/patients`, `${ORIGIN}/en/guide/patients`, `${ORIGIN}/guide/billing`, `${ORIGIN}/en/guide/billing`])
-    expect(guideSitemapXml(ORIGIN, topics)).toContain(`<xhtml:link rel="alternate" hreflang="x-default" href="${ORIGIN}/guide/patients"/>`)
   })
   it('finds what is wrong in the data', () => {
     const p = guideProblems(topics, images)

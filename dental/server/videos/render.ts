@@ -9,7 +9,6 @@ import type { IconName } from '../src/pages/content'
 import { ICONS, jsonForScript } from '../src/pages/landing'
 import { langPath, sellerWa, shell, type PageAssets } from '../src/pages/legal'
 import { DEFAULT_SETTINGS, type Lang, type SiteSettings } from '../src/types'
-import { CHAPTERS } from './index'
 import { videoKey, type VideoChapter, type VideoManifest, type VideoRecord } from './types'
 
 export const VIDEOS_PATH = '/videos'
@@ -430,29 +429,4 @@ ${transcript}
   const page = shell({ lang, title: `${title} — ${t.courseLong}`, description: summary, origin, assets, path, body })
   const video = rec ? { url: `${origin}${files.mp4}`, width: rec.width || 1920, height: rec.height || 1080, duration: rec.durationSeconds } : undefined
   return withHead(page, headExtra({ lang, url, title: `${title} — ${t.courseLong}`, description: summary, image, video, ld }))
-}
-
-// ---- the sitemap -------------------------------------------------------------------------------------------------
-export interface SitemapEntry {
-  loc: string; lang: Lang
-  /** The same page in each language (hreflang), and x-default = Arabic. */
-  alternates: Record<Lang, string>
-  changefreq: 'weekly' | 'monthly'; priority: string
-}
-/** The course home and every chapter page, in both languages, for the router's sitemap (src/index.ts → sitemap()). */
-export function videoSitemapEntries(origin: string, chapters: readonly VideoChapter[] = CHAPTERS): SitemapEntry[] {
-  origin = cleanOrigin(origin)
-  const paths: [string, SitemapEntry['changefreq'], string][] = [[VIDEOS_PATH, 'weekly', '0.8'], ...chapters.map(c => [`${VIDEOS_PATH}/${c.slug}`, 'monthly', '0.6'] as [string, SitemapEntry['changefreq'], string])]
-  return paths.flatMap(([path, changefreq, priority]) => (['ar', 'en'] as Lang[]).map(lang => ({
-    loc: `${origin}${langPath(path, lang)}`, lang,
-    alternates: { ar: `${origin}${langPath(path, 'ar')}`, en: `${origin}${langPath(path, 'en')}` },
-    changefreq, priority,
-  })))
-}
-/** The same as <url> elements in the sitemap's format (xhtml:link alternates, x-default = Arabic), one per line. */
-export function videoSitemapXml(origin: string, chapters: readonly VideoChapter[] = CHAPTERS): string {
-  return videoSitemapEntries(origin, chapters).map(e => {
-    const alt = (['ar', 'en'] as Lang[]).map(l => `<xhtml:link rel="alternate" hreflang="${l}" href="${e.alternates[l]}"/>`).join('')
-    return `<url><loc>${e.loc}</loc>${alt}<xhtml:link rel="alternate" hreflang="x-default" href="${e.alternates.ar}"/><changefreq>${e.changefreq}</changefreq><priority>${e.priority}</priority></url>`
-  }).join('\n')
 }

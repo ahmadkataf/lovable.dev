@@ -2,10 +2,10 @@
 // Static files (public/) are answered by Cloudflare before this runs; the Worker renders the landing page, the legal
 // pages, the key activation page, the user guide (guide/) and the video course pages (videos/), counts downloads,
 // serves the control panel page and the API, and answers everything else with a 404 page. Routes and rules: SPEC.md.
-import { GUIDE_DATE, TOPICS, topicBySlug } from '../guide/index'
-import { guideSitemapEntries, renderGuideHome, renderGuideTopic, type GuideImages } from '../guide/render'
+import { TOPICS, topicBySlug } from '../guide/index'
+import { renderGuideHome, renderGuideTopic, type GuideImages } from '../guide/render'
 import { CHAPTERS, chapterBySlug } from '../videos/index'
-import { recordOf, renderVideoChapter, renderVideosHome, videoSitemapXml } from '../videos/render'
+import { recordOf, renderVideoChapter, renderVideosHome } from '../videos/render'
 import type { VideoManifest } from '../videos/types'
 import { handleApi } from './api'
 import { addressKey } from './auth'
@@ -13,9 +13,13 @@ import { countDownload, deploymentSalt, ensureSchema, getSettingsCached, type Pl
 import { apiError, b64url, CACHE_PAGE, clientIp, html, NO_STORE, secure, text, PUBLIC_CSP } from './http'
 import { formatDeviceInput, isDeviceNumber } from './licence'
 import { renderActivate } from './pages/activate'
+import { renderCompare } from './pages/compare'
 import { renderLanding } from './pages/landing'
-import { LEGAL_DATE, langPath, renderLegal, sellerWa, type LegalDoc, type PageAssets } from './pages/legal'
+import { renderLlmsFull, renderLlmsTxt } from './pages/llms'
+import { renderLegal, sellerWa, type LegalDoc, type PageAssets } from './pages/legal'
 import { renderNotFound } from './pages/notfound'
+import { HREFLANG, SITE_LANGS, type SiteLang } from './site-lang'
+import { sitemapXml } from './sitemap'
 import { DEFAULT_SETTINGS, ORIGIN, type Env, type LandingContext, type Lang, type SiteSettings } from './types'
 
 // ---- what build-public.mjs published (fixed for a deployment, so read once per isolate) --------------------------
@@ -112,6 +116,11 @@ async function notFound(env: Env, base: string): Promise<Response> {
   return html(renderNotFound(ORIGIN, pageAssets(await getPublished(env, base))), 404, 'public, max-age=60', { 'Content-Security-Policy': PUBLIC_CSP })
 }
 
+// The marketing pages: the home page and the comparison, in every site language (Arabic at the root, /en, /fr…).
+const MARKETING: Record<string, [SiteLang, 'home' | 'compare']> = Object.fromEntries(SITE_LANGS.flatMap(l => [
+  [l === 'ar' ? '/' : `/${l}`, [l, 'home']],
+  [l === 'ar' ? '/compare' : `/${l}/compare`, [l, 'compare']],
+]))
 const LEGAL: Record<string, [LegalDoc, Lang]> = {
   '/privacy': ['privacy', 'ar'], '/en/privacy': ['privacy', 'en'], '/terms': ['terms', 'ar'], '/en/terms': ['terms', 'en'],
 }
@@ -126,27 +135,6 @@ const VIDEO_FILE_RE = /^\/videos\/(ar|en)\/([a-z0-9]+(?:-[a-z0-9]+)*)\.mp4$/
 function robots(): string {
   return ['User-agent: *', 'Allow: /', 'Disallow: /admin', 'Disallow: /api/', 'Disallow: /download/', '', `Sitemap: ${ORIGIN}/sitemap.xml`, ''].join('\n')
 }
-/** One <url> of the sitemap: the page, its ar/en alternates (x-default = Arabic), the last change when known. */
-function sitemapUrl(loc: string, alternates: Record<Lang, string>, changefreq: string, priority: string, lastmod = ''): string {
-  const alt = (['ar', 'en'] as Lang[]).map(l => `<xhtml:link rel="alternate" hreflang="${l}" href="${alternates[l]}"/>`).join('')
-  return `<url><loc>${loc}</loc>${alt}<xhtml:link rel="alternate" hreflang="x-default" href="${alternates.ar}"/>${lastmod ? `<lastmod>${lastmod}</lastmod>` : ''}<changefreq>${changefreq}</changefreq><priority>${priority}</priority></url>`
-}
-function sitemap(): string {
-  // [path, change frequency, priority, last change ('' = none given)]
-  const pages: [string, string, string, string][] = [
-    ['/', 'weekly', '1.0', ''], ['/activate', 'monthly', '0.5', ''], ['/privacy', 'yearly', '0.3', LEGAL_DATE], ['/terms', 'yearly', '0.3', LEGAL_DATE],
-  ]
-  const both = (path: string): Record<Lang, string> => ({ ar: `${ORIGIN}${langPath(path, 'ar')}`, en: `${ORIGIN}${langPath(path, 'en')}` })
-  const urls = [
-    ...pages.flatMap(([path, freq, priority, changed]) => (['ar', 'en'] as Lang[]).map(lang => sitemapUrl(`${ORIGIN}${langPath(path, lang)}`, both(path), freq, priority, changed))),
-    // the guide's home and every topic (the renderer lists them in its order), dated by GUIDE_DATE (guide/index.ts)
-    ...guideSitemapEntries(ORIGIN, TOPICS).map(e => sitemapUrl(e.loc, e.alternates, e.changefreq, e.priority, GUIDE_DATE)),
-    // the course home and every chapter, as the course renders them (no date: a chapter page changes with its recording)
-    videoSitemapXml(ORIGIN, CHAPTERS),
-  ]
-  return `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:xhtml="http://www.w3.org/1999/xhtml">\n${urls.join('\n')}\n</urlset>\n`
-}
-
 // ---- downloads ---------------------------------------------------------------------------------------------------
 async function downloadAndroid(request: Request, env: Env, ctx: ExecutionContext, url: URL): Promise<Response> {
   const pub = await getPublished(env, url.href)
@@ -317,11 +305,13 @@ async function route(request: Request, env: Env, ctx: ExecutionContext): Promise
     return new Response(null, { status: 301, headers: { Location: clean + url.search, 'Cache-Control': CACHE_PAGE } })
   }
 
-  if (path === '/' || path === '/en') {
-    const lang: Lang = path === '/en' ? 'en' : 'ar'
+  const marketing = MARKETING[path]
+  if (marketing) {
+    const [lang, page] = marketing
     const [s, pub] = await Promise.all([settingsOrDefault(env), getPublished(env, url.href)])
     const windows = pub.windows && { version: pub.windows.version, sizeBytes: pub.windows.sizeBytes }
-    return html(renderLanding(lang, s, { apk: pub.apk, windows, origin: ORIGIN }), 200, CACHE_PAGE, { 'Content-Language': lang, 'Content-Security-Policy': PUBLIC_CSP })
+    const ctx: LandingContext = { apk: pub.apk, windows, origin: ORIGIN }
+    return html(page === 'home' ? renderLanding(lang, s, ctx) : renderCompare(lang, s, ctx), 200, CACHE_PAGE, { 'Content-Language': HREFLANG[lang], 'Content-Security-Policy': PUBLIC_CSP })
   }
   const legal = LEGAL[path]
   if (legal) {
@@ -365,7 +355,16 @@ async function route(request: Request, env: Env, ctx: ExecutionContext): Promise
   switch (path) {
     case '/healthz': return text('ok', 200, 'text/plain', NO_STORE)
     case '/robots.txt': return text(robots(), 200, 'text/plain', 'public, max-age=3600')
-    case '/sitemap.xml': return text(sitemap(), 200, 'application/xml', 'public, max-age=3600')
+    case '/sitemap.xml': {
+      const pub = await getPublished(env, url.href)
+      return text(sitemapXml({ origin: ORIGIN, guideImages: pub.guideImages, videos: pub.videos }), 200, 'application/xml', 'public, max-age=3600')
+    }
+    case '/llms.txt': case '/llms-full.txt': {
+      const [s, pub] = await Promise.all([settingsOrDefault(env), getPublished(env, url.href)])
+      const windows = pub.windows && { version: pub.windows.version, sizeBytes: pub.windows.sizeBytes }
+      const input = { s, ctx: { apk: pub.apk, windows, origin: ORIGIN }, videos: pub.videos }
+      return text(path === '/llms.txt' ? renderLlmsTxt(input) : renderLlmsFull(input), 200, 'text/plain', CACHE_PAGE)
+    }
     case '/admin': case '/admin/': return adminPage(env, url)
     case '/download/android': return downloadAndroid(request, env, ctx, url)
     case '/download/windows': return downloadWindows(request, env, ctx, url)

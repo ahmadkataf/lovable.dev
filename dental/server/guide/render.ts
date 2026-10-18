@@ -73,6 +73,7 @@ const T = {
     helpHome: 'لم تجد ما تبحث عنه؟', helpHomeText: 'اكتب لنا سؤالك على واتساب، وسنرشدك خطوة بخطوة.',
     watch: 'شاهد هذا الموضوع بالفيديو',
     videosTitle: 'تفضّل المشاهدة؟', videosText: 'الفيديوهات التعليمية تشرح الموضوعات نفسها بتسجيلات من البرنامج، فصلاً فصلاً.', videosBtn: 'الفيديوهات التعليمية',
+    compareTitle: 'ما زلت تختار برنامجاً لعيادتك؟', compareText: 'مقارنة صريحة بين البرامج التي تعمل بدون إنترنت والسحابية والمعتمدة على خادم، ولمن يناسب Dentora ومن لا يناسبه.', compareBtn: 'مقارنة البرامج',
     wa: 'مرحباً، لدي سؤال عن Dentora بخصوص «{title}» في دليل الاستخدام.', waHome: 'مرحباً، لدي سؤال عن برنامج Dentora.',
     sectionsCount: ['قسم واحد', 'قسمان', 'أقسام', 'قسماً'],
   },
@@ -96,6 +97,7 @@ const T = {
     helpHome: 'Did not find what you need?', helpHomeText: 'Send us your question on WhatsApp and we will guide you step by step.',
     watch: 'Watch this topic on video',
     videosTitle: 'Prefer watching?', videosText: 'The video course covers the same topics with recordings of the app, chapter by chapter.', videosBtn: 'Video course',
+    compareTitle: 'Still choosing software for your clinic?', compareText: 'An honest comparison of offline, cloud and server-based dental software, and who Dentora is and is not for.', compareBtn: 'Compare software',
     wa: 'Hello, I have a question about Dentora: “{title}” in the user guide.', waHome: 'Hello, I have a question about Dentora.',
     sectionsCount: ['1 section', '', '', '{n} sections'],
   },
@@ -400,6 +402,11 @@ ${cards}
 <div class="gd-videos-body"><h2 id="gd-videos-title">${t.videosTitle}</h2><p>${t.videosText}</p></div>
 <a class="btn btn-outline legal-btn legal-btn-ghost gd-videos-btn" href="${escapeHtml(langPath('/videos', lang))}">${icons.use('playCircle')}<span>${t.videosBtn}</span></a>
 </aside>
+<aside class="gd-videos gd-compare" aria-labelledby="gd-compare-title">
+<span class="gd-videos-icon">${icons.use('monitorSmartphone')}</span>
+<div class="gd-videos-body"><h2 id="gd-compare-title">${t.compareTitle}</h2><p>${t.compareText}</p></div>
+<a class="btn btn-outline legal-btn legal-btn-ghost gd-videos-btn" href="${escapeHtml(langPath('/compare', lang))}">${icons.use('monitorSmartphone')}<span>${t.compareBtn}</span></a>
+</aside>
 ${helpBox(lang, s, t.helpHome, t.helpHomeText, t.waHome, icons)}
 </div>
 </main>`
@@ -572,26 +579,6 @@ ${blocks.length ? `<aside class="gd-toc-side"><nav class="gd-toc" aria-label="${
 </main>`
   const page = shell({ lang, title: `${title} — ${t.guideLong}`, description: summary, origin, assets, path, body: `${icons.sprite()}\n${body}` })
   return withHead(page, headExtra({ lang, origin, url, title: `${title} — ${t.guideLong}`, description: summary, type: 'article', ld }))
-}
-
-// ---- the sitemap -------------------------------------------------------------------------------------------------
-export interface GuideSitemapEntry { loc: string; lang: Lang; alternates: Record<Lang, string>; changefreq: 'weekly' | 'monthly'; priority: string }
-/** The guide's home and every topic page, in both languages, for the router's sitemap. */
-export function guideSitemapEntries(origin: string, topics: readonly GuideTopic[]): GuideSitemapEntry[] {
-  origin = cleanOrigin(origin)
-  const paths: [string, GuideSitemapEntry['changefreq'], string][] = [[GUIDE_PATH, 'weekly', '0.8'], ...byOrder(topics).map(x => [`${GUIDE_PATH}/${x.slug}`, 'monthly', '0.6'] as [string, GuideSitemapEntry['changefreq'], string])]
-  return paths.flatMap(([path, changefreq, priority]) => (['ar', 'en'] as Lang[]).map(lang => ({
-    loc: `${origin}${langPath(path, lang)}`, lang,
-    alternates: { ar: `${origin}${langPath(path, 'ar')}`, en: `${origin}${langPath(path, 'en')}` },
-    changefreq, priority,
-  })))
-}
-/** The same as <url> elements in the sitemap's format (xhtml:link alternates, x-default = Arabic), one per line. */
-export function guideSitemapXml(origin: string, topics: readonly GuideTopic[]): string {
-  return guideSitemapEntries(origin, topics).map(e => {
-    const alt = (['ar', 'en'] as Lang[]).map(l => `<xhtml:link rel="alternate" hreflang="${l}" href="${e.alternates[l]}"/>`).join('')
-    return `<url><loc>${e.loc}</loc>${alt}<xhtml:link rel="alternate" hreflang="x-default" href="${e.alternates.ar}"/><changefreq>${e.changefreq}</changefreq><priority>${e.priority}</priority></url>`
-  }).join('\n')
 }
 
 // ---- checks of the topics (the preview and the test print them; nothing here stops a page from rendering) ---------

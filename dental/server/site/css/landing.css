@@ -198,6 +198,17 @@ main h2 { font-size: clamp(1.75rem, 1.25rem + 2vw, 2.625rem); line-height: 1.15;
 }
 @media (min-width: 1100px) { .trust-list { justify-content: space-between; } }
 
+/* ---- "What is Dentora?": the facts in one paragraph, under the trust strip ---- */
+.summary { padding-top: clamp(40px, 5vw, 64px); }
+.summary-inner { max-width: 860px; text-align: center; }
+.summary h2 { margin-bottom: 12px; font-size: clamp(1.25rem, 1.1rem + .6vw, 1.5rem); color: var(--ink); }
+.summary p { color: var(--ink-2); font-size: 1.0625rem; line-height: 1.8; }
+.summary-note {
+  display: inline-flex; align-items: center; gap: 8px; margin-top: 14px; padding: 6px 14px;
+  border-radius: var(--r-full); background: var(--teal-50); color: var(--teal-800) !important; font-size: .9375rem !important; line-height: 1.5 !important;
+}
+.summary-note .ic { flex: none; width: 18px; height: 18px; }
+
 /* ---- features ---- */
 .feature-grid { list-style: none; display: grid; gap: 16px; grid-template-columns: 1fr; }
 .feature {

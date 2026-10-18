@@ -52,18 +52,18 @@ describe('the activation page', () => {
     const head = await fetchPath('/en/activate', { method: 'HEAD' })
     expect([head.status, await head.text()]).toEqual([200, ''])
   })
-  it('is in the sitemap, in both languages, before the guide and the course; robots.txt lets crawlers in', async () => {
+  it('is in the sitemap, in both languages, after the marketing pages and before the guide and the course; robots.txt lets crawlers in', async () => {
     const map = await (await fetchPath('/sitemap.xml')).text()
     const locs = [...map.matchAll(/<loc>([^<]+)<\/loc>/g)].map(m => m[1])
     const both = (path: string) => [path, `/en${path}`]
     expect(locs).toEqual([
-      '/', '/en', ...both('/activate'), ...both('/privacy'), ...both('/terms'),
+      '/', '/en', '/compare', '/en/compare', ...both('/activate'), ...both('/privacy'), ...both('/terms'),
       ...both('/guide'), ...TOPICS.flatMap(t => both(`/guide/${t.slug}`)),
       ...both('/videos'), ...CHAPTERS.flatMap(c => both(`/videos/${c.slug}`)),
     ].map(p => ORIGIN + p))
-    expect(map).toContain(`<xhtml:link rel="alternate" hreflang="x-default" href="${ORIGIN}/activate"/>`)
-    // the legal pages and every guide page carry a date; the course pages none
-    expect((map.match(/<lastmod>/g) || []).length).toBe(4 + 2 * (1 + TOPICS.length))
+    expect(map).toContain(`<xhtml:link rel="alternate" hreflang="x-default" href="${ORIGIN}/en/activate"/>`)
+    // every page carries the day its content last changed
+    expect((map.match(/<lastmod>\d{4}-\d{2}-\d{2}<\/lastmod>/g) || []).length).toBe(locs.length)
     const robots = await (await fetchPath('/robots.txt')).text()
     expect(robots.split('\n').filter(l => l.startsWith('Disallow:'))).toEqual(['Disallow: /admin', 'Disallow: /api/', 'Disallow: /download/'])
   })

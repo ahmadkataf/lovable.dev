@@ -1,22 +1,25 @@
-// The public landing page: GET / (Arabic, RTL) and GET /en (English), one full HTML document per request.
-// The CSP allows scripts and styles from 'self' only, so there is no inline <script> code, <style> or style="" here;
-// the JSON-LD block is data the browser never runs. Words live in content.ts, styles in site/css, pictures in site/img.
-import { DEFAULT_SETTINGS, type LandingContext, type Lang, type SiteSettings } from '../types'
+// The public landing page: GET / (Arabic, RTL), /en (English) and /<lang> for every language of site-lang.ts, one full
+// HTML document per request. The comparison page (compare.ts) is built from the same pieces (makeView, pageHead,
+// header, footer). The CSP allows scripts and styles from 'self' only, so there is no inline <script> code, <style> or
+// style="" here; the JSON-LD block is data the browser never runs. Words live in content.ts, styles in site/css,
+// pictures in site/img.
+import { DEFAULT_SETTINGS, ORIGIN, type LandingContext, type SiteSettings } from '../types'
+import { docLang, HREFLANG, imageLang, isRtl, LANG_NAME, OG_LOCALE, SITE_DATE, SITE_LANGS, sitePath, X_DEFAULT, type SiteLang } from '../site-lang'
 import { COPY, type Copy, type Feature, type IconName } from './content'
 
 const ESC: Record<string, string> = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }
 /** Every settings value and every word goes through this before it reaches the HTML. */
-function escapeHtml(value: unknown): string {
+export function escapeHtml(value: unknown): string {
   return String(value ?? '').replace(/[&<>"']/g, c => ESC[c])
 }
 
 /** Replaces {name} in an already-escaped template with ready (escaped) HTML. */
-function fillHtml(template: string, vars: Record<string, string>): string {
+export function fillHtml(template: string, vars: Record<string, string>): string {
   return escapeHtml(template).replace(/\{(\w+)\}/g, (m, k: string) => (k in vars ? vars[k] : m))
 }
 
 /** The same for plain text (structured data): no escaping, the JSON encoder does that. */
-function fillText(template: string, vars: Record<string, string>): string {
+export function fillText(template: string, vars: Record<string, string>): string {
   return template.replace(/\{(\w+)\}/g, (m, k: string) => (k in vars ? vars[k] : m))
 }
 
@@ -73,20 +76,22 @@ export const ICONS: Record<IconName, string> = {
 // Each page carries the icons it uses once, as <symbol>s in a hidden sprite, and every icon is a <use> of one.
 // renderLanding is synchronous, so this per-render set cannot mix two requests.
 let usedIcons = new Set<IconName>()
+/** A page starts with no icons in its sprite. */
+export function resetIcons(): void { usedIcons = new Set() }
 
-function icon(name: IconName, cls = ''): string {
+export function icon(name: IconName, cls = ''): string {
   usedIcons.add(name)
   // stroke and fill come from .ic in site.css
   return `<svg class="ic${cls ? ' ' + cls : ''}" aria-hidden="true" focusable="false"><use href="#i-${name}"/></svg>`
 }
 
-function iconSprite(): string {
+export function iconSprite(): string {
   const symbols = [...usedIcons].map(n => `<symbol id="i-${n}" viewBox="0 0 24 24">${ICONS[n]}</symbol>`).join('')
   return `<svg class="icon-sprite" xmlns="http://www.w3.org/2000/svg" width="0" height="0" aria-hidden="true" focusable="false">${symbols}</svg>`
 }
 
 /** "Forward" in the reading direction. */
-const forward = (lang: Lang) => icon(lang === 'ar' ? 'arrowLeft' : 'arrowRight')
+export const forward = (lang: SiteLang) => icon(isRtl(lang) ? 'arrowLeft' : 'arrowRight')
 
 /** Responsive image sources: one file per width, e.g. /img/hero-ar-960.webp. */
 const srcset = (base: string, widths: number[], ext: string) => widths.map(w => `${base}-${w}.${ext} ${w}w`).join(', ')
@@ -95,14 +100,18 @@ const HERO_W = [640, 960, 1280, 1600, 2000]
 const CHART_W = [800, 1200, 1600, 2200]
 const PHONE_W = [300, 480, 720]
 
-interface View {
-  lang: Lang
+export interface View {
+  lang: SiteLang
   t: Copy
   s: SiteSettings
   ctx: LandingContext
   origin: string
-  /** Path prefix for language-specific pages: '' (Arabic) or '/en'. */
+  /** Path prefix of the marketing pages in this language: '' (Arabic), '/en', '/fr'… */
   base: string
+  /** Path prefix of the pages that exist in Arabic and English only (guide, videos, activation, legal): '' or '/en'. */
+  docBase: string
+  /** This page's path in Arabic ('/' or '/compare'): its other languages are sitePath(path, lang). */
+  path: string
   waDigits: string
   waDisplay: string
   price: string
@@ -110,7 +119,7 @@ interface View {
   priceInline: string
 }
 
-function waLink(v: View, message: string): string {
+export function waLink(v: View, message: string): string {
   return `https://wa.me/${v.waDigits}?text=${encodeURIComponent(message)}`
 }
 
@@ -119,31 +128,40 @@ function formatSize(bytes: number, v: View): string {
   return `${mb >= 10 ? mb.toFixed(0) : mb.toFixed(1)} ${v.t.mb}`
 }
 
-export function renderLanding(lang: Lang, s: SiteSettings, ctx: LandingContext): string {
+/** What every marketing page needs: the language, its words, the seller's settings, the published downloads. */
+export function makeView(lang: SiteLang, s: SiteSettings, ctx: LandingContext, path = '/'): View {
   const t = COPY[lang]
+  if (!t) throw new Error(`no words for the language ${lang}`)
   // settings are validated by the API, but the page must still render if a field is missing or odd
   const digits = String(s.whatsapp ?? '').replace(/\D/g, '')
   const fallback = DEFAULT_SETTINGS.whatsapp
   const waOk = digits.length >= 8 && digits.length <= 15
   const priceNum = Number.isFinite(s.priceUsd) && s.priceUsd >= 0 ? s.priceUsd : DEFAULT_SETTINGS.priceUsd
   const price = Number.isInteger(priceNum) ? String(priceNum) : priceNum.toFixed(2)
-  const v: View = {
-    lang, t, s, ctx,
+  return {
+    lang, t, s, ctx, path,
     origin: String(ctx.origin || '').replace(/\/+$/, ''),
-    base: lang === 'ar' ? '' : '/en',
+    base: lang === 'ar' ? '' : `/${lang}`,
+    docBase: docLang(lang) === 'ar' ? '' : '/en',
     waDigits: waOk ? digits : fallback.replace(/\D/g, ''),
     waDisplay: waOk ? String(s.whatsapp).trim() : fallback,
     price,
-    // U+2066…U+2069 keep "59$" in that order inside Arabic text
-    priceInline: lang === 'ar' ? `\u2066${price}$\u2069` : `$${price}`,
+    // U+2066…U+2069 keep "59$" in that order inside right-to-left text
+    priceInline: isRtl(lang) ? `\u2066${price}$\u2069` : `$${price}`,
   }
-  const dir = lang === 'ar' ? 'rtl' : 'ltr'
-  usedIcons = new Set()
+}
+
+export function renderLanding(lang: SiteLang, s: SiteSettings, ctx: LandingContext): string {
+  const v = makeView(lang, s, ctx, '/')
+  const t = v.t
+  const dir = isRtl(lang) ? 'rtl' : 'ltr'
+  resetIcons()
   const body = `<a class="skip-link" href="#main">${escapeHtml(t.skip)}</a>
 ${announcement(v)}${header(v)}
 <main id="main">
 ${hero(v)}
 ${trust(v)}
+${summary(v)}
 ${features(v)}
 ${privacy(v)}
 ${screenshots(v)}
@@ -155,7 +173,7 @@ ${finalCta(v)}
 </main>
 ${footer(v)}`
   return `<!doctype html>
-<html lang="${lang}" dir="${dir}">
+<html lang="${HREFLANG[lang]}" dir="${dir}">
 ${head(v)}
 <body>
 ${iconSprite()}
@@ -165,22 +183,40 @@ ${body}
 `
 }
 
-function head(v: View): string {
-  const { t, lang, origin } = v
-  const url = origin + (lang === 'ar' ? '/' : '/en')
-  const og = `${origin}/img/og-${lang}.jpg`
-  const fonts = lang === 'ar'
-    ? ['/fonts/noto-kufi-arabic-wght.woff2', '/fonts/inter-latin-wght.woff2']
-    : ['/fonts/inter-latin-wght.woff2']
+export interface HeadOptions {
+  title: string
+  description: string
+  /** Title of the sharing card (og:title), when other than the page title. */
+  ogTitle?: string
+  ogType: 'website' | 'article'
+  /** The page's own stylesheet after site.css (e.g. '/css/landing.css'). */
+  css: string[]
+  /** The page's own script, if any. */
+  script?: string
+  /** The structured data: one @graph. */
+  ld: unknown
+}
+
+/** The fonts a page in this language preloads: Arabic script pages the Arabic face too. */
+function fontsFor(lang: SiteLang): string[] {
+  return isRtl(lang) ? ['/fonts/noto-kufi-arabic-wght.woff2', '/fonts/inter-latin-wght.woff2'] : ['/fonts/inter-latin-wght.woff2']
+}
+
+/** The page's <head>: title, description, canonical and its hreflang cluster (every language, x-default English), icons, fonts, sharing card, structured data. */
+export function pageHead(v: View, o: HeadOptions): string {
+  const { lang, origin } = v
+  const url = origin + sitePath(v.path, lang)
+  const og = `${origin}/img/og-${imageLang(lang)}.jpg`
+  const alternates = SITE_LANGS.map(l => `<link rel="alternate" hreflang="${HREFLANG[l]}" href="${escapeHtml(origin + sitePath(v.path, l))}">`).join('\n')
+  const ogAlt = SITE_LANGS.filter(l => l !== lang).map(l => `<meta property="og:locale:alternate" content="${OG_LOCALE[l]}">`).join('\n')
   return `<head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>${escapeHtml(t.meta.title)}</title>
-<meta name="description" content="${escapeHtml(t.meta.description)}">
+<title>${escapeHtml(o.title)}</title>
+<meta name="description" content="${escapeHtml(o.description)}">
 <link rel="canonical" href="${escapeHtml(url)}">
-<link rel="alternate" hreflang="ar" href="${escapeHtml(origin)}/">
-<link rel="alternate" hreflang="en" href="${escapeHtml(origin)}/en">
-<link rel="alternate" hreflang="x-default" href="${escapeHtml(origin)}/">
+${alternates}
+<link rel="alternate" hreflang="x-default" href="${escapeHtml(origin + sitePath(v.path, X_DEFAULT))}">
 <meta name="theme-color" content="#0E8F86">
 <meta name="color-scheme" content="light">
 <meta name="format-detection" content="telephone=no">
@@ -188,111 +224,216 @@ function head(v: View): string {
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="/apple-touch-icon.png">
 <link rel="manifest" href="/site.webmanifest">
-${fonts.map(f => `<link rel="preload" href="${f}" as="font" type="font/woff2" crossorigin>`).join('\n')}
+${fontsFor(lang).map(f => `<link rel="preload" href="${f}" as="font" type="font/woff2" crossorigin>`).join('\n')}
 <link rel="stylesheet" href="/css/site.css">
-<link rel="stylesheet" href="/css/landing.css">
-<meta property="og:type" content="website">
+${o.css.map(c => `<link rel="stylesheet" href="${c}">`).join('\n')}
+<meta property="og:type" content="${o.ogType}">
 <meta property="og:site_name" content="Dentora">
-<meta property="og:title" content="${escapeHtml(t.meta.ogTitle)}">
-<meta property="og:description" content="${escapeHtml(t.meta.description)}">
+<meta property="og:title" content="${escapeHtml(o.ogTitle ?? o.title)}">
+<meta property="og:description" content="${escapeHtml(o.description)}">
 <meta property="og:url" content="${escapeHtml(url)}">
 <meta property="og:image" content="${escapeHtml(og)}">
 <meta property="og:image:type" content="image/jpeg">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
-<meta property="og:image:alt" content="${escapeHtml(t.meta.ogImageAlt)}">
-<meta property="og:locale" content="${t.meta.ogLocale}">
-<meta property="og:locale:alternate" content="${t.meta.ogAltLocale}">
+<meta property="og:image:alt" content="${escapeHtml(v.t.meta.ogImageAlt)}">
+<meta property="og:locale" content="${OG_LOCALE[lang]}">
+${ogAlt}
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:title" content="${escapeHtml(t.meta.ogTitle)}">
-<meta name="twitter:description" content="${escapeHtml(t.meta.description)}">
+<meta name="twitter:title" content="${escapeHtml(o.ogTitle ?? o.title)}">
+<meta name="twitter:description" content="${escapeHtml(o.description)}">
 <meta name="twitter:image" content="${escapeHtml(og)}">
-<meta name="twitter:image:alt" content="${escapeHtml(t.meta.ogImageAlt)}">
-<script type="application/ld+json">${jsonForScript(structuredData(v, url, og))}</script>
-<script src="/js/landing.js" defer></script>
+<meta name="twitter:image:alt" content="${escapeHtml(v.t.meta.ogImageAlt)}">
+<script type="application/ld+json">${jsonForScript(o.ld)}</script>
+${o.script ? `<script src="${o.script}" defer></script>` : ''}
 </head>`
 }
 
-function structuredData(v: View, url: string, image: string) {
-  const { t, ctx } = v
+function head(v: View): string {
+  const { t } = v
+  return pageHead(v, { title: t.meta.title, description: t.meta.description, ogTitle: t.meta.ogTitle, ogType: 'website', css: ['/css/landing.css'], script: '/js/landing.js', ld: structuredData(v) })
+}
+
+// ---- structured data (schema.org) ------------------------------------------------------------------------------------
+// The company behind Dentora (Raqeem), the site (Dentora, for the site name search engines show) and the app are
+// described once with stable @ids, so every page can point to them. Everything here is also visible on the pages.
+
+/** The maker of Dentora: Raqeem (raqeem.dev). Its logo is the mark raqeem.dev itself shows, saved as /img/raqeem-logo.png. */
+export const ORG_ID = `${ORIGIN}/#organization`
+export const SITE_ID = `${ORIGIN}/#website`
+export const APP_ID = `${ORIGIN}/#software`
+
+export function organization(): Record<string, unknown> {
+  return {
+    '@type': 'Organization',
+    '@id': ORG_ID,
+    name: 'Raqeem',
+    alternateName: 'رقيم',
+    url: 'https://raqeem.dev',
+    logo: { '@type': 'ImageObject', url: `${ORIGIN}/img/raqeem-logo.png`, width: 512, height: 512 },
+    brand: { '@type': 'Brand', name: 'Dentora' },
+  }
+}
+
+export function website(): Record<string, unknown> {
+  return {
+    '@type': 'WebSite',
+    '@id': SITE_ID,
+    name: 'Dentora',
+    alternateName: ['دنتورا', 'Dentora dental clinic software'],
+    url: `${ORIGIN}/`,
+    inLanguage: SITE_LANGS.map(l => HREFLANG[l]),
+    publisher: { '@id': ORG_ID },
+  }
+}
+
+/** The home page's screenshots in a language, largest file of each (the structured data's and the sitemap's images). */
+export function screenshotPaths(lang: SiteLang): string[] {
+  const img = imageLang(lang)
+  return [
+    `/img/hero-${img}-1600.webp`,
+    `/img/shot-${img}-chart-1600.webp`,
+    ...COPY.en.shots.phones.map(p => `/img/phone-${img}-${p.key}-720.webp`),
+  ]
+}
+
+const mbText = (bytes: number) => `${Math.round(bytes / (1024 * 1024) * 10) / 10} MB`
+
+/** The app as schema.org SoftwareApplication: the same facts the page states (requirements, price, trial, languages, features). */
+export function softwareApplication(v: View): Record<string, unknown> {
+  const { t, ctx, origin } = v
+  const en = COPY.en
+  const img = imageLang(v.lang)
+  const sizes = [ctx.apk && `Android APK ${mbText(ctx.apk.sizeBytes)}`, ctx.windows && `Windows installer ${mbText(ctx.windows.sizeBytes)}`].filter(Boolean)
   const app: Record<string, unknown> = {
     '@type': 'SoftwareApplication',
+    '@id': APP_ID,
     name: 'Dentora',
-    url,
-    image,
+    alternateName: 'دنتورا',
+    url: `${origin}${sitePath('/', v.lang)}`,
+    image: `${origin}/img/og-${img}.jpg`,
     description: t.meta.description,
-    operatingSystem: 'Windows, Android',
     applicationCategory: 'BusinessApplication',
-    applicationSubCategory: v.lang === 'ar' ? 'إدارة عيادات الأسنان' : 'Dental practice management',
+    applicationSubCategory: 'Dental practice management software',
+    operatingSystem: 'Windows 10, Windows 11, Android 7.0 or later',
+    softwareRequirements: 'Windows 10 or 11 (64-bit), or Android 7.0 or later. Internet only once, to activate the licence.',
+    // the app's own interface languages (not this page's)
     inLanguage: ['ar', 'en'],
+    featureList: en.features.items.map(f => f.title).concat(['Works fully offline', 'Data stays on the device', 'Arabic and English interface']),
+    screenshot: screenshotPaths(v.lang).map(p => origin + p),
+    downloadUrl: [ctx.apk && `${origin}/download/android`, (ctx.windows || v.s.windowsUrl) && `${origin}/download/windows`].filter(Boolean),
+    publisher: { '@id': ORG_ID },
+    author: { '@id': ORG_ID },
+    isAccessibleForFree: false,
     offers: {
       '@type': 'Offer',
       price: v.price,
       priceCurrency: 'USD',
-      url: `${url}#pricing`,
+      description: 'Lifetime licence for one device, paid once, every feature included. 7-day free trial with no sign-up.',
+      url: `${origin}${sitePath('/', v.lang)}#pricing`,
       availability: 'https://schema.org/InStock',
+      seller: { '@id': ORG_ID },
     },
   }
+  if (sizes.length) app.fileSize = sizes.join('; ')
   if (ctx.apk?.version) app.softwareVersion = ctx.apk.version
+  return app
+}
+
+function structuredData(v: View) {
+  const { t, origin } = v
+  const url = `${origin}${sitePath('/', v.lang)}`
+  const page = {
+    '@type': 'WebPage',
+    '@id': `${url}#webpage`,
+    url,
+    name: t.meta.title,
+    description: t.meta.description,
+    inLanguage: HREFLANG[v.lang],
+    isPartOf: { '@id': SITE_ID },
+    about: { '@id': APP_ID },
+    mainEntity: { '@id': APP_ID },
+    dateModified: SITE_DATE,
+    primaryImageOfPage: `${origin}/img/og-${imageLang(v.lang)}.jpg`,
+  }
   const faqPage = {
     '@type': 'FAQPage',
+    '@id': `${url}#faq`,
+    url: `${url}#faq`,
+    inLanguage: HREFLANG[v.lang],
     mainEntity: t.faq.items.map(item => ({
       '@type': 'Question',
       name: item.q,
       acceptedAnswer: { '@type': 'Answer', text: faqText(v, item.a) },
     })),
   }
-  return { '@context': 'https://schema.org', '@graph': [app, faqPage] }
+  return { '@context': 'https://schema.org', '@graph': [organization(), website(), page, softwareApplication(v), faqPage] }
 }
 
 /** The activation page's address as written in a sentence: "dentora.raqeem.dev/activate" ("…/en/activate"). */
-const activateAddress = (v: View) => `${v.origin.replace(/^https?:\/\//, '')}${v.base}/activate`
+const activateAddress = (v: View) => `${v.origin.replace(/^https?:\/\//, '')}${v.docBase}/activate`
 
-/** FAQ answer as plain text (for the structured data). */
-function faqText(v: View, a: string): string {
-  const ltr = (s: string) => (v.lang === 'ar' ? `\u2066${s}\u2069` : s)
+/** FAQ answer as plain text (for the structured data): {compare} becomes the link's text and the page's address. */
+export function faqText(v: View, a: string): string {
+  const ltr = (s: string) => (isRtl(v.lang) ? `\u2066${s}\u2069` : s)
   const email = v.s.email ? fillText(v.t.faq.emailPart, { email: v.s.email }) : ''
-  return fillText(a, { price: v.priceInline, whatsapp: ltr(v.waDisplay), email, activate: ltr(activateAddress(v)) })
+  const compare = `${v.t.faq.compareLink} (${ltr(`${v.origin}${sitePath('/compare', v.lang)}`)})`
+  return fillText(a, { price: v.priceInline, whatsapp: ltr(v.waDisplay), email, activate: ltr(activateAddress(v)), compare })
 }
 
-/** FAQ answer as HTML: the phone number, the e-mail and the activation page's address become links. */
-function faqHtml(v: View, a: string): string {
+/** FAQ answer as HTML: the phone number, the e-mail, the activation page's address and the comparison page become links. */
+export function faqHtml(v: View, a: string): string {
   const phone = `<a href="${escapeHtml(waLink(v, v.t.wa.general))}" rel="noopener" target="_blank"><bdi dir="ltr">${escapeHtml(v.waDisplay)}</bdi></a>`
   const email = v.s.email
     ? fillHtml(v.t.faq.emailPart, { email: `<a href="mailto:${escapeHtml(v.s.email)}"><bdi dir="ltr">${escapeHtml(v.s.email)}</bdi></a>` })
     : ''
-  const activate = `<a href="${v.base}/activate"><bdi dir="ltr">${escapeHtml(activateAddress(v))}</bdi></a>`
-  return fillHtml(a, { price: escapeHtml(v.priceInline), whatsapp: phone, email, activate })
+  const activate = `<a href="${v.docBase}/activate"><bdi dir="ltr">${escapeHtml(activateAddress(v))}</bdi></a>`
+  const compare = `<a href="${sitePath('/compare', v.lang)}">${escapeHtml(v.t.faq.compareLink)}</a>`
+  return fillHtml(a, { price: escapeHtml(v.priceInline), whatsapp: phone, email, activate, compare })
 }
 
-function announcement(v: View): string {
-  const text = String((v.lang === 'ar' ? v.s.announcementAr : v.s.announcementEn) ?? '').trim()
+export function announcement(v: View): string {
+  // written by the seller in Arabic and English only (control panel): the other languages show none
+  const text = String((v.lang === 'ar' ? v.s.announcementAr : v.lang === 'en' ? v.s.announcementEn : '') ?? '').trim()
   if (!text) return ''
   return `<aside class="announce" aria-label="${escapeHtml(v.t.announcement)}"><div class="container"><p>${escapeHtml(text)}</p></div></aside>\n`
 }
 
-/** The sections of this page, then the user guide and the video course (pages of their own, in the page's language). */
+/**
+ * The sections of the home page (from another page, the home page's sections), the comparison page, then the user
+ * guide and the video course (pages of their own; in Arabic or English only).
+ */
 function navItems(v: View): string {
   const n = v.t.nav
-  return [['#features', n.features], ['#screenshots', n.screenshots], ['#pricing', n.pricing], ['#download', n.download], ['#faq', n.faq], [`${v.base}/guide`, n.guide], [`${v.base}/videos`, n.videos]]
-    .map(([href, label]) => `<li><a href="${href}">${escapeHtml(label)}</a></li>`).join('')
+  const home = v.path === '/' ? '' : sitePath('/', v.lang)
+  return [[`${home}#features`, n.features], [`${home}#screenshots`, n.screenshots], [`${home}#pricing`, n.pricing], [`${home}#download`, n.download], [`${home}#faq`, n.faq],
+    [sitePath('/compare', v.lang), n.compare], [`${v.docBase}/guide`, n.guide], [`${v.docBase}/videos`, n.videos]]
+    .map(([href, label]) => `<li><a href="${href}"${href === sitePath(v.path, v.lang) ? ' aria-current="page"' : ''}>${escapeHtml(label)}</a></li>`).join('')
 }
 
+/**
+ * The language switch: with two languages a link to the other one, with more a menu of all of them (a <details>, no
+ * script needed). Each link goes to this same page in that language.
+ */
 function langLink(v: View, cls: string): string {
-  const other: Lang = v.lang === 'ar' ? 'en' : 'ar'
-  return `<a class="${cls}" href="${other === 'ar' ? '/' : '/en'}" hreflang="${other}" lang="${other}" title="${escapeHtml(v.t.other.label)}">${icon('languages')}<span>${escapeHtml(v.t.other.name)}</span></a>`
+  if (SITE_LANGS.length === 2) {
+    const other = SITE_LANGS.find(l => l !== v.lang) ?? 'en'
+    return `<a class="${cls}" href="${sitePath(v.path, other)}" hreflang="${HREFLANG[other]}" lang="${HREFLANG[other]}" title="${escapeHtml(v.t.other.label)}">${icon('languages')}<span>${escapeHtml(LANG_NAME[other])}</span></a>`
+  }
+  const items = SITE_LANGS.map(l => `<li><a href="${sitePath(v.path, l)}" hreflang="${HREFLANG[l]}" lang="${HREFLANG[l]}"${l === v.lang ? ' aria-current="true"' : ''}>${escapeHtml(LANG_NAME[l])}</a></li>`).join('')
+  return `<details class="lang-menu ${cls}"><summary aria-label="${escapeHtml(v.t.langMenu)}">${icon('languages')}<span>${escapeHtml(LANG_NAME[v.lang])}</span>${icon('chevronDown', 'lang-chev')}</summary><ul class="lang-list">${items}</ul></details>`
 }
 
 function brand(): string {
   return `<img src="/favicon.svg" width="36" height="36" alt=""><span>Dentora</span>`
 }
 
-function header(v: View): string {
+export function header(v: View): string {
   const { t } = v
   const wa = escapeHtml(waLink(v, t.wa.general))
   return `<header class="site-header">
 <div class="container header-inner">
-<a class="brand" href="${v.lang === 'ar' ? '/' : '/en'}">${brand()}</a>
+<a class="brand" href="${sitePath('/', v.lang)}">${brand()}</a>
 <nav class="nav-inline" aria-label="${escapeHtml(t.nav.label)}"><ul>${navItems(v)}</ul></nav>
 <div class="header-actions">
 ${langLink(v, 'lang-link')}
@@ -330,7 +471,7 @@ function windowsLabel(v: View): string {
 function hero(v: View): string {
   const { t, lang } = v
   const sizes = '(min-width: 1440px) 750px, (min-width: 1200px) 54vw, min(960px, calc(100vw - 32px))'
-  const base = `/img/hero-${lang}`
+  const base = `/img/hero-${imageLang(lang)}`
   return `<section class="hero" aria-labelledby="hero-title">
 <div class="container hero-inner">
 <div class="hero-copy">
@@ -361,7 +502,19 @@ function trust(v: View): string {
 </section>`
 }
 
-function sectionHead(id: string, eyebrow: string, title: string, lead?: string, cls = 'section-head'): string {
+/** "What is Dentora?": the facts in one paragraph, near the top (what search engines and AI assistants quote). */
+function summary(v: View): string {
+  const sm = v.t.summary
+  return `<section class="summary" id="about" aria-labelledby="about-title">
+<div class="container summary-inner">
+<h2 id="about-title">${escapeHtml(sm.title)}</h2>
+<p>${fillHtml(sm.text, { price: escapeHtml(v.priceInline) })}</p>
+${sm.appLang ? `<p class="summary-note">${icon('languages')}<span>${escapeHtml(sm.appLang)}</span></p>` : ''}
+</div>
+</section>`
+}
+
+export function sectionHead(id: string, eyebrow: string, title: string, lead?: string, cls = 'section-head'): string {
   return `<div class="${cls}"><p class="eyebrow">${escapeHtml(eyebrow)}</p><h2 id="${id}-title">${escapeHtml(title)}</h2>${lead ? `<p class="lead">${escapeHtml(lead)}</p>` : ''}</div>`
 }
 
@@ -393,11 +546,12 @@ ${sectionHead('privacy', p.eyebrow, p.title, p.lead, 'privacy-head')}
 }
 
 function screenshots(v: View): string {
-  const { t, lang } = v
+  const { t } = v
   const sh = t.shots
-  const chart = `/img/shot-${lang}-chart`
+  const img = imageLang(v.lang)
+  const chart = `/img/shot-${img}-chart`
   const phones = sh.phones.map(p => {
-    const b = `/img/phone-${lang}-${p.key}`
+    const b = `/img/phone-${img}-${p.key}`
     return `<li><figure class="phone-card"><div class="phone"><div class="screen"><img src="${b}-480.webp" srcset="${srcset(b, PHONE_W, 'webp')}" sizes="(min-width: 1100px) 220px, 232px" width="480" height="853" alt="${escapeHtml(p.alt)}" loading="lazy" decoding="async"></div></div><figcaption><strong>${escapeHtml(p.title)}</strong><span>${escapeHtml(p.text)}</span></figcaption></figure></li>`
   }).join('\n')
   return `<section class="section shots" id="screenshots" aria-labelledby="screenshots-title">
@@ -426,7 +580,7 @@ function steps(v: View): string {
   return `<section class="section steps" id="how" aria-labelledby="how-title">
 <div class="container">
 ${sectionHead('how', st.eyebrow, st.title, st.lead)}
-<ol class="step-list">${st.items.map((x, i) => `<li class="step"><div class="step-top"><span class="step-num" aria-hidden="true">${i + 1}</span>${icon(icons[i], 'step-icon')}</div><h3>${escapeHtml(x.title)}</h3><p>${escapeHtml(x.text)}</p>${x.link ? `<a class="step-link" href="${v.base}${x.linkTo ?? '/activate'}">${escapeHtml(x.link)}${forward(v.lang)}</a>` : ''}</li>`).join('')}</ol>
+<ol class="step-list">${st.items.map((x, i) => `<li class="step"><div class="step-top"><span class="step-num" aria-hidden="true">${i + 1}</span>${icon(icons[i], 'step-icon')}</div><h3>${escapeHtml(x.title)}</h3><p>${escapeHtml(x.text)}</p>${x.link ? `<a class="step-link" href="${v.docBase}${x.linkTo ?? '/activate'}">${escapeHtml(x.link)}${forward(v.lang)}</a>` : ''}</li>`).join('')}</ol>
 </div>
 </section>`
 }
@@ -434,7 +588,8 @@ ${sectionHead('how', st.eyebrow, st.title, st.lead)}
 function pricing(v: View): string {
   const { t, s, lang } = v
   const p = t.pricing
-  const priceText = String((lang === 'ar' ? s.priceTextAr : s.priceTextEn) ?? '').trim()
+  // the seller writes this line in Arabic and English only (control panel); the other languages show the card without it
+  const priceText = String((lang === 'ar' ? s.priceTextAr : lang === 'en' ? s.priceTextEn : '') ?? '').trim()
   return `<section class="section pricing" id="pricing" aria-labelledby="pricing-title">
 <div class="container pricing-grid">
 <div class="pricing-copy">
@@ -508,7 +663,7 @@ function faq(v: View): string {
 <h2 id="faq-title">${escapeHtml(f.title)}</h2>
 <p class="lead">${escapeHtml(f.more)}</p>
 <a class="btn btn-wa" href="${escapeHtml(waLink(v, v.t.wa.general))}" rel="noopener" target="_blank">${icon('messageCircle')}<span>${escapeHtml(f.moreLink)}</span></a>
-<div class="faq-learn"><p>${escapeHtml(f.learn.text)}</p><ul><li><a href="${v.base}/guide">${icon('bookOpen')}<span>${escapeHtml(f.learn.guide)}</span></a></li><li><a href="${v.base}/videos">${icon('playCircle')}<span>${escapeHtml(f.learn.videos)}</span></a></li></ul></div>
+<div class="faq-learn"><p>${escapeHtml(f.learn.text)}</p><ul><li><a href="${v.docBase}/guide">${icon('bookOpen')}<span>${escapeHtml(f.learn.guide)}</span></a></li><li><a href="${v.docBase}/videos">${icon('playCircle')}<span>${escapeHtml(f.learn.videos)}</span></a></li></ul></div>
 </div>
 <div class="faq-list">
 ${f.items.map((item, i) => `<details class="qa"${i === 0 ? ' open' : ''}><summary><span>${escapeHtml(item.q)}</span>${icon('chevronDown')}</summary><div class="qa-a"><p>${faqHtml(v, item.a)}</p></div></details>`).join('\n')}
@@ -517,7 +672,10 @@ ${f.items.map((item, i) => `<details class="qa"${i === 0 ? ' open' : ''}><summar
 </section>`
 }
 
-function finalCta(v: View): string {
+/** "#download" on the home page, the home page's download section from any other page. */
+export const homeAnchor = (v: View, id: string) => `${v.path === '/' ? '' : sitePath('/', v.lang)}#${id}`
+
+export function finalCta(v: View): string {
   const c = v.t.cta
   return `<section class="cta-band" aria-labelledby="cta-title">
 <div class="container">
@@ -525,7 +683,7 @@ function finalCta(v: View): string {
 <h2 id="cta-title">${escapeHtml(c.title)}</h2>
 <p>${escapeHtml(c.lead)}</p>
 <div class="cta-actions">
-<a class="btn btn-white btn-lg" href="#download">${icon('download')}<span>${escapeHtml(c.download)}</span></a>
+<a class="btn btn-white btn-lg" href="${homeAnchor(v, 'download')}">${icon('download')}<span>${escapeHtml(c.download)}</span></a>
 <a class="btn btn-ghost-light btn-lg" href="${escapeHtml(waLink(v, v.t.wa.general))}" rel="noopener" target="_blank">${icon('messageCircle')}<span>${escapeHtml(c.whatsapp)}</span></a>
 </div>
 </div>
@@ -533,18 +691,22 @@ function finalCta(v: View): string {
 </section>`
 }
 
-function footer(v: View): string {
-  const { t, s, base } = v
+export function footer(v: View): string {
+  const { t, s, docBase } = v
   const f = t.footer
   const email = String(s.email ?? '').trim()
+  // every language of this page, as plain links crawlers follow (the header's menu holds the same)
+  const langs = SITE_LANGS.length > 2
+    ? `<nav class="footer-langs" aria-label="${escapeHtml(t.langMenu)}"><ul>${SITE_LANGS.map(l => `<li><a href="${sitePath(v.path, l)}" hreflang="${HREFLANG[l]}" lang="${HREFLANG[l]}"${l === v.lang ? ' aria-current="true"' : ''}>${escapeHtml(LANG_NAME[l])}</a></li>`).join('')}</ul></nav>`
+    : langLink(v, 'lang-link')
   return `<footer class="site-footer">
 <div class="container footer-grid">
 <div class="footer-brand">
-<a class="brand" href="${base || '/'}">${brand()}</a>
+<a class="brand" href="${sitePath('/', v.lang)}">${brand()}</a>
 <p>${escapeHtml(f.tagline)}</p>
 </div>
-<nav class="footer-col" aria-labelledby="ft-product"><h2 class="footer-title" id="ft-product">${escapeHtml(f.product)}</h2><ul class="footer-links">${navItems(v)}<li><a href="${base}/activate">${escapeHtml(f.activate)}</a></li></ul></nav>
-<nav class="footer-col" aria-labelledby="ft-legal"><h2 class="footer-title" id="ft-legal">${escapeHtml(f.legal)}</h2><ul class="footer-links"><li><a href="${base}/privacy">${escapeHtml(f.privacy)}</a></li><li><a href="${base}/terms">${escapeHtml(f.terms)}</a></li></ul></nav>
+<nav class="footer-col" aria-labelledby="ft-product"><h2 class="footer-title" id="ft-product">${escapeHtml(f.product)}</h2><ul class="footer-links">${navItems(v)}<li><a href="${docBase}/activate">${escapeHtml(f.activate)}</a></li></ul></nav>
+<nav class="footer-col" aria-labelledby="ft-legal"><h2 class="footer-title" id="ft-legal">${escapeHtml(f.legal)}</h2><ul class="footer-links"><li><a href="${docBase}/privacy">${escapeHtml(f.privacy)}</a></li><li><a href="${docBase}/terms">${escapeHtml(f.terms)}</a></li></ul></nav>
 <div class="footer-col"><h2 class="footer-title">${escapeHtml(f.contact)}</h2><ul class="footer-links">
 <li><a href="${escapeHtml(waLink(v, t.wa.general))}" rel="noopener" target="_blank">${icon('messageCircle')}<bdi dir="ltr">${escapeHtml(v.waDisplay)}</bdi></a></li>
 ${email ? `<li><a href="mailto:${escapeHtml(email)}">${icon('mail')}<bdi dir="ltr">${escapeHtml(email)}</bdi></a></li>` : ''}
@@ -552,7 +714,7 @@ ${email ? `<li><a href="mailto:${escapeHtml(email)}">${icon('mail')}<bdi dir="lt
 </div>
 <div class="container footer-bottom">
 <p>© ${new Date().getUTCFullYear()} Dentora. ${escapeHtml(f.rights)}</p>
-${langLink(v, 'lang-link')}
+${langs}
 </div>
 </footer>`
 }
