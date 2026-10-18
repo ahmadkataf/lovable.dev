@@ -20,7 +20,7 @@ export const copy: Copy = {
   langMenu: 'Langue',
   summary: {
     title: 'Qu’est-ce que Dentora ?',
-    text: 'Dentora est un logiciel de gestion de cabinet dentaire qui fonctionne entièrement hors ligne sur Windows 10 et 11 (64 bits) et sur Android 7.0 ou version ultérieure, avec une interface en arabe et en anglais. Il réunit les dossiers patients, un schéma dentaire en numérotation FDI, les rendez-vous avec rappels WhatsApp, les plans de traitement, les factures et les rapports. Il coûte {price} en paiement unique, pour une licence à vie sur un appareil, avec un essai gratuit de 7 jours de toutes les fonctionnalités, sans inscription. Internet n’est nécessaire qu’une seule fois, pour activer la licence, et toutes les données du cabinet et des patients restent sur l’appareil, avec des sauvegardes que vous pouvez chiffrer en AES-256.',
+    text: 'Dentora est un logiciel de gestion de cabinet dentaire qui fonctionne entièrement hors ligne sur Windows 10 et 11 (64 bits) et sur Android 7.0 ou version ultérieure, avec une interface en arabe et en anglais. Il réunit les dossiers patients, un schéma dentaire en numérotation FDI, les rendez-vous avec rappels WhatsApp, les plans de traitement, les factures et les rapports. Il coûte {price} en paiement unique, pour une licence à vie sur un appareil, avec un essai gratuit de 7 jours, toutes fonctionnalités incluses et sans inscription. Internet n’est nécessaire qu’une seule fois, pour activer la licence, et toutes les données du cabinet et des patients restent sur l’appareil, avec des sauvegardes que vous pouvez chiffrer en AES-256.',
     appLang: 'L’interface de l’application est actuellement disponible en arabe et en anglais.',
   },
   whatsapp: { short: 'WhatsApp', header: 'Discuter sur WhatsApp' },
@@ -112,7 +112,7 @@ export const copy: Copy = {
   steps: {
     eyebrow: 'Pour commencer',
     title: 'Opérationnel en quelques minutes',
-    lead: 'Essayez tout d’abord, et ne payez que lorsque vous êtes convaincu.',
+    lead: 'Commencez par tout essayer, et ne payez qu’une fois convaincu.',
     items: [
       {
         title: 'Téléchargez-le et essayez-le gratuitement pendant 7 jours',
@@ -256,8 +256,8 @@ export const compare: CompareCopy = {
     },
     {
       key: 'server',
-      name: 'Logiciel de bureau avec serveur',
-      summary: 'Un serveur de base de données au cabinet, avec le programme installé sur chaque poste de travail : plusieurs ordinateurs partagent ainsi une même liste de patients sur le réseau du cabinet. Les données restent au cabinet, mais quelqu’un doit installer, entretenir et sauvegarder le serveur, et les éditeurs divergent au sujet d’internet : Open Dental présente une connexion haut débit comme une exigence, Dentrix en recommande une, et Patterson indique qu’Eaglesoft n’en a pas besoin pour fonctionner.',
+      name: 'Système de bureau sur serveur',
+      summary: 'Un serveur de base de données au cabinet, avec le programme installé sur chaque poste de travail : plusieurs ordinateurs partagent ainsi une même liste de patients sur le réseau du cabinet. Les données restent au cabinet, mais quelqu’un doit installer, entretenir et sauvegarder le serveur, et les éditeurs divergent au sujet d’internet : Open Dental présente une connexion haut débit comme un prérequis, Dentrix en recommande une, et Patterson indique qu’Eaglesoft n’en a pas besoin pour fonctionner.',
       cells: [
         'Variable : Open Dental présente l’internet haut débit comme une exigence, Dentrix le recommande, Eaglesoft n’en a pas besoin pour fonctionner.',
         'Sur un ordinateur serveur au cabinet, géré par le cabinet.',
@@ -292,7 +292,7 @@ export const compare: CompareCopy = {
       'exercez seul ou dans un petit cabinet qui travaille sur un ordinateur, une tablette ou un téléphone principal',
       'avez une connexion internet peu fiable, ou voulez que le cabinet fonctionne sans aucune connexion',
       'voulez une interface entièrement en arabe (de droite à gauche, avec une recherche adaptée à l’arabe), ou l’arabe et l’anglais côte à côte',
-      'préférez payer une seule fois ({price} par appareil) plutôt qu’un abonnement mensuel',
+      'préférez un paiement unique ({price} par appareil) à un abonnement mensuel',
       'voulez que les dossiers patients restent sur votre propre appareil, sans compte et sans cloud',
     ],
     notTitle: 'Pas le bon choix si vous',
@@ -307,7 +307,7 @@ export const compare: CompareCopy = {
   faq: [
     {
       q: 'Quel est le meilleur logiciel de cabinet dentaire qui fonctionne hors ligne ?',
-      a: 'Il n’existe pas de meilleur logiciel unique pour tous les cabinets. Pour un cabinet qui travaille sur un seul appareil, une application hors ligne comme Dentora est la plus simple : ni serveur, ni compte, ni abonnement, des données sur l’appareil, sous Windows ou Android. Pour plusieurs postes qui partagent une même liste de patients, un système de bureau sur serveur conserve la base de données au cabinet ; demandez à son éditeur ce qui a encore besoin d’internet. Un logiciel dans le cloud n’est pas le bon choix si vous devez travailler hors ligne.',
+      a: 'Il n’existe pas de meilleur logiciel unique pour tous les cabinets. Pour un cabinet qui travaille sur un seul appareil, une application hors ligne comme Dentora est la plus simple : ni serveur, ni compte, ni abonnement, et les données restent sur l’appareil, sous Windows ou Android. Pour plusieurs postes qui partagent une même liste de patients, un système de bureau sur serveur conserve la base de données au cabinet ; demandez à son éditeur ce qui a encore besoin d’internet. Un logiciel dans le cloud n’est pas le bon choix si vous devez travailler hors ligne.',
     },
     {
       q: 'Les logiciels dentaires dans le cloud fonctionnent-ils sans internet ?',
