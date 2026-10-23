@@ -166,7 +166,7 @@ const priceDlg = el('dialog', { class: 'chooser pricing', 'aria-label': 'الأ�
 const actions = el('div', { class: 'actions' })
 previewWrap.append(stats, alerts, el('div', { class: 'canvas-wrap' }, svg, el('div', { class: 'canvas-tools' }, el('button', { type: 'button', class: 'tool', onclick: () => fitView(), title: 'ملاءمة' }, '⤢'), el('button', { type: 'button', class: 'tool', onclick: () => { state.labels = !state.labels; persist(); render() }, title: 'الأسماء' }, 'Aa'))), actions)
 document.body.append(chooser, priceDlg)
-app.append(header, gallery, quick, scaler, el('div', { class: 'work' }, form, previewWrap), costBox, notesBox, el('footer', { class: 'foot' }, 'الملفات بالمليمتر. افتح SVG أو DXF في LightBurn أو RDWorks أو Inkscape، وتأكّد أن القياس 1:1 قبل القص. · الإصدار 1.9'))
+app.append(header, gallery, quick, scaler, el('div', { class: 'work' }, form, previewWrap), costBox, notesBox, el('footer', { class: 'foot' }, 'الملفات بالمليمتر. افتح SVG أو DXF في LightBurn أو RDWorks أو Inkscape، وتأكّد أن القياس 1:1 قبل القص. · الإصدار 2.0'))
 
 // ------------------------------------------------------------------ gallery
 
@@ -558,7 +558,7 @@ function sizeLabel(p: Record<string, number>) {
   if (state.tpl === 'cubeset') return `${fmt(p.rows * p.cols)} مكعّب ${fmt(p.a)} مم على صينية`
   if (state.tpl === 'mihrabbox') return `${fmt(p.W)} × ${fmt(p.D)} × ${fmt(p.H)}، المحراب ${fmt(p.A)}`
   if (state.tpl === 'easel') return `إيزل بارتفاع ${fmt(p.Lm)} مم`
-  if (state.tpl === 'bottlebox') return `${fmt(p.num)} غرشة Ø${fmt(p.bd)} × ${fmt(p.bh)} مم، ميلان ${fmt(p.angle)}°`
+  if (state.tpl === 'bottlebox' || state.tpl === 'bottlestand') return `${fmt(p.num)} غرشة Ø${fmt(p.bd)} × ${fmt(p.bh)} مم، ميلان ${fmt(p.angle)}°`
   if (state.tpl === 'giftbag') return `${fmt(p.W)} × ${fmt(p.D)} × ${fmt(p.H)}، المقبض ${fmt(p.hh)}`
   if (p.pw !== undefined) return `صورة ${fmt(p.pw)} × ${fmt(p.ph)}`
   if (p.Dm !== undefined) return `Ø${fmt(p.Dm)} × ${fmt(p.H)}`

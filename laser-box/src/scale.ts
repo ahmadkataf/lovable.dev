@@ -45,6 +45,7 @@ const PER_TEMPLATE: Record<string, Record<string, Role>> = {
   mihrabbox: { knob: 'object' }, // the bought knob's screw
   kilimbox: { knob: 'object' },
   bottlebox: { sink: 'object' }, // how deep the bought bottle sits
+  bottlestand: { sink: 'object' },
   easel: { bolt: 'object', maxL: 'fixed' }, // the bought bolts; the laser bed's length
 }
 

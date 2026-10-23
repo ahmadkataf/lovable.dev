@@ -453,3 +453,69 @@ describe('the leaning bottle box: review, every shape', () => {
     expect(bad).toEqual([])
   })
 })
+
+describe('the display stand version (no lid)', () => {
+  const stand = BOTTLE_BOXES.find(x => x.id === 'bottlestand')!
+  const genS = (p: Record<string, number>, s: Partial<typeof S0> = {}) => generate(stand, p, { ...S0, ...s }) as never as Dz
+  const asBox = (p: Record<string, number>) => ({ ...p, shape: Math.round(p.shape ?? 1) === 2 ? 2 : 3 })
+
+  it('is the slanted stand by default, with no lid, on every sheet, without warnings', () => {
+    expect(stand.params.map(d => d.key)).not.toContain('lipH')
+    expect(stand.params.map(d => d.key)).not.toContain('gap')
+    expect(stand.params.map(d => d.key)).not.toContain('air')
+    expect(stand.params.find(d => d.key === 'shape')!.options).toEqual(['ستاند مائل', 'علبة مفتوحة'])
+    for (const t of THICK) {
+      const d = genS({}, { t })
+      expect(d.errors, `t=${t}`).toEqual([])
+      expect(d.warnings, `t=${t}`).toEqual([])
+      expect(d.panels.map(p => p.id).sort(), `t=${t}`).toEqual(['back', 'bottom', 'floor', 'front', 'holes', 'side'])
+      expect(holesOf(get(d, 'holes')).length, `t=${t}`).toBe(40)
+      expect(get(d, 'front').h, `t=${t}`).toBeLessThan(get(d, 'back').h - 40)
+      expect(d.notes.join(' ')).toContain('ستاند مائل')
+      expect(d.notes.join(' ')).not.toContain('الغطاء')
+    }
+    // the same pieces as the lidded design asked for as a stand
+    const box = gen({ shape: 3 }, { t: 3.2 }), s = genS({}, { t: 3.2 })
+    expect(s.panels.map(p => [p.id, p.w, p.h])).toEqual(box.panels.map(p => [p.id, p.w, p.h]))
+  })
+
+  it('the second choice is the open box: straight walls just above the plates', () => {
+    const d = genS({ shape: 2 }, { t: 3 })
+    expect(d.errors).toEqual([])
+    expect(get(d, 'front').h).toBeCloseTo(get(d, 'back').h, 6)
+    expect(d.notes.join(' ')).toContain('علبة مفتوحة')
+    expect(d.panels.map(p => [p.id, p.w, p.h])).toEqual(gen({ shape: 2 }, { t: 3 }).panels.map(p => [p.id, p.w, p.h]))
+  })
+
+  it('passes the robustness grid over its own settings, sound and assembled, or refuses with an error', () => {
+    const variants: Record<string, number>[] = [{}]
+    for (const def of stand.params) variants.push({ [def.key]: def.min }, { [def.key]: def.max })
+    let runs = 0, refused = 0
+    const bad: string[] = []
+    for (const t of THICK) for (const kerf of [0, 0.2]) for (const v of variants) {
+      const label = `stand ${JSON.stringify(v)} t=${t} kerf=${kerf}`
+      const d = genS(v, { t, kerf })
+      runs++
+      if (d.errors.length) { refused++; continue }
+      bad.push(...soundness(d, label))
+      if (kerf === 0 && (v.num === undefined || v.num < 100)) bad.push(...assembly(asBox(v), t, label))
+      if (bad.length > 20) break
+    }
+    expect(bad).toEqual([])
+    expect(refused).toBeLessThan(runs / 4)
+  })
+
+  it('scales without touching the bottles, and a too-low height names the height that builds', () => {
+    for (const f of [0.5, 0.7, 1.5]) {
+      const r = scaleDesign(stand, { ...DEFAULT_SETTINGS, t: 3.2 }, {}, f, false, 8000)
+      expect(r.ok, `×${f}: ${r.errors.join(' | ')}`).toBe(true)
+      for (const k of ['num', 'bd', 'bh', 'sink', 'angle', 'shape', 'style', 'margin', 'hc', 'fit']) expect(r.params[k], `×${f} ${k}`).toBe(stand.defaults[k])
+    }
+    for (const shape of [1, 2]) {
+      const e = genS({ shape, H: 30 }, { t: 3 }).errors
+      expect(e.length, `shape ${shape}`).toBe(1)
+      const v = Number(/يلزم ([\d.]+) مم على الأقل/.exec(e[0])![1])
+      expect(genS({ shape, H: v }, { t: 3 }).errors, `shape ${shape} H=${v}`).toEqual([])
+    }
+  })
+})

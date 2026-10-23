@@ -58,6 +58,13 @@ const PARAMS: ParamDef[] = [
 
 const DEFAULTS = { num: 40, bd: 15, bh: 50, sink: 22, angle: 20, rows: 0, style: 1, sp: 5, margin: 10, hc: 1, H: 0, shape: 1, lipH: 0, gap: 0.5, air: 5, fit: 0.15, n: 1 }
 
+/** The display version: no lid, so no lip, lid clearance or room over the bottles; a stand or an open box. */
+const STAND_PARAMS: ParamDef[] = PARAMS.filter(d => !['lipH', 'gap', 'air'].includes(d.key)).map(d =>
+  d.key === 'shape' ? intP('shape', 'الشكل', 1, 2, '1 = ستاند مائل: جانباه بميل الغرشات، واجهته واطئة وظهره عالٍ فتظهر كل الغرشات، 2 = علبة مفتوحة بجدران مستقيمة', ['ستاند مائل', 'علبة مفتوحة'])
+    : d.key === 'H' ? mm('H', 'الارتفاع', 0, 400, '0 = تلقائي: أخفض ستاند (أو جدران) يحمل اللوحين. للستاند هذا ارتفاعه من الخلف، والواجهة أوطأ')
+      : d)
+const STAND_DEFAULTS = { num: 40, bd: 15, bh: 50, sink: 22, angle: 20, rows: 0, style: 1, sp: 5, margin: 10, hc: 1, H: 0, shape: 1, fit: 0.15, n: 1 }
+
 /** One row of holes: its centre along the slope (s, on the plates' line coordinates), the holes across the width (from
  *  the plate's inner edge), and how many it holds when full. */
 export interface Row { s: number; xs: number[]; full: number }
@@ -315,5 +322,16 @@ export const BOTTLE_BOXES: Template[] = [
     defaults: DEFAULTS,
     innerAdd: () => ({ W: 0, D: 0, H: 0 }),
     build,
+  },
+  {
+    id: 'bottlestand',
+    name: 'ستاند غرشات للعرض (بلا غطاء)',
+    desc: 'نسخة العرض المكشوفة من علبة الغرشات المائلة، بلا غطاء لتُعرض في المحل: ستاند جانباه بميل الغرشات وواجهته واطئة وظهره عالٍ فتظهر كل الغرشات (قوارير، عيّنات عطور أو زيوت)، أو علبة مفتوحة بجدران مستقيمة. لوح مثقّب مائل ولوح تحته تقف عليه الغرشات، بعدد الغرشات تماماً.',
+    icon: `<path d="M6 58h52V18L58 18 6 44z"/><path d="M8 52l48-14" stroke-width="2.4"/><path d="M15 50l-4-14M25 47l-4-14M35 44l-4-14M45 41l-4-14" stroke-width="5" stroke-linecap="round"/>`,
+    params: STAND_PARAMS,
+    defaults: STAND_DEFAULTS,
+    innerAdd: () => ({ W: 0, D: 0, H: 0 }),
+    // the lidded box's build, as a stand (shape 3) or an open box (shape 2), never with the lid
+    build: (p, c) => build({ ...DEFAULTS, ...p, lipH: 0, gap: DEFAULTS.gap, air: DEFAULTS.air, shape: Math.round(p.shape) === 2 ? 2 : 3 }, c),
   },
 ]
