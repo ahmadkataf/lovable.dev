@@ -44,6 +44,7 @@ const PER_TEMPLATE: Record<string, Record<string, Role>> = {
   giftbag: { hand: 'fixed', pw: 'length', ph: 'length' }, // the hand hole is sized for a hand; the plaque is the design's own
   mihrabbox: { knob: 'object' }, // the bought knob's screw
   kilimbox: { knob: 'object' },
+  bottlebox: { sink: 'object' }, // how deep the bought bottle sits
   easel: { bolt: 'object', maxL: 'fixed' }, // the bought bolts; the laser bed's length
 }
 

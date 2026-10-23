@@ -10,6 +10,7 @@ import { MIHRAB_BOXES } from './mihrabbox'
 import { CUBE_SETS } from './cubeset'
 import { EASELS } from './easel'
 import { KILIM_BOXES } from './kilimbox'
+import { BOTTLE_BOXES } from './bottlebox'
 
 export interface ParamDef {
   key: string
@@ -1598,7 +1599,7 @@ export const templateById = (id: string) => TEMPLATES.find(t => t.id === id) ?? 
 export const CATEGORIES: { id: string; name: string; ids: string[] }[] = [
   { id: 'box', name: 'صناديق', ids: ['closed', 'open', 'sliding', 'liftoff', 'hinged', 'hinged90', 'flex', 'lip', 'window', 'drawer', 'roundbox', 'crate'] },
   { id: 'trophy', name: 'دروع وجوائز', ids: ['trophyswoosh', 'trophyflame', 'trophystar', 'trophycup', 'trophyplaque', 'trophycrescent'] },
-  { id: 'shop', name: 'ستاندات عرض للمحلات', ids: ['displaystand', 'displaystandpro'] },
+  { id: 'shop', name: 'ستاندات عرض للمحلات', ids: ['bottlebox', 'displaystand', 'displaystandpro'] },
   { id: 'wedding', name: 'أعراس وخطوبة', ids: ['fabricset', 'engagement', 'hexringbox', 'nikahtray', 'hennatray', 'welcomesign', 'easel', 'placecards', 'invitebox', 'caketopper', 'guestframe', 'sweetstand', 'tablenumbers', 'favorbox'] },
   { id: 'gift', name: 'هدايا وديكور', ids: ['rosesign', 'giftbag', 'archbox', 'kilimbox', 'chest', 'catbank', 'decobox', 'jewelry', 'moneybox', 'teahouse', 'frame', 'basket', 'fence', 'clock'] },
   { id: 'kitchen', name: 'مطبخ وتقديم', ids: ['mihrabbox', 'cubeset', 'coasterset', 'coastersetfast', 'carrier', 'mugtree', 'spicerack', 'bedtray', 'tray', 'teabox', 'tissue'] },
@@ -1612,7 +1613,7 @@ export const CATEGORIES: { id: string; name: string; ids: string[] }[] = [
   { id: 'bulk', name: 'بالجملة', ids: ['keychains', 'coasters'] },
 ]
 /** the newest designs get a badge in the picker */
-export const NEW_IDS = ['easel', 'rosesign', 'giftbag', 'archbox', 'mihrabbox', 'cubeset', 'kilimbox', 'trophyswoosh', 'trophyflame', 'trophystar', 'trophycup', 'trophyplaque', 'trophycrescent', 'coasterset', 'coastersetfast', 'displaystandpro', 'displaystand', 'fabricset', 'mabkharatower', 'mabkhara', 'fittest', 'nikahtray', 'hennatray', 'welcomesign', 'placecards', 'invitebox', 'doorhanger', 'doordiagonal', 'doorblocks', 'doororbit', 'doorchevron', 'doormihrab', 'doorkhatam', 'doormashrabiya', 'doorstars', 'doorandalus', 'doorpanel', 'doorclassic', 'doorarch', 'doordiamond', 'doorwaves', 'doorstar', 'doormodern', 'doorframes', 'caketopper', 'guestframe', 'sweetstand', 'tablenumbers', 'favorbox', 'hexringbox', 'engagement', 'hinged90', 'crate', 'carrier', 'jewelry', 'moneybox', 'planter', 'petfeeder', 'incense', 'bedtray', 'phonestand', 'bookstand', 'headphone', 'keyholder', 'wallshelf', 'spicerack', 'coasters', 'clock', 'keychains', 'ramadanornaments', 'mugtree', 'jewelrytree', 'birdhouse', 'ramadanlantern']
+export const NEW_IDS = ['bottlebox', 'easel', 'rosesign', 'giftbag', 'archbox', 'mihrabbox', 'cubeset', 'kilimbox', 'trophyswoosh', 'trophyflame', 'trophystar', 'trophycup', 'trophyplaque', 'trophycrescent', 'coasterset', 'coastersetfast', 'displaystandpro', 'displaystand', 'fabricset', 'mabkharatower', 'mabkhara', 'fittest', 'nikahtray', 'hennatray', 'welcomesign', 'placecards', 'invitebox', 'doorhanger', 'doordiagonal', 'doorblocks', 'doororbit', 'doorchevron', 'doormihrab', 'doorkhatam', 'doormashrabiya', 'doorstars', 'doorandalus', 'doorpanel', 'doorclassic', 'doorarch', 'doordiamond', 'doorwaves', 'doorstar', 'doormodern', 'doorframes', 'caketopper', 'guestframe', 'sweetstand', 'tablenumbers', 'favorbox', 'hexringbox', 'engagement', 'hinged90', 'crate', 'carrier', 'jewelry', 'moneybox', 'planter', 'petfeeder', 'incense', 'bedtray', 'phonestand', 'bookstand', 'headphone', 'keyholder', 'wallshelf', 'spicerack', 'coasters', 'clock', 'keychains', 'ramadanornaments', 'mugtree', 'jewelrytree', 'birdhouse', 'ramadanlantern']
 
 // ====================================================================== more designs, built from the shared parts
 
@@ -4663,4 +4664,4 @@ MORE.push({
   innerAdd: () => ({ W: 0, D: 0, H: 0 }),
   build: (p, c) => tierStand(p, c, true),
 })
-TEMPLATES.push(...MORE, ...TROPHIES, ...COASTER_SETS, ...ROSE_SIGNS, ...GIFT_BAGS, ...ARCH_BOXES, ...MIHRAB_BOXES, ...CUBE_SETS, ...EASELS, ...KILIM_BOXES)
+TEMPLATES.push(...MORE, ...TROPHIES, ...COASTER_SETS, ...ROSE_SIGNS, ...GIFT_BAGS, ...ARCH_BOXES, ...MIHRAB_BOXES, ...CUBE_SETS, ...EASELS, ...KILIM_BOXES, ...BOTTLE_BOXES)
