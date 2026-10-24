@@ -6,13 +6,13 @@ def prop = { String p, String env -> (project.findProperty(p) ?: System.getenv(e
 
 android {
     namespace 'com.focuspoint.app'
-    compileSdk 35
+    compileSdk 36
     defaultConfig {
         applicationId 'com.focuspoint.app'
         minSdk 24
         targetSdk 35
-        versionCode (project.findProperty('versionCode') ?: '1').toString().toInteger()
-        versionName (project.findProperty('versionName') ?: '1.0.0').toString()
+        versionCode = ((project.findProperty('versionCode') ?: '1').toString()).toInteger()
+        versionName = (project.findProperty('versionName') ?: '1.0.0').toString()
         manifestPlaceholders = [twaUrl: twaUrl, twaHost: twaHost]
         resValue 'string', 'twa_url', twaUrl
         resValue 'string', 'asset_statements', "[{\\\"relation\\\": [\\\"delegate_permission/common.handle_all_urls\\\"], \\\"target\\\": {\\\"namespace\\\": \\\"web\\\", \\\"site\\\": \\\"${twaUrl}\\\"}}]"

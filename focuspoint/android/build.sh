@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Build the signed release APK (and AAB for Google Play) of the Focus Point app.
 #   ./build.sh https://your-domain.example [versionCode] [versionName]
-# Needs: JDK 17+, Gradle 8.11+ (or /opt/gradle), ANDROID_HOME with platforms;android-35 + build-tools;35.0.0,
+# Needs: JDK 17+, Gradle 8.11+ (or /opt/gradle), ANDROID_HOME with platforms;android-36 + build-tools;36.0.0,
 # and the release keystore in keystore/ (focuspoint-release.jks + README-PRIVATE.txt with the password).
 set -euo pipefail
 cd "$(dirname "$0")"
@@ -16,6 +16,6 @@ GRADLE="${GRADLE:-$(command -v gradle || echo /opt/gradle/bin/gradle)}"
 mkdir -p out
 cp app/build/outputs/apk/release/app-release.apk "out/FocusPoint-$VN.apk"
 cp app/build/outputs/bundle/release/app-release.aab "out/FocusPoint-$VN.aab"
-"$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --print-certs "out/FocusPoint-$VN.apk" | grep -E 'SHA-256|Verified' | head -3
+"$ANDROID_HOME/build-tools/$(ls "$ANDROID_HOME/build-tools" | sort -V | tail -1)/apksigner" verify --print-certs "out/FocusPoint-$VN.apk" | grep -E 'SHA-256|Verified' | head -3
 echo "→ out/FocusPoint-$VN.apk (direct install) and out/FocusPoint-$VN.aab (Google Play)"
 echo "Serve assetlinks.json at $URL/.well-known/assetlinks.json so Android trusts the app for this site."
