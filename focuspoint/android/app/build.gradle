@@ -15,6 +15,7 @@ android {
         versionName = (project.findProperty('versionName') ?: '1.0.0').toString()
         manifestPlaceholders = [twaUrl: twaUrl, twaHost: twaHost]
         resValue 'string', 'twa_url', twaUrl
+        resValue 'string', 'twa_url_mine', "${twaUrl}/mine"
         resValue 'string', 'asset_statements', "[{\\\"relation\\\": [\\\"delegate_permission/common.handle_all_urls\\\"], \\\"target\\\": {\\\"namespace\\\": \\\"web\\\", \\\"site\\\": \\\"${twaUrl}\\\"}}]"
     }
     signingConfigs {
