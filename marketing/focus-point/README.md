@@ -14,9 +14,13 @@ Everything is generated from the sources in this folder; nothing is hand-edited 
    export GEMINI_API_KEY=...          # never commit it; the tools read it from the environment only
    python3 tools/build_vo_text.py     # voice/vo.txt: the lines joined with <long pause> tags
    python3 tools/gemini_tts.py --in voice/vo.txt --out voice/vo.wav --voice Charon --style "warm, confident, unhurried ad narrator"
-   python3 tools/segment.py voice/vo.wav voice/script.json voice/timings.json   # per-line start/end from the pauses
    python3 tools/qa_audio.py voice/vo.wav voice/script.json                     # Gemini listens and checks the dialect
+   # pacing: cut the pauses between lines to 0.6 s, the "..." pauses to 0.4 s, 6 % faster, and write the line timings
+   python3 tools/tighten.py voice/vo-raw.wav voice/script.json voice/vo.wav voice/timings.json
+   # (tools/segment.py writes the same timings.json from an untightened take)
    ```
+   The delivered take is `voice/vo-intro.wav` (L0) + `voice/vo-main.wav` (L1–L7), joined with a 0.9 s pause into
+   `voice/vo-raw.wav`, then tightened into `voice/vo.wav`.
    `voice/timings.json` (and its `timings.js` twin) drive the whole video: scene boundaries follow the voice, so a
    new take only needs steps 2–4 again, then the mix and the render.
 3. **Music** — `assets/music-bed.mp3` was generated with Google's Lyria model from a text prompt (calm acoustic
