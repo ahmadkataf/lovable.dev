@@ -7,10 +7,18 @@ One codebase, two parts, one deployment:
   It also serves the built web app (`[assets]`), so the whole system is one Worker URL.
 - `web/` — Vite + React + TypeScript PWA (installable on Android/iOS as an app, works as the website).
   RTL Arabic, light mode, the Focus Point brand (burgundy / plum / cream / gold, Alexandria + Poppins).
-  Customer side: floor plan → room → date/time → booking → Sham Cash payment → confirmation + notifications.
+  Customer side, no accounts: floor plan → room → date/time → name + phone → Sham Cash payment → confirmation + notifications
+  (the app remembers its bookings by a device id; a booking can also be found by its code + phone).
   Admin side (`/admin`): dashboard, pending payment verifications, bookings calendar, manual bookings,
   rooms and their contents, the floor plan editor, users, settings (hours, Sham Cash wallet/QR), announcements, reports.
 - `shared/types.ts` — the domain model and the HTTP API contract both sides compile against.
+
+## Simple by design
+- Customers never sign up: name and phone at booking time, that is all. Only the team logs in.
+- Few screens, one job each, lots of white space, the brand's warm light palette; no dashboards full of numbers.
+- The team app works **offline**: rooms, bookings and settings are cached on the device; changes made without internet
+  (walk-in bookings, confirmations, room edits) are queued and replayed to the cloud as soon as it is back, idempotently.
+  The customer app shows its cached plan and bookings offline; creating a booking needs internet (the payment flow does).
 
 ## Payment (Sham Cash)
 Sham Cash has no public merchant API we could verify, so the flow is the one every Syrian shop uses, made
