@@ -51,3 +51,7 @@ Everything is generated from the sources in this folder; nothing is hand-edited 
 Hook (kinetic phrases: noise → focus) → the burgundy "point" wipes to a 3D corridor of burgundy doors (their real
 corridor) → a door opens onto the real room → the meeting room on a floating card with feature chips → opening hours
 on a clock (sun → moon) → a map pin on the street → end card with the number and the Instagram handle.
+
+## Static post (1080×1350)
+`FocusPoint-post.jpg` is rendered from `post.html` with `node shot.mjs $PWD/post.html FocusPoint-post.png 1080 1350`
+(same palette, fonts, logo and photos as the reel; headline, hours, address and number are plain HTML to edit).
