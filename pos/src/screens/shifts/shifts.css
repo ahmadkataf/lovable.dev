@@ -1,0 +1,38 @@
+/* Shifts screen. */
+.sh-open { display: flex; justify-content: center; padding-top: 8px; }
+.sh-open-card { width: 100%; max-width: 440px; }
+.sh-open-empty { padding: 12px 0 4px; }
+.sh-head { display: flex; align-items: center; gap: 12px; }
+.sh-stats .stat.sh-tile-primary { background: var(--primary); border-color: var(--primary); color: var(--on-primary); }
+.sh-tile-primary .stat-label, .sh-tile-primary .stat-sub { color: inherit; opacity: .85; }
+.sh-tile-primary .stat-value { font-size: 26px; }
+.sh-stats .stat-label { display: inline-flex; align-items: center; gap: 4px; }
+.sh-stats .stat.sh-tile-over { border-color: var(--info); }
+.sh-stats .stat.sh-tile-short { border-color: var(--danger); }
+.sh-stats .stat.sh-tile-short .stat-value { color: var(--danger); }
+.sh-stats .stat.sh-tile-exact { border-color: var(--primary); }
+.sh-stats .stat.sh-tile-exact .stat-value { color: var(--success); }
+.sh-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 12px; }
+.sh-line { display: flex; align-items: center; gap: 8px; min-height: 36px; padding: 4px 0; border-bottom: 1px solid var(--line); font-size: 14px; }
+.sh-line:last-child { border-bottom: 0; }
+.sh-line.total { font-weight: 800; font-size: 16px; border-top: 2px solid var(--text); border-bottom: 0; margin-top: 4px; padding-top: 8px; }
+.sh-sign { width: 14px; color: var(--text-3); text-align: center; flex: none; }
+.sh-pos { color: var(--success); }
+.sh-neg { color: var(--danger); }
+.sh-actions { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+.sh-actions.two { grid-template-columns: repeat(2, 1fr); }
+@media (max-width: 480px) { .sh-actions { grid-template-columns: 1fr 1fr; } .sh-actions > .btn:last-child:nth-child(3) { grid-column: 1 / -1; } }
+.sh-move-ico { width: 36px; height: 36px; border-radius: 10px; display: inline-flex; align-items: center; justify-content: center; flex: none; }
+.sh-move-ico.in { background: var(--primary-soft); color: var(--primary-700); }
+.sh-move-ico.out { background: var(--danger-soft); color: var(--danger); }
+[data-theme="dark"] .sh-move-ico.in { color: var(--primary); }
+.sh-close-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; padding: 10px 12px; border-radius: var(--radius); background: var(--surface-2); text-align: center; }
+.sh-close-grid .num.bold { font-size: 18px; }
+.sh-diff-exact { color: var(--success); }
+.sh-diff-over { color: var(--info); }
+.sh-diff-short { color: var(--danger); }
+.sh-banner-ok { background: var(--primary-soft); color: var(--primary-700); border-radius: var(--radius); }
+[data-theme="dark"] .sh-banner-ok { color: var(--primary); }
+
+/* rows built from spans: title over sub, stacked */
+.list-row > .grow > .title, .list-row > .grow > .sub, .list-row > .end > .sub { display: block; }
