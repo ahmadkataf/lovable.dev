@@ -10,7 +10,7 @@ VC="${2:-1}"; VN="${3:-1.0.0}"
 PASS=$(grep -m1 'store password:' keystore/README-PRIVATE.txt | sed 's/.*: //')
 export ANDROID_HOME="${ANDROID_HOME:-/opt/android-sdk}"
 GRADLE="${GRADLE:-$(command -v gradle || echo /opt/gradle/bin/gradle)}"
-"$GRADLE" --no-daemon -q -PtwaUrl="$URL" -PversionCode="$VC" -PversionName="$VN" \
+"$GRADLE" --no-daemon -q ${GRADLE_FLAGS:-} -PtwaUrl="$URL" -PversionCode="$VC" -PversionName="$VN" \
   -PksFile="$PWD/keystore/focuspoint-release.jks" -PksPass="$PASS" -PkeyAlias=focuspoint -PkeyPass="$PASS" \
   assembleRelease bundleRelease
 mkdir -p out
