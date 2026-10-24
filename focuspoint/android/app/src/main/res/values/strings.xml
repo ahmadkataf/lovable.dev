@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">فوكس بوينت</string>
+    <string name="shortcut_mine">حجوزاتي</string>
+    <string name="twa_url_mine">https://focuspoint.example/mine</string>
+</resources>

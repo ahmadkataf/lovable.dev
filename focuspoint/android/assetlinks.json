@@ -1,0 +1,4 @@
+[{
+  "relation": ["delegate_permission/common.handle_all_urls"],
+  "target": { "namespace": "android_app", "package_name": "com.focuspoint.app", "sha256_cert_fingerprints": ["25:82:9F:6A:05:E3:39:97:36:30:8B:F5:44:53:C9:42:B7:9B:DB:E4:31:FD:8F:90:C7:D5:10:B4:66:24:78:65"] }
+}]
