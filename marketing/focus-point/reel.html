@@ -1,0 +1,381 @@
+<!doctype html>
+<html lang="ar" dir="rtl"><head><meta charset="utf-8">
+<script src="voice/timings.js"></script>
+<style>
+@font-face{font-family:A;src:url(assets/alexandria-arabic-wght-normal.woff2) format('woff2');font-weight:100 900;unicode-range:U+0600-06FF,U+0750-077F,U+FB50-FDFF,U+FE70-FEFF,U+0660-0669}
+@font-face{font-family:A;src:url(assets/alexandria-latin-wght-normal.woff2) format('woff2');font-weight:100 900}
+@font-face{font-family:P;src:url(assets/poppins-500.woff2) format('woff2');font-weight:500}
+@font-face{font-family:P;src:url(assets/poppins-600.woff2) format('woff2');font-weight:600}
+@font-face{font-family:P;src:url(assets/poppins-700.woff2) format('woff2');font-weight:700}
+@font-face{font-family:P;src:url(assets/poppins-800.woff2) format('woff2');font-weight:800}
+:root{--cream:#f6f1ea;--paper:#fffdf9;--wine:#7b1e2e;--wine2:#5e1522;--plum:#402127;--gold:#a58d73;--gold2:#6f553c;--ink:#2a1b1e;--mute:#7a6a66;--wood:#d8c2a6;--wood2:#b89a7c}
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{width:1080px;height:1920px;overflow:hidden;background:var(--cream)}
+body{font-family:A,'Noto Color Emoji',sans-serif;color:var(--ink);position:relative}
+.abs{position:absolute}.full{position:absolute;inset:0}
+.scene{position:absolute;inset:0;opacity:0;will-change:opacity,transform}
+.blob{position:absolute;width:1100px;height:1100px;border-radius:50%;filter:blur(10px)}
+.m{display:block;overflow:hidden;padding:.08em 0 .18em}.mi{display:block;will-change:transform}
+.h{font-weight:800;font-size:96px;line-height:1.22;letter-spacing:-.01em}
+.sub{font-weight:500;font-size:40px;line-height:1.5;color:var(--mute)}
+.chip{display:inline-flex;align-items:center;gap:16px;padding:16px 30px;border-radius:999px;background:var(--paper);box-shadow:0 18px 40px rgba(64,33,39,.10),0 2px 0 rgba(255,255,255,.8) inset;font-weight:700;font-size:34px;color:var(--ink);white-space:nowrap}
+.chip svg{width:40px;height:40px;stroke:var(--wine);fill:none;stroke-width:2.4;stroke-linecap:round;stroke-linejoin:round}
+.brand{position:absolute;top:252px;left:0;right:0;display:flex;justify-content:center;opacity:0}
+.brand .in{display:flex;align-items:center;gap:14px;direction:ltr;padding:12px 26px 12px 14px;border-radius:999px;background:rgba(255,253,249,.85);box-shadow:0 10px 30px rgba(64,33,39,.08)}
+.brand img{width:40px;height:40px;border-radius:50%}
+.brand span{font-family:P;font-weight:700;font-size:26px;color:var(--plum);letter-spacing:.02em}
+/* words */
+.w{position:absolute;left:90px;right:90px;text-align:center;font-weight:800;line-height:1.1;opacity:0;will-change:transform,filter}
+/* corridor */
+#cor{position:absolute;inset:0;perspective:900px;perspective-origin:50% 50%;overflow:hidden}
+#cam{position:absolute;left:540px;top:960px;width:0;height:0;transform-style:preserve-3d}
+#doors{position:absolute;left:0;top:0;transform-style:preserve-3d}
+.scene{z-index:1}#wipe{z-index:3}#flash{z-index:5}.brand{z-index:6}
+.plane{position:absolute;transform-style:preserve-3d}
+.wallL,.wallR{position:absolute;width:4900px;height:1500px;top:-750px;left:0;background:linear-gradient(#ffffff,#f3eee8);transform-origin:0 50%}
+#geo{position:absolute;left:0;top:0;transform:translateZ(700px);transform-style:preserve-3d}
+.wallL{transform:translateX(-440px) rotateY(90deg)}
+.wallR{transform:translateX(440px) rotateY(90deg)}
+.base{position:absolute;width:4900px;height:14px;top:736px;left:0;background:#e2d6c8;transform-origin:0 50%}
+.floor{position:absolute;width:880px;height:4900px;left:-440px;top:0;background:repeating-linear-gradient(90deg,var(--wood) 0 219px,#c7ad8f 219px 221px);transform:translateY(750px) rotateX(-90deg);transform-origin:50% 0;background-color:var(--wood)}
+.ceil{position:absolute;width:880px;height:4900px;left:-440px;top:0;background:#fbf8f4;transform:translateY(-750px) rotateX(-90deg);transform-origin:50% 0}
+.door{position:absolute;width:300px;height:620px;background:var(--wine);border:16px solid #fbf8f4;box-shadow:0 0 0 2px #e9e1d8;transform-style:preserve-3d}
+.door:before{content:"";position:absolute;left:34px;right:34px;top:40px;height:210px;border:3px solid rgba(255,255,255,.55);border-radius:4px}
+.door:after{content:"";position:absolute;left:34px;right:34px;bottom:40px;height:240px;border:3px solid rgba(255,255,255,.55);border-radius:4px}
+.knob{position:absolute;width:10px;height:70px;border-radius:5px;background:#2a1b1e;top:300px}
+.lamp{position:absolute;width:140px;height:50px;border-radius:50%;background:radial-gradient(closest-side,rgba(255,243,226,.95),rgba(255,243,226,0))}
+/* big door */
+#bigdoor{position:absolute;left:290px;top:560px;width:500px;height:980px;perspective:1600px;transform-style:preserve-3d}
+#bd{position:absolute;inset:0;background:var(--wine);border:22px solid #fbf8f4;box-shadow:0 40px 80px rgba(64,33,39,.25);transform-origin:100% 50%;transform-style:preserve-3d;backface-visibility:hidden}
+#bd:before{content:"";position:absolute;left:56px;right:56px;top:64px;height:330px;border:4px solid rgba(255,255,255,.6);border-radius:6px}
+#bd:after{content:"";position:absolute;left:56px;right:56px;bottom:64px;height:380px;border:4px solid rgba(255,255,255,.6);border-radius:6px}
+#bdframe{position:absolute;inset:-22px;border:22px solid #fbf8f4;box-shadow:0 30px 60px rgba(64,33,39,.18)}
+#bdphoto{position:absolute;inset:0;overflow:hidden;background:#000}
+#bdphoto img{position:absolute;left:50%;top:50%;width:1040px;transform:translate(-50%,-50%)}
+/* card */
+#card{position:absolute;left:90px;top:620px;width:900px;height:900px;border-radius:44px;overflow:hidden;box-shadow:0 60px 120px rgba(64,33,39,.22),0 0 0 10px #fff;transform-style:preserve-3d;will-change:transform}
+#card img{position:absolute;left:50%;top:50%;height:1180px;transform:translate(-50%,-50%)}
+#stage4{position:absolute;inset:0;perspective:1800px}
+.fchip{position:absolute;opacity:0;will-change:transform}
+/* clock */
+#clock{position:absolute;left:240px;top:560px;width:600px;height:600px;border-radius:50%;background:var(--paper);box-shadow:0 50px 100px rgba(64,33,39,.14),inset 0 0 0 14px #fff,inset 0 0 0 16px #ece3d9}
+#clock .tick{position:absolute;left:50%;top:50%;width:6px;height:28px;margin-left:-3px;background:#cdbfb4;border-radius:3px;transform-origin:50% 0}
+#hh,#mh{position:absolute;left:50%;top:50%;border-radius:6px;transform-origin:50% 100%}
+#hh{width:14px;height:170px;margin:-170px 0 0 -7px;background:var(--plum)}
+#mh{width:8px;height:240px;margin:-240px 0 0 -4px;background:var(--wine)}
+#cdot{position:absolute;left:50%;top:50%;width:34px;height:34px;margin:-17px 0 0 -17px;border-radius:50%;background:var(--wine);box-shadow:0 0 0 8px #fff}
+#sun{position:absolute;width:90px;height:90px;border-radius:50%;background:#e9b64a;box-shadow:0 0 60px rgba(233,182,74,.55)}
+/* map */
+#map{position:absolute;inset:0}
+#pin{position:absolute;left:540px;top:1000px;width:0;height:0}
+/* cta */
+.num{font-family:P;font-weight:700;direction:ltr;letter-spacing:.04em}
+#wm{font-family:P;font-weight:800;font-size:98px;letter-spacing:.06em;color:var(--plum);direction:ltr;display:flex;justify-content:center;gap:0;position:relative;overflow:hidden}
+#wm span{display:inline-block;will-change:transform,opacity}
+#shine{position:absolute;top:-20%;left:-60%;width:30%;height:140%;background:linear-gradient(100deg,rgba(255,255,255,0),rgba(255,255,255,.9),rgba(255,255,255,0));transform:skewX(-15deg)}
+</style></head><body>
+<div class="blob" id="g1" style="background:radial-gradient(closest-side,rgba(255,214,190,.55),rgba(255,214,190,0))"></div>
+<div class="blob" id="g2" style="background:radial-gradient(closest-side,rgba(221,205,180,.45),rgba(221,205,180,0))"></div>
+<div class="blob" id="g3" style="background:radial-gradient(closest-side,rgba(243,196,196,.35),rgba(243,196,196,0))"></div>
+
+<!-- S0 + hook -->
+<div class="scene" id="sHook">
+  <div class="abs" id="dot0" style="left:540px;top:960px;width:44px;height:44px;margin:-22px 0 0 -22px;border-radius:50%;background:var(--wine);opacity:0"></div>
+  <div class="abs" id="ring0" style="left:540px;top:960px;width:44px;height:44px;margin:-22px 0 0 -22px;border-radius:50%;border:3px solid var(--wine);opacity:0"></div>
+  <div id="hookWords"></div>
+</div>
+
+<!-- corridor -->
+<div class="scene" id="sCor">
+  <div id="cor"><div id="cam">
+    <div id="geo"><div class="plane ceil"></div><div class="plane floor"></div>
+    <div class="wallL"></div><div class="wallR"></div><div class="base" style="transform:translateX(-438px) rotateY(90deg)"></div><div class="base" style="transform:translateX(438px) rotateY(90deg)"></div></div>
+    <div id="doors"></div>
+    <div id="endwall" class="abs" style="left:-440px;top:-750px;width:880px;height:1500px;background:#fbf8f4;transform:translateZ(-4200px)">
+      <img src="assets/logo.svg" style="position:absolute;left:260px;top:400px;width:360px;height:360px">
+    </div>
+  </div></div>
+  <div class="abs" style="left:0;right:0;top:1380px;text-align:center">
+    <div class="m"><div class="mi h" id="corH" style="font-size:88px;color:var(--plum)"></div></div>
+    <div class="m"><div class="mi sub" id="corS"></div></div>
+  </div>
+</div>
+
+<!-- door → photo -->
+<div class="scene" id="sDoor">
+  <div id="doorGroup" class="full" style="transform-origin:540px 1040px">
+    <div id="bigdoor"><div id="bdphoto"><img src="assets/room-a-table.jpg" id="bdimg"></div><div id="bdframe"></div><div id="spill" class="full" style="background:linear-gradient(90deg,rgba(255,255,255,0),rgba(255,255,255,.55));opacity:0"></div><div id="bd"><div class="knob" style="left:40px;top:460px"></div></div></div>
+  </div>
+  <div class="abs" id="doorCap" style="left:70px;right:70px;top:1340px;text-align:center">
+    <div class="m"><div class="mi h" id="doorH" style="color:var(--paper);text-shadow:0 6px 30px rgba(0,0,0,.35)"></div></div>
+    <div class="abs" id="doorChips" style="left:0;right:0;top:170px;display:flex;justify-content:center;gap:18px;flex-wrap:wrap"></div>
+  </div>
+</div>
+
+<!-- meeting card -->
+<div class="scene" id="sCard">
+  <div class="abs" style="left:0;right:0;top:330px;text-align:center"><div class="m"><div class="mi h" id="cardH"></div></div><div class="m"><div class="mi sub" id="cardS"></div></div></div>
+  <div id="stage4"><div id="card"><img src="assets/room-b-wide.jpg" id="cardimg"></div></div>
+  <div id="fchips"></div>
+</div>
+
+<!-- hours -->
+<div class="scene" id="sHours">
+  <div class="abs" style="left:0;right:0;top:330px;text-align:center"><div class="m"><div class="mi h" id="hoursH"></div></div></div>
+  <div id="sun"></div>
+  <div id="clock"><div id="ticks"></div><div id="hh"></div><div id="mh"></div><div id="cdot"></div></div>
+  <div class="abs" style="left:0;right:0;top:1240px;text-align:center">
+    <div class="m"><div class="mi" id="hoursBig" style="font-weight:800;font-size:104px;line-height:1.2;color:var(--wine)"></div></div>
+    <div class="m"><div class="mi sub" id="hoursS" style="font-size:44px"></div></div>
+  </div>
+</div>
+
+<!-- map -->
+<div class="scene" id="sMap">
+  <svg id="map" viewBox="0 0 1080 1920" xmlns="http://www.w3.org/2000/svg">
+    <g id="streets" fill="none" stroke="#ddd2c6" stroke-width="22" stroke-linecap="round">
+      <path d="M-50 700 C 200 640, 420 760, 700 690 S 1050 560, 1150 600"/>
+      <path d="M-50 1120 C 250 1180, 500 1040, 760 1120 S 1050 1260, 1150 1200"/>
+      <path d="M180 -50 C 220 300, 120 700, 240 1100 S 300 1700, 260 1980"/>
+      <path d="M820 -50 C 760 300, 900 700, 800 1100 S 700 1700, 760 1980"/>
+    </g>
+    <path id="mainst" d="M-60 930 C 240 880, 470 1010, 700 940 S 1050 860, 1160 900" fill="none" stroke="#fff" stroke-width="30" stroke-linecap="round"/>
+    <path id="mainst2" d="M-60 930 C 240 880, 470 1010, 700 940 S 1050 860, 1160 900" fill="none" stroke="var(--gold)" stroke-width="8" stroke-dasharray="30 26" stroke-linecap="round" opacity=".8"/>
+    <g id="blocks" fill="#efe7dd"><rect x="300" y="420" width="190" height="150" rx="26"/><rect x="560" y="400" width="150" height="130" rx="24"/><rect x="330" y="1260" width="170" height="140" rx="26"/><rect x="600" y="1300" width="190" height="120" rx="24"/><rect x="60" y="800" width="110" height="90" rx="20"/><rect x="900" y="1000" width="120" height="100" rx="22"/></g>
+  </svg>
+  <div class="abs" id="ripple" style="left:540px;top:960px;width:60px;height:60px;margin:-30px 0 0 -30px;border-radius:50%;border:4px solid var(--wine);opacity:0"></div>
+  <div id="pin"><svg viewBox="-60 -140 120 150" style="position:absolute;left:-60px;top:-140px;width:120px;height:150px;overflow:visible"><path d="M0 0 C -40 -40 -60 -65 -60 -95 A 60 60 0 1 1 60 -95 C 60 -65 40 -40 0 0 Z" fill="var(--wine)"/><circle cx="0" cy="-95" r="24" fill="#fff"/></svg></div>
+  <div class="abs" id="mapCard" style="left:90px;right:90px;top:1130px;text-align:center;background:var(--paper);border-radius:40px;padding:44px 40px 40px;box-shadow:0 40px 90px rgba(64,33,39,.16);opacity:0">
+    <div class="h" id="mapH" style="font-size:62px;color:var(--plum)"></div>
+    <div class="sub" id="mapS" style="margin-top:8px"></div>
+  </div>
+  <div class="abs" style="left:0;right:0;top:330px;text-align:center"><div class="m"><div class="mi h" id="mapTop"></div></div></div>
+</div>
+
+<!-- CTA -->
+<div class="scene" id="sCta">
+  <div class="abs" id="ctaLogo" style="left:390px;top:430px;width:300px;height:300px;opacity:0"><img src="assets/logo.svg" style="width:300px;height:300px;filter:drop-shadow(0 30px 50px rgba(64,33,39,.25))"></div>
+  <div class="abs" style="left:0;right:0;top:770px"><div id="wm"><div id="shine"></div></div></div>
+  <div class="abs" style="left:0;right:0;top:900px;text-align:center"><div class="m"><div class="mi sub" id="ctaTag" style="font-size:42px;color:var(--ink);font-weight:600"></div></div></div>
+  <div class="abs" style="left:0;right:0;top:1080px;text-align:center"><div class="m"><div class="mi h" id="ctaH" style="font-size:78px"></div></div></div>
+  <div class="abs" id="ctaCall" style="left:0;right:0;top:1250px;display:flex;justify-content:center;opacity:0">
+    <span class="chip" style="font-size:60px;padding:26px 54px;background:var(--wine);color:#fff;box-shadow:0 30px 60px rgba(123,30,46,.35)"><svg viewBox="0 0 24 24" style="width:56px;height:56px;stroke:#fff"><path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.1 4.2 2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1.9.4 1.8.7 2.7a2 2 0 0 1-.5 2.1L8 9.8a16 16 0 0 0 6 6l1.3-1.3a2 2 0 0 1 2.1-.4c.9.3 1.8.6 2.7.7a2 2 0 0 1 1.7 2z"/></svg><span class="num" id="ctaNum">0985258963</span></span>
+  </div>
+  <div class="abs" id="ctaIg" style="left:0;right:0;top:1400px;display:flex;justify-content:center;opacity:0">
+    <span class="chip" style="font-size:36px"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.5" cy="6.5" r="1" fill="var(--wine)"/></svg><span class="num" style="font-weight:600">its_focus_point</span></span>
+  </div>
+  <div class="abs" style="left:0;right:0;top:1520px;text-align:center"><div class="m"><div class="mi sub" id="ctaS" style="font-size:34px"></div></div></div>
+</div>
+
+<div class="brand" id="brand"><div class="in"><img src="assets/logo.svg"><span>FOCUS POINT</span></div></div>
+<div id="wipe" class="full" style="background:var(--wine);clip-path:circle(0px at 540px 960px);opacity:0"></div>
+<div id="flash" class="full" style="background:#fff;opacity:0"></div>
+
+<script>
+const $=id=>document.getElementById(id)
+const clamp=(x,a=0,b=1)=>Math.max(a,Math.min(b,x)), P=(t,a,b)=>clamp((t-a)/(b-a)), lerp=(a,b,x)=>a+(b-a)*x
+const eo3=x=>1-Math.pow(1-x,3), eio=x=>x<.5?4*x*x*x:1-Math.pow(-2*x+2,3)/2, eoE=x=>x>=1?1:1-Math.pow(2,-10*x), eiE=x=>x<=0?0:Math.pow(2,10*x-10)
+const eB=(x,s=1.7)=>{x=clamp(x);const c=s+1;return 1+c*Math.pow(x-1,3)+s*Math.pow(x-1,2)}
+const eEl=x=>{if(x<=0)return 0;if(x>=1)return 1;return Math.pow(2,-10*x)*Math.sin((x*10-.75)*2*Math.PI/3)+1}
+function rv(el,t,t0,dur=.5,tOut=null,od=.3){const x=P(t,t0,t0+dur);let y=(1-eoE(x))*118;let o=0;if(tOut!=null){o=P(t,tOut,tOut+od);y-=eio(o)*118}el.style.transform=`translateY(${y}%)`;el.style.opacity=(x<=0||o>=1)?0:1}
+function pop(el,t,t0,dur=.45,tOut=null,od=.25,s=2){const x=P(t,t0,t0+dur),o=tOut!=null?P(t,tOut,tOut+od):0;el.style.opacity=(x<=0||o>=1)?0:clamp(x*4)*(1-o);el.style.transform=`translateY(${(1-eoE(x))*50-o*40}px) scale(${eB(x,s)})`}
+// seeded pseudo-random (deterministic)
+const rnd=(i,k=0)=>{const s=Math.sin(i*127.1+k*311.7)*43758.5453;return s-Math.floor(s)}
+
+// ------- timeline from the voice-over -------
+const T=window.TIMINGS||{duration:35,lines:[]}
+const VO=1.4                                // the voice starts this many seconds into the video (silence pad in the mix)
+const L=T.lines.map(l=>({...l,start:l.start+VO,end:l.end+VO,voice_end:(l.voice_end??l.end)+VO}))
+const N=L.length
+const LEAD=.28                              // visuals lead the voice a little
+const S=L.map((l,i)=>({a:i==0?0:l.start-LEAD, b:i<N-1?L[i+1].start-LEAD:9e9, l}))
+const END=(N?L[N-1].voice_end:T.duration+VO)+3.4   // hold the end card
+window.DURATION=END
+const txt=(i,k,d='')=>(L[i]&&L[i][k])||d
+
+// ------- static builds -------
+const ICONS={screen:'<svg viewBox="0 0 24 24"><rect x="2" y="4" width="20" height="13" rx="2"/><path d="M8 21h8M12 17v4"/></svg>',
+ people:'<svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0"/><circle cx="17" cy="9" r="3"/><path d="M15.5 20h6a5.5 5.5 0 0 0-4-5.3"/></svg>',
+ snow:'<svg viewBox="0 0 24 24"><path d="M12 2v20M4 6l16 12M4 18L20 6M12 6l-3-2M12 6l3-2M12 18l-3 2M12 18l3 2"/></svg>',
+ wifi:'<svg viewBox="0 0 24 24"><path d="M2 8.5a16 16 0 0 1 20 0M5.5 12.5a11 11 0 0 1 13 0M9 16.5a5.5 5.5 0 0 1 6 0"/><circle cx="12" cy="20" r="1" fill="currentColor"/></svg>',
+ coffee:'<svg viewBox="0 0 24 24"><path d="M3 9h13v6a5 5 0 0 1-5 5H8a5 5 0 0 1-5-5zM16 10h2a3 3 0 0 1 0 6h-2M7 2v3M11 2v3"/></svg>',
+ quiet:'<svg viewBox="0 0 24 24"><path d="M3 10v4h4l5 4V6L7 10zM17 9l4 6M21 9l-4 6"/></svg>',
+ door:'<svg viewBox="0 0 24 24"><rect x="5" y="2" width="14" height="20" rx="1.5"/><circle cx="15" cy="12" r="1" fill="currentColor"/></svg>',
+ sun:'<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>',
+ pin:'<svg viewBox="0 0 24 24"><path d="M12 22s7-7 7-12a7 7 0 0 0-14 0c0 5 7 12 7 12z"/><circle cx="12" cy="10" r="2.5"/></svg>'}
+const chip=(icon,label,extra='')=>`<span class="chip" ${extra}>${ICONS[icon]||''}<span>${label}</span></span>`
+
+// hook words
+const hookSrc=txt(0,'screen','ضجّة. تشتّت. ما بتنجز.')
+let HOOK=hookSrc.split(/[.،!؟]+/).map(x=>x.trim()).filter(Boolean); if(HOOK.length<2) HOOK=hookSrc.split(/\s+/).filter(Boolean)
+const hw=$('hookWords'); const HW=[]
+HOOK.forEach((w,i)=>{const d=document.createElement('div');d.className='w';d.textContent=w;d.style.fontSize=(HOOK.length>3?104:(HOOK.some(w=>w.length>9)?124:150))+'px';hw.appendChild(d);HW.push(d)})
+// corridor doors
+const DOORS=[]; for(let i=0;i<9;i++) for(const side of [-1,1]){const d=document.createElement('div');d.className='door';const z=-500-i*440;d.style.transform=`translate3d(${side*436-150}px,-250px,${z}px) rotateY(90deg)`;
+  const k=document.createElement('div');k.className='knob';k.style.left=side>0?'22px':'auto';k.style.right=side>0?'auto':'22px';d.appendChild(k);$('doors').appendChild(d)
+  const lamp=document.createElement('div');lamp.className='lamp';lamp.style.transform=`translate3d(-80px,-750px,${z}px) rotateX(90deg)`;$('doors').appendChild(lamp)}
+// clock ticks
+for(let i=0;i<12;i++){const d=document.createElement('div');d.className='tick';d.style.transform=`rotate(${i*30}deg) translateY(-278px)`;if(i%3==0){d.style.height='44px';d.style.background='#9b8c80'};$('ticks').appendChild(d)}
+// wordmark letters
+'FOCUS POINT'.split('').forEach((c,i)=>{const s=document.createElement('span');s.textContent=c==' '?' ':c;s.style.width=c==' '?'.45em':'auto';$('wm').appendChild(s)})
+// feature chips (meeting)
+const FCH=[['people','لعشرة أشخاص',120,1540],['screen','شاشة عرض',560,1540],['snow','تكييف',120,1660],['wifi','إنترنت',430,1660],['coffee','قهوة',720,1660]]
+FCH.forEach(([ic,lab,x,y],i)=>{const d=document.createElement('div');d.className='fchip';d.style.left=x+'px';d.style.top=y+'px';d.innerHTML=chip(ic,lab);$('fchips').appendChild(d)})
+const DCH=[['door','غرف خاصة'],['quiet','هدوء تام'],['coffee','قهوة']]
+DCH.forEach(([ic,lab])=>{const d=document.createElement('div');d.className='fchip';d.style.position='relative';d.innerHTML=chip(ic,lab);$('doorChips').appendChild(d)})
+
+// text content from the script (screen text), with sensible fallbacks
+$('corH').textContent=txt(1,'screen','ركنك الهادئ للإبداع')
+$('corS').textContent='Focus Point · درعا'
+$('doorH').textContent=txt(2,'screen','غرفتك… وهدوؤك')
+$('cardH').textContent=txt(3,'screen','قاعة اجتماعات مجهّزة')
+$('cardS').textContent='للفرق، للدورات، للّقاءات'
+$('hoursH').textContent=txt(4,'screen','مفتوح كل يوم')
+$('hoursBig').innerHTML='من 9 صباحاً<br>حتى 11 مساءً'
+$('hoursS').textContent='يومياً'
+$('mapTop').textContent=txt(5,'screen','وين؟')
+$('mapH').textContent='درعا – شارع المجمع الحكومي'
+$('mapS').textContent='بناء العايش'
+$('ctaTag').textContent='مساحتك وركنك الهادئ للإبداع'
+$('ctaH').textContent=txt(6,'screen','احجز مكانك')
+$('ctaS').textContent='للحجز والاستفسار · يومياً 9 ص – 11 م'
+
+// ------- render -------
+function render(t){
+  const B=[['g1',250,400,180,140,.05,.07],['g2',850,1500,160,200,.06,.05],['g3',900,500,200,160,.04,.06]]
+  for(const [id,cx,cy,ax,ay,fx,fy] of B) $(id).style.transform=`translate(${cx+ax*Math.sin(t*fx*6.28+cx)-550}px,${cy+ay*Math.cos(t*fy*6.28+cy)-550}px)`
+  const vis=['sHook','sCor','sDoor','sCard','sHours','sMap','sCta']
+  const on=(id,a,b)=>{$(id).style.opacity=(t>=a&&t<b)?1:0}
+  // scene windows (with small overlaps for transitions)
+  const s=i=>S[i]||{a:9e9,b:9e9}
+  on('sHook',0,s(1).a+.35); on('sCor',s(1).a,s(2).a+.5); on('sDoor',s(2).a,s(3).a+.4); on('sCard',s(3).a,s(4).a+.4); on('sHours',s(4).a,s(5).a+.4); on('sMap',s(5).a,s(6).a+.35); on('sCta',s(6).a,9e9)
+  $('brand').style.opacity=clamp(P(t,s(2).a+.6,s(2).a+1.1)-P(t,s(6).a-.2,s(6).a+.1))
+  $('wipe').style.opacity=0; $('flash').style.opacity=0
+
+  // ---- S0 + hook (scene 0): dot pulses, words in chaos → focus
+  if(t<s(1).a+.4){
+    const a=0, b=s(1).a
+    const d0=$('dot0'), r0=$('ring0')
+    const pulse=P(t,.1,.7); d0.style.opacity=t<b-.5?clamp(pulse*4)*(1-P(t,1.1,1.4)):0; d0.style.transform=`scale(${eB(pulse,2.6)})`
+    const rp=P(t,.35,1.3); r0.style.opacity=(1-rp)*.9*(t<b-.5?1:0); r0.style.transform=`scale(${1+rp*9})`
+    // words
+    const n=HW.length, t0=Math.max(1.0,L[0]?L[0].start-.15:1.0), per=Math.min(.42,(b-t0-1.2)/Math.max(1,n))
+    const focusAt=t0+per*n+.35
+    HW.forEach((el,i)=>{const ta=t0+i*per, x=P(t,ta,ta+.5)
+      if(x<=0){el.style.opacity=0;return}
+      const f=eio(P(t,focusAt,focusAt+.55))                        // chaos → aligned
+      const cx=(rnd(i,1)-.5)*360, cy=(rnd(i,2)-.5)*520+(i-(n-1)/2)*40, rot=(rnd(i,3)-.5)*22
+      const ax=0, ay=(i-(n-1)/2)*(HOOK.length>3?150:(HOOK.some(w=>w.length>9)?165:200))
+      const ox=lerp(cx,ax,f), oy=lerp(cy,ay,f), r=lerp(rot,0,f), bl=lerp(7,0,f)*(1)+ (1-eoE(x))*14
+      el.style.opacity=clamp(x*3)
+      el.style.top=(960-el.offsetHeight/2)+'px'
+      el.style.color=f>.5?'var(--ink)':`rgba(122,106,102,${.55+.45*f})`
+      el.style.transform=`translate(${ox}px,${oy}px) rotate(${r}deg) scale(${lerp(.9,1,f)*lerp(1.3,1,eoE(x))})`
+      el.style.filter=`blur(${bl}px)`
+    })
+    {const pd=P(t,b-.75,b-.45); const el=$('dot0'); if(pd>0&&t<b-.05){el.style.opacity=1; el.style.transform=`translate(${0}px,${(n-1)/2*(HOOK.length>3?150:(HOOK.some(w=>w.length>9)?165:200))+120}px) scale(${eB(pd,2.5)*1.3})`}}
+    // leave: words scatter & fade, dot wipe
+    const out=P(t,b-.45,b-.05); if(out>0){HW.forEach((el,i)=>{el.style.opacity=1-out;el.style.filter=`blur(${out*10}px)`;el.style.transform+=` translateY(${-out*60}px)`})}
+    $('sHook').style.transform=`scale(${1+t*.012})`
+  }
+  // wipe between hook and corridor: burgundy circle grows then corridor revealed by inverse
+  { const a=s(1).a; const g=P(t,a-.42,a-.02), r=P(t,a+.02,a+.5)
+    if(g>0&&r<1){$('wipe').style.opacity=1; $('wipe').style.clipPath=`circle(${eio(g)*1400}px at 540px 960px)`}
+    if(r>0&&r<1){const R=eio(r)*1400; $('wipe').style.opacity=1; $('wipe').style.clipPath='none'; $('wipe').style.webkitMaskImage=`radial-gradient(circle at 540px 960px, transparent ${R}px, #000 ${R+2}px)`} else $('wipe').style.webkitMaskImage='none'
+    if(r>=1&&t>a){$('wipe').style.opacity=0}
+  }
+  // ---- corridor (scene 1)
+  if(t>=s(1).a&&t<s(2).a+.5){
+    const a=s(1).a, b=s(2).a, u=t-a, D=b-a
+    const z=eio(P(u,0,D))*3850                                      // dolly forward
+    const bob=Math.sin(u*2.1)*10, sway=Math.sin(u*1.3)*2
+    $('cam').style.transform=`translate3d(0,${bob}px,${z}px) rotateY(${sway}deg)`
+    // end logo gets closer: scale a bit as we approach
+    rv($('corH'),t,a+.9,.5,b-.3,.3); rv($('corS'),t,a+1.1,.5,b-.28,.3)
+    $('sCor').style.transform=`scale(${1+P(t,b-.5,b+.3)*.25})`
+    $('sCor').style.filter=`blur(${P(t,b-.1,b+.3)*8}px)`
+  } else {$('sCor').style.filter='none'}
+  // ---- door (scene 2)
+  if(t>=s(2).a&&t<s(3).a+.4){
+    const a=s(2).a, b=s(3).a, u=t-a
+    const openX=eio(P(u,.5,1.5)); $('bd').style.transform=`rotateY(${openX*-108}deg)`
+    $('bd').style.boxShadow=`${-openX*60}px 40px 80px rgba(64,33,39,.25)`; $('spill').style.opacity=Math.sin(openX*Math.PI)*.8
+    const push=eio(P(u,1.3,2.7)); const sc=lerp(1,3.6,push)
+    $('doorGroup').style.transform=`scale(${sc})`
+    $('doorGroup').style.transformOrigin=`540px ${1040-push*60}px`
+    // photo ken burns inside
+    $('bdimg').style.transform=`translate(-50%,-50%) scale(${1.08+Math.sin(u*.3)*.02+push*.08}) translate(${-push*20}px,${push*10}px)`
+    $('bdphoto').style.boxShadow=`inset 0 0 0 ${lerp(0,0,push)}px #fff`
+    // caption after push
+    const cap=$('doorCap'); cap.style.opacity=push>.8?1:0
+    rv($('doorH'),t,a+2.6,.5,b-.3,.3)
+    ;[...$('doorChips').children].forEach((el,i)=>pop(el,t,a+2.95+i*.14,.45,b-.3,.25,2.2))
+    // scene opacity in
+    $('sDoor').style.transform=`scale(${lerp(1.15,1,eoE(P(u,0,.6)))})`
+    const o=P(t,b-.25,b+.25); $('flash').style.opacity=o>0?Math.sin(o*Math.PI)*.9:0
+  }
+  // ---- meeting card (scene 3)
+  if(t>=s(3).a&&t<s(4).a+.4){
+    const a=s(3).a, b=s(4).a, u=t-a
+    const inx=eoE(P(u,0,.9)), outx=eiE(P(t,b-.35,b+.1))
+    const rx=Math.sin(u*.9)*5, ry=Math.cos(u*.7)*7
+    $('card').style.transform=`translateY(${(1-inx)*700-outx*900}px) rotateX(${rx+(1-inx)*20}deg) rotateY(${ry}deg) scale(${lerp(.9,1,inx)})`
+    $('cardimg').style.transform=`translate(-50%,-50%) translate(${ry*6}px,${rx*5}px) scale(${1.08+u*.004})`
+    rv($('cardH'),t,a+.35,.5,b-.3,.3); rv($('cardS'),t,a+.55,.5,b-.28,.3)
+    ;[...$('fchips').children].forEach((el,i)=>{const d=1.0+i*.16; pop(el,t,a+d,.45,b-.35,.25,2.4)})
+  }
+  // ---- hours (scene 4)
+  if(t>=s(4).a&&t<s(5).a+.4){
+    const a=s(4).a, b=s(5).a, u=t-a, D=b-a
+    const inx=eoE(P(u,0,.8)), outx=eiE(P(t,b-.35,b+.1))
+    $('clock').style.transform=`translateY(${(1-inx)*300}px) scale(${lerp(.6,1,eB(P(u,0,.8),1.4))*(1-outx*.5)})`; $('clock').style.opacity=1-outx
+    const sweep=eio(P(u,.9,Math.max(1.6,D-1.4)))
+    const hours=lerp(9,23,sweep)                                     // 9:00 → 23:00
+    $('hh').style.transform=`rotate(${(hours%12)*30}deg)`; $('mh').style.transform=`rotate(${(hours*60)%60*6}deg)`
+    // sun → moon arc over the clock
+    const ang=Math.PI*(1-sweep)                                      // left → right
+    const sx=540+Math.cos(ang)*460-45, sy=860-Math.sin(ang)*330-45
+    const night=P(sweep,.6,1)
+    $('sun').style.left=sx+'px'; $('sun').style.top=sy+'px'; $('sun').style.opacity=clamp(P(u,.6,1.0))*(1-outx)
+    $('sun').style.background=night>0?`radial-gradient(circle at ${lerp(50,32,night)}% 45%, transparent ${lerp(0,38,night)}%, ${night>.5?'#d9c9b4':'#e9b64a'} ${lerp(0,40,night)}%)`:'#e9b64a'
+    $('sun').style.boxShadow=`0 0 60px rgba(233,182,74,${.55*(1-night)})`
+    document.body.style.background=`linear-gradient(#f6f1ea, ${night>0?`rgb(${lerp(246,243,night)},${lerp(241,229,night)},${lerp(234,220,night)})`:'#f6f1ea'})`
+    rv($('hoursH'),t,a+.3,.5,b-.3,.3); rv($('hoursBig'),t,a+1.0,.55,b-.3,.3); rv($('hoursS'),t,a+1.25,.5,b-.28,.3)
+  } else document.body.style.background='var(--cream)'
+  // ---- map (scene 5)
+  if(t>=s(5).a&&t<s(6).a+.35){
+    const a=s(5).a, b=s(6).a, u=t-a
+    const draw=eio(P(u,0,1.3))
+    ;[...$('streets').children].forEach((p,i)=>{const len=p.getTotalLength();p.style.strokeDasharray=len;p.style.strokeDashoffset=len*(1-eio(P(u,i*.08,1.0+i*.08)))})
+    const m=$('mainst'), ml=m.getTotalLength(); m.style.strokeDasharray=ml; m.style.strokeDashoffset=ml*(1-eio(P(u,.5,1.6)))
+    $('mainst2').style.opacity=.85*P(u,1.4,1.8)
+    ;[...$('blocks').children].forEach((r,i)=>{const x=eB(P(u,.3+i*.1,.8+i*.1),2);r.style.transformOrigin='center';r.style.transformBox='fill-box';r.style.transform=`scale(${x})`})
+    const drop=P(u,1.5,2.0), e=eB(drop,2.8)
+    const pin=$('pin'); pin.style.opacity=drop>0?1:0; pin.style.transform=`translateY(${(1-eo3(drop))*-700}px) scale(${lerp(1.6,1,e)})`
+    const rp=P(u,1.95,3.0); $('ripple').style.opacity=rp>0?(1-rp):0; $('ripple').style.transform=`scale(${1+rp*7})`
+    const card=$('mapCard'); const cx=P(u,2.1,2.6); card.style.opacity=clamp(cx*3); card.style.transform=`translateY(${(1-eoE(cx))*80}px) scale(${eB(cx,1.8)})`
+    rv($('mapTop'),t,a+.25,.5,b-.3,.3)
+    $('sMap').style.transform=`scale(${1+u*.01})`
+  }
+  // wipe map → cta with the pin's colour
+  { const a=s(6).a; const g=P(t,a-.38,a-.02), r=P(t,a+.02,a+.5)
+    if(g>0&&r<1){$('wipe').style.opacity=1; $('wipe').style.clipPath=`circle(${eio(g)*1500}px at 540px 1000px)`}
+    if(r>0&&r<1){const R=eio(r)*1500; $('wipe').style.opacity=1; $('wipe').style.clipPath='none'; $('wipe').style.webkitMaskImage=`radial-gradient(circle at 540px 1000px, transparent ${R}px, #000 ${R+2}px)`} else if(t>a) $('wipe').style.webkitMaskImage='none'
+    if(r>=1&&t>a) $('wipe').style.opacity=0
+  }
+  // ---- CTA (scene 6)
+  if(t>=s(6).a){
+    const a=s(6).a, u=t-a
+    const lx=P(u,.1,.9); $('ctaLogo').style.opacity=clamp(lx*4); $('ctaLogo').style.transform=`scale(${eEl(lx)}) rotate(${(1-eoE(lx))*-25}deg)`
+    ;[...$('wm').children].forEach((sp,i)=>{if(sp.id)return;const x=P(u,.5+i*.05,.9+i*.05);sp.style.opacity=x;sp.style.transform=`translateY(${(1-eoE(x))*60}px)`})
+    rv($('ctaTag'),t,a+1.1,.5); rv($('ctaH'),t,a+1.5,.5)
+    const cx=P(u,2.0,2.5); $('ctaCall').style.opacity=clamp(cx*3); $('ctaCall').style.transform=`scale(${eB(cx,2.2)})`
+    const ix=P(u,2.35,2.8); $('ctaIg').style.opacity=clamp(ix*3); $('ctaIg').style.transform=`translateY(${(1-eoE(ix))*40}px)`
+    rv($('ctaS'),t,a+2.7,.5)
+    $('shine').style.left=lerp(-60,160,eio(P(u,3.2,4.0)))+'%'
+    const pul=u>3.4?1+Math.sin((u-3.4)*Math.PI*2)*.025*Math.exp(-(u-3.4)*1.3):1; $('ctaCall').style.transform+=` scale(${pul})`
+  }
+  return true
+}
+window.render=render; render(0)
+</script></body></html>
