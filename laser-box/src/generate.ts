@@ -67,7 +67,8 @@ export function generate(tpl: Template, params: Record<string, number>, s: Setti
     const b = bbox([l as never]), a = b.maxX - b.minX, c = b.maxY - b.minY, short = Math.min(a, c), long = Math.max(a, c)
     return short > 0.8 * s.t && short < s.t + 1 && long > 1.5 * short
   }
-  const slotted = !!res.slotted || built.some(b => Number.isFinite(b.minFinger) || b.loops.some(isSlot))
+  // a design that says it has no joints (a fret of short dashes) is not one that slots together
+  const slotted = res.slotted === false ? false : !!res.slotted || built.some(b => Number.isFinite(b.minFinger) || b.loops.some(isSlot))
   const fitNote = slotted ? [`الشقوق والأصابع مقاسة على سماكة ${s.t} مم بالضبط مع خلوص صغير: قِس لوحك (وفي أكثر من مكان) وأدخل سماكته الحقيقية قبل القصّ، أو اقصّ «اختبار التعشيق» من قسم المعايرة أولاً.`] : []
   return { panels, layout: lay, notes: [...notes, ...fitNote].map(tidy), warnings: warnings.map(tidy), errors: errors.map(tidy), cutLength, pieceCount, finger }
 }

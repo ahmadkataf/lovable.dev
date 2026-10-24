@@ -11,6 +11,7 @@ import { CUBE_SETS } from './cubeset'
 import { EASELS } from './easel'
 import { KILIM_BOXES } from './kilimbox'
 import { BOTTLE_BOXES } from './bottlebox'
+import { CEILING_FRAMES } from './ceilingframe'
 
 export interface ParamDef {
   key: string
@@ -28,7 +29,7 @@ export interface ParamDef {
 
 export interface Common { t: number; kerf: number; finger: number; inner: boolean }
 
-export interface BuildResult { panels: PanelSpec[]; notes: string[]; warnings: string[]; errors?: string[]; /** pieces slot into each other (edge slots the outline hides from detection) */ slotted?: boolean; /** the assembly seen from the side (x forward, y up), for tests and previews */ sideView?: { outline: { x: number; y: number }[]; pieces: { id: string; pts: { x: number; y: number }[] }[] } }
+export interface BuildResult { panels: PanelSpec[]; notes: string[]; warnings: string[]; errors?: string[]; /** pieces slot into each other (edge slots the outline hides from detection); false: nothing slots, whatever small cut-outs look like slots */ slotted?: boolean; /** the assembly seen from the side (x forward, y up), for tests and previews */ sideView?: { outline: { x: number; y: number }[]; pieces: { id: string; pts: { x: number; y: number }[] }[] } }
 
 export interface Template {
   id: string
@@ -1606,6 +1607,7 @@ export const CATEGORIES: { id: string; name: string; ids: string[] }[] = [
   { id: 'office', name: 'مكتب وتنظيم', ids: ['organizer', 'phonestand', 'bookstand', 'headphone', 'keyholder', 'wallshelf', 'jewelrytree'] },
   { id: 'doorsmodern', name: 'أبواب مودرن', ids: ['doorpanel', 'doormodern', 'doorwaves', 'doorframes', 'doordiagonal', 'doorblocks', 'doororbit', 'doorchevron'] },
   { id: 'doorsarab', name: 'أبواب عربي وكلاسيك', ids: ['doormihrab', 'doorkhatam', 'doormashrabiya', 'doorstars', 'doorandalus', 'doorstar', 'doorarch', 'doorclassic', 'doordiamond'] },
+  { id: 'ceiling', name: 'ديكور أسقف', ids: ['ceilingframe'] },
   { id: 'mabakher', name: 'مباخر', ids: ['mabkhara', 'mabkharatower', 'incense'] },
   { id: 'home', name: 'بيت وحديقة', ids: ['doorhanger', 'planter', 'petfeeder', 'birdhouse', 'napkin'] },
   { id: 'light', name: 'إضاءة ورمضان', ids: ['ramadanlantern', 'ramadanornaments', 'lantern', 'shade'] },
@@ -1613,7 +1615,7 @@ export const CATEGORIES: { id: string; name: string; ids: string[] }[] = [
   { id: 'bulk', name: 'بالجملة', ids: ['keychains', 'coasters'] },
 ]
 /** the newest designs get a badge in the picker */
-export const NEW_IDS = ['bottlestand', 'bottlebox', 'easel', 'rosesign', 'giftbag', 'archbox', 'mihrabbox', 'cubeset', 'kilimbox', 'trophyswoosh', 'trophyflame', 'trophystar', 'trophycup', 'trophyplaque', 'trophycrescent', 'coasterset', 'coastersetfast', 'displaystandpro', 'displaystand', 'fabricset', 'mabkharatower', 'mabkhara', 'fittest', 'nikahtray', 'hennatray', 'welcomesign', 'placecards', 'invitebox', 'doorhanger', 'doordiagonal', 'doorblocks', 'doororbit', 'doorchevron', 'doormihrab', 'doorkhatam', 'doormashrabiya', 'doorstars', 'doorandalus', 'doorpanel', 'doorclassic', 'doorarch', 'doordiamond', 'doorwaves', 'doorstar', 'doormodern', 'doorframes', 'caketopper', 'guestframe', 'sweetstand', 'tablenumbers', 'favorbox', 'hexringbox', 'engagement', 'hinged90', 'crate', 'carrier', 'jewelry', 'moneybox', 'planter', 'petfeeder', 'incense', 'bedtray', 'phonestand', 'bookstand', 'headphone', 'keyholder', 'wallshelf', 'spicerack', 'coasters', 'clock', 'keychains', 'ramadanornaments', 'mugtree', 'jewelrytree', 'birdhouse', 'ramadanlantern']
+export const NEW_IDS = ['ceilingframe', 'bottlestand', 'bottlebox', 'easel', 'rosesign', 'giftbag', 'archbox', 'mihrabbox', 'cubeset', 'kilimbox', 'trophyswoosh', 'trophyflame', 'trophystar', 'trophycup', 'trophyplaque', 'trophycrescent', 'coasterset', 'coastersetfast', 'displaystandpro', 'displaystand', 'fabricset', 'mabkharatower', 'mabkhara', 'fittest', 'nikahtray', 'hennatray', 'welcomesign', 'placecards', 'invitebox', 'doorhanger', 'doordiagonal', 'doorblocks', 'doororbit', 'doorchevron', 'doormihrab', 'doorkhatam', 'doormashrabiya', 'doorstars', 'doorandalus', 'doorpanel', 'doorclassic', 'doorarch', 'doordiamond', 'doorwaves', 'doorstar', 'doormodern', 'doorframes', 'caketopper', 'guestframe', 'sweetstand', 'tablenumbers', 'favorbox', 'hexringbox', 'engagement', 'hinged90', 'crate', 'carrier', 'jewelry', 'moneybox', 'planter', 'petfeeder', 'incense', 'bedtray', 'phonestand', 'bookstand', 'headphone', 'keyholder', 'wallshelf', 'spicerack', 'coasters', 'clock', 'keychains', 'ramadanornaments', 'mugtree', 'jewelrytree', 'birdhouse', 'ramadanlantern']
 
 // ====================================================================== more designs, built from the shared parts
 
@@ -4664,4 +4666,4 @@ MORE.push({
   innerAdd: () => ({ W: 0, D: 0, H: 0 }),
   build: (p, c) => tierStand(p, c, true),
 })
-TEMPLATES.push(...MORE, ...TROPHIES, ...COASTER_SETS, ...ROSE_SIGNS, ...GIFT_BAGS, ...ARCH_BOXES, ...MIHRAB_BOXES, ...CUBE_SETS, ...EASELS, ...KILIM_BOXES, ...BOTTLE_BOXES)
+TEMPLATES.push(...MORE, ...TROPHIES, ...COASTER_SETS, ...ROSE_SIGNS, ...GIFT_BAGS, ...ARCH_BOXES, ...MIHRAB_BOXES, ...CUBE_SETS, ...EASELS, ...KILIM_BOXES, ...BOTTLE_BOXES, ...CEILING_FRAMES)
