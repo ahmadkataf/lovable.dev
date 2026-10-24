@@ -36,7 +36,7 @@
 
 ## الحصول على الملفات (GitHub Actions)
 1. من صفحة المستودع افتح **Actions** ← **Build Kaseb POS** ← **Run workflow**.
-2. اكتب رقم الإصدار (مثل `1.0.0`) واضغط **Run workflow**.
+2. اترك خانة رقم الإصدار فارغة ليُستعمل الإصدار المكتوب في `pos/package.json` (أو اكتب رقماً مثل `1.0.1`)، ثم اضغط **Run workflow**. تعديل الإصدار في `pos/package.json` ورفعه يبني النسخ تلقائياً.
 3. بعد انتهاء التشغيل (نحو 10 دقائق) افتحه وانزل إلى **Artifacts**:
    - `kaseb-windows`: ملف التثبيت لويندوز.
    - `kaseb-android`: ملف `Kaseb.apk` (وملف `.aab` لمتجر Google Play إن توفّر).

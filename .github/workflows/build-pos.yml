@@ -19,9 +19,9 @@ on:
   workflow_dispatch:
     inputs:
       version_name:
-        description: 'Version shown to users (e.g. 1.0.0)'
-        default: '1.0.0'
-        required: true
+        description: 'Version shown to users (e.g. 1.0.1); empty = the version in pos/package.json'
+        default: ''
+        required: false
       version_code:
         description: 'Android version code (must grow with every Play upload); empty = the run number + 100'
         required: false
@@ -60,8 +60,9 @@ jobs:
           echo "POS_LICENSE_PUBLIC_KEY=$KEY" >> "$GITHUB_ENV"
           echo "POS_BUILD=$GITHUB_RUN_NUMBER" >> "$GITHUB_ENV"
           echo "Server: $API — public key ${KEY:0:12}…"
-      - name: Set the version
-        run: npm version --no-git-tag-version --allow-same-version "${{ inputs.version_name || '1.0.0' }}"
+      - name: Set the version (a manual run's input; otherwise package.json's version stays)
+        if: ${{ inputs.version_name != '' && inputs.version_name != null }}
+        run: npm version --no-git-tag-version --allow-same-version "${{ inputs.version_name }}"
       - name: Build
         run: npx vite build
       - uses: actions/upload-artifact@v4
@@ -92,8 +93,9 @@ jobs:
         with:
           name: kaseb-web
           path: pos/dist
-      - name: Set the version
-        run: npm version --no-git-tag-version --allow-same-version "${{ inputs.version_name || '1.0.0' }}"
+      - name: Set the version (a manual run's input; otherwise package.json's version stays)
+        if: ${{ inputs.version_name != '' && inputs.version_name != null }}
+        run: npm version --no-git-tag-version --allow-same-version "${{ inputs.version_name }}"
       - name: Build the installer (electron-builder + fuses)
         run: npx electron-builder --win --x64 --config electron-builder.json
       - uses: actions/upload-artifact@v4
@@ -137,7 +139,7 @@ jobs:
           ANDROID_KEYSTORE_PASSWORD: ${{ secrets.KASEB_KEYSTORE_PASSWORD || 'kasebpass' }}
           ANDROID_KEY_ALIAS: ${{ secrets.KASEB_KEY_ALIAS || 'kaseb' }}
           VERSION_CODE_INPUT: ${{ inputs.version_code }}
-          VERSION_NAME: ${{ inputs.version_name || '1.0.0' }}
+          VERSION_NAME: ${{ inputs.version_name }}
         run: |
           export VERSION_CODE="${VERSION_CODE_INPUT:-$((GITHUB_RUN_NUMBER + 100))}"
           chmod +x pos/scripts/build-apk.sh
