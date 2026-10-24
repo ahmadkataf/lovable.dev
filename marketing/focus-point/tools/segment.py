@@ -62,10 +62,14 @@ def main():
             acc += (seg_end - seg_start) * t / tot; new.append(acc)
         new.append(seg_end)
         bounds = bounds[:-2] + new
+    # inner pauses (>= 0.22 s) inside each line, e.g. the "..." before the address: the page can cut on them
+    def inner(i):
+        a, b = bounds[i], bounds[i + 1]
+        return [[round(p, 3), round(q, 3)] for p, q in runs if p > a + .2 and q < b - .2 and q - p >= 0.22 and (p, q) not in cuts]
     res = {"duration": len(x) / sr, "first_voice": first_voice, "last_voice": last_voice,
            "lines": [{"id": l.get('id', str(i)), "start": round(bounds[i], 3), "end": round(bounds[i + 1], 3),
                       "voice_end": round(next((a for a, b in cuts if abs((a + b) / 2 - bounds[i + 1]) < 1e-6), bounds[i + 1]), 3),
-                      "text": l['vo']} for i, l in enumerate(lines)],
+                      "text": l['vo'], "screen": l.get('screen', ''), "pauses": inner(i)} for i, l in enumerate(lines)],
            "gaps": [[round(a, 3), round(b, 3)] for a, b in cuts]}
     json.dump(res, open(out, 'w', encoding='utf-8'), ensure_ascii=False, indent=1)
     # same data as a script the page can load from file:// (no fetch needed)

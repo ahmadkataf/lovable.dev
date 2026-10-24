@@ -29,7 +29,7 @@ Everything is generated from the sources in this folder; nothing is hand-edited 
    done
    ```
    `sfx/info.json` holds each clip's peak time (effects are aligned by their peak); `sfx/labels.json` says what each one sounds like.
-5. **Mix** — `python3 mix.py` → `mix.wav` (voice, ducked music bed, effects) and `voice/scenes.json`.
+5. **Mix** — `MUSIC_GAIN=0 python3 mix.py` → `mix.wav` (voice + effects; the delivered reel has no music bed. Drop the variable, or set e.g. `MUSIC_GAIN=0.28`, to mix the Lyria bed in, ducked under the voice) and `voice/scenes.json`.
 6. **Frames** — `node render.mjs $PWD/reel.html <framesDir> 30 0-<frames>` (time-driven `render(t)` in `reel.html`;
    `window.DURATION` is the video length once `voice/timings.js` is loaded).
 7. **Encode**:

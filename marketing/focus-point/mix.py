@@ -7,7 +7,7 @@ visual events. Writes mix.wav (44.1 kHz stereo).
 The scene boundaries use the same formulas as reel.html (VO pad 1.4 s, visuals lead the voice by 0.28 s).
 Effects: Mixkit (free commercial license, not redistributed) — download by id into sfx/ as in README.md.
 """
-import json, os, subprocess, sys, wave
+import json, os, re, subprocess, sys, wave
 import numpy as np
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -86,41 +86,54 @@ def main():
     bed = 0.55 * bed + 0.45 * lp
     mix += bed * (MUSIC_GAIN * env)[:, None]
 
-    # ---- effects
+    # ---- effects (cue times mirror reel.html: scene i starts at S[i])
     s = lambda i: S[i] if i < N else END
-    # S0: the point pulses, then phrases of the hook
-    hit('2535', 0.12, 0.35)                                        # gentle chime on the dot
-    hook_n = max(1, len([w for w in (L[0].get('screen') or '').split('.') if w.strip()]))
-    t0 = max(1.0, L[0]['start'] - .15); per = min(.42, (s(1) - t0 - 1.2) / hook_n)
-    for i in range(hook_n): hit('3115', t0 + i * per + .05, 0.55, pan=(i % 2) * .4 - .2)   # page-turn as each phrase lands
-    hit('2870', t0 + per * hook_n + .35, 0.45, cut=1.2, fade=.4)   # the "focus" snap
-    hit('2568', s(1) - .75 + .25, 0.7)                             # the point pops
-    hit('2354', s(1) - .05, 0.45, cut=1.6, fade=.6)                # burgundy wipe hits (soft low impact)
-    # corridor: slow dark whoosh for the dolly, latch when we arrive
-    put(sfx('2903'), s(1) + .2, 0.5, cut=3.0, fade=1.0)
-    hit('2003', s(1) + 1.0, 0.45)                                  # the logo at the end of the corridor
-    # door: latch click, open creak replaced by a whoosh, push-through
-    hit('2073', s(2) + .5, 0.8)
-    put(sfx('1492'), s(2) + .55, 0.6, cut=.9, fade=.3)
-    put(sfx('2870'), s(2) + 1.3, 0.5, cut=1.4, fade=.5)
-    for i in range(3): hit('2568', s(2) + 2.95 + i * .14 + .1, 0.6)
-    # meeting card: swoosh in, chips pop
-    hit('3060', s(3) + .25, 0.6)
-    for i in range(5): hit('2568', s(3) + 1.0 + i * .16 + .1, 0.55, pan=(i % 2) * .5 - .25)
-    # hours: card swoosh, clock ticks during the sweep, soft chime at 11
-    hit('1492', s(4) + .15, 0.5)
-    D4 = s(5) - s(4); sweep_a, sweep_b = s(4) + .9, s(4) + max(1.6, D4 - 1.4)
-    tk = sweep_a
-    while tk < sweep_b: hit('2357', tk, 0.35); tk += .22
-    hit('3005', sweep_b + .05, 0.45)
-    # map: streets draw (soft whoosh), pin drop (pop + chime), card
-    put(sfx('2870'), s(5) + .1, 0.35, cut=1.3, fade=.5)
-    hit('2364', s(5) + 1.95, 0.9); hit('3005', s(5) + 2.0, 0.5)
-    hit('2568', s(5) + 2.15, 0.6)
-    # CTA: wipe impact, logo chime, letters ticks, call chip pop, final chime
+    # 0 hook: the point pulses, phrases land as page turns, snap into focus, the point pops
+    hit('2535', 0.12, 0.35)
+    hook_n = max(1, len([w for w in re.split(r'[.،!؟]+', L[0].get('screen') or '') if w.strip()]))
+    t0 = max(1.0, L[0]['start'] - .15); per = min(.6, max(.3, (s(1) - t0 - 1.2) / hook_n))
+    for i in range(hook_n): hit('3115', t0 + i * per + .05, 0.55, pan=(i % 2) * .4 - .2)
+    hit('2870', t0 + per * hook_n + .3, 0.45, cut=1.2, fade=.4)
+    hit('2568', s(1) - .7, 0.7)
+    put(sfx('1492'), s(1) - .35, 0.45, cut=.9, fade=.3)                 # words scatter away
+    # 1 where?: headline, two cards pop, shaking (no sound: the music carries it), freeze + big question
+    hit('3115', s(1) + .15, 0.5)
+    hit('2568', s(1) + .45, 0.6, pan=-.3); hit('2568', s(1) + .7, 0.6, pan=.3)
+    D1 = s(2) - s(1); qAt = s(1) + max(1.6, D1 * .58)
+    put(sfx('2870'), qAt - .45, 0.4, cut=1.0, fade=.4)
+    hit('3060', qAt + .05, 0.6); hit('2608', qAt + .08, 0.3, cut=1.2, fade=.5)
+    # 2 corridor: the burgundy point hits, a long soft whoosh for the dolly, chime when the logo is close
+    hit('2354', s(2) - .05, 0.5, cut=1.8, fade=.7)
+    put(sfx('2903'), s(2) + .2, 0.5, cut=3.2, fade=1.2)
+    hit('3115', s(2) + .95, 0.4)
+    hit('2003', s(3) - 1.1, 0.45)
+    # 3 door: latch, swing, push-through, chips
+    hit('2073', s(3) + .5, 0.8)
+    put(sfx('1492'), s(3) + .55, 0.6, cut=.9, fade=.3)
+    put(sfx('2870'), s(3) + 1.3, 0.5, cut=1.4, fade=.5)
+    hit('3115', s(3) + 2.6, 0.4)
+    for i in range(4): hit('2568', s(3) + 2.9 + i * .14 + .1, 0.6, pan=(i % 2) * .5 - .25)
+    # 4 card: swoosh in, headline, four chips
+    hit('3060', s(4) + .25, 0.6); hit('3115', s(4) + .4, 0.4)
+    for i in range(4): hit('2568', s(4) + 1.0 + i * .16 + .1, 0.55, pan=(i % 2) * .5 - .25)
+    # 5 hours → map: clock in, ticks during the sweep, chime at 11; map draws, pin drops, card
+    a5, b5 = s(5), s(6); D5 = b5 - a5
+    ps = [p for p in (L[5].get('pauses') or [])]
+    if ps:
+        pz = max(ps, key=lambda p: p[1] - p[0]); M = max(a5 + 2.2, min(b5 - 2.0, (pz[0] + pz[1]) / 2 + VO_PAD - .1))
+    else: M = a5 + D5 * .52
+    hit('1492', a5 + .15, 0.5); hit('3115', a5 + .3, 0.4)
+    tk = a5 + .8
+    while tk < max(a5 + 1.5, M - .6): hit('2357', tk, 0.35); tk += .22
+    hit('3005', max(a5 + 1.5, M - .6) + .05, 0.45)
+    put(sfx('2870'), M - .1, 0.35, cut=1.3, fade=.5)
+    hit('2364', M + 1.4, 0.9); hit('3005', M + 1.45, 0.5)
+    hit('2568', M + 1.7, 0.6)
+    # 6 CTA: the pin's colour wipes, logo chime, letters tick in, call chip pops, final chime
     hit('2354', s(6) - .05, 0.5, cut=1.8, fade=.7)
     hit('2003', s(6) + .35, 0.6)
     for i in range(11): hit('2357', s(6) + .55 + i * .05 + .02, 0.22, pan=-.4 + i * .08)
+    hit('3115', s(6) + 1.15, 0.35); hit('3115', s(6) + 1.55, 0.35)
     hit('2568', s(6) + 2.1, 0.7); hit('2535', s(6) + 2.15, 0.5)
     hit('2568', s(6) + 2.45, 0.5)
 
