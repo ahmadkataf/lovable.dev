@@ -10,7 +10,7 @@ android {
     defaultConfig {
         applicationId 'com.focuspoint.app'
         minSdk 24
-        targetSdk 35
+        targetSdk 36
         versionCode = ((project.findProperty('versionCode') ?: '1').toString()).toInteger()
         versionName = (project.findProperty('versionName') ?: '1.0.0').toString()
         manifestPlaceholders = [twaUrl: twaUrl, twaHost: twaHost]
