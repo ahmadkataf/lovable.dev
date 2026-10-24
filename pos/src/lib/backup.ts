@@ -82,17 +82,23 @@ export function validateBackup(json: string): BackupValidation {
  * Replaces EVERYTHING with the file's content: one transaction over all tables, each cleared then filled
  * (chunks of 500). Throws with the validation error code when the file is not a Kaseb backup.
  */
-export async function importBackup(json: string): Promise<BackupCounts> {
+export async function importBackup(json: string, onProgress?: (done: number, total: number) => void): Promise<BackupCounts> {
   const v = validateBackup(json)
   if (!v.ok || !v.data) throw new Error(v.error ?? 'invalid_json')
   const data = v.data
+  const total = TABLES.reduce((n, name) => n + (data.tables[name]?.length ?? 0), 0)
+  let done = 0
+  const tell = () => { try { onProgress?.(done, total) } catch { /* the display must not break the restore */ } }
   await db.transaction('rw', allTables(), async () => {
     for (const name of TABLES) {
       const table = db.table(name)
       await table.clear()
-      let rows = data.tables[name] ?? []
+      const all = data.tables[name] ?? []
+      let rows = all
       if (name === 'products') rows = rows.filter(r => !forbiddenProduct(r as { name?: string; notes?: string; sku?: string }))   // the tobacco rule holds for restored data too
-      for (let i = 0; i < rows.length; i += CHUNK) await table.bulkPut(rows.slice(i, i + CHUNK))
+      done += all.length - rows.length
+      for (let i = 0; i < rows.length; i += CHUNK) { await table.bulkPut(rows.slice(i, i + CHUNK)); done += Math.min(CHUNK, rows.length - i); tell() }
+      tell()
     }
   })
   // a backup from a broken install could lack users or settings

@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
-import { useLiveQuery } from 'dexie-react-hooks'
+import { useLiveQuery } from '../../../lib/live'
 import { Banknote, Boxes, Bell, LayoutGrid, Lock, Plus, X, Scale, Star } from 'lucide-react'
 import { useStore, toast } from '../../../state/store'
 import { useT } from '../../../i18n'

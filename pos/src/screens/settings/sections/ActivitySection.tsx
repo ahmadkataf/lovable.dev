@@ -1,6 +1,6 @@
 // The activity log: discounts, price changes, refunds, deletions, stock adjustments, user changes…
 import { useMemo, useState } from 'react'
-import { useLiveQuery } from 'dexie-react-hooks'
+import { useLiveQuery } from '../../../lib/live'
 import { ClipboardList, Download } from 'lucide-react'
 import { useT } from '../../../i18n'
 import { useStore } from '../../../state/store'

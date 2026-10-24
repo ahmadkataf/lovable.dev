@@ -3,7 +3,7 @@
 import { allowed } from '../../lib/audit'
 import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent, type PointerEvent, type ReactNode } from 'react'
 import { Routes, Route, Outlet, useNavigate, useParams, useSearchParams, useLocation, useMatch } from 'react-router-dom'
-import { useLiveQuery } from 'dexie-react-hooks'
+import { useLiveQuery } from '../../lib/live'
 import { Plus, Filter, ArrowUpDown, MoreHorizontal, CheckSquare, Star, Package, SearchX, Tag, Printer, Download, Upload, FileText, X, Check, FolderInput, Eye, EyeOff, Trash2, Percent, ScanBarcode, ArrowLeftRight } from 'lucide-react'
 import { db } from '../../db'
 import { daysToExpiry, EXPIRY_WARN_DAYS, isFxPriced, type Category, type Product } from '../../db/types'

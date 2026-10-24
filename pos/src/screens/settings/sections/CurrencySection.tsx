@@ -2,7 +2,7 @@
 // derived from a daily rate. The rate itself is written ONLY through useStore.setExchangeRate (reprice + history +
 // audit); the other fields go through updateSettings, followed by a reprice when the rounding rules changed.
 import { useMemo } from 'react'
-import { useLiveQuery } from 'dexie-react-hooks'
+import { useLiveQuery } from '../../../lib/live'
 import { Coins, ArrowLeftRight, History } from 'lucide-react'
 import { db } from '../../../db'
 import { useStore, confirmDialog } from '../../../state/store'

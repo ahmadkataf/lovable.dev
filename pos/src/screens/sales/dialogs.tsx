@@ -1,7 +1,7 @@
 // The small dialogs of the sales screen: line editor, discount, note, quantity pad, custom item,
 // hold / held tickets, customer picker and the "new product from an unknown barcode" form.
 import { useEffect, useMemo, useState } from 'react'
-import { useLiveQuery } from 'dexie-react-hooks'
+import { useLiveQuery } from '../../lib/live'
 import { Minus, Plus, Trash, RotateCcw, UserPlus, User, Check, CirclePause, Info, Search } from 'lucide-react'
 import { db } from '../../db'
 import type { Category, Customer, HeldTicket, Product, Settings, User as DbUser } from '../../db/types'
@@ -16,7 +16,7 @@ import { useT } from '../../i18n'
 import { forbiddenProduct } from '../../lib/policy'
 import { PolicyBanner } from '../../components/PolicyBanner'
 import { toast } from '../../state/store'
-import { Modal, Button, Input, NumberInput, Textarea, Select, Field, Seg, SwitchRow, NumPad, Avatar, Empty, SearchInput, Money } from '../../components/ui'
+import { Modal, Button, Input, NumberInput, Textarea, Select, Field, Seg, SwitchRow, NumPad, Avatar, Empty, SearchInput, Money, Spinner } from '../../components/ui'
 import { normalizeText } from './search'
 import { unitLabel } from './CartPanel'
 
@@ -252,7 +252,7 @@ export function HeldTicketsDialog({ user, users, settings, onRestore, onDelete, 
   const tickets = useLiveQuery(() => db.heldTickets.orderBy('createdAt').reverse().toArray(), [])
   return (
     <Modal open onClose={onClose} title={t('sales.heldTitle')}>
-      {tickets === undefined ? <div className="center" style={{ padding: 24 }}><span className="spinner" /></div>
+      {tickets === undefined ? <div className="center" style={{ padding: 24 }}><Spinner /></div>
         : tickets.length === 0 ? <Empty icon={<CirclePause size={30} />} title={t('sales.heldEmpty')} />
         : (
           <div className="list card flat">
@@ -343,7 +343,7 @@ export function CustomerPickerDialog({ selectedId, settings, onPick, onClose }: 
                 <div className="grow"><div className="title">{t('sales.customerNone')}</div></div>
               </button>
             )}
-            {list === undefined ? <div className="center" style={{ padding: 20 }}><span className="spinner" /></div>
+            {list === undefined ? <div className="center" style={{ padding: 20 }}><Spinner /></div>
               : list.length === 0 ? <Empty icon={customers?.length ? <Search size={28} /> : <User size={28} />} title={customers?.length ? t('common.noResults') : t('sales.customerEmpty')} />
               : list.map(c => (
                 <button type="button" key={c.id} className="list-row cust-row" onClick={() => onPick(c)}>

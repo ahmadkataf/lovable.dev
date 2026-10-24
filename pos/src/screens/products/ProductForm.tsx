@@ -3,7 +3,7 @@
 // (anchors: fxPrice / fxWholesalePrice / packs[].fxPrice, cost has its own toggle → fxCost); the primary figures are
 // derived at today's rate on save (lib/fx derivePrices) and follow every rate change afterwards.
 import { useEffect, useRef, useState, type FormEvent, type KeyboardEvent } from 'react'
-import { useLiveQuery } from 'dexie-react-hooks'
+import { useLiveQuery } from '../../lib/live'
 import { Camera, Plus, X, Wand2, Image as ImageIcon, Trash2, MoreVertical, Copy, Printer, AlertTriangle, Smile, Package } from 'lucide-react'
 import { db, nextNumber } from '../../db'
 import { isFxPriced, type Category, type Product, type ProductPack, type SecondCurrency } from '../../db/types'
@@ -28,6 +28,7 @@ import { deleteProduct, findBarcodeConflicts } from './actions'
 import { forbiddenProduct } from '../../lib/policy'
 import { PolicyBanner } from '../../components/PolicyBanner'
 import { LabelsDialog } from './LabelsDialog'
+import { logError } from '../../lib/recovery'
 
 /** `price` is typed in the form's pricing currency (see FormState.fxMode). */
 interface PackDraft { id: string; name: string; qty: string; price: string; barcode: string }
@@ -138,7 +139,8 @@ export function ProductForm({ open, productId, duplicateFrom, presetBarcode, onC
       }
       setTimeout(() => nameRef.current?.focus(), 50)
     }
-    void load()
+    // a read that fails must not leave the form behind a spinner (Save disabled) with no explanation
+    void load().catch(e => { if (cancelled) return; logError('product-form', e); setLoading(false); toast(t('common.error'), 'error'); onClose() })
     return () => { cancelled = true }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, productId, duplicateFrom, presetBarcode])

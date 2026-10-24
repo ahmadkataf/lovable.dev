@@ -22,7 +22,7 @@ if (!app.requestSingleInstanceLock()) {
   app.quit()
 } else {
   app.on('second-instance', () => {
-    if (!win || win.isDestroyed()) return
+    if (!win || win.isDestroyed()) { if (app.isReady()) createWindow(); return }
     if (win.isMinimized()) win.restore()
     win.show()
     win.focus()
@@ -67,7 +67,8 @@ function createWindow() {
     },
   })
   win.once('ready-to-show', () => { if (win && !win.isDestroyed()) win.show() })
-  win.on('closed', () => { win = null })
+  // closing the main window ends the app even while a print window is still waiting on its printer
+  win.on('closed', () => { win = null; app.quit() })
 
   // F11 toggles fullscreen (the cashier screen likes the whole display)
   win.webContents.on('before-input-event', (event, input) => {
@@ -80,6 +81,30 @@ function createWindow() {
   win.webContents.setVisualZoomLevelLimits(1, 1).catch(() => {})
   win.webContents.on('did-finish-load', () => { if (win && !win.isDestroyed()) win.setTitle('Kaseb POS') })
   win.on('page-title-updated', e => e.preventDefault())
+
+  // The page's process crashed (out of memory, a GPU driver): load it again instead of leaving a dead window. If it
+  // keeps crashing, stop reloading and say so.
+  let crashes = []
+  win.webContents.on('render-process-gone', (_e, details) => {
+    if (!details || details.reason === 'clean-exit' || !win || win.isDestroyed()) return
+    console.error('renderer gone', details)
+    const now = Date.now()
+    crashes = crashes.filter(t => now - t < 60000).concat(now)
+    if (crashes.length <= 3) { win.webContents.reload(); return }
+    dialog.showMessageBox(win, { type: 'error', buttons: ['أعد تشغيل كاسب · Restart Kaseb', 'إغلاق · Close'], defaultId: 0, title: 'Kaseb POS', message: 'توقف كاسب عن العمل عدة مرات · Kaseb stopped several times', detail: 'أعد تشغيل البرنامج. إن تكرر الأمر فأعد تشغيل الحاسوب أو تواصل مع الدعم.\nRestart Kaseb. If it happens again, restart the computer or contact support.' })
+      .then(r => { if (r.response === 0) { app.relaunch() } app.exit(0) }).catch(() => app.exit(0))
+  })
+  // The page stopped answering (a long freeze): offer to wait or to restart — the window had no way out before.
+  // (the box closes by itself when the page answers again)
+  let unresponsivePrompt = null
+  win.on('unresponsive', () => {
+    if (unresponsivePrompt || !win || win.isDestroyed()) return
+    const ctl = unresponsivePrompt = new AbortController()
+    dialog.showMessageBox(win, { type: 'warning', buttons: ['انتظر · Wait', 'أعد تشغيل كاسب · Restart Kaseb'], defaultId: 0, cancelId: 0, title: 'Kaseb POS', message: 'كاسب لا يستجيب الآن · Kaseb is not responding', detail: 'يمكنك الانتظار قليلاً، أو إعادة تشغيل البرنامج. البيانات المحفوظة لا تضيع.\nYou can wait a little, or restart Kaseb. Saved data is not lost.', signal: ctl.signal })
+      .then(r => { unresponsivePrompt = null; if (r.response === 1 && !ctl.signal.aborted) { app.relaunch(); app.exit(0) } })
+      .catch(() => { unresponsivePrompt = null })
+  })
+  win.on('responsive', () => { if (unresponsivePrompt) unresponsivePrompt.abort() })
 
   win.loadFile(path.join(__dirname, '..', 'dist', 'index.html')).catch(err => {
     console.error('Cannot load the app page', err)
@@ -138,6 +163,8 @@ function registerIpc() {
   handle('pos:licenseSet', licenseSet, undefined)
   handle('pos:openExternal', url => openExternal(url), undefined)
   handle('pos:setFullscreen', on => { if (win && !win.isDestroyed()) win.setFullScreen(!!on) }, undefined)
+  // the recovery screens' "restart the app" (a stuck start-up, a crashed screen): a new process, like closing and reopening
+  handle('pos:relaunch', () => { setTimeout(() => { app.relaunch(); app.exit(0) }, 50) }, undefined)
   handle('pos:appSignature', () => 'electron', 'electron')
 }
 
@@ -255,7 +282,8 @@ function printHtml(html, opts) {
 async function getPrinters() {
   const contents = win && !win.isDestroyed() ? win.webContents : null
   if (!contents) return []
-  const list = await contents.getPrintersAsync()
+  // a stuck print spooler or printer driver must not keep the printer list loading for good
+  const list = await Promise.race([contents.getPrintersAsync(), new Promise(resolve => setTimeout(() => resolve([]), 8000))])
   return list.map(p => ({ name: String(p.name), isDefault: !!p.isDefault }))
 }
 

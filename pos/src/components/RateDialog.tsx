@@ -132,7 +132,7 @@ export function RateDialog({ onClose, prompt }: { onClose: () => void; prompt?: 
   const okLabel = big && !armed ? t('fx.bigChange', { pct: pctText }) : t('common.save')
 
   return (
-    <Modal open onClose={close} title={t('fx.title')} size="narrow" className="rate-dialog" footer={
+    <Modal open onClose={close} title={t('fx.title')} size="narrow" className="rate-dialog" busy={busy} footer={
       <>
         <Button onClick={close} disabled={busy}>{prompt ? t('fx.later') : t('common.cancel')}</Button>
         <Button variant={big && !armed ? 'danger' : 'primary'} icon={big && !armed ? <TriangleAlert size={16} /> : <Check size={16} />} loading={busy} disabled={!valid || nonsense} onClick={() => void submit()}>{okLabel}</Button>

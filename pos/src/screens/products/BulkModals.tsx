@@ -1,7 +1,7 @@
 // Dialogs for the multi-select bar: change prices by % or a fixed amount, convert pricing to / from the second
 // currency, move to a category. The arithmetic lives in product-utils (bulkPricePatch / anchorProduct).
 import { useEffect, useMemo, useState } from 'react'
-import { useLiveQuery } from 'dexie-react-hooks'
+import { useLiveQuery } from '../../lib/live'
 import { AlertTriangle } from 'lucide-react'
 import { db } from '../../db'
 import { isFxPriced, type Product } from '../../db/types'

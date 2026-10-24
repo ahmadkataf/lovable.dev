@@ -2,7 +2,7 @@
 // scanning by keyboard wedge / camera / typed code, hold & restore, payment, and the receipt afterwards.
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { useLiveQuery } from 'dexie-react-hooks'
+import { useLiveQuery } from '../../lib/live'
 import { ShoppingCart } from 'lucide-react'
 import { db } from '../../db'
 import type { Customer, HeldTicket, Product, Sale, ProductPack, CustomerTier } from '../../db/types'
@@ -15,7 +15,8 @@ import { formatMoney, formatQty } from '../../lib/money'
 import { cleanBarcode, parseScaleBarcode, matchesPlu } from '../../lib/barcode'
 import { useBarcodeWedge } from '../../lib/scanner-input'
 import { platform } from '../../lib/platform'
-import { completeSale, balanceAfterSale, saleErrorText, type PaymentPlan } from '../../lib/sales'
+import { completeSale, balanceAfterSale, saleErrorText, SaleError, type PaymentPlan } from '../../lib/sales'
+import { logError } from '../../lib/recovery'
 import { printSale } from '../../lib/receipt'
 import { allowed } from '../../lib/audit'
 import { redeemPlan } from '../../lib/loyalty'
@@ -251,6 +252,8 @@ export default function SalesScreen() {
       else { setDialog(null); toast(t('sales.doneToast', { n: sale.number }), 'success'); if (!isMobile) focusSearch() }
     } catch (e) {
       beep('error')
+      // a database failure (not a business refusal such as missing stock) goes to the error log for support
+      if (!(e instanceof SaleError)) logError('sale', e)
       toast(saleErrorText(e, t), 'error')
     } finally { setBusy(false) }
   }

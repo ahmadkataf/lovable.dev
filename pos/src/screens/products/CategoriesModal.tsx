@@ -1,7 +1,7 @@
 // The categories manager: add, rename, colour, emoji, reorder and delete.
 import { useEffect, useState } from 'react'
 import { forbiddenProduct } from '../../lib/policy'
-import { useLiveQuery } from 'dexie-react-hooks'
+import { useLiveQuery } from '../../lib/live'
 import { Plus, Pencil, Trash2, ChevronUp, ChevronDown, Tag } from 'lucide-react'
 import { db } from '../../db'
 import type { Category } from '../../db/types'

@@ -1,7 +1,7 @@
 import { logAudit } from '../../../lib/audit'
 import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { useLiveQuery } from 'dexie-react-hooks'
+import { useLiveQuery } from '../../../lib/live'
 import { ChevronLeft, KeyRound, Lock, Plus, Trash2, Users, UserX } from 'lucide-react'
 import { useStore, toast, confirmDialog } from '../../../state/store'
 import { useT } from '../../../i18n'

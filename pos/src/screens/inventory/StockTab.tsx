@@ -1,6 +1,6 @@
 // المخزون: every active product with its stock, quick +/− adjustments and a single-product count.
 import { useMemo, useState } from 'react'
-import { useLiveQuery } from 'dexie-react-hooks'
+import { useLiveQuery } from '../../lib/live'
 import { useNavigate } from 'react-router-dom'
 import { Plus, Minus, ClipboardCheck, Download, AlertTriangle, PackageX, Boxes, Coins, Package } from 'lucide-react'
 import { db } from '../../db'

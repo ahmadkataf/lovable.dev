@@ -1,7 +1,7 @@
 // The customers list: head numbers, Arabic-friendly search, sort, the "with debt" filter, and the add sheet.
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { useLiveQuery } from 'dexie-react-hooks'
+import { useLiveQuery } from '../../lib/live'
 import { Plus, Users, Search, Wallet, HandCoins } from 'lucide-react'
 import { db } from '../../db'
 import type { Customer } from '../../db/types'

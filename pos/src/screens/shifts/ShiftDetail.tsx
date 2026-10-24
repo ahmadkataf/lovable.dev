@@ -1,5 +1,5 @@
 // A shift's report (closed, or still open): the numbers, the cash moves, print and share.
-import { useLiveQuery } from 'dexie-react-hooks'
+import { useLiveQuery } from '../../lib/live'
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { Printer, Share2, Clock, CheckCircle2, ArrowDownToLine, ArrowUpFromLine } from 'lucide-react'
 import { db } from '../../db'

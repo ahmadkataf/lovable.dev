@@ -1,6 +1,6 @@
 // الموردون: the list, and the add / edit dialog (also used inline from the purchase form).
 import { useEffect, useState } from 'react'
-import { useLiveQuery } from 'dexie-react-hooks'
+import { useLiveQuery } from '../../lib/live'
 import { useNavigate } from 'react-router-dom'
 import { Plus, Truck, ChevronLeft, ChevronRight } from 'lucide-react'
 import { db } from '../../db'

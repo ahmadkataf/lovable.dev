@@ -1,6 +1,6 @@
 // Closed shifts, newest first. Cashiers see their own; the admin sees everyone's.
 import { useState } from 'react'
-import { useLiveQuery } from 'dexie-react-hooks'
+import { useLiveQuery } from '../../lib/live'
 import { useNavigate } from 'react-router-dom'
 import { Clock, ChevronLeft, ChevronRight } from 'lucide-react'
 import { db } from '../../db'

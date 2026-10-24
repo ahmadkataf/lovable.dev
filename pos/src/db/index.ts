@@ -4,6 +4,7 @@ import type {
 } from './types'
 import { DEFAULT_SETTINGS } from './types'
 import { uid } from '../lib/ids'
+import { logError, withTimeout } from '../lib/recovery'
 
 export class KasebDB extends Dexie {
   products!: Table<Product, string>
@@ -48,6 +49,26 @@ export class KasebDB extends Dexie {
 }
 
 export const db = new KasebDB()
+
+// A schema upgrade held up by another open connection ends up in the local error log (support details).
+db.on('blocked', () => logError('db-blocked', new Error('another connection blocks opening the database')))
+
+/** Opens the database again after a FAILED open. Dexie keeps a failed open as the answer to every later query of this
+ *  page (DatabaseClosedError) and never tries again by itself; so: close, re-enable auto-open, open with a time limit.
+ *  Callers check `db.hasFailed() && !db.isOpen()` first: an open still in progress is never cancelled (that would roll
+ *  back a schema upgrade). One reopen at a time — the start-up retries and the live queries' recovery share it. A
+ *  DbOpenTimeout means "slow", not "failed": the open goes on and the app continues when it finishes. */
+let reopening: Promise<void> | null = null
+export function reopenDb(timeoutMs = 10000): Promise<void> {
+  if (reopening) return reopening
+  reopening = (async () => {
+    try { db.close() } catch { /* nothing open */ }
+    await new Promise(r => setTimeout(r, 30))
+    try { db.close({ disableAutoOpen: false }) } catch { /* idem */ }   // forget the failure, auto-open on again
+    await withTimeout(db.open(), timeoutMs, 'DbOpenTimeout')
+  })().finally(() => { reopening = null })
+  return reopening
+}
 
 /** Every table, for backups. Keep in the order they should be restored. */
 export const TABLES = ['categories', 'products', 'customers', 'suppliers', 'users', 'shifts', 'cashMoves', 'sales', 'refunds', 'stockMoves', 'purchases', 'ledger', 'expenses', 'heldTickets', 'kv', 'audit'] as const

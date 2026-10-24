@@ -8,6 +8,7 @@ import { errorMessageKey } from '../license/crypto'
 import { exportBackup, importBackup, validateBackup, markBackupDone, type BackupCounts } from './backup'
 import { platform } from './platform'
 import { useStore } from '../state/store'
+import { logError } from './recovery'
 
 export const CLOUD_LAST_KEY = 'cloud.last'
 export const CLOUD_EVERY = 24 * 3600000       // one automatic upload a day
@@ -48,6 +49,7 @@ async function pump(stream: ReadableStream<Uint8Array>): Promise<Uint8Array<Arra
   return out
 }
 export async function gzipText(text: string): Promise<Uint8Array<ArrayBuffer>> {
+  if (typeof CompressionStream === 'undefined') throw Object.assign(new Error('CompressionStream is not available (update Android System WebView)'), { name: 'NotSupportedError' })
   const cs = new CompressionStream('gzip')
   const w = cs.writable.getWriter()
   void w.write(new TextEncoder().encode(text)).then(() => w.close())
@@ -73,18 +75,48 @@ export function shouldAutoBackup(last: number | null, active: boolean, enabled: 
 }
 
 // ---------- network ----------
-async function request(path: string, init: RequestInit): Promise<{ res: Response | null; error?: string; errorText?: string }> {
+const STALL_TIMEOUT = 45000      // a body that stops arriving for this long is given up (a moving one never is)
+type Reply<T> = { ok: true; data: T } | { ok: false; error: string; errorText?: string }
+/** One call to the cloud API, the response body included. Before, the time limit stopped at the response headers and
+ *  a body that stalled on a weak line kept "Backup now" / "Restore" spinning for good. Now the limit covers the whole
+ *  exchange: `timeout` for the request and the first byte, then `STALL_TIMEOUT` of silence while the body arrives. */
+async function request<T>(path: string, init: RequestInit, kind: 'json' | 'bytes', timeout = FETCH_TIMEOUT, onBytes?: (received: number) => void): Promise<Reply<T>> {
   const ctl = new AbortController()
-  const timer = setTimeout(() => ctl.abort(), FETCH_TIMEOUT)
+  let timer = setTimeout(() => ctl.abort(), timeout)
+  const progress = () => { clearTimeout(timer); timer = setTimeout(() => ctl.abort(), STALL_TIMEOUT) }
   try {
     const res = await fetch(license.api() + path, { ...init, signal: ctl.signal, cache: 'no-store' })
-    if (res.ok) return { res }
-    let d: { error?: unknown; message?: unknown } = {}
-    try { d = await res.json() } catch { /* not json */ }
-    return { res: null, error: typeof d.error === 'string' ? d.error : res.status >= 500 ? 'network' : 'unknown', errorText: typeof d.message === 'string' ? d.message : undefined }
-  } catch { return { res: null, error: 'network' } }
+    progress()
+    if (!res.ok) {
+      let d: { error?: unknown; message?: unknown } = {}
+      try { d = await res.json() } catch { /* not json */ }
+      return { ok: false, error: typeof d.error === 'string' ? d.error : res.status >= 500 ? 'network' : 'unknown', errorText: typeof d.message === 'string' ? d.message : undefined }
+    }
+    let out: Uint8Array
+    if (!res.body) out = new Uint8Array(await res.arrayBuffer())
+    else {
+      const reader = res.body.getReader()
+      const parts: Uint8Array[] = []
+      let total = 0
+      for (;;) {
+        const { done, value } = await reader.read()
+        if (done) break
+        parts.push(value); total += value.length; progress()
+        try { onBytes?.(total) } catch { /* the display must not break the download */ }
+      }
+      out = new Uint8Array(total)
+      let o = 0
+      for (const p of parts) { out.set(p, o); o += p.length }
+    }
+    if (kind === 'bytes') return { ok: true, data: out as T }
+    // an answer that is not the server's JSON (cut off, or a Wi-Fi login page) is a failed request, never "nothing there"
+    try { return { ok: true, data: JSON.parse(new TextDecoder().decode(out)) as T } } catch { return { ok: false, error: 'network' } }
+  } catch { return { ok: false, error: 'network' } }
   finally { clearTimeout(timer) }
 }
+/** JSON with every non-ASCII character escaped (\\uXXXX): header values must be Latin-1, and the server's
+ *  JSON.parse reads the escapes back (an Arabic computer name used to make every upload fail). */
+export const asciiJson = (v: unknown): string => JSON.stringify(v).replace(/[\u007f-\uffff]/g, c => '\\u' + c.charCodeAt(0).toString(16).padStart(4, '0'))
 const fail = (error: string, errorText?: string): { ok: false; error: string; errorText?: string } => ({ ok: false, error: errorMessageKey(error), errorText })
 
 let uploading: Promise<CloudResult<{ at: number; size: number }>> | null = null
@@ -96,18 +128,28 @@ export function uploadBackup(): Promise<CloudResult<{ at: number; size: number }
     const cred = license.credentials()
     if (!cred) return fail('cloud_inactive')
     if (!cloudActive(license.get())) return fail('cloud_inactive')
-    const json = await exportBackup()
-    const v = validateBackup(json)
-    const bytes = await gzipText(json)
+    let json: string, bytes: Uint8Array<ArrayBuffer>
+    let v: ReturnType<typeof validateBackup>
+    try {
+      json = await exportBackup()
+      v = validateBackup(json)
+      bytes = await gzipText(json)
+    } catch (e) {
+      logError('cloud-upload', e)
+      return (e as { name?: string } | null)?.name === 'NotSupportedError' ? { ok: false, error: 'settings.cloud.err.webviewOld' } : fail('unknown')
+    }
     const meta = { counts: v.counts, appVersion: v.appVersion, exportedAt: v.exportedAt, name: await platform.deviceName().catch(() => '') }
-    const { res, error, errorText } = await request('/api/backup', {
+    // the upload itself has no progress events: allow ~20 KB/s on top of the usual limit for a big file
+    const r = await request<{ at?: number; size?: number }>('/api/backup', {
       method: 'POST',
-      headers: { 'content-type': 'application/octet-stream', 'x-kaseb-token': cred.token, 'x-kaseb-device': cred.device, 'x-kaseb-meta': JSON.stringify(meta) },
+      headers: { 'content-type': 'application/octet-stream', 'x-kaseb-token': cred.token, 'x-kaseb-device': cred.device, 'x-kaseb-meta': asciiJson(meta) },
       body: bytes,
-    })
-    if (!res) return fail(error ?? 'unknown', errorText)
-    const data = (await res.json().catch(() => ({}))) as { at?: number; size?: number }
-    const at = typeof data.at === 'number' ? data.at : Date.now()
+    }, 'json', FETCH_TIMEOUT + Math.round(bytes.length / 20))
+    if (!r.ok) return fail(r.error, r.errorText)
+    const data = r.data
+    // only the server's answer counts (a Wi-Fi login page answering 200 is not a backup)
+    if (typeof data.at !== 'number') return fail('network')
+    const at = data.at
     await db.kv.put({ key: CLOUD_LAST_KEY, value: at })
     await markBackupDone(at)
     return { ok: true, at, size: typeof data.size === 'number' ? data.size : bytes.length }
@@ -119,25 +161,34 @@ export function uploadBackup(): Promise<CloudResult<{ at: number; size: number }
 export async function listBackups(): Promise<CloudResult<{ backups: CloudSnapshot[]; cloudUntil: number | null }>> {
   const cred = license.credentials()
   if (!cred) return fail('cloud_inactive')
-  const { res, error, errorText } = await request('/api/backups', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(cred) })
-  if (!res) return fail(error ?? 'unknown', errorText)
-  const data = (await res.json().catch(() => ({}))) as { backups?: CloudSnapshot[]; cloudUntil?: number | null }
-  return { ok: true, backups: Array.isArray(data.backups) ? data.backups : [], cloudUntil: typeof data.cloudUntil === 'number' ? data.cloudUntil : null }
+  const r = await request<{ backups?: CloudSnapshot[]; cloudUntil?: number | null }>('/api/backups', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(cred) }, 'json')
+  if (!r.ok) return fail(r.error, r.errorText)
+  const data = r.data
+  if (!data || !Array.isArray(data.backups)) return fail('network')
+  return { ok: true, backups: data.backups, cloudUntil: typeof data.cloudUntil === 'number' ? data.cloudUntil : null }
 }
 
+/** Where a cloud restore is: downloading (bytes so far) or writing the rows into the database. */
+export type RestoreProgress = { phase: 'download'; bytes: number } | { phase: 'import'; done: number; total: number }
+
 /** Downloads a snapshot and REPLACES everything in the local database with it. */
-export async function restoreBackup(id: string): Promise<CloudResult<{ counts: BackupCounts }>> {
+export async function restoreBackup(id: string, onProgress?: (p: RestoreProgress) => void): Promise<CloudResult<{ counts: BackupCounts }>> {
   const cred = license.credentials()
   if (!cred) return fail('cloud_inactive')
-  const { res, error, errorText } = await request('/api/backup/get', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ ...cred, id }) })
-  if (!res) return fail(error ?? 'unknown', errorText)
-  const bytes = new Uint8Array(await res.arrayBuffer())
+  const r = await request<Uint8Array>('/api/backup/get', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ ...cred, id }) }, 'bytes', FETCH_TIMEOUT,
+    bytes => onProgress?.({ phase: 'download', bytes }))
+  if (!r.ok) return fail(r.error, r.errorText)
+  const bytes = r.data
   let json: string
   try { json = await gunzipText(bytes) } catch { return fail('unknown') }
   const v = validateBackup(json)
   if (!v.ok) return fail('unknown', v.error)
-  const counts = await importBackup(json)
-  return { ok: true, counts }
+  try { return { ok: true, counts: await importBackup(json, (done, total) => onProgress?.({ phase: 'import', done, total })) } }
+  catch (e) {
+    logError('cloud-restore', e)
+    const n = `${(e as { name?: string } | null)?.name ?? ''} ${(e as { inner?: { name?: string } } | null)?.inner?.name ?? ''}`
+    return /Quota/.test(n) ? { ok: false, error: 'settings.cloud.err.storageFull' } : fail('unknown')
+  }
 }
 
 // ---------- the daily upload ----------

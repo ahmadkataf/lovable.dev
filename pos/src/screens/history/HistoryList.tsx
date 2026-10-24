@@ -1,7 +1,7 @@
 // The receipts list: a period, filters, a number search that a USB scanner can drive, and the day groups.
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { useLiveQuery } from 'dexie-react-hooks'
+import { useLiveQuery } from '../../lib/live'
 import { Receipt, SlidersHorizontal, Download, X, Search } from 'lucide-react'
 import { db } from '../../db'
 import type { PaymentMethod, Sale } from '../../db/types'

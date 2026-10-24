@@ -6,12 +6,34 @@ import { formatMoney } from '../../lib/money'
 import { Button } from './Button'
 import { Modal } from './Modal'
 import { CheckCircle2, AlertCircle, Info, AlertTriangle } from 'lucide-react'
+import { restartApp } from '../../lib/recovery'
 
 export function Badge({ kind, children, className = '' }: { kind?: 'primary' | 'warn' | 'danger' | 'info' | 'accent'; children: ReactNode; className?: string }) {
   return <span className={`badge ${kind ?? ''} ${className}`}>{children}</span>
 }
 
-export function Spinner({ small }: { small?: boolean }) { return <span className={`spinner ${small ? 'sm' : ''}`} /> }
+/** A loading spinner. A big one that is still there after a while says so, and later offers a restart: the user is
+ *  never stuck behind it (a query that never answers used to leave only "kill the app" as a way out). A slow but
+ *  working screen (a year report on a big shop) normally finishes before the restart is offered. `watch={false}`
+ *  turns this off. */
+export function Spinner({ small, watch = true }: { small?: boolean; watch?: boolean }) {
+  const t = useT()
+  const [stage, setStage] = useState(0)
+  useEffect(() => {
+    if (small || !watch) return
+    const a = setTimeout(() => setStage(1), 15000)
+    const b = setTimeout(() => setStage(2), 45000)
+    return () => { clearTimeout(a); clearTimeout(b) }
+  }, [small, watch])
+  if (!stage) return <span className={`spinner ${small ? 'sm' : ''}`} />
+  return (
+    <span className="spinner-wrap" role="status">
+      <span className="spinner" />
+      <span className="muted small">{t('spinner.slow')}</span>
+      {stage === 2 && <button type="button" className="recover-link" onClick={() => void restartApp({ ask: true })}>{t('boot.restart')}</button>}
+    </span>
+  )
+}
 
 export function Empty({ icon, title, text, action }: { icon?: ReactNode; title: ReactNode; text?: ReactNode; action?: ReactNode }) {
   return (

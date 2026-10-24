@@ -1,7 +1,7 @@
 // New / edit customer sheet. Reusable: the sales screen can open it to add a customer mid-sale.
 // A non-zero opening balance becomes the first ledger entry (type 'adjust'), so the statement adds up from day one.
 import { useEffect, useState } from 'react'
-import { useLiveQuery } from 'dexie-react-hooks'
+import { useLiveQuery } from '../../lib/live'
 import { db } from '../../db'
 import type { Customer, CustomerTier } from '../../db/types'
 import { useT } from '../../i18n'

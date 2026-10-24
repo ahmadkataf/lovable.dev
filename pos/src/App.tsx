@@ -5,6 +5,7 @@ import { isBlocked } from './license/types'
 import { Shell } from './components/Shell'
 import { ToastHost, ConfirmHost } from './components/ui'
 import { LockScreen } from './components/LockScreen'
+import { BootScreen } from './components/BootScreen'
 import Onboarding from './components/Onboarding'
 import SalesScreen from './screens/sales'
 import ProductsScreen from './screens/products'
@@ -17,23 +18,28 @@ import ExpensesScreen from './screens/expenses'
 import SettingsScreen from './screens/settings'
 import ActivationScreen from './screens/activation'
 import HelpScreen from './screens/help'
-import { useT } from './i18n'
 import { startCloudScheduler } from './lib/cloud'
+import { setRestartGuard } from './lib/recovery'
+import { t } from './i18n'
 
 export default function App() {
   const ready = useStore(s => s.ready)
   const boot = useStore(s => s.boot)
   const user = useStore(s => s.user)
   const license = useStore(s => s.license)
-  const t = useT()
   useEffect(() => { void boot() }, [boot])
   useEffect(() => { if (ready) startCloudScheduler() }, [ready])
+  // a restart offered by a stuck screen asks first when the open cart would be lost
+  useEffect(() => {
+    setRestartGuard(async () => {
+      const st = useStore.getState()
+      if (!st.ready || !st.cart.lines.length) return true
+      return st.confirm({ title: t('restart.cartTitle'), text: t('restart.cartText'), okLabel: t('boot.restart'), danger: true })
+    })
+    return () => setRestartGuard(null)
+  }, [])
 
-  if (!ready) {
-    return (
-      <div className="lock-screen"><div className="col center" style={{ alignItems: 'center' }}><span className="spinner" /><span className="muted small">{t('common.loading')}</span></div></div>
-    )
-  }
+  if (!ready) return <BootScreen />
   if (isBlocked(license)) {
     return <><ActivationScreen /><ToastHost /><ConfirmHost /></>
   }

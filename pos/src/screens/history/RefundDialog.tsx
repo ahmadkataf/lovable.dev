@@ -1,6 +1,6 @@
 // The refund sheet: a quantity per line (never more than what is left), money-back method, restock, reason.
 import { useEffect, useMemo, useState } from 'react'
-import { useLiveQuery } from 'dexie-react-hooks'
+import { useLiveQuery } from '../../lib/live'
 import { Minus, Plus, Undo2 } from 'lucide-react'
 import { db } from '../../db'
 import type { PaymentMethod, Refund, Sale } from '../../db/types'

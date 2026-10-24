@@ -1,6 +1,6 @@
 // A supplier: contact, balance, their purchases and payments.
 import { useState } from 'react'
-import { useLiveQuery } from 'dexie-react-hooks'
+import { useLiveQuery } from '../../lib/live'
 import { useNavigate, useParams } from 'react-router-dom'
 import { Phone, MessageCircle, Pencil, Trash2, Plus, HandCoins, Truck } from 'lucide-react'
 import { db } from '../../db'

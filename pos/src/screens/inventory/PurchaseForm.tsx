@@ -5,7 +5,7 @@
 // in. In $ the lines, the totals and the paid amount are typed in dollars at a per-invoice rate (prefilled from today's
 // rate); the primary figures are derived live and the drawer is still counted in the primary currency.
 import { useEffect, useState } from 'react'
-import { useLiveQuery } from 'dexie-react-hooks'
+import { useLiveQuery } from '../../lib/live'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { Plus, Minus, X, UserPlus, ShoppingBag, Trash2 } from 'lucide-react'
 import { db } from '../../db'

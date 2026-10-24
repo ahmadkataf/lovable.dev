@@ -2,7 +2,7 @@
 // then the statement (ledger with a running balance, period, CSV, print) and the customer's receipts.
 import { useMemo, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { useLiveQuery } from 'dexie-react-hooks'
+import { useLiveQuery } from '../../lib/live'
 import { Phone, MessageCircle, Pencil, Trash2, MapPin, Users, Banknote, SlidersHorizontal, ShoppingCart, Undo2, Receipt, Download, Printer, ChevronLeft, ChevronRight, FileText, HandCoins } from 'lucide-react'
 import { db } from '../../db'
 import type { LedgerEntry, Sale } from '../../db/types'

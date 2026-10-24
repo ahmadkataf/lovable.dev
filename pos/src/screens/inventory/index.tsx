@@ -2,7 +2,7 @@
 import './i18n'
 import './inventory.css'
 import { Routes, Route, Navigate, Outlet, useLocation, useNavigate } from 'react-router-dom'
-import { useLiveQuery } from 'dexie-react-hooks'
+import { useLiveQuery } from '../../lib/live'
 import { Boxes, ArrowLeftRight, ShoppingBag, Truck, ClipboardCheck, type LucideIcon } from 'lucide-react'
 import { db } from '../../db'
 import { useT } from '../../i18n'

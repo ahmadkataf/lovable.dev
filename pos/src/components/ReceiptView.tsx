@@ -1,7 +1,7 @@
 // The receipt on screen: a white paper card that mirrors the printed layout (lib/receipt.ts builds the same
 // document for the printer, for sharing and for this preview), plus the print / share buttons.
 import { useState } from 'react'
-import { useLiveQuery } from 'dexie-react-hooks'
+import { useLiveQuery } from '../lib/live'
 import { Printer, Share2, MessageCircle, FileText } from 'lucide-react'
 import type { Sale, Refund, Settings } from '../db/types'
 import { useStore, toast } from '../state/store'

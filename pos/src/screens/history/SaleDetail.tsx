@@ -2,7 +2,7 @@
 // shift, note) and the refund history. "نسخة" reprints with a COPY banner; "إرجاع" opens the refund sheet.
 import { useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { useLiveQuery } from 'dexie-react-hooks'
+import { useLiveQuery } from '../../lib/live'
 import { Receipt, Copy, Undo2, Printer, User, Clock, ChevronLeft, ChevronRight, PackageCheck, PackageX, Wallet, StickyNote, CheckCircle2, ArrowLeftRight, Coins } from 'lucide-react'
 import { db } from '../../db'
 import type { Refund } from '../../db/types'

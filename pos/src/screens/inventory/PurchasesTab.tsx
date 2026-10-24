@@ -1,6 +1,6 @@
 // المشتريات: invoices and supplier payments in one sequence, newest first.
 import { useState } from 'react'
-import { useLiveQuery } from 'dexie-react-hooks'
+import { useLiveQuery } from '../../lib/live'
 import { useNavigate } from 'react-router-dom'
 import { Plus, ShoppingBag, HandCoins } from 'lucide-react'
 import { db } from '../../db'

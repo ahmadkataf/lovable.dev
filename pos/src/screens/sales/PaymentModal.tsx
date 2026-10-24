@@ -126,7 +126,7 @@ export function PaymentModal(p: PaymentModalProps) {
   )
 
   return (
-    <Modal open onClose={p.onClose} title={t('sales.payTitle')} size={isMobile ? 'normal' : 'wide'} noClose={p.frozen} footer={
+    <Modal open onClose={p.onClose} title={t('sales.payTitle')} size={isMobile ? 'normal' : 'wide'} noClose={p.frozen} busy={p.busy} footer={
       <>
         <Button onClick={p.onClose} disabled={p.busy}>{t('common.cancel')}</Button>
         <Button variant="primary" size="lg" icon={<Check size={18} />} loading={p.busy} disabled={!plan.valid || p.busy} onClick={confirm}>

@@ -24,6 +24,8 @@ interface PosElectronBridge {
   setFullscreen(on: boolean): Promise<void>
   /** A random id that changes when the app files are modified (asar integrity is enforced by Electron fuses). */
   appSignature(): Promise<string>
+  /** Closes the app and starts it again (the recovery screens). Missing on shells older than 1.0.1. */
+  relaunch?(): Promise<void>
 }
 
 /** What the Android shell puts on the page (android/src/.../MainActivity.java). All calls are synchronous. */
@@ -46,6 +48,11 @@ interface PosAndroidBridge {
   vibrate(ms: number): void
   /** Keeps the screen on while the cashier works. */
   keepScreenOn(on: boolean): void
+  /** Starts the app again in a new process (the recovery screens). Missing on shells older than 1.0.1. */
+  restartApp?(): void
+  /** The page's error log, kept natively so a restart cannot drop it. Missing on shells older than 1.0.1. */
+  errorsGet?(): string
+  errorsSet?(value: string): void
 }
 
 interface Window {

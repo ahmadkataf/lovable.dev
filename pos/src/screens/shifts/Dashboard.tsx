@@ -1,6 +1,6 @@
 // The open shift: who, since when, live numbers, cash in / out, and closing.
 import { useEffect, useState } from 'react'
-import { useLiveQuery } from 'dexie-react-hooks'
+import { useLiveQuery } from '../../lib/live'
 import { useNavigate } from 'react-router-dom'
 import { Clock, ArrowDownToLine, ArrowUpFromLine, Lock, History as HistoryIcon } from 'lucide-react'
 import { db } from '../../db'

@@ -2,7 +2,7 @@
 // An invoice written in the second currency shows its own figures first and the primary equivalents under them,
 // plus the rate it was booked at.
 import { useState } from 'react'
-import { useLiveQuery } from 'dexie-react-hooks'
+import { useLiveQuery } from '../../lib/live'
 import { useNavigate, useParams } from 'react-router-dom'
 import { Printer, Trash2, HandCoins, ShoppingBag, Truck } from 'lucide-react'
 import { db } from '../../db'

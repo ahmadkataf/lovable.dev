@@ -2,7 +2,7 @@
 import './i18n'
 import './expenses.css'
 import { useEffect, useState } from 'react'
-import { useLiveQuery } from 'dexie-react-hooks'
+import { useLiveQuery } from '../../lib/live'
 import { Plus, Download, Wallet, Home, Users, Zap, Package, Truck, Wrench, Tag, Trash2, Banknote, type LucideIcon } from 'lucide-react'
 import { db } from '../../db'
 import type { Expense } from '../../db/types'

@@ -4,7 +4,7 @@
 import './i18n'
 import './reports.css'
 import { useMemo, useState } from 'react'
-import { useLiveQuery } from 'dexie-react-hooks'
+import { useLiveQuery } from '../../lib/live'
 import { useNavigate } from 'react-router-dom'
 import { ChartColumn, Download, Lock, ShoppingCart, Receipt, Calculator, Undo2, TrendingUp, Package, Coins, Wallet, PiggyBank, HandCoins, type LucideIcon } from 'lucide-react'
 import { db } from '../../db'

@@ -4,7 +4,7 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { forbiddenProduct } from '../../lib/policy'
 import { PolicyBanner } from '../../components/PolicyBanner'
-import { useLiveQuery } from 'dexie-react-hooks'
+import { useLiveQuery } from '../../lib/live'
 import { useNavigate } from 'react-router-dom'
 import { ArrowLeft, ArrowRight, ScanLine, PackagePlus } from 'lucide-react'
 import { db } from '../../db'

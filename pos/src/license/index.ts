@@ -125,11 +125,19 @@ async function call<T>(path: string, body?: Record<string, unknown>): Promise<Re
 }
 const clientInfo = (nonce: string) => ({ device, deviceCode: status.deviceCode, name: deviceName, platform: platform.kind, version: VERSION || platform.appVersion(), build: BUILD, sig, nonce })
 
-/** Runs network actions one after the other, with `checking` on while they run. */
+/** Runs network actions one after the other, with `checking` on while they run. Each one is given at most
+ *  TASK_TIMEOUT: a step that never answers (a storage bridge call) must not keep "checking" — and the activation
+ *  screen's spinner — on for good, nor hold up every later check behind it. */
+const TASK_TIMEOUT = FETCH_TIMEOUT * 2 + 15000
 function run(task: () => Promise<void>): Promise<LicenseStatus> {
   const p = queue.then(async () => {
     publish({ checking: true })
-    try { await task() } finally { publish({ checking: false }) }
+    try {
+      await new Promise<void>((resolve, reject) => {
+        const id = setTimeout(() => { publish({ error: 'license.err.network', errorText: undefined }); resolve() }, TASK_TIMEOUT)
+        task().then(() => { clearTimeout(id); resolve() }, e => { clearTimeout(id); reject(e) })
+      })
+    } finally { publish({ checking: false }) }
     return status
   })
   queue = p.catch(() => undefined)

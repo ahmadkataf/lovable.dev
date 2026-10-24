@@ -3,7 +3,7 @@ import { useRef, type RefObject } from 'react'
 import { Camera, Star, PackagePlus, Package, SearchX, Sparkles, Clock } from 'lucide-react'
 import { productPrice, type CustomerTier, type ProductPack, type Product, type Category, type Settings } from '../../db/types'
 import { useT } from '../../i18n'
-import { Button, SearchInput, Empty, Badge, colorFor, useIsMobile } from '../../components/ui'
+import { Button, SearchInput, Empty, Badge, colorFor, useIsMobile, Spinner } from '../../components/ui'
 import { formatMoney, formatQty } from '../../lib/money'
 
 export interface ProductsPanelProps {
@@ -65,7 +65,7 @@ export function ProductsPanel(p: ProductsPanelProps) {
       )}
       <div className="sales-grid-wrap">
         {products === undefined ? (
-          <div className="product-grid">{Array.from({ length: 10 }).map((_, i) => <div key={i} className="skeleton product-skel" />)}</div>
+          <div className="product-grid"><div className="product-grid-wait"><Spinner /></div>{Array.from({ length: 10 }).map((_, i) => <div key={i} className="skeleton product-skel" />)}</div>
         ) : !p.hasAnyProducts ? (
           <Empty icon={<Package size={34} />} title={t('sales.noProducts')} text={t('sales.noProductsHint')} action={
             <div className="row wrap" style={{ justifyContent: 'center' }}>

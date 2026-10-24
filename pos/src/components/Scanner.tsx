@@ -8,12 +8,14 @@ import { addMessages, useT } from '../i18n'
 import { beep } from '../lib/audio'
 import { platform } from '../lib/platform'
 import { cleanBarcode } from '../lib/barcode'
+import { withTimeout } from '../lib/recovery'
 
 addMessages({
   ar: {
     'scanner.title': 'مسح باركود',
     'scanner.hint': 'وجّه الكاميرا نحو الباركود',
     'scanner.starting': 'جارٍ تشغيل الكاميرا…',
+    'scanner.slow': 'الكاميرا لا تستجيب بعد. إن طال الأمر فأغلق الماسح وافتحه من جديد، أو اكتب الباركود يدوياً.',
     'scanner.paused': 'الكاميرا متوقفة مؤقتاً',
     'scanner.resume': 'متابعة',
     'scanner.retry': 'إعادة المحاولة',
@@ -40,6 +42,7 @@ addMessages({
     'scanner.title': 'Scan barcode',
     'scanner.hint': 'Point the camera at the barcode',
     'scanner.starting': 'Starting the camera…',
+    'scanner.slow': 'The camera has not answered yet. If this goes on, close the scanner and open it again, or type the barcode.',
     'scanner.paused': 'Camera paused',
     'scanner.resume': 'Resume',
     'scanner.retry': 'Try again',
@@ -82,6 +85,7 @@ interface BarcodeDetectorLike { detect(source: HTMLVideoElement | HTMLCanvasElem
 interface BarcodeDetectorCtor { new (opts?: { formats: string[] }): BarcodeDetectorLike; getSupportedFormats?: () => Promise<string[]> }
 interface ExtraCapabilities { torch?: boolean; focusMode?: string[] }
 
+const CAMERA_HINT_MS = 15000
 const NATIVE_FORMATS = ['ean_13', 'ean_8', 'upc_a', 'upc_e', 'code_128', 'code_39', 'code_93', 'itf', 'codabar', 'qr_code', 'data_matrix']
 const DEDUPE_MS = 1500
 const FRAME_MS = 80
@@ -198,6 +202,13 @@ export function ScannerModal({ open, onClose, onScan, continuous, title }: Scann
   const continuousRef = useRef(!!continuous); continuousRef.current = !!continuous
 
   const [status, setStatusState] = useState<Status>('idle')
+  // a camera that has not answered for a while gets a hint (no time limit: the wait includes the permission question)
+  const [slowCam, setSlowCam] = useState(false)
+  useEffect(() => {
+    if (status !== 'starting') { setSlowCam(false); return }
+    const id = setTimeout(() => setSlowCam(true), CAMERA_HINT_MS)
+    return () => clearTimeout(id)
+  }, [status])
   const [error, setError] = useState<ScanError | null>(null)
   const [devices, setDevices] = useState<MediaDeviceInfo[]>([])
   const [torchOk, setTorchOk] = useState(false)
@@ -243,6 +254,8 @@ export function ScannerModal({ open, onClose, onScan, continuous, title }: Scann
     if (typeof window !== 'undefined' && window.isSecureContext === false) { setError('insecure'); setStatus('error'); return }
     if (!navigator.mediaDevices?.getUserMedia) { setError(window.isSecureContext ? 'noCamera' : 'insecure'); setStatus('error'); return }
     let stream: MediaStream
+    // no time limit here: the wait includes the camera permission question, which a person may take time to answer.
+    // A camera that never answers gets a hint after CAMERA_HINT_MS (see slowCam); the sheet can always be closed.
     try { stream = await getStream(deviceId) } catch (e) {
       if (run !== runRef.current) return
       setError(mapError(e)); setStatus('error'); return
@@ -260,7 +273,7 @@ export function ScannerModal({ open, onClose, onScan, continuous, title }: Scann
     video.srcObject = stream
     video.muted = true
     video.setAttribute('playsinline', 'true')
-    try { await video.play() } catch { /* autoplay may be refused until the stream is live; the loop waits on readyState */ }
+    try { await withTimeout(video.play(), 5000) } catch { /* autoplay may be refused until the stream is live; the loop waits on readyState */ }
     if (run !== runRef.current) return
     try {
       const list = (await navigator.mediaDevices.enumerateDevices()).filter(d => d.kind === 'videoinput')
@@ -270,7 +283,7 @@ export function ScannerModal({ open, onClose, onScan, continuous, title }: Scann
     } catch { /* no device list */ }
     if (run !== runRef.current) return
 
-    let detector = await makeNativeDetector()
+    let detector = await withTimeout(makeNativeDetector(), 5000).catch(() => null)   // slow or stuck: use ZXing
     let zx: BrowserMultiFormatReader | null = null
     if (!detector) {
       try { zx = await loadZxing() } catch { if (run === runRef.current) { setError('unknown'); setStatus('error') } return }
@@ -393,7 +406,7 @@ export function ScannerModal({ open, onClose, onScan, continuous, title }: Scann
             </>
           )}
           {status === 'starting' && (
-            <div className="scanner-overlay"><span className="spinner" /><p>{t('scanner.starting')}</p></div>
+            <div className="scanner-overlay"><span className="spinner" /><p>{t('scanner.starting')}</p>{slowCam && <p className="small">{t('scanner.slow')}</p>}</div>
           )}
           {status === 'paused' && (
             <div className="scanner-overlay">

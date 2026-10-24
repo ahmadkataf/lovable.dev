@@ -35,13 +35,14 @@ export function ImportModal({ open, onClose }: { open: boolean; onClose: () => v
   }
   const fieldLabel = (f: ImportField) => t(`products.import.field.${f}`, { cur: c2.symbol })
 
-  useEffect(() => { if (open) { setStep('pick'); setRows([]); setMapping({}); setReport(null); setFileName('') } }, [open])
+  useEffect(() => { if (open) { setStep('pick'); setRows([]); setMapping({}); setReport(null); setFileName(''); setBusy(false) } }, [open])
 
   const pick = async () => {
-    setBusy(true)
     try {
+      // busy only once a file is in hand: a picker closed without a choice must not leave the button spinning
       const f = await pickFile('.csv,text/csv,text/plain')
       if (!f) return
+      setBusy(true)
       const text = await readFileText(f)
       const parsed = parseCsv(text)
       if (!parsed.length) { toast(t('products.import.emptyFile'), 'error'); return }
@@ -155,7 +156,8 @@ export function ImportModal({ open, onClose }: { open: boolean; onClose: () => v
       )}
       {step === 'running' && (
         <div className="empty">
-          <Spinner />
+          {/* each progress step restarts the watch: a moving import never offers a restart, a stalled one does */}
+          <Spinner key={progress.done} />
           <h3>{t('products.import.running')}</h3>
           <p className="num">{progress.done} / {progress.total}</p>
         </div>

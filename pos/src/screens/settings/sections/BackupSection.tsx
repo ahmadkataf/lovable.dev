@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useLiveQuery } from 'dexie-react-hooks'
+import { useLiveQuery } from '../../../lib/live'
 import { AlertTriangle, DatabaseBackup, Download, Upload, Trash2, ShieldAlert, Cloud, CloudUpload, CloudDownload, MessageCircle, CheckCircle2 } from 'lucide-react'
 import { toast, useStore } from '../../../state/store'
 import { useT } from '../../../i18n'
@@ -8,10 +8,12 @@ import { TABLES } from '../../../db'
 import { platform } from '../../../lib/platform'
 import { pickFile, readFileText } from '../../../lib/csv'
 import { formatDateTime, formatDate } from '../../../lib/format'
-import { cloudState, uploadBackup, listBackups, restoreBackup, getLastCloudBackup, type CloudSnapshot } from '../../../lib/cloud'
+import { cloudState, uploadBackup, listBackups, restoreBackup, getLastCloudBackup, type CloudSnapshot, type RestoreProgress } from '../../../lib/cloud'
+import { formatNumber } from '../../../lib/money'
 import { DEFAULT_INFO } from '../../../license/types'
 import { exportBackup, validateBackup, importBackup, resetAllData, markBackupDone, getLastBackup, backupIsStale, backupFileName, type BackupValidation } from '../../../lib/backup'
 import { SectionCard, Note } from '../shared'
+import { logError } from '../../../lib/recovery'
 
 type Busy = 'export' | 'read' | 'import' | 'reset' | null
 
@@ -29,31 +31,43 @@ function CloudCard() {
   const [busy, setBusy] = useState<'up' | 'list' | 'restore' | null>(null)
   const [list, setList] = useState<CloudSnapshot[] | null>(null)
   const [picked, setPicked] = useState<CloudSnapshot | null>(null)
+  const [prog, setProg] = useState<RestoreProgress | null>(null)
   const state = cloudState(lic)
   const info = lic.info ?? DEFAULT_INFO
   const price = info.cloudPrice || DEFAULT_INFO.cloudPrice || '35$'
 
+  // every path clears `busy`: a failure is a toast, never a button that spins for good
   const up = async () => {
     setBusy('up')
-    const r = await uploadBackup()
-    setBusy(null)
-    if (r.ok) toast(t('settings.cloud.uploaded', { size: sizeText(t, r.size) }), 'success')
-    else toast(r.errorText || t(r.error), 'error')
+    try {
+      const r = await uploadBackup()
+      if (r.ok) toast(t('settings.cloud.uploaded', { size: sizeText(t, r.size) }), 'success')
+      else toast(r.errorText || t(r.error), 'error')
+    } catch (e) { logError('cloud-upload', e); toast(t('common.error'), 'error') }
+    finally { setBusy(null) }
   }
   const openList = async () => {
     setBusy('list')
-    const r = await listBackups()
-    setBusy(null)
-    if (!r.ok) { toast(r.errorText || t(r.error), 'error'); return }
-    setList(r.backups)
+    try {
+      const r = await listBackups()
+      if (!r.ok) { toast(r.errorText || t(r.error), 'error'); return }
+      setList(r.backups)
+    } catch (e) { logError('cloud-list', e); toast(t('common.error'), 'error') }
+    finally { setBusy(null) }
   }
   const doRestore = async () => {
     if (!picked) return
     setBusy('restore')
-    const r = await restoreBackup(picked.id)
-    if (!r.ok) { setBusy(null); toast(r.errorText || t(r.error), 'error'); return }
-    toast(t('settings.cloud.restored'), 'success')
-    setTimeout(() => location.reload(), 700)
+    setProg(null)
+    let ok = false
+    try {
+      const r = await restoreBackup(picked.id, setProg)
+      if (!r.ok) { toast(r.errorText || t(r.error), 'error'); return }
+      ok = true
+      toast(t('settings.cloud.restored'), 'success')
+      setTimeout(() => location.reload(), 700)
+    } catch (e) { logError('cloud-restore', e); toast(t('common.error'), 'error') }
+    finally { if (!ok) setBusy(null) }
   }
   const wa = () => {
     const text = t('settings.cloud.waText', { device: lic.deviceCode })
@@ -101,7 +115,8 @@ function CloudCard() {
       )}
 
       {list && (
-        <Modal open onClose={() => { if (busy !== 'restore') { setList(null); setPicked(null) } }} title={t('settings.cloud.restoreTitle')} noClose={busy === 'restore'} footer={
+        <Modal open onClose={() => { if (busy !== 'restore') { setList(null); setPicked(null) } }} title={t('settings.cloud.restoreTitle')} noClose={busy === 'restore'} busy={busy === 'restore'}
+          progress={prog ? (prog.phase === 'download' ? `d${prog.bytes}` : `i${prog.done}`) : undefined} footer={
           <>
             <Button onClick={() => { setList(null); setPicked(null) }} disabled={busy === 'restore'}>{t('common.cancel')}</Button>
             <Button variant="danger" icon={<DatabaseBackup size={16} />} loading={busy === 'restore'} disabled={!picked} onClick={() => void doRestore()}>{t('settings.cloud.restoreThis')}</Button>
@@ -109,6 +124,11 @@ function CloudCard() {
         }>
           <div className="col" style={{ gap: 12 }}>
             <Note kind="warn">{t('settings.cloud.restoreDesc')}</Note>
+            {busy === 'restore' && prog && (
+              <div className="small muted num" role="status">
+                {prog.phase === 'download' ? t('settings.cloud.downloading', { size: sizeText(t, prog.bytes) }) : t('settings.backup.restoring', { done: formatNumber(prog.done), total: formatNumber(prog.total) })}
+              </div>
+            )}
             {list.length === 0 ? <div className="empty"><p>{t('settings.cloud.noBackups')}</p></div> : (
               <div className="list card flat">
                 {list.map(b => (
@@ -135,6 +155,7 @@ export default function BackupSection() {
   const last = useLiveQuery(() => getLastBackup(), [])
   const [busy, setBusy] = useState<Busy>(null)
   const [pending, setPending] = useState<{ json: string; v: BackupValidation } | null>(null)
+  const [prog, setProg] = useState<{ done: number; total: number } | null>(null)
   const [resetOpen, setResetOpen] = useState(false)
   const [word, setWord] = useState('')
   const stale = last !== undefined && backupIsStale(last)
@@ -165,8 +186,9 @@ export default function BackupSection() {
   const doImport = async () => {
     if (!pending) return
     setBusy('import')
+    setProg(null)
     try {
-      await importBackup(pending.json)
+      await importBackup(pending.json, (done, total) => setProg({ done, total }))
       toast(t('settings.backup.restored'), 'success')
       setPending(null)
       setTimeout(() => location.reload(), 700)
@@ -220,7 +242,7 @@ export default function BackupSection() {
       </SectionCard>
 
       {pending && (
-        <Modal open onClose={() => { if (busy !== 'import') setPending(null) }} title={t('settings.backup.restore.confirmTitle')} noClose={busy === 'import'} footer={
+        <Modal open onClose={() => { if (busy !== 'import') setPending(null) }} title={t('settings.backup.restore.confirmTitle')} noClose={busy === 'import'} busy={busy === 'import'} progress={prog?.done} footer={
           <>
             <Button onClick={() => setPending(null)} disabled={busy === 'import'}>{t('common.cancel')}</Button>
             <Button variant="danger" icon={<DatabaseBackup size={16} />} loading={busy === 'import'} onClick={() => void doImport()}>{t('settings.backup.restore.do')}</Button>
@@ -228,6 +250,9 @@ export default function BackupSection() {
         }>
           <div className="col" style={{ gap: 12 }}>
             <Note kind="warn">{t('settings.backup.restore.warn')}</Note>
+            {busy === 'import' && prog && (
+              <div className="small muted num" role="status">{t('settings.backup.restoring', { done: formatNumber(prog.done), total: formatNumber(prog.total) })}</div>
+            )}
             <div className="small faint">
               {pending.v.exportedAt ? t('settings.backup.restore.from', { date: formatDateTime(pending.v.exportedAt) }) : null}
               {pending.v.appVersion ? <> · <span className="num">{t('settings.backup.restore.fromVersion', { v: pending.v.appVersion })}</span></> : null}
@@ -245,7 +270,7 @@ export default function BackupSection() {
       )}
 
       {resetOpen && (
-        <Modal open onClose={() => { if (busy !== 'reset') setResetOpen(false) }} title={t('settings.backup.reset.confirmTitle')} size="narrow" noClose={busy === 'reset'} footer={
+        <Modal open onClose={() => { if (busy !== 'reset') setResetOpen(false) }} title={t('settings.backup.reset.confirmTitle')} size="narrow" noClose={busy === 'reset'} busy={busy === 'reset'} footer={
           <>
             <Button onClick={() => setResetOpen(false)} disabled={busy === 'reset'}>{t('common.cancel')}</Button>
             <Button variant="danger" icon={<Trash2 size={16} />} loading={busy === 'reset'} disabled={word.trim() !== resetWord} onClick={() => void doReset()}>{t('settings.backup.reset.do')}</Button>

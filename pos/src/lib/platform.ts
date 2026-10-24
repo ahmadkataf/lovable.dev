@@ -11,6 +11,7 @@ function detect(): PlatformKind {
 }
 
 const WEB_ID_KEY = 'kaseb.device'
+let androidSaving = false
 function webDeviceId(): string {
   try {
     let id = localStorage.getItem(WEB_ID_KEY)
@@ -81,10 +82,20 @@ export const platform = {
       }
       if (this.kind === 'android') {
         const b64 = typeof data === 'string' ? textToBase64(data) : await blobToBase64(data)
+        // One save at a time, each with its own handler: a previous save's timer used to remove the next save's handler,
+        // so its answer was lost and the "Export backup" button kept spinning. While a save picker is open a second
+        // save is refused (a double tap; the shell has one pending file); a picker left open for 10 minutes counts as
+        // "not saved" (never a false success).
+        if (androidSaving) return false
+        androidSaving = true
         return await new Promise<boolean>(resolve => {
-          window.onPosFileSaved = ok => { window.onPosFileSaved = undefined; resolve(ok) }
-          window.PosAndroid!.saveFile(name, mime, b64)
-          setTimeout(() => { if (window.onPosFileSaved) { window.onPosFileSaved = undefined; resolve(true) } }, 120000)
+          const handler = (ok: boolean) => {
+            if (window.onPosFileSaved === handler) window.onPosFileSaved = undefined
+            clearTimeout(timer); androidSaving = false; resolve(ok)
+          }
+          const timer = setTimeout(() => handler(false), 600000)
+          window.onPosFileSaved = handler
+          try { window.PosAndroid!.saveFile(name, mime, b64) } catch { handler(false) }
         })
       }
     } catch { /* fall through to the browser download */ }

@@ -1,6 +1,6 @@
 // الحركات: every stock movement, newest first, 200 at a time, filtered by product and type.
 import { useState } from 'react'
-import { useLiveQuery } from 'dexie-react-hooks'
+import { useLiveQuery } from '../../lib/live'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { ShoppingCart, Undo2, ShoppingBag, SlidersHorizontal, Flag, Upload, ClipboardCheck, Download, ArrowLeftRight, X, type LucideIcon } from 'lucide-react'
 import { db } from '../../db'

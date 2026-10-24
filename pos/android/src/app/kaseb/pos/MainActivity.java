@@ -18,6 +18,7 @@ import android.graphics.Color;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
+import android.os.SystemClock;
 import android.os.VibrationEffect;
 import android.os.Vibrator;
 import android.os.VibratorManager;
@@ -67,6 +68,7 @@ public class MainActivity extends Activity {
     private static final String CRASHES = "crashes";
     private static final String LICENSE_PREFS = "license";
     private static final String LICENSE_KEY = "token";
+    private static final String ERRORS_PREFS = "errors";
     private static final int REQ_CAMERA = 1;
     private static final int REQ_OPEN_FILE = 2;
     private static final int REQ_SAVE_FILE = 3;
@@ -191,6 +193,8 @@ public class MainActivity extends Activity {
         v.setWebViewClient(new AppClient(this));
         v.setWebChromeClient(new ChromeClient(this));
         v.addJavascriptInterface(new Bridge(this), "PosAndroid");
+        // the page stops answering (a long freeze): offer to wait or to restart, like Windows does (Android 10+)
+        if (Build.VERSION.SDK_INT >= 29) v.setWebViewRenderProcessClient(new FrozenPageClient(this));
         root.addView(v, new FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT));
         return v;
     }
@@ -213,10 +217,70 @@ public class MainActivity extends Activity {
         s.setGeolocationEnabled(false);
     }
 
+    private AlertDialog frozenDialog;
+
+    /** Named (not anonymous) so that d8 handles it on every JDK. */
+    static final class FrozenPageClient extends android.webkit.WebViewRenderProcessClient {
+        private final MainActivity host;
+        FrozenPageClient(MainActivity host) { this.host = host; }
+
+        @Override
+        public void onRenderProcessUnresponsive(WebView view, android.webkit.WebViewRenderProcess renderer) { host.askFrozen(view); }
+
+        @Override
+        public void onRenderProcessResponsive(WebView view, android.webkit.WebViewRenderProcess renderer) { host.dismissFrozen(); }
+    }
+
+    private long frozenWaitUntil;
+
+    void askFrozen(WebView view) {
+        if (view != web || isFinishing() || (frozenDialog != null && frozenDialog.isShowing())) return;
+        // the renderer keeps reporting "unresponsive" every few seconds: "wait" must hold for a while
+        if (SystemClock.uptimeMillis() < frozenWaitUntil) return;
+        frozenDialog = new AlertDialog.Builder(this)
+            .setTitle("كاسب لا يستجيب الآن · Kaseb is not responding")
+            .setMessage("يمكنك الانتظار قليلاً، أو إعادة تشغيل التطبيق. البيانات المحفوظة لا تضيع.\n\nYou can wait a little, or restart the app. Saved data is not lost.")
+            .setPositiveButton("أعد التشغيل · Restart", new RestartClick(this))
+            .setNegativeButton("انتظر · Wait", new WaitClick(this))
+            .setOnCancelListener(new WaitCancel(this))
+            .create();
+        frozenDialog.show();
+    }
+
+    void chooseWait() { frozenWaitUntil = SystemClock.uptimeMillis() + 30000; }
+
+    void dismissFrozen() {
+        if (frozenDialog != null && frozenDialog.isShowing()) { try { frozenDialog.dismiss(); } catch (Exception ignored) { } }
+        frozenDialog = null;
+        frozenWaitUntil = 0;
+    }
+
+    static final class WaitClick implements DialogInterface.OnClickListener {
+        private final MainActivity host;
+        WaitClick(MainActivity host) { this.host = host; }
+        @Override
+        public void onClick(DialogInterface d, int which) { host.chooseWait(); }
+    }
+
+    static final class WaitCancel implements DialogInterface.OnCancelListener {
+        private final MainActivity host;
+        WaitCancel(MainActivity host) { this.host = host; }
+        @Override
+        public void onCancel(DialogInterface d) { host.chooseWait(); }
+    }
+
+    static final class RestartClick implements DialogInterface.OnClickListener {
+        private final MainActivity host;
+        RestartClick(MainActivity host) { this.host = host; }
+        @Override
+        public void onClick(DialogInterface d, int which) { host.restartProcess(); }
+    }
+
     /** The page's process was stopped (usually the phone ran short of memory): open the app's page again
      *  in a new WebView. Without this Android closes the whole app. */
     void restartPage(WebView dead) {
         if (dead != web) return;
+        dismissFrozen();          // it belonged to the renderer that just died
         root.removeView(dead);
         dead.destroy();
         web = newWebView();
@@ -429,6 +493,12 @@ public class MainActivity extends Activity {
         public boolean shouldOverrideUrlLoading(WebView view, WebResourceRequest request) { return true; }
 
         @Override
+        public boolean onRenderProcessGone(WebView view, RenderProcessGoneDetail detail) {
+            host.dropPrintView(view);
+            return true;
+        }
+
+        @Override
         public void onPageFinished(WebView view, String url) {
             if (view != host.printView) return;
             host.startPrintJob(view);
@@ -528,6 +598,20 @@ public class MainActivity extends Activity {
             } catch (Exception ignored) { }
         }
 
+        /** The page's small error log (Settings → support details), kept here because a restart (Runtime.exit) can
+         *  drop the WebView's last localStorage writes — exactly the error that made the user restart. */
+        @JavascriptInterface
+        public String errorsGet() {
+            try { return host.getSharedPreferences(ERRORS_PREFS, MODE_PRIVATE).getString("list", ""); }
+            catch (Exception e) { return ""; }
+        }
+
+        @JavascriptInterface
+        public void errorsSet(String value) {
+            try { host.getSharedPreferences(ERRORS_PREFS, MODE_PRIVATE).edit().putString("list", value == null ? "" : value).commit(); }
+            catch (Exception ignored) { }
+        }
+
         @JavascriptInterface
         public void openUrl(String url) {
             if (url == null || url.isEmpty()) return;
@@ -550,6 +634,14 @@ public class MainActivity extends Activity {
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) v.vibrate(VibrationEffect.createOneShot(duration, VibrationEffect.DEFAULT_AMPLITUDE));
                 else v.vibrate(duration);
             } catch (Exception ignored) { }
+        }
+
+        @JavascriptInterface
+        public void restartApp() {
+            host.runOnUiThread(new Runnable() {
+                @Override
+                public void run() { host.restartProcess(); }
+            });
         }
 
         @JavascriptInterface
@@ -660,7 +752,28 @@ public class MainActivity extends Activity {
 
     @Override
     protected void onDestroy() {
+        dismissFrozen();
         if (printView != null) { try { printView.destroy(); } catch (Exception ignored) { } printView = null; }
+        // a recreated activity builds a new WebView: the old one must not keep running (timers, its database connection)
+        if (web != null) { try { root.removeView(web); web.destroy(); } catch (Exception ignored) { } web = null; }
         super.onDestroy();
+    }
+
+    /** The recovery screens' "restart the app": what the user would otherwise do by swiping the app away. A new process
+     *  means a new WebView and a fresh database connection. */
+    void restartProcess() {
+        try {
+            Intent launch = getPackageManager().getLaunchIntentForPackage(getPackageName());
+            if (launch != null && launch.getComponent() != null) startActivity(Intent.makeRestartActivityTask(launch.getComponent()));
+        } catch (Exception ignored) { }
+        Runtime.getRuntime().exit(0);
+    }
+
+    /** The print WebView shares the page's renderer; when that renderer dies, drop the print view instead of letting
+     *  Android close the whole app (the default when a WebView does not handle onRenderProcessGone). */
+    void dropPrintView(WebView view) {
+        if (view != printView) return;
+        try { view.destroy(); } catch (Exception ignored) { }
+        printView = null;
     }
 }

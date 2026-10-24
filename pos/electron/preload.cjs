@@ -38,4 +38,5 @@ contextBridge.exposeInMainWorld('pos', {
   openExternal: url => call('pos:openExternal', String(url ?? '')),
   setFullscreen: on => call('pos:setFullscreen', !!on),
   appSignature: () => call('pos:appSignature'),
+  relaunch: () => call('pos:relaunch'),
 })
