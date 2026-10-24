@@ -1,0 +1,21 @@
+{
+  "name": "laser-box",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "description": "مولّد صناديق القص بالليزر — قياسات حرّة، ملفات SVG/DXF جاهزة",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "build:artifact": "npm run build && node scripts/build-artifact.mjs",
+    "build:apk": "npm run build && ./scripts/build-apk.sh",
+    "preview": "vite preview",
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "@types/node": "^22.20.4",
+    "typescript": "^5.6.3",
+    "vite": "^5.4.11",
+    "vitest": "^2.1.8"
+  }
+}
