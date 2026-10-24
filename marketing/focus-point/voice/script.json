@@ -1,0 +1,60 @@
+{
+ "brand": "Focus Point — فوكس بوينت",
+ "dialect": "Hourani (Daraa)",
+ "voice": {
+  "model": "gemini-3.8-flash-tts",
+  "voice": "Charon",
+  "style": "warm, calm, confident narrator",
+  "note": "vo-intro.wav (L0) and vo-main.wav (L1–L7) were generated as two requests and joined with a 0.9 s pause into vo.wav"
+ },
+ "lines": [
+  {
+   "id": "L0",
+   "vo": "المَشروع الأوَّل من نوعُه بِدَرْعا.",
+   "screen": "المشروع الأول من نوعه بدرعا",
+   "visual": "opening title: the point pulses, the line reveals, بدرعا big in burgundy with a gold underline"
+  },
+  {
+   "id": "L1",
+   "vo": "فِيهْ ناس بِتُقْعُد... وفِيهْ ناس بِتِنْجِز. وإنتَ، شو بِدَّك تِكون؟",
+   "screen": "تِقعُد... أو تِنجِز؟",
+   "visual": "kinetic phrases: grey/blurred chaos snaps into focus; the last word in burgundy; the point pulses"
+  },
+  {
+   "id": "L2",
+   "vo": "بِدَّك تُدْرُس أو تِشْتِغِل... بَس وين؟ البيت ما فِيهْ راحة، والكافيهات صوتها عالي.",
+   "screen": "وين بتشتغل؟",
+   "visual": "two shaking cards (home / café) with sound waves, freeze and blur, big burgundy وين؟"
+  },
+  {
+   "id": "L3",
+   "vo": "بِدَرْعا، Focus Point. هاظ مو بَس مكان تُقْعُد فِيهْ... مكان تِنْجِز فِيهْ.",
+   "screen": "مساحتك وركنك الهادئ للإبداع",
+   "visual": "burgundy point wipes to a 3D dolly through the white corridor with burgundy doors; the logo at the end"
+  },
+  {
+   "id": "L4",
+   "vo": "عَنّا غُرَف خاصّة، وقاعة اجتماعات بِتِلِمّ عَشْرة، وفيها شاشة عَرْض وإنترنت.",
+   "screen": "غرف خاصة · قاعة اجتماعات",
+   "visual": "a burgundy door opens onto the real meeting-room photo, camera pushes through; chips: rooms, 10 seats, screen, internet"
+  },
+  {
+   "id": "L5",
+   "vo": "ضَوّ طَبيعي من شَبابيك واسْعة، تَكْييف، قَهْوِتَك جَنْبَك... وهُدوء بِتِسْمَع فِيهْ فِكْرِتَك.",
+   "screen": "هدوء تام · إضاءة طبيعية",
+   "visual": "the window-side photo on a floating 3D card; chips: natural light, AC, coffee, quiet"
+  },
+  {
+   "id": "L6",
+   "vo": "كُلّ يوم، من التِّسْعة الصُّبُح لَساعة إِحْدَعِش بِالليل... شارع المُجَمَّع الحُكومي، بِناء العايش.",
+   "screen": "يومياً ٩ صباحاً – ١١ مساءً",
+   "visual": "clock sweeps 9→11 with sun→moon, then a pin drops on the street map with the address card"
+  },
+  {
+   "id": "L7",
+   "vo": "اِحْجِز رُكْنَك هَسّا، وتَعال... على راسنا. Focus Point، دَرْعا.",
+   "screen": "احجز هسّا · 0985258963",
+   "visual": "end card: logo, wordmark, tagline, phone chip, Instagram handle"
+  }
+ ]
+}

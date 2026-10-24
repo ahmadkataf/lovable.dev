@@ -1,0 +1,3 @@
+// Focus Point Android app: a Trusted Web Activity that opens the Focus Point PWA full screen in Chrome,
+// so push notifications, offline mode and the install flow all work exactly as in the web app.
+plugins { id 'com.android.application' version '8.9.1' apply false }
