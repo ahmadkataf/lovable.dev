@@ -477,6 +477,8 @@ input[dir='ltr'].input { text-align: left; }
 .plan { width: 100%; height: auto; font-family: var(--font); }
 .plan-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: thin; margin-inline: -4px; padding-inline: 4px; }
 @media (max-width: 639px) { .plan-wrap .plan { min-width: 600px; } }
+.plan-hint { display: none; margin: 8px 0 0; font-size: 0.8rem; color: var(--mute); text-align: center; }
+@media (max-width: 639px) { .plan-hint { display: block; } }
 .date-strip {
   mask-image: linear-gradient(to right, transparent 0, #000 32px); -webkit-mask-image: linear-gradient(to right, transparent 0, #000 32px);
   padding-inline-end: 24px;

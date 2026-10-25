@@ -138,6 +138,7 @@ export function BookHome() {
                   onSelect={(r) => setSelected(r)}
                 />
               </div>
+              <p className="plan-hint">اسحب المخطط يميناً ويساراً لتشوف كل المساحات</p>
               <div className="legend">
                 <span><i className="legend-dot" /> متاحة</span>
                 <span><i className="legend-dot busy" /> محجوزة</span>
