@@ -1,7 +1,10 @@
 // pending_payment: everything the customer needs to pay with Sham Cash and tell us the transaction number.
+// After hold_until the form disappears (the server would answer 409 hold_expired) and the customer is sent back
+// to book again; the page keeps polling, so a cron expiry or a late acceptance shows up by itself.
 import { useEffect, useState, type FormEvent } from 'react'
+import { Link } from 'react-router-dom'
 import type { Booking, PaymentInfo } from '@shared/types'
-import { api, errorMessage } from '../api'
+import { api, errorCode, errorMessage } from '../api'
 import { fmtSYP, fmtTime } from '../format'
 import { Button, Card, Field, Icon, Input, useToast } from '../ui'
 
@@ -18,13 +21,19 @@ async function copy(text: string): Promise<boolean> {
   try { await navigator.clipboard.writeText(text); return true } catch { return false }
 }
 
-export function PaymentPanel({ booking, payment, onUpdated }: { booking: Booking; payment: PaymentInfo; onUpdated: (b: Booking) => void }) {
+export function PaymentPanel({ booking, payment, onUpdated, onExpired }: {
+  booking: Booking; payment: PaymentInfo; onUpdated: (b: Booking) => void
+  /** The server said the hold is over (409 hold_expired): the page re-reads the booking. */
+  onExpired?: () => void
+}) {
   const toast = useToast()
   const [ref, setRef] = useState('')
   const [err, setErr] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
-  const { text, left } = useCountdown(payment.hold_until ?? booking.hold_until)
-  const expired = left === 0
+  const [serverExpired, setServerExpired] = useState(false)
+  const holdUntil = payment.hold_until ?? booking.hold_until
+  const { text, left } = useCountdown(holdUntil)
+  const expired = serverExpired || (holdUntil !== null && left === 0)
 
   async function copyValue(v: string, what: string) {
     toast.show((await copy(v)) ? `تم نسخ ${what}` : 'ما قدرنا ننسخ — انسخه يدوياً', 'ok')
@@ -40,7 +49,26 @@ export function PaymentPanel({ booking, payment, onUpdated }: { booking: Booking
       const b = await api.post<Booking>(`/v1/bookings/${booking.id}/payment`, { ref: clean })
       onUpdated(b)
       toast.show('وصلنا رقم العملية — عم نتحقق', 'ok')
-    } catch (e2) { setErr(errorMessage(e2)) } finally { setBusy(false) }
+    } catch (e2) {
+      if (errorCode(e2) === 'hold_expired') { setServerExpired(true); onExpired?.() }
+      setErr(errorMessage(e2))
+    } finally { setBusy(false) }
+  }
+
+  if (expired) {
+    return (
+      <Card>
+        <div className="status-hero">
+          <span className="status-mark grey"><Icon name="clock" size={32} /></span>
+          <h2 className="h2">انتهت مهلة الحجز</h2>
+          <p className="muted small mt-sm">
+            لم يصلنا رقم العملية خلال المهلة، فعاد المكان متاحاً للجميع.
+            {' '}إذا كنت قد حوّلت المبلغ فعلاً، تواصل مع المركز ومعك رمز الحجز <b className="num">{payment.code}</b>.
+          </p>
+          <Link to="/" className="btn btn-primary btn-lg mt">احجز من جديد</Link>
+        </div>
+      </Card>
+    )
   }
 
   return (
@@ -48,12 +76,12 @@ export function PaymentPanel({ booking, payment, onUpdated }: { booking: Booking
       <Card className="card-accent">
         <div className="row between" style={{ marginBottom: 12 }}>
           <h2 className="h2">ادفع عبر شام كاش</h2>
-          {payment.hold_until && (
+          {holdUntil && (
             <span className={`countdown num ${left < 300 ? 'is-late' : ''}`} title="المهلة المتبقية"><Icon name="clock" size={16} />{text}</span>
           )}
         </div>
         <p className="muted small" style={{ marginBottom: 14 }}>
-          {expired ? 'انتهت مهلة الحجز. إذا دفعت فعلاً أدخل رقم العملية وسنتحقق.' : `المكان محفوظ لك حتى ${fmtTime(payment.hold_until ?? booking.hold_until ?? booking.start)}.`}
+          المكان محفوظ لك حتى {fmtTime(holdUntil ?? booking.start)}.
         </p>
         <div className="stack-sm">
           <div className="copy-box">

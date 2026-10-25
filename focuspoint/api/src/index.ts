@@ -1,9 +1,10 @@
 // Focus Point API — Cloudflare Worker entry. /v1/* is the JSON API (shared/types.ts ApiContract); everything else is the
 // built web app from [assets] with an index.html fallback (single-page app). Cron work lives in cron.ts.
+import { assetLinks } from './assetlinks'
 import { authenticate } from './auth'
 import { runCron } from './cron'
 import type { Env } from './env'
-import { CORS_HEADERS, HttpError, error } from './http'
+import { CORS_HEADERS, HttpError, error, json } from './http'
 import { match, type Ctx, type Route } from './router'
 import { adminRoutes } from './routes/admin'
 import { paymentRoutes } from './routes/payments'
@@ -46,6 +47,7 @@ export default {
   async fetch(req: Request, env: Env, exec: ExecutionContext): Promise<Response> {
     const url = new URL(req.url)
     if (url.pathname === '/v1' || url.pathname.startsWith('/v1/')) return handleApi(req, env, exec, url)
+    if (url.pathname === '/.well-known/assetlinks.json') return json(assetLinks(env.ASSETLINKS_FINGERPRINTS), 200, { 'Cache-Control': 'public, max-age=3600' })
     return serveApp(req, env)
   },
   async scheduled(_event: ScheduledController, env: Env, exec: ExecutionContext): Promise<void> {

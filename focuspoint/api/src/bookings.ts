@@ -74,8 +74,73 @@ export function findConflicts<T extends Pick<Booking, 'id' | 'room_id' | 'start'
     o.room_id === candidate.room_id && o.id !== candidate.id && isBlocking(o, now) && overlaps(candidate, o))
 }
 
-/** SQL fragment matching the same "blocking" rule as isBlocking (bind the ISO `now` for the placeholder). */
-export const ACTIVE_SQL = `(b.status IN ('awaiting_verification','confirmed') OR (b.status = 'pending_payment' AND b.hold_until > ?))`
+/** SQL fragment matching the same "blocking" rule as isBlocking for table alias `t` (bind the ISO `now` for the placeholder). */
+export const activeSql = (t: string): string =>
+  `(${t}.status IN ('awaiting_verification','confirmed') OR (${t}.status = 'pending_payment' AND ${t}.hold_until > ?))`
+export const ACTIVE_SQL = activeSql('b')
+
+/**
+ * "No live booking overlaps [start, end) in this room, other than id X" as a SQL predicate — used inside a conditional
+ * UPDATE so confirm/edit are atomic against a racing booking (D1 runs one statement at a time; a single UPDATE … WHERE
+ * NOT EXISTS cannot interleave with another insert). Bind, in order: room_id, end, start, excluded id, ISO now.
+ */
+export const NO_CONFLICT_SQL =
+  `NOT EXISTS (SELECT 1 FROM bookings o WHERE o.room_id = ? AND o.start < ? AND o.end > ? AND o.id != ? AND ${activeSql('o')})`
+
+/** Why a guarded UPDATE changed no row: the booking vanished, moved on, or (status unchanged) the slot is taken. */
+export function zeroRowsError(fresh: Pick<Booking, 'status'> | null, expected: BookingStatus): 'booking_not_found' | 'illegal_transition' | 'slot_taken' {
+  if (!fresh) return 'booking_not_found'
+  return fresh.status === expected ? 'slot_taken' : 'illegal_transition'
+}
+
+// ---- payment holds ----
+/** After hold_until the slot is free for others, but a reference that arrives within this window is still accepted if nobody took the slot. */
+export const HOLD_GRACE_MINUTES = 10
+
+export type HoldState = 'none' | 'live' | 'grace' | 'expired'
+/** Where a pending_payment hold stands at `now`: live, in its grace window (slot free → still accept the reference), or over. */
+export function holdState(holdUntil: string | null, now: Date): HoldState {
+  if (holdUntil === null) return 'none'
+  const until = Date.parse(holdUntil)
+  if (Number.isNaN(until)) return 'none'
+  if (now.getTime() < until) return 'live'
+  if (now.getTime() < until + HOLD_GRACE_MINUTES * 60000) return 'grace'
+  return 'expired'
+}
+
+/** The cron expires a hold only once its grace window is over, so a late reference is not refused by a race with the cron. */
+export const holdExpiryCutoff = (now: Date): string => new Date(now.getTime() - HOLD_GRACE_MINUTES * 60000).toISOString()
+
+// ---- payment references ----
+/** Statuses whose reference is dead: a reference used by one of these may be typed again on a new booking. */
+export const REF_FREE_STATUSES: readonly BookingStatus[] = ['rejected', 'expired', 'cancelled']
+export const refBlocks = (status: BookingStatus): boolean => !REF_FREE_STATUSES.includes(status)
+export const REF_BLOCKING_SQL = `status NOT IN (${REF_FREE_STATUSES.map((s) => `'${s}'`).join(',')})`
+
+// ---- stale verifications ----
+/** An awaiting_verification booking nobody checked until this long after its end is expired by the cron. */
+export const VERIFICATION_GRACE_MINUTES = 30
+export const STALE_VERIFICATION_NOTE = 'انتهت المهلة دون تحقق من الدفع (إغلاق تلقائي)'
+export const staleVerificationCutoff = (now: Date): string => new Date(now.getTime() - VERIFICATION_GRACE_MINUTES * 60000).toISOString()
+export const isStaleVerification = (b: Pick<Booking, 'status' | 'end'>, now: Date): boolean =>
+  b.status === 'awaiting_verification' && Date.parse(b.end) <= Date.parse(staleVerificationCutoff(now))
+
+/** Appends the system note to whatever the staff wrote. */
+export const withSystemNote = (note: string | null, system: string): string => (note ? `${note}
+${system}` : system)
+
+// ---- offline replay ----
+/**
+ * The clock an offline op is validated against: the moment the device recorded it (op.at), never later than the server's
+ * own clock. A walk-in typed at 14:00 and synced at 20:00 is judged at 14:00, so "in the past" does not reject it;
+ * a device clock running ahead is clamped to the server.
+ */
+export function effectiveNow(opAt: unknown, serverNow: Date): Date {
+  if (typeof opAt !== 'string') return serverNow
+  const t = Date.parse(opAt)
+  if (Number.isNaN(t)) return serverNow
+  return t < serverNow.getTime() ? new Date(t) : serverNow
+}
 
 // Booking codes: 6 characters, no 0/O/1/I so they survive handwriting in a transfer note. 32 symbols → 2^30 codes.
 export const CODE_ALPHABET = '23456789ABCDEFGHJKLMNPQRSTUVWXYZ'
@@ -98,7 +163,7 @@ export const normaliseCode = (v: unknown): string | null => {
 // Status machine. Anything not listed is illegal (→ 409 illegal_transition).
 export const TRANSITIONS: Record<BookingStatus, readonly BookingStatus[]> = {
   pending_payment: ['awaiting_verification', 'confirmed', 'expired', 'cancelled', 'rejected'],
-  awaiting_verification: ['confirmed', 'rejected', 'cancelled'],
+  awaiting_verification: ['confirmed', 'rejected', 'cancelled', 'expired'],   // expired: by the cron, long after the slot ended
   confirmed: ['cancelled', 'completed'],
   rejected: [],
   expired: [],

@@ -5,6 +5,7 @@ import type { Room, SyncOp, SyncResult } from '../../../shared/types'
 import { BOOKING_SELECT, toBooking, toRoom, type BookingRow, type RoomRow } from '../db'
 import { HttpError, json, readJson } from '../http'
 import { requireUser, route, type Ctx, type Route } from '../router'
+import { effectiveNow } from '../bookings'
 import { cancelBooking, confirmBooking, createManualBooking, createRoom, editBooking, patchRoom, rejectBooking } from '../service'
 import { loadSettings, saveSettings, validateSettingsPatch, loadStoredSettings } from '../settings'
 import { getBooking } from '../db'
@@ -14,12 +15,15 @@ const MAX_OPS = 200
 
 async function applyOp(c: Ctx, op: SyncOp): Promise<SyncResult> {
   const user = requireUser(c), d = { env: c.env, exec: c.exec, now: c.now }
+  // Ops recorded offline are validated against the moment the device recorded them (clamped to the server clock), so a
+  // walk-in typed at 14:00 and synced at 20:00 is not refused as "in the past". Timestamps and holds still use the server clock.
+  const recorded = { ...d, validateAt: effectiveNow(op.at, c.now) }
   const admin = () => { if (user.role !== 'admin') throw new HttpError(403, 'forbidden') }
   switch (op.op) {
     case 'manual_booking': {
       const data = { ...(op.data as Record<string, unknown>) }
       data.client_id = (typeof data.client_id === 'string' && data.client_id) || op.client_id
-      return { client_id: op.client_id, ok: true, booking: await createManualBooking(d, user, data) }
+      return { client_id: op.client_id, ok: true, booking: await createManualBooking(recorded, user, data) }
     }
     case 'confirm':
       return { client_id: op.client_id, ok: true, booking: await confirmBooking(d, op.booking_id, user.id) }
@@ -31,7 +35,7 @@ async function applyOp(c: Ctx, op: SyncOp): Promise<SyncResult> {
       return { client_id: op.client_id, ok: true, booking: await cancelBooking(d, b, 'team') }
     }
     case 'edit_booking':
-      return { client_id: op.client_id, ok: true, booking: await editBooking(d, op.booking_id, (op.data ?? {}) as Record<string, unknown>) }
+      return { client_id: op.client_id, ok: true, booking: await editBooking(recorded, op.booking_id, (op.data ?? {}) as Record<string, unknown>) }
     case 'room_upsert': {
       admin()
       const { id, client_room_id: _cid, ...fields } = (op.room ?? {}) as Partial<Room> & { id?: number; client_room_id?: string }

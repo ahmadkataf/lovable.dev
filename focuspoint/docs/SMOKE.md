@@ -130,3 +130,131 @@ listing by room/status rather than code, the Bookings screen opening in day view
 - The customer booking at day +N and the walk-ins created by these runs remain in the **local** D1 (`api/.wrangler/`,
   git-ignored); room 1's plan rect was restored to the seed position after the drag tests.
 - Local dev admin created by the smoke run: phone `0985258963`, password `Admin123!` — local D1 only.
+
+## 7. Review fixes — API re-check (2026-10-25)
+
+Against `wrangler dev --local --port 8798 --test-scheduled` after the booking/offline review fixes (schema re-applied for
+`booking_devices`). Script kept out of the repo; the same calls are easy to repeat with `curl`:
+
+- `GET /.well-known/assetlinks.json` → one statement for `com.focuspoint.app` with the fingerprint from `ASSETLINKS_FINGERPRINTS`.
+- `GET /v1/team/ping` → `{now, pending, last_change}`; `pending` grows and `last_change` moves after a booking.
+- Pay on arrival: `method: 'cash'` → 400 `cash_not_allowed` while off; after `PATCH /v1/admin/settings {allow_pay_on_arrival: true}`
+  → 201 `awaiting_verification`, `hold_until: null`, team inbox `payment_submitted` «دفع عند الوصول», dashboard `pending` lists it;
+  `method: 'free'` → 400 `invalid_method`.
+- Lookup adopts: device B gets 403 on `/v1/bookings/:id`, then `lookup?code=&phone=` → B reads `/:id` (with `payment`), sees it
+  in `/mine`, pays; device A still sees it; after a team reject **both** devices have `booking_rejected`.
+- Reference reuse: the rejected booking's ref is accepted on a new booking; the same ref on a third booking → 409 `ref_used`.
+- Atomic confirm/edit: confirm → 200; confirm again → 409 `illegal_transition`; `PATCH` moving a booking onto a confirmed one →
+  409 `slot_taken`; a note-only edit → 200.
+- Offline clock: `manual_booking` for yesterday 09:00–10:00 local with `at` = yesterday 09:05 → `ok` (confirmed); the same slot
+  with `at` = now → `in_past`.
+- Cron: an `awaiting_verification` booking whose end was back-dated 2 h → `expired` with the note «انتهت المهلة دون تحقق من
+  الدفع (إغلاق تلقائي)» (`cron {"expired":2,"stale":1,…}`); a hold back-dated 5 min is **not** expired by the cron and its
+  reference is accepted (grace); a hold back-dated 15 min → 409 `hold_expired`.
+
+Local D1 now has `allow_pay_on_arrival: true` and the rows these calls created (git-ignored `.wrangler/`).
+
+## 8. Integration re-run after the review fixes (2026-10-25)
+
+Same real stack as §2, rebuilt from scratch: `api/.wrangler/state` deleted, `schema.sql` + `seed.sql` re-applied, `.dev.vars`
+with the dev values plus `PUBLIC_URL=http://127.0.0.1:8799` (`ASSETLINKS_FINGERPRINTS` comes from `wrangler.toml [vars]`),
+`web/dist` rebuilt, `wrangler dev --local --port 8799 --test-scheduled`.
+
+### 8.1 Static checks
+
+| where | command | result |
+|---|---|---|
+| `api/` | `npm run check` | green — 36 tests, 3 files (`validate` 6, `bookings` 17, `rules` 13) |
+| `web/` | `npm run check` | green — 21 precache entries (484 KiB), `dist/sw.js` emitted |
+
+### 8.2 API smoke — `docs/smoke/api-smoke.mjs` — 118/118 passed
+
+Runs: `DAY_OFFSET=1` on the fresh database → **118 passed, 0 failed**; re-runs `DAY_OFFSET=2` and `DAY_OFFSET=3` on the same
+database → 118/118 each (the script is re-run safe; its `pending` checks are relative to the previous ping).
+
+Two expectations of the old script were wrong under the new rules and were fixed in the script, not the API:
+
+- `GET /v1/bookings/:id` from the second device returned 200, not 403 — because the lookup that ran just before it now
+  **adopts** the booking for that device. The 403 is now checked *before* the lookup; after it the script asserts the adoption.
+- the cron did **not** expire a hold back-dated by 1 minute — correct: holds are expired only after the 10-minute grace.
+  The script back-dates by 15 minutes now and checks the grace case separately.
+
+New checks (section 11 of the script, plus the ping/adopt lines in sections 3–4):
+
+- **Lookup adopts** (B): device B → 403 before lookup; `lookup?code=&phone=` → 200; then B reads `/v1/bookings/:id` with
+  `payment` info, `/mine` on B lists it, `/mine` on A still lists it; after the team confirm **both** devices have
+  `booking_confirmed` in their inbox.
+- **`GET /v1/team/ping`**: `{now, pending, last_change}`, `pending` equals the dashboard count, 401 without a team token;
+  `pending −1` and `last_change` moved after a confirm; `pending +1` and `last_change` moved after a cash booking; a
+  verification whose slot has passed is not counted by ping nor listed by the dashboard.
+- **Pay on arrival**: `allow_pay_on_arrival` is `false` by default and visible in public settings; `method: 'cash'` while off →
+  400 `cash_not_allowed`; `PATCH /v1/admin/settings {allow_pay_on_arrival: 'yes'}` → 400 `invalid_pay_on_arrival`; `true` →
+  200; `method: 'free'` from a customer → 400 `invalid_method`; cash booking → 201 `awaiting_verification`, `method: cash`,
+  `hold_until: null`, `payment_ref: null`, `payment: null` on `/:id`; team inbox `payment_submitted` with «دفع عند الوصول»;
+  dashboard `pending` lists it; it blocks the slot (409 for another customer); `POST /v1/team/bookings/:id/confirm` → `confirmed`
+  with `verified_by`; the customer gets `booking_confirmed`; the setting is switched off again at the end.
+- **Hold grace** (D): hold back-dated 5 min → cron leaves it `pending_payment`, the slot is already free in `/availability`,
+  the reference is accepted → `awaiting_verification`; hold back-dated 15 min → `POST …/payment` → 409 `hold_expired` and
+  the booking is `expired`; the slot can be booked again; a reference held by a live awaiting booking → 409 `ref_used`;
+  the reference typed on the expired booking is accepted on the new one (G).
+- **Stale verifications** (I): an `awaiting_verification` booking whose `start/end` were back-dated (ended 2 h ago) → cron sets
+  `expired` with the note «انتهت المهلة دون تحقق من الدفع (إغلاق تلقائي)» and the customer gets `booking_expired`.
+- **Offline clock** (A): `POST /v1/team/sync` with a `manual_booking` for 09:00–10:00 local of the current day when local time
+  is past 10:05, else of the previous day (at 04:xx Damascus, when this ran, yesterday), with `at` = 09:05 of that day → `ok`,
+  `confirmed`, `updated_at` stamped with the server clock (> `op.at`); the same kind of past slot typed online now → 400
+  `in_past`. The room rotates with `DAY_OFFSET` so re-runs do not collide.
+- **Asset links**: `GET /.well-known/assetlinks.json` → 200 `application/json`, one statement, `com.focuspoint.app`,
+  `delegate_permission/common.handle_all_urls`, and the SHA-256 fingerprint read from `api/wrangler.toml` is in
+  `sha256_cert_fingerprints`.
+
+### 8.3 UI smoke — `docs/smoke/ui-smoke-2.mjs` — 24/24 passed, 0 page errors
+
+Run: `UI_DAY=5 node docs/smoke/ui-smoke-2.mjs` (fresh home-day chip per run; needs the admin from the API smoke). Every
+context is a phone, 390×844, `isMobile` + touch, `ar-SY`. The script enables `allow_pay_on_arrival` through the admin API for the
+run and restores it afterwards. Screenshots in `docs/screens/`, prefix `2x-`:
+
+| file | shows |
+|---|---|
+| `2x-01-book-cash.png` | book form with «طريقة الدفع» segmented, «الدفع عند الوصول» selected |
+| `2x-02-awaiting-cash.png` | «استلمنا حجزك … الدفع عند الوصول», badge «بانتظار تأكيد الفريق», no Sham Cash panel |
+| `2x-03-team-live.png` | team panel (phone) with the new card at the top, tab badge 7 — no reload |
+| `2x-04-team-push-new.png` | same card highlighted with «جديد» after a push delivered to the service worker |
+| `2x-05-confirmed-cash.png` | customer page «حجزك مؤكد» after the desk confirm |
+| `2x-06-privacy.png` | `/privacy` static page |
+| `2x-07-install-ios.png` | install banner with the Safari share-sheet instructions (iPhone UA) |
+| `2x-08-install-android.png` | install banner with «تثبيت» / «لاحقاً» (synthetic `beforeinstallprompt`) |
+
+Verified, in order:
+
+1. Team panel opened first and left visible: logged in, bottom tabs; `GET /v1/team/ping` observed 2× in 11 s, gap 5001 ms
+   (a tick is skipped while a sync is in flight).
+2. Customer: home → day chip → 16:00 → ساعة → غرفة 1 → `/book/1` → name/phone → segmented control present (2 options),
+   «الدفع عند الوصول» selected (`aria-checked`), hint «يؤكد الفريق حجزك، وتدفع عند وصولك إلى المركز.» → «تأكيد الحجز» →
+   `/b/:id` shows «استلمنا حجزك»; server: `awaiting_verification` / `cash` / `hold_until: null`.
+3. Team panel, **without reload**: the pending card for نور appeared **2.6 s** after the customer tapped (2.1 s in the first
+   run); pending list +1; the card says «الدفع عند الوصول» and offers «تأكيد الحجز» (not «تأكيد الدفع»); the bottom-tab
+   badge went 6 → 7.
+4. Bonus (not counted): a Web Push delivered to the team service worker with the CDP command
+   `ServiceWorker.deliverPushMessage` (`{"kind":"payment_submitted","booking_id":…}`) → the card gets `is-fresh` + the «جديد»
+   chip (sw `push` → `postMessage` → `store.handlePush`). Real push-service delivery is still not covered (no push service
+   reachable from the container).
+5. Team taps «تأكيد الحجز» → card gone, pill «متصل» → server `confirmed`; customer `/b/:id` shows «حجزك مؤكد».
+6. `/privacy`: the footer link on Home navigates to the static page (title «سياسة الخصوصية — فوكس بوينت | Privacy Policy —
+   Focus Point», `h1` + sections).
+7. Install banner: with an iPhone Safari UA, Home shows «ثبّت فوكس بوينت على جهازك» with the «إضافة إلى الشاشة الرئيسية»
+   instructions; «فهمت» dismisses it. With a synthetic `beforeinstallprompt` (headless Chromium never fires the real one) the
+   Android variant shows «تثبيت» + «لاحقاً».
+
+Console: 0 `pageerror`, 0 `console.error`.
+
+### 8.4 Fixed during this pass
+
+- **`web/src/styles.css` — footer links unreachable on phones.** At 390 px the footer sits *after* `.page`, which reserves
+  room for the fixed bottom nav, so the footer's own last line (`سياسة الخصوصية · فريق العمل`, y 804–824) lay under the nav
+  (y 780–844) and could not be tapped (Playwright: `.bottom-nav … intercepts pointer events`). The footer now carries
+  `padding-bottom: calc(20px + var(--nav-h) + env(safe-area-inset-bottom))` on phones and `20px` from 768 px up. Rebuilt,
+  restarted, retested: the link clicks through to `/privacy`.
+- `docs/smoke/api-smoke.mjs`: the two stale expectations above; `ping` `pending` assertions made relative so re-runs pass.
+
+Nothing in `api/` needed a change. The rows created by these runs (days +2…+6 and the back-dated grace/stale bookings) stay
+in the local D1 (`api/.wrangler/`, git-ignored); `allow_pay_on_arrival` is back to `false`.

@@ -135,12 +135,15 @@ h1, h2, h3, h4, p { margin: 0; }
   position: absolute; top: -2px; inset-inline-end: 2px; min-width: 18px; height: 18px; padding: 0 5px; border-radius: 9px;
   background: var(--wine); color: #fff; font-size: 0.68rem; font-weight: 700; display: grid; place-items: center; line-height: 1;
 }
-.footer { padding: 28px 16px 20px; color: var(--mute); font-size: 0.82rem; text-align: center; }
+/* Phones: the footer comes after .page, so it needs its own room above the fixed bottom nav (else its links sit under it). */
+.footer { padding: 28px 16px calc(20px + var(--nav-h) + env(safe-area-inset-bottom)); color: var(--mute); font-size: 0.82rem; text-align: center; }
 .footer a { color: var(--mute); }
-.footer .footer-team { display: inline-flex; align-items: center; gap: 6px; margin-top: 10px; font-size: 0.78rem; }
+.footer .footer-links { margin-top: 10px; font-size: 0.78rem; }
+.footer .footer-team { display: inline-flex; align-items: center; gap: 6px; font-size: 0.78rem; }
 
 @media (min-width: 768px) {
   .page { padding-top: 28px; padding-bottom: 48px; }
+  .footer { padding-bottom: 20px; }
   .bottom-nav { display: none; }
   .topbar {
     display: block; position: sticky; top: 0; z-index: 30;
@@ -251,6 +254,9 @@ input[dir='ltr'].input { text-align: left; }
 .chip b { font-size: 1.05rem; font-weight: 700; line-height: 1.2; }
 .chip.is-active { background: var(--wine); border-color: var(--wine); color: #fff; box-shadow: 0 6px 14px rgba(123, 30, 46, 0.22); }
 .chip.is-active small { color: rgba(255, 255, 255, 0.8); }
+.chip:disabled, .chip.is-closed { opacity: 0.45; cursor: not-allowed; }
+.badge-new { display: inline-block; animation: pulse-new 1.2s ease-in-out 3; }
+@keyframes pulse-new { 0%, 100% { opacity: 1; } 50% { opacity: 0.45; } }
 
 /* ---- misc components ---- */
 .empty { text-align: center; padding: 36px 16px; }

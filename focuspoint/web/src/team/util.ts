@@ -28,6 +28,9 @@ export const cx = (...a: (string | false | null | undefined)[]): string => a.fil
 // ---- Arabic text for server error codes (REST errors and SyncResult.error) ----
 const ERRORS: Record<string, string> = {
   slot_taken: 'هذا الوقت صار محجوزاً — تداخل مع حجز آخر',
+  ref_used: 'رقم العملية مسجّل على حجز آخر',
+  hold_expired: 'انتهت مهلة الدفع لهذا الحجز',
+  cash_not_allowed: 'الدفع عند الوصول غير مفعّل في الإعدادات',
   illegal_transition: 'حالة الحجز تغيّرت ولم يعد هذا الإجراء ممكناً',
   booking_not_found: 'الحجز غير موجود',
   room_not_found: 'القاعة غير موجودة',
@@ -99,6 +102,21 @@ export const METHOD: Record<PaymentMethod, string> = { shamcash: 'شام كاش'
 export const STATUSES: BookingStatus[] = ['awaiting_verification', 'pending_payment', 'confirmed', 'completed', 'cancelled', 'rejected', 'expired']
 export const LIVE: BookingStatus[] = ['pending_payment', 'awaiting_verification', 'confirmed']
 export const isLive = (s: BookingStatus): boolean => LIVE.includes(s)
+/** The server's "live booking" rule (api/src/bookings.ts isBlocking): confirmed, awaiting verification, or a hold that
+ *  has not run out yet. Use it for conflicts and the grid; `isLive` is only a status filter. */
+export function isBlocking(b: Pick<Booking, 'status' | 'hold_until'>, now = Date.now()): boolean {
+  if (b.status === 'confirmed' || b.status === 'awaiting_verification') return true
+  if (b.status === 'pending_payment') return b.hold_until !== null && Date.parse(b.hold_until) > now
+  return false
+}
+/** Conflicting live booking of the same room over [start, end), excluding `selfId`. */
+export function findConflict(bookings: Booking[], roomId: number, start: string, end: string, selfId: number | null = null, now = Date.now()): Booking | undefined {
+  return bookings.find((o) => o.id !== selfId && o.room_id === roomId && isBlocking(o, now) && overlaps(start, end, o.start, o.end))
+}
+/** A verification that is still worth the team's attention: not more than 30 minutes past its end. */
+export function isPendingVerification(b: Booking, now = Date.now()): boolean {
+  return b.status === 'awaiting_verification' && Date.parse(b.end) + 30 * 60000 > now
+}
 
 export function capacityLabel(n: number): string {
   if (n === 1) return 'شخص واحد'

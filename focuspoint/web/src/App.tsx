@@ -13,15 +13,18 @@ import { Inbox } from './pages/Inbox'
 import { Spinner, ToastHost } from './ui'
 import { useCached } from './lib/data'
 import { ensurePushSubscription } from './lib/push'
+import { setTimeZone } from './format'
 
 const TeamApp = lazy(() => import('./team/TeamApp'))
 
-/** Keeps an already-granted push subscription registered with the server (new browser, rotated endpoint…). */
+/** Keeps an already-granted push subscription registered with the server (new browser, rotated endpoint…) and
+ *  applies the centre's time zone to every date shown. */
 function PushKeeper() {
   const { data: settings } = useCached<PublicSettings>('/v1/settings')
   useEffect(() => {
     if (settings?.vapid_public_key) ensurePushSubscription(settings.vapid_public_key).catch(() => { /* best effort */ })
   }, [settings?.vapid_public_key])
+  useEffect(() => { setTimeZone(settings?.timezone) }, [settings?.timezone])
   return null
 }
 

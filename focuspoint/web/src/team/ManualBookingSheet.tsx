@@ -4,7 +4,7 @@ import type { PaymentMethod } from '@shared/types'
 import { addMinutes, durationLabel, fmtRange, fmtSYP, fromLocal, normalisePhone, todayLocal, toLocalParts } from '../format'
 import { Button, Empty, Field, Input, Segmented, Select, Sheet, Textarea, useToast } from '../ui'
 import { store, useRooms, useSettings, useStore } from './store'
-import { describeError, durationOptions, overlaps, parseInt10, priceFor, startOptions, toHHMM, toMin } from './util'
+import { describeError, durationOptions, findConflict, parseInt10, priceFor, startOptions, toHHMM, toMin } from './util'
 
 export interface ManualPreset { room_id?: number; date?: string; time?: string }
 
@@ -50,7 +50,8 @@ function Form({ onClose, preset }: { onClose: () => void; preset?: ManualPreset 
   useEffect(() => { if (!priceTouched) setPrice(String(auto)) }, [auto, priceTouched])
 
   const start = fromLocal(date, time), end = addMinutes(start, minutes)
-  const conflict = useMemo(() => view.bookings.find((o) => o.room_id === roomId && ['pending_payment', 'awaiting_verification', 'confirmed'].includes(o.status) && overlaps(start, end, o.start, o.end)), [view.bookings, roomId, start, end])
+  // Same rule as the server: confirmed, awaiting verification, or a hold that has not run out block the slot.
+  const conflict = useMemo(() => findConflict(view.bookings, roomId, start, end), [view.bookings, roomId, start, end])
 
   if (!settings || rooms.length === 0) return <Empty title="لا توجد قاعات بعد" hint="أضف قاعة من قسم القاعات أولاً." />
 

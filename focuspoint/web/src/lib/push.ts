@@ -1,6 +1,21 @@
 // Web Push on the customer side: subscribe with the centre's VAPID key and register the subscription with the API.
+import type { PushMessage } from '@shared/types'
 import { api } from '../api'
 import { flag, setFlag } from './store'
+
+/** A push the service worker forwarded to this window ({type: 'push', payload}) — see sw.ts. */
+export interface PushEventMessage { type: 'push'; payload: PushMessage; at: number }
+
+/** Listen for pushes forwarded by the service worker while the app is open; returns the unsubscribe function. */
+export function onPushMessage(cb: (p: PushMessage) => void): () => void {
+  if (typeof navigator === 'undefined' || !('serviceWorker' in navigator)) return () => { /* nothing */ }
+  const handler = (e: MessageEvent) => {
+    const m = e.data as Partial<PushEventMessage> | null
+    if (m && m.type === 'push' && m.payload) cb(m.payload)
+  }
+  navigator.serviceWorker.addEventListener('message', handler)
+  return () => navigator.serviceWorker.removeEventListener('message', handler)
+}
 
 const ENDPOINT_KEY = 'fp_push_endpoint'
 

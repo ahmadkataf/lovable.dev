@@ -4,7 +4,8 @@
 // - Hashed assets: cache first.
 // - API reads needed to render the home screen offline (/v1/settings, /v1/rooms, /v1/availability): network first,
 //   fall back to the last good response.
-// - Web Push: shows a notification and opens/focuses the app on click.
+// - Web Push: shows a notification, forwards the payload to every open window ({type: 'push', payload}) so the team
+//   panel and the customer app refresh at once, and opens/focuses the app on click.
 // No Workbox runtime is used, so the worker stays tiny and readable.
 
 // ---- Minimal worker-scope typings (the app's tsconfig uses the DOM lib, which lacks these) ----
@@ -12,7 +13,7 @@ interface ExtendableEvent extends Event { waitUntil(p: Promise<unknown>): void }
 interface FetchEvent extends ExtendableEvent { readonly request: Request; respondWith(r: Response | Promise<Response>): void }
 interface PushEvent extends ExtendableEvent { readonly data: { json(): unknown; text(): string } | null }
 interface NotificationEvent extends ExtendableEvent { readonly notification: Notification; readonly action: string }
-interface WindowClientLike { readonly url: string; focus(): Promise<WindowClientLike>; navigate(url: string): Promise<WindowClientLike | null> }
+interface WindowClientLike { readonly url: string; focus(): Promise<WindowClientLike>; navigate(url: string): Promise<WindowClientLike | null>; postMessage(message: unknown): void }
 interface ServiceWorkerScope {
   __WB_MANIFEST: { url: string; revision: string | null }[]
   readonly location: Location
@@ -124,22 +125,42 @@ sw.addEventListener('fetch', (event) => {
 })
 
 // ---- Web Push ----
-interface PushPayload { title?: string; body?: string; url?: string; booking_id?: number; tag?: string }
+// The payload shape is shared/types.ts PushMessage: {kind, booking_id, url, title, body, tag?}.
+interface PushPayload { kind?: string; title?: string; body?: string; url?: string; booking_id?: number | null; tag?: string }
+const TEAM_KINDS = new Set(['booking_created', 'payment_submitted'])
+
+/** Where a notification should open inside this app (the server's url may be a generic path; kind + booking id win). */
+function targetFor(data: PushPayload): string {
+  if (data.kind && TEAM_KINDS.has(data.kind)) return data.booking_id ? `/team/bookings?booking=${data.booking_id}` : '/team'
+  if (data.url && data.url.startsWith('/admin')) return '/team'      // a team announcement (the API's generic team path)
+  if (data.booking_id) return `/b/${data.booking_id}`
+  if (data.url && /^\/(team|b\/|inbox|mine)/.test(data.url)) return data.url
+  return '/inbox'
+}
+
+async function broadcast(message: unknown): Promise<void> {
+  const wins = await sw.clients.matchAll({ type: 'window', includeUncontrolled: true })
+  for (const w of wins) { try { w.postMessage(message) } catch { /* a closing window */ } }
+}
 
 sw.addEventListener('push', (event) => {
   let data: PushPayload = {}
   try { data = (event.data?.json() as PushPayload) || {} } catch { data = { body: event.data?.text() } }
   const title = data.title || 'فوكس بوينت'
-  const url = data.url || (data.booking_id ? `/b/${data.booking_id}` : '/inbox')
-  event.waitUntil(sw.registration.showNotification(title, {
-    body: data.body || '',
-    data: { url },
-    icon: '/icons/icon-192.png',
-    badge: '/icons/icon-192.png',
-    dir: 'rtl',
-    lang: 'ar',
-    tag: data.tag,
-  } as NotificationOptions))
+  const url = targetFor(data)
+  event.waitUntil(Promise.all([
+    sw.registration.showNotification(title, {
+      body: data.body || '',
+      data: { url },
+      icon: '/icons/icon-192.png',
+      badge: '/icons/icon-192.png',
+      dir: 'rtl',
+      lang: 'ar',
+      tag: data.tag,
+      renotify: !!data.tag,
+    } as NotificationOptions),
+    broadcast({ type: 'push', payload: { ...data, url }, at: Date.now() }),
+  ]))
 })
 
 sw.addEventListener('notificationclick', (event) => {

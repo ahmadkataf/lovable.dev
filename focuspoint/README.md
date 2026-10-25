@@ -30,10 +30,13 @@ tight and automatic around it:
    Sham Cash app, and confirm or reject with one tap → the customer gets a push + in-app notification immediately.
 4. If Sham Cash (or a bank) ever offers callbacks, `POST /v1/payments/shamcash/webhook` matches a reference and
    amount to the booking and confirms it automatically.
+5. Optional **pay on arrival** (`allow_pay_on_arrival` in settings, off by default): the customer picks «الدفع عند الوصول»,
+   the booking goes straight to the team's verification list (no transfer, no hold) and staff confirm it at the desk.
 
 ## Notifications
 Web Push (works in Chrome/Android and in the installed PWA on iOS 16.4+). Staff are notified of new bookings and
 submitted payments; customers of confirmation, rejection, expiry, and a reminder one hour before the booking.
 Every notification is also stored in the in-app inbox.
 
-See `api/README.md` and `web/README.md` for setup, secrets, local development and deployment.
+See `api/README.md` and `web/README.md` for setup, secrets, local development and deployment, and `docs/HANDOVER.md`
+(Arabic) for the first deployment on the Cloudflare account, moving to another account/domain, Google Play notes and cost.

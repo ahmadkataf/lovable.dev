@@ -5,7 +5,7 @@ import { addMinutes, durationLabel, fmtDate, fmtRange, fmtSYP, fromLocal, status
 import { Badge, Button, Field, Icon, Input, Select, Sheet, Textarea, useToast } from '../ui'
 import { Confirm } from './common'
 import { store, useRooms, useSettings } from './store'
-import { describeError, durationOptions, isTemp, METHOD, minutesBetween, overlaps, parseInt10, priceFor, startOptions, telHref, whatsappHref } from './util'
+import { describeError, durationOptions, findConflict, isTemp, METHOD, minutesBetween, parseInt10, priceFor, startOptions, telHref, whatsappHref } from './util'
 
 export function BookingSheet({ booking, onClose }: { booking: Booking | null; onClose: () => void }) {
   const [mode, setMode] = useState<'view' | 'reject' | 'edit'>('view')
@@ -19,7 +19,7 @@ export function BookingSheet({ booking, onClose }: { booking: Booking | null; on
   }
 
   if (!b) return null
-  const st = statusLabel(b.status)
+  const st = statusLabel(b.status, b.method)
   const canConfirm = b.status === 'awaiting_verification' || b.status === 'pending_payment'
   const canReject = canConfirm
   const canCancel = canConfirm || b.status === 'confirmed'
@@ -59,7 +59,7 @@ export function BookingSheet({ booking, onClose }: { booking: Booking | null; on
             <div className="action-grid">
               {canConfirm && (
                 <Button className="span2" size="lg" onClick={() => run(b.status === 'awaiting_verification' ? 'تم تأكيد الدفع' : 'تم تأكيد الحجز', () => store.confirm(b))}>
-                  <Icon name="check" size={18} /> {b.status === 'awaiting_verification' ? 'تأكيد الدفع' : 'تأكيد الحجز (دُفع)'}
+                  <Icon name="check" size={18} /> {b.method === 'cash' ? 'تأكيد الحجز (الدفع عند الوصول)' : b.status === 'awaiting_verification' ? 'تأكيد الدفع' : 'تأكيد الحجز (دُفع)'}
                 </Button>
               )}
               {canEdit && <Button variant="soft" onClick={() => setMode('edit')}><Icon name="edit" size={18} /> تعديل</Button>}
@@ -128,7 +128,7 @@ function EditForm({ booking, onCancel, onDone }: { booking: Booking; onCancel: (
   const auto = room ? priceFor(room, minutes) : booking.price
   useEffect(() => { if (!priceTouched) setPrice(String(auto)) }, [auto, priceTouched])
   const start = fromLocal(date, time), end = addMinutes(start, minutes)
-  const conflict = useMemo(() => bookings.find((o) => o.id !== booking.id && o.room_id === roomId && ['pending_payment', 'awaiting_verification', 'confirmed'].includes(o.status) && overlaps(start, end, o.start, o.end)), [bookings, booking.id, roomId, start, end])
+  const conflict = useMemo(() => findConflict(bookings, roomId, start, end, booking.id), [bookings, booking.id, roomId, start, end])
 
   async function submit() {
     const p = parseInt10(price)

@@ -53,7 +53,12 @@ export function Layout() {
           <span aria-hidden="true">·</span>
           <a href={`https://instagram.com/${settings?.instagram || 'its_focus_point'}`} target="_blank" rel="noreferrer" dir="ltr">@{settings?.instagram || 'its_focus_point'}</a>
         </div>
-        <Link to="/team" className="footer-team"><Icon name="user" size={14} /> فريق العمل</Link>
+        <div className="row center gap wrap footer-links">
+          {/* A static file served by the Worker — a plain anchor, so the SPA router never swallows it. */}
+          <a href="/privacy">سياسة الخصوصية</a>
+          <span aria-hidden="true">·</span>
+          <Link to="/team" className="footer-team"><Icon name="user" size={14} /> فريق العمل</Link>
+        </div>
       </footer>
       <nav className="bottom-nav" aria-label="التنقل"><NavItems /></nav>
     </div>

@@ -1,5 +1,6 @@
 // Focus Point — API smoke test against `wrangler dev --local --port 8799 --test-scheduled` (see docs/SMOKE.md).
 // Usage: node docs/smoke/api-smoke.mjs   (DAY_OFFSET=n shifts the booking days so a re-run does not collide)
+// Expects api/.dev.vars with ADMIN_SETUP_KEY=dev-setup-key-123, WEBHOOK_SECRET=dev-webhook-secret-xyz, PUBLIC_URL=http://127.0.0.1:8799.
 import { randomUUID } from 'node:crypto'
 import { execFileSync } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
@@ -63,12 +64,19 @@ r = await call('GET', '/v1/bookings/mine', { device: devA })
 ok(r.status === 200 && r.data.some((b) => b.id === b1.id) && r.data[0].room_name, 'mine lists the booking (with room_name)')
 r = await call('GET', '/v1/bookings/mine', { device: devB })
 ok(r.status === 200 && r.data.length === 0, 'mine from another device is empty')
+r = await call('GET', `/v1/bookings/${b1.id}`, { device: devB })
+ok(r.status === 403, 'GET booking from a foreign device → 403 (before lookup)')
 r = await call('GET', `/v1/bookings/lookup?code=${b1.code.toLowerCase()}&phone=0944123456`, { device: devB })
 ok(r.status === 200 && r.data.id === b1.id, 'lookup by code+phone from another device')
 r = await call('GET', `/v1/bookings/lookup?code=${b1.code}&phone=0999999999`, { device: devB })
 ok(r.status === 404, 'lookup wrong phone → 404')
+// lookup adopts: the second device now owns the booking too (booking_devices), the first keeps it
 r = await call('GET', `/v1/bookings/${b1.id}`, { device: devB })
-ok(r.status === 403, 'GET booking from a foreign device → 403')
+ok(r.status === 200 && r.data.id === b1.id && r.data.payment?.code === b1.code, 'adopt: GET booking from the second device → 200 with payment info')
+r = await call('GET', '/v1/bookings/mine', { device: devB })
+ok(r.status === 200 && r.data.some((b) => b.id === b1.id), 'adopt: /mine on the second device lists the adopted booking')
+r = await call('GET', '/v1/bookings/mine', { device: devA })
+ok(r.status === 200 && r.data.some((b) => b.id === b1.id), 'adopt: /mine on the original device still lists it')
 r = await call('GET', `/v1/bookings/${b1.id}`, { device: devA })
 ok(r.status === 200 && r.data.payment && r.data.payment.shamcash_number === '0985258963' && r.data.payment.amount === b1.price && r.data.payment.code === b1.code, 'GET booking (owner) has payment info')
 r = await call('POST', `/v1/bookings/${b1.id}/payment`, { device: devA, body: { ref: '12' } })
@@ -88,6 +96,11 @@ r = await call('GET', '/v1/team/me', { token: 'garbage' })
 ok(r.status === 401 && r.data.error === 'invalid_token', 'bad token → 401 invalid_token')
 r = await call('GET', '/v1/team/dashboard', { token: admin })
 ok(r.status === 200 && r.data.pending.some((b) => b.id === b1.id) && r.data.counts.pending >= 1, 'dashboard shows pending verification')
+r = await call('GET', '/v1/team/ping', { token: admin })
+ok(r.status === 200 && typeof r.data.now === 'string' && r.data.pending >= 1 && r.data.pending === (await call('GET', '/v1/team/dashboard', { token: admin })).data.counts.pending && typeof r.data.last_change === 'string', 'GET /v1/team/ping → {now, pending (= dashboard count), last_change}', JSON.stringify(r.data))
+const ping1 = r.data
+r = await call('GET', '/v1/team/ping', { device: devA })
+ok(r.status === 401, 'ping needs a team token → 401')
 r = await call('GET', '/v1/team/notifications'.replace('/team', ''), { token: admin })
 ok(r.status === 200 && r.data.some((n) => n.kind === 'booking_created') && r.data.some((n) => n.kind === 'payment_submitted'), 'team inbox has booking_created + payment_submitted')
 r = await call('POST', `/v1/team/bookings/${b1.id}/confirm`, { token: admin })
@@ -98,6 +111,10 @@ r = await call('GET', `/v1/bookings/${b1.id}`, { device: devA })
 ok(r.status === 200 && r.data.status === 'confirmed', 'customer sees confirmed')
 r = await call('GET', '/v1/notifications', { device: devA })
 ok(r.status === 200 && r.data.some((n) => n.kind === 'booking_confirmed' && n.booking_id === b1.id), 'customer notifications has booking_confirmed')
+r = await call('GET', '/v1/notifications', { device: devB })
+ok(r.status === 200 && r.data.some((n) => n.kind === 'booking_confirmed' && n.booking_id === b1.id), 'adopt: the second device is notified too (booking_confirmed)')
+r = await call('GET', '/v1/team/ping', { token: admin })
+ok(r.status === 200 && r.data.pending === ping1.pending - 1 && r.data.last_change > ping1.last_change, 'ping: pending −1 and last_change moved after the confirm', JSON.stringify(r.data))
 r = await call('POST', '/v1/notifications/read', { device: devA, body: {} })
 ok(r.status === 200 && r.data.ok === true, 'mark notifications read')
 
@@ -184,17 +201,26 @@ ok(r.status === 200 && r.data.matched === true, 'duplicate webhook delivery → 
 r = await call('POST', '/v1/bookings', { device: devA, body: { room_id: room2.id, start: at(tomorrow, '20:00'), end: at(tomorrow, '21:00'), name: 'أحمد', phone: '0944123456' } })
 const b6 = r.data
 ok(r.status === 201, 'booking to expire created')
-const past = new Date(Date.now() - 60000).toISOString()
-let sqlOut = ''
-try {
-  sqlOut = execFileSync('npx', ['wrangler', 'd1', 'execute', 'focuspoint', '--local', '--command', `UPDATE bookings SET hold_until = '${past}' WHERE id = ${b6.id}`], { cwd: resolve(ROOT, 'api'), encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] })
-} catch (e) { sqlOut = String(e.stderr || e.message) }
-ok(/"success":\s*true/.test(sqlOut), 'back-dated hold_until via wrangler d1 execute --local', sqlOut.slice(-300))
-r = await fetch(`${BASE}/__scheduled?cron=*/5+*+*+*+*`)
-ok(r.status === 200, 'GET /__scheduled runs the cron')
-await new Promise((res) => setTimeout(res, 1500))
+// local D1 edit (wrangler d1 execute --local) + cron run via the --test-scheduled endpoint
+function sql(statement) {
+  let out = ''
+  try {
+    out = execFileSync('npx', ['wrangler', 'd1', 'execute', 'focuspoint', '--local', '--command', statement], { cwd: resolve(ROOT, 'api'), encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] })
+  } catch (e) { out = String(e.stderr || e.message) }
+  return /"success":\s*true/.test(out) ? true : out.slice(-300)
+}
+async function cron() {
+  const res = await fetch(`${BASE}/__scheduled?cron=*/5+*+*+*+*`)
+  await new Promise((r) => setTimeout(r, 1500))
+  return res.status
+}
+const minutesAgo = (n) => new Date(Date.now() - n * 60000).toISOString()
+// a hold 15 min past hold_until is beyond the 10-minute grace → the cron expires it
+const sqlOut = sql(`UPDATE bookings SET hold_until = '${minutesAgo(15)}' WHERE id = ${b6.id}`)
+ok(sqlOut === true, 'back-dated hold_until (15 min) via wrangler d1 execute --local', String(sqlOut))
+ok(await cron() === 200, 'GET /__scheduled runs the cron')
 r = await call('GET', `/v1/bookings/${b6.id}`, { device: devA })
-ok(r.data.status === 'expired', 'cron expired the booking', r.data.status)
+ok(r.data.status === 'expired', 'cron expired the booking (hold + grace over)', r.data.status)
 r = await call('GET', '/v1/notifications', { device: devA })
 ok(r.data.some((n) => n.kind === 'booking_expired' && n.booking_id === b6.id), 'customer notified booking_expired')
 // a free slot again
@@ -219,6 +245,109 @@ const opt = await fetch(`${BASE}/v1/rooms`, { method: 'OPTIONS', headers: { Orig
 ok(opt.status === 204 && (opt.headers.get('access-control-allow-headers') || '').toLowerCase().includes('x-device'), 'CORS preflight allows X-Device')
 r = await call('GET', '/v1/nope', { device: devA })
 ok(r.status === 404 && r.data.error === 'not_found', 'unknown API route → 404 JSON')
+
+// 11. review fixes & extras (2026-10-25): pay on arrival, hold grace, stale verifications, offline clock, assetlinks
+const room3 = rooms[2]
+// 11a. pay on arrival — off by default
+r = await call('GET', '/v1/settings', { device: devA })
+ok(r.status === 200 && r.data.allow_pay_on_arrival === false, 'settings: allow_pay_on_arrival false by default')
+r = await call('POST', '/v1/bookings', { device: devA, body: { room_id: room3.id, start: at(tomorrow, '10:00'), end: at(tomorrow, '11:00'), name: 'أحمد', phone: '0944123456', method: 'cash' } })
+ok(r.status === 400 && r.data.error === 'cash_not_allowed', 'cash while the setting is off → 400 cash_not_allowed', JSON.stringify(r))
+r = await call('PATCH', '/v1/admin/settings', { token: admin, body: { allow_pay_on_arrival: 'yes' } })
+ok(r.status === 400 && r.data.error === 'invalid_pay_on_arrival', 'PATCH allow_pay_on_arrival non-boolean → 400')
+r = await call('PATCH', '/v1/admin/settings', { token: admin, body: { allow_pay_on_arrival: true } })
+ok(r.status === 200 && r.data.allow_pay_on_arrival === true, 'admin enables pay on arrival')
+r = await call('GET', '/v1/settings', { device: devA })
+ok(r.data.allow_pay_on_arrival === true, 'public settings expose allow_pay_on_arrival: true')
+r = await call('POST', '/v1/bookings', { device: devA, body: { room_id: room3.id, start: at(tomorrow, '10:00'), end: at(tomorrow, '11:00'), name: 'أحمد', phone: '0944123456', method: 'free' } })
+ok(r.status === 400 && r.data.error === 'invalid_method', 'method free from a customer → 400 invalid_method')
+const pingBeforeCash = (await call('GET', '/v1/team/ping', { token: admin })).data
+r = await call('POST', '/v1/bookings', { device: devA, body: { room_id: room3.id, start: at(tomorrow, '10:00'), end: at(tomorrow, '11:00'), name: 'أحمد', phone: '0944123456', method: 'cash' } })
+ok(r.status === 201 && r.data.status === 'awaiting_verification' && r.data.method === 'cash' && r.data.hold_until === null && r.data.payment_ref === null, 'cash booking → 201 awaiting_verification, no hold', JSON.stringify(r.data))
+const cash1 = r.data
+r = await call('GET', `/v1/bookings/${cash1.id}`, { device: devA })
+ok(r.status === 200 && r.data.payment === null, 'cash booking has no Sham Cash payment panel (payment: null)')
+r = await call('GET', '/v1/notifications', { token: admin })
+ok(r.data.some((n) => n.kind === 'payment_submitted' && n.booking_id === cash1.id && n.body.includes('دفع عند الوصول')), 'team inbox: payment_submitted «دفع عند الوصول» for the cash booking')
+r = await call('GET', '/v1/team/dashboard', { token: admin })
+ok(r.data.pending.some((b) => b.id === cash1.id), 'dashboard pending lists the cash booking')
+r = await call('GET', '/v1/team/ping', { token: admin })
+ok(r.data.pending === pingBeforeCash.pending + 1 && r.data.last_change > pingBeforeCash.last_change, 'ping: pending +1 and last_change moved after the cash booking', JSON.stringify([pingBeforeCash, r.data]))
+r = await call('POST', '/v1/bookings', { device: devB, body: { room_id: room3.id, start: at(tomorrow, '10:30'), end: at(tomorrow, '11:30'), name: 'سامر', phone: '0933111222' } })
+ok(r.status === 409 && r.data.error === 'slot_taken', 'cash booking blocks the slot for others')
+r = await call('POST', `/v1/team/bookings/${cash1.id}/confirm`, { token: admin })
+ok(r.status === 200 && r.data.status === 'confirmed' && r.data.method === 'cash' && r.data.verified_by, 'team confirms the cash booking at the desk → confirmed')
+r = await call('GET', '/v1/notifications', { device: devA })
+ok(r.data.some((n) => n.kind === 'booking_confirmed' && n.booking_id === cash1.id), 'customer notified booking_confirmed for the cash booking')
+r = await call('PATCH', '/v1/admin/settings', { token: admin, body: { allow_pay_on_arrival: false } })
+ok(r.status === 200 && r.data.allow_pay_on_arrival === false, 'admin disables pay on arrival again')
+
+// 11b. payment reference grace after hold_until (10 min), hard expiry after it
+r = await call('POST', '/v1/bookings', { device: devA, body: { room_id: room3.id, start: at(tomorrow, '12:00'), end: at(tomorrow, '13:00'), name: 'أحمد', phone: '0944123456' } })
+const g1 = r.data
+ok(r.status === 201 && g1.status === 'pending_payment', 'grace: booking created')
+ok(sql(`UPDATE bookings SET hold_until = '${minutesAgo(5)}' WHERE id = ${g1.id}`) === true, 'grace: hold_until back-dated 5 min')
+ok(await cron() === 200, 'grace: cron ran')
+r = await call('GET', `/v1/bookings/${g1.id}`, { device: devA })
+ok(r.data.status === 'pending_payment', 'grace: cron does NOT expire a hold inside the 10-minute grace', r.data.status)
+r = await call('GET', `/v1/availability?date=${tomorrow}`, { device: devA })
+ok(!r.data.some((a) => a.room_id === room3.id && a.start === at(tomorrow, '12:00')), 'grace: the slot is already free for others after hold_until')
+r = await call('POST', `/v1/bookings/${g1.id}/payment`, { device: devA, body: { ref: `GR-${RUN}` } })
+ok(r.status === 200 && r.data.status === 'awaiting_verification', 'grace: reference 5 min after hold_until is accepted (slot still free)', JSON.stringify(r))
+r = await call('POST', '/v1/bookings', { device: devA, body: { room_id: room3.id, start: at(tomorrow, '14:00'), end: at(tomorrow, '15:00'), name: 'أحمد', phone: '0944123456' } })
+const g2 = r.data
+ok(sql(`UPDATE bookings SET hold_until = '${minutesAgo(15)}' WHERE id = ${g2.id}`) === true, 'grace: second hold back-dated 15 min')
+r = await call('POST', `/v1/bookings/${g2.id}/payment`, { device: devA, body: { ref: `GX-${RUN}` } })
+ok(r.status === 409 && r.data.error === 'hold_expired', 'reference 15 min after hold_until → 409 hold_expired', JSON.stringify(r))
+r = await call('GET', `/v1/bookings/${g2.id}`, { device: devA })
+ok(r.data.status === 'expired', 'the late booking is marked expired', r.data.status)
+// a reference typed on a dead booking may be reused; a live one may not
+r = await call('POST', '/v1/bookings', { device: devA, body: { room_id: room3.id, start: at(tomorrow, '14:00'), end: at(tomorrow, '15:00'), name: 'أحمد', phone: '0944123456' } })
+const g3 = r.data
+ok(r.status === 201, 'the expired slot can be booked again')
+r = await call('POST', `/v1/bookings/${g3.id}/payment`, { device: devA, body: { ref: `GR-${RUN}` } })
+ok(r.status === 409 && r.data.error === 'ref_used', 'a reference on a live (awaiting) booking → 409 ref_used')
+r = await call('POST', `/v1/bookings/${g3.id}/payment`, { device: devA, body: { ref: `GX-${RUN}` } })
+ok(r.status === 200 && r.data.status === 'awaiting_verification', 'a reference typed on the expired booking is accepted again')
+
+// 11c. cron closes stale awaiting_verification bookings (end ≤ now − 30 min) with a system note
+r = await call('POST', '/v1/bookings', { device: devA, body: { room_id: room3.id, start: at(tomorrow, '16:00'), end: at(tomorrow, '17:00'), name: 'أحمد', phone: '0944123456' } })
+const st1 = r.data
+r = await call('POST', `/v1/bookings/${st1.id}/payment`, { device: devA, body: { ref: `ST-${RUN}` } })
+ok(r.status === 200 && r.data.status === 'awaiting_verification', 'stale: awaiting booking created')
+const pendingBefore = (await call('GET', '/v1/team/ping', { token: admin })).data.pending
+ok(sql(`UPDATE bookings SET start = '${minutesAgo(180)}', end = '${minutesAgo(120)}' WHERE id = ${st1.id}`) === true, 'stale: start/end back-dated (ended 2 h ago)')
+r = await call('GET', '/v1/team/ping', { token: admin })
+ok(r.data.pending === pendingBefore - 1, 'ping: a verification whose slot has passed is not counted', JSON.stringify(r.data))
+r = await call('GET', '/v1/team/dashboard', { token: admin })
+ok(!r.data.pending.some((b) => b.id === st1.id), 'dashboard pending excludes it as well')
+ok(await cron() === 200, 'stale: cron ran')
+r = await call('GET', `/v1/bookings/${st1.id}`, { device: devA })
+ok(r.data.status === 'expired' && (r.data.note || '').includes('انتهت المهلة دون تحقق من الدفع (إغلاق تلقائي)'), 'cron expired the stale verification with the system note', JSON.stringify({ status: r.data.status, note: r.data.note }))
+r = await call('GET', '/v1/notifications', { device: devA })
+ok(r.data.some((n) => n.kind === 'booking_expired' && n.booking_id === st1.id), 'customer notified booking_expired for the stale verification')
+
+// 11d. offline replay clock: a walk-in recorded earlier (op.at) is judged at that moment, not at sync time
+const localNowMin = (() => { const d = new Date(Date.now() + 3 * 3600000); return d.getUTCHours() * 60 + d.getUTCMinutes() })()
+const earlierDay = localNowMin >= 10 * 60 + 5 ? new Date(Date.now() + 3 * 3600000).toISOString().slice(0, 10) : new Date(Date.now() + 3 * 3600000 - 86400000).toISOString().slice(0, 10)
+const offRoom = rooms[OFF % rooms.length]
+const offline = { client_id: randomUUID(), at: at(earlierDay, '09:05'), op: 'manual_booking', data: { room_id: offRoom.id, start: at(earlierDay, '09:00'), end: at(earlierDay, '10:00'), phone: '0977000333', name: 'زائر الصباح', method: 'cash' } }
+r = await call('POST', '/v1/team/sync', { token: admin, body: { ops: [offline] } })
+ok(r.status === 200 && r.data.results[0].ok === true && r.data.results[0].booking?.status === 'confirmed' && r.data.results[0].booking.start === offline.data.start,
+  `sync: offline manual booking for ${earlierDay} 09:00 (recorded 09:05, synced now) is accepted`, JSON.stringify(r.data.results[0]))
+const offB = r.data.results[0].booking
+ok(offB.updated_at > offline.at, 'sync: the replayed booking is stamped with the server clock (updated_at ≥ now, not op.at)')
+r = await call('POST', '/v1/team/bookings/manual', { token: admin, body: { room_id: offRoom.id, start: at(earlierDay, '10:00'), end: at(earlierDay, '11:00'), phone: '0977000333', name: 'زائر الصباح', method: 'cash' } })
+ok(r.status === 400 && r.data.error === 'in_past', 'the same kind of past slot typed online now → 400 in_past')
+
+// 11e. Android Digital Asset Links from ASSETLINKS_FINGERPRINTS (wrangler.toml [vars])
+const toml = (await import('node:fs')).readFileSync(resolve(ROOT, 'api', 'wrangler.toml'), 'utf8')
+const fp = (toml.match(/ASSETLINKS_FINGERPRINTS\s*=\s*"([^"]+)"/) || [])[1]
+const al = await fetch(`${BASE}/.well-known/assetlinks.json`)
+const alData = await al.json().catch(() => null)
+ok(al.status === 200 && (al.headers.get('content-type') || '').includes('application/json') && Array.isArray(alData) && alData.length === 1, 'GET /.well-known/assetlinks.json → one statement')
+ok(alData?.[0]?.target?.package_name === 'com.focuspoint.app' && alData[0].relation.includes('delegate_permission/common.handle_all_urls'), 'assetlinks: package com.focuspoint.app, handle_all_urls')
+ok(fp && alData?.[0]?.target?.sha256_cert_fingerprints?.includes(fp), 'assetlinks: carries the fingerprint from wrangler.toml', String(fp))
 
 console.log(`\n${passed} passed, ${failed} failed`)
 process.exit(failed ? 1 : 0)

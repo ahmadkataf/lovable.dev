@@ -129,7 +129,7 @@ export const teamRoutes: Route[] = [
     const db = c.env.DB
     const [today, pending, week, revenue] = await Promise.all([
       db.prepare(`${BOOKING_SELECT} WHERE b.start < ? AND b.end > ? AND b.status NOT IN ${DEAD} ORDER BY b.start`).bind(day.to.toISOString(), day.from.toISOString()).all<BookingRow>(),
-      db.prepare(`${BOOKING_SELECT} WHERE b.status = 'awaiting_verification' ORDER BY b.paid_at, b.id`).all<BookingRow>(),
+      db.prepare(`${BOOKING_SELECT} WHERE b.status = 'awaiting_verification' AND b.end > ? ORDER BY b.paid_at, b.id`).bind(c.now.toISOString()).all<BookingRow>(),   // past ones are closed by the cron
       db.prepare(`SELECT COUNT(*) AS n FROM bookings b WHERE b.start >= ? AND b.start < ? AND b.status NOT IN ${DEAD}`).bind(day.from.toISOString(), weekEnd.toISOString()).first<{ n: number }>(),
       db.prepare(`SELECT COALESCE(SUM(price), 0) AS total FROM bookings WHERE start >= ? AND start < ? AND status IN ('confirmed','completed')`).bind(monthStart.toISOString(), monthEnd.toISOString()).first<{ total: number }>(),
     ])
@@ -138,6 +138,17 @@ export const teamRoutes: Route[] = [
       counts: { today: today.results.length, week: week?.n ?? 0, pending: pending.results.length },
       revenue_month: revenue?.total ?? 0,
     })
+  }),
+
+  // Cheap 5-second poll for the live panel: how many verifications wait, and when a booking last changed
+  // (both answered from the (status) and (updated_at) indexes). The client pulls /v1/team/sync?since= when last_change moves.
+  route('GET', '/v1/team/ping', 'team', async (c) => {
+    const now = c.now.toISOString()
+    const [pending, last] = await Promise.all([
+      c.env.DB.prepare(`SELECT COUNT(*) AS n FROM bookings WHERE status = 'awaiting_verification' AND end > ?`).bind(now).first<{ n: number }>(),
+      c.env.DB.prepare('SELECT MAX(updated_at) AS t FROM bookings').first<{ t: string | null }>(),
+    ])
+    return json({ now, pending: pending?.n ?? 0, last_change: last?.t ?? null })
   }),
 
   route('GET', '/v1/team/customers', 'team', async (c) => {

@@ -55,10 +55,38 @@ export const api = {
   del<T>(path: string): Promise<T> { return request<T>('DELETE', path) },
 }
 
+/** Arabic text for the server's error codes the customer app can hit. */
+const CODES: Record<string, string> = {
+  slot_taken: 'هذا الوقت صار محجوزاً، اختر وقتاً آخر',
+  hold_expired: 'انتهت مهلة الحجز — احجز من جديد',
+  ref_used: 'رقم العملية هذا مسجّل على حجز آخر — تأكد من الرقم كما يظهر في شام كاش',
+  invalid_ref: 'رقم العملية غير صحيح — أدخله كما يظهر في تطبيق شام كاش',
+  illegal_transition: 'حالة الحجز تغيّرت — حدّث الصفحة',
+  booking_not_found: 'ما لقينا هذا الحجز',
+  customer_blocked: 'ما قدرنا نكمل الحجز بهذا الرقم — تواصل مع المركز',
+  too_many_open: 'عندك حجز بانتظار الدفع — أكمله أو ألغِه أولاً',
+  in_past: 'هذا الوقت مضى — اختر وقتاً لاحقاً',
+  outside_hours: 'الوقت خارج ساعات العمل',
+  off_grid: 'الوقت غير مطابق لخانات الحجز',
+  not_same_day: 'يجب أن يبدأ الحجز وينتهي في اليوم نفسه',
+  too_short: 'المدة أقل من الحد الأدنى',
+  too_long: 'المدة أكثر من الحد الأقصى',
+  invalid_phone: 'رقم الهاتف غير صحيح (09XXXXXXXX)',
+  invalid_name: 'اكتب اسمك (حرفان على الأقل)',
+  cash_not_allowed: 'الدفع عند الوصول غير متاح حالياً — ادفع عبر شام كاش',
+  invalid_method: 'طريقة الدفع غير متاحة',
+  too_many_attempts: 'محاولات كثيرة، جرّب بعد قليل',
+}
+/** The raw server error code (e.g. "ref_used") when the error carries one. */
+export function errorCode(err: unknown): string | null {
+  return err instanceof ApiError && /^[a-z_]+$/.test(err.message) ? err.message : null
+}
+
 /** Arabic, user-facing text for any thrown error (server messages are shown when they are already Arabic). */
 export function errorMessage(err: unknown): string {
   if (err instanceof ApiError) {
     if (err.offline) return 'لا يوجد اتصال بالإنترنت'
+    if (CODES[err.message]) return CODES[err.message]
     if (/[؀-ۿ]/.test(err.message)) return err.message
     switch (err.status) {
       case 400: return 'البيانات المدخلة غير صحيحة'

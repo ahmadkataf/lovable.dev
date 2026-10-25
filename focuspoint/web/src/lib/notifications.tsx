@@ -3,6 +3,8 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import type { Notification } from '@shared/types'
 import { api } from '../api'
 import { cachedGet, useOnline } from '../offline'
+import { onPushMessage } from './push'
+import { dropMemo } from './data'
 
 interface Value {
   items: Notification[]
@@ -48,6 +50,8 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
     return () => { document.removeEventListener('visibilitychange', onVisible); window.clearInterval(timer) }
   }, [refresh])
   useEffect(() => { if (online) void refresh() }, [online, refresh])
+  // A push arrived while the app is open: the inbox and "my bookings" are stale at once.
+  useEffect(() => onPushMessage(() => { dropMemo('/v1/bookings/mine'); void refresh() }), [refresh])
 
   const value = useMemo<Value>(() => ({
     items, unread: items.filter((n) => !n.read).length, loading, fromCache, refresh, markAllRead,

@@ -1,17 +1,43 @@
-// Dates, money and labels for the Focus Point UI. All ISO strings are UTC; display is in the centre's zone.
-import type { BookingStatus } from '@shared/types'
+// Dates, money and labels for the Focus Point UI. All ISO strings are UTC; display is in the centre's zone
+// (PublicSettings.timezone, applied with setTimeZone(); Asia/Damascus until the settings arrive).
+import type { BookingStatus, PaymentMethod } from '@shared/types'
 
-export const TZ = 'Asia/Damascus'
+const DEFAULT_TZ = 'Asia/Damascus'
+const TZ_KEY = 'fp_tz'
 
 const WEEKDAYS = ['الأحد', 'الاثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت']
 const MONTHS = ['كانون الثاني', 'شباط', 'آذار', 'نيسان', 'أيار', 'حزيران', 'تموز', 'آب', 'أيلول', 'تشرين الأول', 'تشرين الثاني', 'كانون الأول']
 
 interface Parts { y: number; m: number; d: number; h: number; mi: number; wd: number }
 
-const partsFmt = new Intl.DateTimeFormat('en-US', {
-  timeZone: TZ, hourCycle: 'h23', weekday: 'short',
-  year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit',
-})
+function makeFormatter(tz: string): Intl.DateTimeFormat {
+  return new Intl.DateTimeFormat('en-US', {
+    timeZone: tz, hourCycle: 'h23', weekday: 'short',
+    year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit',
+  })
+}
+function validZone(tz: unknown): tz is string {
+  if (typeof tz !== 'string' || !tz) return false
+  try { makeFormatter(tz); return true } catch { return false }
+}
+function rememberedZone(): string {
+  try { const v = localStorage.getItem(TZ_KEY); if (validZone(v)) return v } catch { /* ignore */ }
+  return DEFAULT_TZ
+}
+
+let currentTz = rememberedZone()
+let partsFmt = makeFormatter(currentTz)
+
+/** The centre's IANA time zone currently used for display. */
+export function timeZone(): string { return currentTz }
+/** Switch the display zone (called when settings load). Invalid or unchanged values are ignored. */
+export function setTimeZone(tz: string | null | undefined): void {
+  if (!validZone(tz) || tz === currentTz) return
+  currentTz = tz
+  partsFmt = makeFormatter(tz)
+  try { localStorage.setItem(TZ_KEY, tz) } catch { /* ignore */ }
+}
+
 const WD_INDEX: Record<string, number> = { Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6 }
 
 /** Wall-clock parts of an instant in the centre's time zone. */
@@ -83,10 +109,11 @@ export function fmtClock(timeHHMM: string): string {
   return `${h12}:${pad(mi)} ${h < 12 ? 'ص' : 'م'}`
 }
 
-export function statusLabel(s: BookingStatus): { text: string; tone: 'wine' | 'gold' | 'green' | 'grey' | 'red' } {
+/** Badge text + tone for a status; a cash ("pay on arrival") booking awaiting the team reads differently. */
+export function statusLabel(s: BookingStatus, method?: PaymentMethod): { text: string; tone: 'wine' | 'gold' | 'green' | 'grey' | 'red' } {
   switch (s) {
-    case 'pending_payment': return { text: 'بانتظار الدفع', tone: 'gold' }
-    case 'awaiting_verification': return { text: 'عم نتحقق من الدفع', tone: 'gold' }
+    case 'pending_payment': return method === 'cash' ? { text: 'بانتظار تأكيد الفريق', tone: 'gold' } : { text: 'بانتظار الدفع', tone: 'gold' }
+    case 'awaiting_verification': return method === 'cash' ? { text: 'بانتظار تأكيد الفريق', tone: 'gold' } : { text: 'عم نتحقق من الدفع', tone: 'gold' }
     case 'confirmed': return { text: 'مؤكد', tone: 'green' }
     case 'rejected': return { text: 'مرفوض', tone: 'red' }
     case 'expired': return { text: 'انتهت المهلة', tone: 'grey' }

@@ -11,6 +11,7 @@ import { Badge, Button, Card, Empty, Field, Icon, Input, Segmented, Sheet, Spinn
 import { Confirm, PageHead } from './common'
 import { store, useStore } from './store'
 import { describeError, downloadText, METHOD, parseInt10, toCSV, toMin } from './util'
+import { playChime, setSoundMuted, soundMuted } from './sound'
 
 type TabId = 'centre' | 'payment' | 'team' | 'announce' | 'reports'
 const TABS: { id: TabId; label: string }[] = [
@@ -101,7 +102,24 @@ function CentreTab({ settings }: { settings: SettingsT }) {
         <p className="muted small mt">يفتح المركز {fmtClock(d.open)} ويغلق {fmtClock(d.close)} يومياً.</p>
         <Button block className="mt" onClick={save}>حفظ</Button>
       </Card>
+      <DeviceCard />
     </div>
+  )
+}
+
+/** Per-device preferences (not synced): the new-booking chime, plus the privacy policy link. */
+function DeviceCard() {
+  const [muted, setMuted] = useState(() => soundMuted())
+  return (
+    <Card>
+      <div className="card-title">هذا الجهاز</div>
+      <div className="row between gap">
+        <Toggle label="صوت تنبيه عند حجز أو دفعة جديدة" checked={!muted} onChange={(on) => { setSoundMuted(!on); setMuted(!on); if (on) void playChime() }} />
+      </div>
+      <p className="muted tiny mt-sm">يُسمع التنبيه عندما تكون اللوحة مفتوحة؛ الإشعارات على الهاتف لها صوتها الخاص.</p>
+      {/* Static page served by the Worker — a plain link so the SPA router does not catch it. */}
+      <p className="mt small"><a href="/privacy">سياسة الخصوصية</a> <span className="muted">· تُعرض للزبائن أيضاً في أسفل التطبيق</span></p>
+    </Card>
   )
 }
 const pick = (s: SettingsT) => ({
@@ -140,7 +158,8 @@ function PaymentTab({ settings }: { settings: SettingsT }) {
   const [name, setName] = useState(settings.shamcash_name)
   const [qr, setQr] = useState<string | null>(settings.shamcash_qr)
   const [instructions, setInstructions] = useState(settings.payment_instructions)
-  useEffect(() => { setNumber(settings.shamcash_number); setName(settings.shamcash_name); setQr(settings.shamcash_qr); setInstructions(settings.payment_instructions) }, [settings])
+  const [cash, setCash] = useState(!!settings.allow_pay_on_arrival)
+  useEffect(() => { setNumber(settings.shamcash_number); setName(settings.shamcash_name); setQr(settings.shamcash_qr); setInstructions(settings.payment_instructions); setCash(!!settings.allow_pay_on_arrival) }, [settings])
   const sample = view.rooms.find((r) => r.active) ?? null
   const amount = sample ? sample.price_hour * 2 : 100000
 
@@ -156,6 +175,7 @@ function PaymentTab({ settings }: { settings: SettingsT }) {
     if (name.trim() !== settings.shamcash_name) patch.shamcash_name = name.trim()
     if (qr !== settings.shamcash_qr) patch.shamcash_qr = qr
     if (instructions.trim() !== settings.payment_instructions) patch.payment_instructions = instructions.trim()
+    if (cash !== !!settings.allow_pay_on_arrival) patch.allow_pay_on_arrival = cash
     if (Object.keys(patch).length === 0) { toast.show('لا تغييرات', 'info'); return }
     try {
       await store.patchSettings(patch, 'تعديل بيانات الدفع')
@@ -182,6 +202,10 @@ function PaymentTab({ settings }: { settings: SettingsT }) {
           </div>
         </Field>
         <Field label="تعليمات إضافية للزبون (اختياري)" hint="حتى 500 حرف"><Textarea rows={3} maxLength={500} value={instructions} onChange={(e) => setInstructions(e.target.value)} /></Field>
+        <div className="mt">
+          <Toggle label="الدفع عند الوصول" checked={cash} onChange={setCash} />
+          <p className="muted tiny mt-sm">عند تفعيله يختار الزبون بين تحويل شام كاش أو الدفع عند الوصول؛ حجز «عند الوصول» لا يحجز المكان بمهلة، بل ينتظر تأكيد الفريق مباشرة.</p>
+        </div>
         <Button block className="mt" onClick={save}>حفظ</Button>
       </Card>
       <div className="preview">

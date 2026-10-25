@@ -1,9 +1,17 @@
 # Focus Point — Cloudflare Worker (API + the built web app) backed by D1.
 name = "focuspoint-api"
 main = "src/index.ts"
+account_id = "c79a8e91efac74d2e119e7e406c4db43"
 compatibility_date = "2025-10-01"
 compatibility_flags = ["nodejs_compat"]
-workers_dev = true
+workers_dev = true                      # keep the *.workers.dev preview URL alongside the custom domain
+routes = [{ pattern = "focuspoint.raqeem.dev", custom_domain = true }]
+
+# Plain (non-secret) configuration. Moving to another domain: change PUBLIC_URL and the route above, redeploy,
+# rebuild the Android app with the new URL (see docs/HANDOVER.md).
+[vars]
+PUBLIC_URL = "https://focuspoint.raqeem.dev"
+ASSETLINKS_FINGERPRINTS = "25:82:9F:6A:05:E3:39:97:36:30:8B:F5:44:53:C9:42:B7:9B:DB:E4:31:FD:8F:90:C7:D5:10:B4:66:24:78:65"
 
 # D1 database. Create it with `wrangler d1 create focuspoint` and paste the id below.
 [[d1_databases]]

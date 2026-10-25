@@ -2,11 +2,12 @@
 import { useEffect, useMemo, useState, type FormEvent } from 'react'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import type { Booking, PublicSettings, Room } from '@shared/types'
+type Method = 'shamcash' | 'cash'
 import { api, errorMessage } from '../api'
 import { useCached } from '../lib/data'
 import { cache, useOnline } from '../offline'
 import { addMinutes, fromLocal, normalisePhone } from '../format'
-import { Button, Card, Field, Icon, Input, Stepper, Textarea, useToast } from '../ui'
+import { Button, Card, Field, Icon, Input, Segmented, Stepper, Textarea, useToast } from '../ui'
 import { BookingSummary } from '../components/BookingSummary'
 import { getCustomer, setCustomer, setFlag } from '../lib/store'
 import { priceFor } from '../lib/booking'
@@ -33,6 +34,9 @@ export function Book() {
   const [phone, setPhone] = useState(remembered.phone)
   const [people, setPeople] = useState(1)
   const [note, setNote] = useState('')
+  const [method, setMethod] = useState<Method>('shamcash')
+  const allowCash = !!settings?.allow_pay_on_arrival
+  const payCash = allowCash && method === 'cash'
   const [errors, setErrors] = useState<{ name?: string; phone?: string; form?: string }>({})
   const [busy, setBusy] = useState(false)
 
@@ -54,6 +58,7 @@ export function Book() {
       const b = await api.post<Booking>('/v1/bookings', {
         room_id: room.id, start, end, name: cleanName, phone: cleanPhone, people,
         ...(note.trim() ? { note: note.trim().slice(0, 300) } : {}),
+        ...(allowCash ? { method } : {}),     // only sent when the centre offers the choice (older servers ignore unknown keys anyway)
       })
       setCustomer({ name: cleanName, phone: cleanPhone })
       setFlag('fp_prompt_push')
@@ -99,10 +104,18 @@ export function Book() {
           <Field label="ملاحظة (اختياري)">
             <Textarea value={note} onChange={(e) => setNote(e.target.value)} maxLength={300} placeholder="أي طلب خاص؟" rows={2} />
           </Field>
+          {allowCash && (
+            <div className="field">
+              <span className="field-label">طريقة الدفع</span>
+              <Segmented<Method> options={[{ value: 'shamcash', label: 'تحويل شام كاش' }, { value: 'cash', label: 'الدفع عند الوصول' }]} value={method} onChange={setMethod} />
+              <span className="field-hint">{payCash ? 'يؤكد الفريق حجزك، وتدفع عند وصولك إلى المركز.' : 'تحوّل المبلغ عبر شام كاش وتدخل رقم العملية — يتأكد الحجز خلال دقائق.'}</span>
+            </div>
+          )}
           {!online && <div className="alert alert-info mt">الحجز يحتاج اتصالاً بالإنترنت.</div>}
           {errors.form && <div className="alert alert-error mt" role="alert">{errors.form}</div>}
           <Button type="submit" block size="lg" className="mt" loading={busy} disabled={!online}>تأكيد الحجز</Button>
-          {settings && <p className="muted tiny text-center mt-sm">بعد التأكيد يُحفَظ المكان لك {settings.hold_minutes} دقيقة لإتمام الدفع عبر شام كاش.</p>}
+          {settings && !payCash && <p className="muted tiny text-center mt-sm">بعد التأكيد يُحفَظ المكان لك {settings.hold_minutes} دقيقة لإتمام الدفع عبر شام كاش.</p>}
+          {settings && payCash && <p className="muted tiny text-center mt-sm">سيصلك إشعار عندما يؤكد الفريق حجزك.</p>}
         </form>
       </Card>
     </div>

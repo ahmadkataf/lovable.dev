@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import type { PublicSettings, Room } from '@shared/types'
 import { Badge, Button, Icon, Sheet } from '../ui'
 import { dayLabel, durationLabel, fmtClock, fmtSYP } from '../format'
-import { contentsList, priceFor, ROOM_TYPE, peopleLabel, type Pick } from '../lib/booking'
+import { contentsList, isValidPick, priceFor, ROOM_TYPE, peopleLabel, type Pick } from '../lib/booking'
 
 export function RoomSheet({ room, pick, busy, offline, settings, onClose }: {
   room: Room | null; pick: Pick | null; busy: boolean; offline: boolean; settings: PublicSettings | undefined; onClose: () => void
@@ -12,7 +12,8 @@ export function RoomSheet({ room, pick, busy, offline, settings, onClose }: {
   const open = !!room
   if (!room) return <Sheet open={false} onClose={onClose}><span /></Sheet>
   const items = contentsList(room.contents)
-  const canBook = !!pick && !busy && !offline && !!settings
+  const validSlot = !!pick && !!settings && isValidPick(settings, pick)
+  const canBook = validSlot && !busy && !offline
   return (
     <Sheet open={open} onClose={onClose} title={room.name}>
       <div className="row gap wrap" style={{ marginBottom: 12 }}>
@@ -40,6 +41,7 @@ export function RoomSheet({ room, pick, busy, offline, settings, onClose }: {
       {room.price_day && <p className="muted tiny" style={{ marginTop: 4 }}>اليوم الكامل: {fmtSYP(room.price_day)}</p>}
       {offline && <div className="alert alert-info mt">الحجز يحتاج اتصالاً بالإنترنت. اطّلع على الغرف الآن واحجز عند عودة الاتصال.</div>}
       {busy && !offline && <div className="alert alert-info mt">هذه الغرفة محجوزة بالوقت المختار — غيّر الوقت أو اختر غرفة ثانية.</div>}
+      {!validSlot && !offline && <div className="alert alert-info mt">هذا الوقت لم يعد متاحاً — اختر يوماً أو وقتاً آخر.</div>}
       <Button
         block size="lg" className="mt" disabled={!canBook}
         onClick={() => pick && navigate(`/book/${room.id}?date=${pick.date}&start=${pick.time}&minutes=${pick.minutes}`)}

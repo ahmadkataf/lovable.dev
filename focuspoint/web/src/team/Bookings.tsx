@@ -1,5 +1,6 @@
 // /team/bookings — الحجوزات: a day grid (rooms × hours) and a filterable list; tap anything for the booking sheet.
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import type { Booking, BookingStatus } from '@shared/types'
 import { addDays, dayLabel, fmtRange, fmtSYP, fmtTime, normalisePhone, statusLabel, todayLocal, toLocalParts } from '../format'
 import { Badge, Button, Card, Empty, Icon, Input, Segmented, Select, Spinner } from '../ui'
@@ -7,7 +8,7 @@ import { BookingSheet } from './BookingSheet'
 import { ManualBookingSheet, type ManualPreset } from './ManualBookingSheet'
 import { PageHead, roomColor } from './common'
 import { useRooms, useStore } from './store'
-import { isLive, localDate, sortByStart, STATUSES, toHHMM, toMin } from './util'
+import { isBlocking, isLive, localDate, sortByStart, STATUSES, toHHMM, toMin } from './util'
 
 type ViewMode = 'day' | 'list'
 
@@ -19,6 +20,18 @@ export function Bookings() {
   const [selected, setSelected] = useState<Booking | null>(null)
   const [manual, setManual] = useState<ManualPreset | null>(null)
   const current = selected ? view.bookings.find((b) => b.id === selected.id) ?? null : null
+
+  // Opened from a push notification (/team/bookings?booking=ID): show that booking's day and sheet.
+  const [params, setParams] = useSearchParams()
+  const wanted = Number(params.get('booking') || 0)
+  useEffect(() => {
+    if (!ready || !wanted) return
+    const b = view.bookings.find((x) => x.id === wanted)
+    if (!b) return
+    setDate(localDate(b.start))
+    setSelected(b)
+    setParams({}, { replace: true })
+  }, [ready, wanted, view.bookings, setParams])
 
   if (!ready) return <div className="center center-pad"><Spinner /></div>
 
@@ -84,9 +97,10 @@ function DayGrid({ date, onPick, onEmpty }: { date: string; onPick: (b: Booking)
     ro.observe(el)
     return () => ro.disconnect()
   }, [hours])
-  const dayBookings = useMemo(() => view.bookings.filter((b) => localDate(b.start) === date && (isLive(b.status) || b.status === 'completed')), [view.bookings, date])
   const [now, setNow] = useState(() => Date.now())
   useEffect(() => { const t = window.setInterval(() => setNow(Date.now()), 60_000); return () => window.clearInterval(t) }, [])
+  // The grid shows what blocks a slot (the server's rule) plus finished bookings; a run-out hold is not a block.
+  const dayBookings = useMemo(() => view.bookings.filter((b) => localDate(b.start) === date && (isBlocking(b, now) || b.status === 'completed')), [view.bookings, date, now])
   const nowParts = toLocalParts(new Date(now).toISOString())
   const nowX = nowParts.date === date ? ((toMin(nowParts.time) - open) / 60) * HOUR_W : null
   const pos = (iso: string) => ((toMin(toLocalParts(iso).time) - open) / 60) * HOUR_W
@@ -180,7 +194,7 @@ function ListView({ onPick }: { onPick: (b: Booking) => void }) {
       ) : (
         <div className="list">
           {list.map((b) => {
-            const st = statusLabel(b.status)
+            const st = statusLabel(b.status, b.method)
             return (
               <button key={b.id} type="button" className="brow" onClick={() => onPick(b)}>
                 <span className="bar" style={{ background: roomColor(view.rooms.find((r) => r.id === b.room_id)?.color) }} />

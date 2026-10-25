@@ -51,6 +51,14 @@ CREATE INDEX IF NOT EXISTS bookings_phone ON bookings(customer_phone, created_at
 CREATE INDEX IF NOT EXISTS bookings_device ON bookings(device_id, created_at);
 CREATE INDEX IF NOT EXISTS bookings_updated ON bookings(updated_at);
 CREATE INDEX IF NOT EXISTS bookings_status ON bookings(status, hold_until);
+CREATE INDEX IF NOT EXISTS bookings_status_end ON bookings(status, end);       -- pending verifications still to come, stale ones for the cron
+CREATE TABLE IF NOT EXISTS booking_devices (     -- extra customer devices that adopted a booking by code + phone (GET /v1/bookings/lookup)
+  booking_id INTEGER NOT NULL REFERENCES bookings(id),
+  device_id TEXT NOT NULL,
+  added_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
+  PRIMARY KEY (booking_id, device_id)
+);
+CREATE INDEX IF NOT EXISTS booking_devices_device ON booking_devices(device_id);
 CREATE TABLE IF NOT EXISTS notifications (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   user_id INTEGER REFERENCES users(id),      -- a team account …

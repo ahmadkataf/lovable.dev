@@ -7,6 +7,10 @@
   "scripts": {
     "dev": "wrangler dev --local --test-scheduled",
     "deploy": "wrangler deploy",
+    "deploy:all": "npm --prefix ../web run build && wrangler deploy",
+    "d1:schema": "wrangler d1 execute focuspoint --remote --file=./schema.sql",
+    "d1:seed": "wrangler d1 execute focuspoint --remote --file=./seed.sql",
+    "d1:migrate": "wrangler d1 migrations apply focuspoint --remote",
     "check": "tsc --noEmit && vitest run",
     "test": "vitest run",
     "typecheck": "tsc --noEmit",

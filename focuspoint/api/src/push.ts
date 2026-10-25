@@ -1,13 +1,13 @@
 // Web Push for Workers: VAPID (ES256) + RFC 8291 aes128gcm via @block65/webcrypto-web-push (WebCrypto only).
 // A subscription that answers 404/410 is gone and is deleted; other failures are counted and the row dropped after 8.
 import { buildPushPayload, type PushSubscription } from '@block65/webcrypto-web-push'
+import type { PushMessage } from '../../shared/types'
 import type { Env } from './env'
 
 export interface SubscriptionRow { id: number; endpoint: string; p256dh: string; auth: string; failures: number }
 
-export interface PushPayload {
-  title: string; body: string; kind: string; booking_id: number | null; url: string; tag?: string
-}
+/** The JSON a push carries — {kind, booking_id, url, title, body} so the service worker can show it and forward it to open clients. */
+export type PushPayload = PushMessage
 
 export const pushConfigured = (env: Env): boolean => Boolean(env.VAPID_PUBLIC_KEY && env.VAPID_PRIVATE_KEY && env.VAPID_SUBJECT)
 

@@ -3,7 +3,7 @@ import { useMemo, useState, type FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
 import type { Booking } from '@shared/types'
 import { api, errorMessage } from '../api'
-import { useCached } from '../lib/data'
+import { useCached, dropMemo } from '../lib/data'
 import { fmtDate, fmtRange, normalisePhone, statusLabel } from '../format'
 import { Badge, Button, Card, Empty, Field, Input, Spinner, Tabs } from '../ui'
 import { isUpcoming } from '../lib/booking'
@@ -39,7 +39,7 @@ export function Mine() {
       )}
       <div className="stack-sm">
         {shown.map((b) => {
-          const st = statusLabel(b.status)
+          const st = statusLabel(b.status, b.method)
           return (
             <button key={b.id} type="button" className="booking-row" onClick={() => navigate(`/b/${b.id}`)}>
               <span>
@@ -75,6 +75,7 @@ function Lookup() {
     setBusy(true)
     try {
       const b = await api.get<Booking>(`/v1/bookings/lookup?code=${encodeURIComponent(c)}&phone=${encodeURIComponent(p)}`)
+      dropMemo('/v1/bookings/mine')      // the server adopted the booking for this device: "my bookings" now includes it
       navigate(`/b/${b.id}`)
     } catch (e2) { setErr(errorMessage(e2) === 'غير موجود' ? 'ما لقينا حجزاً بهذا الرمز والرقم' : errorMessage(e2)) } finally { setBusy(false) }
   }

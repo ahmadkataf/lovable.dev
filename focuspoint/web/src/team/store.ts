@@ -8,16 +8,27 @@
 // The sync loop pushes the queue with POST /v1/team/sync whenever we are online (on load, on 'online', every 30 s,
 // after each new op), applies the results (temp ids → real ids, failures flagged "يحتاج انتباه"), then pulls
 // GET /v1/team/sync?since=<cursor> and merges. A queued op is only removed when the server has answered for it.
+//
+// Live updates while the panel is open: a Web Push forwarded by the service worker (postMessage) triggers an immediate
+// pull, a chime and a 60-second "جديد" mark on the booking; in between, GET /v1/team/ping every 5 s (visible tab only)
+// pulls as soon as the server's last_change moves.
 import { useEffect, useMemo, useRef, useSyncExternalStore } from 'react'
-import type { ApiContract, Booking, Room, Settings, SyncOp, SyncResult } from '@shared/types'
+import type { ApiContract, Booking, PushMessage, Room, Settings, SyncOp, SyncResult } from '@shared/types'
 import { api, ApiError } from '../api'
+import { setTimeZone } from '../format'
 import { cache } from '../offline'
-import { describeError, isTemp, tempId, uuid } from './util'
+import { onPushMessage } from '../lib/push'
+import { playChime } from './sound'
+import { describeError, isPendingVerification, isTemp, tempId, uuid } from './util'
 
 type ManualBookingReq = ApiContract['POST /v1/team/bookings/manual']['req']
 type EditBookingReq = ApiContract['PATCH /v1/team/bookings/:id']['req']
 type SyncPull = ApiContract['GET /v1/team/sync?since=<iso>']['res']
 type SyncPush = ApiContract['POST /v1/team/sync']['res']
+type Ping = ApiContract['GET /v1/team/ping']['res']
+
+const PING_MS = 5_000
+const FRESH_MS = 60_000
 
 export interface QueuedOp {
   op: SyncOp
@@ -49,6 +60,7 @@ export interface Snapshot {
   queue: QueuedOp[]
   view: View
   sync: SyncState
+  fresh: number[]               // booking ids that just arrived by push (shown with a "جديد" badge for a minute)
 }
 
 const BASE_KEY = 'team:base'
@@ -186,6 +198,10 @@ class TeamStore {
   private listeners = new Set<Listener>()
   private loading: Promise<void> | null = null
   private debounce = 0
+  private fresh = new Map<number, number>()     // booking id → timeout handle
+  private lastChange: string | null | undefined = undefined   // last_change seen from /v1/team/ping (undefined: never pinged)
+  private pingBackoffUntil = 0
+  private mismatchSyncAt = 0
   onUnauthorized: (() => void) | null = null
 
   // ---- subscription ----
@@ -200,6 +216,7 @@ class TeamStore {
           failed: this.queue.filter((q) => q.status === 'failed').length,
           error: this.error, last_sync: this.lastSync,
         },
+        fresh: [...this.fresh.keys()],
       }
     }
     return this.snapshot
@@ -213,6 +230,7 @@ class TeamStore {
       const [base, queue] = await Promise.all([cache.get<Base>(BASE_KEY), cache.get<QueuedOp[]>(QUEUE_KEY)])
       if (base && Array.isArray(base.rooms) && Array.isArray(base.bookings)) this.base = { ...EMPTY_BASE, ...base }
       if (Array.isArray(queue)) this.queue = queue.filter((q) => q && q.op && typeof q.op.client_id === 'string')
+      setTimeZone(this.base.settings?.timezone)
       this.ready = true
       this.emit()
     })()
@@ -359,8 +377,48 @@ class TeamStore {
     for (const b of res.bookings) bookings = upsertBy(bookings, b)
     bookings = bookings.filter((b) => b.start >= keepFrom && !deleted.has(b.room_id)).sort((a, b) => (a.start < b.start ? -1 : a.start > b.start ? 1 : 0))
     this.base = { rooms, bookings, settings: res.settings, cursor: res.now, pulled_at: new Date().toISOString() }
+    setTimeZone(res.settings?.timezone)
     await this.persistBase()
     this.emit()
+  }
+
+  // ---- live updates ----
+  /** Mark a booking as just-arrived for a minute (the "جديد" badge). */
+  markFresh(id: number) {
+    const old = this.fresh.get(id)
+    if (old) window.clearTimeout(old)
+    this.fresh.set(id, window.setTimeout(() => { this.fresh.delete(id); this.emit() }, FRESH_MS))
+    this.emit()
+  }
+  /** A push forwarded by the service worker while the panel is open: refresh now, chime, highlight. */
+  handlePush(p: PushMessage) {
+    if (p.kind !== 'booking_created' && p.kind !== 'payment_submitted' && p.kind !== 'announcement') return
+    if (p.booking_id) this.markFresh(p.booking_id)
+    void playChime()
+    void this.sync()
+  }
+  /** Cheap 5-second poll: pull when the server's last_change moved (or its pending count disagrees with ours). */
+  async ping(): Promise<void> {
+    if (!this.online || this.syncing || Date.now() < this.pingBackoffUntil) return
+    let r: Ping
+    try { r = await api.get<Ping>('/v1/team/ping') } catch (err) {
+      if (err instanceof ApiError && err.offline) { this.setOnline(false); return }
+      if (err instanceof ApiError && err.status === 401) { this.onUnauthorized?.(); return }
+      this.pingBackoffUntil = Date.now() + 60_000      // the endpoint is missing or the server is unhappy: try again in a minute
+      return
+    }
+    const first = this.lastChange === undefined
+    const moved = !first && r.last_change !== this.lastChange
+    this.lastChange = r.last_change
+    const localPending = this.getSnapshot().view.bookings.filter((b) => isPendingVerification(b) && !isTemp(b.id)).length
+    if (moved) {
+      if (r.pending > localPending) void playChime()
+      void this.sync()
+    } else if (!first && r.pending !== localPending && Date.now() - this.mismatchSyncAt > 60_000) {
+      // Counts disagree without a cursor move (edge cases around the 30-minute grace): re-pull, at most once a minute.
+      this.mismatchSyncAt = Date.now()
+      void this.sync()
+    }
   }
 
   /** Forget everything on this device (sign-out). Pending ops are kept so nothing is lost if the same team signs in again. */
@@ -384,7 +442,8 @@ export function useRooms(activeOnly = true): Room[] {
 }
 export function useSettings(): Settings | null { return useStore().view.settings }
 
-/** Mounts the sync loop: load from IndexedDB, then sync on load / online / focus / every 30 s. */
+/** Mounts the sync loop: load from IndexedDB, then sync on load / online / focus / every 30 s; ping every 5 s while
+ *  the tab is visible; and react to pushes forwarded by the service worker. */
 export function useSyncLoop(onUnauthorized: () => void) {
   const ref = useRef(onUnauthorized)
   ref.current = onUnauthorized
@@ -398,12 +457,21 @@ export function useSyncLoop(onUnauthorized: () => void) {
     window.addEventListener('offline', down)
     document.addEventListener('visibilitychange', vis)
     const t = window.setInterval(() => { if (document.visibilityState === 'visible') void store.sync() }, 30_000)
+    const p = window.setInterval(() => { if (document.visibilityState === 'visible') void store.ping() }, PING_MS)
+    const offPush = onPushMessage((m) => store.handlePush(m))
     return () => {
       window.removeEventListener('online', up)
       window.removeEventListener('offline', down)
       document.removeEventListener('visibilitychange', vis)
       window.clearInterval(t)
+      window.clearInterval(p)
+      offPush()
       store.onUnauthorized = null
     }
   }, [])
+}
+/** Ids of bookings that just arrived by push (for the "جديد" badge). */
+export function useFresh(): Set<number> {
+  const { fresh } = useStore()
+  return useMemo(() => new Set(fresh), [fresh])
 }

@@ -60,6 +60,7 @@ export interface Settings {
   slot_minutes: 30 | 60; min_minutes: number; max_minutes: number; hold_minutes: number
   shamcash_number: string; shamcash_name: string; shamcash_qr: string | null   // qr: data URL (PNG) or null
   payment_instructions: string
+  allow_pay_on_arrival: boolean                        // customers may choose "cash on arrival" (default false): no transfer, staff confirm at the desk
   plan: Plan
   vapid_public_key: string                             // for push subscriptions
 }
@@ -73,7 +74,7 @@ export interface ApiContract {
   'GET /v1/settings': { res: PublicSettings }
   'GET /v1/rooms': { res: Room[] }                                 // active rooms
   'GET /v1/availability?date=YYYY-MM-DD': { res: { room_id: number; start: string; end: string; status: BookingStatus }[] }  // all rooms, one call
-  'POST /v1/bookings': { req: { room_id: number; start: string; end: string; name: string; phone: string; people?: number; note?: string }; res: Booking }  // → pending_payment + hold
+  'POST /v1/bookings': { req: { room_id: number; start: string; end: string; name: string; phone: string; people?: number; note?: string; method?: 'shamcash' | 'cash' }; res: Booking }  // shamcash (default) → pending_payment + hold; cash (only when settings.allow_pay_on_arrival) → awaiting_verification at once, no hold
   'GET /v1/bookings/mine': { res: Booking[] }                      // by X-Device
   'GET /v1/bookings/lookup?code=&phone=': { res: Booking }         // adopt: the server adds the device to this booking
   'GET /v1/bookings/:id': { res: Booking & { payment: PaymentInfo | null } }   // device must own it (or team)
@@ -97,6 +98,7 @@ export interface ApiContract {
   'POST /v1/team/customers/:phone/block': { req: { blocked: 0 | 1 }; res: Customer }
   // offline sync (team app): everything changed since a cursor, so the panel works offline and catches up
   'GET /v1/team/sync?since=<iso>': { res: { now: string; rooms: Room[]; bookings: Booking[]; settings: Settings; deleted_rooms: number[] } }
+  'GET /v1/team/ping': { res: { now: string; pending: number; last_change: string | null } }   // cheap 5-second poll: pending verifications + the latest booking change (poll GET /v1/team/sync?since= when it moves)
   'POST /v1/team/sync': { req: { ops: SyncOp[] }; res: { results: SyncResult[]; now: string } }   // replay the offline queue, in order, idempotent by client_id
   // admin only
   'POST /v1/admin/rooms': { req: Omit<Room, 'id'>; res: Room }
@@ -113,7 +115,9 @@ export interface ApiContract {
   // integrations
   'POST /v1/payments/shamcash/webhook': { req: { ref: string; amount: number; sender?: string; note?: string }; res: { matched: boolean } }  // X-Webhook-Secret header
 }
-export type PublicSettings = Pick<Settings, 'centre_name' | 'phone' | 'address' | 'instagram' | 'timezone' | 'open' | 'close' | 'slot_minutes' | 'min_minutes' | 'max_minutes' | 'hold_minutes' | 'plan' | 'vapid_public_key'>
+export type PublicSettings = Pick<Settings, 'centre_name' | 'phone' | 'address' | 'instagram' | 'timezone' | 'open' | 'close' | 'slot_minutes' | 'min_minutes' | 'max_minutes' | 'hold_minutes' | 'allow_pay_on_arrival' | 'plan' | 'vapid_public_key'>
+// The JSON a Web Push carries (the service worker shows it and forwards it to open clients via postMessage).
+export interface PushMessage { kind: NotificationKind; booking_id: number | null; url: string; title: string; body: string; tag?: string }
 // One queued change made offline in the team app. client_id is a UUID made on the device; replaying the same op is a no-op.
 export type SyncOp =
   | { client_id: string; at: string; op: 'manual_booking'; data: ApiContract['POST /v1/team/bookings/manual']['req'] }

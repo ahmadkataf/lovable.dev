@@ -8,6 +8,8 @@ import { Icon, OfflineBar, type IconName } from '../ui'
 import { SyncPill } from './common'
 import { store, useStore, useSyncLoop } from './store'
 import { ensureTeamPush } from './push'
+import { primeSound } from './sound'
+import { isPendingVerification } from './util'
 import { Today } from './Today'
 import { Bookings } from './Bookings'
 import { Rooms } from './Rooms'
@@ -47,13 +49,20 @@ function Shell() {
   const onUnauthorized = useCallback(() => { void refresh() }, [refresh])
   useSyncLoop(onUnauthorized)
   const { view } = useStore()
-  const pending = useMemo(() => view.bookings.filter((b) => b.status === 'awaiting_verification').length, [view.bookings])
+  const pending = useMemo(() => view.bookings.filter((b) => isPendingVerification(b)).length, [view.bookings])
   const items = useMemo(() => NAV.filter((n) => isAdmin || !n.admin), [isAdmin])
   const phoneItems = useMemo(() => items.filter((n) => n.phone), [items])
 
   // Permission already granted on this device → make sure the team account receives push here too.
   const vapid = view.settings?.vapid_public_key
   useEffect(() => { if (vapid) ensureTeamPush(vapid).catch(() => { /* best effort */ }) }, [vapid])
+  // Browsers allow sound only after a gesture: warm the audio context on the first tap so the new-booking chime plays.
+  useEffect(() => {
+    const prime = () => { primeSound(); window.removeEventListener('pointerdown', prime); window.removeEventListener('keydown', prime) }
+    window.addEventListener('pointerdown', prime)
+    window.addEventListener('keydown', prime)
+    return () => { window.removeEventListener('pointerdown', prime); window.removeEventListener('keydown', prime) }
+  }, [])
 
   function signOut() {
     void store.clearBase()

@@ -1,5 +1,5 @@
 // Booking logic shared by the customer screens: slots, durations, prices, labels.
-import type { ApiContract, Booking, BookingStatus, PublicSettings, Room, RoomContents, RoomType } from '@shared/types'
+import type { ApiContract, Booking, BookingStatus, PublicSettings, RoomContents, RoomType } from '@shared/types'
 import type { IconName } from '../ui'
 import { addDays, todayLocal, toLocalParts } from '../format'
 
@@ -13,6 +13,20 @@ export const ROOM_ICON: Record<RoomType, IconName> = { private: 'door', meeting:
 const BLOCKING: BookingStatus[] = ['pending_payment', 'awaiting_verification', 'confirmed']
 export function isLive(status: BookingStatus): boolean { return BLOCKING.includes(status) }
 export function blocks(a: Availability): boolean { return BLOCKING.includes(a.status) }
+/** The server's "live booking" rule: confirmed, awaiting verification, or a hold that has not run out. */
+export function isBlocking(b: { status: BookingStatus; hold_until: string | null }, now = Date.now()): boolean {
+  if (b.status === 'confirmed' || b.status === 'awaiting_verification') return true
+  if (b.status === 'pending_payment') return b.hold_until !== null && Date.parse(b.hold_until) > now
+  return false
+}
+/** A customer booking that still waits for something (pay, or the team's confirmation). */
+export function isOpen(b: { status: BookingStatus }): boolean {
+  return b.status === 'pending_payment' || b.status === 'awaiting_verification'
+}
+/** Awaiting the team at the desk: a "pay on arrival" booking. */
+export function isCashAwaiting(b: { status: BookingStatus; method: Booking['method'] }): boolean {
+  return b.method === 'cash' && isOpen(b)
+}
 
 export function contentsList(c: RoomContents): { icon: IconName; label: string }[] {
   const out: { icon: IconName; label: string }[] = []
@@ -65,20 +79,34 @@ export function durationsFor(s: PublicSettings, time: string): number[] {
   return all.filter((m) => curated.has(m))
 }
 
-/** Today, next slot, 2 hours — or the first slot tomorrow when the centre is closing. */
-export function defaultPick(s: PublicSettings): Pick {
-  let date = todayLocal()
-  let slots = slotsFor(s, date)
-  if (slots.length === 0) { date = addDays(date, 1); slots = slotsFor(s, date) }
+/** The first date from `from` (inclusive) that still has a bookable start time, within 14 days. */
+export function firstBookableDate(s: PublicSettings, from = todayLocal()): string {
+  let date = from
+  for (let i = 0; i < 14 && slotsFor(s, date).length === 0; i++) date = addDays(date, 1)
+  return date
+}
+/** Pick a time + duration for a date: the first slot (2 hours when possible). */
+export function pickFor(s: PublicSettings, date: string): Pick {
+  const slots = slotsFor(s, date)
   const time = slots[0] || s.open
   const ds = durationsFor(s, time)
   const minutes = ds.includes(120) ? 120 : (ds[ds.length - 1] ?? s.min_minutes)
   return { date, time, minutes }
 }
+/** Today, next slot, 2 hours — or the first slot tomorrow when the centre is closing. */
+export function defaultPick(s: PublicSettings): Pick {
+  return pickFor(s, firstBookableDate(s))
+}
+/** True when the pick names a start time still offered for its date and a duration that fits. */
+export function isValidPick(s: PublicSettings, p: Pick): boolean {
+  return slotsFor(s, p.date).includes(p.time) && durationsFor(s, p.time).includes(p.minutes)
+}
 
-export function priceFor(room: Room, minutes: number): number {
-  const hourly = Math.round((room.price_hour * minutes) / 60)
-  if (room.price_day && hourly > room.price_day) return room.price_day
+/** Same formula as the server (api/src/bookings.ts price): hourly = round(minutes/60 × price_hour); from 8 hours the
+ *  cheaper of price_day and hourly. */
+export function priceFor(room: { price_hour: number; price_day: number | null }, minutes: number): number {
+  const hourly = Math.round((minutes / 60) * room.price_hour)
+  if (room.price_day !== null && room.price_day !== undefined && minutes >= 8 * 60) return Math.min(room.price_day, hourly)
   return hourly
 }
 

@@ -2,17 +2,22 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { Booking } from '@shared/types'
 import { fmtDate, fmtRange, fmtSYP, fmtTime, todayLocal } from '../format'
-import { Badge, Button, Card, Empty, Icon, Spinner, useToast } from '../ui'
+import { Badge, Button, Card, Empty, Icon, Sheet, Spinner, useToast } from '../ui'
 import { BookingSheet } from './BookingSheet'
 import { ManualBookingSheet } from './ManualBookingSheet'
 import { PageHead, Section, roomColor } from './common'
 import { enableTeamPush, pushState, type PushState } from './push'
-import { store, useRooms, useStore } from './store'
-import { describeError, isLive, localDate, sortByStart } from './util'
+import { store, useFresh, useRooms, useStore } from './store'
+import { describeError, isBlocking, isPendingVerification, localDate, sortByStart } from './util'
+
+const BATTERY_HINT_KEY = 'fp_team_battery_hint'
+/** Phone makers whose battery saver is known to kill background push for Chrome. */
+const AGGRESSIVE_OEM = /xiaomi|redmi|poco|miui|huawei|honor|oppo|realme|oneplus|vivo/i
 
 export function Today() {
   const { ready, view, sync } = useStore()
   const rooms = useRooms()
+  const fresh = useFresh()
   const toast = useToast()
   const [selected, setSelected] = useState<Booking | null>(null)
   const [manual, setManual] = useState(false)
@@ -20,15 +25,16 @@ export function Today() {
   useEffect(() => { const t = window.setInterval(() => setNow(Date.now()), 60_000); return () => window.clearInterval(t) }, [])
 
   const today = todayLocal()
-  const pending = useMemo(() => view.bookings.filter((b) => b.status === 'awaiting_verification').sort((a, b) => (a.updated_at < b.updated_at ? 1 : -1)), [view.bookings])
+  // Verifications still worth acting on (a booking whose end passed half an hour ago is expired by the server's cron).
+  const pending = useMemo(() => view.bookings.filter((b) => isPendingVerification(b, now)).sort((a, b) => (a.updated_at < b.updated_at ? 1 : -1)), [view.bookings, now])
   const todays = useMemo(() => view.bookings.filter((b) => localDate(b.start) === today).sort(sortByStart), [view.bookings, today])
-  const liveToday = useMemo(() => todays.filter((b) => isLive(b.status) || b.status === 'completed'), [todays])
+  const liveToday = useMemo(() => todays.filter((b) => isBlocking(b, now) || b.status === 'completed'), [todays, now])
   const revenue = useMemo(() => todays.filter((b) => b.status === 'confirmed' || b.status === 'completed').reduce((s, b) => s + b.price, 0), [todays])
   // Keep the sheet's booking in sync with the store (status changes after confirm, etc.).
   const current = selected ? view.bookings.find((b) => b.id === selected.id) ?? null : null
 
   async function quick(b: Booking, action: 'confirm') {
-    try { await store[action](b); toast.show('تم تأكيد الدفع — أُعلم الزبون', 'ok') } catch (err) { toast.show(describeError(err), 'error') }
+    try { await store[action](b); toast.show(b.method === 'cash' ? 'تم تأكيد الحجز — أُعلم الزبون' : 'تم تأكيد الدفع — أُعلم الزبون', 'ok') } catch (err) { toast.show(describeError(err), 'error') }
   }
 
   if (!ready) return <div className="center center-pad"><Spinner /></div>
@@ -40,26 +46,35 @@ export function Today() {
       </PageHead>
 
       {pending.length > 0 && (
-        <Section title={`بانتظار التحقق من الدفع (${pending.length})`}>
+        <Section title={`بانتظار التأكيد (${pending.length})`}>
           <div className="list">
-            {pending.map((b) => (
-              <Card key={b.id} className="verify">
-                <div className="row between gap">
-                  <div className="row gap-sm"><span className="dot" style={{ background: roomColor(view.rooms.find((r) => r.id === b.room_id)?.color) }} /><b>{b.customer_name}</b></div>
-                  <span className="muted small">{fmtTime(b.updated_at)}</span>
-                </div>
-                <dl className="verify-grid">
-                  <div><dt>القاعة والوقت</dt><dd>{b.room_name} · {fmtDate(b.start)} · <span className="num">{fmtRange(b.start, b.end)}</span></dd></div>
-                  <div><dt>المبلغ</dt><dd>{fmtSYP(b.price)}</dd></div>
-                  <div><dt>رمز الحجز (في ملاحظة التحويل)</dt><dd><span className="code num">{b.code}</span></dd></div>
-                  <div><dt>رقم العملية</dt><dd><span className="num">{b.payment_ref ?? '—'}</span></dd></div>
-                </dl>
-                <div className="verify-actions">
-                  <Button onClick={() => quick(b, 'confirm')}><Icon name="check" size={18} /> تأكيد</Button>
-                  <Button variant="danger" onClick={() => setSelected(b)}>رفض</Button>
-                </div>
-              </Card>
-            ))}
+            {pending.map((b) => {
+              const cash = b.method === 'cash'
+              return (
+                <Card key={b.id} className={`verify${fresh.has(b.id) ? ' is-fresh' : ''}`}>
+                  <div className="row between gap">
+                    <div className="row gap-sm">
+                      <span className="dot" style={{ background: roomColor(view.rooms.find((r) => r.id === b.room_id)?.color) }} />
+                      <b>{b.customer_name}</b>
+                      {fresh.has(b.id) && <Badge tone="wine"><span className="badge-new">جديد</span></Badge>}
+                    </div>
+                    <span className="muted small">{fmtTime(b.updated_at)}</span>
+                  </div>
+                  <dl className="verify-grid">
+                    <div><dt>القاعة والوقت</dt><dd>{b.room_name} · {fmtDate(b.start)} · <span className="num">{fmtRange(b.start, b.end)}</span></dd></div>
+                    <div><dt>المبلغ</dt><dd>{fmtSYP(b.price)}{cash && <span className="muted tiny"> · عند الوصول</span>}</dd></div>
+                    <div><dt>{cash ? 'رمز الحجز' : 'رمز الحجز (في ملاحظة التحويل)'}</dt><dd><span className="code num">{b.code}</span></dd></div>
+                    {cash
+                      ? <div><dt>طريقة الدفع</dt><dd>الدفع عند الوصول — يؤكد الفريق الحجز</dd></div>
+                      : <div><dt>رقم العملية</dt><dd><span className="num">{b.payment_ref ?? '—'}</span></dd></div>}
+                  </dl>
+                  <div className="verify-actions">
+                    <Button onClick={() => quick(b, 'confirm')}><Icon name="check" size={18} /> {cash ? 'تأكيد الحجز' : 'تأكيد الدفع'}</Button>
+                    <Button variant="danger" onClick={() => setSelected(b)}>رفض</Button>
+                  </div>
+                </Card>
+              )
+            })}
           </div>
         </Section>
       )}
@@ -88,10 +103,11 @@ export function Today() {
                       const isNow = Date.parse(b.start) <= now && now < Date.parse(b.end)
                       const past = Date.parse(b.end) <= now
                       return (
-                        <button key={b.id} type="button" className={`tl-item${isNow ? ' is-now' : ''}${past ? ' is-dim' : ''}`} style={{ borderInlineStartColor: roomColor(room.color) }} onClick={() => setSelected(b)}>
+                        <button key={b.id} type="button" className={`tl-item${isNow ? ' is-now' : ''}${past ? ' is-dim' : ''}${fresh.has(b.id) ? ' is-fresh' : ''}`} style={{ borderInlineStartColor: roomColor(room.color) }} onClick={() => setSelected(b)}>
                           <span className="when num">{fmtRange(b.start, b.end)}</span>
                           <span className="who">{b.customer_name}</span>
-                          {b.status !== 'confirmed' && <Badge tone={b.status === 'completed' ? 'grey' : 'gold'}>{b.status === 'completed' ? 'انتهى' : b.status === 'awaiting_verification' ? 'تحقق' : 'بانتظار الدفع'}</Badge>}
+                          {fresh.has(b.id) && <Badge tone="wine"><span className="badge-new">جديد</span></Badge>}
+                          {b.status !== 'confirmed' && <Badge tone={b.status === 'completed' ? 'grey' : 'gold'}>{b.status === 'completed' ? 'انتهى' : b.status === 'awaiting_verification' ? (b.method === 'cash' ? 'تأكيد' : 'تحقق') : 'بانتظار الدفع'}</Badge>}
                         </button>
                       )
                     })}
@@ -109,21 +125,59 @@ export function Today() {
   )
 }
 
-/** "تفعيل إشعارات الفريق" — shown until push is granted on this device. */
+/** "تفعيل إشعارات الفريق" — shown until push is granted on this device; afterwards a one-line battery hint for phones
+ *  whose power saver silences Chrome (Xiaomi / Huawei / Oppo…), with a two-step "كيف؟" sheet. */
 function PushCard() {
   const { view } = useStore()
   const toast = useToast()
   const [state, setState] = useState<PushState>(() => pushState())
   const [busy, setBusy] = useState(false)
+  const [justEnabled, setJustEnabled] = useState(false)
+  const [how, setHow] = useState(false)
+  const [hintHidden, setHintHidden] = useState(() => { try { return localStorage.getItem(BATTERY_HINT_KEY) === '1' } catch { return false } })
   const vapid = view.settings?.vapid_public_key
-  if (state === 'granted' || state === 'unsupported' || !vapid) return null
+  const aggressiveOem = typeof navigator !== 'undefined' && AGGRESSIVE_OEM.test(navigator.userAgent)
+  if (state === 'unsupported' || !vapid) return null
+
   async function enable() {
     setBusy(true)
     try {
       const s = await enableTeamPush(vapid!)
       setState(s)
+      if (s === 'granted') setJustEnabled(true)
       toast.show(s === 'granted' ? 'ستصلك إشعارات الحجوزات والدفعات على هذا الجهاز' : s === 'denied' ? 'الإشعارات مرفوضة من إعدادات المتصفح' : 'المتصفح لا يدعم الإشعارات', s === 'granted' ? 'ok' : 'error')
     } catch (err) { toast.show(describeError(err), 'error') } finally { setBusy(false) }
+  }
+  function dismissHint() { setHintHidden(true); try { localStorage.setItem(BATTERY_HINT_KEY, '1') } catch { /* ignore */ } }
+
+  if (state === 'granted') {
+    // Already enabled: only the battery hint remains, and only where it matters.
+    if (hintHidden || !(justEnabled || aggressiveOem)) return null
+    return (
+      <>
+        <Card className="mt push-card">
+          <div className="row gap">
+            <Icon name="bell" size={22} className="wine" />
+            <div>
+              <div className="strong">الإشعارات مفعّلة</div>
+              <div className="muted small">
+                حتى تصل الإشعارات والشاشة مقفلة: استثنِ كروم من توفير البطارية (شاومي / هواوي / أوبو).
+                {' '}<button type="button" className="linkish" onClick={() => setHow(true)}>كيف؟</button>
+              </div>
+            </div>
+          </div>
+          <Button variant="ghost" size="sm" onClick={dismissHint}>فهمت</Button>
+        </Card>
+        <Sheet open={how} onClose={() => setHow(false)} title="استثناء كروم من توفير البطارية">
+          <ol className="steps">
+            <li><span>افتح <b>الإعدادات</b> ← <b>التطبيقات</b> ← <b>Chrome</b> ← <b>البطارية</b> (أو «استخدام البطارية») واختر <b>بلا قيود</b> / «لا تحسين».</span></li>
+            <li><span>في الصفحة نفسها فعّل <b>التشغيل التلقائي</b> (Autostart) واسمح بـ<b>النشاط في الخلفية</b>؛ على شاومي: الإعدادات ← البطارية ← توفير البطارية في التطبيقات ← Chrome ← بلا قيود.</span></li>
+          </ol>
+          <p className="muted small mt">بعدها تصل إشعارات الحجوزات حتى لو كان الهاتف في جيبك. تختلف أسماء القوائم قليلاً بين الأجهزة.</p>
+          <div className="sheet-foot"><Button block onClick={() => setHow(false)}>تم</Button></div>
+        </Sheet>
+      </>
+    )
   }
   return (
     <Card className="mt push-card">

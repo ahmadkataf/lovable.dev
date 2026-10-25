@@ -9,7 +9,7 @@ import { Badge, Card, Icon, Select, Spinner } from '../ui'
 import { PlanView } from '../plan/PlanView'
 import { RoomSheet } from '../components/RoomSheet'
 import { InstallHint } from '../components/InstallHint'
-import { blocks, contentsIcons, defaultPick, durationsFor, overlaps, peopleLabel, ROOM_ICON, ROOM_TYPE, slotsFor, type Availability, type Pick } from '../lib/booking'
+import { blocks, contentsIcons, defaultPick, durationsFor, firstBookableDate, overlaps, peopleLabel, pickFor, ROOM_ICON, ROOM_TYPE, slotsFor, type Availability, type Pick } from '../lib/booking'
 import { durationLabel } from '../format'
 
 const WD_SHORT = ['أحد', 'اثنين', 'ثلاثاء', 'أربعاء', 'خميس', 'جمعة', 'سبت']
@@ -40,14 +40,25 @@ export function Home() {
     return set
   }, [availQ.data, range])
 
-  const days = useMemo(() => Array.from({ length: 14 }, (_, i) => addDays(todayLocal(), i)), [])
-  const slots = useMemo(() => (settings && pick ? slotsFor(settings, pick.date) : []), [settings, pick])
+  // "Today" moves at midnight and the next free slot moves every half hour: re-evaluate once a minute.
+  const [tick, setTick] = useState(0)
+  useEffect(() => { const t = window.setInterval(() => setTick((n) => n + 1), 60_000); return () => window.clearInterval(t) }, [])
+  const today = useMemo(() => todayLocal(), [tick])
+  const days = useMemo(() => Array.from({ length: 14 }, (_, i) => addDays(today, i)), [today])
+  const slots = useMemo(() => (settings && pick ? slotsFor(settings, pick.date) : []), [settings, pick, tick])
   const durations = useMemo(() => (settings && pick ? durationsFor(settings, pick.time) : []), [settings, pick])
+  const todayHasSlots = useMemo(() => (settings ? slotsFor(settings, today).length > 0 : true), [settings, today, tick])
 
-  // Keep the pick valid when the date or the time changes.
+  // Keep the pick valid: when the chosen date has no start left (the centre closed for today), move to the next
+  // bookable day; otherwise snap the time and the duration to what is offered.
   useEffect(() => {
     if (!settings || !pick) return
-    if (slots.length && !slots.includes(pick.time)) { setPick({ ...pick, time: slots[0] }); return }
+    if (slots.length === 0) {
+      const next = firstBookableDate(settings, addDays(pick.date, 1))
+      if (next !== pick.date) setPick(pickFor(settings, next))
+      return
+    }
+    if (!slots.includes(pick.time)) { setPick({ ...pick, time: slots[0] }); return }
     if (durations.length && !durations.includes(pick.minutes)) setPick({ ...pick, minutes: durations.includes(120) ? 120 : durations[durations.length - 1] })
   }, [settings, pick, slots, durations])
 
@@ -77,8 +88,10 @@ export function Home() {
               {days.map((d, i) => {
                 const [y, m, dd] = d.split('-').map(Number)
                 const wd = new Date(Date.UTC(y, m - 1, dd)).getUTCDay()
+                const closed = i === 0 && !todayHasSlots   // after closing time "today" has nothing left to book
                 return (
-                  <button key={d} type="button" role="radio" aria-checked={d === pick.date} className={`chip${d === pick.date ? ' is-active' : ''}`} onClick={() => setPick({ ...pick, date: d })}>
+                  <button key={d} type="button" role="radio" aria-checked={d === pick.date} disabled={closed} title={closed ? 'انتهى الدوام اليوم' : undefined}
+                    className={`chip${d === pick.date ? ' is-active' : ''}${closed ? ' is-closed' : ''}`} onClick={() => setPick({ ...pick, date: d })}>
                     <small>{i === 0 ? 'اليوم' : i === 1 ? 'غداً' : WD_SHORT[wd]}</small><b>{dd}</b>
                   </button>
                 )

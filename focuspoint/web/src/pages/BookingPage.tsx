@@ -12,7 +12,9 @@ import { PaymentPanel } from '../components/PaymentPanel'
 import { NotifyPrompt } from '../components/NotifyPrompt'
 import { downloadIcs } from '../lib/ics'
 import { flag } from '../lib/store'
-import type { BookingFull } from '../lib/booking'
+import { onPushMessage } from '../lib/push'
+import { setTimeZone } from '../format'
+import { isCashAwaiting, isOpen, type BookingFull } from '../lib/booking'
 
 const POLL_MS = 15_000
 
@@ -47,7 +49,9 @@ export function BookingPage() {
 
   useEffect(() => { setB(null); setNotFound(false); setError(null); void load() }, [load])
 
-  const live = b && (b.status === 'pending_payment' || b.status === 'awaiting_verification')
+  useEffect(() => { setTimeZone(settings?.timezone) }, [settings?.timezone])
+
+  const live = !!b && isOpen(b)
   useEffect(() => {
     if (!live) return
     const t = window.setInterval(() => { if (document.visibilityState === 'visible') void load() }, POLL_MS)
@@ -55,6 +59,8 @@ export function BookingPage() {
     document.addEventListener('visibilitychange', onVisible)
     return () => { window.clearInterval(t); document.removeEventListener('visibilitychange', onVisible) }
   }, [live, load])
+  // A push about this booking (confirmed / rejected / expired…) while the page is open: refresh at once.
+  useEffect(() => onPushMessage((p) => { if (!p.booking_id || String(p.booking_id) === id) void load() }), [id, load])
 
   const room = useMemo(() => roomsQ.data?.find((r) => r.id === b?.room_id) ?? null, [roomsQ.data, b])
 
@@ -93,8 +99,9 @@ export function BookingPage() {
       : <div className="center" style={{ padding: 48 }}><Spinner /></div>
   }
 
-  const st = statusLabel(b.status)
-  const canCancel = b.status === 'pending_payment' || b.status === 'awaiting_verification'
+  const st = statusLabel(b.status, b.method)
+  const cashAwaiting = isCashAwaiting(b)
+  const canCancel = isOpen(b)
   const showNotify = !!flag('fp_prompt_push')
 
   return (
@@ -107,11 +114,21 @@ export function BookingPage() {
 
       {fromCache && <div className="alert alert-info">تعرض نسخة محفوظة — سنحدّثها عند عودة الاتصال.</div>}
 
-      {b.status === 'pending_payment' && b.payment && (
-        <PaymentPanel booking={b} payment={b.payment} onUpdated={updated} />
+      {b.status === 'pending_payment' && b.payment && !cashAwaiting && (
+        <PaymentPanel booking={b} payment={b.payment} onUpdated={updated} onExpired={load} />
       )}
 
-      {b.status === 'awaiting_verification' && (
+      {cashAwaiting && (
+        <Card>
+          <div className="status-hero">
+            <span className="status-mark wait"><Icon name="clock" size={32} /></span>
+            <h2 className="h2">استلمنا حجزك</h2>
+            <p className="muted small mt-sm">سيؤكد الفريق حجزك قريباً، والدفع عند الوصول. بيصلك إشعار، ويظهر التأكيد هنا تلقائياً.</p>
+          </div>
+        </Card>
+      )}
+
+      {b.status === 'awaiting_verification' && !cashAwaiting && (
         <Card>
           <div className="status-hero">
             <span className="status-mark wait"><Icon name="clock" size={32} /></span>
@@ -160,7 +177,7 @@ export function BookingPage() {
         </Card>
       )}
 
-      {showNotify && (b.status === 'pending_payment' || b.status === 'awaiting_verification' || b.status === 'confirmed') && <NotifyPrompt />}
+      {showNotify && (isOpen(b) || b.status === 'confirmed') && <NotifyPrompt />}
 
       <Card>
         <BookingSummary room={room} roomName={b.room_name} start={b.start} end={b.end} minutes={Math.round((new Date(b.end).getTime() - new Date(b.start).getTime()) / 60000)} people={b.people} price={b.price} code={b.code} />
@@ -185,7 +202,7 @@ export function BookingPage() {
       )}
 
       <Sheet open={confirmCancel} onClose={() => setConfirmCancel(false)} title="إلغاء الحجز؟">
-        <p className="muted">سيعود المكان متاحاً للآخرين. {b.status === 'awaiting_verification' && 'إذا كنت قد حوّلت المبلغ، تواصل معنا لاسترجاعه.'}</p>
+        <p className="muted">سيعود المكان متاحاً للآخرين. {b.status === 'awaiting_verification' && !cashAwaiting && 'إذا كنت قد حوّلت المبلغ، تواصل معنا لاسترجاعه.'}</p>
         <div className="row gap mt">
           <Button variant="danger" block loading={cancelling} onClick={cancel}>نعم، ألغِ الحجز</Button>
           <Button variant="ghost" block onClick={() => setConfirmCancel(false)}>رجوع</Button>

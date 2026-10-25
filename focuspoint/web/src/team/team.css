@@ -75,6 +75,7 @@
 .verify-grid dd { margin: 0; font-weight: 600; color: var(--plum); }
 .verify-grid .code { font-size: 1.2rem; letter-spacing: 0.14em; color: var(--wine); }
 .verify-actions { display: grid; grid-template-columns: 2fr 1fr; gap: 8px; }
+.verify.is-fresh, .tl-item.is-fresh { border-color: var(--wine); box-shadow: 0 0 0 2px var(--wine-soft); }
 
 /* ---- today timeline ---- */
 .tl-room { display: grid; grid-template-columns: 1fr; gap: 8px; padding: 12px 0; border-bottom: 1px solid var(--line); align-items: start; }
@@ -241,7 +242,8 @@
 .confirm-body { color: var(--ink); line-height: 1.7; margin-bottom: 4px; }
 .inline-note { display: flex; align-items: flex-start; gap: 8px; color: var(--mute); font-size: 0.82rem; line-height: 1.6; }
 .inline-note svg { flex: none; margin-top: 3px; }
-.push-card { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.push-card { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.push-card .btn { flex: none; }
 .center-pad { padding: 48px 0; }
 .list { display: flex; flex-direction: column; gap: 8px; }
 .linkish { background: none; border: 0; color: var(--wine); font-weight: 600; cursor: pointer; padding: 0; font: inherit; }

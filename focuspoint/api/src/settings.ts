@@ -39,6 +39,7 @@ export const DEFAULT_SETTINGS: StoredSettings = {
   shamcash_name: 'Focus Point',
   shamcash_qr: null,
   payment_instructions: 'حوّل المبلغ عبر شام كاش إلى الرقم أدناه، واكتب رمز الحجز في ملاحظة التحويل، ثم أدخل رقم العملية هنا.',
+  allow_pay_on_arrival: false,
   plan: DEFAULT_PLAN,
 }
 
@@ -58,8 +59,8 @@ export async function loadSettings(db: D1Database, env: Env): Promise<Settings> 
 }
 
 export function publicSettings(s: Settings): PublicSettings {
-  const { centre_name, phone, address, instagram, timezone, open, close, slot_minutes, min_minutes, max_minutes, hold_minutes, plan, vapid_public_key } = s
-  return { centre_name, phone, address, instagram, timezone, open, close, slot_minutes, min_minutes, max_minutes, hold_minutes, plan, vapid_public_key }
+  const { centre_name, phone, address, instagram, timezone, open, close, slot_minutes, min_minutes, max_minutes, hold_minutes, allow_pay_on_arrival, plan, vapid_public_key } = s
+  return { centre_name, phone, address, instagram, timezone, open, close, slot_minutes, min_minutes, max_minutes, hold_minutes, allow_pay_on_arrival, plan, vapid_public_key }
 }
 
 const MAX_QR_BYTES = 300 * 1024
@@ -114,6 +115,10 @@ export function validateSettingsPatch(body: Record<string, unknown>, current: St
     }
   }
   if ('payment_instructions' in body) p.payment_instructions = requireString(body.payment_instructions, 'invalid_instructions', 0, 500)
+  if ('allow_pay_on_arrival' in body) {
+    if (typeof body.allow_pay_on_arrival !== 'boolean') throw new HttpError(400, 'invalid_pay_on_arrival')
+    p.allow_pay_on_arrival = body.allow_pay_on_arrival
+  }
   if ('plan' in body) p.plan = validatePlan(body.plan)
 
   // Cross-field rules on the merged result.

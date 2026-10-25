@@ -12,13 +12,19 @@ import { isPlainObject, requirePhone, requireString } from '../validate'
 
 const deps = (c: Ctx) => ({ env: c.env, exec: c.exec, now: c.now })
 
-/** The device that made the booking, the phone owner via lookup, or any team account. */
+/** A device that owns the booking: the one that made it, or one that adopted it by code + phone (booking_devices). */
+async function deviceOwns(db: D1Database, b: Booking, device: string): Promise<boolean> {
+  if (b.device_id === device) return true
+  return Boolean(await db.prepare('SELECT 1 FROM booking_devices WHERE booking_id = ? AND device_id = ?').bind(b.id, device).first())
+}
+
+/** The device that made the booking, a device that adopted it via lookup, or any team account. */
 async function ownedBooking(c: Ctx): Promise<Booking> {
   const b = await getBooking(c.env.DB, idParam(c))
   if (!b) throw new HttpError(404, 'booking_not_found')
   if (c.user) return b
   const device = requireDevice(c)
-  if (b.device_id !== device) throw new HttpError(403, 'forbidden')
+  if (!(await deviceOwns(c.env.DB, b, device))) throw new HttpError(403, 'forbidden')
   return b
 }
 
@@ -63,16 +69,19 @@ export const publicRoutes: Route[] = [
     return json(await createCustomerBooking(deps(c), device, await readJson(c.req)), 201)
   }),
 
-  // This device's bookings: everything upcoming plus the last 90 days, newest first.
+  // This device's bookings (made here or adopted by code + phone): everything upcoming plus the last 90 days, newest first.
   route('GET', '/v1/bookings/mine', 'public', async (c) => {
     const device = requireDevice(c)
     const since = new Date(c.now.getTime() - 90 * 86400000).toISOString()
-    const rows = (await c.env.DB.prepare(`${BOOKING_SELECT} WHERE b.device_id = ? AND (b.created_at >= ? OR b.end >= ?) ORDER BY b.created_at DESC LIMIT 200`)
-      .bind(device, since, c.now.toISOString()).all<BookingRow>()).results
+    const rows = (await c.env.DB.prepare(
+      `${BOOKING_SELECT} WHERE (b.device_id = ? OR b.id IN (SELECT booking_id FROM booking_devices WHERE device_id = ?))
+       AND (b.created_at >= ? OR b.end >= ?) ORDER BY b.created_at DESC LIMIT 200`)
+      .bind(device, device, since, c.now.toISOString()).all<BookingRow>()).results
     return json(rows.map(toBooking))
   }),
 
-  // Find a booking by code + phone; the phone proves ownership, and the device is attached when the booking has none.
+  // Find a booking by code + phone. The phone proves ownership, so the calling device always adopts the booking
+  // (booking_devices); the original device keeps its access too. /mine, /:id, payment and cancel then work from here.
   route('GET', '/v1/bookings/lookup', 'public', async (c) => {
     const device = requireDevice(c)
     const code = normaliseCode(c.url.searchParams.get('code'))
@@ -80,9 +89,15 @@ export const publicRoutes: Route[] = [
     const phone = requirePhone(c.url.searchParams.get('phone'))
     const row = await c.env.DB.prepare(`${BOOKING_SELECT} WHERE b.code = ? AND b.customer_phone = ?`).bind(code, phone).first<BookingRow>()
     if (!row) throw new HttpError(404, 'booking_not_found')
-    if (row.device_id === null) {
-      await c.env.DB.prepare('UPDATE bookings SET device_id = ? WHERE id = ? AND device_id IS NULL').bind(device, row.id).run()
-      row.device_id = device
+    if (row.device_id !== device) {
+      const stmts = [
+        c.env.DB.prepare('INSERT INTO booking_devices (booking_id, device_id, added_at) VALUES (?, ?, ?) ON CONFLICT(booking_id, device_id) DO NOTHING')
+          .bind(row.id, device, c.now.toISOString()),
+      ]
+      // A walk-in (no device yet) becomes this device's booking outright, so it also gets the push for it.
+      if (row.device_id === null) stmts.push(c.env.DB.prepare('UPDATE bookings SET device_id = ? WHERE id = ? AND device_id IS NULL').bind(device, row.id))
+      await c.env.DB.batch(stmts)
+      if (row.device_id === null) row.device_id = device
     }
     return json(toBooking(row))
   }),

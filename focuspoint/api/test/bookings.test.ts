@@ -119,7 +119,7 @@ describe('status transitions', () => {
   })
   it('refuses illegal moves and anything out of a terminal state', () => {
     expect(canTransition('confirmed', 'awaiting_verification')).toBe(false)
-    expect(canTransition('awaiting_verification', 'expired')).toBe(false)
+    expect(canTransition('awaiting_verification', 'completed')).toBe(false)   // → expired is allowed (cron closes stale verifications)
     expect(canTransition('completed', 'confirmed')).toBe(false)
     for (const t of ['rejected', 'expired', 'cancelled', 'completed'] as BookingStatus[]) expect(TRANSITIONS[t]).toEqual([])
   })
