@@ -48,6 +48,7 @@ const PER_TEMPLATE: Record<string, Record<string, Role>> = {
   bottlestand: { sink: 'object' },
   // the decor's size is the gypsum opening's (with its rest), measured on site; the sheet is the one bought
   ceilingframe: { PW: 'object', PH: 'object', ov: 'object', center: 'choice', sheetL: 'fixed', sheetW: 'fixed' },
+  ceilingframe2: { PW: 'object', PH: 'object', ov: 'object', center: 'choice', sheetL: 'fixed', sheetW: 'fixed' },
   easel: { bolt: 'object', maxL: 'fixed' }, // the bought bolts; the laser bed's length
 }
 

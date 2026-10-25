@@ -9,7 +9,7 @@ import { samplePoly, pointIn, polysOverlap, polyDistance, selfIntersects } from 
  * Designs whose own test file runs this same grid at their own sizes (every thickness and kerf, each parameter at its
  * min and max, with these checks): their lattices are slow to check point by point, so they are not run twice.
  */
-export const OWN_GRID = new Set(['rosesign', 'giftbag', 'archbox', 'mihrabbox', 'cubeset', 'kilimbox', 'easel', 'bottlebox', 'bottlestand', 'ceilingframe'])
+export const OWN_GRID = new Set(['rosesign', 'giftbag', 'archbox', 'mihrabbox', 'cubeset', 'kilimbox', 'easel', 'bottlebox', 'bottlestand', 'ceilingframe', 'ceilingframe2'])
 
 export function gridSuite(shard: number, shards: number) {
 describe(`robustness grid ${shard + 1}/${shards}`, () => {

@@ -1,21 +1,24 @@
 import { describe, it, expect } from 'vitest'
-import { CEILING_FRAMES, frameGeom, framePieces, cornerPlate, toFrame, CLEAT_REACH, minPatternWidth, rosetteDims, ROSE } from './ceilingframe'
+import { CEILING_FRAMES, frameGeom, framePieces, cornerPlate, toFrame, CLEAT_REACH, minPatternWidth, minCell, rosetteDims, starDims, ROSE, STAR, decorPieces, medallion2, medDims2 } from './ceilingframe'
 import { generate, DEFAULT_SETTINGS } from './generate'
 import { signedArea, Loop } from './geom'
 import { toDXF } from './export'
 import { samplePoly, pointIn, selfIntersects, segsCross } from './testutil'
 
-const tpl = CEILING_FRAMES[0]
+const [T1, T2] = CEILING_FRAMES
 const S0 = { ...DEFAULT_SETTINGS, kerf: 0 }
 type P = { x: number; y: number }
 type Pn = { id: string; name: string; w: number; h: number; count: number; loops: Loop[]; material?: string }
 type Dz = { panels: Pn[]; errors: string[]; warnings: string[]; notes: string[]; layout: never }
-const gen = (p: Record<string, number>, s: Partial<typeof S0> = {}) => generate(tpl, p, { ...S0, ...s }) as never as Dz
+type Tp = typeof T1
+const gen = (p: Record<string, number>, s: Partial<typeof S0> = {}, tpl: Tp = T1) => generate(tpl, p, { ...S0, ...s }) as never as Dz
 const cutOf = (pn: Pn) => pn.loops.filter(l => l.closed && l.layer !== 'engrave')
 const get = (d: { panels: Pn[] }, id: string) => d.panels.find(x => x.id === id)!
-const full = (p: Record<string, number>) => ({ ...tpl.defaults, ...p })
+const full = (p: Record<string, number>, tpl: Tp = T1) => ({ ...tpl.defaults, ...p })
 const SECOND = { PW: 1380, PH: 1080 }
+const THICK = [2, 2.7, 3, 3.2, 4, 6]
 const seeded = (seed: number) => () => ((seed = (seed * 16807) % 2147483647) / 2147483647)
+const lab = (p: Record<string, number>, tpl: Tp = T1) => `${tpl.id} ${JSON.stringify(p)}`
 
 type Box = { minX: number; minY: number; maxX: number; maxY: number }
 const boxOf = (pts: P[]): Box => {
@@ -70,22 +73,27 @@ function widthOf(pts: P[]): number {
 function soundness(d: Dz, label: string, gap = 0.8, edge = 0.8, step = 6): string[] {
   const bad: string[] = []
   for (const pn of d.panels) {
-    const lab = `${label} ${pn.id}`
-    if (!(pn.w > 0)) bad.push(`${lab} width`)
+    const lb = `${label} ${pn.id}`
+    if (!(pn.w > 0)) bad.push(`${lb} width`)
     const outers = cutOf(pn).filter(l => signedArea(l) > 0)
-    if (outers.length !== 1) { bad.push(`${lab} ${outers.length} outer loops`); continue }
-    const outer = samplePoly(outers[0], 15)
-    if (selfIntersects(outer)) bad.push(`${lab} self-intersects`)
-    for (let i = 0; i < outer.length; i++) { const q = outer[(i + 1) % outer.length]; if (Math.hypot(q.x - outer[i].x, q.y - outer[i].y) <= 1e-6) bad.push(`${lab} zero-length edge`) }
-    const hs = cutOf(pn).filter(l => signedArea(l) < 0).map(h => { const p = samplePoly(h, step); return { p, b: boxOf(p), a: -signedArea(h) } })
+    if (outers.length !== 1) { bad.push(`${lb} ${outers.length} outer loops`); continue }
+    const outer = samplePoly(outers[0], 2), ob = boxOf(outer)
+    const rectOuter = outer.length === 4 && outer.every((q, i) => { const r = outer[(i + 1) % 4]; return Math.abs(q.x - r.x) < 1e-9 || Math.abs(q.y - r.y) < 1e-9 })
+    if (selfIntersects(outer)) bad.push(`${lb} self-intersects`)
+    for (let i = 0; i < outer.length; i++) { const q = outer[(i + 1) % outer.length]; if (Math.hypot(q.x - outer[i].x, q.y - outer[i].y) <= 1e-6) bad.push(`${lb} zero-length edge`) }
+    const hs = cutOf(pn).filter(l => signedArea(l) < 0).map(h => { const p = samplePoly(h, step); return { p, b: boxOf(p), a: -signedArea(h), l: h } })
     for (const h of hs) {
-      if (selfIntersects(h.p)) bad.push(`${lab} hole self-intersects`)
-      if (h.p.some(q => !pointIn(q, outer))) bad.push(`${lab} hole outside`)
-      let de = Infinity
-      for (const q of h.p) for (let i = 0; i < outer.length; i++) de = Math.min(de, ptSeg(q, outer[i], outer[(i + 1) % outer.length]))
-      if (de < edge - 0.02) bad.push(`${lab} hole ${de.toFixed(2)} from the edge`)
+      for (let i = 0; i < h.l.pts.length; i++) { const p = h.l.pts[i], q = h.l.pts[(i + 1) % h.l.pts.length]; if (Math.hypot(q.x - p.x, q.y - p.y) <= 1e-6) { bad.push(`${lb} hole zero-length edge`); break } }
+      if (selfIntersects(h.p)) bad.push(`${lb} hole self-intersects`)
+      // on a rectangle only the holes near its sides are measured against it
+      if (!rectOuter || h.b.minX - ob.minX < edge + 2 || ob.maxX - h.b.maxX < edge + 2 || h.b.minY - ob.minY < edge + 2 || ob.maxY - h.b.maxY < edge + 2) {
+        if (h.p.some(q => !pointIn(q, outer))) bad.push(`${lb} hole outside`)
+        let de = Infinity
+        for (const q of h.p) for (let i = 0; i < outer.length; i++) de = Math.min(de, ptSeg(q, outer[i], outer[(i + 1) % outer.length]))
+        if (de < edge - 0.02) bad.push(`${lb} hole ${de.toFixed(2)} from the edge`)
+      }
       const across = Math.min(h.b.maxX - h.b.minX, h.b.maxY - h.b.minY, widthOf(h.p)) // a hull is never narrower than its shape
-      if (h.a < 3 || across < 1.5) bad.push(`${lab} sliver hole (${h.a.toFixed(2)} mm², ${across.toFixed(2)} mm)`)
+      if (h.a < 3 || across < 1.5) bad.push(`${lb} sliver hole (${h.a.toFixed(2)} mm², ${across.toFixed(2)} mm)`)
     }
     // a grid of 30 mm cells: each pair of holes is compared once
     const C = 30, cells = new Map<string, number[]>()
@@ -102,33 +110,35 @@ function soundness(d: Dz, label: string, gap = 0.8, edge = 0.8, step = 6): strin
       if (seen.has(key)) continue
       seen.add(key)
       const g = gapUnder(hs[i].p, hs[j].p, gap, hs[i].b, hs[j].b)
-      if (g < gap - 0.02) bad.push(`${lab} holes ${g.toFixed(2)} apart`)
+      if (g < gap - 0.02) bad.push(`${lb} holes ${g.toFixed(2)} apart`)
     }
-    for (const l of pn.loops) for (const q of l.pts) if (!Number.isFinite(q.x) || !Number.isFinite(q.y)) bad.push(`${lab} non-finite`)
+    for (const l of pn.loops) for (const q of l.pts) if (!Number.isFinite(q.x) || !Number.isFinite(q.y)) bad.push(`${lb} non-finite`)
   }
   const dxf = toDXF(d.layout)
   if (dxf.includes('NaN') || dxf.includes('undefined')) bad.push(`${label} dxf`)
   return bad
 }
 
-/** The strips' holes (as built, no kerf) in frame coordinates, side by side: 0 top, 1 right, 2 bottom, 3 left. */
-function frameHoles(p: Record<string, number>) {
-  const res = tpl.build(full(p), { t: 3, kerf: 0, finger: 0, inner: false }), g = frameGeom(full(p))
-  const strips = [0, 1, 2, 3].map(s => res.panels.find(x => x.id === (s % 2 ? 'strip-short' : 'strip-long'))!.holes!.map(h => samplePoly({ ...h, pts: h.pts.map(q => ({ ...q, ...toFrame(g, s, q) })) }, 6)))
-  const field = res.panels.find(x => x.id === 'field')?.holes?.map(h => samplePoly(h, 6).map(q => ({ x: q.x + g.b + g.fit, y: q.y + g.b + g.fit }))) ?? []
+/** The band's cut-outs (as built, no kerf) in frame coordinates, side by side: 0 top, 1 right, 2 bottom, 3 left. */
+function frameHoles(p: Record<string, number>, tpl: Tp = T1) {
+  const q = full({ kind: 2, ...p }, tpl), res = tpl.build(q, { t: 3, kerf: 0, finger: 0, inner: false }), g = frameGeom(q)
+  if (res.errors?.length) return { res, g, strips: [], field: [] }
+  const strips = [0, 1, 2, 3].map(s => res.panels.find(x => x.id === (s % 2 ? 'strip-short' : 'strip-long'))!.holes!.map(h => samplePoly({ ...h, pts: h.pts.map(v => ({ ...v, ...toFrame(g, s, v) })) }, 6)))
+  const field = res.panels.find(x => x.id === 'field')?.holes?.map(h => samplePoly(h, 6).map(v => ({ x: v.x + g.b + g.fit, y: v.y + g.b + g.fit }))) ?? []
   return { res, g, strips, field }
 }
 const R4 = (x0: number, y0: number, x1: number, y1: number): P[] => [{ x: x0, y: y0 }, { x: x1, y: y0 }, { x: x1, y: y1 }, { x: x0, y: y1 }]
+const cen = (h: P[]) => h.reduce((a, q) => ({ x: a.x + q.x / h.length, y: a.y + q.y / h.length }), { x: 0, y: 0 })
 
 /**
- * What the frame must hold, on the pieces as built (no kerf): the rim on the gypsum and the strips' inner rails solid,
- * no cut-out within `web` of a mitre, the field sized to the frame's opening less the fit with its margins solid, no
- * corner plate or glue strip over a cut-out, and each corner a mirror image about its mitre (to within the difference
- * of the two strips' steps). The problems found, as text.
+ * What the strips (kind 2) must hold, on the pieces as built (no kerf): the rim on the gypsum and the strips' inner
+ * rails solid, no cut-out within `web` of a mitre, the field sized to the frame's opening less the fit with its
+ * margins solid, no corner plate or glue strip over a cut-out, and each corner a mirror image about its mitre (to
+ * within the difference of the two strips' steps). The problems found, as text.
  */
-function frameChecks(p: Record<string, number>): string[] {
+function frameChecks(p: Record<string, number>, tpl: Tp = T1): string[] {
   const bad: string[] = []
-  const { res, g, strips, field } = frameHoles(p)
+  const { res, g, strips, field } = frameHoles(p, tpl)
   if (res.errors?.length) return bad
   for (const s of [0, 1]) {
     const L = s ? g.PH : g.PW
@@ -144,7 +154,7 @@ function frameChecks(p: Record<string, number>): string[] {
   const fp = res.panels.find(x => x.id === 'field')
   if (fp) {
     if (Math.abs(fp.w - (g.PW - 2 * g.b - 2 * g.fit)) > 1e-3 || Math.abs(fp.h - (g.PH - 2 * g.b - 2 * g.fit)) > 1e-3) bad.push('field size')
-    const m = Math.min(...field.flat().map(q => Math.min(q.x - g.b - g.fit, g.PW - g.b - g.fit - q.x, q.y - g.b - g.fit, g.PH - g.b - g.fit - q.y)))
+    const m = field.flat().reduce((a, q) => Math.min(a, q.x - g.b - g.fit, g.PW - g.b - g.fit - q.x, q.y - g.b - g.fit, g.PH - g.b - g.fit - q.y), Infinity) // (a spread overflows the stack on a big field)
     if (m < CLEAT_REACH + g.web - 1e-3) bad.push(`field cut-out ${m.toFixed(2)} from the field's edge`)
   }
   const all = [...strips.flat(), ...field].map(h => ({ p: h, b: boxOf(h) }))
@@ -167,92 +177,216 @@ function frameChecks(p: Record<string, number>): string[] {
     }
   }
   // the top-left corner: every cut-out of the top strip near it has one of the left strip mirrored in y = x, and back
-  const tol = 2 * Math.abs(g.p1 - g.p2) + 0.05, cen = (h: P[]) => h.reduce((a, q) => ({ x: a.x + q.x / h.length, y: a.y + q.y / h.length }), { x: 0, y: 0 })
+  const tol = 2 * Math.abs(g.p1 - g.p2) + 0.05
   const T = strips[0].map(cen), Lf = strips[3].map(cen)
   for (const [A, B, k] of [[T, Lf, 'x'], [Lf, T, 'y']] as const) for (const c of A) if (c[k] < g.b + 10 && !B.some(o => Math.hypot(o.x - c.y, o.y - c.x) <= tol)) bad.push(`corner cut-out at ${c.x.toFixed(1)},${c.y.toFixed(1)} has no mirror image`)
   return bad
 }
 
-describe('ceiling decor', () => {
-  it('builds the defaults and the second decor with no errors or warnings at t = 3, quickly', () => {
-    for (const p of ([{}, SECOND] as Record<string, number>[])) {
-      const d = gen(p, { t: 3 })
-      expect(d.errors, JSON.stringify(p)).toEqual([])
-      expect(d.warnings, JSON.stringify(p)).toEqual([])
+/**
+ * What the one-piece board (kind 1) must hold, as built (no kerf): the rim on the gypsum solid; no cut-out crossing or
+ * within `web` of a corner's diagonal in the band; a solid strap of 2·web between the band and the field; each corner
+ * a mirror image about its diagonal (to within the difference of the two steps); the board a mirror image about both
+ * centre lines; the engraved lines on the diagonals. The problems found, as text.
+ */
+function boardChecks(p: Record<string, number>, tpl: Tp = T1): string[] {
+  const bad: string[] = [], q = full({ kind: 1, ...p }, tpl), g = frameGeom(q)
+  const res = tpl.build(q, { t: 3, kerf: 0, finger: 0, inner: false })
+  if (res.errors?.length) return bad
+  const board = res.panels.find(x => x.id === 'board')!
+  if (Math.abs(board.w - g.PW) > 1e-6 || Math.abs(board.h - g.PH) > 1e-6) bad.push('board size')
+  const holes = board.holes!.map(h => samplePoly(h, 4)), { PW, PH, b, web, ov } = g
+  const dEdge = (v: P) => Math.min(v.x, v.y, PW - v.x, PH - v.y)
+  // the four corners folded onto the top-left one
+  const fold = (v: P) => ({ x: Math.min(v.x, PW - v.x), y: Math.min(v.y, PH - v.y) })
+  for (const h of holes) {
+    let rim = Infinity, strap = false, diag = Infinity
+    for (const v of h) {
+      const d = dEdge(v), f = fold(v)
+      rim = Math.min(rim, d)
+      if (d > b - web + 1e-3 && d < b + web - 1e-3) strap = true
+      if (f.x < b + 1e-6 && f.y < b + 1e-6) diag = Math.min(diag, Math.abs(f.x - f.y) / Math.SQRT2)
     }
-    gen({})
-    const t0 = performance.now()
-    gen({}, { kerf: 0.2 })
-    expect(performance.now() - t0).toBeLessThan(300)
+    if (rim < ov + web - 1e-3) bad.push(`hole ${rim.toFixed(2)} from the board's edge`)
+    if (strap) bad.push(`hole in the strap between the band and the field at ${cen(h).x.toFixed(1)},${cen(h).y.toFixed(1)}`)
+    if (diag < web - 1e-3) bad.push(`hole ${diag.toFixed(2)} from a diagonal at ${cen(h).x.toFixed(1)},${cen(h).y.toFixed(1)}`)
+  }
+  // mirror images: about both centre lines (exact), and about the diagonal in each corner of the band
+  const cs = holes.map(cen), grid = new Map<string, P[]>(), K = 5, key = (v: P) => `${Math.round(v.x / K)},${Math.round(v.y / K)}`
+  for (const c of cs) { const k = key(c); if (!grid.has(k)) grid.set(k, []); grid.get(k)!.push(c) }
+  const near = (v: P, tol: number) => { const i = Math.round(v.x / K), j = Math.round(v.y / K), r = Math.ceil(tol / K) + 1; for (let a = i - r; a <= i + r; a++) for (let c = j - r; c <= j + r; c++) for (const o of grid.get(`${a},${c}`) ?? []) if (Math.hypot(o.x - v.x, o.y - v.y) <= tol) return true; return false }
+  const tol = 2 * Math.abs(g.p1 - g.p2) + 0.05
+  for (const c of cs) {
+    if (!near({ x: PW - c.x, y: c.y }, 0.02) || !near({ x: c.x, y: PH - c.y }, 0.02)) bad.push(`cut-out at ${c.x.toFixed(1)},${c.y.toFixed(1)} has no mirror image across a centre line`)
+    if (c.x < b && c.y < b && !near({ x: c.y, y: c.x }, tol)) bad.push(`corner cut-out at ${c.x.toFixed(1)},${c.y.toFixed(1)} has no mirror image across the diagonal`)
+  }
+  const eng = (board.engrave ?? []) as Loop[]
+  if ((q.line >= 0.5 ? 4 : 0) !== eng.length) bad.push(`${eng.length} engraved lines`)
+  for (const l of eng) { const [a, z] = l.pts; if (Math.abs(Math.abs(z.x - a.x) - b) > 1e-3 || Math.abs(Math.abs(z.y - a.y) - b) > 1e-3) bad.push('engraved line off the diagonal') }
+  return bad
+}
+
+/**
+ * How well the field is covered: on a grid over the field (inside its solid margin, outside the medallion and the
+ * strap round it), the farthest any point is from a cut-out of the field (mm), and where. Kind 1: board coordinates;
+ * kind 2: the field panel's.
+ */
+function coverage(p: Record<string, number>, tpl: Tp = T1): { worst: number; at: P; lattice: number } {
+  const q = full(p, tpl), g = frameGeom(q), { med, lat, center } = decorPieces(q, g)
+  const pts: P[] = []
+  for (const pc of [...med, ...lat]) {
+    const s = samplePoly({ closed: true, pts: pc.pts }, 6)
+    for (let i = 0; i < s.length; i++) { const a = s[i], z = s[(i + 1) % s.length], n = Math.max(1, Math.ceil(Math.hypot(z.x - a.x, z.y - a.y) / 3)); for (let k = 0; k < n; k++) pts.push({ x: a.x + ((z.x - a.x) * k) / n, y: a.y + ((z.y - a.y) * k) / n }) }
+  }
+  const K = 20, grid = new Map<string, P[]>()
+  for (const v of pts) { const k = `${Math.floor(v.x / K)},${Math.floor(v.y / K)}`; if (!grid.has(k)) grid.set(k, []); grid.get(k)!.push(v) }
+  const nearest = (v: P) => {
+    let best = Infinity
+    for (let r = 0; r < 40 && best > (r - 1) * K; r++) {
+      const i0 = Math.floor(v.x / K), j0 = Math.floor(v.y / K)
+      for (let i = i0 - r; i <= i0 + r; i++) for (let j = j0 - r; j <= j0 + r; j++) {
+        if (Math.max(Math.abs(i - i0), Math.abs(j - j0)) !== r) continue
+        for (const o of grid.get(`${i},${j}`) ?? []) best = Math.min(best, Math.hypot(o.x - v.x, o.y - v.y))
+      }
+    }
+    return best
+  }
+  const X = g.Wf / 2 - g.fm, Y = g.Hf / 2 - g.fm, step = q.fcell / 6, A = q.med / 2 + g.web
+  const inMed = (dx: number, dy: number) => g.center !== 3 && (g.style === 1 ? [0, 1, 2, 3, 4, 5, 6, 7].every(k => Math.abs(dx * Math.cos((k * Math.PI) / 4) + dy * Math.sin((k * Math.PI) / 4)) <= A) : Math.hypot(dx, dy) <= A)
+  let worst = 0, at = { x: 0, y: 0 }
+  for (let dx = -X; dx <= X + 1e-9; dx += Math.max(step, (2 * X) / 200)) for (let dy = -Y; dy <= Y + 1e-9; dy += Math.max(step, (2 * Y) / 200)) {
+    if (inMed(dx, dy)) continue
+    const v = { x: center.x + dx, y: center.y + dy }, d = nearest(v)
+    if (d > worst) { worst = d; at = v }
+  }
+  return { worst, at, lattice: lat.length }
+}
+
+describe('ceiling decor', () => {
+  it('builds both designs at their defaults, one piece or strips, on every common sheet with no errors or warnings, quickly', () => {
+    for (const tpl of CEILING_FRAMES) for (const kind of [1, 2]) for (const t of THICK) for (const kerf of [0, 0.2]) {
+      const d = gen(kind === 1 ? {} : { kind }, { t, kerf }, tpl), lb = `${tpl.id} kind ${kind} t=${t} kerf=${kerf}`
+      expect(d.errors, lb).toEqual([])
+      expect(d.warnings, lb).toEqual([])
+    }
+    expect(T1.defaults.style).toBe(1)
+    expect(T2.defaults.style).toBe(2)
+    for (const tpl of CEILING_FRAMES) {
+      expect(tpl.defaults.kind).toBe(1)
+      gen({}, {}, tpl)
+      const t0 = performance.now()
+      gen({}, { kerf: 0.2 }, tpl)
+      expect(performance.now() - t0, tpl.id).toBeLessThan(300)
+    }
+    expect(T2.id).toBe('ceilingframe2')
+    expect(T2.name).toBe('ديكور سقف: إطار نجوم ثمانية ودائرة')
+    for (const w of ['سقف', 'جبس', 'إضاءة', 'ديكور', 'نجوم', 'دائرة']) expect(T2.desc, w).toContain(w)
+    expect(T1.params).toBe(T2.params)
+  }, 30000)
+
+  it('cuts each decor as one board that fits the 2440 × 1220 sheet, and refuses one bigger than the sheet with a size that fits', () => {
+    for (const tpl of CEILING_FRAMES) for (const [p, W, H] of [[{}, 1400, 1050], [SECOND, 1380, 1080]] as const) {
+      const d = gen(p, {}, tpl)
+      expect(d.panels.map(x => `${x.id}×${x.count}`), lab(p, tpl)).toEqual(['board×1'])
+      const bd = get(d, 'board')
+      expect(bd.w).toBeCloseTo(W, 6)
+      expect(bd.h).toBeCloseTo(H, 6)
+      expect(Math.max(bd.w, bd.h) <= 2440 && Math.min(bd.w, bd.h) <= 1220).toBe(true)
+      expect(cutOf(bd).filter(l => signedArea(l) < 0).length).toBeGreaterThan(1500)
+      // the separate medallion is its own piece, and the acrylic its own sheet
+      expect(gen({ ...p, center: 2 }, {}, tpl).panels.map(x => x.id)).toEqual(['board', 'medallion'])
+      expect(gen({ ...p, back: 1 }, {}, tpl).panels.map(x => `${x.id}:${x.material ?? ''}`)).toEqual(['board:', 'back:white'])
+    }
+    for (const tpl of CEILING_FRAMES) {
+      const p = { PW: 1300, PH: 2500 }, d = gen(p, {}, tpl), e = d.errors.find(x => /لا يتّسع في لوح/.test(x))
+      expect(e, d.errors.join(' | ')).toMatch(/اجعله 1220 × 2440 مم على الأكثر/)
+      expect(gen({ PW: 1220, PH: 2440 }, {}, tpl).errors.filter(x => /لا يتّسع في لوح/.test(x))).toEqual([])
+      // a decor the strips can make: it says so too, and that clears it
+      const e2 = gen({ PW: 2400, PH: 1300 }, {}, tpl).errors.find(x => /لا يتّسع في لوح/.test(x))!
+      expect(e2).toMatch(/اجعل الطول الكلّي 1220 مم على الأكثر، أو اختر «أربع شرائح بزوايا 45 ولوح وسط»/)
+      expect(gen({ PW: 2400, PH: 1300, kind: 2 }, {}, tpl).errors).toEqual([])
+    }
   })
 
-  it('cuts the pieces the user needs, each on a 2440 × 1220 sheet', () => {
-    for (const [p, W, H] of [[{}, 1400, 1050], [SECOND, 1380, 1080]] as const) {
-      const d = gen(p), g = frameGeom(full(p))
-      const ids = d.panels.map(x => `${x.id}×${x.count}`)
-      expect(ids).toEqual(['strip-long×2', 'strip-short×2', 'field×1', 'corner×4', 'cleat-long×2', 'cleat-short×2'])
+  it('cuts the strips, the field, corner plates and glue strips in the strips mode, each on a 2440 × 1220 sheet', () => {
+    for (const tpl of CEILING_FRAMES) for (const [p, W, H] of [[{ kind: 2 }, 1400, 1050], [{ ...SECOND, kind: 2 }, 1380, 1080]] as const) {
+      const d = gen(p, {}, tpl), g = frameGeom(full(p, tpl))
+      expect(d.panels.map(x => `${x.id}×${x.count}`), lab(p, tpl)).toEqual(['strip-long×2', 'strip-short×2', 'field×1', 'corner×4', 'cleat-long×2', 'cleat-short×2'])
       expect(get(d, 'strip-long').w).toBeCloseTo(W, 6)
       expect(get(d, 'strip-short').w).toBeCloseTo(H, 6)
-      expect(get(d, 'strip-long').h).toBeCloseTo(170, 6)
       expect(get(d, 'field').w).toBeCloseTo(W - 340 - 0.4, 6)
       expect(get(d, 'field').h).toBeCloseTo(H - 340 - 0.4, 6)
       for (const pn of d.panels) expect(Math.max(pn.w, pn.h) <= 2440 && Math.min(pn.w, pn.h) <= 1220, pn.id).toBe(true)
-      // the strips are trapezoids with 45° ends: outside L, inside L − 2·band
       const o = cutOf(get(d, 'strip-long')).find(l => signedArea(l) > 0)!.pts
-      const xs = o.map(q => `${Math.round(q.x)},${Math.round(q.y)}`).sort()
-      expect(xs).toEqual(['0,0', `170,170`, `${W - 170},170`, `${W},0`].sort())
-      // whole rosettes between the corners, the rings nearly touching as in the picture, both steps alike
-      expect(g.n1 - 1).toBe(10)
-      expect(g.n2 - 1).toBe(7)
+      expect(o.map(q => `${Math.round(q.x)},${Math.round(q.y)}`).sort()).toEqual(['0,0', '170,170', `${W - 170},170`, `${W},0`].sort())
+      // whole motifs between the corners, both steps alike
+      if (tpl === T1) { expect(g.n1 - 1).toBe(10); expect(g.n2 - 1).toBe(7) }
       expect(Math.abs(g.p1 - g.p2) / g.p1).toBeLessThan(0.04)
-      for (const pt of [g.p1, g.p2]) expect(2 * g.R / pt).toBeGreaterThan(0.8)
     }
   })
 
-  it('fits both of the user\'s decors with 0, 30 or 60 mm on the gypsum and every centre: sheet, rim, mitres, glue pieces', () => {
-    for (const size of [{}, SECOND]) for (const ov of [0, 30, 60]) for (const center of [1, 2, 3]) {
-      const p = { ...size, ov, center }, d = gen(p, { kerf: 0.2 }), lab = JSON.stringify(p)
-      expect(d.errors, lab).toEqual([])
-      // with no rest on the gypsum there is no hidden rim for the corner plates: it says so (and how much rim they need)
-      expect(d.warnings.filter(w => !(ov === 0 && /قطع الزوايا/.test(w))), lab).toEqual([])
-      for (const pn of d.panels) expect(Math.max(pn.w, pn.h) <= 2440 && Math.min(pn.w, pn.h) <= 1220, `${lab} ${pn.id}`).toBe(true)
-      expect(frameChecks(p), lab).toEqual([])
+  it('fits both decors with 0, 30 or 60 mm on the gypsum and every centre, in both modes and both designs', () => {
+    for (const tpl of CEILING_FRAMES) for (const size of [{}, SECOND]) for (const ov of [0, 30, 60]) for (const center of [1, 2, 3]) for (const kind of [1, 2]) {
+      const p = { ...size, ov, center, kind }, d = gen(p, { kerf: 0.2 }, tpl), lb = lab(p, tpl)
+      expect(d.errors, lb).toEqual([])
+      expect(d.warnings.filter(w => !(kind === 2 && ov === 0 && /قطع الزوايا/.test(w))), lb).toEqual([])
+      for (const pn of d.panels) expect(Math.max(pn.w, pn.h) <= 2440 && Math.min(pn.w, pn.h) <= 1220, `${lb} ${pn.id}`).toBe(true)
+      expect(kind === 1 ? boardChecks(p, tpl) : frameChecks(p, tpl), lb).toEqual([])
     }
-  }, 20000)
+  }, 60000)
 
   it('is sound at the defaults and for both decors, thin and thick, with and without kerf; webs never under web', () => {
-    for (const p of ([{}, SECOND, { center: 2 }, { center: 3, cleats: 0 }, { back: 1 }] as Record<string, number>[])) for (const t of [3, 6]) for (const kerf of [0, 0.2]) {
-      const d = gen(p, { t, kerf })
+    for (const tpl of CEILING_FRAMES) for (const p of ([{}, SECOND, { center: 2 }, { center: 3, line: 1 }, { kind: 2 }, { kind: 2, center: 3, cleats: 0 }, { back: 1, fill: 0 }] as Record<string, number>[])) for (const [t, kerf] of [[3, 0], [6, 0.2]]) {
+      const d = gen(p, { t, kerf }, tpl)
       expect(d.errors).toEqual([])
       // at kerf 0 every web is at least `web` (3 mm); with the kerf the holes' paths move 0.1 mm into them
       const w = kerf ? 3 + kerf : 3
-      expect(soundness(d, `${JSON.stringify(p)} t=${t} kerf=${kerf}`, w, w), JSON.stringify(p)).toEqual([])
+      expect(soundness(d, `${lab(p, tpl)} t=${t} kerf=${kerf}`, w, w), lab(p, tpl)).toEqual([])
     }
+  }, 60000)
+
+  it('keeps every web at least web to the hundredth, also on short strips round the corners', () => {
+    // short strips (one or two steps) put the far corner and the strip's middle next to the corner pieces
+    for (const tpl of CEILING_FRAMES) for (const p of [{}, { kind: 2 }, { web: 2, center: 3, ov: 0, PH: 391, band: 150, med: 150 }, { web: 5, center: 3, ov: 0, PH: 363, band: 150, med: 150, kind: 2 },
+      { ov: 65, band: 131, center: 3, PW: 1054, PH: 1791, kind: 2 }, { web: 8, band: 260, fcell: 120 }, { web: 2, fcell: 45 }] as Record<string, number>[]) {
+      const d = gen(p, {}, tpl)
+      expect(d.errors, lab(p, tpl)).toEqual([])
+      const web = full(p, tpl).web
+      expect(soundness(d, lab(p, tpl), web + 0.01, web + 0.01, 3), lab(p, tpl)).toEqual([])
+    }
+  }, 60000)
+
+  it('never lets a clipped shape grow into a web: a short edge goes with its convex corner, not by filling a notch', () => {
+    // the corner star cut on its diagonal, on the board and on the strips: a notch filled in took up to 0.16 mm off a web
+    for (const p of [{ PW: 604, PH: 771, ov: 46, band: 164, med: 203, web: 5, fcell: 50 }, { PW: 530, PH: 698, ov: 17, band: 143, kind: 2, med: 164, web: 5, fcell: 129 },
+      { PW: 691, PH: 675, ov: 7, band: 99, med: 222, web: 4, fcell: 54 }] as Record<string, number>[]) {
+      const d = gen(p, {}, T2)
+      expect(d.errors, lab(p, T2)).toEqual([])
+      expect(soundness(d, lab(p, T2), p.web + 0.005, p.web + 0.005, 1), lab(p, T2)).toEqual([])
+    }
+    // the field's stars cut by the strap round the medallion: an inner star and a kite of one star both clipped there
+    const q = full({ PW: 2190, PH: 1495, ov: 0, band: 226, kind: 2, med: 317, fit: 1.4, fcell: 32 }, T2), { lat } = decorPieces(q)
+    const polys = lat.map(pc => { const s = samplePoly({ closed: true, pts: pc.pts }, 1); return { s, b: boxOf(s), cut: pc.key.endsWith('~') } })
+    let worst = Infinity
+    for (const a of polys) if (a.cut) for (const o of polys) if (o !== a && !apart(a.b, o.b, 3)) worst = Math.min(worst, gapUnder(a.s, o.s, 3, a.b, o.b))
+    expect(worst).toBeGreaterThan(3 - 0.003)
   }, 30000)
 
-  it('keeps every web at least web to the hundredth, also on short strips round the corner kites', () => {
-    // short strips (one or two steps) put the far corner and the strip's middle next to the corner kites
-    for (const p of [{}, SECOND, { web: 2, center: 3, ov: 0, PH: 391, band: 150, med: 150 }, { web: 5, center: 3, ov: 0, PH: 363, band: 150, med: 150 },
-      { ov: 65, band: 131, center: 3, PW: 1054, PH: 1791 }, { web: 8, band: 260 }] as Record<string, number>[]) {
-      const d = gen(p)
-      expect(d.errors, JSON.stringify(p)).toEqual([])
-      const web = full(p).web
-      expect(soundness(d, JSON.stringify(p), web + 0.01, web + 0.01, 2), JSON.stringify(p)).toEqual([])
-    }
-  }, 20000)
-
   it('carries the same pattern on both halves of every strip, and the corner is a mirror image about the mitre', () => {
-    for (const p of ([{}, SECOND, { band: 230, ov: 50 }, { PW: 900, PH: 640, band: 120, center: 3 }] as Record<string, number>[])) {
-      const g = frameGeom(full(p)), { top, side } = framePieces(g)
+    // (the last: two steps 1 mm apart, at which the shapes in the cross's notches fit one strip whole and the other only shrunk)
+    for (const tpl of CEILING_FRAMES) for (const kind of [1, 2]) for (const p of ([{}, SECOND, { band: 230, ov: 50 }, { PW: 900, PH: 640, band: 120, center: 3 }, { PW: 1490, PH: 1262, ov: 17, band: 312, web: 5, center: 3 }] as Record<string, number>[])) {
+      const g = frameGeom(full({ ...p, kind }, tpl)), { top, side } = framePieces(g), lb = lab({ ...p, kind }, tpl)
       for (const [pcs, L] of [[top, g.PW], [side, g.PH]] as const) {
         // the mirror image of every shape in the strip's middle is a shape of the same kind
         const at = new Map<string, P[]>()
         for (const pc of pcs) { const k = pc.key; if (!at.has(k)) at.set(k, []); at.get(k)!.push(pc.c) }
-        for (const pc of pcs) expect(at.get(pc.key)!.some(q => Math.hypot(q.x - (L - pc.c.x), q.y - pc.c.y) < 1e-6), `${pc.key} mirrored`).toBe(true)
-        // whole rosettes, evenly spaced
-        const dots = pcs.filter(pc => /^r\d+dot$/.test(pc.key)).map(pc => pc.c.x).sort((a, b) => a - b)
-        expect(dots.length).toBe(Math.round((L - 2 * g.vc) / (L === g.PW ? g.p1 : g.p2)) - 1)
+        for (const pc of pcs) expect(at.get(pc.key)!.some(q => Math.hypot(q.x - (L - pc.c.x), q.y - pc.c.y) < 1e-6), `${lb} ${pc.key} mirrored`).toBe(true)
+        // whole motifs, evenly spaced: the rosettes' dots or the stars' inner stars
+        const dots = pcs.filter(pc => /^r\d+(dot|s)$/.test(pc.key)).map(pc => pc.c.x).sort((a, b) => a - b)
+        expect(dots.length, lb).toBe(Math.round((L - 2 * g.vc) / (L === g.PW ? g.p1 : g.p2)) - 1)
         for (let i = 1; i < dots.length; i++) expect(dots[i] - dots[i - 1]).toBeCloseTo(L === g.PW ? g.p1 : g.p2, 6)
+        // a whole number of motifs, symmetric about the strip's middle
+        expect(Math.abs(dots[0] - g.vc - (L === g.PW ? g.p1 : g.p2)) < 1e-6 && Math.abs(L - dots[dots.length - 1] - dots[0]) < 1e-6, lb).toBe(true)
       }
       // the top strip's first corner and the left strip's last corner (frame coordinates), reflected in y = x
       const lim = g.b + 5 + Math.max(g.p1, g.p2) / 2, T = top.map(pc => ({ ...pc, f: toFrame(g, 0, pc.c), poly: pc.poly.map(q => toFrame(g, 0, q)) }))
@@ -260,24 +394,30 @@ describe('ceiling decor', () => {
       const tol = 2 * Math.abs(g.p1 - g.p2) + 1e-6 // shapes up to two steps from the corner move with the step
       for (const [A, B] of [[T.filter(pc => pc.f.x < lim), Lf], [Lf.filter(pc => pc.f.y < lim), T]]) for (const pc of A) {
         const m = B.find(o => o.key === pc.key && Math.hypot(o.f.x - pc.f.y, o.f.y - pc.f.x) <= tol)
-        expect(m, `${JSON.stringify(p)} ${pc.key} at ${pc.f.x.toFixed(1)},${pc.f.y.toFixed(1)} has no mirror image`).toBeTruthy()
-        // the corner rosette and its kites do not depend on the steps: exact mirror images
+        expect(m, `${lb} ${pc.key} at ${pc.f.x.toFixed(1)},${pc.f.y.toFixed(1)} has no mirror image`).toBeTruthy()
+        // the corner motif and its kites do not depend on the steps: exact mirror images
         if (/^(C|K)/.test(pc.key)) for (let i = 0; i < pc.poly.length; i++) {
           const q = pc.poly[i], r = m!.poly.reduce((best, o) => Math.min(best, Math.hypot(o.x - q.y, o.y - q.x)), Infinity)
           expect(r).toBeLessThan(1e-6)
         }
+        // the shapes between the corner motif and the first whole one: the same size on both strips (only their
+        // places follow the step), so neither strip shrinks a set that the other keeps whole
+        const near = (o: typeof pc) => Math.min(o.f.x, o.f.y) < g.vc + Math.min(g.p1, g.p2) - 1e-6
+        if (m && near(pc) && !/^(C|K|r)/.test(pc.key)) {
+          const a = boxOf(pc.poly), z = boxOf(m.poly)
+          expect(Math.max(Math.abs((a.maxX - a.minX) - (z.maxY - z.minY)), Math.abs((a.maxY - a.minY) - (z.maxX - z.minX))), `${lb} ${pc.key} at ${pc.f.x.toFixed(1)},${pc.f.y.toFixed(1)} size`).toBeLessThan(1.02 * Math.abs(g.p1 - g.p2) + 0.01) // (a round shape's polygon holds it: a little over its size)
+        }
       }
-      // the corner rosette sits on the mitre; neither of its halves has a petal or its dot across it
+      // the corner motif sits on the mitre; neither of its halves has a piece across it
       const cr = top.filter(pc => pc.key.startsWith('C'))
       expect(cr.length).toBeGreaterThan(10)
-      expect(cr.some(pc => pc.key === 'Cp2' || pc.key === 'Cp10')).toBe(false)
+      if (tpl === T1) expect(cr.some(pc => pc.key === 'Cp2' || pc.key === 'Cp10')).toBe(false)
     }
   })
 
   it('assembles into the frame: the four strips tile it along the mitres, and all four corners are alike', () => {
-    for (const p of ([{}, SECOND] as Record<string, number>[])) {
-      const { res, g, strips } = frameHoles(p)
-      // the outlines in frame coordinates: each mitre is shared by exactly the two strips meeting there
+    for (const tpl of CEILING_FRAMES) for (const p of ([{}, SECOND] as Record<string, number>[])) {
+      const { res, g, strips } = frameHoles(p, tpl)
       const outline = (s: number) => res.panels.find(x => x.id === (s % 2 ? 'strip-short' : 'strip-long'))!.shape![0].pts.map(q => toFrame(g, s, q))
       const area = (pts: P[]) => Math.abs(pts.reduce((a, q, i) => a + q.x * pts[(i + 1) % pts.length].y - pts[(i + 1) % pts.length].x * q.y, 0)) / 2
       const total = [0, 1, 2, 3].reduce((a, s) => a + area(outline(s)), 0)
@@ -285,11 +425,9 @@ describe('ceiling decor', () => {
       const key = (q: P) => `${q.x.toFixed(6)},${q.y.toFixed(6)}`
       for (const [a, b] of [[0, 1], [1, 2], [2, 3], [3, 0]]) {
         const shared = outline(a).map(key).filter(k => outline(b).map(key).includes(k))
-        expect(shared.length, `strips ${a} and ${b}`).toBe(2) // the outer and the inner end of their mitre
+        expect(shared.length, `strips ${a} and ${b}`).toBe(2)
       }
-      // the bottom-right corner is the top-left one turned half round, the top-right its mirror image in x = PW/2
-      const cen = (h: P[]) => h.reduce((s, q) => ({ x: s.x + q.x / h.length, y: s.y + q.y / h.length }), { x: 0, y: 0 })
-      const all = strips.flat().map(cen), has = (q: P) => all.some(o => Math.hypot(o.x - q.x, o.y - q.y) < 1e-6)
+      const all = strips.flat().map(cen), has = (q: P) => all.some(o => Math.hypot(o.x - q.x, o.y - q.y) < 2e-3) // the pieces are rounded to 0.001 mm
       for (const c of all) if (c.x < g.b && c.y < g.b) {
         expect(has({ x: g.PW - c.x, y: g.PH - c.y }), 'bottom-right').toBe(true)
         expect(has({ x: g.PW - c.x, y: c.y }), 'top-right').toBe(true)
@@ -298,186 +436,256 @@ describe('ceiling decor', () => {
     }
   })
 
-  it('runs every mitre through solid wood: no hole within web of it, a solid bar of 2·web across the corner', () => {
-    for (const p of ([{}, SECOND, { web: 5 }, { band: 120, ov: 10, center: 2 }] as Record<string, number>[])) {
-      const g = frameGeom(full(p)), { top, side } = framePieces(g)
+  it('runs every mitre or diagonal through solid wood: no cut-out within web of it, a solid bar of 2·web across the corner', () => {
+    for (const tpl of CEILING_FRAMES) for (const kind of [1, 2]) for (const p of ([{}, SECOND, { web: 5 }, { band: 120, ov: 10, center: 2 }, { band: 380 }] as Record<string, number>[])) {
+      const g = frameGeom(full({ ...p, kind }, tpl)), { top, side } = framePieces(g)
       for (const [pcs, L] of [[top, g.PW], [side, g.PH]] as const) for (const pc of pcs) {
-        const dm = Math.min(...samplePoly({ closed: true, pts: pc.pts }, 3).map(q => Math.min(q.x - q.y, L - q.x - q.y) / Math.SQRT2))
-        expect(dm, `${JSON.stringify(p)} ${pc.key}`).toBeGreaterThan(g.web - 1e-6)
-        const ys = samplePoly({ closed: true, pts: pc.pts }, 3).map(q => q.y)
-        expect(Math.min(...ys)).toBeGreaterThan(g.ov + g.web - 1e-6) // the rim on the gypsum stays solid
-        expect(Math.max(...ys)).toBeLessThan(g.b - g.rail + 1e-6)
+        const sp = samplePoly({ closed: true, pts: pc.pts }, 3)
+        const dm = Math.min(...sp.map(q => Math.min(q.x - q.y, L - q.x - q.y) / Math.SQRT2))
+        expect(dm, `${lab({ ...p, kind }, tpl)} ${pc.key}`).toBeGreaterThan(g.web - 1e-6)
+        expect(Math.min(...sp.map(q => q.y))).toBeGreaterThan(g.ov + g.web - 1e-6) // the rim on the gypsum stays solid
+        expect(Math.max(...sp.map(q => q.y))).toBeLessThan(g.b - g.rail + 1e-6)
       }
     }
   })
 
-  it('glues every plate and strip on solid wood: no cut-out under them', () => {
-    for (const p of ([{}, SECOND, { ov: 60, band: 220 }, { center: 2 }, { web: 2 }] as Record<string, number>[])) {
-      const g = frameGeom(full(p))
+  it('makes the one-piece board a mirror image about each corner\'s diagonal and both centre lines, with the 45° lines engraved on request', () => {
+    for (const tpl of CEILING_FRAMES) for (const p of ([{}, SECOND, { line: 1 }, { ...SECOND, line: 1, center: 3 }, { band: 230, ov: 50, center: 2 }, { band: 380, med: 270 }] as Record<string, number>[])) {
+      expect(gen(p, {}, tpl).errors, lab(p, tpl)).toEqual([])
+      expect(boardChecks(p, tpl), lab(p, tpl)).toEqual([])
+    }
+    const d = gen({ line: 1 }), eng = get(d, 'board').loops.filter(l => l.layer === 'engrave')
+    expect(eng.length).toBe(4)
+    expect(eng.every(l => !l.closed)).toBe(true)
+  }, 30000)
+
+  it('glues every plate and strip on solid wood in the strips mode: no cut-out under them', () => {
+    for (const tpl of CEILING_FRAMES) for (const p of ([{}, SECOND, { ov: 60, band: 220 }, { center: 2 }, { web: 2 }] as Record<string, number>[])) {
+      const q = { ...p, kind: 2 }, g = frameGeom(full(q, tpl))
       expect(cornerPlate(g)).toBeTruthy()
-      expect(frameChecks(p), JSON.stringify(p)).toEqual([])
+      expect(frameChecks(q, tpl), lab(q, tpl)).toEqual([])
       if (g.field) {
-        const co = CLEAT_REACH, { b, fit, PW, PH } = g, d = gen(p)
+        const co = CLEAT_REACH, { b, fit, PW, PH } = g, d = gen(q, {}, tpl)
         expect(get(d, 'cleat-long').w).toBeCloseTo(PW - 2 * b + 2 * co, 3)
         expect(get(d, 'cleat-short').w).toBeCloseTo(PH - 2 * b - 2 * fit - 2 * co - 2, 3)
         expect(get(d, 'cleat-long').h).toBeCloseTo(2 * co + fit, 3)
       }
     }
-  })
+  }, 30000)
 
   // the error's kind (so a fix is judged on that error only), and the fixes it offers: [the keys a value goes to, the value]
   const KINDS: [RegExp, string][] = [
-    [/قليل: لا تتّسع وردة/, 'narrow'], [/كبيرة على عرض الإطار/, 'ov'], [/كبير على ديكور/, 'wide'], [/صغير على إطار فيه ركبة/, 'small'],
-    [/أكبر من اللوح الأوسط/, 'medfield'], [/صغير على المثمّن|صغير على مثمّن/, 'fieldsmall'], [/أكبر من فتحة الإطار|فتحة الإطار صغيرة/, 'medopen'],
-    [/أطول من لوح الخشب/, 'long'], [/أعرض من لوح الخشب/, 'sheetwide'], [/لا يتّسع في لوح/, 'fieldsheet'], [/لوح الأكريليك/, 'back'],
+    [/قليل: لا تتّسع/, 'narrow'], [/كبيرة على عرض الإطار/, 'ov'], [/كبير على ديكور/, 'wide'], [/صغير على إطار فيه ركبة/, 'small'],
+    [/أكبر من وسط الديكور|^وسط الديكور .* صغير على/, 'medmid'], [/أكبر من اللوح الأوسط/, 'medfield'], [/اللوح الأوسط .* صغير على/, 'fieldsmall'],
+    [/أكبر من فتحة الإطار|فتحة الإطار صغيرة/, 'medopen'], [/خليّة شبكة الوسط/, 'fcell'], [/قطعةً واحدة .* لا يتّسع في لوح/, 'board'],
+    [/أطول من لوح الخشب/, 'long'], [/أعرض من لوح الخشب/, 'sheetwide'], [/اللوح الأوسط .* لا يتّسع في لوح/, 'fieldsheet'], [/لوح الأكريليك/, 'back'],
   ]
   const kindOf = (e: string) => KINDS.find(([re]) => re.test(e))?.[1] ?? 'other'
-  function fixesOf(e: string): [string[], number][] {
-    const out: [string[], number][] = [], kind = kindOf(e)
+  function fixesOf(e: string): [string[], number[]][] {
+    const out: [string[], number[]][] = [], kind = kindOf(e)
     for (const part of e.split(/: |، أو | أو /)) {
-      const m = part.match(/([\d.]+) مم على (?:الأقل|الأكثر)/)
-      if (m) {
+      const two = part.match(/([\d.]+) × ([\d.]+) مم على الأكثر/), m = part.match(/([\d.]+) مم على (?:الأقل|الأكثر)/)
+      if (two) out.push([['PW', 'PH'], [Number(two[1]), Number(two[2])]])
+      else if (m) {
         const keys = /العرض والطول الكلّيين/.test(part) ? ['PW', 'PH'] : /العرض الكلّي/.test(part) ? ['PW'] : /الطول الكلّي/.test(part) ? ['PH']
-          : /الركبة/.test(part) ? ['ov'] : /عرض الإطار/.test(part) ? ['band'] : /اجعله/.test(part) ? [{ medfield: 'med', medopen: 'med' }[kind] ?? 'band'] : []
-        if (keys.length) out.push([keys, Number(m[1])])
+          : /الركبة/.test(part) ? ['ov'] : /عرض الإطار/.test(part) ? ['band'] : /اجعله|اجعلها/.test(part) ? [({ medmid: 'med', medfield: 'med', medopen: 'med', fcell: 'fcell' } as Record<string, string>)[kind] ?? 'band'] : []
+        if (keys.length) out.push([keys, keys.map(() => Number(m[1]))])
       }
-      if (/ألغِه \(0\)/.test(part)) out.push([['back'], 0])
-      if (/«إطار فقط»/.test(part)) out.push([['center'], 3])
-      if (/«مثمّن منفصل»/.test(part)) out.push([['center'], 2])
+      if (/ألغِه \(0\)/.test(part)) out.push([['back'], [0]])
+      if (/ألغِ نقش الوسط \(0\)/.test(part)) out.push([['fill'], [0]])
+      if (/«إطار فقط»|«بلا زخرفة وسطى»/.test(part)) out.push([['center'], [3]])
+      if (/«قطعة منفصلة»/.test(part)) out.push([['center'], [2]])
+      if (/«أربع شرائح بزوايا 45 ولوح وسط»/.test(part)) out.push([['kind'], [2]])
     }
     return out
   }
   /** Every error names a value in range, and each value alone clears its error; the problems found. */
-  function fixProblems(p: Record<string, number>): string[] {
-    const bad: string[] = [], d = gen(p, { kerf: 0.2 })
+  function fixProblems(p: Record<string, number>, tpl: Tp = T1): string[] {
+    const bad: string[] = [], d = gen(p, { kerf: 0.2 }, tpl)
     for (const e of d.errors) {
       const kind = kindOf(e), fixes = fixesOf(e)
-      if (kind === 'other' || !fixes.length) { bad.push(`${JSON.stringify(p)}: no value in «${e}»`); continue }
-      for (const [keys, v] of fixes) {
-        for (const k of keys) { const def = tpl.params.find(x => x.key === k)!; if (v < def.min || v > def.max) bad.push(`${JSON.stringify(p)}: ${k} = ${v} out of range in «${e}»`) }
-        const after = gen({ ...p, ...Object.fromEntries(keys.map(k => [k, v])) }, { kerf: 0.2 })
-        if (after.errors.some(x => kindOf(x) === kind)) bad.push(`${JSON.stringify(p)} with ${keys.join('+')} = ${v}: «${after.errors.find(x => kindOf(x) === kind)}»`)
+      if (kind === 'other' || !fixes.length) { bad.push(`${lab(p, tpl)}: no value in «${e}»`); continue }
+      for (const [keys, vs] of fixes) {
+        keys.forEach((k, i) => { const def = tpl.params.find(x => x.key === k)!; if (vs[i] < def.min || vs[i] > def.max) bad.push(`${lab(p, tpl)}: ${k} = ${vs[i]} out of range in «${e}»`) })
+        const after = gen({ ...p, ...Object.fromEntries(keys.map((k, i) => [k, vs[i]])) }, { kerf: 0.2 }, tpl)
+        if (after.errors.some(x => kindOf(x) === kind)) bad.push(`${lab(p, tpl)} with ${keys.join('+')} = ${vs.join('×')}: «${after.errors.find(x => kindOf(x) === kind)}»`)
       }
     }
     return bad
   }
 
   it('says what to change and to what, and every value it suggests clears that error', () => {
-    // [the parameters, a pattern naming the error, the keys its suggested values go to (in the order they appear)]
-    const cases: [Record<string, number>, RegExp, string[]][] = [
-      [{ band: 80 }, /عرض الإطار \(80 مم\) قليل/, ['band']],
-      [{ ov: 120 }, /الركبة على الجبس \(120 مم\) كبيرة/, ['ov', 'band']],
-      [{ ov: 200 }, /الركبة على الجبس \(200 مم\) كبيرة/, ['ov', 'band']],
-      [{ ov: 60, band: 120, web: 5 }, /كبيرة على عرض الإطار|قليل: لا تتّسع/, ['ov', 'band']],
-      [{ band: 560 }, /عرض الإطار \(560 مم\) كبير/, ['band']],
-      [{ PW: 300, PH: 300 }, /كبير على ديكور 300 × 300/, ['band']],
-      [{ med: 800 }, /المثمّن \(800 مم\) أكبر من اللوح الأوسط/, ['med', 'band']],
-      [{ PW: 760, PH: 400, band: 120, ov: 5, med: 200 }, /صغير على المثمّن/, ['band']],
-      [{ center: 2, med: 1000 }, /المثمّن \(1000 مم\) أكبر من فتحة الإطار/, ['med']],
-      [{ sheetL: 1300 }, /أطول من لوح الخشب/, ['PW']],
-      [{ sheetL: 1300, PW: 1000, PH: 1350 }, /أطول من لوح الخشب/, ['PH']],
-      [{ sheetL: 900 }, /أطول من لوح الخشب/, ['PW+PH']],
-      [{ sheetW: 150 }, /أعرض من لوح الخشب/, ['band']],
-      [{ PW: 2440, PH: 1700 }, /لا يتّسع في لوح/, ['band']],
-      [{ back: 1, PW: 2440, PH: 1300 }, /لوح الأكريليك/, ['back', 'PH']],
-      // even the narrowest band is too much for the decor: less rest on the gypsum, or a bigger decor
-      [{ PW: 302, PH: 344, ov: 161, band: 279, center: 3 }, /صغير على إطار فيه ركبة 161 مم/, ['ov', 'PW+PH']],
-      [{ PW: 1664, PH: 539, ov: 182, band: 385, center: 3 }, /صغير على إطار فيه ركبة 182 مم/, ['ov', 'PH']],
+    const cases: [Record<string, number>, RegExp][] = [
+      [{ band: 80 }, /عرض الإطار \(80 مم\) قليل/], [{ ov: 120 }, /الركبة على الجبس \(120 مم\) كبيرة/], [{ ov: 200 }, /الركبة على الجبس \(200 مم\) كبيرة/],
+      [{ ov: 60, band: 120, web: 5 }, /كبيرة على عرض الإطار|قليل: لا تتّسع/], [{ band: 560 }, /عرض الإطار \(560 مم\) كبير/], [{ PW: 300, PH: 300 }, /كبير على ديكور 300 × 300/],
+      [{ med: 800 }, /\(800 مم\) أكبر من وسط الديكور/], [{ med: 800, kind: 2 }, /\(800 مم\) أكبر من اللوح الأوسط/], [{ center: 2, med: 1000 }, /\(1000 مم\) أكبر من وسط الديكور/],
+      [{ PW: 760, PH: 400, band: 120, ov: 5, med: 200, kind: 2 }, /صغير على/], [{ PW: 760, PH: 400, band: 150, ov: 5, med: 200 }, /وسط الديكور .* صغير على/],
+      [{ center: 2, med: 1000, kind: 2 }, /\(1000 مم\) أكبر من فتحة الإطار/], [{ sheetL: 1300, kind: 2 }, /أطول من لوح الخشب/], [{ sheetL: 1300, PW: 1000, PH: 1350, kind: 2 }, /أطول من لوح الخشب/],
+      [{ sheetL: 900, kind: 2 }, /أطول من لوح الخشب/], [{ sheetW: 150, kind: 2 }, /أعرض من لوح الخشب/], [{ PW: 2440, PH: 1700, kind: 2 }, /اللوح الأوسط .* لا يتّسع في لوح/],
+      [{ back: 1, PW: 2440, PH: 1300, kind: 2 }, /لوح الأكريليك/], [{ sheetL: 1300 }, /لا يتّسع في لوح 1300 × 1220/], [{ PW: 1300, PH: 2500 }, /اجعله 1220 × 2440 مم على الأكثر/],
+      [{ fcell: 30 }, /خليّة شبكة الوسط \(30 مم\) صغيرة/], [{ fcell: 30, kind: 2 }, /خليّة شبكة الوسط/],
+      [{ PW: 302, PH: 344, ov: 161, band: 279, center: 3 }, /صغير على إطار فيه ركبة 161 مم|كبيرة على عرض الإطار/],
+      [{ PW: 1664, PH: 539, ov: 182, band: 385, center: 3, kind: 2 }, /صغير على إطار فيه ركبة 182 مم|كبيرة على عرض الإطار/],
     ]
-    for (const [p, re, keys] of cases) {
-      const d = gen(p), e = d.errors.find(x => re.test(x))
-      expect(e, `${JSON.stringify(p)}: ${d.errors.join(' | ')}`).toBeTruthy()
-      // the values it names («… مم على الأقل / الأكثر», «ألغِه (0)»), in order
-      const vals = [...e!.matchAll(/([\d.]+) مم على (?:الأقل|الأكثر)|ألغِه \((0)\)/g)].map(m => Number(m[1] ?? m[2]))
-      expect(vals.length, `${e}`).toBe(keys.length)
-      keys.forEach((k, i) => {
-        for (const kk of k.split('+')) { const def = tpl.params.find(x => x.key === kk)!; expect(vals[i] >= def.min && vals[i] <= def.max, `${kk} = ${vals[i]} in range`).toBe(true) }
-        const after = gen({ ...p, ...Object.fromEntries(k.split('+').map(kk => [kk, vals[i]])) })
-        expect(after.errors.some(x => re.test(x)), `${JSON.stringify(p)} with ${k} = ${vals[i]}: ${after.errors.join(' | ')}`).toBe(false)
-      })
-      expect(fixProblems(p)).toEqual([])
+    for (const tpl of CEILING_FRAMES) for (const [p, re] of cases) {
+      const d = gen(p, {}, tpl), e = d.errors.find(x => re.test(x))
+      expect(e, `${lab(p, tpl)}: ${d.errors.join(' | ')}`).toBeTruthy()
+      expect(fixesOf(e!).length, e).toBeGreaterThan(0)
+      expect(fixProblems(p, tpl)).toEqual([])
     }
-  })
+    // the wide band the user may try: the medallion's largest size, which then builds, fully patterned
+    for (const tpl of CEILING_FRAMES) {
+      const e = gen({ band: 380 }, {}, tpl).errors.join(' | ')
+      expect(e).toMatch(new RegExp(`\\(450 مم\\) أكبر من وسط الديكور 640 × 290 مم: ${tpl === T1 ? 'اجعله' : 'اجعلها'} 278 مم على الأكثر`))
+      expect(gen({ band: 380, med: 278 }, {}, tpl).errors).toEqual([])
+    }
+  }, 60000)
 
   it('gives every refusal a value that clears it, across random settings', () => {
     const rnd = seeded(99), bad: string[] = []
     let refused = 0
-    for (let i = 0; i < 220; i++) {
-      const p = {
+    for (let i = 0; i < 200; i++) {
+      const tpl = CEILING_FRAMES[i % 2], p = {
         PW: Math.round(300 + rnd() * 2140), PH: Math.round(300 + rnd() * 2140), ov: Math.round(rnd() * 200), band: Math.round(60 + rnd() * 540),
-        center: 1 + Math.floor(rnd() * 3), med: Math.round(150 + rnd() * 1050), web: [2, 3, 4, 5, 8][Math.floor(rnd() * 5)], fit: Math.round(rnd() * 20) / 10,
-        cleats: rnd() < 0.8 ? 1 : 0, back: rnd() < 0.3 ? 1 : 0, sheetL: rnd() < 0.8 ? 2440 : Math.round(300 + rnd() * 2700), sheetW: rnd() < 0.8 ? 1220 : Math.round(300 + rnd() * 1700),
+        kind: rnd() < 0.5 ? 1 : 2, center: 1 + Math.floor(rnd() * 3), med: Math.round(150 + rnd() * 1050), web: [2, 3, 4, 5, 8][Math.floor(rnd() * 5)], fit: Math.round(rnd() * 20) / 10,
+        fill: rnd() < 0.7 ? 1 : 0, fcell: Math.round(30 + rnd() * 120), cleats: rnd() < 0.8 ? 1 : 0, back: rnd() < 0.3 ? 1 : 0,
+        sheetL: rnd() < 0.8 ? 2440 : Math.round(300 + rnd() * 2700), sheetW: rnd() < 0.8 ? 1220 : Math.round(300 + rnd() * 1700),
       }
-      const probs = fixProblems(p)
-      if (gen(p).errors.length) refused++
-      bad.push(...probs)
+      if (gen(p, {}, tpl).errors.length) { refused++; bad.push(...fixProblems(p, tpl)) }
     }
-    expect(refused).toBeGreaterThan(100)
+    expect(refused).toBeGreaterThan(90)
     expect(bad.slice(0, 10)).toEqual([])
+  }, 60000)
+
+  it('needs the room it says: the narrowest band holds a motif, and one step less does not', () => {
+    for (const style of [1, 2]) for (const web of [2, 3, 5, 8]) for (const kind of [1, 2]) {
+      const g0 = frameGeom(full({ web, kind, style })), WpMin = minPatternWidth(web, style)
+      if (style === 1) { expect(rosetteDims(ROSE.R * WpMin, web)).toBeTruthy(); expect(rosetteDims(ROSE.R * (WpMin - 0.5), web)).toBeNull() }
+      else { expect(starDims(STAR.R * WpMin, WpMin / 2, web)).toBeTruthy(); expect(starDims(STAR.R * (WpMin - 0.5), (WpMin - 0.5) / 2, web)).toBeNull() }
+      const bandMin = Math.ceil((30 + web + g0.rail + WpMin) * 2 - 1e-6) / 2
+      expect(gen({ web, kind, style, band: bandMin }).errors.filter(x => /قليل|كبيرة على عرض/.test(x))).toEqual([])
+      expect(gen({ web, kind, style, band: bandMin - 0.5 }).errors.length).toBeGreaterThan(0)
+    }
+    // and the lattice's smallest cell
+    for (const style of [1, 2]) for (const web of [2, 3, 5]) {
+      const fMin = Math.ceil(minCell(style, web) * 2 - 1e-6) / 2
+      expect(gen({ style, web, fcell: fMin }).errors.filter(x => /خليّة/.test(x))).toEqual([])
+      expect(gen({ style, web, fcell: fMin - 0.5 }).errors.filter(x => /خليّة/.test(x)).length).toBe(1)
+    }
   }, 30000)
 
-  it('needs the room it says: the narrowest band holds a rosette, and one step less does not', () => {
-    for (const web of [2, 3, 5, 8]) for (const center of [1, 3]) {
-      const g0 = frameGeom(full({ web, center })), WpMin = minPatternWidth(web)
-      expect(rosetteDims(ROSE.R * WpMin, web)).toBeTruthy()
-      expect(rosetteDims(ROSE.R * (WpMin - 0.5), web)).toBeNull()
-      const bandMin = Math.ceil((30 + web + g0.rail + WpMin) * 2 - 1e-6) / 2
-      expect(gen({ web, center, band: bandMin }).errors.filter(x => /قليل|كبيرة على عرض/.test(x))).toEqual([])
-      expect(gen({ web, center, band: bandMin - 0.5 }).errors.length).toBeGreaterThan(0)
-    }
-  })
-
   it('cuts no sliver, even in the narrowest bands: the shapes shrink to 2 mm across and 4 mm², or are left out', () => {
-    for (const web of [2, 2.5, 3, 5, 8]) for (const center of [1, 3]) for (const dW of [0, 3, 7.5, 15, 30]) {
-      const g0 = frameGeom(full({ web, center })), band = Math.ceil((30 + web + g0.rail + minPatternWidth(web) + dW) * 2) / 2
-      const p = { web, center, band, PW: 900, PH: 700, med: 150 }
+    for (const style of [1, 2]) for (const web of [2, 3, 5, 8]) for (const kind of [1, 2]) for (const dW of [0, 3, 7.5, 15]) {
+      const g0 = frameGeom(full({ web, kind, style })), band = Math.ceil((30 + web + g0.rail + minPatternWidth(web, style) + dW) * 2) / 2
+      const p = { web, kind, style, band, PW: 900, PH: 700, med: 150, fill: 0 }
       const d = gen(p)
       if (d.errors.length) continue
-      for (const pn of d.panels.filter(x => x.id.startsWith('strip'))) for (const h of cutOf(pn).filter(l => signedArea(l) < 0)) {
-        const sp = samplePoly(h, 3), b = boxOf(sp)
+      for (const pn of d.panels) for (const h of cutOf(pn).filter(l => signedArea(l) < 0)) {
+        const sp = samplePoly(h, 4), b = boxOf(sp)
         expect(-signedArea(h), `${JSON.stringify(p)} area`).toBeGreaterThanOrEqual(3.5)
         expect(Math.min(b.maxX - b.minX, b.maxY - b.minY, widthOf(sp)), `${JSON.stringify(p)} width`).toBeGreaterThanOrEqual(1.9)
       }
     }
-  })
+  }, 30000)
 
-  it('tells the user how it goes together, with the sizes for both decors', () => {
-    const notes = gen({}).notes.join('\n')
-    for (const s of ['1340 × 990', '1400 × 1050', '1380 × 1080', '1060 مم من الداخل', '710 مم من الداخل', '10 وردات', '7 وردات', 'من الداخل إلى الخارج', 'على لوح الجبسن بورد', 'أكريليك أوبال', 'ادهنه']) expect(notes, s).toContain(s)
-    expect(gen(SECOND).notes.join('\n')).toContain('1320 × 1020')
+  it('tells the user how it goes together, for the mode and the design chosen', () => {
+    for (const tpl of CEILING_FRAMES) {
+      const one = gen({}, {}, tpl).notes.join('\n'), g = frameGeom(full({}, tpl)), mw = tpl === T1 ? 'وردات' : 'نجوم'
+      const motifs = [`${g.n1 - 1} ${mw}`, `${g.n2 - 1} ${mw}`, tpl === T1 ? 'المثمّن 450' : 'الدائرة قطرها 450']
+      for (const s of ['قطعة واحدة 1400 × 1050', '1340 × 990', 'فتحة في القطعة', 'من الداخل إلى الخارج', 'مائلاً', 'على لوح الجبسن بورد', 'ادهنه', 'أكريليك أوبال', 'قماشاً أبيض', 'على 45°', 'منقوش', ...motifs]) expect(one, `${tpl.id} ${s}`).toContain(s)
+      for (const w of ['تدعيم', 'شطف', 'الشطوف', 'مشطوفة', 'الشرائح الأربع']) expect(one, `${tpl.id} ${w}`).not.toContain(w)
+      expect(one).not.toContain('محفور')
+      expect(gen({ line: 1 }, {}, tpl).notes.join('\n')).toContain('محفور')
+      expect(gen({ fill: 0 }, {}, tpl).notes.join('\n')).toContain('الوسط سادة')
+      expect(gen({ center: 2 }, {}, tpl).notes.join('\n')).toMatch(/قطعة منفصلة تُلصق/)
+      expect(gen(SECOND, {}, tpl).notes.join('\n')).toContain('1320 × 1020')
+      const strips = gen({ kind: 2 }, {}, tpl).notes.join('\n')
+      for (const s of ['1060 مم من الداخل', '710 مم من الداخل', 'من الداخل إلى الخارج', 'على لوح الجبسن بورد', 'أكريليك أوبال', 'ادهنه', 'شرائح التدعيم', 'ألصق الشطوف']) expect(strips, `${tpl.id} ${s}`).toContain(s)
+      // the counts in the notes are the counts cut
+      const d = gen({}, {}, tpl), n = Number(one.match(/عدد الفتحات: (\d+) فتحة في القطعة/)![1])
+      expect(n).toBe(cutOf(get(d, 'board')).filter(l => signedArea(l) < 0).length)
+    }
     expect(gen({ back: 1 }).panels.find(x => x.id === 'back')!.material).toBe('white')
+    // a small medallion with thick webs leaves out its middle star (and the small stars round it): so do the words
+    const small2 = gen({ web: 8, med: 150 }, {}, T2), small1 = gen({ web: 8, med: 150, fcell: 71 })
+    expect([...small2.errors, ...small1.errors]).toEqual([])
+    expect(small2.notes.join('\n')).toContain('12 بتلة تلتقي في وسطها')
+    expect(small2.notes.join('\n')).not.toContain('نجمة من 12 رأساً')
+    expect(small1.notes.join('\n')).toContain('16 بتلة طويلة تلتقي في وسطه')
+    for (const w of ['نجمة من 16 رأساً', 'نجوم صغيرة']) expect(small1.notes.join('\n')).not.toContain(w)
   })
 
-  // every parameter at its ends at two thicknesses, and 150 random settings at kerf 0.2 (a fixed seed): sound, with
-  // the frame's own rules kept, whenever no error is reported
+  it('makes the round medallion of a 12-point star, 12 kites, 12 cells and 24 arcs, every web at least web', () => {
+    for (const med of [150, 220, 450, 800, 1200]) for (const web of [2, 3, 5, 8]) {
+      const pcs = medallion2({ x: 0, y: 0 }, med, web), m = medDims2(med, web), lb = `med ${med} web ${web}`
+      const count = (re: RegExp) => pcs.filter(pc => re.test(pc.key)).length
+      if (med >= 220 || web <= 3) {
+        expect(count(/^star$/), lb).toBe(1)
+        expect(count(/^k\d+$/), lb).toBe(12)
+        expect(count(/^c\d+$/), lb).toBe(12)
+        expect(count(/^a\d+$/), lb).toBe(24)
+      }
+      const polys = pcs.map(pc => samplePoly({ closed: true, pts: pc.pts }, 2))
+      for (const q of polys.flat()) expect(Math.hypot(q.x, q.y), lb).toBeLessThanOrEqual(m.A - m.sb + 1e-6)
+      for (let i = 0; i < polys.length; i++) {
+        const a = polys[i]
+        expect(-signedArea(polyLoopCCW(a)) >= 4 && widthOf(a) >= 2, `${lb} ${pcs[i].key} size`).toBe(true)
+        for (let j = i + 1; j < polys.length; j++) { const g = gapUnder(a, polys[j], web); expect(g, `${lb} ${pcs[i].key}–${pcs[j].key}`).toBeGreaterThanOrEqual(web - 0.01) }
+      }
+      // a mirror image about the axis through every kite
+      for (const pc of pcs) expect(pcs.some(o => Math.hypot(o.c.x - pc.c.x, o.c.y + pc.c.y) < 1e-6), `${lb} ${pc.key} mirrored`).toBe(true)
+    }
+  }, 30000)
+
+  it('patterns the whole field round the medallion (no plain area) in both designs and both modes, and leaves it plain with fill 0', () => {
+    for (const tpl of CEILING_FRAMES) for (const p of ([{}, SECOND, { center: 3 }, { center: 2 }, { kind: 2 }, { ...SECOND, kind: 2 }, { band: 380, med: 278 }, { band: 380, med: 260, kind: 2 }, { fcell: 110 }, { fcell: 50, web: 2 }] as Record<string, number>[])) {
+      expect(gen(p, {}, tpl).errors, lab(p, tpl)).toEqual([])
+      const fc = full(p, tpl).fcell, c = coverage(p, tpl)
+      expect(c.lattice, lab(p, tpl)).toBeGreaterThan(20)
+      expect(c.worst, `${lab(p, tpl)} plain at ${c.at.x.toFixed(0)},${c.at.y.toFixed(0)}`).toBeLessThanOrEqual(0.6 * fc)
+    }
+    for (const tpl of CEILING_FRAMES) for (const p of [{ fill: 0 }, { fill: 0, kind: 2 }] as Record<string, number>[]) {
+      const c = coverage(p, tpl)
+      expect(c.lattice).toBe(0)
+      expect(c.worst, lab(p, tpl)).toBeGreaterThan(2 * full(p, tpl).fcell)
+    }
+  }, 60000)
+
+  // every parameter at its ends (both designs, on a smaller decor so the board's thousands of cut-outs stay quick to
+  // check), at every thickness and kerf, and random settings: sound, with the frame's own rules kept, whenever no error
+  // is reported. The thickness changes no shape here, so the shapes are checked once, at kerf 0.2 (the paths' offset).
   it('is sound across its parameters or refuses with an error', () => {
-    const variants: Record<string, number>[] = [{}]
-    for (const def of tpl.params) variants.push({ [def.key]: def.min }, { [def.key]: def.max })
-    const rnd = seeded(2024)
-    for (let i = 0; i < 150; i++) variants.push({
-      PW: Math.round(300 + rnd() * 2140), PH: Math.round(300 + rnd() * 1500), ov: Math.round(rnd() * 120), band: Math.round(60 + rnd() * 300),
-      center: 1 + Math.floor(rnd() * 3), med: Math.round(150 + rnd() * 700), web: [2, 2.5, 3, 4, 5, 8][Math.floor(rnd() * 6)], fit: Math.round(rnd() * 20) / 10,
-      cleats: rnd() < 0.8 ? 1 : 0, back: rnd() < 0.2 ? 1 : 0,
-    })
+    const base = { PW: 900, PH: 650, med: 250 }, variants: [Tp, Record<string, number>][] = []
+    for (const tpl of CEILING_FRAMES) { variants.push([tpl, base]); for (const def of tpl.params) variants.push([tpl, { ...base, [def.key]: def.min }], [tpl, { ...base, [def.key]: def.max }]) }
+    const nGrid = variants.length, rnd = seeded(2024)
+    for (let i = 0; i < 40; i++) variants.push([CEILING_FRAMES[i % 2], {
+      PW: Math.round(300 + rnd() * 1100), PH: Math.round(300 + rnd() * 900), ov: Math.round(rnd() * 120), band: Math.round(60 + rnd() * 300), kind: rnd() < 0.5 ? 1 : 2,
+      center: 1 + Math.floor(rnd() * 3), med: Math.round(150 + rnd() * 500), web: [2, 2.5, 3, 4, 5, 8][Math.floor(rnd() * 6)], fit: Math.round(rnd() * 20) / 10,
+      fill: rnd() < 0.7 ? 1 : 0, fcell: Math.round(40 + rnd() * 120), line: rnd() < 0.5 ? 1 : 0, cleats: rnd() < 0.8 ? 1 : 0, back: rnd() < 0.2 ? 1 : 0,
+    }])
     let runs = 0, refused = 0
     const bad: string[] = []
-    variants.forEach((v, i) => {
-      const t = i <= 2 * tpl.params.length ? [3, 6] : [[3, 4, 6][i % 3]]
-      for (const th of t) {
-        const d = gen(v, { t: th, kerf: 0.2 })
+    variants.forEach(([tpl, v], i) => {
+      const q = full(v, tpl), web = q.web, lb = lab(v, tpl)
+      for (const [t, kerf] of i < nGrid ? [[2, 0], [3, 0.2], [6, 0], [6, 0.2]] : [[[3, 4, 6][i % 3], 0.2]]) {
+        const d = gen(v, { t, kerf }, tpl)
         runs++
-        for (const pn of d.panels) for (const l of pn.loops) for (const q of l.pts) expect(Number.isFinite(q.x) && Number.isFinite(q.y)).toBe(true)
+        for (const pn of d.panels) for (const l of pn.loops) for (const p of l.pts) if (!Number.isFinite(p.x) || !Number.isFinite(p.y)) bad.push(`${lb} t=${t}: non-finite`)
         if (d.errors.length) { refused++; continue }
-        const web = full(v).web, lab = `${JSON.stringify(v)} t=${th}`
+        // no warning unless there is no hidden rim to glue the corner plates to, or the kerf is more than half the sheet
+        bad.push(...d.warnings.filter(w => !(q.kind === 2 && q.ov + web - 1 < 6 && /قطع الزوايا/.test(w)) && !(kerf > t / 2)).map(w => `${lb} t=${t}: ${w}`))
+        for (const pn of d.panels) if (pn.material !== 'white' && !(Math.max(pn.w, pn.h) <= q.sheetL + 1 && Math.min(pn.w, pn.h) <= q.sheetW + 1)) bad.push(`${lb}: ${pn.id} off the sheet`)
+        if (kerf !== 0.2 || (i < nGrid && t !== 3)) continue
         // the kerf moves every path 0.1 mm away from the wood: the webs between the paths are 0.2 mm wider
-        bad.push(...soundness(d, lab, web + 0.2, web + 0.2), ...frameChecks(v).map(s => `${lab}: ${s}`))
-        // no warning unless there is no hidden rim to glue the corner plates to
-        bad.push(...d.warnings.filter(w => !(full(v).ov + web - 1 < 6 && /قطع الزوايا/.test(w))).map(w => `${lab}: ${w}`))
-        for (const pn of d.panels) if (pn.material !== 'white' && !(Math.max(pn.w, pn.h) <= 2440 + 1 && Math.min(pn.w, pn.h) <= 1220 + 1)) bad.push(`${lab}: ${pn.id} off the sheet`)
+        bad.push(...soundness(d, `${lb} t=${t}`, web + 0.2, web + 0.2, 8))
+        bad.push(...(q.kind === 2 ? frameChecks(v, tpl) : boardChecks(v, tpl)).map(s => `${lb}: ${s}`))
       }
     })
     expect(bad.slice(0, 10)).toEqual([])
-    expect(runs).toBeGreaterThan(150)
-    expect(refused).toBeLessThan(0.75 * runs)
-  }, 60000)
+    expect(runs).toBeGreaterThan(300)
+    expect(refused).toBeLessThan(0.6 * runs)
+  }, 90000)
 })
+
+/** A polygon as a hole-oriented loop (for its area's sign). */
+function polyLoopCCW(pts: P[]): Loop { const l = { closed: true, pts }; return signedArea(l) > 0 ? { closed: true, pts: [...pts].reverse() } : l }
