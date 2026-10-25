@@ -161,7 +161,7 @@ describe('doorvase: the door with the vase and flowers', () => {
     let worstB = 0, off = 0, all = 0
     for (const l of eng) for (const q of l.pts) { const e = nearB({ x: pn.w - q.x, y: q.y }); worstB = Math.max(worstB, e); all++; if (e > 0.05) off++ }
     expect(worstB).toBeLessThan(0.3)
-    expect(off / all).toBeLessThan(0.001)
+    expect(off / all).toBeLessThan(0.0003)
   })
 
   it('reproduces the photo at the photo\'s own proportions: the structure at the measured places', () => {
@@ -254,7 +254,7 @@ describe('doorvase: the door with the vase and flowers', () => {
       }
     }
     const all = [...TOP, ...LOW]
-    expect([all.filter(s => s.w === 'b' && !s.f).length, all.filter(s => s.w === 'f').length, all.filter(s => s.f).length]).toEqual([74, 34, 8])
+    expect([all.filter(s => s.w === 'b' && !s.f).length, all.filter(s => s.w === 'f').length, all.filter(s => s.f).length]).toEqual([73, 34, 9])
     expect(FRAME_W).toEqual({ rect: 'f', outer: 'f', inner: 'b' })
     // every segment's mirror image is a segment of the same weight
     const segs = [...art().top, ...art().low].flatMap(st => Array.from(st.bold, (b, i) => {
@@ -332,6 +332,35 @@ describe('doorvase: the door with the vase and flowers', () => {
     expect(notes).toMatch(/لا يُحرق مكان مرّتين/)
     const role = (k: string) => roleOf(tpl, tpl.params.find(q => q.key === k)!)
     expect([role('lw'), role('thick'), role('thin'), role('DW')]).toEqual(['fixed', 'count', 'count', 'length'])
+  })
+
+  it('joins strokes that end where another ends, so their lines run on round the corner or tip', () => {
+    const len = (p: ArrayLike<number>, closed: boolean) => { let L = 0; const n = p.length / 2; for (let i = 0; i < (closed ? n : n - 1); i++) { const j = (i + 1) % n; L += Math.hypot(p[2 * j] - p[2 * i], p[2 * j + 1] - p[2 * i + 1]) } return L }
+    for (const [grp, stored] of [[art().top, TOP], [art().low, LOW]] as const) {
+      // no two open ends meet any more
+      const ends = grp.filter(s => !s.closed).flatMap(s => [[s.pts[0], s.pts[1]], [s.pts[s.pts.length - 2], s.pts[s.pts.length - 1]]])
+      let meet = 0
+      for (let i = 0; i < ends.length; i++) for (let j = i + 1; j < ends.length; j++) if (Math.hypot(ends[i][0] - ends[j][0], ends[i][1] - ends[j][1]) < 0.5) meet++
+      expect(meet).toBe(0)
+      // and nothing is lost: the centre lines are as long as the stored strokes (each join moves its point by under 0.25 mm)
+      const want = stored.reduce((s, st) => s + (st.k === 'c' ? 1 : 2) * len(st.p, !!st.closed && st.k !== 's'), 0)
+      const got = grp.reduce((s, st) => s + len(st.pts, st.closed), 0)
+      expect(Math.abs(got - want)).toBeLessThan(0.5 * stored.length)
+      // every right-hand copy has its left partner: its mirror image run backwards
+      for (const s of grp.filter(t => t.mirror)) {
+        const n = s.pts.length
+        expect(grp.some(o => !o.mirror && o.pts.length === n && Math.abs(REF_W - o.pts[n - 2] - s.pts[0]) < 1e-6 && Math.abs(o.pts[n - 1] - s.pts[1]) < 1e-6)).toBe(true)
+      }
+    }
+    // the trace split its outlines at 36 corners and tips (each counted on both halves)
+    const parts = [...TOP, ...LOW].reduce((s, st) => s + (st.k === 'p' ? 2 : 1), 0)
+    expect(parts - art().top.length - art().low.length).toBeGreaterThanOrEqual(30)
+    // at the defaults no laser line is a stub under half a millimetre
+    for (const l of engraved(gen())) {
+      let L = 0
+      for (let i = 1; i < l.pts.length; i++) L += Math.hypot(l.pts[i].x - l.pts[i - 1].x, l.pts[i].y - l.pts[i - 1].y)
+      if (!l.closed) expect(L).toBeGreaterThan(0.5)
+    }
   })
 
   it('refuses bold lines that would fill the double lines, with what to set', () => {

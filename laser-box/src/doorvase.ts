@@ -7,7 +7,9 @@
 // The lines have two weights, as on the photo: bold (the ornaments' outlines, each double line's inner line) and fine
 // (veins, petal lines, the vase's flutes, the stem's rings, small curls; the outer rectangle and each double line's
 // outer line). A bold stroke is engraved as `thick` laser lines side by side, lw apart and centred on the traced line,
-// a fine one as `thin` (one by default); the burns of neighbouring lines just touch. The strokes go in an order where a
+// a fine one as `thin` (one by default); the burns of neighbouring lines just touch. Strokes the trace split at a
+// corner or a tip (two ends meeting) are joined first, so their lines run on round it, rounded outside and cleared
+// inside, as one groove; a right-hand copy is engraved as its partner's mirror image. The strokes go in an order where a
 // stroke that ends on another comes after it; each line stops lw short of every line already there, so where strokes
 // meet the later one's lines end at the earlier one's edge, no wood is burnt twice and no gap is left.
 //
@@ -32,7 +34,10 @@
 //   stroke's median profile, both mirror halves pooled: the widths fall in two clear groups, about 2.8 mm and 4.8 mm
 //   on the 590 mm drawing (thin below 3.8 mm). Strokes that change along their length (an outline running on
 //   into an inner line) were split where they do, and the photo was checked stroke by stroke where the measure was
-//   unsure (short strokes, tips where two lines run together);
+//   unsure (short strokes, tips where two lines run together). A second, independent measure on the unwarped photo
+//   (the darkness integrated across each line, so blur does not matter) gives the same two groups with no stroke in
+//   between (fine at most 2.0, bold at least 2.3, in mm × darkness; the frame's fine lines 1.5, bold ones 2.7), and the
+//   drop above the heart bold above the heart's arms but fine below them;
 // - the structural lines were rebuilt as clean geometry fitted to the trace: straight lines, and circular arcs (the
 //   top panel's bottom and the band's top concentric, the band's bottom and the lower panel's top concentric).
 //
@@ -67,7 +72,11 @@ export const WOOD = 2
 // ------------------------------------------------------------------ the ornaments, mirrored once
 
 /** one whole stroke in the reference frame: its centre line, and per segment whether it is bold (several laser lines) */
-export interface ArtStroke { pts: Float64Array; closed: boolean; bold: Uint8Array; /** strokes and their mirror images share a unit */ unit: number }
+export interface ArtStroke {
+  pts: Float64Array; closed: boolean; bold: Uint8Array; /** strokes and their mirror images share a unit */ unit: number
+  /** the right-hand copy of a stroke: its left partner's mirror image, run backwards */
+  mirror?: boolean
+}
 
 /** Each stroke of a group as a whole polyline in the reference frame: the left half and its mirror image. */
 function expand(group: Stroke[], unit0: number): ArtStroke[] {
@@ -148,10 +157,100 @@ function drawingOrder(all: ArtStroke[]): number[] {
   return order
 }
 
+/**
+ * Strokes that end where another ends (the trace split an outline at a corner or a tip) joined into one, so its laser
+ * lines run on round the corner (rounded outside, cleared inside) instead of stopping square against each other with
+ * a notch between. Where three or more ends meet, the pair of the same weight that runs on most smoothly is joined and
+ * the others end on it. The joined stroke takes the lowest unit of its parts (a stroke and its mirror image still share one).
+ */
+function chain(strokes: ArtStroke[]): ArtStroke[] {
+  const TOL = 0.5, N = strokes.length
+  // end 2i is stroke i's start, 2i + 1 its end
+  const at = (e: number) => { const s = strokes[e >> 1].pts, k = e & 1 ? s.length - 2 : 0; return { x: s[k], y: s[k + 1] } }
+  /** unit vector from an end back into its stroke (over its first 2 mm or so, for a steady direction) */
+  const inward = (e: number) => {
+    const s = strokes[e >> 1].pts, n = s.length / 2, a = at(e)
+    let q = a
+    for (let j = 1; j < n; j++) { const k = e & 1 ? n - 1 - j : j; q = { x: s[2 * k], y: s[2 * k + 1] }; if (Math.hypot(q.x - a.x, q.y - a.y) >= 2) break }
+    const l = Math.hypot(q.x - a.x, q.y - a.y) || 1
+    return { x: (q.x - a.x) / l, y: (q.y - a.y) / l }
+  }
+  const wAt = (e: number) => { const b = strokes[e >> 1].bold; return b[e & 1 ? b.length - 1 : 0] }
+  // every pair of open ends that meet, scored: same weight first, then the smallest turn from one into the other
+  const cells = new Map<number, number[]>(), key = (x: number, y: number) => Math.floor(x / TOL) * 100003 + Math.floor(y / TOL)
+  for (let e = 0; e < 2 * N; e++) {
+    if (strokes[e >> 1].closed) continue
+    const q = at(e), k = key(q.x, q.y), c = cells.get(k)
+    if (c) c.push(e); else cells.set(k, [e])
+  }
+  const pairs: { a: number; b: number; score: number }[] = []
+  for (let a = 0; a < 2 * N; a++) {
+    if (strokes[a >> 1].closed) continue
+    const pa = at(a), cx = Math.floor(pa.x / TOL), cy = Math.floor(pa.y / TOL)
+    for (let dx = -1; dx <= 1; dx++) for (let dy = -1; dy <= 1; dy++) for (const b of cells.get((cx + dx) * 100003 + cy + dy) ?? []) {
+      if (b <= a) continue
+      const pb = at(b)
+      if (Math.hypot(pa.x - pb.x, pa.y - pb.y) > TOL || (b >> 1 === a >> 1 && strokes[a >> 1].pts.length < 8)) continue
+      const ua = inward(a), ub = inward(b)
+      pairs.push({ a, b, score: (wAt(a) === wAt(b) ? 0 : 10) + Math.acos(Math.max(-1, Math.min(1, -(ua.x * ub.x + ua.y * ub.y)))) })
+    }
+  }
+  pairs.sort((u, v) => u.score - v.score || u.a - v.a || u.b - v.b)
+  // the best pairs first, each end joined once
+  const mate = new Int32Array(2 * N).fill(-1)
+  for (const { a, b } of pairs) if (mate[a] < 0 && mate[b] < 0) { mate[a] = b; mate[b] = a }
+  // walk each chain from a free end (a ring of strokes from any), each stroke turned to run on from the one before
+  const seen = new Uint8Array(N), out: ArtStroke[] = []
+  const walk = (first: number) => {
+    const p: number[] = [], b: number[] = []
+    let e = first, unit = Infinity, closed = false
+    for (;;) {
+      const i = e >> 1, s = strokes[i], n = s.pts.length / 2
+      seen[i] = 1; unit = Math.min(unit, s.unit)
+      const fwd = (e & 1) === 0, q: number[] = []
+      for (let k = 0; k < n; k++) { const m = fwd ? k : n - 1 - k; q.push(s.pts[2 * m], s.pts[2 * m + 1]) }
+      const bs = Array.from(s.bold); if (!fwd) bs.reverse()
+      if (p.length) { p[p.length - 2] = (p[p.length - 2] + q[0]) / 2; p[p.length - 1] = (p[p.length - 1] + q[1]) / 2; p.push(...q.slice(2)) } else p.push(...q)
+      b.push(...bs)
+      const out_ = e ^ 1, next = mate[out_]
+      if (next < 0) break
+      if (seen[next >> 1]) { closed = true; p[0] = (p[0] + p[p.length - 2]) / 2; p[1] = (p[1] + p[p.length - 1]) / 2; p.length -= 2; break }
+      e = next
+    }
+    out.push({ pts: Float64Array.from(p), closed, bold: Uint8Array.from(b), unit })
+  }
+  for (let i = 0; i < N; i++) {
+    if (seen[i]) continue
+    if (strokes[i].closed) { seen[i] = 1; out.push(strokes[i]); continue }
+    // go back to the chain's free end
+    let e = 2 * i, guard = 0
+    while (mate[e] >= 0 && !(mate[e] >> 1 === i && guard > 0) && guard++ < N) e = mate[e] ^ 1
+    walk(mate[e] >= 0 ? 2 * i : e)
+  }
+  // a stroke on the right runs as its left partner's mirror image backwards (as expand gives it), so that both are
+  // engraved alike: the same lines on the same sides, in mirrored order
+  const mean = (s: ArtStroke) => { let x = 0; for (let k = 0; k < s.pts.length; k += 2) x += s.pts[k]; return (2 * x) / s.pts.length }
+  const mirrorOf = (s: ArtStroke, o: ArtStroke, back: boolean) => {
+    const n = s.pts.length
+    if (o === s || o.pts.length !== n) return false
+    const k = back ? n - 2 : 0
+    return Math.abs(REF_W - o.pts[k] - s.pts[0]) < 1e-6 && Math.abs(o.pts[k + 1] - s.pts[1]) < 1e-6
+  }
+  for (let i = 0; i < out.length; i++) {
+    const s = out[i]
+    if (s.closed || mean(s) <= REF_W / 2 + 1e-6 || !out.some(o => mirrorOf(s, o, false))) continue
+    const n = s.pts.length / 2, p = new Float64Array(2 * n)
+    for (let k = 0; k < n; k++) { p[2 * k] = s.pts[2 * (n - 1 - k)]; p[2 * k + 1] = s.pts[2 * (n - 1 - k) + 1] }
+    out[i] = { ...s, pts: p, bold: Uint8Array.from(s.bold).reverse() }
+  }
+  // which are right-hand copies: their partner's last point mirrors their first
+  return out.map(s => ({ ...s, mirror: mean(s) > REF_W / 2 + 1e-6 && out.some(o => mirrorOf(s, o, true)) }))
+}
+
 let ART: { top: ArtStroke[]; low: ArtStroke[]; order: number[] } | null = null
 /** the ornaments in the reference frame and the order they are engraved in (indices into [...top, ...low]), worked out once */
 export function art() {
-  if (!ART) { const top = expand(TOP, 0), low = expand(LOW, TOP.length); ART = { top, low, order: drawingOrder([...top, ...low]) } }
+  if (!ART) { const top = chain(expand(TOP, 0)), low = chain(expand(LOW, TOP.length)); ART = { top, low, order: drawingOrder([...top, ...low]) } }
   return ART
 }
 
@@ -363,7 +462,11 @@ function clipBy(pts: P2[], blocked: (x: number, y: number) => boolean, head: num
 const pathLen = (p: P2[]) => { let L = 0; for (let i = 1; i < p.length; i++) L += Math.hypot(p[i].x - p[i - 1].x, p[i].y - p[i - 1].y); return L }
 
 /** a stroke ready to engrave: its centre line in mm and the number of laser lines on each of its segments */
-export interface Weighted { pts: P2[]; closed: boolean; n: number[] }
+export interface Weighted {
+  pts: P2[]; closed: boolean; n: number[]
+  /** walk its lines from the far end (a right-hand copy, so that it is engraved as its partner's mirror image) */
+  rev?: boolean
+}
 
 /**
  * The laser lines of some strokes, engraved in the order given, each stroke's lines lw apart and centred on its centre
@@ -402,8 +505,10 @@ export function engraveStrokes(strokes: Weighted[], lw: number, drawn: Grid): Lo
         }
       }
       for (const [a, k] of runs) {
-        const V = ring ? P : Array.from({ length: k + 1 }, (_, j) => P[(a + j) % nV])
-        const off = offsetRun(V, ring, d)
+        const V0 = ring ? P : Array.from({ length: k + 1 }, (_, j) => P[(a + j) % nV])
+        // a right-hand copy runs backwards: its lines are walked the other way, as its partner's are (the same line)
+        const V = st.rev ? V0.slice().reverse() : V0
+        const off = offsetRun(V, ring, st.rev ? -d : d)
         const line = ring ? [...off, off[0]] : off
         const { q, s } = dense(line, step), L = s[s.length - 1]
         // how far the line has turned by each point: a stretch further back can come within r of it only once the
@@ -536,7 +641,7 @@ export function weighted(L: DoorLayout, DW: number, ox: number, oy: number, c: C
   return A.order.map(i => {
     const st = all[i], at = i < A.top.length ? L.top : L.low, y0 = at.y0 + oy - at.ref * at.s, pts: P2[] = []
     for (let k = 0; k < st.pts.length; k += 2) pts.push({ x: cx + (st.pts[k] - REF_W / 2) * at.s, y: y0 + st.pts[k + 1] * at.s })
-    return { pts, closed: st.closed, n: Array.from(st.bold, b => (b ? c.bold : c.fine)) }
+    return { pts, closed: st.closed, n: Array.from(st.bold, b => (b ? c.bold : c.fine)), rev: !!st.mirror }
   })
 }
 
@@ -578,9 +683,9 @@ function build(p: Record<string, number>, _c: Common): BuildResult {
   const lines = (k: number) => (k === 1 ? 'خطّ واحد' : k === 2 ? 'خطّان' : `${k} خطوط`)
   const notes = [
     `الرسمة ${f1(DW)} × ${f1(DH)} مم في وسط لوح الباب ${f1(PW)} × ${f1(PH)} مم: ${f1(ox)} مم من كل جانب، ${f1(oy)} مم من فوق و${f1(PH - oy - DH)} مم من تحت.`,
-    `الخطوط بسماكتين كما في الصورة: العريضة ${lines(bold)} ليزر${bold > 1 ? ` بينها ${lw} مم (عرض الخط نحو ${f1(bold * lw)} مم)` : ''}، وهي حواف الزهور والبراعم والأوراق والمزهرية وساقها والقلب والزنبقتين والالتفافات وأوراق الأكانثس، والخط الداخلي لكل إطار مزدوج؛ والرفيعة ${lines(fine)}${fine > 1 ? ` بينها ${lw} مم` : ''}، وهي عروق الأوراق والبتلات وخطوط المزهرية الداخلية وحلقات الساق ولفّات الالتفافات الصغيرة، والمستطيل الخارجي والخط الخارجي لكل إطار مزدوج.`,
+    `الخطوط بسماكتين كما في الصورة: العريضة ${lines(bold)} ليزر${bold > 1 ? ` بينها ${lw} مم (عرض الخط نحو ${f1(bold * lw)} مم)` : ''}، وهي حواف الزهور والبراعم والأوراق والمزهرية وساقها والقلب والزنبقتين والالتفافات وأوراق الأكانثس، والخط الداخلي لكل إطار مزدوج؛ والرفيعة ${lines(fine)}${fine > 1 ? ` بينها ${lw} مم` : ''}، وهي عروق الأوراق والبتلات وخطوط المزهرية الداخلية وحلقات الساق ولفّات الالتفافات الصغيرة وأسفل القطرة فوق القلب، والمستطيل الخارجي والخط الخارجي لكل إطار مزدوج.`,
     `الحفر كلّه على الطبقة الزرقاء خطوطاً مفردة: في RDWorks اجعلها طبقة Cut واحدة بقدرة الحفر وسرعته عندك (لا Scan)، وجرّبها على قطعة من نفس الخشب. «المسافة بين خطوط الليزر» هي عرض ما يحرقه رأس الليزر عندك: إن كان أعرض أو أرفع من ${lw} مم فاكتب عرضه الحقيقي فتلتحم الخطوط المتجاورة ولا يتداخل حرقها.`,
-    'حيث يلتقي خطّان تتوقّف خطوط اللاحق قبل خطوط السابق بمسافة خطّ واحد، فلا يُحرق مكان مرّتين ولا تبقى فجوة؛ وحيث تضيق المسافة بين خطّين عن خطوطهما كلّها يُحفر منها ما يتّسع فقط.',
+    'حيث يلتقي خطّان تتوقّف خطوط اللاحق قبل خطوط السابق بمسافة خطّ واحد، فلا يُحرق مكان مرّتين ولا تبقى فجوة؛ وعند الزوايا والرؤوس المدبّبة تلتفّ الخطوط حولها خطّاً متّصلاً؛ وحيث تضيق المسافة بين خطّين عن خطوطهما كلّها يُحفر منها ما يتّسع فقط.',
     'الإطار الأحمر حدود لوح الباب للمحاذاة فقط: اجعله Output = No، إلا إن أردت قصّ اللوح نفسه.',
     `طول خطوط الحفر نحو ${(len / 1000).toFixed(1)} م${n > 1 ? ` لكل باب (${n} أبواب)` : ''}.`,
     'لباب آخر: اكتب عرض لوح الباب وارتفاعه، وعرض الرسمة وارتفاعها؛ الإطارات والأقواس تُبنى من جديد بنسب الصورة، والزخارف تكبر وتصغر بنسبة واحدة دون مطّ وتتوسّط حشواتها. «تحريك الرسمة» يرفعها (بالسالب) أو ينزلها عن وسط اللوح.',
