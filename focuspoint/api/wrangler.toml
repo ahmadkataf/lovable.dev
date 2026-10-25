@@ -17,7 +17,7 @@ ASSETLINKS_FINGERPRINTS = "25:82:9F:6A:05:E3:39:97:36:30:8B:F5:44:53:C9:42:B7:9B
 [[d1_databases]]
 binding = "DB"
 database_name = "focuspoint"
-database_id = "REPLACE_ME"
+database_id = "b981c36a-ba36-4e5c-8f0e-cc987d962e54"
 
 # Cron: every 5 minutes → expire payment holds, send reminders, complete finished bookings (src/cron.ts).
 [triggers]

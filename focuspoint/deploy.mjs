@@ -135,26 +135,27 @@ async function main() {
 
   // 3. database
   step('D1 database', 'قاعدة البيانات')
-  let dbId = tomlVar('database_id')
-  if (!dbId || dbId === 'REPLACE_ME') {
-    const find = () => {
-      const r = wr(['d1', 'list', '--json'])
-      if (r.code) die('تعذّرت قراءة قواعد البيانات في الحساب', r.all)
-      const list = parseJsonOut(r.out) || []
-      const db = (Array.isArray(list) ? list : []).find(d => d.name === 'focuspoint')
-      return db && (db.uuid || db.id || db.database_id)
-    }
-    dbId = find()
-    if (!dbId) {
-      const r = wr(['d1', 'create', 'focuspoint'])
-      if (r.code) die('تعذّر إنشاء قاعدة البيانات', r.all)
-      dbId = find() || (r.all.match(/database_id\s*=\s*"([0-9a-f-]{36})"/) || [])[1]
-      if (!dbId) die('أُنشئت القاعدة لكن لم أجد رقمها', r.all)
-      ok('أُنشئت قاعدة البيانات focuspoint')
-    }
-    fs.writeFileSync(TOML, tomlText().replace(/database_id\s*=\s*"[^"]*"/, `database_id = "${dbId}"`))
-    ok(`رقم القاعدة كُتب في wrangler.toml (${dbId})`)
+  // always resolve the database by name in the signed-in account, so an id left in wrangler.toml from
+  // another account (after moving the system) can never point at the wrong database
+  const findDb = () => {
+    const r = wr(['d1', 'list', '--json'])
+    if (r.code) die('تعذّرت قراءة قواعد البيانات في الحساب', r.all)
+    const list = parseJsonOut(r.out) || []
+    const db = (Array.isArray(list) ? list : []).find(d => d.name === 'focuspoint')
+    return db && (db.uuid || db.id || db.database_id)
+  }
+  let dbId = findDb()
+  if (!dbId) {
+    const r = wr(['d1', 'create', 'focuspoint'])
+    if (r.code) die('تعذّر إنشاء قاعدة البيانات', r.all)
+    dbId = findDb() || (r.all.match(/database_id\s*=\s*"([0-9a-f-]{36})"/) || [])[1]
+    if (!dbId) die('أُنشئت القاعدة لكن لم أجد رقمها', r.all)
+    ok('أُنشئت قاعدة البيانات focuspoint')
   } else ok(`القاعدة موجودة (${dbId})`)
+  if (tomlVar('database_id') !== dbId) {
+    fs.writeFileSync(TOML, tomlText().replace(/database_id\s*=\s*"[^"]*"/, `database_id = "${dbId}"`))
+    ok('رقم القاعدة كُتب في wrangler.toml')
+  }
 
   let r = wr(['d1', 'execute', 'focuspoint', '--remote', '--file=./schema.sql', '--yes'])
   if (r.code) die('فشل تطبيق مخطط قاعدة البيانات', r.all)
@@ -237,7 +238,15 @@ async function main() {
     const res = await fetch(`${base}${p}`, { method, headers: { 'content-type': 'application/json', ...(token ? { authorization: `Bearer ${token}` } : {}) }, body: JSON.stringify(body) })
     return { status: res.status, data: await res.json().catch(() => ({})) }
   }
-  const probe = await post('/v1/admin/bootstrap', { setup_key: mine.ADMIN_SETUP_KEY })
+  // new secrets take a few seconds to reach every edge location: until then the key is refused (403)
+  let probe
+  for (let i = 0; i < 24; i++) {
+    probe = await post('/v1/admin/bootstrap', { setup_key: mine.ADMIN_SETUP_KEY })
+    if (probe.status !== 403) break
+    if (i === 0) info('ننتظر تفعيل الأسرار الجديدة…')
+    await new Promise(r => setTimeout(r, 5000))
+  }
+  if (probe.status === 403) die('مفتاح الإعداد مرفوض. أعد تشغيل الأمر بعد دقيقة.')
   let token = null
   if (probe.status === 409) ok('حساب المدير موجود مسبقاً — سجّل الدخول من /team')
   else {
