@@ -9,6 +9,14 @@
 
 ## 0. أسرع طريقة: أمر واحد
 
+على الماك، سطر واحد في Terminal يثبّت Node.js إن لم يكن موجوداً، وينزّل ملفات النظام فقط (نحو 1 ميغابايت)، ثم ينشر:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/ahmadkataf/lovable.dev/ccr-06585dff-jdo0jv/focuspoint/setup-mac.sh | bash
+```
+
+أو يدوياً إن كان المشروع على الحاسوب:
+
 على أي حاسوب (ماك أو ويندوز أو لينكس) فيه Node.js 18 أو أحدث (من nodejs.org، النسخة LTS):
 
 ```bash
