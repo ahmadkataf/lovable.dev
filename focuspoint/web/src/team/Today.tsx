@@ -1,0 +1,140 @@
+// /team — اليوم: pending payment verifications first, three small counters, then today's timeline per room.
+import { useEffect, useMemo, useState } from 'react'
+import type { Booking } from '@shared/types'
+import { fmtDate, fmtRange, fmtSYP, fmtTime, todayLocal } from '../format'
+import { Badge, Button, Card, Empty, Icon, Spinner, useToast } from '../ui'
+import { BookingSheet } from './BookingSheet'
+import { ManualBookingSheet } from './ManualBookingSheet'
+import { PageHead, Section, roomColor } from './common'
+import { enableTeamPush, pushState, type PushState } from './push'
+import { store, useRooms, useStore } from './store'
+import { describeError, isLive, localDate, sortByStart } from './util'
+
+export function Today() {
+  const { ready, view, sync } = useStore()
+  const rooms = useRooms()
+  const toast = useToast()
+  const [selected, setSelected] = useState<Booking | null>(null)
+  const [manual, setManual] = useState(false)
+  const [now, setNow] = useState(() => Date.now())
+  useEffect(() => { const t = window.setInterval(() => setNow(Date.now()), 60_000); return () => window.clearInterval(t) }, [])
+
+  const today = todayLocal()
+  const pending = useMemo(() => view.bookings.filter((b) => b.status === 'awaiting_verification').sort((a, b) => (a.updated_at < b.updated_at ? 1 : -1)), [view.bookings])
+  const todays = useMemo(() => view.bookings.filter((b) => localDate(b.start) === today).sort(sortByStart), [view.bookings, today])
+  const liveToday = useMemo(() => todays.filter((b) => isLive(b.status) || b.status === 'completed'), [todays])
+  const revenue = useMemo(() => todays.filter((b) => b.status === 'confirmed' || b.status === 'completed').reduce((s, b) => s + b.price, 0), [todays])
+  // Keep the sheet's booking in sync with the store (status changes after confirm, etc.).
+  const current = selected ? view.bookings.find((b) => b.id === selected.id) ?? null : null
+
+  async function quick(b: Booking, action: 'confirm') {
+    try { await store[action](b); toast.show('تم تأكيد الدفع — أُعلم الزبون', 'ok') } catch (err) { toast.show(describeError(err), 'error') }
+  }
+
+  if (!ready) return <div className="center center-pad"><Spinner /></div>
+
+  return (
+    <>
+      <PageHead title="اليوم" sub={fmtDate(new Date().toISOString())}>
+        <Button onClick={() => setManual(true)}><Icon name="plus" size={18} /> حجز</Button>
+      </PageHead>
+
+      {pending.length > 0 && (
+        <Section title={`بانتظار التحقق من الدفع (${pending.length})`}>
+          <div className="list">
+            {pending.map((b) => (
+              <Card key={b.id} className="verify">
+                <div className="row between gap">
+                  <div className="row gap-sm"><span className="dot" style={{ background: roomColor(view.rooms.find((r) => r.id === b.room_id)?.color) }} /><b>{b.customer_name}</b></div>
+                  <span className="muted small">{fmtTime(b.updated_at)}</span>
+                </div>
+                <dl className="verify-grid">
+                  <div><dt>القاعة والوقت</dt><dd>{b.room_name} · {fmtDate(b.start)} · <span className="num">{fmtRange(b.start, b.end)}</span></dd></div>
+                  <div><dt>المبلغ</dt><dd>{fmtSYP(b.price)}</dd></div>
+                  <div><dt>رمز الحجز (في ملاحظة التحويل)</dt><dd><span className="code num">{b.code}</span></dd></div>
+                  <div><dt>رقم العملية</dt><dd><span className="num">{b.payment_ref ?? '—'}</span></dd></div>
+                </dl>
+                <div className="verify-actions">
+                  <Button onClick={() => quick(b, 'confirm')}><Icon name="check" size={18} /> تأكيد</Button>
+                  <Button variant="danger" onClick={() => setSelected(b)}>رفض</Button>
+                </div>
+              </Card>
+            ))}
+          </div>
+        </Section>
+      )}
+
+      <div className="stats mt">
+        <div className="stat"><b>{liveToday.length}</b><span>حجوزات اليوم</span></div>
+        <div className="stat"><b>{pending.length}</b><span>بانتظار التحقق</span></div>
+        <div className="stat"><b className="num" style={{ fontSize: '1.05rem' }}>{fmtSYP(revenue)}</b><span>إيراد اليوم</span></div>
+      </div>
+
+      <PushCard />
+
+      <Section title="جدول اليوم">
+        {rooms.length === 0 ? (
+          <Empty title="لا توجد قاعات بعد" hint={sync.online ? 'أضف القاعات من قسم القاعات.' : 'ستظهر القاعات بعد أول اتصال بالإنترنت.'} />
+        ) : (
+          <Card>
+            {rooms.map((room) => {
+              const items = liveToday.filter((b) => b.room_id === room.id)
+              return (
+                <div key={room.id} className="tl-room">
+                  <div className="tl-room-name"><span className="dot" style={{ background: roomColor(room.color) }} /><span>{room.name}</span></div>
+                  <div className="tl-items">
+                    {items.length === 0 && <div className="tl-free">فارغة اليوم</div>}
+                    {items.map((b) => {
+                      const isNow = Date.parse(b.start) <= now && now < Date.parse(b.end)
+                      const past = Date.parse(b.end) <= now
+                      return (
+                        <button key={b.id} type="button" className={`tl-item${isNow ? ' is-now' : ''}${past ? ' is-dim' : ''}`} style={{ borderInlineStartColor: roomColor(room.color) }} onClick={() => setSelected(b)}>
+                          <span className="when num">{fmtRange(b.start, b.end)}</span>
+                          <span className="who">{b.customer_name}</span>
+                          {b.status !== 'confirmed' && <Badge tone={b.status === 'completed' ? 'grey' : 'gold'}>{b.status === 'completed' ? 'انتهى' : b.status === 'awaiting_verification' ? 'تحقق' : 'بانتظار الدفع'}</Badge>}
+                        </button>
+                      )
+                    })}
+                  </div>
+                </div>
+              )
+            })}
+          </Card>
+        )}
+      </Section>
+
+      <BookingSheet booking={current} onClose={() => setSelected(null)} />
+      <ManualBookingSheet open={manual} onClose={() => setManual(false)} />
+    </>
+  )
+}
+
+/** "تفعيل إشعارات الفريق" — shown until push is granted on this device. */
+function PushCard() {
+  const { view } = useStore()
+  const toast = useToast()
+  const [state, setState] = useState<PushState>(() => pushState())
+  const [busy, setBusy] = useState(false)
+  const vapid = view.settings?.vapid_public_key
+  if (state === 'granted' || state === 'unsupported' || !vapid) return null
+  async function enable() {
+    setBusy(true)
+    try {
+      const s = await enableTeamPush(vapid!)
+      setState(s)
+      toast.show(s === 'granted' ? 'ستصلك إشعارات الحجوزات والدفعات على هذا الجهاز' : s === 'denied' ? 'الإشعارات مرفوضة من إعدادات المتصفح' : 'المتصفح لا يدعم الإشعارات', s === 'granted' ? 'ok' : 'error')
+    } catch (err) { toast.show(describeError(err), 'error') } finally { setBusy(false) }
+  }
+  return (
+    <Card className="mt push-card">
+      <div className="row gap">
+        <Icon name="bell" size={22} className="wine" />
+        <div>
+          <div className="strong">إشعارات الفريق</div>
+          <div className="muted small">{state === 'denied' ? 'الإشعارات محجوبة — فعّلها من إعدادات المتصفح لهذا الموقع.' : 'تنبيه فوري عند كل حجز جديد أو دفعة بانتظار التحقق.'}</div>
+        </div>
+      </div>
+      {state !== 'denied' && <Button variant="soft" loading={busy} onClick={enable}>تفعيل إشعارات الفريق</Button>}
+    </Card>
+  )
+}

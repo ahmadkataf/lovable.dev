@@ -99,3 +99,7 @@ CREATE TABLE IF NOT EXISTS login_attempts (          -- rate limiting
   count INTEGER NOT NULL DEFAULT 0,
   window_start TEXT NOT NULL
 );
+CREATE TABLE IF NOT EXISTS deleted_rooms (        -- rooms hard-deleted by the admin, so offline team apps can drop them on sync
+  id INTEGER PRIMARY KEY,
+  deleted_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now'))
+);

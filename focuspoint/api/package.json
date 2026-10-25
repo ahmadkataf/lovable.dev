@@ -1,0 +1,28 @@
+{
+  "name": "focuspoint-api",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Focus Point booking system — Cloudflare Worker (API + static web app) backed by D1",
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev --local --test-scheduled",
+    "deploy": "wrangler deploy",
+    "check": "tsc --noEmit && vitest run",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit",
+    "vapid": "node scripts/vapid.mjs",
+    "db:schema": "wrangler d1 execute focuspoint --remote --file=./schema.sql",
+    "db:seed": "wrangler d1 execute focuspoint --remote --file=./seed.sql",
+    "db:schema:local": "wrangler d1 execute focuspoint --local --file=./schema.sql",
+    "db:seed:local": "wrangler d1 execute focuspoint --local --file=./seed.sql"
+  },
+  "dependencies": {
+    "@block65/webcrypto-web-push": "^2.0.0"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^5.20261019.1",
+    "typescript": "^5.6.0",
+    "vitest": "^3.2.0",
+    "wrangler": "^4.40.0"
+  }
+}

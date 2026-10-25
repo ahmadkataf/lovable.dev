@@ -1,0 +1,35 @@
+# Focus Point — Cloudflare Worker (API + the built web app) backed by D1.
+name = "focuspoint-api"
+main = "src/index.ts"
+compatibility_date = "2025-10-01"
+compatibility_flags = ["nodejs_compat"]
+workers_dev = true
+
+# D1 database. Create it with `wrangler d1 create focuspoint` and paste the id below.
+[[d1_databases]]
+binding = "DB"
+database_name = "focuspoint"
+database_id = "REPLACE_ME"
+
+# Cron: every 5 minutes → expire payment holds, send reminders, complete finished bookings (src/cron.ts).
+[triggers]
+crons = ["*/5 * * * *"]
+
+# The Worker serves the built web app (web/dist). run_worker_first: every request hits the Worker,
+# /v1/* is answered by the API and anything else is an asset or falls back to index.html (SPA).
+[assets]
+directory = "../web/dist"
+binding = "ASSETS"
+run_worker_first = true
+not_found_handling = "single-page-application"
+
+[observability]
+enabled = true
+
+# Secrets (never in this file; set with `wrangler secret put <NAME>`, locally in .dev.vars):
+#   TOKEN_SECRET        long random string, signs team bearer tokens (HS256)
+#   VAPID_PUBLIC_KEY    Web Push VAPID public key (base64url)  → `npm run vapid`
+#   VAPID_PRIVATE_KEY   Web Push VAPID private key (base64url) → `npm run vapid`
+#   VAPID_SUBJECT       "mailto:owner@example.com"
+#   WEBHOOK_SECRET      shared secret for POST /v1/payments/shamcash/webhook (X-Webhook-Secret)
+#   ADMIN_SETUP_KEY     one-time key for POST /v1/admin/bootstrap (creating the first admin)
