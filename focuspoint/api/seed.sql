@@ -6,4 +6,4 @@ INSERT INTO rooms (name, type, capacity, contents, price_hour, price_day, color,
  ('غرفة 3', 'private', 4, '{"chairs":4,"tables":1,"ac":true,"wifi":true,"whiteboard":true}', 15000, 100000, '#7b1e2e', '{"x":560,"y":40,"w":220,"h":260}', 1, 3, 'غرفة خاصة لأربعة أشخاص مع لوح كتابة'),
  ('غرفة 4', 'private', 4, '{"chairs":4,"tables":1,"ac":true,"wifi":true,"screen":true}', 15000, 100000, '#7b1e2e', '{"x":820,"y":40,"w":220,"h":260}', 1, 4, 'غرفة خاصة لأربعة أشخاص مع شاشة'),
  ('قاعة الاجتماعات', 'meeting', 10, '{"chairs":10,"tables":1,"screen":true,"whiteboard":true,"ac":true,"wifi":true}', 40000, 250000, '#402127', '{"x":40,"y":500,"w":520,"h":260}', 1, 5, 'قاعة اجتماعات لعشرة أشخاص مع شاشة ولوح كتابة'),
- ('المساحة المفتوحة', 'desk', 8, '{"chairs":8,"tables":4,"ac":true,"wifi":true,"coffee":true}', 8000, 50000, '#a58d73', '{"x":600,"y":500,"w":560,"h":260}', 1, 6, 'مكاتب مشتركة في مساحة مفتوحة');
+ ('المساحة المفتوحة', 'desk', 8, '{"chairs":8,"tables":4,"ac":true,"wifi":true,"coffee":true}', 8000, 50000, '#6b7280', '{"x":600,"y":500,"w":560,"h":260}', 1, 6, 'مكاتب مشتركة في مساحة مفتوحة');

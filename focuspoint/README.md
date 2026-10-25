@@ -38,5 +38,7 @@ Web Push (works in Chrome/Android and in the installed PWA on iOS 16.4+). Staff 
 submitted payments; customers of confirmation, rejection, expiry, and a reminder one hour before the booking.
 Every notification is also stored in the in-app inbox.
 
+Deploy everything with one command: `cd focuspoint && node deploy.mjs` (details in `docs/HANDOVER.md`).
+
 See `api/README.md` and `web/README.md` for setup, secrets, local development and deployment, and `docs/HANDOVER.md`
 (Arabic) for the first deployment on the Cloudflare account, moving to another account/domain, Google Play notes and cost.

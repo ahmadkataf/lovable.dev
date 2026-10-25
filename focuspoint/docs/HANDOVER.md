@@ -7,6 +7,23 @@
 - كل الإعدادات غير السرّية في `api/wrangler.toml` (`account_id`، `routes`، `[vars] PUBLIC_URL` و`ASSETLINKS_FINGERPRINTS`).
 - الأسرار لا تُكتب في أي ملف؛ تُضبط بـ `wrangler secret put`.
 
+## 0. أسرع طريقة: أمر واحد
+
+على أي حاسوب (ماك أو ويندوز أو لينكس) فيه Node.js 18 أو أحدث (من nodejs.org، النسخة LTS):
+
+```bash
+cd focuspoint
+node deploy.mjs
+```
+
+يفتح المتصفح مرة واحدة لتسجيل الدخول إلى Cloudflare، ثم ينشئ قاعدة البيانات ويطبّق المخطط ويدخل القاعات،
+يبني التطبيق وينشره على الدومين المكتوب في `api/wrangler.toml`، يولّد الأسرار ويحفظها في Cloudflare وفي
+`~/.focuspoint/secrets.json` (احتفظ بنسخة منه)، ثم يسأل عن هاتف المدير واسمه وكلمة مروره، ويعرض إنشاء حساب
+مراجع Google Play وتفعيل الدفع عند الوصول. تشغيله مرة ثانية آمن: لا يمسّ البيانات ولا الأسرار الموجودة.
+حساب Cloudflare آخر: `export CLOUDFLARE_ACCOUNT_ID=<id>` قبل الأمر (أو عدّل account_id في wrangler.toml).
+
+الأقسام التالية تشرح الخطوات نفسها يدوياً.
+
 ## 1. النشر الأول على هذا الحساب
 
 المتطلبات: Node 20+، وتوكن Cloudflare API بصلاحيات *Workers Scripts: Edit*, *D1: Edit*, *Workers Routes: Edit*, *Account Settings: Read*.

@@ -17,8 +17,8 @@ const TARGETS = [
   { name: 'icon-512.png', size: 512, pad: 0, bg: null },
   // Maskable: the logo sits inside the safe zone (80%) on a plum background.
   { name: 'icon-512-maskable.png', size: 512, pad: 0.1, bg: '#402127' },
-  // iOS home-screen icon: opaque, slightly padded on cream.
-  { name: 'apple-touch-icon.png', size: 180, pad: 0.06, bg: '#f6f1ea' },
+  // iOS home-screen icon: opaque, slightly padded on white.
+  { name: 'apple-touch-icon.png', size: 180, pad: 0.06, bg: '#ffffff' },
 ]
 
 async function mtime(file) {
