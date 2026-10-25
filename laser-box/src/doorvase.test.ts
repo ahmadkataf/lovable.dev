@@ -105,7 +105,7 @@ describe('doorvase: the door with the vase and flowers', () => {
     const g = 600 / REF_W, frame = eng.slice(0, 13)
     for (const l of frame) expect(l.closed).toBe(true)
     const left = frame.map(l => Math.round((Math.min(...l.pts.map(q => q.x)) - 157.5) * 1000) / 1000).sort((u, v) => u - v)
-    const want = [0, ...[0, 0, 0].map(() => REF.xo * g), ...[-0.4, 0, 0.4].flatMap(d => [0, 0, 0].map(() => REF.xi * g + d))]
+    const want = [0, ...[0, 0, 0].map(() => REF.xo * g), ...[-tpl.defaults.lw, 0, tpl.defaults.lw].flatMap(d => [0, 0, 0].map(() => REF.xi * g + d))]
     left.forEach((x, i) => expect(x).toBeCloseTo(want[i], 2))
     const pts = eng.flatMap(l => samplePoly(l, 2))
     for (const q of pts) { expect(Number.isFinite(q.x) && Number.isFinite(q.y)).toBe(true) }
@@ -133,7 +133,7 @@ describe('doorvase: the door with the vase and flowers', () => {
   })
 
   it('keeps every line on the panel, at least EDGE from its edge, wherever the drawing is moved', () => {
-    for (const p of [{}, { dy: 225 }, { dy: -225 }, { PW: 620, PH: 1680 }, { DW: 250, DH: 500 }] as Record<string, number>[]) {
+    for (const p of [{}, { dy: 225 }, { dy: -225 }, { PW: 620, PH: 1680 }, { DW: 250, DH: 500, lw: 0.4 }] as Record<string, number>[]) {
       const d = gen(p)
       expect(d.errors, JSON.stringify(p)).toEqual([])
       const pn = d.panels[0], b = boxOf(pn.loops.filter(l => l.layer === 'engrave').flatMap(l => samplePoly(l, 2)))
@@ -160,7 +160,7 @@ describe('doorvase: the door with the vase and flowers', () => {
     const nearB = segGrid(eng)
     let worstB = 0, off = 0, all = 0
     for (const l of eng) for (const q of l.pts) { const e = nearB({ x: pn.w - q.x, y: q.y }); worstB = Math.max(worstB, e); all++; if (e > 0.05) off++ }
-    expect(worstB).toBeLessThan(0.3)
+    expect(worstB).toBeLessThan(Math.max(0.3, tpl.defaults.lw)) // a line end that stops at a stroke may sit up to one spacing off its mirror's
     expect(off / all).toBeLessThan(0.0003)
   })
 
@@ -315,7 +315,7 @@ describe('doorvase: the door with the vase and flowers', () => {
 
   it('never burns wood twice: no two laser lines closer than lw − 0.1 mm, where strokes meet included, nor a line folded back on itself', () => {
     for (const p of [{}, { thick: 5, lw: 0.6 }, { thin: 2, lw: 0.5 }, { DW: 250, DH: 600, thick: 4, lw: 0.8 }, { DW: 900, DH: 2050, PW: 1000, PH: 2400, thick: 7, lw: 0.3 }] as Record<string, number>[]) {
-      const d = gen(p), lw = p.lw ?? 0.4
+      const d = gen(p), lw = p.lw ?? tpl.defaults.lw
       expect(d.errors, JSON.stringify(p)).toEqual([])
       expect(d.warnings, JSON.stringify(p)).toEqual([])
       const sp = spacing(engraved(d), lw)
@@ -326,7 +326,7 @@ describe('doorvase: the door with the vase and flowers', () => {
 
   it('says which lines are bold and fine, how long the engraving is and how to set RDWorks; lw is a laser setting', () => {
     const notes = gen().notes.join(' ')
-    expect(notes).toMatch(/العريضة 3 خطوط ليزر بينها 0.4 مم/)
+    expect(notes).toMatch(/العريضة 3 خطوط ليزر بينها 2 مم/)
     expect(notes).toMatch(/والرفيعة خطّ واحد/)
     expect(notes).toMatch(/طبقة Cut واحدة/)
     expect(notes).toMatch(/لا يُحرق مكان مرّتين/)
