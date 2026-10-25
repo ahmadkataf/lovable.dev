@@ -298,17 +298,17 @@ input[dir='ltr'].input { text-align: left; }
 
 /* ---- floor plan ---- */
 .plan { width: 100%; height: auto; font-family: var(--font); }
-.plan-floor { fill: #fbf8f3; stroke: var(--line); stroke-width: 0.4; }
-.plan-wall { fill: #eee7df; }
+.plan-floor { fill: #ffffff; stroke: var(--line); stroke-width: 0.4; }
+.plan-wall { fill: #f3f4f6; }
 .plan-room rect { stroke-width: 0.6; transition: fill 0.15s ease; }
 .plan-room.is-free rect { fill: var(--cream); stroke: var(--wine); }
-.plan-room.is-busy rect { stroke: #cfc6bd; }
+.plan-room.is-busy rect { stroke: #d1d5db; }
 .plan-room.is-selected rect { fill: var(--wine); stroke: var(--wine); }
-.plan-room.is-inactive rect { fill: #f1ece6; stroke: #e2dad2; }
+.plan-room.is-inactive rect { fill: #f9fafb; stroke: #e5e7eb; }
 .plan-room text { pointer-events: none; }
 .plan-name { fill: var(--plum); font-weight: 600; }
 .plan-cap { fill: var(--mute); }
-.plan-room.is-busy .plan-name, .plan-room.is-busy .plan-cap { fill: #9a8f8a; }
+.plan-room.is-busy .plan-name, .plan-room.is-busy .plan-cap { fill: #9ca3af; }
 .plan-room.is-selected .plan-name { fill: #fff; }
 .plan-room.is-selected .plan-cap { fill: rgba(255, 255, 255, 0.8); }
 .plan-room.is-inactive .plan-name, .plan-room.is-inactive .plan-cap { fill: #b8aea8; }
@@ -318,7 +318,7 @@ input[dir='ltr'].input { text-align: left; }
 .plan-label { fill: var(--mute); font-weight: 500; letter-spacing: 0.02em; }
 .legend { display: flex; gap: 14px; flex-wrap: wrap; font-size: 0.78rem; color: var(--mute); margin-top: 10px; }
 .legend-dot { width: 12px; height: 12px; border-radius: 4px; display: inline-block; margin-inline-end: 6px; vertical-align: -2px; border: 1px solid var(--wine); background: var(--cream); }
-.legend-dot.busy { background: repeating-linear-gradient(45deg, #ece6df 0 2px, #cfc6bd 2px 3px); border-color: #cfc6bd; }
+.legend-dot.busy { background: repeating-linear-gradient(45deg, #f3f4f6 0 2px, #d1d5db 2px 3px); border-color: #d1d5db; }
 .legend-dot.selected { background: var(--wine); }
 
 /* ---- room list ---- */
