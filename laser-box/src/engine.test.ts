@@ -1088,7 +1088,8 @@ describe('wedding designs', () => {
   })
 
   it('every door design: no two laser lines burn the same wood, where grooves meet included, and every groove has its n lines', () => {
-    const doors = [...CATEGORIES.find(c => c.id === 'doorsmodern')!.ids, ...CATEGORIES.find(c => c.id === 'doorsarab')!.ids]
+    // the grooved door designs (the traced vase door is single-line engraving with its own tests)
+    const doors = [...CATEGORIES.find(c => c.id === 'doorsmodern')!.ids, ...CATEGORIES.find(c => c.id === 'doorsarab')!.ids].filter(id => id !== 'doorvase')
     expect(doors.length).toBe(17)
     for (const id of doors) for (const [gw, lw] of [[10, 2], [12, 1.5]]) {
       const d = generate(T(id), { gw, lw }, S0)
