@@ -33,8 +33,8 @@ export function PlanView({ plan, rooms, status, onSelect, selectedId, className 
     >
       <defs>
         <pattern id="plan-hatch" width={2 * unit} height={2 * unit} patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
-          <rect width={2 * unit} height={2 * unit} fill="#ece6df" />
-          <line x1="0" y1="0" x2="0" y2={2 * unit} stroke="#cfc6bd" strokeWidth={0.6 * unit} />
+          <rect width={2 * unit} height={2 * unit} fill="#f3f4f6" />
+          <line x1="0" y1="0" x2="0" y2={2 * unit} stroke="#d1d5db" strokeWidth={0.6 * unit} />
         </pattern>
       </defs>
       <rect x="0" y="0" width={W} height={H} rx={radius} className="plan-floor" />

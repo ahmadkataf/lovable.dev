@@ -10,7 +10,7 @@ import { Confirm, PageHead } from './common'
 import { store, useStore } from './store'
 import { capacityLabel, contentsList, cx, describeError, isTemp, parseInt10, ROOM_TYPE, ROOM_TYPES } from './util'
 
-const SWATCHES = ['#7b1e2e', '#a58d73', '#2f7d4f', '#1f5f8b', '#b26a1b', '#5b4a9b', '#2a7f7a', '#402127']
+const SWATCHES = ['#7b1e2e', '#6b7280', '#2f7d4f', '#1f5f8b', '#b26a1b', '#5b4a9b', '#2a7f7a', '#402127']
 
 export function Rooms() {
   const { ready, view } = useStore()

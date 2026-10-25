@@ -38,7 +38,7 @@ export default defineConfig({
         short_name: 'Focus Point',
         description: 'احجز مكانك في فوكس بوينت — درعا',
         theme_color: '#7b1e2e',
-        background_color: '#f6f1ea',
+        background_color: '#ffffff',
         display: 'standalone',
         orientation: 'portrait',
         dir: 'rtl',

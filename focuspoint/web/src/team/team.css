@@ -190,7 +190,7 @@
 .pe-canvas { background: var(--paper); border: 1px solid var(--line); border-radius: var(--radius); padding: 8px; overflow: hidden; }
 .pe-svg { display: block; width: 100%; height: auto; touch-action: none; user-select: none; -webkit-user-select: none; outline: none; border-radius: 10px; }
 .pe-svg .floor { fill: #fff; stroke: var(--line); }
-.pe-svg .gridline { stroke: rgba(64, 33, 39, 0.06); }
+.pe-svg .gridline { stroke: rgba(17, 24, 39, 0.06); }
 .pe-svg .wall { fill: #ebe4dc; stroke: #d6ccc2; cursor: move; }
 .pe-svg .room { fill: var(--cream); stroke: var(--wine); stroke-width: 1.5; cursor: move; }
 .pe-svg .room.is-inactive { fill: #f1ece6; stroke: #cfc6bd; stroke-dasharray: 4 3; }
