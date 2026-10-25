@@ -40,7 +40,7 @@ export function Book() {
   const [errors, setErrors] = useState<{ name?: string; phone?: string; form?: string }>({})
   const [busy, setBusy] = useState(false)
 
-  useEffect(() => { if (!valid) navigate('/', { replace: true }) }, [valid, navigate])
+  useEffect(() => { if (!valid) navigate('/book', { replace: true }) }, [valid, navigate])
   useEffect(() => { if (room && people > room.capacity) setPeople(room.capacity) }, [room, people])
 
   async function submit(e: FormEvent) {
@@ -74,13 +74,13 @@ export function Book() {
   if (!valid) return null
   if (roomsQ.loading && !room) return <div className="center" style={{ padding: 40 }}><span className="spinner" /></div>
   if (!room) {
-    return <Card><p className="text-center muted">ما لقينا هذه الغرفة.</p><div className="center mt"><Link to="/" className="btn btn-soft">رجوع</Link></div></Card>
+    return <Card><p className="text-center muted">ما لقينا هذه الغرفة.</p><div className="center mt"><Link to="/book" className="btn btn-soft">رجوع</Link></div></Card>
   }
 
   return (
     <div className="stack">
       <div className="page-head">
-        <Link to="/" className="icon-btn" aria-label="رجوع"><Icon name="back" /></Link>
+        <Link to="/book" className="icon-btn" aria-label="رجوع"><Icon name="back" /></Link>
         <h1 className="h1">تأكيد التفاصيل</h1>
       </div>
 

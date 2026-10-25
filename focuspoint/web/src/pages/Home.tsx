@@ -1,11 +1,12 @@
-// Home: pick when, see the plan coloured by availability, tap a room. One screen, one job.
+// /book — pick when, see the plan coloured by availability, tap a room. One screen, one job.
+// `?room=<id>` (from the site's «احجز» buttons) opens that room's sheet as soon as the rooms are loaded.
 import { useEffect, useMemo, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import type { PublicSettings, Room } from '@shared/types'
-import logoUrl from '@shared/logo.svg'
 import { useCached } from '../lib/data'
 import { useOnline } from '../offline'
-import { addDays, addMinutes, fmtClock, fmtSYP, fromLocal, todayLocal } from '../format'
-import { Badge, Card, Icon, Select, Spinner } from '../ui'
+import { addDays, addMinutes, fmtClock, fmtSYP, fromLocal, shortClock, todayLocal } from '../format'
+import { Badge, Card, Icon, Select, Spinner, roomTone } from '../ui'
 import { PlanView } from '../plan/PlanView'
 import { RoomSheet } from '../components/RoomSheet'
 import { InstallHint } from '../components/InstallHint'
@@ -14,7 +15,7 @@ import { durationLabel } from '../format'
 
 const WD_SHORT = ['أحد', 'اثنين', 'ثلاثاء', 'أربعاء', 'خميس', 'جمعة', 'سبت']
 
-export function Home() {
+export function BookHome() {
   const online = useOnline()
   const settingsQ = useCached<PublicSettings>('/v1/settings')
   const roomsQ = useCached<Room[]>('/v1/rooms')
@@ -26,6 +27,18 @@ export function Home() {
 
   const availQ = useCached<Availability[]>(pick ? `/v1/availability?date=${pick.date}` : null, { pollMs: 60_000 })
   const [selected, setSelected] = useState<Room | null>(null)
+
+  // Preselect the room named by ?room=<id> once, then drop the param so closing the sheet does not reopen it.
+  const [params, setParams] = useSearchParams()
+  const roomParam = params.get('room')
+  useEffect(() => {
+    if (!roomParam || !rooms.length) return
+    const r = rooms.find((x) => String(x.id) === roomParam)
+    if (r) setSelected(r)
+    const next = new URLSearchParams(params)
+    next.delete('room')
+    setParams(next, { replace: true })
+  }, [roomParam, rooms, params, setParams])
 
   const range = useMemo(() => {
     if (!pick) return null
@@ -69,10 +82,10 @@ export function Home() {
   return (
     <div className="stack">
       <div className="hero">
-        <img src={logoUrl} alt="Focus Point" className="hero-logo" width={56} height={56} />
+        <span className="tile-icon brand sm" aria-hidden="true"><Icon name="calendar" size={22} /></span>
         <div>
-          <h1 className="hero-title">احجز مكانك بدرعا</h1>
-          <p className="hero-sub">{settings ? `يومياً ${fmtClock(settings.open)} – ${fmtClock(settings.close)}` : 'مساحة عمل مشتركة · فوكس بوينت'}</p>
+          <h1 className="hero-title">احجز مكانك</h1>
+          <p className="hero-sub">{settings ? `يومياً ${shortClock(settings.open)} – ${shortClock(settings.close)}` : 'مساحة عمل مشتركة · فوكس بوينت'}</p>
         </div>
       </div>
 
@@ -84,7 +97,7 @@ export function Home() {
       {settings && pick && (
         <>
           <Card>
-            <div className="chips" role="radiogroup" aria-label="اليوم">
+            <div className="chips date-strip" role="radiogroup" aria-label="اليوم">
               {days.map((d, i) => {
                 const [y, m, dd] = d.split('-').map(Number)
                 const wd = new Date(Date.UTC(y, m - 1, dd)).getUTCDay()
@@ -116,13 +129,15 @@ export function Home() {
 
           {rooms.some((r) => r.plan) && (
             <Card>
-              <PlanView
-                plan={settings.plan}
-                rooms={rooms}
-                selectedId={selected?.id ?? null}
-                status={(r) => (!r.active ? 'inactive' : busyIds.has(r.id) ? 'busy' : 'free')}
-                onSelect={(r) => setSelected(r)}
-              />
+              <div className="plan-wrap">
+                <PlanView
+                  plan={settings.plan}
+                  rooms={rooms}
+                  selectedId={selected?.id ?? null}
+                  status={(r) => (!r.active ? 'inactive' : busyIds.has(r.id) ? 'busy' : 'free')}
+                  onSelect={(r) => setSelected(r)}
+                />
+              </div>
               <div className="legend">
                 <span><i className="legend-dot" /> متاحة</span>
                 <span><i className="legend-dot busy" /> محجوزة</span>
@@ -136,7 +151,7 @@ export function Home() {
               const busy = busyIds.has(r.id)
               return (
                 <button key={r.id} type="button" className={`room-card${busy ? ' is-busy' : ''}${selected?.id === r.id ? ' is-selected' : ''}`} onClick={() => setSelected(r)}>
-                  <span className="room-swatch"><Icon name={ROOM_ICON[r.type]} size={22} /></span>
+                  <span className={`room-swatch ${roomTone(r.type)}`}><Icon name={ROOM_ICON[r.type]} size={22} /></span>
                   <span>
                     <span className="room-name">{r.name}</span>
                     <span className="room-meta">

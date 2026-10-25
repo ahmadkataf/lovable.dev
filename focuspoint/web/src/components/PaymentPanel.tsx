@@ -65,7 +65,7 @@ export function PaymentPanel({ booking, payment, onUpdated, onExpired }: {
             لم يصلنا رقم العملية خلال المهلة، فعاد المكان متاحاً للجميع.
             {' '}إذا كنت قد حوّلت المبلغ فعلاً، تواصل مع المركز ومعك رمز الحجز <b className="num">{payment.code}</b>.
           </p>
-          <Link to="/" className="btn btn-primary btn-lg mt">احجز من جديد</Link>
+          <Link to="/book" className="btn btn-primary btn-lg mt">احجز من جديد</Link>
         </div>
       </Card>
     )

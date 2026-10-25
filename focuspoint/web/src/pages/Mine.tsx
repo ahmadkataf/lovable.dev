@@ -34,7 +34,7 @@ export function Mine() {
       {!q.loading && !q.data && !!q.error && <div className="alert alert-info">{errorMessage(q.error)} — ستظهر حجوزاتك عند عودة الاتصال.</div>}
       {!q.loading && !q.error && shown.length === 0 && (
         tab === 'upcoming'
-          ? <Empty title="ما عندك حجوزات قادمة" hint="احجز مكتبك أو غرفتك بثلاث خطوات." action={<Link to="/" className="btn btn-primary">احجز الآن</Link>} />
+          ? <Empty title="ما عندك حجوزات قادمة" hint="احجز مكتبك أو غرفتك بثلاث خطوات." action={<Link to="/book" className="btn btn-primary">احجز الآن</Link>} />
           : <Empty title="لا حجوزات سابقة" />
       )}
       <div className="stack-sm">

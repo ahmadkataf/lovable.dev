@@ -91,7 +91,7 @@ export function RequireTeam({ children, adminOnly }: { children: ReactNode; admi
   if (!user) return <TeamLogin />
   if (adminOnly && !isAdmin) {
     return (
-      <div className="container" style={{ paddingTop: 48 }}>
+      <div className="container container-narrow" style={{ paddingTop: 48 }}>
         <Card>
           <h2 className="h2">هذه الصفحة للمدير فقط</h2>
           <p className="muted">حسابك لا يملك صلاحية الوصول إلى هنا.</p>
@@ -130,7 +130,7 @@ function TeamLogin() {
           <Input type="password" autoComplete="current-password" dir="ltr" value={password} onChange={(e) => setPassword(e.target.value)} />
         </Field>
         <Button type="submit" block size="lg" loading={busy}>دخول</Button>
-        <a href="/" className="login-back muted">← رجوع إلى صفحة الحجز</a>
+        <a href="/book" className="login-back muted">← رجوع إلى صفحة الحجز</a>
       </form>
     </div>
   )

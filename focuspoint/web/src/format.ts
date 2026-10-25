@@ -108,6 +108,10 @@ export function fmtClock(timeHHMM: string): string {
   const h12 = h % 12 === 0 ? 12 : h % 12
   return `${h12}:${pad(mi)} ${h < 12 ? 'ص' : 'م'}`
 }
+/** "9 ص" for whole hours, "9:30 ص" otherwise. */
+export function shortClock(timeHHMM: string): string {
+  return fmtClock(timeHHMM).replace(':00', '')
+}
 
 /** Badge text + tone for a status; a cash ("pay on arrival") booking awaiting the team reads differently. */
 export function statusLabel(s: BookingStatus, method?: PaymentMethod): { text: string; tone: 'wine' | 'gold' | 'green' | 'grey' | 'red' } {

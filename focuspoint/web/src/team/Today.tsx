@@ -6,6 +6,9 @@ import { Badge, Button, Card, Empty, Icon, Sheet, Spinner, useToast } from '../u
 import { BookingSheet } from './BookingSheet'
 import { ManualBookingSheet } from './ManualBookingSheet'
 import { PageHead, Section, roomColor } from './common'
+
+/** Room dot colour when the owner has not picked one: the public site's space-type coding. */
+const TYPE_DOT: Record<string, string> = { private: 'var(--blue)', meeting: 'var(--violet)', hall: 'var(--violet)', desk: 'var(--teal)' }
 import { enableTeamPush, pushState, type PushState } from './push'
 import { store, useFresh, useRooms, useStore } from './store'
 import { describeError, isBlocking, isPendingVerification, localDate, sortByStart } from './util'
@@ -82,7 +85,7 @@ export function Today() {
       <div className="stats mt">
         <div className="stat"><b>{liveToday.length}</b><span>حجوزات اليوم</span></div>
         <div className="stat"><b>{pending.length}</b><span>بانتظار التحقق</span></div>
-        <div className="stat"><b className="num" style={{ fontSize: '1.05rem' }}>{fmtSYP(revenue)}</b><span>إيراد اليوم</span></div>
+        <div className="stat"><b className="money" style={{ fontSize: '1.05rem' }}>{fmtSYP(revenue)}</b><span>إيراد اليوم</span></div>
       </div>
 
       <PushCard />
@@ -96,7 +99,7 @@ export function Today() {
               const items = liveToday.filter((b) => b.room_id === room.id)
               return (
                 <div key={room.id} className="tl-room">
-                  <div className="tl-room-name"><span className="dot" style={{ background: roomColor(room.color) }} /><span>{room.name}</span></div>
+                  <div className="tl-room-name"><span className="dot" style={{ background: room.color ? roomColor(room.color) : TYPE_DOT[room.type] }} /><span>{room.name}</span></div>
                   <div className="tl-items">
                     {items.length === 0 && <div className="tl-free">فارغة اليوم</div>}
                     {items.map((b) => {

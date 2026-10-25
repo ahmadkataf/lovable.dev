@@ -426,7 +426,7 @@ function ReportsTab() {
       {report && (
         <>
           <div className="report-kpis">
-            <div className="stat"><b className="num" style={{ fontSize: '1.1rem' }}>{fmtSYP(report.revenue)}</b><span>الإيراد (المؤكد والمنتهي)</span></div>
+            <div className="stat"><b className="money" style={{ fontSize: '1.1rem' }}>{fmtSYP(report.revenue)}</b><span>الإيراد (المؤكد والمنتهي)</span></div>
             <div className="stat"><b>{paid}</b><span>حجوزات مدفوعة من {report.bookings.length}</span></div>
           </div>
           <div className="row between mb-sm"><span className="strong">الساعات حسب القاعة</span><span className="muted small">{Math.round(totalHours)} ساعة</span></div>
@@ -455,9 +455,9 @@ function HoursBars({ bars }: { bars: { name: string; hours: number }[] }) {
         const x = W - labelW - w
         return (
           <g key={b.name}>
-            <text x={W - 4} y={y + rowH / 2} fontSize={13} textAnchor="start" dominantBaseline="central" fill="#402127" fontWeight={600}>{b.name}</text>
-            <rect x={x} y={y + 5} width={w} height={rowH - 10} rx={6} fill="#7b1e2e" opacity={0.85} />
-            <text x={x - 6} y={y + rowH / 2} fontSize={12} textAnchor="start" dominantBaseline="central" fill="#7a6a66">{Math.round(b.hours * 10) / 10}</text>
+            <text x={W - 4} y={y + rowH / 2} fontSize={13} textAnchor="start" dominantBaseline="central" fill="#0f172a" fontWeight={600}>{b.name}</text>
+            <rect x={x} y={y + 5} width={w} height={rowH - 10} rx={6} fill="#7b1e2e" />
+            <text x={x - 6} y={y + rowH / 2} fontSize={12} textAnchor="start" dominantBaseline="central" fill="#64748b">{Math.round(b.hours * 10) / 10}</text>
           </g>
         )
       })}

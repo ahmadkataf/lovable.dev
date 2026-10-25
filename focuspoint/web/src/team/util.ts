@@ -96,7 +96,7 @@ export function describeError(err: unknown): string {
 }
 
 // ---- labels ----
-export const ROOM_TYPE: Record<RoomType, string> = { private: 'مكتب خاص', meeting: 'غرفة اجتماعات', desk: 'مكتب مشترك', hall: 'قاعة' }
+export const ROOM_TYPE: Record<RoomType, string> = { private: 'غرفة خاصة', meeting: 'قاعة اجتماعات', desk: 'مساحة مفتوحة', hall: 'قاعة' }
 export const ROOM_TYPES: RoomType[] = ['private', 'meeting', 'desk', 'hall']
 export const METHOD: Record<PaymentMethod, string> = { shamcash: 'شام كاش', cash: 'نقداً', free: 'مجاني' }
 export const STATUSES: BookingStatus[] = ['awaiting_verification', 'pending_payment', 'confirmed', 'completed', 'cancelled', 'rejected', 'expired']
@@ -131,7 +131,7 @@ export function contentsList(c: RoomContents): { icon: IconName; label: string }
   if (c.tables) out.push({ icon: 'table', label: c.tables === 1 ? 'طاولة' : c.tables === 2 ? 'طاولتان' : `${c.tables} طاولات` })
   if (c.screen) out.push({ icon: 'screen', label: 'شاشة' })
   if (c.projector) out.push({ icon: 'projector', label: 'بروجكتر' })
-  if (c.whiteboard) out.push({ icon: 'whiteboard', label: 'لوح أبيض' })
+  if (c.whiteboard) out.push({ icon: 'whiteboard', label: 'سبورة' })
   if (c.wifi) out.push({ icon: 'wifi', label: 'إنترنت' })
   if (c.ac) out.push({ icon: 'ac', label: 'تكييف' })
   if (c.coffee) out.push({ icon: 'coffee', label: 'قهوة' })

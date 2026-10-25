@@ -10,7 +10,8 @@ import { Confirm, PageHead } from './common'
 import { store, useStore } from './store'
 import { capacityLabel, contentsList, cx, describeError, isTemp, parseInt10, ROOM_TYPE, ROOM_TYPES } from './util'
 
-const SWATCHES = ['#7b1e2e', '#6b7280', '#2f7d4f', '#1f5f8b', '#b26a1b', '#5b4a9b', '#2a7f7a', '#402127']
+// Flat room colours (brand + the app's accents). No warm/brown tones.
+const SWATCHES = ['#7b1e2e', '#2563eb', '#7c3aed', '#0d9488', '#0284c7', '#059669', '#e11d48', '#475569']
 
 export function Rooms() {
   const { ready, view } = useStore()
@@ -78,7 +79,7 @@ const fromRoom = (r: Room): Draft => ({
 
 const FLAGS: { key: keyof RoomContents; label: string }[] = [
   { key: 'wifi', label: 'إنترنت' }, { key: 'ac', label: 'تكييف' }, { key: 'screen', label: 'شاشة' },
-  { key: 'whiteboard', label: 'لوح أبيض' }, { key: 'projector', label: 'بروجكتر' }, { key: 'coffee', label: 'قهوة' },
+  { key: 'whiteboard', label: 'سبورة' }, { key: 'projector', label: 'بروجكتر' }, { key: 'coffee', label: 'قهوة' },
 ]
 
 function RoomSheet({ room, onClose }: { room: Room | 'new' | null; onClose: () => void }) {

@@ -161,7 +161,7 @@ export function BookingPage() {
               {b.status === 'expired' && 'لم يصلنا رقم العملية ضمن المهلة، فعاد المكان متاحاً للجميع.'}
               {b.status === 'cancelled' && 'تم إلغاء هذا الحجز.'}
             </p>
-            <Link to="/" className="btn btn-primary btn-lg mt">احجز من جديد</Link>
+            <Link to="/book" className="btn btn-primary btn-lg mt">احجز من جديد</Link>
           </div>
         </Card>
       )}
@@ -172,7 +172,7 @@ export function BookingPage() {
             <span className="status-mark grey"><Icon name="check" size={32} /></span>
             <h2 className="h2">شكراً لزيارتك</h2>
             <p className="muted small mt-sm">نتمنى أن تكون قد أنجزت ما خططت له.</p>
-            <Link to="/" className="btn btn-soft mt">احجز مرة ثانية</Link>
+            <Link to="/book" className="btn btn-soft mt">احجز مرة ثانية</Link>
           </div>
         </Card>
       )}

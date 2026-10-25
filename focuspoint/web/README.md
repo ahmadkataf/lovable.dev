@@ -24,17 +24,21 @@ in the web app; the VAPID *public* key comes from `GET /v1/settings`.
 ```
 src/
   main.tsx, App.tsx          entry + router (customer routes under <Layout/>, /team/* lazy-loads src/team/TeamApp.tsx)
-  styles.css                 design tokens (--wine --plum --cream --paper --gold --ink --mute), fonts, base, utilities
+  styles.css                 design tokens (white + slate neutrals, --brand burgundy, flat accents; old --wine/--plum/--cream
+                             names are aliases), fonts, base, site utilities (.container .section .tile …), app components
   device.ts                  deviceId(): the random id that identifies this install (X-Device header)
   api.ts                     api.get/post/patch/del, ApiError (status, offline), errorMessage()
   offline.ts                 useOnline(), cache (IndexedDB kv), cachedGet() (network first → cache)
   format.ts                  Asia/Damascus date/time formatting, SYP, phone normalisation, status labels
   team.tsx                   TeamProvider / useTeam / RequireTeam (inline login screen)
-  ui/                        Button Card Field Input Select Textarea Stepper Toggle Sheet Badge Empty Spinner Tabs Segmented OfflineBar Icon, useToast + ToastHost
+  ui/                        Button Card Field Input Select Textarea Stepper Toggle Sheet Badge Empty Spinner Tabs Segmented OfflineBar Icon, useToast + ToastHost,
+                             roomTone (room type → flat accent: private blue, meeting violet, desk teal, hall sky)
   plan/PlanView.tsx          the floor plan (SVG) coloured by availability
   lib/                       booking logic (slots, prices), data hook, push, ics, inbox state, per-device memory
-  components/                Layout, RoomSheet, PaymentPanel, BookingSummary, NotifyPrompt, InstallHint
-  pages/                     Home (/), Book (/book/:roomId), BookingPage (/b/:id), Mine (/mine), Inbox (/inbox)
+  components/                Layout (header + page + footer + phone bottom nav), RoomSheet, PaymentPanel, BookingSummary, NotifyPrompt, InstallHint
+  components/site/           SiteHeader (+ phone menu sheet), SiteFooter, BottomNav, centre.ts (the centre's facts + useCentre())
+  pages/site/                the website: Landing (/), Spaces (/spaces), About (/about), Contact (/contact) — lazy-loaded
+  pages/                     BookHome in Home.tsx (/book, ?room=<id> opens that room), Book (/book/:roomId), BookingPage (/b/:id), Mine (/mine), Inbox (/inbox)
   team/                      the team panel (separate module; must `export default` a component for /team/*)
   sw.ts                      service worker (injectManifest, no Workbox runtime)
 scripts/icons.mjs            renders public/icons/*.png from ../shared/logo.svg with Playwright (runs before builds)
@@ -44,7 +48,7 @@ Shared code lives in `../shared` (types, fonts, logo) and is imported as `@share
 
 ## Customer flow (no accounts)
 
-1. **Home** — pick day / start time / duration (defaults: today, next free slot, 2 h), see the plan and the room list
+1. **/book** — pick day / start time / duration (defaults: today, next free slot, 2 h), see the plan and the room list
    coloured from a single `GET /v1/availability?date=`, tap a room → sheet with contents and price → «احجز هالغرفة».
    After closing time the chosen day auto-advances to the next bookable day (the «اليوم» chip is disabled); the room
    sheet only lets you book a start time that is still offered.
@@ -93,7 +97,7 @@ Two layers, both without external libraries:
 
 ## Installable (PWA)
 
-`manifest.webmanifest` (name فوكس بوينت, short_name Focus Point, theme `#7b1e2e`, background `#f6f1ea`, standalone,
+`manifest.webmanifest` (name فوكس بوينت, short_name Focus Point, theme `#ffffff`, background `#ffffff`, standalone,
 `dir: rtl`, `lang: ar`) with 192/512 PNG icons plus a maskable 512 and an Apple touch icon, all rendered from
 `shared/logo.svg` by `scripts/icons.mjs`. The script runs before every build, skips when the PNGs are newer than the
 logo, and only warns when Playwright is unavailable (the PNGs are committed).
