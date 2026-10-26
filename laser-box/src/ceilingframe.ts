@@ -20,6 +20,14 @@
 // are u = v and u = L − v. Frame coordinates (the board's, and for the tests and pictures): x right, y down from the
 // outer top-left corner; the strips run clockwise round the frame (top: x = u, y = v; right: x = PW − v, y = u;
 // bottom: x = PW − u, y = PH − v; left: x = v, y = PH − u).
+//
+// 'sizeIs' 2 reads PW × PH as the window inside the frame (the outside is then PW + 2·band by PH + 2·band). 'mid' adds
+// a middle strip across the window at its middle, perpendicular to the long sides and as long as the window's short
+// side, butt-joined (square ends) to the long strips' inner edges: the long strips then take an even number of steps
+// so a motif sits on its axis, and its own motifs continue that column from one long strip's motif to the other's
+// (the short strips' steps), with a solid bar 2·sw wide over each joint. Its own coordinates: u along it from the
+// window's edge (0 … Lm), v across (0 … midW). The band's straps (sw) grow with it: a 30 cm rosette cut with 3 mm
+// straps is lace that breaks, so sw = max(web, STRAP · visible band).
 import type { Template, ParamDef, Common, BuildResult } from './templates'
 import { Loop, Vtx, polyLoop, circle, round3, arcInfo, signedArea } from './geom'
 import type { PanelSpec } from './joints'
@@ -44,7 +52,10 @@ function memo<T>(cache: Map<string, T>, key: string, make: () => T): T {
   cache.set(key, v)
   return v
 }
-const FRAMES = new Map<string, { top: Piece[]; side: Piece[] }>(), MEDS = new Map<string, Piece[]>(), LATS = new Map<string, Piece[]>()
+const FRAMES = new Map<string, { top: Piece[]; side: Piece[] }>(), MEDS = new Map<string, Piece[]>(), LATS = new Map<string, Piece[]>(), MIDS = new Map<string, Piece[]>()
+
+/** The band's straps as a share of its visible width (at least web): 7.6 mm in a 380 mm band, web in the usual ones. */
+export const STRAP = 0.02
 
 /** How far each glue strip behind the field's joint reaches onto the strip and onto the field (mm). */
 export const CLEAT_REACH = 10
@@ -53,10 +64,12 @@ export const CLEAT_REACH = 10
 export const KIND_LABELS = ['قطعة واحدة', 'أربع شرائح بزوايا 45 ولوح وسط']
 export const STYLE_LABELS = ['وردات ومثمّن (كالصورة)', 'نجوم ثمانية ودائرة']
 export const CENTER_LABELS = ['مفرّغة في الوسط', 'قطعة منفصلة', 'بلا زخرفة وسطى']
+export const SIZE_LABELS = ['مقاس الديكور من الخارج', 'مقاس الفتحة داخل الإطار']
 
 const PARAMS: ParamDef[] = [
-  mm('PW', 'العرض الكلّي للديكور', 300, 2440, 'مقاس الفتحة مع الركبة على الجبس (من الخارج): 1400 للأول و1380 للثاني'),
-  mm('PH', 'الطول الكلّي للديكور', 300, 2440, 'مقاس الفتحة مع الركبة على الجبس (من الخارج): 1050 للأول و1080 للثاني'),
+  intP('sizeIs', 'المقاس', 1, 2, '1 = العرض والطول مقاس الديكور كلّه من الخارج (مع الركبة على الجبس)، 2 = مقاس الفتحة داخل الإطار، فيكون الديكور من الخارج أكبر بعرض الإطار من كلّ جهة', SIZE_LABELS),
+  mm('PW', 'العرض', 300, 2440, 'حسب «المقاس»: الديكور من الخارج، أو الفتحة داخل الإطار (1400 للأول و1380 للثاني)'),
+  mm('PH', 'الطول', 300, 2440, 'حسب «المقاس»: الديكور من الخارج، أو الفتحة داخل الإطار (1050 للأول و1080 للثاني)'),
   mm('ov', 'الركبة على الجبس', 0, 200, 'كم يرتكز كلّ طرف من الديكور على لوح الجبسن بورد؛ تبقى خشباً مصمتاً ولا تظهر من تحت'),
   mm('band', 'عرض الإطار', 60, 600, 'من الحافّة الخارجية للديكور إلى حافّته الداخلية، والركبة على الجبس منه'),
   intP('kind', 'القطع', 1, 2, '1 = الديكور كلّه قطعة واحدة من لوح واحد (إن اتّسع له اللوح)، 2 = أربع شرائح تلتقي بزوايا 45° ولوح وسط، للديكور الأكبر من اللوح', KIND_LABELS),
@@ -65,6 +78,8 @@ const PARAMS: ParamDef[] = [
   mm('med', 'قطر الزخرفة الوسطى', 150, 1200, 'المثمّن بين ضلعين متقابلين، والدائرة قطرها'),
   intP('fill', 'نقش الوسط كلّه', 0, 1, '1 = شبكة زخرفة تملأ الوسط حول الزخرفة الوسطى فلا تبقى مساحة سادة، 0 = الوسط سادة'),
   mm('fcell', 'خليّة شبكة الوسط', 30, 250, 'المسافة بين وردة الشبكة والحشوة التي بجانبها (أو بين النجمة والصليب)'),
+  intP('mid', 'شريحة وسطى', 0, 1, '1 = شريحة مزخرفة تقطع الفتحة من منتصف الضلع الطويل إلى المقابل، طرفاها مستقيمان بلا شطف يلتقيان بالشريحتين الطويلتين، ونقشتها تكمل نقشتهما (مع «بلا زخرفة وسطى» / «إطار فقط»)'),
+  mm('midW', 'عرض الشريحة الوسطى', 0, 600, '0 = بعرض الإطار الظاهر'),
   intP('line', 'خطّ الزاوية', 0, 1, 'في القطعة الواحدة: 1 = حفر خطّ رفيع على شريط الخشب المائل في كلّ زاوية (خطّ التقاء الـ45°)'),
   { ...mm('web', 'أقلّ خشب بين فتحتين', 2, 8, 'بين كلّ فتحتين، وبين الفتحة والحافّة؛ 3 مم يكفي للـMDF'), step: 0.5 },
   { ...mm('fit', 'خلوص اللوح الأوسط', 0, 2, 'في الشرائح: بين اللوح الأوسط والإطار من كلّ جهة'), step: 0.1 },
@@ -75,7 +90,7 @@ const PARAMS: ParamDef[] = [
   intP('n', 'عدد الديكورات', 1, 10),
 ]
 
-const DEFAULTS = { PW: 1400, PH: 1050, ov: 30, band: 170, kind: 1, style: 1, center: 1, med: 450, fill: 1, fcell: 70, line: 0, web: 3, fit: 0.2, cleats: 1, back: 0, sheetL: 2440, sheetW: 1220, n: 1 }
+const DEFAULTS = { sizeIs: 1, PW: 1400, PH: 1050, ov: 30, band: 170, kind: 1, style: 1, center: 1, med: 450, fill: 1, fcell: 70, mid: 0, midW: 0, line: 0, web: 3, fit: 0.2, cleats: 1, back: 0, sheetL: 2440, sheetW: 1220, n: 1 }
 
 // ------------------------------------------------------------------ shapes (loops with arcs)
 
@@ -672,37 +687,58 @@ export function waistUnit2(p: number, H: number, d: StarDims, web: number, caps?
 
 /** The rosettes' ring radius and their step, of the pattern's width (the picture: rings nearly touching, filling the band). */
 export const ROSE = { R: 0.38, p: 0.9 }
+/** The least room between two rings of the band (of its pattern width): the picture's, near enough. */
+export const WAIST = 0.12
 
 /** Everything the pieces are sized on; shared by the build and the tests. */
 export function frameGeom(p: Record<string, number>) {
   const kind = pick(p.kind ?? 1, 1, 2), style = pick(p.style ?? 1, 1, 2), center = pick(p.center, 1, 3)
   // the field panel of the strips (kind 2 with the medallion's board)
   const field = kind === 2 && center === 1
-  const { PW, PH, ov, band: b, web, fit } = p
+  const { ov, band: b, web, fit } = p
+  const sizeIs = pick(p.sizeIs ?? 1, 1, 2), PW = sizeIs === 2 ? p.PW + 2 * b : p.PW, PH = sizeIs === 2 ? p.PH + 2 * b : p.PH
+  // the band's straps, thicker in a wide band (the motif grows with it)
+  const sw = Math.max(web, Math.round(STRAP * (b - ov) * 10) / 10)
   // with the field panel, the strip keeps a solid rail along its inner edge for the glue strip behind the joint
-  const rail = field ? CLEAT_REACH + web : web
-  const v0 = ov + web, v1 = b - rail, Wp = v1 - v0, H = Wp / 2, vc = (v0 + v1) / 2
-  const M = style === 1 ? ROSE : STAR, R = M.R * Wp
-  const dims = style === 1 && Wp > 0 ? rosetteDims(R, web) : null
-  const sdims = style === 2 && Wp > 0 ? starDims(R, H, web) : null
-  const p0 = M.p * Wp, pHard = style === 1 ? 2 * R + 2 * web : 2 * R + web
+  const rail = field ? CLEAT_REACH + web : sw
+  const v0 = ov + sw, v1 = b - rail, Wp = v1 - v0, H = Wp / 2, vc = (v0 + v1) / 2
+  const M = style === 1 ? ROSE : STAR, R0 = M.R * Wp
+  const dims0 = style === 1 && Wp > 0 ? rosetteDims(R0, sw) : null
+  const sdims = style === 2 && Wp > 0 ? starDims(R0, H, sw) : null
+  const p0 = M.p * Wp, pHard = style === 1 ? 2 * R0 + 2 * sw : 2 * R0 + sw
   const S1 = PW - 2 * vc, S2 = PH - 2 * vc
+  // the middle strip: across the window from one long strip to the other (wide: the top and bottom ones are long)
+  const mid = (p.mid ?? 0) >= 0.5, wide = PW >= PH
   // a whole number of steps between the corner motifs on each strip, the two steps as close to each other (the
-  // corners are mirror images) and to the picture's step as they can be
+  // corners are mirror images) and to the picture's step as they can be; with the middle strip, an even number on
+  // the long strips (a motif on its axis) when there is one
   let best: { n1: number; n2: number; score: number } | null = null
   const ns = (S: number) => { const out: number[] = []; for (let k = Math.max(1, Math.floor(S / (1.6 * p0))); k <= Math.max(1, Math.ceil(S / (0.7 * p0))) && k < 400; k++) if (S / k >= pHard) out.push(k); return out }
-  if ((dims || sdims) && S1 > 0 && S2 > 0) for (const n1 of ns(S1)) for (const n2 of ns(S2)) {
-    const a = S1 / n1, c = S2 / n2, score = Math.abs(Math.log(a / p0)) + Math.abs(Math.log(c / p0)) + 3 * Math.abs(Math.log(a / c))
+  if ((dims0 || sdims) && S1 > 0 && S2 > 0) for (const n1 of ns(S1)) for (const n2 of ns(S2)) {
+    const a = S1 / n1, c = S2 / n2, odd = mid && (wide ? n1 : n2) % 2 === 1
+    const score = Math.abs(Math.log(a / p0)) + Math.abs(Math.log(c / p0)) + 3 * Math.abs(Math.log(a / c)) + (odd ? 100 : 0)
     if (!best || score < best.score - 1e-12) best = { n1, n2, score }
   }
   const n1 = best?.n1 ?? 0, n2 = best?.n2 ?? 0
   const p1 = n1 ? S1 / n1 : 0, p2 = n2 ? S2 / n2 : 0
+  // a tight step (as the middle strip's even count makes) shrinks the rosettes, all alike, so each waist keeps
+  // WAIST · Wp between two rings for its shapes (left as they are when the smaller ones could not be cut)
+  const Rw = n1 && n2 ? (Math.min(p1, p2) - WAIST * Wp) / 2 : R0, dimsW = style === 1 && Rw < R0 ? rosetteDims(Rw, sw) : null
+  const R = dimsW ? Rw : R0, dims = dimsW ?? dims0
+  // the middle strip's width, length, pattern (its own half width Hm, the band's motif) and steps: the short strips'
+  // count, or fewer when its first motif would not clear the joint by sw
+  const midW = mid ? round3((p.midW ?? 0) > 0 ? p.midW : b - ov) : 0, Lm = mid ? round3((wide ? PH : PW) - 2 * b) : 0
+  const Hm = midW / 2 - sw, Ss = wide ? S2 : S1, nShort = wide ? n2 : n1
+  const mdims = mid && style === 2 && Hm > 0 && R > 0 ? starDims(R, Hm, sw) : null
+  let nm = 0
+  if (mid && Hm >= R && (style === 1 ? dims : mdims)) for (let k = nShort; k >= 1; k--) { const q = Ss / k; if (k === 1 || (q >= pHard && vc + q - R >= b + sw - 1e-9)) { nm = k; break } }
+  const qm = nm ? Ss / nm : 0
   // the field inside the band: the board's middle (kind 1) or the field panel (kind 2), and its solid margin
   const Wf = kind === 1 ? round3(PW - 2 * b) : round3(PW - 2 * b - 2 * fit), Hf = kind === 1 ? round3(PH - 2 * b) : round3(PH - 2 * b - 2 * fit)
   // (on the board a solid line 3·web wide parts the band from the field, so the frame still reads as a frame)
   const fm = kind === 1 ? 2 * web : CLEAT_REACH + web
   const fill = (p.fill ?? 0) >= 0.5 && (kind === 1 || field)
-  return { kind, style, center, field, fill, PW, PH, ov, b, web, fit, rail, v0, v1, Wp, H, vc, R, dims, sdims, p0, pHard, S1, S2, n1, n2, p1, p2, Wf, Hf, fm }
+  return { kind, style, center, field, fill, sizeIs, PW, PH, ov, b, web, sw, fit, rail, v0, v1, Wp, H, vc, R, dims, sdims, p0, pHard, S1, S2, n1, n2, p1, p2, Wf, Hf, fm, mid, wide, midW, Lm, Hm, mdims, nm, qm }
 }
 export type FrameGeom = ReturnType<typeof frameGeom>
 
@@ -711,9 +747,9 @@ export const stripOutline = (L: number, b: number): P2[] => [{ x: 0, y: 0 }, { x
 
 /** The motif at c (a rosette or a star; with `mitre` the corner one on the line u = v through c). */
 const motifAt = (g: FrameGeom, c: P2, mitre: boolean, tag: string): Piece[] =>
-  g.style === 1 ? rosette(c, g.dims!, g.web, mitre, tag) : mitre ? starOnMitre(c, g.sdims!, g.web, tag) : starPieces(c, g.sdims!, tag)
+  g.style === 1 ? rosette(c, g.dims!, g.sw, mitre, tag) : mitre ? starOnMitre(c, g.sdims!, g.sw, tag) : starPieces(c, g.sdims!, tag)
 /** The shapes between two motifs p apart. */
-const unitOf = (g: FrameGeom, p: number, caps?: Record<string, number>): Unit => (g.style === 1 ? waistUnit(p, g.H, g.R, g.web, caps) : waistUnit2(p, g.H, g.sdims!, g.web, caps))
+const unitOf = (g: FrameGeom, p: number, caps?: Record<string, number>): Unit => (g.style === 1 ? waistUnit(p, g.H, g.R, g.sw, caps) : waistUnit2(p, g.H, g.sdims!, g.sw, caps))
 /**
  * The units at a corner for the two steps meeting there: each set at the smaller of its two scales, so both strips carry
  * it alike (worked out again until both take every set at the same scale).
@@ -764,7 +800,7 @@ function stripHalf(g: FrameGeom, L: number, p: number, pOther: number): Piece[] 
 }
 
 /** Clear of both mitres by `web`, and inside the pattern's band. */
-const inStrip = (g: FrameGeom, pc: Piece, L: number) => pc.poly.every(q => q.x - q.y >= g.web * Math.SQRT2 - 1e-6 && L - q.x - q.y >= g.web * Math.SQRT2 - 1e-6 && q.y >= g.v0 - 1e-6 && q.y <= g.v1 + 1e-6)
+const inStrip = (g: FrameGeom, pc: Piece, L: number) => pc.poly.every(q => q.x - q.y >= g.sw * Math.SQRT2 - 1e-6 && L - q.x - q.y >= g.sw * Math.SQRT2 - 1e-6 && q.y >= g.v0 - 1e-6 && q.y <= g.v1 + 1e-6)
 
 /** The first half and its mirror image in the strip's middle (a shape on the middle is its own mirror). */
 function mirrorHalf(half: Piece[], mid: number): Piece[] {
@@ -779,12 +815,12 @@ function mirrorHalf(half: Piece[], mid: number): Piece[] {
  * shapes, or left out — the same on both strips, so the corner stays a mirror image.
  */
 export function framePieces(g: FrameGeom): { top: Piece[]; side: Piece[] } {
-  return memo(FRAMES, [g.style, g.PW, g.PH, g.ov, g.b, g.web, g.rail].join('|'), () => framePiecesOf(g))
+  return memo(FRAMES, [g.style, g.PW, g.PH, g.ov, g.b, g.web, g.sw, g.rail, g.n1, g.n2].join('|'), () => framePiecesOf(g))
 }
 function framePiecesOf(g: FrameGeom): { top: Piece[]; side: Piece[] } {
   const ht = stripHalf(g, g.PW, g.p1, g.p2), hs = stripHalf(g, g.PH, g.p2, g.p1)
   if (g.style === 1) {
-    const { vc, H, R, web } = g, c0 = { x: vc, y: vc }
+    const { vc, H, R, sw: web } = g, c0 = { x: vc, y: vc }
     const aK = 0.11 * H, wK = 0.045 * H, rK = R + web + wK + 0.6 * web
     // both whole strips (on a short strip the far half and the far corner's kites come close too)
     const ft = mirrorHalf(ht, g.PW / 2), fs = mirrorHalf(hs, g.PH / 2), Lmin = Math.min(g.PW, g.PH)
@@ -815,6 +851,30 @@ export function toFrame(g: { PW: number; PH: number }, s: number, q: P2): P2 {
 function pieceToFrame(g: { PW: number; PH: number }, s: number, pc: Piece): Piece {
   return { pts: pc.pts.map(v => ({ ...v, ...toFrame(g, s, v) })), poly: pc.poly.map(q => toFrame(g, s, q)), c: toFrame(g, s, pc.c), key: pc.key }
 }
+
+/**
+ * The middle strip's pattern in its own coordinates (u along it from the window's edge, v across): the column of
+ * motifs from the long strip's motif on its axis (u = vc − b) to the opposite one, nm steps of qm, with the shapes
+ * between them; only what clears the strip's edges and both joints by sw is kept, so each joint runs through a solid
+ * bar 2·sw wide (the long strip's pattern stops sw short of its inner edge). Symmetric about both its centre lines.
+ */
+export function midPieces(g: FrameGeom): Piece[] {
+  if (!g.mid || !g.nm) return []
+  return memo(MIDS, [g.style, g.b, g.ov, g.sw, g.midW, g.Lm, g.vc, g.R, g.nm, g.qm].join('|'), () => {
+    const { b, vc, sw, midW, Lm, nm, qm } = g, gm: FrameGeom = { ...g, H: g.Hm, sdims: g.style === 2 ? g.mdims : g.sdims }
+    const c0 = vc - b, yc = midW / 2, out: Piece[] = []
+    const keep = (pc: Piece) => pc.poly.every(q => q.x >= sw - 1e-6 && q.x <= Lm - sw + 1e-6 && q.y >= sw - 1e-6 && q.y <= midW - sw + 1e-6)
+    for (let j = 1; j < nm; j++) for (const pc of motifAt(gm, { x: c0 + j * qm, y: yc }, false, `m${j}`)) if (keep(pc)) out.push(pc)
+    const unit = unitOf(gm, qm)
+    for (let j = 0; j < nm; j++) for (const pc0 of unit) { const pc = movePc(pc0, c0 + (j + 0.5) * qm, yc); if (keep(pc)) out.push(pc) }
+    return out
+  })
+}
+/** Middle strip coordinates → frame coordinates (a turn by 90° when it runs down a wide frame: arcs keep their bulges). */
+export function midToFrame(g: { PW: number; PH: number; b: number; midW: number; wide: boolean }, q: P2): P2 {
+  return g.wide ? { x: g.PW / 2 + g.midW / 2 - q.y, y: g.b + q.x } : { x: g.b + q.x, y: g.PH / 2 - g.midW / 2 + q.y }
+}
+const midPieceToFrame = (g: FrameGeom, pc: Piece): Piece => ({ pts: pc.pts.map(v => ({ ...v, ...midToFrame(g, v) })), poly: pc.poly.map(q => midToFrame(g, q)), c: midToFrame(g, pc.c), key: pc.key })
 
 /** The narrowest visible band that still holds a motif: its pattern width Wp (searched on a half-millimetre step). */
 export function minPatternWidth(web: number, style = 1): number {
@@ -1090,7 +1150,7 @@ function clipAll(parts: P2[][], Q: P2[], keep: boolean): P2[][] | null {
  * bar between the two halves of the corner motif, `2·h` wide, ending at e on the diagonal. Null when there is no room.
  */
 export function cornerPlate(g: FrameGeom) {
-  const w = round3(g.ov + g.web - 1), arm = round3(Math.min(1.5 * g.b, Math.min(g.PW, g.PH) / 2 - 5)), h = g.web - 1
+  const w = round3(g.ov + g.sw - 1), arm = round3(Math.min(1.5 * g.b, Math.min(g.PW, g.PH) / 2 - 5)), h = g.sw - 1
   if (w < 6 || arm < w + 10) return null
   const r2 = Math.SQRT1_2, e = (g.field ? g.b - CLEAT_REACH - 1 : g.b - 1) - h * r2
   const pts: P2[] = [{ x: 0, y: 0 }, { x: arm, y: 0 }, { x: arm, y: w }]
@@ -1125,9 +1185,15 @@ export function frameErrors(p: Record<string, number>, g: FrameGeom): string[] {
   const errors: string[] = []
   const { PW, PH, ov, b, web, rail, fit, center, kind, style } = g, sL = p.sheetL, sW = p.sheetW, co = CLEAT_REACH
   const WpMin = minPatternWidth(web, style), mn = medName(style), make = style === 1 ? 'اجعله' : 'اجعلها'
-  const bandMin = up5(ov + web + rail + WpMin)
+  // with sizeIs 2 the sizes the user typed are the window's (the outside is 2·band more), and the fixes name those
+  const win = g.sizeIs === 2, iW = p.PW, iH = p.PH, toIn = (v: number) => (win ? v - 2 * b : v)
+  const sizeW = win ? { both: 'عرض الفتحة وطولها', w: 'عرض الفتحة', h: 'طول الفتحة' } : { both: 'العرض والطول الكلّيين', w: 'العرض الكلّي', h: 'الطول الكلّي' }
+  // the narrowest band holding a motif (its straps sw grow with it, so searched)
+  let bandMin = up5(ov + web + (g.field ? CLEAT_REACH + web : web) + WpMin)
+  while (bandMin < BAND_MAX && frameGeom({ ...p, band: bandMin }).Wp < WpMin - 1e-9) bandMin += 0.5
   if (g.Wp < WpMin - 1e-9) {
-    const ovMax = down5(b - web - rail - WpMin)
+    let ovMax = down5(b - web - rail - WpMin)
+    while (ovMax >= 0 && frameGeom({ ...p, ov: ovMax }).Wp < WpMin - 1e-9) ovMax -= 0.5
     if (ov > 0.4 * b && ovMax >= 0) errors.push(`الركبة على الجبس (${f1(ov)} مم) كبيرة على عرض الإطار (${f1(b)} مم): ${b - ov > 0 ? `يظهر منه ${f1(b - ov)} مم فقط ولا تتّسع فيه ${motifName(style)}` : 'لا يظهر منه شيء'}. اجعل الركبة ${f1(ovMax)} مم على الأكثر، أو عرض الإطار ${f1(bandMin)} مم على الأقل.`)
     else errors.push(`عرض الإطار (${f1(b)} مم) قليل: لا تتّسع ${motifName(style)} في الجزء الظاهر منه. اجعله ${f1(bandMin)} مم على الأقل.`)
     return errors
@@ -1141,14 +1207,14 @@ export function frameErrors(p: Record<string, number>, g: FrameGeom): string[] {
     if (bb >= bandMin) errors.push(`عرض الإطار (${f1(b)} مم) كبير على ديكور ${f1(PW)} × ${f1(PH)} مم: اجعله ${f1(bb)} مم على الأكثر.`)
     else {
       // even the narrowest band is too much: less rest on the gypsum (a narrower band then fits), or a bigger decor
-      const bandAt = (o: number) => up5(o + web + rail + WpMin)
+      const bandAt = (o: number) => { let bb = up5(o + web + rail + WpMin); while (bb < BAND_MAX && frameGeom({ ...p, ov: o, band: bb }).Wp < WpMin - 1e-9) bb += 0.5; return bb }
       let o = down5(ov) - 0.5
       while (o >= 0 && !okAt({ ov: o, band: bandAt(o) })) o -= 0.5
-      let X = up5(Math.min(PW, PH))
-      while (X <= SIZE_MAX && !okAt({ PW: Math.max(PW, X), PH: Math.max(PH, X), band: bandMin })) X += 0.5
+      let X = up5(Math.min(iW, iH))
+      while (X <= SIZE_MAX && !okAt({ PW: Math.max(iW, X), PH: Math.max(iH, X), band: bandMin })) X += 0.5
       const fixes = [
         ...(o >= 0 ? [`اجعل الركبة ${f1(o)} مم على الأكثر`] : []),
-        ...(X <= SIZE_MAX ? [`اجعل ${PW < X && PH < X ? 'العرض والطول الكلّيين' : PW < X ? 'العرض الكلّي' : 'الطول الكلّي'} ${f1(X)} مم على الأقل`] : []),
+        ...(X <= SIZE_MAX ? [`اجعل ${iW < X && iH < X ? sizeW.both : iW < X ? sizeW.w : sizeW.h} ${f1(X)} مم على الأقل`] : []),
       ]
       errors.push(`الديكور ${f1(PW)} × ${f1(PH)} مم صغير على إطار فيه ركبة ${f1(ov)} مم على الجبس: ${fixes.length ? fixes.join('، أو ') : 'اجعل الركبة 0 مم'}.`)
     }
@@ -1160,14 +1226,14 @@ export function frameErrors(p: Record<string, number>, g: FrameGeom): string[] {
     const medMax = down5(Math.min(Math.min(g.Wf, g.Hf) - 2 * g.fm, center === 2 ? Math.min(sL, sW) : Infinity))
     if (p.med > medMax + 1e-9) {
       // or a narrower band, so the middle grows round the medallion
-      const bb = down5((Math.min(PW, PH) - 2 * g.fm - p.med) / 2), bbOk = bb >= bandMin && okBand(bb) && p.med <= (center === 2 ? Math.min(sL, sW) : Infinity)
+      const bb = down5((Math.min(PW, PH) - 2 * g.fm - p.med) / 2), bbOk = !win && bb >= bandMin && okBand(bb) && p.med <= (center === 2 ? Math.min(sL, sW) : Infinity)
       if (medMax >= 150) errors.push(`${mn} (${f1(p.med)} مم) أكبر من وسط الديكور ${f1(g.Wf)} × ${f1(g.Hf)} مم${center === 2 && medMax === down5(Math.min(sL, sW)) ? ' أو من اللوح' : ''}: ${make} ${f1(medMax)} مم على الأكثر${bbOk ? `، أو اجعل عرض الإطار ${f1(bb)} مم على الأكثر` : ''}.`)
       else errors.push(bbOk ? `وسط الديكور ${f1(g.Wf)} × ${f1(g.Hf)} مم صغير على ${mn} (${f1(p.med)} مم): اجعل عرض الإطار ${f1(bb)} مم على الأكثر، أو اختر ${none}.` : `وسط الديكور ${f1(g.Wf)} × ${f1(g.Hf)} مم صغير على ${mn}: اختر ${none}.`)
     }
   } else if (kind === 2 && center === 1) {
     const medMax = down5(Math.min(g.Wf, g.Hf) - 2 * (co + web))
     if (p.med > medMax + 1e-9) {
-      const bb = down5((Math.min(PW, PH) - 2 * fit - 2 * (co + web) - p.med) / 2), bbOk = bb >= bandMin && okBand(bb)
+      const bb = down5((Math.min(PW, PH) - 2 * fit - 2 * (co + web) - p.med) / 2), bbOk = !win && bb >= bandMin && okBand(bb)
       if (medMax >= 150) errors.push(`${mn} (${f1(p.med)} مم) أكبر من اللوح الأوسط ${f1(g.Wf)} × ${f1(g.Hf)} مم: ${make} ${f1(medMax)} مم على الأكثر${bbOk ? `، أو اجعل عرض الإطار ${f1(bb)} مم على الأكثر` : ''}.`)
       else errors.push(bbOk
         ? `اللوح الأوسط ${f1(g.Wf)} × ${f1(g.Hf)} مم صغير على ${mn} (${f1(p.med)} مم): اجعل عرض الإطار ${f1(bb)} مم على الأكثر، أو اختر ${none}.`
@@ -1182,29 +1248,39 @@ export function frameErrors(p: Record<string, number>, g: FrameGeom): string[] {
     const fMin = up5(minCell(style, web))
     if (p.fcell < fMin - 1e-9) errors.push(`خليّة شبكة الوسط (${f1(p.fcell)} مم) صغيرة على ${style === 1 ? 'وردات' : 'نجوم'} تُقصّ بخشب ${f1(web)} مم بينها: اجعلها ${f1(fMin)} مم على الأقل، أو ألغِ نقش الوسط (0).`)
   }
+  // the middle strip: no medallion where it runs, room for its motif across it, an opening each side of it
+  if (g.mid) {
+    const winL = round3((g.wide ? PW : PH) - 2 * b), wMax = down5(Math.min(BAND_MAX, winL - 2 * MIN_OPEN)), off = '، أو ألغِ الشريحة الوسطى (0)'
+    let wMin = up5(2 * (g.R + g.sw))
+    while (wMin <= wMax && !frameGeom({ ...p, midW: wMin }).nm) wMin += 0.5
+    if (center !== 3) errors.push(`الشريحة الوسطى تمرّ في مكان ${mn}: اختر ${none}${off}.`)
+    else if (g.midW > wMax + 1e-9) errors.push(wMax >= wMin ? `الشريحة الوسطى (${f1(g.midW)} مم) عريضة على فتحة ${f1(winL)} مم: اجعل عرض الشريحة الوسطى ${f1(wMax)} مم على الأكثر${off}.` : `الفتحة ${f1(winL)} مم ضيّقة على شريحة وسطى: ألغِ الشريحة الوسطى (0).`)
+    else if (!g.nm) errors.push(wMin <= wMax ? `الشريحة الوسطى (${f1(g.midW)} مم) ضيّقة على ${motifName(style)} الإطار: اجعل عرض الشريحة الوسطى ${f1(wMin)} مم على الأقل${off}.` : `الفتحة ${f1(winL)} مم ضيّقة على شريحة وسطى فيها ${motifName(style)} الإطار: ألغِ الشريحة الوسطى (0).`)
+    else if (kind === 2 && !fitsSheet(g.Lm, g.midW, sL, sW)) errors.push(`الشريحة الوسطى ${f1(g.Lm)} × ${f1(g.midW)} مم لا تتّسع في لوح ${f1(sL)} × ${f1(sW)} مم: اجعل عرض الشريحة الوسطى ${f1(down5(Math.min(sW, wMax)))} مم على الأكثر${off}.`)
+  }
   // every piece on one sheet
   if (kind === 1) {
     if (!fitsSheet(PW, PH, sL, sW)) {
       // the largest size that fits, the way round that keeps more of it; or the strips, when they fit
-      const ways = [[Math.min(PW, sL), Math.min(PH, sW)], [Math.min(PW, sW), Math.min(PH, sL)]].map(([w, h]) => [down5(w), down5(h)])
+      const ways = [[Math.min(PW, sL), Math.min(PH, sW)], [Math.min(PW, sW), Math.min(PH, sL)]].map(([w, h]) => [down5(toIn(w)), down5(toIn(h))])
       const [w, h] = ways[0][0] * ways[0][1] >= ways[1][0] * ways[1][1] ? ways[0] : ways[1]
       const q2 = { ...p, kind: 2 }, stripsOk = frameErrors(q2, frameGeom(q2)).length === 0
-      const size = w < PW - 1e-9 && h < PH - 1e-9 ? `اجعله ${f1(w)} × ${f1(h)} مم على الأكثر` : w < PW - 1e-9 ? `اجعل العرض الكلّي ${f1(w)} مم على الأكثر` : `اجعل الطول الكلّي ${f1(h)} مم على الأكثر`
+      const size = w < iW - 1e-9 && h < iH - 1e-9 ? `اجعل${win ? ' الفتحة' : 'ه'} ${f1(w)} × ${f1(h)} مم على الأكثر` : w < iW - 1e-9 ? `اجعل ${sizeW.w} ${f1(w)} مم على الأكثر` : `اجعل ${sizeW.h} ${f1(h)} مم على الأكثر`
       errors.push(`الديكور قطعةً واحدة ${f1(PW)} × ${f1(PH)} مم لا يتّسع في لوح ${f1(sL)} × ${f1(sW)} مم: ${size}${stripsOk ? `، أو اختر ${quote(KIND_LABELS[1])}` : ''}.`)
     }
   } else {
     const Lmax = Math.max(PW, PH)
-    if (Lmax > sL + 1e-9) errors.push(`الشريحة ${f1(Lmax)} مم أطول من لوح الخشب (${f1(sL)} مم): اجعل ${Math.min(PW, PH) > sL + 1e-9 ? 'العرض والطول الكلّيين' : PW >= PH ? 'العرض الكلّي' : 'الطول الكلّي'} ${f1(down5(sL))} مم على الأكثر.`)
+    if (Lmax > sL + 1e-9) errors.push(`الشريحة ${f1(Lmax)} مم أطول من لوح الخشب (${f1(sL)} مم): اجعل ${Math.min(PW, PH) > sL + 1e-9 ? sizeW.both : PW >= PH ? sizeW.w : sizeW.h} ${f1(down5(toIn(sL)))} مم على الأكثر.`)
     else if (b > sW + 1e-9) errors.push(`عرض الإطار (${f1(b)} مم) أعرض من لوح الخشب (${f1(sW)} مم): اجعله ${f1(down5(sW))} مم على الأكثر.`)
     else if (center === 1 && !fitsSheet(g.Wf, g.Hf, sL, sW)) {
       const bb = up5(Math.max((Math.max(PW, PH) - 2 * fit - sL) / 2, (Math.min(PW, PH) - 2 * fit - sW) / 2))
-      const can = bb <= BAND_MAX && okBand(bb) && p.med <= Math.min(PW, PH) - 2 * bb - 2 * fit - 2 * (co + web)
+      const can = !win && bb <= BAND_MAX && okBand(bb) && p.med <= Math.min(PW, PH) - 2 * bb - 2 * fit - 2 * (co + web)
       errors.push(`اللوح الأوسط ${f1(g.Wf)} × ${f1(g.Hf)} مم لا يتّسع في لوح ${f1(sL)} × ${f1(sW)} مم: ${can ? `اجعل عرض الإطار ${f1(bb)} مم على الأقل، أو ` : ''}اختر ${quote(CENTER_LABELS[1])}.`)
     }
   }
   if (p.back >= 0.5 && !fitsSheet(PW, PH, sL, sW)) {
-    const short = PW <= PH ? 'العرض' : 'الطول'
-    errors.push(`لوح الأكريليك ${f1(PW)} × ${f1(PH)} مم أكبر من لوح ${f1(sL)} × ${f1(sW)} مم: ألغِه (0) وضع قماشاً أبيض${Math.max(PW, PH) <= sL + 1e-9 ? `، أو اجعل ${short} الكلّي ${f1(down5(sW))} مم على الأكثر` : ''}.`)
+    const short = PW <= PH ? sizeW.w : sizeW.h
+    errors.push(`لوح الأكريليك ${f1(PW)} × ${f1(PH)} مم أكبر من لوح ${f1(sL)} × ${f1(sW)} مم: ألغِه (0) وضع قماشاً أبيض${Math.max(PW, PH) <= sL + 1e-9 && toIn(sW) >= 300 ? `، أو اجعل ${short} ${f1(down5(toIn(sW)))} مم على الأكثر` : ''}.`)
   }
   return errors
 }
@@ -1218,8 +1294,16 @@ export function decorPieces(p: Record<string, number>, g = frameGeom(p)) {
   const medHere = g.center === 1 // cut into the board (kind 1) or the field panel (kind 2)
   const med = medHere && (g.kind === 1 || g.field) ? medPieces(g.style, center, p.med, g.web) : []
   const keepOut = g.center !== 3 ? medOutline(g.style, { x: 0, y: 0 }, p.med, g.web) : null
-  const lat = g.fill ? memo(LATS, [g.style, g.Wf, g.Hf, g.fm, p.fcell, g.web, g.center === 3 ? 0 : p.med].join('|'), () => fieldLattice(g.style, g.Wf, g.Hf, g.fm, p.fcell, g.web, keepOut)).map(pc => movePc(pc, center.x, center.y)) : []
-  return { top, side, med, lat, center }
+  const latOf = (W: number, H: number, ko: P2[] | null) => memo(LATS, [g.style, W, H, g.fm, p.fcell, g.web, ko ? p.med : 0].join('|'), () => fieldLattice(g.style, W, H, g.fm, p.fcell, g.web, ko))
+  // the middle strip (its own coordinates), and on the board the lattice either side of it
+  const mid = midPieces(g)
+  let lat: Piece[] = []
+  if (g.fill && g.mid && g.kind === 1) {
+    const Wh = g.wide ? round3((g.Wf - g.midW) / 2) : g.Wf, Hh = g.wide ? g.Hf : round3((g.Hf - g.midW) / 2), one = latOf(Wh, Hh, null)
+    const at = g.wide ? [{ x: g.b + Wh / 2, y: g.PH / 2 }, { x: g.PW - g.b - Wh / 2, y: g.PH / 2 }] : [{ x: g.PW / 2, y: g.b + Hh / 2 }, { x: g.PW / 2, y: g.PH - g.b - Hh / 2 }]
+    lat = at.flatMap(c => one.map(pc => movePc(pc, c.x, c.y)))
+  } else if (g.fill) lat = latOf(g.Wf, g.Hf, keepOut).map(pc => movePc(pc, center.x, center.y))
+  return { top, side, med, lat, center, mid }
 }
 
 function build(p: Record<string, number>, c: Common): BuildResult {
@@ -1230,14 +1314,14 @@ function build(p: Record<string, number>, c: Common): BuildResult {
   const errors = frameErrors(p, g)
   if (errors.length) return { panels: [], notes, warnings, errors }
 
-  const { top, side, med, lat } = decorPieces(p, g)
+  const { top, side, med, lat, mid } = decorPieces(p, g)
   const mn = medName(style), panels: PanelSpec[] = []
   const medShape = (): Loop => polyLoop(style === 1 ? octagon({ x: 0, y: 0 }, p.med).map(q => ({ x: round3(q.x), y: round3(q.y) })) : circ({ x: 0, y: 0 }, p.med / 2), 'outer')
   const medPiece = () => { const pcs = medPieces(style, { x: 0, y: 0 }, p.med, web); panels.push({ id: 'medallion', name: style === 1 ? 'المثمّن' : 'الدائرة', w: p.med, h: p.med, shape: [medShape()], holes: holesOf(pcs), count: n }); return pcs.length }
   let sepHoles = 0, total = 0
   if (kind === 1) {
     const band = [0, 1, 2, 3].flatMap(s => (s % 2 ? side : top).map(pc => pieceToFrame(g, s, pc)))
-    const all = [...band, ...med, ...lat]
+    const all = [...band, ...mid.map(pc => midPieceToFrame(g, pc)), ...med, ...lat]
     total = all.length
     // the 45° meeting lines, on the solid bars across the corners
     const engrave: Loop[] = p.line >= 0.5 ? [[0, 0, 1, 1], [PW, 0, -1, 1], [PW, PH, -1, -1], [0, PH, 1, -1]].map(([x, y, sx, sy]) => ({ closed: false, layer: 'engrave' as const, pts: [{ x, y }, { x: round3(x + sx * b), y: round3(y + sy * b) }] })) : []
@@ -1249,13 +1333,20 @@ function build(p: Record<string, number>, c: Common): BuildResult {
       { id: 'strip-short', name: 'شريحة الإطار — الجانبية', w: PH, h: b, shape: [polyLoop(stripOutline(PH, b), 'outer')], holes: holesOf(side), count: 2 * n, note: 'الحافّة الطويلة للخارج، والشطفان على 45°' },
     )
     total = 2 * top.length + 2 * side.length
+    if (g.mid) {
+      panels.push({ id: 'strip-mid', name: 'الشريحة الوسطى', w: g.Lm, h: g.midW, holes: holesOf(mid), count: n, note: 'طرفاها مستقيمان بلا شطف، يلتصقان بالحافّة الداخلية للشريحتين الطويلتين في منتصفهما' })
+      total += mid.length
+    }
     if (field) { panels.push({ id: 'field', name: `اللوح الأوسط مع ${mn}`, w: g.Wf, h: g.Hf, holes: holesOf([...med, ...lat]), count: n }); total += med.length + lat.length }
     else if (center === 2) sepHoles = medPiece()
   }
   total += sepHoles
   const plate = kind === 2 && cleats ? cornerPlate(g) : null
-  if (kind === 2 && cleats && !plate) warnings.push(ov + web - 1 < 6 ? `الركبة على الجبس (${f1(ov)} مم) لا تتّسع لقطع الزوايا خلف الشطف: الصق الشطوف بالغراء وثبّتها بشريط من خلف، أو اجعل الركبة ${f1(up5(7 - web))} مم على الأقل.` : 'لا مكان لقطع الزوايا خلف الشطف على هذا المقاس: الصق الشطوف بالغراء وثبّتها بشريط من خلف.')
+  if (kind === 2 && cleats && !plate) warnings.push(ov + g.sw - 1 < 6 ? `الركبة على الجبس (${f1(ov)} مم) لا تتّسع لقطع الزوايا خلف الشطف: الصق الشطوف بالغراء وثبّتها بشريط من خلف، أو اجعل الركبة ${f1(up5(7 - web))} مم على الأقل.` : 'لا مكان لقطع الزوايا خلف الشطف على هذا المقاس: الصق الشطوف بالغراء وثبّتها بشريط من خلف.')
   if (plate) panels.push({ id: 'corner', name: 'قطعة زاوية خلف الشطف', w: plate.arm, h: plate.arm, shape: [polyLoop(plate.pts, 'outer')], count: 4 * n, note: 'تُلصق خلف الزاوية: الضلعان على الحافّة الخارجية المصمتة والذراع على خط الشطف' })
+  // behind each joint of the middle strip, a plate over the solid bar there (sw − 1 each side of the joint)
+  const mPlate = kind === 2 && cleats && g.mid ? round3(2 * (g.sw - 1)) : 0
+  if (mPlate >= 6) panels.push({ id: 'mid-plate', name: 'قطعة تدعيم خلف وصلة الشريحة الوسطى', w: g.midW, h: mPlate, count: 2 * n, note: 'تُلصق من الخلف على الوصلة: نصفها على الخشب المصمت من الشريحة الطويلة ونصفها على الشريحة الوسطى' })
   const wC = round3(2 * co + fit), lLong = round3(PW - 2 * b + 2 * co), lShort = round3(PH - 2 * b - 2 * fit - 2 * co - 2)
   const inner = kind === 2 && cleats && field
   if (inner) {
@@ -1266,6 +1357,10 @@ function build(p: Record<string, number>, c: Common): BuildResult {
 
   // -------------------------------------------------------------- notes
   const k1 = g.n1 - 1, k2 = g.n2 - 1, mw = style === 1 ? rosettesWord : starsWord, motif = motifName(style)
+  const winLong = round3((g.wide ? PW : PH) - 2 * b), winShort = round3((g.wide ? PH : PW) - 2 * b), across = g.wide ? 'الضلع العلوي إلى السفلي' : 'الضلع الأيسر إلى الأيمن'
+  const midMotifs = g.nm > 1 ? `على محورها ${mw(g.nm - 1)} بينها ${f1(g.qm)} مم، و` : ''
+  const midWords = g.mid ? `${kind === 1 ? `شريحة وسطى من نفس اللوح عرضها ${f1(g.midW)} مم تقطع الوسط` : `الشريحة الوسطى ${f1(g.Lm)} × ${f1(g.midW)} مم تقطع الفتحة`} من منتصف ${across}${kind === 1 ? '' : '، طرفاها مستقيمان بلا شطف يلتقيان بالحافّة الداخلية للشريحتين الطويلتين'}، وعلى كلّ ${kind === 1 ? 'طرف' : 'وصلة'} شريط خشب مصمت ${f1(2 * g.sw)} مم لا تقطعه فتحة. ${midMotifs}في منتصف كلّ ضلع طويل ${motif} على محورها نفسه، فتكمل نقشتُها نقشةَ الإطار من طرف إلى طرف والرسمة صورة مرآة حولها.` : ''
+  if (g.sizeIs === 2) notes.push(`الفتحة داخل الإطار ${f1(p.PW)} × ${f1(p.PH)} مم كما أدخلتها، والإطار ${f1(b)} مم من كلّ جهة، فالديكور من الخارج ${f1(PW)} × ${f1(PH)} مم.`)
   const bandWords = `في كلّ من الضلعين الطويلين ${mw(k1)} كاملة بينها ${f1(g.p1)} مم، وفي كلّ من القصيرين ${mw(k2)} بينها ${f1(g.p2)} مم`
   // the medallion as it is cut: a small one leaves out the rings too small to cut, and the words leave them out too
   const has = (re: RegExp) => medPieces(style, { x: 0, y: 0 }, p.med, web).some(pc => re.test(pc.key))
@@ -1282,7 +1377,8 @@ function build(p: Record<string, number>, c: Common): BuildResult {
   if (kind === 1) {
     notes.push(
       `الديكور قطعة واحدة ${f1(PW)} × ${f1(PH)} مم تُقصّ من لوح واحد، بلا وصلات. الإطار بعرض ${f1(b)} مم يظهر منه ${f1(b - ov)} مم: ${bandWords}.`,
-      `في كلّ زاوية ${motif} على القطر يقسمها شريط خشب مصمت عرضه ${f1(2 * web)} مم على الأقل على خطّ الـ45°، فتلتقي الأضلاع الأربعة على 45° والزاوية صورة مرآة حوله، والزوايا الأربع متشابهة${p.line >= 0.5 ? '؛ وعلى كلّ شريط خطّ رفيع محفور يُبرز التقاء الـ45° (في RDWorks طبقة الحفر بقوّة خفيفة)' : ''}.`,
+      `في كلّ زاوية ${motif} على القطر يقسمها شريط خشب مصمت عرضه ${f1(2 * g.sw)} مم على الأقل على خطّ الـ45°، فتلتقي الأضلاع الأربعة على 45° والزاوية صورة مرآة حوله، والزوايا الأربع متشابهة${p.line >= 0.5 ? '؛ وعلى كلّ شريط خطّ رفيع محفور يُبرز التقاء الـ45° (في RDWorks طبقة الحفر بقوّة خفيفة)' : ''}.`,
+      ...(g.mid ? [midWords] : []),
       center === 1 ? `في الوسط ${medWords}، مفرّغ${style === 1 ? '' : 'ة'} في اللوح.` : center === 2 ? `${medWords}، قطعة منفصلة تُلصق بغراء الخشب على الوسط المصمت من الوجه الظاهر فتبرز عنه ويظهر الخشب من فتحاتها.` : 'بلا زخرفة وسطى.',
       fillWords,
       `عدد الفتحات: ${holesWord(total - sepHoles)} في القطعة${sepHoles ? ` و${holesWord(sepHoles)} في ${mn}` : ''}.`,
@@ -1293,24 +1389,26 @@ function build(p: Record<string, number>, c: Common): BuildResult {
   } else {
     notes.push(
       `الإطار أربع شرائح تلتقي بزوايا مشطوفة 45°، عرضها ${f1(b)} مم يظهر منها ${f1(b - ov)} مم. العلوية والسفلية قطعتان متطابقتان: ${f1(PW)} مم من الخارج و${f1(PW - 2 * b)} مم من الداخل، في كلّ منهما ${mw(k1)} كاملة بينها ${f1(g.p1)} مم. الجانبيتان قطعتان: ${f1(PH)} مم من الخارج و${f1(PH - 2 * b)} مم من الداخل، في كلّ منهما ${mw(k2)} بينها ${f1(g.p2)} مم.`,
-      `في كلّ زاوية ${motif} على خط الشطف نصفها في كلّ شريحة: ما يقع على الخط يترك مكانه لشريط خشب مصمت عرضه ${f1(2 * web)} مم على الأقل يمرّ فيه الشطف، فلا يقطع الشطف أيّ فتحة والزاوية صورة مرآة حوله، والزوايا الأربع متشابهة.`,
+      `في كلّ زاوية ${motif} على خط الشطف نصفها في كلّ شريحة: ما يقع على الخط يترك مكانه لشريط خشب مصمت عرضه ${f1(2 * g.sw)} مم على الأقل يمرّ فيه الشطف، فلا يقطع الشطف أيّ فتحة والزاوية صورة مرآة حوله، والزوايا الأربع متشابهة.`,
     )
     if (field) notes.push(`اللوح الأوسط ${f1(g.Wf)} × ${f1(g.Hf)} مم (خلوص ${f1(fit)} مم من كلّ جهة)، وفي وسطه ${medWords}؛ وحوافّ اللوح مصمتة ${f1(co + web)} مم على الأقل.`, fillWords)
     else if (center === 2) notes.push(`${medWords}، قطعة منفصلة: الصقها في وسط سقف التجويف فوق الفتحة (أو على لوح الأكريليك) فتظهر من وسط الإطار.`)
+    else if (g.mid) notes.push(midWords, `إطار فقط: فتحتان ${f1(round3((winLong - g.midW) / 2))} × ${f1(winShort)} مم على جانبي الشريحة الوسطى يظهر منهما سقف التجويف.`)
     else notes.push('إطار فقط: الوسط مفتوح ويظهر منه سقف التجويف.')
-    if (plate || inner) notes.push(`قطع التدعيم من نفس اللوح، تُلصق من الخلف فوق الخشب المصمت فقط فلا تسدّ أيّ فتحة:${plate ? ` ${4 * n} قطع زاوية على شكل L، ضلعاها ${f1(plate.arm)} مم وعرضهما ${f1(plate.w)} مم على الحافّة التي ترتكز على الجبس${plate.diag ? `، وذراعها عرضه ${f1(2 * plate.h)} مم على خط الشطف` : ''}` : ''}${plate && inner ? '؛' : ''}${inner ? ` ${stripsWord(2 * n)} ${f1(lLong)} × ${f1(wC)} مم${lShort > 20 ? ` و${stripsWord(2 * n)} ${f1(lShort)} × ${f1(wC)} مم` : ''} خلف وصلة اللوح الأوسط، ${f1(co)} مم منها على الحافّة المصمتة للشريحة و${f1(co)} مم على اللوح الأوسط` : ''}.`)
+    if (plate || inner || mPlate >= 6) notes.push(`قطع التدعيم من نفس اللوح، تُلصق من الخلف فوق الخشب المصمت فقط فلا تسدّ أيّ فتحة:${plate ? ` ${4 * n} قطع زاوية على شكل L، ضلعاها ${f1(plate.arm)} مم وعرضهما ${f1(plate.w)} مم على الحافّة الخارجية المصمتة${plate.diag ? `، وذراعها عرضه ${f1(2 * plate.h)} مم على خط الشطف` : ''}` : ''}${mPlate >= 6 ? `${plate ? '؛' : ''} ${stripsWord(2 * n)} ${f1(g.midW)} × ${f1(mPlate)} مم على وصلتي الشريحة الوسطى` : ''}${(plate || mPlate >= 6) && inner ? '؛' : ''}${inner ? ` ${stripsWord(2 * n)} ${f1(lLong)} × ${f1(wC)} مم${lShort > 20 ? ` و${stripsWord(2 * n)} ${f1(lShort)} × ${f1(wC)} مم` : ''} خلف وصلة اللوح الأوسط، ${f1(co)} مم منها على الحافّة المصمتة للشريحة و${f1(co)} مم على اللوح الأوسط` : ''}.`)
     else if (field) notes.push(`اللوح الأوسط يحتاج دعماً من خلف وصلته: الصق شرائح ${f1(2 * co)} مم نصفها على حافّة الشريحة المصمتة (${f1(co + web)} مم) ونصفها على اللوح الأوسط.`)
     notes.push(
-      `عدد الفتحات: ${f1(top.length)} في كلّ شريحة طويلة و${f1(side.length)} في كلّ جانبية${field ? ` و${f1(med.length + lat.length)} في اللوح الأوسط` : sepHoles ? ` و${f1(sepHoles)} في ${mn}` : ''} — ${holesWord(total)} في الديكور كلّه.`,
+      `عدد الفتحات: ${f1(top.length)} في كلّ شريحة طويلة و${f1(side.length)} في كلّ جانبية${g.mid ? ` و${f1(mid.length)} في الشريحة الوسطى` : ''}${field ? ` و${f1(med.length + lat.length)} في اللوح الأوسط` : sepHoles ? ` و${f1(sepHoles)} في ${mn}` : ''} — ${holesWord(total)} في الديكور كلّه.`,
       'في RDWorks اقصّ الفتحات الداخلية أولاً ثم المحيط الخارجي لكلّ قطعة (ترتيب القصّ من الداخل إلى الخارج) حتى لا تتحرّك القطعة قبل أن تكتمل فتحاتها، وثبّت اللوح مستوياً على السرير. الشرائح شبه منحرفة: رتّب كلّ اثنتين على اللوح واحدة مقلوبة بجانب الأخرى فتتداخل أطرافهما المشطوفة ويقلّ الهدر.',
-      `التجميع على طاولة مستوية والوجه الظاهر للأسفل: رصّ الشرائح الأربع وألصق الشطوف بغراء الخشب${plate ? ' ثم ألصق قطع الزوايا فوقها' : ''}${field ? `، ثم ضع اللوح الأوسط في مكانه${inner ? ' وألصق شرائح التدعيم فوق وصلته' : ''}` : ''}. اتركه يجفّ تماماً، ثم ادهنه أو رشّه (الوجه وحوافّ الفتحات) قبل التركيب.`,
-      `التركيب: أدخل الديكور من الفتحة مائلاً إلى فوق الجبس، ثم أنزله مسطّحاً والوجه المزخرف للأسفل حتى ترتكز حافّته الخارجية${ov > 0 ? ` (${f1(ov)} مم من كلّ جهة)` : ''} على لوح الجبسن بورد.`,
+      `التجميع على طاولة مستوية والوجه الظاهر للأسفل: رصّ الشرائح الأربع وألصق الشطوف بغراء الخشب${g.mid ? '، ثم الشريحة الوسطى بين الطويلتين في منتصفهما وطرفاها على حافّتيهما الداخليتين' : ''}${plate || mPlate >= 6 ? ' ثم ألصق قطع التدعيم فوقها' : ''}${field ? `، ثم ضع اللوح الأوسط في مكانه${inner ? ' وألصق شرائح التدعيم فوق وصلته' : ''}` : ''}. اتركه يجفّ تماماً، ثم ادهنه أو رشّه (الوجه وحوافّ الفتحات) قبل التركيب.`,
+      ov > 0 ? `التركيب: أدخل الديكور من الفتحة مائلاً إلى فوق الجبس، ثم أنزله مسطّحاً والوجه المزخرف للأسفل حتى ترتكز حافّته الخارجية (${f1(ov)} مم من كلّ جهة) على لوح الجبسن بورد.`
+        : `التركيب: بلا ركبة على الجبس فالإطار كلّه ظاهر: ثبّته تحت سقف الجبس حول الفتحة${g.sizeIs === 2 ? ` (حافّته الداخلية على حافّة الفتحة ${f1(p.PW)} × ${f1(p.PH)} مم)` : ''} بغراء ومسامير رفيعة في الخشب المصمت فقط، أو ركّب الشرائح واحدة واحدة.`,
     )
   }
   notes.push(
     `ضوء النيون في التجويف فوقه يمرّ من الفتحات؛ لضوء ناعم بلا خطوط ظاهرة ضع فوقه لوح أكريليك أوبال (أبيض حليبي) أو قماشاً أبيض مشدوداً${p.back >= 0.5 ? `، ولوح الأكريليك ${f1(PW)} × ${f1(PH)} مم في الملف بلونه الخاصّ` : ''}.`,
     `الخشب: MDF أو بلاي ${c.t} مم؛ ${kind === 1 ? 'القطعة كبيرة وفتحاتها كثيرة' : 'الشرائح طويلة وفتحاتها كثيرة'}، فالأمتن 4–6 مم.`,
-    'لديكوريك: أدخل 1400 × 1050 للأول و1380 × 1080 للثاني كما هما، فالركبة على الجبس محسوبة فيهما.',
+    g.sizeIs === 2 ? 'المقاس مقاس الفتحة داخل الإطار: 1400 × 1050 للأول و1380 × 1080 للثاني.' : 'المقاس مقاس الديكور من الخارج والركبة على الجبس محسوبة فيه؛ إن كان مقاسك مقاس الفتحة داخل الإطار فاختر «مقاس الفتحة داخل الإطار» في «المقاس».',
   )
   // the rosettes' dashed rings and the stars' points are short cut-outs, not slots: nothing here slots together
   return { panels, notes, warnings, errors, slotted: false }
