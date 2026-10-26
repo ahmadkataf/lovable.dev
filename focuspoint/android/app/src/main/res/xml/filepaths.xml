@@ -1,2 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
-<paths><files-path path="twa_downloads/" name="twa_downloads" /></paths>
+<!-- Folders the FileProvider may share with Chrome. android-browser-helper writes the splash image to
+     files/twa_splash/splash_image.png and shares it through this provider: without this entry the app
+     crashes right after launch (IllegalArgumentException: Failed to find configured root). -->
+<paths>
+    <files-path path="twa_splash/" name="twa_splash" />
+    <files-path path="twa_downloads/" name="twa_downloads" />
+</paths>
