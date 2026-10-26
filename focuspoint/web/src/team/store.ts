@@ -185,6 +185,9 @@ function remap(op: SyncOp, map: Map<number, number>): SyncOp {
 
 type Listener = () => void
 
+/** The browser's own view. `true` when unknown: a failed request is not proof we are offline. */
+const browserOnline = () => typeof navigator === 'undefined' || navigator.onLine !== false
+
 class TeamStore {
   private base: Base = EMPTY_BASE
   private queue: QueuedOp[] = []
@@ -304,13 +307,17 @@ class TeamStore {
   async sync(): Promise<void> {
     if (!this.ready) await this.load()
     if (this.syncing) { this.again = true; return }
-    if (!this.online) return
+    // Only the browser's own "offline" stops us. A failed request (the phone sleeping the app mid-request, a network
+    // blip) marks us offline for the header, but every later trigger (5-s ping, 30-s timer, focus, a tap on «مزامنة
+    // الآن») tries again — otherwise one failure left queued confirmations on the phone until a reload.
+    if (!browserOnline()) { this.setOnline(false); return }
     this.syncing = true
     this.emit()
     try {
       await this.push()
       await this.pull()
       this.error = null
+      this.online = true
       this.lastSync = new Date().toISOString()
     } catch (err) {
       if (err instanceof ApiError && err.offline) { this.online = false; this.error = null }
@@ -399,7 +406,7 @@ class TeamStore {
   }
   /** Cheap 5-second poll: pull when the server's last_change moved (or its pending count disagrees with ours). */
   async ping(): Promise<void> {
-    if (!this.online || this.syncing || Date.now() < this.pingBackoffUntil) return
+    if (!browserOnline() || this.syncing || Date.now() < this.pingBackoffUntil) return
     let r: Ping
     try { r = await api.get<Ping>('/v1/team/ping') } catch (err) {
       if (err instanceof ApiError && err.offline) { this.setOnline(false); return }
@@ -407,6 +414,7 @@ class TeamStore {
       this.pingBackoffUntil = Date.now() + 60_000      // the endpoint is missing or the server is unhappy: try again in a minute
       return
     }
+    if (!this.online) { this.setOnline(true); return }   // back after a failure: setOnline syncs the queue now
     const first = this.lastChange === undefined
     const moved = !first && r.last_change !== this.lastChange
     this.lastChange = r.last_change

@@ -99,7 +99,7 @@ export function SyncPill() {
           </div>
         )}
         <div className="sheet-foot">
-          <Button variant="soft" block loading={sync.syncing} disabled={!sync.online} onClick={() => void store.sync()}>مزامنة الآن</Button>
+          <Button variant="soft" block loading={sync.syncing} onClick={() => void store.sync()}>مزامنة الآن</Button>
         </div>
       </Sheet>
     </>
