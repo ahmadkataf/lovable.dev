@@ -9,7 +9,7 @@ import { PageHead, Section, roomColor } from './common'
 
 /** Room dot colour when the owner has not picked one: the public site's space-type coding. */
 const TYPE_DOT: Record<string, string> = { private: 'var(--blue)', meeting: 'var(--violet)', hall: 'var(--violet)', desk: 'var(--teal)' }
-import { enableTeamPush, ensureTeamPush, onPushStateChange, pushErrorText, pushState, testPush, type PushState } from './push'
+import { enableTeamPush, ensureTeamPush, onPushStateChange, pushBusy, pushErrorText, pushProblem, pushRegistered, pushState, resubscribeTeamPush, setPushProblem, testPush } from './push'
 import { store, useFresh, useRooms, useStore } from './store'
 import { describeError, isBlocking, isPendingVerification, localDate, sortByStart } from './util'
 
@@ -131,61 +131,69 @@ export function Today() {
 
 /** "تفعيل إشعارات الفريق" — shown until push is granted on this device; afterwards a one-line battery hint for phones
  *  whose power saver silences Chrome (Xiaomi / Huawei / Oppo…), with a two-step "كيف؟" sheet. */
-/** `required` renders only while notifications are off (top of the page); the plain one only once they are on. */
+/** Notifications are mandatory for the team. `required` is the red card pinned to the top of the page: it shows while
+ *  they are off OR something failed (with the reason and a retry). The plain card further down shows only once
+ *  permission is granted and nothing failed. Both read the shared status in ./push, so they never disagree. */
 function PushCard({ required = false }: { required?: boolean }) {
   const { view } = useStore()
   const toast = useToast()
-  const [state, setState] = useState<PushState>(() => pushState())
-  const [busy, setBusy] = useState(false)
+  const [, refresh] = useState(0)
+  const [testing, setTesting] = useState(false)
   const [how, setHow] = useState(false)
-  const [problem, setProblem] = useState<string | null>(null)
   const vapid = view.settings?.vapid_public_key
   const aggressiveOem = typeof navigator !== 'undefined' && AGGRESSIVE_OEM.test(navigator.userAgent)
-  useEffect(() => onPushStateChange(() => setState(pushState())), [])
+  useEffect(() => onPushStateChange(() => refresh((n) => n + 1)), [])
+  const state = pushState(), problem = pushProblem(), registered = pushRegistered(), busy = pushBusy() || testing
   if (state === 'unsupported' || !vapid) return null
-  if (required !== (state !== 'granted')) return null
+  const healthy = state === 'granted' && !problem
+  if (required === healthy) return null
 
   async function enable() {
-    setBusy(true); setProblem(null)
     try {
       const s = await enableTeamPush(vapid!)
-      setState(s)
       if (s === 'granted') await sendTest(true)
-      else toast.show(s === 'denied' ? 'الإشعارات مرفوضة — فعّلها من إعدادات الهاتف لهذا التطبيق' : 'هذا المتصفح لا يدعم الإشعارات', 'error')
-    } catch (err) { setProblem(pushErrorText(err)) } finally { setBusy(false) }
+      else if (s === 'denied') toast.show('الإشعارات مرفوضة — فعّلها من إعدادات الهاتف لهذا التطبيق', 'error')
+    } catch { /* the reason is on the card */ }
   }
-  async function sendTest(quiet = false) {
-    setBusy(true); setProblem(null)
+  async function sendTest(quiet = false, retried = false) {
+    setTesting(true)
     try {
       await ensureTeamPush(vapid!)
       const r = await testPush()
       const ok = r.results.some((x) => x.status !== null && x.status >= 200 && x.status < 300)
-      if (!r.configured) setProblem('مفاتيح الإشعارات غير مضبوطة على الخادم.')
-      else if (r.subscriptions === 0) setProblem('هذا الجهاز غير مسجّل بعد — اضغط «تفعيل» مرة ثانية.')
+      const gone = r.results.some((x) => x.status === 404 || x.status === 410)
+      if (!r.configured) setPushProblem('مفاتيح الإشعارات غير مضبوطة على الخادم.')
       else if (ok) toast.show(quiet ? 'تم التفعيل — وصلك إشعار تجريبي؟' : 'أُرسل إشعار تجريبي — يجب أن يظهر خلال ثوانٍ', 'ok')
-      else setProblem(`خدمة الإشعارات رفضت الإرسال (${r.results.map((x) => x.status ?? x.error).join('، ')}).`)
-    } catch (err) { setProblem(pushErrorText(err)) } finally { setBusy(false) }
+      else if ((gone || r.subscriptions === 0) && !retried) { await resubscribeTeamPush(vapid!); await sendTest(quiet, true); return }
+      else if (r.subscriptions === 0) setPushProblem('هذا الجهاز غير مسجّل بعد — اضغط «إعادة المحاولة».')
+      else setPushProblem(`خدمة الإشعارات رفضت الإرسال (${r.results.map((x) => x.status ?? x.error).join('، ')}).`)
+    } catch (err) { setPushProblem(pushErrorText(err)) } finally { setTesting(false) }
   }
+
+  const title = healthy ? (registered ? 'الإشعارات مفعّلة على هذا الجهاز' : 'جارٍ تسجيل هذا الجهاز للإشعارات…')
+    : state === 'granted' ? 'الإشعارات لا تعمل على هذا الجهاز بعد' : 'الإشعارات مطلوبة للوحة التحكم'
+  const text = healthy ? 'تصلك تنبيهات الحجوزات الجديدة والدفعات حتى والتطبيق مغلق.'
+    : state === 'denied' ? 'الإشعارات مرفوضة — بدونها لن يصلك أي حجز جديد. فعّلها من إعدادات الهاتف ← التطبيقات ← فوكس بوينت ← الإشعارات، ثم ارجع هنا.'
+    : state === 'granted' ? 'بدونها لن يصلك أي حجز جديد. السبب مكتوب أدناه — اضغط «إعادة المحاولة».'
+    : 'اسمح بالإشعارات حتى يصلك تنبيه فوري عند كل حجز جديد أو دفعة بانتظار التحقق.'
 
   return (
     <>
-      <Card className={`mt push-card${state === 'granted' ? '' : ' push-card--required'}`}>
+      <Card className={`mt push-card${healthy ? '' : ' push-card--required'}`}>
         <div className="row gap">
-          <Icon name="bell" size={22} className={state === 'granted' ? 'wine' : 'danger'} />
+          <Icon name="bell" size={22} className={healthy ? 'wine' : 'danger'} />
           <div>
-            <div className="strong">{state === 'granted' ? 'الإشعارات مفعّلة على هذا الجهاز' : 'الإشعارات مطلوبة للوحة التحكم'}</div>
+            <div className="strong">{title}</div>
             <div className="muted small">
-              {state === 'denied' ? 'الإشعارات مرفوضة — بدونها لن يصلك أي حجز جديد. فعّلها من إعدادات الهاتف ← التطبيقات ← فوكس بوينت ← الإشعارات، ثم ارجع هنا.'
-                : state === 'granted' ? 'تصلك تنبيهات الحجوزات الجديدة والدفعات حتى والتطبيق مغلق.'
-                : 'اسمح بالإشعارات حتى يصلك تنبيه فوري عند كل حجز جديد أو دفعة بانتظار التحقق.'}
-              {state === 'granted' && aggressiveOem && <>{' '}<button type="button" className="linkish" onClick={() => setHow(true)}>لا تصل والشاشة مقفلة؟</button></>}
+              {text}
+              {healthy && registered && aggressiveOem && <>{' '}<button type="button" className="linkish" onClick={() => setHow(true)}>لا تصل والشاشة مقفلة؟</button></>}
             </div>
             {problem && <div className="small mt" style={{ color: 'var(--danger)' }}>{problem}</div>}
           </div>
         </div>
-        {state === 'granted'
+        {healthy
           ? <Button variant="ghost" size="sm" loading={busy} onClick={() => sendTest()}>أرسل إشعاراً تجريبياً</Button>
-          : state !== 'denied' && <Button loading={busy} onClick={enable}>السماح بالإشعارات</Button>}
+          : state !== 'denied' && <Button loading={busy} onClick={enable}>{state === 'granted' ? 'إعادة المحاولة' : 'السماح بالإشعارات'}</Button>}
       </Card>
       <Sheet open={how} onClose={() => setHow(false)} title="استثناء التطبيق من توفير البطارية">
         <ol className="steps">

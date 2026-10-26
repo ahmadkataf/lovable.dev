@@ -1,7 +1,10 @@
 // Web Push for the team: subscribe this device with the centre's VAPID key and register it with the API.
 // The server ties the subscription to the signed-in account (Authorization header), so staff get new-booking
 // and payment-submitted notifications on this device.
-import { api } from '../api'
+//
+// Notifications are mandatory for the team. The module keeps ONE shared status — permission, whether this phone is
+// registered, the last problem — so every card on the page shows the same truth and no failure is silently dropped.
+import { api, teamToken } from '../api'
 
 const KEY = 'fp_team_push_endpoint'
 
@@ -18,7 +21,7 @@ function toKey(base64: string): Uint8Array {
   return Uint8Array.from(raw, (c) => c.charCodeAt(0))
 }
 
-/** Rejects with `code` when `p` takes longer than `ms` — so no step can leave the button spinning forever. */
+/** Rejects with `code` when `p` takes longer than `ms` — so no step can leave a button spinning forever. */
 function withTimeout<T>(p: Promise<T>, ms: number, code: string): Promise<T> {
   return new Promise<T>((resolve, reject) => {
     const t = setTimeout(() => reject(new Error(code)), ms)
@@ -26,9 +29,20 @@ function withTimeout<T>(p: Promise<T>, ms: number, code: string): Promise<T> {
   })
 }
 
-/** Tells every notification card on the page that the permission / subscription state may have changed. */
+// ── shared status ────────────────────────────────────────────────────────────────────────────────────────────────
+let registeredFor: string | null = null   // the team session (token) this phone was registered for on this page load
+let problem: string | null = null      // the last failure, in Arabic; cleared by the next success
+let inflight: Promise<PushState> | null = null
+
+/** Registered for the account signed in NOW (signing out and in as someone else must register again). */
+export const pushRegistered = () => registeredFor !== null && registeredFor === teamToken()
+export const pushProblem = () => problem
+export const pushBusy = () => inflight !== null
+
+/** Tells every notification card on the page that the status may have changed. */
 const STATE_EVENT = 'fp-team-push'
 function announce() { try { window.dispatchEvent(new Event(STATE_EVENT)) } catch { /* ignore */ } }
+export function setPushProblem(p: string | null) { problem = p; announce() }
 export function onPushStateChange(fn: () => void): () => void {
   const vis = () => { if (document.visibilityState === 'visible') fn() }   // back from the phone's settings
   window.addEventListener(STATE_EVENT, fn); document.addEventListener('visibilitychange', vis)
@@ -43,7 +57,7 @@ async function registration(): Promise<ServiceWorkerRegistration | null> {
 }
 
 /** Creates the push subscription if this phone has none yet, and (re)registers it for the signed-in account.
- *  Idempotent on the server (upsert by endpoint), so it runs on every panel load. Throws on failure. */
+ *  Idempotent on the server (upsert by endpoint), so it is safe to repeat. Throws on failure. */
 async function subscribeAndRegister(vapidPublicKey: string): Promise<void> {
   const reg = await registration()
   if (!reg) throw new Error('sw_not_ready')
@@ -51,46 +65,103 @@ async function subscribeAndRegister(vapidPublicKey: string): Promise<void> {
   if (!sub) sub = await withTimeout(reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: toKey(vapidPublicKey) as BufferSource }), 20000, 'subscribe_timeout')
   await withTimeout(api.post('/v1/push/subscribe', { subscription: sub.toJSON() }), 20000, 'network_timeout')
   try { localStorage.setItem(KEY, sub.endpoint) } catch { /* ignore */ }
+  registeredFor = teamToken()
+  problem = null
 }
 
-/** Ask for permission (needs a user gesture) and register this phone for the signed-in team account. */
-export async function enableTeamPush(vapidPublicKey: string): Promise<PushState> {
-  const state = pushState()
-  if (state === 'unsupported' || !vapidPublicKey) return 'unsupported'
-  const perm = Notification.permission === 'granted' ? 'granted'
-    : await withTimeout(Notification.requestPermission(), 30000, 'permission_timeout')
+/** Ask for permission if needed and register this phone for the signed-in team account. One run at a time: a tap
+ *  on the card and the first-tap auto prompt share the same run instead of asking twice. Failures are kept in the
+ *  shared status (shown by the card) and rethrown. */
+export function enableTeamPush(vapidPublicKey: string): Promise<PushState> {
+  if (inflight) return inflight
+  if (pushState() === 'unsupported' || !vapidPublicKey) return Promise.resolve('unsupported')
+  const run = (async (): Promise<PushState> => {
+    try {
+      const perm = Notification.permission === 'granted' ? 'granted'
+        : await withTimeout(Notification.requestPermission(), 30000, 'permission_timeout')
+      if (perm !== 'granted') return perm as PushState
+      await subscribeAndRegister(vapidPublicKey)
+      return 'granted'
+    } catch (err) {
+      problem = pushErrorText(err)
+      throw err
+    }
+  })()
+  inflight = run
   announce()
-  if (perm !== 'granted') return perm as PushState
-  await subscribeAndRegister(vapidPublicKey)
-  announce()
-  return 'granted'
+  run.finally(() => { inflight = null; announce() }).catch(() => { /* reported through `problem` */ })
+  return run
 }
 
-/** Permission already granted (the installed app often starts that way): make sure this phone is subscribed and
- *  registered for this account. Creating the subscription needs no prompt once permission is granted. */
+/** The push service no longer knows this phone's subscription (404/410 — e.g. Google rotated it): drop the stale
+ *  subscription in the browser and register a fresh one. */
+export async function resubscribeTeamPush(vapidPublicKey: string): Promise<PushState> {
+  if (inflight) await inflight.catch(() => { /* retried below */ })
+  try {
+    const reg = await registration()
+    const sub = await reg?.pushManager.getSubscription()
+    await sub?.unsubscribe()
+  } catch { /* a fresh subscribe below still helps */ }
+  registeredFor = null
+  return enableTeamPush(vapidPublicKey)
+}
+
+/** Permission already granted (the Android app asks for it natively at first launch): make sure this phone is
+ *  subscribed and registered for this account. Creating the subscription needs no prompt once granted. */
 export async function ensureTeamPush(vapidPublicKey: string): Promise<void> {
   if (pushState() !== 'granted' || !vapidPublicKey) return
-  await subscribeAndRegister(vapidPublicKey)
+  await enableTeamPush(vapidPublicKey)
 }
 
-/** Runs once when the team panel opens. Notifications are mandatory for the team, so nobody has to press a button:
- *  - permission already granted (the Android app asks for it natively at first launch) → subscribe right away;
- *  - not asked yet → ask now, and again on the first tap anywhere (some browsers only show the prompt after a tap).
+/** Runs while the team panel is open. Nobody has to press a button:
+ *  - permission granted → register now, and again whenever the phone comes back online / to the foreground or the
+ *    permission changes, until it has succeeded (a failure is shown on the card and retried, never dropped);
+ *  - not asked yet → ask once on the first tap anywhere (every browser shows the prompt for a tap; asking again
+ *    and again after a dismissal would get the site auto-blocked by Chrome).
  *  Returns a cleanup function. */
 export function autoEnableTeamPush(vapidPublicKey: string): () => void {
   if (!vapidPublicKey || pushState() === 'unsupported') return () => {}
-  if (pushState() === 'granted') { ensureTeamPush(vapidPublicKey).catch(() => { /* the card shows the problem */ }); return () => {} }
-  if (pushState() !== 'default') return () => {}
-  let asked = false
-  const ask = () => {
-    if (asked || pushState() !== 'default') return
-    asked = true
-    enableTeamPush(vapidPublicKey).catch(() => { /* the card shows the problem */ }).finally(() => { if (pushState() === 'default') asked = false })
+  let askedThisLoad = false
+  const sync = () => {
+    const s = pushState()
+    if (s === 'granted' && (!pushRegistered() || problem)) enableTeamPush(vapidPublicKey).catch(() => { /* on the card */ })
+    announce()
   }
-  ask()
-  const onTap = () => ask()
+  const onTap = () => {
+    if (askedThisLoad || pushState() !== 'default') return
+    askedThisLoad = true
+    enableTeamPush(vapidPublicKey).catch(() => { /* on the card */ })
+  }
+  const onVisible = () => { if (document.visibilityState === 'visible') sync() }
+  sync()
   document.addEventListener('pointerdown', onTap, { capture: true })
-  return () => document.removeEventListener('pointerdown', onTap, { capture: true })
+  window.addEventListener('online', sync)
+  document.addEventListener('visibilitychange', onVisible)
+  let status: PermissionStatus | null = null, dropped = false
+  navigator.permissions?.query({ name: 'notifications' as PermissionName })
+    .then((st) => { if (dropped) return; status = st; st.onchange = sync })
+    .catch(() => { /* not supported: visibility / online cover it */ })
+  return () => {
+    dropped = true
+    document.removeEventListener('pointerdown', onTap, { capture: true })
+    window.removeEventListener('online', sync)
+    document.removeEventListener('visibilitychange', onVisible)
+    if (status) status.onchange = null
+  }
+}
+
+/** Signing out: this phone must stop receiving the team's alerts (they name customers). Re-registering the same
+ *  subscription without the team token keeps it for this device's own bookings only. If this fails (offline), the
+ *  customer side re-registers it the same way on the next app start. */
+export async function unlinkTeamPush(): Promise<void> {
+  registeredFor = null
+  problem = null
+  try {
+    if (pushState() !== 'granted') return
+    const reg = await navigator.serviceWorker.getRegistration()
+    const sub = await reg?.pushManager.getSubscription()
+    if (sub && !teamToken()) await api.post('/v1/push/subscribe', { subscription: sub.toJSON() })
+  } catch { /* see above */ }
 }
 
 export interface PushTestResult { subscriptions: number; configured: boolean; results: { host: string; status: number | null; error?: string }[] }
@@ -106,5 +177,6 @@ export function pushErrorText(err: unknown): string {
   if (msg === 'sw_not_ready') return 'التطبيق لم يجهز بعد — أغلقه وافتحه مرة ثانية ثم أعد المحاولة.'
   if (name === 'AbortError' || /push service|registration failed/i.test(msg)) return 'خدمة الإشعارات في الهاتف (خدمات Google) غير متاحة أو محجوبة على هذا الجهاز/الشبكة.'
   if (name === 'NotAllowedError') return 'الإشعارات مرفوضة لهذا التطبيق — فعّلها من إعدادات الهاتف ← التطبيقات ← فوكس بوينت ← الإشعارات.'
+  if ((err as { offline?: boolean })?.offline) return 'لا يوجد اتصال بالإنترنت — سيُعاد التسجيل تلقائياً عند عودته.'
   return msg
 }

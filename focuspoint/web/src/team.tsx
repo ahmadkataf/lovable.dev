@@ -6,6 +6,7 @@ import { api, ApiError, errorMessage, TOKEN_KEY } from './api'
 import { normalisePhone } from './format'
 import { Button, Card, Field, Input, Spinner, OfflineBar } from './ui'
 import logoUrl from '@shared/logo.svg'
+import { unlinkTeamPush } from './team/push'
 
 const USER_KEY = 'fp_team_user'
 
@@ -40,6 +41,7 @@ export function TeamProvider({ children }: { children: ReactNode }) {
     write(USER_KEY, null)
     setToken(null)
     setUser(null)
+    void unlinkTeamPush()   // after the token is gone: this phone stops getting the team's alerts
   }, [])
 
   const refresh = useCallback(async () => {
