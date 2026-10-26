@@ -23,8 +23,8 @@ database_id = "b981c36a-ba36-4e5c-8f0e-cc987d962e54"
 [triggers]
 crons = ["*/5 * * * *"]
 
-# The Worker serves the built web app (web/dist). run_worker_first: every request hits the Worker,
-# /v1/* is answered by the API and anything else is an asset or falls back to index.html (SPA).
+# The Worker serves the built web app (web/dist): /v1/* is the API, /media/* the uploaded images, and pages fall back
+# to index.html (SPA) with the edited title / content filled in.
 [assets]
 directory = "../web/dist"
 binding = "ASSETS"

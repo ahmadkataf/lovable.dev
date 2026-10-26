@@ -187,12 +187,21 @@ export async function listMedia(db: D1Database): Promise<MediaItem[]> {
 }
 
 /** 404 when unknown, 409 media_in_use while the content or a room photo still shows it. */
-export async function deleteMedia(db: D1Database, id: string): Promise<void> {
+export async function deleteMedia(db: D1Database, id: string, origin?: string): Promise<void> {
   if (!MEDIA_ID_RE.test(id)) throw new HttpError(404, 'media_not_found')
   const exists = await db.prepare('SELECT 1 FROM media WHERE id = ?').bind(id).first()
   if (!exists) throw new HttpError(404, 'media_not_found')
   if ((await usedMediaIds(db)).has(id)) throw new HttpError(409, 'media_in_use')
-  await db.prepare('DELETE FROM media WHERE id = ?').bind(id).run()
+  const row = await db.prepare('DELETE FROM media WHERE id = ? RETURNING mime').bind(id).first<{ mime: MediaMime }>()
+  if (row && origin) await purgeMediaCache(origin, mediaSrc(id, row.mime))
+}
+
+/** Drops an image from this data centre's edge cache (serveMedia caches every image it serves). */
+export async function purgeMediaCache(origin: string, src: string): Promise<void> {
+  try {
+    const cache = typeof caches !== 'undefined' ? (caches as unknown as { default?: Cache }).default : undefined
+    await cache?.delete(new Request(origin + src, { method: 'GET' }))
+  } catch { /* best effort: ids are never reused, so a cached copy of a deleted image harms nothing */ }
 }
 
 // ---------- GET /media/<id>.<ext> (outside /v1) ----------

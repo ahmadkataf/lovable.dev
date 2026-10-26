@@ -6,7 +6,8 @@ const j = async (m, p, body, h = {}) => { const r = await fetch(B + p, { method:
 const login = await j('POST', '/v1/team/login', { phone: '0985258963', password: 'Admin123!' })
 const auth = { Authorization: `Bearer ${login.b.token}` }
 await j('PATCH', '/v1/admin/settings', { allow_pay_on_arrival: true }, auth)
-const day = new Date(Date.now() + (30 + Number(process.env.OFF || 0)) * 86400000).toISOString().slice(0, 10)
+// inside the default 14-day booking horizon; OFF picks another day when re-running on the same database
+const day = new Date(Date.now() + (2 + (Number(process.env.OFF || 0) % 10)) * 86400000).toISOString().slice(0, 10)
 const made = await j('POST', '/v1/bookings', { room_id: 3, start: `${day}T08:00:00.000Z`, end: `${day}T09:00:00.000Z`, name: 'زبون المزامنة', phone: '0944555666', method: 'cash' }, { 'X-Device': crypto.randomUUID() })
 if (made.s !== 201) { console.log('booking failed', made); process.exit(1) }
 const b = await chromium.launch(); const ctx = await b.newContext({ viewport: { width: 390, height: 844 } })

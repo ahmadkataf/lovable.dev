@@ -1110,17 +1110,6 @@ export const CONTENT_SECTIONS: SectionSpec[] = [
 
   section('home', 'الصفحة الرئيسية', 'كل نصوص وصور الصفحة الرئيسية، وترتيب أقسامها.', 'home', '/', [
     {
-      title: 'ترتيب الأقسام',
-      help: 'رتّب الأقسام بالأسهم وخبّي اللي ما بدك ياه. الخلفية الرمادية بتفصل بين قسمين ورا بعض.',
-      fields: [
-        list('sections', 'الأقسام', [
-          select('id', 'القسم', HOME_SECTION_OPTIONS, { readonly: true }),
-          toggle('visible', 'ظاهر'),
-          toggle('tint', 'خلفية رمادية', { help: 'ما إلها أثر على الواجهة وشريط الأرقام ودعوة الحجز' }),
-        ], { fixed: true }),
-      ],
-    },
-    {
       title: 'الواجهة الرئيسية',
       help: 'أول شي بيشوفه الزبون. الجملة الصغيرة فوق العنوان من «الهوية والتواصل».',
       fields: [
@@ -1223,6 +1212,17 @@ export const CONTENT_SECTIONS: SectionSpec[] = [
         long('cta.text', 'النص', { min: 1, max: 300, ...P }),
         long('cta.text_shamcash_only', 'النص بلا الدفع عند الوصول', { max: 300, ...P, help: SHAM_ONLY }),
         long('cta.text_cash_only', 'النص بلا شام كاش', { max: 300, ...P, help: CASH_ONLY }),
+      ],
+    },
+    {
+      title: 'ترتيب الأقسام',
+      help: 'رتّب الأقسام بالأسهم وخبّي اللي ما بدك ياه. الخلفية الرمادية بتفصل بين قسمين ورا بعض.',
+      fields: [
+        list('sections', 'الأقسام', [
+          select('id', 'القسم', HOME_SECTION_OPTIONS, { readonly: true }),
+          toggle('visible', 'ظاهر'),
+          toggle('tint', 'خلفية رمادية', { help: 'ما إلها أثر على الواجهة وشريط الأرقام ودعوة الحجز' }),
+        ], { fixed: true }),
       ],
     },
   ]),

@@ -59,7 +59,7 @@ export const contentRoutes: Route[] = [
 
   route('DELETE', '/v1/admin/media/:id', 'admin', async (c) => {
     const raw = c.params.id ?? ''
-    await deleteMedia(c.env.DB, mediaIdOf(raw) ?? raw)      // "<id>" or "<id>.webp"
+    await deleteMedia(c.env.DB, mediaIdOf(raw) ?? raw, c.url.origin)      // "<id>" or "<id>.webp"
     return json({ ok: true })
   }),
 ]
