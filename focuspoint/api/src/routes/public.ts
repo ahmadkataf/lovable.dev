@@ -2,7 +2,7 @@
 import type { Booking, PaymentInfo, PushMessage } from '../../../shared/types'
 import { normaliseCode } from '../bookings'
 import { ACTIVE_SQL } from '../bookings'
-import { BOOKING_SELECT, getBooking, toBooking, toRoom, type BookingRow, type RoomRow } from '../db'
+import { BOOKING_SELECT, getBooking, roomsWithPhotos, toBooking, type BookingRow, type RoomRow } from '../db'
 import { HttpError, json, readJson } from '../http'
 import { idParam, requireDevice, route, type Ctx, type Route } from '../router'
 import { cancelBooking, createCustomerBooking, submitPayment } from '../service'
@@ -51,7 +51,7 @@ export const publicRoutes: Route[] = [
 
   route('GET', '/v1/rooms', 'public', async (c) => {
     const rows = (await c.env.DB.prepare('SELECT * FROM rooms WHERE active = 1 ORDER BY sort, id').all<RoomRow>()).results
-    return json(rows.map(toRoom))
+    return json(await roomsWithPhotos(c.env.DB, rows))
   }),
 
   // Every live booking of the day, for every room, in one call (the floor plan colours itself from this).

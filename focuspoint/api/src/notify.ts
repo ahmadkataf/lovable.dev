@@ -1,7 +1,9 @@
 // Notifications: stored in the `notifications` inbox AND pushed (best effort, in ctx.waitUntil).
 // Team accounts get booking_created / payment_submitted; the customer's device gets the outcome of its booking.
 // Links are absolute, built from env.PUBLIC_URL (no domain is hard-coded anywhere): team → /team/bookings?id=, customer → /b/:id.
-import type { Booking, NotificationKind } from '../../shared/types'
+import { DEFAULT_CONTENT, fillTemplate, type SiteContent } from '../../shared/content'
+import type { Booking, NotificationKind, Settings } from '../../shared/types'
+import { loadContent } from './content'
 import { absoluteUrl, type Env } from './env'
 import { sendPushToAll, type PushPayload, type SubscriptionRow } from './push'
 import { formatWhen } from './tz'
@@ -62,39 +64,61 @@ export async function announce(env: Env, ctx: ExecutionContext, to: 'customers' 
   return devices.length
 }
 
-// ---- Arabic message texts (UI language), built from a booking ----
+// ---- Arabic message texts, from the admin-editable templates (content.messages, see shared/content.ts) ----
+// With the default content every title and body is exactly what the hard-coded texts said before the site editor
+// (test/notify.test.ts compares them for every kind). Any content problem falls back to the defaults: a broken
+// template must never stop a booking from being created or confirmed.
 type B = Pick<Booking, 'id' | 'code' | 'customer_name' | 'customer_phone' | 'room_name' | 'start' | 'end' | 'price' | 'method' | 'payment_ref' | 'reject_reason' | 'device_id'>
-export const PAY_ON_ARRIVAL = 'دفع عند الوصول'
+type Messages = SiteContent['messages']
+
+/** What every message needs besides the booking: the centre's zone and facts, and the templates. */
+export interface MessageCtx { tz: string; phone: string; name: string; messages: Messages }
+
+/** Loads the templates (isolate-cached content); on any error the default templates. */
+export async function messageCtx(db: D1Database, s: Pick<Settings, 'timezone' | 'phone' | 'centre_name'>): Promise<MessageCtx> {
+  let messages: Messages = DEFAULT_CONTENT.messages
+  try { messages = (await loadContent(db)).messages } catch (err) { console.error('notify: content unavailable, using the default texts', err) }
+  return { tz: s.timezone, phone: s.phone, name: s.centre_name, messages }
+}
+
+/** The default templates only (tests, and callers without a database). */
+export const defaultMessageCtx = (tz: string, phone = '', name = ''): MessageCtx => ({ tz, phone, name, messages: DEFAULT_CONTENT.messages })
+
 const syp = (n: number) => `${n.toLocaleString('en-US')} ل.س`
 const room = (b: B) => b.room_name ?? 'الغرفة'
 
+/**
+ * Optional values (the reject reason, the centre phone) used to be left out together with their label when empty
+ * ("· السبب: …", "على …"). Same here: the placeholder and the one word / "·" in front of it go.
+ */
+const OPTIONAL_VARS = ['reason', 'phone'] as const
+function dropEmpty(t: string, vars: Record<string, string>): string {
+  let out = t
+  for (const k of OPTIONAL_VARS) {
+    if (vars[k] === '') out = out.replace(new RegExp(`(\\s*·)?\\s*[^\\s·{}]+\\s*\\{${k}\\}`, 'g'), '')
+  }
+  return out
+}
+
+function build(kind: NotificationKind, b: B, ctx: MessageCtx, tpl: { title: string; body: string }): Message {
+  const vars: Record<string, string> = {
+    customer_name: b.customer_name, room: room(b), when: formatWhen(b.start, b.end, ctx.tz), price: syp(b.price), code: b.code,
+    ref: b.payment_ref ?? '', reason: b.reject_reason ?? '', phone: ctx.phone, name: ctx.name,
+  }
+  const fill = (t: string) => fillTemplate(dropEmpty(t, vars), vars)
+  return { kind, booking_id: b.id, title: fill(tpl.title), body: fill(tpl.body) }
+}
+
 export const texts = {
-  booking_created: (b: B, tz: string): Message => ({
-    kind: 'booking_created', booking_id: b.id, title: 'حجز جديد',
-    body: `${b.customer_name} · ${room(b)} · ${formatWhen(b.start, b.end, tz)} · ${syp(b.price)} · الرمز ${b.code}`,
-  }),
-  payment_submitted: (b: B, tz: string): Message => ({
-    kind: 'payment_submitted', booking_id: b.id, title: 'دفعة بانتظار التحقق',
-    body: `${b.customer_name} · ${syp(b.price)} · ${b.method === 'cash' ? PAY_ON_ARRIVAL : `رقم العملية ${b.payment_ref ?? ''}`} · ${room(b)} ${formatWhen(b.start, b.end, tz)}`,
-  }),
-  booking_confirmed: (b: B, tz: string): Message => ({
-    kind: 'booking_confirmed', booking_id: b.id, title: 'تم تأكيد حجزك',
-    body: `${room(b)} · ${formatWhen(b.start, b.end, tz)} · الرمز ${b.code}. نراك في فوكس بوينت!`,
-  }),
-  booking_rejected: (b: B, tz: string): Message => ({
-    kind: 'booking_rejected', booking_id: b.id, title: 'لم يتم تأكيد الدفع',
-    body: `${room(b)} · ${formatWhen(b.start, b.end, tz)}${b.reject_reason ? ` · السبب: ${b.reject_reason}` : ''}. تواصل معنا إن كان هناك خطأ.`,
-  }),
-  booking_expired: (b: B, tz: string): Message => ({
-    kind: 'booking_expired', booking_id: b.id, title: 'انتهت مهلة الحجز',
-    body: `لم يصلنا رقم عملية الدفع لحجز ${room(b)} · ${formatWhen(b.start, b.end, tz)}. يمكنك الحجز من جديد.`,
-  }),
-  booking_cancelled: (b: B, tz: string, phone = ''): Message => ({
-    kind: 'booking_cancelled', booking_id: b.id, title: 'تم إلغاء حجزك',
-    body: `${room(b)} · ${formatWhen(b.start, b.end, tz)}. تواصل معنا${phone ? ` على ${phone}` : ''} لأي استفسار.`,
-  }),
-  booking_reminder: (b: B, tz: string): Message => ({
-    kind: 'booking_reminder', booking_id: b.id, title: 'حجزك بعد ساعة',
-    body: `${room(b)} · ${formatWhen(b.start, b.end, tz)} · الرمز ${b.code}. ننتظرك!`,
-  }),
+  booking_created: (b: B, ctx: MessageCtx): Message => build('booking_created', b, ctx, ctx.messages.booking_created),
+  /** Pay-on-arrival bookings (method cash) use body_cash: there is no transfer reference to check. */
+  payment_submitted: (b: B, ctx: MessageCtx): Message => {
+    const m = ctx.messages.payment_submitted
+    return build('payment_submitted', b, ctx, { title: m.title, body: b.method === 'cash' ? m.body_cash : m.body })
+  },
+  booking_confirmed: (b: B, ctx: MessageCtx): Message => build('booking_confirmed', b, ctx, ctx.messages.booking_confirmed),
+  booking_rejected: (b: B, ctx: MessageCtx): Message => build('booking_rejected', b, ctx, ctx.messages.booking_rejected),
+  booking_expired: (b: B, ctx: MessageCtx): Message => build('booking_expired', b, ctx, ctx.messages.booking_expired),
+  booking_cancelled: (b: B, ctx: MessageCtx): Message => build('booking_cancelled', b, ctx, ctx.messages.booking_cancelled),
+  booking_reminder: (b: B, ctx: MessageCtx): Message => build('booking_reminder', b, ctx, ctx.messages.booking_reminder),
 }

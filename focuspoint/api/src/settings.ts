@@ -40,8 +40,24 @@ export const DEFAULT_SETTINGS: StoredSettings = {
   shamcash_qr: null,
   payment_instructions: 'حوّل المبلغ عبر شام كاش إلى الرقم أدناه، واكتب رمز الحجز في ملاحظة التحويل، ثم أدخل رقم العملية هنا.',
   allow_pay_on_arrival: false,
+  // booking & payment capabilities (shared/types.ts Settings): these defaults are exactly the behaviour before they existed
+  booking_enabled: true,
+  booking_closed_message: '',
+  shamcash_enabled: true,
+  booking_horizon_days: 14,          // the /book date strip always showed today + 13 days
+  reminder_minutes: 60,              // the cron reminded 55–65 minutes before the start
+  max_open_holds_per_phone: 3,
+  customer_can_cancel: true,
   plan: DEFAULT_PLAN,
 }
+
+/** Limits of the capability fields (the admin form shows the same ranges). */
+export const LIMITS = {
+  booking_closed_message: 500,
+  booking_horizon_days: { min: 1, max: 365 },
+  reminder_minutes: { min: 15, max: 1440 },        // or 0 = no reminders
+  max_open_holds_per_phone: { min: 1, max: 20 },
+} as const
 
 export async function loadStoredSettings(db: D1Database): Promise<StoredSettings> {
   const row = await db.prepare('SELECT data FROM settings WHERE id = 1').first<{ data: string }>()
@@ -59,8 +75,12 @@ export async function loadSettings(db: D1Database, env: Env): Promise<Settings> 
 }
 
 export function publicSettings(s: Settings): PublicSettings {
-  const { centre_name, phone, address, instagram, timezone, open, close, slot_minutes, min_minutes, max_minutes, hold_minutes, allow_pay_on_arrival, plan, vapid_public_key } = s
-  return { centre_name, phone, address, instagram, timezone, open, close, slot_minutes, min_minutes, max_minutes, hold_minutes, allow_pay_on_arrival, plan, vapid_public_key }
+  const { centre_name, phone, address, instagram, timezone, open, close, slot_minutes, min_minutes, max_minutes, hold_minutes, allow_pay_on_arrival, plan, vapid_public_key,
+    booking_enabled, booking_closed_message, shamcash_enabled, booking_horizon_days, reminder_minutes, max_open_holds_per_phone, customer_can_cancel } = s
+  return {
+    centre_name, phone, address, instagram, timezone, open, close, slot_minutes, min_minutes, max_minutes, hold_minutes, allow_pay_on_arrival, plan, vapid_public_key,
+    booking_enabled, booking_closed_message, shamcash_enabled, booking_horizon_days, reminder_minutes, max_open_holds_per_phone, customer_can_cancel,
+  }
 }
 
 const MAX_QR_BYTES = 300 * 1024
@@ -120,9 +140,29 @@ export function validateSettingsPatch(body: Record<string, unknown>, current: St
     p.allow_pay_on_arrival = body.allow_pay_on_arrival
   }
   if ('plan' in body) p.plan = validatePlan(body.plan)
+  // booking & payment capabilities
+  const bool = (k: 'booking_enabled' | 'shamcash_enabled' | 'customer_can_cancel', code: string) => {
+    if (!(k in body)) return
+    if (typeof body[k] !== 'boolean') throw new HttpError(400, code)
+    p[k] = body[k] as boolean
+  }
+  bool('booking_enabled', 'invalid_booking_enabled')
+  bool('shamcash_enabled', 'invalid_shamcash_enabled')
+  bool('customer_can_cancel', 'invalid_customer_can_cancel')
+  if ('booking_closed_message' in body) p.booking_closed_message = requireString(body.booking_closed_message, 'invalid_closed_message', 0, LIMITS.booking_closed_message)
+  if ('booking_horizon_days' in body) p.booking_horizon_days = requireInt(body.booking_horizon_days, 'invalid_horizon', LIMITS.booking_horizon_days.min, LIMITS.booking_horizon_days.max)
+  if ('reminder_minutes' in body) {
+    p.reminder_minutes = body.reminder_minutes === 0 || body.reminder_minutes === '0'
+      ? 0 : requireInt(body.reminder_minutes, 'invalid_reminder', LIMITS.reminder_minutes.min, LIMITS.reminder_minutes.max)
+  }
+  if ('max_open_holds_per_phone' in body) {
+    p.max_open_holds_per_phone = requireInt(body.max_open_holds_per_phone, 'invalid_max_holds', LIMITS.max_open_holds_per_phone.min, LIMITS.max_open_holds_per_phone.max)
+  }
 
   // Cross-field rules on the merged result.
   const merged = { ...current, ...p }
+  // Customers must always have a way to pay: Sham Cash, pay on arrival, or both.
+  if (!merged.shamcash_enabled && !merged.allow_pay_on_arrival) throw new HttpError(400, 'no_payment_method')
   if (timeToMinutes(merged.open) >= timeToMinutes(merged.close)) throw new HttpError(400, 'invalid_hours')
   if (merged.min_minutes > merged.max_minutes) throw new HttpError(400, 'invalid_duration')
   if (merged.min_minutes % merged.slot_minutes !== 0 || merged.max_minutes % merged.slot_minutes !== 0) throw new HttpError(400, 'invalid_duration')

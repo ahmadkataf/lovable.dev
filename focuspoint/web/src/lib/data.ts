@@ -61,3 +61,5 @@ export function useCached<T>(path: string | null, opts: { maxAgeMs?: number; pol
 }
 
 export function dropMemo(path: string) { memo.delete(path) }
+/** Pre-fill the in-memory layer (the Worker's boot JSON), so the first render already has the data. */
+export function seedMemo(path: string, data: unknown) { if (data !== undefined && data !== null && !memo.has(path)) memo.set(path, data) }

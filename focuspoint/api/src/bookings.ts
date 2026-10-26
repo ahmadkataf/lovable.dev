@@ -1,7 +1,7 @@
 // Pure booking rules — no I/O, unit-tested in test/bookings.test.ts.
 // Slot validation against the centre's hours, pricing, overlap detection, booking codes and the status machine.
 import type { Booking, BookingStatus, Settings } from '../../shared/types'
-import { localParts, timeToMinutes } from './tz'
+import { addDays, localParts, timeToMinutes } from './tz'
 
 export type SlotSettings = Pick<Settings, 'timezone' | 'open' | 'close' | 'slot_minutes' | 'min_minutes' | 'max_minutes'>
 
@@ -39,6 +39,25 @@ export function validateSlot(startIso: string, endIso: string, s: SlotSettings, 
   if (!opts.allowPast && start.getTime() < opts.now.getTime()) return { ok: false, error: 'in_past' }
   if (opts.allowPast && end.getTime() <= opts.now.getTime()) return { ok: false, error: 'in_past' }
   return { ok: true, minutes }
+}
+
+/**
+ * settings.booking_horizon_days: a customer may book today and the next (days − 1) local days — the /book date strip.
+ * True when the booking starts on a later local day (→ 400 too_far_ahead). Team walk-ins are not limited.
+ */
+export function beyondHorizon(startIso: string, now: Date, tz: string, days: number): boolean {
+  const last = addDays(localParts(now, tz).date, Math.max(1, Math.floor(days)) - 1)
+  return localParts(new Date(startIso), tz).date > last
+}
+
+/** The cron runs every 5 minutes, so a reminder goes to bookings starting within ±5 minutes of settings.reminder_minutes from now. */
+export const REMINDER_WINDOW_MINUTES = 5
+
+/** [from, to) start window for reminders (ISO), or null when reminders are off (reminder_minutes = 0). 60 → 55–65 minutes ahead. */
+export function reminderWindow(now: Date, reminderMinutes: number): { from: string; to: string } | null {
+  if (!Number.isFinite(reminderMinutes) || reminderMinutes <= 0) return null
+  const at = (m: number) => new Date(now.getTime() + m * 60000).toISOString()
+  return { from: at(reminderMinutes - REMINDER_WINDOW_MINUTES), to: at(reminderMinutes + REMINDER_WINDOW_MINUTES) }
 }
 
 /** Price in Syrian pounds: hours × price_hour (half hours allowed); a full day (≥ 8h) takes the cheaper of price_day and hourly. */

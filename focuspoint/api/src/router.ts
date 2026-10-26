@@ -16,6 +16,11 @@ export interface Route { method: string; path: string; access: Access; handler: 
 
 export const route = (method: string, path: string, access: Access, handler: Handler): Route => ({ method, path, access, handler })
 
+/** A malformed escape ("%E0") must not throw outside the handler's try (it would crash the request): keep it raw. */
+function safeDecode(s: string): string {
+  try { return decodeURIComponent(s) } catch { return s }
+}
+
 export function match(routes: Route[], method: string, pathname: string): { route: Route; params: Record<string, string> } | null {
   const segs = pathname.replace(/\/+$/, '').split('/')
   for (const r of routes) {
@@ -26,7 +31,7 @@ export function match(routes: Route[], method: string, pathname: string): { rout
     let ok = true
     for (let i = 0; i < pat.length; i++) {
       const p = pat[i] as string, s = segs[i] as string
-      if (p.startsWith(':')) params[p.slice(1)] = decodeURIComponent(s)
+      if (p.startsWith(':')) params[p.slice(1)] = safeDecode(s)
       else if (p !== s) { ok = false; break }
     }
     if (ok) return { route: r, params }

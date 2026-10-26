@@ -8,6 +8,7 @@ export type IconName =
   | 'cloud' | 'cloudOff' | 'sync' | 'whatsapp'
   | 'menu' | 'instagram' | 'sun' | 'arrowLeft' | 'arrowRight' | 'briefcase' | 'book' | 'sparkle' | 'quiet' | 'cash' | 'card'
   | 'map' | 'shield' | 'bulb' | 'external' | 'target' | 'heart' | 'window'
+  | 'globe' | 'image' | 'undo' | 'arrowUp' | 'arrowDown' | 'eye'
 
 const PATHS: Record<IconName, string> = {
   chair: '<path d="M6 11V5a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v6"/><rect x="4" y="11" width="16" height="5" rx="1.5"/><path d="M6 16v5M18 16v5"/>',
@@ -66,6 +67,13 @@ const PATHS: Record<IconName, string> = {
   heart: '<path d="M12 20s-7-4.4-9-9a4.8 4.8 0 0 1 9-3 4.8 4.8 0 0 1 9 3c-2 4.6-9 9-9 9z"/>',
   window: '<rect x="4" y="3" width="16" height="18" rx="1.5"/><path d="M12 3v18M4 12h16"/>',
   whatsapp: '<path d="M3 21l1.5-4.5A9 9 0 1 1 8 19.6z"/><path d="M9 9.5c0 3 2.5 5.5 5.5 5.5l1.5-1.5-2-1-1 1a4 4 0 0 1-2.5-2.5l1-1-1-2z"/>',
+  // team panel › الموقع (site editor)
+  globe: '<circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18"/>',
+  image: '<rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="9.5" r="1.8"/><path d="M21 16l-5.5-5.5L5 20"/>',
+  undo: '<path d="M9 14L4 9l5-5"/><path d="M4 9h11a5 5 0 0 1 0 10h-3"/>',
+  arrowUp: '<path d="M12 19V5M6 11l6-6 6 6"/>',
+  arrowDown: '<path d="M12 5v14M6 13l6 6 6-6"/>',
+  eye: '<path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/>',
 }
 
 export interface IconProps extends Omit<SVGProps<SVGSVGElement>, 'name'> { name: IconName; size?: number }

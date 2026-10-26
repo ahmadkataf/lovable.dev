@@ -1,8 +1,8 @@
 // Focus Point — shared domain types and the HTTP API contract (used by api/ and web/).
 // Times are ISO-8601 strings in UTC; the centre's local zone is Asia/Damascus (settings.timezone).
 // The editable site content (texts, images, links of the website) has its own contract in ./content.
-import type { Photo, SectionId, SiteContent } from './content'
-export type { Photo, SectionId, SiteContent } from './content'
+import type { ContentErrorCode, Photo, SectionId, SiteContent } from './content'
+export type { ContentErrorCode, Photo, SectionId, SiteContent } from './content'
 
 export type Role = 'staff' | 'admin'          // accounts exist only for the team; customers book as guests (name + phone)
 export type RoomType = 'private' | 'meeting' | 'desk' | 'hall'
@@ -140,8 +140,11 @@ export interface ApiContract {
   // site content (see ./content): defaults ⊕ the sections the admin saved
   'GET /v1/content': { res: ContentResponse }                       // public; Cache-Control: no-cache + ETag (304 on If-None-Match)
   'GET /v1/admin/content': { res: AdminContentResponse }
-  'PUT /v1/admin/content/:section': { req: SiteContent[SectionId]; res: ContentSectionResponse }   // body = the full section value, checked by validateSection (400 {error, path, message})
+  'PUT /v1/admin/content/:section': { req: SiteContent[SectionId]; res: ContentSectionResponse }   // body = the full section value, checked by validateSection (400 InvalidContentError)
   'DELETE /v1/admin/content/:section': { res: ContentSectionResponse }                             // back to the default
+  // undo: every PUT / DELETE / undo first keeps the section's previous value (site_content_history, last 20 per section)
+  'GET /v1/admin/content/:section/history': { res: ContentHistoryEntry[] }                         // newest first, ≤20
+  'POST /v1/admin/content/:section/undo': { res: ContentSectionResponse }                          // restores the latest kept value (409 nothing_to_undo)
   // uploaded images (stored in D1). Raw body image/webp|jpeg|png ≤ 1,000,000 bytes; w/h = pixel size measured by the browser
   'POST /v1/admin/media?w=&h=': { req: Blob | ArrayBuffer; res: MediaUpload }
   'GET /v1/admin/media': { res: MediaItem[] }                      // newest first
@@ -159,6 +162,17 @@ export interface ContentSectionResponse {
   value: SiteContent[SectionId]     // the merged section as the site now shows it
   overridden: boolean               // false after DELETE (default again)
   updated_at: string | null
+}
+/** 400 from PUT /v1/admin/content/:section: `reason` and `path` come from validateSection, `message` is its Arabic text. */
+export interface InvalidContentError { error: 'invalid_content'; reason: ContentErrorCode; path: string; message: string }
+/** One kept value of a section (GET …/history, newest first): what the section showed before the save at saved_at. */
+export interface ContentHistoryEntry {
+  id: number
+  saved_at: string | null        // when it was replaced
+  saved_by: number | null        // the admin who replaced it
+  saved_by_name: string | null
+  was_default: boolean           // true → before that save the section showed the default
+  value: SiteContent[SectionId]  // the section as it looked then (merged with today's defaults, so always renderable)
 }
 export interface MediaUpload { id: string; src: string; w: number; h: number; bytes: number }   // src = '/media/<id>.webp' (or .jpg / .png)
 export interface MediaItem extends MediaUpload {

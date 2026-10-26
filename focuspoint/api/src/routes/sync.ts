@@ -2,7 +2,7 @@
 //  GET  /v1/team/sync?since=  → everything the device needs (rooms, changed bookings, settings, deleted room ids, server time)
 //  POST /v1/team/sync {ops}   → replays the device's offline queue in order; each op is idempotent by client_id (sync_ops)
 import type { Room, SyncOp, SyncResult } from '../../../shared/types'
-import { BOOKING_SELECT, toBooking, toRoom, type BookingRow, type RoomRow } from '../db'
+import { BOOKING_SELECT, roomsWithPhotos, toBooking, type BookingRow, type RoomRow } from '../db'
 import { HttpError, json, readJson } from '../http'
 import { requireUser, route, type Ctx, type Route } from '../router'
 import { effectiveNow } from '../bookings'
@@ -79,7 +79,7 @@ export const syncRoutes: Route[] = [
       loadSettings(db, c.env),
     ])
     return json({
-      now, rooms: rooms.results.map(toRoom), bookings: bookings.results.map(toBooking), settings,
+      now, rooms: await roomsWithPhotos(db, rooms.results), bookings: bookings.results.map(toBooking), settings,
       deleted_rooms: deleted.results.map((r) => r.id),
     })
   }),

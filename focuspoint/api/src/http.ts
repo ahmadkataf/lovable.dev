@@ -1,13 +1,15 @@
 // HTTP plumbing: JSON responses, typed errors ({error: code}), CORS.
 
 export class HttpError extends Error {
-  constructor(public status: number, public code: string) { super(code) }
+  /** `extra` is merged into the JSON error body next to `error` (e.g. {path, message} for invalid site content). */
+  constructor(public status: number, public code: string, public extra?: Record<string, unknown>) { super(code) }
 }
 
 export const CORS_HEADERS: Record<string, string> = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Methods': 'GET,POST,PATCH,DELETE,OPTIONS',
-  'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Device, X-Webhook-Secret',
+  'Access-Control-Allow-Methods': 'GET,POST,PUT,PATCH,DELETE,OPTIONS',
+  'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Device, X-Webhook-Secret, If-None-Match',
+  'Access-Control-Expose-Headers': 'ETag',
   'Access-Control-Max-Age': '86400',
 }
 
@@ -18,7 +20,7 @@ export function json(data: unknown, status = 200, extra: Record<string, string> 
   })
 }
 
-export const error = (status: number, code: string): Response => json({ error: code }, status)
+export const error = (status: number, code: string, extra?: Record<string, unknown>): Response => json({ ...extra, error: code }, status)
 
 export async function readJson(req: Request): Promise<Record<string, unknown>> {
   let body: unknown

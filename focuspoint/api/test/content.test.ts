@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest'
 import {
-  CONTENT_SECTIONS, DEFAULT_CONTENT, SECTION_IDS, SITE_ICONS, TEMPLATE_VARS,
-  contentMediaSrcs, fillTemplate, isSafeImageSrc, isSafeLink, mergeContent, parseRich, sectionFields, templateKeys, validateSection,
+  CONTENT_SECTIONS, DEFAULT_CONTENT, SECTION_IDS, SITE_ICONS, SITE_VARS, TEMPLATE_EXAMPLE, TEMPLATE_VARS,
+  brandPalette, brandStyle, buildJsonLd, contentMediaSrcs, contrastRatio, fillTemplate, hoursTemplateVars, intlPhone, isSafeImageSrc,
+  isSafeLink, mergeContent, parseRich, photoSmall, pickVariant, reminderLabel, roomTemplateVars, safeJson, sectionFields,
+  siteTemplateVars, splitAddress, templateKeys, textParts, validateSection, whatsappLink, wordingFlags,
   type FieldSpec, type SectionId,
 } from '../../shared/content'
 
@@ -128,10 +130,10 @@ describe('validateSection rejects bad input', () => {
     v.hero.photo = { ...v.hero.photo, src: 'https://evil.com/x.png' }
     expect(validateSection('home', v)).toMatchObject({ ok: false, error: 'bad_image', path: 'hero.photo.src' })
     const g = home()
-    g.gallery.photos = [...g.gallery.photos, { src: '/img/../secret', w: 10, h: 10, alt: '' }]
-    expect(validateSection('home', g)).toMatchObject({ ok: false, error: 'bad_image', path: 'gallery.photos.4.src' })
+    g.gallery.photos[3] = { src: '/img/../secret', w: 10, h: 10, alt: 'صورة' }
+    expect(validateSection('home', g)).toMatchObject({ ok: false, error: 'bad_image', path: 'gallery.photos.3.src' })
     const s = clone(DEFAULT_CONTENT.spaces)
-    s.groups.open.photo = { src: '/media/abc.webp', w: 0, h: 10, alt: '' }
+    s.groups.open.photo = { src: '/media/abc.webp', w: 0, h: 10, alt: 'المساحة' }
     expect(validateSection('spaces', s)).toMatchObject({ ok: false, error: 'bad_size', path: 'groups.open.photo' })
   })
 
@@ -192,7 +194,7 @@ describe('mergeContent', () => {
     expect(merged.brand.slogan).toBe('شعار جديد')
     expect(merged.brand.email).toBe(DEFAULT_CONTENT.brand.email)
     expect(merged.brand).not.toHaveProperty('junk')
-    expect(merged.home.faq.items).toEqual([{ q: 'سؤال؟', a: 'جواب.', a_shamcash_only: '' }])
+    expect(merged.home.faq.items).toEqual([{ q: 'سؤال؟', a: 'جواب.', a_shamcash_only: '', a_cash_only: '', a_no_cancel: '' }])
     expect(merged.home.faq.title).toBe(DEFAULT_CONTENT.home.faq.title)
     expect(merged.home.hero.photo).toEqual(DEFAULT_CONTENT.home.hero.photo)
     expect(merged.theme.brand).toBe('#7b1e2e')
@@ -240,8 +242,257 @@ describe('templates and rich text', () => {
   })
 
   it('finds the uploaded pictures the content uses', () => {
-    const c = mergeContent({ home: { hero: { photo: { src: '/media/abc.webp', w: 10, h: 10, alt: '' } } } })
+    const c = mergeContent({ home: { hero: { photo: { src: '/media/abc.webp', w: 10, h: 10, alt: 'القاعة' } } } })
     expect(contentMediaSrcs(c)).toEqual(['/media/abc.webp'])
     expect(contentMediaSrcs(DEFAULT_CONTENT)).toEqual([])
+  })
+})
+
+// The live data of today's site: the API default settings (api/src/settings.ts) and the seed rooms (api/seed.sql).
+const API_SETTINGS = {
+  centre_name: 'فوكس بوينت', phone: '0985258963', address: 'درعا، شارع المجمع الحكومي – بناء العايش', instagram: 'its_focus_point',
+  open: '09:00', close: '23:00', hold_minutes: 30, reminder_minutes: 60,
+}
+const SEED_ROOMS = [
+  { type: 'private', capacity: 2, active: 1 }, { type: 'private', capacity: 3, active: 1 }, { type: 'private', capacity: 4, active: 1 },
+  { type: 'private', capacity: 4, active: 1 }, { type: 'meeting', capacity: 10, active: 1 }, { type: 'desk', capacity: 8, active: 1 },
+]
+const LIVE = siteTemplateVars({ settings: API_SETTINGS, brand: DEFAULT_CONTENT.brand, rooms: SEED_ROOMS })
+
+describe('lists', () => {
+  it('a fixed-list item missing a property takes it from its default item', () => {
+    const r = validateSection('home', { sections: [{ id: 'faq' }] })
+    expect(r.ok).toBe(true)
+    if (r.ok) {
+      expect(r.value.sections[0]).toEqual({ id: 'faq', visible: true, tint: true })
+      expect(r.value.sections.map((x) => x.id)).toEqual(['faq', 'hero', 'facts', 'features', 'spaces', 'how', 'gallery', 'visit', 'cta'])
+    }
+    expect(mergeContent({ home: { sections: [{ id: 'cta', visible: false }] } }).home.sections[0]).toEqual({ id: 'cta', visible: false, tint: false })
+  })
+
+  it('an item missing its icon keeps the list (neutral icon) instead of failing', () => {
+    const r = validateSection('home', { features: { items: [{ title: 'هدوء', text: 'نص' }] } })
+    expect(r).toMatchObject({ ok: true, value: { features: { items: [{ icon: 'check', title: 'هدوء', text: 'نص' }] } } })
+    expect(mergeContent({ home: { hero: { chips: [{ text: 'جديد' }] } } }).home.hero.chips)
+      .toEqual([{ icon: 'check', text: 'جديد', text_shamcash_only: '', text_cash_only: '' }])
+  })
+
+  it('unique list keys', () => {
+    const s = clone(DEFAULT_CONTENT.spaces)
+    s.groups.private.amenities = [{ key: 'wifi' }, { key: 'wifi' }]
+    expect(validateSection('spaces', s)).toMatchObject({ ok: false, error: 'duplicate', path: 'groups.private.amenities.1.key' })
+    s.groups.private.amenities = [{ key: 'wifi' }, { key: 'coffee' }]
+    expect(validateSection('spaces', s).ok).toBe(true)
+  })
+})
+
+describe('pictures', () => {
+  it('alt text is required (except decorative fields)', () => {
+    const v = clone(DEFAULT_CONTENT.home)
+    v.hero.photo = { ...v.hero.photo, alt: '  ' }
+    expect(validateSection('home', v)).toMatchObject({ ok: false, error: 'required', path: 'hero.photo.alt' })
+    const b = { ...clone(DEFAULT_CONTENT.brand), logo: { src: '/media/logo1.webp', w: 512, h: 512, alt: '' } }
+    expect(validateSection('brand', b)).toMatchObject({ ok: true, value: { logo: { src: '/media/logo1.webp', alt: '' } } })
+  })
+
+  it('the gallery has exactly four photos and a quote', () => {
+    const v = clone(DEFAULT_CONTENT.home)
+    v.gallery.photos = v.gallery.photos.slice(0, 3)
+    expect(validateSection('home', v)).toMatchObject({ ok: false, error: 'too_few', path: 'gallery.photos' })
+    v.gallery.photos = [...DEFAULT_CONTENT.home.gallery.photos, DEFAULT_CONTENT.home.hero.photo]
+    expect(validateSection('home', v)).toMatchObject({ ok: false, error: 'too_many', path: 'gallery.photos' })
+    const q = clone(DEFAULT_CONTENT.home)
+    q.gallery.quote = ''
+    expect(validateSection('home', q)).toMatchObject({ ok: false, error: 'required', path: 'gallery.quote' })
+  })
+
+  it('the share image is JPEG or PNG', () => {
+    const s = clone(DEFAULT_CONTENT.seo)
+    s.og_image = { ...s.og_image, src: '/media/abc.webp' }
+    expect(validateSection('seo', s)).toMatchObject({ ok: false, error: 'bad_format', path: 'og_image.src' })
+    s.og_image = { ...s.og_image, src: '/media/abc.jpg' }
+    expect(validateSection('seo', s).ok).toBe(true)
+  })
+
+  it('photoSmall falls back to src', () => {
+    expect(photoSmall(DEFAULT_CONTENT.home.hero.photo)).toBe('/img/room-a-720.webp')
+    expect(photoSmall({ src: '/media/x.webp' })).toBe('/media/x.webp')
+  })
+})
+
+describe('section rules', () => {
+  it('an announcement link needs its label and its address', () => {
+    const a = DEFAULT_CONTENT.announcement
+    expect(validateSection('announcement', { ...a, link_label: 'احجز هلأ' })).toMatchObject({ ok: false, error: 'required', path: 'link_url' })
+    expect(validateSection('announcement', { ...a, link_url: '/book' })).toMatchObject({ ok: false, error: 'required', path: 'link_label' })
+    expect(validateSection('announcement', { ...a, link_label: 'احجز هلأ', link_url: '/book' }).ok).toBe(true)
+    expect(mergeContent({ announcement: { enabled: true, text: 'عطلة', link_url: '/book' } }).announcement).toEqual(a)
+  })
+
+  it('headings, the eyebrow and the slogan cannot be empty', () => {
+    const v = clone(DEFAULT_CONTENT.home)
+    v.faq.title = ''
+    expect(validateSection('home', v)).toMatchObject({ ok: false, error: 'required', path: 'faq.title' })
+    expect(validateSection('brand', { ...DEFAULT_CONTENT.brand, eyebrow: '' })).toMatchObject({ ok: false, error: 'required', path: 'eyebrow' })
+  })
+})
+
+describe('live values', () => {
+  it('room placeholders: counts, min/max, biggest meeting room, open seats added up', () => {
+    expect(roomTemplateVars(SEED_ROOMS)).toEqual({ privateCount: '4', privateMin: '2', privateMax: '4', meetingCapacity: '10', openCapacity: '8' })
+    expect(roomTemplateVars([
+      { type: 'meeting', capacity: 10, active: 1 }, { type: 'hall', capacity: 30, active: 1 }, { type: 'private', capacity: 6, active: 0 },
+      ...Array.from({ length: 6 }, () => ({ type: 'desk', capacity: 1, active: 1 })),
+    ])).toEqual({ privateCount: '4', privateMin: '2', privateMax: '4', meetingCapacity: '30', openCapacity: '6' })
+    const ex = { privateCount: '4', privateMin: '2', privateMax: '4', meetingCapacity: '10', openCapacity: '8' }
+    expect(roomTemplateVars(undefined)).toEqual(ex)
+    expect(roomTemplateVars([])).toEqual(ex)
+  })
+
+  it('hours and reminder wording', () => {
+    expect(hoursTemplateVars('09:00', '23:00')).toEqual({ hours: '9 ص – 11 م', open: '9 ص', close: '11 م', hoursPerDay: '14' })
+    expect(hoursTemplateVars('21:30', '02:00')).toEqual({ hours: '9:30 م – 2 ص', open: '9:30 م', close: '2 ص', hoursPerDay: '5' })
+    expect(hoursTemplateVars(undefined, 'x')).toEqual({ hours: '9 ص – 11 م', open: '9 ص', close: '11 م', hoursPerDay: '14' })
+    expect([60, 15, 30, 45, 90, 120, 180, 720, 1440, 0].map(reminderLabel))
+      .toEqual(['ساعة', 'ربع ساعة', 'نص ساعة', '45 دقيقة', 'ساعة ونص', 'ساعتين', '3 ساعات', '12 ساعة', 'يوم', ''])
+  })
+
+  it('siteTemplateVars falls back to TEMPLATE_EXAMPLE and covers every site placeholder', () => {
+    const v = siteTemplateVars()
+    for (const k of [...SITE_VARS, 'holdMinutes', 'reminder'] as const) expect(v[k], k).toBe(TEMPLATE_EXAMPLE[k])
+    expect(LIVE.address).toBe(API_SETTINGS.address)
+    expect(LIVE.reminder).toBe('ساعة')
+  })
+
+  it('the defaults read exactly like today\'s site with the live settings and the seed rooms', () => {
+    const f = (t: string, vars: Record<string, string> = LIVE) => fillTemplate(t, vars)
+    const d = DEFAULT_CONTENT
+    expect(f(d.home.features.items[5]!.text)).toBe('شاشة وسبورة لـ10 أشخاص، للاجتماعات والعروض والدورات.')
+    expect(f(d.home.faq.items[4]!.a)).toBe('أكيد. قاعة الاجتماعات بتساع لـ10 أشخاص وفيها شاشة وسبورة، وفي كمان غرف خاصة من 2 لـ4 أشخاص. [شوف المساحات](/spaces).')
+    expect(f(d.spaces.lead)).toBe('غرف خاصة من 2 لـ4 أشخاص، قاعة اجتماعات لـ10 مع شاشة وسبورة، ومساحة مفتوحة مشتركة لـ8. الأسعار هون هي نفسها اللي بتشوفها وقت الحجز.')
+    expect(f(d.spaces.groups.meeting.blurb)).toBe('قاعة لـ10 أشخاص فيها شاشة وسبورة، للاجتماعات والدورات والعروض.')
+    expect(f(d.spaces.groups.open.blurb)).toBe('مكان مشترك لـ8 أشخاص، ضوء طبيعي وجو بيشجّع عالشغل.')
+    expect(f(d.spaces.groups.private.badge)).toBe('4 غرف')
+    expect(f(d.about.audience.items[2]!.text)).toBe('غرف خاصة من 2 لـ4 أشخاص، وقاعة اجتماعات لعشرة لما يكبر الاجتماع.')
+    expect(f(d.home.facts.label)).toBe('فوكس بوينت بالأرقام')
+    expect(f(d.brand.status_closed)).toBe('مسكّر هلأ، منفتح الساعة 9 ص')
+    expect(f(d.booking.notify_prompt)).toBe('خبّرك أول ما يتأكد حجزك، ونذكّرك قبله بساعة.')
+    expect(f(d.booking.notify_prompt_mine)).toBe('نخبرك بتأكيد الحجز ونذكّرك قبله بساعة.')
+    expect(f(d.messages.booking_reminder.title)).toBe('حجزك بعد ساعة')
+    expect(f(d.booking.note_shamcash)).toBe('بعد التأكيد يُحفَظ المكان لك 30 دقيقة لإتمام الدفع عبر شام كاش.')
+    // first paint / offline: the site's own fallback address (site.tsx CENTRE.address)
+    expect(f(d.home.faq.items[5]!.a, siteTemplateVars())).toBe('درعا – شارع المجمع الحكومي – بناء العايش. إذا ضعت، اتصل فينا أو ابعتلنا عالواتساب ومنوصفلك الطريق.')
+  })
+})
+
+describe('rendering parts', () => {
+  const join = (parts: { text: string }[]) => parts.map((p) => p.text).join('')
+
+  it('isolates Latin runs and LTR placeholders, bolds the code and the reference', () => {
+    expect(textParts(DEFAULT_CONTENT.home.features.lead, LIVE)).toEqual([
+      { kind: 'text', text: 'جو ' }, { kind: 'latin', text: 'THINK OUTSIDE THE BOX' }, { kind: 'text', text: ': مكان مرتب وهادئ، بيعطيك مساحة تفكّر وتبدع.' },
+    ])
+    const tail = parseRich(DEFAULT_CONTENT.home.faq.items[2]!.a).at(-1)!
+    expect(textParts(tail.text, { ...LIVE, phone: '+963 985 258 963' })).toEqual([
+      { kind: 'text', text: '). بعد التأكيد، تواصل معنا على ' }, { kind: 'ltr', text: '+963 985 258 963' }, { kind: 'text', text: ' أو عالواتساب ومنساعدك.' },
+    ])
+    expect(textParts(DEFAULT_CONTENT.booking.verifying_text, { ref: '123456789' })[1]).toEqual({ kind: 'strong', text: '123456789' })
+    expect(textParts(DEFAULT_CONTENT.about.story.paragraphs[1]!.text, LIVE).slice(-2)).toEqual([
+      { kind: 'latin', text: 'THINK OUTSIDE THE BOX' }, { kind: 'text', text: '.' },
+    ])
+    expect(textParts('{unknown} و {name}', { name: 'فوكس بوينت' })).toEqual([{ kind: 'text', text: '{unknown} و فوكس بوينت' }])
+  })
+
+  it('the parts always add up to fillTemplate', () => {
+    const vars = { ...TEMPLATE_EXAMPLE, ...LIVE }
+    for (const { path, text } of stringsWithSpec()) expect(join(textParts(text, vars)), path).toBe(fillTemplate(text, vars))
+  })
+})
+
+describe('wording variants', () => {
+  const chip = DEFAULT_CONTENT.home.hero.chips[2]!
+  const cancel = DEFAULT_CONTENT.home.faq.items[2]!
+
+  it('wordingFlags: everything on while loading, the settings after', () => {
+    expect(wordingFlags(null)).toEqual({ payOnArrival: true, shamcash: true, canCancel: true, reminders: true })
+    expect(wordingFlags({ allow_pay_on_arrival: false })).toEqual({ payOnArrival: false, shamcash: true, canCancel: true, reminders: true })
+    expect(wordingFlags({ allow_pay_on_arrival: true, shamcash_enabled: false, customer_can_cancel: false, reminder_minutes: 0 }))
+      .toEqual({ payOnArrival: true, shamcash: false, canCancel: false, reminders: false })
+  })
+
+  it('pickVariant follows the settings and falls back to the plain field', () => {
+    const on = wordingFlags(null)
+    expect(pickVariant(chip, 'text', on)).toBe('الدفع بشام كاش أو عند الوصول')
+    expect(pickVariant(chip, 'text', wordingFlags({ allow_pay_on_arrival: false }))).toBe('الدفع بشام كاش')
+    expect(pickVariant(chip, 'text', wordingFlags({ allow_pay_on_arrival: true, shamcash_enabled: false }))).toBe('الدفع عند الوصول')
+    expect(pickVariant(DEFAULT_CONTENT.home.hero.chips[1]!, 'text', wordingFlags({ allow_pay_on_arrival: true, shamcash_enabled: false }))).toBe('إنترنت سريع')
+    expect(pickVariant(cancel, 'a', on)).toBe(cancel.a)
+    expect(pickVariant(cancel, 'a', { ...on, canCancel: false })).toBe(cancel.a_no_cancel)
+    expect(pickVariant(DEFAULT_CONTENT.booking, 'notify_prompt', { ...on, reminders: false })).toBe('خبّرك أول ما يتأكد حجزك.')
+    expect(pickVariant(DEFAULT_CONTENT.home.cta, 'text', { ...on, shamcash: false })).toBe(DEFAULT_CONTENT.home.cta.text_cash_only)
+  })
+
+  it('every Sham Cash promise has a cash-only wording', () => {
+    const cash = { ...wordingFlags(null), shamcash: false }
+    const h = DEFAULT_CONTENT.home
+    const shown = [
+      ...h.hero.chips.map((c) => pickVariant(c, 'text', cash)),
+      ...h.how.steps.flatMap((s) => [pickVariant(s, 'title', cash), pickVariant(s, 'text', cash)]),
+      ...h.faq.items.map((q) => pickVariant(q, 'a', cash)),
+      pickVariant(h.cta, 'text', cash),
+    ]
+    expect(shown.filter((t) => t.includes('شام كاش'))).toEqual([])
+  })
+})
+
+describe('seo and theme helpers', () => {
+  it('phone, WhatsApp and address helpers', () => {
+    expect(intlPhone('0985258963')).toBe('+963985258963')
+    expect(intlPhone('+963 985 258 963')).toBe('+963985258963')
+    expect(intlPhone('00963985258963')).toBe('+963985258963')
+    expect(intlPhone('')).toBe('')
+    expect(whatsappLink('0985258963')).toBe('https://wa.me/963985258963')
+    expect(splitAddress('درعا، شارع المجمع الحكومي – بناء العايش')).toEqual({ locality: 'درعا', street: 'شارع المجمع الحكومي – بناء العايش' })
+    expect(splitAddress('درعا – شارع المجمع الحكومي – بناء العايش')).toEqual({ locality: 'درعا', street: 'شارع المجمع الحكومي – بناء العايش' })
+    expect(splitAddress('بناء العايش')).toEqual({ locality: '', street: 'بناء العايش' })
+  })
+
+  it('buildJsonLd reproduces today\'s JSON-LD (web/index.html) from the defaults', () => {
+    expect(buildJsonLd(DEFAULT_CONTENT, API_SETTINGS, 'https://focuspoint.raqeem.dev')).toEqual({
+      '@context': 'https://schema.org',
+      '@type': 'LocalBusiness',
+      additionalType: 'https://schema.org/CoworkingSpace',
+      name: 'Focus Point — فوكس بوينت',
+      alternateName: 'فوكس بوينت',
+      description: 'مساحة عمل مشتركة بدرعا: غرف خاصة، غرفة اجتماعات ومساحة مشتركة. المشروع الأول من نوعه بدرعا.',
+      slogan: 'مساحتك وركنك الهادئ للإبداع',
+      url: 'https://focuspoint.raqeem.dev',
+      logo: 'https://focuspoint.raqeem.dev/icons/icon-512.png',
+      image: 'https://focuspoint.raqeem.dev/img/og.png',
+      telephone: '+963985258963',
+      address: { '@type': 'PostalAddress', streetAddress: 'شارع المجمع الحكومي – بناء العايش', addressLocality: 'درعا', addressCountry: 'SY' },
+      openingHoursSpecification: [{
+        '@type': 'OpeningHoursSpecification',
+        dayOfWeek: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'],
+        opens: '09:00',
+        closes: '23:00',
+      }],
+      sameAs: ['https://instagram.com/its_focus_point'],
+      currenciesAccepted: 'SYP',
+    })
+    expect(safeJson({ a: '</script>' })).toBe('{"a":"\\u003c/script>"}')
+  })
+
+  it('brand colour variables', () => {
+    expect(brandPalette('#7B1E2E')).toEqual({
+      '--brand': '#7b1e2e', '--brand-hover': '#6a1927', '--brand-50': '#fdf2f4', '--brand-100': '#fbe4e8', '--wine': '#7b1e2e', '--wine-line': 'rgba(123, 30, 46, 0.32)',
+    })
+    expect(brandStyle(DEFAULT_CONTENT.theme.brand)).toBe('')
+    const css = brandStyle('#1d4ed8')
+    expect(css.startsWith(':root{--brand:#1d4ed8;')).toBe(true)
+    for (const k of ['--brand-hover:', '--brand-50:', '--brand-100:', '--wine:#1d4ed8', '--wine-line:rgba(29, 78, 216, 0.32)']) expect(css).toContain(k)
+    expect(Object.values(brandPalette('#1d4ed8')).slice(0, 4).every((c) => /^#[0-9a-f]{6}$/.test(c))).toBe(true)
+    expect(contrastRatio('#7b1e2e', '#ffffff')).toBeGreaterThan(4.5)
+    expect(contrastRatio('#ffffff', '#ffffff')).toBe(1)
   })
 })
