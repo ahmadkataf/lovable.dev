@@ -40,6 +40,7 @@
 import type { Template, ParamDef, Common, BuildResult } from './templates'
 import { Loop, Vtx, polyLoop, circle, round3, arcInfo, signedArea } from './geom'
 import type { PanelSpec } from './joints'
+import { planFrame3, stripHoles, midHoles, cutPiece, cutSide, CUT, clipHalfMulti, SQUARE as SQUARE3, EDGE as EDGE3, TAU as TAU3, type Frame3, type BandHole, type Notch } from './ceilingband'
 
 type P2 = { x: number; y: number }
 
@@ -71,9 +72,10 @@ export const CLEAT_REACH = 10
 
 /** The options' labels, as the errors and notes name them. */
 export const KIND_LABELS = ['قطعة واحدة', 'أربع شرائح بزوايا 45 ولوح وسط']
-export const STYLE_LABELS = ['وردات نجمية ومثمّن (كالصورة)', 'نجوم ثمانية ودائرة']
+export const STYLE_LABELS = ['وردات نجمية ومثمّن (كالصورة)', 'نجوم ثمانية ودائرة', 'مثل صورة الزبون بالضبط']
 export const CENTER_LABELS = ['مفرّغة في الوسط', 'قطعة منفصلة', 'بلا زخرفة وسطى']
 export const SIZE_LABELS = ['مقاس الديكور من الخارج', 'مقاس الفتحة داخل الإطار']
+export const PACK_LABELS = ['أقلّ وصلات', 'أقلّ ألواح']
 
 const PARAMS: ParamDef[] = [
   intP('sizeIs', 'المقاس', 1, 2, '1 = العرض والطول مقاس الديكور كلّه من الخارج (مع الركبة على الجبس)، 2 = مقاس الفتحة داخل الإطار، فيكون الديكور من الخارج أكبر بعرض الإطار من كلّ جهة', SIZE_LABELS),
@@ -82,7 +84,7 @@ const PARAMS: ParamDef[] = [
   mm('ov', 'الركبة على الجبس', 0, 200, 'كم يرتكز كلّ طرف من الديكور على لوح الجبسن بورد؛ تبقى خشباً مصمتاً ولا تظهر من تحت'),
   mm('band', 'عرض الإطار', 60, 600, 'من الحافّة الخارجية للديكور إلى حافّته الداخلية، والركبة على الجبس منه'),
   intP('kind', 'القطع', 1, 2, '1 = الديكور كلّه قطعة واحدة من لوح واحد (إن اتّسع له اللوح)، 2 = أربع شرائح تلتقي بزوايا 45° ولوح وسط، للديكور الأكبر من اللوح', KIND_LABELS),
-  intP('style', 'النقشة', 1, 2, '1 = وردات من 16 بتلة ومثمّن في الوسط كالصورة، 2 = نجوم ثمانية (خاتم) وصلبان ودائرة في الوسط فيها نجمة من 12 رأساً', STYLE_LABELS),
+  intP('style', 'النقشة', 1, 3, '1 = وردات من 16 بتلة ومثمّن في الوسط كالصورة، 2 = نجوم ثمانية (خاتم) وصلبان ودائرة في الوسط فيها نجمة من 12 رأساً، 3 = شريط الإطار مثل صورة الزبون بالضبط (وردة من 12 بتلة بحلقة مخرّمة في كلّ مربع، ونجوم رباعية وأعمدة بينها)؛ مثمّن الوسط وشبكته فيها كما في 1', STYLE_LABELS),
   intP('center', 'الزخرفة الوسطى', 1, 3, 'في القطعة الواحدة: 1 = مفرّغة في اللوح، 2 = قطعة منفصلة تُلصق على وسط مصمت فتبرز، 3 = بلا زخرفة وسطى. في الشرائح: 1 = لوح وسط فيه الزخرفة، 2 = الزخرفة وحدها تُلصق في الوسط، 3 = إطار فقط', CENTER_LABELS),
   mm('med', 'قطر الزخرفة الوسطى', 150, 1200, 'المثمّن بين ضلعين متقابلين، والدائرة قطرها'),
   intP('fill', 'نقش الوسط كلّه', 0, 1, '1 = شبكة زخرفة تملأ الوسط حول الزخرفة الوسطى فلا تبقى مساحة سادة، 0 = الوسط سادة'),
@@ -729,7 +731,7 @@ export const NEST_MARGIN = 5
 
 /** Everything the pieces are sized on; shared by the build and the tests. */
 export function frameGeom(p: Record<string, number>) {
-  const kind = pick(p.kind ?? 1, 1, 2), style = pick(p.style ?? 1, 1, 2), center = pick(p.center, 1, 3)
+  const kind = pick(p.kind ?? 1, 1, 2), style = pick(p.style ?? 1, 1, 3), center = pick(p.center, 1, 3)
   // the field panel of the strips (kind 2 with the medallion's board)
   const field = kind === 2 && center === 1
   const { ov, band: b, web, fit } = p
@@ -809,9 +811,114 @@ export function frameGeom(p: Record<string, number>) {
   // (on the board a solid line 3·web wide parts the band from the field, so the frame still reads as a frame)
   const fm = kind === 1 ? 2 * web : CLEAT_REACH + web
   const fill = (p.fill ?? 0) >= 0.5 && (kind === 1 || field)
-  return { kind, style, center, field, fill, sizeIs, PW, PH, ov, b, web, sw, fit, rail, v0, v1, Wp, H, vc, R, dims, sdims, p0, pHard, S1, S2, n1, n2, p1, p2, pa, pb, axisU, mAt, offMid, Llong, Wf, Hf, fm, mid, wide, midW, Lm, mLen, tab, Hm, mdims, nm, qm, maxLen, halves }
+  const g = { kind, style, center, field, fill, sizeIs, PW, PH, ov, b, web, sw, fit, rail, v0, v1, Wp, H, vc, R, dims, sdims, p0, pHard, S1, S2, n1, n2, p1, p2, pa, pb, axisU, mAt, offMid, Llong, Wf, Hf, fm, mid, wide, midW, Lm, mLen, tab, Hm, mdims, nm, qm, maxLen, halves, f3: null as Frame3 | null, pack: null as Pack3 | null }
+  if (style !== 3) return g
+  // style 3, the customer's band: its own layout (the cell, the strips' steps and joints, the middle strip's), in the
+  // band [ov, b − the field's rail]; its rims and straps are the picture's (the rim at least 'minRim', the set's
+  // numbers' room), the cells as near square as both strip lengths let them be
+  const bw = b - ov - (field ? CLEAT_REACH + web : 0), vc3 = ov + bw / 2
+  const in3 = { bw, vc: vc3, PW, PH, web, minRim: p.minRim ?? 0, mid: mid && Lm > 0 ? { axisU, Lvis: Lm, midW } : null, maxLen: kind === 2 ? maxLen : Infinity, halves, sMin: band3MinCell(web) }
+  let f3 = bw > 0 && PW > 2 * b && PH > 2 * b ? planFrame3(in3) : null
+  // (the set's 'pack' 2: more joints, so pieces of the strips go beside its squares, on fewer sheets)
+  const pack = f3 && kind === 2 && (p.pack ?? 1) >= 2 ? packJoints3(f3, { b, wide, keepOut: f3.mid ? [axisU - midW / 2 - Math.max(2 * f3.size.strap, f3.size.s / 4), axisU + midW / 2 + Math.max(2 * f3.size.strap, f3.size.s / 4)] : null, mid: mid && mLen > 0 ? mLen : 0, squares: [[p.packAW ?? 0, p.packAH ?? 0], [p.packBW ?? 0, p.packBH ?? 0]].filter(([w, h]) => w > 0 && h > 0), sheetL: p.sheetL ?? 2440, sheetW: p.sheetW ?? 1220 }) : null
+  if (pack?.better) f3 = planFrame3({ ...in3, joints: { short: pack.short, long: pack.long } }) ?? f3
+  const s3 = f3?.size.s ?? 0, strap = f3?.size.strap ?? web, clip = f3?.size.clip ?? 0, longL = f3 ? (wide ? f3.pw : f3.ph) : null
+  // (the steps between the corner cells, which stay square)
+  const q1 = f3 ? f3.pw.pitches[0] : 0, q2 = f3 ? f3.ph.pitches[0] : 0
+  return {
+    ...g, sw: strap, rail: field ? CLEAT_REACH + web : strap, v0: vc3 - clip, v1: vc3 + clip, Wp: 2 * clip, H: clip, vc: vc3, R: clip, p0: s3, pHard: 0.8 * s3,
+    S1: PW - 2 * vc3, S2: PH - 2 * vc3, n1: f3?.pw.n ?? 0, n2: f3?.ph.n ?? 0, p1: q1, p2: q2,
+    // (the two sides of the middle strip's axis: alike when it is in the middle, to the last digit)
+    pa: longL ? longL.pitches[0] : 0, pb: longL ? (Math.abs(longL.pitches[longL.pitches.length - 1] - longL.pitches[0]) < 1e-9 ? longL.pitches[0] : longL.pitches[longL.pitches.length - 1]) : 0,
+    offMid: mid && !!f3 && Math.abs(axisU - Llong / 2) > 1e-6, nm: f3?.mid?.k ?? 0, qm: f3?.mid?.pitch ?? 0, f3, pack,
+  }
 }
+/** Style 3: the smallest cell (mm) whose band is still cut with its shapes (straps at least web). */
+export const band3MinCell = (web: number) => Math.max(60, (0.8 * web) / TAU3)
 export type FrameGeom = ReturnType<typeof frameGeom>
+
+/** The set's two ways of cutting style 3's strips: their joints (column indices) and the sheets they need (the rows' reckoning, packJoints3). */
+export type Pack3 = { short: number[]; long: number[]; joints: number; sheets: number; base: { joints: number; sheets: number }; better: boolean }
+const PACKS = new Map<string, Pack3 | null>()
+/**
+ * Style 3, the set's 'pack' 2: the joints that put the frame on the fewest sheets beside the squares (each square on
+ * a sheet of its own, the room beside it free for pieces of the strips), with the fewest joints more than the fewest
+ * there can be, then the pieces as near alike in length as they go. Every joint a straight cut down a column (as
+ * pack 1's), the two strips of a kind cut alike. The sheets are reckoned in rows a strip wide: the full sheets' rows
+ * the sheet long, those beside each square what is left of it; two pieces with a mitre each share a row head to toe,
+ * every row keeps 20 mm to spare. better: false when no plan of six joints more saves a sheet (pack 1's then stands).
+ */
+export function packJoints3(f: Frame3, o: { b: number; wide: boolean; keepOut: [number, number] | null; mid: number; squares: number[][]; sheetL: number; sheetW: number }): Pack3 | null {
+  return memo(PACKS, JSON.stringify([f.size, f.pw.knots, f.ph.knots, f.pw.joints, f.ph.joints, o]), () => {
+    const m = NEST_MARGIN, sp = 3, b = o.b, cap = o.sheetL - 2 * m, slack = 20, perSheet = Math.floor((o.sheetW - 2 * m + sp) / (b + sp))
+    if (perSheet < 1) return null
+    // the rows beside each square (its long side along the sheet)
+    const side: number[] = []
+    for (const [w, h] of o.squares) {
+      const lo = Math.min(w, h), hi = Math.max(w, h)
+      if (lo > o.sheetW - 2 * m + 1e-9 || hi > cap + 1e-9) return null
+      const left = cap - sp - hi
+      if (left >= b) for (let k = 0; k < perSheet; k++) side.push(left)
+    }
+    const long = o.wide ? f.pw : f.ph, short = o.wide ? f.ph : f.pw, strap = f.size.strap
+    const cand = (lay: typeof f.pw, keep: [number, number] | null) => lay.columns.map((x, k) => ({ x, k })).filter(c => c.x >= b + strap && c.x <= lay.L - b - strap && !(keep && c.x > keep[0] && c.x < keep[1]))
+    const cl = cand(long, o.keepOut), cs = cand(short, null)
+    type Pc = { l: number; mit: number }
+    const pieces = (L: number, xs: number[]): Pc[] => { const c = [0, ...xs, L]; return c.slice(1).map((x, i) => ({ l: x - c[i], mit: (i === 0 ? 1 : 0) + (i === c.length - 2 ? 1 : 0) })) }
+    const rowLen = (r: Pc[]) => { const mit = r.filter(q => q.mit === 1).length; return r.reduce((a, q) => a + q.l, 0) + sp * (r.length - 1) - Math.floor(mit / 2) * (b - sp * Math.SQRT2 + sp) }
+    // do the pieces go in the rows (largest first, into the rows in turn, a row as one already tried left out)?
+    const fits = (pcs: Pc[], rows: number[]) => {
+      const items = [...pcs].sort((p, q) => q.l - p.l), bins: Pc[][] = rows.map(() => [])
+      if (items.some(q => q.mit > 1 || q.l > Math.max(...rows) - slack)) return false
+      let steps = 0
+      const go = (i: number): boolean => {
+        if (i === items.length) return true
+        if (++steps > 20000) return false
+        const seen = new Set<string>()
+        for (let j = 0; j < rows.length; j++) {
+          const key = rows[j] + '|' + bins[j].map(q => q.l + ':' + q.mit).sort().join(',')
+          if (seen.has(key)) continue
+          seen.add(key)
+          bins[j].push(items[i])
+          if (rowLen(bins[j]) <= rows[j] - slack + 1e-9 && go(i + 1)) return true
+          bins[j].pop()
+        }
+        return false
+      }
+      return go(0)
+    }
+    const midPc: Pc[] = o.mid > 0 ? [{ l: o.mid, mit: 0 }] : []
+    // (a bound first: all the pieces' length, every two with a mitre sharing a row, within all the rows' room)
+    const need = (pcs: Pc[]) => pcs.reduce((a, q) => a + q.l + sp, 0) - Math.floor(pcs.filter(q => q.mit === 1).length / 2) * (b - sp * Math.SQRT2 + sp)
+    const all = (jl: number[], js: number[]) => [...pieces(long.L, jl), ...pieces(long.L, jl), ...pieces(short.L, js), ...pieces(short.L, js), ...midPc]
+    const sheetsFor = (pcs: Pc[], upTo: number) => {
+      for (let F = 0; F <= upTo; F++) { const rows = [...side, ...Array<number>(F * perSheet).fill(cap)]; if (need(pcs) <= rows.reduce((a, r) => a + r - slack + sp, 0) && fits(pcs, rows)) return F + o.squares.length }
+      return Infinity
+    }
+    const xl0 = long.joints.map(j => j.x), xs0 = short.joints.map(j => j.x), n0 = 2 * (xl0.length + xs0.length)
+    const base = sheetsFor(all(xl0, xs0), 12)
+    const combos = <T,>(xs: T[], k: number): T[][] => (k === 0 ? [[]] : xs.flatMap((x, i) => combos(xs.slice(i + 1), k - 1).map(r => [x, ...r])))
+    const ratio = (jl: number[], js: number[]) => { const ls = [...pieces(long.L, jl), ...pieces(short.L, js)].map(q => q.l); return Math.max(...ls) / Math.min(...ls) }
+    // the fewest sheets first, then the fewest joints more (two strips of a kind alike: two at a time), then the most alike
+    for (let F = 0; F + o.squares.length < base; F++) {
+      const rows = [...side, ...Array<number>(F * perSheet).fill(cap)]
+      if (need(all(xl0, xs0)) > rows.reduce((a, r) => a + r - slack + sp, 0)) continue
+      for (let more = 1; more <= 3; more++) {
+        let best: { r: number; jl: number[]; js: number[]; kl: number[]; ks: number[] } | null = null
+        for (let dl = more; dl >= 0; dl--) {
+          const nl = xl0.length + dl, ns = xs0.length + more - dl
+          for (const L of combos(cl, nl)) for (const S of combos(cs, ns)) {
+            const jl = L.map(c => c.x), js = S.map(c => c.x), r = ratio(jl, js)
+            if (best && r >= best.r - 1e-9) continue
+            if (fits(all(jl, js), rows)) best = { r, jl, js, kl: L.map(c => c.k), ks: S.map(c => c.k) }
+          }
+        }
+        if (best) return { short: best.ks, long: best.kl, joints: n0 + 2 * more, sheets: F + o.squares.length, base: { joints: n0, sheets: base }, better: true }
+      }
+    }
+    return { short: short.joints.map(j => j.u - 0.5), long: long.joints.map(j => j.u - 0.5), joints: n0, sheets: base, base: { joints: n0, sheets: base }, better: false }
+  })
+}
 
 /** The trapezoid of a strip L long outside (u along the outer edge, v inward). */
 export const stripOutline = (L: number, b: number): P2[] => [{ x: 0, y: 0 }, { x: L, y: 0 }, { x: L - b, y: b }, { x: b, y: b }]
@@ -897,6 +1004,7 @@ export type FrameStrips = { top: Piece[]; side: Piece[]; bottom: Piece[]; left: 
  * the middle strip's axis; off the middle the opposite long strip is the first one's mirror image.
  */
 export function framePieces(g: FrameGeom): FrameStrips {
+  if (g.style === 3) return memo(FRAMES, 'band3|' + JSON.stringify([g.PW, g.PH, g.offMid, g.wide, g.f3 && [g.f3.size, g.f3.vc, g.f3.pw, g.f3.ph]]), () => framePieces3(g))
   return memo(FRAMES, [g.style, g.PW, g.PH, g.ov, g.b, g.web, g.sw, g.rail, g.n1, g.n2, g.pa, g.pb, g.axisU].join('|'), () => framePiecesOf(g))
 }
 function framePiecesOf(g: FrameGeom): FrameStrips {
@@ -926,6 +1034,68 @@ function framePiecesOf(g: FrameGeom): FrameStrips {
   const short = mirrorHalf(hS, Ls / 2), long = joinSegs(hA, hB, Ll, g.axisU), long2 = g.offMid ? long.map(pc => mirrorPc(pc, Ll / 2)) : long
   return g.wide ? { top: long, side: short, bottom: long2, left: short } : { top: short, side: long, bottom: short, left: long2 }
 }
+/** Style 3's holes as the pattern's pieces (straight-sided polygons; a key ending in '|' is a copy moved off a joint). */
+const band3Pieces = (hs: BandHole[]): Piece[] => hs.map(h => polyPiece(dropShort(tidyPoly(h.pts)), h.kind, h.c)).filter(pc => pc.poly.length >= 3 && cuttable(pc))
+/**
+ * Style 3, the customer's band: the strips as the band's layout lays them out, every shape whole (each corner
+ * rosette on its mitre, its shapes on the diagonal kept by one strip or the other, see cornerPath3). Off the middle,
+ * the second long strip is the first one's mirror image.
+ */
+function framePieces3(g: FrameGeom): FrameStrips {
+  const f = g.f3
+  if (!f) return { top: [], side: [], bottom: [], left: [] }
+  // (the one-piece board keeps the solid bar on each diagonal that its other styles have; the strips' mitres cut straight through)
+  const bar = g.kind === 1, pw = band3Pieces(stripHoles(f, f.pw, 'pw', bar)), ph = band3Pieces(stripHoles(f, f.ph, 'ph', bar))
+  const long = g.wide ? pw : ph, short = g.wide ? ph : pw, long2 = g.offMid ? long.map(pc => mirrorPc(pc, g.Llong / 2)) : long
+  return g.wide ? { top: long, side: short, bottom: long2, left: short } : { top: short, side: long, bottom: short, left: long2 }
+}
+/** Style 3: a strip's part as cut (part3). */
+/** (each notch with the shape it is part of: `of`, one of the strip's pattern, whole) */
+export type Part3 = { outline: P2[]; holes: Piece[]; notches: (Notch & { of: Piece })[]; trouble: string[]; left: string[] }
+const PARTS = new WeakMap<Piece[], Map<string, Part3>>()
+/**
+ * Style 3: strip s's part between u0 and u1 (pcs: the strip's pattern as it lies before it is cut, every shape
+ * whole, see stripHoles). Each of its ends is a straight cut through the pattern, a 45° mitre from the outer corner
+ * to the inner one at a corner, square across at a joint: its outline runs along the cut and dips round the part of
+ * each shape the cut crosses (a notch: the piece on the other side holds the rest of it, so the two together show it
+ * whole, cutPiece), and its cut-outs are the shapes wholly inside it.
+ */
+export function part3(g: FrameGeom, s: number, pcs: Piece[], u0: number, u1: number): Part3 {
+  let byKey = PARTS.get(pcs)
+  if (!byKey) PARTS.set(pcs, (byKey = new Map()))
+  const L = s % 2 ? g.PH : g.PW, key = [L, g.b, u0, u1].join('|'), had = byKey.get(key)
+  if (had) return had
+  // (the shapes in its span or near it: a corner's reach past the strip's ends)
+  const near = pcs.filter(pc => { const q = bbOf(pc.poly); return q.x1 > u0 - g.b && q.x0 < u1 + g.b })
+  const cp = cutPiece(stripPart(L, g.b, u0, u1), [1, 3], near.map(pc => pc.poly))
+  const out: Part3 = { outline: cp.outline.map(q => ({ x: q.x, y: q.y })), holes: cp.holes.map(i => near[i]), notches: cp.notches.map(nt => ({ ...nt, of: near[nt.hole] })), trouble: cp.trouble, left: cp.left }
+  byKey.set(key, out)
+  return out
+}
+const JOINT3 = new Map<string, number>()
+/**
+ * Style 3: where a joint of strip s (0: along PW, 1: along PH) planned at x is cut: there when its straight cut leaves
+ * no trouble (a column is a mirror line of the pattern: its shapes are halved), else the place at most half a cell
+ * from it (a column or a rosette's axis first, then every millimetre) whose cut leaves the least.
+ */
+export function jointAt3(g: FrameGeom, s: number, x: number): number {
+  const f = g.f3
+  if (!f) return x
+  return memo(JOINT3, JSON.stringify([s, x, f.size, f.pw.knots, f.ph.knots, g.b]), () => {
+    const fs = framePieces(g), pcs = s % 2 ? fs.side : fs.top, worst = (u: number) => jointTrouble(g, pcs, u).length
+    if (!worst(x)) return x
+    const lay = s % 2 ? f.ph : f.pw, half = Math.max(...lay.pitches, f.size.s) / 2, cands = lay.rosettes.filter(r => Math.abs(r - x) <= half + 1e-6)
+    for (let d = 1; d < half; d++) cands.push(x - d, x + d)
+    let best = x, bw = worst(x)
+    for (const u of cands) { const w = worst(u); if (w < bw) { best = round3(u); bw = w; if (!w) break } }
+    return best
+  })
+}
+/** Style 3: the trouble a straight cut square across a strip at u would leave (cutSide's, either side), none at a column. */
+export function jointTrouble(g: FrameGeom, pcs: Piece[], u: number): string[] {
+  const near = pcs.filter(pc => { const q = bbOf(pc.poly); return q.x1 > u - 1 && q.x0 < u + 1 }).map(pc => pc.poly)
+  return [...cutSide({ x: u, y: g.b }, { x: u, y: 0 }, near, false).trouble, ...cutSide({ x: u, y: 0 }, { x: u, y: g.b }, near, false).trouble]
+}
 /** How far round the corner rosette from the mitre its corner kites sit (radians). */
 const CORNER_KITE = (17 * Math.PI) / 180
 
@@ -946,6 +1116,7 @@ function pieceToFrame(g: { PW: number; PH: number }, s: number, pc: Piece): Piec
  */
 export function midPieces(g: FrameGeom): Piece[] {
   if (!g.mid || !g.nm) return []
+  if (g.style === 3) return g.f3 ? memo(MIDS, 'band3|' + JSON.stringify([g.f3.size, g.f3.mid, g.midW]), () => band3Pieces(midHoles(g.f3!, g.midW))) : []
   return memo(MIDS, [g.style, g.b, g.ov, g.sw, g.midW, g.Lm, g.vc, g.R, g.nm, g.qm].join('|'), () => {
     const { b, vc, sw, midW, Lm, nm, qm } = g, gm: FrameGeom = { ...g, H: g.Hm, sdims: g.style === 2 ? g.mdims : g.sdims }
     const c0 = vc - b, yc = midW / 2, out: Piece[] = []
@@ -961,9 +1132,41 @@ export function midToFrame(g: { PW: number; PH: number; b: number; midW: number;
   return g.wide ? { x: g.b + g.mAt + g.midW - q.y, y: g.b + q.x } : { x: g.b + q.x, y: g.b + g.mAt + q.y }
 }
 const midPieceToFrame = (g: FrameGeom, pc: Piece): Piece => ({ pts: pc.pts.map(v => ({ ...v, ...midToFrame(g, v) })), poly: pc.poly.map(q => midToFrame(g, q)), c: midToFrame(g, pc.c), key: pc.key })
+/** Frame coordinates → middle strip coordinates (midToFrame's inverse). */
+const frameToMid = (g: FrameGeom, p: P2): P2 => (g.wide ? { x: p.y - g.b, y: g.b + g.mAt + g.midW - p.x } : { x: p.x - g.b, y: p.y - g.b - g.mAt })
+const TABS = new Map<string, Piece[]>()
+/**
+ * Style 3: the openings in the middle strip's tabs (its own panel's coordinates: x from the tab's end, 0 … mLen),
+ * one under each of the long strip's cut-outs over the tab, the same shape, so the tab blocks none of them; each kept
+ * half a strap inside the tab's end and sides (what reaches past that stays covered there), none a sliver.
+ */
+export function tabOpenings3(g: FrameGeom): Piece[] {
+  if (g.style !== 3 || !g.mid || !(g.tab > 0) || !g.f3) return []
+  return memo(TABS, JSON.stringify([g.PW, g.PH, g.b, g.mAt, g.midW, g.tab, g.f3.size, g.f3.vc, g.f3.pw, g.f3.ph]), () => {
+    const fs = framePieces(g), strips = [fs.top, fs.side, fs.bottom, fs.left], m = g.sw / 2, t = g.tab, L = g.mLen, out: Piece[] = []
+    const box: [number, number, number][] = [[0, -1, -m], [0, 1, g.midW - m]]
+    for (const s of [0, 1, 2, 3].filter(s => (s % 2 === 0) === g.wide)) for (const pc of strips[s]) {
+      // in the panel's coordinates (the visible part starts at x = t)
+      const q = pc.poly.map(v => { const z = frameToMid(g, toFrame(g, s, v)); return { x: z.x + t, y: z.y } })
+      const A = areaAbs(q), bb = bbOf(q)
+      if (bb.y1 < m || bb.y0 > g.midW - m) continue
+      for (const [x0, x1] of [[m, t], [L - t, L - m]]) {
+        if (bb.x1 < x0 || bb.x0 > x1) continue
+        let ps = [q]
+        for (const [a, b, c] of [...box, [-1, 0, -x0], [1, 0, x1]] as [number, number, number][]) ps = ps.flatMap(p => clipHalfMulti(p, { x: a, y: b }, c))
+        for (const p of ps) {
+          const pp = dropShort(tidyPoly(p))
+          if (pp.length >= 3 && areaAbs(pp) >= 0.25 * A) { const one = polyPiece(pp, 'tab'); if (cuttable(one)) out.push(one) }
+        }
+      }
+    }
+    return out
+  })
+}
 
 /** The narrowest visible band that still holds a motif: its pattern width Wp (searched on a half-millimetre step). */
 export function minPatternWidth(web: number, style = 1): number {
+  if (style === 3) return 2 * EDGE3 * band3MinCell(web)
   for (let w = 20; w < 400; w += 0.5) if (style === 1 ? rosetteDims(ROSE.R * w, web) : starDims(STAR.R * w, w / 2, web)) return w
   return 400
 }
@@ -1098,12 +1301,12 @@ export function medallion2(c: P2, med: number, web: number): Piece[] {
 
 /** The medallion's outline (style 1 an octagon `med` across flats, style 2 a 24-gon with its corners on a circle `med` across) moved out by `grow`. */
 function medOutline(style: number, c: P2, med: number, grow: number): P2[] {
-  if (style === 1) return octagon(c, med + 2 * grow)
+  if (style !== 2) return octagon(c, med + 2 * grow)
   return ngon(c, 24, med / 2 + grow / Math.cos(Math.PI / 24))
 }
 /** The medallion's pieces for the style. */
 function medPieces(style: number, c: P2, med: number, web: number): Piece[] {
-  const o = { x: 0, y: 0 }, pcs = memo(MEDS, [style, med, web].join('|'), () => (style === 1 ? medallion(o, med, web) : medallion2(o, med, web)))
+  const o = { x: 0, y: 0 }, pcs = memo(MEDS, [style, med, web].join('|'), () => (style !== 2 ? medallion(o, med, web) : medallion2(o, med, web)))
   return pcs.map(pc => movePc(pc, c.x, c.y))
 }
 
@@ -1157,7 +1360,7 @@ function crossTile(c: P2, fc: number, d: StarDims, key: string): Piece | null {
 /** The two motifs of the lattice round 0 (on the cells whose i + j is even, and odd), or null when they cannot be cut. */
 function latticeMotifs(style: number, fc: number, web: number): { even: Piece[]; odd: Piece[] } | null {
   const o = { x: 0, y: 0 }
-  if (style === 1) {
+  if (style !== 2) {
     const d = latRose(fc, web)
     if (!d) return null
     const odd = fillerSet(o, fc, d.R, web, 'f')
@@ -1237,7 +1440,8 @@ export function cornerPlate(g: FrameGeom) {
   if (w < 6 || arm < w + 10) return null
   const r2 = Math.SQRT1_2, e = (g.field ? g.b - CLEAT_REACH - 1 : g.b - 1) - h * r2
   const pts: P2[] = [{ x: 0, y: 0 }, { x: arm, y: 0 }, { x: arm, y: w }]
-  if (h >= 1.5 && e - h * r2 > w + h * Math.SQRT2 + 5) pts.push({ x: w + h * Math.SQRT2, y: w }, { x: e + h * r2, y: e - h * r2 }, { x: e - h * r2, y: e + h * r2 }, { x: w, y: w + h * Math.SQRT2 })
+  // (style 3's mitre has no bar: its straight cut runs through the cut-outs, so the plate keeps to the rim)
+  if (g.style !== 3 && h >= 1.5 && e - h * r2 > w + h * Math.SQRT2 + 5) pts.push({ x: w + h * Math.SQRT2, y: w }, { x: e + h * r2, y: e - h * r2 }, { x: e - h * r2, y: e + h * r2 }, { x: w, y: w + h * Math.SQRT2 })
   else pts.push({ x: w, y: w })
   pts.push({ x: w, y: arm }, { x: 0, y: arm })
   return { w, arm, h, e, pts: pts.map(q => ({ x: round3(q.x), y: round3(q.y) })), diag: pts.length > 7 }
@@ -1251,6 +1455,12 @@ export function cornerPlate(g: FrameGeom) {
  */
 export function stripCuts(g: FrameGeom, s: number): { L: number; waists: number[] } {
   const L = s % 2 ? g.PH : g.PW, isLong = g.wide ? s % 2 === 0 : s % 2 === 1
+  if (g.style === 3) {
+    // the band's own joints (straight cuts down columns, where the cut leaves least trouble); the strips across the
+    // frame are laid out from their other end
+    const w = ((s % 2 ? g.f3?.ph : g.f3?.pw)?.joints ?? []).map(j => jointAt3(g, s % 2, j.x))
+    return { L, waists: s >= 2 ? w.map(u => round3(L - u)).reverse() : w }
+  }
   let w: number[] = []
   if (isLong && g.mid) {
     const na = Math.round((g.axisU - g.vc) / g.pa), nb = Math.round((L - g.vc - g.axisU) / g.pb)
@@ -1324,9 +1534,23 @@ export function cutAtJoints(pcs: Piece[], joints: number[], sw: number, b: numbe
   for (const q of [...kept, ...added]) parts[joints.filter(u => q.c.x > u).length].push(q)
   return parts
 }
+/** Style 3's strip s cut at its joints: each part's cut-outs, those wholly inside it (the shapes a cut crosses are notches in its outline, part3). */
+export function splitAtJoints(g: FrameGeom, s: number, pcs: Piece[], joints: number[]): Piece[][] {
+  const cuts = [0, ...joints, s % 2 ? g.PH : g.PW]
+  return cuts.slice(1).map((u1, i) => part3(g, s, pcs, cuts[i], u1).holes)
+}
+/** Strip s's joints: where a strip longer than maxLen is cut at waists (style 3: its band's own, all of them). */
+export const jointsOf = (g: FrameGeom, s: number): number[] => {
+  const { L, waists } = stripCuts(g, s)
+  return g.style === 3 ? waists : L > g.maxLen + 1e-9 ? splitPlan(L, waists, g.maxLen) ?? [] : []
+}
+/** Strip s's pattern cut at the joints, for its style. */
+const cutStrip = (g: FrameGeom, s: number, pcs: Piece[], joints: number[]) => (g.style === 3 ? splitAtJoints(g, s, pcs, joints) : cutAtJoints(pcs, joints, g.sw, g.b))
 /** The outline of the part of a strip L long between u0 and u1: a mitre at a corner, a square end at a joint. */
 export const stripPart = (L: number, b: number, u0: number, u1: number): P2[] =>
   [{ x: u0, y: 0 }, { x: u1, y: 0 }, u1 >= L - 1e-9 ? { x: L - b, y: b } : { x: u1, y: b }, u0 <= 1e-9 ? { x: b, y: b } : { x: u0, y: b }]
+/** The outline of strip s's part between u0 and u1 (its pattern pcs), for its style (style 3's ends cut through its pattern, notched). */
+const partOf = (g: FrameGeom, s: number, pcs: Piece[], u0: number, u1: number): P2[] => (g.style === 3 ? part3(g, s, pcs, u0, u1).outline : stripPart(s % 2 ? g.PH : g.PW, g.b, u0, u1))
 /**
  * The splice plate behind a joint (its own coordinates, the joint at x = A): a bar 2·(sw − 1) wide over the solid bar
  * across the band, and flanges A long each way over the solid rim on the gypsum side and (without the field's glue
@@ -1349,6 +1573,8 @@ const countWord = (k: number, one: string, two: string, few: string, many: strin
 const rosettesWord = (k: number) => countWord(k, 'وردة واحدة', 'وردتان', 'وردات', 'وردة')
 const starsWord = (k: number) => countWord(k, 'نجمة واحدة', 'نجمتان', 'نجوم', 'نجمة')
 const holesWord = (k: number) => countWord(k, 'فتحة واحدة', 'فتحتان', 'فتحات', 'فتحة')
+const jointsWord = (k: number) => countWord(k, 'وصلة واحدة', 'وصلتان', 'وصلات', 'وصلة')
+const sheetsWord = (k: number) => countWord(k, 'لوح واحد', 'لوحان', 'ألواح', 'لوحاً')
 const stripsWord = (k: number) => countWord(k, 'شريحة واحدة', 'شريحتان', 'شرائح', 'شريحة')
 const quote = (s: string) => `«${s}»`
 
@@ -1360,29 +1586,29 @@ const fitsSheet = (w: number, h: number, L: number, W: number) => (w <= L + 1e-9
 /** The narrowest opening left inside the frame (mm), the widest band the field takes, the largest decor size. */
 const MIN_OPEN = 60, BAND_MAX = 600, SIZE_MAX = 2440
 /** The medallion's name for the style (with the article), and the motif the band is made of. */
-const medName = (style: number) => (style === 1 ? 'المثمّن' : 'الدائرة')
-const motifName = (style: number) => (style === 1 ? 'وردة' : 'نجمة')
+const medName = (style: number) => (style !== 2 ? 'المثمّن' : 'الدائرة')
+const motifName = (style: number) => (style !== 2 ? 'وردة' : 'نجمة')
 
 /** The checks; every value they suggest clears its own error. */
 export function frameErrors(p: Record<string, number>, g: FrameGeom): string[] {
   const errors: string[] = []
   const { PW, PH, ov, b, web, rail, fit, center, kind, style } = g, sL = p.sheetL, sW = p.sheetW, co = CLEAT_REACH
-  const WpMin = minPatternWidth(web, style), mn = medName(style), make = style === 1 ? 'اجعله' : 'اجعلها'
+  const WpMin = minPatternWidth(web, style), mn = medName(style), make = style !== 2 ? 'اجعله' : 'اجعلها'
   // with sizeIs 2 the sizes the user typed are the window's (the outside is 2·band more), and the fixes name those
   const win = g.sizeIs === 2, iW = p.PW, iH = p.PH, toIn = (v: number) => (win ? v - 2 * b : v)
   const sizeW = win ? { both: 'عرض الفتحة وطولها', w: 'عرض الفتحة', h: 'طول الفتحة' } : { both: 'العرض والطول الكلّيين', w: 'العرض الكلّي', h: 'الطول الكلّي' }
   // the narrowest band holding a motif (its straps sw grow with it, so searched)
   let bandMin = up5(ov + web + (g.field ? CLEAT_REACH + web : web) + WpMin)
-  while (bandMin < BAND_MAX && frameGeom({ ...p, band: bandMin }).Wp < WpMin - 1e-9) bandMin += 0.5
+  while (bandMin < BAND_MAX && frameGeom({ ...p, pack: 1, band: bandMin }).Wp < WpMin - 1e-9) bandMin += 0.5
   if (g.Wp < WpMin - 1e-9) {
     let ovMax = down5(b - web - rail - WpMin)
-    while (ovMax >= 0 && frameGeom({ ...p, ov: ovMax }).Wp < WpMin - 1e-9) ovMax -= 0.5
+    while (ovMax >= 0 && frameGeom({ ...p, pack: 1, ov: ovMax }).Wp < WpMin - 1e-9) ovMax -= 0.5
     if (ov > 0.4 * b && ovMax >= 0) errors.push(`الركبة على الجبس (${f1(ov)} مم) كبيرة على عرض الإطار (${f1(b)} مم): ${b - ov > 0 ? `يظهر منه ${f1(b - ov)} مم فقط ولا تتّسع فيه ${motifName(style)}` : 'لا يظهر منه شيء'}. اجعل الركبة ${f1(ovMax)} مم على الأكثر، أو عرض الإطار ${f1(bandMin)} مم على الأقل.`)
     else errors.push(`عرض الإطار (${f1(b)} مم) قليل: لا تتّسع ${motifName(style)} في الجزء الظاهر منه. اجعله ${f1(bandMin)} مم على الأقل.`)
     return errors
   }
   // the band too wide: the frame's opening, or the corner motifs running into each other
-  const okAt = (q: Record<string, number>) => { const h = frameGeom({ ...p, midAt: 0, ...q }); return h.n1 > 0 && h.n2 > 0 && Math.min(h.PW, h.PH) - 2 * h.b >= MIN_OPEN }
+  const okAt = (q: Record<string, number>) => { const h = frameGeom({ ...p, pack: 1, midAt: 0, ...q }); return h.n1 > 0 && h.n2 > 0 && Math.min(h.PW, h.PH) - 2 * h.b >= MIN_OPEN }
   const okBand = (bb: number) => okAt({ band: bb })
   if (!okBand(b)) {
     let bb = down5(b)
@@ -1390,7 +1616,7 @@ export function frameErrors(p: Record<string, number>, g: FrameGeom): string[] {
     if (bb >= bandMin) errors.push(`عرض الإطار (${f1(b)} مم) كبير على ديكور ${f1(PW)} × ${f1(PH)} مم: اجعله ${f1(bb)} مم على الأكثر.`)
     else {
       // even the narrowest band is too much: less rest on the gypsum (a narrower band then fits), or a bigger decor
-      const bandAt = (o: number) => { let bb = up5(o + web + rail + WpMin); while (bb < BAND_MAX && frameGeom({ ...p, ov: o, band: bb }).Wp < WpMin - 1e-9) bb += 0.5; return bb }
+      const bandAt = (o: number) => { let bb = up5(o + web + rail + WpMin); while (bb < BAND_MAX && frameGeom({ ...p, pack: 1, ov: o, band: bb }).Wp < WpMin - 1e-9) bb += 0.5; return bb }
       let o = down5(ov) - 0.5
       while (o >= 0 && !okAt({ ov: o, band: bandAt(o) })) o -= 0.5
       let X = up5(Math.min(iW, iH))
@@ -1429,7 +1655,7 @@ export function frameErrors(p: Record<string, number>, g: FrameGeom): string[] {
   // the lattice's cell
   if (g.fill) {
     const fMin = up5(minCell(style, web))
-    if (p.fcell < fMin - 1e-9) errors.push(`خليّة شبكة الوسط (${f1(p.fcell)} مم) صغيرة على ${style === 1 ? 'وردات' : 'نجوم'} تُقصّ بخشب ${f1(web)} مم بينها: اجعلها ${f1(fMin)} مم على الأقل، أو ألغِ نقش الوسط (0).`)
+    if (p.fcell < fMin - 1e-9) errors.push(`خليّة شبكة الوسط (${f1(p.fcell)} مم) صغيرة على ${style !== 2 ? 'وردات' : 'نجوم'} تُقصّ بخشب ${f1(web)} مم بينها: اجعلها ${f1(fMin)} مم على الأقل، أو ألغِ نقش الوسط (0).`)
   }
   // the middle strip: no medallion where it runs, room for its motif across it, an opening each side of it
   if (g.mid) {
@@ -1437,7 +1663,7 @@ export function frameErrors(p: Record<string, number>, g: FrameGeom): string[] {
     let wMin = up5(2 * (g.R + g.sw))
     // off the middle: an opening each side, and room for a step from each corner to its axis
     const aMin = up5(Math.max(MIN_OPEN, g.pHard + g.vc - b - g.midW / 2)), aMax = down5(Math.min(winL - g.midW - MIN_OPEN, g.Llong - g.vc - b - g.midW / 2 - g.pHard))
-    while (wMin <= wMax && !frameGeom({ ...p, midW: wMin }).nm) wMin += 0.5
+    while (wMin <= wMax && !frameGeom({ ...p, pack: 1, midW: wMin }).nm) wMin += 0.5
     if (center !== 3) errors.push(`الشريحة الوسطى تمرّ في مكان ${mn}: اختر ${none}${off}.`)
     else if (g.midW > wMax + 1e-9) errors.push(wMax >= wMin ? `الشريحة الوسطى (${f1(g.midW)} مم) عريضة على فتحة ${f1(winL)} مم: اجعل عرض الشريحة الوسطى ${f1(wMax)} مم على الأكثر${off}.` : `الفتحة ${f1(winL)} مم ضيّقة على شريحة وسطى: ألغِ الشريحة الوسطى (0).`)
     else if ((p.midAt ?? 0) > 0 && (g.mAt < aMin - 1e-9 || g.mAt > aMax + 1e-9)) errors.push(aMax >= aMin
@@ -1452,7 +1678,7 @@ export function frameErrors(p: Record<string, number>, g: FrameGeom): string[] {
       // the largest size that fits, the way round that keeps more of it; or the strips, when they fit
       const ways = [[Math.min(PW, sL), Math.min(PH, sW)], [Math.min(PW, sW), Math.min(PH, sL)]].map(([w, h]) => [down5(toIn(w)), down5(toIn(h))])
       const [w, h] = ways[0][0] * ways[0][1] >= ways[1][0] * ways[1][1] ? ways[0] : ways[1]
-      const q2 = { ...p, kind: 2 }, stripsOk = frameErrors(q2, frameGeom(q2)).length === 0
+      const q2 = { ...p, kind: 2, pack: 1 }, stripsOk = frameErrors(q2, frameGeom(q2)).length === 0
       const size = w < iW - 1e-9 && h < iH - 1e-9 ? `اجعل${win ? ' الفتحة' : 'ه'} ${f1(w)} × ${f1(h)} مم على الأكثر` : w < iW - 1e-9 ? `اجعل ${sizeW.w} ${f1(w)} مم على الأكثر` : `اجعل ${sizeW.h} ${f1(h)} مم على الأكثر`
       errors.push(`الديكور قطعةً واحدة ${f1(PW)} × ${f1(PH)} مم لا يتّسع في لوح ${f1(sL)} × ${f1(sW)} مم: ${size}${stripsOk ? `، أو اختر ${quote(KIND_LABELS[1])}` : ''}.`)
     }
@@ -1511,8 +1737,8 @@ function build(p: Record<string, number>, c: Common): BuildResult {
 
   const { top, side, bottom, left, med, lat, mid } = decorPieces(p, g), strips = [top, side, bottom, left]
   const mn = medName(style), panels: PanelSpec[] = []
-  const medShape = (): Loop => polyLoop((style === 1 ? octagon({ x: 0, y: 0 }, p.med) : ngon({ x: 0, y: 0 }, 24, p.med / 2)).map(q => ({ x: round3(q.x), y: round3(q.y) })), 'outer')
-  const medPiece = () => { const pcs = medPieces(style, { x: 0, y: 0 }, p.med, web); panels.push({ id: 'medallion', name: style === 1 ? 'المثمّن' : 'الدائرة', w: p.med, h: p.med, shape: [medShape()], holes: holesOf(pcs), count: n }); return pcs.length }
+  const medShape = (): Loop => polyLoop((style !== 2 ? octagon({ x: 0, y: 0 }, p.med) : ngon({ x: 0, y: 0 }, 24, p.med / 2)).map(q => ({ x: round3(q.x), y: round3(q.y) })), 'outer')
+  const medPiece = () => { const pcs = medPieces(style, { x: 0, y: 0 }, p.med, web); panels.push({ id: 'medallion', name: style !== 2 ? 'المثمّن' : 'الدائرة', w: p.med, h: p.med, shape: [medShape()], holes: holesOf(pcs), count: n }); return pcs.length }
   let sepHoles = 0, total = 0
   const stripHoles: number[] = [] // the cut-outs in each strip (all its pieces), as built
   const split: { word: string; pair: number; L: number; joints: number[]; cnt: number; isLong: boolean }[] = []
@@ -1531,25 +1757,27 @@ function build(p: Record<string, number>, c: Common): BuildResult {
     for (const gr of groups) {
       const s0 = gr.sides[0], L = s0 % 2 ? PH : PW, isLong = g.wide ? s0 % 2 === 0 : s0 % 2 === 1, cnt = gr.sides.length * n
       const base = s0 % 2 ? 'strip-short' : 'strip-long', pair = gr.sides.length === 1 ? (s0 < 2 ? 1 : 2) : 0, id = pair ? `${base}-${pair}` : base
-      const word = `شريحة ${isLong ? 'طويلة' : 'قصيرة'}`, joints = L > g.maxLen + 1e-9 ? splitPlan(L, stripCuts(g, s0).waists, g.maxLen) ?? [] : []
+      const word = `شريحة ${isLong ? 'طويلة' : 'قصيرة'}`, joints = jointsOf(g, s0)
       if (!joints.length) {
-        panels.push({ id, name: pair ? `${word} ${pair}` : s0 % 2 ? 'شريحة الإطار — الجانبية' : 'شريحة الإطار — العلوية والسفلية', w: L, h: b, shape: [polyLoop(stripOutline(L, b), 'outer')], holes: holesOf(gr.pcs), count: cnt, note: 'الحافّة الطويلة للخارج، والشطفان على 45°' })
-        total += gr.pcs.length * gr.sides.length
-        for (const s of gr.sides) stripHoles[s] = gr.pcs.length
+        const own = style === 3 ? part3(g, s0, gr.pcs, 0, L).holes : gr.pcs
+        panels.push({ id, name: pair ? `${word} ${pair}` : s0 % 2 ? 'شريحة الإطار — الجانبية' : 'شريحة الإطار — العلوية والسفلية', w: L, h: b, shape: [polyLoop(partOf(g, s0, gr.pcs, 0, L), 'outer')], holes: holesOf(own), count: cnt, note: 'الحافّة الطويلة للخارج، والشطفان على 45°' })
+        total += own.length * gr.sides.length
+        for (const s of gr.sides) stripHoles[s] = own.length
         continue
       }
-      const parts = cutAtJoints(gr.pcs, joints, g.sw, b), cuts = [0, ...joints, L]
+      const parts = cutStrip(g, s0, gr.pcs, joints), cuts = [0, ...joints, L]
       parts.forEach((pcs, i) => {
         const u0 = cuts[i], u1 = cuts[i + 1], end = i === 0 ? 'طرفها الأول مشطوف 45° والآخر مستقيم' : i === parts.length - 1 ? 'طرفها الأول مستقيم والآخر مشطوف 45°' : 'طرفاها مستقيمان'
-        panels.push({ id: `${id}-${'abcdefghij'[i]}`, name: `${word} ${pair ? `${pair}-` : ''}${LETTERS[i]}`, w: round3(u1 - u0), h: b, shape: [polyLoop(stripPart(L, b, u0, u1).map(q => ({ x: round3(q.x - u0), y: q.y })), 'outer')], holes: holesOf(pcs, -u0), count: cnt, note: `الحافّة الطويلة للخارج، ${end}` })
+        panels.push({ id: `${id}-${'abcdefghij'[i]}`, name: `${word} ${pair ? `${pair}-` : ''}${LETTERS[i]}`, w: round3(u1 - u0), h: b, shape: [polyLoop(partOf(g, s0, gr.pcs, u0, u1).map(q => ({ x: round3(q.x - u0), y: q.y })), 'outer')], holes: holesOf(pcs, -u0), count: cnt, note: `الحافّة الطويلة للخارج، ${end}` })
         total += pcs.length * gr.sides.length
       })
       for (const s of gr.sides) stripHoles[s] = parts.reduce((a, pcs) => a + pcs.length, 0)
       split.push({ word, pair, L, joints, cnt, isLong })
     }
     if (g.mid) {
-      panels.push({ id: 'strip-mid', name: 'الشريحة الوسطى', w: g.mLen, h: g.midW, holes: holesOf(mid, g.tab), count: n, note: `${g.tab > 0 ? `في كلّ طرف لسان خشب مصمت ${f1(g.tab)} مم يدخل تحت الشريحة الطويلة (على وجهها المخفي)، وطرفا الجزء المنقوش (${f1(g.Lm)} مم) على الحافّة الداخلية للشريحتين الطويلتين` : 'طرفاها مستقيمان بلا شطف، يلتصقان بالحافّة الداخلية للشريحتين الطويلتين'} ${Math.abs(g.axisU - g.Llong / 2) < 1e-6 ? 'في منتصفهما' : `وحافّتها القريبة على بعد ${f1(g.mAt)} مم من طرف الفتحة`}` })
-      total += mid.length
+      const tabs = tabOpenings3(g)
+      panels.push({ id: 'strip-mid', name: 'الشريحة الوسطى', w: g.mLen, h: g.midW, holes: [...holesOf(mid, g.tab), ...holesOf(tabs)], count: n, note: `${g.tab > 0 ? `في كلّ طرف لسان ${tabs.length ? 'بفتحات تحت فتحات الشريحة الطويلة' : 'خشب مصمت'} ${f1(g.tab)} مم يدخل تحت الشريحة الطويلة (على وجهها المخفي)، وطرفا الجزء المنقوش (${f1(g.Lm)} مم) على الحافّة الداخلية للشريحتين الطويلتين` : 'طرفاها مستقيمان بلا شطف، يلتصقان بالحافّة الداخلية للشريحتين الطويلتين'} ${Math.abs(g.axisU - g.Llong / 2) < 1e-6 ? 'في منتصفهما' : `وحافّتها القريبة على بعد ${f1(g.mAt)} مم من طرف الفتحة`}` })
+      total += mid.length + tabs.length
     }
     if (field) { panels.push({ id: 'field', name: `اللوح الأوسط مع ${mn}`, w: g.Wf, h: g.Hf, holes: holesOf([...med, ...lat]), count: n }); total += med.length + lat.length }
     else if (center === 2) sepHoles = medPiece()
@@ -1566,11 +1794,15 @@ function build(p: Record<string, number>, c: Common): BuildResult {
   if (kind === 2 && cleats) for (const sp of split) for (const u of sp.joints) {
     const pp = sp.isLong ? (g.wide ? g.p1 : g.p2) : g.wide ? g.p2 : g.p1, fromCorner = Math.min(u, sp.L - u) - (plate ? plate.arm + 5 : b + 5)
     const nearMid = sp.isLong && g.mid ? Math.abs(u - (sp.pair === 2 ? sp.L - g.axisU : g.axisU)) - g.midW / 2 - g.sw : Infinity
-    const A = round3(Math.max(0, Math.min(100, pp / 2, fromCorner, nearMid))), pts = splicePlate(g, A), key = pts.map(q => `${q.x},${q.y}`).join(' ')
-    const had = splices.get(key)
-    if (had) had.count += sp.cnt; else splices.set(key, { pts, w: Math.max(...pts.map(q => q.x)), count: sp.cnt })
+    const A = round3(Math.max(0, Math.min(100, pp / 2, fromCorner, nearMid)))
+    // (style 3's joint has no bar: its straight cut runs through the column's cut-outs, so a plate on each rim, the outer and the inner)
+    const f3 = style === 3 ? g.f3 : null
+    for (const pts of f3 ? [g.ov + f3.rim - 1, field ? 0 : f3.rim - 1].filter(hh => hh >= 4 && A >= 10).map(hh => [{ x: 0, y: 0 }, { x: 2 * A, y: 0 }, { x: 2 * A, y: round3(hh) }, { x: 0, y: round3(hh) }]) : [splicePlate(g, A)]) {
+      const key = pts.map(q => `${q.x},${q.y}`).join(' '), had = splices.get(key)
+      if (had) had.count += sp.cnt; else splices.set(key, { pts, w: Math.max(...pts.map(q => q.x)), count: sp.cnt })
+    }
   }
-  ;[...splices.values()].forEach((sp, i) => panels.push({ id: `splice${i ? `-${i + 1}` : ''}`, name: 'قطعة وصل خلف وصلة الشريحة', w: sp.w, h: b, shape: [polyLoop(sp.pts, 'outer')], count: sp.count, note: 'تُلصق من الخلف على الوصلة المستقيمة: الشريط الأوسط على شريط الخشب المصمت فوق الوصلة، والجناحان على الحافّة المصمتة' }))
+  ;[...splices.values()].forEach((sp, i) => panels.push({ id: `splice${i ? `-${i + 1}` : ''}`, name: 'قطعة وصل خلف وصلة الشريحة', w: sp.w, h: Math.max(...sp.pts.map(q => q.y)), shape: [polyLoop(sp.pts, 'outer')], count: sp.count, note: style === 3 ? 'تُلصق من الخلف على الحافّة المصمتة فوق الوصلة، نصفها على كلّ قطعة' : 'تُلصق من الخلف على الوصلة المستقيمة: الشريط الأوسط على شريط الخشب المصمت فوق الوصلة، والجناحان على الحافّة المصمتة' }))
   const wC = round3(2 * co + fit), lLong = round3(PW - 2 * b + 2 * co), lShort = round3(PH - 2 * b - 2 * fit - 2 * co - 2)
   const inner = kind === 2 && cleats && field
   if (inner) {
@@ -1580,22 +1812,22 @@ function build(p: Record<string, number>, c: Common): BuildResult {
   if (p.back >= 0.5) panels.push({ id: 'back', name: 'لوح أكريليك أوبال', w: PW, h: PH, count: n, material: 'white', note: 'أبيض حليبي، فوق الديكور' })
 
   // -------------------------------------------------------------- notes
-  const k1 = g.n1 - 1, k2 = g.n2 - 1, mw = style === 1 ? rosettesWord : starsWord, motif = motifName(style)
+  const k1 = g.n1 - 1, k2 = g.n2 - 1, mw = style !== 2 ? rosettesWord : starsWord, motif = motifName(style)
   const winLong = round3((g.wide ? PW : PH) - 2 * b), winShort = round3((g.wide ? PH : PW) - 2 * b), across = g.wide ? 'الضلع العلوي إلى السفلي' : 'الضلع الأيسر إلى الأيمن'
-  const midMotifs = g.nm > 1 ? `على محورها ${mw(g.nm - 1)} بينها ${f1(g.qm)} مم، و` : ''
-  const midWords = g.mid ? `${kind === 1 ? `شريحة وسطى من نفس اللوح عرضها ${f1(g.midW)} مم تقطع الوسط` : `الشريحة الوسطى ${f1(g.mLen)} × ${f1(g.midW)} مم تقطع الفتحة`} ${g.offMid ? `من ${across} على بعد ${f1(g.mAt)} مم من طرف الفتحة` : `من منتصف ${across}`}${kind === 1 ? '' : g.tab > 0 ? `، يظهر منها ${f1(g.Lm)} مم بين الحافّتين الداخليتين للشريحتين الطويلتين، وفي كلّ طرف لسان خشب مصمت ${f1(g.tab)} مم بلا فتحات يدخل تحت الشريحة الطويلة (على وجهها المخفي)` : '، طرفاها مستقيمان بلا شطف يلتقيان بالحافّة الداخلية للشريحتين الطويلتين'}، وعلى كلّ ${kind === 1 ? 'طرف' : 'وصلة'} شريط خشب مصمت ${f1(2 * g.sw)} مم لا تقطعه فتحة. ${midMotifs}في ${g.offMid ? '' : 'منتصف '}كلّ ضلع طويل ${motif} على محورها نفسه، فتكمل نقشتُها نقشةَ الإطار من طرف إلى طرف${g.offMid ? `، وبين الزاويتين ومحورها ${f1(g.pa)} و${f1(g.pb)} مم بين ${motif} وأخرى` : ' والرسمة صورة مرآة حولها'}.` : ''
+  const midMotifs = style === 3 && g.nm ? `على محورها ${mw(g.nm)} بينها ${f1(g.qm)} مم، و` : g.nm > 1 ? `على محورها ${mw(g.nm - 1)} بينها ${f1(g.qm)} مم، و` : ''
+  const midWords = g.mid ? `${kind === 1 ? `شريحة وسطى من نفس اللوح عرضها ${f1(g.midW)} مم تقطع الوسط` : `الشريحة الوسطى ${f1(g.mLen)} × ${f1(g.midW)} مم تقطع الفتحة`} ${g.offMid ? `من ${across} على بعد ${f1(g.mAt)} مم من طرف الفتحة` : `من منتصف ${across}`}${kind === 1 ? '' : g.tab > 0 ? `، يظهر منها ${f1(g.Lm)} مم بين الحافّتين الداخليتين للشريحتين الطويلتين، وفي كلّ طرف لسان ${style === 3 ? 'بفتحات تحت فتحات الشريحة الطويلة' : 'خشب مصمت'} ${f1(g.tab)} مم ${style === 3 ? '' : 'بلا فتحات '}يدخل تحت الشريحة الطويلة (على وجهها المخفي)` : '، طرفاها مستقيمان بلا شطف يلتقيان بالحافّة الداخلية للشريحتين الطويلتين'}، وعلى كلّ ${kind === 1 ? 'طرف' : 'وصلة'} شريط خشب مصمت ${f1(style === 3 && g.f3?.mid ? g.f3.rim + g.f3.mid.rimEnd : 2 * g.sw)} مم لا تقطعه فتحة. ${midMotifs}في ${g.offMid ? '' : 'منتصف '}كلّ ضلع طويل ${motif} على محورها نفسه، فتكمل نقشتُها نقشةَ الإطار من طرف إلى طرف${g.offMid ? `، وبين الزاويتين ومحورها ${f1(g.pa)} و${f1(g.pb)} مم بين ${motif} وأخرى` : ' والرسمة صورة مرآة حولها'}.` : ''
   if (g.sizeIs === 2) notes.push(`الفتحة داخل الإطار ${f1(p.PW)} × ${f1(p.PH)} مم كما أدخلتها، والإطار ${f1(b)} مم من كلّ جهة، فالديكور من الخارج ${f1(PW)} × ${f1(PH)} مم.`)
   // the steps between the motifs: on a long strip with the middle strip, one from each corner to its axis
   const steps = (long: boolean, q: number) => (long && g.mid && Math.abs(g.pa - g.pb) > 1e-6 ? `بينها ${f1(g.pa)} مم بين الزاوية والشريحة الوسطى على جهة الفتحة ${f1(g.mAt)} مم، و${f1(g.pb)} مم على الجهة الأخرى` : `بينها ${f1(q)} مم`)
   const bandWords = `في كلّ من الضلعين الطويلين ${mw(g.wide ? k1 : k2)} كاملة ${steps(true, g.wide ? g.p1 : g.p2)}، وفي كلّ من القصيرين ${mw(g.wide ? k2 : k1)} ${steps(false, g.wide ? g.p2 : g.p1)}`
   // the medallion as it is cut: a small one leaves out the rings too small to cut, and the words leave them out too
   const has = (re: RegExp) => medPieces(style, { x: 0, y: 0 }, p.med, web).some(pc => re.test(pc.key))
-  const nPetal = style === 1 ? 16 : 12, petals = has(/^k\d/), starW = has(/^star$/) ? `نجمة من ${nPetal} رأساً${petals ? ` تخرج منها ${nPetal} بتلة${style === 1 ? ' طويلة' : ''}` : ''}` : petals ? `${nPetal} بتلة${style === 1 ? ' طويلة تلتقي في وسطه' : ' تلتقي في وسطها'}` : ''
-  const ring1 = style === 1 ? [has(/^(b|e)\d/) ? 'نجوم صغيرة' : '', has(/^(cc|d|f)\d/) ? 'دوائر' : ''].filter(Boolean).join(' و') : has(/^c\d/) ? '12 خليّة' : ''
-  const rimW = style === 1 ? (has(/^t\d/) ? 'وعلى حافّته 16 فتحة شبه منحرف داخل إطار مصمت' : 'داخل إطار مصمت') : `${has(/^a\d/) ? `${ring1 ? 'ثم ' : 'وحولها '}24 قوساً صغيراً ` : ''}داخل إطار دائري مصمت`
-  const medWords = `${mn} ${style === 1 ? `${f1(p.med)} مم بين ضلعين متقابلين` : `قطرها ${f1(p.med)} مم`}: ${[starW, ring1 ? `وحولها ${ring1}` : ''].filter(Boolean).join('، ')}${style === 1 ? '، ' : ' '}${rimW}`
+  const nPetal = style !== 2 ? 16 : 12, petals = has(/^k\d/), starW = has(/^star$/) ? `نجمة من ${nPetal} رأساً${petals ? ` تخرج منها ${nPetal} بتلة${style !== 2 ? ' طويلة' : ''}` : ''}` : petals ? `${nPetal} بتلة${style !== 2 ? ' طويلة تلتقي في وسطه' : ' تلتقي في وسطها'}` : ''
+  const ring1 = style !== 2 ? [has(/^(b|e)\d/) ? 'نجوم صغيرة' : '', has(/^(cc|d|f)\d/) ? 'دوائر' : ''].filter(Boolean).join(' و') : has(/^c\d/) ? '12 خليّة' : ''
+  const rimW = style !== 2 ? (has(/^t\d/) ? 'وعلى حافّته 16 فتحة شبه منحرف داخل إطار مصمت' : 'داخل إطار مصمت') : `${has(/^a\d/) ? `${ring1 ? 'ثم ' : 'وحولها '}24 قوساً صغيراً ` : ''}داخل إطار دائري مصمت`
+  const medWords = `${mn} ${style !== 2 ? `${f1(p.med)} مم بين ضلعين متقابلين` : `قطرها ${f1(p.med)} مم`}: ${[starW, ring1 ? `وحولها ${ring1}` : ''].filter(Boolean).join('، ')}${style !== 2 ? '، ' : ' '}${rimW}`
   const fillWords = g.fill
-    ? `الوسط كلّه منقوش لا تبقى فيه مساحة سادة: ${style === 1 ? 'وردات صغيرة من 16 بتلة على شبكة متخالفة، بين كلّ أربع منها نجمة ثمانية وأربع لوزات' : 'نجوم ثمانية متشابكة (خاتم) بين كلّ أربع منها صليب، على خطوط خشب متّصلة'}، خليّتها ${f1(p.fcell)} مم، تملأ ${kind === 1 ? 'وسط الديكور' : 'اللوح الأوسط'} حول ${center === 3 ? 'مركزه' : mn} وتُقصّ عند ${center === 3 ? '' : `شريط خشب حوله و`}حافّته المصمتة (${f1(g.fm)} مم).`
+    ? `الوسط كلّه منقوش لا تبقى فيه مساحة سادة: ${style !== 2 ? 'وردات صغيرة من 16 بتلة على شبكة متخالفة، بين كلّ أربع منها نجمة ثمانية وأربع لوزات' : 'نجوم ثمانية متشابكة (خاتم) بين كلّ أربع منها صليب، على خطوط خشب متّصلة'}، خليّتها ${f1(p.fcell)} مم، تملأ ${kind === 1 ? 'وسط الديكور' : 'اللوح الأوسط'} حول ${center === 3 ? 'مركزه' : mn} وتُقصّ عند ${center === 3 ? '' : `شريط خشب حوله و`}حافّته المصمتة (${f1(g.fm)} مم).`
     : `الوسط سادة (نقش الوسط 0)؛ اجعله 1 لتملأه شبكة زخرفة.`
   notes.push(ov > 0
     ? `الديكور من الخارج ${f1(PW)} × ${f1(PH)} مم والركبة على الجبس محسوبة فيه: يرتكز كلّ طرف ${f1(ov)} مم على لوح الجبسن بورد ويبقى خشباً مصمتاً مخفيّاً، فالفتحة الظاهرة ${f1(PW - 2 * ov)} × ${f1(PH - 2 * ov)} مم.`
@@ -1605,7 +1837,7 @@ function build(p: Record<string, number>, c: Common): BuildResult {
       `الديكور قطعة واحدة ${f1(PW)} × ${f1(PH)} مم تُقصّ من لوح واحد، بلا وصلات. الإطار بعرض ${f1(b)} مم يظهر منه ${f1(b - ov)} مم: ${bandWords}.`,
       `في كلّ زاوية ${motif} على القطر يقسمها شريط خشب مصمت عرضه ${f1(2 * g.sw)} مم على الأقل على خطّ الـ45°، فتلتقي الأضلاع الأربعة على 45° والزاوية صورة مرآة حوله، والزوايا الأربع متشابهة${p.line >= 0.5 ? '؛ وعلى كلّ شريط خطّ رفيع محفور يُبرز التقاء الـ45° (في RDWorks طبقة الحفر بقوّة خفيفة)' : ''}.`,
       ...(g.mid ? [midWords] : []),
-      center === 1 ? `في الوسط ${medWords}، مفرّغ${style === 1 ? '' : 'ة'} في اللوح.` : center === 2 ? `${medWords}، قطعة منفصلة تُلصق بغراء الخشب على الوسط المصمت من الوجه الظاهر فتبرز عنه ويظهر الخشب من فتحاتها.` : 'بلا زخرفة وسطى.',
+      center === 1 ? `في الوسط ${medWords}، مفرّغ${style !== 2 ? '' : 'ة'} في اللوح.` : center === 2 ? `${medWords}، قطعة منفصلة تُلصق بغراء الخشب على الوسط المصمت من الوجه الظاهر فتبرز عنه ويظهر الخشب من فتحاتها.` : 'بلا زخرفة وسطى.',
       fillWords,
       `عدد الفتحات: ${holesWord(total - sepHoles)} في القطعة${sepHoles ? ` و${holesWord(sepHoles)} في ${mn}` : ''}.`,
       'في RDWorks اقصّ الفتحات أولاً ثم المحيط الخارجي (ترتيب القصّ من الداخل إلى الخارج) حتى لا تتحرّك القطعة قبل أن تكتمل فتحاتها؛ ثبّت اللوح مستوياً على السرير بأوزان على حوافّه المصمتة، وانزع القطع الصغيرة الساقطة قبل أن تعلق تحت الرأس.',
@@ -1615,7 +1847,8 @@ function build(p: Record<string, number>, c: Common): BuildResult {
   } else {
     notes.push(
       `الإطار أربع شرائح تلتقي بزوايا مشطوفة 45°، عرضها ${f1(b)} مم يظهر منها ${f1(b - ov)} مم. العلوية والسفلية قطعتان متطابقتان: ${f1(PW)} مم من الخارج و${f1(PW - 2 * b)} مم من الداخل، في كلّ منهما ${mw(k1)} كاملة ${steps(g.wide, g.p1)}. الجانبيتان قطعتان: ${f1(PH)} مم من الخارج و${f1(PH - 2 * b)} مم من الداخل، في كلّ منهما ${mw(k2)} ${steps(!g.wide, g.p2)}.`,
-      `في كلّ زاوية ${motif} على خط الشطف نصفها في كلّ شريحة: ما يقع على الخط يترك مكانه لشريط خشب مصمت عرضه ${f1(2 * g.sw)} مم على الأقل يمرّ فيه الشطف، فلا يقطع الشطف أيّ فتحة والزاوية صورة مرآة حوله، والزوايا الأربع متشابهة.`,
+      style === 3 ? `في كلّ زاوية ${motif} كاملة على خط الشطف، والشطف خطّ مستقيم على 45° يمرّ في وسطها: كلّ فتحة عليه نصفها حزّ في طرف كلّ شريحة، فتكتمل عند اللصق، والزوايا الأربع متشابهة.`
+        : `في كلّ زاوية ${motif} على خط الشطف نصفها في كلّ شريحة: ما يقع على الخط يترك مكانه لشريط خشب مصمت عرضه ${f1(2 * g.sw)} مم على الأقل يمرّ فيه الشطف، فلا يقطع الشطف أيّ فتحة والزاوية صورة مرآة حوله، والزوايا الأربع متشابهة.`,
     )
     if (field) notes.push(`اللوح الأوسط ${f1(g.Wf)} × ${f1(g.Hf)} مم (خلوص ${f1(fit)} مم من كلّ جهة)، وفي وسطه ${medWords}؛ وحوافّ اللوح مصمتة ${f1(co + web)} مم على الأقل.`, fillWords)
     else if (center === 2) notes.push(`${medWords}، قطعة منفصلة: الصقها في وسط سقف التجويف فوق الفتحة (أو على لوح الأكريليك) فتظهر من وسط الإطار.`)
@@ -1624,18 +1857,25 @@ function build(p: Record<string, number>, c: Common): BuildResult {
     if (g.offMid) notes.push(`الشريحتان الطويلتان ليستا متطابقتين (الشريحة الوسطى ليست في المنتصف): الثانية صورة مرآة الأولى، فلكلّ منهما قطعها${split.length ? '' : ' في الملف'}.`)
     for (const sp of split) {
       const k = sp.joints.length + 1, cuts = [0, ...sp.joints, sp.L], lens = cuts.slice(1).map((u, i) => f1(round3(u - cuts[i])))
-      notes.push(`${sp.word}${sp.pair ? ` ${sp.pair}` : ''} (${f1(sp.L)} مم) أطول من اللوح فتُقسم إلى ${k === 2 ? 'قطعتين' : `${k} قطع`} (${lens.join(' + ')} مم من الخارج${sp.pair ? '' : '، لكلّ من الشريحتين'}) بوصلة مستقيمة بين ${motifName(style)} وأخرى عند ${sp.joints.map(u => f1(round3(u))).join(' و')} مم من زاويتها: على كلّ وصلة شريط خشب مصمت عرضه ${f1(2 * g.sw)} مم عبر الشريحة كلّها لا تقطعه فتحة، والنقشة تكمل عبرها بأشكال كاملة غير مقصوصة على جانبيها، صورة مرآة حولها. ألصق القطع على الطاولة طرفاً لطرف${cleats ? ' ثم قطعة الوصل من الخلف' : ' بغراء الخشب وشريط من الخلف'}.`)
+      notes.push(`${sp.word}${sp.pair ? ` ${sp.pair}` : ''} (${f1(sp.L)} مم) أطول من اللوح فتُقسم إلى ${k === 2 ? 'قطعتين' : `${k} قطع`} (${lens.join(' + ')} مم من الخارج${sp.pair ? '' : '، لكلّ من الشريحتين'}) ${style === 3 ? `بوصلة مستقيمة على العمود بين ${motifName(style)} وأخرى عند ${sp.joints.map(u => f1(round3(u))).join(' و')} مم من زاويتها: تمرّ في أشكال العمود، نصف كلّ شكل حزّ في طرف كلّ قطعة، فلا شريط مصمت والنقشة كما هي عبرها عند اللصق.` : `بوصلة مستقيمة بين ${motifName(style)} وأخرى عند ${sp.joints.map(u => f1(round3(u))).join(' و')} مم من زاويتها: على كلّ وصلة شريط خشب مصمت عرضه ${f1(2 * g.sw)} مم عبر الشريحة كلّها لا تقطعه فتحة، والنقشة تكمل عبرها بأشكال كاملة غير مقصوصة على جانبيها، صورة مرآة حولها.`} ألصق القطع على الطاولة طرفاً لطرف${cleats ? ' ثم قطعة الوصل من الخلف' : ' بغراء الخشب وشريط من الخلف'}.`)
     }
-    if (splices.size) notes.push(`خلف كلّ وصلة مستقيمة قطعة وصل من نفس اللوح (${[...splices.values()].reduce((a, x) => a + x.count, 0)} قطع): شريط عرضه ${f1(2 * (g.sw - 1))} مم على شريط الخشب المصمت فوق الوصلة، وجناحان على الحافّة المصمتة من الجهتين، فلا تسدّ أيّ فتحة.`)
+    if (splices.size) notes.push(style === 3 ? `خلف كلّ وصلة قطعتا وصل من نفس اللوح (${[...splices.values()].reduce((a, x) => a + x.count, 0)} قطع): واحدة على كلّ حافّة مصمتة فوق الوصلة، نصفها على كلّ قطعة، فلا تسدّ أيّ فتحة.` : `خلف كلّ وصلة مستقيمة قطعة وصل من نفس اللوح (${[...splices.values()].reduce((a, x) => a + x.count, 0)} قطع): شريط عرضه ${f1(2 * (g.sw - 1))} مم على شريط الخشب المصمت فوق الوصلة، وجناحان على الحافّة المصمتة من الجهتين، فلا تسدّ أيّ فتحة.`)
     if (plate || inner || mPlate >= 6) notes.push(`قطع التدعيم من نفس اللوح، تُلصق من الخلف فوق الخشب المصمت فقط فلا تسدّ أيّ فتحة:${plate ? ` ${4 * n} قطع زاوية على شكل L، ضلعاها ${f1(plate.arm)} مم وعرضهما ${f1(plate.w)} مم على الحافّة الخارجية المصمتة${plate.diag ? `، وذراعها عرضه ${f1(2 * plate.h)} مم على خط الشطف` : ''}` : ''}${mPlate >= 6 ? `${plate ? '؛' : ''} ${stripsWord(2 * n)} ${f1(g.midW)} × ${f1(mPlate)} مم على وصلتي الشريحة الوسطى` : ''}${(plate || mPlate >= 6) && inner ? '؛' : ''}${inner ? ` ${stripsWord(2 * n)} ${f1(lLong)} × ${f1(wC)} مم${lShort > 20 ? ` و${stripsWord(2 * n)} ${f1(lShort)} × ${f1(wC)} مم` : ''} خلف وصلة اللوح الأوسط، ${f1(co)} مم منها على الحافّة المصمتة للشريحة و${f1(co)} مم على اللوح الأوسط` : ''}.`)
     else if (field) notes.push(`اللوح الأوسط يحتاج دعماً من خلف وصلته: الصق شرائح ${f1(2 * co)} مم نصفها على حافّة الشريحة المصمتة (${f1(co + web)} مم) ونصفها على اللوح الأوسط.`)
     notes.push(
-      `عدد الفتحات: ${f1(stripHoles[0])} في كلّ من العلوية والسفلية و${f1(stripHoles[1])} في كلّ جانبية${g.mid ? ` و${f1(mid.length)} في الشريحة الوسطى` : ''}${field ? ` و${f1(med.length + lat.length)} في اللوح الأوسط` : sepHoles ? ` و${f1(sepHoles)} في ${mn}` : ''} — ${holesWord(total)} في الديكور كلّه.`,
+      `عدد الفتحات: ${f1(stripHoles[0])} في كلّ من العلوية والسفلية و${f1(stripHoles[1])} في كلّ جانبية${g.mid ? ` و${f1(mid.length + tabOpenings3(g).length)} في الشريحة الوسطى` : ''}${field ? ` و${f1(med.length + lat.length)} في اللوح الأوسط` : sepHoles ? ` و${f1(sepHoles)} في ${mn}` : ''} — ${holesWord(total)} في الديكور كلّه.`,
       'في RDWorks اقصّ الفتحات الداخلية أولاً ثم المحيط الخارجي لكلّ قطعة (ترتيب القصّ من الداخل إلى الخارج) حتى لا تتحرّك القطعة قبل أن تكتمل فتحاتها، وثبّت اللوح مستوياً على السرير. الشرائح شبه منحرفة: رتّب كلّ اثنتين على اللوح واحدة مقلوبة بجانب الأخرى فتتداخل أطرافهما المشطوفة ويقلّ الهدر.',
       `التجميع على طاولة مستوية والوجه الظاهر للأسفل: رصّ الشرائح الأربع وألصق الشطوف بغراء الخشب${g.mid ? `، ثم الشريحة الوسطى بين الطويلتين ${g.offMid ? `على بعد ${f1(g.mAt)} مم من طرف الفتحة` : 'في منتصفهما'} ${g.tab > 0 ? `ولساناها (${f1(g.tab)} مم) فوق وجههما المخفي، وطرفا جزئها المنقوش على حافّتيهما الداخليتين` : 'وطرفاها على حافّتيهما الداخليتين'}` : ''}${plate || mPlate >= 6 ? ' ثم ألصق قطع التدعيم فوقها' : ''}${field ? `، ثم ضع اللوح الأوسط في مكانه${inner ? ' وألصق شرائح التدعيم فوق وصلته' : ''}` : ''}. اتركه يجفّ تماماً، ثم ادهنه أو رشّه (الوجه وحوافّ الفتحات) قبل التركيب.`,
       ov > 0 ? `التركيب: أدخل الديكور من الفتحة مائلاً إلى فوق الجبس، ثم أنزله مسطّحاً والوجه المزخرف للأسفل حتى ترتكز حافّته الخارجية (${f1(ov)} مم من كلّ جهة) على لوح الجبسن بورد.`
         : `التركيب: بلا ركبة على الجبس فالإطار كلّه ظاهر: ثبّته تحت سقف الجبس حول الفتحة${g.sizeIs === 2 ? ` (حافّته الداخلية على حافّة الفتحة ${f1(p.PW)} × ${f1(p.PH)} مم)` : ''} بغراء ومسامير رفيعة في الخشب المصمت فقط، أو ركّب الشرائح واحدة واحدة.`,
     )
+  }
+  if (style === 3) notes.push(...band3Notes(g))
+  if (style === 3 && kind === 2) {
+    // (what a cut leaves too thin where no fix fits: a band this narrow has straps under twice CUT.sliver)
+    const fs = framePieces(g), all = [fs.top, fs.side, fs.bottom, fs.left]
+    const left = [0, 1, 2, 3].reduce((a, s) => { const L = s % 2 ? PH : PW, c = [0, ...jointsOf(g, s), L]; return a + c.slice(1).reduce((b2, u1, i) => b2 + part3(g, s, all[s], c[i], u1).left.length, 0) }, 0)
+    if (left) warnings.push(`الشطوف والوصلات خطوط مستقيمة تمرّ في النقشة، وفي ${left} موضعاً عليها يبقى خشب أرقّ من ${f1(CUT.sliver)} مم أو حزّ صغير لا مكان لإصلاحه: الخشب بين الفتحات ${f1(g.sw)} مم فقط على هذا المقاس، كبّر عرض الإطار حتى يصير ${f1(2 * CUT.sliver)} مم أو أكثر.`)
   }
   notes.push(
     `ضوء النيون في التجويف فوقه يمرّ من الفتحات؛ لضوء ناعم بلا خطوط ظاهرة ضع فوقه لوح أكريليك أوبال (أبيض حليبي) أو قماشاً أبيض مشدوداً${p.back >= 0.5 ? `، ولوح الأكريليك ${f1(PW)} × ${f1(PH)} مم في الملف بلونه الخاصّ` : ''}.`,
@@ -1644,6 +1884,23 @@ function build(p: Record<string, number>, c: Common): BuildResult {
   )
   // the rosettes' dashed rings and the stars' points are short cut-outs, not slots: nothing here slots together
   return { panels, notes, warnings, errors, slotted: false }
+}
+
+/** Style 3's words: the band as in the customer's picture, its sizes and how near square its cells come out. */
+function band3Notes(g: FrameGeom): string[] {
+  const f = g.f3
+  if (!f) return []
+  const { s, strap } = f.size, pct = (q: number) => `${q >= s ? '+' : '−'}${f1(Math.abs(q / s - 1) * 100)}%`
+  const lay = (L: typeof f.pw) => `${f1(L.L)} مم: ${rosettesWord(L.n + 1)}، ${L.pitches.map(q => `${f1(q)} مم (${pct(q)})`).join(' و')} بين الوسطى`
+  const rimWhy = f.rim <= strap + 0.5 ? 'شريط واحد كما في الصورة' : `أقلّ حافّة تُبقي المربعات ضمن ${f1(Math.ceil(SQUARE3 * 100))}% من المربع على طول كلّ شريحة${f.rim <= LABEL_RIM + 0.5 ? ' ويتّسع فيها رقم القطعة' : ''}`
+  const out = [
+    `النقشة 3 «${STYLE_LABELS[2]}»: شريط الإطار كما في صورة الزبون، صفّ واحد من مربعات ${f1(s)} مم عرضاً، في كلّ مربع وردة من 12 بتلة (رأس مدبّب قليلاً) في وسطها مضلّع من 12 ضلعاً، حولها حلقة مخرّمة من 12 فتحة على شكل T و12 معيّناً صغيراً، وبين كلّ وردتين عمود: مضلّع ثم شكل بيضاوي ثم سهم ثم نقطتان ثم سهم ثم بيضاوي ثم مضلّع، ومثله صفّ على كلّ من الحافّتين، ونجمة رباعية على كلّ قطر بين الوردة وزاوية المربع. كلّها خطوط مستقيمة، والخشب بين كلّ فتحتين ${f1(strap)} مم بالضبط (نسبة الصورة)، وحافّة مصمتة ${f1(f.rim)} مم على جانبي الشريط (${rimWhy}).`,
+    `في كلّ زاوية مربع كامل ووردته كاملة على خط الـ45° كما في الصورة${g.kind === 2 ? `: الشطف خطّ مستقيم واحد على 45° من الزاوية الخارجية إلى الداخلية يمرّ في النقشة نفسها بلا شريط مصمت: كلّ شكل على الخطّ (مضلّع المركز والمثلّثان وفتحتا الـT والنجمتان والمضلّعان على زاويتي المربع) نصفه في كلّ شريحة حزّاً في طرفها، والنصفان صورة مرآة، فإذا التقت الشريحتان ظهر كلّ شكل والوردة كلّها كاملة كما في الصورة` : ''}. والمربعات بين الزاويتين ${g.mid ? 'وبين الزاوية ووردة محور الشريطة النصّانية ' : ''}متساوية: ${[lay(f.pw), ...(f.ph.L !== f.pw.L || f.ph.n !== f.pw.n ? [lay(f.ph)] : [])].join('؛ ')}${f.mid ? `؛ الشريطة النصّانية ${rosettesWord(f.mid.k)} ${f1(f.mid.pitch)} مم (${pct(f.mid.pitch)}) وفي طرفيها عمود من أشكال الحافّة داخل حافّة مصمتة ${f1(f.mid.rimEnd)} مم` : ''}. الصورة نفسها تضغط مربعاتها 2–6.5% على طولها.`,
+  ]
+  const cut = [f.pw, f.ph].filter(L => L.joints.length)
+  if (cut.length && g.kind === 2) out.push(`كلّ وصلة خطّ مستقيم عرضي على العمود بين مربعين، والمربعات حوله كما هي، بلا شريط مصمت: أشكال العمود (المضلّعان والبيضاويان والسهمان) نصف كلّ منها في كلّ قطعة حزّاً في طرفها، تكتمل عند التركيب؛ ولا يبقى على جانبي الخطّ خشب أرقّ من ${f1(CUT.sliver)} مم ولا حزّ أصغر من ${f1(CUT.frag)} مم.`)
+  if (g.kind === 1 && (g.center !== 3 || g.fill)) out.push('المثمّن في الوسط وشبكة الوسط في النقشة 3 كما في النقشة 1 (الصورة لا تُظهر غير شريط الإطار).')
+  return out
 }
 
 const ICON1 = `<path d="M4 12h56v40H4z"/><path d="M15 23h34v18H15z"/><path d="M4 12l11 11M60 12L49 23M4 52l11-11M60 52L49 41" stroke-width="1.5"/><path d="M28 27h8l4 4v2l-4 4h-8l-4-4v-2z" stroke-width="1.5"/><circle cx="9.5" cy="17.5" r="3" stroke-width="1.2"/><circle cx="21" cy="17.5" r="3" stroke-width="1.2"/><circle cx="32" cy="17.5" r="3" stroke-width="1.2"/><circle cx="43" cy="17.5" r="3" stroke-width="1.2"/><circle cx="54.5" cy="17.5" r="3" stroke-width="1.2"/><circle cx="9.5" cy="32" r="3" stroke-width="1.2"/><circle cx="54.5" cy="32" r="3" stroke-width="1.2"/><circle cx="9.5" cy="46.5" r="3" stroke-width="1.2"/><circle cx="21" cy="46.5" r="3" stroke-width="1.2"/><circle cx="32" cy="46.5" r="3" stroke-width="1.2"/><circle cx="43" cy="46.5" r="3" stroke-width="1.2"/><circle cx="54.5" cy="46.5" r="3" stroke-width="1.2"/>`
@@ -1676,7 +1933,8 @@ const SET_PARAMS: ParamDef[] = [
   mm('AH', 'طول المربع الأول', 300, 2440, 'على طول الإطار، في النصف الأول من الفتحة'),
   mm('BW', 'عرض المربع الثاني', 300, 2440, 'في النصف الثاني من الفتحة، بعد الشريطة النصّانية'),
   mm('BH', 'طول المربع الثاني', 300, 2440),
-  intP('style', 'النقشة', 1, 2, '1 = وردات نجمية من 16 رأساً ونجوم ثمانية كالصورة، 2 = نجوم ثمانية (خاتم) وصلبان؛ الإطار والمربعان بنفس النقشة', STYLE_LABELS),
+  intP('style', 'النقشة', 1, 3, '1 = وردات نجمية من 16 رأساً ونجوم ثمانية كالصورة، 2 = نجوم ثمانية (خاتم) وصلبان، 3 = شريط الإطار مثل صورة الزبون بالضبط (وردة من 12 بتلة بحلقة مخرّمة في كلّ مربع)؛ الإطار والمربعان بنفس النقشة (مثمّن المربعين وشبكتهما في 3 كما في 1)', STYLE_LABELS),
+  intP('pack', 'تقسيم الشرائح', 1, 2, 'للنقشة 3: 1 = أقلّ عدد من الوصلات (بالمقاسات الافتراضية 6 وصلات، والطقم كلّه على 5 ألواح)، 2 = أقلّ عدد من الألواح: وصلات مستقيمة أكثر لتدخل قطع من الشرائح بجانب المربعين (بالمقاسات الافتراضية 8 وصلات، والطقم كلّه على 4 ألواح)', PACK_LABELS),
   intP('labels', 'ترقيم القطع', 0, 1, '1 = كلّ قطعة برقمها بترتيب التركيب، محفوراً على الوجه المخفي (طبقة حفر زرقاء)', ['بلا ترقيم', 'ترقيم القطع بالتسلسل']),
   intP('cleats', 'قطع التدعيم', 0, 1, '1 = قطع تُلصق خلف الزوايا وخلف وصلات الشرائح، من نفس اللوح'),
   { ...mm('fit', 'خلوص طرفي الشريطة النصّانية', 0, 2, 'مع «طول الشريطة النصّانية» 0: يُنقص من كلّ طرف لتدخل بين الشريحتين الطويلتين بسهولة؛ 0 = بطول الفتحة تماماً'), step: 0.1 },
@@ -1684,11 +1942,13 @@ const SET_PARAMS: ParamDef[] = [
   mm('sheetW', 'عرض لوح الخشب', 600, 2000),
   intP('n', 'عدد الأطقم', 1, 5),
 ]
-const SET_DEFAULTS = { FW: 2460, FL: 5460, band: 380, mid: 1, midAt: 0, midLen: 1800, squares: 1, AW: 1400, AH: 1050, BW: 1380, BH: 1080, style: 1, labels: 1, cleats: 0, fit: 0, sheetL: 2440, sheetW: 1220, n: 1 }
+const SET_DEFAULTS = { FW: 2460, FL: 5460, band: 380, mid: 1, midAt: 0, midLen: 1800, squares: 1, AW: 1400, AH: 1050, BW: 1380, BH: 1080, style: 1, pack: 1, labels: 1, cleats: 0, fit: 0, sheetL: 2440, sheetW: 1220, n: 1 }
 
 /** The frame's parameters for the set: FW × FL outside, no rest on the gypsum, the middle strip as wide as the band. */
 export function setFrameParams(p: Record<string, number>): Record<string, number> {
-  return { ...DEFAULTS, sizeIs: 1, PW: p.FW, PH: p.FL, ov: 0, band: p.band, kind: 2, style: p.style, center: 3, fill: 0, mid: p.mid ?? 1, midW: p.band, midAt: p.midAt ?? 0, midLen: p.midLen ?? 0, halves: 1, align: 1, cleats: p.cleats, sheetL: p.sheetL, sheetW: p.sheetW, n: p.n }
+  // (style 3's lace leaves solid wood only on its rims: with the numbers they take the least one a number holds)
+  const sq = (p.squares ?? 1) >= 0.5, pack: Record<string, number> = p.style === 3 && (p.pack ?? 1) >= 2 ? { pack: 2, packAW: sq ? p.AW : 0, packAH: sq ? p.AH : 0, packBW: sq ? p.BW : 0, packBH: sq ? p.BH : 0 } : {}
+  return { ...DEFAULTS, sizeIs: 1, PW: p.FW, PH: p.FL, ov: 0, band: p.band, kind: 2, style: p.style, center: 3, fill: 0, mid: p.mid ?? 1, midW: p.band, midAt: p.midAt ?? 0, midLen: p.midLen ?? 0, halves: 1, align: 1, cleats: p.cleats, sheetL: p.sheetL, sheetW: p.sheetW, n: p.n, minRim: (p.labels ?? 1) >= 0.5 ? LABEL_RIM : 0, ...pack }
 }
 /**
  * A square's parameters: the one-piece decor at its defaults (octagon in the middle, the field patterned) at its
@@ -1740,6 +2000,8 @@ export function strokeLabel(num: number, x0: number, y0: number, h: number, arro
 }
 /** The least room between an engraved line and a cut (mm), and the label's sizes (the largest that fits, mm). */
 export const LABEL = { clear: 3, hMax: 36, hMin: 15 }
+/** The least plain rim that holds a number hMin tall clear by LABEL.clear both sides (style 3's strips: put there exactly, see rimLabel). */
+export const LABEL_RIM = 2 * LABEL.clear + LABEL.hMin
 /** Segment-to-segment distance (0 when they cross). */
 function segSeg(a: P2, b: P2, c: P2, d: P2): number {
   return segsCross(a, b, c, d) ? 0 : Math.min(segPt(a, c, d), segPt(b, c, d), segPt(c, a, b), segPt(d, a, b))
@@ -1841,24 +2103,26 @@ export function setPlan(p: Record<string, number>, squares: { k: 'a' | 'b'; W: n
   const count = { long: 0, short: 0 }
   for (let k = 0; k < 4; k++) {
     const s = (first + k) % 4, L = s % 2 ? g.PH : g.PW, kind = word(s), idx = ++count[kind]
-    const joints = L > g.maxLen + 1e-9 ? splitPlan(L, stripCuts(g, s).waists, g.maxLen) ?? [] : []
-    const parts = joints.length ? cutAtJoints(strips[s], joints, g.sw, b) : [strips[s]], cuts = [0, ...joints, L]
+    const joints = jointsOf(g, s)
+    const parts = joints.length || g.style === 3 ? cutStrip(g, s, strips[s], joints) : [strips[s]], cuts = [0, ...joints, L]
     parts.forEach((pcs, i) => {
       const u0 = cuts[i], u1 = cuts[i + 1], no = pieces.length + 1
-      const outline = stripPart(L, b, u0, u1).map(q => ({ x: round3(q.x - u0), y: q.y }))
+      // its own coordinates from its outline's start, as its panel's
+      const part = partOf(g, s, strips[s], u0, u1), x0 = Math.min(u0, ...part.map(q => q.x))
+      const outline = part.map(q => ({ x: round3(q.x - x0), y: round3(q.y) }))
       pieces.push({
         no, id: `piece-${no}`, name: `${no} — شريحة ${kind === 'long' ? 'طويلة' : 'قصيرة'} ${idx}${parts.length > 1 ? ` (${LETTERS[i]})` : ''}`, kind,
-        w: round3(u1 - u0), h: b, outline, holes: pcs.map(pc => pc.poly.map(q => ({ x: q.x - u0, y: q.y }))), holeLoops: holesOf(pcs, -u0), shape: true, keys: pcs.map(pc => pc.key),
-        place: q => toFrame(g, s, { x: q.x + u0, y: q.y }), side: s, part: i, parts: parts.length, u0, u1, mitres: [u0 <= 1e-9, u1 >= L - 1e-9],
+        w: round3(u1 - u0), h: b, outline, holes: pcs.map(pc => pc.poly.map(q => ({ x: q.x - x0, y: q.y }))), holeLoops: holesOf(pcs, -x0), shape: true, keys: pcs.map(pc => pc.key),
+        place: q => toFrame(g, s, { x: q.x + x0, y: q.y }), side: s, part: i, parts: parts.length, u0, u1, mitres: [u0 <= 1e-9, u1 >= L - 1e-9],
       })
     })
   }
   if (g.mid) {
     // the pattern's start in its own coordinates: after the tab (it goes under the long strip), or the clearance in
-    const fit = Math.max(0, p.fit ?? 0), mid = midPieces(g), no = pieces.length + 1, tab = Math.max(0, g.tab), off = tab > 0 ? tab : -fit, Lm = round3(g.Lm + 2 * off)
+    const fit = Math.max(0, p.fit ?? 0), mid = midPieces(g), no = pieces.length + 1, tab = Math.max(0, g.tab), off = tab > 0 ? tab : -fit, Lm = round3(g.Lm + 2 * off), tabs = tabOpenings3(g)
     pieces.push({
       no, id: `piece-${no}`, name: `${no} — الشريطة النصّانية`, kind: 'mid', w: Lm, h: g.midW, tab,
-      outline: [{ x: 0, y: 0 }, { x: Lm, y: 0 }, { x: Lm, y: g.midW }, { x: 0, y: g.midW }], holes: mid.map(pc => pc.poly.map(q => ({ x: q.x + off, y: q.y }))), holeLoops: holesOf(mid, off), shape: false, keys: mid.map(pc => pc.key),
+      outline: [{ x: 0, y: 0 }, { x: Lm, y: 0 }, { x: Lm, y: g.midW }, { x: 0, y: g.midW }], holes: [...mid.map(pc => pc.poly.map(q => ({ x: q.x + off, y: q.y }))), ...tabs.map(pc => pc.poly)], holeLoops: [...holesOf(mid, off), ...holesOf(tabs)], shape: false, keys: [...mid.map(pc => pc.key), ...tabs.map(pc => pc.key)],
       place: q => midToFrame(g, { x: q.x - off, y: q.y }),
     })
   }
@@ -1876,9 +2140,28 @@ export function setPlan(p: Record<string, number>, squares: { k: 'a' | 'b'; W: n
   return { g, fp, pieces, win, halfA, halfB }
 }
 
-/** The number's label for a piece of the set: on solid wood near its middle (a square's on its rim), or null. */
-export function setLabel(pc: SetPiece, rim = 0): { lines: Loop[]; h: number; at: P2 } | null {
+/**
+ * A number in a strip's plain rim along its edge y = 0 (rim wide): as tall as the rim holds with LABEL.clear either
+ * side, centred across it, as near x = at as it keeps clear of every cut; null when it is under LABEL.hMin.
+ */
+export function rimLabel(outline: P2[], holes: P2[][], num: number, arrow: boolean, rim: number, at: number): { lines: Loop[]; h: number; at: P2 } | null {
+  const h = Math.min(LABEL.hMax, Math.floor((rim - 2 * LABEL.clear) * 10 + 1e-6) / 10)
+  if (h < LABEL.hMin) return null
+  const lw = labelWidth(num, h, arrow), y0 = (rim - h) / 2
+  for (let k = 0; k <= 90; k++) {
+    const x = at + (k % 2 ? 1 : -1) * Math.ceil(k / 2) * 10, lines = strokeLabel(num, x - lw / 2, y0, h, arrow)
+    if (labelClearance(lines, outline, holes) >= LABEL.clear - 1e-6) return { lines, h, at: { x, y: y0 + h / 2 } }
+  }
+  return null
+}
+/** The number's label for a piece of the set: on solid wood near its middle (a square's on its rim; with `band`, a strip's or the middle strip's in its plain rim, style 3's), or null. */
+export function setLabel(pc: SetPiece, rim = 0, band = 0): { lines: Loop[]; h: number; at: P2 } | null {
   const arrow = pc.kind === 'long' || pc.kind === 'short'
+  if (band > 0 && pc.kind !== 'square') {
+    // (in the middle of its outer edge, the strip's long edge y = 0)
+    const top = pc.outline.filter(q => Math.abs(q.y) < 1e-6).map(q => q.x), r = rimLabel(pc.outline, pc.holes, pc.no, arrow, band, (Math.min(...top) + Math.max(...top)) / 2)
+    if (r) return r
+  }
   if (pc.kind === 'square') {
     // on the solid rim that rests on the gypsum: the long edge's middle first, then any edge
     const zones: [Box, P2][] = [[{ x0: 0, x1: pc.w, y0: 0, y1: rim }, { x: pc.w / 2, y: rim / 2 }], [{ x0: 0, x1: pc.w, y0: pc.h - rim, y1: pc.h }, { x: pc.w / 2, y: pc.h - rim / 2 }], [{ x0: 0, x1: rim, y0: 0, y1: pc.h }, { x: rim / 2, y: pc.h / 2 }]]
@@ -1908,7 +2191,7 @@ function setWhere(plan: SetPlan, pc: SetPiece): string {
   const g = plan.g
   if (pc.kind === 'mid') {
     const sides = midEnds(plan).map(x => x.no).join(' و')
-    return `بين ${sides}${g.offMid ? ` على بعد ${f1(g.mAt)} مم من طرف الفتحة` : ' في منتصفهما'}، ${pc.tab ? `يظهر منها ${f1(g.Lm)} مم، وطرفاها ${f1(pc.tab)} مم خشب مصمت يدخلان تحت الشريحتين الطويلتين (القطعتين ${sides})` : 'طرفاها على حافّتيهما الداخليتين'}`
+    return `بين ${sides}${g.offMid ? ` على بعد ${f1(g.mAt)} مم من طرف الفتحة` : ' في منتصفهما'}، ${pc.tab ? `يظهر منها ${f1(g.Lm)} مم، وطرفاها ${f1(pc.tab)} مم ${g.style === 3 ? 'بفتحات تحت فتحات الشريحتين الطويلتين' : 'خشب مصمت'} يدخلان تحت الشريحتين الطويلتين (القطعتين ${sides})` : 'طرفاها على حافّتيهما الداخليتين'}`
   }
   // the short strip on this half's side of the window (the first half is the one the window starts with)
   const near = ring.filter(x => x.kind === 'short' && (g.wide ? x.place({ x: x.w / 2, y: x.h / 2 }).x < g.PW / 2 : x.place({ x: x.w / 2, y: x.h / 2 }).y < g.PH / 2) === (pc.square === 'a'))
@@ -1948,12 +2231,14 @@ function buildSet(p: Record<string, number>, c: Common): BuildResult {
   // the squares' boards (and any separate part of them) as their own builds made them
   const sqBoard = (q: typeof squares[number]) => q.res.panels.find(pn => pn.id === 'board')!
   const plan = setPlan(p, squares.map(q => ({ k: q.k, W: q.W, H: q.H, holes: sqBoard(q).holes ?? [] })))
+  // (style 3's lace leaves its plain rims the only solid wood long enough for a number: they are sized to hold one)
+  const style3Rim = g.style === 3 && g.f3 ? g.f3.rim : 0
   const panels: PanelSpec[] = []
   const winW = round3(g.PW - 2 * g.b), winH = round3(g.PH - 2 * g.b), mn = medName(p.style)
   if (labels) {
     for (const pc of plan.pieces) {
       const rim = pc.kind === 'square' ? (() => { const gq = frameGeom(setSquareParams(p, pc.w, pc.h)); return gq.ov + gq.sw })() : 0
-      const lab = setLabel(pc, rim)
+      const lab = setLabel(pc, rim, style3Rim)
       if (!lab) warnings.push(`لا مكان لرقم القطعة ${pc.no} على خشب مصمت بعيداً عن الفتحات ${f1(LABEL.clear)} مم: اكتب رقمها بقلم على وجهها المخفي.`)
       const note = pc.kind === 'square' ? `${setWhere(plan, pc)}؛ رقمه على الوجه المخفي` : `${setWhere(plan, pc)}؛ رقمها على الوجه المخفي${pc.kind === 'mid' ? '' : ' والسهم إلى الحافّة الخارجية للإطار'}`
       if (pc.kind === 'square') {
@@ -1969,11 +2254,18 @@ function buildSet(p: Record<string, number>, c: Common): BuildResult {
     for (const q of squares) for (const pn of q.res.panels) panels.push({ ...pn, id: `square-${q.k}${pn.id === 'board' ? '' : `-${pn.id}`}`, name: pn.id === 'board' ? `مربع ${cm(q.W)}×${cm(q.H)}` : `${pn.name} — ${q.word}` })
   }
   notes.push(
-    `طقم ديكور السقف كما في رسمتك: إطار من أربع شرائح عرضها ${f1(g.b)} مم تلتقي بزوايا 45°، ${f1(g.PW)} × ${f1(g.PH)} مم من الخارج (${cm(g.PW)} × ${cm(g.PH)} سم) والفتحة داخله ${f1(winW)} × ${f1(winH)} مم${g.mid ? `، وشريطة نصّانية ${g.tab > 0 ? `${f1(g.mLen)} × ${f1(g.midW)} مم (${f1(g.Lm)} مم ظاهرة بين الشريحتين الطويلتين و${f1(g.tab)} مم تحت كلّ منهما)` : `${f1(round3(g.Lm - 2 * (p.fit ?? 0)))} × ${f1(g.midW)} مم بطرفين مستقيمين`} تقطع الفتحة ${g.offMid ? `على بعد ${f1(g.mAt)} مم من طرفها` : `في منتصفها (${f1(g.mAt)} مم من كلّ طرف)`}` : ''}${sq ? `، والمربعان ${f1(p.AW)} × ${f1(p.AH)} و${f1(p.BW)} × ${f1(p.BH)} مم كلّ منهما في وسط نصف من الفتحة` : ''}. الكلّ بنقشة واحدة ${p.style === 1 ? 'من وردات نجمية (نجمة من 16 رأساً وبتلات مدبّبة) ونجوم ثمانية' : 'من نجوم ثمانية (خاتم) وصلبان'}، خطوط مستقيمة ورؤوس حادّة بلا منحنيات.`,
+    `طقم ديكور السقف كما في رسمتك: إطار من أربع شرائح عرضها ${f1(g.b)} مم تلتقي بزوايا 45°، ${f1(g.PW)} × ${f1(g.PH)} مم من الخارج (${cm(g.PW)} × ${cm(g.PH)} سم) والفتحة داخله ${f1(winW)} × ${f1(winH)} مم${g.mid ? `، وشريطة نصّانية ${g.tab > 0 ? `${f1(g.mLen)} × ${f1(g.midW)} مم (${f1(g.Lm)} مم ظاهرة بين الشريحتين الطويلتين و${f1(g.tab)} مم تحت كلّ منهما)` : `${f1(round3(g.Lm - 2 * (p.fit ?? 0)))} × ${f1(g.midW)} مم بطرفين مستقيمين`} تقطع الفتحة ${g.offMid ? `على بعد ${f1(g.mAt)} مم من طرفها` : `في منتصفها (${f1(g.mAt)} مم من كلّ طرف)`}` : ''}${sq ? `، والمربعان ${f1(p.AW)} × ${f1(p.AH)} و${f1(p.BW)} × ${f1(p.BH)} مم كلّ منهما في وسط نصف من الفتحة` : ''}. الكلّ بنقشة واحدة ${p.style === 3 ? 'مثل صورتك بالضبط (وردة من 12 بتلة بحلقة مخرّمة في كلّ مربع، وأعمدة ونجوم رباعية بينها)' : p.style !== 2 ? 'من وردات نجمية (نجمة من 16 رأساً وبتلات مدبّبة) ونجوم ثمانية' : 'من نجوم ثمانية (خاتم) وصلبان'}، خطوط مستقيمة ورؤوس حادّة بلا منحنيات.`,
   )
+  if (g.style === 3 && g.f3) {
+    // the two ways of cutting the strips, and the sheets each takes
+    const pk = frameGeom(setFrameParams({ ...p, pack: 2 })).pack, now = (p.pack ?? 1) >= 2 ? 2 : 1
+    if (pk) notes.push(pk.better
+      ? `تقسيم الشرائح: «${PACK_LABELS[0]}» (1) ${jointsWord(pk.base.joints)} في الإطار والطقم كلّه على ${sheetsWord(pk.base.sheets)}؛ «${PACK_LABELS[1]}» (2) ${jointsWord(pk.joints)} (${jointsWord(pk.joints - pk.base.joints)} زيادة، كلّ منها خطّ مستقيم على عمود مثل غيرها، لتدخل قطع من الشرائح ${sq ? 'بجانب المربعين' : 'في الألواح'}) والطقم على ${sheetsWord(pk.sheets)}. المختار هنا ${now} «${PACK_LABELS[now - 1]}».`
+      : `تقسيم الشرائح: ${jointsWord(pk.base.joints)} في الإطار والطقم كلّه على ${sheetsWord(pk.base.sheets)}، ولا يوفّر «${PACK_LABELS[1]}» لوحاً بهذه المقاسات حتى بست وصلات زائدة، فالخياران واحد.`)
+  }
   if (g.mid && g.tab > 0) {
     const mp = plan.pieces.find(x => x.kind === 'mid'), ends = midEnds(plan).map(x => x.no).join(' و')
-    notes.push(`الشريطة النصّانية${labels && mp ? ` (القطعة ${mp.no})` : ''} ${f1(g.mLen)} × ${f1(g.midW)} مم: جزؤها الظاهر ${f1(g.Lm)} مم بين الحافّتين الداخليتين للشريحتين الطويلتين كما كان (النقشة نفسها على أعمدة نقشة الشريحتين القصيرتين، وشريط خشب مصمت ${f1(2 * g.sw)} مم عند كلّ طرف ظاهر)، وطرفاها ${f1(g.tab)} مم خشب مصمت بلا فتحات يدخلان تحت الشريحتين الطويلتين${labels ? ` (القطعتين ${ends})` : ''} على وجههما المخفي. الشرائح الطويلة لم تتغيّر. إن لزم تقصيرها في الموقع فقصّ من الطرفين المصمتين بالتساوي ولا تمسّ النقشة.`)
+    notes.push(`الشريطة النصّانية${labels && mp ? ` (القطعة ${mp.no})` : ''} ${f1(g.mLen)} × ${f1(g.midW)} مم: جزؤها الظاهر ${f1(g.Lm)} مم بين الحافّتين الداخليتين للشريحتين الطويلتين كما كان (${g.style === 3 && g.f3?.mid ? `الشريط نفسه بوردات على محورها، وعند كلّ طرف ظاهر عمود من أشكال الحافّة داخل حافّة مصمتة ${f1(g.f3.mid.rimEnd)} مم` : `النقشة نفسها على أعمدة نقشة الشريحتين القصيرتين، وشريط خشب مصمت ${f1(2 * g.sw)} مم عند كلّ طرف ظاهر`})، وطرفاها ${f1(g.tab)} مم ${g.style === 3 ? 'يدخلان' : 'خشب مصمت بلا فتحات يدخلان'} تحت الشريحتين الطويلتين${labels ? ` (القطعتين ${ends})` : ''} على وجههما المخفي${g.style === 3 ? '، وفيهما فتحات بشكل فتحات الشريحة الطويلة فوقهما تماماً فلا يسدّ اللسان شيئاً منها (ضعه بحيث تنطبق الفتحات على بعضها)' : ''}. الشرائح الطويلة لم تتغيّر. إن لزم تقصيرها في الموقع فقصّ من الطرفين ${g.style === 3 ? '' : 'المصمتين '}بالتساوي ولا تمسّ النقشة.`)
   }
   if (labels) {
     const ring = plan.pieces.filter(x => x.kind === 'long' || x.kind === 'short')

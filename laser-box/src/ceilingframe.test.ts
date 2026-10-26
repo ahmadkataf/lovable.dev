@@ -1,5 +1,7 @@
 import { describe, it, expect } from 'vitest'
-import { CEILING_FRAMES, frameGeom, framePieces, midPieces, midToFrame, cornerPlate, toFrame, CLEAT_REACH, minPatternWidth, minCell, rosetteDims, starDims, ROSE, STAR, decorPieces, medallion2, medDims2, stripCuts, splitPlan, cutAtJoints, setFrameParams, setPlan, NEST_MARGIN } from './ceilingframe'
+import { CEILING_FRAMES, frameGeom, framePieces, midPieces, midToFrame, cornerPlate, toFrame, CLEAT_REACH, minPatternWidth, minCell, rosetteDims, starDims, ROSE, STAR, decorPieces, medallion2, medDims2, stripCuts, splitPlan, cutAtJoints, setFrameParams, setPlan, NEST_MARGIN, LABEL_RIM, STYLE_LABELS, part3, jointsOf, jointTrouble, stripPart, type FrameGeom } from './ceilingframe'
+import { stripLayout, stripHoles, midHoles, polyGap, centroid, cutSide, cornerShapes, CUT, ZONE, type StripLayout, type Frame3 } from './ceilingband'
+import { createHash } from 'crypto'
 import { generate, DEFAULT_SETTINGS, NEST } from './generate'
 import { signedArea, Loop } from './geom'
 import { toDXF } from './export'
@@ -44,6 +46,23 @@ function gapUnder(A: P[], B: P[], d: number, a = boxOf(A), b = boxOf(B)): number
   for (const [p, q] of ea) for (const [r, s] of eb) {
     if (segsCross(p, q, r, s)) return 0
     best = Math.min(best, ptSeg(p, r, s), ptSeg(q, r, s), ptSeg(r, p, q), ptSeg(s, p, q))
+  }
+  return best
+}
+/** Half a strap d, less a hair (the corners are kept to a thousandth of a millimetre): how far a cut-out keeps from its piece's outline where a strap runs along a straight cut. */
+const halfStrap = (d: number) => (d / 2) * Math.cos(Math.PI / 90) - 1e-3
+/** The least distance from a hole to a polygon round it (its outline; or an open path): only the outline's edges within d of the hole's box count; d when none is. */
+function edgeGap(h: P[], outline: P[], d: number, closed = true): number {
+  const hb = boxOf(h)
+  let best = d
+  for (let i = 0; i < (closed ? outline.length : outline.length - 1); i++) {
+    const a = outline[i], z = outline[(i + 1) % outline.length]
+    if (Math.min(a.x, z.x) > hb.maxX + d || Math.max(a.x, z.x) < hb.minX - d || Math.min(a.y, z.y) > hb.maxY + d || Math.max(a.y, z.y) < hb.minY - d) continue
+    for (let k = 0; k < h.length; k++) {
+      const p = h[k], q = h[(k + 1) % h.length]
+      if (segsCross(a, z, p, q)) return 0
+      best = Math.min(best, ptSeg(p, a, z), ptSeg(a, p, q), ptSeg(z, p, q))
+    }
   }
   return best
 }
@@ -918,7 +937,7 @@ describe('ceiling decor', () => {
     // the sheets as the app nests them (its own search time, not the tests' short one)
     const ms = NEST.ms
     NEST.ms = 150
-    try { for (const style of [1, 2]) {
+    try { for (const style of [1, 2, 3]) {
       const q: Record<string, number> = { ...T3.defaults, style }, d = gen({ style }, {}, T3), lb = `ceilingset style ${style}`, lay = d.layout as { sheets: unknown[]; tooBig?: string[] }
       expect(d.errors, lb).toEqual([])
       expect(d.warnings, lb).toEqual([])
@@ -929,14 +948,19 @@ describe('ceiling decor', () => {
       // the pattern: the long strips a motif on the middle strip's axis (an even count, one step both sides), the short
       // ones an odd count (a waist at their middle, where they are cut), the middle strip's motifs on their columns
       expect([g.n1 % 2, g.n2 % 2, g.pa, g.axisU], lb).toEqual([1, 0, g.pb, g.PH / 2])
-      expect([g.nm, g.qm], lb).toEqual([g.n1, g.p1])
+      // (style 3, the customer's band: the middle strip a band of its own between its end columns, see below)
+      if (style !== 3) expect([g.nm, g.qm], lb).toEqual([g.n1, g.p1])
+      else expect(g.nm, lb).toBeGreaterThan(2)
       // thirteen pieces, one panel each, numbered in the order they go up
       expect(d.panels.map(x => x.id), lb).toEqual(Array.from({ length: 13 }, (_, i) => `piece-${i + 1}`))
       const plan = setPlan(q, [{ k: 'a', W: q.AW, H: q.AH, holes: [] }, { k: 'b', W: q.BW, H: q.BH, holes: [] }]), pcs = plan.pieces
       expect(pcs.map(x => x.kind), lb).toEqual(['long', 'long', 'long', 'short', 'short', 'long', 'long', 'long', 'short', 'short', 'mid', 'square', 'square'])
       d.panels.forEach((pn, i) => expect(pn.name.startsWith(`${i + 1} — `), `${lb} ${pn.name}`).toBe(true))
-      const sz = (no: number) => [get(d, `piece-${no}`).w, get(d, `piece-${no}`).h].map(v => Math.round(v * 10) / 10)
-      const len = (nos: number[]) => Math.round(nos.reduce((a, no) => a + get(d, `piece-${no}`).w, 0) * 1000) / 1000
+      // (every piece as long as the plan's, from cut to cut: style 3's notches dip into it, never out of it)
+      const wOf = (no: number) => get(d, `piece-${no}`).w
+      for (const x of pcs) expect(get(d, x.id).w, `${lb} ${x.id}`).toBeCloseTo(x.w, 6)
+      const sz = (no: number) => [wOf(no), get(d, `piece-${no}`).h].map(v => Math.round(v * 10) / 10)
+      const len = (nos: number[]) => Math.round(nos.reduce((a, no) => a + wOf(no), 0) * 1000) / 1000
       expect([len([1, 2, 3]), len([6, 7, 8]), len([4, 5]), len([9, 10])], lb).toEqual([5460, 5460, 2460, 2460])
       expect([sz(4), sz(5), sz(9), sz(10)], lb).toEqual([[1230, 380], [1230, 380], [1230, 380], [1230, 380]])
       expect([sz(11), sz(12), sz(13)], lb).toEqual([[1800, 380], [1400, 1050], [1380, 1080]])
@@ -959,25 +983,39 @@ describe('ceiling decor', () => {
         }
       }
       // through solid wood: every cut-out sw from a piece's square ends and its mitres, and at each joint the shapes
-      // either side whole and mirror images about it (style 1: the waist's two 8-point stars each side)
+      // either side whole and mirror images about it (style 1: the waist's two 8-point stars each side). Style 3's
+      // mitres and joints are straight cuts through the pattern, its shapes on them halved as notches (see the style 3
+      // tests): every cut-out whole inside its piece, half a strap from its outline and its rim from the long edges
       const bb = (pts: P[]) => [Math.min(...pts.map(z => z.x)), Math.max(...pts.map(z => z.x)), Math.min(...pts.map(z => z.y)), Math.max(...pts.map(z => z.y))]
-      for (const pc of pcs.filter(x => x.kind !== 'square')) for (const h of pc.holes) for (const z of h) {
+      for (const pc of pcs.filter(x => x.kind !== 'square')) pc.holes.forEach((h, i) => {
         const at = `${lb} piece ${pc.no}`
-        // (the middle strip's tabs solid, and sw more at each visible end: 2·sw across the joint with the long strip's)
-        const tab = pc.kind === 'mid' ? 50 : 0
-        if (pc.kind === 'mid' || !pc.mitres![0]) expect(z.x, at).toBeGreaterThanOrEqual(tab + g.sw - 1e-6)
-        else expect(z.x - z.y, at).toBeGreaterThanOrEqual(g.sw * Math.SQRT2 - 1e-6)
-        if (pc.kind === 'mid' || !pc.mitres![1]) expect(pc.w - z.x, at).toBeGreaterThanOrEqual(tab + g.sw - 1e-6)
-        else expect(pc.w - z.x - z.y, at).toBeGreaterThanOrEqual(g.sw * Math.SQRT2 - 1e-6)
-      }
+        if (style === 3 && pc.kind !== 'mid') {
+          expect(edgeGap(h, pc.outline, g.sw), at).toBeGreaterThanOrEqual(halfStrap(g.sw))
+          expect(h.every(z => pointIn(z, pc.outline)), at).toBe(true)
+          for (const z of h) { expect(z.y, at).toBeGreaterThanOrEqual(g.f3!.rim - 1e-6); expect(g.b - z.y, at).toBeGreaterThanOrEqual(g.f3!.rim - 1e-6) }
+          return
+        }
+        // (style 3's tabs: openings under the long strip's cut-outs only, see the middle strip's test, half a strap inside)
+        if (style === 3 && pc.keys[i] === 'tab') { for (const z of h) expect(Math.min(z.x, pc.w - z.x), at).toBeGreaterThanOrEqual(g.sw / 2 - 1e-6), expect(Math.min(z.x, pc.w - z.x), at).toBeLessThanOrEqual(50 + 1e-6); return }
+        for (const z of h) {
+          // (the middle strip's tabs solid, and sw more at each visible end: 2·sw across the joint with the long strip's)
+          const tab = pc.kind === 'mid' ? 50 : 0
+          if (pc.kind === 'mid' || !pc.mitres![0]) expect(z.x, at).toBeGreaterThanOrEqual(tab + g.sw - 1e-6)
+          else expect(z.x - z.y, at).toBeGreaterThanOrEqual(g.sw * Math.SQRT2 - 1e-6)
+          if (pc.kind === 'mid' || !pc.mitres![1]) expect(pc.w - z.x, at).toBeGreaterThanOrEqual(tab + g.sw - 1e-6)
+          else expect(pc.w - z.x - z.y, at).toBeGreaterThanOrEqual(g.sw * Math.SQRT2 - 1e-6)
+        }
+      })
+      // (a piece's own coordinates from strip coordinates: its outer edge starts at its u0)
+      const off = (x: typeof pcs[number]) => x.u0! - Math.min(...x.outline.filter(q => Math.abs(q.y) < 1e-6).map(q => q.x))
       for (const s of [0, 1, 2, 3]) {
-        const ps = parts(s), all = ps.flatMap(x => x.holes.map((h, i) => ({ poly: h.map(z => ({ x: z.x + x.u0!, y: z.y })), key: x.keys[i] })))
+        const ps = parts(s), all = ps.flatMap(x => x.holes.map((h, i) => ({ poly: h.map(z => ({ x: z.x + off(x), y: z.y })), key: x.keys[i] })))
         for (const u of ps.slice(1).map(x => x.u0!)) {
           const by = all.filter(pc => { const [x0, x1] = bb(pc.poly); return x0 < u + g.p0 / 3 && x1 > u - g.p0 / 3 })
           expect(by.length, lb).toBeGreaterThan(4)
           for (const pc of by) {
             const [x0, x1, y0, y1] = bb(pc.poly)
-            expect(Math.min(...pc.poly.map(z => Math.abs(z.x - u))), `${lb} ${pc.key} at ${u}`).toBeGreaterThanOrEqual(g.sw - 1e-6)
+            if (style !== 3) expect(Math.min(...pc.poly.map(z => Math.abs(z.x - u))), `${lb} ${pc.key} at ${u}`).toBeGreaterThanOrEqual(g.sw - 1e-6)
             expect(by.some(o => { const [a0, a1, b0, b1] = bb(o.poly); return o.poly.length === pc.poly.length && Math.abs(a0 - (2 * u - x1)) < 1e-3 && Math.abs(a1 - (2 * u - x0)) < 1e-3 && Math.abs(b0 - y0) < 1e-3 && Math.abs(b1 - y1) < 1e-3 }), `${lb} ${pc.key} at ${u}: its mirror image`).toBe(true)
           }
           if (style === 1) expect(by.filter(pc => pc.key.startsWith('st') && pc.poly.length === 16).length, `${lb} side ${s} at ${u}`).toBe(4)
@@ -985,7 +1023,9 @@ describe('ceiling decor', () => {
       }
       // the plan tiles the frame's ring and the middle strip exactly (what the assembly map draws), but for the middle
       // strip's tabs under the long strips (pieces 2 and 7), the squares each in the middle of its half of the window
-      const placed = pcs.map(x => ({ x, poly: x.outline.map(x.place) }))
+      // (style 3's strips by their outline round their notches: the halves of the shapes their cuts go through)
+      const hullOf = (ps: P[]) => { const o = [...ps].sort((a, z) => a.x - z.x || a.y - z.y), cr = (k: P, a: P, z: P) => (a.x - k.x) * (z.y - k.y) - (a.y - k.y) * (z.x - k.x), lo: P[] = [], up: P[] = []; for (const p of o) { while (lo.length >= 2 && cr(lo[lo.length - 2], lo[lo.length - 1], p) <= 1e-9) lo.pop(); lo.push(p) } for (const p of [...o].reverse()) { while (up.length >= 2 && cr(up[up.length - 2], up[up.length - 1], p) <= 1e-9) up.pop(); up.push(p) } return [...lo.slice(0, -1), ...up.slice(0, -1)] }
+      const placed = pcs.map(x => ({ x, poly: (style === 3 && (x.kind === 'long' || x.kind === 'short') ? hullOf(x.outline) : x.outline).map(x.place) }))
       for (let yy = 7.3; yy < g.PH; yy += 20) for (let xx = 5.7; xx < g.PW; xx += 20) {
         const across = yy > g.b + g.mAt && yy < g.b + g.mAt + g.midW, inRing = xx < g.b || xx > g.PW - g.b || yy < g.b || yy > g.PH - g.b || across
         const inTab = across && ((xx > g.b - 50 && xx < g.b) || (xx > g.PW - g.b && xx < g.PW - g.b + 50))
@@ -1026,7 +1066,7 @@ describe('ceiling decor', () => {
           expect(head, at).toBeTruthy()
           expect(head.pts[1].y, at).toBeLessThan(head.pts[0].y) // the tip toward y = 0, the strip's outside edge
           const top = outer.pts.filter(v => Math.abs(v.y) < 1e-6).map(v => v.x)
-          expect(Math.max(...top) - Math.min(...top), at).toBeCloseTo(pn.w, 6) // y = 0 is the strip's long, outside edge
+          expect(Math.max(...top) - Math.min(...top), at).toBeCloseTo(style === 3 ? pcs[no - 1].w : pn.w, 6) // y = 0 is the strip's long, outside edge
         }
       }
       expect(offSheet(d.layout), lb).toEqual([])
@@ -1039,7 +1079,7 @@ describe('ceiling decor', () => {
       expect(words, lb).toContain('يُركّب للأعلى (نحو السقف، مخفيّاً)')
       expect(words, lb).toContain('على الشرائح سهم بجانب الرقم يشير إلى الحافّة الخارجية للإطار')
       for (const pc of pcs) expect(words, lb).toContain(`${pc.no}: ${Math.round(pc.w * 10) / 10} × ${Math.round(pc.h * 10) / 10} مم`)
-      expect(words, lb).toContain('11: 1800 × 380 مم — بين 2 و7 في منتصفهما، يظهر منها 1700 مم، وطرفاها 50 مم خشب مصمت يدخلان تحت الشريحتين الطويلتين (القطعتين 2 و7)')
+      expect(words, lb).toContain(`11: 1800 × 380 مم — بين 2 و7 في منتصفهما، يظهر منها 1700 مم، وطرفاها 50 مم ${style === 3 ? 'بفتحات تحت فتحات الشريحتين الطويلتين' : 'خشب مصمت'} يدخلان تحت الشريحتين الطويلتين (القطعتين 2 و7)`)
       expect(words, lb).toContain('الشرائح الطويلة لم تتغيّر')
       expect(words, lb).toContain('القطع المتطابقة (نفس الشكل والفتحات، فتصلح كلّ منها مكان الأخرى إن اختلطت): 1 و6، 2 و7، 3 و8، 4 و9، 5 و10.')
       // the frame and the middle strip alone
@@ -1053,19 +1093,33 @@ describe('ceiling decor', () => {
     expect(gen({ BH: 2300 }, {}, T3).errors.join(' ')).toMatch(/اجعل طول المربع الثاني 2160 مم على الأكثر/)
   }, 120000)
 
-  it('cuts the middle strip midLen long (1800 by default): the 1700 between the long strips as when butt-joined, a solid 50 mm tab at each end; 0 butt-joins it, a length out of range is refused with one that fits', () => {
+  it('cuts the middle strip midLen long (1800 by default): the 1700 between the long strips as when butt-joined, a 50 mm tab at each end (solid; style 3: open under the long strip\'s cut-outs); 0 butt-joins it, a length out of range is refused with one that fits', () => {
     const squares = [{ k: 'a' as const, W: 1400, H: 1050, holes: [] }, { k: 'b' as const, W: 1380, H: 1080, holes: [] }]
-    for (const style of [1, 2]) {
+    for (const style of [1, 2, 3]) {
       const lb = `ceilingset style ${style}`, q = { ...T3.defaults, style }
       const mid = (p: Record<string, number>) => setPlan({ ...q, ...p }, squares).pieces.find(x => x.kind === 'mid')!
       const long = mid({}), butt = mid({ midLen: 0 }), g = frameGeom(setFrameParams(q))
       expect([long.no, long.w, long.h, long.tab, butt.w, butt.h, butt.tab], lb).toEqual([11, 1800, 380, 50, 1700, 380, 0])
-      // the pattern untouched: the same cut-outs 50 mm on, none in the first or last 50 mm nor sw past them
-      expect(long.holes.length, lb).toBe(butt.holes.length)
-      long.holes.forEach((h, i) => h.forEach((z, k) => { expect(z.x - 50, lb).toBeCloseTo(butt.holes[i][k].x, 9); expect(z.y, lb).toBeCloseTo(butt.holes[i][k].y, 9) }))
-      const xs = long.holes.flat().map(z => z.x)
+      // the pattern untouched: the same cut-outs 50 mm on, none in the first or last 50 mm nor sw past them (style 3:
+      // but for openings in the tabs, each under a cut-out of the long strip it goes under, so the tab blocks none)
+      const vis = long.holes.filter((_, i) => long.keys[i] !== 'tab'), tabs = long.holes.filter((_, i) => long.keys[i] === 'tab')
+      expect(vis.length, lb).toBe(butt.holes.length)
+      vis.forEach((h, i) => h.forEach((z, k) => { expect(z.x - 50, lb).toBeCloseTo(butt.holes[i][k].x, 9); expect(z.y, lb).toBeCloseTo(butt.holes[i][k].y, 9) }))
+      const xs = vis.flat().map(z => z.x)
       expect(Math.min(...xs), lb).toBeGreaterThanOrEqual(50 + g.sw - 1e-6)
       expect(Math.max(...xs), lb).toBeLessThanOrEqual(1800 - 50 - g.sw + 1e-6)
+      if (style !== 3) expect(tabs.length, lb).toBe(0)
+      else {
+        expect(tabs.length, lb).toBeGreaterThan(10)
+        const plan = setPlan(q, squares), longHoles = plan.pieces.filter(x => x.kind === 'long').flatMap(x => x.holes.map(h => h.map(x.place)))
+        const near = (v: P, H: P[]) => pointIn(v, H) || H.some((a, k) => ptSeg(v, a, H[(k + 1) % H.length]) < 1e-3)
+        for (const h of tabs) {
+          for (const z of h) expect(Math.min(z.x, 1800 - z.x), lb).toBeGreaterThanOrEqual(g.sw / 2 - 1e-6)
+          for (const z of h) expect(Math.min(z.x, 1800 - z.x), lb).toBeLessThanOrEqual(50 + 1e-6)
+          const f = h.map(long.place)
+          expect(longHoles.filter(H => f.every(v => near(v, H))).length, `${lb} a tab opening under one cut-out`).toBe(1)
+        }
+      }
       // in place: its visible part from one long strip's inner edge to the other's, as the butt-joined one
       for (const [a, b] of [[{ x: 50, y: 0 }, { x: 0, y: 0 }], [{ x: 1750, y: 380 }, { x: 1700, y: 380 }]]) expect(long.place(a), lb).toEqual(butt.place(b))
       expect([long.place({ x: 0, y: 0 }).x, long.place({ x: 1800, y: 0 }).x], lb).toEqual([g.b - 50, g.PW - g.b + 50])
@@ -1103,3 +1157,266 @@ describe('ceiling decor', () => {
 /** The lattice's cut-outs on the board for these settings. */
 function decorLat(p: Record<string, number>): number { return decorPieces(full(p)).lat.length }
 function polyLoopCCW(pts: P[]): Loop { const l = { closed: true, pts }; return signedArea(l) > 0 ? { closed: true, pts: [...pts].reverse() } : l }
+
+describe("ceiling decor, style 3: the frame band exactly as in the customer's picture", () => {
+  const q = { ...T3.defaults, style: 3, squares: 0 }
+  const f1 = (v: number) => (Math.round(v * 10) / 10).toString()
+  type H = { pts: P[] }
+  /** the least gap between any two of the holes (only pairs whose boxes come within d) */
+  const leastGap = (hs: H[], d: number) => {
+    const bs = hs.map(h => boxOf(h.pts))
+    let m = Infinity
+    for (let i = 0; i < hs.length; i++) for (let j = i + 1; j < hs.length; j++) if (!apart(bs[i], bs[j], d)) m = Math.min(m, polyGap(hs[i].pts, hs[j].pts))
+    return m
+  }
+  /** a strip's holes clear of its two long edges (its rims) */
+  const rimsOf = (hs: H[], b: number) => {
+    let m = Infinity
+    for (const h of hs) for (const z of h.pts) m = Math.min(m, z.y, b - z.y)
+    return m
+  }
+  /** the holes in the corner cell at the strip's first corner (their centroids within the square zone) */
+  const cornerCell = <T extends H>(hs: T[], f: Frame3): T[] => hs.filter(h => { const c = centroid(h.pts); return Math.abs(c.x - f.vc) <= ZONE * f.size.s + 1 && Math.abs(c.y - f.vc) <= ZONE * f.size.s + 1 })
+  /** a corner's cut-outs, in the coordinates of the strip along PW at its first end: its own, and the PH strip's at its second end (x = its y, y = L − its x) */
+  const atCorner = <T extends H>(pw: T[], ph: T[], Lph: number, f: Frame3) => [...cornerCell(pw, f).map(h => ({ ...h, pw: true })), ...cornerCell(ph.map(h => ({ ...h, pts: h.pts.map(z => ({ x: z.y, y: Lph - z.x })) })), f).map(h => ({ ...h, pw: false }))]
+  const areaOf = (pts: P[]) => Math.abs(signedArea({ closed: true, pts } as Loop))
+  /** each hole's mirror image about the mitre y = x is one of them, vertex for vertex */
+  const mirrored = (hs: H[], tol = 1e-6) => hs.every(h => hs.some(o => o.pts.length === h.pts.length && h.pts.every(z => o.pts.some(w => Math.hypot(w.x - z.y, w.y - z.x) < tol))))
+  const across = (h: H) => h.pts.some(z => z.x - z.y > 1e-9) && h.pts.some(z => z.y - z.x > 1e-9)
+  /** the same polygon (every vertex of each within tol of one of the other's) */
+  const same = (A: P[], B: P[], tol = 1e-6) => A.every(z => B.some(w => Math.hypot(w.x - z.x, w.y - z.y) < tol)) && B.every(z => A.some(w => Math.hypot(w.x - z.x, w.y - z.y) < tol))
+  /** strip s's pieces as cut, in its own coordinates */
+  const partsOf = (g: FrameGeom, s: number) => {
+    const fs = framePieces(g), st = [fs.top, fs.side, fs.bottom, fs.left], L = s % 2 ? g.PH : g.PW, c = [0, ...jointsOf(g, s), L]
+    return c.slice(1).map((u1, i) => ({ s, L, u0: c[i], u1, pcs: st[s], ...part3(g, s, st[s], c[i], u1) }))
+  }
+  const dist = (p: P, poly: P[]) => Math.min(...poly.map((a, i) => ptSeg(p, a, poly[(i + 1) % poly.length])))
+
+  it('builds the whole set at its defaults both ways of cutting the strips (pack 1: the fewest joints, on 5 sheets; pack 2: the fewest sheets, 4, with two joints more) with no error or warning, the frame and the middle strip alone on 3; straight lines only, every piece sound and on its sheet', () => {
+    expect(STYLE_LABELS[2]).toBe('مثل صورة الزبون بالضبط')
+    for (const tpl of [T1, T3]) expect(tpl.params.find(x => x.key === 'style')!.max).toBe(3)
+    expect(T3.params.find(x => x.key === 'pack')!.options).toEqual(['أقلّ وصلات', 'أقلّ ألواح'])
+    // (the sheets as the app nests them: its own search time, not the tests' short one)
+    const ms = NEST.ms
+    NEST.ms = 150
+    try {
+      for (const [pack, squares, sheets, joints] of [[1, 1, 5, 6], [2, 1, 4, 8], [1, 0, 3, 6]] as const) {
+        const d = gen({ style: 3, pack, squares }, {}, T3), lb = `ceilingset style 3 pack ${pack} squares ${squares}`, g = frameGeom(setFrameParams({ ...q, pack, squares }))
+        expect([...d.errors, ...d.warnings], lb).toEqual([])
+        expect(d.panels.map(x => x.id), lb).toEqual(Array.from({ length: (squares ? 13 : 11) + joints - 6 }, (_, i) => `piece-${i + 1}`))
+        for (const pn of d.panels) for (const l of pn.loops) expect(l.pts.every(v => !v.b), `${lb} ${pn.id}: straight lines only`).toBe(true)
+        expect([0, 1, 2, 3].reduce((a, s) => a + jointsOf(g, s).length, 0), lb).toBe(joints)
+        expect(offSheet(d.layout), lb).toEqual([])
+        expect((d.layout as { tooBig?: string[] }).tooBig ?? [], lb).toEqual([])
+        expect((d.layout as { sheets: unknown[] }).sheets.length, lb).toBe(sheets)
+        // every two cut-outs of a piece the band's strap apart, every cut-out half a strap from its outline (a notch
+        // beside it, or the straight cut where a strap runs along it) and its rim from the long edges
+        expect(g.sw, lb).toBeGreaterThan(12)
+        expect(soundness({ ...d, panels: d.panels.filter(pn => !squares || +pn.id.split('-')[1] < d.panels.length - 1) }, lb, g.sw - 0.01, halfStrap(g.sw)), lb).toEqual([])
+        const words = d.notes.join(' ')
+        expect(words, lb).toContain('مثل صورتك بالضبط')
+        expect(words, lb).toContain('وردة من 12 بتلة')
+        expect(words, lb).toContain('الشطف خطّ مستقيم واحد على 45°')
+        expect(words, lb).toContain('كلّ وصلة خطّ مستقيم عرضي على العمود')
+        if (squares) expect(words, lb).toContain(`تقسيم الشرائح: «أقلّ وصلات» (1) 6 وصلات في الإطار والطقم كلّه على 5 ألواح؛ «أقلّ ألواح» (2) 8 وصلات (وصلتان زيادة، كلّ منها خطّ مستقيم على عمود مثل غيرها، لتدخل قطع من الشرائح بجانب المربعين) والطقم على 4 ألواح. المختار هنا ${pack}`)
+      }
+    } finally { NEST.ms = ms }
+  }, 120000)
+
+  it('cuts every mitre and joint as one straight line through the pattern: the outline on the line but for its notches (into the piece, each inside the shape it is part of), the two notches of each shape cut together the whole shape (mirror images), no wood under 3 mm along a cut, no notch or bit of a shape under 1.5 mm, the pieces with their notches the frame exactly', () => {
+    for (const pack of [1, 2]) {
+      const g = frameGeom(setFrameParams({ ...q, pack })), lb = `pack ${pack}`, all = [0, 1, 2, 3].map(s => partsOf(g, s))
+      let total = 0, crossing = new Set<string>()
+      for (const parts of all) for (const pt of parts) {
+        const at = `${lb} strip ${pt.s} ${f1(pt.u0)}–${f1(pt.u1)}`, base = stripPart(pt.L, g.b, pt.u0, pt.u1), N = base.length
+        expect(pt.trouble, at).toEqual([])
+        // (the base's edges: 0 the outer edge, 1 the end cut, 2 the inner edge, 3 the start cut; left of each the piece)
+        const sd = (i: number, z: P) => { const a = base[i], b = base[(i + 1) % N], l = Math.hypot(b.x - a.x, b.y - a.y); return ((b.x - a.x) * (z.y - a.y) - (b.y - a.y) * (z.x - a.x)) / l }
+        for (const z of pt.outline) {
+          // never past a cut or a long edge
+          for (let i = 0; i < N; i++) expect(sd(i, z), at).toBeGreaterThanOrEqual(-1e-6)
+          // on the long edges only the base's corners: no notch there
+          if (Math.abs(sd(0, z)) < 1e-6 || Math.abs(sd(2, z)) < 1e-6) expect(base.some(c => Math.hypot(c.x - z.x, c.y - z.y) < 1e-6), at).toBe(true)
+          // off the cut lines: a notch's, in (or on) the shape it is part of, on the piece's side (the waste)
+          if (Math.abs(sd(1, z)) > 1e-6 && Math.abs(sd(3, z)) > 1e-6 && Math.abs(sd(0, z)) > 1e-6 && Math.abs(sd(2, z)) > 1e-6) expect(pt.notches.some(nt => pointIn(z, nt.of.poly) || dist(z, nt.of.poly) < 1e-6), at).toBe(true)
+        }
+        expect(selfIntersects(pt.outline), at).toBe(false)
+        // the outline is the base less its notches
+        const notchA = pt.notches.reduce((a, nt) => a + areaOf(nt.pts), 0)
+        expect(Math.abs(areaOf(base) - notchA - areaOf(pt.outline)), at).toBeLessThan(1e-6 * areaOf(base))
+        for (const nt of pt.notches) {
+          const e = nt.t0 === nt.t1 ? 0 : 1, edge = pt.notches.length && sd(1, nt.pts[0]) < sd(3, nt.pts[0]) ? 1 : 3
+          void e
+          expect(Math.max(...nt.pts.map(z => sd(edge, z))), `${at} notch depth`).toBeGreaterThanOrEqual(CUT.frag)
+          expect(nt.t1 - nt.t0, `${at} notch along the cut`).toBeGreaterThanOrEqual(CUT.frag)
+        }
+        // its cut-outs inside it, CUT.sliver at least from its outline (the cuts and the notches) and its rim from the long edges
+        for (const pc of pt.holes) {
+          expect(pc.poly.every(z => pointIn(z, pt.outline)), at).toBe(true)
+          expect(edgeGap(pc.poly, pt.outline, g.sw), at).toBeGreaterThanOrEqual(Math.max(CUT.sliver, halfStrap(g.sw)))
+        }
+        total += areaOf(pt.outline) + notchA
+        for (const nt of pt.notches) crossing.add(nt.of.key + nt.of.c.x.toFixed(3) + nt.of.c.y.toFixed(3))
+      }
+      // the pieces with their notches (each cut shape's two halves) are the frame's ring exactly
+      expect(Math.abs(total - (g.PW * g.PH - (g.PW - 2 * g.b) * (g.PH - 2 * g.b))), lb).toBeLessThan(1e-3)
+      void crossing
+      // at each joint: the two pieces' notches the same shapes, the halves of each together the whole, mirror images about the cut
+      for (const parts of all) for (let i = 0; i + 1 < parts.length; i++) {
+        const A = parts[i], B = parts[i + 1], u = A.u1, at = `${lb} strip ${A.s} joint ${f1(u)}`
+        const on = (nt: typeof A.notches[number]) => nt.of.poly.some(z => z.x < u - 1e-6) && nt.of.poly.some(z => z.x > u + 1e-6)
+        const nA = A.notches.filter(on), nB = B.notches.filter(on)
+        expect(nA.map(nt => nt.of).sort((x, y) => x.c.y - y.c.y), at).toEqual(nB.map(nt => nt.of).sort((x, y) => x.c.y - y.c.y))
+        expect(nA.map(nt => nt.of.key).sort(), at).toEqual(['arrow', 'arrow', 'corner', 'corner', 'oval', 'oval'])
+        for (const a of nA) {
+          const b = nB.find(nt => nt.of === a.of)!
+          expect(Math.abs(areaOf(a.pts) + areaOf(b.pts) - areaOf(a.of.poly)), `${at} ${a.of.key}`).toBeLessThan(1e-6 * areaOf(a.of.poly) + 1e-6)
+          // (about the column; the joint on it to a thousandth of a millimetre)
+          expect(same(a.pts.map(z => ({ x: 2 * u - z.x, y: z.y })), b.pts, 2e-3), `${at} ${a.of.key}: mirror images`).toBe(true)
+        }
+        // the six shapes on the column split; none other within CUT.sliver of the cut
+        for (const pc of A.pcs) if (!nA.some(nt => nt.of === pc)) expect(Math.min(...pc.poly.map(z => Math.abs(z.x - u))), at).toBeGreaterThanOrEqual(CUT.sliver)
+      }
+      // at each corner: strip s's second end and the next strip's first, in frame coordinates: the nine shapes on the
+      // diagonal halved, the halves mirror images about the mitre, together the whole
+      for (let s = 0; s < 4; s++) {
+        const A = all[s][all[s].length - 1], B = all[(s + 1) % 4][0], at = `${lb} corner ${s}`, F = (t: number, z: P) => toFrame(g, t, z)
+        const nA = A.notches.filter(nt => nt.of.poly.some(z => A.L - z.x - z.y > 1e-6) && nt.of.poly.some(z => A.L - z.x - z.y < -1e-6)), nB = B.notches.filter(nt => nt.of.poly.some(z => z.x - z.y > 1e-6) && nt.of.poly.some(z => z.x - z.y < -1e-6))
+        expect(nA.length, at).toBe(9)
+        expect(nB.length, at).toBe(9)
+        expect(nA.map(nt => nt.of.key).sort(), at).toEqual(['T', 'T', 'centre', 'corner', 'corner', 'star', 'star', 'triangle', 'triangle'])
+        // (the mitre in frame coordinates: from the outer corner c along d)
+        const c = F(A.s, { x: A.L, y: 0 }), e = F(A.s, { x: A.L - g.b, y: g.b }), d = { x: (e.x - c.x) / Math.hypot(e.x - c.x, e.y - c.y), y: (e.y - c.y) / Math.hypot(e.x - c.x, e.y - c.y) }
+        const mir = (z: P) => { const t = (z.x - c.x) * d.x + (z.y - c.y) * d.y, f0 = { x: c.x + t * d.x, y: c.y + t * d.y }; return { x: 2 * f0.x - z.x, y: 2 * f0.y - z.y } }
+        for (const a of nA) {
+          const pa = a.pts.map(z => F(A.s, z)), whole = a.of.poly.map(z => F(A.s, z))
+          const b = nB.find(nt => same(nt.of.poly.map(z => F(B.s, z)), whole, 1e-6))
+          expect(b, `${at} ${a.of.key}: its other half`).toBeTruthy()
+          expect(Math.abs(areaOf(pa) + areaOf(b!.pts) - areaOf(whole)), `${at} ${a.of.key}`).toBeLessThan(1e-6 * areaOf(whole) + 1e-6)
+          expect(same(pa.map(mir), b!.pts.map(z => F(B.s, z)), 1e-4), `${at} ${a.of.key}: mirror images`).toBe(true)
+        }
+      }
+    }
+  }, 120000)
+
+  it('lays the cells out as the picture does: a whole rosette in each square corner cell, centred on the mitre (a mirror image about it), a rosette on the middle strip\'s axis, the cells within 5% of square, the rim as near a strap as that and the numbers allow, every joint down a column of the pattern as it is (no gap, no copies), at the place its straight cut leaves no trouble', () => {
+    const g = frameGeom(setFrameParams(q)), f = g.f3!, s = f.size.s
+    expect(f, 'a layout').toBeTruthy()
+    expect(f.size.strap).toBe(g.sw)
+    // the rim: room for the engraved numbers (15 mm, 3 mm clear: placed exactly), no more (it was 24.7 mm)
+    expect(f.rim).toBeGreaterThanOrEqual(LABEL_RIM - 1e-9)
+    expect(f.rim).toBeLessThan(LABEL_RIM + 0.5)
+    expect(f.worst).toBeLessThan(0.05)
+    for (const L of [f.pw, f.ph]) {
+      expect(L.rosettes[0]).toBeCloseTo(g.vc, 9)
+      expect(L.rosettes[L.n]).toBeCloseTo(L.L - g.vc, 6)
+      // the corner cells square (the map's slope s across the corner zone)
+      expect((L.knots[1].x - L.knots[0].x) / (L.knots[1].u - L.knots[0].u)).toBeCloseTo(s, 9)
+      // a joint takes no room: the rosettes either side of it as far apart as their neighbours
+      const pit = L.rosettes.slice(1).map((x, k) => x - L.rosettes[k])
+      for (const j of L.joints) { const k = j.u - 0.5; expect(Math.abs(pit[k] - pit[k - 1]) + Math.abs(pit[k] - pit[k + 1]), `strip ${L.L} joint ${j.x}`).toBeLessThan(1e-6) }
+    }
+    expect([f.pw.L, f.ph.L]).toEqual([2460, 5460])
+    expect(f.ph.rosettes[f.ph.axisK]).toBeCloseTo(g.axisU, 6)
+    expect(g.axisU).toBe(2730)
+    // the joints: the short strips at their middle, the long ones in three, mirror images about the axis; each where
+    // the plan put it (its column: no trouble there)
+    expect(f.pw.joints.map(j => j.x)).toEqual([1230])
+    expect(f.ph.joints.length).toBe(2)
+    expect(f.ph.joints[0].x + f.ph.joints[1].x).toBeCloseTo(5460, 6)
+    for (const [s0, lay] of [[0, f.pw], [1, f.ph]] as const) expect(jointsOf(g, s0), `strip ${lay.L}`).toEqual(lay.joints.map(j => j.x))
+    const strips = framePieces(g), [top, side] = [strips.top, strips.side]
+    for (const [pcs, lay] of [[top, f.pw], [side, f.ph]] as const) {
+      const hs = pcs.map(pc => ({ pts: pc.poly })), lb = `strip ${lay.L}`
+      // every strap the band's, the rims solid, no copy anywhere (the shapes across the mitres in this list whole)
+      expect(leastGap(hs, g.sw), lb).toBeGreaterThanOrEqual(g.sw - 0.01)
+      expect(rimsOf(hs, g.b), lb).toBeGreaterThanOrEqual(f.rim - 1e-6)
+      expect(pcs.filter(pc => pc.key.endsWith('|')).length, lb).toBe(0)
+      // each strip is its own mirror image about its middle
+      for (const pc of pcs) expect(pcs.some(o => Math.hypot(o.c.x - (lay.L - pc.c.x), o.c.y - pc.c.y) < 1e-6), `${lb} ${pc.key} at ${pc.c.x.toFixed(1)}`).toBe(true)
+      // at each joint the pattern a mirror image about the column, its straight cut no trouble either side
+      for (const j of lay.joints) {
+        expect(jointTrouble(g, pcs, j.x), `${lb} joint ${j.x}`).toEqual([])
+        for (const pc of pcs.filter(pc => Math.abs(pc.c.x - j.x) < s / 2)) expect(pcs.some(o => o.poly.length === pc.poly.length && pc.poly.every(z => o.poly.some(w => Math.hypot(w.x - (2 * j.x - z.x), w.y - z.y) < 2e-3))), `${lb} joint ${j.x} ${pc.key}: its mirror image`).toBe(true)
+      }
+    }
+    // the two strips at a corner: together the corner cell's cut-outs, a mirror image about the mitre; the nine shapes
+    // across the diagonal in both lists whole (the corner rosette whole: its 12-gon centre on the corner's centre)
+    const cc = atCorner(top.map(pc => ({ pts: pc.poly, key: pc.key })), side.map(pc => ({ pts: pc.poly, key: pc.key })), g.PH, f)
+    expect(cc.length).toBeGreaterThan(60)
+    expect(mirrored(cc)).toBe(true)
+    const diag = cc.filter(across)
+    expect(diag.filter(h => h.pw).map(h => h.key).sort()).toEqual(['T', 'T', 'centre', 'corner', 'corner', 'star', 'star', 'triangle', 'triangle'])
+    expect(mirrored(diag.filter(h => h.pw))).toBe(true)
+    const centre = diag.filter(h => h.pw && Math.hypot(centroid(h.pts).x - f.vc, centroid(h.pts).y - f.vc) < 1e-6)
+    expect(centre.length).toBe(1)
+    expect(centre[0].pts.length).toBe(12)
+    // the straight mitre: no trouble either side (each shape on it once)
+    const once = cc.filter(h => h.pw || !across(h)).map(h => h.pts)
+    expect(cutSide({ x: g.b, y: g.b }, { x: 0, y: 0 }, once, false).trouble).toEqual([])
+    expect(cutSide({ x: 0, y: 0 }, { x: g.b, y: g.b }, once, false).trouble).toEqual([])
+    // the middle strip: its rosettes on its centre line, symmetric about its middle and its axis, its ends a strap or
+    // more clear (the junction with the long strip's rim: no less than two straps of plain wood)
+    const mid = midPieces(g)
+    expect(g.nm).toBe(f.mid!.k)
+    expect(f.mid!.rimEnd).toBeGreaterThanOrEqual(g.sw - 1e-6)
+    expect(mid.filter(pc => pc.key === 'centre').length).toBe(f.mid!.k)
+    for (const pc of mid) {
+      expect(mid.some(o => Math.hypot(o.c.x - (g.Lm - pc.c.x), o.c.y - pc.c.y) < 1e-6), `mid ${pc.key}`).toBe(true)
+      expect(mid.some(o => Math.hypot(o.c.x - pc.c.x, o.c.y - (g.midW - pc.c.y)) < 1e-6), `mid ${pc.key}`).toBe(true)
+      for (const z of pc.poly) expect(Math.min(z.x, g.Lm - z.x)).toBeGreaterThanOrEqual(f.mid!.rimEnd - 1e-6)
+    }
+    for (const pc of mid.filter(x => x.key === 'centre')) expect(pc.c.y).toBeCloseTo(g.midW / 2, 9)
+  }, 60000)
+
+  it('cuts the strips for the fewest sheets with pack 2: the fewest joints more that put pieces of the strips beside the squares (two, one more on each long strip), each down a column, the pieces as alike as that allows; pack 1 as before', () => {
+    const g1 = frameGeom(setFrameParams({ ...T3.defaults, style: 3 })), g2 = frameGeom(setFrameParams({ ...T3.defaults, style: 3, pack: 2 }))
+    expect(g1.pack).toBe(null)
+    expect(g2.pack).toMatchObject({ joints: 8, sheets: 4, base: { joints: 6, sheets: 5 }, better: true })
+    expect(g2.f3!.pw.joints).toEqual(g1.f3!.pw.joints)
+    expect(g2.f3!.ph.joints.length).toBe(3)
+    for (const j of g2.f3!.ph.joints) expect(j.u % 1).toBe(0.5)
+    // the long strips' pieces: two of them short enough for the room beside a square (2440 − 1400 less the margins)
+    const L = [0, ...jointsOf(g2, 1), 5460], lens = L.slice(1).map((x, i) => x - L[i])
+    expect(lens.filter(l => l <= 2440 - 1400 - 2 * NEST_MARGIN - 3 - 20).length).toBe(2)
+    // styles 1 and 2 have no say in it
+    for (const style of [1, 2]) expect(frameGeom(setFrameParams({ ...T3.defaults, style, pack: 2 })).pack, `style ${style}`).toBe(null)
+  })
+
+  it('keeps every strap exact at other straps (8 and 20 mm), the corners still whole and a mirror image about the mitre, its straight cut no trouble', () => {
+    const g = frameGeom(setFrameParams(q)), f = g.f3!
+    for (const strap of [8, 20]) {
+      const re = (L: StripLayout) => stripLayout(L.L, f.vc, f.size.s, strap, L.n, L.axisK >= 0 ? { k: L.axisK, x: L.rosettes[L.axisK] } : null, L.joints.map(j => j.u - 0.5))
+      const f2: Frame3 = { ...f, size: { ...f.size, strap }, pw: re(f.pw), ph: re(f.ph) }
+      const got: H[][] = []
+      for (const lay of [f2.pw, f2.ph]) {
+        const hs = stripHoles(f2, lay), lb = `strap ${strap} strip ${lay.L}`
+        got.push(hs)
+        const m = leastGap(hs, strap + 1)
+        expect(m, lb).toBeGreaterThanOrEqual(strap - 0.01)
+        expect(m, lb).toBeLessThanOrEqual(strap + 0.05) // the tight straps exactly the strap
+        expect(rimsOf(hs, g.b), lb).toBeGreaterThanOrEqual(f.rim - 1e-6)
+      }
+      const cc = atCorner(got[0], got[1], f2.ph.L, f2)
+      expect(mirrored(cc), `strap ${strap}`).toBe(true)
+      // (the shapes on the diagonal: as many as the corner cell has at this strap, the smallest left out at 20)
+      expect(cc.filter(h => h.pw && across(h)).length, `strap ${strap}`).toBe(cornerShapes(f2).length)
+      expect(cornerShapes(f2).length, `strap ${strap}`).toBeGreaterThanOrEqual(strap < 13 ? 9 : 5)
+      for (const [a, b] of [[{ x: g.b, y: g.b }, { x: 0, y: 0 }], [{ x: 0, y: 0 }, { x: g.b, y: g.b }]]) expect(cutSide(a, b, cc.filter(h => h.pw || !across(h)).map(h => h.pts), false).trouble, `strap ${strap}`).toEqual([])
+      const mh = midHoles(f2, g.midW)
+      expect(leastGap(mh, strap + 1), `strap ${strap} mid`).toBeGreaterThanOrEqual(strap - 0.01)
+    }
+  }, 60000)
+
+  it('leaves styles 1 and 2 as release 2.9 cut them: the same pieces and the same words, to the byte', () => {
+    const h = (v: unknown) => createHash('sha1').update(JSON.stringify(v)).digest('hex').slice(0, 12)
+    const was: [Tp, Record<string, number>, string, string][] = [
+      [T1, {}, '9012363df4bd', '2aa5e2fe1d06'], [T1, { kind: 2 }, '612c7dd31565', 'c1dcc6231fc0'], [T2, {}, '918e992d1a56', '3070ca2422a7'], [T2, { kind: 2 }, '67cd4d818c43', '799dc99b7de2'],
+      [T3, { style: 1 }, '40ec543fbcfb', '31c0f3d9f4d1'], [T3, { style: 1, squares: 0 }, '81bd4e893d61', '4f1337e059fd'], [T3, { style: 2 }, '5dbbfee1db15', '8f66c702aec2'], [T3, { style: 2, squares: 0 }, '8cd1cdac1c6f', 'bcc42fc93461'], [T3, { style: 1, midLen: 0 }, '41835c02ae5a', '582cd007017a'],
+    ]
+    for (const [tpl, p, panels, words] of was) {
+      const d = generate(tpl, p, { ...DEFAULT_SETTINGS })
+      expect([h(d.panels.map(pn => [pn.id, pn.name, pn.w, pn.h, pn.count, pn.loops])), h([d.errors, d.warnings, d.notes])], `${tpl.id} ${JSON.stringify(p)}`).toEqual([panels, words])
+    }
+  }, 60000)
+})

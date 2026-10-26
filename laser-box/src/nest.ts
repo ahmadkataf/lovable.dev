@@ -143,6 +143,8 @@ interface Foot {
   wide: number
   wideLen: number
   cells: number
+  /** the sum of its cells' row numbers (cells × the row of its centre of area) */
+  rows: number
   /** the panel's (0, 0) is offX, offY from the footprint's first cell corner plus the grown radius: x = margin + i·c + offX */
   offX: number
   offY: number
@@ -232,7 +234,7 @@ function footprint(p: Panel, k: number, c: number, rr: number, r: number, keepHo
   for (const P of open) for (let e = 0; e + 3 < P.length; e += 2) mark(P[e], P[e + 1], P[e + 2], P[e + 3])
   // rows of spans
   const ro = new Int32Array(ny + 1), sp: number[] = []
-  let wide = 0, wideLen = 0, cells = 0
+  let wide = 0, wideLen = 0, cells = 0, rows = 0
   for (let j = 0; j < ny; j++) {
     ro[j] = sp.length
     let i = 0
@@ -240,13 +242,13 @@ function footprint(p: Panel, k: number, c: number, rr: number, r: number, keepHo
       if (!g[j * nx + i]) { i++; continue }
       const a = i
       while (i < nx && g[j * nx + i]) i++
-      sp.push(a, i); cells += i - a
+      sp.push(a, i); cells += i - a; rows += j * (i - a)
       if (i - a > wideLen) { wideLen = i - a; wide = j }
     }
   }
   ro[ny] = sp.length
   // the panel's (0, 0) from the sheet raster's cell corner: x = margin - r0 + i·c - gx0
-  return { k, nx, ny, ro, sp: Int32Array.from(sp), wide, wideLen, cells, offX: -gx0 - r0, offY: -gy0 - r0, hint: 0 }
+  return { k, nx, ny, ro, sp: Int32Array.from(sp), wide, wideLen, cells, rows, offX: -gx0 - r0, offY: -gy0 - r0, hint: 0 }
 }
 
 /**
@@ -264,7 +266,7 @@ function reversed(f: Foot, w: number, h: number, c: number, r: number): Foot {
   ro[f.ny] = q
   // f's grid starts at (r - offX - r … ) = (-offX - r) in its piece; turned, the grid starts at w - (-offX - r) - nx·c
   const gx = w + f.offX + r - f.nx * c, gy = h + f.offY + r - f.ny * c
-  return { ...f, k: (f.k + 2) % 4, ro, sp, wide: f.ny - 1 - f.wide, offX: -r - gx, offY: -r - gy, hint: 0 }
+  return { ...f, k: (f.k + 2) % 4, ro, sp, wide: f.ny - 1 - f.wide, rows: (f.ny - 1) * f.cells - f.rows, offX: -r - gx, offY: -r - gy, hint: 0 }
 }
 
 const sameFoot = (a: Foot, b: Foot) => a.nx === b.nx && a.ny === b.ny && a.sp.length === b.sp.length && a.ro.every((v, i) => v === b.ro[i]) && a.sp.every((v, i) => v === b.sp[i])
@@ -446,7 +448,8 @@ function blf(ctx: Ctx, order: number[], crit: number): Pack | null {
         const at = G.find(f, maxJ)
         if (!at) continue
         const key = crit === 0 ? at[1] : at[1] + f.ny
-        if (!best || key < bestKey || (key === bestKey && at[0] < best[0])) { best = [at[0], at[1], f]; bestKey = key }
+        // (alike: the leftmost, then the way round whose material sits lower, leaving more room above it)
+        if (!best || key < bestKey || (key === bestKey && (at[0] < best[0] || (at[0] === best[0] && f.rows * best[2].cells < best[2].rows * f.cells)))) { best = [at[0], at[1], f]; bestKey = key }
       }
       if (!best) {
         if (G.free === G.W * G.L) return null // not even on an empty sheet (a strip too narrow): this try is void
