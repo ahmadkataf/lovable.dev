@@ -49,8 +49,9 @@ const PER_TEMPLATE: Record<string, Record<string, Role>> = {
   // the decor's size is the gypsum opening's (with its rest), measured on site; the sheet is the one bought
   ceilingframe: { PW: 'object', PH: 'object', ov: 'object', center: 'choice', midAt: 'object', maxLen: 'fixed', sheetL: 'fixed', sheetW: 'fixed' },
   ceilingframe2: { PW: 'object', PH: 'object', ov: 'object', center: 'choice', midAt: 'object', maxLen: 'fixed', sheetL: 'fixed', sheetW: 'fixed' },
-  // the whole ceiling: the two squares and the band are the customer's measures, taken on site
-  ceilingset: { AW: 'object', AH: 'object', BW: 'object', BH: 'object', band: 'object', squares: 'choice', fit: 'fixed', sheetL: 'fixed', sheetW: 'fixed' },
+  // the whole ceiling: the frame's outside, its strips, the middle strip's place and the two squares are the
+  // customer's measures, taken on site; the sheet is the one bought
+  ceilingset: { FW: 'object', FL: 'object', band: 'object', midAt: 'object', mid: 'choice', AW: 'object', AH: 'object', BW: 'object', BH: 'object', squares: 'choice', labels: 'choice', fit: 'fixed', sheetL: 'fixed', sheetW: 'fixed' },
   easel: { bolt: 'object', maxL: 'fixed' }, // the bought bolts; the laser bed's length
 }
 

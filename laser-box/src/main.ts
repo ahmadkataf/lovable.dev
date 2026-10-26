@@ -577,7 +577,7 @@ function sizeLabel(p: Record<string, number>) {
   if (state.tpl === 'cubeset') return `${fmt(p.rows * p.cols)} مكعّب ${fmt(p.a)} مم على صينية`
   if (state.tpl === 'mihrabbox') return `${fmt(p.W)} × ${fmt(p.D)} × ${fmt(p.H)}، المحراب ${fmt(p.A)}`
   if (state.tpl === 'easel') return `إيزل بارتفاع ${fmt(p.Lm)} مم`
-  if (state.tpl === 'ceilingset') return `سقف: مربعان ${fmt(p.AW)} × ${fmt(p.AH)} و${fmt(p.BW)} × ${fmt(p.BH)}، إطار ${fmt(p.band)}`
+  if (state.tpl === 'ceilingset') return `إطار ${fmt(p.FW / 10)} × ${fmt(p.FL / 10)} سم، الشرائح ${fmt(p.band / 10)} سم`
   if (state.tpl.startsWith('ceilingframe')) return `ديكور ${fmt(p.PW)} × ${fmt(p.PH)}، إطار ${fmt(p.band)}`
   if (state.tpl === 'bottlebox' || state.tpl === 'bottlestand') return `${fmt(p.num)} غرشة Ø${fmt(p.bd)} × ${fmt(p.bh)} مم، ميلان ${fmt(p.angle)}°`
   if (state.tpl === 'giftbag') return `${fmt(p.W)} × ${fmt(p.D)} × ${fmt(p.H)}، المقبض ${fmt(p.hh)}`

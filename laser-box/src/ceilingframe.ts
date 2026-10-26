@@ -757,16 +757,29 @@ export function frameGeom(p: Record<string, number>) {
   let best: { n1: number; n2: number; na: number; nb: number; score: number } | null = null
   const ns = (S: number) => { const out: number[] = []; for (let k = Math.max(1, Math.floor(S / (1.6 * p0))); k <= Math.max(1, Math.ceil(S / (0.7 * p0))) && k < 400; k++) if (S / k >= pHard) out.push(k); return out }
   const lg = (x: number) => Math.abs(Math.log(x))
+  // the longest strip piece: 'maxLen', or the sheet less the nesting margin at both ends
+  const maxLen = Math.min((p.maxLen ?? 0) > 0 ? p.maxLen : Infinity, (p.sheetL ?? 2440) - 2 * NEST_MARGIN)
+  // 'halves': a strip L long that takes two pieces is cut at its middle, so it takes an odd count of steps (a waist
+  // there); the strips with the middle strip on them are left to the split plan
+  const halves = (p.halves ?? 0) >= 0.5
+  const odd = (L: number, ks: number[]) => { if (!halves || L <= maxLen + 1e-9 || L > 2 * maxLen + 1e-9) return ks; const o = ks.filter(k => k % 2 === 1); return o.length ? o : ks }
   if ((dims0 || sdims) && S1 > 0 && S2 > 0) {
-    if (!mid) for (const n1 of ns(S1)) for (const n2 of ns(S2)) {
+    if (!mid) for (const n1 of odd(PW, ns(S1))) for (const n2 of odd(PH, ns(S2))) {
       const a = S1 / n1, c = S2 / n2, score = lg(a / p0) + lg(c / p0) + 3 * lg(a / c)
       if (!best || score < best.score - 1e-12) best = { n1, n2, na: 0, nb: 0, score }
     }
     else if (segA > 0 && segB > 0) {
-      const short = ns(wide ? S2 : S1), As = ns(segA), Bs = ns(segB)
+      const short = odd(wide ? PH : PW, ns(wide ? S2 : S1)), As = ns(segA), Bs = ns(segB)
+      // 'align': the middle strip's motifs carry on the short strips' columns (its first one clears the joint), or a
+      // penalty; the motifs shrink to the frame's tightest step as below
+      const alignMid = (p.align ?? 0) >= 0.5, Hm0 = midW / 2 - sw
+      const columns = (c: number, a: number, e: number) => {
+        const Rq = style === 1 ? Math.min(R0, (Math.min(c, a, e) - WAIST * Wp) / 2) : R0
+        return Hm0 >= Rq && vc + c - Rq >= b + sw - 1e-9
+      }
       for (const nS of short) for (const na of As) for (const nb of Bs) {
         const c = (wide ? S2 : S1) / nS, a = segA / na, e = segB / nb
-        const score = (lg(a / p0) + lg(e / p0)) / 2 + lg(c / p0) + 1.5 * (lg(a / c) + lg(e / c)) + 10 * lg(a / e)
+        const score = (lg(a / p0) + lg(e / p0)) / 2 + lg(c / p0) + 1.5 * (lg(a / c) + lg(e / c)) + 10 * lg(a / e) + (alignMid && !columns(c, a, e) ? 0.5 : 0)
         if (!best || score < best.score - 1e-12) best = wide ? { n1: na + nb, n2: nS, na, nb, score } : { n1: nS, n2: na + nb, na, nb, score }
       }
     }
@@ -793,9 +806,7 @@ export function frameGeom(p: Record<string, number>) {
   // (on the board a solid line 3·web wide parts the band from the field, so the frame still reads as a frame)
   const fm = kind === 1 ? 2 * web : CLEAT_REACH + web
   const fill = (p.fill ?? 0) >= 0.5 && (kind === 1 || field)
-  // the longest strip piece: 'maxLen', or the sheet less the nesting margin at both ends
-  const maxLen = Math.min((p.maxLen ?? 0) > 0 ? p.maxLen : Infinity, (p.sheetL ?? 2440) - 2 * NEST_MARGIN)
-  return { kind, style, center, field, fill, sizeIs, PW, PH, ov, b, web, sw, fit, rail, v0, v1, Wp, H, vc, R, dims, sdims, p0, pHard, S1, S2, n1, n2, p1, p2, pa, pb, axisU, mAt, offMid, Llong, Wf, Hf, fm, mid, wide, midW, Lm, Hm, mdims, nm, qm, maxLen }
+  return { kind, style, center, field, fill, sizeIs, PW, PH, ov, b, web, sw, fit, rail, v0, v1, Wp, H, vc, R, dims, sdims, p0, pHard, S1, S2, n1, n2, p1, p2, pa, pb, axisU, mAt, offMid, Llong, Wf, Hf, fm, mid, wide, midW, Lm, Hm, mdims, nm, qm, maxLen, halves }
 }
 export type FrameGeom = ReturnType<typeof frameGeom>
 
@@ -1242,7 +1253,8 @@ export function stripCuts(g: FrameGeom, s: number): { L: number; waists: number[
     const na = Math.round((g.axisU - g.vc) / g.pa), nb = Math.round((L - g.vc - g.axisU) / g.pb)
     for (let i = 0; i < na; i++) w.push(g.vc + (i + 0.5) * g.pa)
     for (let i = nb - 1; i >= 0; i--) w.push(L - g.vc - (i + 0.5) * g.pb)
-    w = w.filter(u => Math.abs(u - g.axisU) >= g.midW / 2 + 2 * g.sw)
+    // (with 'halves', the set's rule, a joint keeps a quarter step clear of the junction too, not just its bar)
+    w = w.filter(u => Math.abs(u - g.axisU) >= g.midW / 2 + Math.max(2 * g.sw, g.halves ? Math.max(g.pa, g.pb) / 4 : 0))
     if (s >= 2) w = w.map(u => L - u).reverse()
   } else {
     const p = isLong ? g.pa : g.wide ? g.p2 : g.p1, n = p > 0 ? Math.round((L - 2 * g.vc) / p) : 0
@@ -1640,62 +1652,325 @@ const DESC2 = 'ديكور سقف خشب مفرّغ لفتحة إضاءة في س
 
 // ------------------------------------------------------------------ the whole ceiling (the customer's sketch)
 
+// The customer's ceiling: a frame of four strips `band` wide, FW × FL outside, meeting on 45° mitres, a middle strip
+// across its window butt-joined between the long strips (centred, or its near edge midAt into the window), and two
+// one-piece square decors for the two openings in his gypsum panels (their own sizes, not tied to the frame's: in the
+// assembled picture each sits centred in its half of the window). Every strip longer than the sheet is cut at waists
+// ('halves': a strip of two pieces at its middle); with 'labels' every piece is its own panel, numbered in the order
+// it goes up (round the frame from a corner: a long strip, a short one, the other long one, the other short one, then
+// the middle strip and the squares), the number engraved on the face up on the bed, which goes up (hidden) on the
+// ceiling, clear of every cut-out, with an arrow to the frame's outside edge on the strips.
 const SET_PARAMS: ParamDef[] = [
-  mm('AW', 'عرض المربع الأول', 300, 2440, 'المربع الأول من جهة طرف الفتحة: ديكور قطعة واحدة، مقاسه من الخارج مع الركبة على الجبس'),
-  mm('AH', 'طول المربع الأول', 300, 2440, 'على طول الإطار: من طرف الفتحة إلى الشريطة النصّانية'),
-  mm('BW', 'عرض المربع الثاني', 300, 2440, 'المربع الثاني بعد الشريطة النصّانية'),
-  mm('BH', 'طول المربع الثاني', 300, 2440, 'من الشريطة النصّانية إلى الطرف الآخر'),
-  mm('band', 'عرض الإطار والشريطة النصّانية', 120, 600, 'الشرائح الأربع والشريطة النصّانية بهذا العرض، تُرى كلّها من تحت'),
-  intP('style', 'النقشة', 1, 2, '1 = وردات نجمية من 16 رأساً ونجوم ثمانية كالصورة، 2 = نجوم ثمانية (خاتم) وصلبان؛ الإطار والمربعان بنفس النقشة', STYLE_LABELS),
+  mm('FW', 'عرض الإطار من الخارج', 600, 6000, 'الإجمالي الكلّي لعرض الإطار من الخارج (الشريحتان القصيرتان بطوله)'),
+  mm('FL', 'طول الإطار من الخارج', 600, 9000, 'الإجمالي الكلّي لطول الإطار من الخارج (الشريحتان الطويلتان بطوله)'),
+  mm('band', 'عرض الشرائح والشريطة النصّانية', 120, 600, 'الشرائح الأربع والشريطة النصّانية بهذا العرض، تُرى كلّها من تحت'),
+  intP('mid', 'الشريطة النصّانية', 0, 1, '1 = شريطة بعرض الشرائح تقطع الفتحة بين الشريحتين الطويلتين، طرفاها مستقيمان'),
+  mm('midAt', 'موضع الشريطة النصّانية', 0, 9000, '0 = في المنتصف؛ وإلا فبعد حافّتها القريبة عن طرف الفتحة'),
   intP('squares', 'المربعان', 0, 1, '1 = مع المربعين (ديكور قطعة واحدة لكلّ منهما بمثمّن في الوسط)، 0 = الإطار والشريطة النصّانية فقط'),
+  mm('AW', 'عرض المربع الأول', 300, 2440, 'ديكور قطعة واحدة لفتحته في الجبس، مقاسه من الخارج مع الركبة على الجبس'),
+  mm('AH', 'طول المربع الأول', 300, 2440, 'على طول الإطار، في النصف الأول من الفتحة'),
+  mm('BW', 'عرض المربع الثاني', 300, 2440, 'في النصف الثاني من الفتحة، بعد الشريطة النصّانية'),
+  mm('BH', 'طول المربع الثاني', 300, 2440),
+  intP('style', 'النقشة', 1, 2, '1 = وردات نجمية من 16 رأساً ونجوم ثمانية كالصورة، 2 = نجوم ثمانية (خاتم) وصلبان؛ الإطار والمربعان بنفس النقشة', STYLE_LABELS),
+  intP('labels', 'ترقيم القطع', 0, 1, '1 = كلّ قطعة برقمها بترتيب التركيب، محفوراً على الوجه المخفي (طبقة حفر زرقاء)', ['بلا ترقيم', 'ترقيم القطع بالتسلسل']),
   intP('cleats', 'قطع التدعيم', 0, 1, '1 = قطع تُلصق خلف الزوايا وخلف وصلات الشرائح، من نفس اللوح'),
-  { ...mm('fit', 'خلوص المربعين', 0, 5, 'يُزاد على الفتحة حول كلّ مربع؛ 0 = الفتحة بمقاس المربعين تماماً'), step: 0.1 },
+  { ...mm('fit', 'خلوص طرفي الشريطة النصّانية', 0, 2, 'يُنقص من كلّ طرف لتدخل بين الشريحتين الطويلتين بسهولة؛ 0 = بطول الفتحة تماماً'), step: 0.1 },
   mm('sheetL', 'طول لوح الخشب', 1000, 3000, 'اللوح الكامل 2440 × 1220؛ الشريحة الأطول منه تُقسم بين وردتين'),
   mm('sheetW', 'عرض لوح الخشب', 600, 2000),
   intP('n', 'عدد الأطقم', 1, 5),
 ]
-const SET_DEFAULTS = { AW: 1400, AH: 1050, BW: 1380, BH: 1080, band: 380, style: 1, squares: 1, cleats: 0, fit: 0, sheetL: 2440, sheetW: 1220, n: 1 }
+const SET_DEFAULTS = { FW: 2460, FL: 5460, band: 380, mid: 1, midAt: 0, squares: 1, AW: 1400, AH: 1050, BW: 1380, BH: 1080, style: 1, labels: 1, cleats: 0, fit: 0, sheetL: 2440, sheetW: 1220, n: 1 }
 
-/** The frame's parameters for the set: the window round both squares and the middle strip between them, its near edge AH in. */
+/** The frame's parameters for the set: FW × FL outside, no rest on the gypsum, the middle strip as wide as the band. */
 export function setFrameParams(p: Record<string, number>): Record<string, number> {
-  const fit = p.fit ?? 0, W = Math.max(p.AW, p.BW) + 2 * fit, H = p.AH + p.band + p.BH + 4 * fit
-  return { ...DEFAULTS, sizeIs: 2, PW: round3(W), PH: round3(H), ov: 0, band: p.band, kind: 2, style: p.style, center: 3, fill: 0, mid: 1, midW: p.band, midAt: round3(p.AH + 2 * fit), cleats: p.cleats, sheetL: p.sheetL, sheetW: p.sheetW, n: p.n }
+  return { ...DEFAULTS, sizeIs: 1, PW: p.FW, PH: p.FL, ov: 0, band: p.band, kind: 2, style: p.style, center: 3, fill: 0, mid: p.mid ?? 1, midW: p.band, midAt: p.midAt ?? 0, halves: 1, align: 1, cleats: p.cleats, sheetL: p.sheetL, sheetW: p.sheetW, n: p.n }
 }
-/** A square's parameters: the one-piece decor at its defaults (octagon in the middle, the field patterned) at its size. */
-export const setSquareParams = (p: Record<string, number>, W: number, H: number): Record<string, number> => ({ ...DEFAULTS, style: p.style, PW: W, PH: H, sheetL: p.sheetL, sheetW: p.sheetW, n: p.n })
+/**
+ * A square's parameters: the one-piece decor at its defaults (octagon in the middle, the field patterned) at its
+ * size, the octagon no bigger than its middle holds (a smaller square keeps it whole, as frameErrors sizes it).
+ */
+export const setSquareParams = (p: Record<string, number>, W: number, H: number): Record<string, number> =>
+  ({ ...DEFAULTS, style: p.style, PW: W, PH: H, med: Math.min(DEFAULTS.med, down5(Math.min(W, H) - 2 * DEFAULTS.band - 4 * DEFAULTS.web)), sheetL: p.sheetL, sheetW: p.sheetW, n: p.n })
+
+// ---------------------------------------------------------------- engraved numbers
+
+/** Single-stroke digits on a 1 × 1 cell (y down), each a list of polylines (a closed one repeats its first point). */
+const DIGIT_STROKES: number[][][][] = [
+  [[[0.2, 0], [0.8, 0], [1, 0.15], [1, 0.85], [0.8, 1], [0.2, 1], [0, 0.85], [0, 0.15], [0.2, 0]]],
+  [[[0.2, 0.22], [0.55, 0], [0.55, 1]], [[0.2, 1], [0.9, 1]]],
+  [[[0, 0.2], [0.2, 0], [0.8, 0], [1, 0.2], [1, 0.4], [0, 1], [1, 1]]],
+  [[[0, 0.12], [0.15, 0], [0.85, 0], [1, 0.12], [1, 0.38], [0.85, 0.5], [0.3, 0.5]], [[0.85, 0.5], [1, 0.62], [1, 0.88], [0.85, 1], [0.15, 1], [0, 0.88]]],
+  [[[0.72, 1], [0.72, 0], [0, 0.68], [1, 0.68]]],
+  [[[1, 0], [0.08, 0], [0, 0.45], [0.75, 0.42], [1, 0.6], [1, 0.86], [0.8, 1], [0.15, 1], [0, 0.88]]],
+  [[[0.92, 0.08], [0.75, 0], [0.25, 0], [0, 0.2], [0, 0.85], [0.2, 1], [0.8, 1], [1, 0.85], [1, 0.6], [0.8, 0.45], [0.2, 0.45], [0, 0.6]]],
+  [[[0, 0], [1, 0], [0.35, 1]]],
+  [[[0.2, 0], [0.8, 0], [0.95, 0.12], [0.95, 0.35], [0.8, 0.47], [0.2, 0.47], [0.05, 0.35], [0.05, 0.12], [0.2, 0]], [[0.2, 0.47], [0.8, 0.47], [1, 0.6], [1, 0.87], [0.8, 1], [0.2, 1], [0, 0.87], [0, 0.6], [0.2, 0.47]]],
+  [[[0.08, 0.92], [0.25, 1], [0.75, 1], [1, 0.8], [1, 0.15], [0.8, 0], [0.2, 0], [0, 0.15], [0, 0.4], [0.2, 0.55], [0.8, 0.55], [1, 0.4]]],
+]
+/** The digits' width and gap, and the arrow's width with its gap, of the height h. */
+const DG = { w: 0.6, gap: 0.25, arrow: 0.3, arrowGap: 0.25 }
+/** A label's width: the number's digits, and the arrow before them. */
+export const labelWidth = (num: number, h: number, arrow: boolean) => { const k = String(num).length; return h * (k * DG.w + (k - 1) * DG.gap + (arrow ? DG.arrow + DG.arrowGap : 0)) }
+/**
+ * A number h tall as single engraved strokes, its box's top-left corner at (x0, y0), upright with its top toward
+ * y = x0's side of smaller y; with `arrow` an arrow before it pointing that way (to the frame's outside edge).
+ */
+export function strokeLabel(num: number, x0: number, y0: number, h: number, arrow: boolean): Loop[] {
+  const out: Loop[] = [], gw = DG.w * h
+  const line = (pts: P2[]): Loop => {
+    const closed = pts.length > 3 && Math.hypot(pts[0].x - pts[pts.length - 1].x, pts[0].y - pts[pts.length - 1].y) < 1e-9
+    return { closed, layer: 'engrave', pts: (closed ? pts.slice(0, -1) : pts).map(q => ({ x: round3(q.x), y: round3(q.y) })) }
+  }
+  let x = x0
+  if (arrow) {
+    const a = DG.arrow * h, ax = x + a / 2
+    out.push(line([{ x: ax, y: y0 + h }, { x: ax, y: y0 }]), line([{ x, y: y0 + 0.28 * h }, { x: ax, y: y0 }, { x: x + a, y: y0 + 0.28 * h }]))
+    x += (DG.arrow + DG.arrowGap) * h
+  }
+  for (const ch of String(num)) {
+    for (const st of DIGIT_STROKES[+ch]) out.push(line(st.map(([u, v]) => ({ x: x + u * gw, y: y0 + v * h }))))
+    x += (DG.w + DG.gap) * h
+  }
+  return out
+}
+/** The least room between an engraved line and a cut (mm), and the label's sizes (the largest that fits, mm). */
+export const LABEL = { clear: 3, hMax: 36, hMin: 15 }
+/** Segment-to-segment distance (0 when they cross). */
+function segSeg(a: P2, b: P2, c: P2, d: P2): number {
+  return segsCross(a, b, c, d) ? 0 : Math.min(segPt(a, c, d), segPt(b, c, d), segPt(c, a, b), segPt(d, a, b))
+}
+/** The least distance from the label's strokes to the cuts (0 when one crosses or lies inside a cut-out, or outside the piece). */
+export function labelClearance(lines: Loop[], outline: P2[], holes: P2[][]): number {
+  let d = Infinity
+  const segs = lines.flatMap(l => l.pts.map((q, i) => [q, l.pts[(i + 1) % l.pts.length]] as const).slice(0, l.closed ? l.pts.length : l.pts.length - 1))
+  const box = bbOf(lines.flatMap(l => l.pts))
+  for (const [a] of segs) if (!inPoly(a, outline)) return 0
+  for (const poly of [outline, ...holes]) {
+    const q = bbOf(poly)
+    if (poly !== outline && (q.x0 > box.x1 + d || q.x1 < box.x0 - d || q.y0 > box.y1 + d || q.y1 < box.y0 - d)) continue
+    if (poly !== outline && segs.some(([a]) => inPoly(a, poly))) return 0
+    for (let i = 0; i < poly.length; i++) for (const [a, b] of segs) d = Math.min(d, segSeg(a, b, poly[i], poly[(i + 1) % poly.length]))
+  }
+  return d
+}
+/**
+ * The number's label on a piece (outline and cut-outs in its own coordinates): the tallest (hMax down to hMin) that
+ * keeps LABEL.clear from every cut, as near `prefer` as it goes; null when none fits. Found on a raster of the piece
+ * in cells cs wide (a cell is free when its centre is clear + half its diagonal from every cut, so a box of free cells
+ * keeps `clear` from them), then checked exactly. `zone` limits the search (and the work) to a part of the piece.
+ */
+export function placeLabel(outline: P2[], holes: P2[][], num: number, arrow: boolean, prefer: P2, zone?: Box, cs = 2): { lines: Loop[]; h: number; at: P2 } | null {
+  const ob = bbOf(outline), Z = zone ? { x0: Math.max(ob.x0, zone.x0), x1: Math.min(ob.x1, zone.x1), y0: Math.max(ob.y0, zone.y0), y1: Math.min(ob.y1, zone.y1) } : ob
+  const nx = Math.floor((Z.x1 - Z.x0) / cs), ny = Math.floor((Z.y1 - Z.y0) / cs), r = LABEL.clear + cs * Math.SQRT1_2 + 0.05
+  if (nx * cs < 10 || ny * cs < 10) return null
+  const blocked = new Uint8Array(nx * ny)
+  const cell = (i: number, j: number): P2 => ({ x: Z.x0 + (i + 0.5) * cs, y: Z.y0 + (j + 0.5) * cs })
+  for (let j = 0; j < ny; j++) for (let i = 0; i < nx; i++) {
+    const q = cell(i, j)
+    if (!inPoly(q, outline) || outline.some((a, k) => segPt(q, a, outline[(k + 1) % outline.length]) < r)) blocked[j * nx + i] = 1
+  }
+  for (const h of holes) {
+    const q = bbOf(h), i0 = Math.max(0, Math.floor((q.x0 - r - Z.x0) / cs)), i1 = Math.min(nx - 1, Math.ceil((q.x1 + r - Z.x0) / cs)), j0 = Math.max(0, Math.floor((q.y0 - r - Z.y0) / cs)), j1 = Math.min(ny - 1, Math.ceil((q.y1 + r - Z.y0) / cs))
+    for (let j = j0; j <= j1; j++) for (let i = i0; i <= i1; i++) {
+      if (blocked[j * nx + i]) continue
+      const c = cell(i, j)
+      if (inPoly(c, h) || h.some((a, k) => segPt(c, a, h[(k + 1) % h.length]) < r)) blocked[j * nx + i] = 1
+    }
+  }
+  // summed-area table of the blocked cells
+  const S = new Int32Array((nx + 1) * (ny + 1)), W1 = nx + 1
+  for (let j = 0; j < ny; j++) for (let i = 0; i < nx; i++) S[(j + 1) * W1 + i + 1] = blocked[j * nx + i] + S[j * W1 + i + 1] + S[(j + 1) * W1 + i] - S[j * W1 + i]
+  const free = (i: number, j: number, w: number, hh: number) => S[(j + hh) * W1 + i + w] - S[j * W1 + i + w] - S[(j + hh) * W1 + i] + S[j * W1 + i] === 0
+  for (let h = LABEL.hMax; h >= LABEL.hMin; h--) {
+    const lw = labelWidth(num, h, arrow), wc = Math.ceil(lw / cs), hc = Math.ceil(h / cs)
+    const spots: [number, number, number][] = []
+    for (let j = 0; j + hc <= ny; j++) for (let i = 0; i + wc <= nx; i++) if (free(i, j, wc, hc)) {
+      const cx = Z.x0 + (i + wc / 2) * cs, cy = Z.y0 + (j + hc / 2) * cs
+      spots.push([Math.hypot(cx - prefer.x, cy - prefer.y), i, j])
+    }
+    spots.sort((a, z) => a[0] - z[0])
+    for (const [, i, j] of spots.slice(0, 20)) {
+      const x0 = Z.x0 + i * cs + (wc * cs - lw) / 2, y0 = Z.y0 + j * cs + (hc * cs - h) / 2, lines = strokeLabel(num, x0, y0, h, arrow)
+      if (labelClearance(lines, outline, holes) >= LABEL.clear - 1e-6) return { lines, h, at: { x: x0 + lw / 2, y: y0 + h / 2 } }
+    }
+  }
+  return null
+}
+
+// ---------------------------------------------------------------- the set's pieces and where they go
+
+/** One piece of the set: its outline and cut-outs in its own coordinates, and the map to frame coordinates. */
+export type SetPiece = {
+  no: number; id: string; name: string; kind: 'long' | 'short' | 'mid' | 'square'; w: number; h: number
+  outline: P2[]; holes: P2[][]; holeLoops: Loop[]; shape: boolean
+  /** the pattern's keys of its cut-outs (strips and the middle strip; '|' ends a shape moved off a joint) */
+  keys: string[]
+  /** its own coordinates → frame coordinates (x right, y down from the frame's outside corner, the cut face up) */
+  place: (q: P2) => P2
+  /** for a strip piece: its side (0 top, 1 right, 2 bottom, 3 left), its part (0 …) of how many, and its ends */
+  side?: number; part?: number; parts?: number; u0?: number; u1?: number; mitres?: [boolean, boolean]
+  square?: 'a' | 'b'
+}
+export type SetPlan = { g: FrameGeom; fp: Record<string, number>; pieces: SetPiece[]; win: Box; halfA: Box; halfB: Box }
+
+/** The two halves of the window either side of the middle strip (or of its middle), in frame coordinates. */
+function setHalves(g: FrameGeom): { win: Box; halfA: Box; halfB: Box } {
+  const win = { x0: g.b, x1: g.PW - g.b, y0: g.b, y1: g.PH - g.b }, winL = g.Llong - 2 * g.b
+  const a = g.mid ? g.mAt : winL / 2, b0 = g.mid ? g.mAt + g.midW : winL / 2
+  return g.wide
+    ? { win, halfA: { ...win, x1: g.b + a }, halfB: { ...win, x0: g.b + b0 } }
+    : { win, halfA: { ...win, y1: g.b + a }, halfB: { ...win, y0: g.b + b0 } }
+}
+
+/**
+ * The set's pieces in the order they go up: from the first long strip's corner end round the frame (each strip from
+ * its first corner, the strips clockwise in frame coordinates), then the middle strip and the squares (built with
+ * `squares` from their own decors). The strips are cut as the frame's build cuts them.
+ */
+export function setPlan(p: Record<string, number>, squares: { k: 'a' | 'b'; W: number; H: number; holes: Loop[] }[] = []): SetPlan {
+  const fp = setFrameParams(p), g = frameGeom(fp), { b } = g
+  const { top, side, bottom, left } = framePieces(g), strips = [top, side, bottom, left], pieces: SetPiece[] = []
+  const first = g.wide ? 0 : 1, word = (s: number) => (s % 2 === first % 2 ? 'long' : 'short') as 'long' | 'short'
+  const count = { long: 0, short: 0 }
+  for (let k = 0; k < 4; k++) {
+    const s = (first + k) % 4, L = s % 2 ? g.PH : g.PW, kind = word(s), idx = ++count[kind]
+    const joints = L > g.maxLen + 1e-9 ? splitPlan(L, stripCuts(g, s).waists, g.maxLen) ?? [] : []
+    const parts = joints.length ? cutAtJoints(strips[s], joints, g.sw, b) : [strips[s]], cuts = [0, ...joints, L]
+    parts.forEach((pcs, i) => {
+      const u0 = cuts[i], u1 = cuts[i + 1], no = pieces.length + 1
+      const outline = stripPart(L, b, u0, u1).map(q => ({ x: round3(q.x - u0), y: q.y }))
+      pieces.push({
+        no, id: `piece-${no}`, name: `${no} — شريحة ${kind === 'long' ? 'طويلة' : 'قصيرة'} ${idx}${parts.length > 1 ? ` (${LETTERS[i]})` : ''}`, kind,
+        w: round3(u1 - u0), h: b, outline, holes: pcs.map(pc => pc.poly.map(q => ({ x: q.x - u0, y: q.y }))), holeLoops: holesOf(pcs, -u0), shape: true, keys: pcs.map(pc => pc.key),
+        place: q => toFrame(g, s, { x: q.x + u0, y: q.y }), side: s, part: i, parts: parts.length, u0, u1, mitres: [u0 <= 1e-9, u1 >= L - 1e-9],
+      })
+    })
+  }
+  if (g.mid) {
+    const fit = Math.max(0, p.fit ?? 0), mid = midPieces(g), no = pieces.length + 1, Lm = round3(g.Lm - 2 * fit)
+    pieces.push({
+      no, id: `piece-${no}`, name: `${no} — الشريطة النصّانية`, kind: 'mid', w: Lm, h: g.midW,
+      outline: [{ x: 0, y: 0 }, { x: Lm, y: 0 }, { x: Lm, y: g.midW }, { x: 0, y: g.midW }], holes: mid.map(pc => pc.poly.map(q => ({ x: q.x - fit, y: q.y }))), holeLoops: holesOf(mid, -fit), shape: false, keys: mid.map(pc => pc.key),
+      place: q => midToFrame(g, { x: q.x + fit, y: q.y }),
+    })
+  }
+  const { win, halfA, halfB } = setHalves(g)
+  for (const sq of squares) {
+    const half = sq.k === 'a' ? halfA : halfB, cx = (half.x0 + half.x1) / 2, cy = (half.y0 + half.y1) / 2, no = pieces.length + 1
+    const holes = sq.holes.map(l => l.pts.map(v => ({ x: v.x, y: v.y })))
+    pieces.push({
+      no, id: `piece-${no}`, name: `${no} — مربع ${f1(sq.W / 10)}×${f1(sq.H / 10)}`, kind: 'square', w: sq.W, h: sq.H, square: sq.k,
+      outline: [{ x: 0, y: 0 }, { x: sq.W, y: 0 }, { x: sq.W, y: sq.H }, { x: 0, y: sq.H }], holes, holeLoops: sq.holes, shape: false, keys: [],
+      // its width across the frame, its length along it (a quarter turn on a wide frame)
+      place: g.wide ? q => ({ x: cx - sq.H / 2 + q.y, y: cy + sq.W / 2 - q.x }) : q => ({ x: cx - sq.W / 2 + q.x, y: cy - sq.H / 2 + q.y }),
+    })
+  }
+  return { g, fp, pieces, win, halfA, halfB }
+}
+
+/** The number's label for a piece of the set: on solid wood near its middle (a square's on its rim), or null. */
+export function setLabel(pc: SetPiece, rim = 0): { lines: Loop[]; h: number; at: P2 } | null {
+  const arrow = pc.kind === 'long' || pc.kind === 'short'
+  if (pc.kind === 'square') {
+    // on the solid rim that rests on the gypsum: the long edge's middle first, then any edge
+    const zones: [Box, P2][] = [[{ x0: 0, x1: pc.w, y0: 0, y1: rim }, { x: pc.w / 2, y: rim / 2 }], [{ x0: 0, x1: pc.w, y0: pc.h - rim, y1: pc.h }, { x: pc.w / 2, y: pc.h - rim / 2 }], [{ x0: 0, x1: rim, y0: 0, y1: pc.h }, { x: rim / 2, y: pc.h / 2 }]]
+    for (const [z, at] of zones) { const r = rim > 0 ? placeLabel(pc.outline, pc.holes, pc.no, false, at, z) : null; if (r) return r }
+    return null
+  }
+  // near the piece's middle first (a step of the pattern either way holds a solid spot), then anywhere on it
+  const at = { x: pc.w / 2, y: pc.h / 2 }
+  return placeLabel(pc.outline, pc.holes, pc.no, arrow, at, { x0: at.x - 450, x1: at.x + 450, y0: 0, y1: pc.h }) ?? placeLabel(pc.outline, pc.holes, pc.no, arrow, at)
+}
+
+/** Where a piece goes, in words: the pieces it meets (the frame's ring of pieces closes from the last to the first). */
+function setWhere(plan: SetPlan, pc: SetPiece): string {
+  const ring = plan.pieces.filter(x => x.kind === 'long' || x.kind === 'short'), n = ring.length
+  if (pc.kind === 'long' || pc.kind === 'short') {
+    const i = ring.indexOf(pc), prev = ring[(i + n - 1) % n].no, next = ring[(i + 1) % n].no
+    const end = (m: boolean, o: number) => (m ? `زاوية 45° مع ${o}` : `وصلة مستقيمة مع ${o}`)
+    return `${end(pc.mitres![0], prev)}، و${end(pc.mitres![1], next)}`
+  }
+  const longs = ring.filter(x => x.kind === 'long'), g = plan.g
+  // the long strip's piece under each end of the middle strip
+  const under = (L: SetPiece[]) => L.find(x => { const u = x.side! < 2 ? g.axisU : g.Llong - g.axisU; return u >= x.u0! - 1e-6 && u <= x.u1! + 1e-6 })
+  const sides = [...new Set(longs.map(x => x.side!))].map(s => under(longs.filter(x => x.side === s))).filter(Boolean) as SetPiece[]
+  if (pc.kind === 'mid') return `بين ${sides.map(x => x.no).join(' و')}${g.offMid ? ` على بعد ${f1(g.mAt)} مم من طرف الفتحة` : ' في منتصفهما'}، طرفاها على حافّتيهما الداخليتين`
+  // the short strip on this half's side of the window (the first half is the one the window starts with)
+  const near = ring.filter(x => x.kind === 'short' && (g.wide ? x.place({ x: x.w / 2, y: x.h / 2 }).x < g.PW / 2 : x.place({ x: x.w / 2, y: x.h / 2 }).y < g.PH / 2) === (pc.square === 'a'))
+  return `في وسط نصف الفتحة جهة ${near.map(x => x.no).join(' و')}`
+}
 
 function buildSet(p: Record<string, number>, c: Common): BuildResult {
-  const fp = setFrameParams(p), winW = round3(fp.PW), winH = round3(fp.PH)
-  if (winH < winW) {
-    const most = down5(p.AH + p.band + p.BH)
-    return { panels: [], notes: [], warnings: [], errors: [`المربعان مع الشريطة النصّانية (${f1(winH)} مم) أقصر من عرض الفتحة (${f1(winW)} مم)، والطقم يُرصّ على طول الإطار: اجعل عرض المربعين ${f1(most)} مم على الأكثر.`] }
+  const fp = setFrameParams(p)
+  // the squares must sit in their halves of the window (across it, and along it either side of the middle strip)
+  const g0 = frameGeom(fp), hv = setHalves(g0), sq = p.squares >= 0.5, errs: string[] = []
+  if (sq && g0.PW > 2 * g0.b && g0.PH > 2 * g0.b) for (const [word, W, H, half, kW, kH] of [['المربع الأول', p.AW, p.AH, hv.halfA, 'عرض المربع الأول', 'طول المربع الأول'], ['المربع الثاني', p.BW, p.BH, hv.halfB, 'عرض المربع الثاني', 'طول المربع الثاني']] as const) {
+    const across = g0.wide ? half.y1 - half.y0 : half.x1 - half.x0, along = g0.wide ? half.x1 - half.x0 : half.y1 - half.y0
+    if (W > across + 1e-9) errs.push(`${word} أعرض (${f1(W)} مم) من فتحة الإطار (${f1(round3(across))} مم): اجعل ${kW} ${f1(down5(across))} مم على الأكثر، أو كبّر عرض الإطار.`)
+    if (H > along + 1e-9) errs.push(`${word} أطول (${f1(H)} مم) من نصف الفتحة ${g0.mid ? 'إلى الشريطة النصّانية ' : ''}(${f1(round3(along))} مم): اجعل ${kH} ${f1(down5(along))} مم على الأكثر، أو كبّر طول الإطار.`)
   }
+  if (errs.length) return { panels: [], notes: [], warnings: [], errors: errs }
   const fr = build(fp, c)
   if (fr.errors?.length) return { ...fr, errors: fr.errors.map(e => `الإطار: ${e}`) }
-  const panels = [...fr.panels], notes: string[] = [], warnings = [...fr.warnings], errors: string[] = []
-  const g = frameGeom(fp), sq = p.squares >= 0.5
+  const g = frameGeom(fp), labels = (p.labels ?? 1) >= 0.5, n = Math.max(1, Math.round(p.n))
+  const notes: string[] = [], warnings = [...fr.warnings], errors: string[] = []
   const cm = (v: number) => f1(v / 10)
   const squares = sq ? ([['a', 'المربع الأول', p.AW, p.AH], ['b', 'المربع الثاني', p.BW, p.BH]] as const).map(([k, word, W, H]) => ({ k, word, W, H, res: build(setSquareParams(p, W, H), c) })) : []
   for (const q of squares) {
-    if (q.res.errors?.length) { errors.push(...q.res.errors.map(e => `${q.word}: ${e}`)); continue }
-    warnings.push(...q.res.warnings.map(w => `${q.word}: ${w}`))
-    for (const pn of q.res.panels) panels.push({ ...pn, id: `square-${q.k}${pn.id === 'board' ? '' : `-${pn.id}`}`, name: pn.id === 'board' ? `مربع ${cm(q.W)}×${cm(q.H)}` : `${pn.name} — ${q.word}` })
+    if (q.res.errors?.length) errors.push(...q.res.errors.map(e => `${q.word}: ${e}`))
+    else warnings.push(...q.res.warnings.map(w => `${q.word}: ${w}`))
   }
   if (errors.length) return { panels: [], notes: [], warnings, errors }
-  const mn = medName(p.style)
+  // the squares' boards (and any separate part of them) as their own builds made them
+  const sqBoard = (q: typeof squares[number]) => q.res.panels.find(pn => pn.id === 'board')!
+  const plan = setPlan(p, squares.map(q => ({ k: q.k, W: q.W, H: q.H, holes: sqBoard(q).holes ?? [] })))
+  const panels: PanelSpec[] = []
+  const winW = round3(g.PW - 2 * g.b), winH = round3(g.PH - 2 * g.b), mn = medName(p.style)
+  if (labels) {
+    for (const pc of plan.pieces) {
+      const rim = pc.kind === 'square' ? (() => { const gq = frameGeom(setSquareParams(p, pc.w, pc.h)); return gq.ov + gq.sw })() : 0
+      const lab = setLabel(pc, rim)
+      if (!lab) warnings.push(`لا مكان لرقم القطعة ${pc.no} على خشب مصمت بعيداً عن الفتحات ${f1(LABEL.clear)} مم: اكتب رقمها بقلم على وجهها المخفي.`)
+      const note = pc.kind === 'square' ? `${setWhere(plan, pc)}؛ رقمه على الوجه المخفي` : `${setWhere(plan, pc)}؛ رقمها على الوجه المخفي${pc.kind === 'mid' ? '' : ' والسهم إلى الحافّة الخارجية للإطار'}`
+      if (pc.kind === 'square') {
+        const q = squares.find(x => x.k === pc.square)!, board = sqBoard(q)
+        panels.push({ ...board, id: pc.id, name: pc.name, engrave: [...(board.engrave ?? []), ...(lab?.lines ?? [])], note })
+        for (const pn of q.res.panels) if (pn !== board) panels.push({ ...pn, id: `${pc.id}-${pn.id}`, name: `${pn.name} — ${q.word}` })
+      } else panels.push({ id: pc.id, name: pc.name, w: pc.w, h: pc.h, ...(pc.shape ? { shape: [polyLoop(pc.outline, 'outer')] } : {}), holes: pc.holeLoops, engrave: lab?.lines ?? [], count: n, note })
+    }
+    // the frame's other parts (corner plates, splice plates) as its build made them
+    panels.push(...fr.panels.filter(pn => !pn.id.startsWith('strip')))
+  } else {
+    panels.push(...fr.panels)
+    for (const q of squares) for (const pn of q.res.panels) panels.push({ ...pn, id: `square-${q.k}${pn.id === 'board' ? '' : `-${pn.id}`}`, name: pn.id === 'board' ? `مربع ${cm(q.W)}×${cm(q.H)}` : `${pn.name} — ${q.word}` })
+  }
   notes.push(
-    `طقم ديكور السقف كما في رسمتك: إطار من أربع شرائح عرضها ${f1(p.band)} مم تلتقي بزوايا 45° (من الخارج ${f1(g.PW)} × ${f1(g.PH)} مم، والفتحة داخله ${f1(winW)} × ${f1(winH)} مم)، وشريطة نصّانية ${f1(g.Lm)} × ${f1(g.midW)} مم بطرفين مستقيمين تقطع الفتحة على بعد ${f1(g.mAt)} مم من طرفها${sq ? `، والمربعان: ${f1(p.AW)} × ${f1(p.AH)} مم قبلها و${f1(p.BW)} × ${f1(p.BH)} مم بعدها` : ''}. الكلّ بنقشة واحدة ${p.style === 1 ? 'من وردات نجمية (نجمة من 16 رأساً وبتلات مدبّبة) ونجوم ثمانية' : 'من نجوم ثمانية (خاتم) وصلبان'}، خطوط مستقيمة ورؤوس حادّة بلا منحنيات.`,
-    ...fr.notes.filter(x => !/^المقاس مقاس|كما أدخلتها|^الديكور .* بلا ركبة/.test(x) && !(sq && /^إطار فقط/.test(x))),
+    `طقم ديكور السقف كما في رسمتك: إطار من أربع شرائح عرضها ${f1(g.b)} مم تلتقي بزوايا 45°، ${f1(g.PW)} × ${f1(g.PH)} مم من الخارج (${cm(g.PW)} × ${cm(g.PH)} سم) والفتحة داخله ${f1(winW)} × ${f1(winH)} مم${g.mid ? `، وشريطة نصّانية ${f1(round3(g.Lm - 2 * (p.fit ?? 0)))} × ${f1(g.midW)} مم بطرفين مستقيمين تقطع الفتحة ${g.offMid ? `على بعد ${f1(g.mAt)} مم من طرفها` : `في منتصفها (${f1(g.mAt)} مم من كلّ طرف)`}` : ''}${sq ? `، والمربعان ${f1(p.AW)} × ${f1(p.AH)} و${f1(p.BW)} × ${f1(p.BH)} مم كلّ منهما في وسط نصف من الفتحة` : ''}. الكلّ بنقشة واحدة ${p.style === 1 ? 'من وردات نجمية (نجمة من 16 رأساً وبتلات مدبّبة) ونجوم ثمانية' : 'من نجوم ثمانية (خاتم) وصلبان'}، خطوط مستقيمة ورؤوس حادّة بلا منحنيات.`,
   )
+  if (labels) {
+    const ring = plan.pieces.filter(x => x.kind === 'long' || x.kind === 'short')
+    const desc = (pc: SetPiece) => `${pc.no}: ${f1(pc.w)} × ${f1(pc.h)} مم${pc.kind === 'long' || pc.kind === 'short' ? ` (${pc.mitres![0] && pc.mitres![1] ? 'طرفاها مشطوفان 45°' : pc.mitres![0] || pc.mitres![1] ? 'طرف مشطوف 45° وطرف مستقيم' : 'طرفاها مستقيمان'})` : ''} — ${setWhere(plan, pc)}`
+    notes.push(
+      `ترقيم القطع بترتيب التركيب (${plan.pieces.length} قطعة${n > 1 ? ` لكلّ طقم، وفي كلّ طقم نفس الأرقام` : ''}): ${ring.length} قطع الإطار حوله من زاوية: 1–${ring.filter(x => x.side === ring[0].side).length} الشريحة الطويلة الأولى، ثم القصيرة، ثم الطويلة الثانية، ثم القصيرة الثانية${g.mid ? `، ثم ${plan.pieces.find(x => x.kind === 'mid')!.no} الشريطة النصّانية` : ''}${sq ? `، ثم ${plan.pieces.filter(x => x.kind === 'square').map(x => x.no).join(' و')} المربعان` : ''}. انظر «خريطة التركيب»: السقف من تحت وكلّ قطعة برقمها في مكانها.`,
+      `الرقم محفور على كلّ قطعة على طبقة الحفر الزرقاء (ENGRAVE) بخطّ واحد، على خشب مصمت بعيداً عن الفتحات ${f1(LABEL.clear)} مم على الأقل؛ في RDWorks اجعل الطبقة الزرقاء حفراً خفيفاً (سرعة عالية وقدرة قليلة، لا تقصّ) واحفرها قبل القصّ. الرقم على الوجه الذي يكون للأعلى على سرير الليزر، وهذا الوجه يُركّب للأعلى (نحو السقف، مخفيّاً)، فالوجه الظاهر من تحت نظيف بلا أرقام. على الشرائح سهم بجانب الرقم يشير إلى الحافّة الخارجية للإطار.`,
+      `القطع بالترتيب: ${plan.pieces.map(desc).join('؛ ')}.`,
+    )
+    // pieces cut alike (the same outline and cut-outs) may take each other's place
+    const sig = (pc: SetPiece) => JSON.stringify([pc.outline, pc.holeLoops]), twins: number[][] = []
+    for (const pc of ring) { const t = twins.find(x => sig(plan.pieces[x[0] - 1]) === sig(pc)); if (t) t.push(pc.no); else twins.push([pc.no]) }
+    const alike = twins.filter(t => t.length > 1)
+    if (alike.length) notes.push(`القطع المتطابقة (نفس الشكل والفتحات، فتصلح كلّ منها مكان الأخرى إن اختلطت): ${alike.map(t => t.join(' و')).join('، ')}.`)
+  }
+  notes.push(...fr.notes.filter(x => !/^المقاس مقاس|كما أدخلتها|^الديكور .* بلا ركبة/.test(x) && !(sq && /^إطار فقط/.test(x))))
   for (const q of squares) {
-    const gq = frameGeom(setSquareParams(p, q.W, q.H)), gap = round3(winW - q.W)
-    notes.push(`${q.word}: ${quote(`مربع ${cm(q.W)}×${cm(q.H)}`)} ديكور قطعة واحدة ${f1(q.W)} × ${f1(q.H)} مم (إطار ${f1(gq.b)} مم بوردات نجمية والركبة على الجبس ${f1(gq.ov)} مم محسوبة فيه، وفي وسطه ${mn} ${f1(DEFAULTS.med)} مم والوسط كلّه منقوش)، يُركّب في فتحته ${q.k === 'a' ? 'قبل' : 'بعد'} الشريطة النصّانية${gap > 1e-6 ? `، أضيق من فتحة الإطار بـ${f1(gap)} مم (${f1(gap / 2)} مم من كلّ جهة)` : ''}.`)
+    const gq = frameGeom(setSquareParams(p, q.W, q.H)), pc = plan.pieces.find(x => x.square === q.k)
+    notes.push(`${q.word}${labels && pc ? ` (القطعة ${pc.no})` : ''}: ${quote(labels && pc ? pc.name : `مربع ${cm(q.W)}×${cm(q.H)}`)} ديكور قطعة واحدة ${f1(q.W)} × ${f1(q.H)} مم (إطار ${f1(gq.b)} مم بوردات نجمية والركبة على الجبس ${f1(gq.ov)} مم محسوبة فيه، وفي وسطه ${mn} ${f1(setSquareParams(p, q.W, q.H).med)} مم والوسط كلّه منقوش)، لفتحته في الجبس${labels ? '، ورقمه على حافّته المصمتة التي ترتكز على الجبس' : ''}.`)
   }
   return { panels, notes, warnings, errors: [], slotted: false }
 }
 
 const ICON3 = `<path d="M14 2h36v60H14z"/><path d="M22 10h20v44H22z"/><path d="M14 2l8 8M50 2l-8 8M14 62l8-8M50 62l-8-8" stroke-width="1.5"/><path d="M22 30h20v5H22z" stroke-width="1.5"/><path d="M26 14h12v12H26zM26 39h12v12H26z" stroke-width="1.2"/>${star8(18, 6, 1.6)}${star8(46, 6, 1.6)}${star8(18, 32, 1.6)}${star8(46, 32, 1.6)}${star8(18, 58, 1.6)}${star8(46, 58, 1.6)}${star8(32, 20, 2)}${star8(32, 45, 2)}`
-const DESC3 = 'ديكور سقف كامل كما في رسمة الزبون: إطار من أربع شرائح عرضها 38 سم تلتقي بزوايا 45°، وشريطة نصّانية بنفس العرض بطرفين مستقيمين، ومربعان (140×105 و138×108) كلّ منهما ديكور قطعة واحدة بمثمّن في الوسط. النقشة نجوم عربية بخطوط مستقيمة ورؤوس حادّة. الشريحة الأطول من اللوح تُقسم بين وردتين بوصلة مستقيمة، والقطع كلّها مرتّبة على ألواح 244×122.'
+const DESC3 = 'ديكور سقف كامل كما في رسمة الزبون: إطار 246 × 546 سم من الخارج من أربع شرائح عرضها 38 سم تلتقي بزوايا 45°، وشريطة نصّانية بنفس العرض في منتصفه بطرفين مستقيمين، ومربعان (140×105 و138×108) كلّ منهما ديكور قطعة واحدة بمثمّن في الوسط. النقشة نجوم عربية بخطوط مستقيمة ورؤوس حادّة. الشريحة الأطول من اللوح تُقسم بين وردتين بوصلة مستقيمة، والقطع كلّها مرتّبة على ألواح 244×122 ومرقّمة بترتيب التركيب (الرقم محفور على الوجه المخفي) مع خريطة تركيب.'
 
 export const CEILING_FRAMES: Template[] = [
   { id: 'ceilingframe', name: 'ديكور سقف: إطار وردات بزوايا 45 ومثمّن', desc: DESC1, icon: ICON1, params: PARAMS, defaults: DEFAULTS, innerAdd: () => ({ W: 0, D: 0, H: 0 }), build },
