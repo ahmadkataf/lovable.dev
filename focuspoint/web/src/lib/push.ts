@@ -67,7 +67,8 @@ export async function ensurePushSubscription(vapidPublicKey: string): Promise<bo
 export async function enablePush(vapidPublicKey: string): Promise<'granted' | 'denied' | 'unsupported'> {
   setFlag('fp_push_asked')
   if (!pushSupported()) return 'unsupported'
-  const perm = await Notification.requestPermission()
+  // never wait forever: an app build without the permission bridge never answered this call
+  const perm = await Promise.race([Notification.requestPermission(), new Promise<NotificationPermission>((r) => setTimeout(() => r('default'), 30000))])
   if (perm !== 'granted') return 'denied'
   const ok = await ensurePushSubscription(vapidPublicKey)
   return ok ? 'granted' : 'unsupported'

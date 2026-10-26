@@ -9,7 +9,7 @@ import { PageHead, Section, roomColor } from './common'
 
 /** Room dot colour when the owner has not picked one: the public site's space-type coding. */
 const TYPE_DOT: Record<string, string> = { private: 'var(--blue)', meeting: 'var(--violet)', hall: 'var(--violet)', desk: 'var(--teal)' }
-import { enableTeamPush, ensureTeamPush, pushErrorText, pushState, testPush, type PushState } from './push'
+import { enableTeamPush, ensureTeamPush, onPushStateChange, pushErrorText, pushState, testPush, type PushState } from './push'
 import { store, useFresh, useRooms, useStore } from './store'
 import { describeError, isBlocking, isPendingVerification, localDate, sortByStart } from './util'
 
@@ -46,6 +46,8 @@ export function Today() {
       <PageHead title="اليوم" sub={fmtDate(new Date().toISOString())}>
         <Button onClick={() => setManual(true)}><Icon name="plus" size={18} /> حجز</Button>
       </PageHead>
+
+      <PushCard required />
 
       {pending.length > 0 && (
         <Section title={`بانتظار التأكيد (${pending.length})`}>
@@ -129,7 +131,8 @@ export function Today() {
 
 /** "تفعيل إشعارات الفريق" — shown until push is granted on this device; afterwards a one-line battery hint for phones
  *  whose power saver silences Chrome (Xiaomi / Huawei / Oppo…), with a two-step "كيف؟" sheet. */
-function PushCard() {
+/** `required` renders only while notifications are off (top of the page); the plain one only once they are on. */
+function PushCard({ required = false }: { required?: boolean }) {
   const { view } = useStore()
   const toast = useToast()
   const [state, setState] = useState<PushState>(() => pushState())
@@ -138,7 +141,9 @@ function PushCard() {
   const [problem, setProblem] = useState<string | null>(null)
   const vapid = view.settings?.vapid_public_key
   const aggressiveOem = typeof navigator !== 'undefined' && AGGRESSIVE_OEM.test(navigator.userAgent)
+  useEffect(() => onPushStateChange(() => setState(pushState())), [])
   if (state === 'unsupported' || !vapid) return null
+  if (required !== (state !== 'granted')) return null
 
   async function enable() {
     setBusy(true); setProblem(null)
@@ -164,15 +169,15 @@ function PushCard() {
 
   return (
     <>
-      <Card className="mt push-card">
+      <Card className={`mt push-card${state === 'granted' ? '' : ' push-card--required'}`}>
         <div className="row gap">
-          <Icon name="bell" size={22} className="wine" />
+          <Icon name="bell" size={22} className={state === 'granted' ? 'wine' : 'danger'} />
           <div>
-            <div className="strong">{state === 'granted' ? 'الإشعارات مفعّلة على هذا الجهاز' : 'إشعارات الفريق'}</div>
+            <div className="strong">{state === 'granted' ? 'الإشعارات مفعّلة على هذا الجهاز' : 'الإشعارات مطلوبة للوحة التحكم'}</div>
             <div className="muted small">
-              {state === 'denied' ? 'الإشعارات مرفوضة — فعّلها من إعدادات الهاتف ← التطبيقات ← فوكس بوينت (أو Chrome) ← الإشعارات، ثم ارجع هنا.'
+              {state === 'denied' ? 'الإشعارات مرفوضة — بدونها لن يصلك أي حجز جديد. فعّلها من إعدادات الهاتف ← التطبيقات ← فوكس بوينت ← الإشعارات، ثم ارجع هنا.'
                 : state === 'granted' ? 'تصلك تنبيهات الحجوزات الجديدة والدفعات حتى والتطبيق مغلق.'
-                : 'تنبيه فوري عند كل حجز جديد أو دفعة بانتظار التحقق.'}
+                : 'اسمح بالإشعارات حتى يصلك تنبيه فوري عند كل حجز جديد أو دفعة بانتظار التحقق.'}
               {state === 'granted' && aggressiveOem && <>{' '}<button type="button" className="linkish" onClick={() => setHow(true)}>لا تصل والشاشة مقفلة؟</button></>}
             </div>
             {problem && <div className="small mt" style={{ color: 'var(--danger)' }}>{problem}</div>}
@@ -180,7 +185,7 @@ function PushCard() {
         </div>
         {state === 'granted'
           ? <Button variant="ghost" size="sm" loading={busy} onClick={() => sendTest()}>أرسل إشعاراً تجريبياً</Button>
-          : state !== 'denied' && <Button variant="soft" loading={busy} onClick={enable}>تفعيل إشعارات الفريق</Button>}
+          : state !== 'denied' && <Button loading={busy} onClick={enable}>السماح بالإشعارات</Button>}
       </Card>
       <Sheet open={how} onClose={() => setHow(false)} title="استثناء التطبيق من توفير البطارية">
         <ol className="steps">

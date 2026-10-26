@@ -7,7 +7,7 @@ import { RequireTeam, useTeam } from '../team'
 import { Icon, OfflineBar, type IconName } from '../ui'
 import { SyncPill } from './common'
 import { store, useStore, useSyncLoop } from './store'
-import { ensureTeamPush } from './push'
+import { autoEnableTeamPush } from './push'
 import { primeSound } from './sound'
 import { isPendingVerification } from './util'
 import { Today } from './Today'
@@ -53,9 +53,9 @@ function Shell() {
   const items = useMemo(() => NAV.filter((n) => isAdmin || !n.admin), [isAdmin])
   const phoneItems = useMemo(() => items.filter((n) => n.phone), [items])
 
-  // Permission already granted on this device → make sure the team account receives push here too.
+  // Notifications on for the team: subscribe this phone (or ask for the permission) as soon as the panel opens.
   const vapid = view.settings?.vapid_public_key
-  useEffect(() => { if (vapid) ensureTeamPush(vapid).catch(() => { /* best effort */ }) }, [vapid])
+  useEffect(() => (vapid ? autoEnableTeamPush(vapid) : undefined), [vapid])   // mandatory for the team: no button needed
   // Browsers allow sound only after a gesture: warm the audio context on the first tap so the new-booking chime plays.
   useEffect(() => {
     const prime = () => { primeSound(); window.removeEventListener('pointerdown', prime); window.removeEventListener('keydown', prime) }
