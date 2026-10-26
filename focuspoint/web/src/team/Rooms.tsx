@@ -1,7 +1,7 @@
 // /team/rooms — القاعات: cards, and (admin) a create/edit sheet with contents, prices, colour, active + delete.
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import type { Room, RoomContents, RoomType } from '@shared/types'
+import type { Photo, Room, RoomContents, RoomType } from '@shared/types'
 import { api, ApiError } from '../api'
 import { fmtSYP } from '../format'
 import { useTeam } from '../team'
@@ -9,8 +9,11 @@ import { Badge, Button, Card, Empty, Field, Icon, Input, Select, Sheet, Spinner,
 import { Confirm, PageHead } from './common'
 import { store, useStore } from './store'
 import { capacityLabel, contentsList, cx, describeError, isTemp, parseInt10, ROOM_TYPE, ROOM_TYPES } from './util'
+import { ImagesField } from './site/ImageField'
+import { deepEqual } from './site/value'
 
 // Flat room colours (brand + the app's accents). No warm/brown tones.
+const MAX_PHOTOS = 8          // same limit as the API (POST/PATCH /v1/admin/rooms, sync room_upsert)
 const SWATCHES = ['#7b1e2e', '#2563eb', '#7c3aed', '#0d9488', '#0284c7', '#059669', '#e11d48', '#475569']
 
 export function Rooms() {
@@ -53,6 +56,7 @@ export function Rooms() {
                 <div className="rcard-meta">
                   <span className="rcard-price">{fmtSYP(room.price_hour)} / ساعة</span>
                   {room.price_day !== null && <span>{fmtSYP(room.price_day)} / يوم</span>}
+                  {room.photos?.length > 0 && <span className="row gap-sm"><Icon name="image" size={16} /> {room.photos.length === 1 ? 'صورة' : `${room.photos.length} صور`}</span>}
                 </div>
                 <div className="rcard-icons" aria-label="المحتويات">
                   {contentsList(room.contents).map((c) => <span key={c.icon} title={c.label}><Icon name={c.icon} size={18} /></span>)}
@@ -70,11 +74,13 @@ export function Rooms() {
 interface Draft {
   name: string; type: RoomType; capacity: number; contents: RoomContents; price_hour: string; price_day: string
   color: string; active: boolean; description: string
+  photos: Photo[]
 }
-const blank = (): Draft => ({ name: '', type: 'private', capacity: 4, contents: { chairs: 4, tables: 1, wifi: true, ac: true }, price_hour: '', price_day: '', color: SWATCHES[0], active: true, description: '' })
+const blank = (): Draft => ({ name: '', type: 'private', capacity: 4, contents: { chairs: 4, tables: 1, wifi: true, ac: true }, price_hour: '', price_day: '', color: SWATCHES[0], active: true, description: '', photos: [] })
 const fromRoom = (r: Room): Draft => ({
   name: r.name, type: r.type, capacity: r.capacity, contents: { ...r.contents }, price_hour: String(r.price_hour),
   price_day: r.price_day === null ? '' : String(r.price_day), color: r.color ?? SWATCHES[0], active: r.active === 1, description: r.description ?? '',
+  photos: Array.isArray(r.photos) ? r.photos : [],     // a server without room photos yet sends none
 })
 
 const FLAGS: { key: keyof RoomContents; label: string }[] = [
@@ -100,6 +106,8 @@ function RoomSheet({ room, onClose }: { room: Room | 'new' | null; onClose: () =
     if (name.length < 1 || name.length > 60) e.name = 'اكتب اسم القاعة'
     if (ph === null) e.price_hour = 'أدخل سعر الساعة'
     if (d.price_day.trim() && pd === null) e.price_day = 'سعر اليوم غير صحيح'
+    if (d.photos.length > MAX_PHOTOS) e.photos = `${MAX_PHOTOS} صور كحد أقصى`
+    else if (d.photos.some((p) => (p.alt ?? '').trim().length > 200)) e.photos = 'وصف الصورة حتى 200 حرف'
     setErrors(e)
     if (Object.keys(e).length) return
     const contents: RoomContents = { chairs: d.contents.chairs, tables: d.contents.tables }
@@ -109,6 +117,10 @@ function RoomSheet({ room, onClose }: { room: Room | 'new' | null; onClose: () =
       name, type: d.type, capacity: d.capacity, contents, price_hour: ph!, price_day: pd, color: d.color, active: d.active ? 1 : 0,
       description: d.description.trim() || null,
     }
+    // Photos travel with the room op (sync room_upsert / PATCH): only when they changed, so an edit made on an older
+    // copy of the room never overwrites photos added from another device.
+    const photos = d.photos.map((p) => ({ ...p, alt: (p.alt ?? '').trim() }))
+    if (existing ? !deepEqual(photos, existing.photos ?? []) : photos.length > 0) patch.photos = photos
     if (existing) patch.id = existing.id
     else { patch.plan = null; patch.sort = 0 }
     try {
@@ -163,6 +175,12 @@ function RoomSheet({ room, onClose }: { room: Room | 'new' | null; onClose: () =
         </div>
       </Field>
       <Field label="وصف قصير للزبائن (اختياري)"><Textarea rows={2} value={d.description} onChange={(e) => set('description', e.target.value)} /></Field>
+      <div className="field mt" data-path="photos">
+        <span className="field-label">الصور</span>
+        <ImagesField value={d.photos} onChange={(v) => set('photos', v)} max={MAX_PHOTOS} />
+        {errors.photos ? <span className="field-error" role="alert">{errors.photos}</span>
+          : <span className="field-hint">بتطلع بصفحة المساحات وبالحجز. أول صورة هي الرئيسية. بلا صور = صورة نوع المساحة من «الموقع».</span>}
+      </div>
       <div className="mt"><Toggle label="القاعة فعّالة (تظهر للزبائن ويمكن حجزها)" checked={d.active} onChange={(v) => set('active', v)} /></div>
 
       {existing && !isTemp(existing.id) && (

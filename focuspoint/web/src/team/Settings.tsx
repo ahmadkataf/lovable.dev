@@ -7,7 +7,7 @@ import { api, ApiError } from '../api'
 import { fmtClock, fmtDate, fmtSYP, fmtTime, normalisePhone, statusLabel, todayLocal, toLocalParts } from '../format'
 import { cachedGet } from '../offline'
 import { useTeam } from '../team'
-import { Badge, Button, Card, Empty, Field, Icon, Input, Segmented, Sheet, Spinner, Tabs, Textarea, Toggle, useToast } from '../ui'
+import { Badge, Button, Card, Empty, Field, Icon, Input, Segmented, Select, Sheet, Spinner, Tabs, Textarea, Toggle, useToast } from '../ui'
 import { Confirm, PageHead } from './common'
 import { store, useStore } from './store'
 import { describeError, downloadText, METHOD, parseInt10, toCSV, toMin } from './util'
@@ -29,6 +29,7 @@ export function Settings() {
     <>
       <PageHead title="الإعدادات" />
       <div className="quick-links">
+        <Link to="/team/site" className="card quick-link is-wide"><Icon name="globe" size={20} /> الموقع: نصوص وصور الموقع والتطبيق</Link>
         <Link to="/team/plan" className="card quick-link"><Icon name="grid" size={20} /> مخطط المركز</Link>
         <Link to="/team/customers" className="card quick-link"><Icon name="people" size={20} /> الزبائن</Link>
       </div>
@@ -60,12 +61,20 @@ function CentreTab({ settings }: { settings: SettingsT }) {
     if (min === null || min < 30 || min % d.slot_minutes !== 0) e.min_minutes = `مضاعف لـ${d.slot_minutes} دقيقة`
     if (max === null || max > 1440 || max % d.slot_minutes !== 0 || (min !== null && max < min)) e.max_minutes = `مضاعف لـ${d.slot_minutes} ولا يقل عن الأدنى`
     if (hold === null || hold < 5 || hold > 180) e.hold_minutes = 'بين 5 و180 دقيقة'
+    const horizon = parseInt10(d.booking_horizon_days)
+    if (horizon === null || horizon < 1 || horizon > 365) e.booking_horizon_days = 'بين 1 و365 يوماً'
+    if (d.booking_closed_message.trim().length > 500) e.booking_closed_message = 'حتى 500 حرف'
     setErrors(e)
     if (Object.keys(e).length) return
     const patch: Partial<SettingsT> = {}
-    const next = { ...d, centre_name: d.centre_name.trim(), phone: d.phone.trim(), address: d.address.trim(), instagram: d.instagram.trim().replace(/^@/, ''), min_minutes: min!, max_minutes: max!, hold_minutes: hold! }
-    for (const k of ['centre_name', 'phone', 'address', 'instagram', 'open', 'close', 'slot_minutes', 'min_minutes', 'max_minutes', 'hold_minutes'] as const) {
-      if (next[k] !== settings[k]) (patch as Record<string, unknown>)[k] = next[k]
+    const next = {
+      ...d, centre_name: d.centre_name.trim(), phone: d.phone.trim(), address: d.address.trim(), instagram: d.instagram.trim().replace(/^@/, ''), min_minutes: min!, max_minutes: max!, hold_minutes: hold!,
+      booking_closed_message: d.booking_closed_message.trim(), booking_horizon_days: horizon!,
+    }
+    const current = { ...settings, ...capabilityDefaults(settings) }
+    for (const k of ['centre_name', 'phone', 'address', 'instagram', 'open', 'close', 'slot_minutes', 'min_minutes', 'max_minutes', 'hold_minutes',
+      'booking_enabled', 'booking_closed_message', 'booking_horizon_days', 'reminder_minutes', 'customer_can_cancel'] as const) {
+      if (next[k] !== current[k]) (patch as Record<string, unknown>)[k] = next[k]
     }
     if (Object.keys(patch).length === 0) { toast.show('لا تغييرات', 'info'); return }
     try {
@@ -102,6 +111,34 @@ function CentreTab({ settings }: { settings: SettingsT }) {
         <p className="muted small mt">يفتح المركز {fmtClock(d.open)} ويغلق {fmtClock(d.close)} يومياً.</p>
         <Button block className="mt" onClick={save}>حفظ</Button>
       </Card>
+      <Card>
+        <div className="card-title">الحجز أونلاين</div>
+        <div className="opt-row">
+          <div>
+            <Toggle label="استقبال الحجوزات من الموقع والتطبيق" checked={d.booking_enabled} onChange={(v) => set('booking_enabled', v)} />
+            <p className="opt-help">عند الإيقاف تعرض صفحات الحجز رسالة بدل النموذج، وتبقى أزرار «احجز» توصل إليها. الحجوزات اليدوية من اللوحة تبقى متاحة.</p>
+          </div>
+        </div>
+        {!d.booking_enabled && <div className="alert alert-error" style={{ marginBottom: 12 }}>الحجز أونلاين متوقف بعد الحفظ — لن يستطيع الزبائن الحجز حتى تعيد تشغيله.</div>}
+        <Field label="رسالة إيقاف الحجز (اختياري)" hint="تظهر للزبائن أثناء الإيقاف. فارغة = النص من «الموقع › الحجز والدفع»." error={errors.booking_closed_message}>
+          <Textarea rows={2} maxLength={500} value={d.booking_closed_message} onChange={(e) => set('booking_closed_message', e.target.value)} placeholder="مثال: الحجز متوقف خلال العيد، نرجع يوم الأحد" />
+        </Field>
+        <Field label="الحجز مسموح حتى (يوماً من اليوم)" hint="عدد الأيام القادمة التي تظهر للزبون في صفحة الحجز (اليوم محسوب)، بين 1 و365." error={errors.booking_horizon_days}>
+          <Input dir="ltr" inputMode="numeric" value={d.booking_horizon_days} onChange={(e) => set('booking_horizon_days', e.target.value)} style={{ maxWidth: 160 }} />
+        </Field>
+        <Field label="تذكير الزبون قبل موعده" hint="إشعار على جهاز الزبون قبل بداية حجزه المؤكد. إذا غيّرت المدة، عدّل جملة «نذكّرك قبله بساعة» ونص التذكير من «الموقع»." >
+          <Select value={String(d.reminder_minutes)} onChange={(e) => set('reminder_minutes', Number(e.target.value))}>
+            {reminderOptions(d.reminder_minutes).map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+          </Select>
+        </Field>
+        <div className="opt-row mt">
+          <div>
+            <Toggle label="الزبون يستطيع إلغاء حجزه قبل التأكيد" checked={d.customer_can_cancel} onChange={(v) => set('customer_can_cancel', v)} />
+            <p className="opt-help">عند الإيقاف يختفي زر «إلغاء الحجز» من صفحة الزبون، ويلغي الفريق عند الطلب.</p>
+          </div>
+        </div>
+        <Button block className="mt" onClick={save}>حفظ</Button>
+      </Card>
       <DeviceCard />
     </div>
   )
@@ -122,10 +159,35 @@ function DeviceCard() {
     </Card>
   )
 }
-const pick = (s: SettingsT) => ({
-  centre_name: s.centre_name, phone: s.phone, address: s.address, instagram: s.instagram, open: s.open, close: s.close,
-  slot_minutes: s.slot_minutes, min_minutes: String(s.min_minutes), max_minutes: String(s.max_minutes), hold_minutes: String(s.hold_minutes),
-})
+/** The booking & payment capability settings with today's behaviour when the server has not sent them yet. */
+function capabilityDefaults(s: SettingsT) {
+  return {
+    booking_enabled: s.booking_enabled ?? true,
+    booking_closed_message: s.booking_closed_message ?? '',
+    shamcash_enabled: s.shamcash_enabled ?? true,
+    booking_horizon_days: s.booking_horizon_days ?? 14,
+    reminder_minutes: s.reminder_minutes ?? 60,
+    max_open_holds_per_phone: s.max_open_holds_per_phone ?? 3,
+    customer_can_cancel: s.customer_can_cancel ?? true,
+  }
+}
+const REMINDERS: { value: number; label: string }[] = [
+  { value: 0, label: 'بدون تذكير' }, { value: 15, label: 'قبل ربع ساعة' }, { value: 30, label: 'قبل نصف ساعة' }, { value: 60, label: 'قبل ساعة' },
+  { value: 120, label: 'قبل ساعتين' }, { value: 180, label: 'قبل 3 ساعات' }, { value: 360, label: 'قبل 6 ساعات' }, { value: 1440, label: 'قبل يوم' },
+]
+/** The fixed choices, plus the stored value when it was set to something else (e.g. 45) so it is never lost. */
+const reminderOptions = (current: number) =>
+  REMINDERS.some((r) => r.value === current) ? REMINDERS : [...REMINDERS, { value: current, label: `قبل ${current} دقيقة` }].sort((a, b) => a.value - b.value)
+
+const pick = (s: SettingsT) => {
+  const c = capabilityDefaults(s)
+  return {
+    centre_name: s.centre_name, phone: s.phone, address: s.address, instagram: s.instagram, open: s.open, close: s.close,
+    slot_minutes: s.slot_minutes, min_minutes: String(s.min_minutes), max_minutes: String(s.max_minutes), hold_minutes: String(s.hold_minutes),
+    booking_enabled: c.booking_enabled, booking_closed_message: c.booking_closed_message, booking_horizon_days: String(c.booking_horizon_days),
+    reminder_minutes: c.reminder_minutes, customer_can_cancel: c.customer_can_cancel,
+  }
+}
 
 // ---------- الدفع ----------
 const MAX_QR_CHARS = 300 * 1024
@@ -159,7 +221,17 @@ function PaymentTab({ settings }: { settings: SettingsT }) {
   const [qr, setQr] = useState<string | null>(settings.shamcash_qr)
   const [instructions, setInstructions] = useState(settings.payment_instructions)
   const [cash, setCash] = useState(!!settings.allow_pay_on_arrival)
-  useEffect(() => { setNumber(settings.shamcash_number); setName(settings.shamcash_name); setQr(settings.shamcash_qr); setInstructions(settings.payment_instructions); setCash(!!settings.allow_pay_on_arrival) }, [settings])
+  const [sham, setSham] = useState(capabilityDefaults(settings).shamcash_enabled)
+  const [holds, setHolds] = useState(String(capabilityDefaults(settings).max_open_holds_per_phone))
+  const [holdsError, setHoldsError] = useState<string | undefined>()
+  useEffect(() => {
+    setNumber(settings.shamcash_number); setName(settings.shamcash_name); setQr(settings.shamcash_qr); setInstructions(settings.payment_instructions); setCash(!!settings.allow_pay_on_arrival)
+    setSham(capabilityDefaults(settings).shamcash_enabled); setHolds(String(capabilityDefaults(settings).max_open_holds_per_phone))
+  }, [settings])
+  // At least one payment method stays on (the server refuses a settings patch that turns both off).
+  const ONE_METHOD = 'لازم تبقى طريقة دفع واحدة على الأقل مفعّلة'
+  const toggleSham = (v: boolean) => { if (!v && !cash) { toast.show(ONE_METHOD, 'error'); return } setSham(v) }
+  const toggleCash = (v: boolean) => { if (!v && !sham) { toast.show(ONE_METHOD, 'error'); return } setCash(v) }
   const sample = view.rooms.find((r) => r.active) ?? null
   const amount = sample ? sample.price_hour * 2 : 100000
 
@@ -170,7 +242,14 @@ function PaymentTab({ settings }: { settings: SettingsT }) {
     try { setQr(await toQrDataUrl(f)) } catch (err) { toast.show(err instanceof Error && /[؀-ۿ]/.test(err.message) ? err.message : 'تعذّر قراءة الصورة', 'error') }
   }
   async function save() {
+    if (!sham && !cash) { toast.show(ONE_METHOD, 'error'); return }
+    const maxHolds = parseInt10(holds)
+    if (maxHolds === null || maxHolds < 1 || maxHolds > 20) { setHoldsError('بين 1 و20'); return }
+    setHoldsError(undefined)
+    const caps = capabilityDefaults(settings)
     const patch: Partial<SettingsT> = {}
+    if (sham !== caps.shamcash_enabled) patch.shamcash_enabled = sham
+    if (maxHolds !== caps.max_open_holds_per_phone) patch.max_open_holds_per_phone = maxHolds
     if (number.trim() !== settings.shamcash_number) patch.shamcash_number = number.trim()
     if (name.trim() !== settings.shamcash_name) patch.shamcash_name = name.trim()
     if (qr !== settings.shamcash_qr) patch.shamcash_qr = qr
@@ -186,7 +265,25 @@ function PaymentTab({ settings }: { settings: SettingsT }) {
   return (
     <div className="settings-grid">
       <Card>
+        <div className="card-title">طرق الدفع</div>
+        <div className="opt-row">
+          <div>
+            <Toggle label="تحويل شام كاش" checked={sham} onChange={toggleSham} />
+            <p className="opt-help">يحوّل الزبون المبلغ ويُدخل رقم العملية، ويبقى المكان محجوزاً له خلال مهلة الدفع.</p>
+          </div>
+        </div>
+        <div className="opt-row">
+          <div>
+            <Toggle label="الدفع عند الوصول" checked={cash} onChange={toggleCash} />
+            <p className="opt-help">حجز «عند الوصول» لا يحجز المكان بمهلة، بل ينتظر تأكيد الفريق مباشرة، ويدفع الزبون في المركز.</p>
+          </div>
+        </div>
+        <p className="muted tiny">طريقة واحدة على الأقل تبقى مفعّلة.{sham && cash ? ' الزبون يختار بينهما.' : sham ? ' الزبائن يدفعون بشام كاش فقط.' : ' الزبائن يدفعون عند الوصول فقط.'}</p>
+        <Button block className="mt" onClick={save}>حفظ</Button>
+      </Card>
+      <Card>
         <div className="card-title">شام كاش</div>
+        {!sham && <div className="alert alert-info" style={{ marginBottom: 12 }}>شام كاش متوقف: هذه البيانات محفوظة ولا تظهر للزبائن حتى تعيد تفعيله.</div>}
         <Field label="رقم محفظة شام كاش" hint="يظهر للزبون مع زر نسخ"><Input dir="ltr" inputMode="tel" value={number} onChange={(e) => setNumber(e.target.value)} /></Field>
         <Field label="اسم صاحب المحفظة"><Input value={name} onChange={(e) => setName(e.target.value)} /></Field>
         <Field label="صورة QR (اختياري)" hint="تُصغَّر تلقائياً إلى 512 بكسل">
@@ -202,10 +299,9 @@ function PaymentTab({ settings }: { settings: SettingsT }) {
           </div>
         </Field>
         <Field label="تعليمات إضافية للزبون (اختياري)" hint="حتى 500 حرف"><Textarea rows={3} maxLength={500} value={instructions} onChange={(e) => setInstructions(e.target.value)} /></Field>
-        <div className="mt">
-          <Toggle label="الدفع عند الوصول" checked={cash} onChange={setCash} />
-          <p className="muted tiny mt-sm">عند تفعيله يختار الزبون بين تحويل شام كاش أو الدفع عند الوصول؛ حجز «عند الوصول» لا يحجز المكان بمهلة، بل ينتظر تأكيد الفريق مباشرة.</p>
-        </div>
+        <Field label="حجوزات غير مدفوعة لنفس الرقم" hint="كم حجز شام كاش بانتظار الدفع يمكن أن يكون لرقم هاتف واحد في الوقت نفسه (1–20). يمنع حجز أماكن كثيرة دون دفع." error={holdsError}>
+          <Input dir="ltr" inputMode="numeric" value={holds} onChange={(e) => setHolds(e.target.value)} style={{ maxWidth: 160 }} />
+        </Field>
         <Button block className="mt" onClick={save}>حفظ</Button>
       </Card>
       <div className="preview">

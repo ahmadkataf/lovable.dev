@@ -31,7 +31,7 @@ function Thumb({ photo, className }: { photo: Photo | null; className?: string }
   if (broken === photo.src) return <div className={cx('se-thumb is-empty', className)}><Icon name="image" size={28} /><span>ما قدرنا نعرض الصورة</span></div>
   return (
     <div className={cx('se-thumb', className)}>
-      <img src={mediaUrl(photo.small || photo.src)} alt={photo.alt} width={photo.w} height={photo.h} loading="lazy" decoding="async" onError={() => setBroken(photo.src)} />
+      <img src={mediaUrl(photo.small || photo.src)} alt={photo.alt ?? ''} width={photo.w} height={photo.h} loading="lazy" decoding="async" onError={() => setBroken(photo.src)} />
     </div>
   )
 }
@@ -110,7 +110,7 @@ export function ImageField({ value, onChange, optional = false, def }: ImageFiel
       {photo && (
         <div className="se-alt">
           <label className="field-label" htmlFor={altId}>وصف الصورة</label>
-          <Input id={altId} value={photo.alt} maxLength={200} placeholder="شو بتبيّن الصورة؟ مثال: قاعة الاجتماعات مع الشاشة"
+          <Input id={altId} value={photo.alt ?? ''} maxLength={200} placeholder="شو بتبيّن الصورة؟ مثال: قاعة الاجتماعات مع الشاشة"
             onChange={(e) => onChange({ ...photo, alt: e.target.value })} />
           <span className="field-hint">لقارئ الشاشة ولـ Google، وبيطلع تحت الصورة بالمعرض.</span>
         </div>
@@ -181,7 +181,7 @@ export function ImagesField({ value, onChange, max = 12, pathPrefix, errorPath }
           <li key={`${p.src}-${i}`} className={cx('se-gitem', errorPath === `${pathPrefix}.${i}` && 'has-error')} data-path={pathPrefix ? `${pathPrefix}.${i}` : undefined}>
             <Thumb photo={p} />
             <div className="se-gitem-body">
-              <Input value={p.alt} maxLength={200} placeholder="وصف الصورة" aria-label={`وصف الصورة ${i + 1}`}
+              <Input value={p.alt ?? ''} maxLength={200} placeholder="وصف الصورة" aria-label={`وصف الصورة ${i + 1}`}
                 onChange={(e) => { const next = photos.slice(); next[i] = { ...p, alt: e.target.value }; onChange(next) }} />
               <div className="se-gitem-actions">
                 <span className="se-num" aria-hidden="true">{i + 1}</span>

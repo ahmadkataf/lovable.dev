@@ -1,9 +1,11 @@
-// Tapping a room: what is inside, the price for the chosen range, and the one button that matters.
+// Tapping a room: its photos (when it has some), what is inside, the price for the chosen range, and the one button
+// that matters.
 import { useNavigate } from 'react-router-dom'
 import type { PublicSettings, Room } from '@shared/types'
 import { Badge, Button, Icon, Sheet } from '../ui'
 import { dayLabel, durationLabel, fmtClock, fmtSYP } from '../format'
-import { contentsList, isValidPick, priceFor, ROOM_TYPE, peopleLabel, type Pick } from '../lib/booking'
+import { contentsList, isValidPick, priceFor, ROOM_TYPE, peopleLabel, roomPhotos, type Pick } from '../lib/booking'
+import { RoomPhotos } from './RoomPhotos'
 
 export function RoomSheet({ room, pick, busy, offline, settings, onClose }: {
   room: Room | null; pick: Pick | null; busy: boolean; offline: boolean; settings: PublicSettings | undefined; onClose: () => void
@@ -16,6 +18,7 @@ export function RoomSheet({ room, pick, busy, offline, settings, onClose }: {
   const canBook = validSlot && !busy && !offline
   return (
     <Sheet open={open} onClose={onClose} title={room.name}>
+      <RoomPhotos key={room.id} photos={roomPhotos(room)} />
       <div className="row gap wrap" style={{ marginBottom: 12 }}>
         <Badge tone="wine">{ROOM_TYPE[room.type]}</Badge>
         <span className="muted small row gap-sm"><Icon name="people" size={16} /> حتى {peopleLabel(room.capacity)}</span>

@@ -1,5 +1,6 @@
 // Booking logic shared by the customer screens: slots, durations, prices, labels.
-import type { ApiContract, Booking, BookingStatus, PublicSettings, RoomContents, RoomType } from '@shared/types'
+import type { ApiContract, Booking, BookingStatus, Photo, PublicSettings, Room, RoomContents, RoomType } from '@shared/types'
+import { isSafeImageSrc } from '@shared/content'
 import type { IconName } from '../ui'
 import { addDays, todayLocal, toLocalParts } from '../format'
 
@@ -40,6 +41,13 @@ export function contentsList(c: RoomContents): { icon: IconName; label: string }
   if (c.coffee) out.push({ icon: 'coffee', label: 'قهوة' })
   return out
 }
+/** The room's own photos (Room.photos, in order); [] when it has none — the screens then show today's icon visuals. */
+export function roomPhotos(room: Pick<Room, 'photos'> | null | undefined): Photo[] {
+  const list: unknown = room?.photos
+  if (!Array.isArray(list)) return []
+  return list.filter((p): p is Photo => !!p && typeof p === 'object' && typeof (p as Photo).src === 'string' && isSafeImageSrc((p as Photo).src))
+}
+
 export function contentsIcons(c: RoomContents): IconName[] {
   return contentsList(c).map((i) => i.icon).filter((i) => i !== 'chair' && i !== 'table')
 }
@@ -79,10 +87,45 @@ export function durationsFor(s: PublicSettings, time: string): number[] {
   return all.filter((m) => curated.has(m))
 }
 
-/** The first date from `from` (inclusive) that still has a bookable start time, within 14 days. */
+// ---- booking & payment capabilities (PublicSettings). A field missing from an older cached settings object keeps
+// today's behaviour. ----
+
+/** Online booking is open (settings.booking_enabled, default true). */
+export function bookingOpen(s: Partial<PublicSettings> | null | undefined): boolean {
+  return s?.booking_enabled !== false
+}
+/** How many days ahead (today included) a customer may book: settings.booking_horizon_days, 1–365, default 14. */
+export function horizonDays(s: Partial<PublicSettings> | null | undefined): number {
+  const n = s?.booking_horizon_days
+  return typeof n === 'number' && Number.isFinite(n) && n >= 1 ? Math.min(365, Math.floor(n)) : 14
+}
+/** The last date a customer may book (the server's too_far_ahead rule). */
+export function lastBookableDate(s: Partial<PublicSettings> | null | undefined, today = todayLocal()): string {
+  return addDays(today, horizonDays(s) - 1)
+}
+/**
+ * Which payment methods a new booking may use. Sham Cash: settings.shamcash_enabled (default true); pay on arrival:
+ * settings.allow_pay_on_arrival (default false). The server keeps at least one on; should both read off, Sham Cash is
+ * offered (today's default) and the server's answer explains.
+ */
+export function paymentMethods(s: Partial<PublicSettings> | null | undefined): { shamcash: boolean; cash: boolean } {
+  const cash = s?.allow_pay_on_arrival === true
+  return { shamcash: s?.shamcash_enabled !== false || !cash, cash }
+}
+/** Customers may cancel their own booking before confirmation (settings.customer_can_cancel, default true). */
+export function customerCanCancel(s: Partial<PublicSettings> | null | undefined): boolean {
+  return s?.customer_can_cancel !== false
+}
+/** Minutes before the start for the reminder (settings.reminder_minutes, default 60); 0 = no reminders. */
+export function reminderMinutes(s: Partial<PublicSettings> | null | undefined): number {
+  const n = s?.reminder_minutes
+  return typeof n === 'number' && Number.isFinite(n) ? Math.max(0, Math.round(n)) : 60
+}
+
+/** The first date from `from` (inclusive) that still has a bookable start time, within the booking horizon. */
 export function firstBookableDate(s: PublicSettings, from = todayLocal()): string {
   let date = from
-  for (let i = 0; i < 14 && slotsFor(s, date).length === 0; i++) date = addDays(date, 1)
+  for (let i = 0; i < horizonDays(s) && slotsFor(s, date).length === 0; i++) date = addDays(date, 1)
   return date
 }
 /** Pick a time + duration for a date: the first slot (2 hours when possible). */
@@ -97,9 +140,9 @@ export function pickFor(s: PublicSettings, date: string): Pick {
 export function defaultPick(s: PublicSettings): Pick {
   return pickFor(s, firstBookableDate(s))
 }
-/** True when the pick names a start time still offered for its date and a duration that fits. */
+/** True when the pick names a start time still offered for its date (within the booking horizon) and a duration that fits. */
 export function isValidPick(s: PublicSettings, p: Pick): boolean {
-  return slotsFor(s, p.date).includes(p.time) && durationsFor(s, p.time).includes(p.minutes)
+  return p.date <= lastBookableDate(s) && slotsFor(s, p.date).includes(p.time) && durationsFor(s, p.time).includes(p.minutes)
 }
 
 /** Same formula as the server (api/src/bookings.ts price): hourly = round(minutes/60 × price_hour); from 8 hours the
