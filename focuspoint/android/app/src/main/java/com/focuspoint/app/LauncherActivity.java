@@ -7,19 +7,20 @@ import android.os.Bundle;
 
 /**
  * Opens the Focus Point web app in a Trusted Web Activity, but first — on Android 13+ — asks for the notification
- * permission natively, once, like any installed app. With the permission granted, Chrome reports notifications as
- * allowed to the site, so the booking and team notifications register themselves without a button.
+ * permission natively, like any installed app, on every launch until it is allowed (Android itself stops showing the
+ * prompt after the user refuses twice; the app then opens straight away and the panel explains how to turn it on).
+ * With the permission granted, Chrome reports notifications as allowed to the site, so the booking and team
+ * notifications register themselves without a button.
  */
 public class LauncherActivity extends com.google.androidbrowserhelper.trusted.LauncherActivity {
     private static final int REQUEST_NOTIFICATIONS = 7001;
-    private static final String PREFS = "focuspoint";
-    private static final String ASKED = "notification_permission_asked";
+    private static final String KEY_ASKING = "fp_asking_notifications";
     private boolean launched;
+    private boolean asking;   // the system prompt is on screen (survives a rotation, so we never ask twice at once)
 
     private boolean shouldAskForNotifications() {
         if (Build.VERSION.SDK_INT < 33) return false;   // before Android 13 notifications are allowed by default
-        if (checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED) return false;
-        return !getSharedPreferences(PREFS, MODE_PRIVATE).getBoolean(ASKED, false);
+        return checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED;
     }
 
     @Override
@@ -31,10 +32,17 @@ public class LauncherActivity extends com.google.androidbrowserhelper.trusted.La
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         if (isFinishing()) return;   // the library closed this screen (the app was already open)
-        if (shouldAskForNotifications()) {
-            getSharedPreferences(PREFS, MODE_PRIVATE).edit().putBoolean(ASKED, true).apply();
+        asking = savedInstanceState != null && savedInstanceState.getBoolean(KEY_ASKING);
+        if (!asking && !launched && shouldAskForNotifications()) {
+            asking = true;
             requestPermissions(new String[] { Manifest.permission.POST_NOTIFICATIONS }, REQUEST_NOTIFICATIONS);
         }
+    }
+
+    @Override
+    protected void onSaveInstanceState(Bundle outState) {
+        super.onSaveInstanceState(outState);
+        outState.putBoolean(KEY_ASKING, asking);
     }
 
     @Override
@@ -47,6 +55,8 @@ public class LauncherActivity extends com.google.androidbrowserhelper.trusted.La
     @Override
     public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults);
-        if (requestCode == REQUEST_NOTIFICATIONS) launchTwa();   // granted or not, open the app
+        if (requestCode != REQUEST_NOTIFICATIONS) return;
+        asking = false;
+        launchTwa();   // granted or not, open the app
     }
 }
