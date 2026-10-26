@@ -121,20 +121,22 @@ export const publicRoutes: Route[] = [
     return json(await cancelBooking(deps(c), b, c.user ? 'team' : 'customer'))
   }),
 
+  // The customer inbox is always THIS device's own — even on a phone that is also signed in to the team panel
+  // (the app sends the team token with every request). Team alerts reach staff by push and the live panel instead,
+  // so a staff phone's customer side never lists other people's bookings.
   route('GET', '/v1/notifications', 'public', async (c) => {
-    const o = owner(c)
+    const device = requireDevice(c)
     const rows = (await c.env.DB.prepare(
       `SELECT id, kind, title, body, user_id, device_id, booking_id, read, created_at FROM notifications
-       WHERE ${o.user_id ? 'user_id = ?' : 'device_id = ?'} ORDER BY created_at DESC, id DESC LIMIT 100`)
-      .bind(o.user_id ?? o.device_id).all()).results
+       WHERE device_id = ? ORDER BY created_at DESC, id DESC LIMIT 100`)
+      .bind(device).all()).results
     return json(rows)
   }),
 
   route('POST', '/v1/notifications/read', 'public', async (c) => {
-    const o = owner(c)
     const body = await readJson(c.req)
-    const where = o.user_id ? 'user_id = ?' : 'device_id = ?'
-    const key = o.user_id ?? o.device_id
+    const where = 'device_id = ?'
+    const key = requireDevice(c)
     if (Array.isArray(body.ids)) {
       const ids = body.ids.filter((n): n is number => Number.isInteger(n)).slice(0, 200)
       if (ids.length > 0) {
