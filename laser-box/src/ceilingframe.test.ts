@@ -1,11 +1,11 @@
 import { describe, it, expect } from 'vitest'
-import { CEILING_FRAMES, frameGeom, framePieces, midPieces, cornerPlate, toFrame, CLEAT_REACH, minPatternWidth, minCell, rosetteDims, starDims, ROSE, STAR, decorPieces, medallion2, medDims2 } from './ceilingframe'
+import { CEILING_FRAMES, frameGeom, framePieces, midPieces, midToFrame, cornerPlate, toFrame, CLEAT_REACH, minPatternWidth, minCell, rosetteDims, starDims, ROSE, STAR, decorPieces, medallion2, medDims2, stripCuts, splitPlan, cutAtJoints, setFrameParams, NEST_MARGIN } from './ceilingframe'
 import { generate, DEFAULT_SETTINGS } from './generate'
 import { signedArea, Loop } from './geom'
 import { toDXF } from './export'
-import { samplePoly, pointIn, selfIntersects, segsCross } from './testutil'
+import { samplePoly, pointIn, selfIntersects, segsCross, offSheet } from './testutil'
 
-const [T1, T2] = CEILING_FRAMES
+const [T1, T2, T3] = CEILING_FRAMES
 const S0 = { ...DEFAULT_SETTINGS, kerf: 0 }
 type P = { x: number; y: number }
 type Pn = { id: string; name: string; w: number; h: number; count: number; loops: Loop[]; material?: string }
@@ -264,14 +264,14 @@ function coverage(p: Record<string, number>, tpl: Tp = T1): { worst: number; at:
 
 describe('ceiling decor', () => {
   it('builds both designs at their defaults, one piece or strips, on every common sheet with no errors or warnings, quickly', () => {
-    for (const tpl of CEILING_FRAMES) for (const kind of [1, 2]) for (const t of THICK) for (const kerf of [0, 0.2]) {
+    for (const tpl of [T1, T2]) for (const kind of [1, 2]) for (const t of THICK) for (const kerf of [0, 0.2]) {
       const d = gen(kind === 1 ? {} : { kind }, { t, kerf }, tpl), lb = `${tpl.id} kind ${kind} t=${t} kerf=${kerf}`
       expect(d.errors, lb).toEqual([])
       expect(d.warnings, lb).toEqual([])
     }
     expect(T1.defaults.style).toBe(1)
     expect(T2.defaults.style).toBe(2)
-    for (const tpl of CEILING_FRAMES) {
+    for (const tpl of [T1, T2]) {
       expect(tpl.defaults.kind).toBe(1)
       gen({}, {}, tpl)
       const t0 = performance.now()
@@ -285,7 +285,7 @@ describe('ceiling decor', () => {
   }, 30000)
 
   it('cuts each decor as one board that fits the 2440 × 1220 sheet, and refuses one bigger than the sheet with a size that fits', () => {
-    for (const tpl of CEILING_FRAMES) for (const [p, W, H] of [[{}, 1400, 1050], [SECOND, 1380, 1080]] as const) {
+    for (const tpl of [T1, T2]) for (const [p, W, H] of [[{}, 1400, 1050], [SECOND, 1380, 1080]] as const) {
       const d = gen(p, {}, tpl)
       expect(d.panels.map(x => `${x.id}×${x.count}`), lab(p, tpl)).toEqual(['board×1'])
       const bd = get(d, 'board')
@@ -297,7 +297,7 @@ describe('ceiling decor', () => {
       expect(gen({ ...p, center: 2 }, {}, tpl).panels.map(x => x.id)).toEqual(['board', 'medallion'])
       expect(gen({ ...p, back: 1 }, {}, tpl).panels.map(x => `${x.id}:${x.material ?? ''}`)).toEqual(['board:', 'back:white'])
     }
-    for (const tpl of CEILING_FRAMES) {
+    for (const tpl of [T1, T2]) {
       const p = { PW: 1300, PH: 2500 }, d = gen(p, {}, tpl), e = d.errors.find(x => /لا يتّسع في لوح/.test(x))
       expect(e, d.errors.join(' | ')).toMatch(/اجعله 1220 × 2440 مم على الأكثر/)
       expect(gen({ PW: 1220, PH: 2440 }, {}, tpl).errors.filter(x => /لا يتّسع في لوح/.test(x))).toEqual([])
@@ -309,7 +309,7 @@ describe('ceiling decor', () => {
   })
 
   it('cuts the strips, the field, corner plates and glue strips in the strips mode, each on a 2440 × 1220 sheet', () => {
-    for (const tpl of CEILING_FRAMES) for (const [p, W, H] of [[{ kind: 2 }, 1400, 1050], [{ ...SECOND, kind: 2 }, 1380, 1080]] as const) {
+    for (const tpl of [T1, T2]) for (const [p, W, H] of [[{ kind: 2 }, 1400, 1050], [{ ...SECOND, kind: 2 }, 1380, 1080]] as const) {
       const d = gen(p, {}, tpl), g = frameGeom(full(p, tpl))
       expect(d.panels.map(x => `${x.id}×${x.count}`), lab(p, tpl)).toEqual(['strip-long×2', 'strip-short×2', 'field×1', 'corner×4', 'cleat-long×2', 'cleat-short×2'])
       expect(get(d, 'strip-long').w).toBeCloseTo(W, 6)
@@ -326,7 +326,7 @@ describe('ceiling decor', () => {
   })
 
   it('fits both decors with 0, 30 or 60 mm on the gypsum and every centre, in both modes and both designs', () => {
-    for (const tpl of CEILING_FRAMES) for (const size of [{}, SECOND]) for (const ov of [0, 30, 60]) for (const center of [1, 2, 3]) for (const kind of [1, 2]) {
+    for (const tpl of [T1, T2]) for (const size of [{}, SECOND]) for (const ov of [0, 30, 60]) for (const center of [1, 2, 3]) for (const kind of [1, 2]) {
       const p = { ...size, ov, center, kind }, d = gen(p, { kerf: 0.2 }, tpl), lb = lab(p, tpl)
       expect(d.errors, lb).toEqual([])
       expect(d.warnings.filter(w => !(kind === 2 && ov === 0 && /قطع الزوايا/.test(w))), lb).toEqual([])
@@ -336,7 +336,7 @@ describe('ceiling decor', () => {
   }, 60000)
 
   it('is sound at the defaults and for both decors, thin and thick, with and without kerf; webs never under web', () => {
-    for (const tpl of CEILING_FRAMES) for (const p of ([{}, SECOND, { center: 2 }, { center: 3, line: 1 }, { kind: 2 }, { kind: 2, center: 3, cleats: 0 }, { back: 1, fill: 0 }] as Record<string, number>[])) for (const [t, kerf] of [[3, 0], [6, 0.2]]) {
+    for (const tpl of [T1, T2]) for (const p of ([{}, SECOND, { center: 2 }, { center: 3, line: 1 }, { kind: 2 }, { kind: 2, center: 3, cleats: 0 }, { back: 1, fill: 0 }] as Record<string, number>[])) for (const [t, kerf] of [[3, 0], [6, 0.2]]) {
       const d = gen(p, { t, kerf }, tpl)
       expect(d.errors).toEqual([])
       // at kerf 0 every web is at least `web` (3 mm); with the kerf the holes' paths move 0.1 mm into them
@@ -347,7 +347,7 @@ describe('ceiling decor', () => {
 
   it('keeps every web at least web to the hundredth, also on short strips round the corners', () => {
     // short strips (one or two steps) put the far corner and the strip's middle next to the corner pieces
-    for (const tpl of CEILING_FRAMES) for (const p of [{}, { kind: 2 }, { web: 2, center: 3, ov: 0, PH: 391, band: 150, med: 150 }, { web: 5, center: 3, ov: 0, PH: 363, band: 150, med: 150, kind: 2 },
+    for (const tpl of [T1, T2]) for (const p of [{}, { kind: 2 }, { web: 2, center: 3, ov: 0, PH: 391, band: 150, med: 150 }, { web: 5, center: 3, ov: 0, PH: 363, band: 150, med: 150, kind: 2 },
       { ov: 65, band: 131, center: 3, PW: 1054, PH: 1791, kind: 2 }, { web: 8, band: 260, fcell: 120 }, { web: 2, fcell: 45 }] as Record<string, number>[]) {
       const d = gen(p, {}, tpl)
       expect(d.errors, lab(p, tpl)).toEqual([])
@@ -374,7 +374,7 @@ describe('ceiling decor', () => {
 
   it('carries the same pattern on both halves of every strip, and the corner is a mirror image about the mitre', () => {
     // (the last: two steps 1 mm apart, at which the shapes in the cross's notches fit one strip whole and the other only shrunk)
-    for (const tpl of CEILING_FRAMES) for (const kind of [1, 2]) for (const p of ([{}, SECOND, { band: 230, ov: 50 }, { PW: 900, PH: 640, band: 120, center: 3 }, { PW: 1490, PH: 1262, ov: 17, band: 312, web: 5, center: 3 }] as Record<string, number>[])) {
+    for (const tpl of [T1, T2]) for (const kind of [1, 2]) for (const p of ([{}, SECOND, { band: 230, ov: 50 }, { PW: 900, PH: 640, band: 120, center: 3 }, { PW: 1490, PH: 1262, ov: 17, band: 312, web: 5, center: 3 }] as Record<string, number>[])) {
       const g = frameGeom(full({ ...p, kind }, tpl)), { top, side } = framePieces(g), lb = lab({ ...p, kind }, tpl)
       for (const [pcs, L] of [[top, g.PW], [side, g.PH]] as const) {
         // the mirror image of every shape in the strip's middle is a shape of the same kind
@@ -416,7 +416,7 @@ describe('ceiling decor', () => {
   })
 
   it('assembles into the frame: the four strips tile it along the mitres, and all four corners are alike', () => {
-    for (const tpl of CEILING_FRAMES) for (const p of ([{}, SECOND] as Record<string, number>[])) {
+    for (const tpl of [T1, T2]) for (const p of ([{}, SECOND] as Record<string, number>[])) {
       const { res, g, strips } = frameHoles(p, tpl)
       const outline = (s: number) => res.panels.find(x => x.id === (s % 2 ? 'strip-short' : 'strip-long'))!.shape![0].pts.map(q => toFrame(g, s, q))
       const area = (pts: P[]) => Math.abs(pts.reduce((a, q, i) => a + q.x * pts[(i + 1) % pts.length].y - pts[(i + 1) % pts.length].x * q.y, 0)) / 2
@@ -437,7 +437,7 @@ describe('ceiling decor', () => {
   })
 
   it('runs every mitre or diagonal through solid wood: no cut-out within web of it, a solid bar of 2·web across the corner', () => {
-    for (const tpl of CEILING_FRAMES) for (const kind of [1, 2]) for (const p of ([{}, SECOND, { web: 5 }, { band: 120, ov: 10, center: 2 }, { band: 380 }] as Record<string, number>[])) {
+    for (const tpl of [T1, T2]) for (const kind of [1, 2]) for (const p of ([{}, SECOND, { web: 5 }, { band: 120, ov: 10, center: 2 }, { band: 380 }] as Record<string, number>[])) {
       const g = frameGeom(full({ ...p, kind }, tpl)), { top, side } = framePieces(g)
       for (const [pcs, L] of [[top, g.PW], [side, g.PH]] as const) for (const pc of pcs) {
         const sp = samplePoly({ closed: true, pts: pc.pts }, 3)
@@ -450,7 +450,7 @@ describe('ceiling decor', () => {
   })
 
   it('makes the one-piece board a mirror image about each corner\'s diagonal and both centre lines, with the 45° lines engraved on request', () => {
-    for (const tpl of CEILING_FRAMES) for (const p of ([{}, SECOND, { line: 1 }, { ...SECOND, line: 1, center: 3 }, { band: 230, ov: 50, center: 2 }, { band: 380, med: 270 }] as Record<string, number>[])) {
+    for (const tpl of [T1, T2]) for (const p of ([{}, SECOND, { line: 1 }, { ...SECOND, line: 1, center: 3 }, { band: 230, ov: 50, center: 2 }, { band: 380, med: 270 }] as Record<string, number>[])) {
       expect(gen(p, {}, tpl).errors, lab(p, tpl)).toEqual([])
       expect(boardChecks(p, tpl), lab(p, tpl)).toEqual([])
     }
@@ -460,7 +460,7 @@ describe('ceiling decor', () => {
   }, 30000)
 
   it('glues every plate and strip on solid wood in the strips mode: no cut-out under them', () => {
-    for (const tpl of CEILING_FRAMES) for (const p of ([{}, SECOND, { ov: 60, band: 220 }, { center: 2 }, { web: 2 }] as Record<string, number>[])) {
+    for (const tpl of [T1, T2]) for (const p of ([{}, SECOND, { ov: 60, band: 220 }, { center: 2 }, { web: 2 }] as Record<string, number>[])) {
       const q = { ...p, kind: 2 }, g = frameGeom(full(q, tpl))
       expect(cornerPlate(g)).toBeTruthy()
       expect(frameChecks(q, tpl), lab(q, tpl)).toEqual([])
@@ -479,7 +479,7 @@ describe('ceiling decor', () => {
     [/قليل: لا تتّسع/, 'narrow'], [/كبيرة على عرض الإطار/, 'ov'], [/كبير على ديكور/, 'wide'], [/صغير على إطار فيه ركبة/, 'small'],
     [/أكبر من وسط الديكور|^وسط الديكور .* صغير على/, 'medmid'], [/أكبر من اللوح الأوسط/, 'medfield'], [/اللوح الأوسط .* صغير على/, 'fieldsmall'],
     [/أكبر من فتحة الإطار|فتحة الإطار صغيرة/, 'medopen'], [/خليّة شبكة الوسط/, 'fcell'], [/قطعةً واحدة .* لا يتّسع في لوح/, 'board'],
-    [/أطول من لوح الخشب/, 'long'], [/أعرض من لوح الخشب/, 'sheetwide'], [/اللوح الأوسط .* لا يتّسع في لوح/, 'fieldsheet'], [/لوح الأكريليك/, 'back'],
+    [/أطول من «أطول شريحة»/, 'maxlen'], [/أطول من لوح الخشب/, 'long'], [/أعرض من لوح الخشب/, 'sheetwide'], [/اللوح الأوسط .* لا يتّسع في لوح/, 'fieldsheet'], [/لوح الأكريليك/, 'back'],
   ]
   const kindOf = (e: string) => KINDS.find(([re]) => re.test(e))?.[1] ?? 'other'
   function fixesOf(e: string): [string[], number[]][] {
@@ -488,7 +488,7 @@ describe('ceiling decor', () => {
       const two = part.match(/([\d.]+) × ([\d.]+) مم على الأكثر/), m = part.match(/([\d.]+) مم على (?:الأقل|الأكثر)/)
       if (two) out.push([['PW', 'PH'], [Number(two[1]), Number(two[2])]])
       else if (m) {
-        const keys = /عرض الفتحة وطولها/.test(part) ? ['PW', 'PH'] : /عرض الفتحة/.test(part) ? ['PW'] : /طول الفتحة/.test(part) ? ['PH'] : /عرض الشريحة الوسطى/.test(part) ? ['midW']
+        const keys = /موضع الشريحة الوسطى/.test(part) ? ['midAt'] : /أطول شريحة/.test(part) ? ['maxLen'] : /عرض الفتحة وطولها/.test(part) ? ['PW', 'PH'] : /عرض الفتحة/.test(part) ? ['PW'] : /طول الفتحة/.test(part) ? ['PH'] : /عرض الشريحة الوسطى/.test(part) ? ['midW']
           : /العرض والطول الكلّيين/.test(part) ? ['PW', 'PH'] : /العرض الكلّي/.test(part) ? ['PW'] : /الطول الكلّي/.test(part) ? ['PH']
           : /الركبة/.test(part) ? ['ov'] : /عرض الإطار/.test(part) ? ['band'] : /اجعله|اجعلها/.test(part) ? [({ medmid: 'med', medfield: 'med', medopen: 'med', fcell: 'fcell' } as Record<string, string>)[kind] ?? 'band'] : []
         if (keys.length) out.push([keys, keys.map(() => Number(m[1]))])
@@ -523,21 +523,22 @@ describe('ceiling decor', () => {
       [{ ov: 60, band: 120, web: 5 }, /كبيرة على عرض الإطار|قليل: لا تتّسع/], [{ band: 560 }, /عرض الإطار \(560 مم\) كبير/], [{ PW: 300, PH: 300 }, /كبير على ديكور 300 × 300/],
       [{ med: 800 }, /\(800 مم\) أكبر من وسط الديكور/], [{ med: 800, kind: 2 }, /\(800 مم\) أكبر من اللوح الأوسط/], [{ center: 2, med: 1000 }, /\(1000 مم\) أكبر من وسط الديكور/],
       [{ PW: 760, PH: 400, band: 120, ov: 5, med: 200, kind: 2 }, /صغير على/], [{ PW: 760, PH: 400, band: 150, ov: 5, med: 200 }, /وسط الديكور .* صغير على/],
-      [{ center: 2, med: 1000, kind: 2 }, /\(1000 مم\) أكبر من فتحة الإطار/], [{ sheetL: 1300, kind: 2 }, /أطول من لوح الخشب/], [{ sheetL: 1300, PW: 1000, PH: 1350, kind: 2 }, /أطول من لوح الخشب/],
-      [{ sheetL: 900, kind: 2 }, /أطول من لوح الخشب/], [{ sheetW: 150, kind: 2 }, /أعرض من لوح الخشب/], [{ PW: 2440, PH: 1700, kind: 2 }, /اللوح الأوسط .* لا يتّسع في لوح/],
+      [{ center: 2, med: 1000, kind: 2 }, /\(1000 مم\) أكبر من فتحة الإطار/], [{ maxLen: 200, kind: 2 }, /أطول من «أطول شريحة» \(200 مم\)/], [{ sheetL: 400, band: 300, kind: 2, center: 3 }, /أطول من لوح الخشب/],
+      [{ PW: 1400, PH: 2510, sizeIs: 2, band: 380, ov: 0, kind: 2, center: 3, mid: 1, midAt: 2200 }, /موضع الشريحة الوسطى \(2200 مم\) بعيد/],
+      [{ PW: 1400, PH: 2510, sizeIs: 2, band: 380, ov: 0, kind: 2, center: 3, mid: 1, midAt: 20 }, /موضع الشريحة الوسطى \(20 مم\) قريب/], [{ sheetW: 150, kind: 2 }, /أعرض من لوح الخشب/], [{ PW: 2440, PH: 1700, kind: 2 }, /اللوح الأوسط .* لا يتّسع في لوح/],
       [{ back: 1, PW: 2440, PH: 1300, kind: 2 }, /لوح الأكريليك/], [{ sheetL: 1300 }, /لا يتّسع في لوح 1300 × 1220/], [{ PW: 1300, PH: 2500 }, /اجعله 1220 × 2440 مم على الأكثر/],
       [{ fcell: 30 }, /خليّة شبكة الوسط \(30 مم\) صغيرة/], [{ fcell: 30, kind: 2 }, /خليّة شبكة الوسط/],
       [{ PW: 302, PH: 344, ov: 161, band: 279, center: 3 }, /صغير على إطار فيه ركبة 161 مم|كبيرة على عرض الإطار/],
       [{ PW: 1664, PH: 539, ov: 182, band: 385, center: 3, kind: 2 }, /صغير على إطار فيه ركبة 182 مم|كبيرة على عرض الإطار/],
     ]
-    for (const tpl of CEILING_FRAMES) for (const [p, re] of cases) {
+    for (const tpl of [T1, T2]) for (const [p, re] of cases) {
       const d = gen(p, {}, tpl), e = d.errors.find(x => re.test(x))
       expect(e, `${lab(p, tpl)}: ${d.errors.join(' | ')}`).toBeTruthy()
       expect(fixesOf(e!).length, e).toBeGreaterThan(0)
       expect(fixProblems(p, tpl)).toEqual([])
     }
     // the wide band the user may try: the medallion's largest size, which then builds, fully patterned
-    for (const tpl of CEILING_FRAMES) {
+    for (const tpl of [T1, T2]) {
       const e = gen({ band: 380 }, {}, tpl).errors.join(' | ')
       expect(e).toMatch(new RegExp(`\\(450 مم\\) أكبر من وسط الديكور 640 × 290 مم: ${tpl === T1 ? 'اجعله' : 'اجعلها'} 278 مم على الأكثر`))
       expect(gen({ band: 380, med: 278 }, {}, tpl).errors).toEqual([])
@@ -592,7 +593,7 @@ describe('ceiling decor', () => {
   }, 30000)
 
   it('tells the user how it goes together, for the mode and the design chosen', () => {
-    for (const tpl of CEILING_FRAMES) {
+    for (const tpl of [T1, T2]) {
       const one = gen({}, {}, tpl).notes.join('\n'), g = frameGeom(full({}, tpl)), mw = tpl === T1 ? 'وردات' : 'نجوم'
       const motifs = [`${g.n1 - 1} ${mw}`, `${g.n2 - 1} ${mw}`, tpl === T1 ? 'المثمّن 450' : 'الدائرة قطرها 450']
       for (const s of ['قطعة واحدة 1400 × 1050', '1340 × 990', 'فتحة في القطعة', 'من الداخل إلى الخارج', 'مائلاً', 'على لوح الجبسن بورد', 'ادهنه', 'أكريليك أوبال', 'قماشاً أبيض', 'على 45°', 'منقوش', ...motifs]) expect(one, `${tpl.id} ${s}`).toContain(s)
@@ -641,13 +642,13 @@ describe('ceiling decor', () => {
   }, 30000)
 
   it('patterns the whole field round the medallion (no plain area) in both designs and both modes, and leaves it plain with fill 0', () => {
-    for (const tpl of CEILING_FRAMES) for (const p of ([{}, SECOND, { center: 3 }, { center: 2 }, { kind: 2 }, { ...SECOND, kind: 2 }, { band: 380, med: 278 }, { band: 380, med: 260, kind: 2 }, { fcell: 110 }, { fcell: 50, web: 2 }] as Record<string, number>[])) {
+    for (const tpl of [T1, T2]) for (const p of ([{}, SECOND, { center: 3 }, { center: 2 }, { kind: 2 }, { ...SECOND, kind: 2 }, { band: 380, med: 278 }, { band: 380, med: 260, kind: 2 }, { fcell: 110 }, { fcell: 50, web: 2 }] as Record<string, number>[])) {
       expect(gen(p, {}, tpl).errors, lab(p, tpl)).toEqual([])
       const fc = full(p, tpl).fcell, c = coverage(p, tpl)
       expect(c.lattice, lab(p, tpl)).toBeGreaterThan(20)
       expect(c.worst, `${lab(p, tpl)} plain at ${c.at.x.toFixed(0)},${c.at.y.toFixed(0)}`).toBeLessThanOrEqual(0.6 * fc)
     }
-    for (const tpl of CEILING_FRAMES) for (const p of [{ fill: 0 }, { fill: 0, kind: 2 }] as Record<string, number>[]) {
+    for (const tpl of [T1, T2]) for (const p of [{ fill: 0 }, { fill: 0, kind: 2 }] as Record<string, number>[]) {
       const c = coverage(p, tpl)
       expect(c.lattice).toBe(0)
       expect(c.worst, lab(p, tpl)).toBeGreaterThan(2 * full(p, tpl).fcell)
@@ -659,7 +660,7 @@ describe('ceiling decor', () => {
   // is reported. The thickness changes no shape here, so the shapes are checked once, at kerf 0.2 (the paths' offset).
   it('is sound across its parameters or refuses with an error', () => {
     const base = { PW: 900, PH: 650, med: 250 }, variants: [Tp, Record<string, number>][] = []
-    for (const tpl of CEILING_FRAMES) { variants.push([tpl, base]); for (const def of tpl.params) variants.push([tpl, { ...base, [def.key]: def.min }], [tpl, { ...base, [def.key]: def.max }]) }
+    for (const tpl of [T1, T2]) { variants.push([tpl, base]); for (const def of tpl.params) variants.push([tpl, { ...base, [def.key]: def.min }], [tpl, { ...base, [def.key]: def.max }]) }
     const nGrid = variants.length, rnd = seeded(2024)
     for (let i = 0; i < 40; i++) variants.push([CEILING_FRAMES[i % 2], {
       PW: Math.round(300 + rnd() * 1100), PH: Math.round(300 + rnd() * 900), ov: Math.round(rnd() * 120), band: Math.round(60 + rnd() * 300), kind: rnd() < 0.5 ? 1 : 2,
@@ -695,7 +696,7 @@ describe('ceiling decor', () => {
   const DECORS = [{ PW: 1400, PH: 1050 }, { PW: 1380, PH: 1080 }]
 
   it('reads the sizes as the window inside the frame with sizeIs 2 (the outside 2·band more), the same frame as its outside size', () => {
-    for (const tpl of CEILING_FRAMES) for (const [p, out] of [[DECORS[0], [2160, 1810]], [DECORS[1], [2140, 1840]]] as const) {
+    for (const tpl of [T1, T2]) for (const [p, out] of [[DECORS[0], [2160, 1810]], [DECORS[1], [2140, 1840]]] as const) {
       const g = frameGeom(full({ ...WIN, ...p, mid: 0 }, tpl))
       expect([g.PW, g.PH]).toEqual(out)
       const d = gen({ ...WIN, ...p, mid: 0 }, {}, tpl), o = gen({ ...WIN, mid: 0, sizeIs: 1, PW: out[0], PH: out[1] }, {}, tpl)
@@ -708,7 +709,7 @@ describe('ceiling decor', () => {
   })
 
   it("cuts the customer's two frames: two long strips, two short ones and the middle strip, no errors or warnings, sound, each on the sheet", () => {
-    for (const tpl of CEILING_FRAMES) for (const p of DECORS) for (const cleats of [0, 1]) {
+    for (const tpl of [T1, T2]) for (const p of DECORS) for (const cleats of [0, 1]) {
       const q = { ...WIN, ...p, cleats }, d = gen(q, {}, tpl), g = frameGeom(full(q, tpl))
       expect(d.errors, lab(q, tpl)).toEqual([])
       expect(d.warnings, lab(q, tpl)).toEqual([])
@@ -736,7 +737,7 @@ describe('ceiling decor', () => {
   }, 30000)
 
   it('butt-joins the middle strip to the long strips, its pattern going on from theirs, symmetric, every joint through solid wood', () => {
-    for (const tpl of CEILING_FRAMES) for (const p of DECORS) {
+    for (const tpl of [T1, T2]) for (const p of DECORS) {
       const q = full({ ...WIN, ...p }, tpl), g = frameGeom(q), d = gen(q, {}, tpl), m = get(d, 'strip-mid')
       // a rectangle as long as the window's short side, square ends on the long strips' inner edges, as wide as the band shows
       expect(m.w).toBeCloseTo(p.PH, 6)
@@ -755,8 +756,8 @@ describe('ceiling decor', () => {
       for (let j = 1; j < g.nm; j++) expect(mp.some(pc => pc.key.startsWith(`m${j}`) && Math.abs(pc.c.x - (c0 + j * g.qm)) < 1e-6 && Math.abs(pc.c.y - g.midW / 2) < 1e-6), `motif ${j}`).toBe(true)
       // the same motif as the band's, the same size
       const sizeOf = (pcs: { key: string; poly: P[] }[], re: RegExp) => pcs.filter(pc => re.test(pc.key)).map(pc => { const b = boxOf(pc.poly); return Math.round(Math.max(b.maxX - b.minX, b.maxY - b.minY) * 100) / 100 }).sort((a, b) => b - a)[0]
-      const motifRe = tpl === T1 ? /dot$/ : /./
-      if (tpl === T1) expect(sizeOf(mp, /^m1dot$/)).toBeCloseTo(sizeOf(axis, motifRe), 6)
+      const motifRe = tpl === T1 ? /s$/ : /./
+      if (tpl === T1) expect(sizeOf(mp, /^m1s$/)).toBeCloseTo(sizeOf(axis, motifRe), 6)
       // through solid wood: nothing within sw of the joints or the strip's sides, and the long strips' pattern stops sw short of their inner edge
       const pts = cutOf(m).filter(l => signedArea(l) < 0).flatMap(h => samplePoly(h, 1))
       expect(Math.min(...pts.map(v => Math.min(v.x, m.w - v.x, v.y, m.h - v.y)))).toBeGreaterThanOrEqual(g.sw - 1e-3)
@@ -784,15 +785,168 @@ describe('ceiling decor', () => {
     const cases: [Record<string, number>, RegExp][] = [
       [{ mid: 1 }, /الشريحة الوسطى تمرّ في مكان/], [{ mid: 1, kind: 2 }, /الشريحة الوسطى تمرّ في مكان/],
       [{ mid: 1, center: 3, PW: 800, PH: 600, midW: 400 }, /عريضة على فتحة/], [{ mid: 1, center: 3, midW: 60 }, /ضيّقة على/],
-      [{ sizeIs: 2, PW: 2000, PH: 1300 }, /قطعةً واحدة .* لا يتّسع في لوح/], [{ sizeIs: 2, kind: 2, PW: 2200, PH: 1000, band: 300 }, /أطول من لوح الخشب/],
+      [{ sizeIs: 2, PW: 2000, PH: 1300 }, /قطعةً واحدة .* لا يتّسع في لوح/], [{ sizeIs: 2, kind: 2, PW: 2200, PH: 1000, band: 300, maxLen: 300 }, /أطول من «أطول شريحة»/],
     ]
-    for (const tpl of CEILING_FRAMES) for (const [p, re] of cases) {
+    for (const tpl of [T1, T2]) for (const [p, re] of cases) {
       const d = gen(p, {}, tpl), e = d.errors.find(x => re.test(x))
       expect(e, `${lab(p, tpl)}: ${d.errors.join(' | ')}`).toBeTruthy()
       expect(fixesOf(e!).length, e).toBeGreaterThan(0)
       expect(fixProblems(p, tpl)).toEqual([])
     }
   }, 60000)
+
+  it('cuts with straight lines only: no arc or circle in any loop of any ceiling design (rosettes, stars, both medallions)', () => {
+    for (const tpl of CEILING_FRAMES) for (const p of ([{}, { kind: 2 }, { center: 2 }, { kind: 2, center: 2 }, { mid: 1, center: 3 }] as Record<string, number>[])) {
+      if (tpl === T3 && Object.keys(p).length) continue
+      const d = gen(p, {}, tpl)
+      expect(d.errors, lab(p, tpl)).toEqual([])
+      for (const pn of d.panels) for (const l of pn.loops) expect(l.pts.every(v => !v.b), `${lab(p, tpl)} ${pn.id}`).toBe(true)
+      expect(toDXF(d.layout)).not.toMatch(/\n42\n|\nCIRCLE\n/)
+    }
+    for (const med of [150, 450, 1200]) expect(medallion2({ x: 0, y: 0 }, med, 3).every(pc => pc.pts.every(v => !v.b))).toBe(true)
+  }, 60000)
+
+  it('moves the middle strip off the middle (midAt): a motif on its axis on both long strips, whole steps from each corner to it, the steps near alike', () => {
+    const cases: [Tp, Record<string, number>][] = [[T1, setFrameParams(T3.defaults)], [T2, setFrameParams(T3.defaults)], [T1, { PW: 2000, PH: 1200, mid: 1, midAt: 450, center: 3 }], [T2, { PW: 1100, PH: 2200, band: 200, mid: 1, midAt: 1100, center: 3, kind: 2 }]]
+    for (const [tpl, p] of cases) {
+      const q = full(p, tpl), g = frameGeom(q), d = gen(p, {}, tpl), lb = lab(p, tpl)
+      expect(d.errors, lb).toEqual([])
+      expect(d.warnings, lb).toEqual([])
+      expect(g.offMid, lb).toBe(true)
+      expect(g.axisU).toBeCloseTo(g.b + q.midAt + g.midW / 2, 9)
+      const fs = framePieces(g), long = g.wide ? fs.top : fs.side, long2 = g.wide ? fs.bottom : fs.left, L = g.Llong
+      // whole motifs at whole steps from each corner, one on the axis; the two steps within 5 % of each other
+      const cs = long.filter(pc => /^r\d+s$/.test(pc.key)).map(pc => pc.c.x).sort((a, b) => a - b)
+      expect(cs.some(x => Math.abs(x - g.axisU) < 1e-6), lb).toBe(true)
+      for (const x of cs) {
+        const k = x <= g.axisU + 1e-6 ? (x - g.vc) / g.pa : (L - g.vc - x) / g.pb
+        expect(Math.abs(k - Math.round(k)), `${lb} motif at ${x}`).toBeLessThan(1e-6)
+      }
+      expect(Math.abs((g.axisU - g.vc) / g.pa - Math.round((g.axisU - g.vc) / g.pa))).toBeLessThan(1e-9)
+      expect(Math.abs(g.pa / g.pb - 1), lb).toBeLessThan(0.05)
+      // locally symmetric: the motif on the axis is whole and centred on it
+      const onAxis = long.filter(pc => Math.abs(pc.c.x - g.axisU) < g.R + 1e-6 && /^r\d+/.test(pc.key))
+      expect(onAxis.length, lb).toBeGreaterThan(8)
+      for (const pc of onAxis) expect(onAxis.some(o => Math.hypot(o.c.x - (2 * g.axisU - pc.c.x), o.c.y - pc.c.y) < 1e-6), `${lb} ${pc.key}`).toBe(true)
+      // the opposite long strip is its mirror image, so both axes are on the middle strip's axis in the frame
+      for (const pc of long2) expect(long.some(o => o.key === pc.key && Math.hypot(o.c.x - (L - pc.c.x), o.c.y - pc.c.y) < 1e-6), `${lb} ${pc.key}`).toBe(true)
+      const s1 = g.wide ? 0 : 1, s2 = s1 + 2, ax1 = toFrame(g, s1, { x: g.axisU, y: g.vc }), ax2 = toFrame(g, s2, { x: L - g.axisU, y: g.vc })
+      const m0 = midToFrame(g, { x: 0, y: g.midW / 2 }), m1 = midToFrame(g, { x: g.Lm, y: g.midW / 2 })
+      if (g.wide) { expect(ax1.x).toBeCloseTo(m0.x, 6); expect(ax2.x).toBeCloseTo(m1.x, 6) } else { expect(ax1.y).toBeCloseTo(m0.y, 6); expect(ax2.y).toBeCloseTo(m1.y, 6) }
+      // the middle strip's motifs line up with the axis
+      for (const pc of midPieces(g).filter(o => /^m\d+s$/.test(o.key))) expect(pc.c.y).toBeCloseTo(g.midW / 2, 6)
+      expect(soundness(d, lb, 3, 3), lb).toEqual([])
+    }
+  }, 60000)
+
+  it('cuts a strip longer than the sheet at waists into the fewest pieces, as alike as they go: square joints through solid wood, the pattern going on across them', () => {
+    const cases: [Tp, Record<string, number>][] = [[T1, setFrameParams(T3.defaults)], [T2, setFrameParams(T3.defaults)], [T1, { kind: 2, maxLen: 800 }], [T2, { kind: 2, PW: 2400, PH: 1200, center: 3, sheetL: 1500 }], [T1, { ...setFrameParams(T3.defaults), cleats: 1 }]]
+    for (const [tpl, p] of cases) {
+      const q = full(p, tpl), g = frameGeom(q), d = gen(p, {}, tpl), lb = lab(p, tpl), lay = d.layout as { tooBig?: string[] }
+      expect(d.errors, lb).toEqual([])
+      expect(d.warnings, lb).toEqual([])
+      const fs = framePieces(g), all = [fs.top, fs.side, fs.bottom, fs.left]
+      let cut = 0
+      for (const s of [0, 1, 2, 3]) {
+        const { L, waists } = stripCuts(g, s), joints = splitPlan(L, waists, g.maxLen)!
+        expect(joints, `${lb} strip ${s}`).toBeTruthy()
+        if (L <= g.maxLen) { expect(joints).toEqual([]); continue }
+        cut++
+        const cuts = [0, ...joints, L], lens = cuts.slice(1).map((u, i) => u - cuts[i]), k = lens.length
+        expect(Math.max(...lens), lb).toBeLessThanOrEqual(g.maxLen + 1e-9)
+        // the fewest pieces, and among those the most alike (every choice of k − 1 waists tried)
+        const t = L / k, worst = Math.max(...lens.map(x => Math.abs(x - t)))
+        const tryAll = (from: number, left: number, last: number, w: number, tt: number): number => {
+          if (left === 0) return L - last <= g.maxLen + 1e-9 ? Math.max(w, Math.abs(L - last - tt)) : Infinity
+          let best = Infinity
+          for (let i = from; i < waists.length; i++) { const len = waists[i] - last; if (len <= g.maxLen + 1e-9) best = Math.min(best, tryAll(i + 1, left - 1, waists[i], Math.max(w, Math.abs(len - tt)), tt)) }
+          return best
+        }
+        expect(worst, lb).toBeLessThanOrEqual(tryAll(0, k - 1, 0, 0, t) + 1e-9)
+        expect(tryAll(0, k - 2, 0, 0, L / (k - 1)), `${lb} fewer pieces`).toBe(Infinity)
+        // each joint through solid wood across the whole band: no cut-out within sw of it
+        const parts = cutAtJoints(all[s], joints, g.sw, g.b)
+        for (const [i, pcs] of parts.entries()) for (const pc of pcs) for (const z of pc.poly) {
+          expect(z.x, `${lb} strip ${s} piece ${i}`).toBeGreaterThanOrEqual(cuts[i] + (i ? g.sw : 0) - 1e-6)
+          expect(z.x).toBeLessThanOrEqual(cuts[i + 1] - (i < k - 1 ? g.sw : 0) + 1e-6)
+        }
+        // the pattern goes on across it: what lies within a step of a joint is a mirror image about it
+        const flat = parts.flat(), p0 = Math.min(g.p1, g.p2, g.pa, g.pb)
+        let near = 0
+        for (const u of joints) for (const pc of flat) if (Math.abs(pc.c.x - u) < p0 / 2 - g.R / 2) {
+          near++
+          expect(flat.some(o => Math.hypot(o.c.x - (2 * u - pc.c.x), o.c.y - pc.c.y) < 1e-3), `${lb} strip ${s} ${pc.key} at ${pc.c.x.toFixed(1)} mirrored about ${u}`).toBe(true)
+        }
+        expect(near, lb).toBeGreaterThan(2 * joints.length)
+        // nothing clipped at a joint: every cut-out near it is a whole shape of the pattern (as many corners as the
+        // full one), none with a straight edge along the bar, one moved off it clear of the bar by sw more, and the
+        // joint a mirror image about it, shape for shape
+        const bb = (pts: P[]) => [Math.min(...pts.map(z => z.x)), Math.max(...pts.map(z => z.x)), Math.min(...pts.map(z => z.y)), Math.max(...pts.map(z => z.y))]
+        for (const u of joints) {
+          const by = flat.filter(pc => { const [x0, x1] = bb(pc.poly); return x0 < u + p0 / 3 && x1 > u - p0 / 3 })
+          expect(by.length, lb).toBeGreaterThan(4)
+          for (const pc of by) {
+            const at = `${lb} strip ${s} ${pc.key} by the joint at ${u}`, full0 = all[s].find(o => o.key === pc.key.replace(/\|$/, ''))
+            expect(full0, at).toBeTruthy()
+            expect(pc.poly.length, at).toBe(full0!.poly.length)
+            pc.poly.forEach((a, i) => { const z = pc.poly[(i + 1) % pc.poly.length]; expect(Math.abs(a.x - z.x) < 1e-6 && Math.abs(a.x - u) < 2 * g.sw + 1e-6, `${at}: an edge along the bar`).toBe(false) })
+            if (pc.key.endsWith('|')) expect(Math.min(...pc.poly.map(z => Math.abs(z.x - u))), at).toBeGreaterThanOrEqual(2 * g.sw - 1e-6)
+            const [x0, x1, y0, y1] = bb(pc.poly)
+            expect(by.some(o => { const [a0, a1, b0, b1] = bb(o.poly); return o.poly.length === pc.poly.length && Math.abs(a0 - (2 * u - x1)) < 1e-3 && Math.abs(a1 - (2 * u - x0)) < 1e-3 && Math.abs(b0 - y0) < 1e-3 && Math.abs(b1 - y1) < 1e-3 }), `${at}: its mirror image`).toBe(true)
+          }
+          // the rosettes' waist keeps its two 8-point stars, whole, each side of the joint
+          if (g.style === 1) expect(by.filter(pc => pc.key.startsWith('st') && pc.poly.length === 16).length, lb).toBe(4)
+        }
+      }
+      expect(cut, lb).toBeGreaterThan(0)
+      // the pieces as cut: every one on the sheet, sound
+      expect(offSheet(d.layout), lb).toEqual([])
+      expect(lay.tooBig ?? [], lb).toEqual([])
+      expect(soundness(d, lb, 3, 3), lb).toEqual([])
+      if (q.cleats >= 0.5) expect(d.panels.some(x => x.id.startsWith('splice')), lb).toBe(true)
+    }
+  }, 60000)
+
+  it("builds the customer's whole ceiling (ceilingset): four mitred strips, the middle strip and both squares, on 1220 × 2440 sheets, no errors or warnings", () => {
+    expect(T3.id).toBe('ceilingset')
+    for (const style of [1, 2]) {
+      const d = gen({ style }, {}, T3), lb = `ceilingset style ${style}`, lay = d.layout as { sheets: unknown[]; tooBig?: string[] }
+      expect(d.errors, lb).toEqual([])
+      expect(d.warnings, lb).toEqual([])
+      const g = frameGeom(setFrameParams({ ...T3.defaults, style }))
+      expect([g.PW - 2 * g.b, g.PH - 2 * g.b, g.PW, g.PH, g.mAt, g.midW, g.Lm]).toEqual([1400, 2510, 2160, 3270, 1050, 380, 1400])
+      const sz = (id: string) => [get(d, id).w, get(d, id).h].map(v => Math.round(v))
+      expect(sz('strip-long')).toEqual([2160, 380])
+      expect(get(d, 'strip-long').count).toBe(2)
+      expect(sz('strip-mid')).toEqual([1400, 380])
+      expect(sz('square-a')).toEqual([1400, 1050])
+      expect(sz('square-b')).toEqual([1380, 1080])
+      const long1 = d.panels.filter(x => x.id.startsWith('strip-short-1-')), long2 = d.panels.filter(x => x.id.startsWith('strip-short-2-'))
+      expect([long1.length, long2.length]).toEqual([2, 2])
+      expect(Math.round(long1.reduce((a, x) => a + x.w, 0))).toBe(3270)
+      expect(long1.map(x => x.name)).toEqual(['شريحة طويلة 1-أ', 'شريحة طويلة 1-ب'])
+      for (const x of d.panels) expect(Math.max(x.w, x.h), `${lb} ${x.id}`).toBeLessThanOrEqual(2440 - 2 * NEST_MARGIN)
+      expect(offSheet(d.layout)).toEqual([])
+      expect(lay.tooBig ?? []).toEqual([])
+      expect(lay.sheets.length).toBeLessThanOrEqual(4)
+      expect(soundness(d, lb, 3, 3), lb).toEqual([])
+      // the notes say what was built: the long strips' two steps, their cut-outs as cut, where the middle strip is
+      const words = d.notes.join(' '), longHoles = long1.reduce((a, x) => a + x.loops.filter(l => l.closed).length - 1, 0)
+      expect(words, lb).toContain(`و${longHoles} في كلّ جانبية`)
+      expect(words, lb).toContain(`بينها ${g.pa} مم بين الزاوية والشريحة الوسطى على جهة الفتحة 1050 مم، و${g.pb} مم على الجهة الأخرى`)
+      expect([g.pa, g.pb], lb).toEqual([357.5, 365])
+      expect(words, lb).not.toMatch(/بينها 361\.3/)
+      const midNote = (get(d, 'strip-mid') as Pn & { note: string }).note
+      expect(midNote, lb).toContain('على بعد 1050 مم من طرف الفتحة')
+      expect(midNote, lb).not.toContain('في منتصفهما')
+      // the frame and the middle strip alone
+      const f = gen({ style, squares: 0 }, {}, T3)
+      expect([...f.errors, ...f.warnings]).toEqual([])
+      expect(f.panels.some(x => x.id.startsWith('square'))).toBe(false)
+      expect((f.layout as { sheets: unknown[] }).sheets.length).toBeLessThanOrEqual(2)
+    }
+    expect(gen({ AH: 300, BH: 300, band: 150, AW: 1400, BW: 1400 }, {}, T3).errors.join(' ')).toMatch(/اجعل عرض المربعين 750 مم على الأكثر/)
+  }, 120000)
 
 })
 

@@ -47,8 +47,10 @@ const PER_TEMPLATE: Record<string, Record<string, Role>> = {
   bottlebox: { sink: 'object' }, // how deep the bought bottle sits
   bottlestand: { sink: 'object' },
   // the decor's size is the gypsum opening's (with its rest), measured on site; the sheet is the one bought
-  ceilingframe: { PW: 'object', PH: 'object', ov: 'object', center: 'choice', sheetL: 'fixed', sheetW: 'fixed' },
-  ceilingframe2: { PW: 'object', PH: 'object', ov: 'object', center: 'choice', sheetL: 'fixed', sheetW: 'fixed' },
+  ceilingframe: { PW: 'object', PH: 'object', ov: 'object', center: 'choice', midAt: 'object', maxLen: 'fixed', sheetL: 'fixed', sheetW: 'fixed' },
+  ceilingframe2: { PW: 'object', PH: 'object', ov: 'object', center: 'choice', midAt: 'object', maxLen: 'fixed', sheetL: 'fixed', sheetW: 'fixed' },
+  // the whole ceiling: the two squares and the band are the customer's measures, taken on site
+  ceilingset: { AW: 'object', AH: 'object', BW: 'object', BH: 'object', band: 'object', squares: 'choice', fit: 'fixed', sheetL: 'fixed', sheetW: 'fixed' },
   easel: { bolt: 'object', maxL: 'fixed' }, // the bought bolts; the laser bed's length
 }
 
