@@ -1,6 +1,7 @@
 // /team/settings — الإعدادات (admin): centre info + hours (offline-capable, via the store), Sham Cash payment panel
 // with a live preview, team accounts, announcements and reports (these three need the network).
 import { useEffect, useMemo, useState, type ChangeEvent } from 'react'
+import { useLiveForm } from './useLiveForm'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import type { Booking, Role, Settings as SettingsT, User } from '@shared/types'
 import { api, ApiError } from '../api'
@@ -49,7 +50,7 @@ function CentreTab({ settings }: { settings: SettingsT }) {
   const { sync } = useStore()
   const [d, setD] = useState(() => pick(settings))
   const [errors, setErrors] = useState<Record<string, string>>({})
-  useEffect(() => { setD(pick(settings)) }, [settings])
+  useLiveForm(pick(settings), 'centre', () => d, setD)   // never wipes unsaved edits on a background sync
   const set = <K extends keyof typeof d>(k: K, v: (typeof d)[K]) => setD((x) => ({ ...x, [k]: v }))
 
   async function save() {
@@ -224,10 +225,14 @@ function PaymentTab({ settings }: { settings: SettingsT }) {
   const [sham, setSham] = useState(capabilityDefaults(settings).shamcash_enabled)
   const [holds, setHolds] = useState(String(capabilityDefaults(settings).max_open_holds_per_phone))
   const [holdsError, setHoldsError] = useState<string | undefined>()
-  useEffect(() => {
-    setNumber(settings.shamcash_number); setName(settings.shamcash_name); setQr(settings.shamcash_qr); setInstructions(settings.payment_instructions); setCash(!!settings.allow_pay_on_arrival)
-    setSham(capabilityDefaults(settings).shamcash_enabled); setHolds(String(capabilityDefaults(settings).max_open_holds_per_phone))
-  }, [settings])
+  // never wipes unsaved edits on a background sync (see useLiveForm)
+  useLiveForm(
+    { number: settings.shamcash_number, name: settings.shamcash_name, qr: settings.shamcash_qr, instructions: settings.payment_instructions,
+      cash: !!settings.allow_pay_on_arrival, sham: capabilityDefaults(settings).shamcash_enabled, holds: String(capabilityDefaults(settings).max_open_holds_per_phone) },
+    'payment',
+    () => ({ number, name, qr, instructions, cash, sham, holds }),
+    (v) => { setNumber(v.number); setName(v.name); setQr(v.qr); setInstructions(v.instructions); setCash(v.cash); setSham(v.sham); setHolds(v.holds) },
+  )
   // At least one payment method stays on (the server refuses a settings patch that turns both off).
   const ONE_METHOD = 'لازم تبقى طريقة دفع واحدة على الأقل مفعّلة'
   const toggleSham = (v: boolean) => { if (!v && !cash) { toast.show(ONE_METHOD, 'error'); return } setSham(v) }

@@ -11,6 +11,7 @@ import { store, useStore } from './store'
 import { capacityLabel, contentsList, cx, describeError, isTemp, parseInt10, ROOM_TYPE, ROOM_TYPES } from './util'
 import { ImagesField } from './site/ImageField'
 import { deepEqual } from './site/value'
+import { useLiveForm } from './useLiveForm'
 
 // Flat room colours (brand + the app's accents). No warm/brown tones.
 const MAX_PHOTOS = 8          // same limit as the API (POST/PATCH /v1/admin/rooms, sync room_upsert)
@@ -95,7 +96,11 @@ function RoomSheet({ room, onClose }: { room: Room | 'new' | null; onClose: () =
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [deleting, setDeleting] = useState(false)
-  useEffect(() => { setD(room && room !== 'new' ? fromRoom(room) : blank()); setErrors({}) }, [room])
+  // the room object is replaced on every background sync: re-fill only for another room or changed values with no
+  // unsaved edits, so typed text and freshly added photos are never wiped (see useLiveForm)
+  const scope = room === 'new' ? 'new' : room?.id ?? null
+  useLiveForm<Draft>(room && room !== 'new' ? fromRoom(room) : blank(), scope, () => d, setD)
+  useEffect(() => { setErrors({}) }, [scope])
   const existing = room && room !== 'new' ? room : null
   const set = <K extends keyof Draft>(k: K, v: Draft[K]) => setD((x) => ({ ...x, [k]: v }))
 
