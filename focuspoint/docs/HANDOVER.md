@@ -94,10 +94,12 @@ curl -X POST https://focuspoint.raqeem.dev/v1/admin/bootstrap -H 'Content-Type: 
 ## 3. ملاحظات Google Play
 
 - **App Links:** الـ Worker يخدم `/.well-known/assetlinks.json` من `ASSETLINKS_FINGERPRINTS` (بصمات SHA-256 مفصولة بفواصل،
-  الحزمة `com.focuspoint.app`). البصمة الحالية لمفتاح الإصدار:
-  `25:82:9F:6A:05:E3:39:97:36:30:8B:F5:44:53:C9:42:B7:9B:DB:E4:31:FD:8F:90:C7:D5:10:B4:66:24:78:65`.
-  إذا فعّلت *Play App Signing* فأضف بصمة مفتاح Google (من Play Console → App integrity) إلى القيمة نفسها بفاصلة، وإلا يفتح
-  التطبيق بشريط عنوان المتصفح.
+  الحزمة `com.focuspoint.app`). البصمتان الحاليتان:
+  - مفتاح الإصدار/الرفع (APK المباشر): `25:82:9F:6A:05:E3:39:97:36:30:8B:F5:44:53:C9:42:B7:9B:DB:E4:31:FD:8F:90:C7:D5:10:B4:66:24:78:65`
+  - مفتاح *Google Play App Signing* (النسخة المنزّلة من Play): `44:25:35:BE:B8:2A:72:28:0A:93:C0:47:40:4B:84:D3:68:A2:D3:21:FB:D8:88:72:29:99:9D:A4:D4:94:64:F0`
+
+  يجب أن تبقى البصمتان معاً؛ إن غابت بصمة Google يفتح التطبيق المنزّل من Play بشريط عنوان المتصفح. عند نقل التطبيق لحساب
+  Play آخر أضف بصمة App integrity الجديدة إلى القيمة نفسها بفاصلة.
 - **سياسة الخصوصية:** الرابط `https://focuspoint.raqeem.dev/privacy` (صفحة في تطبيق الويب) — يُطلب في Play Console.
 - **حساب المراجع:** أنشئ حساباً بدور `staff` (من `/team/settings` → الفريق) وضع رقمه وكلمة سره في حقل *App access* في
   Play Console؛ لا تعطِ المراجع حساب مدير. جانب الزبون لا يحتاج تسجيل دخول.

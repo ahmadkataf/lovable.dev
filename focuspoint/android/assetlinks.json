@@ -1,4 +1,15 @@
-[{
-  "relation": ["delegate_permission/common.handle_all_urls"],
-  "target": { "namespace": "android_app", "package_name": "com.focuspoint.app", "sha256_cert_fingerprints": ["25:82:9F:6A:05:E3:39:97:36:30:8B:F5:44:53:C9:42:B7:9B:DB:E4:31:FD:8F:90:C7:D5:10:B4:66:24:78:65"] }
-}]
+[
+  {
+    "relation": [
+      "delegate_permission/common.handle_all_urls"
+    ],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "com.focuspoint.app",
+      "sha256_cert_fingerprints": [
+        "25:82:9F:6A:05:E3:39:97:36:30:8B:F5:44:53:C9:42:B7:9B:DB:E4:31:FD:8F:90:C7:D5:10:B4:66:24:78:65",
+        "44:25:35:BE:B8:2A:72:28:0A:93:C0:47:40:4B:84:D3:68:A2:D3:21:FB:D8:88:72:29:99:9D:A4:D4:94:64:F0"
+      ]
+    }
+  }
+]
