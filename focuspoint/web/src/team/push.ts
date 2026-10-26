@@ -21,34 +21,47 @@ function toKey(base64: string): Uint8Array {
 async function registration(): Promise<ServiceWorkerRegistration | null> {
   const reg = await navigator.serviceWorker.getRegistration()
   if (reg?.active) return reg
-  return Promise.race([navigator.serviceWorker.ready, new Promise<null>((r) => setTimeout(() => r(null), 4000))])
+  // a fresh install can take a while on a slow connection (it precaches the app first)
+  return Promise.race([navigator.serviceWorker.ready, new Promise<null>((r) => setTimeout(() => r(null), 15000))])
 }
 
-/** Ask for permission (needs a user gesture) and register the subscription for this team account. */
-export async function enableTeamPush(vapidPublicKey: string): Promise<PushState> {
-  const state = pushState()
-  if (state === 'unsupported' || !vapidPublicKey) return 'unsupported'
-  const perm = await Notification.requestPermission()
-  if (perm !== 'granted') return perm as PushState
+/** Creates the push subscription if this phone has none yet, and (re)registers it for the signed-in account.
+ *  Idempotent on the server (upsert by endpoint), so it runs on every panel load. Throws on failure. */
+async function subscribeAndRegister(vapidPublicKey: string): Promise<void> {
   const reg = await registration()
-  if (!reg) return 'unsupported'
+  if (!reg) throw new Error('sw_not_ready')
   let sub = await reg.pushManager.getSubscription()
   if (!sub) sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: toKey(vapidPublicKey) as BufferSource })
   await api.post('/v1/push/subscribe', { subscription: sub.toJSON() })
   try { localStorage.setItem(KEY, sub.endpoint) } catch { /* ignore */ }
+}
+
+/** Ask for permission (needs a user gesture) and register this phone for the signed-in team account. */
+export async function enableTeamPush(vapidPublicKey: string): Promise<PushState> {
+  const state = pushState()
+  if (state === 'unsupported' || !vapidPublicKey) return 'unsupported'
+  const perm = Notification.permission === 'granted' ? 'granted' : await Notification.requestPermission()
+  if (perm !== 'granted') return perm as PushState
+  await subscribeAndRegister(vapidPublicKey)
   return 'granted'
 }
 
-/** Permission already granted but this account not yet registered on this device → register silently. */
+/** Permission already granted (the installed app often starts that way): make sure this phone is subscribed and
+ *  registered for this account. Creating the subscription needs no prompt once permission is granted. */
 export async function ensureTeamPush(vapidPublicKey: string): Promise<void> {
   if (pushState() !== 'granted' || !vapidPublicKey) return
-  const reg = await registration()
-  if (!reg) return
-  const sub = await reg.pushManager.getSubscription()
-  if (!sub) return
-  let known: string | null = null
-  try { known = localStorage.getItem(KEY) } catch { /* ignore */ }
-  if (known === sub.endpoint) return
-  await api.post('/v1/push/subscribe', { subscription: sub.toJSON() })
-  try { localStorage.setItem(KEY, sub.endpoint) } catch { /* ignore */ }
+  await subscribeAndRegister(vapidPublicKey)
+}
+
+export interface PushTestResult { subscriptions: number; configured: boolean; results: { host: string; status: number | null; error?: string }[] }
+/** Asks the server to push a test notification to this phone and returns what the push service answered. */
+export const testPush = () => api.post<PushTestResult>('/v1/push/test')
+
+/** A readable Arabic reason for a failed subscription. */
+export function pushErrorText(err: unknown): string {
+  const name = (err as { name?: string })?.name || '', msg = (err as { message?: string })?.message || String(err)
+  if (msg === 'sw_not_ready') return 'التطبيق لم يجهز بعد — أغلقه وافتحه مرة ثانية ثم أعد المحاولة.'
+  if (name === 'AbortError' || /push service|registration failed/i.test(msg)) return 'خدمة الإشعارات في الهاتف (خدمات Google) غير متاحة أو محجوبة على هذا الجهاز/الشبكة.'
+  if (name === 'NotAllowedError') return 'الإشعارات مرفوضة لهذا التطبيق — فعّلها من إعدادات الهاتف ← التطبيقات ← فوكس بوينت ← الإشعارات.'
+  return msg
 }

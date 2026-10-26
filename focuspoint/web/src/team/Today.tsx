@@ -9,11 +9,10 @@ import { PageHead, Section, roomColor } from './common'
 
 /** Room dot colour when the owner has not picked one: the public site's space-type coding. */
 const TYPE_DOT: Record<string, string> = { private: 'var(--blue)', meeting: 'var(--violet)', hall: 'var(--violet)', desk: 'var(--teal)' }
-import { enableTeamPush, pushState, type PushState } from './push'
+import { enableTeamPush, ensureTeamPush, pushErrorText, pushState, testPush, type PushState } from './push'
 import { store, useFresh, useRooms, useStore } from './store'
 import { describeError, isBlocking, isPendingVerification, localDate, sortByStart } from './util'
 
-const BATTERY_HINT_KEY = 'fp_team_battery_hint'
 /** Phone makers whose battery saver is known to kill background push for Chrome. */
 const AGGRESSIVE_OEM = /xiaomi|redmi|poco|miui|huawei|honor|oppo|realme|oneplus|vivo/i
 
@@ -135,63 +134,61 @@ function PushCard() {
   const toast = useToast()
   const [state, setState] = useState<PushState>(() => pushState())
   const [busy, setBusy] = useState(false)
-  const [justEnabled, setJustEnabled] = useState(false)
   const [how, setHow] = useState(false)
-  const [hintHidden, setHintHidden] = useState(() => { try { return localStorage.getItem(BATTERY_HINT_KEY) === '1' } catch { return false } })
+  const [problem, setProblem] = useState<string | null>(null)
   const vapid = view.settings?.vapid_public_key
   const aggressiveOem = typeof navigator !== 'undefined' && AGGRESSIVE_OEM.test(navigator.userAgent)
   if (state === 'unsupported' || !vapid) return null
 
   async function enable() {
-    setBusy(true)
+    setBusy(true); setProblem(null)
     try {
       const s = await enableTeamPush(vapid!)
       setState(s)
-      if (s === 'granted') setJustEnabled(true)
-      toast.show(s === 'granted' ? 'ستصلك إشعارات الحجوزات والدفعات على هذا الجهاز' : s === 'denied' ? 'الإشعارات مرفوضة من إعدادات المتصفح' : 'المتصفح لا يدعم الإشعارات', s === 'granted' ? 'ok' : 'error')
-    } catch (err) { toast.show(describeError(err), 'error') } finally { setBusy(false) }
+      if (s === 'granted') await sendTest(true)
+      else toast.show(s === 'denied' ? 'الإشعارات مرفوضة — فعّلها من إعدادات الهاتف لهذا التطبيق' : 'هذا المتصفح لا يدعم الإشعارات', 'error')
+    } catch (err) { setProblem(pushErrorText(err)) } finally { setBusy(false) }
   }
-  function dismissHint() { setHintHidden(true); try { localStorage.setItem(BATTERY_HINT_KEY, '1') } catch { /* ignore */ } }
+  async function sendTest(quiet = false) {
+    setBusy(true); setProblem(null)
+    try {
+      await ensureTeamPush(vapid!)
+      const r = await testPush()
+      const ok = r.results.some((x) => x.status !== null && x.status >= 200 && x.status < 300)
+      if (!r.configured) setProblem('مفاتيح الإشعارات غير مضبوطة على الخادم.')
+      else if (r.subscriptions === 0) setProblem('هذا الجهاز غير مسجّل بعد — اضغط «تفعيل» مرة ثانية.')
+      else if (ok) toast.show(quiet ? 'تم التفعيل — وصلك إشعار تجريبي؟' : 'أُرسل إشعار تجريبي — يجب أن يظهر خلال ثوانٍ', 'ok')
+      else setProblem(`خدمة الإشعارات رفضت الإرسال (${r.results.map((x) => x.status ?? x.error).join('، ')}).`)
+    } catch (err) { setProblem(pushErrorText(err)) } finally { setBusy(false) }
+  }
 
-  if (state === 'granted') {
-    // Already enabled: only the battery hint remains, and only where it matters.
-    if (hintHidden || !(justEnabled || aggressiveOem)) return null
-    return (
-      <>
-        <Card className="mt push-card">
-          <div className="row gap">
-            <Icon name="bell" size={22} className="wine" />
-            <div>
-              <div className="strong">الإشعارات مفعّلة</div>
-              <div className="muted small">
-                حتى تصل الإشعارات والشاشة مقفلة: استثنِ كروم من توفير البطارية (شاومي / هواوي / أوبو).
-                {' '}<button type="button" className="linkish" onClick={() => setHow(true)}>كيف؟</button>
-              </div>
-            </div>
-          </div>
-          <Button variant="ghost" size="sm" onClick={dismissHint}>فهمت</Button>
-        </Card>
-        <Sheet open={how} onClose={() => setHow(false)} title="استثناء كروم من توفير البطارية">
-          <ol className="steps">
-            <li><span>افتح <b>الإعدادات</b> ← <b>التطبيقات</b> ← <b>Chrome</b> ← <b>البطارية</b> (أو «استخدام البطارية») واختر <b>بلا قيود</b> / «لا تحسين».</span></li>
-            <li><span>في الصفحة نفسها فعّل <b>التشغيل التلقائي</b> (Autostart) واسمح بـ<b>النشاط في الخلفية</b>؛ على شاومي: الإعدادات ← البطارية ← توفير البطارية في التطبيقات ← Chrome ← بلا قيود.</span></li>
-          </ol>
-          <p className="muted small mt">بعدها تصل إشعارات الحجوزات حتى لو كان الهاتف في جيبك. تختلف أسماء القوائم قليلاً بين الأجهزة.</p>
-          <div className="sheet-foot"><Button block onClick={() => setHow(false)}>تم</Button></div>
-        </Sheet>
-      </>
-    )
-  }
   return (
-    <Card className="mt push-card">
-      <div className="row gap">
-        <Icon name="bell" size={22} className="wine" />
-        <div>
-          <div className="strong">إشعارات الفريق</div>
-          <div className="muted small">{state === 'denied' ? 'الإشعارات محجوبة — فعّلها من إعدادات المتصفح لهذا الموقع.' : 'تنبيه فوري عند كل حجز جديد أو دفعة بانتظار التحقق.'}</div>
+    <>
+      <Card className="mt push-card">
+        <div className="row gap">
+          <Icon name="bell" size={22} className="wine" />
+          <div>
+            <div className="strong">{state === 'granted' ? 'الإشعارات مفعّلة على هذا الجهاز' : 'إشعارات الفريق'}</div>
+            <div className="muted small">
+              {state === 'denied' ? 'الإشعارات مرفوضة — فعّلها من إعدادات الهاتف ← التطبيقات ← فوكس بوينت (أو Chrome) ← الإشعارات، ثم ارجع هنا.'
+                : state === 'granted' ? 'تصلك تنبيهات الحجوزات الجديدة والدفعات حتى والتطبيق مغلق.'
+                : 'تنبيه فوري عند كل حجز جديد أو دفعة بانتظار التحقق.'}
+              {state === 'granted' && aggressiveOem && <>{' '}<button type="button" className="linkish" onClick={() => setHow(true)}>لا تصل والشاشة مقفلة؟</button></>}
+            </div>
+            {problem && <div className="small mt" style={{ color: 'var(--danger)' }}>{problem}</div>}
+          </div>
         </div>
-      </div>
-      {state !== 'denied' && <Button variant="soft" loading={busy} onClick={enable}>تفعيل إشعارات الفريق</Button>}
-    </Card>
+        {state === 'granted'
+          ? <Button variant="ghost" size="sm" loading={busy} onClick={() => sendTest()}>أرسل إشعاراً تجريبياً</Button>
+          : state !== 'denied' && <Button variant="soft" loading={busy} onClick={enable}>تفعيل إشعارات الفريق</Button>}
+      </Card>
+      <Sheet open={how} onClose={() => setHow(false)} title="استثناء التطبيق من توفير البطارية">
+        <ol className="steps">
+          <li><span>افتح <b>الإعدادات</b> ← <b>التطبيقات</b> ← <b>Chrome</b> (وفوكس بوينت) ← <b>البطارية</b> واختر <b>بلا قيود</b>.</span></li>
+          <li><span>فعّل <b>التشغيل التلقائي</b> واسمح بـ<b>النشاط في الخلفية</b>؛ على شاومي: الإعدادات ← البطارية ← توفير البطارية في التطبيقات ← Chrome ← بلا قيود.</span></li>
+        </ol>
+        <div className="sheet-foot"><Button block onClick={() => setHow(false)}>تم</Button></div>
+      </Sheet>
+    </>
   )
 }

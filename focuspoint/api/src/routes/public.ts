@@ -1,5 +1,5 @@
 // Customer-facing routes (no accounts: X-Device identifies the app; name + phone identify the booking).
-import type { Booking, PaymentInfo } from '../../../shared/types'
+import type { Booking, PaymentInfo, PushMessage } from '../../../shared/types'
 import { normaliseCode } from '../bookings'
 import { ACTIVE_SQL } from '../bookings'
 import { BOOKING_SELECT, getBooking, toBooking, toRoom, type BookingRow, type RoomRow } from '../db'
@@ -7,6 +7,8 @@ import { HttpError, json, readJson } from '../http'
 import { idParam, requireDevice, route, type Ctx, type Route } from '../router'
 import { cancelBooking, createCustomerBooking, submitPayment } from '../service'
 import { loadSettings, publicSettings } from '../settings'
+import { pushConfigured, sendPush, type SubscriptionRow } from '../push'
+import { absoluteUrl } from '../env'
 import { isDateString, localDayRange } from '../tz'
 import { isPlainObject, requirePhone, requireString } from '../validate'
 
@@ -153,19 +155,40 @@ export const publicRoutes: Route[] = [
     if (!endpoint.startsWith('https://')) throw new HttpError(400, 'invalid_subscription')
     const p256dh = requireString(sub.keys.p256dh, 'invalid_subscription', 20, 300)
     const auth = requireString(sub.keys.auth, 'invalid_subscription', 10, 100)
+    // A phone has ONE push endpoint for this site, used both by its customer side and, when someone from the team is
+    // signed in on it, by the team panel. Keep both owners on the row so customer and team notifications both arrive.
+    const user_id = c.user?.id ?? null, device_id = c.device ?? null
+    if (!user_id && !device_id) throw new HttpError(401, 'device_required')
     await c.env.DB.prepare(
       `INSERT INTO push_subscriptions (user_id, device_id, endpoint, p256dh, auth) VALUES (?, ?, ?, ?, ?)
-       ON CONFLICT(endpoint) DO UPDATE SET user_id = excluded.user_id, device_id = excluded.device_id, p256dh = excluded.p256dh, auth = excluded.auth, failures = 0`)
-      .bind(o.user_id, o.device_id, endpoint, p256dh, auth).run()
+       ON CONFLICT(endpoint) DO UPDATE SET user_id = excluded.user_id, device_id = COALESCE(excluded.device_id, push_subscriptions.device_id),
+         p256dh = excluded.p256dh, auth = excluded.auth, failures = 0`)
+      .bind(user_id, device_id, endpoint, p256dh, auth).run()
     return json({ ok: true })
+  }),
+
+  // Sends a test notification to this phone's subscriptions and reports what the push service answered,
+  // so the owner can check delivery from the app ("أرسل إشعاراً تجريبياً").
+  route('POST', '/v1/push/test', 'public', async (c) => {
+    const user_id = c.user?.id ?? null, device_id = c.device ?? null
+    if (!user_id && !device_id) throw new HttpError(401, 'device_required')
+    const subs = (await c.env.DB.prepare(
+      `SELECT id, endpoint, p256dh, auth, failures FROM push_subscriptions WHERE (? IS NOT NULL AND user_id = ?) OR (? IS NOT NULL AND device_id = ?)`)
+      .bind(user_id, user_id, device_id, device_id).all<SubscriptionRow>()).results
+    const results = []
+    for (const sub of subs) {
+      const r = await sendPush(c.env, sub, { kind: 'announcement', booking_id: null, url: absoluteUrl(c.env, user_id ? '/team' : '/inbox'), title: 'إشعار تجريبي', body: 'الإشعارات تعمل على هذا الجهاز ✓', tag: 'fp-test' } as PushMessage)
+      results.push({ host: new URL(sub.endpoint).host, ...r })
+    }
+    return json({ subscriptions: subs.length, configured: pushConfigured(c.env), results })
   }),
 
   route('POST', '/v1/push/unsubscribe', 'public', async (c) => {
     const o = owner(c)
     const body = await readJson(c.req)
     const endpoint = requireString(body.endpoint, 'invalid_subscription', 10, 2000)
-    await c.env.DB.prepare(`DELETE FROM push_subscriptions WHERE endpoint = ? AND ${o.user_id ? 'user_id = ?' : 'device_id = ?'}`)
-      .bind(endpoint, o.user_id ?? o.device_id).run()
+    await c.env.DB.prepare(`DELETE FROM push_subscriptions WHERE endpoint = ? AND (user_id = ? OR device_id = ?)`)
+      .bind(endpoint, o.user_id ?? -1, c.device ?? o.device_id ?? '').run()
     return json({ ok: true })
   }),
 ]

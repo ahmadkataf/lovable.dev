@@ -11,9 +11,12 @@ export type PushPayload = PushMessage
 
 export const pushConfigured = (env: Env): boolean => Boolean(env.VAPID_PUBLIC_KEY && env.VAPID_PRIVATE_KEY && env.VAPID_SUBJECT)
 
+/** What the push service answered for one subscription (status null = the request itself failed). */
+export interface PushResult { status: number | null; error?: string }
+
 /** Sends one notification. Never throws: push is best effort; the in-app inbox is the source of truth. */
-export async function sendPush(env: Env, sub: SubscriptionRow, payload: PushPayload): Promise<void> {
-  if (!pushConfigured(env)) return
+export async function sendPush(env: Env, sub: SubscriptionRow, payload: PushPayload): Promise<PushResult> {
+  if (!pushConfigured(env)) return { status: null, error: 'push_not_configured' }
   const subscription: PushSubscription = { endpoint: sub.endpoint, expirationTime: null, keys: { p256dh: sub.p256dh, auth: sub.auth } }
   try {
     const req = await buildPushPayload(
@@ -25,13 +28,17 @@ export async function sendPush(env: Env, sub: SubscriptionRow, payload: PushPayl
     if (res.status === 404 || res.status === 410) {
       await env.DB.prepare('DELETE FROM push_subscriptions WHERE id = ?').bind(sub.id).run()
     } else if (!res.ok) {
+      console.warn('push rejected', res.status, sub.endpoint.slice(0, 60), (await res.text().catch(() => '')).slice(0, 200))
       await env.DB.prepare('UPDATE push_subscriptions SET failures = failures + 1 WHERE id = ?').bind(sub.id).run()
       await env.DB.prepare('DELETE FROM push_subscriptions WHERE id = ? AND failures >= 8').bind(sub.id).run()
     } else if (sub.failures > 0) {
       await env.DB.prepare('UPDATE push_subscriptions SET failures = 0 WHERE id = ?').bind(sub.id).run()
     }
+    return { status: res.status }
   } catch (err) {
-    console.warn('push failed', sub.endpoint.slice(0, 60), err instanceof Error ? err.message : err)
+    const error = err instanceof Error ? err.message : String(err)
+    console.warn('push failed', sub.endpoint.slice(0, 60), error)
+    return { status: null, error }
   }
 }
 

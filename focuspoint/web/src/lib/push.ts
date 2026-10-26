@@ -44,8 +44,8 @@ async function registration(): Promise<ServiceWorkerRegistration | null> {
   const reg = await navigator.serviceWorker.getRegistration()
   if (!reg) return null
   if (reg.active) return reg
-  // Wait briefly for a fresh install to activate.
-  return Promise.race([navigator.serviceWorker.ready, new Promise<null>((r) => setTimeout(() => r(null), 4000))])
+  // Wait for a fresh install to activate (it precaches the app first, slow on a slow connection).
+  return Promise.race([navigator.serviceWorker.ready, new Promise<null>((r) => setTimeout(() => r(null), 15000))])
 }
 
 /** Permission already granted: make sure this device has a subscription the server knows about. */
@@ -57,12 +57,9 @@ export async function ensurePushSubscription(vapidPublicKey: string): Promise<bo
   if (!sub) {
     sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: toKey(vapidPublicKey) as BufferSource })
   }
-  let known: string | null = null
-  try { known = localStorage.getItem(ENDPOINT_KEY) } catch { /* ignore */ }
-  if (known !== sub.endpoint) {
-    await api.post('/v1/push/subscribe', { subscription: sub.toJSON() })
-    try { localStorage.setItem(ENDPOINT_KEY, sub.endpoint) } catch { /* ignore */ }
-  }
+  // always (re)register: idempotent on the server, and it heals a lost row or a phone shared with the team panel
+  await api.post('/v1/push/subscribe', { subscription: sub.toJSON() })
+  try { localStorage.setItem(ENDPOINT_KEY, sub.endpoint) } catch { /* ignore */ }
   return true
 }
 
