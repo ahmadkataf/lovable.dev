@@ -1,10 +1,10 @@
 // The team panel (/team/*): side nav on desktop, bottom tabs on phones. Signed-in team only (RequireTeam shows the
 // login screen inline). Everything renders from the offline store; the sync loop runs while the panel is open.
-import { useCallback, useEffect, useMemo } from 'react'
+import { lazy, Suspense, useCallback, useEffect, useMemo } from 'react'
 import { NavLink, Navigate, Route, Routes } from 'react-router-dom'
 import logoUrl from '@shared/logo.svg'
 import { RequireTeam, useTeam } from '../team'
-import { Icon, OfflineBar, type IconName } from '../ui'
+import { Icon, OfflineBar, Spinner, type IconName } from '../ui'
 import { SyncPill } from './common'
 import { store, useStore, useSyncLoop } from './store'
 import { autoEnableTeamPush } from './push'
@@ -18,6 +18,9 @@ import { Customers } from './Customers'
 import { Settings } from './Settings'
 import './team.css'
 
+// The site editor (admin only) carries the whole content schema: load it on first visit, not with the panel.
+const SiteEditor = lazy(() => import('./site/SiteEditor'))
+
 interface NavItem { to: string; label: string; icon: IconName; admin?: boolean; phone?: boolean }
 const NAV: NavItem[] = [
   { to: '/team', label: 'اليوم', icon: 'home', phone: true },
@@ -25,6 +28,8 @@ const NAV: NavItem[] = [
   { to: '/team/rooms', label: 'القاعات', icon: 'door', phone: true },
   { to: '/team/plan', label: 'المخطط', icon: 'grid', admin: true },
   { to: '/team/customers', label: 'الزبائن', icon: 'people', admin: true },
+  // Phones: not a tab (the bar stays at four); reached from the الإعدادات quick links, like المخطط and الزبائن.
+  { to: '/team/site', label: 'الموقع', icon: 'globe', admin: true },
   { to: '/team/settings', label: 'الإعدادات', icon: 'settings', admin: true, phone: true },
 ]
 
@@ -100,6 +105,7 @@ function Shell() {
               <Route path="plan" element={<RequireTeam adminOnly><PlanEditor /></RequireTeam>} />
               <Route path="customers" element={<RequireTeam adminOnly><Customers /></RequireTeam>} />
               <Route path="settings/*" element={<RequireTeam adminOnly><Settings /></RequireTeam>} />
+              <Route path="site/*" element={<RequireTeam adminOnly><Suspense fallback={<div className="center center-pad"><Spinner /></div>}><SiteEditor /></Suspense></RequireTeam>} />
               <Route path="*" element={<Navigate to="/team" replace />} />
             </Routes>
           </div>

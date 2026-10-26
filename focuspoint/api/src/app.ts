@@ -1,6 +1,7 @@
 // The built web app ([assets], web/dist) with the site content written into it:
 //  - index.html (the SPA shell, for every page path): <title>, description, Open Graph / Twitter tags, JSON-LD, the brand
 //    colour and window.__FP_BOOT__ = {content, settings}, so the first paint and link previews show the admin's edits;
+//  - other HTML (privacy.html): the brand colour only;
 //  - /manifest.webmanifest: the installed app's name / short name / description.
 // Safety first (the editor is used live): if the content, the settings or the rewrite fail in any way, the original
 // file is served untouched — the site can look outdated for a moment, but it never breaks.
@@ -59,13 +60,28 @@ async function manifest(res: Response, env: Env): Promise<Response> {
   }
 }
 
-/** Only the SPA shell is rewritten (it has the React root); other HTML files (privacy.html) are served as built. */
+/** The SPA shell has the React root; other HTML files (privacy.html) only get the brand colour. */
 const isShell = (html: string): boolean => html.includes('id="root"')
+
+async function rewrite(html: string, rw: HTMLRewriter): Promise<string> {
+  // Read the whole result here, inside the caller's try: a failure half-way through must fall back, not cut the page.
+  return rw.transform(new Response(html, { headers: { 'Content-Type': 'text/html; charset=utf-8' } })).text()
+}
 
 async function page(res: Response, env: Env, url: URL): Promise<Response> {
   const html = await res.text()
   const original = () => new Response(html, { status: res.status, headers: res.headers })
-  if (!isShell(html)) return original()
+  if (!isShell(html)) {
+    try {
+      const style = brandStyle(await loadContent(env.DB))
+      if (!style) return original()
+      const out = await rewrite(html, new HTMLRewriter().on('head', { element: (el) => { el.append(style, { html: true }) } }))
+      return new Response(out, { status: 200, headers: freshHeaders(res.headers) })
+    } catch (err) {
+      console.error(`${url.pathname}: serving the built file`, err)
+      return original()
+    }
+  }
   try {
     const [content, settings] = await Promise.all([loadContent(env.DB), loadSettings(env.DB, env)])
     const origin = publicUrl(env, url.origin)
@@ -96,9 +112,7 @@ async function page(res: Response, env: Env, url: URL): Promise<Response> {
     ]
     let rw = new HTMLRewriter()
     for (const [sel, h] of handlers) rw = rw.on(sel, h)
-    // Read the whole result here, inside the try: a failure half-way through must fall back, not cut the page.
-    const out = await rw.transform(new Response(html, { headers: { 'Content-Type': 'text/html; charset=utf-8' } })).text()
-    return new Response(out, { status: 200, headers: freshHeaders(res.headers) })
+    return new Response(await rewrite(html, rw), { status: 200, headers: freshHeaders(res.headers) })
   } catch (err) {
     console.error('index.html: serving the built file', err)
     return original()

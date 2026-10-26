@@ -1,7 +1,7 @@
 // Notifications: stored in the `notifications` inbox AND pushed (best effort, in ctx.waitUntil).
 // Team accounts get booking_created / payment_submitted; the customer's device gets the outcome of its booking.
 // Links are absolute, built from env.PUBLIC_URL (no domain is hard-coded anywhere): team → /team/bookings?id=, customer → /b/:id.
-import { DEFAULT_CONTENT, fillTemplate, type SiteContent } from '../../shared/content'
+import { DEFAULT_CONTENT, fillTemplate, reminderLabel, type SiteContent } from '../../shared/content'
 import type { Booking, NotificationKind, Settings } from '../../shared/types'
 import { loadContent } from './content'
 import { absoluteUrl, type Env } from './env'
@@ -72,17 +72,22 @@ type B = Pick<Booking, 'id' | 'code' | 'customer_name' | 'customer_phone' | 'roo
 type Messages = SiteContent['messages']
 
 /** What every message needs besides the booking: the centre's zone and facts, and the templates. */
-export interface MessageCtx { tz: string; phone: string; name: string; messages: Messages }
+export interface MessageCtx {
+  tz: string; phone: string; name: string
+  reminder: string           // {reminder}: settings.reminder_minutes in words (60 → «ساعة»)
+  messages: Messages
+}
 
 /** Loads the templates (isolate-cached content); on any error the default templates. */
-export async function messageCtx(db: D1Database, s: Pick<Settings, 'timezone' | 'phone' | 'centre_name'>): Promise<MessageCtx> {
+export async function messageCtx(db: D1Database, s: Pick<Settings, 'timezone' | 'phone' | 'centre_name' | 'reminder_minutes'>): Promise<MessageCtx> {
   let messages: Messages = DEFAULT_CONTENT.messages
   try { messages = (await loadContent(db)).messages } catch (err) { console.error('notify: content unavailable, using the default texts', err) }
-  return { tz: s.timezone, phone: s.phone, name: s.centre_name, messages }
+  return { tz: s.timezone, phone: s.phone, name: s.centre_name, reminder: reminderLabel(s.reminder_minutes), messages }
 }
 
 /** The default templates only (tests, and callers without a database). */
-export const defaultMessageCtx = (tz: string, phone = '', name = ''): MessageCtx => ({ tz, phone, name, messages: DEFAULT_CONTENT.messages })
+export const defaultMessageCtx = (tz: string, phone = '', name = '', reminderMinutes = 60): MessageCtx =>
+  ({ tz, phone, name, reminder: reminderLabel(reminderMinutes), messages: DEFAULT_CONTENT.messages })
 
 const syp = (n: number) => `${n.toLocaleString('en-US')} ل.س`
 const room = (b: B) => b.room_name ?? 'الغرفة'
@@ -103,7 +108,7 @@ function dropEmpty(t: string, vars: Record<string, string>): string {
 function build(kind: NotificationKind, b: B, ctx: MessageCtx, tpl: { title: string; body: string }): Message {
   const vars: Record<string, string> = {
     customer_name: b.customer_name, room: room(b), when: formatWhen(b.start, b.end, ctx.tz), price: syp(b.price), code: b.code,
-    ref: b.payment_ref ?? '', reason: b.reject_reason ?? '', phone: ctx.phone, name: ctx.name,
+    ref: b.payment_ref ?? '', reason: b.reject_reason ?? '', phone: ctx.phone, name: ctx.name, reminder: ctx.reminder,
   }
   const fill = (t: string) => fillTemplate(dropEmpty(t, vars), vars)
   return { kind, booking_id: b.id, title: fill(tpl.title), body: fill(tpl.body) }
@@ -118,7 +123,11 @@ export const texts = {
   },
   booking_confirmed: (b: B, ctx: MessageCtx): Message => build('booking_confirmed', b, ctx, ctx.messages.booking_confirmed),
   booking_rejected: (b: B, ctx: MessageCtx): Message => build('booking_rejected', b, ctx, ctx.messages.booking_rejected),
-  booking_expired: (b: B, ctx: MessageCtx): Message => build('booking_expired', b, ctx, ctx.messages.booking_expired),
+  /** body_unverified: it expired while waiting for the team (a reference was sent, or pay on arrival), not for lack of payment. */
+  booking_expired: (b: B, ctx: MessageCtx): Message => {
+    const m = ctx.messages.booking_expired
+    return build('booking_expired', b, ctx, { title: m.title, body: b.payment_ref || b.method === 'cash' ? m.body_unverified : m.body })
+  },
   booking_cancelled: (b: B, ctx: MessageCtx): Message => build('booking_cancelled', b, ctx, ctx.messages.booking_cancelled),
   booking_reminder: (b: B, ctx: MessageCtx): Message => build('booking_reminder', b, ctx, ctx.messages.booking_reminder),
 }

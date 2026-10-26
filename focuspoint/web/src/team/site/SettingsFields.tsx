@@ -35,13 +35,17 @@ export function checkIdentity(d: IdentityDraft): Partial<Record<IdentityKey, str
   }
   return e
 }
-/** Only the changed fields, cleaned like Settings › المركز. */
+/** Trimmed, Instagram without @ — what Settings › المركز stores. */
+export function cleanIdentity(d: IdentityDraft): IdentityDraft {
+  const c: IdentityDraft = {}
+  for (const [k, v] of Object.entries(d) as [IdentityKey, string | undefined][]) c[k] = (v ?? '').trim()
+  if (c.instagram !== undefined) c.instagram = c.instagram.replace(/^@/, '')
+  return c
+}
+/** Only the changed fields (after cleaning). */
 export function identityPatch(d: IdentityDraft, s: Settings): Partial<Settings> {
-  const clean: IdentityDraft = { ...d }
-  for (const k of Object.keys(clean) as IdentityKey[]) clean[k] = (clean[k] ?? '').trim()
-  if (clean.instagram !== undefined) clean.instagram = clean.instagram.replace(/^@/, '')
   const patch: Partial<Settings> = {}
-  for (const [k, v] of Object.entries(clean) as [IdentityKey, string][]) if (v !== String(s[k] ?? '')) (patch as Record<string, string>)[k] = v
+  for (const [k, v] of Object.entries(cleanIdentity(d)) as [IdentityKey, string][]) if (v !== String(s[k] ?? '')) (patch as Record<string, string>)[k] = v
   return patch
 }
 

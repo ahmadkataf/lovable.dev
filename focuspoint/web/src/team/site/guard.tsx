@@ -2,11 +2,11 @@
 // form is dirty, clicks on in-app links are caught in the capture phase (before React Router sees them) and confirmed,
 // and the browser asks before a reload / tab close. A back-swipe cannot be stopped this way; the draft is kept on the
 // device anyway (state.ts), so nothing typed is lost.
-import { useEffect, useState } from 'react'
+import { useEffect, useState, type ReactElement } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Confirm } from '../common'
 
-export function useLeaveGuard(dirty: boolean): { ask: (to: string) => boolean; dialog: JSX.Element } {
+export function useLeaveGuard(dirty: boolean): { ask: (to: string) => boolean; dialog: ReactElement } {
   const navigate = useNavigate()
   const [pending, setPending] = useState<string | null>(null)
 

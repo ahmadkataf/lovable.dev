@@ -1,6 +1,6 @@
 // Notification texts now come from the admin-editable templates (content.messages). With the default content they must
 // be IDENTICAL to the hard-coded texts used before the site editor: `legacy` below is that code, copied verbatim.
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { DEFAULT_CONTENT } from '../../shared/content'
 import type { Booking } from '../../shared/types'
 import { defaultMessageCtx, messageCtx, texts, type MessageCtx } from '../src/notify'
@@ -91,6 +91,17 @@ describe('notification texts follow the edited templates', () => {
     expect(m.body).toBe(`فوكس بوينت: قاعة الاجتماعات ${formatWhen(base.start, base.end, TZ)} — 100,000 ل.س (A7K2QZ) {unknown}`)
     expect(m).toMatchObject({ kind: 'booking_confirmed', booking_id: 42 })
   })
+  it('the reminder title follows settings.reminder_minutes ({reminder})', () => {
+    expect(texts.booking_reminder(base, defaultMessageCtx(TZ, '', '', 60)).title).toBe('حجزك بعد ساعة')
+    expect(texts.booking_reminder(base, defaultMessageCtx(TZ, '', '', 120)).title).toBe('حجزك بعد ساعتين')
+    expect(texts.booking_reminder(base, defaultMessageCtx(TZ, '', '', 30)).title).toBe('حجزك بعد نص ساعة')
+  })
+  it('an expiry while waiting for the team uses body_unverified', () => {
+    const m = { ...ctx, messages: { ...DEFAULT_CONTENT.messages, booking_expired: { title: 't', body: 'no payment', body_unverified: 'not checked' } } }
+    expect(texts.booking_expired({ ...base, payment_ref: null }, m).body).toBe('no payment')
+    expect(texts.booking_expired(base, m).body).toBe('not checked')
+    expect(texts.booking_expired({ ...base, payment_ref: null, method: 'cash' }, m).body).toBe('not checked')
+  })
   it('pay on arrival uses body_cash', () => {
     expect(texts.payment_submitted(base, edited).body).toBe('ref=123456789')
     expect(texts.payment_submitted({ ...base, method: 'cash' }, edited).body).toBe('cash أحمد')
@@ -98,11 +109,14 @@ describe('notification texts follow the edited templates', () => {
 })
 
 describe('messageCtx', () => {
-  const settings = { timezone: TZ, phone: '0985258963', centre_name: 'فوكس بوينت' }
+  const settings = { timezone: TZ, phone: '0985258963', centre_name: 'فوكس بوينت', reminder_minutes: 60 }
   it('falls back to the default templates when the content cannot be read', async () => {
     const broken = { prepare: () => { throw new Error('D1 down') } } as unknown as D1Database
+    const log = vi.spyOn(console, 'error').mockImplementation(() => undefined)
     const mc = await messageCtx(broken, settings)
-    expect(mc).toEqual({ tz: TZ, phone: '0985258963', name: 'فوكس بوينت', messages: DEFAULT_CONTENT.messages })
+    expect(log).toHaveBeenCalledOnce()
+    log.mockRestore()
+    expect(mc).toEqual({ tz: TZ, phone: '0985258963', name: 'فوكس بوينت', reminder: 'ساعة', messages: DEFAULT_CONTENT.messages })
   })
   it('uses the saved templates (merged over the defaults)', async () => {
     const saved = { messages: { ...DEFAULT_CONTENT.messages, booking_reminder: { title: 'قرّب موعدك', body: '{room}' } } }

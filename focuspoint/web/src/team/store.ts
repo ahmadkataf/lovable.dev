@@ -125,6 +125,7 @@ export function applyOp(view: View, op: SyncOp, at: string): View {
         id: tid, name: fields.name ?? 'قاعة جديدة', type: fields.type ?? 'private', capacity: fields.capacity ?? 1,
         contents: fields.contents ?? { chairs: 1, tables: 1 }, price_hour: fields.price_hour ?? 0, price_day: fields.price_day ?? null,
         color: fields.color ?? null, plan: fields.plan ?? null, active: fields.active ?? 1, sort: fields.sort ?? 0, description: fields.description ?? null,
+        photos: fields.photos ?? [],
       }
       return { ...view, rooms: [...view.rooms, room] }
     }
