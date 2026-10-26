@@ -343,3 +343,6 @@ legend { font-weight: 600; color: var(--accent); font-size: 13px; padding: 0; ma
 .pr-table tr.used td:first-child b { color: var(--accent); }
 .money2 { white-space: nowrap; font-variant-numeric: tabular-nums; }
 .stat.money b, .cost-totals .stat b { line-height: 1.5; }
+.canvas .label.sheet-no { fill: var(--muted); opacity: .9; }
+.field .check { display: flex; align-items: center; gap: .5em; font-weight: 600; cursor: pointer; }
+.field .check input { width: 1.15em; height: 1.15em; margin: 0; accent-color: var(--accent, currentColor); }

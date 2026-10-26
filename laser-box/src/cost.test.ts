@@ -34,6 +34,15 @@ describe('sheet costing', () => {
     expect(setsPerSheet([panel(100, 300), panel(30, 30, 10)], 2, { w: 400, h: 300 }).sets).toBe(2) // one tile too many for a third set
   })
 
+  it('never claims more than the nesting puts on one sheet: the margin kept, turning off keeps every piece (and the grain) as drawn', () => {
+    expect(setsPerSheet([panel(400, 600)], 3, { w: 1220, h: 2440 }).sets).toBe(12)
+    // 5 mm all round: 1210 wide no longer takes three 403 mm columns (12 without the margin)
+    expect(setsPerSheet([panel(403, 600)], 3, { w: 1220, h: 2440 }, { margin: 5 }).sets).toBe(10) // two columns turned, five rows
+    expect(setsPerSheet([panel(2400, 100)], 3, { w: 1220, h: 2440 }).sets).toBeGreaterThan(0)
+    expect(setsPerSheet([panel(2400, 100)], 3, { w: 1220, h: 2440 }, { rotate: false }).sets).toBe(0)
+    expect(setsPerSheet([panel(100, 2400)], 3, { w: 1220, h: 2440 }, { rotate: false, margin: 5 }).sets).toBe(11)
+  })
+
   it('prices one set as its share of each material\'s sheet, and a quantity by whole sheets', () => {
     const pricing: Pricing = { rate: 10000, currency: 'USD', sheets: { [MAIN]: { w: 122, h: 244, price: 11 }, gold: { w: 60, h: 90, price: 30 } } }
     const c = designCost([panel(100, 100, 2), panel(40, 40, 1, 'gold')], 3, pricing)
@@ -55,8 +64,9 @@ describe('sheet costing', () => {
 
   it('adds a project up by material, in fractions of sheets and in whole sheets', () => {
     const pricing: Pricing = { ...DEFAULT_PRICING, sheets: { [MAIN]: { w: 100, h: 100, price: 10 } } }
-    const a = designCost([panel(500, 500)], 0, pricing)   // 4 per sheet
-    const b = designCost([panel(1000, 500)], 0, pricing)  // 2 per sheet
+    // (the nesting keeps 0.1 mm between pieces even at spacing 0: two cuts on one line would merge)
+    const a = designCost([panel(495, 495)], 0, pricing)   // 4 per sheet
+    const b = designCost([panel(1000, 495)], 0, pricing)  // 2 per sheet
     const t = projectTotal([{ name: 'a', qty: 2, cost: a }, { name: 'b', qty: 3, cost: b }], pricing)
     expect(t.materials[0].fraction).toBeCloseTo(2 / 4 + 3 / 2, 9)
     expect(t.materials[0].sheets).toBe(2)

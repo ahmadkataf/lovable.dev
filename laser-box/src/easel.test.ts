@@ -3,7 +3,7 @@ import { EASELS, easelGeom, easelStrips, stripLen } from './easel'
 import { generate, DEFAULT_SETTINGS } from './generate'
 import { toDXF } from './export'
 import { signedArea, bbox, Loop } from './geom'
-import { samplePoly, pointIn, polysOverlap, selfIntersects, P } from './testutil'
+import { samplePoly, pointIn, polysOverlap, selfIntersects, P, offSheet } from './testutil'
 
 const tpl = EASELS[0]
 const S0 = { ...DEFAULT_SETTINGS, kerf: 0 }
@@ -227,7 +227,7 @@ describe('the tripod easel', () => {
       n++
       expect(d.panels.every(pn => pn.loops.every(l => l.pts.every(q => Number.isFinite(q.x) && Number.isFinite(q.y)))), `${label} non-finite`).toBe(true)
       if (d.errors.length) { refused++; for (const e of d.errors) expect(e, label).toMatch(/[\u0600-\u06ff]/); continue }
-      expect(d.layout.w, label).toBeLessThanOrEqual(Math.max(DEFAULT_SETTINGS.sheetW, Math.max(...d.panels.map(p => p.w))) + 1e-6)
+      expect(offSheet(d.layout), `${label} on its sheet`).toEqual([])
       for (const pn of d.panels) { expect(pn.w, `${label} ${pn.id} width`).toBeGreaterThan(0); soundPanel(pn, label) }
       const dxf = toDXF(d.layout)
       expect(dxf.includes('NaN') || dxf.includes('undefined'), `${label} dxf`).toBe(false)

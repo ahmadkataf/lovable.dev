@@ -4,7 +4,7 @@ import { buildPanel, fingerCount, edgeCuts } from './joints'
 import { TEMPLATES, pivotLid, CATEGORIES } from './templates'
 import { generate, DEFAULT_SETTINGS, autoFinger } from './generate'
 import { toDXF, toSVG, toAI } from './export'
-import { samplePoly, materialAt, pointIn, polysOverlap, polyDistance, segsCross, P } from './testutil'
+import { samplePoly, materialAt, pointIn, polysOverlap, polyDistance, segsCross, P, offSheet } from './testutil'
 
 const area = (l: Loop) => Math.abs(signedArea(l))
 
@@ -113,7 +113,7 @@ describe('templates', () => {
         expect(outers.length, `${tpl.id}/${p.id} should be one piece`).toBe(1)
         for (const l of p.loops) for (const v of l.pts) { expect(Number.isFinite(v.x)).toBe(true); expect(Number.isFinite(v.y)).toBe(true) }
       }
-      expect(d.layout.w).toBeLessThanOrEqual(Math.max(s.sheetW, ...d.panels.map(p => p.w)) + 1) // a door panel is wider than the default sheet
+      expect(offSheet(d.layout)).toEqual([]) // every piece on its own sheet (a door panel included)
       expect(d.cutLength).toBeGreaterThan(0)
     })
   }
@@ -636,9 +636,10 @@ describe('hexagonal ring box', () => {
       expect(d.panels.find(p => p.id === 'lip')!.h).toBeCloseTo(S - 2 * t - 6 - 2 * tpl.defaults.gap, 2)
       // the frames are cut from the mirror sheet, in their own block
       expect(frame.material).toBe('mirror'); expect(d.panels.find(p => p.id === 'lid-frame')!.material).toBe('mirror')
-      const mirrorTop = Math.min(...d.layout.placed.filter(q => q.panel.material === 'mirror').map(q => q.y))
-      const clearBottom = Math.max(...d.layout.placed.filter(q => !q.panel.material).map(q => q.y + q.panel.h))
-      expect(mirrorTop).toBeGreaterThan(clearBottom + 10)
+      // (on a sheet of their own: every piece on a sheet of its material, and the two kinds of sheet apart)
+      const sh = d.layout.sheets!
+      for (const q of d.layout.placed) expect(sh[q.sheet!].material).toBe(q.panel.material)
+      expect(new Set(d.layout.placed.map(q => q.sheet)).size).toBeGreaterThanOrEqual(2)
     }
   })
 })

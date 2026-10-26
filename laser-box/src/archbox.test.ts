@@ -3,7 +3,7 @@ import { ARCH_BOXES, archGeom, seigaiha } from './archbox'
 import { generate, DEFAULT_SETTINGS } from './generate'
 import { toDXF } from './export'
 import { signedArea, bbox, Loop } from './geom'
-import { samplePoly, pointIn, polysOverlap, selfIntersects, P } from './testutil'
+import { samplePoly, pointIn, polysOverlap, selfIntersects, P, offSheet } from './testutil'
 
 const tpl = ARCH_BOXES[0]
 const S0 = { ...DEFAULT_SETTINGS, kerf: 0 }
@@ -330,7 +330,7 @@ describe('the arch box with the seigaiha window', () => {
       const finite = d.panels.every(pn => pn.loops.every(l => l.pts.every(q => Number.isFinite(q.x) && Number.isFinite(q.y))))
       expect(finite, `${label} non-finite coordinates`).toBe(true)
       if (d.errors.length) { refused++; for (const e of d.errors) expect(e, label).toMatch(/[؀-ۿ]/); continue }
-      expect(d.layout.w, label).toBeLessThanOrEqual(Math.max(DEFAULT_SETTINGS.sheetW, Math.max(...d.panels.map(p => p.w))) + 1e-6)
+      expect(offSheet(d.layout), `${label} on its sheet`).toEqual([])
       // outlines sampled every 3°: on a 300 mm arch a 15° chord falls 2.6 mm inside the true arc, past the fret's web
       for (const pn of d.panels) { expect(pn.w, `${label} ${pn.id} width`).toBeGreaterThan(0); soundPanel(pn, label, 0.8, 0.8, 3) }
       const dxf = toDXF(d.layout)

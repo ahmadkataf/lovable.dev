@@ -3,7 +3,7 @@ import { signedArea, bbox } from './geom'
 import { TEMPLATES } from './templates'
 import { generate, DEFAULT_SETTINGS } from './generate'
 import { toDXF } from './export'
-import { samplePoly, pointIn, polysOverlap, polyDistance, selfIntersects } from './testutil'
+import { samplePoly, pointIn, polysOverlap, polyDistance, selfIntersects, offSheet } from './testutil'
 
 /**
  * Designs whose own test file runs this same grid at their own sizes (every thickness and kerf, each parameter at its
@@ -38,7 +38,7 @@ describe(`robustness grid ${shard + 1}/${shards}`, () => {
         for (const pn of d.panels) for (const l of pn.loops) for (const q of l.pts) expect(Number.isFinite(q.x) && Number.isFinite(q.y), `${tpl.id} ${pn.id} non-finite`).toBe(true)
         if (d.errors.length) { refused++; continue }
         const label = `${tpl.id} ${JSON.stringify(params)} t=${t} kerf=${kerf} finger=${finger} inner=${inner}`
-        expect(d.layout.w, label).toBeLessThanOrEqual(Math.max(DEFAULT_SETTINGS.sheetW, Math.max(...d.panels.map(p => p.w))) + 1e-6)
+        expect(offSheet(d.layout), `${label} on its sheet`).toEqual([])
         for (const pn of d.panels) {
           expect(pn.w, `${label} ${pn.id} width`).toBeGreaterThan(0)
           const closed = pn.loops.filter(l => l.closed && l.layer !== 'engrave')

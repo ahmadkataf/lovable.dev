@@ -2,6 +2,7 @@ import './style.css'
 import { TEMPLATES, templateById, ParamDef, CATEGORIES, NEW_IDS } from './templates'
 import { generate, Design, Settings, DEFAULT_SETTINGS } from './generate'
 import { toSVG, toDXF, toAI } from './export'
+import { sheetLayout, usedShare } from './layout'
 import { loopToPath } from './geom'
 import { makeZip } from './zip'
 import { MATERIAL_INFO } from './materials'
@@ -27,7 +28,7 @@ const SETTING_DEFS: ParamDef[] = [
   { key: 'kerf', label: 'عرض الشقّ (kerf)', min: 0, max: 1, step: 0.01, unit: 'مم', hint: 'ما يأكله شعاع الليزر؛ عادةً 0.1–0.2 مم. يُعوَّض تلقائياً لتعشيق محكم' },
   { key: 'finger', label: 'عرض الأصبع', min: 0, max: 100, step: 0.5, unit: 'مم', hint: '0 = تلقائي (بين ضعف السماكة وثلاثة أضعافها بحسب حجم الصندوق). يُضبط ليكون العدد فردياً' },
   { key: 'spacing', label: 'المسافة بين القطع', min: 0, max: 50, step: 0.5, unit: 'مم' },
-  { key: 'sheetW', label: 'عرض اللوح', min: 50, max: 3000, step: 10, unit: 'مم', hint: 'القطع تُرصّ في صفوف لا تتجاوز هذا العرض' },
+  { key: 'margin', label: 'هامش حافّة اللوح', min: 0, max: 50, step: 0.5, unit: 'مم', hint: 'مسافة لا تُقصّ عند حافّة اللوح (الحافّة كثيراً ما تكون غير مستقيمة أو تالفة). مقاس اللوح نفسه من «الأسعار»: 122 × 244 سم افتراضياً' },
 ]
 
 const MATERIALS: { id: string; label: string; kerf: number }[] = [
@@ -45,7 +46,8 @@ function loadState(): State {
     if (raw) {
       const saved = JSON.parse(raw)
       Object.assign(base, saved, {
-        settings: { ...DEFAULT_SETTINGS, ...saved.settings },
+        // the old layout's row width (400 mm) is no sheet: the sheet bought is 1220 wide
+        settings: { ...DEFAULT_SETTINGS, ...saved.settings, ...(saved.settings?.sheetW < 600 ? { sheetW: 1220 } : {}) },
         pricing: { ...defaultPricing(), ...(saved.pricing ?? {}), sheets: Object.fromEntries(Object.entries({ ...defaultPricing().sheets, ...(saved.pricing?.sheets ?? {}) }).map(([k, v]) => [k, { ...(v as object) }])) },
         project: Array.isArray(saved.project) ? saved.project.filter((it: ProjectItem) => TEMPLATES.some(t => t.id === it.tpl)) : [],
         qty: saved.qty ?? {},
@@ -61,7 +63,7 @@ function loadState(): State {
       if (k === 'tpl' || k === 'labels') continue
       const n = parseFloat(v)
       if (!Number.isFinite(n)) continue
-      if (k in DEFAULT_SETTINGS) (base.settings as unknown as Record<string, number | boolean>)[k] = k === 'inner' ? n === 1 : n
+      if (k in DEFAULT_SETTINGS) (base.settings as unknown as Record<string, number | boolean>)[k] = k === 'inner' || k === 'rotate' ? n === 1 : k === 'sheetW' && n < 600 ? 1220 : n
       else p[k] = n
     }
     base.params[base.tpl] = { ...(base.params[base.tpl] ?? {}), ...p }
@@ -166,7 +168,7 @@ const priceDlg = el('dialog', { class: 'chooser pricing', 'aria-label': 'الأ�
 const actions = el('div', { class: 'actions' })
 previewWrap.append(stats, alerts, el('div', { class: 'canvas-wrap' }, svg, el('div', { class: 'canvas-tools' }, el('button', { type: 'button', class: 'tool', onclick: () => fitView(), title: 'ملاءمة' }, '⤢'), el('button', { type: 'button', class: 'tool', onclick: () => { state.labels = !state.labels; persist(); render() }, title: 'الأسماء' }, 'Aa'))), actions)
 document.body.append(chooser, priceDlg)
-app.append(header, gallery, quick, scaler, el('div', { class: 'work' }, form, previewWrap), costBox, notesBox, el('footer', { class: 'foot' }, 'الملفات بالمليمتر. افتح SVG أو DXF في LightBurn أو RDWorks أو Inkscape، وتأكّد أن القياس 1:1 قبل القص. · الإصدار 2.6'))
+app.append(header, gallery, quick, scaler, el('div', { class: 'work' }, form, previewWrap), costBox, notesBox, el('footer', { class: 'foot' }, 'الملفات بالمليمتر. افتح SVG أو DXF في LightBurn أو RDWorks أو Inkscape، وتأكّد أن القياس 1:1 قبل القص. · الإصدار 2.7'))
 
 // ------------------------------------------------------------------ gallery
 
@@ -296,6 +298,10 @@ function renderForm() {
   mat.append(el('div', { class: 'field' }, el('span', { class: 'field-label' }, 'نوع الخامة'), materialPicker(), el('span', { class: 'hint' }, 'يضبط عرض الشقّ المعتاد؛ اكتب السماكة المقاسة بالقدمة في الخانة أدناه')))
   mat.append(el('div', { class: 'field' }, el('span', { class: 'field-label' }, 'سماكات شائعة (مم)'), thicknessPicker(), el('span', { class: 'hint' }, 'اختر سماكة لوحك، أو اكتب المقاسة بالقدمة في «سماكة الخامة»')))
   for (const def of SETTING_DEFS) mat.append(numberField(def, (state.settings as unknown as Record<string, number>)[def.key], v => { (state.settings as unknown as Record<string, number>)[def.key] = v; persist(); update() }))
+  const rot = el('input', { type: 'checkbox', id: 'rotate' }) as HTMLInputElement
+  rot.checked = state.settings.rotate !== false
+  rot.onchange = () => { state.settings.rotate = rot.checked; persist(); update(true) }
+  mat.append(el('div', { class: 'field' }, el('label', { class: 'check', for: 'rotate' }, rot, ' السماح بتدوير القطع'), el('span', { class: 'hint' }, 'يدوّر القطع ربع دورة أو نصفها حين يوفّر ذلك من اللوح (لا تُقلب أبداً). أوقفه إن كان اتجاه عروق الخشب مهمّاً')))
   const reset = el('button', { type: 'button', class: 'link' }, 'إعادة القيم الافتراضية')
   reset.onclick = () => { lastAction = null; state.params[state.tpl] = {}; state.settings = { ...DEFAULT_SETTINGS }; persist(); renderForm(); update(true) }
   form.append(dims, mat, reset)
@@ -430,7 +436,7 @@ let dirtyFit = true
 function update(refit = false) {
   if (refit) dirtyFit = true
   try {
-    design = generate(tpl(), params(), state.settings)
+    design = generate(tpl(), params(), genSettings(state.settings))
   } catch (err) {
     design = null
     stats.innerHTML = ''
@@ -447,9 +453,19 @@ function render() {
   if (!design) return
   const lay = design.layout
   svg.innerHTML = ''
-  const sheet = document.createElementNS(svgNS, 'rect')
-  sheet.setAttribute('x', '0'); sheet.setAttribute('y', '0'); sheet.setAttribute('width', String(lay.w)); sheet.setAttribute('height', String(lay.h)); sheet.setAttribute('class', 'sheet')
-  svg.append(sheet)
+  // every sheet's outline (the preview only: the files hold the pieces), numbered when there are several
+  for (const [i, sh] of (lay.sheets ?? [{ x: 0, y: 0, w: lay.w, h: lay.h }]).entries()) {
+    const r = document.createElementNS(svgNS, 'rect')
+    r.setAttribute('x', String(sh.x)); r.setAttribute('y', String(sh.y)); r.setAttribute('width', String(sh.w)); r.setAttribute('height', String(sh.h)); r.setAttribute('class', 'sheet')
+    svg.append(r)
+    if ((lay.sheets?.length ?? 0) > 1) {
+      const tx = document.createElementNS(svgNS, 'text')
+      tx.setAttribute('x', String(sh.x + sh.w / 2)); tx.setAttribute('y', String(sh.y - 20)); tx.setAttribute('class', 'label sheet-no'); tx.setAttribute('font-size', '40')
+      const mat = (sh as { material?: string }).material, m = mat ? ` — ${MATERIAL_INFO[mat]?.label ?? mat}` : ''
+      tx.textContent = `لوح ${i + 1}${m}`
+      svg.append(tx)
+    }
+  }
   for (const pl of lay.placed) {
     const g = document.createElementNS(svgNS, 'g')
     g.setAttribute('transform', `translate(${pl.x} ${pl.y})`)
@@ -487,11 +503,12 @@ function render() {
   if (dirtyFit) { fitView(); dirtyFit = false } else applyView()
 
   const p = params()
-  const cost = designCost(design.panels, state.settings.spacing, state.pricing)
+  const cost = designCost(design.panels, state.settings.spacing, state.pricing, nestOpts(state.settings))
   stats.innerHTML = ''
   stats.append(
     stat('القطع', String(design.pieceCount)),
-    stat('اللوح المطلوب', `${fmt(lay.w)} × ${fmt(lay.h)} مم`),
+    stat(`الألواح (${sheetLabel(lay)})`, String(lay.sheets?.length ?? 1)),
+    stat('المستغلّ من اللوح', `${Math.round(100 * usedShare(lay))}٪`),
     stat('طول القصّ', `${fmt(design.cutLength / 1000)} م`),
     stat('القياس', sizeLabel(p)),
     stat('تكلفة القطعة', design.errors.length ? '—' : cost.problems.length ? 'لا تتّسع على اللوح' : twoLines(cost.perSet), 'money'),
@@ -504,6 +521,8 @@ function render() {
     el('button', { type: 'button', class: 'fix', onclick: () => doRepair() }, '🔧 صحّح تلقائياً'),
     el('span', { class: 'hint' }, 'يغيّر أقلّ ما يمكن من القياسات (وإن لم يكفِ ذلك قد يُلغي جزءاً صغيراً)، ويترك السماكة والخلوص وقياسات الأغراض (الصحن، الصورة…) كما هي، ويمكنك التراجع.')))
   for (const w of design.warnings) alerts.append(el('div', { class: 'warn' }, '⚠ ' + w))
+  if (lay.tooBig?.length) alerts.append(el('div', { class: 'warn' }, `⚠ «${design.panels.find(p => p.id === lay.tooBig![0])?.name ?? lay.tooBig[0]}» أكبر من اللوح بالاتّجاهين: وُضع وحده على لوح أكبر في الملف. كبّر مقاس اللوح من «الأسعار» أو صغّر القطعة.`))
+  if (lay.turned) alerts.append(el('div', { class: 'info' }, `دُوّرت ${lay.turned} من القطع على اللوح لتوفير الخامة؛ إن كان اتجاه عروق الخشب مهمّاً أوقف «السماح بتدوير القطع».`))
   if (!blocked && state.settings.finger === 0) alerts.append(el('div', { class: 'info' }, `عرض الأصبع التلقائي: ${fmt(design.finger)} مم (السماكة ${state.settings.t} مم)`))
   notesBox.innerHTML = ''
   if (design.notes.length) {
@@ -592,7 +611,7 @@ function itemCost(it: ProjectItem): DesignCost | null {
   const key = JSON.stringify([it.tpl, it.params, it.settings, state.pricing])
   if (costCache.has(key)) return costCache.get(key)!
   let c: DesignCost | null = null
-  try { const d = generate(templateById(it.tpl), it.params, it.settings); c = d.errors.length ? null : designCost(d.panels, it.settings.spacing, state.pricing) } catch { c = null }
+  try { const d = generate(templateById(it.tpl), it.params, genSettings(it.settings)); c = d.errors.length ? null : designCost(d.panels, it.settings.spacing, state.pricing, nestOpts(it.settings)) } catch { c = null }
   if (costCache.size > 200) costCache.clear()
   costCache.set(key, c)
   return c
@@ -653,7 +672,7 @@ function renderCost(cost: DesignCost) {
 function renderProject(): HTMLElement {
   const box = el('div', { class: 'project' })
   const items = state.project
-  const recost = () => { if (design) renderCost(designCost(design.panels, state.settings.spacing, state.pricing)) }
+  const recost = () => { if (design) renderCost(designCost(design.panels, state.settings.spacing, state.pricing, nestOpts(state.settings))) }
   box.append(el('h3', {}, '🧾 المشروع', el('small', {}, items.length ? ` ${pieces(items.length)}` : ' فارغ')))
   if (!items.length) { box.append(el('p', { class: 'hint' }, 'أضف القطع التي يطلبها الزبون واحدة بعد الأخرى (من أي تصميم)، فتُحسب تكلفة المشروع كلّه وكم لوحاً من كل خامة تحتاج.')); return box }
   const list = el('div', { class: 'proj-list' })
@@ -797,13 +816,49 @@ function fileName(ext: string) {
   return `laser-box-${state.tpl}-${dims}-t${state.settings.t}.${ext}`
 }
 
+/** the settings a design is generated with: the sheets from the prices (cm), every setting a saved design may lack filled in */
+function genSettings(s: Settings): Settings {
+  const cm = (m: string) => state.pricing.sheets[m] ?? state.pricing.sheets[MAIN] ?? DEFAULT_SHEET
+  const main = cm(MAIN)
+  const matSheets = Object.fromEntries(Object.keys(MATERIAL_INFO).map(m => { const c = cm(m); return [m, { w: c.w * 10, h: c.h * 10 }] }))
+  return { ...DEFAULT_SETTINGS, ...s, sheetW: main.w * 10, sheetH: main.h * 10, matSheets }
+}
+const nestOpts = (s: Settings) => ({ margin: s.margin ?? DEFAULT_SETTINGS.margin, rotate: s.rotate !== false })
+/** «122 × 244 سم», or the sizes of every sheet when they differ */
+function sheetLabel(lay: Design['layout']): string {
+  const sizes = [...new Set((lay.sheets ?? []).map(s => `${fmt(s.w / 10)} × ${fmt(s.h / 10)}`))]
+  return sizes.length ? sizes.join('، ') + ' سم' : `${fmt(lay.w)} × ${fmt(lay.h)} مم`
+}
+
 type Kind = 'svg' | 'dxf' | 'ai'
 const MIME: Record<Kind, string> = { svg: 'image/svg+xml', dxf: 'application/dxf', ai: 'application/postscript' }
 const KIND_NAME: Record<Kind, string> = { svg: 'SVG', dxf: 'DXF', ai: 'AI 8' }
 
+/** a layout as a file of the kind asked for */
+const fileText = (kind: Kind, lay: Design['layout'], name: string) => (kind === 'svg' ? toSVG(lay) : kind === 'dxf' ? toDXF(lay) : toAI(lay, name))
+
 async function download(kind: Kind) {
   if (!design) return
-  const text = kind === 'svg' ? toSVG(design.layout) : kind === 'dxf' ? toDXF(design.layout) : toAI(design.layout, fileName('ai'))
+  const text = fileText(kind, design.layout, fileName(kind))
+  const n = design.layout.sheets?.length ?? 1
+  if (n > 1 && !android) {
+    // several sheets: one file per sheet (each cut on its own) and the whole drawing, in one .zip
+    const entries = [...Array(n).keys()].map(i => { const name = fileName(`sheet${i + 1}.${kind}`); return { name, data: fileText(kind, sheetLayout(design!.layout, i), name) } })
+    entries.push({ name: fileName(kind), data: text })
+    const zipName = fileName(`${kind}.zip`), blob = new Blob([makeZip(entries)], { type: 'application/zip' })
+    if (claudeUse) {
+      const dl = await claudeUse('downloads').catch(() => null)
+      if (!dl) { toast('التنزيل غير متاح في هذه النافذة'); return }
+      try { await dl.save({ filename: zipName, data: blob }) } catch (e) { const code = (e as { code?: string })?.code; if (code !== 'declined') toast('تعذّر الحفظ: ' + (code ?? 'خطأ')); return }
+    } else {
+      const url = URL.createObjectURL(blob)
+      const a = el('a', { href: url, download: zipName })
+      document.body.append(a); a.click(); a.remove()
+      setTimeout(() => URL.revokeObjectURL(url), 5000)
+    }
+    toast(`التصميم على ${n} ألواح: حُفظ ملف مضغوط «${zipName}» فيه ملف ${KIND_NAME[kind]} لكلّ لوح (اقصّ كلّاً وحده) وملف يجمعها كلّها.`, 9000)
+    return
+  }
   if (android) {
     // octet-stream keeps the name exactly as given: with a specific type some file pickers swap or add the extension
     android.save(fileName(kind), kind === 'svg' ? MIME.svg : 'application/octet-stream', text)

@@ -66,3 +66,15 @@ export function selfIntersects(poly: P[]): boolean {
   }
   return false
 }
+
+/** ids of the pieces whose cuts leave their own sheet's rectangle (a nested layout: every piece on a sheet) */
+export function offSheet(lay: { placed: { panel: { id: string; loops: Loop[] }; x: number; y: number; sheet?: number }[]; sheets?: { x: number; y: number; w: number; h: number }[] }): string[] {
+  const bad: string[] = []
+  for (const pl of lay.placed) {
+    const sh = lay.sheets?.[pl.sheet ?? -1]
+    let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity
+    for (const l of pl.panel.loops) if (l.layer !== 'engrave') for (const q of l.pts) { x0 = Math.min(x0, q.x); y0 = Math.min(y0, q.y); x1 = Math.max(x1, q.x); y1 = Math.max(y1, q.y) }
+    if (!sh || pl.x + x0 < sh.x - 1e-6 || pl.y + y0 < sh.y - 1e-6 || pl.x + x1 > sh.x + sh.w + 1e-6 || pl.y + y1 > sh.y + sh.h + 1e-6) bad.push(pl.panel.id)
+  }
+  return bad
+}

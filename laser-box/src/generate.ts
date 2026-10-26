@@ -1,11 +1,25 @@
 // From a template and its numbers to panels laid out on a sheet.
 import { buildPanel, applyKerf, Panel } from './joints'
-import { layout, Layout } from './layout'
+import { nestLayout, Layout } from './layout'
 import { Template, Common } from './templates'
 import { loopLength, signedArea, bbox } from './geom'
 import { MATERIAL_INFO, COLOUR_NAME } from './materials'
 
-export interface Settings extends Common { spacing: number; sheetW: number }
+export interface Settings extends Common {
+  spacing: number
+  /** the main sheet, mm (the app takes it from the prices: 122 × 244 cm) */
+  sheetW: number
+  sheetH: number
+  /** the least distance from a piece to the sheet's edge, mm */
+  margin: number
+  /** pieces may be turned by quarter turns on the sheet (off: every piece as drawn, for the wood grain) */
+  rotate: boolean
+  /** other materials' sheets, mm (the main sheet when missing) */
+  matSheets?: Record<string, { w: number; h: number }>
+}
+
+/** time for the nesting search, ms (the tests lower it: they generate thousands of designs) */
+export const NEST = { ms: 150 }
 
 export interface Design {
   panels: Panel[]
@@ -21,7 +35,7 @@ export interface Design {
 }
 
 /** finger = 0 means automatic: between two and three thicknesses, and never more than a fifth of the smallest dimension */
-export const DEFAULT_SETTINGS: Settings = { t: 3, kerf: 0.15, finger: 0, inner: false, spacing: 3, sheetW: 400 }
+export const DEFAULT_SETTINGS: Settings = { t: 3, kerf: 0.15, finger: 0, inner: false, spacing: 3, sheetW: 1220, sheetH: 2440, margin: 5, rotate: true }
 
 export function autoFinger(t: number, dims: number[]): number {
   const smallest = Math.min(...dims.filter(v => Number.isFinite(v) && v > 0), Infinity)
@@ -54,12 +68,11 @@ export function generate(tpl: Template, params: Record<string, number>, s: Setti
   const stray = built.find(b => { const box = bbox(b.loops.filter(l => l.layer !== 'engrave')), e = bbox(b.loops.filter(l => l.layer === 'engrave')); return b.loops.some(l => l.layer === 'engrave') && (e.minX < box.minX - 0.5 || e.minY < box.minY - 0.5 || e.maxX > box.maxX + 0.5 || e.maxY > box.maxY + 0.5) })
   if (stray) errors.push(`النقش يخرج عن حدود «${stray.name}» بهذه المقاسات: غيّر القياسات (مثلاً اجعل اللوح أطول من عرضه).`)
   const panels = built.map(b => applyKerf(b, s.kerf))
-  const lay = layout(panels, s.spacing, s.sheetW)
   let cutLength = 0, pieceCount = 0
   for (const pn of panels) { pieceCount += pn.count; for (const l of pn.loops) cutLength += loopLength(l) * pn.count }
   // pieces for other sheets: say which colour (= RDWorks layer) belongs to which material
   const mats = [...new Set(panels.map(p => p.material).filter((m): m is string => !!m))]
-  const notes = mats.length ? [...res.notes, `الملف مقسوم حسب الخامة، كلّ خامة في كتلة ولون خاصّ: الأحمر للخامة الأساسية، ${mats.map(m => `${COLOUR_NAME[MATERIAL_INFO[m]?.hex] ?? m} لـ${MATERIAL_INFO[m]?.label ?? m}`).join('، ')}. في RDWorks اقصّ كلّ لوح وحده: شغّل طبقة لونه وأوقف الباقي (Output = No).`] : res.notes
+  const notes = mats.length ? [...res.notes, `الملف مقسوم حسب الخامة، كلّ خامة على لوحها ولونها الخاصّ: الأحمر للخامة الأساسية، ${mats.map(m => `${COLOUR_NAME[MATERIAL_INFO[m]?.hex] ?? m} لـ${MATERIAL_INFO[m]?.label ?? m}`).join('، ')}. في RDWorks اقصّ كلّ لوح وحده: شغّل طبقة لونه وأوقف الباقي (Output = No).`] : res.notes
   // anything that slots together is sized on the thickness entered: say so, since a «3 mm» sheet is often 3.3
   // (finger joints, or a slot hole about as wide as the stock and longer than it is wide)
   const isSlot = (l: { closed: boolean; layer?: string; pts: { x: number; y: number }[] }) => {
@@ -70,5 +83,8 @@ export function generate(tpl: Template, params: Record<string, number>, s: Setti
   // a design that says it has no joints (a fret of short dashes) is not one that slots together
   const slotted = res.slotted === false ? false : !!res.slotted || built.some(b => Number.isFinite(b.minFinger) || b.loops.some(isSlot))
   const fitNote = slotted ? [`الشقوق والأصابع مقاسة على سماكة ${s.t} مم بالضبط مع خلوص صغير: قِس لوحك (وفي أكثر من مكان) وأدخل سماكته الحقيقية قبل القصّ، أو اقصّ «اختبار التعشيق» من قسم المعايرة أولاً.`] : []
-  return { panels, layout: lay, notes: [...notes, ...fitNote].map(tidy), warnings: warnings.map(tidy), errors: errors.map(tidy), cutLength, pieceCount, finger }
+  // the nesting takes a while: done when the layout is first asked for (many callers only want the pieces or the errors)
+  let lay: Layout | undefined
+  const sheet = (m?: string) => (m && s.matSheets?.[m]) || { w: s.sheetW || 1220, h: s.sheetH || 2440 }
+  return { panels, get layout() { return (lay ??= nestLayout(panels, { spacing: s.spacing, margin: s.margin ?? 5, sheet, rotate: s.rotate !== false, budgetMs: NEST.ms })) }, notes: [...notes, ...fitNote].map(tidy), warnings: warnings.map(tidy), errors: errors.map(tidy), cutLength, pieceCount, finger }
 }

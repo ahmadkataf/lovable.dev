@@ -4,6 +4,7 @@
 // one per other material: mirror, gold, clear…), and prices are kept in one currency and shown in two.
 import { Panel } from './joints'
 import { MATERIAL_INFO } from './materials'
+import { nest } from './nest'
 
 /** a sheet as bought: its size in centimetres and its price in the input currency */
 export interface SheetSpec { w: number; h: number; price: number }
@@ -54,13 +55,40 @@ export interface Nesting {
  * as the layout does, and then better than the layout: a shorter piece goes into a column under a piece already in
  * the row, and a piece that finds no new row goes into any row with room left. The largest k whose every piece
  * finds a place is the answer, tried with the sheet both ways round and the pieces upright or turned; the best kept.
- * A lower bound a real nesting program may beat a little, never an overestimate.
+ * A lower bound a real nesting program may beat a little, never an overestimate: the count is then checked with the
+ * true-shape nesting the cut files use (k sets on one sheet, with the margin and the turning allowed) and lowered
+ * until it holds.
  */
-export function setsPerSheet(panels: Panel[], spacing: number, sheetMm: { w: number; h: number }): Nesting {
+export function setsPerSheet(panels: Panel[], spacing: number, sheetIn: { w: number; h: number }, o: { margin?: number; rotate?: boolean } = {}): Nesting {
   const types = panels.filter(p => p.count > 0 && p.w > 0 && p.h > 0)
+  const margin = Math.max(0, o.margin ?? 0), rotate = o.rotate !== false
+  const key = JSON.stringify([types.map(p => [p.id, +p.w.toFixed(3), +p.h.toFixed(3), p.count, p.loops.length, p.material ?? '']), spacing, sheetIn, margin, rotate])
+  const hit = NEST_CACHE.get(key)
+  if (hit) return { ...hit, tooBig: [...hit.tooBig] }
+  const r = shelfSets(types, spacing, sheetIn, margin, rotate)
+  if (r.sets > 0) {
+    const fits = (k: number) => {
+      const res = nest(types.map(p => ({ ...p, count: p.count * k })), { spacing, margin, sheet: () => sheetIn, rotate, budgetMs: 40 })
+      return res.sheets.length === 1 && !res.tooBig.length
+    }
+    if (!fits(r.sets)) {
+      let lo = 0, hi = r.sets
+      while (hi - lo > 1) { const m = Math.floor((lo + hi) / 2); if (fits(m)) lo = m; else hi = m }
+      r.sets = lo
+    }
+  }
+  if (NEST_CACHE.size > 200) NEST_CACHE.clear()
+  NEST_CACHE.set(key, r)
+  return { ...r, tooBig: [...r.tooBig] }
+}
+const NEST_CACHE = new Map<string, Nesting>()
+
+function shelfSets(types: Panel[], spacing: number, sheetIn: { w: number; h: number }, margin: number, rotate: boolean): Nesting {
+  // the margin all round is not cut into
+  const sheetMm = { w: sheetIn.w - 2 * margin, h: sheetIn.h - 2 * margin }
   const area = types.reduce((s, p) => s + p.w * p.h * p.count, 0)
-  const sheetArea = sheetMm.w * sheetMm.h
-  const fitsSomehow = (p: Panel) => (p.w <= sheetMm.w && p.h <= sheetMm.h) || (p.h <= sheetMm.w && p.w <= sheetMm.h)
+  const sheetArea = sheetIn.w * sheetIn.h
+  const fitsSomehow = (p: Panel) => (p.w <= sheetMm.w && p.h <= sheetMm.h) || (rotate && p.h <= sheetMm.w && p.w <= sheetMm.h)
   const tooBig = types.filter(p => !fitsSomehow(p)).map(p => p.name)
   if (!types.length || tooBig.length || area <= 0) return { sets: 0, area, sheetArea, turned: false, tooBig }
   // never more sets than the areas allow; and never more pieces than a page can pack in a blink: past the cap the
@@ -101,7 +129,7 @@ export function setsPerSheet(panels: Panel[], spacing: number, sheetMm: { w: num
       return stack(it) || append(it) || newRow(it)
     }
     // a piece that finds no place upright may find one turned (a board laid on its side in the last strip)
-    for (const it of items) if (!tryPlace(it) && !(it.w !== it.h && tryPlace({ w: it.h, h: it.w, i: it.i }))) return { ok: false, usedH: H }
+    for (const it of items) if (!tryPlace(it) && !(rotate && it.w !== it.h && tryPlace({ w: it.h, h: it.w, i: it.i }))) return { ok: false, usedH: H }
     const last = rows[rows.length - 1]
     return { ok: true, usedH: last ? last.y + last.h : 0 }
   }
@@ -114,8 +142,10 @@ export function setsPerSheet(panels: Panel[], spacing: number, sheetMm: { w: num
     return lo
   }
   let best = 0, turned = false
-  for (const [W, H, sheetTurned] of [[sheetMm.w, sheetMm.h, false], [sheetMm.h, sheetMm.w, true]] as const) {
-    for (const rot of [false, true]) {
+  const ways = [[sheetMm.w, sheetMm.h, false], [sheetMm.h, sheetMm.w, true]] as const
+  // turning off: the grain runs along the sheet, so neither the pieces nor the sheet turn
+  for (const [W, H, sheetTurned] of rotate ? ways : ways.slice(0, 1)) {
+    for (const rot of rotate ? [false, true] : [false]) {
       let sets = most(cap, W, H, rot)
       if (sets === cap && cap < bound) {
         // past the cap: the capped packing's block repeated down the sheet, and whatever still packs in the strip left
@@ -148,11 +178,11 @@ export interface DesignCost {
 }
 
 /** The cost of one set of a design: each material's pieces on their own sheet. */
-export function designCost(panels: Panel[], spacing: number, pricing: Pricing): DesignCost {
+export function designCost(panels: Panel[], spacing: number, pricing: Pricing, o: { margin?: number; rotate?: boolean } = {}): DesignCost {
   const mats = [...new Set(panels.map(p => p.material ?? MAIN))]
   const parts: MaterialCost[] = mats.map(m => {
     const mine = panels.filter(p => (p.material ?? MAIN) === m), sheet = sheetOf(pricing, m)
-    const nest = setsPerSheet(mine, spacing, { w: sheet.w * 10, h: sheet.h * 10 })
+    const nest = setsPerSheet(mine, spacing, { w: sheet.w * 10, h: sheet.h * 10 }, o)
     return { material: m, label: materialLabel(m), sheet, nest, pieces: mine.reduce((s, p) => s + p.count, 0), perSet: nest.sets > 0 ? sheet.price / nest.sets : 0 }
   })
   const problems = parts.filter(p => p.nest.sets === 0).map(p => `${p.label}: ${p.nest.tooBig.length ? `«${p.nest.tooBig[0]}» أكبر من اللوح (${p.sheet.w} × ${p.sheet.h} سم)` : 'القطع لا تتّسع على لوح واحد'}`)
