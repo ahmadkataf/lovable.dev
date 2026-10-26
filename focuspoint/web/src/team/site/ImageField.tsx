@@ -93,7 +93,8 @@ export function ImageField({ value, onChange, optional = false, def }: ImageFiel
       onChange({ ...p, alt: latest.current?.alt ?? '' })     // keeps an alt text typed while the upload ran
     } catch (err) { setError(errorText(err)) } finally { setPhase({ kind: 'idle' }) }
   }
-  const showDefault = def !== undefined && !deepEqual(photo, def ?? null)
+  // «الأصل» only when the default is a photo («إزالة» already covers a default of no photo)
+  const showDefault = def !== undefined && def !== null && !deepEqual(photo, def)
   return (
     <div className="se-image">
       <div className="se-image-row">

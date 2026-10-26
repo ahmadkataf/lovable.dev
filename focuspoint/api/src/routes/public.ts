@@ -164,7 +164,12 @@ export const publicRoutes: Route[] = [
     await c.env.DB.prepare(
       `INSERT INTO push_subscriptions (user_id, device_id, endpoint, p256dh, auth) VALUES (?, ?, ?, ?, ?)
        ON CONFLICT(endpoint) DO UPDATE SET user_id = excluded.user_id, device_id = COALESCE(excluded.device_id, push_subscriptions.device_id),
-         p256dh = excluded.p256dh, auth = excluded.auth, failures = 0`)
+         p256dh = excluded.p256dh, auth = excluded.auth, failures = 0
+       -- the app re-registers on every start: only write when something actually changed (D1 counts every written row)
+       WHERE push_subscriptions.user_id IS NOT excluded.user_id
+          OR push_subscriptions.device_id IS NOT COALESCE(excluded.device_id, push_subscriptions.device_id)
+          OR push_subscriptions.p256dh IS NOT excluded.p256dh OR push_subscriptions.auth IS NOT excluded.auth
+          OR push_subscriptions.failures != 0`)
       .bind(user_id, device_id, endpoint, p256dh, auth).run()
     return json({ ok: true })
   }),

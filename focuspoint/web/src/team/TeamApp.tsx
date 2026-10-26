@@ -28,8 +28,8 @@ const NAV: NavItem[] = [
   { to: '/team/rooms', label: 'القاعات', icon: 'door', phone: true },
   { to: '/team/plan', label: 'المخطط', icon: 'grid', admin: true },
   { to: '/team/customers', label: 'الزبائن', icon: 'people', admin: true },
-  // Phones: not a tab (the bar stays at four); reached from the الإعدادات quick links, like المخطط and الزبائن.
-  { to: '/team/site', label: 'الموقع', icon: 'globe', admin: true },
+  // A phone tab for admins (5 tabs): the site editor is used live, often on a phone in a meeting.
+  { to: '/team/site', label: 'الموقع', icon: 'globe', admin: true, phone: true },
   { to: '/team/settings', label: 'الإعدادات', icon: 'settings', admin: true, phone: true },
 ]
 

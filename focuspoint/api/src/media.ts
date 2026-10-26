@@ -125,7 +125,29 @@ const toItem = (r: MediaRow, used: Set<string>): MediaItem => ({
   id: r.id, src: mediaSrc(r.id, r.mime), w: r.w ?? 0, h: r.h ?? 0, bytes: r.bytes ?? 0, mime: r.mime, created_at: r.created_at ?? '', used: used.has(r.id),
 })
 
+/** Storage cap for uploaded images, far below D1's free-plan database size (500 MB), so the database can never grow
+ *  into a cost or a limit problem. Unused images can be deleted from the editor to make room. */
+export const MEDIA_MAX_COUNT = 300
+export const MEDIA_MAX_TOTAL_BYTES = 150_000_000
+
 export async function putMedia(db: D1Database, bytes: Uint8Array, info: { mime: MediaMime; w: number; h: number }, userId: number | null, now: Date): Promise<MediaUpload> {
+  const full = async () => {
+    const u = await db.prepare('SELECT COUNT(*) AS n, COALESCE(SUM(bytes), 0) AS total FROM media').first<{ n: number; total: number }>()
+    return !!u && (u.n >= MEDIA_MAX_COUNT || u.total + bytes.length > MEDIA_MAX_TOTAL_BYTES)
+  }
+  if (await full()) {
+    // Make room: drop uploads nothing uses any more (replaced or removed photos) that are older than a day — a day so
+    // an image uploaded in an editor that has not been saved yet is never taken away.
+    const used = await usedMediaIds(db)
+    const dayAgo = new Date(now.getTime() - 86_400_000).toISOString()
+    const old = (await db.prepare('SELECT id FROM media WHERE created_at < ? ORDER BY created_at').bind(dayAgo).all<{ id: string }>()).results
+    const unused = old.map((r) => r.id).filter((mid) => !used.has(mid))
+    for (let i = 0; i < unused.length; i += 50) {
+      const chunk = unused.slice(i, i + 50)
+      await db.prepare(`DELETE FROM media WHERE id IN (${chunk.map(() => '?').join(',')})`).bind(...chunk).run()
+    }
+    if (await full()) throw new HttpError(413, 'media_quota')
+  }
   const id = newMediaId()
   await db.prepare('INSERT INTO media (id, mime, data, w, h, bytes, created_at, created_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?)')
     .bind(id, info.mime, bytes, info.w, info.h, bytes.length, now.toISOString(), userId).run()
@@ -178,10 +200,17 @@ export async function deleteMedia(db: D1Database, id: string): Promise<void> {
 const IMMUTABLE = 'public, max-age=31536000, immutable'
 const notFound = () => new Response('Not found', { status: 404, headers: { 'Content-Type': 'text/plain; charset=utf-8', 'Cache-Control': 'no-store' } })
 
-export async function serveMedia(req: Request, env: Env, url: URL): Promise<Response> {
+export async function serveMedia(req: Request, env: Env, url: URL, exec?: ExecutionContext): Promise<Response> {
   if (req.method !== 'GET' && req.method !== 'HEAD') return new Response(null, { status: 405, headers: { Allow: 'GET, HEAD' } })
   const file = parseMediaFile(url.pathname.slice('/media/'.length))
   if (!file) return notFound()
+  // Cloudflare's edge cache first: an image is read from D1 once per data centre, not once per visitor (ids never
+  // change, so a cached copy is always right). Conditional requests skip the cache and get their 304 below.
+  const cache = typeof caches !== 'undefined' ? (caches as unknown as { default?: Cache }).default : undefined
+  const key = new Request(url.origin + url.pathname, { method: 'GET' })
+  if (cache && req.method === 'GET' && !req.headers.get('If-None-Match')) {
+    try { const hit = await cache.match(key); if (hit) return hit } catch { /* no cache: read D1 */ }
+  }
   let media: Awaited<ReturnType<typeof getMedia>>
   try {
     media = await getMedia(env.DB, file.id)
@@ -200,5 +229,7 @@ export async function serveMedia(req: Request, env: Env, url: URL): Promise<Resp
     const { 'Content-Length': _l, ...rest } = headers
     return new Response(null, { status: 304, headers: rest })
   }
-  return new Response(req.method === 'HEAD' ? null : media.data, { status: 200, headers })
+  const res = new Response(req.method === 'HEAD' ? null : media.data, { status: 200, headers })
+  if (cache && exec && req.method === 'GET') exec.waitUntil(cache.put(key, res.clone()).catch(() => { /* best effort */ }))
+  return res
 }

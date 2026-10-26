@@ -44,7 +44,7 @@ export default {
     const url = new URL(req.url)
     if (url.pathname === '/v1' || url.pathname.startsWith('/v1/')) return handleApi(req, env, exec, url)
     if (url.pathname === '/.well-known/assetlinks.json') return json(assetLinks(env.ASSETLINKS_FINGERPRINTS), 200, { 'Cache-Control': 'public, max-age=3600' })
-    if (url.pathname.startsWith('/media/')) return serveMedia(req, env, url)
+    if (url.pathname.startsWith('/media/')) return serveMedia(req, env, url, exec)
     return serveApp(req, env)
   },
   async scheduled(_event: ScheduledController, env: Env, exec: ExecutionContext): Promise<void> {
