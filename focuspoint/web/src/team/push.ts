@@ -109,11 +109,10 @@ export async function ensureTeamPush(vapidPublicKey: string): Promise<void> {
 /** Runs while the team panel is open. Nobody has to press a button:
  *  - permission granted → register now, and again whenever the phone comes back online / to the foreground or the
  *    permission changes, until it has succeeded (a failure is shown on the card and retried, never dropped);
- *  - in the Android app, which asks natively at launch: if the app may notify (?np=1) register right away (Chrome
- *    hands the request to the app, which answers without a dialog); if the user just refused (?np=0) do not ask
- *    again — the card offers the button and the settings path;
- *  - in a browser, not asked yet → ask once on the first tap anywhere (every browser shows the prompt for a tap;
- *    asking again and again after a dismissal would get the site auto-blocked by Chrome).
+ *  - not asked yet → ask once on the first tap anywhere (every browser shows the prompt for a tap; asking again
+ *    and again after a dismissal would get the site auto-blocked by Chrome). In the Android app, which asks
+ *    natively at launch: allowed (?np=1) → that tap is answered by the app without a dialog; just refused (?np=0)
+ *    or unknown → never ask on our own — the card offers the button and the settings path.
  *  Returns a cleanup function. */
 export function autoEnableTeamPush(vapidPublicKey: string): () => void {
   if (!vapidPublicKey || pushState() === 'unsupported') return () => {}
@@ -129,15 +128,12 @@ export function autoEnableTeamPush(vapidPublicKey: string): () => void {
       } catch { /* keep the current status */ }
     }
     if (pushState() === 'granted' && (!pushRegistered() || problem)) enableTeamPush(vapidPublicKey).catch(() => { /* on the card */ })
-    else if (pushState() === 'default' && appNotifHint() === '1' && !askedThisLoad) {
-      askedThisLoad = true
-      enableTeamPush(vapidPublicKey).catch(() => { /* on the card */ })
-    }
     announce()
   }
   const run = () => { void sync() }
   const onTap = () => {
-    if (askedThisLoad || inAndroidApp() || pushState() !== 'default') return
+    // in the app right after a refusal (np=0) never ask on our own; allowed (np=1) → Chrome asks the app, no dialog
+    if (askedThisLoad || pushState() !== 'default' || (inAndroidApp() && appNotifHint() !== '1')) return
     askedThisLoad = true
     enableTeamPush(vapidPublicKey).catch(() => { /* on the card */ })
   }

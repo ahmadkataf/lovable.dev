@@ -53,11 +53,20 @@ export function requestPermissionOnce(): Promise<NotificationPermission> {
   return permissionRun
 }
 
-/** In the Android app with notifications allowed (?np=1) but Chrome still saying "not asked yet": ask through
- *  Chrome — it passes the request to the app, which answers "granted" at once, without a dialog. */
-export async function adoptAppPermission(): Promise<void> {
-  if (!pushSupported() || Notification.permission !== 'default' || appNotifHint() !== '1') return
-  await requestPermissionOnce()
+/** In the Android app with notifications allowed (?np=1) but Chrome still saying "not asked yet" (it re-reads the
+ *  app's permission only once per Chrome process): on the first tap, ask through Chrome — it passes the request to
+ *  the app, which answers "granted" at once, without a dialog. On a tap, not at load: if Chrome is not handing the
+ *  request to the app (e.g. still verifying the site on the very first launch), this is a normal, tap-driven prompt.
+ *  Calls `onGranted` when permission ends up granted. Returns a cleanup function. */
+export function armAppPermissionAdoption(onGranted: () => void): () => void {
+  if (!pushSupported() || appNotifHint() !== '1') return () => {}
+  const onTap = () => {
+    document.removeEventListener('pointerdown', onTap, { capture: true })
+    if (Notification.permission !== 'default') return
+    requestPermissionOnce().then((p) => { if (p === 'granted') onGranted() }).catch(() => { /* stays as it is */ })
+  }
+  document.addEventListener('pointerdown', onTap, { capture: true })
+  return () => document.removeEventListener('pointerdown', onTap, { capture: true })
 }
 
 function toKey(base64: string): Uint8Array {

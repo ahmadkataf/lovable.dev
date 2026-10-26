@@ -12,7 +12,7 @@ import { Mine } from './pages/Mine'
 import { Inbox } from './pages/Inbox'
 import { Spinner, ToastHost } from './ui'
 import { useCached } from './lib/data'
-import { adoptAppPermission, ensurePushSubscription } from './lib/push'
+import { armAppPermissionAdoption, ensurePushSubscription } from './lib/push'
 import { setTimeZone } from './format'
 
 const TeamApp = lazy(() => import('./team/TeamApp'))
@@ -28,7 +28,10 @@ function PushKeeper() {
   const { data: settings } = useCached<PublicSettings>('/v1/settings')
   useEffect(() => {
     const vapid = settings?.vapid_public_key
-    if (vapid) adoptAppPermission().catch(() => { /* best effort */ }).then(() => ensurePushSubscription(vapid)).catch(() => { /* best effort */ })
+    if (!vapid) return
+    const register = () => { ensurePushSubscription(vapid).catch(() => { /* best effort */ }) }
+    register()
+    return armAppPermissionAdoption(register)   // in the app: allowed natively → granted on the first tap, no dialog
   }, [settings?.vapid_public_key])
   useEffect(() => { setTimeZone(settings?.timezone) }, [settings?.timezone])
   return null

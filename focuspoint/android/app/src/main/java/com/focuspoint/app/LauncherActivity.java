@@ -7,6 +7,8 @@ import android.content.pm.PackageManager;
 import android.os.Build;
 import android.os.Bundle;
 
+import com.google.androidbrowserhelper.trusted.PrefUtils;
+
 /**
  * Opens the Focus Point web app in a Trusted Web Activity, but first — on Android 13+ — asks for the notification
  * permission natively, like any installed app, on every launch until it is allowed (Android itself stops showing the
@@ -17,6 +19,7 @@ import android.os.Bundle;
 public class LauncherActivity extends com.google.androidbrowserhelper.trusted.LauncherActivity {
     private static final int REQUEST_NOTIFICATIONS = 7001;
     private static final String KEY_ASKING = "fp_asking_notifications";
+    private static final String HAS_REQUESTED_KEY = "HAS_REQUESTED_NOTIFICATION_PERMISSION";   // PrefUtils' key
     private boolean launched;
     private boolean asking;   // the system prompt is on screen (survives a rotation, so we never ask twice at once)
 
@@ -52,6 +55,10 @@ public class LauncherActivity extends com.google.androidbrowserhelper.trusted.La
         Uri url = super.getLaunchingUrl();
         NotificationManager nm = getSystemService(NotificationManager.class);
         boolean allowed = nm != null && nm.areNotificationsEnabled();
+        // While notifications are allowed, forget android-browser-helper's "already asked" flag (its permission screen
+        // sets it even when it answers without a dialog). If the user later turns notifications off, Chrome then
+        // reports "not asked" (the page can ask again) instead of caching "blocked" until Chrome restarts.
+        if (allowed) PrefUtils.getAppSharedPreferences(this).edit().remove(HAS_REQUESTED_KEY).apply();
         return url.buildUpon().appendQueryParameter("np", allowed ? "1" : "0").build();
     }
 

@@ -11,6 +11,7 @@ import { PageHead, Section, roomColor } from './common'
 const TYPE_DOT: Record<string, string> = { private: 'var(--blue)', meeting: 'var(--violet)', hall: 'var(--violet)', desk: 'var(--teal)' }
 import { enableTeamPush, ensureTeamPush, onPushStateChange, pushBusy, pushErrorText, pushProblem, pushRegistered, pushState, resubscribeTeamPush, setPushProblem, testPush } from './push'
 import { appNotifHint, inAndroidApp } from '../lib/appHint'
+import { isIOS, isStandalone } from '../lib/push'
 import { store, useFresh, useRooms, useStore } from './store'
 import { describeError, isBlocking, isPendingVerification, localDate, sortByStart } from './util'
 
@@ -174,9 +175,11 @@ function PushCard({ required = false }: { required?: boolean }) {
 
   const title = healthy ? (registered ? 'الإشعارات مفعّلة على هذا الجهاز' : 'جارٍ تسجيل هذا الجهاز للإشعارات…')
     : state === 'granted' ? 'الإشعارات لا تعمل على هذا الجهاز بعد' : 'الإشعارات مطلوبة للوحة التحكم'
-  const app = inAndroidApp()
+  const app = inAndroidApp(), installed = app || isStandalone()
   const text = healthy ? 'تصلك تنبيهات الحجوزات الجديدة والدفعات حتى والتطبيق مغلق.'
-    : state === 'denied' ? (app
+    : state === 'denied' ? (isIOS() && installed
+      ? 'الإشعارات مرفوضة — بدونها لن يصلك أي حجز جديد. فعّلها من الإعدادات ← الإشعارات ← Focus Point، ثم أغلق التطبيق وافتحه من جديد.'
+      : installed
       ? 'الإشعارات مرفوضة — بدونها لن يصلك أي حجز جديد. فعّلها من إعدادات الهاتف ← التطبيقات ← فوكس بوينت ← الإشعارات، ثم أغلق التطبيق وافتحه من جديد (وإذا بقيت هذه الرسالة أعد تشغيل الهاتف).'
       : 'الإشعارات محظورة في هذا المتصفح — بدونها لن يصلك أي حجز جديد. اضغط رمز القفل بجانب عنوان الموقع ← الإشعارات ← سماح، ثم حدّث الصفحة.')
     : state === 'granted' ? 'بدونها لن يصلك أي حجز جديد. السبب مكتوب أدناه — اضغط «إعادة المحاولة».'
