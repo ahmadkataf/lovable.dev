@@ -109,3 +109,16 @@ export const TEMPLATE_VARS: Record<string, string>   // placeholder → Arabic d
   ones, and are linked from the site editor.
 - Rooms: the room sheet gets a "الصور" field (same image widget, ≤8).
 - Online required: offline → a clear notice, nothing is lost (the form keeps its values).
+
+## 6. Safety (the editor is used live in front of the client)
+
+- **Undo**: every save keeps the previous value of that section in `site_content_history (id INTEGER PRIMARY KEY
+  AUTOINCREMENT, section TEXT NOT NULL, data TEXT, saved_at TEXT, saved_by INTEGER)` (keep the last 20 per section).
+  `GET /v1/admin/content/:section/history` lists them; `POST /v1/admin/content/:section/undo` restores the latest one.
+  The editor shows «تراجع عن آخر حفظ» after a save and in each section.
+- **Never a broken page**: the site always renders from `mergeContent()` — a missing or malformed stored value falls
+  back to the default; an image that fails to load hides itself; an empty optional text hides its element.
+- **Validation before saving**: the editor validates with the same `validateSection` as the server and shows the
+  field in error in Arabic; the server rejects anything invalid with `{error:'invalid_content', path}`.
+- **Deploy**: all tests and browser checks pass locally first; production D1 tables are created before the Worker that
+  uses them; the previous Worker version id is noted so `wrangler rollback` can restore it in seconds.
