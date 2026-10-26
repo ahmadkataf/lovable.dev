@@ -63,10 +63,21 @@ export function dropContentCache(): void {
   generation++
 }
 
-/** The merged content (+ ETag), from the isolate cache when it is younger than CONTENT_TTL_MS. */
+/**
+ * The merged content (+ ETag). The isolate keeps the merged copy, but every call checks the row's updated_at (one tiny
+ * D1 read): a save handled by ANOTHER isolate must show at once everywhere — a time-based cache let other isolates
+ * serve the old text for up to 30 s after «انحفظ», and the site flipped between old and new in front of the client.
+ */
 export async function loadContentSnapshot(db: D1Database, now = Date.now()): Promise<ContentSnapshot> {
-  if (cached && now - cached.at < CONTENT_TTL_MS && now >= cached.at) return cached.snap
   const gen = generation
+  let ua: string | null
+  try {
+    ua = (await db.prepare('SELECT updated_at FROM site_content WHERE id = 1').first<{ updated_at: string | null }>())?.updated_at ?? null
+  } catch (err) {
+    if (cached) return cached.snap         // a D1 hiccup: keep serving the last good copy
+    throw err
+  }
+  if (cached && cached.snap.updated_at === ua) return cached.snap
   const snap = await snapshotOf(await readStored(db))
   if (gen === generation) cached = { at: now, snap }
   return snap

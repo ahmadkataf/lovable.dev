@@ -70,7 +70,9 @@ await shot('1-list')
 // ---- open home, unfold the hero group ----
 await page.locator('[data-section="home"]').click()
 await page.waitForURL('**/team/site/home')
-await page.locator('.se-group-head', { hasText: 'الواجهة الرئيسية' }).click()
+// the hero group opens by default (first group); unfold it only if it is folded
+const heroHead = page.locator('.se-group-head', { hasText: 'الواجهة الرئيسية' })
+if ((await heroHead.getAttribute('aria-expanded')) !== 'true') await heroHead.click()
 const title = page.locator('[data-path="hero.title"] input')
 await title.waitFor()
 ok('hero title field shows the site value', (await title.inputValue()) === orig.title, await title.inputValue())

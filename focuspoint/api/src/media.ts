@@ -1,6 +1,7 @@
 // Images uploaded from the site editor, stored in D1 (no R2: one database holds everything, no extra bill).
 // The browser resizes to ≤1600 px and compresses to WebP (JPEG fallback) before POST /v1/admin/media, so a row stays
 // far below D1's 2 MB limit. Served publicly at /media/<id>.<ext> with an immutable cache: an id never changes content.
+import { Buffer } from 'node:buffer'
 import { contentMediaSrcs } from '../../shared/content'
 import type { MediaItem, MediaUpload } from '../../shared/types'
 import type { Env } from './env'
@@ -108,6 +109,14 @@ export function checkUpload(bytes: Uint8Array, contentType: string | null, qw: s
   return { mime, ...size }
 }
 
+/**
+ * Images are stored as base64 TEXT in the \`data\` column. A bound Uint8Array travels to D1 (and back) as a JSON
+ * array of numbers — a 300 KB photo costs ~20 ms of CPU each way, over the free plan's 10 ms per request (Error 1102).
+ * One base64 string is ~10× cheaper. Rows written as BLOB earlier still read through toBytes().
+ */
+export const toBase64 = (b: Uint8Array): string => Buffer.from(b.buffer, b.byteOffset, b.byteLength).toString('base64')
+export const fromBase64 = (s: string): Uint8Array => { const buf = Buffer.from(s, 'base64'); return new Uint8Array(buf.buffer, buf.byteOffset, buf.byteLength) }
+
 /** D1 returns a BLOB column as an ArrayBuffer (workerd), but number[] / Uint8Array have been seen too: normalise. */
 export function toBytes(v: unknown): Uint8Array | null {
   if (v instanceof Uint8Array) return v
@@ -150,14 +159,14 @@ export async function putMedia(db: D1Database, bytes: Uint8Array, info: { mime: 
   }
   const id = newMediaId()
   await db.prepare('INSERT INTO media (id, mime, data, w, h, bytes, created_at, created_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?)')
-    .bind(id, info.mime, bytes, info.w, info.h, bytes.length, now.toISOString(), userId).run()
+    .bind(id, info.mime, toBase64(bytes), info.w, info.h, bytes.length, now.toISOString(), userId).run()
   return { id, src: mediaSrc(id, info.mime), w: info.w, h: info.h, bytes: bytes.length }
 }
 
 export async function getMedia(db: D1Database, id: string): Promise<{ mime: MediaMime; data: Uint8Array } | null> {
   if (!MEDIA_ID_RE.test(id)) return null
   const row = await db.prepare('SELECT mime, data FROM media WHERE id = ?').bind(id).first<{ mime: MediaMime; data: unknown }>()
-  const data = row ? toBytes(row.data) : null
+  const data = row ? (typeof row.data === 'string' ? fromBase64(row.data) : toBytes(row.data)) : null
   return row && data ? { mime: row.mime, data } : null
 }
 

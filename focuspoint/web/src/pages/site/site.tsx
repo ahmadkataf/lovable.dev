@@ -152,7 +152,8 @@ export function groupRooms(rooms: Room[], c: SiteContent): SpaceGroup[] {
     return {
       id, tone,
       title: g.title, blurb: g.blurb, badge: g.badge, icon: g.icon,
-      photo: g.photo, defaultPhoto: DEFAULT_CONTENT.spaces.groups[id].photo,
+      // the default photo is only a fallback for an edited photo that fails to load: a removed photo stays removed
+      photo: g.photo, defaultPhoto: g.photo ? DEFAULT_CONTENT.spaces.groups[id].photo : null,
       amenities: (g.amenities ?? []).map((a) => a.key),
       rooms: rooms.filter((r) => GROUP_OF[r.type] === id),
       fallbackCap: g.cap,

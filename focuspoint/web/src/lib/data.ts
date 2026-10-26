@@ -4,6 +4,17 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { cachedGet } from '../offline'
 
 const memo = new Map<string, unknown>()
+// Several components often ask for the same path at the same moment (mount, focus, back online): they share one
+// request. A page's explicit reload() (after a booking change) always goes to the network on its own.
+const inflight = new Map<string, Promise<{ data: unknown; fromCache: boolean }>>()
+function sharedGet<T>(path: string, maxAgeMs?: number): Promise<{ data: T; fromCache: boolean }> {
+  let pr = inflight.get(path)
+  if (!pr) {
+    pr = cachedGet<unknown>(path, { maxAgeMs }).finally(() => inflight.delete(path))
+    inflight.set(path, pr)
+  }
+  return pr as Promise<{ data: T; fromCache: boolean }>
+}
 
 export interface Loaded<T> {
   data: T | undefined
@@ -21,11 +32,11 @@ export function useCached<T>(path: string | null, opts: { maxAgeMs?: number; pol
   const pathRef = useRef(path)
   pathRef.current = path
 
-  const reload = useCallback(async () => {
+  const load = useCallback(async (shared: boolean) => {
     const p = pathRef.current
     if (!p) return
     try {
-      const r = await cachedGet<T>(p, { maxAgeMs: opts.maxAgeMs })
+      const r = shared ? await sharedGet<T>(p, opts.maxAgeMs) : await cachedGet<T>(p, { maxAgeMs: opts.maxAgeMs })
       if (pathRef.current !== p) return
       memo.set(p, r.data)
       setData(r.data)
@@ -38,6 +49,8 @@ export function useCached<T>(path: string | null, opts: { maxAgeMs?: number; pol
       if (pathRef.current === p) setLoading(false)
     }
   }, [opts.maxAgeMs])
+  /** Explicit refresh (e.g. after a booking change): always a fresh request of its own. */
+  const reload = useCallback(() => load(false), [load])
 
   useEffect(() => {
     if (!path) { setData(undefined); setLoading(false); return }
@@ -45,17 +58,17 @@ export function useCached<T>(path: string | null, opts: { maxAgeMs?: number; pol
     setData(hit)
     setLoading(hit === undefined)
     setError(null)
-    void reload()
-    const onFocus = () => { if (document.visibilityState === 'visible') void reload() }
+    void load(true)
+    const onFocus = () => { if (document.visibilityState === 'visible') void load(true) }
     window.addEventListener('online', onFocus)
     document.addEventListener('visibilitychange', onFocus)
-    const timer = opts.pollMs ? window.setInterval(() => { if (document.visibilityState === 'visible') void reload() }, opts.pollMs) : 0
+    const timer = opts.pollMs ? window.setInterval(() => { if (document.visibilityState === 'visible') void load(true) }, opts.pollMs) : 0
     return () => {
       window.removeEventListener('online', onFocus)
       document.removeEventListener('visibilitychange', onFocus)
       if (timer) window.clearInterval(timer)
     }
-  }, [path, reload, opts.pollMs])
+  }, [path, load, opts.pollMs])
 
   return { data, loading, error, fromCache, reload }
 }

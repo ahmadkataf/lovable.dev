@@ -63,8 +63,8 @@ function flatten(c: HTMLCanvasElement): HTMLCanvasElement {
   return out.c
 }
 
-async function encode(c: HTMLCanvasElement): Promise<{ blob: Blob; mime: UploadMime } | null> {
-  for (const q of [0.82, 0.72, 0.62]) {
+async function encode(c: HTMLCanvasElement, jpegOnly = false): Promise<{ blob: Blob; mime: UploadMime } | null> {
+  for (const q of jpegOnly ? [] : [0.82, 0.72, 0.62]) {
     const b = await toBlob(c, 'image/webp', q)
     if (!b || b.type !== 'image/webp') break        // this browser cannot write WebP (it hands back PNG): use JPEG
     if (b.size <= MAX_BYTES) return { blob: b, mime: 'image/webp' }
@@ -77,7 +77,8 @@ async function encode(c: HTMLCanvasElement): Promise<{ blob: Blob; mime: UploadM
   return null
 }
 
-export async function prepareImage(file: File): Promise<PreparedImage> {
+/** jpegOnly: link-preview images (seo.og_image) must be JPG/PNG — WhatsApp and others do not show WebP well. */
+export async function prepareImage(file: File, opts: { jpegOnly?: boolean } = {}): Promise<PreparedImage> {
   if (file.type && !file.type.startsWith('image/') && !isHeic(file)) throw new ImageError('هالملف مو صورة. اختار صورة JPG أو PNG أو WebP')
   if (file.size > MAX_INPUT_BYTES) throw new ImageError('الصورة كبيرة كتير (أكتر من 40 ميغا). اختار صورة أصغر')
   let img: HTMLImageElement
@@ -91,7 +92,7 @@ export async function prepareImage(file: File): Promise<PreparedImage> {
   for (const side of [MAX_SIDE, 1280, 1024]) {
     const s = Math.min(1, side / Math.max(nw, nh))
     const w = Math.max(1, Math.round(nw * s)), h = Math.max(1, Math.round(nh * s))
-    const out = await encode(scaleTo(img, w, h))
+    const out = await encode(scaleTo(img, w, h), opts.jpegOnly)
     if (out) return { ...out, w, h }
   }
   throw new ImageError('الصورة كبيرة حتى بعد التصغير. جرّب صورة تانية')

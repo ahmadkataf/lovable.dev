@@ -27,7 +27,7 @@ export function FieldEditor(props: FieldEditorProps) {
     case 'image':
       return (
         <FieldShell spec={spec} path={path} value={value}>
-          <ImageField value={isObj(value) ? (value as unknown as Photo) : null} onChange={onChange} optional={!!spec.optional}
+          <ImageField value={isObj(value) ? (value as unknown as Photo) : null} onChange={onChange} optional={!!spec.optional} jpegOnly={!!spec.jpegPng}
             def={def === undefined ? undefined : isObj(def) ? (def as unknown as Photo) : null} />
         </FieldShell>
       )

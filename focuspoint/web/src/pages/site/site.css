@@ -502,3 +502,5 @@
 /* Landing space cards: details + book */
 .fp-space-links { display: inline-flex; align-items: center; gap: 12px; }
 .fp-nowrap { white-space: nowrap; }
+/* In big headings an English phrase may wrap on a phone rather than be cut off (the <bdi> keeps its word order). */
+.fp-display .fp-nowrap, .fp-h1 .fp-nowrap, .fp-h2 .fp-nowrap, .fp-h3 .fp-nowrap, .fp-cta-title .fp-nowrap { white-space: normal; }

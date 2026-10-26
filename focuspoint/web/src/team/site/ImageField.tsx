@@ -14,9 +14,9 @@ import { deepEqual } from './value'
 type Phase = { kind: 'idle' } | { kind: 'preparing'; label: string } | { kind: 'uploading'; label: string; progress: number }
 
 /** Shrink + upload one file; reports progress through setPhase. Throws Arabic errors. */
-async function uploadFile(file: File, alt: string, setPhase: (p: Phase) => void, label = ''): Promise<Photo> {
+async function uploadFile(file: File, alt: string, setPhase: (p: Phase) => void, label = '', jpegOnly = false): Promise<Photo> {
   setPhase({ kind: 'preparing', label: label || 'عم نجهّز الصورة…' })
-  const img = await prepareImage(file)
+  const img = await prepareImage(file, { jpegOnly })
   setPhase({ kind: 'uploading', label: label || 'عم نرفع الصورة…', progress: 0 })
   const res = await uploadMedia(img.blob, img.w, img.h, (p) => setPhase({ kind: 'uploading', label: label || 'عم نرفع الصورة…', progress: p }))
   return { src: res.src, alt, w: res.w || img.w, h: res.h || img.h }
@@ -71,10 +71,12 @@ export interface ImageFieldProps {
   optional?: boolean
   /** today's default, for «الأصل»; undefined hides the button */
   def?: Photo | null
+  /** upload as JPEG (link-preview images must be JPG/PNG) */
+  jpegOnly?: boolean
 }
 
 /** One photo. */
-export function ImageField({ value, onChange, optional = false, def }: ImageFieldProps) {
+export function ImageField({ value, onChange, optional = false, def, jpegOnly = false }: ImageFieldProps) {
   const online = useOnline()
   const [phase, setPhase] = useState<Phase>({ kind: 'idle' })
   const [error, setError] = useState<string | null>(null)
@@ -89,7 +91,7 @@ export function ImageField({ value, onChange, optional = false, def }: ImageFiel
     if (!file) return
     setError(null)
     try {
-      const p = await uploadFile(file, '', setPhase)
+      const p = await uploadFile(file, '', setPhase, '', jpegOnly)
       onChange({ ...p, alt: latest.current?.alt ?? '' })     // keeps an alt text typed while the upload ran
     } catch (err) { setError(errorText(err)) } finally { setPhase({ kind: 'idle' }) }
   }

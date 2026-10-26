@@ -130,6 +130,9 @@ export function SectionEditor({ spec }: { spec: SectionSpec }) {
   const [busy, setBusy] = useState<Busy>(null)
   const [confirm, setConfirm] = useState<null | 'undo' | 'reset' | 'discard'>(null)
   const [justSaved, setJustSaved] = useState<string | null>(null)
+  // the last save changed the content (so it made an undo entry); a save of only the centre settings did not, and
+  // «تراجع» there would revert an OLDER content change instead of the one just made
+  const [undoable, setUndoable] = useState(false)
   const failed = (err: unknown) => {
     if (err instanceof SiteApiError && err.offline) setLost(true)
     toast.show(siteErrorText(err), 'error')
@@ -169,6 +172,7 @@ export function SectionEditor({ spec }: { spec: SectionSpec }) {
       }
       setRestored(null)
       setJustSaved(new Date().toISOString())
+      setUndoable(contentChanged)
       toast.show('انحفظ — الموقع صار محدّث', 'ok')
     } catch (err) {
       if (err instanceof SiteApiError && err.message === 'invalid_content' && err.path !== null) showError(err.path, err.detail ?? 'قيمة غير صحيحة')
@@ -185,6 +189,7 @@ export function SectionEditor({ spec }: { spec: SectionSpec }) {
       setError(null)
       setRestored(null)
       setJustSaved(null)
+      setUndoable(false)
       toast.show(kind === 'undo' ? 'رجع القسم متل ما كان قبل آخر حفظ' : 'رجع القسم متل الأصل', 'ok')
     } catch (err) { failed(err) } finally { setBusy(null); setConfirm(null) }
   }
@@ -216,7 +221,7 @@ export function SectionEditor({ spec }: { spec: SectionSpec }) {
   const overridden = st.overridden.includes(id)
   const history = st.history[id]
   const lastSaved = justSaved ?? history?.[0]?.saved_at ?? null
-  const canUndo = history ? history.length > 0 : overridden || !!justSaved
+  const canUndo = history ? history.length > 0 : overridden || undoable
 
   let status: string
   if (busy === 'save') status = 'عم نحفظ…'
@@ -324,7 +329,7 @@ export function SectionEditor({ spec }: { spec: SectionSpec }) {
               <Button variant="ghost" disabled={!!busy} onClick={() => setConfirm('discard')}>تجاهل</Button>
               <Button size="lg" className="se-save" loading={busy === 'save'} disabled={!online || !!busy} onClick={save} data-testid="se-save">حفظ</Button>
             </>
-          ) : justSaved && canUndo ? (
+          ) : justSaved && undoable && canUndo ? (
             <Button variant="soft" disabled={!online || !!busy} onClick={() => setConfirm('undo')}><Icon name="undo" size={16} /> تراجع عن آخر حفظ</Button>
           ) : (
             <Button size="lg" className="se-save" disabled data-testid="se-save">حفظ</Button>

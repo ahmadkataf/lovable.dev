@@ -52,6 +52,8 @@ export const siteState = {
       try {
         const r = await siteApi.content()
         if (startGen !== gen) { again = true; return }
+        // a failed request fell back to the device copy: never put that over what is in memory (e.g. a newer save)
+        if (r.fromCache && state.content) { set({ status: 'ready', fromCache: true }); return }
         set({ status: 'ready', content: r.data.content, overridden: r.data.overridden, updated_at: r.data.updated_at, fromCache: r.fromCache, error: null })
         for (const id of r.data.overridden) if (!state.history[id]) void siteState.loadHistory(id)
       } catch (err) {
