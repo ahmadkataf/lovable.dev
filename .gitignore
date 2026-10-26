@@ -11,3 +11,7 @@ server/.wrangler
 server/node_modules
 server/.dev.vars
 secrets-for-user
+laser-box/android/build
+laser-box/android/release.keystore
+laser-box/dist
+laser-box/node_modules
