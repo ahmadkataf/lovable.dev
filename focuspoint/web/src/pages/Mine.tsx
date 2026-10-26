@@ -1,4 +1,5 @@
 // /mine — bookings made on this device, and a way to adopt one made elsewhere (code + phone).
+// Texts: content.booking.mine_empty_* and notify_prompt_mine. Works whatever the booking settings say now.
 import { useMemo, useState, type FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
 import type { Booking } from '@shared/types'
@@ -8,11 +9,13 @@ import { fmtDate, fmtRange, normalisePhone, statusLabel } from '../format'
 import { Badge, Button, Card, Empty, Field, Input, Spinner, Tabs } from '../ui'
 import { isUpcoming } from '../lib/booking'
 import { NotifyPrompt } from '../components/NotifyPrompt'
+import { ContentEmpty, useBookingCopy } from '../components/ContentText'
 import { Link } from 'react-router-dom'
 
 export function Mine() {
   const navigate = useNavigate()
   const q = useCached<Booking[]>('/v1/bookings/mine')
+  const copy = useBookingCopy()
   const [tab, setTab] = useState<'upcoming' | 'history'>('upcoming')
   const list = useMemo(() => {
     const all = (q.data || []).slice().sort((a, b) => (a.start < b.start ? 1 : -1))
@@ -26,7 +29,7 @@ export function Mine() {
     <div className="stack">
       <div className="page-head"><h1 className="h1">حجوزاتي</h1></div>
       {q.fromCache && <div className="alert alert-info">تعرض نسخة محفوظة — سنحدّثها عند عودة الاتصال.</div>}
-      {(q.data?.length ?? 0) > 0 && <NotifyPrompt text="نخبرك بتأكيد الحجز ونذكّرك قبله بساعة." />}
+      {(q.data?.length ?? 0) > 0 && <NotifyPrompt where="mine" />}
 
       <Tabs tabs={[{ id: 'upcoming', label: `القادمة${list.up.length ? ` (${list.up.length})` : ''}` }, { id: 'history', label: 'السابقة' }]} value={tab} onChange={(id) => setTab(id as 'upcoming' | 'history')} />
 
@@ -34,7 +37,7 @@ export function Mine() {
       {!q.loading && !q.data && !!q.error && <div className="alert alert-info">{errorMessage(q.error)} — ستظهر حجوزاتك عند عودة الاتصال.</div>}
       {!q.loading && !q.error && shown.length === 0 && (
         tab === 'upcoming'
-          ? <Empty title="ما عندك حجوزات قادمة" hint="احجز مكتبك أو غرفتك بثلاث خطوات." action={<Link to="/book" className="btn btn-primary">احجز الآن</Link>} />
+          ? <ContentEmpty title={copy.text('mine_empty_title')} hint={copy.text('mine_empty_text')} vars={copy.vars} action={<Link to="/book" className="btn btn-primary">احجز الآن</Link>} />
           : <Empty title="لا حجوزات سابقة" />
       )}
       <div className="stack-sm">

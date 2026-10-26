@@ -1,8 +1,11 @@
 // /b/:id — the booking's single source of truth for the customer: pay, wait, celebrate, or start over.
+// Texts: content.booking (status titles and texts, the cancel sheet). Works whatever the booking settings say now:
+// a held booking can still be paid after Sham Cash or online booking was switched off; the cancel button follows
+// settings.customer_can_cancel.
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import type { Booking, PublicSettings, Room } from '@shared/types'
-import { api, ApiError, errorMessage } from '../api'
+import { api, ApiError, errorCode, errorMessage } from '../api'
 import { cache, useOnline } from '../offline'
 import { useCached, dropMemo } from '../lib/data'
 import { fmtDate, fmtRange, statusLabel } from '../format'
@@ -14,7 +17,8 @@ import { downloadIcs } from '../lib/ics'
 import { flag } from '../lib/store'
 import { onPushMessage } from '../lib/push'
 import { setTimeZone } from '../format'
-import { isCashAwaiting, isOpen, type BookingFull } from '../lib/booking'
+import { customerCanCancel, isCashAwaiting, isOpen, type BookingFull } from '../lib/booking'
+import { ContentText, hasText, useBookingCopy } from '../components/ContentText'
 
 const POLL_MS = 15_000
 
@@ -23,8 +27,10 @@ export function BookingPage() {
   const navigate = useNavigate()
   const toast = useToast()
   const online = useOnline()
-  const { data: settings } = useCached<PublicSettings>('/v1/settings')
+  const settingsQ = useCached<PublicSettings>('/v1/settings')
+  const settings = settingsQ.data
   const roomsQ = useCached<Room[]>('/v1/rooms')
+  const copy = useBookingCopy()
   const [b, setB] = useState<BookingFull | null>(null)
   const [fromCache, setFromCache] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -78,7 +84,10 @@ export function BookingPage() {
       updated(nb)
       setConfirmCancel(false)
       toast.show('تم إلغاء الحجز', 'ok')
-    } catch (err) { toast.show(errorMessage(err), 'error') } finally { setCancelling(false) }
+    } catch (err) {
+      toast.show(errorMessage(err), 'error')
+      if (errorCode(err) === 'cancel_not_allowed') { setConfirmCancel(false); void settingsQ.reload() }   // the admin switched it off meanwhile
+    } finally { setCancelling(false) }
   }
 
   if (notFound) {
@@ -101,8 +110,14 @@ export function BookingPage() {
 
   const st = statusLabel(b.status, b.method)
   const cashAwaiting = isCashAwaiting(b)
-  const canCancel = isOpen(b)
+  const canCancel = isOpen(b) && customerCanCancel(settings)
+  const vars = { ...copy.vars, code: b.code, ref: b.payment_ref ?? '' }
+  const t = (field: Parameters<typeof copy.text>[0]) => copy.text(field)
+  // expired while it waited for the team (a reference was sent, or pay on arrival) vs. the hold ran out unpaid
+  const expiredText = t(b.payment_ref || b.method === 'cash' ? 'expired_text_unverified' : 'expired_text')
+  const endText = b.status === 'rejected' ? (b.reject_reason || t('rejected_text')) : b.status === 'expired' ? expiredText : t('cancelled_text')
   const showNotify = !!flag('fp_prompt_push')
+  const paidNote = b.status === 'awaiting_verification' && !cashAwaiting
 
   return (
     <div className="stack">
@@ -122,8 +137,8 @@ export function BookingPage() {
         <Card>
           <div className="status-hero">
             <span className="status-mark wait"><Icon name="clock" size={32} /></span>
-            <h2 className="h2">استلمنا حجزك</h2>
-            <p className="muted small mt-sm">سيؤكد الفريق حجزك قريباً، والدفع عند الوصول. بيصلك إشعار، ويظهر التأكيد هنا تلقائياً.</p>
+            <h2 className="h2"><ContentText text={t('cash_awaiting_title')} vars={vars} /></h2>
+            {hasText(t('cash_awaiting_text')) && <p className="muted small mt-sm"><ContentText text={t('cash_awaiting_text')} vars={vars} /></p>}
           </div>
         </Card>
       )}
@@ -132,11 +147,12 @@ export function BookingPage() {
         <Card>
           <div className="status-hero">
             <span className="status-mark wait"><Icon name="clock" size={32} /></span>
-            <h2 className="h2">وصلنا، عم نتحقق</h2>
-            <p className="muted small mt-sm">
-              سجّلنا رقم العملية <b className="num">{b.payment_ref}</b>. فريقنا يطابق التحويل الآن، وبنأكد حجزك خلال دقائق —
-              بيصلك إشعار، ويظهر هنا تلقائياً.
-            </p>
+            <h2 className="h2"><ContentText text={t('verifying_title')} vars={vars} /></h2>
+            {hasText(t('verifying_text')) && (
+              <p className="muted small mt-sm">
+                <ContentText text={t('verifying_text')} vars={vars} />
+              </p>
+            )}
           </div>
         </Card>
       )}
@@ -145,7 +161,7 @@ export function BookingPage() {
         <Card className="card-accent">
           <div className="status-hero">
             <span className="status-mark ok"><Icon name="check" size={34} /></span>
-            <h2 className="h2">حجزك مؤكد</h2>
+            <h2 className="h2"><ContentText text={t('confirmed_title')} vars={vars} /></h2>
             <p className="muted small mt-sm">{fmtDate(b.start)} · {fmtRange(b.start, b.end)}</p>
           </div>
         </Card>
@@ -155,12 +171,12 @@ export function BookingPage() {
         <Card>
           <div className="status-hero">
             <span className={`status-mark ${b.status === 'rejected' ? 'bad' : 'grey'}`}><Icon name="x" size={32} /></span>
-            <h2 className="h2">{b.status === 'rejected' ? 'ما قدرنا نؤكد الحجز' : b.status === 'expired' ? 'انتهت مهلة الدفع' : 'الحجز ملغى'}</h2>
-            <p className="muted small mt-sm">
-              {b.status === 'rejected' && (b.reject_reason || 'لم نتمكن من مطابقة التحويل. تواصل معنا إذا كنت قد دفعت.')}
-              {b.status === 'expired' && 'لم يصلنا رقم العملية ضمن المهلة، فعاد المكان متاحاً للجميع.'}
-              {b.status === 'cancelled' && 'تم إلغاء هذا الحجز.'}
-            </p>
+            <h2 className="h2"><ContentText text={t(b.status === 'rejected' ? 'rejected_title' : b.status === 'expired' ? 'expired_title' : 'cancelled_title')} vars={vars} /></h2>
+            {hasText(endText) && (
+              <p className="muted small mt-sm">
+                {b.status === 'rejected' && b.reject_reason ? b.reject_reason : <ContentText text={endText} vars={vars} />}
+              </p>
+            )}
             <Link to="/book" className="btn btn-primary btn-lg mt">احجز من جديد</Link>
           </div>
         </Card>
@@ -170,8 +186,8 @@ export function BookingPage() {
         <Card>
           <div className="status-hero">
             <span className="status-mark grey"><Icon name="check" size={32} /></span>
-            <h2 className="h2">شكراً لزيارتك</h2>
-            <p className="muted small mt-sm">نتمنى أن تكون قد أنجزت ما خططت له.</p>
+            <h2 className="h2"><ContentText text={t('completed_title')} vars={vars} /></h2>
+            {hasText(t('completed_text')) && <p className="muted small mt-sm"><ContentText text={t('completed_text')} vars={vars} /></p>}
             <Link to="/book" className="btn btn-soft mt">احجز مرة ثانية</Link>
           </div>
         </Card>
@@ -180,7 +196,7 @@ export function BookingPage() {
       {showNotify && (isOpen(b) || b.status === 'confirmed') && <NotifyPrompt />}
 
       <Card>
-        <BookingSummary room={room} roomName={b.room_name} start={b.start} end={b.end} minutes={Math.round((new Date(b.end).getTime() - new Date(b.start).getTime()) / 60000)} people={b.people} price={b.price} code={b.code} />
+        <BookingSummary room={room} roomName={b.room_name} start={b.start} end={b.end} minutes={Math.round((new Date(b.end).getTime() - new Date(b.start).getTime()) / 60000)} people={b.people} price={b.price} code={b.code} thumb />
       </Card>
 
       {b.status === 'confirmed' && (
@@ -201,8 +217,10 @@ export function BookingPage() {
         </div>
       )}
 
-      <Sheet open={confirmCancel} onClose={() => setConfirmCancel(false)} title="إلغاء الحجز؟">
-        <p className="muted">سيعود المكان متاحاً للآخرين. {b.status === 'awaiting_verification' && !cashAwaiting && 'إذا كنت قد حوّلت المبلغ، تواصل معنا لاسترجاعه.'}</p>
+      <Sheet open={confirmCancel && canCancel} onClose={() => setConfirmCancel(false)} title={copy.plain('cancel_title', vars)}>
+        {(hasText(t('cancel_note')) || (paidNote && hasText(t('cancel_note_paid')))) && (
+          <p className="muted"><ContentText text={t('cancel_note')} vars={vars} />{' '}{paidNote && <ContentText text={t('cancel_note_paid')} vars={vars} />}</p>
+        )}
         <div className="row gap mt">
           <Button variant="danger" block loading={cancelling} onClick={cancel}>نعم، ألغِ الحجز</Button>
           <Button variant="ghost" block onClick={() => setConfirmCancel(false)}>رجوع</Button>

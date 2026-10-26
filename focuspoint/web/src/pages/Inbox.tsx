@@ -1,10 +1,11 @@
-// /inbox — what the centre told you. Opening it marks everything read.
+// /inbox — what the centre told you. Opening it marks everything read. Empty state: content.booking.inbox_empty_*.
 import { useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import type { NotificationKind } from '@shared/types'
 import { useNotifications } from '../lib/notifications'
 import { fmtDate, fmtTime } from '../format'
-import { Empty, Icon, Spinner, type IconName } from '../ui'
+import { Icon, Spinner, type IconName } from '../ui'
+import { ContentEmpty, useBookingCopy } from '../components/ContentText'
 
 const KIND_ICON: Record<NotificationKind, IconName> = {
   booking_created: 'calendar', payment_submitted: 'send', booking_confirmed: 'check', booking_rejected: 'x',
@@ -14,6 +15,7 @@ const KIND_ICON: Record<NotificationKind, IconName> = {
 export function Inbox() {
   const { items, loading, fromCache, markAllRead } = useNotifications()
   const navigate = useNavigate()
+  const copy = useBookingCopy()
   useEffect(() => { void markAllRead() }, [markAllRead])
 
   return (
@@ -21,7 +23,7 @@ export function Inbox() {
       <div className="page-head"><h1 className="h1">الإشعارات</h1></div>
       {fromCache && <div className="alert alert-info">تعرض نسخة محفوظة.</div>}
       {loading && items.length === 0 && <div className="center" style={{ padding: 32 }}><Spinner /></div>}
-      {!loading && items.length === 0 && <Empty title="ما في إشعارات بعد" hint="بنخبرك هنا عن تأكيد حجوزاتك وأي جديد في المركز." />}
+      {!loading && items.length === 0 && <ContentEmpty title={copy.text('inbox_empty_title')} hint={copy.text('inbox_empty_text')} vars={copy.vars} />}
       <div className="stack-sm">
         {items.map((n) => (
           <div

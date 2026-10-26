@@ -237,7 +237,7 @@ export function SectionEditor({ spec }: { spec: SectionSpec }) {
               {overridden ? <Badge tone="wine">معدّل</Badge> : <Badge tone="grey">الأصل</Badge>}
             </div>
             <p className="se-help">{spec.help}</p>
-            {lastSaved && <p className="muted tiny">آخر حفظ: {whenLabel(lastSaved)}</p>}
+            {lastSaved && <p className="muted tiny">آخر تعديل: {whenLabel(lastSaved)}</p>}
           </div>
         </div>
 
@@ -336,7 +336,7 @@ export function SectionEditor({ spec }: { spec: SectionSpec }) {
         body={<>«{spec.title}» بيرجع متل ما كان قبل آخر «حفظ»، وبيتغيّر عالموقع فوراً.{dirty && ' التعديلات اللي ما انحفظت رح تروح.'}{idKeys.length > 0 && ' بيانات المركز ما بتتأثر.'}</>}
         onClose={() => setConfirm(null)} onConfirm={() => void run('undo')} />
       <Confirm open={confirm === 'reset'} title="استعادة الأصل؟" danger confirmLabel="استعادة الأصل" loading={busy === 'reset'}
-        body={<>كل نصوص وصور «{spec.title}» بترجع متل ما كانت بالأصل، وبيتغيّر عالموقع فوراً.{idKeys.length > 0 && ' بيانات المركز ما بتتأثر.'}</>}
+        body={<>كل نصوص وصور «{spec.title}» بترجع متل ما كانت بالأصل، وبيتغيّر عالموقع فوراً. إذا غيّرت رأيك، «تراجع عن آخر حفظ» بيرجّع تعديلاتك.{idKeys.length > 0 && ' بيانات المركز ما بتتأثر.'}</>}
         onClose={() => setConfirm(null)} onConfirm={() => void run('reset')} />
       <Confirm open={confirm === 'discard'} title="تجاهل التعديلات؟" danger confirmLabel="تجاهل"
         body="التعديلات اللي ما انحفظت رح تنمسح من هالجهاز، والقسم بيرجع متل ما هو عالموقع."

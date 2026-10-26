@@ -34,7 +34,8 @@ function toResult(id: SectionId, res: unknown): SectionResult {
   }
 }
 
-export interface HistoryEntry { id: number; saved_at: string; saved_by: number | null }
+/** One undo step: the value a section had before a save or a reset (newest first). saved_at = when it was replaced. */
+export interface HistoryEntry { id: number; saved_at: string | null; saved_by: number | null; saved_by_name?: string | null }
 
 export const siteApi = {
   /** Network first; offline → the copy cached on this device (fromCache), so the editor still opens. */
@@ -67,7 +68,7 @@ export const siteApi = {
     const r = await request<unknown>('GET', `/v1/admin/content/${id}/history`)
     const list: unknown[] = Array.isArray(r) ? r : r && typeof r === 'object' && Array.isArray((r as { history?: unknown }).history) ? (r as { history: unknown[] }).history : []
     return list
-      .filter((h): h is HistoryEntry => !!h && typeof h === 'object' && typeof (h as HistoryEntry).saved_at === 'string')
-      .sort((a, b) => (a.saved_at < b.saved_at ? 1 : a.saved_at > b.saved_at ? -1 : 0))   // newest first
+      .filter((h): h is HistoryEntry => !!h && typeof h === 'object' && typeof (h as HistoryEntry).id === 'number')
+      .sort((a, b) => b.id - a.id)   // newest first (ids grow with every save)
   },
 }

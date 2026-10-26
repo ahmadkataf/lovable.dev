@@ -81,7 +81,7 @@ function SectionList() {
                       <span className="se-card-help">{s.help}</span>
                       {(last || draft) && (
                         <span className="se-card-meta">
-                          {last && overridden && <span>آخر حفظ: {whenLabel(last)}</span>}
+                          {last && overridden && <span>آخر تعديل: {whenLabel(last)}</span>}
                           {draft && <span className="se-card-draft"><span className="se-dot" /> تعديلات ما انحفظت</span>}
                         </span>
                       )}

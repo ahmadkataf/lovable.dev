@@ -72,6 +72,22 @@ const ERRORS: Record<string, string> = {
   internal: 'خلل في الخادم، سنعيد المحاولة',
   too_many_attempts: 'محاولات كثيرة، جرّب بعد قليل',
   invalid_credentials: 'رقم الهاتف أو كلمة المرور غير صحيحة',
+  // room photos and the booking & payment options (Settings › المركز / الدفع)
+  invalid_photos: 'صور القاعة غير صحيحة (8 صور كحد أقصى، والوصف حتى 200 حرف)',
+  no_payment_method: 'لازم تبقى طريقة دفع واحدة على الأقل مفعّلة',
+  invalid_horizon: 'مدة الحجز المسموحة بين 1 و365 يوماً',
+  invalid_reminder: 'التذكير: بدون، أو بين 15 دقيقة ويوم',
+  invalid_max_holds: 'الحجوزات غير المدفوعة لنفس الرقم بين 1 و20',
+  invalid_closed_message: 'رسالة إيقاف الحجز حتى 500 حرف',
+  invalid_booking_enabled: 'قيمة غير صحيحة لتشغيل الحجز',
+  invalid_shamcash_enabled: 'قيمة غير صحيحة لشام كاش',
+  invalid_customer_can_cancel: 'قيمة غير صحيحة لإلغاء الزبون',
+  invalid_pay_on_arrival: 'قيمة غير صحيحة للدفع عند الوصول',
+  invalid_instructions: 'تعليمات الدفع حتى 500 حرف',
+  invalid_shamcash_number: 'رقم شام كاش غير صحيح',
+  invalid_shamcash_name: 'اسم صاحب المحفظة حتى 60 حرفاً',
+  booking_closed: 'الحجز أونلاين متوقف حالياً',
+  shamcash_disabled: 'الدفع بشام كاش متوقف حالياً',
 }
 
 /** Arabic text for any error (ApiError, server code string, or unknown). */

@@ -1,12 +1,15 @@
 // pending_payment: everything the customer needs to pay with Sham Cash and tell us the transaction number.
 // After hold_until the form disappears (the server would answer 409 hold_expired) and the customer is sent back
 // to book again; the page keeps polling, so a cron expiry or a late acceptance shows up by itself.
+// Texts: content.booking.pay_* ({code} bold, {time} = the end of the hold). An already-held booking can always be paid,
+// even after the admin switched Sham Cash or online booking off.
 import { useEffect, useState, type FormEvent } from 'react'
 import { Link } from 'react-router-dom'
 import type { Booking, PaymentInfo } from '@shared/types'
 import { api, errorCode, errorMessage } from '../api'
 import { fmtSYP, fmtTime } from '../format'
 import { Button, Card, Field, Icon, Input, useToast } from '../ui'
+import { ContentText, hasText, useBookingCopy } from './ContentText'
 
 function useCountdown(until: string | null): { text: string; left: number } {
   const [now, setNow] = useState(Date.now())
@@ -27,6 +30,7 @@ export function PaymentPanel({ booking, payment, onUpdated, onExpired }: {
   onExpired?: () => void
 }) {
   const toast = useToast()
+  const copy = useBookingCopy()
   const [ref, setRef] = useState('')
   const [err, setErr] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
@@ -34,6 +38,8 @@ export function PaymentPanel({ booking, payment, onUpdated, onExpired }: {
   const holdUntil = payment.hold_until ?? booking.hold_until
   const { text, left } = useCountdown(holdUntil)
   const expired = serverExpired || (holdUntil !== null && left === 0)
+  const vars = { ...copy.vars, code: payment.code, time: fmtTime(holdUntil ?? booking.start) }
+  const steps = copy.booking.pay_steps.filter((s) => hasText(s.text))
 
   async function copyValue(v: string, what: string) {
     toast.show((await copy(v)) ? `تم نسخ ${what}` : 'ما قدرنا ننسخ — انسخه يدوياً', 'ok')
@@ -60,11 +66,8 @@ export function PaymentPanel({ booking, payment, onUpdated, onExpired }: {
       <Card>
         <div className="status-hero">
           <span className="status-mark grey"><Icon name="clock" size={32} /></span>
-          <h2 className="h2">انتهت مهلة الحجز</h2>
-          <p className="muted small mt-sm">
-            لم يصلنا رقم العملية خلال المهلة، فعاد المكان متاحاً للجميع.
-            {' '}إذا كنت قد حوّلت المبلغ فعلاً، تواصل مع المركز ومعك رمز الحجز <b className="num">{payment.code}</b>.
-          </p>
+          <h2 className="h2"><ContentText text={copy.text('pay_expired_title')} vars={vars} /></h2>
+          {hasText(copy.text('pay_expired_text')) && <p className="muted small mt-sm"><ContentText text={copy.text('pay_expired_text')} vars={vars} /></p>}
           <Link to="/book" className="btn btn-primary btn-lg mt">احجز من جديد</Link>
         </div>
       </Card>
@@ -75,14 +78,16 @@ export function PaymentPanel({ booking, payment, onUpdated, onExpired }: {
     <div className="stack">
       <Card className="card-accent">
         <div className="row between" style={{ marginBottom: 12 }}>
-          <h2 className="h2">ادفع عبر شام كاش</h2>
+          <h2 className="h2"><ContentText text={copy.text('pay_title')} vars={vars} /></h2>
           {holdUntil && (
             <span className={`countdown num ${left < 300 ? 'is-late' : ''}`} title="المهلة المتبقية"><Icon name="clock" size={16} />{text}</span>
           )}
         </div>
-        <p className="muted small" style={{ marginBottom: 14 }}>
-          المكان محفوظ لك حتى {fmtTime(holdUntil ?? booking.start)}.
-        </p>
+        {hasText(copy.text('pay_held_until')) && (
+          <p className="muted small" style={{ marginBottom: 14 }}>
+            <ContentText text={copy.text('pay_held_until')} vars={vars} />
+          </p>
+        )}
         <div className="stack-sm">
           <div className="copy-box">
             <div className="grow">
@@ -109,14 +114,16 @@ export function PaymentPanel({ booking, payment, onUpdated, onExpired }: {
         {payment.shamcash_qr && <img src={payment.shamcash_qr} alt="رمز QR لشام كاش" className="qr mt" />}
       </Card>
 
-      <Card>
-        <ol className="steps">
-          <li><span>افتح تطبيق شام كاش وحوّل المبلغ إلى الرقم أعلاه.</span></li>
-          <li><span>اكتب رمز الحجز <b className="num">{payment.code}</b> في ملاحظة التحويل.</span></li>
-          <li><span>أدخل رقم العملية هنا — وبنأكد حجزك خلال دقائق.</span></li>
-        </ol>
-        {payment.instructions && <p className="muted small mt">{payment.instructions}</p>}
-      </Card>
+      {(steps.length > 0 || !!payment.instructions) && (
+        <Card>
+          {steps.length > 0 && (
+            <ol className="steps">
+              {steps.map((st, i) => <li key={i}><span><ContentText text={st.text} vars={vars} /></span></li>)}
+            </ol>
+          )}
+          {payment.instructions && <p className={`muted small${steps.length > 0 ? ' mt' : ''}`}>{payment.instructions}</p>}
+        </Card>
+      )}
 
       <Card>
         <form onSubmit={submit} noValidate>

@@ -1,16 +1,21 @@
 // /book — pick when, see the plan coloured by availability, tap a room. One screen, one job.
 // `?room=<id>` (from the site's «احجز» buttons) opens that room's sheet as soon as the rooms are loaded.
+// Texts: content.booking.intro_* / no_rooms. With online booking switched off (settings.booking_enabled = false) the
+// page shows content.booking.closed_* (or settings.booking_closed_message) and WhatsApp / call buttons instead.
 import { useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
+import { intlPhone, whatsappLink } from '@shared/content'
 import type { PublicSettings, Room } from '@shared/types'
 import { useCached } from '../lib/data'
 import { useOnline } from '../offline'
-import { addDays, addMinutes, fmtClock, fmtSYP, fromLocal, shortClock, todayLocal } from '../format'
-import { Badge, Card, Icon, Select, Spinner, roomTone } from '../ui'
+import { addDays, addMinutes, fmtClock, fmtSYP, fromLocal, todayLocal } from '../format'
+import { Badge, Card, Icon, Select, Spinner } from '../ui'
 import { PlanView } from '../plan/PlanView'
 import { RoomSheet } from '../components/RoomSheet'
+import { RoomSwatch } from '../components/RoomPhotos'
 import { InstallHint } from '../components/InstallHint'
-import { blocks, contentsIcons, defaultPick, durationsFor, firstBookableDate, overlaps, peopleLabel, pickFor, ROOM_ICON, ROOM_TYPE, slotsFor, type Availability, type Pick } from '../lib/booking'
+import { ContentText, hasText, useBookTitle, useBookingCopy, type Vars } from '../components/ContentText'
+import { blocks, bookingOpen, contentsIcons, defaultPick, durationsFor, firstBookableDate, horizonDays, overlaps, peopleLabel, pickFor, ROOM_TYPE, slotsFor, type Availability, type Pick } from '../lib/booking'
 import { durationLabel } from '../format'
 
 const WD_SHORT = ['أحد', 'اثنين', 'ثلاثاء', 'أربعاء', 'خميس', 'جمعة', 'سبت']
@@ -21,11 +26,14 @@ export function BookHome() {
   const roomsQ = useCached<Room[]>('/v1/rooms')
   const settings = settingsQ.data
   const rooms = useMemo(() => (roomsQ.data || []).filter((r) => r.active).sort((a, b) => a.sort - b.sort), [roomsQ.data])
+  const copy = useBookingCopy()
+  useBookTitle()
+  const closed = !!settings && !bookingOpen(settings)
 
   const [pick, setPick] = useState<Pick | null>(null)
   useEffect(() => { if (settings && !pick) setPick(defaultPick(settings)) }, [settings, pick])
 
-  const availQ = useCached<Availability[]>(pick ? `/v1/availability?date=${pick.date}` : null, { pollMs: 60_000 })
+  const availQ = useCached<Availability[]>(pick && !closed ? `/v1/availability?date=${pick.date}` : null, { pollMs: 60_000 })
   const [selected, setSelected] = useState<Room | null>(null)
 
   // Preselect the room named by ?room=<id> once, then drop the param so closing the sheet does not reopen it.
@@ -34,11 +42,11 @@ export function BookHome() {
   useEffect(() => {
     if (!roomParam || !rooms.length) return
     const r = rooms.find((x) => String(x.id) === roomParam)
-    if (r) setSelected(r)
+    if (r && !closed) setSelected(r)
     const next = new URLSearchParams(params)
     next.delete('room')
     setParams(next, { replace: true })
-  }, [roomParam, rooms, params, setParams])
+  }, [roomParam, rooms, params, setParams, closed])
 
   const range = useMemo(() => {
     if (!pick) return null
@@ -57,7 +65,8 @@ export function BookHome() {
   const [tick, setTick] = useState(0)
   useEffect(() => { const t = window.setInterval(() => setTick((n) => n + 1), 60_000); return () => window.clearInterval(t) }, [])
   const today = useMemo(() => todayLocal(), [tick])
-  const days = useMemo(() => Array.from({ length: 14 }, (_, i) => addDays(today, i)), [today])
+  const horizon = horizonDays(settings)
+  const days = useMemo(() => Array.from({ length: horizon }, (_, i) => addDays(today, i)), [today, horizon])
   const slots = useMemo(() => (settings && pick ? slotsFor(settings, pick.date) : []), [settings, pick, tick])
   const durations = useMemo(() => (settings && pick ? durationsFor(settings, pick.time) : []), [settings, pick])
   const todayHasSlots = useMemo(() => (settings ? slotsFor(settings, today).length > 0 : true), [settings, today, tick])
@@ -84,8 +93,10 @@ export function BookHome() {
       <div className="hero">
         <span className="tile-icon brand sm" aria-hidden="true"><Icon name="calendar" size={22} /></span>
         <div>
-          <h1 className="hero-title">احجز مكانك</h1>
-          <p className="hero-sub">{settings ? `يومياً ${shortClock(settings.open)} – ${shortClock(settings.close)}` : 'مساحة عمل مشتركة · فوكس بوينت'}</p>
+          <h1 className="hero-title"><ContentText text={copy.text('intro_title')} vars={copy.vars} /></h1>
+          {hasText(copy.text(settings ? 'intro_hours' : 'intro_fallback')) && (
+            <p className="hero-sub"><ContentText text={copy.text(settings ? 'intro_hours' : 'intro_fallback')} vars={copy.vars} /></p>
+          )}
         </div>
       </div>
 
@@ -94,7 +105,9 @@ export function BookHome() {
         <Card><div className="alert alert-info">ما قدرنا نجيب بيانات المركز. تأكد من الاتصال وحاول مرة ثانية.</div></Card>
       )}
 
-      {settings && pick && (
+      {closed && settings && <BookingClosed settings={settings} whatsapp={copy.content.brand.whatsapp} title={copy.text('closed_title')} text={copy.text('closed_text')} vars={copy.vars} />}
+
+      {settings && pick && !closed && (
         <>
           <Card>
             <div className="chips date-strip" role="radiogroup" aria-label="اليوم">
@@ -152,7 +165,7 @@ export function BookHome() {
               const busy = busyIds.has(r.id)
               return (
                 <button key={r.id} type="button" className={`room-card${busy ? ' is-busy' : ''}${selected?.id === r.id ? ' is-selected' : ''}`} onClick={() => setSelected(r)}>
-                  <span className={`room-swatch ${roomTone(r.type)}`}><Icon name={ROOM_ICON[r.type]} size={22} /></span>
+                  <RoomSwatch room={r} />
                   <span>
                     <span className="room-name">{r.name}</span>
                     <span className="room-meta">
@@ -167,14 +180,38 @@ export function BookHome() {
                 </button>
               )
             })}
-            {rooms.length === 0 && !roomsQ.loading && <Card><p className="muted text-center">لا توجد غرف متاحة حالياً.</p></Card>}
+            {rooms.length === 0 && !roomsQ.loading && <Card><p className="muted text-center"><ContentText text={copy.text('no_rooms')} vars={copy.vars} /></p></Card>}
           </div>
 
           <InstallHint />
         </>
       )}
 
-      <RoomSheet room={selected} pick={pick} busy={!!selected && busyIds.has(selected.id)} offline={offlineData} settings={settings} onClose={() => setSelected(null)} />
+      <RoomSheet room={closed ? null : selected} pick={pick} busy={!!selected && busyIds.has(selected.id)} offline={offlineData} settings={settings} onClose={() => setSelected(null)} />
     </div>
+  )
+}
+
+/**
+ * Online booking switched off: the admin's message (settings.booking_closed_message, else content.booking.closed_text)
+ * and the ways to reach the centre. Bookings already made keep working (/mine, /b/:id and paying a held booking).
+ */
+function BookingClosed({ settings, whatsapp, title, text, vars }: { settings: PublicSettings; whatsapp: string; title: string; text: string; vars: Vars }) {
+  const message = settings.booking_closed_message?.trim() || text
+  const phone = settings.phone || String(vars.phone ?? '')
+  const wa = intlPhone(whatsapp || phone) ? whatsappLink(whatsapp || phone) : ''
+  const tel = phone.replace(/[^\d+]/g, '')
+  return (
+    <Card>
+      <div className="status-hero">
+        <span className="status-mark wait"><Icon name="clock" size={32} /></span>
+        <h2 className="h2"><ContentText text={title} vars={vars} /></h2>
+        {hasText(message) && <p className="muted small mt-sm" style={{ whiteSpace: 'pre-line' }}><ContentText text={message} vars={vars} /></p>}
+        <div className="row gap wrap mt" style={{ justifyContent: 'center' }}>
+          {wa && <a className="btn btn-primary" href={wa} target="_blank" rel="noopener noreferrer"><Icon name="whatsapp" size={18} /> واتساب</a>}
+          {tel && <a className="btn btn-soft" href={`tel:${tel}`}><Icon name="phone" size={18} /> اتصل بنا</a>}
+        </div>
+      </div>
+    </Card>
   )
 }

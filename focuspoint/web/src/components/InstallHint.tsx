@@ -1,8 +1,10 @@
 // "Add to home screen": the native prompt on Android/Chrome, a short how-to on iOS Safari.
+// Texts: content.booking.install_title / install_text / install_text_ios.
 import { useEffect, useState } from 'react'
 import { Button, Card, Icon } from '../ui'
 import { isIOS, isStandalone } from '../lib/push'
 import { flag, setFlag } from '../lib/store'
+import { ContentText, hasText, useBookingCopy } from './ContentText'
 
 const SNOOZE_DAYS = 14
 let deferred: BeforeInstallPromptEvent | null = null
@@ -18,6 +20,7 @@ function snoozed(): boolean {
 export function InstallHint() {
   const [, bump] = useState(0)
   const [hidden, setHidden] = useState(() => snoozed() || (typeof window !== 'undefined' && isStandalone()))
+  const copy = useBookingCopy()
   useEffect(() => {
     const on = () => bump((n) => n + 1)
     window.addEventListener('beforeinstallprompt', on)
@@ -37,16 +40,15 @@ export function InstallHint() {
     if (outcome === 'accepted') setHidden(true)
     else dismiss()
   }
+  const text = copy.text(ios && !deferred ? 'install_text_ios' : 'install_text')
 
   return (
     <Card>
       <div className="prompt-card">
         <span className="prompt-ico"><Icon name="download" size={20} /></span>
         <div className="grow">
-          <div className="strong" style={{ color: 'var(--plum)' }}>ثبّت فوكس بوينت على جهازك</div>
-          {ios && !deferred
-            ? <p className="muted small">من Safari: اضغط زر المشاركة ثم «إضافة إلى الشاشة الرئيسية».</p>
-            : <p className="muted small">يفتح كتطبيق، أسرع، ويشتغل حتى بدون إنترنت.</p>}
+          <div className="strong" style={{ color: 'var(--plum)' }}><ContentText text={copy.text('install_title')} vars={copy.vars} /></div>
+          {hasText(text) && <p className="muted small"><ContentText text={text} vars={copy.vars} /></p>}
           <div className="row gap mt-sm">
             {deferred && <Button size="sm" onClick={install}>تثبيت</Button>}
             <Button size="sm" variant="ghost" onClick={dismiss}>{deferred ? 'لاحقاً' : 'فهمت'}</Button>
