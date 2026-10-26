@@ -12,7 +12,7 @@ import { Mine } from './pages/Mine'
 import { Inbox } from './pages/Inbox'
 import { Spinner, ToastHost } from './ui'
 import { useCached } from './lib/data'
-import { ensurePushSubscription } from './lib/push'
+import { adoptAppPermission, ensurePushSubscription } from './lib/push'
 import { setTimeZone } from './format'
 
 const TeamApp = lazy(() => import('./team/TeamApp'))
@@ -27,7 +27,8 @@ const Contact = lazy(() => import('./pages/site/Contact'))
 function PushKeeper() {
   const { data: settings } = useCached<PublicSettings>('/v1/settings')
   useEffect(() => {
-    if (settings?.vapid_public_key) ensurePushSubscription(settings.vapid_public_key).catch(() => { /* best effort */ })
+    const vapid = settings?.vapid_public_key
+    if (vapid) adoptAppPermission().catch(() => { /* best effort */ }).then(() => ensurePushSubscription(vapid)).catch(() => { /* best effort */ })
   }, [settings?.vapid_public_key])
   useEffect(() => { setTimeZone(settings?.timezone) }, [settings?.timezone])
   return null

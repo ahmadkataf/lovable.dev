@@ -2,6 +2,7 @@
 import type { PushMessage } from '@shared/types'
 import { api } from '../api'
 import { flag, setFlag } from './store'
+import { appNotifHint } from './appHint'
 
 /** A push the service worker forwarded to this window ({type: 'push', payload}) — see sw.ts. */
 export interface PushEventMessage { type: 'push'; payload: PushMessage; at: number }
@@ -31,6 +32,32 @@ export function isStandalone(): boolean {
 /** Should we offer the notification prompt right now? */
 export function canOfferPush(): boolean {
   return pushSupported() && Notification.permission === 'default' && !flag('fp_push_asked')
+}
+
+/** Rejects with `code` when `p` takes longer than `ms`, so nothing can spin forever. */
+export function withTimeout<T>(p: Promise<T>, ms: number, code: string): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const t = setTimeout(() => reject(new Error(code)), ms)
+    p.then((v) => { clearTimeout(t); resolve(v) }, (e) => { clearTimeout(t); reject(e) })
+  })
+}
+
+let permissionRun: Promise<NotificationPermission> | null = null
+/** One permission request at a time for the whole page (customer side and team panel share it). Never hangs:
+ *  after 30 s it rejects with 'permission_timeout'. */
+export function requestPermissionOnce(): Promise<NotificationPermission> {
+  if (!permissionRun) {
+    permissionRun = withTimeout(Notification.requestPermission(), 30000, 'permission_timeout')
+    permissionRun.finally(() => { permissionRun = null }).catch(() => { /* the caller handles it */ })
+  }
+  return permissionRun
+}
+
+/** In the Android app with notifications allowed (?np=1) but Chrome still saying "not asked yet": ask through
+ *  Chrome — it passes the request to the app, which answers "granted" at once, without a dialog. */
+export async function adoptAppPermission(): Promise<void> {
+  if (!pushSupported() || Notification.permission !== 'default' || appNotifHint() !== '1') return
+  await requestPermissionOnce()
 }
 
 function toKey(base64: string): Uint8Array {
@@ -68,7 +95,7 @@ export async function enablePush(vapidPublicKey: string): Promise<'granted' | 'd
   setFlag('fp_push_asked')
   if (!pushSupported()) return 'unsupported'
   // never wait forever: an app build without the permission bridge never answered this call
-  const perm = await Promise.race([Notification.requestPermission(), new Promise<NotificationPermission>((r) => setTimeout(() => r('default'), 30000))])
+  const perm = await requestPermissionOnce().catch((): NotificationPermission => 'default')
   if (perm !== 'granted') return 'denied'
   const ok = await ensurePushSubscription(vapidPublicKey)
   return ok ? 'granted' : 'unsupported'

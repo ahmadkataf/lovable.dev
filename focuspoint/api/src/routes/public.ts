@@ -174,9 +174,14 @@ export const publicRoutes: Route[] = [
   route('POST', '/v1/push/test', 'public', async (c) => {
     const user_id = c.user?.id ?? null, device_id = c.device ?? null
     if (!user_id && !device_id) throw new HttpError(401, 'device_required')
+    // With {endpoint}: test only THIS phone's subscription (other devices of the account are not pinged, and the
+    // answer is about this phone alone — a 404/410 here means this phone must subscribe again).
+    let endpoint: string | null = null
+    try { const b = await readJson(c.req); if (typeof b.endpoint === 'string' && b.endpoint.length <= 2000) endpoint = b.endpoint } catch { /* no body */ }
+    const owned = '((? IS NOT NULL AND user_id = ?) OR (? IS NOT NULL AND device_id = ?))'
     const subs = (await c.env.DB.prepare(
-      `SELECT id, endpoint, p256dh, auth, failures FROM push_subscriptions WHERE (? IS NOT NULL AND user_id = ?) OR (? IS NOT NULL AND device_id = ?)`)
-      .bind(user_id, user_id, device_id, device_id).all<SubscriptionRow>()).results
+      `SELECT id, endpoint, p256dh, auth, failures FROM push_subscriptions WHERE ${owned}${endpoint ? ' AND endpoint = ?' : ''}`)
+      .bind(user_id, user_id, device_id, device_id, ...(endpoint ? [endpoint] : [])).all<SubscriptionRow>()).results
     const results = []
     for (const sub of subs) {
       const r = await sendPush(c.env, sub, { kind: 'announcement', booking_id: null, url: absoluteUrl(c.env, user_id ? '/team' : '/inbox'), title: 'إشعار تجريبي', body: 'الإشعارات تعمل على هذا الجهاز ✓', tag: 'fp-test' } as PushMessage)

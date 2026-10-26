@@ -1,11 +1,11 @@
 package com.focuspoint.app;
 
 import android.Manifest;
+import android.app.NotificationManager;
+import android.net.Uri;
 import android.content.pm.PackageManager;
 import android.os.Build;
 import android.os.Bundle;
-
-import com.google.androidbrowserhelper.trusted.PrefUtils;
 
 /**
  * Opens the Focus Point web app in a Trusted Web Activity, but first — on Android 13+ — asks for the notification
@@ -41,6 +41,20 @@ public class LauncherActivity extends com.google.androidbrowserhelper.trusted.La
         }
     }
 
+    /**
+     * Tells the site whether this app may show notifications ("np=1" / "np=0"). Chrome only re-reads the app's
+     * permission once per Chrome process, so right after the user allows (or refuses) it here the page can still see
+     * a stale "not asked yet". With the hint, the page registers by itself when allowed — Chrome passes the request
+     * to this app, which answers at once without a dialog — and does not ask a second time right after a refusal.
+     */
+    @Override
+    protected Uri getLaunchingUrl() {
+        Uri url = super.getLaunchingUrl();
+        NotificationManager nm = getSystemService(NotificationManager.class);
+        boolean allowed = nm != null && nm.areNotificationsEnabled();
+        return url.buildUpon().appendQueryParameter("np", allowed ? "1" : "0").build();
+    }
+
     @Override
     protected void onSaveInstanceState(Bundle outState) {
         super.onSaveInstanceState(outState);
@@ -59,9 +73,6 @@ public class LauncherActivity extends com.google.androidbrowserhelper.trusted.La
         super.onRequestPermissionsResult(requestCode, permissions, grantResults);
         if (requestCode != REQUEST_NOTIFICATIONS) return;
         asking = false;
-        // Tell android-browser-helper we already asked (its own permission screen does the same). Otherwise Chrome
-        // reports a refusal to the site as "not asked yet", the page asks again at once and uses up Android's last prompt.
-        if (grantResults.length > 0) PrefUtils.setHasRequestedNotificationPermission(this);
         // The user has just answered a dialog, so the enter animation is long over. A screen recreated during the
         // dialog never gets this callback, and the splash would otherwise wait for it forever.
         onEnterAnimationComplete();

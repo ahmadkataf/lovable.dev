@@ -10,6 +10,7 @@ import { PageHead, Section, roomColor } from './common'
 /** Room dot colour when the owner has not picked one: the public site's space-type coding. */
 const TYPE_DOT: Record<string, string> = { private: 'var(--blue)', meeting: 'var(--violet)', hall: 'var(--violet)', desk: 'var(--teal)' }
 import { enableTeamPush, ensureTeamPush, onPushStateChange, pushBusy, pushErrorText, pushProblem, pushRegistered, pushState, resubscribeTeamPush, setPushProblem, testPush } from './push'
+import { appNotifHint, inAndroidApp } from '../lib/appHint'
 import { store, useFresh, useRooms, useStore } from './store'
 import { describeError, isBlocking, isPendingVerification, localDate, sortByStart } from './util'
 
@@ -162,9 +163,10 @@ function PushCard({ required = false }: { required?: boolean }) {
       const r = await testPush()
       const ok = r.results.some((x) => x.status !== null && x.status >= 200 && x.status < 300)
       const gone = r.results.some((x) => x.status === 404 || x.status === 410)
+      // the results are this phone's own subscription only (see testPush)
       if (!r.configured) setPushProblem('مفاتيح الإشعارات غير مضبوطة على الخادم.')
-      else if (ok) toast.show(quiet ? 'تم التفعيل — وصلك إشعار تجريبي؟' : 'أُرسل إشعار تجريبي — يجب أن يظهر خلال ثوانٍ', 'ok')
       else if ((gone || r.subscriptions === 0) && !retried) { await resubscribeTeamPush(vapid!); await sendTest(quiet, true); return }
+      else if (ok) toast.show(quiet ? 'تم التفعيل — وصلك إشعار تجريبي؟' : 'أُرسل إشعار تجريبي — يجب أن يظهر خلال ثوانٍ', 'ok')
       else if (r.subscriptions === 0) setPushProblem('هذا الجهاز غير مسجّل بعد — اضغط «إعادة المحاولة».')
       else setPushProblem(`خدمة الإشعارات رفضت الإرسال (${r.results.map((x) => x.status ?? x.error).join('، ')}).`)
     } catch (err) { setPushProblem(pushErrorText(err)) } finally { setTesting(false) }
@@ -172,9 +174,13 @@ function PushCard({ required = false }: { required?: boolean }) {
 
   const title = healthy ? (registered ? 'الإشعارات مفعّلة على هذا الجهاز' : 'جارٍ تسجيل هذا الجهاز للإشعارات…')
     : state === 'granted' ? 'الإشعارات لا تعمل على هذا الجهاز بعد' : 'الإشعارات مطلوبة للوحة التحكم'
+  const app = inAndroidApp()
   const text = healthy ? 'تصلك تنبيهات الحجوزات الجديدة والدفعات حتى والتطبيق مغلق.'
-    : state === 'denied' ? 'الإشعارات مرفوضة — بدونها لن يصلك أي حجز جديد. فعّلها من إعدادات الهاتف ← التطبيقات ← فوكس بوينت ← الإشعارات، ثم ارجع هنا.'
+    : state === 'denied' ? (app
+      ? 'الإشعارات مرفوضة — بدونها لن يصلك أي حجز جديد. فعّلها من إعدادات الهاتف ← التطبيقات ← فوكس بوينت ← الإشعارات، ثم أغلق التطبيق وافتحه من جديد (وإذا بقيت هذه الرسالة أعد تشغيل الهاتف).'
+      : 'الإشعارات محظورة في هذا المتصفح — بدونها لن يصلك أي حجز جديد. اضغط رمز القفل بجانب عنوان الموقع ← الإشعارات ← سماح، ثم حدّث الصفحة.')
     : state === 'granted' ? 'بدونها لن يصلك أي حجز جديد. السبب مكتوب أدناه — اضغط «إعادة المحاولة».'
+    : app && appNotifHint() === '0' ? 'بدونها لن يصلك أي حجز جديد. اضغط «السماح بالإشعارات»؛ وإذا ما ظهر سؤال فعّلها من إعدادات الهاتف ← التطبيقات ← فوكس بوينت ← الإشعارات ثم اضغط الزر مرة ثانية.'
     : 'اسمح بالإشعارات حتى يصلك تنبيه فوري عند كل حجز جديد أو دفعة بانتظار التحقق.'
 
   return (
