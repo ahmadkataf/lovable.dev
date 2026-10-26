@@ -1,5 +1,8 @@
 // Focus Point — shared domain types and the HTTP API contract (used by api/ and web/).
 // Times are ISO-8601 strings in UTC; the centre's local zone is Asia/Damascus (settings.timezone).
+// The editable site content (texts, images, links of the website) has its own contract in ./content.
+import type { Photo, SectionId, SiteContent } from './content'
+export type { Photo, SectionId, SiteContent } from './content'
 
 export type Role = 'staff' | 'admin'          // accounts exist only for the team; customers book as guests (name + phone)
 export type RoomType = 'private' | 'meeting' | 'desk' | 'hall'
@@ -31,6 +34,7 @@ export interface Room {
   id: number; name: string; type: RoomType; capacity: number; contents: RoomContents
   price_hour: number; price_day: number | null        // Syrian pounds
   color: string | null; plan: PlanRect | null; active: 0 | 1; sort: number; description: string | null
+  photos: Photo[]                                    // in order, ≤8 (admin); [] → the site shows its group photo (content spaces.groups)
 }
 export interface Booking {
   id: number; code: string                            // code: 6 chars shown to the customer and written in the transfer note
@@ -61,6 +65,27 @@ export interface Settings {
   shamcash_number: string; shamcash_name: string; shamcash_qr: string | null   // qr: data URL (PNG) or null
   payment_instructions: string
   allow_pay_on_arrival: boolean                        // customers may choose "cash on arrival" (default false): no transfer, staff confirm at the desk
+  // ---- booking & payment capabilities (admin › الإعدادات). The defaults keep today's behaviour. ----
+  /** Online booking is open (default true). false → the booking pages show booking_closed_message (or the content's
+   *  booking.closed_text) instead of the form, and the API refuses new customer bookings with 409 `booking_closed`.
+   *  Team walk-ins are not affected. */
+  booking_enabled: boolean
+  /** Shown on the booking pages while booking_enabled is false; '' → content booking.closed_text. ≤500 chars, default ''. */
+  booking_closed_message: string
+  /** Customers may pay by Sham Cash transfer (default true). At least one of shamcash_enabled / allow_pay_on_arrival
+   *  stays on; false → cash on arrival only, and method 'shamcash' from a customer is refused with 400 `shamcash_disabled`. */
+  shamcash_enabled: boolean
+  /** How many days ahead (today included) a customer may book: the /book date strip and a server check
+   *  (400 `too_far_ahead`). 1–365, default 14. */
+  booking_horizon_days: number
+  /** Reminder push this many minutes before a confirmed booking starts (cron window ±5 min). 0 = no reminders,
+   *  otherwise 15–1440. Default 60. */
+  reminder_minutes: number
+  /** Unpaid Sham Cash holds one phone may have at the same time (429 `too_many_pending`). 1–20, default 3. */
+  max_open_holds_per_phone: number
+  /** Customers may cancel their own booking while it is not yet confirmed (default true, today's rule). false → the
+   *  cancel button is hidden and POST /v1/bookings/:id/cancel from a customer is refused (409 `cancel_not_allowed`). */
+  customer_can_cancel: boolean
   plan: Plan
   vapid_public_key: string                             // for push subscriptions
 }
@@ -101,7 +126,7 @@ export interface ApiContract {
   'GET /v1/team/ping': { res: { now: string; pending: number; last_change: string | null } }   // cheap 5-second poll: pending verifications + the latest booking change (poll GET /v1/team/sync?since= when it moves)
   'POST /v1/team/sync': { req: { ops: SyncOp[] }; res: { results: SyncResult[]; now: string } }   // replay the offline queue, in order, idempotent by client_id
   // admin only
-  'POST /v1/admin/rooms': { req: Omit<Room, 'id'>; res: Room }
+  'POST /v1/admin/rooms': { req: Omit<Room, 'id' | 'photos'> & { photos?: Photo[] }; res: Room }   // photos ≤8, src /img/… or /media/… (PATCH and sync room_upsert take them too)
   'PATCH /v1/admin/rooms/:id': { req: Partial<Omit<Room, 'id'>>; res: Room }
   'DELETE /v1/admin/rooms/:id': { res: { ok: true } }              // only when it has no future bookings; else active=0
   'GET /v1/admin/settings': { res: Settings }
@@ -112,10 +137,35 @@ export interface ApiContract {
   'POST /v1/admin/announce': { req: { title: string; body: string; to: 'customers' | 'team' }; res: { sent: number } }
   'GET /v1/admin/report?from=&to=': { res: { bookings: Booking[]; revenue: number; hours_by_room: Record<string, number> } }
   'POST /v1/admin/bootstrap': { req: { setup_key: string; phone: string; name: string; password: string }; res: { token: string; user: User } }  // first admin only
+  // site content (see ./content): defaults ⊕ the sections the admin saved
+  'GET /v1/content': { res: ContentResponse }                       // public; Cache-Control: no-cache + ETag (304 on If-None-Match)
+  'GET /v1/admin/content': { res: AdminContentResponse }
+  'PUT /v1/admin/content/:section': { req: SiteContent[SectionId]; res: ContentSectionResponse }   // body = the full section value, checked by validateSection (400 {error, path, message})
+  'DELETE /v1/admin/content/:section': { res: ContentSectionResponse }                             // back to the default
+  // uploaded images (stored in D1). Raw body image/webp|jpeg|png ≤ 1,000,000 bytes; w/h = pixel size measured by the browser
+  'POST /v1/admin/media?w=&h=': { req: Blob | ArrayBuffer; res: MediaUpload }
+  'GET /v1/admin/media': { res: MediaItem[] }                      // newest first
+  'DELETE /v1/admin/media/:id': { res: { ok: true } }              // 409 media_in_use while content or a room photo uses it
+  // (outside /v1) GET /media/:id.webp → the image bytes, Cache-Control: public, max-age=31536000, immutable
   // integrations
   'POST /v1/payments/shamcash/webhook': { req: { ref: string; amount: number; sender?: string; note?: string }; res: { matched: boolean } }  // X-Webhook-Secret header
 }
-export type PublicSettings = Pick<Settings, 'centre_name' | 'phone' | 'address' | 'instagram' | 'timezone' | 'open' | 'close' | 'slot_minutes' | 'min_minutes' | 'max_minutes' | 'hold_minutes' | 'allow_pay_on_arrival' | 'plan' | 'vapid_public_key'>
+export type PublicSettings = Pick<Settings, 'centre_name' | 'phone' | 'address' | 'instagram' | 'timezone' | 'open' | 'close' | 'slot_minutes' | 'min_minutes' | 'max_minutes' | 'hold_minutes' | 'allow_pay_on_arrival' | 'plan' | 'vapid_public_key'
+  | 'booking_enabled' | 'booking_closed_message' | 'shamcash_enabled' | 'booking_horizon_days' | 'reminder_minutes' | 'max_open_holds_per_phone' | 'customer_can_cancel'>
+export interface ContentResponse { content: SiteContent; updated_at: string | null }   // updated_at null = nothing saved yet
+export interface AdminContentResponse extends ContentResponse { overridden: SectionId[] }   // the sections the admin saved
+export interface ContentSectionResponse {
+  section: SectionId
+  value: SiteContent[SectionId]     // the merged section as the site now shows it
+  overridden: boolean               // false after DELETE (default again)
+  updated_at: string | null
+}
+export interface MediaUpload { id: string; src: string; w: number; h: number; bytes: number }   // src = '/media/<id>.webp' (or .jpg / .png)
+export interface MediaItem extends MediaUpload {
+  mime: 'image/webp' | 'image/jpeg' | 'image/png'
+  created_at: string
+  used: boolean                     // referenced by the content or by a room photo
+}
 // The JSON a Web Push carries (the service worker shows it and forwards it to open clients via postMessage).
 export interface PushMessage { kind: NotificationKind; booking_id: number | null; url: string; title: string; body: string; tag?: string }
 // One queued change made offline in the team app. client_id is a UUID made on the device; replaying the same op is a no-op.
