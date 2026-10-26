@@ -42,7 +42,7 @@ export function contentsList(c: RoomContents): { icon: IconName; label: string }
   return out
 }
 /** The room's own photos (Room.photos, in order); [] when it has none — the screens then show today's icon visuals. */
-export function roomPhotos(room: Pick<Room, 'photos'> | null | undefined): Photo[] {
+export function roomPhotos(room: { photos?: Room['photos'] } | null | undefined): Photo[] {
   const list: unknown = room?.photos
   if (!Array.isArray(list)) return []
   return list.filter((p): p is Photo => !!p && typeof p === 'object' && typeof (p as Photo).src === 'string' && isSafeImageSrc((p as Photo).src))

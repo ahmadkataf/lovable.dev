@@ -5,16 +5,20 @@ else is the built web app (`../web/dist`) served from `[assets]` with an `index.
 a cron runs every 5 minutes, Web Push goes out with VAPID.
 
 ```
-src/index.ts      router, CORS, role guards, /.well-known/assetlinks.json, SPA fallback, scheduled() entry · src/assetlinks.ts
-src/routes/       public.ts (customers) · team.ts · sync.ts (offline) · admin.ts · payments.ts (webhook)
+src/index.ts      router, CORS, role guards, /.well-known/assetlinks.json, /media/*, scheduled() entry · src/assetlinks.ts
+src/routes/       public.ts (customers) · team.ts · sync.ts (offline) · admin.ts · content.ts (site editor) · payments.ts (webhook)
+src/content.ts    site content: stored overrides ⊕ DEFAULT_CONTENT, isolate cache, save / reset / history / undo
+src/media.ts      uploaded images in D1: type + size checks, /media/<id>.<ext> · src/app.ts + src/site.ts the SPA with the
+                  content written into index.html (title, meta, JSON-LD, theme, boot data) and the manifest
 src/service.ts    booking + room operations shared by the online routes and the offline replay
 src/bookings.ts   pure rules: slot validation, price, overlap, codes, status machine   (unit-tested)
 src/auth.ts       PBKDF2 passwords, HS256 bearer tokens, login rate limiting
 src/settings.ts   defaults + validation of the settings row and the floor plan
-src/notify.ts     inbox rows + push (Arabic texts) · src/push.ts Web Push (RFC 8291/8292 via WebCrypto)
-src/cron.ts       expire holds (after a 10-min grace) · close stale verifications · remind 1h before · complete finished bookings
+src/notify.ts     inbox rows + push (texts from the editable content.messages templates) · src/push.ts Web Push (RFC 8291/8292)
+src/cron.ts       expire holds (after a 10-min grace) · close stale verifications · remind reminder_minutes before · complete
 src/tz.ts         Asia/Damascus ↔ UTC helpers · src/validate.ts phone normalisation and input checks
-schema.sql        D1 schema · seed.sql six rooms with plan rectangles and SYP prices
+schema.sql        D1 schema · seed.sql six rooms with plan rectangles and SYP prices · migrations/ the same changes as files
+scripts/          content-smoke.mjs (site editor end to end) · privacy-smoke.mjs · vapid.mjs
 ```
 
 ## 1. Setup
@@ -131,8 +135,9 @@ refused as `in_past`. Timestamps, holds and conflict checks still use the server
 **Cron (every 5 minutes, `src/cron.ts`).** Expire `pending_payment` whose `hold_until` + 10-minute grace passed (→ `expired`,
 customer notified); close `awaiting_verification` bookings whose end passed more than 30 minutes ago (→ `expired`, a system
 note «انتهت المهلة دون تحقق من الدفع (إغلاق تلقائي)» is appended, customer notified) so stale verifications do not pile up —
-the dashboard's `pending` list and `/v1/team/ping` already exclude past ones; remind confirmed bookings starting in 55–65
-minutes once (`reminded = 1`); complete confirmed bookings whose end passed.
+the dashboard's `pending` list and `/v1/team/ping` already exclude past ones; remind confirmed bookings starting
+`reminder_minutes` ± 5 minutes from now, once (`reminded = 1`; default 60 → 55–65 minutes; 0 = no reminders); complete
+confirmed bookings whose end passed.
 
 **Notifications.** Every notification is a row in `notifications` (inbox, `GET /v1/notifications`) and a Web Push to all
 subscriptions of the recipient (`push_subscriptions`, tied to a team account or a customer device). The push payload is the
@@ -146,8 +151,65 @@ min 60, max 720, hold 30, `allow_pay_on_arrival` false, the default 1200×800 pl
 reach customers only through a booking's `payment` block. PATCH validates `HH:MM` hours (open < close), the plan JSON, the QR
 data URL (`image/png|jpeg|webp`, ≤ 300 KB), and that min/max are multiples of the slot.
 
+Booking capabilities (admin; defaults = the behaviour before they existed), enforced for **customer** requests only —
+team walk-ins and the offline replay are never limited by them:
+
+| setting | default | rule | refused with |
+|---|---|---|---|
+| `booking_enabled` | true | false → no new customer bookings (existing holds can still be paid) | 409 `booking_closed` |
+| `booking_closed_message` | '' | ≤ 500 chars, shown by the site instead of the form | — |
+| `shamcash_enabled` | true | false → cash on arrival only; at least one of it / `allow_pay_on_arrival` stays on (else 400 `no_payment_method`) | 400 `shamcash_disabled` |
+| `booking_horizon_days` | 14 | 1–365; start's local date ≤ today + days − 1 | 400 `too_far_ahead` |
+| `max_open_holds_per_phone` | 3 | 1–20 unpaid live holds per phone | 429 `too_many_pending` |
+| `reminder_minutes` | 60 | 0 (off) or 15–1440, cron window ± 5 min | — |
+| `customer_can_cancel` | true | false → only the team cancels | 403 `cancel_not_allowed` |
+
+All seven are in `PublicSettings` (`GET /v1/settings`) so the site adapts its pages.
+
 **Rooms.** `DELETE /v1/admin/rooms/:id` hard-deletes a room only when no booking references it (FK) and records the id in
-`deleted_rooms`; otherwise it sets `active = 0`. Public `GET /v1/rooms` returns active rooms; sync returns all rooms.
+`deleted_rooms` (its photos go with it); otherwise it sets `active = 0`. Public `GET /v1/rooms` returns active rooms; sync
+returns all rooms. Every room carries `photos: Photo[]` (table `room_photos`, in order): create / patch / sync `room_upsert`
+accept `photos` (≤ 8; `src` and `small` `/img/…` or `/media/…`, alt ≤ 200, w/h 1–20000 → else 400 `invalid_photos`), which
+replaces the whole list; `[]` clears it. If the photos cannot be read the rooms come back with `[]` rather than failing.
+
+**Site editor** (`docs/cms/DESIGN.md`, contract `shared/content.ts`). The admin's saved sections live in one JSON row
+(`site_content`); every read is `mergeContent(stored)` over `DEFAULT_CONTENT`, so a missing or malformed value falls back
+to the default field by field. The merged content is cached in the isolate for ≤ 30 s and dropped on every save.
+
+```
+GET    /v1/content                        public · {content, updated_at} · Cache-Control: no-cache + ETag (304)
+GET    /v1/admin/content                  {content, overridden: SectionId[], updated_at}
+PUT    /v1/admin/content/:section         body = the full section → validateSection → {section, value, overridden, updated_at}
+                                          400 {error:'invalid_content', path, message, reason} · 404 unknown_section · 413 > 256 KB
+DELETE /v1/admin/content/:section         back to the default (same response; recorded in the history, so it can be undone)
+GET    /v1/admin/content/:section/history [{id, saved_at, saved_by, saved_by_name, was_default, value}] newest first, ≤ 20
+POST   /v1/admin/content/:section/undo    restores the newest history entry and removes it · 409 nothing_to_undo
+POST   /v1/admin/media?w=&h=              raw body image/webp|jpeg|png, ≤ 1,000,000 bytes, bytes must match the type
+                                          → 201 {id, src: '/media/<id>.<ext>', w, h, bytes} (size read from the file header
+                                          when possible) · 415 unsupported_media_type · 413 media_too_large · 400 empty_body
+GET    /v1/admin/media                    MediaItem[] newest first, with `used` (content or a room photo)
+DELETE /v1/admin/media/:id                {ok:true} · 404 media_not_found · 409 media_in_use
+GET    /media/<id>.<ext>                  public bytes, Cache-Control: public, max-age=31536000, immutable · ETag · 404
+```
+
+Undo: each save or reset first copies the section's previous stored value (NULL = it was the default) into
+`site_content_history` in the same D1 batch; saving an identical value adds nothing. Section values are written with
+`json_set` / `json_remove`, so saving two sections at once never loses either.
+
+Notifications are built from `content.messages` with `fillTemplate` (`{customer_name} {room} {when} {price} {code} {ref}
+{reason} {phone} {name} {reminder}`); with the default content they are word for word the old texts
+(`test/notify.test.ts`), and if the content cannot be read they use the defaults.
+
+The SPA shell (`index.html`, every page path) is rewritten with `HTMLRewriter`: `<title>` (`seo.pages[page]` or `seo.title`),
+meta description, Open Graph / Twitter tags (absolute `og:image` from `PUBLIC_URL`), the JSON-LD (`buildJsonLd`), a
+`<style>` with the brand palette when `theme.brand` changed (also on `privacy.html`), and
+`<script>window.__FP_BOOT__={content, settings}</script>` (`<`, `>`, `&`, U+2028/9 escaped) so the first paint has the
+edits. `/manifest.webmanifest` gets `name` (`seo.app_name`, or the centre name while that is the default), `short_name`,
+`description`. Any error there (D1, content, rewriter) serves the built file untouched: the page never breaks.
+
+Check it end to end against a local `wrangler dev --test-scheduled` with a fresh D1 (schema + seed):
+`B=http://127.0.0.1:8787 KEY=<ADMIN_SETUP_KEY> node scripts/content-smoke.mjs` (Node ≥ 22; `OFF=1` for a re-run on the
+same database).
 
 ## 5. Offline sync protocol (team app)
 

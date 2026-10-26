@@ -1,0 +1,27 @@
+/* Site chrome shown on every customer page (header, footer, announcement bar). Loaded with the main bundle, unlike
+   pages/site/site.css which only comes with the marketing pages. Uses the shared tokens in styles.css. */
+
+/* a short Latin run inside Arabic text stays on one line (also defined in site.css for the marketing pages) */
+.fp-nowrap { white-space: nowrap; }
+
+/* an edited (non-square) logo keeps its proportions inside the round 38px slot */
+.site-brand img { object-fit: contain; }
+
+/* ---- announcement bar (content.announcement): flat tone bands, never beige ---- */
+.announce { border-bottom: 1px solid var(--line); color: var(--ink); font-size: 0.86rem; line-height: 1.6; }
+.announce.is-info { background: var(--blue-50); }
+.announce.is-success { background: var(--green-50); }
+.announce.is-warning { background: var(--surface-2); }
+.announce-inner { display: flex; align-items: flex-start; gap: 10px; padding-block: 8px; }
+.announce-ico { flex: none; height: 1.6em; display: grid; place-items: center; }
+.announce.is-info .announce-ico { color: var(--blue); }
+.announce.is-success .announce-ico { color: var(--green); }
+.announce-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--warn); margin-inline: 5px; }
+.announce-text { flex: 1; min-width: 0; margin: 0; overflow-wrap: anywhere; font-weight: 500; }
+.announce-link { font-weight: 700; color: var(--brand); text-decoration: underline; text-underline-offset: 3px; }
+.announce-close {
+  flex: none; width: 36px; height: 36px; margin-block: -7px; margin-inline-end: -10px; padding: 0; border: 0; border-radius: 10px;
+  background: transparent; color: var(--mute); display: grid; place-items: center;
+}
+.announce-close:hover { background: rgba(15, 23, 42, 0.06); color: var(--ink); }
+.announce-close:focus-visible { outline: 2px solid var(--brand); outline-offset: 1px; }

@@ -37,13 +37,23 @@ export const toPhoto = (p: RoomPhotoRow): Photo => {
   return out
 }
 
-/** Photos of the given rooms (all rooms when `ids` is omitted), in their saved order. */
+/**
+ * Photos of the given rooms (all rooms when `ids` is omitted), in their saved order. Photos are decoration: if they
+ * cannot be read (e.g. a Worker deployed before its table, `npm run deploy` without the schema) the rooms come back
+ * without photos — the site shows the group photo — instead of breaking the room list and booking.
+ */
 export async function photosByRoom(db: D1Database, ids?: number[]): Promise<Map<number, Photo[]>> {
   const out = new Map<number, Photo[]>()
   if (ids && ids.length === 0) return out
-  const rows = ids
-    ? (await db.prepare(`SELECT * FROM room_photos WHERE room_id IN (${ids.map(() => '?').join(',')}) ORDER BY room_id, sort`).bind(...ids).all<RoomPhotoRow>()).results
-    : (await db.prepare('SELECT * FROM room_photos ORDER BY room_id, sort').all<RoomPhotoRow>()).results
+  let rows: RoomPhotoRow[]
+  try {
+    rows = ids
+      ? (await db.prepare(`SELECT * FROM room_photos WHERE room_id IN (${ids.map(() => '?').join(',')}) ORDER BY room_id, sort`).bind(...ids).all<RoomPhotoRow>()).results
+      : (await db.prepare('SELECT * FROM room_photos ORDER BY room_id, sort').all<RoomPhotoRow>()).results
+  } catch (err) {
+    console.error('room_photos unavailable, rooms without photos', err)
+    return out
+  }
   for (const r of rows) {
     const list = out.get(r.room_id) ?? []
     list.push(toPhoto(r))

@@ -29,7 +29,7 @@ export function Settings() {
     <>
       <PageHead title="الإعدادات" />
       <div className="quick-links">
-        <Link to="/team/site" className="card quick-link is-wide"><Icon name="globe" size={20} /> الموقع: نصوص وصور الموقع والتطبيق</Link>
+        <Link to="/team/site" className="card quick-link is-wide"><Icon name="globe" size={20} /> الموقع: النصوص والصور</Link>
         <Link to="/team/plan" className="card quick-link"><Icon name="grid" size={20} /> مخطط المركز</Link>
         <Link to="/team/customers" className="card quick-link"><Icon name="people" size={20} /> الزبائن</Link>
       </div>
@@ -123,7 +123,7 @@ function CentreTab({ settings }: { settings: SettingsT }) {
         <Field label="رسالة إيقاف الحجز (اختياري)" hint="تظهر للزبائن أثناء الإيقاف. فارغة = النص من «الموقع › الحجز والدفع»." error={errors.booking_closed_message}>
           <Textarea rows={2} maxLength={500} value={d.booking_closed_message} onChange={(e) => set('booking_closed_message', e.target.value)} placeholder="مثال: الحجز متوقف خلال العيد، نرجع يوم الأحد" />
         </Field>
-        <Field label="الحجز مسموح حتى (يوماً من اليوم)" hint="عدد الأيام القادمة التي تظهر للزبون في صفحة الحجز (اليوم محسوب)، بين 1 و365." error={errors.booking_horizon_days}>
+        <Field label="أيام الحجز المتاحة للأمام" hint="كم يوماً قادماً يظهر للزبون في صفحة الحجز، واليوم منها. بين 1 و365." error={errors.booking_horizon_days}>
           <Input dir="ltr" inputMode="numeric" value={d.booking_horizon_days} onChange={(e) => set('booking_horizon_days', e.target.value)} style={{ maxWidth: 160 }} />
         </Field>
         <Field label="تذكير الزبون قبل موعده" hint="إشعار على جهاز الزبون قبل بداية حجزه المؤكد. إذا غيّرت المدة، عدّل جملة «نذكّرك قبله بساعة» ونص التذكير من «الموقع»." >

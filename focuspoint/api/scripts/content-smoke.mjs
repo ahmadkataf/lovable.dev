@@ -14,6 +14,8 @@ let fails = 0
 const ok = (name, cond, extra) => { console.log((cond ? 'PASS ' : 'FAIL ') + name + (cond ? '' : ' ' + JSON.stringify(extra)?.slice(0, 600))); if (!cond) fails++ }
 const eq = (a, b) => JSON.stringify(a) === JSON.stringify(b)
 const uuid = () => crypto.randomUUID()
+const RUN = String(1000 + Math.floor(Math.random() * 9000))
+const phone = (i) => `0944${RUN}${String(i).padStart(2, '0')}`     // fresh customer phones every run (holds are per phone)
 
 async function call(method, path, { body, headers = {}, raw } = {}) {
   const h = { ...headers }
@@ -175,17 +177,19 @@ const item = (l, id) => l.b.find((x) => x.id === id)
 ok('GET /v1/admin/media lists newest first, used=false', list0.s === 200 && list0.b[0]?.id === pngUp.b.id && item(list0, webpUp.b.id)?.used === false
   && item(list0, webpUp.b.id)?.mime === 'image/webp', list0.b?.slice(0, 2))
 
-// in use by the content → 409
-const seo = { ...DEFAULT_CONTENT.seo, og_image: { src: webpUp.b.src, alt: 'صورة المشاركة', w: 1, h: 1 } }
+// in use by the content → 409 (the share image must be JPG/PNG: WhatsApp shows WebP badly)
+const webpOg = await call('PUT', '/v1/admin/content/seo', { headers: admin, body: { ...DEFAULT_CONTENT.seo, og_image: { src: webpUp.b.src, alt: 'x', w: 1, h: 1 } } })
+ok('share image as WebP → 400 bad_format', webpOg.s === 400 && webpOg.b.reason === 'bad_format' && webpOg.b.path === 'og_image.src', webpOg.b)
+const seo = { ...DEFAULT_CONTENT.seo, og_image: { src: pngUp.b.src, alt: 'صورة المشاركة', w: 4, h: 3 } }
 const seoPut = await call('PUT', '/v1/admin/content/seo', { headers: admin, body: seo })
-ok('content may use an uploaded image', seoPut.s === 200 && seoPut.b.value.og_image.src === webpUp.b.src, seoPut.b)
-ok('media list: used=true', item(await call('GET', '/v1/admin/media', { headers: admin }), webpUp.b.id)?.used === true)
-const inUse = await call('DELETE', `/v1/admin/media/${webpUp.b.id}`, { headers: admin })
+ok('content may use an uploaded image', seoPut.s === 200 && seoPut.b.value.og_image.src === pngUp.b.src, seoPut.b)
+ok('media list: used=true', item(await call('GET', '/v1/admin/media', { headers: admin }), pngUp.b.id)?.used === true)
+const inUse = await call('DELETE', `/v1/admin/media/${pngUp.b.id}`, { headers: admin })
 ok('DELETE media used by the content → 409 media_in_use', inUse.s === 409 && inUse.b.error === 'media_in_use', inUse.b)
 
 // ---------- 4. room photos ----------
 const photos = [
-  { src: pngUp.b.src, alt: 'غرفة 1 من الداخل', w: 4, h: 3 },
+  { src: webpUp.b.src, alt: 'غرفة 1 من الداخل', w: 1, h: 1 },
   { src: '/img/room-a.webp', alt: 'قاعة', w: 1105, h: 1400, small: '/img/room-a-720.webp' },
 ]
 const rp = await call('PATCH', '/v1/admin/rooms/1', { headers: admin, body: { photos } })
@@ -194,7 +198,7 @@ const rooms = await call('GET', '/v1/rooms')
 ok('GET /v1/rooms: photos on every room', rooms.b.every((r) => Array.isArray(r.photos)) && eq(rooms.b.find((r) => r.id === 1)?.photos, photos), rooms.b?.map((r) => r.photos?.length))
 const pull = await call('GET', '/v1/team/sync', { headers: staff })
 ok('team sync pull: rooms carry photos', pull.s === 200 && eq(pull.b.rooms.find((r) => r.id === 1)?.photos, photos) && pull.b.rooms.every((r) => Array.isArray(r.photos)), { s: pull.s })
-const roomInUse = await call('DELETE', `/v1/admin/media/${pngUp.b.id}`, { headers: admin })
+const roomInUse = await call('DELETE', `/v1/admin/media/${webpUp.b.id}`, { headers: admin })
 ok('DELETE media used by a room photo → 409', roomInUse.s === 409 && roomInUse.b.error === 'media_in_use', roomInUse.b)
 const badPhotos = await call('PATCH', '/v1/admin/rooms/1', { headers: admin, body: { photos: [{ src: 'https://evil.example/x.png', alt: '', w: 1, h: 1 }] } })
 ok('foreign photo src → 400 invalid_photos', badPhotos.s === 400 && badPhotos.b.error === 'invalid_photos', badPhotos.b)
@@ -222,9 +226,9 @@ const d1 = await call('DELETE', `/v1/admin/rooms/${created.b.id}`, { headers: ad
 const d2 = await call('DELETE', `/v1/admin/rooms/${s2.room.id}`, { headers: admin })
 const d3 = await call('DELETE', `/v1/admin/rooms/${plain.b.id}`, { headers: admin })
 ok('rooms without bookings are deleted', [d1, d2, d3].every((d) => d.s === 200 && d.b.outcome === 'deleted'), [d1.b, d2.b, d3.b])
-const freed = await call('DELETE', `/v1/admin/media/${pngUp.b.id}`, { headers: admin })
+const freed = await call('DELETE', `/v1/admin/media/${webpUp.b.id}`, { headers: admin })
 ok('deleting the rooms removed their photos → media deletable', freed.s === 200, freed.b)
-ok('deleted media → /media 404', (await call('GET', pngUp.b.src)).s === 404)
+ok('deleted media → /media 404', (await call('GET', webpUp.b.src)).s === 404)
 const cleared = await call('PATCH', '/v1/admin/rooms/1', { headers: admin, body: { photos: [] } })
 ok('photos: [] clears the list', cleared.s === 200 && eq(cleared.b.photos, []), cleared.b)
 
@@ -247,12 +251,13 @@ const html = page.text
 ok('HTML: no-cache, no ETag', page.s === 200 && page.h.get('cache-control') === 'no-cache' && !page.h.get('etag'), Object.fromEntries(page.h))
 ok('HTML <title> = edited seo.title (filled)', decode(html.match(/<title>([^<]*)<\/title>/)?.[1] ?? '') === 'فوكس بوينت — عنوان تجريبي', html.match(/<title>[^<]*<\/title>/)?.[0])
 ok('HTML meta description escaped + one line', meta(html, 'name', 'description') === 'وصف "تجريبي" <b>غامق</b> & فوكس بوينت سطر تاني', meta(html, 'name', 'description'))
-ok('HTML: no raw <b> from the content in the page', !html.includes('<b>غامق</b>'))
-ok('HTML og:image absolute + twitter:image', meta(html, 'property', 'og:image') === `${B}${webpUp.b.src}` && meta(html, 'name', 'twitter:image') === `${B}${webpUp.b.src}`, meta(html, 'property', 'og:image'))
-ok('HTML og:site_name + og:image size/alt', meta(html, 'property', 'og:site_name') === 'موقع فوكس بوينت' && meta(html, 'property', 'og:image:width') === '1'
+// "<b>" may sit inside a quoted, escaped attribute value (inert text there), never anywhere else in the page
+ok('HTML: content markup never escapes into the page', !html.replace(/content="[^"]*"/g, '').includes('<b>غامق</b>') && !html.includes('</script><!-- خاص'))
+ok('HTML og:image absolute + twitter:image', meta(html, 'property', 'og:image') === `${B}${pngUp.b.src}` && meta(html, 'name', 'twitter:image') === `${B}${pngUp.b.src}`, meta(html, 'property', 'og:image'))
+ok('HTML og:site_name + og:image size/alt', meta(html, 'property', 'og:site_name') === 'موقع فوكس بوينت' && meta(html, 'property', 'og:image:width') === '4'
   && meta(html, 'property', 'og:image:alt') === 'صورة المشاركة', [meta(html, 'property', 'og:site_name'), meta(html, 'property', 'og:image:alt')])
 const ld = JSON.parse(html.match(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/)?.[1] ?? 'null')
-ok('HTML JSON-LD follows the content + settings', ld?.name === 'موقع فوكس بوينت' && ld?.image === `${B}${webpUp.b.src}` && ld?.telephone === '+963985258963'
+ok('HTML JSON-LD follows the content + settings', ld?.name === 'موقع فوكس بوينت' && ld?.image === `${B}${pngUp.b.src}` && ld?.telephone === '+963985258963'
   && ld?.openingHoursSpecification?.[0]?.opens === settings0.open, ld)
 const bootData = bootOf(html)
 ok('HTML boot script: {content, settings} parse, edited content inside', bootData && bootData.content.seo.title === seoEdit.title && eq(bootData.content.announcement, annHtml)
@@ -287,7 +292,7 @@ const man2 = await call('GET', '/manifest.webmanifest')
 ok('manifest: an edited app name wins', man2.b.name === 'تطبيق فوكس بوينت' && man2.b.short_name === 'FP Test', man2.b)
 await call('DELETE', '/v1/admin/content/seo', { headers: admin })
 await call('DELETE', '/v1/admin/content/announcement', { headers: admin })
-const lastMedia = await call('DELETE', `/v1/admin/media/${webpUp.b.id}`, { headers: admin })
+const lastMedia = await call('DELETE', `/v1/admin/media/${pngUp.b.id}`, { headers: admin })
 ok('media free again after the content stopped using it → deleted', lastMedia.s === 200, lastMedia.b)
 
 // ---------- 6. booking capabilities ----------
@@ -295,7 +300,7 @@ const today = localDate(new Date(), TZ)
 const day = (n) => addDays(today, n + OFF)
 const dev = () => ({ 'X-Device': uuid() })
 const book = (room, d, from, to, extra = {}, headers = dev()) =>
-  call('POST', '/v1/bookings', { headers, body: { room_id: room, start: at(d, from, TZ), end: at(d, to, TZ), name: 'زبون تجربة', phone: '0944000111', ...extra } })
+  call('POST', '/v1/bookings', { headers, body: { room_id: room, start: at(d, from, TZ), end: at(d, to, TZ), name: 'زبون تجربة', phone: phone(1), ...extra } })
 const setCaps = (p) => call('PATCH', '/v1/admin/settings', { headers: admin, body: p })
 
 ok('GET /v1/settings exposes the capabilities (defaults)', Object.entries(DEFAULT_CAPS).every(([k, v]) => settings0[k] === v), settings0)
@@ -303,7 +308,7 @@ let r = await setCaps({ booking_enabled: false, booking_closed_message: 'مسك�
 ok('PATCH booking_enabled=false', r.s === 200 && r.b.booking_enabled === false && r.b.booking_closed_message === 'مسكّرين للصيانة', r.b)
 r = await book(1, day(1), '10:00', '11:00')
 ok('booking closed → 409 booking_closed', r.s === 409 && r.b.error === 'booking_closed', r.b)
-r = await call('POST', '/v1/team/bookings/manual', { headers: staff, body: { room_id: 6, start: at(day(1), '10:00', TZ), end: at(day(1), '11:00', TZ), name: 'زبون حضوري', phone: '0944000222', method: 'cash' } })
+r = await call('POST', '/v1/team/bookings/manual', { headers: staff, body: { room_id: 6, start: at(day(1), '10:00', TZ), end: at(day(1), '11:00', TZ), name: 'زبون حضوري', phone: phone(2), method: 'cash' } })
 ok('booking closed: team walk-in still works', r.s === 201 && r.b.status === 'confirmed', r.b)
 await setCaps({ booking_enabled: true, booking_closed_message: '' })
 
@@ -315,27 +320,27 @@ r = await book(2, day(1), '10:00', '11:00', { method: 'shamcash' })
 ok('Sham Cash disabled → 400 shamcash_disabled', r.s === 400 && r.b.error === 'shamcash_disabled', r.b)
 r = await book(2, day(1), '10:00', '11:00')
 ok('no method (defaults to shamcash) → 400 shamcash_disabled', r.s === 400 && r.b.error === 'shamcash_disabled', r.b)
-const cashBooking = await book(2, day(1), '10:00', '11:00', { method: 'cash', phone: '0944000333' })
+const cashBooking = await book(2, day(1), '10:00', '11:00', { method: 'cash', phone: phone(3) })
 ok('cash booking still works', cashBooking.s === 201 && cashBooking.b.status === 'awaiting_verification', cashBooking.b)
 await setCaps({ shamcash_enabled: true, allow_pay_on_arrival: false })
 
 await setCaps({ booking_horizon_days: 2 })
-r = await book(3, day(5), '10:00', '11:00', { phone: '0944000444' })
+r = await book(3, day(5), '10:00', '11:00', { phone: phone(4) })
 ok('beyond booking_horizon_days → 400 too_far_ahead', r.s === 400 && r.b.error === 'too_far_ahead', r.b)
-r = await call('POST', '/v1/team/bookings/manual', { headers: staff, body: { room_id: 3, start: at(day(5), '12:00', TZ), end: at(day(5), '13:00', TZ), name: 'زبون حضوري', phone: '0944000222', method: 'cash' } })
+r = await call('POST', '/v1/team/bookings/manual', { headers: staff, body: { room_id: 3, start: at(day(5), '12:00', TZ), end: at(day(5), '13:00', TZ), name: 'زبون حضوري', phone: phone(2), method: 'cash' } })
 ok('horizon does not limit team walk-ins', r.s === 201, r.b)
 await setCaps({ booking_horizon_days: 14 })
-r = await book(3, day(5), '10:00', '11:00', { phone: '0944000444' })
+r = await book(3, day(5), '10:00', '11:00', { phone: phone(4) })
 ok('same booking within the default horizon → 201', r.s === 201, r.b)
 
 await setCaps({ max_open_holds_per_phone: 1 })
 const holdDevice = dev()
-const hold1 = await book(4, day(2), '10:00', '11:00', { phone: '0944000555' }, holdDevice)
+const hold1 = await book(4, day(2), '10:00', '11:00', { phone: phone(5) }, holdDevice)
 ok('first hold with limit 1 → 201', hold1.s === 201 && hold1.b.status === 'pending_payment', hold1.b)
-r = await book(4, day(2), '12:00', '13:00', { phone: '0944000555' })
+r = await book(4, day(2), '12:00', '13:00', { phone: phone(5) })
 ok('second hold for the same phone → 429 too_many_pending', r.s === 429 && r.b.error === 'too_many_pending', r.b)
 await setCaps({ max_open_holds_per_phone: 3 })
-r = await book(4, day(2), '12:00', '13:00', { phone: '0944000555' })
+r = await book(4, day(2), '12:00', '13:00', { phone: phone(5) })
 ok('limit back to 3 → second hold allowed', r.s === 201, r.b)
 
 await setCaps({ customer_can_cancel: false })
@@ -362,19 +367,21 @@ const sameDay = localDate(new Date(start), TZ) === today && localDate(new Date(s
 if (!sameDay || startLocal < settings0.open || endLocal > settings0.close) {
   console.log(`SKIP reminder checks: ${startLocal}–${endLocal} is outside today's opening hours`)
 } else {
-  const span = { start: new Date(start).toISOString(), end: new Date(start + 3600000).toISOString(), name: 'زبون التذكير', phone: '0944000666' }
+  const span = { start: new Date(start).toISOString(), end: new Date(start + 3600000).toISOString(), name: 'زبون التذكير', phone: phone(6) }
   const R1 = dev(), R2 = dev()
-  const b1 = await call('POST', '/v1/bookings', { headers: R1, body: { room_id: 4, ...span } })
-  const b2 = await call('POST', '/v1/bookings', { headers: R2, body: { room_id: 5, ...span, phone: '0944000777' } })
+  const [ra, rb, rc] = OFF % 2 ? [1, 2, 3] : [4, 5, 6]      // another set of rooms when re-running (OFF odd) within the same half hour
+  const b1 = await call('POST', '/v1/bookings', { headers: R1, body: { room_id: ra, ...span } })
+  const b2 = await call('POST', '/v1/bookings', { headers: R2, body: { room_id: rb, ...span, phone: phone(7) } })
   ok('two bookings starting soon', b1.s === 201 && b2.s === 201, [b1.b, b2.b])
   await call('POST', `/v1/team/bookings/${b1.b.id}/confirm`, { headers: staff })
   const inbox1 = await call('GET', '/v1/notifications', { headers: R1 })
   const conf1 = inbox1.b.find((n) => n.kind === 'booking_confirmed')
-  ok('confirm notification: default text', conf1?.title === 'تم تأكيد حجزك' && conf1.body.startsWith('غرفة 4 · ') && conf1.body.endsWith(`· الرمز ${b1.b.code}. نراك في فوكس بوينت!`), conf1)
+  const roomName = (id) => rooms.b.find((x) => x.id === id)?.name
+  ok('confirm notification: default text', conf1?.title === 'تم تأكيد حجزك' && conf1.body.startsWith(`${roomName(ra)} · `) && conf1.body.endsWith(`· الرمز ${b1.b.code}. نراك في فوكس بوينت!`), conf1)
   await call('PUT', '/v1/admin/content/messages', { headers: admin, body: { ...DEFAULT_CONTENT.messages, booking_confirmed: { title: 'تأكيد {room} عند {name}', body: 'الرمز {code}' } } })
   await call('POST', `/v1/team/bookings/${b2.b.id}/confirm`, { headers: staff })
   const conf2 = (await call('GET', '/v1/notifications', { headers: R2 })).b.find((n) => n.kind === 'booking_confirmed')
-  ok('confirm notification follows the edited template', conf2?.title === 'تأكيد غرفة 5 عند فوكس بوينت' && conf2.body === `الرمز ${b2.b.code}`, conf2)
+  ok('confirm notification follows the edited template', conf2?.title === `تأكيد ${roomName(rb)} عند فوكس بوينت` && conf2.body === `الرمز ${b2.b.code}`, conf2)
   await call('DELETE', '/v1/admin/content/messages', { headers: admin })
 
   const cron = () => fetch(`${B}/__scheduled?cron=${encodeURIComponent('*/5 * * * *')}`)
@@ -391,7 +398,7 @@ if (!sameDay || startLocal < settings0.open || endLocal > settings0.close) {
   ok('no duplicate reminder on the next cron', (await reminded(R1)).length === 1)
   await setCaps({ reminder_minutes: m + 30 })
   const R3 = dev()
-  const b3 = await call('POST', '/v1/bookings', { headers: R3, body: { room_id: 6, ...span, phone: '0944000888' } })
+  const b3 = await call('POST', '/v1/bookings', { headers: R3, body: { room_id: rc, ...span, phone: phone(8) } })
   await call('POST', `/v1/team/bookings/${b3.b.id}/confirm`, { headers: staff })
   await cron()
   ok('booking outside the ±5 min window → not reminded yet', (await reminded(R3)).length === 0)

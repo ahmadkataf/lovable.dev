@@ -76,6 +76,12 @@ const CODES: Record<string, string> = {
   cash_not_allowed: 'الدفع عند الوصول غير متاح حالياً — ادفع عبر شام كاش',
   invalid_method: 'طريقة الدفع غير متاحة',
   too_many_attempts: 'محاولات كثيرة، جرّب بعد قليل',
+  too_many_pending: 'عندك حجوزات بانتظار الدفع — أكملها أو ألغِ واحداً منها أولاً',
+  too_many_people: 'عدد الأشخاص أكبر من سعة الغرفة',
+  booking_closed: 'الحجز أونلاين متوقف حالياً — تواصل مع المركز عبر واتساب أو الهاتف',
+  shamcash_disabled: 'الدفع عبر شام كاش غير متاح حالياً — اختر الدفع عند الوصول',
+  too_far_ahead: 'لا يمكن الحجز لهذا اليوم بعد — اختر يوماً أقرب',
+  cancel_not_allowed: 'إلغاء الحجز يتم عن طريق المركز — تواصل معنا',
 }
 /** The raw server error code (e.g. "ref_used") when the error carries one. */
 export function errorCode(err: unknown): string | null {

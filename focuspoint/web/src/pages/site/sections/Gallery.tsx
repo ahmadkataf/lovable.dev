@@ -1,20 +1,49 @@
-// Photo gallery of the real space, with a light, dependency-free lightbox.
+// Photo gallery of the real space (content.home.gallery.photos — also on /about), with a light, dependency-free
+// lightbox. Four photo slots plus the flat brand-colour quote tile in the third place.
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { IMG, Section, SectionHead, type Photo } from '../site'
+import { DEFAULT_CONTENT, type Photo } from '@shared/content'
+import { usePhotoChain, useSite } from '../../../components/site/siteContent'
+import { Section, SectionHead } from '../site'
 import { SiteIcon } from '../SiteIcon'
 
-const PHOTOS: Photo[] = [IMG.bigWide, IMG.meeting, IMG.meetingTable, IMG.big]
-/** Grid slot for each photo; slot 3 is the flat «THINK OUTSIDE THE BOX» brand tile (not part of the lightbox). */
+/** Grid slot for each photo; slot 3 is the flat quote tile (not part of the lightbox). */
 const SLOTS = [1, 2, 4, 5]
+const DEFAULT_PHOTOS = DEFAULT_CONTENT.home.gallery.photos
 
-export function Gallery({ kicker = 'من جوّا', title = 'شوف المكان بعينك', lead = 'صور حقيقية من فوكس بوينت.', tint = false }: { kicker?: string; title?: string; lead?: string; tint?: boolean }) {
+function Thumb({ photo: p, index, onOpen }: { photo: Photo; index: number; onOpen: (i: number) => void }) {
+  const { photo, src, onError } = usePhotoChain([p, DEFAULT_PHOTOS[index]], true)
+  if (!photo) return null
+  return (
+    <button type="button" className="fp-g-btn" onClick={() => onOpen(index)} aria-label={`تكبير الصورة: ${photo.alt}`}>
+      <img src={src} width={photo.w} height={photo.h} alt={photo.alt} loading="lazy" decoding="async" onError={onError} />
+      <span className="fp-g-zoom" aria-hidden="true"><SiteIcon name="zoom" size={18} /></span>
+    </button>
+  )
+}
+
+function Big({ photo: p, index }: { photo: Photo; index: number }) {
+  const { photo, src, onError } = usePhotoChain([p, DEFAULT_PHOTOS[index]])
+  if (!photo) return null
+  return (
+    <figure onClick={(e) => e.stopPropagation()}>
+      <img src={src} width={photo.w} height={photo.h} alt={photo.alt} onError={onError} />
+      <figcaption>{photo.alt}</figcaption>
+    </figure>
+  )
+}
+
+export function Gallery({ head, tint = false }: { head: { kicker: string; title: string; lead: string }; tint?: boolean }) {
+  const { c } = useSite()
+  const photos = c.home.gallery.photos.slice(0, SLOTS.length)
+  const lines = c.home.gallery.quote.split('\n').map((l) => l.trim()).filter(Boolean)
   const [open, setOpen] = useState<number | null>(null)
   const closeRef = useRef<HTMLButtonElement>(null)
   const lastFocus = useRef<HTMLElement | null>(null)
+  const count = photos.length
 
   const show = (i: number) => { lastFocus.current = document.activeElement as HTMLElement; setOpen(i) }
   const close = useCallback(() => { setOpen(null); lastFocus.current?.focus() }, [])
-  const step = useCallback((d: number) => setOpen((i) => (i == null ? i : (i + d + PHOTOS.length) % PHOTOS.length)), [])
+  const step = useCallback((d: number) => setOpen((i) => (i == null || !count ? i : (i + d + count) % count)), [count])
 
   useEffect(() => {
     if (open == null) return
@@ -31,35 +60,36 @@ export function Gallery({ kicker = 'من جوّا', title = 'شوف المكان
     return () => { window.removeEventListener('keydown', onKey); document.body.style.overflow = prev }
   }, [open, close, step])
 
-  const cur = open == null ? null : PHOTOS[open]
+  if (!count) return null
+  const cur = open == null ? null : photos[open] ?? null
   return (
     <Section id="gallery" tint={tint} labelledBy="fp-gallery-title">
-      <SectionHead id="fp-gallery-title" kicker={kicker} title={title} lead={lead} />
+      <SectionHead id="fp-gallery-title" kicker={head.kicker} title={head.title} lead={head.lead} />
       <ul className="fp-gallery">
-        {PHOTOS.map((p, i) => [
+        {photos.map((p, i) => [
           i === 2 && (
             <li key="quote" className="fp-g-3">
-              <div className="fp-g-quote" dir="ltr" aria-label="THINK OUTSIDE THE BOX">THINK<br />OUTSIDE<br />THE BOX</div>
+              {lines.length > 0
+                ? (
+                  <div className="fp-g-quote" dir="auto" aria-label={lines.join(' ')}>
+                    {lines.map((l, j) => (j ? [<br key={`b${j}`} />, l] : l))}
+                  </div>
+                )
+                : <div className="fp-g-quote" aria-hidden="true" />}
             </li>
           ),
-          <li key={p.src} className={`fp-g-${SLOTS[i]}`}>
-            <button type="button" className="fp-g-btn" onClick={() => show(i)} aria-label={`تكبير الصورة: ${p.alt}`}>
-              <img src={p.small} width={p.w} height={p.h} alt={p.alt} loading="lazy" decoding="async" />
-              <span className="fp-g-zoom" aria-hidden="true"><SiteIcon name="zoom" size={18} /></span>
-            </button>
+          <li key={i} className={`fp-g-${SLOTS[i]}`}>
+            <Thumb photo={p} index={i} onOpen={show} />
           </li>,
         ])}
       </ul>
-      {cur && (
+      {cur && open != null && (
         <div className="fp-lightbox" role="dialog" aria-modal="true" aria-label="معرض الصور" onClick={close}>
-          <figure onClick={(e) => e.stopPropagation()}>
-            <img src={cur.src} width={cur.w} height={cur.h} alt={cur.alt} />
-            <figcaption>{cur.alt}</figcaption>
-          </figure>
+          <Big key={open} photo={cur} index={open} />
           <button ref={closeRef} type="button" className="fp-lb-btn fp-lb-close" onClick={close} aria-label="إغلاق"><SiteIcon name="x" size={22} /></button>
           <button type="button" className="fp-lb-btn fp-lb-prev" onClick={(e) => { e.stopPropagation(); step(-1) }} aria-label="الصورة السابقة"><SiteIcon name="back" size={22} /></button>
           <button type="button" className="fp-lb-btn fp-lb-next" onClick={(e) => { e.stopPropagation(); step(1) }} aria-label="الصورة التالية"><SiteIcon name="arrow" size={22} /></button>
-          <span className="fp-lb-count num">{(open ?? 0) + 1} / {PHOTOS.length}</span>
+          <span className="fp-lb-count num">{open + 1} / {count}</span>
         </div>
       )}
     </Section>

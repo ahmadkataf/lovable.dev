@@ -261,8 +261,9 @@
 .se-card:hover { text-decoration: none; border-color: var(--line-strong); }
 .se-card-icon, .se-head-icon { width: 44px; height: 44px; border-radius: 14px; background: var(--brand-50); color: var(--brand); display: grid; place-items: center; flex: none; }
 .se-card-body { display: flex; flex-direction: column; gap: 4px; min-width: 0; flex: 1; }
-.se-card-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
-.se-card-title { font-weight: 700; font-size: 1rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.se-card-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; }
+.se-card-top .badge { flex: none; }
+.se-card-title { font-weight: 700; font-size: 1rem; line-height: 1.5; min-width: 0; }
 .se-card-help { color: var(--mute); font-size: 0.82rem; line-height: 1.6; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 .se-card-meta { display: flex; flex-wrap: wrap; gap: 4px 12px; color: var(--mute); font-size: 0.76rem; }
 .se-card-draft { display: inline-flex; align-items: center; gap: 6px; color: var(--ink-2); font-weight: 600; }
@@ -315,10 +316,6 @@
 .se-chip:hover { border-color: var(--line-strong); background: #fff; }
 .se-chip.is-tool { font-family: var(--font); background: #fff; color: var(--brand); border-color: var(--brand-100); }
 .se-chip.is-help { font-family: var(--font); background: transparent; border-style: dashed; color: var(--mute); }
-.se-legend { margin: 8px 0 0; padding: 10px 12px; border-radius: 12px; background: var(--surface-2); border: 1px solid var(--line); display: grid; gap: 4px; font-size: 0.8rem; }
-.se-legend div { display: flex; gap: 8px; flex-wrap: wrap; }
-.se-legend dt { font-family: var(--font-latin); font-weight: 600; color: var(--ink); }
-.se-legend dd { margin: 0; color: var(--mute); }
 .se-preview { margin-top: 8px; padding: 8px 12px; border-radius: 10px; background: var(--surface-2); color: var(--ink-2); font-size: 0.84rem; line-height: 1.7; overflow-wrap: anywhere; }
 .se-preview-label { color: var(--mute); font-size: 0.74rem; }
 .se-preview b { color: var(--brand); }
@@ -367,12 +364,13 @@
 .se-bar { flex-basis: 100%; height: 6px; border-radius: 3px; background: var(--surface-3); overflow: hidden; }
 .se-bar > span { display: block; height: 100%; background: var(--brand); transition: width 0.15s linear; }
 .se-gallery-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
-.se-gitem { display: flex; gap: 10px; padding: 10px; border: 1px solid var(--line); border-radius: 14px; background: #fff; min-width: 0; }
+/* photo row: thumbnail + alt text on top, the actions in one full-width row under them */
+.se-gitem { display: grid; grid-template-columns: 88px minmax(0, 1fr); gap: 8px 10px; align-items: center; padding: 10px; border: 1px solid var(--line); border-radius: 14px; background: #fff; min-width: 0; }
 .se-gitem.has-error { border-color: var(--danger); }
 .se-gitem .se-thumb { width: 88px; }
-.se-gitem-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 6px; }
+.se-gitem-body { display: contents; }
 .se-gitem-body .input { height: 44px; }
-.se-gitem-actions { display: flex; align-items: center; gap: 2px; flex-wrap: wrap; }
+.se-gitem-actions { grid-column: 1 / -1; display: flex; align-items: center; gap: 2px; border-top: 1px solid var(--line); padding-top: 4px; }
 .se-gitem-actions .icon-btn, .se-item-tools .icon-btn { width: 44px; height: 44px; }
 .se-gitem-actions .icon-btn:disabled, .se-item-tools .icon-btn:disabled { opacity: 0.35; cursor: not-allowed; }
 .se-danger { color: var(--danger); }
@@ -421,3 +419,7 @@ body:has(.se-savebar) .toasts { bottom: calc(var(--nav-h) + 84px + env(safe-area
 .opt-row + .opt-row { border-top: 1px solid var(--line); }
 .opt-help { color: var(--mute); font-size: 0.8rem; line-height: 1.6; margin-top: 4px; }
 .quick-link.is-wide { grid-column: 1 / -1; }
+.se-vars { margin-top: 8px; padding: 10px 12px 4px; border-radius: 12px; background: var(--surface-2); border: 1px solid var(--line); }
+.se-vars-help { color: var(--mute); font-size: 0.78rem; line-height: 1.6; }
+.se-vars .se-chips { margin-top: 6px; margin-bottom: 6px; }
+.se-chip.is-var { font-family: var(--font); background: #fff; }

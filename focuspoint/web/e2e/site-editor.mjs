@@ -152,7 +152,7 @@ for (const path of ['/team/site', '/team/site/home', '/team/site/brand', '/team/
   await p2.waitForTimeout(600)
   if (path.startsWith('/team/site/')) {
     // unfold every group and list item so every widget is measured
-    for (let i = 0; i < 30; i++) {
+    for (let i = 0; i < 120; i++) {
       const closed = p2.locator('.se-group-head[aria-expanded="false"], .se-item-toggle[aria-expanded="false"]').first()
       if (!(await closed.count())) break
       await closed.click()
@@ -160,6 +160,19 @@ for (const path of ['/team/site', '/team/site/home', '/team/site/brand', '/team/
   }
   const over = await p2.evaluate(() => document.documentElement.scrollWidth - window.innerWidth)
   ok(`360px ${path}: no horizontal scroll`, over <= 1, { over })
+  // body has overflow-x: hidden, which would clip (not scroll) a too-wide widget: look for anything sticking out,
+  // except inside containers that scroll sideways on purpose (tabs, chips) or are clipped by design.
+  const outside = await p2.evaluate(() => {
+    const W = window.innerWidth, bad = []
+    const clipped = (el) => { for (let a = el.parentElement; a && a !== document.body; a = a.parentElement) { const o = getComputedStyle(a).overflowX; if (o !== 'visible') return true } return false }
+    for (const el of document.querySelectorAll('.tp-main *')) {
+      const r = el.getBoundingClientRect()
+      if (!r.width || !r.height) continue
+      if ((r.right > W + 1 || r.left < -1) && !clipped(el)) bad.push(`${el.tagName.toLowerCase()}.${[...el.classList].join('.')} [${Math.round(r.left)}…${Math.round(r.right)}]`)
+    }
+    return bad.slice(0, 5)
+  })
+  ok(`360px ${path}: nothing sticks out of the screen`, outside.length === 0, outside)
   if (OUT) await p2.screenshot({ path: `${OUT}/360${path.replace(/\//g, '_')}.png`, fullPage: true })
 }
 

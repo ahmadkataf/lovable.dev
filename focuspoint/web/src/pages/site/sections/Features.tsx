@@ -1,27 +1,22 @@
-// "ليش فوكس بوينت؟" — six flat tiles with neutral icon squares.
+// "ليش فوكس بوينت؟" — flat tiles with neutral icon squares (content.home.features).
+import { ContentText, hasText, useSite } from '../../../components/site/siteContent'
 import { Section, SectionHead, TileIcon } from '../site'
-import type { SiteIconName } from '../SiteIcon'
 
 // Accent colours are reserved for coding space types; the feature tiles stay neutral.
-const FEATURES: { icon: SiteIconName; title: string; text: string }[] = [
-  { icon: 'quiet', title: 'هدوء يساعدك تركّز', text: 'مكان معمول للتركيز، بعيد عن عجقة البيت والمقاهي، لتخلّص شغلك وإنت مرتاح.' },
-  { icon: 'sun', title: 'ضوء طبيعي', text: 'شبابيك كبيرة بتدخّل الضوء الطبيعي طول النهار.' },
-  { icon: 'wifi', title: 'إنترنت سريع', text: 'واي فاي سريع لاجتماعاتك أونلاين، رفع ملفاتك، ودراستك.' },
-  { icon: 'ac', title: 'تكييف', text: 'تكييف بيخلّي الجو مريح، لتركّز بشغلك وبس.' },
-  { icon: 'coffee', title: 'قهوة جنبك', text: 'فنجان قهوة قريب منك وقت ما بدك تاخد نفَس.' },
-  { icon: 'screen', title: 'قاعة اجتماعات مجهّزة', text: 'شاشة وسبورة لـ10 أشخاص، للاجتماعات والعروض والدورات.' },
-]
-
-export function Features() {
+export function Features({ tint = false }: { tint?: boolean }) {
+  const { c, vars } = useSite()
+  const f = c.home.features
+  const items = f.items.filter((it) => hasText(it.title))
+  if (!items.length) return null
   return (
-    <Section id="why" labelledBy="fp-why-title">
-      <SectionHead id="fp-why-title" kicker="ليش فوكس بوينت؟" title="كل شي بتحتاجه لتشتغل بتركيز" lead={<>جو <bdi dir="ltr" className="fp-nowrap">THINK OUTSIDE THE BOX</bdi>: مكان مرتب وهادئ، بيعطيك مساحة تفكّر وتبدع.</>} />
+    <Section id="why" tint={tint} labelledBy="fp-why-title">
+      <SectionHead id="fp-why-title" kicker={f.kicker} title={f.title} lead={f.lead} />
       <ul className="fp-grid fp-grid-3 fp-tiles">
-        {FEATURES.map((f) => (
-          <li key={f.title} className="fp-tile">
-            <TileIcon name={f.icon} tone="neutral" />
-            <h3 className="fp-h3">{f.title}</h3>
-            <p>{f.text}</p>
+        {items.map((it, i) => (
+          <li key={i} className="fp-tile">
+            <TileIcon name={it.icon} tone="neutral" />
+            <h3 className="fp-h3"><ContentText text={it.title} vars={vars} /></h3>
+            {hasText(it.text) && <p><ContentText text={it.text} vars={vars} /></p>}
           </li>
         ))}
       </ul>

@@ -30,8 +30,7 @@ export function ContentText({ text, vars = {}, rich = false }: { text: string; v
   return (
     <>
       {parseRich(text).map((r, i) => {
-        if (r.kind === 'text') return <Fragment key={i}>{parts(r.text, vars)}</Fragment>
-        if (r.kind === 'em') return <b key={i}>{parts(r.text, vars)}</b>
+        if (r.kind !== 'link') return r.kind === 'em' ? <b key={i}>{parts(r.text, vars)}</b> : <Fragment key={i}>{parts(r.text, vars)}</Fragment>
         if (!isSafeLink(r.href)) return <Fragment key={i}>{parts(r.text, vars)}</Fragment>
         if (r.href.startsWith('/')) return <Link key={i} to={r.href}>{parts(r.text, vars)}</Link>
         const external = r.href.startsWith('https://')

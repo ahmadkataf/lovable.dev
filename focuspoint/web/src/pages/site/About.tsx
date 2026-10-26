@@ -1,76 +1,75 @@
-// "/about" — من نحن: the story, who it is for, values, gallery, CTA.
-import { CENTRE, CtaBand, IMG, PageHeader, Section, SectionHead, TileIcon, hoursLabel, useSiteData, useTitle } from './site'
+// "/about" — من نحن: the story, who it is for, values, gallery, CTA (content.about; the gallery photos and the CTA band
+// are the landing page's).
+import { DEFAULT_CONTENT, pickVariant } from '@shared/content'
+import { ContentText, hasText, usePhotoChain, useSite } from '../../components/site/siteContent'
+import { CtaBand, PageHeader, Section, SectionHead, TileIcon, usePageTitle } from './site'
 import { Gallery } from './sections/Gallery'
-import type { SiteIconName } from './SiteIcon'
 
-// Neutral icon tiles: the accent colours are reserved for coding space types.
-const AUDIENCE: { icon: SiteIconName; title: string; text: string }[] = [
-  { icon: 'book', title: 'طلاب', text: 'لدراسة الامتحانات، المشاريع، وحلقات الدراسة الجماعية بمكان هادئ.' },
-  { icon: 'laptop', title: 'مستقلّين وعن بُعد', text: 'مكتب مرتب وإنترنت سريع، بعيد عن ضجة البيت والمقاهي.' },
-  { icon: 'people', title: 'فرق صغيرة', text: 'غرف خاصة من 2 لـ4 أشخاص، وقاعة اجتماعات لعشرة لما يكبر الاجتماع.' },
-  { icon: 'present', title: 'مدرّبين ودورات', text: 'قاعة فيها شاشة وسبورة، جاهزة للورشات والعروض والدورات.' },
-]
-const VALUES: { icon: SiteIconName; title: string; text: string }[] = [
-  { icon: 'quiet', title: 'هدوء', text: 'المكان معمول للتركيز. كل تفصيل فيه هدفه يخليك تشتغل براحة.' },
-  { icon: 'check', title: 'احترافية', text: 'حجز واضح، أسعار معلنة، وتأكيد بيوصلك بإشعار. بتعرف شو إلك قبل ما توصل.' },
-  { icon: 'heart', title: 'ضيافة حورانية', text: 'أهلاً وسهلاً فيك دايماً، والقهوة موجودة وقت ما بدك.' },
-]
+function StoryPhoto() {
+  const { c } = useSite()
+  const { photo, src, onError } = usePhotoChain([c.about.story.photo, DEFAULT_CONTENT.about.story.photo], true)
+  return (
+    <figure className="fp-story-media">
+      <span className="fp-story-block" aria-hidden="true" />
+      {photo && <img src={src} width={photo.w} height={photo.h} alt={photo.alt} loading="lazy" decoding="async" onError={onError} />}
+    </figure>
+  )
+}
 
 export function About() {
-  useTitle('من نحن | فوكس بوينت — المشروع الأول من نوعه بدرعا')
-  const data = useSiteData()
+  usePageTitle('about')
+  const { c, vars, flags } = useSite()
+  const a = c.about
+  const paragraphs = a.story.paragraphs.filter((p) => hasText(p.text))
+  // Neutral icon tiles: the accent colours are reserved for coding space types.
+  const audience = a.audience.items.filter((it) => hasText(it.title))
+  const values = a.values.items.filter((it) => hasText(it.title))
   return (
     <div className="site">
-      <PageHeader kicker="من نحن" title={<>فوكس بوينت: <span className="fp-brand-text">{CENTRE.slogan}</span></>} lead={`${CENTRE.firstOfItsKind}. مساحة عمل مشتركة بدرعا، معمولة للي بدو يركّز ويبدع.`} />
+      <PageHeader kicker={a.kicker} title={a.title} lead={a.lead} titleRich />
 
       <Section labelledBy="fp-story-title">
         <div className="fp-story">
           <div className="fp-story-text">
-            <SectionHead id="fp-story-title" kicker="حكايتنا" title="مكان هادئ، قريب منك" />
-            <p>
-              فوكس بوينت هو المشروع الأول من نوعه بدرعا: مساحة عمل مشتركة فيها غرف خاصة، وقاعة اجتماعات، ومساحة مفتوحة،
-              بتنحجز بالساعة. عملناها لأن الشغل والدراسة بدهم مكان هادئ ومرتب، مو طاولة بمقهى عجقة ولا زاوية بالبيت.
-            </p>
-            <p>
-              عنا ضوء طبيعي من شبابيك كبيرة، تكييف، إنترنت سريع، وقهوة جنبك. مفتوحين كل يوم {hoursLabel(data)}،
-              وبتحجز مكانك من موبايلك بخطوات بسيطة بدون ما تعمل حساب. وعلى الحيط عنا جملة بتلخّص كل شي: <bdi dir="ltr" className="fp-nowrap">THINK OUTSIDE THE BOX</bdi>.
-            </p>
+            <SectionHead id="fp-story-title" kicker={a.story.kicker} title={a.story.title} />
+            {paragraphs.map((p, i) => <p key={i}><ContentText text={p.text} vars={vars} /></p>)}
           </div>
-          <figure className="fp-story-media">
-            <span className="fp-story-block" aria-hidden="true" />
-            <img src={IMG.big.small} width={IMG.big.w} height={IMG.big.h} alt={IMG.big.alt} loading="lazy" decoding="async" />
-          </figure>
+          <StoryPhoto />
         </div>
       </Section>
 
-      <Section tint labelledBy="fp-who-title">
-        <SectionHead id="fp-who-title" kicker="لمين فوكس بوينت؟" title="لكل حدا بدو مكان يركّز فيه" />
-        <ul className="fp-grid fp-grid-4 fp-tiles">
-          {AUDIENCE.map((a) => (
-            <li key={a.title} className="fp-tile">
-              <TileIcon name={a.icon} tone="neutral" />
-              <h3 className="fp-h3">{a.title}</h3>
-              <p>{a.text}</p>
-            </li>
-          ))}
-        </ul>
-      </Section>
+      {audience.length > 0 && (
+        <Section tint labelledBy="fp-who-title">
+          <SectionHead id="fp-who-title" kicker={a.audience.kicker} title={a.audience.title} />
+          <ul className="fp-grid fp-grid-4 fp-tiles">
+            {audience.map((it, i) => (
+              <li key={i} className="fp-tile">
+                <TileIcon name={it.icon} tone="neutral" />
+                <h3 className="fp-h3"><ContentText text={it.title} vars={vars} /></h3>
+                {hasText(it.text) && <p><ContentText text={it.text} vars={vars} /></p>}
+              </li>
+            ))}
+          </ul>
+        </Section>
+      )}
 
-      <Section labelledBy="fp-values-title">
-        <SectionHead id="fp-values-title" kicker="قيمنا" title="شو اللي بيميّزنا" center />
-        <ul className="fp-grid fp-grid-3 fp-values fp-tiles">
-          {VALUES.map((v) => (
-            <li key={v.title} className="fp-value">
-              <TileIcon name={v.icon} tone="neutral" />
-              <h3 className="fp-h3">{v.title}</h3>
-              <p>{v.text}</p>
-            </li>
-          ))}
-        </ul>
-      </Section>
+      {values.length > 0 && (
+        <Section labelledBy="fp-values-title">
+          <SectionHead id="fp-values-title" kicker={a.values.kicker} title={a.values.title} center />
+          <ul className="fp-grid fp-grid-3 fp-values fp-tiles">
+            {values.map((it, i) => (
+              <li key={i} className="fp-value">
+                <TileIcon name={it.icon} tone="neutral" />
+                <h3 className="fp-h3"><ContentText text={it.title} vars={vars} /></h3>
+                {hasText(it.text) && <p><ContentText text={it.text} vars={vars} /></p>}
+              </li>
+            ))}
+          </ul>
+        </Section>
+      )}
 
-      <Gallery tint kicker="المكان" title="جولة سريعة بفوكس بوينت" />
-      <CtaBand />
+      <Gallery tint head={a.gallery} />
+      <CtaBand title={c.home.cta.title} text={pickVariant(c.home.cta, 'text', flags)} />
     </div>
   )
 }

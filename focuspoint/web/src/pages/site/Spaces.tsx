@@ -1,20 +1,22 @@
 // "/spaces" — every active room from the API as a rich card, grouped by type, each with "احجز هالمساحة" → /book?room=<id>.
+// Page texts and the group names/blurbs/photos from content.spaces; a room's own photos win over its group photo.
 import { useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import type { Room } from '@shared/types'
 import { contentsList, ROOM_TYPE } from '../../lib/booking'
 import { fmtSYP } from '../../format'
-import { capacityLabel, CtaBand, groupRooms, PageHeader, Section, TileIcon, useSiteData, useTitle, type SpaceGroup } from './site'
+import { ContentText, hasText, usePhotoChain, useSite } from '../../components/site/siteContent'
+import { capacityLabel, CtaBand, groupRooms, PageHeader, roomPhotos, Section, TileIcon, usePageTitle, useSiteData, type SpaceGroup } from './site'
 import { SiteIcon } from './SiteIcon'
 
 function RoomCard({ room, group }: { room: Room; group: SpaceGroup }) {
   const items = contentsList(room.contents)
-  const photo = group.photo
+  const { photo, src, onError } = usePhotoChain([roomPhotos(room)[0], group.photo, group.defaultPhoto], true)
   return (
     <article className={`fp-room${photo ? ' has-photo' : ''}`}>
       {photo ? (
         <div className="fp-room-media">
-          <img src={photo.small} width={photo.w} height={photo.h} alt={photo.alt} loading="lazy" decoding="async" />
+          <img src={src} width={photo.w} height={photo.h} alt={photo.alt || room.name} loading="lazy" decoding="async" onError={onError} />
         </div>
       ) : null}
       <div className="fp-room-body">
@@ -61,9 +63,11 @@ function Skeleton() {
 }
 
 export function Spaces() {
-  useTitle('المساحات والأسعار | فوكس بوينت درعا')
+  usePageTitle('spaces')
   const data = useSiteData()
-  const groups = groupRooms(data.rooms).filter((g) => g.rooms.length > 0)
+  const { c, vars } = useSite()
+  const p = c.spaces
+  const groups = groupRooms(data.rooms, c).filter((g) => g.rooms.length > 0)
   // Deep links from the landing cards (/spaces#sp-private): scroll once the groups have rendered.
   useEffect(() => {
     const h = window.location.hash
@@ -72,14 +76,10 @@ export function Spaces() {
   }, [groups.length])
   return (
     <div className="site">
-      <PageHeader
-        kicker="المساحات"
-        title="مساحة لكل نوع شغل"
-        lead="غرف خاصة من 2 لـ4 أشخاص، قاعة اجتماعات لـ10 مع شاشة وسبورة، ومساحة مفتوحة مشتركة لـ8. الأسعار هون هي نفسها اللي بتشوفها وقت الحجز."
-      >
+      <PageHeader kicker={p.kicker} title={p.title} lead={p.lead}>
         {groups.length > 1 && (
           <nav className="fp-jump" aria-label="أنواع المساحات">
-            {groups.map((g) => <a key={g.id} href={`#sp-${g.id}`} className="fp-jump-link"><SiteIcon name={g.icon} size={16} /> {g.title}</a>)}
+            {groups.map((g) => <a key={g.id} href={`#sp-${g.id}`} className="fp-jump-link"><SiteIcon name={g.icon} size={16} /> <ContentText text={g.title} vars={vars} /></a>)}
           </nav>
         )}
       </PageHeader>
@@ -90,8 +90,10 @@ export function Spaces() {
         <Section>
           <div className="fp-card fp-empty">
             <TileIcon name="cloudOff" tone="sky" />
-            <h2 className="fp-h3">{data.roomsFailed ? 'ما قدرنا نجيب المساحات هلأ' : 'ما في مساحات متاحة حالياً'}</h2>
-            <p className="fp-muted">{data.roomsFailed ? 'تأكد من الإنترنت وجرّب كمان مرة، أو احكينا عالواتساب.' : 'تواصل معنا ومنساعدك تلاقي وقت مناسب.'}</p>
+            <h2 className="fp-h3">{data.roomsFailed ? 'ما قدرنا نجيب المساحات هلأ' : <ContentText text={p.empty_title} vars={vars} />}</h2>
+            {data.roomsFailed
+              ? <p className="fp-muted">تأكد من الإنترنت وجرّب كمان مرة، أو احكينا عالواتساب.</p>
+              : hasText(p.empty_text) && <p className="fp-muted"><ContentText text={p.empty_text} vars={vars} /></p>}
             <div className="fp-actions fp-actions-center">
               <Link to="/contact" className="btn btn-outline fp-btn">تواصل معنا</Link>
             </div>
@@ -104,8 +106,8 @@ export function Spaces() {
           <header className="fp-group-head">
             <TileIcon name={g.icon} tone={g.tone} size="lg" />
             <div>
-              <h2 id={`sp-${g.id}-t`} className="fp-h2">{g.title} <span className="fp-count num">{g.rooms.length}</span></h2>
-              <p className="fp-muted">{g.blurb}</p>
+              <h2 id={`sp-${g.id}-t`} className="fp-h2"><ContentText text={g.title} vars={vars} /> <span className="fp-count num">{g.rooms.length}</span></h2>
+              {hasText(g.blurb) && <p className="fp-muted"><ContentText text={g.blurb} vars={vars} /></p>}
             </div>
           </header>
           <div className={`fp-grid ${gridFor(g.rooms.length)}`}>
@@ -114,7 +116,7 @@ export function Spaces() {
         </Section>
       ))}
 
-      <CtaBand title="لقيت المساحة المناسبة؟" text="احجزها هلأ بخطوات بسيطة: الوقت، الاسم والرقم، والدفع. ويوصلك التأكيد بإشعار." />
+      <CtaBand title={p.cta_title} text={p.cta_text} />
     </div>
   )
 }

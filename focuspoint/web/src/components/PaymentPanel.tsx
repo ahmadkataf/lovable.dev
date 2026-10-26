@@ -30,7 +30,7 @@ export function PaymentPanel({ booking, payment, onUpdated, onExpired }: {
   onExpired?: () => void
 }) {
   const toast = useToast()
-  const copy = useBookingCopy()
+  const words = useBookingCopy()
   const [ref, setRef] = useState('')
   const [err, setErr] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
@@ -38,8 +38,8 @@ export function PaymentPanel({ booking, payment, onUpdated, onExpired }: {
   const holdUntil = payment.hold_until ?? booking.hold_until
   const { text, left } = useCountdown(holdUntil)
   const expired = serverExpired || (holdUntil !== null && left === 0)
-  const vars = { ...copy.vars, code: payment.code, time: fmtTime(holdUntil ?? booking.start) }
-  const steps = copy.booking.pay_steps.filter((s) => hasText(s.text))
+  const vars = { ...words.vars, code: payment.code, time: fmtTime(holdUntil ?? booking.start) }
+  const steps = words.booking.pay_steps.filter((s) => hasText(s.text))
 
   async function copyValue(v: string, what: string) {
     toast.show((await copy(v)) ? `تم نسخ ${what}` : 'ما قدرنا ننسخ — انسخه يدوياً', 'ok')
@@ -66,8 +66,8 @@ export function PaymentPanel({ booking, payment, onUpdated, onExpired }: {
       <Card>
         <div className="status-hero">
           <span className="status-mark grey"><Icon name="clock" size={32} /></span>
-          <h2 className="h2"><ContentText text={copy.text('pay_expired_title')} vars={vars} /></h2>
-          {hasText(copy.text('pay_expired_text')) && <p className="muted small mt-sm"><ContentText text={copy.text('pay_expired_text')} vars={vars} /></p>}
+          <h2 className="h2"><ContentText text={words.text('pay_expired_title')} vars={vars} /></h2>
+          {hasText(words.text('pay_expired_text')) && <p className="muted small mt-sm"><ContentText text={words.text('pay_expired_text')} vars={vars} /></p>}
           <Link to="/book" className="btn btn-primary btn-lg mt">احجز من جديد</Link>
         </div>
       </Card>
@@ -78,14 +78,14 @@ export function PaymentPanel({ booking, payment, onUpdated, onExpired }: {
     <div className="stack">
       <Card className="card-accent">
         <div className="row between" style={{ marginBottom: 12 }}>
-          <h2 className="h2"><ContentText text={copy.text('pay_title')} vars={vars} /></h2>
+          <h2 className="h2"><ContentText text={words.text('pay_title')} vars={vars} /></h2>
           {holdUntil && (
             <span className={`countdown num ${left < 300 ? 'is-late' : ''}`} title="المهلة المتبقية"><Icon name="clock" size={16} />{text}</span>
           )}
         </div>
-        {hasText(copy.text('pay_held_until')) && (
+        {hasText(words.text('pay_held_until')) && (
           <p className="muted small" style={{ marginBottom: 14 }}>
-            <ContentText text={copy.text('pay_held_until')} vars={vars} />
+            <ContentText text={words.text('pay_held_until')} vars={vars} />
           </p>
         )}
         <div className="stack-sm">

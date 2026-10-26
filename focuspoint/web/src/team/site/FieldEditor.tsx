@@ -1,7 +1,7 @@
 // One field of a section, whatever its kind (FieldSpec from CONTENT_SECTIONS), plus the list widget (cards with
 // add / remove / move up-down; an item's fields come from `spec.item`). Nothing here knows a section by name.
 import { useEffect, useRef, useState } from 'react'
-import type { FieldSpec, Photo } from '@shared/content'
+import { fillTemplate, type FieldSpec, type Photo } from '@shared/content'
 import { Button, Icon } from '../../ui'
 import { Confirm } from '../common'
 import { cx } from '../util'
@@ -51,17 +51,17 @@ let keySeq = 0
 const newKey = () => `k${++keySeq}`
 
 /** First words of an item for its folded header. */
-function summary(spec: FieldSpec, item: Obj, i: number): string {
+function summary(spec: FieldSpec, item: Obj, i: number, vars: Record<string, string> = {}): string {
   for (const sf of spec.item ?? []) {
     const v = item[sf.key]
-    if ((sf.kind === 'text' || sf.kind === 'longtext') && typeof v === 'string' && v.trim()) return v.replace(/\*\*/g, '').replace(/\[([^\]]*)\]\([^)]*\)/g, '$1').trim()
+    if ((sf.kind === 'text' || sf.kind === 'longtext') && typeof v === 'string' && v.trim()) return fillTemplate(v.replace(/\*\*/g, '').replace(/\[([^\]]*)\]\([^)]*\)/g, '$1').trim(), vars)
     if (sf.kind === 'select' && typeof v === 'string') return sf.options?.find((o) => o.value === v)?.label ?? v
   }
   return `عنصر ${i + 1}`
 }
 
 function ListField({ spec, path, value, onChange }: FieldEditorProps) {
-  const { error, isChanged } = useEditor()
+  const { error, isChanged, vars } = useEditor()
   const items: Obj[] = Array.isArray(value) ? value.map((x) => (isObj(x) ? x : {})) : []
   // Stable keys so an unfolded card stays unfolded when it moves.
   const keys = useRef<string[]>([])
@@ -114,10 +114,10 @@ function ListField({ spec, path, value, onChange }: FieldEditorProps) {
               <div className="se-item-head">
                 <span className="se-num" aria-hidden="true">{i + 1}</span>
                 {compact ? (
-                  <span className="se-item-title">{summary(spec, item, i)}</span>
+                  <span className="se-item-title">{summary(spec, item, i, vars)}</span>
                 ) : (
                   <button type="button" className="se-item-toggle" aria-expanded={isOpen} onClick={() => toggle(k)}>
-                    <span className="se-item-title">{summary(spec, item, i)}</span>
+                    <span className="se-item-title">{summary(spec, item, i, vars)}</span>
                     {isChanged(itemPath, item) && <span className="se-dot" title="تغيير ما انحفظ" />}
                     <Icon name="back" size={18} className="se-chev" />
                   </button>
@@ -131,7 +131,8 @@ function ListField({ spec, path, value, onChange }: FieldEditorProps) {
               {isOpen && (
                 <div className={cx('se-item-body', compact && 'is-compact')}>
                   {(spec.item ?? []).filter((sf) => !(compact && sf.readonly)).map((sf) => (
-                    <FieldEditor key={sf.key} spec={sf} path={`${itemPath}.${sf.key}`} value={item[sf.key]} onChange={(v) => setItem(i, sf.key, v)} />
+                    // compact rows: the sub-fields' help is shown once under the list, not on every row
+                    <FieldEditor key={sf.key} spec={compact ? { ...sf, help: undefined } : sf} path={`${itemPath}.${sf.key}`} value={item[sf.key]} onChange={(v) => setItem(i, sf.key, v)} />
                   ))}
                 </div>
               )}
@@ -139,6 +140,7 @@ function ListField({ spec, path, value, onChange }: FieldEditorProps) {
           )
         })}
       </ol>
+      {compact && (spec.item ?? []).filter((sf) => sf.help).map((sf) => <p key={sf.key} className="field-hint">«{sf.label}»: {sf.help}</p>)}
       {!spec.fixed && (
         <div className="se-list-foot">
           <Button variant="soft" onClick={add} disabled={items.length >= max}><Icon name="plus" size={18} /> إضافة</Button>

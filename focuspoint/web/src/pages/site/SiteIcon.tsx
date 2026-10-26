@@ -18,6 +18,11 @@ const EXTRA = {
   spark: '<path d="M12 3v4M12 17v4M3 12h4M17 12h4M6.3 6.3l2.4 2.4M15.3 15.3l2.4 2.4M6.3 17.7l2.4-2.4M15.3 8.7l2.4-2.4"/>',
   zoom: '<circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4M11 8v6M8 11h6"/>',
   chevron: '<path d="M6 9l6 6 6-6"/>',
+  // optional brand links (footer, /contact) — shown only when the admin set them
+  mail: '<rect x="3" y="5" width="18" height="14" rx="2.5"/><path d="M4 7l8 6 8-6"/>',
+  facebook: '<rect x="3" y="3" width="18" height="18" rx="5"/><path d="M12.5 21v-8.5a3 3 0 0 1 3-3h1.5M9.5 13.5h6"/>',
+  tiktok: '<path d="M13.5 3v11.5a3.5 3.5 0 1 1-3.5-3.5"/><path d="M13.5 3c.4 2.6 2.3 4.5 5 4.8"/>',
+  play: '<path d="M6.5 4.2v15.6a.8.8 0 0 0 1.2.7l12.5-7.8a.8.8 0 0 0 0-1.4L7.7 3.5a.8.8 0 0 0-1.2.7z"/>',
 } as const
 
 export type SiteIconName = IconName | keyof typeof EXTRA

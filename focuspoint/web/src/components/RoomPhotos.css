@@ -20,6 +20,6 @@
 .room-photos-dot.is-active::before { background: #fff; }
 .room-photos-dot:focus-visible { outline: 2px solid #fff; outline-offset: -2px; border-radius: 50%; }
 
-/* the icon swatch of a room card / summary showing the room's first photo instead */
-.room-swatch.is-photo { overflow: hidden; background: var(--surface-3); }
+/* the icon swatch of a room card / summary showing the room's first photo instead (its tone tint shows while loading) */
+.room-swatch.is-photo { overflow: hidden; }
 .room-swatch.is-photo img { width: 100%; height: 100%; object-fit: cover; }

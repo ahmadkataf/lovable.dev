@@ -1,13 +1,15 @@
 // Sticky white site header: logo + wordmark, the site links, the inbox bell and «احجز الآن».
 // On phones (< 900px) the links move into a full-height menu sheet opened by the menu button.
+// The announcement bar (when the admin turned it on) sits above it and scrolls away with the page.
 import { useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { Link, NavLink, useLocation } from 'react-router-dom'
 import logoUrl from '@shared/logo.svg'
 import { Icon, type IconName } from '../../ui'
 import { useNotifications } from '../../lib/notifications'
-import { useCentre } from './centre'
-import { shortClock } from '../../format'
+import { AnnouncementBar } from './AnnouncementBar'
+import { useSiteContact } from './centre'
+import { ContentText, hasText, isUsableSrc, useSite } from './siteContent'
 
 export const SITE_LINKS: { to: string; label: string; icon: IconName }[] = [
   { to: '/spaces', label: 'المساحات', icon: 'grid' },
@@ -16,16 +18,32 @@ export const SITE_LINKS: { to: string; label: string; icon: IconName }[] = [
   { to: '/mine', label: 'حجوزاتي', icon: 'list' },
 ]
 
-function Brand() {
+/** The round logo: content brand.logo when set (today's logo if it fails to load), else the built-in one. */
+export function BrandLogo() {
+  const { c } = useSite()
+  const custom = c.brand.logo && isUsableSrc(c.brand.logo.src) ? c.brand.logo.src : null
+  const [failed, setFailed] = useState<string | null>(null)
+  const src = custom && failed !== custom ? custom : logoUrl
+  return <img src={src} alt="" width={38} height={38} onError={src === custom ? () => setFailed(custom) : undefined} />
+}
+
+/** Logo, Latin wordmark and the small line under it (header, menu, footer). */
+export function BrandMark({ ariaLabel }: { ariaLabel?: string }) {
+  const { c, vars } = useSite()
   return (
-    <Link to="/" className="site-brand" aria-label="فوكس بوينت — الصفحة الرئيسية">
-      <img src={logoUrl} alt="" width={38} height={38} />
+    <Link to="/" className="site-brand" aria-label={ariaLabel}>
+      <BrandLogo />
       <span>
-        <span className="wordmark">Focus Point</span>
-        <small>فوكس بوينت · درعا</small>
+        <span className="wordmark">{c.brand.name_latin}</span>
+        {hasText(c.brand.subtitle) && <small><ContentText text={c.brand.subtitle} vars={vars} /></small>}
       </span>
     </Link>
   )
+}
+
+function Brand() {
+  const { vars } = useSite()
+  return <BrandMark ariaLabel={`${vars.name} — الصفحة الرئيسية`} />
 }
 
 const UnreadBadge = ({ n }: { n: number }) =>
@@ -38,33 +56,37 @@ export function SiteHeader() {
   useEffect(() => { setOpen(false) }, [pathname])
 
   return (
-    <header className="site-header">
-      <div className="container site-header-inner">
-        <Brand />
-        <nav className="site-nav" aria-label="أقسام الموقع">
-          {SITE_LINKS.map((l) => (
-            <NavLink key={l.to} to={l.to} className={({ isActive }) => `site-link${isActive ? ' is-active' : ''}`}>{l.label}</NavLink>
-          ))}
-        </nav>
-        <div className="site-tools">
-          <Link to="/inbox" className="icon-btn site-bell" aria-label="الإشعارات" title="الإشعارات">
-            <Icon name="bell" size={21} />
-            <UnreadBadge n={unread} />
-          </Link>
-          <Link to="/book" className="btn btn-primary site-cta-desk">احجز الآن</Link>
-          <Link to="/book" className="btn btn-primary btn-sm site-cta-phone">احجز</Link>
-          <button type="button" className="icon-btn site-menu-btn" aria-label="القائمة" aria-expanded={open} onClick={() => setOpen(true)}>
-            <Icon name="menu" size={24} />
-          </button>
+    <>
+      <AnnouncementBar />
+      <header className="site-header">
+        <div className="container site-header-inner">
+          <Brand />
+          <nav className="site-nav" aria-label="أقسام الموقع">
+            {SITE_LINKS.map((l) => (
+              <NavLink key={l.to} to={l.to} className={({ isActive }) => `site-link${isActive ? ' is-active' : ''}`}>{l.label}</NavLink>
+            ))}
+          </nav>
+          <div className="site-tools">
+            <Link to="/inbox" className="icon-btn site-bell" aria-label="الإشعارات" title="الإشعارات">
+              <Icon name="bell" size={21} />
+              <UnreadBadge n={unread} />
+            </Link>
+            <Link to="/book" className="btn btn-primary site-cta-desk">احجز الآن</Link>
+            <Link to="/book" className="btn btn-primary btn-sm site-cta-phone">احجز</Link>
+            <button type="button" className="icon-btn site-menu-btn" aria-label="القائمة" aria-expanded={open} onClick={() => setOpen(true)}>
+              <Icon name="menu" size={24} />
+            </button>
+          </div>
         </div>
-      </div>
-      {open && <MobileMenu onClose={() => setOpen(false)} unread={unread} />}
-    </header>
+        {open && <MobileMenu onClose={() => setOpen(false)} unread={unread} />}
+      </header>
+    </>
   )
 }
 
 function MobileMenu({ onClose, unread }: { onClose: () => void; unread: number }) {
-  const c = useCentre()
+  const { c, vars } = useSite()
+  const k = useSiteContact()
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
     document.addEventListener('keydown', onKey)
@@ -97,11 +119,11 @@ function MobileMenu({ onClose, unread }: { onClose: () => void; unread: number }
         </nav>
         <Link to="/book" onClick={onClose} className="btn btn-primary btn-lg btn-block menu-cta">احجز الآن</Link>
         <div className="menu-contact">
-          <a href={c.tel}><Icon name="phone" size={18} /><span className="num">{c.phone}</span></a>
-          <a href={c.whatsapp} target="_blank" rel="noreferrer"><Icon name="whatsapp" size={18} />واتساب</a>
-          <a href={c.insta} target="_blank" rel="noreferrer"><Icon name="instagram" size={18} /><span dir="ltr">@{c.instagram}</span></a>
-          <div><Icon name="clock" size={18} />يومياً {shortClock(c.open)} – {shortClock(c.close)}</div>
-          <div><Icon name="pin" size={18} />{c.address}</div>
+          <a href={k.tel}><Icon name="phone" size={18} /><span className="num">{k.phone}</span></a>
+          <a href={k.whatsapp} target="_blank" rel="noreferrer"><Icon name="whatsapp" size={18} />واتساب</a>
+          <a href={k.insta} target="_blank" rel="noreferrer"><Icon name="instagram" size={18} /><span dir="ltr">@{k.instagram}</span></a>
+          {hasText(c.footer.hours_line) && <div><Icon name="clock" size={18} /><ContentText text={c.footer.hours_line} vars={vars} /></div>}
+          <div><Icon name="pin" size={18} />{k.address}</div>
         </div>
       </div>
     </>,

@@ -62,6 +62,9 @@ function Preview({ text, rich }: { text: string; rich: boolean }) {
   )
 }
 
+/** "ساعات الدوام، مثل «9 ص – 11 م»" → "ساعات الدوام": the chip shows the short Arabic name, the title the rest. */
+const varLabel = (k: string): string => (TEMPLATE_VARS[k] ?? k).split(/[،(]/)[0]!.trim()
+
 export function TextField({ spec, path, value, onChange }: WidgetProps) {
   const id = useId()
   const multiline = spec.kind === 'longtext'
@@ -69,7 +72,7 @@ export function TextField({ spec, path, value, onChange }: WidgetProps) {
   const text = str(value)
   const ref = useRef<HTMLInputElement & HTMLTextAreaElement>(null)
   const sel = useRef<[number, number] | null>(null)
-  const [legend, setLegend] = useState(false)
+  const [showVars, setShowVars] = useState(false)
   const remember = () => { const el = ref.current; if (el) sel.current = [el.selectionStart ?? text.length, el.selectionEnd ?? text.length] }
   const vars = (spec.placeholders ?? []).filter((k) => TEMPLATE_VARS[k])
 
@@ -112,19 +115,25 @@ export function TextField({ spec, path, value, onChange }: WidgetProps) {
         ? <Textarea {...common} rows={Math.min(8, Math.max(3, Math.ceil(text.length / 60)))} />
         : <Input {...common} dir={ltr ? 'ltr' : undefined} type={spec.format === 'phone' ? 'tel' : spec.format === 'email' ? 'email' : 'text'} inputMode={spec.format === 'phone' ? 'tel' : spec.format === 'email' ? 'email' : undefined} />}
       {(vars.length > 0 || spec.rich) && (
-        <div className="se-chips" role="group" aria-label="إدراج">
+        <div className="se-chips" role="group" aria-label="أدوات النص">
           {spec.rich && <button type="button" className="se-chip is-tool" onPointerDown={keep} onMouseDown={keep} onClick={() => wrap('**', '**', 'كلام مميّز')}><b>**</b> تمييز</button>}
           {spec.rich && multiline && <button type="button" className="se-chip is-tool" onPointerDown={keep} onMouseDown={keep} onClick={() => wrap('[', '](/book)', 'النص')}>رابط</button>}
-          {vars.map((k) => (
-            <button key={k} type="button" className="se-chip" dir="ltr" title={TEMPLATE_VARS[k]} onPointerDown={keep} onMouseDown={keep} onClick={() => token(`{${k}}`)}>{`{${k}}`}</button>
-          ))}
-          {vars.length > 0 && <button type="button" className="se-chip is-help" aria-expanded={legend} onClick={() => setLegend((x) => !x)}>{legend ? 'إخفاء الشرح' : 'شو معناها؟'}</button>}
+          {vars.length > 0 && (
+            <button type="button" className="se-chip is-help" aria-expanded={showVars} onPointerDown={keep} onMouseDown={keep} onClick={() => setShowVars((x) => !x)}>
+              {showVars ? 'إخفاء' : '+ معلومة تلقائية'}
+            </button>
+          )}
         </div>
       )}
-      {legend && (
-        <dl className="se-legend">
-          {vars.map((k) => <div key={k}><dt dir="ltr">{`{${k}}`}</dt><dd>{TEMPLATE_VARS[k]}</dd></div>)}
-        </dl>
+      {showVars && (
+        <div className="se-vars">
+          <p className="se-vars-help">بتنكتب بالنص متل <span dir="ltr">{'{hours}'}</span>، وبالموقع بتتبدّل لحالها بالقيمة الحالية (من الإعدادات والقاعات).</p>
+          <div className="se-chips" role="group" aria-label="إدراج معلومة تلقائية">
+            {vars.map((k) => (
+              <button key={k} type="button" className="se-chip is-var" title={`{${k}} — ${TEMPLATE_VARS[k]}`} onPointerDown={keep} onMouseDown={keep} onClick={() => token(`{${k}}`)}>{varLabel(k)}</button>
+            ))}
+          </div>
+        </div>
       )}
       <Preview text={text} rich={!!spec.rich} />
     </FieldShell>
@@ -142,7 +151,7 @@ export function LinkField({ spec, path, value, onChange }: WidgetProps) {
     <FieldShell spec={spec} path={path} value={value} htmlFor={id} error={bad ? 'الرابط لازم يبدأ بـ https:// أو / أو tel: أو mailto:' : null}>
       <div className="se-inline">
         <Input id={id} dir="ltr" inputMode="url" autoCapitalize="off" autoCorrect="off" spellCheck={false} maxLength={spec.max ?? 500}
-          placeholder="https://… أو /book" value={text} onChange={(e) => onChange(e.target.value)} onBlur={() => setTouched(true)} />
+          placeholder="https://…" value={text} onChange={(e) => onChange(e.target.value)} onBlur={() => setTouched(true)} />
         {v && isSafeLink(v) && (
           <a className="btn btn-soft se-square" href={v} target="_blank" rel="noopener noreferrer" aria-label="جرّب الرابط" title="جرّب الرابط"><Icon name="external" size={18} /></a>
         )}

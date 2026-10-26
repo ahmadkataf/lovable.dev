@@ -1,10 +1,12 @@
-// Router: customer screens under the Layout shell; the team panel (written separately) lazily under /team/*.
+// Router: customer screens under the Layout shell (with the editable site content), the team panel (written
+// separately) lazily under /team/*.
 import { lazy, Suspense, useEffect, type ReactNode } from 'react'
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
 import type { PublicSettings } from '@shared/types'
 import { TeamProvider } from './team'
 import { NotificationsProvider } from './lib/notifications'
 import { Layout } from './components/Layout'
+import { SiteContentProvider } from './components/site/siteContent'
 import { BookHome } from './pages/Home'
 import { Book } from './pages/Book'
 import { BookingPage } from './pages/BookingPage'
@@ -12,6 +14,7 @@ import { Mine } from './pages/Mine'
 import { Inbox } from './pages/Inbox'
 import { Spinner, ToastHost } from './ui'
 import { useCached } from './lib/data'
+import { useBrandColour } from './lib/content'
 import { armAppPermissionAdoption, ensurePushSubscription } from './lib/push'
 import { setTimeZone } from './format'
 
@@ -44,13 +47,14 @@ function FullSpinner() {
 const Lazy = ({ children }: { children: ReactNode }) => <Suspense fallback={<FullSpinner />}>{children}</Suspense>
 
 export default function App() {
+  useBrandColour()   // the admin's brand colour (theme.brand) as CSS variables, for the site and the team panel
   return (
     <BrowserRouter>
       <TeamProvider>
         <NotificationsProvider>
           <PushKeeper />
           <Routes>
-            <Route element={<Layout />}>
+            <Route element={<SiteContentProvider><Layout /></SiteContentProvider>}>
               <Route path="/" element={<Lazy><Landing /></Lazy>} />
               <Route path="/spaces" element={<Lazy><Spaces /></Lazy>} />
               <Route path="/about" element={<Lazy><About /></Lazy>} />

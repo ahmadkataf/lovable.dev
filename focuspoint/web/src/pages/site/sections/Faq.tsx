@@ -1,35 +1,27 @@
-// FAQ accordion (<details>), answers only from the centre's facts.
-import { Link } from 'react-router-dom'
-import type { ReactNode } from 'react'
-import { CENTRE, Section, SectionHead, shortClock, type SiteData } from '../site'
+// FAQ accordion (<details>), content.home.faq: answers may carry **bold** and [links](/spaces); the wording follows
+// the booking options (pay on arrival, Sham Cash, customer cancel).
+import { pickVariant } from '@shared/content'
+import { ContentText, hasText, useSite } from '../../../components/site/siteContent'
+import { Section, SectionHead } from '../site'
 import { SiteIcon } from '../SiteIcon'
 
-export function Faq({ data, tint = false }: { data: SiteData; tint?: boolean }) {
-  const items: { q: string; a: ReactNode }[] = [
-    { q: 'هل لازم أعمل حساب لأحجز؟', a: 'لا. بتختار المساحة والوقت، وبتكتب اسمك ورقم موبايلك، وبس. التطبيق بيتذكّر حجوزاتك على جهازك، وفيك تلاقي أي حجز برمزه ورقمك من صفحة «حجوزاتي».' },
-    {
-      q: 'كيف بدفع؟',
-      a: data.payOnArrival
-        ? 'بتحويل شام كاش: بتمسح الرمز أو بتحوّل عالرقم، وبتكتب رقم العملية بالتطبيق، والفريق بيأكّد حجزك. أو بتختار «الدفع عند الوصول» وبتدفع بالمركز لما توصل.'
-        : 'بتحويل شام كاش: بتمسح الرمز أو بتحوّل عالرقم، وبتكتب رقم العملية بالتطبيق، والفريق بيأكّد حجزك ويوصلك إشعار.',
-    },
-    { q: 'فيني ألغي الحجز؟', a: <>قبل ما يتأكد الحجز، فيك تلغيه بنفسك من التطبيق (صفحة <Link to="/mine">حجوزاتي</Link>). بعد التأكيد، تواصل معنا على <span dir="ltr" className="num">{data.phone}</span> أو عالواتساب ومنساعدك.</> },
-    { q: 'شو الدوام؟', a: `مفتوحين كل يوم، من ${shortClock(data.open)} لـ${shortClock(data.close)}.` },
-    { q: 'فيني أحجز لفريق كامل؟', a: <>أكيد. قاعة الاجتماعات بتساع لـ10 أشخاص وفيها شاشة وسبورة، وفي كمان غرف خاصة من 2 لـ4 أشخاص. <Link to="/spaces">شوف المساحات</Link>.</> },
-    { q: 'وين المكان؟', a: `${data.address || CENTRE.address}. إذا ضعت، اتصل فينا أو ابعتلنا عالواتساب ومنوصفلك الطريق.` },
-  ]
+export function Faq({ tint = false }: { tint?: boolean }) {
+  const { c, vars, flags } = useSite()
+  const f = c.home.faq
+  const items = f.items.map((it) => ({ q: it.q, a: pickVariant(it, 'a', flags) })).filter((it) => hasText(it.q) && hasText(it.a))
+  if (!items.length) return null
   return (
     <Section id="faq" tint={tint} labelledBy="fp-faq-title">
       <div className="fp-faq-grid">
-        <SectionHead id="fp-faq-title" kicker="أسئلة متكررة" title="عندك سؤال؟" lead={<>إذا ما لقيت جوابك هون، <Link to="/contact">تواصل معنا</Link>.</>} />
+        <SectionHead id="fp-faq-title" kicker={f.kicker} title={f.title} lead={f.lead} leadRich />
         <div className="fp-faq">
-          {items.map((it) => (
-            <details key={it.q}>
+          {items.map((it, i) => (
+            <details key={i}>
               <summary>
-                <span>{it.q}</span>
+                <span><ContentText text={it.q} vars={vars} /></span>
                 <SiteIcon name="chevron" size={20} className="fp-faq-chev" />
               </summary>
-              <div className="fp-faq-a">{it.a}</div>
+              <div className="fp-faq-a"><ContentText text={it.a} vars={vars} rich /></div>
             </details>
           ))}
         </div>
