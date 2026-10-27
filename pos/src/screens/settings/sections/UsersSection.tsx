@@ -95,7 +95,12 @@ function UserModal({ user, users, me, onClose }: { user: User | null; users: Use
       if (pinMode === 'remove') pinHash = undefined
       else if (wantsPin) pinHash = await hashPin(pin)
       const row: User = { id: user?.id ?? uid(), name: name.trim(), role, active, createdAt: user?.createdAt ?? Date.now() }
-      if (pinHash) row.pinHash = pinHash
+      if (pinHash) {
+        row.pinHash = pinHash
+        // the lock screen asks for exactly this many digits
+        const len = wantsPin ? pin.length : user?.pinLen
+        if (len) row.pinLen = len
+      }
       await db.users.put(row)
       void logAudit({ kind: user ? 'user.change' : 'user.add', detail: `${row.name} (${row.role}${row.active ? '' : ', off'})`, refId: row.id })
       await reloadUsers()

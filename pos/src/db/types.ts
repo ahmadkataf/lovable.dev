@@ -259,6 +259,7 @@ export interface User {
   id: ID
   name: string
   pinHash?: string     // sha256(salt + pin); no PIN = opens without one
+  pinLen?: number      // the PIN's number of digits (4–6), kept since 1.0.2; older PINs have none (lib/pin.ts)
   role: Role
   active: boolean
   createdAt: number
