@@ -28,7 +28,7 @@ html, body { width: 1080px; height: 1920px; overflow: hidden; background: #f4f4f
 
 /* paper captions: words cut out one by one */
 .cap { display: flex; flex-wrap: wrap; justify-content: center; gap: 14px 16px; direction: rtl; line-height: 1.15; }
-.cap .w { display: inline-block; padding: 0.12em 0.34em 0.22em; font-weight: 800; transform: rotate(var(--rot)); transform-origin: center; }
+.cap .w { display: inline-block; padding: 0.08em 0.36em 0.42em; font-weight: 800; transform: rotate(var(--rot)); transform-origin: center; }  /* deep bottom: dots of ي / tails of ز ر never touch the cut edge */
 .cap .w.white { background: var(--paper); color: var(--wine); filter: drop-shadow(6px 8px 6px var(--shadow)); }
 .cap .w.wine { background: var(--wine); color: #fff; filter: drop-shadow(6px 8px 6px var(--shadow)); }
 .cap .w.ink { background: transparent; color: var(--ink); filter: none; }
@@ -43,7 +43,7 @@ html, body { width: 1080px; height: 1920px; overflow: hidden; background: #f4f4f
 /* the knob covers the state you are NOT in: OFF = knob on the left over «ON», ON = knob on the right over «OFF» */
 .sw-knob { position: absolute; top: 18px; width: 114px; height: 114px; border-radius: 50%; background: #fff; --k: 0;
   left: calc(18px + (420px - 36px - 114px) * var(--k)); }
-.switch.is-on .sw-track { background: var(--wine); }
+.is-on .sw-track { background: var(--wine); }
 
 /* wooden frame (the "box") */
 .frame { border: 22px solid #6b4a2f; box-shadow: inset 0 0 0 3px rgba(0,0,0,0.18), 10px 14px 12px var(--shadow); }

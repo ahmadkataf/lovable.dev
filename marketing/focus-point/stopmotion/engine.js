@@ -61,9 +61,10 @@ function placePieces(tq, p) {
 }
 
 // ---------- light ----------
-function breathe(p) {
+function breathe(p, tq) {
   const r = rand('light', p)
-  const b = 1 + (r() - 0.5) * 0.025                  // ±1.25 % brightness between poses
+  const scene = window.sceneLight ? window.sceneLight(tq) : 1   // e.g. the desk lamp "switching on"
+  const b = scene * (1 + (r() - 0.5) * 0.025)                    // ±1.25 % brightness between poses
   document.getElementById('light').style.opacity = String(clamp((b - 0.985) * 6, 0, 0.25))
   STAGE().style.filter = `brightness(${b.toFixed(4)})`
 }
@@ -71,7 +72,7 @@ function breathe(p) {
 // ---------- the main render ----------
 window.render = function (t) {
   const p = poseOf(t), tq = poseTime(t)
-  breathe(p)
+  breathe(p, tq)
   placePieces(tq, p)
   if (window.afterRender) window.afterRender(tq, p)
 }

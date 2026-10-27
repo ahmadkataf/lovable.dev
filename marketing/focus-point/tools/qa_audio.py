@@ -15,7 +15,23 @@ def main():
     key = os.environ.get('GEMINI_API_KEY') or sys.exit('GEMINI_API_KEY is not set')
     lines = json.load(open(script, encoding='utf-8'))['lines']
     expected = "\n".join(f"{i + 1}. {l['vo']}" for i, l in enumerate(lines))
-    prompt = f"""You are a Syrian dialect coach from Daraa (Hourani dialect) and an audio QA engineer.
+    if '--msa' in sys.argv:
+        prompt = f"""You are an expert Arabic voice coach for Modern Standard Arabic (fusha) ads and an audio QA engineer.
+Listen to the attached Arabic voice-over. The intended script, fully vowelled (one line per video scene), is:
+
+{expected}
+
+Return ONLY JSON with these keys:
+- "transcript": verbatim transcription in Arabic script of what is actually said (with the case endings you hear).
+- "line_count_heard": how many separate lines/segments you hear separated by clear pauses.
+- "mismatches": list of {{"expected","heard","severity":"minor|major"}} where a word is skipped, added, or mispronounced.
+- "grammar_notes": list of words whose case ending or vowelling as spoken differs from the script or is grammatically wrong, each with the word, what you heard and what is correct.
+- "naturalness": 1-10 how natural, warm and modern the fusha delivery sounds for a premium ad.
+- "pace": "too slow" | "good" | "too fast".
+- "overall": one sentence verdict, in Arabic.
+"""
+    else:
+        prompt = f"""You are a Syrian dialect coach from Daraa (Hourani dialect) and an audio QA engineer.
 Listen to the attached Arabic voice-over. The intended script (one line per video scene) is:
 
 {expected}

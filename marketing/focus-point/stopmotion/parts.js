@@ -44,7 +44,7 @@ function caption(id, text, o) {
   const spans = words.map((w, i) => {
     const r = rand(id + ':' + i, 1)
     const rot = ((r() - 0.5) * 5).toFixed(2)
-    const clip = `polygon(${(r() * 4).toFixed(1)}% ${(r() * 8).toFixed(1)}%, ${(100 - r() * 4).toFixed(1)}% ${(r() * 6).toFixed(1)}%, ${(100 - r() * 3).toFixed(1)}% ${(100 - r() * 8).toFixed(1)}%, ${(r() * 3).toFixed(1)}% ${(100 - r() * 6).toFixed(1)}%)`
+    const clip = `polygon(${(r() * 3).toFixed(1)}% ${(r() * 6).toFixed(1)}%, ${(100 - r() * 3).toFixed(1)}% ${(r() * 5).toFixed(1)}%, ${(100 - r() * 2).toFixed(1)}% ${(100 - r() * 3).toFixed(1)}%, ${(r() * 2).toFixed(1)}% ${(100 - r() * 2.5).toFixed(1)}%)`   // ragged scissor cut, kept shallow at the bottom
     return `<span class="w ${o.style || 'white'}" data-i="${i}" style="--rot:${rot}deg;clip-path:${clip}">${w}</span>`
   }).join('')
   const gap = o.wordGap ?? 0.16
