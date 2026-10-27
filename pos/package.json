@@ -1,7 +1,7 @@
 {
   "name": "kaseb-pos",
   "private": true,
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "Kaseb — modern point of sale for shops (Windows + Android)",
   "type": "module",
   "main": "electron/main.cjs",
