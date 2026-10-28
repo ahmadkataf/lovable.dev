@@ -1,0 +1,32 @@
+{
+  "product": {"ar": "درب", "en": "Darb"},
+  "scenes": [
+    {"id": "hook",
+     "ar": "نفس الشاورما: عشرة على الكاونتر... اثنا عشر ونص على التطبيق. الفرق لمين؟",
+     "en": "Same shawarma. Ten at the counter, twelve fifty on the app. Who gets the difference?"},
+    {"id": "prop",
+     "ar": "التوصيل ما بحتاج شركة توصيل. بدون عمولة. شوف كيف.",
+     "en": "Delivery doesn't need a delivery company. Zero commission. Watch."},
+    {"id": "step1",
+     "ar": "واحد: الطلبية بتوصلك زي ما هي اليوم... تلفون أو واتساب.",
+     "en": "One: orders arrive like today. Call or WhatsApp."},
+    {"id": "step2",
+     "ar": "تنين: أقرب سواق بيشوف الأجرة قدامه... وبيقبل. أجرته كاملة.",
+     "en": "Two: the nearest driver sees the fee and accepts. Full fee, his."},
+    {"id": "step3",
+     "ar": "تلاتة: الكاش بينختم على الكاونتر... كبستين وخلص. ولا خلاف.",
+     "en": "Three: cash stamped at the counter. Two taps, done. No disputes."},
+    {"id": "reset",
+     "ar": "كل يوم بتدفع... وانت ما بتحس. بس الحلو... بالآخر.",
+     "en": "You pay this daily and never feel it. Best part? The end."},
+    {"id": "chain",
+     "ar": "ولا دينار بضيع. كل وصل موقّع ومربوط باللي قبله... زي البلوكتشين، بس بدون بلوكتشين.",
+     "en": "Not a dinar lost. Every receipt is signed and linked to the last. Like a blockchain, without the blockchain."},
+    {"id": "roles",
+     "ar": "المطعم سعره كامل. السواق أجرته كاملة. والزبون سعر الكاونتر... والدينارين ونص بيضلوا بجيبه.",
+     "en": "Restaurant: full price. Driver: full fee. Customer: counter price. The two fifty stays in your pocket."},
+    {"id": "close",
+     "ar": "ما بتغير إشي عليك... إلا العمولة: صفر. اشتراك ثابت. درب... جاي على شارعك.",
+     "en": "Nothing changes for you, except the commission: zero. Flat subscription. Darb. Coming to your street."}
+  ]
+}

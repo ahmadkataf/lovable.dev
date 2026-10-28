@@ -1,0 +1,551 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<title>Darb — hook short (paper receipts in a dark world)</title>
+<style>
+/* ---------- fonts (self-hosted, OFL) ---------- */
+@font-face{font-family:Kufi;font-weight:800;src:url(fonts/NotoKufiArabic-800-arabic.woff2) format('woff2');unicode-range:U+0600-06FF,U+0750-077F,U+0870-088E,U+0890-0891,U+0898-08E1,U+08E3-08FF,U+200C-200E,U+2010-2011,U+204F,U+2E41,U+FB50-FDFF,U+FE70-FEFF}
+@font-face{font-family:Kufi;font-weight:800;src:url(fonts/NotoKufiArabic-800-latin.woff2) format('woff2');unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD}
+@font-face{font-family:Tajawal;font-weight:800;src:url(fonts/Tajawal-800-arabic.woff2) format('woff2');unicode-range:U+0600-06FF,U+0750-077F,U+0870-088E,U+0890-0891,U+0898-08E1,U+08E3-08FF,U+200C-200E,U+2010-2011,U+204F,U+2E41,U+FB50-FDFF,U+FE70-FEFF}
+@font-face{font-family:Tajawal;font-weight:800;src:url(fonts/Tajawal-800-latin.woff2) format('woff2');unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD}
+@font-face{font-family:Tajawal;font-weight:700;src:url(fonts/Tajawal-700-arabic.woff2) format('woff2');unicode-range:U+0600-06FF,U+0750-077F,U+0870-088E,U+0890-0891,U+0898-08E1,U+08E3-08FF,U+200C-200E,U+2010-2011,U+204F,U+2E41,U+FB50-FDFF,U+FE70-FEFF}
+@font-face{font-family:Tajawal;font-weight:700;src:url(fonts/Tajawal-700-latin.woff2) format('woff2');unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD}
+@font-face{font-family:Plex;font-weight:700;src:url(fonts/IBMPlexSansArabic-700-arabic.woff2) format('woff2');unicode-range:U+0600-06FF,U+0750-077F,U+0870-088E,U+0890-0891,U+0898-08E1,U+08E3-08FF,U+200C-200E,U+2010-2011,U+204F,U+2E41,U+FB50-FDFF,U+FE70-FEFF}
+@font-face{font-family:Plex;font-weight:700;src:url(fonts/IBMPlexSansArabic-700-latin.woff2) format('woff2');unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD}
+@font-face{font-family:Plex;font-weight:500;src:url(fonts/IBMPlexSansArabic-500-arabic.woff2) format('woff2');unicode-range:U+0600-06FF,U+0750-077F,U+0870-088E,U+0890-0891,U+0898-08E1,U+08E3-08FF,U+200C-200E,U+2010-2011,U+204F,U+2E41,U+FB50-FDFF,U+FE70-FEFF}
+@font-face{font-family:Plex;font-weight:500;src:url(fonts/IBMPlexSansArabic-500-latin.woff2) format('woff2');unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD}
+@font-face{font-family:Inter;font-weight:700 800;src:url(fonts/Inter-700-latin.woff2) format('woff2')}
+@font-face{font-family:Inter;font-weight:500;src:url(fonts/Inter-500-latin.woff2) format('woff2')}
+@font-face{font-family:Mono;font-weight:600;src:url(fonts/IBMPlexMono-600-latin.woff2) format('woff2')}
+
+:root{--ink:#0B0B0F;--navy:#07111F;--paper:#F4F1E8;--screen:#F6F8FB;--white:#FFFFFF;--amber:#FFB400;--amberink:#8F5E00;--mint:#19F0A0;--mintink:#0B8F5C;--graphite:#1A1A22;--red:#FF3B4E;--muted:#8A8F9C;--field:#0B0B0F}
+html,body{margin:0;padding:0;width:1080px;height:1920px;overflow:hidden;background:var(--field)}
+body{position:relative;font-family:Plex,Tajawal,sans-serif;color:#fff}
+.layer{position:absolute;left:0;top:0;width:1080px;height:1920px}
+#vig{background:radial-gradient(120% 90% at 50% 40%,transparent 55%,rgba(0,0,0,.55))}
+#grain{opacity:.05;background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='256' height='256'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 1 0'/></filter><rect width='256' height='256' filter='url(%23n)'/></svg>")}
+#zoom{position:absolute;left:0;top:0;width:1080px;height:1920px;transform-origin:540px 960px}
+.beat{position:absolute;left:0;top:0;width:1080px;height:1920px}
+.abs{position:absolute}
+.hide{display:none!important}
+/* headlines */
+.hl{position:absolute;left:120px;width:840px;text-align:center;font-family:Kufi;font-weight:800;color:#fff;line-height:1.2;white-space:nowrap}
+.hl.amber{color:var(--amber)}
+html[lang=en] .hl{font-family:Inter;font-weight:800;letter-spacing:-.01em}
+#meas{position:absolute;left:-9999px;top:0;white-space:nowrap;visibility:hidden;font-family:Kufi;font-weight:800}
+html[lang=en] #meas{font-family:Inter}
+/* numbers */
+.num{font-family:Inter;font-weight:800;font-variant-numeric:tabular-nums;direction:ltr;unicode-bidi:isolate;display:inline-block}
+.nv{display:inline-block;white-space:nowrap}
+.cur{font-family:Tajawal;font-weight:800;font-size:.34em;margin:0 .15em}
+#badge .cur,.blk .bh .cur{font-size:22px}
+#roles .rr .amt .cur{font-size:22px}
+html[lang=en] .cur{font-family:Inter;font-weight:700;font-size:.3em}
+.mono{font-family:Mono;font-weight:600;direction:ltr;unicode-bidi:isolate;display:inline-block}
+/* receipts */
+.rw{position:absolute}
+.rsh{position:absolute;left:4%;right:4%;top:30px;bottom:-30px;background:radial-gradient(ellipse at 50% 55%,rgba(0,0,0,.65),transparent 70%)}
+.rc{position:absolute;left:0;top:0;width:100%;height:100%;background:var(--paper);color:var(--ink);box-sizing:border-box;padding:30px 24px}
+.rc .hd{font-family:Kufi;font-weight:800;font-size:34px;text-align:center;padding-bottom:14px;border-bottom:3px dotted var(--ink);line-height:1.3}
+html[lang=en] .rc .hd{font-family:Inter;font-weight:800}
+.rc .row{display:flex;justify-content:space-between;align-items:baseline;font-size:26px;padding:12px 0;font-weight:500}
+.rc .row .num{font-size:28px;font-weight:700}
+.rc .tot{display:block;border-top:3px dotted var(--ink);padding-top:12px;margin-top:6px}
+.rc .tot .lab{display:block;font-family:Kufi;font-weight:800;font-size:22px;color:#5E6470;line-height:1.3}
+html[lang=en] .rc .tot .lab{font-family:Inter}
+.rc .tot .num{font-size:78px;line-height:1.05}
+.rc .ft{position:absolute;left:24px;right:24px;bottom:26px;font-size:24px;color:#5E6470;text-align:center;font-weight:500}
+.xrow,.slab{position:absolute;height:56px;box-sizing:border-box;display:flex;justify-content:space-between;align-items:center;padding:0 10px;font-family:Plex;font-weight:700;font-size:26px;color:var(--amberink);background:var(--paper)}
+.xrow .num,.slab .num{font-size:34px}
+.slot{position:absolute;height:56px;background:linear-gradient(rgba(0,0,0,.14),rgba(0,0,0,.06));box-sizing:border-box}
+/* pills & chips */
+.pill{position:absolute;left:50%;transform:translateX(-50%);font-family:Tajawal;font-weight:800;font-size:44px;line-height:1;padding:22px 40px;border-radius:999px;border:3px solid var(--mint);color:#fff;white-space:nowrap;transform-origin:center}
+.pill .num{font-size:44px;color:var(--mint)}
+html[lang=en] .pill{font-family:Inter;font-weight:800;font-size:40px}
+.chip{position:absolute;font-family:Plex;font-weight:700;font-size:26px;line-height:1;padding:16px 24px;border-radius:999px;background:var(--graphite);color:#fff;white-space:nowrap;display:flex;align-items:center;gap:12px}
+.chip.paper{background:var(--paper);color:var(--ink)}
+/* phone */
+#phone{position:absolute;left:260px;top:420px;width:560px;height:1120px;border-radius:64px;background:var(--graphite);box-shadow:0 40px 90px rgba(0,0,0,.65)}
+#screen{position:absolute;left:16px;top:16px;width:528px;height:1088px;border-radius:50px;background:var(--screen);overflow:hidden;color:#0A1A2F}
+#island{position:absolute;left:194px;top:16px;width:140px;height:36px;border-radius:18px;background:#0B0B0F}
+#sbar{position:absolute;left:30px;right:30px;top:20px;display:flex;justify-content:space-between;align-items:center;font-family:Inter;font-weight:700;font-size:24px}
+#sbar svg{width:34px;height:16px}
+.scr{position:absolute;left:0;top:90px;width:528px;height:998px;box-sizing:border-box;padding:0 26px}
+.scr .shd{font-family:Kufi;font-weight:800;font-size:32px;line-height:1.3;color:#0A1A2F}
+html[lang=en] .scr .shd{font-family:Inter}
+.card{position:absolute;left:26px;width:476px;background:#fff;border:2px solid #E6EAF0;border-radius:22px;box-sizing:border-box;padding:20px 24px;color:#0A1A2F;font-family:Plex;font-weight:500;font-size:28px;line-height:1.35}
+.card.paper{background:var(--paper);border-color:#E3DFD3}
+.card b{font-weight:700}
+.bub{position:absolute;left:26px;width:430px;background:var(--paper);border:2px solid #E3DFD3;border-radius:24px;box-sizing:border-box;padding:18px 24px;font-family:Plex;font-weight:500;font-size:28px;line-height:1.35;color:#0A1A2F}
+.bub .tm{display:flex;justify-content:flex-end;align-items:center;gap:6px;font-family:Inter;font-weight:500;font-size:20px;color:var(--muted);margin-top:6px}
+.bub .tm svg{width:30px;height:18px}
+.btn{position:absolute;left:26px;width:476px;height:88px;border-radius:22px;background:var(--mint);color:#07111F;font-family:Kufi;font-weight:800;font-size:34px;display:flex;align-items:center;justify-content:center;gap:12px;transform-origin:center}
+html[lang=en] .btn{font-family:Inter}
+.btn svg{width:34px;height:34px}
+.av{width:72px;height:72px;border-radius:50%;background:#0A1A2F;color:#fff;display:flex;align-items:center;justify-content:center;font-family:Kufi;font-weight:800;font-size:32px}
+html[lang=en] .av{font-family:Inter}
+.ring{position:absolute;width:90px;height:90px;margin:-45px 0 0 -45px;border-radius:50%;background:rgba(10,26,47,.35);border:2px solid rgba(10,26,47,.7);box-sizing:border-box;transform-origin:center}
+.ripple{position:absolute;width:180px;height:180px;margin:-90px 0 0 -90px;border-radius:50%;background:radial-gradient(circle,rgba(10,26,47,.25),rgba(10,26,47,0) 70%);transform-origin:center}
+.ink{position:absolute;width:240px;height:240px;margin:-120px 0 0 -120px;border-radius:50%;border:7px solid var(--mint);box-sizing:border-box;transform-origin:center}
+.stamp{position:absolute;font-family:Kufi;font-weight:800;font-size:40px;line-height:1;color:var(--mintink);border:6px solid var(--mintink);border-radius:14px;padding:8px 20px;transform-origin:center;white-space:nowrap}
+.stamp.dark{color:var(--mint);border-color:var(--mint)}
+html[lang=en] .stamp{font-family:Inter;font-size:32px;letter-spacing:.04em}
+.tick{display:inline-block;width:36px;height:36px;border-radius:50%;background:var(--mintink);vertical-align:middle}
+.tick svg{width:36px;height:36px}
+/* strip */
+#strip{position:absolute;left:0;top:300px;width:1080px;height:60px}
+.pp{position:absolute;top:19px;width:110px;height:12px;border-radius:6px;border:2px solid rgba(255,255,255,.5);box-sizing:border-box;overflow:hidden;background:rgba(255,255,255,.06)}
+.pp i{position:absolute;left:0;top:0;width:100%;height:100%;background:var(--mint);transform-origin:right}
+html[lang=en] .pp i{transform-origin:left}
+#slabel{position:absolute;top:6px;width:80px;font-family:Inter;font-weight:800;font-size:34px;color:#fff;line-height:1}
+/* captions */
+#cap{position:absolute;left:60px;top:990px;width:960px;height:290px;display:flex;align-items:flex-end;justify-content:center}
+#plate{background:rgba(26,26,34,.74);border-radius:24px;padding:12px 26px;max-width:900px;text-align:center;transform-origin:center bottom;font-size:72px;line-height:1.35}
+html[lang=en] #plate{font-size:64px;max-width:960px}
+.w{display:inline-block;white-space:nowrap;padding:0 12px;font-family:Tajawal;font-weight:800;font-size:72px;line-height:1.35;color:#fff;transform-origin:center}
+html[lang=en] .w{font-family:Inter;font-size:64px;letter-spacing:-.01em}
+#flash{background:#fff;opacity:0}
+/* chain */
+.blk{position:absolute;width:280px;height:170px}
+.blk .rc{padding:18px 20px}
+.blk .bh{display:flex;justify-content:space-between;align-items:baseline;font-family:Inter;font-weight:800;font-size:32px;color:var(--ink)}
+.blk .bh .nv{font-size:32px}
+.blk .hash{font-family:Mono;font-weight:600;font-size:20px;color:var(--muted);margin-top:10px;direction:ltr;text-align:left;height:26px}
+.blk .st{position:absolute;right:16px;bottom:14px;font-family:Kufi;font-weight:800;font-size:22px;color:var(--mintink);border:3px solid var(--mintink);border-radius:8px;padding:2px 10px;transform:rotate(-10deg);transform-origin:center;line-height:1.2}
+html[lang=en] .blk .st{font-family:Inter;font-size:22px}
+#chainsvg{position:absolute;left:0;top:0;width:1080px;height:1920px;overflow:visible}
+#chainsvg path{fill:none;stroke:var(--mint);stroke-width:10;stroke-linecap:round;stroke-dasharray:1;stroke-dashoffset:1}
+/* roles */
+#roles .rr{position:absolute;left:30px;width:620px;height:112px;display:grid;grid-template-columns:200px 220px 200px;align-items:center;border-bottom:3px dotted rgba(11,11,15,.35);box-sizing:border-box;transform-origin:center}
+#roles .rr .lab{font-family:Plex;font-weight:700;font-size:34px;color:var(--ink);white-space:nowrap;justify-self:start}
+#roles .rr .amt{font-size:54px;color:var(--amberink);line-height:1;white-space:nowrap;justify-self:start}   /* digits share one right edge (start = right in RTL) */
+html[lang=en] #roles .rr .amt{justify-self:end}
+#roles .rr .tag{font-family:Kufi;font-weight:800;font-size:24px;color:var(--ink);display:flex;align-items:center;gap:10px;white-space:nowrap;justify-self:end}
+html[lang=en] #roles .rr .tag{font-family:Inter;font-size:22px}
+/* close */
+#counter{position:absolute;left:120px;width:840px;top:690px;text-align:center;font-size:200px;line-height:1;color:var(--amber)}
+#counter .cur{font-size:60px}
+.card3d{position:absolute;left:300px;top:480px;width:480px;height:600px;transform-origin:center}
+.face{position:absolute;left:0;top:0;width:480px;height:600px;background:var(--paper);color:var(--ink);box-sizing:border-box;padding:40px 34px}
+.face.back{display:flex;align-items:center;justify-content:center;font-family:Kufi;font-weight:800;font-size:160px;line-height:1}
+html[lang=en] .face.back{font-family:Inter;font-size:150px;letter-spacing:-.02em}
+#subw{position:absolute;left:120px;top:1120px;width:840px;height:110px;overflow:hidden;text-align:center}
+#sub{font-family:Tajawal;font-weight:800;font-size:72px;line-height:110px;color:#fff;white-space:nowrap}
+html[lang=en] #sub{font-family:Inter;font-weight:800;font-size:60px}
+#preload{position:absolute;left:-9999px;top:0;visibility:hidden}
+#dbg{pointer-events:none}
+#dbg div{position:absolute;border:2px dashed rgba(255,0,255,.7)}
+</style>
+</head>
+<body>
+<div id="preload">
+  <span style="font-family:Kufi;font-weight:800">نفس الشاورما 0123 Same</span>
+  <span style="font-family:Tajawal;font-weight:800">كلمة 0123 Word</span><span style="font-family:Tajawal;font-weight:700">كلمة 0123 Word</span>
+  <span style="font-family:Plex;font-weight:700">كلمة 0123 Word</span><span style="font-family:Plex;font-weight:500">كلمة 0123 Word</span>
+  <span style="font-family:Inter;font-weight:800">0123 Word</span><span style="font-family:Inter;font-weight:500">0123 Word</span>
+  <span style="font-family:Mono;font-weight:600">a91f7c2e</span>
+</div>
+<div id="meas"></div>
+<div class="layer" id="vig"></div>
+<div class="layer" id="grain"></div>
+<div id="zoom"></div>
+<div id="cap"><div id="plate"></div></div>
+<div id="strip"></div>
+<div class="layer" id="flash"></div>
+<div class="layer" id="dbg"></div>
+<script>
+'use strict';
+/* ================= strings ================= */
+const S = {
+ ar: {
+  cur: 'د.أ',
+  hook: { h1: ['نفس الشاورما'], h2: ['الفرق... لمين؟'],
+    counter: { hd: 'الكاونتر', rows: [['شاورما ×2', '7.00'], ['بطاطا', '3.00']], tot: '10.00', lab: 'المجموع', foot: 'نقدي · 21:04' },
+    app: { hd: 'تطبيق توصيل', rows: [['شاورما ×2', '8.75'], ['بطاطا', '3.75']], tot: '12.50', lab: 'المجموع', extra: ['فرق التطبيق', '+2.50'], foot: 'مثال توضيحي' } },
+  prop: { l1: 'توصيل بدون', l2: 'شركة توصيل', pill: '<bdi class="num">0%</bdi> عمولة · اشتراك ثابت' },
+  step1: { shd: 'المطعم · الطلبات', bubble: 'طلبية: 2 شاورما + بطاطا', bubble2: 'شارع المدينة', time: '21:04', call: 'اتصال وارد', ticket: '#418 · شارع المدينة', total: '10.00', chip: 'ولا تطبيق جديد عالزبون' },
+  step2: { shd: 'أقرب سواق', name: 'محمد', ini: 'م', km: '1.8 كم', fee: '3.00', feel: 'الأجرة', addr: 'شارع المدينة – الرابية', btn: 'قبول', btn2: 'قبلت', badge: 'كاملة للسواق' },
+  step3: { shd: '#418 · <bdi class="num">10.00</bdi> د.أ', c1: 'السواق:', c1b: 'سلّمت الكاش', c2: 'المطعم:', c2b: 'استلمت', stamp: 'ختم', r1: '#418 · <bdi class="num">10.00</bdi> د.أ · نقدي', signed: 'موقّع', hash: 'a91f·7c2e·d03b', brand: 'درب' },
+  reset: { l1: ['كل يوم بتدفع...'], l2: ['وانت ما بتحس.'], l3: ['بس الحلو...'], l4: ['بالآخر.'] },
+  chain: { title: ['ولا دينار بضيع'], blocks: [['#418', '10.00'], ['#419', '7.50'], ['#420', '12.00'], ['#421', '9.00']], stamp: 'ختم', hashes: ['a91f·7c2e', '3b0d·91aa', 'c7e4·02f1', '8d2b·6e90'] },
+  roles: { hd: '#418 · نقدي', rows: [['المطعم', '10.00', 'كامل'], ['السواق', '3.00', 'كاملة'], ['الزبون', '10.00', 'سعر الكاونتر']], r4: ['بجيب الزبون', '+2.50'] },
+  close: { l1: ['ما بتغير', 'إشي عليك...'], l3: ['إلا العمولة:'], pill: 'اشتراك ثابت · <bdi class="num">0%</bdi> عمولة', brand: 'درب', sub: 'جاي على شارعك' }
+ },
+ en: {
+  cur: 'JOD',
+  hook: { h1: ['Same shawarma.'], h2: ['Who gets', 'the difference?'],
+    counter: { hd: 'Counter', rows: [['Shawarma ×2', '7.00'], ['Fries', '3.00']], tot: '10.00', lab: 'Total', foot: 'cash · 21:04' },
+    app: { hd: 'Delivery app', rows: [['Shawarma ×2', '8.75'], ['Fries', '3.75']], tot: '12.50', lab: 'Total', extra: ['app markup', '+2.50'], foot: 'illustrative example' } },
+  prop: { l1: 'Delivery without', l2: 'a delivery company', pill: '<bdi class="num">0%</bdi> commission · flat subscription' },
+  step1: { shd: 'Restaurant · Orders', bubble: 'Order: 2 shawarma + fries', bubble2: 'Madina St.', time: '21:04', call: 'Incoming call', ticket: '#418 · Madina St.', total: '10.00', chip: 'No new app for customers' },
+  step2: { shd: 'Nearest driver', name: 'Mohammad', ini: 'M', km: '1.8 km', fee: '3.00', feel: 'Fee', addr: 'Madina St. – Rabieh', btn: 'Accept', btn2: 'Accepted', badge: 'full fee, driver’s' },
+  step3: { shd: '#418 · <bdi class="num">10.00</bdi> JOD', c1: 'Driver:', c1b: 'cash handed over', c2: 'Restaurant:', c2b: 'received', stamp: 'STAMPED', r1: '#418 · <bdi class="num">10.00</bdi> JOD · cash', signed: 'signed', hash: 'a91f·7c2e·d03b', brand: 'Darb' },
+  reset: { l1: ['You pay this daily...'], l2: ['and never feel it.'], l3: ['Best part?'], l4: ['The end.'] },
+  chain: { title: ['Not a dinar lost'], blocks: [['#418', '10.00'], ['#419', '7.50'], ['#420', '12.00'], ['#421', '9.00']], stamp: 'STAMPED', hashes: ['a91f·7c2e', '3b0d·91aa', 'c7e4·02f1', '8d2b·6e90'] },
+  roles: { hd: '#418 · cash', rows: [['Restaurant', '10.00', 'full'], ['Driver', '3.00', 'full'], ['Customer', '10.00', 'counter price']], r4: ['saved', '+2.50'] },
+  close: { l1: ['Nothing changes', 'for you...'], l3: ['except the commission:'], pill: 'flat subscription · <bdi class="num">0%</bdi> commission', brand: 'Darb', sub: 'coming to your street' }
+ }
+};
+/* word anchors: [arabic prefix, english prefix, fallback fraction of the voiced span] */
+const ANCH = {
+ hook: { pop1: ['عشرة', 'Ten', .2], pop2: ['اثنا', 'twelve', .45], tear: ['الفرق', 'Who', .75] },
+ prop: { slam: ['بحتاج', 'need', .2], strike: ['توصيل.', 'company', .4], pill: ['بدون', 'Zero', .6], phone: ['شوف', 'Watch', .85] },
+ step1: { bubble: ['واحد', 'One', .05], call: ['تلفون', 'Call', .6], ticket: ['تلفون', 'Call', .6] },
+ step2: { fee: ['الأجرة', 'fee', .3], accept: ['وبيقبل', 'accepts', .6], badge: ['أجرته', 'Full', .8] },
+ step3: { tap1: ['كبستين', 'Two', .5], print: ['وخلص', 'done', .7], strip: ['ولا', 'No', .85] },
+ reset: { l2: ['وانت', 'and', .3], l3: ['بس', 'Best', .6], l4: ['بالآخر', 'The', .8] },
+ chain: { blocks: ['كل', 'Every', .2], close: ['زي', 'Like', .6], breathe: ['بس', 'without', .85] },
+ roles: { r1: ['المطعم', 'Restaurant', .02], r2: ['السواق', 'Driver', .3], r3: ['والزبون', 'Customer', .5], slab: ['والدينارين', 'The', .75] },
+ close: { except: ['إلا', 'except', .2], count: ['العمولة', 'commission', .3], pill: ['اشتراك', 'Flat', .5], flip: ['درب', 'Darb', .65], sub: ['جاي', 'Coming', .8] }
+};
+const EMPH = { ar: ['كاملة', 'كامل', 'كبستين', 'موقّع', 'بجيبه', 'صفر', 'درب', 'الأجرة', 'ونص', 'والدينارين', 'بضيع'], en: ['full', 'Full', 'Two', 'taps', 'signed', 'pocket', 'zero', 'fee', 'fifty', 'lost'] };
+const FIELD = { hook: 'ink', prop: 'ink', step1: 'navy', step2: 'navy', step3: 'navy', reset: 'ink', chain: 'navy', roles: 'ink', close: 'ink' };
+const KARAOKE = { step1: 1, step2: 1, step3: 1, chain: 1, roles: 1 };
+const FPS = 30, FR = 1 / FPS;
+
+/* ================= state ================= */
+let LANG = 'ar', R = 1, TL = null, SC = {}, WORDS = [], T = {}, HITS = [], GROUPS = [], E = {};
+const $ = id => document.getElementById(id);
+const clamp = (x, a = 0, b = 1) => Math.max(a, Math.min(b, x));
+const P = (t, t0, d) => clamp((t - t0) / d);
+const expo = p => p >= 1 ? 1 : 1 - Math.pow(2, -10 * p);
+const cubic = p => 1 - Math.pow(1 - p, 3);
+const back = p => 1 + 2.7 * Math.pow(p - 1, 3) + 1.7 * Math.pow(p - 1, 2);
+const quartIn = p => p * p * p * p;
+function mulberry32(a) { return function () { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+const vis = (el, on) => { if (el) el.classList.toggle('hide', !on); };
+const tf = (el, s) => { if (el) el.style.transform = s; };
+const op = (el, v) => { if (el) el.style.opacity = v; };
+function serr(w, h, teeth = 26, d = 12) { const pts = []; const tw = w / teeth; for (let i = 0; i <= teeth; i++) pts.push(`${(i * tw).toFixed(1)}px ${i % 2 ? d : 0}px`); for (let i = teeth; i >= 0; i--) pts.push(`${(i * tw).toFixed(1)}px ${h - (i % 2 ? d : 0)}px`); return `polygon(${pts.join(',')})`; }
+const TICK = c => `<svg viewBox="0 0 36 36"><polyline points="9,19 16,26 27,11" fill="none" stroke="${c || '#fff'}" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+const DTICK = `<svg viewBox="0 0 30 18"><polyline points="2,9 7,14 15,5" fill="none" stroke="#2EA8E0" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/><polyline points="12,9 17,14 27,5" fill="none" stroke="#2EA8E0" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+const PHONEICO = `<svg viewBox="0 0 24 24" width="28" height="28"><path d="M6.6 10.8a15.1 15.1 0 0 0 6.6 6.6l2.2-2.2a1 1 0 0 1 1-.25c1.1.37 2.3.57 3.6.57a1 1 0 0 1 1 1V20a1 1 0 0 1-1 1A17 17 0 0 1 3 4a1 1 0 0 1 1-1h3.5a1 1 0 0 1 1 1c0 1.25.2 2.45.57 3.57a1 1 0 0 1-.25 1L6.6 10.8z" fill="#19F0A0"/></svg>`;
+const BATT = `<svg viewBox="0 0 34 16"><rect x="1" y="1" width="28" height="14" rx="4" fill="none" stroke="#0A1A2F" stroke-width="2"/><rect x="3.5" y="3.5" width="21" height="9" rx="2" fill="#0A1A2F"/><rect x="30.5" y="5" width="2.5" height="6" rx="1" fill="#0A1A2F"/></svg>`;
+const PIN = `<path d="M0-28c-8 0-14 6-14 14 0 10 14 24 14 24s14-14 14-24c0-8-6-14-14-14zm0 19a5 5 0 1 1 0-10 5 5 0 0 1 0 10z" fill="#FFB400"/>`;
+
+/* ================= build ================= */
+function num(v, sz, cur = true) { return `<span class="nv"${sz ? ` style="font-size:${sz}px"` : ''}><bdi class="num">${v}</bdi>${cur ? `<span class="cur">${S[LANG].cur}</span>` : ''}</span>`; }
+function receipt(id, x, y, w, h, body, cls = '') {
+  return `<div id="${id}" class="rw ${cls}" style="left:${x}px;top:${y}px;width:${w}px;height:${h}px"><div class="rsh"></div><div class="rc" style="clip-path:${serr(w, h)}">${body}</div></div>`;
+}
+function hookReceipt(id, x, y, d, extra) {
+  const rows = d.rows.map(r => `<div class="row"><span>${r[0]}</span>${num(r[1], 28, false)}</div>`).join('');
+  const body = `<div class="hd">${d.hd}</div>${rows}<div class="tot"><span class="lab">${d.lab}</span><span id="${id}-tot" style="display:inline-block;transform-origin:center">${num(d.tot, 78)}</span></div>
+    ${extra ? `<div id="xrow" class="xrow" style="left:24px;top:380px;width:282px"><span>${d.extra[0]}</span>${num(d.extra[1], 34, false)}</div><div id="slot" class="slot hide" style="left:24px;top:380px;width:282px"></div>` : ''}
+    <div class="ft">${d.foot}</div>`;
+  return receipt(id, x, y, 330, 520, body);
+}
+function hl(id, lines, y, max = 130, cls = '') {
+  return lines.map((l, i) => `<div id="${id}${i}" class="hl ${cls}" data-max="${max}" style="top:${y + i * max * 1.22}px">${l}</div>`).join('');
+}
+function fitAll() {
+  const m = $('meas'); const ladder = [130, 120, 110, 104, 100, 92, 84, 76, 68, 60, 54];
+  document.querySelectorAll('.hl').forEach(el => {
+    const max = +el.dataset.max || 130; let size = ladder[ladder.length - 1];
+    for (const s of ladder) { if (s > max) continue; m.style.fontSize = s + 'px'; m.textContent = el.textContent; if (m.offsetWidth <= 840) { size = s; break; } }
+    el.style.fontSize = size + 'px'; m.style.fontSize = size + 'px'; m.textContent = el.textContent; el.dataset.w = m.offsetWidth;
+  });
+}
+function build() {
+  const s = S[LANG], en = LANG === 'en'; R = en ? -1 : 1;
+  const C = s.cur;
+  const cx = en ? 190 : 560, ax = en ? 560 : 190;             // counter / app receipt x (pair centred on 540)
+  const Z = $('zoom');
+  Z.innerHTML = `
+  <!-- B1 hook -->
+  <div class="beat" id="b-hook">
+    ${hl('hk1', s.hook.h1, 450, 110)}${hl('hk2', s.hook.h2, en ? 340 : 450, 110)}
+    ${hookReceipt('rcC', cx, 660, s.hook.counter, false)}
+    ${hookReceipt('rcA', ax, 660, s.hook.app, true)}
+  </div>
+  <!-- B2 proposition -->
+  <div class="beat" id="b-prop">
+    ${hl('pr1', [s.prop.l1], 560, 110)}${hl('pr2', [s.prop.l2], 700, 110)}
+    <svg id="strike" class="abs" style="left:120px;top:700px;width:840px;height:150px;overflow:visible"><line id="strikeL" x1="0" y1="78" x2="0" y2="78" pathLength="1" stroke="#FF3B4E" stroke-width="20" stroke-linecap="round" stroke-dasharray="1" style="stroke-dashoffset:1"/></svg>
+    <div id="pill1" class="pill" style="top:960px">${s.prop.pill}</div>
+  </div>
+  <!-- phone (shared B2-B5) -->
+  <div id="phone">
+    <div id="screen">
+      <div id="sbar"><span>21:04</span>${BATT}</div><div id="island"></div>
+      <div class="scr" id="scrChat">
+        <div class="shd" style="position:absolute;left:26px;top:0;font-size:26px;color:#8A8F9C">${s.step1.shd}</div>
+        <div id="bub" class="bub" style="top:56px"><b>${s.step1.bubble}</b><br>${s.step1.bubble2}<div class="tm"><span>${s.step1.time}</span>${DTICK}</div></div>
+        <div id="tk" class="card" style="top:250px"><b>${s.step1.ticket}</b><div style="display:flex;justify-content:space-between;align-items:baseline;margin-top:6px"><span style="color:#8A8F9C">${s.hook.counter.lab}</span><span id="tkp" style="display:inline-block;transform-origin:center;color:var(--amberink)">${num(s.step1.total, 60)}</span></div></div>
+        <div id="chip2" class="chip" style="left:26px;top:430px;background:#E6EAF0;color:#0A1A2F">${s.step1.chip}</div>
+      </div>
+      <div class="scr" id="scrDrv">
+        <div class="shd" style="position:absolute;left:26px;top:4px">${s.step2.shd}</div>
+        <svg class="abs" style="left:26px;top:66px" width="476" height="190" viewBox="0 0 476 190"><rect width="476" height="190" rx="18" fill="#07111F"/>
+          <polyline points="0,60 140,52 260,90 476,70" fill="none" stroke="rgba(255,255,255,.12)" stroke-width="12"/><polyline points="90,0 110,190" fill="none" stroke="rgba(255,255,255,.12)" stroke-width="10"/><polyline points="330,0 300,190" fill="none" stroke="rgba(255,255,255,.12)" stroke-width="10"/><polyline points="0,140 476,120" fill="none" stroke="rgba(255,255,255,.12)" stroke-width="10"/>
+          <g transform="translate(238,112)">${PIN}</g>
+          <circle cx="60" cy="150" r="9" fill="#fff" opacity=".7"/><circle cx="400" cy="40" r="9" fill="#fff" opacity=".7"/>
+          <circle id="pulse" cx="150" cy="70" r="10" fill="none" stroke="#19F0A0" stroke-width="3"/><circle cx="150" cy="70" r="11" fill="#19F0A0"/></svg>
+        <div id="dcard" class="card" style="top:276px;height:190px">
+          <div style="display:flex;align-items:center;gap:16px"><div class="av" style="flex:none">${s.step2.ini}</div><div style="flex:1;min-width:0;overflow:hidden;white-space:nowrap"><b>${s.step2.name}</b><div style="font-size:22px;color:#8A8F9C;overflow:hidden;text-overflow:ellipsis">${s.step2.addr}</div></div>
+            <div class="chip" style="position:static;flex:none;padding:10px 16px;font-size:22px;background:#E6EAF0;color:#0A1A2F">${s.step2.km}</div></div>
+          <div style="display:flex;justify-content:space-between;align-items:baseline;margin-top:14px"><span style="color:#8A8F9C">${s.step2.feel}</span><span id="fee" style="display:inline-block;transform-origin:center;color:var(--amberink)">${num(s.step2.fee, 64)}</span></div>
+        </div>
+        <div id="btn" class="btn" style="top:490px"><span id="btnl">${s.step2.btn}</span><svg id="btnck" viewBox="0 0 36 36" class="hide"><polyline points="7,19 15,27 29,10" fill="none" stroke="#07111F" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" pathLength="1" stroke-dasharray="1" id="btnckp"/></svg></div>
+        <div id="ring1" class="ring hide" style="left:264px;top:534px"></div><div id="rip1" class="ripple hide" style="left:264px;top:534px"></div>
+      </div>
+      <div class="scr" id="scrCnt">
+        <div class="shd" style="position:absolute;left:26px;top:4px">${s.step3.shd}</div>
+        <div id="c1" class="card" style="top:70px;height:200px;font-size:30px"><span style="color:#8A8F9C">${s.step3.c1}</span><br><b style="font-size:38px">${s.step3.c1b}</b><div id="st1" class="stamp hide" style="right:22px;bottom:12px;transform:rotate(-12deg)">${s.step3.stamp}</div></div>
+        <div id="c2" class="card" style="top:300px;height:200px;font-size:30px"><span style="color:#8A8F9C">${s.step3.c2}</span><br><b style="font-size:38px">${s.step3.c2b}</b><div id="st2" class="stamp hide" style="right:22px;bottom:12px;transform:rotate(-12deg)">${s.step3.stamp}</div></div>
+        <div id="ring2" class="ring hide" style="left:264px;top:170px"></div><div id="rip2" class="ripple hide" style="left:264px;top:170px"></div>
+        <div id="ring3" class="ring hide" style="left:264px;top:400px"></div><div id="rip3" class="ripple hide" style="left:264px;top:400px"></div>
+        <div id="ink1" class="ink hide" style="left:264px;top:170px"></div><div id="ink2" class="ink hide" style="left:264px;top:400px"></div>
+      </div>
+    </div>
+  </div>
+  <div id="callchip" class="chip hide" style="left:${en ? 796 : 126}px;top:470px">${PHONEICO}${s.step1.call}</div>
+  <div id="badge" class="chip paper hide" style="left:${en ? 660 : 76}px;top:640px;font-size:26px;padding:16px 22px">${num('3.00', 40)}<span>· ${s.step2.badge}</span></div>
+  <div id="printw" class="abs hide" style="left:${en ? 480 : 260}px;top:130px;width:340px;height:290px;overflow:hidden">
+    ${receipt('print', 0, 0, 340, 310, `<div style="font-family:Plex;font-weight:700;font-size:${en ? 24 : 28}px;line-height:1.3;white-space:nowrap">${s.step3.r1}</div>
+      <div style="display:flex;align-items:center;gap:12px;margin-top:16px"><span class="stamp" style="position:static;font-size:30px;padding:6px 14px;display:inline-flex;align-items:center;gap:8px">${s.step3.signed}<span class="tick">${TICK('#fff')}</span></span></div>
+      <div id="hash" class="mono" style="font-size:22px;color:#8A8F9C;margin-top:16px;height:28px;text-align:left;width:100%"></div>
+      <div style="position:absolute;${en ? 'right' : 'left'}:22px;bottom:16px;font-family:Kufi;font-weight:800;font-size:22px;color:#8A8F9C">${s.step3.brand}</div>`)}
+  </div>
+  <!-- B6 reset -->
+  <div class="beat" id="b-reset">
+    ${hl('rs1', s.reset.l1, 700, 104)}${hl('rs2', s.reset.l2, 700, 110)}${hl('rs3', s.reset.l3, 580, 110)}${hl('rs4', s.reset.l4, 760, 130, 'amber')}
+    ${receipt('peek', en ? 150 : 650, 1760, 280, 170, `<div class="bh"><span>${s.chain.blocks[0][0]}</span>${num(s.chain.blocks[0][1], 32)}</div><div class="hash">${s.chain.hashes[0]}</div><div class="st">${s.chain.stamp}</div>`, 'blk')}
+  </div>
+  <!-- B7 chain -->
+  <div class="beat" id="b-chain">
+    ${hl('ch1', s.chain.title, 330, 96)}
+    <svg id="chainsvg">${[0, 1, 2].map(i => `<path id="lk${i}" pathLength="1" d=""/>`).join('')}${[0, 1, 2].map(i => `<g id="jt${i}" class="hide"><circle r="22" fill="#19F0A0"/><polyline points="-9,1 -3,7 10,-8" fill="none" stroke="#07111F" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/></g>`).join('')}</svg>
+    ${s.chain.blocks.map((b, i) => receipt('blk' + i, 0, 0, 280, 170, `<div class="bh"><span>${b[0]}</span>${num(b[1], 32)}</div><div class="hash" id="bh${i}">${s.chain.hashes[i]}</div><div class="st">${s.chain.stamp}</div>`, 'blk')).join('')}
+    <div id="cstamp" class="stamp dark hide" style="font-size:${en ? 36 : 52}px;padding:${en ? '8px 18px' : '10px 26px'};border-width:${en ? 6 : 7}px;background:var(--navy)">${s.chain.stamp}</div>
+    <div id="cink" class="ink hide"></div>
+  </div>
+  <!-- B8 roles -->
+  <div class="beat" id="b-roles">
+    ${receipt('roles', 200, 320, 680, 720, `<div class="hd">${s.roles.hd}</div>
+      ${s.roles.rows.map((r, i) => `<div class="rr" id="rr${i}" style="top:${118 + i * 124}px"><span class="lab">${r[0]}</span><span class="amt">${num(r[1], 54)}</span><span class="tag"><span class="tick rtick hide">${TICK('#fff')}</span>${r[2]}</span></div>`).join('')}
+      <div class="rr" id="rr3" style="top:${118 + 3 * 124}px;border-bottom:none"><span class="lab">${s.roles.r4[0]}</span><span class="amt">${num(s.roles.r4[1], 54)}</span><span class="tag"><span class="tick rtick hide">${TICK('#fff')}</span></span></div>`)}
+  </div>
+  <!-- B9 close -->
+  <div class="beat" id="b-close">
+    ${hl('cl1', s.close.l1, 620, 110)}${hl('cl3', s.close.l3, 520, 110)}
+    <div id="counter">${num('2.50', 200)}</div>
+    <div id="pill2" class="pill" style="top:1130px">${s.close.pill}</div>
+    <div class="card3d" id="card3d"><div class="rsh"></div>
+      <div class="face front" id="faceF" style="clip-path:${serr(480, 600)}"><div style="font-family:Plex;font-weight:700;font-size:30px;line-height:1.3">${s.step3.r1}</div><div style="margin-top:20px"><span class="stamp" style="position:static;font-size:32px;padding:6px 16px;display:inline-flex;align-items:center;gap:8px">${s.step3.signed}<span class="tick">${TICK('#fff')}</span></span></div><div class="mono" style="font-size:22px;color:#8A8F9C;margin-top:20px;text-align:left;width:100%">${s.step3.hash}</div></div>
+      <div class="face back" id="faceB" style="clip-path:${serr(480, 600)}">${s.close.brand}<div id="fstamp" class="stamp" style="${en ? 'right' : 'left'}:${en ? 40 : 30}px;bottom:40px;font-size:${en ? 19 : 22}px;padding:6px 12px;transform:rotate(-8deg)"><bdi class="num" style="font-size:${en ? 19 : 22}px">0%</bdi> ${en ? 'commission · flat subscription' : 'عمولة · اشتراك ثابت'}</div></div>
+    </div>
+    <div id="subw"><div id="sub">${s.close.sub}</div></div>
+  </div>
+  <!-- shared slab -->
+  <div id="slab" class="slab hide" style="left:0;top:0;width:282px"><span>${s.hook.app.extra[0]}</span>${num(s.hook.app.extra[1], 34, false)}</div>`;
+  // strip
+  $('strip').innerHTML = [0, 1, 2].map(i => `<div class="pp" style="left:${en ? 30 + i * 120 : 940 - i * 120}px"><i id="pf${i}"></i></div>`).join('') + `<div id="slabel" style="left:${en ? 400 : 610}px;text-align:${en ? 'left' : 'right'}">1/3</div>`;
+  fitAll();
+  // strike geometry from the measured line width
+  const w2 = +$('pr20').dataset.w || 700; const L = $('strikeL'); L.setAttribute('x1', 420 + R * (w2 / 2 + 14)); L.setAttribute('x2', 420 - R * (w2 / 2 + 14)); L.setAttribute('transform', `rotate(${-6 * R} 420 78)`);
+  // chain block positions (zigzag from the reading side)
+  const colA = en ? 150 : 650, colB = en ? 650 : 150;
+  BLK = [0, 1, 2, 3].map(i => ({ x: i % 2 ? colB : colA, y: 470 + i * 140 }));
+  BLK.forEach((b, i) => { const el = $('blk' + i); el.style.left = b.x + 'px'; el.style.top = b.y + 'px'; });
+  for (let i = 0; i < 3; i++) {
+    const a = BLK[i], b = BLK[i + 1];
+    const ax = a.x < b.x ? a.x + 280 : a.x, bx = b.x < a.x ? b.x + 280 : b.x;   // inner edges
+    const ay = a.y + 110, by = b.y + 60;
+    $('lk' + i).setAttribute('d', `M${ax},${ay} C${(ax + bx) / 2},${ay} ${(ax + bx) / 2},${by} ${bx},${by}`);
+    $('jt' + i).setAttribute('transform', `translate(${(ax + bx) / 2},${(ay + by) / 2})`);
+  }
+  E = {}; document.querySelectorAll('[id]').forEach(el => E[el.id] = el);
+}
+let BLK = [];
+function setLang(l) { LANG = l; document.documentElement.lang = l; document.documentElement.dir = l === 'ar' ? 'rtl' : 'ltr'; build(); if (TL) setTimeline(TL); }
+
+/* ================= timeline ================= */
+function W(scene, key) {
+  const a = ANCH[scene][key]; const pref = LANG === 'ar' ? a[0] : a[1]; const sc = SC[scene];
+  const w = WORDS.find(w => w.scene === scene && w.word.startsWith(pref));
+  return w ? w.start : sc.voStart + (sc.voEnd - sc.voStart) * a[2];
+}
+function setTimeline(tl) {
+  TL = tl; SC = {}; tl.scenes.forEach(s => SC[s.id] = s); WORDS = tl.words || [];
+  T = {}; for (const sc in ANCH) { T[sc] = {}; for (const k in ANCH[sc]) T[sc][k] = W(sc, k); }
+  // derived
+  const s3 = SC.step3; T.step3.tap2 = Math.min(T.step3.tap1 + 0.45, T.step3.print - 0.15);
+  T.prop.strike = Math.max(T.prop.strike, T.prop.slam + 0.3);
+  T.chain.b = [0, 1, 2].map(i => T.chain.blocks + i * 0.45);           // blocks 2..4 enter
+  T.chain.l = [0, 1, 2].map(i => Math.min(T.chain.b[i] + 0.3, T.chain.close - 0.35 + i * 0.05)); // links draw
+  T.close.land = T.close.count + 0.6;
+  T.step1.chip = Math.min(T.step1.ticket + 0.35, SC.step1.end - 0.9); T.step1.fill = SC.step1.end - 0.8; T.step2.fill = SC.step2.end - 0.75;
+  T.close.flip = Math.max(T.close.flip, T.close.pill + 0.5);
+  // hits: zoom punches + sound cues. k = punch strength, sh = shake, sfx = kind for mix4.py
+  const H = (t, sfx, k = 0, ox = 540, oy = 900, sh = 0, g = 1) => HITS.push({ t: +t.toFixed(3), sfx, k, ox, oy, sh, g });
+  HITS = [];
+  const sx = LANG === 'en' ? 560 : 190;
+  H(0, 'hit', .12, 540, 820, 1); H(T.hook.pop1, 'tick'); H(T.hook.pop2, 'tick'); H(T.hook.pop2 + 0.08, 'tick', 0, 0, 0, 0, .6);
+  H(T.hook.tear, 'tear', .10, sx + 165, 1068, 0); H(T.hook.tear + 0.05, 'whoosh', 0, 0, 0, 0, .7); H(SC.prop.start - 0.5, 'riser');
+  H(SC.prop.start, 'hit', .10, 540, 620, 0); H(T.prop.slam, 'whoosh', .08, 540, 760); H(T.prop.strike, 'slice'); H(T.prop.pill, 'pop'); H(T.prop.phone, 'rise');
+  H(SC.step1.start, 'snap', .06, 540, 900); H(T.step1.bubble, 'notif'); H(T.step1.call, 'ringtick'); H(T.step1.ticket, 'slide', .08, 540, 800); H(T.step1.ticket + 0.1, 'tick'); H(T.step1.chip, 'soft'); H(T.step1.fill + 0.55, 'click');
+  H(SC.step2.start, 'swipe'); H(T.step2.fee, 'pop', .10, 676, 930); H(T.step2.accept - 0.45, 'tickroll'); H(T.step2.accept, 'accept', .08, 540, 1050, 1); H(T.step2.accept + 0.05, 'chime'); H(T.step2.badge, 'slide'); H(T.step2.fill + 0.55, 'click');
+  H(SC.step3.start, 'swipe'); H(T.step3.tap1, 'stamp', .06, 540, 700); H(T.step3.tap2, 'stamp2', .12, 540, 930, 1); H(T.step3.print, 'printer'); H(T.step3.strip, 'chime'); H(SC.reset.start - 0.45, 'riser');
+  H(SC.reset.start, 'hit', .10, 540, 760); H(T.reset.l2, 'hit', .08, 540, 760); H(T.reset.l3, 'whoosh', 0, 0, 0, 0, .7); H(T.reset.l4, 'hit', .10, 540, 830); H(T.reset.l4 + 0.05, 'paper');
+  H(SC.chain.start, 'hit', .08, 540, 600); T.chain.b.forEach(t => H(t, 'slide', 0, 0, 0, 0, .6)); T.chain.l.forEach(t => H(t + 0.25, 'link')); H(T.chain.close, 'hit', .12, 540, 760, 1); H(T.chain.close, 'stamp'); H(T.chain.breathe, 'soft');
+  H(SC.roles.start, 'hit', .08, 540, 680); H(T.roles.r1, 'bell1', .06, 540, 460); H(T.roles.r2, 'bell2', .06, 540, 584); H(T.roles.r3, 'bell3', .06, 540, 708); H(T.roles.slab, 'swish'); H(T.roles.slab + 0.35, 'stamp', .08, 540, 832);
+  H(SC.close.start, 'hit', .08, 540, 700); H(T.close.except, 'hit', .08, 540, 620); H(T.close.count, 'tickroll'); H(T.close.land, 'stamp2', .12, 480, 790, 1); H(T.close.pill, 'pop'); H(T.close.flip, 'flip'); H(T.close.sub, 'chime2'); H(TL.total - 0.6, 'whooshout');
+  HITS.sort((a, b) => a.t - b.t);
+  // caption groups
+  GROUPS = [];
+  const maxN = LANG === 'ar' ? 3 : 4;
+  for (const sc of TL.scenes) {
+    if (!KARAOKE[sc.id]) continue;
+    const ws = WORDS.filter(w => w.scene === sc.id); let g = [];
+    const flush = () => { if (g.length) { GROUPS.push({ scene: sc.id, words: g, start: g[0].start, end: g[g.length - 1].end }); g = []; } };
+    ws.forEach((w, i) => {
+      g.push(w); const nxt = ws[i + 1]; const punct = LANG === 'ar' ? /[.!?؟…:،,]$/.test(w.word) : /[.!?…:]$/.test(w.word);
+      if (g.length >= maxN || punct || (nxt && nxt.start - w.end > 0.32)) flush();
+    });
+    flush();
+  }
+  GROUPS.forEach((g, i) => { const n = GROUPS[i + 1]; g.show = g.start - 0.1; g.hide = n && n.scene === g.scene && n.start - g.end < 1.2 ? n.start - 0.1 : Math.min(g.end + 0.7, SC[g.scene].end - 0.05); });
+}
+window.getHits = () => HITS; window.getGroups = () => GROUPS; window.getT = () => T;
+
+/* ================= render ================= */
+function drift(el, t, p1, p2, amp = 3, rot = .6, extra = '') { tf(el, `${extra} translateY(${(amp * Math.sin(2 * Math.PI * t / p1)).toFixed(2)}px) rotate(${(rot * Math.sin(2 * Math.PI * t / p2)).toFixed(3)}deg)`); }
+function popScale(t, t0, k = 1.15, d = .25) { if (t < t0) return 1; const p = P(t, t0, d); return k + (1 - k) * back(p); }
+function stampIn(el, t, t0) { if (t < t0) { vis(el, false); return; } vis(el, true); const p = P(t, t0, .3); op(el, Math.min(1, (t - t0) / (2 * FR))); tf(el, `rotate(-12deg) scale(${3 + (1 - 3) * back(p)})`); }
+function tapFx(ring, rip, t, t0) {
+  const on = t >= t0 && t < t0 + 8 * FR; vis(ring, on); vis(rip, on);
+  if (on) { const p = P(t, t0, 8 * FR); tf(ring, `scale(${1.3 - .3 * cubic(p)})`); op(ring, .9 * (1 - p)); tf(rip, `scale(${1.6 * cubic(p)})`); op(rip, 1 - p); }
+}
+function inkRing(el, t, t0) { const on = t >= t0 && t < t0 + .4; vis(el, on); if (on) { const p = P(t, t0, .4); tf(el, `scale(${cubic(p)})`); op(el, 1 - p); } }
+function slideX(el, t, t0, d = .28, dist = 320, dir = 1) { if (t < t0) { vis(el, false); return; } vis(el, true); tf(el, `translateX(${(R * dir * dist * (1 - expo(P(t, t0, d)))).toFixed(1)}px)`); }
+function maskY(el, t, t0, d = .3) { tf(el, `translateY(${(110 * (1 - expo(P(t, t0, d)))).toFixed(1)}%)`); }
+
+function render(t) {
+  if (!TL) return;
+  const cur = TL.scenes.find(s => t >= s.start && t < s.end) || TL.scenes[TL.scenes.length - 1]; const id = cur.id;
+  document.body.style.setProperty('--field', FIELD[id] === 'navy' ? '#07111F' : '#0B0B0F');
+  ['hook', 'prop', 'reset', 'chain', 'roles', 'close'].forEach(b => vis(E['b-' + b], b === id));
+  const phoneOn = (id === 'prop' && t >= T.prop.phone) || id === 'step1' || id === 'step2' || id === 'step3';
+  vis(E.phone, phoneOn); vis(E.callchip, false); vis(E.badge, false); vis(E.printw, false); vis(E.slab, false);
+  vis(E.strip, id === 'step1' || id === 'step2' || id === 'step3');
+  const s = cur, H = T[id] || {};
+  if (id === 'hook') {
+    drift(E.rcC, t, 4, 5); drift(E.rcA, t, 4.6, 5.4);
+    tf(E['rcC-tot'], `scale(${popScale(t, H.pop1)})`); tf(E['rcA-tot'], `scale(${popScale(t, H.pop2)})`);
+    const torn = t >= H.tear; vis(E.hk10, !torn); S[LANG].hook.h2.forEach((_, i) => vis(E['hk2' + i], torn));
+    vis(E.xrow, !torn); vis(E.slot, torn);
+    if (!torn) tf(E.xrow, `scale(${popScale(t, H.pop2 + .05, 1.2)})`);
+    else {
+      const q = quartIn(P(t, H.tear, .4)); if (q < 1) {
+        const ax = LANG === 'en' ? 560 : 190; const bx = ax + 24, by = 660 + 380 + 3 * Math.sin(2 * Math.PI * H.tear / 4.6);
+        vis(E.slab, true); tf(E.slab, `translate(${(bx + R * 520 * q).toFixed(1)}px,${(by - 1150 * q).toFixed(1)}px) rotate(${-14 * R * q}deg)`); op(E.slab, 1 - P(t, H.tear + .27, .13));
+      }
+    }
+  } else if (id === 'prop') {
+    slideX(E.pr20, t, H.slam); E.strikeL.style.strokeDashoffset = 1 - cubic(P(t, H.strike, 6 * FR)); vis(E.strike, t >= H.strike);
+    vis(E.pill1, t >= H.pill && t < H.phone); tf(E.pill1, `translateX(-50%) scale(${back(P(t, H.pill, .3))})`);
+    const ph = P(t, H.phone - .2, .2); [E.pr10, E.pr20, E.strike].forEach(el => op(el, 1 - ph));   // headline is gone by the time the phone rises
+    if (phoneOn) tf(E.phone, `translateY(${(1200 * (1 - expo(P(t, H.phone, .55)))).toFixed(1)}px)`);
+    tf(E.scrChat, 'translateX(0)'); vis(E.scrChat, true); vis(E.scrDrv, false); vis(E.scrCnt, false); vis(E.bub, false); vis(E.tk, false); vis(E.chip2, false);
+  } else if (id === 'step1' || id === 'step2' || id === 'step3') {
+    tf(E.phone, `translateY(${(4 * Math.sin(2 * Math.PI * t / 3.5)).toFixed(2)}px)`);
+    // screens: chat -> driver -> counter (new screen enters from the far side)
+    const q2 = id === 'step1' ? 0 : expo(P(t, SC.step2.start, .3)), q3 = id === 'step3' ? expo(P(t, SC.step3.start, .3)) : 0;
+    tf(E.scrChat, `translateX(${(R * 528 * q2).toFixed(1)}px)`); vis(E.scrChat, id === 'step1' || q2 < 1);
+    tf(E.scrDrv, `translateX(${(-R * 528 * (1 - q2) + R * 528 * q3).toFixed(1)}px)`); vis(E.scrDrv, id !== 'step1' && q3 < 1);
+    tf(E.scrCnt, `translateX(${(-R * 528 * (1 - q3)).toFixed(1)}px)`); vis(E.scrCnt, id === 'step3');
+    // progress strip
+    const n = { step1: 0, step2: 1, step3: 2 }[id]; E.slabel.textContent = `${n + 1}/3`;
+    const fills = [id === 'step1' ? P(t, T.step1.fill, .6) : 1, id === 'step2' ? P(t, T.step2.fill, .6) : id === 'step3' ? 1 : 0, id === 'step3' ? P(t, T.step3.strip - .4, .4) : 0];
+    [0, 1, 2].forEach(i => tf(E['pf' + i], `scaleX(${cubic(fills[i]).toFixed(3)})`));
+    let stripY = 0, stripOp = 1; if (id === 'step3' && t >= T.step3.strip) { const p = P(t, T.step3.strip, 6 * FR); stripOp = 1 - Math.sin(Math.PI * p); stripY = -420 * quartIn(P(t, T.step3.strip + .25, .3)); }
+    tf(E.strip, `translateY(${stripY.toFixed(1)}px)`); op(E.strip, stripOp);
+    if (id === 'step1') {
+      const a = P(t, H.bubble, .3); vis(E.bub, t >= H.bubble); tf(E.bub, `translateY(${(40 * (1 - expo(a))).toFixed(1)}px)`); op(E.bub, Math.min(1, a * 2));
+      vis(E.callchip, t >= H.call); tf(E.callchip, `translate(${(-R * 160 * (1 - expo(P(t, H.call, .3)))).toFixed(1)}px,${(6 * Math.sin(t * 3)).toFixed(2)}px)`);
+      const b = P(t, H.ticket, .3); vis(E.tk, t >= H.ticket); tf(E.tk, `translateY(${(70 * (1 - expo(b))).toFixed(1)}px)`); op(E.tk, Math.min(1, b * 3)); tf(E.tkp, `scale(${popScale(t, H.ticket + .1, 1.12)})`);
+      const c = P(t, H.chip, .25); vis(E.chip2, t >= H.chip); op(E.chip2, c); tf(E.chip2, `translateY(${(30 * (1 - cubic(c))).toFixed(1)}px)`);
+    } else if (id === 'step2') {
+      E.pulse.setAttribute('r', (10 + 14 * (0.5 + 0.5 * Math.sin(2 * Math.PI * t / 1.2))).toFixed(1)); E.pulse.setAttribute('opacity', (0.9 - 0.6 * (0.5 + 0.5 * Math.sin(2 * Math.PI * t / 1.2))).toFixed(2));
+      tf(E.fee, `scale(${popScale(t, H.fee, 1.18, .3)})`);
+      const acc = t >= H.accept; let bs = 1;
+      if (!acc && t >= H.accept - .5) bs = 1 + .02 * Math.sin(2 * Math.PI * 4 * (t - H.accept + .5));
+      if (acc) bs = .94 + .06 * back(P(t, H.accept, .3));
+      tf(E.btn, `scale(${bs.toFixed(3)})`); E.btnl.textContent = acc ? S[LANG].step2.btn2 : S[LANG].step2.btn; vis(E.btnck, acc); E.btnckp.style.strokeDashoffset = 1 - cubic(P(t, H.accept, 5 * FR));
+      tapFx(E.ring1, E.rip1, t, H.accept);
+      vis(E.badge, t >= H.badge); tf(E.badge, `translateX(${(R * 260 * (1 - expo(P(t, H.badge, .35)))).toFixed(1)}px)`);
+    } else {
+      tapFx(E.ring2, E.rip2, t, H.tap1); tapFx(E.ring3, E.rip3, t, H.tap2); inkRing(E.ink1, t, H.tap1); inkRing(E.ink2, t, H.tap2);
+      stampIn(E.st1, t, H.tap1); stampIn(E.st2, t, H.tap2);
+      const sq = (t0) => t >= t0 ? (0.92 + 0.08 * back(P(t, t0, .25))) : 1; tf(E.c1, `scale(${sq(H.tap1).toFixed(3)})`); tf(E.c2, `scale(${sq(H.tap2).toFixed(3)})`);
+      E.c1.style.borderColor = t >= H.tap1 ? '#19F0A0' : '#E6EAF0'; E.c2.style.borderColor = t >= H.tap2 ? '#19F0A0' : '#E6EAF0';
+      const pr = t >= H.print; vis(E.printw, pr); if (pr) { tf(E.print, `translateY(${(100 * (1 - expo(P(t, H.print, .5)))).toFixed(1)}%)`); const hk = S[LANG].step3.hash; E.hash.textContent = hk.substring(0, Math.floor(hk.length * P(t, H.print + .3, 6 * FR))); }
+    }
+  } else if (id === 'reset') {
+    const l2 = t >= H.l2, l3 = t >= H.l3, l4 = t >= H.l4;
+    vis(E.rs10, !l2); if (!l2) tf(E.rs10, `translateX(${(R * 320 * (1 - expo(P(t, s.start, .28)))).toFixed(1)}px)`);
+    vis(E.rs20, l2 && !l3); vis(E.rs30, l3); vis(E.rs40, l4);
+    if (l3) tf(E.rs30, `translateX(${(R * 320 * (1 - expo(P(t, H.l3, .28)))).toFixed(1)}px)`);
+    vis(E.peek, l4); if (l4) tf(E.peek, `translateY(${(-520 * expo(P(t, H.l4, .45))).toFixed(1)}px) rotate(-4deg)`);
+  } else if (id === 'chain') {
+    // block 1 rises from the bottom edge into its slot
+    const b0 = BLK[0]; const r = expo(P(t, s.start, .5)); tf(E.blk0, `translate(${0}px,${((1240 - b0.y) * (1 - r)).toFixed(1)}px) rotate(${(-4 * (1 - r)).toFixed(2)}deg)`);
+    [1, 2, 3].forEach(i => { const t0 = H.b[i - 1]; vis(E['blk' + i], t >= t0); if (t >= t0) tf(E['blk' + i], `translateX(${(R * 420 * (1 - expo(P(t, t0, .3)))).toFixed(1)}px)`); });
+    [0, 1, 2].forEach(i => { const t0 = H.l[i]; const p = cubic(P(t, t0, 9 * FR)); E['lk' + i].style.strokeDashoffset = (1 - p).toFixed(3); vis(E['jt' + i], t >= t0 + 9 * FR); if (t >= t0 + 9 * FR) E['jt' + i].setAttribute('transform', E['jt' + i].getAttribute('transform').replace(/ scale\([^)]*\)/, '') + ` scale(${back(P(t, t0 + 9 * FR, .25)).toFixed(3)})`); });
+    // chain close: stamp on the last joint + ring + breathe
+    const jt = E.jt2.getAttribute('transform').match(/translate\(([^,]+),([^)]+)\)/); const jx = +jt[1], jy = +jt[2];
+    stampIn(E.cstamp, t, H.close); if (t >= H.close) { E.cstamp.style.left = (jx - E.cstamp.offsetWidth / 2) + 'px'; E.cstamp.style.top = (jy - E.cstamp.offsetHeight / 2) + 'px'; }
+    E.cink.style.left = jx + 'px'; E.cink.style.top = jy + 'px'; inkRing(E.cink, t, H.close);
+    const br = t >= H.breathe ? 1 + .03 * Math.sin(Math.PI * P(t, H.breathe, 1.2)) : 1; E['b-chain'].style.transformOrigin = '540px 760px'; tf(E['b-chain'], `scale(${br.toFixed(4)})`);
+  } else if (id === 'roles') {
+    drift(E.roles, t, 5, 6, 2, .3);
+    const rt = [H.r1, H.r2, H.r3, H.slab + .35];
+    [0, 1, 2, 3].forEach(i => { const el = E['rr' + i]; const on = t >= rt[i]; const p = P(t, rt[i], .18);
+      if (i < 3) { op(el, .35 + .65 * p); tf(el, `scale(${popScale(t, rt[i], 1.06, .25)})`); }
+      else { vis(el, on); if (on) { op(el, 1); tf(el, `scale(${(0.9 + 0.1 * back(P(t, rt[i], .3))).toFixed(3)})`); } }
+      const tk = el.querySelector('.rtick'); vis(tk, on); if (on) tf(tk, `scale(${back(P(t, rt[i] + .05, .25)).toFixed(3)})`); });
+    if (t >= H.slab && t < H.slab + .35) {      // the torn slab slides in from the side at the row's own height and dissolves into row 4
+      vis(E.slab, true); const q = expo(P(t, H.slab, .35)); const ex = 230, ey = 320 + 118 + 3 * 124 + 28;
+      tf(E.slab, `translate(${(ex + R * 830 * (1 - q)).toFixed(1)}px,${ey}px) rotate(${(-6 * R * (1 - q)).toFixed(2)}deg)`); op(E.slab, q < .75 ? 1 : (1 - q) / .25);
+    }
+  } else if (id === 'close') {
+    const ex = t >= H.except, fl = t >= H.flip - .35;      // the signed receipt appears a beat before it turns
+    S[LANG].close.l1.forEach((_, i) => vis(E['cl1' + i], !ex));
+    vis(E.cl30, ex && !fl); vis(E.counter, ex && !fl); vis(E.pill2, t >= H.pill && t < H.flip);
+    if (ex && !fl) {
+      const v = 2.5 * (1 - cubic(P(t, H.count, .6))); E.counter.querySelector('.num').textContent = v.toFixed(2);
+      const landed = t >= H.land; E.counter.style.color = landed ? '#19F0A0' : '#FFB400'; tf(E.counter, `scale(${popScale(t, H.land, 1.12, .3)})`);
+      const fo = 1 - P(t, H.flip - .48, .13); op(E.counter, fo); op(E.cl30, fo);          // fade out just before the receipt card lands
+    }
+    if (t >= H.pill && t < H.flip) tf(E.pill2, `translateX(-50%) scale(${back(P(t, H.pill, .3))})`);
+    vis(E.card3d, fl); vis(E.subw, t >= H.sub);
+    if (fl) {
+      const ang = Math.PI * cubic(P(t, H.flip, .5)); const c = Math.cos(ang); const front = ang < Math.PI / 2;
+      const land = 0.92 + 0.08 * back(P(t, H.flip - .35, .25)); op(E.card3d, P(t, H.flip - .35, .12));
+      const pulse = t >= TL.total - .6 ? 1 + .04 * (1 - cubic(P(t, TL.total - .6, .4))) : 1;      // last beat under the closing whoosh
+      vis(E.faceF, front); vis(E.faceB, !front); drift(E.card3d, t, 5, 6, 3, .4, `scale(${(pulse * land).toFixed(3)}) scaleX(${Math.abs(c).toFixed(3)})`);
+      tf(E.fstamp, `rotate(-8deg) scale(${(t >= TL.total - .6 ? 1.2 + (1 - 1.2) * back(P(t, TL.total - .6, .3)) : 1).toFixed(3)})`);   // the 0 % stamp re-stamps on the closing hit
+      if (t >= H.sub) maskY(E.sub, t, H.sub);
+    }
+  }
+  // punch + shake on #zoom
+  let sc = 1, ox = 540, oy = 960, dx = 0, dy = 0;
+  for (const h of HITS) { if (h.k && t >= h.t && t < h.t + .2) { sc = 1 + h.k * (1 - expo(P(t, h.t, .2))); ox = h.ox; oy = h.oy; if (h.sh && t < h.t + 2 * FR) { const rnd = mulberry32(Math.round(h.t * 1000) + Math.round((t - h.t) / FR)); dx = (rnd() - .5) * 6; dy = (rnd() - .5) * 6; } } }
+  E.zoom.style.transformOrigin = `${ox}px ${oy}px`; tf(E.zoom, `translate(${dx.toFixed(1)}px,${dy.toFixed(1)}px) scale(${sc.toFixed(4)})`);
+  // captions
+  const g = KARAOKE[id] ? GROUPS.find(g => t >= g.show && t < g.hide) : null;
+  vis(E.cap, !!g);
+  if (g) {
+    E.plate.innerHTML = g.words.map(w => { const spoken = t >= w.end, active = t >= w.start && t < w.end; const emph = EMPH[LANG].some(e => w.word.replace(/[.!?؟…:،,]/g, '') === e || w.word.startsWith(e));
+      const col = active || (spoken && emph) ? '#FFB400' : '#fff'; const o = spoken || active ? 1 : .45; return `<span class="w" style="color:${col};opacity:${o};transform:scale(${active ? 1.08 : 1})">${w.word}</span>`; }).join(' ');
+    tf(E.plate, `scale(${(0.92 + 0.08 * cubic(P(t, g.show, .12))).toFixed(3)})`);
+  }
+  // flash on the three section cuts (one frame, 55 %)
+  const cuts = [SC.prop.start, SC.reset.start, SC.roles.start]; op(E.flash, cuts.some(c => t >= c && t < c + FR) ? .55 : 0);
+  if (location.search.includes('debug')) E.dbg.innerHTML = `<div style="left:48px;top:288px;width:840px;height:960px"></div><div style="left:60px;top:960px;width:960px;height:290px;border-color:rgba(0,255,255,.6)"></div><div style="left:${ox - 6}px;top:${oy - 6}px;width:12px;height:12px;border-radius:50%;background:#f0f"></div>`;
+}
+</script>
+</body>
+</html>

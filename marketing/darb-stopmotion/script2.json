@@ -1,0 +1,24 @@
+{
+  "product": {"ar": "درب", "en": "Darb"},
+  "title": {"ar": "ثلاث مرات اختفى الوسيط", "en": "Three Times the Middleman Vanished"},
+  "scenes": [
+    {"id": "cold",
+     "ar": "ثلاث مرات في حياتنا... اختفى الوسيط. المرة الأولى، سنة ألفين وتسعة، كانت شوية أسطر كود، اسمها البيتكوين، شالت البنك من بين الناس وفلوسهم. المرة الثانية، سنة ألفين واثنين وعشرين، كان صندوق محادثة اسمه الذكاء الاصطناعي، شال الخبير من بين السؤال والجواب. أما المرة الثالثة... فهي صايرة هلق. تحت بيتك. وما حدا منتبه.",
+     "en": "Three times in our lives... the middleman vanished. The first time, in two thousand and nine, it was a few lines of code called Bitcoin, and it removed the bank from between people and their money. The second time, in two thousand twenty-two, it was a chat box called AI, and it removed the expert from between the question and the answer. The third time... is happening right now. Under your window. And nobody's paying attention."},
+    {"id": "number",
+     "ar": "خلينا نبلّش بالرقم اللي ما حدا بيحكي عنه. لما تطلب وجبة بعشرة دنانير من التطبيق، المطعم بيدفع للتطبيق دينارين إلى ثلاثة، نسبة بتوصل لثلاثين بالمية. وإذا حسبنا الإعلانات والعروض اللي بيضطر يدفعها ليظهر على الشاشة... ممكن توصل لنص المبلغ. ربح المطعم؟ أحياناً أقل من دينار. السائق؟ دينار واحد بالطلب، بعد عشر ساعات على الموتور. والفلوس؟ بتوصل للمطعم بعد خمسة وأربعين يوم.",
+     "en": "Let's start with the number nobody talks about. When you order a ten-dinar meal through the app, the restaurant pays the app two to three dinars, a cut that reaches thirty percent. Add the ads and the discounts it's forced to pay just to show up on the screen... and it can approach half the bill. The restaurant's profit? Sometimes under one dinar. The driver? One dinar per order, after ten hours on the bike. And the money? It reaches the restaurant forty-five days later."},
+    {"id": "pattern",
+     "ar": "وهون بيبدأ النمط. البنك كان واقف بين إلك وبين فلوسك، وبياخد نسبة. إجا الكود وشاله. الخبير كان واقف بين إلك وبين الجواب، وبياخد وقت وفلوس. إجا النموذج وشاله. والتطبيق واقف اليوم بين المطعم والسائق اللي واقف على بابه، وبياخد ثلث الطلب. كل ثورة بتبلّش بسؤال واحد بسيط: ليش في حدا بالنص؟",
+     "en": "And here the pattern begins. The bank stood between you and your money, and took a cut. Code came and removed it. The expert stood between you and the answer, and took time and money. The model came and removed it. And today the app stands between the restaurant and the driver parked outside its door, and takes a third of the order. Every revolution starts with one simple question: why is there anyone in the middle?"},
+    {"id": "experiment",
+     "ar": "في حارة بعمّان، صار في تجربة. المطعم بيحط الطلب على الشاشة بعشرين ثانية، متل ما وصله بالتلفون أو الواتساب. أقرب سائق، سائق المحل نفسه أو سائق الجيران الفاضي، بيشوف الأجرة قبل ما يقبل. وعلى الكاونتر، الكاش بينحسب والطرفين بيختموا بضغطتين. وكل طلب بيصير إيصال موقّع، مربوط بالإيصال اللي قبله. متل البلوك تشين، بس بدون بلوك تشين. ما حدا بيقدر يعدّل سطر. والأهم: ما في نسبة. اشتراك ثابت، وصفر بالمية مكتوبة بالعقد. للأبد.",
+     "en": "In a neighbourhood in Amman, an experiment is running. The restaurant puts the order on the screen in twenty seconds, exactly as it arrived by phone or WhatsApp. The nearest driver, the shop's own driver or a neighbour's idle one, sees the fee before accepting. At the counter, the cash is settled and both sides stamp it with two taps. And every order becomes a signed receipt, linked to the one before it. Like a blockchain, without the blockchain. Nobody can edit a single line. And most importantly: there is no cut. A flat subscription, and zero percent written into the contract. Forever."},
+    {"id": "why",
+     "ar": "طيب ليش هلق؟ لأنه لأول مرة، الثلاث مكونات موجودة بنفس الوقت. تلفون بكل جيبة. تحويل فوري بكبسة. ووجع وصل لحده: مطاعم بتقفل، سائقين بيشتغلوا بأقل من الحد الأدنى، ودول جارة صارت تكتب قوانين تحدد العمولة. والأهم من هاد كله؟ الزبائن أصلاً عند المطعم. التطبيق ما كان يملك إلا الموتور.",
+     "en": "So why now? Because for the first time, all three ingredients exist at once. A phone in every pocket. Instant payment with one tap. And a pain that has hit its limit: restaurants closing, drivers earning below minimum wage, and neighbouring countries now writing laws that cap the commission. And the biggest one of all? The customers were already the restaurant's. All the app ever owned... was the motorbike."},
+    {"id": "end",
+     "ar": "اسم التجربة: درب. وما رح أقلّك اشترك، ولا حمّل. بس المرة الجاي اللي تطلب فيها شاورما، اسأل صاحب المحل سؤال واحد: كم بتدفع للتطبيق؟ وراقب وجهه. لأنه الوسيط الثالث... بلّش يختفي.",
+     "en": "The experiment is called Darb. And I'm not going to tell you to subscribe, or to download anything. But the next time you order a shawarma, ask the owner one question: how much do you pay the app? And watch his face. Because the third middleman... has started to vanish."}
+  ]
+}
