@@ -1,0 +1,26 @@
+{
+  "product": {"ar": "درب", "en": "Darb"},
+  "scenes": [
+    {"id": "hook",
+     "ar": "لحظة... لحظة! شو هاد اللي لقيته؟ هاد الشي ممكن يقلب عالم التوصيل رأساً على عقب!",
+     "en": "Wait... wait! What did I just find? This thing could flip the entire delivery world upside down!"},
+    {"id": "problem",
+     "ar": "تخيّل معي: مطعم بيبيع الوجبة بعشرة دنانير. التطبيق بياخد منها دينارين، ثلاثة، وأحياناً أكثر! والمطعم؟ أحياناً ربحه ما بيوصل دينار واحد. والسائق؟ بيشتغل عشر ساعات مشان دينار بالطلب. والزبون بيدفع أغلى. الكل خسران... إلا الوسيط.",
+     "en": "Picture this: a restaurant sells a meal for ten dinars. The app takes two, three, sometimes more! The restaurant? Sometimes less than one dinar of profit. The driver? Ten hours a day for about one dinar per order. And the customer pays more. Everybody loses... except the middleman."},
+    {"id": "discovery",
+     "ar": "وهون الصدمة. تذكروا لما إجت البيتكوين وشالت البنك من بين الناس وفلوسهم؟ نفس الفكرة بالضبط، بس بالتوصيل: نظام بيوصّل صاحب المطعم بالسائق مباشرة. بدون شركة بالنص. بدون نسبة. ولا واحد بالمية!",
+     "en": "And here's the mind-blowing part. Remember when Bitcoin showed up and removed the bank from between people and their money? Exactly the same idea, but for delivery: a system that connects the shop owner directly to the driver. No company in the middle. No commission. Not even one percent!"},
+    {"id": "how",
+     "ar": "طيب، كيف بيشتغل؟ واحد: الطلب بيوصل للمطعم متل ما بيوصل اليوم، تلفون أو واتساب، وبعشرين ثانية بيصير على الشاشة. اثنين: أقرب سائق بيشوف الأجرة قبل ما يقبل، وبيطلع. ثلاثة: الكاش بينحسب على الكاونتر، والطرفين بيختموا الدفتر بضغطتين. خلص! لا خمسة وأربعين يوم انتظار، لا إعلانات، لا مفاجآت.",
+     "en": "So, how does it work? One: the order reaches the restaurant exactly as it does today, by phone or WhatsApp, and in twenty seconds it's on the screen. Two: the nearest driver sees the fee before accepting, and goes. Three: the cash is settled at the counter, and both sides stamp the ledger with two taps. Done! No forty-five-day wait, no ads, no surprises."},
+    {"id": "ledger",
+     "ar": "وهون السر الحقيقي. كل طلب بيصير إيصال موقّع، مربوط بالإيصال اللي قبله. متل البلوك تشين... بس بدون بلوك تشين! ما حدا بيقدر يعدّل السجل. وما حدا بيقدر يرفع الرسوم عليك لاحقاً، لأنه مكتوب بالعقد: صفر بالمية، للأبد. اشتراك ثابت بسيط، وخلص.",
+     "en": "And here's the real secret. Every order becomes a signed receipt, linked to the one before it. Like a blockchain... without the blockchain! Nobody can edit the record. And nobody can raise your fees later, because it's written in the contract: zero percent, forever. One small flat subscription, and that's it."},
+    {"id": "wins",
+     "ar": "النتيجة؟ المطعم بياخد سعر الوجبة كامل. السائق بياخد أجرته كاملة. والزبون بيدفع سعر المحل، مش أغلى. والحارة كلها بتتشارك سائقينها. الكل رابح... إلا الوسيط.",
+     "en": "The result? The restaurant keeps the full price of the meal. The driver keeps the full fee. The customer pays the counter price, not more. And the whole neighbourhood shares its drivers. Everybody wins... except the middleman."},
+    {"id": "cta",
+     "ar": "هاد مش تطبيق جديد. هاد تغيير بقواعد اللعبة. اسمه: درب. إذا عندك مطعم، أو محل، أو موتور... اشترك بالقناة وتابعني، لأنه الجاي أكبر.",
+     "en": "This isn't just another app. This is a change in the rules of the game. It's called Darb. If you own a restaurant, a shop, or a motorbike... hit subscribe and stay with me, because what's coming is bigger."}
+  ]
+}
