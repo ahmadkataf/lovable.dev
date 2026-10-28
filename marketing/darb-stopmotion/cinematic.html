@@ -101,11 +101,11 @@ S.cold=(u,d)=>{const k=f=>d*f;
   const lp=lin(u,k(.16),k(.24));line(260,620,1660,620,lp,{col:'#9aa4b2',w:3});
   const xs=RTL()?[1500,960,420]:[420,960,1500];
   // node 1: 2009 bitcoin
-  if(u>k(.2)){const p=ap(u,k(.2),.5);node(xs[0],620,46,p);txt('y1',xs[0],720,{size:48,cls:'h amber',p});txt(null,xs[0],620,{size:48,cls:'h amber',text:'₿',p});txt('n1',xs[0],790,{size:40,cls:'b white',p:ap(u,k(.24),.5)});
+  if(u>k(.2)){const p=ap(u,k(.2),.5);node(xs[0],620,46,p);txt('y1',xs[0],712,{size:48,cls:'h amber',p});txt(null,xs[0],620,{size:48,cls:'h amber',text:'₿',p});txt('n1',xs[0],808,{size:40,cls:'b white',p:ap(u,k(.24),.5)});
     if(u>k(.3)){const q=ap(u,k(.3),.6);txt('s1',xs[0],480,{size:60,cls:'h white',p:q});strike(xs[0]-150,480,300,ap(u,k(.34),.5));icon('bank',xs[0],345,ap(u,k(.28),.8),{size:150,col:'#9aa4b2',w:4});}}
-  if(u>k(.45)){const p=ap(u,k(.45),.5);node(xs[1],620,46,p,{col:'#38d9c0'});txt('y2',xs[1],720,{size:48,cls:'h teal',p});icon('chip',xs[1],620,p,{size:70,col:'#38d9c0',w:4});txt('n2',xs[1],790,{size:40,cls:'b white',p:ap(u,k(.49),.5)});
+  if(u>k(.45)){const p=ap(u,k(.45),.5);node(xs[1],620,46,p,{col:'#38d9c0'});txt('y2',xs[1],712,{size:48,cls:'h teal',p});icon('chip',xs[1],620,p,{size:70,col:'#38d9c0',w:4});txt('n2',xs[1],808,{size:40,cls:'b white',p:ap(u,k(.49),.5)});
     if(u>k(.55)){const q=ap(u,k(.55),.6);txt('s2',xs[1],480,{size:60,cls:'h white',p:q});strike(xs[1]-150,480,300,ap(u,k(.59),.5));icon('person',xs[1],345,ap(u,k(.53),.8),{size:150,col:'#9aa4b2',w:4});}}
-  if(u>k(.74)){const p=ap(u,k(.74),.6);const pulse=1+.08*Math.sin(FRAME/4);node(xs[2],620,46*pulse,p,{col:'#ff5a5a'});txt('y3',xs[2],720,{size:48,cls:'h red',p});txt('n3',xs[2],620,{size:54,cls:'h red',p});
+  if(u>k(.74)){const p=ap(u,k(.74),.6);const pulse=1+.08*Math.sin(FRAME/4);node(xs[2],620,46*pulse,p,{col:'#ff5a5a'});txt('y3',xs[2],712,{size:48,cls:'h red',p});txt('n3',xs[2],620,{size:54,cls:'h red',p});
     if(u>k(.82)){const q=ap(u,k(.82),.7);txt('s3',xs[2],480,{size:60,cls:'h white',p:q});icon('question',xs[2],345,ap(u,k(.8),.8),{size:150,col:'#ff5a5a',w:4});glow(xs[2],620,260,'rgba(255,90,90,.35)',q*.8);}}
 };
 S.number=(u,d)=>{const k=f=>d*f;
@@ -113,12 +113,12 @@ S.number=(u,d)=>{const k=f=>d*f;
   // the bill bar
   const bp=ap(u,k(.1),.8);if(bp>0){const W=1200*bp,x0=360;el(`<div style="position:absolute;left:${x0}px;top:420px;width:${W}px;height:110px;border-radius:14px;background:linear-gradient(90deg,#ffb347,#ffd27a);box-shadow:0 0 40px rgba(255,179,71,.35)"></div>`);txt('ten',RTL()?1260:660,475,{size:70,cls:'h',p:bp});}
   if(u>k(.22)){const cp=ap(u,k(.22),.9);const w=360*cp;const left=RTL()?360:1560-w;el(`<div style="position:absolute;left:${left}px;top:420px;width:${w}px;height:110px;border-radius:14px;background:#ff5a5a;box-shadow:0 0 40px rgba(255,90,90,.5)"></div>`);txt('cut',RTL()?540:1380,600,{size:52,cls:'h red',p:cp});}
-  if(u>k(.4)){const ap2=ap(u,k(.4),1.2);const w=360+240*ap2;const left=RTL()?360:1560-w;el(`<div style="position:absolute;left:${left}px;top:420px;width:${w}px;height:110px;border-radius:14px;background:repeating-linear-gradient(135deg,#ff5a5a 0 14px,#d33 14px 28px);opacity:${.9*ap2}"></div>`);txt('ads',RTL()?660:1260,680,{size:46,cls:'b red',p:ap2});}
+  if(u>k(.4)){const ap2=ap(u,k(.4),1.2);const w=360+240*ap2;const left=RTL()?360:1560-w;el(`<div style="position:absolute;left:${left}px;top:420px;width:${w}px;height:110px;border-radius:14px;background:repeating-linear-gradient(135deg,#ff5a5a 0 14px,#d33 14px 28px);opacity:${.9*ap2}"></div>`);txt('ads',RTL()?660:1260,705,{size:44,cls:'b red',p:ap2});}
   const tiles=[['k1','k1v',k(.58)],['k2','k2v',k(.7)],['k3','k3v',k(.84)]];
   tiles.forEach(([a,b,s],i)=>{if(u<s)return;const p=ap(u,s,.7);const x=RTL()?1480-i*520:440+i*520;el(`<div class="card" style="left:${x-240}px;top:780px;width:480px;height:200px;opacity:${p}"></div>`);txt(a,x,830,{size:36,cls:'b dim',p});txt(b,x,910,{size:RTL()?56:60,cls:'h amber',p});});
 };
 S.pattern=(u,d)=>{const k=f=>d*f;
-  const rows=[[k(.05),'p1a','p1m','p1b','bank','code','#ffb347',260],[k(.32),'p2a','p2m','p2b','person','model','#38d9c0',540],[k(.6),'p3a','p3m','p3b','shop','third','#ff5a5a',820]];
+  const rows=[[k(.05),'p1a','p1m','p1b','bank','code','#ffb347',220],[k(.32),'p2a','p2m','p2b','person','model','#38d9c0',480],[k(.6),'p3a','p3m','p3b','shop','third','#ff5a5a',740]];
   rows.forEach(([s,a,m,b,ic,tag,col,y],i)=>{if(u<s)return;const p=ap(u,s,.8);const xa=RTL()?1560:360,xb=RTL()?360:1560;
     txt(a,xa,y,{size:54,cls:'h white',p});txt(b,xb,y,{size:54,cls:'h white',p});
     line(RTL()?1420:500,y,RTL()?1100:820,y,p,{col:'#9aa4b2',w:3});line(RTL()?820:1100,y,RTL()?500:1420,y,p,{col:'#9aa4b2',w:3});
@@ -128,7 +128,7 @@ S.pattern=(u,d)=>{const k=f=>d*f;
     if(i<2&&cut>0){line(RTL()?1420:500,y,RTL()?500:1420,y,cut,{col,w:5});txt(tag,960,y-95,{size:40,cls:'b',p:cut});el(`<div style="position:absolute;left:${960-30}px;top:${y-30}px;width:60px;height:60px;border-radius:50%;background:${col};opacity:${cut};box-shadow:0 0 40px ${col}"></div>`);}
     if(i===2){txt(tag,960,y-95,{size:40,cls:'b red',p:ap(u,s+k(.12),.8)});if(u>s+k(.12)){const q=1+.06*Math.sin(FRAME/3);txt(null,RTL()?1125:795,y-75,{size:56*q,cls:'h red',text:RTL()?'؟':'?',p:ap(u,s+k(.12),.5)});}}
   });
-  if(u>k(.86))txt('q',960,1000,{size:RTL()?76:84,cls:'h amber',p:ap(u,k(.86),.8)});
+  if(u>k(.86))txt('q',960,915,{size:RTL()?64:72,cls:'h amber',p:ap(u,k(.86),.8)});
 };
 S.experiment=(u,d)=>{const k=f=>d*f;const keep=1-ap(u,k(.86),.6);   // everything fades before the 0% card
   txt('exT',960,160,{size:40,cls:'b dim chip',p:ap(u,0,.6)*keep});
@@ -137,7 +137,7 @@ S.experiment=(u,d)=>{const k=f=>d*f;const keep=1-ap(u,k(.86),.6);   // everythin
   const cards=[[k(.12),'c1','c1b','phone'],[k(.3),'c2','c2b','scooter'],[k(.48),'c3','c3b','stamp']];
   cards.forEach(([s,a,b,ic],i)=>{if(u<s||keep<=0)return;const p=ap(u,s,.8)*keep;const x=RTL()?1480-i*520:440+i*520;const y=460;
     el(`<div class="card" style="left:${x-260}px;top:${y-210}px;opacity:${p};transform:translateY(${(1-p)*30}px)"></div>`);
-    txt(null,x,y-150,{size:40,cls:'h amber',text:(i+1)+'',p});txt(a,x,y-90,{size:48,cls:'h white',p});icon(ic,x,y+20,ap(u,s+.2,1),{size:150,op:keep});txt(b,x,y+150,{size:30,cls:'b dim',p:ap(u,s+.4,.6)*keep});
+    txt(null,x,y-172,{size:38,cls:'h amber',text:(i+1)+'',p});txt(a,x,y-90,{size:48,cls:'h white',p});icon(ic,x,y+20,ap(u,s+.2,1),{size:150,op:keep});txt(b,x,y+150,{size:30,cls:'b dim',p:ap(u,s+.4,.6)*keep});
     if(i===1&&u>s+.8){txt('fee',x+(RTL()?-150:150),y-150,{size:34,cls:'h amber',p:ap(u,s+.8,.5)*keep});}
   });
   // chain of receipts
@@ -146,9 +146,9 @@ S.experiment=(u,d)=>{const k=f=>d*f;const keep=1-ap(u,k(.86),.6);   // everythin
       txt(null,x,y-22,{size:24,cls:'mono teal',text:'#'+(hash('h'+i).toString(16).slice(2,10)),p});txt(null,x,y+22,{size:22,cls:'mono dim',text:'← '+(hash('h'+(i-1)).toString(16).slice(2,8)),p:i?p:0});
       if(i<n-1&&u>s+.3)line(RTL()?x-110:x+110,y,RTL()?x-190:x+190,y,ap(u,s+.3,.4),{col:'#38d9c0',w:4});}
     txt('chainT',960,720,{size:38,cls:'b white',p:ap(u,k(.62),.8)*keep});
-    if(u>k(.76))txt('like',RTL()?1300:620,960,{size:44,cls:'h teal',p:ap(u,k(.76),.6)*keep});
-    if(u>k(.8))txt('without',RTL()?620:1300,960,{size:44,cls:'h red',p:ap(u,k(.8),.6)*keep});}
-  if(u>k(.88)){const p=ap(u,k(.88),.8);el(`<div style="position:absolute;inset:0;background:rgba(5,7,10,${.82*p})"></div>`);txt('zero',960,470,{size:260,cls:'h amber mono',p});txt('forever',960,660,{size:48,cls:'b white',p:ap(u,k(.9),.7)});txt('flat',960,760,{size:40,cls:'b dim chip',p:ap(u,k(.93),.6)});}
+    if(u>k(.76))txt('like',RTL()?1300:620,940,{size:42,cls:'h teal',p:ap(u,k(.76),.6)*keep});
+    if(u>k(.8))txt('without',RTL()?620:1300,940,{size:42,cls:'h red',p:ap(u,k(.8),.6)*keep});}
+  if(u>k(.88)){const p=ap(u,k(.88),.8);el(`<div style="position:absolute;inset:0;background:rgba(5,7,10,${.82*p})"></div>`);txt('zero',960,450,{size:250,cls:'h amber mono',p});txt('forever',960,690,{size:48,cls:'b white',p:ap(u,k(.9),.7)});txt('flat',960,790,{size:40,cls:'b dim chip',p:ap(u,k(.93),.6)});}
 };
 S.why=(u,d)=>{const k=f=>d*f;const keep=1-ap(u,k(.64),.7);   // the three ingredients fade before the key line
   txt('whyT',960,180,{size:RTL()?90:100,cls:'h white',p:ap(u,0,.7)*keep});

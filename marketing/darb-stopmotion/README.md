@@ -1,46 +1,61 @@
-# درب — فيديو ستوب موشن (عربي + إنجليزي)
+# درب — فيديوهات يوتيوب (عربي + إنجليزي)
 
-فيديو يوتيوب بأسلوب «اليوتيوبر المصدوم» يشرح فكرة نظام التوصيل بدون وسيط: المطعم ↔ السائق مباشرة، بدون نسبة،
-مع «إيصالات موقّعة» مربوطة ببعضها (مثل البلوك تشين… بدون بلوك تشين). نفس الفيديو بنسختين:
+فيديوان يشرحان فكرة نظام التوصيل بدون وسيط (المطعم ↔ السائق مباشرة، بدون نسبة، مع «إيصالات موقّعة» مربوطة ببعضها
+مثل البلوك تشين… بدون بلوك تشين)، كل واحد بنسختين عربي وإنجليزي بنفس المشاهد. الاسم «درب / Darb» مؤقت (مفتاح `name` في الصفحات و`product` في ملفات السكربت).
 
-| الملف | اللغة | المدة | المقاس |
-|---|---|---|---|
-| `Darb-stopmotion-ar.mp4` | عربي (لهجة بيضاء) | ≈ 2:29 | 1920×1080، 24 fps |
-| `Darb-stopmotion-en.mp4` | English | ≈ 1:57 | 1920×1080، 24 fps |
+| الملف | الأسلوب | اللغة | المدة | المقاس |
+|---|---|---|---|---|
+| `Darb-stopmotion-ar.mp4` | ستوب موشن ورقي، «يوتيوبر مصدوم»، تشويقة البيتكوين + الذكاء الاصطناعي، ينتهي بزر اشتراك | عربي | ≈ 2:10 | 1920×1080، 24 fps |
+| `Darb-stopmotion-en.mp4` | نفسه | English | ≈ 2:10 | 1920×1080، 24 fps |
+| `Darb-cinematic-ar.mp4` | وثائقي سينمائي داكن («ثلاث مرات اختفى الوسيط»)، إعلان غير مباشر، بدون زر اشتراك | عربي | ≈ 3:01 | 1920×1080، 24 fps |
+| `Darb-cinematic-en.mp4` | نفسه | English | ≈ 3:30 | 1920×1080، 24 fps |
 
-المشاهد: الصدمة → المشكلة (العمولة 30%) → الاكتشاف (مثال البيتكوين والبنك) → كيف بيشتغل (3 بطاقات) →
-الدفتر الموقّع → الكل رابح → النداء للاشتراك. الاسم «درب / Darb» مؤقت ومذكور في `script.json` و`stopmotion.html` (المفتاح `name`).
-
-## كيف يُصنع الستوب موشن
-كل شيء مرسوم كقصاصات ورق (SVG داخل `stopmotion.html`) على طاولة كرتون، ويُصوَّر إطاراً إطاراً عبر Playwright
-بمعدل 12 إطاراً في الثانية «on twos»، مع اهتزاز طفيف عشوائي لكل قطعة وومضة إضاءة في كل إطار، وظهور العناصر
-على 4 خطوات مع تجاوز بسيط (overshoot) بدل الحركة الناعمة. فم اليوتيوبر يتحرك حسب غلاف صوت التعليق.
+## الملفات
+- `stopmotion.html` + `script.json`: الفيديو الأول. كل شيء مرسوم كقصاصات ورق (SVG) على طاولة كرتون، يُصوَّر إطاراً إطاراً عبر Playwright بـ12 إطاراً في الثانية «on twos» مع اهتزاز وومضة إضاءة، وفم اليوتيوبر يتحرك حسب غلاف صوت التعليق.
+- `cinematic.html` + `script2.json`: الفيديو الثاني. خلفية داكنة بحبيبات فيلم وشرائط سينمائية، نص حركي، أيقونات خطية تُرسم تدريجياً، خط زمني (2009 البيتكوين، 2022 الذكاء الاصطناعي، 2026 ؟)، شريط العمولة، نمط «الوسيط»، بطاقات التجربة، سلسلة الإيصالات، ونهاية بسؤال بدل النداء للاشتراك. يُصوَّر بـ24 إطاراً في الثانية.
+- `timeline.py`: يبني `timeline*-<lang>.json` (بداية ونهاية كل مشهد من مدد التعليق + غلاف الصوت). للفيديو الثاني: `SCRIPT=script2.json VO=vo2 TLPREFIX=timeline2 TAIL_CTA=4 python3 timeline.py ar en`.
+- `mix.py` / `mix2.py`: التعليق + موسيقى مخفوضة تحت الصوت + مؤثرات، بأزمنة تطابق كسور المشاهد في الصفحات.
+- `render.mjs`: `node render.mjs <lang> <outDir> <fps> <a-b | t:1,2,3> [page.html] [timelinePrefix]`.
+- `overlap.mjs`: فحص آلي كل ربع ثانية لأي نصين متراكبين أو نص خارج الشاشة: `node overlap.mjs ar cinematic.html timeline2 .t`.
+- `vo/` و`vo2/`: مقاطع التعليق لكل مشهد (الناتج النهائي من Gemini).
 
 ## الصوت
-- **التعليق الصوتي**: حالياً أصوات Microsoft Edge العصبية (`tts_edge.py`: `ar-JO-TaimNeural` و`en-US-AndrewMultilingualNeural`) كبديل مؤقت.
-  للاستبدال بصوت Google Cloud Text-to-Speech: ضع المفتاح في `GOOGLE_API_KEY` (أو حساب خدمة في `GOOGLE_APPLICATION_CREDENTIALS`) ثم:
-  ```bash
-  python3 tts_google.py ar en     # يكتب vo/<lang>-<scene>.mp3 بأصوات Chirp 3 HD (قابلة للتغيير بـ VOICE_AR / VOICE_EN)
-  ```
-  وأعد الخطوات من `timeline.py` لأن مدد المشاهد تتبع مدد التعليق تلقائياً.
-- **الموسيقى**: Mixkit «Playful» (رقم 10) برخصة Mixkit المجانية للاستخدام التجاري، لا تُوزَّع هنا: `curl -o music/10.mp3 https://assets.mixkit.co/music/10/10.mp3`
-- **المؤثرات**: من Mixkit أيضاً (نفس الرخصة). نزّلها قبل المزج:
-  ```bash
-  mkdir -p sfx music && for id in 473 702 704 744 937 938 951 1104 1109 1133 1395 1440 1490 1492 1530 1939 1989 1993 1999 2003 2068 2350 2354 2356 2357 2358 2359 2364 2365 2368 2369 2380 2384 2385 2568 2627 2633 2731 2732 2853 2854 2867 2870 2894 2903 2918 2996 3005 3060 3062; do
-    curl -s -o sfx/$id.mp3 https://assets.mixkit.co/active_storage/sfx/$id/$id-preview.mp3 && ffmpeg -loglevel error -y -i sfx/$id.mp3 -ar 44100 -ac 2 sfx/$id.wav; done
-  ```
-  (`sfx/info.json` يحمل زمن بداية كل مؤثر لمحاذاته مع الحدث البصري.)
+**التعليق** من Gemini TTS (`gemini-3.8-flash-tts` عبر Interactions API) بسكربت `tts_gemini.py`: طلب واحد لكل لغة لكل فيديو (النص كاملاً مع `<long pause>` بين المشاهد)،
+ثم يُقسَّم الملف إلى مشاهد عند الصمت الأقرب للحصة المتوقعة من الأحرف. الأصوات المستخدمة:
+
+| الفيديو | عربي | إنجليزي | الأسلوب |
+|---|---|---|---|
+| ستوب موشن | `ar-001-commercial-3` | `Fenrir` | excited, energetic YouTuber delivery |
+| سينمائي | `ar-001-advisor-2` | `Charon` | calm, suspenseful documentary narration |
+
+```bash
+export GEMINI_API_KEY=...        # المفتاح من البيئة فقط، لا يُكتب في أي ملف
+python3 tts_gemini.py --script script.json  --out vo  --voice-ar ar-001-commercial-3 --voice-en Fenrir --style "excited, energetic YouTuber delivery, clear, fast pace"
+python3 tts_gemini.py --script script2.json --out vo2 --voice-ar ar-001-advisor-2   --voice-en Charon --style "calm, suspenseful documentary narration, deliberate pace"
+```
+الحصة المجانية 10 طلبات يومياً للموديل (تُصفّر منتصف الليل بتوقيت المحيط الهادئ)؛ الخروج برمز 3 يعني نفاد الحصة.
+`gemini_tts.py` و`add_voice.py` هما مساعدا الـbrief الأصليان (بدون المفتاح). `tts_edge.py` بديل مجاني مؤقت (أصوات Edge).
+
+**الموسيقى والمؤثرات** من Mixkit (رخصة مجانية للاستخدام التجاري)، لا تُوزَّع هنا؛ نزّلها قبل المزج:
+```bash
+mkdir -p music sfx
+for id in 10 188 676; do curl -s -o music/$id.mp3 https://assets.mixkit.co/music/$id/$id.mp3; done   # Playful · Echoes · Epical Drums 01
+for id in 473 490 494 577 632 662 679 702 704 744 790 937 938 951 1022 1104 1109 1133 1368 1372 1382 1395 1440 1490 1492 1530 1939 1989 1993 1999 2003 2068 2350 2354 2356 2357 2358 2359 2364 2365 2368 2369 2380 2384 2385 2568 2595 2627 2633 2731 2732 2853 2854 2867 2870 2894 2903 2918 2950 2996 3005 3060 3062; do
+  curl -s -o sfx/$id.mp3 https://assets.mixkit.co/active_storage/sfx/$id/$id-preview.mp3 && ffmpeg -loglevel error -y -i sfx/$id.mp3 -ar 44100 -ac 2 sfx/$id.wav; done
+```
+(`sfx/info.json` يحمل زمن بداية كل مؤثر لمحاذاته مع الحدث البصري.)
 
 ## إعادة الإنتاج
 ```bash
-python3 tts_edge.py ar en            # أو tts_google.py
-python3 timeline.py ar en            # timeline-<lang>.json: بداية ونهاية كل مشهد + غلاف الصوت
-python3 mix.py ar && python3 mix.py en   # mix-<lang>.wav
-node render.mjs ar frames-ar 12 0-1786   # الإطارات (عدّل الحد الأعلى: total × 12)
-node render.mjs en frames-en 12 0-1402
+python3 timeline.py ar en && python3 mix.py ar && python3 mix.py en
+node render.mjs ar frames-ar 12 0-1554 && node render.mjs en frames-en 12 0-1555
 ffmpeg -framerate 12 -i frames-ar/f%05d.jpg -i mix-ar.wav -r 24 -c:v libx264 -crf 18 -pix_fmt yuv420p -c:a aac -b:a 192k -shortest -movflags +faststart Darb-stopmotion-ar.mp4
+
+SCRIPT=script2.json VO=vo2 TLPREFIX=timeline2 TAIL_CTA=4 python3 timeline.py ar en && python3 mix2.py ar && python3 mix2.py en
+node render.mjs ar frames2-ar 24 0-4347 cinematic.html timeline2 && node render.mjs en frames2-en 24 0-5047 cinematic.html timeline2
+ffmpeg -framerate 24 -i frames2-ar/f%05d.jpg -i mix2-ar.wav -c:v libx264 -crf 18 -pix_fmt yuv420p -c:a aac -b:a 192k -shortest -movflags +faststart Darb-cinematic-ar.mp4
 ```
-لمعاينة إطارات بعينها: `node render.mjs ar prev 12 "t:5.5,24,110"`.
+(الحد الأعلى للإطارات = `total` في ملف التايملاين × معدل الإطارات.)
 
 ## الخطوط
-Cairo وLalezar (عربي) وBangers وFredoka (إنجليزي) من Google Fonts برخصة OFL، مضمّنة في `fonts/`.
+Cairo وLalezar وChanga (عربي)، Bangers وFredoka وBebas Neue وOswald وInter (إنجليزي)، كلها من Google Fonts برخصة OFL ومضمّنة في `fonts/`.
