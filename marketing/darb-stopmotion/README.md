@@ -9,10 +9,12 @@
 | `Darb-stopmotion-en.mp4` | نفسه | English | ≈ 2:10 | 1920×1080، 24 fps |
 | `Darb-cinematic-ar.mp4` | وثائقي سينمائي داكن («ثلاث مرات اختفى الوسيط»)، إعلان غير مباشر، بدون زر اشتراك | عربي | ≈ 3:01 | 1920×1080، 24 fps |
 | `Darb-cinematic-en.mp4` | نفسه | English | ≈ 3:30 | 1920×1080، 24 fps |
+| `Darb-short-ar.mp4` / `-en.mp4` | شورت عمودي 9:16 بنفس أسلوب الستوب موشن والهايب، إعلاني غير مباشر (ينتهي بـ«درب… قريباً بحارتك» بدون زر اشتراك) | عربي / English | ≈ 0:49 / 0:45 | 1080×1920، 24 fps |
 
 ## الملفات
 - `stopmotion.html` + `script.json`: الفيديو الأول. كل شيء مرسوم كقصاصات ورق (SVG) على طاولة كرتون، يُصوَّر إطاراً إطاراً عبر Playwright بـ12 إطاراً في الثانية «on twos» مع اهتزاز وومضة إضاءة، وفم اليوتيوبر يتحرك حسب غلاف صوت التعليق.
 - `cinematic.html` + `script2.json`: الفيديو الثاني. خلفية داكنة بحبيبات فيلم وشرائط سينمائية، نص حركي، أيقونات خطية تُرسم تدريجياً، خط زمني (2009 البيتكوين، 2022 الذكاء الاصطناعي، 2026 ؟)، شريط العمولة، نمط «الوسيط»، بطاقات التجربة، سلسلة الإيصالات، ونهاية بسؤال بدل النداء للاشتراك. يُصوَّر بـ24 إطاراً في الثانية.
+- `short.html` (يُولَّد من `build_short.py` + `script3.json`): الشورت العمودي، يعيد استخدام قصاصات الستوب موشن بتخطيط 1080×1920 ولقطات سريعة؛ `mix3.py` صوته (تعليق + مؤثرات).
 - `timeline.py`: يبني `timeline*-<lang>.json` (بداية ونهاية كل مشهد من مدد التعليق + غلاف الصوت). للفيديو الثاني: `SCRIPT=script2.json VO=vo2 TLPREFIX=timeline2 TAIL_CTA=4 python3 timeline.py ar en`.
 - `mix.py` / `mix2.py`: التعليق + مؤثرات (والموسيقى اختيارية: الإصدار المنشور بدون موسيقى، أي `NO_MUSIC=1`)، بأزمنة تطابق كسور المشاهد في الصفحات.
 - `render.mjs`: `node render.mjs <lang> <outDir> <fps> <a-b | t:1,2,3> [page.html] [timelinePrefix]`.
@@ -54,6 +56,11 @@ ffmpeg -framerate 12 -i frames-ar/f%05d.jpg -i mix-ar.wav -r 24 -c:v libx264 -cr
 SCRIPT=script2.json VO=vo2 TLPREFIX=timeline2 TAIL_CTA=4 python3 timeline.py ar en && NO_MUSIC=1 python3 mix2.py ar && NO_MUSIC=1 python3 mix2.py en
 node render.mjs ar frames2-ar 24 0-4347 cinematic.html timeline2 && node render.mjs en frames2-en 24 0-5047 cinematic.html timeline2
 ffmpeg -framerate 24 -i frames2-ar/f%05d.jpg -i mix2-ar.wav -c:v libx264 -crf 18 -pix_fmt yuv420p -c:a aac -b:a 192k -shortest -movflags +faststart Darb-cinematic-ar.mp4
+
+# الشورت العمودي (المقاس عبر VW/VH)
+python3 build_short.py && SCRIPT=script3.json VO=vo3 TLPREFIX=timeline3 TAIL_CTA=1.5 python3 timeline.py ar en && python3 mix3.py ar && python3 mix3.py en
+VW=1080 VH=1920 node render.mjs ar frames3-ar 12 0-593 short.html timeline3
+ffmpeg -framerate 12 -i frames3-ar/f%05d.jpg -i mix3-ar.wav -r 24 -c:v libx264 -crf 19 -pix_fmt yuv420p -c:a aac -b:a 192k -shortest -movflags +faststart Darb-short-ar.mp4
 ```
 (الحد الأعلى للإطارات = `total` في ملف التايملاين × معدل الإطارات.)
 

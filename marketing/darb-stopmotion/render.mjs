@@ -10,7 +10,7 @@ let jobs
 if (spec.startsWith('t:')) jobs = spec.slice(2).split(',').map((t, i) => ({ t: +t, name: `p${String(i).padStart(2, '0')}_${(+t).toFixed(1)}s`, type: 'png' }))
 else { const [a, b] = spec.split('-').map(Number); jobs = Array.from({ length: b - a }, (_, i) => ({ t: (a + i) / fps, name: `f${String(a + i).padStart(5, '0')}`, type: 'jpeg' })) }
 const b = await chromium.launch()
-const p = await b.newPage({ viewport: { width: 1920, height: 1080 } })
+const p = await b.newPage({ viewport: { width: +(process.env.VW || 1920), height: +(process.env.VH || 1080) } })
 await p.goto(pathToFileURL(process.cwd() + '/' + pageFile).href)
 await p.evaluate(async () => { await document.fonts.ready })
 await p.evaluate(([l, t]) => { setLang(l); setTimeline(t) }, [lang, tl])

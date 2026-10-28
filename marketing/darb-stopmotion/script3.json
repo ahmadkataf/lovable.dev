@@ -1,0 +1,20 @@
+{
+  "product": {"ar": "درب", "en": "Darb"},
+  "scenes": [
+    {"id": "hook",
+     "ar": "لحظة! البيتكوين شالت البنك. والذكاء الاصطناعي شال الخبير. مين الجاي؟",
+     "en": "Wait! Bitcoin removed the bank. AI removed the expert. Who's next?"},
+    {"id": "number",
+     "ar": "مطعم بيبيع الوجبة بعشرة دنانير... والتطبيق بياخد منها ثلاثة! والسائق؟ دينار واحد. الكل خسران... إلا الوسيط.",
+     "en": "A restaurant sells a meal for ten dinars... and the app takes three! The driver? One dinar. Everybody loses... except the middleman."},
+    {"id": "reveal",
+     "ar": "لقيت نظام بيربط المطعم بالسائق مباشرة. بدون شركة بالنص. صفر بالمية عمولة!",
+     "en": "I found a system that links the restaurant straight to the driver. No company in the middle. Zero percent commission!"},
+    {"id": "how",
+     "ar": "الطلب بيوصل متل ما بيوصل اليوم. أقرب سائق بيشوف الأجرة وبيقبل. الكاش على الكاونتر وختم من الطرفين. وكل طلب إيصال موقّع مربوط باللي قبله... متل البلوك تشين، بس بدون بلوك تشين!",
+     "en": "The order arrives exactly as it does today. The nearest driver sees the fee and accepts. Cash at the counter, stamped by both sides. And every order is a signed receipt linked to the one before... like a blockchain, without the blockchain!"},
+    {"id": "punch",
+     "ar": "المطعم بياخد سعره كامل. السائق أجرته كاملة. والزبون سعر المحل. اسمه درب... وقريباً بحارتك.",
+     "en": "The restaurant keeps its full price. The driver keeps the full fee. The customer pays the counter price. It's called Darb... and it's coming to your street."}
+  ]
+}
