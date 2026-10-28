@@ -71,10 +71,10 @@ ffmpeg -framerate 12 -i frames3-ar/f%05d.jpg -i mix3-ar.wav -r 24 -c:v libx264 -
 ```bash
 # شورت الهوك (30 إطاراً في الثانية؛ الترجمة والضربات مستخرجة من الصفحة نفسها)
 python3 tighten.py vo4 vo4t 1.12 ar && python3 tighten.py vo4 vo4t 1.15 en
-HEAD=0 LEAD=0.1 TAIL=0.45 TAIL_CTA=2.2 SCRIPT=script4.json VO=vo4t TLPREFIX=timeline4 python3 timeline.py ar en
+HEAD=0 LEAD=0.1 TAIL=0.45 TAIL_CTA=1.6 SCRIPT=script4.json VO=vo4t TLPREFIX=timeline4 python3 timeline.py ar en
 python3 wordtimes.py --script script4.json --vo vo4t --timeline timeline4 --out words4   # ثم تُدمج words4-<lang>.json في timeline4-<lang>.json تحت المفتاح words
 node hits.mjs ar && python3 mix4.py ar && node hits.mjs en && python3 mix4.py en
-VW=1080 VH=1920 node render.mjs ar frames4-ar 30 0-1393 hook.html timeline4 && VW=1080 VH=1920 node render.mjs en frames4-en 30 0-1422 hook.html timeline4
+VW=1080 VH=1920 node render.mjs ar frames4-ar 30 0-1375 hook.html timeline4 && VW=1080 VH=1920 node render.mjs en frames4-en 30 0-1404 hook.html timeline4
 ffmpeg -framerate 30 -i frames4-ar/f%05d.jpg -i mix4-ar.wav -c:v libx264 -preset slow -crf 18 -pix_fmt yuv420p -c:a aac -b:a 192k -shortest -movflags +faststart Darb-hook-ar.mp4
 VW=1080 VH=1920 node overlap.mjs ar hook.html timeline4 ".hl, .w, .pill, .chip, .card, .bub, .rr, .bh"   # فحص التراكب
 ```

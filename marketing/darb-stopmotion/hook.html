@@ -30,14 +30,17 @@ body{position:relative;font-family:Plex,Tajawal,sans-serif;color:#fff}
 .abs{position:absolute}
 .hide{display:none!important}
 /* headlines */
-.hl{position:absolute;left:60px;width:840px;text-align:center;font-family:Kufi;font-weight:800;color:#fff;line-height:1.2;white-space:nowrap}
+.hl{position:absolute;left:120px;width:840px;text-align:center;font-family:Kufi;font-weight:800;color:#fff;line-height:1.2;white-space:nowrap}
 .hl.amber{color:var(--amber)}
 html[lang=en] .hl{font-family:Inter;font-weight:800;letter-spacing:-.01em}
 #meas{position:absolute;left:-9999px;top:0;white-space:nowrap;visibility:hidden;font-family:Kufi;font-weight:800}
 html[lang=en] #meas{font-family:Inter}
 /* numbers */
 .num{font-family:Inter;font-weight:800;font-variant-numeric:tabular-nums;direction:ltr;unicode-bidi:isolate;display:inline-block}
+.nv{display:inline-block;white-space:nowrap}
 .cur{font-family:Tajawal;font-weight:800;font-size:.34em;margin:0 .15em}
+#badge .cur,.blk .bh .cur{font-size:18px}
+#roles .rr .amt .cur{font-size:22px}
 html[lang=en] .cur{font-family:Inter;font-weight:700;font-size:.3em}
 .mono{font-family:Mono;font-weight:600;direction:ltr;unicode-bidi:isolate;display:inline-block}
 /* receipts */
@@ -48,11 +51,11 @@ html[lang=en] .cur{font-family:Inter;font-weight:700;font-size:.3em}
 html[lang=en] .rc .hd{font-family:Inter;font-weight:800}
 .rc .row{display:flex;justify-content:space-between;align-items:baseline;font-size:26px;padding:12px 0;font-weight:500}
 .rc .row .num{font-size:28px;font-weight:700}
-.rc .tot{display:flex;justify-content:space-between;align-items:baseline;border-top:3px dotted var(--ink);padding-top:16px;margin-top:8px}
-.rc .tot .lab{font-family:Kufi;font-weight:800;font-size:26px}
+.rc .tot{display:block;border-top:3px dotted var(--ink);padding-top:12px;margin-top:6px}
+.rc .tot .lab{display:block;font-family:Kufi;font-weight:800;font-size:22px;color:#5E6470;line-height:1.3}
 html[lang=en] .rc .tot .lab{font-family:Inter}
-.rc .tot .num{font-size:78px;line-height:1}
-.rc .ft{position:absolute;left:24px;right:24px;bottom:26px;font-size:20px;color:var(--muted);text-align:center;font-weight:500}
+.rc .tot .num{font-size:78px;line-height:1.05}
+.rc .ft{position:absolute;left:24px;right:24px;bottom:26px;font-size:24px;color:#5E6470;text-align:center;font-weight:500}
 .xrow,.slab{position:absolute;height:56px;box-sizing:border-box;display:flex;justify-content:space-between;align-items:center;padding:0 10px;font-family:Plex;font-weight:700;font-size:26px;color:var(--amberink);background:var(--paper)}
 .xrow .num,.slab .num{font-size:34px}
 .slot{position:absolute;height:56px;background:linear-gradient(rgba(0,0,0,.14),rgba(0,0,0,.06));box-sizing:border-box}
@@ -63,7 +66,7 @@ html[lang=en] .pill{font-family:Inter;font-weight:800;font-size:40px}
 .chip{position:absolute;font-family:Plex;font-weight:700;font-size:26px;line-height:1;padding:16px 24px;border-radius:999px;background:var(--graphite);color:#fff;white-space:nowrap;display:flex;align-items:center;gap:12px}
 .chip.paper{background:var(--paper);color:var(--ink)}
 /* phone */
-#phone{position:absolute;left:224px;top:420px;width:560px;height:1120px;border-radius:64px;background:var(--graphite);box-shadow:0 40px 90px rgba(0,0,0,.65)}
+#phone{position:absolute;left:260px;top:420px;width:560px;height:1120px;border-radius:64px;background:var(--graphite);box-shadow:0 40px 90px rgba(0,0,0,.65)}
 #screen{position:absolute;left:16px;top:16px;width:528px;height:1088px;border-radius:50px;background:var(--screen);overflow:hidden;color:#0A1A2F}
 #island{position:absolute;left:194px;top:16px;width:140px;height:36px;border-radius:18px;background:#0B0B0F}
 #sbar{position:absolute;left:30px;right:30px;top:20px;display:flex;justify-content:space-between;align-items:center;font-family:Inter;font-weight:700;font-size:24px}
@@ -98,34 +101,35 @@ html[lang=en] .pp i{transform-origin:left}
 #slabel{position:absolute;top:6px;width:80px;font-family:Inter;font-weight:800;font-size:34px;color:#fff;line-height:1}
 /* captions */
 #cap{position:absolute;left:60px;top:960px;width:960px;height:290px;display:flex;align-items:flex-end;justify-content:center}
-#plate{background:rgba(26,26,34,.74);border-radius:24px;padding:12px 26px;max-width:900px;text-align:center;transform-origin:center bottom}
-.w{display:inline-block;white-space:nowrap;padding:0 9px;font-family:Tajawal;font-weight:800;font-size:72px;line-height:1.35;color:#fff;transform-origin:center}
+#plate{background:rgba(26,26,34,.74);border-radius:24px;padding:12px 26px;max-width:900px;text-align:center;transform-origin:center bottom;font-size:72px;line-height:1.35}
+html[lang=en] #plate{font-size:64px}
+.w{display:inline-block;white-space:nowrap;padding:0 12px;font-family:Tajawal;font-weight:800;font-size:72px;line-height:1.35;color:#fff;transform-origin:center}
 html[lang=en] .w{font-family:Inter;font-size:64px;letter-spacing:-.01em}
 #flash{background:#fff;opacity:0}
 /* chain */
 .blk{position:absolute;width:280px;height:170px}
 .blk .rc{padding:18px 20px}
 .blk .bh{display:flex;justify-content:space-between;align-items:baseline;font-family:Inter;font-weight:800;font-size:32px;color:var(--ink)}
-.blk .bh .cur{font-size:16px}
+.blk .bh .nv{font-size:32px}
 .blk .hash{font-family:Mono;font-weight:600;font-size:20px;color:var(--muted);margin-top:10px;direction:ltr;text-align:left;height:26px}
 .blk .st{position:absolute;right:16px;bottom:14px;font-family:Kufi;font-weight:800;font-size:22px;color:var(--mintink);border:3px solid var(--mintink);border-radius:8px;padding:2px 10px;transform:rotate(-10deg);transform-origin:center;line-height:1.2}
 html[lang=en] .blk .st{font-family:Inter;font-size:18px}
 #chainsvg{position:absolute;left:0;top:0;width:1080px;height:1920px;overflow:visible}
 #chainsvg path{fill:none;stroke:var(--mint);stroke-width:10;stroke-linecap:round;stroke-dasharray:1;stroke-dashoffset:1}
 /* roles */
-#roles .rr{position:absolute;left:30px;width:500px;height:112px;display:flex;align-items:center;justify-content:space-between;border-bottom:3px dotted rgba(11,11,15,.35);box-sizing:border-box;transform-origin:center}
-#roles .rr .lab{font-family:Plex;font-weight:700;font-size:38px;color:var(--ink)}
-#roles .rr .amt{font-size:54px;color:var(--amberink);line-height:1}
-#roles .rr .tag{font-family:Kufi;font-weight:800;font-size:26px;color:var(--ink);display:flex;align-items:center;gap:10px}
-html[lang=en] #roles .rr .tag{font-family:Inter}
+#roles .rr{position:absolute;left:30px;width:580px;height:112px;display:flex;align-items:center;justify-content:space-between;border-bottom:3px dotted rgba(11,11,15,.35);box-sizing:border-box;transform-origin:center}
+#roles .rr .lab{font-family:Plex;font-weight:700;font-size:38px;color:var(--ink);white-space:nowrap}
+#roles .rr .amt{font-size:54px;color:var(--amberink);line-height:1;white-space:nowrap}
+#roles .rr .tag{font-family:Kufi;font-weight:800;font-size:26px;color:var(--ink);display:flex;align-items:center;gap:10px;white-space:nowrap}
+html[lang=en] #roles .rr .tag{font-family:Inter;font-size:22px}
 /* close */
-#counter{position:absolute;left:60px;width:840px;top:690px;text-align:center;font-size:200px;line-height:1;color:var(--amber)}
+#counter{position:absolute;left:120px;width:840px;top:690px;text-align:center;font-size:200px;line-height:1;color:var(--amber)}
 #counter .cur{font-size:60px}
 .card3d{position:absolute;left:300px;top:480px;width:480px;height:600px;transform-origin:center}
 .face{position:absolute;left:0;top:0;width:480px;height:600px;background:var(--paper);color:var(--ink);box-sizing:border-box;padding:40px 34px}
 .face.back{display:flex;align-items:center;justify-content:center;font-family:Kufi;font-weight:800;font-size:160px;line-height:1}
 html[lang=en] .face.back{font-family:Inter;font-size:150px;letter-spacing:-.02em}
-#subw{position:absolute;left:60px;top:1120px;width:840px;height:110px;overflow:hidden;text-align:center}
+#subw{position:absolute;left:120px;top:1120px;width:840px;height:110px;overflow:hidden;text-align:center}
 #sub{font-family:Tajawal;font-weight:800;font-size:72px;line-height:110px;color:#fff;white-space:nowrap}
 html[lang=en] #sub{font-family:Inter;font-weight:800;font-size:60px}
 #preload{position:absolute;left:-9999px;top:0;visibility:hidden}
@@ -160,25 +164,25 @@ const S = {
     app: { hd: 'تطبيق توصيل', rows: [['شاورما ×2', '8.75'], ['بطاطا', '3.75']], tot: '12.50', lab: 'المجموع', extra: ['فرق التطبيق', '+2.50'], foot: 'مثال توضيحي' } },
   prop: { l1: 'توصيل بدون', l2: 'شركة توصيل', pill: '<bdi class="num">0%</bdi> عمولة · اشتراك ثابت' },
   step1: { shd: 'المطعم · الطلبات', bubble: 'طلبية: 2 شاورما + بطاطا', bubble2: 'شارع المدينة', time: '21:04', call: 'اتصال وارد', ticket: '#418 · شارع المدينة', total: '10.00', chip: 'ولا تطبيق جديد عالزبون' },
-  step2: { shd: 'أقرب سواق', name: 'محمد', ini: 'م', km: '1.8 كم', fee: '3.00', feel: 'الأجرة', addr: 'شارع المدينة ← الرابية', btn: 'قبول', btn2: 'قبلت', badge: 'كاملة للسواق' },
+  step2: { shd: 'أقرب سواق', name: 'محمد', ini: 'م', km: '1.8 كم', fee: '3.00', feel: 'الأجرة', addr: 'شارع المدينة – الرابية', btn: 'قبول', btn2: 'قبلت', badge: 'كاملة للسواق' },
   step3: { shd: '#418 · <bdi class="num">10.00</bdi> د.أ', c1: 'السواق:', c1b: 'سلّمت الكاش', c2: 'المطعم:', c2b: 'استلمت', stamp: 'ختم', r1: '#418 · <bdi class="num">10.00</bdi> د.أ · نقدي', signed: 'موقّع', hash: 'a91f·7c2e·d03b', brand: 'درب' },
   reset: { l1: ['كل يوم بتدفع...'], l2: ['وانت ما بتحس.'], l3: ['بس الحلو...'], l4: ['بالآخر.'] },
   chain: { title: ['ولا دينار بضيع'], blocks: [['#418', '10.00'], ['#419', '7.50'], ['#420', '12.00'], ['#421', '9.00']], stamp: 'ختم', hashes: ['a91f·7c2e', '3b0d·91aa', 'c7e4·02f1', '8d2b·6e90'] },
-  roles: { hd: '#418 · نقدي', rows: [['المطعم', '10.00', 'كامل'], ['السواق', '3.00', 'كاملة'], ['الزبون', '10.00', 'سعر الكاونتر']], r4: ['بجيبك', '+2.50'] },
+  roles: { hd: '#418 · نقدي', rows: [['المطعم', '10.00', 'كامل'], ['السواق', '3.00', 'كاملة'], ['الزبون', '10.00', 'سعر الكاونتر']], r4: ['بجيب الزبون', '+2.50'] },
   close: { l1: ['ما بتغير', 'إشي عليك...'], l3: ['إلا العمولة:'], pill: 'اشتراك ثابت · <bdi class="num">0%</bdi> عمولة', brand: 'درب', sub: 'جاي على شارعك' }
  },
  en: {
   cur: 'JOD',
   hook: { h1: ['Same shawarma.'], h2: ['Who gets', 'the difference?'],
     counter: { hd: 'Counter', rows: [['Shawarma ×2', '7.00'], ['Fries', '3.00']], tot: '10.00', lab: 'Total', foot: 'cash · 21:04' },
-    app: { hd: 'Delivery app', rows: [['Shawarma ×2', '8.75'], ['Fries', '3.75']], tot: '12.50', lab: 'Total', extra: ['app fee', '+2.50'], foot: 'illustrative example' } },
+    app: { hd: 'Delivery app', rows: [['Shawarma ×2', '8.75'], ['Fries', '3.75']], tot: '12.50', lab: 'Total', extra: ['app markup', '+2.50'], foot: 'illustrative example' } },
   prop: { l1: 'Delivery without', l2: 'a delivery company', pill: '<bdi class="num">0%</bdi> commission · flat subscription' },
   step1: { shd: 'Restaurant · Orders', bubble: 'Order: 2 shawarma + fries', bubble2: 'Madina St.', time: '21:04', call: 'Incoming call', ticket: '#418 · Madina St.', total: '10.00', chip: 'No new app for customers' },
-  step2: { shd: 'Nearest driver', name: 'Mohammad', ini: 'M', km: '1.8 km', fee: '3.00', feel: 'Fee', addr: 'Madina St. → Rabieh', btn: 'Accept', btn2: 'Accepted', badge: 'full fee, driver’s' },
+  step2: { shd: 'Nearest driver', name: 'Mohammad', ini: 'M', km: '1.8 km', fee: '3.00', feel: 'Fee', addr: 'Madina St. – Rabieh', btn: 'Accept', btn2: 'Accepted', badge: 'full fee, driver’s' },
   step3: { shd: '#418 · <bdi class="num">10.00</bdi> JOD', c1: 'Driver:', c1b: 'cash handed over', c2: 'Restaurant:', c2b: 'received', stamp: 'STAMPED', r1: '#418 · <bdi class="num">10.00</bdi> JOD · cash', signed: 'signed', hash: 'a91f·7c2e·d03b', brand: 'Darb' },
   reset: { l1: ['You pay this daily...'], l2: ['and never feel it.'], l3: ['Best part?'], l4: ['The end.'] },
   chain: { title: ['Not a dinar lost'], blocks: [['#418', '10.00'], ['#419', '7.50'], ['#420', '12.00'], ['#421', '9.00']], stamp: 'STAMPED', hashes: ['a91f·7c2e', '3b0d·91aa', 'c7e4·02f1', '8d2b·6e90'] },
-  roles: { hd: '#418 · cash', rows: [['Restaurant', '10.00', 'full'], ['Driver', '3.00', 'full'], ['Customer', '10.00', 'counter price']], r4: ['in your pocket', '+2.50'] },
+  roles: { hd: '#418 · cash', rows: [['Restaurant', '10.00', 'full'], ['Driver', '3.00', 'full'], ['Customer', '10.00', 'counter price']], r4: ['customer keeps', '+2.50'] },
   close: { l1: ['Nothing changes', 'for you...'], l3: ['except the commission:'], pill: 'flat subscription · <bdi class="num">0%</bdi> commission', brand: 'Darb', sub: 'coming to your street' }
  }
 };
@@ -186,7 +190,7 @@ const S = {
 const ANCH = {
  hook: { pop1: ['عشرة', 'Ten', .2], pop2: ['اثنا', 'twelve', .45], tear: ['الفرق', 'Who', .75] },
  prop: { slam: ['بحتاج', 'need', .2], strike: ['توصيل.', 'company', .4], pill: ['بدون', 'Zero', .6], phone: ['شوف', 'Watch', .85] },
- step1: { bubble: ['الطلبية', 'orders', .1], call: ['تلفون', 'Call', .6], ticket: ['واتساب', 'WhatsApp', .8] },
+ step1: { bubble: ['واحد', 'One', .05], call: ['تلفون', 'Call', .6], ticket: ['واتساب', 'WhatsApp', .8] },
  step2: { fee: ['الأجرة', 'fee', .3], accept: ['وبيقبل', 'accepts', .6], badge: ['أجرته', 'Full', .8] },
  step3: { tap1: ['كبستين', 'Two', .5], print: ['وخلص', 'done', .7], strip: ['ولا', 'No', .85] },
  reset: { l2: ['وانت', 'and', .3], l3: ['بس', 'Best', .6], l4: ['بالآخر', 'The', .8] },
@@ -220,14 +224,14 @@ const BATT = `<svg viewBox="0 0 34 16"><rect x="1" y="1" width="28" height="14" 
 const PIN = `<path d="M0-28c-8 0-14 6-14 14 0 10 14 24 14 24s14-14 14-24c0-8-6-14-14-14zm0 19a5 5 0 1 1 0-10 5 5 0 0 1 0 10z" fill="#FFB400"/>`;
 
 /* ================= build ================= */
-function num(v, sz, cur = true) { return `<bdi class="num"${sz ? ` style="font-size:${sz}px"` : ''}>${v}</bdi>${cur ? `<span class="cur">${S[LANG].cur}</span>` : ''}`; }
+function num(v, sz, cur = true) { return `<span class="nv"${sz ? ` style="font-size:${sz}px"` : ''}><bdi class="num">${v}</bdi>${cur ? `<span class="cur">${S[LANG].cur}</span>` : ''}</span>`; }
 function receipt(id, x, y, w, h, body, cls = '') {
   return `<div id="${id}" class="rw ${cls}" style="left:${x}px;top:${y}px;width:${w}px;height:${h}px"><div class="rsh"></div><div class="rc" style="clip-path:${serr(w, h)}">${body}</div></div>`;
 }
 function hookReceipt(id, x, y, d, extra) {
   const rows = d.rows.map(r => `<div class="row"><span>${r[0]}</span>${num(r[1], 28, false)}</div>`).join('');
   const body = `<div class="hd">${d.hd}</div>${rows}<div class="tot"><span class="lab">${d.lab}</span><span id="${id}-tot" style="display:inline-block;transform-origin:center">${num(d.tot, 78)}</span></div>
-    ${extra ? `<div id="xrow" class="xrow" style="left:24px;top:342px;width:282px"><span>${d.extra[0]}</span>${num(d.extra[1], 34, false)}</div><div id="slot" class="slot hide" style="left:24px;top:342px;width:282px"></div>` : ''}
+    ${extra ? `<div id="xrow" class="xrow" style="left:24px;top:380px;width:282px"><span>${d.extra[0]}</span>${num(d.extra[1], 34, false)}</div><div id="slot" class="slot hide" style="left:24px;top:380px;width:282px"></div>` : ''}
     <div class="ft">${d.foot}</div>`;
   return receipt(id, x, y, 330, 520, body);
 }
@@ -245,7 +249,7 @@ function fitAll() {
 function build() {
   const s = S[LANG], en = LANG === 'en'; R = en ? -1 : 1;
   const C = s.cur;
-  const cx = en ? 154 : 524, ax = en ? 524 : 154;             // counter / app receipt x
+  const cx = en ? 190 : 560, ax = en ? 560 : 190;             // counter / app receipt x (pair centred on 540)
   const Z = $('zoom');
   Z.innerHTML = `
   <!-- B1 hook -->
@@ -257,7 +261,7 @@ function build() {
   <!-- B2 proposition -->
   <div class="beat" id="b-prop">
     ${hl('pr1', [s.prop.l1], 560, 110)}${hl('pr2', [s.prop.l2], 700, 110)}
-    <svg id="strike" class="abs" style="left:60px;top:700px;width:840px;height:150px;overflow:visible"><line id="strikeL" x1="0" y1="78" x2="0" y2="78" pathLength="1" stroke="#FF3B4E" stroke-width="20" stroke-linecap="round" stroke-dasharray="1" style="stroke-dashoffset:1"/></svg>
+    <svg id="strike" class="abs" style="left:120px;top:700px;width:840px;height:150px;overflow:visible"><line id="strikeL" x1="0" y1="78" x2="0" y2="78" pathLength="1" stroke="#FF3B4E" stroke-width="20" stroke-linecap="round" stroke-dasharray="1" style="stroke-dashoffset:1"/></svg>
     <div id="pill1" class="pill" style="top:960px">${s.prop.pill}</div>
   </div>
   <!-- phone (shared B2-B5) -->
@@ -287,18 +291,18 @@ function build() {
       </div>
       <div class="scr" id="scrCnt">
         <div class="shd" style="position:absolute;left:26px;top:4px">${s.step3.shd}</div>
-        <div id="c1" class="card" style="top:70px;height:200px;font-size:30px"><span style="color:#8A8F9C">${s.step3.c1}</span><br><b style="font-size:38px">${s.step3.c1b}</b><div id="st1" class="stamp hide" style="right:22px;top:88px;transform:rotate(-12deg)">${s.step3.stamp}</div></div>
-        <div id="c2" class="card" style="top:300px;height:200px;font-size:30px"><span style="color:#8A8F9C">${s.step3.c2}</span><br><b style="font-size:38px">${s.step3.c2b}</b><div id="st2" class="stamp hide" style="right:22px;top:88px;transform:rotate(-12deg)">${s.step3.stamp}</div></div>
+        <div id="c1" class="card" style="top:70px;height:200px;font-size:30px"><span style="color:#8A8F9C">${s.step3.c1}</span><br><b style="font-size:38px">${s.step3.c1b}</b><div id="st1" class="stamp hide" style="right:22px;bottom:12px;transform:rotate(-12deg)">${s.step3.stamp}</div></div>
+        <div id="c2" class="card" style="top:300px;height:200px;font-size:30px"><span style="color:#8A8F9C">${s.step3.c2}</span><br><b style="font-size:38px">${s.step3.c2b}</b><div id="st2" class="stamp hide" style="right:22px;bottom:12px;transform:rotate(-12deg)">${s.step3.stamp}</div></div>
         <div id="ring2" class="ring hide" style="left:264px;top:170px"></div><div id="rip2" class="ripple hide" style="left:264px;top:170px"></div>
         <div id="ring3" class="ring hide" style="left:264px;top:400px"></div><div id="rip3" class="ripple hide" style="left:264px;top:400px"></div>
         <div id="ink1" class="ink hide" style="left:264px;top:170px"></div><div id="ink2" class="ink hide" style="left:264px;top:400px"></div>
       </div>
     </div>
   </div>
-  <div id="callchip" class="chip hide" style="left:${en ? 760 : 90}px;top:470px">${PHONEICO}${s.step1.call}</div>
-  <div id="badge" class="chip paper hide" style="left:${en ? 630 : 40}px;top:640px;font-size:28px;padding:18px 26px">${num('3.00', 40)}<span>· ${s.step2.badge}</span></div>
-  <div id="printw" class="abs hide" style="left:${en ? 500 : 240}px;top:130px;width:340px;height:290px;overflow:hidden">
-    ${receipt('print', 0, 0, 340, 310, `<div style="font-family:Plex;font-weight:700;font-size:28px;line-height:1.3">${s.step3.r1}</div>
+  <div id="callchip" class="chip hide" style="left:${en ? 796 : 126}px;top:470px">${PHONEICO}${s.step1.call}</div>
+  <div id="badge" class="chip paper hide" style="left:${en ? 660 : 76}px;top:640px;font-size:26px;padding:16px 22px">${num('3.00', 40)}<span>· ${s.step2.badge}</span></div>
+  <div id="printw" class="abs hide" style="left:${en ? 480 : 260}px;top:130px;width:340px;height:290px;overflow:hidden">
+    ${receipt('print', 0, 0, 340, 310, `<div style="font-family:Plex;font-weight:700;font-size:${en ? 24 : 28}px;line-height:1.3;white-space:nowrap">${s.step3.r1}</div>
       <div style="display:flex;align-items:center;gap:12px;margin-top:16px"><span class="stamp" style="position:static;font-size:30px;padding:6px 14px;display:inline-flex;align-items:center;gap:8px">${s.step3.signed}<span class="tick">${TICK('#fff')}</span></span></div>
       <div id="hash" class="mono" style="font-size:22px;color:#8A8F9C;margin-top:16px;height:28px;text-align:left;width:100%"></div>
       <div style="position:absolute;${en ? 'right' : 'left'}:22px;bottom:16px;font-family:Kufi;font-weight:800;font-size:22px;color:#8A8F9C">${s.step3.brand}</div>`)}
@@ -306,37 +310,38 @@ function build() {
   <!-- B6 reset -->
   <div class="beat" id="b-reset">
     ${hl('rs1', s.reset.l1, 700, 104)}${hl('rs2', s.reset.l2, 700, 110)}${hl('rs3', s.reset.l3, 580, 110)}${hl('rs4', s.reset.l4, 760, 130, 'amber')}
-    ${receipt('peek', 400, 1760, 280, 170, `<div class="bh"><span>${s.chain.blocks[0][0]}</span>${num(s.chain.blocks[0][1], 32)}</div><div class="hash">${s.chain.hashes[0]}</div>`, 'blk')}
+    ${receipt('peek', en ? 150 : 650, 1760, 280, 170, `<div class="bh"><span>${s.chain.blocks[0][0]}</span>${num(s.chain.blocks[0][1], 32)}</div><div class="hash">${s.chain.hashes[0]}</div><div class="st">${s.chain.stamp}</div>`, 'blk')}
   </div>
   <!-- B7 chain -->
   <div class="beat" id="b-chain">
     ${hl('ch1', s.chain.title, 330, 96)}
     <svg id="chainsvg">${[0, 1, 2].map(i => `<path id="lk${i}" pathLength="1" d=""/>`).join('')}${[0, 1, 2].map(i => `<g id="jt${i}" class="hide"><circle r="22" fill="#19F0A0"/><polyline points="-9,1 -3,7 10,-8" fill="none" stroke="#07111F" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/></g>`).join('')}</svg>
     ${s.chain.blocks.map((b, i) => receipt('blk' + i, 0, 0, 280, 170, `<div class="bh"><span>${b[0]}</span>${num(b[1], 32)}</div><div class="hash" id="bh${i}">${s.chain.hashes[i]}</div><div class="st">${s.chain.stamp}</div>`, 'blk')).join('')}
-    <div id="cstamp" class="stamp dark hide" style="font-size:52px;padding:10px 26px;border-width:7px">${s.chain.stamp}</div>
+    <div id="cstamp" class="stamp dark hide" style="font-size:${en ? 36 : 52}px;padding:${en ? '8px 18px' : '10px 26px'};border-width:${en ? 6 : 7}px;background:var(--navy)">${s.chain.stamp}</div>
     <div id="cink" class="ink hide"></div>
   </div>
   <!-- B8 roles -->
   <div class="beat" id="b-roles">
-    ${receipt('roles', 260, 320, 560, 720, `<div class="hd">${s.roles.hd}</div>
+    ${receipt('roles', 220, 320, 640, 720, `<div class="hd">${s.roles.hd}</div>
       ${s.roles.rows.map((r, i) => `<div class="rr" id="rr${i}" style="top:${118 + i * 124}px"><span class="lab">${r[0]}</span><span class="amt">${num(r[1], 54)}</span><span class="tag"><span class="tick rtick hide">${TICK('#fff')}</span>${r[2]}</span></div>`).join('')}
       <div class="rr" id="rr3" style="top:${118 + 3 * 124}px;border-bottom:none"><span class="lab">${s.roles.r4[0]}</span><span class="amt">${num(s.roles.r4[1], 54)}</span><span class="tag"><span class="tick rtick hide">${TICK('#fff')}</span></span></div>`)}
   </div>
   <!-- B9 close -->
   <div class="beat" id="b-close">
     ${hl('cl1', s.close.l1, 620, 110)}${hl('cl3', s.close.l3, 520, 110)}
-    <div id="counter" class="num">${num('2.50', 200)}</div>
+    <div id="counter">${num('2.50', 200)}</div>
     <div id="pill2" class="pill" style="top:1010px">${s.close.pill}</div>
     <div class="card3d" id="card3d"><div class="rsh"></div>
       <div class="face front" id="faceF" style="clip-path:${serr(480, 600)}"><div style="font-family:Plex;font-weight:700;font-size:30px;line-height:1.3">${s.step3.r1}</div><div style="margin-top:20px"><span class="stamp" style="position:static;font-size:32px;padding:6px 16px;display:inline-flex;align-items:center;gap:8px">${s.step3.signed}<span class="tick">${TICK('#fff')}</span></span></div><div class="mono" style="font-size:22px;color:#8A8F9C;margin-top:20px;text-align:left;width:100%">${s.step3.hash}</div></div>
-      <div class="face back" id="faceB" style="clip-path:${serr(480, 600)}">${s.close.brand}<div class="stamp" style="${en ? 'right' : 'left'}:34px;bottom:40px;font-size:26px;padding:6px 14px;transform:rotate(-10deg)"><bdi class="num" style="font-size:26px">0%</bdi> ${en ? 'commission' : 'عمولة'}</div></div>
+      <div class="face back" id="faceB" style="clip-path:${serr(480, 600)}">${s.close.brand}<div class="stamp" style="${en ? 'right' : 'left'}:30px;bottom:40px;font-size:22px;padding:6px 12px;transform:rotate(-8deg)"><bdi class="num" style="font-size:22px">0%</bdi> ${en ? 'commission · flat subscription' : 'عمولة · اشتراك ثابت'}</div></div>
     </div>
+    <div id="eink" class="ink hide" style="left:540px;top:780px"></div>
     <div id="subw"><div id="sub">${s.close.sub}</div></div>
   </div>
   <!-- shared slab -->
   <div id="slab" class="slab hide" style="left:0;top:0;width:282px"><span>${s.hook.app.extra[0]}</span>${num(s.hook.app.extra[1], 34, false)}</div>`;
   // strip
-  $('strip').innerHTML = [0, 1, 2].map(i => `<div class="pp" style="left:${en ? 90 + i * 120 : 880 - i * 120}px"><i id="pf${i}"></i></div>`).join('') + `<div id="slabel" style="left:${en ? 415 : 560}px;text-align:${en ? 'left' : 'right'}">1/3</div>`;
+  $('strip').innerHTML = [0, 1, 2].map(i => `<div class="pp" style="left:${en ? 30 + i * 120 : 940 - i * 120}px"><i id="pf${i}"></i></div>`).join('') + `<div id="slabel" style="left:${en ? 400 : 610}px;text-align:${en ? 'left' : 'right'}">1/3</div>`;
   fitAll();
   // strike geometry from the measured line width
   const w2 = +$('pr20').dataset.w || 700; const L = $('strikeL'); L.setAttribute('x1', 420 + R * (w2 / 2 + 14)); L.setAttribute('x2', 420 - R * (w2 / 2 + 14)); L.setAttribute('transform', `rotate(${-6 * R} 420 78)`);
@@ -371,18 +376,18 @@ function setTimeline(tl) {
   T.chain.b = [0, 1, 2].map(i => T.chain.blocks + i * 0.45);           // blocks 2..4 enter
   T.chain.l = [0, 1, 2].map(i => Math.min(T.chain.b[i] + 0.3, T.chain.close - 0.35 + i * 0.05)); // links draw
   T.close.land = T.close.count + 0.6;
-  T.step1.chip = T.step1.ticket + 0.75; T.step1.fill = SC.step1.end - 0.8; T.step2.fill = SC.step2.end - 0.75;
+  T.step1.chip = T.step1.ticket + 0.3; T.step1.fill = SC.step1.end - 0.8; T.step2.fill = SC.step2.end - 0.75;
   T.close.flip = Math.max(T.close.flip, T.close.pill + 0.5);
   // hits: zoom punches + sound cues. k = punch strength, sh = shake, sfx = kind for mix4.py
   const H = (t, sfx, k = 0, ox = 540, oy = 900, sh = 0, g = 1) => HITS.push({ t: +t.toFixed(3), sfx, k, ox, oy, sh, g });
   HITS = [];
-  const sx = LANG === 'en' ? 524 : 154;
+  const sx = LANG === 'en' ? 560 : 190;
   H(0, 'hit', .12, 540, 820, 1); H(T.hook.pop1, 'tick'); H(T.hook.pop2, 'tick'); H(T.hook.pop2 + 0.08, 'tick', 0, 0, 0, 0, .6);
-  H(T.hook.tear, 'tear', .10, sx + 165, 1030, 0); H(T.hook.tear + 0.05, 'whoosh', 0, 0, 0, 0, .7); H(SC.prop.start - 0.5, 'riser');
+  H(T.hook.tear, 'tear', .10, sx + 165, 1068, 0); H(T.hook.tear + 0.05, 'whoosh', 0, 0, 0, 0, .7); H(SC.prop.start - 0.5, 'riser');
   H(SC.prop.start, 'hit', .10, 540, 620, 0); H(T.prop.slam, 'whoosh', .08, 540, 760); H(T.prop.strike, 'slice'); H(T.prop.pill, 'pop'); H(T.prop.phone, 'rise');
-  H(SC.step1.start, 'snap', .06, 504, 900); H(T.step1.bubble, 'notif'); H(T.step1.call, 'ringtick'); H(T.step1.ticket, 'slide', .08, 504, 800); H(T.step1.ticket + 0.1, 'tick'); H(T.step1.chip, 'soft'); H(T.step1.fill + 0.55, 'click');
-  H(SC.step2.start, 'swipe'); H(T.step2.fee, 'pop', .10, 640, 930); H(T.step2.accept - 0.45, 'tickroll'); H(T.step2.accept, 'accept', .08, 504, 1050, 1); H(T.step2.accept + 0.05, 'chime'); H(T.step2.badge, 'slide'); H(T.step2.fill + 0.55, 'click');
-  H(SC.step3.start, 'swipe'); H(T.step3.tap1, 'stamp', .06, 504, 700); H(T.step3.tap2, 'stamp2', .12, 504, 930, 1); H(T.step3.print, 'printer'); H(T.step3.strip, 'chime'); H(SC.reset.start - 0.45, 'riser');
+  H(SC.step1.start, 'snap', .06, 540, 900); H(T.step1.bubble, 'notif'); H(T.step1.call, 'ringtick'); H(T.step1.ticket, 'slide', .08, 540, 800); H(T.step1.ticket + 0.1, 'tick'); H(T.step1.chip, 'soft'); H(T.step1.fill + 0.55, 'click');
+  H(SC.step2.start, 'swipe'); H(T.step2.fee, 'pop', .10, 676, 930); H(T.step2.accept - 0.45, 'tickroll'); H(T.step2.accept, 'accept', .08, 540, 1050, 1); H(T.step2.accept + 0.05, 'chime'); H(T.step2.badge, 'slide'); H(T.step2.fill + 0.55, 'click');
+  H(SC.step3.start, 'swipe'); H(T.step3.tap1, 'stamp', .06, 540, 700); H(T.step3.tap2, 'stamp2', .12, 540, 930, 1); H(T.step3.print, 'printer'); H(T.step3.strip, 'chime'); H(SC.reset.start - 0.45, 'riser');
   H(SC.reset.start, 'hit', .10, 540, 760); H(T.reset.l2, 'hit', .08, 540, 760); H(T.reset.l3, 'whoosh', 0, 0, 0, 0, .7); H(T.reset.l4, 'hit', .10, 540, 830); H(T.reset.l4 + 0.05, 'paper');
   H(SC.chain.start, 'hit', .08, 540, 600); T.chain.b.forEach(t => H(t, 'slide', 0, 0, 0, 0, .6)); T.chain.l.forEach(t => H(t + 0.25, 'link')); H(T.chain.close, 'hit', .12, 540, 760, 1); H(T.chain.close, 'stamp'); H(T.chain.breathe, 'soft');
   H(SC.roles.start, 'hit', .08, 540, 680); H(T.roles.r1, 'bell1', .06, 540, 460); H(T.roles.r2, 'bell2', .06, 540, 584); H(T.roles.r3, 'bell3', .06, 540, 708); H(T.roles.slab, 'swish'); H(T.roles.slab + 0.35, 'stamp', .08, 540, 832);
@@ -396,7 +401,7 @@ function setTimeline(tl) {
     const ws = WORDS.filter(w => w.scene === sc.id); let g = [];
     const flush = () => { if (g.length) { GROUPS.push({ scene: sc.id, words: g, start: g[0].start, end: g[g.length - 1].end }); g = []; } };
     ws.forEach((w, i) => {
-      g.push(w); const nxt = ws[i + 1]; const punct = /[.!?؟…:،,]$/.test(w.word);
+      g.push(w); const nxt = ws[i + 1]; const punct = LANG === 'ar' ? /[.!?؟…:،,]$/.test(w.word) : /[.!?…:]$/.test(w.word);
       if (g.length >= maxN || punct || (nxt && nxt.start - w.end > 0.32)) flush();
     });
     flush();
@@ -434,13 +439,14 @@ function render(t) {
     if (!torn) tf(E.xrow, `scale(${popScale(t, H.pop2 + .05, 1.2)})`);
     else {
       const q = quartIn(P(t, H.tear, .4)); if (q < 1) {
-        const ax = LANG === 'en' ? 524 : 154; const bx = ax + 24, by = 660 + 342 + 3 * Math.sin(2 * Math.PI * H.tear / 4.6);
-        vis(E.slab, true); tf(E.slab, `translate(${(bx + R * 420 * q).toFixed(1)}px,${(by - 780 * q).toFixed(1)}px) rotate(${-14 * R * q}deg)`);
+        const ax = LANG === 'en' ? 560 : 190; const bx = ax + 24, by = 660 + 380 + 3 * Math.sin(2 * Math.PI * H.tear / 4.6);
+        vis(E.slab, true); tf(E.slab, `translate(${(bx + R * 520 * q).toFixed(1)}px,${(by - 1150 * q).toFixed(1)}px) rotate(${-14 * R * q}deg)`);
       }
     }
   } else if (id === 'prop') {
     slideX(E.pr20, t, H.slam); E.strikeL.style.strokeDashoffset = 1 - cubic(P(t, H.strike, 6 * FR)); vis(E.strike, t >= H.strike);
-    vis(E.pill1, t >= H.pill && t < H.phone + .35); tf(E.pill1, `translateX(-50%) scale(${back(P(t, H.pill, .3))})`);
+    vis(E.pill1, t >= H.pill && t < H.phone + .2); tf(E.pill1, `translateX(-50%) scale(${back(P(t, H.pill, .3))})`);
+    const ph = t >= H.phone ? P(t, H.phone + .1, .2) : 0; [E.pr10, E.pr20, E.strike].forEach(el => op(el, 1 - ph));   // headline fades as the phone covers it
     if (phoneOn) tf(E.phone, `translateY(${(1200 * (1 - expo(P(t, H.phone, .55)))).toFixed(1)}px)`);
     tf(E.scrChat, 'translateX(0)'); vis(E.scrChat, true); vis(E.scrDrv, false); vis(E.scrCnt, false); vis(E.bub, false); vis(E.tk, false); vis(E.chip2, false);
   } else if (id === 'step1' || id === 'step2' || id === 'step3') {
@@ -482,15 +488,15 @@ function render(t) {
     vis(E.rs10, !l2); if (!l2) tf(E.rs10, `translateX(${(R * 320 * (1 - expo(P(t, s.start, .28)))).toFixed(1)}px)`);
     vis(E.rs20, l2 && !l3); vis(E.rs30, l3); vis(E.rs40, l4);
     if (l3) tf(E.rs30, `translateX(${(R * 320 * (1 - expo(P(t, H.l3, .28)))).toFixed(1)}px)`);
-    vis(E.peek, l4); if (l4) tf(E.peek, `translateY(${(-160 * expo(P(t, H.l4, .4))).toFixed(1)}px) rotate(-4deg)`);
+    vis(E.peek, l4); if (l4) tf(E.peek, `translateY(${(-520 * expo(P(t, H.l4, .45))).toFixed(1)}px) rotate(-4deg)`);
   } else if (id === 'chain') {
     // block 1 rises from the bottom edge into its slot
-    const b0 = BLK[0]; const r = expo(P(t, s.start, .35)); tf(E.blk0, `translate(${0}px,${((1760 - b0.y) * (1 - r)).toFixed(1)}px) rotate(${(-4 * (1 - r)).toFixed(2)}deg)`);
+    const b0 = BLK[0]; const r = expo(P(t, s.start, .5)); tf(E.blk0, `translate(${0}px,${((1240 - b0.y) * (1 - r)).toFixed(1)}px) rotate(${(-4 * (1 - r)).toFixed(2)}deg)`);
     [1, 2, 3].forEach(i => { const t0 = H.b[i - 1]; vis(E['blk' + i], t >= t0); if (t >= t0) tf(E['blk' + i], `translateX(${(R * 420 * (1 - expo(P(t, t0, .3)))).toFixed(1)}px)`); });
     [0, 1, 2].forEach(i => { const t0 = H.l[i]; const p = cubic(P(t, t0, 9 * FR)); E['lk' + i].style.strokeDashoffset = (1 - p).toFixed(3); vis(E['jt' + i], t >= t0 + 9 * FR); if (t >= t0 + 9 * FR) E['jt' + i].setAttribute('transform', E['jt' + i].getAttribute('transform').replace(/ scale\([^)]*\)/, '') + ` scale(${back(P(t, t0 + 9 * FR, .25)).toFixed(3)})`); });
     // chain close: stamp on the last joint + ring + breathe
     const jt = E.jt2.getAttribute('transform').match(/translate\(([^,]+),([^)]+)\)/); const jx = +jt[1], jy = +jt[2];
-    E.cstamp.style.left = (jx - 90) + 'px'; E.cstamp.style.top = (jy - 44) + 'px'; stampIn(E.cstamp, t, H.close);
+    stampIn(E.cstamp, t, H.close); if (t >= H.close) { E.cstamp.style.left = (jx - E.cstamp.offsetWidth / 2) + 'px'; E.cstamp.style.top = (jy - E.cstamp.offsetHeight / 2) + 'px'; }
     E.cink.style.left = jx + 'px'; E.cink.style.top = jy + 'px'; inkRing(E.cink, t, H.close);
     const br = t >= H.breathe ? 1 + .03 * Math.sin(Math.PI * P(t, H.breathe, 1.2)) : 1; E['b-chain'].style.transformOrigin = '540px 760px'; tf(E['b-chain'], `scale(${br.toFixed(4)})`);
   } else if (id === 'roles') {
@@ -500,13 +506,12 @@ function render(t) {
       if (i < 3) { op(el, .35 + .65 * p); tf(el, `scale(${popScale(t, rt[i], 1.06, .25)})`); }
       else { vis(el, on); if (on) { op(el, 1); tf(el, `scale(${(0.6 + 0.4 * back(P(t, rt[i], .3))).toFixed(3)})`); } }
       const tk = el.querySelector('.rtick'); vis(tk, on); if (on) tf(tk, `scale(${back(P(t, rt[i] + .05, .25)).toFixed(3)})`); });
-    if (t >= H.slab && t < H.slab + .5) {
-      vis(E.slab, true); const q = quartIn(P(t, H.slab, .35)); const ex = 290, ey = 320 + 118 + 3 * 124 + 28;
-      const sc = t < H.slab + .35 ? 1 : 1 - P(t, H.slab + .35, .12);
-      tf(E.slab, `translate(${(ex + R * 420 * (1 - q)).toFixed(1)}px,${(ey - 780 * (1 - q)).toFixed(1)}px) rotate(${(-14 * R * (1 - q)).toFixed(2)}deg) scale(${sc.toFixed(3)})`);
+    if (t >= H.slab && t < H.slab + .35) {
+      vis(E.slab, true); const q = quartIn(P(t, H.slab, .35)); const ex = 250, ey = 320 + 118 + 3 * 124 + 28;
+      tf(E.slab, `translate(${(ex + R * 520 * (1 - q)).toFixed(1)}px,${(ey - 1150 * (1 - q)).toFixed(1)}px) rotate(${(-14 * R * (1 - q)).toFixed(2)}deg)`);
     }
   } else if (id === 'close') {
-    const ex = t >= H.except, fl = t >= H.flip;
+    const ex = t >= H.except, fl = t >= H.flip - .35;      // the signed receipt appears a beat before it turns
     S[LANG].close.l1.forEach((_, i) => vis(E['cl1' + i], !ex));
     vis(E.cl30, ex && !fl); vis(E.counter, ex && !fl); vis(E.pill2, t >= H.pill && !fl);
     if (ex && !fl) {
@@ -516,8 +521,10 @@ function render(t) {
     }
     vis(E.card3d, fl); vis(E.subw, t >= H.sub);
     if (fl) {
-      const ang = Math.PI * expo(P(t, H.flip, .45)); const c = Math.cos(ang); const front = ang < Math.PI / 2;
-      vis(E.faceF, front); vis(E.faceB, !front); drift(E.card3d, t, 5, 6, 3, .4, `scaleX(${Math.abs(c).toFixed(3)})`);
+      const ang = Math.PI * cubic(P(t, H.flip, .5)); const c = Math.cos(ang); const front = ang < Math.PI / 2;
+      const pulse = t >= TL.total - .6 ? 1 + .04 * (1 - cubic(P(t, TL.total - .6, .4))) : 1;      // last beat under the closing whoosh
+      vis(E.faceF, front); vis(E.faceB, !front); drift(E.card3d, t, 5, 6, 3, .4, `scale(${pulse.toFixed(3)}) scaleX(${Math.abs(c).toFixed(3)})`);
+      inkRing(E.eink, t, TL.total - .6);
       if (t >= H.sub) maskY(E.sub, t, H.sub);
     }
   }
