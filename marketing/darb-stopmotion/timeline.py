@@ -1,6 +1,8 @@
 # Builds timeline-<lang>.json: scene starts/ends driven by the voice-over durations + per-frame VO envelope (12 fps) for mouth flaps.
 import json, subprocess, sys, numpy as np
 FPS = 12; LEAD = 0.35; TAIL = 0.7; TAIL_CTA = 3.0; HEAD = 0.5
+import os
+LEAD = float(os.environ.get("LEAD", LEAD)); TAIL = float(os.environ.get("TAIL", TAIL)); HEAD = float(os.environ.get("HEAD", HEAD))
 def dur(p): return float(subprocess.run(['ffprobe','-v','error','-show_entries','format=duration','-of','csv=p=0',p],capture_output=True,text=True).stdout.strip())
 def pcm(p):
     raw = subprocess.run(['ffmpeg','-v','error','-i',p,'-ac','1','-ar','12000','-f','s16le','-'],capture_output=True).stdout
