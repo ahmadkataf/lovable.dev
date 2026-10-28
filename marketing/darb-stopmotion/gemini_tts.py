@@ -1,0 +1,143 @@
+#!/usr/bin/env python3
+"""Text -> WAV with Gemini TTS (Interactions API). Python 3 standard library only.
+
+  python gemini_tts.py --text "أهلاً بكم في الدرس الأول" --out audio/L01.wav
+  python gemini_tts.py --in scripts/L01.txt --out audio/L01.wav --voice Charon --style "clear, friendly instructor"
+  python gemini_tts.py --list-voices --search arab        # find Arabic voices in the extended voice library
+
+Exit codes: 0 = saved (or already existed -> skipped), 3 = daily free quota used up
+(resume after midnight Pacific time), 1 = any other error.
+API key: environment variable GEMINI_API_KEY, otherwise DEFAULT_KEY below.
+"""
+import argparse, base64, json, os, re, sys, time, urllib.error, urllib.parse, urllib.request, wave
+
+DEFAULT_KEY = ""  # set GEMINI_API_KEY in the environment; never commit a key
+API = "https://generativelanguage.googleapis.com/v1beta"
+
+
+def key():
+    return os.environ.get("GEMINI_API_KEY") or DEFAULT_KEY
+
+
+def request(method, path, body=None, max_retries=6):
+    data = json.dumps(body).encode("utf-8") if body is not None else None
+    last = ""
+    for attempt in range(1, max_retries + 1):
+        req = urllib.request.Request(API + path, data=data, method=method,
+                                     headers={"x-goog-api-key": key(), "Content-Type": "application/json"})
+        try:
+            with urllib.request.urlopen(req, timeout=300) as r:
+                return json.load(r)
+        except urllib.error.HTTPError as e:
+            err = e.read().decode("utf-8", "replace")
+            if e.code == 429:
+                last = "429"
+                if re.search(r"per ?day|per_day|daily", err, re.I):
+                    print("DAILY_QUOTA_EXHAUSTED: today's free requests for this model are used up. "
+                          "Resume after midnight Pacific time.\n" + err[:800], file=sys.stderr)
+                    sys.exit(3)
+                m = re.search(r'"retryDelay"\s*:\s*"(\d+(?:\.\d+)?)s"', err)
+                wait = float(m.group(1)) + 1 if m else 25
+                print(f"429 per-minute limit; waiting {wait:.0f}s (try {attempt}/{max_retries})", file=sys.stderr)
+                time.sleep(wait)
+            elif e.code >= 500:
+                last = f"HTTP {e.code}"
+                print(f"HTTP {e.code} server error; retrying in {10 * attempt}s", file=sys.stderr)
+                time.sleep(10 * attempt)
+            else:
+                sys.exit(f"HTTP {e.code}: {err[:2000]}")
+        except urllib.error.URLError as e:
+            last = f"network: {e.reason}"
+            print(f"Network error ({e.reason}); retrying in {10 * attempt}s", file=sys.stderr)
+            time.sleep(10 * attempt)
+    if last == "429":
+        print("Still rate-limited after retries - treat as daily quota used up.", file=sys.stderr)
+        sys.exit(3)
+    sys.exit(f"Gave up after {max_retries} tries ({last}).")
+
+
+def tts(text, model, voice, style):
+    item = {"type": "text", "text": text}  # read verbatim; inline tags like <short pause> are allowed
+    if style:
+        item["annotations"] = [{"type": "speech_metadata", "style": style}]
+    resp = request("POST", "/interactions", {
+        "model": model,
+        "input": [{"type": "user_input", "content": [item]}],
+        "response_format": {"type": "audio"},
+        "generation_config": {"speech_config": [{"voice": voice}]},
+    })
+    audio = [c for s in resp.get("steps", []) if s.get("type") == "model_output"
+             for c in s.get("content", []) if c.get("type") == "audio" and c.get("data")]
+    if not audio:
+        sys.exit("No audio in response:\n" + json.dumps(resp, ensure_ascii=False, indent=2)[:3000])
+    if len(audio) > 1:
+        print(f"Note: {len(audio)} audio parts returned; using the last one (as in the official docs).", file=sys.stderr)
+    return base64.b64decode(audio[-1]["data"])
+
+
+def save_wav(audio, path):
+    folder = os.path.dirname(os.path.abspath(path))
+    os.makedirs(folder, exist_ok=True)
+    if audio[:4] == b"RIFF":            # unary default: complete WAV (24 kHz, mono, 16-bit)
+        with open(path, "wb") as f:
+            f.write(audio)
+    else:                              # raw PCM fallback -> wrap as WAV
+        with wave.open(path, "wb") as w:
+            w.setnchannels(1); w.setsampwidth(2); w.setframerate(24000); w.writeframes(audio)
+    try:
+        with wave.open(path) as w:
+            return w.getnframes() / float(w.getframerate())
+    except Exception:
+        return None
+
+
+def list_voices(search):
+    voices, token = [], None
+    while True:
+        q = {"page_size": 1000}
+        if token:
+            q["page_token"] = token
+        resp = request("GET", "/voices?" + urllib.parse.urlencode(q))
+        voices += resp.get("voices", [])
+        token = resp.get("next_page_token") or resp.get("nextPageToken")
+        if not token:
+            break
+    s = (search or "").lower()
+    for v in voices:
+        g = lambda *k: next((v[x] for x in k if v.get(x)), "")
+        line = " | ".join(str(x) for x in (g("id", "name"), g("display_name", "displayName"),
+                                            g("language_code", "languageCode"), g("gender"),
+                                            g("description")))
+        if s in line.lower() or s in json.dumps(v, ensure_ascii=False).lower():
+            print(line)
+
+
+def main():
+    p = argparse.ArgumentParser(description="Text -> WAV with Gemini TTS")
+    p.add_argument("--text")
+    p.add_argument("--in", dest="infile", help="UTF-8 text file with the narration")
+    p.add_argument("--out", help="output .wav path")
+    p.add_argument("--model", default="gemini-3.8-flash-tts", help="or gemini-3.8-flash-lite-tts")
+    p.add_argument("--voice", default="Charon", help="prebuilt name (Kore, Puck, ...) or a voice_... id")
+    p.add_argument("--style", default="", help="short delivery note, e.g. 'clear, friendly instructor'")
+    p.add_argument("--force", action="store_true", help="regenerate even if --out already exists")
+    p.add_argument("--list-voices", action="store_true", help="list voices (use --search to filter)")
+    p.add_argument("--search", default="", help="filter for --list-voices, e.g. arab, ar-, female")
+    a = p.parse_args()
+
+    if a.list_voices:
+        return list_voices(a.search)
+    if not a.out or (a.text is None) == (a.infile is None):
+        p.error("give --out and exactly one of --text / --in")
+    if os.path.exists(a.out) and os.path.getsize(a.out) > 44 and not a.force:
+        print(f"SKIP (already exists): {a.out}")
+        return
+    text = a.text if a.text is not None else open(a.infile, encoding="utf-8").read().strip()
+    if not text:
+        sys.exit("Empty text")
+    dur = save_wav(tts(text, a.model, a.voice, a.style), a.out)
+    print(f"SAVED {a.out}" + (f" ({dur:.1f}s)" if dur else ""))
+
+
+if __name__ == "__main__":
+    main()

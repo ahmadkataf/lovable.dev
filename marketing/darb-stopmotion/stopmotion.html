@@ -169,6 +169,8 @@ body{position:relative;font-family:Cairo,Fredoka,sans-serif;color:#243b4a}
   <symbol id="hand" viewBox="-80 -120 160 240"><path d="M-40 110 v-110 a14 14 0 0 1 28 0 v60 v-90 a14 14 0 0 1 28 0 v90 v-80 a14 14 0 0 1 28 0 v80 v-60 a14 14 0 0 1 28 0 v100 q0 60 -56 60 h-30 q-26 0 -26 -50z" fill="#d9a77a" stroke="#a9744a" stroke-width="3"/></symbol>
   <!-- confetti bits -->
   <symbol id="bit" viewBox="-6 -6 12 12"><rect x="-5" y="-3" width="10" height="6" fill="currentColor"/></symbol>
+  <!-- paper robot head (the AI revolution) -->
+  <symbol id="robot" viewBox="-60 -70 120 130"><rect x="-4" y="-70" width="8" height="18" fill="#243b4a"/><circle cy="-70" r="8" fill="#e5493a"/><rect x="-50" y="-52" width="100" height="92" rx="18" fill="#9fb3c8" stroke="#243b4a" stroke-width="4"/><rect x="-36" y="-34" width="72" height="34" rx="10" fill="#243b4a"/><circle cx="-16" cy="-17" r="7" fill="#38d9c0"/><circle cx="16" cy="-17" r="7" fill="#38d9c0"/><rect x="-26" y="12" width="52" height="14" rx="4" fill="#243b4a"/><g fill="#9fb3c8"><rect x="-18" y="15" width="6" height="8"/><rect x="-3" y="15" width="6" height="8"/><rect x="12" y="15" width="6" height="8"/></g><rect x="-60" y="-20" width="10" height="30" rx="4" fill="#243b4a"/><rect x="50" y="-20" width="10" height="30" rx="4" fill="#243b4a"/></symbol>
 </defs>
 <g id="world"></g>
 </svg></div>
@@ -178,10 +180,10 @@ body{position:relative;font-family:Cairo,Fredoka,sans-serif;color:#243b4a}
 <script>
 // ---------- data ----------
 const T = {
- ar: {hook1:'لحظة...', hook2:'شو هاد؟!', hook3:'رح يقلب عالم التوصيل', price:'10 د.أ', cut:'-3 د.أ', pct:'30%', owner:'ربح؟ أقل من دينار', driver:'1 د.أ / طلب', cust:'+20%', mid:'الوسيط', lose:'الكل خسران...', except:'إلا الوسيط',
+ ar: {hook1:'لحظة...', hook2:'والتوصيل؟!', hook3:'الدور عليه', btcYear:'البيتكوين · 2009', aiYear:'الذكاء الاصطناعي · 2022', price:'10 د.أ', cut:'-3 د.أ', pct:'30%', owner:'ربح؟ أقل من دينار', driver:'1 د.أ / طلب', cust:'+20%', mid:'الوسيط', lose:'الكل خسران...', except:'إلا الوسيط',
       btc:'البيتكوين', bank:'بنك', direct:'مباشرة', zero:'0%', nomid:'بدون شركة بالنص', how:'كيف بيشتغل؟', c1:'١ · الطلب', c1b:'تلفون أو واتساب ← ٢٠ ثانية', c2:'٢ · السائق', c2b:'بيشوف الأجرة قبل ما يقبل', c3:'٣ · الكاش', c3b:'ختم من الطرفين', x1:'٤٥ يوم انتظار', x2:'إعلانات', x3:'مفاجآت',
       r:'إيصال موقّع', chain:'مربوط باللي قبله', like:'متل البلوك تشين', without:'...بس بدون بلوك تشين!', noedit:'ما حدا بيعدّل', contract:'0% للأبد', flat:'اشتراك ثابت', w1:'المطعم: السعر كامل', w2:'السائق: الأجرة كاملة', w3:'الزبون: سعر المحل', w4:'الحارة بتتشارك السائقين', win:'الكل رابح', name:'درب', tag:'مش تطبيق... تغيير بقواعد اللعبة', sub:'اشترك', follow:'الجاي أكبر', shop:'شاورما', bankw:'بنك', fee:'1.50 د.أ', full:'100%'},
- en: {hook1:'Wait...', hook2:'WHAT is this?!', hook3:'This flips delivery upside down', price:'10 JOD', cut:'-3 JOD', pct:'30%', owner:'profit? under 1 JOD', driver:'1 JOD / order', cust:'+20%', mid:'THE MIDDLEMAN', lose:'Everybody loses...', except:'except the middleman',
+ en: {hook1:'Wait...', hook2:'And delivery?!', hook3:'is next', btcYear:'Bitcoin · 2009', aiYear:'AI · 2022', price:'10 JOD', cut:'-3 JOD', pct:'30%', owner:'profit? under 1 JOD', driver:'1 JOD / order', cust:'+20%', mid:'THE MIDDLEMAN', lose:'Everybody loses...', except:'except the middleman',
       btc:'Bitcoin', bank:'BANK', direct:'DIRECT', zero:'0%', nomid:'No company in the middle', how:'How does it work?', c1:'1 · The order', c1b:'phone or WhatsApp → 20 sec', c2:'2 · The driver', c2b:'sees the fee before accepting', c3:'3 · The cash', c3b:'stamped by both sides', x1:'45-day wait', x2:'Ads', x3:'Surprises',
       r:'Signed receipt', chain:'linked to the one before', like:'Like a blockchain', without:'...without the blockchain!', noedit:'Nobody can edit it', contract:'0% forever', flat:'flat subscription', w1:'Shop: full price', w2:'Driver: full fee', w3:'Customer: counter price', w4:'The street shares its drivers', win:'Everybody wins', name:'DARB', tag:'Not an app. A new set of rules.', sub:'SUBSCRIBE', follow:"What's coming is bigger", shop:'SHAWARMA', bankw:'BANK', fee:'1.50 JOD', full:'100%'}
 };
@@ -242,11 +244,14 @@ function sizeOf(key){return LANG==='ar'?1:0.92;}
 const S={};
 S.hook=(u,d,t)=>{
   document.getElementById('rec').classList.toggle('hide',u<.25);
-  const p=pop(u,.1,.5);puppet(520,720,t,{s:2.1*p,mood:u<d*.55?'shock':'talk',id:'ytHook'});
-  if(u>.9)label('hook1',1300,250,{size:150,s:pop(u,.9,.4),cls:'ghost',id:'h1'});
-  if(u>d*.32)label('hook2',1300,450,{size:160,s:pop(u,d*.32,.4),cls:'red',rot:-3,id:'h2'});
-  if(u>d*.55)confetti(1300,450,u,d*.55,30,'cfh');
-  if(u>d*.62)label('hook3',1300,680,{size:76,s:pop(u,d*.62,.4),cls:'navy',id:'h3'});
+  const p=pop(u,.1,.5);puppet(520,720,t,{s:2.1*p,mood:u<d*.12?'shock':(u<d*.62?'talk':'shock'),id:'ytHook'});
+  if(u>.9)label('hook1',1300,140,{size:120,s:pop(u,.9,.4),cls:'ghost',id:'h1'});
+  // the two revolutions as a teaser: Bitcoin (2009) and AI (2022)
+  if(u>d*.16){use('btc',1040,380,{s:3.2*pop(u,d*.16,.4),id:'btcT'});label('btcYear',1040,560,{size:40,s:pop(u,d*.2,.3),cls:'yel',rot:-3,id:'btcY'});}
+  if(u>d*.4){use('robot',1560,370,{s:1.9*pop(u,d*.4,.4),id:'robT'});label('aiYear',1560,560,{size:40,s:pop(u,d*.44,.3),cls:'teal',rot:3,id:'aiY'});}
+  if(u>d*.64)label('hook2',1300,760,{size:140,s:pop(u,d*.64,.4),cls:'red',rot:-3,id:'h2'});
+  if(u>d*.7)confetti(1300,700,u,d*.7,30,'cfh');
+  if(u>d*.82)label('hook3',1300,950,{size:76,s:pop(u,d*.82,.4),cls:'navy',id:'h3'});
 };
 S.problem=(u,d,t)=>{
   const k=(f)=>d*f; // fraction of scene
@@ -289,19 +294,19 @@ S.discovery=(u,d,t)=>{
     else{const f=steps(lin(v,k(.18),k(.28)),5);use('octo',1000,640+800*f,{s:1.3,rot:90*f,id:'octo2'});}
     if(v>k(.1)&&v<k(.2)){const o=Math.round((v*8)%2);use('scissors',820,560,{s:1.7,rot:o?-16:10,id:'sc2'});}
     if(octoGone){const m=steps(lin(v,k(.2),k(.32)),8);const g=shape(`<path d="M700 740 Q1000 560 1330 760" fill="none" stroke="#2a9d8f" stroke-width="14" stroke-dasharray="40 26" stroke-dashoffset="${-FRAME*20}" stroke-linecap="round" opacity="${m}"/>`);
-      label('nomid',960,300,{size:78,s:pop(v,k(.2),.4),cls:'teal',id:'nomid'});
-      if(v>k(.3))label('zero',960,470,{size:200,s:pop(v,k(.3),.4),cls:'ghost',rot:-6,id:'zero'});if(v>k(.3))confetti(960,470,v,k(.3),34,'cfz');}
+      label('nomid',960,230,{size:78,s:pop(v,k(.2),.4),cls:'teal',id:'nomid'});
+      if(v>k(.3))label('zero',960,500,{size:190,s:pop(v,k(.3),.4),cls:'ghost',rot:-6,id:'zero'});if(v>k(.3))confetti(960,500,v,k(.3),34,'cfz');}
   }
 };
 S.how=(u,d,t)=>{
   const k=(f)=>d*f;
   label('how',960,110,{size:90,s:pop(u,0,.4),cls:'ghost',id:'how'});
-  const cards=[[400,k(.1)],[960,k(.4)],[1520,k(.66)]];const bs=LANG==='ar'?40:33;
+  const cards=[[400,k(.1)],[960,k(.4)],[1520,k(.66)]];const bs=LANG==='ar'?36:33;
   cards.forEach(([x,s],i)=>{const p=pop(u,s,.5);if(p<=0)return;
     shape(`<g transform="translate(${x} 600) scale(${p})" class="pc"><rect x="-240" y="-330" width="480" height="640" rx="18" fill="#fbf6ea" stroke="#8a6a4a" stroke-width="4"/></g>`);
     if(i===0){use('phone',x,560,{s:1.1*p,id:'ph'});if(u>s+.5){const g=shape(`<g transform="translate(${x-100} 460)"><rect x="0" y="0" width="200" height="110" rx="8" fill="#fff" stroke="#c9b48f" stroke-width="3"/><rect x="14" y="14" width="90" height="10" rx="5" fill="#243b4a"/><rect x="14" y="34" width="150" height="8" rx="4" fill="#c9b48f"/><rect x="14" y="50" width="100" height="8" rx="4" fill="#c9b48f"/><rect x="14" y="76" width="160" height="22" rx="6" fill="#f4c542"/></g>`);}
       label('c1',x,320,{size:56,s:pop(u,s+.2,.3),cls:'red',id:'c1'});label('c1b',x,860,{size:bs,s:pop(u,s+.6,.3),cls:'body',id:'c1b'});}
-    if(i===1){use('driver',x,620,{s:1.2*p,id:'drv3'});if(u>s+.5)label('fee',x,380,{size:70,s:pop(u,s+.5,.3),cls:'red',rot:-6,id:'fee'});
+    if(i===1){use('driver',x,640,{s:1.15*p,id:'drv3'});if(u>s+.5)label('fee',x+40,440,{size:64,s:pop(u,s+.5,.3),cls:'red',rot:-6,id:'fee'});
       if(u>s+1.0)shape(`<g transform="translate(${x+120} 760)" class="pc"><rect x="-90" y="-34" width="180" height="68" rx="16" fill="#2a9d8f"/><path d="M-30 0 l18 18 l42 -40" fill="none" stroke="#fff" stroke-width="9" stroke-linecap="round" stroke-linejoin="round"/></g>`);
       label('c2',x,320,{size:56,s:pop(u,s+.2,.3),cls:'red',id:'c2'});label('c2b',x,860,{size:bs,s:pop(u,s+.6,.3),cls:'body',id:'c2b'});}
     if(i===2){coins(x-60,700,6,u,s+.2,{id:'cc',sc:1.3});use('owner',x+120,700,{s:.8*p,id:'own3'});
@@ -319,13 +324,13 @@ S.ledger=(u,d,t)=>{
     if(u>s+.45){shape(`<g transform="translate(${x+90} 560) rotate(-10)" class="pc"><circle r="40" fill="#e5493a" stroke="#9c2b20" stroke-width="3"/><path d="M-18 0 l12 12 l26 -28" fill="none" stroke="#fff8ee" stroke-width="8" stroke-linecap="round"/></g>`);}
     if(i>0&&u>s+.2)use('link',x-165,430,{s:1.2,id:'lk'+i});}
   if(u>k(.1))label('r',960,120,{size:84,s:pop(u,k(.1),.4),cls:'yel',id:'r'});
-  if(u>k(.3))label('chain',960,690,{size:60,s:pop(u,k(.3),.4),cls:'teal',id:'chain'});
-  if(u>k(.42))label('like',420,900,{size:70,s:pop(u,k(.42),.4),cls:'navy',rot:-2,id:'like'});
-  if(u>k(.5))label('without',1500,900,{size:70,s:pop(u,k(.5),.4),cls:'red',rot:2,id:'without'});
+  if(u>k(.3))label('chain',960,640,{size:56,s:pop(u,k(.3),.4),cls:'teal',id:'chain'});
+  if(u>k(.42))label('like',LANG==='ar'?420:380,900,{size:LANG==='ar'?70:60,s:pop(u,k(.42),.4),cls:'navy',rot:-2,id:'like'});
+  if(u>k(.5))label('without',LANG==='ar'?1500:1540,900,{size:LANG==='ar'?70:58,s:pop(u,k(.5),.4),cls:'red',rot:2,id:'without'});
   if(u>k(.6)){use('lock',1800,250,{s:1.5*pop(u,k(.6),.4),id:'lock'});label('noedit',1560,130,{size:54,s:pop(u,k(.63),.3),cls:'navy',id:'noedit'});}
   if(u>k(.74)){const p=pop(u,k(.74),.5);use('contract',960,820,{s:1.2*p,id:'ct'});
-    if(u>k(.8)){shape(`<g transform="translate(1060 960) rotate(-14)" class="pc"><circle r="50" fill="#e5493a" stroke="#9c2b20" stroke-width="3"/><path d="M-22 0 l16 16 l30 -34" fill="none" stroke="#fff8ee" stroke-width="9" stroke-linecap="round"/></g>`);label('contract',960,800,{size:100,s:pop(u,k(.8),.3),cls:'ghost',rot:-6,id:'ctr'});}
-    if(u>k(.9))label('flat',1420,760,{size:64,s:pop(u,k(.9),.3),cls:'teal',rot:3,id:'flat'});}
+    if(u>k(.8)){shape(`<g transform="translate(1060 960) rotate(-14)" class="pc"><circle r="50" fill="#e5493a" stroke="#9c2b20" stroke-width="3"/><path d="M-22 0 l16 16 l30 -34" fill="none" stroke="#fff8ee" stroke-width="9" stroke-linecap="round"/></g>`);label('contract',960,830,{size:LANG==='ar'?92:80,s:pop(u,k(.8),.3),cls:'ghost',rot:-6,id:'ctr'});}
+    if(u>k(.9))label('flat',LANG==='ar'?1440:1560,730,{size:LANG==='ar'?64:56,s:pop(u,k(.9),.3),cls:'teal',rot:3,id:'flat'});}
 };
 S.wins=(u,d,t)=>{
   const k=(f)=>d*f;
@@ -336,8 +341,8 @@ S.wins=(u,d,t)=>{
   if(u>k(.3)){use('driver',1060,760,{s:1.1*pop(u,k(.3),.4),id:'d4'});label('fee',1060,560,{size:60,s:pop(u,k(.33),.3),cls:'red',rot:6,id:'fee4'});label('w2',1060,900,{size:50,s:pop(u,k(.35),.3),cls:'yel',id:'w2'});}
   if(u>k(.5)){use('customer',1560,740,{s:1.1*pop(u,k(.5),.4),id:'c4'});label('w3',1560,900,{size:50,s:pop(u,k(.53),.3),cls:'yel',id:'w3'});}
   if(u>k(.62)){const m=((u-k(.62))*.35)%1;const q=steps(m,14);use('driver',200+1500*q,560,{s:.55,id:'mv1'});use('driver',1700-1500*q,590,{s:.55,id:'mv2',flip:true});label('w4',960,120,{size:66,s:pop(u,k(.62),.3),cls:'teal',id:'w4'});}
-  if(u>k(.8)){label('win',760,1000,{size:96,s:pop(u,k(.8),.4),cls:'ghost',id:'win'});confetti(960,500,u,k(.8),40,'cfw');}
-  if(u>k(.9)){use('octo',1840,1040,{s:.6,rot:12,id:'oc5'});label('except',1300,1000,{size:60,s:pop(u,k(.9),.3),cls:'purple',rot:-3,id:'exc2'});}
+  if(u>k(.8)){label('win',640,1012,{size:LANG==='ar'?90:80,s:pop(u,k(.8),.4),cls:'ghost',id:'win'});confetti(960,500,u,k(.8),40,'cfw');}
+  if(u>k(.9)){use('octo',1840,1040,{s:.6,rot:12,id:'oc5'});label('except',1330,1012,{size:LANG==='ar'?56:50,s:pop(u,k(.9),.3),cls:'purple',rot:-3,id:'exc2'});}
 };
 S.cta=(u,d,t)=>{
   const k=(f)=>d*f;

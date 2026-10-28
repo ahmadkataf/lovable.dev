@@ -39,7 +39,8 @@ mix += mu * 0.16
 for s in TL['scenes']: hit(1530, s['start'] + 0.05, 0.5)              # animator's hand: paper slide
 # hook
 hit(1133, A('hook', .25), .8); hit(2364, A('hook', .15), .6); hit(704, A('hook', .9), .7, cut=1.2, fade=.3)
-hit(2894, K('hook', .32), .7); hit(2359, K('hook', .55), .6); hit(3005, K('hook', .62), .8); hit(1492, sc['hook']['end'] - .6, .6)
+hit(1999, K('hook', .16), .7); hit(2357, K('hook', .2), .5); hit(2364, K('hook', .4), .7); hit(2357, K('hook', .44), .5)
+hit(2894, K('hook', .64), .7); hit(2359, K('hook', .7), .6); hit(3005, K('hook', .82), .8); hit(1492, sc['hook']['end'] - .6, .6)
 # problem
 hit(2380, A('problem', .05), .6); hit(2356, A('problem', .3), .6); hit(2357, K('problem', .08), .6)
 hit(1993, K('problem', .1), .7); hit(2357, K('problem', .13), .5)

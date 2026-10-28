@@ -5,12 +5,15 @@ def dur(p): return float(subprocess.run(['ffprobe','-v','error','-show_entries',
 def pcm(p):
     raw = subprocess.run(['ffmpeg','-v','error','-i',p,'-ac','1','-ar','12000','-f','s16le','-'],capture_output=True).stdout
     return np.frombuffer(raw,'<i2').astype(float)/32768
-s = json.load(open('script.json'))
+import os
+SCRIPT = os.environ.get('SCRIPT', 'script.json'); VO = os.environ.get('VO', 'vo'); PREFIX = os.environ.get('TLPREFIX', 'timeline')
+if os.environ.get('TAIL_CTA'): TAIL_CTA = float(os.environ['TAIL_CTA'])
+s = json.load(open(SCRIPT))
 for lang in sys.argv[1:] or ['ar','en']:
     t = HEAD; scenes = []
     for sc in s['scenes']:
-        f = f"vo/{lang}-{sc['id']}.mp3"; d = dur(f)
-        vs = t + LEAD; ve = vs + d; e = ve + (TAIL_CTA if sc['id']=='cta' else TAIL)
+        f = f"{VO}/{lang}-{sc['id']}.mp3"; d = dur(f)
+        vs = t + LEAD; ve = vs + d; e = ve + (TAIL_CTA if sc is s['scenes'][-1] else TAIL)
         scenes.append({'id': sc['id'], 'start': round(t,3), 'voStart': round(vs,3), 'voEnd': round(ve,3), 'end': round(e,3), 'file': f})
         t = e
     total = t
@@ -22,5 +25,5 @@ for lang in sys.argv[1:] or ['ar','en']:
             fi = int(round((sc['voStart'] + i/FPS)*FPS))
             if fi < len(env): env[fi] = r
     env = env/ (env.max() or 1)
-    json.dump({'fps': FPS, 'lang': lang, 'total': round(total,3), 'scenes': scenes, 'env': [round(float(v),3) for v in env]}, open(f'timeline-{lang}.json','w'))
+    json.dump({'fps': FPS, 'lang': lang, 'total': round(total,3), 'scenes': scenes, 'env': [round(float(v),3) for v in env]}, open(f'{PREFIX}-{lang}.json','w'))
     print(lang, 'total', round(total,2), [(sc['id'], sc['start'], sc['end']) for sc in scenes])
