@@ -117,10 +117,11 @@ html[lang=en] .blk .st{font-family:Inter;font-size:22px}
 #chainsvg{position:absolute;left:0;top:0;width:1080px;height:1920px;overflow:visible}
 #chainsvg path{fill:none;stroke:var(--mint);stroke-width:10;stroke-linecap:round;stroke-dasharray:1;stroke-dashoffset:1}
 /* roles */
-#roles .rr{position:absolute;left:30px;width:580px;height:112px;display:grid;grid-template-columns:1fr 230px 1fr;align-items:center;border-bottom:3px dotted rgba(11,11,15,.35);box-sizing:border-box;transform-origin:center}
-#roles .rr .lab{font-family:Plex;font-weight:700;font-size:38px;color:var(--ink);white-space:nowrap;justify-self:start}
-#roles .rr .amt{font-size:54px;color:var(--amberink);line-height:1;white-space:nowrap;text-align:center;justify-self:center}
-#roles .rr .tag{font-family:Kufi;font-weight:800;font-size:26px;color:var(--ink);display:flex;align-items:center;gap:10px;white-space:nowrap;justify-self:end}
+#roles .rr{position:absolute;left:30px;width:620px;height:112px;display:grid;grid-template-columns:200px 220px 200px;align-items:center;border-bottom:3px dotted rgba(11,11,15,.35);box-sizing:border-box;transform-origin:center}
+#roles .rr .lab{font-family:Plex;font-weight:700;font-size:34px;color:var(--ink);white-space:nowrap;justify-self:start}
+#roles .rr .amt{font-size:54px;color:var(--amberink);line-height:1;white-space:nowrap;justify-self:start}   /* digits share one right edge (start = right in RTL) */
+html[lang=en] #roles .rr .amt{justify-self:end}
+#roles .rr .tag{font-family:Kufi;font-weight:800;font-size:24px;color:var(--ink);display:flex;align-items:center;gap:10px;white-space:nowrap;justify-self:end}
 html[lang=en] #roles .rr .tag{font-family:Inter;font-size:22px}
 /* close */
 #counter{position:absolute;left:120px;width:840px;top:690px;text-align:center;font-size:200px;line-height:1;color:var(--amber)}
@@ -182,7 +183,7 @@ const S = {
   step3: { shd: '#418 · <bdi class="num">10.00</bdi> JOD', c1: 'Driver:', c1b: 'cash handed over', c2: 'Restaurant:', c2b: 'received', stamp: 'STAMPED', r1: '#418 · <bdi class="num">10.00</bdi> JOD · cash', signed: 'signed', hash: 'a91f·7c2e·d03b', brand: 'Darb' },
   reset: { l1: ['You pay this daily...'], l2: ['and never feel it.'], l3: ['Best part?'], l4: ['The end.'] },
   chain: { title: ['Not a dinar lost'], blocks: [['#418', '10.00'], ['#419', '7.50'], ['#420', '12.00'], ['#421', '9.00']], stamp: 'STAMPED', hashes: ['a91f·7c2e', '3b0d·91aa', 'c7e4·02f1', '8d2b·6e90'] },
-  roles: { hd: '#418 · cash', rows: [['Restaurant', '10.00', 'full'], ['Driver', '3.00', 'full'], ['Customer', '10.00', 'counter price']], r4: ['customer keeps', '+2.50'] },
+  roles: { hd: '#418 · cash', rows: [['Restaurant', '10.00', 'full'], ['Driver', '3.00', 'full'], ['Customer', '10.00', 'counter price']], r4: ['saved', '+2.50'] },
   close: { l1: ['Nothing changes', 'for you...'], l3: ['except the commission:'], pill: 'flat subscription · <bdi class="num">0%</bdi> commission', brand: 'Darb', sub: 'coming to your street' }
  }
 };
@@ -322,7 +323,7 @@ function build() {
   </div>
   <!-- B8 roles -->
   <div class="beat" id="b-roles">
-    ${receipt('roles', 220, 320, 640, 720, `<div class="hd">${s.roles.hd}</div>
+    ${receipt('roles', 200, 320, 680, 720, `<div class="hd">${s.roles.hd}</div>
       ${s.roles.rows.map((r, i) => `<div class="rr" id="rr${i}" style="top:${118 + i * 124}px"><span class="lab">${r[0]}</span><span class="amt">${num(r[1], 54)}</span><span class="tag"><span class="tick rtick hide">${TICK('#fff')}</span>${r[2]}</span></div>`).join('')}
       <div class="rr" id="rr3" style="top:${118 + 3 * 124}px;border-bottom:none"><span class="lab">${s.roles.r4[0]}</span><span class="amt">${num(s.roles.r4[1], 54)}</span><span class="tag"><span class="tick rtick hide">${TICK('#fff')}</span></span></div>`)}
   </div>
@@ -444,7 +445,7 @@ function render(t) {
     }
   } else if (id === 'prop') {
     slideX(E.pr20, t, H.slam); E.strikeL.style.strokeDashoffset = 1 - cubic(P(t, H.strike, 6 * FR)); vis(E.strike, t >= H.strike);
-    vis(E.pill1, t >= H.pill && t < H.phone + .1); tf(E.pill1, `translateX(-50%) scale(${back(P(t, H.pill, .3))})`);
+    vis(E.pill1, t >= H.pill && t < H.phone); tf(E.pill1, `translateX(-50%) scale(${back(P(t, H.pill, .3))})`);
     const ph = P(t, H.phone - .2, .2); [E.pr10, E.pr20, E.strike].forEach(el => op(el, 1 - ph));   // headline is gone by the time the phone rises
     if (phoneOn) tf(E.phone, `translateY(${(1200 * (1 - expo(P(t, H.phone, .55)))).toFixed(1)}px)`);
     tf(E.scrChat, 'translateX(0)'); vis(E.scrChat, true); vis(E.scrDrv, false); vis(E.scrCnt, false); vis(E.bub, false); vis(E.tk, false); vis(E.chip2, false);
@@ -506,7 +507,7 @@ function render(t) {
       else { vis(el, on); if (on) { op(el, 1); tf(el, `scale(${(0.9 + 0.1 * back(P(t, rt[i], .3))).toFixed(3)})`); } }
       const tk = el.querySelector('.rtick'); vis(tk, on); if (on) tf(tk, `scale(${back(P(t, rt[i] + .05, .25)).toFixed(3)})`); });
     if (t >= H.slab && t < H.slab + .35) {      // the torn slab slides in from the side at the row's own height and dissolves into row 4
-      vis(E.slab, true); const q = expo(P(t, H.slab, .35)); const ex = 250, ey = 320 + 118 + 3 * 124 + 28;
+      vis(E.slab, true); const q = expo(P(t, H.slab, .35)); const ex = 230, ey = 320 + 118 + 3 * 124 + 28;
       tf(E.slab, `translate(${(ex + R * 830 * (1 - q)).toFixed(1)}px,${ey}px) rotate(${(-6 * R * (1 - q)).toFixed(2)}deg)`); op(E.slab, q < .75 ? 1 : (1 - q) / .25);
     }
   } else if (id === 'close') {
@@ -525,7 +526,7 @@ function render(t) {
       const land = 0.92 + 0.08 * back(P(t, H.flip - .35, .25)); op(E.card3d, P(t, H.flip - .35, .12));
       const pulse = t >= TL.total - .6 ? 1 + .04 * (1 - cubic(P(t, TL.total - .6, .4))) : 1;      // last beat under the closing whoosh
       vis(E.faceF, front); vis(E.faceB, !front); drift(E.card3d, t, 5, 6, 3, .4, `scale(${(pulse * land).toFixed(3)}) scaleX(${Math.abs(c).toFixed(3)})`);
-      tf(E.fstamp, `rotate(-8deg) scale(${(t >= TL.total - .6 ? 1.6 + (1 - 1.6) * back(P(t, TL.total - .6, .3)) : 1).toFixed(3)})`);   // the 0 % stamp re-stamps on the closing hit
+      tf(E.fstamp, `rotate(-8deg) scale(${(t >= TL.total - .6 ? 1.2 + (1 - 1.2) * back(P(t, TL.total - .6, .3)) : 1).toFixed(3)})`);   // the 0 % stamp re-stamps on the closing hit
       if (t >= H.sub) maskY(E.sub, t, H.sub);
     }
   }
