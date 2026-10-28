@@ -72,6 +72,22 @@ def tts(text, model, voice, style):
     return base64.b64decode(audio[-1]["data"])
 
 
+def tts_classic(text, model, voice, style):
+    """Older models (gemini-2.5-*-preview-tts) via generateContent: the style goes in the prompt, pause tags become
+    paragraph breaks. Used when the main model's daily quota is spent (each model has its own quota)."""
+    body = re.sub(r"\s*<long pause>\s*", "\n\n...\n\n", text).strip()
+    prompt = f"Say in the voice of {style}:\n{body}" if style else body
+    resp = request("POST", f"/models/{model}:generateContent", {
+        "contents": [{"parts": [{"text": prompt}]}],
+        "generationConfig": {"responseModalities": ["AUDIO"],
+                             "speechConfig": {"voiceConfig": {"prebuiltVoiceConfig": {"voiceName": voice}}}},
+    })
+    parts = [p for c in resp.get("candidates", []) for p in c.get("content", {}).get("parts", []) if p.get("inlineData")]
+    if not parts:
+        sys.exit("No audio in response:\n" + json.dumps(resp, ensure_ascii=False, indent=2)[:3000])
+    return base64.b64decode(parts[-1]["inlineData"]["data"])
+
+
 def save_wav(audio, path):
     os.makedirs(os.path.dirname(os.path.abspath(path)), exist_ok=True)
     if audio[:4] == b"RIFF":
@@ -113,6 +129,7 @@ def main():
     p.add_argument("--voice", default="Charon")
     p.add_argument("--style", default="")
     p.add_argument("--force", action="store_true")
+    p.add_argument("--classic", action="store_true", help="generateContent API (gemini-2.5-*-preview-tts)")
     p.add_argument("--list-voices", action="store_true")
     p.add_argument("--search", default="")
     a = p.parse_args()
@@ -126,7 +143,7 @@ def main():
     text = a.text if a.text is not None else open(a.infile, encoding="utf-8").read().strip()
     if not text:
         sys.exit("Empty text")
-    dur = save_wav(tts(text, a.model, a.voice, a.style), a.out)
+    dur = save_wav((tts_classic if a.classic else tts)(text, a.model, a.voice, a.style), a.out)
     print(f"SAVED {a.out} ({dur:.1f}s)")
 
 
