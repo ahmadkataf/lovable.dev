@@ -1,6 +1,7 @@
 # Soundtrack for the cinematic video: narration + ambient bed (Mixkit "Echoes") + drums from the experiment on
 # (Mixkit "Epical Drums 01") + cinematic effects. Times mirror the scene fractions in cinematic.html.
-import json, sys, subprocess, numpy as np, wave
+import json, sys, os, subprocess, numpy as np, wave
+NO_MUSIC = os.environ.get('NO_MUSIC') == '1'   # NO_MUSIC=1: narration + effects only
 SR = 44100
 lang = sys.argv[1]; TL = json.load(open(f'timeline2-{lang}.json')); N = int((TL['total'] + 0.5) * SR); mix = np.zeros((N, 2))
 info = json.load(open('sfx/info.json'))
@@ -26,17 +27,18 @@ vo = np.zeros((N, 2))
 for s in TL['scenes']:
     x = load(s['file']); i = int(s['voStart'] * SR); j = min(N, i + len(x)); vo[i:j] += x[:j - i]
 vo = vo / (np.abs(vo).max() + 1e-9) * 0.85
-env = np.abs(vo).max(1); k = int(0.3 * SR); env = np.convolve(env, np.ones(k) / k, 'same'); duck = 1 - 0.5 * np.clip(env / 0.2, 0, 1)
+env = np.abs(vo).max(1); k = int(0.3 * SR); c = np.cumsum(np.concatenate([[0.0], env])); env = (c[k:] - c[:-k]) / k; env = np.concatenate([env, np.full(len(c) - 1 - len(env), env[-1] if len(env) else 0.0)]); duck = 1 - 0.5 * np.clip(env / 0.2, 0, 1)
 # ---- ambient bed for the whole film
 bed = load('music/188.mp3'); bed = bed / (np.abs(bed).max() + 1e-9)
 if len(bed) < N: bed = np.concatenate([bed, bed[::-1]])
 bed = bed[:N].copy(); bed[:int(2 * SR)] *= np.linspace(0, 1, int(2 * SR))[:, None]; tail = int(3 * SR); bed[-tail:] *= np.linspace(1, 0, tail)[:, None]
-mix += bed * duck[:, None] * 0.22
+if not NO_MUSIC: mix += bed * duck[:, None] * 0.22
 # ---- drums from the experiment to the end of "why", fading out before the ending
 dr = load('music/676.mp3'); dr = dr / (np.abs(dr).max() + 1e-9)
 t0 = K('experiment', .0); t1 = sc['why']['end']
 seg = dr[:int((t1 - t0) * SR)].copy(); f = int(1.5 * SR); seg[:f] *= np.linspace(0, 1, f)[:, None]; f2 = int(3 * SR); seg[-f2:] *= np.linspace(1, 0, f2)[:, None]
-i = int(t0 * SR); j = min(N, i + len(seg)); mix[i:j] += seg[:j - i] * duck[i:j, None] * 0.12
+i = int(t0 * SR); j = min(N, i + len(seg))
+if not NO_MUSIC: mix[i:j] += seg[:j - i] * duck[i:j, None] * 0.12
 # ---- effects
 hit(494, 0.3, .3, cut=12, fade=3)                                    # slow heartbeat under the cold open
 hit(1372, K('cold', .02), .35, cut=3.2, fade=.5)                     # typewriter for the title

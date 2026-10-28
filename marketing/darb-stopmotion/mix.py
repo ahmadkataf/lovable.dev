@@ -1,5 +1,6 @@
 # Mixes voice-over + music + sound effects into mix-<lang>.wav, driven by timeline-<lang>.json (same scene fractions as stopmotion.html).
-import json, sys, subprocess, numpy as np
+import json, sys, os, subprocess, numpy as np
+NO_MUSIC = os.environ.get('NO_MUSIC') == '1'   # NO_MUSIC=1: narration + effects only
 SR = 44100
 lang = sys.argv[1]; TL = json.load(open(f'timeline-{lang}.json')); N = int((TL['total'] + 0.5) * SR); mix = np.zeros((N, 2))
 info = json.load(open('sfx/info.json'))
@@ -31,10 +32,10 @@ vo = vo / (np.abs(vo).max() + 1e-9) * 0.85
 mu = load('music/10.mp3'); mu = mu / (np.abs(mu).max() + 1e-9)
 if len(mu) < N: mu = np.concatenate([mu, mu])[:N]
 mu = mu[:N].copy()
-env = np.abs(vo).max(1); k = int(0.25 * SR); env = np.convolve(env, np.ones(k) / k, 'same'); duck = 1 - 0.65 * np.clip(env / 0.2, 0, 1)
+env = np.abs(vo).max(1); k = int(0.25 * SR); c = np.cumsum(np.concatenate([[0.0], env])); env = (c[k:] - c[:-k]) / k; env = np.concatenate([env, np.full(len(c) - 1 - len(env), env[-1] if len(env) else 0.0)]); duck = 1 - 0.65 * np.clip(env / 0.2, 0, 1)
 mu *= duck[:, None]; mu[:int(1.0 * SR)] *= np.linspace(0, 1, int(1.0 * SR))[:, None]
 tail = int(2.5 * SR); mu[-tail:] *= np.linspace(1, 0, tail)[:, None]
-mix += mu * 0.16
+if not NO_MUSIC: mix += mu * 0.16
 # ---- sound effects, scene by scene (times mirror stopmotion.html)
 for s in TL['scenes']: hit(1530, s['start'] + 0.05, 0.5)              # animator's hand: paper slide
 # hook

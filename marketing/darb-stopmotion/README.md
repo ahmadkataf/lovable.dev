@@ -14,7 +14,7 @@
 - `stopmotion.html` + `script.json`: الفيديو الأول. كل شيء مرسوم كقصاصات ورق (SVG) على طاولة كرتون، يُصوَّر إطاراً إطاراً عبر Playwright بـ12 إطاراً في الثانية «on twos» مع اهتزاز وومضة إضاءة، وفم اليوتيوبر يتحرك حسب غلاف صوت التعليق.
 - `cinematic.html` + `script2.json`: الفيديو الثاني. خلفية داكنة بحبيبات فيلم وشرائط سينمائية، نص حركي، أيقونات خطية تُرسم تدريجياً، خط زمني (2009 البيتكوين، 2022 الذكاء الاصطناعي، 2026 ؟)، شريط العمولة، نمط «الوسيط»، بطاقات التجربة، سلسلة الإيصالات، ونهاية بسؤال بدل النداء للاشتراك. يُصوَّر بـ24 إطاراً في الثانية.
 - `timeline.py`: يبني `timeline*-<lang>.json` (بداية ونهاية كل مشهد من مدد التعليق + غلاف الصوت). للفيديو الثاني: `SCRIPT=script2.json VO=vo2 TLPREFIX=timeline2 TAIL_CTA=4 python3 timeline.py ar en`.
-- `mix.py` / `mix2.py`: التعليق + موسيقى مخفوضة تحت الصوت + مؤثرات، بأزمنة تطابق كسور المشاهد في الصفحات.
+- `mix.py` / `mix2.py`: التعليق + مؤثرات (والموسيقى اختيارية: الإصدار المنشور بدون موسيقى، أي `NO_MUSIC=1`)، بأزمنة تطابق كسور المشاهد في الصفحات.
 - `render.mjs`: `node render.mjs <lang> <outDir> <fps> <a-b | t:1,2,3> [page.html] [timelinePrefix]`.
 - `overlap.mjs`: فحص آلي كل ربع ثانية لأي نصين متراكبين أو نص خارج الشاشة: `node overlap.mjs ar cinematic.html timeline2 .t`.
 - `vo/` و`vo2/`: مقاطع التعليق لكل مشهد (الناتج النهائي من Gemini).
@@ -47,11 +47,11 @@ for id in 473 490 494 577 632 662 679 702 704 744 790 937 938 951 1022 1104 1109
 
 ## إعادة الإنتاج
 ```bash
-python3 timeline.py ar en && python3 mix.py ar && python3 mix.py en
+python3 timeline.py ar en && NO_MUSIC=1 python3 mix.py ar && NO_MUSIC=1 python3 mix.py en   # بدون NO_MUSIC تُضاف الموسيقى
 node render.mjs ar frames-ar 12 0-1554 && node render.mjs en frames-en 12 0-1555
 ffmpeg -framerate 12 -i frames-ar/f%05d.jpg -i mix-ar.wav -r 24 -c:v libx264 -crf 18 -pix_fmt yuv420p -c:a aac -b:a 192k -shortest -movflags +faststart Darb-stopmotion-ar.mp4
 
-SCRIPT=script2.json VO=vo2 TLPREFIX=timeline2 TAIL_CTA=4 python3 timeline.py ar en && python3 mix2.py ar && python3 mix2.py en
+SCRIPT=script2.json VO=vo2 TLPREFIX=timeline2 TAIL_CTA=4 python3 timeline.py ar en && NO_MUSIC=1 python3 mix2.py ar && NO_MUSIC=1 python3 mix2.py en
 node render.mjs ar frames2-ar 24 0-4347 cinematic.html timeline2 && node render.mjs en frames2-en 24 0-5047 cinematic.html timeline2
 ffmpeg -framerate 24 -i frames2-ar/f%05d.jpg -i mix2-ar.wav -c:v libx264 -crf 18 -pix_fmt yuv420p -c:a aac -b:a 192k -shortest -movflags +faststart Darb-cinematic-ar.mp4
 ```
