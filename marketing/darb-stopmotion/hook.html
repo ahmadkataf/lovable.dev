@@ -39,7 +39,7 @@ html[lang=en] #meas{font-family:Inter}
 .num{font-family:Inter;font-weight:800;font-variant-numeric:tabular-nums;direction:ltr;unicode-bidi:isolate;display:inline-block}
 .nv{display:inline-block;white-space:nowrap}
 .cur{font-family:Tajawal;font-weight:800;font-size:.34em;margin:0 .15em}
-#badge .cur,.blk .bh .cur{font-size:18px}
+#badge .cur,.blk .bh .cur{font-size:22px}
 #roles .rr .amt .cur{font-size:22px}
 html[lang=en] .cur{font-family:Inter;font-weight:700;font-size:.3em}
 .mono{font-family:Mono;font-weight:600;direction:ltr;unicode-bidi:isolate;display:inline-block}
@@ -100,9 +100,9 @@ html[lang=en] .stamp{font-family:Inter;font-size:32px;letter-spacing:.04em}
 html[lang=en] .pp i{transform-origin:left}
 #slabel{position:absolute;top:6px;width:80px;font-family:Inter;font-weight:800;font-size:34px;color:#fff;line-height:1}
 /* captions */
-#cap{position:absolute;left:60px;top:960px;width:960px;height:290px;display:flex;align-items:flex-end;justify-content:center}
+#cap{position:absolute;left:60px;top:990px;width:960px;height:290px;display:flex;align-items:flex-end;justify-content:center}
 #plate{background:rgba(26,26,34,.74);border-radius:24px;padding:12px 26px;max-width:900px;text-align:center;transform-origin:center bottom;font-size:72px;line-height:1.35}
-html[lang=en] #plate{font-size:64px}
+html[lang=en] #plate{font-size:64px;max-width:960px}
 .w{display:inline-block;white-space:nowrap;padding:0 12px;font-family:Tajawal;font-weight:800;font-size:72px;line-height:1.35;color:#fff;transform-origin:center}
 html[lang=en] .w{font-family:Inter;font-size:64px;letter-spacing:-.01em}
 #flash{background:#fff;opacity:0}
@@ -113,14 +113,14 @@ html[lang=en] .w{font-family:Inter;font-size:64px;letter-spacing:-.01em}
 .blk .bh .nv{font-size:32px}
 .blk .hash{font-family:Mono;font-weight:600;font-size:20px;color:var(--muted);margin-top:10px;direction:ltr;text-align:left;height:26px}
 .blk .st{position:absolute;right:16px;bottom:14px;font-family:Kufi;font-weight:800;font-size:22px;color:var(--mintink);border:3px solid var(--mintink);border-radius:8px;padding:2px 10px;transform:rotate(-10deg);transform-origin:center;line-height:1.2}
-html[lang=en] .blk .st{font-family:Inter;font-size:18px}
+html[lang=en] .blk .st{font-family:Inter;font-size:22px}
 #chainsvg{position:absolute;left:0;top:0;width:1080px;height:1920px;overflow:visible}
 #chainsvg path{fill:none;stroke:var(--mint);stroke-width:10;stroke-linecap:round;stroke-dasharray:1;stroke-dashoffset:1}
 /* roles */
-#roles .rr{position:absolute;left:30px;width:580px;height:112px;display:flex;align-items:center;justify-content:space-between;border-bottom:3px dotted rgba(11,11,15,.35);box-sizing:border-box;transform-origin:center}
-#roles .rr .lab{font-family:Plex;font-weight:700;font-size:38px;color:var(--ink);white-space:nowrap}
-#roles .rr .amt{font-size:54px;color:var(--amberink);line-height:1;white-space:nowrap}
-#roles .rr .tag{font-family:Kufi;font-weight:800;font-size:26px;color:var(--ink);display:flex;align-items:center;gap:10px;white-space:nowrap}
+#roles .rr{position:absolute;left:30px;width:580px;height:112px;display:grid;grid-template-columns:1fr 230px 1fr;align-items:center;border-bottom:3px dotted rgba(11,11,15,.35);box-sizing:border-box;transform-origin:center}
+#roles .rr .lab{font-family:Plex;font-weight:700;font-size:38px;color:var(--ink);white-space:nowrap;justify-self:start}
+#roles .rr .amt{font-size:54px;color:var(--amberink);line-height:1;white-space:nowrap;text-align:center;justify-self:center}
+#roles .rr .tag{font-family:Kufi;font-weight:800;font-size:26px;color:var(--ink);display:flex;align-items:center;gap:10px;white-space:nowrap;justify-self:end}
 html[lang=en] #roles .rr .tag{font-family:Inter;font-size:22px}
 /* close */
 #counter{position:absolute;left:120px;width:840px;top:690px;text-align:center;font-size:200px;line-height:1;color:var(--amber)}
@@ -190,7 +190,7 @@ const S = {
 const ANCH = {
  hook: { pop1: ['عشرة', 'Ten', .2], pop2: ['اثنا', 'twelve', .45], tear: ['الفرق', 'Who', .75] },
  prop: { slam: ['بحتاج', 'need', .2], strike: ['توصيل.', 'company', .4], pill: ['بدون', 'Zero', .6], phone: ['شوف', 'Watch', .85] },
- step1: { bubble: ['واحد', 'One', .05], call: ['تلفون', 'Call', .6], ticket: ['واتساب', 'WhatsApp', .8] },
+ step1: { bubble: ['واحد', 'One', .05], call: ['تلفون', 'Call', .6], ticket: ['تلفون', 'Call', .6] },
  step2: { fee: ['الأجرة', 'fee', .3], accept: ['وبيقبل', 'accepts', .6], badge: ['أجرته', 'Full', .8] },
  step3: { tap1: ['كبستين', 'Two', .5], print: ['وخلص', 'done', .7], strip: ['ولا', 'No', .85] },
  reset: { l2: ['وانت', 'and', .3], l3: ['بس', 'Best', .6], l4: ['بالآخر', 'The', .8] },
@@ -330,12 +330,11 @@ function build() {
   <div class="beat" id="b-close">
     ${hl('cl1', s.close.l1, 620, 110)}${hl('cl3', s.close.l3, 520, 110)}
     <div id="counter">${num('2.50', 200)}</div>
-    <div id="pill2" class="pill" style="top:1010px">${s.close.pill}</div>
+    <div id="pill2" class="pill" style="top:1130px">${s.close.pill}</div>
     <div class="card3d" id="card3d"><div class="rsh"></div>
       <div class="face front" id="faceF" style="clip-path:${serr(480, 600)}"><div style="font-family:Plex;font-weight:700;font-size:30px;line-height:1.3">${s.step3.r1}</div><div style="margin-top:20px"><span class="stamp" style="position:static;font-size:32px;padding:6px 16px;display:inline-flex;align-items:center;gap:8px">${s.step3.signed}<span class="tick">${TICK('#fff')}</span></span></div><div class="mono" style="font-size:22px;color:#8A8F9C;margin-top:20px;text-align:left;width:100%">${s.step3.hash}</div></div>
-      <div class="face back" id="faceB" style="clip-path:${serr(480, 600)}">${s.close.brand}<div class="stamp" style="${en ? 'right' : 'left'}:30px;bottom:40px;font-size:22px;padding:6px 12px;transform:rotate(-8deg)"><bdi class="num" style="font-size:22px">0%</bdi> ${en ? 'commission · flat subscription' : 'عمولة · اشتراك ثابت'}</div></div>
+      <div class="face back" id="faceB" style="clip-path:${serr(480, 600)}">${s.close.brand}<div id="fstamp" class="stamp" style="${en ? 'right' : 'left'}:30px;bottom:40px;font-size:22px;padding:6px 12px;transform:rotate(-8deg)"><bdi class="num" style="font-size:22px">0%</bdi> ${en ? 'commission · flat subscription' : 'عمولة · اشتراك ثابت'}</div></div>
     </div>
-    <div id="eink" class="ink hide" style="left:540px;top:780px"></div>
     <div id="subw"><div id="sub">${s.close.sub}</div></div>
   </div>
   <!-- shared slab -->
@@ -376,7 +375,7 @@ function setTimeline(tl) {
   T.chain.b = [0, 1, 2].map(i => T.chain.blocks + i * 0.45);           // blocks 2..4 enter
   T.chain.l = [0, 1, 2].map(i => Math.min(T.chain.b[i] + 0.3, T.chain.close - 0.35 + i * 0.05)); // links draw
   T.close.land = T.close.count + 0.6;
-  T.step1.chip = T.step1.ticket + 0.3; T.step1.fill = SC.step1.end - 0.8; T.step2.fill = SC.step2.end - 0.75;
+  T.step1.chip = Math.min(T.step1.ticket + 0.35, SC.step1.end - 0.9); T.step1.fill = SC.step1.end - 0.8; T.step2.fill = SC.step2.end - 0.75;
   T.close.flip = Math.max(T.close.flip, T.close.pill + 0.5);
   // hits: zoom punches + sound cues. k = punch strength, sh = shake, sfx = kind for mix4.py
   const H = (t, sfx, k = 0, ox = 540, oy = 900, sh = 0, g = 1) => HITS.push({ t: +t.toFixed(3), sfx, k, ox, oy, sh, g });
@@ -440,13 +439,13 @@ function render(t) {
     else {
       const q = quartIn(P(t, H.tear, .4)); if (q < 1) {
         const ax = LANG === 'en' ? 560 : 190; const bx = ax + 24, by = 660 + 380 + 3 * Math.sin(2 * Math.PI * H.tear / 4.6);
-        vis(E.slab, true); tf(E.slab, `translate(${(bx + R * 520 * q).toFixed(1)}px,${(by - 1150 * q).toFixed(1)}px) rotate(${-14 * R * q}deg)`);
+        vis(E.slab, true); tf(E.slab, `translate(${(bx + R * 520 * q).toFixed(1)}px,${(by - 1150 * q).toFixed(1)}px) rotate(${-14 * R * q}deg)`); op(E.slab, 1 - P(t, H.tear + .27, .13));
       }
     }
   } else if (id === 'prop') {
     slideX(E.pr20, t, H.slam); E.strikeL.style.strokeDashoffset = 1 - cubic(P(t, H.strike, 6 * FR)); vis(E.strike, t >= H.strike);
-    vis(E.pill1, t >= H.pill && t < H.phone + .2); tf(E.pill1, `translateX(-50%) scale(${back(P(t, H.pill, .3))})`);
-    const ph = t >= H.phone ? P(t, H.phone + .1, .2) : 0; [E.pr10, E.pr20, E.strike].forEach(el => op(el, 1 - ph));   // headline fades as the phone covers it
+    vis(E.pill1, t >= H.pill && t < H.phone + .1); tf(E.pill1, `translateX(-50%) scale(${back(P(t, H.pill, .3))})`);
+    const ph = P(t, H.phone - .2, .2); [E.pr10, E.pr20, E.strike].forEach(el => op(el, 1 - ph));   // headline is gone by the time the phone rises
     if (phoneOn) tf(E.phone, `translateY(${(1200 * (1 - expo(P(t, H.phone, .55)))).toFixed(1)}px)`);
     tf(E.scrChat, 'translateX(0)'); vis(E.scrChat, true); vis(E.scrDrv, false); vis(E.scrCnt, false); vis(E.bub, false); vis(E.tk, false); vis(E.chip2, false);
   } else if (id === 'step1' || id === 'step2' || id === 'step3') {
@@ -463,7 +462,7 @@ function render(t) {
     let stripY = 0, stripOp = 1; if (id === 'step3' && t >= T.step3.strip) { const p = P(t, T.step3.strip, 6 * FR); stripOp = 1 - Math.sin(Math.PI * p); stripY = -420 * quartIn(P(t, T.step3.strip + .25, .3)); }
     tf(E.strip, `translateY(${stripY.toFixed(1)}px)`); op(E.strip, stripOp);
     if (id === 'step1') {
-      const a = P(t, H.bubble, .3); vis(E.bub, t >= H.bubble); tf(E.bub, `translateY(${(-160 * (1 - expo(a))).toFixed(1)}px)`); op(E.bub, Math.min(1, a * 3));
+      const a = P(t, H.bubble, .3); vis(E.bub, t >= H.bubble); tf(E.bub, `translateY(${(40 * (1 - expo(a))).toFixed(1)}px)`); op(E.bub, Math.min(1, a * 2));
       vis(E.callchip, t >= H.call); tf(E.callchip, `translate(${(-R * 160 * (1 - expo(P(t, H.call, .3)))).toFixed(1)}px,${(6 * Math.sin(t * 3)).toFixed(2)}px)`);
       const b = P(t, H.ticket, .3); vis(E.tk, t >= H.ticket); tf(E.tk, `translateY(${(70 * (1 - expo(b))).toFixed(1)}px)`); op(E.tk, Math.min(1, b * 3)); tf(E.tkp, `scale(${popScale(t, H.ticket + .1, 1.12)})`);
       const c = P(t, H.chip, .25); vis(E.chip2, t >= H.chip); op(E.chip2, c); tf(E.chip2, `translateY(${(30 * (1 - cubic(c))).toFixed(1)}px)`);
@@ -504,27 +503,29 @@ function render(t) {
     const rt = [H.r1, H.r2, H.r3, H.slab + .35];
     [0, 1, 2, 3].forEach(i => { const el = E['rr' + i]; const on = t >= rt[i]; const p = P(t, rt[i], .18);
       if (i < 3) { op(el, .35 + .65 * p); tf(el, `scale(${popScale(t, rt[i], 1.06, .25)})`); }
-      else { vis(el, on); if (on) { op(el, 1); tf(el, `scale(${(0.6 + 0.4 * back(P(t, rt[i], .3))).toFixed(3)})`); } }
+      else { vis(el, on); if (on) { op(el, 1); tf(el, `scale(${(0.9 + 0.1 * back(P(t, rt[i], .3))).toFixed(3)})`); } }
       const tk = el.querySelector('.rtick'); vis(tk, on); if (on) tf(tk, `scale(${back(P(t, rt[i] + .05, .25)).toFixed(3)})`); });
-    if (t >= H.slab && t < H.slab + .35) {
-      vis(E.slab, true); const q = quartIn(P(t, H.slab, .35)); const ex = 250, ey = 320 + 118 + 3 * 124 + 28;
-      tf(E.slab, `translate(${(ex + R * 520 * (1 - q)).toFixed(1)}px,${(ey - 1150 * (1 - q)).toFixed(1)}px) rotate(${(-14 * R * (1 - q)).toFixed(2)}deg)`);
+    if (t >= H.slab && t < H.slab + .35) {      // the torn slab slides in from the side at the row's own height and dissolves into row 4
+      vis(E.slab, true); const q = expo(P(t, H.slab, .35)); const ex = 250, ey = 320 + 118 + 3 * 124 + 28;
+      tf(E.slab, `translate(${(ex + R * 830 * (1 - q)).toFixed(1)}px,${ey}px) rotate(${(-6 * R * (1 - q)).toFixed(2)}deg)`); op(E.slab, q < .75 ? 1 : (1 - q) / .25);
     }
   } else if (id === 'close') {
     const ex = t >= H.except, fl = t >= H.flip - .35;      // the signed receipt appears a beat before it turns
     S[LANG].close.l1.forEach((_, i) => vis(E['cl1' + i], !ex));
-    vis(E.cl30, ex && !fl); vis(E.counter, ex && !fl); vis(E.pill2, t >= H.pill && !fl);
+    vis(E.cl30, ex && !fl); vis(E.counter, ex && !fl); vis(E.pill2, t >= H.pill && t < H.flip);
     if (ex && !fl) {
       const v = 2.5 * (1 - cubic(P(t, H.count, .6))); E.counter.querySelector('.num').textContent = v.toFixed(2);
       const landed = t >= H.land; E.counter.style.color = landed ? '#19F0A0' : '#FFB400'; tf(E.counter, `scale(${popScale(t, H.land, 1.12, .3)})`);
-      tf(E.pill2, `translateX(-50%) scale(${back(P(t, H.pill, .3))})`);
+      const fo = 1 - P(t, H.flip - .48, .13); op(E.counter, fo); op(E.cl30, fo);          // fade out just before the receipt card lands
     }
+    if (t >= H.pill && t < H.flip) tf(E.pill2, `translateX(-50%) scale(${back(P(t, H.pill, .3))})`);
     vis(E.card3d, fl); vis(E.subw, t >= H.sub);
     if (fl) {
       const ang = Math.PI * cubic(P(t, H.flip, .5)); const c = Math.cos(ang); const front = ang < Math.PI / 2;
+      const land = 0.92 + 0.08 * back(P(t, H.flip - .35, .25)); op(E.card3d, P(t, H.flip - .35, .12));
       const pulse = t >= TL.total - .6 ? 1 + .04 * (1 - cubic(P(t, TL.total - .6, .4))) : 1;      // last beat under the closing whoosh
-      vis(E.faceF, front); vis(E.faceB, !front); drift(E.card3d, t, 5, 6, 3, .4, `scale(${pulse.toFixed(3)}) scaleX(${Math.abs(c).toFixed(3)})`);
-      inkRing(E.eink, t, TL.total - .6);
+      vis(E.faceF, front); vis(E.faceB, !front); drift(E.card3d, t, 5, 6, 3, .4, `scale(${(pulse * land).toFixed(3)}) scaleX(${Math.abs(c).toFixed(3)})`);
+      tf(E.fstamp, `rotate(-8deg) scale(${(t >= TL.total - .6 ? 1.6 + (1 - 1.6) * back(P(t, TL.total - .6, .3)) : 1).toFixed(3)})`);   // the 0 % stamp re-stamps on the closing hit
       if (t >= H.sub) maskY(E.sub, t, H.sub);
     }
   }
