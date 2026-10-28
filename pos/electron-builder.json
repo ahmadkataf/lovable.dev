@@ -1,0 +1,32 @@
+{
+  "$schema": "https://raw.githubusercontent.com/electron-userland/electron-builder/master/packages/app-builder-lib/scheme.json",
+  "appId": "app.kaseb.pos",
+  "productName": "Kaseb POS",
+  "copyright": "Kaseb",
+  "directories": { "output": "release", "buildResources": "build" },
+  "files": ["dist/**", "electron/**", "package.json", "!electron/**/*.test.cjs", "!node_modules/**"],
+  "asar": true,
+  "compression": "normal",
+  "afterPack": "scripts/after-pack.cjs",
+  "win": {
+    "target": [{ "target": "nsis", "arch": ["x64"] }],
+    "icon": "build/icon.ico",
+    "artifactName": "Kaseb-POS-Setup-${version}.${ext}",
+    "legalTrademarks": "Kaseb"
+  },
+  "nsis": {
+    "oneClick": false,
+    "perMachine": false,
+    "allowToChangeInstallationDirectory": true,
+    "createDesktopShortcut": true,
+    "createStartMenuShortcut": true,
+    "shortcutName": "Kaseb POS",
+    "installerLanguages": ["ar_SA", "en_US"],
+    "deleteAppDataOnUninstall": false,
+    "runAfterFinish": true,
+    "installerIcon": "build/icon.ico",
+    "uninstallerIcon": "build/icon.ico"
+  },
+  "linux": { "target": ["AppImage"], "icon": "build/icon.png", "category": "Office" },
+  "mac": { "target": ["dmg"], "icon": "build/icon.png", "category": "public.app-category.business" }
+}

@@ -1,0 +1,22 @@
+# build outputs
+dist
+release
+node_modules
+*.log
+.DS_Store
+
+# Android: the throwaway/real signing key (never commit it), the intermediate build and the copied web assets
+android/release.keystore
+android/build
+android/assets
+
+# the license server
+server/node_modules
+server/.wrangler
+server/.dev.vars
+
+# local tooling
+.vite
+playwright-report
+test-results
+Kaseb-1.0.0-preview.apk

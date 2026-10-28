@@ -1,0 +1,79 @@
+/* Customers screen. */
+.cu-stats { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+@media (max-width: 599px) { .cu-stats { grid-template-columns: 1fr 1fr; } .cu-stats .stat:first-child { grid-column: 1 / -1; } }
+.cu-stats .stat-label { display: inline-flex; align-items: center; gap: 4px; }
+.cu-stat-debt .stat-value { color: var(--danger); }
+.cu-stat-credit .stat-value { color: var(--success); }
+.cu-toolbar { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.cu-toolbar .seg { flex: none; }
+.cu-row .end { display: flex; flex-direction: column; align-items: flex-end; gap: 1px; }
+.cu-bal { font-weight: 800; font-size: 15px; }
+.cu-bal.owes { color: var(--danger); }
+.cu-bal.has { color: var(--success); }
+.cu-bal.zero { color: var(--text-3); font-weight: 600; }
+.cu-bal-tag { font-size: 11px; color: var(--text-3); }
+.cu-more { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 8px 0; }
+.cu-fab { position: fixed; inset-inline-end: 16px; bottom: calc(var(--nav-h) + 16px + var(--safe-bottom)); z-index: 60; width: 58px; height: 58px; border-radius: 50%; background: var(--primary); color: var(--on-primary); display: flex; align-items: center; justify-content: center; box-shadow: var(--shadow-2); transition: transform var(--t-fast); }
+.cu-fab:active { transform: scale(.95); }
+
+/* form */
+.cu-form { display: flex; flex-direction: column; gap: 12px; }
+.cu-opening { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 8px; align-items: center; }
+.cu-dup { color: #9a6700; }
+[data-theme="dark"] .cu-dup { color: var(--warn); }
+
+/* detail */
+.cu-detail { display: grid; grid-template-columns: minmax(280px, 360px) minmax(0, 1fr); gap: 18px; align-items: start; }
+@media (max-width: 899px) { .cu-detail { grid-template-columns: 1fr; gap: 12px; } }
+.cu-side { display: flex; flex-direction: column; gap: 12px; }
+.cu-head { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 6px; }
+.cu-head h2 { font-size: 20px; }
+.cu-head .cu-line { display: inline-flex; align-items: center; gap: 6px; color: var(--text-2); font-size: 14px; }
+.cu-head .cu-notes { white-space: pre-wrap; font-size: 13px; color: var(--text-3); }
+.cu-head-actions { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; width: 100%; margin-top: 8px; }
+.cu-head-actions .btn { flex-direction: column; gap: 4px; min-height: 58px; font-size: 12px; padding: 0 4px; }
+.cu-balance { text-align: center; }
+.cu-balance .cu-balance-label { font-size: 13px; font-weight: 600; color: var(--text-3); }
+.cu-balance .cu-balance-value { font-size: 32px; font-weight: 800; margin: 2px 0 2px; letter-spacing: -.5px; }
+.cu-balance .cu-balance-value.owes { color: var(--danger); }
+.cu-balance .cu-balance-value.has { color: var(--success); }
+.cu-balance .cu-balance-value.zero { color: var(--text-2); }
+.cu-balance .cu-balance-kind { font-size: 13px; font-weight: 700; }
+.cu-balance-actions { display: grid; grid-template-columns: 1fr; gap: 8px; margin-top: 12px; }
+.cu-balance-actions.two { grid-template-columns: 1fr 1fr; }
+.cu-main { min-width: 0; display: flex; flex-direction: column; gap: 10px; }
+.cu-ledger-bar { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.cu-ledger-bar .grow { display: flex; }
+.cu-range { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.cu-ico { width: 38px; height: 38px; border-radius: 11px; display: inline-flex; align-items: center; justify-content: center; flex: none; }
+.cu-ico.sale { background: var(--warn-soft); color: #9a6700; }
+.cu-ico.payment { background: var(--primary-soft); color: var(--primary-700); }
+.cu-ico.refund { background: var(--info-soft); color: #0369a1; }
+.cu-ico.adjust { background: var(--surface-3); color: var(--text-2); }
+[data-theme="dark"] .cu-ico.sale { color: var(--warn); }
+[data-theme="dark"] .cu-ico.payment { color: var(--primary); }
+[data-theme="dark"] .cu-ico.refund { color: var(--info); }
+.cu-entry { align-items: center; }
+.cu-entry .title { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.cu-entry .sub { display: flex; gap: 6px; flex-wrap: wrap; }
+.cu-entry .end { display: flex; flex-direction: column; align-items: flex-end; gap: 1px; }
+.cu-amt { font-weight: 800; font-size: 15px; }
+.cu-amt.up { color: var(--danger); }
+.cu-amt.down { color: var(--success); }
+.cu-after { font-size: 11px; color: var(--text-3); }
+.cu-entry-link { display: inline-flex; align-items: center; gap: 2px; color: var(--accent); font-weight: 600; font-size: 13px; }
+.cu-entry-link:hover { text-decoration: underline; }
+.cu-opening-row { justify-content: space-between; background: var(--surface-2); font-size: 13px; color: var(--text-2); min-height: 44px; }
+.cu-sale-row .end { display: flex; flex-direction: column; align-items: flex-end; gap: 2px; }
+
+/* payment / adjust sheets */
+.cu-pay { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 18px; align-items: start; }
+@media (max-width: 899px) { .cu-pay { grid-template-columns: 1fr; gap: 12px; } }
+.cu-after-box { display: flex; align-items: center; justify-content: space-between; padding: 10px 14px; border-radius: var(--radius); background: var(--surface-2); font-size: 13px; font-weight: 600; color: var(--text-2); }
+.cu-after-box .num { font-size: 16px; font-weight: 800; }
+.cu-after-box .num.owes { color: var(--danger); } .cu-after-box .num.has { color: var(--success); }
+.cu-warn { font-size: 12px; color: #9a6700; }
+[data-theme="dark"] .cu-warn { color: var(--warn); }
+
+/* rows built from spans: title over sub, stacked */
+.list-row > .grow > .title, .list-row > .grow > .sub, .list-row > .end > .sub { display: block; }
