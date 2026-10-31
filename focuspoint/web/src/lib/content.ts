@@ -5,10 +5,10 @@
 import { useEffect, useMemo } from 'react'
 import { DEFAULT_BRAND_COLOR, DEFAULT_CONTENT, brandPalette, mergeContent, siteTemplateVars, wordingFlags, type SiteContent, type WordingFlags } from '@shared/content'
 import type { ContentResponse, PublicSettings, Room } from '@shared/types'
-import { seedMemo, useCached } from './data'
+import { SAVED_MAX_AGE_MS, seedMemo, useCached } from './data'
 
 declare global {
-  interface Window { __FP_BOOT__?: { content?: unknown; settings?: PublicSettings; updated_at?: string | null } }
+  interface Window { __FP_BOOT__?: { content?: unknown; settings?: PublicSettings; updated_at?: string | null; at?: number } }
 }
 
 /** Call once at startup (main.tsx), before the first render. */
@@ -16,6 +16,8 @@ export function readBoot(): void {
   try {
     const boot = window.__FP_BOOT__
     if (!boot) return
+    // A page saved on the phone a long time ago: don't present its settings as current (the network refresh follows).
+    if (!boot.at || Date.now() - boot.at > SAVED_MAX_AGE_MS) return
     if (boot.content) seedMemo('/v1/content', { content: boot.content, updated_at: boot.updated_at ?? null })
     if (boot.settings) seedMemo('/v1/settings', boot.settings)
   } catch { /* defaults */ }

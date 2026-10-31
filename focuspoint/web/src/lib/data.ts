@@ -5,7 +5,9 @@ import { cachedGet, peekCached } from '../offline'
 
 const memo = new Map<string, unknown>()
 /** A copy saved on the phone older than this is not shown while refreshing (a week-old price list would mislead). */
-const SAVED_MAX_AGE_MS = 3 * 24 * 3600 * 1000
+export const SAVED_MAX_AGE_MS = 3 * 24 * 3600 * 1000
+/** Paths changed in this tab (a booking made or cancelled): their saved copy is out of date, so it is never painted. */
+const dropped = new Set<string>()
 // Several components often ask for the same path at the same moment (mount, focus, back online): they share one
 // request. A page's explicit reload() (after a booking change) always goes to the network on its own.
 const inflight = new Map<string, Promise<{ data: unknown; fromCache: boolean }>>()
@@ -41,6 +43,7 @@ export function useCached<T>(path: string | null, opts: { maxAgeMs?: number; pol
       const r = shared ? await sharedGet<T>(p, opts.maxAgeMs) : await cachedGet<T>(p, { maxAgeMs: opts.maxAgeMs })
       if (pathRef.current !== p) return
       memo.set(p, r.data)
+      if (!r.fromCache) dropped.delete(p)
       setData(r.data)
       setFromCache(r.fromCache)
       setError(null)
@@ -63,11 +66,11 @@ export function useCached<T>(path: string | null, opts: { maxAgeMs?: number; pol
     // Nothing in memory (a fresh app open): paint the copy saved on this phone straight away, unless the network
     // answers first. The request below still runs and replaces it; fromCache stays false, so no "offline" notice
     // flashes while it refreshes.
-    if (hit === undefined) {
+    // `loading` stays true until the network answers, so screens keep their "تحديث" indicator.
+    if (hit === undefined && !dropped.has(path)) {
       void peekCached<T>(path, opts.maxAgeMs ?? SAVED_MAX_AGE_MS).then((saved) => {
-        if (saved === undefined || pathRef.current !== path || memo.has(path)) return
+        if (saved === undefined || pathRef.current !== path || memo.has(path) || dropped.has(path)) return
         setData((cur) => (cur === undefined ? saved : cur))
-        setLoading(false)
       })
     }
     void load(true)
@@ -85,6 +88,6 @@ export function useCached<T>(path: string | null, opts: { maxAgeMs?: number; pol
   return { data, loading, error, fromCache, reload }
 }
 
-export function dropMemo(path: string) { memo.delete(path) }
+export function dropMemo(path: string) { memo.delete(path); dropped.add(path) }
 /** Pre-fill the in-memory layer (the Worker's boot JSON), so the first render already has the data. */
 export function seedMemo(path: string, data: unknown) { if (data !== undefined && data !== null && !memo.has(path)) memo.set(path, data) }

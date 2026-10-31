@@ -75,7 +75,7 @@ export function scriptJson(value: unknown): string {
 
 /** window.__FP_BOOT__ = {content, settings}: the site renders the edited content on the first paint, before any fetch. */
 export const bootScript = (content: SiteContent, settings: PublicSettings): string =>
-  `<script id="fp-boot">window.__FP_BOOT__=${scriptJson({ content, settings })}</script>`
+  `<script id="fp-boot">window.__FP_BOOT__=${scriptJson({ content, settings, at: Date.now() })}</script>`
 
 // ---------- manifest ----------
 

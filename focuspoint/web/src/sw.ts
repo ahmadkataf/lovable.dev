@@ -123,20 +123,29 @@ sw.addEventListener('fetch', (event) => {
       const key = navKey(url.pathname)
       const saved = await cache.match(key)
       const fresh = fetch(req).then(async (res) => {
-        if (res.ok && !res.redirected && res.type === 'basic' && (res.headers.get('Content-Type') || '').includes('text/html')) await cache.put(key, res.clone())
+        if (res.ok && !res.redirected && res.type === 'basic' && (res.headers.get('Content-Type') || '').includes('text/html')) {
+          // Right after a deploy the page is the NEW build while this is still the OLD worker: saving it here would
+          // point at files this worker doesn't have (blank screen offline). Save only pages of this worker's build;
+          // the new worker saves its own "/" when it installs.
+          const html = await res.clone().text()
+          const refs = html.match(/\/assets\/[^"'\s>?#]+/g) || []
+          if (refs.every((p) => shellFiles.has(p))) await cache.put(key, new Response(html, { status: res.status, headers: res.headers }))
+        }
         return res
       })
       if (saved) {
         event.waitUntil(fresh.catch(() => undefined))
         return saved
       }
+      const own = url.pathname.replace(/\/$/, '') + '.html'   // /privacy → /privacy.html (a page of its own)
+      const fallback = async () => (shellFiles.has(own) ? await shellResponse(own) : undefined) || (await shellResponse('/index.html'))
       try {
         const res = await withTimeout(fresh, NAV_TIMEOUT_MS)
         if (res.ok) return res
-        return (await shellResponse('/index.html')) || res
+        return (await fallback()) || res
       } catch {
         event.waitUntil(fresh.catch(() => undefined))   // a slow answer still gets saved for next time
-        return (await shellResponse('/index.html')) || Response.error()
+        return (await fallback()) || Response.error()
       }
     })())
     return
@@ -154,12 +163,12 @@ sw.addEventListener('fetch', (event) => {
     event.respondWith((async () => {
       const cache = await caches.open(IMG)
       const hit = await cache.match(req)
-      const fetchAndSave = () => fetch(req).then(async (res) => {
+      const fetchAndSave = (init?: RequestInit) => fetch(req, init).then(async (res) => {
         if (res.ok && res.type === 'basic') { await cache.put(req, res.clone()); await trimImages(cache) }
         return res
       })
       if (hit) {
-        if (url.pathname.startsWith('/img/')) event.waitUntil(fetchAndSave().catch(() => undefined))
+        if (url.pathname.startsWith('/img/')) event.waitUntil(fetchAndSave({ cache: 'no-cache' }).catch(() => undefined))
         return hit
       }
       return fetchAndSave()

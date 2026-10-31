@@ -95,7 +95,9 @@ describe('boot script JSON', () => {
     expect(html.startsWith('<script id="fp-boot">window.__FP_BOOT__=')).toBe(true)
     expect(html.match(/<\/script/g)).toHaveLength(1)
     const json = html.slice('<script id="fp-boot">window.__FP_BOOT__='.length, -'</script>'.length)
-    expect(JSON.parse(json)).toEqual({ content: c, settings })
+    const boot = JSON.parse(json)
+    expect(boot).toEqual({ content: c, settings, at: expect.any(Number) })   // at: when the page was made (old saved pages are not trusted)
+    expect(Math.abs(boot.at - Date.now())).toBeLessThan(60_000)
   })
 })
 
