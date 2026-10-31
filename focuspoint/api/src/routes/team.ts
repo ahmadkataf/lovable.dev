@@ -66,17 +66,20 @@ async function customer(db: D1Database, phone: string): Promise<Customer> {
   return row ?? { phone, name: '', bookings: 0, last_booking: null, blocked: 0 }
 }
 
+/** Invisible marks that WhatsApp and Arabic keyboards slip into copied text (direction marks, zero-width spaces). */
+const INVISIBLE = /[\u200B-\u200F\u202A-\u202E\u2060-\u2069\uFEFF\u061C\u00AD]/g
+
 /** Arabic-Indic and Persian digits → 0-9 (a phone on an Arabic keyboard types ١٢٣). */
 const latinDigits = (s: string): string =>
   s.replace(/[٠-٩]/g, (d) => String(d.charCodeAt(0) - 0x660)).replace(/[۰-۹]/g, (d) => String(d.charCodeAt(0) - 0x6f0))
 
 /**
- * The exact password first; if that fails, one forgiving retry with surrounding spaces removed (a password copied
- * from WhatsApp carries them) and Arabic digits made Latin. At most two hash checks, only on a failed login.
+ * The exact password first; if that fails, one forgiving retry with invisible marks and surrounding spaces removed
+ * (a password copied from WhatsApp carries them) and Arabic digits made Latin. At most two hash checks, only on a failed login.
  */
 async function passwordMatches(password: string, hash: string): Promise<boolean> {
   if (await verifyPassword(password, hash)) return true
-  const alt = latinDigits(password.trim())
+  const alt = latinDigits(password.replace(INVISIBLE, '').trim())
   return alt !== password && alt.length > 0 && (await verifyPassword(alt, hash))
 }
 
