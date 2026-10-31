@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<shortcuts xmlns:android="http://schemas.android.com/apk/res/android">
+    <shortcut android:shortcutId="mine" android:enabled="true" android:icon="@mipmap/ic_launcher" android:shortcutShortLabel="@string/shortcut_mine">
+        <intent android:action="android.intent.action.MAIN" android:targetPackage="com.focuspoint.app" android:targetClass="com.focuspoint.app.LauncherActivity" android:data="@string/twa_url_mine" />
+    </shortcut>
+</shortcuts>

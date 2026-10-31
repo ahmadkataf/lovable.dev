@@ -1,0 +1,9 @@
+# Copy to .dev.vars for `npm run dev` (git-ignored). Production values: `wrangler secret put <NAME>`.
+TOKEN_SECRET=change-me-to-a-long-random-string
+VAPID_PUBLIC_KEY=
+VAPID_PRIVATE_KEY=
+VAPID_SUBJECT=mailto:owner@example.com
+WEBHOOK_SECRET=change-me
+ADMIN_SETUP_KEY=change-me
+PUBLIC_URL=http://127.0.0.1:8787
+ASSETLINKS_FINGERPRINTS=

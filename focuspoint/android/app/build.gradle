@@ -1,0 +1,44 @@
+plugins { id 'com.android.application' }
+
+def twaUrl = (project.findProperty('twaUrl') ?: 'https://focuspoint.example').toString()
+def twaHost = new URI(twaUrl).host
+def prop = { String p, String env -> (project.findProperty(p) ?: System.getenv(env) ?: '').toString() }
+
+android {
+    namespace 'com.focuspoint.app'
+    compileSdk 36
+    defaultConfig {
+        applicationId 'com.focuspoint.app'
+        minSdk 24
+        targetSdk 36
+        versionCode = ((project.findProperty('versionCode') ?: '1').toString()).toInteger()
+        versionName = (project.findProperty('versionName') ?: '1.0.0').toString()
+        manifestPlaceholders = [twaUrl: twaUrl, twaHost: twaHost]
+        resValue 'string', 'twa_url', twaUrl
+        resValue 'string', 'twa_url_mine', "${twaUrl}/mine"
+        resValue 'string', 'asset_statements', "[{\\\"relation\\\": [\\\"delegate_permission/common.handle_all_urls\\\"], \\\"target\\\": {\\\"namespace\\\": \\\"web\\\", \\\"site\\\": \\\"${twaUrl}\\\"}}]"
+    }
+    signingConfigs {
+        release {
+            def ks = prop('ksFile', 'FP_KS_FILE')
+            if (ks) {
+                storeFile file(ks)
+                storePassword prop('ksPass', 'FP_KS_PASS')
+                keyAlias prop('keyAlias', 'FP_KEY_ALIAS')
+                keyPassword prop('keyPass', 'FP_KEY_PASS')
+                enableV1Signing true; enableV2Signing true; enableV3Signing true
+            }
+        }
+    }
+    buildTypes {
+        release {
+            minifyEnabled false
+            if (prop('ksFile', 'FP_KS_FILE')) signingConfig signingConfigs.release
+        }
+    }
+    compileOptions { sourceCompatibility JavaVersion.VERSION_17; targetCompatibility JavaVersion.VERSION_17 }
+}
+
+dependencies {
+    implementation 'com.google.androidbrowserhelper:androidbrowserhelper:2.6.2'
+}
