@@ -1,6 +1,7 @@
 // Focus Point service worker (vite-plugin-pwa, injectManifest).
 // - Precaches the app shell (the manifest injected at build time into self.__WB_MANIFEST).
-// - Navigations: network first, fall back to the cached index.html (SPA shell) when offline.
+// - Navigations: the last saved page at once, refreshed in the background (network with a time limit the first time).
+// - Photos (/img, /media): saved on the phone.
 // - Hashed assets: cache first.
 // - API reads needed to render the home screen offline (/v1/settings, /v1/rooms, /v1/availability): network first,
 //   fall back to the last good response.
@@ -32,6 +33,12 @@ const sw = self as unknown as ServiceWorkerScope
 const manifest = ((self as unknown as { __WB_MANIFEST?: ServiceWorkerScope["__WB_MANIFEST"] }).__WB_MANIFEST) || []
 const SHELL = 'fp-shell-' + hash(JSON.stringify(manifest))
 const API = 'fp-api-v1'
+const IMG = 'fp-img-v1'
+const IMG_MAX = 80   // photos kept on the phone (oldest dropped first)
+async function trimImages(cache: Cache): Promise<void> {
+  const keys = await cache.keys()
+  if (keys.length > IMG_MAX) await Promise.all(keys.slice(0, keys.length - IMG_MAX).map((k) => cache.delete(k)))
+}
 const API_PATHS = ['/v1/settings', '/v1/rooms', '/v1/availability']
 const ORIGIN = sw.location.origin
 
@@ -40,6 +47,19 @@ function hash(s: string): string {
   for (let i = 0; i < s.length; i++) h = ((h << 5) + h + s.charCodeAt(i)) | 0
   return (h >>> 0).toString(36)
 }
+const NAV_TIMEOUT_MS = 5000
+/** One saved page per section: /book/3 and /book share "/book" (same title and boot data), /b/12 and /b/40 share "/b". */
+function navKey(pathname: string): string {
+  const first = pathname.split('/')[1] || ''
+  return `${ORIGIN}/__page/${first}`
+}
+function withTimeout<T>(p: Promise<T>, ms: number): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const t = setTimeout(() => reject(new Error('timeout')), ms)
+    p.then((v) => { clearTimeout(t); resolve(v) }, (e) => { clearTimeout(t); reject(e) })
+  })
+}
+
 function shellUrl(entry: { url: string; revision: string | null }): string {
   const u = new URL(entry.url, ORIGIN)
   // Un-hashed files (index.html, icons) get the revision as a cache-busting query, like Workbox does.
@@ -60,6 +80,11 @@ sw.addEventListener('install', (event) => {
       const clean = res.redirected ? new Response(await res.arrayBuffer(), { status: 200, headers: res.headers }) : res
       await cache.put(url, clean)
     }))
+    // Save the start page too (the Android app opens "/"), so even the first launch after an update opens at once.
+    try {
+      const home = await fetch(ORIGIN + '/', { cache: 'reload' })
+      if (home.ok && !home.redirected) await cache.put(navKey('/'), home)
+    } catch { /* offline while installing: the first open fetches it */ }
     await sw.skipWaiting()
   })())
 })
@@ -87,14 +112,30 @@ sw.addEventListener('fetch', (event) => {
   if (req.method !== 'GET') return
   const url = new URL(req.url)
 
-  // SPA navigations: network first, cached shell when offline.
-  if (req.mode === 'navigate') {
+  // SPA navigations: stale-while-revalidate. The app opens at once from the last page this worker saved (the
+  // splash screen of the Android app no longer waits for the network), and the fresh page is saved in the
+  // background for the next open. Pages live in this version's shell cache, so a deploy (new worker → new cache)
+  // never serves a page that points at old asset files. First open of a page: the network, with a time limit,
+  // then the precached shell.
+  if (req.mode === 'navigate' && url.origin === ORIGIN) {
     event.respondWith((async () => {
+      const cache = await caches.open(SHELL)
+      const key = navKey(url.pathname)
+      const saved = await cache.match(key)
+      const fresh = fetch(req).then(async (res) => {
+        if (res.ok && !res.redirected && res.type === 'basic' && (res.headers.get('Content-Type') || '').includes('text/html')) await cache.put(key, res.clone())
+        return res
+      })
+      if (saved) {
+        event.waitUntil(fresh.catch(() => undefined))
+        return saved
+      }
       try {
-        const res = await fetch(req)
+        const res = await withTimeout(fresh, NAV_TIMEOUT_MS)
         if (res.ok) return res
         return (await shellResponse('/index.html')) || res
       } catch {
+        event.waitUntil(fresh.catch(() => undefined))   // a slow answer still gets saved for next time
         return (await shellResponse('/index.html')) || Response.error()
       }
     })())
@@ -104,6 +145,25 @@ sw.addEventListener('fetch', (event) => {
   // Precached shell files: cache first.
   if (url.origin === ORIGIN && shellFiles.has(url.pathname)) {
     event.respondWith((async () => (await shellResponse(url.pathname)) || fetch(req))())
+    return
+  }
+
+  // Photos: /media/<id> never changes (cache first); /img/* is part of the site (show the saved copy, refresh it
+  // in the background). Without this every open re-asked the server for each photo.
+  if (url.origin === ORIGIN && (url.pathname.startsWith('/media/') || url.pathname.startsWith('/img/'))) {
+    event.respondWith((async () => {
+      const cache = await caches.open(IMG)
+      const hit = await cache.match(req)
+      const fetchAndSave = () => fetch(req).then(async (res) => {
+        if (res.ok && res.type === 'basic') { await cache.put(req, res.clone()); await trimImages(cache) }
+        return res
+      })
+      if (hit) {
+        if (url.pathname.startsWith('/img/')) event.waitUntil(fetchAndSave().catch(() => undefined))
+        return hit
+      }
+      return fetchAndSave()
+    })())
     return
   }
 

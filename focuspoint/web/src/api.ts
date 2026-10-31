@@ -27,14 +27,20 @@ async function request<T>(method: string, path: string, body?: unknown): Promise
   const token = teamToken()
   if (token) headers.Authorization = `Bearer ${token}`
 
+  // A weak connection can leave a request hanging for minutes: reads give up after 15 s (the screen then uses the
+  // copy saved on the phone); writes get longer so a booking is not cut off half-way.
+  const ctrl = typeof AbortController !== 'undefined' ? new AbortController() : null
+  const timer = ctrl ? setTimeout(() => ctrl.abort(), method === 'GET' ? 15_000 : 45_000) : 0
   let res: Response
   try {
-    res = await fetch(BASE + path, { method, headers, body: body === undefined ? undefined : JSON.stringify(body) })
+    res = await fetch(BASE + path, { method, headers, body: body === undefined ? undefined : JSON.stringify(body), signal: ctrl?.signal })
   } catch {
+    clearTimeout(timer)
     throw new ApiError('لا يوجد اتصال بالإنترنت', 0, true)
   }
 
-  const text = await res.text()
+  let text: string
+  try { text = await res.text() } catch { throw new ApiError('لا يوجد اتصال بالإنترنت', 0, true) } finally { clearTimeout(timer) }
   let data: unknown = undefined
   if (text) {
     try { data = JSON.parse(text) } catch { data = undefined }

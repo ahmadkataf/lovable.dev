@@ -1,9 +1,11 @@
 // A small "network first, cache fallback" hook on top of offline.cachedGet, with an in-memory layer so
 // screens render instantly when revisited.
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { cachedGet } from '../offline'
+import { cachedGet, peekCached } from '../offline'
 
 const memo = new Map<string, unknown>()
+/** A copy saved on the phone older than this is not shown while refreshing (a week-old price list would mislead). */
+const SAVED_MAX_AGE_MS = 3 * 24 * 3600 * 1000
 // Several components often ask for the same path at the same moment (mount, focus, back online): they share one
 // request. A page's explicit reload() (after a booking change) always goes to the network on its own.
 const inflight = new Map<string, Promise<{ data: unknown; fromCache: boolean }>>()
@@ -58,6 +60,16 @@ export function useCached<T>(path: string | null, opts: { maxAgeMs?: number; pol
     setData(hit)
     setLoading(hit === undefined)
     setError(null)
+    // Nothing in memory (a fresh app open): paint the copy saved on this phone straight away, unless the network
+    // answers first. The request below still runs and replaces it; fromCache stays false, so no "offline" notice
+    // flashes while it refreshes.
+    if (hit === undefined) {
+      void peekCached<T>(path, opts.maxAgeMs ?? SAVED_MAX_AGE_MS).then((saved) => {
+        if (saved === undefined || pathRef.current !== path || memo.has(path)) return
+        setData((cur) => (cur === undefined ? saved : cur))
+        setLoading(false)
+      })
+    }
     void load(true)
     const onFocus = () => { if (document.visibilityState === 'visible') void load(true) }
     window.addEventListener('online', onFocus)

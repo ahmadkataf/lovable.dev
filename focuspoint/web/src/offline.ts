@@ -70,6 +70,13 @@ export function useOnline(): boolean {
 
 interface Entry<T> { t: number; data: T }
 
+/** The saved copy of a GET (no network), if it is fresh enough: lets a screen paint at once while it refreshes. */
+export async function peekCached<T>(path: string, maxAgeMs?: number): Promise<T | undefined> {
+  const hit = await cache.get<Entry<T>>(`get:${path}`)
+  if (!hit || (maxAgeMs !== undefined && Date.now() - hit.t > maxAgeMs)) return undefined
+  return hit.data
+}
+
 /** GET through the API; on failure (offline or server error) fall back to the cached copy if it is fresh enough. */
 export async function cachedGet<T>(path: string, opts: { maxAgeMs?: number } = {}): Promise<{ data: T; fromCache: boolean }> {
   const key = `get:${path}`
