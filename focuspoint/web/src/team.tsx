@@ -108,6 +108,7 @@ function TeamLogin() {
   const { login } = useTeam()
   const [phone, setPhone] = useState('')
   const [password, setPassword] = useState('')
+  const [show, setShow] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
 
@@ -129,8 +130,12 @@ function TeamLogin() {
           <Input type="tel" inputMode="tel" autoComplete="username" dir="ltr" placeholder="09XXXXXXXX" value={phone} onChange={(e) => setPhone(e.target.value)} autoFocus />
         </Field>
         <Field label="كلمة المرور" error={error ?? undefined}>
-          <Input type="password" autoComplete="current-password" dir="ltr" value={password} onChange={(e) => setPassword(e.target.value)} />
+          <Input type={show ? 'text' : 'password'} autoComplete="current-password" autoCapitalize="none" autoCorrect="off" spellCheck={false}
+            dir="ltr" value={password} onChange={(e) => setPassword(e.target.value)} />
         </Field>
+        <label className="muted" style={{ display: 'flex', alignItems: 'center', gap: 8, margin: '6px 0 18px', fontSize: 14 }}>
+          <input type="checkbox" checked={show} onChange={(e) => setShow(e.target.checked)} /> إظهار كلمة المرور
+        </label>
         <Button type="submit" block size="lg" loading={busy}>دخول</Button>
         <a href="/book" className="login-back muted">← رجوع إلى صفحة الحجز</a>
       </form>
