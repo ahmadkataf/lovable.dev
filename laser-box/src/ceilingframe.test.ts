@@ -1427,7 +1427,54 @@ describe("ceiling decor, the light design ('detail' 2): the set's squares with f
   const AIM = { holes: 600, metres: 60, hole: 12, strap: 8 }
   type Q = { x: number; y: number }
   const loopLen = (pts: Q[]) => pts.reduce((a, q, i) => a + Math.hypot(pts[(i + 1) % pts.length].x - q.x, pts[(i + 1) % pts.length].y - q.y), 0)
-  /** A square's board: its numbers and every rule of the light design checked (straight lines, the holes' widths, the straps, no hole in a hole, the rest on the gypsum solid, a mirror image about both of its axes). */
+  /** A polygon's inner corners (turning the other way). */
+  const reflexOf = (pts: Q[]) => {
+    const n = pts.length, s = Math.sign(signedArea({ closed: true, pts }))
+    return pts.filter((q, i) => { const a = pts[(i + n - 1) % n], b = pts[(i + 1) % n]; return s * ((q.x - a.x) * (b.y - q.y) - (q.y - a.y) * (b.x - q.x)) < -1e-9 }).length
+  }
+  /**
+   * Does a hole read as a cross, a plus or an X (or a 4-pointed star): four inner corners, where its arms meet, and the
+   * same shape after a quarter turn about its middle (its box made square first, so a cross on a stretched lattice is
+   * one too).
+   */
+  const crossLike = (pts: Q[]) => {
+    if (reflexOf(pts) !== 4) return false
+    const b = boxOf(pts), c = { x: (b.minX + b.maxX) / 2, y: (b.minY + b.maxY) / 2 }, u = pts.map(q => ({ x: (q.x - c.x) / (b.maxX - b.minX), y: (q.y - c.y) / (b.maxY - b.minY) }))
+    return u.every(q => u.some(o => Math.hypot(o.x + q.y, o.y - q.x) < 0.03))
+  }
+  /** Is a hole a 6-pointed star (a hexagram): six inner corners, and the same shape after a sixth of a turn about its middle. */
+  const hexagramLike = (pts: Q[]) => {
+    if (reflexOf(pts) !== 6) return false
+    const b = boxOf(pts), c = { x: (b.minX + b.maxX) / 2, y: (b.minY + b.maxY) / 2 }, k = Math.max(b.maxX - b.minX, b.maxY - b.minY), cs = Math.cos(Math.PI / 3), sn = Math.sin(Math.PI / 3)
+    return pts.every(q => { const x = q.x - c.x, y = q.y - c.y, t = { x: c.x + x * cs - y * sn, y: c.y + x * sn + y * cs }; return pts.some(o => Math.hypot(o.x - t.x, o.y - t.y) < 0.03 * k) })
+  }
+  /** How far a hole reaches from its centre (its farthest corner). */
+  const reach = (q: Q[]) => { const c = centroid(q); return Math.max(...q.map(v => Math.hypot(v.x - c.x, v.y - c.y))) }
+  /** A hole's arms: the dents between the corners of its hull deeper than 12% of its reach (a plus or an X 4, a 6-point star 6, an 8-point star 8, a convex shape none). */
+  function armsOf(q: Q[]): number {
+    const o = q.map((v, i) => ({ ...v, i })).sort((a, z) => a.x - z.x || a.y - z.y), cr = (k: Q, a: Q, z: Q) => (a.x - k.x) * (z.y - k.y) - (a.y - k.y) * (z.x - k.x)
+    const lo: typeof o = [], up: typeof o = []
+    for (const v of o) { while (lo.length >= 2 && cr(lo[lo.length - 2], lo[lo.length - 1], v) <= 1e-9) lo.pop(); lo.push(v) }
+    for (const v of [...o].reverse()) { while (up.length >= 2 && cr(up[up.length - 2], up[up.length - 1], v) <= 1e-9) up.pop(); up.push(v) }
+    const hull = [...lo.slice(0, -1), ...up.slice(0, -1)].map(v => v.i).sort((a, z) => a - z), R = reach(q)
+    let n = 0
+    for (let k = 0; k < hull.length; k++) {
+      const a = hull[k], z = hull[(k + 1) % hull.length]
+      let depth = 0
+      for (let i = (a + 1) % q.length; i !== z; i = (i + 1) % q.length) depth = Math.max(depth, ptSeg(q[i], q[a], q[z]))
+      if (depth > 0.12 * R) n++
+    }
+    return n
+  }
+  /** Does a turn by a k-th of a circle about its centre map a hole onto itself (each corner within 8% of its reach of the other's outline)? */
+  function turnsOnto(q: Q[], k: number): boolean {
+    const c = centroid(q), a = (2 * Math.PI) / k, tol = 0.08 * reach(q), t = q.map(v => ({ x: c.x + (v.x - c.x) * Math.cos(a) - (v.y - c.y) * Math.sin(a), y: c.y + (v.x - c.x) * Math.sin(a) + (v.y - c.y) * Math.cos(a) }))
+    const near = (v: Q, P: Q[]) => P.some((w, i) => ptSeg(v, w, P[(i + 1) % P.length]) < tol)
+    return t.every(v => near(v, q)) && q.every(v => near(v, t))
+  }
+  /** A second look, by the dents: the holes that read as a cross (a plus or an X: 4 arms, a quarter turn maps it onto itself) or a 6-point star (6 arms, a sixth turn). */
+  const crossByArms = (holes: Q[][]) => holes.filter(q => (armsOf(q) === 4 && turnsOnto(q, 4)) || (armsOf(q) === 6 && turnsOnto(q, 6)))
+  /** A square's board: its numbers and every rule of the light design checked (straight lines, the holes' widths, the straps, no hole in a hole, the rest on the gypsum solid, a mirror image about both of its axes, no cross). */
   function checkLight(pn: Pn, lb: string, ov = 30) {
     const cut = cutOf(pn), areas = cut.map(l => Math.abs(signedArea(l))), io = areas.indexOf(Math.max(...areas))
     const outline = cut[io].pts, holes = cut.filter((_, i) => i !== io).map(l => l.pts as Q[])
@@ -1450,8 +1497,29 @@ describe("ceiling decor, the light design ('detail' 2): the set's squares with f
     const cs = holes.map(q => ({ c: centroid(q), a: Math.abs(signedArea({ closed: true, pts: q })) }))
     const has = (c: Q, a: number) => cs.some(o => Math.abs(o.c.x - c.x) < 0.05 && Math.abs(o.c.y - c.y) < 0.05 && Math.abs(o.a - a) < 0.5)
     for (const [fx, fy] of [[true, false], [false, true]]) expect(cs.filter(({ c, a }) => !has({ x: fx ? W - c.x : c.x, y: fy ? H - c.y : c.y }, a)).length, `${lb}: mirror ${fx ? 'x' : 'y'}`).toBe(0)
+    // no hole is a cross, a plus or an X (the customer saw a cross in the field's crosses between its stars), nor a hexagram
+    expect(holes.filter(crossLike).map(q => centroid(q)), `${lb}: crosses`).toEqual([])
+    expect(holes.filter(hexagramLike).map(q => centroid(q)), `${lb}: hexagrams`).toEqual([])
+    expect(crossByArms(holes).map(q => centroid(q)), `${lb}: crosses and 6-point stars, by their arms`).toEqual([])
     return { holes: holes.length, metres, narrowest: Math.min(...widths), strap }
   }
+
+  it('knows a cross when it sees one: the field\'s old cross (16 corners), a plus (12), an X, a 4-pointed star; not an 8- or 12-pointed star, an octagon or a half star; and a hexagram', () => {
+    const a = 0.5 - 0.5 * Math.SQRT1_2, b = 0.5 - a, sc = (pts: number[][], sx = 166.7, sy = 162.5) => pts.map(([x, y]) => ({ x: 300 + x * sx, y: 200 + y * sy }))
+    const oldCross = sc([[0, 0.5], [a, b], [a, a], [b, a], [0.5, 0], [b, -a], [a, -a], [a, -b], [0, -0.5], [-a, -b], [-a, -a], [-b, -a], [-0.5, 0], [-b, a], [-a, a], [-a, b]])
+    const plus = sc([[1, 3], [2, 3], [2, 2], [3, 2], [3, 1], [2, 1], [2, 0], [1, 0], [1, 1], [0, 1], [0, 2], [1, 2]].map(([x, y]) => [(x - 1.5) / 3, (y - 1.5) / 3]))
+    const turn = (pts: Q[], t: number) => { const c = centroid(pts); return pts.map(q => ({ x: c.x + (q.x - c.x) * Math.cos(t) - (q.y - c.y) * Math.sin(t), y: c.y + (q.x - c.x) * Math.sin(t) + (q.y - c.y) * Math.cos(t) })) }
+    const star = (n: number, r: number, v: number, sx = 166.7, sy = 162.5) => sc(Array.from({ length: 2 * n }, (_, j) => [(j % 2 ? v : r) * Math.cos((j * Math.PI) / n), (j % 2 ? v : r) * Math.sin((j * Math.PI) / n)]), sx, sy)
+    for (const [name, pts] of [['the old cross', oldCross], ['a plus', plus], ['an X', turn(plus, Math.PI / 4)], ['a 4-pointed star', star(4, 0.5, 0.15)], ['a stretched plus', plus.map(q => ({ x: q.x * 1.08, y: q.y }))]] as const) expect(crossLike(pts as Q[]), name).toBe(true)
+    const half = star(8, 0.43, 0.43 * 0.7654).filter(q => q.y >= 200 - 1e-9)
+    for (const [name, pts] of [['an 8-pointed star', star(8, 0.43, 0.43 * 0.7654)], ['an octagon', star(4, 0.2, 0.2)], ['a half star', half], ['a 12-pointed star', star(12, 0.5, 0.3)], ['a 6-pointed star', star(6, 0.5, 0.29)]] as const) expect(crossLike(pts as Q[]), name).toBe(false)
+    // and a hexagram (two triangles: six points), not the others
+    expect(hexagramLike(star(6, 0.5, 0.5 / Math.sqrt(3), 165, 165)), 'a hexagram').toBe(true)
+    for (const [name, pts] of [['an 8-pointed star', star(8, 0.43, 0.43 * 0.7654)], ['a 12-pointed star', star(12, 0.5, 0.3)], ['the old cross', oldCross]] as const) expect(hexagramLike(pts as Q[]), name).toBe(false)
+    // the second look (by the dents) sees the crosses and both 6-point stars, and none of the others
+    for (const [name, pts] of [['the old cross', oldCross], ['a plus', plus], ['an X', turn(plus, Math.PI / 4)], ['a 4-pointed star', star(4, 0.5, 0.15)], ['a 6-pointed star', star(6, 0.5, 0.29)], ['a hexagram', star(6, 0.5, 0.5 / Math.sqrt(3), 165, 165)]] as const) expect(crossByArms([pts as Q[]]).length, `by the arms: ${name}`).toBe(1)
+    for (const [name, pts] of [['an 8-pointed star', star(8, 0.43, 0.43 * 0.7654)], ['an octagon', star(4, 0.2, 0.2)], ['a half star', half], ['a 12-pointed star', star(12, 0.5, 0.3)]] as const) expect(crossByArms([pts as Q[]]).length, `by the arms: ${name}`).toBe(0)
+  })
 
   it('leaves the fine design (detail 1) as it was before the light one, to the byte: the one-piece decor, style 3, and the set both ways of cutting its strips', () => {
     const was: [Tp, Record<string, number>, string, string][] = [
@@ -1507,7 +1575,7 @@ describe("ceiling decor, the light design ('detail' 2): the set's squares with f
           seen[`${pn.w} centre ${centre}`] = [r.holes, Math.round(r.metres * 10) / 10]
           // no wide plain wood (the squares as first made light: wood 72 mm from a hole past the rest, 58 between the
           // band's rosettes, 80 at the corners, 35 in a ring round the field): none 45 mm from a hole, nor 25 mm in the
-          // middle (its straps 20 mm, a few points between them a little more)
+          // middle (the field's straps 23 mm, the knots of wood between four of its octagons a little more)
           if (pack === 1) {
             const w = widestPlain(pn, LIGHT.band)
             expect(w.all, `${lb} ${pn.name}: the widest plain wood`).toBeLessThan(45)
@@ -1518,7 +1586,9 @@ describe("ceiling decor, the light design ('detail' 2): the set's squares with f
       }
     }
     // the numbers, the same both ways of cutting the strips (the fine squares: 5483 and 5677 cut-outs, 222 and 227 m)
-    expect(seen).toEqual({ '1400 centre 1': [425, 57.4], '1380 centre 1': [425, 58], '1400 centre 2': [431, 58.8], '1380 centre 2': [431, 59.5] })
+    // (the field's stars and crosses gave 425 and 431 cut-outs, 57.4 to 59.5 m; its stars and octagons a few more, a
+    // little shorter, with a metre to spare: the field's straps 23 mm, the centres' 20 as with the crosses)
+    expect(seen).toEqual({ '1400 centre 1': [461, 57.3], '1380 centre 1': [453, 57.3], '1400 centre 2': [491, 58.4], '1380 centre 2': [491, 59.1] })
     // styles 1 and 2 have no light design: their squares stay their own (16-point rosettes, khatam), whatever 'detail' says
     for (const style of [1, 2]) {
       const sqs = (d: Dz) => d.panels.filter(pn => /مربع/.test(pn.name)).map(pn => [pn.id, pn.loops])
@@ -1528,7 +1598,7 @@ describe("ceiling decor, the light design ('detail' 2): the set's squares with f
     }
   }, 240000)
 
-  it('lays the light design out of a band of 12-petal rosettes filling it across (style 3, no lace ring and no border rows) with a whole rosette in each corner, a field of 8-point stars and crosses, and the centre chosen: a 12-gon with a 12-pointed star, or a big 8-pointed star with rays', () => {
+  it('lays the light design out of a band of 12-petal rosettes filling it across (style 3, no lace ring and no border rows) with a whole rosette in each corner, a field of 8-point stars each in a ring of eight octagons (no crosses), and the centre chosen: a 12-gon with a 12-pointed star, or a big 8-pointed star with rays', () => {
     for (const centre of [1, 2]) {
       const p = { ...setSquareParams({ ...T3.defaults, style: 3, centre }, 1400, 1050) }, g = frameGeom(p), d = decorPieces(p, g)
       expect([g.light, g.style, g.kind, g.centre, g.b], `centre ${centre}`).toEqual([true, 3, 1, centre, LIGHT.band])
@@ -1563,28 +1633,60 @@ describe("ceiling decor, the light design ('detail' 2): the set's squares with f
       if (centre === 1) expect([A, fit.sx, fit.sy], 'centre 1 touches the long sides').toEqual([Math.min(fw.W, fw.H) / 2, 1, 1])
       else {
         // 2 is no octagon: an 8-pointed star (16 corners, its valleys 0.765 of its points from the middle), unlike the
-        // fine squares' octagon, the field's own star grown to k + ½ of its steps (stretched as its lattice) so its
-        // edges run on the lattice's lines, as big as fits, and the field's lattice has a star in the middle
-        const L = lightStarFit(fw.W, fw.H, LIGHT.q).L, k = (A / L.qy) - 0.5
-        expect([Math.abs(k - Math.round(k)) < 1e-9, A <= fw.H / 2 + 1e-9, A + L.qy > fw.H / 2, fit.sx, d.lat.length > 0], 'centre 2').toEqual([true, true, true, L.qx / L.qy, true])
+        // fine squares' octagon, the field's own star grown to k + ring of its steps (stretched as its lattice), as big
+        // as fits, so its points on the axes are the k-th stars' points; here k = 1, √2 steps: its sides run along the
+        // stars' and the octagons' sides, and the field's lattice has a star in the middle
+        const sf = lightStarFit(fw.W, fw.H, LIGHT.q), L = sf.L, k = (A / L.qy) - LIGHT.ring
+        expect([Math.abs(k - Math.round(k)) < 1e-9, A <= fw.H / 2 + 1e-9, A + L.qy > fw.H / 2, fit.sx, d.lat.length > 0, Math.round(k), sf.lined], 'centre 2').toEqual([true, true, true, L.qx / L.qy, true, 1, true])
+        expect(Math.abs(A / L.qy - Math.SQRT2) < 1e-9, 'centre 2: √2 steps').toBe(true)
         expect([(L.nX % 2) / 2, (L.nY % 2) / 2], 'centre 2: a star of the lattice in the middle').toEqual([L.ax, L.ay])
         const rs = out.map(q => Math.hypot((q.x - g.PW / 2) / fit.sx, (q.y - g.PH / 2) / fit.sy) / A)
         expect(rs.map(v => Math.round(v * 1000) / 1000), 'centre 2').toEqual(Array.from({ length: 16 }, (_, j) => (j % 2 ? 0.765 : 1)))
         expect(Math.max(...d.med.map(pc => Math.hypot(centroid(pc.poly).x - g.PW / 2, centroid(pc.poly).y - g.PH / 2))), 'centre 2: its rays reach out').toBeGreaterThan(0.5 * A)
       }
-      // the field: stars and crosses only, none inside the centre's outline
+      // the field: stars and octagons only, none inside the centre's outline, no cross, plus or X among them
       expect(d.lat.length, `centre ${centre}`).toBeGreaterThan(20)
-      expect(d.lat.every(pc => /^[SX]/.test(pc.key) && pc.poly.every(q => !pointIn(q, out))), `centre ${centre}`).toBe(true)
+      expect(d.lat.every(pc => /^[SO]/.test(pc.key) && pc.poly.every(q => !pointIn(q, out))), `centre ${centre}`).toBe(true)
+      expect(d.lat.filter(pc => crossLike(pc.poly) || hexagramLike(pc.poly)).map(pc => pc.key), `centre ${centre}`).toEqual([])
+      // every octagon convex (the field's edges and the centre cut some), most whole: eight corners, all 135° (turns
+      // of 45°, give or take the lattice's stretch)
+      const turn = (pts: Q[], i: number) => { const n = pts.length, a = pts[(i + n - 1) % n], q = pts[i], b = pts[(i + 1) % n]; return Math.abs(Math.atan2((q.x - a.x) * (b.y - q.y) - (q.y - a.y) * (b.x - q.x), (q.x - a.x) * (b.x - q.x) + (q.y - a.y) * (b.y - q.y))) }
+      const octs = d.lat.filter(pc => pc.key[0] === 'O'), whole = octs.filter(pc => pc.poly.length === 8)
+      expect([octs.every(pc => reflexOf(pc.poly) === 0), whole.length > octs.length / 2], `centre ${centre}`).toEqual([true, true])
+      expect(whole.every(pc => pc.poly.every((_, i) => Math.abs(turn(pc.poly, i) - Math.PI / 4) < (2 * Math.PI) / 180)), `centre ${centre}`).toBe(true)
+      // each whole star (16 corners) a rosette: its eight octagons round it, no more (the next are over a step away)
+      const stars = d.lat.filter(pc => pc.key[0] === 'S' && pc.poly.length === 16)
+      expect(stars.length, `centre ${centre}`).toBeGreaterThanOrEqual(centre === 2 ? 4 : 0)
+      for (const st of stars) { const c = centroid(st.poly); expect(whole.filter(o => Math.hypot(centroid(o.poly).x - c.x, centroid(o.poly).y - c.y) < 0.7 * LIGHT.q).length, `centre ${centre}: ${st.key}`).toBe(8) }
+      // centre 2's star cuts no octagon (its sides on theirs), nor do the field's edges (they halve stars)
+      if (centre === 2) expect(octs.length, 'centre 2: every octagon whole').toBe(whole.length)
+    }
+  })
+
+  it('keeps the four octagons round each knot of wood near round, so the group never reads as a plus: every whole octagon of the field (both squares, both centres) at most 1.15 times as long as it is wide, its corners all 135°', () => {
+    const turn = (pts: Q[], i: number) => { const n = pts.length, a = pts[(i + n - 1) % n], q = pts[i], b = pts[(i + 1) % n]; return Math.abs(Math.atan2((q.x - a.x) * (b.y - q.y) - (q.y - a.y) * (b.x - q.x), (q.x - a.x) * (b.x - q.x) + (q.y - a.y) * (b.y - q.y))) }
+    for (const [W, H] of [[1400, 1050], [1380, 1080]]) for (const centre of [1, 2]) {
+      const p = setSquareParams({ ...T3.defaults, style: 3, centre }, W, H), g = frameGeom(p), d = decorPieces(p, g), lb = `${W} × ${H} centre ${centre}`
+      // (whole: eight corners and as big as the biggest; the 12-gon cuts a few along a side at 45°, eight corners still)
+      const octs = d.lat.filter(pc => pc.key[0] === 'O' && pc.poly.length === 8), area = (pc: { poly: Q[] }) => Math.abs(signedArea({ closed: true, pts: pc.poly }))
+      const most = Math.max(...octs.map(area)), whole = octs.filter(pc => area(pc) > 0.98 * most)
+      expect(whole.length, lb).toBeGreaterThan(30)
+      const aspect = whole.map(pc => { const b = boxOf(pc.poly), w = b.maxX - b.minX, h = b.maxY - b.minY; return Math.max(w, h) / Math.min(w, h) })
+      expect(Math.max(...aspect), `${lb}: the longest octagon`).toBeLessThanOrEqual(1.15)
+      expect(whole.every(pc => pc.poly.every((_, i) => Math.abs(turn(pc.poly, i) - Math.PI / 4) < (2 * Math.PI) / 180)), `${lb}: 135° corners`).toBe(true)
     }
   })
 
   it('asks the one-piece decor for a band wide enough for the light design, and builds it there; the light design is style 3\'s only', () => {
     const d0 = gen({ detail: 2, style: 3 })
     expect(d0.errors).toEqual(['عرض الإطار (170 مم) قليل: لا تتّسع وردة في الجزء الظاهر منه. اجعله 192 مم على الأقل.'])
-    for (const [p, ov] of [[{ detail: 2, style: 3, band: 192 }, 30], [{ detail: 2, style: 3, band: 245, centre: 2 }, 30], [{ detail: 2, style: 3, band: 245, PW: 1380, PH: 1080 }, 30]] as const) {
+    for (const [p, ov] of [[{ detail: 2, style: 3, band: 192 }, 30], [{ detail: 2, style: 3, band: 245 }, 30], [{ detail: 2, style: 3, band: 245, centre: 2 }, 30], [{ detail: 2, style: 3, band: 245, PW: 1380, PH: 1080 }, 30]] as const) {
       const d = gen(p), lb = JSON.stringify(p)
       expect([d.errors, d.warnings], lb).toEqual([[], []])
       checkLight(get(d, 'board'), lb, ov)
+      // no wide plain wood in the middle either, the 245 band's 5 × 3 lattice (its knots the largest, 24.6 mm) with
+      // both centres too (its wider band's own rim, past the rest, is wider: not the field's)
+      expect(widestPlain(get(d, 'board'), frameGeom(full(p)).b).middle, `${lb}: the widest plain wood in the middle`).toBeLessThan(25)
     }
     expect(gen({ detail: 2, style: 3, band: 245, mid: 1, center: 3 }).errors[0]).toMatch(/^التفاصيل الخفيفة بلا شريحة وسطى/)
     // styles 1 and 2 (the one-piece decor's own two templates) have no light design: said so, nothing cut
