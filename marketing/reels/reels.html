@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="ar" dir="rtl"><head><meta charset="utf-8">
+<style>
+@font-face{font-family:A;src:url(alexandria-arabic-wght-normal.woff2) format('woff2');font-weight:100 900;unicode-range:U+0600-06FF,U+0750-077F,U+FB50-FDFF,U+FE70-FEFF,U+0660-0669}
+@font-face{font-family:A;src:url(alexandria-latin-wght-normal.woff2) format('woff2');font-weight:100 900}
+:root{--ink:#17131f;--pur:#7c3aed;--yel:#FFD23F;--grn:#58CC02;--blu:#1CB0F6;--red:#ff4b4b;--mut:#5b546b;--bg:#f3f0fa}
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{width:1080px;height:1920px;overflow:hidden;background:var(--bg)}
+body{font-family:A,'Noto Color Emoji',sans-serif;color:var(--ink);position:relative}
+.blob{position:absolute;width:1000px;height:1000px;border-radius:50%}
+.abs{position:absolute}.c{left:0;right:0;text-align:center}
+.en{direction:ltr;unicode-bidi:isolate}
+.card{background:#fff;border-radius:44px;box-shadow:0 30px 70px rgba(23,19,31,.12)}
+.tag{display:inline-block;padding:12px 30px;border-radius:999px;font-weight:800;font-size:36px}
+.icon{border-radius:26%;background:linear-gradient(145deg,#e3b3ff,#ce82ff 40%,#7c3aed);display:flex;align-items:center;justify-content:center;color:#fff;font-weight:900}
+.opt{display:flex;align-items:center;gap:24px;background:#fff;border:4px solid #e6e1f0;border-radius:30px;padding:24px 34px;font-size:52px;font-weight:700;direction:ltr;margin-bottom:24px}
+.opt i{font-style:normal;width:72px;height:72px;border-radius:20px;background:#f1edf8;display:flex;align-items:center;justify-content:center;font-size:38px;font-weight:900;color:var(--pur);flex:none}
+.o{opacity:0}
+</style></head><body>
+<div class="blob" id="g1" style="background:radial-gradient(closest-side,rgba(206,130,255,.55),transparent)"></div>
+<div class="blob" id="g2" style="background:radial-gradient(closest-side,rgba(120,230,170,.45),transparent)"></div>
+<div class="blob" id="g3" style="background:radial-gradient(closest-side,rgba(255,200,160,.55),transparent)"></div>
+<div id="root"></div>
+<script>
+const R = location.hash.slice(1) || 'words'
+const $ = id => document.getElementById(id)
+const clamp=(x,a=0,b=1)=>Math.max(a,Math.min(b,x)), P=(t,a,b)=>clamp((t-a)/(b-a)), lerp=(a,b,x)=>a+(b-a)*x
+const eo3=x=>1-Math.pow(1-x,3), eoE=x=>x>=1?1:1-Math.pow(2,-10*x), eio=x=>x<.5?4*x*x*x:1-Math.pow(-2*x+2,3)/2
+const eB=(x,s=1.8)=>{x=clamp(x);const c=s+1;return 1+c*Math.pow(x-1,3)+s*Math.pow(x-1,2)}
+// show an element between t0 and t1 with a pop in and a quick fade out
+function show(id,t,t0,t1=99,mode='pop'){const el=$(id); if(!el) return; const x=P(t,t0,t0+(mode==='slam'?.28:.4)), o=P(t,t1,t1+.2)
+  el.style.opacity=t<t0||t>t1+.2?0:clamp(x*4)*(1-o)
+  el.style.transform = mode==='slam' ? `scale(${lerp(1.9,1,eoE(x))})` : mode==='up' ? `translateY(${(1-eoE(x))*60}px)` : `scale(${lerp(.6,1,eB(x))})`
+  if(mode==='slam') el.style.filter=`blur(${(1-eoE(x))*12}px)` }
+const brand = `<div class="abs c" style="top:1500px"><div style="display:inline-flex;align-items:center;gap:18px;font-size:34px;font-weight:800;color:var(--mut)"><div class="icon" style="width:70px;height:70px;font-size:26px;border-radius:20px">إمار</div>إمار · إنجليزي المنهاج السوري</div></div>`
+const ring = (id,pos='left:440px;top:1200px') => `<svg id="${id}" class="abs o" style="${pos}" width="200" height="200" viewBox="0 0 200 200"><circle cx="100" cy="100" r="84" fill="#fff" stroke="#ece7f6" stroke-width="16"/><circle class="arc" cx="100" cy="100" r="84" fill="none" stroke="#7c3aed" stroke-width="16" stroke-linecap="round" transform="rotate(-90 100 100)" stroke-dasharray="528" stroke-dashoffset="0"/><text class="num" x="100" y="128" text-anchor="middle" font-size="84" font-weight="900" font-family="A" fill="#17131f">3</text></svg>`
+function countdown(id,t,t0,secs){const el=$(id); if(!el) return; const on=t>=t0&&t<t0+secs; el.style.opacity=on?1:0; if(!on) return
+  const left=t0+secs-t; el.querySelector('.arc').setAttribute('stroke-dashoffset',528*(1-left/secs)); el.querySelector('.num').textContent=Math.ceil(left)
+  el.style.transform=`scale(${1+.08*Math.max(0,Math.sin((t-t0)*Math.PI*2))})`; el.style.transformOrigin='100px 100px'}
+
+const REELS = {
+// ---------- 1: three words, three levels ----------
+words: { dur: 18.5, html: () => {
+  const W=[['career','مهنة / مسيرة مهنية','المستوى 1 · سهل','#58CC02'],['aptitude','استعداد / موهبة طبيعية','المستوى 2 · متوسط','#1CB0F6'],['remuneration','أجر / مكافأة مالية','المستوى 3 · صعب 🔥','#ff4b4b']]
+  return `<div class="abs c o" id="h1" style="top:330px;font-size:100px;font-weight:900;line-height:1.2">كم كلمة<br>بتعرف؟ 🧠</div>
+  <div class="abs c o" id="h2" style="top:600px"><span class="tag" style="background:var(--ink);color:#fff">3 كلمات من كتاب البكالوريا</span></div>`
+  + W.map(([en,ar,lv,col],i)=>`<div class="abs c o" id="lv${i}" style="top:330px"><span class="tag" style="background:${col};color:#fff">${lv}</span></div>
+    <div class="abs o" id="cd${i}" style="left:70px;right:70px;top:520px"><div class="card" style="padding:70px 40px;text-align:center">
+      <div class="en" style="font-size:${en.length>10?118:150}px;font-weight:900;color:var(--blu);line-height:1.1">${en}</div>
+      <div style="font-size:38px;font-weight:700;color:#9a93ad;margin-top:20px">🔊 شو معناها؟</div>
+      <div class="o" id="an${i}" style="font-size:72px;font-weight:900;margin-top:36px;color:var(--grn);line-height:1.3">${ar}</div></div></div>${ring('rg'+i)}`).join('')
+  + `<div class="abs c o" id="e1" style="top:400px;font-size:84px;font-weight:900;line-height:1.3">كم كلمة عرفت؟<br><span style="color:var(--pur)">اكتب علامتك 👇</span></div>
+  <div class="abs c o" id="e2" style="top:740px"><span style="display:inline-flex;gap:20px;font-size:90px;font-weight:900" class="en"><span style="background:#fff;border-radius:30px;padding:10px 34px">0/3</span><span style="background:#fff;border-radius:30px;padding:10px 34px">2/3</span><span style="background:var(--grn);color:#fff;border-radius:30px;padding:10px 34px">3/3</span></span></div>
+  <div class="abs c o" id="e3" style="top:1000px;font-size:44px;font-weight:700;line-height:1.5;color:var(--mut)">كل كلمات الكتاب بصوت طبيعي<br>بتطبيق <b style="color:var(--ink)">إمار</b> · الرابط بالبايو</div>` + brand },
+  frame(t){ show('h1',t,.05,1.7,'slam'); show('h2',t,.45,1.7,'up')
+    for(let i=0;i<3;i++){const a=2.0+i*4.4; show('lv'+i,t,a,a+4.1,'up'); show('cd'+i,t,a+.1,a+4.1); countdown('rg'+i,t,a+.7,3); show('an'+i,t,a+3.7,a+4.1)}
+    show('e1',t,15.3,99,'slam'); show('e2',t,15.7,99); show('e3',t,16.3,99,'up') } },
+
+// ---------- 2: a real exam question in 5 seconds ----------
+exam: { dur: 16, html: () => `
+  <div class="abs c o" id="h1" style="top:330px;font-size:90px;font-weight:900;line-height:1.2;padding-left:150px">عندك 5 ثواني ⏱️</div>
+  <div class="abs c o" id="h2" style="top:470px"><span class="tag" style="background:var(--pur);color:#fff">سؤال من نموذج امتحان بكالوريا</span></div>
+  <div class="abs o" id="q" style="left:70px;right:70px;top:590px">
+    <div class="card" style="padding:44px 44px;margin-bottom:30px"><div class="en" style="font-size:58px;font-weight:800;line-height:1.4;text-align:left">The woman <span style="color:var(--pur)">………</span> car was stolen called the police.</div></div>
+    ${['who','whose','which','where'].map((o,i)=>`<div class="opt" id="op${i}"><i>${'abcd'[i]}</i>${o}<span class="o" id="ck${i}" style="margin-left:auto;font-size:52px">✓</span></div>`).join('')}
+  </div>${ring('rg','left:20px;top:290px;transform-origin:100px 100px')}
+  <div class="abs o" id="ex" style="left:70px;right:70px;top:1180px;font-size:46px;font-weight:700;line-height:1.6;text-align:right;background:#fff;border-radius:30px;padding:26px 34px"><b class="en" style="color:var(--grn)">whose</b> = للملكية ✅<br>«المرأة <u>اللي سيارتها</u> انسرقت»<br><span style="font-size:36px;color:var(--mut)">بعد الفراغ اسم (<span class="en">car</span>) بيملكه الشخص</span></div>
+  <div class="abs c o" id="e1" style="top:420px;font-size:82px;font-weight:900;line-height:1.3">جاوبت صح؟<br><span style="color:var(--pur)">اكتب الحرف بالتعليقات 👇</span></div>
+  <div class="abs c o" id="e2" style="top:760px;font-size:46px;font-weight:700;line-height:1.55;color:var(--mut)">+150 سؤال متله من نماذج البكالوريا<br>وكل جواب مشروح بالعربي<br>بتطبيق <b style="color:var(--ink)">إمار</b> · الرابط بالبايو</div>` + brand,
+  frame(t){ show('h1',t,.05,12.2,'slam'); show('h2',t,.4,12.2,'up'); show('q',t,.9,12.2,'up'); countdown('rg',t,1.6,5)
+    for(let i=0;i<4;i++){const el=$('op'+i); const r=t>=6.7; el.style.borderColor=r&&i===1?'#58CC02':'#e6e1f0'; el.style.background=r&&i===1?'#effbe5':'#fff'; el.style.opacity=$('q').style.opacity*(r&&i!==1?(i>1&&t>7.3?Math.max(0,1-(t-7.3)*5)*.4:.4):1)
+      if(i===1){el.style.transform=`scale(${t>=6.7?1+.06*Math.sin(P(t,6.7,7.1)*Math.PI):1})`}; $('ck'+i).style.opacity=r&&i===1?1:0}
+    show('ex',t,7.4,12.2,'up'); show('e1',t,12.5,99,'slam'); show('e2',t,13.2,99,'up') } },
+
+// ---------- 3: an idiom that does not mean what it looks like ----------
+idiom: { dur: 16, html: () => `
+  <div class="abs c o" id="h1" style="top:330px"><span class="en" style="font-size:150px;font-weight:900;color:var(--blu)">on a roll</span></div>
+  <div class="abs c o" id="h2" style="top:540px;font-size:76px;font-weight:900;line-height:1.3">مو معناها<br>«على رول» 🧻😅</div>
+  <div class="abs c o" id="x" style="top:560px;font-size:260px">❌</div>
+  <div class="abs c o" id="m1" style="top:560px;font-size:58px;font-weight:800;color:var(--mut)">معناها الحقيقي:</div>
+  <div class="abs c o" id="m2" style="top:660px;font-size:96px;font-weight:900;line-height:1.25;color:var(--grn)">بسلسلة نجاحات<br>متتالية 🔥</div>
+  <div class="abs o" id="s" style="left:70px;right:70px;top:960px"><div class="card" style="padding:44px">
+    <div style="font-size:32px;font-weight:700;color:#9a93ad;margin-bottom:10px">🔊 من كتاب البكالوريا · الوحدة 2</div>
+    <div class="en" style="font-size:50px;font-weight:700;line-height:1.45;text-align:left">This is our fifth win in the game! We are <b style="color:var(--pur)">on a roll</b>.</div>
+    <div style="font-size:38px;font-weight:600;color:var(--mut);margin-top:14px">هذا فوزنا الخامس! نحن بسلسلة نجاحات.</div></div></div>
+  <div class="abs o" id="b" style="left:70px;right:70px;top:960px"><div class="card" style="padding:44px;border:4px dashed #ffd0d0">
+    <div style="font-size:40px;font-weight:800">🎁 وعكسها من نفس الوحدة:</div>
+    <div class="en" style="font-size:64px;font-weight:900;color:var(--red);margin-top:12px;text-align:left">dead in the water</div>
+    <div style="font-size:44px;font-weight:700;margin-top:8px">= فاشل بلا أمل</div></div></div>
+  <div class="abs c o" id="e1" style="top:420px;font-size:84px;font-weight:900;line-height:1.3">احفظها 📌<br><span style="color:var(--pur)">بتجي بالامتحان</span></div>
+  <div class="abs c o" id="e2" style="top:740px;font-size:46px;font-weight:700;line-height:1.55;color:var(--mut)">ابعتها لصاحبك اللي عم يدرس بكالوريا 👀<br>وكل تعابير الكتاب بتطبيق <b style="color:var(--ink)">إمار</b></div>` + brand,
+  frame(t){ show('h1',t,.05,99,'slam'); const h=$('h1'); if(t>3.0){const e=eio(P(t,3.0,3.5)); h.style.transform=`translateY(${-e*0}px) scale(${1-e*.35})`; h.style.opacity=t>12.1?0:1}
+    show('h2',t,.5,2.6,'up'); show('x',t,2.0,2.6); show('m1',t,3.1,12.1,'up'); show('m2',t,3.4,12.1,'slam'); show('s',t,5.0,8.9,'up'); show('b',t,9.0,12.1,'up')
+    show('e1',t,12.4,99,'slam'); show('e2',t,13.1,99,'up') } },
+}
+const reel = REELS[R]; document.getElementById('root').innerHTML = reel.html()
+window.DUR = reel.dur
+window.render = t => {
+  const B=[['g1',200,300,240,200,.09,.11],['g2',900,1600,220,240,.12,.08],['g3',900,350,240,200,.07,.1]]
+  for(const [id,cx,cy,ax,ay,fx,fy] of B) $(id).style.transform=`translate(${cx+ax*Math.sin(t*fx*6.28+cx)-500}px,${cy+ay*Math.cos(t*fy*6.28+cy)-500}px)`
+  reel.frame(t); return true }
+</script></body></html>
