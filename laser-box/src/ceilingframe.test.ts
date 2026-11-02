@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { CEILING_FRAMES, frameGeom, framePieces, midPieces, midToFrame, cornerPlate, toFrame, CLEAT_REACH, minPatternWidth, minCell, rosetteDims, starDims, ROSE, STAR, decorPieces, medallion2, medDims2, stripCuts, splitPlan, cutAtJoints, setFrameParams, setPlan, NEST_MARGIN, LABEL_RIM, STYLE_LABELS, part3, jointsOf, jointTrouble, stripPart, type FrameGeom } from './ceilingframe'
+import { CEILING_FRAMES, frameGeom, framePieces, midPieces, midToFrame, cornerPlate, toFrame, CLEAT_REACH, minPatternWidth, minCell, rosetteDims, starDims, ROSE, STAR, decorPieces, medallion2, medDims2, stripCuts, splitPlan, cutAtJoints, setFrameParams, setPlan, NEST_MARGIN, LABEL_RIM, STYLE_LABELS, part3, jointsOf, jointTrouble, stripPart, setSquareParams, inRadius, LIGHT, lightFit, lightStarFit, lightOutline, lightFieldWH, lightPlain, type FrameGeom } from './ceilingframe'
 import { stripLayout, stripHoles, midHoles, polyGap, centroid, cutSide, cornerShapes, CUT, ZONE, type StripLayout, type Frame3 } from './ceilingband'
 import { createHash } from 'crypto'
 import { generate, DEFAULT_SETTINGS, NEST } from './generate'
@@ -1417,6 +1417,181 @@ describe("ceiling decor, style 3: the frame band exactly as in the customer's pi
     for (const [tpl, p, panels, words] of was) {
       const d = generate(tpl, p, { ...DEFAULT_SETTINGS })
       expect([h(d.panels.map(pn => [pn.id, pn.name, pn.w, pn.h, pn.count, pn.loops])), h([d.errors, d.warnings, d.notes])], `${tpl.id} ${JSON.stringify(p)}`).toEqual([panels, words])
+    }
+  }, 60000)
+})
+
+describe("ceiling decor, the light design ('detail' 2): the set's squares with far fewer and larger cut-outs", () => {
+  const h = (v: unknown) => createHash('sha1').update(JSON.stringify(v)).digest('hex').slice(0, 12)
+  /** What the customer's laser could cut in a day, for each square: at most this many cut-outs and metres of cut, every hole this wide, every strap this wide. */
+  const AIM = { holes: 600, metres: 60, hole: 12, strap: 8 }
+  type Q = { x: number; y: number }
+  const loopLen = (pts: Q[]) => pts.reduce((a, q, i) => a + Math.hypot(pts[(i + 1) % pts.length].x - q.x, pts[(i + 1) % pts.length].y - q.y), 0)
+  /** A square's board: its numbers and every rule of the light design checked (straight lines, the holes' widths, the straps, no hole in a hole, the rest on the gypsum solid, a mirror image about both of its axes). */
+  function checkLight(pn: Pn, lb: string, ov = 30) {
+    const cut = cutOf(pn), areas = cut.map(l => Math.abs(signedArea(l))), io = areas.indexOf(Math.max(...areas))
+    const outline = cut[io].pts, holes = cut.filter((_, i) => i !== io).map(l => l.pts as Q[])
+    expect(cut.every(l => l.pts.every(v => !v.b)), `${lb}: straight lines only`).toBe(true)
+    const metres = cut.reduce((a, l) => a + loopLen(l.pts), 0) / 1000
+    expect(holes.length, `${lb}: cut-outs`).toBeLessThanOrEqual(AIM.holes)
+    expect(metres, `${lb}: metres of cut`).toBeLessThanOrEqual(AIM.metres)
+    const widths = holes.map(q => 2 * inRadius(q))
+    expect(Math.min(...widths), `${lb}: the narrowest hole`).toBeGreaterThanOrEqual(AIM.hole - 0.05)
+    // the straps: every two holes at least AIM.strap apart (boxes first), and none inside another (no island of wood loose)
+    const boxes = holes.map(boxOf)
+    let strap = Infinity
+    for (let i = 0; i < holes.length; i++) for (let j = i + 1; j < holes.length; j++) strap = Math.min(strap, gapUnder(holes[i], holes[j], AIM.strap + 1, boxes[i], boxes[j]))
+    expect(strap, `${lb}: the narrowest strap`).toBeGreaterThanOrEqual(AIM.strap - 0.01)
+    // the rest on the gypsum and the band's rim stay solid: every hole at least ov + a strap from the outline
+    const W = pn.w, H = pn.h
+    expect(Math.min(...boxes.map(b => Math.min(b.minX, b.minY, W - b.maxX, H - b.maxY))), `${lb}: the solid rim`).toBeGreaterThanOrEqual(ov + AIM.strap - 1e-6)
+    expect(outline.length, `${lb}: a plain rectangle`).toBe(4)
+    // a mirror image about both of the square's axes: each hole's (centre, area) has its mirror
+    const cs = holes.map(q => ({ c: centroid(q), a: Math.abs(signedArea({ closed: true, pts: q })) }))
+    const has = (c: Q, a: number) => cs.some(o => Math.abs(o.c.x - c.x) < 0.05 && Math.abs(o.c.y - c.y) < 0.05 && Math.abs(o.a - a) < 0.5)
+    for (const [fx, fy] of [[true, false], [false, true]]) expect(cs.filter(({ c, a }) => !has({ x: fx ? W - c.x : c.x, y: fy ? H - c.y : c.y }, a)).length, `${lb}: mirror ${fx ? 'x' : 'y'}`).toBe(0)
+    return { holes: holes.length, metres, narrowest: Math.min(...widths), strap }
+  }
+
+  it('leaves the fine design (detail 1) as it was before the light one, to the byte: the one-piece decor, style 3, and the set both ways of cutting its strips', () => {
+    const was: [Tp, Record<string, number>, string, string][] = [
+      [T1, { style: 3 }, '3171af68122b', '48be691748e7'], [T3, { style: 3, pack: 1, detail: 1 }, 'f53487b81da3', 'c4ea2ed51050'], [T3, { style: 3, pack: 2, detail: 1 }, '92af95b717ef', '9347f377bcc6'],
+    ]
+    for (const [tpl, p, panels, words] of was) {
+      const d = generate(tpl, p, { ...DEFAULT_SETTINGS })
+      expect([h(d.panels.map(pn => [pn.id, pn.name, pn.w, pn.h, pn.count, pn.loops])), h([d.errors, d.warnings, d.notes])], `${tpl.id} ${JSON.stringify(p)}`).toEqual([panels, words])
+    }
+    // (the one-piece decor keeps the fine design by default, the set takes the light one)
+    expect([T1.defaults.detail, T2.defaults.detail, T3.defaults.detail, T3.defaults.centre]).toEqual([1, 1, 2, 1])
+    expect(T3.params.find(x => x.key === 'detail')!.options).toEqual(['ناعمة (كثيرة التفاصيل)', 'خفيفة (فتحات أقلّ وأكبر)'])
+  })
+
+  /**
+   * The widest plain wood past the rest on the gypsum: on a 5 mm grid over the board less `ov` all round, each point
+   * of wood's distance to the nearest hole, the largest (everywhere, and in the middle, inside the band).
+   */
+  function widestPlain(pn: Pn, b: number, ov = 30) {
+    const cut = cutOf(pn).map(l => l.pts as Q[]), ar = cut.map(q => Math.abs(signedArea({ closed: true, pts: q }))), holes = cut.filter((_, i) => i !== ar.indexOf(Math.max(...ar)))
+    // (the holes' edges in 40 mm buckets: a point looks at the buckets round it, 80 mm at most)
+    const B = 40, cap = 80, bk = new Map<string, [Q, Q][]>()
+    for (const h of holes) for (let k = 0; k < h.length; k++) {
+      const p = h[k], q = h[(k + 1) % h.length]
+      for (let i = Math.floor(Math.min(p.x, q.x) / B); i <= Math.floor(Math.max(p.x, q.x) / B); i++) for (let j = Math.floor(Math.min(p.y, q.y) / B); j <= Math.floor(Math.max(p.y, q.y) / B); j++) { const kk = `${i},${j}`; if (!bk.has(kk)) bk.set(kk, []); bk.get(kk)!.push([p, q]) }
+    }
+    const boxes = holes.map(boxOf)
+    let all = 0, middle = 0
+    for (let x = ov; x <= pn.w - ov + 1e-9; x += 5) for (let y = ov; y <= pn.h - ov + 1e-9; y += 5) {
+      const q = { x, y }
+      if (holes.some((h, i) => !apart(boxes[i], { minX: x, maxX: x, minY: y, maxY: y }, 0) && pointIn(q, h))) continue
+      let d = cap
+      for (let i = Math.floor(x / B) - 2; i <= Math.floor(x / B) + 2; i++) for (let j = Math.floor(y / B) - 2; j <= Math.floor(y / B) + 2; j++) for (const [p, r] of bk.get(`${i},${j}`) ?? []) d = Math.min(d, ptSeg(q, p, r))
+      all = Math.max(all, d)
+      if (Math.min(x, pn.w - x, y, pn.h - y) > b) middle = Math.max(middle, d)
+    }
+    return { all, middle }
+  }
+
+  it('cuts each square of the set (style 3, the customer\'s picture) at its defaults, both centres, both ways of cutting the strips, in at most 600 cut-outs and 60 m, every hole 12 mm wide and every strap 8 mm, a mirror image, with no error or warning; the strips as they were; styles 1 and 2 keep their own fine squares', () => {
+    const seen: Record<string, number[]> = {}
+    for (const pack of [1, 2]) {
+      const fine = gen({ style: 3, pack, detail: 1 }, {}, T3), ring = (d: Dz) => d.panels.filter(pn => !/مربع/.test(pn.name)).map(pn => [pn.id, pn.loops])
+      for (const centre of [1, 2]) {
+        const lb = `style 3 pack ${pack} centre ${centre}`, d = gen({ style: 3, pack, centre }, {}, T3)
+        expect([d.errors, d.warnings], lb).toEqual([[], []])
+        // the frame's strips and the middle strip exactly as with the fine squares
+        expect(h(ring(d)), lb).toBe(h(ring(fine)))
+        const sq = d.panels.filter(pn => /مربع/.test(pn.name))
+        expect(sq.map(pn => [pn.w, pn.h]), lb).toEqual([[1400, 1050], [1380, 1080]])
+        for (const pn of sq) {
+          const r = checkLight(pn, `${lb} ${pn.name}`)
+          seen[`${pn.w} centre ${centre}`] = [r.holes, Math.round(r.metres * 10) / 10]
+          // no wide plain wood (the squares as first made light: wood 72 mm from a hole past the rest, 58 between the
+          // band's rosettes, 80 at the corners, 35 in a ring round the field): none 45 mm from a hole, nor 25 mm in the
+          // middle (its straps 20 mm, a few points between them a little more)
+          if (pack === 1) {
+            const w = widestPlain(pn, LIGHT.band)
+            expect(w.all, `${lb} ${pn.name}: the widest plain wood`).toBeLessThan(45)
+            expect(w.middle, `${lb} ${pn.name}: the widest plain wood in the middle`).toBeLessThan(25)
+          }
+        }
+        expect(d.notes.join(' '), lb).toContain('بالتفاصيل الخفيفة')
+      }
+    }
+    // the numbers, the same both ways of cutting the strips (the fine squares: 5483 and 5677 cut-outs, 222 and 227 m)
+    expect(seen).toEqual({ '1400 centre 1': [425, 57.4], '1380 centre 1': [425, 58], '1400 centre 2': [431, 58.8], '1380 centre 2': [431, 59.5] })
+    // styles 1 and 2 have no light design: their squares stay their own (16-point rosettes, khatam), whatever 'detail' says
+    for (const style of [1, 2]) {
+      const sqs = (d: Dz) => d.panels.filter(pn => /مربع/.test(pn.name)).map(pn => [pn.id, pn.loops])
+      const a = gen({ style, detail: 1 }, {}, T3), b = gen({ style, detail: 2 }, {}, T3)
+      expect(h(sqs(b)), `style ${style}`).toBe(h(sqs(a)))
+      expect([b.notes.join(' ').includes('بالتفاصيل الخفيفة'), b.errors, b.warnings], `style ${style}`).toEqual([false, [], []])
+    }
+  }, 240000)
+
+  it('lays the light design out of a band of 12-petal rosettes filling it across (style 3, no lace ring and no border rows) with a whole rosette in each corner, a field of 8-point stars and crosses, and the centre chosen: a 12-gon with a 12-pointed star, or a big 8-pointed star with rays', () => {
+    for (const centre of [1, 2]) {
+      const p = { ...setSquareParams({ ...T3.defaults, style: 3, centre }, 1400, 1050) }, g = frameGeom(p), d = decorPieces(p, g)
+      expect([g.light, g.style, g.kind, g.centre, g.b], `centre ${centre}`).toEqual([true, 3, 1, centre, LIGHT.band])
+      // the band: only the rosettes' 12-gons and petals, the columns' bars and a 12-gon in each of the board's corners,
+      // at a cell over 160 mm (the fine squares' is 119)
+      const band = [d.top, d.side, d.bottom, d.left].flat(), kinds = new Set(band.map(pc => pc.key))
+      expect([...kinds].sort(), `centre ${centre}`).toEqual(['bar', 'centre', 'corner', 'petal'])
+      expect([d.top, d.bottom].flat().filter(pc => pc.key === 'corner').length + [d.side, d.left].flat().filter(pc => pc.key === 'corner').length, `centre ${centre}`).toBe(4)
+      expect(g.f3!.size.s, `centre ${centre}`).toBeGreaterThan(LIGHT.cell)
+      // its plain rims alike on both sides, as wide as the frame strips' (21–30 mm), at least LIGHT.rim
+      const f = g.f3!, pl = lightPlain(g)
+      expect(f.rim, `centre ${centre}`).toBeGreaterThanOrEqual(LIGHT.rim - 1e-9)
+      expect(pl.outer, `centre ${centre}`).toBeCloseTo(pl.inner, 6)
+      expect([pl.outer >= LIGHT.rim, pl.outer <= 30], `centre ${centre}: ${pl.outer}`).toEqual([true, true])
+      // every rosette whole with its 12-gon, the four corner ones too (on the diagonals, as on the frame; no bar there)
+      const twelve = d.top.filter(pc => pc.key === 'centre').length + d.bottom.filter(pc => pc.key === 'centre').length + d.side.filter(pc => pc.key === 'centre').length + d.left.filter(pc => pc.key === 'centre').length
+      expect(twelve, `centre ${centre}`).toBe(2 * (f.pw.n + f.ph.n))
+      expect(band.filter(pc => pc.key === 'petal').length, `centre ${centre}`).toBe(12 * twelve)
+      const holes = cutOf(get(gen({ ...p }), 'board')).map(l => l.pts as Q[])
+      for (const c of [{ x: f.vc, y: f.vc }, { x: g.PW - f.vc, y: f.vc }, { x: f.vc, y: g.PH - f.vc }, { x: g.PW - f.vc, y: g.PH - f.vc }]) {
+        const at = holes.filter(q => q.length === 12 && pointIn(c, q))
+        expect(at.length, `centre ${centre}: the corner rosette at ${c.x}, ${c.y}`).toBe(1)
+        // its 12 petals around it, each as far from it as the others' are from theirs
+        const r = (q: Q[]) => Math.hypot(centroid(q).x - c.x, centroid(q).y - c.y)
+        expect(holes.filter(q => q.length !== 12 && r(q) < f.size.s / 2).length, `centre ${centre}: its petals`).toBe(12)
+      }
+      // the centre: 1 + 12 petals + 12 spikes, or 1 + 16 half rays, inside its outline (touching the field's long sides)
+      expect(d.med.length, `centre ${centre}`).toBe(centre === 1 ? 25 : 17)
+      const fit = lightFit(g), A = fit.A, fw = lightFieldWH(g), out = lightOutline(centre, fit).map(q => ({ x: q.x + g.PW / 2, y: q.y + g.PH / 2 }))
+      expect([fw.W, fw.H], `centre ${centre}`).toEqual([g.Wf + LIGHT.wide, g.Hf + LIGHT.wide])
+      expect(d.med.every(pc => pc.poly.every(q => pointIn(q, out))), `centre ${centre}`).toBe(true)
+      if (centre === 1) expect([A, fit.sx, fit.sy], 'centre 1 touches the long sides').toEqual([Math.min(fw.W, fw.H) / 2, 1, 1])
+      else {
+        // 2 is no octagon: an 8-pointed star (16 corners, its valleys 0.765 of its points from the middle), unlike the
+        // fine squares' octagon, the field's own star grown to k + ½ of its steps (stretched as its lattice) so its
+        // edges run on the lattice's lines, as big as fits, and the field's lattice has a star in the middle
+        const L = lightStarFit(fw.W, fw.H, LIGHT.q).L, k = (A / L.qy) - 0.5
+        expect([Math.abs(k - Math.round(k)) < 1e-9, A <= fw.H / 2 + 1e-9, A + L.qy > fw.H / 2, fit.sx, d.lat.length > 0], 'centre 2').toEqual([true, true, true, L.qx / L.qy, true])
+        expect([(L.nX % 2) / 2, (L.nY % 2) / 2], 'centre 2: a star of the lattice in the middle').toEqual([L.ax, L.ay])
+        const rs = out.map(q => Math.hypot((q.x - g.PW / 2) / fit.sx, (q.y - g.PH / 2) / fit.sy) / A)
+        expect(rs.map(v => Math.round(v * 1000) / 1000), 'centre 2').toEqual(Array.from({ length: 16 }, (_, j) => (j % 2 ? 0.765 : 1)))
+        expect(Math.max(...d.med.map(pc => Math.hypot(centroid(pc.poly).x - g.PW / 2, centroid(pc.poly).y - g.PH / 2))), 'centre 2: its rays reach out').toBeGreaterThan(0.5 * A)
+      }
+      // the field: stars and crosses only, none inside the centre's outline
+      expect(d.lat.length, `centre ${centre}`).toBeGreaterThan(20)
+      expect(d.lat.every(pc => /^[SX]/.test(pc.key) && pc.poly.every(q => !pointIn(q, out))), `centre ${centre}`).toBe(true)
+    }
+  })
+
+  it('asks the one-piece decor for a band wide enough for the light design, and builds it there; the light design is style 3\'s only', () => {
+    const d0 = gen({ detail: 2, style: 3 })
+    expect(d0.errors).toEqual(['عرض الإطار (170 مم) قليل: لا تتّسع وردة في الجزء الظاهر منه. اجعله 192 مم على الأقل.'])
+    for (const [p, ov] of [[{ detail: 2, style: 3, band: 192 }, 30], [{ detail: 2, style: 3, band: 245, centre: 2 }, 30], [{ detail: 2, style: 3, band: 245, PW: 1380, PH: 1080 }, 30]] as const) {
+      const d = gen(p), lb = JSON.stringify(p)
+      expect([d.errors, d.warnings], lb).toEqual([[], []])
+      checkLight(get(d, 'board'), lb, ov)
+    }
+    expect(gen({ detail: 2, style: 3, band: 245, mid: 1, center: 3 }).errors[0]).toMatch(/^التفاصيل الخفيفة بلا شريحة وسطى/)
+    // styles 1 and 2 (the one-piece decor's own two templates) have no light design: said so, nothing cut
+    for (const [tpl, p] of [[T1, { detail: 2 }], [T2, { detail: 2 }], [T1, { detail: 2, style: 2, band: 245 }]] as const) {
+      const d = gen(p, {}, tpl)
+      expect([d.errors.length, d.panels.length], lab(p, tpl)).toEqual([1, 0])
+      expect(d.errors[0], lab(p, tpl)).toMatch(/^التفاصيل الخفيفة «خفيفة \(فتحات أقلّ وأكبر\)» لنقشة صورة الزبون فقط/)
     }
   }, 60000)
 })

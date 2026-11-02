@@ -201,6 +201,8 @@ const ngon = (c: Pt, r: number, n: number, a0: number): Poly => Array.from({ len
 const petal0 = (g: Dims): Poly => [P(g.ra, 0), P(g.ra + g.a * S3, g.a), P(g.re - g.te, g.a), P(g.re, 0), P(g.re - g.te, -g.a), P(g.ra + g.a * S3, -g.a)]
 const rhomb0 = (g: Dims): Poly => [P(g.rd - g.w, 0), P(g.rd, g.Ld), P(g.rd + g.w, 0), P(g.rd, -g.Ld)]
 const arrow0 = (g: Dims): Poly => [P(1, g.yt), P(1 + g.aD, g.yt + g.aD * S3), P(1 + g.aD, g.yb), P(1, g.yb - g.aD * g.tp), P(1 - g.aD, g.yb), P(1 - g.aD, g.yt + g.aD * S3)]
+/** The light design's column bar: an arrow and its oval as one long hexagon (the arrow's point, the oval's far end). */
+const bar0 = (g: Dims): Poly => { const n = g.aD * g.tp, e = g.yo + g.LO; return [P(1, g.yt), P(1 + g.aD, g.yt + g.aD * S3), P(1 + g.aD, e - n), P(1, e), P(1 - g.aD, e - n), P(1 - g.aD, g.yt + g.aD * S3)] }
 const oval0 = (g: Dims): Poly => { const n = g.aD * g.tp; return [P(1, g.yo - g.LO), P(1 + g.aD, g.yo - g.LO + n), P(1 + g.aD, g.yo + g.LO - n), P(1, g.yo + g.LO), P(1 - g.aD, g.yo + g.LO - n), P(1 - g.aD, g.yo - g.LO + n)] }
 
 /** The small triangle between the centre and the petals at 0° and 30°. */
@@ -256,25 +258,28 @@ const CELLS = new Map<string, CellHole[]>()
  * Every hole of one cell in lattice units (the rosette at the origin, columns at u = ±1/2, border rows at v = ±1/2),
  * unclipped. `over` changes the design (for fitting it).
  */
-export function unitCell(over: Partial<typeof REF> = {}): CellHole[] {
-  const key = JSON.stringify(over)
+export function unitCell(over: Partial<typeof REF> = {}, kinds?: string[]): CellHole[] {
+  const key = JSON.stringify(over) + (kinds ? '|' + kinds.join(',') : '')
   const hit = CELLS.get(key)
   if (hit) return hit
   const g = derived({ ...REF, ...over })
   const out: CellHole[] = []
-  const add = (kind: string, place: CellHole['place'], pts: Poly) => out.push({ kind, place, pts: ccw(tidy(pts)).map(p => P(p.x / 2, p.y / 2)) })
+  // (with `kinds`, only the holes kept are drawn: the light design's own sizes need not suit the ones it leaves out)
+  const want = (kind: string, place: CellHole['place']) => !kinds || kinds.includes(kind) || kinds.includes(`${kind}:${place}`)
+  const add = (kind: string, place: CellHole['place'], pts: Poly) => { if (want(kind, place)) out.push({ kind, place, pts: ccw(tidy(pts)).map(p => P(p.x / 2, p.y / 2)) }) }
+  const any = (kind: string) => !kinds || kinds.some(k => k === kind || k.startsWith(kind + ':'))
   add('centre', 'cell', ngon(P(0, 0), g.rc, 12, 0))
-  const pet = petal0(g), rh = rhomb0(g), tri = innerTri(g), T = tHole(g)
+  const pet = petal0(g), rh = rhomb0(g), tri = any('triangle') ? innerTri(g) : [], T = any('T') ? tHole(g) : []
   for (let k = 0; k < 12; k++) {
     const a = k * 30 * D
     add('petal', 'cell', pet.map(p => rotP(p, a)))
     add('rhombus', 'cell', rh.map(p => rotP(p, a)))
     if (tri.length >= 3) add('triangle', 'cell', tri.map(p => rotP(p, a)))
-    add('T', 'cell', T.map(p => rotP(p, a)))
+    if (T.length) add('T', 'cell', T.map(p => rotP(p, a)))
   }
-  for (const q of d4copies(crown())) add('star', 'cell', q)
-  for (const [kind, base] of [['arrow', arrow0(g)], ['oval', oval0(g)]] as [string, Poly][]) {
-    for (const q of d4copies(base)) add(kind, Math.abs(Math.abs(centroid(q).x) - 1) < 1e-9 ? 'col' : 'cell', q)
+  if (any('star')) for (const q of d4copies(crown())) add('star', 'cell', q)
+  for (const [kind, base] of [['arrow', arrow0(g)], ['oval', oval0(g)], ...(kinds && any('bar') ? [['bar', bar0(g)]] : [])] as [string, Poly][]) {
+    if (any(kind)) for (const q of d4copies(base)) add(kind, Math.abs(Math.abs(centroid(q).x) - 1) < 1e-9 ? 'col' : 'cell', q)
   }
   for (const sx of [1, -1]) for (const sy of [1, -1]) add('corner', 'col', ngon(P(sx, sy), g.rk, 12, 0))
   for (const sy of [1, -1]) add('rhombus', 'vdot', rh.map(p => { const q = rotP(p, -sy * 90 * D); return P(q.x, q.y + 2 * sy) }))
@@ -371,8 +376,10 @@ function displace(q: Poly, m: KMap, y0: number, s: number, h: number, g: number)
 
 // ───────────────────────────── a run of cells in millimetres ─────────────────────────────
 
-/** The band's sizes across: the cell s (mm), the strap (mm), the holes' clip from the centre line (mm). */
-export interface BandSize { s: number; strap: number; clip: number }
+/** The band's sizes across: the cell s (mm), the strap (mm), the holes' clip from the centre line (mm); `edge` the
+ *  lattice clip (cells from the centre line; EDGE, the border rows' outer edge, when missing: the light design's
+ *  band, with no border rows, clips just past its rosettes' petals) */
+export interface BandSize { s: number; strap: number; clip: number; edge?: number }
 /** A joint across a strip: down the column u (= k + 1/2), on its centre line x (mm). */
 export type Joint = { u: number; x: number }
 export interface RunSpec {
@@ -393,6 +400,8 @@ export interface RunSpec {
   beyond?: boolean
   /** changes to the design (for fitting it to the picture) */
   design?: Partial<typeof REF>
+  /** the cell's holes kept (their kind, or kind:place), all when missing: the decor's light design leaves out the small ones */
+  kinds?: string[]
 }
 export type BandHole = { kind: string; pts: Poly; c: Pt }
 
@@ -404,9 +413,9 @@ const END_SHARE = 0.25
 
 /** The holes of a run of cells in mm, each whole but where the band's edges (and the run's `cuts`) clip it. */
 export function bandRun(o: RunSpec): BandHole[] {
-  const { size, y0 } = o, { s, strap, clip } = size
+  const { size, y0 } = o, { s, strap, clip } = size, E = size.edge ?? EDGE
   const m = knotMap(o.knots, s), h = TAU / 2, g = strap / 2
-  const cell = unitCell(o.design)
+  const cell = unitCell(o.design, o.kinds)
   const k0 = o.beyond ? o.k0 - 1 : o.k0, k1 = o.beyond ? o.k1 + 1 : o.k1
   const lat: { kind: string; pts: Poly }[] = []
   for (let k = k0; k <= k1; k++) for (const hl of cell) {
@@ -417,7 +426,7 @@ export function bandRun(o: RunSpec): BandHole[] {
   const out: BandHole[] = []
   for (const l of lat) {
     // the picture's hole cut at the band's edges first (the clip line is then kept where it is)
-    const built = cutAll([l.pts], [[0, 1, EDGE], [0, -1, EDGE], ...(o.latCuts ?? [])]).flatMap(c => {
+    const built = cutAll([l.pts], [[0, 1, E], [0, -1, E], ...(o.latCuts ?? [])]).flatMap(c => {
       const p = displace(c, m, y0, s, h, g) ?? displace(tidy(c, 2e-3), m, y0, s, h, g)
       return p ? [p] : []
     })
@@ -578,6 +587,9 @@ export interface Frame3 {
   mid: MidLayout | null
   /** the worst stretch along the band of any cell (pitch / s − 1) */
   worst: number
+  /** the light design's changes and the holes it keeps (Frame3In's) */
+  design?: Partial<typeof REF>
+  kinds?: string[]
 }
 export interface Frame3In {
   /** the band's width (rims included) and its centre line from the outer edge (mm) */
@@ -596,6 +608,11 @@ export interface Frame3In {
   joints?: { short?: number[]; long?: number[] }
   /** the least cell (mm) */
   sMin?: number
+  /** the light design (the decor's 'detail' 2): changes to the cell's shapes, and the holes kept (bandRun's), and
+   *  the lattice clip (BandSize's edge) */
+  design?: Partial<typeof REF>
+  kinds?: string[]
+  edge?: number
 }
 
 /** The strap for a cell s: the picture's, at least web. */
@@ -689,8 +706,8 @@ function chooseJoints(L: number, lay: StripLayout, maxLen: number, halves: boole
  * along the band; when none does, the squarest. Null when the band holds no cell.
  */
 export function planFrame3(o: Frame3In): Frame3 | null {
-  const W2 = o.bw / 2
-  const sMax = Math.min((W2 - Math.max(o.minRim, o.web)) / EDGE, W2 / (EDGE + TAU)), sMin = Math.max(20, o.sMin ?? 0)
+  const W2 = o.bw / 2, E = o.edge ?? EDGE
+  const sMax = Math.min((W2 - Math.max(o.minRim, o.web)) / E, W2 / (E + TAU)), sMin = Math.max(20, o.sMin ?? 0)
   if (!(sMax >= sMin)) return null
   const z = ZONE, lg = (x: number) => Math.abs(Math.log(x)), dev = (p: number, s: number) => Math.abs(p / s - 1)
   const wide = o.PW >= o.PH, Ll = wide ? o.PW : o.PH, Ls = wide ? o.PH : o.PW
@@ -709,7 +726,7 @@ export function planFrame3(o: Frame3In): Frame3 | null {
   type Pick = { s: number; strap: number; worst: number; cost: number; nS: number; nA: number; nB: number; nL: number; km: number; pm: number; rimEnd: number }
   let pick: Pick | null = null, square: Pick | null = null
   for (let s = sMax; s >= Math.max(0.8 * sMax, sMin) - 1e-9; s -= 0.25) {
-    const strap = strapOf(s, o.web), rim = W2 - EDGE * s
+    const strap = strapOf(s, o.web), rim = W2 - E * s
     if (rim < Math.max(strap, o.minRim) - 1e-9) continue
     const sh = stepsFor(Ls - 2 * o.vc, 2, s, o.halves && cutN(Ls) === 1)
     if (!sh) continue
@@ -723,7 +740,7 @@ export function planFrame3(o: Frame3In): Frame3 | null {
       // the middle strip: k cells between its end columns, inside end rims a strap wide at least (the joint with
       // the long strip a strap either side); the least end rim that keeps its cells as square as the frame's (2%
       // at least), else the squarest (none when it is too narrow for the band's cell: the frame's checks say so)
-      const midRim = o.mid.midW / 2 - EDGE * s, tol = Math.max(worst, 0.02), room = o.mid.Lvis - 2 * (EDGE - 0.5) * s
+      const midRim = o.mid.midW / 2 - E * s, tol = Math.max(worst, 0.02), room = o.mid.Lvis - 2 * (E - 0.5) * s
       let bm: { k: number; p: number; r: number; fit: boolean; c: number } | null = null
       for (let k = 1; k <= Math.ceil(o.mid.Lvis / (0.6 * s)); k++) {
         const pHi = (room - 2 * strap) / k, pLo = (room - 2 * Math.max(2 * rim, strap)) / k
@@ -747,7 +764,7 @@ export function planFrame3(o: Frame3In): Frame3 | null {
   }
   if (square) pick = square
   if (!pick) return null
-  const { s, strap } = pick, size = { s, strap, clip: EDGE * s }, rim = W2 - EDGE * s
+  const { s, strap } = pick, size = { s, strap, clip: E * s, ...(o.edge !== undefined ? { edge: o.edge } : {}) }, rim = W2 - E * s
   // the strips with their joints (a strip that cannot be cut so keeps none: the frame's checks refuse it)
   const lay = (L: number, n: number, axis: { k: number; x: number } | null, keepOut: [number, number] | null, want?: number[]): StripLayout => {
     const l0 = stripLayout(L, o.vc, s, strap, n, axis, [])
@@ -760,18 +777,18 @@ export function planFrame3(o: Frame3In): Frame3 | null {
   if (o.mid) {
     const half = o.mid.midW / 2 + Math.max(2 * strap, s / 4)
     long = lay(Ll, pick.nA + pick.nB, { k: pick.nA, x: o.mid.axisU }, [o.mid.axisU - half, o.mid.axisU + half], o.joints?.long)
-    const x0 = pick.rimEnd + (EDGE - 0.5) * s + pick.pm / 2 // the first rosette
+    const x0 = pick.rimEnd + (E - 0.5) * s + pick.pm / 2 // the first rosette
     // (knots past both end columns: the rosettes beyond the ends keep the pitch too)
     if (pick.km) mid = { L: o.mid.Lvis, k: pick.km, pitch: pick.pm, rimEnd: pick.rimEnd, knots: [{ u: -1.5, x: x0 - 1.5 * pick.pm }, { u: pick.km + 0.5, x: x0 + (pick.km + 0.5) * pick.pm }] }
   } else long = lay(Ll, pick.nL, null, null, o.joints?.long)
   const worst = Math.max(...[...short.pitches, ...long.pitches, ...(mid ? [mid.pitch] : [])].map(p => dev(p, s)))
-  return { size, rim, vc: o.vc, pw: wide ? long : short, ph: wide ? short : long, mid, worst }
+  return { size, rim, vc: o.vc, pw: wide ? long : short, ph: wide ? short : long, mid, worst, ...(o.design ? { design: o.design } : {}), ...(o.kinds ? { kinds: o.kinds } : {}) }
 }
 
 // ───────────────────────────── the strips' holes ─────────────────────────────
 
 /** The strip's run of holes as the layout lays them out, whole (no mitre, no joint cuts them). */
-const runOf = (f: Frame3, lay: StripLayout, cuts: [number, number, number][] = [], latCuts: [number, number, number][] = []) => bandRun({ size: f.size, k0: 0, k1: lay.n, knots: lay.knots, y0: f.vc, cuts, latCuts })
+const runOf = (f: Frame3, lay: StripLayout, cuts: [number, number, number][] = [], latCuts: [number, number, number][] = []) => bandRun({ size: f.size, k0: 0, k1: lay.n, knots: lay.knots, y0: f.vc, cuts, latCuts, design: f.design, kinds: f.kinds })
 const sideOf = (h: BandHole, m: (p: Pt) => number) => { const v = h.pts.map(m); return Math.min(...v) > 1e-9 ? 1 : Math.max(...v) < -1e-9 ? -1 : 0 }
 
 /**
@@ -784,7 +801,8 @@ export function cornerShapes(f: Frame3): BandHole[] {
   const one: StripLayout = { L: Infinity, n: 1, knots: [{ u: 0, x: f.vc }], joints: [], rosettes: [], columns: [], pitches: [], axisK: -1 }
   // (cut at the other band's edges as at its own: in the lattice first, then in millimetres)
   const { clip } = f.size
-  return runOf(f, one, [[-1, 0, -(f.vc - clip)], [1, 0, f.vc + clip]], [[1, 0, EDGE], [-1, 0, EDGE]]).filter(h => sideOf(h, p => p.x - p.y) === 0)
+  const E = f.size.edge ?? EDGE
+  return runOf(f, one, [[-1, 0, -(f.vc - clip)], [1, 0, f.vc + clip]], [[1, 0, E], [-1, 0, E]]).filter(h => sideOf(h, p => p.x - p.y) === 0)
 }
 
 /**
@@ -792,12 +810,14 @@ export function cornerShapes(f: Frame3): BandHole[] {
  * mitres y = x and y = L − x), each whole, as the pattern lies before it is cut: those between its mitres, and the
  * shapes across each mitre (the same at every corner; a straight cut there halves each, cutPiece). dir: the strip
  * runs along PW or PH (by default the layout's own). With `bar` (the one-piece board, as its other styles) the
- * corner rosette is split on each diagonal by a solid bar 2·strap wide instead.
+ * corner rosette is split on each diagonal by a solid bar 2·strap wide instead. Without `corners` the shapes across
+ * the mitres are left out (the one-piece board's strips along PH: those along PW hold them, whole).
  */
-export function stripHoles(f: Frame3, lay: StripLayout, dir: 'pw' | 'ph' = lay === f.ph && lay !== f.pw ? 'ph' : 'pw', bar = false): BandHole[] {
+export function stripHoles(f: Frame3, lay: StripLayout, dir: 'pw' | 'ph' = lay === f.ph && lay !== f.pw ? 'ph' : 'pw', bar = false, corners = true): BandHole[] {
   const L = lay.L
   if (bar) { const r = f.size.strap * Math.SQRT2; return runOf(f, lay, [[-1, 1, -r], [1, 1, L - r]]) }
   const own = runOf(f, lay).filter(h => sideOf(h, p => p.x - p.y) > 0 && sideOf(h, p => L - p.x - p.y) > 0)
+  if (!corners) return own
   const cs = cornerShapes(f)
   // a strip along PH sees the corner swapped (x ↔ y) in its own coordinates; its second end mirrored (x → L − x)
   const first = dir === 'pw' ? cs : cs.map(h => { const pts = h.pts.map(p => P(p.y, p.x)).reverse(); return { kind: h.kind, pts, c: centroid(pts) } })

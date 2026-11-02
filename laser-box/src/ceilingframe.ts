@@ -38,9 +38,9 @@
 // itself either side (mirror images), so the joint runs through a solid bar at least 2·sw wide across the whole band
 // and the pattern goes on across it whole; with 'cleats' a splice plate goes behind it.
 import type { Template, ParamDef, Common, BuildResult } from './templates'
-import { Loop, Vtx, polyLoop, circle, round3, arcInfo, signedArea } from './geom'
+import { Loop, Vtx, polyLoop, circle, round3, arcInfo, signedArea, loopLength } from './geom'
 import type { PanelSpec } from './joints'
-import { planFrame3, stripHoles, midHoles, cutPiece, cutSide, CUT, clipHalfMulti, SQUARE as SQUARE3, EDGE as EDGE3, TAU as TAU3, type Frame3, type BandHole, type Notch } from './ceilingband'
+import { planFrame3, stripHoles, midHoles, cutPiece, cutSide, CUT, clipHalfMulti, offsetPoly, SQUARE as SQUARE3, EDGE as EDGE3, TAU as TAU3, type Frame3, type BandHole, type Notch } from './ceilingband'
 
 type P2 = { x: number; y: number }
 
@@ -76,6 +76,8 @@ export const STYLE_LABELS = ['وردات نجمية ومثمّن (كالصورة
 export const CENTER_LABELS = ['مفرّغة في الوسط', 'قطعة منفصلة', 'بلا زخرفة وسطى']
 export const SIZE_LABELS = ['مقاس الديكور من الخارج', 'مقاس الفتحة داخل الإطار']
 export const PACK_LABELS = ['أقلّ وصلات', 'أقلّ ألواح']
+export const DETAIL_LABELS = ['ناعمة (كثيرة التفاصيل)', 'خفيفة (فتحات أقلّ وأكبر)']
+export const LIGHT_CENTRE_LABELS = ['نجمة 12 في مضلّع 12', 'نجمة ثمانية كبيرة بأشعّة']
 
 const PARAMS: ParamDef[] = [
   intP('sizeIs', 'المقاس', 1, 2, '1 = العرض والطول مقاس الديكور كلّه من الخارج (مع الركبة على الجبس)، 2 = مقاس الفتحة داخل الإطار، فيكون الديكور من الخارج أكبر بعرض الإطار من كلّ جهة', SIZE_LABELS),
@@ -87,6 +89,8 @@ const PARAMS: ParamDef[] = [
   intP('style', 'النقشة', 1, 3, '1 = وردات من 16 بتلة ومثمّن في الوسط كالصورة، 2 = نجوم ثمانية (خاتم) وصلبان ودائرة في الوسط فيها نجمة من 12 رأساً، 3 = شريط الإطار مثل صورة الزبون بالضبط (وردة من 12 بتلة بحلقة مخرّمة في كلّ مربع، ونجوم رباعية وأعمدة بينها)؛ مثمّن الوسط وشبكته فيها كما في 1', STYLE_LABELS),
   intP('center', 'الزخرفة الوسطى', 1, 3, 'في القطعة الواحدة: 1 = مفرّغة في اللوح، 2 = قطعة منفصلة تُلصق على وسط مصمت فتبرز، 3 = بلا زخرفة وسطى. في الشرائح: 1 = لوح وسط فيه الزخرفة، 2 = الزخرفة وحدها تُلصق في الوسط، 3 = إطار فقط', CENTER_LABELS),
   mm('med', 'قطر الزخرفة الوسطى', 150, 1200, 'المثمّن بين ضلعين متقابلين، والدائرة قطرها'),
+  intP('detail', 'التفاصيل', 1, 2, 'في القطعة الواحدة بالنقشة 3 (صورة الزبون): 1 = ناعمة كثيرة التفاصيل كما في الصورة، 2 = خفيفة: فتحات أقلّ وأكبر (كلّ فتحة 12 مم عرضاً على الأقل والخشب بينها 9 مم على الأقل) فيقصّها الليزر في وقت أقلّ بكثير: الإطار صفّ وردات من 12 بتلة يملأ عرضه وفي كلّ زاوية وردة كاملة، والوسط نجوم ثمانية كبيرة وصلبان، وفي الوسط زخرفة «وسط الخفيفة»؛ تحتاج إطاراً عرضه نحو 195 مم أو أكثر', DETAIL_LABELS),
+  intP('centre', 'وسط الخفيفة', 1, 2, 'مع التفاصيل الخفيفة: 1 = نجمة من 12 رأساً حولها 12 بتلة كبيرة داخل مضلّع من 12 ضلعاً، 2 = نجمة ثمانية كبيرة (مربعان متداخلان كنجوم الوسط) في وسطها نجمة صغيرة تخرج منها 8 أشعّة إلى رؤوسها، كلّ شعاع نصفان؛ تملأ الوسط من حافّة إلى حافّة', LIGHT_CENTRE_LABELS),
   intP('fill', 'نقش الوسط كلّه', 0, 1, '1 = شبكة زخرفة تملأ الوسط حول الزخرفة الوسطى فلا تبقى مساحة سادة، 0 = الوسط سادة'),
   mm('fcell', 'خليّة شبكة الوسط', 30, 250, 'المسافة بين وردة الشبكة والحشوة التي بجانبها (أو بين النجمة والصليب)'),
   intP('mid', 'شريحة وسطى', 0, 1, '1 = شريحة مزخرفة تقطع الفتحة من منتصف الضلع الطويل إلى المقابل، طرفاها مستقيمان بلا شطف يلتقيان بالشريحتين الطويلتين، ونقشتها تكمل نقشتهما (مع «بلا زخرفة وسطى» / «إطار فقط»)'),
@@ -103,7 +107,7 @@ const PARAMS: ParamDef[] = [
   intP('n', 'عدد الديكورات', 1, 10),
 ]
 
-const DEFAULTS = { sizeIs: 1, PW: 1400, PH: 1050, ov: 30, band: 170, kind: 1, style: 1, center: 1, med: 450, fill: 1, fcell: 70, mid: 0, midW: 0, midAt: 0, maxLen: 0, line: 0, web: 3, fit: 0.2, cleats: 1, back: 0, sheetL: 2440, sheetW: 1220, n: 1 }
+const DEFAULTS = { sizeIs: 1, PW: 1400, PH: 1050, ov: 30, band: 170, kind: 1, style: 1, center: 1, med: 450, detail: 1, centre: 1, fill: 1, fcell: 70, mid: 0, midW: 0, midAt: 0, maxLen: 0, line: 0, web: 3, fit: 0.2, cleats: 1, back: 0, sheetL: 2440, sheetW: 1220, n: 1 }
 
 // ------------------------------------------------------------------ shapes (straight lines only)
 
@@ -731,7 +735,9 @@ export const NEST_MARGIN = 5
 
 /** Everything the pieces are sized on; shared by the build and the tests. */
 export function frameGeom(p: Record<string, number>) {
-  const kind = pick(p.kind ?? 1, 1, 2), style = pick(p.style ?? 1, 1, 3), center = pick(p.center, 1, 3)
+  // the light design ('detail' 2) is the one-piece board's in style 3 (the customer's band, its own field and centre;
+  // the other styles keep their own design, frameErrors says so)
+  const kind = pick(p.kind ?? 1, 1, 2), style = pick(p.style ?? 1, 1, 3), light = kind === 1 && style === 3 && pick(p.detail ?? 1, 1, 2) === 2, center = pick(p.center, 1, 3)
   // the field panel of the strips (kind 2 with the medallion's board)
   const field = kind === 2 && center === 1
   const { ov, band: b, web, fit } = p
@@ -811,13 +817,13 @@ export function frameGeom(p: Record<string, number>) {
   // (on the board a solid line 3·web wide parts the band from the field, so the frame still reads as a frame)
   const fm = kind === 1 ? 2 * web : CLEAT_REACH + web
   const fill = (p.fill ?? 0) >= 0.5 && (kind === 1 || field)
-  const g = { kind, style, center, field, fill, sizeIs, PW, PH, ov, b, web, sw, fit, rail, v0, v1, Wp, H, vc, R, dims, sdims, p0, pHard, S1, S2, n1, n2, p1, p2, pa, pb, axisU, mAt, offMid, Llong, Wf, Hf, fm, mid, wide, midW, Lm, mLen, tab, Hm, mdims, nm, qm, maxLen, halves, f3: null as Frame3 | null, pack: null as Pack3 | null }
+  const g = { kind, style, center, light, centre: pick(p.centre ?? 1, 1, 2), field, fill, sizeIs, PW, PH, ov, b, web, sw, fit, rail, v0, v1, Wp, H, vc, R, dims, sdims, p0, pHard, S1, S2, n1, n2, p1, p2, pa, pb, axisU, mAt, offMid, Llong, Wf, Hf, fm, mid, wide, midW, Lm, mLen, tab, Hm, mdims, nm, qm, maxLen, halves, f3: null as Frame3 | null, pack: null as Pack3 | null }
   if (style !== 3) return g
   // style 3, the customer's band: its own layout (the cell, the strips' steps and joints, the middle strip's), in the
   // band [ov, b − the field's rail]; its rims and straps are the picture's (the rim at least 'minRim', the set's
   // numbers' room), the cells as near square as both strip lengths let them be
   const bw = b - ov - (field ? CLEAT_REACH + web : 0), vc3 = ov + bw / 2
-  const in3 = { bw, vc: vc3, PW, PH, web, minRim: p.minRim ?? 0, mid: mid && Lm > 0 ? { axisU, Lvis: Lm, midW } : null, maxLen: kind === 2 ? maxLen : Infinity, halves, sMin: band3MinCell(web) }
+  const in3 = { bw, vc: vc3, PW, PH, web, minRim: p.minRim ?? 0, mid: mid && Lm > 0 ? { axisU, Lvis: Lm, midW } : null, maxLen: kind === 2 ? maxLen : Infinity, halves, sMin: band3MinCell(web), ...(light ? { web: Math.max(web, LIGHT.strap), minRim: Math.max(p.minRim ?? 0, LIGHT.rim), sMin: LIGHT.cell, edge: LIGHT.edge, design: LIGHT.design, kinds: LIGHT.kinds } : {}) }
   let f3 = bw > 0 && PW > 2 * b && PH > 2 * b ? planFrame3(in3) : null
   // (the set's 'pack' 2: more joints, so pieces of the strips go beside its squares, on fewer sheets)
   const pack = f3 && kind === 2 && (p.pack ?? 1) >= 2 ? packJoints3(f3, { b, wide, keepOut: f3.mid ? [axisU - midW / 2 - Math.max(2 * f3.size.strap, f3.size.s / 4), axisU + midW / 2 + Math.max(2 * f3.size.strap, f3.size.s / 4)] : null, mid: mid && mLen > 0 ? mLen : 0, squares: [[p.packAW ?? 0, p.packAH ?? 0], [p.packBW ?? 0, p.packBH ?? 0]].filter(([w, h]) => w > 0 && h > 0), sheetL: p.sheetL ?? 2440, sheetW: p.sheetW ?? 1220 }) : null
@@ -1004,7 +1010,7 @@ export type FrameStrips = { top: Piece[]; side: Piece[]; bottom: Piece[]; left: 
  * the middle strip's axis; off the middle the opposite long strip is the first one's mirror image.
  */
 export function framePieces(g: FrameGeom): FrameStrips {
-  if (g.style === 3) return memo(FRAMES, 'band3|' + JSON.stringify([g.PW, g.PH, g.offMid, g.wide, g.f3 && [g.f3.size, g.f3.vc, g.f3.pw, g.f3.ph]]), () => framePieces3(g))
+  if (g.style === 3) return memo(FRAMES, 'band3|' + JSON.stringify([g.PW, g.PH, g.offMid, g.wide, g.f3 && [g.f3.size, g.f3.vc, g.f3.pw, g.f3.ph], ...(g.light ? ['light', g.kind] : [])]), () => framePieces3(g))
   return memo(FRAMES, [g.style, g.PW, g.PH, g.ov, g.b, g.web, g.sw, g.rail, g.n1, g.n2, g.pa, g.pb, g.axisU].join('|'), () => framePiecesOf(g))
 }
 function framePiecesOf(g: FrameGeom): FrameStrips {
@@ -1044,10 +1050,32 @@ const band3Pieces = (hs: BandHole[]): Piece[] => hs.map(h => polyPiece(dropShort
 function framePieces3(g: FrameGeom): FrameStrips {
   const f = g.f3
   if (!f) return { top: [], side: [], bottom: [], left: [] }
-  // (the one-piece board keeps the solid bar on each diagonal that its other styles have; the strips' mitres cut straight through)
-  const bar = g.kind === 1, pw = band3Pieces(stripHoles(f, f.pw, 'pw', bar)), ph = band3Pieces(stripHoles(f, f.ph, 'ph', bar))
+  // (the one-piece board keeps the solid bar on each diagonal that its other styles have; the strips' mitres cut straight
+  // through. The light board has no bar: each corner rosette is whole as on the frame, its shapes across the diagonal
+  // once, with the strips along PW, the top and the bottom one)
+  const bar = g.kind === 1 && !g.light
+  const pw = band3Pieces(stripHoles(f, f.pw, 'pw', bar)), ph = band3Pieces(stripHoles(f, f.ph, 'ph', bar, !g.light))
+  if (g.light) pw.push(...lightCorners(g, f, pw))
   const long = g.wide ? pw : ph, short = g.wide ? ph : pw, long2 = g.offMid ? long.map(pc => mirrorPc(pc, g.Llong / 2)) : long
   return g.wide ? { top: long, side: short, bottom: long2, left: short } : { top: short, side: long, bottom: short, left: long2 }
+}
+/**
+ * The light board's corners: past each corner rosette, toward the board's corner, a 12-gon as the frame's cell corners
+ * have (the light band has no border rows), as big as fits a strap off the rosette's shapes and LIGHT.rim off the rest
+ * on the gypsum, on the diagonal (the strip along PW's two ends, in its coordinates; none when under LIGHT.hole across).
+ */
+function lightCorners(g: FrameGeom, f: Frame3, pw: Piece[]): Piece[] {
+  // (the corner is its own mirror image about the diagonal: the side strip's shapes there are the top one's, x ↔ y)
+  const near = pw.filter(pc => pc.poly.some(q => q.x < g.b && q.y < g.b)).map(pc => pc.poly), all = [...near, ...near.map(q => q.map(v => ({ x: v.y, y: v.x })))]
+  const gapTo = (c: P2) => Math.min(...all.map(h => (inPoly(c, h) ? 0 : Math.min(...h.map((a, i) => segPt(c, a, h[(i + 1) % h.length]))))))
+  let best = { t: 0, R: 0 }
+  for (let t = LIGHT.rim; t <= f.vc - g.ov; t += 0.25) {
+    const c = { x: g.ov + t, y: g.ov + t }, R = Math.min(t - LIGHT.rim, gapTo(c) - f.size.strap)
+    if (R > best.R) best = { t, R }
+  }
+  if (2 * best.R * Math.cos(Math.PI / 12) < LIGHT.hole) return []
+  const R = Math.floor(best.R * 100) / 100, c = { x: g.ov + best.t, y: g.ov + best.t }, L = f.pw.L
+  return [polyPiece(ngon(c, 12, R, 0), 'corner'), polyPiece(ngon({ x: L - c.x, y: c.y }, 12, R, 0), 'corner')]
 }
 /** Style 3: a strip's part as cut (part3). */
 /** (each notch with the shape it is part of: `of`, one of the strip's pattern, whole) */
@@ -1428,6 +1456,243 @@ function clipAll(parts: P2[][], Q: P2[], keep: boolean): P2[][] | null {
   return out
 }
 
+// ------------------------------------------------------------------ the light design ('detail' 2)
+
+/**
+ * The light design ('detail' 2 with style 3; the set's squares by default): the same frame, field and centre with far
+ * fewer and larger cut-outs (the fine one took the customer's laser days). Every hole is at least `hole` across (its
+ * largest inscribed circle) and the wood between two holes one strap: the band's (`strap` at least) in the band,
+ * `wide` in the field and the centre (a face of their network of straight centre lines shrunk by half a strap; one the
+ * field's edge or the centre leaves narrower is left out). The band: one row of the customer's 12-petal rosettes
+ * (style 3) filling it across, only their 12-gons and petals and the columns' bars (an arrow and its oval as one), no
+ * lace ring, small triangles, rhombi or crowns and no border rows: its holes stay within `edge` (cells from its centre
+ * line, just past the petals' tips) with a plain rim of `rim` at least either side (and half a strap past the tips),
+ * so the board's edge (past the rest on the gypsum) and the line parting it from the field are about as wide as the
+ * frame strips' rims (lightPlain); a whole rosette in each corner, as on the frame, and past it a 12-gon in the
+ * board's corner (lightCorners). The field (half a field strap into the band's inner rim): big 8-point stars touching
+ * point to point with crosses between them (khatam), on the lattice nearest `q` that fits the field so its edges halve
+ * them (`lattices` tried). The centre ('centre'): 1, touching the field's long sides, a 12-pointed star with 12
+ * petals and 12 spikes between them in a 12-gon; 2, the field's own star grown on its lattice (lightStarFit), a small
+ * one turned 22.5° in its middle and from it a ray to each point, split down its middle (no octagon: the fine
+ * squares' medallion was one). `band` is the set's squares' band, `cell` the least band cell.
+ */
+export const LIGHT = { strap: 9.5, wide: 20, hole: 12, band: 210, cell: 160, fieldMin: 300, q: 165, lattices: 1, rim: 16, edge: 0.405, design: { a: 0.1, rc: 0.22, re: 0.76, te: 0.04 }, kinds: ['centre', 'petal', 'bar:col'] }
+/** The light centre's numbers: 1, the star's points rt and valleys rv, of the 12-gon's circumradius; 2, the small star's points, of the big one's. */
+export const LC = { rt1: 0.42, rv1: 0.28, r2: 0.36 }
+
+const D15 = Math.PI / 12
+const pol = (r: number, a: number): P2 => ({ x: r * Math.cos(a), y: r * Math.sin(a) })
+const rotQ = (q: P2, a: number): P2 => ({ x: q.x * Math.cos(a) - q.y * Math.sin(a), y: q.x * Math.sin(a) + q.y * Math.cos(a) })
+
+/** The big 8-pointed star (two squares, one turned 45°: points on the axes and the diagonals at R, valleys between). */
+const RV8 = Math.SQRT1_2 / Math.cos(Math.PI / 8)
+const bigStar = (R: number, turn = 0): P2[] => Array.from({ length: 16 }, (_, j) => pol(j % 2 ? R * RV8 : R, (j * Math.PI) / 8 + turn))
+/** A light centre's size: A (lightOutline's) and its stretch along x and y (centre 2 takes its field's lattice's). */
+export type LightFit = { A: number; sx: number; sy: number }
+const stretch = (pts: P2[], f: LightFit) => (f.sx === 1 && f.sy === 1 ? pts : pts.map(q => ({ x: q.x * f.sx, y: q.y * f.sy })))
+/**
+ * The light centre's outline (the strap's centre line round it, centred on 0): 1 a 12-gon, its flat sides on the
+ * axes, apothem A; 2 a big 8-pointed star (two squares, one turned 45°, as the field's stars), its points on the axes
+ * and the diagonals at A, stretched as the field's lattice is.
+ */
+export const lightOutline = (centre: number, f: LightFit): P2[] => stretch(centre === 2 ? bigStar(f.A) : ngon({ x: 0, y: 0 }, 12, f.A / Math.cos(D15), D15), f)
+/** The outline as convex parts (the field is cut clear of each): the 12-gon; the star's two squares. */
+export const lightKeepOut = (centre: number, f: LightFit): P2[][] => (centre === 2 ? [0, 1].map(k => stretch(ngon({ x: 0, y: 0 }, 4, f.A, (k * Math.PI) / 4), f)) : [lightOutline(1, f)])
+
+/** The light centre's faces (before the straps), centred on 0, as lightOutline's. */
+export const lightCentreFaces = (centre: number, f: LightFit): P2[][] => lightCentreFaces0(centre, f.A).map(q => stretch(q, f))
+function lightCentreFaces0(centre: number, A: number): P2[][] {
+  if (centre === 2) {
+    // a small 8-pointed star turned 22.5° (its points toward the big star's valleys), and from it to each big point a
+    // ray split down its middle: each half from the small star's valley and point to the big star's point and valley
+    const r = LC.r2 * A, Q8 = Math.PI / 4, H8 = Math.PI / 8
+    const P = (k: number) => pol(A, k * Q8), V = (k: number) => pol(A * RV8, k * Q8 + H8), p = (k: number) => pol(r, k * Q8 + H8), v = (k: number) => pol(r * RV8, k * Q8)
+    const halves = Array.from({ length: 8 }, (_, k) => [[v(k), P(k), V(k), p(k)], [v(k), p(k - 1), V(k - 1), P(k)]]).flat()
+    return [bigStar(r, H8), ...halves]
+  }
+  // a 12-pointed star (points between the petals), a petal on each valley (pointed root, parallel sides, its point on
+  // a flat side's middle), and a spike between two petals reaching a corner of the 12-gon
+  const R = A / Math.cos(D15), rt = LC.rt1 * R, rv = LC.rv1 * R, w = rt * Math.sin(D15), xs = A - w
+  const T = (k: number) => pol(rt, (2 * k + 1) * D15), V = (k: number) => pol(rv, 2 * k * D15)
+  const petal0 = [{ x: rv, y: 0 }, pol(rt, D15), { x: xs, y: w }, { x: A, y: 0 }, { x: xs, y: -w }, pol(rt, -D15)]
+  const star = Array.from({ length: 24 }, (_, j) => (j % 2 ? T((j - 1) / 2) : V(j / 2)))
+  const petals = Array.from({ length: 12 }, (_, k) => petal0.map(q => rotQ(q, 2 * k * D15)))
+  const spikes = Array.from({ length: 12 }, (_, k) => {
+    const a = 2 * k * D15, b = a + 2 * D15
+    return [T(k), rotQ({ x: xs, y: w }, a), pol(A, a), pol(R, a + D15), pol(A, b), rotQ({ x: xs, y: -w }, b)]
+  })
+  return [star, ...petals, ...spikes]
+}
+
+/** The largest inscribed circle's radius of a polygon (to 0.02 mm; polylabel): how wide a hole is where it is widest. */
+export function inRadius(pts: P2[]): number {
+  const b = bbOf(pts), size = Math.min(b.x1 - b.x0, b.y1 - b.y0)
+  if (!(size > 0)) return 0
+  const sd = (q: P2) => { let m = Infinity; for (let i = 0; i < pts.length; i++) m = Math.min(m, segPt(q, pts[i], pts[(i + 1) % pts.length])); return inPoly(q, pts) ? m : -m }
+  type C = { x: number; y: number; h: number; d: number; max: number }
+  const mk = (x: number, y: number, h: number): C => { const d = sd({ x, y }); return { x, y, h, d, max: d + h * Math.SQRT2 } }
+  // a binary heap on max, the most promising cell first
+  const heap: C[] = []
+  const push = (c: C) => { heap.push(c); let i = heap.length - 1; while (i > 0) { const up = (i - 1) >> 1; if (heap[up].max >= c.max) break; heap[i] = heap[up]; i = up } heap[i] = c }
+  const pop = (): C => {
+    const top = heap[0], last = heap.pop()!
+    if (heap.length) { let i = 0; for (;;) { const l = 2 * i + 1, r = l + 1; let m = i; const v = (k: number) => (k === i ? last.max : heap[k].max); if (l < heap.length && heap[l].max > v(m)) m = l; if (r < heap.length && heap[r].max > v(m)) m = r; if (m === i) break; heap[i] = heap[m]; i = m } heap[i] = last }
+    return top
+  }
+  for (let x = b.x0; x < b.x1; x += size) for (let y = b.y0; y < b.y1; y += size) push(mk(x + size / 2, y + size / 2, size / 2))
+  let best = Math.max(0, mk((b.x0 + b.x1) / 2, (b.y0 + b.y1) / 2, 0).d)
+  while (heap.length) {
+    const c = pop()
+    if (c.d > best) best = c.d
+    if (c.max - best <= 0.02) continue
+    const h = c.h / 2
+    push(mk(c.x - h, c.y - h, h)); push(mk(c.x + h, c.y - h, h)); push(mk(c.x - h, c.y + h, h)); push(mk(c.x + h, c.y + h, h))
+  }
+  return best
+}
+
+/** A face shrunk by half a strap into a hole, when it is still one to cut (null when it closes up or is too narrow). */
+function lightHole(face: P2[], st: number): P2[] | null {
+  const f = dropShort(tidyPoly(ccw(face)), 0.05)
+  if (f.length < 3) return null
+  // (a face cut by the field's edge or the centre may have short edges that close up: offsetPoly leaves those out)
+  const h = insetPoly(f, st / 2) ?? offsetPoly(f, -st / 2)
+  if (!h) return null
+  // (its points may be sharp, as the band's are: the wood round it is one strap all the same)
+  const pts = dropShort(tidyPoly(h))
+  return pts.length >= 3 && !selfCross(pts) && areaAbs(pts) >= MIN_A && inRadius(pts) >= LIGHT.hole / 2 - 1e-6 ? pts : null
+}
+
+/** The light centre's holes (centred on 0). */
+function lightCentre(centre: number, fit: LightFit, st: number): Piece[] {
+  return lightCentreFaces(centre, fit).flatMap((f, i) => { const h = lightHole(f, st); return h ? [polyPiece(h, `C${i}`)] : [] })
+}
+
+/** The 8-point star (points on the axes and diagonals, touching its neighbours) and the cross, of a unit step. */
+const KHATAM = Array.from({ length: 16 }, (_, j) => pol(j % 2 ? 0.5 * Math.SQRT1_2 / Math.cos(Math.PI / 8) : 0.5, (j * Math.PI) / 8))
+const CROSS: P2[] = (() => {
+  const a = 0.5 - 0.5 * Math.SQRT1_2, b = 0.5 - a // 0.1464: the stars' diagonal points (the notches), 0.3536 their valleys
+  return [[0, 0.5], [a, b], [a, a], [b, a], [0.5, 0], [b, -a], [a, -a], [a, -b], [0, -0.5], [-a, -b], [-a, -a], [-b, -a], [-0.5, 0], [-b, a], [-a, a], [-a, b]].map(([x, y]) => ({ x, y }))
+})()
+
+/** The lattices that fit the field: nX × nY steps (qx × qy), within 6% of square and near `q` (the nearest first). */
+export function lightSteps(W: number, H: number, q: number) {
+  const out: { nX: number; nY: number; qx: number; qy: number; cost: number }[] = []
+  for (let nX = Math.max(1, Math.floor(W / (1.4 * q))); nX <= Math.ceil(W / (0.75 * q)); nX++) for (let nY = Math.max(1, Math.floor(H / (1.4 * q))); nY <= Math.ceil(H / (0.75 * q)); nY++) {
+    const qx = W / nX, qy = H / nY, a = Math.abs(Math.log(qx / qy)), m = Math.abs(Math.log(Math.sqrt(qx * qy) / q))
+    if (a <= 0.06 && m <= 0.25) out.push({ nX, nY, qx, qy, cost: a + 0.5 * m })
+  }
+  if (!out.length) {
+    // (a field too long and narrow for that: the squarest, its short side's step near q)
+    const nS = Math.max(1, Math.round(Math.min(W, H) / q)), qs = Math.min(W, H) / nS, nL = Math.max(1, Math.round(Math.max(W, H) / qs))
+    out.push(W >= H ? { nX: nL, nY: nS, qx: W / nL, qy: qs, cost: 0 } : { nX: nS, nY: nL, qx: qs, qy: H / nL, cost: 0 })
+  }
+  return out.sort((a, b) => a.cost - b.cost)
+}
+export type LightLattice = { nX: number; nY: number; qx: number; qy: number; ax: number; ay: number }
+
+/**
+ * The light field W × H centred on 0 (its faces' edges on the field's edges): stars on the lattice points
+ * (−W/2 + (i + ax)·qx, −H/2 + (j + ay)·qy) and crosses between them (ax, ay 0: stars halved by the field's edges,
+ * ½: crosses), the faces cut at the field's edges and kept out of `keepOut` (the centre's outline), each shrunk by
+ * half a strap; a part left too narrow to cut stays wood (`plain`, its area). Worked out on one quarter and mirrored.
+ */
+export function lightLattice(W: number, H: number, st: number, L: LightLattice, keepOut: P2[][] | null): { pcs: Piece[]; plain: number } {
+  const { qx, qy, ax, ay } = L, X = W / 2, Y = H / 2
+  const rect: P2[] = [{ x: -X, y: -Y }, { x: X, y: -Y }, { x: X, y: Y }, { x: -X, y: Y }], Qs = keepOut ? keepOut.map(ccw) : []
+  const quarter: Piece[] = []
+  let plain = 0
+  const take = (unit: P2[], c: P2, key: string) => {
+    if (c.x < -1e-6 || c.y < -1e-6 || c.x - qx / 2 > X || c.y - qy / 2 > Y) return
+    const face = unit.map(u => ({ x: c.x + u.x * qx, y: c.y + u.y * qy }))
+    let parts: P2[][] | null = [ccw(face)]
+    const b = bbOf(face)
+    if (b.x0 < -X - 1e-9 || b.x1 > X + 1e-9 || b.y0 < -Y - 1e-9 || b.y1 > Y + 1e-9) parts = clipAll(parts, rect, true)
+    for (const Q of Qs) if (parts) parts = clipAll(parts, Q, false)
+    if (!parts) return
+    // (the parts of a face on an axis count once: the quarter is mirrored)
+    const share = (c.x < 1e-6 ? 0.5 : 1) * (c.y < 1e-6 ? 0.5 : 1)
+    const holes: P2[][] = []
+    for (const f of parts) { const h = lightHole(f, st); if (h) holes.push(h); else plain += share * areaAbs(f) }
+    // (parts of one face left too close to each other: the smaller goes)
+    const drop = new Set<number>()
+    for (let i = 0; i < holes.length; i++) for (let j = i + 1; j < holes.length; j++) if (!clear(holes[i], holes[j], st)) drop.add(areaAbs(holes[i]) >= areaAbs(holes[j]) ? j : i)
+    holes.forEach((h, i) => { if (drop.has(i)) plain += share * areaAbs(h); else quarter.push(polyPiece(h, key, c)) })
+  }
+  const nI = Math.ceil(X / qx) + 1, nJ = Math.ceil(Y / qy) + 1
+  for (let i = -nI; i <= nI; i++) for (let j = -nJ; j <= nJ; j++) {
+    const sx = -X + (Math.round(X / qx - ax) + i + ax) * qx, sy = -Y + (Math.round(Y / qy - ay) + j + ay) * qy
+    take(KHATAM, { x: sx, y: sy }, `S${i}.${j}`)
+    take(CROSS, { x: sx + qx / 2, y: sy + qy / 2 }, `X${i}.${j}`)
+  }
+  const half = [...quarter, ...quarter.filter(pc => pc.c.x > 1e-6).map(pc => flipPc(pc, true, false))]
+  return { pcs: [...half, ...half.filter(pc => pc.c.y > 1e-6).map(pc => flipPc(pc, false, true))], plain: 4 * plain }
+}
+
+/**
+ * The light field: of the lattices that fit (lightSteps' first LIGHT.lattices, the stars or the crosses on the edges),
+ * the one that leaves the least wood where a face cut by the centre's outline is too narrow to cut (a small share for
+ * a less square one).
+ */
+export function lightField(W: number, H: number, st: number, q: number, keepOut: P2[][] | null): Piece[] & { lattice?: LightLattice } {
+  if (W <= 0 || H <= 0) return []
+  let best: { pcs: Piece[]; cost: number; L: LightLattice } | null = null
+  for (const sp of lightSteps(W, H, q).slice(0, LIGHT.lattices)) for (const ax of [0, 0.5]) for (const ay of [0, 0.5]) {
+    const L = { nX: sp.nX, nY: sp.nY, qx: sp.qx, qy: sp.qy, ax, ay }, r = lightLattice(W, H, st, L, keepOut)
+    const cost = r.plain + sp.cost * sp.qx * sp.qy
+    if (!best || cost < best.cost - 1e-6) best = { pcs: r.pcs, cost, L }
+  }
+  return Object.assign(best!.pcs, { lattice: best!.L })
+}
+
+/** The light design's strap in the field and the centre: LIGHT.wide, at least the band's. */
+export const lightStrap = (g: { sw: number }) => Math.max(LIGHT.wide, g.sw)
+/**
+ * The light field's rectangle (the straps' centre lines round it): the band's opening and half a field strap into the
+ * band's inner rim, so the wood between the band's holes and the field's is the band's rim, no wider (the frame's
+ * strips have their rims so).
+ */
+export const lightFieldWH = (g: { Wf: number; Hf: number; sw: number }) => ({ W: round3(g.Wf + lightStrap(g)), H: round3(g.Hf + lightStrap(g)) })
+/**
+ * Centre 2 in a field W × H: the field's lattice (the one nearest q, a star of it in the middle: its edges halve stars
+ * or crosses), and the big star, the field's own star grown to k + ½ steps across the field's short side (the most
+ * that fits; it touches the long sides when they halve crosses) and stretched as the lattice is, so its edges run on
+ * the lattice's lines and the field round it is cut along them, with no slivers.
+ */
+export function lightStarFit(W: number, H: number, q: number): LightFit & { L: LightLattice } {
+  const sp = lightSteps(W, H, q)[0], L: LightLattice = { nX: sp.nX, nY: sp.nY, qx: sp.qx, qy: sp.qy, ax: (sp.nX % 2) / 2, ay: (sp.nY % 2) / 2 }
+  const wide = W >= H, qs = wide ? L.qy : L.qx, A = (Math.max(0, Math.floor((wide ? H : W) / (2 * qs) - 0.5 + 1e-9)) + 0.5) * qs
+  return { L, A, sx: wide ? L.qx / L.qy : 1, sy: wide ? 1 : L.qy / L.qx }
+}
+/** The light centre's size: 1 touches the field's long sides (a strap's centre line on them); 2 lightStarFit's. */
+export function lightFit(g: { Wf: number; Hf: number; sw: number; centre: number }): LightFit {
+  const f = lightFieldWH(g)
+  if (g.centre === 2) { const { A, sx, sy } = lightStarFit(f.W, f.H, LIGHT.q); return { A, sx, sy } }
+  return { A: Math.min(f.W, f.H) / 2, sx: 1, sy: 1 }
+}
+/** The light centre's size across: its outline's width and height (mm). */
+export const lightSize = (g: { Wf: number; Hf: number; sw: number; centre: number }) => { const f = lightFit(g); return { w: round3(2 * f.A * f.sx), h: round3(2 * f.A * f.sy) } }
+/** The light band's plain wood (mm): from the band's outer edge past the rest on the gypsum, and from its inner edge, to the nearest hole. */
+export function lightPlain(g: FrameGeom): { outer: number; inner: number } {
+  // (the top strip's holes between the corners: the rest alike)
+  const pcs = framePieces(g).top.filter(pc => pc.poly.every(q => q.x > g.b && q.x < g.PW - g.b)), ys = pcs.flatMap(pc => pc.poly.map(q => q.y))
+  return pcs.length ? { outer: Math.min(...ys) - g.ov, inner: g.b - Math.max(...ys) } : { outer: 0, inner: 0 }
+}
+/** The light field of a decor (centred on 0), with the lattice it chose. */
+const lightFieldOf = (g: FrameGeom) => {
+  const st = lightStrap(g), f = lightFieldWH(g)
+  // (centre 2 takes its lattice, its edges on the lattice's lines; centre 1 and none the lattice with the least wood left plain)
+  if (g.center !== 3 && g.centre === 2) {
+    const fit = lightStarFit(f.W, f.H, LIGHT.q)
+    return memo(LATS, ['light2', f.W, f.H, st, LIGHT.q].join('|'), () => Object.assign(lightLattice(f.W, f.H, st, fit.L, lightKeepOut(2, fit)).pcs, { lattice: fit.L })) as ReturnType<typeof lightField>
+  }
+  const ko = g.center !== 3 ? lightKeepOut(g.centre, lightFit(g)) : null
+  return memo(LATS, ['light', f.W, f.H, st, LIGHT.q, ko ? g.centre : 0].join('|'), () => lightField(f.W, f.H, st, LIGHT.q, ko)) as ReturnType<typeof lightField>
+}
+/** The narrowest band the light design's cell (LIGHT.cell) fits in, with `ov` on the gypsum (planFrame3's room). */
+export const lightBandMin = (ov: number) => up5(ov + 2 * Math.max(LIGHT.cell * LIGHT.edge + Math.max(LIGHT.strap, LIGHT.rim), LIGHT.cell * (LIGHT.edge + TAU3)))
+const lightName = (centre: number) => (centre === 2 ? 'النجمة الثمانية الكبيرة' : 'المضلّع الاثنا عشري')
+
 // ------------------------------------------------------------------ joining pieces (the strips)
 
 /**
@@ -1593,6 +1858,8 @@ const motifName = (style: number) => (style !== 2 ? 'وردة' : 'نجمة')
 export function frameErrors(p: Record<string, number>, g: FrameGeom): string[] {
   const errors: string[] = []
   const { PW, PH, ov, b, web, rail, fit, center, kind, style } = g, sL = p.sheetL, sW = p.sheetW, co = CLEAT_REACH
+  // the light design is the customer's band's (style 3): the other styles have none
+  if (kind === 1 && style !== 3 && pick(p.detail ?? 1, 1, 2) === 2) return [`التفاصيل الخفيفة ${quote(DETAIL_LABELS[1])} لنقشة صورة الزبون فقط (النقشة 3 ${quote(STYLE_LABELS[2])}): اختر النقشة 3، أو التفاصيل ${quote(DETAIL_LABELS[0])} (1).`]
   const WpMin = minPatternWidth(web, style), mn = medName(style), make = style !== 2 ? 'اجعله' : 'اجعلها'
   // with sizeIs 2 the sizes the user typed are the window's (the outside is 2·band more), and the fixes name those
   const win = g.sizeIs === 2, iW = p.PW, iH = p.PH, toIn = (v: number) => (win ? v - 2 * b : v)
@@ -1631,7 +1898,12 @@ export function frameErrors(p: Record<string, number>, g: FrameGeom): string[] {
   }
   // the medallion in the middle
   const none = quote(kind === 1 ? CENTER_LABELS[2] : 'إطار فقط')
-  if (kind === 1 && center !== 3) {
+  if (g.light) {
+    // the light design: its centre fills the middle from edge to edge (no size to give), no middle strip
+    const fMin = LIGHT.fieldMin, fixBand = down5((Math.min(PW, PH) - fMin) / 2)
+    if (g.mid) errors.push(`التفاصيل الخفيفة بلا شريحة وسطى: ألغِ الشريحة الوسطى (0)، أو اختر التفاصيل ${quote(DETAIL_LABELS[0])} (1).`)
+    else if (Math.min(g.Wf, g.Hf) < fMin - 1e-9) errors.push(`وسط الديكور ${f1(g.Wf)} × ${f1(g.Hf)} مم صغير على التفاصيل الخفيفة (${f1(fMin)} مم على الأقل): ${fixBand >= bandMin && okBand(fixBand) && !win ? `اجعل عرض الإطار ${f1(fixBand)} مم على الأكثر، أو ` : ''}اختر التفاصيل ${quote(DETAIL_LABELS[0])} (1).`)
+  } else if (kind === 1 && center !== 3) {
     const medMax = down5(Math.min(Math.min(g.Wf, g.Hf) - 2 * g.fm, center === 2 ? Math.min(sL, sW) : Infinity))
     if (p.med > medMax + 1e-9) {
       // or a narrower band, so the middle grows round the medallion
@@ -1653,7 +1925,7 @@ export function frameErrors(p: Record<string, number>, g: FrameGeom): string[] {
     if (p.med > medMax + 1e-9) errors.push(medMax >= 150 ? `${mn} (${f1(p.med)} مم) أكبر من فتحة الإطار${medMax === down5(sW) ? ' أو من اللوح' : ''}: ${make} ${f1(medMax)} مم على الأكثر.` : `فتحة الإطار صغيرة على ${mn}: اختر ${none}.`)
   }
   // the lattice's cell
-  if (g.fill) {
+  if (g.fill && !g.light) {
     const fMin = up5(minCell(style, web))
     if (p.fcell < fMin - 1e-9) errors.push(`خليّة شبكة الوسط (${f1(p.fcell)} مم) صغيرة على ${style !== 2 ? 'وردات' : 'نجوم'} تُقصّ بخشب ${f1(web)} مم بينها: اجعلها ${f1(fMin)} مم على الأقل، أو ألغِ نقش الوسط (0).`)
   }
@@ -1709,6 +1981,13 @@ export function frameErrors(p: Record<string, number>, g: FrameGeom): string[] {
 export function decorPieces(p: Record<string, number>, g = frameGeom(p)) {
   const { top, side, bottom, left } = framePieces(g)
   const center = g.kind === 1 ? { x: g.PW / 2, y: g.PH / 2 } : { x: g.Wf / 2, y: g.Hf / 2 }
+  if (g.light) {
+    // the light design: its centre (cut in, or none: a separate piece is its own panel) and its field round it
+    const st = lightStrap(g), fit = lightFit(g)
+    const med = g.center === 1 ? memo(MEDS, ['light', g.centre, fit.A, fit.sx, fit.sy, st].join('|'), () => lightCentre(g.centre, fit, st)).map(pc => movePc(pc, center.x, center.y)) : []
+    const lat = g.fill ? lightFieldOf(g).map(pc => movePc(pc, center.x, center.y)) : []
+    return { top, side, bottom, left, med, lat, center, mid: midPieces(g) }
+  }
   const medHere = g.center === 1 // cut into the board (kind 1) or the field panel (kind 2)
   const med = medHere && (g.kind === 1 || g.field) ? medPieces(g.style, center, p.med, g.web) : []
   const keepOut = g.center !== 3 ? medOutline(g.style, { x: 0, y: 0 }, p.med, g.web) : null
@@ -1736,9 +2015,9 @@ function build(p: Record<string, number>, c: Common): BuildResult {
   if (errors.length) return { panels: [], notes, warnings, errors }
 
   const { top, side, bottom, left, med, lat, mid } = decorPieces(p, g), strips = [top, side, bottom, left]
-  const mn = medName(style), panels: PanelSpec[] = []
-  const medShape = (): Loop => polyLoop((style !== 2 ? octagon({ x: 0, y: 0 }, p.med) : ngon({ x: 0, y: 0 }, 24, p.med / 2)).map(q => ({ x: round3(q.x), y: round3(q.y) })), 'outer')
-  const medPiece = () => { const pcs = medPieces(style, { x: 0, y: 0 }, p.med, web); panels.push({ id: 'medallion', name: style !== 2 ? 'المثمّن' : 'الدائرة', w: p.med, h: p.med, shape: [medShape()], holes: holesOf(pcs), count: n }); return pcs.length }
+  const mn = g.light ? lightName(g.centre) : medName(style), panels: PanelSpec[] = []
+  const medShape = (): Loop => polyLoop((g.light ? lightOutline(g.centre, lightFit(g)) : style !== 2 ? octagon({ x: 0, y: 0 }, p.med) : ngon({ x: 0, y: 0 }, 24, p.med / 2)).map(q => ({ x: round3(q.x), y: round3(q.y) })), 'outer')
+  const medPiece = () => { const pcs = g.light ? lightCentre(g.centre, lightFit(g), lightStrap(g)) : medPieces(style, { x: 0, y: 0 }, p.med, web), sz = g.light ? lightSize(g) : { w: p.med, h: p.med }; panels.push({ id: 'medallion', name: g.light ? mn : style !== 2 ? 'المثمّن' : 'الدائرة', w: sz.w, h: sz.h, shape: [medShape()], holes: holesOf(pcs), count: n }); return pcs.length }
   let sepHoles = 0, total = 0
   const stripHoles: number[] = [] // the cut-outs in each strip (all its pieces), as built
   const split: { word: string; pair: number; L: number; joints: number[]; cnt: number; isLong: boolean }[] = []
@@ -1747,7 +2026,8 @@ function build(p: Record<string, number>, c: Common): BuildResult {
     const all = [...band, ...mid.map(pc => midPieceToFrame(g, pc)), ...med, ...lat]
     total = all.length
     // the 45° meeting lines, on the solid bars across the corners
-    const engrave: Loop[] = p.line >= 0.5 ? [[0, 0, 1, 1], [PW, 0, -1, 1], [PW, PH, -1, -1], [0, PH, 1, -1]].map(([x, y, sx, sy]) => ({ closed: false, layer: 'engrave' as const, pts: [{ x, y }, { x: round3(x + sx * b), y: round3(y + sy * b) }] })) : []
+    // (the light design has no bar on the diagonals: its corner rosettes are whole, no line to engrave there)
+    const engrave: Loop[] = p.line >= 0.5 && !g.light ? [[0, 0, 1, 1], [PW, 0, -1, 1], [PW, PH, -1, -1], [0, PH, 1, -1]].map(([x, y, sx, sy]) => ({ closed: false, layer: 'engrave' as const, pts: [{ x, y }, { x: round3(x + sx * b), y: round3(y + sy * b) }] })) : []
     panels.push({ id: 'board', name: 'الديكور — قطعة واحدة', w: PW, h: PH, holes: holesOf(all), ...(engrave.length ? { engrave } : {}), count: n, note: 'الوجه المزخرف للأسفل' })
     if (center === 2) sepHoles = medPiece()
   } else {
@@ -1825,8 +2105,15 @@ function build(p: Record<string, number>, c: Common): BuildResult {
   const nPetal = style !== 2 ? 16 : 12, petals = has(/^k\d/), starW = has(/^star$/) ? `نجمة من ${nPetal} رأساً${petals ? ` تخرج منها ${nPetal} بتلة${style !== 2 ? ' طويلة' : ''}` : ''}` : petals ? `${nPetal} بتلة${style !== 2 ? ' طويلة تلتقي في وسطه' : ' تلتقي في وسطها'}` : ''
   const ring1 = style !== 2 ? [has(/^(b|e)\d/) ? 'نجوم صغيرة' : '', has(/^(cc|d|f)\d/) ? 'دوائر' : ''].filter(Boolean).join(' و') : has(/^c\d/) ? '12 خليّة' : ''
   const rimW = style !== 2 ? (has(/^t\d/) ? 'وعلى حافّته 16 فتحة شبه منحرف داخل إطار مصمت' : 'داخل إطار مصمت') : `${has(/^a\d/) ? `${ring1 ? 'ثم ' : 'وحولها '}24 قوساً صغيراً ` : ''}داخل إطار دائري مصمت`
-  const medWords = `${mn} ${style !== 2 ? `${f1(p.med)} مم بين ضلعين متقابلين` : `قطرها ${f1(p.med)} مم`}: ${[starW, ring1 ? `وحولها ${ring1}` : ''].filter(Boolean).join('، ')}${style !== 2 ? '، ' : ' '}${rimW}`
-  const fillWords = g.fill
+  const lightA = g.light ? lightSize(g).h : 0, lq = g.light && g.fill ? lightFieldOf(g).lattice ?? null : null
+  const medWords = g.light
+    ? (g.centre === 2
+      ? `${mn} ${f1(lightSize(g).w)} × ${f1(lightSize(g).h)} مم من رأس إلى رأس: نجمة الوسط نفسها مكبّرة (مربعان متداخلان) وأضلاعها على خطوط نجوم الوسط وصلبانه، في وسطها نجمة ثمانية صغيرة مدارة 22.5° تخرج منها 8 أشعّة إلى رؤوسها، كلّ شعاع نصفان بينهما خطّ خشب على محوره، فتحات كبيرة قليلة`
+      : `${mn} ${f1(lightA)} مم بين ضلعين متقابلين يلمس حافّتي الوسط: نجمة من 12 رأساً حولها 12 بتلة كبيرة (جذر مدبّب وجانبان متوازيان كبتلات الإطار، ورأسها على منتصف ضلع)، وبين كلّ بتلتين شوكة طويلة إلى زاوية المضلّع، فتحات كبيرة قليلة`)
+    : `${mn} ${style !== 2 ? `${f1(p.med)} مم بين ضلعين متقابلين` : `قطرها ${f1(p.med)} مم`}: ${[starW, ring1 ? `وحولها ${ring1}` : ''].filter(Boolean).join('، ')}${style !== 2 ? '، ' : ' '}${rimW}`
+  const fillWords = g.fill && lq
+    ? `الوسط كلّه منقوش لا تبقى فيه مساحة سادة: نجوم ثمانية كبيرة تتلامس رأساً لرأس وبينها صلبان، الخطوة ${f1(lq.qx)} × ${f1(lq.qy)} مم (${lq.nX} × ${lq.nY} في الوسط ${f1(lightFieldWH(g).W)} × ${f1(lightFieldWH(g).H)} مم بين خطوط الخشب حوله)، حافّة الوسط تقسم ${lq.ax === 0 && lq.ay === 0 ? 'النجوم' : lq.ax === 0.5 && lq.ay === 0.5 ? 'الصلبان' : 'النجوم والصلبان'} أنصافاً، وتُقصّ عند ${center === 3 ? 'حافّة الوسط' : `خطّ ${mn}`}؛ ما يبقى منها أضيق من ${f1(LIGHT.hole)} مم يُترك خشباً.`
+    : g.fill
     ? `الوسط كلّه منقوش لا تبقى فيه مساحة سادة: ${style !== 2 ? 'وردات صغيرة من 16 بتلة على شبكة متخالفة، بين كلّ أربع منها نجمة ثمانية وأربع لوزات' : 'نجوم ثمانية متشابكة (خاتم) بين كلّ أربع منها صليب، على خطوط خشب متّصلة'}، خليّتها ${f1(p.fcell)} مم، تملأ ${kind === 1 ? 'وسط الديكور' : 'اللوح الأوسط'} حول ${center === 3 ? 'مركزه' : mn} وتُقصّ عند ${center === 3 ? '' : `شريط خشب حوله و`}حافّته المصمتة (${f1(g.fm)} مم).`
     : `الوسط سادة (نقش الوسط 0)؛ اجعله 1 لتملأه شبكة زخرفة.`
   notes.push(ov > 0
@@ -1835,7 +2122,9 @@ function build(p: Record<string, number>, c: Common): BuildResult {
   if (kind === 1) {
     notes.push(
       `الديكور قطعة واحدة ${f1(PW)} × ${f1(PH)} مم تُقصّ من لوح واحد، بلا وصلات. الإطار بعرض ${f1(b)} مم يظهر منه ${f1(b - ov)} مم: ${bandWords}.`,
-      `في كلّ زاوية ${motif} على القطر يقسمها شريط خشب مصمت عرضه ${f1(2 * g.sw)} مم على الأقل على خطّ الـ45°، فتلتقي الأضلاع الأربعة على 45° والزاوية صورة مرآة حوله، والزوايا الأربع متشابهة${p.line >= 0.5 ? '؛ وعلى كلّ شريط خطّ رفيع محفور يُبرز التقاء الـ45° (في RDWorks طبقة الحفر بقوّة خفيفة)' : ''}.`,
+      g.light
+        ? `في كلّ زاوية ${motif} كاملة بمضلّعها على القطر كما في الإطار الكبير (بلا شريط مصمت على خطّ الـ45°)${top.some(pc => pc.key === 'corner') ? '، وبينها وبين زاوية الديكور مضلّع صغير من 12 ضلعاً' : ''}، والزاوية صورة مرآة حول القطر، والزوايا الأربع متشابهة.`
+        : `في كلّ زاوية ${motif} على القطر يقسمها شريط خشب مصمت عرضه ${f1(2 * g.sw)} مم على الأقل على خطّ الـ45°، فتلتقي الأضلاع الأربعة على 45° والزاوية صورة مرآة حوله، والزوايا الأربع متشابهة${p.line >= 0.5 ? '؛ وعلى كلّ شريط خطّ رفيع محفور يُبرز التقاء الـ45° (في RDWorks طبقة الحفر بقوّة خفيفة)' : ''}.`,
       ...(g.mid ? [midWords] : []),
       center === 1 ? `في الوسط ${medWords}، مفرّغ${style !== 2 ? '' : 'ة'} في اللوح.` : center === 2 ? `${medWords}، قطعة منفصلة تُلصق بغراء الخشب على الوسط المصمت من الوجه الظاهر فتبرز عنه ويظهر الخشب من فتحاتها.` : 'بلا زخرفة وسطى.',
       fillWords,
@@ -1893,6 +2182,13 @@ function band3Notes(g: FrameGeom): string[] {
   const { s, strap } = f.size, pct = (q: number) => `${q >= s ? '+' : '−'}${f1(Math.abs(q / s - 1) * 100)}%`
   const lay = (L: typeof f.pw) => `${f1(L.L)} مم: ${rosettesWord(L.n + 1)}، ${L.pitches.map(q => `${f1(q)} مم (${pct(q)})`).join(' و')} بين الوسطى`
   const rimWhy = f.rim <= strap + 0.5 ? 'شريط واحد كما في الصورة' : `أقلّ حافّة تُبقي المربعات ضمن ${f1(Math.ceil(SQUARE3 * 100))}% من المربع على طول كلّ شريحة${f.rim <= LABEL_RIM + 0.5 ? ' ويتّسع فيها رقم القطعة' : ''}`
+  if (g.light) {
+    const st = lightStrap(g)
+    return [
+      `التفاصيل الخفيفة: فتحات أقلّ وأكبر بكثير ليقصّها الليزر في وقت أقلّ، بنفس الستايل: كلّ فتحة ${f1(LIGHT.hole)} مم عرضاً على الأقل، والخشب بين كلّ فتحتين ${f1(strap)} مم في الإطار و${f1(st)} مم في الوسط، وكلّ الخطوط مستقيمة.`,
+      `الإطار صفّ واحد من وردات صورة الزبون (النقشة 3) يملأ عرضه، بمربعات ${f1(s)} مم: في كلّ مربع مضلّع من 12 ضلعاً و12 بتلة، وبين كلّ وردتين عمود من فتحتين طويلتين (سهم وبيضاوي معاً) رأساهما المدبّبان يتقابلان في وسطه؛ بلا الحلقة المخرّمة ولا صفّي الحافّتين ولا المثلّثات والمعيّنات والنجوم الصغيرة. وفي كلّ زاوية وردة كاملة بمضلّعها على القطر كما في الإطار الكبير. خشب مصمت ${f1(lightPlain(g).outer)} مم فقط بين حافّة الديكور (بعد الركبة على الجبس) وأقرب فتحة، و${f1(lightPlain(g).inner)} مم بين الشريط والوسط (كحافّتي شرائح الإطار). ${lay(f.pw)}؛ ${lay(f.ph)}.`,
+    ]
+  }
   const out = [
     `النقشة 3 «${STYLE_LABELS[2]}»: شريط الإطار كما في صورة الزبون، صفّ واحد من مربعات ${f1(s)} مم عرضاً، في كلّ مربع وردة من 12 بتلة (رأس مدبّب قليلاً) في وسطها مضلّع من 12 ضلعاً، حولها حلقة مخرّمة من 12 فتحة على شكل T و12 معيّناً صغيراً، وبين كلّ وردتين عمود: مضلّع ثم شكل بيضاوي ثم سهم ثم نقطتان ثم سهم ثم بيضاوي ثم مضلّع، ومثله صفّ على كلّ من الحافّتين، ونجمة رباعية على كلّ قطر بين الوردة وزاوية المربع. كلّها خطوط مستقيمة، والخشب بين كلّ فتحتين ${f1(strap)} مم بالضبط (نسبة الصورة)، وحافّة مصمتة ${f1(f.rim)} مم على جانبي الشريط (${rimWhy}).`,
     `في كلّ زاوية مربع كامل ووردته كاملة على خط الـ45° كما في الصورة${g.kind === 2 ? `: الشطف خطّ مستقيم واحد على 45° من الزاوية الخارجية إلى الداخلية يمرّ في النقشة نفسها بلا شريط مصمت: كلّ شكل على الخطّ (مضلّع المركز والمثلّثان وفتحتا الـT والنجمتان والمضلّعان على زاويتي المربع) نصفه في كلّ شريحة حزّاً في طرفها، والنصفان صورة مرآة، فإذا التقت الشريحتان ظهر كلّ شكل والوردة كلّها كاملة كما في الصورة` : ''}. والمربعات بين الزاويتين ${g.mid ? 'وبين الزاوية ووردة محور الشريطة النصّانية ' : ''}متساوية: ${[lay(f.pw), ...(f.ph.L !== f.pw.L || f.ph.n !== f.pw.n ? [lay(f.ph)] : [])].join('؛ ')}${f.mid ? `؛ الشريطة النصّانية ${rosettesWord(f.mid.k)} ${f1(f.mid.pitch)} مم (${pct(f.mid.pitch)}) وفي طرفيها عمود من أشكال الحافّة داخل حافّة مصمتة ${f1(f.mid.rimEnd)} مم` : ''}. الصورة نفسها تضغط مربعاتها 2–6.5% على طولها.`,
@@ -1928,12 +2224,14 @@ const SET_PARAMS: ParamDef[] = [
   intP('mid', 'الشريطة النصّانية', 0, 1, '1 = شريطة بعرض الشرائح تقطع الفتحة بين الشريحتين الطويلتين، طرفاها مستقيمان'),
   mm('midAt', 'موضع الشريطة النصّانية', 0, 9000, '0 = في المنتصف؛ وإلا فبعد حافّتها القريبة عن طرف الفتحة'),
   mm('midLen', 'طول الشريطة النصّانية', 0, 3000, 'أطول من الفتحة بين الشريحتين الطويلتين: الزيادة نصفها في كلّ طرف لسان خشب مصمت بلا فتحات يدخل تحت الشريحة الطويلة (على وجهها المخفي)، والنقشة كما هي؛ يُقصّ من اللسانين في الموقع إن لزم. 0 = بطول الفتحة تماماً بوصلة مستقيمة'),
-  intP('squares', 'المربعان', 0, 1, '1 = مع المربعين (ديكور قطعة واحدة لكلّ منهما بمثمّن في الوسط)، 0 = الإطار والشريطة النصّانية فقط'),
+  intP('squares', 'المربعان', 0, 1, '1 = مع المربعين (ديكور قطعة واحدة لكلّ منهما بزخرفة في الوسط)، 0 = الإطار والشريطة النصّانية فقط'),
   mm('AW', 'عرض المربع الأول', 300, 2440, 'ديكور قطعة واحدة لفتحته في الجبس، مقاسه من الخارج مع الركبة على الجبس'),
   mm('AH', 'طول المربع الأول', 300, 2440, 'على طول الإطار، في النصف الأول من الفتحة'),
   mm('BW', 'عرض المربع الثاني', 300, 2440, 'في النصف الثاني من الفتحة، بعد الشريطة النصّانية'),
   mm('BH', 'طول المربع الثاني', 300, 2440),
-  intP('style', 'النقشة', 1, 3, '1 = وردات نجمية من 16 رأساً ونجوم ثمانية كالصورة، 2 = نجوم ثمانية (خاتم) وصلبان، 3 = شريط الإطار مثل صورة الزبون بالضبط (وردة من 12 بتلة بحلقة مخرّمة في كلّ مربع)؛ الإطار والمربعان بنفس النقشة (مثمّن المربعين وشبكتهما في 3 كما في 1)', STYLE_LABELS),
+  intP('style', 'النقشة', 1, 3, '1 = وردات نجمية من 16 رأساً ونجوم ثمانية كالصورة، 2 = نجوم ثمانية (خاتم) وصلبان، 3 = شريط الإطار مثل صورة الزبون بالضبط (وردة من 12 بتلة بحلقة مخرّمة في كلّ مربع)؛ الإطار والمربعان بنفس النقشة (مثمّن المربعين وشبكتهما في 3 كما في 1، أو بالتفاصيل الخفيفة)', STYLE_LABELS),
+  intP('detail', 'تفاصيل المربعين', 1, 2, 'للنقشة 3 (صورة الزبون): 1 = ناعمة كثيرة التفاصيل (كما سُلّمت أوّلاً: آلاف الفتحات الصغيرة، يأخذ قصّ المربع ساعات)، 2 = خفيفة: فتحات أقلّ بكثير وأكبر (كلّ فتحة 12 مم عرضاً على الأقل والخشب بينها 9 مم على الأقل) بنفس الستايل: إطار المربع صفّ وردات من 12 بتلة يملأ عرضه وفي كلّ زاوية وردة كاملة، والوسط نجوم ثمانية كبيرة وصلبان، وفي وسطه زخرفة مختلفة («وسط المربعين»)؛ الإطار والشريطة النصّانية لا يتغيّران. في النقشتين 1 و2 المربعان بنقشتهما الناعمة', DETAIL_LABELS),
+  intP('centre', 'وسط المربعين', 1, 2, 'مع التفاصيل الخفيفة: 1 = نجمة من 12 رأساً حولها 12 بتلة كبيرة داخل مضلّع من 12 ضلعاً، 2 = نجمة ثمانية كبيرة (مربعان متداخلان كنجوم الوسط) في وسطها نجمة صغيرة تخرج منها 8 أشعّة إلى رؤوسها', LIGHT_CENTRE_LABELS),
   intP('pack', 'تقسيم الشرائح', 1, 2, 'للنقشة 3: 1 = أقلّ عدد من الوصلات (بالمقاسات الافتراضية 6 وصلات، والطقم كلّه على 5 ألواح)، 2 = أقلّ عدد من الألواح: وصلات مستقيمة أكثر لتدخل قطع من الشرائح بجانب المربعين (بالمقاسات الافتراضية 8 وصلات، والطقم كلّه على 4 ألواح)', PACK_LABELS),
   intP('labels', 'ترقيم القطع', 0, 1, '1 = كلّ قطعة برقمها بترتيب التركيب، محفوراً على الوجه المخفي (طبقة حفر زرقاء)', ['بلا ترقيم', 'ترقيم القطع بالتسلسل']),
   intP('cleats', 'قطع التدعيم', 0, 1, '1 = قطع تُلصق خلف الزوايا وخلف وصلات الشرائح، من نفس اللوح'),
@@ -1942,7 +2240,7 @@ const SET_PARAMS: ParamDef[] = [
   mm('sheetW', 'عرض لوح الخشب', 600, 2000),
   intP('n', 'عدد الأطقم', 1, 5),
 ]
-const SET_DEFAULTS = { FW: 2460, FL: 5460, band: 380, mid: 1, midAt: 0, midLen: 1800, squares: 1, AW: 1400, AH: 1050, BW: 1380, BH: 1080, style: 1, pack: 1, labels: 1, cleats: 0, fit: 0, sheetL: 2440, sheetW: 1220, n: 1 }
+const SET_DEFAULTS = { FW: 2460, FL: 5460, band: 380, mid: 1, midAt: 0, midLen: 1800, squares: 1, AW: 1400, AH: 1050, BW: 1380, BH: 1080, style: 1, detail: 2, centre: 1, pack: 1, labels: 1, cleats: 0, fit: 0, sheetL: 2440, sheetW: 1220, n: 1 }
 
 /** The frame's parameters for the set: FW × FL outside, no rest on the gypsum, the middle strip as wide as the band. */
 export function setFrameParams(p: Record<string, number>): Record<string, number> {
@@ -1954,8 +2252,16 @@ export function setFrameParams(p: Record<string, number>): Record<string, number
  * A square's parameters: the one-piece decor at its defaults (octagon in the middle, the field patterned) at its
  * size, the octagon no bigger than its middle holds (a smaller square keeps it whole, as frameErrors sizes it).
  */
-export const setSquareParams = (p: Record<string, number>, W: number, H: number): Record<string, number> =>
-  ({ ...DEFAULTS, style: p.style, PW: W, PH: H, med: Math.min(DEFAULTS.med, down5(Math.min(W, H) - 2 * DEFAULTS.band - 4 * DEFAULTS.web)), sheetL: p.sheetL, sheetW: p.sheetW, n: p.n })
+export const setSquareParams = (p: Record<string, number>, W: number, H: number): Record<string, number> => {
+  // the light design's band (style 3's: LIGHT.band, narrower on a small square so its middle keeps room for the
+  // centre); a square too small for its cells keeps the fine design (its laser time is short anyway), and the notes say so
+  if (pick(p.style ?? 1, 1, 3) === 3 && pick(p.detail ?? 1, 1, 2) === 2) {
+    const q = { ...DEFAULTS, style: p.style, detail: 2, centre: pick(p.centre ?? 1, 1, 2), PW: W, PH: H, band: Math.min(LIGHT.band, Math.max(DEFAULTS.band, down5((Math.min(W, H) - LIGHT.fieldMin) / 2))), sheetL: p.sheetL, sheetW: p.sheetW, n: p.n }
+    const g = frameGeom(q)
+    if (g.f3 && Math.min(g.Wf, g.Hf) >= LIGHT.fieldMin - 1e-9) return q
+  }
+  return { ...DEFAULTS, style: p.style, PW: W, PH: H, med: Math.min(DEFAULTS.med, down5(Math.min(W, H) - 2 * DEFAULTS.band - 4 * DEFAULTS.web)), sheetL: p.sheetL, sheetW: p.sheetW, n: p.n }
+}
 
 // ---------------------------------------------------------------- engraved numbers
 
@@ -2254,7 +2560,7 @@ function buildSet(p: Record<string, number>, c: Common): BuildResult {
     for (const q of squares) for (const pn of q.res.panels) panels.push({ ...pn, id: `square-${q.k}${pn.id === 'board' ? '' : `-${pn.id}`}`, name: pn.id === 'board' ? `مربع ${cm(q.W)}×${cm(q.H)}` : `${pn.name} — ${q.word}` })
   }
   notes.push(
-    `طقم ديكور السقف كما في رسمتك: إطار من أربع شرائح عرضها ${f1(g.b)} مم تلتقي بزوايا 45°، ${f1(g.PW)} × ${f1(g.PH)} مم من الخارج (${cm(g.PW)} × ${cm(g.PH)} سم) والفتحة داخله ${f1(winW)} × ${f1(winH)} مم${g.mid ? `، وشريطة نصّانية ${g.tab > 0 ? `${f1(g.mLen)} × ${f1(g.midW)} مم (${f1(g.Lm)} مم ظاهرة بين الشريحتين الطويلتين و${f1(g.tab)} مم تحت كلّ منهما)` : `${f1(round3(g.Lm - 2 * (p.fit ?? 0)))} × ${f1(g.midW)} مم بطرفين مستقيمين`} تقطع الفتحة ${g.offMid ? `على بعد ${f1(g.mAt)} مم من طرفها` : `في منتصفها (${f1(g.mAt)} مم من كلّ طرف)`}` : ''}${sq ? `، والمربعان ${f1(p.AW)} × ${f1(p.AH)} و${f1(p.BW)} × ${f1(p.BH)} مم كلّ منهما في وسط نصف من الفتحة` : ''}. الكلّ بنقشة واحدة ${p.style === 3 ? 'مثل صورتك بالضبط (وردة من 12 بتلة بحلقة مخرّمة في كلّ مربع، وأعمدة ونجوم رباعية بينها)' : p.style !== 2 ? 'من وردات نجمية (نجمة من 16 رأساً وبتلات مدبّبة) ونجوم ثمانية' : 'من نجوم ثمانية (خاتم) وصلبان'}، خطوط مستقيمة ورؤوس حادّة بلا منحنيات.`,
+    `طقم ديكور السقف كما في رسمتك: إطار من أربع شرائح عرضها ${f1(g.b)} مم تلتقي بزوايا 45°، ${f1(g.PW)} × ${f1(g.PH)} مم من الخارج (${cm(g.PW)} × ${cm(g.PH)} سم) والفتحة داخله ${f1(winW)} × ${f1(winH)} مم${g.mid ? `، وشريطة نصّانية ${g.tab > 0 ? `${f1(g.mLen)} × ${f1(g.midW)} مم (${f1(g.Lm)} مم ظاهرة بين الشريحتين الطويلتين و${f1(g.tab)} مم تحت كلّ منهما)` : `${f1(round3(g.Lm - 2 * (p.fit ?? 0)))} × ${f1(g.midW)} مم بطرفين مستقيمين`} تقطع الفتحة ${g.offMid ? `على بعد ${f1(g.mAt)} مم من طرفها` : `في منتصفها (${f1(g.mAt)} مم من كلّ طرف)`}` : ''}${sq ? `، والمربعان ${f1(p.AW)} × ${f1(p.AH)} و${f1(p.BW)} × ${f1(p.BH)} مم كلّ منهما في وسط نصف من الفتحة` : ''}. الكلّ بنقشة واحدة ${p.style === 3 ? `مثل صورتك بالضبط (وردة من 12 بتلة بحلقة مخرّمة في كلّ مربع، وأعمدة ونجوم رباعية بينها)${squares.some(q => frameGeom(setSquareParams(p, q.W, q.H)).light) ? '؛ والمربعان بالتفاصيل الخفيفة: نفس الوردة بلا الحلقة المخرّمة، فتحات أقلّ وأكبر' : ''}` : p.style !== 2 ? 'من وردات نجمية (نجمة من 16 رأساً وبتلات مدبّبة) ونجوم ثمانية' : 'من نجوم ثمانية (خاتم) وصلبان'}، خطوط مستقيمة ورؤوس حادّة بلا منحنيات.`,
   )
   if (g.style === 3 && g.f3) {
     // the two ways of cutting the strips, and the sheets each takes
@@ -2284,13 +2590,21 @@ function buildSet(p: Record<string, number>, c: Common): BuildResult {
   notes.push(...fr.notes.filter(x => !/^المقاس مقاس|كما أدخلتها|^الديكور .* بلا ركبة/.test(x) && !(sq && /^إطار فقط/.test(x))))
   for (const q of squares) {
     const gq = frameGeom(setSquareParams(p, q.W, q.H)), pc = plan.pieces.find(x => x.square === q.k)
-    notes.push(`${q.word}${labels && pc ? ` (القطعة ${pc.no})` : ''}: ${quote(labels && pc ? pc.name : `مربع ${cm(q.W)}×${cm(q.H)}`)} ديكور قطعة واحدة ${f1(q.W)} × ${f1(q.H)} مم (إطار ${f1(gq.b)} مم بوردات نجمية والركبة على الجبس ${f1(gq.ov)} مم محسوبة فيه، وفي وسطه ${mn} ${f1(setSquareParams(p, q.W, q.H).med)} مم والوسط كلّه منقوش)، لفتحته في الجبس${labels ? '، ورقمه على حافّته المصمتة التي ترتكز على الجبس' : ''}.`)
+    // (the light design: what it cuts, and how long the laser takes over it at 20 mm/s with 0.4 s a hole)
+    const lightWords = () => {
+      const board = q.res.panels.find(pn => pn.id === 'board')!, holes = (board.holes ?? []).length
+      const len = [...(board.holes ?? []), polyLoop([{ x: 0, y: 0 }, { x: q.W, y: 0 }, { x: q.W, y: q.H }, { x: 0, y: q.H }], 'outer')].reduce((a, l) => a + loopLength(l), 0) / 1000
+      const mins = Math.round((len * 1000 / 20 + 0.4 * (holes + 1)) / 60)
+      return `${quote(labels && pc ? pc.name : `مربع ${cm(q.W)}×${cm(q.H)}`)} ديكور قطعة واحدة ${f1(q.W)} × ${f1(q.H)} مم بالتفاصيل الخفيفة: إطار ${f1(gq.b)} مم بصفّ وردات من 12 بتلة يملأ عرضه ووردة كاملة في كلّ زاوية (الركبة على الجبس ${f1(gq.ov)} مم محسوبة فيه)، وفي وسطه ${lightName(gq.centre)} ${gq.centre === 2 ? `${f1(lightSize(gq).w)} × ${f1(lightSize(gq).h)}` : f1(lightSize(gq).h)} مم (${quote(LIGHT_CENTRE_LABELS[gq.centre - 1])})، والوسط حوله نجوم ثمانية كبيرة وصلبان؛ ${holesWord(holes)} و${f1(len)} م قصّ (نحو ${mins} دقيقة على الليزر بسرعة 20 مم/ث)`
+    }
+    if (pick(p.style ?? 1, 1, 3) === 3 && pick(p.detail ?? 1, 1, 2) === 2 && !gq.light) notes.push(`${q.word} ${f1(q.W)} × ${f1(q.H)} مم صغير على التفاصيل الخفيفة (إطارها بوردات كبيرة يحتاج ${f1(LIGHT.fieldMin + 2 * lightBandMin(DEFAULTS.ov))} مم على الأقل في الضلع القصير): قُصّ بالتفاصيل الناعمة.`)
+    notes.push(`${q.word}${labels && pc ? ` (القطعة ${pc.no})` : ''}: ${gq.light ? lightWords() : `${quote(labels && pc ? pc.name : `مربع ${cm(q.W)}×${cm(q.H)}`)} ديكور قطعة واحدة ${f1(q.W)} × ${f1(q.H)} مم (إطار ${f1(gq.b)} مم بوردات نجمية والركبة على الجبس ${f1(gq.ov)} مم محسوبة فيه، وفي وسطه ${mn} ${f1(setSquareParams(p, q.W, q.H).med)} مم والوسط كلّه منقوش)`}، لفتحته في الجبس${labels ? '، ورقمه على حافّته المصمتة التي ترتكز على الجبس' : ''}.`)
   }
   return { panels, notes, warnings, errors: [], slotted: false }
 }
 
 const ICON3 = `<path d="M14 2h36v60H14z"/><path d="M22 10h20v44H22z"/><path d="M14 2l8 8M50 2l-8 8M14 62l8-8M50 62l-8-8" stroke-width="1.5"/><path d="M22 30h20v5H22z" stroke-width="1.5"/><path d="M26 14h12v12H26zM26 39h12v12H26z" stroke-width="1.2"/>${star8(18, 6, 1.6)}${star8(46, 6, 1.6)}${star8(18, 32, 1.6)}${star8(46, 32, 1.6)}${star8(18, 58, 1.6)}${star8(46, 58, 1.6)}${star8(32, 20, 2)}${star8(32, 45, 2)}`
-const DESC3 = 'ديكور سقف كامل كما في رسمة الزبون: إطار 246 × 546 سم من الخارج من أربع شرائح عرضها 38 سم تلتقي بزوايا 45°، وشريطة نصّانية بنفس العرض في منتصفه بطرفين مستقيمين، ومربعان (140×105 و138×108) كلّ منهما ديكور قطعة واحدة بمثمّن في الوسط. النقشة نجوم عربية بخطوط مستقيمة ورؤوس حادّة. الشريحة الأطول من اللوح تُقسم بين وردتين بوصلة مستقيمة، والقطع كلّها مرتّبة على ألواح 244×122 ومرقّمة بترتيب التركيب (الرقم محفور على الوجه المخفي) مع خريطة تركيب.'
+const DESC3 = 'ديكور سقف كامل كما في رسمة الزبون: إطار 246 × 546 سم من الخارج من أربع شرائح عرضها 38 سم تلتقي بزوايا 45°، وشريطة نصّانية بنفس العرض في منتصفه بطرفين مستقيمين، ومربعان (140×105 و138×108) كلّ منهما ديكور قطعة واحدة بزخرفة في الوسط (بالنقشة 3 بالتفاصيل الخفيفة: فتحات أقلّ وأكبر يقصّها الليزر في أقلّ من ساعة). النقشة نجوم عربية بخطوط مستقيمة ورؤوس حادّة. الشريحة الأطول من اللوح تُقسم بين وردتين بوصلة مستقيمة، والقطع كلّها مرتّبة على ألواح 244×122 ومرقّمة بترتيب التركيب (الرقم محفور على الوجه المخفي) مع خريطة تركيب.'
 
 export const CEILING_FRAMES: Template[] = [
   { id: 'ceilingframe', name: 'ديكور سقف: إطار وردات بزوايا 45 ومثمّن', desc: DESC1, icon: ICON1, params: PARAMS, defaults: DEFAULTS, innerAdd: () => ({ W: 0, D: 0, H: 0 }), build },
