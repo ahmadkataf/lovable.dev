@@ -5,7 +5,7 @@ import { useState, type FormEvent } from 'react';
 import * as api from '../api';
 import { EngineResult } from '../components/EngineResult';
 import { Btn, DateField, Empty, ErrorBox, Field, PageHead, Skeleton, Tag, Tile } from '../components/Ui';
-import { addDays, ar, count, fmtDate, NOUNS, periodName, SUBSTITUTION_LABEL, teacherTitle, todayISO } from '../format';
+import { addDays, ar, count, fmtDate, lastSchoolDay, NOUNS, periodName, SUBSTITUTION_LABEL, teacherTitle, todayISO } from '../format';
 import { useApi } from '../hooks';
 import { navigate, useRoute } from '../router';
 import { refreshUnread, toast } from '../store';
@@ -103,7 +103,7 @@ export function SchoolAbsences() {
   const today = todayISO();
   const route = useRoute();
   // A notification about an absence or a changed period links here with ?date=.
-  const [date, setDate] = useState(() => { const q = route.query.get('date'); return q && ISO.test(q) ? q : today; });
+  const [date, setDate] = useState(() => { const q = route.query.get('date'); return q && ISO.test(q) ? q : lastSchoolDay(today); });
   const { data, error, loading, reload } = useApi<SchoolDashboard>(`/api/school/dashboard?date=${date}`);
   const absences = data?.absences ?? [];
   const uncovered = absences.flatMap((a) => a.substitutions).filter((x) => x.status === 'suggested' || x.status === 'uncovered').length;

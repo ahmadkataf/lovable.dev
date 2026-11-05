@@ -4,8 +4,8 @@
 import { useMemo, useState } from 'react';
 import * as api from '../api';
 import { Icon } from '../components/Icon';
-import { Empty, ErrorBox, PageHead, Skeleton, Tag, Tile } from '../components/Ui';
-import { ar, count, DAYS, dayIndex, dueLabel, firstName, fmtDate, NOUNS, periodName, shortSubject, teacherTitle, todayISO, unreadLabel, withPage } from '../format';
+import { Empty, ErrorBox, LastSchoolDayNote, PageHead, Skeleton, Tag, Tile } from '../components/Ui';
+import { ar, count, dayIndex, DAYS, dueLabel, firstName, fmtDate, lastSchoolDay, NOUNS, periodName, shortSubject, teacherTitle, todayISO, unreadLabel, withPage } from '../format';
 import { useApi } from '../hooks';
 import { Link, useRoute } from '../router';
 import { refreshUnread, toast, useStore } from '../store';
@@ -34,11 +34,12 @@ function PeriodsGrid({ rows, max = 6 }: { rows: TimetableRow[]; max?: number }) 
 export function StudentHome() {
   const s = useStore();
   const ctx = s.context as StudentContext | null;
-  const { data, error, loading, reload } = useApi<StudentHomeData>('/api/student/home');
-  const [pending, setPending] = useState<Set<number>>(new Set());
-  const [localDone, setLocalDone] = useState<Set<number>>(new Set());
   const today = todayISO();
   const weekend = dayIndex(today) > 4;
+  const day = weekend ? lastSchoolDay(today) : today;
+  const { data, error, loading, reload } = useApi<StudentHomeData>(weekend ? `/api/student/home?date=${day}` : '/api/student/home');
+  const [pending, setPending] = useState<Set<number>>(new Set());
+  const [localDone, setLocalDone] = useState<Set<number>>(new Set());
   const homework = useMemo(() => (data?.homework ?? []).map((h) => ({ ...h, done: h.done || localDone.has(h.id) })), [data, localDone]);
   // Points come from the server (every submission ever made); the visible list only covers the current week.
   const points = data?.points ?? homework.filter((h) => h.done).length * 10;
@@ -97,7 +98,8 @@ export function StudentHome() {
       </Tile>
 
       <Tile title="جدول اليوم" icon="cal" right={<Link to="/student/timetable" className="tag">الأسبوع</Link>}>
-        <p className="sub">{fmtDate(today)}</p>
+        <p className="sub">{fmtDate(day)}</p>
+        {weekend && <LastSchoolDayNote day={day} />}
         {loading && !data && <Skeleton lines={2} />}
         {data && data.today.length === 0 && <Empty icon="cal" title={weekend ? 'لا دوام اليوم' : 'لا حصص اليوم'} text={weekend ? 'يعود الدوام يوم الأحد.' : undefined} />}
         {data && data.today.length > 0 && <PeriodsGrid rows={data.today} />}

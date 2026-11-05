@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { Roster } from '../components/Roster';
 import { Btn, ErrorBox, PageHead, Skeleton, Tile } from '../components/Ui';
-import { count, fmtDate, NOUNS, periodName, todayISO } from '../format';
+import { count, fmtDate, NOUNS, periodName, showDay } from '../format';
 import { useApi } from '../hooks';
 import { navigate, useRoute } from '../router';
 import { rosterStudents, type RosterResponse, type SectionWithStudents, type TeacherHome } from '../types';
@@ -11,9 +11,9 @@ export function TeacherAttendance() {
   const sectionId = Number(route.query.get('section') ?? 0);
   const periodParam = Number(route.query.get('period') ?? 0);
   const [period, setPeriod] = useState<number>(periodParam || 0);
-  const today = todayISO();
+  const today = showDay();   // on the weekend: the last school day, like the home screen
   const sections = useApi<SectionWithStudents[]>('/api/school/sections');
-  const home = useApi<TeacherHome>('/api/teacher/home');
+  const home = useApi<TeacherHome>(`/api/teacher/home?date=${today}`);
   const section = sections.data?.find((x) => x.id === sectionId) ?? null;
   const todayRows = (home.data?.today.periods ?? []).filter((p) => p.section_id === sectionId);
   // The statuses already saved for this period (if any) seed the roster, so re-saving never overwrites an absence.

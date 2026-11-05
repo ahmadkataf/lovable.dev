@@ -53,6 +53,18 @@ export function dayIndex(iso: string): number {
   return new Date(Date.UTC(y, m - 1, d)).getUTCDay();
 }
 
+/** The latest school day on or before `iso` (Friday/Saturday → the Thursday before). */
+export function lastSchoolDay(iso: string): string {
+  let d = iso;
+  while (dayIndex(d) > 4) d = addDays(d, -1);
+  return d;
+}
+/** The day the app shows by default: today on a school day, the last school day on the weekend (the demo data anchors to it). */
+export function showDay(): string {
+  return lastSchoolDay(todayISO());
+}
+export const isWeekend = (iso: string): boolean => dayIndex(iso) > 4;
+
 export function addDays(iso: string, n: number): string {
   const [y, m, d] = iso.split('-').map(Number);
   const t = new Date(Date.UTC(y, m - 1, d + n));

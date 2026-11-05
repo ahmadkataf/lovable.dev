@@ -2,8 +2,8 @@
    and the entry point to message the teacher. */
 
 import { Icon } from '../components/Icon';
-import { Avatar, Btn, Empty, ErrorBox, Kpi, PageHead, Skeleton, Tag, Tile } from '../components/Ui';
-import { ar, ATTENDANCE_LABEL, dueLabel, firstName, fmtClock, fmtDate, fmtWhen, NOTIFICATION_KIND_LABEL, todayISO, unreadLabel, withPage } from '../format';
+import { Avatar, Btn, Empty, ErrorBox, Kpi, LastSchoolDayNote, PageHead, Skeleton, Tag, Tile } from '../components/Ui';
+import { ar, ATTENDANCE_LABEL, dayIndex, dueLabel, firstName, fmtClock, fmtDate, fmtWhen, lastSchoolDay, NOTIFICATION_KIND_LABEL, todayISO, unreadLabel, withPage } from '../format';
 import { useApi } from '../hooks';
 import { Link, navigate } from '../router';
 import { useStore } from '../store';
@@ -11,10 +11,14 @@ import type { ParentHome as ParentHomeData } from '../types';
 
 export function ParentHome() {
   const s = useStore();
-  const { data, error, loading, reload } = useApi<ParentHomeData>('/api/parent/home');
+  const today = todayISO();
+  const weekend = dayIndex(today) > 4;
+  const day = weekend ? lastSchoolDay(today) : today;
+  const { data, error, loading, reload } = useApi<ParentHomeData>(weekend ? `/api/parent/home?date=${day}` : '/api/parent/home');
   return (
     <>
-      <PageHead title={`أهلاً ${s.user?.name ?? ''}`} sub={`يوم أبنائك في شاشة واحدة · ${fmtDate(todayISO())}`} />
+      <PageHead title={`أهلاً ${s.user?.name ?? ''}`} sub={`يوم أبنائك في شاشة واحدة · ${fmtDate(day)}`} />
+      {weekend && <LastSchoolDayNote day={day} />}
       {loading && !data && <Tile className="full"><Skeleton lines={4} /></Tile>}
       {error && !data && <Tile className="full"><ErrorBox error={error} retry={reload} /></Tile>}
       {data && data.children.length === 0 && <Tile className="full"><Empty icon="parent" title="لا أبناء مرتبطين بهذا الحساب" text="تربط إدارة المدرسة الحساب بسجلّ الطالب." /></Tile>}

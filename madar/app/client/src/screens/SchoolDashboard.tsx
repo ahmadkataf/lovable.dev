@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Btn, ChartRow, DateField, Empty, ErrorBox, Kpi, PageHead, Skeleton, Tag, Tile } from '../components/Ui';
-import { ar, count, fmtDate, gradeShort, NOUNS, pct, periodOrdinal, SUBSTITUTION_LABEL, teacherTitle, todayISO } from '../format';
+import { ar, count, fmtDate, gradeShort, lastSchoolDay, NOUNS, pct, periodOrdinal, SUBSTITUTION_LABEL, teacherTitle, todayISO } from '../format';
 import { useApi } from '../hooks';
 import { Link, navigate } from '../router';
 import { useStore } from '../store';
@@ -10,7 +10,7 @@ export function SchoolDashboard() {
   const s = useStore();
   const ctx = s.context as SchoolContext | null;
   const today = todayISO();
-  const [date, setDate] = useState(today);
+  const [date, setDate] = useState(lastSchoolDay(today));   // weekend → the last school day
   const { data, error, loading, reload } = useApi<SchoolDashboardData>(`/api/school/dashboard?date=${date}`);
   const uncovered = data?.uncovered_periods ?? 0;
   return (

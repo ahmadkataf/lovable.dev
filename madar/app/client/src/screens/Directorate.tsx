@@ -5,7 +5,7 @@ import { useMemo, useRef, useState, type FormEvent } from 'react';
 import * as api from '../api';
 import { Icon } from '../components/Icon';
 import { Btn, DateField, Empty, ErrorBox, Field, Kpi, PageHead, Skeleton, Tag, Tile } from '../components/Ui';
-import { ar, complexLabel, consecutiveDays, count, fmtDate, fmtHM, fmtPhone, fmtWhen, NOUNS, pct, todayISO } from '../format';
+import { ar, complexLabel, consecutiveDays, count, fmtDate, fmtHM, fmtPhone, fmtWhen, lastSchoolDay, NOUNS, pct, todayISO } from '../format';
 import { useApi } from '../hooks';
 import { Link, navigate, useRoute } from '../router';
 import { toast, useStore } from '../store';
@@ -101,7 +101,7 @@ function SchoolCard({ s, date, holiday }: { s: DirectorateSchool; date: string; 
 export function DirectorateDashboard() {
   const today = todayISO();
   const route = useRoute();
-  const [date, setDateState] = useState(() => { const q = route.query.get('date'); return q && ISO.test(q) && q <= today ? q : today; });
+  const [date, setDateState] = useState(() => { const q = route.query.get('date'); return q && ISO.test(q) && q <= today ? q : lastSchoolDay(today); });
   const { data, error, loading, reload } = useApi<DirectorateDashboardData>(api.directorateUrls.dashboard(date));
   const narrow = useNarrow();
   const holiday = isHoliday(date);

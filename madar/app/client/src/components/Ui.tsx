@@ -2,7 +2,7 @@
 
 import { useEffect, type ButtonHTMLAttributes, type CSSProperties, type ReactNode } from 'react';
 import { Icon } from './Icon';
-import { addDays, arDigits, fmtDate, pct, todayISO } from '../format';
+import { addDays, arDigits, fmtDate, isWeekend, pct, todayISO } from '../format';
 import { Link } from '../router';
 import type { AppConfig } from '../config';
 
@@ -229,5 +229,15 @@ export function SupportLine({ cfg, className }: { cfg: AppConfig; className?: st
       مساعدة: <a href={`tel:${tel}`} className="num" dir="ltr">{arDigits(phone)}</a>
       {cfg.support_hours.trim() && <> ({arDigits(cfg.support_hours.trim())})</>}
     </span>
+  );
+}
+
+/** Shown on Friday/Saturday when a screen displays the last school day instead of an empty weekend. */
+export function LastSchoolDayNote({ day }: { day: string }) {
+  if (!isWeekend(todayISO())) return null;
+  return (
+    <div className="notice full" role="status">
+      <Icon name="cal" className="inline-ic" /> اليوم عطلة أسبوعية — تُعرض بيانات آخر يوم دراسي: {fmtDate(day)}. يعود الدوام يوم الأحد.
+    </div>
   );
 }

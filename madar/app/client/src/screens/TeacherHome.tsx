@@ -1,6 +1,6 @@
 import { Icon } from '../components/Icon';
-import { Btn, Empty, ErrorBox, PageHead, Progress, Skeleton, Tag, Tile } from '../components/Ui';
-import { ar, count, dayIndex, dueLabel, fmtDate, greeting, NOUNS, periodName, teacherTitle, todayISO } from '../format';
+import { Btn, Empty, ErrorBox, LastSchoolDayNote, PageHead, Progress, Skeleton, Tag, Tile } from '../components/Ui';
+import { ar, count, dayIndex, dueLabel, fmtDate, greeting, lastSchoolDay, NOUNS, periodName, teacherTitle, todayISO } from '../format';
 import { useApi } from '../hooks';
 import { Link, navigate } from '../router';
 import { useStore } from '../store';
@@ -16,9 +16,11 @@ function coverLabel(p: TeacherPeriod): string {
 export function TeacherHome() {
   const s = useStore();
   const ctx = s.context as TeacherContext | null;
-  const { data, error, loading, reload } = useApi<TeacherHomeData>('/api/teacher/home');
   const today = todayISO();
   const weekend = dayIndex(today) > 4;
+  // On the weekend the home shows the last school day (the demo data anchors to it) instead of an empty Saturday.
+  const day = weekend ? lastSchoolDay(today) : today;
+  const { data, error, loading, reload } = useApi<TeacherHomeData>(weekend ? `/api/teacher/home?date=${day}` : '/api/teacher/home');
   const periods = data?.today.periods ?? [];
   const sectionsLabel = ctx?.sections.map((x) => x.label).join('، ');
   const absent = !!data?.absence_today;
@@ -27,8 +29,9 @@ export function TeacherHome() {
     <>
       <PageHead
         title={`${greeting()}، ${teacherTitle(s.user?.name)}`}
-        sub={[fmtDate(today), s.user?.subject || ctx?.subject, sectionsLabel, data ? `${count(periods.length, NOUNS.period, 'لا حصص')} اليوم` : null].filter(Boolean).join(' · ')}
+        sub={[fmtDate(day), s.user?.subject || ctx?.subject, sectionsLabel, data ? `${count(periods.length, NOUNS.period, 'لا حصص')}${weekend ? '' : ' اليوم'}` : null].filter(Boolean).join(' · ')}
       />
+      {weekend && <LastSchoolDayNote day={day} />}
 
       {data?.absence_today && (
         <div className="notice full">

@@ -4,7 +4,7 @@ import { useMemo, useState } from 'react';
 import * as api from '../api';
 import { Roster } from '../components/Roster';
 import { Btn, ErrorBox, PageHead, Skeleton, Tile } from '../components/Ui';
-import { ar, count, fmtDate, NOUNS, periodName, todayISO } from '../format';
+import { ar, count, fmtDate, NOUNS, periodName, showDay } from '../format';
 import { useApi } from '../hooks';
 import { toast } from '../store';
 import { rosterStudents, type RosterResponse, type SchoolDashboard, type SectionWithStudents } from '../types';
@@ -17,7 +17,7 @@ function smsCount(n: number): string {
 }
 
 export function SchoolAttendance() {
-  const today = todayISO();
+  const today = showDay();   // weekend → the last school day
   const sections = useApi<SectionWithStudents[]>('/api/school/sections');
   const dash = useApi<SchoolDashboard>(`/api/school/dashboard?date=${today}`);
   const [sectionId, setSectionId] = useState<number>(0);

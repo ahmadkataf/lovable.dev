@@ -4,7 +4,7 @@
 
 import { Avatar, ChartRow, Empty, ErrorBox, Kpi, PageHead, Skeleton, Tag, Tile } from '../components/Ui';
 import * as api from '../api';
-import { ar, complexLabel, consecutiveDays, count, fmtDate, fmtHM, fmtPhone, NOUNS, pct, periodName, shortDate, teacherTitle, todayISO } from '../format';
+import { ar, complexLabel, consecutiveDays, count, fmtDate, fmtHM, fmtPhone, lastSchoolDay, NOUNS, pct, periodName, shortDate, teacherTitle, todayISO } from '../format';
 import { useApi } from '../hooks';
 import { Link, useRoute } from '../router';
 import type { DirectorateSchoolDay } from '../types';
@@ -16,7 +16,7 @@ export function DirectorateSchool({ id }: { id: number }) {
   const today = todayISO();
   const route = useRoute();
   const q = route.query.get('date');
-  const date = q && ISO.test(q) ? q : today;
+  const date = q && ISO.test(q) ? q : lastSchoolDay(today);
   const back = dashboardPath(date, today);
   const holiday = isHoliday(date);
   const { data, error, reload } = useApi<DirectorateSchoolDay>(Number.isInteger(id) && id > 0 ? api.directorateUrls.school(id, date) : null);
