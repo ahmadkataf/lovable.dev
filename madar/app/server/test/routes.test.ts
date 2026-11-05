@@ -132,7 +132,7 @@ describe('admin endpoints', () => {
     expect((await call('GET', '/api/admin/health', undefined, undefined, { 'x-admin-key': 'k-admin-' }, withKey)).status).toBe(403)
     const ok = await call('GET', '/api/admin/health', undefined, undefined, { 'x-admin-key': 'k-admin' }, withKey)
     expect(ok.status).toBe(200)
-    expect(ok.json.users).toBeGreaterThan(4000)
+    expect(ok.json.users).toBeGreaterThan(1000)
     expect(ok.headers.get('cache-control')).toBe('no-store')
     expect((await call('POST', '/api/admin/sql', undefined, undefined, { 'x-admin-key': 'k-admin' }, withKey)).status).toBe(400)   // empty script
   })

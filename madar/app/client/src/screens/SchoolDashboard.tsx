@@ -58,7 +58,7 @@ export function SchoolDashboard() {
             </div>
             {date === today && (
               <div className={`row ${data.attendance_confirmed ? 'ok' : 'hl'}`} style={{ marginTop: 10 }}>
-                <span className="grow small">{data.attendance_confirmed ? 'ثُبّت حضور اليوم — أُرسلت رسائل الغياب إلى أولياء الأمور.' : 'لم يُثبَّت حضور اليوم بعد — تُرسل رسائل الغياب بعد التثبيت.'}</span>
+                <span className="grow small">{data.attendance_confirmed ? 'ثُبّت حضور اليوم — وصلت إشعارات الغياب داخل التطبيق، والرسائل النصّية محاكاة في نسخة العرض.' : 'لم يُثبَّت حضور اليوم بعد — تُرسل إشعارات الغياب بعد التثبيت.'}</span>
                 {!data.attendance_confirmed && <Btn size="sm" variant="light" onClick={() => navigate('/school/attendance')}>تثبيت</Btn>}
               </div>
             )}

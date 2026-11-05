@@ -55,7 +55,7 @@ export function SchoolAnnouncements() {
     try {
       const res = await api.post<{ id?: number; notified_parents?: number; notified?: number; sms?: number }>('/api/announcements', { title: title.trim(), body: body.trim(), urgent: urgent ? 1 : 0 }, { queueable: false });
       const n = 'queued' in res ? 0 : res.notified_parents ?? res.notified ?? 0;
-      toast(`أُرسل الإعلان${urgent ? ' العاجل' : ''} إلى ${n ? count(n, NOUNS.guardian) : 'أولياء الأمور'} عبر التطبيق${urgent ? ' وبرسالة نصّية' : ''}`, 'ok', 5000);
+      toast(`أُرسل الإعلان${urgent ? ' العاجل' : ''} إلى ${n ? count(n, NOUNS.guardian) : 'أولياء الأمور'} عبر التطبيق${urgent ? '، والرسائل النصّية محاكاة في نسخة العرض' : ''}`, 'ok', 6000);
       addLocal({ id: 'queued' in res ? Date.now() : res.id ?? Date.now(), school_id: s.user?.school_id ?? null, title: title.trim(), body: body.trim(), urgent: urgent ? 1 : 0, created_at: new Date().toISOString(), notified: n });
       setTitle('');
       setBody('');
@@ -69,7 +69,7 @@ export function SchoolAnnouncements() {
 
   return (
     <>
-      <PageHead title="الإعلانات" sub="إعلان واحد يصل إلى كلّ الأهالي بالتطبيق، وبرسالة نصّية إن كان عاجلاً" />
+      <PageHead title="الإعلانات" sub="إعلان واحد يصل إلى كلّ الأهالي بالتطبيق، وبرسالة نصّية إن كان عاجلاً (محاكاة في نسخة العرض)" />
       <Tile className="full" title="إعلان جديد لكلّ الأهالي" icon="megaphone">
         <form onSubmit={submit} className="stack">
           <Field label="العنوان">

@@ -1,7 +1,7 @@
 -- Madar MVP — SQLite schema. Mirrors docs/mvp-spec.md §3 plus: homework.client_id (offline dedupe), schools.principal/phone
 -- (directorate contacts), notifications.dedupe_key (one alert per day/kind/school — INSERT OR IGNORE; NULLs stay distinct).
 -- Apply: npx wrangler d1 execute madar --local --file=schema.sql   (or --remote on deploy)
-CREATE TABLE IF NOT EXISTS schools (id INTEGER PRIMARY KEY, name TEXT NOT NULL, complex TEXT NOT NULL, shifts INTEGER NOT NULL DEFAULT 1, principal TEXT, phone TEXT);
+CREATE TABLE IF NOT EXISTS schools (id INTEGER PRIMARY KEY, name TEXT NOT NULL, complex TEXT NOT NULL, shifts INTEGER NOT NULL DEFAULT 1, principal TEXT, phone TEXT, enrolled INTEGER);
 CREATE TABLE IF NOT EXISTS users (id INTEGER PRIMARY KEY, role TEXT NOT NULL CHECK(role IN ('directorate','school','teacher','student','parent')),
   name TEXT NOT NULL, school_id INTEGER REFERENCES schools(id), phone TEXT, code TEXT NOT NULL UNIQUE, subject_id INTEGER, created_at TEXT NOT NULL DEFAULT (datetime('now')));
 CREATE TABLE IF NOT EXISTS subjects (id INTEGER PRIMARY KEY, name TEXT NOT NULL);
@@ -23,6 +23,9 @@ CREATE TABLE IF NOT EXISTS messages (id INTEGER PRIMARY KEY, from_user INTEGER N
 CREATE TABLE IF NOT EXISTS notifications (id INTEGER PRIMARY KEY, user_id INTEGER NOT NULL, kind TEXT NOT NULL, body TEXT NOT NULL, link TEXT, sms INTEGER NOT NULL DEFAULT 0, created_at TEXT NOT NULL DEFAULT (datetime('now')), read_at TEXT,
   dedupe_key TEXT);
 CREATE TABLE IF NOT EXISTS audit_log (id INTEGER PRIMARY KEY, user_id INTEGER, action TEXT NOT NULL, target TEXT, created_at TEXT NOT NULL DEFAULT (datetime('now')));
+-- Schools without pupil records (the ten-school demo keeps pupils only for schools 1–3): a summary per school and day.
+CREATE TABLE IF NOT EXISTS school_days (school_id INTEGER NOT NULL REFERENCES schools(id), date TEXT NOT NULL, students INTEGER NOT NULL,
+  present INTEGER NOT NULL, absent INTEGER NOT NULL, late INTEGER NOT NULL, uploaded_at TEXT, confirmed INTEGER NOT NULL DEFAULT 0, PRIMARY KEY (school_id, date)) WITHOUT ROWID;
 CREATE INDEX IF NOT EXISTS idx_tt_teacher ON timetable(teacher_id, day);
 CREATE INDEX IF NOT EXISTS idx_att_date ON attendance(date);
 CREATE INDEX IF NOT EXISTS idx_notif_user ON notifications(user_id, read_at);

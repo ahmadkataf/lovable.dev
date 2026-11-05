@@ -44,6 +44,24 @@ export async function schoolStats(db: D1Database, schoolId: number, date: string
     db.prepare(`SELECT MIN(a.created_at) AS first_at, MAX(a.confirmed) AS confirmed FROM attendance a JOIN students st ON st.id = a.student_id
                 JOIN sections sec ON sec.id = st.section_id WHERE a.date = ? AND sec.school_id = ?`).bind(date, schoolId).first<{ first_at: string | null; confirmed: number | null }>(),
   ])
+  // A school without pupil records reports its day as one summary row (school_days) and its enrolment in schools.enrolled.
+  if (statuses.length === 0) {
+    const sum = await db.prepare('SELECT students, present, absent, late, uploaded_at, confirmed FROM school_days WHERE school_id = ? AND date = ?').bind(schoolId, date)
+      .first<{ students: number; present: number; absent: number; late: number; uploaded_at: string | null; confirmed: number }>()
+    const enr = await db.prepare('SELECT enrolled FROM schools WHERE id = ?').bind(schoolId).first<{ enrolled: number | null }>()
+    const rec = sum ? sum.present + sum.absent + sum.late : 0
+    const affected = subs.results.reduce((n, r) => n + r.n, 0)
+    const covered = subs.results.filter(r => r.status === 'approved' || r.status === 'self_study').reduce((n, r) => n + r.n, 0)
+    return {
+      ...school,
+      students: sum?.students ?? enr?.enrolled ?? 0, recorded: rec, present: sum?.present ?? 0, absent: sum?.absent ?? 0, late: sum?.late ?? 0,
+      present_pct: sum ? pct(sum.present + sum.late, rec) : null, attendance_uploaded: rec > 0,
+      attendance_confirmed: (sum?.confirmed ?? 0) === 1, uploaded_at: sum?.uploaded_at ?? null,
+      teachers: teachers?.n ?? 0, teachers_present: Math.max(0, (teachers?.n ?? 0) - (absent?.n ?? 0)),
+      affected_periods: affected, covered_periods: covered, uncovered_periods: affected - covered, coverage_pct: affected ? Math.round((100 * covered) / affected) : 100,
+      homework_today: homework?.n ?? 0, attendance_by_grade: [],
+    }
+  }
   const recorded = statuses.filter(s => s.status !== null)
   const present = recorded.filter(s => s.status === 'present').length, late = recorded.filter(s => s.status === 'late').length
   const affected = subs.results.reduce((n, r) => n + r.n, 0)
@@ -113,7 +131,11 @@ export async function attendanceByDay(db: D1Database, from: string, to: string, 
     FROM first f JOIN attendance a ON a.student_id = f.student_id AND a.date = f.date AND a.period = f.p
     JOIN students st ON st.id = f.student_id JOIN sections sec ON sec.id = st.section_id
     WHERE ? IS NULL OR sec.school_id = ?
-    GROUP BY sec.school_id, f.date ORDER BY f.date, sec.school_id`).bind(from, to, schoolId, schoolId).all<DayAttendance>()
+    GROUP BY sec.school_id, f.date
+    UNION ALL
+    SELECT school_id, date, present + absent + late AS recorded, present + late AS attended FROM school_days
+    WHERE date BETWEEN ? AND ? AND (? IS NULL OR school_id = ?)
+    ORDER BY 2, 1`).bind(from, to, schoolId, schoolId, from, to, schoolId, schoolId).all<DayAttendance>()
   return results
 }
 

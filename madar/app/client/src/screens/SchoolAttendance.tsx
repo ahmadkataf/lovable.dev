@@ -39,7 +39,9 @@ export function SchoolAttendance() {
     try {
       const res = await api.post<{ confirmed?: number; sms?: number }>('/api/attendance/confirm', { date: today }, { queueable: false });
       const n = 'queued' in res ? 0 : res.sms ?? 0;
-      toast(`ثُبّت حضور اليوم${n ? ` — أُرسلت ${smsCount(n)} عن الغياب إلى أولياء الأمور` : ''}`, 'ok', 5000);
+      // The server's own sentence is the honest one (in-app notices + simulated text messages in the demo version).
+      const msg = 'queued' in res ? undefined : (res as { message?: string }).message;
+      toast(msg ?? `ثُبّت حضور اليوم${n ? ` — ${smsCount(n)} (محاكاة في نسخة العرض)` : ''}`, 'ok', 6000);
       dash.reload();
     } catch (e) {
       toast(e instanceof Error ? e.message : 'تعذّر التثبيت', 'error');

@@ -152,7 +152,8 @@ export async function weeklyReport(db: D1Database, env: Pick<Env, 'WEEKLY_CAP'>,
     db.prepare('SELECT id, name, complex, principal, phone FROM schools ORDER BY id').all<{ id: number; name: string; complex: string; principal: string | null; phone: string | null }>(),
     attendanceByDay(db, from, to, null),
     coverageCounts(db, from, to),
-    db.prepare('SELECT sec.school_id, COUNT(*) AS n FROM students st JOIN sections sec ON sec.id = st.section_id GROUP BY sec.school_id').all<{ school_id: number; n: number }>(),
+    db.prepare(`SELECT sc.id AS school_id, COALESCE((SELECT COUNT(*) FROM students st JOIN sections sec ON sec.id = st.section_id WHERE sec.school_id = sc.id), 0) AS n_rows, sc.enrolled FROM schools sc`)
+      .all<{ school_id: number; n_rows: number; enrolled: number | null }>().then(r => ({ results: r.results.map(x => ({ school_id: x.school_id, n: x.n_rows || x.enrolled || 0 })) })),
     db.prepare("SELECT school_id, COUNT(*) AS n FROM users WHERE role = 'teacher' GROUP BY school_id").all<{ school_id: number; n: number }>(),
   ])
   const threeBySchool = new Map<number, Set<number>>()

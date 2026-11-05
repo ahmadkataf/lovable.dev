@@ -333,7 +333,11 @@ for (const [secId, schoolId, , , prefix] of FIXED_SECTIONS) {
   })
 }
 // Everyone else: sections are filled to their size with fresh names; about 70 % of the students have a guardian account.
-for (const sec of [...sections].sort((a, b) => a.school - b.school || a.id - b.id)) {
+// Schools 4–10 carry no pupil records (free-tier database budget): their enrolment and daily attendance live in
+// schools.enrolled and school_days, written further down. Only the three demo schools have pupils, guardians and rows.
+const DEEP = new Set([1, 2, 3])
+const enrolled = (id) => sections.filter(x => x.school === id).reduce((n, x) => n + x.size, 0)
+for (const sec of [...sections].filter(x => DEEP.has(x.school)).sort((a, b) => a.school - b.school || a.id - b.id)) {
   const used = namesInSection.get(sec.id) ?? new Set()
   let i = used.size
   while (i < sec.size) {
@@ -395,8 +399,8 @@ WITH RECURSIVE days(d, n) AS (SELECT ${DEMO_DAY}, 0 UNION ALL SELECT date(d, '-1
   school_days AS (SELECT d, CAST(strftime('%w', d) AS INTEGER) AS wd FROM days WHERE CAST(strftime('%w', d) AS INTEGER) NOT IN (5, 6))
 INSERT INTO demo_days (rn, d, wd) SELECT row_number() OVER (ORDER BY d DESC), d, wd FROM school_days;`)
 
-out.push(`INSERT OR IGNORE INTO schools (id, name, complex, shifts, principal, phone) VALUES\n` +
-  SCHOOLS.map(s => `  (${s.id}, ${q(s.name)}, ${q(s.complex)}, 1, ${q(s.principal)}, ${q(schoolPhone(s.id))})`).join(',\n') + ';')
+out.push(`INSERT OR IGNORE INTO schools (id, name, complex, shifts, principal, phone, enrolled) VALUES\n` +
+  SCHOOLS.map(s => `  (${s.id}, ${q(s.name)}, ${q(s.complex)}, 1, ${q(s.principal)}, ${q(schoolPhone(s.id))}, ${enrolled(s.id)})`).join(',\n') + ';')
 out.push(`INSERT OR IGNORE INTO subjects (id, name) VALUES\n` + SUBJECTS.map(([id, n]) => `  (${id}, ${q(n)})`).join(',\n') + ';')
 const userRow = ([id, role, name, school, phone, code, subj]) => `  (${id}, ${q(role)}, ${q(name)}, ${nul(school)}, ${nul(phone)}, ${q(code)}, ${nul(subj)})`
 const USER_COLS = 'id, role, name, school_id, phone, code, subject_id'
@@ -447,7 +451,7 @@ out.push(`WITH recent AS (SELECT rn, d, wd FROM demo_days WHERE rn <= 5),
            (r.student_id * 31 + CAST(julianday(rd.d) AS INTEGER) * 17) % 100 AS h,
            (r.student_id * 7 + CAST(julianday(rd.d) AS INTEGER)) % 23 AS l
     FROM roster r CROSS JOIN recent rd CROSS JOIN periods p
-    WHERE rd.rn > 1 OR (p.p <= 2 AND r.school_id <> ${NO_UPLOAD_SCHOOL})
+    WHERE (rd.rn > 1 AND p.p = 1) OR (rd.rn = 1 AND p.p <= 2 AND r.school_id <> ${NO_UPLOAD_SCHOOL})
   )
 INSERT OR IGNORE INTO attendance (student_id, date, period, status, recorded_by, confirmed, created_at)
 SELECT c.student_id, c.d, c.p,
@@ -459,6 +463,14 @@ SELECT c.student_id, c.d, c.p,
        CASE WHEN c.rn > 1 THEN 1 ELSE 0 END,
        datetime(c.d || ' 07:30:00', '-3 hours', '+' || (12 + (c.p - 1) * 50) || ' minutes')
 FROM cells c;`)
+
+// Schools 4–10: one summary row per school and day (enrolment, present/absent/late, upload time) instead of pupil rows.
+// Same absence rates as above with a small day-to-day variation; the no-upload school has no row on the demo day.
+out.push(`INSERT OR IGNORE INTO school_days (school_id, date, students, present, absent, late, uploaded_at, confirmed) VALUES\n` +
+  SCHOOLS.filter(s => !DEEP.has(s.id)).flatMap(s => [1, 2, 3, 4, 5].filter(rn => !(rn === 1 && s.id === NO_UPLOAD_SCHOOL)).map(rn => {
+    const n = enrolled(s.id), absent = Math.round(n * (s.rate + ((s.id * 3 + rn * 5) % 5) - 2) / 100), late = Math.round(n * (1 + (s.id + rn) % 3) / 100)
+    return `  (${s.id}, (SELECT d FROM demo_days WHERE rn = ${rn}), ${n}, ${n - absent - late}, ${absent}, ${late}, datetime((SELECT d FROM demo_days WHERE rn = ${rn}) || ' 07:${30 + (s.id * 7 + rn) % 25}:00', '-3 hours'), ${rn > 1 ? 1 : 0})`
+  })).join(',\n') + ';')
 
 // Teacher absences (the demo day's and the week's), reported by the school accounts at 07:05 local time.
 out.push(`WITH v(teacher_id, rn, reason, reported_by) AS (VALUES\n` +

@@ -36,7 +36,7 @@ describe('seed: the ten-school pilot', () => {
   it('ten schools of the governorate, each with 200–600 students, 10–20 teachers, a principal and a school phone', () => {
     const schools = all<{ id: number; name: string; complex: string; principal: string; phone: string; students: number; teachers: number; sections: number }>(`
       SELECT sc.id, sc.name, sc.complex, sc.principal, sc.phone,
-             (SELECT COUNT(*) FROM students st JOIN sections sec ON sec.id = st.section_id WHERE sec.school_id = sc.id) AS students,
+             COALESCE(NULLIF((SELECT COUNT(*) FROM students st JOIN sections sec ON sec.id = st.section_id WHERE sec.school_id = sc.id), 0), sc.enrolled) AS students,
              (SELECT COUNT(*) FROM users u WHERE u.role = 'teacher' AND u.school_id = sc.id) AS teachers,
              (SELECT COUNT(*) FROM sections WHERE school_id = sc.id) AS sections
       FROM schools sc ORDER BY sc.id`)
@@ -52,8 +52,10 @@ describe('seed: the ten-school pilot', () => {
       expect(s.phone).toMatch(/^0955\d{6}$/)
       expect(n("SELECT COUNT(*) AS n FROM users WHERE role = 'school' AND school_id = ?", s.id)).toBe(1)
     }
-    expect(n('SELECT COUNT(*) AS n FROM students')).toBeGreaterThan(2500)
-    expect(n('SELECT COUNT(*) AS n FROM sections WHERE id NOT IN (SELECT DISTINCT section_id FROM students)')).toBe(0)
+    // pupils (and their attendance rows) exist only in the three demo schools; the others carry enrolment + daily summaries
+    expect(n('SELECT COUNT(*) AS n FROM students')).toBeGreaterThan(700)
+    expect(n('SELECT COUNT(*) AS n FROM sections WHERE school_id <= 3 AND id NOT IN (SELECT DISTINCT section_id FROM students)')).toBe(0)
+    expect(n('SELECT COUNT(*) AS n FROM students st JOIN sections sec ON sec.id = st.section_id WHERE sec.school_id > 3')).toBe(0)
     // sections hold 25–33 students (the five round-1 sections 28)
     expect(one('SELECT MIN(c) AS mn, MAX(c) AS mx FROM (SELECT COUNT(*) AS c FROM students GROUP BY section_id)')).toEqual({ mn: 25, mx: 33 })
   })
@@ -100,23 +102,28 @@ describe('seed: the ten-school pilot', () => {
   })
 
   it('attendance: the demo day is in progress everywhere but one school; the governorate is at ≈ 90 % with one weak school', () => {
-    const perSchool = all<{ school_id: number; recorded: number; pct: number | null }>(`
-      SELECT sec.school_id, COUNT(DISTINCT a.student_id) AS recorded, ROUND(100.0 * SUM(a.status IN ('present', 'late')) / COUNT(*)) AS pct
-      FROM sections sec LEFT JOIN students st ON st.section_id = sec.id LEFT JOIN attendance a ON a.student_id = st.id AND a.date = ? AND a.period = 1
-      GROUP BY sec.school_id ORDER BY sec.school_id`, REPORT)
+    const perSchool = all<{ school_id: number; recorded: number; attended: number }>(`
+      SELECT sec.school_id, COUNT(a.id) AS recorded, COALESCE(SUM(a.status IN ('present', 'late')), 0) AS attended
+      FROM sections sec JOIN students st ON st.section_id = sec.id LEFT JOIN attendance a ON a.student_id = st.id AND a.date = ? AND a.period = 1
+      GROUP BY sec.school_id
+      UNION ALL SELECT sc.id, COALESCE(d.present + d.absent + d.late, 0), COALESCE(d.present + d.late, 0) FROM schools sc LEFT JOIN school_days d ON d.school_id = sc.id AND d.date = ? WHERE sc.id > 3
+      ORDER BY 1`, REPORT, REPORT)
+    expect(perSchool).toHaveLength(10)
     expect(perSchool.filter(s => s.recorded === 0).map(s => s.school_id)).toEqual([8])
-    for (const s of perSchool.filter(s => s.recorded > 0)) { expect(s.pct).toBeGreaterThanOrEqual(76); expect(s.pct).toBeLessThanOrEqual(96) }
-    expect(perSchool.find(s => s.school_id === 6)!.pct).toBeLessThanOrEqual(84)
-    const gov = one<{ pct: number }>("SELECT 100.0 * SUM(status IN ('present', 'late')) / COUNT(*) AS pct FROM attendance WHERE date = ? AND period = 1", REPORT).pct
-    expect(gov).toBeGreaterThanOrEqual(87)
+    const pctOf = (s: { recorded: number; attended: number }) => Math.round((100 * s.attended) / s.recorded)
+    for (const s of perSchool.filter(s => s.recorded > 0)) { expect(pctOf(s)).toBeGreaterThanOrEqual(76); expect(pctOf(s)).toBeLessThanOrEqual(96) }
+    expect(pctOf(perSchool.find(s => s.school_id === 6)!)).toBeLessThanOrEqual(84)
+    const gov = (100 * perSchool.reduce((n, s) => n + s.attended, 0)) / perSchool.reduce((n, s) => n + s.recorded, 0)
+    expect(gov).toBeGreaterThanOrEqual(86)
     expect(gov).toBeLessThanOrEqual(93)
-    // the demo day has periods 1–2 (unconfirmed); the four school days before it have six confirmed periods
+    // the demo day has periods 1–2 (unconfirmed); the four school days before it keep the first period only, confirmed
     expect(one('SELECT MAX(period) AS p, MAX(confirmed) AS c FROM attendance WHERE date = ?', REPORT)).toEqual({ p: 2, c: 0 })
-    expect(all<{ date: string; p: number; c: number }>('SELECT date, MAX(period) AS p, MIN(confirmed) AS c FROM attendance WHERE date < ? GROUP BY date', REPORT)).toHaveLength(4)
+    expect(all<{ date: string; p: number }>('SELECT date, MAX(period) AS p FROM attendance WHERE date < ? GROUP BY date', REPORT).map(r => r.p)).toEqual([1, 1, 1, 1])
     expect(n('SELECT COUNT(*) AS n FROM attendance WHERE date < ? AND (confirmed <> 1)', REPORT)).toBe(0)
-    expect(all<{ d: string }>('SELECT DISTINCT date AS d FROM attendance').every(r => weekday(r.d) <= 4)).toBe(true)   // never on a Friday or Saturday
-    // timestamps look like the day itself (07:30 local onwards), not like the reseed moment
+    expect(all<{ d: string }>('SELECT DISTINCT date AS d FROM attendance UNION SELECT DISTINCT date FROM school_days').every(r => weekday(r.d) <= 4)).toBe(true)
     expect(one(`SELECT MIN(created_at) AS t FROM attendance WHERE date = ?`, REPORT)).toEqual({ t: `${REPORT} 04:42:00` })   // 07:42 Damascus
+    // the whole seed stays small enough for a daily reseed on the free tier
+    expect(n('SELECT COUNT(*) AS n FROM attendance')).toBeLessThan(6000)
   })
 
   it('exactly one three-day absence streak: يزن عماد of الخامس (أ)', async () => {
