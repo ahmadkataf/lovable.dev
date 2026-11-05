@@ -9,6 +9,9 @@ const SHELL = `madar-shell-${BUILD}`;
 const RUNTIME = `madar-runtime-${BUILD}`;
 const API = `madar-api-${BUILD}`;
 const KEEP = new Set([SHELL, RUNTIME, API]);
+/* Servers may answer with `Vary: Origin`; the page fetches module scripts,
+   stylesheets and fonts in CORS mode, so match caches ignoring Vary. */
+const MATCH = { ignoreVary: true };
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
@@ -52,7 +55,7 @@ async function networkFirstApi(req) {
     if (res.ok) cache.put(req, res.clone()).catch(() => null);
     return res;
   } catch {
-    const hit = await cache.match(req);
+    const hit = await cache.match(req, MATCH);
     if (hit) return markCached(hit);
     return new Response(JSON.stringify({ error: 'لا اتصال بالخادم' }), {
       status: 503,
@@ -62,7 +65,7 @@ async function networkFirstApi(req) {
 }
 
 async function cacheFirst(req) {
-  const hit = await caches.match(req);
+  const hit = await caches.match(req, MATCH);
   if (hit) return hit;
   const res = await fetch(req);
   if (res.ok) {
@@ -82,10 +85,10 @@ async function shell(req) {
       }
       return res;
     }
-    const cached = await caches.match('/');
+    const cached = await caches.match('/', MATCH);
     return cached || res;
   } catch {
-    const cached = await caches.match('/');
+    const cached = await caches.match('/', MATCH);
     return (
       cached ||
       new Response('<!doctype html><html lang="ar" dir="rtl"><meta charset="utf-8"><title>مَدار</title><body style="font-family:sans-serif;padding:40px;text-align:center"><h1>لا اتصال</h1><p>افتح التطبيق مرّة واحدة وأنت متّصل بالإنترنت ليُحفظ على الجهاز.</p></body></html>', {

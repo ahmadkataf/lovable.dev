@@ -118,16 +118,19 @@ async function teacherFlow(page, h) {
     await h.shot('teacher-home-after-attendance');
   });
   await h.step('offline outbox', async () => {
-    await page.context().setOffline(true);
-    await page.waitForTimeout(300);
-    await h.go('/teacher/attendance?section=103&period=4').catch(() => null);
-    await page.locator('.row .seg').first().waitFor();
-    await page.locator('.banner.offline').waitFor();
-    await page.locator('button:has-text("حفظ الحضور")').click();
-    await h.toast('لا اتصال');
-    await page.locator('.banner.outbox').waitFor();
-    await h.shot('teacher-offline-outbox');
-    await page.context().setOffline(false);
+    try {
+      await page.context().setOffline(true);
+      await page.waitForTimeout(300);
+      await h.go('/teacher/attendance?section=103&period=4').catch(() => null);
+      await page.locator('.row .seg').first().waitFor();
+      await page.locator('.banner.offline').waitFor();
+      await page.locator('button:has-text("حفظ الحضور")').click();
+      await h.toast('لا اتصال');
+      await page.locator('.banner.outbox').waitFor();
+      await h.shot('teacher-offline-outbox');
+    } finally {
+      await page.context().setOffline(false);
+    }
     await h.toast('أُرسلت العمليات المعلّقة');
     await page.waitForFunction(() => !document.querySelector('.banner.outbox'));
   });
@@ -217,7 +220,7 @@ async function schoolFlow(page, h) {
     await h.go('/school/attendance');
     await page.locator('.chip').first().waitFor();
     await page.locator('.chip').first().click();
-    await page.locator('.chip:has-text("الحصّة ٢")').click();
+    await page.locator('.chip:has-text("الحصّة الثانية")').click();
     await page.locator('.row .seg').first().waitFor();
     await page.locator('.row .seg').nth(2).locator('button.absent').click();
     await h.shot('school-attendance');
@@ -350,13 +353,24 @@ async function run(browser, profile, full) {
     await h.step('service worker + offline shell', async () => {
       await page.waitForFunction(async () => {
         const reg = await navigator.serviceWorker.getRegistration();
-        return !!reg && !!reg.active;
+        return !!reg && !!reg.active && reg.active.state === 'activated';
       }, null, { timeout: 15000 });
       await page.waitForTimeout(800);
-      await page.context().setOffline(true);
-      await page.goto(`${BASE}/teacher/homework`, { waitUntil: 'load' });
-      await page.locator('.login-card').waitFor({ timeout: 10000 });
-      await page.context().setOffline(false);
+      const cached = await page.evaluate(async () => {
+        const keys = await caches.keys();
+        let n = 0;
+        for (const k of keys) n += (await (await caches.open(k)).keys()).length;
+        return { keys, n };
+      });
+      console.log('service worker caches:', JSON.stringify(cached));
+      try {
+        await page.context().setOffline(true);
+        await page.goto(`${BASE}/teacher/homework`, { waitUntil: 'load' });
+        await page.locator('.login-card').waitFor({ timeout: 10000 });
+        await h.shot('offline-shell');
+      } finally {
+        await page.context().setOffline(false);
+      }
     });
   }
   if (full) {
