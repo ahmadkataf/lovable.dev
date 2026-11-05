@@ -135,26 +135,26 @@ export function dueLabel(iso: string): string {
   return 'فات الموعد';
 }
 
-export interface NounForms { one: string; two: string; few: string; many: string }
+export interface NounForms { one: string; two: string; few: string; many: string; f?: boolean }
 export const NOUNS = {
   student: { one: 'طالب', two: 'طالبان', few: 'طلاب', many: 'طالباً' },
   teacher: { one: 'معلّم', two: 'معلّمان', few: 'معلّمين', many: 'معلّماً' },
   guardian: { one: 'وليّ أمر', two: 'وليّا أمر', few: 'أولياء أمور', many: 'وليّ أمر' },
-  period: { one: 'حصّة', two: 'حصّتان', few: 'حصص', many: 'حصّة' },
+  period: { one: 'حصّة', two: 'حصّتان', few: 'حصص', many: 'حصّة', f: true },
   homework: { one: 'واجب', two: 'واجبان', few: 'واجبات', many: 'واجباً' },
-  school: { one: 'مدرسة', two: 'مدرستان', few: 'مدارس', many: 'مدرسة' },
-  operation: { one: 'عملية', two: 'عمليتان', few: 'عمليات', many: 'عملية' },
+  school: { one: 'مدرسة', two: 'مدرستان', few: 'مدارس', many: 'مدرسة', f: true },
+  operation: { one: 'عملية', two: 'عمليتان', few: 'عمليات', many: 'عملية', f: true },
   day: { one: 'يوم', two: 'يومان', few: 'أيام', many: 'يوماً' },
-  point: { one: 'نقطة', two: 'نقطتان', few: 'نقاط', many: 'نقطة' },
+  point: { one: 'نقطة', two: 'نقطتان', few: 'نقاط', many: 'نقطة', f: true },
   notification: { one: 'إشعار', two: 'إشعاران', few: 'إشعارات', many: 'إشعاراً' },
-  message: { one: 'رسالة', two: 'رسالتان', few: 'رسائل', many: 'رسالة' },
+  message: { one: 'رسالة', two: 'رسالتان', few: 'رسائل', many: 'رسالة', f: true },
   alert: { one: 'تنبيه', two: 'تنبيهان', few: 'تنبيهات', many: 'تنبيهاً' },
 } satisfies Record<string, NounForms>;
 
 /** Count with Arabic agreement: «لا طلاب» / «طالب واحد» / «طالبان» / «٣ طلاب» / «١٢ طالباً» / «١٠٠ طالب». */
 export function count(n: number, forms: NounForms, zero?: string): string {
   if (n === 0) return zero ?? `لا ${forms.few}`;
-  if (n === 1) return `${forms.one} واحد`;
+  if (n === 1) return `${forms.one} ${forms.f ? 'واحدة' : 'واحد'}`;
   if (n === 2) return forms.two;
   const m = n % 100;
   if (m >= 3 && m <= 10) return `${ar(n)} ${forms.few}`;

@@ -287,14 +287,16 @@ export async function login(code: string): Promise<LoginResult> {
   if (MOCK_ENV) return useMock();
   lsRemove(KEY.mock);
   let r: Raw;
+  // Production never falls back to the mock silently: the pilot must show the real server's data on every
+  // device. The in-memory demo is only used when the build asks for it (VITE_MOCK=1).
   try {
-    r = await raw('POST', '/api/login', { code: clean }, 8000);
+    r = await raw('POST', '/api/login', { code: clean }, 12000);
   } catch (e) {
-    if (isNetworkError(e)) return useMock();
+    if (isNetworkError(e)) throw new ApiError(0, 'لا اتصال بالخادم. تحقّق من الإنترنت وحاول مجدّداً');
     throw e;
   }
   const unreachable = r.swOffline || r.status === 502 || r.status === 503 || r.status === 504 || (r.status >= 500 && !r.contentType.includes('application/json')) || (r.status < 400 && !r.contentType.includes('application/json'));
-  if (unreachable) return useMock();
+  if (unreachable) throw new ApiError(r.status || 0, 'الخادم غير متاح حالياً، حاول بعد قليل');
   if (r.status >= 400) throw new ApiError(r.status, errorMessage(r, r.status === 429 ? 'محاولات كثيرة، انتظر قليلاً' : 'رمز الدخول غير صحيح'));
   const data = r.data as LoginResponse;
   if (!data || !data.token || !data.user) throw new ApiError(500, 'استجابة غير متوقّعة من الخادم');

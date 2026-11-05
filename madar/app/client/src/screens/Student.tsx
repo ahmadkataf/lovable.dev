@@ -95,7 +95,8 @@ export function StudentHome() {
         </div>
       </Tile>
 
-      <Tile title="جدول اليوم" icon="cal" right={<span className="inline"><Tag tone="gray">{fmtDate(today)}</Tag><Link to="/student/timetable" className="tag">الأسبوع</Link></span>}>
+      <Tile title="جدول اليوم" icon="cal" right={<Link to="/student/timetable" className="tag">الأسبوع</Link>}>
+        <p className="sub">{fmtDate(today)}</p>
         {loading && !data && <Skeleton lines={2} />}
         {data && data.today.length === 0 && <Empty icon="cal" title={weekend ? 'لا دوام اليوم' : 'لا حصص اليوم'} text={weekend ? 'يعود الدوام يوم الأحد.' : undefined} />}
         {data && data.today.length > 0 && <PeriodsGrid rows={data.today} />}
