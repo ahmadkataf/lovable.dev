@@ -30,7 +30,7 @@
   --ink:#0e1a33; --ink-2:#3f4d68; --ink-3:#5f6c86;
   --glass:rgba(255,255,255,.56); --glass-2:rgba(255,255,255,.8); --glass-line:rgba(255,255,255,.85); --hair:rgba(20,40,80,.09);
   --brand:#2a5bea; --brand-ink:#1d44b8; --brand-soft:#e4ecfe;
-  --teal:#0f8696; --violet:#7a5cff; --sun:#c97a00; --rose:#d13f74; --mint:#0f8f66; --red:#e0485a;
+  --teal:#0c7886; --violet:#6e52f5; --sun:#a35f00; --rose:#c9386d; --mint:#0b7a56; --red:#e0485a;
   --r-dir:var(--brand); --r-school:var(--teal); --r-teacher:var(--violet); --r-student:var(--sun); --r-parent:var(--rose);
   --shadow:0 24px 60px -28px rgba(30,60,120,.35), 0 2px 6px -2px rgba(30,60,120,.12);
   --shadow-sm:0 10px 30px -18px rgba(30,60,120,.35);
@@ -83,7 +83,7 @@ p{max-width:68ch}
 .btn-ghost{background:rgba(255,255,255,.72);border:1px solid var(--glass-line);box-shadow:var(--shadow-sm)}
 .btn-ghost:hover{background:#fff}
 .btn-sm{padding:8px 16px;font-size:.92rem}
-@media (max-width:860px){.nav-in{flex-wrap:wrap;border-radius:28px}.nav-links{display:flex;flex-wrap:nowrap;overflow-x:auto;width:100%;order:3;margin-top:4px;scrollbar-width:none;padding-bottom:2px}.nav-links::-webkit-scrollbar{display:none}}
+@media (max-width:860px){.nav-in{flex-wrap:wrap;border-radius:28px}.nav-links{display:flex;flex-wrap:nowrap;overflow-x:auto;width:100%;order:3;margin-top:4px;scrollbar-width:none;padding-bottom:2px}.nav-links::-webkit-scrollbar{display:none}.nav-links a{flex:none;white-space:nowrap}html{scroll-padding-top:156px}}
 
 /* page shell */
 .wrap{max-width:var(--max);margin:auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
@@ -337,12 +337,15 @@ html{scroll-padding-top:104px}
 html,body{overflow-x:clip}
 .toast{position:fixed;left:50%;right:auto;bottom:max(20px,env(safe-area-inset-bottom,0px));width:min(560px,calc(100vw - 32px));transform:translate(-50%,20px);z-index:60}
 .toast.show{transform:translate(-50%,0)}
+.toast.top{bottom:auto;top:max(12px,calc(env(safe-area-inset-top,0px) + 12px));transform:translate(-50%,-20px)}
+.toast.top.show{transform:translate(-50%,0)}
 .tile h4 svg{flex:none}
-.badge-float{z-index:2}.badge-float.a{right:-8px;bottom:auto;top:-6px}.badge-float.b{left:-8px;top:auto;bottom:-6px}
+.badge-float{z-index:2}.badge-float.a{right:-8px;bottom:auto;top:-72px}.badge-float.b{left:-8px;top:auto;bottom:-72px}.hero .orbit-wrap{margin-block:72px}
 .row{width:100%;text-align:inherit}
 button.row{cursor:pointer}
 @media (max-width:1120px){.nav-links a{padding:8px 9px;font-size:.84rem}.nav-in{gap:10px}}
-@media (max-width:1100px){.ring.r2{inset:12%}.ring.r1{inset:28%}.roles-grid{grid-template-columns:repeat(3,1fr)}.flow{grid-template-columns:repeat(3,1fr)}.impact{grid-template-columns:repeat(3,1fr)}}
+@media (max-width:1299px){.ring.r2{inset:14%}.ring.r1{inset:29%}}
+@media (max-width:1100px){.roles-grid{grid-template-columns:repeat(3,1fr)}.flow{grid-template-columns:repeat(3,1fr)}.impact{grid-template-columns:repeat(3,1fr)}}
 @media (max-width:480px){.orbit-wrap{max-width:300px}.sat .chip{font-size:.78rem;padding:6px 10px}.crow{grid-template-columns:84px 1fr 40px}}
 @media (min-width:981px){#notes{position:sticky;top:104px}}
 @media (max-width:860px){td:first-child,th:first-child{position:sticky;right:0;background:#fff;z-index:1}}
@@ -435,7 +438,7 @@ button.row{cursor:pointer}
     <div class="card glass pain"><div class="ic"><svg><use href="#i-parent"/></svg></div><div class="quote">«كيف كان يوم ابني؟»</div><p>وليّ الأمر يعرف بالغياب أو بالواجب الفائت بعد أيام، وغالباً من مجموعات واتساب غير رسمية.</p></div>
     <div class="card glass pain"><div class="ic"><svg><use href="#i-alert"/></svg></div><div class="quote">معلّم غائب = حصّة ضائعة</div><p>ترتيب البديل يتمّ بالهاتف وفي اللحظة الأخيرة، ولا أحد في المديرية يعرف كم حصّة ضاعت هذا الشهر.</p></div>
     <div class="card glass pain"><div class="ic"><svg><use href="#i-book"/></svg></div><div class="quote">الواجب على اللوح فقط</div><p>طالب غاب أو لم يكتب الواجب لا يعرف ما المطلوب، والكتاب الرقمي موجود لكنّه ليس في متناول اليد.</p></div>
-    <div class="card glass pain"><div class="ic"><svg><use href="#i-chart"/></svg></div><div class="quote">تقارير ورقية متأخّرة</div><p>المديرية تجمع إحصاءات الحضور والغياب يدوياً، فتصل القرارات بعد أن تنتهي المشكلة.</p></div>
+    <div class="card glass pain"><div class="ic"><svg><use href="#i-chart"/></svg></div><div class="quote">تقارير ورقية متأخّرة</div><p>إحصاءات الحضور والغياب تصل المديرية بعد أسابيع من حدوثها، فتُتّخذ القرارات بأرقام الشهر الماضي لا بأرقام اليوم.</p></div>
   </div>
 </section>
 
@@ -464,8 +467,8 @@ button.row{cursor:pointer}
   </div>
   <div class="princ">
     <div class="card glass"><div class="ic"><svg><use href="#i-globe"/></svg></div><div><h3>عربي بالكامل</h3><p>الواجهة والمحتوى والتقارير من اليمين إلى اليسار، بأرقام عربية ومصطلحات وزارة التربية نفسها.</p></div></div>
-    <div class="card glass"><div class="ic"><svg><use href="#i-wifi"/></svg></div><div><h3>يعمل مع إنترنت ضعيف</h3><p>التطبيق يخزّن الجدول والواجبات وصفحات الكتب على الهاتف، ويرسل التغييرات عند توفّر الاتصال. الإشعارات الحرجة (غياب، تغيير حصّة، إعلان عاجل) تصل برسالة SMS بعقد رسائل مؤسسية مع المشغّل المحلي باسم المديرية.</p></div></div>
-    <div class="card glass"><div class="ic"><svg><use href="#i-shield"/></svg></div><div><h3>بيانات الأطفال محمية</h3><p>أقلّ قدر من البيانات (اسم، شعبة، هاتف وليّ الأمر)، حساب الاستضافة باسم المديرية ومفاتيحه بيدها، صلاحيات لكلّ دور، سجلّ تدقيق لكلّ عملية، ونسخة احتياطية مشفّرة يومياً داخل المديرية.</p></div></div>
+    <div class="card glass"><div class="ic"><svg><use href="#i-wifi"/></svg></div><div><h3>يعمل مع إنترنت ضعيف</h3><p>التطبيق يخزّن الجدول والواجبات وصفحات الكتب على الهاتف، ويرسل التغييرات عند توفّر الاتصال. الإشعارات الحرجة (غياب الطالب، الإعلان العاجل) تصل برسالة SMS: في التجربة على نطاق محدود عبر خطّ يتحمّله الفريق وتُوثَّق تكلفته، وعند التعميم بعقد رسائل مؤسسية باسم المديرية.</p></div></div>
+    <div class="card glass"><div class="ic"><svg><use href="#i-shield"/></svg></div><div><h3>بيانات الأطفال محمية</h3><p>أقلّ قدر من البيانات (اسم، شعبة، هاتف وليّ الأمر). في التجربة: استضافة سحابية يديرها الفريق بتفويض خطّي من المديرية، وتُسلَّم المديرية بيانات الدخول الكاملة ونسخة احتياطية مشفّرة أسبوعياً لدى منسّقها؛ وعند التعميم: خادم المديرية أو الاستضافة الحكومية التي تحدّدها الوزارة. صلاحيات لكلّ دور وسجلّ تدقيق لكلّ عملية.</p></div></div>
     <div class="card glass"><div class="ic"><svg><use href="#i-phone"/></svg></div><div><h3>هاتف أولاً</h3><p>تطبيق أندرويد (APK) لأنّ هواتف أندرويد هي الأكثر انتشاراً عند الأهالي والمعلّمين، وموقع ويب للإدارات والمديرية على الحاسوب.</p></div></div>
     <div class="card glass"><div class="ic"><svg><use href="#i-layers"/></svg></div><div><h3>يبدأ صغيراً ويتوسّع</h3><p>مرحلة تجريبية في عشر مدارس، ثم المديرية كلّها، ثم مستوى الوزارة بقرارها؛ مصمَّم ليتوسّع، وهو أداة مساندة لا تحلّ محلّ السجلّ الورقي الرسمي.</p></div></div>
     <div class="card glass"><div class="ic"><svg><use href="#i-book"/></svg></div><div><h3>المنهاج الرسمي كما هو</h3><p>الكتب المدرسية الرقمية الصادرة عن المركز الوطني لتطوير المناهج التربوية، بعد إذنه الرسمي، مرتبطة بالجدول والواجبات بالدرس والصفحة.</p></div></div>
@@ -508,14 +511,14 @@ button.row{cursor:pointer}
   <div class="demo-grid">
     <div class="device">
       <div class="screen" id="screen">
-        <div class="sbar"><span class="num">٩:٤٠</span><span class="pill">مَدار</span><span>الخميس ٥ تشرين الثاني</span></div>
+        <div class="sbar"><span class="num">٨:١٠</span><span class="pill">مَدار · بيانات تجريبية للعرض</span><span>الخميس ٥ تشرين الثاني</span></div>
         <div class="app" id="app" role="tabpanel"></div>
         <div class="toast" id="toast" role="status" aria-live="polite"><svg><use href="#i-check"/></svg><span id="toast-text"></span></div>
       </div>
     </div>
     <aside class="notes glass" id="notes"></aside>
   </div>
-  <p class="demo-note">الأسماء والأرقام في النموذج تجريبية. التطبيق النهائي يستورد قوائم المدارس والمعلّمين والطلاب من ملفات Excel، أو تُدخَل من سجلّ القيد الورقي بمساعدة فريقنا مع وكلاء المدارس.</p>
+  <p class="demo-note">الأسماء والأرقام في النموذج تجريبية. التطبيق النهائي يستورد قوائم المدارس والمعلّمين والطلاب من ملفات Excel، أو تُدخَل من سجلّ القيد الورقي بمساعدة فريقنا مع معاوني المدراء وأمناء السرّ. الكتب الرقمية داخل التطبيق تظهر هنا كتصميم مقترح وتُفعَّل بعد إذن المركز الوطني لتطوير المناهج التربوية؛ في التجربة يُربط الواجب برقم الصفحة.</p>
 </section>
 
 <!-- ═══════════ PROTOCOL ═══════════ -->
@@ -529,12 +532,12 @@ button.row{cursor:pointer}
     <div class="fstep glass"><div class="n">١</div><h3>التبليغ</h3><p>المعلّم يسجّل غيابه من التطبيق (أو تسجّله الإدارة) مع السبب والمدّة.</p><span class="time">قبل بدء الدوام أو فور علم الإدارة</span></div>
     <div class="fstep glass"><div class="n">٢</div><h3>تحليل الأثر</h3><p>النظام يقرأ جدول اليوم ويحدّد الحصص والشعب المتأثّرة فوراً.</p><span class="time">آلي · ثوانٍ</span></div>
     <div class="fstep glass"><div class="n">٣</div><h3>اقتراح البديل</h3><p>يبحث عن معلّم متاح في الحصّة نفسها حسب الأولوية ويقترح أفضل خيار، فتعتمده الإدارة بضغطة.</p><span class="time">دقيقتان</span></div>
-    <div class="fstep glass"><div class="n">٤</div><h3>التجهيز والإبلاغ</h3><p>تصل إلى البديل خطّة الدرس أو نشاط رقمي من الكتاب، ويُبلَّغ الطلاب والأهالي بتغيّر معلّم الحصّة (من دون أسماء أو أسباب) ويُحدَّث الجدول.</p><span class="time">فوري</span></div>
+    <div class="fstep glass"><div class="n">٤</div><h3>التجهيز والإبلاغ</h3><p>تصل إلى البديل خطّة الدرس أو نشاط من الكتاب، ويُبلَّغ الطلاب والأهالي داخل التطبيق بتغيّر معلّم الحصّة (من دون أسماء أو أسباب) ويُحدَّث الجدول.</p><span class="time">فوري</span></div>
     <div class="fstep glass"><div class="n">٥</div><h3>المتابعة</h3><p>المديرية ترى الحالة لحظياً، وتُحسب نسبة التغطية لكلّ مدرسة شهرياً.</p><span class="time">لحظي</span></div>
   </div>
   <div class="rules">
-    <div class="card glass"><h3>أولويات اختيار البديل</h3><ol><li>معلّم المادة نفسها لديه حصّة فراغ في الوقت نفسه.</li><li>معلّم يدرّس الشعبة نفسها في مادة أخرى (يعرف الطلاب).</li><li>أيّ معلّم متاح، ضمن سقف أسبوعي تحدّده المديرية (النصاب القانوني + الحصص الإضافية المسموح بها).</li><li>توزيع عادل: من غطّى أكثر هذا الشهر يأتي آخراً في الاقتراحات.</li><li>يدعم مدارس الفترتين، ويسجّل الحصص الإضافية لاحتساب التعويض حسب أنظمة الوزارة، والاعتماد دائماً للإدارة.</li></ol></div>
-    <div class="card glass callout"><h3>وإذا لم يوجد بديل؟</h3><p>تتحوّل الحصّة إلى <b>حصّة تعلّم ذاتي موجَّه</b>: درس رقمي من الكتاب وتمرين تفاعلي يحلّه الطلاب على أجهزة المدرسة أو ورقياً، بإشراف الإدارة أو المرشد النفسي. تُسجَّل الحصّة على أنّها «مغطّاة ذاتياً» وتظهر للمديرية بلون مختلف، وتقترح المنظومة تعويضها لاحقاً إن تكرّر الغياب.</p></div>
+    <div class="card glass"><h3>أولويات اختيار البديل</h3><ol><li>معلّم المادة نفسها لديه حصّة فراغ في الوقت نفسه.</li><li>معلّم يدرّس الشعبة نفسها في مادة أخرى (يعرف الطلاب).</li><li>أيّ معلّم متاح ضمن النصاب الأسبوعي المحدّد في أنظمة الوزارة، ولا يُتجاوز إلا بتكليف من المديرية وفق الأصول.</li><li>توزيع عادل: من غطّى أكثر هذا الشهر يأتي آخراً في الاقتراحات.</li></ol><p style="margin-top:10px;color:var(--ink-2);font-size:.95rem">يدعم مدارس الفترتين، ويسجّل الحصص الإضافية لاحتساب التعويض حسب أنظمة الوزارة، والاعتماد دائماً للإدارة.</p></div>
+    <div class="card glass callout"><h3>وإذا لم يوجد بديل؟</h3><p>تتحوّل الحصّة إلى <b>حصّة تعلّم ذاتي موجَّه</b>: تمرين من الكتاب المدرسي يحدّده النظام بالدرس والصفحة ويُكتب على اللوح أو يُطبع، بإشراف المعاون أو معلّم الاحتياط المناوب. تُسجَّل الحصّة على أنّها «موثّقة بلا بديل» وتظهر للمديرية بلون مختلف، وتقترح المنظومة تعويضها لاحقاً إن تكرّر الغياب.</p></div>
   </div>
 </section>
 
@@ -547,7 +550,7 @@ button.row{cursor:pointer}
   </div>
   <div class="table-wrap glass">
     <table>
-      <thead><tr><th>الميزة</th><th class="me">مَدار</th><th>Google Classroom</th><th>Microsoft Teams للتعليم</th><th>مدرستي ونور (السعودية)</th><th>eKool (إستونيا)</th><th>ClassDojo</th><th>PowerSchool</th></tr></thead>
+      <thead><tr><th>الميزة</th><th class="me">مَدار (كما هو مصمَّم)</th><th>Google Classroom</th><th>Microsoft Teams للتعليم</th><th>مدرستي ونور (السعودية)</th><th>eKool (إستونيا)</th><th>ClassDojo</th><th>PowerSchool</th></tr></thead>
       <tbody>
         <tr><td>طبقة المديرية / الوزارة (لوحة لكلّ المدارس)</td><td class="me y">✓</td><td class="p"></td><td class="p"></td><td class="y">✓</td><td class="p"></td><td class="p"></td><td class="y">✓</td></tr>
         <tr><td>إدارة المدرسة: جداول، شُعَب، سجلّ حضور</td><td class="me y">✓</td><td class="p"></td><td class="p"></td><td class="y">✓</td><td class="y">✓</td><td class="p"></td><td class="y">✓</td></tr>
@@ -564,7 +567,7 @@ button.row{cursor:pointer}
     </table>
   </div>
   <div class="legend"><span><b class="y">✓</b>متوفّر</span><span><b class="p"></b>جزئي أو عبر إضافات</span><span><b class="n">✗</b>غير متوفّر</span></div>
-  <p class="foot">المقارنة مبنية على المزايا المعلنة لكلّ منصّة حتى ٢٠٢٦ وهي للاسترشاد؛ بعض الميزات في Google وMicrosoft متاحة في الطبقات المدفوعة فقط، وتختلف التفاصيل بحسب الإصدار والاشتراك.</p>
+  <p class="foot">عمود مَدار يصف التصميم الكامل؛ ما يدخل المرحلة التجريبية هو الواجبات والحضور وغياب المعلّم والتواصل، أمّا الكتب الرسمية والإنذار المبكر الكامل وبوابة SMS فمن مرحلة التعميم. المقارنة مبنية على المزايا المعلنة حتى ٢٠٢٦ وهي للاسترشاد؛ بعض ميزات Google وMicrosoft متاحة في الطبقات المدفوعة فقط.</p>
 </section>
 
 <!-- ═══════════ ARCHITECTURE ═══════════ -->
@@ -572,7 +575,7 @@ button.row{cursor:pointer}
   <div class="sec-head">
     <span class="eyebrow">البنية التقنية</span>
     <h2>بنية بسيطة، آمنة، ورخيصة التشغيل</h2>
-    <p>التطبيق نفسه يعمل على الهاتف وعلى الحاسوب. الخادم سحابي في المرحلة التجريبية بحساب باسم المديرية، ثم ينتقل إلى خادم المديرية أو مركز المعطيات الوطني عند التعميم، والتطبيق نفسه يعمل في الحالتين.</p>
+    <p>التطبيق نفسه يعمل على الهاتف وعلى الحاسوب. الخادم سحابي في المرحلة التجريبية بتفويض خطّي من المديرية، ثم ينتقل إلى خادم المديرية أو الاستضافة الحكومية التي تحدّدها الوزارة عند التعميم، والتطبيق نفسه يعمل في الحالتين.</p>
   </div>
   <div class="arch">
     <div class="card glass">
@@ -581,22 +584,22 @@ button.row{cursor:pointer}
         <div class="layer-arrow">▼ HTTPS مشفّر</div>
         <div class="layer" style="--c:var(--brand)"><div class="ic"><svg><use href="#i-cloud"/></svg></div><div><b>واجهة برمجية (API) وخدمات</b><span>الصلاحيات حسب الدور، بروتوكول الغياب، الإشعارات، توليد التقارير، التكامل مع Excel.</span></div></div>
         <div class="layer-arrow">▼</div>
-        <div class="layer" style="--c:var(--teal)"><div class="ic"><svg><use href="#i-db"/></svg></div><div><b>قاعدة بيانات + مخزن الكتب</b><span>مشفّرة أثناء النقل والتخزين، نسخ احتياطي يومي، تدقيق لكلّ عملية. سحابة في التجريب، ثم خادم المديرية أو مركز المعطيات الوطني.</span></div></div>
+        <div class="layer" style="--c:var(--teal)"><div class="ic"><svg><use href="#i-db"/></svg></div><div><b>قاعدة بيانات + مخزن الكتب</b><span>مشفّرة أثناء النقل والتخزين، نسخ احتياطي دوري، تدقيق لكلّ عملية. سحابة في التجريب، ثم خادم المديرية أو الاستضافة الحكومية التي تحدّدها الوزارة.</span></div></div>
         <div class="layer-arrow">▼</div>
-        <div class="layer" style="--c:var(--rose)"><div class="ic"><svg><use href="#i-msg"/></svg></div><div><b>بوابة الرسائل النصّية (SMS)</b><span>الإشعارات الحرجة (غياب طالب، تغيير حصّة، إعلان عاجل) تصل حتى بلا إنترنت، بعقد رسائل مؤسسية مع المشغّل المحلي باسم المديرية وبسقف شهري متّفق عليه.</span></div></div>
+        <div class="layer" style="--c:var(--rose)"><div class="ic"><svg><use href="#i-msg"/></svg></div><div><b>بوابة الرسائل النصّية (SMS)</b><span>الإشعارات الحرجة (غياب الطالب، الإعلان العاجل) تصل حتى بلا إنترنت؛ خطّ تجريبي محدود في التجربة، وعقد مؤسسي باسم المديرية بسقف شهري عند التعميم.</span></div></div>
       </div>
     </div>
     <div class="card glass">
       <h3 style="margin-bottom:14px">المواصفات</h3>
       <div class="spec">
         <div class="item"><b>الأجهزة</b><span>أندرويد ٧ وما بعد، وأيّ متصفّح حديث على الحاسوب. إصدار iOS في مرحلة لاحقة.</span></div>
-        <div class="item"><b>الدخول</b><span>وليّ الأمر برقم هاتفه ورمز تحقّق، والطالب ببطاقة تفعيل مطبوعة من المدرسة، والمعلّم والإدارة بحساب رسمي مع تحقّق بخطوتين عبر تطبيق مصادقة.</span></div>
+        <div class="item"><b>الدخول</b><span>وليّ الأمر برقم هاتفه ورمز تفعيل تطبعه المدرسة (أو رمز تحقّق SMS عند توفّر البوابة)، والطالب ببطاقة تفعيل مطبوعة، والمعلّم بحساب رسمي ورمز دخول مرتبط بجهازه، والإدارة والمديرية بحساب رسمي مع تحقّق بخطوتين.</span></div>
         <div class="item"><b>الصلاحيات</b><span>خمسة أدوار؛ كلّ مستخدم يرى بيانات مدرسته وشعبته وأبنائه فقط.</span></div>
-        <div class="item"><b>الاستيراد</b><span>قوائم المدارس والمعلّمين والطلاب والجداول من ملفات Excel الحالية، أو من سجلّ القيد الورقي بمساعدة فريقنا مع وكلاء المدارس.</span></div>
+        <div class="item"><b>الاستيراد</b><span>قوائم المدارس والمعلّمين والطلاب والجداول من ملفات Excel الحالية، أو من سجلّ القيد الورقي بمساعدة فريقنا مع معاوني المدراء وأمناء السرّ.</span></div>
         <div class="item"><b>التصدير</b><span>كشوف العلامات والحضور والتقارير بصيغة PDF وExcel بالقوالب الرسمية؛ السجلّ الورقي يبقى المرجع القانوني.</span></div>
-        <div class="item"><b>الاستضافة</b><span>سحابية في التجريب (بضع دولارات شهرياً يتحمّلها الفريق) بحساب باسم المديرية ومفاتيحه بيدها، ثم خادم المديرية أو مركز المعطيات الوطني عند التعميم.</span></div>
-        <div class="item"><b>الخصوصية</b><span>لا إعلانات، لا بيع بيانات، لا صور ولا عناوين ولا أرقام وطنية؛ حذف بيانات الخرّيجين بعد سنتين من ترك المدرسة أو حسب سياسة المديرية.</span></div>
-        <div class="item"><b>الدعم</b><span>رائد رقمي في كلّ مدرسة، جلستا تدريب وزيارة أسبوعية خلال التجربة، دليل مصوّر، ورقم دعم خلال الدوام.</span></div>
+        <div class="item"><b>الاستضافة</b><span>سحابية في التجريب (بضعة دولارات شهرياً يتحمّلها الفريق) بتفويض خطّي من المديرية وبيانات دخول تُسلَّم لها، ثم خادم المديرية أو الاستضافة الحكومية التي تحدّدها الوزارة عند التعميم.</span></div>
+        <div class="item"><b>الخصوصية</b><span>لا إعلانات، لا بيع بيانات، لا صور ولا عناوين ولا أرقام وطنية؛ حذف بيانات الخرّيجين أو أرشفتها حسب ما تقرّره المديرية (نقترح سنتين)، وحذف بيانات التجربة من السحابة حكماً خلال ثلاثين يوماً من انتهائها ما لم تقرّر المديرية الاستمرار.</span></div>
+        <div class="item"><b>الدعم</b><span>منسّق للمنظومة في كلّ مدرسة تسمّيه الإدارة (المعاون أو أحد المعلّمين)، جلسة تدريب واحدة لكلّ مدرسة (ساعة ونصف إلى ساعتين) وجلسة متابعة في منتصف التجربة، زيارات ميدانية عند الحاجة، دليل مصوّر، ورقم دعم خلال الدوام.</span></div>
       </div>
     </div>
   </div>
@@ -606,13 +609,13 @@ button.row{cursor:pointer}
 <section id="roadmap" class="wrap">
   <div class="sec-head">
     <span class="eyebrow">خارطة الطريق</span>
-    <h2>نبدأ بعشر مدارس، ونصل إلى مستوى الوزارة بالبنية نفسها</h2>
+    <h2>نبدأ بعشر مدارس، ونتوسّع مجمّعاً تربوياً بعد آخر بقرار المديرية والوزارة</h2>
   </div>
   <div class="road">
     <div class="phase glass now"><span class="when">الآن</span><h3>الفكرة والنموذج</h3><ul><li><svg><use href="#i-check"/></svg>هذا العرض والنموذج التفاعلي</li><li><svg><use href="#i-check"/></svg>الفيديو التعريفي</li><li><svg><use href="#i-check"/></svg>طلب موافقة المديرية على المرحلة التجريبية</li></ul></div>
-    <div class="phase glass"><span class="when">المرحلة ١ · ٨ أسابيع</span><h3>النسخة التجريبية</h3><ul><li><svg><use href="#i-check"/></svg>١٠ مدارس في مدينة درعا وريفها</li><li><svg><use href="#i-check"/></svg>الواجبات، الجدول والحضور، غياب المعلّم، التواصل</li><li><svg><use href="#i-check"/></svg>تطبيق أندرويد + موقع ويب</li><li><svg><use href="#i-check"/></svg>أسبوعان تجهيز وتدقيق بيانات، ثم ستّة أسابيع تشغيل في فصل كامل الدوام</li><li><svg><use href="#i-check"/></svg>تدريب الكوادر وقياس الأثر مقابل خطّ أساس</li></ul></div>
-    <div class="phase glass"><span class="when">المرحلة ٢ · ٣ أشهر</span><h3>التعميم على المديرية</h3><ul><li><svg><use href="#i-check"/></svg>كلّ مدارس مديرية درعا</li><li><svg><use href="#i-check"/></svg>لوحة المديرية الكاملة والإنذار المبكر</li><li><svg><use href="#i-check"/></svg>بوابة SMS بعقد باسم المديرية، والكتب الرقمية بعد إذن المركز الوطني</li><li><svg><use href="#i-check"/></svg>النشر على المتاجر عند توفّر حساب مطوّر</li></ul></div>
-    <div class="phase glass"><span class="when">المرحلة ٣ · ٦ أشهر+</span><h3>مستوى الوزارة</h3><ul><li><svg><use href="#i-check"/></svg>محافظات إضافية ولوحة وطنية</li><li><svg><use href="#i-check"/></svg>تحليلات متقدّمة ومساعد ذكي للمعلّم</li><li><svg><use href="#i-check"/></svg>تكامل مع أنظمة الوزارة والامتحانات</li></ul></div>
+    <div class="phase glass"><span class="when">المرحلة ١ · ٨ أسابيع</span><h3>النسخة التجريبية</h3><ul><li><svg><use href="#i-check"/></svg>١٠ مدارس في مدينة درعا وريفها</li><li><svg><use href="#i-check"/></svg>الواجبات، الجدول والحضور، غياب المعلّم، التواصل، وتنبيه آلي عند ٣ أيام غياب متواصلة</li><li><svg><use href="#i-check"/></svg>تطبيق أندرويد + موقع ويب</li><li><svg><use href="#i-check"/></svg>أسبوعان تجهيز وتدقيق بيانات، ثم ستّة أسابيع تشغيل في فصل كامل الدوام</li><li><svg><use href="#i-check"/></svg>تدريب الكوادر وقياس الأثر مقابل خطّ أساس</li></ul></div>
+    <div class="phase glass"><span class="when">المرحلة ٢ · فصل دراسي</span><h3>التعميم التدريجي</h3><ul><li><svg><use href="#i-check"/></svg>مجمّعاً تربوياً بعد آخر، بموافقة الوزارة وبحسب جاهزية الكهرباء والشبكة</li><li><svg><use href="#i-check"/></svg>لوحة المديرية الكاملة والإنذار المبكر الكامل (مع تراجع العلامات)</li><li><svg><use href="#i-check"/></svg>بوابة SMS بعقد باسم المديرية، والكتب الرقمية بعد إذن المركز الوطني</li><li><svg><use href="#i-check"/></svg>النشر على المتاجر عند توفّر حساب مطوّر</li></ul></div>
+    <div class="phase glass"><span class="when">المرحلة ٣ · ٦ أشهر+</span><h3>مستوى الوزارة</h3><ul><li><svg><use href="#i-check"/></svg>محافظات إضافية ولوحة وطنية</li><li><svg><use href="#i-check"/></svg>تحليلات متقدّمة ومساعد ذكي للمعلّم</li><li><svg><use href="#i-check"/></svg>تكامل مع أنظمة الوزارة</li></ul></div>
   </div>
   <div class="deliver glass"><b>المخرجات النهائية:</b><span class="pillx">تطبيق أندرويد (APK)</span><span class="pillx">موقع ويب يعمل كتطبيق</span><span class="pillx">لوحة إدارة المدرسة</span><span class="pillx">لوحة مديرية التربية</span><span class="pillx">خادم وقاعدة بيانات</span><span class="pillx">بوابة SMS</span><span class="pillx">دليل استخدام وتدريب</span></div>
 </section>
@@ -622,14 +625,14 @@ button.row{cursor:pointer}
   <div class="sec-head">
     <span class="eyebrow">مؤشرات الأثر</span>
     <h2>كيف نعرف أنّ المشروع نجح؟</h2>
-    <p>أهداف المرحلة التجريبية التي سنقيسها معكم مقابل خطّ أساس يُرصد في الأسبوعين الأولين، ويوقّع التقرير موجّهو المديرية. وفي يوم بلا كهرباء يبقى الدفتر هو الأصل ويقبل النظام الإدخال اللاحق بختم زمني.</p>
+    <p>أهداف المرحلة التجريبية نقيسها معكم مقابل خطّ أساس يُرصد في الأسبوعين الأولين، ويوقّع التقرير موجّهو المديرية. وفي يوم بلا كهرباء يبقى الدفتر هو الأصل ويقبل النظام الإدخال اللاحق بختم زمني.</p>
   </div>
   <div class="impact">
-    <div class="imp glass"><b>٩٥٪</b><span>من حصص المعلّمين الغائبين مغطّاة ببديل أو نشاط موجَّه</span></div>
-    <div class="imp glass"><b>٩٠٪</b><span>من أولياء الأمور يصلهم الواجب وإشعار الغياب في اليوم نفسه (تطبيقاً أو SMS)</span></div>
+    <div class="imp glass"><b>٩٥٪</b><span>من حصص غياب المعلّمين موثّقة بحالتها في النظام، مع إعلان نسبة ما غطّاه بديل فعلي</span></div>
+    <div class="imp glass"><b>٩٠٪</b><span>من أولياء الأمور المسجَّلين (بالتطبيق أو برقم هاتف) يصلهم الواجب وإشعار الغياب في اليوم نفسه، وتُعلَن نسبة التسجيل</span></div>
     <div class="imp glass"><b>يومي</b><span>سجلّ حضور لكلّ مدرسة يصل المديرية بدل التقرير الشهري</span></div>
     <div class="imp glass"><b>دقائق</b><span>لإعداد تقرير المديرية بدل أيام من الجمع اليدوي</span></div>
-    <div class="imp glass"><b>٣ أيام</b><span>حدّ الإنذار المبكر لكلّ طالب معرَّض للتسرّب</span></div>
+    <div class="imp glass"><b>٣ أيام</b><span>غياب متواصل مسجَّل يطلق تنبيهاً للإدارة ووليّ الأمر (وللمرشد النفسي إن وُجد)</span></div>
   </div>
 </section>
 
@@ -654,7 +657,7 @@ button.row{cursor:pointer}
   <div class="close glass">
     <span class="eyebrow">جاهزون للبدء</span>
     <h2>نقترح مرحلة تجريبية في عشر مدارس خلال ثمانية أسابيع</h2>
-    <p>بلا رسوم للمنصّة في المرحلة التجريبية؛ تتحمّل المديرية وقت الكادر والاتصال فقط. ما نحتاجه: ترشيح المدارس، سجلّات القيد أو قوائم Excel (نُدخلها مع وكلاء المدارس)، منسّق من المديرية، وجلسة تدريب لكلّ مدرسة. البيانات والحساب ملك المديرية، مع تصدير كامل ونسخة احتياطية بيدها في أيّ وقت.</p>
+    <p>بلا رسوم على المديرية في المرحلة التجريبية: المنصّة والاستضافة والتدريب والرسائل التجريبية على حسابنا؛ وما تتحمّله المديرية هو وقت الكادر واستهلاك بيانات الجوال للمعلّمين، ونقيسه ونعلنه في الأسبوع الأول. ما نحتاجه: ترشيح المدارس، سجلّات القيد أو قوائم Excel (نُدخلها مع معاوني المدراء وأمناء السرّ)، منسّق من المديرية، وجلسة تدريب لكلّ مدرسة. البيانات ملك المديرية، مع تصدير كامل ونسخة احتياطية بيدها في أيّ وقت.</p>
     <span class="url">madar.raqeem.dev</span>
   </div>
 </section>
@@ -666,13 +669,14 @@ button.row{cursor:pointer}
   const $=s=>document.querySelector(s);
   const app=$('#app'), notes=$('#notes'), toast=$('#toast'), toastText=$('#toast-text');
   let toastTimer;
-  function say(t){toastText.textContent=t;toast.classList.add('show');clearTimeout(toastTimer);toastTimer=setTimeout(()=>toast.classList.remove('show'),3400)}
+  let pending=[];const later=(fn,ms)=>{const id=setTimeout(fn,ms);pending.push(id);return id};
+  function say(t,from){toastText.textContent=t;const r=from&&from.getBoundingClientRect&&from.getBoundingClientRect();toast.classList.toggle('top',!!r&&r.bottom>innerHeight-120);toast.classList.add('show');clearTimeout(toastTimer);toastTimer=setTimeout(()=>toast.classList.remove('show'),3400)}
   const ic=n=>`<svg aria-hidden="true"><use href="#i-${n}"/></svg>`;
 
   const SUB_STEPS=[
     'تمّ تسجيل غياب أ. رنا سعيد (علوم) لليوم',
     'الحصص المتأثّرة: الثالثة مع الخامس (ب)، والخامسة مع السادس (أ)',
-    'البديل المقترح للحصة الثالثة: أ. ماهر عادل (علوم، حصّة فراغ)',
+    'البديل المقترح للحصّة الثالثة: أ. ماهر عادل (علوم، حصّة فراغ) · اعتمدته الإدارة بضغطة',
     'أُرسلت خطّة الدرس «دورة الماء في الطبيعة» إلى البديل',
     'أُبلغ ٣٢ طالباً و٣٠ وليّ أمر بالتغيير، وحُدِّث الجدول',
     'وصلت الحالة إلى لوحة مديرية التربية: مغطّاة ✓'
@@ -693,7 +697,7 @@ button.row{cursor:pointer}
       </div>
       <div class="tile"><h4>${ic('cal')} حصصك اليوم</h4>
         <div class="periods">
-          <div class="per"><small>١</small>الخامس (أ)</div><div class="per"><small>٢</small>السادس (أ)</div><div class="per now"><small>٣</small>الخامس (ب)</div><div class="per"><small>٤</small>الخامس (أ)</div><div class="per"><small>٥</small>فراغ</div><div class="per"><small>٦</small>السادس (أ)</div>
+          <div class="per now"><small>١</small>الخامس (أ)</div><div class="per"><small>٢</small>الخامس (ب)</div><div class="per"><small>٣</small>السادس (أ)</div><div class="per"><small>٤</small>الخامس (أ)</div><div class="per"><small>٥</small>فراغ</div><div class="per"><small>٦</small>السادس (أ)</div>
         </div>
       </div>
       <div class="tile" style="--c:var(--sun)"><h4>${ic('alert')} غياب المعلّم</h4>
@@ -718,13 +722,13 @@ button.row{cursor:pointer}
       <div class="tile" style="--c:var(--r-student)"><h4>${ic('book')} واجباتي · اضغط عند الإنجاز</h4>
         <div class="list" id="hw">
           <button type="button" class="row" data-hw><span class="chk">${ic('check')}</span><span class="grow">رياضيات · تمارين الكسور العشرية ص ٤٢<small>موعد التسليم: الأحد ٨ تشرين الثاني</small></span><span class="tag">٣ أيام</span></button>
-          <button type="button" class="row" data-hw><span class="chk">${ic('check')}</span><span class="grow">لغة عربية · قراءة نص «الوطن» والإجابة عن الأسئلة<small>موعد التسليم: الاثنين ٩ تشرين الثاني</small></span><span class="tag">٤ أيام</span></button>
-          <button type="button" class="row hl" data-hw><span class="chk">${ic('check')}</span><span class="grow">علوم · نشاط «دورة الماء في الطبيعة» (حصة بديلة)<small>اليوم · الحصّة الثالثة مع أ. ماهر</small></span><span class="tag sun">اليوم</span></button>
+          <button type="button" class="row" data-hw><span class="chk">${ic('check')}</span><span class="grow">لغة عربية · قراءة نصّ «الوطن» والإجابة عن الأسئلة<small>موعد التسليم: الاثنين ٩ تشرين الثاني</small></span><span class="tag">٤ أيام</span></button>
+          <button type="button" class="row hl" data-hw><span class="chk">${ic('check')}</span><span class="grow">علوم · نشاط «دورة الماء في الطبيعة» (حصّة بديلة)<small>اليوم · الحصّة الثالثة مع أ. ماهر</small></span><span class="tag sun">اليوم</span></button>
         </div>
       </div>
       <div class="tile"><h4>${ic('cal')} جدول اليوم</h4>
         <div class="periods">
-          <div class="per"><small>١</small>عربي</div><div class="per"><small>٢</small>رياضيات</div><div class="per sub"><small>٣</small>علوم<small>بديل: أ. ماهر</small></div><div class="per"><small>٤</small>إنكليزي</div><div class="per"><small>٥</small>دراسات اجتماعية</div><div class="per"><small>٦</small>رياضة</div>
+          <div class="per now"><small>١</small>عربي</div><div class="per"><small>٢</small>رياضيات</div><div class="per sub"><small>٣</small>علوم<small>بديل: أ. ماهر</small></div><div class="per"><small>٤</small>إنكليزي</div><div class="per"><small>٥</small>دراسات اجتماعية</div><div class="per"><small>٦</small>رياضة</div>
         </div>
       </div>
       <div class="tile"><h4>${ic('layers')} كتبي · محمَّلة على الجهاز</h4>
@@ -746,9 +750,9 @@ button.row{cursor:pointer}
       </div>
       <div class="tile" style="--c:var(--r-parent)"><h4>${ic('bell')} إشعارات اليوم</h4>
         <div class="list">
-          <div class="row ok"><span class="grow">تمّ تسجيل حضور محمد في الحصّة الأولى<small>٧:٤٠ صباحاً · تطبيق + SMS</small></span><span class="tag mint">حضور</span></div>
-          <div class="row hl"><span class="grow">الحصّة الثالثة (علوم): تغيّر معلّم الحصّة اليوم، والنشاط: «دورة الماء في الطبيعة»<small>٧:١٢ صباحاً</small></span><span class="tag sun">بديل</span></div>
-          <div class="row"><span class="grow">واجب رياضيات جديد: الكسور العشرية ص ٤٢، التسليم الأحد<small>أمس ١:٢٠ ظهراً · من أ. سامر حسن</small></span><span class="tag">واجب</span></div>
+          <div class="row ok"><span class="grow">تمّ تسجيل حضور محمد في الحصّة الأولى<small>٧:٤٠ صباحاً · في التطبيق (تصل SMS عند الغياب فقط)</small></span><span class="tag mint">حضور</span></div>
+          <div class="row hl"><span class="grow">الحصّة الثالثة (علوم): تغيّر معلّم الحصّة اليوم، والنشاط: «دورة الماء في الطبيعة»<small>٧:١٢ صباحاً · في التطبيق</small></span><span class="tag sun">بديل</span></div>
+          <div class="row"><span class="grow">واجب رياضيات جديد: الكسور العشرية ص ٤٢، التسليم الأحد<small>اليوم ٨:٠٥ صباحاً · من أ. سامر حسن</small></span><span class="tag">واجب</span></div>
         </div>
       </div>
       <div class="tile"><h4>${ic('chart')} آخر العلامات</h4>
@@ -759,10 +763,10 @@ button.row{cursor:pointer}
         </div>
       </div>
       <div class="tile" style="--c:var(--r-parent)"><h4>${ic('msg')} رسالة إلى المعلّم</h4>
-        <div class="field"><div>أستاذ سامر، هل يمكن تأجيل تسليم واجب الرياضيات يوماً واحداً لأنّ محمداً كان مريضاً؟</div></div>
-        <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap"><button class="abtn" style="--c:var(--r-parent)" data-say="أُرسلت رسالتك إلى أ. سامر حسن، وسيصلك ردّه في التطبيق">${ic('send')} إرسال</button><button class="abtn light" data-say="طلب موعد مع المرشد النفسي: الأحد ١٠:٠٠ · بانتظار التأكيد">طلب موعد مع المرشد النفسي</button></div>
+        <div class="field"><div>أستاذ سامر، هل يمكن تأجيل تسليم واجب الرياضيات يوماً واحداً لظرف عائلي؟</div></div>
+        <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap"><button class="abtn" style="--c:var(--r-parent)" data-say="أُرسلت رسالتك إلى أ. سامر حسن، وسيصلك ردّه في التطبيق">${ic('send')} إرسال</button><button class="abtn light" data-say="طلب موعد مع الإدارة: الأحد ١٠:٠٠ · بانتظار التأكيد">طلب موعد مع الإدارة</button></div>
       </div>`},
-    school:{c:'var(--r-school)',title:'إدارة المدرسة',notes:['حضور الطلاب والمعلّمين في لوحة واحدة من الحصّة الأولى.','لوحة الغياب تُظهر الحصص غير المغطّاة والبديل المقترح، والتعيين بضغطة.','إعلان واحد يصل إلى كلّ الأهالي بالتطبيق والـ SMS.'],
+    school:{c:'var(--r-school)',title:'إدارة المدرسة',notes:['حضور الطلاب والمعلّمين في لوحة واحدة من الحصّة الأولى.','لوحة الغياب تُظهر الحصص غير المغطّاة والبديل المقترح، والتعيين بضغطة.','إعلان واحد يصل إلى كلّ الأهالي بالتطبيق، وبالـ SMS إن كان عاجلاً.'],
       html:()=>`
       <div class="app-head"><div><h3>مدرسة درعا النموذجية</h3><small>التعليم الأساسي · ٦٥٠ طالباً · ٤٠ معلّماً · الخميس ٥ تشرين الثاني</small></div><div class="avatar" style="--c:var(--r-school)">د</div></div>
       <div class="kpis" style="--c:var(--r-school)">
@@ -787,12 +791,12 @@ button.row{cursor:pointer}
         </div>
       </div>
       <div class="tile" style="--c:var(--r-school)"><h4>${ic('bell')} إعلان لكلّ الأهالي</h4>
-        <div class="field"><div>اجتماع أولياء الأمور يوم الثلاثاء ١٠ تشرين الثاني، الساعة ١٠ صباحاً في قاعة المدرسة.</div></div>
-        <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap"><button class="abtn" style="--c:var(--r-school)" data-say="أُرسل الإعلان إلى ٢٦٠ وليّ أمر عبر التطبيق و٣٩٠ برسالة SMS">${ic('send')} إرسال للجميع</button><button class="abtn light" data-say="تقرير الحضور اليومي أُرسل إلى مديرية التربية">رفع تقرير اليوم للمديرية</button></div>
+        <div class="field"><div>إعلان عاجل: تعليق الدوام يوم الأحد ٨ تشرين الثاني بسبب الأحوال الجوية، ويُستأنف الاثنين.</div></div>
+        <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap"><button class="abtn" style="--c:var(--r-school)" data-say="أُرسل الإعلان العاجل إلى ٢٤٠ وليّ أمر عبر التطبيق و٣١٠ برسالة SMS لمن لا يملك التطبيق">${ic('send')} إرسال للجميع</button><button class="abtn light" data-say="تقرير الحضور اليومي أُرسل إلى مديرية التربية">رفع تقرير اليوم للمديرية</button></div>
       </div>`},
-    dir:{c:'var(--r-dir)',title:'مديرية التربية',notes:['كلّ مدارس المديرية في لوحة واحدة، بأرقام اليوم لا الشهر الماضي.','نسبة تغطية حصص الغياب تظهر لكلّ مدرسة ومنطقة.','تنبيهات آلية تُظهر أين تتدخّل المديرية اليوم، وتقرير أسبوعي بضغطة.'],
+    dir:{c:'var(--r-dir)',title:'مديرية التربية',notes:['كلّ مدارس المديرية في لوحة واحدة، بأرقام اليوم لا الشهر الماضي.','نسبة تغطية حصص الغياب تظهر للمديرية كلّها مع تنبيه لكلّ مدرسة.','تنبيهات آلية تُظهر أين تتدخّل المديرية اليوم، وتقرير أسبوعي بضغطة.'],
       html:()=>`
-      <div class="app-head"><div><h3>مديرية التربية · درعا</h3><small>نظرة اليوم · الخميس ٥ تشرين الثاني · آخر تحديث ٩:١٥</small></div><div class="avatar" style="--c:var(--r-dir)">م</div></div>
+      <div class="app-head"><div><h3>مديرية التربية · درعا</h3><small>نظرة اليوم · الخميس ٥ تشرين الثاني · آخر تحديث ٨:٠٥</small></div><div class="avatar" style="--c:var(--r-dir)">م</div></div>
       <div class="kpis" style="--c:var(--r-dir)">
         <div class="kpi"><b class="num">٣١٢</b><span>مدرسة متّصلة حتى الآن</span></div>
         <div class="kpi"><b class="num">٩١٫٤٪</b><span>حضور الطلاب اليوم</span></div>
@@ -812,8 +816,8 @@ button.row{cursor:pointer}
       </div>
       <div class="tile" style="--c:var(--sun)"><h4>${ic('alert')} يحتاج تدخّلاً اليوم</h4>
         <div class="list">
-          <div class="row hl"><span class="grow">٣ مدارس لم ترفع سجلّ الحضور حتى ٩:٠٠<small>المزيريب الثانية، داعل الأولى، خربة غزالة المختلطة</small></span><span class="tag sun">متابعة</span></div>
-          <div class="row hl"><span class="grow">مدرسة نوى الأولى: ٤ حصص غير مغطّاة هذا الأسبوع<small>نقص معلّمي الرياضيات · اقتراح: تكليف من مدرسة مجاورة</small></span><span class="tag sun">قرار</span></div>
+          <div class="row hl"><span class="grow">٣ مدارس لم ترفع سجلّ الحضور حتى ٨:٠٠<small>مدرسة (أ) · مجمّع إزرع، مدرسة (ب) · مجمّع طفس، مدرسة (ج) · مجمّع نوى</small></span><span class="tag sun">متابعة</span></div>
+          <div class="row hl"><span class="grow">مدرسة (د) · مجمّع نوى: ٤ حصص غير مغطّاة هذا الأسبوع<small>نقص معلّمي الرياضيات · اقتراح: تكليف من مدرسة مجاورة</small></span><span class="tag sun">قرار</span></div>
           <div class="row"><span class="grow">ارتفاع الغياب في بصرى الشام ٦٪ عن الأسبوع الماضي<small>الصفوف السابع إلى التاسع · تحقّق من الأسباب</small></span><span class="tag">تحليل</span></div>
         </div>
       </div>
@@ -823,21 +827,21 @@ button.row{cursor:pointer}
   };
 
   function render(role){
-    clearTimeout(toastTimer);toast.classList.remove('show');
+    pending.forEach(clearTimeout);pending=[];clearTimeout(toastTimer);toast.classList.remove('show','top');
     const R=ROLES[role];
     app.innerHTML=R.html();
     notes.style.setProperty('--c',R.c);
     notes.innerHTML=`<h3><span class="avatar" style="--c:${R.c};width:34px;height:34px;font-size:.9rem">${R.title.slice(0,1)}</span>ما الذي تلاحظه في شاشة ${R.title}؟</h3><ul>${R.notes.map(n=>`<li>${n}</li>`).join('')}</ul>`;
     document.querySelectorAll('.rbtn').forEach(b=>b.setAttribute('aria-selected',String(b.dataset.role===role)));
-    app.querySelectorAll('[data-say]').forEach(b=>b.addEventListener('click',()=>say(b.dataset.say)));
+    app.querySelectorAll('[data-say]').forEach(b=>b.addEventListener('click',()=>say(b.dataset.say,b)));
     const pub=app.querySelector('#pub');
-    if(pub) pub.addEventListener('click',()=>{pub.disabled=true;pub.textContent='جارٍ الإرسال…';setTimeout(()=>{pub.textContent='نُشر الواجب ✓';say('وصل الواجب إلى ٣٢ طالباً و٣٠ وليّ أمر، وسيُذكّرهم النظام مساء السبت')},900)});
+    if(pub) pub.addEventListener('click',()=>{pub.disabled=true;pub.textContent='جارٍ الإرسال…';later(()=>{pub.textContent='نُشر الواجب ✓';say('وصل الواجب إلى ٣٢ طالباً و٣٠ وليّ أمر، وسيُذكّرهم النظام مساء السبت',pub)},900)});
     const absent=app.querySelector('#absent');
-    if(absent) absent.addEventListener('click',()=>{absent.disabled=true;absent.textContent='جارٍ ترتيب البديل…';app.querySelector('#steps').scrollIntoView({behavior:'smooth',block:'nearest'});const steps=app.querySelectorAll('.step');steps.forEach((s,i)=>setTimeout(()=>{s.classList.add('on');if(i===steps.length-1){absent.textContent='تمّت التغطية ✓';say('الحصّة الثالثة مغطّاة: عُيّن أ. ماهر عادل بديلاً، وأُبلغ الجميع')}},500+i*650))});
+    if(absent) absent.addEventListener('click',()=>{absent.disabled=true;absent.textContent='جارٍ ترتيب البديل…';app.querySelector('#steps').scrollIntoView({behavior:'smooth',block:'nearest'});const steps=app.querySelectorAll('.step');steps.forEach((s,i)=>later(()=>{s.classList.add('on');if(i===steps.length-1){absent.textContent='تمّت التغطية ✓';say('الحصّة الثالثة مغطّاة: عُيّن أ. ماهر عادل بديلاً، وأُبلغ الجميع',absent)}},500+i*650))});
     const assign=app.querySelector('#assign');
-    if(assign) assign.addEventListener('click',()=>{const row=app.querySelector('#rowx');row.classList.remove('hl');row.classList.add('ok');assign.outerHTML='<span class="tag mint">مغطّاة</span>';const u=app.querySelector('#uncovered');if(u)u.textContent='٠';say('عُيّن أ. سامر حسن بديلاً للحصة الخامسة، وأُبلغ طلاب السادس (أ) وأولياء أمورهم')});
+    if(assign) assign.addEventListener('click',()=>{const row=app.querySelector('#rowx');row.classList.remove('hl');row.classList.add('ok');assign.outerHTML='<span class="tag mint">مغطّاة</span>';const u=app.querySelector('#uncovered');if(u)u.textContent='٠';say('عُيّن أ. سامر حسن بديلاً للحصّة الخامسة، وأُبلغ طلاب السادس (أ) وأولياء أمورهم',app.querySelector('#rowx'))});
     const hw=app.querySelector('#hw');
-    if(hw){let xp=320;const xpEl=app.querySelector('#xp'),bar=app.querySelector('#xpbar');const ar=n=>String(n).replace(/\d/g,d=>'٠١٢٣٤٥٦٧٨٩'[d]);hw.querySelectorAll('[data-hw]').forEach(r=>r.addEventListener('click',()=>{const done=r.classList.toggle('done');xp+=done?20:-20;xpEl.textContent=ar(xp);bar.style.width=Math.min(100,64+(xp-320)/2)+'%';if(done)say('أحسنتِ ليان! +٢٠ نقطة، واستمرّت سلسلتك')}))}
+    if(hw){let xp=320;const xpEl=app.querySelector('#xp'),bar=app.querySelector('#xpbar');const ar=n=>String(n).replace(/\d/g,d=>'٠١٢٣٤٥٦٧٨٩'[d]);hw.querySelectorAll('[data-hw]').forEach(r=>r.addEventListener('click',()=>{const done=r.classList.toggle('done');xp+=done?20:-20;xpEl.textContent=ar(xp);bar.style.width=Math.min(100,64+(xp-320)/2)+'%';if(done)say('أحسنتِ ليان! +٢٠ نقطة، واستمرّت سلسلتك',r)}))}
   }
   document.querySelectorAll('.rbtn').forEach(b=>b.addEventListener('click',()=>render(b.dataset.role)));
   document.querySelector('.demo-top').addEventListener('keydown',e=>{const tabs=[...document.querySelectorAll('.rbtn')];const i=tabs.indexOf(document.activeElement);if(i<0||(e.key!=='ArrowLeft'&&e.key!=='ArrowRight'))return;e.preventDefault();const n=tabs[(i+(e.key==='ArrowLeft'?1:-1)+tabs.length)%tabs.length];n.focus();render(n.dataset.role)});

@@ -34,10 +34,10 @@ body{font-family:B,sans-serif;color:#0e1a33;position:relative;direction:rtl;font
 .kpi b{display:block;font-family:D;font-size:64px;font-weight:900;color:#2a5bea;line-height:1.1}
 .kpi span{font-size:24px;color:#3f4d68}
 .kpi.g b{color:#19b887}.kpi.o b{color:#f0a020}
-.tile{position:absolute;width:330px;height:220px;border-radius:30px;padding:26px;display:flex;flex-direction:column;justify-content:space-between;background:rgba(255,255,255,.9);border:1.5px solid #fff;box-shadow:0 24px 50px -28px rgba(30,60,120,.45)}
+.tile{position:absolute;width:304px;height:220px;border-radius:30px;padding:26px;display:flex;flex-direction:column;justify-content:space-between;background:rgba(255,255,255,.9);border:1.5px solid #fff;box-shadow:0 24px 50px -28px rgba(30,60,120,.45)}
 .tile .ic{width:70px;height:70px;border-radius:20px}.tile .ic svg{width:36px;height:36px}
 .tile b{font-size:32px;font-weight:700}
-.step{position:absolute;width:400px;padding:28px 30px;border-radius:30px;background:rgba(255,255,255,.9);border:1.5px solid #fff;box-shadow:0 24px 50px -28px rgba(30,60,120,.45)}
+.step{position:absolute;width:380px;padding:28px 30px;border-radius:30px;background:rgba(255,255,255,.9);border:1.5px solid #fff;box-shadow:0 24px 50px -28px rgba(30,60,120,.45)}
 .step .n{width:56px;height:56px;border-radius:18px;background:#f0a020;color:#fff;display:grid;place-items:center;font-family:D;font-weight:900;font-size:30px;margin-bottom:16px;box-shadow:0 14px 24px -12px #f0a020}
 .step h3{font-family:D;font-size:34px;font-weight:800;margin-bottom:10px;line-height:1.25}
 .step p{font-size:25px;color:#3f4d68;line-height:1.45}
@@ -70,11 +70,11 @@ body{font-family:B,sans-serif;color:#0e1a33;position:relative;direction:rtl;font
 .sat{position:absolute;transform:translate(-50%,-50%)}
 .road{position:absolute;left:160px;right:160px;top:560px;height:10px;border-radius:999px;background:rgba(42,91,234,.15)}
 .road i{position:absolute;right:0;top:0;height:100%;border-radius:999px;background:linear-gradient(270deg,#2a5bea,#6f97ff);width:0}
-.node{position:absolute;top:470px;width:420px;text-align:center}
+.node{position:absolute;top:470px;width:540px;text-align:center}
 .node .dot{width:38px;height:38px;border-radius:50%;background:#2a5bea;border:6px solid #fff;box-shadow:0 10px 20px -8px #2a5bea;margin:0 auto 24px}
 .node h3{font-family:D;font-size:36px;font-weight:800;margin-bottom:8px}
 .node p{font-size:26px;color:#3f4d68;line-height:1.45}
-.node .when{display:inline-block;margin-bottom:14px;padding:6px 16px;border-radius:999px;background:#e4ecfe;color:#1d44b8;font-weight:700;font-size:23px}
+.node .when{display:inline-block;margin-bottom:14px;padding:8px 20px;border-radius:999px;background:#dbe5ff;color:#0e1a33;font-weight:700;font-size:28px}
 .strike{position:relative;display:inline-block}
 .strike i{position:absolute;right:0;top:55%;height:8px;background:#e0485a;border-radius:4px;width:0}
 .url{display:inline-block;direction:ltr;font-family:D;font-weight:800;font-size:72px;color:#2a5bea;background:#fff;padding:18px 48px;border-radius:999px;border:2px solid #fff;box-shadow:0 30px 70px -30px rgba(42,91,234,.6)}
@@ -111,7 +111,7 @@ body{font-family:B,sans-serif;color:#0e1a33;position:relative;direction:rtl;font
 <!-- A: opening -->
 <div class="scene" id="sA">
   <div class="abs w d" id="a-h1" style="right:140px;top:170px;font-size:104px">في كلِّ صباحٍ…</div>
-  <div class="abs w" id="a-h2" style="right:146px;top:320px;font-size:48px;color:#3f4d68">تبدأ في مدارس درعا <b class="brand">آلافُ القصص الصغيرة</b></div>
+  <div class="abs w" id="a-h2" style="right:146px;top:372px;font-size:48px;color:#3f4d68">تبدأ في مدارس درعا <b class="brand">آلافُ القصص الصغيرة</b></div>
   <div class="abs w glass card" id="a-c1" style="right:140px;top:520px;width:520px"><div class="ic v"><svg><use href="#i-teacher"/></svg></div><div><div class="t1">معلّم يحضّر درسه</div><div class="t2">ويكتب الواجب على اللوح</div></div></div>
   <div class="abs w glass card" id="a-c2" style="right:700px;top:520px;width:520px"><div class="ic o"><svg><use href="#i-student"/></svg></div><div><div class="t1">طالب يبحث عن واجبه</div><div class="t2">في دفتر زميله</div></div></div>
   <div class="abs w glass card" id="a-c3" style="right:1260px;top:520px;width:520px"><div class="ic r"><svg><use href="#i-parent"/></svg></div><div><div class="t1">أبٌ يتساءل</div><div class="t2">كيف كان يوم ابني في المدرسة؟</div></div></div>
@@ -126,7 +126,7 @@ body{font-family:B,sans-serif;color:#0e1a33;position:relative;direction:rtl;font
   <div class="abs w" id="b-mark" style="right:150px;top:150px;width:170px;height:170px;color:#2a5bea"><svg viewBox="0 0 48 48" width="170" height="170"><use href="#i-orbit"/></svg></div>
   <div class="abs w d brand" id="b-name" style="right:350px;top:120px;font-size:190px;font-weight:900;line-height:1.1">مَدار</div>
   <div class="abs w d" id="b-tag" style="right:150px;top:420px;font-size:60px;color:#0e1a33">منظومة تعليمية رقمية متكاملة</div>
-  <div class="abs w" id="b-sub" style="right:154px;top:520px;font-size:38px;color:#3f4d68;line-height:1.6;width:760px">تجمع مديرية التربية، والمدرسة، والمعلّم، والطالب، ووليّ الأمر</div>
+  <div class="abs w" id="b-sub" style="right:154px;top:520px;font-size:38px;color:#3f4d68;line-height:1.6;width:760px;text-wrap:balance">تجمع مديرية التربية، والمدرسة، والمعلّم، والطالب، ووليّ الأمر</div>
   <div class="abs w pill" id="b-line" style="right:154px;top:700px;font-size:34px;padding:16px 34px">في مدارٍ واحد، يدور حول الطالب</div>
   <div class="abs" id="b-orbit" style="left:160px;top:120px;width:840px;height:840px">
     <div class="ring" id="b-r2" style="inset:0"></div>
@@ -158,10 +158,10 @@ body{font-family:B,sans-serif;color:#0e1a33;position:relative;direction:rtl;font
   <div class="abs w pill" id="c-b2" style="right:700px;top:830px;font-size:30px">صفحة الكتاب: ٤٢</div>
   <div class="abs w pill" id="c-b3" style="right:700px;top:920px;font-size:30px">تذكير آلي: مساء السبت</div>
   <div class="abs w tile" id="c-t1" style="right:140px;top:200px"><div class="ic b"><svg><use href="#i-layers"/></svg></div><b>المنهاج كلّه</b></div>
-  <div class="abs w tile" id="c-t2" style="right:500px;top:200px"><div class="ic v"><svg><use href="#i-book"/></svg></div><b>الكتب المدرسية الرقمية</b></div>
-  <div class="abs w tile" id="c-t3" style="right:860px;top:200px"><div class="ic t"><svg><use href="#i-cal"/></svg></div><b>الجدول الدراسي</b></div>
-  <div class="abs w tile" id="c-t4" style="right:1220px;top:200px"><div class="ic o"><svg><use href="#i-users"/></svg></div><b>الحضور والغياب</b></div>
-  <div class="abs w tile" id="c-t5" style="right:1580px;top:200px;width:200px"><div class="ic g"><svg><use href="#i-chart"/></svg></div><b>العلامات</b></div>
+  <div class="abs w tile" id="c-t2" style="right:474px;top:200px"><div class="ic v"><svg><use href="#i-book"/></svg></div><b>الكتب الرقمية</b></div>
+  <div class="abs w tile" id="c-t3" style="right:808px;top:200px"><div class="ic t"><svg><use href="#i-cal"/></svg></div><b>الجدول الدراسي</b></div>
+  <div class="abs w tile" id="c-t4" style="right:1142px;top:200px"><div class="ic o"><svg><use href="#i-users"/></svg></div><b>الحضور والغياب</b></div>
+  <div class="abs w tile" id="c-t5" style="right:1476px;top:200px"><div class="ic g"><svg><use href="#i-chart"/></svg></div><b>العلامات</b></div>
   <div class="abs w d" id="c-banner" style="right:140px;top:560px;font-size:84px;line-height:1.3">في مكانٍ واحد،<br>وبلغةٍ <span class="brand">عربيةٍ كاملة</span></div>
 </div>
 
@@ -170,12 +170,12 @@ body{font-family:B,sans-serif;color:#0e1a33;position:relative;direction:rtl;font
   <div class="abs w" id="d-ic" style="right:140px;top:110px;width:110px;height:110px;border-radius:30px;background:linear-gradient(135deg,#f0a020,#ffd27a);display:grid;place-items:center;color:#fff;box-shadow:0 20px 40px -16px #f0a020"><svg width="60" height="60"><use href="#i-alert"/></svg></div>
   <div class="abs w d" id="d-h" style="right:280px;top:100px;font-size:84px">بروتوكول غياب المعلّم</div>
   <div class="abs w" id="d-sub" style="right:284px;top:230px;font-size:38px;color:#3f4d68">أكثر ما يُربك اليوم الدراسي… صار له نظام</div>
-  <div class="abs w step" id="d-s1" style="right:140px;top:380px"><div class="n">١</div><h3>تسجيل الغياب</h3><p>أ. رنا سعيد · علوم<br>الحصة الثالثة · الخامس (ب)</p></div>
-  <div class="abs w step" id="d-s2" style="right:580px;top:380px"><div class="n">٢</div><h3>بحث آلي عن بديل</h3><p>معلّم متاح في الحصة نفسها</p><div style="display:flex;gap:10px;margin-top:14px" id="d-avas"><span class="ava" style="background:#7a5cff">خ</span><span class="ava" style="background:#14a3b4">ه</span><span class="ava" style="background:#19b887;outline:4px solid #19b887;outline-offset:3px">م</span></div><span class="ok w" id="d-ok">أ. ماهر عادل ✓</span></div>
-  <div class="abs w step" id="d-s3" style="right:1020px;top:380px"><div class="n">٣</div><h3>خطّة الدرس للبديل</h3><p>نشاط رقمي جاهز:<br>«دورة الماء في الطبيعة»</p><span class="ok">أُرسلت للبديل والطلاب</span></div>
-  <div class="abs w step" id="d-s4" style="right:1460px;top:380px;width:320px"><div class="n">٤</div><h3>المديرية ترى الحالة</h3><p>في اللحظة نفسها</p><span class="ok">مغطّاة ✓</span></div>
+  <div class="abs w step" id="d-s1" style="right:140px;top:380px"><div class="n">١</div><h3>تسجيل الغياب</h3><p>أ. رنا سعيد · علوم<br>الحصّة الثالثة · الخامس (ب)</p></div>
+  <div class="abs w step" id="d-s2" style="right:560px;top:380px"><div class="n">٢</div><h3>بحث آلي عن بديل</h3><p>معلّم متاح في الحصّة نفسها · تعتمده الإدارة</p><div style="display:flex;gap:10px;margin-top:14px" id="d-avas"><span class="ava" style="background:#7a5cff">خ</span><span class="ava" style="background:#14a3b4">ه</span><span class="ava" style="background:#19b887;outline:4px solid #19b887;outline-offset:3px">م</span></div><span class="ok w" id="d-ok">أ. ماهر عادل ✓</span></div>
+  <div class="abs w step" id="d-s3" style="right:980px;top:380px"><div class="n">٣</div><h3>خطّة الدرس للبديل</h3><p>نشاط رقمي جاهز:<br>«دورة الماء في الطبيعة»</p><span class="ok">أُرسلت للبديل والطلاب</span></div>
+  <div class="abs w step" id="d-s4" style="right:1400px;top:380px"><div class="n">٤</div><h3>المديرية ترى الحالة</h3><p>في اللحظة نفسها</p><span class="ok">مغطّاة ✓</span></div>
   <div class="abs w d" id="d-final" style="right:140px;top:820px;font-size:88px;line-height:1.2">فلا تضيع <span class="sun">حصّةٌ واحدة</span></div>
-  <div class="abs w kpi g" id="d-zero" style="right:1460px;top:810px;width:320px"><b>٠</b><span>حصص ضائعة اليوم</span></div>
+  <div class="abs w kpi g" id="d-zero" style="right:1400px;top:810px;width:380px"><b>صفر</b><span>حصص بلا تغطية أو توثيق اليوم</span></div>
 </div>
 
 <!-- E: directorate dashboard -->
@@ -188,7 +188,7 @@ body{font-family:B,sans-serif;color:#0e1a33;position:relative;direction:rtl;font
   <div class="abs w kpi" id="e-k3" style="right:826px;top:250px"><b id="e-v3">٠</b><span>واجباً نُشر اليوم</span></div>
   <div class="abs w kpi o" id="e-k4" style="right:1156px;top:250px"><b id="e-v4">٠</b><span>طالباً بإنذار مبكر</span></div>
   <div class="abs w" id="e-chart" style="right:166px;top:440px;width:960px;background:rgba(255,255,255,.92);border-radius:26px;padding:26px 30px;border:1.5px solid #fff">
-    <div style="font-weight:700;font-size:28px;margin-bottom:16px">الحضور حسب المنطقة التعليمية</div>
+    <div style="font-weight:700;font-size:28px;margin-bottom:16px">الحضور حسب المجمّع التربوي</div>
     <div class="bars">
       <div class="bar"><span>درعا المدينة</span><div class="tr"><i data-w="93"></i></div><b>٩٣٪</b></div>
       <div class="bar"><span>إزرع</span><div class="tr"><i data-w="92"></i></div><b>٩٢٪</b></div>
@@ -201,7 +201,7 @@ body{font-family:B,sans-serif;color:#0e1a33;position:relative;direction:rtl;font
     <div style="font-weight:700;font-size:28px;margin-bottom:16px">يحتاج تدخّلاً اليوم</div>
     <div style="display:grid;gap:10px">
       <div class="row hl"><span style="flex:1">٣ مدارس لم ترفع الحضور حتى ٩:٠٠</span><span class="tag s">متابعة</span></div>
-      <div class="row hl"><span style="flex:1">نوى الأولى: ٤ حصص غير مغطّاة</span><span class="tag s">قرار</span></div>
+      <div class="row hl"><span style="flex:1">مدرسة (د) · مجمّع نوى: ٤ حصص غير مغطّاة</span><span class="tag s">قرار</span></div>
       <div class="row"><span style="flex:1">١٢٨ طالباً تجاوزوا ٣ أيام غياب</span><span class="tag">إنذار مبكر</span></div>
     </div>
   </div>
@@ -210,7 +210,7 @@ body{font-family:B,sans-serif;color:#0e1a33;position:relative;direction:rtl;font
 
 <!-- F: devices, offline, sms, security -->
 <div class="scene" id="sF">
-  <div class="abs w phone" id="f-phone" style="right:170px;top:120px"><div class="notch"></div><div class="scr">
+  <div class="abs w phone" id="f-phone" style="right:170px;top:80px"><div class="notch"></div><div class="scr">
     <div style="font-family:D;font-weight:800;font-size:28px">أهلاً ليان!</div>
     <div style="font-size:20px;color:#3f4d68">الصف الخامس (ب) · سلسلة ٧ أيام</div>
     <div class="row ok" style="font-size:21px"><span class="ava" style="width:40px;height:40px;font-size:18px;background:#19b887">✓</span><span>رياضيات · ص ٤٢</span></div>
@@ -218,22 +218,22 @@ body{font-family:B,sans-serif;color:#0e1a33;position:relative;direction:rtl;font
     <div class="row hl" style="font-size:21px"><span class="ava" style="width:40px;height:40px;font-size:18px;background:#f0a020">ع</span><span>علوم · حصة بديلة اليوم</span></div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:6px"><div style="aspect-ratio:3/4;border-radius:14px;background:linear-gradient(160deg,#2a5bea,#6f97ff);color:#fff;padding:12px;font-weight:700;font-size:20px">الرياضيات</div><div style="aspect-ratio:3/4;border-radius:14px;background:linear-gradient(160deg,#19b887,#7fe3bf);color:#fff;padding:12px;font-weight:700;font-size:20px">العلوم</div></div>
   </div></div>
-  <div class="abs w chip" id="f-l1" style="right:170px;top:1000px;font-size:30px"><span class="dot" style="background:#7a5cff"></span>تطبيق أندرويد</div>
+  <div class="abs w chip" id="f-l1" style="right:170px;top:955px;font-size:30px"><span class="dot" style="background:#7a5cff"></span>تطبيق أندرويد</div>
   <div class="abs w laptop" id="f-laptop" style="right:660px;top:150px"><div class="lid"><div class="scr">
     <div style="grid-column:1/-1;font-family:D;font-weight:800;font-size:26px">مدرسة درعا النموذجية · لوحة اليوم</div>
-    <div class="mini"><b>٩٤٪</b>حضور الطلاب</div><div class="mini"><b>٣٨/٤٠</b>المعلّمون الحاضرون</div><div class="mini"><b style="color:#19b887">٠</b>حصّة بلا تغطية</div><div class="mini"><b>١٤</b>واجباً نُشر اليوم</div>
-    <div class="mini" style="grid-column:1/-1;display:flex;gap:10px;align-items:center"><span class="tag m">مغطّاة</span>الحصة ٣ · الخامس (ب) · البديل أ. ماهر عادل</div>
+    <div class="mini"><b>٩٤٪</b>حضور الطلاب</div><div class="mini"><b>٣٨/٤٠</b>المعلّمون الحاضرون</div><div class="mini"><b style="color:#19b887">صفر</b>حصّة بلا تغطية</div><div class="mini"><b>١٤</b>واجباً نُشر اليوم</div>
+    <div class="mini" style="grid-column:1/-1;display:flex;gap:10px;align-items:center"><span class="tag m">مغطّاة</span>الحصّة ٣ · الخامس (ب) · البديل أ. ماهر عادل</div>
   </div></div><div class="base"></div></div>
   <div class="abs w chip" id="f-l2" style="right:900px;top:760px;font-size:30px"><span class="dot" style="background:#2a5bea"></span>موقع ويب على الحاسوب</div>
   <div class="abs w chip" id="f-off" style="right:900px;top:860px;font-size:30px;background:#fff7e8;border-color:#ffd27a"><svg width="34" height="34" style="color:#f0a020"><use href="#i-wifi"/></svg>يعمل حتى عند ضعف الإنترنت</div>
-  <div class="abs w sms" id="f-sms" style="right:660px;top:150px"><b style="color:#e85d8d">SMS · مَدار</b><br>تمّ تسجيل غياب محمد اليوم، الحصة الأولى. مدرسة درعا النموذجية.<small>تصل برسالة نصية إلى كلّ أبٍ وأمّ، حتى بلا إنترنت</small></div>
+  <div class="abs w sms" id="f-sms" style="right:660px;top:150px"><b style="color:#e85d8d">SMS · مَدار</b><br>تمّ تسجيل غياب عبد الرحمن اليوم، الحصّة الأولى. مدرسة درعا النموذجية.<small>تصل برسالة نصية إلى كلّ أبٍ وأمّ، حتى بلا إنترنت</small></div>
   <div class="abs w glass card" id="f-shield" style="right:660px;top:460px;width:900px;padding:36px 40px"><div class="ic g"><svg><use href="#i-shield"/></svg></div><div><div class="t1">بيانات أبنائنا محميّة</div><div class="t2">تحت إدارة المديرية · صلاحيات محدّدة لكلّ دور · سجلّ تدقيق ونسخ احتياطي يومي</div></div></div>
 </div>
 
 <!-- G: global benchmark -->
 <div class="scene" id="sG">
-  <div class="abs w d" id="g-h" style="right:140px;top:110px;font-size:76px;width:1640px">درسنا أفضل المنظومات التعليمية في العالم</div>
-  <div class="abs w glass card" id="g-c1" style="right:140px;top:330px;width:400px;flex-direction:column;align-items:flex-start;gap:10px"><div class="pill" style="direction:ltr">eKool</div><div class="t1">إستونيا</div><div class="t2">تدير كلّ المدارس منذ عقدين</div></div>
+  <div class="abs w d" id="g-h" style="right:140px;top:110px;font-size:68px;width:1640px;text-wrap:balance">درسنا أفضل المنظومات التعليمية في العالم</div>
+  <div class="abs w glass card" id="g-c1" style="right:140px;top:330px;width:400px;flex-direction:column;align-items:flex-start;gap:10px"><div class="pill" style="direction:ltr">eKool</div><div class="t1">إستونيا</div><div class="t2">تعتمدها معظم المدارس منذ عقدين</div></div>
   <div class="abs w glass card" id="g-c2" style="right:560px;top:330px;width:400px;flex-direction:column;align-items:flex-start;gap:10px"><div class="pill" style="direction:ltr">Wilma</div><div class="t1">فنلندا</div><div class="t2">تربط الأهالي بالمدرسة يومياً</div></div>
   <div class="abs w glass card" id="g-c3" style="right:980px;top:330px;width:400px;flex-direction:column;align-items:flex-start;gap:10px"><div class="pill">مدرستي</div><div class="t1">السعودية</div><div class="t2">منصّة على مستوى الوزارة</div></div>
   <div class="abs w glass card" id="g-c4" style="right:1400px;top:330px;width:380px;flex-direction:column;align-items:flex-start;gap:10px"><div class="pill" style="direction:ltr">Google Classroom</div><div class="t1">العالم</div><div class="t2">أفضل أدوات الصف</div></div>
@@ -246,7 +246,7 @@ body{font-family:B,sans-serif;color:#0e1a33;position:relative;direction:rtl;font
 <!-- H: roadmap -->
 <div class="scene" id="sH">
   <div class="abs w d" id="h-h" style="right:140px;top:140px;font-size:80px">نقترح البدء الآن</div>
-  <div class="abs w" id="h-sub" style="right:144px;top:270px;font-size:38px;color:#3f4d68">مرحلة تجريبية بلا تكلفة على المديرية</div>
+  <div class="abs w" id="h-sub" style="right:144px;top:270px;font-size:38px;color:#3f4d68">مرحلة تجريبية بلا رسوم للمنصّة على المديرية</div>
   <div class="road w" id="h-road"><i id="h-fill"></i></div>
   <div class="node w" id="h-n1" style="right:160px"><div class="dot"></div><span class="when">شهران</span><h3>١٠ مدارس في درعا</h3><p>الواجبات · الجدول والحضور · غياب المعلّم · التواصل</p></div>
   <div class="node w" id="h-n2" style="right:750px"><div class="dot"></div><span class="when">٣ أشهر</span><h3>كلّ مدارس المديرية</h3><p>لوحة المديرية الكاملة · SMS · الكتب الرقمية</p></div>
@@ -282,12 +282,12 @@ function show(id,t,a,dur=.55,dy=36,pop=false,b=1e9,extra=""){
 const SC=[['sA',0,24.2],['sB',24.2,41.0],['sC',41.0,69.5],['sD',69.5,101.0],['sE',101.0,123.6],['sF',123.6,147.2],['sG',147.2,170.7],['sH',170.7,182.0],['sI',182.0,999]]
 // fan-out network for scene C (built once)
 const AV=[];(function(){
-  const host=$('c-avas'); const cols=[{x:1300,c:'#f0a020',ch:['م','ل','ع','ه','ر','س']},{x:1600,c:'#e85d8d',ch:['أ','أ','أ','أ','أ','أ']}]
+  const host=$('c-avas'); const cols=[{x:1180,c:'#f0a020',ch:['م','ل','ع','ه','ر','س']},{x:980,c:'#e85d8d',ch:['أ','أ','أ','أ','أ','أ']}]
   const svg=$('c-lines')
   cols.forEach((col,ci)=>col.ch.forEach((ch,i)=>{
     const y=250+i*110; const a=document.createElement('span'); a.className='ava w'; a.textContent=ch; a.style.cssText=`position:absolute;left:${col.x}px;top:${y}px;background:${col.c}`; host.appendChild(a)
     const ln=document.createElementNS('http://www.w3.org/2000/svg','path'); const x0=1920-150-420, y0=600
-    ln.setAttribute('d',`M${x0} ${y0} C ${x0+200} ${y0}, ${col.x-100} ${y+33}, ${col.x} ${y+33}`); ln.setAttribute('opacity','.55'); svg.appendChild(ln)
+    ln.setAttribute('d',`M${x0} ${y0} C ${x0-120} ${y0}, ${col.x+170} ${y+33}, ${col.x+66} ${y+33}`); ln.setAttribute('opacity','.55'); svg.appendChild(ln)
     const len=ln.getTotalLength(); ln.style.strokeDasharray=len; ln.style.strokeDashoffset=len
     AV.push({a,ln,len,ci,i})
   }))
@@ -307,7 +307,7 @@ function render(t){
     show('a-c1',t,6.0,.6,40,true); show('a-c2',t,8.3,.6,40,true); show('a-c3',t,10.5,.6,40,true)
     show('a-h3',t,15.0,.7,30)
     const sc=P(t,15.2,19.5); // cards drift apart
-    const dr=[[-90,-70,-8],[0,90,5],[90,-60,7]]
+    const dr=[[-40,-80,-8],[0,130,5],[40,-70,7]]
     ;['a-c1','a-c2','a-c3'].forEach((id,i)=>{const el=$(id);const [dx,dy,r]=dr[i];el.style.transform+=` translate(${eio(sc)*dx}px,${eio(sc)*dy}px) rotate(${eio(sc)*r}deg)`;el.style.opacity=parseFloat(el.style.opacity)*(1-sc*.35)})
     show('a-s1',t,18.6,.5,20,true,1e9,'rotate(-6deg)'); show('a-s2',t,20.2,.5,20,true,1e9,'rotate(3deg)'); show('a-s3',t,21.8,.5,20,true,1e9,'rotate(-2deg)')
   }
@@ -316,11 +316,11 @@ function render(t){
     show('b-mark',t,24.5,.7,0,true); $('b-mark').style.transform+=` rotate(${t*12}deg)`
     show('b-name',t,25.0,.8,40,true); show('b-tag',t,27.6,.7,30); show('b-sub',t,29.2,.7,24); show('b-line',t,38.4,.6,20,true)
     const ro=P(t,25,27.5); $('b-r1').style.opacity=ro; $('b-r2').style.opacity=ro
-    $('b-r1').style.transform=`rotate(${t*9}deg)`; $('b-r2').style.transform=`rotate(${-t*6}deg)`
+    $('b-r1').style.transform=`rotate(${-t*6}deg)`; $('b-r2').style.transform=`rotate(${-t*6}deg)`
     show('b-core',t,35.4,.7,0,true)
     const cx=420,cy=420
     const sats=[['b-s1',31.0,0,420],['b-s2',32.6,90,290],['b-s3',34.0,180,290],['b-s4',37.0,270,420]]
-    for(const [id,a,ang,r] of sats){const el=$(id);const x=P(t,a,a+.6);const th=(ang+(r>300?-t*6:t*9))*Math.PI/180;el.style.left=(cx+r*Math.cos(th))+'px';el.style.top=(cy+r*Math.sin(th))+'px';el.style.opacity=x;el.style.transform=`translate(-50%,-50%) scale(${lerp(.6,1,eb(x))})`}
+    for(const [id,a,ang,r] of sats){const el=$(id);const x=P(t,a,a+.6);const th=(ang-t*6)*Math.PI/180;el.style.left=(cx+r*Math.cos(th))+'px';el.style.top=(cy+r*Math.sin(th))+'px';el.style.opacity=x;el.style.transform=`translate(-50%,-50%) scale(${lerp(.6,1,eb(x))})`}
   }
   // ---- C
   if(t>=40.7&&t<70){
@@ -330,13 +330,13 @@ function render(t){
     $('c-btn').style.transform+=t>44.9&&t<45.3?' scale(.95)':''
     for(const {a,ln,len,ci,i} of AV){const st=45.5+ci*1.4+i*.18;const x=P(t,st,st+.5);ln.style.strokeDashoffset=len*(1-eo(x));ln.style.opacity=.55*x*ph;a.style.opacity=P(t,st+.35,st+.75)*ph;a.style.transform=`scale(${lerp(.5,1,eb(P(t,st+.35,st+.85)))})`}
     show('c-n1',t,47.3,.5,20,true,56.3); show('c-n2',t,48.6,.5,20,true,56.3)
-    show('c-b1',t,49.3,.5,20,false,56.3); show('c-b2',t,51.7,.5,20,false,56.3); show('c-b3',t,54.0,.5,20,false,56.3)
-    show('c-t1',t,57.4,.6,40,true); show('c-t2',t,59.4,.6,40,true); show('c-t3',t,61.4,.6,40,true); show('c-t4',t,63.4,.6,40,true); show('c-t5',t,65.3,.6,40,true)
-    show('c-banner',t,66.4,.8,30)
+    show('c-b1',t,50.7,.5,20,false,56.3); show('c-b2',t,52.3,.5,20,false,56.3); show('c-b3',t,54.0,.5,20,false,56.3)
+    show('c-t1',t,57.4,.6,40,true); show('c-t2',t,59.4,.6,40,true); show('c-t3',t,61.4,.6,40,true); show('c-t4',t,62.6,.6,40,true); show('c-t5',t,64.1,.6,40,true)
+    show('c-banner',t,65.5,.8,30)
   }
   // ---- D
   if(t>=69.2&&t<101.5){
-    show('d-ic',t,69.8,.6,0,true); show('d-h',t,70.0,.7,30); show('d-sub',t,72.6,.7,24)
+    show('d-ic',t,69.8,.6,0,true); show('d-h',t,70.0,.7,30); show('d-sub',t,74.0,.7,24)
     show('d-s1',t,78.8,.6,40,true); show('d-s2',t,81.1,.6,40,true); show('d-s3',t,85.6,.6,40,true); show('d-s4',t,92.0,.6,40,true)
     show('d-ok',t,83.6,.4,10,true)
     const scan=P(t,81.6,83.5); $('d-avas').style.opacity=1; [...$('d-avas').children].forEach((a,i)=>{const on=Math.floor(scan*6)%3===i&&scan<1; a.style.transform=on?'scale(1.15)':'scale(1)'; a.style.opacity=scan>=1?(i===2?1:.35):1})
@@ -345,16 +345,16 @@ function render(t){
   // ---- E
   if(t>=100.7&&t<124){
     show('e-frame',t,101.2,.8,40);
-    show('e-k1',t,103.0,.6,24,true); show('e-k2',t,105.5,.6,24,true); show('e-k3',t,108.0,.6,24,true); show('e-k4',t,113.0,.6,24,true)
-    $('e-v1').textContent=AR((91.4*eo(P(t,103.2,105))).toFixed(1))+'٪'; $('e-v2').textContent=AR(Math.round(96*eo(P(t,105.7,107.5))))+'٪'; $('e-v3').textContent=AR(Math.round(312*eo(P(t,108.2,110)))); $('e-v4').textContent=AR(Math.round(128*eo(P(t,113.2,115))))
-    show('e-chart',t,110.0,.7,30); show('e-alerts',t,112.0,.7,30)
-    document.querySelectorAll('#e-chart .tr i').forEach((b,i)=>b.style.width=(+b.dataset.w*eo(P(t,110.6+i*.25,112+i*.25)))+'%')
-    show('e-banner',t,117.6,.7,24); $('e-strike').style.width=(eo(P(t,120.4,121.2))*100)+'%'
+    show('e-k1',t,104.9,.6,24,true); show('e-k2',t,107.3,.6,24,true); show('e-k3',t,109.9,.6,24,true); show('e-k4',t,113.2,.6,24,true)
+    $('e-v1').textContent=AR((91.4*eo(P(t,105.1,106.9))).toFixed(1))+'٪'; $('e-v2').textContent=AR(Math.round(96*eo(P(t,107.5,109.3))))+'٪'; $('e-v3').textContent=AR(Math.round(840*eo(P(t,110.1,111.5)))); $('e-v4').textContent=AR(Math.round(128*eo(P(t,113.4,115.2))))
+    show('e-chart',t,104.0,.7,30); show('e-alerts',t,111.6,.7,30)
+    document.querySelectorAll('#e-chart .tr i').forEach((b,i)=>b.style.width=(+b.dataset.w*eo(P(t,104.6+i*.25,106.2+i*.25)))+'%')
+    show('e-banner',t,117.6,.7,24); $('e-strike').style.width=(eo(P(t,121.3,122.1))*100)+'%'
   }
   // ---- F
   if(t>=123.2&&t<147.6){
     show('f-phone',t,123.8,.8,80); show('f-l1',t,125.2,.5,20,true)
-    show('f-laptop',t,126.0,.8,60,false,132.9); show('f-l2',t,127.6,.5,20,true,132.9)
+    show('f-laptop',t,127.2,.8,60,false,132.9); show('f-l2',t,128.2,.5,20,true,132.9)
     show('f-off',t,130.3,.5,20,true,132.9)
     show('f-sms',t,133.3,.6,30,true,139.4)
     show('f-shield',t,139.9,.7,40,true)
