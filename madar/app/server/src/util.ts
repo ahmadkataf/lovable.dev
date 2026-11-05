@@ -32,6 +32,8 @@ export const monthStart = (date: string): string => date.slice(0, 8) + '01'
 export const nextMonthStart = (date: string): string => monthStart(addDays(monthStart(date), 31))
 
 export const DAY_NAMES = ['الأحد', 'الاثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت']
+/** Levantine month names (the same list the client uses). */
+export const MONTH_NAMES = ['كانون الثاني', 'شباط', 'آذار', 'نيسان', 'أيار', 'حزيران', 'تموز', 'آب', 'أيلول', 'تشرين الأول', 'تشرين الثاني', 'كانون الأول']
 export const ORDINALS = ['', 'الأولى', 'الثانية', 'الثالثة', 'الرابعة', 'الخامسة', 'السادسة', 'السابعة']
 
 /** Period start times per shift (45-minute periods, a long break after the third). */
@@ -53,14 +55,36 @@ export function countPhrase(n: number, forms: { one: string; two: string; few: s
 }
 export const periodsPhrase = (n: number) => countPhrase(n, { one: 'حصّة واحدة', two: 'حصّتان', few: 'حصص', many: 'حصّة' })
 
-/** «اليوم» for today, otherwise «يوم الخميس ٦/١١». */
+const NUMBER_WORDS = ['', 'واحد', 'اثنان', 'ثلاثة', 'أربعة', 'خمسة', 'ستّة', 'سبعة', 'ثمانية', 'تسعة', 'عشرة']
+/** Consecutive days: «يوم واحد» / «يومان متتاليان» / «ثلاثة أيام متتالية» (spelled out up to ten) / «١٢ يوماً متتالياً». */
+export function daysPhrase(n: number): string {
+  if (n === 1) return 'يوم واحد'
+  if (n === 2) return 'يومان متتاليان'
+  if (n >= 3 && n <= 10) return `${NUMBER_WORDS[n]} أيام متتالية`
+  return `${arDigits(n)} يوماً متتالياً`
+}
+
+/** «اليوم» for today, otherwise «يوم الخميس ٦ تشرين الثاني». */
 export function dayPhrase(date: string): string {
   if (date === today()) return 'اليوم'
   const [, m, d] = date.split('-').map(Number)
-  return `يوم ${DAY_NAMES[weekday(date)]} ${arDigits(d)}/${arDigits(m)}`
+  return `يوم ${DAY_NAMES[weekday(date)]} ${arDigits(d)} ${MONTH_NAMES[m - 1]}`
 }
 
-export const firstName = (name: string): string => name.trim().split(/\s+/)[0] ?? name
+/** Compound first names («عبد الرحمن», «عبد الله», «أبو بكر», «أم كلثوم») are kept whole. */
+const COMPOUND_FIRST = new Set(['عبد', 'أبو', 'ابو', 'أم', 'ام'])
+export function firstName(name: string): string {
+  const parts = (name ?? '').trim().replace(/^أ\.\s*/, '').split(/\s+/).filter(Boolean)
+  if (!parts.length) return ''
+  return COMPOUND_FIRST.has(parts[0]) && parts.length > 1 ? `${parts[0]} ${parts[1]}` : parts[0]
+}
+
+/** The preposition «ل» attached to a name: «لمحمد», «للحسن» (no tatweel). */
+export function li(word: string): string {
+  const w = (word ?? '').trim()
+  if (!w) return ''
+  return w.startsWith('ال') ? `لل${w.slice(2)}` : `ل${w}`
+}
 
 /** Every write records who did what to what. */
 export async function audit(db: D1Database, userId: number | null, action: string, target: string | number | null = null): Promise<void> {

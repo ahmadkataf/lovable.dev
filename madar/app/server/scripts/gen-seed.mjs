@@ -133,6 +133,11 @@ const seen = new Set()
 for (const r of timetable) { const k = `${r[4]},${r[1]},${r[2]}`; assert(!seen.has(k), 'double booking ' + k); seen.add(k) }
 
 // ---------- students and guardians ----------
+// A guardian is named after the student's father (the second part of the student's name) plus a surname. Compound
+// given names («عبد الرحمن يوسف») are kept whole, so the father is «يوسف», never «الرحمن».
+const COMPOUND_FIRST = new Set(['عبد', 'أبو', 'أم'])
+const givenName = (name) => { const p = name.trim().split(/\s+/); return COMPOUND_FIRST.has(p[0]) && p.length > 1 ? `${p[0]} ${p[1]}` : p[0] }
+const fatherOf = (name) => name.trim().slice(givenName(name).length).trim()
 const students = []   // [id, user_id, section_id, guardian_user_id, registry_no, name, code]
 const guardians = []  // [user_id, name, phone, code]
 let sid = 0, guardianId = 401, pn = 1
@@ -147,7 +152,7 @@ for (const [secId, , , , prefix] of SECTIONS) {
       if (name === 'سارة خالد') guardian = 409   // second child of the demo parent خالد (P-KHALED)
       else {
         guardian = guardianId++
-        const father = name.split(' ')[1]
+        const father = fatherOf(name)
         const code = guardian === 409 ? 'P-KHALED' : `P-${pn}`
         pn++
         guardians.push([guardian, `${father} ${SURNAMES[(guardian - 401) % SURNAMES.length]}`, `09400${String(guardian).padStart(5, '0')}`, code])
@@ -182,7 +187,7 @@ out.push(`INSERT OR IGNORE INTO timetable (id, section_id, day, period, subject_
 out.push(`-- Homework: the pitch's maths homework for الخامس (ب) due in three days, plus a little variety.
 INSERT OR IGNORE INTO homework (id, section_id, subject_id, teacher_id, title, details, book_page, due_date, created_at) VALUES
   (1, 2, 2, 11, 'تمارين الكسور العشرية ص ٤٢', 'حلّ التمارين من ١ إلى ٨ في الدفتر، مع كتابة خطوات الحلّ.', '42', date('now','+3 hours','+3 days'), datetime('now','-2 hours')),
-  (2, 2, 1, 14, 'قراءة نصّ «الوطن» وإجابة الأسئلة', 'الإجابة عن أسئلة الفهم والاستيعاب في الدفتر.', '17', date('now','+3 hours','+1 day'), datetime('now','-2 days')),
+  (2, 2, 1, 14, 'قراءة نصّ «الوطن» والإجابة عن الأسئلة', 'الإجابة عن أسئلة الفهم والاستيعاب في الدفتر.', '17', date('now','+3 hours','+1 day'), datetime('now','-2 days')),
   (3, 1, 3, 12, 'تلخيص درس دورة الماء في الطبيعة', NULL, '55', date('now','+3 hours','+2 days'), datetime('now','-1 day')),
   (4, 3, 2, 11, 'مسائل النسبة والتناسب ص ٣٠', 'المسائل ١ و٢ و٣.', '30', date('now','+3 hours','+4 days'), datetime('now','-1 day'));
 INSERT OR IGNORE INTO submissions (homework_id, student_id, status, submitted_at) VALUES
@@ -232,7 +237,7 @@ INSERT OR IGNORE INTO absences (teacher_id, date, reason, reported_by) VALUES (1
 
 out.push(`-- One school announcement and one directorate circular.
 INSERT OR IGNORE INTO announcements (id, school_id, title, body, urgent, created_by, created_at) VALUES
-  (1, 1, 'اجتماع أولياء الأمور', 'يُعقد اجتماع أولياء الأمور يوم الأحد القادم في الساعة العاشرة صباحًا في قاعة المدرسة. حضوركم يهمّنا.', 0, 2, datetime('now','-1 day')),
+  (1, 1, 'اجتماع أولياء الأمور', 'يُعقد اجتماع أولياء الأمور يوم الأحد القادم في الساعة العاشرة صباحاً في قاعة المدرسة. حضوركم يهمّنا.', 0, 2, datetime('now','-1 day')),
   (2, NULL, 'تعميم: تحديث بيانات الطلاب', 'يُرجى من إدارات المدارس استكمال تحديث بيانات الطلاب وأولياء الأمور على المنصّة قبل نهاية الأسبوع.', 0, 1, datetime('now','-2 days'));`)
 
 // A few notifications so the demo accounts' bells are not empty (guarded by NOT EXISTS → idempotent).

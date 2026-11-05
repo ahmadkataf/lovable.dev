@@ -1,9 +1,10 @@
 // Routes shared by every role: login, /me, notifications, timetable, announcements list, section roster.
 import { Hono } from 'hono'
 import { ApiError, type AppEnv, type User } from '../types'
-import { loginLimiter, newPayload, requireAuth, secretOf, signToken } from '../auth'
+import { clientIp, loginLimiter, newPayload, requireAuth, secretOf, signToken } from '../auth'
 import { audit, bad, intParam, isDate, periodStart, placeholders, readBody, today, weekday } from '../util'
 import { parentChildren, requireSection, requireTeacherOfSchool, studentByUser, teacherSections } from '../scope'
+import { doStub } from '../dbshim'
 
 const r = new Hono<AppEnv>()
 
@@ -35,12 +36,18 @@ export async function meResponse(db: D1Database, user: User) {
   }
 }
 
+const TOO_MANY = 'محاولات كثيرة، يُرجى المحاولة مجدّداً بعد قليل'
+
 r.post('/api/login', async c => {
-  const ip = c.req.header('cf-connecting-ip') ?? 'local'
-  if (!loginLimiter.hit(ip)) throw new ApiError(429, 'محاولات كثيرة، حاول مجدّدًا بعد قليل')
+  const ip = clientIp(c)
+  // First line: the isolate's own memory (cheap). Second line: the database object, which every isolate shares and
+  // which survives restarts, so the 20-per-10-minutes limit holds in production too.
+  if (!loginLimiter.hit(ip)) throw new ApiError(429, TOO_MANY)
+  const stub = doStub(c.env)
+  if (stub && !(await stub.loginAttempt(ip)).allowed) throw new ApiError(429, TOO_MANY)
   const body = await readBody(c)
   const code = typeof body.code === 'string' ? body.code.trim().toUpperCase() : ''
-  if (!code) throw bad('أدخل رمز الدخول')
+  if (!code) throw bad('يلزم إدخال رمز الدخول')
   const user = await c.env.DB.prepare('SELECT id, role, name, school_id, subject_id FROM users WHERE code = ?').bind(code).first<User>()
   if (!user) throw new ApiError(401, 'رمز الدخول غير صحيح')
   const token = await signToken(newPayload(user.id, user.role), secretOf(c.env))
@@ -60,7 +67,7 @@ r.post('/api/notifications/read', requireAuth(), async c => {
   const user = c.get('user')
   const body = await readBody(c)
   const ids = Array.isArray(body.ids) ? body.ids.map(Number).filter(n => Number.isInteger(n) && n > 0).slice(0, 200) : []
-  if (!ids.length && body.all !== true) throw bad('حدّد الإشعارات المقروءة')
+  if (!ids.length && body.all !== true) throw bad('يلزم تحديد الإشعارات المقروءة')
   const sql = ids.length
     ? `UPDATE notifications SET read_at = datetime('now') WHERE user_id = ? AND read_at IS NULL AND id IN (${placeholders(ids.length)})`
     : "UPDATE notifications SET read_at = datetime('now') WHERE user_id = ? AND read_at IS NULL"
@@ -115,7 +122,7 @@ r.get('/api/timetable', requireAuth(), async c => {
   if (teacherId !== null) {
     if (user.role === 'teacher' && teacherId !== user.id) throw new ApiError(403, 'لا يمكنك عرض جدول معلّم آخر')
     if (user.role === 'school') await requireTeacherOfSchool(db, teacherId, user.school_id)
-    if (user.role === 'student' || user.role === 'parent') throw new ApiError(403, 'حدّد الشعبة بدلًا من المعلّم')
+    if (user.role === 'student' || user.role === 'parent') throw new ApiError(403, 'تُحدَّد الشعبة بدلاً من المعلّم')
   }
   if (sectionId === null && teacherId === null) {
     switch (user.role) {
@@ -123,7 +130,7 @@ r.get('/api/timetable', requireAuth(), async c => {
       case 'student': sectionId = (await studentByUser(db, user.id))?.section_id ?? null; break
       case 'parent': sectionId = (await parentChildren(db, user.id))[0]?.section_id ?? null; break
       case 'school': schoolId = user.school_id; break
-      case 'directorate': throw bad('حدّد الشعبة أو المعلّم')
+      case 'directorate': throw bad('يلزم تحديد الشعبة أو المعلّم')
     }
     if (user.role !== 'school' && sectionId === null && teacherId === null) return c.json([])
   }
@@ -141,7 +148,8 @@ r.get('/api/announcements', requireAuth(), async c => {
   return c.json(results)
 })
 
-/** The students of a section with their attendance status for one date/period — for attendance entry. */
+/** The students of a section with their attendance status for one date/period — for attendance entry.
+ *  The registry number stays server-side: the roster needs only ids and names. */
 r.get('/api/sections/:id/roster', requireAuth('teacher', 'school', 'directorate'), async c => {
   const sectionId = intParam(c.req.param('id'))
   if (sectionId === null) throw bad()
@@ -149,7 +157,7 @@ r.get('/api/sections/:id/roster', requireAuth('teacher', 'school', 'directorate'
   const date = isDate(c.req.query('date')) ? c.req.query('date')! : today()
   const period = intParam(c.req.query('period'))
   const { results } = await c.env.DB.prepare(`
-    SELECT st.id AS student_id, u.name, st.registry_no,
+    SELECT st.id AS student_id, u.name,
            (SELECT a.status FROM attendance a WHERE a.student_id = st.id AND a.date = ? AND (? IS NULL OR a.period = ?) ORDER BY a.period LIMIT 1) AS status
     FROM students st JOIN users u ON u.id = st.user_id WHERE st.section_id = ? ORDER BY u.name`).bind(date, period, period, sectionId).all()
   return c.json({ section: { id: section.id, grade: section.grade, label: section.label, shift: section.shift }, date, period, students: results })

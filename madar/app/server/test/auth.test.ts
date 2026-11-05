@@ -1,5 +1,24 @@
 import { describe, expect, it } from 'vitest'
-import { RateLimiter, newPayload, signToken, verifyToken } from '../src/auth'
+import { RateLimiter, newPayload, safeEqual, secretOf, signToken, verifyToken } from '../src/auth'
+
+describe('token secret', () => {
+  it('uses the configured secret, refuses to run an https deployment without one, and keeps the dev default locally', () => {
+    expect(secretOf({ TOKEN_SECRET: 's3cret', APP_URL: 'https://app.madar.raqeem.dev' })).toBe('s3cret')
+    expect(() => secretOf({ APP_URL: 'https://app.madar.raqeem.dev' })).toThrow('TOKEN_SECRET unset')
+    expect(() => secretOf({ TOKEN_SECRET: '', APP_URL: 'https://madar-app.almutafawiqin.workers.dev' })).toThrow('TOKEN_SECRET unset')
+    expect(secretOf({ APP_URL: 'http://localhost:8787' })).toBe('dev-secret')
+    expect(secretOf({})).toBe('dev-secret')
+  })
+
+  it('compares secrets in constant time and never matches an empty or missing key', () => {
+    expect(safeEqual('abc', 'abc')).toBe(true)
+    expect(safeEqual('abc', 'abd')).toBe(false)
+    expect(safeEqual('abc', 'abcd')).toBe(false)
+    expect(safeEqual('', '')).toBe(false)
+    expect(safeEqual(undefined, 'abc')).toBe(false)
+    expect(safeEqual('abc', undefined)).toBe(false)
+  })
+})
 
 describe('login tokens', () => {
   const secret = 'test-secret'

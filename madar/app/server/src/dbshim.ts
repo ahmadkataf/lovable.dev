@@ -1,5 +1,7 @@
 // A D1Database look-alike over the MadarDB Durable Object (only the methods the routes use).
 import type { QueryResult, RunMeta } from './do'
+import type { Verdict } from './ratelimit'
+import type { Env } from './types'
 
 /** The subset of the MadarDB RPC surface the shim uses (typed by hand: the generated stub type is too strict). */
 export interface DbStub {
@@ -9,7 +11,13 @@ export interface DbStub {
   execScript(script: string): Promise<number>
   reset(): Promise<number>
   health(): Promise<Record<string, number>>
+  loginAttempt(ip: string): Promise<Verdict>
+  adminAttempt(ip: string): Promise<Verdict>
 }
+
+/** A fresh stub of the one database object, or null when the Worker runs without the binding (tests use a fake D1). */
+export const doStub = (env: Pick<Env, 'MADAR_DO'>): DbStub | null =>
+  env.MADAR_DO ? (env.MADAR_DO.get(env.MADAR_DO.idFromName('main')) as unknown as DbStub) : null
 type Stub = DbStub
 interface Bound { __sql: string; __params: unknown[] }
 const meta = (changes = 0, last_row_id = 0) => ({ changes, last_row_id, duration: 0, size_after: 0, rows_read: 0, rows_written: 0, changed_db: changes > 0 })

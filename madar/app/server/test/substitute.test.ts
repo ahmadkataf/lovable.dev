@@ -38,7 +38,7 @@ describe('rankCandidates', () => {
     expect(ranked.map(c => c.teacher_id)).toEqual([2, 4, 3, 5])
     expect(ranked.map(c => c.tier)).toEqual([1, 2, 2, 3])
     expect(ranked[0].reason).toContain('المادّة نفسها')
-    expect(ranked[1].reason).toContain('يدرّس الشعبة')
+    expect(ranked[1].reason).toContain('من معلّمي الشعبة')
     expect(ranked[3].reason).toContain('حصّة فراغ')
   })
 

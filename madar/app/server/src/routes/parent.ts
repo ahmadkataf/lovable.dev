@@ -70,7 +70,7 @@ r.post('/api/messages', requireAuth('parent', 'teacher', 'school'), async c => {
   const res = await db.prepare('INSERT INTO messages (from_user, to_user, body) VALUES (?, ?, ?)').bind(user.id, to.id, body).run()
   const id = res.meta.last_row_id as number
   await audit(db, user.id, 'message.send', id)
-  const who = user.role === 'teacher' ? `أ. ${firstName(user.name)}` : user.role === 'school' ? 'إدارة المدرسة' : `وليّ أمر (${firstName(user.name)})`
+  const who = user.role === 'teacher' ? `أ. ${firstName(user.name)}` : user.role === 'school' ? 'إدارة المدرسة' : `${firstName(user.name)} (وليّ أمر الطالب)`
   await notify(db, [{ user_id: to.id, kind: 'message', body: `رسالة جديدة من ${who}`, link: `/messages/${user.id}` }])
   return c.json({ id, to_user: to.id, created_at: new Date().toISOString() }, 201)
 })

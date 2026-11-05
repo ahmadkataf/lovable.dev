@@ -15,7 +15,7 @@ function schoolOf(c: { get(k: 'user'): AppEnv['Variables']['user']; req: { query
   const user = c.get('user')
   if (user.role === 'directorate') {
     const id = intParam(c.req.query('school_id'))
-    if (id === null) throw bad('حدّد المدرسة')
+    if (id === null) throw bad('يلزم تحديد المدرسة')
     return id
   }
   if (user.school_id === null) throw forbidden('هذا الحساب غير مرتبط بمدرسة')
@@ -43,7 +43,7 @@ r.get('/api/school/dashboard', requireAuth('school', 'directorate'), async c => 
   return c.json({ date, ...stats, absences: withSubs })
 })
 
-/** Sections with their students (teachers: only the sections they teach). */
+/** Sections with their students (teachers: only the sections they teach). Registry numbers never leave the server. */
 r.get('/api/school/sections', requireAuth('school', 'teacher', 'directorate'), async c => {
   const user = c.get('user'), db = c.env.DB
   const schoolId = user.role === 'teacher' ? user.school_id : schoolOf(c)
@@ -53,11 +53,11 @@ r.get('/api/school/sections', requireAuth('school', 'teacher', 'directorate'), a
   const visible = sections.filter(s => !allowed || allowed.has(s.id))
   if (!visible.length) return c.json([])
   const { results: pupils } = await db.prepare(`
-    SELECT st.id AS student_id, st.section_id, u.name, st.registry_no, st.guardian_user_id IS NOT NULL AS has_guardian
+    SELECT st.id AS student_id, st.section_id, u.name, st.guardian_user_id IS NOT NULL AS has_guardian
     FROM students st JOIN users u ON u.id = st.user_id WHERE st.section_id IN (${placeholders(visible.length)}) ORDER BY u.name`)
-    .bind(...visible.map(s => s.id)).all<{ student_id: number; section_id: number; name: string; registry_no: string | null; has_guardian: number }>()
+    .bind(...visible.map(s => s.id)).all<{ student_id: number; section_id: number; name: string; has_guardian: number }>()
   return c.json(visible.map(s => {
-    const students = pupils.filter(p => p.section_id === s.id).map(p => ({ student_id: p.student_id, name: p.name, registry_no: p.registry_no, has_guardian: !!p.has_guardian }))
+    const students = pupils.filter(p => p.section_id === s.id).map(p => ({ student_id: p.student_id, name: p.name, has_guardian: !!p.has_guardian }))
     return { ...s, student_count: students.length, students }
   }))
 })
@@ -99,13 +99,13 @@ r.post('/api/substitutions/:id/approve', requireAuth('school'), async c => {
   const sub = await loadSubstitution(db, id, user.school_id!)
   const b = await readBody(c)
   const teacher = await requireTeacherOfSchool(db, requireInt(b.teacher_id, 'المعلّم البديل'), user.school_id)
-  if (teacher.id === sub.absent_teacher_id) throw bad('لا يمكن تعيين المعلّم الغائب بديلًا')
+  if (teacher.id === sub.absent_teacher_id) throw bad('لا يمكن تعيين المعلّم الغائب بديلاً')
   const note = optText(b.lesson_note, 1000)
   await db.prepare(`UPDATE substitutions SET status = 'approved', substitute_teacher_id = ?, lesson_note = ?, approved_by = ?, approved_at = datetime('now') WHERE id = ?`)
     .bind(teacher.id, note, user.id, id).run()
   await audit(db, user.id, 'substitution.approve', `${id}:${teacher.id}`)
   const when = dayPhrase(sub.date), period = ORDINALS[sub.period]
-  const forSub = `تكليفك بتغطية الحصّة ${period} ${when} — ${sub.section_label} (${sub.subject})` + (note ? ` · خطّة الدرس: ${note}` : '')
+  const forSub = `تكليفك بتغطية الحصّة ${period} ${when} — ${sub.section_label} · ${sub.subject}` + (note ? ` · خطّة الدرس: ${note}` : '')
   await notify(db, [{ user_id: teacher.id, kind: 'substitution', body: forSub, link: `/substitutions/${id}` }])
   const told = await tellSection(db, sub.section_id, `تغيّر معلّم الحصّة ${period} ${when}`, `/timetable?date=${sub.date}`)
   const rows = await affectedRows(db, sub.absence_id)

@@ -2,7 +2,7 @@
 import { Hono } from 'hono'
 import type { AppEnv } from '../types'
 import { requireAuth } from '../auth'
-import { arDigits, countPhrase, isDate, isSchoolDay, today } from '../util'
+import { countPhrase, daysPhrase, isDate, isSchoolDay, today } from '../util'
 import { ensureSubstitutions } from '../substitute'
 import { schoolStats, threeDayAbsences, type SchoolStats } from '../stats'
 import { csvResponse, type Cell } from '../csv'
@@ -29,7 +29,7 @@ r.get('/api/directorate/dashboard', requireAuth('directorate'), async c => {
       text: `${countPhrase(s.uncovered_periods, { one: 'حصّة واحدة', two: 'حصّتان', few: 'حصص', many: 'حصّة' })} من دون تغطية` })
   }
   for (const t of three) alerts.push({ kind: 'three_days', school: t.school, school_id: t.school_id,
-    text: `${t.student_name} (${t.section_label}): غياب ${arDigits(t.days)} أيام متتالية` })
+    text: `${t.student_name} (${t.section_label}): غياب ${daysPhrase(t.days)}` })
   const recorded = schools.reduce((n, s) => n + s.recorded, 0), present = schools.reduce((n, s) => n + s.present, 0)
   const affected = schools.reduce((n, s) => n + s.affected_periods, 0), covered = schools.reduce((n, s) => n + s.covered_periods, 0)
   return c.json({

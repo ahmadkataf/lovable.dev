@@ -6,7 +6,7 @@ export interface Env {
   MADAR_DO?: DurableObjectNamespace
   ADMIN_KEY?: string           // wrangler secret: unlocks POST /api/admin/sql (schema/seed) and GET /api/admin/health
   ASSETS: Fetcher
-  TOKEN_SECRET?: string   // HMAC secret for login tokens (wrangler secret); 'dev-secret' when unset
+  TOKEN_SECRET?: string   // HMAC secret for login tokens (wrangler secret); required when APP_URL is https, 'dev-secret' only in local runs
   WEEKLY_CAP?: string     // substitute engine: max weekly periods + substitutions per teacher (default 28)
   APP_URL?: string
 }

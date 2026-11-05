@@ -2,6 +2,7 @@
 // permission; a Durable Object with SQLite storage offers the same SQL and needs only Workers permissions).
 // The worker talks to it through a small D1-shaped shim (see dbshim.ts), so the routes stay D1-style code.
 import { DurableObject } from 'cloudflare:workers'
+import { ADMIN_WINDOW, LOGIN_WINDOW, ensureAttemptsTable, recordAttempt, type Verdict, type Window } from './ratelimit'
 
 export interface RunMeta { changes: number; last_row_id: number }
 export interface QueryResult { results: Record<string, unknown>[] }
@@ -21,6 +22,17 @@ export function splitSql(script: string): string[] {
 }
 
 export class MadarDB extends DurableObject {
+  private attemptsReady = false   // the login_attempts table is created lazily, on the first rate-limit check
+
+  private hit(key: string, win: Window): Verdict {
+    if (!this.attemptsReady) { ensureAttemptsTable(this.ctx.storage.sql); this.attemptsReady = true }
+    return recordAttempt(this.ctx.storage.sql, key, win)
+  }
+  /** Durable login limiter: 20 attempts per 10 minutes per IP, shared by every isolate. */
+  loginAttempt(ip: string): Verdict { return this.hit(`login:${ip}`, LOGIN_WINDOW) }
+  /** Durable limiter for /api/admin/*: 10 calls per minute per IP. */
+  adminAttempt(ip: string): Verdict { return this.hit(`admin:${ip}`, ADMIN_WINDOW) }
+
   private norm(params: unknown[]) {
     return params.map(v => (v === undefined ? null : typeof v === 'boolean' ? (v ? 1 : 0) : v)) as (string | number | null | ArrayBuffer)[]
   }
@@ -46,6 +58,7 @@ export class MadarDB extends DurableObject {
   reset(): number {
     const tables = (this.ctx.storage.sql.exec("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' AND name NOT LIKE '_cf_%'").toArray() as { name: string }[]).map(r => r.name)
     this.ctx.storage.transactionSync(() => { for (const t of tables) this.ctx.storage.sql.exec(`DROP TABLE IF EXISTS "${t}"`).toArray() })
+    this.attemptsReady = false   // login_attempts went with the rest; recreate it on the next check
     return tables.length
   }
   /** Row counts of the main tables, for health checks. */

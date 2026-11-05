@@ -1,31 +1,46 @@
 // Route tests: the real Hono app against schema.sql + seed.sql loaded into an in-memory SQLite (test/d1.ts).
 import { beforeAll, describe, expect, it } from 'vitest'
 import { resolve } from 'node:path'
+import { DatabaseSync } from 'node:sqlite'
 import app from '../src/index'
 import { fakeD1 } from './d1'
 import { addDays, today, weekday } from '../src/util'
+import { ADMIN_WINDOW, LOGIN_WINDOW, ensureAttemptsTable, recordAttempt, type SqlLike } from '../src/ratelimit'
 
 const db = fakeD1([resolve(__dirname, '../schema.sql'), resolve(__dirname, '../seed.sql')])
+const count = (sql: string, ...p: unknown[]) => Number((db.raw.prepare(sql).get(...(p as never[])) as { n: number }).n)
+
+// A stand-in for the MadarDB Durable Object: the rate-limit methods run the real SQL over node:sqlite, health counts rows.
+const limiterDb = new DatabaseSync(':memory:')
+const limiterSql: SqlLike = { exec: (sql, ...p) => ({ toArray: () => limiterDb.prepare(sql).all(...(p as never[])) as Record<string, unknown>[] }) }
+ensureAttemptsTable(limiterSql)
+const fakeStub = {
+  loginAttempt: async (ip: string) => recordAttempt(limiterSql, `login:${ip}`, LOGIN_WINDOW),
+  adminAttempt: async (ip: string) => recordAttempt(limiterSql, `admin:${ip}`, ADMIN_WINDOW),
+  health: async () => ({ users: count('SELECT COUNT(*) AS n FROM users') }),
+}
+const MADAR_DO = { idFromName: (name: string) => name, get: () => fakeStub }
+
 let assetHits = 0
 const env = {
-  DB: db, WEEKLY_CAP: '28', TOKEN_SECRET: 'test-secret',
+  DB: db, WEEKLY_CAP: '28', TOKEN_SECRET: 'test-secret', MADAR_DO,
   ASSETS: { fetch: async (req: Request) => { assetHits++; return new URL(req.url).pathname === '/index.html' ? new Response('<html>shell</html>', { headers: { 'content-type': 'text/html' } }) : new Response('nope', { status: 404 }) } },
 }
 const PHONE = /09[34]0{3,}\d{3}/   // seeded phones look like 0930000011 / 0940000401 — they must never appear in a response
 
-async function call(method: string, path: string, token?: string, body?: unknown) {
+async function call(method: string, path: string, token?: string, body?: unknown, extraHeaders: Record<string, string> = {}, customEnv: object = env) {
   const res = await app.request(path, {
     method, body: body === undefined ? undefined : JSON.stringify(body),
-    headers: { 'content-type': 'application/json', ...(token ? { authorization: `Bearer ${token}` } : {}) },
-  }, env)
+    headers: { 'content-type': 'application/json', ...(token ? { authorization: `Bearer ${token}` } : {}), ...extraHeaders },
+  }, customEnv)
   const text = await res.text()
   expect(text).not.toMatch(PHONE)
+  expect(text).not.toContain('registry_no')   // the registry number is kept server-side
   let json: any = null
   try { json = JSON.parse(text) } catch { /* csv or html */ }
   return { status: res.status, json, text, headers: res.headers }
 }
 const login = async (code: string) => { const r = await call('POST', '/api/login', undefined, { code }); expect(r.status).toBe(200); return r.json.token as string }
-const count = (sql: string, ...p: unknown[]) => Number((db.raw.prepare(sql).get(...(p as never[])) as { n: number }).n)
 
 const T = { dir: '', sch1: '', samer: '', rana: '', layan: '', khaled: '', sch2: '' }
 const TODAY = today()

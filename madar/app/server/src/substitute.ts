@@ -23,9 +23,9 @@ export interface Suggestion { slot: Slot; candidates: Candidate[]; substitute_te
 export const DEFAULT_WEEKLY_CAP = 28
 export const TOP_N = 3
 
-const TIER_TEXT: Record<1 | 2 | 3, string> = { 1: 'المادّة نفسها', 2: 'يدرّس الشعبة', 3: 'حصّة فراغ' }
+const TIER_TEXT: Record<1 | 2 | 3, string> = { 1: 'المادّة نفسها', 2: 'من معلّمي الشعبة', 3: 'حصّة فراغ' }
 const monthPhrase = (n: number) => n === 0 ? 'بلا تعويضات هذا الشهر'
-  : countPhrase(n, { one: 'تعويض واحد هذا الشهر', two: 'تعويضان هذا الشهر', few: 'تعويضات هذا الشهر', many: 'تعويضًا هذا الشهر' })
+  : countPhrase(n, { one: 'تعويض واحد هذا الشهر', two: 'تعويضان هذا الشهر', few: 'تعويضات هذا الشهر', many: 'تعويضاً هذا الشهر' })
 
 /** Weekly timetable periods per teacher. */
 export function weeklyLoad(timetable: TimetableRow[]): Record<number, number> {

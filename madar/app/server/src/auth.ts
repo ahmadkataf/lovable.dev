@@ -16,14 +16,25 @@ async function hmac(secret: string, data: string): Promise<Uint8Array> {
   const key = await crypto.subtle.importKey('raw', enc.encode(secret), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign'])
   return new Uint8Array(await crypto.subtle.sign('HMAC', key, enc.encode(data)))
 }
-function sameBytes(a: Uint8Array, b: Uint8Array): boolean {
+export function sameBytes(a: Uint8Array, b: Uint8Array): boolean {
   if (a.length !== b.length) return false
   let d = 0
   for (let i = 0; i < a.length; i++) d |= a[i] ^ b[i]
   return d === 0
 }
+/** Constant-time string comparison for secrets (the admin key); only the length may leak. */
+export const safeEqual = (a: string | undefined | null, b: string | undefined | null): boolean =>
+  typeof a === 'string' && typeof b === 'string' && a.length > 0 && sameBytes(enc.encode(a), enc.encode(b))
 
-export const secretOf = (env: Pick<Env, 'TOKEN_SECRET'>): string => env.TOKEN_SECRET || 'dev-secret'
+/**
+ * The HMAC secret. A deployment that serves https (APP_URL) must have TOKEN_SECRET set; the 'dev-secret' default is
+ * only for `wrangler dev`, the smoke test and vitest, where APP_URL is http://localhost or unset.
+ */
+export function secretOf(env: Pick<Env, 'TOKEN_SECRET' | 'APP_URL'>): string {
+  if (env.TOKEN_SECRET) return env.TOKEN_SECRET
+  if ((env.APP_URL ?? '').startsWith('https://')) throw new Error('TOKEN_SECRET unset')
+  return 'dev-secret'
+}
 
 export async function signToken(payload: TokenPayload, secret: string): Promise<string> {
   const body = b64url(enc.encode(JSON.stringify(payload)))
@@ -60,15 +71,20 @@ export class RateLimiter {
   }
 }
 export const loginLimiter = new RateLimiter(20, 10 * 60 * 1000)
+export const adminLimiter = new RateLimiter(10, 60 * 1000)
+
+/** The caller's address for rate limiting (Cloudflare sets cf-connecting-ip; local runs share one bucket). */
+export const clientIp = (c: { req: { header(name: string): string | undefined } }): string => c.req.header('cf-connecting-ip') ?? 'local'
 
 /** Reads the Bearer token, loads the user and (optionally) restricts the roles allowed on the route. */
 export const requireAuth = (...roles: Role[]) => createMiddleware<AppEnv>(async (c, next) => {
-  // The CSV report is opened as a plain link, so that one route may also carry the token as ?token=.
-  const token = (c.req.header('authorization') ?? '').replace(/^Bearer\s+/i, '').trim() || (c.req.path.endsWith('.csv') ? c.req.query('token') ?? '' : '')
+  // The token travels only in the Authorization header (the client downloads the CSV with fetch + Blob, never as a
+  // plain link), so it never lands in access logs, browser history or referrers.
+  const token = (c.req.header('authorization') ?? '').replace(/^Bearer\s+/i, '').trim()
   const payload = await verifyToken(token, secretOf(c.env))
   if (!payload) throw new ApiError(401, 'يلزم تسجيل الدخول')
   const user = await c.env.DB.prepare('SELECT id, role, name, school_id, subject_id FROM users WHERE id = ?').bind(payload.uid).first<User>()
-  if (!user || user.role !== payload.role) throw new ApiError(401, 'انتهت صلاحية الجلسة، سجّل الدخول مجدّدًا')
+  if (!user || user.role !== payload.role) throw new ApiError(401, 'انتهت صلاحية الجلسة، يلزم تسجيل الدخول مجدّداً')
   if (roles.length && !roles.includes(user.role)) throw new ApiError(403, 'غير مصرّح بهذا الإجراء لهذا الدور')
   c.set('user', user)
   await next()

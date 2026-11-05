@@ -2,7 +2,7 @@
 import { Hono } from 'hono'
 import { ApiError, type AppEnv } from '../types'
 import { requireAuth } from '../auth'
-import { ORDINALS, addDays, audit, bad, dayPhrase, firstName, forbidden, intParam, isDate, notFound, optText, placeholders, readBody, requireInt, requireText, today, weekday } from '../util'
+import { ORDINALS, addDays, audit, bad, dayPhrase, firstName, forbidden, intParam, isDate, li, notFound, optText, placeholders, readBody, requireInt, requireText, today, weekday } from '../util'
 import { requireSection, requireTeacherOfSchool, studentByUser, parentChildren, teacherSections } from '../scope'
 import { notify, type Notice } from '../notify'
 import { affectedRows, ensureSubstitutions, runEngine } from '../substitute'
@@ -10,8 +10,8 @@ import { timetableRows } from './common'
 
 const r = new Hono<AppEnv>()
 
-/** «اليوم» / «غدًا» / «يوم الخميس ٦/١١» for a due date. */
-const dueText = (due: string) => due === today() ? 'اليوم' : due === addDays(today(), 1) ? 'غدًا' : dayPhrase(due)
+/** «اليوم» / «غداً» / «يوم الخميس ٦ تشرين الثاني» for a due date. */
+const dueText = (due: string) => due === today() ? 'اليوم' : due === addDays(today(), 1) ? 'غداً' : dayPhrase(due)
 
 const HOMEWORK_SQL = `
   SELECT h.id, h.section_id, sec.label AS section_label, h.subject_id, sj.name AS subject, h.teacher_id, u.name AS teacher, h.title, h.details, h.book_page, h.due_date, h.created_at,
@@ -66,7 +66,7 @@ r.get('/api/homework', requireAuth(), async c => {
         .bind(...sections.map(s => s.id)).all()
       return c.json(results)
     }
-    if (sectionId === null) throw bad('حدّد الشعبة')
+    if (sectionId === null) throw bad('يلزم تحديد الشعبة')
   }
   await requireSection(db, user, sectionId)
   const { results } = await db.prepare(`${HOMEWORK_SQL} WHERE h.section_id = ? ORDER BY h.due_date DESC, h.id DESC LIMIT 100`).bind(sectionId).all()
@@ -103,7 +103,7 @@ r.post('/api/homework', requireAuth('teacher', 'school'), async c => {
   const sectionId = requireInt(b.section_id, 'الشعبة')
   const section = await requireSection(db, user, sectionId)
   const subjectId = b.subject_id === undefined || b.subject_id === null ? user.subject_id : requireInt(b.subject_id, 'المادّة')
-  if (subjectId === null) throw bad('حدّد المادّة')
+  if (subjectId === null) throw bad('يلزم تحديد المادّة')
   const subject = await db.prepare('SELECT id, name FROM subjects WHERE id = ?').bind(subjectId).first<{ id: number; name: string }>()
   if (!subject) throw bad('المادّة غير موجودة')
   const title = requireText(b.title, 'عنوان الواجب', 200)
@@ -124,7 +124,7 @@ r.post('/api/homework', requireAuth('teacher', 'school'), async c => {
   const when = dueText(b.due_date), link = `/homework/${id}`
   const notices: Notice[] = pupils.map(p => ({ user_id: p.user_id, kind: 'homework', body: `واجب جديد في ${subject.name}: ${title} — يُسلَّم ${when}`, link }))
   const guardians = pupils.filter(p => p.guardian_user_id !== null)
-  for (const p of guardians) notices.push({ user_id: p.guardian_user_id!, kind: 'homework', body: `واجب جديد لـ${firstName(p.name)} في ${subject.name}، يُسلَّم ${when}`, link })
+  for (const p of guardians) notices.push({ user_id: p.guardian_user_id!, kind: 'homework', body: `واجب جديد ${li(firstName(p.name))} في ${subject.name}، يُسلَّم ${when}`, link })
   await notify(db, notices)
   return c.json({ id, notified_students: pupils.length, notified_guardians: guardians.length, section_label: section.label }, 201)
 })
@@ -184,7 +184,7 @@ r.post('/api/absences', requireAuth('teacher', 'school'), async c => {
   if (!isDate(date)) throw bad('التاريخ غير صالح')
   let teacherId = user.id
   if (user.role === 'school') teacherId = (await requireTeacherOfSchool(db, requireInt(b.teacher_id, 'المعلّم'), user.school_id)).id
-  else if (b.teacher_id !== undefined && b.teacher_id !== null && Number(b.teacher_id) !== user.id) throw forbidden('يمكنك الإبلاغ عن غيابك أنت فقط')
+  else if (b.teacher_id !== undefined && b.teacher_id !== null && Number(b.teacher_id) !== user.id) throw forbidden('لا يُبلَّغ هنا إلّا عن غيابك أنت')
   const reason = optText(b.reason, 300)
   const existing = await db.prepare('SELECT id FROM absences WHERE teacher_id = ? AND date = ?').bind(teacherId, date).first<{ id: number }>()
   let id = existing?.id
