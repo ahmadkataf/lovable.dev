@@ -1,16 +1,22 @@
 # Local-only config for `npm run dev:api` and the smoke test: same Worker, but the static assets come from a stub
-# folder (so the API runs before the client is built) and the D1 id is a placeholder (ignored by --local).
+# folder (so the API runs before the client is built). Same database_id → same local D1 state as wrangler.toml.
 name = "madar-app"
-main = "src/index.ts"
+main = "src/worker.ts"
 compatibility_date = "2025-06-01"
 [assets]
 directory = "scripts/assets-stub"
 binding = "ASSETS"
 run_worker_first = true
-[[d1_databases]]
-binding = "DB"
-database_name = "madar"
-database_id = "00000000-0000-0000-0000-000000000000"
+[[durable_objects.bindings]]
+name = "MADAR_DO"
+class_name = "MadarDB"
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["MadarDB"]
+[[rules]]
+type = "Text"
+globs = ["**/*.sql"]
+
 [vars]
 WEEKLY_CAP = "28"
 APP_URL = "http://localhost:8787"

@@ -63,7 +63,8 @@ export const loginLimiter = new RateLimiter(20, 10 * 60 * 1000)
 
 /** Reads the Bearer token, loads the user and (optionally) restricts the roles allowed on the route. */
 export const requireAuth = (...roles: Role[]) => createMiddleware<AppEnv>(async (c, next) => {
-  const token = (c.req.header('authorization') ?? '').replace(/^Bearer\s+/i, '').trim()
+  // The CSV report is opened as a plain link, so that one route may also carry the token as ?token=.
+  const token = (c.req.header('authorization') ?? '').replace(/^Bearer\s+/i, '').trim() || (c.req.path.endsWith('.csv') ? c.req.query('token') ?? '' : '')
   const payload = await verifyToken(token, secretOf(c.env))
   if (!payload) throw new ApiError(401, 'يلزم تسجيل الدخول')
   const user = await c.env.DB.prepare('SELECT id, role, name, school_id, subject_id FROM users WHERE id = ?').bind(payload.uid).first<User>()

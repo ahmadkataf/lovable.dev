@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import * as api from '../api';
 import { Icon } from '../components/Icon';
 import { Btn, Empty, ErrorBox, PageHead, Skeleton, Tag, Tile } from '../components/Ui';
-import { addDays, count, fmtDate, fmtTime, NOTIFICATION_KIND_LABEL, NOUNS, parseServerTime, todayISO } from '../format';
+import { addDays, fmtDate, fmtTime, NOTIFICATION_KIND_LABEL, parseServerTime, todayISO, unreadLabel } from '../format';
 import { useApi } from '../hooks';
 import { navigate } from '../router';
 import { refreshUnread, toast } from '../store';
@@ -67,7 +67,7 @@ export function Notifications() {
     <>
       <PageHead
         title="الإشعارات"
-        sub={data ? (unread.length ? `${count(unread.length, NOUNS.notification)} غير مقروءة` : 'لا إشعارات جديدة') : undefined}
+        sub={data ? unreadLabel(unread.length) : undefined}
         actions={unread.length ? <Btn variant="light" size="sm" icon="check" loading={busy} onClick={() => { void markAll(); }}>تعليم الكلّ كمقروء</Btn> : undefined}
       />
       <Tile className="full nlist">

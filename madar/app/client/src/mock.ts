@@ -5,7 +5,7 @@
    to sessionStorage so a page reload during a demo keeps what was done. */
 
 import {
-  addDays, ar, count, dayIndex, firstName, fmtDate, NOUNS, periodName, todayISO,
+  addDays, count, dayIndex, firstName, fmtDate, li, NOUNS, periodName, todayISO,
 } from './format';
 import type {
   AbsenceResult, AffectedPeriod, Candidate, Context, DirectorateAlert, DirectorateDashboard,
@@ -260,7 +260,7 @@ function seed(today: string): DB {
   // homework notification for الخامس (ب)
   for (const st of sec5b) {
     notify(st.user_id, 'homework', `واجب جديد في الرياضيات: تمارين الكسور العشرية ص ٤٢ — التسليم ${fmtDate(addDays(today, 3))}`, '/student', at(yesterday, '08:05'));
-    if (st.guardian_user_id) notify(st.guardian_user_id, 'homework', `واجب جديد في الرياضيات لـ${firstName(db.users.find((u) => u.id === st.user_id)!.name)}: تمارين الكسور العشرية ص ٤٢ — التسليم ${fmtDate(addDays(today, 3))}`, '/parent', at(yesterday, '08:05'));
+    if (st.guardian_user_id) notify(st.guardian_user_id, 'homework', `واجب جديد في الرياضيات ${li(firstName(db.users.find((u) => u.id === st.user_id)!.name))}: تمارين الكسور العشرية ص ٤٢ — التسليم ${fmtDate(addDays(today, 3))}`, '/parent', at(yesterday, '08:05'));
   }
   // absence notifications of كرم's guardian for the past days
   if (karam.guardian_user_id) {
@@ -557,7 +557,7 @@ function contextOf(d: DB, u: DbUser): Context {
       return {
         children: d.students.filter((s) => s.guardian_user_id === u.id).map((s) => {
           const sec = d.sections.find((x) => x.id === s.section_id)!;
-          return { student_id: s.id, name: userById(d, s.user_id)?.name ?? '', section_label: sec.label, school_name: schoolName(d, sec.school_id) ?? '' };
+          return { student_id: s.id, name: userById(d, s.user_id)?.name ?? '', section_label: sec.label, section_id: sec.id, school_name: schoolName(d, sec.school_id) ?? '' };
         }),
       };
     case 'school': {
@@ -687,7 +687,7 @@ function route(d: DB, m: string, path: string, q: URLSearchParams, b: Record<str
         pushNotification(d, st.user_id, 'homework', `واجب جديد في ${subjectName(d, subject_id)}: ${title} — التسليم ${fmtDate(due_date)}`, '/student');
         notified_students++;
         if (st.guardian_user_id) {
-          pushNotification(d, st.guardian_user_id, 'homework', `واجب جديد في ${subjectName(d, subject_id)} لـ${firstName(userById(d, st.user_id)?.name)}: ${title} — التسليم ${fmtDate(due_date)}`, '/parent');
+          pushNotification(d, st.guardian_user_id, 'homework', `واجب جديد في ${subjectName(d, subject_id)} ${li(firstName(userById(d, st.user_id)?.name))}: ${title} — التسليم ${fmtDate(due_date)}`, '/parent');
           notified_guardians++;
         }
       }
@@ -820,7 +820,7 @@ function route(d: DB, m: string, path: string, q: URLSearchParams, b: Record<str
       const recs = d.attendance.filter((a) => a.student_id === st.id && a.date === today).sort((a, b) => a.period - b.period);
       const first = recs[0];
       return {
-        student_id: st.id, name: userById(d, st.user_id)?.name ?? '', section_label: sec.label, school_name: schoolName(d, sec.school_id) ?? '',
+        student_id: st.id, name: userById(d, st.user_id)?.name ?? '', section_label: sec.label, section_id: sec.id, school_name: schoolName(d, sec.school_id) ?? '',
         today: { status: first ? first.status : 'none', first_period_time: first ? timeHM(first.created_at) : null },
         homework: studentHomework(d, st, 7),
         notifications: notificationsOf(d, me.id, 10),
@@ -838,7 +838,7 @@ function route(d: DB, m: string, path: string, q: URLSearchParams, b: Record<str
     if (me.role === 'student') throw new ApiError(403, 'لا تملك صلاحية هذه العملية');
     const msg: Msg = { id: d.seq++, from_user: me.id, to_user: to.id, body: text, created_at: nowISO(), read_at: null };
     d.messages.push(msg);
-    pushNotification(d, to.id, 'message', `رسالة جديدة من ${firstName(me.name)}: ${text.length > 80 ? text.slice(0, 80) + '…' : text}`, '/messages');
+    pushNotification(d, to.id, 'message', `رسالة جديدة من ${me.role === 'teacher' ? `أ. ${firstName(me.name)}` : firstName(me.name)}: ${text.length > 80 ? text.slice(0, 80) + '…' : text}`, '/messages');
     return ok({ id: msg.id });
   }
   if (m === 'GET' && path === '/api/messages') {

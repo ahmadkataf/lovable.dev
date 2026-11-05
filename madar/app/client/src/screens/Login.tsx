@@ -50,7 +50,7 @@ export function Login() {
               className="input ltr"
               value={code}
               onChange={(e) => setCode(e.target.value)}
-              placeholder="مثال: T-SAMER"
+              placeholder="T-SAMER"
               autoComplete="off"
               autoCapitalize="characters"
               spellCheck={false}

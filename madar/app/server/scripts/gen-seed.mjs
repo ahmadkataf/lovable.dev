@@ -181,7 +181,7 @@ out.push(`INSERT OR IGNORE INTO timetable (id, section_id, day, period, subject_
 
 out.push(`-- Homework: the pitch's maths homework for الخامس (ب) due in three days, plus a little variety.
 INSERT OR IGNORE INTO homework (id, section_id, subject_id, teacher_id, title, details, book_page, due_date, created_at) VALUES
-  (1, 2, 2, 11, 'تمارين الكسور العشرية ص ٤٢', 'حلّ التمارين من ١ إلى ٨ في الدفتر، مع كتابة خطوات الحلّ.', '42', date('now','+3 hours','+3 days'), datetime('now','-1 day')),
+  (1, 2, 2, 11, 'تمارين الكسور العشرية ص ٤٢', 'حلّ التمارين من ١ إلى ٨ في الدفتر، مع كتابة خطوات الحلّ.', '42', date('now','+3 hours','+3 days'), datetime('now','-2 hours')),
   (2, 2, 1, 14, 'قراءة نصّ «الوطن» وإجابة الأسئلة', 'الإجابة عن أسئلة الفهم والاستيعاب في الدفتر.', '17', date('now','+3 hours','+1 day'), datetime('now','-2 days')),
   (3, 1, 3, 12, 'تلخيص درس دورة الماء في الطبيعة', NULL, '55', date('now','+3 hours','+2 days'), datetime('now','-1 day')),
   (4, 3, 2, 11, 'مسائل النسبة والتناسب ص ٣٠', 'المسائل ١ و٢ و٣.', '30', date('now','+3 hours','+4 days'), datetime('now','-1 day'));
@@ -242,9 +242,9 @@ SELECT ${uid}, ${q(kind)}, ${q(body)}, ${q(link)}, ${sms}, datetime('now','${age
 WHERE NOT EXISTS (SELECT 1 FROM notifications WHERE user_id = ${uid} AND kind = ${q(kind)} AND body = ${q(body)});`
 const layan = students.find(s => s[6] === 'S-LAYAN')
 out.push(`-- Notifications for the demo student, the demo parent and the school account.`)
-out.push(notice(layan[1], 'homework', 'واجب جديد في الرياضيات: تمارين الكسور العشرية ص ٤٢ — يُسلَّم بعد ٣ أيام', '/homework/1', 0, '-1 day'))
+out.push(notice(layan[1], 'homework', 'واجب جديد في الرياضيات: تمارين الكسور العشرية ص ٤٢ — يُسلَّم بعد ٣ أيام', '/homework/1', 0, '-2 hours'))
 out.push(notice(layan[1], 'announcement', 'إعلان من المدرسة: اجتماع أولياء الأمور', '/announcements/1', 0, '-1 day'))
-out.push(notice(409, 'homework', 'واجب جديد لمحمد في الرياضيات، يُسلَّم بعد ٣ أيام', '/homework/1', 0, '-1 day'))
+out.push(notice(409, 'homework', 'واجب جديد لمحمد في الرياضيات، يُسلَّم بعد ٣ أيام', '/homework/1', 0, '-2 hours'))
 out.push(notice(409, 'announcement', 'إعلان من المدرسة: اجتماع أولياء الأمور', '/announcements/1', 0, '-1 day'))
 out.push(notice(2, 'announcement', 'تعميم من المديرية: تحديث بيانات الطلاب', '/announcements/2', 0, '-2 days'))
 out.push(notice(3, 'announcement', 'تعميم من المديرية: تحديث بيانات الطلاب', '/announcements/2', 0, '-2 days'))

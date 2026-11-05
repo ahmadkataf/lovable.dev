@@ -26,9 +26,8 @@ export function EngineResult({ result, who, dateLabel }: { result: AbsenceResult
             {a.candidates.length ? (
               <span className="chips" style={{ marginTop: 8 }}>
                 {a.candidates.map((c, i) => (
-                  <span key={c.teacher_id} className={`chip ${i === 0 ? 'tier1' : ''}`}>
-                    {i === 0 && <span className="dot" aria-hidden="true" />}
-                    {teacherTitle(c.name)}
+                  <span key={c.teacher_id} className={`chip cand ${i === 0 ? 'tier1' : ''}`}>
+                    <span className="cand-h">{i === 0 && <span className="dot" aria-hidden="true" />}{teacherTitle(c.name)}</span>
                     <small>{c.subject} · {c.reason}</small>
                   </span>
                 ))}

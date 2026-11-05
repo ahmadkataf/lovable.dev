@@ -15,7 +15,7 @@ export interface SectionRef { id: number; grade: number; label: string }
 
 export interface TeacherContext { sections: SectionRef[]; subject: string | null }
 export interface StudentContext { section: SectionRef; school_name: string }
-export interface ParentChildRef { student_id: number; name: string; section_label: string; school_name: string }
+export interface ParentChildRef { student_id: number; name: string; section_label: string; section_id?: number; school_name: string }
 export interface ParentContext { children: ParentChildRef[] }
 export interface SchoolContext { school: { id: number; name: string; complex: string } }
 export interface DirectorateContext { schools: { id: number; name: string; complex: string }[] }
@@ -144,6 +144,7 @@ export interface ParentChild {
   student_id: number;
   name: string;
   section_label: string;
+  section_id?: number;
   school_name: string;
   today: { status: 'present' | 'absent' | 'late' | 'none'; first_period_time: string | null };
   homework: StudentHomework[];

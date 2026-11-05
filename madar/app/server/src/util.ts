@@ -29,6 +29,7 @@ export function schoolDaysBack(date: string, n: number): string[] {
 /** Sunday of the week that contains `date` (the school week runs Sun–Thu). */
 export const weekStart = (date: string): string => addDays(date, -weekday(date))
 export const monthStart = (date: string): string => date.slice(0, 8) + '01'
+export const nextMonthStart = (date: string): string => monthStart(addDays(monthStart(date), 31))
 
 export const DAY_NAMES = ['الأحد', 'الاثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت']
 export const ORDINALS = ['', 'الأولى', 'الثانية', 'الثالثة', 'الرابعة', 'الخامسة', 'السادسة', 'السابعة']

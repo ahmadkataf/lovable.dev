@@ -28,6 +28,7 @@ export function MessagesList() {
   const s = useStore();
   const { data, error, loading, reload } = useApi<unknown>('/api/messages');
   const threads = useMemo(() => normalise(data, s.user?.id ?? 0), [data, s.user?.id]);
+  const loaded = data !== null && data !== undefined;
   const isParent = s.user?.role === 'parent';
   return (
     <>
@@ -37,9 +38,9 @@ export function MessagesList() {
         actions={isParent ? <Btn icon="plus" size="sm" onClick={() => navigate('/messages/new')}>رسالة إلى المعلّم</Btn> : undefined}
       />
       <Tile className="full">
-        {loading && !data && <Skeleton />}
-        {error && !data && <ErrorBox error={error} retry={reload} />}
-        {data && threads.length === 0 && (
+        {loading && !loaded && <Skeleton />}
+        {error && !loaded && <ErrorBox error={error} retry={reload} />}
+        {loaded && threads.length === 0 && (
           <Empty icon="msg" title="لا رسائل بعد" text={isParent ? 'ابدأ بمراسلة معلّم من زرّ «رسالة إلى المعلّم».' : 'ستظهر هنا رسائل أولياء الأمور.'} />
         )}
         <div className="list">
@@ -69,6 +70,7 @@ export function MessageThread({ userId }: { userId: number }) {
   const { data, error, loading, reload } = useApi<unknown>('/api/messages');
   const threads = useMemo(() => normalise(data, s.user?.id ?? 0), [data, s.user?.id]);
   const thread = threads.find((t) => t.user_id === userId);
+  const loaded = data !== null && data !== undefined;
   const route = useRoute();
   const nameFromQuery = route.query.get('name');
   const [text, setText] = useState('');
@@ -95,9 +97,9 @@ export function MessageThread({ userId }: { userId: number }) {
     <>
       <PageHead title={name || 'محادثة'} back="/messages" sub={thread?.role === 'teacher' ? 'معلّم' : thread?.role === 'parent' ? 'وليّ أمر' : undefined} />
       <Tile className="full">
-        {loading && !data && <Skeleton />}
-        {error && !data && <ErrorBox error={error} retry={reload} />}
-        {data && !thread && <p className="small muted" style={{ marginBottom: 10 }}>لا رسائل سابقة — اكتب رسالتك الأولى.</p>}
+        {loading && !loaded && <Skeleton />}
+        {error && !loaded && <ErrorBox error={error} retry={reload} />}
+        {loaded && !thread && <p className="small muted" style={{ marginBottom: 10 }}>لا رسائل سابقة — اكتب رسالتك الأولى.</p>}
         <div className="msgs">
           {thread?.messages.map((m) => (
             <div key={m.id} className={`msg ${m.from_user === s.user?.id ? 'me' : ''}`}>

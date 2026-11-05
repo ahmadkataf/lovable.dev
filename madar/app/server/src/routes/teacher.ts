@@ -4,7 +4,7 @@ import { ApiError, type AppEnv } from '../types'
 import { requireAuth } from '../auth'
 import { ORDINALS, addDays, audit, bad, dayPhrase, firstName, forbidden, intParam, isDate, notFound, optText, placeholders, readBody, requireInt, requireText, today, weekday } from '../util'
 import { requireSection, requireTeacherOfSchool, studentByUser, parentChildren, teacherSections } from '../scope'
-import { fanOut, notify, sectionAudience, type Notice } from '../notify'
+import { notify, type Notice } from '../notify'
 import { affectedRows, ensureSubstitutions, runEngine } from '../substitute'
 import { timetableRows } from './common'
 

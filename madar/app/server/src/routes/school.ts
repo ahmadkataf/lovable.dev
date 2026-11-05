@@ -1,11 +1,11 @@
 // School (principal / deputy) routes: dashboard, sections, substitution decisions, attendance confirmation, announcements.
 import { Hono } from 'hono'
-import { ApiError, type AppEnv } from '../types'
+import type { AppEnv } from '../types'
 import { requireAuth } from '../auth'
 import { ORDINALS, audit, bad, dayPhrase, forbidden, intParam, isDate, notFound, optText, placeholders, readBody, requireInt, requireText, today } from '../util'
 import { requireTeacherOfSchool, teacherSections } from '../scope'
 import { fanOut, logSms, notify, schoolAccounts, schoolGuardians, sectionAudience, type Notice } from '../notify'
-import { affectedRows, ensureSubstitutions, type Candidate } from '../substitute'
+import { affectedRows, ensureSubstitutions } from '../substitute'
 import { schoolStats } from '../stats'
 
 const r = new Hono<AppEnv>()
@@ -38,7 +38,7 @@ r.get('/api/school/dashboard', requireAuth('school', 'directorate'), async c => 
   for (const a of absences) {
     const rows = await affectedRows(db, a.absence_id)
     withSubs.push({ ...a, substitutions: rows.map(s => ({ id: s.substitution_id, period: s.period, section_id: s.section_id, section_label: s.section_label, subject: s.subject,
-      status: s.status, substitute: s.substitute, substitute_teacher_id: s.substitute_teacher_id, lesson_note: s.lesson_note, candidates: s.candidates })) })
+      status: s.status, substitute: s.substitute, substitute_teacher_id: s.substitute_teacher_id, lesson_note: s.lesson_note, candidates: s.candidates, no_candidate: s.no_candidate })) })
   }
   return c.json({ date, ...stats, absences: withSubs })
 })

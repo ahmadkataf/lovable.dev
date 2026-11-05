@@ -10,8 +10,35 @@ import student from './routes/student'
 import parent from './routes/parent'
 import school from './routes/school'
 import directorate from './routes/directorate'
+import { doDatabase } from './dbshim'
 
 const app = new Hono<AppEnv>()
+
+// Production database: one SQLite-backed Durable Object exposed through a D1-shaped shim (tests pass a fake D1).
+app.use('*', async (c, next) => {
+  // A fresh stub per request (a stub created in one request must not be used by another).
+  if (!c.env.DB && c.env.MADAR_DO) c.env = { ...c.env, DB: doDatabase(c.env.MADAR_DO.get(c.env.MADAR_DO.idFromName('main'))) }
+  await next()
+})
+
+// Admin: apply schema/seed scripts and read table counts. Needs the ADMIN_KEY secret in the x-admin-key header.
+app.post('/api/admin/sql', async c => {
+  if (!c.env.ADMIN_KEY || c.req.header('x-admin-key') !== c.env.ADMIN_KEY) return c.json({ error: 'غير مصرّح' }, 403)
+  const script = await c.req.text()
+  if (!script.trim()) return c.json({ error: 'نصّ SQL فارغ' }, 400)
+  const r = await c.env.DB.exec(script)
+  return c.json({ statements: r.count })
+})
+app.post('/api/admin/reseed', async c => {
+  if (!c.env.ADMIN_KEY || c.req.header('x-admin-key') !== c.env.ADMIN_KEY) return c.json({ error: 'غير مصرّح' }, 403)
+  const { reseed } = await import('./worker')
+  return c.json(await reseed(c.env))
+})
+app.get('/api/admin/health', async c => {
+  if (!c.env.ADMIN_KEY || c.req.header('x-admin-key') !== c.env.ADMIN_KEY) return c.json({ error: 'غير مصرّح' }, 403)
+  const stub = c.env.MADAR_DO ? (c.env.MADAR_DO.get(c.env.MADAR_DO.idFromName('main')) as unknown as import('./dbshim').DbStub) : null
+  return c.json(stub ? await stub.health() : { note: 'no durable object binding' })
+})
 
 app.use('/api/*', cors({ origin: '*', allowHeaders: ['authorization', 'content-type'], allowMethods: ['GET', 'POST', 'OPTIONS'], maxAge: 86400 }))
 app.use('/api/*', async (c, next) => { await next(); c.header('cache-control', 'no-store') })

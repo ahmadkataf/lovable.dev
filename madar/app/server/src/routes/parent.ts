@@ -2,7 +2,7 @@
 import { Hono } from 'hono'
 import type { AppEnv, Role } from '../types'
 import { requireAuth } from '../auth'
-import { addDays, audit, bad, firstName, forbidden, isDate, notFound, periodStart, placeholders, readBody, requireInt, requireText, today, weekday } from '../util'
+import { addDays, audit, firstName, forbidden, isDate, notFound, periodStart, placeholders, readBody, requireInt, requireText, today, weekday } from '../util'
 import { parentChildren, teacherSections } from '../scope'
 import { notify } from '../notify'
 import { ensureSubstitutions } from '../substitute'

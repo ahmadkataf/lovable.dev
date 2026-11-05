@@ -1,7 +1,7 @@
 // Substitute engine (docs/mvp-spec.md §6): pure ranking over plain arrays + one thin D1 wrapper.
 import type { Env } from './types'
 import { fanOut, notify, schoolAccounts } from './notify'
-import { countPhrase, dayPhrase, monthStart, periodsPhrase, weekStart, addDays, weekday } from './util'
+import { addDays, countPhrase, dayPhrase, monthStart, nextMonthStart, periodsPhrase, weekStart, weekday } from './util'
 
 export interface TeacherInfo { id: number; name: string; subject_id: number | null; subject: string | null }
 /** One affected period of the absent teacher. */
@@ -70,6 +70,7 @@ export function suggest(slots: Slot[], ctx: EngineContext): Suggestion[] {
 export interface AffectedRow {
   substitution_id: number; timetable_id: number; period: number; section_id: number; section_label: string; subject: string
   status: string; substitute_teacher_id: number | null; substitute: string | null; lesson_note: string | null; candidates: Candidate[]
+  no_candidate: boolean   // still 'suggested' but nobody is free: the UI shows «لا بديل متاح — تعلّم ذاتي موجَّه»
 }
 export interface EngineResult { absence_id: number; teacher_id: number; teacher: string; date: string; affected: AffectedRow[] }
 
@@ -85,7 +86,10 @@ export async function affectedRows(db: D1Database, absenceId: number): Promise<A
     FROM substitutions s JOIN timetable t ON t.id = s.timetable_id JOIN sections sec ON sec.id = t.section_id
     JOIN subjects sj ON sj.id = t.subject_id LEFT JOIN users u ON u.id = s.substitute_teacher_id
     WHERE s.absence_id = ? ORDER BY t.period`).bind(absenceId).all<Omit<AffectedRow, 'candidates'> & { candidates: string }>()
-  return results.map(r => ({ ...r, candidates: JSON.parse(r.candidates || '[]') as Candidate[] }))
+  return results.map(r => {
+    const candidates = JSON.parse(r.candidates || '[]') as Candidate[]
+    return { ...r, candidates, no_candidate: r.status === 'suggested' && candidates.length === 0 }
+  })
 }
 
 /**
@@ -119,7 +123,7 @@ export async function runEngine(db: D1Database, env: Pick<Env, 'WEEKLY_CAP'>, ab
         .bind(absence.date, absence.school_id, absence.id).all<{ teacher_id: number; period: number }>(),
       db.prepare(`SELECT s.substitute_teacher_id AS id, COUNT(*) AS n FROM substitutions s JOIN absences a ON a.id = s.absence_id
                   WHERE s.status = 'approved' AND a.date >= ? AND a.date < ? GROUP BY s.substitute_teacher_id`)
-        .bind(monthStart(absence.date), addDays(monthStart(addDays(monthStart(absence.date), 31)), 0)).all<{ id: number; n: number }>(),
+        .bind(monthStart(absence.date), nextMonthStart(absence.date)).all<{ id: number; n: number }>(),
       db.prepare(`SELECT s.substitute_teacher_id AS id, COUNT(*) AS n FROM substitutions s JOIN absences a ON a.id = s.absence_id
                   WHERE s.status = 'approved' AND a.date >= ? AND a.date <= ? GROUP BY s.substitute_teacher_id`)
         .bind(ws, addDays(ws, 6)).all<{ id: number; n: number }>(),

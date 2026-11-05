@@ -19,7 +19,7 @@ export function TeacherHome() {
     <>
       <PageHead
         title={`${greeting()}، ${teacherTitle(s.user?.name)}`}
-        sub={[s.user?.subject || ctx?.subject, sectionsLabel, data ? `${count(periods.length, NOUNS.period, 'لا حصص')} اليوم` : null].filter(Boolean).join(' · ')}
+        sub={[fmtDate(today), s.user?.subject || ctx?.subject, sectionsLabel, data ? `${count(periods.length, NOUNS.period, 'لا حصص')} اليوم` : null].filter(Boolean).join(' · ')}
       />
 
       {data?.absence_today && (
@@ -28,7 +28,7 @@ export function TeacherHome() {
         </div>
       )}
 
-      <Tile title={`حصصك اليوم · ${fmtDate(today)}`} icon="cal" className="full">
+      <Tile title="حصصك اليوم" icon="cal" className="full">
         {loading && !data && <Skeleton lines={4} />}
         {error && !data && <ErrorBox error={error} retry={reload} />}
         {data && periods.length === 0 && (
@@ -39,9 +39,9 @@ export function TeacherHome() {
             <div className={`row ${p.substitute ? 'hl' : p.attendance_taken ? 'ok' : ''}`} key={p.id}>
               <span className="pnum num" aria-hidden="true">{ar(p.period)}</span>
               <span className="grow">
-                <b>{p.section_label}</b> · {p.subject}
+                <b>{p.section_label}</b>
                 <small>
-                  {periodName(p.period)}
+                  {p.subject} · {periodName(p.period)}
                   {p.substitute && (p.substitute.status === 'self_study' ? ' · تعلّم ذاتي موجَّه' : p.substitute.teacher ? ` · البديل: ${teacherTitle(p.substitute.teacher)}` : '')}
                 </small>
               </span>

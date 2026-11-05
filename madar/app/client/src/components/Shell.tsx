@@ -4,7 +4,7 @@
 import type { CSSProperties, ReactNode } from 'react';
 import { Icon, Logo } from './Icon';
 import { Avatar } from './Ui';
-import { ar, count, NOUNS } from '../format';
+import { ar, count, NOUNS, unreadLabel } from '../format';
 import { Link, useRoute } from '../router';
 import { replayOutbox } from '../api';
 import { roleHome, signOut, useStore } from '../store';
@@ -124,10 +124,15 @@ export function Shell({ children }: { children: ReactNode }) {
         <div className="topbar-in">
           <Link to={roleHome(role)} className="who" aria-label="الرئيسية">
             <Avatar name={displayName} color={color} />
-            <div className="txt"><b>{displayName}</b><small>{sub}</small></div>
+            <div className="txt">
+              <b>{displayName}</b>
+              <div className="meta">
+                {s.demo && <span className="pill demo">بيانات تجريبية</span>}
+                <small>{sub}</small>
+              </div>
+            </div>
           </Link>
-          {s.demo && <span className="pill demo">بيانات تجريبية</span>}
-          <Link to="/notifications" className="iconbtn" aria-label={s.unread ? `الإشعارات، ${count(s.unread, NOUNS.notification)} غير مقروءة` : 'الإشعارات'}>
+          <Link to="/notifications" className="iconbtn" aria-label={s.unread ? `الإشعارات، ${unreadLabel(s.unread)}` : 'الإشعارات'}>
             <Icon name="bell" />
             {s.unread > 0 && <span className="badge num" aria-hidden="true">{ar(s.unread)}</span>}
           </Link>

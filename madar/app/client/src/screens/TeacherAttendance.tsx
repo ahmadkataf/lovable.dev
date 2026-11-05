@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Roster } from '../components/Roster';
 import { Btn, ErrorBox, PageHead, Skeleton, Tile } from '../components/Ui';
-import { ar, fmtDate, todayISO } from '../format';
+import { ar, fmtDate, periodName, todayISO } from '../format';
 import { useApi } from '../hooks';
 import { navigate, useRoute } from '../router';
 import type { SectionWithStudents, TeacherHome } from '../types';
@@ -42,7 +42,7 @@ export function TeacherAttendance() {
             <div className="chips">
               {(todayRows.length ? todayRows.map((p) => p.period) : [1, 2, 3, 4, 5, 6]).map((p) => (
                 <button type="button" key={p} className="chip" onClick={() => { setPeriod(p); navigate(`/teacher/attendance?section=${sectionId}&period=${p}`, { replace: true }); }}>
-                  الحصّة {ar(p)}
+                  {periodName(p)}
                 </button>
               ))}
             </div>

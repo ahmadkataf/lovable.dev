@@ -2,7 +2,9 @@
 export type Role = 'directorate' | 'school' | 'teacher' | 'student' | 'parent'
 
 export interface Env {
-  DB: D1Database
+  DB: D1Database               // D1 binding, or (in production) the Durable Object shim installed by index.ts
+  MADAR_DO?: DurableObjectNamespace
+  ADMIN_KEY?: string           // wrangler secret: unlocks POST /api/admin/sql (schema/seed) and GET /api/admin/health
   ASSETS: Fetcher
   TOKEN_SECRET?: string   // HMAC secret for login tokens (wrangler secret); 'dev-secret' when unset
   WEEKLY_CAP?: string     // substitute engine: max weekly periods + substitutions per teacher (default 28)

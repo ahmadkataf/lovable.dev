@@ -162,6 +162,31 @@ export function count(n: number, forms: NounForms, zero?: string): string {
   return `${ar(n)} ${forms.one}`;
 }
 
+/** «إشعار واحد غير مقروء» / «إشعاران غير مقروءان» / «٣ إشعارات غير مقروءة» / «١٢ إشعاراً غير مقروء». */
+export function unreadLabel(n: number): string {
+  if (n === 0) return 'لا إشعارات جديدة';
+  if (n === 1) return 'إشعار واحد غير مقروء';
+  if (n === 2) return 'إشعاران غير مقروءان';
+  const m = n % 100;
+  if (m >= 3 && m <= 10) return `${ar(n)} إشعارات غير مقروءة`;
+  return `${ar(n)} إشعاراً غير مقروء`;
+}
+
+/** Attach the preposition «ل» to a word: «لمحمد»، «للحسن». */
+export function li(word: string): string {
+  const w = (word ?? '').trim();
+  if (!w) return '';
+  return w.startsWith('ال') ? `لل${w.slice(2)}` : `ل${w}`;
+}
+
+/** Homework title with its book page unless the title already names it. */
+export function withPage(title: string, page: string | null | undefined): string {
+  if (!page) return title;
+  const p = arDigits(page);
+  if (title.includes(`ص ${p}`) || title.includes(`ص ${page}`) || title.includes(`صفحة ${p}`)) return title;
+  return `${title} (ص ${p})`;
+}
+
 /** «الحصّة الثالثة». */
 export function periodName(p: number): string {
   return `الحصّة ${ORDINAL_F[p - 1] ?? ar(p)}`;
