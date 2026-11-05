@@ -58,7 +58,7 @@ function AlertRow({ alert, school, date, onEarlyWarning }: { alert: DirectorateA
   const body = (
     <>
       <b>{alert.text}</b>
-      <small>{alert.school}{school?.principal ? ` · المدير: ${school.principal}` : ''}</small>
+      <small>{alert.school}{school?.principal ? ` · ${school.principal}` : ''}</small>
     </>
   );
   return (
@@ -166,7 +166,7 @@ export function DirectorateDashboard() {
         <>
           <Tile
             className="full dir-alerts"
-            title={alerts.length ? `يحتاج تدخّلاً ${dayWord} · ${count(alerts.length, NOUNS.alert)}` : `يحتاج تدخّلاً ${dayWord}`}
+            title={alerts.length && !narrow ? `يحتاج تدخّلاً ${dayWord} · ${count(alerts.length, NOUNS.alert)}` : `يحتاج تدخّلاً ${dayWord}`}
             icon="alert"
             color="var(--sun)"
             right={alerts.length > ALERTS_SHOWN + 1 ? (
@@ -185,9 +185,9 @@ export function DirectorateDashboard() {
           </Tile>
 
           <div className="kpis dir-kpis full" aria-label="أرقام اليوم">
-            <Kpi value={pct(data.totals.present_pct)} label="حضور الطلاب" tone={data.totals.present_pct === null ? 'muted' : data.totals.present_pct >= 90 ? 'good' : 'warn'} />
-            <Kpi value={pct(data.totals.coverage_pct)} label="تغطية الغياب" tone={data.totals.coverage_pct >= 90 ? 'good' : 'warn'} />
-            <Kpi value={`${ar(uploaded)} / ${ar(total)}`} label="رفعت الحضور" tone={holiday ? 'muted' : uploaded === total ? 'good' : 'warn'} />
+            <Kpi value={pct(data.totals.present_pct)} label={narrow ? 'الحضور' : 'حضور الطلاب'} tone={data.totals.present_pct === null ? 'muted' : data.totals.present_pct >= 90 ? 'good' : 'warn'} />
+            <Kpi value={pct(data.totals.coverage_pct)} label={narrow ? 'التغطية' : 'تغطية حصص الغياب'} tone={data.totals.coverage_pct >= 90 ? 'good' : 'warn'} />
+            <Kpi value={`${ar(uploaded)} / ${ar(total)}`} label={narrow ? 'رفع الحضور' : 'مدارس رفعت الحضور'} tone={holiday ? 'muted' : uploaded === total ? 'good' : 'warn'} />
             <Kpi value={ar(alerts.length)} label={alerts.length === 1 ? 'تنبيه واحد' : 'تنبيهات'} tone={alerts.length ? 'warn' : 'good'} />
           </div>
 

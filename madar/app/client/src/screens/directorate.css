@@ -11,7 +11,9 @@
 @media (max-width:720px){
   .dir-head h1{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
   .dir-head .datefield.compact{width:100%;justify-content:space-between;gap:6px}
-  .dir-head .datefield .dateval{font-size:.95rem;gap:5px}
+  .dir-head .datefield .dateval{font-size:.92rem;gap:5px}
+  .dir-head .datefield .dateval svg{display:none}
+  .dir-head .datefield.compact .chip{padding:5px 9px}
   .dir-head .datefield .datectl{gap:6px}
   /* the native date input becomes a round calendar button; the chips cover today and yesterday */
   .dir-head .datefield input.date{width:44px;min-height:44px;height:44px;padding:0;color:transparent;caret-color:transparent;border-radius:999px;position:relative;overflow:hidden;background:#fff url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='18' height='18' viewBox='0 0 24 24' fill='none' stroke='%233f4d68' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='3' y='4' width='18' height='18' rx='3'/%3E%3Cpath d='M16 2v4M8 2v4M3 10h18'/%3E%3C/svg%3E") center/18px no-repeat}
@@ -20,16 +22,18 @@
 }
 
 /* ── alerts: each row opens the school page; the phone button calls the principal ── */
-.dir-alerts .list{gap:6px}
-.dir-alerts .empty{padding:14px}
-.dir-alert{padding:6px 10px;gap:8px;align-items:center}
-.dir-alert-main{flex:1;min-width:0;display:flex;flex-direction:column;justify-content:center;min-height:44px;color:inherit}
-.dir-alert-main b{display:block;font-size:.9rem;line-height:1.45;overflow-wrap:anywhere}
-.dir-alert-main small{display:block;color:var(--ink-3);font-size:.8rem;line-height:1.45;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tile.dir-alerts{padding:12px 14px}
+.tile.dir-alerts .list{gap:6px}
+.tile.dir-alerts .empty{padding:14px}
+.row.dir-alert{padding:5px 10px;gap:8px;align-items:center;min-height:44px}
+.row .dir-alert-main{flex:1;min-width:0;display:flex;flex-direction:column;justify-content:center;min-height:44px;color:inherit}
+.row .dir-alert-main b{display:block;font-size:.9rem;line-height:1.45;overflow-wrap:anywhere}
+.row .dir-alert-main small{display:block;color:var(--ink-3);font-size:.8rem;line-height:1.45;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .dir-alert .tag{flex:none}
 button.dir-early{cursor:pointer;min-height:44px;display:inline-flex;align-items:center;text-decoration:underline;text-underline-offset:3px;text-decoration-color:rgba(184,48,63,.5)}
 .dir-more-link{min-height:44px;display:inline-flex;align-items:center;padding:0 6px;font-size:.84rem;font-weight:700;color:var(--brand-ink);text-decoration:underline;text-underline-offset:3px;white-space:nowrap}
-.dir-alerts>h3{margin-bottom:6px}
+.tile.dir-alerts>h3{margin-bottom:6px;flex-wrap:nowrap}
+.tile.dir-alerts>h3 .grow{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .dir-more{display:block;width:100%;margin-top:8px;padding:10px;min-height:44px;border-radius:10px;background:#f6f8fd;border:1px solid var(--hair);font-weight:700;font-size:.84rem;color:var(--brand-ink);text-align:center}
 .dir-tel{width:44px;height:44px;border-radius:50%;display:inline-grid;place-items:center;background:#fff;border:1px solid var(--hair-2);color:var(--mint);flex:none;box-shadow:var(--shadow-sm);transition:background .15s}
 .dir-tel:hover{background:#eafaf3}
@@ -48,12 +52,12 @@ button.dir-early{cursor:pointer;min-height:44px;display:inline-flex;align-items:
 /* ── schools: cards on phones, table on desktop ── */
 .dir-schools>h3 .grow{white-space:nowrap}
 .dir-schools-sec{min-width:0}
-.dir-schools-h{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px;min-width:0}
+.dir-schools-h{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:6px;min-width:0}
 .dir-schools-h h3{font-size:.98rem;font-weight:700;display:flex;align-items:center;gap:8px;white-space:nowrap}
 .dir-schools-h h3 svg{width:18px;height:18px;color:var(--c);flex:none}
-select.input.dir-sort-select{width:auto;max-width:60%;min-height:44px;padding:6px 32px 6px 12px;font-size:.8rem;border-radius:999px;font-weight:700;color:var(--ink-2);background-color:#fff}
+select.input.dir-sort-select{width:auto;max-width:62%;min-height:44px;padding:6px 12px 6px 34px;font-size:.8rem;border-radius:999px;font-weight:700;color:var(--ink-2);background-color:#fff;text-overflow:ellipsis}
 .scards{display:grid;gap:8px}
-.scard{display:flex;align-items:stretch;gap:8px;background:#fff;border:1px solid var(--hair);border-radius:16px;padding:9px 12px;min-width:0;box-shadow:0 8px 24px -18px rgba(30,60,120,.35)}
+.scard{display:flex;align-items:stretch;gap:8px;background:#fff;border:1px solid var(--hair);border-radius:16px;padding:8px 12px;min-width:0;box-shadow:0 8px 24px -18px rgba(30,60,120,.35)}
 .scard.sev-high{border-color:rgba(184,48,63,.35);background:#fff7f8}
 .scard.sev-mid{border-color:rgba(240,160,32,.5);background:#fffaf0}
 .scard-main{flex:1;min-width:0;display:grid;gap:5px;color:inherit}

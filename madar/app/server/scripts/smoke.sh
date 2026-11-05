@@ -84,11 +84,26 @@ done
 check "wrong code" POST /api/login "" '{"code":"NOPE"}' 401
 check "no token" GET /api/me "" "" 401
 
+say "== public config (no token, short public cache)"
+check "config" GET /api/config "" "" 200
+cc=$(curl -s -D - -o /dev/null "$BASE/api/config" | tr -d '\r' | grep -i '^cache-control:' | cut -d' ' -f2-)
+if [[ "$cc" == "public, max-age=300" ]]; then say "ok   config cache-control: $cc"; else say "FAIL config cache-control: '$cc'"; FAIL=1; fi
+
 say "== directorate"
 check "me" GET /api/me "${TOK[DIR-DARAA]}" "" 200
 check "dashboard" GET "/api/directorate/dashboard?date=$TODAY" "${TOK[DIR-DARAA]}" "" 200
+say "     schools: $(json '.schools | length') · attendance $(json '.totals.present_pct')% · coverage $(json '.totals.coverage_pct')% · alerts $(json '.totals.alerts_count') ($(json '[.alerts[].kind] | join(",")'))"
+check "bell (alerts stored once)" GET /api/notifications "${TOK[DIR-DARAA]}" "" 200
+say "     directorate notifications: $(json 'length') ($(json '[.[].kind] | unique | join(",")'))"
+check "school page" GET "/api/directorate/school/1?date=$TODAY" "${TOK[DIR-DARAA]}" "" 200
+say "     $(json '.school.name') · $(json '.school.principal') · $(json '.school.phone') · absences $(json '.absences | length') · uncovered $(json '.uncovered | length') · trend $(json '.trend | length') days"
+check "school page, other role" GET "/api/directorate/school/1?date=$TODAY" "${TOK[SCH-1]}" "" 403
+check "weekly report" GET "/api/directorate/report?week=$TODAY" "${TOK[DIR-DARAA]}" "" 200
+say "     week $(json '.from') → $(json '.to') · schools $(json '.schools | length') · absences $(json '.totals.absences') · uncovered $(json '.totals.uncovered')"
+check "weekly report.csv" GET "/api/directorate/report.csv?week=$TODAY" "${TOK[DIR-DARAA]}" "" 200
 check "report.csv" GET "/api/directorate/report.csv?date=$TODAY" "${TOK[DIR-DARAA]}" "" 200
 check "circular" POST /api/announcements "${TOK[DIR-DARAA]}" '{"title":"تعميم تجريبي","body":"نصّ التعميم (اختبار الدخان)."}' 201
+say "     $(json '.message')"
 
 say "== school"
 check "me" GET /api/me "${TOK[SCH-1]}" "" 200
@@ -96,7 +111,9 @@ check "dashboard" GET "/api/school/dashboard?date=$TODAY" "${TOK[SCH-1]}" "" 200
 check "sections" GET /api/school/sections "${TOK[SCH-1]}" "" 200
 check "teachers" GET /api/school/teachers "${TOK[SCH-1]}" "" 200
 check "announcement" POST /api/announcements "${TOK[SCH-1]}" '{"title":"إعلان تجريبي","body":"نصّ الإعلان (اختبار الدخان).","urgent":true}' 201
+say "     $(json '.message')"
 check "confirm attendance" POST /api/attendance/confirm "${TOK[SCH-1]}" "{\"date\":\"$TODAY\"}" 200
+say "     $(json '.message')"
 
 say "== teacher"
 check "me" GET /api/me "${TOK[T-SAMER]}" "" 200
@@ -139,9 +156,14 @@ check "notifications" GET /api/notifications "${TOK[P-KHALED]}" "" 200
 check "announcements" GET /api/announcements "${TOK[P-KHALED]}" "" 200
 check "mark read" POST /api/notifications/read "${TOK[P-KHALED]}" '{"all":true}' 200
 
-say "== reseed with referencing rows present (messages, submissions, substitutions)"
+say "== reseed with referencing rows present (messages, submissions, substitutions) — this is what the 06:00 cron does"
+t0=$(date +%s%N)
 code=$(curl -s -o "$TMP/body" -w '%{http_code}' -X POST "$BASE/api/admin/reseed" -H "x-admin-key: $ADMIN_KEY")
-if [[ "$code" == "200" ]]; then say "ok   POST   /api/admin/reseed → 200 $(head -c 120 "$TMP/body")"; else say "FAIL POST /api/admin/reseed → $code $(head -c 300 "$TMP/body")"; FAIL=1; fi
+t1=$(date +%s%N)
+if [[ "$code" == "200" ]]; then say "ok   POST   /api/admin/reseed → 200 in $(( (t1 - t0) / 1000000 )) ms $(head -c 200 "$TMP/body")"; else say "FAIL POST /api/admin/reseed → $code $(head -c 300 "$TMP/body")"; FAIL=1; fi
+TOK[DIR-DARAA]=$(login DIR-DARAA)
+check "bell after reseed (warm-up stored the alerts)" GET /api/notifications "${TOK[DIR-DARAA]}" "" 200
+say "     directorate notifications right after the reseed: $(json 'length')"
 TOK[SCH-1]=$(login SCH-1); [[ -n "${TOK[SCH-1]}" ]] && say "ok   login after reseed" || { say "FAIL login after reseed"; FAIL=1; }
 
 say "== static shell"

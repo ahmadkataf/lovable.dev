@@ -10355,6 +10355,14 @@ SELECT x.uid, 'change', x.body, x.link, 0, x.at, 'seed:change:' || x.sid || ':' 
   WHERE a.date = (SELECT d FROM demo_days WHERE rn = 1) AND s.status IN ('approved', 'self_study') AND st.guardian_user_id IS NOT NULL
 ) x;
 
+INSERT OR IGNORE INTO notifications (user_id, kind, body, link, sms, created_at, dedupe_key)
+SELECT st.guardian_user_id, 'absence', 'غياب ' || CASE WHEN u.name LIKE 'عبد %' OR u.name LIKE 'محمد نور %' OR u.name LIKE 'نور الدين %'
+                        THEN substr(u.name, 1, instr(u.name, ' ') + instr(substr(u.name, instr(u.name, ' ') + 1), ' ') - 1)
+                        ELSE substr(u.name, 1, instr(u.name, ' ') - 1) END || ' اليوم — الحصّة الأولى',
+       '/attendance?date=' || a.date || '&student_id=' || st.id, 0, a.created_at, 'seed:absence:' || st.id || ':' || a.date
+FROM attendance a JOIN students st ON st.id = a.student_id JOIN users u ON u.id = st.user_id
+WHERE a.date = (SELECT d FROM demo_days WHERE rn = 1) AND a.period = 1 AND a.status = 'absent' AND st.guardian_user_id IS NOT NULL;
+
 INSERT OR IGNORE INTO notifications (user_id, kind, body, link, sms, created_at, dedupe_key) VALUES (114, 'homework', 'واجب جديد في الرياضيات: تمارين الكسور العشرية ص ٤٢ — يُسلَّم بعد ٣ أيام', '/homework/1', 0, datetime((SELECT d FROM demo_days WHERE rn = 1) || ' 08:12:00', '-3 hours'), 'seed:hw1:layan');
 
 INSERT OR IGNORE INTO notifications (user_id, kind, body, link, sms, created_at, dedupe_key) VALUES (114, 'announcement', 'إعلان من المدرسة: اجتماع أولياء الأمور', '/announcements/1', 0, datetime((SELECT d FROM demo_days WHERE rn = 1) || ' 12:31:00', '-3 hours', '-1 day'), 'seed:announce1:layan');

@@ -77,7 +77,7 @@ r.get('/api/directorate/dashboard', requireAuth('directorate'), async c => {
   const { schools, three, alerts } = await directorateOverview(db, c.env, date)
   const threeBySchool = new Map<number, number>()
   for (const t of three) threeBySchool.set(t.school_id, (threeBySchool.get(t.school_id) ?? 0) + 1)
-  const recorded = sum(schools, s => s.recorded), present = sum(schools, s => s.present)
+  const recorded = sum(schools, s => s.recorded), present = sum(schools, s => s.present + s.late)
   const affected = sum(schools, s => s.affected_periods), covered = sum(schools, s => s.covered_periods)
   return c.json({
     date,
@@ -134,7 +134,7 @@ r.get('/api/directorate/school/:id', requireAuth('directorate'), async c => {
     absences: withPeriods,
     uncovered,
     three_days: three.map(t => ({ student: t.student_name, section: t.section_label, days: t.days })),
-    trend: trendDays.map(d => { const a = byDay.find(x => x.date === d); return { date: d, attendance_pct: a ? pct(a.present, a.recorded) : null } }),
+    trend: trendDays.map(d => { const a = byDay.find(x => x.date === d); return { date: d, attendance_pct: a ? pct(a.attended, a.recorded) : null } }),
   })
 })
 
@@ -162,7 +162,7 @@ export async function weeklyReport(db: D1Database, env: Pick<Env, 'WEEKLY_CAP'>,
     return {
       id: s.id, name: s.name, complex: s.complex, principal: s.principal, phone: s.phone,
       students: pupils.results.find(x => x.school_id === s.id)?.n ?? 0, teachers: staff.results.find(x => x.school_id === s.id)?.n ?? 0,
-      attendance_avg_pct: pct(sum(a, x => x.present), sum(a, x => x.recorded)), days_uploaded: a.length,
+      attendance_avg_pct: pct(sum(a, x => x.attended), sum(a, x => x.recorded)), days_uploaded: a.length,
       absences: cv?.absences ?? 0, substitutions_approved: cv?.approved ?? 0, self_study: cv?.self_study ?? 0, uncovered: cv?.uncovered ?? 0,
       three_days: threeBySchool.get(s.id)?.size ?? 0,
     }
@@ -170,7 +170,7 @@ export async function weeklyReport(db: D1Database, env: Pick<Env, 'WEEKLY_CAP'>,
   return {
     from, to, school_days: 5, schools: rows,
     totals: {
-      attendance_avg_pct: pct(sum(att, x => x.present), sum(att, x => x.recorded)),
+      attendance_avg_pct: pct(sum(att, x => x.attended), sum(att, x => x.recorded)),
       days_uploaded: sum(rows, x => x.days_uploaded),   // school-days with an upload (out of schools × 5)
       absences: sum(rows, x => x.absences), substitutions_approved: sum(rows, x => x.substitutions_approved),
       self_study: sum(rows, x => x.self_study), uncovered: sum(rows, x => x.uncovered), three_days: sum(rows, x => x.three_days),

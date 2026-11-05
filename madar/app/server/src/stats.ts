@@ -17,7 +17,10 @@ export const pct = (part: number, whole: number): number | null => whole > 0 ? M
 
 export interface SchoolStats {
   id: number; name: string; complex: string; principal: string | null; phone: string | null
-  students: number; recorded: number; present: number; absent: number; late: number; present_pct: number | null; attendance_uploaded: boolean
+  students: number; recorded: number
+  present: number; absent: number; late: number   // the recorded students' day statuses (present + absent + late = recorded)
+  present_pct: number | null                      // present and late over recorded
+  attendance_uploaded: boolean
   attendance_confirmed: boolean   // the school has confirmed that day's attendance (POST /api/attendance/confirm)
   uploaded_at: string | null      // when the first attendance row of the day came in (UTC, like every created_at)
   teachers: number; teachers_present: number
@@ -42,14 +45,14 @@ export async function schoolStats(db: D1Database, schoolId: number, date: string
                 JOIN sections sec ON sec.id = st.section_id WHERE a.date = ? AND sec.school_id = ?`).bind(date, schoolId).first<{ first_at: string | null; confirmed: number | null }>(),
   ])
   const recorded = statuses.filter(s => s.status !== null)
-  const present = recorded.filter(s => isPresent(s.status)).length
+  const present = recorded.filter(s => s.status === 'present').length, late = recorded.filter(s => s.status === 'late').length
   const affected = subs.results.reduce((n, r) => n + r.n, 0)
   const covered = subs.results.filter(r => r.status === 'approved' || r.status === 'self_study').reduce((n, r) => n + r.n, 0)
   const grades = [...new Set(statuses.map(s => s.grade))].sort((a, b) => a - b)
   return {
     ...school,
-    students: statuses.length, recorded: recorded.length, present, absent: recorded.filter(s => s.status === 'absent').length, late: recorded.filter(s => s.status === 'late').length,
-    present_pct: pct(present, recorded.length), attendance_uploaded: recorded.length > 0,
+    students: statuses.length, recorded: recorded.length, present, absent: recorded.length - present - late, late,
+    present_pct: pct(present + late, recorded.length), attendance_uploaded: recorded.length > 0,
     attendance_confirmed: (upload?.confirmed ?? 0) === 1,
     uploaded_at: upload?.first_at ?? null,
     teachers: teachers?.n ?? 0, teachers_present: Math.max(0, (teachers?.n ?? 0) - (absent?.n ?? 0)),
@@ -101,12 +104,12 @@ export async function threeDayAbsences(db: D1Database, date: string, schoolId: n
   return out.sort((a, b) => b.days - a.days || a.student_name.localeCompare(b.student_name, 'ar'))
 }
 
-/** Per school and date in [from, to]: how many students had a day status and how many of them were present or late. */
-export interface DayAttendance { school_id: number; date: string; recorded: number; present: number }
+/** Per school and date in [from, to]: how many students had a day status and how many of them attended (present or late). */
+export interface DayAttendance { school_id: number; date: string; recorded: number; attended: number }
 export async function attendanceByDay(db: D1Database, from: string, to: string, schoolId: number | null): Promise<DayAttendance[]> {
   const { results } = await db.prepare(`
     WITH first AS (SELECT student_id, date, MIN(period) AS p FROM attendance WHERE date BETWEEN ? AND ? GROUP BY student_id, date)
-    SELECT sec.school_id, f.date, COUNT(*) AS recorded, SUM(CASE WHEN a.status IN ('present', 'late') THEN 1 ELSE 0 END) AS present
+    SELECT sec.school_id, f.date, COUNT(*) AS recorded, SUM(CASE WHEN a.status IN ('present', 'late') THEN 1 ELSE 0 END) AS attended
     FROM first f JOIN attendance a ON a.student_id = f.student_id AND a.date = f.date AND a.period = f.p
     JOIN students st ON st.id = f.student_id JOIN sections sec ON sec.id = st.section_id
     WHERE ? IS NULL OR sec.school_id = ?

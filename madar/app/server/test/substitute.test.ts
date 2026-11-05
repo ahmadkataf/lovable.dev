@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { rankCandidates, suggest, weeklyLoad, type EngineContext, type Slot, type TimetableRow } from '../src/substitute'
+import { rankCandidates, suggest, suggestionNote, weeklyLoad, type Candidate, type EngineContext, type Slot, type TimetableRow } from '../src/substitute'
 
 // A small school: the absent maths teacher (1) and five colleagues.
 const T = (id: number, name: string, subject_id: number | null, subject: string | null) => ({ id, name, subject_id, subject })
@@ -80,5 +80,23 @@ describe('suggest', () => {
     const [s] = suggest([slot3], everyoneBusy)
     expect(s.candidates).toEqual([])
     expect(s.substitute_teacher_id).toBeNull()
+  })
+})
+
+describe('suggestionNote', () => {
+  const c = (tier: 1 | 2 | 3): Candidate => ({ teacher_id: 9, name: 'x', subject: 's', tier, reason: 'r' })
+  it('explains a list that no same-subject teacher heads, and an empty one', () => {
+    expect(suggestionNote('suggested', 'العلوم', [c(1), c(3)])).toBeNull()
+    expect(suggestionNote('suggested', 'العلوم', [c(2), c(3)])).toBe('لا معلّم العلوم متاحاً في هذه الحصّة، فاقتُرح معلّمون من مواد أخرى')
+    expect(suggestionNote('suggested', 'التربية الرياضية', [c(3)])).toBe('لا معلّم التربية الرياضية متاحاً في هذه الحصّة، فاقتُرح معلّمون من مواد أخرى')
+    expect(suggestionNote('suggested', 'العلوم', [])).toBe('لا معلّم متاحاً في هذه الحصّة — تعلّم ذاتي موجَّه')
+    expect(suggestionNote('approved', 'العلوم', [c(3)])).toBeNull()   // decided: nothing left to explain
+    expect(suggestionNote('self_study', 'العلوم', [])).toBeNull()
+  })
+  it('keeps the reason texts neutral and the tanwīn after the alif', () => {
+    const ranked = rankCandidates(slot3, base)
+    expect(ranked.map(x => x.reason).join(' ')).not.toMatch(/ًا|غير متخصّص|يدرّس الشعبة/)
+    expect(ranked.find(x => x.tier === 2)!.reason).toMatch(/^من معلّمي الشعبة · حصّة فراغ · /)
+    expect(ranked.find(x => x.tier === 3)!.reason).toMatch(/^حصّة فراغ · /)
   })
 })

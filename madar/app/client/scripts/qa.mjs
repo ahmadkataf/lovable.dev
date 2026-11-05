@@ -340,7 +340,7 @@ async function directorateFlow(page, h) {
   });
   await h.step('«إنذار مبكر» scrolls to the three-day list', async () => {
     if (!(await page.locator('button.dir-early').count())) {
-      const more = page.locator('button.dir-more');
+      const more = page.locator('button.dir-more-link');
       if (await more.count()) await more.first().click();
     }
     await page.locator('button.dir-early').first().click();
@@ -354,7 +354,7 @@ async function directorateFlow(page, h) {
   });
   await h.step('sort schools', async () => {
     if (h.profile === 'phone') {
-      const sel = page.locator('.dir-sort select');
+      const sel = page.locator('select.dir-sort-select');
       const first = await page.locator('.scard .scard-h b').first().innerText();
       await sel.selectOption('name');
       await page.waitForTimeout(200);

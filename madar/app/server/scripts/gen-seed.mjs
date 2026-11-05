@@ -555,6 +555,17 @@ SELECT x.uid, 'change', x.body, x.link, 0, x.at, 'seed:change:' || x.sid || ':' 
   FROM substitutions s JOIN absences a ON a.id = s.absence_id JOIN timetable t ON t.id = s.timetable_id JOIN students st ON st.section_id = t.section_id
   WHERE a.date = ${D1} AND s.status IN ('approved', 'self_study') AND st.guardian_user_id IS NOT NULL
 ) x;`)
+// The guardians' absence notices the morning's attendance would have produced (in-app, not yet confirmed → no SMS flag):
+// «غياب ليان اليوم — الحصّة الأولى», first names only (compound given names whole), link to the child's attendance.
+const FIRST_NAME = `CASE WHEN u.name LIKE 'عبد %' OR u.name LIKE 'محمد نور %' OR u.name LIKE 'نور الدين %'
+                        THEN substr(u.name, 1, instr(u.name, ' ') + instr(substr(u.name, instr(u.name, ' ') + 1), ' ') - 1)
+                        ELSE substr(u.name, 1, instr(u.name, ' ') - 1) END`
+out.push(`INSERT OR IGNORE INTO notifications (user_id, kind, body, link, sms, created_at, dedupe_key)
+SELECT st.guardian_user_id, 'absence', 'غياب ' || ${FIRST_NAME} || ' اليوم — الحصّة الأولى',
+       '/attendance?date=' || a.date || '&student_id=' || st.id, 0, a.created_at, 'seed:absence:' || st.id || ':' || a.date
+FROM attendance a JOIN students st ON st.id = a.student_id JOIN users u ON u.id = st.user_id
+WHERE a.date = ${D1} AND a.period = 1 AND a.status = 'absent' AND st.guardian_user_id IS NOT NULL;`)
+
 const notice = (uid, kind, body, link, time, key) =>
   `INSERT OR IGNORE INTO notifications (user_id, kind, body, link, sms, created_at, dedupe_key) VALUES (${uid}, ${q(kind)}, ${q(body)}, ${q(link)}, 0, datetime(${D1} || ${q(time)}, '-3 hours'${key.includes('circular') ? ", '-2 days'" : key.includes('announce') ? ", '-1 day'" : ''}), ${q(key)});`
 const layan = students.find(s => s[6] === 'S-LAYAN'), mohammad = students.find(s => s[5] === 'محمد خالد')
