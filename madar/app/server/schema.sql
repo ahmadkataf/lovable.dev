@@ -1,6 +1,7 @@
--- Madar MVP — D1 (SQLite) schema. Mirrors docs/mvp-spec.md §3 (plus homework.client_id for offline dedupe).
+-- Madar MVP — SQLite schema. Mirrors docs/mvp-spec.md §3 plus: homework.client_id (offline dedupe), schools.principal/phone
+-- (directorate contacts), notifications.dedupe_key (one alert per day/kind/school — INSERT OR IGNORE; NULLs stay distinct).
 -- Apply: npx wrangler d1 execute madar --local --file=schema.sql   (or --remote on deploy)
-CREATE TABLE IF NOT EXISTS schools (id INTEGER PRIMARY KEY, name TEXT NOT NULL, complex TEXT NOT NULL, shifts INTEGER NOT NULL DEFAULT 1);
+CREATE TABLE IF NOT EXISTS schools (id INTEGER PRIMARY KEY, name TEXT NOT NULL, complex TEXT NOT NULL, shifts INTEGER NOT NULL DEFAULT 1, principal TEXT, phone TEXT);
 CREATE TABLE IF NOT EXISTS users (id INTEGER PRIMARY KEY, role TEXT NOT NULL CHECK(role IN ('directorate','school','teacher','student','parent')),
   name TEXT NOT NULL, school_id INTEGER REFERENCES schools(id), phone TEXT, code TEXT NOT NULL UNIQUE, subject_id INTEGER, created_at TEXT NOT NULL DEFAULT (datetime('now')));
 CREATE TABLE IF NOT EXISTS subjects (id INTEGER PRIMARY KEY, name TEXT NOT NULL);
@@ -19,8 +20,10 @@ CREATE TABLE IF NOT EXISTS substitutions (id INTEGER PRIMARY KEY, absence_id INT
   candidates TEXT NOT NULL DEFAULT '[]', lesson_note TEXT, approved_by INTEGER, approved_at TEXT, UNIQUE(absence_id, timetable_id));
 CREATE TABLE IF NOT EXISTS announcements (id INTEGER PRIMARY KEY, school_id INTEGER, title TEXT NOT NULL, body TEXT NOT NULL, urgent INTEGER NOT NULL DEFAULT 0, created_by INTEGER NOT NULL, created_at TEXT NOT NULL DEFAULT (datetime('now')));
 CREATE TABLE IF NOT EXISTS messages (id INTEGER PRIMARY KEY, from_user INTEGER NOT NULL, to_user INTEGER NOT NULL, body TEXT NOT NULL, created_at TEXT NOT NULL DEFAULT (datetime('now')), read_at TEXT);
-CREATE TABLE IF NOT EXISTS notifications (id INTEGER PRIMARY KEY, user_id INTEGER NOT NULL, kind TEXT NOT NULL, body TEXT NOT NULL, link TEXT, sms INTEGER NOT NULL DEFAULT 0, created_at TEXT NOT NULL DEFAULT (datetime('now')), read_at TEXT);
+CREATE TABLE IF NOT EXISTS notifications (id INTEGER PRIMARY KEY, user_id INTEGER NOT NULL, kind TEXT NOT NULL, body TEXT NOT NULL, link TEXT, sms INTEGER NOT NULL DEFAULT 0, created_at TEXT NOT NULL DEFAULT (datetime('now')), read_at TEXT,
+  dedupe_key TEXT);
 CREATE TABLE IF NOT EXISTS audit_log (id INTEGER PRIMARY KEY, user_id INTEGER, action TEXT NOT NULL, target TEXT, created_at TEXT NOT NULL DEFAULT (datetime('now')));
 CREATE INDEX IF NOT EXISTS idx_tt_teacher ON timetable(teacher_id, day);
 CREATE INDEX IF NOT EXISTS idx_att_date ON attendance(date);
 CREATE INDEX IF NOT EXISTS idx_notif_user ON notifications(user_id, read_at);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_notif_dedupe ON notifications(dedupe_key);

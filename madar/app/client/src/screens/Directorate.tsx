@@ -1,56 +1,144 @@
-/* Directorate: dashboard (totals, sortable schools table, alerts), circulars
-   composer, CSV report download. */
+/* Directorate: the dashboard (alerts first, compact KPIs, school cards on phones / sortable table on desktop),
+   the circulars composer, the CSV download and the way to the printable weekly report. */
 
-import { useMemo, useState, type FormEvent } from 'react';
+import { useMemo, useRef, useState, type FormEvent } from 'react';
 import * as api from '../api';
 import { Btn, DateField, Empty, ErrorBox, Field, Kpi, PageHead, Skeleton, Tag, Tile } from '../components/Ui';
-import { ar, consecutiveDays, count, fmtDate, fmtWhen, NOUNS, pct, todayISO } from '../format';
+import { ar, complexLabel, consecutiveDays, count, fmtDate, fmtHM, fmtPhone, fmtWhen, NOUNS, pct, todayISO } from '../format';
 import { useApi } from '../hooks';
-import { navigate, useRoute } from '../router';
+import { Link, navigate, useRoute } from '../router';
 import { toast, useStore } from '../store';
-import type { DirectorateDashboard as DirectorateDashboardData, DirectorateSchool } from '../types';
+import type { DirectorateAlert, DirectorateDashboard as DirectorateDashboardData, DirectorateSchool } from '../types';
+import { dashboardPath, isHoliday, schoolPath, severity, severityClass, TelButton, UploadBadge, useNarrow } from './DirectorateCommon';
 import { useAnnouncements } from './SchoolAnnouncements';
 
-type SortKey = keyof Pick<DirectorateSchool, 'name' | 'complex' | 'students' | 'present_pct' | 'attendance_uploaded' | 'uncovered_periods' | 'coverage_pct' | 'homework_today'>;
+type SortKey = 'severity' | 'name' | 'present_pct' | 'uploaded_at' | 'uncovered_periods' | 'three_days' | 'coverage_pct';
 const COLUMNS: { key: SortKey; label: string }[] = [
   { key: 'name', label: 'المدرسة' },
-  { key: 'complex', label: 'المجمّع' },
-  { key: 'students', label: 'الطلاب' },
   { key: 'present_pct', label: 'الحضور' },
-  { key: 'attendance_uploaded', label: 'رُفع الحضور' },
+  { key: 'uploaded_at', label: 'رُفع الحضور' },
   { key: 'uncovered_periods', label: 'بلا تغطية' },
+  { key: 'three_days', label: 'غياب ٣ أيام' },
   { key: 'coverage_pct', label: 'التغطية' },
-  { key: 'homework_today', label: 'واجبات اليوم' },
 ];
 const ALERT_TAG: Record<string, { label: string; tone: 'sun' | 'red' | 'violet' }> = {
   no_attendance: { label: 'متابعة', tone: 'sun' },
   uncovered: { label: 'قرار', tone: 'violet' },
   three_days: { label: 'إنذار مبكر', tone: 'red' },
 };
+const PHONE_SORT: { key: SortKey; label: string }[] = [
+  { key: 'severity', label: 'الأكثر حاجة للتدخّل أولاً' },
+  { key: 'present_pct', label: 'الحضور (الأدنى أولاً)' },
+  { key: 'uploaded_at', label: 'لم يُرفع الحضور أولاً' },
+  { key: 'name', label: 'اسم المدرسة' },
+];
+const ALERTS_SHOWN = 3;
+const ISO = /^\d{4}-\d{2}-\d{2}$/;
+
+function sortValue(s: DirectorateSchool, key: SortKey, holiday: boolean): number | string {
+  switch (key) {
+    case 'name': return s.name;
+    case 'severity': return severity(s, holiday);
+    case 'present_pct': return s.attendance_uploaded && s.present_pct !== null && s.present_pct !== undefined ? s.present_pct : -1;
+    case 'uploaded_at': return s.attendance_uploaded ? (s.uploaded_at ? Date.parse(s.uploaded_at) : 1) : Number.MAX_SAFE_INTEGER;
+    case 'uncovered_periods': return s.uncovered_periods;
+    case 'three_days': return s.three_days ?? 0;
+    default: return s.coverage_pct;
+  }
+}
+/** The direction a column starts with when first clicked: names ascend, everything else shows the worst first. */
+function firstDir(key: SortKey): 1 | -1 {
+  return key === 'name' || key === 'present_pct' || key === 'coverage_pct' ? 1 : -1;
+}
+
+function AlertRow({ alert, school, date, onEarlyWarning }: { alert: DirectorateAlert; school: DirectorateSchool | undefined; date: string; onEarlyWarning: () => void }) {
+  const tag = ALERT_TAG[alert.kind] ?? { label: alert.kind, tone: 'sun' as const };
+  const to = school ? schoolPath(school.id, date) : undefined;
+  const body = (
+    <>
+      <b>{alert.text}</b>
+      <small>{alert.school}{school?.principal ? ` · المدير: ${school.principal}` : ''}</small>
+    </>
+  );
+  return (
+    <div className={`row dir-alert ${alert.kind === 'three_days' ? 'bad' : 'hl'}`} data-kind={alert.kind}>
+      {to ? <Link to={to} className="dir-alert-main">{body}</Link> : <span className="dir-alert-main">{body}</span>}
+      {alert.kind === 'three_days'
+        ? <button type="button" className="tag red dir-early" onClick={onEarlyWarning} title="الانتقال إلى قائمة الغياب المتتالي">{tag.label}</button>
+        : <Tag tone={tag.tone}>{tag.label}</Tag>}
+      <TelButton phone={school?.phone} school={alert.school} />
+    </div>
+  );
+}
+
+function SchoolCard({ s, date, holiday }: { s: DirectorateSchool; date: string; holiday: boolean }) {
+  const p = s.attendance_uploaded && s.present_pct !== null && s.present_pct !== undefined ? s.present_pct : null;
+  const unc = s.uncovered_periods ?? 0;
+  const three = s.three_days ?? 0;
+  return (
+    <article className={`scard ${severityClass(s, holiday)}`} data-school={s.id}>
+      <Link to={schoolPath(s.id, date)} className="scard-main" aria-label={`${s.name} — فتح صفحة المدرسة`}>
+        <div className="scard-h">
+          <b>{s.name}</b>
+          <small>{complexLabel(s.complex)} · {count(s.students, NOUNS.student)}</small>
+        </div>
+        <div className={`scard-att ${p === null ? 'none' : p < 90 ? 'low' : ''}`}>
+          <div className="bar" role="progressbar" aria-valuenow={p ?? 0} aria-valuemin={0} aria-valuemax={100} aria-label="نسبة الحضور"><i style={{ width: `${p ?? 0}%` }} /></div>
+          <b className="num">{p === null ? '—' : pct(p)}</b>
+        </div>
+        <div className="scard-badges">
+          <UploadBadge uploaded={s.attendance_uploaded} at={s.uploaded_at} holiday={holiday} />
+          <Tag tone={unc ? 'sun' : 'gray'}>{unc ? `${count(unc, NOUNS.period)} بلا تغطية` : 'كلّ الحصص مغطّاة'}</Tag>
+          {three > 0 && <Tag tone="red">{three === 1 ? 'حالة غياب ٣ أيام' : `${count(three, NOUNS.case)} غياب ٣ أيام`}</Tag>}
+        </div>
+      </Link>
+      <div className="scard-side"><TelButton phone={s.phone} school={s.name} /></div>
+    </article>
+  );
+}
 
 export function DirectorateDashboard() {
   const today = todayISO();
   const route = useRoute();
-  const [date, setDate] = useState(() => { const q = route.query.get('date'); return q && /^\d{4}-\d{2}-\d{2}$/.test(q) && q <= today ? q : today; });
-  const { data, error, loading, reload } = useApi<DirectorateDashboardData>(`/api/directorate/dashboard?date=${date}`);
-  const [sort, setSort] = useState<{ key: SortKey; dir: 1 | -1 }>({ key: 'present_pct', dir: -1 });
+  const [date, setDateState] = useState(() => { const q = route.query.get('date'); return q && ISO.test(q) && q <= today ? q : today; });
+  const { data, error, loading, reload } = useApi<DirectorateDashboardData>(api.directorateUrls.dashboard(date));
+  const narrow = useNarrow();
+  const holiday = isHoliday(date);
+  const [sort, setSort] = useState<{ key: SortKey; dir: 1 | -1 }>({ key: 'severity', dir: -1 });
+  const [showAll, setShowAll] = useState(false);
   const [downloading, setDownloading] = useState(false);
+  const threeDaysRef = useRef<HTMLElement | null>(null);
+
+  // The date lives in the URL too, so a reload or the back button keeps it (the notification links carry ?date=).
+  const setDate = (iso: string) => { setDateState(iso); navigate(dashboardPath(iso, today), { replace: true }); };
+
   const schools = useMemo(() => {
     const list = [...(data?.schools ?? [])];
     list.sort((a, b) => {
-      const x = a[sort.key], y = b[sort.key];
-      if (typeof x === 'string' && typeof y === 'string') return x.localeCompare(y, 'ar') * sort.dir;
-      return (Number(x) - Number(y)) * sort.dir;
+      const x = sortValue(a, sort.key, holiday), y = sortValue(b, sort.key, holiday);
+      const c = typeof x === 'string' && typeof y === 'string' ? x.localeCompare(y, 'ar') : Number(x) - Number(y);
+      return c * sort.dir || severity(b, holiday) - severity(a, holiday) || a.name.localeCompare(b.name, 'ar');
     });
     return list;
-  }, [data, sort]);
+  }, [data, sort, holiday]);
+  const byId = useMemo(() => new Map((data?.schools ?? []).map((s) => [s.id, s])), [data]);
+  const byName = useMemo(() => new Map((data?.schools ?? []).map((s) => [s.name, s])), [data]);
+  const schoolOf = (a: { school_id?: number; school: string }) => (a.school_id !== undefined ? byId.get(a.school_id) : undefined) ?? byName.get(a.school);
 
-  const toggleSort = (key: SortKey) => setSort((s) => (s.key === key ? { key, dir: s.dir === 1 ? -1 : 1 } : { key, dir: key === 'name' || key === 'complex' ? 1 : -1 }));
+  const toggleSort = (key: SortKey) => setSort((s) => (s.key === key ? { key, dir: s.dir === 1 ? -1 : 1 } : { key, dir: firstDir(key) }));
+  const pickSort = (key: SortKey) => setSort({ key, dir: key === 'name' || key === 'present_pct' ? 1 : -1 });
+
+  const scrollToThreeDays = () => {
+    const el = threeDaysRef.current;
+    if (!el) return;
+    el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    el.focus({ preventScroll: true });
+  };
 
   const downloadCsv = async () => {
     setDownloading(true);
     try {
-      await api.download(`/api/directorate/report.csv?date=${date}`, `madar-report-${date}.csv`);
+      await api.download(api.directorateUrls.csv(date), `madar-report-${date}.csv`);
       toast('بدأ تنزيل التقرير، ويُفتح في إكسل');
     } catch (e) {
       toast(e instanceof Error ? e.message : 'تعذّر التنزيل', 'error');
@@ -59,84 +147,132 @@ export function DirectorateDashboard() {
     }
   };
 
+  const alerts = data?.alerts ?? [];
+  const shownAlerts = showAll || alerts.length <= ALERTS_SHOWN + 1 ? alerts : alerts.slice(0, ALERTS_SHOWN);
+  const uploaded = (data?.schools ?? []).filter((s) => s.attendance_uploaded).length;
+  const total = data?.schools.length ?? 0;
+  const dayWord = date === today ? 'اليوم' : fmtDate(date);
+
   return (
     <>
-      <PageHead
-        title="مديرية التربية · درعا"
-        sub={`نظرة اليوم · ${fmtDate(date)}`}
-        actions={
-          <>
-            <DateField compact value={date} onChange={setDate} max={today} />
-            <Btn size="sm" variant="light" icon="download" loading={downloading} onClick={() => { void downloadCsv(); }}>تنزيل تقرير اليوم</Btn>
-            <Btn size="sm" icon="megaphone" onClick={() => navigate('/directorate/circulars')}>تعميم جديد</Btn>
-          </>
-        }
-      />
+      <header className="dir-head full">
+        <h1>لوحة المديرية</h1>
+        <DateField compact value={date} onChange={setDate} max={today} />
+      </header>
       {loading && !data && <Tile className="full"><Skeleton lines={3} /></Tile>}
       {error && !data && <Tile className="full"><ErrorBox error={error} retry={reload} /></Tile>}
       {data && (
         <>
-          <div className="kpis full">
-            <Kpi value={ar(data.totals.schools_connected)} label="مدارس متّصلة" />
-            <Kpi value={pct(data.totals.present_pct)} label="حضور الطلاب اليوم" tone={data.totals.present_pct >= 90 ? 'good' : 'warn'} />
+          <Tile className="full dir-alerts" title={alerts.length ? `يحتاج تدخّلاً ${dayWord} · ${count(alerts.length, NOUNS.alert)}` : `يحتاج تدخّلاً ${dayWord}`} icon="alert" color="var(--sun)">
+            {alerts.length === 0 && <Empty icon="check" title={holiday ? 'يوم عطلة — لا تنبيهات' : `لا تنبيهات ${dayWord}`} text={holiday ? undefined : 'رفعت كلّ المدارس حضورها، وكلّ حصص الغياب مغطّاة.'} />}
+            <div className="list">
+              {shownAlerts.map((a, i) => <AlertRow key={`${a.kind}-${a.school}-${i}`} alert={a} school={schoolOf(a)} date={date} onEarlyWarning={scrollToThreeDays} />)}
+            </div>
+            {alerts.length > shownAlerts.length && (
+              <button type="button" className="dir-more" onClick={() => setShowAll(true)}>عرض كلّ التنبيهات ({ar(alerts.length)})</button>
+            )}
+            {showAll && alerts.length > ALERTS_SHOWN + 1 && (
+              <button type="button" className="dir-more" onClick={() => setShowAll(false)}>عرض أقلّ</button>
+            )}
+          </Tile>
+
+          <div className="kpis dir-kpis full" aria-label="أرقام اليوم">
+            <Kpi value={pct(data.totals.present_pct)} label="حضور الطلاب" tone={data.totals.present_pct === null ? 'muted' : data.totals.present_pct >= 90 ? 'good' : 'warn'} />
             <Kpi value={pct(data.totals.coverage_pct)} label="تغطية حصص الغياب" tone={data.totals.coverage_pct >= 90 ? 'good' : 'warn'} />
-            <Kpi value={ar(data.totals.alerts_count)} label="تنبيهات تحتاج تدخّلاً" tone={data.totals.alerts_count ? 'warn' : 'good'} />
+            <Kpi value={`${ar(uploaded)} / ${ar(total)}`} label="مدارس رفعت الحضور" tone={holiday ? 'muted' : uploaded === total ? 'good' : 'warn'} />
+            <Kpi value={ar(alerts.length)} label={alerts.length === 1 ? 'تنبيه يحتاج تدخّلاً' : 'تنبيهات تحتاج تدخّلاً'} tone={alerts.length ? 'warn' : 'good'} />
           </div>
 
-          <Tile className="full" title="المدارس" icon="school" right={<span className="small muted">الترتيب بالضغط على عنوان العمود</span>}>
-            <div className="table-wrap">
-              <table>
-                <thead>
-                  <tr>
-                    {COLUMNS.map((c) => (
-                      <th key={c.key} onClick={() => toggleSort(c.key)} aria-sort={sort.key === c.key ? (sort.dir === 1 ? 'ascending' : 'descending') : undefined} scope="col">
-                        {c.label}{sort.key === c.key ? (sort.dir === 1 ? ' ↑' : ' ↓') : ''}
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {schools.map((sc) => (
-                    <tr key={sc.id}>
-                      <td>{sc.name}</td>
-                      <td>{sc.complex}</td>
-                      <td className="num">{ar(sc.students)}</td>
-                      <td className="num">{sc.attendance_uploaded ? pct(sc.present_pct) : '—'}</td>
-                      <td>{sc.attendance_uploaded ? <span className="y">✓</span> : <span className="n">✕</span>}</td>
-                      <td className="num">{ar(sc.uncovered_periods)}</td>
-                      <td className="num">{pct(sc.coverage_pct)}</td>
-                      <td className="num">{ar(sc.homework_today)}</td>
+          <Tile
+            className="full dir-schools"
+            title={`المدارس (${ar(total)})`}
+            icon="school"
+            right={narrow
+              ? (
+                <label className="dir-sort">
+                  <span>الترتيب</span>
+                  <select className="input" value={sort.key} onChange={(e) => pickSort(e.target.value as SortKey)} aria-label="ترتيب المدارس">
+                    {PHONE_SORT.map((o) => <option key={o.key} value={o.key}>{o.label}</option>)}
+                  </select>
+                </label>
+              )
+              : <span className="small muted">الترتيب بالضغط على عنوان العمود · الصفّ يفتح صفحة المدرسة</span>}
+          >
+            {narrow ? (
+              <div className="scards">
+                {schools.map((s) => <SchoolCard key={s.id} s={s} date={date} holiday={holiday} />)}
+              </div>
+            ) : (
+              <div className="table-wrap dir-table">
+                <table>
+                  <thead>
+                    <tr>
+                      {COLUMNS.map((c) => (
+                        <th key={c.key} onClick={() => toggleSort(c.key)} aria-sort={sort.key === c.key ? (sort.dir === 1 ? 'ascending' : 'descending') : undefined} scope="col">
+                          {c.label}{sort.key === c.key ? (sort.dir === 1 ? ' ↑' : ' ↓') : ''}
+                        </th>
+                      ))}
+                      <th scope="col" onClick={() => toggleSort('severity')} aria-sort={sort.key === 'severity' ? 'descending' : undefined}>المدير</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-            <p className="table-hint">يُسحب الجدول يساراً لعرض بقية الأعمدة.</p>
+                  </thead>
+                  <tbody>
+                    {schools.map((s) => {
+                      const p = s.attendance_uploaded && s.present_pct !== null && s.present_pct !== undefined ? s.present_pct : null;
+                      const to = schoolPath(s.id, date);
+                      return (
+                        <tr key={s.id} tabIndex={0} onClick={() => navigate(to)} onKeyDown={(e) => { if (e.key === 'Enter') navigate(to); }} data-school={s.id}>
+                          <td className="name">
+                            <Link to={to} onClick={(e) => e.stopPropagation()} className="nm">{s.name}</Link>
+                            <span className="sub">{complexLabel(s.complex)} · {count(s.students, NOUNS.student)}</span>
+                          </td>
+                          <td className="num">{p === null ? '—' : <>{pct(p)}<span className={`mini ${p < 90 ? 'low' : ''}`} aria-hidden="true"><i style={{ width: `${p}%` }} /></span></>}</td>
+                          <td className={s.attendance_uploaded ? 'num' : holiday ? 'muted' : 'bad'}>{s.attendance_uploaded ? (s.uploaded_at ? fmtHM(s.uploaded_at) : <span className="y">✓</span>) : holiday ? 'عطلة' : 'لم يُرفع'}</td>
+                          <td className={`num ${s.uncovered_periods ? 'warn' : ''}`}>{ar(s.uncovered_periods)}</td>
+                          <td className={`num ${s.three_days ? 'bad' : ''}`}>{ar(s.three_days ?? 0)}</td>
+                          <td className="num">{pct(s.coverage_pct)}</td>
+                          <td className="princ">
+                            <span className="in">
+                              <span><b>{s.principal ?? '—'}</b>{s.phone && <bdi className="sub num" dir="ltr">{fmtPhone(s.phone)}</bdi>}</span>
+                              <TelButton phone={s.phone} school={s.name} />
+                            </span>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </Tile>
 
-          <Tile title="يحتاج تدخّلاً اليوم" icon="alert" color="var(--sun)">
-            {data.alerts.length === 0 && <Empty icon="check" title="لا تنبيهات اليوم" />}
-            <div className="list">
-              {data.alerts.map((a, i) => (
-                <div className={`row ${a.kind === 'three_days' ? 'bad' : 'hl'}`} key={i} style={{ alignItems: 'flex-start' }}>
-                  <span className="grow"><b>{a.text}</b><small>{a.school}</small></span>
-                  <Tag tone={ALERT_TAG[a.kind]?.tone ?? 'sun'}>{ALERT_TAG[a.kind]?.label ?? a.kind}</Tag>
-                </div>
-              ))}
-            </div>
+          <Tile title="إنذار مبكر · غياب ثلاثة أيام متتالية" icon="users" color="var(--red)" className="dir-three" style={{ scrollMarginTop: 80 }}>
+            <section ref={threeDaysRef} id="three-days" tabIndex={-1} aria-label="قائمة الغياب المتتالي" style={{ outline: 'none' }}>
+              {data.three_day_absences.length === 0 && <p className="small muted">لا حالات {dayWord === 'اليوم' ? 'حالياً' : dayWord}.</p>}
+              <div className="list">
+                {data.three_day_absences.map((t, i) => {
+                  const sc = schoolOf({ school_id: t.school_id, school: t.school });
+                  const body = (
+                    <>
+                      <span className="grow"><b>{t.student_name}</b><small>{t.section_label ? `${t.section_label} · ` : ''}{t.school}</small></span>
+                      <Tag tone="red">{consecutiveDays(t.days)}</Tag>
+                    </>
+                  );
+                  return sc
+                    ? <Link to={schoolPath(sc.id, date)} className="row bad" key={i}>{body}</Link>
+                    : <div className="row bad" key={i}>{body}</div>;
+                })}
+              </div>
+              <p className="small muted" style={{ marginTop: 8 }}>يُحال الطالب إلى المرشد النفسي في المدرسة للمتابعة مع وليّ الأمر.</p>
+            </section>
           </Tile>
 
-          <Tile title="غياب ثلاثة أيام متتالية" icon="users" color="var(--red)">
-            {data.three_day_absences.length === 0 && <p className="small muted">لا حالات حالياً.</p>}
-            <div className="list">
-              {data.three_day_absences.map((t, i) => (
-                <div className="row bad" key={i}>
-                  <span className="grow"><b>{t.student_name}</b><small>{t.school}</small></span>
-                  <Tag tone="red">{consecutiveDays(t.days)}</Tag>
-                </div>
-              ))}
+          <Tile title="التقارير والتعاميم" icon="file">
+            <div className="btnrow top">
+              <Btn variant="light" icon="download" loading={downloading} onClick={() => { void downloadCsv(); }}>تنزيل تقرير اليوم</Btn>
+              <Btn variant="light" icon="file" onClick={() => navigate(`/directorate/report?week=${date}`)}>تقرير الأسبوع (للطباعة)</Btn>
+              <Btn icon="megaphone" onClick={() => navigate('/directorate/circulars')}>تعميم جديد</Btn>
             </div>
-            <p className="small muted" style={{ marginTop: 8 }}>يُحال الطالب إلى المرشد النفسي في المدرسة للمتابعة مع وليّ الأمر.</p>
+            <p className="small muted" style={{ marginTop: 8 }}>تقرير اليوم ملفّ جداول يُفتح في إكسل؛ تقرير الأسبوع صفحة تُطبع أو تُحفظ بصيغة PDF.</p>
           </Tile>
         </>
       )}

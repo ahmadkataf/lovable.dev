@@ -5,10 +5,11 @@
    to sessionStorage so a page reload during a demo keeps what was done. */
 
 import {
-  addDays, consecutiveDays, count, dayIndex, firstName, fmtDate, li, NOUNS, periodName, periodOrdinal, todayISO,
+  addDays, consecutiveDays, count, dayIndex, firstName, fmtClock, fmtDate, li, NOUNS, periodName, periodOrdinal, todayISO,
 } from './format';
 import type {
-  AbsenceResult, AffectedPeriod, Candidate, Context, DirectorateAlert, DirectorateDashboard,
+  AbsenceResult, AffectedPeriod, Candidate, Context, DirectorateAbsence, DirectorateAlert, DirectorateDashboard,
+  DirectoratePeriod, DirectoratePeriodStatus, DirectorateSchool, DirectorateSchoolDay, DirectorateWeeklyReport, DirectorateWeeklyRow,
   HomeworkDetail, Me, Notification, ParentChild, ParentHome, Role, SchoolDashboard, StudentHome,
   TeacherHome, Thread, TimetableRow, User,
 } from './types';
@@ -17,7 +18,7 @@ export interface MockResponse { status: number; body: unknown; contentType?: str
 
 type AttStatus = 'present' | 'absent' | 'late';
 
-interface School { id: number; name: string; complex: string; shifts: number }
+interface School { id: number; name: string; complex: string; shifts: number; principal: string; phone: string; enrolment: number; teachers_n: number }
 interface DbUser { id: number; role: Role; name: string; school_id: number | null; phone: string | null; code: string; subject_id: number | null }
 interface Subject { id: number; name: string }
 interface Section { id: number; school_id: number; grade: number; label: string; shift: number }
@@ -27,7 +28,7 @@ interface Hw { id: number; section_id: number; subject_id: number; teacher_id: n
 interface Sub { id: number; homework_id: number; student_id: number; status: string; submitted_at: string }
 interface Att { id: number; student_id: number; date: string; period: number; status: AttStatus; recorded_by: number; confirmed: number; created_at: string }
 interface Abs { id: number; teacher_id: number; date: string; reason: string | null; reported_by: number; created_at: string }
-interface Subst { id: number; absence_id: number; timetable_id: number; substitute_teacher_id: number | null; status: 'suggested' | 'approved' | 'self_study' | 'uncovered'; candidates: Candidate[]; lesson_note: string | null; approved_by: number | null; approved_at: string | null }
+interface Subst { id: number; absence_id: number; timetable_id: number; substitute_teacher_id: number | null; status: 'suggested' | 'approved' | 'self_study' | 'uncovered'; candidates: Candidate[]; note?: string | null; lesson_note: string | null; approved_by: number | null; approved_at: string | null }
 interface Ann { id: number; school_id: number | null; title: string; body: string; urgent: number; created_by: number; created_at: string; notified: number }
 interface Msg { id: number; from_user: number; to_user: number; body: string; created_at: string; read_at: string | null }
 interface Notif { id: number; user_id: number; kind: string; body: string; link: string | null; sms: number; created_at: string; read_at: string | null }
@@ -52,7 +53,7 @@ interface DB {
   notifications: Notif[];
 }
 
-const VERSION = 4;
+const VERSION = 5;
 const WEEKLY_CAP = 28;
 const STORAGE_KEY = 'madar-mock';
 const TOKEN_PREFIX = 'mock.';
@@ -103,11 +104,9 @@ function seed(today: string): DB {
     attendance: [], absences: [], substitutions: [], announcements: [], messages: [], notifications: [],
   };
 
-  db.schools = [
-    { id: 1, name: 'مدرسة درعا النموذجية', complex: 'درعا المدينة', shifts: 1 },
-    { id: 2, name: 'مدرسة (ب)', complex: 'إزرع', shifts: 1 },
-    { id: 3, name: 'مدرسة (ج)', complex: 'طفس', shifts: 1 },
-  ];
+  // Ten schools of the directorate. The first three carry sections, pupils and timetables (the demo accounts);
+  // the other seven appear on the directorate's screens with realistic deterministic figures (see «directorate figures»).
+  db.schools = DIR_SCHOOLS.map((s) => ({ ...s, shifts: 1 }));
   db.subjects = SUBJECTS.map((name, i) => ({ id: i + 1, name }));
 
   const user = (id: number, role: Role, name: string, code: string, school_id: number | null, subject_id: number | null = null, phone: string | null = null): DbUser => {
@@ -117,8 +116,8 @@ function seed(today: string): DB {
   };
   user(1, 'directorate', 'مديرية التربية · درعا', 'DIR-DARAA', null);
   user(2, 'school', 'إدارة مدرسة درعا النموذجية', 'SCH-1', 1);
-  user(3, 'school', 'إدارة مدرسة (ب)', 'SCH-2', 2);
-  user(4, 'school', 'إدارة مدرسة (ج)', 'SCH-3', 3);
+  user(3, 'school', 'إدارة مدرسة إزرع الأولى', 'SCH-2', 2);
+  user(4, 'school', 'إدارة مدرسة طفس الثانية', 'SCH-3', 3);
   // teachers of school 1 (ids 10–16)
   user(10, 'teacher', 'سامر حسن', 'T-SAMER', 1, 2, '0944000010');
   user(11, 'teacher', 'رنا سعيد', 'T-RANA', 1, 3, '0944000011');
@@ -271,14 +270,23 @@ function seed(today: string): DB {
   const khaled = db.users.find((u) => u.code === 'P-KHALED')!;
   db.messages.push({ id: db.seq++, from_user: khaled.id, to_user: 10, body: 'أستاذ سامر، هل يمكن تأجيل تسليم واجب الرياضيات يوماً واحداً لظرف عائلي؟', created_at: at(yesterday, '19:20'), read_at: null });
   notify(10, 'message', 'رسالة جديدة من خالد: أستاذ سامر، هل يمكن تأجيل تسليم واجب الرياضيات يوماً واحداً لظرف عائلي؟', '/messages', at(yesterday, '19:20'));
-  // three-day alert for the directorate
-  notify(1, 'alert', `تنبيه: غياب ${firstName(NAMES_5B[8])} ثلاثة أيام متتالية — مدرسة درعا النموذجية`, '/directorate', at(today, '07:50'));
-
   // رنا سعيد absent today, engine run
   const absence: Abs = { id: db.seq++, teacher_id: 11, date: today, reason: 'مرض', reported_by: 11, created_at: at(today, '06:45') };
   db.absences.push(absence);
   const affected = runEngine(db, absence);
   notify(2, 'alert', `غياب أ. رنا سعيد اليوم: ${periodsNeedCover(affected.length)}`, '/school/absences', at(today, '06:46'));
+
+  // the directorate's morning: the same kinds and links the server emits (no_attendance / uncovered / three_days)
+  if (todayW <= 4) {
+    const link = (id: number) => `/directorate/school/${id}?date=${today}`;
+    for (const s of db.schools) {
+      const abs = dayAbsences(db, s, today, today);
+      const cov = coverageOf(abs);
+      if (cov.uncovered) notify(1, 'uncovered', `${s.name}: ${count(cov.uncovered, NOUNS.period)} من دون تغطية اليوم (غياب ${abs.map((a) => `أ. ${a.teacher}`).join(' و')})`, link(s.id), at(today, s.id === 1 ? '06:46' : '07:50'));
+      for (const t of dayThreeDays(db, s, today)) notify(1, 'three_days', `غياب ${t.student} (${t.section}) ${consecutiveDays(t.days)} — ${s.name}`, link(s.id), at(today, '08:05'));
+      if (!dayFigures(db, s, today, today).uploaded) notify(1, 'no_attendance', `لم يُرفع حضور ${s.name} حتى الساعة ${fmtClock('08:30')}`, link(s.id), at(today, '08:30'));
+    }
+  }
 
   return db;
 }
@@ -306,7 +314,7 @@ function weekStart(date: string): string {
   return addDays(date, -w);
 }
 
-function rankCandidates(db: DB, row: Timetable, absence: Abs): Candidate[] {
+function rankCandidates(db: DB, row: Timetable, absence: Abs): { candidates: Candidate[]; note: string | null } {
   const absent = db.users.find((u) => u.id === absence.teacher_id)!;
   const absentToday = new Set(db.absences.filter((a) => a.date === absence.date).map((a) => a.teacher_id));
   const busy = new Set(db.timetable.filter((t) => t.day === row.day && t.period === row.period).map((t) => t.teacher_id));
@@ -338,14 +346,18 @@ function rankCandidates(db: DB, row: Timetable, absence: Abs): Candidate[] {
     .filter((u) => weekly(u.id) + weekSubs(u.id) < WEEKLY_CAP)
     .map((u) => ({ u, tier: u.subject_id === row.subject_id ? 1 : sectionTeachers.has(u.id) ? 2 : 3, ms: monthSubs(u.id), wp: weekly(u.id) }))
     .sort((a, b) => a.tier - b.tier || a.ms - b.ms || a.wp - b.wp || a.u.name.localeCompare(b.u.name, 'ar'));
-  return ranked.slice(0, 3).map((c) => ({
+  const candidates = ranked.slice(0, 3).map((c) => ({
     teacher_id: c.u.id,
     name: c.u.name,
     subject: subjectName(db, c.u.subject_id),
     tier: c.tier,
     reason: c.tier === 1 ? 'المادّة نفسها · حصّة فراغ' : c.tier === 2 ? 'من معلّمي الشعبة · حصّة فراغ' : 'حصّة فراغ',
   }));
+  // No teacher of the same subject is free: say so, as the server does, so the school knows why the chips look odd.
+  const note = candidates.length && candidates.every((c) => c.tier !== 1) ? ENGINE_NOTE : null;
+  return { candidates, note };
 }
+const ENGINE_NOTE = 'لا معلّم للمادّة نفسها متاحاً في هذه الحصّة، فاقتُرح معلّمون من مواد أخرى';
 
 function runEngine(db: DB, absence: Abs): AffectedPeriod[] {
   const day = dayIndex(absence.date);
@@ -354,11 +366,11 @@ function runEngine(db: DB, absence: Abs): AffectedPeriod[] {
   for (const row of rows) {
     let subst = db.substitutions.find((s) => s.absence_id === absence.id && s.timetable_id === row.id);
     if (!subst) {
-      const candidates = rankCandidates(db, row, absence);
-      subst = { id: db.seq++, absence_id: absence.id, timetable_id: row.id, substitute_teacher_id: candidates[0]?.teacher_id ?? null, status: 'suggested', candidates, lesson_note: null, approved_by: null, approved_at: null };
+      const { candidates, note } = rankCandidates(db, row, absence);
+      subst = { id: db.seq++, absence_id: absence.id, timetable_id: row.id, substitute_teacher_id: candidates[0]?.teacher_id ?? null, status: 'suggested', candidates, note, lesson_note: null, approved_by: null, approved_at: null };
       db.substitutions.push(subst);
     }
-    out.push({ substitution_id: subst.id, period: row.period, section_label: sectionLabel(db, row.section_id), subject: subjectName(db, row.subject_id), candidates: subst.candidates });
+    out.push({ substitution_id: subst.id, period: row.period, section_label: sectionLabel(db, row.section_id), subject: subjectName(db, row.subject_id), candidates: subst.candidates, note: subst.note ?? null });
   }
   return out;
 }
@@ -449,7 +461,8 @@ function pushNotification(db: DB, user_id: number, kind: string, body: string, l
 function schoolAttendance(db: DB, schoolId: number, date: string) {
   const sections = db.sections.filter((s) => s.school_id === schoolId);
   const students = db.students.filter((s) => sections.some((x) => x.id === s.section_id));
-  let present = 0, recorded = 0;
+  let present = 0, recorded = 0, late = 0, confirmed = false;
+  let uploaded_at: string | null = null;
   const byGrade = new Map<number, { present: number; recorded: number; total: number }>();
   for (const st of students) {
     const sec = sections.find((x) => x.id === st.section_id)!;
@@ -460,11 +473,16 @@ function schoolAttendance(db: DB, schoolId: number, date: string) {
       recorded++;
       g.recorded++;
       if (recs[0].status !== 'absent') { present++; g.present++; }
+      if (recs[0].status === 'late') late++;
+      for (const r of recs) {
+        if (r.confirmed) confirmed = true;
+        if (uploaded_at === null || r.created_at < uploaded_at) uploaded_at = r.created_at;
+      }
     }
     byGrade.set(sec.grade, g);
   }
   const attendance_by_grade = [...byGrade.entries()].sort((a, b) => a[0] - b[0]).map(([grade, g]) => ({ grade, pct: g.recorded ? Math.round((g.present / g.recorded) * 100) : 0 }));
-  return { students: students.length, present, recorded, present_pct: recorded ? Math.round((present / recorded) * 100) : 0, attendance_by_grade, uploaded: recorded > 0 };
+  return { students: students.length, present, recorded, late, confirmed, uploaded_at, present_pct: recorded ? Math.round((present / recorded) * 100) : 0, attendance_by_grade, uploaded: recorded > 0 };
 }
 
 function schoolCoverage(db: DB, schoolId: number, date: string) {
@@ -478,7 +496,7 @@ function schoolCoverage(db: DB, schoolId: number, date: string) {
 }
 
 function threeDayAbsences(db: DB, today: string) {
-  const out: { student_name: string; school: string; days: number; school_id: number }[] = [];
+  const out: { student_name: string; school: string; days: number; school_id: number; section_label: string }[] = [];
   const days = [...schoolDaysBefore(today, 10), today].filter((d) => db.attendance.some((a) => a.date === d));
   for (const st of db.students) {
     let run = 0;
@@ -489,10 +507,184 @@ function threeDayAbsences(db: DB, today: string) {
     }
     if (run >= 3) {
       const sec = db.sections.find((s) => s.id === st.section_id)!;
-      out.push({ student_name: userById(db, st.user_id)?.name ?? '', school: schoolName(db, sec.school_id) ?? '', days: run, school_id: sec.school_id });
+      out.push({ student_name: userById(db, st.user_id)?.name ?? '', school: schoolName(db, sec.school_id) ?? '', days: run, school_id: sec.school_id, section_label: sec.label });
     }
   }
   return out;
+}
+
+/* ───────────────────────── directorate figures ─────────────────────────
+   Ten schools of the Daraa directorate. Schools 1–3 carry real rows (sections, pupils, timetable, attendance,
+   substitutions); their sample is scaled to the official enrolment so the directorate's figures agree with each
+   school's own dashboard percentages. Schools 4–10 get deterministic figures from a hash of (school, date) so the
+   demo is stable across reloads and still differs from day to day. */
+
+const DIR_SCHOOLS: Omit<School, 'shifts'>[] = [
+  { id: 1, name: 'مدرسة درعا النموذجية', complex: 'درعا المدينة', principal: 'محمود الحريري', phone: '0933412870', enrolment: 412, teachers_n: 28 },
+  { id: 2, name: 'مدرسة إزرع الأولى', complex: 'إزرع', principal: 'سميرة الزعبي', phone: '0944228513', enrolment: 538, teachers_n: 34 },
+  { id: 3, name: 'مدرسة طفس الثانية', complex: 'طفس', principal: 'أيمن المسالمة', phone: '0955317264', enrolment: 296, teachers_n: 21 },
+  { id: 4, name: 'مدرسة الصنمين للتعليم الأساسي', complex: 'الصنمين', principal: 'رائد أبازيد', phone: '0933560192', enrolment: 475, teachers_n: 31 },
+  { id: 5, name: 'مدرسة نوى الغربية', complex: 'نوى', principal: 'هناء الرفاعي', phone: '0944873015', enrolment: 362, teachers_n: 24 },
+  { id: 6, name: 'مدرسة جاسم المختلطة', complex: 'جاسم', principal: 'باسل العودات', phone: '0932147689', enrolment: 241, teachers_n: 18 },
+  { id: 7, name: 'مدرسة الحراك الأولى', complex: 'الحراك', principal: 'منال المحاميد', phone: '0945692038', enrolment: 507, teachers_n: 33 },
+  { id: 8, name: 'مدرسة بصرى الشام للبنات', complex: 'بصرى الشام', principal: 'ندى الجباوي', phone: '0956104372', enrolment: 388, teachers_n: 26 },
+  { id: 9, name: 'مدرسة داعل الشرقية', complex: 'داعل', principal: 'فراس القداح', phone: '0938751426', enrolment: 329, teachers_n: 22 },
+  { id: 10, name: 'مدرسة الشيخ مسكين الثانية', complex: 'الشيخ مسكين', principal: 'عماد الصبيحي', phone: '0947305918', enrolment: 456, teachers_n: 30 },
+];
+const BASE_PCT: Record<number, number> = { 1: 94, 2: 91, 3: 93, 4: 93, 5: 89, 6: 95, 7: 91, 8: 96, 9: 87, 10: 92 };
+const SYNTH_TEACHERS = ['أحمد الخطيب', 'سعاد العلي', 'محمد الحمد', 'رنا جمعة', 'خالد العمر', 'هدى الشامي', 'عمر سليمان', 'لمى الأحمد', 'يوسف درويش', 'منى حسين', 'طارق عيسى', 'نهى زيدان'];
+const SYNTH_SECTIONS = ['الرابع (أ)', 'الرابع (ب)', 'الخامس (أ)', 'الخامس (ب)', 'السادس (أ)', 'السادس (ب)', 'الثالث (أ)', 'الثاني (ب)'];
+const SYNTH_THREE_DAYS: Record<number, { student: string; section: string; days: number }[]> = {
+  5: [{ student: 'سالم حمدان', section: 'الرابع (ب)', days: 3 }],
+  8: [{ student: 'ريما العقلة', section: 'الخامس (أ)', days: 4 }, { student: 'جنى المقداد', section: 'الثالث (أ)', days: 3 }],
+};
+
+function hash32(str: string): number {
+  let h = 2166136261;
+  for (let i = 0; i < str.length; i++) { h ^= str.charCodeAt(i); h = Math.imul(h, 16777619); }
+  return h >>> 0;
+}
+/** Deterministic pseudo-random number in [0, 1) for a key. */
+function rnd(...key: (string | number)[]): number {
+  return (hash32(key.join('|')) % 100003) / 100003;
+}
+function isSchoolDay(date: string): boolean { return dayIndex(date) <= 4; }
+function validDate(v: string | null): string | null { return v && /^\d{4}-\d{2}-\d{2}$/.test(v) ? v : null; }
+/** Schools with sections and pupils in the demo database. */
+function liveSchool(d: DB, schoolId: number): boolean { return d.sections.some((x) => x.school_id === schoolId); }
+
+interface DayFigures { uploaded: boolean; uploaded_at: string | null; confirmed: boolean; students: number; present: number; late: number; absent: number; pct: number | null }
+
+function dayFigures(d: DB, s: School, date: string, today: string): DayFigures {
+  const students = s.enrolment;
+  const none: DayFigures = { uploaded: false, uploaded_at: null, confirmed: false, students, present: 0, late: 0, absent: 0, pct: null };
+  if (!isSchoolDay(date) || date > today) return none;
+  if (liveSchool(d, s.id)) {
+    const att = schoolAttendance(d, s.id, date);
+    if (att.uploaded) {
+      const presentAll = Math.round((students * att.present_pct) / 100);
+      const late = Math.min(presentAll, Math.round((students * att.late) / Math.max(1, att.recorded)));
+      return { uploaded: true, uploaded_at: att.uploaded_at, confirmed: att.confirmed, students, present: presentAll - late, late, absent: students - presentAll, pct: att.present_pct };
+    }
+    if (date === today) return none; // a live school shows its real state today: nothing uploaded yet
+  }
+  const uploaded = date === today ? s.id !== 7 : rnd(s.id, date, 'up') > 0.07;
+  if (!uploaded) return none;
+  const pct = Math.max(80, Math.min(99, (BASE_PCT[s.id] ?? 92) + Math.round((rnd(s.id, date, 'pct') - 0.5) * 8)));
+  const presentAll = Math.round((students * pct) / 100);
+  const late = Math.round(students * (0.01 + rnd(s.id, date, 'late') * 0.02));
+  const minutes = 25 + Math.floor(rnd(s.id, date, 'time') * 70);
+  const uploaded_at = at(date, `${String(7 + Math.floor(minutes / 60)).padStart(2, '0')}:${String(minutes % 60).padStart(2, '0')}`);
+  return { uploaded: true, uploaded_at, confirmed: rnd(s.id, date, 'conf') > 0.35, students, present: presentAll - late, late, absent: students - presentAll, pct };
+}
+
+/** Teacher absences of one school on a date with each affected period's status. */
+function dayAbsences(d: DB, s: School, date: string, today: string): DirectorateAbsence[] {
+  if (!isSchoolDay(date) || date > today) return [];
+  if (liveSchool(d, s.id)) {
+    const teachers = d.users.filter((u) => u.role === 'teacher' && u.school_id === s.id);
+    return d.absences.filter((a) => a.date === date && teachers.some((t) => t.id === a.teacher_id)).map((a) => {
+      const t = userById(d, a.teacher_id)!;
+      const periods: DirectoratePeriod[] = d.substitutions.filter((x) => x.absence_id === a.id).map((x) => {
+        const row = d.timetable.find((r) => r.id === x.timetable_id)!;
+        const status: DirectoratePeriodStatus = x.status === 'suggested' ? (x.candidates.length ? 'pending' : 'uncovered') : x.status;
+        const substitute = x.status === 'approved' ? userById(d, x.substitute_teacher_id)?.name ?? null : status === 'pending' ? x.candidates[0]?.name ?? null : null;
+        return { period: row.period, section: sectionLabel(d, row.section_id), subject: subjectName(d, row.subject_id), status, substitute, lesson_note: x.lesson_note };
+      }).sort((x, y) => x.period - y.period);
+      return { teacher: t.name, subject: subjectName(d, t.subject_id), reason: a.reason, periods };
+    });
+  }
+  const r = rnd(s.id, date, 'abs');
+  const n = r < 0.4 ? 0 : r < 0.85 ? 1 : 2;
+  const out: DirectorateAbsence[] = [];
+  for (let k = 0; k < n; k++) {
+    const ti = (Math.floor(rnd(s.id, date, 'teacher', k) * SYNTH_TEACHERS.length) + s.id * 3 + k * 5) % SYNTH_TEACHERS.length;
+    const subject = SUBJECTS[Math.floor(rnd(s.id, date, 'subject', k) * SUBJECTS.length)];
+    const nPeriods = 2 + Math.floor(rnd(s.id, date, 'periods', k) * 3);
+    const used = new Set<number>();
+    const periods: DirectoratePeriod[] = [];
+    for (let p = 0; p < nPeriods; p++) {
+      let period = 1 + Math.floor(rnd(s.id, date, 'period', k, p) * 6);
+      while (used.has(period)) period = (period % 6) + 1;
+      used.add(period);
+      const sr = rnd(s.id, date, 'status', k, p);
+      const status: DirectoratePeriodStatus = sr < 0.5 ? 'approved' : sr < 0.65 ? 'self_study' : sr < 0.85 ? 'pending' : 'uncovered';
+      const substitute = status === 'approved' || status === 'pending' ? SYNTH_TEACHERS[(ti + 4 + p) % SYNTH_TEACHERS.length] : null;
+      periods.push({ period, section: SYNTH_SECTIONS[Math.floor(rnd(s.id, date, 'section', k, p) * SYNTH_SECTIONS.length)], subject, status, substitute, lesson_note: status === 'self_study' ? 'مراجعة الدرس السابق وحلّ تمارينه' : null });
+    }
+    periods.sort((x, y) => x.period - y.period);
+    out.push({ teacher: SYNTH_TEACHERS[ti], subject, reason: rnd(s.id, date, 'reason', k) < 0.6 ? 'مرض' : null, periods });
+  }
+  return out;
+}
+
+function coverageOf(abs: DirectorateAbsence[]) {
+  let total = 0, covered = 0, approved = 0, self_study = 0;
+  for (const a of abs) for (const p of a.periods) {
+    total++;
+    if (p.status === 'approved') { approved++; covered++; }
+    if (p.status === 'self_study') { self_study++; covered++; }
+  }
+  return { total, covered, uncovered: total - covered, approved, self_study, pct: total ? Math.round((covered / total) * 100) : 100 };
+}
+
+function dayThreeDays(d: DB, s: School, date: string): { student: string; section: string; days: number }[] {
+  if (!isSchoolDay(date)) return [];
+  if (liveSchool(d, s.id)) return threeDayAbsences(d, date).filter((t) => t.school_id === s.id).map((t) => ({ student: t.student_name, section: t.section_label, days: t.days }));
+  return SYNTH_THREE_DAYS[s.id] ?? [];
+}
+
+function dirSchoolRow(d: DB, s: School, date: string, today: string) {
+  const fig = dayFigures(d, s, date, today);
+  const abs = dayAbsences(d, s, date, today);
+  const cov = coverageOf(abs);
+  const three = dayThreeDays(d, s, date);
+  const homework_today = liveSchool(d, s.id)
+    ? d.homework.filter((h) => h.created_at.slice(0, 10) === date && d.sections.find((x) => x.id === h.section_id)?.school_id === s.id).length
+    : fig.uploaded ? Math.floor(rnd(s.id, date, 'hw') * 7) : 0;
+  const row: DirectorateSchool = {
+    id: s.id, name: s.name, complex: s.complex, students: s.enrolment, present_pct: fig.pct, attendance_uploaded: fig.uploaded,
+    uncovered_periods: cov.uncovered, coverage_pct: cov.pct, homework_today,
+    principal: s.principal, phone: s.phone, uploaded_at: fig.uploaded_at, three_days: three.length, teachers: s.teachers_n, teachers_present: Math.max(0, s.teachers_n - abs.length),
+  };
+  return { row, fig, abs, cov, three };
+}
+
+function schoolDayView(d: DB, s: School, date: string, today: string): DirectorateSchoolDay {
+  const fig = dayFigures(d, s, date, today);
+  const abs = dayAbsences(d, s, date, today);
+  const trendDays = isSchoolDay(date) ? [...schoolDaysBefore(date, 6), date] : schoolDaysBefore(date, 7);
+  return {
+    school: { id: s.id, name: s.name, complex: s.complex, principal: s.principal, phone: s.phone, students: s.enrolment, teachers: s.teachers_n },
+    day: { attendance_pct: fig.pct, present: fig.present, absent: fig.absent, late: fig.late, uploaded_at: fig.uploaded_at, confirmed: fig.confirmed },
+    absences: abs,
+    uncovered: abs.flatMap((a) => a.periods.filter((p) => p.status === 'pending' || p.status === 'uncovered').map((p) => ({ period: p.period, section: p.section, subject: p.subject ?? a.subject }))).sort((x, y) => x.period - y.period),
+    three_days: dayThreeDays(d, s, date),
+    trend: trendDays.map((x) => ({ date: x, attendance_pct: dayFigures(d, s, x, today).pct })),
+  };
+}
+
+function weeklyReport(d: DB, week: string, today: string): DirectorateWeeklyReport {
+  const from = week, to = addDays(week, 4);
+  const days = [0, 1, 2, 3, 4].map((i) => addDays(week, i)).filter((x) => x <= today);
+  const last = days[days.length - 1];
+  const schools: DirectorateWeeklyRow[] = d.schools.map((s) => {
+    let days_uploaded = 0, pctSum = 0, absences = 0, substitutions_approved = 0, self_study = 0, uncovered = 0;
+    for (const x of days) {
+      const fig = dayFigures(d, s, x, today);
+      if (fig.uploaded && fig.pct !== null) { days_uploaded++; pctSum += fig.pct; }
+      const abs = dayAbsences(d, s, x, today);
+      const cov = coverageOf(abs);
+      absences += abs.length; substitutions_approved += cov.approved; self_study += cov.self_study; uncovered += cov.uncovered;
+    }
+    return { id: s.id, name: s.name, complex: s.complex, students: s.enrolment, attendance_avg_pct: days_uploaded ? Math.round(pctSum / days_uploaded) : null, days_uploaded, absences, substitutions_approved, self_study, uncovered, three_days: last ? dayThreeDays(d, s, last).length : 0 };
+  });
+  const withPct = schools.filter((x) => x.attendance_avg_pct !== null);
+  const sum = (k: 'days_uploaded' | 'absences' | 'substitutions_approved' | 'self_study' | 'uncovered' | 'three_days') => schools.reduce((a, x) => a + x[k], 0);
+  return {
+    from, to, school_days: days.length, schools,
+    totals: { attendance_avg_pct: withPct.length ? Math.round(withPct.reduce((a, x) => a + (x.attendance_avg_pct ?? 0), 0) / withPct.length) : null, days_uploaded: sum('days_uploaded'), absences: sum('absences'), substitutions_approved: sum('substitutions_approved'), self_study: sum('self_study'), uncovered: sum('uncovered'), three_days: sum('three_days') },
+  };
 }
 
 /* ───────────────────────── state ───────────────────────── */
@@ -793,6 +985,9 @@ function route(d: DB, m: string, path: string, q: URLSearchParams, b: Record<str
     if (isNew) {
       const schoolAccount = d.users.find((x) => x.role === 'school' && x.school_id === teacher.school_id);
       if (schoolAccount) pushNotification(d, schoolAccount.id, 'alert', `غياب أ. ${teacher.name} ${dayWord(date, today)}: ${periodsNeedCover(affected.length)}`, '/school/absences');
+      const school = d.schools.find((x) => x.id === teacher.school_id);
+      const directorate = d.users.find((x) => x.role === 'directorate');
+      if (school && directorate && affected.length) pushNotification(d, directorate.id, 'uncovered', `${school.name}: غياب أ. ${teacher.name} ${dayWord(date, today)} — ${periodsNeedCover(affected.length)}`, `/directorate/school/${school.id}?date=${date}`);
     }
     const res: AbsenceResult & { existing: boolean } = { absence_id: abs.id, affected, existing: !isNew };
     return ok(res);
@@ -880,7 +1075,7 @@ function route(d: DB, m: string, path: string, q: URLSearchParams, b: Record<str
           absence_id: a.id, teacher: t.name, teacher_id: t.id, subject: subjectName(d, t.subject_id), reason: a.reason,
           substitutions: d.substitutions.filter((s) => s.absence_id === a.id).map((s) => {
             const row = d.timetable.find((x) => x.id === s.timetable_id)!;
-            return { id: s.id, period: row.period, section_label: sectionLabel(d, row.section_id), subject: subjectName(d, row.subject_id), status: s.status, substitute: s.status === 'approved' ? userById(d, s.substitute_teacher_id)?.name ?? null : null, candidates: s.candidates, lesson_note: s.lesson_note };
+            return { id: s.id, period: row.period, section_label: sectionLabel(d, row.section_id), subject: subjectName(d, row.subject_id), status: s.status, substitute: s.status === 'approved' ? userById(d, s.substitute_teacher_id)?.name ?? null : null, candidates: s.candidates, note: s.note ?? null, lesson_note: s.lesson_note };
           }).sort((x, y) => x.period - y.period),
         };
       }),
@@ -991,37 +1186,49 @@ function route(d: DB, m: string, path: string, q: URLSearchParams, b: Record<str
   /* ── directorate ── */
   if (m === 'GET' && (path === '/api/directorate/dashboard' || path === '/api/directorate/report.csv')) {
     requireRole(me, 'directorate');
-    const date = q.get('date') || today;
-    const schools = d.schools.map((s) => {
-      const att = schoolAttendance(d, s.id, date);
-      const cov = schoolCoverage(d, s.id, date);
-      return { id: s.id, name: s.name, complex: s.complex, students: att.students, present_pct: att.present_pct, attendance_uploaded: att.uploaded, uncovered_periods: cov.uncovered, coverage_pct: cov.pct, homework_today: d.homework.filter((h) => h.created_at.slice(0, 10) === date && d.sections.find((x) => x.id === h.section_id)?.school_id === s.id).length, _att: att, _cov: cov };
-    });
-    const three = threeDayAbsences(d, date);
+    const date = validDate(q.get('date')) ?? today;
+    const rows = d.schools.map((s) => dirSchoolRow(d, s, date, today));
+    const schoolDay = isSchoolDay(date);
     const alerts: DirectorateAlert[] = [];
-    for (const s of schools) if (!s.attendance_uploaded) alerts.push({ kind: 'no_attendance', school: s.name, text: `لم يُرفع سجلّ الحضور ${dayWord(date, today)}` });
-    for (const s of schools) if (s.uncovered_periods > 0) alerts.push({ kind: 'uncovered', school: s.name, text: `${count(s.uncovered_periods, NOUNS.period)} من دون تغطية ${dayWord(date, today)}` });
-    for (const t of three) alerts.push({ kind: 'three_days', school: t.school, text: `غياب ${firstName(t.student_name)} ${consecutiveDays(t.days)}` });
-    const withAtt = schools.filter((s) => s.attendance_uploaded);
-    const presentSum = withAtt.reduce((a, s) => a + s._att.present, 0);
-    const recordedSum = withAtt.reduce((a, s) => a + s._att.recorded, 0);
-    const covTotal = schools.reduce((a, s) => a + s._cov.total, 0);
-    const covCovered = schools.reduce((a, s) => a + s._cov.covered, 0);
+    for (const r of rows) if (schoolDay && !r.row.attendance_uploaded) alerts.push({ kind: 'no_attendance', school: r.row.name, school_id: r.row.id, text: `لم يُرفع الحضور ${date === today ? 'بعد' : dayWord(date, today)}` });
+    for (const r of rows) if (r.row.uncovered_periods > 0) alerts.push({ kind: 'uncovered', school: r.row.name, school_id: r.row.id, text: `${count(r.row.uncovered_periods, NOUNS.period)} من دون تغطية ${dayWord(date, today)}` });
+    for (const r of rows) for (const t of r.three) alerts.push({ kind: 'three_days', school: r.row.name, school_id: r.row.id, text: `${t.student} (${t.section}): غياب ${consecutiveDays(t.days)}` });
+    const up = rows.filter((r) => r.fig.uploaded);
+    const presentSum = up.reduce((a, r) => a + r.fig.present + r.fig.late, 0);
+    const studentsSum = up.reduce((a, r) => a + r.fig.students, 0);
+    const covTotal = rows.reduce((a, r) => a + r.cov.total, 0);
+    const covCovered = rows.reduce((a, r) => a + r.cov.covered, 0);
     const res: DirectorateDashboard = {
-      schools: schools.map(({ _att: _a, _cov: _c, ...rest }) => rest),
-      totals: { schools_connected: schools.length, present_pct: recordedSum ? Math.round((presentSum / recordedSum) * 100) : 0, coverage_pct: covTotal ? Math.round((covCovered / covTotal) * 100) : 100, alerts_count: alerts.length },
+      date,
+      schools: rows.map((r) => r.row),
+      totals: { schools_connected: rows.length, present_pct: studentsSum ? Math.round((presentSum / studentsSum) * 100) : null, coverage_pct: covTotal ? Math.round((covCovered / covTotal) * 100) : 100, alerts_count: alerts.length },
       alerts,
-      three_day_absences: three.map(({ student_name, school, days }) => ({ student_name, school, days })),
+      three_day_absences: rows.flatMap((r) => r.three.map((t) => ({ student_name: t.student, school: r.row.name, school_id: r.row.id, section_label: t.section, days: t.days }))),
     };
     if (path.endsWith('.csv')) {
-      const esc = (v: string | number | boolean) => `"${String(v).replace(/"/g, '""')}"`;
+      const esc = (v: string | number | boolean | null | undefined) => `"${String(v ?? '').replace(/"/g, '""')}"`;
       const lines = [
-        ['المدرسة', 'المجمّع', 'الطلاب', 'نسبة الحضور', 'رُفع الحضور', 'حصص غير مغطّاة', 'نسبة التغطية', 'واجبات اليوم'].map(esc).join(','),
-        ...res.schools.map((s) => [s.name, s.complex, s.students, s.present_pct, s.attendance_uploaded ? 'نعم' : 'لا', s.uncovered_periods, s.coverage_pct, s.homework_today].map(esc).join(',')),
+        ['المدرسة', 'المجمّع', 'المدير', 'الهاتف', 'الطلاب', 'نسبة الحضور', 'رُفع الحضور', 'وقت الرفع', 'حصص غير مغطّاة', 'نسبة التغطية', 'غياب ثلاثة أيام', 'واجبات اليوم'].map(esc).join(','),
+        ...res.schools.map((s) => [s.name, s.complex, s.principal, s.phone, s.students, s.present_pct ?? '', s.attendance_uploaded ? 'نعم' : 'لا', s.uploaded_at ? timeHM(s.uploaded_at) : '', s.uncovered_periods, s.coverage_pct, s.three_days ?? 0, s.homework_today].map(esc).join(',')),
       ];
-      return { status: 200, body: '﻿' + `"تقرير اليوم","${date}"\r\n` + lines.join('\r\n') + '\r\n', contentType: 'text/csv; charset=utf-8' };
+      return { status: 200, body: '\ufeff' + `"تقرير اليوم","${date}"\r\n` + lines.join('\r\n') + '\r\n', contentType: 'text/csv; charset=utf-8' };
     }
     return ok(res);
+  }
+
+  if (m === 'GET' && path === '/api/directorate/report') {
+    requireRole(me, 'directorate');
+    const week = weekStart(validDate(q.get('week')) ?? today);
+    return ok(weeklyReport(d, week, today));
+  }
+
+  const dirSchoolMatch = /^\/api\/directorate\/school\/(\d+)$/.exec(path);
+  if (dirSchoolMatch && m === 'GET') {
+    requireRole(me, 'directorate');
+    const s = d.schools.find((x) => x.id === Number(dirSchoolMatch[1]));
+    if (!s) throw new ApiError(404, 'المدرسة غير موجودة في سجلّ المديرية');
+    const date = validDate(q.get('date')) ?? today;
+    return ok(schoolDayView(d, s, date, today));
   }
 
   throw new ApiError(404, `المسار غير موجود: ${m} ${path}`);

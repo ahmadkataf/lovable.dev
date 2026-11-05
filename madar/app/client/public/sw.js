@@ -1,8 +1,10 @@
 /* مَدار — service worker.
    Precache the app shell at install (the list is injected at build time by
-   vite.config.ts), cache-first for /assets/* and /fonts/*, network-first for
-   GET /api/* (POST is never cached), and the cached shell for navigations
-   when the network fails or the server has no SPA fallback. */
+   vite.config.ts: «/» with its inlined styles, the fonts — the two preloaded
+   from index.html and the 600 weight — then the hashed bundle and icons),
+   cache-first for /assets/* and /fonts/*, network-first for GET /api/*
+   (POST is never cached), and the cached shell for navigations when the
+   network fails or the server has no SPA fallback. */
 const BUILD = '__BUILD__';
 const PRECACHE = __PRECACHE__;
 const SHELL = `madar-shell-${BUILD}`;
@@ -18,9 +20,11 @@ self.addEventListener('install', (event) => {
     (async () => {
       const cache = await caches.open(SHELL);
       const list = Array.isArray(PRECACHE) ? PRECACHE : ['/'];
+      /* The shell is always refetched; fonts and hashed assets may come from the
+         HTTP cache the page just filled (no second download on a slow link). */
       await Promise.all(
         list.map((url) =>
-          cache.add(new Request(url, { cache: 'reload' })).catch(() => null),
+          cache.add(new Request(url, { cache: url === '/' ? 'reload' : 'default' })).catch(() => null),
         ),
       );
       await self.skipWaiting();

@@ -98,7 +98,7 @@ function mk(page, profile) {
     await page.goto(`${BASE}${path}`, { waitUntil: 'networkidle' });
     await page.waitForTimeout(300);
   };
-  return { shot, step, login, logout, toast, go };
+  return { shot, step, login, logout, toast, go, profile };
 }
 
 async function teacherFlow(page, h) {
@@ -304,15 +304,76 @@ async function parentFlow(page, h) {
 
 async function directorateFlow(page, h) {
   await h.login('DIR-DARAA', '/directorate');
-  await page.locator('table').waitFor();
+  await page.locator('.dir-alerts').waitFor();
+  await page.locator('.scard, .dir-table tbody tr').first().waitFor();
   await h.shot('directorate-dashboard');
-  await h.step('sort table', async () => {
-    await page.locator('th:has-text("الطلاب")').click();
-    await page.waitForTimeout(200);
-    const first = await page.locator('tbody tr td:first-child').first().innerText();
-    await page.locator('th:has-text("الطلاب")').click();
-    const after = await page.locator('tbody tr td:first-child').first().innerText();
-    if (first === after) throw new Error('sorting did not change the order');
+  await h.step('alerts and the first school above the fold', async () => {
+    await page.evaluate(() => window.scrollTo(0, 0));
+    const alerts = await page.locator('.dir-alerts').boundingBox();
+    const firstAlert = await page.locator('.dir-alert').first().boundingBox();
+    const card = await page.locator('.scard, .dir-table tbody tr').first().boundingBox();
+    if (!alerts || !card) throw new Error('alerts tile or first school row missing');
+    const cardBottom = Math.round(card.y + card.height);
+    console.log(`[${h.profile}] alerts tile at ${Math.round(alerts.y)}px, first alert ends at ${firstAlert ? Math.round(firstAlert.y + firstAlert.height) : '—'}px, first school card ends at ${cardBottom}px`);
+    if (h.profile === 'phone') {
+      if (!firstAlert || firstAlert.y + firstAlert.height > 844) throw new Error('the first alert is below the fold');
+      if (cardBottom > 700) throw new Error(`the first school card ends at ${cardBottom}px (limit 700)`);
+    }
+  });
+  await h.step('open an alert → school page with principal and phone', async () => {
+    await page.locator('.dir-alert a.dir-alert-main').first().click();
+    await page.waitForURL(/\/directorate\/school\/\d+\?date=\d{4}-\d{2}-\d{2}/);
+    await page.locator('.dir-principal').waitFor();
+    const princ = await page.locator('.dir-principal').innerText();
+    if (!princ.includes('مدير المدرسة') || !/أ\. /.test(princ)) throw new Error(`principal block reads «${princ}»`);
+    if (!(await page.locator('.dir-principal a.dir-tel[href^="tel:+963"]').count())) throw new Error('no tel: link on the school page');
+    await page.locator('#absences').waitFor({ state: 'attached' });
+    await page.locator('.crow').first().waitFor();
+    await h.shot('directorate-school');
+  });
+  await h.step('back to the dashboard', async () => {
+    await page.locator('.backlink').click();
+    await page.waitForURL(/\/directorate(\?date=[\d-]+)?$/);
+    await page.locator('.dir-alerts').waitFor();
+  });
+  await h.step('«إنذار مبكر» scrolls to the three-day list', async () => {
+    if (!(await page.locator('button.dir-early').count())) {
+      const more = page.locator('button.dir-more');
+      if (await more.count()) await more.first().click();
+    }
+    await page.locator('button.dir-early').first().click();
+    await page.waitForTimeout(900);
+    const y = await page.evaluate(() => window.scrollY);
+    if (y < 100) throw new Error(`the page did not scroll (scrollY=${y})`);
+    const inView = await page.locator('#three-days').evaluate((el) => { const r = el.getBoundingClientRect(); return r.top >= 0 && r.top < window.innerHeight; });
+    if (!inView) throw new Error('the three-day list is not in view');
+    await h.shot('directorate-dashboard-three-days');
+    await page.evaluate(() => window.scrollTo(0, 0));
+  });
+  await h.step('sort schools', async () => {
+    if (h.profile === 'phone') {
+      const sel = page.locator('.dir-sort select');
+      const first = await page.locator('.scard .scard-h b').first().innerText();
+      await sel.selectOption('name');
+      await page.waitForTimeout(200);
+      const after = await page.locator('.scard .scard-h b').first().innerText();
+      if (first === after) throw new Error('sorting did not change the order');
+      await sel.selectOption('severity');
+    } else {
+      const first = await page.locator('.dir-table tbody tr td.name .nm').first().innerText();
+      await page.locator('.dir-table th:has-text("المدرسة")').click();
+      await page.waitForTimeout(200);
+      const after = await page.locator('.dir-table tbody tr td.name .nm').first().innerText();
+      if (first === after) throw new Error('sorting did not change the order');
+    }
+  });
+  await h.step('school card → school page → back', async () => {
+    const target = h.profile === 'phone' ? page.locator('.scard a.scard-main').first() : page.locator('.dir-table tbody tr').nth(1);
+    await target.click();
+    await page.waitForURL(/\/directorate\/school\/\d+/);
+    await page.locator('.dir-principal').waitFor();
+    await page.goBack();
+    await page.locator('.dir-alerts').waitFor();
   });
   await h.step('download csv', async () => {
     const [dl] = await Promise.all([
@@ -324,6 +385,41 @@ async function directorateFlow(page, h) {
     await h.toast('التقرير');
     shots.push(file);
   });
+  await h.step('weekly report (print)', async () => {
+    await page.locator('button:has-text("تقرير الأسبوع")').click();
+    await page.waitForURL(/\/directorate\/report/);
+    await page.locator('.report table').waitFor();
+    const foot = await page.locator('.report tfoot').innerText();
+    if (!foot.includes('المجموع')) throw new Error('the totals row is missing');
+    const org = await page.locator('.report-head .org').innerText();
+    if (!org.includes('مديرية التربية في درعا')) throw new Error('the directorate name is missing');
+    if (/[0-9]/.test(await page.locator('.report').innerText())) throw new Error('Latin digits in the printed report');
+    if (!(await page.evaluate(() => document.body.classList.contains('print-report')))) throw new Error('body lacks the print-report class');
+    await h.shot('directorate-report');
+    const range = await page.locator('.report-head .range').innerText();
+    await page.locator('button:has-text("الأسبوع السابق")').click();
+    await page.waitForFunction((prev) => document.querySelector('.report-head .range')?.textContent !== prev, range, { timeout: 10000 });
+    await page.locator('.report tfoot').waitFor();
+    await h.shot('directorate-report-previous-week');
+    await page.locator('button:has-text("الأسبوع التالي")').click();
+    await page.waitForFunction((prev) => document.querySelector('.report-head .range')?.textContent === prev, range, { timeout: 10000 });
+    await page.evaluate(() => { window.__printed = 0; window.print = () => { window.__printed += 1; }; });
+    await page.locator('button:has-text("طباعة")').click();
+    if (!(await page.evaluate(() => window.__printed))) throw new Error('window.print was not called');
+    await page.emulateMedia({ media: 'print' });
+    await h.shot('directorate-report-print-media');
+    await page.emulateMedia({ media: null });
+    await page.locator('.backlink').click();
+    await page.waitForURL(/\/directorate$/);
+    await page.locator('.dir-alerts').waitFor();
+    if (await page.evaluate(() => document.body.classList.contains('print-report'))) throw new Error('print-report class left on body');
+  });
+  await h.step('unknown school → graceful error', async () => {
+    await h.go('/directorate/school/999');
+    await page.locator('.error').waitFor();
+    await page.locator('.backlink').waitFor();
+    await h.shot('directorate-school-missing');
+  });
   await h.step('circular', async () => {
     await h.go('/directorate/circulars');
     await page.locator('input[placeholder*="مواعيد"]').fill('تعميم: الدوام الشتوي');
@@ -333,10 +429,18 @@ async function directorateFlow(page, h) {
     await page.waitForTimeout(400);
     await h.shot('directorate-circulars');
   });
-  await h.step('notifications', async () => {
+  await h.step('notifications open the school page', async () => {
     await h.go('/notifications');
     await page.locator('.nlist').waitFor();
     await h.shot('directorate-notifications');
+    const row = page.locator('.nlist button.row').filter({ hasText: /حضور غير مسجّل|حصّة من دون تغطية|غياب متتالٍ/ }).first();
+    if (await row.count()) {
+      await row.click();
+      await page.waitForURL(/\/directorate\/school\/\d+\?date=/);
+      await page.locator('.dir-principal').waitFor();
+    } else {
+      console.log(`[${h.profile}] no directorate notification today (weekend seed?) — skipped the deep-link check`);
+    }
   });
   await h.logout();
 }
@@ -385,7 +489,7 @@ async function run(browser, profile, full) {
       ['SCH-1', '/school', 'school-dashboard', ['/school/absences', 'school-absences-board'], ['/school/attendance', 'school-attendance']],
       ['S-LAYAN', '/student', 'student-home', ['/student/timetable', 'student-timetable']],
       ['P-KHALED', '/parent', 'parent-home', ['/messages/new', 'parent-message-new']],
-      ['DIR-DARAA', '/directorate', 'directorate-dashboard', ['/directorate/circulars', 'directorate-circulars'], ['/notifications', 'directorate-notifications']],
+      ['DIR-DARAA', '/directorate', 'directorate-dashboard', ['/directorate/school/1', 'directorate-school'], ['/directorate/report', 'directorate-report'], ['/directorate/circulars', 'directorate-circulars'], ['/notifications', 'directorate-notifications']],
     ];
     for (const [code, path, name, ...extra] of quick) {
       await h.step(`desktop ${code}`, async () => {
@@ -396,6 +500,27 @@ async function run(browser, profile, full) {
         await h.logout();
       });
     }
+    await h.step('desktop directorate: table sort, row → school page, report', async () => {
+      await h.login('DIR-DARAA', '/directorate');
+      await page.locator('.dir-table tbody tr').first().waitFor();
+      const first = await page.locator('.dir-table tbody tr td.name .nm').first().innerText();
+      await page.locator('.dir-table th:has-text("المدرسة")').click();
+      await page.waitForTimeout(200);
+      const after = await page.locator('.dir-table tbody tr td.name .nm').first().innerText();
+      if (first === after) throw new Error('sorting did not change the order');
+      const wrap = await page.locator('.dir-table').evaluate((el) => ({ scroll: el.scrollWidth, client: el.clientWidth }));
+      if (wrap.scroll > wrap.client + 1) throw new Error(`the schools table needs a horizontal scroll (${wrap.scroll} > ${wrap.client})`);
+      await page.locator('.dir-table tbody tr').nth(1).click();
+      await page.waitForURL(/\/directorate\/school\/\d+\?date=/);
+      await page.locator('.dir-principal a.dir-tel').waitFor();
+      await h.shot('directorate-school-from-row');
+      await h.go('/directorate/report');
+      await page.locator('.report tfoot').waitFor();
+      await page.emulateMedia({ media: 'print' });
+      await h.shot('directorate-report-print-media');
+      await page.emulateMedia({ media: null });
+      await h.logout();
+    });
   }
   await context.close();
 }

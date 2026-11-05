@@ -11,7 +11,7 @@
      src/mock.ts instead of fetch. The mock is loaded behind that build-time
      constant, so a production build does not contain it at all. */
 
-import type { LoginResponse, User } from './types';
+import type { DirectorateDashboard, DirectorateSchoolDay, DirectorateWeeklyReport, LoginResponse, User } from './types';
 
 export const MOCK_ENV = import.meta.env.VITE_MOCK === '1';
 
@@ -335,6 +335,25 @@ export async function login(code: string): Promise<LoginResult> {
   const data = r.data as LoginResponse;
   if (!data || !data.token || !data.user) throw new ApiError(500, 'استجابة غير متوقّعة من الخادم');
   return { ...data, viaMock: false };
+}
+
+/* ───────── directorate (round 2) ───────── */
+
+/** The directorate endpoints, as URLs (for `useApi`) and as typed fetchers. */
+export const directorateUrls = {
+  dashboard: (date: string) => `/api/directorate/dashboard?date=${encodeURIComponent(date)}`,
+  school: (id: number | string, date: string) => `/api/directorate/school/${encodeURIComponent(String(id))}?date=${encodeURIComponent(date)}`,
+  report: (week: string) => `/api/directorate/report?week=${encodeURIComponent(week)}`,
+  csv: (date: string) => `/api/directorate/report.csv?date=${encodeURIComponent(date)}`,
+};
+export function getDirectorateDashboard(date: string): Promise<DirectorateDashboard> {
+  return get<DirectorateDashboard>(directorateUrls.dashboard(date));
+}
+export function getDirectorateSchool(id: number | string, date: string): Promise<DirectorateSchoolDay> {
+  return get<DirectorateSchoolDay>(directorateUrls.school(id, date));
+}
+export function getDirectorateReport(week: string): Promise<DirectorateWeeklyReport> {
+  return get<DirectorateWeeklyReport>(directorateUrls.report(week));
 }
 
 /* ───────── files ───────── */

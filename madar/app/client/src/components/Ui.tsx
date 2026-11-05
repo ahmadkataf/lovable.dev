@@ -2,8 +2,9 @@
 
 import { useEffect, type ButtonHTMLAttributes, type CSSProperties, type ReactNode } from 'react';
 import { Icon } from './Icon';
-import { addDays, fmtDate, pct, todayISO } from '../format';
+import { addDays, arDigits, fmtDate, pct, todayISO } from '../format';
 import { Link } from '../router';
+import type { AppConfig } from '../config';
 
 export function Tile({ title, icon, children, color, className, right, style }: {
   title?: ReactNode; icon?: string; children?: ReactNode; color?: string; className?: string; right?: ReactNode; style?: CSSProperties;
@@ -215,4 +216,18 @@ export function PageHead({ title, sub, actions, back }: { title: ReactNode; sub?
 export function RowLink({ to, onClick, children, className }: { to?: string; onClick?: () => void; children: ReactNode; className?: string }) {
   if (to) return <Link to={to} className={`row ${className ?? ''}`}>{children}</Link>;
   return <button type="button" className={`row ${className ?? ''}`} onClick={onClick}>{children}</button>;
+}
+
+/** The support line shown on the login screen and at the foot of every screen:
+    «مساعدة: ٠٩٣٣ ١٢٣ ٤٥٦ (٨–١٥)» with a tel: link, or the generic line when no phone is configured. */
+export function SupportLine({ cfg, className }: { cfg: AppConfig; className?: string }) {
+  const phone = cfg.support_phone.trim();
+  if (!phone) return <span className={`support ${className ?? ''}`}>للمساعدة: إدارة المدرسة أو فريق مَدار</span>;
+  const tel = phone.replace(/[^\d+]/g, '');
+  return (
+    <span className={`support ${className ?? ''}`}>
+      مساعدة: <a href={`tel:${tel}`} className="num" dir="ltr">{arDigits(phone)}</a>
+      {cfg.support_hours.trim() && <> ({arDigits(cfg.support_hours.trim())})</>}
+    </span>
+  );
 }

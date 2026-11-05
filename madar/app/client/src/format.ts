@@ -92,6 +92,52 @@ export function fmtTime(d: Date | string | null | undefined): string {
   return `${ar(h12)}:${arDigits(min)} ${h < 12 ? 'صباحاً' : 'مساءً'}`;
 }
 
+/** Short clock for badges: «٧:٤٥» in the morning, «١:١٠ مساءً» from noon on (Damascus time). */
+export function fmtHM(d: Date | string | null | undefined): string {
+  const date = typeof d === 'string' ? parseServerTime(d) : d;
+  if (!date) return '';
+  const parts = new Intl.DateTimeFormat('en-GB', { timeZone: TZ, hour: 'numeric', minute: '2-digit', hour12: false }).formatToParts(date);
+  const h = Number(parts.find((p) => p.type === 'hour')?.value ?? '0') % 24;
+  const min = parts.find((p) => p.type === 'minute')?.value ?? '00';
+  const h12 = h % 12 === 0 ? 12 : h % 12;
+  return `${ar(h12)}:${arDigits(min)}${h >= 12 ? ' مساءً' : ''}`;
+}
+
+/** Sunday (YYYY-MM-DD) of the school week that holds `iso`. */
+export function weekStart(iso: string): string {
+  return addDays(iso, -dayIndex(iso));
+}
+
+/** «الأحد ٢» — weekday and day number, for tight chart labels. */
+export function shortDate(iso: string): string {
+  const date = iso.slice(0, 10);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return iso;
+  return `${DAYS[dayIndex(date)]} ${ar(Number(date.slice(8, 10)))}`;
+}
+
+/** «من الأحد ٢ تشرين الثاني إلى الخميس ٦ تشرين الثاني». */
+export function fmtDateRange(from: string | null | undefined, to: string | null | undefined): string {
+  if (!from || !to) return '';
+  return `من ${fmtDate(from)} إلى ${fmtDate(to)}`;
+}
+
+/** Phone number in Arabic-Indic digits, grouped «٠٩٣٣ ٤١٢ ٨٧٠» (render inside `dir="ltr"` so the groups keep their order). */
+export function fmtPhone(phone: string | null | undefined): string {
+  const digits = (phone ?? '').replace(/\D/g, '');
+  if (!digits) return '';
+  const grouped = digits.length === 10 ? `${digits.slice(0, 4)} ${digits.slice(4, 7)} ${digits.slice(7)}` : digits.replace(/(\d{3})(?=\d)/g, '$1 ');
+  return arDigits(grouped);
+}
+
+/** `tel:` link for a Syrian number: «0933412870» → «tel:+963933412870». */
+export function telHref(phone: string | null | undefined): string {
+  const digits = (phone ?? '').replace(/\D/g, '');
+  if (!digits) return 'tel:';
+  if (digits.length === 10 && digits.startsWith('0')) return `tel:+963${digits.slice(1)}`;
+  if (digits.startsWith('963')) return `tel:+${digits}`;
+  return `tel:${digits}`;
+}
+
 /** Time of day from «HH:MM» or a timestamp. */
 export function fmtClock(s: string | null | undefined): string {
   if (!s) return '';
@@ -149,6 +195,8 @@ export const NOUNS = {
   notification: { one: 'إشعار', two: 'إشعاران', few: 'إشعارات', many: 'إشعاراً' },
   message: { one: 'رسالة', two: 'رسالتان', few: 'رسائل', many: 'رسالة', f: true },
   alert: { one: 'تنبيه', two: 'تنبيهان', few: 'تنبيهات', many: 'تنبيهاً' },
+  case: { one: 'حالة', two: 'حالتان', few: 'حالات', many: 'حالة', f: true },
+  absence: { one: 'غياب', two: 'غيابان', few: 'غيابات', many: 'غياباً' },
 } satisfies Record<string, NounForms>;
 
 /** Count with Arabic agreement: «لا طلاب» / «طالب واحد» / «طالبان» / «٣ طلاب» / «١٢ طالباً» / «١٠٠ طالب».

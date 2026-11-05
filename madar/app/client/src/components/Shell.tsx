@@ -1,10 +1,11 @@
-/* App shell: top bar (identity, demo pill, bell), offline/outbox banners,
-   bottom tab bar on phones, side rail from 900px, toast host. */
+/* App shell: top bar (identity, demo pill, bell, logout with an inline confirmation), offline/outbox banners,
+   bottom tab bar on phones, side rail from 900px, a support line at the foot, toast host. */
 
-import type { CSSProperties, ReactNode } from 'react';
+import { useState, type CSSProperties, type ReactNode } from 'react';
 import { Icon, Logo } from './Icon';
-import { Avatar } from './Ui';
+import { Avatar, Btn, SupportLine } from './Ui';
 import { ar, complexLabel, count, NOUNS, unreadLabel } from '../format';
+import { useConfig } from '../config';
 import { Link, useRoute } from '../router';
 import { discardOutboxItem, replayOutbox, retryOutboxItem } from '../api';
 import { roleHome, signOut, useStore } from '../store';
@@ -84,6 +85,8 @@ function subtitle(role: Role, ctx: unknown, schoolName: string | null | undefine
 export function Shell({ children }: { children: ReactNode }) {
   const s = useStore();
   const route = useRoute();
+  const cfg = useConfig();
+  const [confirmOut, setConfirmOut] = useState(false);
   const role = s.user?.role ?? 'directorate';
   const color = ROLE_COLOR[role];
   const tabs = TABS[role];
@@ -95,9 +98,24 @@ export function Shell({ children }: { children: ReactNode }) {
   const offline = !s.online || s.fromCache;
 
   const logout = () => {
+    setConfirmOut(false);
     signOut();
     navigate('/', { replace: true });
   };
+
+  const LogoutBtn = ({ className }: { className?: string }) => (
+    <button
+      type="button"
+      className={`iconbtn textbtn ${className ?? ''}`}
+      onClick={() => setConfirmOut((v) => !v)}
+      aria-expanded={confirmOut}
+      aria-controls="logout-confirm"
+      title="تسجيل الخروج"
+    >
+      <Icon name="logout" />
+      <span>خروج</span>
+    </button>
+  );
 
   const NavItems = () => (
     <>
@@ -120,7 +138,7 @@ export function Shell({ children }: { children: ReactNode }) {
         <div className="usercard">
           <Avatar name={displayName} color={color} small />
           <div className="txt"><b>{displayName}</b><small>{subText}</small></div>
-          <button type="button" className="iconbtn" onClick={logout} aria-label="تسجيل الخروج" title="تسجيل الخروج"><Icon name="logout" /></button>
+          <LogoutBtn />
         </div>
       </aside>
 
@@ -140,8 +158,17 @@ export function Shell({ children }: { children: ReactNode }) {
             <Icon name="bell" />
             {s.unread > 0 && <span className="badge num" aria-hidden="true">{ar(s.unread)}</span>}
           </Link>
-          <button type="button" className="iconbtn phone-only" onClick={logout} aria-label="تسجيل الخروج" title="تسجيل الخروج"><Icon name="logout" /></button>
+          <LogoutBtn className="phone-only" />
         </div>
+        {confirmOut && (
+          <div className="logout-confirm" id="logout-confirm" role="group" aria-label="تأكيد الخروج" onKeyDown={(e) => { if (e.key === 'Escape') setConfirmOut(false); }}>
+            <span className="grow">تسجيل الخروج من هذا الجهاز؟</span>
+            <div className="acts">
+              <Btn variant="danger" size="sm" icon="logout" onClick={logout} autoFocus>تأكيد الخروج</Btn>
+              <Btn variant="light" size="sm" onClick={() => setConfirmOut(false)}>إلغاء</Btn>
+            </div>
+          </div>
+        )}
       </header>
 
       {offline && (
@@ -174,6 +201,8 @@ export function Shell({ children }: { children: ReactNode }) {
       )}
 
       <main className="page" key={route.path}>{children}</main>
+
+      <footer className="shell-foot"><SupportLine cfg={cfg} /></footer>
 
       <nav className="tabbar glass" aria-label="التنقّل">
         <NavItems />

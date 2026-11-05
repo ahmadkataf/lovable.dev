@@ -8,7 +8,9 @@
      /substitutions/:id                 school.ts    the substitute teacher's assignment
      /timetable?date=&section_id=       school.ts    students and guardians: changed teacher / self-study
      /announcements/:id                 school.ts    guardians (announcement) and school accounts (circular)
-     /messages/:userId                  parent.ts    a new message */
+     /messages/:userId                  parent.ts    a new message
+     /directorate?date=                 directorate.ts  the directorate: a school did not upload / periods without cover
+     /directorate/school/:id?date=      directorate.ts  the directorate: one school's page (also «/schools/:id») */
 
 import type { Role } from './types';
 
@@ -38,7 +40,24 @@ export function resolveLink(link: string | null | undefined, role: Role | null |
   if (head === 'announcements' && !id) return role === 'school' ? '/school/announcements' : role === 'directorate' ? '/directorate/circulars' : '/announcements';
   if (['teacher', 'student', 'parent', 'school', 'directorate'].includes(head)) {
     const owner = head as Role;
-    return owner === role ? path + url.search : home;
+    if (owner !== role) return home;
+    // The directorate's own routes: the dashboard, a school page, the weekly report, the circulars.
+    if (owner === 'directorate') {
+      if (seg.length === 1) return withDate('/directorate');
+      if (seg[1] === 'school' && seg[2] && /^\d+$/.test(seg[2])) return withDate(`/directorate/school/${seg[2]}`);
+      if (seg[1] === 'report') return `/directorate/report${q.get('week') && /^\d{4}-\d{2}-\d{2}$/.test(q.get('week')!) ? `?week=${q.get('week')}` : ''}`;
+      if (seg[1] === 'circulars') return '/directorate/circulars';
+      return withDate('/directorate');
+    }
+    return path + url.search;
+  }
+  // The directorate reads every other notice on its dashboard or on the school page it concerns.
+  if (role === 'directorate') {
+    if (head === 'schools' && id) return withDate(`/directorate/school/${id}`);
+    if (['attendance', 'absences', 'substitutions', 'timetable', 'students', 'alerts'].includes(head)) {
+      const school = q.get('school_id');
+      return school && /^\d+$/.test(school) ? withDate(`/directorate/school/${school}`) : withDate('/directorate');
+    }
   }
 
   switch (head) {

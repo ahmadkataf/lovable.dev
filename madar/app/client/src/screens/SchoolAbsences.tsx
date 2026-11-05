@@ -76,6 +76,7 @@ function SubstitutionCard({ absence, sub, onDone }: { absence: SchoolAbsence; su
             ) : (
               <span><Tag tone="sun">لا بديل متاح — تعلّم ذاتي موجَّه</Tag> <button type="button" className="chip" aria-pressed={manual} onClick={() => setManual(!manual)} style={{ marginInlineStart: 6 }}>تكليف معلّم يدوياً…</button></span>
             )}
+            {sub.note && <small className="muted wrap-text" data-note style={{ display: 'block', lineHeight: 1.5 }}>{sub.note}</small>}
             {manual && (
               <select className="input" value={teacherId ?? ''} onChange={(e) => setTeacherId(Number(e.target.value) || null)} aria-label="اختيار معلّم">
                 <option value="">— اختر المعلّم —</option>

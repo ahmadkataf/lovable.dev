@@ -16,6 +16,8 @@ import { SchoolAbsenceNew, SchoolAbsences } from './screens/SchoolAbsences';
 import { SchoolAttendance } from './screens/SchoolAttendance';
 import { SchoolAnnouncements } from './screens/SchoolAnnouncements';
 import { DirectorateCirculars, DirectorateDashboard } from './screens/Directorate';
+import { DirectorateSchool } from './screens/DirectorateSchool';
+import { DirectorateReport } from './screens/DirectorateReport';
 import { AnnouncementsList } from './screens/Announcements';
 import { boot, roleHome, useStore } from './store';
 import type { Role } from './types';
@@ -74,6 +76,8 @@ function resolve(path: string): ReactNode {
 
   if (path === '/directorate') return <DirectorateDashboard />;
   if (path === '/directorate/circulars') return <DirectorateCirculars />;
+  if (path === '/directorate/report') return <DirectorateReport />;
+  if ((p = matchPath('/directorate/school/:id', path))) return <DirectorateSchool id={Number(p.id)} />;
   return <NotFound />;
 }
 
