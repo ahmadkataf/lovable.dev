@@ -276,7 +276,8 @@ th,td{padding:12px 14px;text-align:center;border-bottom:1px solid var(--hair);wh
 th{font-family:var(--font-d);font-weight:700;font-size:.88rem;color:var(--ink-2);background:rgba(255,255,255,.5);position:sticky;top:0}
 td:first-child,th:first-child{text-align:right;font-weight:600;white-space:normal;min-width:220px;color:var(--ink)}
 th.me,td.me{background:rgba(42,91,234,.08);color:var(--brand-ink);font-weight:800}
-.y{color:var(--mint);font-weight:900;font-size:1.1rem}.p{color:var(--sun);font-weight:900;font-size:1.1rem}.n{color:#c3cad8;font-weight:900;font-size:1.1rem}
+.y{color:var(--mint);font-weight:900;font-size:1.1rem}.p{color:var(--sun);font-weight:900;font-size:1.1rem}
+.p::before{content:"";display:inline-block;width:.8em;height:.8em;border-radius:50%;background:linear-gradient(90deg,var(--sun) 50%,#fbe6c0 50%);vertical-align:-.08em}.n{color:#c3cad8;font-weight:900;font-size:1.1rem}
 .legend{display:flex;gap:18px;flex-wrap:wrap;margin-top:14px;font-size:.88rem;color:var(--ink-2)}
 .legend span b{margin-inline-end:6px}
 .foot{font-size:.82rem;color:var(--ink-3);margin-top:8px}
@@ -537,20 +538,20 @@ footer{padding:28px 0 48px;text-align:center;color:var(--ink-3);font-size:.85rem
       <thead><tr><th>الميزة</th><th class="me">مَدار</th><th>Google Classroom</th><th>Microsoft Teams للتعليم</th><th>مدرستي (السعودية)</th><th>eKool (إستونيا)</th><th>ClassDojo</th><th>PowerSchool</th></tr></thead>
       <tbody>
         <tr><td>طبقة المديرية / الوزارة (لوحة لكلّ المدارس)</td><td class="me y">✓</td><td class="n">✗</td><td class="n">✗</td><td class="y">✓</td><td class="y">✓</td><td class="n">✗</td><td class="y">✓</td></tr>
-        <tr><td>إدارة المدرسة: جداول، شعب، سجلّ حضور</td><td class="me y">✓</td><td class="n">✗</td><td class="p">◐</td><td class="p">◐</td><td class="y">✓</td><td class="p">◐</td><td class="y">✓</td></tr>
-        <tr><td>واجبات حسب الصف والشعبة مع تذكير لوليّ الأمر</td><td class="me y">✓</td><td class="p">◐</td><td class="p">◐</td><td class="y">✓</td><td class="y">✓</td><td class="p">◐</td><td class="p">◐</td></tr>
-        <tr><td>بروتوكول آلي لغياب المعلّم وتعيين البديل</td><td class="me y">✓</td><td class="n">✗</td><td class="n">✗</td><td class="n">✗</td><td class="n">✗</td><td class="n">✗</td><td class="p">◐</td></tr>
-        <tr><td>الكتب المدرسية الرسمية داخل التطبيق</td><td class="me y">✓</td><td class="p">◐</td><td class="p">◐</td><td class="y">✓</td><td class="p">◐</td><td class="n">✗</td><td class="n">✗</td></tr>
-        <tr><td>يعمل بلا إنترنت مستقرّ + إشعارات SMS</td><td class="me y">✓</td><td class="p">◐</td><td class="p">◐</td><td class="n">✗</td><td class="n">✗</td><td class="n">✗</td><td class="n">✗</td></tr>
-        <tr><td>إنذار مبكر للتسرّب</td><td class="me y">✓</td><td class="n">✗</td><td class="n">✗</td><td class="p">◐</td><td class="y">✓</td><td class="n">✗</td><td class="p">◐</td></tr>
-        <tr><td>عربي بالكامل من اليمين إلى اليسار</td><td class="me y">✓</td><td class="y">✓</td><td class="y">✓</td><td class="y">✓</td><td class="n">✗</td><td class="p">◐</td><td class="p">◐</td></tr>
-        <tr><td>البيانات تحت إدارة المديرية (سيادة البيانات)</td><td class="me y">✓</td><td class="n">✗</td><td class="n">✗</td><td class="y">✓</td><td class="p">◐</td><td class="n">✗</td><td class="p">◐</td></tr>
-        <tr><td>تجربة ممتعة للطالب (نقاط، إنجازات، تمارين)</td><td class="me y">✓</td><td class="n">✗</td><td class="n">✗</td><td class="p">◐</td><td class="n">✗</td><td class="y">✓</td><td class="n">✗</td></tr>
+        <tr><td>إدارة المدرسة: جداول، شعب، سجلّ حضور</td><td class="me y">✓</td><td class="n">✗</td><td class="p"></td><td class="p"></td><td class="y">✓</td><td class="p"></td><td class="y">✓</td></tr>
+        <tr><td>واجبات حسب الصف والشعبة مع تذكير لوليّ الأمر</td><td class="me y">✓</td><td class="p"></td><td class="p"></td><td class="y">✓</td><td class="y">✓</td><td class="p"></td><td class="p"></td></tr>
+        <tr><td>بروتوكول آلي لغياب المعلّم وتعيين البديل</td><td class="me y">✓</td><td class="n">✗</td><td class="n">✗</td><td class="n">✗</td><td class="n">✗</td><td class="n">✗</td><td class="p"></td></tr>
+        <tr><td>الكتب المدرسية الرسمية داخل التطبيق</td><td class="me y">✓</td><td class="p"></td><td class="p"></td><td class="y">✓</td><td class="p"></td><td class="n">✗</td><td class="n">✗</td></tr>
+        <tr><td>يعمل بلا إنترنت مستقرّ + إشعارات SMS</td><td class="me y">✓</td><td class="p"></td><td class="p"></td><td class="n">✗</td><td class="n">✗</td><td class="n">✗</td><td class="n">✗</td></tr>
+        <tr><td>إنذار مبكر للتسرّب</td><td class="me y">✓</td><td class="n">✗</td><td class="n">✗</td><td class="p"></td><td class="y">✓</td><td class="n">✗</td><td class="p"></td></tr>
+        <tr><td>عربي بالكامل من اليمين إلى اليسار</td><td class="me y">✓</td><td class="y">✓</td><td class="y">✓</td><td class="y">✓</td><td class="n">✗</td><td class="p"></td><td class="p"></td></tr>
+        <tr><td>البيانات تحت إدارة المديرية (سيادة البيانات)</td><td class="me y">✓</td><td class="n">✗</td><td class="n">✗</td><td class="y">✓</td><td class="p"></td><td class="n">✗</td><td class="p"></td></tr>
+        <tr><td>تجربة ممتعة للطالب (نقاط، إنجازات، تمارين)</td><td class="me y">✓</td><td class="n">✗</td><td class="n">✗</td><td class="p"></td><td class="n">✗</td><td class="y">✓</td><td class="n">✗</td></tr>
         <tr><td>التكلفة لكلّ طالب</td><td class="me">منخفضة جداً</td><td>مجاني مع Workspace</td><td>مجاني / مدفوع</td><td>حكومي</td><td>اشتراك سنوي</td><td>مجاني + مدفوع</td><td>مرتفعة</td></tr>
       </tbody>
     </table>
   </div>
-  <div class="legend"><span><b class="y">✓</b>متوفّر</span><span><b class="p">◐</b>جزئي أو عبر إضافات</span><span><b class="n">✗</b>غير متوفّر</span></div>
+  <div class="legend"><span><b class="y">✓</b>متوفّر</span><span><b class="p"></b>جزئي أو عبر إضافات</span><span><b class="n">✗</b>غير متوفّر</span></div>
   <p class="foot">المقارنة مبنية على المزايا المعلنة لكلّ منصّة حتى ٢٠٢٦ وهي للاسترشاد؛ تختلف التفاصيل بحسب الإصدار والاشتراك.</p>
 </section>
 
@@ -632,7 +633,7 @@ footer{padding:28px 0 48px;text-align:center;color:var(--ink-3);font-size:.85rem
       <source src="video/madar-brief.mp4" type="video/mp4">
       متصفحك لا يدعم تشغيل الفيديو. يمكنك تحميله من الرابط أدناه.
     </video>
-    <div class="video-meta"><span>تعليق صوتي بالعربية الفصحى · دقّة عالية</span><a class="btn btn-ghost btn-sm" href="video/madar-brief.mp4" download>تحميل الفيديو</a></div>
+    <div class="video-meta"><span>تعليق صوتي بالعربية الفصحى · ٣:١٥ دقيقة</span><span style="display:flex;gap:8px;flex-wrap:wrap"><a class="btn btn-ghost btn-sm" href="video/madar-brief.mp4" download>تحميل بدقّة عالية</a><a class="btn btn-ghost btn-sm" href="video/madar-brief-720p.mp4" download>نسخة خفيفة لواتساب</a></span></div>
   </div>
 </section>
 

@@ -1,0 +1,131 @@
+<!doctype html>
+<html lang="ar" dir="rtl"><head><meta charset="utf-8"><title>مَدار — ملخّص المقترح</title>
+<style>
+@font-face{font-family:D;src:url(../site/fonts/alexandria-arabic-wght-normal.woff2) format('woff2');font-weight:100 900;unicode-range:U+0600-06FF,U+0750-077F,U+FB50-FDFF,U+FE70-FEFF}
+@font-face{font-family:D;src:url(../site/fonts/alexandria-latin-wght-normal.woff2) format('woff2');font-weight:100 900}
+@font-face{font-family:B;src:url(../site/fonts/plex-arabic-arabic-400.woff2) format('woff2');font-weight:400;unicode-range:U+0600-06FF,U+0750-077F,U+FB50-FDFF,U+FE70-FEFF}
+@font-face{font-family:B;src:url(../site/fonts/plex-arabic-latin-400.woff2) format('woff2');font-weight:400}
+@font-face{font-family:B;src:url(../site/fonts/plex-arabic-arabic-700.woff2) format('woff2');font-weight:700;unicode-range:U+0600-06FF,U+0750-077F,U+FB50-FDFF,U+FE70-FEFF}
+@font-face{font-family:B;src:url(../site/fonts/plex-arabic-latin-700.woff2) format('woff2');font-weight:700}
+@page{size:A4;margin:14mm 14mm 16mm}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:B,sans-serif;color:#0e1a33;font-size:10.5pt;line-height:1.6;direction:rtl}
+h1,h2,h3{font-family:D,sans-serif;line-height:1.25}
+h1{font-size:26pt;font-weight:900;color:#2a5bea}
+h2{font-size:13.5pt;font-weight:800;margin:14px 0 6px;padding-bottom:3px;border-bottom:2px solid #e4ecfe;color:#1d44b8;break-after:avoid}
+h3{font-size:11pt;font-weight:700;margin-bottom:3px}
+p{margin-bottom:5px}
+ul,ol{padding-inline-start:18px;margin-bottom:6px}
+li{margin-bottom:2px}
+.head{display:flex;align-items:center;gap:14px;margin-bottom:6px}
+.head .mark{width:54px;height:54px;flex:none}
+.head .sub{font-size:11pt;color:#3f4d68}
+.meta{font-size:9pt;color:#74819b;margin-bottom:10px}
+.lead{font-size:11.5pt;background:#f3f7fd;border-inline-start:4px solid #2a5bea;padding:8px 12px;border-radius:8px;margin:8px 0 6px}
+table{width:100%;border-collapse:collapse;font-size:9.5pt;margin:4px 0 8px;break-inside:avoid}
+th,td{border:1px solid #d9e1f0;padding:4px 7px;vertical-align:top;text-align:right}
+th{background:#eef2ff;font-weight:700}
+td.c,th.c{text-align:center}
+.me{background:#e4ecfe;font-weight:700;color:#1d44b8}
+.y{color:#0f9a6e;font-weight:900}.p{color:#c47d00;font-weight:900}.n{color:#9aa5b8;font-weight:900}
+.cols{display:grid;grid-template-columns:repeat(5,1fr);gap:6px;margin-bottom:6px}
+.col{border:1px solid #d9e1f0;border-radius:8px;padding:6px 8px;border-top:4px solid var(--c)}
+.col h3{font-size:10pt}
+.col ul{padding-inline-start:14px;font-size:9pt}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.box{border:1px solid #d9e1f0;border-radius:8px;padding:8px 10px;break-inside:avoid}
+.steps{display:grid;grid-template-columns:repeat(5,1fr);gap:6px;margin-bottom:6px}
+.step{border:1px solid #ffe2a8;background:#fff9ec;border-radius:8px;padding:6px 8px;font-size:9pt}
+.step b{display:block;font-family:D;color:#9a6200;font-size:10.5pt}
+.kpis{display:grid;grid-template-columns:repeat(5,1fr);gap:6px;margin-bottom:6px}
+.kpi{border:1px solid #d9e1f0;border-radius:8px;padding:6px;text-align:center;font-size:9pt}
+.kpi b{display:block;font-family:D;font-size:16pt;color:#2a5bea}
+.foot{margin-top:10px;padding-top:6px;border-top:1px solid #d9e1f0;font-size:9pt;color:#3f4d68;display:flex;justify-content:space-between}
+.url{font-family:D;font-weight:800;color:#2a5bea;direction:ltr;unicode-bidi:isolate}
+.two,.cols,.steps,.kpis,.box{break-inside:avoid}
+.half{display:inline-block;width:.8em;height:.8em;border-radius:50%;background:linear-gradient(90deg,#c47d00 50%,#f3dfb3 50%);vertical-align:-.08em}
+</style></head><body>
+<div class="head"><svg class="mark" viewBox="0 0 64 64"><rect width="64" height="64" rx="16" fill="#f3f7fd"/><circle cx="32" cy="32" r="22" fill="none" stroke="#2a5bea" stroke-width="2.6" stroke-dasharray="4 5"/><circle cx="32" cy="32" r="12" fill="#2a5bea" opacity=".15"/><circle cx="32" cy="32" r="7" fill="#2a5bea"/><circle cx="32" cy="10" r="4.5" fill="#f0a020"/><circle cx="54" cy="32" r="3.8" fill="#14a3b4"/><circle cx="32" cy="54" r="3.8" fill="#e85d8d"/><circle cx="10" cy="32" r="3.8" fill="#7a5cff"/></svg><div><h1>مَدار — كلُّ المدرسةِ في مدارٍ واحد</h1><div class="sub">منظومة تعليمية رقمية متكاملة تربط مديرية التربية والمدرسة والمعلّم والطالب ووليّ الأمر</div></div></div>
+<div class="meta">مقترح مشروع مقدَّم إلى مديرية التربية في درعا · تشرين الثاني ٢٠٢٦ · العرض الكامل والنموذج التفاعلي: <span class="url">madar.raqeem.dev</span></div>
+
+<p class="lead">حساب واحد لكلّ شخص يرى ما يخصّه فقط، وكلّ معلومة تُكتب مرّة واحدة وتصل إلى مكانها الصحيح في وقتها: المعلّم يكتب الواجب فيصل إلى الصف كلّه وأولياء أمورهم، غياب المعلّم لا يعني ضياع حصّة، ومدير التربية يرى مدارسه كلّها في لوحة واحدة بدل تقارير ورقية متأخّرة.</p>
+
+<h2>المشكلة التي نحلّها</h2>
+<table><tr><th style="width:50%">اليوم</th><th>مع مَدار</th></tr>
+<tr><td>وليّ الأمر يعرف بالغياب أو بالواجب الفائت بعد أيام، وغالباً من مجموعات واتساب غير رسمية</td><td>إشعار الغياب يصل في الحصة الأولى (تطبيق + SMS)، والواجب يصل لحظة نشره</td></tr>
+<tr><td>غياب المعلّم يُرتَّب بالهاتف في اللحظة الأخيرة، ولا أحد يعرف كم حصّة ضاعت</td><td>بروتوكول آلي يقترح البديل ويرسل له خطّة الدرس ويبلّغ الجميع، والمديرية ترى الحالة لحظياً</td></tr>
+<tr><td>الواجب على اللوح فقط، والكتاب الرقمي بعيد عن متناول الطالب</td><td>الواجب مربوط بصفحة الكتاب الرقمي المحمَّل على الهاتف بلا إنترنت</td></tr>
+<tr><td>تقارير ورقية شهرية تصل المديرية متأخّرة</td><td>لوحة لحظية لكلّ المدارس وتقرير أسبوعي بضغطة</td></tr></table>
+
+<h2>الأدوار الخمسة</h2>
+<div class="cols">
+<div class="col" style="--c:#2a5bea"><h3>مديرية التربية</h3><ul><li>لوحة كلّ المدارس لحظياً</li><li>الحضور وغياب المعلّمين وتغطيته</li><li>إنذار مبكر للتسرّب</li><li>تعاميم وتقارير آلية</li></ul></div>
+<div class="col" style="--c:#14a3b4"><h3>إدارة المدرسة</h3><ul><li>الجداول والشعب</li><li>سجلّ الحضور اليومي</li><li>لوحة الغياب والبدلاء</li><li>إعلانات لكلّ الأهالي</li></ul></div>
+<div class="col" style="--c:#7a5cff"><h3>المعلّم</h3><ul><li>واجب للصف بضغطة</li><li>الحضور من الهاتف</li><li>العلامات والتصحيح</li><li>تواصل مع الأهالي</li></ul></div>
+<div class="col" style="--c:#f0a020"><h3>الطالب</h3><ul><li>واجباتي وجدولي</li><li>كتبي بلا إنترنت</li><li>نقاط وإنجازات</li><li>تمارين تفاعلية</li></ul></div>
+<div class="col" style="--c:#e85d8d"><h3>وليّ الأمر</h3><ul><li>يوم ابني في شاشة</li><li>إشعار الغياب فوراً</li><li>الواجبات والعلامات</li><li>رسالة للمعلّم</li></ul></div>
+</div>
+
+<h2>المحدّدات</h2>
+<div class="two">
+<div class="box"><ol><li><b>عربي بالكامل:</b> الواجهة والمحتوى والتقارير من اليمين إلى اليسار، بمصطلحات وزارة التربية.</li><li><b>يعمل مع إنترنت ضعيف:</b> تخزين محلي للجدول والواجبات والكتب، ومزامنة عند توفّر الاتصال، وSMS للإشعارات الحرجة.</li><li><b>بيانات الأطفال محمية:</b> استضافة تحت إدارة المديرية، صلاحيات لكلّ دور، سجلّ تدقيق، نسخ احتياطي يومي، لا إعلانات ولا بيع بيانات.</li></ol></div>
+<div class="box"><ol start="4"><li><b>هاتف أولاً:</b> تطبيق أندرويد (APK) للأهالي والمعلّمين، وموقع ويب للإدارات والمديرية. iOS لاحقاً.</li><li><b>يبدأ صغيراً ويتوسّع:</b> عشر مدارس، ثم المديرية، ثم مستوى الوزارة بالبنية نفسها.</li><li><b>المنهاج الرسمي كما هو:</b> الكتب الرقمية الصادرة عن المركز الوطني لتطوير المناهج التربوية، مربوطة بالجدول والواجبات صفحةً بصفحة.</li></ol></div>
+</div>
+
+<h2>الميزات الأساسية</h2>
+<div class="two">
+<ul><li><b>الواجبات حسب الصف والشعبة:</b> عنوان، صفحة الكتاب، مرفقات، موعد تسليم، تذكير آلي، تسليم وتصحيح من التطبيق.</li><li><b>الجدول والحضور:</b> تسجيل الحضور في دقيقة من هاتف المعلّم، وإشعار الغياب في الحصة الأولى.</li><li><b>المنهاج والكتب الرقمية:</b> كلّ كتاب داخل التطبيق ويُحمَّل مرّة واحدة.</li><li><b>العلامات والتقييم:</b> مذاكرات واختبارات وأعمال صف، وكشف علامات رسمي PDF.</li></ul>
+<ul><li><b>التواصل الرسمي:</b> إعلانات المدرسة، رسائل المعلّم ووليّ الأمر، تعاميم المديرية؛ كلّها موثّقة.</li><li><b>لوحة مديرية التربية:</b> مؤشرات لحظية لكلّ مدرسة ومنطقة، تنبيهات تدخّل، تقارير أسبوعية.</li><li><b>إنذار مبكر للتسرّب:</b> ثلاثة أيام غياب متواصلة أو تراجع حادّ يطلق تنبيهاً للمرشد والإدارة ووليّ الأمر.</li><li><b>تجربة ممتعة للطالب:</b> نقاط وإنجازات وسلسلة أيام وتمارين من الكتاب.</li></ul>
+</div>
+
+<h2>بروتوكول غياب المعلّم</h2>
+<div class="steps">
+<div class="step"><b>١ · التبليغ</b>المعلّم يسجّل غيابه من التطبيق (أو الإدارة) قبل ٧:٠٠ صباحاً.</div>
+<div class="step"><b>٢ · تحليل الأثر</b>النظام يحدّد الحصص والشعب المتأثّرة فوراً.</div>
+<div class="step"><b>٣ · اقتراح البديل</b>معلّم متاح في الحصة نفسها حسب الأولوية؛ تعتمده الإدارة بضغطة.</div>
+<div class="step"><b>٤ · التجهيز والإبلاغ</b>خطّة الدرس أو نشاط رقمي للبديل؛ إبلاغ الطلاب والأهالي؛ تحديث الجدول.</div>
+<div class="step"><b>٥ · المتابعة</b>المديرية ترى الحالة لحظياً، ونسبة التغطية لكلّ مدرسة شهرياً.</div>
+</div>
+<div class="two">
+<div class="box"><h3>أولويات اختيار البديل</h3><ol><li>معلّم المادة نفسها لديه حصّة فراغ.</li><li>معلّم يدرّس الشعبة نفسها في مادة أخرى.</li><li>أيّ معلّم شاغر ضمن حدّ النصاب.</li><li>توزيع عادل: من غطّى أكثر هذا الشهر يأتي آخراً.</li></ol></div>
+<div class="box"><h3>إذا لم يوجد بديل</h3><p>حصّة تعلّم ذاتي موجَّه: درس رقمي من الكتاب وتمرين تفاعلي، بإشراف الإدارة أو المرشد. تُسجَّل «مغطّاة ذاتياً» وتظهر للمديرية بلون مختلف، ويقترح النظام تعويضها إن تكرّر الغياب.</p></div>
+</div>
+
+<h2>مقارنة مع المنظومات العالمية</h2>
+<table><tr><th>الميزة</th><th class="c me">مَدار</th><th class="c">Google Classroom</th><th class="c">Teams للتعليم</th><th class="c">مدرستي</th><th class="c">eKool</th><th class="c">ClassDojo</th><th class="c">PowerSchool</th></tr>
+<tr><td>طبقة المديرية / الوزارة</td><td class="c me y">✓</td><td class="c n">✗</td><td class="c n">✗</td><td class="c y">✓</td><td class="c y">✓</td><td class="c n">✗</td><td class="c y">✓</td></tr>
+<tr><td>إدارة المدرسة: جداول وحضور</td><td class="c me y">✓</td><td class="c n">✗</td><td class="c p"><span class="half"></span></td><td class="c p"><span class="half"></span></td><td class="c y">✓</td><td class="c p"><span class="half"></span></td><td class="c y">✓</td></tr>
+<tr><td>واجبات الشعبة مع تذكير وليّ الأمر</td><td class="c me y">✓</td><td class="c p"><span class="half"></span></td><td class="c p"><span class="half"></span></td><td class="c y">✓</td><td class="c y">✓</td><td class="c p"><span class="half"></span></td><td class="c p"><span class="half"></span></td></tr>
+<tr><td>بروتوكول آلي لغياب المعلّم</td><td class="c me y">✓</td><td class="c n">✗</td><td class="c n">✗</td><td class="c n">✗</td><td class="c n">✗</td><td class="c n">✗</td><td class="c p"><span class="half"></span></td></tr>
+<tr><td>الكتب الرسمية داخل التطبيق</td><td class="c me y">✓</td><td class="c p"><span class="half"></span></td><td class="c p"><span class="half"></span></td><td class="c y">✓</td><td class="c p"><span class="half"></span></td><td class="c n">✗</td><td class="c n">✗</td></tr>
+<tr><td>بلا إنترنت مستقر + SMS</td><td class="c me y">✓</td><td class="c p"><span class="half"></span></td><td class="c p"><span class="half"></span></td><td class="c n">✗</td><td class="c n">✗</td><td class="c n">✗</td><td class="c n">✗</td></tr>
+<tr><td>إنذار مبكر للتسرّب</td><td class="c me y">✓</td><td class="c n">✗</td><td class="c n">✗</td><td class="c p"><span class="half"></span></td><td class="c y">✓</td><td class="c n">✗</td><td class="c p"><span class="half"></span></td></tr>
+<tr><td>عربي بالكامل</td><td class="c me y">✓</td><td class="c y">✓</td><td class="c y">✓</td><td class="c y">✓</td><td class="c n">✗</td><td class="c p"><span class="half"></span></td><td class="c p"><span class="half"></span></td></tr>
+<tr><td>سيادة البيانات (تحت إدارة المديرية)</td><td class="c me y">✓</td><td class="c n">✗</td><td class="c n">✗</td><td class="c y">✓</td><td class="c p"><span class="half"></span></td><td class="c n">✗</td><td class="c p"><span class="half"></span></td></tr>
+<tr><td>تجربة ممتعة للطالب</td><td class="c me y">✓</td><td class="c n">✗</td><td class="c n">✗</td><td class="c p"><span class="half"></span></td><td class="c n">✗</td><td class="c y">✓</td><td class="c n">✗</td></tr></table>
+<p style="font-size:8.5pt;color:#74819b">✓ متوفّر · <span class="half"></span> جزئي أو عبر إضافات · ✗ غير متوفّر. مبنية على المزايا المعلنة حتى ٢٠٢٦ وللاسترشاد.</p>
+
+<h2>البنية التقنية</h2>
+<div class="two">
+<ul><li><b>الواجهات:</b> تطبيق أندرويد (APK) + موقع ويب يعمل كتطبيق؛ واجهة واحدة لكلّ الأدوار، تخزين محلي ومزامنة.</li><li><b>الخادم:</b> واجهة برمجية للصلاحيات والبروتوكولات والإشعارات والتقارير؛ قاعدة بيانات مشفّرة؛ مخزن الكتب؛ بوابة SMS.</li></ul>
+<ul><li><b>الاستضافة:</b> سحابية بتكلفة شبه معدومة في التجريب، ثم خوادم المديرية عند التعميم.</li><li><b>الدخول:</b> رقم الهاتف أو رقم القيد + رمز تحقّق؛ تحقّق بخطوتين للإدارة والمديرية.</li><li><b>الاستيراد/التصدير:</b> Excel للقوائم والجداول؛ PDF/Excel للكشوف والتقارير.</li></ul>
+</div>
+
+<h2>خارطة الطريق</h2>
+<table><tr><th style="width:22%">المرحلة</th><th style="width:12%">المدّة</th><th>المخرجات</th></tr>
+<tr><td>الآن</td><td>—</td><td>هذا العرض، النموذج التفاعلي، الفيديو، موافقة المديرية على التجربة</td></tr>
+<tr><td>١ · النسخة التجريبية</td><td>٨ أسابيع</td><td>١٠ مدارس في درعا وريفها؛ الواجبات، الجدول والحضور، غياب المعلّم، التواصل؛ تطبيق أندرويد + موقع؛ تدريب وقياس الأثر</td></tr>
+<tr><td>٢ · التعميم</td><td>٣ أشهر</td><td>كلّ مدارس المديرية؛ لوحة المديرية الكاملة والإنذار المبكر؛ SMS؛ الكتب الرقمية كاملة؛ النشر على المتاجر</td></tr>
+<tr><td>٣ · الوزارة</td><td>٦ أشهر+</td><td>محافظات إضافية؛ لوحة وطنية؛ تحليلات متقدّمة ومساعد ذكي للمعلّم؛ تكامل مع أنظمة الوزارة</td></tr></table>
+
+<h2>مؤشرات نجاح المرحلة التجريبية</h2>
+<div class="kpis">
+<div class="kpi"><b>٩٥٪</b>من حصص المعلّمين الغائبين مغطّاة</div>
+<div class="kpi"><b>٩٠٪</b>من أولياء الأمور يصلهم الواجب والغياب في اليوم نفسه</div>
+<div class="kpi"><b>يومي</b>سجلّ حضور لكلّ مدرسة يصل المديرية</div>
+<div class="kpi"><b>دقائق</b>لإعداد تقرير المديرية بدل أيام</div>
+<div class="kpi"><b>٣ أيام</b>حدّ الإنذار المبكر للتسرّب</div>
+</div>
+<p class="lead"><b>ما نحتاجه للبدء:</b> ترشيح عشر مدارس، وقوائم المعلّمين والطلاب (Excel)، وجلسة تدريب واحدة لكلّ مدرسة. المرحلة التجريبية بلا تكلفة على المديرية.</p>
+<div class="foot"><span>مَدار · مقترح مشروع · مديرية التربية في درعا · ٢٠٢٦</span><span class="url">madar.raqeem.dev</span></div>
+</body></html>
