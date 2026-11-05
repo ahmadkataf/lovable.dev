@@ -10,9 +10,6 @@
 <meta property="og:title" content="مَدار — كلُّ المدرسةِ في مدارٍ واحد">
 <meta property="og:description" content="منظومة تعليمية رقمية تربط المديرية والمدرسة والمعلّم والطالب ووليّ الأمر. عرض الفكرة والنموذج التفاعلي.">
 <meta property="og:type" content="website">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Alexandria:wght@300..900&family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
 /* ── Layout concept: a light "glass over sky" page. Soft colour blobs drift behind frosted cards;
    one accent (deep blue) carries the brand, five role colours mark who sees what. ── */
@@ -30,10 +27,10 @@
 :root{
   color-scheme:light;
   --bg:#f3f7fd; --bg-2:#eaf4f4;
-  --ink:#0e1a33; --ink-2:#3f4d68; --ink-3:#74819b;
+  --ink:#0e1a33; --ink-2:#3f4d68; --ink-3:#5f6c86;
   --glass:rgba(255,255,255,.56); --glass-2:rgba(255,255,255,.8); --glass-line:rgba(255,255,255,.85); --hair:rgba(20,40,80,.09);
   --brand:#2a5bea; --brand-ink:#1d44b8; --brand-soft:#e4ecfe;
-  --teal:#14a3b4; --violet:#7a5cff; --sun:#f0a020; --rose:#e85d8d; --mint:#19b887; --red:#e0485a;
+  --teal:#0f8696; --violet:#7a5cff; --sun:#c97a00; --rose:#d13f74; --mint:#0f8f66; --red:#e0485a;
   --r-dir:var(--brand); --r-school:var(--teal); --r-teacher:var(--violet); --r-student:var(--sun); --r-parent:var(--rose);
   --shadow:0 24px 60px -28px rgba(30,60,120,.35), 0 2px 6px -2px rgba(30,60,120,.12);
   --shadow-sm:0 10px 30px -18px rgba(30,60,120,.35);
@@ -86,7 +83,7 @@ p{max-width:68ch}
 .btn-ghost{background:rgba(255,255,255,.72);border:1px solid var(--glass-line);box-shadow:var(--shadow-sm)}
 .btn-ghost:hover{background:#fff}
 .btn-sm{padding:8px 16px;font-size:.92rem}
-@media (max-width:860px){.nav-links{display:none}}
+@media (max-width:860px){.nav-in{flex-wrap:wrap;border-radius:28px}.nav-links{display:flex;flex-wrap:nowrap;overflow-x:auto;width:100%;order:3;margin-top:4px;scrollbar-width:none;padding-bottom:2px}.nav-links::-webkit-scrollbar{display:none}}
 
 /* page shell */
 .wrap{max-width:var(--max);margin:auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
@@ -335,6 +332,20 @@ video{width:100%;border-radius:18px;background:#0e1a33;aspect-ratio:16/9;display
 .close .url{display:inline-block;margin-top:18px;font-family:var(--font-d);font-weight:800;font-size:1.25rem;color:var(--brand);direction:ltr;background:#fff;padding:10px 20px;border-radius:999px;border:1px solid var(--glass-line);box-shadow:var(--shadow-sm)}
 footer{padding:28px 0 48px;text-align:center;color:var(--ink-3);font-size:.85rem}
 .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+/* ── demo-QA fixes ── */
+html{scroll-padding-top:104px}
+html,body{overflow-x:clip}
+.toast{position:fixed;left:50%;right:auto;bottom:max(20px,env(safe-area-inset-bottom,0px));width:min(560px,calc(100vw - 32px));transform:translate(-50%,20px);z-index:60}
+.toast.show{transform:translate(-50%,0)}
+.tile h4 svg{flex:none}
+.badge-float{z-index:2}.badge-float.a{right:-8px;bottom:auto;top:-6px}.badge-float.b{left:-8px;top:auto;bottom:-6px}
+.row{width:100%;text-align:inherit}
+button.row{cursor:pointer}
+@media (max-width:1120px){.nav-links a{padding:8px 9px;font-size:.84rem}.nav-in{gap:10px}}
+@media (max-width:1100px){.ring.r2{inset:12%}.ring.r1{inset:28%}.roles-grid{grid-template-columns:repeat(3,1fr)}.flow{grid-template-columns:repeat(3,1fr)}.impact{grid-template-columns:repeat(3,1fr)}}
+@media (max-width:480px){.orbit-wrap{max-width:300px}.sat .chip{font-size:.78rem;padding:6px 10px}.crow{grid-template-columns:84px 1fr 40px}}
+@media (min-width:981px){#notes{position:sticky;top:104px}}
+@media (max-width:860px){td:first-child,th:first-child{position:sticky;right:0;background:#fff;z-index:1}}
 </style>
 </head>
 <body>
@@ -488,17 +499,17 @@ footer{padding:28px 0 48px;text-align:center;color:var(--ink-3);font-size:.85rem
     <p>اختر دوراً واضغط على الأزرار داخل الشاشة. البيانات تجريبية للعرض، والشاشات تمثّل التصميم المقترح للتطبيق.</p>
   </div>
   <div class="demo-top" role="tablist" aria-label="اختر الدور">
-    <button class="rbtn" role="tab" data-role="teacher" style="--c:var(--r-teacher)" aria-selected="true"><i class="dot"></i>المعلّم</button>
-    <button class="rbtn" role="tab" data-role="student" style="--c:var(--r-student)" aria-selected="false"><i class="dot"></i>الطالب</button>
-    <button class="rbtn" role="tab" data-role="parent" style="--c:var(--r-parent)" aria-selected="false"><i class="dot"></i>وليّ الأمر</button>
-    <button class="rbtn" role="tab" data-role="school" style="--c:var(--r-school)" aria-selected="false"><i class="dot"></i>إدارة المدرسة</button>
-    <button class="rbtn" role="tab" data-role="dir" style="--c:var(--r-dir)" aria-selected="false"><i class="dot"></i>مديرية التربية</button>
+    <button class="rbtn" role="tab" aria-controls="app" data-role="teacher" style="--c:var(--r-teacher)" aria-selected="true"><i class="dot"></i>المعلّم</button>
+    <button class="rbtn" role="tab" aria-controls="app" data-role="student" style="--c:var(--r-student)" aria-selected="false"><i class="dot"></i>الطالب</button>
+    <button class="rbtn" role="tab" aria-controls="app" data-role="parent" style="--c:var(--r-parent)" aria-selected="false"><i class="dot"></i>وليّ الأمر</button>
+    <button class="rbtn" role="tab" aria-controls="app" data-role="school" style="--c:var(--r-school)" aria-selected="false"><i class="dot"></i>إدارة المدرسة</button>
+    <button class="rbtn" role="tab" aria-controls="app" data-role="dir" style="--c:var(--r-dir)" aria-selected="false"><i class="dot"></i>مديرية التربية</button>
   </div>
   <div class="demo-grid">
     <div class="device">
       <div class="screen" id="screen">
         <div class="sbar"><span class="num">٩:٤٠</span><span class="pill">مَدار</span><span>الخميس ٥ تشرين الثاني</span></div>
-        <div class="app" id="app"></div>
+        <div class="app" id="app" role="tabpanel"></div>
         <div class="toast" id="toast" role="status" aria-live="polite"><svg><use href="#i-check"/></svg><span id="toast-text"></span></div>
       </div>
     </div>
@@ -532,28 +543,28 @@ footer{padding:28px 0 48px;text-align:center;color:var(--ink-3);font-size:.85rem
   <div class="sec-head">
     <span class="eyebrow">مقارنة عالمية</span>
     <h2>تعلّمنا من أفضل المنظومات في العالم، وأضفنا ما تحتاجه مدارسنا</h2>
-    <p>إستونيا تدير معظم مدارسها بنظام eKool منذ عقدين. فنلندا تربط الأهالي بالمدارس عبر Wilma. السعودية بنت «مدرستي» و«نور» على مستوى الوزارة. وغوغل ومايكروسوفت تقدّمان أفضل أدوات الصف. مَدار يجمع أفضل ما في هذه النماذج ويضيف ما لا يملكه أيّ منها.</p>
+    <p>تعتمد معظم مدارس إستونيا على نظام eKool منذ أكثر من عقدين، إلى جانب منافسه Stuudium. فنلندا تربط الأهالي بمعظم مدارسها عبر Wilma. السعودية بنت «مدرستي» و«نور» على مستوى الوزارة. وغوغل ومايكروسوفت تقدّمان أفضل أدوات الصف. مَدار يجمع أفضل ما في هذه النماذج ويضيف ما لا يجمعه أيّ منها في منظومة واحدة.</p>
   </div>
   <div class="table-wrap glass">
     <table>
-      <thead><tr><th>الميزة</th><th class="me">مَدار</th><th>Google Classroom</th><th>Microsoft Teams للتعليم</th><th>مدرستي (السعودية)</th><th>eKool (إستونيا)</th><th>ClassDojo</th><th>PowerSchool</th></tr></thead>
+      <thead><tr><th>الميزة</th><th class="me">مَدار</th><th>Google Classroom</th><th>Microsoft Teams للتعليم</th><th>مدرستي ونور (السعودية)</th><th>eKool (إستونيا)</th><th>ClassDojo</th><th>PowerSchool</th></tr></thead>
       <tbody>
-        <tr><td>طبقة المديرية / الوزارة (لوحة لكلّ المدارس)</td><td class="me y">✓</td><td class="n">✗</td><td class="n">✗</td><td class="y">✓</td><td class="y">✓</td><td class="n">✗</td><td class="y">✓</td></tr>
-        <tr><td>إدارة المدرسة: جداول، شُعَب، سجلّ حضور</td><td class="me y">✓</td><td class="n">✗</td><td class="p"></td><td class="p"></td><td class="y">✓</td><td class="p"></td><td class="y">✓</td></tr>
+        <tr><td>طبقة المديرية / الوزارة (لوحة لكلّ المدارس)</td><td class="me y">✓</td><td class="p"></td><td class="p"></td><td class="y">✓</td><td class="p"></td><td class="p"></td><td class="y">✓</td></tr>
+        <tr><td>إدارة المدرسة: جداول، شُعَب، سجلّ حضور</td><td class="me y">✓</td><td class="p"></td><td class="p"></td><td class="y">✓</td><td class="y">✓</td><td class="p"></td><td class="y">✓</td></tr>
         <tr><td>واجبات حسب الصف والشعبة مع تذكير لوليّ الأمر</td><td class="me y">✓</td><td class="p"></td><td class="p"></td><td class="y">✓</td><td class="y">✓</td><td class="p"></td><td class="p"></td></tr>
-        <tr><td>بروتوكول آلي لغياب المعلّم وتعيين البديل</td><td class="me y">✓</td><td class="n">✗</td><td class="n">✗</td><td class="n">✗</td><td class="n">✗</td><td class="n">✗</td><td class="p"></td></tr>
-        <tr><td>الكتب المدرسية الرسمية داخل التطبيق</td><td class="me y">✓</td><td class="p"></td><td class="p"></td><td class="y">✓</td><td class="p"></td><td class="n">✗</td><td class="n">✗</td></tr>
-        <tr><td>يعمل بلا إنترنت مستقرّ + إشعارات SMS</td><td class="me y">✓</td><td class="p"></td><td class="p"></td><td class="n">✗</td><td class="n">✗</td><td class="n">✗</td><td class="n">✗</td></tr>
-        <tr><td>إنذار مبكر للتسرّب</td><td class="me y">✓</td><td class="n">✗</td><td class="n">✗</td><td class="p"></td><td class="y">✓</td><td class="n">✗</td><td class="p"></td></tr>
-        <tr><td>عربي بالكامل من اليمين إلى اليسار</td><td class="me y">✓</td><td class="y">✓</td><td class="y">✓</td><td class="y">✓</td><td class="n">✗</td><td class="p"></td><td class="p"></td></tr>
+        <tr><td>بروتوكول آلي لغياب المعلّم وتعيين البديل</td><td class="me y">✓</td><td class="n">✗</td><td class="n">✗</td><td class="p"></td><td class="n">✗</td><td class="n">✗</td><td class="p"></td></tr>
+        <tr><td>الكتب المدرسية الرسمية داخل التطبيق</td><td class="me y">✓</td><td class="p"></td><td class="p"></td><td class="y">✓</td><td class="p"></td><td class="n">✗</td><td class="p"></td></tr>
+        <tr><td>يعمل بلا إنترنت مستقرّ + إشعارات SMS</td><td class="me y">✓</td><td class="p"></td><td class="p"></td><td class="p"></td><td class="p"></td><td class="n">✗</td><td class="p"></td></tr>
+        <tr><td>إنذار مبكر للتسرّب</td><td class="me y">✓</td><td class="p"></td><td class="p"></td><td class="p"></td><td class="y">✓</td><td class="n">✗</td><td class="p"></td></tr>
+        <tr><td>عربي بالكامل من اليمين إلى اليسار</td><td class="me y">✓</td><td class="y">✓</td><td class="y">✓</td><td class="y">✓</td><td class="n">✗</td><td class="p"></td><td class="y">✓</td></tr>
         <tr><td>البيانات تحت إدارة المديرية (سيادة البيانات)</td><td class="me y">✓</td><td class="n">✗</td><td class="n">✗</td><td class="y">✓</td><td class="p"></td><td class="n">✗</td><td class="p"></td></tr>
-        <tr><td>تجربة ممتعة للطالب (نقاط، إنجازات، تمارين)</td><td class="me y">✓</td><td class="n">✗</td><td class="n">✗</td><td class="p"></td><td class="n">✗</td><td class="y">✓</td><td class="n">✗</td></tr>
-        <tr><td>التكلفة لكلّ طالب</td><td class="me">تُقاس في التجربة</td><td>مجاني مع Workspace</td><td>مجاني / مدفوع</td><td>حكومي</td><td>اشتراك سنوي</td><td>مجاني + مدفوع</td><td>مرتفعة</td></tr>
+        <tr><td>تجربة ممتعة للطالب (نقاط، إنجازات، تمارين)</td><td class="me y">✓</td><td class="n">✗</td><td class="n">✗</td><td class="p"></td><td class="p"></td><td class="y">✓</td><td class="n">✗</td></tr>
+        <tr><td>التكلفة لكلّ طالب</td><td class="me">تُقاس في التجربة</td><td>مجاني؛ التحليلات في Plus مدفوعة</td><td>A1 مجاني؛ A3/A5 مدفوع</td><td>حكومي (السعودية فقط)</td><td>رزم مدفوعة للمدرسة</td><td>مجاني + اشتراك للأهالي</td><td>ترخيص سنوي لكلّ طالب</td></tr>
       </tbody>
     </table>
   </div>
   <div class="legend"><span><b class="y">✓</b>متوفّر</span><span><b class="p"></b>جزئي أو عبر إضافات</span><span><b class="n">✗</b>غير متوفّر</span></div>
-  <p class="foot">المقارنة مبنية على المزايا المعلنة لكلّ منصّة حتى ٢٠٢٦ وهي للاسترشاد؛ تختلف التفاصيل بحسب الإصدار والاشتراك.</p>
+  <p class="foot">المقارنة مبنية على المزايا المعلنة لكلّ منصّة حتى ٢٠٢٦ وهي للاسترشاد؛ بعض الميزات في Google وMicrosoft متاحة في الطبقات المدفوعة فقط، وتختلف التفاصيل بحسب الإصدار والاشتراك.</p>
 </section>
 
 <!-- ═══════════ ARCHITECTURE ═══════════ -->
@@ -706,9 +717,9 @@ footer{padding:28px 0 48px;text-align:center;color:var(--ink-3);font-size:.85rem
       </div>
       <div class="tile" style="--c:var(--r-student)"><h4>${ic('book')} واجباتي · اضغط عند الإنجاز</h4>
         <div class="list" id="hw">
-          <div class="row" data-hw><span class="chk">${ic('check')}</span><span class="grow">رياضيات · تمارين الكسور العشرية ص ٤٢<small>موعد التسليم: الأحد ٨ تشرين الثاني</small></span><span class="tag">٣ أيام</span></div>
-          <div class="row" data-hw><span class="chk">${ic('check')}</span><span class="grow">لغة عربية · قراءة نص «الوطن» والإجابة عن الأسئلة<small>موعد التسليم: الاثنين ٩ تشرين الثاني</small></span><span class="tag">٤ أيام</span></div>
-          <div class="row hl" data-hw><span class="chk">${ic('check')}</span><span class="grow">علوم · نشاط «دورة الماء في الطبيعة» (حصة بديلة)<small>اليوم · الحصّة الثالثة مع أ. ماهر</small></span><span class="tag sun">اليوم</span></div>
+          <button type="button" class="row" data-hw><span class="chk">${ic('check')}</span><span class="grow">رياضيات · تمارين الكسور العشرية ص ٤٢<small>موعد التسليم: الأحد ٨ تشرين الثاني</small></span><span class="tag">٣ أيام</span></button>
+          <button type="button" class="row" data-hw><span class="chk">${ic('check')}</span><span class="grow">لغة عربية · قراءة نص «الوطن» والإجابة عن الأسئلة<small>موعد التسليم: الاثنين ٩ تشرين الثاني</small></span><span class="tag">٤ أيام</span></button>
+          <button type="button" class="row hl" data-hw><span class="chk">${ic('check')}</span><span class="grow">علوم · نشاط «دورة الماء في الطبيعة» (حصة بديلة)<small>اليوم · الحصّة الثالثة مع أ. ماهر</small></span><span class="tag sun">اليوم</span></button>
         </div>
       </div>
       <div class="tile"><h4>${ic('cal')} جدول اليوم</h4>
@@ -812,6 +823,7 @@ footer{padding:28px 0 48px;text-align:center;color:var(--ink-3);font-size:.85rem
   };
 
   function render(role){
+    clearTimeout(toastTimer);toast.classList.remove('show');
     const R=ROLES[role];
     app.innerHTML=R.html();
     notes.style.setProperty('--c',R.c);
@@ -821,13 +833,14 @@ footer{padding:28px 0 48px;text-align:center;color:var(--ink-3);font-size:.85rem
     const pub=app.querySelector('#pub');
     if(pub) pub.addEventListener('click',()=>{pub.disabled=true;pub.textContent='جارٍ الإرسال…';setTimeout(()=>{pub.textContent='نُشر الواجب ✓';say('وصل الواجب إلى ٣٢ طالباً و٣٠ وليّ أمر، وسيُذكّرهم النظام مساء السبت')},900)});
     const absent=app.querySelector('#absent');
-    if(absent) absent.addEventListener('click',()=>{absent.disabled=true;absent.textContent='جارٍ ترتيب البديل…';const steps=app.querySelectorAll('.step');steps.forEach((s,i)=>setTimeout(()=>{s.classList.add('on');if(i===steps.length-1){absent.textContent='تمّت التغطية ✓';say('الحصّة الثالثة مغطّاة: عُيّن أ. ماهر عادل بديلاً، وأُبلغ الجميع')}},500+i*650))});
+    if(absent) absent.addEventListener('click',()=>{absent.disabled=true;absent.textContent='جارٍ ترتيب البديل…';app.querySelector('#steps').scrollIntoView({behavior:'smooth',block:'nearest'});const steps=app.querySelectorAll('.step');steps.forEach((s,i)=>setTimeout(()=>{s.classList.add('on');if(i===steps.length-1){absent.textContent='تمّت التغطية ✓';say('الحصّة الثالثة مغطّاة: عُيّن أ. ماهر عادل بديلاً، وأُبلغ الجميع')}},500+i*650))});
     const assign=app.querySelector('#assign');
     if(assign) assign.addEventListener('click',()=>{const row=app.querySelector('#rowx');row.classList.remove('hl');row.classList.add('ok');assign.outerHTML='<span class="tag mint">مغطّاة</span>';const u=app.querySelector('#uncovered');if(u)u.textContent='٠';say('عُيّن أ. سامر حسن بديلاً للحصة الخامسة، وأُبلغ طلاب السادس (أ) وأولياء أمورهم')});
     const hw=app.querySelector('#hw');
     if(hw){let xp=320;const xpEl=app.querySelector('#xp'),bar=app.querySelector('#xpbar');const ar=n=>String(n).replace(/\d/g,d=>'٠١٢٣٤٥٦٧٨٩'[d]);hw.querySelectorAll('[data-hw]').forEach(r=>r.addEventListener('click',()=>{const done=r.classList.toggle('done');xp+=done?20:-20;xpEl.textContent=ar(xp);bar.style.width=Math.min(100,64+(xp-320)/2)+'%';if(done)say('أحسنتِ ليان! +٢٠ نقطة، واستمرّت سلسلتك')}))}
   }
   document.querySelectorAll('.rbtn').forEach(b=>b.addEventListener('click',()=>render(b.dataset.role)));
+  document.querySelector('.demo-top').addEventListener('keydown',e=>{const tabs=[...document.querySelectorAll('.rbtn')];const i=tabs.indexOf(document.activeElement);if(i<0||(e.key!=='ArrowLeft'&&e.key!=='ArrowRight'))return;e.preventDefault();const n=tabs[(i+(e.key==='ArrowLeft'?1:-1)+tabs.length)%tabs.length];n.focus();render(n.dataset.role)});
   render('teacher');
 })();
 </script>
