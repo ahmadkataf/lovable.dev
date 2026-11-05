@@ -139,6 +139,11 @@ check "notifications" GET /api/notifications "${TOK[P-KHALED]}" "" 200
 check "announcements" GET /api/announcements "${TOK[P-KHALED]}" "" 200
 check "mark read" POST /api/notifications/read "${TOK[P-KHALED]}" '{"all":true}' 200
 
+say "== reseed with referencing rows present (messages, submissions, substitutions)"
+code=$(curl -s -o "$TMP/body" -w '%{http_code}' -X POST "$BASE/api/admin/reseed" -H "x-admin-key: $ADMIN_KEY")
+if [[ "$code" == "200" ]]; then say "ok   POST   /api/admin/reseed → 200 $(head -c 120 "$TMP/body")"; else say "FAIL POST /api/admin/reseed → $code $(head -c 300 "$TMP/body")"; FAIL=1; fi
+TOK[SCH-1]=$(login SCH-1); [[ -n "${TOK[SCH-1]}" ]] && say "ok   login after reseed" || { say "FAIL login after reseed"; FAIL=1; }
+
 say "== static shell"
 check "SPA fallback" GET /teacher/home "" "" 200
 check "API 404" GET /api/nothing "${TOK[DIR-DARAA]}" "" 404

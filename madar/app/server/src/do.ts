@@ -62,7 +62,13 @@ export class MadarDB extends DurableObject {
   /** Drop every table so the demo can be re-seeded with today's dates. */
   reset(): number {
     const tables = (this.ctx.storage.sql.exec("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' AND name NOT LIKE '_cf_%'").toArray() as { name: string }[]).map(r => r.name)
-    this.ctx.storage.transactionSync(() => { for (const t of tables) this.ctx.storage.sql.exec(`DROP TABLE IF EXISTS "${t}"`).toArray() })
+    // Foreign keys are enforced here, and sqlite_master lists the tables in creation order (parents first), so a plain
+    // DROP of a parent with referencing rows fails. Deferring the checks to the end of the transaction — when every table
+    // is gone — makes the order irrelevant.
+    this.ctx.storage.transactionSync(() => {
+      this.ctx.storage.sql.exec('PRAGMA defer_foreign_keys = ON').toArray()
+      for (const t of tables) this.ctx.storage.sql.exec(`DROP TABLE IF EXISTS "${t}"`).toArray()
+    })
     this.attemptsReady = false   // login_attempts went with the rest; recreate it on the next check
     return tables.length
   }
