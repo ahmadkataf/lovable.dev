@@ -138,6 +138,7 @@ export interface StudentHome {
   today: TimetableRow[];
   homework: StudentHomework[];
   notifications_unread: number;
+  points?: number;   // ١٠ نقاط لكلّ واجب مُسلَّم, counted by the server over every submission
 }
 
 export interface ParentChild {
@@ -166,6 +167,15 @@ export interface Thread {
   user_id: number;
   name: string;
   role?: string;
+  unread?: number;
+  messages: Message[];
+}
+
+/** GET /api/messages as the server returns it: one thread per other user. */
+export interface ServerThread {
+  with: { id: number; name: string; role?: string };
+  unread?: number;
+  last_at?: string;
   messages: Message[];
 }
 
@@ -202,9 +212,27 @@ export interface SchoolDashboard {
   attendance_confirmed?: boolean;
 }
 
+/** A pupil as the sections and roster endpoints list them (`id` and `student_id` carry the same value). */
+export interface RosterStudent { id?: number; student_id?: number; name: string; has_guardian?: boolean }
+
 export interface SectionWithStudents extends SectionRef {
   shift?: number;
-  students: { id: number; name: string }[];
+  students: RosterStudent[];
+}
+
+/** GET /api/sections/:id/roster?date&period — the pupils with the status already saved for that period, if any. */
+export interface RosterResponse {
+  section: SectionRef & { shift?: number };
+  date: string;
+  period: number | null;
+  students: (RosterStudent & { status: 'present' | 'absent' | 'late' | null })[];
+}
+
+/** The pupils of a section with a guaranteed numeric id (rows without one are dropped, never sent). */
+export function rosterStudents(students: RosterStudent[] | null | undefined): { id: number; name: string }[] {
+  return (students ?? [])
+    .map((s) => ({ id: Number(s.id ?? s.student_id), name: s.name }))
+    .filter((s) => Number.isInteger(s.id) && s.id > 0);
 }
 
 export interface DirectorateSchool {

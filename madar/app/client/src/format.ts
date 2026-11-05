@@ -151,7 +151,8 @@ export const NOUNS = {
   alert: { one: 'تنبيه', two: 'تنبيهان', few: 'تنبيهات', many: 'تنبيهاً' },
 } satisfies Record<string, NounForms>;
 
-/** Count with Arabic agreement: «لا طلاب» / «طالب واحد» / «طالبان» / «٣ طلاب» / «١٢ طالباً» / «١٠٠ طالب». */
+/** Count with Arabic agreement: «لا طلاب» / «طالب واحد» / «طالبان» / «٣ طلاب» / «١٢ طالباً» / «١٠٠ طالب».
+    Feminine nouns (`f: true`) take «واحدة»: «حصّة واحدة»، «مدرسة واحدة»، «عملية واحدة»، «رسالة واحدة». */
 export function count(n: number, forms: NounForms, zero?: string): string {
   if (n === 0) return zero ?? `لا ${forms.few}`;
   if (n === 1) return `${forms.one} ${forms.f ? 'واحدة' : 'واحد'}`;
@@ -177,6 +178,22 @@ export function li(word: string): string {
   const w = (word ?? '').trim();
   if (!w) return '';
   return w.startsWith('ال') ? `لل${w.slice(2)}` : `ل${w}`;
+}
+
+const NUMBER_WORDS = ['', 'واحد', 'اثنان', 'ثلاثة', 'أربعة', 'خمسة', 'ستّة', 'سبعة', 'ثمانية', 'تسعة', 'عشرة'];
+/** Consecutive days: «يوم واحد» / «يومان متتاليان» / «ثلاثة أيام متتالية» (spelled out up to ten) / «١٢ يوماً متتالياً». */
+export function consecutiveDays(n: number): string {
+  if (n === 1) return 'يوم واحد';
+  if (n === 2) return 'يومان متتاليان';
+  if (n >= 3 && n <= 10) return `${NUMBER_WORDS[n]} أيام متتالية`;
+  return `${ar(n)} يوماً متتالياً`;
+}
+
+/** «مجمّع إزرع» — the seed sometimes already carries the word «مجمّع». */
+export function complexLabel(complex: string | null | undefined): string {
+  const c = (complex ?? '').trim();
+  if (!c) return '';
+  return c.startsWith('مجمّع') || c.startsWith('مجمع') ? c : `مجمّع ${c}`;
 }
 
 /** Homework title with its book page unless the title already names it. */
@@ -219,8 +236,12 @@ export function shortSubject(name: string | null | undefined): string {
   return SHORT_SUBJECT[name] ?? name.replace(/^اللغة /, '').replace(/^التربية /, '');
 }
 
+/** Compound first names («عبد الرحمن», «عبد الله», «أبو بكر», «أم كلثوم») are kept whole; a leading «أ.» is dropped. */
+const COMPOUND_FIRST = new Set(['عبد', 'أبو', 'ابو', 'أم', 'ام']);
 export function firstName(name: string | null | undefined): string {
-  return (name ?? '').trim().split(/\s+/)[0] ?? '';
+  const parts = (name ?? '').trim().replace(/^أ\.\s*/, '').split(/\s+/).filter(Boolean);
+  if (!parts.length) return '';
+  return COMPOUND_FIRST.has(parts[0]) && parts.length > 1 ? `${parts[0]} ${parts[1]}` : parts[0];
 }
 
 /** «أ. سامر حسن» */
@@ -236,8 +257,9 @@ export const SUBSTITUTION_LABEL: Record<string, string> = {
   suggested: 'بانتظار الاعتماد', approved: 'مغطّاة', self_study: 'تعلّم ذاتي', uncovered: 'غير مغطّاة',
 };
 export const NOTIFICATION_KIND_LABEL: Record<string, string> = {
-  homework: 'واجب', absence: 'غياب', substitution: 'حصّة بديلة', change: 'تغيير',
+  homework: 'واجب', absence: 'غياب', absence_teacher: 'غياب معلّم', substitution: 'حصّة بديلة', change: 'تغيير',
   announcement: 'إعلان', circular: 'تعميم', message: 'رسالة', attendance: 'حضور', alert: 'تنبيه', system: 'النظام',
+  no_attendance: 'حضور غير مسجّل', three_days: 'غياب متتالٍ', uncovered: 'حصّة من دون تغطية',
 };
 
 /** Greeting by Damascus time. */

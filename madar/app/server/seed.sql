@@ -393,7 +393,7 @@ SELECT 114, 'announcement', 'إعلان من المدرسة: اجتماع أول
 WHERE NOT EXISTS (SELECT 1 FROM notifications WHERE user_id = 114 AND kind = 'announcement' AND body = 'إعلان من المدرسة: اجتماع أولياء الأمور');
 
 INSERT INTO notifications (user_id, kind, body, link, sms, created_at)
-SELECT 409, 'homework', 'واجب جديد لمحمد في الرياضيات، يُسلَّم بعد ٣ أيام', '/homework/1', 0, datetime('now','-2 hours')
+SELECT 409, 'homework', 'واجب جديد لمحمد في الرياضيات، يُسلَّم بعد ٣ أيام', '/homework/1?student_id=13', 0, datetime('now','-2 hours')
 WHERE NOT EXISTS (SELECT 1 FROM notifications WHERE user_id = 409 AND kind = 'homework' AND body = 'واجب جديد لمحمد في الرياضيات، يُسلَّم بعد ٣ أيام');
 
 INSERT INTO notifications (user_id, kind, body, link, sms, created_at)
@@ -401,13 +401,13 @@ SELECT 409, 'announcement', 'إعلان من المدرسة: اجتماع أول
 WHERE NOT EXISTS (SELECT 1 FROM notifications WHERE user_id = 409 AND kind = 'announcement' AND body = 'إعلان من المدرسة: اجتماع أولياء الأمور');
 
 INSERT INTO notifications (user_id, kind, body, link, sms, created_at)
-SELECT 2, 'announcement', 'تعميم من المديرية: تحديث بيانات الطلاب', '/announcements/2', 0, datetime('now','-2 days')
-WHERE NOT EXISTS (SELECT 1 FROM notifications WHERE user_id = 2 AND kind = 'announcement' AND body = 'تعميم من المديرية: تحديث بيانات الطلاب');
+SELECT 2, 'circular', 'تعميم من المديرية: تحديث بيانات الطلاب', '/announcements/2', 0, datetime('now','-2 days')
+WHERE NOT EXISTS (SELECT 1 FROM notifications WHERE user_id = 2 AND kind = 'circular' AND body = 'تعميم من المديرية: تحديث بيانات الطلاب');
 
 INSERT INTO notifications (user_id, kind, body, link, sms, created_at)
-SELECT 3, 'announcement', 'تعميم من المديرية: تحديث بيانات الطلاب', '/announcements/2', 0, datetime('now','-2 days')
-WHERE NOT EXISTS (SELECT 1 FROM notifications WHERE user_id = 3 AND kind = 'announcement' AND body = 'تعميم من المديرية: تحديث بيانات الطلاب');
+SELECT 3, 'circular', 'تعميم من المديرية: تحديث بيانات الطلاب', '/announcements/2', 0, datetime('now','-2 days')
+WHERE NOT EXISTS (SELECT 1 FROM notifications WHERE user_id = 3 AND kind = 'circular' AND body = 'تعميم من المديرية: تحديث بيانات الطلاب');
 
 INSERT INTO notifications (user_id, kind, body, link, sms, created_at)
-SELECT 4, 'announcement', 'تعميم من المديرية: تحديث بيانات الطلاب', '/announcements/2', 0, datetime('now','-2 days')
-WHERE NOT EXISTS (SELECT 1 FROM notifications WHERE user_id = 4 AND kind = 'announcement' AND body = 'تعميم من المديرية: تحديث بيانات الطلاب');
+SELECT 4, 'circular', 'تعميم من المديرية: تحديث بيانات الطلاب', '/announcements/2', 0, datetime('now','-2 days')
+WHERE NOT EXISTS (SELECT 1 FROM notifications WHERE user_id = 4 AND kind = 'circular' AND body = 'تعميم من المديرية: تحديث بيانات الطلاب');

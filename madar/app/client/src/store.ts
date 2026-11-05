@@ -2,7 +2,9 @@
 
 import { useSyncExternalStore } from 'react';
 import * as api from './api';
-import { DEMO_ACCOUNTS } from './mock';
+import { DEMO_ACCOUNTS } from './demo';
+import { count, NOUNS } from './format';
+import { roleHomePath } from './links';
 import type { Context, Me, Notification, Role, User } from './types';
 
 export interface Toast { id: number; text: string; kind: 'ok' | 'error' | 'info' }
@@ -17,13 +19,15 @@ export interface State {
   demo: boolean;
   online: boolean;
   fromCache: boolean;
-  outbox: number;
+  outbox: number;              // writes waiting to be sent
+  rejected: api.OutboxItem[];  // writes the server refused, waiting for a retry or a discard
   unread: number;
   toast: Toast | null;
 }
 
 const DEMO_CODES = new Set(DEMO_ACCOUNTS.map((a) => a.code));
 
+const initialOutbox = api.outboxState();
 let state: State = {
   booted: false,
   token: api.getToken(),
@@ -34,7 +38,8 @@ let state: State = {
   demo: false,
   online: typeof navigator === 'undefined' ? true : navigator.onLine,
   fromCache: false,
-  outbox: api.outboxCount(),
+  outbox: initialOutbox.pending,
+  rejected: initialOutbox.rejected,
   unread: 0,
   toast: null,
 };
@@ -105,7 +110,7 @@ export async function signIn(code: string): Promise<User> {
   set({ demo: computeDemo() });
   try { await refreshMe(); } catch { /* ignore */ }
   void refreshUnread();
-  if (res.viaMock && !api.MOCK_ENV) toast('الخادم غير متاح — تعمل على بيانات تجريبية محلية', 'info', 5000);
+  if (res.viaMock && !api.MOCK_ENV) toast('الخادم غير متاح — تُستخدم بيانات تجريبية محلية', 'info', 5000);
   return res.user;
 }
 
@@ -115,14 +120,13 @@ export function signOut() {
 }
 
 export function roleHome(role: Role | undefined | null): string {
-  switch (role) {
-    case 'teacher': return '/teacher';
-    case 'student': return '/student';
-    case 'parent': return '/parent';
-    case 'school': return '/school';
-    case 'directorate': return '/directorate';
-    default: return '/';
-  }
+  return roleHomePath(role);
+}
+
+/** «أُرسلت عملية واحدة معلّقة» / «أُرسلت عمليتان معلّقتان» / «أُرسلت ٣ عمليات معلّقة». */
+export function replayedText(n: number): string {
+  if (n === 2) return 'أُرسلت عمليتان معلّقتان';
+  return `أُرسلت ${count(n, NOUNS.operation)} معلّقة`;
 }
 
 /* connectivity + api events */
@@ -131,13 +135,13 @@ if (typeof window !== 'undefined') {
   window.addEventListener('offline', () => set({ online: false }));
   api.onApi('from-cache', () => set({ fromCache: true }));
   api.onApi('fresh', () => { if (state.fromCache) set({ fromCache: false }); });
-  api.onApi('outbox', (n) => set({ outbox: Number(n) }));
+  api.onApi('outbox', (d) => { const s = d as api.OutboxState; set({ outbox: s.pending, rejected: s.rejected }); });
   api.onApi('unauthorized', () => {
     if (state.token) {
       signOut();
-      toast('انتهت الجلسة، سجّل الدخول مجدداً', 'error');
+      toast(api.SESSION_EXPIRED, 'error');
     }
   });
   api.onApi('outbox-error', (msg) => toast(String(msg), 'error', 6000));
-  api.onApi('replayed', (n) => toast(`أُرسلت العمليات المعلّقة (${Number(n)})`, 'ok'));
+  api.onApi('replayed', (n) => toast(replayedText(Number(n)), 'ok'));
 }

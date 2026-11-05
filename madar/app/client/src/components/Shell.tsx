@@ -4,9 +4,9 @@
 import type { CSSProperties, ReactNode } from 'react';
 import { Icon, Logo } from './Icon';
 import { Avatar } from './Ui';
-import { ar, count, NOUNS, unreadLabel } from '../format';
+import { ar, complexLabel, count, NOUNS, unreadLabel } from '../format';
 import { Link, useRoute } from '../router';
-import { replayOutbox } from '../api';
+import { discardOutboxItem, replayOutbox, retryOutboxItem } from '../api';
 import { roleHome, signOut, useStore } from '../store';
 import { navigate } from '../router';
 import type { Role, SectionRef, StudentContext, TeacherContext } from '../types';
@@ -15,7 +15,7 @@ export const ROLE_COLOR: Record<Role, string> = {
   directorate: '#2a5bea', school: '#0c7886', teacher: '#6e52f5', student: '#a35f00', parent: '#c9386d',
 };
 export const ROLE_LABEL: Record<Role, string> = {
-  directorate: 'مديرية التربية', school: 'إدارة المدرسة', teacher: 'معلّم', student: 'طالب', parent: 'وليّ أمر',
+  directorate: 'مديرية التربية', school: 'إدارة المدرسة', teacher: 'معلّم/ة', student: 'طالب/ة', parent: 'وليّ الأمر',
 };
 
 interface Tab { to: string; label: string; icon: string }
@@ -37,14 +37,14 @@ const TABS: Record<Role, Tab[]> = {
     { to: '/notifications', label: 'الإشعارات', icon: 'bell' },
   ],
   school: [
-    { to: '/school', label: 'اللوحة', icon: 'chart' },
+    { to: '/school', label: 'الرئيسية', icon: 'chart' },
     { to: '/school/absences', label: 'الغياب', icon: 'alert' },
     { to: '/school/attendance', label: 'الحضور', icon: 'users' },
     { to: '/school/announcements', label: 'الإعلانات', icon: 'megaphone' },
     { to: '/notifications', label: 'الإشعارات', icon: 'bell' },
   ],
   directorate: [
-    { to: '/directorate', label: 'اللوحة', icon: 'chart' },
+    { to: '/directorate', label: 'الرئيسية', icon: 'chart' },
     { to: '/directorate/circulars', label: 'التعاميم', icon: 'megaphone' },
     { to: '/notifications', label: 'الإشعارات', icon: 'bell' },
   ],
@@ -60,21 +60,24 @@ function activeTab(tabs: Tab[], path: string): Tab | undefined {
   return best;
 }
 
-function subtitle(role: Role, ctx: unknown, schoolName: string | null | undefined, subject: string | null | undefined): string {
+/** The subtitle under the name: `main` always shows, `extra` is dropped on the narrowest phones (≤ 400px). */
+function subtitle(role: Role, ctx: unknown, schoolName: string | null | undefined, subject: string | null | undefined): { main: string; extra: string | null } {
   switch (role) {
     case 'teacher': {
       const c = ctx as TeacherContext | null;
-      const parts = [subject || c?.subject, schoolName].filter(Boolean);
-      return parts.join(' · ');
+      return { main: subject || c?.subject || ROLE_LABEL.teacher, extra: schoolName || null };
     }
     case 'student': {
       const c = ctx as StudentContext | null;
       const sec: SectionRef | undefined = c?.section;
-      return [sec?.label ? `الشعبة ${sec.label}` : null, schoolName || c?.school_name].filter(Boolean).join(' · ');
+      return { main: sec?.label ? `شعبة ${sec.label}` : ROLE_LABEL.student, extra: schoolName || c?.school_name || null };
     }
-    case 'parent': return ['وليّ أمر', schoolName].filter(Boolean).join(' · ');
-    case 'school': return ['إدارة المدرسة', (ctx as { school?: { complex?: string } } | null)?.school?.complex ? `مجمّع ${(ctx as { school: { complex: string } }).school.complex}` : null].filter(Boolean).join(' · ');
-    default: return 'لوحة المديرية';
+    case 'parent': return { main: ROLE_LABEL.parent, extra: schoolName || null };
+    case 'school': {
+      const complex = (ctx as { school?: { complex?: string } } | null)?.school?.complex;
+      return { main: ROLE_LABEL.school, extra: complex ? complexLabel(complex) : null };
+    }
+    default: return { main: 'لوحة المديرية', extra: null };
   }
 }
 
@@ -88,6 +91,7 @@ export function Shell({ children }: { children: ReactNode }) {
   const name = s.user?.name ?? '';
   const displayName = role === 'teacher' && name && !name.startsWith('أ.') ? `أ. ${name}` : name;
   const sub = subtitle(role, s.context, s.user?.school_name, s.user?.subject);
+  const subText = [sub.main, sub.extra].filter(Boolean).join(' · ');
   const offline = !s.online || s.fromCache;
 
   const logout = () => {
@@ -115,7 +119,7 @@ export function Shell({ children }: { children: ReactNode }) {
         <span className="spacer" />
         <div className="usercard">
           <Avatar name={displayName} color={color} small />
-          <div className="txt"><b>{displayName}</b><small>{sub}</small></div>
+          <div className="txt"><b>{displayName}</b><small>{subText}</small></div>
           <button type="button" className="iconbtn" onClick={logout} aria-label="تسجيل الخروج" title="تسجيل الخروج"><Icon name="logout" /></button>
         </div>
       </aside>
@@ -128,7 +132,7 @@ export function Shell({ children }: { children: ReactNode }) {
               <b>{displayName}</b>
               <div className="meta">
                 {s.demo && <span className="pill demo">بيانات تجريبية</span>}
-                <small>{sub}</small>
+                <small title={subText}>{sub.main}{sub.extra && <span className="sub-extra"> · {sub.extra}</span>}</small>
               </div>
             </div>
           </Link>
@@ -142,7 +146,7 @@ export function Shell({ children }: { children: ReactNode }) {
 
       {offline && (
         <div className="banner offline" role="status">
-          <div className="banner-in"><Icon name="wifioff" /><span className="grow">لا اتصال — تعمل من النسخة المحفوظة</span></div>
+          <div className="banner-in"><Icon name="wifioff" /><span className="grow">لا اتصال — تُعرض النسخة المحفوظة</span></div>
         </div>
       )}
       {s.outbox > 0 && (
@@ -151,6 +155,20 @@ export function Shell({ children }: { children: ReactNode }) {
             <Icon name="inbox" />
             <span className="grow">{count(s.outbox, NOUNS.operation)} بانتظار الإرسال</span>
             {s.online && <button type="button" className="linkbtn" onClick={() => { void replayOutbox(); }}>إرسال الآن</button>}
+          </div>
+        </div>
+      )}
+      {s.rejected.length > 0 && (
+        <div className="banner rejected" role="alert">
+          <div className="banner-in rejected-in">
+            <div className="rejected-head"><Icon name="alert" /><span className="grow">{count(s.rejected.length, NOUNS.operation)} لم تُقبل من الخادم</span></div>
+            {s.rejected.map((it) => (
+              <div className="rejected-row" key={it.id}>
+                <span className="grow wrap-text">{it.label}{it.error ? ` — ${it.error}` : ''}</span>
+                <button type="button" className="linkbtn" onClick={() => { void retryOutboxItem(it.id); }}>إعادة المحاولة</button>
+                <button type="button" className="linkbtn" onClick={() => discardOutboxItem(it.id)}>تجاهل</button>
+              </div>
+            ))}
           </div>
         </div>
       )}

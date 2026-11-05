@@ -2,7 +2,7 @@
 
 import { useEffect, type ButtonHTMLAttributes, type CSSProperties, type ReactNode } from 'react';
 import { Icon } from './Icon';
-import { ar } from '../format';
+import { addDays, fmtDate, pct, todayISO } from '../format';
 import { Link } from '../router';
 
 export function Tile({ title, icon, children, color, className, right, style }: {
@@ -120,13 +120,46 @@ export function Progress({ value, max = 100 }: { value: number; max?: number }) 
   );
 }
 
-/** Horizontal bar chart row («الخامس ▬▬▬ ٩٤٪»). */
+/** Horizontal bar chart row («الخامس ▬▬▬ ٩٤٪»); the percentage uses the same form as the Kpi tiles (`pct`, `.num`). */
 export function ChartRow({ label, value, low }: { label: ReactNode; value: number; low?: boolean }) {
   return (
     <div className={`crow ${low ?? value < 90 ? 'low' : ''}`}>
       <span>{label}</span>
       <div className="track"><i style={{ width: `${Math.max(0, Math.min(100, value))}%` }} /></div>
-      <b>{ar(Math.round(value))}٪</b>
+      <b className="num">{pct(value)}</b>
+    </div>
+  );
+}
+
+export interface QuickDate { label: string; iso: string }
+
+/** A date picker that reads in Arabic: the Levantine date is the prominent part, the native input (Western digits on
+    most phones) is secondary, and quick chips («اليوم» / «غداً», or «أمس» when the future is out of range) sit next
+    to it. `compact` is the header variant used next to dashboard titles. */
+export function DateField({ value, onChange, min, max, label = 'التاريخ', quick, required, compact }: {
+  value: string; onChange: (iso: string) => void; min?: string; max?: string; label?: string; quick?: QuickDate[] | false; required?: boolean; compact?: boolean;
+}) {
+  const today = todayISO();
+  const inRange = (iso: string) => (!min || iso >= min) && (!max || iso <= max);
+  let chips: QuickDate[];
+  if (quick === false) chips = [];
+  else if (quick) chips = quick.filter((q) => inRange(q.iso));
+  else {
+    const tomorrow = { label: 'غداً', iso: addDays(today, 1) };
+    const yesterday = { label: 'أمس', iso: addDays(today, -1) };
+    chips = [{ label: 'اليوم', iso: today }, inRange(tomorrow.iso) ? tomorrow : yesterday].filter((q) => inRange(q.iso));
+  }
+  return (
+    <div className={`datefield ${compact ? 'compact' : ''}`}>
+      {!compact && <span className="lbl">{label}</span>}
+      <div className="dateval"><Icon name="cal" /><b>{fmtDate(value) || '—'}</b></div>
+      <div className="datectl">
+        {chips.map((q) => (
+          <button type="button" key={q.iso} className="chip" aria-pressed={value === q.iso} onClick={() => onChange(q.iso)}>{q.label}</button>
+        ))}
+        <input className="input date" type="date" value={value} min={min} max={max} required={required} aria-label={label}
+          onChange={(e) => { if (e.target.value) onChange(e.target.value); }} />
+      </div>
     </div>
   );
 }

@@ -4,11 +4,13 @@
      timestamp) and the cached copy is returned when fetch fails.
    - POSTs to attendance / homework / submit are queued in `outbox` while
      offline and replayed in order when `online` fires. Homework carries a
-     client-generated `client_id` the server dedupes on.
-   - Dev mock: when VITE_MOCK=1, or when the real API was unreachable at login,
-     every request goes to src/mock.ts instead of fetch. */
+     client-generated `client_id` the server dedupes on. An item the server
+     rejects (4xx) stays in the outbox, marked with the error, until the user
+     retries or discards it.
+   - Dev mock: when the build is made with VITE_MOCK=1 every request goes to
+     src/mock.ts instead of fetch. The mock is loaded behind that build-time
+     constant, so a production build does not contain it at all. */
 
-import { isMockToken, mockRequest } from './mock';
 import type { LoginResponse, User } from './types';
 
 export const MOCK_ENV = import.meta.env.VITE_MOCK === '1';
@@ -61,8 +63,9 @@ export function getStoredUser(): User | null {
 export function getStoredCode(): string | null {
   return lsGet(KEY.code);
 }
+/** The in-memory demo is used only by builds made with VITE_MOCK=1 (the production build never falls back to it). */
 export function isMock(): boolean {
-  return MOCK_ENV || lsGet(KEY.mock) === '1' || isMockToken(getToken());
+  return MOCK_ENV;
 }
 
 export function setSession(token: string, user: User, code: string, viaMock: boolean) {
@@ -79,6 +82,11 @@ export function clearSession() {
   lsRemove(KEY.code);
   lsRemove(KEY.mock);
   clearCache();
+}
+
+/** Forget everything done in the demo session (mock builds only). */
+export async function resetMockData(): Promise<void> {
+  if (MOCK_ENV) (await import('./mock')).resetMock();
 }
 
 /* ───────── GET cache ───────── */
@@ -115,7 +123,8 @@ function isNetworkError(e: unknown): boolean {
 }
 
 async function raw(method: string, url: string, body?: unknown, timeoutMs = 15000): Promise<Raw> {
-  if (isMock()) {
+  if (MOCK_ENV) {
+    const { mockRequest } = await import('./mock');
     const r = await mockRequest(method, url, body, getToken());
     return { status: r.status, data: r.body, cached: false, swOffline: false, contentType: r.contentType ?? 'application/json' };
   }
@@ -146,12 +155,14 @@ function errorMessage(r: Raw, fallback: string): string {
   return fallback;
 }
 
+export const SESSION_EXPIRED = 'انتهت الجلسة، يلزم تسجيل الدخول مجدّداً';
+
 function handleStatus(r: Raw): void {
   if (r.status === 401) {
     emit('unauthorized');
-    throw new ApiError(401, errorMessage(r, 'انتهت الجلسة، سجّل الدخول مجدداً'));
+    throw new ApiError(401, errorMessage(r, SESSION_EXPIRED));
   }
-  if (r.status >= 400) throw new ApiError(r.status, errorMessage(r, r.status >= 500 ? 'خطأ في الخادم، حاول لاحقاً' : 'تعذّر تنفيذ الطلب'));
+  if (r.status >= 400) throw new ApiError(r.status, errorMessage(r, r.status >= 500 ? 'خطأ في الخادم، يُرجى المحاولة لاحقاً' : 'تعذّر تنفيذ الطلب'));
 }
 
 export async function get<T>(url: string): Promise<T> {
@@ -198,7 +209,9 @@ export async function post<T>(url: string, body: unknown, opts: PostOptions = {}
 
 /* ───────── outbox ───────── */
 
-export interface OutboxItem { id: string; url: string; body: unknown; created_at: string; label: string }
+/** A queued write. `error` is set when the server refused it (4xx): it then waits for a retry or a discard. */
+export interface OutboxItem { id: string; url: string; body: unknown; created_at: string; label: string; error?: string }
+export interface OutboxState { pending: number; rejected: OutboxItem[] }
 
 function labelFor(url: string): string {
   if (url === '/api/attendance') return 'تسجيل حضور';
@@ -210,12 +223,17 @@ function labelFor(url: string): string {
 export function outboxItems(): OutboxItem[] {
   try { const raw = lsGet(KEY.outbox); return raw ? (JSON.parse(raw) as OutboxItem[]) : []; } catch { return []; }
 }
+export function outboxState(): OutboxState {
+  const items = outboxItems();
+  return { pending: items.filter((i) => !i.error).length, rejected: items.filter((i) => !!i.error) };
+}
 function saveOutbox(items: OutboxItem[]) {
   lsSet(KEY.outbox, JSON.stringify(items));
-  emit('outbox', items.length);
+  emit('outbox', outboxState());
 }
+/** Writes still waiting to be sent (rejected ones are not counted). */
 export function outboxCount(): number {
-  return outboxItems().length;
+  return outboxState().pending;
 }
 
 function newId(): string {
@@ -231,8 +249,24 @@ function enqueue(url: string, body: unknown): Queued {
   return { queued: true, client_id: b && typeof b === 'object' ? b.client_id : undefined };
 }
 
+function markRejected(id: string, error: string) {
+  saveOutbox(outboxItems().map((x) => (x.id === id ? { ...x, error } : x)));
+}
+
+/** Clears the error of a rejected item and replays the outbox. */
+export async function retryOutboxItem(id: string): Promise<number> {
+  const items = outboxItems().map((x) => (x.id === id ? { ...x, error: undefined } : x));
+  saveOutbox(items);
+  return replayOutbox();
+}
+/** Drops a rejected item for good. */
+export function discardOutboxItem(id: string) {
+  saveOutbox(outboxItems().filter((x) => x.id !== id));
+}
+
 let replaying = false;
-/** Replay the outbox in order. Stops at the first network failure; drops items the server rejects (4xx). */
+/** Replay the pending items in order. Stops at the first network failure; items the server rejects (4xx) are kept
+    and marked, so the user can retry or discard them from the outbox banner. */
 export async function replayOutbox(): Promise<number> {
   if (replaying) return 0;
   if (typeof navigator !== 'undefined' && navigator.onLine === false) return 0;
@@ -240,22 +274,23 @@ export async function replayOutbox(): Promise<number> {
   replaying = true;
   let sent = 0;
   try {
-    let items = outboxItems();
-    while (items.length) {
-      const item = items[0];
+    for (const item of outboxItems().filter((x) => !x.error)) {
       try {
         const r = await raw('POST', item.url, item.body);
         if (r.swOffline) break;
         if (r.status === 401) { emit('unauthorized'); break; }
         if (r.status >= 500) break;
-        if (r.status >= 400) emit('outbox-error', `${item.label}: ${errorMessage(r, 'رفض الخادم العملية')}`);
-        items = items.slice(1);
-        saveOutbox(items);
+        if (r.status >= 400) {
+          const msg = errorMessage(r, 'رفض الخادم العملية');
+          markRejected(item.id, msg);
+          emit('outbox-error', `${item.label}: ${msg}`);
+          continue;
+        }
+        saveOutbox(outboxItems().filter((x) => x.id !== item.id));
         sent++;
       } catch (e) {
         if (isNetworkError(e)) break;
-        items = items.slice(1);
-        saveOutbox(items);
+        markRejected(item.id, 'تعذّر الإرسال');
         emit('outbox-error', `${item.label}: تعذّر الإرسال`);
       }
     }
@@ -275,29 +310,28 @@ if (typeof window !== 'undefined') {
 
 export interface LoginResult extends LoginResponse { viaMock: boolean }
 
-/** Log in with an access code. Falls back to the dev mock when the API is unreachable. */
+/** Log in with an access code. In a VITE_MOCK=1 build the in-memory demo answers instead of the server. */
 export async function login(code: string): Promise<LoginResult> {
   const clean = code.trim().toUpperCase();
-  if (!clean) throw new ApiError(400, 'أدخل رمز الدخول');
-  const useMock = async (): Promise<LoginResult> => {
+  if (!clean) throw new ApiError(400, 'يلزم إدخال رمز الدخول');
+  if (MOCK_ENV) {
+    const { mockRequest } = await import('./mock');
     const r = await mockRequest('POST', '/api/login', { code: clean }, null);
     if (r.status >= 400) throw new ApiError(r.status, (r.body as { error: string }).error);
     return { ...(r.body as LoginResponse), viaMock: true };
-  };
-  if (MOCK_ENV) return useMock();
+  }
   lsRemove(KEY.mock);
   let r: Raw;
-  // Production never falls back to the mock silently: the pilot must show the real server's data on every
-  // device. The in-memory demo is only used when the build asks for it (VITE_MOCK=1).
+  // Production never falls back to the mock: the pilot must show the real server's data on every device.
   try {
     r = await raw('POST', '/api/login', { code: clean }, 12000);
   } catch (e) {
-    if (isNetworkError(e)) throw new ApiError(0, 'لا اتصال بالخادم. تحقّق من الإنترنت وحاول مجدّداً');
+    if (isNetworkError(e)) throw new ApiError(0, 'لا اتصال بالخادم. يُرجى التحقّق من الإنترنت والمحاولة مجدّداً');
     throw e;
   }
   const unreachable = r.swOffline || r.status === 502 || r.status === 503 || r.status === 504 || (r.status >= 500 && !r.contentType.includes('application/json')) || (r.status < 400 && !r.contentType.includes('application/json'));
-  if (unreachable) throw new ApiError(r.status || 0, 'الخادم غير متاح حالياً، حاول بعد قليل');
-  if (r.status >= 400) throw new ApiError(r.status, errorMessage(r, r.status === 429 ? 'محاولات كثيرة، انتظر قليلاً' : 'رمز الدخول غير صحيح'));
+  if (unreachable) throw new ApiError(r.status || 0, 'الخادم غير متاح حالياً، يُرجى المحاولة بعد قليل');
+  if (r.status >= 400) throw new ApiError(r.status, errorMessage(r, r.status === 429 ? 'محاولات كثيرة، يُرجى الانتظار قليلاً' : 'رمز الدخول غير صحيح'));
   const data = r.data as LoginResponse;
   if (!data || !data.token || !data.user) throw new ApiError(500, 'استجابة غير متوقّعة من الخادم');
   return { ...data, viaMock: false };
@@ -305,10 +339,12 @@ export async function login(code: string): Promise<LoginResult> {
 
 /* ───────── files ───────── */
 
-/** Download a CSV (or any file) through the authenticated API and save it. */
+/** Download a CSV (or any file) through the authenticated API and save it. The token travels in the Authorization
+    header (never in the URL); the file is handed to the browser as a blob: URL, which the Android shell reads back. */
 export async function download(url: string, filename: string): Promise<void> {
   let blob: Blob;
-  if (isMock()) {
+  if (MOCK_ENV) {
+    const { mockRequest } = await import('./mock');
     const r = await mockRequest('GET', url, undefined, getToken());
     if (r.status >= 400) throw new ApiError(r.status, (r.body as { error: string }).error);
     blob = new Blob([String(r.body)], { type: r.contentType ?? 'text/csv;charset=utf-8' });

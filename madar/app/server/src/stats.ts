@@ -18,6 +18,7 @@ export const pct = (part: number, whole: number): number | null => whole > 0 ? M
 export interface SchoolStats {
   id: number; name: string; complex: string
   students: number; recorded: number; present: number; present_pct: number | null; attendance_uploaded: boolean
+  attendance_confirmed: boolean   // the school has confirmed that day's attendance (POST /api/attendance/confirm)
   teachers: number; teachers_present: number
   affected_periods: number; covered_periods: number; uncovered_periods: number; coverage_pct: number
   homework_today: number
@@ -27,7 +28,7 @@ export interface SchoolStats {
 export async function schoolStats(db: D1Database, schoolId: number, date: string): Promise<SchoolStats | null> {
   const school = await db.prepare('SELECT id, name, complex FROM schools WHERE id = ?').bind(schoolId).first<{ id: number; name: string; complex: string }>()
   if (!school) return null
-  const [statuses, teachers, absent, subs, homework] = await Promise.all([
+  const [statuses, teachers, absent, subs, homework, confirmed] = await Promise.all([
     dayStatuses(db, date, schoolId),
     db.prepare("SELECT COUNT(*) AS n FROM users WHERE role = 'teacher' AND school_id = ?").bind(schoolId).first<{ n: number }>(),
     db.prepare('SELECT COUNT(*) AS n FROM absences a JOIN users u ON u.id = a.teacher_id WHERE a.date = ? AND u.school_id = ?').bind(date, schoolId).first<{ n: number }>(),
@@ -35,6 +36,8 @@ export async function schoolStats(db: D1Database, schoolId: number, date: string
                 WHERE a.date = ? AND u.school_id = ? GROUP BY s.status`).bind(date, schoolId).all<{ status: string; n: number }>(),
     db.prepare(`SELECT COUNT(*) AS n FROM homework h JOIN sections sec ON sec.id = h.section_id WHERE sec.school_id = ? AND date(h.created_at, '+3 hours') = ?`)
       .bind(schoolId, date).first<{ n: number }>(),
+    db.prepare(`SELECT 1 AS x FROM attendance a JOIN students st ON st.id = a.student_id JOIN sections sec ON sec.id = st.section_id
+                WHERE a.date = ? AND sec.school_id = ? AND a.confirmed = 1 LIMIT 1`).bind(date, schoolId).first<{ x: number }>(),
   ])
   const recorded = statuses.filter(s => s.status !== null)
   const present = recorded.filter(s => isPresent(s.status)).length
@@ -44,6 +47,7 @@ export async function schoolStats(db: D1Database, schoolId: number, date: string
   return {
     ...school,
     students: statuses.length, recorded: recorded.length, present, present_pct: pct(present, recorded.length), attendance_uploaded: recorded.length > 0,
+    attendance_confirmed: confirmed !== null,
     teachers: teachers?.n ?? 0, teachers_present: Math.max(0, (teachers?.n ?? 0) - (absent?.n ?? 0)),
     affected_periods: affected, covered_periods: covered, uncovered_periods: affected - covered, coverage_pct: affected ? Math.round((100 * covered) / affected) : 100,
     homework_today: homework?.n ?? 0,

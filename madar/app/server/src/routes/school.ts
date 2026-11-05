@@ -57,7 +57,8 @@ r.get('/api/school/sections', requireAuth('school', 'teacher', 'directorate'), a
     FROM students st JOIN users u ON u.id = st.user_id WHERE st.section_id IN (${placeholders(visible.length)}) ORDER BY u.name`)
     .bind(...visible.map(s => s.id)).all<{ student_id: number; section_id: number; name: string; has_guardian: number }>()
   return c.json(visible.map(s => {
-    const students = pupils.filter(p => p.section_id === s.id).map(p => ({ student_id: p.student_id, name: p.name, has_guardian: !!p.has_guardian }))
+    // `id` and `student_id` are the same value: the roster component keys on `id`, POST /api/attendance takes `student_id`.
+    const students = pupils.filter(p => p.section_id === s.id).map(p => ({ id: p.student_id, student_id: p.student_id, name: p.name, has_guardian: !!p.has_guardian }))
     return { ...s, student_count: students.length, students }
   }))
 })

@@ -177,7 +177,7 @@ describe('homework', () => {
     expect(toGuardians.find(x => x.link === `/homework/${r.json.id}?student_id=13`)?.body).toMatch(/^واجب جديد لمحمد في الرياضيات، يُسلَّم (اليوم|غداً|يوم \S+ [٠-٩]+ \S+( \S+)?)$/)
     expect(toGuardians.some(x => x.body.startsWith('واجب جديد لعبد الرحمن في الرياضيات'))).toBe(true)
     expect(toGuardians.map(x => x.body).join(' ')).not.toContain('لـ')
-    expect(db.raw.prepare("SELECT link FROM notifications WHERE kind = 'homework' AND user_id = 114").get()).toEqual({ link: `/homework/${r.json.id}` })   // the student's own link is plain
+    expect(db.raw.prepare("SELECT link FROM notifications WHERE kind = 'homework' AND user_id = 114 AND link LIKE ?").get(`/homework/${r.json.id}%`)).toEqual({ link: `/homework/${r.json.id}` })   // the student's own link is plain
     expect(count("SELECT COUNT(*) AS n FROM audit_log WHERE action = 'homework.create' AND target = ?", String(r.json.id))).toBe(1)
     // replaying the same offline item is a no-op
     const again = await call('POST', '/api/homework', T.samer, { section_id: 2, subject_id: 2, title: 'واجب تجريبي', due_date: addDays(TODAY, 2), client_id: 'c-1' })
@@ -223,9 +223,11 @@ describe('attendance', () => {
     expect((await call('POST', '/api/attendance', T.samer, { section_id: 4, date, period: 1, records: [{ student_id: 37, status: 'absent' }] })).status).toBe(403)
   })
   it('the school confirms the day and the absence notices get their SMS flag (logged)', async () => {
+    expect((await call('GET', `/api/school/dashboard?date=${date}`, T.sch1)).json.attendance_confirmed).toBe(false)
     const r = await call('POST', '/api/attendance/confirm', T.sch1, { date })
     expect(r.status).toBe(200)
     expect(r.json).toMatchObject({ confirmed: 12, sms: 2 })
+    expect((await call('GET', `/api/school/dashboard?date=${date}`, T.sch1)).json.attendance_confirmed).toBe(true)
     expect(count('SELECT COUNT(*) AS n FROM attendance WHERE date = ? AND confirmed = 0', date)).toBe(0)
     expect(count("SELECT COUNT(*) AS n FROM notifications WHERE kind = 'absence' AND sms = 1 AND link LIKE ?", `/attendance?date=${date}&%`)).toBe(2)
     expect((await call('POST', '/api/attendance/confirm', T.samer, { date })).status).toBe(403)
@@ -315,7 +317,7 @@ describe('dashboards', () => {
   it('school dashboard: the seeded absence of رنا gets its suggestions on first load', async () => {
     const r = await call('GET', '/api/school/dashboard', T.sch1)
     expect(r.status).toBe(200)
-    expect(r.json).toMatchObject({ students: 36, teachers: 7, teachers_present: 6, date: TODAY })
+    expect(r.json).toMatchObject({ students: 36, teachers: 7, teachers_present: 6, date: TODAY, attendance_confirmed: false })   // today is still in progress
     expect(r.json.attendance_by_grade.map((g: any) => g.grade)).toEqual([5, 6])
     const rana = r.json.absences.find((a: any) => a.teacher_id === 12)
     expect(rana).toMatchObject({ teacher: 'رنا سعيد', subject: 'العلوم' })
@@ -364,9 +366,12 @@ describe('dashboards', () => {
     expect(all).toHaveLength(3)
     expect(all[1]).toMatchObject({ label: 'الخامس (ب)', student_count: 12 })
     expect(all[1].students.some((s: any) => s.name === 'ليان أحمد')).toBe(true)
-    expect(Object.keys(all[1].students[0]).sort()).toEqual(['has_guardian', 'name', 'student_id'])
+    // `id` and `student_id` carry the same value: the roster component keys on `id`, the attendance POST sends `student_id`
+    expect(Object.keys(all[1].students[0]).sort()).toEqual(['has_guardian', 'id', 'name', 'student_id'])
+    expect(all[1].students.every((s: any) => Number.isInteger(s.id) && s.id === s.student_id)).toBe(true)
     const roster = (await call('GET', '/api/sections/2/roster', T.sch1)).json
-    expect(Object.keys(roster.students[0]).sort()).toEqual(['name', 'status', 'student_id'])
+    expect(Object.keys(roster.students[0]).sort()).toEqual(['id', 'name', 'status', 'student_id'])
+    expect(roster.students.every((s: any) => s.id === s.student_id)).toBe(true)
     expect((await call('GET', '/api/school/sections', T.samer)).json).toHaveLength(3)
     expect((await call('GET', '/api/school/teachers', T.sch1)).json).toHaveLength(7)
   })
@@ -401,21 +406,29 @@ describe('announcements, notifications and messages', () => {
     expect(r.json.updated).toBe(2)
     expect((await call('GET', '/api/notifications', T.khaled)).json.filter((n: any) => n.read_at).length).toBe(2)
   })
-  it('parent home: children with today status, homework due and notifications', async () => {
+  it('parent home: children with today status, homework due and notifications filed under the right child', async () => {
     const r = await call('GET', '/api/parent/home', T.khaled)
     expect(r.status).toBe(200)
     expect(r.json.children).toHaveLength(2)
-    const m = r.json.children[0]
-    expect(m).toMatchObject({ student_id: 13, name: 'محمد خالد', section_label: 'الخامس (ب)', school_name: 'مدرسة درعا النموذجية' })
+    const m = r.json.children[0], sara = r.json.children[1]
+    expect(m).toMatchObject({ student_id: 13, name: 'محمد خالد', section_id: 2, section_label: 'الخامس (ب)', school_name: 'مدرسة درعا النموذجية' })
     expect(['present', 'absent', 'late', 'none']).toContain(m.today.status)
     expect(m.homework.some((h: any) => h.id === 1)).toBe(true)
     expect(m.teachers.map((t: any) => t.name)).toContain('سامر حسن')
     expect(m.teachers[0]).not.toHaveProperty('phone')
+    // the homework and the change of teacher concern محمد (section 2), not his sister in السادس (أ)
+    expect(m.notifications.some((n: any) => n.kind === 'homework' && n.link?.includes('student_id=13'))).toBe(true)
+    expect(sara.notifications.some((n: any) => n.link?.includes('student_id=13') || n.link?.includes('section_id=2'))).toBe(false)
+    expect(m.notifications.some((n: any) => n.kind === 'change' && n.link?.includes('section_id=2'))).toBe(true)
+    expect(sara.notifications.some((n: any) => n.kind === 'announcement')).toBe(true)   // school-wide notices appear under every child
+    // /api/me names each child's section too (the messaging screen needs it)
+    expect((await call('GET', '/api/me', T.khaled)).json.context.children.map((ch: any) => ch.section_id)).toEqual([2, 3])
   })
   it('a parent messages a teacher of the child\'s section only', async () => {
     const ok = await call('POST', '/api/messages', T.khaled, { to_user: 11, body: 'أستاذ سامر، هل يمكن تأجيل تسليم الواجب؟' })
     expect(ok.status).toBe(201)
     expect((await call('POST', '/api/messages', T.khaled, { to_user: 21, body: 'مرحبًا' })).status).toBe(403)   // teacher of another school
+    expect((await call('POST', '/api/messages', await login('P-1'), { to_user: 13, body: 'مرحبًا' })).status).toBe(403)   // same school, but ماهر teaches none of this parent's children
     expect((await call('POST', '/api/messages', T.layan, { to_user: 11, body: 'مرحبًا' })).status).toBe(403)    // students do not message
     const threads = (await call('GET', '/api/messages', T.samer)).json
     expect(threads).toHaveLength(1)
@@ -437,6 +450,15 @@ describe('static assets and errors', () => {
     expect(page.status).toBe(200)
     expect(await page.text()).toContain('shell')
     expect(assetHits - before).toBe(2)   // the path, then index.html
-    expect((await app.request('/assets/missing.js', {}, env)).status).toBe(404)
+    // the shell carries the security headers; the CSP allows the bundle, the inline <style> and the blob: CSV
+    expect(page.headers.get('x-frame-options')).toBe('DENY')
+    expect(page.headers.get('x-content-type-options')).toBe('nosniff')
+    expect(page.headers.get('referrer-policy')).toBe('strict-origin-when-cross-origin')
+    expect(page.headers.get('content-security-policy')).toMatch(/^default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self' blob:; font-src 'self' data:; manifest-src 'self'; worker-src 'self'/)
+    const missing = await app.request('/assets/missing.js', {}, env)
+    expect(missing.status).toBe(404)
+    expect(missing.headers.get('x-content-type-options')).toBe('nosniff')
+    expect(missing.headers.get('content-security-policy')).toBeNull()   // CSP only on HTML
+    expect((await call('GET', '/api/nothing', T.dir)).headers.get('x-frame-options')).toBeNull()   // API answers are JSON, not framed pages
   })
 })

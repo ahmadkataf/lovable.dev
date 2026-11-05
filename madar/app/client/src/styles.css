@@ -343,3 +343,27 @@ td .n{color:var(--red);font-weight:900}
 .points{display:inline-flex;align-items:center;gap:6px;padding:4px 12px;border-radius:999px;background:#fff1d6;color:#8f5a00;font-weight:800;font-size:.84rem;white-space:nowrap}
 .points svg{width:16px;height:16px}
 .wrap-text{overflow-wrap:anywhere}
+
+/* ── date picker: the Arabic date leads, the native input is secondary ── */
+.datefield{display:grid;gap:6px;min-width:0}
+.datefield .lbl{font-weight:700;font-size:.8rem;color:var(--ink-2)}
+.datefield .dateval{display:flex;align-items:center;gap:7px;font-family:var(--font-d);font-weight:800;font-size:1.02rem;color:var(--c);line-height:1.5}
+.datefield .dateval svg{width:18px;height:18px;flex:none}
+.datefield .datectl{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.datefield input.date{width:auto;min-height:38px;padding:6px 10px;font-size:.82rem;color:var(--ink-2);font-weight:500;background:#fff}
+.datefield.compact{gap:4px}
+.datefield.compact .dateval{font-size:.92rem}
+.datefield.compact .chip{padding:5px 10px;font-size:.8rem}
+.datefield.compact input.date{min-height:34px}
+
+/* ── writes the server refused: kept in the outbox until retried or discarded ── */
+.banner.rejected .banner-in{background:#fdeaea;color:#8a1f1f;border-color:rgba(180,40,40,.2)}
+.banner-in.rejected-in{display:grid;gap:6px;align-items:stretch}
+.rejected-head{display:flex;align-items:center;gap:10px}
+.rejected-row{display:flex;align-items:center;gap:10px;font-weight:500;font-size:.82rem;padding-inline-start:28px;flex-wrap:wrap}
+
+/* ── narrow phones: the subtitle wraps to two lines and drops its second part ── */
+@media (max-width:400px){
+  .topbar .who small{white-space:normal;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;font-size:.72rem;line-height:1.35}
+  .topbar .who .sub-extra{display:none}
+}

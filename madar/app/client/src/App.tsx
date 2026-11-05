@@ -16,6 +16,7 @@ import { SchoolAbsenceNew, SchoolAbsences } from './screens/SchoolAbsences';
 import { SchoolAttendance } from './screens/SchoolAttendance';
 import { SchoolAnnouncements } from './screens/SchoolAnnouncements';
 import { DirectorateCirculars, DirectorateDashboard } from './screens/Directorate';
+import { AnnouncementsList } from './screens/Announcements';
 import { boot, roleHome, useStore } from './store';
 import type { Role } from './types';
 
@@ -30,7 +31,7 @@ function Sky() {
 function NotFound() {
   return (
     <Tile className="full">
-      <Empty icon="info" title="الصفحة غير موجودة" text="عد إلى الرئيسية من الشريط في الأسفل." />
+      <Empty icon="info" title="الصفحة غير موجودة" text="العودة إلى الرئيسية من الشريط في الأسفل." />
     </Tile>
   );
 }
@@ -48,6 +49,7 @@ function allowed(path: string, role: Role): boolean {
 function resolve(path: string): ReactNode {
   let p: Record<string, string> | null;
   if (path === '/notifications') return <Notifications />;
+  if (path === '/announcements') return <AnnouncementsList />;
   if (path === '/messages') return <MessagesList />;
   if (path === '/messages/new') return <MessageNew />;
   if ((p = matchPath('/messages/:id', path))) return <MessageThread userId={Number(p.id)} />;

@@ -158,7 +158,7 @@ r.get('/api/sections/:id/roster', requireAuth('teacher', 'school', 'directorate'
   const date = isDate(c.req.query('date')) ? c.req.query('date')! : today()
   const period = intParam(c.req.query('period'))
   const { results } = await c.env.DB.prepare(`
-    SELECT st.id AS student_id, u.name,
+    SELECT st.id AS id, st.id AS student_id, u.name,
            (SELECT a.status FROM attendance a WHERE a.student_id = st.id AND a.date = ? AND (? IS NULL OR a.period = ?) ORDER BY a.period LIMIT 1) AS status
     FROM students st JOIN users u ON u.id = st.user_id WHERE st.section_id = ? ORDER BY u.name`).bind(date, period, period, sectionId).all()
   return c.json({ section: { id: section.id, grade: section.grade, label: section.label, shift: section.shift }, date, period, students: results })
