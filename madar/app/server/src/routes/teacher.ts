@@ -84,11 +84,14 @@ r.get('/api/homework/:id', requireAuth(), async c => {
     SELECT st.id AS student_id, u.name, s.status, s.submitted_at FROM students st JOIN users u ON u.id = st.user_id
     LEFT JOIN submissions s ON s.homework_id = ? AND s.student_id = st.id WHERE st.section_id = ? ORDER BY u.name`).bind(id, hw.section_id)
     .all<{ student_id: number; name: string; status: string | null; submitted_at: string | null }>()
-  const visible = user.role === 'student' ? results.filter(x => false) : results   // a student sees only their own flag (below)
-  const mine = user.role === 'student' ? (await studentByUser(db, user.id))?.student_id : null
+  // Students see only their own flag; parents only their children's; teachers and the school see the whole roster.
+  const mine = user.role === 'student' ? (await studentByUser(db, user.id))?.student_id ?? null : null
+  let visible = results
+  if (user.role === 'student') visible = results.filter(x => x.student_id === mine)
+  else if (user.role === 'parent') { const kids = new Set((await parentChildren(db, user.id)).map(ch => ch.student_id)); visible = results.filter(x => kids.has(x.student_id)) }
   return c.json({
     ...hw,
-    done: mine ? results.some(x => x.student_id === mine && x.status) : undefined,
+    done: mine === null ? undefined : visible.some(x => x.status !== null),
     students: visible.map(x => ({ student_id: x.student_id, name: x.name, done: !!x.status, submitted_at: x.submitted_at })),
     submissions: visible.filter(x => x.status).map(x => ({ student_id: x.student_id, name: x.name, status: x.status, submitted_at: x.submitted_at })),
   })
