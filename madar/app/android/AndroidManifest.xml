@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- مَدار for Android: a WebView shell around https://app.madar.raqeem.dev/ (see MainActivity.java and README.md).
+     Built without Gradle by build-apk.sh; VERSION_CODE / VERSION_NAME in its environment replace the version below. -->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="dev.raqeem.madar"
+    android:versionCode="1"
+    android:versionName="1.0">
+    <uses-sdk android:minSdkVersion="24" android:targetSdkVersion="34" />
+    <!-- the only permission: the page and its service worker talk to app.madar.raqeem.dev over HTTPS -->
+    <uses-permission android:name="android.permission.INTERNET" />
+    <application
+        android:label="@string/app_name"
+        android:icon="@mipmap/ic_launcher"
+        android:roundIcon="@mipmap/ic_launcher_round"
+        android:theme="@style/Theme.Madar"
+        android:supportsRtl="true"
+        android:allowBackup="false"
+        android:usesCleartextTraffic="false">
+        <!-- no screenOrientation: portrait and landscape are both allowed; configChanges keeps the WebView alive
+             through rotation, keyboard and dark-mode switches instead of reloading the page -->
+        <activity
+            android:name=".MainActivity"
+            android:exported="true"
+            android:launchMode="singleTask"
+            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboardHidden|uiMode"
+            android:windowSoftInputMode="adjustResize">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+    </application>
+</manifest>

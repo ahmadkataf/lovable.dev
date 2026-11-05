@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The pitch site's tokens (bg, brand, ink). ic_launcher_background is written by android-res.py from icon.svg. -->
+<resources>
+    <color name="light">#f3f7fd</color>
+    <color name="brand">#2a5bea</color>
+    <color name="ink">#0e1a33</color>
+</resources>

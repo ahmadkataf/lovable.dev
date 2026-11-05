@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Android 12+ draws its own splash screen (the adaptive launcher icon in a circle) before the activity; the same
+     light background makes it continue seamlessly into the in-app splash that waits for the page. -->
+<resources>
+    <style name="Theme.Madar" parent="@android:style/Theme.DeviceDefault.Light.NoActionBar">
+        <item name="android:windowBackground">@drawable/splash_window</item>
+        <item name="android:statusBarColor">@color/light</item>
+        <item name="android:navigationBarColor">@color/light</item>
+        <item name="android:windowLightStatusBar">true</item>
+        <item name="android:windowLightNavigationBar">true</item>
+        <item name="android:colorPrimary">@color/brand</item>
+        <item name="android:colorAccent">@color/brand</item>
+        <item name="android:windowSplashScreenBackground">@color/light</item>
+    </style>
+</resources>

@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>تطبيق مَدار للأندرويد</title>
+<meta name="description" content="تحميل تطبيق مَدار للأندرويد (APK). يفتح التطبيق المنصّة المباشرة على app.madar.raqeem.dev.">
+<meta name="theme-color" content="#f3f7fd">
+<meta name="robots" content="noindex">
+<link rel="icon" href="../icon.svg" type="image/svg+xml">
+<style>
+/* the pitch site's light "glass over sky" look, reduced to one card */
+@font-face{font-family:'Alexandria Local';src:url(../fonts/alexandria-arabic-wght-normal.woff2) format('woff2');font-weight:100 900;font-display:swap;unicode-range:U+0600-06FF,U+0750-077F,U+FB50-FDFF,U+FE70-FEFF}
+@font-face{font-family:'Alexandria Local';src:url(../fonts/alexandria-latin-wght-normal.woff2) format('woff2');font-weight:100 900;font-display:swap}
+@font-face{font-family:'Plex Arabic Local';src:url(../fonts/plex-arabic-arabic-400.woff2) format('woff2');font-weight:400;font-display:swap;unicode-range:U+0600-06FF,U+0750-077F,U+FB50-FDFF,U+FE70-FEFF}
+@font-face{font-family:'Plex Arabic Local';src:url(../fonts/plex-arabic-latin-400.woff2) format('woff2');font-weight:400;font-display:swap}
+@font-face{font-family:'Plex Arabic Local';src:url(../fonts/plex-arabic-arabic-700.woff2) format('woff2');font-weight:700;font-display:swap;unicode-range:U+0600-06FF,U+0750-077F,U+FB50-FDFF,U+FE70-FEFF}
+@font-face{font-family:'Plex Arabic Local';src:url(../fonts/plex-arabic-latin-700.woff2) format('woff2');font-weight:700;font-display:swap}
+:root{
+  color-scheme:light;
+  --bg:#f3f7fd; --ink:#0e1a33; --ink-2:#3f4d68; --ink-3:#5f6c86;
+  --glass:rgba(255,255,255,.56); --glass-line:rgba(255,255,255,.85); --hair:rgba(20,40,80,.09);
+  --brand:#2a5bea; --brand-ink:#1d44b8; --brand-soft:#e4ecfe;
+  --shadow:0 24px 60px -28px rgba(30,60,120,.35), 0 2px 6px -2px rgba(30,60,120,.12);
+  --font-d:'Alexandria Local','Alexandria','Segoe UI','Noto Kufi Arabic','Tahoma',sans-serif;
+  --font-b:'Plex Arabic Local','IBM Plex Sans Arabic','Segoe UI','Noto Sans Arabic','Tahoma',sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{-webkit-text-size-adjust:100%}
+body{font-family:var(--font-b);color:var(--ink);background:var(--bg);line-height:1.8;font-size:17px;min-height:100vh;display:flex;flex-direction:column}
+a{color:inherit;text-decoration:none}
+.sky{position:fixed;inset:0;z-index:-1;overflow:hidden;background:linear-gradient(180deg,#f6f9ff 0%,#eef5fb 45%,#eaf5f2 100%)}
+.blob{position:absolute;border-radius:50%;filter:blur(70px);opacity:.75;animation:drift 26s ease-in-out infinite alternate}
+.blob.b1{width:52vw;height:52vw;right:-12vw;top:-16vw;background:#bcd3ff}
+.blob.b2{width:46vw;height:46vw;left:-14vw;top:40vh;background:#b7eee0;animation-duration:31s}
+.blob.b3{width:40vw;height:40vw;right:8vw;top:70vh;background:#ffd9c2;animation-duration:36s}
+@keyframes drift{from{transform:translate3d(0,0,0) scale(1)}to{transform:translate3d(6vw,5vh,0) scale(1.08)}}
+@media (prefers-reduced-motion:reduce){.blob{animation:none}}
+.nav{padding:16px max(16px,env(safe-area-inset-right)) 0 max(16px,env(safe-area-inset-left));display:flex;justify-content:center}
+.nav a{display:inline-flex;align-items:center;gap:10px;padding:8px 16px 8px 12px;border-radius:999px;background:rgba(255,255,255,.72);border:1px solid var(--glass-line);font-weight:700;font-family:var(--font-d);font-size:1.05rem}
+.nav a img{width:28px;height:28px}
+main{flex:1;display:flex;align-items:center;justify-content:center;padding:28px 16px 40px}
+.card{width:100%;max-width:640px;background:var(--glass);backdrop-filter:blur(18px) saturate(1.5);-webkit-backdrop-filter:blur(18px) saturate(1.5);border:1px solid var(--glass-line);box-shadow:var(--shadow),inset 0 1px 0 rgba(255,255,255,.9);border-radius:26px;padding:40px 28px 34px;text-align:center}
+.mark{width:112px;height:112px;margin:0 auto 18px;display:block;filter:drop-shadow(0 18px 30px rgba(42,91,234,.22))}
+h1{font-family:var(--font-d);font-weight:900;font-size:clamp(1.7rem,5vw,2.3rem);line-height:1.5;letter-spacing:-.01em;margin-bottom:10px}
+.lead{color:var(--ink-2);max-width:34rem;margin:0 auto}
+.lead b{color:var(--ink)}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:10px;margin-top:26px;padding:15px 28px;border-radius:999px;font-weight:700;font-size:1.08rem;background:var(--brand);color:#fff;box-shadow:0 14px 30px -12px rgba(42,91,234,.7);transition:transform .15s,background .2s;max-width:100%}
+.btn:hover{background:var(--brand-ink)}
+.btn:active{transform:translateY(1px) scale(.99)}
+.btn svg{width:22px;height:22px;flex:none}
+.meta{margin-top:14px;font-size:.92rem;color:var(--ink-3)}
+.meta span{white-space:nowrap}
+.meta span+span::before{content:"·";margin:0 .6em}
+.steps{text-align:right;margin-top:30px;padding-top:26px;border-top:1px solid var(--hair)}
+.steps h2{font-family:var(--font-d);font-weight:800;font-size:1.25rem;margin-bottom:12px}
+.steps ol{padding-inline-start:1.4em;color:var(--ink-2);display:grid;gap:8px}
+.steps li::marker{color:var(--brand);font-weight:700}
+.steps b{color:var(--ink);font-weight:700}
+.note{margin-top:18px;padding:12px 16px;border-radius:16px;background:var(--brand-soft);color:var(--brand-ink);font-size:.95rem;text-align:right}
+:focus-visible{outline:3px solid var(--brand);outline-offset:3px;border-radius:8px}
+footer{text-align:center;padding:0 16px 22px;color:var(--ink-3);font-size:.9rem}
+</style>
+</head>
+<body>
+<div class="sky" aria-hidden="true"><div class="blob b1"></div><div class="blob b2"></div><div class="blob b3"></div></div>
+
+<nav class="nav"><a href="../"><img src="../icon.svg" alt="">منظومة مَدار التعليمية</a></nav>
+
+<main>
+  <section class="card">
+    <img class="mark" src="../icon.svg" alt="">
+    <h1>تطبيق مَدار للأندرويد</h1>
+    <p class="lead">يفتح التطبيق المنصّة المباشرة على <b dir="ltr">app.madar.raqeem.dev</b> داخل نافذته الخاصة، فيبقى مَدار بأيقونته على شاشة الهاتف، ويعمل الجدول والواجبات من دون اتصال بعد أول فتح.</p>
+
+    <a class="btn" href="madar.apk" download="madar.apk">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg>
+      تحميل تطبيق مَدار للأندرويد (APK)
+    </a>
+    <p class="meta"><span>الإصدار ١٫٠</span><span>الحجم نحو ٢٤٠ كيلوبايت</span><span>أندرويد ٧٫٠ وما بعده</span></p>
+
+    <div class="steps">
+      <h2>خطوات التثبيت على أندرويد</h2>
+      <ol>
+        <li>اضغط زرّ التحميل أعلاه وانتظر حتى ينتهي تنزيل الملف <b dir="ltr">madar.apk</b>.</li>
+        <li>افتح الملف من إشعار التنزيل، أو من تطبيق «الملفات» في مجلد «التنزيلات».</li>
+        <li>إذا ظهرت رسالة أنّ الهاتف لا يسمح بالتثبيت من هذا المصدر: اضغط <b>«الإعدادات»</b> ثم فعّل <b>«السماح من هذا المصدر»</b> (تثبيت التطبيقات غير المعروفة) للمتصفّح، ثم عُد واضغط <b>«تثبيت»</b>.</li>
+        <li>قد يعرض Google Play Protect تحذيراً لأنّ التطبيق غير منشور في المتجر؛ اختر <b>«تثبيت على أيّ حال»</b>.</li>
+        <li>افتح «مَدار» من شاشة التطبيقات وأدخل رمز الدخول الذي سلّمته لك المدرسة.</li>
+      </ol>
+      <p class="note">يحتاج التطبيق إلى الاتصال بالإنترنت عند فتحه للمرة الأولى فقط؛ بعدها يبقى الجدول والواجبات على الهاتف، ويُرسَل ما سُجِّل أثناء انقطاع الشبكة عند عودتها. لا يطلب التطبيق أيّ إذن سوى الإنترنت.</p>
+    </div>
+  </section>
+</main>
+
+<footer>مَدار · مقترح مشروع مقدَّم إلى مديرية التربية في درعا · ٢٠٢٦</footer>
+</body>
+</html>
