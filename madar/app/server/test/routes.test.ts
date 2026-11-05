@@ -659,7 +659,7 @@ describe('static assets and errors', () => {
     expect(page.headers.get('x-frame-options')).toBe('DENY')
     expect(page.headers.get('x-content-type-options')).toBe('nosniff')
     expect(page.headers.get('referrer-policy')).toBe('strict-origin-when-cross-origin')
-    expect(page.headers.get('content-security-policy')).toMatch(/^default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self' blob:; font-src 'self' data:; manifest-src 'self'; worker-src 'self'/)
+    expect(page.headers.get('content-security-policy')).toMatch(/^default-src 'self'; script-src 'self' https://static.cloudflareinsights.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self' https://cloudflareinsights.com blob:; font-src 'self' data:; manifest-src 'self'; worker-src 'self'/)
     const missing = await app.request('/assets/missing.js', {}, env)
     expect(missing.status).toBe(404)
     expect(missing.headers.get('x-content-type-options')).toBe('nosniff')

@@ -82,8 +82,8 @@ const STATIC_HEADERS: Record<string, string> = {
   'x-content-type-options': 'nosniff',
   'referrer-policy': 'strict-origin-when-cross-origin',
 }
-export const SHELL_CSP = "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; " +
-  "connect-src 'self' blob:; font-src 'self' data:; manifest-src 'self'; worker-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'"
+export const SHELL_CSP = "default-src 'self'; script-src 'self' https://static.cloudflareinsights.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; " +
+  "connect-src 'self' https://cloudflareinsights.com blob:; font-src 'self' data:; manifest-src 'self'; worker-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'"
 function withStaticHeaders(res: Response): Response {
   const out = new Response(res.body, res)
   for (const [k, v] of Object.entries(STATIC_HEADERS)) out.headers.set(k, v)
