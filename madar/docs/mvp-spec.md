@@ -12,7 +12,7 @@ Out of scope: SMS gateway (log only), grades/report cards, digital textbooks (ho
 
 ```
 madar/app/
-  server/        Cloudflare Worker (TypeScript, Hono) + D1 — owner: server builder
+  server/        Cloudflare Worker (TypeScript, Hono) + SQLite-backed Durable Object (D1-shaped shim) — owner: server builder
     package.json  wrangler.toml  tsconfig.json
     src/index.ts  src/auth.ts  src/routes/*.ts  src/substitute.ts  src/seed.ts (seed as TS data) 
     schema.sql    seed.sql (generated or hand-written)  test/*.test.ts (vitest)
@@ -24,7 +24,7 @@ madar/app/
 ```
 The server serves the built client from `../client/dist` as static assets (wrangler `[assets]`, `run_worker_first = true`, API under `/api/*`). One Worker, name `madar-app`, custom domain `app.madar.raqeem.dev`.
 
-## 3. Data model (D1 / SQLite) — `schema.sql`
+## 3. Data model (SQLite inside a Durable Object, D1-shaped API) — `schema.sql`
 
 ```sql
 CREATE TABLE schools (id INTEGER PRIMARY KEY, name TEXT NOT NULL, complex TEXT NOT NULL, shifts INTEGER NOT NULL DEFAULT 1);
@@ -135,21 +135,28 @@ Seeded state for "today" (the server treats the seed's dates relative to the rea
 `madar/app/server/wrangler.toml`:
 ```toml
 name = "madar-app"
-main = "src/index.ts"
+main = "src/worker.ts"
 compatibility_date = "2025-06-01"
 [assets]
 directory = "../client/dist"
 binding = "ASSETS"
 run_worker_first = true
-[[d1_databases]]
-binding = "DB"
-database_name = "madar"
-database_id = "<filled by the integrator>"
+[[durable_objects.bindings]]
+name = "MADAR_DO"
+class_name = "MadarDB"
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["MadarDB"]
+[[rules]]
+type = "Text"
+globs = ["**/*.sql"]
+[triggers]
+crons = ["0 3 * * *"]          # 06:00 Damascus: fresh demo data every morning
 [vars]
 WEEKLY_CAP = "28"
 APP_URL = "https://app.madar.raqeem.dev"
 ```
-Commands: `npm ci && npm run build` in client; `npx wrangler d1 create madar`; `npx wrangler d1 execute madar --remote --file=schema.sql && --file=seed.sql`; `npx wrangler deploy`; custom domain `app.madar.raqeem.dev` attached through the API. Secrets: `TOKEN_SECRET`.
+The database is a SQLite-backed Durable Object (`src/do.ts`, one object named `main`); `src/dbshim.ts` exposes it with the D1 `prepare/bind/all/first/run/batch/exec` shape, so routes and tests are storage-agnostic (the available API token had no D1 permission). Commands: `npm ci && npm run build` in client; `npx wrangler secret put TOKEN_SECRET` and `npx wrangler secret put ADMIN_KEY`; `npx wrangler deploy`; first fill with `ADMIN_KEY=… node scripts/apply-sql.mjs https://app.madar.raqeem.dev schema.sql seed.sql`; later `POST /api/admin/reseed` (header `x-admin-key`) or the daily cron; custom domain `app.madar.raqeem.dev` attached through the API.
 
 ## 10. Android wrapper
 
