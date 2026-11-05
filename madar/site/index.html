@@ -1,0 +1,833 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>منصّة مَدار التعليمية</title>
+<meta name="description" content="مَدار: منظومة تعليمية رقمية متكاملة تربط مديرية التربية والمدرسة والمعلّم والطالب ووليّ الأمر في مدارٍ واحد. عرض الفكرة والنموذج التفاعلي لمديرية تربية درعا.">
+<meta name="theme-color" content="#f3f7fd">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<meta property="og:title" content="مَدار — كلُّ المدرسةِ في مدارٍ واحد">
+<meta property="og:description" content="منظومة تعليمية رقمية تربط المديرية والمدرسة والمعلّم والطالب ووليّ الأمر. عرض الفكرة والنموذج التفاعلي.">
+<meta property="og:type" content="website">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Alexandria:wght@300..900&family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+/* ── Layout concept: a light "glass over sky" page. Soft colour blobs drift behind frosted cards;
+   one accent (deep blue) carries the brand, five role colours mark who sees what. ── */
+@font-face{font-family:'Alexandria Local';src:url(fonts/alexandria-arabic-wght-normal.woff2) format('woff2');font-weight:100 900;font-display:swap;unicode-range:U+0600-06FF,U+0750-077F,U+FB50-FDFF,U+FE70-FEFF}
+@font-face{font-family:'Alexandria Local';src:url(fonts/alexandria-latin-wght-normal.woff2) format('woff2');font-weight:100 900;font-display:swap}
+@font-face{font-family:'Plex Arabic Local';src:url(fonts/plex-arabic-arabic-400.woff2) format('woff2');font-weight:400;font-display:swap;unicode-range:U+0600-06FF,U+0750-077F,U+FB50-FDFF,U+FE70-FEFF}
+@font-face{font-family:'Plex Arabic Local';src:url(fonts/plex-arabic-latin-400.woff2) format('woff2');font-weight:400;font-display:swap}
+@font-face{font-family:'Plex Arabic Local';src:url(fonts/plex-arabic-arabic-500.woff2) format('woff2');font-weight:500;font-display:swap;unicode-range:U+0600-06FF,U+0750-077F,U+FB50-FDFF,U+FE70-FEFF}
+@font-face{font-family:'Plex Arabic Local';src:url(fonts/plex-arabic-latin-500.woff2) format('woff2');font-weight:500;font-display:swap}
+@font-face{font-family:'Plex Arabic Local';src:url(fonts/plex-arabic-arabic-600.woff2) format('woff2');font-weight:600;font-display:swap;unicode-range:U+0600-06FF,U+0750-077F,U+FB50-FDFF,U+FE70-FEFF}
+@font-face{font-family:'Plex Arabic Local';src:url(fonts/plex-arabic-latin-600.woff2) format('woff2');font-weight:600;font-display:swap}
+@font-face{font-family:'Plex Arabic Local';src:url(fonts/plex-arabic-arabic-700.woff2) format('woff2');font-weight:700;font-display:swap;unicode-range:U+0600-06FF,U+0750-077F,U+FB50-FDFF,U+FE70-FEFF}
+@font-face{font-family:'Plex Arabic Local';src:url(fonts/plex-arabic-latin-700.woff2) format('woff2');font-weight:700;font-display:swap}
+
+:root{
+  color-scheme:light;
+  --bg:#f3f7fd; --bg-2:#eaf4f4;
+  --ink:#0e1a33; --ink-2:#3f4d68; --ink-3:#74819b;
+  --glass:rgba(255,255,255,.56); --glass-2:rgba(255,255,255,.8); --glass-line:rgba(255,255,255,.85); --hair:rgba(20,40,80,.09);
+  --brand:#2a5bea; --brand-ink:#1d44b8; --brand-soft:#e4ecfe;
+  --teal:#14a3b4; --violet:#7a5cff; --sun:#f0a020; --rose:#e85d8d; --mint:#19b887; --red:#e0485a;
+  --r-dir:var(--brand); --r-school:var(--teal); --r-teacher:var(--violet); --r-student:var(--sun); --r-parent:var(--rose);
+  --shadow:0 24px 60px -28px rgba(30,60,120,.35), 0 2px 6px -2px rgba(30,60,120,.12);
+  --shadow-sm:0 10px 30px -18px rgba(30,60,120,.35);
+  --radius:26px; --radius-sm:16px;
+  --font-d:'Alexandria Local','Alexandria','Segoe UI','Noto Kufi Arabic','Tahoma',sans-serif;
+  --font-b:'Plex Arabic Local','IBM Plex Sans Arabic','Segoe UI','Noto Sans Arabic','Tahoma',sans-serif;
+  --max:1180px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth;-webkit-text-size-adjust:100%}
+body{font-family:var(--font-b);color:var(--ink);background:var(--bg);line-height:1.75;font-size:17px;direction:rtl;text-align:right;overflow-x:hidden;min-height:100%}
+img,svg{max-width:100%;display:block}
+a{color:inherit;text-decoration:none}
+button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
+h1,h2,h3,h4{font-family:var(--font-d);line-height:1.25;text-wrap:balance;letter-spacing:-.01em}
+h1{font-size:clamp(2.6rem,6vw,4.6rem);font-weight:900}
+h2{font-size:clamp(1.7rem,3.4vw,2.5rem);font-weight:800}
+h3{font-size:1.2rem;font-weight:700}
+p{max-width:68ch}
+.num{font-variant-numeric:tabular-nums}
+:focus-visible{outline:3px solid var(--brand);outline-offset:3px;border-radius:8px}
+@media (prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.001ms!important;animation-iteration-count:1!important;transition-duration:.001ms!important}}
+
+/* sky */
+.sky{position:fixed;inset:0;z-index:-1;overflow:hidden;background:linear-gradient(180deg,#f6f9ff 0%,#eef5fb 45%,#eaf5f2 100%)}
+.blob{position:absolute;border-radius:50%;filter:blur(70px);opacity:.75;will-change:transform;animation:drift 26s ease-in-out infinite alternate}
+.blob.b1{width:52vw;height:52vw;right:-12vw;top:-16vw;background:#bcd3ff}
+.blob.b2{width:46vw;height:46vw;left:-14vw;top:18vh;background:#b7eee0;animation-duration:31s}
+.blob.b3{width:40vw;height:40vw;right:8vw;top:62vh;background:#ffd9c2;animation-duration:36s}
+.blob.b4{width:36vw;height:36vw;left:20vw;top:110vh;background:#dccfff;animation-duration:29s}
+@keyframes drift{from{transform:translate3d(0,0,0) scale(1)}to{transform:translate3d(6vw,5vh,0) scale(1.08)}}
+
+/* glass */
+.glass{background:var(--glass);backdrop-filter:blur(18px) saturate(1.5);-webkit-backdrop-filter:blur(18px) saturate(1.5);border:1px solid var(--glass-line);box-shadow:var(--shadow),inset 0 1px 0 rgba(255,255,255,.9);border-radius:var(--radius)}
+.glass-2{background:var(--glass-2)}
+
+/* nav */
+.nav{position:sticky;top:env(safe-area-inset-top,0px);z-index:50;padding-block:12px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.nav-in{max-width:var(--max);margin:auto;display:flex;align-items:center;gap:18px;padding:10px 14px 10px 18px;border-radius:999px}
+.logo{display:flex;align-items:center;gap:10px;font-family:var(--font-d);font-weight:900;font-size:1.3rem}
+.logo .mark{width:40px;height:40px}
+.nav-links{display:flex;gap:4px;margin-inline-start:auto;flex-wrap:wrap}
+.nav-links a{padding:8px 13px;border-radius:999px;font-weight:600;font-size:.92rem;color:var(--ink-2);transition:background .2s,color .2s}
+.nav-links a:hover{background:rgba(255,255,255,.9);color:var(--ink)}
+.btn{display:inline-flex;align-items:center;gap:8px;padding:12px 22px;border-radius:999px;font-weight:700;transition:transform .15s,box-shadow .2s,background .2s;white-space:nowrap}
+.btn:active{transform:translateY(1px) scale(.99)}
+.btn-primary{background:var(--brand);color:#fff;box-shadow:0 14px 30px -12px rgba(42,91,234,.7)}
+.btn-primary:hover{background:var(--brand-ink)}
+.btn-ghost{background:rgba(255,255,255,.72);border:1px solid var(--glass-line);box-shadow:var(--shadow-sm)}
+.btn-ghost:hover{background:#fff}
+.btn-sm{padding:8px 16px;font-size:.92rem}
+@media (max-width:860px){.nav-links{display:none}}
+
+/* page shell */
+.wrap{max-width:var(--max);margin:auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+section{padding-block:72px}
+.eyebrow{display:inline-flex;align-items:center;gap:8px;font-weight:700;font-size:.85rem;letter-spacing:.02em;color:var(--brand-ink);background:var(--brand-soft);padding:6px 14px;border-radius:999px;margin-bottom:16px}
+.sec-head{max-width:760px;margin-bottom:38px}
+.sec-head p{color:var(--ink-2);font-size:1.08rem;margin-top:12px}
+
+/* hero */
+.hero{padding-block:48px 70px}
+.hero-grid{display:grid;grid-template-columns:1.15fr .85fr;gap:40px;align-items:center}
+.hero h1 .brand{color:var(--brand);display:inline-block}
+.hero .subtitle{font-family:var(--font-d);font-size:clamp(1.25rem,2.4vw,1.7rem);font-weight:600;color:var(--ink-2);margin-top:10px}
+.hero .lead{margin-top:22px;font-size:1.1rem;color:var(--ink-2)}
+.cta{display:flex;gap:12px;flex-wrap:wrap;margin-top:30px}
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:36px}
+.stat{padding:16px 18px;border-radius:var(--radius-sm)}
+.stat b{display:block;font-family:var(--font-d);font-size:1.6rem;font-weight:900;color:var(--brand)}
+.stat span{font-size:.9rem;color:var(--ink-2)}
+@media (max-width:900px){.hero-grid{grid-template-columns:1fr}.stats{grid-template-columns:1fr 1fr}}
+@media (max-width:480px){.stats{grid-template-columns:1fr}}
+
+/* orbit */
+.orbit-wrap{position:relative;aspect-ratio:1;max-width:460px;width:100%;margin:auto}
+.orbit-wrap .core{position:absolute;inset:34%;border-radius:50%;background:linear-gradient(145deg,#fff,#eef3ff);box-shadow:var(--shadow),inset 0 1px 0 #fff;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;font-family:var(--font-d);font-weight:800;color:var(--ink);text-align:center}
+.orbit-wrap .core svg{width:34%;height:34%;color:var(--sun)}
+.ring{position:absolute;border-radius:50%;border:1.5px dashed rgba(42,91,234,.35)}
+.ring.r1{inset:14%;animation:spin 34s linear infinite}
+.ring.r2{inset:0;animation:spin 52s linear infinite reverse}
+@keyframes spin{to{transform:rotate(360deg)}}
+.sat{position:absolute;left:50%;top:0;transform:translate(-50%,-50%)}
+.sat.s2{left:50%;top:100%}
+.sat.s3{left:0;top:50%}
+.sat.s4{left:100%;top:50%}
+.sat .chip{display:flex;align-items:center;gap:8px;padding:9px 14px;border-radius:999px;background:rgba(255,255,255,.9);border:1px solid var(--glass-line);box-shadow:var(--shadow-sm);font-weight:700;font-size:.92rem;white-space:nowrap;animation:spin 34s linear infinite reverse}
+.ring.r2 .sat .chip{animation:spin 52s linear infinite}
+.sat .dot{width:12px;height:12px;border-radius:50%}
+.badge-float{position:absolute;padding:8px 12px;border-radius:14px;background:rgba(255,255,255,.92);border:1px solid var(--glass-line);box-shadow:var(--shadow-sm);font-size:.82rem;font-weight:600;color:var(--ink-2)}
+.badge-float.a{right:-6px;bottom:10%}
+.badge-float.b{left:-4px;top:12%}
+@media (max-width:900px){.orbit-wrap{max-width:360px}.badge-float{display:none}}
+
+/* problem cards */
+.grid{display:grid;gap:18px}
+.g2{grid-template-columns:repeat(2,1fr)}.g3{grid-template-columns:repeat(3,1fr)}.g4{grid-template-columns:repeat(4,1fr)}
+@media (max-width:980px){.g4{grid-template-columns:repeat(2,1fr)}.g3{grid-template-columns:repeat(2,1fr)}}
+@media (max-width:620px){.g4,.g3,.g2{grid-template-columns:1fr}}
+.card{padding:24px;border-radius:var(--radius);min-width:0}
+.card .ic{width:48px;height:48px;border-radius:14px;display:grid;place-items:center;margin-bottom:16px;color:#fff}
+.card .ic svg{width:24px;height:24px}
+.card h3{margin-bottom:8px}
+.card p{color:var(--ink-2);font-size:.98rem}
+.pain .ic{background:linear-gradient(135deg,#ff9c7a,#e85d8d)}
+.pain .quote{font-family:var(--font-d);font-weight:600;color:var(--ink);font-size:1.05rem;margin-bottom:8px}
+
+/* roles diagram */
+.roles-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:14px}
+@media (max-width:980px){.roles-grid{grid-template-columns:repeat(3,1fr)}}
+@media (max-width:620px){.roles-grid{grid-template-columns:1fr 1fr}}
+.role{padding:20px 18px;border-radius:var(--radius);border-top:5px solid var(--c);transition:transform .2s,box-shadow .2s;min-width:0}
+.role:hover{transform:translateY(-4px)}
+.role .ic{width:46px;height:46px;border-radius:50%;background:var(--c);display:grid;place-items:center;color:#fff;margin-bottom:12px}
+.role .ic svg{width:22px;height:22px}
+.role h3{font-size:1.08rem}
+.role ul{list-style:none;margin-top:10px;font-size:.9rem;color:var(--ink-2);display:grid;gap:5px}
+.role li::before{content:"";display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--c);margin-inline-end:8px;vertical-align:middle}
+
+/* principles */
+.princ{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+@media (max-width:980px){.princ{grid-template-columns:1fr 1fr}}
+@media (max-width:620px){.princ{grid-template-columns:1fr}}
+.princ .card{display:flex;gap:16px;align-items:flex-start;padding:20px}
+.princ .ic{flex:none;margin:0;background:var(--brand-soft);color:var(--brand)}
+.princ h3{font-size:1.05rem;margin-bottom:4px}
+
+/* features */
+.feat .ic{background:linear-gradient(135deg,var(--brand),#5e8bff)}
+.feat.t2 .ic{background:linear-gradient(135deg,var(--teal),#5fd3e0)}
+.feat.t3 .ic{background:linear-gradient(135deg,var(--violet),#b19cff)}
+.feat.t4 .ic{background:linear-gradient(135deg,var(--sun),#ffd27a)}
+.feat.t5 .ic{background:linear-gradient(135deg,var(--rose),#ff9ec1)}
+.feat.t6 .ic{background:linear-gradient(135deg,var(--mint),#7fe3bf)}
+.feat .tagline{display:inline-block;margin-top:12px;font-size:.8rem;font-weight:700;color:var(--brand-ink);background:var(--brand-soft);padding:3px 10px;border-radius:999px}
+
+/* demo */
+.demo-top{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:22px}
+.rbtn{display:inline-flex;align-items:center;gap:9px;padding:10px 16px;border-radius:999px;font-weight:700;background:rgba(255,255,255,.72);border:1px solid var(--glass-line);box-shadow:var(--shadow-sm);transition:all .2s;color:var(--ink-2)}
+.rbtn .dot{width:10px;height:10px;border-radius:50%;background:var(--c)}
+.rbtn[aria-selected="true"]{background:var(--c);color:#fff;border-color:transparent}
+.rbtn[aria-selected="true"] .dot{background:#fff}
+.demo-grid{display:grid;grid-template-columns:1.25fr .75fr;gap:24px;align-items:start}
+@media (max-width:980px){.demo-grid{grid-template-columns:1fr}}
+.device{border-radius:34px;padding:12px;background:linear-gradient(160deg,rgba(255,255,255,.9),rgba(255,255,255,.55));border:1px solid var(--glass-line);box-shadow:var(--shadow)}
+.screen{border-radius:26px;background:linear-gradient(180deg,#f8fbff,#f1f5fb);border:1px solid var(--hair);overflow:hidden;min-height:560px;position:relative}
+.sbar{display:flex;align-items:center;justify-content:space-between;padding:12px 18px 0;font-size:.78rem;color:var(--ink-3);font-weight:600}
+.sbar .pill{padding:2px 10px;border-radius:999px;background:#fff;border:1px solid var(--hair);color:var(--ink-2)}
+.app{padding:14px 18px 22px;display:grid;gap:14px;animation:fade .35s ease}
+@keyframes fade{from{opacity:.3;transform:translateY(6px)}to{opacity:1;transform:none}}
+.app-head{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.app-head h3{font-size:1.15rem}
+.app-head small{display:block;color:var(--ink-3);font-size:.82rem;font-weight:500}
+.avatar{width:42px;height:42px;border-radius:50%;background:var(--c,var(--brand));color:#fff;display:grid;place-items:center;font-weight:800;font-family:var(--font-d);box-shadow:var(--shadow-sm)}
+.tile{background:#fff;border:1px solid var(--hair);border-radius:18px;padding:14px 16px;box-shadow:0 8px 24px -18px rgba(30,60,120,.35);min-width:0}
+.tile h4{font-size:.95rem;font-weight:700;margin-bottom:8px;display:flex;align-items:center;gap:8px}
+.tile h4 svg{width:18px;height:18px;color:var(--c,var(--brand))}
+.kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+@media (max-width:620px){.kpis{grid-template-columns:1fr 1fr}}
+.kpi{background:#fff;border:1px solid var(--hair);border-radius:16px;padding:12px 14px}
+.kpi b{display:block;font-family:var(--font-d);font-size:1.35rem;font-weight:900;color:var(--c,var(--brand))}
+.kpi span{font-size:.78rem;color:var(--ink-2)}
+.kpi.warn b{color:var(--sun)}
+.kpi.good b{color:var(--mint)}
+.list{display:grid;gap:8px}
+.row{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:12px;background:#f6f8fd;border:1px solid transparent;font-size:.9rem}
+.row.hl{border-color:rgba(240,160,32,.5);background:#fff7e8}
+.row.ok{background:#eafaf3}
+.row .grow{flex:1;min-width:0}
+.row small{display:block;color:var(--ink-3);font-size:.78rem}
+.tag{display:inline-block;padding:2px 9px;border-radius:999px;font-size:.74rem;font-weight:700;background:#eef2ff;color:var(--brand-ink);white-space:nowrap}
+.tag.sun{background:#fff1d6;color:#9a6200}.tag.mint{background:#dcf7ea;color:#117a57}.tag.rose{background:#ffe3ec;color:#a8235a}.tag.violet{background:#ebe6ff;color:#5235c9}.tag.gray{background:#eef1f6;color:var(--ink-2)}
+.chk{width:22px;height:22px;border-radius:7px;border:2px solid #c9d3e6;display:grid;place-items:center;background:#fff;flex:none;transition:all .15s}
+.chk svg{width:14px;height:14px;color:#fff;opacity:0}
+.row.done .chk{background:var(--mint);border-color:var(--mint)}
+.row.done .chk svg{opacity:1}
+.row.done .grow{text-decoration:line-through;color:var(--ink-3)}
+.bar{height:10px;border-radius:999px;background:#e8edf7;overflow:hidden}
+.bar i{display:block;height:100%;border-radius:999px;background:linear-gradient(90deg,var(--sun),#ffcf6b);transition:width .5s}
+.field{display:grid;gap:4px;font-size:.85rem;color:var(--ink-2)}
+.field span{font-weight:600;font-size:.78rem}
+.field div{background:#f6f8fd;border:1px solid var(--hair);border-radius:10px;padding:8px 12px;color:var(--ink);font-weight:500}
+.fields{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+@media (max-width:620px){.fields{grid-template-columns:1fr}}
+.abtn{display:inline-flex;align-items:center;justify-content:center;gap:8px;padding:10px 16px;border-radius:12px;font-weight:700;font-size:.9rem;background:var(--c,var(--brand));color:#fff;box-shadow:0 10px 20px -12px var(--c,var(--brand));transition:transform .15s,filter .2s}
+.abtn:hover{filter:brightness(1.05)}
+.abtn:active{transform:scale(.98)}
+.abtn.light{background:#fff;color:var(--ink);border:1px solid var(--hair);box-shadow:none}
+.abtn:disabled{opacity:.6;cursor:default}
+.abtn svg{width:18px;height:18px;flex:none}
+.books{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+@media (max-width:620px){.books{grid-template-columns:repeat(2,1fr)}}
+.book{aspect-ratio:3/4;border-radius:12px;padding:10px;color:#fff;display:flex;flex-direction:column;justify-content:space-between;font-weight:700;font-size:.85rem;box-shadow:var(--shadow-sm)}
+.book small{font-size:.68rem;opacity:.9;font-weight:600;background:rgba(255,255,255,.25);padding:2px 7px;border-radius:999px;align-self:flex-start}
+.periods{display:grid;grid-template-columns:repeat(6,1fr);gap:6px}
+@media (max-width:620px){.periods{grid-template-columns:repeat(3,1fr)}}
+.per{background:#f6f8fd;border:1px solid var(--hair);border-radius:12px;padding:8px 6px;text-align:center;font-size:.78rem;font-weight:600}
+.per small{display:block;color:var(--ink-3);font-weight:500;font-size:.7rem}
+.per.now{background:var(--brand-soft);border-color:rgba(42,91,234,.4)}
+.per.sub{background:#fff7e8;border-color:rgba(240,160,32,.5)}
+.chart{display:grid;gap:7px}
+.crow{display:grid;grid-template-columns:110px 1fr 46px;align-items:center;gap:10px;font-size:.84rem}
+.crow .track{height:12px;border-radius:999px;background:#e8edf7;overflow:hidden}
+.crow .track i{display:block;height:100%;border-radius:999px;background:linear-gradient(90deg,var(--brand),#6f97ff)}
+.crow.low .track i{background:linear-gradient(90deg,var(--sun),#ffcf6b)}
+.crow b{font-family:var(--font-d);font-weight:800;text-align:left;direction:ltr}
+.steps{display:grid;gap:8px}
+.step{display:flex;gap:10px;align-items:flex-start;padding:10px 12px;border-radius:12px;background:#f6f8fd;font-size:.88rem;opacity:.35;transition:opacity .4s,transform .4s;transform:translateX(6px)}
+.step.on{opacity:1;transform:none;background:#eafaf3}
+.step .n{flex:none;width:24px;height:24px;border-radius:50%;background:var(--mint);color:#fff;display:grid;place-items:center;font-size:.75rem;font-weight:800}
+.toast{position:absolute;left:16px;right:16px;bottom:16px;background:var(--ink);color:#fff;padding:12px 16px;border-radius:14px;font-size:.9rem;font-weight:600;box-shadow:0 20px 40px -16px rgba(0,0,0,.5);display:flex;gap:10px;align-items:center;transform:translateY(20px);opacity:0;transition:all .3s;pointer-events:none}
+.toast.show{transform:none;opacity:1}
+.toast svg{width:20px;height:20px;color:#7fe3bf;flex:none}
+.notes{padding:22px}
+.notes h3{font-size:1.05rem;margin-bottom:10px;display:flex;align-items:center;gap:10px}
+.notes ul{list-style:none;display:grid;gap:10px;color:var(--ink-2);font-size:.95rem}
+.notes li{display:flex;gap:10px}
+.notes li::before{content:"";flex:none;width:8px;height:8px;border-radius:50%;background:var(--c,var(--brand));margin-top:11px}
+.demo-note{margin-top:14px;font-size:.85rem;color:var(--ink-3)}
+
+/* protocol */
+.flow{display:grid;grid-template-columns:repeat(5,1fr);gap:14px;position:relative}
+@media (max-width:980px){.flow{grid-template-columns:repeat(2,1fr)}}
+@media (max-width:620px){.flow{grid-template-columns:1fr}}
+.fstep{padding:20px 18px;border-radius:var(--radius);position:relative;min-width:0}
+.fstep .n{width:40px;height:40px;border-radius:12px;background:var(--sun);color:#fff;display:grid;place-items:center;font-family:var(--font-d);font-weight:900;margin-bottom:12px;box-shadow:0 10px 20px -10px var(--sun)}
+.fstep h3{font-size:1.02rem;margin-bottom:6px}
+.fstep p{font-size:.9rem;color:var(--ink-2)}
+.fstep .time{display:inline-block;margin-top:10px;font-size:.78rem;font-weight:700;color:#9a6200;background:#fff1d6;padding:3px 10px;border-radius:999px}
+.rules{margin-top:22px;display:grid;grid-template-columns:1fr 1fr;gap:18px}
+@media (max-width:860px){.rules{grid-template-columns:1fr}}
+.rules ol{padding-inline-start:22px;color:var(--ink-2);display:grid;gap:8px;font-size:.96rem}
+.rules li::marker{font-weight:800;color:var(--sun)}
+.callout{border-inline-start:5px solid var(--sun)}
+
+/* compare */
+.table-wrap{overflow-x:auto;border-radius:var(--radius);-webkit-overflow-scrolling:touch}
+table{border-collapse:separate;border-spacing:0;width:100%;min-width:860px;font-size:.92rem}
+th,td{padding:12px 14px;text-align:center;border-bottom:1px solid var(--hair);white-space:nowrap}
+th{font-family:var(--font-d);font-weight:700;font-size:.88rem;color:var(--ink-2);background:rgba(255,255,255,.5);position:sticky;top:0}
+td:first-child,th:first-child{text-align:right;font-weight:600;white-space:normal;min-width:220px;color:var(--ink)}
+th.me,td.me{background:rgba(42,91,234,.08);color:var(--brand-ink);font-weight:800}
+.y{color:var(--mint);font-weight:900;font-size:1.1rem}.p{color:var(--sun);font-weight:900;font-size:1.1rem}.n{color:#c3cad8;font-weight:900;font-size:1.1rem}
+.legend{display:flex;gap:18px;flex-wrap:wrap;margin-top:14px;font-size:.88rem;color:var(--ink-2)}
+.legend span b{margin-inline-end:6px}
+.foot{font-size:.82rem;color:var(--ink-3);margin-top:8px}
+
+/* architecture */
+.arch{display:grid;grid-template-columns:1fr 1fr;gap:20px;align-items:stretch}
+@media (max-width:900px){.arch{grid-template-columns:1fr}}
+.layers{display:grid;gap:10px}
+.layer{display:flex;gap:14px;align-items:center;padding:14px 16px;border-radius:16px;background:rgba(255,255,255,.75);border:1px solid var(--glass-line)}
+.layer .ic{flex:none;width:44px;height:44px;border-radius:12px;display:grid;place-items:center;color:#fff;background:var(--c,var(--brand))}
+.layer .ic svg{width:22px;height:22px}
+.layer b{display:block;font-family:var(--font-d);font-size:.98rem}
+.layer span{font-size:.85rem;color:var(--ink-2)}
+.layer-arrow{text-align:center;color:var(--ink-3);font-size:.8rem;font-weight:700;letter-spacing:.1em}
+.spec{display:grid;gap:12px}
+.spec .item{display:grid;grid-template-columns:150px 1fr;gap:12px;padding:10px 0;border-bottom:1px solid var(--hair);font-size:.95rem}
+.spec .item:last-child{border-bottom:0}
+.spec .item b{color:var(--ink);font-weight:700}
+.spec .item span{color:var(--ink-2)}
+@media (max-width:520px){.spec .item{grid-template-columns:1fr}}
+
+/* roadmap */
+.road{display:grid;grid-template-columns:repeat(4,1fr);gap:16px}
+@media (max-width:980px){.road{grid-template-columns:1fr 1fr}}
+@media (max-width:620px){.road{grid-template-columns:1fr}}
+.phase{padding:22px 20px;border-radius:var(--radius);min-width:0;position:relative}
+.phase .when{font-size:.8rem;font-weight:800;color:var(--brand-ink);background:var(--brand-soft);display:inline-block;padding:3px 10px;border-radius:999px;margin-bottom:12px}
+.phase.now .when{background:var(--mint);color:#fff}
+.phase h3{font-size:1.08rem;margin-bottom:8px}
+.phase ul{list-style:none;display:grid;gap:6px;color:var(--ink-2);font-size:.92rem}
+.phase li{display:flex;gap:8px}
+.phase li svg{flex:none;width:18px;height:18px;color:var(--mint);margin-top:4px}
+.deliver{margin-top:22px;padding:22px 24px;display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+.deliver b{font-family:var(--font-d);margin-inline-end:6px}
+.deliver .pillx{padding:7px 14px;border-radius:999px;background:rgba(255,255,255,.85);border:1px solid var(--glass-line);font-size:.9rem;font-weight:600}
+
+/* kpis */
+.impact{display:grid;grid-template-columns:repeat(5,1fr);gap:14px}
+@media (max-width:980px){.impact{grid-template-columns:repeat(3,1fr)}}
+@media (max-width:620px){.impact{grid-template-columns:1fr 1fr}}
+.imp{padding:20px 18px;border-radius:var(--radius);text-align:center;min-width:0}
+.imp b{display:block;font-family:var(--font-d);font-size:2rem;font-weight:900;color:var(--brand);line-height:1.1}
+.imp span{font-size:.88rem;color:var(--ink-2);display:block;margin-top:6px}
+
+/* video */
+.video-box{padding:14px;border-radius:var(--radius)}
+video{width:100%;border-radius:18px;background:#0e1a33;aspect-ratio:16/9;display:block}
+.video-meta{display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between;padding:14px 8px 4px;color:var(--ink-2);font-size:.92rem}
+
+/* closing */
+.close{padding:40px;text-align:center;border-radius:var(--radius)}
+.close h2{margin-bottom:10px}
+.close p{margin:auto;color:var(--ink-2)}
+.close .url{display:inline-block;margin-top:18px;font-family:var(--font-d);font-weight:800;font-size:1.25rem;color:var(--brand);direction:ltr;background:#fff;padding:10px 20px;border-radius:999px;border:1px solid var(--glass-line);box-shadow:var(--shadow-sm)}
+footer{padding:28px 0 48px;text-align:center;color:var(--ink-3);font-size:.85rem}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+</style>
+</head>
+<body>
+<div class="sky" aria-hidden="true"><div class="blob b1"></div><div class="blob b2"></div><div class="blob b3"></div><div class="blob b4"></div></div>
+
+<svg style="display:none" aria-hidden="true">
+  <symbol id="i-book" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></symbol>
+  <symbol id="i-cal" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="3"/><path d="M16 2v4M8 2v4M3 10h18"/></symbol>
+  <symbol id="i-bell" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/></symbol>
+  <symbol id="i-chart" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M7 15l4-4 4 3 5-6"/></symbol>
+  <symbol id="i-shield" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="M9 12l2 2 4-4"/></symbol>
+  <symbol id="i-wifi" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.6a11 11 0 0 1 14 0M8.5 16a6 6 0 0 1 7 0M2 8.8a16 16 0 0 1 20 0"/><circle cx="12" cy="19.5" r="1"/></symbol>
+  <symbol id="i-msg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a8 8 0 0 1-8 8H6l-3 3V12a8 8 0 0 1 8-8h2a8 8 0 0 1 8 8z"/></symbol>
+  <symbol id="i-users" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.9M16 3.1a4 4 0 0 1 0 7.8"/></symbol>
+  <symbol id="i-clock" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5L20 7"/></symbol>
+  <symbol id="i-alert" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.3 3.9L1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/><path d="M12 9v4M12 17h.01"/></symbol>
+  <symbol id="i-phone" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="2" width="12" height="20" rx="3"/><path d="M11 18h2"/></symbol>
+  <symbol id="i-globe" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18"/></symbol>
+  <symbol id="i-layers" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2l10 5-10 5L2 7l10-5z"/><path d="M2 12l10 5 10-5M2 17l10 5 10-5"/></symbol>
+  <symbol id="i-star" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2l3 7 7 .8-5.2 4.8L18.5 22 12 18.3 5.5 22l1.7-7.4L2 9.8 9 9l3-7z"/></symbol>
+  <symbol id="i-building" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18M5 21V7l7-4 7 4v14"/><path d="M9 21v-5h6v5M9 10h.01M15 10h.01M9 14h.01M15 14h.01"/></symbol>
+  <symbol id="i-school" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 10l10-6 10 6-10 6L2 10z"/><path d="M6 12v5c0 1.5 3 3 6 3s6-1.5 6-3v-5M22 10v6"/></symbol>
+  <symbol id="i-teacher" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="13" rx="2"/><path d="M8 21h8M12 16v5"/><path d="M7 11l3-3 2 2 4-4"/></symbol>
+  <symbol id="i-student" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></symbol>
+  <symbol id="i-parent" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s-7-4.5-7-10a4 4 0 0 1 7-2.5A4 4 0 0 1 19 11c0 5.5-7 10-7 10z"/></symbol>
+  <symbol id="i-cloud" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.5 19a4.5 4.5 0 0 0 .4-9A7 7 0 0 0 4.3 12.5 3.5 3.5 0 0 0 6 19h11.5z"/></symbol>
+  <symbol id="i-db" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M4 5v14c0 1.7 3.6 3 8 3s8-1.3 8-3V5M4 12c0 1.7 3.6 3 8 3s8-1.3 8-3"/></symbol>
+  <symbol id="i-play" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></symbol>
+  <symbol id="i-send" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"/></symbol>
+  <symbol id="i-orbit" viewBox="0 0 48 48" fill="none"><circle cx="24" cy="24" r="21" stroke="currentColor" stroke-width="2.4" stroke-dasharray="4 5"/><circle cx="24" cy="24" r="12" fill="currentColor" opacity=".15"/><circle cx="24" cy="24" r="6.5" fill="currentColor"/><circle cx="24" cy="3" r="4" fill="#f0a020"/><circle cx="45" cy="24" r="3.4" fill="#14a3b4"/><circle cx="24" cy="45" r="3.4" fill="#e85d8d"/><circle cx="3" cy="24" r="3.4" fill="#7a5cff"/></symbol>
+</svg>
+
+<header class="nav">
+  <div class="nav-in glass">
+    <a class="logo" href="#top"><svg class="mark" style="color:var(--brand)"><use href="#i-orbit"/></svg>مَدار</a>
+    <nav class="nav-links" aria-label="أقسام الصفحة">
+      <a href="#why">لماذا</a><a href="#idea">الفكرة</a><a href="#scope">المحدّدات</a><a href="#features">الميزات</a><a href="#demo">النموذج التفاعلي</a><a href="#protocol">غياب المعلّم</a><a href="#compare">مقارنة عالمية</a><a href="#roadmap">خارطة الطريق</a>
+    </nav>
+    <a class="btn btn-primary btn-sm" href="#video"><svg width="16" height="16"><use href="#i-play"/></svg>شاهد الفيديو</a>
+  </div>
+</header>
+
+<main id="top">
+<!-- ═══════════ HERO ═══════════ -->
+<section class="hero wrap">
+  <div class="hero-grid">
+    <div>
+      <span class="eyebrow">مقترح مشروع · مديرية التربية في درعا · تشرين الثاني ٢٠٢٦</span>
+      <h1><span class="brand">مَدار</span><br>كلُّ المدرسةِ في مدارٍ واحد</h1>
+      <p class="subtitle">منظومة تعليمية رقمية متكاملة تربط مديرية التربية والمدرسة والمعلّم والطالب ووليّ الأمر، على الهاتف وعلى الحاسوب، بالعربية بالكامل.</p>
+      <p class="lead">المعلّم يكتب الواجب مرّة واحدة فيصل إلى كلّ الصف وأولياء أمورهم. غياب معلّم لا يعني ضياع حصّة. ومدير التربية يرى مدارسه كلّها في لوحة واحدة بدل تقارير ورقية متأخّرة.</p>
+      <div class="cta">
+        <a class="btn btn-primary" href="#demo"><svg width="18" height="18"><use href="#i-phone"/></svg>جرّب النموذج التفاعلي</a>
+        <a class="btn btn-ghost" href="#video"><svg width="18" height="18"><use href="#i-play"/></svg>العرض الصوتي (٣ دقائق)</a>
+      </div>
+      <div class="stats">
+        <div class="stat glass"><b>٥</b><span>أدوار في منظومة واحدة: المديرية، المدرسة، المعلّم، الطالب، وليّ الأمر</span></div>
+        <div class="stat glass"><b>٠</b><span>حصص ضائعة عند غياب المعلّم، ببروتوكول تعويض آلي</span></div>
+        <div class="stat glass"><b>١٠٠٪</b><span>عربي، يعمل مع إنترنت ضعيف، ورسائل SMS للإشعارات المهمّة</span></div>
+      </div>
+    </div>
+    <div class="orbit-wrap" aria-label="الطالب في المركز وحوله المديرية والمدرسة والمعلّم ووليّ الأمر">
+      <div class="ring r2">
+        <div class="sat s1"><span class="chip"><i class="dot" style="background:var(--r-dir)"></i>مديرية التربية</span></div>
+        <div class="sat s2"><span class="chip"><i class="dot" style="background:var(--r-parent)"></i>وليّ الأمر</span></div>
+      </div>
+      <div class="ring r1">
+        <div class="sat s3"><span class="chip"><i class="dot" style="background:var(--r-school)"></i>المدرسة</span></div>
+        <div class="sat s4"><span class="chip"><i class="dot" style="background:var(--r-teacher)"></i>المعلّم</span></div>
+      </div>
+      <div class="core"><svg><use href="#i-student"/></svg>الطالب</div>
+      <div class="badge-float a">واجب جديد: رياضيات ص ٤٢ · وصل إلى ٣٢ طالباً</div>
+      <div class="badge-float b">الحصة الثالثة: تمّ تعيين معلّم بديل</div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════ WHY ═══════════ -->
+<section id="why" class="wrap">
+  <div class="sec-head">
+    <span class="eyebrow">لماذا الآن؟</span>
+    <h2>المعلومة موجودة في المدرسة، لكنّها لا تصل إلى من يحتاجها في وقتها</h2>
+    <p>أربع مشكلات يومية تعرفها كلّ مدرسة في مديريتنا. كلّ واحدة منها لها حلّ مباشر في مَدار.</p>
+  </div>
+  <div class="grid g4">
+    <div class="card glass pain"><div class="ic"><svg><use href="#i-parent"/></svg></div><div class="quote">«كيف كان يوم ابني؟»</div><p>وليّ الأمر يعرف بالغياب أو بالواجب الفائت بعد أيام، وغالباً من مجموعات واتساب غير رسمية.</p></div>
+    <div class="card glass pain"><div class="ic"><svg><use href="#i-alert"/></svg></div><div class="quote">معلّم غائب = حصّة ضائعة</div><p>ترتيب البديل يتمّ بالهاتف وفي اللحظة الأخيرة، ولا أحد في المديرية يعرف كم حصّة ضاعت هذا الشهر.</p></div>
+    <div class="card glass pain"><div class="ic"><svg><use href="#i-book"/></svg></div><div class="quote">الواجب على اللوح فقط</div><p>طالب غاب أو لم يكتب الواجب لا يعرف ما المطلوب، والكتاب الرقمي موجود لكنّه ليس في متناول اليد.</p></div>
+    <div class="card glass pain"><div class="ic"><svg><use href="#i-chart"/></svg></div><div class="quote">تقارير ورقية متأخّرة</div><p>المديرية تجمع إحصاءات الحضور والغياب يدوياً، فتصل القرارات بعد أن تنتهي المشكلة.</p></div>
+  </div>
+</section>
+
+<!-- ═══════════ IDEA ═══════════ -->
+<section id="idea" class="wrap">
+  <div class="sec-head">
+    <span class="eyebrow">الفكرة</span>
+    <h2>منظومة واحدة، خمسة أدوار، والطالب في المركز</h2>
+    <p>بدل خمس أدوات متفرّقة (دفتر، واتساب، ورق، إكسل، هاتف)، حساب واحد لكلّ شخص يرى ما يخصّه فقط، وتصل كلّ معلومة إلى مكانها الصحيح فور حدوثها.</p>
+  </div>
+  <div class="roles-grid">
+    <div class="role glass" style="--c:var(--r-dir)"><div class="ic"><svg><use href="#i-building"/></svg></div><h3>مديرية التربية</h3><ul><li>لوحة كلّ المدارس لحظياً</li><li>الحضور والغياب والتغطية</li><li>إنذار مبكر للتسرّب</li><li>تقارير بضغطة</li></ul></div>
+    <div class="role glass" style="--c:var(--r-school)"><div class="ic"><svg><use href="#i-school"/></svg></div><h3>إدارة المدرسة</h3><ul><li>الجداول والشعب</li><li>سجلّ الحضور اليومي</li><li>إدارة غياب المعلّمين</li><li>إعلانات لكلّ الأهالي</li></ul></div>
+    <div class="role glass" style="--c:var(--r-teacher)"><div class="ic"><svg><use href="#i-teacher"/></svg></div><h3>المعلّم</h3><ul><li>واجب للصف بضغطة</li><li>تحضير وخطّة الدرس</li><li>العلامات والتصحيح</li><li>تواصل مع الأهالي</li></ul></div>
+    <div class="role glass" style="--c:var(--r-student)"><div class="ic"><svg><use href="#i-student"/></svg></div><h3>الطالب</h3><ul><li>واجباتي وجدولي</li><li>كتبي الرقمية بلا إنترنت</li><li>نقاط وإنجازات</li><li>تمارين تفاعلية</li></ul></div>
+    <div class="role glass" style="--c:var(--r-parent)"><div class="ic"><svg><use href="#i-parent"/></svg></div><h3>وليّ الأمر</h3><ul><li>يوم ابني في شاشة</li><li>إشعار الغياب فوراً</li><li>الواجبات والعلامات</li><li>رسالة للمعلّم</li></ul></div>
+  </div>
+</section>
+
+<!-- ═══════════ SCOPE ═══════════ -->
+<section id="scope" class="wrap">
+  <div class="sec-head">
+    <span class="eyebrow">المحدّدات</span>
+    <h2>ما الذي سنبنيه، ولمن، وبأيّ شروط</h2>
+    <p>ستّة مبادئ تحكم كلّ قرار تصميم في مَدار. كُتبت لتناسب واقع مدارسنا، لا واقع مدارس أخرى.</p>
+  </div>
+  <div class="princ">
+    <div class="card glass"><div class="ic"><svg><use href="#i-globe"/></svg></div><div><h3>عربي بالكامل</h3><p>الواجهة والمحتوى والتقارير من اليمين إلى اليسار، بأرقام عربية ومصطلحات وزارة التربية نفسها.</p></div></div>
+    <div class="card glass"><div class="ic"><svg><use href="#i-wifi"/></svg></div><div><h3>يعمل مع إنترنت ضعيف</h3><p>التطبيق يخزّن الجدول والواجبات والكتب على الهاتف، ويرسل التغييرات عند توفّر الاتصال. الإشعارات الحرجة تصل برسالة SMS.</p></div></div>
+    <div class="card glass"><div class="ic"><svg><use href="#i-shield"/></svg></div><div><h3>بيانات الأطفال محمية</h3><p>تُستضاف البيانات تحت إدارة المديرية، لكلّ دور صلاحيات محدّدة، وسجلّ تدقيق لكلّ عملية، ونسخ احتياطي يومي.</p></div></div>
+    <div class="card glass"><div class="ic"><svg><use href="#i-phone"/></svg></div><div><h3>هاتف أولاً</h3><p>تطبيق أندرويد (APK) لأنه الجهاز الأكثر انتشاراً عند الأهالي والمعلّمين، وموقع ويب للإدارات والمديرية على الحاسوب.</p></div></div>
+    <div class="card glass"><div class="ic"><svg><use href="#i-layers"/></svg></div><div><h3>يبدأ صغيراً ويتوسّع</h3><p>مرحلة تجريبية في عشر مدارس، ثم المديرية كلّها، ثم مستوى الوزارة، بالبنية نفسها دون إعادة بناء.</p></div></div>
+    <div class="card glass"><div class="ic"><svg><use href="#i-book"/></svg></div><div><h3>المنهاج الرسمي كما هو</h3><p>الكتب المدرسية الرقمية الصادرة عن المركز الوطني لتطوير المناهج التربوية، مرتبطة بالجدول والواجبات صفحةً بصفحة.</p></div></div>
+  </div>
+</section>
+
+<!-- ═══════════ FEATURES ═══════════ -->
+<section id="features" class="wrap">
+  <div class="sec-head">
+    <span class="eyebrow">الميزات الأساسية</span>
+    <h2>ما الذي يفعله مَدار كلّ يوم دراسي</h2>
+  </div>
+  <div class="grid g3">
+    <div class="card glass feat"><div class="ic"><svg><use href="#i-book"/></svg></div><h3>الواجبات حسب الصف والشعبة</h3><p>المعلّم ينشر واجباً للصف الخامس (ب) مع موعد التسليم وصفحة الكتاب والمرفقات، فيصل لكلّ طالب ووليّ أمر مع تذكير آلي قبل الموعد. التسليم والتصحيح من التطبيق.</p><span class="tagline">قلب التجربة اليومية</span></div>
+    <div class="card glass feat t2"><div class="ic"><svg><use href="#i-cal"/></svg></div><h3>الجدول والحضور</h3><p>جدول كلّ شعبة ومعلّم، وتسجيل الحضور في دقيقة من هاتف المعلّم. غياب الطالب يصل لوليّ الأمر في الحصة الأولى، لا في نهاية الشهر.</p><span class="tagline">إشعار الغياب خلال دقائق</span></div>
+    <div class="card glass feat t4"><div class="ic"><svg><use href="#i-alert"/></svg></div><h3>بروتوكول غياب المعلّم</h3><p>عند غياب معلّم يحدّد النظام الحصص المتأثّرة ويقترح بديلاً متاحاً ويرسل له خطّة الدرس، ويبلّغ الطلاب والأهالي والمديرية في اللحظة نفسها.</p><span class="tagline">الميزة التي لا تملكها المنصّات العالمية</span></div>
+    <div class="card glass feat t3"><div class="ic"><svg><use href="#i-layers"/></svg></div><h3>المنهاج والكتب الرقمية</h3><p>كلّ كتاب مدرسي رسمي متاح داخل التطبيق ويُحمَّل مرّة واحدة للعمل بلا إنترنت، مع خريطة المنهاج والدروس وربط الواجب بصفحته.</p><span class="tagline">يعمل بلا إنترنت</span></div>
+    <div class="card glass feat t6"><div class="ic"><svg><use href="#i-chart"/></svg></div><h3>العلامات والتقييم</h3><p>مذاكرات واختبارات وأعمال صف تُسجَّل مرّة واحدة وتظهر للطالب ووليّ الأمر والإدارة، مع كشف العلامات الرسمي بصيغة PDF.</p><span class="tagline">كشف علامات بضغطة</span></div>
+    <div class="card glass feat t5"><div class="ic"><svg><use href="#i-msg"/></svg></div><h3>التواصل الرسمي</h3><p>إعلانات المدرسة لكلّ الأهالي، ورسائل خاصة بين المعلّم ووليّ الأمر، وتعميمات المديرية للمدارس، كلّها موثّقة ومنظّمة بدل مجموعات واتساب.</p><span class="tagline">يستبدل مجموعات واتساب</span></div>
+    <div class="card glass feat"><div class="ic"><svg><use href="#i-building"/></svg></div><h3>لوحة مديرية التربية</h3><p>حضور كلّ مدرسة، حصص الغياب وتغطيتها، نشاط الواجبات، توزيع العلامات، واحتياجات المدارس من الكتب والمعلّمين، بتقارير أسبوعية آلية.</p><span class="tagline">قرار مبني على بيانات اليوم</span></div>
+    <div class="card glass feat t2"><div class="ic"><svg><use href="#i-shield"/></svg></div><h3>إنذار مبكر للتسرّب</h3><p>ثلاثة أيام غياب متواصلة أو تراجع حادّ في العلامات يطلق تنبيهاً للمرشد والإدارة ووليّ الأمر قبل أن يصبح الغياب تسرّباً.</p><span class="tagline">حماية للطالب</span></div>
+    <div class="card glass feat t4"><div class="ic"><svg><use href="#i-star"/></svg></div><h3>تجربة ممتعة للطالب</h3><p>نقاط وإنجازات وسلسلة أيام لإنجاز الواجبات، وتمارين تفاعلية من الكتاب نفسه، فيتحوّل الواجب من عبء إلى لعبة تعليمية.</p><span class="tagline">مصمّم للأطفال</span></div>
+  </div>
+</section>
+
+<!-- ═══════════ DEMO ═══════════ -->
+<section id="demo" class="wrap">
+  <div class="sec-head">
+    <span class="eyebrow">النموذج التفاعلي</span>
+    <h2>جرّب مَدار بعين كلّ دور</h2>
+    <p>اختر دوراً واضغط على الأزرار داخل الشاشة. البيانات تجريبية للعرض، والشاشات تمثّل التصميم المقترح للتطبيق.</p>
+  </div>
+  <div class="demo-top" role="tablist" aria-label="اختر الدور">
+    <button class="rbtn" role="tab" data-role="teacher" style="--c:var(--r-teacher)" aria-selected="true"><i class="dot"></i>المعلّم</button>
+    <button class="rbtn" role="tab" data-role="student" style="--c:var(--r-student)" aria-selected="false"><i class="dot"></i>الطالب</button>
+    <button class="rbtn" role="tab" data-role="parent" style="--c:var(--r-parent)" aria-selected="false"><i class="dot"></i>وليّ الأمر</button>
+    <button class="rbtn" role="tab" data-role="school" style="--c:var(--r-school)" aria-selected="false"><i class="dot"></i>إدارة المدرسة</button>
+    <button class="rbtn" role="tab" data-role="dir" style="--c:var(--r-dir)" aria-selected="false"><i class="dot"></i>مديرية التربية</button>
+  </div>
+  <div class="demo-grid">
+    <div class="device">
+      <div class="screen" id="screen">
+        <div class="sbar"><span class="num">٧:٤٢</span><span class="pill">مَدار</span><span>الخميس ٥ تشرين الثاني</span></div>
+        <div class="app" id="app"></div>
+        <div class="toast" id="toast" role="status" aria-live="polite"><svg><use href="#i-check"/></svg><span id="toast-text"></span></div>
+      </div>
+    </div>
+    <aside class="notes glass" id="notes"></aside>
+  </div>
+  <p class="demo-note">الأسماء والأرقام في النموذج تجريبية. التطبيق النهائي يستورد قوائم المدارس والمعلّمين والطلاب من ملفات المديرية (Excel) مباشرة.</p>
+</section>
+
+<!-- ═══════════ PROTOCOL ═══════════ -->
+<section id="protocol" class="wrap">
+  <div class="sec-head">
+    <span class="eyebrow">بروتوكول غياب المعلّم</span>
+    <h2>من لحظة التبليغ إلى تغطية الحصة في أقلّ من عشر دقائق</h2>
+    <p>هذا هو الجزء الذي صُمّم خصيصاً لمدارسنا. المنصّات العالمية تفترض أن المعلّم موجود دائماً، ومَدار يفترض أنّ الغياب جزء من الواقع ويجب إدارته لا تجاهله.</p>
+  </div>
+  <div class="flow">
+    <div class="fstep glass"><div class="n">١</div><h3>التبليغ</h3><p>المعلّم يسجّل غيابه من التطبيق (أو تسجّله الإدارة) مع السبب والمدّة.</p><span class="time">قبل ٧:٠٠ صباحاً</span></div>
+    <div class="fstep glass"><div class="n">٢</div><h3>تحليل الأثر</h3><p>النظام يقرأ جدول اليوم ويحدّد الحصص والشعب المتأثّرة فوراً.</p><span class="time">آلي · ثوانٍ</span></div>
+    <div class="fstep glass"><div class="n">٣</div><h3>اقتراح البديل</h3><p>يبحث عن معلّم متاح في الحصة نفسها حسب الأولوية ويقترح أفضل خيار، فتعتمده الإدارة بضغطة.</p><span class="time">دقيقتان</span></div>
+    <div class="fstep glass"><div class="n">٤</div><h3>التجهيز والإبلاغ</h3><p>يصل البديل خطّة الدرس أو نشاط رقمي من الكتاب، ويُبلَّغ الطلاب والأهالي بالتغيير ويتحدّث الجدول.</p><span class="time">فوري</span></div>
+    <div class="fstep glass"><div class="n">٥</div><h3>المتابعة</h3><p>المديرية ترى الحالة لحظياً، وتُحسب نسبة التغطية لكلّ مدرسة شهرياً.</p><span class="time">لحظي</span></div>
+  </div>
+  <div class="rules">
+    <div class="card glass"><h3>أولويات اختيار البديل</h3><ol><li>معلّم المادة نفسها لديه حصّة فراغ في الوقت نفسه.</li><li>معلّم يدرّس الشعبة نفسها في مادة أخرى (يعرف الطلاب).</li><li>أيّ معلّم شاغر، مع مراعاة ألّا يتجاوز نصابه الأسبوعي حدّاً معيّناً.</li><li>توزيع عادل: من غطّى أكثر هذا الشهر يأتي آخراً في الاقتراحات.</li></ol></div>
+    <div class="card glass callout"><h3>وإذا لم يوجد بديل؟</h3><p>تتحوّل الحصة إلى <b>حصّة تعلّم ذاتي موجَّه</b>: درس رقمي من الكتاب وتمرين تفاعلي يحلّه الطلاب على أجهزة المدرسة أو ورقياً، بإشراف الإدارة أو المرشد. تُسجَّل الحصة على أنها «مغطّاة ذاتياً» وتظهر للمديرية بلون مختلف، وتقترح المنظومة تعويضها لاحقاً إن تكرّر الغياب.</p></div>
+  </div>
+</section>
+
+<!-- ═══════════ COMPARE ═══════════ -->
+<section id="compare" class="wrap">
+  <div class="sec-head">
+    <span class="eyebrow">مقارنة عالمية</span>
+    <h2>تعلّمنا من أفضل المنظومات في العالم، وأضفنا ما تحتاجه مدارسنا</h2>
+    <p>إستونيا تدير مدارسها كلّها بنظام eKool منذ عقدين. فنلندا تربط الأهالي بالمدارس عبر Wilma. السعودية بنت «مدرستي» و«نور» على مستوى الوزارة. وغوغل ومايكروسوفت تقدّمان أفضل أدوات الصف. مَدار يجمع أفضل ما في هذه النماذج ويضيف ما لا يملكه أيّ منها.</p>
+  </div>
+  <div class="table-wrap glass">
+    <table>
+      <thead><tr><th>الميزة</th><th class="me">مَدار</th><th>Google Classroom</th><th>Microsoft Teams للتعليم</th><th>مدرستي (السعودية)</th><th>eKool (إستونيا)</th><th>ClassDojo</th><th>PowerSchool</th></tr></thead>
+      <tbody>
+        <tr><td>طبقة المديرية / الوزارة (لوحة لكلّ المدارس)</td><td class="me y">✓</td><td class="n">✗</td><td class="n">✗</td><td class="y">✓</td><td class="y">✓</td><td class="n">✗</td><td class="y">✓</td></tr>
+        <tr><td>إدارة المدرسة: جداول، شعب، سجلّ حضور</td><td class="me y">✓</td><td class="n">✗</td><td class="p">◐</td><td class="p">◐</td><td class="y">✓</td><td class="p">◐</td><td class="y">✓</td></tr>
+        <tr><td>واجبات حسب الصف والشعبة مع تذكير لوليّ الأمر</td><td class="me y">✓</td><td class="p">◐</td><td class="p">◐</td><td class="y">✓</td><td class="y">✓</td><td class="p">◐</td><td class="p">◐</td></tr>
+        <tr><td>بروتوكول آلي لغياب المعلّم وتعيين البديل</td><td class="me y">✓</td><td class="n">✗</td><td class="n">✗</td><td class="n">✗</td><td class="n">✗</td><td class="n">✗</td><td class="p">◐</td></tr>
+        <tr><td>الكتب المدرسية الرسمية داخل التطبيق</td><td class="me y">✓</td><td class="p">◐</td><td class="p">◐</td><td class="y">✓</td><td class="p">◐</td><td class="n">✗</td><td class="n">✗</td></tr>
+        <tr><td>يعمل بلا إنترنت مستقرّ + إشعارات SMS</td><td class="me y">✓</td><td class="p">◐</td><td class="p">◐</td><td class="n">✗</td><td class="n">✗</td><td class="n">✗</td><td class="n">✗</td></tr>
+        <tr><td>إنذار مبكر للتسرّب</td><td class="me y">✓</td><td class="n">✗</td><td class="n">✗</td><td class="p">◐</td><td class="y">✓</td><td class="n">✗</td><td class="p">◐</td></tr>
+        <tr><td>عربي بالكامل من اليمين إلى اليسار</td><td class="me y">✓</td><td class="y">✓</td><td class="y">✓</td><td class="y">✓</td><td class="n">✗</td><td class="p">◐</td><td class="p">◐</td></tr>
+        <tr><td>البيانات تحت إدارة المديرية (سيادة البيانات)</td><td class="me y">✓</td><td class="n">✗</td><td class="n">✗</td><td class="y">✓</td><td class="p">◐</td><td class="n">✗</td><td class="p">◐</td></tr>
+        <tr><td>تجربة ممتعة للطالب (نقاط، إنجازات، تمارين)</td><td class="me y">✓</td><td class="n">✗</td><td class="n">✗</td><td class="p">◐</td><td class="n">✗</td><td class="y">✓</td><td class="n">✗</td></tr>
+        <tr><td>التكلفة لكلّ طالب</td><td class="me">منخفضة جداً</td><td>مجاني مع Workspace</td><td>مجاني / مدفوع</td><td>حكومي</td><td>اشتراك سنوي</td><td>مجاني + مدفوع</td><td>مرتفعة</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="legend"><span><b class="y">✓</b>متوفّر</span><span><b class="p">◐</b>جزئي أو عبر إضافات</span><span><b class="n">✗</b>غير متوفّر</span></div>
+  <p class="foot">المقارنة مبنية على المزايا المعلنة لكلّ منصّة حتى ٢٠٢٦ وهي للاسترشاد؛ تختلف التفاصيل بحسب الإصدار والاشتراك.</p>
+</section>
+
+<!-- ═══════════ ARCHITECTURE ═══════════ -->
+<section id="tech" class="wrap">
+  <div class="sec-head">
+    <span class="eyebrow">البنية التقنية</span>
+    <h2>بنية بسيطة، آمنة، ورخيصة التشغيل</h2>
+    <p>نفس التطبيق يعمل على الهاتف وعلى الحاسوب. الخادم يمكن أن يكون سحابياً في المرحلة التجريبية، ثم ينتقل إلى خوادم المديرية عند التعميم دون تغيير في التطبيق.</p>
+  </div>
+  <div class="arch">
+    <div class="card glass">
+      <div class="layers">
+        <div class="layer" style="--c:var(--violet)"><div class="ic"><svg><use href="#i-phone"/></svg></div><div><b>تطبيق أندرويد (APK) + موقع ويب (PWA)</b><span>واجهة واحدة لكلّ الأدوار، تخزين محلي للجدول والواجبات والكتب، مزامنة عند توفّر الاتصال.</span></div></div>
+        <div class="layer-arrow">▼ HTTPS مشفّر</div>
+        <div class="layer" style="--c:var(--brand)"><div class="ic"><svg><use href="#i-cloud"/></svg></div><div><b>واجهة برمجية (API) وخدمات</b><span>الصلاحيات حسب الدور، بروتوكول الغياب، الإشعارات، توليد التقارير، التكامل مع Excel.</span></div></div>
+        <div class="layer-arrow">▼</div>
+        <div class="layer" style="--c:var(--teal)"><div class="ic"><svg><use href="#i-db"/></svg></div><div><b>قاعدة بيانات + مخزن الكتب</b><span>سجلّات مشفّرة، نسخ احتياطي يومي، تدقيق لكلّ عملية. قابلة للاستضافة سحابياً أو داخل المديرية.</span></div></div>
+        <div class="layer-arrow">▼</div>
+        <div class="layer" style="--c:var(--rose)"><div class="ic"><svg><use href="#i-msg"/></svg></div><div><b>بوابة الرسائل النصّية (SMS)</b><span>الإشعارات الحرجة (غياب طالب، تغيير حصة، إعلان عاجل) تصل حتى بلا إنترنت عبر المشغّلين المحليين.</span></div></div>
+      </div>
+    </div>
+    <div class="card glass">
+      <h3 style="margin-bottom:14px">المواصفات</h3>
+      <div class="spec">
+        <div class="item"><b>الأجهزة</b><span>أندرويد ٧ وما بعد، وأيّ متصفّح حديث على الحاسوب. إصدار iOS في مرحلة لاحقة.</span></div>
+        <div class="item"><b>الدخول</b><span>رقم الهاتف أو رقم القيد المدرسي + رمز تحقّق. تحقّق بخطوتين لحسابات الإدارة والمديرية.</span></div>
+        <div class="item"><b>الصلاحيات</b><span>خمسة أدوار؛ كلّ مستخدم يرى بيانات مدرسته وشعبته وأبنائه فقط.</span></div>
+        <div class="item"><b>الاستيراد</b><span>قوائم المدارس والمعلّمين والطلاب والجداول من ملفات Excel الحالية للمديرية.</span></div>
+        <div class="item"><b>التصدير</b><span>كشوف العلامات والحضور والتقارير بصيغة PDF وExcel بالقوالب الرسمية.</span></div>
+        <div class="item"><b>الاستضافة</b><span>سحابة بتكلفة شبه معدومة في التجريب (Cloudflare)، ثم خوادم محلية داخل المديرية عند التعميم.</span></div>
+        <div class="item"><b>الخصوصية</b><span>لا إعلانات، لا بيع بيانات، حذف بيانات الخرّيجين حسب سياسة المديرية.</span></div>
+        <div class="item"><b>الدعم</b><span>تدريب كادر كلّ مدرسة في جلسة واحدة، ودليل مصوّر، ورقم دعم خلال الدوام.</span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════ ROADMAP ═══════════ -->
+<section id="roadmap" class="wrap">
+  <div class="sec-head">
+    <span class="eyebrow">خارطة الطريق</span>
+    <h2>نبدأ بعشر مدارس، ونصل إلى مستوى الوزارة بالبنية نفسها</h2>
+  </div>
+  <div class="road">
+    <div class="phase glass now"><span class="when">الآن</span><h3>الفكرة والنموذج</h3><ul><li><svg><use href="#i-check"/></svg>هذا العرض والنموذج التفاعلي</li><li><svg><use href="#i-check"/></svg>الفيديو التعريفي</li><li><svg><use href="#i-check"/></svg>موافقة المديرية على المرحلة التجريبية</li></ul></div>
+    <div class="phase glass"><span class="when">المرحلة ١ · ٨ أسابيع</span><h3>النسخة التجريبية</h3><ul><li><svg><use href="#i-check"/></svg>١٠ مدارس في مدينة درعا وريفها</li><li><svg><use href="#i-check"/></svg>الواجبات، الجدول والحضور، غياب المعلّم، التواصل</li><li><svg><use href="#i-check"/></svg>تطبيق أندرويد + موقع ويب</li><li><svg><use href="#i-check"/></svg>تدريب الكوادر وقياس الأثر</li></ul></div>
+    <div class="phase glass"><span class="when">المرحلة ٢ · ٣ أشهر</span><h3>التعميم على المديرية</h3><ul><li><svg><use href="#i-check"/></svg>كلّ مدارس مديرية درعا</li><li><svg><use href="#i-check"/></svg>لوحة المديرية الكاملة والإنذار المبكر</li><li><svg><use href="#i-check"/></svg>بوابة SMS والكتب الرقمية كاملة</li><li><svg><use href="#i-check"/></svg>النشر على المتاجر</li></ul></div>
+    <div class="phase glass"><span class="when">المرحلة ٣ · ٦ أشهر+</span><h3>مستوى الوزارة</h3><ul><li><svg><use href="#i-check"/></svg>محافظات إضافية ولوحة وطنية</li><li><svg><use href="#i-check"/></svg>تحليلات متقدّمة ومساعد ذكي للمعلّم</li><li><svg><use href="#i-check"/></svg>تكامل مع أنظمة الوزارة والامتحانات</li></ul></div>
+  </div>
+  <div class="deliver glass"><b>المخرجات النهائية:</b><span class="pillx">تطبيق أندرويد (APK)</span><span class="pillx">موقع ويب يعمل كتطبيق</span><span class="pillx">لوحة إدارة المدرسة</span><span class="pillx">لوحة مديرية التربية</span><span class="pillx">خادم وقاعدة بيانات</span><span class="pillx">بوابة SMS</span><span class="pillx">دليل استخدام وتدريب</span></div>
+</section>
+
+<!-- ═══════════ IMPACT ═══════════ -->
+<section id="impact" class="wrap">
+  <div class="sec-head">
+    <span class="eyebrow">مؤشرات الأثر</span>
+    <h2>كيف نعرف أنّ المشروع نجح؟</h2>
+    <p>أهداف المرحلة التجريبية التي سنقيسها معكم في نهاية الأسابيع الثمانية.</p>
+  </div>
+  <div class="impact">
+    <div class="imp glass"><b>٩٥٪</b><span>من حصص المعلّمين الغائبين مغطّاة ببديل أو نشاط موجَّه</span></div>
+    <div class="imp glass"><b>٩٠٪</b><span>من أولياء الأمور يصلهم الواجب وإشعار الغياب في اليوم نفسه</span></div>
+    <div class="imp glass"><b>يومي</b><span>سجلّ حضور لكلّ مدرسة يصل المديرية بدل التقرير الشهري</span></div>
+    <div class="imp glass"><b>دقائق</b><span>لإعداد تقرير المديرية بدل أيام من الجمع اليدوي</span></div>
+    <div class="imp glass"><b>٣ أيام</b><span>حدّ الإنذار المبكر لكلّ طالب معرَّض للتسرّب</span></div>
+  </div>
+</section>
+
+<!-- ═══════════ VIDEO ═══════════ -->
+<section id="video" class="wrap">
+  <div class="sec-head">
+    <span class="eyebrow">العرض الصوتي</span>
+    <h2>مَدار في ثلاث دقائق</h2>
+    <p>شرح سريع للفكرة بالصوت والصورة، مناسب للعرض في الاجتماع أو للإرسال عبر واتساب.</p>
+  </div>
+  <div class="video-box glass">
+    <video id="brief" controls preload="metadata" poster="video/poster.jpg" playsinline>
+      <source src="video/madar-brief.mp4" type="video/mp4">
+      متصفحك لا يدعم تشغيل الفيديو. يمكنك تحميله من الرابط أدناه.
+    </video>
+    <div class="video-meta"><span>تعليق صوتي بالعربية الفصحى · دقّة عالية</span><a class="btn btn-ghost btn-sm" href="video/madar-brief.mp4" download>تحميل الفيديو</a></div>
+  </div>
+</section>
+
+<!-- ═══════════ CLOSE ═══════════ -->
+<section class="wrap" style="padding-top:20px">
+  <div class="close glass">
+    <span class="eyebrow">جاهزون للبدء</span>
+    <h2>نقترح مرحلة تجريبية في عشر مدارس خلال ثمانية أسابيع</h2>
+    <p>بلا تكلفة على المديرية في المرحلة التجريبية. ما نحتاجه هو ترشيح المدارس، وقوائم المعلّمين والطلاب، وجلسة تدريب واحدة لكلّ مدرسة.</p>
+    <span class="url">madar.raqeem.dev</span>
+  </div>
+</section>
+</main>
+<footer class="wrap">مَدار · مقترح مشروع مقدَّم إلى مديرية التربية في درعا · ٢٠٢٦</footer>
+
+<script>
+(function(){
+  const $=s=>document.querySelector(s);
+  const app=$('#app'), notes=$('#notes'), toast=$('#toast'), toastText=$('#toast-text');
+  let toastTimer;
+  function say(t){toastText.textContent=t;toast.classList.add('show');clearTimeout(toastTimer);toastTimer=setTimeout(()=>toast.classList.remove('show'),3400)}
+  const ic=n=>`<svg aria-hidden="true"><use href="#i-${n}"/></svg>`;
+
+  const SUB_STEPS=[
+    'تمّ تسجيل غياب أ. رنا الزعبي (علوم) لليوم',
+    'الحصص المتأثّرة: الثالثة الخامس (ب)، الخامسة الرابع (أ)',
+    'البديل المقترح للحصة الثالثة: أ. ماهر الأحمد (علوم، حصّة فراغ)',
+    'أُرسلت خطّة الدرس «دورة الماء في الطبيعة» إلى البديل',
+    'أُبلغ ٣٢ طالباً و٣٠ وليّ أمر بالتغيير، وتحدّث الجدول',
+    'وصلت الحالة إلى لوحة مديرية التربية: مغطّاة ✓'
+  ];
+
+  const ROLES={
+    teacher:{c:'var(--r-teacher)',title:'المعلّم',notes:['ينشر الواجب مرّة واحدة فيصل إلى كلّ الصف وأولياء أمورهم، مع تذكير آلي قبل الموعد.','يسجّل الحضور في دقيقة من هاتفه أثناء الحصة.','يبلّغ عن غيابه من التطبيق، ويرى النظام يرتّب البديل بدلاً من عشر مكالمات.'],
+      html:()=>`
+      <div class="app-head"><div><h3>صباح الخير، أ. سامر</h3><small>رياضيات · الخامس (أ) و(ب)، السادس (أ) · ٥ حصص اليوم</small></div><div class="avatar" style="--c:var(--r-teacher)">س</div></div>
+      <div class="tile" style="--c:var(--r-teacher)"><h4>${ic('book')} واجب جديد · الصف الخامس (ب) · رياضيات</h4>
+        <div class="fields">
+          <label class="field"><span>العنوان</span><div>تمارين الكسور العشرية</div></label>
+          <label class="field"><span>صفحة الكتاب</span><div>كتاب الرياضيات، ص ٤٢ (التمارين ١ إلى ٦)</div></label>
+          <label class="field"><span>موعد التسليم</span><div>الأحد ٩ تشرين الثاني</div></label>
+          <label class="field"><span>التذكير</span><div>مساء السبت للطلاب وأولياء الأمور</div></label>
+        </div>
+        <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap"><button class="abtn" id="pub" style="--c:var(--r-teacher)">${ic('send')} نشر الواجب للصف</button><button class="abtn light" data-say="أُضيف المرفق: صفحة ٤٢ من الكتاب الرقمي">إضافة مرفق</button></div>
+      </div>
+      <div class="tile"><h4>${ic('cal')} حصصك اليوم</h4>
+        <div class="periods">
+          <div class="per"><small>١</small>الخامس (أ)</div><div class="per"><small>٢</small>السادس (أ)</div><div class="per now"><small>٣</small>الخامس (ب)</div><div class="per"><small>٤</small>فراغ</div><div class="per"><small>٥</small>الخامس (أ)</div><div class="per"><small>٦</small>السادس (أ)</div>
+        </div>
+      </div>
+      <div class="tile" style="--c:var(--sun)"><h4>${ic('alert')} غياب المعلّم</h4>
+        <p style="font-size:.88rem;color:var(--ink-2);margin-bottom:10px">سجّل غيابك (أو غياب زميل) ودع النظام يرتّب البديل ويبلّغ الجميع.</p>
+        <button class="abtn" id="absent" style="--c:var(--sun)">تسجيل غياب أ. رنا الزعبي اليوم</button>
+        <div class="steps" id="steps" style="margin-top:12px">${SUB_STEPS.map((s,i)=>`<div class="step"><span class="n">${['١','٢','٣','٤','٥','٦'][i]}</span><span>${s}</span></div>`).join('')}</div>
+      </div>
+      <div class="tile"><h4>${ic('check')} تسليمات بانتظار التصحيح</h4>
+        <div class="list">
+          <div class="row"><span class="grow">محمد المسالمة · واجب الكسور العادية<small>سُلّم أمس ٨:١٠ مساءً</small></span><span class="tag mint">صحّح</span></div>
+          <div class="row"><span class="grow">ليان الحريري · واجب الكسور العادية<small>سُلّم أمس ٦:٤٥ مساءً</small></span><span class="tag mint">صحّح</span></div>
+          <div class="row"><span class="grow">عبد الرحمن الزعبي · واجب الكسور العادية<small>لم يُسلَّم بعد · تذكير أُرسل لوليّ الأمر</small></span><span class="tag sun">متأخّر</span></div>
+        </div>
+      </div>`},
+    student:{c:'var(--r-student)',title:'الطالب',notes:['يرى واجباته وجدوله وكتبه في مكان واحد، حتى بلا إنترنت.','كلّ واجب يُنجَز يمنحه نقاطاً ويزيد سلسلة أيامه، فيعود إلى التطبيق كلّ يوم.','يعرف أنّ الحصة الثالثة اليوم مع معلّم بديل، ولماذا.'],
+      html:()=>`
+      <div class="app-head"><div><h3>أهلاً ليان!</h3><small>الصف الخامس (ب) · مدرسة درعا النموذجية</small></div><div class="avatar" style="--c:var(--r-student)">ل</div></div>
+      <div class="tile" style="--c:var(--r-student)"><h4>${ic('star')} تقدّمي</h4>
+        <div style="display:flex;justify-content:space-between;font-size:.85rem;color:var(--ink-2);margin-bottom:6px"><span>المستوى ٤ · <b id="xp" class="num">٣٢٠</b> نقطة</span><span>سلسلة ٧ أيام</span></div>
+        <div class="bar"><i id="xpbar" style="width:64%"></i></div>
+      </div>
+      <div class="tile" style="--c:var(--r-student)"><h4>${ic('book')} واجباتي · اضغط لإنهاء</h4>
+        <div class="list" id="hw">
+          <div class="row" data-hw><span class="chk">${ic('check')}</span><span class="grow">رياضيات · تمارين الكسور العشرية ص ٤٢<small>موعد التسليم: الأحد ٩ تشرين الثاني</small></span><span class="tag">٣ أيام</span></div>
+          <div class="row" data-hw><span class="chk">${ic('check')}</span><span class="grow">لغة عربية · قراءة نص «الوطن» والإجابة عن الأسئلة<small>موعد التسليم: الاثنين ١٠ تشرين الثاني</small></span><span class="tag">٤ أيام</span></div>
+          <div class="row hl" data-hw><span class="chk">${ic('check')}</span><span class="grow">علوم · نشاط «دورة الماء في الطبيعة» (حصة بديلة)<small>اليوم · الحصة الثالثة مع أ. ماهر</small></span><span class="tag sun">اليوم</span></div>
+        </div>
+      </div>
+      <div class="tile"><h4>${ic('cal')} جدول اليوم</h4>
+        <div class="periods">
+          <div class="per"><small>١</small>عربي</div><div class="per"><small>٢</small>رياضيات</div><div class="per sub"><small>٣</small>علوم<small>بديل: أ. ماهر</small></div><div class="per"><small>٤</small>إنجليزي</div><div class="per"><small>٥</small>اجتماعيات</div><div class="per"><small>٦</small>رياضة</div>
+        </div>
+      </div>
+      <div class="tile"><h4>${ic('layers')} كتبي · محمَّلة على الجهاز</h4>
+        <div class="books">
+          <div class="book" style="background:linear-gradient(160deg,#2a5bea,#6f97ff)"><small>بلا إنترنت</small>الرياضيات</div>
+          <div class="book" style="background:linear-gradient(160deg,#e85d8d,#ff9ec1)"><small>بلا إنترنت</small>اللغة العربية</div>
+          <div class="book" style="background:linear-gradient(160deg,#19b887,#7fe3bf)"><small>بلا إنترنت</small>العلوم</div>
+          <div class="book" style="background:linear-gradient(160deg,#7a5cff,#b19cff)"><small>بلا إنترنت</small>الإنجليزية</div>
+        </div>
+      </div>`},
+    parent:{c:'var(--r-parent)',title:'وليّ الأمر',notes:['يرى يوم ابنه في شاشة واحدة: الحضور، الواجبات، العلامات، والتغييرات.','إشعار الغياب يصل في الحصة الأولى، وبرسالة SMS إذا لم يكن هناك إنترنت.','يراسل المعلّم رسمياً من التطبيق بدل مجموعات واتساب.'],
+      html:()=>`
+      <div class="app-head"><div><h3>محمد المسالمة</h3><small>الصف الخامس (ب) · مدرسة درعا النموذجية · اليوم</small></div><div class="avatar" style="--c:var(--r-parent)">م</div></div>
+      <div class="kpis" style="--c:var(--r-parent)">
+        <div class="kpi good"><b>حاضر</b><span>وصل ٧:٣٥ صباحاً</span></div>
+        <div class="kpi"><b class="num">٢</b><span>واجبات هذا الأسبوع</span></div>
+        <div class="kpi"><b class="num">٩٢٪</b><span>معدّل الحضور</span></div>
+        <div class="kpi warn"><b class="num">١</b><span>تغيير في الجدول</span></div>
+      </div>
+      <div class="tile" style="--c:var(--r-parent)"><h4>${ic('bell')} إشعارات اليوم</h4>
+        <div class="list">
+          <div class="row ok"><span class="grow">تمّ تسجيل حضور محمد في الحصة الأولى<small>٧:٤٠ صباحاً · تطبيق + SMS</small></span><span class="tag mint">حضور</span></div>
+          <div class="row hl"><span class="grow">الحصة الثالثة (علوم): المعلّمة غائبة، تمّ تعيين أ. ماهر الأحمد بديلاً ونشاط «دورة الماء»<small>٧:١٢ صباحاً</small></span><span class="tag sun">بديل</span></div>
+          <div class="row"><span class="grow">واجب رياضيات جديد: الكسور العشرية ص ٤٢، التسليم الأحد<small>أمس ١:٢٠ ظهراً · من أ. سامر الحريري</small></span><span class="tag">واجب</span></div>
+        </div>
+      </div>
+      <div class="tile"><h4>${ic('chart')} آخر العلامات</h4>
+        <div class="list">
+          <div class="row"><span class="grow">رياضيات · مذاكرة الكسور العادية</span><b class="num">١٨ / ٢٠</b></div>
+          <div class="row"><span class="grow">لغة عربية · إملاء</span><b class="num">٩ / ١٠</b></div>
+          <div class="row"><span class="grow">علوم · أعمال الصف</span><b class="num">١٤ / ١٥</b></div>
+        </div>
+      </div>
+      <div class="tile" style="--c:var(--r-parent)"><h4>${ic('msg')} رسالة إلى المعلّم</h4>
+        <div class="field"><div>أستاذ سامر، هل يمكن تأجيل تسليم واجب الرياضيات يوماً واحداً لأن محمداً كان مريضاً؟</div></div>
+        <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap"><button class="abtn" style="--c:var(--r-parent)" data-say="أُرسلت رسالتك إلى أ. سامر الحريري، وسيصلك ردّه في التطبيق">${ic('send')} إرسال</button><button class="abtn light" data-say="طلب موعد مع المرشد: الأحد ١٠:٠٠ · بانتظار التأكيد">طلب موعد مع المرشد</button></div>
+      </div>`},
+    school:{c:'var(--r-school)',title:'إدارة المدرسة',notes:['حضور الطلاب والمعلّمين في لوحة واحدة من الحصة الأولى.','لوحة الغياب تُظهر الحصص المكشوفة والبديل المقترح، والتعيين بضغطة.','إعلان واحد يصل إلى كلّ الأهالي بالتطبيق والـ SMS.'],
+      html:()=>`
+      <div class="app-head"><div><h3>مدرسة درعا النموذجية</h3><small>التعليم الأساسي · ٦٥٠ طالباً · ٤٠ معلّماً · الخميس ٥ تشرين الثاني</small></div><div class="avatar" style="--c:var(--r-school)">د</div></div>
+      <div class="kpis" style="--c:var(--r-school)">
+        <div class="kpi"><b class="num">٩٤٪</b><span>حضور الطلاب (٦١٢ / ٦٥٠)</span></div>
+        <div class="kpi"><b class="num">٣٨ / ٤٠</b><span>المعلّمون الحاضرون</span></div>
+        <div class="kpi warn"><b class="num" id="uncovered">١</b><span>حصّة بلا تغطية</span></div>
+        <div class="kpi good"><b class="num">١٤</b><span>واجباً نُشر اليوم</span></div>
+      </div>
+      <div class="tile" style="--c:var(--sun)"><h4>${ic('alert')} لوحة الغياب والتغطية · اليوم</h4>
+        <div class="list">
+          <div class="row ok"><span class="grow">الحصة ٣ · الخامس (ب) · أ. رنا الزعبي (علوم)<small>البديل: أ. ماهر الأحمد · خطّة الدرس أُرسلت</small></span><span class="tag mint">مغطّاة</span></div>
+          <div class="row hl" id="rowx"><span class="grow">الحصة ٥ · الرابع (أ) · أ. رنا الزعبي (علوم)<small>مقترح: أ. سامر الحريري (حصّة فراغ) · بديل ثانٍ: نشاط ذاتي موجَّه</small></span><button class="abtn" id="assign" style="--c:var(--r-school);padding:7px 12px;font-size:.8rem">تعيين</button></div>
+          <div class="row ok"><span class="grow">الحصة ٢ · السادس (ب) · أ. خالد أبازيد (اجتماعيات)<small>البديل: أ. هبة الرفاعي · مغطّاة منذ ٦:٥٠</small></span><span class="tag mint">مغطّاة</span></div>
+        </div>
+      </div>
+      <div class="tile"><h4>${ic('users')} الحضور حسب الصف</h4>
+        <div class="chart">
+          <div class="crow"><span>الأول</span><div class="track"><i style="width:97%"></i></div><b>٩٧٪</b></div>
+          <div class="crow"><span>الثالث</span><div class="track"><i style="width:95%"></i></div><b>٩٥٪</b></div>
+          <div class="crow"><span>الخامس</span><div class="track"><i style="width:94%"></i></div><b>٩٤٪</b></div>
+          <div class="crow low"><span>السادس</span><div class="track"><i style="width:88%"></i></div><b>٨٨٪</b></div>
+        </div>
+      </div>
+      <div class="tile" style="--c:var(--r-school)"><h4>${ic('bell')} إعلان لكلّ الأهالي</h4>
+        <div class="field"><div>اجتماع أولياء الأمور يوم الثلاثاء ١١ تشرين الثاني، الساعة ١٠ صباحاً في قاعة المدرسة.</div></div>
+        <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap"><button class="abtn" style="--c:var(--r-school)" data-say="أُرسل الإعلان إلى ٦٠٨ أولياء أمور (تطبيق) و٤٢ برسالة SMS">${ic('send')} إرسال للجميع</button><button class="abtn light" data-say="تقرير الحضور اليومي أُرسل إلى مديرية التربية">رفع تقرير اليوم للمديرية</button></div>
+      </div>`},
+    dir:{c:'var(--r-dir)',title:'مديرية التربية',notes:['كلّ مدارس المديرية في لوحة واحدة، بأرقام اليوم لا الشهر الماضي.','نسبة تغطية حصص الغياب تظهر لكلّ مدرسة ومنطقة.','تنبيهات آلية تُظهر أين تتدخّل المديرية اليوم، وتقرير أسبوعي بضغطة.'],
+      html:()=>`
+      <div class="app-head"><div><h3>مديرية التربية · درعا</h3><small>نظرة اليوم · الخميس ٥ تشرين الثاني · آخر تحديث ٩:١٥</small></div><div class="avatar" style="--c:var(--r-dir)">م</div></div>
+      <div class="kpis" style="--c:var(--r-dir)">
+        <div class="kpi"><b class="num">٣١٢</b><span>مدرسة متّصلة</span></div>
+        <div class="kpi"><b class="num">٩١٫٤٪</b><span>حضور الطلاب اليوم</span></div>
+        <div class="kpi good"><b class="num">٩٦٪</b><span>تغطية حصص الغياب</span></div>
+        <div class="kpi warn"><b class="num">١٢٨</b><span>طالباً بإنذار مبكر</span></div>
+      </div>
+      <div class="tile"><h4>${ic('chart')} الحضور حسب المنطقة التعليمية</h4>
+        <div class="chart">
+          <div class="crow"><span>درعا المدينة</span><div class="track"><i style="width:93%"></i></div><b>٩٣٪</b></div>
+          <div class="crow"><span>إزرع</span><div class="track"><i style="width:92%"></i></div><b>٩٢٪</b></div>
+          <div class="crow"><span>جاسم</span><div class="track"><i style="width:91%"></i></div><b>٩١٪</b></div>
+          <div class="crow"><span>طفس</span><div class="track"><i style="width:90%"></i></div><b>٩٠٪</b></div>
+          <div class="crow"><span>الصنمين</span><div class="track"><i style="width:89%"></i></div><b>٨٩٪</b></div>
+          <div class="crow low"><span>نوى</span><div class="track"><i style="width:88%"></i></div><b>٨٨٪</b></div>
+          <div class="crow low"><span>بصرى الشام</span><div class="track"><i style="width:87%"></i></div><b>٨٧٪</b></div>
+        </div>
+      </div>
+      <div class="tile" style="--c:var(--sun)"><h4>${ic('alert')} يحتاج تدخّلاً اليوم</h4>
+        <div class="list">
+          <div class="row hl"><span class="grow">٣ مدارس لم ترفع سجلّ الحضور حتى ٩:٠٠<small>المزيريب الثانية، داعل الأولى، الحراك المختلطة</small></span><span class="tag sun">متابعة</span></div>
+          <div class="row hl"><span class="grow">مدرسة نوى الأولى: ٤ حصص غير مغطّاة هذا الأسبوع<small>نقص معلّمي الرياضيات · اقتراح: تكليف من مدرسة مجاورة</small></span><span class="tag sun">قرار</span></div>
+          <div class="row"><span class="grow">ارتفاع الغياب في بصرى الشام ٦٪ عن الأسبوع الماضي<small>الصفوف ٧ إلى ٩ · تحقّق من الأسباب</small></span><span class="tag">تحليل</span></div>
+        </div>
+      </div>
+      <div class="tile" style="--c:var(--r-dir)"><h4>${ic('layers')} التقارير والتعاميم</h4>
+        <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="abtn" style="--c:var(--r-dir)" data-say="تقرير الأسبوع (حضور، تغطية، واجبات) جاهز بصيغة PDF">تقرير الأسبوع PDF</button><button class="abtn light" data-say="التعميم أُرسل إلى ٣١٢ مدرسة وظهر في لوحة كلّ مدير">تعميم لكلّ المدارس</button><button class="abtn light" data-say="كشف احتياجات الكتب: ١٢ مدرسة تحتاج كتب الرياضيات للصف الخامس">احتياجات الكتب</button></div>
+      </div>`}
+  };
+
+  function render(role){
+    const R=ROLES[role];
+    app.innerHTML=R.html();
+    notes.style.setProperty('--c',R.c);
+    notes.innerHTML=`<h3><span class="avatar" style="--c:${R.c};width:34px;height:34px;font-size:.9rem">${R.title.slice(0,1)}</span>ما الذي تلاحظه في شاشة ${R.title}؟</h3><ul>${R.notes.map(n=>`<li>${n}</li>`).join('')}</ul>`;
+    document.querySelectorAll('.rbtn').forEach(b=>b.setAttribute('aria-selected',String(b.dataset.role===role)));
+    app.querySelectorAll('[data-say]').forEach(b=>b.addEventListener('click',()=>say(b.dataset.say)));
+    const pub=app.querySelector('#pub');
+    if(pub) pub.addEventListener('click',()=>{pub.disabled=true;pub.textContent='جارٍ الإرسال…';setTimeout(()=>{pub.textContent='نُشر الواجب ✓';say('وصل الواجب إلى ٣٢ طالباً و٣٠ وليّ أمر، وسيُذكّرهم النظام مساء السبت')},900)});
+    const absent=app.querySelector('#absent');
+    if(absent) absent.addEventListener('click',()=>{absent.disabled=true;absent.textContent='جارٍ ترتيب البديل…';const steps=app.querySelectorAll('.step');steps.forEach((s,i)=>setTimeout(()=>{s.classList.add('on');if(i===steps.length-1){absent.textContent='تمّت التغطية ✓';say('الحصة الثالثة مغطّاة: أ. ماهر الأحمد بديلاً، وأُبلغ الجميع')}},500+i*650))});
+    const assign=app.querySelector('#assign');
+    if(assign) assign.addEventListener('click',()=>{const row=app.querySelector('#rowx');row.classList.remove('hl');row.classList.add('ok');assign.outerHTML='<span class="tag mint">مغطّاة</span>';const u=app.querySelector('#uncovered');if(u)u.textContent='٠';say('عُيّن أ. سامر الحريري بديلاً للحصة الخامسة، وأُبلغ طلاب الرابع (أ) وأولياء أمورهم')});
+    const hw=app.querySelector('#hw');
+    if(hw){let xp=320;const xpEl=app.querySelector('#xp'),bar=app.querySelector('#xpbar');const ar=n=>String(n).replace(/\d/g,d=>'٠١٢٣٤٥٦٧٨٩'[d]);hw.querySelectorAll('[data-hw]').forEach(r=>r.addEventListener('click',()=>{const done=r.classList.toggle('done');xp+=done?20:-20;xpEl.textContent=ar(xp);bar.style.width=Math.min(100,64+(xp-320)/2)+'%';if(done)say('أحسنتِ ليان! +٢٠ نقطة، واستمرّت سلسلتك')}))}
+  }
+  document.querySelectorAll('.rbtn').forEach(b=>b.addEventListener('click',()=>render(b.dataset.role)));
+  render('teacher');
+})();
+</script>
+</body>
+</html>

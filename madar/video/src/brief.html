@@ -1,0 +1,385 @@
+<!doctype html>
+<html lang="ar" dir="rtl"><head><meta charset="utf-8">
+<style>
+@font-face{font-family:D;src:url(../../site/fonts/alexandria-arabic-wght-normal.woff2) format('woff2');font-weight:100 900;unicode-range:U+0600-06FF,U+0750-077F,U+FB50-FDFF,U+FE70-FEFF}
+@font-face{font-family:D;src:url(../../site/fonts/alexandria-latin-wght-normal.woff2) format('woff2');font-weight:100 900}
+@font-face{font-family:B;src:url(../../site/fonts/plex-arabic-arabic-500.woff2) format('woff2');font-weight:500;unicode-range:U+0600-06FF,U+0750-077F,U+FB50-FDFF,U+FE70-FEFF}
+@font-face{font-family:B;src:url(../../site/fonts/plex-arabic-latin-500.woff2) format('woff2');font-weight:500}
+@font-face{font-family:B;src:url(../../site/fonts/plex-arabic-arabic-700.woff2) format('woff2');font-weight:700;unicode-range:U+0600-06FF,U+0750-077F,U+FB50-FDFF,U+FE70-FEFF}
+@font-face{font-family:B;src:url(../../site/fonts/plex-arabic-latin-700.woff2) format('woff2');font-weight:700}
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{width:1920px;height:1080px;overflow:hidden;background:#f3f7fd}
+body{font-family:B,sans-serif;color:#0e1a33;position:relative;direction:rtl;font-weight:500}
+.abs{position:absolute}
+#bg{position:absolute;inset:0;background:linear-gradient(180deg,#f7faff 0%,#eef5fb 50%,#eaf5f1 100%)}
+.blob{position:absolute;border-radius:50%;filter:blur(90px);opacity:.8;will-change:transform}
+#fx{position:absolute;inset:0}
+.scene{position:absolute;inset:0;opacity:0;visibility:hidden}
+.w{will-change:transform,opacity;opacity:0}
+.d{font-family:D,sans-serif;font-weight:800;letter-spacing:-.01em;line-height:1.2}
+.glass{background:rgba(255,255,255,.62);backdrop-filter:blur(22px) saturate(1.5);-webkit-backdrop-filter:blur(22px) saturate(1.5);border:1.5px solid rgba(255,255,255,.9);box-shadow:0 30px 70px -30px rgba(30,60,120,.35),inset 0 1px 0 #fff;border-radius:34px}
+.card{padding:34px 36px;display:flex;align-items:center;gap:22px}
+.ic{flex:none;width:84px;height:84px;border-radius:24px;display:grid;place-items:center;color:#fff}
+.ic svg{width:44px;height:44px}
+.ic.v{background:linear-gradient(135deg,#7a5cff,#b19cff)}.ic.o{background:linear-gradient(135deg,#f0a020,#ffd27a)}.ic.r{background:linear-gradient(135deg,#e85d8d,#ff9ec1)}.ic.b{background:linear-gradient(135deg,#2a5bea,#6f97ff)}.ic.t{background:linear-gradient(135deg,#14a3b4,#5fd3e0)}.ic.g{background:linear-gradient(135deg,#19b887,#7fe3bf)}
+.t1{font-size:38px;font-weight:700;line-height:1.35}
+.t2{font-size:30px;color:#3f4d68;line-height:1.5}
+.chip{display:inline-flex;align-items:center;gap:14px;padding:16px 30px;border-radius:999px;background:rgba(255,255,255,.9);border:1.5px solid rgba(255,255,255,.95);box-shadow:0 20px 40px -24px rgba(30,60,120,.45);font-weight:700;font-size:34px;white-space:nowrap}
+.chip .dot{width:18px;height:18px;border-radius:50%}
+.muted{color:#3f4d68}
+.brand{color:#2a5bea}
+.sun{color:#f0a020}
+.pill{display:inline-block;padding:10px 24px;border-radius:999px;font-weight:700;font-size:26px;background:#e4ecfe;color:#1d44b8}
+.kpi{position:absolute;width:300px;padding:26px 28px;border-radius:26px;background:rgba(255,255,255,.92);border:1.5px solid #fff;box-shadow:0 18px 40px -24px rgba(30,60,120,.4)}
+.kpi b{display:block;font-family:D;font-size:64px;font-weight:900;color:#2a5bea;line-height:1.1}
+.kpi span{font-size:24px;color:#3f4d68}
+.kpi.g b{color:#19b887}.kpi.o b{color:#f0a020}
+.tile{position:absolute;width:330px;height:220px;border-radius:30px;padding:26px;display:flex;flex-direction:column;justify-content:space-between;background:rgba(255,255,255,.9);border:1.5px solid #fff;box-shadow:0 24px 50px -28px rgba(30,60,120,.45)}
+.tile .ic{width:70px;height:70px;border-radius:20px}.tile .ic svg{width:36px;height:36px}
+.tile b{font-size:32px;font-weight:700}
+.step{position:absolute;width:400px;padding:28px 30px;border-radius:30px;background:rgba(255,255,255,.9);border:1.5px solid #fff;box-shadow:0 24px 50px -28px rgba(30,60,120,.45)}
+.step .n{width:56px;height:56px;border-radius:18px;background:#f0a020;color:#fff;display:grid;place-items:center;font-family:D;font-weight:900;font-size:30px;margin-bottom:16px;box-shadow:0 14px 24px -12px #f0a020}
+.step h3{font-family:D;font-size:34px;font-weight:800;margin-bottom:10px;line-height:1.25}
+.step p{font-size:25px;color:#3f4d68;line-height:1.45}
+.step .ok{display:inline-block;margin-top:12px;padding:6px 16px;border-radius:999px;background:#dcf7ea;color:#117a57;font-weight:700;font-size:23px}
+.ava{width:66px;height:66px;border-radius:50%;display:grid;place-items:center;color:#fff;font-family:D;font-weight:800;font-size:28px;box-shadow:0 12px 24px -12px rgba(0,0,0,.4);border:3px solid #fff}
+.row{display:flex;align-items:center;gap:14px;padding:14px 18px;border-radius:18px;background:#f6f8fd;font-size:24px}
+.row.ok{background:#eafaf3}.row.hl{background:#fff7e8}
+.tag{padding:4px 14px;border-radius:999px;font-size:20px;font-weight:700;background:#eef2ff;color:#1d44b8}
+.tag.m{background:#dcf7ea;color:#117a57}.tag.s{background:#fff1d6;color:#9a6200}
+.bars{display:grid;gap:14px}
+.bar{display:grid;grid-template-columns:200px 1fr 90px;align-items:center;gap:16px;font-size:25px}
+.bar .tr{height:20px;border-radius:999px;background:#e8edf7;overflow:hidden}
+.bar .tr i{display:block;height:100%;border-radius:999px;background:linear-gradient(90deg,#2a5bea,#6f97ff);width:0}
+.bar.low .tr i{background:linear-gradient(90deg,#f0a020,#ffcf6b)}
+.bar b{font-family:D;font-weight:800;direction:ltr;text-align:left}
+.phone{position:absolute;width:420px;height:860px;border-radius:60px;background:linear-gradient(145deg,#1b2440,#0b1020);padding:14px;box-shadow:0 50px 100px -40px rgba(10,20,60,.6),0 0 0 2px rgba(255,255,255,.3) inset}
+.phone .scr{width:100%;height:100%;border-radius:48px;background:linear-gradient(180deg,#f8fbff,#eef3fb);overflow:hidden;padding:60px 24px 24px;display:flex;flex-direction:column;gap:14px}
+.phone .notch{position:absolute;left:50%;top:26px;width:120px;height:30px;margin-left:-60px;border-radius:999px;background:#0b1020}
+.laptop{position:absolute;width:900px;height:560px}
+.laptop .lid{position:absolute;inset:0 0 40px 0;border-radius:28px;background:#1b2440;padding:16px;box-shadow:0 50px 100px -40px rgba(10,20,60,.6)}
+.laptop .lid .scr{width:100%;height:100%;border-radius:16px;background:linear-gradient(180deg,#f8fbff,#eef3fb);overflow:hidden;padding:22px;display:grid;grid-template-columns:1fr 1fr;gap:14px;align-content:start}
+.laptop .base{position:absolute;left:-60px;right:-60px;bottom:0;height:40px;border-radius:0 0 30px 30px;background:linear-gradient(#2a3556,#141a30)}
+.mini{background:#fff;border-radius:14px;padding:12px 14px;font-size:20px;border:1px solid rgba(20,40,80,.08)}
+.mini b{display:block;font-family:D;font-size:30px;color:#2a5bea}
+.sms{position:absolute;padding:24px 28px;border-radius:28px 28px 6px 28px;background:#fff;border:1.5px solid rgba(20,40,80,.08);box-shadow:0 24px 50px -28px rgba(30,60,120,.45);font-size:27px;line-height:1.5;max-width:520px}
+.sms small{display:block;color:#74819b;font-size:21px;margin-top:8px}
+.ring{position:absolute;border-radius:50%;border:2.5px dashed rgba(42,91,234,.4)}
+.core{position:absolute;border-radius:50%;background:linear-gradient(145deg,#fff,#eef3ff);box-shadow:0 30px 70px -30px rgba(30,60,120,.45),inset 0 1px 0 #fff;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;font-family:D;font-weight:800;font-size:40px}
+.core svg{width:90px;height:90px;color:#f0a020}
+.sat{position:absolute;transform:translate(-50%,-50%)}
+.road{position:absolute;left:160px;right:160px;top:560px;height:10px;border-radius:999px;background:rgba(42,91,234,.15)}
+.road i{position:absolute;right:0;top:0;height:100%;border-radius:999px;background:linear-gradient(270deg,#2a5bea,#6f97ff);width:0}
+.node{position:absolute;top:470px;width:420px;text-align:center}
+.node .dot{width:38px;height:38px;border-radius:50%;background:#2a5bea;border:6px solid #fff;box-shadow:0 10px 20px -8px #2a5bea;margin:0 auto 24px}
+.node h3{font-family:D;font-size:36px;font-weight:800;margin-bottom:8px}
+.node p{font-size:26px;color:#3f4d68;line-height:1.45}
+.node .when{display:inline-block;margin-bottom:14px;padding:6px 16px;border-radius:999px;background:#e4ecfe;color:#1d44b8;font-weight:700;font-size:23px}
+.strike{position:relative;display:inline-block}
+.strike i{position:absolute;right:0;top:55%;height:8px;background:#e0485a;border-radius:4px;width:0}
+.url{display:inline-block;direction:ltr;font-family:D;font-weight:800;font-size:72px;color:#2a5bea;background:#fff;padding:18px 48px;border-radius:999px;border:2px solid #fff;box-shadow:0 30px 70px -30px rgba(42,91,234,.6)}
+</style></head><body>
+<div id="bg"></div>
+<div class="blob" id="b1" style="width:900px;height:900px;background:#bcd3ff"></div>
+<div class="blob" id="b2" style="width:800px;height:800px;background:#b7eee0"></div>
+<div class="blob" id="b3" style="width:700px;height:700px;background:#ffd9c2"></div>
+<div class="blob" id="b4" style="width:650px;height:650px;background:#dccfff"></div>
+<canvas id="fx" width="1920" height="1080"></canvas>
+
+<svg style="display:none">
+  <symbol id="i-teacher" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="13" rx="2"/><path d="M8 21h8M12 16v5"/><path d="M7 11l3-3 2 2 4-4"/></symbol>
+  <symbol id="i-student" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></symbol>
+  <symbol id="i-parent" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s-7-4.5-7-10a4 4 0 0 1 7-2.5A4 4 0 0 1 19 11c0 5.5-7 10-7 10z"/></symbol>
+  <symbol id="i-book" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></symbol>
+  <symbol id="i-cal" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="3"/><path d="M16 2v4M8 2v4M3 10h18"/></symbol>
+  <symbol id="i-chart" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M7 15l4-4 4 3 5-6"/></symbol>
+  <symbol id="i-shield" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="M9 12l2 2 4-4"/></symbol>
+  <symbol id="i-wifi" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.6a11 11 0 0 1 14 0M8.5 16a6 6 0 0 1 7 0M2 8.8a16 16 0 0 1 20 0"/><circle cx="12" cy="19.5" r="1"/></symbol>
+  <symbol id="i-msg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a8 8 0 0 1-8 8H6l-3 3V12a8 8 0 0 1 8-8h2a8 8 0 0 1 8 8z"/></symbol>
+  <symbol id="i-users" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.9M16 3.1a4 4 0 0 1 0 7.8"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5L20 7"/></symbol>
+  <symbol id="i-alert" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.3 3.9L1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/><path d="M12 9v4M12 17h.01"/></symbol>
+  <symbol id="i-phone" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="2" width="12" height="20" rx="3"/><path d="M11 18h2"/></symbol>
+  <symbol id="i-layers" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2l10 5-10 5L2 7l10-5z"/><path d="M2 12l10 5 10-5M2 17l10 5 10-5"/></symbol>
+  <symbol id="i-building" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18M5 21V7l7-4 7 4v14"/><path d="M9 21v-5h6v5M9 10h.01M15 10h.01M9 14h.01M15 14h.01"/></symbol>
+  <symbol id="i-school" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 10l10-6 10 6-10 6L2 10z"/><path d="M6 12v5c0 1.5 3 3 6 3s6-1.5 6-3v-5M22 10v6"/></symbol>
+  <symbol id="i-send" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"/></symbol>
+  <symbol id="i-globe" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18"/></symbol>
+  <symbol id="i-orbit" viewBox="0 0 48 48" fill="none"><circle cx="24" cy="24" r="21" stroke="currentColor" stroke-width="2.4" stroke-dasharray="4 5"/><circle cx="24" cy="24" r="12" fill="currentColor" opacity=".15"/><circle cx="24" cy="24" r="6.5" fill="currentColor"/><circle cx="24" cy="3" r="4" fill="#f0a020"/><circle cx="45" cy="24" r="3.4" fill="#14a3b4"/><circle cx="24" cy="45" r="3.4" fill="#e85d8d"/><circle cx="3" cy="24" r="3.4" fill="#7a5cff"/></symbol>
+</svg>
+
+<!-- A: opening -->
+<div class="scene" id="sA">
+  <div class="abs w d" id="a-h1" style="right:140px;top:170px;font-size:104px">في كلِّ صباحٍ…</div>
+  <div class="abs w" id="a-h2" style="right:146px;top:320px;font-size:48px;color:#3f4d68">تبدأ في مدارس درعا <b class="brand">آلافُ القصص الصغيرة</b></div>
+  <div class="abs w glass card" id="a-c1" style="right:140px;top:520px;width:520px"><div class="ic v"><svg><use href="#i-teacher"/></svg></div><div><div class="t1">معلّم يحضّر درسه</div><div class="t2">ويكتب الواجب على اللوح</div></div></div>
+  <div class="abs w glass card" id="a-c2" style="right:700px;top:520px;width:520px"><div class="ic o"><svg><use href="#i-student"/></svg></div><div><div class="t1">طالب يبحث عن واجبه</div><div class="t2">في دفتر زميله</div></div></div>
+  <div class="abs w glass card" id="a-c3" style="right:1260px;top:520px;width:520px"><div class="ic r"><svg><use href="#i-parent"/></svg></div><div><div class="t1">أبٌ يتساءل</div><div class="t2">كيف كان يوم ابني في المدرسة؟</div></div></div>
+  <div class="abs w d" id="a-h3" style="right:140px;top:170px;font-size:92px;line-height:1.25">اليوم، تعيش هذه القصص <span style="color:#e0485a">متفرّقة</span></div>
+  <div class="abs w chip" id="a-s1" style="right:220px;top:830px;transform:rotate(-6deg)"><span class="dot" style="background:#e0485a"></span>دفاتر وأوراق</div>
+  <div class="abs w chip" id="a-s2" style="right:820px;top:860px"><span class="dot" style="background:#25d366"></span>مجموعات واتساب غير رسمية</div>
+  <div class="abs w chip" id="a-s3" style="right:1340px;top:820px"><span class="dot" style="background:#f0a020"></span>أوراق قد لا تصل أبداً</div>
+</div>
+
+<!-- B: reveal -->
+<div class="scene" id="sB">
+  <div class="abs w" id="b-mark" style="right:150px;top:150px;width:170px;height:170px;color:#2a5bea"><svg viewBox="0 0 48 48" width="170" height="170"><use href="#i-orbit"/></svg></div>
+  <div class="abs w d brand" id="b-name" style="right:350px;top:120px;font-size:190px;font-weight:900;line-height:1.1">مَدار</div>
+  <div class="abs w d" id="b-tag" style="right:150px;top:420px;font-size:60px;color:#0e1a33">منظومة تعليمية رقمية متكاملة</div>
+  <div class="abs w" id="b-sub" style="right:154px;top:520px;font-size:38px;color:#3f4d68;line-height:1.6;width:760px">تجمع مديرية التربية، والمدرسة، والمعلّم، والطالب، ووليّ الأمر</div>
+  <div class="abs w pill" id="b-line" style="right:154px;top:700px;font-size:34px;padding:16px 34px">في مدارٍ واحد، يدور حول الطالب</div>
+  <div class="abs" id="b-orbit" style="left:160px;top:120px;width:840px;height:840px">
+    <div class="ring" id="b-r2" style="inset:0"></div>
+    <div class="ring" id="b-r1" style="inset:130px"></div>
+    <div class="core w" id="b-core" style="inset:290px"><svg><use href="#i-student"/></svg>الطالب</div>
+    <div class="sat w" id="b-s1"><span class="chip"><span class="dot" style="background:#2a5bea"></span>مديرية التربية</span></div>
+    <div class="sat w" id="b-s2"><span class="chip"><span class="dot" style="background:#14a3b4"></span>المدرسة</span></div>
+    <div class="sat w" id="b-s3"><span class="chip"><span class="dot" style="background:#7a5cff"></span>المعلّم</span></div>
+    <div class="sat w" id="b-s4"><span class="chip"><span class="dot" style="background:#e85d8d"></span>وليّ الأمر</span></div>
+  </div>
+</div>
+
+<!-- C: homework & one place -->
+<div class="scene" id="sC">
+  <div class="abs w phone" id="c-phone" style="right:150px;top:110px"><div class="notch"></div><div class="scr">
+    <div style="font-family:D;font-weight:800;font-size:30px">واجب جديد</div>
+    <div style="font-size:22px;color:#3f4d68">الصف الخامس (ب) · رياضيات · أ. سامر</div>
+    <div class="w" id="c-f1" style="background:#fff;border-radius:16px;padding:14px 16px;font-size:23px;border:1px solid rgba(20,40,80,.08)"><span style="color:#74819b;font-size:19px;display:block">العنوان</span>تمارين الكسور العشرية</div>
+    <div class="w" id="c-f2" style="background:#fff;border-radius:16px;padding:14px 16px;font-size:23px;border:1px solid rgba(20,40,80,.08)"><span style="color:#74819b;font-size:19px;display:block">صفحة الكتاب</span>كتاب الرياضيات، ص ٤٢</div>
+    <div class="w" id="c-f3" style="background:#fff;border-radius:16px;padding:14px 16px;font-size:23px;border:1px solid rgba(20,40,80,.08)"><span style="color:#74819b;font-size:19px;display:block">موعد التسليم</span>الأحد ٩ تشرين الثاني</div>
+    <div class="w" id="c-btn" style="margin-top:auto;background:#7a5cff;color:#fff;border-radius:16px;padding:16px;text-align:center;font-weight:700;font-size:26px;box-shadow:0 14px 28px -12px #7a5cff">نشر الواجب للصف</div>
+  </div></div>
+  <svg class="abs" id="c-lines" style="left:0;top:0" width="1920" height="1080" fill="none" stroke="#7a5cff" stroke-width="3" stroke-linecap="round"></svg>
+  <div class="abs w d" id="c-h" style="right:640px;top:120px;font-size:64px;width:1100px">يكتب المعلّم الواجب <span class="brand">مرّة واحدة</span></div>
+  <div id="c-avas"></div>
+  <div class="abs w chip" id="c-n1" style="right:700px;top:600px;font-size:38px"><span class="dot" style="background:#f0a020"></span>٣٢ طالباً</div>
+  <div class="abs w chip" id="c-n2" style="right:1020px;top:600px;font-size:38px"><span class="dot" style="background:#e85d8d"></span>٣٠ وليّ أمر</div>
+  <div class="abs w pill" id="c-b1" style="right:700px;top:740px;font-size:30px">موعد التسليم: الأحد ٩ تشرين الثاني</div>
+  <div class="abs w pill" id="c-b2" style="right:700px;top:830px;font-size:30px">صفحة الكتاب: ٤٢</div>
+  <div class="abs w pill" id="c-b3" style="right:700px;top:920px;font-size:30px">تذكير آلي: مساء السبت</div>
+  <div class="abs w tile" id="c-t1" style="right:140px;top:200px"><div class="ic b"><svg><use href="#i-layers"/></svg></div><b>المنهاج كلّه</b></div>
+  <div class="abs w tile" id="c-t2" style="right:500px;top:200px"><div class="ic v"><svg><use href="#i-book"/></svg></div><b>الكتب المدرسية الرقمية</b></div>
+  <div class="abs w tile" id="c-t3" style="right:860px;top:200px"><div class="ic t"><svg><use href="#i-cal"/></svg></div><b>الجدول الدراسي</b></div>
+  <div class="abs w tile" id="c-t4" style="right:1220px;top:200px"><div class="ic o"><svg><use href="#i-users"/></svg></div><b>الحضور والغياب</b></div>
+  <div class="abs w tile" id="c-t5" style="right:1580px;top:200px;width:200px"><div class="ic g"><svg><use href="#i-chart"/></svg></div><b>العلامات</b></div>
+  <div class="abs w d" id="c-banner" style="right:140px;top:560px;font-size:84px;line-height:1.3">في مكانٍ واحد،<br>وبلغةٍ <span class="brand">عربيةٍ كاملة</span></div>
+</div>
+
+<!-- D: absent teacher -->
+<div class="scene" id="sD">
+  <div class="abs w" id="d-ic" style="right:140px;top:110px;width:110px;height:110px;border-radius:30px;background:linear-gradient(135deg,#f0a020,#ffd27a);display:grid;place-items:center;color:#fff;box-shadow:0 20px 40px -16px #f0a020"><svg width="60" height="60"><use href="#i-alert"/></svg></div>
+  <div class="abs w d" id="d-h" style="right:280px;top:100px;font-size:84px">بروتوكول غياب المعلّم</div>
+  <div class="abs w" id="d-sub" style="right:284px;top:230px;font-size:38px;color:#3f4d68">أكثر ما يُربك اليوم الدراسي… صار له نظام</div>
+  <div class="abs w step" id="d-s1" style="right:140px;top:380px"><div class="n">١</div><h3>تسجيل الغياب</h3><p>أ. رنا الزعبي · علوم<br>الحصة الثالثة · الخامس (ب)</p></div>
+  <div class="abs w step" id="d-s2" style="right:580px;top:380px"><div class="n">٢</div><h3>بحث آلي عن بديل</h3><p>معلّم متاح في الحصة نفسها</p><div style="display:flex;gap:10px;margin-top:14px" id="d-avas"><span class="ava" style="background:#7a5cff">خ</span><span class="ava" style="background:#14a3b4">ه</span><span class="ava" style="background:#19b887;outline:4px solid #19b887;outline-offset:3px">م</span></div><span class="ok w" id="d-ok">أ. ماهر الأحمد ✓</span></div>
+  <div class="abs w step" id="d-s3" style="right:1020px;top:380px"><div class="n">٣</div><h3>خطّة الدرس للبديل</h3><p>نشاط رقمي جاهز:<br>«دورة الماء في الطبيعة»</p><span class="ok">أُرسلت للبديل والطلاب</span></div>
+  <div class="abs w step" id="d-s4" style="right:1460px;top:380px;width:320px"><div class="n">٤</div><h3>المديرية ترى الحالة</h3><p>في اللحظة نفسها</p><span class="ok">مغطّاة ✓</span></div>
+  <div class="abs w d" id="d-final" style="right:140px;top:820px;font-size:88px;line-height:1.2">فلا تضيع <span class="sun">حصّةٌ واحدة</span></div>
+  <div class="abs w kpi g" id="d-zero" style="right:1460px;top:810px;width:320px"><b>٠</b><span>حصص ضائعة اليوم</span></div>
+</div>
+
+<!-- E: directorate dashboard -->
+<div class="scene" id="sE">
+  <div class="abs w glass" id="e-frame" style="right:120px;top:90px;width:1680px;height:900px;padding:40px 46px">
+    <div style="display:flex;align-items:center;gap:20px;margin-bottom:30px"><div class="ic b" style="width:70px;height:70px;border-radius:20px"><svg width="36" height="36"><use href="#i-building"/></svg></div><div><div class="d" style="font-size:40px">مديرية التربية · درعا</div><div style="font-size:24px;color:#3f4d68">لوحة اليوم · الخميس ٥ تشرين الثاني · آخر تحديث ٩:١٥</div></div><div style="margin-inline-start:auto" class="pill">٣١٢ مدرسة متّصلة</div></div>
+  </div>
+  <div class="abs w kpi" id="e-k1" style="right:166px;top:250px"><b id="e-v1">٠٪</b><span>حضور الطلاب اليوم</span></div>
+  <div class="abs w kpi g" id="e-k2" style="right:496px;top:250px"><b id="e-v2">٠٪</b><span>تغطية حصص الغياب</span></div>
+  <div class="abs w kpi" id="e-k3" style="right:826px;top:250px"><b id="e-v3">٠</b><span>واجباً نُشر اليوم</span></div>
+  <div class="abs w kpi o" id="e-k4" style="right:1156px;top:250px"><b id="e-v4">٠</b><span>طالباً بإنذار مبكر</span></div>
+  <div class="abs w" id="e-chart" style="right:166px;top:440px;width:960px;background:rgba(255,255,255,.92);border-radius:26px;padding:26px 30px;border:1.5px solid #fff">
+    <div style="font-weight:700;font-size:28px;margin-bottom:16px">الحضور حسب المنطقة التعليمية</div>
+    <div class="bars">
+      <div class="bar"><span>درعا المدينة</span><div class="tr"><i data-w="93"></i></div><b>٩٣٪</b></div>
+      <div class="bar"><span>إزرع</span><div class="tr"><i data-w="92"></i></div><b>٩٢٪</b></div>
+      <div class="bar"><span>طفس</span><div class="tr"><i data-w="90"></i></div><b>٩٠٪</b></div>
+      <div class="bar low"><span>نوى</span><div class="tr"><i data-w="88"></i></div><b>٨٨٪</b></div>
+      <div class="bar low"><span>بصرى الشام</span><div class="tr"><i data-w="87"></i></div><b>٨٧٪</b></div>
+    </div>
+  </div>
+  <div class="abs w" id="e-alerts" style="right:1156px;top:440px;width:600px;background:rgba(255,255,255,.92);border-radius:26px;padding:26px 30px;border:1.5px solid #fff">
+    <div style="font-weight:700;font-size:28px;margin-bottom:16px">يحتاج تدخّلاً اليوم</div>
+    <div style="display:grid;gap:10px">
+      <div class="row hl"><span style="flex:1">٣ مدارس لم ترفع الحضور حتى ٩:٠٠</span><span class="tag s">متابعة</span></div>
+      <div class="row hl"><span style="flex:1">نوى الأولى: ٤ حصص غير مغطّاة</span><span class="tag s">قرار</span></div>
+      <div class="row"><span style="flex:1">١٢٨ طالباً تجاوزوا ٣ أيام غياب</span><span class="tag">إنذار مبكر</span></div>
+    </div>
+  </div>
+  <div class="abs w d" id="e-banner" style="right:166px;top:860px;font-size:50px">قرارات مبنية على <span class="brand">بيانات اليوم</span>، لا على <span class="strike">تقارير ورقية متأخّرة<i id="e-strike"></i></span></div>
+</div>
+
+<!-- F: devices, offline, sms, security -->
+<div class="scene" id="sF">
+  <div class="abs w phone" id="f-phone" style="right:170px;top:120px"><div class="notch"></div><div class="scr">
+    <div style="font-family:D;font-weight:800;font-size:28px">أهلاً ليان!</div>
+    <div style="font-size:20px;color:#3f4d68">الصف الخامس (ب) · سلسلة ٧ أيام</div>
+    <div class="row ok" style="font-size:21px"><span class="ava" style="width:40px;height:40px;font-size:18px;background:#19b887">✓</span><span>رياضيات · ص ٤٢</span></div>
+    <div class="row" style="font-size:21px"><span class="ava" style="width:40px;height:40px;font-size:18px;background:#e85d8d">ع</span><span>عربي · نص «الوطن»</span></div>
+    <div class="row hl" style="font-size:21px"><span class="ava" style="width:40px;height:40px;font-size:18px;background:#f0a020">ع</span><span>علوم · حصة بديلة اليوم</span></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:6px"><div style="aspect-ratio:3/4;border-radius:14px;background:linear-gradient(160deg,#2a5bea,#6f97ff);color:#fff;padding:12px;font-weight:700;font-size:20px">الرياضيات</div><div style="aspect-ratio:3/4;border-radius:14px;background:linear-gradient(160deg,#19b887,#7fe3bf);color:#fff;padding:12px;font-weight:700;font-size:20px">العلوم</div></div>
+  </div></div>
+  <div class="abs w chip" id="f-l1" style="right:170px;top:1000px;font-size:30px"><span class="dot" style="background:#7a5cff"></span>تطبيق أندرويد</div>
+  <div class="abs w laptop" id="f-laptop" style="right:660px;top:150px"><div class="lid"><div class="scr">
+    <div style="grid-column:1/-1;font-family:D;font-weight:800;font-size:26px">مدرسة درعا النموذجية · لوحة اليوم</div>
+    <div class="mini"><b>٩٤٪</b>حضور الطلاب</div><div class="mini"><b>٣٨/٤٠</b>المعلّمون الحاضرون</div><div class="mini"><b style="color:#19b887">٠</b>حصّة بلا تغطية</div><div class="mini"><b>١٤</b>واجباً نُشر اليوم</div>
+    <div class="mini" style="grid-column:1/-1;display:flex;gap:10px;align-items:center"><span class="tag m">مغطّاة</span>الحصة ٣ · الخامس (ب) · البديل أ. ماهر الأحمد</div>
+  </div></div><div class="base"></div></div>
+  <div class="abs w chip" id="f-l2" style="right:900px;top:760px;font-size:30px"><span class="dot" style="background:#2a5bea"></span>موقع ويب على الحاسوب</div>
+  <div class="abs w chip" id="f-off" style="right:900px;top:860px;font-size:30px;background:#fff7e8;border-color:#ffd27a"><svg width="34" height="34" style="color:#f0a020"><use href="#i-wifi"/></svg>يعمل حتى عند ضعف الإنترنت</div>
+  <div class="abs w sms" id="f-sms" style="right:660px;top:150px"><b style="color:#e85d8d">SMS · مَدار</b><br>تمّ تسجيل غياب محمد اليوم، الحصة الأولى. مدرسة درعا النموذجية.<small>تصل برسالة نصية إلى كلّ أبٍ وأمّ، حتى بلا إنترنت</small></div>
+  <div class="abs w glass card" id="f-shield" style="right:660px;top:460px;width:900px;padding:36px 40px"><div class="ic g"><svg><use href="#i-shield"/></svg></div><div><div class="t1">بيانات أبنائنا محميّة</div><div class="t2">تحت إدارة المديرية · صلاحيات محدّدة لكلّ دور · سجلّ تدقيق ونسخ احتياطي يومي</div></div></div>
+</div>
+
+<!-- G: global benchmark -->
+<div class="scene" id="sG">
+  <div class="abs w d" id="g-h" style="right:140px;top:110px;font-size:76px;width:1640px">درسنا أفضل المنظومات التعليمية في العالم</div>
+  <div class="abs w glass card" id="g-c1" style="right:140px;top:330px;width:400px;flex-direction:column;align-items:flex-start;gap:10px"><div class="pill" style="direction:ltr">eKool</div><div class="t1">إستونيا</div><div class="t2">تدير كلّ المدارس منذ عقدين</div></div>
+  <div class="abs w glass card" id="g-c2" style="right:560px;top:330px;width:400px;flex-direction:column;align-items:flex-start;gap:10px"><div class="pill" style="direction:ltr">Wilma</div><div class="t1">فنلندا</div><div class="t2">تربط الأهالي بالمدرسة يومياً</div></div>
+  <div class="abs w glass card" id="g-c3" style="right:980px;top:330px;width:400px;flex-direction:column;align-items:flex-start;gap:10px"><div class="pill">مدرستي</div><div class="t1">السعودية</div><div class="t2">منصّة على مستوى الوزارة</div></div>
+  <div class="abs w glass card" id="g-c4" style="right:1400px;top:330px;width:380px;flex-direction:column;align-items:flex-start;gap:10px"><div class="pill" style="direction:ltr">Google Classroom</div><div class="t1">العالم</div><div class="t2">أفضل أدوات الصف</div></div>
+  <div class="abs w d" id="g-h2" style="right:140px;top:660px;font-size:56px">أخذنا أفضل ما فيها… <span class="brand">وأضفنا ما تحتاجه مدارسنا فعلاً</span></div>
+  <div class="abs w chip" id="g-a1" style="right:140px;top:800px;font-size:34px;background:#e4ecfe;border-color:#c9d8ff"><span class="dot" style="background:#2a5bea"></span>ربط المديرية بالمدرسة لحظياً</div>
+  <div class="abs w chip" id="g-a2" style="right:760px;top:800px;font-size:34px;background:#fff1d6;border-color:#ffd27a"><span class="dot" style="background:#f0a020"></span>إدارة غياب المعلّمين</div>
+  <div class="abs w chip" id="g-a3" style="right:1260px;top:800px;font-size:34px;background:#dcf7ea;border-color:#a5ecd0"><span class="dot" style="background:#19b887"></span>يعمل من دون إنترنت مستقرّ</div>
+</div>
+
+<!-- H: roadmap -->
+<div class="scene" id="sH">
+  <div class="abs w d" id="h-h" style="right:140px;top:140px;font-size:80px">نقترح البدء الآن</div>
+  <div class="abs w" id="h-sub" style="right:144px;top:270px;font-size:38px;color:#3f4d68">مرحلة تجريبية بلا تكلفة على المديرية</div>
+  <div class="road w" id="h-road"><i id="h-fill"></i></div>
+  <div class="node w" id="h-n1" style="right:160px"><div class="dot"></div><span class="when">شهران</span><h3>١٠ مدارس في درعا</h3><p>الواجبات · الجدول والحضور · غياب المعلّم · التواصل</p></div>
+  <div class="node w" id="h-n2" style="right:750px"><div class="dot"></div><span class="when">٣ أشهر</span><h3>كلّ مدارس المديرية</h3><p>لوحة المديرية الكاملة · SMS · الكتب الرقمية</p></div>
+  <div class="node w" id="h-n3" style="right:1340px"><div class="dot"></div><span class="when">٦ أشهر+</span><h3>مستوى الوزارة</h3><p>محافظات إضافية · لوحة وطنية · تحليلات متقدّمة</p></div>
+</div>
+
+<!-- I: closing -->
+<div class="scene" id="sI">
+  <div class="abs w" id="i-mark" style="left:50%;top:150px;width:220px;height:220px;margin-left:-110px;color:#2a5bea"><svg viewBox="0 0 48 48" width="220" height="220"><use href="#i-orbit"/></svg></div>
+  <div class="abs w d brand" id="i-name" style="left:0;right:0;top:380px;text-align:center;font-size:170px;font-weight:900;line-height:1.1">مَدار</div>
+  <div class="abs w d" id="i-tag" style="left:0;right:0;top:600px;text-align:center;font-size:64px">كلُّ المدرسةِ في مدارٍ واحد</div>
+  <div class="abs w" id="i-cta" style="left:0;right:0;top:740px;text-align:center;font-size:34px;color:#3f4d68">العرض الكامل والنموذج التفاعلي:</div>
+  <div class="abs w" id="i-url" style="left:0;right:0;top:820px;text-align:center"><span class="url">madar.raqeem.dev</span></div>
+</div>
+
+<script>
+const $=id=>document.getElementById(id)
+const clamp=x=>Math.max(0,Math.min(1,x))
+const P=(t,a,b)=>clamp((t-a)/(b-a))
+const eo=x=>1-Math.pow(1-x,3)
+const eio=x=>x<.5?4*x*x*x:1-Math.pow(-2*x+2,3)/2
+const eb=x=>{const c=1.70158;return 1+(c+1)*Math.pow(x-1,3)+c*Math.pow(x-1,2)}
+const lerp=(a,b,x)=>a+(b-a)*x
+const AR=n=>String(n).replace(/\d/g,d=>'٠١٢٣٤٥٦٧٨٩'[d])
+const g=$('fx').getContext('2d')
+function hash(i){const x=Math.sin(i*127.1+311.7)*43758.5453;return x-Math.floor(x)}
+// element enters at time a over dur seconds; rises by dy px; optional pop scale; optional exit at b
+function show(id,t,a,dur=.55,dy=36,pop=false,b=1e9,extra=""){
+  const el=$(id); const x=P(t,a,a+dur); const out=P(t,b,b+.35)
+  el.style.opacity=x*(1-out)
+  el.style.transform=`translateY(${(1-eo(x))*dy-out*20}px)${pop?` scale(${lerp(.8,1,eb(x))})`:''} ${extra}`
+}
+const SC=[['sA',0,24.2],['sB',24.2,41.0],['sC',41.0,69.5],['sD',69.5,101.0],['sE',101.0,123.6],['sF',123.6,147.2],['sG',147.2,170.7],['sH',170.7,182.0],['sI',182.0,999]]
+// fan-out network for scene C (built once)
+const AV=[];(function(){
+  const host=$('c-avas'); const cols=[{x:1300,c:'#f0a020',ch:['م','ل','ع','ه','ر','س']},{x:1600,c:'#e85d8d',ch:['أ','أ','أ','أ','أ','أ']}]
+  const svg=$('c-lines')
+  cols.forEach((col,ci)=>col.ch.forEach((ch,i)=>{
+    const y=250+i*110; const a=document.createElement('span'); a.className='ava w'; a.textContent=ch; a.style.cssText=`position:absolute;left:${col.x}px;top:${y}px;background:${col.c}`; host.appendChild(a)
+    const ln=document.createElementNS('http://www.w3.org/2000/svg','path'); const x0=1920-150-420, y0=600
+    ln.setAttribute('d',`M${x0} ${y0} C ${x0+200} ${y0}, ${col.x-100} ${y+33}, ${col.x} ${y+33}`); ln.setAttribute('opacity','.55'); svg.appendChild(ln)
+    const len=ln.getTotalLength(); ln.style.strokeDasharray=len; ln.style.strokeDashoffset=len
+    AV.push({a,ln,len,ci,i})
+  }))
+})()
+function render(t){
+  // background motion
+  const B=[['b1',1500,-100,160,120,.05],['b2',-100,300,140,180,.04],['b3',1200,800,170,110,.045],['b4',500,900,130,150,.035]]
+  for(const [id,cx,cy,ax,ay,f] of B){$(id).style.transform=`translate(${cx+ax*Math.sin(t*f*6.28+cx)}px,${cy+ay*Math.cos(t*f*6.28+cy)}px)`}
+  g.clearRect(0,0,1920,1080)
+  for(let i=0;i<50;i++){const x=hash(i)*1920+Math.sin(t*.4+i)*40, y=((hash(i+99)*1300-t*lerp(8,30,hash(i+7)))%1300+1300)%1300-110; g.globalAlpha=.18+.25*hash(i+3); g.fillStyle=i%4?'#2a5bea':'#f0a020'; g.beginPath(); g.arc(x,y,lerp(2,6,hash(i+1)),0,7); g.fill()}
+  g.globalAlpha=1
+  for(const [id,a,b] of SC){const el=$(id); const v=t>=a-.3&&t<b+.3; el.style.visibility=v?'visible':'hidden'; el.style.opacity=v?Math.min(P(t,a-.3,a+.2),1-P(t,b-.2,b+.3)):0}
+
+  // ---- A
+  if(t<25){
+    show('a-h1',t,0.3,.7,30,false,14.6); show('a-h2',t,1.6,.7,24,false,14.6)
+    show('a-c1',t,6.0,.6,40,true); show('a-c2',t,8.3,.6,40,true); show('a-c3',t,10.5,.6,40,true)
+    show('a-h3',t,15.0,.7,30)
+    const sc=P(t,15.2,19.5); // cards drift apart
+    const dr=[[-90,-70,-8],[0,90,5],[90,-60,7]]
+    ;['a-c1','a-c2','a-c3'].forEach((id,i)=>{const el=$(id);const [dx,dy,r]=dr[i];el.style.transform+=` translate(${eio(sc)*dx}px,${eio(sc)*dy}px) rotate(${eio(sc)*r}deg)`;el.style.opacity=parseFloat(el.style.opacity)*(1-sc*.35)})
+    show('a-s1',t,18.6,.5,20,true,1e9,'rotate(-6deg)'); show('a-s2',t,20.2,.5,20,true,1e9,'rotate(3deg)'); show('a-s3',t,21.8,.5,20,true,1e9,'rotate(-2deg)')
+  }
+  // ---- B
+  if(t>=23.8&&t<42){
+    show('b-mark',t,24.5,.7,0,true); $('b-mark').style.transform+=` rotate(${t*12}deg)`
+    show('b-name',t,25.0,.8,40,true); show('b-tag',t,27.6,.7,30); show('b-sub',t,29.2,.7,24); show('b-line',t,38.4,.6,20,true)
+    const ro=P(t,25,27.5); $('b-r1').style.opacity=ro; $('b-r2').style.opacity=ro
+    $('b-r1').style.transform=`rotate(${t*9}deg)`; $('b-r2').style.transform=`rotate(${-t*6}deg)`
+    show('b-core',t,35.4,.7,0,true)
+    const cx=420,cy=420
+    const sats=[['b-s1',31.0,0,420],['b-s2',32.6,90,290],['b-s3',34.0,180,290],['b-s4',37.0,270,420]]
+    for(const [id,a,ang,r] of sats){const el=$(id);const x=P(t,a,a+.6);const th=(ang+(r>300?-t*6:t*9))*Math.PI/180;el.style.left=(cx+r*Math.cos(th))+'px';el.style.top=(cy+r*Math.sin(th))+'px';el.style.opacity=x;el.style.transform=`translate(-50%,-50%) scale(${lerp(.6,1,eb(x))})`}
+  }
+  // ---- C
+  if(t>=40.7&&t<70){
+    const ph=1-P(t,56.3,56.9)
+    show('c-phone',t,41.0,.8,60,false,56.3); show('c-h',t,41.4,.7,30,false,56.3)
+    show('c-f1',t,42.0,.4,16); show('c-f2',t,42.9,.4,16); show('c-f3',t,43.8,.4,16); show('c-btn',t,44.4,.4,10,true)
+    $('c-btn').style.transform+=t>44.9&&t<45.3?' scale(.95)':''
+    for(const {a,ln,len,ci,i} of AV){const st=45.5+ci*1.4+i*.18;const x=P(t,st,st+.5);ln.style.strokeDashoffset=len*(1-eo(x));ln.style.opacity=.55*x*ph;a.style.opacity=P(t,st+.35,st+.75)*ph;a.style.transform=`scale(${lerp(.5,1,eb(P(t,st+.35,st+.85)))})`}
+    show('c-n1',t,47.3,.5,20,true,56.3); show('c-n2',t,48.6,.5,20,true,56.3)
+    show('c-b1',t,49.3,.5,20,false,56.3); show('c-b2',t,51.7,.5,20,false,56.3); show('c-b3',t,54.0,.5,20,false,56.3)
+    show('c-t1',t,57.4,.6,40,true); show('c-t2',t,59.4,.6,40,true); show('c-t3',t,61.4,.6,40,true); show('c-t4',t,63.4,.6,40,true); show('c-t5',t,65.3,.6,40,true)
+    show('c-banner',t,66.4,.8,30)
+  }
+  // ---- D
+  if(t>=69.2&&t<101.5){
+    show('d-ic',t,69.8,.6,0,true); show('d-h',t,70.0,.7,30); show('d-sub',t,72.6,.7,24)
+    show('d-s1',t,78.8,.6,40,true); show('d-s2',t,81.1,.6,40,true); show('d-s3',t,85.6,.6,40,true); show('d-s4',t,92.0,.6,40,true)
+    show('d-ok',t,83.6,.4,10,true)
+    const scan=P(t,81.6,83.5); $('d-avas').style.opacity=1; [...$('d-avas').children].forEach((a,i)=>{const on=Math.floor(scan*6)%3===i&&scan<1; a.style.transform=on?'scale(1.15)':'scale(1)'; a.style.opacity=scan>=1?(i===2?1:.35):1})
+    show('d-final',t,98.9,.7,30); show('d-zero',t,99.4,.6,20,true)
+  }
+  // ---- E
+  if(t>=100.7&&t<124){
+    show('e-frame',t,101.2,.8,40);
+    show('e-k1',t,103.0,.6,24,true); show('e-k2',t,105.5,.6,24,true); show('e-k3',t,108.0,.6,24,true); show('e-k4',t,113.0,.6,24,true)
+    $('e-v1').textContent=AR((91.4*eo(P(t,103.2,105))).toFixed(1))+'٪'; $('e-v2').textContent=AR(Math.round(96*eo(P(t,105.7,107.5))))+'٪'; $('e-v3').textContent=AR(Math.round(312*eo(P(t,108.2,110)))); $('e-v4').textContent=AR(Math.round(128*eo(P(t,113.2,115))))
+    show('e-chart',t,110.0,.7,30); show('e-alerts',t,112.0,.7,30)
+    document.querySelectorAll('#e-chart .tr i').forEach((b,i)=>b.style.width=(+b.dataset.w*eo(P(t,110.6+i*.25,112+i*.25)))+'%')
+    show('e-banner',t,117.6,.7,24); $('e-strike').style.width=(eo(P(t,120.4,121.2))*100)+'%'
+  }
+  // ---- F
+  if(t>=123.2&&t<147.6){
+    show('f-phone',t,123.8,.8,80); show('f-l1',t,125.2,.5,20,true)
+    show('f-laptop',t,126.0,.8,60,false,132.9); show('f-l2',t,127.6,.5,20,true,132.9)
+    show('f-off',t,130.3,.5,20,true,132.9)
+    show('f-sms',t,133.3,.6,30,true,139.4)
+    show('f-shield',t,139.9,.7,40,true)
+  }
+  // ---- G
+  if(t>=146.8&&t<171){
+    show('g-h',t,147.5,.7,30)
+    show('g-c1',t,150.0,.6,40,true); show('g-c2',t,152.5,.6,40,true); show('g-c3',t,155.0,.6,40,true); show('g-c4',t,157.2,.6,40,true)
+    show('g-h2',t,159.6,.7,24)
+    show('g-a1',t,163.4,.5,20,true); show('g-a2',t,165.9,.5,20,true); show('g-a3',t,168.0,.5,20,true)
+  }
+  // ---- H
+  if(t>=170.3&&t<182.5){
+    show('h-h',t,170.9,.7,30); show('h-sub',t,171.6,.6,20); show('h-road',t,171.8,.5,0)
+    $('h-fill').style.width=(eo(P(t,172.2,180.5))*100)+'%'
+    show('h-n1',t,172.3,.6,30,true); show('h-n2',t,176.4,.6,30,true); show('h-n3',t,179.4,.6,30,true)
+  }
+  // ---- I
+  if(t>=181.6){
+    show('i-mark',t,182.1,.8,0,true); $('i-mark').style.transform+=` rotate(${t*10}deg)`
+    show('i-name',t,182.5,.8,40,true); show('i-tag',t,183.3,.7,24); show('i-cta',t,186.0,.6,20); show('i-url',t,188.4,.6,20,true)
+    const pulse=t>190.6?1+Math.sin((t-190.6)*4)*.02:1; $('i-url').style.transform+=` scale(${pulse})`
+  }
+}
+window.render=render
+render(0)
+</script>
+</body></html>
