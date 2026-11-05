@@ -1,7 +1,7 @@
 // The durable rate limiter, run against node:sqlite exactly as the Durable Object runs it against ctx.storage.sql.
 import { describe, expect, it } from 'vitest'
 import { DatabaseSync } from 'node:sqlite'
-import { ADMIN_WINDOW, LOGIN_WINDOW, ensureAttemptsTable, recordAttempt, type SqlLike } from '../src/ratelimit'
+import { ADMIN_WINDOW, LOGIN_WINDOW, clearAttempts, ensureAttemptsTable, recordAttempt, type SqlLike } from '../src/ratelimit'
 
 function sqlLike(): SqlLike & { db: DatabaseSync } {
   const db = new DatabaseSync(':memory:')
@@ -45,5 +45,16 @@ describe('durable login limiter', () => {
     for (let i = 0; i < 10; i++) expect(recordAttempt(sql, 'admin:x', ADMIN_WINDOW, t0 + i).allowed).toBe(true)
     expect(recordAttempt(sql, 'admin:x', ADMIN_WINDOW, t0 + 11).allowed).toBe(false)
     expect(recordAttempt(sql, 'admin:x', ADMIN_WINDOW, t0 + 60_001).allowed).toBe(true)
+  })
+
+  it('clearAttempts forgets one key only', () => {
+    const sql = sqlLike(); ensureAttemptsTable(sql)
+    const t0 = 1_700_000_000_000
+    for (let i = 0; i < 20; i++) recordAttempt(sql, 'login:a', LOGIN_WINDOW, t0 + i)
+    recordAttempt(sql, 'login:b', LOGIN_WINDOW, t0)
+    expect(recordAttempt(sql, 'login:a', LOGIN_WINDOW, t0 + 30).allowed).toBe(false)
+    clearAttempts(sql, 'login:a')
+    expect(recordAttempt(sql, 'login:a', LOGIN_WINDOW, t0 + 40)).toEqual({ allowed: true, remaining: 19 })
+    expect(recordAttempt(sql, 'login:b', LOGIN_WINDOW, t0 + 40)).toEqual({ allowed: true, remaining: 18 })
   })
 })

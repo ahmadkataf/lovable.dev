@@ -1,13 +1,20 @@
 /* School: attendance entry (section → period → roster) and «تثبيت حضور اليوم». */
 
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import * as api from '../api';
 import { Roster } from '../components/Roster';
 import { Btn, ErrorBox, PageHead, Skeleton, Tile } from '../components/Ui';
-import { ar, fmtDate, periodName, todayISO } from '../format';
+import { ar, count, fmtDate, NOUNS, periodName, todayISO } from '../format';
 import { useApi } from '../hooks';
 import { toast } from '../store';
-import type { SchoolDashboard, SectionWithStudents } from '../types';
+import { rosterStudents, type RosterResponse, type SchoolDashboard, type SectionWithStudents } from '../types';
+
+/** «رسالة نصّية واحدة» / «رسالتان نصّيتان» / «٣ رسائل نصّية» / «١٢ رسالة نصّية». */
+function smsCount(n: number): string {
+  if (n === 1) return 'رسالة نصّية واحدة';
+  if (n === 2) return 'رسالتان نصّيتان';
+  return `${count(n, NOUNS.message)} نصّية`;
+}
 
 export function SchoolAttendance() {
   const today = todayISO();
@@ -17,13 +24,22 @@ export function SchoolAttendance() {
   const [period, setPeriod] = useState<number>(0);
   const [busy, setBusy] = useState(false);
   const section = sections.data?.find((x) => x.id === sectionId) ?? null;
+  // Statuses already saved for this period seed the roster (T3), so a second save never flips an absence back.
+  const roster = useApi<RosterResponse>(section && period > 0 ? `/api/sections/${section.id}/roster?date=${today}&period=${period}` : null);
+  const students = useMemo(() => rosterStudents(roster.data?.students ?? section?.students), [roster.data, section]);
+  const saved = useMemo(() => {
+    const m: Record<number, RosterResponse['students'][number]['status']> = {};
+    for (const st of roster.data?.students ?? []) { const id = Number(st.id ?? st.student_id); if (id) m[id] = st.status; }
+    return m;
+  }, [roster.data]);
+  const rosterReady = roster.data !== null || !!roster.error;
 
   const confirm = async () => {
     setBusy(true);
     try {
       const res = await api.post<{ confirmed?: number; sms?: number }>('/api/attendance/confirm', { date: today }, { queueable: false });
       const n = 'queued' in res ? 0 : res.sms ?? 0;
-      toast(`ثُبّت حضور اليوم${n ? ` — أُرسلت رسائل SMS عن الغياب إلى أولياء الأمور (${ar(n)})` : ''}`, 'ok', 5000);
+      toast(`ثُبّت حضور اليوم${n ? ` — أُرسلت ${smsCount(n)} عن الغياب إلى أولياء الأمور` : ''}`, 'ok', 5000);
       dash.reload();
     } catch (e) {
       toast(e instanceof Error ? e.message : 'تعذّر التثبيت', 'error');
@@ -42,8 +58,8 @@ export function SchoolAttendance() {
           <div className="stack">
             <div className="chips">
               {sections.data.map((x) => (
-                <button type="button" key={x.id} className="chip" aria-pressed={sectionId === x.id} onClick={() => setSectionId(x.id)}>
-                  {x.label}<small>{ar(x.students.length)} طالباً</small>
+                <button type="button" key={x.id} className="chip" aria-pressed={sectionId === x.id} onClick={() => { setSectionId(x.id); setPeriod(0); }}>
+                  {x.label}<small>{count(x.students.length, NOUNS.student)}</small>
                 </button>
               ))}
             </div>
@@ -59,12 +75,16 @@ export function SchoolAttendance() {
       </Tile>
       {section && period > 0 && (
         <Tile className="full" title={`سجلّ ${section.label}`} icon="list">
-          <Roster key={`${section.id}-${period}`} sectionId={section.id} sectionLabel={section.label} period={period} date={today} students={section.students} onSaved={() => dash.reload()} />
+          {!rosterReady && <Skeleton lines={5} />}
+          {rosterReady && (
+            <Roster key={`${section.id}-${period}-${roster.data ? 'server' : 'local'}`} sectionId={section.id} sectionLabel={section.label} period={period} date={today}
+              students={students} saved={saved} alreadyTaken={Object.values(saved).some(Boolean)} onSaved={() => { dash.reload(); roster.reload(); }} />
+          )}
         </Tile>
       )}
       <Tile className="full" title="تثبيت حضور اليوم" icon="shield" color="var(--teal)">
         <p className="small muted" style={{ marginBottom: 10 }}>
-          بعد التثبيت تُرسل إشعارات الغياب إلى أولياء الأمور برسالة SMS لمن لا يملك التطبيق؛ قبل التثبيت تبقى في التطبيق فقط.
+          بعد التثبيت تُرسل إشعارات الغياب إلى أولياء الأمور برسالة نصّية لمن لا يملك التطبيق؛ قبل التثبيت تبقى في التطبيق فقط.
           {dash.data ? ` حضور اليوم: ${ar(dash.data.present)} من ${ar(dash.data.students)}.` : ''}
         </p>
         <div className="btnrow top">

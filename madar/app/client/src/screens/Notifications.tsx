@@ -4,15 +4,18 @@ import { Icon } from '../components/Icon';
 import { Btn, Empty, ErrorBox, PageHead, Skeleton, Tag, Tile } from '../components/Ui';
 import { addDays, fmtDate, fmtTime, NOTIFICATION_KIND_LABEL, parseServerTime, todayISO, unreadLabel } from '../format';
 import { useApi } from '../hooks';
+import { resolveLink } from '../links';
 import { navigate } from '../router';
-import { refreshUnread, toast } from '../store';
+import { refreshUnread, toast, useStore } from '../store';
 import type { Notification } from '../types';
 
 const TONE: Record<string, 'sun' | 'mint' | 'rose' | 'violet' | 'gray' | 'red' | 'teal' | undefined> = {
-  homework: undefined, absence: 'red', substitution: 'violet', change: 'sun', announcement: 'teal', circular: 'teal', message: 'rose', alert: 'sun', attendance: 'mint',
+  homework: undefined, absence: 'red', absence_teacher: 'sun', substitution: 'violet', change: 'sun', announcement: 'teal', circular: 'teal',
+  message: 'rose', alert: 'sun', attendance: 'mint', no_attendance: 'sun', three_days: 'red', uncovered: 'violet',
 };
 const ICON: Record<string, string> = {
-  homework: 'book', absence: 'alert', substitution: 'swap', change: 'swap', announcement: 'megaphone', circular: 'megaphone', message: 'msg', alert: 'alert', attendance: 'check',
+  homework: 'book', absence: 'alert', absence_teacher: 'alert', substitution: 'swap', change: 'swap', announcement: 'megaphone', circular: 'megaphone',
+  message: 'msg', alert: 'alert', attendance: 'check', no_attendance: 'users', three_days: 'alert', uncovered: 'swap',
 };
 
 function dayLabel(created: string): string {
@@ -26,6 +29,7 @@ function dayLabel(created: string): string {
 }
 
 export function Notifications() {
+  const s = useStore();
   const { data, error, loading, reload } = useApi<Notification[]>('/api/notifications');
   const [busy, setBusy] = useState(false);
   const unread = useMemo(() => (data ?? []).filter((n) => !n.read_at), [data]);
@@ -46,7 +50,7 @@ export function Notifications() {
     setBusy(true);
     try {
       await api.post('/api/notifications/read', { ids: unread.map((n) => n.id) }, { queueable: false });
-      toast('عُلّمت كلّ الإشعارات كمقروءة');
+      toast('عُلّمت كلّ الإشعارات مقروءةً');
       reload();
       void refreshUnread();
     } catch (e) {
@@ -56,11 +60,13 @@ export function Notifications() {
     }
   };
 
+  // Server links name the thing («/homework/5», «/timetable?date=…»); resolveLink maps them to this role's screens.
   const open = async (n: Notification) => {
     if (!n.read_at) {
       try { await api.post('/api/notifications/read', { ids: [n.id] }, { queueable: false }); reload(); void refreshUnread(); } catch { /* ignore */ }
     }
-    if (n.link && n.link.startsWith('/')) navigate(n.link);
+    const to = resolveLink(n.link, s.user?.role);
+    if (to) navigate(to);
   };
 
   return (
@@ -68,12 +74,12 @@ export function Notifications() {
       <PageHead
         title="الإشعارات"
         sub={data ? unreadLabel(unread.length) : undefined}
-        actions={unread.length ? <Btn variant="light" size="sm" icon="check" loading={busy} onClick={() => { void markAll(); }}>تعليم الكلّ كمقروء</Btn> : undefined}
+        actions={unread.length ? <Btn variant="light" size="sm" icon="check" loading={busy} onClick={() => { void markAll(); }}>تعليم الكلّ مقروءاً</Btn> : undefined}
       />
       <Tile className="full nlist">
         {loading && !data && <Skeleton lines={4} />}
         {error && !data && <ErrorBox error={error} retry={reload} />}
-        {data && data.length === 0 && <Empty icon="bell" title="لا إشعارات بعد" text="ستصلك هنا الواجبات والغياب والتغييرات والإعلانات." />}
+        {data && data.length === 0 && <Empty icon="bell" title="لا إشعارات بعد" text="تصل هنا الواجبات والغياب والتغييرات والإعلانات." />}
         {groups.map((g) => (
           <div key={g.label} className="list" style={{ marginBottom: 10 }}>
             <div className="daysep">{g.label}</div>
@@ -82,7 +88,7 @@ export function Notifications() {
                 <span className="ic"><Icon name={ICON[n.kind] ?? 'bell'} /></span>
                 <span className="grow">
                   <span className="wrap-text">{n.body}</span>
-                  <small>{fmtTime(n.created_at)}{n.link ? ' · اضغط للانتقال' : ''}</small>
+                  <small>{fmtTime(n.created_at)}{resolveLink(n.link, s.user?.role) ? ' · فتح الصفحة المعنيّة' : ''}</small>
                 </span>
                 <Tag tone={TONE[n.kind]}>{NOTIFICATION_KIND_LABEL[n.kind] ?? n.kind}</Tag>
               </button>

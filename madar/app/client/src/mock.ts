@@ -5,7 +5,7 @@
    to sessionStorage so a page reload during a demo keeps what was done. */
 
 import {
-  addDays, count, dayIndex, firstName, fmtDate, li, NOUNS, periodName, todayISO,
+  addDays, consecutiveDays, count, dayIndex, firstName, fmtDate, li, NOUNS, periodName, periodOrdinal, todayISO,
 } from './format';
 import type {
   AbsenceResult, AffectedPeriod, Candidate, Context, DirectorateAlert, DirectorateDashboard,
@@ -52,7 +52,7 @@ interface DB {
   notifications: Notif[];
 }
 
-const VERSION = 3;
+const VERSION = 4;
 const WEEKLY_CAP = 28;
 const STORAGE_KEY = 'madar-mock';
 const TOKEN_PREFIX = 'mock.';
@@ -105,8 +105,8 @@ function seed(today: string): DB {
 
   db.schools = [
     { id: 1, name: 'مدرسة درعا النموذجية', complex: 'درعا المدينة', shifts: 1 },
-    { id: 2, name: 'مدرسة (ب) · مجمّع إزرع', complex: 'إزرع', shifts: 1 },
-    { id: 3, name: 'مدرسة (ج) · مجمّع طفس', complex: 'طفس', shifts: 1 },
+    { id: 2, name: 'مدرسة (ب)', complex: 'إزرع', shifts: 1 },
+    { id: 3, name: 'مدرسة (ج)', complex: 'طفس', shifts: 1 },
   ];
   db.subjects = SUBJECTS.map((name, i) => ({ id: i + 1, name }));
 
@@ -117,8 +117,8 @@ function seed(today: string): DB {
   };
   user(1, 'directorate', 'مديرية التربية · درعا', 'DIR-DARAA', null);
   user(2, 'school', 'إدارة مدرسة درعا النموذجية', 'SCH-1', 1);
-  user(3, 'school', 'إدارة مدرسة (ب) · مجمّع إزرع', 'SCH-2', 2);
-  user(4, 'school', 'إدارة مدرسة (ج) · مجمّع طفس', 'SCH-3', 3);
+  user(3, 'school', 'إدارة مدرسة (ب)', 'SCH-2', 2);
+  user(4, 'school', 'إدارة مدرسة (ج)', 'SCH-3', 3);
   // teachers of school 1 (ids 10–16)
   user(10, 'teacher', 'سامر حسن', 'T-SAMER', 1, 2, '0944000010');
   user(11, 'teacher', 'رنا سعيد', 'T-RANA', 1, 3, '0944000011');
@@ -254,7 +254,7 @@ function seed(today: string): DB {
     db.notifications.push({ id: db.seq++, user_id, kind, body, link, sms, created_at, read_at: read ? created_at : null });
   };
   // circular to the school accounts
-  for (const s of db.users.filter((u) => u.role === 'school')) notify(s.id, 'announcement', 'تعميم من مديرية التربية: مواعيد امتحانات الفصل الأول', '/notifications', at(addDays(today, -3), '09:00'), 0, s.id !== 2);
+  for (const s of db.users.filter((u) => u.role === 'school')) notify(s.id, 'circular', 'تعميم من مديرية التربية: مواعيد امتحانات الفصل الأول', '/notifications', at(addDays(today, -3), '09:00'), 0, s.id !== 2);
   // announcement to the parents of school 1
   for (const g of guardiansOfSchool(db, 1)) notify(g, 'announcement', 'اجتماع أولياء الأمور: يُعقد اجتماع أولياء أمور الصف الخامس يوم الثلاثاء القادم الساعة العاشرة صباحاً.', '/notifications', at(addDays(today, -2), '12:15'), 0, true);
   // homework notification for الخامس (ب)
@@ -264,8 +264,8 @@ function seed(today: string): DB {
   }
   // absence notifications of كرم's guardian for the past days
   if (karam.guardian_user_id) {
-    for (const d of pastDays.slice(3)) notify(karam.guardian_user_id, 'absence', `غاب ${firstName(NAMES_5B[8])} عن الدوام ${fmtDate(d)}`, '/parent', at(d, '08:20'), 1, true);
-    if (todayW <= 4) notify(karam.guardian_user_id, 'absence', `غاب ${firstName(NAMES_5B[8])} عن الحصّة الأولى اليوم`, '/parent', at(today, '07:36'));
+    for (const d of pastDays.slice(3)) notify(karam.guardian_user_id, 'absence', `غياب ${firstName(NAMES_5B[8])} يوم ${fmtDate(d)}`, '/parent', at(d, '08:20'), 1, true);
+    if (todayW <= 4) notify(karam.guardian_user_id, 'absence', `غياب ${firstName(NAMES_5B[8])} عن الحصّة الأولى اليوم`, '/parent', at(today, '07:36'));
   }
   // a message from the demo parent to the maths teacher, yesterday
   const khaled = db.users.find((u) => u.code === 'P-KHALED')!;
@@ -343,7 +343,7 @@ function rankCandidates(db: DB, row: Timetable, absence: Abs): Candidate[] {
     name: c.u.name,
     subject: subjectName(db, c.u.subject_id),
     tier: c.tier,
-    reason: c.tier === 1 ? 'المادة نفسها · حصّة فراغ' : c.tier === 2 ? 'يدرّس الشعبة · حصّة فراغ' : 'حصّة فراغ',
+    reason: c.tier === 1 ? 'المادّة نفسها · حصّة فراغ' : c.tier === 2 ? 'من معلّمي الشعبة · حصّة فراغ' : 'حصّة فراغ',
   }));
 }
 
@@ -533,10 +533,10 @@ export function isMockToken(token: string | null | undefined): boolean {
 }
 
 function authUser(d: DB, token: string | null | undefined): DbUser {
-  if (!token || !token.startsWith(TOKEN_PREFIX)) throw new ApiError(401, 'انتهت الجلسة، سجّل الدخول مجدداً');
+  if (!token || !token.startsWith(TOKEN_PREFIX)) throw new ApiError(401, 'انتهت الجلسة، يلزم تسجيل الدخول مجدّداً');
   const uid = Number(token.slice(TOKEN_PREFIX.length).split('.')[0]);
   const u = d.users.find((x) => x.id === uid);
-  if (!u) throw new ApiError(401, 'انتهت الجلسة، سجّل الدخول مجدداً');
+  if (!u) throw new ApiError(401, 'انتهت الجلسة، يلزم تسجيل الدخول مجدّداً');
   return u;
 }
 
@@ -644,7 +644,7 @@ function route(d: DB, m: string, path: string, q: URLSearchParams, b: Record<str
       rows = rows.filter((x) => x.teacher_id === teacherId);
     } else if (me.role === 'teacher') rows = rows.filter((x) => x.teacher_id === me.id);
     else if (me.role === 'student') { const st = studentOf(d, me.id); rows = rows.filter((x) => x.section_id === st?.section_id); }
-    else throw new ApiError(400, 'حدّد الشعبة أو المعلّم');
+    else throw new ApiError(400, 'يلزم تحديد الشعبة أو المعلّم');
     if (day !== null) rows = rows.filter((x) => x.day === day);
     return ok(timetableRows(d, rows, today));
   }
@@ -757,7 +757,7 @@ function route(d: DB, m: string, path: string, q: URLSearchParams, b: Record<str
       counts.saved++;
       counts[r.status]++;
       if (r.status === 'absent' && st.guardian_user_id) {
-        const body = `غاب ${firstName(userById(d, st.user_id)?.name)} عن ${periodName(period)} ${dayWord(date, today)}`;
+        const body = `غياب ${firstName(userById(d, st.user_id)?.name)} عن ${periodName(period)} ${dayWord(date, today)}`;
         if (!d.notifications.some((n) => n.user_id === st.guardian_user_id && n.kind === 'absence' && n.body === body && n.created_at.slice(0, 10) === today)) pushNotification(d, st.guardian_user_id, 'absence', body, '/parent', confirmed);
       }
     }
@@ -808,6 +808,7 @@ function route(d: DB, m: string, path: string, q: URLSearchParams, b: Record<str
       today: timetableRows(d, d.timetable.filter((t) => t.section_id === st.section_id && t.day === day), today),
       homework: studentHomework(d, st, null),
       notifications_unread: d.notifications.filter((n) => n.user_id === me.id && !n.read_at).length,
+      points: d.submissions.filter((s) => s.student_id === st.id).length * 10,
     };
     return ok(res);
   }
@@ -838,7 +839,8 @@ function route(d: DB, m: string, path: string, q: URLSearchParams, b: Record<str
     if (me.role === 'student') throw new ApiError(403, 'لا تملك صلاحية هذه العملية');
     const msg: Msg = { id: d.seq++, from_user: me.id, to_user: to.id, body: text, created_at: nowISO(), read_at: null };
     d.messages.push(msg);
-    pushNotification(d, to.id, 'message', `رسالة جديدة من ${me.role === 'teacher' ? `أ. ${firstName(me.name)}` : firstName(me.name)}: ${text.length > 80 ? text.slice(0, 80) + '…' : text}`, '/messages');
+    const who = me.role === 'teacher' ? `أ. ${firstName(me.name)}` : me.role === 'school' ? 'إدارة المدرسة' : `${firstName(me.name)} (وليّ أمر الطالب)`;
+    pushNotification(d, to.id, 'message', `رسالة جديدة من ${who}: ${text.length > 80 ? text.slice(0, 80) + '…' : text}`, '/messages');
     return ok({ id: msg.id });
   }
   if (m === 'GET' && path === '/api/messages') {
@@ -889,7 +891,24 @@ function route(d: DB, m: string, path: string, q: URLSearchParams, b: Record<str
   if (m === 'GET' && path === '/api/school/sections') {
     requireRole(me, 'school', 'teacher');
     const sections = me.role === 'school' ? d.sections.filter((s) => s.school_id === me.school_id) : teacherSections(d, me.id);
-    return ok(sections.map((s) => ({ id: s.id, grade: s.grade, label: s.label, shift: s.shift, students: d.students.filter((x) => x.section_id === s.id).map((x) => ({ id: x.id, name: userById(d, x.user_id)?.name ?? '' })) })));
+    // `id` and `student_id` carry the same value, as on the server (the roster keys on `id`, the attendance POST sends `student_id`).
+    return ok(sections.map((s) => ({ id: s.id, grade: s.grade, label: s.label, shift: s.shift, students: d.students.filter((x) => x.section_id === s.id).map((x) => ({ id: x.id, student_id: x.id, name: userById(d, x.user_id)?.name ?? '', has_guardian: x.guardian_user_id !== null })) })));
+  }
+
+  const rosterMatch = /^\/api\/sections\/(\d+)\/roster$/.exec(path);
+  if (rosterMatch && m === 'GET') {
+    requireRole(me, 'school', 'teacher', 'directorate');
+    const sec = d.sections.find((s) => s.id === Number(rosterMatch[1]));
+    if (!sec) throw new ApiError(404, 'الشعبة غير موجودة');
+    if (me.role === 'school' && sec.school_id !== me.school_id) throw new ApiError(403, 'الشعبة ليست في مدرستك');
+    if (me.role === 'teacher' && !teacherSections(d, me.id).some((s) => s.id === sec.id)) throw new ApiError(403, 'لا تدرّس هذه الشعبة');
+    const date = q.get('date') || today;
+    const period = q.get('period') ? Number(q.get('period')) : null;
+    const students = d.students.filter((x) => x.section_id === sec.id).map((x) => {
+      const recs = d.attendance.filter((a) => a.student_id === x.id && a.date === date && (period === null || a.period === period)).sort((a, b) => a.period - b.period);
+      return { id: x.id, student_id: x.id, name: userById(d, x.user_id)?.name ?? '', status: recs[0]?.status ?? null };
+    }).sort((a, b) => a.name.localeCompare(b.name, 'ar'));
+    return ok({ section: { id: sec.id, grade: sec.grade, label: sec.label, shift: sec.shift }, date, period, students });
   }
 
   const substMatch = /^\/api\/substitutions\/(\d+)\/(approve|self-study)$/.exec(path);
@@ -907,7 +926,7 @@ function route(d: DB, m: string, path: string, q: URLSearchParams, b: Record<str
     let notified = 0;
     if (substMatch[2] === 'approve') {
       const teacher = userById(d, Number(b.teacher_id));
-      if (!teacher || teacher.role !== 'teacher' || teacher.school_id !== me.school_id) throw new ApiError(400, 'اختر معلّماً من المدرسة');
+      if (!teacher || teacher.role !== 'teacher' || teacher.school_id !== me.school_id) throw new ApiError(400, 'يلزم اختيار معلّم من المدرسة');
       if (d.timetable.some((t) => t.teacher_id === teacher.id && t.day === row.day && t.period === row.period)) throw new ApiError(409, 'المعلّم لديه حصّة في الوقت نفسه');
       if (d.absences.some((a) => a.teacher_id === teacher.id && a.date === abs.date)) throw new ApiError(409, 'المعلّم غائب في هذا اليوم');
       const clash = d.substitutions.some((x) => x.id !== s.id && x.status === 'approved' && x.substitute_teacher_id === teacher.id && d.absences.find((a) => a.id === x.absence_id)?.date === abs.date && d.timetable.find((t) => t.id === x.timetable_id)?.period === row.period);
@@ -917,17 +936,17 @@ function route(d: DB, m: string, path: string, q: URLSearchParams, b: Record<str
       s.lesson_note = b.lesson_note ? String(b.lesson_note) : s.lesson_note;
       s.approved_by = me.id;
       s.approved_at = nowISO();
-      pushNotification(d, teacher.id, 'substitution', `كُلّفت بتغطية ${period} ${when} مع ${sec.label} (${subjectName(d, row.subject_id)})${s.lesson_note ? ` — خطّة الدرس: ${s.lesson_note}` : ''}`, '/teacher');
+      pushNotification(d, teacher.id, 'substitution', `تكليفك بتغطية ${period} ${when} — ${sec.label} · ${subjectName(d, row.subject_id)}${s.lesson_note ? ` · خطّة الدرس: ${s.lesson_note}` : ''}`, '/teacher');
       notified++;
       for (const st of sectionStudents) {
         pushNotification(d, st.user_id, 'change', `تغيّر معلّم ${period} ${when}`, '/student');
         notified++;
-        if (st.guardian_user_id) { pushNotification(d, st.guardian_user_id, 'change', `تغيّر معلّم ${period} ${when} لدى ${firstName(userById(d, st.user_id)?.name)}`, '/parent'); notified++; }
+        if (st.guardian_user_id) { pushNotification(d, st.guardian_user_id, 'change', `تغيّر معلّم ${period} ${when} في شعبة ${firstName(userById(d, st.user_id)?.name)}`, '/parent'); notified++; }
       }
       return ok({ id: s.id, status: s.status, substitute: teacher.name, notified });
     }
     const note = String(b.lesson_note ?? '').trim();
-    if (!note) throw new ApiError(400, 'اكتب ملاحظة النشاط الذاتي');
+    if (!note) throw new ApiError(400, 'تلزم ملاحظة النشاط الذاتي');
     s.status = 'self_study';
     s.substitute_teacher_id = null;
     s.lesson_note = note;
@@ -936,7 +955,7 @@ function route(d: DB, m: string, path: string, q: URLSearchParams, b: Record<str
     for (const st of sectionStudents) {
       pushNotification(d, st.user_id, 'change', `${period} ${when} تعلّم ذاتي موجَّه: ${note}`, '/student');
       notified++;
-      if (st.guardian_user_id) { pushNotification(d, st.guardian_user_id, 'change', `${period} ${when} لدى ${firstName(userById(d, st.user_id)?.name)} تعلّم ذاتي موجَّه`, '/parent'); notified++; }
+      if (st.guardian_user_id) { pushNotification(d, st.guardian_user_id, 'change', `حصّة ${firstName(userById(d, st.user_id)?.name)} ${periodOrdinal(row.period)} ${when} تعلّم ذاتي موجَّه`, '/parent'); notified++; }
     }
     return ok({ id: s.id, status: s.status, notified });
   }
@@ -956,7 +975,7 @@ function route(d: DB, m: string, path: string, q: URLSearchParams, b: Record<str
       return ok({ id: ann.id, notified_parents: guardians.length, sms: urgent ? guardians.length : 0 });
     }
     const schools = d.users.filter((x) => x.role === 'school');
-    for (const s of schools) pushNotification(d, s.id, 'announcement', `تعميم من مديرية التربية: ${title} — ${text}`, '/notifications');
+    for (const s of schools) pushNotification(d, s.id, 'circular', `تعميم من مديرية التربية: ${title} — ${text}`, '/notifications');
     ann.notified = schools.length;
     return ok({ id: ann.id, notified_schools: schools.length });
   }
@@ -981,8 +1000,8 @@ function route(d: DB, m: string, path: string, q: URLSearchParams, b: Record<str
     const three = threeDayAbsences(d, date);
     const alerts: DirectorateAlert[] = [];
     for (const s of schools) if (!s.attendance_uploaded) alerts.push({ kind: 'no_attendance', school: s.name, text: `لم يُرفع سجلّ الحضور ${dayWord(date, today)}` });
-    for (const s of schools) if (s.uncovered_periods > 0) alerts.push({ kind: 'uncovered', school: s.name, text: `${count(s.uncovered_periods, NOUNS.period)} غير مغطّاة ${dayWord(date, today)}` });
-    for (const t of three) alerts.push({ kind: 'three_days', school: t.school, text: `غياب ${firstName(t.student_name)} ${count(t.days, NOUNS.day)} متتالية` });
+    for (const s of schools) if (s.uncovered_periods > 0) alerts.push({ kind: 'uncovered', school: s.name, text: `${count(s.uncovered_periods, NOUNS.period)} من دون تغطية ${dayWord(date, today)}` });
+    for (const t of three) alerts.push({ kind: 'three_days', school: t.school, text: `غياب ${firstName(t.student_name)} ${consecutiveDays(t.days)}` });
     const withAtt = schools.filter((s) => s.attendance_uploaded);
     const presentSum = withAtt.reduce((a, s) => a + s._att.present, 0);
     const recordedSum = withAtt.reduce((a, s) => a + s._att.recorded, 0);
@@ -1008,13 +1027,4 @@ function route(d: DB, m: string, path: string, q: URLSearchParams, b: Record<str
   throw new ApiError(404, `المسار غير موجود: ${m} ${path}`);
 }
 
-/** Names/codes of the one-tap demo accounts (login screen). */
-export const DEMO_ACCOUNTS: { code: string; name: string; role: Role; hint: string }[] = [
-  { code: 'DIR-DARAA', name: 'مديرية التربية · درعا', role: 'directorate', hint: 'لوحة المديرية والتعاميم' },
-  { code: 'SCH-1', name: 'إدارة مدرسة درعا النموذجية', role: 'school', hint: 'لوحة المدرسة والغياب والحضور' },
-  { code: 'T-SAMER', name: 'أ. سامر حسن', role: 'teacher', hint: 'رياضيات · الخامس والسادس' },
-  { code: 'T-RANA', name: 'أ. رنا سعيد', role: 'teacher', hint: 'علوم · غائبة اليوم' },
-  { code: 'T-MAHER', name: 'أ. ماهر عادل', role: 'teacher', hint: 'علوم · البديل المقترح' },
-  { code: 'S-LAYAN', name: 'ليان أحمد', role: 'student', hint: 'الخامس (ب)' },
-  { code: 'P-KHALED', name: 'خالد', role: 'parent', hint: 'وليّ أمر محمد خالد' },
-];
+// The one-tap demo accounts live in src/demo.ts so the login screen never imports this module.

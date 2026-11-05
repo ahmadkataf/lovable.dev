@@ -3,10 +3,10 @@
 
 import { useMemo, useState, type FormEvent } from 'react';
 import * as api from '../api';
-import { Btn, Empty, ErrorBox, Field, Kpi, PageHead, Skeleton, Tag, Tile } from '../components/Ui';
-import { ar, count, fmtDate, fmtWhen, NOUNS, pct, todayISO } from '../format';
+import { Btn, DateField, Empty, ErrorBox, Field, Kpi, PageHead, Skeleton, Tag, Tile } from '../components/Ui';
+import { ar, consecutiveDays, count, fmtDate, fmtWhen, NOUNS, pct, todayISO } from '../format';
 import { useApi } from '../hooks';
-import { navigate } from '../router';
+import { navigate, useRoute } from '../router';
 import { toast, useStore } from '../store';
 import type { DirectorateDashboard as DirectorateDashboardData, DirectorateSchool } from '../types';
 import { useAnnouncements } from './SchoolAnnouncements';
@@ -30,7 +30,8 @@ const ALERT_TAG: Record<string, { label: string; tone: 'sun' | 'red' | 'violet' 
 
 export function DirectorateDashboard() {
   const today = todayISO();
-  const [date, setDate] = useState(today);
+  const route = useRoute();
+  const [date, setDate] = useState(() => { const q = route.query.get('date'); return q && /^\d{4}-\d{2}-\d{2}$/.test(q) && q <= today ? q : today; });
   const { data, error, loading, reload } = useApi<DirectorateDashboardData>(`/api/directorate/dashboard?date=${date}`);
   const [sort, setSort] = useState<{ key: SortKey; dir: 1 | -1 }>({ key: 'present_pct', dir: -1 });
   const [downloading, setDownloading] = useState(false);
@@ -50,7 +51,7 @@ export function DirectorateDashboard() {
     setDownloading(true);
     try {
       await api.download(`/api/directorate/report.csv?date=${date}`, `madar-report-${date}.csv`);
-      toast('بدأ تنزيل تقرير CSV (يفتح في Excel)');
+      toast('بدأ تنزيل التقرير، ويُفتح في إكسل');
     } catch (e) {
       toast(e instanceof Error ? e.message : 'تعذّر التنزيل', 'error');
     } finally {
@@ -65,8 +66,8 @@ export function DirectorateDashboard() {
         sub={`نظرة اليوم · ${fmtDate(date)}`}
         actions={
           <>
-            <input className="input" type="date" value={date} max={today} onChange={(e) => setDate(e.target.value || today)} aria-label="التاريخ" style={{ width: 'auto', minHeight: 40 }} />
-            <Btn size="sm" variant="light" icon="download" loading={downloading} onClick={() => { void downloadCsv(); }}>تنزيل تقرير CSV</Btn>
+            <DateField compact value={date} onChange={setDate} max={today} />
+            <Btn size="sm" variant="light" icon="download" loading={downloading} onClick={() => { void downloadCsv(); }}>تنزيل تقرير اليوم</Btn>
             <Btn size="sm" icon="megaphone" onClick={() => navigate('/directorate/circulars')}>تعميم جديد</Btn>
           </>
         }
@@ -82,7 +83,7 @@ export function DirectorateDashboard() {
             <Kpi value={ar(data.totals.alerts_count)} label="تنبيهات تحتاج تدخّلاً" tone={data.totals.alerts_count ? 'warn' : 'good'} />
           </div>
 
-          <Tile className="full" title="المدارس" icon="school" right={<span className="small muted">اضغط عنوان العمود للترتيب</span>}>
+          <Tile className="full" title="المدارس" icon="school" right={<span className="small muted">الترتيب بالضغط على عنوان العمود</span>}>
             <div className="table-wrap">
               <table>
                 <thead>
@@ -110,7 +111,7 @@ export function DirectorateDashboard() {
                 </tbody>
               </table>
             </div>
-            <p className="table-hint">اسحب الجدول يساراً لعرض بقية الأعمدة.</p>
+            <p className="table-hint">يُسحب الجدول يساراً لعرض بقية الأعمدة.</p>
           </Tile>
 
           <Tile title="يحتاج تدخّلاً اليوم" icon="alert" color="var(--sun)">
@@ -131,7 +132,7 @@ export function DirectorateDashboard() {
               {data.three_day_absences.map((t, i) => (
                 <div className="row bad" key={i}>
                   <span className="grow"><b>{t.student_name}</b><small>{t.school}</small></span>
-                  <Tag tone="red">{count(t.days, NOUNS.day)} متتالية</Tag>
+                  <Tag tone="red">{consecutiveDays(t.days)}</Tag>
                 </div>
               ))}
             </div>
@@ -154,13 +155,13 @@ export function DirectorateCirculars() {
 
   const submit = async (e: FormEvent) => {
     e.preventDefault();
-    if (!title.trim() || !body.trim()) { setError('اكتب العنوان والنصّ'); return; }
+    if (!title.trim() || !body.trim()) { setError('يلزم العنوان والنصّ'); return; }
     setBusy(true);
     setError(null);
     try {
       const res = await api.post<{ id?: number; notified_schools?: number; notified?: number }>('/api/announcements', { title: title.trim(), body: body.trim() }, { queueable: false });
       const n = 'queued' in res ? 0 : res.notified_schools ?? res.notified ?? 0;
-      toast(`أُرسل التعميم إلى ${n ? count(n, NOUNS.school) : 'كلّ المدارس المتّصلة'} وظهر في لوحة كلّ مدير`, 'ok', 5000);
+      toast(`أُرسل التعميم إلى ${n ? count(n, NOUNS.school) : 'كلّ المدارس المتّصلة'} وظهر في لوحة كلّ مدرسة`, 'ok', 5000);
       addLocal({ id: 'queued' in res ? Date.now() : res.id ?? Date.now(), school_id: null, title: title.trim(), body: body.trim(), urgent: 0, created_at: new Date().toISOString(), notified: n });
       setTitle('');
       setBody('');

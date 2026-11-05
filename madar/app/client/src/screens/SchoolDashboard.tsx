@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Btn, ChartRow, Empty, ErrorBox, Kpi, PageHead, Skeleton, Tag, Tile } from '../components/Ui';
+import { Btn, ChartRow, DateField, Empty, ErrorBox, Kpi, PageHead, Skeleton, Tag, Tile } from '../components/Ui';
 import { ar, count, fmtDate, gradeShort, NOUNS, pct, periodOrdinal, SUBSTITUTION_LABEL, teacherTitle, todayISO } from '../format';
 import { useApi } from '../hooks';
 import { Link, navigate } from '../router';
@@ -18,7 +18,7 @@ export function SchoolDashboard() {
       <PageHead
         title={ctx?.school.name ?? s.user?.school_name ?? 'لوحة المدرسة'}
         sub={data ? `${count(data.students, NOUNS.student)} · ${count(data.teachers, NOUNS.teacher)} · ${fmtDate(date)}` : fmtDate(date)}
-        actions={<input className="input" type="date" value={date} max={today} onChange={(e) => setDate(e.target.value || today)} aria-label="التاريخ" style={{ width: 'auto', minHeight: 40 }} />}
+        actions={<DateField compact value={date} onChange={setDate} max={today} />}
       />
       {error && !data && <Tile className="full"><ErrorBox error={error} retry={reload} /></Tile>}
       {loading && !data && <Tile className="full"><Skeleton lines={3} /></Tile>}

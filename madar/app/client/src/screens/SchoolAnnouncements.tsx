@@ -5,9 +5,10 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import * as api from '../api';
 import { Btn, Empty, Field, PageHead, Tag, Tile, Toggle } from '../components/Ui';
-import { count, fmtWhen, NOUNS } from '../format';
+import { count, NOUNS } from '../format';
 import { toast, useStore } from '../store';
 import type { Announcement } from '../types';
+import { AnnouncementRow } from './Announcements';
 
 const LOCAL_KEY = 'sent-announcements';
 
@@ -48,13 +49,13 @@ export function SchoolAnnouncements() {
 
   const submit = async (e: FormEvent) => {
     e.preventDefault();
-    if (!title.trim() || !body.trim()) { setError('اكتب العنوان والنصّ'); return; }
+    if (!title.trim() || !body.trim()) { setError('يلزم العنوان والنصّ'); return; }
     setBusy(true);
     setError(null);
     try {
       const res = await api.post<{ id?: number; notified_parents?: number; notified?: number; sms?: number }>('/api/announcements', { title: title.trim(), body: body.trim(), urgent: urgent ? 1 : 0 }, { queueable: false });
       const n = 'queued' in res ? 0 : res.notified_parents ?? res.notified ?? 0;
-      toast(`أُرسل الإعلان${urgent ? ' العاجل' : ''} إلى ${n ? count(n, NOUNS.guardian) : 'أولياء الأمور'} عبر التطبيق${urgent ? ' وبرسالة SMS' : ''}`, 'ok', 5000);
+      toast(`أُرسل الإعلان${urgent ? ' العاجل' : ''} إلى ${n ? count(n, NOUNS.guardian) : 'أولياء الأمور'} عبر التطبيق${urgent ? ' وبرسالة نصّية' : ''}`, 'ok', 5000);
       addLocal({ id: 'queued' in res ? Date.now() : res.id ?? Date.now(), school_id: s.user?.school_id ?? null, title: title.trim(), body: body.trim(), urgent: urgent ? 1 : 0, created_at: new Date().toISOString(), notified: n });
       setTitle('');
       setBody('');
@@ -68,7 +69,7 @@ export function SchoolAnnouncements() {
 
   return (
     <>
-      <PageHead title="الإعلانات" sub="إعلان واحد يصل إلى كلّ الأهالي بالتطبيق، وبرسالة SMS إن كان عاجلاً" />
+      <PageHead title="الإعلانات" sub="إعلان واحد يصل إلى كلّ الأهالي بالتطبيق، وبرسالة نصّية إن كان عاجلاً" />
       <Tile className="full" title="إعلان جديد لكلّ الأهالي" icon="megaphone">
         <form onSubmit={submit} className="stack">
           <Field label="العنوان">
@@ -77,7 +78,7 @@ export function SchoolAnnouncements() {
           <Field label="النصّ">
             <textarea className="input" value={body} onChange={(e) => setBody(e.target.value)} placeholder="مثال: يُعلَّق الدوام يوم الأحد ٨ تشرين الثاني بسبب الأحوال الجوية، ويُستأنف الاثنين." rows={4} required />
           </Field>
-          <Toggle label="عاجل — يُرسل أيضاً برسالة SMS لمن لا يملك التطبيق" checked={urgent} onChange={setUrgent} />
+          <Toggle label="عاجل — يُرسل أيضاً برسالة نصّية لمن لا يملك التطبيق" checked={urgent} onChange={setUrgent} />
           {error && <div className="error" role="alert">{error}</div>}
           <div className="btnrow top">
             <Btn type="submit" icon="send" loading={busy}>إرسال للجميع</Btn>
@@ -87,16 +88,7 @@ export function SchoolAnnouncements() {
       <Tile className="full" title="الإعلانات السابقة" icon="list" right={source === 'local' ? <Tag tone="gray">المرسلة من هذا الجهاز</Tag> : undefined}>
         {list.length === 0 && <Empty icon="megaphone" title="لا إعلانات بعد" />}
         <div className="list">
-          {list.map((a) => (
-            <div className="row" key={a.id} style={{ alignItems: 'flex-start' }}>
-              <span className="grow">
-                <b>{a.title}</b>
-                <span className="small wrap-text" style={{ display: 'block' }}>{a.body}</span>
-                <small>{fmtWhen(a.created_at)}{a.notified ? ` · ${count(a.notified, a.school_id === null ? NOUNS.school : NOUNS.guardian)}` : ''}</small>
-              </span>
-              {a.school_id === null ? <Tag tone="teal">تعميم المديرية</Tag> : a.urgent ? <Tag tone="red">عاجل</Tag> : <Tag tone="gray">إعلان</Tag>}
-            </div>
-          ))}
+          {list.map((a) => <AnnouncementRow key={a.id} a={a} />)}
         </div>
       </Tile>
     </>

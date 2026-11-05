@@ -15,8 +15,9 @@ export function useApi<T>(url: string | null): ApiState<T> {
   useEffect(() => {
     if (!url) { setLoading(false); return; }
     let alive = true;
+    // Show this url's cached copy (or nothing) at once: the previous url's data must never stand in for the new one.
     const cached = api.peekCache<T>(url);
-    if (cached !== null) setData(cached);
+    setData(cached);
     setLoading(cached === null);
     setError(null);
     api.get<T>(url)

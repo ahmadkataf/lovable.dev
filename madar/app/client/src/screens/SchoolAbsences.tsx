@@ -4,10 +4,10 @@
 import { useState, type FormEvent } from 'react';
 import * as api from '../api';
 import { EngineResult } from '../components/EngineResult';
-import { Btn, Empty, ErrorBox, Field, PageHead, Skeleton, Tag, Tile } from '../components/Ui';
+import { Btn, DateField, Empty, ErrorBox, Field, PageHead, Skeleton, Tag, Tile } from '../components/Ui';
 import { addDays, ar, count, fmtDate, NOUNS, periodName, SUBSTITUTION_LABEL, teacherTitle, todayISO } from '../format';
 import { useApi } from '../hooks';
-import { navigate } from '../router';
+import { navigate, useRoute } from '../router';
 import { refreshUnread, toast } from '../store';
 import { useSchoolTeachers } from '../teachers';
 import type { AbsenceResult, SchoolAbsence, SchoolDashboard, SchoolSubstitution } from '../types';
@@ -24,7 +24,7 @@ function SubstitutionCard({ absence, sub, onDone }: { absence: SchoolAbsence; su
   const settled = sub.status === 'approved' || sub.status === 'self_study';
 
   const approve = async () => {
-    if (!teacherId) { setError('اختر المعلّم البديل'); return; }
+    if (!teacherId) { setError('يلزم اختيار المعلّم البديل'); return; }
     setBusy('approve');
     setError(null);
     try {
@@ -40,7 +40,7 @@ function SubstitutionCard({ absence, sub, onDone }: { absence: SchoolAbsence; su
     }
   };
   const selfStudy = async () => {
-    if (!note.trim()) { setError('اكتب ملاحظة النشاط الذاتي الموجَّه (ما الذي يعمل عليه الطلاب؟)'); return; }
+    if (!note.trim()) { setError('تلزم ملاحظة النشاط الذاتي الموجَّه (ما الذي يعمل عليه الطلاب؟)'); return; }
     setBusy('self');
     setError(null);
     try {
@@ -78,7 +78,7 @@ function SubstitutionCard({ absence, sub, onDone }: { absence: SchoolAbsence; su
             )}
             {manual && (
               <select className="input" value={teacherId ?? ''} onChange={(e) => setTeacherId(Number(e.target.value) || null)} aria-label="اختيار معلّم">
-                <option value="">— اختر معلّماً —</option>
+                <option value="">— اختر المعلّم —</option>
                 {(teachers ?? []).filter((t) => t.name !== absence.teacher).map((t) => <option key={t.id} value={t.id}>{teacherTitle(t.name)} · {t.subject}</option>)}
               </select>
             )}
@@ -86,7 +86,7 @@ function SubstitutionCard({ absence, sub, onDone }: { absence: SchoolAbsence; su
             {error && <span className="error" role="alert">{error}</span>}
             <span className="btnrow top">
               <Btn size="sm" icon="check" loading={busy === 'approve'} disabled={!teacherId || busy === 'self'} onClick={() => { void approve(); }}>اعتماد{chosenName ? ` ${teacherTitle(chosenName)}` : ''}</Btn>
-              <Btn size="sm" variant="light" icon="book" loading={busy === 'self'} disabled={busy === 'approve'} onClick={() => { void selfStudy(); }}>تعلّم ذاتي</Btn>
+              <Btn size="sm" variant="light" icon="book" loading={busy === 'self'} disabled={busy === 'approve'} onClick={() => { void selfStudy(); }}>تسجيل تعلّم ذاتي</Btn>
             </span>
           </span>
         )}
@@ -96,9 +96,13 @@ function SubstitutionCard({ absence, sub, onDone }: { absence: SchoolAbsence; su
   );
 }
 
+const ISO = /^\d{4}-\d{2}-\d{2}$/;
+
 export function SchoolAbsences() {
   const today = todayISO();
-  const [date, setDate] = useState(today);
+  const route = useRoute();
+  // A notification about an absence or a changed period links here with ?date=.
+  const [date, setDate] = useState(() => { const q = route.query.get('date'); return q && ISO.test(q) ? q : today; });
   const { data, error, loading, reload } = useApi<SchoolDashboard>(`/api/school/dashboard?date=${date}`);
   const absences = data?.absences ?? [];
   const uncovered = absences.flatMap((a) => a.substitutions).filter((x) => x.status === 'suggested' || x.status === 'uncovered').length;
@@ -106,10 +110,10 @@ export function SchoolAbsences() {
     <>
       <PageHead
         title="لوحة الغياب والتغطية"
-        sub={data ? (absences.length ? `${count(absences.length, NOUNS.teacher)} غائبون · ${uncovered ? `${count(uncovered, NOUNS.period)} بانتظار الاعتماد` : 'كلّ الحصص مغطّاة'}` : 'لا غياب بين المعلّمين') : undefined}
+        sub={data ? (absences.length ? `غياب ${count(absences.length, NOUNS.teacher)} · ${uncovered ? `${count(uncovered, NOUNS.period)} بانتظار الاعتماد` : 'كلّ الحصص مغطّاة'}` : 'لا غياب بين المعلّمين') : undefined}
         actions={
           <>
-            <input className="input" type="date" value={date} max={addDays(today, 14)} onChange={(e) => setDate(e.target.value || today)} aria-label="التاريخ" style={{ width: 'auto', minHeight: 40 }} />
+            <DateField compact value={date} onChange={setDate} min={addDays(today, -30)} max={addDays(today, 14)} />
             <Btn size="sm" icon="plus" onClick={() => navigate('/school/absences/new')}>تسجيل غياب معلّم</Btn>
           </>
         }
@@ -142,7 +146,7 @@ export function SchoolAbsenceNew() {
 
   const submit = async (e: FormEvent) => {
     e.preventDefault();
-    if (!teacherId) { setError('اختر المعلّم'); return; }
+    if (!teacherId) { setError('يلزم اختيار المعلّم'); return; }
     setBusy(true);
     setError(null);
     try {
@@ -172,10 +176,10 @@ export function SchoolAbsenceNew() {
                   {(teachers ?? []).map((t) => <option key={t.id} value={t.id}>{teacherTitle(t.name)} · {t.subject}</option>)}
                 </select>
               </Field>
-              <Field label="التاريخ" hint={fmtDate(date)}>
-                <input className="input" type="date" value={date} min={addDays(today, -7)} max={addDays(today, 14)} onChange={(e) => setDate(e.target.value)} required />
-              </Field>
-              <Field label="السبب (اختياري)">
+              <div className="field full">
+                <DateField label="التاريخ" value={date} onChange={setDate} min={addDays(today, -7)} max={addDays(today, 14)} required />
+              </div>
+              <Field label="السبب (اختياري)" className="full">
                 <input className="input" value={reason} onChange={(e) => setReason(e.target.value)} placeholder="مثال: مرض" maxLength={80} />
               </Field>
             </div>

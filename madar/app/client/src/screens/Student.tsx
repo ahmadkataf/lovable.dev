@@ -7,7 +7,7 @@ import { Icon } from '../components/Icon';
 import { Empty, ErrorBox, PageHead, Skeleton, Tag, Tile } from '../components/Ui';
 import { ar, count, DAYS, dayIndex, dueLabel, firstName, fmtDate, NOUNS, periodName, shortSubject, teacherTitle, todayISO, unreadLabel, withPage } from '../format';
 import { useApi } from '../hooks';
-import { Link } from '../router';
+import { Link, useRoute } from '../router';
 import { refreshUnread, toast, useStore } from '../store';
 import type { StudentContext, StudentHome as StudentHomeData, TimetableRow } from '../types';
 
@@ -40,7 +40,8 @@ export function StudentHome() {
   const today = todayISO();
   const weekend = dayIndex(today) > 4;
   const homework = useMemo(() => (data?.homework ?? []).map((h) => ({ ...h, done: h.done || localDone.has(h.id) })), [data, localDone]);
-  const points = homework.filter((h) => h.done).length * 10;
+  // Points come from the server (every submission ever made); the visible list only covers the current week.
+  const points = data?.points ?? homework.filter((h) => h.done).length * 10;
   const changes = (data?.today ?? []).filter((r) => r.substitute);
 
   const submit = async (id: number) => {
@@ -50,7 +51,7 @@ export function StudentHome() {
       const res = await api.post<{ done: boolean; points?: number }>(`/api/homework/${id}/submit`, {});
       setLocalDone((d) => new Set(d).add(id));
       if ('queued' in res && res.queued) toast('لا اتصال — سُجّل الإنجاز وسيُرسل عند عودة الاتصال', 'info', 5000);
-      else toast(`أحسنت يا ${firstName(s.user?.name)}! +١٠ نقاط`);
+      else toast(`رائع يا ${firstName(s.user?.name)}! +١٠ نقاط`);
       reload();
     } catch (e) {
       toast(e instanceof Error ? e.message : 'تعذّر التسليم', 'error');
@@ -63,14 +64,14 @@ export function StudentHome() {
     <>
       <PageHead
         title={`أهلاً ${firstName(s.user?.name)}!`}
-        sub={[ctx?.section?.label ? `الشعبة ${ctx.section.label}` : null, ctx?.school_name ?? s.user?.school_name].filter(Boolean).join(' · ')}
+        sub={[ctx?.section?.label ? `شعبة ${ctx.section.label}` : null, ctx?.school_name ?? s.user?.school_name].filter(Boolean).join(' · ')}
         actions={<span className="points num" title="١٠ نقاط لكلّ واجب مُسلَّم"><Icon name="star" /> {count(points, NOUNS.point, '٠ نقطة')}</span>}
       />
 
-      <Tile title="واجباتي · اضغط عند الإنجاز" icon="book" className="full">
+      <Tile title="واجباتي · تُعلَّم بالضغط عند الإنجاز" icon="book" className="full">
         {loading && !data && <Skeleton lines={3} />}
         {error && !data && <ErrorBox error={error} retry={reload} />}
-        {data && homework.length === 0 && <Empty icon="book" title="لا واجبات حالياً" text="عندما ينشر المعلّم واجباً جديداً يظهر هنا ويصلك إشعار." />}
+        {data && homework.length === 0 && <Empty icon="book" title="لا واجبات حالياً" text="عندما ينشر المعلّم واجباً جديداً يظهر هنا ويصل إشعار به." />}
         <div className="list">
           {homework.map((h) => {
             const urgent = dueLabel(h.due_date) === 'اليوم' || dueLabel(h.due_date) === 'غداً';
@@ -107,7 +108,7 @@ export function StudentHome() {
                 <span className="pnum num" aria-hidden="true">{ar(r.period)}</span>
                 <span className="grow">
                   <b>{periodName(r.period)} ({r.subject})</b>
-                  <small>{r.substitute?.status === 'self_study' ? 'تعلّم ذاتي موجَّه — اتّبع النشاط المطلوب' : `مع معلّم بديل: ${teacherTitle(r.substitute?.teacher)}`}</small>
+                  <small>{r.substitute?.status === 'self_study' ? 'تعلّم ذاتي موجَّه — بحسب النشاط المطلوب' : `مع معلّم بديل: ${teacherTitle(r.substitute?.teacher)}`}</small>
                 </span>
                 <Tag tone="sun">تغيير</Tag>
               </div>
@@ -129,18 +130,26 @@ export function StudentHome() {
 export function StudentTimetable() {
   const s = useStore();
   const ctx = s.context as StudentContext | null;
+  const route = useRoute();
   const sectionId = ctx?.section?.id ?? null;
-  const { data, error, loading, reload } = useApi<TimetableRow[]>(sectionId ? `/api/timetable?section_id=${sectionId}` : '/api/timetable');
-  const todayIdx = dayIndex(todayISO());
+  const today = todayISO();
+  // A notification about a changed period links here with ?date=: that day's substitutes are overlaid and highlighted.
+  const q = route.query.get('date');
+  const date = q && /^\d{4}-\d{2}-\d{2}$/.test(q) ? q : today;
+  const params = [sectionId ? `section_id=${sectionId}` : null, date !== today ? `date=${date}` : null].filter(Boolean).join('&');
+  const { data, error, loading, reload } = useApi<TimetableRow[]>(params ? `/api/timetable?${params}` : '/api/timetable');
+  const todayIdx = dayIndex(today);
+  const markIdx = dayIndex(date);
   return (
     <>
-      <PageHead title="جدول الأسبوع" sub={ctx?.section?.label ? `الشعبة ${ctx.section.label}` : undefined} />
+      <PageHead title="جدول الأسبوع" sub={ctx?.section?.label ? `شعبة ${ctx.section.label}` : undefined} />
       {loading && !data && <Tile className="full"><Skeleton lines={4} /></Tile>}
       {error && !data && <Tile className="full"><ErrorBox error={error} retry={reload} /></Tile>}
       {data && [0, 1, 2, 3, 4].map((d) => {
         const rows = data.filter((r) => r.day === d);
+        const mark = d === markIdx ? (date === today ? 'اليوم' : fmtDate(date, { weekday: false })) : null;
         return (
-          <Tile key={d} title={DAYS[d]} icon="cal" right={d === todayIdx ? <Tag tone="mint">اليوم</Tag> : undefined} className={d === todayIdx ? 'full' : ''}>
+          <Tile key={d} title={DAYS[d]} icon="cal" right={mark ? <Tag tone={date === today ? 'mint' : 'sun'}>{mark}</Tag> : d === todayIdx ? <Tag tone="mint">اليوم</Tag> : undefined} className={d === markIdx ? 'full' : ''}>
             {rows.length ? <PeriodsGrid rows={rows} /> : <p className="small muted">لا حصص</p>}
             <div className="list" style={{ marginTop: 10 }}>
               {rows.map((r) => (

@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import * as api from '../api';
-import { Btn, Empty, ErrorBox, Field, PageHead, Progress, Skeleton, Tag, Tile } from '../components/Ui';
+import { Btn, DateField, Empty, ErrorBox, Field, PageHead, Progress, Skeleton, Tag, Tile } from '../components/Ui';
 import { addDays, ar, arDigits, count, dueLabel, fmtDate, fmtWhen, NOUNS, todayISO } from '../format';
 import { useApi } from '../hooks';
 import { Link, navigate, useRoute } from '../router';
@@ -29,7 +29,7 @@ export function TeacherHomework() {
       <Tile className="full">
         {loading && !data && <Skeleton lines={4} />}
         {error && !data && <ErrorBox error={error} retry={reload} />}
-        {data && data.length === 0 && <Empty icon="book" title="لا واجبات" text="انشر واجباً جديداً ليصل إلى طلاب الشعبة وأولياء أمورهم." />}
+        {data && data.length === 0 && <Empty icon="book" title="لا واجبات" text="نشر واجب جديد يوصله إلى طلاب الشعبة وأولياء أمورهم." />}
         <div className="list">
           {data?.map((h) => {
             const n = h.submitted_count ?? 0;
@@ -61,7 +61,8 @@ export function TeacherHomeworkNew() {
   const [title, setTitle] = useState('');
   const [details, setDetails] = useState('');
   const [bookPage, setBookPage] = useState('');
-  const [due, setDue] = useState(addDays(todayISO(), 3));
+  const today = todayISO();
+  const [due, setDue] = useState(addDays(today, 3));
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   // subject_id is not in the teacher context: read it from the teacher's own timetable rows
@@ -81,9 +82,9 @@ export function TeacherHomeworkNew() {
   const submit = async (e: FormEvent) => {
     e.preventDefault();
     setError(null);
-    if (!sectionId) { setError('اختر الشعبة'); return; }
-    if (!title.trim()) { setError('اكتب عنوان الواجب'); return; }
-    if (!subjectId) { setError('تعذّر تحديد المادة — تحقّق من الاتصال ثم أعد المحاولة'); return; }
+    if (!sectionId) { setError('يلزم اختيار الشعبة'); return; }
+    if (!title.trim()) { setError('يلزم عنوان الواجب'); return; }
+    if (!subjectId) { setError('تعذّر تحديد المادّة — يلزم التحقّق من الاتصال ثم إعادة المحاولة'); return; }
     setBusy(true);
     try {
       const body = { section_id: sectionId, subject_id: subjectId, title: title.trim(), details: details.trim() || undefined, book_page: bookPage.trim() || undefined, due_date: due, client_id: api.clientId() };
@@ -105,7 +106,7 @@ export function TeacherHomeworkNew() {
   const sec = sections.find((x) => x.id === sectionId);
   return (
     <>
-      <PageHead title="واجب جديد" back="/teacher" sub={sec ? `${subjectName} · الشعبة ${sec.label}` : subjectName} />
+      <PageHead title="واجب جديد" back="/teacher" sub={sec ? `${subjectName} · شعبة ${sec.label}` : subjectName} />
       <Tile className="full" title="بيانات الواجب" icon="book">
         <form onSubmit={submit} className="stack">
           <div className="fields">
@@ -114,7 +115,7 @@ export function TeacherHomeworkNew() {
                 {sections.map((x) => <option key={x.id} value={x.id}>{x.label}</option>)}
               </select>
             </Field>
-            <Field label="المادة">
+            <Field label="المادّة">
               <input className="input" value={subjectName} readOnly />
             </Field>
             <Field label="العنوان" className="full">
@@ -126,9 +127,12 @@ export function TeacherHomeworkNew() {
             <Field label="صفحة الكتاب" hint="رقم الصفحة في الكتاب المدرسي">
               <input className="input" value={bookPage} onChange={(e) => setBookPage(e.target.value)} placeholder="مثال: ٤٢" inputMode="numeric" />
             </Field>
-            <Field label="موعد التسليم" hint={due ? `${fmtDate(due)} · ${dueLabel(due)}` : undefined}>
-              <input className="input" type="date" value={due} min={todayISO()} onChange={(e) => setDue(e.target.value)} required />
-            </Field>
+            <div className="field">
+              <span>موعد التسليم</span>
+              <DateField compact label="موعد التسليم" value={due} onChange={setDue} min={today} required
+                quick={[{ label: 'غداً', iso: addDays(today, 1) }, { label: 'بعد ثلاثة أيام', iso: addDays(today, 3) }, { label: 'بعد أسبوع', iso: addDays(today, 7) }]} />
+              <span className="hint">{dueLabel(due)}</span>
+            </div>
           </div>
           <p className="small muted">يصل الواجب إلى كلّ طلاب الشعبة وأولياء أمورهم فور النشر، مع تذكير قبل الموعد.</p>
           {error && <div className="error" role="alert">{error}</div>}
@@ -184,7 +188,7 @@ export function TeacherHomeworkDetail({ id }: { id: number }) {
           </Tile>
           {data.students && (
             <Tile title={`لم يُسلَّم بعد (${ar(pending.length)})`} icon="clock" color="var(--sun)">
-              {pending.length === 0 && <p className="small muted">سلّم الجميع — أحسنتم!</p>}
+              {pending.length === 0 && <p className="small muted">سلّم الجميع.</p>}
               <div className="list">
                 {pending.map((st) => (
                   <div className="row" key={st.id}>

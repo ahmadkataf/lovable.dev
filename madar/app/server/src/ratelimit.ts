@@ -30,3 +30,9 @@ export function recordAttempt(sql: SqlLike, key: string, win: Window, now = Date
   }
   return { allowed: count <= win.limit, remaining: Math.max(0, win.limit - count) }
 }
+
+/** Forgets the attempts of `key` — called after a successful login, so only failed attempts accumulate (a school's
+ *  teachers share one address at 7:30 and must never lock each other out). */
+export function clearAttempts(sql: SqlLike, key: string): void {
+  sql.exec('DELETE FROM login_attempts WHERE ip = ?', key).toArray()
+}

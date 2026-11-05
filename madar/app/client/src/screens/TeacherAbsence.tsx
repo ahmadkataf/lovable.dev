@@ -1,7 +1,7 @@
 import { useState, type FormEvent } from 'react';
 import * as api from '../api';
 import { EngineResult } from '../components/EngineResult';
-import { Btn, Field, PageHead, Tile } from '../components/Ui';
+import { Btn, DateField, Field, PageHead, Tile } from '../components/Ui';
 import { addDays, fmtDate, todayISO } from '../format';
 import { navigate } from '../router';
 import { toast, useStore } from '../store';
@@ -38,15 +38,15 @@ export function TeacherAbsence() {
 
   return (
     <>
-      <PageHead title="الإبلاغ عن غياب" back="/teacher" sub="سجّل غيابك ودع النظام يرتّب البديل ويبلّغ الإدارة" />
+      <PageHead title="الإبلاغ عن غياب" back="/teacher" sub="يرتّب النظام البديل ويبلّغ الإدارة فور تسجيل الغياب" />
       {!result && (
         <Tile className="full" title="بيانات الغياب" icon="alert" color="var(--sun)">
           <form onSubmit={submit} className="stack">
             <div className="fields">
-              <Field label="التاريخ" hint={fmtDate(date)}>
-                <input className="input" type="date" value={date} min={addDays(today, -1)} max={addDays(today, 14)} onChange={(e) => setDate(e.target.value)} required />
-              </Field>
-              <Field label="السبب (اختياري)">
+              <div className="field full">
+                <DateField label="التاريخ" value={date} onChange={setDate} min={addDays(today, -1)} max={addDays(today, 14)} required />
+              </div>
+              <Field label="السبب (اختياري)" className="full">
                 <input className="input" value={reason} onChange={(e) => setReason(e.target.value)} placeholder="مثال: مرض" maxLength={80} />
               </Field>
             </div>

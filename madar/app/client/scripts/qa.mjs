@@ -131,7 +131,7 @@ async function teacherFlow(page, h) {
     } finally {
       await page.context().setOffline(false);
     }
-    await h.toast('أُرسلت العمليات المعلّقة');
+    await h.toast('معلّقة');
     await page.waitForFunction(() => !document.querySelector('.banner.outbox'));
   });
   await h.step('publish homework', async () => {
@@ -175,7 +175,7 @@ async function teacherFlow(page, h) {
     await h.go('/notifications');
     await page.locator('.nlist').waitFor();
     await h.shot('teacher-notifications');
-    const mark = page.locator('button:has-text("تعليم الكلّ كمقروء")');
+    const mark = page.locator('button:has-text("تعليم الكلّ مقروءاً")');
     if (await mark.count()) { await mark.click(); await h.toast('عُلّمت'); }
   });
   await h.logout();
@@ -257,7 +257,7 @@ async function studentFlow(page, h) {
   await h.step('submit homework', async () => {
     const row = page.locator('button.row:not(.done)').first();
     await row.click();
-    await h.toast('أحسنت');
+    await h.toast('رائع');
     await page.waitForTimeout(500);
     await h.shot('student-home-submitted');
   });
@@ -317,11 +317,11 @@ async function directorateFlow(page, h) {
   await h.step('download csv', async () => {
     const [dl] = await Promise.all([
       page.waitForEvent('download', { timeout: 10000 }),
-      page.locator('button:has-text("تنزيل تقرير CSV")').click(),
+      page.locator('button:has-text("تنزيل تقرير اليوم")').click(),
     ]);
     const file = join(OUT, 'report.csv');
     await dl.saveAs(file);
-    await h.toast('CSV');
+    await h.toast('التقرير');
     shots.push(file);
   });
   await h.step('circular', async () => {

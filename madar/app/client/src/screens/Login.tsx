@@ -2,7 +2,8 @@ import { useEffect, useState, type CSSProperties, type FormEvent } from 'react';
 import { Icon, Logo } from '../components/Icon';
 import { ROLE_COLOR, ROLE_LABEL, ToastHost } from '../components/Shell';
 import { Btn } from '../components/Ui';
-import { DEMO_ACCOUNTS, resetMock } from '../mock';
+import { resetMockData } from '../api';
+import { DEMO_ACCOUNTS } from '../demo';
 import { navigate } from '../router';
 import { roleHome, signIn, toast, useStore } from '../store';
 
@@ -86,11 +87,11 @@ export function Login() {
           </div>
         </details>
         <p className="foot">
-          نسخة تجريبية (MVP) · البيانات أسماء افتراضية
+          نسخة تجريبية · الأسماء والبيانات افتراضية
           {s.mock && (
             <>
               {' · '}
-              <button type="button" onClick={() => { resetMock(); toast('أُعيد ضبط البيانات التجريبية', 'info'); }}>إعادة ضبط البيانات التجريبية</button>
+              <button type="button" onClick={() => { void resetMockData().then(() => toast('أُعيد ضبط البيانات التجريبية', 'info')); }}>إعادة ضبط البيانات التجريبية</button>
             </>
           )}
         </p>

@@ -12,6 +12,7 @@ export interface DbStub {
   reset(): Promise<number>
   health(): Promise<Record<string, number>>
   loginAttempt(ip: string): Promise<Verdict>
+  loginSucceeded(ip: string): Promise<void>
   adminAttempt(ip: string): Promise<Verdict>
 }
 

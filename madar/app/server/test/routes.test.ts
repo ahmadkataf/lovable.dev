@@ -5,7 +5,7 @@ import { DatabaseSync } from 'node:sqlite'
 import app from '../src/index'
 import { fakeD1 } from './d1'
 import { addDays, today, weekday } from '../src/util'
-import { ADMIN_WINDOW, LOGIN_WINDOW, ensureAttemptsTable, recordAttempt, type SqlLike } from '../src/ratelimit'
+import { ADMIN_WINDOW, LOGIN_WINDOW, clearAttempts, ensureAttemptsTable, recordAttempt, type SqlLike } from '../src/ratelimit'
 
 const db = fakeD1([resolve(__dirname, '../schema.sql'), resolve(__dirname, '../seed.sql')])
 const count = (sql: string, ...p: unknown[]) => Number((db.raw.prepare(sql).get(...(p as never[])) as { n: number }).n)
@@ -16,6 +16,7 @@ const limiterSql: SqlLike = { exec: (sql, ...p) => ({ toArray: () => limiterDb.p
 ensureAttemptsTable(limiterSql)
 const fakeStub = {
   loginAttempt: async (ip: string) => recordAttempt(limiterSql, `login:${ip}`, LOGIN_WINDOW),
+  loginSucceeded: async (ip: string) => clearAttempts(limiterSql, `login:${ip}`),
   adminAttempt: async (ip: string) => recordAttempt(limiterSql, `admin:${ip}`, ADMIN_WINDOW),
   health: async () => ({ users: count('SELECT COUNT(*) AS n FROM users') }),
 }
@@ -78,6 +79,14 @@ describe('login and /me', () => {
     expect(r.status).toBe(429)
     expect(r.json.error).toMatch(/[؀-ۿ]/)
     expect((await call('POST', '/api/login', undefined, { code: 'SCH-1' }, { 'cf-connecting-ip': '203.0.113.10' })).status).toBe(200)
+  })
+
+  it('a correct code resets the address\'s failed-attempt count (shared school Wi-Fi never locks itself out)', async () => {
+    const ip = '198.51.100.7'
+    for (let i = 0; i < 19; i++) expect((await call('POST', '/api/login', undefined, { code: 'WRONG' }, { 'cf-connecting-ip': ip })).status).toBe(401)
+    expect((await call('POST', '/api/login', undefined, { code: 'T-SAMER' }, { 'cf-connecting-ip': ip })).status).toBe(200)
+    for (let i = 0; i < 19; i++) expect((await call('POST', '/api/login', undefined, { code: 'WRONG' }, { 'cf-connecting-ip': ip })).status).toBe(401)
+    expect((await call('POST', '/api/login', undefined, { code: 'SCH-1' }, { 'cf-connecting-ip': ip })).status).toBe(200)
   })
   it('allows the app origins only, with Vary: Origin', async () => {
     const ok = await call('GET', '/api/me', T.samer, undefined, { origin: 'https://app.madar.raqeem.dev' })

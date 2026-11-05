@@ -3,7 +3,7 @@
 
 import { Icon } from '../components/Icon';
 import { Avatar, Btn, Empty, ErrorBox, Kpi, PageHead, Skeleton, Tag, Tile } from '../components/Ui';
-import { ar, ATTENDANCE_LABEL, count, dueLabel, firstName, fmtClock, fmtDate, fmtWhen, NOTIFICATION_KIND_LABEL, NOUNS, todayISO, withPage } from '../format';
+import { ar, ATTENDANCE_LABEL, dueLabel, firstName, fmtClock, fmtDate, fmtWhen, NOTIFICATION_KIND_LABEL, todayISO, unreadLabel, withPage } from '../format';
 import { useApi } from '../hooks';
 import { Link, navigate } from '../router';
 import { useStore } from '../store';
@@ -14,10 +14,10 @@ export function ParentHome() {
   const { data, error, loading, reload } = useApi<ParentHomeData>('/api/parent/home');
   return (
     <>
-      <PageHead title={`أهلاً، ${s.user?.name ?? ''}`} sub={`يوم أبنائك في شاشة واحدة · ${fmtDate(todayISO())}`} />
+      <PageHead title={`أهلاً ${s.user?.name ?? ''}`} sub={`يوم أبنائك في شاشة واحدة · ${fmtDate(todayISO())}`} />
       {loading && !data && <Tile className="full"><Skeleton lines={4} /></Tile>}
       {error && !data && <Tile className="full"><ErrorBox error={error} retry={reload} /></Tile>}
-      {data && data.children.length === 0 && <Tile className="full"><Empty icon="parent" title="لا أبناء مرتبطين بهذا الحساب" text="راجع إدارة المدرسة لربط الحساب بسجلّ الطالب." /></Tile>}
+      {data && data.children.length === 0 && <Tile className="full"><Empty icon="parent" title="لا أبناء مرتبطين بهذا الحساب" text="تربط إدارة المدرسة الحساب بسجلّ الطالب." /></Tile>}
       {data?.children.map((c) => {
         const status = c.today.status;
         const tone = status === 'present' ? 'good' : status === 'absent' ? 'bad' : status === 'late' ? 'warn' : 'muted';
@@ -30,7 +30,7 @@ export function ParentHome() {
                 <Avatar name={c.name} />
                 <div className="txt">
                   <h2>{c.name}</h2>
-                  <span className="sub">الشعبة {c.section_label} · {c.school_name}</span>
+                  <span className="sub">شعبة {c.section_label} · {c.school_name}</span>
                 </div>
               </div>
               <div className="acts">
@@ -66,14 +66,14 @@ export function ParentHome() {
                   {c.notifications.slice(0, 4).map((n) => (
                     <div className={`row ${n.read_at ? '' : 'unread'}`} key={n.id} style={{ alignItems: 'flex-start' }}>
                       <span className="grow"><span className="wrap-text">{n.body}</span><small>{fmtWhen(n.created_at)}</small></span>
-                      <Tag tone={n.kind === 'absence' ? 'red' : n.kind === 'change' ? 'sun' : n.kind === 'announcement' ? 'teal' : undefined}>{NOTIFICATION_KIND_LABEL[n.kind] ?? n.kind}</Tag>
+                      <Tag tone={n.kind === 'absence' ? 'red' : n.kind === 'change' ? 'sun' : n.kind === 'announcement' || n.kind === 'circular' ? 'teal' : undefined}>{NOTIFICATION_KIND_LABEL[n.kind] ?? n.kind}</Tag>
                     </div>
                   ))}
                 </div>
               </div>
             </div>
             <p className="small muted" style={{ marginTop: 10 }}>
-              إشعار الغياب يصل في اليوم نفسه بعد تثبيت الإدارة، وبرسالة SMS لمن لا يملك التطبيق. {unread ? `لدى ${firstName(c.name)} ${count(unread, NOUNS.notification)} جديدة.` : ''}
+              يصل إشعار الغياب في اليوم نفسه بعد تثبيت الإدارة الحضورَ، وبرسالة نصّية لمن لا يملك التطبيق. {unread ? `لدى ${firstName(c.name)} ${unreadLabel(unread)}.` : ''}
             </p>
           </Tile>
         );

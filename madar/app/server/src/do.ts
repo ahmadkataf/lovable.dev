@@ -2,7 +2,7 @@
 // permission; a Durable Object with SQLite storage offers the same SQL and needs only Workers permissions).
 // The worker talks to it through a small D1-shaped shim (see dbshim.ts), so the routes stay D1-style code.
 import { DurableObject } from 'cloudflare:workers'
-import { ADMIN_WINDOW, LOGIN_WINDOW, ensureAttemptsTable, recordAttempt, type Verdict, type Window } from './ratelimit'
+import { ADMIN_WINDOW, LOGIN_WINDOW, ensureAttemptsTable, recordAttempt, type Verdict, type Window, clearAttempts } from './ratelimit'
 
 export interface RunMeta { changes: number; last_row_id: number }
 export interface QueryResult { results: Record<string, unknown>[] }
@@ -30,6 +30,11 @@ export class MadarDB extends DurableObject {
   }
   /** Durable login limiter: 20 attempts per 10 minutes per IP, shared by every isolate. */
   loginAttempt(ip: string): Verdict { return this.hit(`login:${ip}`, LOGIN_WINDOW) }
+  /** A correct code resets the address's failed-attempt count. */
+  loginSucceeded(ip: string): void {
+    if (!this.attemptsReady) { ensureAttemptsTable(this.ctx.storage.sql); this.attemptsReady = true }
+    clearAttempts(this.ctx.storage.sql, `login:${ip}`)
+  }
   /** Durable limiter for /api/admin/*: 10 calls per minute per IP. */
   adminAttempt(ip: string): Verdict { return this.hit(`admin:${ip}`, ADMIN_WINDOW) }
 

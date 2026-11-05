@@ -50,6 +50,9 @@ r.post('/api/login', async c => {
   if (!code) throw bad('يلزم إدخال رمز الدخول')
   const user = await c.env.DB.prepare('SELECT id, role, name, school_id, subject_id FROM users WHERE code = ?').bind(code).first<User>()
   if (!user) throw new ApiError(401, 'رمز الدخول غير صحيح')
+  // Only failed attempts accumulate: a correct code clears the address's counter in both lines.
+  loginLimiter.clear(ip)
+  if (stub) await stub.loginSucceeded(ip)
   const token = await signToken(newPayload(user.id, user.role), secretOf(c.env))
   await audit(c.env.DB, user.id, 'login')
   return c.json({ token, ...(await meResponse(c.env.DB, user)) })

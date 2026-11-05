@@ -4,7 +4,14 @@ import { ar, count, dayIndex, dueLabel, fmtDate, greeting, NOUNS, periodName, te
 import { useApi } from '../hooks';
 import { Link, navigate } from '../router';
 import { useStore } from '../store';
-import type { TeacherContext, TeacherHome as TeacherHomeData } from '../types';
+import type { TeacherContext, TeacherHome as TeacherHomeData, TeacherPeriod } from '../types';
+
+/** What a covered period shows instead of the attendance button. */
+function coverLabel(p: TeacherPeriod): string {
+  if (!p.substitute) return 'بانتظار التغطية';
+  if (p.substitute.status === 'self_study') return 'تعلّم ذاتي موجَّه';
+  return p.substitute.teacher ? `يغطّيها ${teacherTitle(p.substitute.teacher)}` : 'مغطّاة';
+}
 
 export function TeacherHome() {
   const s = useStore();
@@ -14,6 +21,7 @@ export function TeacherHome() {
   const weekend = dayIndex(today) > 4;
   const periods = data?.today.periods ?? [];
   const sectionsLabel = ctx?.sections.map((x) => x.label).join('، ');
+  const absent = !!data?.absence_today;
 
   return (
     <>
@@ -35,28 +43,34 @@ export function TeacherHome() {
           <Empty icon="cal" title={weekend ? 'لا دوام اليوم' : 'لا حصص لك اليوم'} text={weekend ? 'يعود الدوام يوم الأحد.' : undefined} />
         )}
         <div className="list">
-          {periods.map((p) => (
-            <div className={`row ${p.substitute ? 'hl' : p.attendance_taken ? 'ok' : ''}`} key={p.id}>
-              <span className="pnum num" aria-hidden="true">{ar(p.period)}</span>
-              <span className="grow">
-                <b>{p.section_label}</b>
-                <small>
-                  {p.subject} · {periodName(p.period)}
-                  {p.substitute && (p.substitute.status === 'self_study' ? ' · تعلّم ذاتي موجَّه' : p.substitute.teacher ? ` · البديل: ${teacherTitle(p.substitute.teacher)}` : '')}
-                </small>
-              </span>
-              {p.attendance_taken ? (
-                <Link to={`/teacher/attendance?section=${p.section_id}&period=${p.period}`} className="tag mint">سُجّل الحضور ✓</Link>
-              ) : (
-                <Btn size="sm" icon="users" onClick={() => navigate(`/teacher/attendance?section=${p.section_id}&period=${p.period}`)}>تسجيل الحضور</Btn>
-              )}
-            </div>
-          ))}
+          {periods.map((p) => {
+            // A period someone else covers (the teacher is absent, or a substitute/self-study was set) takes no attendance here.
+            const covered = absent || !!p.substitute;
+            return (
+              <div className={`row ${covered ? 'hl' : p.attendance_taken ? 'ok' : ''}`} key={p.id}>
+                <span className="pnum num" aria-hidden="true">{ar(p.period)}</span>
+                <span className="grow">
+                  <b>{p.section_label}</b>
+                  <small>
+                    {p.subject} · {periodName(p.period)}
+                    {p.substitute && (p.substitute.status === 'self_study' ? ' · تعلّم ذاتي موجَّه' : p.substitute.teacher ? ` · البديل: ${teacherTitle(p.substitute.teacher)}` : '')}
+                  </small>
+                </span>
+                {covered ? (
+                  <Tag tone={p.substitute?.status === 'self_study' ? 'violet' : p.substitute ? 'mint' : 'sun'}>{coverLabel(p)}</Tag>
+                ) : p.attendance_taken ? (
+                  <Link to={`/teacher/attendance?section=${p.section_id}&period=${p.period}`} className="tag mint">سُجّل الحضور ✓</Link>
+                ) : (
+                  <Btn size="sm" icon="users" onClick={() => navigate(`/teacher/attendance?section=${p.section_id}&period=${p.period}`)}>تسجيل الحضور</Btn>
+                )}
+              </div>
+            );
+          })}
         </div>
       </Tile>
 
       {data && data.substitutions_for_me.length > 0 && (
-        <Tile title="حصص بديلة مكلَّف بها اليوم" icon="swap" color="var(--sun)" className="full">
+        <Tile title="حصص التغطية المطلوبة منك اليوم" icon="swap" color="var(--sun)" className="full">
           <div className="list">
             {data.substitutions_for_me.map((x) => (
               <div className="row hl" key={x.id}>
@@ -80,7 +94,7 @@ export function TeacherHome() {
 
       <Tile title="آخر الواجبات" icon="book" right={<Link to="/teacher/homework" className="tag">الكلّ</Link>}>
         {loading && !data && <Skeleton />}
-        {data && data.homework.length === 0 && <Empty icon="book" title="لا واجبات بعد" text="انشر أوّل واجب من زرّ «واجب جديد»." />}
+        {data && data.homework.length === 0 && <Empty icon="book" title="لا واجبات بعد" text="يُنشر أوّل واجب من زرّ «واجب جديد»." />}
         <div className="list">
           {data?.homework.slice(0, 5).map((h) => {
             const n = h.submitted_count ?? 0;

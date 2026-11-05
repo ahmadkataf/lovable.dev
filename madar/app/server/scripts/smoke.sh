@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# Smoke test against a real local Worker: starts `wrangler dev --local` on port 8787 with a fresh local D1
-# (schema + seed), logs in as every demo role, calls the main GET endpoints and one POST per role, prints the
+# Smoke test against a real local Worker: starts `wrangler dev --local` on port 8787 with a fresh Durable Object
+# database (schema + seed applied through the admin endpoint), logs in as every demo role, calls the main GET endpoints and one POST per role, prints the
 # HTTP codes and exits non-zero on any failure.  Usage: npm run smoke   (or bash scripts/smoke.sh [port])
 set -u
 cd "$(dirname "$0")/.."
@@ -23,23 +23,28 @@ die() { say "FATAL: $*"; [[ -f "$LOG" ]] && tail -40 "$LOG"; exit 1; }
 [[ -x "$WRANGLER" ]] || die "wrangler not installed — run npm install first"
 if curl -s -o /dev/null "$BASE/" 2>/dev/null; then die "something already answers on $BASE — stop it or pass another port: bash scripts/smoke.sh 8790"; fi
 
-say "== fresh local D1 ($STATE): schema + seed"
+ADMIN_KEY="smoke-$(date +%s)-$RANDOM"
+say "== starting wrangler dev --local on :$PORT with a fresh Durable Object state ($STATE)"
 rm -rf "$STATE"
-"$WRANGLER" d1 execute madar --local --config "$CONFIG" --persist-to "$STATE" --file=schema.sql > "$TMP/d1.log" 2>&1 || { cat "$TMP/d1.log"; die "schema.sql failed"; }
-"$WRANGLER" d1 execute madar --local --config "$CONFIG" --persist-to "$STATE" --file=seed.sql > "$TMP/d1.log" 2>&1 || { cat "$TMP/d1.log"; die "seed.sql failed"; }
-
-say "== starting wrangler dev --local on :$PORT"
-"$WRANGLER" dev --local --config "$CONFIG" --persist-to "$STATE" --port "$PORT" --ip 127.0.0.1 --show-interactive-dev-session=false > "$LOG" 2>&1 &
+"$WRANGLER" dev --local --config "$CONFIG" --persist-to "$STATE" --port "$PORT" --ip 127.0.0.1 --show-interactive-dev-session=false --var "ADMIN_KEY:$ADMIN_KEY" > "$LOG" 2>&1 &
 WPID=$!
-# Ready = a real login succeeds (so the D1 binding is open too, not just the HTTP port).
+# Ready = the admin health probe answers (the Durable Object is reachable, not just the HTTP port).
 for i in $(seq 1 90); do
-  code=$(curl -s -o /dev/null -w '%{http_code}' -X POST "$BASE/api/login" -H 'content-type: application/json' --data '{"code":"SCH-1"}' 2>/dev/null || true)
+  code=$(curl -s -o /dev/null -w '%{http_code}' "$BASE/api/admin/health" -H "x-admin-key: $ADMIN_KEY" 2>/dev/null || true)
   [[ "$code" == "200" ]] && break
   kill -0 "$WPID" 2>/dev/null || die "wrangler dev exited early"
   sleep 1
 done
-[[ "$code" == "200" ]] || die "wrangler dev did not answer on $BASE (last login code: $code)"
+[[ "$code" == "200" ]] || die "wrangler dev did not answer on $BASE (last health code: $code)"
 say "   ready after ${i}s"
+
+say "== schema + seed through POST /api/admin/sql"
+ADMIN_KEY="$ADMIN_KEY" node scripts/apply-sql.mjs "$BASE" schema.sql seed.sql > "$TMP/sql.log" 2>&1 || { cat "$TMP/sql.log"; die "schema.sql / seed.sql failed"; }
+check_admin() {   # the admin key must be required
+  local code; code=$(curl -s -o /dev/null -w '%{http_code}' "$BASE/api/admin/health" -H 'x-admin-key: wrong')
+  if [[ "$code" == "403" ]]; then say "ok   admin health without the right key → 403"; else say "FAIL admin health with a wrong key → $code"; FAIL=1; fi
+}
+check_admin
 
 # check NAME METHOD PATH TOKEN BODY EXPECTED_CODES...   → prints the code, records failures, keeps the body in $BODY
 BODY=""

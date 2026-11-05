@@ -69,6 +69,8 @@ export class RateLimiter {
     h.n++
     return h.n <= this.limit
   }
+  /** Forgets a key (after a successful login only failed attempts should count). */
+  clear(key: string): void { this.hits.delete(key) }
 }
 export const loginLimiter = new RateLimiter(20, 10 * 60 * 1000)
 export const adminLimiter = new RateLimiter(10, 60 * 1000)
