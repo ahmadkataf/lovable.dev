@@ -49,14 +49,14 @@ export function DirectorateReport() {
   const from = data?.from ?? week;
   const to = data?.to ?? addDays(week, 4);
   const days = data?.school_days ?? 5;
-  const label = week === thisWeek ? 'هذا الأسبوع' : week === addDays(thisWeek, -7) ? 'الأسبوع الماضي' : 'أسبوع';
+  const label = week === thisWeek ? 'هذا الأسبوع' : week === addDays(thisWeek, -7) ? 'الأسبوع الماضي' : '';
 
   return (
     <>
       <PageHead
         title="تقرير الأسبوع"
         back="/directorate"
-        sub={`${fmtDateRange(from, to)} · ${label}`}
+        sub={label ? `${fmtDateRange(from, to)} · ${label}` : fmtDateRange(from, to)}
         actions={
           <div className="report-actions report-nav">
             <Btn size="sm" variant="light" icon="back" onClick={() => go(addDays(week, -7))}>الأسبوع السابق</Btn>
@@ -96,7 +96,7 @@ export function DirectorateReport() {
               <tbody>
                 {data.schools.map((s) => (
                   <tr key={s.id ?? s.name}>
-                    <td><b>{s.name}</b><span className="sub" style={{ display: 'block', color: 'var(--ink-3)', fontSize: '.76rem', fontWeight: 500 }}>{complexLabel(s.complex)}{s.students ? ` · ${count(s.students, NOUNS.student)}` : ''}</span></td>
+                    <td><b>{s.name}</b><span className="sub" style={{ display: 'block', color: 'var(--ink-3)', fontSize: '.8rem', fontWeight: 500 }}>{complexLabel(s.complex)}{s.students ? ` · ${count(s.students, NOUNS.student)}` : ''}</span></td>
                     <Cells r={s} days={days} />
                   </tr>
                 ))}

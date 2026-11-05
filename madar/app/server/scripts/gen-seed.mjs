@@ -467,8 +467,9 @@ INSERT OR IGNORE INTO absences (teacher_id, date, reason, reported_by, created_a
 SELECT v.teacher_id, dd.d, v.reason, v.reported_by, datetime(dd.d || ' 07:05:00', '-3 hours') FROM v JOIN demo_days dd ON dd.rn = v.rn ORDER BY v.rn DESC, v.teacher_id;`)
 
 // Pre-decided substitutions: for each affected period, approve a free teacher of the same subject (tier 1) or, failing
-// that, a free teacher who teaches the section (tier 2); nobody takes two periods at once; otherwise guided self-study.
-// On earlier days about one period in twelve stayed uncovered. The pending periods of the demo day are skipped here.
+// that, a free teacher who teaches the section (tier 2); nobody takes two periods at once; otherwise guided self-study
+// (on the demo day about one period in nine is self-study by choice, so the board shows both outcomes). On earlier days
+// about one period in twelve stayed uncovered. The pending periods of the demo day are skipped here.
 const pendingSql = PENDING.map(([t, n]) => `(s.teacher_id = ${t} AND s.period > s.last_period - ${n})`).join(' OR ')
 const ORD = (col) => `CASE ${col} WHEN 1 THEN 'الأولى' WHEN 2 THEN 'الثانية' WHEN 3 THEN 'الثالثة' WHEN 4 THEN 'الرابعة' WHEN 5 THEN 'الخامسة' WHEN 6 THEN 'السادسة' ELSE 'السابعة' END`
 out.push(`WITH slots AS (
@@ -493,7 +494,8 @@ out.push(`WITH slots AS (
     WHERE NOT (s.rn = 1 AND (${pendingSql}))
   ),
   chosen AS (
-    SELECT p.*, COALESCE(p.same_subject, p.section_teacher) AS sub, CASE WHEN p.same_subject IS NOT NULL THEN 1 WHEN p.section_teacher IS NOT NULL THEN 2 END AS tier,
+    SELECT p.*, CASE WHEN p.rn = 1 AND p.teacher_id <> 12 AND p.h % 9 = 0 THEN NULL ELSE COALESCE(p.same_subject, p.section_teacher) END AS sub,
+           CASE WHEN p.rn = 1 AND p.teacher_id <> 12 AND p.h % 9 = 0 THEN NULL WHEN p.same_subject IS NOT NULL THEN 1 WHEN p.section_teacher IS NOT NULL THEN 2 END AS tier,
            (p.rn > 1 AND p.h < 8) AS left_uncovered
     FROM picks p
   ),

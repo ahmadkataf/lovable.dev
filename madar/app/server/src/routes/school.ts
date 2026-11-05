@@ -2,9 +2,9 @@
 import { Hono } from 'hono'
 import type { AppEnv } from '../types'
 import { requireAuth } from '../auth'
-import { ORDINALS, audit, bad, dayPhrase, forbidden, intParam, isDate, notFound, optText, placeholders, readBody, requireInt, requireText, today } from '../util'
+import { ORDINALS, SMS_SIMULATED, arDigits, audit, bad, dayPhrase, ellipsize, forbidden, guardiansPhrase, intParam, isDate, notFound, optText, placeholders, readBody, reportDate, requireInt, requireText, schoolsPhrase, today } from '../util'
 import { requireTeacherOfSchool, teacherSections } from '../scope'
-import { fanOut, logSms, notify, schoolAccounts, schoolGuardians, sectionAudience, type Notice } from '../notify'
+import { fanOut, logSms, notify, notifyCounted, schoolAccounts, schoolGuardians, sectionAudience, type Notice } from '../notify'
 import { affectedRows, ensureSubstitutions } from '../substitute'
 import { schoolStats } from '../stats'
 
@@ -25,7 +25,7 @@ function schoolOf(c: { get(k: 'user'): AppEnv['Variables']['user']; req: { query
 r.get('/api/school/dashboard', requireAuth('school', 'directorate'), async c => {
   const db = c.env.DB
   const schoolId = schoolOf(c)
-  const date = isDate(c.req.query('date')) ? c.req.query('date')! : today()
+  const date = isDate(c.req.query('date')) ? c.req.query('date')! : reportDate()   // on the weekend: the last school day
   await ensureSubstitutions(db, c.env, date, schoolId)
   const stats = await schoolStats(db, schoolId, date)
   if (!stats) throw notFound('المدرسة غير موجودة')
@@ -38,7 +38,7 @@ r.get('/api/school/dashboard', requireAuth('school', 'directorate'), async c => 
   for (const a of absences) {
     const rows = await affectedRows(db, a.absence_id)
     withSubs.push({ ...a, substitutions: rows.map(s => ({ id: s.substitution_id, period: s.period, section_id: s.section_id, section_label: s.section_label, subject: s.subject,
-      status: s.status, substitute: s.substitute, substitute_teacher_id: s.substitute_teacher_id, lesson_note: s.lesson_note, candidates: s.candidates, no_candidate: s.no_candidate })) })
+      status: s.status, substitute: s.substitute, substitute_teacher_id: s.substitute_teacher_id, lesson_note: s.lesson_note, candidates: s.candidates, no_candidate: s.no_candidate, note: s.note })) })
   }
   return c.json({ date, ...stats, absences: withSubs })
 })
@@ -106,7 +106,7 @@ r.post('/api/substitutions/:id/approve', requireAuth('school'), async c => {
     .bind(teacher.id, note, user.id, id).run()
   await audit(db, user.id, 'substitution.approve', `${id}:${teacher.id}`)
   const when = dayPhrase(sub.date), period = ORDINALS[sub.period]
-  const forSub = `تكليفك بتغطية الحصّة ${period} ${when} — ${sub.section_label} · ${sub.subject}` + (note ? ` · خطّة الدرس: ${note}` : '')
+  const forSub = `تكليفك بتغطية الحصّة ${period} ${when} — ${sub.section_label} · ${sub.subject}` + (note ? ` · خطّة الدرس: ${ellipsize(note, 120)}` : '')
   await notify(db, [{ user_id: teacher.id, kind: 'substitution', body: forSub, link: `/substitutions/${id}` }])
   // section_id on the link lets the parent screen file the notice under the right child
   const told = await tellSection(db, sub.section_id, `تغيّر معلّم الحصّة ${period} ${when}`, `/timetable?date=${sub.date}&section_id=${sub.section_id}`)
@@ -124,12 +124,15 @@ r.post('/api/substitutions/:id/self-study', requireAuth('school'), async c => {
   await db.prepare(`UPDATE substitutions SET status = 'self_study', substitute_teacher_id = NULL, lesson_note = ?, approved_by = ?, approved_at = datetime('now') WHERE id = ?`)
     .bind(note, user.id, id).run()
   await audit(db, user.id, 'substitution.self_study', id)
-  const told = await tellSection(db, sub.section_id, `الحصّة ${ORDINALS[sub.period]} ${dayPhrase(sub.date)} تعلّم ذاتي موجَّه: ${note}`, `/timetable?date=${sub.date}&section_id=${sub.section_id}`)
+  const told = await tellSection(db, sub.section_id, `الحصّة ${ORDINALS[sub.period]} ${dayPhrase(sub.date)} تعلّم ذاتي موجَّه: ${ellipsize(note, 120)}`, `/timetable?date=${sub.date}&section_id=${sub.section_id}`)
   const rows = await affectedRows(db, sub.absence_id)
   return c.json({ ...rows.find(x => x.substitution_id === id), notified: told })
 })
 
-/** Confirms the day's attendance; the guardians' absence notices of that day are then flagged for SMS (logged only). */
+/**
+ * Confirms the day's attendance. The guardians' absence notices of that day are then flagged for SMS: the pilot's text
+ * messages go to guardians without the app, and the demo version only simulates them (logged, counted, labelled so).
+ */
 r.post('/api/attendance/confirm', requireAuth('school'), async c => {
   const user = c.get('user'), db = c.env.DB
   const b = await readBody(c)
@@ -138,20 +141,21 @@ r.post('/api/attendance/confirm', requireAuth('school'), async c => {
   const res = await db.prepare(`
     UPDATE attendance SET confirmed = 1 WHERE date = ? AND confirmed = 0
       AND student_id IN (SELECT st.id FROM students st JOIN sections sec ON sec.id = st.section_id WHERE sec.school_id = ?)`).bind(date, schoolId).run()
-  const guardians = await schoolGuardians(db, schoolId)
+  // Every absence notice of the day sent to this school's guardians is in the app; the ones not yet flagged get the SMS flag now.
+  const { results } = await db.prepare(`
+    SELECT id, user_id, body, sms FROM notifications WHERE kind = 'absence' AND link LIKE ?
+      AND user_id IN (SELECT DISTINCT st.guardian_user_id FROM students st JOIN sections sec ON sec.id = st.section_id WHERE sec.school_id = ? AND st.guardian_user_id IS NOT NULL)`)
+    .bind(`/attendance?date=${date}&%`, schoolId).all<{ id: number; user_id: number; body: string; sms: number }>()
+  const fresh = results.filter(n => n.sms === 0)
   let sms = 0
-  if (guardians.length) {
-    const { results } = await db.prepare(`
-      SELECT id, user_id, body FROM notifications WHERE kind = 'absence' AND sms = 0 AND link LIKE ? AND user_id IN (${placeholders(guardians.length)})`)
-      .bind(`/attendance?date=${date}&%`, ...guardians).all<{ id: number; user_id: number; body: string }>()
-    if (results.length) {
-      await db.prepare(`UPDATE notifications SET sms = 1 WHERE id IN (${placeholders(results.length)})`).bind(...results.map(n => n.id)).run()
-      await logSms(db, results.map(n => ({ user_id: n.user_id, kind: 'absence', body: n.body, sms: 1 })))
-      sms = results.length
-    }
+  for (let i = 0; i < fresh.length; i += 90) {
+    const part = fresh.slice(i, i + 90)
+    await db.prepare(`UPDATE notifications SET sms = 1 WHERE id IN (${part.map(() => '?').join(', ')})`).bind(...part.map(n => n.id)).run()
   }
+  if (fresh.length) sms = await logSms(db, fresh.map(n => ({ user_id: n.user_id, kind: 'absence', body: n.body, sms: 1 })))
   await audit(db, user.id, 'attendance.confirm', date)
-  return c.json({ date, confirmed: res.meta.changes ?? 0, sms })
+  const message = `ثُبّت حضور ${dayPhrase(date)} — إشعارات داخل التطبيق: ${arDigits(results.length)} · رسائل نصّية (${SMS_SIMULATED}): ${arDigits(sms)}`
+  return c.json({ date, confirmed: res.meta.changes ?? 0, in_app: results.length, sms, sms_simulated: true, message })
 })
 
 /** School announcement → every guardian of the school; directorate circular (school_id NULL) → every school account. */
@@ -166,10 +170,17 @@ r.post('/api/announcements', requireAuth('school', 'directorate'), async c => {
   const id = res.meta.last_row_id as number
   await audit(db, user.id, schoolId === null ? 'circular.create' : 'announcement.create', id)
   const link = `/announcements/${id}`
-  const notified = schoolId === null
-    ? await notify(db, fanOut(await schoolAccounts(db, null), 'circular', `${urgent ? 'تعميم عاجل' : 'تعميم'} من المديرية: ${title}`, link, urgent ? 1 : 0))
-    : await notify(db, fanOut(await schoolGuardians(db, schoolId), 'announcement', `${urgent ? 'إعلان عاجل' : 'إعلان'} من المدرسة: ${title}`, link, urgent ? 1 : 0))
-  return c.json({ id, school_id: schoolId, title, body, urgent, notified }, 201)
+  let notified = 0, sms = 0, message: string
+  if (schoolId === null) {
+    notified = (await notifyCounted(db, fanOut(await schoolAccounts(db, null), 'circular', `${urgent ? 'تعميم عاجل' : 'تعميم'} من المديرية: ${ellipsize(title, 90)}`, link, urgent ? 1 : 0))).stored
+    message = `أُرسل التعميم إلى ${schoolsPhrase(notified)}`
+  } else {
+    // Guardians read it in the app; an urgent one would also go out by SMS to those without the app — simulated in the demo version.
+    const sent = await notifyCounted(db, fanOut(await schoolGuardians(db, schoolId), 'announcement', `${urgent ? 'إعلان عاجل' : 'إعلان'} من المدرسة: ${ellipsize(title, 90)}`, link, urgent ? 1 : 0))
+    notified = sent.stored; sms = sent.sms
+    message = `أُرسل الإعلان داخل التطبيق إلى ${guardiansPhrase(notified)}` + (urgent ? ` · يصل أيضاً برسالة نصّية لمن لا يملك التطبيق (${SMS_SIMULATED}): ${arDigits(sms)}` : '')
+  }
+  return c.json({ id, school_id: schoolId, title, body, urgent, notified, sms, sms_simulated: true, message }, 201)
 })
 
 export default r

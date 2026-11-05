@@ -77,7 +77,7 @@ export function fmtDate(iso: string | null | undefined, opts: { weekday?: boolea
   const parts: string[] = [];
   if (opts.weekday !== false) parts.push(DAYS[dayIndex(date)]);
   parts.push(`${ar(d)} ${MONTHS[m - 1]}`);
-  if (opts.year) parts.push(ar(y));
+  if (opts.year) parts.push(arDigits(String(y))); // a year is never grouped: «٢٠٢٦», not «٢٬٠٢٦»
   return parts.join(' ');
 }
 

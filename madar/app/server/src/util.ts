@@ -26,6 +26,15 @@ export function schoolDaysBack(date: string, n: number): string[] {
   return out
 }
 
+/** The latest school day on or before `date` (Friday/Saturday → the Thursday before). */
+export function lastSchoolDay(date: string): string {
+  let d = date
+  while (!isSchoolDay(d)) d = addDays(d, -1)
+  return d
+}
+/** The day the management views show by default: today, or on the weekend the last school day (the demo seed anchors to it). */
+export const reportDate = (): string => lastSchoolDay(today())
+
 /** Sunday of the week that contains `date` (the school week runs Sun–Thu). */
 export const weekStart = (date: string): string => addDays(date, -weekday(date))
 export const monthStart = (date: string): string => date.slice(0, 8) + '01'
@@ -54,6 +63,21 @@ export function countPhrase(n: number, forms: { one: string; two: string; few: s
   return `${arDigits(n)} ${forms.many}`
 }
 export const periodsPhrase = (n: number) => countPhrase(n, { one: 'حصّة واحدة', two: 'حصّتان', few: 'حصص', many: 'حصّة' })
+export const schoolsPhrase = (n: number) => countPhrase(n, { one: 'مدرسة واحدة', two: 'مدرستان', few: 'مدارس', many: 'مدرسة' })
+export const guardiansPhrase = (n: number) => countPhrase(n, { one: 'وليّ أمر واحد', two: 'وليَّي أمر', few: 'أولياء أمور', many: 'وليّ أمر' })
+export const studentsPhrase = (n: number) => countPhrase(n, { one: 'طالب واحد', two: 'طالبان', few: 'طلاب', many: 'طالباً' })
+
+/** The SMS gateway is phase 2: the demo version only simulates text messages, and every string that mentions them says so. */
+export const SMS_SIMULATED = 'محاكاة في نسخة العرض'
+
+/** Cuts a long text for a notification body at a word boundary and appends «…» (never mid-word, never a bare hard cut). */
+export function ellipsize(text: string | null | undefined, max = 100): string {
+  const t = (text ?? '').trim().replace(/\s+/g, ' ')
+  if (t.length <= max) return t
+  const cut = t.slice(0, max - 1)
+  const at = cut.lastIndexOf(' ')
+  return (at > max / 2 ? cut.slice(0, at) : cut).replace(/[\s،؛:·—-]+$/, '') + '…'
+}
 
 const NUMBER_WORDS = ['', 'واحد', 'اثنان', 'ثلاثة', 'أربعة', 'خمسة', 'ستّة', 'سبعة', 'ثمانية', 'تسعة', 'عشرة']
 /** Consecutive days: «يوم واحد» / «يومان متتاليان» / «ثلاثة أيام متتالية» (spelled out up to ten) / «١٢ يوماً متتالياً». */

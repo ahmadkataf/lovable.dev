@@ -32,8 +32,9 @@ const ALLOWED_ORIGINS = new Set([
   'http://localhost:8787',
 ])
 app.use('/api/*', cors({ origin: origin => (ALLOWED_ORIGINS.has(origin) ? origin : null), allowHeaders: ['authorization', 'content-type'], allowMethods: ['GET', 'POST', 'OPTIONS'], maxAge: 86400 }))
-// Every API answer (admin ones included — they are registered below this line) is personal: never cache it.
-app.use('/api/*', async (c, next) => { await next(); c.header('cache-control', 'no-store') })
+// Every API answer (admin ones included — they are registered below this line) is personal: never cache it. The one
+// exception is the public GET /api/config, which sets its own short public cache header.
+app.use('/api/*', async (c, next) => { await next(); if (!c.res.headers.get('cache-control')) c.header('cache-control', 'no-store') })
 
 // Admin: apply schema/seed scripts and read table counts. Needs the ADMIN_KEY secret in the x-admin-key header.
 // Throttled per IP (in memory, then durably in the database object) and compared in constant time.

@@ -3,6 +3,7 @@
 
 import { useMemo, useRef, useState, type FormEvent } from 'react';
 import * as api from '../api';
+import { Icon } from '../components/Icon';
 import { Btn, DateField, Empty, ErrorBox, Field, Kpi, PageHead, Skeleton, Tag, Tile } from '../components/Ui';
 import { ar, complexLabel, consecutiveDays, count, fmtDate, fmtHM, fmtPhone, fmtWhen, NOUNS, pct, todayISO } from '../format';
 import { useApi } from '../hooks';
@@ -27,9 +28,9 @@ const ALERT_TAG: Record<string, { label: string; tone: 'sun' | 'red' | 'violet' 
   three_days: { label: 'إنذار مبكر', tone: 'red' },
 };
 const PHONE_SORT: { key: SortKey; label: string }[] = [
-  { key: 'severity', label: 'الأكثر حاجة للتدخّل أولاً' },
-  { key: 'present_pct', label: 'الحضور (الأدنى أولاً)' },
-  { key: 'uploaded_at', label: 'لم يُرفع الحضور أولاً' },
+  { key: 'severity', label: 'الأكثر حاجة للتدخّل' },
+  { key: 'present_pct', label: 'الحضور الأدنى' },
+  { key: 'uploaded_at', label: 'لم يُرفع الحضور' },
   { key: 'name', label: 'اسم المدرسة' },
 ];
 const ALERTS_SHOWN = 3;
@@ -80,7 +81,7 @@ function SchoolCard({ s, date, holiday }: { s: DirectorateSchool; date: string; 
       <Link to={schoolPath(s.id, date)} className="scard-main" aria-label={`${s.name} — فتح صفحة المدرسة`}>
         <div className="scard-h">
           <b>{s.name}</b>
-          <small>{complexLabel(s.complex)} · {count(s.students, NOUNS.student)}</small>
+          <small>{complexLabel(s.complex)} · {count(s.students, NOUNS.student)}{s.principal ? ` · ${s.principal}` : ''}</small>
         </div>
         <div className={`scard-att ${p === null ? 'none' : p < 90 ? 'low' : ''}`}>
           <div className="bar" role="progressbar" aria-valuenow={p ?? 0} aria-valuemin={0} aria-valuemax={100} aria-label="نسبة الحضور"><i style={{ width: `${p ?? 0}%` }} /></div>
@@ -163,14 +164,21 @@ export function DirectorateDashboard() {
       {error && !data && <Tile className="full"><ErrorBox error={error} retry={reload} /></Tile>}
       {data && (
         <>
-          <Tile className="full dir-alerts" title={alerts.length ? `يحتاج تدخّلاً ${dayWord} · ${count(alerts.length, NOUNS.alert)}` : `يحتاج تدخّلاً ${dayWord}`} icon="alert" color="var(--sun)">
+          <Tile
+            className="full dir-alerts"
+            title={alerts.length ? `يحتاج تدخّلاً ${dayWord} · ${count(alerts.length, NOUNS.alert)}` : `يحتاج تدخّلاً ${dayWord}`}
+            icon="alert"
+            color="var(--sun)"
+            right={alerts.length > ALERTS_SHOWN + 1 ? (
+              <button type="button" className="dir-more-link" onClick={() => setShowAll((v) => !v)} aria-expanded={showAll}>
+                {showAll ? 'عرض أقلّ' : `عرض الكلّ (${ar(alerts.length)})`}
+              </button>
+            ) : undefined}
+          >
             {alerts.length === 0 && <Empty icon="check" title={holiday ? 'يوم عطلة — لا تنبيهات' : `لا تنبيهات ${dayWord}`} text={holiday ? undefined : 'رفعت كلّ المدارس حضورها، وكلّ حصص الغياب مغطّاة.'} />}
             <div className="list">
               {shownAlerts.map((a, i) => <AlertRow key={`${a.kind}-${a.school}-${i}`} alert={a} school={schoolOf(a)} date={date} onEarlyWarning={scrollToThreeDays} />)}
             </div>
-            {alerts.length > shownAlerts.length && (
-              <button type="button" className="dir-more" onClick={() => setShowAll(true)}>عرض كلّ التنبيهات ({ar(alerts.length)})</button>
-            )}
             {showAll && alerts.length > ALERTS_SHOWN + 1 && (
               <button type="button" className="dir-more" onClick={() => setShowAll(false)}>عرض أقلّ</button>
             )}
@@ -178,31 +186,25 @@ export function DirectorateDashboard() {
 
           <div className="kpis dir-kpis full" aria-label="أرقام اليوم">
             <Kpi value={pct(data.totals.present_pct)} label="حضور الطلاب" tone={data.totals.present_pct === null ? 'muted' : data.totals.present_pct >= 90 ? 'good' : 'warn'} />
-            <Kpi value={pct(data.totals.coverage_pct)} label="تغطية حصص الغياب" tone={data.totals.coverage_pct >= 90 ? 'good' : 'warn'} />
-            <Kpi value={`${ar(uploaded)} / ${ar(total)}`} label="مدارس رفعت الحضور" tone={holiday ? 'muted' : uploaded === total ? 'good' : 'warn'} />
-            <Kpi value={ar(alerts.length)} label={alerts.length === 1 ? 'تنبيه يحتاج تدخّلاً' : 'تنبيهات تحتاج تدخّلاً'} tone={alerts.length ? 'warn' : 'good'} />
+            <Kpi value={pct(data.totals.coverage_pct)} label="تغطية الغياب" tone={data.totals.coverage_pct >= 90 ? 'good' : 'warn'} />
+            <Kpi value={`${ar(uploaded)} / ${ar(total)}`} label="رفعت الحضور" tone={holiday ? 'muted' : uploaded === total ? 'good' : 'warn'} />
+            <Kpi value={ar(alerts.length)} label={alerts.length === 1 ? 'تنبيه واحد' : 'تنبيهات'} tone={alerts.length ? 'warn' : 'good'} />
           </div>
 
-          <Tile
-            className="full dir-schools"
-            title={`المدارس (${ar(total)})`}
-            icon="school"
-            right={narrow
-              ? (
-                <label className="dir-sort">
-                  <span>الترتيب</span>
-                  <select className="input" value={sort.key} onChange={(e) => pickSort(e.target.value as SortKey)} aria-label="ترتيب المدارس">
-                    {PHONE_SORT.map((o) => <option key={o.key} value={o.key}>{o.label}</option>)}
-                  </select>
-                </label>
-              )
-              : <span className="small muted">الترتيب بالضغط على عنوان العمود · الصفّ يفتح صفحة المدرسة</span>}
-          >
-            {narrow ? (
+          {narrow ? (
+            <section className="full dir-schools-sec" aria-label="المدارس">
+              <div className="dir-schools-h">
+                <h3><Icon name="school" /> المدارس ({ar(total)})</h3>
+                <select className="input dir-sort-select" value={sort.key} onChange={(e) => pickSort(e.target.value as SortKey)} aria-label="ترتيب المدارس">
+                  {PHONE_SORT.map((o) => <option key={o.key} value={o.key}>{o.label}</option>)}
+                </select>
+              </div>
               <div className="scards">
                 {schools.map((s) => <SchoolCard key={s.id} s={s} date={date} holiday={holiday} />)}
               </div>
-            ) : (
+            </section>
+          ) : (
+            <Tile className="full dir-schools" title={`المدارس (${ar(total)})`} icon="school" right={<span className="small muted">الترتيب بالضغط على عنوان العمود · الصفّ يفتح صفحة المدرسة</span>}>
               <div className="table-wrap dir-table">
                 <table>
                   <thead>
@@ -222,8 +224,10 @@ export function DirectorateDashboard() {
                       return (
                         <tr key={s.id} tabIndex={0} onClick={() => navigate(to)} onKeyDown={(e) => { if (e.key === 'Enter') navigate(to); }} data-school={s.id}>
                           <td className="name">
-                            <Link to={to} onClick={(e) => e.stopPropagation()} className="nm">{s.name}</Link>
-                            <span className="sub">{complexLabel(s.complex)} · {count(s.students, NOUNS.student)}</span>
+                            <Link to={to} onClick={(e) => e.stopPropagation()} className="nm">
+                              <span>{s.name}</span>
+                              <span className="sub">{complexLabel(s.complex)} · {count(s.students, NOUNS.student)}</span>
+                            </Link>
                           </td>
                           <td className="num">{p === null ? '—' : <>{pct(p)}<span className={`mini ${p < 90 ? 'low' : ''}`} aria-hidden="true"><i style={{ width: `${p}%` }} /></span></>}</td>
                           <td className={s.attendance_uploaded ? 'num' : holiday ? 'muted' : 'bad'}>{s.attendance_uploaded ? (s.uploaded_at ? fmtHM(s.uploaded_at) : <span className="y">✓</span>) : holiday ? 'عطلة' : 'لم يُرفع'}</td>
@@ -242,8 +246,8 @@ export function DirectorateDashboard() {
                   </tbody>
                 </table>
               </div>
-            )}
-          </Tile>
+            </Tile>
+          )}
 
           <Tile title="إنذار مبكر · غياب ثلاثة أيام متتالية" icon="users" color="var(--red)" className="dir-three" style={{ scrollMarginTop: 80 }}>
             <section ref={threeDaysRef} id="three-days" tabIndex={-1} aria-label="قائمة الغياب المتتالي" style={{ outline: 'none' }}>

@@ -19,4 +19,7 @@ globs = ["**/*.sql"]
 
 [vars]
 WEEKLY_CAP = "28"
+# Shown by the public GET /api/config: the pilot's support line (empty until the team has one) and its hours.
+SUPPORT_PHONE = ""
+SUPPORT_HOURS = "٧:٣٠–١٤:٠٠"
 APP_URL = "http://localhost:8787"

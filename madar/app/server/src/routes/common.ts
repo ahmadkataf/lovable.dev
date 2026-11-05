@@ -38,6 +38,18 @@ export async function meResponse(db: D1Database, user: User) {
 
 const TOO_MANY = 'محاولات كثيرة، يُرجى المحاولة مجدّداً بعد قليل'
 
+/** Public app configuration (no auth, cacheable for five minutes): the support line, the demo flag and the reseed hour. */
+r.get('/api/config', c => {
+  c.header('cache-control', 'public, max-age=300')
+  return c.json({
+    support_phone: c.env.SUPPORT_PHONE ?? '',
+    support_hours: c.env.SUPPORT_HOURS ?? '',
+    demo: true,                 // the pilot's demo version: seeded data, reseeded every morning, SMS simulated
+    reseed_hour: '06:00',       // Damascus time (the cron in wrangler.toml is 03:00 UTC)
+    app_url: c.env.APP_URL ?? '',
+  })
+})
+
 r.post('/api/login', async c => {
   const ip = clientIp(c)
   // First line: the isolate's own memory (cheap). Second line: the database object, which every isolate shares and

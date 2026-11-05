@@ -79,9 +79,11 @@ function mk(page, profile) {
     await page.waitForLoadState('networkidle');
     await page.waitForTimeout(300);
   };
+  // Round 2: the logout button opens an inline confirmation («تسجيل الخروج من هذا الجهاز؟» → «تأكيد الخروج»).
   const logout = async () => {
-    const sel = profile === 'phone' ? '.topbar button[aria-label="تسجيل الخروج"]' : '.rail button[aria-label="تسجيل الخروج"]';
+    const sel = profile === 'phone' ? '.topbar button[aria-controls="logout-confirm"]' : '.rail button[aria-controls="logout-confirm"]';
     await page.locator(sel).click();
+    await page.locator('#logout-confirm button:has-text("تأكيد الخروج")').click();
     await page.waitForURL(`${BASE}/`, { timeout: 10000 });
   };
   const toast = async (text) => {
@@ -396,7 +398,7 @@ async function directorateFlow(page, h) {
     if (/[0-9]/.test(await page.locator('.report').innerText())) throw new Error('Latin digits in the printed report');
     if (!(await page.evaluate(() => document.body.classList.contains('print-report')))) throw new Error('body lacks the print-report class');
     await h.shot('directorate-report');
-    const range = await page.locator('.report-head .range').innerText();
+    const range = await page.locator('.report-head .range').evaluate((el) => el.textContent);
     await page.locator('button:has-text("الأسبوع السابق")').click();
     await page.waitForFunction((prev) => document.querySelector('.report-head .range')?.textContent !== prev, range, { timeout: 10000 });
     await page.locator('.report tfoot').waitFor();

@@ -559,15 +559,19 @@ function dayFigures(d: DB, s: School, date: string, today: string): DayFigures {
   const students = s.enrolment;
   const none: DayFigures = { uploaded: false, uploaded_at: null, confirmed: false, students, present: 0, late: 0, absent: 0, pct: null };
   if (!isSchoolDay(date) || date > today) return none;
-  if (liveSchool(d, s.id)) {
+  // The demo school (SCH-1) shows its real rows, scaled to its enrolment; the other two live schools have too small a
+  // sample to look like a school (eight pupils → «١٠٠٪»), so they use the synthetic figures, except that إزرع (SCH-2)
+  // has not uploaded today, as its own dashboard shows.
+  if (s.id === 1 && liveSchool(d, s.id)) {
     const att = schoolAttendance(d, s.id, date);
     if (att.uploaded) {
       const presentAll = Math.round((students * att.present_pct) / 100);
       const late = Math.min(presentAll, Math.round((students * att.late) / Math.max(1, att.recorded)));
       return { uploaded: true, uploaded_at: att.uploaded_at, confirmed: att.confirmed, students, present: presentAll - late, late, absent: students - presentAll, pct: att.present_pct };
     }
-    if (date === today) return none; // a live school shows its real state today: nothing uploaded yet
+    if (date === today) return none; // the live school shows its real state today: nothing uploaded yet
   }
+  if (s.id === 2 && date === today && !schoolAttendance(d, s.id, date).uploaded) return none;
   const uploaded = date === today ? s.id !== 7 : rnd(s.id, date, 'up') > 0.07;
   if (!uploaded) return none;
   const pct = Math.max(80, Math.min(99, (BASE_PCT[s.id] ?? 92) + Math.round((rnd(s.id, date, 'pct') - 0.5) * 8)));

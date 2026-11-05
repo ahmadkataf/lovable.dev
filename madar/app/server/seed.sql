@@ -10295,7 +10295,8 @@ WITH slots AS (
     WHERE NOT (s.rn = 1 AND ((s.teacher_id = 1021 AND s.period > s.last_period - 2) OR (s.teacher_id = 1088 AND s.period > s.last_period - 1) OR (s.teacher_id = 1113 AND s.period > s.last_period - 1) OR (s.teacher_id = 1122 AND s.period > s.last_period - 2)))
   ),
   chosen AS (
-    SELECT p.*, COALESCE(p.same_subject, p.section_teacher) AS sub, CASE WHEN p.same_subject IS NOT NULL THEN 1 WHEN p.section_teacher IS NOT NULL THEN 2 END AS tier,
+    SELECT p.*, CASE WHEN p.rn = 1 AND p.teacher_id <> 12 AND p.h % 9 = 0 THEN NULL ELSE COALESCE(p.same_subject, p.section_teacher) END AS sub,
+           CASE WHEN p.rn = 1 AND p.teacher_id <> 12 AND p.h % 9 = 0 THEN NULL WHEN p.same_subject IS NOT NULL THEN 1 WHEN p.section_teacher IS NOT NULL THEN 2 END AS tier,
            (p.rn > 1 AND p.h < 8) AS left_uncovered
     FROM picks p
   ),

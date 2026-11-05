@@ -71,6 +71,14 @@ export interface AffectedRow {
   substitution_id: number; timetable_id: number; period: number; section_id: number; section_label: string; subject: string
   status: string; substitute_teacher_id: number | null; substitute: string | null; lesson_note: string | null; candidates: Candidate[]
   no_candidate: boolean   // still 'suggested' but nobody is free: the UI shows «لا بديل متاح — تعلّم ذاتي موجَّه»
+  note: string | null     // why the list looks the way it does, e.g. no same-subject teacher was free in that period
+}
+
+/** Explains a suggestion list: set when no same-subject teacher was free (so the top candidate is from another subject) or when nobody was. */
+export function suggestionNote(status: string, subject: string, candidates: Candidate[]): string | null {
+  if (status !== 'suggested') return null
+  if (!candidates.length) return 'لا معلّم متاحاً في هذه الحصّة — تعلّم ذاتي موجَّه'
+  return candidates[0].tier === 1 ? null : `لا معلّم ${subject} متاحاً في هذه الحصّة، فاقتُرح معلّمون من مواد أخرى`
 }
 export interface EngineResult { absence_id: number; teacher_id: number; teacher: string; date: string; affected: AffectedRow[] }
 
@@ -88,7 +96,7 @@ export async function affectedRows(db: D1Database, absenceId: number): Promise<A
     WHERE s.absence_id = ? ORDER BY t.period`).bind(absenceId).all<Omit<AffectedRow, 'candidates'> & { candidates: string }>()
   return results.map(r => {
     const candidates = JSON.parse(r.candidates || '[]') as Candidate[]
-    return { ...r, candidates, no_candidate: r.status === 'suggested' && candidates.length === 0 }
+    return { ...r, candidates, no_candidate: r.status === 'suggested' && candidates.length === 0, note: suggestionNote(r.status, r.subject, candidates) }
   })
 }
 
@@ -141,18 +149,25 @@ export async function runEngine(db: D1Database, env: Pick<Env, 'WEEKLY_CAP'>, ab
     created = results.reduce((n, r) => n + (r.meta?.changes ?? 0), 0)
   }
   if (created > 0) {
-    const body = `غياب أ. ${absence.teacher} ${dayPhrase(absence.date)}: ${periodsPhrase(slots.length)} بحاجة إلى تغطية`
+    // `created` rather than every slot: periods the school already decided (e.g. the seeded approvals) need no cover.
+    const body = `غياب أ. ${absence.teacher} ${dayPhrase(absence.date)}: ${periodsPhrase(created)} بحاجة إلى تغطية`
     await notify(db, fanOut(await schoolAccounts(db, absence.school_id), 'absence_teacher', body, `/absences/${absence.id}`))
   }
   return { absence_id: absence.id, teacher_id: absence.teacher_id, teacher: absence.teacher, date: absence.date, affected: await affectedRows(db, absence.id) }
 }
 
-/** Runs the engine for every absence on `date` (of one school, or all) that has no substitution rows yet — e.g. the seeded one. */
+/**
+ * Runs the engine for every absence on `date` (of one school, or all) that still has an affected period without a
+ * substitution row — the seeded absences arrive with their morning periods already decided and the last ones open.
+ */
 export async function ensureSubstitutions(db: D1Database, env: Pick<Env, 'WEEKLY_CAP'>, date: string, schoolId: number | null): Promise<void> {
-  if (weekday(date) > 4) return
+  const day = weekday(date)
+  if (day > 4) return
   const { results } = await db.prepare(`
     SELECT a.id FROM absences a JOIN users u ON u.id = a.teacher_id
-    WHERE a.date = ? AND (? IS NULL OR u.school_id = ?) AND NOT EXISTS (SELECT 1 FROM substitutions s WHERE s.absence_id = a.id)`)
-    .bind(date, schoolId, schoolId).all<{ id: number }>()
+    WHERE a.date = ? AND (? IS NULL OR u.school_id = ?)
+      AND EXISTS (SELECT 1 FROM timetable t WHERE t.teacher_id = a.teacher_id AND t.day = ?
+                  AND NOT EXISTS (SELECT 1 FROM substitutions s WHERE s.absence_id = a.id AND s.timetable_id = t.id))`)
+    .bind(date, schoolId, schoolId, day).all<{ id: number }>()
   for (const r of results) await runEngine(db, env, r.id)
 }

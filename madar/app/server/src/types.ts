@@ -9,6 +9,8 @@ export interface Env {
   TOKEN_SECRET?: string   // HMAC secret for login tokens (wrangler secret); required when APP_URL is https, 'dev-secret' only in local runs
   WEEKLY_CAP?: string     // substitute engine: max weekly periods + substitutions per teacher (default 28)
   APP_URL?: string
+  SUPPORT_PHONE?: string   // shown by GET /api/config (public): the pilot's support line; empty until the team has one
+  SUPPORT_HOURS?: string   // e.g. «٧:٣٠–١٤:٠٠»
 }
 
 /** The authenticated user, loaded from `users` on every request (phone is deliberately not loaded). */
