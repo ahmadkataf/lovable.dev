@@ -99,7 +99,7 @@ INSERT OR IGNORE INTO users (id, role, name, school_id, phone, code, subject_id)
   (408, 'parent', 'غسان نعيم', 1, '0940000408', 'P-8', NULL),
   (409, 'parent', 'خالد عبد الله', 1, '0940000409', 'P-KHALED', NULL),
   (410, 'parent', 'أحمد صالح', 1, '0940000410', 'P-10', NULL),
-  (411, 'parent', 'الرحمن حسين', 1, '0940000411', 'P-11', NULL),
+  (411, 'parent', 'يوسف حسين', 1, '0940000411', 'P-11', NULL),
   (412, 'parent', 'عمر إبراهيم', 1, '0940000412', 'P-12', NULL),
   (413, 'parent', 'علي فهد', 1, '0940000413', 'P-13', NULL),
   (414, 'parent', 'سامي مصطفى', 1, '0940000414', 'P-14', NULL),
@@ -329,7 +329,7 @@ INSERT OR IGNORE INTO timetable (id, section_id, day, period, subject_id, teache
 -- Homework: the pitch's maths homework for الخامس (ب) due in three days, plus a little variety.
 INSERT OR IGNORE INTO homework (id, section_id, subject_id, teacher_id, title, details, book_page, due_date, created_at) VALUES
   (1, 2, 2, 11, 'تمارين الكسور العشرية ص ٤٢', 'حلّ التمارين من ١ إلى ٨ في الدفتر، مع كتابة خطوات الحلّ.', '42', date('now','+3 hours','+3 days'), datetime('now','-2 hours')),
-  (2, 2, 1, 14, 'قراءة نصّ «الوطن» وإجابة الأسئلة', 'الإجابة عن أسئلة الفهم والاستيعاب في الدفتر.', '17', date('now','+3 hours','+1 day'), datetime('now','-2 days')),
+  (2, 2, 1, 14, 'قراءة نصّ «الوطن» والإجابة عن الأسئلة', 'الإجابة عن أسئلة الفهم والاستيعاب في الدفتر.', '17', date('now','+3 hours','+1 day'), datetime('now','-2 days')),
   (3, 1, 3, 12, 'تلخيص درس دورة الماء في الطبيعة', NULL, '55', date('now','+3 hours','+2 days'), datetime('now','-1 day')),
   (4, 3, 2, 11, 'مسائل النسبة والتناسب ص ٣٠', 'المسائل ١ و٢ و٣.', '30', date('now','+3 hours','+4 days'), datetime('now','-1 day'));
 INSERT OR IGNORE INTO submissions (homework_id, student_id, status, submitted_at) VALUES
@@ -379,7 +379,7 @@ INSERT OR IGNORE INTO absences (teacher_id, date, reason, reported_by) VALUES (1
 
 -- One school announcement and one directorate circular.
 INSERT OR IGNORE INTO announcements (id, school_id, title, body, urgent, created_by, created_at) VALUES
-  (1, 1, 'اجتماع أولياء الأمور', 'يُعقد اجتماع أولياء الأمور يوم الأحد القادم في الساعة العاشرة صباحًا في قاعة المدرسة. حضوركم يهمّنا.', 0, 2, datetime('now','-1 day')),
+  (1, 1, 'اجتماع أولياء الأمور', 'يُعقد اجتماع أولياء الأمور يوم الأحد القادم في الساعة العاشرة صباحاً في قاعة المدرسة. حضوركم يهمّنا.', 0, 2, datetime('now','-1 day')),
   (2, NULL, 'تعميم: تحديث بيانات الطلاب', 'يُرجى من إدارات المدارس استكمال تحديث بيانات الطلاب وأولياء الأمور على المنصّة قبل نهاية الأسبوع.', 0, 1, datetime('now','-2 days'));
 
 -- Notifications for the demo student, the demo parent and the school account.

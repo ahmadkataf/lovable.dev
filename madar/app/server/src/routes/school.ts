@@ -107,7 +107,8 @@ r.post('/api/substitutions/:id/approve', requireAuth('school'), async c => {
   const when = dayPhrase(sub.date), period = ORDINALS[sub.period]
   const forSub = `تكليفك بتغطية الحصّة ${period} ${when} — ${sub.section_label} · ${sub.subject}` + (note ? ` · خطّة الدرس: ${note}` : '')
   await notify(db, [{ user_id: teacher.id, kind: 'substitution', body: forSub, link: `/substitutions/${id}` }])
-  const told = await tellSection(db, sub.section_id, `تغيّر معلّم الحصّة ${period} ${when}`, `/timetable?date=${sub.date}`)
+  // section_id on the link lets the parent screen file the notice under the right child
+  const told = await tellSection(db, sub.section_id, `تغيّر معلّم الحصّة ${period} ${when}`, `/timetable?date=${sub.date}&section_id=${sub.section_id}`)
   const rows = await affectedRows(db, sub.absence_id)
   return c.json({ ...rows.find(x => x.substitution_id === id), notified: told + 1 })
 })
@@ -122,7 +123,7 @@ r.post('/api/substitutions/:id/self-study', requireAuth('school'), async c => {
   await db.prepare(`UPDATE substitutions SET status = 'self_study', substitute_teacher_id = NULL, lesson_note = ?, approved_by = ?, approved_at = datetime('now') WHERE id = ?`)
     .bind(note, user.id, id).run()
   await audit(db, user.id, 'substitution.self_study', id)
-  const told = await tellSection(db, sub.section_id, `الحصّة ${ORDINALS[sub.period]} ${dayPhrase(sub.date)} تعلّم ذاتي موجَّه: ${note}`, `/timetable?date=${sub.date}`)
+  const told = await tellSection(db, sub.section_id, `الحصّة ${ORDINALS[sub.period]} ${dayPhrase(sub.date)} تعلّم ذاتي موجَّه: ${note}`, `/timetable?date=${sub.date}&section_id=${sub.section_id}`)
   const rows = await affectedRows(db, sub.absence_id)
   return c.json({ ...rows.find(x => x.substitution_id === id), notified: told })
 })
@@ -165,7 +166,7 @@ r.post('/api/announcements', requireAuth('school', 'directorate'), async c => {
   await audit(db, user.id, schoolId === null ? 'circular.create' : 'announcement.create', id)
   const link = `/announcements/${id}`
   const notified = schoolId === null
-    ? await notify(db, fanOut(await schoolAccounts(db, null), 'announcement', `${urgent ? 'تعميم عاجل' : 'تعميم'} من المديرية: ${title}`, link, urgent ? 1 : 0))
+    ? await notify(db, fanOut(await schoolAccounts(db, null), 'circular', `${urgent ? 'تعميم عاجل' : 'تعميم'} من المديرية: ${title}`, link, urgent ? 1 : 0))
     : await notify(db, fanOut(await schoolGuardians(db, schoolId), 'announcement', `${urgent ? 'إعلان عاجل' : 'إعلان'} من المدرسة: ${title}`, link, urgent ? 1 : 0))
   return c.json({ id, school_id: schoolId, title, body, urgent, notified }, 201)
 })

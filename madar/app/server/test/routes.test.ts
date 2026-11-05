@@ -63,6 +63,56 @@ describe('login and /me', () => {
     expect((await call('GET', '/api/me')).status).toBe(401)
     expect((await call('GET', '/api/me', 'bad.token')).status).toBe(401)
   })
+  it('refuses to start an https deployment without TOKEN_SECRET, and never caches API answers', async () => {
+    const prod = { ...env, TOKEN_SECRET: undefined, APP_URL: 'https://app.madar.raqeem.dev' }
+    const r = await call('POST', '/api/login', undefined, { code: 'SCH-1' }, {}, prod)
+    expect(r.status).toBe(500)
+    expect(r.json.error).toMatch(/[؀-ۿ]/)
+    expect((await call('POST', '/api/login', undefined, { code: 'SCH-1' }, {}, { ...env, TOKEN_SECRET: undefined, APP_URL: 'http://localhost:8787' })).status).toBe(200)
+    expect((await call('GET', '/api/me', T.samer)).headers.get('cache-control')).toBe('no-store')
+  })
+  it('the durable limiter blocks the 21st login attempt of an address even when this isolate has seen none', async () => {
+    const ip = '203.0.113.9'
+    for (let i = 0; i < 20; i++) expect((await fakeStub.loginAttempt(ip)).allowed).toBe(true)   // attempts seen by other isolates
+    const r = await call('POST', '/api/login', undefined, { code: 'SCH-1' }, { 'cf-connecting-ip': ip })
+    expect(r.status).toBe(429)
+    expect(r.json.error).toMatch(/[؀-ۿ]/)
+    expect((await call('POST', '/api/login', undefined, { code: 'SCH-1' }, { 'cf-connecting-ip': '203.0.113.10' })).status).toBe(200)
+  })
+  it('allows the app origins only, with Vary: Origin', async () => {
+    const ok = await call('GET', '/api/me', T.samer, undefined, { origin: 'https://app.madar.raqeem.dev' })
+    expect(ok.headers.get('access-control-allow-origin')).toBe('https://app.madar.raqeem.dev')
+    expect(ok.headers.get('vary')).toContain('Origin')
+    const local = await call('GET', '/api/me', T.samer, undefined, { origin: 'http://localhost:5173' })
+    expect(local.headers.get('access-control-allow-origin')).toBe('http://localhost:5173')
+    const evil = await call('GET', '/api/me', T.samer, undefined, { origin: 'https://evil.example' })
+    expect(evil.headers.get('access-control-allow-origin')).toBeNull()
+    expect(evil.headers.get('vary')).toContain('Origin')
+    const preflight = await app.request('/api/login', { method: 'OPTIONS', headers: { origin: 'http://localhost:4173', 'access-control-request-method': 'POST' } }, env)
+    expect(preflight.status).toBe(204)
+    expect(preflight.headers.get('access-control-allow-origin')).toBe('http://localhost:4173')
+    expect(preflight.headers.get('access-control-allow-methods')).toContain('POST')
+  })
+})
+
+describe('admin endpoints', () => {
+  const withKey = { ...env, ADMIN_KEY: 'k-admin' }
+  it('need the exact key (compared in constant time) and are never cached', async () => {
+    expect((await call('GET', '/api/admin/health', undefined, undefined, { 'x-admin-key': 'k-admin' })).status).toBe(403)   // no ADMIN_KEY configured
+    expect((await call('GET', '/api/admin/health', undefined, undefined, {}, withKey)).status).toBe(403)
+    expect((await call('GET', '/api/admin/health', undefined, undefined, { 'x-admin-key': 'k-admi' }, withKey)).status).toBe(403)
+    expect((await call('GET', '/api/admin/health', undefined, undefined, { 'x-admin-key': 'k-admin-' }, withKey)).status).toBe(403)
+    const ok = await call('GET', '/api/admin/health', undefined, undefined, { 'x-admin-key': 'k-admin' }, withKey)
+    expect(ok.status).toBe(200)
+    expect(ok.json.users).toBeGreaterThan(10)
+    expect(ok.headers.get('cache-control')).toBe('no-store')
+    expect((await call('POST', '/api/admin/sql', undefined, undefined, { 'x-admin-key': 'k-admin' }, withKey)).status).toBe(400)   // empty script
+  })
+  it('allow ten calls per minute per address, key or no key', async () => {
+    const ip = '198.51.100.7'
+    for (let i = 0; i < 10; i++) expect((await call('GET', '/api/admin/health', undefined, undefined, { 'x-admin-key': 'wrong', 'cf-connecting-ip': ip }, withKey)).status).toBe(403)
+    expect((await call('GET', '/api/admin/health', undefined, undefined, { 'x-admin-key': 'k-admin', 'cf-connecting-ip': ip }, withKey)).status).toBe(429)
+  })
   it('returns role-specific context', async () => {
     const t = (await call('GET', '/api/me', T.samer)).json
     expect(t.user).toMatchObject({ role: 'teacher', name: 'سامر حسن', school_id: 1, school_name: 'مدرسة درعا النموذجية', subject: 'الرياضيات' })
@@ -121,6 +171,13 @@ describe('homework', () => {
     expect(r.status).toBe(201)
     expect(r.json).toMatchObject({ notified_students: 12, notified_guardians: 8 })
     expect(count('SELECT COUNT(*) AS n FROM notifications') - before).toBe(20)
+    // guardians are addressed with «ل» attached to the (compound-aware) first name, no tatweel; their link names the child
+    const toGuardians = db.raw.prepare("SELECT body, link FROM notifications WHERE kind = 'homework' AND link LIKE ? AND user_id >= 400").all(`/homework/${r.json.id}%`) as { body: string; link: string }[]
+    expect(toGuardians).toHaveLength(8)
+    expect(toGuardians.find(x => x.link === `/homework/${r.json.id}?student_id=13`)?.body).toMatch(/^واجب جديد لمحمد في الرياضيات، يُسلَّم (اليوم|غداً|يوم \S+ [٠-٩]+ \S+( \S+)?)$/)
+    expect(toGuardians.some(x => x.body.startsWith('واجب جديد لعبد الرحمن في الرياضيات'))).toBe(true)
+    expect(toGuardians.map(x => x.body).join(' ')).not.toContain('لـ')
+    expect(db.raw.prepare("SELECT link FROM notifications WHERE kind = 'homework' AND user_id = 114").get()).toEqual({ link: `/homework/${r.json.id}` })   // the student's own link is plain
     expect(count("SELECT COUNT(*) AS n FROM audit_log WHERE action = 'homework.create' AND target = ?", String(r.json.id))).toBe(1)
     // replaying the same offline item is a no-op
     const again = await call('POST', '/api/homework', T.samer, { section_id: 2, subject_id: 2, title: 'واجب تجريبي', due_date: addDays(TODAY, 2), client_id: 'c-1' })
@@ -185,6 +242,8 @@ describe('teacher absence → substitute suggestions → school decision', () =>
     const a3 = r.json.affected.find((a: any) => a.period === 3), a5 = r.json.affected.find((a: any) => a.period === 5)
     expect(a3.section_label).toBe('الخامس (ب)')
     expect(a3.candidates[0]).toMatchObject({ teacher_id: 13, name: 'ماهر عادل', subject: 'العلوم', tier: 1 })
+    expect(a3.candidates[0].reason).toContain('المادّة نفسها')
+    expect(a3.candidates.map((c: any) => c.reason).join(' ')).not.toMatch(/ًا|يدرّس الشعبة/)   // tanwīn after the alif, «من معلّمي الشعبة»
     expect(a3.candidates).toHaveLength(3)
     expect(a3.substitute_teacher_id).toBe(13)
     expect(a3.status).toBe('suggested')
@@ -215,9 +274,11 @@ describe('teacher absence → substitute suggestions → school decision', () =>
     expect(r.status).toBe(200)
     expect(r.json).toMatchObject({ substitution_id: p3, status: 'approved', substitute: 'ماهر عادل', lesson_note: 'متابعة درس الكسور ص ٤٠', notified: 21 })
     expect(count('SELECT COUNT(*) AS n FROM notifications') - before).toBe(21)
-    expect(count("SELECT COUNT(*) AS n FROM notifications WHERE user_id = 13 AND kind = 'substitution' AND body LIKE '%الحصّة الثالثة%'")).toBe(1)
-    const change = db.raw.prepare("SELECT body FROM notifications WHERE kind = 'change' ORDER BY id DESC LIMIT 1").get() as { body: string }
-    expect(change.body).toMatch(/^تغيّر معلّم الحصّة الثالثة يوم الخميس/)
+    const forSub = db.raw.prepare("SELECT body FROM notifications WHERE user_id = 13 AND kind = 'substitution' ORDER BY id DESC LIMIT 1").get() as { body: string }
+    expect(forSub.body).toMatch(/^تكليفك بتغطية الحصّة الثالثة يوم الخميس [٠-٩]+ \S+( \S+)? — الخامس \(ب\) · العلوم · خطّة الدرس: متابعة درس الكسور ص ٤٠$/)
+    const change = db.raw.prepare("SELECT body, link FROM notifications WHERE kind = 'change' ORDER BY id DESC LIMIT 1").get() as { body: string; link: string }
+    expect(change.body).toMatch(/^تغيّر معلّم الحصّة الثالثة يوم الخميس [٠-٩]+ (كانون|شباط|آذار|نيسان|أيار|حزيران|تموز|آب|أيلول|تشرين)/)
+    expect(change.link).toBe(`/timetable?date=${thursday}&section_id=2`)
     expect(change.body).not.toContain('رنا')
     expect(count("SELECT COUNT(*) AS n FROM audit_log WHERE action = 'substitution.approve'")).toBe(1)
     // the students' timetable for that day now shows the substitute
@@ -274,7 +335,8 @@ describe('dashboards', () => {
     expect(r.json.schools).toHaveLength(3)
     expect(r.json.totals.schools_connected).toBe(3)
     expect(r.json.three_day_absences.map((t: any) => t.student_name)).toContain('يزن عماد')
-    expect(r.json.alerts.some((a: any) => a.kind === 'three_days')).toBe(true)
+    const three = r.json.alerts.find((a: any) => a.kind === 'three_days')
+    expect(three.text).toMatch(/^يزن عماد \(الخامس \(أ\)\): غياب (ثلاثة|أربعة|خمسة) أيام متتالية$/)
     if (weekday(TODAY) <= 4) {
       expect(r.json.schools.find((s: any) => s.id === 3).attendance_uploaded).toBe(false)
       expect(r.json.alerts.some((a: any) => a.kind === 'no_attendance' && a.school === 'مدرسة (ج)')).toBe(true)
@@ -293,15 +355,18 @@ describe('dashboards', () => {
     expect(text).toContain('المدرسة,المجمّع')
     expect(text).toContain('مدرسة درعا النموذجية')
     expect(text.split('\r\n').length).toBeGreaterThan(5)
-    // a plain download link cannot send a header: ?token= is accepted for the .csv route only
-    expect((await app.request(`/api/directorate/report.csv?token=${T.dir}`, {}, env)).status).toBe(200)
+    // the token travels only in the Authorization header (the client downloads with fetch + Blob): ?token= is ignored everywhere
+    expect((await app.request(`/api/directorate/report.csv?token=${T.dir}`, {}, env)).status).toBe(401)
     expect((await app.request(`/api/directorate/dashboard?token=${T.dir}`, {}, env)).status).toBe(401)
   })
-  it('sections with students for attendance entry', async () => {
+  it('sections with students for attendance entry (ids and names only)', async () => {
     const all = (await call('GET', '/api/school/sections', T.sch1)).json
     expect(all).toHaveLength(3)
     expect(all[1]).toMatchObject({ label: 'الخامس (ب)', student_count: 12 })
     expect(all[1].students.some((s: any) => s.name === 'ليان أحمد')).toBe(true)
+    expect(Object.keys(all[1].students[0]).sort()).toEqual(['has_guardian', 'name', 'student_id'])
+    const roster = (await call('GET', '/api/sections/2/roster', T.sch1)).json
+    expect(Object.keys(roster.students[0]).sort()).toEqual(['name', 'status', 'student_id'])
     expect((await call('GET', '/api/school/sections', T.samer)).json).toHaveLength(3)
     expect((await call('GET', '/api/school/teachers', T.sch1)).json).toHaveLength(7)
   })
@@ -317,11 +382,16 @@ describe('announcements, notifications and messages', () => {
     expect(list[0]).toMatchObject({ title: 'عطلة غدًا', urgent: 1, scope: 'school' })
     expect(list.some((a: any) => a.scope === 'directorate')).toBe(true)
   })
-  it('a directorate circular reaches every school account', async () => {
+  it('a directorate circular reaches every school account as kind «circular»; the directorate lists circulars only', async () => {
     const r = await call('POST', '/api/announcements', T.dir, { title: 'تعميم تجريبي', body: 'نصّ التعميم.' })
     expect(r.status).toBe(201)
     expect(r.json).toMatchObject({ school_id: null, notified: 3 })
+    expect(count("SELECT COUNT(*) AS n FROM notifications WHERE kind = 'circular' AND link = ?", `/announcements/${r.json.id}`)).toBe(3)
     expect((await call('POST', '/api/announcements', T.samer, { title: 'x', body: 'y' })).status).toBe(403)
+    const mine = (await call('GET', '/api/announcements', T.dir)).json
+    expect(mine.length).toBeGreaterThan(1)
+    expect(mine.every((a: any) => a.scope === 'directorate' && a.school_id === null)).toBe(true)
+    expect((await call('GET', '/api/announcements?school_id=1', T.dir)).json.some((a: any) => a.scope === 'school')).toBe(true)
   })
   it('lists and marks notifications read', async () => {
     const list = (await call('GET', '/api/notifications', T.khaled)).json
@@ -352,6 +422,7 @@ describe('announcements, notifications and messages', () => {
     expect(threads[0]).toMatchObject({ with: { id: 409, role: 'parent' }, unread: 1 })
     expect(threads[0].messages[0].body).toContain('أستاذ سامر')
     expect(count("SELECT COUNT(*) AS n FROM notifications WHERE user_id = 11 AND kind = 'message'")).toBe(1)
+    expect((db.raw.prepare("SELECT body FROM notifications WHERE user_id = 11 AND kind = 'message'").get() as { body: string }).body).toBe('رسالة جديدة من خالد (وليّ أمر الطالب)')
     expect((await call('GET', '/api/messages', T.samer)).json[0].unread).toBe(0)   // read on fetch
   })
 })

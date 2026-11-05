@@ -30,8 +30,14 @@ r.get('/api/parent/home', requireAuth('parent'), async c => {
       db.prepare(`SELECT DISTINCT u.id, u.name, sj.name AS subject FROM timetable t JOIN users u ON u.id = t.teacher_id LEFT JOIN subjects sj ON sj.id = u.subject_id
                   WHERE t.section_id = ? ORDER BY u.name`).bind(ch.section_id).all(),
     ])
-    // Notifications about this child (link carries student_id) plus the general ones (homework, announcements...).
-    const mine = notes.filter(n => !n.link || !/student_id=\d+/.test(n.link) || n.link.includes(`student_id=${ch.student_id}`)).slice(0, 10)
+    // Notifications about this child (the link names the student or the section) plus the general ones (announcements…).
+    const mine = notes.filter(n => {
+      const link = n.link ?? ''
+      const sid = /[?&]student_id=(\d+)/.exec(link), sec = /[?&]section_id=(\d+)/.exec(link)
+      if (sid) return Number(sid[1]) === ch.student_id
+      if (sec) return Number(sec[1]) === ch.section_id
+      return true
+    }).slice(0, 10)
     out.push({
       student_id: ch.student_id, name: ch.name, section_id: ch.section_id, section_label: ch.section_label, school_name: ch.school_name,
       today: { date, status: status?.status ?? 'none', first_period_time: first?.p ? periodStart(ch.shift, first.p) : null },

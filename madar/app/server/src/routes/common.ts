@@ -23,7 +23,7 @@ export async function meResponse(db: D1Database, user: User) {
       break
     }
     case 'parent':
-      context = { children: (await parentChildren(db, user.id)).map(ch => ({ student_id: ch.student_id, name: ch.name, section_label: ch.section_label, school_name: ch.school_name })) }
+      context = { children: (await parentChildren(db, user.id)).map(ch => ({ student_id: ch.student_id, name: ch.name, section_id: ch.section_id, section_label: ch.section_label, school_name: ch.school_name })) }
       break
     case 'school': context = { school }; break
     case 'directorate':
@@ -137,14 +137,15 @@ r.get('/api/timetable', requireAuth(), async c => {
   return c.json(await timetableRows(db, { sectionId, teacherId, day, schoolId }, date))
 })
 
-/** Announcements visible to the user: their school's plus the directorate's circulars (school_id NULL). */
+/** Announcements visible to the user: their school's plus the directorate's circulars (school_id NULL).
+ *  The directorate sees its own circulars only, unless it asks for one school with ?school_id=. */
 r.get('/api/announcements', requireAuth(), async c => {
   const user = c.get('user')
   const schoolId = user.role === 'directorate' ? intParam(c.req.query('school_id')) : user.school_id
   const { results } = await c.env.DB.prepare(`
     SELECT a.id, a.school_id, a.title, a.body, a.urgent, a.created_at, CASE WHEN a.school_id IS NULL THEN 'directorate' ELSE 'school' END AS scope
-    FROM announcements a WHERE a.school_id IS NULL OR (? IS NOT NULL AND a.school_id = ?) OR ? = 'directorate'
-    ORDER BY a.created_at DESC, a.id DESC LIMIT 50`).bind(schoolId, schoolId, user.role).all()
+    FROM announcements a WHERE a.school_id IS NULL OR (? IS NOT NULL AND a.school_id = ?)
+    ORDER BY a.created_at DESC, a.id DESC LIMIT 50`).bind(schoolId, schoolId).all()
   return c.json(results)
 })
 

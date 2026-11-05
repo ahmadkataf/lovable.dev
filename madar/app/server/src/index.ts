@@ -73,16 +73,33 @@ app.onError((err, c) => {
   return c.json({ error: 'حدث خطأ في الخادم، يُرجى المحاولة مجدّداً' }, 500)
 })
 
+// Security headers for the static client. The CSP matches the Vite bundle: scripts and the service worker come from
+// /assets and /sw.js (no inline scripts), index.html carries one inline <style>, fonts and icons are served from the
+// same origin, and the CSV report is built in the page as a blob: URL that the Android shell fetches back.
+const STATIC_HEADERS: Record<string, string> = {
+  'x-frame-options': 'DENY',
+  'x-content-type-options': 'nosniff',
+  'referrer-policy': 'strict-origin-when-cross-origin',
+}
+export const SHELL_CSP = "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; " +
+  "connect-src 'self' blob:; font-src 'self' data:; manifest-src 'self'; worker-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'"
+function withStaticHeaders(res: Response): Response {
+  const out = new Response(res.body, res)
+  for (const [k, v] of Object.entries(STATIC_HEADERS)) out.headers.set(k, v)
+  if ((out.headers.get('content-type') ?? '').includes('text/html')) out.headers.set('content-security-policy', SHELL_CSP)
+  return out
+}
+
 /** Static client; unknown paths without a file extension fall back to the app shell (SPA routing). */
 app.notFound(async c => {
   if (c.req.path.startsWith('/api/')) return c.json({ error: 'المسار غير موجود' }, 404)
   if (!c.env.ASSETS) return c.text('Not found', 404)
   const res = await c.env.ASSETS.fetch(c.req.raw)
-  if (res.status !== 404 || c.req.method !== 'GET' || /\.[a-z0-9]+$/i.test(c.req.path)) return res
+  if (res.status !== 404 || c.req.method !== 'GET' || /\.[a-z0-9]+$/i.test(c.req.path)) return withStaticHeaders(res)
   const url = new URL(c.req.url)
   url.pathname = '/index.html'
   const shell = await c.env.ASSETS.fetch(new Request(url.toString(), { headers: c.req.raw.headers }))
-  return shell.status === 404 ? res : shell
+  return withStaticHeaders(shell.status === 404 ? res : shell)
 })
 
 export default app

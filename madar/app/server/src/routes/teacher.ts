@@ -118,13 +118,14 @@ r.post('/api/homework', requireAuth('teacher', 'school'), async c => {
     .bind(sectionId, subject.id, user.id, title, details, bookPage, b.due_date, clientId).run()
   const id = res.meta.last_row_id as number
   await audit(db, user.id, 'homework.create', id)
-  // Notify every student of the section and each guardian (first names only).
-  const { results: pupils } = await db.prepare('SELECT st.user_id, st.guardian_user_id, u.name FROM students st JOIN users u ON u.id = st.user_id WHERE st.section_id = ?')
-    .bind(sectionId).all<{ user_id: number; guardian_user_id: number | null; name: string }>()
+  // Notify every student of the section and each guardian (first names only). The guardian's link names the child
+  // (student_id) so the parent screen files the notice under the right card.
+  const { results: pupils } = await db.prepare('SELECT st.id, st.user_id, st.guardian_user_id, u.name FROM students st JOIN users u ON u.id = st.user_id WHERE st.section_id = ?')
+    .bind(sectionId).all<{ id: number; user_id: number; guardian_user_id: number | null; name: string }>()
   const when = dueText(b.due_date), link = `/homework/${id}`
   const notices: Notice[] = pupils.map(p => ({ user_id: p.user_id, kind: 'homework', body: `واجب جديد في ${subject.name}: ${title} — يُسلَّم ${when}`, link }))
   const guardians = pupils.filter(p => p.guardian_user_id !== null)
-  for (const p of guardians) notices.push({ user_id: p.guardian_user_id!, kind: 'homework', body: `واجب جديد ${li(firstName(p.name))} في ${subject.name}، يُسلَّم ${when}`, link })
+  for (const p of guardians) notices.push({ user_id: p.guardian_user_id!, kind: 'homework', body: `واجب جديد ${li(firstName(p.name))} في ${subject.name}، يُسلَّم ${when}`, link: `${link}?student_id=${p.id}` })
   await notify(db, notices)
   return c.json({ id, notified_students: pupils.length, notified_guardians: guardians.length, section_label: section.label }, 201)
 })
