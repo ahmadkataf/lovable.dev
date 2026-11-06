@@ -1,5 +1,6 @@
 // Spaces preview on the landing page: one card per space type with live capacity and "from" price. Head texts from
 import type { PublicSettings } from '@shared/types'
+import { fmtMoney } from '@shared/pricing'
 // content.home.spaces; each card's name, text, badge, icon and photo from content.spaces.groups (a room's own photo wins).
 import { Link } from 'react-router-dom'
 import { ContentText, hasText, plainText, usePhotoChain, useSite } from '../../../components/site/siteContent'
@@ -7,6 +8,7 @@ import {
   AMENITY_LABEL, capacityLabel, FromPrice, groupAmenities, groupRoomPhoto, groupRooms, Section, SectionHead, TileIcon,
   type SiteData, type SpaceGroup,
 } from '../site'
+import { pricing } from '../../../lib/booking'
 import { SiteIcon } from '../SiteIcon'
 
 function SpaceCard({ g, loading, settings }: { g: SpaceGroup; loading: boolean; settings?: PublicSettings }) {
@@ -14,6 +16,7 @@ function SpaceCard({ g, loading, settings }: { g: SpaceGroup; loading: boolean; 
   const { photo, src, onError } = usePhotoChain([groupRoomPhoto(g.rooms), g.photo, g.defaultPhoto], true)
   const title = plainText(g.title, vars)
   const amen = groupAmenities(g)
+  const sub = pricing(settings)
   return (
     <article className="fp-space">
       <div className="fp-space-media">
@@ -41,7 +44,13 @@ function SpaceCard({ g, loading, settings }: { g: SpaceGroup; loading: boolean; 
           </ul>
         )}
         <div className="fp-space-foot">
-          <FromPrice rooms={g.rooms} loading={loading} settings={settings} />
+          <span>
+            <FromPrice rooms={g.rooms} loading={loading} settings={settings} />
+            {/* the subscriptions are the best offer for students and freelancers: show them where people look (live prices) */}
+            {g.id === 'open' && g.rooms.length > 0 && sub.subscriptions_enabled && (
+              <small className="fp-price-sub">أو اشتراك أسبوعي <b className="money">{fmtMoney(sub.sub_week_price)}</b> · شهري <b className="money">{fmtMoney(sub.sub_month_price)}</b></small>
+            )}
+          </span>
           <span className="fp-space-links">
             <Link to={`/spaces#sp-${g.id}`} className="fp-link" aria-label={`تفاصيل ${title}`}>التفاصيل</Link>
             <Link to="/book" className="btn btn-primary btn-sm fp-btn" aria-label={`احجز ${title}`}>احجز <SiteIcon name="arrow" size={16} /></Link>

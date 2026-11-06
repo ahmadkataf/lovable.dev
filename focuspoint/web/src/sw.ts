@@ -73,6 +73,11 @@ sw.addEventListener('install', (event) => {
   event.waitUntil((async () => {
     const cache = await caches.open(SHELL)
     await Promise.all([...shellFiles.values()].map(async (url) => {
+      // Every shell URL is content-addressed (a hashed file name, or ?v=<revision>), so a copy already saved by the
+      // previous version (its fp-shell-* cache is deleted only in activate) is the same file: reuse it instead of
+      // downloading it again. A deploy then costs a phone only the files that actually changed.
+      const saved = await caches.match(url)
+      if (saved) { await cache.put(url, saved); return }
       const res = await fetch(url, { cache: 'reload' })
       if (!res.ok) return
       // The asset host redirects /index.html → / (307). A response flagged `redirected` is rejected by the browser

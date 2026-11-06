@@ -1,5 +1,7 @@
 // /book — pick when, see the plan coloured by availability, tap a room. One screen, one job.
 // `?room=<id>` (from the site's «احجز» buttons) opens that room's sheet as soon as the rooms are loaded.
+// The pick lives in the URL too (`date`, `start`, `minutes`, `kind` — the same names /book/:roomId uses), so going
+// back from «تأكيد التفاصيل» (arrow or browser back) returns to the same day, time and mode instead of the defaults.
 // Texts: content.booking.intro_* / no_rooms. With online booking switched off (settings.booking_enabled = false) the
 // page shows content.booking.closed_* (or settings.booking_closed_message) and WhatsApp / call buttons instead.
 import { useEffect, useMemo, useState } from 'react'
@@ -10,14 +12,14 @@ import { useCached } from '../lib/data'
 import { useOnline } from '../offline'
 import { addDays, addMinutes, fmtClock, fromLocal, todayLocal } from '../format'
 import { Badge, Card, Icon, Segmented, Select, Spinner } from '../ui'
-import { PriceList } from '../components/PriceList'
+import { PriceList, PriceSteps } from '../components/PriceList'
 import { fmtMoney, SUB_DAYS } from '@shared/pricing'
 import { PlanView } from '../plan/PlanView'
 import { RoomSheet } from '../components/RoomSheet'
 import { RoomSwatch } from '../components/RoomPhotos'
 import { InstallHint } from '../components/InstallHint'
 import { ContentText, hasText, useBookTitle, useBookingCopy, type Vars } from '../components/ContentText'
-import { blocks, bookingOpen, contentsIcons, defaultPick, durationsFor, firstBookableDate, horizonDays, KIND_LABEL, overlaps, peopleLabel, pickFor, pricing, ROOM_TYPE, seatsLeft, slotsFor, type Availability, type Pick } from '../lib/booking'
+import { blocks, bookingOpen, contentsIcons, defaultPick, durationsFor, firstBookableDate, horizonDays, isValidPick, KIND_LABEL, lastBookableDate, overlaps, peopleLabel, pickFor, pricing, ROOM_TYPE, seatsLeft, slotsFor, type Availability, type Pick } from '../lib/booking'
 import { durationLabel } from '../format'
 
 const WD_SHORT = ['أحد', 'اثنين', 'ثلاثاء', 'أربعاء', 'خميس', 'جمعة', 'سبت']
@@ -32,20 +34,35 @@ export function BookHome() {
   useBookTitle()
   const closed = !!settings && !bookingOpen(settings)
 
+  const [params, setParams] = useSearchParams()
   const [pick, setPick] = useState<Pick | null>(null)
-  useEffect(() => { if (settings && !pick) setPick(defaultPick(settings)) }, [settings, pick])
+  useEffect(() => { if (settings && !pick) setPick(pickFromUrl(settings, params)) }, [settings, pick, params])
 
-  const [mode, setMode] = useState<'hourly' | 'week' | 'month'>('hourly')
+  const kindParam = params.get('kind')
+  const [mode, setMode] = useState<'hourly' | 'week' | 'month'>(kindParam === 'week' || kindParam === 'month' ? kindParam : 'hourly')
+  // Mirror the pick into the URL (replace, no new history entry) so a back navigation can restore it.
+  useEffect(() => {
+    if (!pick) return
+    setParams((cur) => {
+      const next = new URLSearchParams(cur)
+      next.set('date', pick.date)
+      if (mode === 'hourly') { next.set('start', pick.time); next.set('minutes', String(pick.minutes)); next.delete('kind') }
+      else { next.set('kind', mode); next.delete('start'); next.delete('minutes') }
+      next.delete('seats_left')                 // left over from /book/:roomId, only meaningful there
+      return next.toString() === cur.toString() ? cur : next
+    }, { replace: true })
+  }, [pick, mode, setParams])
   // A subscription needs a free seat on every day of its span: fetch the whole span.
   const availPath = !pick || closed ? null : mode === 'hourly' ? `/v1/availability?date=${pick.date}` : `/v1/availability?date=${pick.date}&to=${addDays(pick.date, SUB_DAYS[mode] - 1)}`
   const availQ = useCached<Availability[]>(availPath, { pollMs: 60_000 })
   const [selected, setSelected] = useState<Room | null>(null)
   // «بالساعة» books a time window; «اشتراك» books an open-space seat for a week or a month from the chosen day.
   const subsOn = pricing(settings).subscriptions_enabled && rooms.some((r) => r.type === 'desk')
+  // A `kind` from the URL when subscriptions are off now (or there is no open space): back to hourly.
+  useEffect(() => { if (settings && roomsQ.data && !subsOn && mode !== 'hourly') setMode('hourly') }, [settings, roomsQ.data, subsOn, mode])
   const shown = useMemo(() => (mode === 'hourly' ? rooms : rooms.filter((r) => r.type === 'desk')), [rooms, mode])
 
   // Preselect the room named by ?room=<id> once, then drop the param so closing the sheet does not reopen it.
-  const [params, setParams] = useSearchParams()
   const roomParam = params.get('room')
   useEffect(() => {
     if (!roomParam || !rooms.length) return
@@ -95,6 +112,15 @@ export function BookHome() {
   const durations = useMemo(() => (settings && pick ? durationsFor(settings, pick.time) : []), [settings, pick])
   const todayHasSlots = useMemo(() => (settings ? slotsFor(settings, today).length > 0 : true), [settings, today, tick])
 
+  // A subscription counts the start day as one of its 7/30 days: once the centre has opened, switching to a
+  // subscription starts it tomorrow. Today stays choosable on purpose (with a hint under the date strip).
+  function changeMode(k: 'hourly' | 'week' | 'month') {
+    setMode(k)
+    if (k !== 'hourly' && settings && pick && pick.date === today && Date.now() >= Date.parse(fromLocal(today, settings.open))) {
+      setPick(pickFor(settings, firstBookableDate(settings, addDays(today, 1))))
+    }
+  }
+
   // Keep the pick valid: when the chosen date has no start left (the centre closed for today), move to the next
   // bookable day; otherwise snap the time and the duration to what is offered.
   useEffect(() => {
@@ -133,14 +159,12 @@ export function BookHome() {
 
       {settings && pick && !closed && (
         <>
+          {/* The picker comes first so the controls are above the fold on a phone; the price list sits below the rooms. */}
           <Card>
-            <PriceList settings={settings} rooms={rooms} whatsapp={copy.content.brand.whatsapp || settings.phone} steps
-              onSubscribe={subsOn ? (k) => { setMode(k); setTimeout(() => document.querySelector('.seg-kind')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50) } : undefined} />
-          </Card>
-          <Card>
+            <PriceSteps />
             {subsOn && (
               <div className="seg-kind">
-                <Segmented<'hourly' | 'week' | 'month'> value={mode} onChange={setMode}
+                <Segmented<'hourly' | 'week' | 'month'> value={mode} onChange={changeMode}
                   options={[{ value: 'hourly', label: 'بالساعة' }, { value: 'week', label: 'أسبوعي' }, { value: 'month', label: 'شهري' }]} />
               </div>
             )}
@@ -163,6 +187,7 @@ export function BookHome() {
                 )
               })}
             </div>
+            {mode !== 'hourly' && pick.date === today && <p className="muted tiny mt-sm">اليوم محسوب من أيام الاشتراك</p>}
             {mode === 'hourly' && <div className="row gap mt-sm">
               <label className="grow">
                 <span className="sr-only">الوقت</span>
@@ -224,6 +249,11 @@ export function BookHome() {
             {rooms.length === 0 && !roomsQ.loading && <Card><p className="muted text-center"><ContentText text={copy.text('no_rooms')} vars={copy.vars} /></p></Card>}
           </div>
 
+          <Card>
+            <PriceList settings={settings} rooms={rooms} whatsapp={copy.content.brand.whatsapp || settings.phone}
+              onSubscribe={subsOn ? (k) => { changeMode(k); setTimeout(() => document.querySelector('.seg-kind')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50) } : undefined} />
+          </Card>
+
           <InstallHint />
         </>
       )}
@@ -232,6 +262,14 @@ export function BookHome() {
         busy={!!selected && busyIds.has(selected.id)} offline={offlineData} settings={settings} onClose={() => setSelected(null)} />
     </div>
   )
+}
+
+/** The pick named by the URL (back from /book/:roomId), when it is still bookable; otherwise the default. */
+function pickFromUrl(s: PublicSettings, params: URLSearchParams): Pick {
+  const date = params.get('date') || ''
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || date < todayLocal() || date > lastBookableDate(s)) return defaultPick(s)
+  const p = { date, time: params.get('start') || '', minutes: Number(params.get('minutes')) || 0 }
+  return isValidPick(s, p) ? p : pickFor(s, date)   // the validity effect moves a day with no slot left
 }
 
 /** The price under a room card: per seat (open space), per room, by group (training hall), or the subscription. */

@@ -54,6 +54,9 @@ export default defineConfig({
       },
       injectManifest: {
         globPatterns: ['**/*.{js,css,html,svg,png,woff2}'],
+        // og.png (~240 KB) is only for WhatsApp/Facebook link previews, whose crawlers fetch it from the network:
+        // keeping it out of the precache saves every phone that download on install and on every deploy.
+        globIgnores: ['img/og.png'],
         maximumFileSizeToCacheInBytes: 3 * 1024 * 1024,
       },
       devOptions: { enabled: false },

@@ -81,7 +81,7 @@ const CODES: Record<string, string> = {
   too_short: 'المدة أقل من الحد الأدنى',
   too_long: 'المدة أكثر من الحد الأقصى',
   invalid_phone: 'رقم الهاتف غير صحيح (09XXXXXXXX)',
-  invalid_name: 'اكتب اسمك (حرفان على الأقل)',
+  invalid_name: 'اكتب اسمك (من 2 إلى 40 حرفاً)',
   cash_not_allowed: 'الدفع عند الوصول غير متاح حالياً — ادفع عبر شام كاش',
   invalid_method: 'طريقة الدفع غير متاحة',
   too_many_attempts: 'محاولات كثيرة، جرّب بعد 15 دقيقة',

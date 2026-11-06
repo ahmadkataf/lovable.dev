@@ -10,7 +10,7 @@ import { BookingSheet } from './BookingSheet'
 import { ManualBookingSheet, type ManualPreset } from './ManualBookingSheet'
 import { PageHead, roomColor } from './common'
 import { useRooms, useStore } from './store'
-import { isBlocking, isLive, localDate, sortByStart, STATUSES, toHHMM, toMin } from './util'
+import { dayWindow, isBlocking, isLive, localDate, onDay, sortByStart, STATUSES, toHHMM, toMin } from './util'
 
 type ViewMode = 'day' | 'list'
 
@@ -77,6 +77,9 @@ function DateNav({ date, onChange }: { date: string; onChange: (d: string) => vo
   )
 }
 
+/** Height of one lane when bookings overlap in a room (open space / reception table seats, subscribers). */
+const LANE_H = 40
+
 /** Rooms × hours grid for one day. Blocks are positioned by minutes from opening; empty cells open a prefilled walk-in. */
 function DayGrid({ date, onPick, onEmpty }: { date: string; onPick: (b: Booking) => void; onEmpty: (roomId: number, time: string) => void }) {
   const { view } = useStore()
@@ -102,10 +105,40 @@ function DayGrid({ date, onPick, onEmpty }: { date: string; onPick: (b: Booking)
   const [now, setNow] = useState(() => Date.now())
   useEffect(() => { const t = window.setInterval(() => setNow(Date.now()), 60_000); return () => window.clearInterval(t) }, [])
   // The grid shows what blocks a slot (the server's rule) plus finished bookings; a run-out hold is not a block.
-  const dayBookings = useMemo(() => view.bookings.filter((b) => localDate(b.start) === date && (isBlocking(b, now) || b.status === 'completed')), [view.bookings, date, now])
+  // Anything in the room during this day's hours — a subscriber shows on every day of the subscription, not just the first.
+  const day = useMemo(() => dayWindow(date, s), [date, s])
+  const dayBookings = useMemo(() => view.bookings.filter((b) => onDay(b, day) && (isBlocking(b, now) || b.status === 'completed')), [view.bookings, day, now])
   const nowParts = toLocalParts(new Date(now).toISOString())
   const nowX = nowParts.date === date ? ((toMin(nowParts.time) - open) / 60) * HOUR_W : null
-  const pos = (iso: string) => ((toMin(toLocalParts(iso).time) - open) / 60) * HOUR_W
+  // x from the day's opening, clamped to the day (a multi-day booking would otherwise land at its first day's times).
+  const clampMs = (iso: string) => Math.min(day.to, Math.max(day.from, Date.parse(iso)))
+  const pos = (iso: string) => ((clampMs(iso) - day.from) / 3600000) * HOUR_W
+  // Overlapping bookings in one room (seats) get their own lane each, so every one stays visible and tappable.
+  const lanesByRoom = useMemo(() => {
+    const out = new Map<number, { lanes: number; lane: Map<number, number> }>()
+    for (const room of rooms) {
+      const ends: number[] = [], lane = new Map<number, number>()
+      for (const b of dayBookings.filter((x) => x.room_id === room.id).sort(sortByStart)) {
+        const a = Math.max(day.from, Date.parse(b.start)), z = Math.min(day.to, Date.parse(b.end))
+        let i = ends.findIndex((e) => e <= a)
+        if (i < 0) { i = ends.length; ends.push(z) } else ends[i] = z
+        lane.set(b.id, i)
+      }
+      out.set(room.id, { lanes: Math.max(1, ends.length), lane })
+    }
+    return out
+  }, [rooms, dayBookings, day])
+
+  // Open today's grid around now (about an hour back), once per date, so the afternoon is not a scroll away.
+  // RTL: scrollLeft runs from 0 towards negative values.
+  const scrolledFor = useRef('')
+  useLayoutEffect(() => {
+    const el = wrapRef.current
+    const key = `${date}|${HOUR_W}`   // not on the minute tick (staff may be scrolling); again once the width is measured
+    if (!el || nowX === null || scrolledFor.current === key) return
+    scrolledFor.current = key
+    el.scrollLeft = -Math.max(0, nowX - HOUR_W)
+  }, [date, nowX, HOUR_W])
 
   return (
     <div className="grid-wrap" ref={wrapRef}>
@@ -116,16 +149,20 @@ function DayGrid({ date, onPick, onEmpty }: { date: string; onPick: (b: Booking)
         </div>
         {rooms.map((room) => (
           <RoomRow key={room.id} name={room.name} color={roomColor(room.color)} hours={hours} hourW={HOUR_W} nowX={nowX}
-            onEmpty={(i) => onEmpty(room.id, toHHMM(open + i * 60))}>
+            lanes={lanesByRoom.get(room.id)?.lanes ?? 1} onEmpty={(i) => onEmpty(room.id, toHHMM(open + i * 60))}>
             {dayBookings.filter((b) => b.room_id === room.id).map((b) => {
               const left = pos(b.start), width = Math.max(HOUR_W / 4, pos(b.end) - left)
               const hold = b.status !== 'confirmed' && b.status !== 'completed'
+              const info = lanesByRoom.get(room.id)
+              // One lane keeps the CSS look (top/bottom 6px); several stack the blocks.
+              const laneStyle = info && info.lanes > 1 ? { top: 6 + (info.lane.get(b.id) ?? 0) * LANE_H, height: LANE_H - 4, bottom: 'auto' } : {}
+              const sub = !!b.kind && b.kind !== 'hourly'
               return (
                 <button key={b.id} type="button" className={`grid-block${hold ? ' is-hold' : ''}${b.status === 'completed' ? ' is-dim' : ''}`}
-                  style={{ insetInlineStart: left, width, background: roomColor(room.color) }} onClick={() => onPick(b)}
-                  title={`${b.customer_name} · ${fmtRange(b.start, b.end)}`}>
+                  style={{ insetInlineStart: left, width, background: roomColor(room.color), ...laneStyle }} onClick={() => onPick(b)}
+                  title={`${b.customer_name} · ${sub ? KIND_LABEL[b.kind] : fmtRange(b.start, b.end)}`}>
                   <b>{b.customer_name}</b>
-                  <small className="num">{fmtTime(b.start)}{width >= HOUR_W ? ` – ${fmtTime(b.end)}` : ''}</small>
+                  <small className="time">{sub ? KIND_LABEL[b.kind] : <>{fmtTime(b.start)}{width >= HOUR_W ? ` – ${fmtTime(b.end)}` : ''}</>}</small>
                 </button>
               )
             })}
@@ -136,11 +173,11 @@ function DayGrid({ date, onPick, onEmpty }: { date: string; onPick: (b: Booking)
   )
 }
 
-function RoomRow({ name, color, hours, hourW, nowX, onEmpty, children }: { name: string; color: string; hours: number; hourW: number; nowX: number | null; onEmpty: (hourIndex: number) => void; children: React.ReactNode }) {
+function RoomRow({ name, color, hours, hourW, nowX, lanes, onEmpty, children }: { name: string; color: string; hours: number; hourW: number; nowX: number | null; lanes: number; onEmpty: (hourIndex: number) => void; children: React.ReactNode }) {
   return (
     <>
       <div className="grid-roomhead"><span className="dot" style={{ background: color }} /><span>{name}</span></div>
-      <div className="grid-row" style={{ width: hours * hourW }}>
+      <div className="grid-row" style={{ width: hours * hourW, ...(lanes > 1 ? { minHeight: 12 + lanes * LANE_H } : {}) }}>
         {Array.from({ length: hours }, (_, i) => <button key={i} type="button" className="cell" style={{ insetInlineStart: i * hourW }} onClick={() => onEmpty(i)} aria-label={`حجز جديد ${toHHMM(i * 60)}`} />)}
         {children}
         {nowX !== null && nowX >= 0 && nowX <= hours * hourW && <div className="grid-now" style={{ insetInlineStart: nowX }} />}
@@ -202,7 +239,7 @@ function ListView({ onPick }: { onPick: (b: Booking) => void }) {
                 <span className="bar" style={{ background: roomColor(view.rooms.find((r) => r.id === b.room_id)?.color) }} />
                 <span>
                   <span className="t">{b.customer_name} <span className="muted small num">· {b.customer_phone}</span></span>
-                  <span className="s" style={{ display: 'block' }}>{b.room_name} · {b.kind && b.kind !== 'hourly' ? `${KIND_LABEL[b.kind]} حتى ${dayLabel(localDate(b.end))}` : <>{dayLabel(localDate(b.start))} · <span className="num">{fmtRange(b.start, b.end)}</span></>}</span>
+                  <span className="s" style={{ display: 'block' }}>{b.room_name} · {b.kind && b.kind !== 'hourly' ? `${KIND_LABEL[b.kind]} حتى ${dayLabel(localDate(b.end))}` : <>{dayLabel(localDate(b.start))} · <span className="time">{fmtRange(b.start, b.end)}</span></>}</span>
                 </span>
                 <span className="e"><b>{fmtMoney(b.price, b.currency ?? 'SYP')}</b><Badge tone={st.tone}>{st.text}</Badge></span>
               </button>

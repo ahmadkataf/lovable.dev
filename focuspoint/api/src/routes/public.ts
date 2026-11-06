@@ -2,7 +2,8 @@
 import type { Booking, PaymentInfo, PushMessage } from '../../../shared/types'
 import { normaliseCode } from '../bookings'
 import { ACTIVE_SQL } from '../bookings'
-import { BOOKING_SELECT, getBooking, roomsWithPhotos, toBooking, type BookingRow, type RoomRow } from '../db'
+import { BOOKING_SELECT, getBooking, roomsWithPhotos, toCustomerBooking, type BookingRow, type RoomRow } from '../db'
+import { hitLimit } from '../auth'
 import { HttpError, json, readJson } from '../http'
 import { idParam, requireDevice, route, type Ctx, type Route } from '../router'
 import { cancelBooking, createCustomerBooking, submitPayment } from '../service'
@@ -13,6 +14,15 @@ import { addDays, isDateString, localDayRange } from '../tz'
 import { isPlainObject, requirePhone, requireString } from '../validate'
 
 const deps = (c: Ctx) => ({ env: c.env, exec: c.exec, now: c.now })
+
+/** Team accounts see the whole booking; a customer device gets it without the internal fields (db.toCustomerBooking). */
+const forCaller = (c: Ctx, b: Booking) => (c.user ? b : toCustomerBooking(b))
+
+// Customer writes per IP and hour: stops a script from filling every room with fake holds (and staff phones with
+// pushes). Generous on purpose — Syrian mobile networks put many phones behind one IP (CGNAT), and the centre's Wi-Fi too.
+const CUSTOMER_WRITES_PER_IP_HOUR = 20
+const limitIp = (c: Ctx, what: 'book' | 'pay') =>
+  hitLimit(c.env.DB, `${what}:ip:${c.req.headers.get('CF-Connecting-IP') ?? 'unknown'}`, CUSTOMER_WRITES_PER_IP_HOUR, 3600_000, c.now)
 
 /** A device that owns the booking: the one that made it, or one that adopted it by code + phone (booking_devices). */
 async function deviceOwns(db: D1Database, b: Booking, device: string): Promise<boolean> {
@@ -36,6 +46,13 @@ function paymentInfo(b: Booking, s: Awaited<ReturnType<typeof loadSettings>>): P
     method: b.method, amount: b.price, currency: b.currency, code: b.code, shamcash_number: s.shamcash_number, shamcash_name: s.shamcash_name,
     shamcash_qr: s.shamcash_qr, instructions: s.payment_instructions, hold_until: b.hold_until, ref: b.payment_ref,
   }
+}
+
+/** Endpoints of the browsers' push services (Chrome/Edge/Samsung/Opera → FCM, Firefox, Safari, Windows). Anything else
+ * is not a browser subscription: refused, so the push table only holds real phones. */
+const PUSH_HOSTS = /(^|\.)(fcm\.googleapis\.com|android\.googleapis\.com|push\.services\.mozilla\.com|notify\.windows\.com|push\.apple\.com)$/
+export function isPushServiceUrl(endpoint: string): boolean {
+  try { return PUSH_HOSTS.test(new URL(endpoint).hostname) } catch { return false }
 }
 
 /** Who owns the inbox / push subscription for this request: a team account, else the device. */
@@ -72,7 +89,9 @@ export const publicRoutes: Route[] = [
 
   route('POST', '/v1/bookings', 'public', async (c) => {
     const device = requireDevice(c)
-    return json(await createCustomerBooking(deps(c), device, await readJson(c.req)), 201)
+    const body = await readJson(c.req)
+    await limitIp(c, 'book')
+    return json(toCustomerBooking(await createCustomerBooking(deps(c), device, body)), 201)
   }),
 
   // This device's bookings (made here or adopted by code + phone): everything upcoming plus the last 90 days, newest first.
@@ -83,7 +102,7 @@ export const publicRoutes: Route[] = [
       `${BOOKING_SELECT} WHERE (b.device_id = ? OR b.id IN (SELECT booking_id FROM booking_devices WHERE device_id = ?))
        AND (b.created_at >= ? OR b.end >= ?) ORDER BY b.created_at DESC LIMIT 200`)
       .bind(device, device, since, c.now.toISOString()).all<BookingRow>()).results
-    return json(rows.map(toBooking))
+    return json(rows.map(toCustomerBooking))
   }),
 
   // Find a booking by code + phone. The phone proves ownership, so the calling device always adopts the booking
@@ -105,24 +124,25 @@ export const publicRoutes: Route[] = [
       await c.env.DB.batch(stmts)
       if (row.device_id === null) row.device_id = device
     }
-    return json(toBooking(row))
+    return json(toCustomerBooking(row))
   }),
 
   route('GET', '/v1/bookings/:id', 'public', async (c) => {
     const b = await ownedBooking(c)
     const s = await loadSettings(c.env.DB, c.env)
-    return json({ ...b, payment: paymentInfo(b, s) })
+    return json({ ...forCaller(c, b), payment: paymentInfo(b, s) })
   }),
 
   route('POST', '/v1/bookings/:id/payment', 'public', async (c) => {
     const b = await ownedBooking(c)
     const body = await readJson(c.req)
-    return json(await submitPayment(deps(c), b, body.ref))
+    if (!c.user) await limitIp(c, 'pay')
+    return json(forCaller(c, await submitPayment(deps(c), b, body.ref)))
   }),
 
   route('POST', '/v1/bookings/:id/cancel', 'public', async (c) => {
     const b = await ownedBooking(c)
-    return json(await cancelBooking(deps(c), b, c.user ? 'team' : 'customer'))
+    return json(forCaller(c, await cancelBooking(deps(c), b, c.user ? 'team' : 'customer')))
   }),
 
   // The customer inbox is always THIS device's own — even on a phone that is also signed in to the team panel
@@ -131,7 +151,7 @@ export const publicRoutes: Route[] = [
   route('GET', '/v1/notifications', 'public', async (c) => {
     const device = requireDevice(c)
     const rows = (await c.env.DB.prepare(
-      `SELECT id, kind, title, body, user_id, device_id, booking_id, read, created_at FROM notifications
+      `SELECT id, kind, title, body, booking_id, read, created_at FROM notifications
        WHERE device_id = ? ORDER BY created_at DESC, id DESC LIMIT 100`)
       .bind(device).all()).results
     return json(rows)
@@ -158,14 +178,14 @@ export const publicRoutes: Route[] = [
     const sub = body.subscription
     if (!isPlainObject(sub) || !isPlainObject(sub.keys)) throw new HttpError(400, 'invalid_subscription')
     const endpoint = requireString(sub.endpoint, 'invalid_subscription', 10, 2000)
-    if (!endpoint.startsWith('https://')) throw new HttpError(400, 'invalid_subscription')
+    if (!endpoint.startsWith('https://') || !isPushServiceUrl(endpoint)) throw new HttpError(400, 'invalid_subscription')
     const p256dh = requireString(sub.keys.p256dh, 'invalid_subscription', 20, 300)
     const auth = requireString(sub.keys.auth, 'invalid_subscription', 10, 100)
     // A phone has ONE push endpoint for this site, used both by its customer side and, when someone from the team is
     // signed in on it, by the team panel. Keep both owners on the row so customer and team notifications both arrive.
     const user_id = c.user?.id ?? null, device_id = c.device ?? null
     if (!user_id && !device_id) throw new HttpError(401, 'device_required')
-    await c.env.DB.prepare(
+    const res = await c.env.DB.prepare(
       `INSERT INTO push_subscriptions (user_id, device_id, endpoint, p256dh, auth) VALUES (?, ?, ?, ?, ?)
        ON CONFLICT(endpoint) DO UPDATE SET user_id = excluded.user_id, device_id = COALESCE(excluded.device_id, push_subscriptions.device_id),
          p256dh = excluded.p256dh, auth = excluded.auth, failures = 0
@@ -175,6 +195,13 @@ export const publicRoutes: Route[] = [
           OR push_subscriptions.p256dh IS NOT excluded.p256dh OR push_subscriptions.auth IS NOT excluded.auth
           OR push_subscriptions.failures != 0`)
       .bind(user_id, device_id, endpoint, p256dh, auth).run()
+    // A customer device keeps its 3 newest endpoints (a reinstalled app or a new browser makes a new one), so nobody can
+    // grow the table — and every announcement — with junk subscriptions. Only after a real write; team rows are kept.
+    if (device_id && !user_id && res.meta.changes > 0) {
+      await c.env.DB.prepare(
+        `DELETE FROM push_subscriptions WHERE device_id = ? AND user_id IS NULL
+           AND id NOT IN (SELECT id FROM push_subscriptions WHERE device_id = ? ORDER BY id DESC LIMIT 3)`).bind(device_id, device_id).run()
+    }
     return json({ ok: true })
   }),
 

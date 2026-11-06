@@ -1,6 +1,8 @@
 // pending_payment: everything the customer needs to pay with Sham Cash and tell us the transaction number.
-// After hold_until the form disappears (the server would answer 409 hold_expired) and the customer is sent back
-// to book again; the page keeps polling, so a cron expiry or a late acceptance shows up by itself.
+// When the countdown hits 00:00 the form stays for HOLD_GRACE_MINUTES more (the server still accepts a reference
+// then if nobody took the slot — someone on a slow line may have already paid). Only after that, or on a 409
+// hold_expired, the form disappears and the customer is sent back to book again; the page keeps polling, so a
+// cron expiry or a late acceptance shows up by itself.
 // Texts: content.booking.pay_* ({code} bold, {time} = the end of the hold). An already-held booking can always be paid,
 // even after the admin switched Sham Cash or online booking off.
 import { useEffect, useState, type FormEvent } from 'react'
@@ -21,8 +23,19 @@ function useCountdown(until: string | null): { text: string; left: number } {
   return { text: `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`, left }
 }
 
+/** Mirrors api/src/bookings.ts HOLD_GRACE_MINUTES: a reference is still accepted this long after hold_until. */
+const HOLD_GRACE_MINUTES = 10
+
 async function copy(text: string): Promise<boolean> {
-  try { await navigator.clipboard.writeText(text); return true } catch { return false }
+  try { await navigator.clipboard.writeText(text); return true } catch { /* no Clipboard API (http, old WebView): try the old way */ }
+  try {
+    const t = document.createElement('textarea')
+    t.value = text; t.setAttribute('readonly', ''); t.style.position = 'fixed'; t.style.opacity = '0'
+    document.body.appendChild(t); t.select()
+    const ok = document.execCommand('copy')
+    t.remove()
+    return ok
+  } catch { return false }
 }
 
 export function PaymentPanel({ booking, payment, onUpdated, onExpired }: {
@@ -38,12 +51,15 @@ export function PaymentPanel({ booking, payment, onUpdated, onExpired }: {
   const [serverExpired, setServerExpired] = useState(false)
   const holdUntil = payment.hold_until ?? booking.hold_until
   const { text, left } = useCountdown(holdUntil)
-  const expired = serverExpired || (holdUntil !== null && left === 0)
+  const grace = useCountdown(holdUntil ? new Date(Date.parse(holdUntil) + HOLD_GRACE_MINUTES * 60000).toISOString() : null)
+  const inGrace = holdUntil !== null && left === 0
+  const expired = serverExpired || (holdUntil !== null && grace.left === 0)
   const vars = { ...words.vars, code: payment.code, time: fmtTime(holdUntil ?? booking.start) }
   const steps = words.booking.pay_steps.filter((s) => hasText(s.text))
 
   async function copyValue(v: string, what: string) {
-    toast.show((await copy(v)) ? `تم نسخ ${what}` : 'ما قدرنا ننسخ — انسخه يدوياً', 'ok')
+    const ok = await copy(v)
+    toast.show(ok ? `تم نسخ ${what}` : 'ما قدرنا ننسخ — انسخه يدوياً', ok ? 'ok' : 'error')
   }
 
   async function submit(e: FormEvent) {
@@ -80,11 +96,16 @@ export function PaymentPanel({ booking, payment, onUpdated, onExpired }: {
       <Card className="card-accent">
         <div className="row between" style={{ marginBottom: 12 }}>
           <h2 className="h2"><ContentText text={words.text('pay_title')} vars={vars} /></h2>
-          {holdUntil && (
+          {holdUntil && !inGrace && (
             <span className={`countdown num ${left < 300 ? 'is-late' : ''}`} title="المهلة المتبقية"><Icon name="clock" size={16} />{text}</span>
           )}
         </div>
-        {hasText(words.text('pay_held_until')) && (
+        {inGrace && (
+          <div className="alert alert-error" role="alert" style={{ marginBottom: 14 }}>
+            انتهت المهلة — إذا حوّلت المبلغ أدخل رقم العملية هلّق (باقي {grace.text})، وإلا <Link to="/book">احجز من جديد</Link>.
+          </div>
+        )}
+        {!inGrace && hasText(words.text('pay_held_until')) && (
           <p className="muted small" style={{ marginBottom: 14 }}>
             <ContentText text={words.text('pay_held_until')} vars={vars} />
           </p>

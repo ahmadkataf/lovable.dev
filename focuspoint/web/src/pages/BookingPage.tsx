@@ -2,7 +2,7 @@
 // Texts: content.booking (status titles and texts, the cancel sheet). Works whatever the booking settings say now:
 // a held booking can still be paid after Sham Cash or online booking was switched off; the cancel button follows
 // settings.customer_can_cancel.
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import type { Booking, PublicSettings, Room } from '@shared/types'
 import { api, ApiError, errorCode, errorMessage } from '../api'
@@ -38,10 +38,12 @@ export function BookingPage() {
   const [confirmCancel, setConfirmCancel] = useState(false)
   const [cancelling, setCancelling] = useState(false)
   const key = `booking:${id}`
+  const gotNet = useRef(false)   // a network answer arrived for this id: the saved copy must not overwrite it
 
   const load = useCallback(async () => {
     try {
       const data = await api.get<BookingFull>(`/v1/bookings/${id}`)
+      gotNet.current = true
       setB(data)
       setFromCache(false)
       setError(null)
@@ -53,7 +55,17 @@ export function BookingPage() {
     }
   }, [id, key])
 
-  useEffect(() => { setB(null); setNotFound(false); setError(null); void load() }, [load])
+  // Paint the saved copy at once (this is the screen shown at the door, often on weak signal), then let the network
+  // answer replace it; fromCache stays true until then, so the «نسخة محفوظة» notice labels a possibly stale status.
+  useEffect(() => {
+    let stale = false
+    setB(null); setNotFound(false); setError(null); gotNet.current = false
+    void cache.get<{ data: BookingFull }>(key).then((hit) => {
+      if (hit && !stale && !gotNet.current) { setB((cur) => cur ?? hit.data); setFromCache(true) }
+    })
+    void load()
+    return () => { stale = true }
+  }, [load, key])
 
   useEffect(() => { setTimeZone(settings?.timezone) }, [settings?.timezone])
 

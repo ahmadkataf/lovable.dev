@@ -7,6 +7,7 @@ import { Button, Card, Empty, Field, Icon, Input, Spinner, useToast } from '../u
 import { Confirm, PageHead } from './common'
 import { store, useStore } from './store'
 import { cx, describeError } from './util'
+import { useLeaveGuard } from './site/guard'
 
 const GRID = 20
 const MIN_SIZE = 40
@@ -59,6 +60,8 @@ export function PlanEditor() {
   }, [settings, view.rooms])
 
   const dirty = !!doc && !!base && !same(doc, base)
+  // Nothing is kept as a draft here, so the dialog says the changes will be lost (a back-swipe still can't be caught).
+  const guard = useLeaveGuard(dirty, <>تعديلات المخطط ما انحفظت، وإذا طلعت هلق رح تضيع. اضغط «حفظ» أولاً إذا بدك تحتفظ فيها.</>)
   const commit = useCallback((next: Doc) => {
     setDoc((cur) => { if (cur) setUndo((u) => [...u.slice(-49), cur]); return next })
     setRedo([])
@@ -314,6 +317,7 @@ export function PlanEditor() {
         </div>
       </div>
 
+      {guard.dialog}
       <Confirm open={confirmReset} title="إلغاء التغييرات؟" danger confirmLabel="نعم، تجاهل" body="سيعود المخطط إلى آخر نسخة محفوظة."
         onClose={() => setConfirmReset(false)} onConfirm={() => { if (base) { setDoc(base); setUndo([]); setRedo([]); setSel(null) } setConfirmReset(false) }} />
     </>

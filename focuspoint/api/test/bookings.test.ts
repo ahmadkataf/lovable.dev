@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
-  canTransition, findConflicts, generateCode, isBlocking, normaliseCode, overlaps, price, validateSlot, CODE_RE, TRANSITIONS,
+  canTeamCancel, canTransition, findConflicts, generateCode, isBlocking, normaliseCode, overlaps, price, validateSlot, CODE_RE, TRANSITIONS,
 } from '../src/bookings'
 import type { BookingStatus } from '../../shared/types'
 
@@ -121,6 +121,13 @@ describe('status transitions', () => {
     expect(canTransition('confirmed', 'awaiting_verification')).toBe(false)
     expect(canTransition('awaiting_verification', 'completed')).toBe(false)   // → expired is allowed (cron closes stale verifications)
     expect(canTransition('completed', 'confirmed')).toBe(false)
-    for (const t of ['rejected', 'expired', 'cancelled', 'completed'] as BookingStatus[]) expect(TRANSITIONS[t]).toEqual([])
+    for (const t of ['rejected', 'expired', 'cancelled'] as BookingStatus[]) expect(TRANSITIONS[t]).toEqual([])
+    expect(TRANSITIONS.completed).toEqual(['cancelled'])
+  })
+  it('lets the team cancel a finished booking only while it is unpaid (a no-show)', () => {
+    expect(canTeamCancel({ status: 'completed', paid_at: null })).toBe(true)
+    expect(canTeamCancel({ status: 'completed', paid_at: '2026-11-10T07:00:00.000Z' })).toBe(false)
+    expect(canTeamCancel({ status: 'confirmed', paid_at: '2026-11-10T07:00:00.000Z' })).toBe(true)
+    expect(canTeamCancel({ status: 'cancelled', paid_at: null })).toBe(false)
   })
 })

@@ -1,7 +1,7 @@
 // Step 2: who is booking. Name + phone (remembered), people, optional note, one button.
 // The payment choice follows the settings (Sham Cash and/or pay on arrival); with online booking switched off the
 // page sends the customer back to /book, which explains (content.booking.closed_*).
-import { useEffect, useMemo, useState, type FormEvent } from 'react'
+import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import type { Booking, BookingKind, HallTier, PublicSettings, Room } from '@shared/types'
 import { quote, SUB_DAYS } from '@shared/pricing'
@@ -20,6 +20,21 @@ import { RoomPhotos } from '../components/RoomPhotos'
 
 /** Server answers that mean the cached settings are out of date: re-read them so the page shows the new options. */
 const SETTINGS_CHANGED = new Set(['booking_closed', 'shamcash_disabled', 'cash_not_allowed', 'too_far_ahead', 'subscriptions_closed', 'tier_required'])
+
+/**
+ * One id per filled form: a retry after a dropped connection (the booking may already exist on the server) sends the
+ * same id, so the server returns that booking instead of making a second one. A different room, time, seats, group or
+ * phone is a new attempt, and a successful booking starts afresh.
+ */
+const attempts = new Map<string, string>()
+function attemptId(key: string): string {
+  let id = attempts.get(key)
+  if (!id) {
+    id = typeof crypto !== 'undefined' && 'randomUUID' in crypto ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(36).slice(2)}`
+    attempts.set(key, id)
+  }
+  return id
+}
 
 export function Book() {
   const { roomId } = useParams()
@@ -59,8 +74,11 @@ export function Book() {
   const closed = !!settings && !bookingOpen(settings)
   const [errors, setErrors] = useState<{ name?: string; phone?: string; form?: string }>({})
   const [busy, setBusy] = useState(false)
+  const nameRef = useRef<HTMLInputElement>(null), phoneRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => { if (!valid || closed) navigate('/book', { replace: true }) }, [valid, closed, navigate])
+  // Back to /book with the same date/start/minutes/kind, so the picker keeps the customer's choice (seats_left is ignored there).
+  const backTo = `/book?${q.toString()}`
   // Seats still free (from the room sheet); the server's check stays the real guard.
   const left = room ? Math.min(room.capacity, Math.max(1, Number(q.get('seats_left')) || room.capacity)) : 1
   useEffect(() => { if (room && people > left) setPeople(left) }, [room, people, left])
@@ -85,10 +103,17 @@ export function Book() {
     if (cleanName.length < 2) errs.name = 'اكتب اسمك'
     if (!cleanPhone) errs.phone = 'رقم سوري مثل 09XXXXXXXX'
     setErrors(errs)
-    if (errs.name || errs.phone || !cleanPhone) return
+    if (errs.name || errs.phone || !cleanPhone) {
+      // Take the customer (and a screen reader) to the field to fix; 'center' keeps it clear of the sticky header.
+      const el = errs.name ? nameRef.current : phoneRef.current
+      el?.focus({ preventScroll: true })
+      el?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      return
+    }
     setBusy(true)
     try {
       const b = await api.post<Booking>('/v1/bookings', {
+        client_id: attemptId(`${room.id}|${kind}|${start}|${end}|${seats}|${tier ?? ''}|${cleanPhone}`),
         room_id: room.id, name: cleanName, phone: cleanPhone, people: perHead ? seats : people,
         ...(kind === 'hourly' ? { start, end } : { kind, date }),
         ...(perHead ? { seats } : {}),
@@ -96,6 +121,7 @@ export function Book() {
         ...(note.trim() ? { note: note.trim().slice(0, 300) } : {}),
         ...(methods.cash ? { method: payCash ? 'cash' : 'shamcash' } : {}),     // only sent when the centre offers pay on arrival (older servers ignore unknown keys anyway)
       })
+      attempts.clear()
       setCustomer({ name: cleanName, phone: cleanPhone })
       setFlag('fp_prompt_push')
       void cache.set(`booking:${b.id}`, { data: b, t: Date.now() })
@@ -111,13 +137,13 @@ export function Book() {
   if (!valid || closed) return null
   if (roomsQ.loading && !room) return <div className="center" style={{ padding: 40 }}><span className="spinner" /></div>
   if (!room) {
-    return <Card><p className="text-center muted">ما لقينا هذه الغرفة.</p><div className="center mt"><Link to="/book" className="btn btn-soft">رجوع</Link></div></Card>
+    return <Card><p className="text-center muted">ما لقينا هذه الغرفة.</p><div className="center mt"><Link to={backTo} className="btn btn-soft">رجوع</Link></div></Card>
   }
 
   return (
     <div className="stack">
       <div className="page-head">
-        <Link to="/book" className="icon-btn" aria-label="رجوع"><Icon name="back" /></Link>
+        <Link to={backTo} className="icon-btn" aria-label="رجوع"><Icon name="back" /></Link>
         <h1 className="h1">تأكيد التفاصيل</h1>
       </div>
 
@@ -130,10 +156,10 @@ export function Book() {
       <Card>
         <form onSubmit={submit} noValidate>
           <Field label="الاسم" error={errors.name}>
-            <Input value={name} onChange={(e) => setName(e.target.value)} autoComplete="name" placeholder="اسمك الكريم" maxLength={60} />
+            <Input ref={nameRef} aria-invalid={!!errors.name} value={name} onChange={(e) => setName(e.target.value)} autoComplete="name" placeholder="اسمك الكريم" maxLength={40} />
           </Field>
           <Field label="رقم الهاتف" hint="نتواصل معك عليه إذا احتجنا" error={errors.phone}>
-            <Input value={phone} onChange={(e) => setPhone(e.target.value)} type="tel" inputMode="tel" autoComplete="tel" dir="ltr" placeholder="09XXXXXXXX" />
+            <Input ref={phoneRef} aria-invalid={!!errors.phone} value={phone} onChange={(e) => setPhone(e.target.value)} type="tel" inputMode="tel" autoComplete="tel" dir="ltr" placeholder="09XXXXXXXX" />
           </Field>
           {hall && (
             <div className="alert alert-info" style={{ marginBottom: 12 }}>

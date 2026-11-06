@@ -240,6 +240,8 @@
 .fp-price { display: inline-flex; align-items: baseline; gap: 6px; flex-wrap: wrap; font-size: 0.86rem; color: var(--fp-mute); min-height: 1.6em; }
 .fp-price b { font-size: 1.1rem; font-weight: 800; color: var(--fp-brand); }
 .fp-price-soft { font-size: 0.84rem; }
+.fp-price-sub { display: block; margin-top: 2px; font-size: 0.84rem; color: var(--fp-ink-2); }
+.fp-price-sub b { font-weight: 700; color: var(--fp-ink); }
 .fp-shimmer {
   display: inline-block; min-width: 150px; border-radius: 8px; background: var(--fp-surface-3);
   animation: fp-pulse 1.4s ease-in-out infinite;
@@ -318,7 +320,7 @@
 .fp-card .fp-head .fp-h2 { font-size: 1.35rem; }
 .fp-card-top { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 10px; }
 .fp-status { display: inline-flex; align-items: center; gap: 8px; font-size: 0.84rem; font-weight: 600; }
-.fp-status.is-open { color: var(--ok, #059669); }
+.fp-status.is-open { color: #047857; }   /* darker green: 13px text needs 4.5:1 on white (#059669 is 3.8:1) */
 .fp-status.is-closed { color: var(--fp-mute); }
 .fp-status .fp-dot { width: 8px; height: 8px; }
 .fp-empty { justify-items: center; text-align: center; max-width: 520px; margin-inline: auto; }

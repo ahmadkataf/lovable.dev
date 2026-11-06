@@ -168,3 +168,9 @@ CREATE TABLE IF NOT EXISTS ledger (                 -- the admin's accounts (Ø§Ù
 );
 CREATE INDEX IF NOT EXISTS ledger_date ON ledger(date);
 CREATE INDEX IF NOT EXISTS bookings_paid ON bookings(paid_at);
+CREATE TABLE IF NOT EXISTS push_queue (           -- announcement pushes beyond the first batch, sent by the cron (free plan: ~50 fetches per run)
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  subscription_id INTEGER NOT NULL,
+  payload TEXT NOT NULL,                           -- JSON PushPayload
+  created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now'))
+);

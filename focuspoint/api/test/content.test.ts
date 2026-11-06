@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   CONTENT_SECTIONS, DEFAULT_CONTENT, SECTION_IDS, SITE_ICONS, SITE_VARS, TEMPLATE_EXAMPLE, TEMPLATE_VARS,
-  brandPalette, brandStyle, buildJsonLd, contentMediaSrcs, contrastRatio, fillTemplate, hoursTemplateVars, intlPhone, isSafeImageSrc,
+  brandPalette, brandStyle, buildJsonLd, contentMediaSrcs, countAr, peopleAr, contrastRatio, fillTemplate, hoursTemplateVars, intlPhone, isSafeImageSrc,
   isSafeLink, mergeContent, parseRich, photoSmall, pickVariant, reminderLabel, roomTemplateVars, safeJson, sectionFields,
   siteTemplateVars, splitAddress, templateKeys, textParts, validateSection, whatsappLink, wordingFlags,
   type FieldSpec, type SectionId,
@@ -217,7 +217,7 @@ describe('templates and rich text', () => {
   it('renders today\'s texts from the defaults', () => {
     expect(fillTemplate(DEFAULT_CONTENT.home.faq.items[3]!.a, { open: '9 ص', close: '11 م' })).toBe('مفتوحين كل يوم، من 9 ص لـ11 م.')
     expect(fillTemplate(DEFAULT_CONTENT.footer.tagline, { slogan: DEFAULT_CONTENT.brand.slogan, eyebrow: DEFAULT_CONTENT.brand.eyebrow }))
-      .toBe('مساحتك وركنك الهادئ للإبداع. المشروع الأول من نوعه بدرعا — غرف خاصة، قاعة اجتماعات ومساحة مفتوحة، بتحجزها من موبايلك بخطوات بسيطة.')
+      .toBe('مساحتك وركنك الهادئ للإبداع. المشروع الأول من نوعه بدرعا — غرف خاصة، قاعة تدريبية ومساحة مفتوحة، بتحجزها من موبايلك بخطوات بسيطة.')
     expect(fillTemplate(DEFAULT_CONTENT.messages.booking_created.body, { customer_name: 'أحمد', room: 'غرفة 1', when: 'الجمعة 24/10 · 10:00–12:00', price: '30,000 ل.س', code: 'A7K2QZ' }))
       .toBe('أحمد · غرفة 1 · الجمعة 24/10 · 10:00–12:00 · 30,000 ل.س · الرمز A7K2QZ')
   })
@@ -255,7 +255,7 @@ const API_SETTINGS = {
 }
 const SEED_ROOMS = [
   { type: 'private', capacity: 2, active: 1 }, { type: 'private', capacity: 3, active: 1 }, { type: 'private', capacity: 4, active: 1 },
-  { type: 'private', capacity: 4, active: 1 }, { type: 'meeting', capacity: 10, active: 1 }, { type: 'desk', capacity: 8, active: 1 },
+  { type: 'private', capacity: 4, active: 1 }, { type: 'meeting', capacity: 16, active: 1 }, { type: 'desk', capacity: 8, active: 1 },   // api/seed.sql
 ]
 const LIVE = siteTemplateVars({ settings: API_SETTINGS, brand: DEFAULT_CONTENT.brand, rooms: SEED_ROOMS })
 
@@ -339,12 +339,12 @@ describe('section rules', () => {
 
 describe('live values', () => {
   it('room placeholders: counts, min/max, biggest meeting room, open seats added up', () => {
-    expect(roomTemplateVars(SEED_ROOMS)).toEqual({ privateCount: '4', privateMin: '2', privateMax: '4', meetingCapacity: '10', openCapacity: '8' })
+    expect(roomTemplateVars(SEED_ROOMS)).toEqual({ privateCount: '4', privateMin: '2', privateMax: '4', meetingCapacity: '16', openCapacity: '8' })
     expect(roomTemplateVars([
       { type: 'meeting', capacity: 10, active: 1 }, { type: 'hall', capacity: 30, active: 1 }, { type: 'private', capacity: 6, active: 0 },
       ...Array.from({ length: 6 }, () => ({ type: 'desk', capacity: 1, active: 1 })),
     ])).toEqual({ privateCount: '4', privateMin: '2', privateMax: '4', meetingCapacity: '30', openCapacity: '6' })
-    const ex = { privateCount: '4', privateMin: '2', privateMax: '4', meetingCapacity: '10', openCapacity: '8' }
+    const ex = { privateCount: '4', privateMin: '2', privateMax: '4', meetingCapacity: '16', openCapacity: '8' }
     expect(roomTemplateVars(undefined)).toEqual(ex)
     expect(roomTemplateVars([])).toEqual(ex)
   })
@@ -367,21 +367,29 @@ describe('live values', () => {
   it('the defaults read exactly like today\'s site with the live settings and the seed rooms', () => {
     const f = (t: string, vars: Record<string, string> = LIVE) => fillTemplate(t, vars)
     const d = DEFAULT_CONTENT
-    expect(f(d.home.features.items[5]!.text)).toBe('شاشة وسبورة لـ10 أشخاص، للاجتماعات والعروض والدورات.')
-    expect(f(d.home.faq.items[4]!.a)).toBe('أكيد. قاعة الاجتماعات بتساع لـ10 أشخاص وفيها شاشة وسبورة، وفي كمان غرف خاصة من 2 لـ4 أشخاص. [شوف المساحات](/spaces).')
-    expect(f(d.spaces.lead)).toBe('غرف خاصة من 2 لـ4 أشخاص، قاعة اجتماعات لـ10 مع شاشة وسبورة، ومساحة مفتوحة مشتركة لـ8. الأسعار هون هي نفسها اللي بتشوفها وقت الحجز.')
-    expect(f(d.spaces.groups.meeting.blurb)).toBe('قاعة تدريبية فيها شاشة وسبورة وتكييف، للدورات وورش العمل والاجتماعات. السعة 10.')
-    expect(f(d.spaces.groups.open.blurb)).toBe('مكان مشترك لـ8 أشخاص، ضوء طبيعي وجو بيشجّع عالشغل.')
+    expect(f(d.home.features.items[5]!.text)).toBe('شاشة وسبورة وتكييف، للدورات وورش العمل والاجتماعات.')
+    expect(f(d.home.faq.items[4]!.a)).toBe('أكيد. القاعة التدريبية بتساع 16 وفيها شاشة وسبورة، وبتنحجز كاملة. وفي كمان غرف خاصة من 2 لـ4 أشخاص. [شوف المساحات](/spaces).')
+    expect(f(d.spaces.lead)).toBe('غرف خاصة من 2 لـ4 أشخاص، قاعة تدريبية لـ16 مع شاشة وسبورة، ومساحة مفتوحة مشتركة لـ8. الأسعار هون هي نفسها اللي بتشوفها وقت الحجز.')
+    expect(f(d.spaces.groups.meeting.blurb)).toBe('قاعة تدريبية فيها شاشة وسبورة وتكييف، للدورات وورش العمل والاجتماعات. السعة 16.')
+    expect(f(d.spaces.groups.open.blurb)).toBe('مكان مشترك بيساع 8، بتحجز فيه مقعد واحد أو أكتر، مع ضوء طبيعي وجو بيشجّع عالشغل.')
     expect(f(d.spaces.groups.private.badge)).toBe('4 غرف')
-    expect(f(d.about.audience.items[2]!.text)).toBe('غرف خاصة من 2 لـ4 أشخاص، وقاعة اجتماعات لعشرة لما يكبر الاجتماع.')
+    expect(f(d.about.audience.items[2]!.text)).toBe('غرف خاصة من 2 لـ4 أشخاص، والقاعة التدريبية لما يكبر الاجتماع أو للدورات.')
     expect(f(d.home.facts.label)).toBe('فوكس بوينت بالأرقام')
     expect(f(d.brand.status_closed)).toBe('مسكّر هلأ، منفتح الساعة 9 ص')
-    expect(f(d.booking.notify_prompt)).toBe('خبّرك أول ما يتأكد حجزك، ونذكّرك قبله بساعة.')
-    expect(f(d.booking.notify_prompt_mine)).toBe('نخبرك بتأكيد الحجز ونذكّرك قبله بساعة.')
+    expect(f(d.booking.notify_prompt)).toBe('منخبّرك أول ما يتأكد حجزك، ومنذكّرك قبله بـساعة.')
+    expect(f(d.booking.notify_prompt_mine)).toBe('منخبّرك بتأكيد الحجز ومنذكّرك قبله بـساعة.')
     expect(f(d.messages.booking_reminder.title)).toBe('حجزك بعد ساعة')
     expect(f(d.booking.note_shamcash)).toBe('بعد التأكيد يُحفَظ المكان لك 30 دقيقة لإتمام الدفع عبر شام كاش.')
     // first paint / offline: the site's own fallback address (site.tsx CENTRE.address)
     expect(f(d.home.faq.items[5]!.a, siteTemplateVars())).toBe('درعا – شارع المجمع الحكومي – بناء العايش. إذا ضعت، اتصل فينا أو ابعتلنا عالواتساب ومنوصفلك الطريق.')
+  })
+})
+
+describe('countAr', () => {
+  it('Arabic counted nouns: singular from 11 up', () => {
+    expect([1, 2, 3, 10, 11, 16, 28].map(peopleAr)).toEqual(['شخص واحد', 'شخصين', '3 أشخاص', '10 أشخاص', '11 شخص', '16 شخص', '28 شخص'])
+    expect(countAr(20, 'كرسي', 'كرسيين', 'كراسي')).toBe('20 كرسي')
+    expect(countAr(0, 'مقعد', 'مقعدين', 'مقاعد')).toBe('0 مقعد')
   })
 })
 
@@ -428,7 +436,7 @@ describe('wording variants', () => {
     expect(pickVariant(DEFAULT_CONTENT.home.hero.chips[1]!, 'text', wordingFlags({ allow_pay_on_arrival: true, shamcash_enabled: false }))).toBe('إنترنت سريع')
     expect(pickVariant(cancel, 'a', on)).toBe(cancel.a)
     expect(pickVariant(cancel, 'a', { ...on, canCancel: false })).toBe(cancel.a_no_cancel)
-    expect(pickVariant(DEFAULT_CONTENT.booking, 'notify_prompt', { ...on, reminders: false })).toBe('خبّرك أول ما يتأكد حجزك.')
+    expect(pickVariant(DEFAULT_CONTENT.booking, 'notify_prompt', { ...on, reminders: false })).toBe('منخبّرك أول ما يتأكد حجزك.')
     expect(pickVariant(DEFAULT_CONTENT.home.cta, 'text', { ...on, shamcash: false })).toBe(DEFAULT_CONTENT.home.cta.text_cash_only)
   })
 
@@ -464,7 +472,7 @@ describe('seo and theme helpers', () => {
       additionalType: 'https://schema.org/CoworkingSpace',
       name: 'Focus Point — فوكس بوينت',
       alternateName: 'فوكس بوينت',
-      description: 'مساحة عمل مشتركة بدرعا: غرف خاصة، غرفة اجتماعات ومساحة مشتركة. المشروع الأول من نوعه بدرعا.',
+      description: 'مساحة عمل مشتركة بدرعا: غرف خاصة، قاعة تدريبية ومساحة مشتركة. المشروع الأول من نوعه بدرعا.',
       slogan: 'مساحتك وركنك الهادئ للإبداع',
       url: 'https://focuspoint.raqeem.dev',
       logo: 'https://focuspoint.raqeem.dev/icons/icon-512.png',

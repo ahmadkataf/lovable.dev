@@ -14,6 +14,9 @@ const CURRENCIES: readonly Currency[] = ['SYP', 'USD']
 const zero = (): Money => ({ SYP: 0, USD: 0 })
 const add = (m: Money, c: Currency | null | undefined, n: number) => { m[c === 'USD' ? 'USD' : 'SYP'] += n }
 const PAID_STATUSES = `('confirmed','completed')`
+/** Money received (one rule for الحسابات, the report and the team's «إيراد اليوم»): bind paid_at [from, to). A booking
+ *  confirmed and cancelled later keeps its income (a refund is an expense). */
+export const INCOME_SQL = `(b.status IN ${PAID_STATUSES} OR (b.status = 'cancelled' AND b.verified_by IS NOT NULL)) AND b.method != 'free' AND b.price > 0 AND b.paid_at >= ? AND b.paid_at < ?`
 
 /** First day of the month after "YYYY-MM". */
 export function nextMonth(month: string): string {
@@ -103,7 +106,7 @@ export const accountRoutes: Route[] = [
     const db = c.env.DB
     const [paid, entries, owed, open] = await Promise.all([
       // paid in the month: confirmed/finished, or confirmed and cancelled later (the money stays; a refund is an expense)
-      db.prepare(`${BOOKING_SELECT} WHERE (b.status IN ${PAID_STATUSES} OR (b.status = 'cancelled' AND b.verified_by IS NOT NULL)) AND b.method != 'free' AND b.price > 0 AND b.paid_at >= ? AND b.paid_at < ? ORDER BY b.paid_at LIMIT 5000`)
+      db.prepare(`${BOOKING_SELECT} WHERE ${INCOME_SQL} ORDER BY b.paid_at LIMIT 5000`)
         .bind(from, to).all<BookingRow>(),
       db.prepare(`SELECT * FROM ledger WHERE (date >= ? AND date < ?) OR (settled_at >= ? AND settled_at < ?) ORDER BY date DESC, id DESC LIMIT 2000`)
         .bind(`${month}-01`, `${nextMonth(month)}-01`, from, to).all<LedgerEntry>(),

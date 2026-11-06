@@ -115,7 +115,7 @@ export interface SiteContent {
   spaces: {
     kicker: string; title: string; lead: string
     groups: Record<SpaceGroupId, SpaceGroupText>
-    price_from: string; price_from_short: string; price_unit: string; price_unknown: string   // «تبدأ من 15,000 ل.س بالساعة»
+    price_from: string; price_from_short: string; price_unit: string; price_unknown: string   // «تبدأ من 100 ل.س للشخص بالساعة» (the hall shows its two tiers)
     empty_title: string; empty_text: string                                                  // /spaces with no active room
     cta_title: string; cta_text: string
   }
@@ -194,6 +194,7 @@ const IMG = {
   meetingTable: { src: '/img/room-a-table.webp', small: '/img/room-a-table-720.webp', w: 919, h: 1400, alt: 'طاولة الاجتماعات الخمرية عن قرب مع مقابس الكهرباء' },
   big: { src: '/img/room-b.webp', small: '/img/room-b-720.webp', w: 1105, h: 1400, alt: 'طاولة كبيرة ونوافذ بانورامية تطل على درعا ولوحة THINK OUTSIDE THE BOX' },
   hall: { src: '/img/hall-wide.webp', small: '/img/hall-wide-720.webp', w: 1080, h: 810, alt: 'القاعة التدريبية في فوكس بوينت: طاولات بيضاء وكراسي خمرية بصفوف، شاشة وتكييف وإضاءة هادئة' },
+  open: { src: '/img/open-space.webp', small: '/img/open-space-720.webp', w: 1050, h: 787, alt: 'المساحة المفتوحة في فوكس بوينت: طاولات مدوّرة وكراسي مريحة ونوافذ كبيرة مطلّة على المدينة' },
   bigWide: { src: '/img/room-b-wide.webp', small: '/img/room-b-wide-720.webp', w: 1400, h: 821, alt: 'المساحة من الداخل: طاولة كبيرة، كراسي مريحة، ونوافذ واسعة مليانة ضوء' },
 } satisfies Record<string, Photo>
 const photo = (p: Photo): Photo => ({ ...p })
@@ -232,7 +233,7 @@ export const DEFAULT_CONTENT: SiteContent = {
     ],
     hero: {
       title: 'مساحتك الهادئة **للشغل والدراسة** والإبداع',
-      lead: 'غرف خاصة، قاعة اجتماعات، ومساحة مفتوحة بدرعا، على شارع المجمع الحكومي. احجز مكانك من موبايلك بخطوات بسيطة، وتعال اشتغل على رواق.',
+      lead: 'غرف خاصة، قاعة تدريبية، ومساحة مفتوحة بدرعا، على شارع المجمع الحكومي. احجز مكانك من موبايلك بخطوات بسيطة، وتعال اشتغل على رواق.',
       chips: [
         { icon: 'clock', text: 'يومياً {hours}', text_shamcash_only: '', text_cash_only: '' },
         { icon: 'wifi', text: 'إنترنت سريع', text_shamcash_only: '', text_cash_only: '' },
@@ -241,13 +242,13 @@ export const DEFAULT_CONTENT: SiteContent = {
       ],
       photo: photo(IMG.meeting),
       badge_icon: 'present',
-      badge_title: 'قاعة اجتماعات لعشرة أشخاص',
+      badge_title: 'قاعة تدريبية للدورات',
       badge_text: 'شاشة + سبورة',
     },
     facts: {
       label: '{name} بالأرقام',
       items: [
-        { icon: 'grid', value: '{privateCount} غرف خاصة', label: 'وقاعة اجتماعات ومساحة مفتوحة' },
+        { icon: 'grid', value: '{privateCount} غرف خاصة', label: 'وقاعة تدريبية ومساحة مفتوحة' },
         { icon: 'pin', value: 'شارع المجمع الحكومي', label: 'بدرعا، بناء العايش' },
         { icon: 'clock', value: '{hoursPerDay} ساعة يومياً', label: 'كل يوم، {hours}' },
         { icon: 'user', value: 'حجز بدون حساب', label: 'اسمك ورقم موبايلك وبس' },
@@ -263,7 +264,7 @@ export const DEFAULT_CONTENT: SiteContent = {
         { icon: 'wifi', title: 'إنترنت سريع', text: 'واي فاي سريع لاجتماعاتك أونلاين، رفع ملفاتك، ودراستك.' },
         { icon: 'ac', title: 'تكييف', text: 'تكييف بيخلّي الجو مريح، لتركّز بشغلك وبس.' },
         { icon: 'coffee', title: 'قهوة جنبك', text: 'فنجان قهوة قريب منك وقت ما بدك تاخد نفَس.' },
-        { icon: 'screen', title: 'قاعة اجتماعات مجهّزة', text: 'شاشة وسبورة لـ{meetingCapacity} أشخاص، للاجتماعات والعروض والدورات.' },
+        { icon: 'screen', title: 'قاعة تدريبية مجهّزة', text: 'شاشة وسبورة وتكييف، للدورات وورش العمل والاجتماعات.' },
       ],
     },
     spaces: {
@@ -324,7 +325,7 @@ export const DEFAULT_CONTENT: SiteContent = {
           a_no_cancel: 'إذا بدك تلغي حجزك أو تغيّر وقته، تواصل معنا على {phone} أو عالواتساب ومنساعدك.',   // new wording (customer cancel off)
         },
         { q: 'شو الدوام؟', a: 'مفتوحين كل يوم، من {open} لـ{close}.', a_shamcash_only: '', a_cash_only: '', a_no_cancel: '' },
-        { q: 'فيني أحجز لفريق كامل؟', a: 'أكيد. قاعة الاجتماعات بتساع لـ{meetingCapacity} أشخاص وفيها شاشة وسبورة، وفي كمان غرف خاصة من {privateMin} لـ{privateMax} أشخاص. [شوف المساحات](/spaces).', a_shamcash_only: '', a_cash_only: '', a_no_cancel: '' },
+        { q: 'فيني أحجز للدورات أو لفريق كامل؟', a: 'أكيد. القاعة التدريبية بتساع {meetingCapacity} وفيها شاشة وسبورة، وبتنحجز كاملة. وفي كمان غرف خاصة من {privateMin} لـ{privateMax} أشخاص. [شوف المساحات](/spaces).', a_shamcash_only: '', a_cash_only: '', a_no_cancel: '' },
         { q: 'وين المكان؟', a: '{address}. إذا ضعت، اتصل فينا أو ابعتلنا عالواتساب ومنوصفلك الطريق.', a_shamcash_only: '', a_cash_only: '', a_no_cancel: '' },
       ],
     },
@@ -338,11 +339,11 @@ export const DEFAULT_CONTENT: SiteContent = {
   spaces: {
     kicker: 'المساحات',
     title: 'مساحة لكل نوع شغل',
-    lead: 'غرف خاصة من {privateMin} لـ{privateMax} أشخاص، قاعة اجتماعات لـ{meetingCapacity} مع شاشة وسبورة، ومساحة مفتوحة مشتركة لـ{openCapacity}. الأسعار هون هي نفسها اللي بتشوفها وقت الحجز.',
+    lead: 'غرف خاصة من {privateMin} لـ{privateMax} أشخاص، قاعة تدريبية لـ{meetingCapacity} مع شاشة وسبورة، ومساحة مفتوحة مشتركة لـ{openCapacity}. الأسعار هون هي نفسها اللي بتشوفها وقت الحجز.',
     groups: {
       private: { title: 'غرف خاصة', blurb: 'غرفة إلك لحالك أو مع فريقك الصغير، بابها بيتسكّر وبتشتغل فيها على راحتك.', cap: '2–4 أشخاص', badge: '{privateCount} غرف', icon: 'door', photo: null, amenities: amenities('wifi', 'ac') },
       meeting: { title: 'القاعة التدريبية', blurb: 'قاعة تدريبية فيها شاشة وسبورة وتكييف، للدورات وورش العمل والاجتماعات. السعة {meetingCapacity}.', cap: 'حتى 16 شخص', badge: 'قاعة', icon: 'present', photo: photo(IMG.hall), amenities: amenities('wifi', 'ac', 'screen', 'whiteboard') },
-      open: { title: 'المساحة المفتوحة', blurb: 'مكان مشترك لـ{openCapacity} أشخاص، ضوء طبيعي وجو بيشجّع عالشغل.', cap: 'حتى 8 أشخاص', badge: 'مشتركة', icon: 'grid', photo: photo(IMG.bigWide), amenities: amenities('wifi', 'ac', 'coffee') },
+      open: { title: 'المساحة المفتوحة', blurb: 'مكان مشترك بيساع {openCapacity}، بتحجز فيه مقعد واحد أو أكتر، مع ضوء طبيعي وجو بيشجّع عالشغل.', cap: 'حتى 8 أشخاص', badge: 'مشتركة', icon: 'grid', photo: photo(IMG.open), amenities: amenities('wifi', 'ac', 'coffee') },
     },
     price_from: 'تبدأ من',
     price_from_short: 'من',
@@ -361,7 +362,7 @@ export const DEFAULT_CONTENT: SiteContent = {
       kicker: 'حكايتنا',
       title: 'مكان هادئ، قريب منك',
       paragraphs: [
-        { text: 'فوكس بوينت هو المشروع الأول من نوعه بدرعا: مساحة عمل مشتركة فيها غرف خاصة، وقاعة اجتماعات، ومساحة مفتوحة، بتنحجز بالساعة. عملناها لأن الشغل والدراسة بدهم مكان هادئ ومرتب، مو طاولة بمقهى عجقة ولا زاوية بالبيت.' },
+        { text: 'فوكس بوينت هو المشروع الأول من نوعه بدرعا: مساحة عمل مشتركة فيها غرف خاصة، وقاعة تدريبية، ومساحة مفتوحة، بتنحجز بالساعة. عملناها لأن الشغل والدراسة بدهم مكان هادئ ومرتب، مو طاولة بمقهى عجقة ولا زاوية بالبيت.' },
         { text: 'عنا ضوء طبيعي من شبابيك كبيرة، تكييف، إنترنت سريع، وقهوة جنبك. مفتوحين كل يوم {hours}، وبتحجز مكانك من موبايلك بخطوات بسيطة بدون ما تعمل حساب. وعلى الحيط عنا جملة بتلخّص كل شي: THINK OUTSIDE THE BOX.' },
       ],
       photo: photo(IMG.big),
@@ -372,7 +373,7 @@ export const DEFAULT_CONTENT: SiteContent = {
       items: [
         { icon: 'book', title: 'طلاب', text: 'لدراسة الامتحانات، المشاريع، وحلقات الدراسة الجماعية بمكان هادئ.' },
         { icon: 'laptop', title: 'مستقلّين وعن بُعد', text: 'مكتب مرتب وإنترنت سريع، بعيد عن ضجة البيت والمقاهي.' },
-        { icon: 'people', title: 'فرق صغيرة', text: 'غرف خاصة من {privateMin} لـ{privateMax} أشخاص، وقاعة اجتماعات لعشرة لما يكبر الاجتماع.' },
+        { icon: 'people', title: 'فرق صغيرة', text: 'غرف خاصة من {privateMin} لـ{privateMax} أشخاص، والقاعة التدريبية لما يكبر الاجتماع أو للدورات.' },
         { icon: 'present', title: 'مدرّبين ودورات', text: 'قاعة فيها شاشة وسبورة، جاهزة للورشات والعروض والدورات.' },
       ],
     },
@@ -404,7 +405,7 @@ export const DEFAULT_CONTENT: SiteContent = {
     },
   },
   footer: {
-    tagline: '{slogan}. {eyebrow} — غرف خاصة، قاعة اجتماعات ومساحة مفتوحة، بتحجزها من موبايلك بخطوات بسيطة.',
+    tagline: '{slogan}. {eyebrow} — غرف خاصة، قاعة تدريبية ومساحة مفتوحة، بتحجزها من موبايلك بخطوات بسيطة.',
     hours_line: 'يومياً {open} – {close}',
     copyright: '© 2026 فوكس بوينت — Focus Point',
   },
@@ -418,7 +419,7 @@ export const DEFAULT_CONTENT: SiteContent = {
     closed_text: 'ما عم نستقبل حجوزات أونلاين هلأ. تواصل معنا عالواتساب أو اتصل فينا ومنساعدك.',
     method_shamcash: 'تحويل شام كاش',
     method_cash: 'الدفع عند الوصول',
-    method_hint_shamcash: 'تحوّل المبلغ عبر شام كاش وتدخل رقم العملية — يتأكد الحجز خلال دقائق.',
+    method_hint_shamcash: 'بتحوّل المبلغ بشام كاش وبتكتب رقم العملية — وبيتأكد الحجز خلال دقايق.',
     method_hint_cash: 'يؤكد الفريق حجزك، وتدفع عند وصولك إلى المركز.',
     note_shamcash: 'بعد التأكيد يُحفَظ المكان لك {holdMinutes} دقيقة لإتمام الدفع عبر شام كاش.',
     note_cash: 'سيصلك إشعار عندما يؤكد الفريق حجزك.',
@@ -427,20 +428,21 @@ export const DEFAULT_CONTENT: SiteContent = {
     pay_steps: [
       { text: 'افتح تطبيق شام كاش وحوّل المبلغ إلى الرقم أعلاه.' },
       { text: 'اكتب رمز الحجز {code} في ملاحظة التحويل.' },
-      { text: 'أدخل رقم العملية هنا — وبنأكد حجزك خلال دقائق.' },
+      { text: 'اكتب رقم العملية هون — ومنأكّد حجزك خلال دقايق.' },
     ],
     pay_expired_title: 'انتهت مهلة الحجز',
     pay_expired_text: 'لم يصلنا رقم العملية خلال المهلة، فعاد المكان متاحاً للجميع. إذا كنت قد حوّلت المبلغ فعلاً، تواصل مع المركز ومعك رمز الحجز {code}.',
     cash_awaiting_title: 'استلمنا حجزك',
     cash_awaiting_text: 'سيؤكد الفريق حجزك قريباً، والدفع عند الوصول. بيصلك إشعار، ويظهر التأكيد هنا تلقائياً.',
     verifying_title: 'وصلنا، عم نتحقق',
-    verifying_text: 'سجّلنا رقم العملية {ref}. فريقنا يطابق التحويل الآن، وبنأكد حجزك خلال دقائق — بيصلك إشعار، ويظهر هنا تلقائياً.',
+    verifying_text: 'سجّلنا رقم العملية {ref}. فريقنا عم يطابق التحويل هلّق، ومنأكّد حجزك خلال دقايق — بيصلك إشعار وبيظهر هون تلقائياً.',
     confirmed_title: 'حجزك مؤكد',
     rejected_title: 'ما قدرنا نؤكد الحجز',
     rejected_text: 'لم نتمكن من مطابقة التحويل. تواصل معنا إذا كنت قد دفعت.',
-    expired_title: 'انتهت مهلة الدفع',
+    expired_title: 'انتهت مهلة الحجز',
     expired_text: 'لم يصلنا رقم العملية ضمن المهلة، فعاد المكان متاحاً للجميع.',
-    expired_text_unverified: 'لم يصلنا رقم العملية ضمن المهلة، فعاد المكان متاحاً للجميع.',   // today the same text serves both cases
+    // waiting for the team (reference sent or pay on arrival) when the time ran out: never say «we got no payment»
+    expired_text_unverified: 'انتهى وقت الحجز قبل ما يأكّده الفريق. إذا دفعت أو حضرت، تواصل معنا ومعك رمز الحجز ومنرتّب الموضوع.',
     cancelled_title: 'الحجز ملغى',
     cancelled_text: 'تم إلغاء هذا الحجز.',
     completed_title: 'شكراً لزيارتك',
@@ -449,10 +451,10 @@ export const DEFAULT_CONTENT: SiteContent = {
     cancel_note: 'سيعود المكان متاحاً للآخرين.',
     cancel_note_paid: 'إذا كنت قد حوّلت المبلغ، تواصل معنا لاسترجاعه.',
     notify_title: 'فعّل الإشعارات',
-    notify_prompt: 'خبّرك أول ما يتأكد حجزك، ونذكّرك قبله ب{reminder}.',
-    notify_prompt_no_reminder: 'خبّرك أول ما يتأكد حجزك.',               // new wording (reminders off)
-    notify_prompt_mine: 'نخبرك بتأكيد الحجز ونذكّرك قبله ب{reminder}.',
-    notify_prompt_mine_no_reminder: 'نخبرك بتأكيد الحجز.',                // new wording (reminders off)
+    notify_prompt: 'منخبّرك أول ما يتأكد حجزك، ومنذكّرك قبله بـ{reminder}.',
+    notify_prompt_no_reminder: 'منخبّرك أول ما يتأكد حجزك.',               // new wording (reminders off)
+    notify_prompt_mine: 'منخبّرك بتأكيد الحجز ومنذكّرك قبله بـ{reminder}.',
+    notify_prompt_mine_no_reminder: 'منخبّرك بتأكيد الحجز.',                // new wording (reminders off)
     install_title: 'ثبّت فوكس بوينت على جهازك',
     install_text: 'يفتح كتطبيق، أسرع، ويشتغل حتى بدون إنترنت.',
     install_text_ios: 'من Safari: اضغط زر المشاركة ثم «إضافة إلى الشاشة الرئيسية».',
@@ -473,7 +475,7 @@ export const DEFAULT_CONTENT: SiteContent = {
     booking_expired: {
       title: 'انتهت مهلة الحجز',
       body: 'لم يصلنا رقم عملية الدفع لحجز {room} · {when}. يمكنك الحجز من جديد.',
-      body_unverified: 'لم يصلنا رقم عملية الدفع لحجز {room} · {when}. يمكنك الحجز من جديد.',   // today the same text serves both cases
+      body_unverified: 'انتهى وقت حجزك {room} · {when} قبل ما يأكّده الفريق. إذا دفعت، تواصل معنا ومعك الرمز {code}.',
     },
     booking_cancelled: { title: 'تم إلغاء حجزك', body: '{room} · {when}. تواصل معنا على {phone} لأي استفسار.' },
     booking_reminder: { title: 'حجزك بعد {reminder}', body: '{room} · {when} · الرمز {code}. ننتظرك!' },
@@ -481,12 +483,12 @@ export const DEFAULT_CONTENT: SiteContent = {
   },
   seo: {
     title: 'فوكس بوينت — مساحة عمل هادئة بدرعا | Focus Point',
-    description: 'فوكس بوينت، المشروع الأول من نوعه بدرعا: غرف خاصة، غرفة اجتماعات ومساحة عمل مشتركة. هدوء، إضاءة طبيعية، إنترنت سريع وقهوة. احجز من موبايلك بدقيقة — يومياً من 9 الصبح لـ 11 بالليل.',
-    ld_description: 'مساحة عمل مشتركة بدرعا: غرف خاصة، غرفة اجتماعات ومساحة مشتركة. المشروع الأول من نوعه بدرعا.',
+    description: 'فوكس بوينت، المشروع الأول من نوعه بدرعا: غرف خاصة، قاعة تدريبية ومساحة عمل مشتركة. هدوء، إضاءة طبيعية، إنترنت سريع وقهوة. احجز من موبايلك بدقيقة — يومياً من 9 الصبح لـ 11 بالليل.',
+    ld_description: 'مساحة عمل مشتركة بدرعا: غرف خاصة، قاعة تدريبية ومساحة مشتركة. المشروع الأول من نوعه بدرعا.',
     site_name: 'Focus Point — فوكس بوينت',
     og_title: 'فوكس بوينت — مساحتك وركنك الهادئ للإبداع',
-    og_description: 'المشروع الأول من نوعه بدرعا: غرف خاصة، غرفة اجتماعات ومساحة مشتركة. احجز من موبايلك بدقيقة.',
-    og_image: { src: '/img/og.png', w: 1200, h: 630, alt: 'غرفة الاجتماعات في فوكس بوينت بدرعا' },
+    og_description: 'المشروع الأول من نوعه بدرعا: غرف خاصة، قاعة تدريبية ومساحة مشتركة. احجز من موبايلك بدقيقة.',
+    og_image: { src: '/img/og.png', w: 1200, h: 630, alt: 'فوكس بوينت، مساحة عمل هادئة بدرعا' },
     pages: {
       home: 'فوكس بوينت | مساحة عمل هادئة بدرعا — احجز غرفتك',
       spaces: 'المساحات والأسعار | فوكس بوينت درعا',
@@ -515,7 +517,7 @@ const VARS = {
   privateCount: 'عدد الغرف الخاصة',
   privateMin: 'أقل عدد أشخاص بالغرف الخاصة',
   privateMax: 'أكبر عدد أشخاص بالغرف الخاصة',
-  meetingCapacity: 'كم شخص بتساع أكبر قاعة اجتماعات',
+  meetingCapacity: 'كم شخص بتساع القاعة التدريبية',
   openCapacity: 'كم شخص بتساع المساحة المفتوحة (كل طاولاتها)',
   slogan: 'الشعار (من «الهوية والتواصل»)',
   eyebrow: 'الجملة المميّزة (من «الهوية والتواصل»)',
@@ -542,7 +544,7 @@ export const TEMPLATE_VARS: Record<string, string> = VARS
 export const TEMPLATE_EXAMPLE: Record<TemplateVar, string> = {
   name: 'فوكس بوينت', phone: '0980132623', address: 'درعا – شارع المجمع الحكومي – بناء العايش', instagram: 'its_focus_point',
   hours: '9 ص – 11 م', open: '9 ص', close: '11 م', hoursPerDay: '14',
-  privateCount: '4', privateMin: '2', privateMax: '4', meetingCapacity: '10', openCapacity: '8',
+  privateCount: '4', privateMin: '2', privateMax: '4', meetingCapacity: '16', openCapacity: '8',
   slogan: 'مساحتك وركنك الهادئ للإبداع', eyebrow: 'المشروع الأول من نوعه بدرعا', holdMinutes: '30', reminder: 'ساعة',
   customer_name: 'أحمد', room: 'قاعة الاجتماعات', when: 'الجمعة 24/10 · 10:00–12:00', price: '40,000 ل.س',
   code: 'A7K2QZ', ref: '123456789', reason: 'لم يصل المبلغ', time: '10:30 م',
@@ -722,6 +724,17 @@ export function hoursTemplateVars(open?: string | null, close?: string | null): 
   return { hours: `${so} – ${sc}`, open: so, close: sc, hoursPerDay: String(Math.round(span / 60)) }
 }
 
+/**
+ * Arabic counted noun: 1 → one, 2 → two, 3–10 → «n plural», 11+ → «n singular» (العدد من 11 وطالع بياخد المفرد).
+ * countAr(16, 'شخص', 'شخصين', 'أشخاص') → «16 شخص»; countAr(5, 'كرسي', 'كرسيين', 'كراسي') → «5 كراسي».
+ */
+export function countAr(n: number, one: string, two: string, plural: string, singular = one): string {
+  if (n === 1) return one
+  if (n === 2) return two
+  return n >= 3 && n <= 10 ? `${n} ${plural}` : `${n} ${singular}`
+}
+export const peopleAr = (n: number): string => countAr(n, 'شخص واحد', 'شخصين', 'أشخاص', 'شخص')
+
 /** settings.reminder_minutes → {reminder}: 60 → «ساعة», 15 → «ربع ساعة», 120 → «ساعتين», 1440 → «يوم»; 0 (off) → ''. */
 export function reminderLabel(minutes: number): string {
   if (!Number.isFinite(minutes) || minutes <= 0) return ''
@@ -843,6 +856,14 @@ export function safeJson(v: unknown): string {
 
 /** The picture for grids and cards: the ≤720 px variant when there is one, else src (uploads have no `small`). */
 export const photoSmall = (p: Pick<Photo, 'src' | 'small'>): string => p.small || p.src
+
+/** The home hero's responsive image (Hero.tsx and the Worker's <link rel=preload> must agree, or phones fetch it twice). */
+export const HERO_SIZES = '(min-width: 900px) 520px, 90vw'
+/** "small 720w, src 1105w" when a safe ≤720px variant exists; undefined otherwise (uploads: plain src). */
+export function heroSrcSet(p: Pick<Photo, 'src' | 'small' | 'w'>): string | undefined {
+  if (!p.small || p.w <= 720 || !isSafeImageSrc(p.small) || !isSafeImageSrc(p.src)) return undefined
+  return `${p.small} 720w, ${p.src} ${p.w}w`
+}
 
 const COLOR_RE = /^#[0-9a-fA-F]{6}$/
 const rgbOf = (hex: string): [number, number, number] => [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16)) as [number, number, number]
@@ -1124,7 +1145,7 @@ export const CONTENT_SECTIONS: SectionSpec[] = [
         ], { maxItems: 4, help: 'سطور صغيرة تحت الأزرار' }),
         image('hero.photo', 'الصورة'),
         icon('hero.badge_icon', 'أيقونة الشارة'),
-        text('hero.badge_title', 'الشارة: السطر الأول', { max: 60, ...P, help: 'الشارة فوق الصورة. فاضي = ما بتطلع. فيها عدد أشخاص القاعة مكتوب بالحرف («لعشرة»): عدّله إذا تغيّرت القاعة' }),
+        text('hero.badge_title', 'الشارة: السطر الأول', { max: 60, ...P, help: 'الشارة فوق الصورة. فاضي = ما بتطلع.' }),
         text('hero.badge_text', 'الشارة: السطر الثاني', { max: 60, ...P }),
       ],
     },
@@ -1231,15 +1252,15 @@ export const CONTENT_SECTIONS: SectionSpec[] = [
   section('spaces', 'صفحة المساحات', 'رأس صفحة المساحات، والاسم والوصف والصورة لكل نوع مساحة (بيطلعوا كمان بالصفحة الرئيسية). الغرف وأسعارها من القاعات.', 'grid', '/spaces', [
     { title: 'رأس الصفحة', fields: head('') },
     { title: 'غرف خاصة', preview: '/spaces#sp-private', fields: groupFields('private') },
-    { title: 'قاعة الاجتماعات', preview: '/spaces#sp-meeting', fields: groupFields('meeting') },
+    { title: 'القاعة التدريبية', preview: '/spaces#sp-meeting', fields: groupFields('meeting') },
     { title: 'المساحة المفتوحة', preview: '/spaces#sp-open', fields: groupFields('open') },
     {
       title: 'سطر السعر',
-      help: 'تحت كل كرت: «تبدأ من 15,000 ل.س بالساعة». السعر نفسه من القاعات.',
+      help: 'تحت كل كرت: «تبدأ من 100 ل.س للشخص بالساعة». السعر نفسه من القاعات.',
       fields: [
         text('price_from', 'قبل السعر', { min: 1, max: 30 }),
         text('price_from_short', 'قبل السعر (مختصر)', { min: 1, max: 20 }),
-        text('price_unit', 'بعد السعر', { max: 30 }),
+        text('price_unit', 'بعد السعر', { max: 30, help: 'بيطلع بعد «للشخص» (الغرف والمساحة المفتوحة بالشخص). القاعة التدريبية بتطلع بسعريها: للمنظمات وللحكومية' }),
         text('price_unknown', 'إذا ما تحمّلت الأسعار', { min: 1, max: 80 }),
       ],
     },
@@ -1267,7 +1288,7 @@ export const CONTENT_SECTIONS: SectionSpec[] = [
         image('story.photo', 'الصورة'),
       ],
     },
-    { title: 'لمين المركز', fields: [...head('audience.', { lead: false }), iconCards('audience.items', 'الفئات', 8, '«فرق صغيرة» فيها «لعشرة» مكتوب بالحرف: عدّله إذا تغيّرت القاعة')] },
+    { title: 'لمين المركز', fields: [...head('audience.', { lead: false }), iconCards('audience.items', 'الفئات', 8)] },
     { title: 'قيمنا', fields: [...head('values.', { lead: false }), iconCards('values.items', 'القيم', 6)] },
     { title: 'معرض الصور', help: 'الصور نفسها تبع معرض الصفحة الرئيسية.', fields: head('gallery.') },
   ]),

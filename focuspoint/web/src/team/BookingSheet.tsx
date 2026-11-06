@@ -1,20 +1,20 @@
 // One booking: details, contact links, and every team action (confirm / reject / cancel / edit) — all through the store.
 import { useEffect, useMemo, useState } from 'react'
-import type { Booking } from '@shared/types'
+import type { Booking, HallTier } from '@shared/types'
 import { addMinutes, durationLabel, fmtDate, fmtRange, fromLocal, statusLabel, toLocalParts } from '../format'
-import { fmtMoney, isSeats } from '@shared/pricing'
+import { fmtMoney, isHall, isSeats } from '@shared/pricing'
 import { KIND_LABEL, TIER_LABEL } from '../lib/booking'
-import { Badge, Button, Field, Icon, Input, Select, Sheet, Stepper, Textarea, useToast } from '../ui'
+import { Badge, Button, Field, Icon, Input, Segmented, Select, Sheet, Stepper, Textarea, useToast } from '../ui'
 import { Confirm } from './common'
 import { api } from '../api'
 import { useTeam } from '../team'
 import { store, useRooms, useSettings } from './store'
 import { describeError, durationOptions, findConflict, isTemp, METHOD, minutesBetween, parseInt10, priceFor, startOptions, telHref, whatsappHref } from './util'
 
-export function BookingSheet({ booking, onClose }: { booking: Booking | null; onClose: () => void }) {
-  const [mode, setMode] = useState<'view' | 'reject' | 'edit'>('view')
+export function BookingSheet({ booking, onClose, initialMode }: { booking: Booking | null; onClose: () => void; initialMode?: 'view' | 'reject' }) {
+  const [mode, setMode] = useState<'view' | 'reject' | 'edit'>(initialMode ?? 'view')
   const [confirmCancel, setConfirmCancel] = useState(false)
-  useEffect(() => { setMode('view'); setConfirmCancel(false) }, [booking?.id])
+  useEffect(() => { setMode(initialMode ?? 'view'); setConfirmCancel(false) }, [booking?.id, initialMode])
   const toast = useToast()
   const { isAdmin } = useTeam()
   const b = booking
@@ -41,12 +41,14 @@ export function BookingSheet({ booking, onClose }: { booking: Booking | null; on
   const st = statusLabel(b.status, b.method)
   const canConfirm = b.status === 'awaiting_verification' || b.status === 'pending_payment'
   const canReject = canConfirm
-  const canCancel = canConfirm || b.status === 'confirmed'
   // Booked «على الحساب» (confirmed, not paid yet): record the payment when it comes (online; it feeds the accounts).
   const unpaid = (b.status === 'confirmed' || b.status === 'completed') && !b.paid_at && b.price > 0 && b.method !== 'free' && !isTemp(b.id)
   const paidConfirmed = (b.status === 'confirmed' || b.status === 'completed') && !!b.paid_at && b.price > 0 && b.method !== 'free'
+  // A finished booking that was never paid = the customer didn't come: cancelling clears it from «إلي» without fake income.
+  const noShow = unpaid && b.status === 'completed'
+  const canCancel = canConfirm || b.status === 'confirmed' || noShow
 
-  const canEdit = canCancel
+  const canEdit = canConfirm || b.status === 'confirmed'
   const title = mode === 'edit' ? 'تعديل الحجز' : mode === 'reject' ? 'رفض الحجز' : `حجز ${b.customer_name}`
 
   return (
@@ -67,7 +69,7 @@ export function BookingSheet({ booking, onClose }: { booking: Booking | null; on
               <div className="span2"><dt>{KIND_LABEL[b.kind]}</dt><dd>من {fmtDate(b.start)} إلى {fmtDate(b.end)} · كل يوم طول الدوام</dd></div>
             ) : (
               <>
-                <div><dt>الوقت</dt><dd><span className="num">{fmtRange(b.start, b.end)}</span></dd></div>
+                <div><dt>الوقت</dt><dd><span className="time">{fmtRange(b.start, b.end)}</span></dd></div>
                 <div><dt>المدة</dt><dd>{durationLabel(minutesBetween(b.start, b.end))}</dd></div>
               </>
             )}
@@ -92,10 +94,13 @@ export function BookingSheet({ booking, onClose }: { booking: Booking | null; on
           {unpaid && (
             <div className="alert alert-info mt-sm row between gap wrap">
               <span><b>لسا ما اندفع</b> — {fmtMoney(b.price, b.currency ?? 'SYP')} على الحساب</span>
-              <Button size="sm" loading={paying} onClick={markPaid}>وصل المبلغ</Button>
+              <span className="row gap">
+                {noShow && <Button size="sm" variant="ghost" onClick={() => setConfirmCancel(true)}>ما إجا / إلغاء</Button>}
+                <Button size="sm" loading={paying} onClick={markPaid}>وصل المبلغ</Button>
+              </span>
             </div>
           )}
-          {(canConfirm || canReject || canEdit || canCancel) && (
+          {(canConfirm || canReject || canEdit || (canCancel && !noShow)) && (
             <div className="action-grid">
               {canConfirm && (
                 <Button className="span2" size="lg" onClick={() => run(b.status === 'awaiting_verification' ? 'تم تأكيد الدفع' : 'تم تأكيد الحجز', () => store.confirm(b))}>
@@ -104,13 +109,14 @@ export function BookingSheet({ booking, onClose }: { booking: Booking | null; on
               )}
               {canEdit && <Button variant="soft" onClick={() => setMode('edit')}><Icon name="edit" size={18} /> تعديل</Button>}
               {canReject && <Button variant="danger" onClick={() => setMode('reject')}><Icon name="x" size={18} /> رفض</Button>}
-              {canCancel && !canReject && <Button variant="danger" onClick={() => setConfirmCancel(true)}><Icon name="trash" size={18} /> إلغاء الحجز</Button>}
+              {canCancel && !canReject && !noShow && <Button variant="danger" onClick={() => setConfirmCancel(true)}><Icon name="trash" size={18} /> إلغاء الحجز</Button>}
               {canCancel && canReject && <Button variant="ghost" className="span2" onClick={() => setConfirmCancel(true)}>إلغاء الحجز</Button>}
             </div>
           )}
           <Confirm
-            open={confirmCancel} title="إلغاء الحجز؟" danger confirmLabel={paidConfirmed ? 'إلغاء — المبلغ بيضل عنّا' : 'نعم، إلغاء'}
-            body={<>سيُلغى حجز <b>{b.customer_name}</b> في {b.room_name} ({fmtRange(b.start, b.end)}) ويُعلَم الزبون.
+            open={confirmCancel} title={noShow ? 'الزبون ما إجا؟' : 'إلغاء الحجز؟'} danger confirmLabel={paidConfirmed ? 'إلغاء — المبلغ بيضل عنّا' : 'نعم، إلغاء'}
+            body={noShow ? <>بيتلغى حجز <b>{b.customer_name}</b> ({fmtDate(b.start)}) وبينشال المبلغ من «إلي» بالحسابات. ما بيوصل الزبون إشعار.</>
+              : <>سيُلغى حجز <b>{b.customer_name}</b> في {b.room_name} ({fmtRange(b.start, b.end)}) ويُعلَم الزبون.
               {paidConfirmed && <div className="mt-sm">
                 <p className="small">هالحجز مدفوع ({fmtMoney(b.price, b.currency ?? 'SYP')}). إذا رجّعت المبلغ للزبون بينسجّل «استرجاع» بمصاريف اليوم.</p>
                 <Button variant="soft" block className="mt-sm" onClick={() => { setConfirmCancel(false); void run('تم الإلغاء وتسجيل الاسترجاع', () => store.cancel(b, true)) }}>إلغاء ورجّعت المبلغ</Button>
@@ -170,14 +176,17 @@ function EditForm({ booking, onCancel, onDone }: { booking: Booking; onCancel: (
   const sub = !!booking.kind && booking.kind !== 'hourly'
   const room = rooms.find((r) => r.id === roomId)
   const desk = !!room && isSeats(room)
+  const hall = !!room && isHall(room)
+  const [tier, setTier] = useState<HallTier>(booking.tier ?? 'gov')
   const perHead = !!room && (desk || room.type === 'private')
   const starts = settings ? startOptions(settings) : []
   const durations = settings ? durationOptions(settings, time) : []
-  const quoted = room ? priceFor(room, minutes, settings ?? undefined, { seats: perHead ? seats : 1, tier: room.type === 'meeting' || room.type === 'hall' ? (booking.tier ?? 'gov') : null, kind: booking.kind }) : null
+  const quoted = room ? priceFor(room, minutes, settings ?? undefined, { seats: perHead ? seats : 1, tier: hall ? tier : null, kind: booking.kind }) : null
   const auto = quoted ? quoted.price : booking.price
   const currency = quoted ? quoted.currency : (booking.currency ?? 'SYP')
   // Re-price only when something that sets the price changes; a note-only edit keeps the recorded price.
   const repriced = roomId !== booking.room_id || minutes !== minutesBetween(booking.start, booking.end) || (perHead && seats !== Math.max(1, booking.seats ?? 1))
+    || (hall && tier !== (booking.tier ?? 'gov'))
   useEffect(() => { if (!priceTouched && !sub) setPrice(String(repriced ? auto : booking.price)) }, [auto, repriced, priceTouched, sub, booking.price])
   const start = sub ? booking.start : fromLocal(date, time), end = sub ? booking.end : addMinutes(start, minutes)
   const conflict = useMemo(() => findConflict(bookings, roomId, start, end, booking.id, Date.now(), room ? { room, seats: desk ? seats : 1 } : undefined),
@@ -192,7 +201,7 @@ function EditForm({ booking, onCancel, onDone }: { booking: Booking; onCancel: (
     try {
       const sendPrice = priceTouched || repriced ? { price: p } : {}
       await store.editBooking(booking, sub ? { ...sendPrice, note: note.trim() || undefined, ...(desk ? { seats: 1 } : {}) }
-        : { start, end, room_id: roomId, ...sendPrice, note: note.trim() || undefined, ...(perHead ? { seats } : {}) })
+        : { start, end, room_id: roomId, ...sendPrice, note: note.trim() || undefined, ...(perHead ? { seats } : {}), ...(hall ? { tier } : {}) })
       toast.show('تم تعديل الحجز', 'ok')
       onDone()
     } catch (e) { toast.show(describeError(e), 'error') }
@@ -206,6 +215,11 @@ function EditForm({ booking, onCancel, onDone }: { booking: Booking; onCancel: (
           {rooms.map((r) => <option key={r.id} value={r.id}>{r.name}</option>)}
         </Select>
       </Field>}
+      {!sub && hall && (
+        <Field label="الجهة">
+          <Segmented<HallTier> options={[{ value: 'org', label: 'خاصة / منظمة ($)' }, { value: 'gov', label: 'حكومية (ل.س)' }]} value={tier} onChange={(t) => { setTier(t); setPriceTouched(false) }} />
+        </Field>
+      )}
       {!sub && perHead && (
         <div className="field">
           <span className="field-label">{desk ? 'عدد المقاعد' : 'عدد الأشخاص'}</span>

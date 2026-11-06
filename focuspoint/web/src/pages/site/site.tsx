@@ -3,7 +3,8 @@
 // values + wording flags); this file keeps only the layout, the ui chrome and the live room logic.
 import { useEffect, useMemo, type ReactNode } from 'react'
 import { Link } from 'react-router-dom'
-import { DEFAULT_CONTENT, type Photo, type SiteContent, type SpaceGroupId } from '@shared/content'
+import { countAr, DEFAULT_CONTENT, peopleAr, type Photo, type SiteContent, type SpaceGroupId } from '@shared/content'
+import { fmtMoney, isHall } from '@shared/pricing'
 import type { PublicSettings, Room, RoomContents, RoomType } from '@shared/types'
 import { useCached } from '../../lib/data'
 import { fmtSYP, shortClock, timeZone } from '../../format'
@@ -25,9 +26,8 @@ export const CENTRE = {
 
 export type { Photo }
 
-export function mapsUrl(address: string): string {
-  return `https://maps.google.com/?q=${encodeURIComponent(address)}`
-}
+// one map-link format for the whole site (header, footer, home, contact); brand.maps_url still wins where it is set
+export { mapsUrl } from '../../components/site/centre'
 export function telHref(phone: string): string {
   const d = phone.replace(/[^\d+]/g, '')
   return `tel:${d}`
@@ -171,12 +171,18 @@ export function groupRoomPhoto(rooms: Room[]): Photo | null {
   return null
 }
 
-export function capacityLabel(rooms: Room[], fallback: string): string {
+/** «حتى 16 شخص», «2–4 أشخاص»; the open space counts its seats (one seat can be booked, so no «8–20» minimum). */
+export function capacityLabel(rooms: Room[], fallback: string, seatHint = true): string {
   if (!rooms.length) return fallback
+  if (rooms.every((r) => r.type === 'desk')) {
+    const seats = rooms.reduce((n, r) => n + Math.max(1, r.capacity), 0)
+    const n = countAr(seats, 'مقعد واحد', 'مقعدين', 'مقاعد', 'مقعد')
+    return seatHint && seats > 1 ? `${n} · بتحجز مقعد أو أكتر` : n
+  }
   const caps = rooms.map((r) => r.capacity)
   const lo = Math.min(...caps), hi = Math.max(...caps)
-  if (lo === hi) return lo === 1 ? 'شخص واحد' : lo === 2 ? 'شخصين' : `حتى ${lo} أشخاص`
-  return `${lo}–${hi} أشخاص`
+  if (lo === hi) return lo <= 2 ? peopleAr(lo) : `حتى ${peopleAr(lo)}`
+  return `${lo}–${hi} ${hi > 10 ? 'شخص' : 'أشخاص'}`
 }
 
 /** Amenity labels (ui wording; the keys are the RoomContents flags and the icon names). */
@@ -192,23 +198,35 @@ export function groupAmenities(g: SpaceGroup): RoomContentsKey[] {
   return AMENITY_ORDER.filter((k) => contents.every((c) => !!c[k]))
 }
 
-export function minHourly(rooms: Room[], settings?: PublicSettings): number | null {
-  // The training hall's lowest price is the government hour (the organisations' price is in dollars).
-  const p = rooms.map((r) => (r.type === 'meeting' || r.type === 'hall' ? pricing(settings).hall_gov_hour : r.price_hour)).filter((n) => n > 0)
+/** Lowest per-person hourly SYP price of the rooms (the training hall has its own two tiers, see FromPrice). */
+export function minHourly(rooms: Room[]): number | null {
+  const p = rooms.filter((r) => !isHall(r)).map((r) => r.price_hour).filter((n) => n > 0)
   return p.length ? Math.min(...p) : null
 }
 
-/** "تبدأ من 15,000 ل.س بالساعة" from the live API (a shimmer while loading, a soft line if it failed). */
+/** "تبدأ من 100 ل.س للشخص بالساعة" from the live API (a shimmer while loading, a soft line if it failed). */
 export function FromPrice({ rooms, loading, compact = false, settings }: { rooms: Room[]; loading: boolean; compact?: boolean; settings?: PublicSettings }) {
   const { c } = useSite()
   const s = c.spaces
-  const p = minHourly(rooms, settings)
+  // Training hall: organisations pay dollars, government bodies pay SYP — show both, never a «from 1,000» bait price.
+  if (rooms.length > 0 && rooms.every(isHall)) {
+    const pr = pricing(settings)
+    return (
+      <span className="fp-price">
+        <b className="money">{fmtMoney(pr.hall_org_usd_hour, 'USD')}</b>{compact ? ' أو ' : <span className="fp-price-unit"> للمنظمات · </span>}
+        <b className="money">{fmtSYP(pr.hall_gov_hour)}</b>{!compact && <span className="fp-price-unit"> للحكومية</span>}
+        <span className="fp-price-unit"> / ساعة</span>
+      </span>
+    )
+  }
+  const p = minHourly(rooms)
   if (p != null) {
+    // private rooms and the open space are priced per person (a group of 4 pays 4×): say so on the card
     return (
       <span className="fp-price">
         <span className="fp-price-from">{compact ? s.price_from_short : s.price_from}</span>
         <b className="money">{fmtSYP(p)}</b>
-        {hasText(s.price_unit) && <span className="fp-price-unit">{s.price_unit}</span>}
+        <span className="fp-price-unit">{hasText(s.price_unit) ? `للشخص ${s.price_unit.trim()}` : 'للشخص'}</span>
       </span>
     )
   }

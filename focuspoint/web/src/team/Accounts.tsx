@@ -42,6 +42,7 @@ export function Accounts() {
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
   const [editing, setEditing] = useState<Partial<LedgerEntry> | null>(null)
+  const [noShow, setNoShow] = useState<Booking | null>(null)
 
   const current = useRef(month)
   current.current = month
@@ -62,6 +63,13 @@ export function Accounts() {
   }
   async function bookingPaid(b: Booking) {
     try { await api.post(`/v1/team/bookings/${b.id}/paid`, { paid: true }); toast.show(`تم تسجيل دفعة ${b.customer_name}`, 'ok'); void load(); void store.refetch() }
+    catch (err) { toast.show(describeError(err), 'error') }
+  }
+
+  // The customer never came: cancel the finished, unpaid booking so it leaves «إلي» without booking fake income.
+  async function cancelNoShow(b: Booking) {
+    setNoShow(null)
+    try { await api.post(`/v1/team/bookings/${b.id}/cancel`, {}); toast.show(`انشال حجز ${b.customer_name} من «إلي»`, 'ok'); void load(); void store.refetch() }
     catch (err) { toast.show(describeError(err), 'error') }
   }
 
@@ -93,6 +101,9 @@ export function Accounts() {
 
       {data && (
         <div className="acc">
+          <Confirm open={!!noShow} title="الزبون ما إجا؟" danger confirmLabel="إلغاء الحجز"
+            body={noShow && <>بيتلغى حجز <b>{noShow.customer_name}</b> ({fmtDate(noShow.start)}) وبينشال {fmtMoney(noShow.price, noShow.currency)} من «إلي». ما بيوصل الزبون إشعار.</>}
+            onConfirm={() => { if (noShow) void cancelNoShow(noShow) }} onClose={() => setNoShow(null)} />
           <div className="acc-kpis">
             <div className="acc-kpi is-in"><span>الدخل</span><b>{money(data.income.total)}</b><small>حجوزات {money(data.income.bookings)}{(data.income.other.SYP || data.income.other.USD) ? ` · أخرى ${money(data.income.other)}` : ''}</small></div>
             <div className="acc-kpi is-out"><span>المصاريف</span><b>{money(data.expenses)}</b></div>
@@ -108,7 +119,8 @@ export function Accounts() {
                 {data.owed_to_me.bookings.map((b) => (
                   <li key={`b${b.id}`}>
                     <span><b>{b.customer_name}</b><small>{b.room_name} · {fmtDate(b.start)}{b.tier === 'org' ? ' · جهة خاصة/منظمة' : b.tier === 'gov' ? ' · جهة حكومية' : ''}</small></span>
-                    <span className="acc-amt">{fmtMoney(b.price, b.currency)}<Button size="sm" variant="soft" onClick={() => void bookingPaid(b)}>وصل</Button></span>
+                    <span className="acc-amt">{fmtMoney(b.price, b.currency)}<Button size="sm" variant="soft" onClick={() => void bookingPaid(b)}>وصل</Button>
+                      {Date.parse(b.end) <= Date.now() && <Button size="sm" variant="ghost" onClick={() => setNoShow(b)}>ما إجا</Button>}</span>
                   </li>
                 ))}
                 {data.owed_to_me.entries.map((e) => (

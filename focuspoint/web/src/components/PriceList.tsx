@@ -1,5 +1,6 @@
 // The centre's price list, from the live settings and rooms (the same numbers the booking uses, shared/pricing.ts).
-// Shown on /book (above the picker, with the three steps) and on /spaces.
+// Shown on /book (below the rooms, so the picker stays above the fold) and on /spaces. PriceSteps is the
+// «1-2-3» strip that /book shows at the top of its picker.
 import type { PublicSettings, Room } from '@shared/types'
 import { fmtMoney } from '@shared/pricing'
 import { intlPhone, whatsappLink } from '@shared/content'
@@ -23,13 +24,7 @@ export function PriceList({ settings, rooms, whatsapp, onSubscribe, steps = fals
   const wa = whatsapp && intlPhone(whatsapp) ? `${whatsappLink(whatsapp)}?text=${encodeURIComponent('مرحبا، بدي استفسر عن حجز القاعة التدريبية لكورس شخصي')}` : ''
   return (
     <div className="price-list">
-      {steps && (
-        <ol className="pl-steps">
-          <li><b>1</b><span>اختر اليوم والوقت</span></li>
-          <li><b>2</b><span>اضغط على المكان</span></li>
-          <li><b>3</b><span>اكتب اسمك وادفع</span></li>
-        </ol>
-      )}
+      {steps && <PriceSteps />}
       <h2 className="h3 price-list-title"><Icon name="cash" size={18} /> الأسعار <span className="muted tiny">بالليرة السورية الجديدة</span></h2>
       <ul className="price-rows">
         {(desk || privates.length > 0) && (
@@ -63,5 +58,15 @@ export function PriceList({ settings, rooms, whatsapp, onSubscribe, steps = fals
         )}
       </ul>
     </div>
+  )
+}
+
+export function PriceSteps() {
+  return (
+    <ol className="pl-steps">
+      <li><b>1</b><span>اختر اليوم والوقت</span></li>
+      <li><b>2</b><span>اضغط على المكان</span></li>
+      <li><b>3</b><span>اكتب اسمك وادفع</span></li>
+    </ol>
   )
 }

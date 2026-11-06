@@ -9,6 +9,7 @@ import { createRoom, deleteRoom, patchRoom } from '../service'
 import { loadSettings, loadStoredSettings, saveSettings, validateSettingsPatch } from '../settings'
 import { isDateString, localDayRange, localParts } from '../tz'
 import { oneOf, requirePhone, requireString } from '../validate'
+import { INCOME_SQL } from './accounts'
 
 const ROLES: readonly Role[] = ['staff', 'admin']
 
@@ -67,7 +68,8 @@ export const adminRoutes: Route[] = [
     return json({ sent: await announce(c.env, c.exec, to, title, text) })
   }),
 
-  // Paid bookings (confirmed/completed) in a local date range, revenue and hours per room. Defaults to the current month.
+  // Confirmed/completed bookings that start in a local date range (list + hours per room), and the money RECEIVED in the
+  // range (by paid_at — the same rule as الحسابات, so both screens show one figure). Defaults to the current month.
   route('GET', '/v1/admin/report', 'admin', async (c) => {
     const { timezone } = await loadStoredSettings(c.env.DB)
     const today = localParts(c.now, timezone).date
@@ -78,13 +80,12 @@ export const adminRoutes: Route[] = [
     const rows = (await c.env.DB.prepare(`${BOOKING_SELECT} WHERE b.start >= ? AND b.start < ? AND b.status IN ('confirmed','completed') ORDER BY b.start LIMIT 5000`)
       .bind(range.from.toISOString(), range.to.toISOString()).all<BookingRow>()).results
     const bookings = rows.map(toBooking)
+    const income = (await c.env.DB.prepare(`SELECT b.currency AS currency, SUM(b.price) AS total FROM bookings b WHERE ${INCOME_SQL} GROUP BY b.currency`)
+      .bind(range.from.toISOString(), range.to.toISOString()).all<{ currency: string; total: number }>()).results
+    const revenue = income.filter((r) => r.currency !== 'USD').reduce((s, r) => s + (r.total ?? 0), 0)
+    const revenue_usd = income.find((r) => r.currency === 'USD')?.total ?? 0
     const hours_by_room: Record<string, number> = {}
-    let revenue = 0, revenue_usd = 0
     for (const b of bookings) {
-      if (b.paid_at) {                            // «على الحساب» bookings count once paid (Accounts › إلي until then)
-        if (b.currency === 'USD') revenue_usd += b.price
-        else revenue += b.price
-      }
       if (b.kind !== 'hourly') continue           // a subscription's window is days, not hours of use
       const key = b.room_name ?? String(b.room_id)
       hours_by_room[key] = Math.round(((hours_by_room[key] ?? 0) + (Date.parse(b.end) - Date.parse(b.start)) / 3600000) * 10) / 10

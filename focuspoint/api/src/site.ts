@@ -4,7 +4,8 @@
 // Placeholders, JSON-LD and the brand palette come from the shared contract, so the API and the site render the same.
 // With the default content and settings every value equals web/index.html and the built manifest (test/site.test.ts).
 import {
-  DEFAULT_CONTENT, brandStyle as brandCss, buildJsonLd, fillTemplate, siteTemplateVars, type SiteContent, type TemplateSettings,
+  DEFAULT_CONTENT, brandStyle as brandCss, buildJsonLd, fillTemplate, HERO_SIZES, heroSrcSet, isSafeImageSrc, siteTemplateVars, type SiteContent,
+  type TemplateSettings,
 } from '../../shared/content'
 import type { PublicSettings } from '../../shared/types'
 
@@ -28,8 +29,12 @@ export function pageOf(pathname: string): PageKey | null {
   return PAGE_OF[p] ?? null
 }
 
+/** Public pages search engines should index under their own URL; everything else canonicalises to / and is noindex. */
+const INDEXABLE = new Set(['/', '/spaces', '/about', '/contact'])   // /privacy is privacy.html (not the shell)
+
 export interface HeadValues {
   title: string; description: string; canonical: string
+  robots: string   // <meta name="robots">: noindex for /team, /b/…, /mine, /inbox and unknown paths
   og: { site_name: string; url: string; title: string; description: string; image: string; image_width: string; image_height: string; image_alt: string }
   app_title: string
 }
@@ -39,16 +44,36 @@ export function headValues(s: S, c: SiteContent, origin: string, pathname: strin
   const vars = siteVars(s, c)
   const page = pageOf(pathname)
   const img = c.seo.og_image
+  const p = pathname.length > 1 ? pathname.replace(/\/+$/, '') || '/' : '/'
+  const indexable = INDEXABLE.has(p)
+  // each public page is its own URL (Google used to treat /spaces, /about, /contact as copies of the home page)
+  const url = `${origin}${indexable ? p : '/'}`
   return {
     title: plain((page && c.seo.pages[page]) || c.seo.title, vars),
     description: plain(c.seo.description, vars),
-    canonical: `${origin}/`,
+    canonical: url,
+    robots: indexable || p === '/book' ? 'index,follow' : 'noindex',
     og: {
-      site_name: plain(c.seo.site_name, vars), url: `${origin}/`, title: plain(c.seo.og_title, vars), description: plain(c.seo.og_description, vars),
+      site_name: plain(c.seo.site_name, vars), url, title: plain(c.seo.og_title, vars), description: plain(c.seo.og_description, vars),
       image: `${origin}${img.src}`, image_width: String(img.w), image_height: String(img.h), image_alt: plain(img.alt, vars),
     },
     app_title: plain(c.seo.app_short_name, vars),
   }
+}
+
+/**
+ * `<link rel="preload">` for the home hero photo, so a slow phone starts fetching it with the HTML instead of after the
+ * JS bundle ran. Same srcset/sizes as Hero.tsx (otherwise the photo downloads twice); '' off the home page, when the
+ * hero is hidden or its photo is not a safe local path.
+ */
+export function heroPreload(c: SiteContent, pathname: string): string {
+  if (pageOf(pathname) !== 'home') return ''
+  const hero = c.home.sections.find((x) => x.id === 'hero')
+  const photo = c.home.hero.photo
+  if (!photo || (hero && !hero.visible) || !isSafeImageSrc(photo.src)) return ''
+  const set = heroSrcSet(photo)
+  // the paths match /^\/(img|media)\/[A-Za-z0-9._-]+$/ (isSafeImageSrc), so they need no attribute escaping
+  return `<link rel="preload" as="image" href="${photo.src}"${set ? ` imagesrcset="${set}" imagesizes="${HERO_SIZES}"` : ''} fetchpriority="high">`
 }
 
 export const jsonLd = (s: S, c: SiteContent, origin: string): Record<string, unknown> => buildJsonLd(c, s, origin)

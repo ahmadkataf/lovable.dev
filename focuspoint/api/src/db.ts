@@ -83,6 +83,15 @@ export function toBooking(r: BookingRow): Booking {
   return rest
 }
 
+/** What customer routes send back: no device id (a customer's only credential — a shared booking code must not hand
+ * over that phone's other bookings and inbox), no staff id, no internal note (staff edits and system notes). */
+export type CustomerBooking = Omit<Booking, 'device_id' | 'verified_by' | 'note'>
+export function toCustomerBooking(b: Booking | BookingRow): CustomerBooking {
+  const { device_id: _d, verified_by: _v, note: _n, ...rest } = b as BookingRow
+  const { client_id: _c, reminded: _r, ...out } = rest
+  return out
+}
+
 /** Bookings joined with the room name (the `b` alias is used by ACTIVE_SQL and the filters). */
 export const BOOKING_SELECT = 'SELECT b.*, r.name AS room_name FROM bookings b JOIN rooms r ON r.id = b.room_id'
 

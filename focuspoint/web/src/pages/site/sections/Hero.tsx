@@ -1,7 +1,7 @@
 // Landing hero: eyebrow, headline, lead, two actions, quick-info chips, and the photo on a flat brand block
 // (content.home.hero + brand.eyebrow).
 import { Link } from 'react-router-dom'
-import { DEFAULT_CONTENT, pickVariant } from '@shared/content'
+import { DEFAULT_CONTENT, heroSrcSet, HERO_SIZES, pickVariant } from '@shared/content'
 import { ContentText, hasText, usePhotoChain, useSite } from '../../../components/site/siteContent'
 import { SiteIcon } from '../SiteIcon'
 
@@ -9,6 +9,8 @@ export function Hero() {
   const { c, vars, flags } = useSite()
   const h = c.home.hero
   const { photo, src, onError } = usePhotoChain([h.photo, DEFAULT_CONTENT.home.hero.photo])
+  // phones take the 720px file (slow 3G): the same srcset/sizes the Worker preloads for / (api/src/site.ts)
+  const srcSet = photo && src === photo.src ? heroSrcSet(photo) : undefined
   const chips = h.chips.map((ch) => ({ icon: ch.icon, text: pickVariant(ch, 'text', flags) })).filter((ch) => hasText(ch.text))
   return (
     <section className="fp-hero" aria-labelledby="fp-hero-title">
@@ -36,7 +38,7 @@ export function Hero() {
         <div className="fp-hero-media">
           <span className="fp-hero-block" aria-hidden="true" />
           <figure className="fp-hero-frame">
-            {photo && <img src={src} width={photo.w} height={photo.h} alt={photo.alt} decoding="async" onError={onError} {...({ fetchpriority: "high" } as Record<string, string>)} />}
+            {photo && <img src={src} srcSet={srcSet} sizes={srcSet ? HERO_SIZES : undefined} width={photo.w} height={photo.h} alt={photo.alt} decoding="async" onError={onError} {...({ fetchpriority: "high" } as Record<string, string>)} />}
           </figure>
           {hasText(h.badge_title) && (
             <div className="fp-hero-badge" aria-hidden="true">

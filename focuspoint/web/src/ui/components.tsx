@@ -117,13 +117,14 @@ export function Segmented<T extends string>({ options, value, onChange }: { opti
 }
 
 // ---- OfflineBar ----
-export function OfflineBar() {
+/** The default text is the team panel's (its work is queued offline); customer pages pass their own, since bookings are not queued. */
+export function OfflineBar({ message = 'أنت دون اتصال — سيُحفَظ عملك ويُرسَل عند عودة الإنترنت' }: { message?: string }) {
   const online = useOnline()
   if (online) return null
   return (
     <div className="offline-bar" role="status">
       <Icon name="cloudOff" size={16} />
-      <span>أنت دون اتصال — سيُحفَظ عملك ويُرسَل عند عودة الإنترنت</span>
+      <span>{message}</span>
     </div>
   )
 }

@@ -199,10 +199,17 @@ export const TRANSITIONS: Record<BookingStatus, readonly BookingStatus[]> = {
   rejected: [],
   expired: [],
   cancelled: [],
-  completed: [],
+  completed: ['cancelled'],   // only while unpaid — a no-show «على الحساب» (see canTeamCancel)
 }
 
 export const canTransition = (from: BookingStatus, to: BookingStatus): boolean => TRANSITIONS[from].includes(to)
+
+/**
+ * The team may cancel a live booking, or a finished one that was never paid (the customer didn't come), so it stops
+ * sitting in «إلي» forever. A finished, paid booking stays locked (its income is real).
+ */
+export const canTeamCancel = (b: Pick<Booking, 'status' | 'paid_at'>): boolean =>
+  canTransition(b.status, 'cancelled') && !(b.status === 'completed' && b.paid_at)
 
 export const TERMINAL: readonly BookingStatus[] = ['rejected', 'expired', 'cancelled', 'completed']
 export const isTerminal = (s: BookingStatus): boolean => TERMINAL.includes(s)

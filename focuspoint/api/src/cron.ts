@@ -3,13 +3,15 @@
 //  2. expire awaiting_verification bookings nobody checked until 30 min after their end → 'expired' with a system note
 //  3. remind confirmed bookings starting settings.reminder_minutes (±5) from now, once (reminded = 1); 0 = no reminders
 //  4. complete confirmed bookings whose end time has passed
+//  5. send the next batch of queued announcement pushes (push_queue) and drop rate-limit rows older than a day
 import type { Env } from './env'
 import { STALE_VERIFICATION_NOTE, holdExpiryCutoff, reminderWindow, staleVerificationCutoff, withSystemNote } from './bookings'
 import { BOOKING_SELECT, toBooking, type BookingRow } from './db'
 import { messageCtx, notifyDevice, texts } from './notify'
 import { loadStoredSettings } from './settings'
+import { drainPushQueue } from './push'
 
-export interface CronResult { expired: number; stale: number; reminded: number; completed: number }
+export interface CronResult { expired: number; stale: number; reminded: number; completed: number; pushed: number }
 
 export async function runCron(env: Env, ctx: ExecutionContext, now = new Date()): Promise<CronResult> {
   const iso = now.toISOString()
@@ -47,5 +49,12 @@ export async function runCron(env: Env, ctx: ExecutionContext, now = new Date())
   // 4. completion
   const done = await env.DB.prepare(`UPDATE bookings SET status = 'completed', updated_at = ? WHERE status = 'confirmed' AND end <= ?`).bind(iso, iso).run()
 
-  return { expired: toExpire.length, stale: stale.length, reminded: toRemind.length, completed: done.meta.changes }
+  // 5. housekeeping. Each part on its own: a missing table (Worker deployed before the schema) must not stop the rest.
+  let pushed = 0
+  try { pushed = await drainPushQueue(env, now) } catch (err) { console.error('cron: push queue', err) }
+  try {
+    await env.DB.prepare('DELETE FROM login_attempts WHERE window_start < ?').bind(new Date(now.getTime() - 24 * 3600 * 1000).toISOString()).run()
+  } catch (err) { console.error('cron: login_attempts cleanup', err) }
+
+  return { expired: toExpire.length, stale: stale.length, reminded: toRemind.length, completed: done.meta.changes, pushed }
 }

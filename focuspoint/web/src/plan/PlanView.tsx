@@ -1,6 +1,7 @@
 // The floor plan as a responsive SVG (flat): walls are slate blocks, free rooms white with a slate border and a brand
 // label, busy rooms slate-hatched, the selected room solid brand with white text.
 import type { Plan, Room } from '@shared/types'
+import { peopleAr } from '@shared/content'
 
 export type RoomPlanStatus = 'free' | 'busy' | 'selected' | 'inactive'
 
@@ -49,8 +50,11 @@ export function PlanView({ plan, rooms, status, onSelect, selectedId, className 
         const clickable = !!onSelect && s !== 'inactive'
         const cx = r.x + r.w / 2
         // Labels grow with the room box (so they stay legible when the plan is drawn phone-narrow), never past it.
-        const fit = Math.min(r.h * 0.16, (r.w * 0.86) / Math.max(4, room.name.length * 0.58))
-        const ns = Math.min(Math.max(nameSize, fit), nameSize * 2.2)
+        // Short wide boxes (the reception table) used to fall back to the tiny global size: follow the box width instead,
+        // and never draw wider than the box (fitW).
+        const fitW = (r.w * 0.86) / Math.max(4, room.name.length * 0.58)
+        const fit = Math.min(r.h * 0.3, fitW)
+        const ns = Math.min(Math.max(nameSize * 1.5, fit), nameSize * 2.2, fitW)
         const cs = ns * 0.78
         const twoLines = r.h > ns * 3.2
         return (
@@ -69,7 +73,7 @@ export function PlanView({ plan, rooms, status, onSelect, selectedId, className 
             </text>
             {twoLines && (
               <text x={cx} y={r.y + r.h / 2 + ns * 0.95} fontSize={cs} textAnchor="middle" dominantBaseline="central" className="plan-cap">
-                {room.capacity} {room.capacity === 1 ? 'شخص' : room.capacity === 2 ? 'شخصين' : 'أشخاص'}
+                {peopleAr(room.capacity)}
               </text>
             )}
           </g>

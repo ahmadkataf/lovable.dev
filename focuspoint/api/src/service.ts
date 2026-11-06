@@ -5,7 +5,7 @@ import type { ApiContract, Booking, BookingKind, BookingStatus, Currency, HallTi
 import { capacityUnits, isHall, isSeats, peakUnits, quote, unitsOf } from '../../shared/pricing'
 import type { Env } from './env'
 import { HttpError } from './http'
-import { ACTIVE_SQL, NO_CONFLICT_SQL, REF_BLOCKING_SQL, beyondHorizon, canTransition, generateCode, holdState, subscriptionWindow, validateSlot, zeroRowsError } from './bookings'
+import { ACTIVE_SQL, NO_CONFLICT_SQL, REF_BLOCKING_SQL, beyondHorizon, canTeamCancel, canTransition, generateCode, holdState, subscriptionWindow, validateSlot, zeroRowsError } from './bookings'
 import { addDays, isDateString, localParts } from './tz'
 import { BOOKING_SELECT, getBooking, getRoom, replaceRoomPhotos, toBooking, type BookingRow } from './db'
 import { messageCtx, notifyDevice, notifyTeam, texts } from './notify'
@@ -148,6 +148,16 @@ export async function createCustomerBooking(d: Deps, deviceId: string, body: Rec
   const settings = await loadSettings(db, d.env)
   // Paused first: whatever else the request says, the answer is "booking is closed right now".
   if (!settings.booking_enabled) throw new HttpError(409, 'booking_closed')
+  // Idempotency: the app sends one client_id per filled form, so a retry after a dropped connection gets the booking it
+  // already made back (not a second seat, nor «slot taken» against itself). Namespaced by device: the column is UNIQUE
+  // and shared with the team's offline walk-ins.
+  const clientIdIn = optionalString(body.client_id, 'invalid_client_id', 64)
+  const clientId = clientIdIn ? `c:${deviceId}:${clientIdIn}` : null
+  const byClientId = async () => clientId
+    ? await db.prepare(`${BOOKING_SELECT} WHERE b.client_id = ?`).bind(clientId).first<BookingRow>()
+    : null
+  const replay = await byClientId()
+  if (replay) return toBooking(replay)
   const method = body.method === undefined ? 'shamcash' : oneOf(body.method, CUSTOMER_METHODS, 'invalid_method')
   const name = requireString(body.name, 'invalid_name', 2, 40)
   const phone = requirePhone(body.phone)
@@ -167,17 +177,36 @@ export async function createCustomerBooking(d: Deps, deviceId: string, body: Rec
 
   // Quick pre-check (friendly 409 before writing) — the authoritative check happens after the insert.
   if (await clashes(db, room, w.start, w.end, unitsOf(room, w.seats), d.now, null)) throw new HttpError(409, 'slot_taken')
-  const open = await db.prepare(`SELECT COUNT(*) AS n FROM bookings b WHERE b.customer_phone = ? AND b.status = 'pending_payment' AND b.hold_until > ?`)
-    .bind(phone, d.now.toISOString()).first<{ n: number }>()
-  if ((open?.n ?? 0) >= settings.max_open_holds_per_phone) throw new HttpError(429, 'too_many_pending')
+  // Open bookings of this phone OR this device (a script changes the phone number, a real customer does not change
+  // phones): live holds, and future bookings still waiting for the team (a made-up reference, or pay on arrival, used
+  // to escape the hold limit). Waiting ones get a looser cap, since a real customer may wait a while for staff to check.
+  const nowIso = d.now.toISOString()
+  const open = await db.prepare(
+    `SELECT COALESCE(SUM(b.status = 'pending_payment'), 0) AS holds, COUNT(*) AS n, COALESCE(SUM(b.kind != 'hourly'), 0) AS subs
+     FROM bookings b WHERE (b.customer_phone = ? OR b.device_id = ?) AND b.end > ?
+       AND (b.status = 'awaiting_verification' OR (b.status = 'pending_payment' AND b.hold_until > ?))`)
+    .bind(phone, deviceId, nowIso, nowIso).first<{ holds: number; n: number; subs: number }>()
+  const maxHolds = settings.max_open_holds_per_phone
+  if ((open?.holds ?? 0) >= maxHolds || (open?.n ?? 0) >= maxHolds * 2) throw new HttpError(429, 'too_many_pending')
+  // A subscription holds a seat for a week or a month: one still unpaid/unchecked at a time.
+  if (w.kind !== 'hourly' && (open?.subs ?? 0) > 0) throw new HttpError(429, 'too_many_pending')
 
   const cash = method === 'cash'
-  const booking = await insertChecked(d, room, {
-    code: await freshCode(db), phone, name, deviceId, clientId: null, roomId: room.id, start: w.start, end: w.end,
-    status: cash ? 'awaiting_verification' : 'pending_payment', price, method, note, people,
-    holdUntil: cash ? null : new Date(d.now.getTime() + settings.hold_minutes * 60000).toISOString(), verifiedBy: null, paidAt: null,
-    currency, kind: w.kind, seats: w.seats, tier: w.tier,
-  })
+  let booking: Booking
+  try {
+    booking = await insertChecked(d, room, {
+      code: await freshCode(db), phone, name, deviceId, clientId, roomId: room.id, start: w.start, end: w.end,
+      status: cash ? 'awaiting_verification' : 'pending_payment', price, method, note, people,
+      holdUntil: cash ? null : new Date(d.now.getTime() + settings.hold_minutes * 60000).toISOString(), verifiedBy: null, paidAt: null,
+      currency, kind: w.kind, seats: w.seats, tier: w.tier,
+    })
+  } catch (err) {
+    // The same form sent twice at once (a retry while the first request was still running): the UNIQUE client_id
+    // stopped the second insert, so answer with the first one's booking.
+    const first = !(err instanceof HttpError) ? await byClientId() : null
+    if (first) return toBooking(first)
+    throw err
+  }
   const mc = await messageCtx(db, settings)
   await notifyTeam(d.env, d.exec, texts.booking_created(booking, mc))
   // Pay on arrival: nothing to transfer, so the team gets the verification request right away.
@@ -314,6 +343,8 @@ export async function cancelBooking(d: Deps, b: Booking, by: 'team' | 'customer'
     if (b.status !== 'pending_payment' && b.status !== 'awaiting_verification') throw new HttpError(409, 'illegal_transition')
     if (!(await loadSettings(db, d.env)).customer_can_cancel) throw new HttpError(403, 'cancel_not_allowed')
   }
+  if (!canTeamCancel(b)) throw new HttpError(409, 'illegal_transition')
+  const noShow = b.status === 'completed' || Date.parse(b.end) <= d.now.getTime()   // the slot is already over
   // Accounts: money never verified (a reference not yet checked) is not income; a confirmed booking that was paid keeps
   // its income in the month it was paid, and a refund is recorded as an expense today («استرجاع»).
   const confirmedBefore = b.status === 'confirmed' || b.status === 'completed'
@@ -323,9 +354,16 @@ export async function cancelBooking(d: Deps, b: Booking, by: 'team' | 'customer'
     await db.prepare(`INSERT INTO ledger (kind, category, amount, currency, date, party, note, created_by, created_at, updated_at) VALUES ('expense', 'refund', ?, ?, ?, ?, ?, ?, ?, ?)`)
       .bind(b.price, b.currency, localParts(d.now, settings.timezone).date, b.customer_name, `استرجاع حجز ${b.code}`, opts.userId ?? null, d.now.toISOString(), d.now.toISOString()).run()
   }
-  if (by === 'team') {
+  // No «تم إلغاء حجزك» push after the slot has passed (a no-show being cleared from «إلي»).
+  if (by === 'team' && !noShow) {
     const settings = await loadSettings(db, d.env)
     await notifyDevice(d.env, d.exec, updated.device_id, texts.booking_cancelled(updated, await messageCtx(db, settings)))
+  }
+  // The team was waiting on this one (a Sham Cash reference to check, or pay on arrival): tell them it is off, and when
+  // money was sent, that it may need refunding — otherwise a transfer that really arrived has no booking and no alert.
+  if (by === 'customer' && b.status === 'awaiting_verification') {
+    const settings = await loadSettings(db, d.env)
+    await notifyTeam(d.env, d.exec, texts.booking_cancelled_by_customer(updated, await messageCtx(db, settings)))
   }
   return updated
 }

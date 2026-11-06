@@ -96,7 +96,7 @@ export const teamRoutes: Route[] = [
       throw new HttpError(401, 'invalid_credentials')
     }
     if (row.disabled) throw new HttpError(401, 'account_disabled')
-    await clearLoginFailures(c.env.DB, phone)
+    await clearLoginFailures(c.env.DB, phone, ip)
     const user = toUser(row)
     return json({ token: await signToken(c.env, user, c.now), user })
   }),

@@ -103,8 +103,11 @@ export async function authenticate(req: Request, env: Env): Promise<User | null>
   return toUser(row)
 }
 
-// ---- login rate limiting (per phone and per IP, fixed 15-minute window) ----
+// ---- login rate limiting (fixed 15-minute window) ----
+// Failures are counted per phone+IP (so a stranger who knows a staff phone cannot lock that person out from their own
+// network), per IP (the brute-force cap) and, more loosely, per phone alone (slows guessing spread over many IPs).
 interface AttemptRow { key: string; count: number; window_start: string }
+const LOGIN_MAX_PER_PHONE_ANY_IP = 50
 
 async function attempts(db: D1Database, key: string, now: Date): Promise<number> {
   const row = await db.prepare('SELECT * FROM login_attempts WHERE key = ?').bind(key).first<AttemptRow>()
@@ -112,22 +115,39 @@ async function attempts(db: D1Database, key: string, now: Date): Promise<number>
   return row.count
 }
 
+const phoneIpKey = (phone: string, ip: string) => `phone:${phone}|ip:${ip}`
+
 export async function assertLoginAllowed(db: D1Database, phone: string, ip: string, now = new Date()): Promise<void> {
-  const [byPhone, byIp] = await Promise.all([attempts(db, `phone:${phone}`, now), attempts(db, `ip:${ip}`, now)])
-  if (byPhone >= LOGIN_MAX_PER_PHONE || byIp >= LOGIN_MAX_PER_IP) throw new HttpError(429, 'too_many_attempts')
+  const [byPhoneIp, byIp, byPhone] = await Promise.all([
+    attempts(db, phoneIpKey(phone, ip), now), attempts(db, `ip:${ip}`, now), attempts(db, `phone:${phone}`, now),
+  ])
+  if (byPhoneIp >= LOGIN_MAX_PER_PHONE || byIp >= LOGIN_MAX_PER_IP || byPhone >= LOGIN_MAX_PER_PHONE_ANY_IP) throw new HttpError(429, 'too_many_attempts')
 }
 
-export async function recordLoginFailure(db: D1Database, phone: string, ip: string, now = new Date()): Promise<void> {
-  const iso = now.toISOString()
-  const cutoff = new Date(now.getTime() - LOGIN_WINDOW_MS).toISOString()
-  const stmt = db.prepare(
+/** Upsert that counts one hit in a fixed window starting at the first hit (a stale window restarts at 1). */
+function countHit(db: D1Database, key: string, now: Date, windowMs: number): D1PreparedStatement {
+  const cutoff = new Date(now.getTime() - windowMs).toISOString()
+  return db.prepare(
     `INSERT INTO login_attempts (key, count, window_start) VALUES (?, 1, ?)
      ON CONFLICT(key) DO UPDATE SET
        count = CASE WHEN login_attempts.window_start < ? THEN 1 ELSE login_attempts.count + 1 END,
-       window_start = CASE WHEN login_attempts.window_start < ? THEN excluded.window_start ELSE login_attempts.window_start END`)
-  await db.batch([stmt.bind(`phone:${phone}`, iso, cutoff, cutoff), stmt.bind(`ip:${ip}`, iso, cutoff, cutoff)])
+       window_start = CASE WHEN login_attempts.window_start < ? THEN excluded.window_start ELSE login_attempts.window_start END
+     RETURNING count`).bind(key, now.toISOString(), cutoff, cutoff)
 }
 
-export async function clearLoginFailures(db: D1Database, phone: string): Promise<void> {
-  await db.prepare('DELETE FROM login_attempts WHERE key = ?').bind(`phone:${phone}`).run()
+export async function recordLoginFailure(db: D1Database, phone: string, ip: string, now = new Date()): Promise<void> {
+  await db.batch([phoneIpKey(phone, ip), `ip:${ip}`, `phone:${phone}`].map((k) => countHit(db, k, now, LOGIN_WINDOW_MS)))
+}
+
+export async function clearLoginFailures(db: D1Database, phone: string, ip: string): Promise<void> {
+  await db.prepare('DELETE FROM login_attempts WHERE key = ?').bind(phoneIpKey(phone, ip)).run()
+}
+
+/**
+ * General fixed-window limit on the same table (customer bookings and payment references per IP): counts this hit and
+ * throws 429 too_many_requests once more than `max` hits fall in the window. One small write per call.
+ */
+export async function hitLimit(db: D1Database, key: string, max: number, windowMs: number, now = new Date()): Promise<void> {
+  const row = await countHit(db, key, now, windowMs).first<{ count: number }>()
+  if ((row?.count ?? 0) > max) throw new HttpError(429, 'too_many_requests')
 }

@@ -15,7 +15,7 @@ export function Layout() {
   useEffect(() => { window.scrollTo(0, 0) }, [pathname])
   return (
     <div className="app">
-      <OfflineBar />
+      <OfflineBar message="أنت دون اتصال — عم نعرض آخر نسخة محفوظة، والحجز بيحتاج إنترنت" />
       <SiteHeader />
       <main className={site ? 'site-main' : 'page'}>
         <Outlet />

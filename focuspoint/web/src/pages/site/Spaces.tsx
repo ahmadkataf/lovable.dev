@@ -28,7 +28,7 @@ function RoomCard({ room, group, settings }: { room: Room; group: SpaceGroup; se
             <span className="fp-room-type">{ROOM_TYPE[room.type]}</span>
             <h3 className="fp-h3 fp-room-name">{room.name}</h3>
           </div>
-          <span className="fp-cap"><SiteIcon name="people" size={16} /> {capacityLabel([room], '')}</span>
+          <span className="fp-cap"><SiteIcon name="people" size={16} /> {capacityLabel([room], '', false)}</span>
         </div>
         {room.description && <p className="fp-room-desc">{room.description}</p>}
         {items.length > 0 && (

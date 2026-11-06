@@ -14,8 +14,8 @@ export const CENTRE = {
   open: '09:00',
   close: '23:00',
   phone: '0980132623',
-  phoneIntl: '+963985258963',
-  whatsapp: 'https://wa.me/963985258963',
+  phoneIntl: '+963980132623',
+  whatsapp: 'https://wa.me/963980132623',   // the centre's number 0980132623
   instagram: 'its_focus_point',
   url: 'https://focuspoint.raqeem.dev',
 } as const

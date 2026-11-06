@@ -161,7 +161,7 @@ export interface ApiContract {
   'POST /v1/team/bookings/:id/reject': { req: { reason: string }; res: Booking }
   'POST /v1/team/bookings/manual': { req: { room_id: number; start?: string; end?: string; phone: string; name: string; method: PaymentMethod; price?: number; note?: string; client_id?: string
     seats?: number; tier?: HallTier; kind?: BookingKind; date?: string; pay_later?: boolean }; res: Booking }  // walk-in → confirmed; client_id makes it idempotent (offline queue)
-  'PATCH /v1/team/bookings/:id': { req: { start?: string; end?: string; room_id?: number; note?: string; price?: number; seats?: number }; res: Booking }   // move/edit (checks overlap)
+  'PATCH /v1/team/bookings/:id': { req: { start?: string; end?: string; room_id?: number; note?: string; price?: number; seats?: number; tier?: HallTier }; res: Booking }   // move/edit (checks overlap); tier: training hall price group
   'GET /v1/team/dashboard?date=': { res: { today: Booking[]; pending: Booking[]; counts: { today: number; week: number; pending: number }; revenue_month: number; revenue_month_usd: number } }
   'GET /v1/team/customers?q=': { res: Customer[] }
   'POST /v1/team/bookings/:id/paid': { req: { paid: boolean }; res: Booking }   // record (or undo) that a confirmed booking was paid

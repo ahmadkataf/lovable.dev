@@ -9,7 +9,7 @@ import { loadContent } from './content'
 import type { Env } from './env'
 import { publicUrl } from './env'
 import { loadSettings, publicSettings } from './settings'
-import { bootScript, brandStyle, headValues, jsonLd, patchManifest, scriptJson } from './site'
+import { bootScript, brandStyle, headValues, heroPreload, jsonLd, patchManifest, scriptJson } from './site'
 
 /** Paths whose response the Worker may rewrite: page routes (no extension), .html files and the manifest. */
 const isPagePath = (p: string): boolean => !/\.[A-Za-z0-9]+$/.test(p) || p.endsWith('.html') || p === '/manifest.webmanifest'
@@ -87,12 +87,13 @@ async function page(res: Response, env: Env, url: URL): Promise<Response> {
     const origin = publicUrl(env, url.origin)
     const head = headValues(settings, content, origin, url.pathname)
     const ld = scriptJson(jsonLd(settings, content, origin))
-    const tail = brandStyle(content) + bootScript(content, publicSettings(settings))
+    const tail = heroPreload(content, url.pathname) + brandStyle(content) + bootScript(content, publicSettings(settings))
     const meta = (attr: 'name' | 'property', key: string, value: string) =>
       [`meta[${attr}="${key}"]`, { element: (el: Element) => { el.setAttribute('content', value) } }] as const
     const handlers: (readonly [string, HTMLRewriterElementContentHandlers])[] = [
       ['title', { element: (el) => { el.setInnerContent(head.title) } }],
       meta('name', 'description', head.description),
+      meta('name', 'robots', head.robots),
       ['link[rel="canonical"]', { element: (el) => { el.setAttribute('href', head.canonical) } }],
       meta('property', 'og:site_name', head.og.site_name),
       meta('property', 'og:url', head.og.url),

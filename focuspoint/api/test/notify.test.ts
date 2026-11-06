@@ -30,7 +30,10 @@ const legacy = {
   }),
   booking_expired: (b: B, tz: string) => ({
     kind: 'booking_expired', booking_id: b.id, title: 'انتهت مهلة الحجز',
-    body: `لم يصلنا رقم عملية الدفع لحجز ${room(b)} · ${formatWhen(b.start, b.end, tz)}. يمكنك الحجز من جديد.`,
+    // a reference was sent or pay on arrival: it ran out while waiting for the team, not for lack of payment
+    body: b.payment_ref || b.method === 'cash'
+      ? `انتهى وقت حجزك ${room(b)} · ${formatWhen(b.start, b.end, tz)} قبل ما يأكّده الفريق. إذا دفعت، تواصل معنا ومعك الرمز ${b.code}.`
+      : `لم يصلنا رقم عملية الدفع لحجز ${room(b)} · ${formatWhen(b.start, b.end, tz)}. يمكنك الحجز من جديد.`,
   }),
   booking_cancelled: (b: B, tz: string, phone = '') => ({
     kind: 'booking_cancelled', booking_id: b.id, title: 'تم إلغاء حجزك',

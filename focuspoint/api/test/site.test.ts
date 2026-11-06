@@ -5,7 +5,7 @@ import indexHtml from '../../web/index.html?raw'
 import viteConfig from '../../web/vite.config.ts?raw'
 import { DEFAULT_CONTENT, mergeContent, type SiteContent } from '../../shared/content'
 import { DEFAULT_SETTINGS, publicSettings } from '../src/settings'
-import { bootScript, brandStyle, headValues, jsonLd, pageOf, patchManifest, scriptJson } from '../src/site'
+import { bootScript, brandStyle, headValues, heroPreload, jsonLd, pageOf, patchManifest, scriptJson } from '../src/site'
 
 const ORIGIN = 'https://focuspoint.raqeem.dev'
 const S = DEFAULT_SETTINGS
@@ -20,6 +20,7 @@ describe('index.html head with the defaults', () => {
     expect(h.title).toBe(indexHtml.match(/<title>([^<]*)<\/title>/)?.[1])
     expect(h.description).toBe(decode(metaContent('name', 'description') ?? ''))
     expect(h.canonical).toBe(indexHtml.match(/<link rel="canonical" href="([^"]*)"/)?.[1])
+    expect(h.robots).toBe(metaContent('name', 'robots'))
   })
   it('Open Graph and Twitter tags', () => {
     expect(h.og.site_name).toBe(metaContent('property', 'og:site_name'))
@@ -68,6 +69,26 @@ describe('index.html head after edits', () => {
     expect(style).toContain('--brand-hover:')
     expect(style).toContain('--brand-50:')
     expect(style).toContain('--brand-100:')
+  })
+  it('canonical / og:url per public page; private and unknown paths are noindex', () => {
+    const at = (p: string) => headValues(S, DEFAULT_CONTENT, ORIGIN, p)
+    expect(at('/').canonical).toBe(`${ORIGIN}/`)
+    expect(at('/spaces/').canonical).toBe(`${ORIGIN}/spaces`)
+    expect(at('/contact').og.url).toBe(`${ORIGIN}/contact`)
+    expect(at('/about').robots).toBe('index,follow')
+    expect(at('/book').robots).toBe('index,follow')
+    for (const p of ['/team/today', '/b/12', '/mine', '/inbox', '/book/3', '/nonexistent-xyz']) {
+      expect(at(p).robots, p).toBe('noindex')
+      expect(at(p).canonical, p).toBe(`${ORIGIN}/`)
+    }
+  })
+  it('hero preload: home only, same srcset as the page, nothing for a hidden hero or an unsafe path', () => {
+    expect(heroPreload(DEFAULT_CONTENT, '/')).toBe('<link rel="preload" as="image" href="/img/room-a.webp" imagesrcset="/img/room-a-720.webp 720w, /img/room-a.webp 1105w" imagesizes="(min-width: 900px) 520px, 90vw" fetchpriority="high">')
+    expect(heroPreload(DEFAULT_CONTENT, '/spaces')).toBe('')
+    expect(heroPreload(edit((x) => { x.home.sections.find((s) => s.id === 'hero')!.visible = false }), '/')).toBe('')
+    expect(heroPreload(edit((x) => { x.home.hero.photo = { src: '/media/0123456789abcdef.webp', alt: 'x', w: 1600, h: 1200 } }), '/'))
+      .toBe('<link rel="preload" as="image" href="/media/0123456789abcdef.webp" fetchpriority="high">')
+    expect(heroPreload(edit((x) => { x.home.hero.photo = { src: '"><script>', alt: 'x', w: 1, h: 1 } }), '/')).toBe('')
   })
   it('pageOf', () => {
     expect(pageOf('/')).toBe('home')

@@ -43,7 +43,7 @@ function Form({ onClose, preset }: { onClose: () => void; preset?: ManualPreset 
   const [note, setNote] = useState('')
   const [kind, setKind] = useState<BookingKind>('hourly')
   const [seats, setSeats] = useState(1)
-  const [tier, setTier] = useState<HallTier>('gov')
+  const [tier, setTier] = useState<HallTier | null>(null)   // no default: an organisation's $ booking must not slip in as government pounds
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [busy, setBusy] = useState(false)
 
@@ -56,8 +56,8 @@ function Form({ onClose, preset }: { onClose: () => void; preset?: ManualPreset 
   const starts = settings ? startOptions(settings) : []
   const durations = settings ? durationOptions(settings, time) : []
   useEffect(() => { if (durations.length && !durations.includes(minutes)) setMinutes(durations[durations.length - 1]) }, [durations, minutes])
-  const computed = room ? priceFor(room, minutes, settings ?? undefined, { seats: useSeats, tier: hall ? tier : null, kind }) : { price: 0, currency: 'SYP' as const }
-  const auto = method === 'free' ? 0 : computed.price
+  const computed = room ? priceFor(room, minutes, settings ?? undefined, { seats: useSeats, tier: hall ? (tier ?? 'gov') : null, kind }) : { price: 0, currency: 'SYP' as const }
+  const auto = method === 'free' || (hall && !tier) ? 0 : computed.price
   const currency = computed.currency
   useEffect(() => { if (!priceTouched) setPrice(String(auto)) }, [auto, priceTouched])
 
@@ -78,6 +78,7 @@ function Form({ onClose, preset }: { onClose: () => void; preset?: ManualPreset 
     const pr = parseInt10(price)
     if (pr === null) e.price = 'أدخل السعر'
     if (!room) e.room = 'اختر القاعة'
+    if (hall && !tier) e.tier = 'اختر الجهة'
     if (conflict) e.time = desk ? 'المقاعد ممتلئة بهذا الوقت' : `يتداخل مع حجز ${conflict.customer_name} (${fmtRange(conflict.start, conflict.end)})`
     if (Date.parse(end) <= Date.now()) e.time = 'هذا الوقت انتهى'
     setErrors(e)
@@ -86,7 +87,7 @@ function Form({ onClose, preset }: { onClose: () => void; preset?: ManualPreset 
     try {
       await store.manualBooking({
         room_id: roomId, start, end, name: name.trim(), phone: p!, method, price: pr!, note: note.trim() || undefined, ...(payLater ? { pay_later: true } : {}),
-        ...(perHead ? { seats: useSeats } : {}), ...(hall ? { tier } : {}), ...(kind !== 'hourly' ? { kind, date } : {}),
+        ...(perHead ? { seats: useSeats } : {}), ...(hall && tier ? { tier } : {}), ...(kind !== 'hourly' ? { kind, date } : {}),
       })
       toast.show(`تم حجز ${room!.name} لـ${name.trim()}`, 'ok')
       onClose()
@@ -106,8 +107,8 @@ function Form({ onClose, preset }: { onClose: () => void; preset?: ManualPreset 
         </Field>
       )}
       {hall && (
-        <Field label="الجهة">
-          <Segmented<HallTier> options={[{ value: 'org', label: 'خاصة / منظمة ($)' }, { value: 'gov', label: 'حكومية (ل.س)' }]} value={tier} onChange={(t) => { setTier(t); setPriceTouched(false) }} />
+        <Field label="الجهة" error={errors.tier} hint={!tier && !errors.tier ? 'اختر الجهة حتى ينحسب السعر' : undefined}>
+          <Segmented<HallTier> options={[{ value: 'org', label: 'خاصة / منظمة ($)' }, { value: 'gov', label: 'حكومية (ل.س)' }]} value={tier as HallTier} onChange={(t) => { setTier(t); setPriceTouched(false) }} />
         </Field>
       )}
       {perHead && (

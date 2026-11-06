@@ -43,6 +43,42 @@ export async function sendPush(env: Env, sub: SubscriptionRow, payload: PushPayl
 }
 
 export async function sendPushToAll(env: Env, subs: SubscriptionRow[], payload: PushPayload): Promise<void> {
-  // Sequential on purpose: a handful of team devices / a few hundred customers at most, and D1 likes it calmer.
+  // Sequential on purpose: a handful of team devices / a batch of customers, and D1 likes it calmer.
   for (const sub of subs) await sendPush(env, sub, payload)
+}
+
+/**
+ * Pushes sent in one Worker invocation. The free plan allows ~50 outbound requests (and 50 D1 queries) per invocation;
+ * past that, fetches fail silently — so a big announcement goes out in batches: the first now, the rest from push_queue
+ * by the 5-minute cron (drainPushQueue).
+ */
+export const PUSH_BATCH = 30
+
+/** Queues `payload` for every customer subscription with id > afterId (one INSERT … SELECT). Throws if the table is missing. */
+export async function queueCustomerPushes(env: Env, afterId: number, payload: PushPayload): Promise<number> {
+  const r = await env.DB.prepare(
+    `INSERT INTO push_queue (subscription_id, payload) SELECT id, ? FROM push_subscriptions WHERE device_id IS NOT NULL AND id > ?`)
+    .bind(JSON.stringify(payload), afterId).run()
+  return r.meta.changes ?? 0
+}
+
+/** Sends up to PUSH_BATCH queued pushes (oldest first) and removes them; rows older than a day or whose subscription is gone are dropped. */
+export async function drainPushQueue(env: Env, now = new Date()): Promise<number> {
+  const rows = (await env.DB.prepare(
+    `SELECT q.id AS qid, q.payload, q.created_at, s.id, s.endpoint, s.p256dh, s.auth, s.failures
+     FROM push_queue q LEFT JOIN push_subscriptions s ON s.id = q.subscription_id ORDER BY q.id LIMIT ?`)
+    .bind(PUSH_BATCH).all<SubscriptionRow & { qid: number; payload: string; created_at: string }>()).results
+  if (rows.length === 0) return 0
+  // Remove first (one statement), then send: a run cut short loses a few pushes rather than repeating them.
+  await env.DB.prepare(`DELETE FROM push_queue WHERE id IN (${rows.map(() => '?').join(',')})`).bind(...rows.map((r) => r.qid)).run()
+  const dayAgo = now.getTime() - 24 * 3600 * 1000
+  let sent = 0
+  for (const r of rows) {
+    if (!r.endpoint || Date.parse(r.created_at) < dayAgo) continue
+    let payload: PushPayload
+    try { payload = JSON.parse(r.payload) as PushPayload } catch { continue }
+    await sendPush(env, r, payload)
+    sent++
+  }
+  return sent
 }

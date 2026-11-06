@@ -2,7 +2,7 @@
 import type { Booking, BookingKind, BookingStatus, Currency, HallTier, PaymentMethod, Room, RoomContents, RoomType, Settings } from '@shared/types'
 import { capacityUnits, isSeats, peakUnits, quote, unitsOf } from '@shared/pricing'
 import { ApiError } from '../api'
-import { normalisePhone, toLocalParts } from '../format'
+import { fromLocal, normalisePhone, toLocalParts } from '../format'
 import type { IconName } from '../ui'
 
 export function uuid(): string {
@@ -200,6 +200,12 @@ export function priceFor(room: Pick<Room, 'type' | 'price_hour' | 'price_day'>, 
   return q.ok ? { price: q.price, currency: q.currency } : { price: 0, currency: 'SYP' }
 }
 export const localDate = (iso: string): string => toLocalParts(iso).date
+/** One local day's opening hours as [from, to) epoch ms (falls back to 09:00–23:00 before settings load). */
+export function dayWindow(date: string, s?: Pick<Settings, 'open' | 'close'> | null): { from: number; to: number } {
+  return { from: Date.parse(fromLocal(date, s?.open ?? '09:00')), to: Date.parse(fromLocal(date, s?.close ?? '23:00')) }
+}
+/** True when the booking is in the room at some point of that day — a weekly/monthly subscriber shows on every day, not just the first. */
+export const onDay = (b: Pick<Booking, 'start' | 'end'>, day: { from: number; to: number }): boolean => Date.parse(b.start) < day.to && Date.parse(b.end) > day.from
 export function overlaps(aStart: string, aEnd: string, bStart: string, bEnd: string): boolean {
   return Date.parse(aStart) < Date.parse(bEnd) && Date.parse(bStart) < Date.parse(aEnd)
 }

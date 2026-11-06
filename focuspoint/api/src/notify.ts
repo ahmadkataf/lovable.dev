@@ -6,7 +6,7 @@ import { DEFAULT_CONTENT, fillTemplate, reminderLabel, type SiteContent } from '
 import type { Booking, NotificationKind, Settings } from '../../shared/types'
 import { loadContent } from './content'
 import { absoluteUrl, type Env } from './env'
-import { sendPushToAll, type PushPayload, type SubscriptionRow } from './push'
+import { PUSH_BATCH, queueCustomerPushes, sendPushToAll, type PushPayload, type SubscriptionRow } from './push'
 import { formatWhen } from './tz'
 
 interface Message { kind: NotificationKind; title: string; body: string; booking_id: number | null }
@@ -60,8 +60,15 @@ export async function announce(env: Env, ctx: ExecutionContext, to: 'customers' 
   for (let i = 0; i < devices.length; i += 50) {   // D1 batches: keep them modest
     await env.DB.batch(devices.slice(i, i + 50).map((d) => insert.bind(d.device_id, m.kind, m.title, m.body)))
   }
-  const subs = (await env.DB.prepare('SELECT id, endpoint, p256dh, auth, failures FROM push_subscriptions WHERE device_id IS NOT NULL').all<SubscriptionRow>()).results
-  ctx.waitUntil(sendPushToAll(env, subs, payloadFor(env, m, customerPath(null))))
+  // Every device has the message in its inbox now; pushes go in batches (push.PUSH_BATCH: the free plan's per-run limit).
+  const payload = payloadFor(env, m, customerPath(null))
+  const subs = (await env.DB.prepare('SELECT id, endpoint, p256dh, auth, failures FROM push_subscriptions WHERE device_id IS NOT NULL ORDER BY id LIMIT ?')
+    .bind(PUSH_BATCH).all<SubscriptionRow>()).results
+  const last = subs[subs.length - 1]
+  if (subs.length === PUSH_BATCH && last) {
+    try { await queueCustomerPushes(env, last.id, payload) } catch (err) { console.error('push_queue unavailable, the rest get the inbox only', err) }
+  }
+  ctx.waitUntil(sendPushToAll(env, subs, payload))
   return devices.length
 }
 
@@ -130,4 +137,8 @@ export const texts = {
   },
   booking_cancelled: (b: B, ctx: MessageCtx): Message => build('booking_cancelled', b, ctx, ctx.messages.booking_cancelled),
   booking_reminder: (b: B, ctx: MessageCtx): Message => build('booking_reminder', b, ctx, ctx.messages.booking_reminder),
+  /** → team: the customer cancelled a booking the team was waiting on. Fixed text (not in the site editor): a staff alert. */
+  booking_cancelled_by_customer: (b: B, ctx: MessageCtx): Message => build('booking_cancelled', b, ctx, b.payment_ref
+    ? { title: 'زبون ألغى بعد الدفع', body: '{customer_name} ألغى الحجز {code} بعد ما بعت رقم العملية {ref} ({price}) · {room} {when}. تأكدوا من شام كاش إذا لازم ترجعولو المبلغ.' }
+    : { title: 'زبون ألغى حجزه', body: '{customer_name} ألغى الحجز {code} · {room} {when} · كان الدفع عند الوصول.' }),
 }

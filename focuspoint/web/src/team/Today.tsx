@@ -2,7 +2,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { Booking } from '@shared/types'
 import { fmtMoney } from '@shared/pricing'
-import { fmtDate, fmtRange, fmtSYP, fmtTime, todayLocal, toLocalParts } from '../format'
+import { fmtDate, fmtRange, fmtSYP, fmtTime, todayLocal } from '../format'
 import { KIND_LABEL } from '../lib/booking'
 import { Badge, Button, Card, Empty, Icon, Sheet, Spinner, useToast } from '../ui'
 import { BookingSheet } from './BookingSheet'
@@ -15,7 +15,7 @@ import { enableTeamPush, ensureTeamPush, onPushStateChange, pushBusy, pushErrorT
 import { appNotifHint, inAndroidApp } from '../lib/appHint'
 import { isIOS, isStandalone } from '../lib/push'
 import { store, useFresh, useRooms, useStore } from './store'
-import { describeError, isBlocking, isPendingVerification, localDate, sortByStart } from './util'
+import { dayWindow, describeError, isBlocking, isPendingVerification, localDate, onDay, sortByStart } from './util'
 
 /** Phone makers whose battery saver is known to kill background push for Chrome. */
 const AGGRESSIVE_OEM = /xiaomi|redmi|poco|miui|huawei|honor|oppo|realme|oneplus|vivo/i
@@ -26,6 +26,7 @@ export function Today() {
   const fresh = useFresh()
   const toast = useToast()
   const [selected, setSelected] = useState<Booking | null>(null)
+  const [rejecting, setRejecting] = useState(false)   // «رفض» on a card opens the sheet straight on the reject form
   const [manual, setManual] = useState(false)
   const [now, setNow] = useState(() => Date.now())
   useEffect(() => { const t = window.setInterval(() => setNow(Date.now()), 60_000); return () => window.clearInterval(t) }, [])
@@ -33,10 +34,14 @@ export function Today() {
   const today = todayLocal()
   // Verifications still worth acting on (a booking whose end passed half an hour ago is expired by the server's cron).
   const pending = useMemo(() => view.bookings.filter((b) => isPendingVerification(b, now)).sort((a, b) => (a.updated_at < b.updated_at ? 1 : -1)), [view.bookings, now])
-  const todays = useMemo(() => view.bookings.filter((b) => localDate(b.start) === today).sort(sortByStart), [view.bookings, today])
+  // Everyone in a room today, subscribers included on every day of their subscription (not only the first).
+  const day = useMemo(() => dayWindow(today, view.settings), [today, view.settings])
+  const todays = useMemo(() => view.bookings.filter((b) => onDay(b, day)).sort(sortByStart), [view.bookings, day])
   const liveToday = useMemo(() => todays.filter((b) => isBlocking(b, now) || b.status === 'completed'), [todays, now])
-  // Pounds and dollars (the training hall for organisations) are totalled apart; a subscription counts on its first day.
-  const paidToday = useMemo(() => todays.filter((b) => (b.status === 'confirmed' || b.status === 'completed') && !!b.paid_at && (!b.kind || b.kind === 'hourly' || toLocalParts(b.start).date === todayLocal())), [todays])
+  // Money received today — the same rule as الحسابات (paid_at today, whatever day the booking is for; a booking confirmed
+  // then cancelled keeps its money). Pounds and dollars (the hall for organisations) are totalled apart.
+  const paidToday = useMemo(() => view.bookings.filter((b) => !!b.paid_at && localDate(b.paid_at) === today && b.method !== 'free' && b.price > 0
+    && (b.status === 'confirmed' || b.status === 'completed' || (b.status === 'cancelled' && b.verified_by !== null))), [view.bookings, today])
   const revenue = useMemo(() => paidToday.filter((b) => b.currency !== 'USD').reduce((s, b) => s + b.price, 0), [paidToday])
   const revenueUsd = useMemo(() => paidToday.filter((b) => b.currency === 'USD').reduce((s, b) => s + b.price, 0), [paidToday])
   // Keep the sheet's booking in sync with the store (status changes after confirm, etc.).
@@ -72,7 +77,7 @@ export function Today() {
                     <span className="muted small">{fmtTime(b.updated_at)}</span>
                   </div>
                   <dl className="verify-grid">
-                    <div><dt>القاعة والوقت</dt><dd>{b.room_name} · {b.kind && b.kind !== 'hourly' ? `${KIND_LABEL[b.kind]} من ${fmtDate(b.start)} إلى ${fmtDate(b.end)}` : <>{fmtDate(b.start)} · <span className="num">{fmtRange(b.start, b.end)}</span></>}</dd></div>
+                    <div><dt>القاعة والوقت</dt><dd>{b.room_name} · {b.kind && b.kind !== 'hourly' ? `${KIND_LABEL[b.kind]} من ${fmtDate(b.start)} إلى ${fmtDate(b.end)}` : <>{fmtDate(b.start)} · <span className="time">{fmtRange(b.start, b.end)}</span></>}</dd></div>
                     <div><dt>المبلغ</dt><dd>{fmtMoney(b.price, b.currency ?? 'SYP')}{cash && <span className="muted tiny"> · عند الوصول</span>}</dd></div>
                     <div><dt>{cash ? 'رمز الحجز' : 'رمز الحجز (في ملاحظة التحويل)'}</dt><dd><span className="code num">{b.code}</span></dd></div>
                     {cash
@@ -81,7 +86,7 @@ export function Today() {
                   </dl>
                   <div className="verify-actions">
                     <Button onClick={() => quick(b, 'confirm')}><Icon name="check" size={18} /> {cash ? 'تأكيد الحجز' : 'تأكيد الدفع'}</Button>
-                    <Button variant="danger" onClick={() => setSelected(b)}>رفض</Button>
+                    <Button variant="danger" onClick={() => { setRejecting(true); setSelected(b) }}>رفض</Button>
                   </div>
                 </Card>
               )
@@ -114,8 +119,8 @@ export function Today() {
                       const isNow = Date.parse(b.start) <= now && now < Date.parse(b.end)
                       const past = Date.parse(b.end) <= now
                       return (
-                        <button key={b.id} type="button" className={`tl-item${isNow ? ' is-now' : ''}${past ? ' is-dim' : ''}${fresh.has(b.id) ? ' is-fresh' : ''}`} style={{ borderInlineStartColor: roomColor(room.color) }} onClick={() => setSelected(b)}>
-                          <span className="when num">{fmtRange(b.start, b.end)}</span>
+                        <button key={b.id} type="button" className={`tl-item${isNow ? ' is-now' : ''}${past ? ' is-dim' : ''}${fresh.has(b.id) ? ' is-fresh' : ''}`} style={{ borderInlineStartColor: roomColor(room.color) }} onClick={() => { setRejecting(false); setSelected(b) }}>
+                          <span className="when time">{fmtRange(b.start, b.end)}</span>
                           <span className="who">{b.customer_name}</span>
                           {fresh.has(b.id) && <Badge tone="wine"><span className="badge-new">جديد</span></Badge>}
                           {b.status !== 'confirmed' && <Badge tone={b.status === 'completed' ? 'grey' : 'gold'}>{b.status === 'completed' ? 'انتهى' : b.status === 'awaiting_verification' ? (b.method === 'cash' ? 'تأكيد' : 'تحقق') : 'بانتظار الدفع'}</Badge>}
@@ -130,7 +135,7 @@ export function Today() {
         )}
       </Section>
 
-      <BookingSheet booking={current} onClose={() => setSelected(null)} />
+      <BookingSheet booking={current} initialMode={rejecting ? 'reject' : 'view'} onClose={() => { setSelected(null); setRejecting(false) }} />
       <ManualBookingSheet open={manual} onClose={() => setManual(false)} />
     </>
   )

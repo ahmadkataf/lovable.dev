@@ -65,7 +65,7 @@ function PricesTab({ settings }: { settings: SettingsT }) {
   const [errors, setErrors] = useState<Record<string, string>>({})
   useLiveForm(priceDraft(settings), 'prices', () => d, setD)
   const set = <K extends keyof typeof d>(k: K, v: (typeof d)[K]) => setD((x) => ({ ...x, [k]: v }))
-  const desk = view.rooms.find((r) => r.type === 'desk' && r.active)
+  const desks = view.rooms.filter((r) => r.type === 'desk' && r.active)   // the open space AND the reception U-table
   const privates = view.rooms.filter((r) => r.type === 'private' && r.active)
 
   async function save() {
@@ -116,7 +116,7 @@ function PricesTab({ settings }: { settings: SettingsT }) {
         <div className="card-title">أسعار الغرف والمقاعد</div>
         <p className="muted small">من قسم «القاعات» لكل غرفة:</p>
         <ul className="muted small" style={{ margin: '8px 0 0', paddingInlineStart: 18 }}>
-          {desk && <li>{desk.name}: <b>{fmtMoney(desk.price_hour)}</b> للشخص بالساعة ({desk.capacity} مقاعد)</li>}
+          {desks.map((r) => <li key={r.id}>{r.name}: <b>{fmtMoney(r.price_hour)}</b> للشخص بالساعة ({r.capacity} مقاعد)</li>)}
           {privates.map((r) => <li key={r.id}>{r.name}: <b>{fmtMoney(r.price_hour)}</b> للشخص بالساعة</li>)}
         </ul>
         <Link to="/team/rooms" className="btn btn-soft mt">تعديل أسعار الغرف</Link>
@@ -582,7 +582,9 @@ function ReportsTab() {
     return Object.entries(report.hours_by_room).map(([name, hours]) => ({ name, hours })).sort((a, b) => b.hours - a.hours).slice(0, 12)
   }, [report])
   const totalHours = bars.reduce((s, b) => s + b.hours, 0)
-  const paid = report?.bookings.filter((b) => b.status === 'confirmed' || b.status === 'completed').length ?? 0
+  // Settled = paid, or free / zero price (the same rule as «إلي» in الحسابات); the rest are still «على الحساب».
+  const paid = report?.bookings.filter((b) => !!b.paid_at || b.method === 'free' || b.price === 0).length ?? 0
+  const unpaid = (report?.bookings.length ?? 0) - paid
 
   function csv() {
     if (!report) return
@@ -609,8 +611,8 @@ function ReportsTab() {
       {report && (
         <>
           <div className="report-kpis">
-            <div className="stat"><b className="money" style={{ fontSize: '1.1rem' }}>{fmtSYP(report.revenue)}{report.revenue_usd ? ` + ${fmtMoney(report.revenue_usd, 'USD')}` : ''}</b><span>الإيراد (المؤكد والمنتهي)</span></div>
-            <div className="stat"><b>{paid}</b><span>حجوزات مدفوعة من {report.bookings.length}</span></div>
+            <div className="stat"><b className="money" style={{ fontSize: '1.1rem' }}>{fmtSYP(report.revenue)}{report.revenue_usd ? ` + ${fmtMoney(report.revenue_usd, 'USD')}` : ''}</b><span>المقبوض في الفترة</span></div>
+            <div className="stat"><b>{paid} من {report.bookings.length}</b><span>حجوزات مدفوعة{unpaid ? ` · ${unpaid} لسا ما اندفعت` : ''}</span></div>
           </div>
           <div className="row between mb-sm"><span className="strong">الساعات حسب القاعة</span><span className="muted small">{Math.round(totalHours)} ساعة</span></div>
           {bars.length === 0 ? <p className="muted small">لا حجوزات في هذه الفترة.</p> : <HoursBars bars={bars} />}
