@@ -17,7 +17,7 @@ import './site.css'
 export const CENTRE = {
   name: 'فوكس بوينت',
   address: 'درعا – شارع المجمع الحكومي – بناء العايش',
-  phone: '0985258963',
+  phone: '0980132623',
   instagram: 'its_focus_point',
   open: '09:00',
   close: '23:00',

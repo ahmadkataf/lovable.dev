@@ -13,7 +13,7 @@ export const CENTRE = {
   address: 'درعا – شارع المجمع الحكومي – بناء العايش',
   open: '09:00',
   close: '23:00',
-  phone: '0985258963',
+  phone: '0980132623',
   phoneIntl: '+963985258963',
   whatsapp: 'https://wa.me/963985258963',
   instagram: 'its_focus_point',

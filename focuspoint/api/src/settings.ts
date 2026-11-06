@@ -26,7 +26,7 @@ export const DEFAULT_PLAN: Plan = {
 
 export const DEFAULT_SETTINGS: StoredSettings = {
   centre_name: 'فوكس بوينت',
-  phone: '0985258963',
+  phone: '0980132623',
   address: 'درعا، شارع المجمع الحكومي – بناء العايش',
   instagram: 'its_focus_point',
   timezone: 'Asia/Damascus',

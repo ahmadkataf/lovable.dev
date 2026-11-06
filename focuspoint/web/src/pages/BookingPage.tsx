@@ -203,7 +203,7 @@ export function BookingPage() {
         <Card>
           <div className="info-list">
             <div><Icon name="pin" size={18} />{settings?.address || 'درعا، شارع المجمع الحكومي – بناء العايش'}</div>
-            <a href={`tel:${settings?.phone || '0985258963'}`}><Icon name="phone" size={18} /><span dir="ltr">{settings?.phone || '0985258963'}</span></a>
+            <a href={`tel:${settings?.phone || '0980132623'}`}><Icon name="phone" size={18} /><span dir="ltr">{settings?.phone || '0980132623'}</span></a>
           </div>
           <div className="row gap mt wrap">
             <Button variant="soft" onClick={() => downloadIcs(b, settings ?? null)}><Icon name="calendar" size={18} /> أضف إلى التقويم</Button>

@@ -539,7 +539,7 @@ export const TEMPLATE_VARS: Record<string, string> = VARS
  * offline) — the same fallbacks the site uses now (web/src/pages/site/site.tsx CENTRE, Facts.tsx `|| 4`).
  */
 export const TEMPLATE_EXAMPLE: Record<TemplateVar, string> = {
-  name: 'فوكس بوينت', phone: '0985258963', address: 'درعا – شارع المجمع الحكومي – بناء العايش', instagram: 'its_focus_point',
+  name: 'فوكس بوينت', phone: '0980132623', address: 'درعا – شارع المجمع الحكومي – بناء العايش', instagram: 'its_focus_point',
   hours: '9 ص – 11 م', open: '9 ص', close: '11 م', hoursPerDay: '14',
   privateCount: '4', privateMin: '2', privateMax: '4', meetingCapacity: '10', openCapacity: '8',
   slogan: 'مساحتك وركنك الهادئ للإبداع', eyebrow: 'المشروع الأول من نوعه بدرعا', holdMinutes: '30', reminder: 'ساعة',
