@@ -1,0 +1,6 @@
+/* NumberField: number box + addon as one control. */
+.inv-addon-group > .control { flex: 1; min-width: 0; }
+.inv-addon-group > .control > .input { border-start-end-radius: 0; border-end-end-radius: 0; }
+.inv-addon-group > .input-addon { max-width: 45%; overflow: hidden; text-overflow: ellipsis; }
+.inv-addon-group:focus-within > .input-addon { border-color: var(--primary); color: var(--p-700); }
+.inv-addon-group:has(.input.invalid) > .input-addon { border-color: var(--danger); }

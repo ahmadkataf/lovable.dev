@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <!-- The same Content-Security-Policy the Windows app (electron/lib.cjs CSP) and the Android app (WebFiles.CSP) send:
+         scripts only from the app itself, pictures and files only from the app or data:/blob:, and nothing from the
+         internet but one request: activating with a licence key posts the key and the device number to
+         https://dentora.raqeem.dev (connect-src; docs/LICENCE-KEYS.md).
+         (npm run dev leaves it out: Vite's development page needs inline scripts. vite.config.ts) -->
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self' data: blob: https://dentora.raqeem.dev; media-src 'self' data: blob:; worker-src 'self' blob:; frame-src 'self' data: blob:; object-src 'none'; base-uri 'self'; form-action 'none'" />
+    <meta name="theme-color" content="#0E8F86" />
+    <meta name="color-scheme" content="light" />
+    <title>Dentora — نظام إدارة عيادات الأسنان</title>
+    <link rel="manifest" href="./manifest.webmanifest" />
+    <link rel="icon" href="./icon.svg" type="image/svg+xml" />
+    <link rel="apple-touch-icon" href="./apple-touch-icon.png" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="apple-mobile-web-app-title" content="Dentora" />
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

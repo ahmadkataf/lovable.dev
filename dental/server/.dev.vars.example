@@ -1,0 +1,8 @@
+# Local secrets for `npm run dev`: copy to .dev.vars (git-ignored) and fill in. In production they are Worker secrets:
+#   npx wrangler secret put ADMIN_PASSWORD
+#   npx wrangler secret put LICENSE_PRIVATE_JWK
+# The control panel password, at least 12 characters.
+ADMIN_PASSWORD=
+# The one-line JSON of secrets-for-user/dentora/license-private.jwk, in single quotes. Without it the panel works
+# but cannot make codes.
+LICENSE_PRIVATE_JWK=
