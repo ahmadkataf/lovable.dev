@@ -50,7 +50,7 @@ export function RoomSheet({ room, pick, mode = 'hourly', seatsFree, busy, offlin
           <span>الجهات الخاصة والمنظمات: <b className="money">{fmtMoney(p.hall_org_usd_hour, 'USD')}</b> بالساعة</span>
           <span>الجهات الحكومية: <b className="money">{fmtMoney(p.hall_gov_hour)}</b> بالساعة</span>
           <span className="muted tiny">الكورسات الشخصية: {p.course_share_percent}% من قيمة الكورس بالاتفاق مع المركز</span>
-          <span className="muted tiny">بتختار الجهة بالخطوة الجاية.</span>
+          <span className="muted tiny">القاعة بتنحجز كاملة إلك ({room.capacity} كرسي) — نفس السعر سواء شخص واحد أو {room.capacity}. بتختار الجهة بالخطوة الجاية.</span>
         </div>
       ) : desk || room.type === 'private' ? (
         <>

@@ -18,7 +18,8 @@ export function PriceList({ settings, rooms, whatsapp, onSubscribe, steps = fals
   const desk = desks[0]
   const privates = active.filter((r) => r.type === 'private' && r.price_hour > 0).map((r) => r.price_hour)
   const hourly = desk?.price_hour ?? (privates.length ? Math.min(...privates) : 100)
-  const hall = active.some((r) => r.type === 'meeting' || r.type === 'hall')
+  const hallRoom = active.find((r) => r.type === 'meeting' || r.type === 'hall')
+  const hall = !!hallRoom
   const wa = whatsapp && intlPhone(whatsapp) ? `${whatsappLink(whatsapp)}?text=${encodeURIComponent('مرحبا، بدي استفسر عن حجز القاعة التدريبية لكورس شخصي')}` : ''
   return (
     <div className="price-list">
@@ -51,7 +52,7 @@ export function PriceList({ settings, rooms, whatsapp, onSubscribe, steps = fals
         )}
         {hall && (
           <li className="price-hall">
-            <span><b>القاعة التدريبية</b><small>بالساعة، حسب الجهة</small></span>
+            <span><b>القاعة التدريبية</b><small>بتنحجز كاملة{hallRoom ? ` (${hallRoom.capacity} كرسي)` : ''} · نفس السعر لأي عدد · بالساعة حسب الجهة</small></span>
             <span className="price-tiers">
               <span>الجهات الخاصة والمنظمات: <b className="money">{fmtMoney(p.hall_org_usd_hour, 'USD')}</b></span>
               <span>الجهات الحكومية: <b className="money">{fmtMoney(p.hall_gov_hour)}</b></span>

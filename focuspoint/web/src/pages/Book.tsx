@@ -136,6 +136,11 @@ export function Book() {
             <Input value={phone} onChange={(e) => setPhone(e.target.value)} type="tel" inputMode="tel" autoComplete="tel" dir="ltr" placeholder="09XXXXXXXX" />
           </Field>
           {hall && (
+            <div className="alert alert-info" style={{ marginBottom: 12 }}>
+              القاعة بتنحجز <b>كاملة إلك</b> وفيها <b>{room.capacity} كرسي</b> — السعر بالساعة نفسه مهما كان عدد الحضور.
+            </div>
+          )}
+          {hall && (
             <div className="field">
               <span className="field-label">نوع الجهة</span>
               <Segmented<HallTier> options={[{ value: 'org', label: TIER_LABEL.org }, { value: 'gov', label: TIER_LABEL.gov }]} value={tier as HallTier} onChange={setTier} />
@@ -147,7 +152,7 @@ export function Book() {
           )}
           {kind === 'hourly' && (
             <div className="field">
-              <span className="field-label">{desk ? 'عدد المقاعد (كرسي لكل شخص)' : 'عدد الأشخاص'}</span>
+              <span className="field-label">{desk ? 'عدد المقاعد (كرسي لكل شخص)' : hall ? 'عدد الحضور المتوقع (للتجهيز فقط)' : 'عدد الأشخاص'}</span>
               <div className="row between">
                 <Stepper value={people} onChange={setPeople} min={1} max={desk ? left : Math.max(1, room.capacity)} />
                 <span className="muted small">{desk ? `باقي ${left} · ${room.price_hour.toLocaleString('en-US')} ل.س للشخص بالساعة` : perHead ? `${room.price_hour.toLocaleString('en-US')} ل.س للشخص بالساعة · حتى ${room.capacity}` : `الحد الأقصى ${room.capacity}`}</span>
