@@ -8,12 +8,13 @@ import { isTimeString, isValidTimeZone, timeToMinutes } from './tz'
 
 export type StoredSettings = Omit<Settings, 'vapid_public_key'>
 
-/** Default plan, 1200 × 800 units: four private rooms above a corridor, the meeting room and open space below. */
+/** Default plan, 1400 × 800 units: the reception U-table and four private rooms above a corridor, the training hall
+ *  and open space below. */
 export const DEFAULT_PLAN: Plan = {
-  width: 1200,
+  width: 1400,
   height: 800,
   walls: [
-    { x: 0, y: 340, w: 1200, h: 120 },      // corridor
+    { x: 0, y: 340, w: 1400, h: 120 },      // corridor
     { x: 1080, y: 40, w: 80, h: 260 },      // reception
   ],
   labels: [

@@ -179,8 +179,11 @@ async function main() {
   if (rooms === 0) {
     r = wr(['d1', 'execute', 'focuspoint', '--remote', '--file=./seed.sql', '--yes'])
     if (r.code) die('فشل إدخال القاعات الافتراضية', r.all)
-    ok('أُدخلت القاعات الست الافتراضية (تُعدَّل من لوحة الفريق)')
+    ok('أُدخلت المساحات الافتراضية (تُعدَّل من لوحة الفريق)')
   } else ok(`القاعات موجودة (${rooms}) — لم يُمسّ شيء`)
+  // After the seed (a fresh database gets the table from seed.sql; this then only records it). Idempotent.
+  r = wr(['d1', 'execute', 'focuspoint', '--remote', '--file=./migrations/0004_reception_table.sql', '--yes'])   // idempotent
+  if (r.code) die('فشل إضافة طاولة الاستقبال', r.all)
 
   // 4. build + deploy
   step('build + deploy', 'بناء التطبيق ونشره')

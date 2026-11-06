@@ -14,7 +14,8 @@ export function PriceList({ settings, rooms, whatsapp, onSubscribe, steps = fals
 }) {
   const p = pricing(settings)
   const active = rooms.filter((r) => r.active)
-  const desk = active.find((r) => r.type === 'desk')
+  const desks = active.filter((r) => r.type === 'desk')
+  const desk = desks[0]
   const privates = active.filter((r) => r.type === 'private' && r.price_hour > 0).map((r) => r.price_hour)
   const hourly = desk?.price_hour ?? (privates.length ? Math.min(...privates) : 100)
   const hall = active.some((r) => r.type === 'meeting' || r.type === 'hall')
@@ -32,7 +33,7 @@ export function PriceList({ settings, rooms, whatsapp, onSubscribe, steps = fals
       <ul className="price-rows">
         {(desk || privates.length > 0) && (
           <li>
-            <span><b>الساعة</b><small>{desk && privates.length ? `كرسي بالمساحة المفتوحة (${desk.contents.tables || 5} طاولات × 4 كراسي) أو بغرفة خاصة` : desk ? 'كرسي على طاولة بالمساحة المفتوحة' : 'بغرفة خاصة'}</small></span>
+            <span><b>الساعة</b><small>{[...desks.map((d) => d.name), ...(privates.length ? ['غرفة خاصة'] : [])].join(' أو ')} · لكل شخص كرسي</small></span>
             <span className="money">{fmtMoney(hourly)} <small>للشخص</small></span>
           </li>
         )}
