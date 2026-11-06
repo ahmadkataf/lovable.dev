@@ -17,6 +17,8 @@ import { DEFAULT_INFO, type LicenseStatus } from '../../license/types'
 import { cleanCode, formatTyping } from '../../license/crypto'
 
 type Busy = 'activate' | 'trial' | 'check' | 'release' | null
+/** XXXX-XXXX-AB12 → ••••-••••-AB12 */
+const maskCode = (code: string): string => '••••-••••-' + code.replace(/[^0-9A-Za-z]/g, '').slice(-4)
 type Tone = 'ok' | 'warn' | 'bad' | 'info' | 'neutral'
 
 /** navigator.onLine, kept current. */
@@ -157,7 +159,9 @@ export default function ActivationScreen({ embedded }: { embedded?: boolean }) {
           <p>{state.text}</p>
           {!demo && lic.state !== 'none' && (
             <div className="act-state-meta">
-              {lic.code && <span className="num">{t('activation.code', { code: lic.code })}</span>}
+              {/* the code is also the owner's key to "Forgot your PIN?": never shown in full (anyone holding the device or a
+                  cashier could read it); the owner has it from the seller */}
+              {lic.code && <span className="num" dir="ltr">{t('activation.code', { code: maskCode(lic.code) })}</span>}
               {(lic.state === 'active' || lic.state === 'trial') && (lic.expiresAt ? <span>{t('activation.expires', { date: formatDate(lic.expiresAt) })}</span> : lic.state === 'active' ? <span>{t('activation.lifetime')}</span> : null)}
               <span>{lic.lastCheck ? t('activation.lastCheck', { time: formatDateTime(lic.lastCheck) }) : t('activation.neverChecked')}</span>
               <Button variant="ghost" size="sm" icon={<RefreshCw size={14} />} loading={busy === 'check' || (lic.checking && !busy)} disabled={!!busy && busy !== 'check'} onClick={() => void check()}>{t('activation.checkNow')}</Button>

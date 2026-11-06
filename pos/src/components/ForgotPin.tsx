@@ -22,6 +22,20 @@ import { platform } from '../lib/platform'
 
 type How = 'code' | 'seller'
 
+const REQ_KEY = 'kaseb.pinReq'
+const today = () => Math.floor(Date.now() / 86400000)
+/** This device's pending request number, or a new one (kept until used or two days old). */
+function keptChallenge(device: string): string {
+  try {
+    const v = JSON.parse(localStorage.getItem(REQ_KEY) || 'null') as { d?: string; c?: string; day?: number } | null
+    if (v && v.d === device && typeof v.c === 'string' && /^[A-HJ-NP-Z2-9]{6}$/.test(v.c) && typeof v.day === 'number' && today() - v.day <= 2) return v.c
+  } catch { /* none kept */ }
+  const c = newResetChallenge()
+  try { localStorage.setItem(REQ_KEY, JSON.stringify({ d: device, c, day: today() })) } catch { /* kept for this window only */ }
+  return c
+}
+function dropChallenge(): void { try { localStorage.removeItem(REQ_KEY) } catch { /* nothing kept */ } }
+
 export function ForgotPin({ picked, onClose }: { picked: User; onClose: () => void }) {
   const t = useT()
   const mobile = useIsMobile()
@@ -34,7 +48,9 @@ export function ForgotPin({ picked, onClose }: { picked: User; onClose: () => vo
   const [how, setHow] = useState<How>(hasCode ? 'code' : 'seller')
   const [step, setStep] = useState<'verify' | 'reset'>('verify')
   const [via, setVia] = useState<How>('code')
-  const challenge = useMemo(() => newResetChallenge(), [])
+  // the request number survives closing the window or a restart (the seller may answer later on WhatsApp) and is
+  // dropped once used; the seller's code is tied to it and valid two days
+  const challenge = useMemo(() => keptChallenge(lic.deviceCode), [lic.deviceCode])
   const [actCode, setActCode] = useState('')
   const [resetCode, setResetCode] = useState('')
   const [err, setErr] = useState<string | null>(null)
@@ -58,7 +74,7 @@ export function ForgotPin({ picked, onClose }: { picked: User; onClose: () => vo
     setBusy(true)
     try {
       const r = await license.verifyPinReset(challenge, code)
-      if (r.ok) { setVia('seller'); setStep('reset') }
+      if (r.ok) { dropChallenge(); setVia('seller'); setStep('reset') }
       else setErr(t(r.error))
     } finally { setBusy(false) }
   }
@@ -135,7 +151,9 @@ export function ForgotPin({ picked, onClose }: { picked: User; onClose: () => vo
             <>
               <span className="small muted">{t('forgot.codeText')}</span>
               <Field label={t('forgot.actCode')} error={err ?? undefined}>
-                <Input className="ltr mono" autoFocus value={actCode} placeholder="XXXX-XXXX-XXXX" maxLength={14} autoCapitalize="characters" autoComplete="off" invalid={!!err} onChange={e => { setActCode(formatTyping(e.target.value)); setErr(null) }} />
+                <Input className="ltr mono" autoFocus value={actCode} placeholder="XXXX-XXXX-XXXX" maxLength={14} autoCapitalize="characters" autoComplete="off" invalid={!!err}
+                  onChange={e => { setActCode(formatTyping(e.target.value)); setErr(null) }}
+                  onPaste={e => { const txt = e.clipboardData.getData('text'); if (!txt) return; e.preventDefault(); const m = txt.toUpperCase().match(/[0-9A-Z]{4}-?[0-9A-Z]{4}-?[0-9A-Z]{4}/); setActCode(formatTyping(m ? m[0] : txt)); setErr(null) }} />
               </Field>
             </>
           ) : (
@@ -147,7 +165,9 @@ export function ForgotPin({ picked, onClose }: { picked: User; onClose: () => vo
               </div>
               {(info.whatsapp || DEFAULT_INFO.whatsapp) && <Button variant="soft" icon={<MessageCircle size={16} />} onClick={askSeller}>{t('forgot.sendWa')}</Button>}
               <Field label={t('forgot.resetCode')} error={err ?? undefined}>
-                <Input className="ltr mono" inputMode="numeric" value={resetCode} placeholder="000000" maxLength={6} autoComplete="one-time-code" invalid={!!err} onChange={e => { setResetCode(normalizePin(e.target.value)); setErr(null) }} />
+                <Input className="ltr mono" inputMode="numeric" value={resetCode} placeholder="000000" maxLength={6} autoComplete="one-time-code" invalid={!!err}
+                  onChange={e => { setResetCode(normalizePin(e.target.value)); setErr(null) }}
+                  onPaste={e => { const txt = e.clipboardData.getData('text'); if (!txt) return; e.preventDefault(); const d = txt.replace(/[٠-٩]/g, ch => String('٠١٢٣٤٥٦٧٨٩'.indexOf(ch))).replace(/[۰-۹]/g, ch => String('۰۱۲۳۴۵۶۷۸۹'.indexOf(ch))); const m = d.match(/\d{6}/); setResetCode(m ? m[0] : normalizePin(d)); setErr(null) }} />
               </Field>
             </>
           )}
