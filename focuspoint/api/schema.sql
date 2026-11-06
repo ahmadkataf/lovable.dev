@@ -152,3 +152,19 @@ CREATE TABLE IF NOT EXISTS room_photos (             -- Room.photos, in order (�
   small TEXT,                                        -- optional ≤720 px variant (Photo.small)
   PRIMARY KEY (room_id, sort)
 );
+CREATE TABLE IF NOT EXISTS ledger (                 -- the admin's accounts (الحسابات): what bookings don't cover
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  kind TEXT NOT NULL CHECK (kind IN ('expense','income','payable','receivable')),   -- مصروف · دخل آخر · دين علي · دين إلي
+  category TEXT NOT NULL DEFAULT 'other',
+  amount INTEGER NOT NULL CHECK (amount >= 0),
+  currency TEXT NOT NULL DEFAULT 'SYP' CHECK (currency IN ('SYP','USD')),
+  date TEXT NOT NULL,                               -- YYYY-MM-DD (local): when it was spent/earned, or when the debt arose
+  party TEXT,                                       -- who (supplier, organisation, person)
+  note TEXT,
+  settled_at TEXT,                                  -- debts: when paid (then it counts in that month); NULL = still open
+  created_by INTEGER REFERENCES users(id),
+  created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
+  updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now'))
+);
+CREATE INDEX IF NOT EXISTS ledger_date ON ledger(date);
+CREATE INDEX IF NOT EXISTS bookings_paid ON bookings(paid_at);

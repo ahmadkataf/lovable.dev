@@ -6,6 +6,7 @@ import { fmtMoney, isSeats } from '@shared/pricing'
 import { KIND_LABEL, TIER_LABEL } from '../lib/booking'
 import { Badge, Button, Field, Icon, Input, Select, Sheet, Stepper, Textarea, useToast } from '../ui'
 import { Confirm } from './common'
+import { api } from '../api'
 import { store, useRooms, useSettings } from './store'
 import { describeError, durationOptions, findConflict, isTemp, METHOD, minutesBetween, parseInt10, priceFor, startOptions, telHref, whatsappHref } from './util'
 
@@ -20,11 +21,22 @@ export function BookingSheet({ booking, onClose }: { booking: Booking | null; on
     try { await fn(); toast.show(label, 'ok'); onClose() } catch (err) { toast.show(describeError(err), 'error') }
   }
 
+  const [paying, setPaying] = useState(false)
+  async function markPaid() {
+    if (!b) return
+    setPaying(true)
+    try { await api.post(`/v1/team/bookings/${b.id}/paid`, { paid: true }); toast.show('تم تسجيل الدفع', 'ok'); void store.refetch(); onClose() }
+    catch (e) { toast.show(describeError(e), 'error') } finally { setPaying(false) }
+  }
+
   if (!b) return null
   const st = statusLabel(b.status, b.method)
   const canConfirm = b.status === 'awaiting_verification' || b.status === 'pending_payment'
   const canReject = canConfirm
   const canCancel = canConfirm || b.status === 'confirmed'
+  // Booked «على الحساب» (confirmed, not paid yet): record the payment when it comes (online; it feeds the accounts).
+  const unpaid = (b.status === 'confirmed' || b.status === 'completed') && !b.paid_at && b.price > 0 && b.method !== 'free' && !isTemp(b.id)
+
   const canEdit = canCancel
   const title = mode === 'edit' ? 'تعديل الحجز' : mode === 'reject' ? 'رفض الحجز' : `حجز ${b.customer_name}`
 
@@ -65,6 +77,12 @@ export function BookingSheet({ booking, onClose }: { booking: Booking | null; on
             <Button variant="soft" onClick={() => { location.href = telHref(b.customer_phone) }}><Icon name="phone" size={18} /> اتصال</Button>
             <Button variant="soft" onClick={() => window.open(whatsappHref(b.customer_phone, `مرحباً ${b.customer_name}، بخصوص حجزك ${b.code} في فوكس بوينت`), '_blank', 'noopener')}><Icon name="whatsapp" size={18} /> واتساب</Button>
           </div>
+          {unpaid && (
+            <div className="alert alert-info mt-sm row between gap wrap">
+              <span><b>لسا ما اندفع</b> — {fmtMoney(b.price, b.currency ?? 'SYP')} على الحساب</span>
+              <Button size="sm" loading={paying} onClick={markPaid}>وصل المبلغ</Button>
+            </div>
+          )}
           {(canConfirm || canReject || canEdit || canCancel) && (
             <div className="action-grid">
               {canConfirm && (

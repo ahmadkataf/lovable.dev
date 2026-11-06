@@ -14,11 +14,12 @@ import { contentRoutes } from './routes/content'
 import { paymentRoutes } from './routes/payments'
 import { publicRoutes } from './routes/public'
 import { syncRoutes } from './routes/sync'
+import { accountRoutes } from './routes/accounts'
 import { teamRoutes } from './routes/team'
 import { isUuid } from './validate'
 
 // Order matters only where a static path shadows a ":param" path (e.g. /v1/bookings/mine before /v1/bookings/:id).
-const routes: Route[] = [...publicRoutes, ...teamRoutes, ...syncRoutes, ...adminRoutes, ...contentRoutes, ...paymentRoutes]
+const routes: Route[] = [...publicRoutes, ...teamRoutes, ...syncRoutes, ...adminRoutes, ...accountRoutes, ...contentRoutes, ...paymentRoutes]
 
 async function handleApi(req: Request, env: Env, exec: ExecutionContext, url: URL): Promise<Response> {
   if (req.method === 'OPTIONS') return new Response(null, { status: 204, headers: CORS_HEADERS })

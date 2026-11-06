@@ -33,6 +33,7 @@ export function Settings() {
       <div className="quick-links">
         <Link to="/team/site" className="card quick-link is-wide"><Icon name="globe" size={20} /> الموقع: النصوص والصور</Link>
         <Link to="/team/plan" className="card quick-link"><Icon name="grid" size={20} /> مخطط المركز</Link>
+        <Link to="/team/accounts" className="card quick-link"><Icon name="chart" size={20} /> الحسابات</Link>
         <Link to="/team/customers" className="card quick-link"><Icon name="people" size={20} /> الزبائن</Link>
       </div>
       <div className="mb"><Tabs tabs={TABS} value={tab} onChange={(id) => navigate(`/team/settings/${id === 'centre' ? '' : id}`)} /></div>

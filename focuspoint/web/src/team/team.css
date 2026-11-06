@@ -423,3 +423,24 @@ body:has(.se-savebar) .toasts { bottom: calc(var(--nav-h) + 84px + env(safe-area
 .se-vars-help { color: var(--mute); font-size: 0.78rem; line-height: 1.6; }
 .se-vars .se-chips { margin-top: 6px; margin-bottom: 6px; }
 .se-chip.is-var { font-family: var(--font); background: #fff; }
+
+/* ---- accounts (/team/accounts) ---- */
+.acc-month { display: flex; align-items: center; justify-content: center; gap: 14px; margin: 4px 0 14px; font-size: 1.05rem; }
+.acc { display: flex; flex-direction: column; gap: 14px; }
+.acc-kpis { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+.acc-kpi { background: var(--card, #fff); border: 1px solid var(--line); border-radius: 16px; padding: 12px; display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.acc-kpi span { font-size: 0.8rem; color: var(--mute); font-weight: 600; }
+.acc-kpi b { font-size: 1rem; font-weight: 800; overflow-wrap: anywhere; }
+.acc-kpi small { font-size: 0.72rem; color: var(--mute); overflow-wrap: anywhere; }
+.acc-kpi.is-in b { color: #047857; } .acc-kpi.is-out b { color: #b91c1c; } .acc-kpi.is-net b { color: var(--wine); } .acc-kpi.is-neg b { color: #b91c1c; }
+.acc-two { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 14px; }
+.acc-total { font-size: 1.25rem; font-weight: 800; color: #047857; margin: 2px 0 8px; } .acc-total.is-out { color: #b91c1c; }
+.acc-list { list-style: none; margin: 0; padding: 0; }
+.acc-list > li { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 9px 0; border-top: 1px solid var(--line); }
+.acc-list > li:first-child { border-top: 0; }
+.acc-list > li > span:first-child, .acc-row > span:first-child { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.acc-list small { color: var(--mute); font-size: 0.76rem; }
+.acc-amt { display: flex; align-items: center; gap: 8px; font-weight: 700; white-space: nowrap; flex: none; }
+.acc-amt .is-out { color: #b91c1c; } .acc-amt .is-in { color: #047857; }
+.acc-row { all: unset; display: flex; justify-content: space-between; align-items: center; gap: 10px; width: 100%; cursor: pointer; }
+@media (max-width: 520px) { .acc-kpis { grid-template-columns: 1fr; } }

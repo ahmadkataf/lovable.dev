@@ -37,6 +37,7 @@ function Form({ onClose, preset }: { onClose: () => void; preset?: ManualPreset 
   const [name, setName] = useState('')
   const [phone, setPhone] = useState('')
   const [method, setMethod] = useState<PaymentMethod>('cash')
+  const [payLater, setPayLater] = useState(false)
   const [price, setPrice] = useState('')
   const [priceTouched, setPriceTouched] = useState(false)
   const [note, setNote] = useState('')
@@ -84,7 +85,7 @@ function Form({ onClose, preset }: { onClose: () => void; preset?: ManualPreset 
     setBusy(true)
     try {
       await store.manualBooking({
-        room_id: roomId, start, end, name: name.trim(), phone: p!, method, price: pr!, note: note.trim() || undefined,
+        room_id: roomId, start, end, name: name.trim(), phone: p!, method, price: pr!, note: note.trim() || undefined, ...(payLater ? { pay_later: true } : {}),
         ...(perHead ? { seats: useSeats } : {}), ...(hall ? { tier } : {}), ...(kind !== 'hourly' ? { kind, date } : {}),
       })
       toast.show(`تم حجز ${room!.name} لـ${name.trim()}`, 'ok')
@@ -139,7 +140,9 @@ function Form({ onClose, preset }: { onClose: () => void; preset?: ManualPreset 
         <Field label="رقم الهاتف" error={errors.phone}><Input type="tel" inputMode="tel" dir="ltr" placeholder="09XXXXXXXX" value={phone} onChange={(e) => setPhone(e.target.value)} autoComplete="off" /></Field>
       </div>
       <Field label="الدفع">
-        <Segmented<PaymentMethod> options={[{ value: 'cash', label: 'نقداً' }, { value: 'free', label: 'مجاني' }]} value={method} onChange={(m) => { setMethod(m); setPriceTouched(false) }} />
+        <Segmented<'cash' | 'later' | 'free'> options={[{ value: 'cash', label: 'نقداً' }, { value: 'later', label: 'على الحساب' }, { value: 'free', label: 'مجاني' }]}
+          value={payLater ? 'later' : (method as 'cash' | 'free')} onChange={(m) => { setPayLater(m === 'later'); setMethod(m === 'free' ? 'free' : 'cash'); setPriceTouched(false) }} />
+        {payLater && <span className="field-hint">الحجز بيتأكد هلق والمبلغ بيضل بقائمة «إلي» بالحسابات لحد ما يوصل.</span>}
       </Field>
       <Field label={currency === 'USD' ? 'السعر (دولار)' : 'السعر (ل.س)'} error={errors.price} hint={priceTouched && parseInt10(price) !== auto ? `السعر المحسوب: ${fmtMoney(auto, currency)}` : undefined}>
         <Input dir="ltr" inputMode="numeric" value={price} onChange={(e) => { setPrice(e.target.value); setPriceTouched(true) }} />

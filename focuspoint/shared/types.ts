@@ -108,6 +108,30 @@ export interface Settings {
   vapid_public_key: string                             // for push subscriptions
 }
 
+// ---------- accounts (admin › الحسابات) ----------
+/** expense = money out; income = other money in (not a booking); payable = a debt the centre owes (عليّ);
+ *  receivable = a debt owed to the centre (إلي). A debt counts as money out/in in the month it is settled. */
+export type LedgerKind = 'expense' | 'income' | 'payable' | 'receivable'
+export interface LedgerEntry {
+  id: number; kind: LedgerKind; category: string; amount: number; currency: Currency
+  date: string; party: string | null; note: string | null; settled_at: string | null
+  created_by: number | null; created_at: string; updated_at: string
+}
+export type Money = Record<Currency, number>
+export interface AccountsMonth {
+  month: string                                     // YYYY-MM (local)
+  income: { bookings: Money; other: Money; total: Money }
+  expenses: Money
+  net: Money
+  by_room: { room: string; amount: Money; bookings: number }[]
+  by_kind: { key: 'hourly' | 'subscription' | 'hall_org' | 'hall_gov'; amount: Money; bookings: number }[]
+  by_category: { category: string; amount: Money }[]
+  entries: LedgerEntry[]                            // entries dated in the month, or debts settled in it
+  // open now (any month)
+  owed_to_me: { bookings: Booking[]; entries: LedgerEntry[]; total: Money }      // إلي
+  i_owe: { entries: LedgerEntry[]; total: Money }                                // عليّ
+}
+
 // ---------- API (all JSON; errors are {error: string} with 4xx/5xx) ----------
 // Customers: no accounts. The app generates a random device id (UUID) once and sends it as "X-Device: <id>" on every
 // request; a booking is tied to that device and to the phone number typed in. A customer can also find a booking
@@ -136,10 +160,11 @@ export interface ApiContract {
   'POST /v1/team/bookings/:id/confirm': { res: Booking }           // verifies payment → confirmed (push to the customer device)
   'POST /v1/team/bookings/:id/reject': { req: { reason: string }; res: Booking }
   'POST /v1/team/bookings/manual': { req: { room_id: number; start?: string; end?: string; phone: string; name: string; method: PaymentMethod; price?: number; note?: string; client_id?: string
-    seats?: number; tier?: HallTier; kind?: BookingKind; date?: string }; res: Booking }  // walk-in → confirmed; client_id makes it idempotent (offline queue)
+    seats?: number; tier?: HallTier; kind?: BookingKind; date?: string; pay_later?: boolean }; res: Booking }  // walk-in → confirmed; client_id makes it idempotent (offline queue)
   'PATCH /v1/team/bookings/:id': { req: { start?: string; end?: string; room_id?: number; note?: string; price?: number; seats?: number }; res: Booking }   // move/edit (checks overlap)
   'GET /v1/team/dashboard?date=': { res: { today: Booking[]; pending: Booking[]; counts: { today: number; week: number; pending: number }; revenue_month: number; revenue_month_usd: number } }
   'GET /v1/team/customers?q=': { res: Customer[] }
+  'POST /v1/team/bookings/:id/paid': { req: { paid: boolean }; res: Booking }   // record (or undo) that a confirmed booking was paid
   'POST /v1/team/customers/:phone/block': { req: { blocked: 0 | 1 }; res: Customer }
   // offline sync (team app): everything changed since a cursor, so the panel works offline and catches up
   'GET /v1/team/sync?since=<iso>': { res: { now: string; rooms: Room[]; bookings: Booking[]; settings: Settings; deleted_rooms: number[] } }
@@ -155,6 +180,10 @@ export interface ApiContract {
   'POST /v1/admin/team': { req: { phone: string; name: string; password: string; role: Role }; res: User }
   'PATCH /v1/admin/team/:id': { req: { role?: Role; disabled?: 0 | 1; name?: string; password?: string }; res: User }
   'POST /v1/admin/announce': { req: { title: string; body: string; to: 'customers' | 'team' }; res: { sent: number } }
+  'GET /v1/admin/accounts?month=YYYY-MM': { res: AccountsMonth }
+  'POST /v1/admin/ledger': { req: Omit<LedgerEntry, 'id' | 'created_by' | 'created_at' | 'updated_at' | 'settled_at'>; res: LedgerEntry }
+  'PATCH /v1/admin/ledger/:id': { req: Partial<Omit<LedgerEntry, 'id' | 'created_by' | 'created_at' | 'updated_at'>>; res: LedgerEntry }
+  'DELETE /v1/admin/ledger/:id': { res: { ok: true } }
   'GET /v1/admin/report?from=&to=': { res: { bookings: Booking[]; revenue: number; revenue_usd: number; hours_by_room: Record<string, number> } }
   'POST /v1/admin/bootstrap': { req: { setup_key: string; phone: string; name: string; password: string }; res: { token: string; user: User } }  // first admin only
   // site content (see ./content): defaults ⊕ the sections the admin saved

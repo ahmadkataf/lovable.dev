@@ -207,11 +207,14 @@ export async function createManualBooking(d: Deps, user: User, body: ApiContract
   if (await clashes(db, room, w.start, w.end, unitsOf(room, w.seats), d.now, null)) throw new HttpError(409, 'slot_taken')
 
   const confirmed = method !== 'shamcash'
+  // «على الحساب»: confirmed now, paid later (an organisation's hall booking, say) — it stays under «إلي» in the accounts
+  // until someone records the payment (POST /v1/team/bookings/:id/paid).
+  const payLater = method === 'cash' && b.pay_later === true
   return insertChecked(d, room, {
     code: await freshCode(db), phone, name, deviceId: null, clientId, roomId: room.id, start: w.start, end: w.end,
     status: confirmed ? 'confirmed' : 'pending_payment', price, method, note, people: isSeats(room) || room.type === 'private' ? w.seats : null,
     holdUntil: confirmed ? null : new Date(d.now.getTime() + settings.hold_minutes * 60000).toISOString(),
-    verifiedBy: confirmed ? user.id : null, paidAt: confirmed ? d.now.toISOString() : null,
+    verifiedBy: confirmed ? user.id : null, paidAt: confirmed && !payLater ? d.now.toISOString() : null,
     currency: computed.currency, kind: w.kind, seats: w.seats, tier: w.tier,
   })
 }

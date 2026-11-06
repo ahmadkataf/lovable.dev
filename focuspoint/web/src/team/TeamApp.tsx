@@ -16,6 +16,7 @@ import { Rooms } from './Rooms'
 import { PlanEditor } from './PlanEditor'
 import { Customers } from './Customers'
 import { Settings } from './Settings'
+import { Accounts } from './Accounts'
 import './team.css'
 
 // The site editor (admin only) carries the whole content schema: load it on first visit, not with the panel.
@@ -27,6 +28,7 @@ const NAV: NavItem[] = [
   { to: '/team/bookings', label: 'الحجوزات', icon: 'calendar', phone: true },
   { to: '/team/rooms', label: 'القاعات', icon: 'door', phone: true },
   { to: '/team/plan', label: 'المخطط', icon: 'grid', admin: true },
+  { to: '/team/accounts', label: 'الحسابات', icon: 'chart', admin: true },
   { to: '/team/customers', label: 'الزبائن', icon: 'people', admin: true },
   // A phone tab for admins (5 tabs): the site editor is used live, often on a phone in a meeting.
   { to: '/team/site', label: 'الموقع', icon: 'globe', admin: true, phone: true },
@@ -104,6 +106,7 @@ function Shell() {
               <Route path="rooms" element={<Rooms />} />
               <Route path="plan" element={<RequireTeam adminOnly><PlanEditor /></RequireTeam>} />
               <Route path="customers" element={<RequireTeam adminOnly><Customers /></RequireTeam>} />
+              <Route path="accounts" element={<RequireTeam adminOnly><Accounts /></RequireTeam>} />
               <Route path="settings/*" element={<RequireTeam adminOnly><Settings /></RequireTeam>} />
               <Route path="site/*" element={<RequireTeam adminOnly><Suspense fallback={<div className="center center-pad"><Spinner /></div>}><SiteEditor /></Suspense></RequireTeam>} />
               <Route path="*" element={<Navigate to="/team" replace />} />
