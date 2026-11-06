@@ -135,7 +135,7 @@ export function pickFor(s: PublicSettings, date: string): Pick {
   const slots = slotsFor(s, date)
   const time = slots[0] || s.open
   const ds = durationsFor(s, time)
-  const minutes = ds.includes(120) ? 120 : (ds[ds.length - 1] ?? s.min_minutes)
+  const minutes = ds.includes(60) ? 60 : (ds[0] ?? s.min_minutes)   // default: one hour (owner's choice)
   return { date, time, minutes }
 }
 /** Today, next slot, 2 hours — or the first slot tomorrow when the centre is closing. */

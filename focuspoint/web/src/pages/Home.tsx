@@ -131,7 +131,7 @@ export function BookHome() {
       return
     }
     if (!slots.includes(pick.time)) { setPick({ ...pick, time: slots[0] }); return }
-    if (durations.length && !durations.includes(pick.minutes)) setPick({ ...pick, minutes: durations.includes(120) ? 120 : durations[durations.length - 1] })
+    if (durations.length && !durations.includes(pick.minutes)) setPick({ ...pick, minutes: durations.includes(60) ? 60 : durations[0] })
   }, [settings, pick, slots, durations])
 
   const offlineData = settingsQ.fromCache || roomsQ.fromCache || availQ.fromCache || !online
